@@ -13,10 +13,22 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
-import {type ModelInvocationResult, type PlanInput} from '@omne-harness-lite/model-request-runtime'
-import {createModelTransportService, createOpenAiInputMeter, createPiAiTransport, openaiConfiguration, openaiDefinitions} from '@omne-harness-lite/pi-ai-transport'
-import {type AdaptationLease, type ModelDefinition} from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import {
+  type ModelInvocationResult,
+  type PlanInput,
+} from '@omne-harness-lite/model-request-runtime'
+import {
+  createModelTransportService,
+  createOpenAiInputMeter,
+  createPiAiTransport,
+  openaiConfiguration,
+  openaiDefinitions,
+} from '@omne-harness-lite/pi-ai-transport'
+import {
+  type AdaptationLease,
+  type ModelDefinition,
+} from '@omne-harness-lite/model-request-runtime'
 import { type InputMeter, type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
 import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'

@@ -12,7 +12,7 @@
 import { createHash } from 'node:crypto'
 import type { JsonObject, JsonValue } from '@omne-harness-lite/content-blocks'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
-import type {ModelDefinition} from '@omne-harness-lite/model-request-runtime'
+import type { ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import type { InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { createGoogleHistoryInputMeter } from '../../../src/input-meters/google.ts'
 import type { GoogleHistoryRelease } from '../../../src/input-meters/google-history-policy.ts'

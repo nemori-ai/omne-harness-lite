@@ -5,8 +5,8 @@ import {
   configurationSchema,
   interpretConfiguration,
 } from '../src/configuration.ts'
-import {ownDefinitions, readModelDefinition} from '../src/definitions.ts'
-import {type ModelDefinition} from '@omne-harness-lite/model-request-runtime'
+import { ownDefinitions, readModelDefinition } from '../src/definitions.ts'
+import { type ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import { deepseekDefinitions } from '../src/official-models/deepseek.ts'
 
 const pro = deepseekDefinitions[1]

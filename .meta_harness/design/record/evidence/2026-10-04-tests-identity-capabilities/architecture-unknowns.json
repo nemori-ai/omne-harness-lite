@@ -1,0 +1,266 @@
+{
+  "head": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+  "items": [
+    {
+      "id": "[\"apps/tenancy-host\",\"\",\"top\",\"composition\",\"managedAccountIdentityPlugin\",\"Manifest plugin reference is not statically resolved (packages/tenancy/account-identity-sql)\"]",
+      "site": {
+        "path": "apps/tenancy-host/src/manifest.ts",
+        "line": 117,
+        "member": "apps/tenancy-host",
+        "scope": "top",
+        "kind": "composition",
+        "expression": "managedAccountIdentityPlugin",
+        "reason": "Manifest plugin reference is not statically resolved (packages/tenancy/account-identity-sql)",
+        "serviceIdentifier": false
+      },
+      "reading": "Object.assign包裹的管理出口未由AST静态连到manifest。实际8出口元数据与独立Q0/host113补证；静态unknown保留。",
+      "owner": "T2"
+    },
+    {
+      "id": "[\"apps/tenancy-host\",\"\",\"top\",\"composition\",\"managedClockPlugin\",\"Manifest plugin reference is not statically resolved (packages/infra/clock-lease)\"]",
+      "site": {
+        "path": "apps/tenancy-host/src/manifest.ts",
+        "line": 112,
+        "member": "apps/tenancy-host",
+        "scope": "top",
+        "kind": "composition",
+        "expression": "managedClockPlugin",
+        "reason": "Manifest plugin reference is not statically resolved (packages/infra/clock-lease)",
+        "serviceIdentifier": false
+      },
+      "reading": "Object.assign包裹的管理出口未由AST静态连到manifest。实际8出口元数据与独立Q0/host113补证；静态unknown保留。",
+      "owner": "T2"
+    },
+    {
+      "id": "[\"apps/tenancy-host\",\"\",\"top\",\"composition\",\"managedCredentialsPlugin\",\"Manifest plugin reference is not statically resolved (packages/tenancy/credential-verification-scrypt)\"]",
+      "site": {
+        "path": "apps/tenancy-host/src/manifest.ts",
+        "line": 114,
+        "member": "apps/tenancy-host",
+        "scope": "top",
+        "kind": "composition",
+        "expression": "managedCredentialsPlugin",
+        "reason": "Manifest plugin reference is not statically resolved (packages/tenancy/credential-verification-scrypt)",
+        "serviceIdentifier": false
+      },
+      "reading": "Object.assign包裹的管理出口未由AST静态连到manifest。实际8出口元数据与独立Q0/host113补证；静态unknown保留。",
+      "owner": "T2"
+    },
+    {
+      "id": "[\"apps/tenancy-host\",\"\",\"top\",\"composition\",\"managedGovernanceCenterEntryPlugin\",\"Manifest plugin reference is not statically resolved (packages/tenancy/governance-center-entry-node)\"]",
+      "site": {
+        "path": "apps/tenancy-host/src/manifest.ts",
+        "line": 143,
+        "member": "apps/tenancy-host",
+        "scope": "top",
+        "kind": "composition",
+        "expression": "managedGovernanceCenterEntryPlugin",
+        "reason": "Manifest plugin reference is not statically resolved (packages/tenancy/governance-center-entry-node)",
+        "serviceIdentifier": false
+      },
+      "reading": "Object.assign包裹的管理出口未由AST静态连到manifest。实际8出口元数据与独立Q0/host113补证；静态unknown保留。",
+      "owner": "T2"
+    },
+    {
+      "id": "[\"apps/tenancy-host\",\"\",\"top\",\"composition\",\"managedGovernanceCenterOpsPlugin\",\"Manifest plugin reference is not statically resolved (packages/tenancy/governance-center-entry-node)\"]",
+      "site": {
+        "path": "apps/tenancy-host/src/manifest.ts",
+        "line": 142,
+        "member": "apps/tenancy-host",
+        "scope": "top",
+        "kind": "composition",
+        "expression": "managedGovernanceCenterOpsPlugin",
+        "reason": "Manifest plugin reference is not statically resolved (packages/tenancy/governance-center-entry-node)",
+        "serviceIdentifier": false
+      },
+      "reading": "Object.assign包裹的管理出口未由AST静态连到manifest。实际8出口元数据与独立Q0/host113补证；静态unknown保留。",
+      "owner": "T2"
+    },
+    {
+      "id": "[\"apps/tenancy-host\",\"\",\"top\",\"composition\",\"managedOrganizationGovernancePlugin\",\"Manifest plugin reference is not statically resolved (packages/tenancy/organization-governance-sql)\"]",
+      "site": {
+        "path": "apps/tenancy-host/src/manifest.ts",
+        "line": 129,
+        "member": "apps/tenancy-host",
+        "scope": "top",
+        "kind": "composition",
+        "expression": "managedOrganizationGovernancePlugin",
+        "reason": "Manifest plugin reference is not statically resolved (packages/tenancy/organization-governance-sql)",
+        "serviceIdentifier": false
+      },
+      "reading": "Object.assign包裹的管理出口未由AST静态连到manifest。实际8出口元数据与独立Q0/host113补证；静态unknown保留。",
+      "owner": "T2"
+    },
+    {
+      "id": "[\"apps/tenancy-host\",\"\",\"top\",\"composition\",\"managedRegistrationPlugin\",\"Manifest plugin reference is not statically resolved (packages/tenancy/account-registration-sequential)\"]",
+      "site": {
+        "path": "apps/tenancy-host/src/manifest.ts",
+        "line": 139,
+        "member": "apps/tenancy-host",
+        "scope": "top",
+        "kind": "composition",
+        "expression": "managedRegistrationPlugin",
+        "reason": "Manifest plugin reference is not statically resolved (packages/tenancy/account-registration-sequential)",
+        "serviceIdentifier": false
+      },
+      "reading": "Object.assign包裹的管理出口未由AST静态连到manifest。实际8出口元数据与独立Q0/host113补证；静态unknown保留。",
+      "owner": "T2"
+    },
+    {
+      "id": "[\"apps/tenancy-host\",\"\",\"top\",\"composition\",\"managedStorageSqlPlugin\",\"Manifest plugin reference is not statically resolved (packages/infra/storage-sql)\"]",
+      "site": {
+        "path": "apps/tenancy-host/src/manifest.ts",
+        "line": 111,
+        "member": "apps/tenancy-host",
+        "scope": "top",
+        "kind": "composition",
+        "expression": "managedStorageSqlPlugin",
+        "reason": "Manifest plugin reference is not statically resolved (packages/infra/storage-sql)",
+        "serviceIdentifier": false
+      },
+      "reading": "Object.assign包裹的管理出口未由AST静态连到manifest。实际8出口元数据与独立Q0/host113补证；静态unknown保留。",
+      "owner": "T2"
+    },
+    {
+      "id": "[\"packages/core/kernel-basis\",\"\",\"top\",\"optional\",\"name\",\"Expression has no static string value in this revision\"]",
+      "site": {
+        "path": "packages/core/kernel-basis/src/plugin.ts",
+        "line": 35,
+        "member": "packages/core/kernel-basis",
+        "scope": "top",
+        "kind": "optional",
+        "expression": "name",
+        "reason": "Expression has no static string value in this revision",
+        "serviceIdentifier": true
+      },
+      "reading": "泛型helper或testing辅助的动态服务键；不是某个具体部署已解析的证据。具体键须由实际消费者验证。",
+      "owner": "共享机制"
+    },
+    {
+      "id": "[\"packages/core/kernel-basis\",\"\",\"top\",\"plugin\",\"{\\n    name: definition.name,\\n    Config: definition.Config,\\n    apply: definition.apply,\\n  }\",\"name/apply candidate has no static Cordis Context, Plugin type or ctx.plugin registration provenance\"]",
+      "site": {
+        "path": "packages/core/kernel-basis/src/plugin.ts",
+        "line": 21,
+        "member": "packages/core/kernel-basis",
+        "scope": "top",
+        "kind": "plugin",
+        "expression": "{\n    name: definition.name,\n    Config: definition.Config,\n    apply: definition.apply,\n  }",
+        "reason": "name/apply candidate has no static Cordis Context, Plugin type or ctx.plugin registration provenance",
+        "serviceIdentifier": false
+      },
+      "reading": "泛型helper或testing辅助的动态服务键；不是某个具体部署已解析的证据。具体键须由实际消费者验证。",
+      "owner": "共享机制"
+    },
+    {
+      "id": "[\"packages/core/kernel-basis\",\"assembly-services\",\"top\",\"provides\",\"service.name\",\"Expression has no static string value in this revision\"]",
+      "site": {
+        "path": "packages/core/kernel-basis/src/testing/index.ts",
+        "line": 40,
+        "member": "packages/core/kernel-basis",
+        "plugin": "assembly-services",
+        "scope": "top",
+        "kind": "provides",
+        "expression": "service.name",
+        "reason": "Expression has no static string value in this revision",
+        "serviceIdentifier": true
+      },
+      "reading": "泛型helper或testing辅助的动态服务键；不是某个具体部署已解析的证据。具体键须由实际消费者验证。",
+      "owner": "共享机制"
+    },
+    {
+      "id": "[\"packages/model/model-profile-directory\",\"model-catalog-local-credential\",\"top\",\"optional\",\"key\",\"Expression has no static string value in this revision\"]",
+      "site": {
+        "path": "packages/model/model-profile-directory/src/plugin.ts",
+        "line": 106,
+        "member": "packages/model/model-profile-directory",
+        "plugin": "model-catalog-local-credential",
+        "scope": "top",
+        "kind": "optional",
+        "expression": "key",
+        "reason": "Expression has no static string value in this revision",
+        "serviceIdentifier": true
+      },
+      "reading": "动态可选键或按模型身份计算的插件名；本批只迁必要身份消费者，完整模型选择/作用域证据由R2负责。",
+      "owner": "R2"
+    },
+    {
+      "id": "[\"packages/model/model-profile-directory\",\"model-profile-directory\",\"top\",\"optional\",\"key\",\"Expression has no static string value in this revision\"]",
+      "site": {
+        "path": "packages/model/model-profile-directory/src/plugin.ts",
+        "line": 106,
+        "member": "packages/model/model-profile-directory",
+        "plugin": "model-profile-directory",
+        "scope": "top",
+        "kind": "optional",
+        "expression": "key",
+        "reason": "Expression has no static string value in this revision",
+        "serviceIdentifier": true
+      },
+      "reading": "动态可选键或按模型身份计算的插件名；本批只迁必要身份消费者，完整模型选择/作用域证据由R2负责。",
+      "owner": "R2"
+    },
+    {
+      "id": "[\"packages/model/pi-ai-transport\",\"\",\"top\",\"plugin\",\"`model-adaptation:${owned.modelId}:${owned.implementation.revision}:${owned.revision}`\",\"Expression has no static string value in this revision\"]",
+      "site": {
+        "path": "packages/model/pi-ai-transport/src/plugin.ts",
+        "line": 142,
+        "member": "packages/model/pi-ai-transport",
+        "scope": "top",
+        "kind": "plugin",
+        "expression": "`model-adaptation:${owned.modelId}:${owned.implementation.revision}:${owned.revision}`",
+        "reason": "Expression has no static string value in this revision",
+        "serviceIdentifier": false
+      },
+      "reading": "动态可选键或按模型身份计算的插件名；本批只迁必要身份消费者，完整模型选择/作用域证据由R2负责。",
+      "owner": "R2"
+    },
+    {
+      "id": "[\"packages/tenancy/account-registration-sequential\",\"account-registration-sequential-managed\",\"top\",\"injects\",\"...[ACCOUNTS_SERVICE, ORGANIZATIONS_SERVICE, ORGANIZATION_PURGE_SERVICE]\",\"Expression has no static string value in this revision\"]",
+      "site": {
+        "path": "packages/tenancy/account-registration-sequential/src/plugin.ts",
+        "line": 52,
+        "member": "packages/tenancy/account-registration-sequential",
+        "plugin": "account-registration-sequential-managed",
+        "scope": "top",
+        "kind": "injects",
+        "expression": "...[ACCOUNTS_SERVICE, ORGANIZATIONS_SERVICE, ORGANIZATION_PURGE_SERVICE]",
+        "reason": "Expression has no static string value in this revision",
+        "serviceIdentifier": true
+      },
+      "reading": "这是密集数组的spread，不是SQL已修空项。真实导出读取与缺依赖/重复apply观察补证；未扩大静态解析结论。",
+      "owner": "T2"
+    },
+    {
+      "id": "[\"packages/tenancy/governance-center-entry-node\",\"governance-center-entry-node-managed\",\"top\",\"injects\",\"...dependencies\",\"Expression has no static string value in this revision\"]",
+      "site": {
+        "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+        "line": 389,
+        "member": "packages/tenancy/governance-center-entry-node",
+        "plugin": "governance-center-entry-node-managed",
+        "scope": "top",
+        "kind": "injects",
+        "expression": "...dependencies",
+        "reason": "Expression has no static string value in this revision",
+        "serviceIdentifier": true
+      },
+      "reading": "这是密集数组的spread，不是SQL已修空项。真实导出读取与缺依赖/重复apply观察补证；未扩大静态解析结论。",
+      "owner": "T2"
+    },
+    {
+      "id": "[\"packages/tenancy/organization-governance-sql\",\"organization-governance-sql-managed\",\"top\",\"injects\",\"...[STORAGE_SERVICE, CLOCK_SERVICE, ACCOUNTS_SERVICE, LOGINS_SERVICE]\",\"Expression has no static string value in this revision\"]",
+      "site": {
+        "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+        "line": 86,
+        "member": "packages/tenancy/organization-governance-sql",
+        "plugin": "organization-governance-sql-managed",
+        "scope": "top",
+        "kind": "injects",
+        "expression": "...[STORAGE_SERVICE, CLOCK_SERVICE, ACCOUNTS_SERVICE, LOGINS_SERVICE]",
+        "reason": "Expression has no static string value in this revision",
+        "serviceIdentifier": true
+      },
+      "reading": "这是密集数组的spread，不是SQL已修空项。真实导出读取与缺依赖/重复apply观察补证；未扩大静态解析结论。",
+      "owner": "T2"
+    }
+  ]
+}

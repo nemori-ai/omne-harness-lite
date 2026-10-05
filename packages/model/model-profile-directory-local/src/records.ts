@@ -13,7 +13,11 @@ import {
 } from '@omne-harness-lite/model-profile'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import { narrow, StorageDefect, StorageUnavailable, type ReadTx } from '@omne-harness-lite/storage'
-import type { CatalogScope, CredentialBinding, ProfileRow } from '@omne-harness-lite/model-profile-directory'
+import type {
+  CatalogScope,
+  CredentialBinding,
+  ProfileRow,
+} from '@omne-harness-lite/model-profile-directory'
 
 export interface ScopeKey {
   scope_layer: string

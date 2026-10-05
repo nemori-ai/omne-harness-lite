@@ -1,13 +1,25 @@
-import { type FullMeterInput, type ReplayMeterInput, type NewMeterInput, type MeterContribution, type InputMeter, type TokenMeasurement } from '@omne-harness-lite/model-request-runtime'
-import { isJsonNumber, jsonNumberSource, LosslessNumber, writeJsonLossless, type JsonNumber } from '@omne-harness-lite/content-blocks'
+import {
+  type FullMeterInput,
+  type ReplayMeterInput,
+  type NewMeterInput,
+  type MeterContribution,
+  type InputMeter,
+  type TokenMeasurement,
+} from '@omne-harness-lite/model-request-runtime'
+import {
+  isJsonNumber,
+  jsonNumberSource,
+  LosslessNumber,
+  writeJsonLossless,
+  type JsonNumber,
+} from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { TokenMargin } from '@omne-harness-lite/model-request-runtime'
 
-import type {ModelDefinition} from '@omne-harness-lite/model-request-runtime'
+import type { ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 
 import { meterHistoryValid, meterReplayValid } from './history-projection.ts'
 import { relateMeterBases } from './meter-transform.ts'
-
 
 const meterSources = new WeakMap<InputMeter, object>()
 export function meterSource(meter: InputMeter): object {

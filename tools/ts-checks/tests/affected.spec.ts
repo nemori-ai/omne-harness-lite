@@ -47,8 +47,8 @@ const MEMBERS = [
   member('packages/infra/credential-custodian-local'),
   member('packages/infra/custodian-user', ['@x/credential-custodian-local']),
   member('packages/model/model-profile-directory-local'),
-  member('packages/frontend/governance-client-operations'),
-  member('packages/tenancy/governance-center-entry'),
+  member('packages/frontend/governance-client-operations-local'),
+  member('packages/tenancy/governance-center-entry-node'),
   member('apps/top', ['@x/mid'], { acceptance: 'vitest run --dir acceptance' }),
   member('tools/core-verification', ['@x/base']),
   member('tools/ts-checks', ['@x/identity-values']),
@@ -166,10 +166,10 @@ describe('影响面计划（真实规则）', () => {
   })
 
   it('别的成员的 TLS 夹具：那个成员自己，加上没声明依赖却读它的 governance-client-operations', () => {
-    const result = plan(['packages/tenancy/governance-center-entry/tests/fixtures/tls/ca.pem'])
+    const result = plan(['packages/tenancy/governance-center-entry-node/tests/fixtures/tls/ca.pem'])
     expect(result.test).toEqual([
-      'packages/frontend/governance-client-operations',
-      'packages/tenancy/governance-center-entry',
+      'packages/frontend/governance-client-operations-local',
+      'packages/tenancy/governance-center-entry-node',
     ])
   })
 

@@ -1,4 +1,3 @@
-
 /** D-109: transport v15 revision 4. Codec handles are borrowed by preparers. */
 export type ImageOutputFormat = 'png' | 'jpeg' | 'webp'
 export interface AlphaBackground {

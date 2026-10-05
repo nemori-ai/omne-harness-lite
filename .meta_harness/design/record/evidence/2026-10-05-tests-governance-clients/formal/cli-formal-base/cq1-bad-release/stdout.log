@@ -1,0 +1,123 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Warning: Please run the Java VM, which executes TLC with a throughput optimized garbage collector, by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 39 and seed 1306285795435618735 with 1 worker on 8 cores with 7824MB heap and 64MB offheap memory [pid: 60334] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/cli-formal-base/cq1-bad-release/TerminalExit.tla
+Parsing file /tmp/tlc-6452414329013323865/Naturals.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-6452414329013323865/_TLCTrace.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/_TLCTrace.tla)
+Parsing file /tmp/tlc-6452414329013323865/TLC.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-6452414329013323865/TLCExt.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLCExt.tla)
+Parsing file /tmp/tlc-6452414329013323865/Sequences.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-6452414329013323865/FiniteSets.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-6452414329013323865/Integers.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Integers
+Semantic processing of module TLCExt
+Semantic processing of module _TLCTrace
+Semantic processing of module TerminalExit
+Linting of module TLCExt
+Linting of module _TLCTrace
+Linting of module TerminalExit
+Starting... (2026-10-04 23:09:48)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-04 23:09:48.
+Error: Invariant NoEarlyRelease is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ inputDone = FALSE
+/\ pasteOpen = FALSE
+/\ pasteStarted = FALSE
+/\ stopping = FALSE
+/\ outputs = 0
+/\ phase = "input"
+/\ cgClosed = FALSE
+/\ localReleased = FALSE
+/\ workDone = TRUE
+/\ rawAtInvoke = FALSE
+/\ raw = TRUE
+
+State 2: <Input line 19, col 10 to line 22, col 73 of module TerminalExit>
+/\ inputDone = TRUE
+/\ pasteOpen = FALSE
+/\ pasteStarted = FALSE
+/\ stopping = FALSE
+/\ outputs = 0
+/\ phase = "ready"
+/\ cgClosed = FALSE
+/\ localReleased = FALSE
+/\ workDone = TRUE
+/\ rawAtInvoke = FALSE
+/\ raw = TRUE
+
+State 3: <Restore line 23, col 12 to line 26, col 86 of module TerminalExit>
+/\ inputDone = TRUE
+/\ pasteOpen = FALSE
+/\ pasteStarted = FALSE
+/\ stopping = FALSE
+/\ outputs = 0
+/\ phase = "ready"
+/\ cgClosed = FALSE
+/\ localReleased = FALSE
+/\ workDone = TRUE
+/\ rawAtInvoke = FALSE
+/\ raw = FALSE
+
+State 4: <Invoke line 27, col 11 to line 31, col 61 of module TerminalExit>
+/\ inputDone = TRUE
+/\ pasteOpen = FALSE
+/\ pasteStarted = FALSE
+/\ stopping = FALSE
+/\ outputs = 0
+/\ phase = "network"
+/\ cgClosed = FALSE
+/\ localReleased = FALSE
+/\ workDone = FALSE
+/\ rawAtInvoke = FALSE
+/\ raw = FALSE
+
+State 5: <Stop line 32, col 9 to line 34, col 83 of module TerminalExit>
+/\ inputDone = TRUE
+/\ pasteOpen = FALSE
+/\ pasteStarted = FALSE
+/\ stopping = TRUE
+/\ outputs = 0
+/\ phase = "network"
+/\ cgClosed = FALSE
+/\ localReleased = FALSE
+/\ workDone = FALSE
+/\ rawAtInvoke = FALSE
+/\ raw = FALSE
+
+State 6: <NetworkDone line 39, col 16 to line 41, col 90 of module TerminalExit>
+/\ inputDone = TRUE
+/\ pasteOpen = FALSE
+/\ pasteStarted = FALSE
+/\ stopping = TRUE
+/\ outputs = 0
+/\ phase = "settlement"
+/\ cgClosed = FALSE
+/\ localReleased = FALSE
+/\ workDone = FALSE
+/\ rawAtInvoke = FALSE
+/\ raw = FALSE
+
+State 7: <CloseLocal line 50, col 15 to line 56, col 78 of module TerminalExit>
+/\ inputDone = TRUE
+/\ pasteOpen = FALSE
+/\ pasteStarted = FALSE
+/\ stopping = TRUE
+/\ outputs = 0
+/\ phase = "settlement"
+/\ cgClosed = FALSE
+/\ localReleased = TRUE
+/\ workDone = FALSE
+/\ rawAtInvoke = FALSE
+/\ raw = FALSE
+
+40 states generated, 30 distinct states found, 5 states left on queue.
+The depth of the complete state graph search is 7.
+Finished in 00s at (2026-10-04 23:09:48)
+Trace exploration spec path: ./TerminalExit_TTrace_1791155388.tla

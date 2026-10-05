@@ -1,8 +1,21 @@
-import {createDiagnosticCollector} from '@omne-harness-lite/model-request-runtime-local'
+import { createDiagnosticCollector } from '@omne-harness-lite/model-request-runtime-local'
 import { resolve } from 'node:path'
-import type {DiagnosticCloseResult, DiagnosticCollector, DiagnosticCollectorConfig, DiagnosticExportLimits, DiagnosticExportResult, DiagnosticHealth, DiagnosticQuery, DiagnosticQueryResult, DiagnosticScope} from '@omne-harness-lite/model-request-runtime-local'
+import type {
+  DiagnosticCloseResult,
+  DiagnosticCollector,
+  DiagnosticCollectorConfig,
+  DiagnosticExportLimits,
+  DiagnosticExportResult,
+  DiagnosticHealth,
+  DiagnosticQuery,
+  DiagnosticQueryResult,
+  DiagnosticScope,
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { TenantId } from '@omne-harness-lite/identity-values'
-import type {ModelTransportService, RetirementResult} from '@omne-harness-lite/model-request-runtime'
+import type {
+  ModelTransportService,
+  RetirementResult,
+} from '@omne-harness-lite/model-request-runtime'
 import type { RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import { createDiagnosticJournal } from './diagnostic-journal.ts'
 import type { DiagnosticJournalConfig } from './diagnostic-journal.ts'

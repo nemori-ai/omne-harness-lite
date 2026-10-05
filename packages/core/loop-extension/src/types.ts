@@ -154,11 +154,13 @@ export interface BeforeActionSubject {
   readonly definition: ToolDefinitionRef
   readonly batch: readonly [CallId, ...CallId[]]
 }
-export type AfterActionEachSubject = {
-  readonly callId: CallId
-  readonly outcome: ExecutionOutcome
-  readonly result?: ToolResultBlock
-} | { readonly callId: CallId; readonly outcome: 'denied'; readonly result?: never }
+export type AfterActionEachSubject =
+  | {
+      readonly callId: CallId
+      readonly outcome: ExecutionOutcome
+      readonly result?: ToolResultBlock
+    }
+  | { readonly callId: CallId; readonly outcome: 'denied'; readonly result?: never }
 export interface AfterActionBatchSubject {
   readonly outcomes: readonly [
     { readonly callId: CallId; readonly outcome: ToolCallOutcome },

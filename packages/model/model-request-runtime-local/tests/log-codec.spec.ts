@@ -5,7 +5,17 @@ import {
   writeJsonLossless,
   type JsonObject,
 } from '@omne-harness-lite/content-blocks'
-import { captureModelLogValue, decodeModelLogKey, encodeModelLogKey, inspectModelLogEntry, modelLogFormat, modelLogJsonEqual, prepareModelLogEntry, recognizeMessageValue, type ModelLogKey } from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  decodeModelLogKey,
+  encodeModelLogKey,
+  inspectModelLogEntry,
+  modelLogFormat,
+  modelLogJsonEqual,
+  prepareModelLogEntry,
+  recognizeMessageValue,
+  type ModelLogKey,
+} from '@omne-harness-lite/model-request-runtime'
 import {
   anchors,
   batch,

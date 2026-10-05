@@ -20,7 +20,11 @@ import {
 } from '@omne-harness-lite/evaluation-input-store/registry-history'
 import { judgeMessage, type LoggedMessage } from '@omne-harness-lite/messages'
 import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
-import { anthropicDefinitions, createAnthropicInputMeter, createOfficialProfileContent } from '@omne-harness-lite/pi-ai-transport'
+import {
+  anthropicDefinitions,
+  createAnthropicInputMeter,
+  createOfficialProfileContent,
+} from '@omne-harness-lite/pi-ai-transport'
 import { type InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { MEMBERSHIPS_SERVICE } from '@omne-harness-lite/organization-governance/cordis'
 import { type MembershipsService } from '@omne-harness-lite/organization-governance'
@@ -263,9 +267,7 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
         diagnostics = await activateModelFixture(app, who, config)
         if (storage === undefined || context === undefined)
           throw new Error('provider capture missing')
-        const currentInputs = context.get(
-          CURRENT_EVALUATION_INPUTS_SERVICE,
-        )
+        const currentInputs = context.get(CURRENT_EVALUATION_INPUTS_SERVICE)
         const tenancy = context.get(SESSION_TENANCY_SERVICE)
         const memberships = context.get(MEMBERSHIPS_SERVICE)
         if (memberships === undefined) throw Error('membership service not ready in fixture')

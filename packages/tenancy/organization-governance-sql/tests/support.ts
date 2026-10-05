@@ -415,11 +415,11 @@ export async function bootOg(options: { readonly file?: string } = {}): Promise<
   }
   const events: RecordedEvent[] = []
   const names: OrganizationGovernanceEventName[] = [
-    'invitation.issued',
-    'membership.changed',
-    'role.changed',
-    'affiliation.dissolved',
-    'organization.purged',
+    'organization-governance/invitation-issued',
+    'organization-governance/membership-changed',
+    'organization-governance/role-changed',
+    'organization-governance/affiliation-dissolved',
+    'organization-governance/organization-purged',
   ]
   for (const name of names) {
     assembly.ctx.on(name, (payload: unknown) => {

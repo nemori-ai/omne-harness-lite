@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { classifyCause } from '../src/invoke.ts'
-import {type TransportFailure, type InvocationPolicy} from '@omne-harness-lite/model-request-runtime'
+import {
+  type TransportFailure,
+  type InvocationPolicy,
+} from '@omne-harness-lite/model-request-runtime'
 const table: InvocationPolicy['statusCauseTable'] = {
   '401': 'credential_unavailable',
   '429': 'upstream_unavailable',

@@ -5,9 +5,6 @@ import type { CountingBasis } from '@omne-harness-lite/model-response'
 
 import type { InputProjection } from './input-projection.ts'
 
-
-
-
 export interface HistorySelectionSpan {
   readonly groupIndex: number
   readonly selectionIndex: number

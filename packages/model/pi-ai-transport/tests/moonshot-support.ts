@@ -3,11 +3,15 @@
 import { readJsonStrict } from '@omne-harness-lite/content-blocks'
 import type { Message } from '@omne-harness-lite/messages'
 import type { ModelRequestParameters } from '@omne-harness-lite/model-profile'
-import type {PlanInput} from '@omne-harness-lite/model-request-runtime'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import { createOfficialProfileContent } from '../src/configuration.ts'
-import type {ModelDefinition} from '@omne-harness-lite/model-request-runtime'
-import type { InputMeter, MeterContribution, TokenMeasurement } from '@omne-harness-lite/model-request-runtime'
+import type { ModelDefinition } from '@omne-harness-lite/model-request-runtime'
+import type {
+  InputMeter,
+  MeterContribution,
+  TokenMeasurement,
+} from '@omne-harness-lite/model-request-runtime'
 import { object } from '../src/json.ts'
 import {
   moonshotAutomaticConfiguration,

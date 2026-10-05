@@ -1,6 +1,10 @@
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { DiagnosticAssociation, DiagnosticCollector } from './diagnostics-types.ts'
-import type { DiagnosticEmitter, DiagnosticEvent, DiagnosticReference } from '@omne-harness-lite/model-request-runtime'
+import type {
+  DiagnosticEmitter,
+  DiagnosticEvent,
+  DiagnosticReference,
+} from '@omne-harness-lite/model-request-runtime'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 
 function recordedReference(result: unknown): DiagnosticReference | undefined {

@@ -1,10 +1,14 @@
 import type { CredentialRef } from '@omne-harness-lite/asset-model'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { ScopeLayerIdentity, TenantId } from '@omne-harness-lite/identity-values'
-import type { ModelProfile, ModelProfileContent, ModelProfileRef, ModelProfileRejection } from '@omne-harness-lite/model-profile'
+import type {
+  ModelProfile,
+  ModelProfileContent,
+  ModelProfileRef,
+  ModelProfileRejection,
+} from '@omne-harness-lite/model-profile'
 import type { Instant } from '@omne-harness-lite/offer-expiry'
 import type { StorageUnit } from '@omne-harness-lite/storage'
-
 
 export interface ProfileRow {
   readonly ref: ModelProfileRef

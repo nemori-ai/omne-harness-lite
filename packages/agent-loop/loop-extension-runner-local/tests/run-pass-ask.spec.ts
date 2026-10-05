@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import { judgeDefinition, judgePositionedSubject } from '@omne-harness-lite/loop-extension'
 import { checkAppendInput, type LogEntry } from '@omne-harness-lite/session-log'
-import { passKeys, type RunnerAskAssociation, type RunnerInvocationResult, type RunnerPorts } from '@omne-harness-lite/loop-extension-runner'
+import {
+  passKeys,
+  type RunnerAskAssociation,
+  type RunnerInvocationResult,
+  type RunnerPorts,
+} from '@omne-harness-lite/loop-extension-runner'
 import { runPass } from '../src/run-pass.ts'
 
 const at = '2026-09-29T00:00:00Z'

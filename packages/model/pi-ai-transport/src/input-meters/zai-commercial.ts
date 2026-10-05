@@ -7,8 +7,8 @@ import {
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { object } from '../json.ts'
-import {ruleAccepts} from '../definitions.ts'
-import {type ModelDefinition, type ParameterRule} from '@omne-harness-lite/model-request-runtime'
+import { ruleAccepts } from '../definitions.ts'
+import { type ModelDefinition, type ParameterRule } from '@omne-harness-lite/model-request-runtime'
 import { zaiDefinitions, type ZaiHistoryTreatment } from '../official-models/zai.ts'
 import type { InputMeter, TokenMeasurement } from '@omne-harness-lite/model-request-runtime'
 import { guardInputMeter } from './shared.ts'

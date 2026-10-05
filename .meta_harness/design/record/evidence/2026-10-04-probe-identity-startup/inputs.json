@@ -1,0 +1,16 @@
+{
+  "base": "67eecc1ae53be30efec473206e5d1926dd5d500f",
+  "state": "uncommitted S1 input; Cordis 4.0.4; mechanism probe, not provider acceptance",
+  "files": {
+    "packages/core/assembly-lifecycle/src/cordis.ts": "380edba832936f3e779c4ec1fbeb8fd34c63c14e9439e2938a425b10fd68de8b",
+    "packages/core/assembly-lifecycle/src/lifetime.ts": "0425a85cafbbe2f58e74b8baca45a50aaeb02bae503eb058b006d4b43d307c0c",
+    "packages/core/assembly-lifecycle/src/types.ts": "b82c94db7c97694f786d70353fddd888f2dce558ad426bf6d0827f506c148518",
+    "packages/core/assembly-lifecycle/src/index.ts": "72026e0317fe13e9a0126fa68e1e3496aa4281f4ebbc67058ff36e0828512210",
+    "packages/core/assembly-lifecycle/dist/types.js": "01ae2a5b120382f9a648ced7ee8507493a134f216d100fc61600c6c9738235d2",
+    "packages/core/assembly-lifecycle/dist/cordis.js": "cb291e6bd81073a61356eccb17057122cd155674b58cfb5036f2cb846c772c56",
+    "packages/core/assembly-lifecycle/dist/lifetime.js": "10c9904e7125d984a4849db1abfecbc782a7e9dcc609d89ca193cd07562b4951",
+    "packages/core/assembly-lifecycle/dist/index.js": "f75462d9f2fc4e6e4454f9436b95e640dc40d4d3aa79dd362e215a730e42dd6a",
+    "packages/core/assembly-lifecycle/package.json": "06c0d00a38b51be7c1cf68df873907bde94ac70300a31e9a4fb1e7d89f56b1cb",
+    "node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js": "6a9394c0877ff45218818c6e815edd038f8057e1a1deb390a8d43ec81c57691e"
+  }
+}

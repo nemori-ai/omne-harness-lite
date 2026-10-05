@@ -3,10 +3,16 @@ import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Tiktoken } from 'js-tiktoken/lite'
-import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
-import {type PlanInput} from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import { type PlanCalibration } from '@omne-harness-lite/model-request-runtime'
-import { anthropicDefinitions, createAnthropicInputMeter, createPiAiTransport, createOfficialProfileContent, planRequest } from '../src/index.ts'
+import {
+  anthropicDefinitions,
+  createAnthropicInputMeter,
+  createPiAiTransport,
+  createOfficialProfileContent,
+  planRequest,
+} from '../src/index.ts'
 import { type PlannedRequest } from '@omne-harness-lite/model-request-runtime'
 import {
   certificate,

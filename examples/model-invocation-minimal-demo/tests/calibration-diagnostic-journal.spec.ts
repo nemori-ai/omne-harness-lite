@@ -4,9 +4,23 @@ import * as fs from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { join, resolve } from 'node:path'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import {createDiagnosticCollector, invokeModel, type DiagnosticCollectorConfig, type DiagnosticRecord} from '@omne-harness-lite/model-request-runtime-local'
-import { type DiagnosticEvent, type DiagnosticMeasurementFact, type InputMeasurement } from '@omne-harness-lite/model-request-runtime'
-import { adapter, fixturePlan, policy, request } from '../../../packages/model/model-request-runtime-local/tests/invoke-policy-fixture.ts'
+import {
+  createDiagnosticCollector,
+  invokeModel,
+  type DiagnosticCollectorConfig,
+  type DiagnosticRecord,
+} from '@omne-harness-lite/model-request-runtime-local'
+import {
+  type DiagnosticEvent,
+  type DiagnosticMeasurementFact,
+  type InputMeasurement,
+} from '@omne-harness-lite/model-request-runtime'
+import {
+  adapter,
+  fixturePlan,
+  policy,
+  request,
+} from '../../../packages/model/model-request-runtime-local/tests/invoke-policy-fixture.ts'
 import {
   createDiagnosticJournal,
   openDiagnosticJournalReader,

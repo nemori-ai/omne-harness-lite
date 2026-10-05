@@ -1,0 +1,139 @@
+{
+  "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+  "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+  "run_id": "t4-host-prefix-resources",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "started": "2026-10-05T07:30:08.152Z",
+  "results": [
+    {
+      "id": "treeCreated-throws-before-apply-but-keeps-same-close-owner",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:08.587Z",
+      "observed": {
+        "zero_apply": true,
+        "same_handle_closed": true
+      }
+    },
+    {
+      "id": "real-host-runtime-resources-are-fresh-per-boot-with-exact-migrations",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:08.681Z",
+      "observed": {
+        "boots": 2,
+        "fresh_actual_guards": true,
+        "actual_migration_names_equal": true
+      }
+    },
+    {
+      "id": "host-missing-startup",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:08.929Z",
+      "observed": {
+        "fault": "missing-startup",
+        "report": {
+          "complete": false,
+          "assemblyErrors": [],
+          "rows": [
+            {
+              "id": "storage-sql",
+              "result": {
+                "kind": "failed",
+                "codes": [
+                  "setup"
+                ]
+              }
+            }
+          ]
+        },
+        "actual_host_boot": true,
+        "actual_SQL_binding": true,
+        "external_resource_fault": true
+      }
+    },
+    {
+      "id": "host-fake-guard",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:08.956Z",
+      "observed": {
+        "fault": "fake-guard",
+        "report": {
+          "complete": false,
+          "assemblyErrors": [],
+          "rows": [
+            {
+              "id": "storage-sql",
+              "result": {
+                "kind": "failed",
+                "codes": [
+                  "setup"
+                ]
+              }
+            }
+          ]
+        },
+        "actual_host_boot": true,
+        "actual_SQL_binding": true,
+        "external_resource_fault": true
+      }
+    },
+    {
+      "id": "host-guard-owned-by-another-SQL-generation",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:08.983Z",
+      "observed": {
+        "fault": "guard-owned-by-another-SQL-generation",
+        "report": {
+          "complete": false,
+          "assemblyErrors": [],
+          "rows": [
+            {
+              "id": "storage-sql",
+              "result": {
+                "kind": "failed",
+                "codes": [
+                  "setup"
+                ]
+              }
+            }
+          ]
+        },
+        "actual_host_boot": true,
+        "actual_SQL_binding": true,
+        "external_resource_fault": true
+      }
+    },
+    {
+      "id": "host-ready-failure-keeps-actual-prefix-close-and-private-original",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:09.047Z",
+      "observed": {
+        "report": {
+          "complete": false,
+          "assemblyErrors": [],
+          "rows": [
+            {
+              "id": "clock-lease",
+              "result": {
+                "kind": "failed",
+                "codes": [
+                  "setup",
+                  "close"
+                ]
+              }
+            },
+            {
+              "id": "storage-sql",
+              "result": {
+                "kind": "closed"
+              }
+            }
+          ]
+        },
+        "private_original_retained": true,
+        "boot_waited_for_actual_close": true
+      }
+    }
+  ],
+  "exit_code": 0,
+  "ended": "2026-10-05T07:30:09.197Z"
+}

@@ -1,10 +1,13 @@
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import type {ModelInvocationResult, PlanInput} from '@omne-harness-lite/model-request-runtime'
+import type { ModelInvocationResult, PlanInput } from '@omne-harness-lite/model-request-runtime'
 import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
-import {createOfficialProfileContent, openaiConfiguration} from '@omne-harness-lite/pi-ai-transport'
-import {type ModelDefinition} from '@omne-harness-lite/model-request-runtime'
+import {
+  createOfficialProfileContent,
+  openaiConfiguration,
+} from '@omne-harness-lite/pi-ai-transport'
+import { type ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import { judgedMessage, message } from '../../support.ts'
 
 const at = '2026-09-30T00:00:00Z'

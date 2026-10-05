@@ -38,4 +38,10 @@ export {
   type SnapshotInspection,
 } from './maintenance.ts'
 export { checkSnapshotTables } from './snapshot-check.ts'
-export type { StorageOwnerOperations } from './owner.ts'
+export type {
+  UpgradeConfirmation,
+  UpgradePending,
+  UpgradeGuardHandle,
+  StorageStartupResources,
+  StorageCompletionPort,
+} from './startup.ts'

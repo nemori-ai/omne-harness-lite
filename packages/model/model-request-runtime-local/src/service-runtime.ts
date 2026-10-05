@@ -16,7 +16,7 @@ import type {
   FailureConsumableOperation,
   FailureConsumption,
 } from './service-types.ts'
-import type {PlannedSemantics} from '@omne-harness-lite/model-request-runtime'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 
 const ownedStores = new WeakSet<object>()
 const unavailable = Object.freeze({ unavailable: true } as const)

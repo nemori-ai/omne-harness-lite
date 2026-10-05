@@ -14,8 +14,8 @@ import {
 import { projectOutput } from '../src/projection.ts'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
-import {type PlanInput} from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import { createDeepSeekV4ProInputMeter } from '../src/input-meters/deepseek-v4-pro.ts'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import {

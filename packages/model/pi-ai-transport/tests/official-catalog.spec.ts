@@ -4,7 +4,21 @@ import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import fingerprint from './fixtures/official-catalog/fingerprint.json' with { type: 'json' }
 import * as pkg from '../src/index.ts'
-import { anthropicDefinitions, createOfficialCatalogProfile, deepseekDefinitions, googleDefinitions, interpretConfiguration, moonshotDefinitions, officialCatalog, officialCatalogRevision, officialModelIds, openaiDefinitions, qwenDefinitions, xaiDefinitions, zaiDefinitions } from '../src/index.ts'
+import {
+  anthropicDefinitions,
+  createOfficialCatalogProfile,
+  deepseekDefinitions,
+  googleDefinitions,
+  interpretConfiguration,
+  moonshotDefinitions,
+  officialCatalog,
+  officialCatalogRevision,
+  officialModelIds,
+  openaiDefinitions,
+  qwenDefinitions,
+  xaiDefinitions,
+  zaiDefinitions,
+} from '../src/index.ts'
 import { type ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 
 const familyExports: Readonly<Record<string, readonly ModelDefinition[]>> = {

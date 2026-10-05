@@ -4,7 +4,10 @@ import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import type { Conclusion } from '@omne-harness-lite/loop-extension'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
-import { inspectRunnerConclusion, prepareRunnerConclusion } from '@omne-harness-lite/loop-extension-runner'
+import {
+  inspectRunnerConclusion,
+  prepareRunnerConclusion,
+} from '@omne-harness-lite/loop-extension-runner'
 
 describe('actual JSONL provider boundary', () => {
   it('persists and reopens the exact runner wrapper and keys', async () => {

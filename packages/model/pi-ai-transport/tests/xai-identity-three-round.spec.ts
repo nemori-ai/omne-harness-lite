@@ -1,14 +1,18 @@
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { readOpaqueJson } from '@omne-harness-lite/content-blocks'
-import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
-import {type InvocationOutcome, type ModelInvocationResult, type PlanInput} from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import {
+  type InvocationOutcome,
+  type ModelInvocationResult,
+  type PlanInput,
+} from '@omne-harness-lite/model-request-runtime'
 import { createXaiInputMeter } from '../src/input-meters/xai.ts'
 import { xaiDefinitions } from '../src/official-models/xai.ts'
 import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
-import {createModelTransportService} from '../src/registry.ts'
-import {type AdaptationLease} from '@omne-harness-lite/model-request-runtime'
+import { createModelTransportService } from '../src/registry.ts'
+import { type AdaptationLease } from '@omne-harness-lite/model-request-runtime'
 import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import { object } from '../src/json.ts'
 import { createPiAiTransport } from '../src/transport.ts'

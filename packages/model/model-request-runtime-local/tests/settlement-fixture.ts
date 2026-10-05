@@ -8,7 +8,16 @@ import { writeJsonLossless, type JsonNumber } from '@omne-harness-lite/content-b
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { type SessionLog, type AppendResult } from '@omne-harness-lite/session-log'
 import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
-import { type SettlementOwner, type SettlementTask, type SettlementTaskKind, type SettlementRegistration, type SettlementContention, type SettlementScheduler, type SettlementLogBinding, type SettlementRequest } from '../src/settlement-types.ts'
+import {
+  type SettlementOwner,
+  type SettlementTask,
+  type SettlementTaskKind,
+  type SettlementRegistration,
+  type SettlementContention,
+  type SettlementScheduler,
+  type SettlementLogBinding,
+  type SettlementRequest,
+} from '../src/settlement-types.ts'
 import { anchors, session, tenant } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 

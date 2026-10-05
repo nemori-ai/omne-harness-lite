@@ -15,7 +15,11 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import type { SettlementRegistration, SettlementTask, SettlementTaskKind } from '../src/settlement-types.ts'
+import type {
+  SettlementRegistration,
+  SettlementTask,
+  SettlementTaskKind,
+} from '../src/settlement-types.ts'
 import type { AppendResult, LogEntry, SessionLog } from '@omne-harness-lite/session-log'
 import type {
   ModelCallHost,
@@ -25,7 +29,10 @@ import type {
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
-import { captureModelLogValue, prepareModelLogEntry } from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import {
   ControlledSettlementOwner,

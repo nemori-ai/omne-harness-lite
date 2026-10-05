@@ -1,0 +1,27 @@
+{
+  "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+  "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+  "run_id": "architecture-controls",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "argv": [
+    "pnpm",
+    "exec",
+    "vitest",
+    "run",
+    "tests/arch-extract.spec.ts",
+    "tests/group-direction.spec.ts",
+    "tests/integration-conventions.spec.ts",
+    "--maxWorkers=1",
+    "--reporter=json",
+    "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/architecture-controls.vitest.json"
+  ],
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/tools/ts-checks",
+  "started": "2026-10-05T07:51:41.326Z",
+  "ended": "2026-10-05T07:51:47.333Z",
+  "duration_ms": 6007.151101,
+  "timeout_ms": 120000,
+  "timed_out": false,
+  "exit_code": 0,
+  "signal": null,
+  "input_files": []
+}

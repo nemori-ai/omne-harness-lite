@@ -5,8 +5,16 @@ import {
   writeJsonLossless,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import {createCredentialRedactionPolicy, CredentialRedactionConfigurationError, openRouterCredentialRedactionConfig as baseline, redact} from '@omne-harness-lite/model-request-runtime'
-import {type CredentialRedactionConfig, type CredentialRedactionResult} from '@omne-harness-lite/model-request-runtime'
+import {
+  createCredentialRedactionPolicy,
+  CredentialRedactionConfigurationError,
+  openRouterCredentialRedactionConfig as baseline,
+  redact,
+} from '@omne-harness-lite/model-request-runtime'
+import {
+  type CredentialRedactionConfig,
+  type CredentialRedactionResult,
+} from '@omne-harness-lite/model-request-runtime'
 
 function value<T>(result: CredentialRedactionResult<T>): T {
   if (!('ok' in result)) throw new Error('Expected accepted synthetic input')

@@ -5,7 +5,13 @@ import {
   type JsonObject,
 } from '@omne-harness-lite/content-blocks'
 import { defineInputMeter, tokenMeasurementValid } from '../input-meter.ts'
-import { type InputMeter, type FullMeterInput, type MarginalMeterInput, type MeterContribution, type TokenMeasurement } from '@omne-harness-lite/model-request-runtime'
+import {
+  type InputMeter,
+  type FullMeterInput,
+  type MarginalMeterInput,
+  type MeterContribution,
+  type TokenMeasurement,
+} from '@omne-harness-lite/model-request-runtime'
 
 /** A route-specific JSON surrogate: estimate only new units and their framing.
  * No exact BPE boundary claim: the net surrogate and private framing are estimated.

@@ -11,10 +11,10 @@ import {
   type ContentBlock,
 } from '@omne-harness-lite/content-blocks'
 import type { Message } from '@omne-harness-lite/messages'
-import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
-import {type PlanInput, type TransportAdapter} from '@omne-harness-lite/model-request-runtime'
-import type {RawResponse} from '@omne-harness-lite/model-request-runtime'
-import type {PlannedRequest} from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput, type TransportAdapter } from '@omne-harness-lite/model-request-runtime'
+import type { RawResponse } from '@omne-harness-lite/model-request-runtime'
+import type { PlannedRequest } from '@omne-harness-lite/model-request-runtime'
 
 type ModelTransport = TransportAdapter<PlannedRequest, RawResponse>
 import { createOfficialProfileContent } from '../src/configuration.ts'

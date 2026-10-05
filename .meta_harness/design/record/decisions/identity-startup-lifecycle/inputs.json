@@ -1,0 +1,12 @@
+{
+  "adopted_at": "2026-10-04T19:26:41.560828+00:00",
+  "base": "67eecc1ae53be30efec473206e5d1926dd5d500f",
+  "files": {
+    ".meta_harness/design/architecture/identity-integration/retirement.md": "6c961096dad108943282afd8d3ba1dc088569887ef32afcb77a83a4b14da8461",
+    ".meta_harness/design/architecture/identity-integration/plugin-tree.md": "c8adb429773e18a323fdbc990d718d6bd0382f97dab66ab6c14070619084bc56",
+    ".meta_harness/design/architecture/identity-integration/delivery.md": "1be5cc93c03649eee8749998582abf715fc2b7fc0f543d0ad84fecdb01c72163",
+    ".meta_harness/design/architecture/identity-integration/README.md": "c89e7bf7a9b05358542b148354f5ff4b3507e9bad741031a528bd9cb60b02ab9"
+  },
+  "supersedes": "D0 managed async apply ambiguity only; original decision inputs preserved",
+  "reviewed_candidate_sha256": "8e74a20736d5e43fa0269e419122c467d5ce41100d5e22bd34b0d91630c9b30b"
+}

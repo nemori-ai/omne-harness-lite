@@ -1,5 +1,9 @@
 import { expectTypeOf, test } from 'vitest'
-import type { CredentialValue, CredentialPresent, ModelCatalogRead } from '@omne-harness-lite/model-profile-directory'
+import type {
+  CredentialValue,
+  CredentialPresent,
+  ModelCatalogRead,
+} from '@omne-harness-lite/model-profile-directory'
 import type { BoundCredentialReplicaReader } from '@omne-harness-lite/model-profile-directory'
 import type { ReadCredentialBindingIn } from '../src/types.ts'
 import type { Instant } from '@omne-harness-lite/offer-expiry'

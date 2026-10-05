@@ -47,7 +47,10 @@ test.each([
 ])('named source fixture cannot forward or use private publication: %s', text => {
   expect(
     evaluationPublicationBoundary.check([
-      { path: 'packages/model/model-request-runtime-local/tests/session-selection-fixture.ts', text },
+      {
+        path: 'packages/model/model-request-runtime-local/tests/session-selection-fixture.ts',
+        text,
+      },
     ]),
   ).not.toEqual([])
 })
@@ -73,7 +76,10 @@ test.each([
 ])('runner source fixture cannot forward or use private publication: %s', text => {
   expect(
     evaluationPublicationBoundary.check([
-      { path: 'packages/agent-loop/loop-extension-runner-local/tests/runner-chain-support.ts', text },
+      {
+        path: 'packages/agent-loop/loop-extension-runner-local/tests/runner-chain-support.ts',
+        text,
+      },
     ]),
   ).not.toEqual([])
 })

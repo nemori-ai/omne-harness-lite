@@ -12,10 +12,17 @@ import type { AdmissionToken } from '@omne-harness-lite/tool-admission'
 import type { ToolResultWriter } from './tool-results.ts'
 import type { CardId } from '@omne-harness-lite/messages'
 
-export interface ExecutionRef extends ContextScope { readonly callId: CallId }
+export interface ExecutionRef extends ContextScope {
+  readonly callId: CallId
+}
 export type RuntimeAccess = SessionAccess
-export type ToolFrame = Extract<Extract<ArrivalEnvelope, {target: {kind: 'tool_execution'}}>['event'], {t: 'open' | 'fill' | 'close'}>
-export type FrameReception = { readonly kind: 'accepted' } | { readonly kind: 'dropped'; readonly why: 'invalid' | 'closed' | 'capacity' | AcceptRejection }
+export type ToolFrame = Extract<
+  Extract<ArrivalEnvelope, { target: { kind: 'tool_execution' } }>['event'],
+  { t: 'open' | 'fill' | 'close' }
+>
+export type FrameReception =
+  | { readonly kind: 'accepted' }
+  | { readonly kind: 'dropped'; readonly why: 'invalid' | 'closed' | 'capacity' | AcceptRejection }
 export interface WaitRequest {
   readonly prompt: JsonValue
   readonly answerSchema: JsonSchema
@@ -24,11 +31,18 @@ export interface WaitRequest {
   readonly cardId?: CardId
 }
 /** Identity is derived from the authenticated answer ingress, never trusted from answer data. */
-export interface Answerer { readonly kind: 'human' | 'system' | 'agent'; readonly principal: string }
+export interface Answerer {
+  readonly kind: 'human' | 'system' | 'agent'
+  readonly principal: string
+}
 export type WaitResult =
   | { readonly kind: 'answered'; readonly value: JsonValue; readonly by: Answerer }
   | { readonly kind: 'ended'; readonly outcome: Exclude<ExecutionOutcome, 'backgrounded'> }
-  | { readonly kind: 'rejected'; readonly reason: 'invalidInput' | 'alreadyWaiting' | 'schemaUnsupported' | 'notAllowed' | 'unavailable' }
+  | {
+      readonly kind: 'rejected'
+      readonly reason:
+        'invalidInput' | 'alreadyWaiting' | 'schemaUnsupported' | 'notAllowed' | 'unavailable'
+    }
 export interface SelectedTool {
   readonly capability: string
   readonly asset: string
@@ -49,19 +63,37 @@ export interface InvocationDependencies {
   }
   readonly costs: {
     /** A repeated itemId must have identical content; acceptance means durable reception in a runtime. */
-    readonly report: (itemId: string, item: CostItem) => Promise<'recorded' | 'duplicate' | 'invalid' | 'lateRecordedOnly' | 'unavailable'>
+    readonly report: (
+      itemId: string,
+      item: CostItem,
+    ) => Promise<'recorded' | 'duplicate' | 'invalid' | 'lateRecordedOnly' | 'unavailable'>
   }
 }
-export type ToolExecutor = (args: JsonValue, dependencies: InvocationDependencies) => Promise<ToolReturn>
+export type ToolExecutor = (
+  args: JsonValue,
+  dependencies: InvocationDependencies,
+) => Promise<ToolReturn>
 /** The independent function's factory accepts its argument judge and result judge separately. */
-export interface InvocationInput { readonly definition: ToolDefinition; readonly args: JsonValue; readonly executor: ToolExecutor }
+export interface InvocationInput {
+  readonly definition: ToolDefinition
+  readonly args: JsonValue
+  readonly executor: ToolExecutor
+}
 export type InvocationResult =
   | { readonly kind: 'returned'; readonly result: ToolReturn }
-  | { readonly kind: 'failed'; readonly code: Exclude<ToolFailureCode, 'abnormal_interruption' | 'environment_unavailable'> }
-export type InvokeTool = (input: InvocationInput, dependencies: InvocationDependencies) => Promise<InvocationResult>
+  | {
+      readonly kind: 'failed'
+      readonly code: Exclude<ToolFailureCode, 'abnormal_interruption' | 'environment_unavailable'>
+    }
+export type InvokeTool = (
+  input: InvocationInput,
+  dependencies: InvocationDependencies,
+) => Promise<InvocationResult>
 export interface InvokerOptions {
   readonly parameters: ParameterJudge
-  readonly judgeResult: (input: unknown) => {readonly kind: 'valid'; readonly result: ToolReturn} | {readonly kind: 'invalid'}
+  readonly judgeResult: (
+    input: unknown,
+  ) => { readonly kind: 'valid'; readonly result: ToolReturn } | { readonly kind: 'invalid' }
 }
 export interface ToolImplementation {
   readonly capability: string
@@ -78,10 +110,16 @@ export interface ToolImplementationLease {
 }
 export interface ToolImplementationOperations {
   readonly register: (implementation: ToolImplementation) => () => void
-  readonly acquire: (selected: SelectedTool) => ToolImplementationLease | {readonly kind: 'unavailable' | 'definitionMismatch'}
+  readonly acquire: (
+    selected: SelectedTool,
+  ) => ToolImplementationLease | { readonly kind: 'unavailable' | 'definitionMismatch' }
 }
 
-export interface ExecutionOrigin { readonly run: RunId; readonly attempt: AttemptId; readonly assistantMessage: string }
+export interface ExecutionOrigin {
+  readonly run: RunId
+  readonly attempt: AttemptId
+  readonly assistantMessage: string
+}
 export interface ExecutionSubmission {
   readonly access: RuntimeAccess
   readonly scope: ContextScope
@@ -92,9 +130,15 @@ export interface ExecutionSubmission {
   readonly admissionToken?: AdmissionToken
 }
 export type ToolFailureCode =
-  | 'business_failure' | 'implementation_error' | 'result_rejected' | 'unparseable'
-  | 'schema_unsupported' | 'arguments_invalid' | 'environment_unavailable'
-  | 'start_failed' | 'abnormal_interruption'
+  | 'business_failure'
+  | 'implementation_error'
+  | 'result_rejected'
+  | 'unparseable'
+  | 'schema_unsupported'
+  | 'arguments_invalid'
+  | 'environment_unavailable'
+  | 'start_failed'
+  | 'abnormal_interruption'
 export type ExecutionTerminal =
   | { readonly outcome: 'completed'; readonly result: ToolReturn }
   | { readonly outcome: 'failed'; readonly code: ToolFailureCode; readonly result?: ToolReturn }
@@ -105,7 +149,11 @@ export type ExecutionState =
   | { readonly phase: 'queued' }
   | { readonly phase: 'running'; readonly startedAt: string }
   | { readonly phase: 'waiting'; readonly waitIndex: number; readonly request: WaitRequest }
-  | { readonly phase: 'ended'; readonly terminal: ExecutionTerminal; readonly account: ToolCallAccount }
+  | {
+      readonly phase: 'ended'
+      readonly terminal: ExecutionTerminal
+      readonly account: ToolCallAccount
+    }
 export interface ExecutionSnapshot {
   readonly ref: ExecutionRef
   readonly origin: ExecutionOrigin
@@ -116,22 +164,67 @@ export interface ExecutionSnapshot {
 }
 export type ExecutionRead =
   | { readonly kind: 'found'; readonly snapshot: ExecutionSnapshot }
-  | { readonly kind: 'rejected'; readonly reason: 'notFound' | 'notAuthorized' | 'runtimeUnavailable' | 'runtimeNotReady' | 'ownerStopped' }
+  | {
+      readonly kind: 'rejected'
+      readonly reason:
+        'notFound' | 'notAuthorized' | 'runtimeUnavailable' | 'runtimeNotReady' | 'ownerStopped'
+    }
 export interface ExecutionObserver {
   readonly read: () => Promise<ExecutionRead>
   readonly waitForEnd: () => Promise<ExecutionRead>
   /** Replayable current assembly; it does not promise delivery of every transient frame. */
-  readonly frames: () => Promise<{readonly kind: 'snapshot'; readonly value: AssemblySnapshot} | Extract<ExecutionRead, {kind: 'rejected'}>>
+  readonly frames: () => Promise<
+    | { readonly kind: 'snapshot'; readonly value: AssemblySnapshot }
+    | Extract<ExecutionRead, { kind: 'rejected' }>
+  >
   readonly release: () => void
 }
 export type SubmissionResult =
   | { readonly kind: 'recorded'; readonly execution: ExecutionRef }
-  | { readonly kind: 'rejected'; readonly reason: 'invalidInput' | 'notAuthorized' | 'callConflict' | 'originUnavailable' | 'admissionMissing' | 'adoptionUnavailable' | 'runEnded' | 'runtimeUnavailable' | 'runtimeNotReady' | 'ownerStopped' }
+  | {
+      readonly kind: 'rejected'
+      readonly reason:
+        | 'invalidInput'
+        | 'notAuthorized'
+        | 'callConflict'
+        | 'originUnavailable'
+        | 'admissionMissing'
+        | 'adoptionUnavailable'
+        | 'runEnded'
+        | 'runtimeUnavailable'
+        | 'runtimeNotReady'
+        | 'ownerStopped'
+    }
 export interface ToolRuntimeOperations {
   readonly submit: (request: ExecutionSubmission) => Promise<SubmissionResult>
-  readonly acquire: (access: RuntimeAccess, ref: ExecutionRef) => Promise<{readonly kind: 'acquired'; readonly observer: ExecutionObserver} | Extract<ExecutionRead, {kind: 'rejected'}>>
-  readonly stop: (access: RuntimeAccess, ref: ExecutionRef, reason: string) => Promise<'stopped' | 'alreadyEnded' | 'notAuthorized' | 'notFound' | 'unavailable'>
-  readonly answer: (access: RuntimeAccess, ref: ExecutionRef, waitIndex: number, answer: JsonValue) => Promise<'accepted' | 'stale' | 'invalidInput' | 'invalidAnswer' | 'endedSchemaUnsupported' | 'notAuthorized' | 'notFound' | 'ownerStopped' | 'unavailable'>
+  readonly acquire: (
+    access: RuntimeAccess,
+    ref: ExecutionRef,
+  ) => Promise<
+    | { readonly kind: 'acquired'; readonly observer: ExecutionObserver }
+    | Extract<ExecutionRead, { kind: 'rejected' }>
+  >
+  readonly stop: (
+    access: RuntimeAccess,
+    ref: ExecutionRef,
+    reason: string,
+  ) => Promise<'stopped' | 'alreadyEnded' | 'notAuthorized' | 'notFound' | 'unavailable'>
+  readonly answer: (
+    access: RuntimeAccess,
+    ref: ExecutionRef,
+    waitIndex: number,
+    answer: JsonValue,
+  ) => Promise<
+    | 'accepted'
+    | 'stale'
+    | 'invalidInput'
+    | 'invalidAnswer'
+    | 'endedSchemaUnsupported'
+    | 'notAuthorized'
+    | 'notFound'
+    | 'ownerStopped'
+    | 'unavailable'
+  >
 }
 
 /** Stable provider registration; withdrawal does not transfer execution ownership. */

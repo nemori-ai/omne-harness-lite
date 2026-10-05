@@ -1,5 +1,5 @@
-import {ownDefinitions} from '../definitions.ts'
-import {type ModelDefinition, type ModelRoute} from '@omne-harness-lite/model-request-runtime'
+import { ownDefinitions } from '../definitions.ts'
+import { type ModelDefinition, type ModelRoute } from '@omne-harness-lite/model-request-runtime'
 
 // Dropped parameters are outside this supplied subset, not upstream negatives.
 const zAiFp8Common = {

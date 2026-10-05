@@ -19,8 +19,18 @@ export type AdmissionDenialCode =
   | 'human_refused'
   | 'human_declined'
 export type ActionDenialReason =
-  | { readonly kind: 'admission'; readonly code: AdmissionDenialCode; readonly by: string; readonly conclusion: string }
-  | { readonly kind: 'extension_veto' | 'admission_unavailable'; readonly by: string; readonly conclusion: string; readonly explanation: string }
+  | {
+      readonly kind: 'admission'
+      readonly code: AdmissionDenialCode
+      readonly by: string
+      readonly conclusion: string
+    }
+  | {
+      readonly kind: 'extension_veto' | 'admission_unavailable'
+      readonly by: string
+      readonly conclusion: string
+      readonly explanation: string
+    }
 export type PlaceholderReason =
   | 'user_interrupted'
   | 'backgrounded_auto'
@@ -150,7 +160,11 @@ export type ToolResultBlock = BlockIdentity & {
   readonly offloaded?: AttachmentRef
 } & (
     | { readonly outcome: 'completed' | 'unavailable' | 'no_answer'; readonly reason?: never }
-    | { readonly outcome: 'denied'; readonly reason: ActionDenialReason; readonly offloaded?: never }
+    | {
+        readonly outcome: 'denied'
+        readonly reason: ActionDenialReason
+        readonly offloaded?: never
+      }
     | { readonly outcome: 'failed'; readonly reason?: ToolResultReason<'abnormal_interruption'> }
     | {
         readonly outcome: 'backgrounded'

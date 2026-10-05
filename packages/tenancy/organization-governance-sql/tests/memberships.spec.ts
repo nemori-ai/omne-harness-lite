@@ -89,7 +89,10 @@ describe('S-28 调整角色／S-29 解除成员', () => {
     expect(h.events.slice(before)).toEqual([]) // 幂等：无二次效果、不发事件
     expect(await h.memberships.changeRole(team.owner, m1, 'superAdministrator')).toBe('ok')
     expect(h.events.slice(before)).toEqual([
-      { name: 'role.changed', payload: { tenant: m1, role: 'superAdministrator' } },
+      {
+        name: 'organization-governance/role-changed',
+        payload: { tenant: m1, role: 'superAdministrator' },
+      },
     ])
     // 角色调整不改变 TenantId：还是同一行
     expect(
@@ -129,8 +132,10 @@ describe('S-28 调整角色／S-29 解除成员', () => {
     expect(await h.memberships.remove(m3, team.owner)).toEqual({
       failure: 'wouldLeaveNoSuperAdministrator',
     })
-    expect(h.events.filter(e => e.name === 'membership.changed')).toContainEqual({
-      name: 'membership.changed',
+    expect(
+      h.events.filter(e => e.name === 'organization-governance/membership-changed'),
+    ).toContainEqual({
+      name: 'organization-governance/membership-changed',
       payload: { tenant: m2, effective: false },
     })
     // 解除只改有效性：行还在，TenantId 不变

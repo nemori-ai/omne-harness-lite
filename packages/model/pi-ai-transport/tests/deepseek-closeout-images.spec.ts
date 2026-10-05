@@ -4,10 +4,20 @@ import { beforeAll, afterAll, describe, expect, it } from 'vitest'
 import sharp from 'sharp'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
-import {type PlanInput} from '@omne-harness-lite/model-request-runtime'
-import { createModelTransportService, createSharpImageCodec, modelImageBalancedV1, createDeepSeekV41FlashInputMeter, deepseekV41FlashDefinition, createOfficialProfileContent } from '@omne-harness-lite/pi-ai-transport'
-import { type LoadedImageCodec, type FullMeterInput } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import {
+  createModelTransportService,
+  createSharpImageCodec,
+  modelImageBalancedV1,
+  createDeepSeekV41FlashInputMeter,
+  deepseekV41FlashDefinition,
+  createOfficialProfileContent,
+} from '@omne-harness-lite/pi-ai-transport'
+import {
+  type LoadedImageCodec,
+  type FullMeterInput,
+} from '@omne-harness-lite/model-request-runtime'
 import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
 import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 import {

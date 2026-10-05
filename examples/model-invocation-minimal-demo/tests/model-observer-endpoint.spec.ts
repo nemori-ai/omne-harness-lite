@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { isOk, parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
-import type {ModelObserverEndpoint, RuntimeCloseResult} from '@omne-harness-lite/model-request-runtime-local'
+import type {
+  ModelObserverEndpoint,
+  RuntimeCloseResult,
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   createDemoObserverAccess,
   createDemoObserverEndpoint,

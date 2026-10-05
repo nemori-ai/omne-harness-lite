@@ -2,9 +2,13 @@ import { imagePreparation } from './image-transport-support.ts'
 import { testDefinitions } from './definitions.ts'
 import { syntheticInputMeter } from './synthetic-input-meter.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
-import {createModelTransportService} from '@omne-harness-lite/pi-ai-transport'
-import {type AdaptationLease, type ModelDefinition, type ModelTransportService} from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { createModelTransportService } from '@omne-harness-lite/pi-ai-transport'
+import {
+  type AdaptationLease,
+  type ModelDefinition,
+  type ModelTransportService,
+} from '@omne-harness-lite/model-request-runtime'
 import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import {
   certificate,

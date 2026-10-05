@@ -6,7 +6,10 @@ import {
   judgePositionedSubject,
   type Conclusion,
 } from '@omne-harness-lite/loop-extension'
-import { prepareRunnerConclusion, type ReadPassConclusionsInput } from '@omne-harness-lite/loop-extension-runner'
+import {
+  prepareRunnerConclusion,
+  type ReadPassConclusionsInput,
+} from '@omne-harness-lite/loop-extension-runner'
 import { readPassConclusions } from '../src/pass-history.ts'
 
 const tenant = parseTenantId({ organization: 'history-org', account: 'history-account' })

@@ -7,8 +7,33 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import { parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'
-import type { DiagnosticAssociation, DiagnosticCloseResult, DiagnosticCollector, DiagnosticCollectorConfig, DiagnosticCoverage, DiagnosticExportLimits, DiagnosticExportResult, DiagnosticHealth, DiagnosticMetrics, DiagnosticQuery, DiagnosticQueryResult, DiagnosticRecord, DiagnosticReportCategory, DiagnosticScope, DiagnosticStage } from './diagnostics-types.ts'
-import type { DiagnosticBinding, DiagnosticDropReason, DiagnosticEmitter, DiagnosticEvent, DiagnosticFact, DiagnosticOutcome, DiagnosticReference, DiagnosticSource } from '@omne-harness-lite/model-request-runtime'
+import type {
+  DiagnosticAssociation,
+  DiagnosticCloseResult,
+  DiagnosticCollector,
+  DiagnosticCollectorConfig,
+  DiagnosticCoverage,
+  DiagnosticExportLimits,
+  DiagnosticExportResult,
+  DiagnosticHealth,
+  DiagnosticMetrics,
+  DiagnosticQuery,
+  DiagnosticQueryResult,
+  DiagnosticRecord,
+  DiagnosticReportCategory,
+  DiagnosticScope,
+  DiagnosticStage,
+} from './diagnostics-types.ts'
+import type {
+  DiagnosticBinding,
+  DiagnosticDropReason,
+  DiagnosticEmitter,
+  DiagnosticEvent,
+  DiagnosticFact,
+  DiagnosticOutcome,
+  DiagnosticReference,
+  DiagnosticSource,
+} from '@omne-harness-lite/model-request-runtime'
 
 const sources = ['runtime', 'invocation', 'transport', 'observer', 'assembly'] as const
 const stages = [

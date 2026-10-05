@@ -1,0 +1,46 @@
+{
+  "name": "@omne-harness-lite/governance-center-client-https",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "治理中心的无状态 HTTPS 协议客户端（D038 / D045）",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist",
+    "generated",
+    "SPEC.md"
+  ],
+  "scripts": {
+    "build": "node ../../../scripts/build-fixed-schemas.mjs",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "dependencies": {
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/offer-expiry": "workspace:*",
+    "ajv": "catalog:",
+    "@omne-harness-lite/governance-center-entry-https-json": "workspace:*",
+    "@omne-harness-lite/kernel-basis": "workspace:*",
+    "@omne-harness-lite/governance-center-entry": "workspace:*",
+    "@deepseek-ai/cordis": "catalog:",
+    "zod": "catalog:",
+    "@omne-harness-lite/assembly-lifecycle": "workspace:*"
+  }
+}

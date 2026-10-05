@@ -1,6 +1,10 @@
 import type { ProviderName } from '@omne-harness-lite/model-profile'
 import { createOfficialProfileContent, type OfficialProfileContentResult } from './configuration.ts'
-import type {CacheDeclaration, CachePolicy, ModelDefinition} from '@omne-harness-lite/model-request-runtime'
+import type {
+  CacheDeclaration,
+  CachePolicy,
+  ModelDefinition,
+} from '@omne-harness-lite/model-request-runtime'
 import type { InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { createAnthropicInputMeter } from './input-meters/anthropic.ts'
 import { createDeepSeekV41FlashInputMeter } from './input-meters/deepseek-v41-flash.ts'

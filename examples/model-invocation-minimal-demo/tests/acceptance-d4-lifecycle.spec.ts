@@ -3,8 +3,12 @@ import sharp from 'sharp'
 import type { Fiber } from '@deepseek-ai/cordis'
 import { loadModelContribution as createModelPlugin } from '../../../packages/model/pi-ai-transport/tests/cordis-assembly.ts'
 import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
-import {createDeepSeekV41FlashInputMeter, deepseekV41FlashDefinition, officialCatalog} from '@omne-harness-lite/pi-ai-transport'
-import {type ModelTransportService} from '@omne-harness-lite/model-request-runtime'
+import {
+  createDeepSeekV41FlashInputMeter,
+  deepseekV41FlashDefinition,
+  officialCatalog,
+} from '@omne-harness-lite/pi-ai-transport'
+import { type ModelTransportService } from '@omne-harness-lite/model-request-runtime'
 import {
   createDemoSupervisor,
   createDemoConfig,
@@ -32,7 +36,7 @@ import {
   deepseekV4Pro0813Definition,
   deepseekV4Pro0813Configuration,
 } from '@omne-harness-lite/pi-ai-transport'
-import {openRouterCredentialRedactionConfig} from '@omne-harness-lite/model-request-runtime'
+import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { actor, ref, duration, activateModelFixture } from './support.ts'
 import { ROOT, publication, demoRetirement } from './model-request-support.ts'
@@ -283,7 +287,12 @@ describe('D4 independent runtime retained leases and historical reacquisition', 
         state: 'awaiting_decision',
       })
       expect(registry.inspect()).toMatchObject({ registrations: 1, references: 1, executions: 0 })
-      const next = createModelPlugin(provider.ctx, deepseekV41FlashDefinition, createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition), demoRetirement())
+      const next = createModelPlugin(
+        provider.ctx,
+        deepseekV41FlashDefinition,
+        createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition),
+        demoRetirement(),
+      )
       await next
       let retired = false
       const retirement = old.dispose().then(() => {

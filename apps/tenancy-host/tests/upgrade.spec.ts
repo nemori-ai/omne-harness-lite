@@ -6,13 +6,19 @@
 import { chmodSync, existsSync, readFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it } from 'vitest'
+import type { JsonValue } from '@omne-harness-lite/cordis-plugin-tree'
 import { composeMigrations } from '@omne-harness-lite/storage'
 import {
   StorageStartupFailure,
   createUpgradeGuard,
   openStorage,
 } from '@omne-harness-lite/storage-sql'
-import { DATA_FORMAT_CHECK, type ManifestEntry, hostMigrationFragments } from '../src/index.ts'
+import {
+  buildDistributionTree,
+  readHostConfig,
+  DATA_FORMAT_CHECK,
+  hostMigrationFragments,
+} from '../src/index.ts'
 import {
   type Deployment,
   centerIdOf,
@@ -21,6 +27,7 @@ import {
   execute,
   query,
   sidecarsOf,
+  asEnv,
   tablesOf,
 } from './support/deployment.ts'
 import { fragment } from './support/fragments.ts'
@@ -370,35 +377,50 @@ describe('assembly.upgrade-confirmed：确认绑在实例上，确认之后不�
   })
 
   describe('显式守卫支（N-5）', () => {
-    const withStorageConfig =
-      (change: (config: Record<string, unknown>) => Record<string, unknown>) =>
-      (entries: readonly ManifestEntry[]): readonly ManifestEntry[] =>
-        entries.map(entry =>
-          entry.name === 'storage-sql'
-            ? { ...entry, config: change(entry.config as Record<string, unknown>) }
-            : entry,
-        )
-
-    it('带 migrations 而 upgrade 缺席 ⇒ 存储的 Config 拒、启动失败、库未打开', async () => {
-      const d = await deployment('no-upgrade')
-      const refused = await hosts.refuse(d, {
-        manifest: withStorageConfig(({ upgrade: _dropped, ...rest }) => rest),
+    function isConfig(
+      value: JsonValue | undefined,
+    ): value is { readonly [key: string]: JsonValue } {
+      return typeof value === 'object' && value !== null && !Array.isArray(value)
+    }
+    async function storageConfig(d: Deployment) {
+      const rows = buildDistributionTree(await readHostConfig(asEnv(d)), {
+        backupDirectory: `${d.root}/backups`,
+        sourceBuildId: null,
+        migrationNames: ['test'],
       })
-      expect(refused.failure).toMatchObject({ stage: 'plugin', item: 'storage-sql' })
-      expect(refused.failure.message).toContain('upgrade must be given explicitly')
+      const config = rows.find(row => row.id === 'storage-sql')?.config
+      if (!isConfig(config)) throw new Error('missing SQL config')
+      return config
+    }
+
+    it('missing startup with maintenance refuses Config before opening the database', async () => {
+      const d = await deployment('no-upgrade')
+      const { startup: _dropped, ...rest } = await storageConfig(d)
+      const refused = await hosts.refuse(d, {}, undefined, [
+        { op: 'replace', id: 'storage-sql', config: rest },
+      ])
+      expect(refused.failure).toMatchObject({
+        stage: 'plugin',
+        item: 'storage-sql',
+        cause: { code: 'invalid-config' },
+      })
       expect(sidecarsOf(d.file).db).toBe(false)
     })
 
-    it('D055：带维护面的生产装配拒绝 upgrade:false，存储配置校验先于打开数据库', async () => {
+    it('plain startup with maintenance refuses Config before database, lock or snapshot creation', async () => {
       const d = await deployment('upgrade-false-host')
-      const refused = await hosts.refuse(d, {
-        manifest: withStorageConfig(config => ({ ...config, upgrade: false })),
+      const refused = await hosts.refuse(d, {}, undefined, [
+        {
+          op: 'replace',
+          id: 'storage-sql',
+          config: { ...(await storageConfig(d)), startup: 'plain' },
+        },
+      ])
+      expect(refused.failure).toMatchObject({
+        stage: 'plugin',
+        item: 'storage-sql',
+        cause: { code: 'invalid-config' },
       })
-      expect(refused.failure.stage).toBe('plugin')
-      expect(refused.failure.item).toBe('storage-sql')
-      expect(refused.failure.message).toContain(
-        'snapshot maintenance requires an owned upgrade guard',
-      )
       expect(existsSync(d.file)).toBe(false)
       expect(existsSync(`${d.file}.owner-lock`)).toBe(false)
       expect(sidecarsOf(d.file).snapshot).toBe(false)

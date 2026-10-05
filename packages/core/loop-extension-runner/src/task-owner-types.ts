@@ -1,11 +1,7 @@
-
-
 import type { LogPrefixView, SystemReminderMessage } from '@omne-harness-lite/messages'
 
 import { type PositionedSubject } from '@omne-harness-lite/loop-extension'
 import { type LogEntry, type LogEntryInput } from '@omne-harness-lite/session-log'
-
-
 
 export interface RunnerLogBinding {
   readonly session: string

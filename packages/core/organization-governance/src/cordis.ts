@@ -87,15 +87,25 @@ declare module '@deepseek-ai/cordis' {
     organizationPurge: OrganizationPurge
   }
   interface Events {
-    /** @mode emit */
-    'invitation.issued': OrganizationGovernanceEvents['invitation.issued']
-    /** @mode emit */
-    'membership.changed': OrganizationGovernanceEvents['membership.changed']
-    /** @mode emit */
-    'role.changed': OrganizationGovernanceEvents['role.changed']
-    /** @mode emit */
-    'affiliation.dissolved': OrganizationGovernanceEvents['affiliation.dissolved']
-    /** @mode emit */
-    'organization.purged': OrganizationGovernanceEvents['organization.purged']
+    /** @mode emit
+     * @param payload Committed governance notification.
+     */
+    'organization-governance/invitation-issued': OrganizationGovernanceEvents['organization-governance/invitation-issued']
+    /** @mode emit
+     * @param payload Committed governance notification.
+     */
+    'organization-governance/membership-changed': OrganizationGovernanceEvents['organization-governance/membership-changed']
+    /** @mode emit
+     * @param payload Committed governance notification.
+     */
+    'organization-governance/role-changed': OrganizationGovernanceEvents['organization-governance/role-changed']
+    /** @mode emit
+     * @param payload Committed governance notification.
+     */
+    'organization-governance/affiliation-dissolved': OrganizationGovernanceEvents['organization-governance/affiliation-dissolved']
+    /** @mode emit
+     * @param payload Committed governance notification.
+     */
+    'organization-governance/organization-purged': OrganizationGovernanceEvents['organization-governance/organization-purged']
   }
 }

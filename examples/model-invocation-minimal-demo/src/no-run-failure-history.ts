@@ -1,7 +1,11 @@
 import type { ModelCallId } from '@omne-harness-lite/call-accounts'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
-import {interpretCallHistory, type CurrentHistoryReaders, type SettlementPrefix} from '@omne-harness-lite/model-request-runtime-local'
+import {
+  interpretCallHistory,
+  type CurrentHistoryReaders,
+  type SettlementPrefix,
+} from '@omne-harness-lite/model-request-runtime-local'
 
 /** This app owns only noRun model-log writes. Foreign or undecodable history is unknown. */
 export function readDemoNoRunFailure(

@@ -9,7 +9,7 @@ import type {
   ServiceInvalidInput,
   ModelIdentitySource,
 } from '../src/service-types.ts'
-import type {PlannedSemantics} from '@omne-harness-lite/model-request-runtime'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { TokenMargin } from '@omne-harness-lite/model-request-runtime'
 
 declare const service: ModelRuntimeService

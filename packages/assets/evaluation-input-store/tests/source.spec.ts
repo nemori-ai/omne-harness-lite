@@ -517,9 +517,15 @@ test('real Cordis wrapper reads the same component; withdrawal disables old refe
       apply(ctx) {
         ctx.provide('sessionTenancy', h.sessionTenancy)
         class Support extends EvaluationInputSupportService {
-          monotonicNow() { return h.deps.monotonicNow() }
-          diagnostics(...args: Parameters<typeof h.deps.diagnostics>) { return h.deps.diagnostics(...args) }
-          onDiagnosticFailure(...args: Parameters<typeof h.deps.onDiagnosticFailure>) { return h.deps.onDiagnosticFailure(...args) }
+          monotonicNow() {
+            return h.deps.monotonicNow()
+          }
+          diagnostics(...args: Parameters<typeof h.deps.diagnostics>) {
+            return h.deps.diagnostics(...args)
+          }
+          onDiagnosticFailure(...args: Parameters<typeof h.deps.onDiagnosticFailure>) {
+            return h.deps.onDiagnosticFailure(...args)
+          }
         }
         new Support(ctx)
       },

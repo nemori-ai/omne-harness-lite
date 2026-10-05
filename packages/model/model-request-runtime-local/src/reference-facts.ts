@@ -15,7 +15,11 @@ import type {
 } from '@omne-harness-lite/messages'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import type { LogEntry, ReadResult } from '@omne-harness-lite/session-log'
-import { encodeModelLogKey, inspectModelLogEntry, type CapturedModelLogValue } from '@omne-harness-lite/model-request-runtime'
+import {
+  encodeModelLogKey,
+  inspectModelLogEntry,
+  type CapturedModelLogValue,
+} from '@omne-harness-lite/model-request-runtime'
 import { settlementGenerationCurrent } from './settlement-prefix.ts'
 import {
   acknowledgedAttempts,

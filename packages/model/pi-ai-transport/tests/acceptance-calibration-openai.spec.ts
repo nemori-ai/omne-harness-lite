@@ -1,7 +1,7 @@
 import { imagePreparation } from './image-transport-support.ts'
 import { describe, expect, it } from 'vitest'
-import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
-import {type PlanInput} from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import {
   openaiDefinitions,
   createOpenAiInputMeter,

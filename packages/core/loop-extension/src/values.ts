@@ -78,7 +78,8 @@ function subject(value: Wire<Subject>): Subject {
       ] as const),
     })
   if ('callId' in value) {
-    if (value.outcome === 'denied') return Object.freeze({ callId: identifier(value.callId, 'CallId'), outcome: 'denied' })
+    if (value.outcome === 'denied')
+      return Object.freeze({ callId: identifier(value.callId, 'CallId'), outcome: 'denied' })
     const { result, ...rest } = value
     return Object.freeze({
       ...rest,

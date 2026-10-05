@@ -8,7 +8,11 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import { defineInputMeter } from '../src/input-meter.ts'
-import { type FullMeterInput, type NewMeterInput, type ReplayMeterInput } from '@omne-harness-lite/model-request-runtime'
+import {
+  type FullMeterInput,
+  type NewMeterInput,
+  type ReplayMeterInput,
+} from '@omne-harness-lite/model-request-runtime'
 import { projectInput, projectOutput, canonicalProjection } from '../src/projection.ts'
 import {
   fullOutputHistory,

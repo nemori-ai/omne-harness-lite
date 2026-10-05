@@ -3,11 +3,16 @@ import { imagePreparation } from './image-transport-support.ts'
 import { testDefinitions } from './definitions.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
-import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
-import {type PlanInput, type StreamEnd} from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput, type StreamEnd } from '@omne-harness-lite/model-request-runtime'
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
-import {createModelTransportService} from '@omne-harness-lite/pi-ai-transport'
-import {type AdaptationLease, type AdaptationRegistration, type ModelDefinition, type ModelTransportService} from '@omne-harness-lite/model-request-runtime'
+import { createModelTransportService } from '@omne-harness-lite/pi-ai-transport'
+import {
+  type AdaptationLease,
+  type AdaptationRegistration,
+  type ModelDefinition,
+  type ModelTransportService,
+} from '@omne-harness-lite/model-request-runtime'
 import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import { loadModelContribution as createModelPluginWithMeter } from './cordis-assembly.ts'
 import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
@@ -24,7 +29,12 @@ import {
 import { syntheticInputMeter } from './synthetic-input-meter.ts'
 
 function createModelPlugin(ctx: Context, definition: ModelDefinition, policy: RetirementPolicy) {
-  return createModelPluginWithMeter(ctx, definition, syntheticInputMeter(definition, 'openai'), policy)
+  return createModelPluginWithMeter(
+    ctx,
+    definition,
+    syntheticInputMeter(definition, 'openai'),
+    policy,
+  )
 }
 
 // Cordis 4.0.4 publishes these numeric FiberState values in its public declaration.
@@ -263,9 +273,13 @@ describe('actual Cordis 4.0.4 model contribution lifecycle', () => {
         retirement: retirement(),
       })
       const service = serviceOf(ctx)
-      const v1 = createModelPlugin(ctx, firstDefinition(), retirement(false, () => {
-            deadlines++
-          }))
+      const v1 = createModelPlugin(
+        ctx,
+        firstDefinition(),
+        retirement(false, () => {
+          deadlines++
+        }),
+      )
       await v1
       const oldRequest = requestFor(firstDefinition())
       const a = acquire(service, oldRequest)
@@ -396,9 +410,13 @@ describe('public registry actual HTTPS execution ownership', () => {
         },
       }
       await ctx.plugin(localProvider)
-      const contribution = createModelPlugin(ctx, firstDefinition(), retirement(true, () => {
-            deadlines++
-          }))
+      const contribution = createModelPlugin(
+        ctx,
+        firstDefinition(),
+        retirement(true, () => {
+          deadlines++
+        }),
+      )
       await contribution
       expect(serviceOf(ctx)).toBe(service)
       const directLease = acquire(service, request)

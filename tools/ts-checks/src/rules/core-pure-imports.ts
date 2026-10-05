@@ -7,6 +7,7 @@ import { syntaxImports, syntaxOf } from '../syntax.ts'
 /** 当前已接受节点 design 的依赖表；工具依赖（如 content-blocks 无损写）也明确登记。 */
 export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>> = {
   storage: [],
+  'cordis-plugin-tree': ['assembly-lifecycle'],
   'offer-expiry': ['identity-values'],
   'organization-governance': ['storage', 'identity-values', 'offer-expiry', 'kernel-basis'],
   // Tool runtime stage 2: m1/b1 accepted signature closure, plus N4 retry ownership.
@@ -275,12 +276,35 @@ const FIXED_SCHEMA_MODULE_SITES = new Set([
   'core/slash-command/src/schema.ts',
 ])
 
+const treeBindingPath = (path: string): boolean =>
+  ['prepare.ts', 'prepared.ts', 'load.ts', 'cordis.ts'].some(
+    name => path === `core/cordis-plugin-tree/src/${name}`,
+  )
+
 function allowedExternal(
   pkg: string,
   dependencies: readonly string[],
   specifier: string,
   path: string,
 ): boolean {
+  if (pkg === 'cordis-plugin-tree') {
+    const binding = treeBindingPath(path)
+    if (
+      binding &&
+      [
+        '@deepseek-ai/cordis',
+        '@standard-schema/spec',
+        '@omne-harness-lite/assembly-lifecycle/cordis',
+        '@omne-harness-lite/kernel-basis/cordis',
+      ].includes(specifier)
+    )
+      return true
+    if (
+      path === 'core/cordis-plugin-tree/src/tree.ts' &&
+      ['validate-npm-package-name', '@babel/helper-validator-identifier'].includes(specifier)
+    )
+      return true
+  }
   // IC-4: only the explicitly exported Cordis face may load the kernel.
   if (
     CORDIS_DEFINITION_OWNERS.has(pkg) &&
@@ -365,6 +389,11 @@ export const corePureImports: Rule = {
         const resolved = specifier === undefined ? undefined : resolveRelative(file.path, specifier)
         const local =
           resolved !== undefined &&
+          !(
+            pkg === 'cordis-plugin-tree' &&
+            treeBindingPath(resolved) &&
+            !treeBindingPath(file.path)
+          ) &&
           ((resolved.startsWith(`core/${pkg}/src/`) &&
             !(CORDIS_DEFINITION_OWNERS.has(pkg) && resolved === `core/${pkg}/src/cordis.ts`)) ||
             (resolved.startsWith(`core/${pkg}/schema/`) && resolved.endsWith('.json')))

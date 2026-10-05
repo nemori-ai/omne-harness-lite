@@ -12,8 +12,8 @@ const RESTRICTED_METHODS: readonly {
     owner: 'organization-governance-sql',
     why: 'OG S-20 建个人组织只由注册主链 ② 调',
   },
-  { name: 'activate', owner: 'account-identity', why: 'AI S-14 激活只由注册主链 ③ 调' },
-  { name: 'purge', owner: 'account-identity', why: 'AI S-38 清除只由清除链 ② 调' },
+  { name: 'activate', owner: 'account-identity-sql', why: 'AI S-14 激活只由注册主链 ③ 调' },
+  { name: 'purge', owner: 'account-identity-sql', why: 'AI S-38 清除只由清除链 ② 调' },
   {
     name: 'sweepStaleSelections',
     owner: 'organization-governance-sql',
@@ -36,8 +36,11 @@ export const restrictedCallSites: Rule = {
   check(files) {
     const allowed = (path: string, owner: string) =>
       isTestPath(path) ||
-      path.startsWith('tenancy/account-registration/') ||
+      path.startsWith('tenancy/account-registration-sequential/') ||
       path.startsWith(`tenancy/${owner}/`) ||
+      (owner === 'account-identity-sql' &&
+        (path === 'core/account-identity/src/types.ts' ||
+          path === 'core/account-identity/src/cordis.ts')) ||
       (owner === 'organization-governance-sql' &&
         (path === 'core/organization-governance/src/types.ts' ||
           path === 'core/organization-governance/src/cordis.ts'))
@@ -47,7 +50,7 @@ export const restrictedCallSites: Rule = {
         files,
         /\.produce\(/,
         '调用了 accounts.produce(；只有注册组合能产生账号',
-        path => allowed(path, 'account-identity'),
+        path => allowed(path, 'account-identity-sql'),
       ),
       ...scanLines(
         this,

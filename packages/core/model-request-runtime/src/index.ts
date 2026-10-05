@@ -1,4 +1,3 @@
-
 export * from './log-codec.ts'
 export * from './planning-types.ts'
 export * from './diagnostic-events.ts'
@@ -7,7 +6,11 @@ export * from './input-meter.ts'
 export * from './input-projection.ts'
 export * from './retirement-policy.ts'
 export * from './transport-diagnostic.ts'
-export { inspectCurrentModelLogPrefix, reconstructAdaptedParameters, type CompletePrefixInput } from './log-codec-settlement.ts'
+export {
+  inspectCurrentModelLogPrefix,
+  reconstructAdaptedParameters,
+  type CompletePrefixInput,
+} from './log-codec-settlement.ts'
 export * from './invocation-types.ts'
 export * from './credential-redaction.ts'
 export * from './credential-redaction-types.ts'

@@ -2,8 +2,17 @@ import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { AttemptId, RunId } from '@omne-harness-lite/call-accounts'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { SessionRef } from '@omne-harness-lite/messages'
-import type { AppendCondition, AppendResult, OwnedLogEntry, SessionLog } from '@omne-harness-lite/session-log'
-import type { ModelLogSettlementTarget, ModelLogSettlementCurrent, SettlementMembersResult } from '@omne-harness-lite/model-request-runtime'
+import type {
+  AppendCondition,
+  AppendResult,
+  OwnedLogEntry,
+  SessionLog,
+} from '@omne-harness-lite/session-log'
+import type {
+  ModelLogSettlementTarget,
+  ModelLogSettlementCurrent,
+  SettlementMembersResult,
+} from '@omne-harness-lite/model-request-runtime'
 import type { SettlementPrefix } from './settlement-prefix.ts'
 
 /** G28's owner interprets both axes from the exact owned prefix supplied by this coordinator. */

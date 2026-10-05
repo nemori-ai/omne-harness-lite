@@ -1,15 +1,19 @@
 import type { AssetContent, CapabilityId, AssetVersion } from '@omne-harness-lite/asset-model'
-import type { EffectiveAssembly, EffectiveAsset, EffectiveValue, EvaluationRootSource } from '@omne-harness-lite/asset-evaluation'
-import type { EvaluationRef, ManifestRecord, ManifestTable } from '@omne-harness-lite/assembly-manifest'
+import type {
+  EffectiveAssembly,
+  EffectiveAsset,
+  EffectiveValue,
+  EvaluationRootSource,
+} from '@omne-harness-lite/asset-evaluation'
+import type {
+  EvaluationRef,
+  ManifestRecord,
+  ManifestTable,
+} from '@omne-harness-lite/assembly-manifest'
 import type { JsonNumber, JsonObject, JsonValue } from '@omne-harness-lite/content-blocks'
 import type { RunId, AttemptId } from '@omne-harness-lite/call-accounts'
 
 import type { Instant } from '@omne-harness-lite/offer-expiry'
-
-
-
-
-
 
 export const REGISTERED_CATEGORIES = Object.freeze([
   'tool',

@@ -7,10 +7,22 @@ import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts
 import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 import { createHash } from 'node:crypto'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import type {PlanInput} from '@omne-harness-lite/model-request-runtime'
-import {createPiAiTransport, createModelTransportService, createSharpImageCodec, modelImageBalancedV1, defineInputMeter, planRequest, createImagePreparer, inspectTransformRevision} from '@omne-harness-lite/pi-ai-transport'
-import {type PlannedRequest} from '@omne-harness-lite/model-request-runtime'
-import { type FullMeterInput, type LoadedImageCodec } from '@omne-harness-lite/model-request-runtime'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import {
+  createPiAiTransport,
+  createModelTransportService,
+  createSharpImageCodec,
+  modelImageBalancedV1,
+  defineInputMeter,
+  planRequest,
+  createImagePreparer,
+  inspectTransformRevision,
+} from '@omne-harness-lite/pi-ai-transport'
+import { type PlannedRequest } from '@omne-harness-lite/model-request-runtime'
+import {
+  type FullMeterInput,
+  type LoadedImageCodec,
+} from '@omne-harness-lite/model-request-runtime'
 import { certificate, fixture, input, judgedMessage, at, content, finish } from './support.ts'
 import { testDefinitions } from './definitions.ts'
 

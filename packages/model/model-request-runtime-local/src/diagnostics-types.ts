@@ -1,8 +1,15 @@
-import { type DiagnosticEmitter, type DiagnosticEvent, type DiagnosticRecordResult, type DiagnosticReference, type DiagnosticDropReason, type DiagnosticSource, type DiagnosticOutcome } from '@omne-harness-lite/model-request-runtime'
+import {
+  type DiagnosticEmitter,
+  type DiagnosticEvent,
+  type DiagnosticRecordResult,
+  type DiagnosticReference,
+  type DiagnosticDropReason,
+  type DiagnosticSource,
+  type DiagnosticOutcome,
+} from '@omne-harness-lite/model-request-runtime'
 /** Engineering observations are neither session-log records nor recovery evidence. */
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { TenantId } from '@omne-harness-lite/identity-values'
-
 
 export type DiagnosticStage =
   | 'admission'

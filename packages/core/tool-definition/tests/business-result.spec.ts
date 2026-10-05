@@ -5,7 +5,11 @@ import { judgeToolReturn, toolResultOf, validate } from '../src/index.ts'
 it('keeps explicit business failure separate from text, absence and false', () => {
   const id = parseOpaqueIdentifier('business-result', 'BlockId')
   if (!('ok' in id)) throw new Error('fixture')
-  for (const result of [{ content: [] }, { content: [], isError: false }, { content: [], isError: true }]) {
+  for (const result of [
+    { content: [] },
+    { content: [], isError: false },
+    { content: [], isError: true },
+  ]) {
     expect(validate('ToolReturn', result).valid).toBe(true)
     expect(judgeToolReturn(result)).toEqual({ ok: true })
     expect(toolResultOf(result, id.ok)).toEqual(result)

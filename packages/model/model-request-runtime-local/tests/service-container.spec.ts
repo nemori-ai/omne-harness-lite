@@ -15,7 +15,7 @@ import {
   createCallContainerStore,
   createCallPreparationOwner,
 } from '../src/service-container.ts'
-import type {PlannedSemantics} from '@omne-harness-lite/model-request-runtime'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { AnchoredInvocationHandle } from '../src/anchored-invocation-types.ts'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 

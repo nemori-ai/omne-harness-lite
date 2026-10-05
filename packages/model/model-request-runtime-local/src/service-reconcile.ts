@@ -25,7 +25,10 @@ import type {
 } from './service-types.ts'
 import type { CallAccess, CallFacts } from './reference-types.ts'
 import type { AnchoredInvocationHandle } from './anchored-invocation-types.ts'
-import { inspectCurrentModelLogPrefix, type ModelLogSettlementTarget } from '@omne-harness-lite/model-request-runtime'
+import {
+  inspectCurrentModelLogPrefix,
+  type ModelLogSettlementTarget,
+} from '@omne-harness-lite/model-request-runtime'
 import { interpretCallHistory, rejectAcknowledgedHistory } from './call-history.ts'
 import { acknowledgedFactsFromHistory } from './acknowledged-view.ts'
 import { judgeAcknowledgedSettlement } from './acknowledged-settlement.ts'
@@ -43,7 +46,7 @@ import { operationDiagnostics } from './service-diagnostics.ts'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import type { DiagnosticCollector } from './diagnostics-types.ts'
 import type { DispatchGuardPhase } from './dispatch-guard.ts'
-import type {PlannedSemantics} from '@omne-harness-lite/model-request-runtime'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementContention,
   SettlementDiagnostic,

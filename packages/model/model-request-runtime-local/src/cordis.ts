@@ -9,15 +9,24 @@ import { createDefaultRetryImplementation, DEFAULT_RETRY_BUILTIN } from './defau
 export const modelDefaultRetry = definePlugin({
   name: 'model-default-retry',
   inject: [LOOP_EXTENSION_IMPLEMENTATIONS, MODEL_RETRY_SAMPLE],
-  Config: z.object({ policy: z.object({
-    kind: z.enum(['constant', 'linear', 'exponential']),
-    base: z.custom<Duration>(value => validateTool('Duration', value).valid),
-    factor: z.custom<JsonNumber>(isJsonNumber),
-    max: z.custom<Duration>(value => validateTool('Duration', value).valid),
-    jitter: z.enum(['none', 'full', 'half', 'decorrelated']),
-  }).strict() }).strict(),
+  Config: z
+    .object({
+      policy: z
+        .object({
+          kind: z.enum(['constant', 'linear', 'exponential']),
+          base: z.custom<Duration>(value => validateTool('Duration', value).valid),
+          factor: z.custom<JsonNumber>(isJsonNumber),
+          max: z.custom<Duration>(value => validateTool('Duration', value).valid),
+          jitter: z.enum(['none', 'full', 'half', 'decorrelated']),
+        })
+        .strict(),
+    })
+    .strict(),
   apply(ctx, config) {
-    const implementation = createDefaultRetryImplementation({ policy: config.policy, sample: () => ctx.modelRetrySample.sample() })
+    const implementation = createDefaultRetryImplementation({
+      policy: config.policy,
+      sample: () => ctx.modelRetrySample.sample(),
+    })
     ctx.loopExtensionImplementations.registerBuiltin(DEFAULT_RETRY_BUILTIN, implementation)
   },
 })

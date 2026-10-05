@@ -1,0 +1,62 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Warning: Please run the Java VM, which executes TLC with a throughput optimized garbage collector, by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 42 and seed 1424494019613517311 with 1 worker on 8 cores with 7824MB heap and 64MB offheap memory [pid: 134507] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/formal-base/og-Membership_NoSerialization/Membership.tla
+Parsing file /tmp/tlc-10340659039329491375/Naturals.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-10340659039329491375/FiniteSets.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-10340659039329491375/_TLCTrace.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/_TLCTrace.tla)
+Parsing file /tmp/tlc-10340659039329491375/Sequences.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-10340659039329491375/TLC.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-10340659039329491375/TLCExt.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLCExt.tla)
+Parsing file /tmp/tlc-10340659039329491375/Integers.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Integers
+Semantic processing of module TLCExt
+Semantic processing of module _TLCTrace
+Semantic processing of module Membership
+Linting of module TLCExt
+Linting of module _TLCTrace
+Linting of module Membership
+Starting... (2026-10-04 18:20:36)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-04 18:20:36.
+Error: Invariant AtLeastOneSuperAdministrator is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ effective = {a1, a2}
+/\ staged = ( a1 :> [kind |-> "none", target |-> "none"] @@
+  a2 :> [kind |-> "none", target |-> "none"] )
+/\ isSuper = (a1 :> TRUE @@ a2 :> TRUE)
+
+State 2: <Stage(a1,a1,"remove") line 95, col 5 to line 101, col 39 of module Membership>
+/\ effective = {a1, a2}
+/\ staged = ( a1 :> [kind |-> "remove", target |-> a1] @@
+  a2 :> [kind |-> "none", target |-> "none"] )
+/\ isSuper = (a1 :> TRUE @@ a2 :> TRUE)
+
+State 3: <Stage(a2,a2,"remove") line 95, col 5 to line 101, col 39 of module Membership>
+/\ effective = {a1, a2}
+/\ staged = ( a1 :> [kind |-> "remove", target |-> a1] @@
+  a2 :> [kind |-> "remove", target |-> a2] )
+/\ isSuper = (a1 :> TRUE @@ a2 :> TRUE)
+
+State 4: <Apply(a1) line 104, col 5 to line 107, col 45 of module Membership>
+/\ effective = {a2}
+/\ staged = ( a1 :> [kind |-> "none", target |-> "none"] @@
+  a2 :> [kind |-> "remove", target |-> a2] )
+/\ isSuper = (a1 :> TRUE @@ a2 :> TRUE)
+
+State 5: <Apply(a2) line 104, col 5 to line 107, col 45 of module Membership>
+/\ effective = {}
+/\ staged = ( a1 :> [kind |-> "none", target |-> "none"] @@
+  a2 :> [kind |-> "none", target |-> "none"] )
+/\ isSuper = (a1 :> TRUE @@ a2 :> TRUE)
+
+94 states generated, 62 distinct states found, 29 states left on queue.
+The depth of the complete state graph search is 5.
+Finished in 00s at (2026-10-04 18:20:36)
+Trace exploration spec path: ./Membership_TTrace_1791138036.tla

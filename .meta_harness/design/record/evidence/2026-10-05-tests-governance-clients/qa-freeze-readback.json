@@ -1,0 +1,15 @@
+{
+  "base": "beef18017170eb70cae2c6bf3afb121b18a0139e",
+  "commit": "69492d46c10ec27bbc6943c7194d8be2d7b259d2",
+  "run_id": "qa-r1-t3-clean-candidate-69492d46c-freeze-readback",
+  "verifier": "qa:/root/r1_t1a_candidate_qa",
+  "exit_code": 0,
+  "at": "2026-10-05T01:36:37.782619+00:00",
+  "manifest_sha256": "202b93bc16598555a51047d5c0719032f94503f67c3e1ac52db8ba295ec0a793",
+  "own_items": 890,
+  "own_bytes": 97358204,
+  "external_items": 1121,
+  "bad": [],
+  "source_state_receipt": "evidence/final-input-readback.json",
+  "excluded_self_hash_receipt": true
+}

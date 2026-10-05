@@ -6,7 +6,7 @@ import {
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { object } from '../json.ts'
-import type {ModelDefinition} from '@omne-harness-lite/model-request-runtime'
+import type { ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import type { InputMeter, TokenMeasurement } from '@omne-harness-lite/model-request-runtime'
 
 /** Exploratory features over the frozen final OpenRouter projection; not an InputMeter. */

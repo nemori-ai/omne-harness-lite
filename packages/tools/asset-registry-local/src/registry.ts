@@ -5,7 +5,12 @@ import {
   type NonConnectorEvaluationInput,
 } from '@omne-harness-lite/asset-evaluation'
 import type { AssetDefinition, CapabilityId, AssetVersion } from '@omne-harness-lite/asset-model'
-import type { ManifestRecord, ManifestAppendInput, EvaluationRef, ManifestSessionRef } from '@omne-harness-lite/assembly-manifest'
+import type {
+  ManifestRecord,
+  ManifestAppendInput,
+  EvaluationRef,
+  ManifestSessionRef,
+} from '@omne-harness-lite/assembly-manifest'
 import { judgeAccountValue, type AttemptId } from '@omne-harness-lite/call-accounts'
 import type { JsonObject, JsonValue } from '@omne-harness-lite/content-blocks'
 import {
@@ -17,10 +22,37 @@ import { instantFromEpochMs, type Instant } from '@omne-harness-lite/offer-expir
 import { StorageUnavailable } from '@omne-harness-lite/storage'
 import type { SlashCommandDefinition } from '@omne-harness-lite/slash-command'
 import { own, object, closed, equal, requiredOwn } from '@omne-harness-lite/asset-registry'
-import { getAssetJudge, capability, compositionFor, effective, entryName, extractRootSourceFromFullFillRecord, order, permutation, readRegistryRecord, registered, session } from '@omne-harness-lite/asset-registry'
-import { buildSnapshots, buildTableContents, computeTableAvailability, findInSnapshot } from '@omne-harness-lite/asset-registry'
+import {
+  getAssetJudge,
+  capability,
+  compositionFor,
+  effective,
+  entryName,
+  extractRootSourceFromFullFillRecord,
+  order,
+  permutation,
+  readRegistryRecord,
+  registered,
+  session,
+} from '@omne-harness-lite/asset-registry'
+import {
+  buildSnapshots,
+  buildTableContents,
+  computeTableAvailability,
+  findInSnapshot,
+} from '@omne-harness-lite/asset-registry'
 import { buildReport, refreshRun, within, readReport } from '@omne-harness-lite/asset-registry'
-import { REGISTERED_CATEGORIES, type RegistryFailure, type RegisteredCategory, type RegistrySnapshot, type TablePlan, type FilledBy, type Within, type CheckedRegistryRecord, type RegistryEntry } from '@omne-harness-lite/asset-registry'
+import {
+  REGISTERED_CATEGORIES,
+  type RegistryFailure,
+  type RegisteredCategory,
+  type RegistrySnapshot,
+  type TablePlan,
+  type FilledBy,
+  type Within,
+  type CheckedRegistryRecord,
+  type RegistryEntry,
+} from '@omne-harness-lite/asset-registry'
 import { type AssetRegistry, type RegistryDependencies } from './types.ts'
 
 class Unavailable extends Error {

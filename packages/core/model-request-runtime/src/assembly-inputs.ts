@@ -11,7 +11,10 @@ export interface ModelTransportSupport {
   readonly onDiagnostic?: (event: Diagnostic) => void | Promise<void>
   readonly registryDiagnostics?: Pick<DiagnosticEmitter, 'record'>
 }
-export type MeterCoordinates = Pick<InputMeter, 'modelId' | 'definitionRevision' | 'implementation' | 'provider'>
+export type MeterCoordinates = Pick<
+  InputMeter,
+  'modelId' | 'definitionRevision' | 'implementation' | 'provider'
+>
 export interface ModelInputMeters {
   readonly select: (coordinates: MeterCoordinates) => InputMeter | { readonly unavailable: true }
 }

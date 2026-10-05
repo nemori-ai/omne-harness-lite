@@ -1,6 +1,6 @@
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
-import type {ModelInvocationResult, PlanInput} from '@omne-harness-lite/model-request-runtime'
+import type { ModelInvocationResult, PlanInput } from '@omne-harness-lite/model-request-runtime'
 import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import { createOfficialProfileContent, xaiDefinitions } from '@omne-harness-lite/pi-ai-transport'
 

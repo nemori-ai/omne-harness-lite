@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { toOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import type {PlanInput} from '@omne-harness-lite/model-request-runtime'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import { openAiFamilyRecords } from '../src/input-meters/openai-family-policy.ts'
 import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'

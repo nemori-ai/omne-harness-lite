@@ -14,7 +14,7 @@ import {
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { object } from '../json.ts'
-import type {ModelDefinition} from '@omne-harness-lite/model-request-runtime'
+import type { ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import type { InputMeter, TokenMeasurement } from '@omne-harness-lite/model-request-runtime'
 import type { ZaiHistoryTreatment } from '../official-models/zai.ts'
 import { guardInputMeter } from './shared.ts'

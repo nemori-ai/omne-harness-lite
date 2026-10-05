@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { isOk, parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
-import type {SettlementPrefix} from '@omne-harness-lite/model-request-runtime-local'
+import type { SettlementPrefix } from '@omne-harness-lite/model-request-runtime-local'
 import { readDemoNoRunFailure } from '../src/no-run-failure-history.ts'
 
 const parsed = parseOpaqueIdentifier('call-failure-history', 'ModelCallId')

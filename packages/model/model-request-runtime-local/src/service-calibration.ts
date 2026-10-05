@@ -8,8 +8,11 @@ import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import { interpretSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
 import type { SettlementPrefix } from './settlement-prefix.ts'
 import type { CurrentHistoryReaders } from './service-types.ts'
-import {copyPlanOutputHistory} from '@omne-harness-lite/model-request-runtime'
-import type { PlanCalibration, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
+import { copyPlanOutputHistory } from '@omne-harness-lite/model-request-runtime'
+import type {
+  PlanCalibration,
+  PlanOutputHistoryGroup,
+} from '@omne-harness-lite/model-request-runtime'
 
 export type AuthorizedCalibrationResult =
   | {

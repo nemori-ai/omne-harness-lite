@@ -9,7 +9,15 @@ import type {
   PendingModelResponse,
 } from '@omne-harness-lite/model-response'
 import type { CapturedModelLogValue } from '@omne-harness-lite/model-request-runtime'
-import type {InvocationInput, PlanInput, PlannedSemantics, TransportAdapter, InvocationPolicy, PlanFailure, ModelInvocationHandle} from '@omne-harness-lite/model-request-runtime'
+import type {
+  InvocationInput,
+  PlanInput,
+  PlannedSemantics,
+  TransportAdapter,
+  InvocationPolicy,
+  PlanFailure,
+  ModelInvocationHandle,
+} from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementCoordinatorInput,
   SettlementOwner,

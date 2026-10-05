@@ -48,7 +48,6 @@ import type {
   WriteTx,
   Storage,
   StorageInstance,
-  StorageOwnerOperations,
   MigrationFragment,
   PreflightInput,
   PreflightResult,
@@ -280,11 +279,9 @@ test('w1.types.complete.storage-atomic-and-maintenance', () => {
   expectTypeOf(rejectMisuse).toBeFunction()
 })
 
-test('w1.types.complete.storage-borrow-does-not-transfer-physical-close', () => {
-  type Borrow = ReturnType<StorageOwnerOperations['borrow']>
-  expectTypeOf<Borrow['storage']>().toEqualTypeOf<AtomicStorage>()
-  expectTypeOf<ReturnType<Borrow['release']>>().toEqualTypeOf<Promise<void>>()
-  expectTypeOf<Extract<keyof Borrow, 'close'>>().toEqualTypeOf<never>()
+test('w1.types.complete.storage-consumer-contract-does-not-transfer-physical-close', () => {
+  expectTypeOf<Extract<keyof Storage, 'close'>>().toEqualTypeOf<never>()
+  expectTypeOf<ReturnType<StorageInstance['close']>>().toEqualTypeOf<Promise<void>>()
 })
 
 test('w1.types.complete.denial-is-a-call-outcome-without-execution', () => {

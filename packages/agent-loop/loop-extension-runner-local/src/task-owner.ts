@@ -1,4 +1,12 @@
-import { type RunnerLogBinding, type RunnerConclusionCandidate, type RunnerReminderCandidate, type RunnerAppendCandidate, type RunnerRecoveryResult, type RunnerRecoveredLog, type RunnerTaskOwner } from '@omne-harness-lite/loop-extension-runner'
+import {
+  type RunnerLogBinding,
+  type RunnerConclusionCandidate,
+  type RunnerReminderCandidate,
+  type RunnerAppendCandidate,
+  type RunnerRecoveryResult,
+  type RunnerRecoveredLog,
+  type RunnerTaskOwner,
+} from '@omne-harness-lite/loop-extension-runner'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import { inspectModelLogEntry } from '@omne-harness-lite/model-request-runtime'
 

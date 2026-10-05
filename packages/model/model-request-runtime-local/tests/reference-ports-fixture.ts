@@ -8,7 +8,7 @@ import {
 import { createCallContainerStore } from '../src/service-container.ts'
 import type { CallContainerStore, RuntimeConstruction } from '../src/service-types.ts'
 import type { ModelCallContentStore } from '../src/reference-types.ts'
-import type {PlannedSemantics} from '@omne-harness-lite/model-request-runtime'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { selectionHost } from './session-selection-fixture.ts'
 import { noWaitScheduler } from './settlement-fixture.ts'
 

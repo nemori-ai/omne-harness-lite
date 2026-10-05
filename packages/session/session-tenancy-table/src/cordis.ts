@@ -7,11 +7,20 @@ import { SessionTenancyService } from '@omne-harness-lite/session-tenancy/cordis
 import { createSessionTenancyReader } from './reader.ts'
 
 class Tenancy extends SessionTenancyService {
-  constructor(ctx: Context, private readonly reader: ReturnType<typeof createSessionTenancyReader>) { super(ctx) }
-  holdingTenant(session: unknown) { return this.reader.holdingTenant(session) }
+  constructor(
+    ctx: Context,
+    private readonly reader: ReturnType<typeof createSessionTenancyReader>,
+  ) {
+    super(ctx)
+  }
+  holdingTenant(session: unknown) {
+    return this.reader.holdingTenant(session)
+  }
 }
 export const sessionTenancyTablePlugin = definePlugin({
-  name: 'session-tenancy-table', inject: [STORAGE_SERVICE], Config: z.object({}).strict(),
+  name: 'session-tenancy-table',
+  inject: [STORAGE_SERVICE],
+  Config: z.object({}).strict(),
   apply(ctx) {
     const reader = createSessionTenancyReader(ctx.get(STORAGE_SERVICE) as Storage)
     ctx.effect(() => () => reader.close())

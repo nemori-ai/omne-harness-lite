@@ -20,7 +20,12 @@ import {
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { MEMBERSHIPS_SERVICE } from '@omne-harness-lite/organization-governance/cordis'
 import { type MembershipsService } from '@omne-harness-lite/organization-governance'
-import { createMoonshotInputMeter, createOfficialProfileContent, moonshotAutomaticConfiguration, moonshotDefinitions } from '@omne-harness-lite/pi-ai-transport'
+import {
+  createMoonshotInputMeter,
+  createOfficialProfileContent,
+  moonshotAutomaticConfiguration,
+  moonshotDefinitions,
+} from '@omne-harness-lite/pi-ai-transport'
 import { type InputMeter, type MeterContribution } from '@omne-harness-lite/model-request-runtime'
 import { SESSION_TENANCY as SESSION_TENANCY_SERVICE } from '@omne-harness-lite/session-tenancy/cordis'
 import { type SessionTenancyService } from '@omne-harness-lite/session-tenancy'
@@ -384,7 +389,7 @@ describe.each(models)('$model three rounds through the actual service assembly',
       const currentInputs = context.get(CURRENT_EVALUATION_INPUTS_SERVICE)
       const tenancy = context.get(SESSION_TENANCY_SERVICE)
       const memberships = context.get(MEMBERSHIPS_SERVICE)
-        if (memberships === undefined) throw Error('membership service not ready in fixture')
+      if (memberships === undefined) throw Error('membership service not ready in fixture')
       const clock = context.get('clock')
       if (
         typeof currentInputs?.read !== 'function' ||

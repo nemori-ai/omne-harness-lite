@@ -1,0 +1,1 @@
+[{"id":"owned-close-real-TLS","status":"Pass","request_count":3,"old_new_call_rejected":true,"other_function_and_instance_work":true},{"id":"owned-close-synchronous-input-reentry","status":"Pass","close_pending_until_actual_return":true}]

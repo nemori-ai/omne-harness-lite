@@ -175,7 +175,7 @@ describe.each(models)('$model service tool history', ({ variant, model }) => {
       const currentInputs = context.get(CURRENT_EVALUATION_INPUTS_SERVICE)
       const tenancy = context.get(SESSION_TENANCY_SERVICE)
       const memberships = context.get(MEMBERSHIPS_SERVICE)
-        if (memberships === undefined) throw Error('membership service not ready in fixture')
+      if (memberships === undefined) throw Error('membership service not ready in fixture')
       const clock = context.get('clock')
       if (
         typeof currentInputs?.read !== 'function' ||

@@ -1,5 +1,10 @@
 import type { JsonNumber, JsonObject, JsonValue } from '@omne-harness-lite/content-blocks'
-import type { ModelRequestParameters, ModelProfileContent, ProviderName, ModelAdaptationBinding } from '@omne-harness-lite/model-profile'
+import type {
+  ModelRequestParameters,
+  ModelProfileContent,
+  ProviderName,
+  ModelAdaptationBinding,
+} from '@omne-harness-lite/model-profile'
 import type { TokenMargin } from './planning-types.ts'
 import type { TokenMeasurement, InputMeter } from './input-meter.ts'
 import type { RetirementPolicy } from './retirement-policy.ts'

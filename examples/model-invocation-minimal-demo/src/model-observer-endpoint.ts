@@ -1,7 +1,14 @@
 import { tenantIdEquals, type TenantId } from '@omne-harness-lite/identity-values'
 import type { ModelCallId } from '@omne-harness-lite/call-accounts'
 import type { SessionRef } from '@omne-harness-lite/messages'
-import type {AuthorizedCallObserver, ModelArrivalTarget, ModelObserverEndpoint, ObserverReceiver, RuntimeCloseResult, SessionObserverAccess} from '@omne-harness-lite/model-request-runtime-local'
+import type {
+  AuthorizedCallObserver,
+  ModelArrivalTarget,
+  ModelObserverEndpoint,
+  ObserverReceiver,
+  RuntimeCloseResult,
+  SessionObserverAccess,
+} from '@omne-harness-lite/model-request-runtime-local'
 
 interface EndpointGrant {
   readonly endpoint: ModelObserverEndpoint

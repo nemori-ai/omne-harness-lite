@@ -5,7 +5,15 @@ import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-value
 import { instantFromEpochMs } from '@omne-harness-lite/offer-expiry'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import type { ManifestRecord } from '@omne-harness-lite/assembly-manifest'
-import { buildTableContents, buildSnapshots, buildReport, computeAvailability, findInSnapshot, extractRootSourceFromFullFillRecord, REGISTERED_CATEGORIES } from '@omne-harness-lite/asset-registry'
+import {
+  buildTableContents,
+  buildSnapshots,
+  buildReport,
+  computeAvailability,
+  findInSnapshot,
+  extractRootSourceFromFullFillRecord,
+  REGISTERED_CATEGORIES,
+} from '@omne-harness-lite/asset-registry'
 import { readRegistryRecord } from '@omne-harness-lite/asset-registry'
 import { readReport, within, refreshRun } from '@omne-harness-lite/asset-registry'
 import { fixture, root, a, b, tool } from './support.ts'

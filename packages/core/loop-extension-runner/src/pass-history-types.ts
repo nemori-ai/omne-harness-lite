@@ -1,16 +1,11 @@
-
 import { type JsonNumber } from '@omne-harness-lite/content-blocks'
 
 import { type PositionedSubject } from '@omne-harness-lite/loop-extension'
 
-
 import type { LogEntry } from '@omne-harness-lite/session-log'
-
-
 
 import type { RunnerFailure, RunnerPiece } from './run-pass-types.ts'
 import type { RunnerLogBinding } from './task-owner-types.ts'
-
 
 export type RunnerReplayFailure = Extract<
   RunnerFailure,

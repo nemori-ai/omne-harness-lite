@@ -5,7 +5,10 @@ import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identit
 import { judgePositionedSubject, type Conclusion } from '@omne-harness-lite/loop-extension'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { createRunnerTaskOwner } from '../src/task-owner.ts'
-import { prepareRunnerConclusion, type RunnerLogBinding } from '@omne-harness-lite/loop-extension-runner'
+import {
+  prepareRunnerConclusion,
+  type RunnerLogBinding,
+} from '@omne-harness-lite/loop-extension-runner'
 
 const tenant = parseTenantId({ organization: 'owner-org', account: 'owner-account' })
 const session = parseOpaqueIdentifier('owner-session', 'SessionRef')

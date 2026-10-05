@@ -4,7 +4,6 @@ import type { JsonNumber, JsonValue } from '@omne-harness-lite/content-blocks'
 import type { OpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import type { Instant } from '@omne-harness-lite/offer-expiry'
 
-
 export type EvaluationRef = OpaqueIdentifier<'EvaluationRef'>
 export type ManifestSessionRef = OpaqueIdentifier<'SessionRef'>
 export type EvaluationIdentity =

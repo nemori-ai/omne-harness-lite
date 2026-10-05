@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { planRequest } from './synthetic-input-meter.ts'
 import type { ModelRequestParameters } from '@omne-harness-lite/model-profile'
-import type {PlanInput} from '@omne-harness-lite/model-request-runtime'
-import {configurationSchema, createOfficialProfileContent, interpretConfiguration, readModelDefinition} from '@omne-harness-lite/pi-ai-transport'
-import {type ModelDefinition, type ModelRoute} from '@omne-harness-lite/model-request-runtime'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import {
+  configurationSchema,
+  createOfficialProfileContent,
+  interpretConfiguration,
+  readModelDefinition,
+} from '@omne-harness-lite/pi-ai-transport'
+import { type ModelDefinition, type ModelRoute } from '@omne-harness-lite/model-request-runtime'
 import { openaiRoutes } from '../src/official-models/openai.ts'
 import { input as baseInput, judgedMessage, message } from './support.ts'
 

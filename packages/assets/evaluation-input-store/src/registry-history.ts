@@ -1,12 +1,24 @@
-import { type RegistryHistoryRequest, type RegistryHistoryStage, type RegistryHistoryResult } from '@omne-harness-lite/asset-evaluation'
-import { BodyProviderUnavailableError, type AssetDefinition, type CapabilityId } from '@omne-harness-lite/asset-model'
+import {
+  type RegistryHistoryRequest,
+  type RegistryHistoryStage,
+  type RegistryHistoryResult,
+} from '@omne-harness-lite/asset-evaluation'
+import {
+  BodyProviderUnavailableError,
+  type AssetDefinition,
+  type CapabilityId,
+} from '@omne-harness-lite/asset-model'
 import {
   isNonNegativeJsonInteger,
   type JsonNumber,
   type JsonObject,
 } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import { parseOpaqueIdentifier, parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'
+import {
+  parseOpaqueIdentifier,
+  parseTenantId,
+  tenantIdEquals,
+} from '@omne-harness-lite/identity-values'
 import { instantFromEpochMs } from '@omne-harness-lite/offer-expiry'
 import type { AssemblyManifestService } from '@omne-harness-lite/assembly-manifest'
 import type { MembershipsService } from '@omne-harness-lite/organization-governance'

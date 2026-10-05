@@ -11,12 +11,35 @@ import {
   type ContentBlock,
 } from '@omne-harness-lite/content-blocks'
 import { copyInputCalibration } from '@omne-harness-lite/model-response'
-import type { PlanCalibration, InputMeasurement, MeasurementPrecision } from '@omne-harness-lite/model-request-runtime'
-import type {PlanInput} from '@omne-harness-lite/model-request-runtime'
-import { deepSeekBoundaryRoute, prepareDeepSeekBoundaries, INPUT_PROJECTION_REVISION, canonicalProjection, prefixDigest, outputBlockDigest } from './projection.ts'
+import type {
+  PlanCalibration,
+  InputMeasurement,
+  MeasurementPrecision,
+} from '@omne-harness-lite/model-request-runtime'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import {
+  deepSeekBoundaryRoute,
+  prepareDeepSeekBoundaries,
+  INPUT_PROJECTION_REVISION,
+  canonicalProjection,
+  prefixDigest,
+  outputBlockDigest,
+} from './projection.ts'
 import { type InputProjection } from '@omne-harness-lite/model-request-runtime'
-import { meterContributionValid, tokenMeasurementValid, admissionTokens, measureReplay, measureNew } from './input-meter.ts'
-import { type InputMeter, type TokenMeasurement, type MarginalMeterInput, type NewMeterInput, type ReplayMeterInput } from '@omne-harness-lite/model-request-runtime'
+import {
+  meterContributionValid,
+  tokenMeasurementValid,
+  admissionTokens,
+  measureReplay,
+  measureNew,
+} from './input-meter.ts'
+import {
+  type InputMeter,
+  type TokenMeasurement,
+  type MarginalMeterInput,
+  type NewMeterInput,
+  type ReplayMeterInput,
+} from '@omne-harness-lite/model-request-runtime'
 import { object } from './json.ts'
 import type { HistorySelectionSpan } from '@omne-harness-lite/model-request-runtime'
 import type { MessageSpan } from './history-projection.ts'

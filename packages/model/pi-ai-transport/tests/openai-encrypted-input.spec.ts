@@ -6,8 +6,8 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
-import {type PlanInput} from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'
 import { openaiConfiguration, openaiDefinitions } from '../src/official-models/openai.ts'

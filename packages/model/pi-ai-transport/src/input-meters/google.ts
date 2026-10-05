@@ -12,8 +12,12 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import { object } from '../json.ts'
 import { jsonEqual, ruleAccepts } from '../definitions.ts'
-import type {ModelDefinition} from '@omne-harness-lite/model-request-runtime'
-import type { FullMeterInput, InputMeter, TokenMeasurement } from '@omne-harness-lite/model-request-runtime'
+import type { ModelDefinition } from '@omne-harness-lite/model-request-runtime'
+import type {
+  FullMeterInput,
+  InputMeter,
+  TokenMeasurement,
+} from '@omne-harness-lite/model-request-runtime'
 import { googleDefinitions } from '../official-models/google.ts'
 import { estimateGoogleCandidate, googleCandidateFeatures } from './google-candidate.ts'
 import {

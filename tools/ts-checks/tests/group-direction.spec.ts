@@ -1,4 +1,4 @@
-// group-direction 的两向夹具：故意违反必须报出，合规必须无违反；真实仓库在已登记例外下无违反。
+// group-direction 的两向夹具：故意违反必须报出，合规必须无违反；真实仓库不再需要前端到基础设施的例外。
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { runRules, type SourceFile } from '../src/index.ts'
@@ -16,10 +16,10 @@ const imports = (name: string) => `import { x } from '@omne-harness-lite/${name}
 
 const core = file('packages/core/storage/src/index.ts', 'export const x = 1\n')
 const sql = file('packages/infra/storage-sql/src/index.ts', imports('storage'))
-const tenancy = file('packages/tenancy/account-identity/src/index.ts', imports('storage'))
+const tenancy = file('packages/tenancy/account-identity-sql/src/index.ts', imports('storage'))
 const host = file(
   'apps/tenancy-host/src/main.ts',
-  `${imports('storage-sql')}${imports('account-identity')}`,
+  `${imports('storage-sql')}${imports('account-identity-sql')}`,
 )
 const clean = [core, sql, tenancy, host]
 
@@ -37,13 +37,16 @@ describe('memberOf / memberGraph', () => {
   it('只取产品源码的字面导入；测试、自导入与子入口的处理', () => {
     const test = file('packages/core/storage/tests/a.spec.ts', imports('storage-sql'))
     const self = file('packages/core/storage/src/self.ts', imports('storage/conformance'))
-    const sub = file('packages/tenancy/account-identity/src/sub.ts', imports('storage/conformance'))
+    const sub = file(
+      'packages/tenancy/account-identity-sql/src/sub.ts',
+      imports('storage/conformance'),
+    )
     const graph = memberGraph([...clean, test, self, sub])
     expect(graph.edges.map(edge => `${edge.from} -> ${edge.to}`)).toEqual([
       'apps/tenancy-host -> packages/infra/storage-sql',
-      'apps/tenancy-host -> packages/tenancy/account-identity',
+      'apps/tenancy-host -> packages/tenancy/account-identity-sql',
       'packages/infra/storage-sql -> packages/core/storage',
-      'packages/tenancy/account-identity -> packages/core/storage',
+      'packages/tenancy/account-identity-sql -> packages/core/storage',
     ])
     expect(graph.edges[3]?.sites).toHaveLength(2)
   })
@@ -84,7 +87,7 @@ describe('group-direction', () => {
   })
 
   it('领域直接依赖 infra ⇒ 报出；登记为例外后不报', () => {
-    const bad = file('packages/tenancy/account-identity/src/bad.ts', imports('storage-sql'))
+    const bad = file('packages/tenancy/account-identity-sql/src/bad.ts', imports('storage-sql'))
     const found = groupDirection.check([...clean, bad])
     expect(found).toMatchObject([{ path: bad.path, line: 1 }])
     expect(found[0]?.message).toContain('只由装配层选用')
@@ -92,7 +95,7 @@ describe('group-direction', () => {
       ...GROUP_DIRECTION_POLICY,
       exceptions: [
         {
-          from: 'packages/tenancy/account-identity',
+          from: 'packages/tenancy/account-identity-sql',
           to: 'packages/infra/storage-sql',
           reason: '夹具',
         },
@@ -103,9 +106,15 @@ describe('group-direction', () => {
 
   it('同层领域互依不报，成环才报', () => {
     const session = file('packages/session/session-log-jsonl/src/index.ts', imports('storage'))
-    const forward = file('packages/tenancy/account-identity/src/f.ts', imports('session-log-jsonl'))
+    const forward = file(
+      'packages/tenancy/account-identity-sql/src/f.ts',
+      imports('session-log-jsonl'),
+    )
     expect(groupDirection.check([...clean, session, forward])).toEqual([])
-    const back = file('packages/session/session-log-jsonl/src/b.ts', imports('account-identity'))
+    const back = file(
+      'packages/session/session-log-jsonl/src/b.ts',
+      imports('account-identity-sql'),
+    )
     const kinds = evaluateDirection(
       memberGraph([...clean, session, forward, back]),
       GROUP_DIRECTION_POLICY,
@@ -121,16 +130,21 @@ describe('group-direction', () => {
   })
 
   // 归慢层：重 CPU：读取并解析整个真实仓库的成员源码。
-  it('真实仓库：现状在已登记例外下无违反；撤掉例外即报出那条边', { tags: ['slow'] }, () => {
+  it('真实仓库严格方向通过；注回已退役的前端到SQL依赖必须失败', { tags: ['slow'] }, () => {
     const root = fileURLToPath(new URL('../../../', import.meta.url))
     const sources = collectMemberSources(root)
     expect(sources.length).toBeGreaterThan(100)
     expect(runRules(sources, [groupDirection])).toEqual([])
     const strict = createGroupDirection({ ...GROUP_DIRECTION_POLICY, exceptions: [] })
-    const found = strict.check(sources)
-    expect(found.length).toBeGreaterThan(0)
-    expect(found.every(v => v.path.startsWith('packages/frontend/client-local-state/src/'))).toBe(
-      true,
+    expect(strict.check(sources)).toEqual([])
+    const forbidden = file(
+      'packages/frontend/client-local-state-sqlite/src/reintroduced-sql.ts',
+      imports('storage-sql'),
     )
+    const found = strict.check([...sources, forbidden])
+    expect(found.length).toBeGreaterThan(0)
+    expect(
+      found.every(v => v.path.startsWith('packages/frontend/client-local-state-sqlite/src/')),
+    ).toBe(true)
   })
 })

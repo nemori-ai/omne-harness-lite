@@ -1,8 +1,17 @@
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
-import {openRouterCredentialRedactionConfig} from '@omne-harness-lite/model-request-runtime'
-import {type InvocationOutcome, type InvocationPolicy, type PlanInput, type PlannedSemantics, type ReadFacts, type SendResult, type StreamEnd, type TransportAdapter} from '@omne-harness-lite/model-request-runtime'
+import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
+import {
+  type InvocationOutcome,
+  type InvocationPolicy,
+  type PlanInput,
+  type PlannedSemantics,
+  type ReadFacts,
+  type SendResult,
+  type StreamEnd,
+  type TransportAdapter,
+} from '@omne-harness-lite/model-request-runtime'
 
 export function request(): PlanInput {
   const call = parseOpaqueIdentifier('policy-call', 'ModelCallId')

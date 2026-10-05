@@ -1,0 +1,20 @@
+[
+  {
+    "source": "tmp/arch-intent/remediation/r1-t2/run-original-entry-tlc.py",
+    "source_sha256": "4c351a05d4c29d2074301d36db3f12b336b225b74016710d57cd6a43e76d776e",
+    "driver": "tmp/arch-intent/remediation/r1-t4/s3/run-entry-models.py",
+    "delta": "output directory only; exact models/configs/expected invariants and thresholds retained"
+  },
+  {
+    "source": "tmp/arch-intent/remediation/r1-t2/run-original-tlc.py",
+    "source_sha256": "baa18b11f3c98390a44ba4fc53fc184db8d840e31839a2bd160a955b3d5ab031",
+    "driver": "tmp/arch-intent/remediation/r1-t4/s3/run-identity-models.py",
+    "delta": "output directory only; exact models/configs/expected invariants and thresholds retained"
+  },
+  {
+    "source": "tmp/arch-intent/remediation/r1-t3/run-original-tlc.py",
+    "source_sha256": "afd3251679b4664cec5d6fda05481ed4d1316b56e4897a11b588437de3ce1118",
+    "driver": "tmp/arch-intent/remediation/r1-t4/s3/run-client-models.py",
+    "delta": "output directory only; exact models/configs/expected invariants and thresholds retained"
+  }
+]

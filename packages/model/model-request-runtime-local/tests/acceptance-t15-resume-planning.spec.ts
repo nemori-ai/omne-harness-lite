@@ -5,7 +5,10 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { LogEntry } from '@omne-harness-lite/session-log'
-import { captureModelLogValue, prepareModelLogEntry } from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'

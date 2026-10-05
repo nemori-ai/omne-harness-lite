@@ -21,10 +21,21 @@
 [Service 子类与单 fiber](adr/service-faces.md)解释本批实现选择。
 SQL 语义由既有存储提供者兑现，本包不新增分布式锁或跨存储原子性承诺。
 SQLite 是当前生产组合；PG 的未闭合组合不能通过类型可用而开放。
-账号/登录仍来自具体提供者，storage/clock 键仍有重复拥有者，事件命名仍有偏差。
-这些是保留的存量差距，有明确后续，不能写成允许偏差的新规范。
+账号/登录、storage/clock 的接口与键从各自公共定义消费。通知使用 organization-governance 命名空间。
 
 ## 验证
 
 真实文件库的 `tests/` 验证业务与故障路径。集成用例验证 Service 注册、替换与撤除。
 定义包类型检查和此包业务测试共同验证本批迁移，未执行的 PG/分布式范围保持未验证。
+
+## 共享实例关闭
+
+createOrganizationGovernance(dependencies) 返回同一实例的四个服务面及幂等 close。
+close 停止新普通操作并等待已准入完整 Promise，不关闭借入依赖。
+关闭后新普通调用以 OrganizationGovernanceStopped 使用错误拒绝，不加入业务失败集合。
+同步 scopeLayers 仍同步返回或抛出；已交出的参与对象继续受原 StorageUnit 寿命约束。
+原四个底层纯工厂继续可单独使用，调用方承担其完整业务及事务的结束责任；
+正式绑定共用整体工厂，不分别关闭同一引擎。
+managedOrganizationGovernancePlugin 的纯 describeAssembly 声明提供四服务，必需 storage、clock、
+accounts、logins，投影原密钥和有效期为 tenancy-host/organizations v1。
+声明沿[插件树协议](../../core/cordis-plugin-tree/SPEC.md)。T4 树及真实宿主的完整组合仍须独立验收。

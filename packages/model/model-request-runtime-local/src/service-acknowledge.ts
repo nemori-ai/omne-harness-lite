@@ -18,7 +18,12 @@ import { acknowledgementSummary, originOfEntry } from './acknowledged-view.ts'
 import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-custody.ts'
 import type { CallHistoryKnown } from './call-history.ts'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
-import { captureModelLogValue, modelLogJsonEqual, prepareModelLogEntry, type ModelLogShell } from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  modelLogJsonEqual,
+  prepareModelLogEntry,
+  type ModelLogShell,
+} from '@omne-harness-lite/model-request-runtime'
 import { inspectCurrentModelLogPrefix } from '@omne-harness-lite/model-request-runtime'
 import { OwnedReadTracker, withOwnedReads } from './service-control.ts'
 import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
@@ -38,7 +43,7 @@ import type {
   SettlementTask,
   SettlementOwner,
 } from './settlement-types.ts'
-import type {PlannedSemantics} from '@omne-harness-lite/model-request-runtime'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { requestStopAndWait } from './settlement-stop.ts'
 
 const unavailable = Object.freeze({ unavailable: true } as const)

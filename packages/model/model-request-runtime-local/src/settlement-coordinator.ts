@@ -8,7 +8,14 @@ import {
   type JsonNumber,
   type JsonObject,
 } from '@omne-harness-lite/content-blocks'
-import { captureModelLogValue, inspectSettlementMembers, prepareModelLogEntry, type CapturedModelLogValue, type ModelLogSettlementCurrent, type ModelLogSettlementTarget } from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  inspectSettlementMembers,
+  prepareModelLogEntry,
+  type CapturedModelLogValue,
+  type ModelLogSettlementCurrent,
+  type ModelLogSettlementTarget,
+} from '@omne-harness-lite/model-request-runtime'
 import type { AppendCondition, AppendResult, OwnedLogEntry } from '@omne-harness-lite/session-log'
 import {
   readSettlementPrefix,

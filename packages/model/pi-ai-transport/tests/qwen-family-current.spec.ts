@@ -3,14 +3,31 @@
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
-import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
-import {type ModelInvocationResult, type PlanInput} from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import {
+  type ModelInvocationResult,
+  type PlanInput,
+} from '@omne-harness-lite/model-request-runtime'
 import { type PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import { writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
-import {createModelTransportService, createOfficialProfileContent, createPiAiTransport, createQwenInputMeter, qwenDefinitions} from '@omne-harness-lite/pi-ai-transport'
-import {type AdaptationLease, type ModelDefinition, type PlannedRequest} from '@omne-harness-lite/model-request-runtime'
-import { type InputMeter, type MeterContribution, type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
+import {
+  createModelTransportService,
+  createOfficialProfileContent,
+  createPiAiTransport,
+  createQwenInputMeter,
+  qwenDefinitions,
+} from '@omne-harness-lite/pi-ai-transport'
+import {
+  type AdaptationLease,
+  type ModelDefinition,
+  type PlannedRequest,
+} from '@omne-harness-lite/model-request-runtime'
+import {
+  type InputMeter,
+  type MeterContribution,
+  type RetirementPolicy,
+} from '@omne-harness-lite/model-request-runtime'
 import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
 import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 import {

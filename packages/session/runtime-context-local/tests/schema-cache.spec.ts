@@ -2,7 +2,12 @@ import { execFileSync } from 'node:child_process'
 import { expect, test } from 'vitest'
 
 test('fixed codec loads on first validation and reuses the native module cache', () => {
-  const result = execFileSync(process.execPath, ['--input-type=module', '-e', `
+  const result = execFileSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      `
     import { createRequire } from 'node:module';
     const require = createRequire(process.cwd() + '/package.json');
     const generated = require.resolve('./generated/ordinary.cjs');
@@ -24,6 +29,9 @@ test('fixed codec loads on first validation and reuses the native module cache',
     await initializer.initializeContextSession(scope, seed);
     if (require.cache[generated] !== cached) throw Error('validator reloaded');
     console.log('lazy-native-cache: passed');
-  `], { encoding: 'utf8' })
+  `,
+    ],
+    { encoding: 'utf8' },
+  )
   expect(result.trim()).toBe('lazy-native-cache: passed')
 })

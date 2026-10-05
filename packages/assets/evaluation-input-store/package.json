@@ -60,7 +60,6 @@
   "devDependencies": {
     "@omne-harness-lite/account-identity": "workspace:*",
     "@omne-harness-lite/account-registration": "workspace:*",
-    "@omne-harness-lite/credential-verification": "workspace:*",
     "@omne-harness-lite/clock-lease": "workspace:*",
     "@omne-harness-lite/storage-sql": "workspace:*",
     "@types/node": "catalog:",
@@ -68,6 +67,9 @@
     "vitest": "catalog:",
     "@omne-harness-lite/organization-governance-sql": "workspace:*",
     "@omne-harness-lite/assembly-manifest-store": "workspace:*",
-    "@omne-harness-lite/session-tenancy-table": "workspace:*"
+    "@omne-harness-lite/session-tenancy-table": "workspace:*",
+    "@omne-harness-lite/credential-verification-scrypt": "workspace:*",
+    "@omne-harness-lite/account-identity-sql": "workspace:*",
+    "@omne-harness-lite/account-registration-sequential": "workspace:*"
   }
 }

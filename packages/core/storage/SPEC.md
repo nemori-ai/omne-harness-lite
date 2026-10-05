@@ -20,6 +20,19 @@ StorageService 只要求原 Storage 的 read/write。AtomicStorage 是显式可�
 
 提供者须通过真实存储符合性及同提交/撤除组合。四层公开入口检查须包含源码、声明、运行装载与实际制品消费。
 
+## 启动资源和完成通知
+
+StorageStartupResources 由宿主持有同一次启动的迁移提供者与升级守卫。
+StorageStartup 和 StorageCompletion 只提供这些资源及完成通知，不能代替存储所有者。
+guard 的结构接口只允许 confirm/pending；SQL 提供者继续核验原真实实例和私有附着身份。
+确认结果及 pending 的原形状、快照删除持久保证、确认后不回滚的规则均保持。
+
+SQL owning 绑定在 migrate 路径必需注入 storageStartup；plain 不取得它。
+启用维护时必需注入 storageCompletion。实际数据库及锁收场后只通知一次，
+通知不替代完成 Promise。宿主在整代 closed 后才核对并释放这些资源。
+独立 openStorage 仍可显式接收运行对象；可序列化插件树配置不能携带它们。
+依据为[已接受的树资源协议](../../../.meta_harness/design/architecture/identity-integration/plugin-tree.md#运行资源的唯一拥有者)。
+
 ## 依据及未迁责任
 
 未迁行为及验证义务继续归[旧节点设计](../../../.meta_harness/design/realization/packages/core/storage/design.md)与[验证义务](../../../.meta_harness/design/realization/packages/core/storage/verification.md)。

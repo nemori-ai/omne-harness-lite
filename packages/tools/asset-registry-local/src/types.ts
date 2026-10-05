@@ -1,14 +1,19 @@
 import { type AssetRegistryService } from '@omne-harness-lite/asset-registry'
 import type { AssetDefinition, CapabilityId } from '@omne-harness-lite/asset-model'
-import type { EffectiveAssembly, NonConnectorEvaluationInput } from '@omne-harness-lite/asset-evaluation'
+import type {
+  EffectiveAssembly,
+  NonConnectorEvaluationInput,
+} from '@omne-harness-lite/asset-evaluation'
 import type { AssemblyManifestService } from '@omne-harness-lite/assembly-manifest'
 import type { JsonObject } from '@omne-harness-lite/content-blocks'
-
 
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import type { CurrentEvaluationInputs } from '@omne-harness-lite/asset-evaluation'
 import type { RegistryInputRequest, RegistryInputResult } from '@omne-harness-lite/asset-evaluation'
-import type { RegistryHistoryRequest, RegistryHistoryResult } from '@omne-harness-lite/asset-evaluation'
+import type {
+  RegistryHistoryRequest,
+  RegistryHistoryResult,
+} from '@omne-harness-lite/asset-evaluation'
 import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 export interface AssetRegistry extends AssetRegistryService {
   close(): Promise<void>

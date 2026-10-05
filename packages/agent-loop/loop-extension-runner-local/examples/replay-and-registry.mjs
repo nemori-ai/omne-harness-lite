@@ -4,7 +4,10 @@ import {
   judgeInput,
   judgePositionedSubject,
 } from '@omne-harness-lite/loop-extension'
-import { createRunnerImplementationRegistry, readPassConclusions } from '@omne-harness-lite/loop-extension-runner-local'
+import {
+  createRunnerImplementationRegistry,
+  readPassConclusions,
+} from '@omne-harness-lite/loop-extension-runner-local'
 
 function accepted(value) {
   if (!('ok' in value)) throw new Error('Invalid example input')

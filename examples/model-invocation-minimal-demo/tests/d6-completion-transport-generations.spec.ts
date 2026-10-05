@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {openRouterCredentialRedactionConfig} from '@omne-harness-lite/model-request-runtime'
+import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
 import {
   createDeepSeekV41FlashInputMeter,
   createModelTransportService,

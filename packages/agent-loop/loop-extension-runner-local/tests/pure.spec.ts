@@ -3,7 +3,13 @@ import { LosslessNumber, type JsonValue } from '@omne-harness-lite/content-block
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import { judgePositionedSubject, type Conclusion } from '@omne-harness-lite/loop-extension'
 import type { LogEntry } from '@omne-harness-lite/session-log'
-import { composeEffect, inspectRunnerConclusion, passKeys, prepareRunnerConclusion, readRunnerRetryConclusions } from '@omne-harness-lite/loop-extension-runner'
+import {
+  composeEffect,
+  inspectRunnerConclusion,
+  passKeys,
+  prepareRunnerConclusion,
+  readRunnerRetryConclusions,
+} from '@omne-harness-lite/loop-extension-runner'
 
 const tenant = { organization: 'org', account: 'account' } as TenantId
 const otherTenant = { organization: 'other', account: 'account' } as TenantId

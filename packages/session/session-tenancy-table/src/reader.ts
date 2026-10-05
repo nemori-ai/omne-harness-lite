@@ -1,4 +1,7 @@
-import { type HoldingTenantResult, type SessionTenancyService } from '@omne-harness-lite/session-tenancy'
+import {
+  type HoldingTenantResult,
+  type SessionTenancyService,
+} from '@omne-harness-lite/session-tenancy'
 import {
   narrow,
   StorageUnavailable,

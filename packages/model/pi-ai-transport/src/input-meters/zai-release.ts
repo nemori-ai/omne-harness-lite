@@ -1,7 +1,7 @@
 // The binding check shared by the three ZAI meter factories and the reasoning-history
 // projection that their mp4-18 releases apply to a meter-only copy of the final wire.
 import type { JsonObject } from '@omne-harness-lite/content-blocks'
-import type {ModelDefinition} from '@omne-harness-lite/model-request-runtime'
+import type { ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import {
   zaiHistoryTreatments,
   zaiReleases,

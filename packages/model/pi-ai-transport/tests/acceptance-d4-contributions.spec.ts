@@ -8,11 +8,21 @@ import { createServer } from 'node:https'
 import type { ServerResponse } from 'node:http'
 import { resolve, join } from 'node:path'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
-import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
-import {type PlanInput} from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import { judgeMessage } from '@omne-harness-lite/messages'
-import {anthropicDefinitions, createAnthropicInputMeter, createOfficialProfileContent, createModelTransportService, createPiAiTransport} from '@omne-harness-lite/pi-ai-transport'
-import {type ModelDefinition, type ModelTransportService, type AdaptationLease} from '@omne-harness-lite/model-request-runtime'
+import {
+  anthropicDefinitions,
+  createAnthropicInputMeter,
+  createOfficialProfileContent,
+  createModelTransportService,
+  createPiAiTransport,
+} from '@omne-harness-lite/pi-ai-transport'
+import {
+  type ModelDefinition,
+  type ModelTransportService,
+  type AdaptationLease,
+} from '@omne-harness-lite/model-request-runtime'
 import { type InputMeter, type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
 import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'

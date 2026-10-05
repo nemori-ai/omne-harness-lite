@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { invokeModel } from '../src/invoke.ts'
 import type { DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
-import type {PublicDiagnosticAssociation, TransportExecutionDiagnostics} from '@omne-harness-lite/model-request-runtime'
+import type {
+  PublicDiagnosticAssociation,
+  TransportExecutionDiagnostics,
+} from '@omne-harness-lite/model-request-runtime'
 import { adapter, content, policy, request } from './invoke-policy-fixture.ts'
 
 describe('per-invocation engineering diagnostics', () => {

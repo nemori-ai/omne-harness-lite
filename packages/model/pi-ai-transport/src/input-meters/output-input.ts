@@ -10,7 +10,13 @@ import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-ru
 import { ownCalibration } from '../calibration.ts'
 import { object } from '../json.ts'
 import { ownBasis } from '../meter-transform.ts'
-import type { FullMeterInput, NewMeterInput, ReplayMeterInput, HistorySelectionSpan, MarginalMeterInput } from '@omne-harness-lite/model-request-runtime'
+import type {
+  FullMeterInput,
+  NewMeterInput,
+  ReplayMeterInput,
+  HistorySelectionSpan,
+  MarginalMeterInput,
+} from '@omne-harness-lite/model-request-runtime'
 
 function frozen(value: JsonValue): void {
   if (value !== null && typeof value === 'object') {

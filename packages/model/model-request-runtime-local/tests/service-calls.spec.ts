@@ -12,7 +12,10 @@ import {
 } from '../src/reference-content.ts'
 import type { AvailabilityReport } from '@omne-harness-lite/asset-registry'
 import { createServiceCalls, ownOpenCallInput, UnknownAppendTracker } from '../src/service-calls.ts'
-import { captureModelLogValue, prepareModelLogEntry } from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { createModelCallFacts } from '../src/reference-facts.ts'
@@ -23,7 +26,7 @@ import type {
   RuntimeConstruction,
   SessionRuntimeBinding,
 } from '../src/service-types.ts'
-import type {PlannedSemantics} from '@omne-harness-lite/model-request-runtime'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { DiagnosticAssociation, DiagnosticScope } from '../src/diagnostics-types.ts'
 import type { DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
 import type {

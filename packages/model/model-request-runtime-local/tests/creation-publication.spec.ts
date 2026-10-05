@@ -1,6 +1,9 @@
 import { expect, test, vi } from 'vitest'
 import { CreationPublication } from '../src/creation-publication.ts'
-import { captureModelLogValue, prepareModelLogEntry } from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import type { SettlementLogBinding, SettlementTask } from '../src/settlement-types.ts'
 import type { AppendResult, LogEntry, ReadResult } from '@omne-harness-lite/session-log'
 import { session, tenant } from './log-codec-fixture.ts'

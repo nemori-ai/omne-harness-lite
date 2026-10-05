@@ -8,8 +8,25 @@ import {
   validateCodec,
 } from './validation.ts'
 import { IMAGE_PREPARATION_ALGORITHM_REVISION } from './preset.ts'
-import type { CodecFailure, CodecResult, DecodedImage, EncodedImage, ImageEncodeSpec, ImageMetadata, LoadedImageCodec } from '@omne-harness-lite/model-request-runtime'
-import type { ImagePrepareInput, ImagePreparePolicy, ImagePrepareRejection, ImagePrepareResult, ImagePreparerResult, ImagePreparer, PreparedImage, PrepareRequestImagesInput } from './types.ts'
+import type {
+  CodecFailure,
+  CodecResult,
+  DecodedImage,
+  EncodedImage,
+  ImageEncodeSpec,
+  ImageMetadata,
+  LoadedImageCodec,
+} from '@omne-harness-lite/model-request-runtime'
+import type {
+  ImagePrepareInput,
+  ImagePreparePolicy,
+  ImagePrepareRejection,
+  ImagePrepareResult,
+  ImagePreparerResult,
+  ImagePreparer,
+  PreparedImage,
+  PrepareRequestImagesInput,
+} from './types.ts'
 
 const digest = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex')
 const mime = { png: 'image/png', jpeg: 'image/jpeg', webp: 'image/webp' }

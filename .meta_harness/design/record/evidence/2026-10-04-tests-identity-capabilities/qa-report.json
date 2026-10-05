@@ -1,0 +1,3597 @@
+{
+  "verdict": "Pass with issues",
+  "status": "complete for scoped R1-T2 candidate QA; not technical acceptance",
+  "base": "67eecc1ae53be30efec473206e5d1926dd5d500f",
+  "commit": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+  "run_id": "r1-t2-candidate-l3-final",
+  "exit_code": 0,
+  "verifier": "qa",
+  "actor": "/root/r1_t1a_candidate_qa",
+  "start_utc": "2026-10-04T20:58:02Z",
+  "end_utc": "2026-10-04T22:07:44.189Z",
+  "build": {
+    "initial_candidate": "e6e2b9c1eeedf2e5fa2379afd41de744fc32c906",
+    "initial_build": "evidence/build.execution.json",
+    "delta_builds": [
+      "root-delta-build-receipt.json",
+      "root-sql-fix-build-receipt.json"
+    ],
+    "installer": "root environment owner; QA did not install",
+    "clone": "clone",
+    "environment": "Node24.21.0 / pnpm10.28.1 / C.UTF-8 / VITEST_MAX_WORKERS=1",
+    "lock_sha256": "80b26b670dbb10be4127e31d8ac40ae7803fb1caceeee8214b4e532ed68b714a"
+  },
+  "criteria_source": "../qa-baseline/criteria.json",
+  "summary": {
+    "criterion_pass": 38,
+    "criterion_fail": 0,
+    "criterion_uncovered": 0,
+    "tests": {
+      "passed": 1189,
+      "failed": 0,
+      "skipped": 19
+    },
+    "standalone_business_cases": 11,
+    "original_coordinator_positive_cases": 8,
+    "original_async_apply_negative_control_retained": 1,
+    "startup_API_helper_cases": 11,
+    "managed_binding_cases": 8,
+    "listener_removed_dual_faces": 1,
+    "standalone_factory_close_cases": 3,
+    "CV_independent_binding_drain": 1,
+    "actual_secrets_isolates_ticket_cases": 3,
+    "actual_BASE_database_reopen": 1,
+    "TLC_commands": 11,
+    "Alloy_commands": 4,
+    "Alloy_readme_mutations": 3,
+    "mature_resolver_controls": 10,
+    "source_declaration_closures": 18,
+    "pure_runtime_roots": 9,
+    "cordis_runtime_roots": 9,
+    "public_operation_keys": 59,
+    "original_named_exports_compiled": 75,
+    "legacy_declarations_equal": 76,
+    "accepted_event_interface_projections": 2
+  },
+  "criteria": [
+    {
+      "id": "Q0.claim",
+      "standard": "identity-integration/delivery.md T2-Q0",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Empty/duplicate ids, input mutation, unknown row, two same-tick claims, re-use after close",
+      "expected": "Reject illegal ids/unknown rows; immutable ids copy; only first synchronous claim succeeds; no resources before claim; no reuse",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-baseline/scenarios/coordinator.mjs"
+      ],
+      "evidence": [
+        "evidence/coordinator-original-retained/coordinator.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/coordinator-original-retained/coordinator.json",
+          "raw_case_total": 9,
+          "raw_pass": 8,
+          "raw_fail": 1,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "同步独占 claim、非法 id、不可变行列表和重复登记均按原 oracle 观察。",
+      "scope_note": null
+    },
+    {
+      "id": "Q0.reverse",
+      "standard": "identity-integration/delivery.md T2-Q0",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Last row close awaits explicit release; first row is eligible to close",
+      "expected": "First row must not start until last close actually settles; close/closed/repeated close are the same stable Promise",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-baseline/scenarios/coordinator.mjs",
+        "scenarios/managed-scrypt-ready.mjs"
+      ],
+      "evidence": [
+        "evidence/coordinator-original-retained/coordinator.json",
+        "evidence/managed-scrypt-qualified/managed-scrypt.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/coordinator-original-retained/coordinator.json",
+          "raw_case_total": 9,
+          "raw_pass": 8,
+          "raw_fail": 1,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/managed-scrypt-qualified/managed-scrypt.json",
+          "raw_case_total": 1,
+          "raw_pass": 1,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "逆序只在前一行 close 真正完成后推进；close/closed Promise 稳定。",
+      "scope_note": null
+    },
+    {
+      "id": "Q0.setup",
+      "standard": "identity-integration/delivery.md T2-Q0",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "ready pending/rejected and partial resources acquired; startup cancellation or actual Cordis inactive-effect error",
+      "expected": "Do not synthesize completed ready; keep owner until ready settles; reject failed ready; close partial resources exactly once and report setup",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-startup-positive/run.mjs",
+        "scenarios/final-host-phase.mjs"
+      ],
+      "evidence": [
+        "evidence/startup-adopted/helper.json",
+        "evidence/host-sql-fix.vitest.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/startup-adopted/helper.json",
+          "raw_case_total": 10,
+          "raw_pass": 10,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/host-sql-fix.vitest.json",
+          "passed": 113,
+          "failed": 0,
+          "skipped": 0
+        }
+      ],
+      "observation": "采用的同步 helper 在 setup 前／中撤除、必需依赖失效及 effect 失败均保留 ready 拥有者；实际 host 启动失败收场另有原套件。",
+      "scope_note": null
+    },
+    {
+      "id": "Q0.errors",
+      "standard": "identity-integration/delivery.md T2-Q0",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "ready and close both fail; two resource rows close fail; safe diagnostic secret sentinels",
+      "expected": "Preserve setup+close classifications and each row; continue only after actual quiescence; report.complete=false; no private error text in public report",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-baseline/scenarios/coordinator.mjs",
+        "../qa-startup-positive/run.mjs"
+      ],
+      "evidence": [
+        "evidence/coordinator-original-retained/coordinator.json",
+        "evidence/startup-adopted/helper.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/coordinator-original-retained/coordinator.json",
+          "raw_case_total": 9,
+          "raw_pass": 8,
+          "raw_fail": 1,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/startup-adopted/helper.json",
+          "raw_case_total": 10,
+          "raw_pass": 10,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "setup/close 双失败和多行失败分类完整，complete=false，公开报告无私有错误文本。",
+      "scope_note": null
+    },
+    {
+      "id": "Q0.sql-scrypt",
+      "standard": "identity-integration/delivery.md T2-Q0",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Real CV OS scrypt callback held while AI awaits; withdraw owning SQL fiber",
+      "expected": "Managed generation stops immediately; old AI can commit after callback delivery; SQL physical close/disposal waits; result account matches disk; no lost Promise",
+      "verdict": "Pass",
+      "scenarios": [
+        "scenarios/managed-scrypt-ready.mjs"
+      ],
+      "evidence": [
+        "evidence/managed-scrypt-qualified/managed-scrypt.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/managed-scrypt-qualified/managed-scrypt.json",
+          "raw_case_total": 1,
+          "raw_pass": 1,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "真实 OS scrypt 回调交付受控；旧 AI 提交及返回被观察后，SQL fiber 才实际撤完。",
+      "scope_note": null
+    },
+    {
+      "id": "Q0.opening",
+      "standard": "identity-integration/delivery.md T2-Q0",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Both real network faces have waited for the same EntryOpening; remove their event listeners; hold final row close",
+      "expected": "First stop synchronously makes isOpen false; new TLS and Unix requests rejected with no business commit even when listeners are gone and close is pending; old/new wait reject EntryOpeningStopped as prescribed",
+      "verdict": "Pass",
+      "scenarios": [
+        "scenarios/opening-semantic-projection.mjs"
+      ],
+      "evidence": [
+        "evidence/opening-semantic-qualified/host-oracles.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/opening-semantic-qualified/host-oracles.json",
+          "raw_case_total": 1,
+          "raw_pass": 1,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "真实 TLS/Unix 共用 EntryOpening；删监听后停止同步关闸，两面 0 字节，已接纳注册 interrupted，旧事实保留。",
+      "scope_note": null
+    },
+    {
+      "id": "Q0.on-stopping",
+      "standard": "identity-integration/delivery.md T2-Q0",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "onStopping synchronously throws while first stop is requested",
+      "expected": "All ports/current false before callback; never restore; retain assembly-stop-failed, finish permitted close; callback called once",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-baseline/scenarios/coordinator.mjs"
+      ],
+      "evidence": [
+        "evidence/coordinator-original-retained/coordinator.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/coordinator-original-retained/coordinator.json",
+          "raw_case_total": 9,
+          "raw_pass": 8,
+          "raw_fail": 1,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "onStopping 抛错前资格已全部失效，回调一次，assembly-stop-failed 保留，绝不恢复。",
+      "scope_note": null
+    },
+    {
+      "id": "Q0.bindings",
+      "standard": "identity-integration/delivery.md T2-Q0",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Load each of eight accepted managed exports with/without assemblyLifetime and attempt second apply",
+      "expected": "Exact qualified names; assemblyLifecycle=1; missing port must remain unavailable/fail, never independent fallback; any second apply ends whole generation; same schemas and business dependencies as independent entry",
+      "verdict": "Pass",
+      "scenarios": [
+        "scenarios/host-oracles.mjs",
+        "scenarios/public-retirement.mjs"
+      ],
+      "evidence": [
+        "evidence/host-oracles-short-path-qualified/host-oracles.json",
+        "evidence/public-retirement-coordinate-qualified/public-retirement.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/host-oracles-short-path-qualified/host-oracles.json",
+          "raw_case_total": 9,
+          "raw_pass": 8,
+          "raw_fail": 1,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/public-retirement-coordinate-qualified/public-retirement.json",
+          "raw_case_total": 75,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "八个真实绑定均缺 lifetime 时 PENDING，第二次 apply 停全代；限定名／配置对象／业务 inject 保持。",
+      "scope_note": null
+    },
+    {
+      "id": "Q0.quiescence",
+      "standard": "identity-integration/delivery.md T2-Q0",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "External work/ready/close stays unresolved within bounded observer window",
+      "expected": "No complete/closed fiction or skipping held row; no next generation while release is unknown; all promises observed and responsibility retained",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-baseline/scenarios/coordinator.mjs",
+        "../qa-startup-positive/run.mjs",
+        "scenarios/managed-scrypt-ready.mjs"
+      ],
+      "evidence": [
+        "evidence/coordinator-original-retained/coordinator.json",
+        "evidence/startup-adopted/helper.json",
+        "evidence/managed-scrypt-qualified/managed-scrypt.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/coordinator-original-retained/coordinator.json",
+          "raw_case_total": 9,
+          "raw_pass": 8,
+          "raw_fail": 1,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/startup-adopted/helper.json",
+          "raw_case_total": 10,
+          "raw_pass": 10,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/managed-scrypt-qualified/managed-scrypt.json",
+          "raw_case_total": 1,
+          "raw_pass": 1,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "受控 ready、close、实际 scrypt 未结束时不宣布完成；六个事件循环检查点及实际释放结果均保留。",
+      "scope_note": null
+    },
+    {
+      "id": "Q1.operations",
+      "standard": "identity-integration/delivery.md T2-Q1",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Compile all original Accounts/Logins/Credentials/Registration/OG and participation signatures",
+      "expected": "Preserve 59 operation keys plus every parameter/result/failure literal, sync/async and branded identity; no unknown/any weakening; new factory close separate from business service types",
+      "verdict": "Pass",
+      "scenarios": [
+        "scenarios/public-shapes.mjs",
+        "scenarios/public-retirement.mjs",
+        "scenarios/packed-public-types-node.mjs"
+      ],
+      "evidence": [
+        "evidence/public-shapes/public-shapes.json",
+        "evidence/public-retirement-coordinate-qualified/public-retirement.json",
+        "evidence/packed-final/packed-public.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/public-shapes/public-shapes.json",
+          "raw_case_total": 78,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/public-retirement-coordinate-qualified/public-retirement.json",
+          "raw_case_total": 75,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/packed-final/packed-public.json",
+          "raw_case_total": 9,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "十个完整操作面、59 keys、完整参数／结果联合／品牌及同步异步形状保持；两份事件接口的已采用命名投影另逐签名检查。",
+      "scope_note": null
+    },
+    {
+      "id": "Q1.pure-functions",
+      "standard": "identity-integration/delivery.md T2-Q1",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Consume all non-Cordis original public parsers/algorithms/migrations/snapshot checks/factories",
+      "expected": "Every original public capability has one explicit target; public core owns common shapes; provider retains algorithm/storage functions; original four OG factories remain independently usable; new AI/CV/AR pure factories usable without Cordis",
+      "verdict": "Pass",
+      "scenarios": [
+        "scenarios/public-retirement.mjs",
+        "scenarios/packed-factories.mjs",
+        "scenarios/packed-cv-realpath.mjs"
+      ],
+      "evidence": [
+        "evidence/public-retirement-coordinate-qualified/public-retirement.json",
+        "evidence/packed-factories-final/packed-factories.json",
+        "evidence/packed-cv-realpath-qualified/packed-factories.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/public-retirement-coordinate-qualified/public-retirement.json",
+          "raw_case_total": 75,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/packed-factories-final/packed-factories.json",
+          "raw_case_total": 4,
+          "raw_pass": 3,
+          "raw_fail": 1,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/packed-cv-realpath-qualified/packed-factories.json",
+          "raw_case_total": 1,
+          "raw_pass": 1,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "75 个原具名公开导出逐项映射并包外编译；四个原 OG 工厂可调用，新 AI/AR/OG 实例及无 close 的 CV 四函数面真实使用。",
+      "scope_note": null
+    },
+    {
+      "id": "Q1.closure",
+      "standard": "identity-integration/delivery.md T2-Q1",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Load each of nine T2 pure roots; follow source and installed declaration imports and import-types",
+      "expected": "No Cordis or ./cordis transitively in pure source, declarations, runtime or actual tarball; no product source/dist links outside workspace; computed targets separately enumerated",
+      "verdict": "Pass",
+      "scenarios": [
+        "scenarios/closure-existing-qualified.mjs",
+        "scenarios/packed-public-types-node.mjs",
+        "scenarios/packed-extra-types-node.mjs"
+      ],
+      "evidence": [
+        "evidence/closure-existing-qualified/qa-result.json",
+        "evidence/packed-final/packed-public.json",
+        "evidence/packed-cordis-types-node-qualified/packed-extra.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/closure-existing-qualified/qa-result.json",
+          "raw_case_total": 0,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/packed-final/packed-public.json",
+          "raw_case_total": 9,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/packed-cordis-types-node-qualified/packed-extra.json",
+          "raw_case_total": 9,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "独立成熟设施 10 个磁盘正负控、9 源码和 9 已安装声明闭包通过；实际 tarball 运行装载另通过。旧方法三次失败保留。",
+      "scope_note": null
+    },
+    {
+      "id": "Q1.artifact",
+      "standard": "identity-integration/delivery.md T2-Q1",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Pack recursive product dependency graph, provision external consumer, compile and invoke actual installed roots/cordis bindings",
+      "expected": "Tarball bytes and lock/version frozen; external public TS/runtime consumer; reject old package/old plugin-root/old event/duplicate key aliases; define→implementation dependency direction",
+      "verdict": "Pass",
+      "scenarios": [
+        "scenarios/packed-public-types-node.mjs",
+        "scenarios/packed-extra-types-node.mjs",
+        "scenarios/public-retirement.mjs"
+      ],
+      "evidence": [
+        "evidence/packed-final/packed-public.json",
+        "evidence/packed-cordis-types-node-qualified/packed-extra.json",
+        "evidence/public-retirement-coordinate-qualified/public-retirement.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/packed-final/packed-public.json",
+          "raw_case_total": 9,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/packed-cordis-types-node-qualified/packed-extra.json",
+          "raw_case_total": 9,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/public-retirement-coordinate-qualified/public-retirement.json",
+          "raw_case_total": 75,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "13 个真实 tarball，9 个目标纯根和 9 个 cordis 装载；外部 TS 消费及旧包／旧插件根／deep dist 拒绝；版本锁和制品 SHA 保全。",
+      "scope_note": null
+    },
+    {
+      "id": "Q1.owner",
+      "standard": "identity-integration/delivery.md T2-Q1",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Inspect formal public Services, keys, Context and Events declarations and providers",
+      "expected": "Each key comes only from its public static provide; Service implements root interface; typed namespaced events one owner and unchanged payload/emit timing; AI two faces and OG four share one engine/fiber",
+      "verdict": "Pass",
+      "scenarios": [
+        "scenarios/packed-extra-types-node.mjs",
+        "scenarios/public-retirement.mjs",
+        "../qa-baseline/scenarios/business.mjs"
+      ],
+      "evidence": [
+        "evidence/packed-cordis-types-node-qualified/packed-extra.json",
+        "evidence/public-retirement-coordinate-qualified/public-retirement.json",
+        "evidence/business-qualified/business.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/packed-cordis-types-node-qualified/packed-extra.json",
+          "raw_case_total": 9,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/public-retirement-coordinate-qualified/public-retirement.json",
+          "raw_case_total": 75,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/business-qualified/business.json",
+          "raw_case_total": 11,
+          "raw_pass": 11,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "正式 Service 面包外可赋值，八个公共 key／绑定坐标与配置一致；8 个事件 payload 和 void 模式保持，业务通知时点实际验证。",
+      "scope_note": null
+    },
+    {
+      "id": "Q1.identity",
+      "standard": "identity-integration/delivery.md T2-Q1",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Open preserved database and parse/return existing identities after refactor/restart",
+      "expected": "Same schema/table/columns/migration ids/account/login/tenant identities/PHC version/route IDs; no compatibility alias, backfill, data rewrite or compensation",
+      "verdict": "Pass",
+      "scenarios": [
+        "scenarios/reopen-base-data.mjs",
+        "scenarios/public-retirement.mjs",
+        "scenarios/final-host-phase.mjs"
+      ],
+      "evidence": [
+        "evidence/reopen-actual-base-data/result.json",
+        "evidence/public-retirement-coordinate-qualified/public-retirement.json",
+        "evidence/host-sql-fix.vitest.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/reopen-actual-base-data/result.json",
+          "raw_case_total": 0,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/public-retirement-coordinate-qualified/public-retirement.json",
+          "raw_case_total": 75,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/host-sql-fix.vitest.json",
+          "passed": 113,
+          "failed": 0,
+          "skipped": 0
+        }
+      ],
+      "observation": "cf4 真正打开冻结 BASE 首例库：原 account/login/personal membership 认回，八张业务表逐记录相同；两迁移 SQL 非 import 语句保持。",
+      "scope_note": null
+    },
+    {
+      "id": "Q1.consumers",
+      "standard": "identity-integration/delivery.md T2-Q1",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Enumerate all direct/indirect public imports, finite schema manifests and deployment paths",
+      "expected": "All live consumers migrate to public definitions; only assembly chooses provider; entry physical rename to entry-node in T2; source/manifests/lock/Docker/generated schema paths migrate together; no relabeling to remove violations",
+      "verdict": "Pass",
+      "scenarios": [
+        "clone/tools/ts-checks/src/arch/cli.ts",
+        "scenarios/consumer-phase.mjs",
+        "scenarios/packed-extra-types-node.mjs",
+        "scenarios/public-retirement.mjs"
+      ],
+      "evidence": [
+        "evidence/architecture-current.json",
+        "evidence/consumers/progress.json",
+        "evidence/packed-cordis-types-node-qualified/packed-extra.json",
+        "evidence/public-retirement-coordinate-qualified/public-retirement.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/architecture-current.json",
+          "raw_case_total": 0,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/consumers/progress.json",
+          "raw_case_total": 5,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/packed-cordis-types-node-qualified/packed-extra.json",
+          "raw_case_total": 9,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/public-retirement-coordinate-qualified/public-retirement.json",
+          "raw_case_total": 75,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "完整 workspace 精确 Git 树枚举；消费者／有限 schema 路径／包锁与实际部署测试。53 为全 workspace、49 为产品；17 静态 unknown 保留。",
+      "scope_note": null
+    },
+    {
+      "id": "Q2.register",
+      "standard": "identity-integration/delivery.md T2-Q2",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Register valid/duplicate/wrong-credential users with real AI/OG/AR/CV/SQLite",
+      "expected": "Exactly one account/personal organization/owner member; produce→personal→activate separate commits; activated implies personal; reject duplicate without partial state; login/exchange returns same account",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-baseline/scenarios/business.mjs",
+        "scenarios/final-host-phase.mjs"
+      ],
+      "evidence": [
+        "evidence/business-qualified/business.json",
+        "evidence/host-sql-fix.vitest.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/business-qualified/business.json",
+          "raw_case_total": 11,
+          "raw_pass": 11,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/host-sql-fix.vitest.json",
+          "passed": 113,
+          "failed": 0,
+          "skipped": 0
+        }
+      ],
+      "observation": "真实 AI/OG/AR/CV/SQLite：唯一账号／个人组织／超管、重复拒绝、登录认回；三步各自持久语义保持。",
+      "scope_note": null
+    },
+    {
+      "id": "Q2.unit",
+      "standard": "identity-integration/delivery.md T2-Q2",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "AI read and OG organization/member mutations share explicit StorageUnit",
+      "expected": "Account ownership check and createPersonal's organization/member mutations in same unit; no independent provider commit hidden inside participant; temporary result is not committed success",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-baseline/scenarios/business.mjs",
+        "scenarios/member-suites.mjs"
+      ],
+      "evidence": [
+        "evidence/business-qualified/business.json",
+        "evidence/member-suites/organization-governance.vitest.json",
+        "evidence/member-suites/account-identity.vitest.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/business-qualified/business.json",
+          "raw_case_total": 11,
+          "raw_pass": 11,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/member-suites/organization-governance.vitest.json",
+          "passed": 110,
+          "failed": 0,
+          "skipped": 4
+        },
+        {
+          "evidence": "evidence/member-suites/account-identity.vitest.json",
+          "passed": 85,
+          "failed": 0,
+          "skipped": 10
+        }
+      ],
+      "observation": "真实共享 StorageUnit 内账号检查及组织／成员写入；提交前不通知，不将临时结果报成提交成功。",
+      "scope_note": null
+    },
+    {
+      "id": "Q2.rollback",
+      "standard": "identity-integration/delivery.md T2-Q2",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Inject real invitation SQL failure after staged team creation/key; retry same key",
+      "expected": "Actual outer rollback removes organization, key, invitation and notifications; later same-key success commits once; storage-unavailable mapping only outside correct unit boundary",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-baseline/scenarios/business.mjs",
+        "scenarios/member-suites.mjs"
+      ],
+      "evidence": [
+        "evidence/business-qualified/business.json",
+        "evidence/member-suites/organization-governance.vitest.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/business-qualified/business.json",
+          "raw_case_total": 11,
+          "raw_pass": 11,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/member-suites/organization-governance.vitest.json",
+          "passed": 110,
+          "failed": 0,
+          "skipped": 4
+        }
+      ],
+      "observation": "邀请 SQL 故障使团队／键／邀请／通知整体回滚；同键重试只提交一次，StorageUnavailable 映射在正确边界。",
+      "scope_note": null
+    },
+    {
+      "id": "Q2.foreign-unit",
+      "standard": "identity-integration/delivery.md T2-Q2",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Supply a unit from another actual SqlStorage/instance, same-file or distinct-file; hold ended participant",
+      "expected": "Reject foreign/private identity and ended scope with original StorageDefect; no cross-store write/secret; do not use isolate label as identity",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-baseline/scenarios/business.mjs",
+        "scenarios/member-suites.mjs"
+      ],
+      "evidence": [
+        "evidence/business-qualified/business.json",
+        "evidence/member-suites/organization-governance.vitest.json",
+        "evidence/member-suites/account-identity.vitest.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/business-qualified/business.json",
+          "raw_case_total": 11,
+          "raw_pass": 11,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/member-suites/organization-governance.vitest.json",
+          "passed": 110,
+          "failed": 0,
+          "skipped": 4
+        },
+        {
+          "evidence": "evidence/member-suites/account-identity.vitest.json",
+          "passed": 85,
+          "failed": 0,
+          "skipped": 10
+        }
+      ],
+      "observation": "真实外国实例、同／异文件及已结束 unit 按原 StorageDefect 拒绝；不以隔离标签充当私有存储身份。",
+      "scope_note": null
+    },
+    {
+      "id": "Q2.poison",
+      "standard": "identity-integration/delivery.md T2-Q2",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Catch a participant StorageUnavailable inside outer atomic body",
+      "expected": "Unit remains poisoned and cannot commit; first error retained; staged SQL and notifications rollback",
+      "verdict": "Pass",
+      "scenarios": [
+        "scenarios/member-suites.mjs"
+      ],
+      "evidence": [
+        "evidence/member-suites/organization-governance.vitest.json",
+        "evidence/member-suites/account-identity.vitest.json",
+        "evidence/member-suites/entry.vitest.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/member-suites/organization-governance.vitest.json",
+          "passed": 110,
+          "failed": 0,
+          "skipped": 4
+        },
+        {
+          "evidence": "evidence/member-suites/account-identity.vitest.json",
+          "passed": 85,
+          "failed": 0,
+          "skipped": 10
+        },
+        {
+          "evidence": "evidence/member-suites/entry.vitest.json",
+          "passed": 528,
+          "failed": 0,
+          "skipped": 2
+        }
+      ],
+      "observation": "原参与测试观察已捕获 StorageUnavailable 后 unit 仍污染、首错误保持，写入和通知不能提交。",
+      "scope_note": null
+    },
+    {
+      "id": "Q2.notification",
+      "standard": "identity-integration/delivery.md T2-Q2",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Throw a real synchronous post-commit activation listener",
+      "expected": "Persisted account activated with one personal org; operation still registered; warning/error observable; no rollback or duplicate event",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-baseline/scenarios/business.mjs",
+        "scenarios/member-suites.mjs"
+      ],
+      "evidence": [
+        "evidence/business-qualified/business.json",
+        "evidence/member-suites/account-identity.vitest.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/business-qualified/business.json",
+          "raw_case_total": 11,
+          "raw_pass": 11,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/member-suites/account-identity.vitest.json",
+          "passed": 85,
+          "failed": 0,
+          "skipped": 10
+        }
+      ],
+      "observation": "真实 post-commit activation 监听抛错：账号／个人组织仍已提交，注册成功，warning 可观察，无伪回滚或重复事件。",
+      "scope_note": null
+    },
+    {
+      "id": "Q2.ticket",
+      "standard": "identity-integration/delivery.md T2-Q2",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Prepare ticket, change G, attempt stale ticket, attempt same ticket again; foreign or new generation holder",
+      "expected": "G check precedes login validity; stale current-credential-rejected; attempt consumes ticket even on failure; repeat/foreign StorageDefect; new provider cannot accept old ticket; no per-login revoke event from G change",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-baseline/scenarios/business.mjs",
+        "scenarios/member-suites.mjs",
+        "scenarios/secret-isolates-tickets.mjs"
+      ],
+      "evidence": [
+        "evidence/business-qualified/business.json",
+        "evidence/member-suites/account-identity.vitest.json",
+        "evidence/secret-isolates-tickets/result.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/business-qualified/business.json",
+          "raw_case_total": 11,
+          "raw_pass": 11,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/member-suites/account-identity.vitest.json",
+          "passed": 85,
+          "failed": 0,
+          "skipped": 10
+        },
+        {
+          "evidence": "evidence/secret-isolates-tickets/result.json",
+          "raw_case_total": 3,
+          "raw_pass": 3,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "G 优先、单次尝试消费、foreign／ended scope 拒绝；实际 packed AI close 后旧票据 StorageDefect 且借用 SQL 可用。",
+      "scope_note": null
+    },
+    {
+      "id": "Q2.final-clock",
+      "standard": "identity-integration/delivery.md T2-Q2",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Clock fails at finalActivity of common entry business transaction",
+      "expected": "Rollback the entire original login/authorization/business commit; do not report only login failure while committing business effects",
+      "verdict": "Pass",
+      "scenarios": [
+        "scenarios/member-suites.mjs"
+      ],
+      "evidence": [
+        "evidence/member-suites/account-identity.vitest.json",
+        "evidence/member-suites/entry.vitest.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/member-suites/account-identity.vitest.json",
+          "passed": 85,
+          "failed": 0,
+          "skipped": 10
+        },
+        {
+          "evidence": "evidence/member-suites/entry.vitest.json",
+          "passed": 528,
+          "failed": 0,
+          "skipped": 2
+        }
+      ],
+      "observation": "原 finalActivity 失败测试使登录／授权／业务及排队通知整个原事务回滚；没有把业务提交与登录失败拆开。",
+      "scope_note": null
+    },
+    {
+      "id": "Q2.secrets",
+      "standard": "identity-integration/delivery.md T2-Q2",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Unique plaintext passwords/presentations sent through real material/record/read/event/diagnostic paths",
+      "expected": "Only allowed one-call presentation results contain secret; no readable credential/material escape on records/read/events/logs; positive leakage controls detect sentinel; preserve encoding parameters",
+      "verdict": "Pass",
+      "scenarios": [
+        "scenarios/secret-isolates-tickets.mjs",
+        "../qa-baseline/scenarios/credential-oracle.mjs",
+        "scenarios/member-suites.mjs",
+        "scenarios/final-host-phase.mjs"
+      ],
+      "evidence": [
+        "evidence/secret-isolates-tickets/result.json",
+        "evidence/credential-oracle/credential-oracle.json",
+        "evidence/member-suites/credentials.vitest.json",
+        "evidence/member-suites/entry.vitest.json",
+        "evidence/host-sql-fix.vitest.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/secret-isolates-tickets/result.json",
+          "raw_case_total": 3,
+          "raw_pass": 3,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/credential-oracle/credential-oracle.json",
+          "raw_case_total": 0,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/member-suites/credentials.vitest.json",
+          "passed": 14,
+          "failed": 0,
+          "skipped": 2
+        },
+        {
+          "evidence": "evidence/member-suites/entry.vitest.json",
+          "passed": 528,
+          "failed": 0,
+          "skipped": 2
+        },
+        {
+          "evidence": "evidence/host-sql-fix.vitest.json",
+          "passed": 113,
+          "failed": 0,
+          "skipped": 0
+        }
+      ],
+      "observation": "真实材料、所有 SQLite 表、公开读面、activation 事件和结构化日志无唯一完整中文明文／真实出示物；四类泄漏负控均拒绝。",
+      "scope_note": null
+    },
+    {
+      "id": "Q3.order",
+      "standard": "identity-integration/delivery.md T2-Q3",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Two global identities own two organizations; foreign tenant then last-super removal and authorized promotion/demotion",
+      "expected": "wouldLeaveNoSuperAdministrator before unauthorized demotion of sole super; unchanged-role foreign initiator notAuthorized; foreign-login tenant notOwnTenant; authorized promotion permits later demotion",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-baseline/scenarios/business.mjs",
+        "scenarios/member-suites.mjs"
+      ],
+      "evidence": [
+        "evidence/business-qualified/business.json",
+        "evidence/member-suites/organization-governance.vitest.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/business-qualified/business.json",
+          "raw_case_total": 11,
+          "raw_pass": 11,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/member-suites/organization-governance.vitest.json",
+          "passed": 110,
+          "failed": 0,
+          "skipped": 4
+        }
+      ],
+      "observation": "跨组织唯一超管先 wouldLeaveNoSuperAdministrator；不变角色的外国发起者 notAuthorized；foreign tenant notOwnTenant；合法晋降可推进。",
+      "scope_note": null
+    },
+    {
+      "id": "Q3.explicit",
+      "standard": "identity-integration/delivery.md T2-Q3",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Same process, separate lifetime isolates and explicit foreign tenant input",
+      "expected": "No default tenant inherited from Context label; foreign tenant denied by business authorization; global account and membership identities stay distinct",
+      "verdict": "Pass",
+      "scenarios": [
+        "scenarios/secret-isolates-tickets.mjs",
+        "../qa-baseline/scenarios/business.mjs",
+        "../qa-baseline/scenarios/coordinator.mjs"
+      ],
+      "evidence": [
+        "evidence/secret-isolates-tickets/result.json",
+        "evidence/business-qualified/business.json",
+        "evidence/coordinator-original-retained/coordinator.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/secret-isolates-tickets/result.json",
+          "raw_case_total": 3,
+          "raw_pass": 3,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/business-qualified/business.json",
+          "raw_case_total": 11,
+          "raw_pass": 11,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/coordinator-original-retained/coordinator.json",
+          "raw_case_total": 9,
+          "raw_pass": 8,
+          "raw_fail": 1,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "同进程两实际管理 host／独立 lifetime 端口；foreign tenant 明确拒绝且无写，停 A 不停 B；全局账号与成员身份区分。",
+      "scope_note": null
+    },
+    {
+      "id": "Q3.persist",
+      "standard": "identity-integration/delivery.md T2-Q3",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Re-open/refactor same SQL data after success/refusal",
+      "expected": "No refusal writes/partial membership effects; accounts/tenant membership identities persist; normalized same-input BASE/candidate structural comparison retains identity relations",
+      "verdict": "Pass",
+      "scenarios": [
+        "scenarios/reopen-base-data.mjs",
+        "scenarios/final-audit.mjs",
+        "../qa-baseline/scenarios/business.mjs"
+      ],
+      "evidence": [
+        "evidence/reopen-actual-base-data/result.json",
+        "evidence/final-audit.json",
+        "evidence/business-qualified/business.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/reopen-actual-base-data/result.json",
+          "raw_case_total": 0,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/final-audit.json",
+          "raw_case_total": 0,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/business-qualified/business.json",
+          "raw_case_total": 11,
+          "raw_pass": 11,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "11 个 BASE/cf4 observed 对象逐字相等（含 opaque ID 关系）；实际 BASE 库重开业务记录逐字相同，拒绝不写成员关系。",
+      "scope_note": null
+    },
+    {
+      "id": "Q4.optional",
+      "standard": "identity-integration/delivery.md T2-Q4",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "credentials missing then independently replaced while AI stays installed",
+      "expected": "Missing maps storage-unavailable, not rejected/mismatch; AI same fiber; new call can resolve new CV; credentials remains optional only to AI, required to entry",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-baseline/scenarios/business.mjs",
+        "scenarios/member-suites.mjs"
+      ],
+      "evidence": [
+        "evidence/business-qualified/business.json",
+        "evidence/member-suites/account-identity.vitest.json",
+        "evidence/member-suites/entry.vitest.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/business-qualified/business.json",
+          "raw_case_total": 11,
+          "raw_pass": 11,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/member-suites/account-identity.vitest.json",
+          "passed": 85,
+          "failed": 0,
+          "skipped": 10
+        },
+        {
+          "evidence": "evidence/member-suites/entry.vitest.json",
+          "passed": 528,
+          "failed": 0,
+          "skipped": 2
+        }
+      ],
+      "observation": "CV 缺席映射 storage-unavailable，AI 原 fiber 留存；下一调用用新 CV；AI 可选、entry 必需的原 PENDING 规则保持。",
+      "scope_note": null
+    },
+    {
+      "id": "Q4.capture",
+      "standard": "identity-integration/delivery.md T2-Q4",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Hold real crypto derive/verify in old CV; replace/stop provider before response",
+      "expected": "Started call stays with captured old provider; task not falsely cancelled; old result has observer; service withdrawal waits actual scrypt completion; no mid-call switch",
+      "verdict": "Pass",
+      "scenarios": [
+        "scenarios/managed-scrypt-ready.mjs",
+        "scenarios/packed-cv-realpath.mjs",
+        "scenarios/member-suites.mjs"
+      ],
+      "evidence": [
+        "evidence/managed-scrypt-qualified/managed-scrypt.json",
+        "evidence/packed-cv-realpath-qualified/packed-factories.json",
+        "evidence/member-suites/account-identity.vitest.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/managed-scrypt-qualified/managed-scrypt.json",
+          "raw_case_total": 1,
+          "raw_pass": 1,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/packed-cv-realpath-qualified/packed-factories.json",
+          "raw_case_total": 1,
+          "raw_pass": 1,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/member-suites/account-identity.vitest.json",
+          "passed": 85,
+          "failed": 0,
+          "skipped": 10
+        }
+      ],
+      "observation": "真实旧 CV／OS 工作不被换入新实例；独立与管理绑定撤除都等实际回调，迟到结果有观察者。",
+      "scope_note": null
+    },
+    {
+      "id": "Q4.faces",
+      "standard": "identity-integration/delivery.md T2-Q4",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Withdraw owning AI/OG fiber",
+      "expected": "AI accounts/logins disappear together; OG organizations/offers/memberships/purge disappear together; AR unavailable; one shared runtime close, no borrowed dependency double-close",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-baseline/scenarios/business.mjs",
+        "scenarios/packed-factories.mjs"
+      ],
+      "evidence": [
+        "evidence/business-qualified/business.json",
+        "evidence/packed-factories-final/packed-factories.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/business-qualified/business.json",
+          "raw_case_total": 11,
+          "raw_pass": 11,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/packed-factories-final/packed-factories.json",
+          "raw_case_total": 4,
+          "raw_pass": 3,
+          "raw_fail": 1,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "AI 两面、OG 四面、AR 同撤；真实 composite OG 共用一 close，借用 SQL 保持可用。四个原单独工厂仍由调用方管理依赖。",
+      "scope_note": null
+    },
+    {
+      "id": "Q4.registration-steps",
+      "standard": "identity-integration/delivery.md T2-Q4",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Pause after true commit of step1/2/3, request registration stop, hold receipt, then release",
+      "expected": "Dispose pending while admitted step held; no next step after stop; all register returns interrupted including after step3 commit before receipt; persisted (activated,personal)=(0,0),(0,1),(1,1); old register reference interrupted; purge RegistrationStopped",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-baseline/scenarios/business.mjs",
+        "scenarios/member-suites.mjs"
+      ],
+      "evidence": [
+        "evidence/business-qualified/business.json",
+        "evidence/member-suites/registration.vitest.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/business-qualified/business.json",
+          "raw_case_total": 11,
+          "raw_pass": 11,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/member-suites/registration.vitest.json",
+          "passed": 56,
+          "failed": 0,
+          "skipped": 1
+        }
+      ],
+      "observation": "真实①/②/③提交后撤除分别 (0,0)/(0,1)/(1,1)，均 interrupted；完整收条被观察，不交下一步；purge 使用 RegistrationStopped。",
+      "scope_note": null
+    },
+    {
+      "id": "Q4.generation",
+      "standard": "identity-integration/delivery.md T2-Q4",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Withdraw dependency during old call; try second managed apply; rebuild generation",
+      "expected": "Whole managed lifetime stops immediately; old AR does not issue next step even before its close turn; original captured dependencies remain for necessary old work; new coordinator/guard/EntryOpening/tickets, no old eligibility",
+      "verdict": "Pass",
+      "scenarios": [
+        "scenarios/host-oracles.mjs",
+        "scenarios/managed-scrypt-ready.mjs",
+        "scenarios/final-host-phase.mjs",
+        "scenarios/member-suites.mjs",
+        "scenarios/secret-isolates-tickets.mjs"
+      ],
+      "evidence": [
+        "evidence/host-oracles-short-path-qualified/host-oracles.json",
+        "evidence/managed-scrypt-qualified/managed-scrypt.json",
+        "evidence/host-sql-fix.vitest.json",
+        "evidence/member-suites/registration.vitest.json",
+        "evidence/secret-isolates-tickets/result.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/host-oracles-short-path-qualified/host-oracles.json",
+          "raw_case_total": 9,
+          "raw_pass": 8,
+          "raw_fail": 1,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/managed-scrypt-qualified/managed-scrypt.json",
+          "raw_case_total": 1,
+          "raw_pass": 1,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/host-sql-fix.vitest.json",
+          "passed": 113,
+          "failed": 0,
+          "skipped": 0
+        },
+        {
+          "evidence": "evidence/member-suites/registration.vitest.json",
+          "passed": 56,
+          "failed": 0,
+          "skipped": 1
+        },
+        {
+          "evidence": "evidence/secret-isolates-tickets/result.json",
+          "raw_case_total": 3,
+          "raw_pass": 3,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "第二次管理 apply／依赖撤除停全代；原 AR 换代与实际旧 CV 工作、原 host 新代重启、票据失效均按原输入观察。",
+      "scope_note": null
+    },
+    {
+      "id": "Q4.close",
+      "standard": "identity-integration/delivery.md T2-Q4",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Close standalone AI/CV/AR/OG runtime with an admitted external task and a borrowed SQL/clock dependency",
+      "expected": "Stop new ordinary calls with exact errors/results; drain full Promise; keep borrowed deps open; AI clears tickets; pure OG four factories share one close owner; repeated close same process; no swallowing close failure",
+      "verdict": "Pass",
+      "scenarios": [
+        "scenarios/packed-factories.mjs",
+        "scenarios/packed-cv-realpath.mjs",
+        "scenarios/secret-isolates-tickets.mjs",
+        "scenarios/reentrant-close.mjs"
+      ],
+      "evidence": [
+        "evidence/packed-factories-final/packed-factories.json",
+        "evidence/packed-cv-realpath-qualified/packed-factories.json",
+        "evidence/secret-isolates-tickets/result.json",
+        "evidence/reentrant-e6/reentrant-close.json",
+        "evidence/reentrant-9587/reentrant-close.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/packed-factories-final/packed-factories.json",
+          "raw_case_total": 4,
+          "raw_pass": 3,
+          "raw_fail": 1,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/packed-cv-realpath-qualified/packed-factories.json",
+          "raw_case_total": 1,
+          "raw_pass": 1,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/secret-isolates-tickets/result.json",
+          "raw_case_total": 3,
+          "raw_pass": 3,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/reentrant-e6/reentrant-close.json",
+          "raw_case_total": 0,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/reentrant-9587/reentrant-close.json",
+          "raw_case_total": 0,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "实际 packed AI/AR/OG 新普通调用精确停止、完整 Promise 排空和借用依赖保持；参与面继续归调用方 StorageUnit 寿命，工厂 close 不拥有或撤销该 unit。重入缺陷已修复。CV 纯四函数无 close，独立／管理 binding 承担运行时 drain。",
+      "scope_note": "Frozen wording does not create a new CV pure close API; adopted public four-function face and binding work ownership govern this case."
+    },
+    {
+      "id": "Q5.ai",
+      "standard": "identity-integration/delivery.md T2-Q5",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Run original six AI3 configs with one account/login/attempt and original time bounds",
+      "expected": "Three positive scopes no error; negatives NoRevival/NoObservedRevival/NoStaleIssue violated with real traces; no fairness or SQL-refinement inference",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-baseline/scenarios/formal.py"
+      ],
+      "evidence": [
+        "evidence/formal/formal.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/formal/formal.json",
+          "raw_case_total": 15,
+          "raw_pass": 15,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "六个 AI3 原配置实际 TLC 单 worker，正例及 NoRevival/NoObservedRevival/NoStaleIssue 反例均按原性质。",
+      "scope_note": null
+    },
+    {
+      "id": "Q5.og",
+      "standard": "identity-integration/delivery.md T2-Q5",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Run original serialized/nonserialized Membership and Affiliation four commands/three README mutations",
+      "expected": "Serialized pass; nonserialized AtLeastOneSuperAdministrator counterexample; original Alloy SAT chain/3UNSAT; all three mutations SAT, explicit self-loop and ancestor relation witnesses; no cross-process or concurrency claim from Alloy",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-baseline/scenarios/formal.py"
+      ],
+      "evidence": [
+        "evidence/formal/formal.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/formal/formal.json",
+          "raw_case_total": 15,
+          "raw_pass": 15,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "Membership 串行／非串行原配置；Alloy 原命令及三个 README 变异实际运行，SAT/UNSAT 与关系见证符合原范围。",
+      "scope_note": null
+    },
+    {
+      "id": "Q5.ar",
+      "standard": "identity-integration/delivery.md T2-Q5",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Run basic/crash/progress with original AR2 model bytes and configs",
+      "expected": "Three expected positive checks; persistent prior-step effects under unknown receipt; progress only Failures=FALSE/Abandoning=FALSE and original fairness; no unconditional recovery claim",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-baseline/scenarios/formal.py"
+      ],
+      "evidence": [
+        "evidence/formal/formal.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/formal/formal.json",
+          "raw_case_total": 15,
+          "raw_pass": 15,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "basic/crash/progress 原模型；进展仅在原 Failures=FALSE、Abandoning=FALSE、公平性及有限边界前提成立。",
+      "scope_note": null
+    },
+    {
+      "id": "Q5.ircc",
+      "standard": "identity-integration/delivery.md T2-Q5",
+      "authority": [
+        "inputs/.meta_harness/design/architecture/identity-integration/preservation.md",
+        "inputs/.meta_harness/design/architecture/identity-integration/behavior.md",
+        "inputs/adopted-binding-supplement/.meta_harness/design/architecture/identity-integration/retirement.md"
+      ],
+      "trigger": "Use fixed 16-byte lawful salt beginning rec, real scrypt and both good/wrong credentials",
+      "expected": "Original short substring predicate has false positive; material remains password-scrypt v1 and good verify match; wrong mismatch; reject actual plaintext leakage through material/record/event/diagnostic controls; only false predicate changes, no secret guarantee weakened",
+      "verdict": "Pass",
+      "scenarios": [
+        "../qa-baseline/scenarios/credential-oracle.mjs",
+        "scenarios/member-suites.mjs",
+        "scenarios/secret-isolates-tickets.mjs"
+      ],
+      "evidence": [
+        "evidence/credential-oracle/credential-oracle.json",
+        "evidence/member-suites/credentials.vitest.json",
+        "evidence/secret-isolates-tickets/result.json"
+      ],
+      "raw_observation_counts": [
+        {
+          "evidence": "evidence/credential-oracle/credential-oracle.json",
+          "raw_case_total": 0,
+          "raw_pass": 0,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        },
+        {
+          "evidence": "evidence/member-suites/credentials.vitest.json",
+          "passed": 14,
+          "failed": 0,
+          "skipped": 2
+        },
+        {
+          "evidence": "evidence/secret-isolates-tickets/result.json",
+          "raw_case_total": 3,
+          "raw_pass": 3,
+          "raw_fail": 0,
+          "note": "Shared raw observations are not added per criterion. Complete case ids and raw failures are retained in this evidence file. Old negative controls/facility failures remain raw failures; qualified relevant observations establish this criterion."
+        }
+      ],
+      "observation": "固定合法 rec 盐仍真实 match／wrong mismatch；只替换错误短子串判据，完整 PHC 形状／盐 hash 参数和实际泄漏边界均保持。",
+      "scope_note": null
+    }
+  ],
+  "defects_and_issues": [
+    {
+      "id": "QA-T2-P1",
+      "severity": "Major",
+      "state": "fixed and independently reverified",
+      "summary": "Initial AI close completed before synchronously reentrant resolveCredentials work was registered.",
+      "found_commit": "e6e2b9c1eeedf2e5fa2379afd41de744fc32c906",
+      "fixed_commit": "9587dd5c8b107429ef32b311c08b6dcb1320cbc6",
+      "reproduction": "evidence/reentrant-e6/reentrant-close.json",
+      "reverification": [
+        "evidence/reentrant-9587/reentrant-close.json",
+        "evidence/packed-factories-final/packed-factories.json"
+      ],
+      "owner": "developer; original IR-T2-CLOSE-1 retained"
+    },
+    {
+      "id": "QA-T2-P2",
+      "severity": "Major",
+      "state": "fixed and independently reverified",
+      "summary": "Sparse required inject in managed SQL prevented actual host startup.",
+      "found_commit": "9587dd5c8b107429ef32b311c08b6dcb1320cbc6",
+      "fixed_commit": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+      "reproduction": "evidence/member-suites/host.vitest.json (14 passed / 99 failed)",
+      "reverification": [
+        "evidence/host-sql-fix.vitest.json (113/113)",
+        "evidence/managed-scrypt-qualified/managed-scrypt.json",
+        "evidence/host-oracles-short-path-qualified/host-oracles.json"
+      ],
+      "owner": "developer"
+    },
+    {
+      "id": "QA-T2-ARCH",
+      "severity": "Minor",
+      "state": "open facility limitation",
+      "summary": "Actual source graph retains 17 unknowns, including eight returned managed manifest plugins and three dependency spreads.",
+      "evidence": "evidence/architecture-current.json",
+      "mitigation": "Actual eight binding identities, required keys, same schemas and live lifecycle observed separately; unknowns not removed from source graph.",
+      "owner": "architecture-view facility; N8"
+    },
+    {
+      "id": "QA-T2-FAC",
+      "severity": "Minor",
+      "state": "original failed facility runs preserved",
+      "summary": "Frozen old surface closure resolver exhausted three recorded attempts; mature original T1b/S2 resolver independently qualified without changing boundary oracle.",
+      "evidence": [
+        "evidence/surface-final.execution.json",
+        "evidence/surface-declarations-qualified.execution.json",
+        "evidence/surface-require-anchor-qualified.execution.json",
+        "evidence/closure-existing-qualified/qa-result.json"
+      ],
+      "owner": "verification facility"
+    },
+    {
+      "id": "QA-T2-CV-SCOPE",
+      "severity": "Minor",
+      "state": "explicit standard interpretation",
+      "summary": "Q4.close wording includes CV standalone close, while adopted CV pure interface has four stateless functions and no close; callers own pure jobs, bindings own their admitted tasks.",
+      "evidence": "evidence/packed-cv-realpath-qualified/packed-factories.json",
+      "owner": "QA standard wording at next revision; no extra compatibility or API inferred"
+    },
+    {
+      "id": "A5/QA-N4-I1",
+      "severity": "unresolved original cause",
+      "state": "open",
+      "summary": "Original 45-second cold failure remains unexplained; this 17/17 run cannot close cause.",
+      "evidence": "evidence/cold-final/summary.json",
+      "owner": "R2 / domain acceptance"
+    },
+    {
+      "id": "EIS-5000",
+      "severity": "retained prior failure",
+      "state": "open",
+      "summary": "Prior original two 5000ms timeouts remain retained; this selected suite 70/70 does not reconstruct cause.",
+      "evidence": "evidence/consumers/evaluation-input-store.vitest.json",
+      "owner": "shared boundary / necessary domain acceptance"
+    },
+    {
+      "id": "QA-FAC-1",
+      "severity": "historical facility defect",
+      "state": "open",
+      "summary": "Complete historical W6 asset export assumption not repaired; actual 13-tarball target consumer proves only this slice.",
+      "evidence": "evidence/packed-final/packed-public.json",
+      "owner": "N5/N6 verification facilities"
+    },
+    {
+      "id": "OG2/AR2-formal-registry",
+      "severity": "retained maintenance gap",
+      "state": "open",
+      "summary": "Both actual formal READMEs preserved and executed; missing registry entries remain N5/N6.",
+      "evidence": "evidence/formal/formal.json",
+      "owner": "N5/N6"
+    }
+  ],
+  "facility_history": [
+    {
+      "id": "managed-scrypt",
+      "original": "evidence/managed-scrypt",
+      "cause": "First old fixture also exposed actual sparse SQL inject; qualified adapter waits each real OwnedWork.ready rather than fiber activation.",
+      "qualified": "evidence/managed-scrypt-qualified"
+    },
+    {
+      "id": "business-argv",
+      "original": "evidence/business-final",
+      "cause": "Missing candidate mode selected old nonexistent provider coordinate; one corrected candidate-argument run.",
+      "qualified": "evidence/business-qualified"
+    },
+    {
+      "id": "unix-path",
+      "original": "evidence/host-oracles",
+      "cause": "Evidence directory as deployment root made AF_UNIX pathname exceed Linux limit before all nine triggers; corrected to original short /tmp support.",
+      "qualified": "evidence/host-oracles-short-path-qualified"
+    },
+    {
+      "id": "native-row-prototype",
+      "original": "evidence/host-oracles-short-path-qualified",
+      "cause": "Only final accounts assertion compared native SQLite null-prototype rows to plain objects; one semantic field projection; all business assertions retained.",
+      "qualified": "evidence/opening-semantic-qualified"
+    },
+    {
+      "id": "packed-install",
+      "original": "evidence/packed/root-install.*",
+      "cause": "Internal package 0.0.0 went to registry 404; installer retry used exact local tarball overrides; versions/bytes unchanged.",
+      "qualified": "evidence/packed/root-install-retry-*"
+    },
+    {
+      "id": "node-types",
+      "original": "evidence/packed-final/types.*",
+      "cause": "TS6 external fixture requires explicit --types node although @types/node installed; strict shape assertions unchanged.",
+      "qualified": "evidence/packed-final/packed-public.json"
+    },
+    {
+      "id": "CV-package-anchor",
+      "original": "evidence/packed-factories-final",
+      "cause": "createRequire anchored lexical pnpm symlink missed package dependency; one CV-only realpath anchor run.",
+      "qualified": "evidence/packed-cv-realpath-qualified"
+    },
+    {
+      "id": "surface-closure",
+      "original": "evidence/surface-final / surface-declarations-qualified / surface-require-anchor-qualified",
+      "cause": "Old facility omitted .ts declaration mapping, actual require anchor and native extensionless CJS resolution. Three failed attempts stopped; mature byte-identical existing method separately qualified.",
+      "qualified": "evidence/closure-existing-qualified"
+    },
+    {
+      "id": "mature-function-hash-preflight",
+      "original": "evidence/closure-existing-qualified/hash-slice-preflight-observation.json",
+      "cause": "QA preflight initially excluded final LF, yielding cda2f3e7… instead of frozen 3486cd46…; no product closure ran. Exact documented including-LF byte boundary then checked.",
+      "qualified": "evidence/closure-existing-qualified/facility-freeze.json"
+    },
+    {
+      "id": "events-projection",
+      "original": "evidence/public-shapes/public-shapes.json",
+      "cause": "76/78 syntax comparisons equal; two event interfaces intentionally namespaced under adoption. Qualified 8 event signatures/payload/void modes exact.",
+      "qualified": "evidence/public-retirement-coordinate-qualified/public-retirement.json"
+    },
+    {
+      "id": "migration-coordinate",
+      "original": "evidence/public-retirement",
+      "cause": "Own adapter initially used nonexistent AI migrations.ts; actual schema.ts coordinate used without changing SQL comparison.",
+      "qualified": "evidence/public-retirement-coordinate-qualified"
+    }
+  ],
+  "inheritance": {
+    "evidence": "evidence/final-audit.json",
+    "coordinator_helper": 6,
+    "formal": 20,
+    "five_suite_inputs": 59,
+    "shared_primitive_files": 34,
+    "changedAfterInitial": [
+      ".meta_harness/design/architecture/constraints.json",
+      "packages/infra/storage-sql/src/plugin.ts",
+      "packages/tenancy/account-identity-sql/src/factory.ts",
+      "packages/tenancy/account-identity-sql/tests/factory.spec.ts",
+      "packages/tenancy/account-registration-sequential/src/registration.ts",
+      "packages/tenancy/account-registration-sequential/tests/factory.spec.ts",
+      "packages/tenancy/credential-verification-scrypt/src/plugin.ts",
+      "packages/tenancy/organization-governance-sql/src/factory.ts",
+      "packages/tenancy/organization-governance-sql/tests/factory.spec.ts"
+    ],
+    "changedAfterDelta": [
+      ".meta_harness/design/architecture/constraints.json",
+      "packages/infra/storage-sql/src/plugin.ts"
+    ],
+    "rule": "Only exact-input assertions inherited; affected actual SQL/host/tarballs reexecuted on cf4."
+  },
+  "skipped": [
+    {
+      "evidence": "evidence/member-suites/credentials.vitest.json",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/credential-verification-scrypt/tests/obligations.spec.ts",
+      "name": "credential-verification · 证据义务 SC-CV-1：account-identity 包不访问 CredentialMaterial 内部字段——归 W2-C（tools/ts-checks 规则）",
+      "status": "skipped"
+    },
+    {
+      "evidence": "evidence/member-suites/credentials.vitest.json",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/credential-verification-scrypt/tests/obligations.spec.ts",
+      "name": "credential-verification · 证据义务 换代演练：卸载本插件、装载另一实现，account-identity 与 organization-governance 的 fiber 不重跑——归 W3-A（tenancy-host 装配组合验证）",
+      "status": "skipped"
+    },
+    {
+      "evidence": "evidence/member-suites/account-identity.vitest.json",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/account-identity-sql/tests/obligations.spec.ts",
+      "name": "归别处的静态规则形式（本包只提出检查形式与类型一形） no-presentation-in-diagnostics 的 lint 一形（模板字符串与间接拼接）——归 W2-C（tools/ts-checks）；类型一形在 types.spec-d.ts",
+      "status": "skipped"
+    },
+    {
+      "evidence": "evidence/member-suites/account-identity.vitest.json",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/account-identity-sql/tests/obligations.spec.ts",
+      "name": "归别处的静态规则形式（本包只提出检查形式与类型一形） R-8 文本规则：storage.write( 回调的词法范围内不出现 credentials.*( ——归 W2-C（tools/ts-checks）；测试一形在本文件「R-8」",
+      "status": "skipped"
+    },
+    {
+      "evidence": "evidence/member-suites/account-identity.vitest.json",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/account-identity-sql/tests/obligations.spec.ts",
+      "name": "归别处的静态规则形式（本包只提出检查形式与类型一形） S-45 熵审阅的两条文本规则：本包源码不出现 Math.random；插件体构造实现类时不传随机源参数——归 W2-C（tools/ts-checks）",
+      "status": "skipped"
+    },
+    {
+      "evidence": "evidence/member-suites/account-identity.vitest.json",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/account-identity-sql/tests/obligations.spec.ts",
+      "name": "归别处的静态规则形式（本包只提出检查形式与类型一形） S-30「进程外来的身份一律先过 S-44」接收边界一侧：边界包不调 logins.verify、不 import parseLoginStateId、不写 as LoginStateId——归 W2-C（规则）与 W2-B（入口层包）",
+      "status": "skipped"
+    },
+    {
+      "evidence": "evidence/member-suites/account-identity.vitest.json",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/account-identity-sql/tests/obligations.spec.ts",
+      "name": "归别处的静态规则形式（本包只提出检查形式与类型一形） 凭据计算挪出写事务之后的交错 ② 在 pg 上再跑一次（走撞唯一约束那条路）——归 W3-A（pg 首跑）",
+      "status": "skipped"
+    },
+    {
+      "evidence": "evidence/member-suites/account-identity.vitest.json",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/account-identity-sql/tests/plugin.spec.ts",
+      "name": "account-identity 插件 S-32／S-47 第 2 支的完整进程重启（另起一个 Node 进程打开同一库）——归 W2-A／W3-A（tenancy-host 可重启装配）",
+      "status": "skipped"
+    },
+    {
+      "evidence": "evidence/member-suites/account-identity.vitest.json",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/account-identity-sql/tests/scenarios.spec.ts",
+      "name": "capability.account-identity v2 · 规范场景 S-43 第 2 支（真并发）：S-14 与清除链 ① 在同一条已过期记录上并发提交——归 W2-A（AI + AR + OG 同一次演练，真外键两实例夹具）",
+      "status": "skipped"
+    },
+    {
+      "evidence": "evidence/member-suites/account-identity.vitest.json",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/account-identity-sql/tests/scenarios.spec.ts",
+      "name": "capability.account-identity v2 · 规范场景 S-46 ① 的快照部分：翻装配留下的升级快照——归 W2-A／W3-A（快照由 tenancy-host 的升级守卫产生）",
+      "status": "skipped"
+    },
+    {
+      "evidence": "evidence/member-suites/account-identity.vitest.json",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/account-identity-sql/tests/scenarios.spec.ts",
+      "name": "capability.account-identity v2 · 规范场景 S-35 静态检查：账号记录无跨账号关联字段——规则形式归 W2-C（tools/ts-checks，identity-values SC-2）；记录类型只含一个 AccountId 列由 types.spec-d.ts 守",
+      "status": "skipped"
+    },
+    {
+      "evidence": "evidence/member-suites/account-identity.vitest.json",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/account-identity-sql/tests/scenarios.spec.ts",
+      "name": "capability.account-identity v2 · 规范场景 S-36 静态检查的规则形式——归 W2-C（tools/ts-checks）；九个方法的失败集合闭合在 types.spec-d.ts 的类型层已守",
+      "status": "skipped"
+    },
+    {
+      "evidence": "evidence/member-suites/organization-governance.vitest.json",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/organization-governance-sql/tests/scenarios.spec.ts",
+      "name": "capability.organization-governance v1 · 规范场景 S-49 解除之后再加入，回来的是同一个租户——跨契约（资产 owner 一侧），本版不做；本包那一半见 memberships.spec「S-39」",
+      "status": "skipped"
+    },
+    {
+      "evidence": "evidence/member-suites/organization-governance.vitest.json",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/organization-governance-sql/tests/scenarios.spec.ts",
+      "name": "capability.organization-governance v1 · 规范场景 S-50 切换只影响此后新建的东西——跨契约（PF-015 会话契约尚无），本版不做",
+      "status": "skipped"
+    },
+    {
+      "evidence": "evidence/member-suites/organization-governance.vitest.json",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/organization-governance-sql/tests/scenarios.spec.ts",
+      "name": "capability.organization-governance v1 · 规范场景 S-54 清除只对未激活账号成立 S-54 ⑥ 幂等（账号也已不在：①之后真跑 AI S-38 再调）——须与 AI S-43 第 2 支同批真并发，归波次 2 AR 批次（W2-A）；本包 ②乙分支的替身构造测试见 organizations.spec「S-53 ②乙」",
+      "status": "skipped"
+    },
+    {
+      "evidence": "evidence/member-suites/organization-governance.vitest.json",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/organization-governance-sql/tests/scenarios.spec.ts",
+      "name": "capability.organization-governance v1 · 规范场景 S-54 清除只对未激活账号成立 S-54 ⑦ 缺陷观测（账号已不在、组织还在 ⇒ accountDoesNotExist，须与⑥挨着跑）——归波次 2 AR 批次（W2-A）；本包 ②乙分支的替身构造测试见 organizations.spec「S-53 ②乙」",
+      "status": "skipped"
+    },
+    {
+      "evidence": "evidence/member-suites/registration.vitest.json",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/account-registration-sequential/tests/integration.spec.ts",
+      "name": "I-6 清除完成之前同一标识重新注册 I-6 撞 account_login_identifier_unique 那一支——sqlite 下到不了：写事务 BEGIN IMMEDIATE 串行，AI 在写事务里按标识重读（current），先成者的行总被看见，走的是「不同类 ⇒ 重来」而不是插入撞唯一索引；那一支只在 pg 上走，归 W3-A（pg 首跑，AI verification 已登记同一条）",
+      "status": "skipped"
+    },
+    {
+      "evidence": "evidence/member-suites/entry.vitest.json",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/governance-center-entry-node/tests/center-id.spec.ts",
+      "name": "读或铸（S-28 ④） 真并发首启（pg）——pg 零运行，归装配第二程（W3-A）",
+      "status": "skipped"
+    },
+    {
+      "evidence": "evidence/member-suites/entry.vitest.json",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/governance-center-entry-node/tests/lifecycle.spec.ts",
+      "name": "T-12 openSignal：就绪与开门分两步 崩溃落在开闸之前：恢复升级快照后没有任何客户端见过的写丢失——要 apps/tenancy-host 的 boot() 与升级快照，与 U-1 一起归 W3-A",
+      "status": "skipped"
+    }
+  ],
+  "commands": [
+    {
+      "evidence": "evidence/architecture-current.execution.json",
+      "id": "architecture-current",
+      "command": [
+        "node",
+        "--experimental-strip-types",
+        "tools/ts-checks/src/arch/cli.ts",
+        "--root",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "--revision",
+        "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+        "--base",
+        "67eecc1ae53be30efec473206e5d1926dd5d500f",
+        "--out",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/architecture-current.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:48:52.418Z",
+      "end_utc": "2026-10-04T21:49:32.759Z",
+      "elapsed_seconds": 40.340097688,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 180000,
+      "pid": 20794,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/build.execution.json",
+      "id": "build",
+      "command": [
+        "pnpm",
+        "--workspace-concurrency=1",
+        "-r",
+        "run",
+        "build"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T20:58:32.316Z",
+      "end_utc": "2026-10-04T21:00:03.057Z",
+      "elapsed_seconds": 90.739487184,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 600000,
+      "pid": 213015,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/business-final.execution.json",
+      "id": "business-final",
+      "command": [
+        "/data/qiwei/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-baseline/scenarios/business.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/business-final"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:20:57.320Z",
+      "end_utc": "2026-10-04T21:20:57.378Z",
+      "elapsed_seconds": 0.056904715,
+      "exit_code": 1,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 120000,
+      "pid": 425,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/business-qualified.execution.json",
+      "id": "business-qualified",
+      "command": [
+        "/data/qiwei/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
+        "--experimental-transform-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-baseline/scenarios/business.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/business-qualified",
+        "candidate"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:22:44.745Z",
+      "end_utc": "2026-10-04T21:22:45.796Z",
+      "elapsed_seconds": 1.0497411319999999,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 120000,
+      "pid": 1659,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/business.execution.json",
+      "id": "business",
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-baseline/scenarios/business.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/business",
+        "candidate"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:02:23.243Z",
+      "end_utc": "2026-10-04T21:02:24.215Z",
+      "elapsed_seconds": 0.971069493,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 120000,
+      "pid": 215737,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/cli-final.execution.json",
+      "id": "cli-final",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "acceptance/vitest.config.ts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/cli-final.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/apps/cli",
+      "start_utc": "2026-10-04T21:22:48.464Z",
+      "end_utc": "2026-10-04T21:22:51.381Z",
+      "elapsed_seconds": 2.916091101,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 120000,
+      "pid": 1755,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/closure-existing-qualified/closure-existing.execution.json",
+      "id": "closure-existing",
+      "command": [
+        "/data/qiwei/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/closure-facility/qualify.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/closure-existing-qualified/observations",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-final"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:47:43.054Z",
+      "end_utc": "2026-10-04T21:47:50.319Z",
+      "elapsed_seconds": 7.2638714040000005,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 180000,
+      "pid": 20316,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/cold-final/cold-supervisor.execution.json",
+      "id": "cold-supervisor",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "tests/cold-supervisor.spec.ts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/cold-final/cold-supervisor.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/examples/model-invocation-minimal-demo",
+      "start_utc": "2026-10-04T21:41:11.368Z",
+      "end_utc": "2026-10-04T21:45:28.484Z",
+      "elapsed_seconds": 257.115367348,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 900000,
+      "pid": 17313,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/cold-final/response-writer-cold-recovery.execution.json",
+      "id": "response-writer-cold-recovery",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "tests/response-writer-cold-recovery.spec.ts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/cold-final/response-writer-cold-recovery.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/examples/model-invocation-minimal-demo",
+      "start_utc": "2026-10-04T21:45:28.578Z",
+      "end_utc": "2026-10-04T21:46:17.402Z",
+      "elapsed_seconds": 48.823379380000006,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 900000,
+      "pid": 19355,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/consumers/boundary-tools.execution.json",
+      "id": "boundary-tools",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "tests/arch-extract.spec.ts",
+        "tests/core-rules.spec.ts",
+        "tests/entry-rules.spec.ts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/consumers/boundary-tools.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/tools/ts-checks",
+      "start_utc": "2026-10-04T21:33:10.445Z",
+      "end_utc": "2026-10-04T21:35:05.983Z",
+      "elapsed_seconds": 115.53726122900001,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 300000,
+      "pid": 9772,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/consumers/core-tools.execution.json",
+      "id": "core-tools",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "tests/dependency-surface.spec.ts",
+        "tests/public-type-surface.spec.ts",
+        "tests/w1-public-consumer.spec.ts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/consumers/core-tools.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/tools/core-verification",
+      "start_utc": "2026-10-04T21:33:07.579Z",
+      "end_utc": "2026-10-04T21:33:10.405Z",
+      "elapsed_seconds": 2.825295838,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 300000,
+      "pid": 9633,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/consumers/evaluation-input-store.execution.json",
+      "id": "evaluation-input-store",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/consumers/evaluation-input-store.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/assets/evaluation-input-store",
+      "start_utc": "2026-10-04T21:32:06.643Z",
+      "end_utc": "2026-10-04T21:32:30.761Z",
+      "elapsed_seconds": 24.116873542999997,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 300000,
+      "pid": 8384,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/consumers/frontend-prepared.execution.json",
+      "id": "frontend-prepared",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "tests/prepared.spec.ts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/consumers/frontend-prepared.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/frontend/governance-client-operations",
+      "start_utc": "2026-10-04T21:33:04.842Z",
+      "end_utc": "2026-10-04T21:33:07.536Z",
+      "elapsed_seconds": 2.693117242,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 300000,
+      "pid": 9541,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/consumers/model-offline.execution.json",
+      "id": "model-offline",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "tests/storage-instance.spec.ts",
+        "tests/bootstrap.spec.ts",
+        "tests/model-call-host.spec.ts",
+        "tests/acceptance-d4-scopes.spec.ts",
+        "tests/model-hotupdate-integration.spec.ts",
+        "tests/model-transport-service.spec.ts",
+        "tests/session-log.spec.ts",
+        "tests/session-preparation.spec.ts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/consumers/model-offline.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/examples/model-invocation-minimal-demo",
+      "start_utc": "2026-10-04T21:32:30.803Z",
+      "end_utc": "2026-10-04T21:33:04.802Z",
+      "elapsed_seconds": 33.997916190999995,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 300000,
+      "pid": 9004,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/coordinator-original-retained.execution.json",
+      "id": "coordinator-original-retained",
+      "command": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-baseline/scenarios/coordinator.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/coordinator-original-retained"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:02:24.262Z",
+      "end_utc": "2026-10-04T21:02:24.340Z",
+      "elapsed_seconds": 0.077361526,
+      "exit_code": 1,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 120000,
+      "pid": 215763,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/credential-oracle.execution.json",
+      "id": "credential-oracle",
+      "command": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-baseline/scenarios/credential-oracle.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/credential-oracle",
+        "candidate"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:02:27.920Z",
+      "end_utc": "2026-10-04T21:02:27.999Z",
+      "elapsed_seconds": 0.07894345900000001,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 120000,
+      "pid": 215920,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/formal.execution.json",
+      "id": "formal",
+      "command": [
+        "python3",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-baseline/scenarios/formal.py",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:02:28.827Z",
+      "end_utc": "2026-10-04T21:02:40.524Z",
+      "elapsed_seconds": 11.695958909000002,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 600000,
+      "pid": 216030,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/host-frozen-oracles.execution.json",
+      "id": "host-frozen-oracles",
+      "command": [
+        "/data/qiwei/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
+        "--experimental-transform-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/scenarios/host-oracles.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/host-oracles"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:20:57.940Z",
+      "end_utc": "2026-10-04T21:21:00.000Z",
+      "elapsed_seconds": 2.058435426,
+      "exit_code": 1,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 360000,
+      "pid": 487,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/host-oracles-short-path-qualified.execution.json",
+      "id": "host-oracles-short-path-qualified",
+      "command": [
+        "/data/qiwei/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
+        "--experimental-transform-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/scenarios/host-oracles.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/host-oracles-short-path-qualified"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:22:45.841Z",
+      "end_utc": "2026-10-04T21:22:48.422Z",
+      "elapsed_seconds": 2.580316662,
+      "exit_code": 1,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 360000,
+      "pid": 1682,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/host-sql-fix.execution.json",
+      "id": "host-sql-fix",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "tests/lifecycle.spec.ts",
+        "tests/process.spec.ts",
+        "tests/upgrade.spec.ts",
+        "tests/maintenance-dispose.process.spec.ts",
+        "tests/e2e/e2e.spec.ts",
+        "tests/managed-lifecycle.spec.ts",
+        "tests/maintenance-startup.spec.ts",
+        "tests/maintenance-signal.process.spec.ts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/host-sql-fix.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/apps/tenancy-host",
+      "start_utc": "2026-10-04T21:19:26.624Z",
+      "end_utc": "2026-10-04T21:20:57.273Z",
+      "elapsed_seconds": 90.648379855,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 1200000,
+      "pid": 248290,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/managed-scrypt-qualified.execution.json",
+      "id": "managed-scrypt-qualified",
+      "command": [
+        "/data/qiwei/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/scenarios/managed-scrypt-ready.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/managed-scrypt-qualified"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:20:57.426Z",
+      "end_utc": "2026-10-04T21:20:57.894Z",
+      "elapsed_seconds": 0.4675711,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 120000,
+      "pid": 461,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/managed-scrypt.execution.json",
+      "id": "managed-scrypt",
+      "command": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-baseline/scenarios/managed-scrypt.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/managed-scrypt"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:02:27.542Z",
+      "end_utc": "2026-10-04T21:02:27.883Z",
+      "elapsed_seconds": 0.340513092,
+      "exit_code": 1,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 120000,
+      "pid": 215901,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/member-suites/account-identity.execution.json",
+      "id": "account-identity",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/member-suites/account-identity.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/account-identity-sql",
+      "start_utc": "2026-10-04T21:10:44.047Z",
+      "end_utc": "2026-10-04T21:10:54.387Z",
+      "elapsed_seconds": 10.33824361,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 1200000,
+      "pid": 229393,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/member-suites/credentials.execution.json",
+      "id": "credentials",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/member-suites/credentials.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/credential-verification-scrypt",
+      "start_utc": "2026-10-04T21:10:41.163Z",
+      "end_utc": "2026-10-04T21:10:44.009Z",
+      "elapsed_seconds": 2.845460336,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 1200000,
+      "pid": 229279,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/member-suites/entry.execution.json",
+      "id": "entry",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/member-suites/entry.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/governance-center-entry-node",
+      "start_utc": "2026-10-04T21:11:31.878Z",
+      "end_utc": "2026-10-04T21:12:54.500Z",
+      "elapsed_seconds": 82.620885945,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 1200000,
+      "pid": 230289,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/member-suites/host.execution.json",
+      "id": "host",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "tests/lifecycle.spec.ts",
+        "tests/process.spec.ts",
+        "tests/upgrade.spec.ts",
+        "tests/maintenance-dispose.process.spec.ts",
+        "tests/e2e/e2e.spec.ts",
+        "tests/managed-lifecycle.spec.ts",
+        "tests/maintenance-startup.spec.ts",
+        "tests/maintenance-signal.process.spec.ts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/member-suites/host.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/apps/tenancy-host",
+      "start_utc": "2026-10-04T21:12:54.542Z",
+      "end_utc": "2026-10-04T21:13:19.089Z",
+      "elapsed_seconds": 24.54580055,
+      "exit_code": 1,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 1200000,
+      "pid": 236317,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/member-suites/organization-governance.execution.json",
+      "id": "organization-governance",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/member-suites/organization-governance.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/organization-governance-sql",
+      "start_utc": "2026-10-04T21:10:54.426Z",
+      "end_utc": "2026-10-04T21:11:08.047Z",
+      "elapsed_seconds": 13.620863173,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 1200000,
+      "pid": 229644,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/member-suites/registration.execution.json",
+      "id": "registration",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/member-suites/registration.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone/packages/tenancy/account-registration-sequential",
+      "start_utc": "2026-10-04T21:11:08.093Z",
+      "end_utc": "2026-10-04T21:11:31.839Z",
+      "elapsed_seconds": 23.744779231,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 1200000,
+      "pid": 229989,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/opening-semantic-qualified.execution.json",
+      "id": "opening-semantic-qualified",
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/scenarios/opening-semantic-projection.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/opening-semantic-qualified"
+      ],
+      "cwd": "tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:24:35.976Z",
+      "end_utc": "2026-10-04T21:24:37.195Z",
+      "elapsed_seconds": 1.218696585,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 120000,
+      "pid": 2748,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/packed/root-install-receipt.json",
+      "command": [
+        "pnpm",
+        "install",
+        "--ignore-workspace",
+        "--ignore-scripts",
+        "--prefer-offline"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed/consumer",
+      "elapsed_seconds": 0.845118636963889,
+      "exit_code": 1
+    },
+    {
+      "evidence": "evidence/packed/root-install-retry-receipt.json",
+      "command": [
+        "pnpm",
+        "install",
+        "--ignore-workspace",
+        "--ignore-scripts",
+        "--prefer-offline"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed/consumer",
+      "elapsed_seconds": 1.0112736329901963,
+      "exit_code": 0
+    },
+    {
+      "evidence": "evidence/packed-cordis-types-node-qualified.execution.json",
+      "id": "packed-cordis-types-node-qualified",
+      "command": [
+        "/data/qiwei/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/scenarios/packed-extra-types-node.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-final/consumer",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-cordis-types-node-qualified"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:28:20.593Z",
+      "end_utc": "2026-10-04T21:28:25.690Z",
+      "elapsed_seconds": 5.097011017999999,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 120000,
+      "pid": 5446,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/packed-cv-realpath-qualified.execution.json",
+      "id": "packed-cv-realpath-qualified",
+      "command": [
+        "/data/qiwei/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
+        "--experimental-transform-types",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/scenarios/packed-cv-realpath.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-final/consumer",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-cv-realpath-qualified"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:28:25.731Z",
+      "end_utc": "2026-10-04T21:28:25.916Z",
+      "elapsed_seconds": 0.184402515,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 120000,
+      "pid": 5539,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/packed-e6-verify.execution.json",
+      "id": "packed-e6-verify",
+      "command": [
+        "node",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-baseline/scenarios/packed-public.mjs",
+        "verify",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed"
+      ],
+      "cwd": "tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:15:54.208Z",
+      "end_utc": "2026-10-04T21:15:57.850Z",
+      "elapsed_seconds": 3.640601578,
+      "exit_code": 1,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 180000,
+      "pid": 238866,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/packed-extra-final.execution.json",
+      "id": "packed-extra-final",
+      "command": [
+        "/data/qiwei/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/scenarios/packed-extra.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-final/consumer",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-extra-final"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:25:56.329Z",
+      "end_utc": "2026-10-04T21:26:00.481Z",
+      "elapsed_seconds": 4.15037878,
+      "exit_code": 1,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 120000,
+      "pid": 3683,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/packed-factories-final.execution.json",
+      "id": "packed-factories-final",
+      "command": [
+        "/data/qiwei/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
+        "--experimental-transform-types",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/scenarios/packed-factories.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-final/consumer",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-factories-final"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:26:00.518Z",
+      "end_utc": "2026-10-04T21:26:01.200Z",
+      "elapsed_seconds": 0.6807690839999999,
+      "exit_code": 1,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 180000,
+      "pid": 3747,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/packed-final/root-install-receipt.json",
+      "command": [
+        "pnpm",
+        "install",
+        "--ignore-workspace",
+        "--ignore-scripts",
+        "--prefer-offline"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-final/consumer",
+      "elapsed_seconds": 0.972845772979781,
+      "exit_code": 0
+    },
+    {
+      "evidence": "evidence/packed-final-stage.execution.json",
+      "id": "packed-final-stage",
+      "command": [
+        "/data/qiwei/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-baseline/scenarios/packed-public.mjs",
+        "stage",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-final"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:21:00.083Z",
+      "end_utc": "2026-10-04T21:21:05.660Z",
+      "elapsed_seconds": 5.57695081,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 180000,
+      "pid": 522,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/packed-final-verify.execution.json",
+      "id": "packed-final-verify",
+      "command": [
+        "/data/qiwei/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-baseline/scenarios/packed-public.mjs",
+        "verify",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-final"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:25:52.484Z",
+      "end_utc": "2026-10-04T21:25:55.970Z",
+      "elapsed_seconds": 3.485365283,
+      "exit_code": 1,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 180000,
+      "pid": 3568,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/packed-stage.execution.json",
+      "id": "packed-stage",
+      "command": [
+        "node",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-baseline/scenarios/packed-public.mjs",
+        "stage",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:01:47.141Z",
+      "end_utc": "2026-10-04T21:01:52.693Z",
+      "elapsed_seconds": 5.550670610999999,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 180000,
+      "pid": 215280,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/packed-types-node-qualified.execution.json",
+      "id": "packed-types-node-qualified",
+      "command": [
+        "/data/qiwei/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/scenarios/packed-public-types-node.mjs",
+        "verify",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-final"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:28:15.599Z",
+      "end_utc": "2026-10-04T21:28:20.186Z",
+      "elapsed_seconds": 4.586020432,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 180000,
+      "pid": 5307,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/public-retirement-coordinate-qualified.execution.json",
+      "id": "public-retirement-coordinate-qualified",
+      "command": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/scenarios/public-retirement.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-baseline/inputs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-final/consumer",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/public-retirement-coordinate-qualified",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/host-oracles-short-path-qualified/host-oracles.json"
+      ],
+      "cwd": "tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:36:18.200Z",
+      "end_utc": "2026-10-04T21:36:27.935Z",
+      "elapsed_seconds": 9.734389287,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 120000,
+      "pid": 13140,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/public-retirement.execution.json",
+      "id": "public-retirement",
+      "command": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/scenarios/public-retirement.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-baseline/inputs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-final/consumer",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/public-retirement",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/host-oracles-short-path-qualified/host-oracles.json"
+      ],
+      "cwd": "tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:34:58.218Z",
+      "end_utc": "2026-10-04T21:35:03.560Z",
+      "elapsed_seconds": 5.340739655,
+      "exit_code": 1,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 120000,
+      "pid": 11831,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/public-shapes.execution.json",
+      "id": "public-shapes",
+      "command": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/scenarios/public-shapes.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-baseline/inputs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/public-shapes"
+      ],
+      "cwd": "tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:14:50.183Z",
+      "end_utc": "2026-10-04T21:14:50.528Z",
+      "elapsed_seconds": 0.34476043,
+      "exit_code": 1,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 120000,
+      "pid": 238056,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/reentrant-9587.execution.json",
+      "id": "reentrant-9587",
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/scenarios/reentrant-close.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/reentrant-9587"
+      ],
+      "cwd": "tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:14:50.597Z",
+      "end_utc": "2026-10-04T21:14:51.084Z",
+      "elapsed_seconds": 0.48584610799999994,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 120000,
+      "pid": 238077,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/reentrant-e6.execution.json",
+      "id": "reentrant-e6",
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/scenarios/reentrant-close.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/reentrant-e6"
+      ],
+      "cwd": "tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:08:02.616Z",
+      "end_utc": "2026-10-04T21:08:03.159Z",
+      "elapsed_seconds": 0.542374588,
+      "exit_code": 1,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 120000,
+      "pid": 227287,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/reopen-actual-base-data.execution.json",
+      "id": "reopen-actual-base-data",
+      "command": [
+        "node",
+        "--experimental-transform-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/scenarios/reopen-base-data.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-baseline/evidence/business-qualified/1-register-and-login.sqlite",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/reopen-actual-base-data"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:57:04.529Z",
+      "end_utc": "2026-10-04T21:57:05.020Z",
+      "elapsed_seconds": 0.490067604,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 120000,
+      "pid": 27956,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/roots.execution.json",
+      "id": "roots",
+      "command": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-baseline/scenarios/root-closure.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/roots",
+        "candidate"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:02:28.041Z",
+      "end_utc": "2026-10-04T21:02:28.790Z",
+      "elapsed_seconds": 0.748707692,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 120000,
+      "pid": 215943,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/secret-isolates-tickets.execution.json",
+      "id": "secret-isolates-tickets",
+      "command": [
+        "node",
+        "--experimental-import-meta-resolve",
+        "--experimental-transform-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/scenarios/secret-isolates-tickets.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-final/consumer",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/secret-isolates-tickets"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:48:32.055Z",
+      "end_utc": "2026-10-04T21:48:36.266Z",
+      "elapsed_seconds": 4.2098254960000006,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 180000,
+      "pid": 20645,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/startup-adopted/SP0.receipt.json",
+      "id": "SP0",
+      "command": [
+        "/data/qiwei/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-startup-positive/api.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/startup-adopted"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "exit_code": 0,
+      "signal": null,
+      "timeout_ms": 120000,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/startup-adopted/SP1-SP9-SN1.receipt.json",
+      "id": "SP1-SP9-SN1",
+      "command": [
+        "/data/qiwei/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-startup-positive/helper.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/startup-adopted"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "exit_code": 0,
+      "signal": null,
+      "timeout_ms": 120000,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/startup-adopted.execution.json",
+      "id": "startup-adopted",
+      "command": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-startup-positive/run.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/startup-adopted"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:02:24.388Z",
+      "end_utc": "2026-10-04T21:02:27.496Z",
+      "elapsed_seconds": 3.1075991010000004,
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 300000,
+      "pid": 215782,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/surface-declarations-qualified.execution.json",
+      "id": "surface-declarations-qualified",
+      "command": [
+        "/data/qiwei/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/scenarios/surface-closure-declaration-resolution.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-final",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/surface-declarations-qualified"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:28:20.231Z",
+      "end_utc": "2026-10-04T21:28:20.545Z",
+      "elapsed_seconds": 0.312836629,
+      "exit_code": 1,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 180000,
+      "pid": 5428,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/surface-final.execution.json",
+      "id": "surface-final",
+      "command": [
+        "/data/qiwei/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-baseline/scenarios/surface-closure.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-final",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/surface-final"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:25:56.013Z",
+      "end_utc": "2026-10-04T21:25:56.292Z",
+      "elapsed_seconds": 0.27800370100000005,
+      "exit_code": 1,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 180000,
+      "pid": 3665,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/surface-require-anchor-qualified.execution.json",
+      "id": "surface-require-anchor-qualified",
+      "command": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/scenarios/surface-closure-require-anchor.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-final",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/surface-require-anchor-qualified"
+      ],
+      "cwd": "tmp/arch-intent/remediation/r1-t2/qa-candidate/clone",
+      "start_utc": "2026-10-04T21:30:14.465Z",
+      "end_utc": "2026-10-04T21:30:14.794Z",
+      "elapsed_seconds": 0.327341787,
+      "exit_code": 1,
+      "signal": null,
+      "timed_out": false,
+      "timeout_ms": 180000,
+      "pid": 6925,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/formal/formal.json",
+      "id": "ai-valid",
+      "command": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/ai-valid/states",
+        "-config",
+        "valid.cfg",
+        "LoginLifetime.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/ai-valid",
+      "start_utc": "2026-10-04T21:02:28.869486+00:00",
+      "elapsed_seconds": 0.7544366079964675,
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "timed_out": false,
+      "timeout_seconds": 180,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/formal/formal.json",
+      "id": "ai-bad-admission",
+      "command": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/ai-bad-admission/states",
+        "-config",
+        "bad-admission.cfg",
+        "LoginLifetime.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/ai-bad-admission",
+      "start_utc": "2026-10-04T21:02:29.625988+00:00",
+      "elapsed_seconds": 0.6812088699662127,
+      "exit_code": 12,
+      "expected_exit_code": 12,
+      "timed_out": false,
+      "timeout_seconds": 180,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/formal/formal.json",
+      "id": "ai-commit-valid",
+      "command": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/ai-commit-valid/states",
+        "-config",
+        "commit-valid.cfg",
+        "LoginCommit.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/ai-commit-valid",
+      "start_utc": "2026-10-04T21:02:30.309204+00:00",
+      "elapsed_seconds": 0.7145519789773971,
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "timed_out": false,
+      "timeout_seconds": 180,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/formal/formal.json",
+      "id": "ai-commit-bad-observer",
+      "command": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/ai-commit-bad-observer/states",
+        "-config",
+        "commit-bad-observer.cfg",
+        "LoginCommit.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/ai-commit-bad-observer",
+      "start_utc": "2026-10-04T21:02:31.025344+00:00",
+      "elapsed_seconds": 0.6802862650365569,
+      "exit_code": 12,
+      "expected_exit_code": 12,
+      "timed_out": false,
+      "timeout_seconds": 180,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/formal/formal.json",
+      "id": "ai-revision-valid",
+      "command": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/ai-revision-valid/states",
+        "-config",
+        "revision-valid.cfg",
+        "CredentialRevision.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/ai-revision-valid",
+      "start_utc": "2026-10-04T21:02:31.707545+00:00",
+      "elapsed_seconds": 0.6485056480159983,
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "timed_out": false,
+      "timeout_seconds": 180,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/formal/formal.json",
+      "id": "ai-revision-bad",
+      "command": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/ai-revision-bad/states",
+        "-config",
+        "revision-bad.cfg",
+        "CredentialRevision.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/ai-revision-bad",
+      "start_utc": "2026-10-04T21:02:32.358767+00:00",
+      "elapsed_seconds": 0.6613418749766424,
+      "exit_code": 12,
+      "expected_exit_code": 12,
+      "timed_out": false,
+      "timeout_seconds": 180,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/formal/formal.json",
+      "id": "og-Membership",
+      "command": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/og-Membership/states",
+        "-config",
+        "Membership.cfg",
+        "Membership.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/og-Membership",
+      "start_utc": "2026-10-04T21:02:33.021343+00:00",
+      "elapsed_seconds": 0.6889089779579081,
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "timed_out": false,
+      "timeout_seconds": 180,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/formal/formal.json",
+      "id": "og-Membership_NoSerialization",
+      "command": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/og-Membership_NoSerialization/states",
+        "-config",
+        "Membership_NoSerialization.cfg",
+        "Membership.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/og-Membership_NoSerialization",
+      "start_utc": "2026-10-04T21:02:33.711478+00:00",
+      "elapsed_seconds": 0.692208330030553,
+      "exit_code": 12,
+      "expected_exit_code": 12,
+      "timed_out": false,
+      "timeout_seconds": 180,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/formal/formal.json",
+      "id": "ar-basic",
+      "command": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/ar-basic/states",
+        "-config",
+        "basic.cfg",
+        "Registration.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/ar-basic",
+      "start_utc": "2026-10-04T21:02:34.404865+00:00",
+      "elapsed_seconds": 0.7587286140187643,
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "timed_out": false,
+      "timeout_seconds": 180,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/formal/formal.json",
+      "id": "ar-crash",
+      "command": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/ar-crash/states",
+        "-config",
+        "crash.cfg",
+        "Registration.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/ar-crash",
+      "start_utc": "2026-10-04T21:02:35.164873+00:00",
+      "elapsed_seconds": 1.2771935730124824,
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "timed_out": false,
+      "timeout_seconds": 180,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/formal/formal.json",
+      "id": "ar-progress",
+      "command": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/ar-progress/states",
+        "-config",
+        "progress.cfg",
+        "Registration.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/ar-progress",
+      "start_utc": "2026-10-04T21:02:36.443385+00:00",
+      "elapsed_seconds": 0.8290075720287859,
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "timed_out": false,
+      "timeout_seconds": 180,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/formal/formal.json",
+      "id": "alloy-original",
+      "command": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-jar",
+        "/opt/alloy/alloy-6.2.0.jar",
+        "exec",
+        "-s",
+        "sat4j",
+        "-t",
+        "xml",
+        "-c",
+        "*",
+        "-o",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/alloy-original/solutions",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/alloy-original/Affiliation.als"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/alloy-original",
+      "start_utc": "2026-10-04T21:02:37.272798+00:00",
+      "elapsed_seconds": 0.9158007160294801,
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "timed_out": false,
+      "timeout_seconds": 180,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/formal/formal.json",
+      "id": "alloy-no-cycle",
+      "command": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-jar",
+        "/opt/alloy/alloy-6.2.0.jar",
+        "exec",
+        "-s",
+        "sat4j",
+        "-t",
+        "xml",
+        "-c",
+        "AcceptPreservesAcyclic",
+        "-o",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/alloy-no-cycle/solutions",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/alloy-no-cycle/Affiliation.als"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/alloy-no-cycle",
+      "start_utc": "2026-10-04T21:02:38.189580+00:00",
+      "elapsed_seconds": 0.7165014939964749,
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "timed_out": false,
+      "timeout_seconds": 180,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/formal/formal.json",
+      "id": "alloy-no-self",
+      "command": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-jar",
+        "/opt/alloy/alloy-6.2.0.jar",
+        "exec",
+        "-s",
+        "sat4j",
+        "-t",
+        "xml",
+        "-c",
+        "AcceptPreservesAcyclic",
+        "-o",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/alloy-no-self/solutions",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/alloy-no-self/Affiliation.als"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/alloy-no-self",
+      "start_utc": "2026-10-04T21:02:38.906712+00:00",
+      "elapsed_seconds": 0.7680806900025345,
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "timed_out": false,
+      "timeout_seconds": 180,
+      "verifier": "qa"
+    },
+    {
+      "evidence": "evidence/formal/formal.json",
+      "id": "alloy-exclusive-ancestor",
+      "command": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-jar",
+        "/opt/alloy/alloy-6.2.0.jar",
+        "exec",
+        "-s",
+        "sat4j",
+        "-t",
+        "xml",
+        "-c",
+        "ShareAncestorIsSameAffiliationTree",
+        "-o",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/alloy-exclusive-ancestor/solutions",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/alloy-exclusive-ancestor/Affiliation.als"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/formal/alloy-exclusive-ancestor",
+      "start_utc": "2026-10-04T21:02:39.676059+00:00",
+      "elapsed_seconds": 0.7578634630190209,
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "timed_out": false,
+      "timeout_seconds": 180,
+      "verifier": "qa"
+    }
+  ],
+  "uncovered": [
+    "19 original explicit skips listed by name; no skipped assertion represented as pass.",
+    "Full historical W6, PostgreSQL restoration, all-workspace regression and complete benchmarks were not run by this QA.",
+    "T3 ActionIntent/client contract separation, T4 plugin tree and full entry face split, R2 model runtime refactor, complete Agent/Session product and N8 are outside this delivery.",
+    "No paid external model call, check/merge queue, make check, dependency installation or test-timeout change.",
+    "Not a TUI delivery; terminal matrix and restoration gates do not apply."
+  ],
+  "residual_limits": [
+    "Controlled barriers constrain real OS scrypt callback delivery and external test clocks, not product crypto or SQL.",
+    "Standalone AR factory test uses controlled external Accounts/Organizations; OG factory test uses its explicit Accounts/Logins harness. Separate business/host tests exercise real AI/OG/AR/CV/SQLite.",
+    "Formal bounds/premises and actual one-process schedules do not prove unbounded progress or distributed behavior.",
+    "Offline/cold model tests use the original local TLS/scripted external provider. They prove only to that controlled external boundary, not production OpenRouter or paid model behavior.",
+    "Architecture count is all 53 workspace members (49 product), with 17 raw static unknowns. Runtime evidence does not erase these source-view limitations.",
+    "A5 original cold cause, EIS original timeout, QA-FAC-1 and formal registry omissions remain open.",
+    "One 5.34-second external type check overlapped the end of boundary-tools; all cold tests ran in the explicit quiet window without another QA test."
+  ],
+  "IR_CC_1": {
+    "verdict": "Pass within the frozen correction and plaintext-boundary scope",
+    "evidence": [
+      "evidence/credential-oracle/credential-oracle.json",
+      "evidence/member-suites/credentials.vitest.json",
+      "evidence/secret-isolates-tickets/secret-boundaries.json",
+      "evidence/secret-isolates-tickets/result.json"
+    ],
+    "meaning": "Fixed lawful salt exposes original false predicate; candidate retains full PHC parameters/length checks and good/wrong verification; material/record/read/event/diagnostic real paths and leakage controls observed. This is not universal cryptographic secrecy or reconstruction of the original random salt."
+  },
+  "cold": {
+    "evidence": "evidence/cold-final/summary.json",
+    "cases": 17,
+    "original_thresholds_ms": [
+      30000,
+      45000
+    ],
+    "outer_bound_ms": 900000,
+    "first_file_seconds": 257.115367348,
+    "artifact_roots": 17,
+    "A5_closed": false
+  },
+  "cleanup": {
+    "processes": "All QA product and facility processes exited; no terminal/multiplexer server started.",
+    "source": "Candidate detached cf4 tracked/untracked clean at final audit; only disposable ignored install/build outputs remain.",
+    "evidence": "Actual results, inputs, scenarios, tarballs, locks, versions, failures, relevant final source/dist and cold application data externalized under this directory. No unique required evidence remains in clone.",
+    "retain": "Root may retire clone and consumer installations only after manifest readback and no live consumers; keep synthetic fixtures, actual tgz/locks and frozen resources.",
+    "unique_clone_evidence": false
+  },
+  "acceptance": false
+}

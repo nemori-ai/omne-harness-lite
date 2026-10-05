@@ -1,7 +1,12 @@
 import { createHash } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import { isNonNegativeJsonInteger } from '@omne-harness-lite/content-blocks'
-import { checkAppendInput, checkKey, checkSession, invalidInput } from '@omne-harness-lite/session-log'
+import {
+  checkAppendInput,
+  checkKey,
+  checkSession,
+  invalidInput,
+} from '@omne-harness-lite/session-log'
 import {
   fileIo,
   IoFailure,
@@ -25,7 +30,12 @@ import {
   type Resident,
 } from './resident.ts'
 import { judgeAppend } from './state.ts'
-import type { AppendRequest, AppendResult, ReadResult, Unavailable } from '@omne-harness-lite/session-log'
+import type {
+  AppendRequest,
+  AppendResult,
+  ReadResult,
+  Unavailable,
+} from '@omne-harness-lite/session-log'
 import type { JsonlSessionLog, SessionRef } from './types.ts'
 
 const unavailable: Unavailable = Object.freeze({ failure: 'unavailable' })

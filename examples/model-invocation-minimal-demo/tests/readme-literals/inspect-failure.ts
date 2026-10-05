@@ -1,4 +1,8 @@
-import type {CallKey, ModelFailureExecution, ModelRuntimeService} from '@omne-harness-lite/model-request-runtime-local'
+import type {
+  CallKey,
+  ModelFailureExecution,
+  ModelRuntimeService,
+} from '@omne-harness-lite/model-request-runtime-local'
 
 export async function inspectFailure(
   service: ModelRuntimeService,

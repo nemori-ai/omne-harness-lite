@@ -1,6 +1,16 @@
 import { judgeModelResponse, judgePendingModelResponse } from '@omne-harness-lite/model-response'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
-import {createSettlementCoordinator, type SettlementContention, type SettlementCoordinator, type SettlementDiagnostic, type SettlementLogBinding, type SettlementOwner, type SettlementResult, type SettlementScheduler, type RunHistoryReader} from '@omne-harness-lite/model-request-runtime-local'
+import {
+  createSettlementCoordinator,
+  type SettlementContention,
+  type SettlementCoordinator,
+  type SettlementDiagnostic,
+  type SettlementLogBinding,
+  type SettlementOwner,
+  type SettlementResult,
+  type SettlementScheduler,
+  type RunHistoryReader,
+} from '@omne-harness-lite/model-request-runtime-local'
 
 /** The demo is the actual message writer for a handed-off reply (RT8 S-17/S-49). */
 export async function persistDemoModelReply(input: {

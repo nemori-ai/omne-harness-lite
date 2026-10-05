@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import type { SessionRef } from '@omne-harness-lite/messages'
-import { captureModelLogValue, prepareModelLogEntry } from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
 import { interpretRunAtPrefix, readSettlementPrefix } from '../src/settlement-prefix.ts'
 import type { RunHistoryReader } from '../src/settlement-types.ts'

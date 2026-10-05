@@ -1,5 +1,12 @@
 import { LosslessNumber, jsonNumberSource, type JsonValue } from '@omne-harness-lite/content-blocks'
-import type {BoundCredentialRedaction, CredentialRedactionConfig, CredentialRedactionHeaders, CredentialRedactionPattern, CredentialRedactionPolicy, CredentialRedactionResult} from './credential-redaction-types.ts'
+import type {
+  BoundCredentialRedaction,
+  CredentialRedactionConfig,
+  CredentialRedactionHeaders,
+  CredentialRedactionPattern,
+  CredentialRedactionPolicy,
+  CredentialRedactionResult,
+} from './credential-redaction-types.ts'
 
 const marker = '\u2588'
 const invalidInput = Object.freeze({ rejected: 'invalidInput' } as const)

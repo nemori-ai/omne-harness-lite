@@ -8,7 +8,11 @@ import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { projectCallState } from '../src/call-state.ts'
-import { readSettlementPrefix, type SettlementPrefix, type SettlementPrefixResult } from '../src/settlement-prefix.ts'
+import {
+  readSettlementPrefix,
+  type SettlementPrefix,
+  type SettlementPrefixResult,
+} from '../src/settlement-prefix.ts'
 import { type SettlementTaskKind } from '../src/settlement-types.ts'
 import { acknowledgedAsTerminal, rejectAcknowledgedHistory } from '../src/call-history.ts'
 import { dispatched, opened, prepare, reply, session, tenant } from './log-codec-fixture.ts'

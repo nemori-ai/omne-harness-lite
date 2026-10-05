@@ -10,7 +10,11 @@ import {
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import type { CountingBasis } from '@omne-harness-lite/model-response'
-import type {PlanInput, OutputProjectionInput, OutputProjectionResult} from '@omne-harness-lite/model-request-runtime'
+import type {
+  PlanInput,
+  OutputProjectionInput,
+  OutputProjectionResult,
+} from '@omne-harness-lite/model-request-runtime'
 import { codePointOrder } from './definitions.ts'
 import { object, ownedObject } from './json.ts'
 import type { InputMeter } from '@omne-harness-lite/model-request-runtime'

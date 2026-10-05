@@ -6,7 +6,11 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import type { AppendResult, SessionLog } from '@omne-harness-lite/session-log'
 import type { SessionRef } from '@omne-harness-lite/messages'
-import type { SettlementRegistration, SettlementTask, SettlementTaskKind } from '../src/settlement-types.ts'
+import type {
+  SettlementRegistration,
+  SettlementTask,
+  SettlementTaskKind,
+} from '../src/settlement-types.ts'
 import { createAnchoredModelInvocation } from '../src/anchored-invocation.ts'
 import { harness, payload } from './anchored-invocation-fixture.ts'
 import type { ControlledSettlementOwner } from './settlement-fixture.ts'

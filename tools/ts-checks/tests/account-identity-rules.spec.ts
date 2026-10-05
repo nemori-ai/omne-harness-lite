@@ -9,7 +9,7 @@ import {
   type SourceFile,
 } from '../src/index.ts'
 
-const AI = 'tenancy/account-identity/src/'
+const AI = 'tenancy/account-identity-sql/src/'
 const file = (path: string, text: string): SourceFile => ({ path, text })
 const real = (path: string): SourceFile =>
   file(path, readFileSync(new URL(`../../../packages/${path}`, import.meta.url), 'utf8'))

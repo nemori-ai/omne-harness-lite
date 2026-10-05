@@ -1,7 +1,7 @@
 import { validate, type RawHeaders, type UpstreamError } from '@omne-harness-lite/model-response'
 import type { JsonValue } from '@omne-harness-lite/content-blocks'
-import type {BoundCredentialRedaction} from '@omne-harness-lite/model-request-runtime'
-import type {TransportFailure} from '@omne-harness-lite/model-request-runtime'
+import type { BoundCredentialRedaction } from '@omne-harness-lite/model-request-runtime'
+import type { TransportFailure } from '@omne-harness-lite/model-request-runtime'
 
 /** Validate the sender's already owned immutable value; never copy or re-redact H. */
 export function ownedHeaders(value: unknown): value is RawHeaders {

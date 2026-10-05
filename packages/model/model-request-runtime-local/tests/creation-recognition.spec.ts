@@ -6,7 +6,10 @@ import type { LogEntryInput } from '@omne-harness-lite/session-log'
 import { acknowledgementHost } from './acknowledgement-host-fixture.ts'
 import { kinds } from './acknowledgement-host-fixture.ts'
 import { ControlledSettlementOwner, deferred, policy } from './settlement-fixture.ts'
-import { captureModelLogValue, prepareModelLogEntry } from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { AvailabilityReport } from '@omne-harness-lite/asset-registry'
 import { instantFromEpochMs } from '@omne-harness-lite/offer-expiry'

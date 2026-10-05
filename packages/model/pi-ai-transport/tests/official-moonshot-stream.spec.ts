@@ -1,12 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import { kimiK3MoonshotRoute, kimiK27CodeMoonshotRoute } from '../src/official-models/moonshot.ts'
 import { certificate, content, finish, fixture, judgedMessage, policy, sse } from './support.ts'
-import type {ModelDefinition} from '@omne-harness-lite/model-request-runtime'
-import type {PlanInput} from '@omne-harness-lite/model-request-runtime'
+import type { ModelDefinition } from '@omne-harness-lite/model-request-runtime'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 
 const at = '2026-09-28T00:00:00Z'
 const tool: ModelToolEntry = {

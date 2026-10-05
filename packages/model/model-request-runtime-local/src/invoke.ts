@@ -17,11 +17,25 @@ import type {
   InputCalibration,
   OutputGroupEvidence,
 } from '@omne-harness-lite/model-response'
-import type {InvocationInput, ModelInvocationHandle, InvocationOutcome, ModelInvocationResult, InvocationObservedFacts, PlannedSemantics, StreamEnd, TransportFailure, InvocationPolicy, PlanFailure} from '@omne-harness-lite/model-request-runtime'
+import type {
+  InvocationInput,
+  ModelInvocationHandle,
+  InvocationOutcome,
+  ModelInvocationResult,
+  InvocationObservedFacts,
+  PlannedSemantics,
+  StreamEnd,
+  TransportFailure,
+  InvocationPolicy,
+  PlanFailure,
+} from '@omne-harness-lite/model-request-runtime'
 import { ownPlanInput, preflightMissingInputLimits } from './input.ts'
-import {createCredentialRedactionPolicy, CredentialRedactionConfigurationError} from '@omne-harness-lite/model-request-runtime'
+import {
+  createCredentialRedactionPolicy,
+  CredentialRedactionConfigurationError,
+} from '@omne-harness-lite/model-request-runtime'
 import { ownedHeaders, processFailure } from './invoke-policy.ts'
-import type {BoundCredentialRedaction} from '@omne-harness-lite/model-request-runtime'
+import type { BoundCredentialRedaction } from '@omne-harness-lite/model-request-runtime'
 import { createInvocationDiagnostics, drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import { projectCalibrationDiagnostic } from './calibration-diagnostic.ts'
 

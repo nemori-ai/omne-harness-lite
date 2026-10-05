@@ -1,0 +1,997 @@
+{
+  "actor": "root actual consumer audit, independent acceptance pending",
+  "candidate": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+  "rows": [
+    {
+      "path": ".meta_harness/design/realization/cordis-integration-conventions.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "81066bbe2f56c0f497e37b86f7d227c6776d3cc9022483dee9d869cd2b44acb4",
+      "current_sha256": "81066bbe2f56c0f497e37b86f7d227c6776d3cc9022483dee9d869cd2b44acb4",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": "docs/workspace.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "9bc063703a995bcf01cb48fe47da83cb5b703ab9c7a2de44b29391c39aacde9a",
+      "current_sha256": "9bc063703a995bcf01cb48fe47da83cb5b703ab9c7a2de44b29391c39aacde9a",
+      "disposition": "当前开发/部署/模块说明；已迁资源、事件、命令接续，未迁原业务/验证范围保持"
+    },
+    {
+      "path": ".meta_harness/design/realization/README.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "f5b7276ed4408af01b845b073c75a9c79e0d64095a663fd23283513bf8122d07",
+      "current_sha256": "f5b7276ed4408af01b845b073c75a9c79e0d64095a663fd23283513bf8122d07",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": "docs/development.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "bd9700d723ae754531fc066d9fb212d2127c09fed2c81da8bb8d3b8bd76b20ae",
+      "current_sha256": "bd9700d723ae754531fc066d9fb212d2127c09fed2c81da8bb8d3b8bd76b20ae",
+      "disposition": "当前开发/部署/模块说明；已迁资源、事件、命令接续，未迁原业务/验证范围保持"
+    },
+    {
+      "path": ".meta_harness/tooling/src/realization_nodes.py",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "093634c522302863c8b8c0326b1d6ca8a2d5d6e6462857b19da951d318410741",
+      "current_sha256": "093634c522302863c8b8c0326b1d6ca8a2d5d6e6462857b19da951d318410741",
+      "disposition": "旧实现映射工具仍有未迁消费者；N6配对退役"
+    },
+    {
+      "path": ".meta_harness/design/architecture/pilots/shared-storage-clock-ownership.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "9619e40e60fecd2a6db63b25f73b82c1ca1f960826ba92cc936735fb5c46b459",
+      "current_sha256": "9619e40e60fecd2a6db63b25f73b82c1ca1f960826ba92cc936735fb5c46b459",
+      "disposition": "当前公共拥有者/限定采用及精确角色；固定BASE预期独立对照"
+    },
+    {
+      "path": "apps/cli/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "9f881ccaa7e6c65c3a4ee3ea2d49d942ef09331fa1d084c3900e906dbfa186d4",
+      "current_sha256": "9f881ccaa7e6c65c3a4ee3ea2d49d942ef09331fa1d084c3900e906dbfa186d4",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": ".meta_harness/design/realization/retired/model-request-acceptance/v3-auth-bootstrap-design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "838952d20f001a224033ec68eedfb4e6a6eb4e6f13900dd3ec1429ed1a1e4be7",
+      "current_sha256": "838952d20f001a224033ec68eedfb4e6a6eb4e6f13900dd3ec1429ed1a1e4be7",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/architecture/identity-integration/retirement.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "6c961096dad108943282afd8d3ba1dc088569887ef32afcb77a83a4b14da8461",
+      "current_sha256": "6c961096dad108943282afd8d3ba1dc088569887ef32afcb77a83a4b14da8461",
+      "disposition": "当前公共拥有者/限定采用及精确角色；固定BASE预期独立对照"
+    },
+    {
+      "path": ".meta_harness/design/realization/retired/model-request-acceptance/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "49c87851856064ba0c33cc0c25d8b73a70a7b249d6a060fca3fcb0610da96bbf",
+      "current_sha256": "49c87851856064ba0c33cc0c25d8b73a70a7b249d6a060fca3fcb0610da96bbf",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": "packages/tenancy/governance-center-entry-node/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": false,
+      "original_sha256": "ae77f80baad45c8f708f53ecf774c85455f5f1613830ba6f4a09cd5921c12d1b",
+      "current_sha256": "e5e98767b5c30d0eeb128f69b66f3d2367d23c65eed53863548861988b89aebc",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": ".meta_harness/design/architecture/identity-integration/host-integration.md",
+      "current_exists": true,
+      "at_base": false,
+      "byte_same_to_base": null,
+      "original_sha256": null,
+      "current_sha256": "c2cb91a2cfb6ff049ae257e990e92c71161e6b3102ee2736c5b608dc1affafe7",
+      "disposition": "当前公共拥有者/限定采用及精确角色；固定BASE预期独立对照"
+    },
+    {
+      "path": "packages/tenancy/governance-center-entry-node/README.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": false,
+      "original_sha256": "52e41c7350c32f895532928ec787088caecede571dd47b7fab0ca7bf107aab30",
+      "current_sha256": "a0a26090e13070f6cc8345e3b1e256f2415a542217ae7b9afaa8b616d7e0ebaf",
+      "disposition": "当前开发/部署/模块说明；已迁资源、事件、命令接续，未迁原业务/验证范围保持"
+    },
+    {
+      "path": ".meta_harness/design/architecture/identity-integration/delivery.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "28a0f3edffebac6f1c0ffd7e6acf0405d14218bb2202b11b98f6102a44da21cc",
+      "current_sha256": "28a0f3edffebac6f1c0ffd7e6acf0405d14218bb2202b11b98f6102a44da21cc",
+      "disposition": "当前公共拥有者/限定采用及精确角色；固定BASE预期独立对照"
+    },
+    {
+      "path": ".meta_harness/design/architecture/identity-integration/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "b6ffa0e5f48c463e4fb855be4888fa6add5d84b5dd0d3a8b827288c55f5bb852",
+      "current_sha256": "b6ffa0e5f48c463e4fb855be4888fa6add5d84b5dd0d3a8b827288c55f5bb852",
+      "disposition": "当前公共拥有者/限定采用及精确角色；固定BASE预期独立对照"
+    },
+    {
+      "path": "tools/core-verification/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "4b3c610bdbdab9f6c50924866824d3529b5af5feda36129c2fb31cab324f1a5c",
+      "current_sha256": "4b3c610bdbdab9f6c50924866824d3529b5af5feda36129c2fb31cab324f1a5c",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": ".meta_harness/design/architecture/identity-integration/plugin-tree.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "c8adb429773e18a323fdbc990d718d6bd0382f97dab66ab6c14070619084bc56",
+      "current_sha256": "c8adb429773e18a323fdbc990d718d6bd0382f97dab66ab6c14070619084bc56",
+      "disposition": "当前公共拥有者/限定采用及精确角色；固定BASE预期独立对照"
+    },
+    {
+      "path": ".meta_harness/design/architecture/identity-integration/behavior.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "23b42b2821ba72f5c9a6a16dddba484ffb2f50925fc7e017b5fddd1eb3fec5b2",
+      "current_sha256": "23b42b2821ba72f5c9a6a16dddba484ffb2f50925fc7e017b5fddd1eb3fec5b2",
+      "disposition": "当前公共拥有者/限定采用及精确角色；固定BASE预期独立对照"
+    },
+    {
+      "path": ".meta_harness/design/realization/apps/cli/architecture.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "002ffd35b32bd0e7e108e6851729dbeff226b8ac46d4ae0da3b3a75073fcd7ce",
+      "current_sha256": "002ffd35b32bd0e7e108e6851729dbeff226b8ac46d4ae0da3b3a75073fcd7ce",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": "tools/core-verification/w6-coverage.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "ef608922bd552a3d171ba7e2af770d8dd581fc21d0f999445a31cf9132a8c02b",
+      "current_sha256": "ef608922bd552a3d171ba7e2af770d8dd581fc21d0f999445a31cf9132a8c02b",
+      "disposition": "当前构建/静态规则/验收设施；精确白名单改接，原完整W6缺口仍归N6"
+    },
+    {
+      "path": "tools/ts-checks/test-runs.config.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "725b7ebcb25675e5633695b860b6dbe4f1ff00b46eb70009ec023f4033103160",
+      "current_sha256": "725b7ebcb25675e5633695b860b6dbe4f1ff00b46eb70009ec023f4033103160",
+      "disposition": "当前构建/静态规则/验收设施；精确白名单改接，原完整W6缺口仍归N6"
+    },
+    {
+      "path": ".meta_harness/design/architecture/constraints.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": false,
+      "original_sha256": "ea6bab5aa14a0345413c1bcd6408766bb0952b16fd83766c35b56cd86b8bbf17",
+      "current_sha256": "0b2edf745b9eed7feec739d34c7524b8ac420558b8c4afb37bac772e7103481b",
+      "disposition": "当前公共拥有者/限定采用及精确角色；固定BASE预期独立对照"
+    },
+    {
+      "path": ".meta_harness/design/realization/apps/cli/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "89a87aec938afd6faf026c5278ef9b2838d9cf65afd2d60f41e925b3f7fb0216",
+      "current_sha256": "89a87aec938afd6faf026c5278ef9b2838d9cf65afd2d60f41e925b3f7fb0216",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": "tools/ts-checks/README_ZH.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": false,
+      "original_sha256": "3c0f9fd2964a580792a6f2d79c598513a72689cb2ede94ea685a5240f9674aea",
+      "current_sha256": "ba9aa92915e198b6b3726595413dbf2ed2936445d1cdbf1b26f8b251bb97262a",
+      "disposition": "当前构建/静态规则/验收设施；精确白名单改接，原完整W6缺口仍归N6"
+    },
+    {
+      "path": ".meta_harness/design/realization/apps/cli/verification.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "5f6007ddac5a663a1f4a3b3f44953c7930172866d4c0f8c20af3dcc4c4e978a5",
+      "current_sha256": "5f6007ddac5a663a1f4a3b3f44953c7930172866d4c0f8c20af3dcc4c4e978a5",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/apps/tenancy-host/README.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "23e2d1c3b0f07de27ed9803ac530a09ee250c8377a797764ce63a5145dd14edd",
+      "current_sha256": "23e2d1c3b0f07de27ed9803ac530a09ee250c8377a797764ce63a5145dd14edd",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/apps/tenancy-host/docker.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "7c62869388afd0292161fb42f1d746acea2e8567c9d2f761a133c4029e7d99d2",
+      "current_sha256": "7c62869388afd0292161fb42f1d746acea2e8567c9d2f761a133c4029e7d99d2",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/apps/tenancy-host/architecture.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "d310467d6a8c267672c50c9acaab4fe2330afa14c8be6fb4e78cd3972ef00e2b",
+      "current_sha256": "d310467d6a8c267672c50c9acaab4fe2330afa14c8be6fb4e78cd3972ef00e2b",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/apps/tenancy-host/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "591cbb5593a6b0a4bb3c33e522bbda899cb895ce6461f76661b92c5c3e097374",
+      "current_sha256": "591cbb5593a6b0a4bb3c33e522bbda899cb895ce6461f76661b92c5c3e097374",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": "packages/agent-loop/loop-extension-runner/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "67831effa6268f61e8e3f5255f6c0902377b2103eef67a5766a2e4f8037949a0",
+      "current_sha256": "67831effa6268f61e8e3f5255f6c0902377b2103eef67a5766a2e4f8037949a0",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": ".meta_harness/design/realization/apps/tenancy-host/verification.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "e83ee713ae7f96c4263e19d6b8082c0be47398eff857b564821eb8d5551b2d11",
+      "current_sha256": "e83ee713ae7f96c4263e19d6b8082c0be47398eff857b564821eb8d5551b2d11",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/apps/tenancy-host/maintenance.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "b327cf37a6dfad45707f6b06b133cdc382e2dede8a6bfe47e563b9c0cf5b63bc",
+      "current_sha256": "b327cf37a6dfad45707f6b06b133cdc382e2dede8a6bfe47e563b9c0cf5b63bc",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/apps/tenancy-host/bindings.yaml",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "4b2663fbc69d283a9da69171963dd84526effe26c7ecdd4c2a964ee57f2686af",
+      "current_sha256": "4b2663fbc69d283a9da69171963dd84526effe26c7ecdd4c2a964ee57f2686af",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": "packages/assets/evaluation-input-store/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "7ae1b8e198f6c9c3109dae8aa5fcfd3c52eea542c966830baaa93cad6f980ee5",
+      "current_sha256": "7ae1b8e198f6c9c3109dae8aa5fcfd3c52eea542c966830baaa93cad6f980ee5",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": "packages/assets/assembly-manifest-store/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "970fe5675cd4bf42afe103cc7c57f67c5c1b983061bff09ea6213e7b929143b1",
+      "current_sha256": "970fe5675cd4bf42afe103cc7c57f67c5c1b983061bff09ea6213e7b929143b1",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/model/model-request-runtime/v3-design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "96f00e5b915d7fd477d8973ec4837aeea55cb0442f460f08c32cd5921c32895f",
+      "current_sha256": "96f00e5b915d7fd477d8973ec4837aeea55cb0442f460f08c32cd5921c32895f",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": "apps/tenancy-host/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": false,
+      "original_sha256": "0138f65351e3dcf4d052c2d9278ced48c424ed4f277196a5d396dce8b6e95e88",
+      "current_sha256": "909ed4a772d1774c5171d4130b3a5230705a96feb117eb2f491e9da04ab3e1de",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": "apps/tenancy-host/README.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": false,
+      "original_sha256": "b5d37aac71dd9a8865587d95fd58a5640eca82ce67b237c47d1251037ee98d82",
+      "current_sha256": "96ecfa56d14572a952a1ca77492238d42b2eede49a7ccff608d0c4d145890962",
+      "disposition": "当前开发/部署/模块说明；已迁资源、事件、命令接续，未迁原业务/验证范围保持"
+    },
+    {
+      "path": "packages/README.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": false,
+      "original_sha256": "b243ba2d42e6fb0d7330195eb3ae72c3f09c366cd9ab2afa60bf86a58b61553b",
+      "current_sha256": "a6bcdac35b5ab83013e13568a46794482af0ca2dd4551df0b8d406b298bb4f21",
+      "disposition": "当前开发/部署/模块说明；已迁资源、事件、命令接续，未迁原业务/验证范围保持"
+    },
+    {
+      "path": "packages/tenancy/credential-verification-scrypt/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": false,
+      "original_sha256": "5c09417e6788bb7db12418e60bc9b52c03415782f4bf2d2bb39802963c91d8d5",
+      "current_sha256": "b87d22e4cb4ba6aa7000193a43eec68dd0cf86af0408bba916137b09c2e12988",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": "packages/tools/asset-registry/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "9c3d78990a65736317c8f452ee99e617aa6309ac8883f152f2da6c3bdc53022a",
+      "current_sha256": "9c3d78990a65736317c8f452ee99e617aa6309ac8883f152f2da6c3bdc53022a",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": "packages/model/model-request-runtime-local/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "38363b335466f6a405dc3e7ca66628e06d08e429a0bed6c645ce03ab480bad0a",
+      "current_sha256": "38363b335466f6a405dc3e7ca66628e06d08e429a0bed6c645ce03ab480bad0a",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": "packages/tenancy/account-identity-sql/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": false,
+      "original_sha256": "f491f8a4e5c2a8a9e23f46b575ea96eb2743609e1d60819f08dd57c775391c41",
+      "current_sha256": "45931cefeda33d71382787178c54b0ba96aeb88a5e093d70575efa4fbf7595c4",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": "packages/infra/credential-custodian-local/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "d46a9e2b83dcc5952d6dbb88adc7543f0d4d0bb8398eb3c121b46c8c2142e726",
+      "current_sha256": "d46a9e2b83dcc5952d6dbb88adc7543f0d4d0bb8398eb3c121b46c8c2142e726",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": "packages/infra/clock-lease/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": false,
+      "original_sha256": "3ff77953e7a28b90451d9ae25030337ce10ec6f3e70b4540f3b318a3143c48d2",
+      "current_sha256": "e1e76af00c9fd9e7c933168f4ee99e691009fa795eb8f61f060e790aad7fc68d",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": "packages/infra/clock-lease/README.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": false,
+      "original_sha256": "09aa3de699c3cc0ad08f88c71c39e615d9d92389ca7ffe9151da3c0ce9154f19",
+      "current_sha256": "4d92d77d90f8fe9fc8ae76778e2cd30c6d5f246011286864ffc5db6b7f7afa93",
+      "disposition": "当前开发/部署/模块说明；已迁资源、事件、命令接续，未迁原业务/验证范围保持"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/model/model-profile-directory/v3-design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "6998595474dcc847a4da354fed90195d6b52368313515d7af98da84c6a48f671",
+      "current_sha256": "6998595474dcc847a4da354fed90195d6b52368313515d7af98da84c6a48f671",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": "packages/infra/clock-lease/README_ZH.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": false,
+      "original_sha256": "0e2fae9b317b372c48fc39a8bf6a6f222fa7aa9ca7370aaac25d36e6cc6d0e5b",
+      "current_sha256": "9f876de622e23653eb0ff9b0e2281abe1f505f09a99bcf71ff34e7db796d738b",
+      "disposition": "当前开发/部署/模块说明；已迁资源、事件、命令接续，未迁原业务/验证范围保持"
+    },
+    {
+      "path": "packages/tenancy/organization-governance-sql/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": false,
+      "original_sha256": "4b4bd5cd2768115d532607aa2a48da26ba59c61e44c5ebaabe690ff05fd47108",
+      "current_sha256": "ee36392e62bc3dcf45c52e7ed27c6ff2f1f3a5f939921603495e4929bcf986eb",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/model/model-profile-directory/v4-design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "6f119ba9a96ef768669d7607e0c07d2f53c8b8c1cf433c737c5e0a4fa183b9e6",
+      "current_sha256": "6f119ba9a96ef768669d7607e0c07d2f53c8b8c1cf433c737c5e0a4fa183b9e6",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/model/model-profile-directory/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "8d3087d79f264585f62e33aeb6096040664de33b5821672d46bc10745aa7d107",
+      "current_sha256": "8d3087d79f264585f62e33aeb6096040664de33b5821672d46bc10745aa7d107",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/model/model-profile-directory/verification.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "17373d9aac6efcf86cd17d42c0d1e9f3d131678f916ec367e27831139e867855",
+      "current_sha256": "17373d9aac6efcf86cd17d42c0d1e9f3d131678f916ec367e27831139e867855",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/frontend/client-local-state/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "8ff39c1404348c5b185bae8829b868e05b6310d50fbebba59615b3a3a93383bc",
+      "current_sha256": "8ff39c1404348c5b185bae8829b868e05b6310d50fbebba59615b3a3a93383bc",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": "packages/infra/storage-sql/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": false,
+      "original_sha256": "982bd01c6264dd8bbba1e74c17fff9b4a392a6717f629e413d7be7fbe161facd",
+      "current_sha256": "13d9d7f6026de48cb5e7d0f020144047890095577000e024788e23dcc1012cdd",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": "packages/infra/storage-sql/README.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": false,
+      "original_sha256": "d04fa566be4d92e43e21b50e7c73be606b06ddc6c3a5a3faee64fb2c7a80e86f",
+      "current_sha256": "093d467c229cc1260196278d769ff3cb4674848556391c4f7b96450df8aa7843",
+      "disposition": "当前开发/部署/模块说明；已迁资源、事件、命令接续，未迁原业务/验证范围保持"
+    },
+    {
+      "path": "packages/tenancy/account-registration-sequential/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": false,
+      "original_sha256": "e0bd58ecd99a7bc8dd3498c90911622b5628ef9db3786f5fa072b8795a4340e1",
+      "current_sha256": "f043857855ab12767eee4ff95f8521b4923b6cf729101744f8854e69cb41c2a9",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": "packages/infra/storage-sql/README_ZH.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": false,
+      "original_sha256": "69b5e80afee5eee94598291c77b164308d85165b93a9b50ff2d3fefae5ee07ab",
+      "current_sha256": "e2023659a633973f6fcbde21cfc6791b0fc1a8e4fe3e45b4a3a9b892fafc37f5",
+      "disposition": "当前开发/部署/模块说明；已迁资源、事件、命令接续，未迁原业务/验证范围保持"
+    },
+    {
+      "path": "packages/infra/storage-sql/SPEC.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": false,
+      "original_sha256": "08e855c1a01265ad6dc42730ba36a70ffaa571a7bf7d3308631ca2a3a1eb5cca",
+      "current_sha256": "bc2fce9e160baebde13384e7ae2a9f7d03d92e7747dfdd038d107e849157fcb2",
+      "disposition": "当前开发/部署/模块说明；已迁资源、事件、命令接续，未迁原业务/验证范围保持"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/tenancy/organization-governance/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "c4926193cc85c7b73bc273dd302841a1f62d3189e32a616307ff5d720a6bde60",
+      "current_sha256": "c4926193cc85c7b73bc273dd302841a1f62d3189e32a616307ff5d720a6bde60",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/tenancy/organization-governance/verification.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "4dc1fd386f392b337a31fd44a953a41f378fda044cce4469b787054d9c4ba3da",
+      "current_sha256": "4dc1fd386f392b337a31fd44a953a41f378fda044cce4469b787054d9c4ba3da",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/tenancy/account-registration/README.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "4b2b2c0d7249f16e8b0aa1a44b661c5bb3d91e14b8fd57e2721abfd2f648cf5f",
+      "current_sha256": "4b2b2c0d7249f16e8b0aa1a44b661c5bb3d91e14b8fd57e2721abfd2f648cf5f",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/tenancy/organization-governance/bindings.yaml",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "608623d10576f2733c5dc239c505c3495ba6cb523279b9fcdfaec93fc47e5aec",
+      "current_sha256": "608623d10576f2733c5dc239c505c3495ba6cb523279b9fcdfaec93fc47e5aec",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/tenancy/account-registration/verification.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "8d887eac0d3b56608633f07b16bbc23a39cc8fcd1c306a39c3daa099441f9453",
+      "current_sha256": "8d887eac0d3b56608633f07b16bbc23a39cc8fcd1c306a39c3daa099441f9453",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/tenancy/account-registration/bindings.yaml",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "646e87be1420b4e9ae6d2ffecb2bfea69019844f6d8783aafbf3c31de69f18b6",
+      "current_sha256": "646e87be1420b4e9ae6d2ffecb2bfea69019844f6d8783aafbf3c31de69f18b6",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/assets/evaluation-input-store/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "01e0d2a1ff4fbdaab11321a1126bec8e0e3c01d91a18e8c1f6e3cd162a134bd4",
+      "current_sha256": "01e0d2a1ff4fbdaab11321a1126bec8e0e3c01d91a18e8c1f6e3cd162a134bd4",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/tenancy/account-identity/v3-design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "e4ddff663038a417a1412141cb62edc7159e0d9f20fc047fe726fb72ec11de93",
+      "current_sha256": "e4ddff663038a417a1412141cb62edc7159e0d9f20fc047fe726fb72ec11de93",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/tenancy/account-identity/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "f759b0be1791928452a9d8e95960995c2f592e6c03113aa8c30a0ab27c395b61",
+      "current_sha256": "f759b0be1791928452a9d8e95960995c2f592e6c03113aa8c30a0ab27c395b61",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/assets/assembly-manifest-store/v3-design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "26b9324a4b8c0497fb364f8d0fd019a5a5da28aa956b977af46d5ca8a000930f",
+      "current_sha256": "26b9324a4b8c0497fb364f8d0fd019a5a5da28aa956b977af46d5ca8a000930f",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/tenancy/account-identity/verification.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "14b0a2c2c2b7974dfbc11c517e5a1dcc7d841efbb8b4efe1cae0d5ae48ef3dc1",
+      "current_sha256": "14b0a2c2c2b7974dfbc11c517e5a1dcc7d841efbb8b4efe1cae0d5ae48ef3dc1",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/assets/assembly-manifest-store/v4-design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "d2394261503f5a37b39f67a6e11b552c19c218564e008bcf4884235be99c2784",
+      "current_sha256": "d2394261503f5a37b39f67a6e11b552c19c218564e008bcf4884235be99c2784",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/tenancy/account-identity/bindings.yaml",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "8e79e23eeb9424e5c334e6192a55a2354499443c45eddb8a83cae92e7110bcc9",
+      "current_sha256": "8e79e23eeb9424e5c334e6192a55a2354499443c45eddb8a83cae92e7110bcc9",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/assets/assembly-manifest-store/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "384133db64c0b762462cebd803c7c40ba2ea6459d9d6fe3b1fc96f3e84a38264",
+      "current_sha256": "384133db64c0b762462cebd803c7c40ba2ea6459d9d6fe3b1fc96f3e84a38264",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/assets/assembly-manifest-store/verification.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "c7d4fa29f34890080a981e946e0c79b266c68da01fa485ac0c21d4ec37ee01e7",
+      "current_sha256": "c7d4fa29f34890080a981e946e0c79b266c68da01fa485ac0c21d4ec37ee01e7",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/tenancy/governance-center-entry/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "af77f9575f8f2fcf58d338cee64ca841acd945f84142e839efdee07abf499c08",
+      "current_sha256": "af77f9575f8f2fcf58d338cee64ca841acd945f84142e839efdee07abf499c08",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/tenancy/governance-center-entry/verification.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "ea148bb0bf978b8bd0b78f3ab2a83889586fc207cb0415022d05ac26198b3333",
+      "current_sha256": "ea148bb0bf978b8bd0b78f3ab2a83889586fc207cb0415022d05ac26198b3333",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/tenancy/governance-center-entry/maintenance.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "f6c651e8343588920c14791acf268c6a8cc310341be8cd5080e3bc57ba3ebed4",
+      "current_sha256": "f6c651e8343588920c14791acf268c6a8cc310341be8cd5080e3bc57ba3ebed4",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/assets/asset-governance/verification.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "d2b0e3e7444984519544b7998917696ad32e99e10103a7bdc1877ebddce44900",
+      "current_sha256": "d2b0e3e7444984519544b7998917696ad32e99e10103a7bdc1877ebddce44900",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/tenancy/governance-center-entry/bindings.yaml",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "d61963d91c1b360ebb95a329f27e715d31a70ec782038a0b9dab0b15fd0c18af",
+      "current_sha256": "d61963d91c1b360ebb95a329f27e715d31a70ec782038a0b9dab0b15fd0c18af",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": "packages/frontend/governance-client-operations-local/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "c511a0fd8a186ef367bbd76e21b3ef7964dcfcbc09ac26728b6d703657d41fe7",
+      "current_sha256": "c511a0fd8a186ef367bbd76e21b3ef7964dcfcbc09ac26728b6d703657d41fe7",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/core/storage/README.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "ebce98f1dce2a3809e482534b99a9b2594b7a55a41eff7e1aa4cf21efde976d1",
+      "current_sha256": "ebce98f1dce2a3809e482534b99a9b2594b7a55a41eff7e1aa4cf21efde976d1",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/core/storage/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "345bc5090929c20a533344f8987dd4dc80de69e7e75e056097eb24fcdf081d58",
+      "current_sha256": "345bc5090929c20a533344f8987dd4dc80de69e7e75e056097eb24fcdf081d58",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/core/storage/verification.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "7739a8f2073ef8a280840127a0e658d7a5ee453d3c77c08e717c88628c0a42b5",
+      "current_sha256": "7739a8f2073ef8a280840127a0e658d7a5ee453d3c77c08e717c88628c0a42b5",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/core/storage/maintenance.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "eb0b83ee4a03cae8fca288a8dac43bf3896cb9012b49aa853a354e826150a15f",
+      "current_sha256": "eb0b83ee4a03cae8fca288a8dac43bf3896cb9012b49aa853a354e826150a15f",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/core/storage/bindings.yaml",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "cf061e54a5e405d52b209dc9eb8ff7088d0d17e05e3d716325eb9a56c9198234",
+      "current_sha256": "cf061e54a5e405d52b209dc9eb8ff7088d0d17e05e3d716325eb9a56c9198234",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": "packages/frontend/client-local-state-sqlite/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "c2e1bc4686c37f4f544906ef9e1f1d0f241be50730564a110c808f2b932c7c18",
+      "current_sha256": "c2e1bc4686c37f4f544906ef9e1f1d0f241be50730564a110c808f2b932c7c18",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": "packages/model/model-profile-directory/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "32303b8406d7d2e4aadbee0fbf2fad6e4ab08a48503b8bee284502643b6d0201",
+      "current_sha256": "32303b8406d7d2e4aadbee0fbf2fad6e4ab08a48503b8bee284502643b6d0201",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/core/content-blocks/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "90dcf651a4ee248c3dd1d4946fa33a2b191706643540d2e142ab5a0eec8bc5d2",
+      "current_sha256": "90dcf651a4ee248c3dd1d4946fa33a2b191706643540d2e142ab5a0eec8bc5d2",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/core/content-blocks/verification.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "8f9b7d8deb95eedaa378d6b04ed35ea1c681b75396ad233b8dcb34861dee1307",
+      "current_sha256": "8f9b7d8deb95eedaa378d6b04ed35ea1c681b75396ad233b8dcb34861dee1307",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": "packages/session/session-tenancy-table/package.json",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "deb5d408e1b88928e228b59917d262ef1ca89c2b4ea99edaa62e93d0062e5cce",
+      "current_sha256": "deb5d408e1b88928e228b59917d262ef1ca89c2b4ea99edaa62e93d0062e5cce",
+      "disposition": "当前workspace/生产依赖；声明、锁和实际制品消费接续"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/core/offer-expiry/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "70e64ca8557684b61a71dbe13585808b698d67424d055c947246a8f9707427aa",
+      "current_sha256": "70e64ca8557684b61a71dbe13585808b698d67424d055c947246a8f9707427aa",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/core/kernel-basis/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "6d061ff66cf2f9166338edd96ee7b9f3360ffc0c1dbb2dc4614b2d8da4a7f3a5",
+      "current_sha256": "6d061ff66cf2f9166338edd96ee7b9f3360ffc0c1dbb2dc4614b2d8da4a7f3a5",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/session/session-log-jsonl/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "a52d26d2042b260e53c4fa9cb849b883034b92381b19cc87f8cd815c253a025e",
+      "current_sha256": "a52d26d2042b260e53c4fa9cb849b883034b92381b19cc87f8cd815c253a025e",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/session/session-log-jsonl/verification.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "727765cdc18095ecbe8b85a104e27ee562e8544035bb2be10a362d2b65d91cb0",
+      "current_sha256": "727765cdc18095ecbe8b85a104e27ee562e8544035bb2be10a362d2b65d91cb0",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/session/session-tenancy-table/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "e4d7a8a3a59b9c519b678ef94424c6869be914dd3a12538e4f80973b9f634cc0",
+      "current_sha256": "e4d7a8a3a59b9c519b678ef94424c6869be914dd3a12538e4f80973b9f634cc0",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/session/session-tenancy-table/verification.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "7a0cafe4e91b39ed13333e45faaae879b23c61220779ebc74f733dd235a25efc",
+      "current_sha256": "7a0cafe4e91b39ed13333e45faaae879b23c61220779ebc74f733dd235a25efc",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/session/session-tenancy-table/v2-design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "bb33103ba4fed85bff68b116ff916e645c4a117c49d83e37470fc6a36b30f0ca",
+      "current_sha256": "bb33103ba4fed85bff68b116ff916e645c4a117c49d83e37470fc6a36b30f0ca",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "1f95dcaa295b7b577c32ff42ddb7c0862381db91d49c0b9025b895a0acd23faa",
+      "current_sha256": "1f95dcaa295b7b577c32ff42ddb7c0862381db91d49c0b9025b895a0acd23faa",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/tools/tool-execution-runtime/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "24e7bd9225cfddec83e8edb571a598f75faf59e714fff37d2850162c240deecb",
+      "current_sha256": "24e7bd9225cfddec83e8edb571a598f75faf59e714fff37d2850162c240deecb",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/tools/tool-execution-runtime/verification.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "2849c8e7efb1e4339494205559fb7b3c231401d49747061478cf39df19d6848f",
+      "current_sha256": "2849c8e7efb1e4339494205559fb7b3c231401d49747061478cf39df19d6848f",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/tools/mcp-bridge/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "6fd7b0805380ee35e19cea6ad15aef121b1751d41138afd3292c9f5fc4b3b540",
+      "current_sha256": "6fd7b0805380ee35e19cea6ad15aef121b1751d41138afd3292c9f5fc4b3b540",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/infra/credential-custodian-local/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "7d13a383f2145f3d0bb2f0fad05b3603af9bbebb4fbd288428bdfd1738c2bd78",
+      "current_sha256": "7d13a383f2145f3d0bb2f0fad05b3603af9bbebb4fbd288428bdfd1738c2bd78",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/infra/storage-sql/README.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "3419e3c058a7933ca4ac6220ee1c526443b53bb3d0b173254fd41871f3fa4c3f",
+      "current_sha256": "3419e3c058a7933ca4ac6220ee1c526443b53bb3d0b173254fd41871f3fa4c3f",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/infra/storage-sql/bindings.yaml",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "23ee10b48e2e8926adf95cf954c5e279fe8f70971765372e079f1744c0fde545",
+      "current_sha256": "23ee10b48e2e8926adf95cf954c5e279fe8f70971765372e079f1744c0fde545",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/infra/storage-sql/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "7e5e5b440ab8fa217c405cbd6431c2bd7c843f917720b2b350d4f56718141943",
+      "current_sha256": "7e5e5b440ab8fa217c405cbd6431c2bd7c843f917720b2b350d4f56718141943",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/infra/storage-sql/verification.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "186a823c74ecdd4809e90640509b28be9d571946af29aa818ccde3f05d7ce8ce",
+      "current_sha256": "186a823c74ecdd4809e90640509b28be9d571946af29aa818ccde3f05d7ce8ce",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/infra/storage-sql/maintenance.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "abfe9d6857ddea2d632db31d6f58d6e06a207be812d2ba482817a9ade2fd370a",
+      "current_sha256": "abfe9d6857ddea2d632db31d6f58d6e06a207be812d2ba482817a9ade2fd370a",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/infra/clock/design.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "064b442875a460360a6161b5476bbc2e8a60a4b3489c002fe573041e21c21d3d",
+      "current_sha256": "064b442875a460360a6161b5476bbc2e8a60a4b3489c002fe573041e21c21d3d",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/infra/clock/bindings.yaml",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "91426fc763d117fb100cc2c924aa1f73b88e8010c8149d2dead809eccebec3c7",
+      "current_sha256": "91426fc763d117fb100cc2c924aa1f73b88e8010c8149d2dead809eccebec3c7",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/infra/clock/verification.md",
+      "current_exists": true,
+      "at_base": true,
+      "byte_same_to_base": true,
+      "original_sha256": "0236f12d543e4c21246c24e968d907e13468012e4ad8c1eb72f7595a029d24ae",
+      "current_sha256": "0236f12d543e4c21246c24e968d907e13468012e4ad8c1eb72f7595a029d24ae",
+      "disposition": "未迁业务与历史实现/证据义务；已迁装配按N4读法和integration/SPEC，64条旧映射读数逐项接续N5/N6，不作为现行runtime权威"
+    }
+  ],
+  "non_source109": 109,
+  "active_retired_uses": 0,
+  "scan_first_observation": "raw rg exit0 retained; one intentional non-target transport fixture uses old spelling only to show ops-only checker does not apply outside ops. It is not a live consumer and is not a legacy rejection control.",
+  "inventory_correction": "Initial inventory labeled BASE but also read a new preparation design file; row at_base distinguishes it. Original109 paths not erased.",
+  "public_export_switch": "231 retain/move +5 structural replacements; actual declaration consumer passed",
+  "remaining": "M08/M09/M12/M14/independent52 still open",
+  "finite_outside_rule_fixture": [
+    "tools/ts-checks/tests/entry-rules.spec.ts:282:      \"ctx.emit('governance-center-entry/serving', p)\","
+  ],
+  "observer_correction": "root first mislabeled outside-rule sample as rejected negative control before reading enclosing expect([]). Initial classification retained and current corrected; no product/test edits."
+}

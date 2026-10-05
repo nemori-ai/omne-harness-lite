@@ -1,15 +1,7 @@
-
 import type { ContentBlock, JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { Usage } from '@omne-harness-lite/call-accounts'
 
-
 import type { CountingBasis, InputCalibration, Route } from '@omne-harness-lite/model-response'
-
-
-
-
-
-
 
 /** Explicit per-plan estimate policy; never used as upstream usage. */
 export interface TokenMargin {

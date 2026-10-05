@@ -1,15 +1,21 @@
 import { projectOutput } from './projection.ts'
 import { emptyReadFacts } from './read-facts.ts'
 import { Agent, type RequestOptions } from 'node:https'
-import type {TransportAdapter, TransportExecutionDiagnostics, PlanExecutionContext, PlanInput, PlanResult} from '@omne-harness-lite/model-request-runtime'
-import {planRequest, claimPlan, planAvailable} from './plan.ts'
-import {type PlannedRequest} from '@omne-harness-lite/model-request-runtime'
-import {sendRequest, type NetworkResources} from './http.ts'
-import {type RawResponse, type TransportPolicy} from '@omne-harness-lite/model-request-runtime'
+import type {
+  TransportAdapter,
+  TransportExecutionDiagnostics,
+  PlanExecutionContext,
+  PlanInput,
+  PlanResult,
+} from '@omne-harness-lite/model-request-runtime'
+import { planRequest, claimPlan, planAvailable } from './plan.ts'
+import { type PlannedRequest } from '@omne-harness-lite/model-request-runtime'
+import { sendRequest, type NetworkResources } from './http.ts'
+import { type RawResponse, type TransportPolicy } from '@omne-harness-lite/model-request-runtime'
 import { type Diagnostic } from '@omne-harness-lite/model-request-runtime'
 import { readStream } from './stream.ts'
-import {ownDefinitions} from './definitions.ts'
-import {type ModelDefinition} from '@omne-harness-lite/model-request-runtime'
+import { ownDefinitions } from './definitions.ts'
+import { type ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import { ownCredentialConfiguration } from './credential-policy.ts'
 import { connectionAdmission } from './connections.ts'
 import { meterMatches, ownInputMeter } from './input-meter.ts'

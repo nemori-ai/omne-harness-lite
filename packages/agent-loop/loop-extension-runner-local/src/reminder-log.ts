@@ -1,10 +1,19 @@
 import { type RunnerReminderLogAdapter } from '@omne-harness-lite/loop-extension-runner'
 import type { LogPrefixView, SystemReminderMessage } from '@omne-harness-lite/messages'
-import { captureModelLogValue, encodeModelLogKey, inspectModelLogEntry, modelLogJsonEqual, prepareModelLogEntry } from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  encodeModelLogKey,
+  inspectModelLogEntry,
+  modelLogJsonEqual,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import type { SessionLog } from '@omne-harness-lite/session-log'
 import { executionFence, type RunnerExecution } from '@omne-harness-lite/loop-extension-runner'
-import type { RunnerReminderAppend, RunnerReminderRead } from '@omne-harness-lite/loop-extension-runner'
+import type {
+  RunnerReminderAppend,
+  RunnerReminderRead,
+} from '@omne-harness-lite/loop-extension-runner'
 import type { RunnerLogBinding, RunnerTaskOwner } from '@omne-harness-lite/loop-extension-runner'
 
 /** The caller supplies an authoritative complete prefix at each message operation. */

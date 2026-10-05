@@ -20,14 +20,31 @@ export interface ContextValue {
 }
 export type ContextRead =
   | { readonly kind: 'values'; readonly values: readonly ContextValue[] }
-  | { readonly kind: 'rejected'; readonly reason: 'invalidInput' | 'notAuthorized' | 'missingRegistration' | 'sourceUnavailable' | 'ownerStopped' | 'unavailable' }
+  | {
+      readonly kind: 'rejected'
+      readonly reason:
+        | 'invalidInput'
+        | 'notAuthorized'
+        | 'missingRegistration'
+        | 'sourceUnavailable'
+        | 'ownerStopped'
+        | 'unavailable'
+    }
 /** Trusted construction binds scope and consumer. read() cannot select a different role. */
 export interface ContextReader {
   readonly read: (keys: readonly string[]) => Promise<ContextRead>
 }
 export type RegistrationRead =
-  | { readonly kind: 'registrations'; readonly revision: string; readonly entries: readonly ContextRegistration[] }
-  | { readonly kind: 'rejected'; readonly reason: 'invalidInput' | 'notAuthorized' | 'ownerStopped' | 'sourceUnavailable' | 'unavailable' }
+  | {
+      readonly kind: 'registrations'
+      readonly revision: string
+      readonly entries: readonly ContextRegistration[]
+    }
+  | {
+      readonly kind: 'rejected'
+      readonly reason:
+        'invalidInput' | 'notAuthorized' | 'ownerStopped' | 'sourceUnavailable' | 'unavailable'
+    }
 export interface ContextSource {
   readonly name: string
   readonly consumers: readonly ContextConsumer[]
@@ -42,14 +59,45 @@ export interface ContextSourceRegistrations {
 }
 export type ContextMutation =
   | { readonly kind: 'applied'; readonly revision: string }
-  | { readonly kind: 'rejected'; readonly reason: 'notAuthorized' | 'requiredRegistration' | 'revisionConflict' | 'sourceUnavailable' | 'ownerStopped' | 'invalidInput' | 'unavailable' }
+  | {
+      readonly kind: 'rejected'
+      readonly reason:
+        | 'notAuthorized'
+        | 'requiredRegistration'
+        | 'revisionConflict'
+        | 'sourceUnavailable'
+        | 'ownerStopped'
+        | 'invalidInput'
+        | 'unavailable'
+    }
 export type ContextAccess = SessionAccess
-export type ContextBinding = { readonly kind: 'bound'; readonly reader: ContextReader } | Extract<ContextRead, {kind: 'rejected'}>
+export type ContextBinding =
+  | { readonly kind: 'bound'; readonly reader: ContextReader }
+  | Extract<ContextRead, { kind: 'rejected' }>
 export interface RuntimeContextOperations {
   /** consumer is checked against the live identity; it never grants a role. */
-  readonly bind: (access: ContextAccess, scope: ContextScope, consumer: ContextConsumer) => Promise<ContextBinding>
+  readonly bind: (
+    access: ContextAccess,
+    scope: ContextScope,
+    consumer: ContextConsumer,
+  ) => Promise<ContextBinding>
   readonly registrations: (access: ContextAccess, scope: ContextScope) => Promise<RegistrationRead>
-  readonly register: (access: ContextAccess, scope: ContextScope, value: ContextRegistration, expectedRevision: string) => Promise<ContextMutation>
-  readonly update: (access: ContextAccess, scope: ContextScope, value: { readonly key: string; readonly value: JsonValue }, expectedRevision: string) => Promise<ContextMutation>
-  readonly remove: (access: ContextAccess, scope: ContextScope, key: string, expectedRevision: string) => Promise<ContextMutation>
+  readonly register: (
+    access: ContextAccess,
+    scope: ContextScope,
+    value: ContextRegistration,
+    expectedRevision: string,
+  ) => Promise<ContextMutation>
+  readonly update: (
+    access: ContextAccess,
+    scope: ContextScope,
+    value: { readonly key: string; readonly value: JsonValue },
+    expectedRevision: string,
+  ) => Promise<ContextMutation>
+  readonly remove: (
+    access: ContextAccess,
+    scope: ContextScope,
+    key: string,
+    expectedRevision: string,
+  ) => Promise<ContextMutation>
 }

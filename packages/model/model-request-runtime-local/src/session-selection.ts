@@ -5,7 +5,12 @@ import { isNonNegativeJsonInteger } from '@omne-harness-lite/content-blocks'
 import { tenantIdEquals, type TenantId } from '@omne-harness-lite/identity-values'
 import { judgeModelProfileDocument, type RouteName } from '@omne-harness-lite/model-profile'
 import { winningRow, type ProfileRow } from '@omne-harness-lite/model-profile-directory'
-import { captureModelLogValue, decodeModelLogKey, inspectModelLogEntry, prepareModelLogEntry } from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  decodeModelLogKey,
+  inspectModelLogEntry,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import { displayList, effectiveModel, legalTargets } from './selection.ts'
 import { captureSelectionJson } from './selection-capture.ts'
 import {

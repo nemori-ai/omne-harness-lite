@@ -4,8 +4,18 @@ import { copyJsonValue, toOpaqueJson } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { instantFromEpochMs } from '@omne-harness-lite/offer-expiry'
 import { modelEntry, modelName, type ToolDefinition } from '@omne-harness-lite/tool-definition'
-import { buildReport, buildSnapshots, buildTableContents, type AssetRegistryService, type AvailabilityReport, type RegistryEntry } from '@omne-harness-lite/asset-registry'
-import { createAssetRegistry, type RegistryDependencies } from '@omne-harness-lite/asset-registry-local'
+import {
+  buildReport,
+  buildSnapshots,
+  buildTableContents,
+  type AssetRegistryService,
+  type AvailabilityReport,
+  type RegistryEntry,
+} from '@omne-harness-lite/asset-registry'
+import {
+  createAssetRegistry,
+  type RegistryDependencies,
+} from '@omne-harness-lite/asset-registry-local'
 import { resolveCallTools, type CallToolRequest } from '../src/call-tools.ts'
 
 const session = unwrap(parseOpaqueIdentifier('session_tool_resolution', 'SessionRef'))

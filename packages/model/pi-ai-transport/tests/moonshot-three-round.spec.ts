@@ -6,11 +6,18 @@ import { Context } from '@deepseek-ai/cordis'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { Message } from '@omne-harness-lite/messages'
-import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
-import {type PlanInput, type TransportAdapter} from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput, type TransportAdapter } from '@omne-harness-lite/model-request-runtime'
 import { type InputMeasurement } from '@omne-harness-lite/model-request-runtime'
-import {createModelTransportService, createPiAiTransport} from '@omne-harness-lite/pi-ai-transport'
-import {type ModelTransportService, type PlannedRequest, type RawResponse} from '@omne-harness-lite/model-request-runtime'
+import {
+  createModelTransportService,
+  createPiAiTransport,
+} from '@omne-harness-lite/pi-ai-transport'
+import {
+  type ModelTransportService,
+  type PlannedRequest,
+  type RawResponse,
+} from '@omne-harness-lite/model-request-runtime'
 import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
 import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'

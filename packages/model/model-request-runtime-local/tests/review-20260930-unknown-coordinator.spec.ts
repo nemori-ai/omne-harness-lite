@@ -7,7 +7,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
-import { type SettlementRegistration, type SettlementTask, type SettlementTaskKind } from '../src/settlement-types.ts'
+import {
+  type SettlementRegistration,
+  type SettlementTask,
+  type SettlementTaskKind,
+} from '../src/settlement-types.ts'
 import type { AppendResult, SessionLog } from '@omne-harness-lite/session-log'
 import {
   ControlledSettlementOwner,

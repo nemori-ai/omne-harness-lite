@@ -23,7 +23,7 @@ import type {
   SettlementScheduler,
   SettlementTask,
 } from './settlement-types.ts'
-import type {PlannedSemantics} from '@omne-harness-lite/model-request-runtime'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 
 function cleanupWaitAllowed(
   decision: ReturnType<AcknowledgementCleanupPolicy['next']>,

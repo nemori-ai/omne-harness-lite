@@ -1,6 +1,9 @@
 import { expectTypeOf, it } from 'vitest'
 import { retryDelay } from '@omne-harness-lite/model-request-runtime'
-import { type RetryDelayInput, type RetryDelayResult } from '@omne-harness-lite/model-request-runtime'
+import {
+  type RetryDelayInput,
+  type RetryDelayResult,
+} from '@omne-harness-lite/model-request-runtime'
 import type { Duration } from '@omne-harness-lite/tool-definition'
 
 it('public signature retains explicit facts and synchronous Duration output', () => {

@@ -1,4 +1,7 @@
-import { BOUND_CREDENTIAL_REPLICA_READER, FACTORY_MODEL_CREDENTIAL } from '@omne-harness-lite/model-profile-directory/cordis'
+import {
+  BOUND_CREDENTIAL_REPLICA_READER,
+  FACTORY_MODEL_CREDENTIAL,
+} from '@omne-harness-lite/model-profile-directory/cordis'
 import { Context } from '@deepseek-ai/cordis'
 import { expect, it, vi } from 'vitest'
 import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
@@ -197,7 +200,11 @@ it('P-1r storage-only factory lookup and borrowed-reader failure classification 
     factory = vi.fn(async () => ({ body: new Uint8Array([7]) })),
     read = vi.fn(async () => ({ absent: true }) as const)
   const assembly = await bootAssembly({
-    services: [{ name: 'storage', value: h.storage }, { name: BOUND_CREDENTIAL_REPLICA_READER, value: { readIn: read } }, ...(factory ? [{ name: FACTORY_MODEL_CREDENTIAL, value: { read: factory } }] : [])],
+    services: [
+      { name: 'storage', value: h.storage },
+      { name: BOUND_CREDENTIAL_REPLICA_READER, value: { readIn: read } },
+      ...(factory ? [{ name: FACTORY_MODEL_CREDENTIAL, value: { read: factory } }] : []),
+    ],
     plugins: [
       {
         plugin: localCredentialLookupPlugin,

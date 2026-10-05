@@ -216,9 +216,7 @@ describe('OpenAI controlled TLS delivery through actual Cordis providers', () =>
         diagnostics = await activateModelFixture(app, who, config)
         if (storage === undefined || context === undefined)
           throw new Error('provider capture missing')
-        const currentInputs = context.get(
-          CURRENT_EVALUATION_INPUTS_SERVICE,
-        )
+        const currentInputs = context.get(CURRENT_EVALUATION_INPUTS_SERVICE)
         const tenancy = context.get(SESSION_TENANCY_SERVICE)
         const memberships = context.get(MEMBERSHIPS_SERVICE)
         if (memberships === undefined) throw Error('membership service not ready in fixture')

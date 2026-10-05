@@ -7,7 +7,11 @@ import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { type SessionLog, type AppendResult, type LogEntry } from '@omne-harness-lite/session-log'
 import { isJsonNumber, type JsonObject, type JsonValue } from '@omne-harness-lite/content-blocks'
 import type { AnchoredInvocationInput } from '../src/anchored-invocation-types.ts'
-import type {PlannedSemantics, TransportAdapter, SendResult} from '@omne-harness-lite/model-request-runtime'
+import type {
+  PlannedSemantics,
+  TransportAdapter,
+  SendResult,
+} from '@omne-harness-lite/model-request-runtime'
 import {
   request,
   policy as invokePolicy,

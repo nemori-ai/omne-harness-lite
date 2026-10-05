@@ -5,7 +5,10 @@ import type { SessionRef } from '@omne-harness-lite/messages'
 import type { OwnedLogEntry } from '@omne-harness-lite/session-log'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { createModelFailureSource } from '../src/failure-subject.ts'
-import { captureModelLogValue, prepareModelLogEntry } from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
 import {
   interpretRunAtPrefix,

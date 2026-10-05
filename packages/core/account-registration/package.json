@@ -1,0 +1,40 @@
+{
+  "name": "@omne-harness-lite/account-registration",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "account-registration public definitions and Cordis service bindings",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist",
+    "SPEC.md"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness-lite/account-identity": "workspace:*",
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/organization-governance": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

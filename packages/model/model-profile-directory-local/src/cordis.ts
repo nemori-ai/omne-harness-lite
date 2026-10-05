@@ -10,10 +10,30 @@ import { invalid, object, parseManifest } from '@omne-harness-lite/model-profile
 import { isCredentialRef } from './records.ts'
 import { CatalogImplementation, OperationOwner, sanitized } from './runtime.ts'
 import { createCredentialBindingReader } from './tx-reads.ts'
-import type { CredentialLookup, DiagnosticSink, OfficialManifest, ReadBoundReplicaIn } from '@omne-harness-lite/model-profile-directory'
-import type { FactoryCredential, MembershipsRead, ModelProfileDirectoryConfig, LocalCredentialLookupConfig } from './types.ts'
+import type {
+  CredentialLookup,
+  DiagnosticSink,
+  OfficialManifest,
+  ReadBoundReplicaIn,
+} from '@omne-harness-lite/model-profile-directory'
+import type {
+  FactoryCredential,
+  MembershipsRead,
+  ModelProfileDirectoryConfig,
+  LocalCredentialLookupConfig,
+} from './types.ts'
 
-import { ModelCatalogService, ModelCatalogReadService, CredentialLookupService, MODEL_CATALOG, MODEL_CATALOG_READ, CREDENTIAL_LOOKUP, BOUND_CREDENTIAL_REPLICA_READER, MODEL_DIRECTORY_DIAGNOSTICS, FACTORY_MODEL_CREDENTIAL } from '@omne-harness-lite/model-profile-directory/cordis'
+import {
+  ModelCatalogService,
+  ModelCatalogReadService,
+  CredentialLookupService,
+  MODEL_CATALOG,
+  MODEL_CATALOG_READ,
+  CREDENTIAL_LOOKUP,
+  BOUND_CREDENTIAL_REPLICA_READER,
+  MODEL_DIRECTORY_DIAGNOSTICS,
+  FACTORY_MODEL_CREDENTIAL,
+} from '@omne-harness-lite/model-profile-directory/cordis'
 import type { ModelCatalog, ModelCatalogRead } from '@omne-harness-lite/model-profile-directory'
 export const MEMBERSHIPS_SERVICE = 'memberships'
 
@@ -32,7 +52,6 @@ export const ModelProfileDirectoryConfigSchema = z
 export const LocalCredentialLookupConfigSchema = z
   .object({
     mode: z.literal('localCredentialOnly'),
-
   })
   .strict()
 function storage(value: unknown): value is AtomicStorage {
@@ -57,11 +76,13 @@ function actualStorage(ctx: Context): AtomicStorage {
 function ownerFor(ctx: Context): OperationOwner {
   const logger = ctx.logger('model-profile-directory')
   const owner = new OperationOwner(
-    { record(event) {
-      const sink = ctx.get(MODEL_DIRECTORY_DIAGNOSTICS)
-      if (sink) sink.record(event)
-      else logger.info('directory %o', event)
-    } },
+    {
+      record(event) {
+        const sink = ctx.get(MODEL_DIRECTORY_DIAGNOSTICS)
+        if (sink) sink.record(event)
+        else logger.info('directory %o', event)
+      },
+    },
     () => {
       try {
         logger.error('directory diagnostic sink failed')
@@ -205,26 +226,67 @@ export const localCredentialLookupPlugin = definePlugin<LocalCredentialLookupCon
 export type { ModelProfileDirectoryConfig, LocalCredentialLookupConfig } from './types.ts'
 
 class CatalogProvider extends ModelCatalogService {
-  constructor(ctx: Context, private readonly operations: ModelCatalog) { super(ctx) }
-  readProfile(...args: Parameters<ModelCatalog['readProfile']>) { return this.operations.readProfile(...args) }
-  listProfiles(...args: Parameters<ModelCatalog['listProfiles']>) { return this.operations.listProfiles(...args) }
-  credentialPresent(...args: Parameters<ModelCatalog['credentialPresent']>) { return this.operations.credentialPresent(...args) }
-  registerProfile(...args: Parameters<ModelCatalog['registerProfile']>) { return this.operations.registerProfile(...args) }
-  updateProfile(...args: Parameters<ModelCatalog['updateProfile']>) { return this.operations.updateProfile(...args) }
-  withdrawProfile(...args: Parameters<ModelCatalog['withdrawProfile']>) { return this.operations.withdrawProfile(...args) }
-  relistProfile(...args: Parameters<ModelCatalog['relistProfile']>) { return this.operations.relistProfile(...args) }
-  bindCredential(...args: Parameters<ModelCatalog['bindCredential']>) { return this.operations.bindCredential(...args) }
-  unbindCredential(...args: Parameters<ModelCatalog['unbindCredential']>) { return this.operations.unbindCredential(...args) }
+  constructor(
+    ctx: Context,
+    private readonly operations: ModelCatalog,
+  ) {
+    super(ctx)
+  }
+  readProfile(...args: Parameters<ModelCatalog['readProfile']>) {
+    return this.operations.readProfile(...args)
+  }
+  listProfiles(...args: Parameters<ModelCatalog['listProfiles']>) {
+    return this.operations.listProfiles(...args)
+  }
+  credentialPresent(...args: Parameters<ModelCatalog['credentialPresent']>) {
+    return this.operations.credentialPresent(...args)
+  }
+  registerProfile(...args: Parameters<ModelCatalog['registerProfile']>) {
+    return this.operations.registerProfile(...args)
+  }
+  updateProfile(...args: Parameters<ModelCatalog['updateProfile']>) {
+    return this.operations.updateProfile(...args)
+  }
+  withdrawProfile(...args: Parameters<ModelCatalog['withdrawProfile']>) {
+    return this.operations.withdrawProfile(...args)
+  }
+  relistProfile(...args: Parameters<ModelCatalog['relistProfile']>) {
+    return this.operations.relistProfile(...args)
+  }
+  bindCredential(...args: Parameters<ModelCatalog['bindCredential']>) {
+    return this.operations.bindCredential(...args)
+  }
+  unbindCredential(...args: Parameters<ModelCatalog['unbindCredential']>) {
+    return this.operations.unbindCredential(...args)
+  }
 }
 
 class CatalogReadProvider extends ModelCatalogReadService {
-  constructor(ctx: Context, private readonly operations: ModelCatalogRead) { super(ctx) }
-  readProfile(...args: Parameters<ModelCatalogRead['readProfile']>) { return this.operations.readProfile(...args) }
-  listProfiles(...args: Parameters<ModelCatalogRead['listProfiles']>) { return this.operations.listProfiles(...args) }
-  credentialPresent(...args: Parameters<ModelCatalogRead['credentialPresent']>) { return this.operations.credentialPresent(...args) }
+  constructor(
+    ctx: Context,
+    private readonly operations: ModelCatalogRead,
+  ) {
+    super(ctx)
+  }
+  readProfile(...args: Parameters<ModelCatalogRead['readProfile']>) {
+    return this.operations.readProfile(...args)
+  }
+  listProfiles(...args: Parameters<ModelCatalogRead['listProfiles']>) {
+    return this.operations.listProfiles(...args)
+  }
+  credentialPresent(...args: Parameters<ModelCatalogRead['credentialPresent']>) {
+    return this.operations.credentialPresent(...args)
+  }
 }
 
 class CredentialProvider extends CredentialLookupService {
-  constructor(ctx: Context, private readonly operations: CredentialLookup) { super(ctx) }
-  value(...args: Parameters<CredentialLookup['value']>) { return this.operations.value(...args) }
+  constructor(
+    ctx: Context,
+    private readonly operations: CredentialLookup,
+  ) {
+    super(ctx)
+  }
+  value(...args: Parameters<CredentialLookup['value']>) {
+    return this.operations.value(...args)
+  }
 }

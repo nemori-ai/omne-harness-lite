@@ -6,5 +6,7 @@ export interface BoundCredentialReplicaReader {
 
 /** Trusted factory credential input; absence retains the existing unavailable behavior. */
 export interface FactoryModelCredentialReader {
-  readonly read: () => Promise<{ readonly body: Uint8Array } | { readonly absent: true } | { readonly failure: 'unavailable' }>
+  readonly read: () => Promise<
+    { readonly body: Uint8Array } | { readonly absent: true } | { readonly failure: 'unavailable' }
+  >
 }

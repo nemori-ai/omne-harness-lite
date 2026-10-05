@@ -1,0 +1,9 @@
+{
+  "base": "67eecc1ae53be30efec473206e5d1926dd5d500f",
+  "source": ".meta_harness/design/spec/capabilities/organization-governance/v2/formal/Affiliation.als",
+  "sha256": "1a72efa2f9b7c8199ae3aac797154120cf714a9b6dc674961621c8187cd1526f",
+  "jar": "/opt/alloy/alloy-6.2.0.jar",
+  "jar_sha256": "6b8c1cb5bc93bedfc7c61435c4e1ab6e688a242dc702a394628d9a9801edb78d",
+  "version": "6.2.0",
+  "scope": "Finite OG2 original scopes; mutations follow formal/README.md. No SQL/concurrency claim."
+}

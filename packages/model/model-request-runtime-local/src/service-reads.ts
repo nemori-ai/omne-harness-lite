@@ -36,7 +36,7 @@ import type {
 import type { CallHistoryDispatch, CallHistoryKnown, CallHistoryResult } from './call-history.ts'
 import type { CallAccessEvidence, CallFacts } from './reference-types.ts'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
-import type {PlannedSemantics} from '@omne-harness-lite/model-request-runtime'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { requestStopAndWait } from './settlement-stop.ts'
 
 type ReadMethods = Pick<

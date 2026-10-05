@@ -31,7 +31,9 @@
     "@omne-harness-lite/offer-expiry": "workspace:*",
     "@omne-harness-lite/storage": "workspace:*",
     "kysely": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@omne-harness-lite/assembly-lifecycle": "workspace:*",
+    "@omne-harness-lite/cordis-plugin-tree": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness-lite/storage-sql": "workspace:*",

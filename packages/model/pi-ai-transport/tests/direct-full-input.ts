@@ -1,5 +1,12 @@
 import type { JsonObject } from '@omne-harness-lite/content-blocks'
-import type { FullMeterInput, InputMeter, MarginalMeterInput, NewMeterInput, TokenMeasurement, MeterContribution } from '@omne-harness-lite/model-request-runtime'
+import type {
+  FullMeterInput,
+  InputMeter,
+  MarginalMeterInput,
+  NewMeterInput,
+  TokenMeasurement,
+  MeterContribution,
+} from '@omne-harness-lite/model-request-runtime'
 import { countingBasis, projectInput } from '../src/projection.ts'
 import { measureFinalInput } from '../src/input-limits.ts'
 import { input } from './support.ts'

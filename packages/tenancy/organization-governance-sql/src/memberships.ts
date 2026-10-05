@@ -112,7 +112,8 @@ async function changeRole(
     return succeed(true)
   })
   if ('failure' in outcome) return outcome
-  if (outcome.ok) deps.notify('role.changed', { tenant: target.ok, role: role.ok })
+  if (outcome.ok)
+    deps.notify('organization-governance/role-changed', { tenant: target.ok, role: role.ok })
   return 'ok'
 }
 
@@ -154,7 +155,7 @@ async function remove(
     return succeed(undefined)
   })
   if ('failure' in outcome) return outcome
-  deps.notify('membership.changed', { tenant: target.ok, effective: false })
+  deps.notify('organization-governance/membership-changed', { tenant: target.ok, effective: false })
   return 'ok'
 }
 

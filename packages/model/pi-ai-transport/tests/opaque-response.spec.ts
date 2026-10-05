@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import {readStream} from '@omne-harness-lite/pi-ai-transport'
-import {type RawResponse} from '@omne-harness-lite/model-request-runtime'
+import { readStream } from '@omne-harness-lite/pi-ai-transport'
+import { type RawResponse } from '@omne-harness-lite/model-request-runtime'
 import { certificate, content, finish, fixture, planned } from './support.ts'
 
 let cert: ReturnType<typeof certificate>

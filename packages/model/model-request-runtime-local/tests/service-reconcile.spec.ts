@@ -7,7 +7,11 @@ import {
   type PendingModelResponse,
 } from '@omne-harness-lite/model-response'
 import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
-import { captureModelLogValue, modelLogJsonEqual, prepareModelLogEntry } from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  modelLogJsonEqual,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import { inspectCurrentModelLogPrefix } from '@omne-harness-lite/model-request-runtime'
 import {
   createRuntimeReconcile,
@@ -23,8 +27,12 @@ import type {
   RuntimeRecoveryScope,
 } from '../src/service-types.ts'
 import type { AnchoredInvocationHandle } from '../src/anchored-invocation-types.ts'
-import type {PlannedSemantics} from '@omne-harness-lite/model-request-runtime'
-import type { DiagnosticAssociation, DiagnosticCollector, DiagnosticScope } from '../src/diagnostics-types.ts'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
+import type {
+  DiagnosticAssociation,
+  DiagnosticCollector,
+  DiagnosticScope,
+} from '../src/diagnostics-types.ts'
 import type { DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'

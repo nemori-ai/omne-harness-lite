@@ -351,17 +351,19 @@ describe('capability.organization-governance v1 · 规范场景', () => {
       expect(h.errorLogs()).toEqual([]) // 不是缺陷观测支
 
       // 事件：只有①那一次，携带被清除的组织与账号；有意不发 membership.changed
-      const purgeEvents = h.events.filter(e => e.name === 'organization.purged')
+      const purgeEvents = h.events.filter(
+        e => e.name === 'organization-governance/organization-purged',
+      )
       expect(purgeEvents).toEqual([
         {
-          name: 'organization.purged',
+          name: 'organization-governance/organization-purged',
           payload: { organization: personal.get(doomed), ownerAccount: doomed },
         },
       ])
       expect(
         h.events.filter(
           e =>
-            e.name === 'membership.changed' &&
+            e.name === 'organization-governance/membership-changed' &&
             (e.payload as { tenant: { account: string } }).tenant.account === doomed,
         ),
       ).toEqual([])

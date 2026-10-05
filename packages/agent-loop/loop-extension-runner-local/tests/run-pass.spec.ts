@@ -15,7 +15,11 @@ import { createRunnerLogAdapter } from '../src/run-log.ts'
 import { createRunnerReminderLogAdapter } from '../src/reminder-log.ts'
 import { createRunnerTaskOwner } from '../src/task-owner.ts'
 import { runPass } from '../src/run-pass.ts'
-import { type RunnerLogBinding, type RunnerPiece, type RunnerPorts } from '@omne-harness-lite/loop-extension-runner'
+import {
+  type RunnerLogBinding,
+  type RunnerPiece,
+  type RunnerPorts,
+} from '@omne-harness-lite/loop-extension-runner'
 
 const at = '2026-09-29T00:00:00Z'
 const tenant = parseTenantId({ organization: 'runner-org', account: 'runner-account' })

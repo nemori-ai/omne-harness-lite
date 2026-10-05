@@ -11,6 +11,7 @@ import {
   composedMigrationName,
 } from '@omne-harness-lite/storage'
 import { NodeSqliteDialect, openStorage } from '@omne-harness-lite/storage-sql'
+import { StorageStartup } from '@omne-harness-lite/storage/cordis'
 import { storageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
 import {
   OG_TABLES,
@@ -27,6 +28,10 @@ import {
 } from './support.ts'
 
 const closers: (() => Promise<void>)[] = []
+class MigrationStartup extends StorageStartup {
+  readonly migrations = composedMigrations()
+  readonly upgrade = false as const
+}
 afterEach(async () => {
   for (const close of closers.splice(0).reverse()) await close()
 })
@@ -88,7 +93,14 @@ describe('organizationGovernanceMigrations 工厂', () => {
   it('经 storage-sql 插件（带 migrations 写 upgrade: false）在 sqlite 上跑通，六张表都在', async () => {
     const file = tempSqliteFile('plugin-path')
     const assembly = await bootAssembly({
-      plugins: [{ plugin: storageSqlPlugin, config: storageConfig(file) }],
+      plugins: [
+        {
+          plugin(ctx) {
+            new MigrationStartup(ctx)
+          },
+        },
+        { plugin: storageSqlPlugin, config: { dialect: 'sqlite', file, startup: 'migrate' } },
+      ],
     })
     closers.push(() => assembly.dispose())
     const tables = sqliteMaster(file)

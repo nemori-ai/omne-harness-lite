@@ -10,7 +10,7 @@ import { judgeMessage } from '@omne-harness-lite/messages'
 import { validate as toolShape, type ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import { judgeArrivalEnvelope } from '@omne-harness-lite/arrival-events'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import {copyPlanOutputHistory, type PlanInput} from '@omne-harness-lite/model-request-runtime'
+import { copyPlanOutputHistory, type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import { object } from './json.ts'
 import { tokenMarginValid } from './input-meter.ts'
 

@@ -67,7 +67,12 @@ import type {
   SettlementScheduler,
   RunHistoryReader,
 } from './settlement-types.ts'
-import type {InputLimitRejection, InvocationPolicy, PlannedSemantics, TransportAdapter} from '@omne-harness-lite/model-request-runtime'
+import type {
+  InputLimitRejection,
+  InvocationPolicy,
+  PlannedSemantics,
+  TransportAdapter,
+} from '@omne-harness-lite/model-request-runtime'
 import type { ReplaySelection, TokenMargin } from '@omne-harness-lite/model-request-runtime'
 import type { AnchoredInvocationHandle } from './anchored-invocation-types.ts'
 import type { DiagnosticCollector } from './diagnostics-types.ts'

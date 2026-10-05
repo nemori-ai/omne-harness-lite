@@ -1,19 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export interface RetirementPolicy {
   readonly waitMilliseconds: number
   readonly force: boolean

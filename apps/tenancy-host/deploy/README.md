@@ -48,3 +48,11 @@ For an upgrade, verify and extract the new artifact into a new release directory
 Backup readers accept only this build's current complete migration sequence and structure. After an upgrade that changes that format, older envelopes may be invalid-backup to the new reader and status may become missing. Retain the matching old code to verify old envelopes offline, keep old and new backup catalogs separate, and make and verify a new-format backup after the upgraded center is healthy. Keeping old code never authorizes starting old business data.
 
 Command exit codes: `0` for a successful operation or current backup status; `2` for missing/overdue status or a declared refusal; `1` for unavailable dependencies, uncertain results, internal/cleanup or output failure; `64` for syntax. A successful full-health command means the reply was received; inspect its individual health fields.
+
+An optional operator JSON file stays outside the code directory. With the same service environment and user, inspect it before starting:
+
+```sh
+node /opt/omne-tenancy/current/app/dist/cli.js serve --plugins /absolute/private/plugins.json --print-plugins
+```
+
+This prints redacted rows and sources without creating the data, backup or socket directories. To use the file in systemd, add `--plugins /absolute/private/plugins.json` to the edited `ExecStart`; the default template uses an empty operator layer. Keep the file with the service configuration and readable by the service user. Invalid edits or missing required roles fail before resources open.

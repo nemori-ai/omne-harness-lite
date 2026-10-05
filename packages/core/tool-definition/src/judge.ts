@@ -344,7 +344,9 @@ export function judgeToolReturn(value: unknown): ToolJudgment {
   )
     return rejected('malformed', 'M17')
   if (
-    Object.keys(copied).some(key => !['content', 'offload', 'attachments', 'isError'].includes(key)) ||
+    Object.keys(copied).some(
+      key => !['content', 'offload', 'attachments', 'isError'].includes(key),
+    ) ||
     (object(copied.offload) &&
       Object.keys(copied.offload).some(key => !['raw', 'summary'].includes(key))) ||
     (object(copied.offload) &&

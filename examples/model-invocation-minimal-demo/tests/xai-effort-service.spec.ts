@@ -2,7 +2,11 @@ import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { jsonNumberSource, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { xaiDefinitions, createXaiInputMeter, createOfficialProfileContent } from '@omne-harness-lite/pi-ai-transport'
+import {
+  xaiDefinitions,
+  createXaiInputMeter,
+  createOfficialProfileContent,
+} from '@omne-harness-lite/pi-ai-transport'
 import { type InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'

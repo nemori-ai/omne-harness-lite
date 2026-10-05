@@ -1,0 +1,104 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Warning: Please run the Java VM, which executes TLC with a throughput optimized garbage collector, by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 20 and seed 1324695670373486185 with 1 worker on 8 cores with 7824MB heap and 64MB offheap memory [pid: 42328] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/formal-base/cls-bad-split/LocalChoice.tla
+Parsing file /tmp/tlc-7454204447778217701/Naturals.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-7454204447778217701/FiniteSets.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-7454204447778217701/_TLCTrace.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/_TLCTrace.tla)
+Parsing file /tmp/tlc-7454204447778217701/Sequences.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-7454204447778217701/TLC.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-7454204447778217701/TLCExt.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLCExt.tla)
+Parsing file /tmp/tlc-7454204447778217701/Integers.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Integers
+Semantic processing of module TLCExt
+Semantic processing of module _TLCTrace
+Semantic processing of module LocalChoice
+Linting of module TLCExt
+Linting of module _TLCTrace
+Linting of module LocalChoice
+Starting... (2026-10-04 22:32:31)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-04 22:32:31.
+Error: Invariant NoStaleOverwrite is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ lastBefore = [instance |-> 0, revision |-> 0, value |-> "old"]
+/\ permitted = [logout |-> FALSE, login |-> FALSE]
+/\ wrote = [logout |-> FALSE, login |-> FALSE]
+/\ answer = [logout |-> "none", login |-> "none"]
+/\ reset = FALSE
+/\ lastExpected = [instance |-> 0, revision |-> 0, value |-> "old"]
+/\ current = [instance |-> 0, revision |-> 0, value |-> "old"]
+/\ phase = [logout |-> "idle", login |-> "idle"]
+/\ snapshot = [ logout |-> [instance |-> 0, revision |-> 0, value |-> "old"],
+  login |-> [instance |-> 0, revision |-> 0, value |-> "old"] ]
+
+State 2: <Read("logout") line 18, col 12 to line 21, col 94 of module LocalChoice>
+/\ lastBefore = [instance |-> 0, revision |-> 0, value |-> "old"]
+/\ permitted = [logout |-> FALSE, login |-> FALSE]
+/\ wrote = [logout |-> FALSE, login |-> FALSE]
+/\ answer = [logout |-> "none", login |-> "none"]
+/\ reset = FALSE
+/\ lastExpected = [instance |-> 0, revision |-> 0, value |-> "old"]
+/\ current = [instance |-> 0, revision |-> 0, value |-> "old"]
+/\ phase = [logout |-> "waiting", login |-> "idle"]
+/\ snapshot = [ logout |-> [instance |-> 0, revision |-> 0, value |-> "old"],
+  login |-> [instance |-> 0, revision |-> 0, value |-> "old"] ]
+
+State 3: <RemoteReturn("logout") line 22, col 20 to line 24, col 111 of module LocalChoice>
+/\ lastBefore = [instance |-> 0, revision |-> 0, value |-> "old"]
+/\ permitted = [logout |-> FALSE, login |-> FALSE]
+/\ wrote = [logout |-> FALSE, login |-> FALSE]
+/\ answer = [logout |-> "none", login |-> "none"]
+/\ reset = FALSE
+/\ lastExpected = [instance |-> 0, revision |-> 0, value |-> "old"]
+/\ current = [instance |-> 0, revision |-> 0, value |-> "old"]
+/\ phase = [logout |-> "ready", login |-> "idle"]
+/\ snapshot = [ logout |-> [instance |-> 0, revision |-> 0, value |-> "old"],
+  login |-> [instance |-> 0, revision |-> 0, value |-> "old"] ]
+
+State 4: <Compare("logout") line 29, col 15 to line 32, col 96 of module LocalChoice>
+/\ lastBefore = [instance |-> 0, revision |-> 0, value |-> "old"]
+/\ permitted = [logout |-> TRUE, login |-> FALSE]
+/\ wrote = [logout |-> FALSE, login |-> FALSE]
+/\ answer = [logout |-> "none", login |-> "none"]
+/\ reset = FALSE
+/\ lastExpected = [instance |-> 0, revision |-> 0, value |-> "old"]
+/\ current = [instance |-> 0, revision |-> 0, value |-> "old"]
+/\ phase = [logout |-> "compared", login |-> "idle"]
+/\ snapshot = [ logout |-> [instance |-> 0, revision |-> 0, value |-> "old"],
+  login |-> [instance |-> 0, revision |-> 0, value |-> "old"] ]
+
+State 5: <Reset line 25, col 10 to line 28, col 93 of module LocalChoice>
+/\ lastBefore = [instance |-> 0, revision |-> 0, value |-> "old"]
+/\ permitted = [logout |-> TRUE, login |-> FALSE]
+/\ wrote = [logout |-> FALSE, login |-> FALSE]
+/\ answer = [logout |-> "none", login |-> "none"]
+/\ reset = TRUE
+/\ lastExpected = [instance |-> 0, revision |-> 0, value |-> "old"]
+/\ current = [instance |-> 1, revision |-> 0, value |-> "reset"]
+/\ phase = [logout |-> "compared", login |-> "idle"]
+/\ snapshot = [ logout |-> [instance |-> 0, revision |-> 0, value |-> "old"],
+  login |-> [instance |-> 0, revision |-> 0, value |-> "old"] ]
+
+State 6: <Finalize("logout") line 38, col 5 to line 49, col 47 of module LocalChoice>
+/\ lastBefore = [instance |-> 1, revision |-> 0, value |-> "reset"]
+/\ permitted = [logout |-> TRUE, login |-> FALSE]
+/\ wrote = [logout |-> TRUE, login |-> FALSE]
+/\ answer = [logout |-> "none", login |-> "none"]
+/\ reset = TRUE
+/\ lastExpected = [instance |-> 0, revision |-> 0, value |-> "old"]
+/\ current = [instance |-> 1, revision |-> 1, value |-> "none"]
+/\ phase = [logout |-> "committed", login |-> "idle"]
+/\ snapshot = [ logout |-> [instance |-> 0, revision |-> 0, value |-> "old"],
+  login |-> [instance |-> 0, revision |-> 0, value |-> "old"] ]
+
+110 states generated, 76 distinct states found, 34 states left on queue.
+The depth of the complete state graph search is 6.
+Finished in 00s at (2026-10-04 22:32:31)
+Trace exploration spec path: ./LocalChoice_TTrace_1791153151.tla

@@ -1,4 +1,8 @@
-import { type ImageOutputFormat, type EncodedImage, type AlphaBackground } from '@omne-harness-lite/model-request-runtime'
+import {
+  type ImageOutputFormat,
+  type EncodedImage,
+  type AlphaBackground,
+} from '@omne-harness-lite/model-request-runtime'
 
 export interface ImagePreparePolicy {
   sourceMaxBytes: number

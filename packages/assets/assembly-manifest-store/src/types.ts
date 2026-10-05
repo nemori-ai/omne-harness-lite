@@ -1,8 +1,9 @@
-import { type EvaluationRef, type ManifestSessionRef, type Presence, type AssemblyManifestService } from '@omne-harness-lite/assembly-manifest'
-
-
-
-
+import {
+  type EvaluationRef,
+  type ManifestSessionRef,
+  type Presence,
+  type AssemblyManifestService,
+} from '@omne-harness-lite/assembly-manifest'
 
 export interface PresenceSource {
   /** All requested facts belong to one observation; unknown facts must stay absent from this map. */

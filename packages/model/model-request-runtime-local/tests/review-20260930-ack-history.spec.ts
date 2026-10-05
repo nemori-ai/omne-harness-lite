@@ -12,7 +12,11 @@ import type { AppendResult, OwnedLogEntry, SessionLog } from '@omne-harness-lite
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { captureModelLogValue, encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
 import { interpretCallHistory } from '../src/call-history.ts'
-import { interpretSettlementPrefix, readSettlementPrefix, type SettlementPrefix } from '../src/settlement-prefix.ts'
+import {
+  interpretSettlementPrefix,
+  readSettlementPrefix,
+  type SettlementPrefix,
+} from '../src/settlement-prefix.ts'
 import { type SettlementTaskKind } from '../src/settlement-types.ts'
 import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
 import { dispatched, opened, prepare, session, tenant } from './log-codec-fixture.ts'

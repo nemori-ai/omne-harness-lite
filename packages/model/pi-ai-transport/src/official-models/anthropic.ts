@@ -1,5 +1,5 @@
-import {ownDefinitions} from '../definitions.ts'
-import {type ModelDefinition, type ModelRoute} from '@omne-harness-lite/model-request-runtime'
+import { ownDefinitions } from '../definitions.ts'
+import { type ModelDefinition, type ModelRoute } from '@omne-harness-lite/model-request-runtime'
 
 // Supplied OpenRouter/Anthropic subset for the four confirmed Claude routes.
 // The directory lists more parameters, but their combinations and numeric

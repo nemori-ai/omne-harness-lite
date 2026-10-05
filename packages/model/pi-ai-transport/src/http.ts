@@ -1,11 +1,18 @@
-import type {RawResponse, TransportPolicy} from '@omne-harness-lite/model-request-runtime'
+import type { RawResponse, TransportPolicy } from '@omne-harness-lite/model-request-runtime'
 import { type Diagnostic } from '@omne-harness-lite/model-request-runtime'
 import { Agent, request, type RequestOptions } from 'node:https'
 import type { IncomingMessage } from 'node:http'
 import type { Socket } from 'node:net'
-import {createCredentialRedactionPolicy, type CredentialRedactionConfig, type BoundCredentialRedaction, type TransportFailure, type SendResult, type TransportExecutionDiagnostics} from '@omne-harness-lite/model-request-runtime'
-import {isPlannedRequest} from './plan.ts'
-import {type PlannedRequest} from '@omne-harness-lite/model-request-runtime'
+import {
+  createCredentialRedactionPolicy,
+  type CredentialRedactionConfig,
+  type BoundCredentialRedaction,
+  type TransportFailure,
+  type SendResult,
+  type TransportExecutionDiagnostics,
+} from '@omne-harness-lite/model-request-runtime'
+import { isPlannedRequest } from './plan.ts'
+import { type PlannedRequest } from '@omne-harness-lite/model-request-runtime'
 import { strictObject } from './json.ts'
 import {
   ownCredentialConfiguration,

@@ -24,12 +24,11 @@
     "test:e2e": "vitest run tests/e2e"
   },
   "dependencies": {
+    "@omne-harness-lite/cordis-plugin-tree": "workspace:*",
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness-lite/account-identity": "workspace:*",
     "@omne-harness-lite/account-registration": "workspace:*",
     "@omne-harness-lite/clock-lease": "workspace:*",
-    "@omne-harness-lite/credential-verification": "workspace:*",
-    "@omne-harness-lite/governance-center-entry": "workspace:*",
     "@omne-harness-lite/identity-values": "workspace:*",
     "@omne-harness-lite/kernel-basis": "workspace:*",
     "@omne-harness-lite/offer-expiry": "workspace:*",
@@ -38,14 +37,20 @@
     "kysely": "catalog:",
     "pg": "catalog:",
     "zod": "catalog:",
-    "@omne-harness-lite/organization-governance-sql": "workspace:*"
+    "@omne-harness-lite/organization-governance-sql": "workspace:*",
+    "@omne-harness-lite/credential-verification-scrypt": "workspace:*",
+    "@omne-harness-lite/governance-center-entry-node": "workspace:*",
+    "@omne-harness-lite/account-identity-sql": "workspace:*",
+    "@omne-harness-lite/account-registration-sequential": "workspace:*",
+    "@omne-harness-lite/assembly-lifecycle": "workspace:*",
+    "@omne-harness-lite/governance-center-entry": "workspace:*",
+    "@omne-harness-lite/organization-governance": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "@types/pg": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
-    "@omne-harness-lite/artifact-builder": "workspace:*",
-    "@omne-harness-lite/organization-governance": "workspace:*"
+    "@omne-harness-lite/artifact-builder": "workspace:*"
   }
 }

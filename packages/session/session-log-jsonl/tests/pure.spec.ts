@@ -6,7 +6,15 @@ import {
   writeJsonLossless,
 } from '@omne-harness-lite/content-blocks'
 import { checkAppendInput, type AppendRequest } from '@omne-harness-lite/session-log'
-import { decodeLogBytes, emptyLogState, encodeCommitLine, foldCommit, judgeAppend, type LogCommit, type LogState } from '../src/index.ts'
+import {
+  decodeLogBytes,
+  emptyLogState,
+  encodeCommitLine,
+  foldCommit,
+  judgeAppend,
+  type LogCommit,
+  type LogState,
+} from '../src/index.ts'
 
 const tenant = { organization: 'organization', account: 'account' }
 const otherTenant = { organization: 'other', account: 'account' }

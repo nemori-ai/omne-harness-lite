@@ -4,13 +4,6 @@ import { type JsonNumber } from '@omne-harness-lite/content-blocks'
 import { type TenantId } from '@omne-harness-lite/identity-values'
 import { type Instant } from '@omne-harness-lite/offer-expiry'
 
-
-
-
-
-
-
-
 export type RegistryHistoryCategory =
   'plugin' | 'tool' | 'skill' | 'loop_extension' | 'mcp' | 'slash_command'
 export interface RegistryHistoryRequest {

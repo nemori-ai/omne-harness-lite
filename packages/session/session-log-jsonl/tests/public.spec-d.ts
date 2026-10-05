@@ -1,7 +1,11 @@
 import type { SessionLogService } from '@omne-harness-lite/session-log/cordis'
 import { expectTypeOf } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
-import { checkAppendInput, type AppendCondition, type SessionLog } from '@omne-harness-lite/session-log'
+import {
+  checkAppendInput,
+  type AppendCondition,
+  type SessionLog,
+} from '@omne-harness-lite/session-log'
 import { openJsonlSessionLog, type JsonlSessionLog, type SessionRef } from '../src/index.ts'
 import '../src/plugin.ts'
 

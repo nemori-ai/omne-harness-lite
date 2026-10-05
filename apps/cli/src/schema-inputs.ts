@@ -3,7 +3,7 @@ const require = createRequire(import.meta.url)
 const resourceSpecifiers = [
   '@omne-harness-lite/identity-values/schema',
   '@omne-harness-lite/offer-expiry/schema',
-  '@omne-harness-lite/governance-center-client/schema',
+  '@omne-harness-lite/governance-center-entry/schema/v2',
   '@omne-harness-lite/governance-client-operations/schema',
   '@omne-harness-lite/governance-client-operations/schema/v2',
 ]
@@ -18,7 +18,7 @@ export const schemaGraphs = [
     resourceSpecifiers: [
       '@omne-harness-lite/identity-values/schema',
       '@omne-harness-lite/offer-expiry/schema',
-      '@omne-harness-lite/governance-center-client/schema',
+      '@omne-harness-lite/governance-center-entry/schema/v2',
       '@omne-harness-lite/governance-client-operations/schema',
       '@omne-harness-lite/governance-client-operations/schema/v2',
     ],

@@ -1,12 +1,42 @@
-import { type RunnerPass, type RunnerPiece, type RunnerFailure, type RunnerPassResult, type RunnerAskAssociation, type RunnerAskState, type RunnerInvocationMode, type RunnerHandles, type RunnerInvocationResult, type RunnerCapabilityResult, type RunnerRecordResult, type RunnerReminderRead, type RunnerReminderAppend, type RunnerPorts } from '@omne-harness-lite/loop-extension-runner'
+import {
+  type RunnerPass,
+  type RunnerPiece,
+  type RunnerFailure,
+  type RunnerPassResult,
+  type RunnerAskAssociation,
+  type RunnerAskState,
+  type RunnerInvocationMode,
+  type RunnerHandles,
+  type RunnerInvocationResult,
+  type RunnerCapabilityResult,
+  type RunnerRecordResult,
+  type RunnerReminderRead,
+  type RunnerReminderAppend,
+  type RunnerPorts,
+} from '@omne-harness-lite/loop-extension-runner'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { copyJsonValue, isJsonNumber } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
-import { judgeConclusion, judgeInput, judgeOutput, judgePositionedSubject, type Conclusion, type ErrorPolicy, type ExtensionInput, type ExtensionOutput, type PositionedSubject } from '@omne-harness-lite/loop-extension'
+import {
+  judgeConclusion,
+  judgeInput,
+  judgeOutput,
+  judgePositionedSubject,
+  type Conclusion,
+  type ErrorPolicy,
+  type ExtensionInput,
+  type ExtensionOutput,
+  type PositionedSubject,
+} from '@omne-harness-lite/loop-extension'
 import { judgeMessage, type SystemReminderMessage } from '@omne-harness-lite/messages'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import type { LogEntry, ReadResult } from '@omne-harness-lite/session-log'
-import { prepareRunnerConclusion, inspectRunnerConclusion, type RunnerExecution, type InspectedRunnerConclusion } from '@omne-harness-lite/loop-extension-runner'
+import {
+  prepareRunnerConclusion,
+  inspectRunnerConclusion,
+  type RunnerExecution,
+  type InspectedRunnerConclusion,
+} from '@omne-harness-lite/loop-extension-runner'
 import { composeEffect, type RunnerEffect } from '@omne-harness-lite/loop-extension-runner'
 import { passKeys, type RunnerOccurrence } from '@omne-harness-lite/loop-extension-runner'
 import type { RunnerLogBinding } from '@omne-harness-lite/loop-extension-runner'

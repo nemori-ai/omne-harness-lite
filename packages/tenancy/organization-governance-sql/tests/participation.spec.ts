@@ -123,7 +123,9 @@ describe('OG2 explicit participation', () => {
       expect(await offers.issueInvitation(team.owner, user.account)).toHaveProperty('ok')
       expect(h.events).toHaveLength(before)
     })
-    expect(h.events.slice(before).map(e => e.name)).toEqual(['invitation.issued'])
+    expect(h.events.slice(before).map(e => e.name)).toEqual([
+      'organization-governance/invitation-issued',
+    ])
   })
   it('later unavailable rolls back created organization, creation key and all notifications', async () => {
     const h = await boot(),

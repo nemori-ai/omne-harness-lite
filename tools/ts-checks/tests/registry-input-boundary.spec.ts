@@ -37,7 +37,9 @@ test.each([
   `import { createRegistryInputReader } from '../../../assets/evaluation-input-store/src/registry-inputs.ts';`,
 ])('forwarding or private-path negative %s', text => {
   expect(
-    registryInputBoundary.check([{ path: 'packages/tools/asset-registry-local/src/input.ts', text }]),
+    registryInputBoundary.check([
+      { path: 'packages/tools/asset-registry-local/src/input.ts', text },
+    ]),
   ).not.toEqual([])
 })
 test('a TS-resolved alias cannot hide access, even at an approved path', () => {

@@ -1,0 +1,13 @@
+{"name":"candidate-reentrant-close","exit_code":0,"timed_out":false,"duration_ms":514.075276}
+{"name":"transport-owned","exit_code":0,"timed_out":false,"duration_ms":459.101408}
+{"name":"factory-failures","exit_code":0,"timed_out":false,"duration_ms":402.56134799999995}
+{"name":"replacement","exit_code":0,"timed_out":false,"duration_ms":570.8588710000001}
+{"name":"managed-prefix","exit_code":0,"timed_out":false,"duration_ms":415.46269099999995}
+{"name":"assembly-positive","exit_code":0,"timed_out":false,"duration_ms":572.2079699999999}
+{"name":"public-observer","exit_code":0,"timed_out":false,"duration_ms":337.8882229999999}
+{"name":"managed-clients-v3","exit_code":0,"timed_out":false,"duration_ms":624.8215889999997}
+{"name":"shipped-managed-close-defect","exit_code":0,"timed_out":false,"duration_ms":758.4275380000004}
+{"name":"observer-errors","exit_code":0,"timed_out":false,"duration_ms":465.2433209999999}
+{"name":"controller-presentation","exit_code":0,"timed_out":false,"duration_ms":597.7903500000002}
+{"name":"controller-startup","exit_code":0,"timed_out":false,"duration_ms":681.300886}
+{"name":"controller-close-defect","exit_code":0,"timed_out":false,"duration_ms":980.5661050000008}

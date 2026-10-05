@@ -7,7 +7,7 @@ import {
   LosslessNumber,
   type JsonNumber,
 } from '@omne-harness-lite/content-blocks'
-import type {PlannedSemantics} from '@omne-harness-lite/model-request-runtime'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type {
   CallContainer,
   CallContainerStore,

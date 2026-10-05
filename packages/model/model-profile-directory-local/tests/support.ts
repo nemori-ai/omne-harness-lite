@@ -165,7 +165,9 @@ export async function boot(
   // This establishes v1 standing consumption, not real login or bootstrap provenance.
   return bootAssembly({
     services: [
-      ...(diagnostics === undefined ? [] : [{ name: MODEL_DIRECTORY_DIAGNOSTICS, value: diagnostics }]),
+      ...(diagnostics === undefined
+        ? []
+        : [{ name: MODEL_DIRECTORY_DIAGNOSTICS, value: diagnostics }]),
       { name: 'storage', value: storage },
       ...(sharedClock === undefined ? [] : [{ name: 'clock', value: sharedClock }]),
       {

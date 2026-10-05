@@ -10,10 +10,18 @@ import { join } from 'node:path'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import {openRouterCredentialRedactionConfig} from '@omne-harness-lite/model-request-runtime'
-import type {PlanInput, InvocationPolicy, InvocationOutcome} from '@omne-harness-lite/model-request-runtime'
-import {createPiAiTransport, type PiAiTransport} from '@omne-harness-lite/pi-ai-transport'
-import {type PlannedRequest, type TransportPolicy, type ModelDefinition} from '@omne-harness-lite/model-request-runtime'
+import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
+import type {
+  PlanInput,
+  InvocationPolicy,
+  InvocationOutcome,
+} from '@omne-harness-lite/model-request-runtime'
+import { createPiAiTransport, type PiAiTransport } from '@omne-harness-lite/pi-ai-transport'
+import {
+  type PlannedRequest,
+  type TransportPolicy,
+  type ModelDefinition,
+} from '@omne-harness-lite/model-request-runtime'
 import { type Diagnostic } from '@omne-harness-lite/model-request-runtime'
 
 export const at = '2026-09-27T01:00:00Z'

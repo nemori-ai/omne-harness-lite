@@ -1,18 +1,32 @@
-import type {RetirementResult, AdaptationRegistration, AdaptationLease, ModelTransportService} from '@omne-harness-lite/model-request-runtime'
+import type {
+  RetirementResult,
+  AdaptationRegistration,
+  AdaptationLease,
+  ModelTransportService,
+} from '@omne-harness-lite/model-request-runtime'
 import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import { emptyReadFacts } from './read-facts.ts'
 import { validate, type ModelAdaptationBinding } from '@omne-harness-lite/model-profile'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
-import type { DiagnosticEmitter, DiagnosticEvent, DiagnosticFact, DiagnosticOutcome } from '@omne-harness-lite/model-request-runtime'
-import type {TransportAdapter, PlanInput, TransportExecutionDiagnostics} from '@omne-harness-lite/model-request-runtime'
-import {ownDefinitions, jsonEqual} from './definitions.ts'
-import {type ModelDefinition} from '@omne-harness-lite/model-request-runtime'
+import type {
+  DiagnosticEmitter,
+  DiagnosticEvent,
+  DiagnosticFact,
+  DiagnosticOutcome,
+} from '@omne-harness-lite/model-request-runtime'
+import type {
+  TransportAdapter,
+  PlanInput,
+  TransportExecutionDiagnostics,
+} from '@omne-harness-lite/model-request-runtime'
+import { ownDefinitions, jsonEqual } from './definitions.ts'
+import { type ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import { interpretConfiguration } from './configuration.ts'
 import { ownedObject } from './json.ts'
-import {type PlannedRequest} from '@omne-harness-lite/model-request-runtime'
+import { type PlannedRequest } from '@omne-harness-lite/model-request-runtime'
 import { createOwnedTransport, type TransportOptions } from './transport.ts'
-import type {RawResponse} from '@omne-harness-lite/model-request-runtime'
+import type { RawResponse } from '@omne-harness-lite/model-request-runtime'
 import { meterMatches, ownInputMeter } from './input-meter.ts'
 import { type InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { registryDiagnosticReporter } from './diagnostics.ts'

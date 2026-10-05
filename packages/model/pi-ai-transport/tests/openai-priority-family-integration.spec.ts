@@ -3,12 +3,19 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import sharp from 'sharp'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
-import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
-import {type PlanInput} from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import { type PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import { readOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import {createOpenAiInputMeter, createOfficialProfileContent, createPiAiTransport, createModelTransportService, openaiDefinitions, openaiConfiguration} from '@omne-harness-lite/pi-ai-transport'
-import {type AdaptationLease} from '@omne-harness-lite/model-request-runtime'
+import {
+  createOpenAiInputMeter,
+  createOfficialProfileContent,
+  createPiAiTransport,
+  createModelTransportService,
+  openaiDefinitions,
+  openaiConfiguration,
+} from '@omne-harness-lite/pi-ai-transport'
+import { type AdaptationLease } from '@omne-harness-lite/model-request-runtime'
 import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
 import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'

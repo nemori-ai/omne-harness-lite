@@ -1,10 +1,20 @@
 import { expectTypeOf } from 'vitest'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { TenantId } from '@omne-harness-lite/identity-values'
-import type { DiagnosticAssociation, DiagnosticQueryResult, DiagnosticRecord, DiagnosticScope } from '../src/diagnostics-types.ts'
+import type {
+  DiagnosticAssociation,
+  DiagnosticQueryResult,
+  DiagnosticRecord,
+  DiagnosticScope,
+} from '../src/diagnostics-types.ts'
 import type { DiagnosticEvent, DiagnosticFact } from '@omne-harness-lite/model-request-runtime'
 import { createDiagnosticCollector } from '../src/diagnostics.ts'
-import type {InvocationInput, PublicDiagnosticAssociation, TransportDiagnosticFact, TransportExecutionDiagnostics} from '@omne-harness-lite/model-request-runtime'
+import type {
+  InvocationInput,
+  PublicDiagnosticAssociation,
+  TransportDiagnosticFact,
+  TransportExecutionDiagnostics,
+} from '@omne-harness-lite/model-request-runtime'
 
 expectTypeOf(createDiagnosticCollector).toBeFunction()
 expectTypeOf<DiagnosticRecord['format']>().toEqualTypeOf<'model-diagnostics/1'>()

@@ -96,18 +96,23 @@ import type { Clock } from '@omne-harness-lite/offer-expiry'
 import { composeMigrations } from '@omne-harness-lite/storage'
 import { createUpgradeGuard } from '@omne-harness-lite/storage-sql'
 import { storageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
+import { StorageStartup } from '@omne-harness-lite/storage/cordis'
 
 const directory = await mkdtemp(join(tmpdir(), 'omne-clock-plugin-example-'))
 const ctx = new Context()
 const guard = createUpgradeGuard()
+class Startup extends StorageStartup {
+  readonly migrations = composeMigrations(clockMigrations)
+  readonly upgrade = { checks: [], guard }
+}
 let storageFiber: Fiber | undefined
 let clockFiber: Fiber | undefined
 try {
+  await ctx.plugin(inner => { new Startup(inner) })
   storageFiber = ctx.plugin(storageSqlPlugin, {
     dialect: 'sqlite',
     file: join(directory, 'clock.sqlite'),
-    migrations: composeMigrations(clockMigrations),
-    upgrade: { checks: [], guard },
+    startup: 'migrate',
   })
   await storageFiber
   clockFiber = ctx.plugin(clockPlugin, {})
@@ -122,6 +127,7 @@ try {
 } finally {
   await clockFiber?.dispose()
   await storageFiber?.dispose()
+  await ctx.fiber.dispose()
   // Cordis logs disposer failures; retain the fixture if recovery is pending.
   assert.equal(await guard.pending(), 'clear')
   await rm(directory, { recursive: true, force: true })

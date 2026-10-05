@@ -6,10 +6,16 @@ const file = (path: string, text: string) => ({ path, text })
 describe('N4 migrated public boundaries', () => {
   it('allows the existing expiry error type without opening a runtime compiler dependency', () => {
     const path = 'core/offer-expiry/src/validate.ts'
-    expect(corePureImports.check([file(path, "import type { ErrorObject } from 'ajv'")])).toEqual([])
+    expect(corePureImports.check([file(path, "import type { ErrorObject } from 'ajv'")])).toEqual(
+      [],
+    )
     for (const code of ["import Ajv from 'ajv'", "import 'ajv'", "export * from 'ajv'"])
       expect(corePureImports.check([file(path, code)])).toHaveLength(1)
-    expect(corePureImports.check([file('core/offer-expiry/src/index.ts', "import type { ErrorObject } from 'ajv'")])).toHaveLength(1)
+    expect(
+      corePureImports.check([
+        file('core/offer-expiry/src/index.ts', "import type { ErrorObject } from 'ajv'"),
+      ]),
+    ).toHaveLength(1)
   })
   it('loads Cordis only from the public definition Cordis face', () => {
     expect(
@@ -52,7 +58,7 @@ describe('N4 migrated public boundaries', () => {
       'tenancy/organization-governance-sql/src/plugin.ts',
       'core/organization-governance/src/cordis.ts',
       'core/organization-governance/src/other.ts',
-      'tenancy/governance-center-entry/src/routing/x.ts',
+      'tenancy/governance-center-entry-node/src/routing/x.ts',
     ]) {
       for (const key of ['organizationPurge', 'organization-purge']) {
         expect(ogS42DynamicResolve.check([file(path, `ctx.get('${key}')`)])).toHaveLength(1)
@@ -63,7 +69,10 @@ describe('N4 migrated public boundaries', () => {
     }
     expect(
       ogS42DynamicResolve.check([
-        file('tenancy/account-registration/src/plugin.ts', "ctx.get('organizationPurge')"),
+        file(
+          'tenancy/account-registration-sequential/src/plugin.ts',
+          "ctx.get('organizationPurge')",
+        ),
       ]),
     ).toEqual([])
     expect(
@@ -104,7 +113,7 @@ describe('N4 migrated public boundaries', () => {
     expect(
       restrictedCallSites.check([
         file(
-          'tenancy/governance-center-entry/src/x.ts',
+          'tenancy/governance-center-entry-node/src/x.ts',
           "ctx.get('organizationPurge'); createPersonal(x)",
         ),
       ]),
@@ -197,13 +206,41 @@ describe('stage 2 extracted definition boundaries', () => {
         expect(corePureImports.check([file(`core/${owner}/src/types.ts`, text)])).toHaveLength(1)
   })
   it('allows the tool journal fixed graph only at its declared load and build sites', () => {
-    expect(corePureImports.check([file('core/tool-execution-runtime/src/journal-values.ts', "import { createRequire } from 'node:module'")])).toEqual([])
-    expect(corePureImports.check([file('core/tool-execution-runtime/src/schema-inputs.ts', "import schema from '@omne-harness-lite/tool-execution-runtime/journal-schema'")])).toEqual([])
-    for (const path of ['core/tool-execution-runtime/src/index.ts', 'core/tool-execution-runtime/src/journal-codec.ts']) {
-      for (const code of ["import 'node:module'", "import 'ajv'", "import '@omne-harness-lite/tool-execution-runtime/journal-schema'"])
+    expect(
+      corePureImports.check([
+        file(
+          'core/tool-execution-runtime/src/journal-values.ts',
+          "import { createRequire } from 'node:module'",
+        ),
+      ]),
+    ).toEqual([])
+    expect(
+      corePureImports.check([
+        file(
+          'core/tool-execution-runtime/src/schema-inputs.ts',
+          "import schema from '@omne-harness-lite/tool-execution-runtime/journal-schema'",
+        ),
+      ]),
+    ).toEqual([])
+    for (const path of [
+      'core/tool-execution-runtime/src/index.ts',
+      'core/tool-execution-runtime/src/journal-codec.ts',
+    ]) {
+      for (const code of [
+        "import 'node:module'",
+        "import 'ajv'",
+        "import '@omne-harness-lite/tool-execution-runtime/journal-schema'",
+      ])
         expect(corePureImports.check([file(path, code)])).toHaveLength(1)
     }
     for (const owner of ['session-log', 'identity-values', 'offer-expiry'])
-      expect(corePureImports.check([file('core/tool-execution-runtime/src/journal-codec.ts', `import '@omne-harness-lite/${owner}'`)])).toEqual([])
+      expect(
+        corePureImports.check([
+          file(
+            'core/tool-execution-runtime/src/journal-codec.ts',
+            `import '@omne-harness-lite/${owner}'`,
+          ),
+        ]),
+      ).toEqual([])
   })
 })

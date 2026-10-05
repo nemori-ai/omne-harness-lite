@@ -17,9 +17,9 @@ import {
   closeOut,
   type AssemblySettlement,
 } from '@omne-harness-lite/stream-assembly'
-import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
-import {type PlanInput, type StreamEnd} from '@omne-harness-lite/model-request-runtime'
-import {type RawResponse, type PlannedRequest} from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput, type StreamEnd } from '@omne-harness-lite/model-request-runtime'
+import { type RawResponse, type PlannedRequest } from '@omne-harness-lite/model-request-runtime'
 import { type Diagnostic } from '@omne-harness-lite/model-request-runtime'
 import {
   certificate,

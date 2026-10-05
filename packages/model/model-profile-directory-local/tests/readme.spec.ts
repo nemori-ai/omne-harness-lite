@@ -64,7 +64,9 @@ for (const language of ['README.md', 'README_ZH.md'])
         })
         expect(fiber).toBeDefined()
         class Reader extends BoundCredentialReplicaReaderService {
-          async readIn() { return { absent: true } as const }
+          async readIn() {
+            return { absent: true } as const
+          }
         }
         new Reader(assembly.ctx)
         const local = await callable(modules[4], 'mountLocalLookup')(assembly.ctx)

@@ -1,0 +1,19 @@
+{
+  "task": "R1-T2-09",
+  "status": "complete: consumer and replaced-entry switch only",
+  "base": "67eecc1ae53be30efec473206e5d1926dd5d500f",
+  "head": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+  "started_at": "2026-10-04T19:47:26.221648+00:00",
+  "completed_at": "2026-10-04T21:49:58.843155+00:00",
+  "elapsed_seconds": 7352.622,
+  "timing_scope": "Shared S2 start through final consumer evidence readback, includes S3/S4 waits; not exclusive labor and must not sum with those phases.",
+  "evidence": [
+    "export-ledger.json",
+    "qa-candidate/evidence/public-retirement-coordinate-qualified/public-retirement.json",
+    "qa-candidate/evidence/consumers/progress.json",
+    "architecture-cf4/summary.md",
+    "s4-dispositions.md",
+    "implementation-review/supplement-readback.json"
+  ],
+  "limits": "Does not close R1-T2-10/11, complete L3 acceptance, T3/T4, or N5/N6 semantic source retirement."
+}

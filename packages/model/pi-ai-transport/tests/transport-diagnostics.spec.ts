@@ -1,5 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type {TransportDiagnosticFact, TransportExecutionDiagnostics} from '@omne-harness-lite/model-request-runtime'
+import type {
+  TransportDiagnosticFact,
+  TransportExecutionDiagnostics,
+} from '@omne-harness-lite/model-request-runtime'
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
 import { certificate, content, finish, fixture, input } from './support.ts'
 

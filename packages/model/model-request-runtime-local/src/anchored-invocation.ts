@@ -8,8 +8,15 @@ import type { ReplyDisposition } from '@omne-harness-lite/model-response'
 import { ownPlanInput, preflightMissingInputLimits } from './input.ts'
 import { invokeModel } from './invoke.ts'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
-import {createCredentialRedactionPolicy, CredentialRedactionConfigurationError} from '@omne-harness-lite/model-request-runtime'
-import { captureModelLogValue, prepareModelLogEntry, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
+import {
+  createCredentialRedactionPolicy,
+  CredentialRedactionConfigurationError,
+} from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+  modelLogJsonEqual,
+} from '@omne-harness-lite/model-request-runtime'
 import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import { settlementAppendReceipt } from './settlement-receipt.ts'
 import { settlementGenerationCurrent } from './settlement-prefix.ts'
@@ -19,7 +26,13 @@ import {
   constructAnchoredInterruption,
   type ResponseConstructionInput,
 } from './response-construction.ts'
-import type {PlannedSemantics, ModelInvocationHandle, ModelInvocationResult, InvocationPolicy, OutputProjectionInput} from '@omne-harness-lite/model-request-runtime'
+import type {
+  PlannedSemantics,
+  ModelInvocationHandle,
+  ModelInvocationResult,
+  InvocationPolicy,
+  OutputProjectionInput,
+} from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementTask,
   SettlementRegistration,
@@ -34,7 +47,11 @@ import type {
   AnchoredInvocationOutcome,
   ResponseConstructionResult,
 } from './anchored-invocation-types.ts'
-import type { DiagnosticEmitter, DiagnosticEvent, DiagnosticRecordResult } from '@omne-harness-lite/model-request-runtime'
+import type {
+  DiagnosticEmitter,
+  DiagnosticEvent,
+  DiagnosticRecordResult,
+} from '@omne-harness-lite/model-request-runtime'
 import { requestStopAndWait } from './settlement-stop.ts'
 
 const unavailable = Object.freeze({ unavailable: true } as const)

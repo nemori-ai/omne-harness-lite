@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Fiber } from '@deepseek-ai/cordis'
-import { LOGINS_SERVICE, type LoginsService } from '@omne-harness-lite/account-identity'
+import { LOGINS_SERVICE } from '@omne-harness-lite/account-identity/cordis'
+import { type LoginsService } from '@omne-harness-lite/account-identity'
 import type { ModelCatalog, OfficialManifest } from '@omne-harness-lite/model-profile-directory'
 import { MODEL_CATALOG as MODEL_CATALOG_SERVICE } from '@omne-harness-lite/model-profile-directory/cordis'
 import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'

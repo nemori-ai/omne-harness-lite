@@ -1,4 +1,8 @@
-import { type RegistryInputRequest, type RegistryInputStage, type RegistryInputResult } from '@omne-harness-lite/asset-evaluation'
+import {
+  type RegistryInputRequest,
+  type RegistryInputStage,
+  type RegistryInputResult,
+} from '@omne-harness-lite/asset-evaluation'
 import { evaluate, selectEvaluationRootSource } from '@omne-harness-lite/asset-evaluation'
 import { BodyProviderUnavailableError } from '@omne-harness-lite/asset-model'
 import { parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'

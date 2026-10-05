@@ -1,5 +1,5 @@
-import {ownDefinitions} from '../definitions.ts'
-import {type ModelDefinition, type ModelRoute} from '@omne-harness-lite/model-request-runtime'
+import { ownDefinitions } from '../definitions.ts'
+import { type ModelDefinition, type ModelRoute } from '@omne-harness-lite/model-request-runtime'
 
 // The supplied parameter subset is deliberately narrow; a drop does not assert
 // that Google or OpenRouter cannot accept that parameter through another API.

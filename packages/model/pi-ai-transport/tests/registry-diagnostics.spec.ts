@@ -1,10 +1,18 @@
 import { loadTransport } from './cordis-assembly.ts'
 import { imagePreparation } from './image-transport-support.ts'
 import { Context } from '@deepseek-ai/cordis'
-import {createDiagnosticCollector, type DiagnosticCollectorConfig, type DiagnosticJournalStore, type DiagnosticRecord} from '@omne-harness-lite/model-request-runtime-local'
+import {
+  createDiagnosticCollector,
+  type DiagnosticCollectorConfig,
+  type DiagnosticJournalStore,
+  type DiagnosticRecord,
+} from '@omne-harness-lite/model-request-runtime-local'
 import { type DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
-import {createModelTransportService} from '@omne-harness-lite/pi-ai-transport'
-import {type ModelDefinition, type ModelTransportService} from '@omne-harness-lite/model-request-runtime'
+import { createModelTransportService } from '@omne-harness-lite/pi-ai-transport'
+import {
+  type ModelDefinition,
+  type ModelTransportService,
+} from '@omne-harness-lite/model-request-runtime'
 import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
 import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
@@ -470,7 +478,12 @@ describe('actual registry engineering diagnostics', () => {
           { executionId: 'cordis-service' },
         ),
       })
-      const old = createModelPlugin(ctx, definition, syntheticInputMeter(definition, 'openai'), policy())
+      const old = createModelPlugin(
+        ctx,
+        definition,
+        syntheticInputMeter(definition, 'openai'),
+        policy(),
+      )
       await old
       const newer = createModelPlugin(ctx, next, syntheticInputMeter(next, 'openai'), policy())
       await newer

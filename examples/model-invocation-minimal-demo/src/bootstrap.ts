@@ -1,10 +1,9 @@
+import type { UpgradeConfirmation } from '@omne-harness-lite/storage'
 import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance-sql/cordis'
-import { registrationPlugin } from '@omne-harness-lite/account-registration/cordis'
-import { accountIdentityPlugin } from '@omne-harness-lite/account-identity/cordis'
-import { credentialsPlugin } from '@omne-harness-lite/credential-verification/cordis'
+import { credentialsPlugin } from '@omne-harness-lite/credential-verification-scrypt/cordis'
 import { clockPlugin } from '@omne-harness-lite/clock-lease/cordis'
-import { StorageBacking, borrowedStorage as borrowedStoragePlugin } from './borrowed-storage.ts'
+import { storageBinding } from './storage-binding.ts'
 import { controlledModelTransport } from './controlled-model-transport.ts'
 import { TransportTls } from './assembly-inputs.ts'
 import {
@@ -190,9 +189,12 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import { constants } from 'node:fs'
 import { open } from 'node:fs/promises'
 import { Context, type Fiber, type Plugin } from '@deepseek-ai/cordis'
-import { LOGINS_SERVICE, type LoginsService } from '@omne-harness-lite/account-identity'
+import { accountIdentityPlugin } from '@omne-harness-lite/account-identity-sql/cordis'
+import { LOGINS_SERVICE } from '@omne-harness-lite/account-identity/cordis'
+import { type LoginsService } from '@omne-harness-lite/account-identity'
+import { registrationPlugin } from '@omne-harness-lite/account-registration-sequential/cordis'
+import { REGISTRATION_SERVICE } from '@omne-harness-lite/account-registration/cordis'
 import {
-  REGISTRATION_SERVICE,
   type RegistrationService,
   type TerminalOutcome,
 } from '@omne-harness-lite/account-registration'
@@ -259,7 +261,6 @@ import {
   openStorage,
   StorageStartupFailure,
   type SqlStorage,
-  type UpgradeConfirmation,
 } from '@omne-harness-lite/storage-sql'
 import {
   acceptanceMigrations,
@@ -1182,8 +1183,7 @@ export function createAcceptanceApplication(
       record({ event: 'stage', phase: 'migrations', outcome: 'complete' })
       await hooks?.storageOpened?.(storage, guard)
       assertNotClosing()
-      new StorageBacking(context, storage)
-      await load('storage', borrowedStoragePlugin, {})
+      await load('storage', storageBinding(storage), {})
 
       await load('clock', clockPlugin, {})
       await load('credentials', credentialsPlugin, prepared.credentials)

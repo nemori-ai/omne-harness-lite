@@ -6,7 +6,11 @@ import type {
   ModelCallReplyReadyRecord,
 } from '@omne-harness-lite/messages'
 import type { AppendResult, OwnedLogEntry } from '@omne-harness-lite/session-log'
-import { captureModelLogValue, prepareModelLogEntry, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+  modelLogJsonEqual,
+} from '@omne-harness-lite/model-request-runtime'
 import { inspectCurrentModelLogPrefix } from '@omne-harness-lite/model-request-runtime'
 import {
   readSettlementPrefix,

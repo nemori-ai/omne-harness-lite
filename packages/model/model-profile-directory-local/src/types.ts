@@ -1,4 +1,9 @@
-import { type OfficialManifest, type CredentialBinding, type ReadBoundReplicaIn, type DiagnosticSink } from '@omne-harness-lite/model-profile-directory'
+import {
+  type OfficialManifest,
+  type CredentialBinding,
+  type ReadBoundReplicaIn,
+  type DiagnosticSink,
+} from '@omne-harness-lite/model-profile-directory'
 import type { CredentialRef } from '@omne-harness-lite/asset-model'
 
 import type { MembershipStandingResult, TenantId } from '@omne-harness-lite/identity-values'

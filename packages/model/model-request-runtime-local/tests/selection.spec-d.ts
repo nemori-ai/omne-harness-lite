@@ -2,7 +2,14 @@ import { expectTypeOf } from 'vitest'
 import type { ModelProfile } from '@omne-harness-lite/model-profile'
 import type { ProfileRow } from '@omne-harness-lite/model-profile-directory'
 import { legalTargets, displayList, effectiveModel } from '../src/selection.ts'
-import { type SelectionFact, type SelectionCompatibility, type LegalTargetsResult, type DisplayListResult, type EffectiveModelResult, type ModelDisplayEntry } from '../src/selection-types.ts'
+import {
+  type SelectionFact,
+  type SelectionCompatibility,
+  type LegalTargetsResult,
+  type DisplayListResult,
+  type EffectiveModelResult,
+  type ModelDisplayEntry,
+} from '../src/selection-types.ts'
 
 const rows: SelectionFact<readonly ProfileRow[]> = { known: [] }
 const compatible: SelectionCompatibility = () => ({ ok: true })

@@ -1,0 +1,10 @@
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tools/ts-checks
+
+
+ Test Files  1 passed (1)
+      Tests  18 passed (18)
+Type Errors  no errors
+   Start at  21:11:35
+   Duration  5.40s (transform 686ms, setup 0ms, import 1.51s, tests 3.68s, environment 0ms)
+

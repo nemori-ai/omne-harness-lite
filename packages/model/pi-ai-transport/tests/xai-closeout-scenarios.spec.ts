@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
-import {type ModelInvocationResult} from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type ModelInvocationResult } from '@omne-harness-lite/model-request-runtime'
 import {
   createPiAiTransport,
   createXaiInputMeter,

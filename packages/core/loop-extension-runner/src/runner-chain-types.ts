@@ -1,15 +1,10 @@
 import { type AssemblyManifestService } from '@omne-harness-lite/assembly-manifest'
 
-
 import type { RegistryHistoryResult } from '@omne-harness-lite/asset-evaluation'
-
-
 
 import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 
 import type { RunnerLogBinding } from './task-owner-types.ts'
-
-
 
 /** Borrowed, captured providers. The caller owns authorization, generation checks and closure. */
 export interface RunnerChainSources {

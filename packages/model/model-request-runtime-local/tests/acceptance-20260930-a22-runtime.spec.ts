@@ -34,7 +34,10 @@ import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { acknowledgedAttempts, attemptFromWitness } from '../src/acknowledged-view.ts'
-import { captureModelLogValue, prepareModelLogEntry } from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import type {
   CallAccess,
   CallAccessAction,

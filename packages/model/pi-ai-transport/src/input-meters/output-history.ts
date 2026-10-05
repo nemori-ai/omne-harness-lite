@@ -7,14 +7,25 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import type { PlanCalibration, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
+import type {
+  PlanCalibration,
+  PlanOutputHistoryGroup,
+} from '@omne-harness-lite/model-request-runtime'
 import { projectAssistant } from '../assistant-projection.ts'
 import { canonicalProjection, projectionDigest, INPUT_PROJECTION_REVISION } from '../projection.ts'
 import { type InputProjection } from '@omne-harness-lite/model-request-runtime'
 import { meterHistoryValid, meterReplayValid } from '../history-projection.ts'
 import { ownBasis, relateMeterBases, type OriginalBasisApplies } from '../meter-transform.ts'
 import { meterContributionValid } from '../input-meter.ts'
-import { type InputMeter, type FullMeterInput, type NewMeterInput, type ReplayMeterInput, type MeterContribution, type TokenMeasurement, type HistorySelectionSpan } from '@omne-harness-lite/model-request-runtime'
+import {
+  type InputMeter,
+  type FullMeterInput,
+  type NewMeterInput,
+  type ReplayMeterInput,
+  type MeterContribution,
+  type TokenMeasurement,
+  type HistorySelectionSpan,
+} from '@omne-harness-lite/model-request-runtime'
 import { fullJsonMarginal } from './marginal.ts'
 import { signedPrefixApplies } from './output-prefix.ts'
 

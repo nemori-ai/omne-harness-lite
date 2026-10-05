@@ -26,8 +26,24 @@ import {
   type WriteTx,
 } from '@omne-harness-lite/storage'
 import { contentEqual, jsonEqual, upstreamEqual } from '@omne-harness-lite/model-profile-directory'
-import { invalid, isRef, jsonObject, object, parseContent, parseManifest, parsePatch, parseRef } from '@omne-harness-lite/model-profile-directory'
-import { configEligibility, credentialSlot, manifestDisposition, sameWriter, scopeChain, scopeMatches } from '@omne-harness-lite/model-profile-directory'
+import {
+  invalid,
+  isRef,
+  jsonObject,
+  object,
+  parseContent,
+  parseManifest,
+  parsePatch,
+  parseRef,
+} from '@omne-harness-lite/model-profile-directory'
+import {
+  configEligibility,
+  credentialSlot,
+  manifestDisposition,
+  sameWriter,
+  scopeChain,
+  scopeMatches,
+} from '@omne-harness-lite/model-profile-directory'
 import {
   bindingKey,
   db,
@@ -39,7 +55,18 @@ import {
   readRow,
   rowKey,
 } from './records.ts'
-import type { DiagnosticSink, DirectoryDiagnostic, InvalidInput, ManifestEntryDisposition, ManifestResult, ModelCatalog, ModelCatalogRead, OfficialManifest, ProfileRow, Result } from '@omne-harness-lite/model-profile-directory'
+import type {
+  DiagnosticSink,
+  DirectoryDiagnostic,
+  InvalidInput,
+  ManifestEntryDisposition,
+  ManifestResult,
+  ModelCatalog,
+  ModelCatalogRead,
+  OfficialManifest,
+  ProfileRow,
+  Result,
+} from '@omne-harness-lite/model-profile-directory'
 import type { MembershipsRead } from './types.ts'
 
 /** Rollback a multi-row content write on a named business refusal. */

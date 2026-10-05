@@ -1,6 +1,6 @@
 import type { ModelAdaptationBinding } from '@omne-harness-lite/model-profile'
-import {ownDefinitions} from '../definitions.ts'
-import {type ModelDefinition, type ModelRoute} from '@omne-harness-lite/model-request-runtime'
+import { ownDefinitions } from '../definitions.ts'
+import { type ModelDefinition, type ModelRoute } from '@omne-harness-lite/model-request-runtime'
 
 // Shared route policy; the two narrow effort rules live with their model routes.
 const common = {
