@@ -1,0 +1,11 @@
+{
+  "finding": "IR-T3-DOC-1",
+  "disposition": "保留冻结QA原文，以本勘误补充；不改变判决。",
+  "actual": "qa-candidate-e0706e327/evidence/receipts/affected-typecheck.stdout",
+  "lines": [
+    26,
+    27
+  ],
+  "wrong_link": "affected-typecheck.stderr",
+  "at": "2026-10-05T01:42:13.222993+00:00"
+}

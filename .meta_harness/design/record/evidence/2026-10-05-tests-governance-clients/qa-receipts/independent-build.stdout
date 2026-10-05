@@ -1,0 +1,137 @@
+
+> omne-harness-lite-workspace@ build /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone
+> pnpm -r --filter './packages/**' --filter './apps/**' --filter './examples/**' --filter './tools/ts-checks' --filter './tools/core-verification' --filter './tools/artifact-builder' run build
+
+Scope: 56 of 57 workspace projects
+packages/core/assembly-lifecycle build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/governance-center-entry build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+.../governance-center-entry-https-json build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/identity-values build$ node ../../../scripts/build-fixed-schemas.mjs
+packages/core/governance-center-entry build: Done
+packages/core/kernel-basis build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+.../governance-center-entry-https-json build: Done
+packages/core/storage build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/assembly-lifecycle build: Done
+packages/util/unix-format build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/identity-values build: built @omne-harness-lite/identity-values: 1 fixed Schema graphs
+packages/core/identity-values build: Done
+packages/util/xml-format build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/kernel-basis build: Done
+tools/artifact-builder build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/util/unix-format build: Done
+packages/util/xml-format build: Done
+packages/core/storage build: Done
+tools/artifact-builder build: Done
+packages/core/client-local-state build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/offer-expiry build$ node ../../../scripts/build-fixed-schemas.mjs
+packages/core/content-blocks build$ node ../../../scripts/build-fixed-schemas.mjs
+packages/infra/storage-sql build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/client-local-state build: Done
+tools/ts-checks build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/offer-expiry build: built @omne-harness-lite/offer-expiry: 1 fixed Schema graphs
+packages/core/offer-expiry build: Done
+packages/core/content-blocks build: built @omne-harness-lite/content-blocks: 2 fixed Schema graphs
+packages/core/content-blocks build: Done
+packages/infra/storage-sql build: Done
+tools/ts-checks build: Done
+packages/core/account-identity build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/asset-model build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+.../core/governance-client-operations build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/model-profile build$ node ../../../scripts/build-fixed-schemas.mjs
+packages/core/account-identity build: Done
+packages/core/organization-governance build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+.../core/governance-client-operations build: Done
+.../frontend/client-local-state-sqlite build$ node ../../../scripts/build-fixed-schemas.mjs
+packages/core/asset-model build: Done
+.../governance-center-client-https build$ node ../../../scripts/build-fixed-schemas.mjs
+packages/core/model-profile build: built @omne-harness-lite/model-profile: 1 fixed Schema graphs
+packages/core/model-profile build: Done
+packages/infra/clock-lease build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/organization-governance build: Done
+packages/infra/clock-lease build: Done
+.../governance-center-client-https build: built @omne-harness-lite/governance-center-client-https: 1 fixed Schema graphs
+.../governance-center-client-https build: Done
+.../frontend/client-local-state-sqlite build: built @omne-harness-lite/client-local-state-sqlite: 1 fixed Schema graphs
+.../frontend/client-local-state-sqlite build: Done
+packages/core/account-registration build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/tool-definition build$ node ../../../scripts/build-fixed-schemas.mjs
+packages/core/call-accounts build$ node ../../../scripts/build-fixed-schemas.mjs
+.../governance-client-operations-local build$ node ../../../scripts/build-fixed-schemas.mjs
+packages/core/account-registration build: Done
+.../infra/credential-custodian-local build$ tsc -p tsconfig.build.json
+packages/core/call-accounts build: built @omne-harness-lite/call-accounts: 2 fixed Schema graphs
+packages/core/call-accounts build: Done
+.../credential-verification-scrypt build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/tool-definition build: built @omne-harness-lite/tool-definition: 1 fixed Schema graphs
+packages/core/tool-definition build: Done
+.../tenancy/organization-governance-sql build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+.../infra/credential-custodian-local build: Done
+.../governance-client-operations-local build: built @omne-harness-lite/governance-client-operations-local: 1 fixed Schema graphs
+.../governance-client-operations-local build: Done
+.../credential-verification-scrypt build: Done
+.../tenancy/organization-governance-sql build: Done
+packages/core/agent-definition build$ node ../../../scripts/build-fixed-schemas.mjs
+packages/core/mcp-endpoint build$ node ../../../scripts/build-fixed-schemas.mjs
+packages/core/messages build$ node ../../../scripts/build-fixed-schemas.mjs
+packages/core/model-request-runtime build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/model-request-runtime build: Done
+packages/core/skill-package build$ node ../../../scripts/build-fixed-schemas.mjs
+packages/core/agent-definition build: built @omne-harness-lite/agent-definition: 1 fixed Schema graphs
+packages/core/agent-definition build: Done
+packages/model/model-profile-directory build$ tsc -p tsconfig.build.json
+packages/core/mcp-endpoint build: built @omne-harness-lite/mcp-endpoint: 1 fixed Schema graphs
+packages/core/mcp-endpoint build: Done
+packages/tenancy/account-identity-sql build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/messages build: built @omne-harness-lite/messages: 1 fixed Schema graphs
+packages/core/messages build: Done
+apps/cli build$ node ../../scripts/build-fixed-schemas.mjs
+packages/core/skill-package build: built @omne-harness-lite/skill-package: 3 fixed Schema graphs
+packages/core/skill-package build: Done
+packages/model/model-profile-directory build: Done
+packages/tenancy/account-identity-sql build: Done
+apps/cli build: built @omne-harness-lite/cli: 2 fixed Schema graphs
+apps/cli build: Done
+packages/core/slash-command build$ node ../../../scripts/build-fixed-schemas.mjs
+packages/session/session-tenancy-table build$ node ../../../scripts/build-fixed-schemas.mjs
+.../account-registration-sequential build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/slash-command build: built @omne-harness-lite/slash-command: 1 fixed Schema graphs
+packages/core/slash-command build: Done
+packages/session/session-tenancy-table build: built @omne-harness-lite/session-tenancy-table: 1 fixed Schema graphs
+packages/session/session-tenancy-table build: Done
+.../account-registration-sequential build: Done
+packages/core/loop-extension build$ node ../../../scripts/build-fixed-schemas.mjs
+.../tenancy/governance-center-entry-node build$ node ../../../scripts/build-fixed-schemas.mjs
+.../tenancy/governance-center-entry-node build: built @omne-harness-lite/governance-center-entry-node: 1 fixed Schema graphs
+.../tenancy/governance-center-entry-node build: Done
+packages/core/loop-extension build: built @omne-harness-lite/loop-extension: 2 fixed Schema graphs
+packages/core/loop-extension build: Done
+packages/core/arrival-events build$ node ../../../scripts/build-fixed-schemas.mjs
+packages/core/asset-evaluation build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+apps/tenancy-host build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/model-response build$ node ../../../scripts/build-fixed-schemas.mjs
+packages/core/asset-evaluation build: Done
+packages/core/arrival-events build: built @omne-harness-lite/arrival-events: 1 fixed Schema graphs
+packages/core/arrival-events build: Done
+apps/tenancy-host build: Done
+packages/core/model-response build: built @omne-harness-lite/model-response: 1 fixed Schema graphs
+packages/core/model-response build: Done
+packages/assets/assembly-manifest-store build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/session/session-log-jsonl build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/stream-assembly build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/stream-assembly build: Done
+packages/assets/assembly-manifest-store build: Done
+packages/session/session-log-jsonl build: Done
+packages/assets/evaluation-input-store build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+tools/core-verification build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/assets/evaluation-input-store build: Done
+tools/core-verification build: Done
+packages/tools/asset-registry build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/tools/asset-registry build: Done
+.../model/model-request-runtime-local build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+.../model/model-request-runtime-local build: Done
+.../agent-loop/loop-extension-runner build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/model/pi-ai-transport build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+.../agent-loop/loop-extension-runner build: Done
+packages/model/pi-ai-transport build: Done
+examples/model-invocation-minimal-demo build$ tsc -p tsconfig.build.json
+examples/model-invocation-minimal-demo build: Done

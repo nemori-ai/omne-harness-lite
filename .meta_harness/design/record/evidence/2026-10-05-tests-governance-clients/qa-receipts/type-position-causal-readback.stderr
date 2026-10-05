@@ -1,0 +1,65 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
+  "import { expectTypeOf, test } from 'vitest';\n" +
+    "import { exitStatus, type ActionIntent, type ActionReport, type GovernanceClientOperations, } from '../src/index.ts';\n" +
+    "test('public intent omits credential slots while reports keep the original exit-code domain', () => {\n" +
+    "    const login: ActionIntent = { action: 'login', payload: { loginIdentifier: 'example' } };\n" +
+    '    void login;\n' +
+    '    const secretIntent: ActionIntent = {\n' +
+    "        action: 'login',\n" +
++   "        payload: { loginIdentifier: 'example', credential: 'secret' },\n" +
+-   '        payload: {\n' +
+-   "            loginIdentifier: 'example',\n" +
+-   "            credential: 'secret',\n" +
+-   '        },\n' +
+    '    };\n' +
+    '    void secretIntent;\n' +
+    '    expectTypeOf(exitStatus).toEqualTypeOf<(report: ActionReport) => 0 | 2 | 3 | 4 | 5 | 70>();\n' +
+    "    expectTypeOf<GovernanceClientOperations['runAction']>().toEqualTypeOf<(input: unknown) => Promise<ActionReport>>();\n" +
+    '});\n'
+
+    at file:///data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/scenarios/type-position-readback.mjs:11:105
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: "import { expectTypeOf, test } from 'vitest';\n" +
+    "import { exitStatus, type ActionIntent, type ActionReport, type GovernanceClientOperations, } from '../src/index.ts';\n" +
+    "test('public intent omits credential slots while reports keep the original exit-code domain', () => {\n" +
+    "    const login: ActionIntent = { action: 'login', payload: { loginIdentifier: 'example' } };\n" +
+    '    void login;\n' +
+    '    const secretIntent: ActionIntent = {\n' +
+    "        action: 'login',\n" +
+    "        payload: { loginIdentifier: 'example', credential: 'secret' },\n" +
+    '    };\n' +
+    '    void secretIntent;\n' +
+    '    expectTypeOf(exitStatus).toEqualTypeOf<(report: ActionReport) => 0 | 2 | 3 | 4 | 5 | 70>();\n' +
+    "    expectTypeOf<GovernanceClientOperations['runAction']>().toEqualTypeOf<(input: unknown) => Promise<ActionReport>>();\n" +
+    '});\n',
+  expected: "import { expectTypeOf, test } from 'vitest';\n" +
+    "import { exitStatus, type ActionIntent, type ActionReport, type GovernanceClientOperations, } from '../src/index.ts';\n" +
+    "test('public intent omits credential slots while reports keep the original exit-code domain', () => {\n" +
+    "    const login: ActionIntent = { action: 'login', payload: { loginIdentifier: 'example' } };\n" +
+    '    void login;\n' +
+    '    const secretIntent: ActionIntent = {\n' +
+    "        action: 'login',\n" +
+    '        payload: {\n' +
+    "            loginIdentifier: 'example',\n" +
+    "            credential: 'secret',\n" +
+    '        },\n' +
+    '    };\n' +
+    '    void secretIntent;\n' +
+    '    expectTypeOf(exitStatus).toEqualTypeOf<(report: ActionReport) => 0 | 2 | 3 | 4 | 5 | 70>();\n' +
+    "    expectTypeOf<GovernanceClientOperations['runAction']>().toEqualTypeOf<(input: unknown) => Promise<ActionReport>>();\n" +
+    '});\n',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.21.0

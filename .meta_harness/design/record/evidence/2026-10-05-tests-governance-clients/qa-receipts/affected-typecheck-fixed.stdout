@@ -1,0 +1,49 @@
+Scope: 12 of 57 workspace projects
+
+> @omne-harness-lite/assembly-lifecycle@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/packages/core/assembly-lifecycle
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/client-local-state@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/packages/core/client-local-state
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/governance-center-entry-https-json@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/packages/core/governance-center-entry-https-json
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/governance-center-entry@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/packages/core/governance-center-entry
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/ts-checks@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/tools/ts-checks
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/governance-client-operations@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/packages/core/governance-client-operations
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/client-local-state-sqlite@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/packages/frontend/client-local-state-sqlite
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/governance-center-client-https@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/packages/frontend/governance-center-client-https
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/governance-center-entry-node@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/packages/tenancy/governance-center-entry-node
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/governance-client-operations-local@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/packages/frontend/governance-client-operations-local
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/tenancy-host@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/apps/tenancy-host
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/cli@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/apps/cli
+> tsc -p tsconfig.test.json
+

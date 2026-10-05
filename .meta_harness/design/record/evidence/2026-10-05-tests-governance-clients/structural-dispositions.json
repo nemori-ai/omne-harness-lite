@@ -1,0 +1,1335 @@
+{
+  "base": {
+    "ref": "beef18017170eb70cae2c6bf3afb121b18a0139e",
+    "mergeBase": "beef18017170eb70cae2c6bf3afb121b18a0139e"
+  },
+  "head": "113c465e50c33563b385aea3b6ff1a9de642e2f7",
+  "at": "2026-10-05T00:45:45.348539+00:00",
+  "hard_lines": {
+    "cycles": [],
+    "direction": [],
+    "acceptanceLock": {
+      "status": "judged",
+      "violations": []
+    },
+    "cardRetire": {
+      "status": "judged",
+      "violations": []
+    },
+    "sensors": {
+      "status": "judged",
+      "silent": [],
+      "off": []
+    }
+  },
+  "functions": [
+    {
+      "path": "apps/cli/src/tui/application.ts",
+      "member": "apps/cli",
+      "name": "runTui",
+      "line": 172,
+      "endLine": 452,
+      "complexity": 69,
+      "score": 69,
+      "level": "alert",
+      "grade": 1,
+      "changed": true,
+      "againstBase": {
+        "kind": "worse",
+        "baseline": 64
+      },
+      "disposition": "保留。原菜单/交互控制保持；新增分支区分启动取消、CG原拒绝、实际表示完成和CLS释放。合并成finally无条件清理会破坏CQ2 S10。冻结controller-startup/presentation/close-defect覆盖；后续只在同观察下拆分。"
+    },
+    {
+      "path": "apps/cli/src/application.ts",
+      "member": "apps/cli",
+      "name": "runCli",
+      "line": 48,
+      "endLine": 189,
+      "complexity": 38,
+      "score": 38,
+      "level": "alert",
+      "grade": 1,
+      "changed": true,
+      "againstBase": {
+        "kind": "worse",
+        "baseline": 35
+      },
+      "disposition": "保留。增加已采用装配句柄及真实clientStopped/closed分类；业务输出优先级保持。原测试及冻结startup/close-defect覆盖。"
+    },
+    {
+      "path": "apps/cli/src/assembly.ts",
+      "member": "apps/cli",
+      "name": "createClientAssembly",
+      "line": 92,
+      "endLine": 251,
+      "complexity": 15,
+      "score": 15,
+      "level": "alert",
+      "grade": 3.8125,
+      "changed": true,
+      "againstBase": {
+        "kind": "new",
+        "reason": "new-file"
+      },
+      "disposition": "保留。此函数拥有四行装配与三个完成观察，不把CG拒绝变成静止许可。六前缀和实际控制组合覆盖；不是新的公共插件树机制。"
+    },
+    {
+      "path": "apps/cli/src/assembly.ts",
+      "member": "apps/cli",
+      "name": "createClientAssembly.load",
+      "line": 164,
+      "endLine": 232,
+      "complexity": 15,
+      "score": 15,
+      "level": "alert",
+      "grade": 3.8125,
+      "changed": true,
+      "againstBase": {
+        "kind": "new",
+        "reason": "new-file"
+      },
+      "disposition": "保留。每行须核管理协议、所需依赖、同步登记、实际ready/ACTIVE和服务可用性；失败前缀保留。收敛这些检查会掩盖已复现missing-dependency与未登记前缀。"
+    },
+    {
+      "path": "packages/core/governance-client-operations/src/exit-status.ts",
+      "member": "packages/core/governance-client-operations",
+      "name": "exitStatus",
+      "line": 3,
+      "endLine": 25,
+      "complexity": 13,
+      "score": 13,
+      "level": "alert",
+      "grade": 4.9375,
+      "changed": true,
+      "againstBase": {
+        "kind": "new",
+        "reason": "new-file"
+      },
+      "disposition": "物理迁移保留。原分支逐字迁到core公共操作拥有者，新增读数来自新路径；不是新增退出策略。原34CLI映射继续验。"
+    },
+    {
+      "path": "packages/frontend/governance-client-operations-local/src/use.ts",
+      "member": "packages/frontend/governance-client-operations-local",
+      "name": "Use.#run",
+      "line": 90,
+      "endLine": 139,
+      "complexity": 12,
+      "score": 12,
+      "level": "warn",
+      "grade": 5.5,
+      "changed": true,
+      "againstBase": {
+        "kind": "worse",
+        "baseline": 11
+      },
+      "disposition": "保留。busy工作在可重入依赖前登记，增加成功/失败清理分支；原业务优先序与同期busy断言保持。原重入反例与274前端回归覆盖。"
+    }
+  ],
+  "clones": [
+    {
+      "a": {
+        "path": "packages/frontend/governance-center-client-https/src/instance.ts",
+        "member": "packages/frontend/governance-center-client-https",
+        "start": 23,
+        "end": 39
+      },
+      "b": {
+        "path": "packages/frontend/client-local-state-sqlite/src/store.ts",
+        "member": "packages/frontend/client-local-state-sqlite",
+        "start": 135,
+        "end": 151
+      },
+      "lines": 17,
+      "crossMember": true,
+      "bEndEstimated": false,
+      "disposition": "保留各独立能力的准入登记与finally删除模式；它们有不同忙闲、取消、存储和传输责任。先登记是重入正确性要求；暂不引入通用生命周期包装扩大核心。三原反例与独立TLS/SQLite组合覆盖。"
+    },
+    {
+      "a": {
+        "path": "packages/frontend/governance-client-operations-local/src/use.ts",
+        "member": "packages/frontend/governance-client-operations-local",
+        "start": 76,
+        "end": 90
+      },
+      "b": {
+        "path": "packages/frontend/client-local-state-sqlite/src/store.ts",
+        "member": "packages/frontend/client-local-state-sqlite",
+        "start": 136,
+        "end": 151
+      },
+      "lines": 15,
+      "crossMember": true,
+      "bEndEstimated": false,
+      "disposition": "保留各独立能力的准入登记与finally删除模式；它们有不同忙闲、取消、存储和传输责任。先登记是重入正确性要求；暂不引入通用生命周期包装扩大核心。三原反例与独立TLS/SQLite组合覆盖。"
+    },
+    {
+      "a": {
+        "path": "packages/frontend/governance-client-operations-local/src/schema-inputs.ts",
+        "member": "packages/frontend/governance-client-operations-local",
+        "start": 16,
+        "end": 28
+      },
+      "b": {
+        "path": "apps/cli/src/schema-inputs.ts",
+        "member": "apps/cli",
+        "start": 17,
+        "end": 29
+      },
+      "lines": 13,
+      "crossMember": true,
+      "bEndEstimated": false,
+      "disposition": "保留模块各自Schema编译指纹清单；共同Schema本体只有一个core源。清单重合表达实际编译输入，不复制业务承诺。"
+    },
+    {
+      "a": {
+        "path": "apps/tenancy-host/src/assembly.ts",
+        "member": "apps/tenancy-host",
+        "start": 48,
+        "end": 59
+      },
+      "b": {
+        "path": "apps/cli/src/assembly.ts",
+        "member": "apps/cli",
+        "start": 54,
+        "end": 64
+      },
+      "lines": 12,
+      "crossMember": true,
+      "bEndEstimated": false,
+      "disposition": "保留两个应用私有Service桥的委托形状。共享关闭算法已复用assembly-lifecycle，两个宿主的表示门/装载政策不同。T4接插件树时重看装配加载部分。"
+    },
+    {
+      "a": {
+        "path": "packages/frontend/governance-client-operations-local/src/client.ts",
+        "member": "packages/frontend/governance-client-operations-local",
+        "start": 59,
+        "end": 70
+      },
+      "b": {
+        "path": "packages/frontend/client-local-state-sqlite/src/store.ts",
+        "member": "packages/frontend/client-local-state-sqlite",
+        "start": 139,
+        "end": 151
+      },
+      "lines": 12,
+      "crossMember": true,
+      "bEndEstimated": false,
+      "disposition": "保留各独立能力的准入登记与finally删除模式；它们有不同忙闲、取消、存储和传输责任。先登记是重入正确性要求；暂不引入通用生命周期包装扩大核心。三原反例与独立TLS/SQLite组合覆盖。"
+    },
+    {
+      "a": {
+        "path": "packages/frontend/governance-center-client-https/src/schema-inputs.ts",
+        "member": "packages/frontend/governance-center-client-https",
+        "start": 12,
+        "end": 22
+      },
+      "b": {
+        "path": "packages/frontend/client-local-state-sqlite/src/schema-inputs.ts",
+        "member": "packages/frontend/client-local-state-sqlite",
+        "start": 10,
+        "end": 21
+      },
+      "lines": 11,
+      "crossMember": true,
+      "bEndEstimated": false,
+      "disposition": "保留模块各自Schema编译指纹清单；共同Schema本体只有一个core源。清单重合表达实际编译输入，不复制业务承诺。"
+    },
+    {
+      "a": {
+        "path": "packages/tenancy/governance-center-entry-node/src/routing/decide.ts",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "start": 349,
+        "end": 360
+      },
+      "b": {
+        "path": "packages/tenancy/governance-center-entry-node/src/routing/decide.ts",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "start": 236,
+        "end": 247
+      },
+      "lines": 12,
+      "crossMember": false,
+      "bEndEstimated": false,
+      "disposition": "原业务分支/服务就绪观察保持，当前改动只是公共词汇导入/形状。迁移读数重新识别原重复；不借本批改授权或运维算法。"
+    },
+    {
+      "a": {
+        "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "start": 393,
+        "end": 401
+      },
+      "b": {
+        "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "start": 335,
+        "end": 343
+      },
+      "lines": 9,
+      "crossMember": false,
+      "bEndEstimated": false,
+      "disposition": "原业务分支/服务就绪观察保持，当前改动只是公共词汇导入/形状。迁移读数重新识别原重复；不借本批改授权或运维算法。"
+    }
+  ],
+  "new_edges": [
+    {
+      "from": "apps/cli",
+      "to": "packages/core/assembly-lifecycle",
+      "site": {
+        "path": "apps/cli/src/assembly.ts",
+        "line": 2,
+        "specifier": "@omne-harness-lite/assembly-lifecycle"
+      },
+      "disposition": "消费者改接唯一公共词汇/接口；server EntryAnswer只搬形状，原路由与返回不改。"
+    },
+    {
+      "from": "apps/cli",
+      "to": "packages/core/client-local-state",
+      "site": {
+        "path": "apps/cli/src/assembly.ts",
+        "line": 14,
+        "specifier": "@omne-harness-lite/client-local-state/cordis"
+      },
+      "disposition": "消费者改接唯一公共词汇/接口；server EntryAnswer只搬形状，原路由与返回不改。"
+    },
+    {
+      "from": "apps/cli",
+      "to": "packages/core/governance-center-entry-https-json",
+      "site": {
+        "path": "apps/cli/src/assembly.ts",
+        "line": 20,
+        "specifier": "@omne-harness-lite/governance-center-entry-https-json/cordis"
+      },
+      "disposition": "消费者改接唯一公共词汇/接口；server EntryAnswer只搬形状，原路由与返回不改。"
+    },
+    {
+      "from": "apps/cli",
+      "to": "packages/core/kernel-basis",
+      "site": {
+        "path": "apps/cli/src/assembly.ts",
+        "line": 29,
+        "specifier": "@omne-harness-lite/kernel-basis/cordis"
+      },
+      "disposition": "消费者改接唯一公共词汇/接口；server EntryAnswer只搬形状，原路由与返回不改。"
+    },
+    {
+      "from": "apps/cli",
+      "to": "packages/frontend/client-local-state-sqlite",
+      "site": {
+        "path": "apps/cli/src/assembly.ts",
+        "line": 18,
+        "specifier": "@omne-harness-lite/client-local-state-sqlite"
+      },
+      "disposition": "唯一具体提供者选择归已采用apps/cli/src/assembly.ts；控制面依赖公共接口。"
+    },
+    {
+      "from": "apps/cli",
+      "to": "packages/frontend/governance-center-client-https",
+      "site": {
+        "path": "apps/cli/src/assembly.ts",
+        "line": 21,
+        "specifier": "@omne-harness-lite/governance-center-client-https/cordis"
+      },
+      "disposition": "唯一具体提供者选择归已采用apps/cli/src/assembly.ts；控制面依赖公共接口。"
+    },
+    {
+      "from": "apps/cli",
+      "to": "packages/frontend/governance-client-operations-local",
+      "site": {
+        "path": "apps/cli/src/assembly.ts",
+        "line": 27,
+        "specifier": "@omne-harness-lite/governance-client-operations-local/cordis"
+      },
+      "disposition": "唯一具体提供者选择归已采用apps/cli/src/assembly.ts；控制面依赖公共接口。"
+    },
+    {
+      "from": "apps/cli",
+      "to": "packages/infra/storage-sql",
+      "site": {
+        "path": "apps/cli/src/assembly.ts",
+        "line": 28,
+        "specifier": "@omne-harness-lite/storage-sql"
+      },
+      "disposition": "唯一具体提供者选择归已采用apps/cli/src/assembly.ts；控制面依赖公共接口。"
+    },
+    {
+      "from": "packages/core/client-local-state",
+      "to": "packages/core/storage",
+      "site": {
+        "path": "packages/core/client-local-state/src/index.ts",
+        "line": 1,
+        "specifier": "@omne-harness-lite/storage"
+      },
+      "disposition": "定义拥有者依赖公共定义；纯根/cordis分开。源码、声明、运行和tarball闭包须独立验收。"
+    },
+    {
+      "from": "packages/core/governance-client-operations",
+      "to": "packages/core/client-local-state",
+      "site": {
+        "path": "packages/core/governance-client-operations/src/types.ts",
+        "line": 1,
+        "specifier": "@omne-harness-lite/client-local-state"
+      },
+      "disposition": "定义拥有者依赖公共定义；纯根/cordis分开。源码、声明、运行和tarball闭包须独立验收。"
+    },
+    {
+      "from": "packages/frontend/client-local-state-sqlite",
+      "to": "packages/core/assembly-lifecycle",
+      "site": {
+        "path": "packages/frontend/client-local-state-sqlite/src/plugin.ts",
+        "line": 1,
+        "specifier": "@omne-harness-lite/assembly-lifecycle/cordis"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/client-local-state-sqlite",
+      "to": "packages/core/client-local-state",
+      "site": {
+        "path": "packages/frontend/client-local-state-sqlite/src/open-failure.ts",
+        "line": 1,
+        "specifier": "@omne-harness-lite/client-local-state"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/client-local-state-sqlite",
+      "to": "packages/core/governance-center-entry",
+      "site": {
+        "path": "packages/frontend/client-local-state-sqlite/src/schema-inputs.ts",
+        "line": 3,
+        "specifier": "@omne-harness-lite/governance-center-entry/schema/v2"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/client-local-state-sqlite",
+      "to": "packages/core/identity-values",
+      "site": {
+        "path": "packages/frontend/client-local-state-sqlite/src/schema-inputs.ts",
+        "line": 4,
+        "specifier": "@omne-harness-lite/identity-values/schema"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/client-local-state-sqlite",
+      "to": "packages/core/kernel-basis",
+      "site": {
+        "path": "packages/frontend/client-local-state-sqlite/src/plugin.ts",
+        "line": 7,
+        "specifier": "@omne-harness-lite/kernel-basis/cordis"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/client-local-state-sqlite",
+      "to": "packages/core/offer-expiry",
+      "site": {
+        "path": "packages/frontend/client-local-state-sqlite/src/schema-inputs.ts",
+        "line": 5,
+        "specifier": "@omne-harness-lite/offer-expiry/schema"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/client-local-state-sqlite",
+      "to": "packages/core/storage",
+      "site": {
+        "path": "packages/frontend/client-local-state-sqlite/src/open.ts",
+        "line": 2,
+        "specifier": "@omne-harness-lite/storage"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/governance-center-client-https",
+      "to": "packages/core/assembly-lifecycle",
+      "site": {
+        "path": "packages/frontend/governance-center-client-https/src/plugin.ts",
+        "line": 1,
+        "specifier": "@omne-harness-lite/assembly-lifecycle/cordis"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/governance-center-client-https",
+      "to": "packages/core/governance-center-entry",
+      "site": {
+        "path": "packages/frontend/governance-center-client-https/src/schema-inputs.ts",
+        "line": 5,
+        "specifier": "@omne-harness-lite/governance-center-entry/schema/v2"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/governance-center-client-https",
+      "to": "packages/core/governance-center-entry-https-json",
+      "site": {
+        "path": "packages/frontend/governance-center-client-https/src/config.ts",
+        "line": 1,
+        "specifier": "@omne-harness-lite/governance-center-entry-https-json"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/governance-center-client-https",
+      "to": "packages/core/identity-values",
+      "site": {
+        "path": "packages/frontend/governance-center-client-https/src/schema-inputs.ts",
+        "line": 6,
+        "specifier": "@omne-harness-lite/identity-values/schema"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/governance-center-client-https",
+      "to": "packages/core/kernel-basis",
+      "site": {
+        "path": "packages/frontend/governance-center-client-https/src/plugin.ts",
+        "line": 7,
+        "specifier": "@omne-harness-lite/kernel-basis/cordis"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/governance-center-client-https",
+      "to": "packages/core/offer-expiry",
+      "site": {
+        "path": "packages/frontend/governance-center-client-https/src/schema-inputs.ts",
+        "line": 7,
+        "specifier": "@omne-harness-lite/offer-expiry/schema"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/governance-client-operations-local",
+      "to": "packages/core/assembly-lifecycle",
+      "site": {
+        "path": "packages/frontend/governance-client-operations-local/src/managed-client.ts",
+        "line": 2,
+        "specifier": "@omne-harness-lite/assembly-lifecycle/cordis"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/governance-client-operations-local",
+      "to": "packages/core/client-local-state",
+      "site": {
+        "path": "packages/frontend/governance-client-operations-local/src/actions.ts",
+        "line": 1,
+        "specifier": "@omne-harness-lite/client-local-state"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/governance-client-operations-local",
+      "to": "packages/core/governance-center-entry",
+      "site": {
+        "path": "packages/frontend/governance-client-operations-local/src/schema-inputs.ts",
+        "line": 11,
+        "specifier": "@omne-harness-lite/governance-center-entry/schema/v2"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/governance-client-operations-local",
+      "to": "packages/core/governance-center-entry-https-json",
+      "site": {
+        "path": "packages/frontend/governance-client-operations-local/src/actions.ts",
+        "line": 6,
+        "specifier": "@omne-harness-lite/governance-center-entry-https-json"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/governance-client-operations-local",
+      "to": "packages/core/governance-client-operations",
+      "site": {
+        "path": "packages/frontend/governance-client-operations-local/src/actions.ts",
+        "line": 14,
+        "specifier": "@omne-harness-lite/governance-client-operations"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/governance-client-operations-local",
+      "to": "packages/core/identity-values",
+      "site": {
+        "path": "packages/frontend/governance-client-operations-local/src/schema-inputs.ts",
+        "line": 10,
+        "specifier": "@omne-harness-lite/identity-values/schema"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/governance-client-operations-local",
+      "to": "packages/core/kernel-basis",
+      "site": {
+        "path": "packages/frontend/governance-client-operations-local/src/managed-client.ts",
+        "line": 10,
+        "specifier": "@omne-harness-lite/kernel-basis/cordis"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/frontend/governance-client-operations-local",
+      "to": "packages/core/offer-expiry",
+      "site": {
+        "path": "packages/frontend/governance-client-operations-local/src/schema-inputs.ts",
+        "line": 9,
+        "specifier": "@omne-harness-lite/offer-expiry/schema"
+      },
+      "disposition": "限定提供者依赖公共业务定义/Schema与绑定专用集成服务；不依赖其他具体提供者。"
+    },
+    {
+      "from": "packages/tenancy/governance-center-entry-node",
+      "to": "packages/core/governance-center-entry-https-json",
+      "site": {
+        "path": "packages/tenancy/governance-center-entry-node/src/routing/answers.ts",
+        "line": 11,
+        "specifier": "@omne-harness-lite/governance-center-entry-https-json"
+      },
+      "disposition": "消费者改接唯一公共词汇/接口；server EntryAnswer只搬形状，原路由与返回不改。"
+    }
+  ],
+  "legacy_mapping_deltas": [
+    {
+      "id": "apps/cli||top|plugin|cli-state-storage|||",
+      "member": "apps/cli",
+      "kind": "plugin",
+      "key": "cli-state-storage",
+      "state": "deviation",
+      "implementation": {
+        "path": "apps/cli/src/assembly.ts",
+        "line": 41
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "apps/cli/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "apps/cli||top|plugin|CloseObserver|||",
+      "member": "apps/cli",
+      "kind": "plugin",
+      "key": "CloseObserver",
+      "state": "deviation",
+      "implementation": {
+        "path": "apps/cli/src/assembly.ts",
+        "line": 64
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "apps/cli/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "apps/cli||top|plugin|LifetimePort|||",
+      "member": "apps/cli",
+      "kind": "plugin",
+      "key": "LifetimePort",
+      "state": "deviation",
+      "implementation": {
+        "path": "apps/cli/src/assembly.ts",
+        "line": 54
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "apps/cli/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "apps/cli||top|plugin|StorageFactory|||",
+      "member": "apps/cli",
+      "kind": "plugin",
+      "key": "StorageFactory",
+      "state": "deviation",
+      "implementation": {
+        "path": "apps/cli/src/assembly.ts",
+        "line": 37
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "apps/cli/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "apps/cli|cli-state-storage|top|contributes|assemblyLifetime|||",
+      "member": "apps/cli",
+      "kind": "contributes",
+      "key": "assemblyLifetime",
+      "state": "deviation",
+      "plugin": "cli-state-storage",
+      "implementation": {
+        "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+        "line": 23
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "apps/cli/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "apps/cli|cli-state-storage|top|injects|assemblyLifetime|||",
+      "member": "apps/cli",
+      "kind": "injects",
+      "key": "assemblyLifetime",
+      "state": "deviation",
+      "plugin": "cli-state-storage",
+      "implementation": {
+        "path": "apps/cli/src/assembly.ts",
+        "line": 43
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "apps/cli/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "apps/cli|cli-state-storage|top|provides|clientStateStorage|||",
+      "member": "apps/cli",
+      "kind": "provides",
+      "key": "clientStateStorage",
+      "state": "deviation",
+      "plugin": "cli-state-storage",
+      "implementation": {
+        "path": "packages/core/client-local-state/src/cordis.ts",
+        "line": 18
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "apps/cli/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "apps/cli|CloseObserver|top|provides|governanceClientCloseObserver|||",
+      "member": "apps/cli",
+      "kind": "provides",
+      "key": "governanceClientCloseObserver",
+      "state": "deviation",
+      "plugin": "CloseObserver",
+      "implementation": {
+        "path": "packages/core/governance-client-operations/src/cordis.ts",
+        "line": 26
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "apps/cli/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "apps/cli|LifetimePort|top|provides|assemblyLifetime|||",
+      "member": "apps/cli",
+      "kind": "provides",
+      "key": "assemblyLifetime",
+      "state": "deviation",
+      "plugin": "LifetimePort",
+      "implementation": {
+        "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+        "line": 7
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "apps/cli/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "apps/cli|StorageFactory|top|provides|clientStateStorage|||",
+      "member": "apps/cli",
+      "kind": "provides",
+      "key": "clientStateStorage",
+      "state": "deviation",
+      "plugin": "StorageFactory",
+      "implementation": {
+        "path": "packages/core/client-local-state/src/cordis.ts",
+        "line": 18
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "apps/cli/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/core/client-local-state||top|defines|clientLocalState|||",
+      "member": "packages/core/client-local-state",
+      "kind": "defines",
+      "key": "clientLocalState",
+      "state": "deviation",
+      "implementation": {
+        "path": "packages/core/client-local-state/src/cordis.ts",
+        "line": 29
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/core/client-local-state/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/core/client-local-state||top|defines|clientLocalState|||",
+      "member": "packages/core/client-local-state",
+      "kind": "defines",
+      "key": "clientLocalState",
+      "state": "deviation",
+      "implementation": {
+        "path": "packages/core/client-local-state/src/cordis.ts",
+        "line": 6
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/core/client-local-state/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/core/client-local-state||top|defines|clientStateStorage|||",
+      "member": "packages/core/client-local-state",
+      "kind": "defines",
+      "key": "clientStateStorage",
+      "state": "deviation",
+      "implementation": {
+        "path": "packages/core/client-local-state/src/cordis.ts",
+        "line": 30
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/core/client-local-state/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/core/client-local-state||top|defines|clientStateStorage|||",
+      "member": "packages/core/client-local-state",
+      "kind": "defines",
+      "key": "clientStateStorage",
+      "state": "deviation",
+      "implementation": {
+        "path": "packages/core/client-local-state/src/cordis.ts",
+        "line": 18
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/core/client-local-state/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/core/governance-center-entry-https-json||top|defines|governanceTransport|||",
+      "member": "packages/core/governance-center-entry-https-json",
+      "kind": "defines",
+      "key": "governanceTransport",
+      "state": "deviation",
+      "implementation": {
+        "path": "packages/core/governance-center-entry-https-json/src/cordis.ts",
+        "line": 18
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/core/governance-center-entry-https-json/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/core/governance-center-entry-https-json||top|defines|governanceTransport|||",
+      "member": "packages/core/governance-center-entry-https-json",
+      "kind": "defines",
+      "key": "governanceTransport",
+      "state": "deviation",
+      "implementation": {
+        "path": "packages/core/governance-center-entry-https-json/src/cordis.ts",
+        "line": 6
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/core/governance-center-entry-https-json/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/core/governance-client-operations||top|defines|governanceClientCloseObserver|||",
+      "member": "packages/core/governance-client-operations",
+      "kind": "defines",
+      "key": "governanceClientCloseObserver",
+      "state": "deviation",
+      "implementation": {
+        "path": "packages/core/governance-client-operations/src/cordis.ts",
+        "line": 37
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/core/governance-client-operations/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/core/governance-client-operations||top|defines|governanceClientCloseObserver|||",
+      "member": "packages/core/governance-client-operations",
+      "kind": "defines",
+      "key": "governanceClientCloseObserver",
+      "state": "deviation",
+      "implementation": {
+        "path": "packages/core/governance-client-operations/src/cordis.ts",
+        "line": 26
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/core/governance-client-operations/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/core/governance-client-operations||top|defines|governanceClientOperations|||",
+      "member": "packages/core/governance-client-operations",
+      "kind": "defines",
+      "key": "governanceClientOperations",
+      "state": "deviation",
+      "implementation": {
+        "path": "packages/core/governance-client-operations/src/cordis.ts",
+        "line": 36
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/core/governance-client-operations/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/core/governance-client-operations||top|defines|governanceClientOperations|||",
+      "member": "packages/core/governance-client-operations",
+      "kind": "defines",
+      "key": "governanceClientOperations",
+      "state": "deviation",
+      "implementation": {
+        "path": "packages/core/governance-client-operations/src/cordis.ts",
+        "line": 9
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/core/governance-client-operations/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/client-local-state-sqlite||top|plugin|client-local-state-sqlite-managed|||",
+      "member": "packages/frontend/client-local-state-sqlite",
+      "kind": "plugin",
+      "key": "client-local-state-sqlite-managed",
+      "state": "deviation",
+      "implementation": {
+        "path": "packages/frontend/client-local-state-sqlite/src/plugin.ts",
+        "line": 49
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/client-local-state-sqlite/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/client-local-state-sqlite||top|plugin|client-local-state-sqlite|||",
+      "member": "packages/frontend/client-local-state-sqlite",
+      "kind": "plugin",
+      "key": "client-local-state-sqlite",
+      "state": "deviation",
+      "implementation": {
+        "path": "packages/frontend/client-local-state-sqlite/src/plugin.ts",
+        "line": 32
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/client-local-state-sqlite/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/client-local-state-sqlite||top|plugin|LocalStateService|||",
+      "member": "packages/frontend/client-local-state-sqlite",
+      "kind": "plugin",
+      "key": "LocalStateService",
+      "state": "deviation",
+      "implementation": {
+        "path": "packages/frontend/client-local-state-sqlite/src/plugin.ts",
+        "line": 19
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/client-local-state-sqlite/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/client-local-state-sqlite|client-local-state-sqlite-managed|top|contributes|assemblyLifetime|||",
+      "member": "packages/frontend/client-local-state-sqlite",
+      "kind": "contributes",
+      "key": "assemblyLifetime",
+      "state": "deviation",
+      "plugin": "client-local-state-sqlite-managed",
+      "implementation": {
+        "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+        "line": 23
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/client-local-state-sqlite/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/client-local-state-sqlite|client-local-state-sqlite-managed|top|injects|assemblyLifetime|||",
+      "member": "packages/frontend/client-local-state-sqlite",
+      "kind": "injects",
+      "key": "assemblyLifetime",
+      "state": "deviation",
+      "plugin": "client-local-state-sqlite-managed",
+      "implementation": {
+        "path": "packages/frontend/client-local-state-sqlite/src/plugin.ts",
+        "line": 50
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/client-local-state-sqlite/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/client-local-state-sqlite|client-local-state-sqlite-managed|top|injects|clientStateStorage|||",
+      "member": "packages/frontend/client-local-state-sqlite",
+      "kind": "injects",
+      "key": "clientStateStorage",
+      "state": "deviation",
+      "plugin": "client-local-state-sqlite-managed",
+      "implementation": {
+        "path": "packages/frontend/client-local-state-sqlite/src/plugin.ts",
+        "line": 50
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/client-local-state-sqlite/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/client-local-state-sqlite|client-local-state-sqlite-managed|top|provides|clientLocalState|||",
+      "member": "packages/frontend/client-local-state-sqlite",
+      "kind": "provides",
+      "key": "clientLocalState",
+      "state": "deviation",
+      "plugin": "client-local-state-sqlite-managed",
+      "implementation": {
+        "path": "packages/core/client-local-state/src/cordis.ts",
+        "line": 6
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/client-local-state-sqlite/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/client-local-state-sqlite|client-local-state-sqlite|top|injects|clientStateStorage|||",
+      "member": "packages/frontend/client-local-state-sqlite",
+      "kind": "injects",
+      "key": "clientStateStorage",
+      "state": "deviation",
+      "plugin": "client-local-state-sqlite",
+      "implementation": {
+        "path": "packages/frontend/client-local-state-sqlite/src/plugin.ts",
+        "line": 33
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/client-local-state-sqlite/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/client-local-state-sqlite|client-local-state-sqlite|top|provides|clientLocalState|||",
+      "member": "packages/frontend/client-local-state-sqlite",
+      "kind": "provides",
+      "key": "clientLocalState",
+      "state": "deviation",
+      "plugin": "client-local-state-sqlite",
+      "implementation": {
+        "path": "packages/core/client-local-state/src/cordis.ts",
+        "line": 6
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/client-local-state-sqlite/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/client-local-state-sqlite|LocalStateService|top|provides|clientLocalState|||",
+      "member": "packages/frontend/client-local-state-sqlite",
+      "kind": "provides",
+      "key": "clientLocalState",
+      "state": "deviation",
+      "plugin": "LocalStateService",
+      "implementation": {
+        "path": "packages/core/client-local-state/src/cordis.ts",
+        "line": 6
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/client-local-state-sqlite/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-center-client-https||top|plugin|governance-center-client-https-managed|||",
+      "member": "packages/frontend/governance-center-client-https",
+      "kind": "plugin",
+      "key": "governance-center-client-https-managed",
+      "state": "deviation",
+      "implementation": {
+        "path": "packages/frontend/governance-center-client-https/src/plugin.ts",
+        "line": 41
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-center-client-https/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-center-client-https||top|plugin|governance-center-client-https|||",
+      "member": "packages/frontend/governance-center-client-https",
+      "kind": "plugin",
+      "key": "governance-center-client-https",
+      "state": "deviation",
+      "implementation": {
+        "path": "packages/frontend/governance-center-client-https/src/plugin.ts",
+        "line": 25
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-center-client-https/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-center-client-https||top|plugin|TransportService|||",
+      "member": "packages/frontend/governance-center-client-https",
+      "kind": "plugin",
+      "key": "TransportService",
+      "state": "deviation",
+      "implementation": {
+        "path": "packages/frontend/governance-center-client-https/src/plugin.ts",
+        "line": 11
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-center-client-https/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-center-client-https|governance-center-client-https-managed|top|contributes|assemblyLifetime|||",
+      "member": "packages/frontend/governance-center-client-https",
+      "kind": "contributes",
+      "key": "assemblyLifetime",
+      "state": "deviation",
+      "plugin": "governance-center-client-https-managed",
+      "implementation": {
+        "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+        "line": 23
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-center-client-https/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-center-client-https|governance-center-client-https-managed|top|injects|assemblyLifetime|||",
+      "member": "packages/frontend/governance-center-client-https",
+      "kind": "injects",
+      "key": "assemblyLifetime",
+      "state": "deviation",
+      "plugin": "governance-center-client-https-managed",
+      "implementation": {
+        "path": "packages/frontend/governance-center-client-https/src/plugin.ts",
+        "line": 42
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-center-client-https/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-center-client-https|governance-center-client-https-managed|top|provides|governanceTransport|||",
+      "member": "packages/frontend/governance-center-client-https",
+      "kind": "provides",
+      "key": "governanceTransport",
+      "state": "deviation",
+      "plugin": "governance-center-client-https-managed",
+      "implementation": {
+        "path": "packages/core/governance-center-entry-https-json/src/cordis.ts",
+        "line": 6
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-center-client-https/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-center-client-https|governance-center-client-https|top|provides|governanceTransport|||",
+      "member": "packages/frontend/governance-center-client-https",
+      "kind": "provides",
+      "key": "governanceTransport",
+      "state": "deviation",
+      "plugin": "governance-center-client-https",
+      "implementation": {
+        "path": "packages/core/governance-center-entry-https-json/src/cordis.ts",
+        "line": 6
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-center-client-https/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-center-client-https|TransportService|top|provides|governanceTransport|||",
+      "member": "packages/frontend/governance-center-client-https",
+      "kind": "provides",
+      "key": "governanceTransport",
+      "state": "deviation",
+      "plugin": "TransportService",
+      "implementation": {
+        "path": "packages/core/governance-center-entry-https-json/src/cordis.ts",
+        "line": 6
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-center-client-https/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-client-operations-local||top|plugin|ClientService|||",
+      "member": "packages/frontend/governance-client-operations-local",
+      "kind": "plugin",
+      "key": "ClientService",
+      "state": "deviation",
+      "implementation": {
+        "path": "packages/frontend/governance-client-operations-local/src/plugin.ts",
+        "line": 13
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-client-operations-local/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-client-operations-local||top|plugin|governance-client-operations-local-managed|||",
+      "member": "packages/frontend/governance-client-operations-local",
+      "kind": "plugin",
+      "key": "governance-client-operations-local-managed",
+      "state": "deviation",
+      "implementation": {
+        "path": "packages/frontend/governance-client-operations-local/src/managed-client.ts",
+        "line": 21
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-client-operations-local/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-client-operations-local||top|plugin|governance-client-operations-local|||",
+      "member": "packages/frontend/governance-client-operations-local",
+      "kind": "plugin",
+      "key": "governance-client-operations-local",
+      "state": "deviation",
+      "implementation": {
+        "path": "packages/frontend/governance-client-operations-local/src/plugin.ts",
+        "line": 31
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-client-operations-local/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-client-operations-local|ClientService|top|provides|governanceClientOperations|||",
+      "member": "packages/frontend/governance-client-operations-local",
+      "kind": "provides",
+      "key": "governanceClientOperations",
+      "state": "deviation",
+      "plugin": "ClientService",
+      "implementation": {
+        "path": "packages/core/governance-client-operations/src/cordis.ts",
+        "line": 9
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-client-operations-local/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-client-operations-local|governance-client-operations-local-managed|top|contributes|assemblyLifetime|||",
+      "member": "packages/frontend/governance-client-operations-local",
+      "kind": "contributes",
+      "key": "assemblyLifetime",
+      "state": "deviation",
+      "plugin": "governance-client-operations-local-managed",
+      "implementation": {
+        "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+        "line": 23
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-client-operations-local/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-client-operations-local|governance-client-operations-local-managed|top|injects|assemblyLifetime|||",
+      "member": "packages/frontend/governance-client-operations-local",
+      "kind": "injects",
+      "key": "assemblyLifetime",
+      "state": "deviation",
+      "plugin": "governance-client-operations-local-managed",
+      "implementation": {
+        "path": "packages/frontend/governance-client-operations-local/src/managed-client.ts",
+        "line": 26
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-client-operations-local/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-client-operations-local|governance-client-operations-local-managed|top|injects|clientLocalState|||",
+      "member": "packages/frontend/governance-client-operations-local",
+      "kind": "injects",
+      "key": "clientLocalState",
+      "state": "deviation",
+      "plugin": "governance-client-operations-local-managed",
+      "implementation": {
+        "path": "packages/frontend/governance-client-operations-local/src/managed-client.ts",
+        "line": 23
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-client-operations-local/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-client-operations-local|governance-client-operations-local-managed|top|injects|governanceClientCloseObserver|||",
+      "member": "packages/frontend/governance-client-operations-local",
+      "kind": "injects",
+      "key": "governanceClientCloseObserver",
+      "state": "deviation",
+      "plugin": "governance-client-operations-local-managed",
+      "implementation": {
+        "path": "packages/frontend/governance-client-operations-local/src/managed-client.ts",
+        "line": 25
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-client-operations-local/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-client-operations-local|governance-client-operations-local-managed|top|injects|governanceTransport|||",
+      "member": "packages/frontend/governance-client-operations-local",
+      "kind": "injects",
+      "key": "governanceTransport",
+      "state": "deviation",
+      "plugin": "governance-client-operations-local-managed",
+      "implementation": {
+        "path": "packages/frontend/governance-client-operations-local/src/managed-client.ts",
+        "line": 24
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-client-operations-local/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-client-operations-local|governance-client-operations-local|top|injects|clientLocalState|||",
+      "member": "packages/frontend/governance-client-operations-local",
+      "kind": "injects",
+      "key": "clientLocalState",
+      "state": "deviation",
+      "plugin": "governance-client-operations-local",
+      "implementation": {
+        "path": "packages/frontend/governance-client-operations-local/src/plugin.ts",
+        "line": 32
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-client-operations-local/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-client-operations-local|governance-client-operations-local|top|injects|governanceTransport|||",
+      "member": "packages/frontend/governance-client-operations-local",
+      "kind": "injects",
+      "key": "governanceTransport",
+      "state": "deviation",
+      "plugin": "governance-client-operations-local",
+      "implementation": {
+        "path": "packages/frontend/governance-client-operations-local/src/plugin.ts",
+        "line": 32
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-client-operations-local/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    },
+    {
+      "id": "packages/frontend/governance-client-operations-local|governance-client-operations-local|top|provides|governanceClientOperations|||",
+      "member": "packages/frontend/governance-client-operations-local",
+      "kind": "provides",
+      "key": "governanceClientOperations",
+      "state": "deviation",
+      "plugin": "governance-client-operations-local",
+      "implementation": {
+        "path": "packages/core/governance-client-operations/src/cordis.ts",
+        "line": 9
+      },
+      "disposition": "保留旧realization对账读数；此项已由已采用client-integration/cli-lifecycle及当前公开入口拥有集成承诺。工具仍对旧装配声明，不为消项新增退役范式文件。必须由N5/N6切换旧映射消费者后关闭该读数。",
+      "current_owner": "packages/frontend/governance-client-operations-local/SPEC.md",
+      "acceptance": "R1-T3独立L3仍待，记录归属不等于已验收"
+    }
+  ],
+  "architecture": {
+    "new_deviations": [],
+    "stock_deviations": 88,
+    "unknowns": "保留unknown；源关系不证明动态所有权/授权。限定T3实际绑定和业务由47冻结标准验收，完整identity视图由R1-T5负责。",
+    "scope_role": "只有真实apps/cli/src/assembly.ts获得已采用assembly角色；未把其他入口批量标装配消项。"
+  },
+  "global_trend_limit": "member预算比较来自f226b4cca旧趋势快照，不能将apps/tenancy-host及其他未改成员的读数差都归此T3；函数/边/旧映射差分使用精确beef BASE。",
+  "worktree_limit": "3棵为仓库共享现场，本会话唯一arch-intent；未写或清理其他工作树，跨树重叠不冒称并行交付。",
+  "status": "每项已说明；独立评审、QA及技术接受尚待。记录偏离不等于目标整改完成。"
+}

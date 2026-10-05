@@ -1,0 +1,50 @@
+node:internal/child_process:1160
+    result.error = new ErrnoException(result.error, 'spawnSync ' + options.file);
+                   ^
+
+<ref *1> Error: spawnSync git ENOBUFS
+    at Object.spawnSync (node:internal/child_process:1160:20)
+    at spawnSync (node:child_process:928:24)
+    at execFileSync (node:child_process:971:15)
+    at file:///data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/scenarios/public-migration-audit.mjs:55:38 {
+  errno: -105,
+  code: 'ENOBUFS',
+  syscall: 'spawnSync git',
+  path: 'git',
+  spawnargs: [ 'ls-files', '-z' ],
+  error: [Circular *1],
+  status: null,
+  signal: 'SIGTERM',
+  output: [
+    null,
+    Buffer(1085440) [Uint8Array] [
+       46,  97, 103, 101, 110, 116, 115,   0,  46,  99, 108,  97,
+      117, 100, 101,   0,  46,  99, 111, 100, 101, 120,   0,  46,
+      101, 100, 105, 116, 111, 114,  99, 111, 110, 102, 105, 103,
+        0,  46, 103, 105, 116, 104, 117,  98,  47, 119, 111, 114,
+      107, 102, 108, 111, 119, 115,  47,  99, 104, 101,  99, 107,
+       46, 121, 109, 108,   0,  46, 103, 105, 116, 105, 103, 110,
+      111, 114, 101,   0,  46, 103, 105, 116, 109, 111, 100, 117,
+      108, 101, 115,   0,  46, 109, 101, 116,  97,  95, 104,  97,
+      114, 110, 101, 115,
+      ... 1085340 more items
+    ],
+    Buffer(0) [Uint8Array] []
+  ],
+  pid: 134319,
+  stdout: Buffer(1085440) [Uint8Array] [
+     46,  97, 103, 101, 110, 116, 115,   0,  46,  99, 108,  97,
+    117, 100, 101,   0,  46,  99, 111, 100, 101, 120,   0,  46,
+    101, 100, 105, 116, 111, 114,  99, 111, 110, 102, 105, 103,
+      0,  46, 103, 105, 116, 104, 117,  98,  47, 119, 111, 114,
+    107, 102, 108, 111, 119, 115,  47,  99, 104, 101,  99, 107,
+     46, 121, 109, 108,   0,  46, 103, 105, 116, 105, 103, 110,
+    111, 114, 101,   0,  46, 103, 105, 116, 109, 111, 100, 117,
+    108, 101, 115,   0,  46, 109, 101, 116,  97,  95, 104,  97,
+    114, 110, 101, 115,
+    ... 1085340 more items
+  ],
+  stderr: Buffer(0) [Uint8Array] []
+}
+
+Node.js v24.21.0

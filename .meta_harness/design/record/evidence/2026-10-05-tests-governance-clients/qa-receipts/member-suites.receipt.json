@@ -1,0 +1,30 @@
+{
+  "base": "beef18017170eb70cae2c6bf3afb121b18a0139e",
+  "commit": "7df742c4b7b0c5d735da2245605be682b6a35f7c",
+  "working_tree": "clean-candidate",
+  "candidate_input_manifest": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/inputs/candidate-tracked-before.json",
+  "run_id": "member-suites",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "argv": [
+    "node",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/scenarios/member-suites.mjs",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/member-suites"
+  ],
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone",
+  "started": "2026-10-05T00:59:06.284Z",
+  "ended": "2026-10-05T00:59:37.582Z",
+  "duration_ms": 31296.69132,
+  "timeout_ms": 2100000,
+  "timed_out": false,
+  "exit_code": 0,
+  "signal": null,
+  "input_files": [
+    {
+      "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/scenarios/member-suites.mjs",
+      "sha256": "f68514a0665ab63354ec264762ee2db6e5e9757e5b9fbe474d0e21c68afc5041"
+    }
+  ],
+  "actual_executor": "qa:/root/r1_t1a_candidate_qa",
+  "source_author_field": "Frozen script verifier is author provenance; actual_executor identifies this run"
+}

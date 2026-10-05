@@ -1,0 +1,275 @@
+{
+  "base": "beef18017170eb70cae2c6bf3afb121b18a0139e",
+  "commit": "7df742c4b7b0c5d735da2245605be682b6a35f7c",
+  "working_tree": "clean-candidate",
+  "candidate_input_manifest": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/inputs/candidate-tracked-before.json",
+  "run_id": "r1-t3-actual-controller-CG-close-defect",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "exit_code": 0,
+  "results": [
+    {
+      "id": "cli-reject",
+      "status": "Pass",
+      "code": 70,
+      "metrics": {
+        "opens": 1,
+        "physicalCloses": 0,
+        "factoryCloses": 0,
+        "pureCreated": 1,
+        "pureCloseCalls": 1
+      },
+      "events": [
+        "SQLite-open-entered",
+        "SQLite-actually-opened",
+        "real-TLS-request-held",
+        "pure-CG-close-attempt",
+        "CG-close-failed-no-permission",
+        "original-CG-report-returned"
+      ],
+      "stdout": [
+        "{\"format\":\"governance-client/1\",\"actionId\":\"f4ce6ea8-e8e7-4737-805f-c1f043d56270\",\"action\":\"health\",\"operation\":null,\"origin\":{\"centerId\":\"11111111111111111111111111111111\",\"accountId\":null,\"loginStateHandle\":null},\"admission\":{\"status\":\"admitted\"},\"remote\":{\"status\":\"success\",\"stage\":\"health\",\"sendAttempted\":false,\"health\":{\"reachable\":true,\"centerId\":\"11111111111111111111111111111111\",\"version\":\"qa\"}},\"local\":{\"status\":\"not-requested\"},\"view\":{\"source\":\"none\"},\"use\":\"ended\"}\n"
+      ],
+      "stderr": [
+        "omne: client-close-failed\n"
+      ],
+      "original_report": {
+        "format": "governance-client/1",
+        "actionId": "f4ce6ea8-e8e7-4737-805f-c1f043d56270",
+        "action": "health",
+        "operation": null,
+        "origin": {
+          "centerId": "11111111111111111111111111111111",
+          "accountId": null,
+          "loginStateHandle": null
+        },
+        "admission": {
+          "status": "admitted"
+        },
+        "remote": {
+          "status": "success",
+          "stage": "health",
+          "sendAttempted": false,
+          "health": {
+            "reachable": true,
+            "centerId": "11111111111111111111111111111111",
+            "version": "qa"
+          }
+        },
+        "local": {
+          "status": "not-requested"
+        },
+        "view": {
+          "source": "none"
+        },
+        "use": "ended"
+      },
+      "application_closed": "pending",
+      "terminal_restores": 0,
+      "requests": [
+        {
+          "operation": "composition.governance-center-entry/v1#S-18"
+        }
+      ]
+    },
+    {
+      "id": "cli-throw",
+      "status": "Pass",
+      "code": 70,
+      "metrics": {
+        "opens": 1,
+        "physicalCloses": 0,
+        "factoryCloses": 0,
+        "pureCreated": 1,
+        "pureCloseCalls": 1
+      },
+      "events": [
+        "SQLite-open-entered",
+        "SQLite-actually-opened",
+        "real-TLS-request-held",
+        "pure-CG-close-attempt",
+        "CG-close-failed-no-permission",
+        "original-CG-report-returned"
+      ],
+      "stdout": [
+        "{\"format\":\"governance-client/1\",\"actionId\":\"faa95f09-dad4-4cff-be15-2e465f7d70a4\",\"action\":\"health\",\"operation\":null,\"origin\":{\"centerId\":\"11111111111111111111111111111111\",\"accountId\":null,\"loginStateHandle\":null},\"admission\":{\"status\":\"admitted\"},\"remote\":{\"status\":\"success\",\"stage\":\"health\",\"sendAttempted\":false,\"health\":{\"reachable\":true,\"centerId\":\"11111111111111111111111111111111\",\"version\":\"qa\"}},\"local\":{\"status\":\"not-requested\"},\"view\":{\"source\":\"none\"},\"use\":\"ended\"}\n"
+      ],
+      "stderr": [
+        "omne: client-close-failed\n"
+      ],
+      "original_report": {
+        "format": "governance-client/1",
+        "actionId": "faa95f09-dad4-4cff-be15-2e465f7d70a4",
+        "action": "health",
+        "operation": null,
+        "origin": {
+          "centerId": "11111111111111111111111111111111",
+          "accountId": null,
+          "loginStateHandle": null
+        },
+        "admission": {
+          "status": "admitted"
+        },
+        "remote": {
+          "status": "success",
+          "stage": "health",
+          "sendAttempted": false,
+          "health": {
+            "reachable": true,
+            "centerId": "11111111111111111111111111111111",
+            "version": "qa"
+          }
+        },
+        "local": {
+          "status": "not-requested"
+        },
+        "view": {
+          "source": "none"
+        },
+        "use": "ended"
+      },
+      "application_closed": "pending",
+      "terminal_restores": 0,
+      "requests": [
+        {
+          "operation": "composition.governance-center-entry/v1#S-18"
+        }
+      ]
+    },
+    {
+      "id": "tui-reject",
+      "status": "Pass",
+      "code": 70,
+      "metrics": {
+        "opens": 1,
+        "physicalCloses": 0,
+        "factoryCloses": 0,
+        "pureCreated": 1,
+        "pureCloseCalls": 1
+      },
+      "events": [
+        "SQLite-open-entered",
+        "SQLite-actually-opened",
+        "real-TLS-request-held",
+        "input-stop-entered",
+        "input-actually-ended",
+        "pure-CG-close-attempt",
+        "CG-close-failed-no-permission",
+        "original-CG-report-returned"
+      ],
+      "stdout": [
+        "Governance result: {\"format\":\"governance-client/1\",\"actionId\":\"7fe8f177-98b5-4c3a-9f78-5905584f74e4\",\"action\":\"health\",\"operation\":null,\"origin\":{\"centerId\":\"11111111111111111111111111111111\",\"accountId\":null,\"loginStateHandle\":null},\"admission\":{\"status\":\"admitted\"},\"remote\":{\"status\":\"success\",\"stage\":\"health\",\"sendAttempted\":false,\"health\":{\"reachable\":true,\"centerId\":\"11111111111111111111111111111111\",\"version\":\"qa\"}},\"local\":{\"status\":\"not-requested\"},\"view\":{\"source\":\"none\"},\"use\":\"ended\"}\n",
+        "\r\nGovernance TUI ended. Exit status: 70.\n"
+      ],
+      "stderr": [
+        "omne: client-close-failed\n"
+      ],
+      "original_report": {
+        "format": "governance-client/1",
+        "actionId": "7fe8f177-98b5-4c3a-9f78-5905584f74e4",
+        "action": "health",
+        "operation": null,
+        "origin": {
+          "centerId": "11111111111111111111111111111111",
+          "accountId": null,
+          "loginStateHandle": null
+        },
+        "admission": {
+          "status": "admitted"
+        },
+        "remote": {
+          "status": "success",
+          "stage": "health",
+          "sendAttempted": false,
+          "health": {
+            "reachable": true,
+            "centerId": "11111111111111111111111111111111",
+            "version": "qa"
+          }
+        },
+        "local": {
+          "status": "not-requested"
+        },
+        "view": {
+          "source": "none"
+        },
+        "use": "ended"
+      },
+      "application_closed": "pending",
+      "terminal_restores": 0,
+      "requests": [
+        {
+          "operation": "composition.governance-center-entry/v1#S-18"
+        }
+      ]
+    },
+    {
+      "id": "tui-throw",
+      "status": "Pass",
+      "code": 70,
+      "metrics": {
+        "opens": 1,
+        "physicalCloses": 0,
+        "factoryCloses": 0,
+        "pureCreated": 1,
+        "pureCloseCalls": 1
+      },
+      "events": [
+        "SQLite-open-entered",
+        "SQLite-actually-opened",
+        "real-TLS-request-held",
+        "input-stop-entered",
+        "input-actually-ended",
+        "pure-CG-close-attempt",
+        "CG-close-failed-no-permission",
+        "original-CG-report-returned"
+      ],
+      "stdout": [
+        "Governance result: {\"format\":\"governance-client/1\",\"actionId\":\"0b2faff7-988c-4be8-9fc8-41d4a50a8636\",\"action\":\"health\",\"operation\":null,\"origin\":{\"centerId\":\"11111111111111111111111111111111\",\"accountId\":null,\"loginStateHandle\":null},\"admission\":{\"status\":\"admitted\"},\"remote\":{\"status\":\"success\",\"stage\":\"health\",\"sendAttempted\":false,\"health\":{\"reachable\":true,\"centerId\":\"11111111111111111111111111111111\",\"version\":\"qa\"}},\"local\":{\"status\":\"not-requested\"},\"view\":{\"source\":\"none\"},\"use\":\"ended\"}\n",
+        "\r\nGovernance TUI ended. Exit status: 70.\n"
+      ],
+      "stderr": [
+        "omne: client-close-failed\n"
+      ],
+      "original_report": {
+        "format": "governance-client/1",
+        "actionId": "0b2faff7-988c-4be8-9fc8-41d4a50a8636",
+        "action": "health",
+        "operation": null,
+        "origin": {
+          "centerId": "11111111111111111111111111111111",
+          "accountId": null,
+          "loginStateHandle": null
+        },
+        "admission": {
+          "status": "admitted"
+        },
+        "remote": {
+          "status": "success",
+          "stage": "health",
+          "sendAttempted": false,
+          "health": {
+            "reachable": true,
+            "centerId": "11111111111111111111111111111111",
+            "version": "qa"
+          }
+        },
+        "local": {
+          "status": "not-requested"
+        },
+        "view": {
+          "source": "none"
+        },
+        "use": "ended"
+      },
+      "application_closed": "pending",
+      "terminal_restores": 0,
+      "requests": [
+        {
+          "operation": "composition.governance-center-entry/v1#S-18"
+        }
+      ]
+    }
+  ],
+  "substitution": "createManagedClientBinding is actual; only original pure close throws/rejects. Real TLS and original reports retained. ControlledTerminal is an external endpoint.",
+  "cleanup": "after evidence, independent fixture closes external pure clients/storage. This never establishes application closed or authorizes presentation release."
+}

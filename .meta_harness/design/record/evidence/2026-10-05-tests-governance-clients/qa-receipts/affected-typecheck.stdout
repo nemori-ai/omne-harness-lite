@@ -1,0 +1,34 @@
+Scope: 12 of 57 workspace projects
+
+> @omne-harness-lite/assembly-lifecycle@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/packages/core/assembly-lifecycle
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/client-local-state@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/packages/core/client-local-state
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/governance-center-entry-https-json@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/packages/core/governance-center-entry-https-json
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/governance-center-entry@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/packages/core/governance-center-entry
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/ts-checks@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/tools/ts-checks
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/governance-client-operations@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/packages/core/governance-client-operations
+> tsc -p tsconfig.test.json
+
+tests/types.spec-d.ts(12,3): error TS2578: Unused '@ts-expect-error' directive.
+tests/types.spec-d.ts(15,44): error TS2353: Object literal may only specify known properties, and 'credential' does not exist in type '{ readonly loginIdentifier: string; }'.
+/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/packages/core/governance-client-operations:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/governance-client-operations@0.0.0 typecheck: `tsc -p tsconfig.test.json`
+Exit status 2
+
+> @omne-harness-lite/client-local-state-sqlite@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/packages/frontend/client-local-state-sqlite
+> tsc -p tsconfig.test.json
+

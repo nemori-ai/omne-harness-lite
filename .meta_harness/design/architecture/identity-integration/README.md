@@ -2,7 +2,8 @@
 
 状态：R1-D0 设计已限定采用，T2 产品已通过独立 L3 并获
 [限定技术接受](../../record/decisions/identity-capabilities-delivery/decision.md)。
-八个管理绑定与真实宿主已接入。T3 公共操作和 T4 插件树仍待实施，
+八个管理绑定与真实宿主已接入。T3 公共操作、客户端及 CLI 生命周期已获
+[限定产品接受](../../record/decisions/governance-clients-delivery/decision.md)。T4 插件树仍待实施，
 完整身份领域尚未验收。设计采用范围见
 [决定](../../record/decisions/identity-integration-design/decision.md)。输入基线为
 `588628544ab92bd542f24efa1801634eb6eee56e`。

@@ -1,0 +1,15 @@
+{
+  "at": "2026-10-05T01:44:31.327776+00:00",
+  "actor": "main session within panqiwei implementation delegation",
+  "scope": "R1-T3 exact product candidate; not R1/domain or whole TUI release",
+  "base": "beef18017170eb70cae2c6bf3afb121b18a0139e",
+  "candidate": "69492d46c10ec27bbc6943c7194d8be2d7b259d2",
+  "evidence": {
+    "qa-report.json": "23b4fa8cd7f07845fc3b2eb5c761e1aa4cd3c4bbf7748cabe84c50e63b706b93",
+    "qa-manifest.json": "202b93bc16598555a51047d5c0719032f94503f67c3e1ac52db8ba295ec0a793",
+    "qa-root-readback.json": "4f6145f780ba77fc331f4b10f31be9581357f28962a647dc371fbb25087e938b",
+    "implementation-review.txt": "19b2ed89bf6f3d2eead97dc28a7891f9e75bf81720c080f45cfcfbe9c4af469a",
+    "final-hard-lines.json": "c9a39c59f9791fb7ce1052267b2c3a05ad33738365cd99ecd5e94551044ab8ea",
+    "inputs-and-preservation.json": "18f551216f1045bd74a569c902716db264ee2a42c7bcf7bab13adb4003b11eb4"
+  }
+}

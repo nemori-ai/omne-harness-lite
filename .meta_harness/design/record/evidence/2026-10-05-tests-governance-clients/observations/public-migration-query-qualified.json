@@ -1,0 +1,2429 @@
+{
+  "base": "beef18017170eb70cae2c6bf3afb121b18a0139e",
+  "commit": "7df742c4b7b0c5d735da2245605be682b6a35f7c",
+  "working_tree": "clean-candidate",
+  "candidate_input_manifest": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/inputs/candidate-tracked-before.json",
+  "run_id": "r1-t3-public-migration-audit",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "exit_code": 0,
+  "exact_symbols": [
+    {
+      "oldEntry": "@omne-harness-lite/client-local-state",
+      "name": "openClientLocalState",
+      "newEntry": "@omne-harness-lite/client-local-state-sqlite",
+      "typeOnly": false,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state-sqlite/dist/open.d.ts",
+          "text": "export declare function openClientLocalState(options: OpenClientLocalStateOptions, dependencies: OpenClientLocalStateDependencies): Promise<ClientLocalStateInstance>;"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/client-local-state",
+      "name": "OpenClientLocalStateOptions",
+      "newEntry": "@omne-harness-lite/client-local-state-sqlite",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state-sqlite/dist/open.d.ts",
+          "text": "export interface OpenClientLocalStateOptions {\n    readonly directory: string;\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/client-local-state",
+      "name": "ClientLocalStateInstance",
+      "newEntry": "@omne-harness-lite/client-local-state-sqlite",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state-sqlite/dist/open.d.ts",
+          "text": "export interface ClientLocalStateInstance extends ClientLocalState {\n    close(): Promise<void>;\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/client-local-state",
+      "name": "clientLocalStatePlugin",
+      "newEntry": "@omne-harness-lite/client-local-state-sqlite/cordis",
+      "typeOnly": false,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state-sqlite/dist/plugin.d.ts",
+          "text": "clientLocalStatePlugin: import(\"@deepseek-ai/cordis\").Plugin.Object<OpenClientLocalStateOptions>"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/client-local-state",
+      "name": "CLIENT_LOCAL_STATE_SERVICE",
+      "newEntry": "@omne-harness-lite/client-local-state/cordis",
+      "typeOnly": false,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/cordis.d.ts",
+          "text": "CLIENT_LOCAL_STATE_SERVICE: \"clientLocalState\""
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/client-local-state",
+      "name": "ClientStateUsageDefect",
+      "newEntry": "@omne-harness-lite/client-local-state",
+      "typeOnly": false,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+          "text": "export declare class ClientStateUsageDefect extends Error {\n    readonly reason: 'closed' | 'invalid-snapshot';\n    readonly name = \"ClientStateUsageDefect\";\n    constructor(reason: 'closed' | 'invalid-snapshot');\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/client-local-state",
+      "name": "ClientStateOpenFailure",
+      "newEntry": "@omne-harness-lite/client-local-state-sqlite",
+      "typeOnly": false,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state-sqlite/dist/open-failure.d.ts",
+          "text": "export declare class ClientStateOpenFailure extends Error {\n    readonly reason: ReadFailure | 'unsafe-path' | 'invalid-directory';\n    readonly name = \"ClientStateOpenFailure\";\n    constructor(reason: ReadFailure | 'unsafe-path' | 'invalid-directory');\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/client-local-state",
+      "name": "ClientLocalState",
+      "newEntry": "@omne-harness-lite/client-local-state",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+          "text": "export interface ClientLocalState {\n    read(): Promise<ReadOutcome>;\n    compareAndReplace(token: SnapshotToken, value: unknown, operationId: string): Promise<ReplaceOutcome>;\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/client-local-state",
+      "name": "LocalRecord",
+      "newEntry": "@omne-harness-lite/client-local-state",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+          "text": "export interface LocalRecord {\n    readonly center: {\n        readonly centerId: string;\n        readonly endpoint: string;\n        readonly trust: {\n            readonly mode: 'ca';\n            readonly certificateAuthorities?: string;\n        } | {\n            readonly mode: 'spki';\n            readonly sha256: string;\n        };\n    };\n    readonly login?: {\n        readonly presentation: string;\n        readonly handle: string;\n        readonly accountId?: string;\n    };\n    readonly cache: readonly CachedRead[];\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/client-local-state",
+      "name": "CachedRead",
+      "newEntry": "@omne-harness-lite/client-local-state",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+          "text": "export interface CachedRead {\n    readonly centerId: string;\n    readonly accountId: string;\n    readonly tenant?: {\n        readonly organization: string;\n        readonly account: string;\n    };\n    readonly operation: string;\n    readonly payload: Readonly<Record<string, unknown>>;\n    readonly result: unknown;\n    readonly acquiredAt: string;\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/client-local-state",
+      "name": "LocalSnapshot",
+      "newEntry": "@omne-harness-lite/client-local-state",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+          "text": "export interface LocalSnapshot {\n    readonly storeId: string;\n    readonly revision: number;\n    readonly operationId: string | null;\n    readonly value: LocalRecord | null;\n    readonly token: SnapshotToken;\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/client-local-state",
+      "name": "SnapshotToken",
+      "newEntry": "@omne-harness-lite/client-local-state",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+          "text": "export interface SnapshotToken {\n    readonly [snapshotBrand]: true;\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/client-local-state",
+      "name": "ReadOutcome",
+      "newEntry": "@omne-harness-lite/client-local-state",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+          "text": "export type ReadOutcome = {\n    readonly kind: 'read';\n    readonly snapshot: LocalSnapshot;\n} | {\n    readonly kind: 'failed';\n    readonly reason: ReadFailure;\n};"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/client-local-state",
+      "name": "ReadFailure",
+      "newEntry": "@omne-harness-lite/client-local-state",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+          "text": "export type ReadFailure = 'unavailable' | 'invalid-record' | 'unsupported-format';"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/client-local-state",
+      "name": "ReplaceOutcome",
+      "newEntry": "@omne-harness-lite/client-local-state",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+          "text": "export type ReplaceOutcome = {\n    readonly kind: 'installed';\n    readonly snapshot: LocalSnapshot;\n} | {\n    readonly kind: 'conflict';\n    readonly current: LocalSnapshot;\n} | {\n    readonly kind: 'not-installed';\n    readonly reason: ReadFailure | 'invalid-input';\n} | {\n    readonly kind: 'unconfirmed';\n};"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "createGovernanceClient",
+      "newEntry": "@omne-harness-lite/governance-client-operations-local",
+      "typeOnly": false,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations-local/dist/client.d.ts",
+          "text": "export declare function createGovernanceClient(options: CreateGovernanceClientOptions): GovernanceClientOperations;"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "CreateGovernanceClientOptions",
+      "newEntry": "@omne-harness-lite/governance-client-operations-local",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations-local/dist/client.d.ts",
+          "text": "export interface CreateGovernanceClientOptions {\n    readonly state: ClientLocalState;\n    readonly transport: GovernanceTransport;\n    readonly timeoutMs?: number;\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "governanceClientOperationsPlugin",
+      "newEntry": "@omne-harness-lite/governance-client-operations-local/cordis",
+      "typeOnly": false,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations-local/dist/plugin.d.ts",
+          "text": "governanceClientOperationsPlugin: import(\"@deepseek-ai/cordis\").Plugin.Object<GovernanceClientConfig>"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "exitStatus",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": false,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/exit-status.d.ts",
+          "text": "export declare function exitStatus(report: ActionReport): 0 | 2 | 3 | 4 | 5 | 70;"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "ClientUseUsageDefect",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": false,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export declare class ClientUseUsageDefect extends Error {\n    readonly reason: 'closed' | 'invalid-use';\n    readonly name = \"ClientUseUsageDefect\";\n    constructor(reason: 'closed' | 'invalid-use');\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "GOVERNANCE_CLIENT_OPERATIONS_SERVICE",
+      "newEntry": "@omne-harness-lite/governance-client-operations/cordis",
+      "typeOnly": false,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/cordis.d.ts",
+          "text": "GOVERNANCE_CLIENT_OPERATIONS_SERVICE: \"governanceClientOperations\""
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "ActionInput",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export type ActionInput = InvokeAction | {\n    readonly action: 'configure';\n    readonly endpoint: string;\n    readonly trust: LocalRecord['center']['trust'];\n} | {\n    readonly action: 'register' | 'login';\n    readonly payload: {\n        readonly loginIdentifier: string;\n        readonly credential: unknown;\n    };\n} | {\n    readonly action: 'health';\n} | {\n    readonly action: 'logout';\n};"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "ActionIntent",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export type ActionIntent = Exclude<ActionInput, {\n    action: 'register' | 'login';\n}> | {\n    readonly action: 'register' | 'login';\n    readonly payload: {\n        readonly loginIdentifier: string;\n    };\n};"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "ActionPreview",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export interface ActionPreview {\n    readonly intent: PreviewIntent;\n    readonly origin: Origin;\n    readonly endpoint: string;\n    readonly source: 'local-selection' | 'verified-center';\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "PreviewIntent",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export type PreviewIntent = Exclude<ActionIntent, {\n    action: 'configure';\n}> | {\n    readonly action: 'configure';\n    readonly endpoint: string;\n    readonly trust: TrustSummary;\n};"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "TrustSummary",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export type TrustSummary = {\n    readonly mode: 'ca';\n    readonly source: 'system';\n} | {\n    readonly mode: 'ca';\n    readonly source: 'explicit';\n    readonly sha256: string;\n} | {\n    readonly mode: 'spki';\n    readonly sha256: string;\n};"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "PromptResult",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export type PromptResult = {\n    readonly kind: 'cancelled';\n} | {\n    readonly kind: 'continue';\n    readonly secrets: Readonly<Record<string, never>> | {\n        readonly credential: unknown;\n    } | {\n        readonly currentCredential: unknown;\n        readonly newCredential: unknown;\n    };\n};"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "InputPrompt",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export type InputPrompt = (preview: ActionPreview, signal: AbortSignal) => Promise<PromptResult>;"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "ActionReport",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export interface ActionReport {\n    readonly format: 'governance-client/1';\n    readonly actionId: string;\n    readonly action: ActionInput['action'] | 'invalid';\n    readonly operation: string | null;\n    readonly origin: Origin;\n    readonly admission: {\n        readonly status: 'admitted' | 'blocked';\n        readonly reason?: AdmissionReason;\n    };\n    readonly remote: RemoteObservation;\n    readonly local: LocalSettlement;\n    readonly view: {\n        readonly source: 'none' | 'online' | 'copy';\n        readonly acquiredAt?: string;\n        readonly data?: PublicExchange;\n        readonly query?: {\n            readonly operation: string;\n            readonly payload: Readonly<Record<string, unknown>>;\n        };\n        readonly tenant?: {\n            readonly organization: string;\n            readonly account: string;\n        };\n    };\n    readonly use: 'active' | 'reenter-required' | 'ended';\n    readonly defect?: {\n        readonly stage: DefectStage;\n        readonly code: 'internal-defect';\n    };\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "AdmissionReason",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export type AdmissionReason = 'not-configured' | 'not-logged-in' | 'selection-changed' | 'busy' | 'invalid-input' | 'reenter-required' | 'local-unavailable' | 'invalid-record' | 'unsupported-format' | 'identity-unavailable' | 'center-mismatch' | 'defect';"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "DefectStage",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export type DefectStage = 'input' | 'local-read' | 'health' | 'identity' | 'operation' | 'settlement' | 'recovery' | 'output';"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "GovernanceClientOperations",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export interface GovernanceClientOperations {\n    runAction(input: unknown): Promise<ActionReport>;\n    runPrepared(intent: unknown, prompt: InputPrompt): Promise<ActionReport>;\n    openUse(): Promise<OpenUseOutcome>;\n    close(): Promise<void>;\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "GovernanceUse",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export interface GovernanceUse {\n    run(input: unknown): Promise<ActionReport>;\n    runPrepared(intent: unknown, prompt: InputPrompt): Promise<ActionReport>;\n    close(): Promise<void>;\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "InvokeAction",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export interface InvokeAction {\n    readonly action: 'invoke';\n    readonly operation: string;\n    readonly payload: Readonly<Record<string, unknown>>;\n    readonly readMode?: ReadMode;\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "LocalSettlement",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export interface LocalSettlement {\n    readonly status: 'not-requested' | 'installed' | 'conflict' | 'not-installed' | 'unconfirmed' | 'defect';\n    readonly reason?: 'invalid-input' | 'invalid-record' | 'unsupported-format' | 'unavailable';\n    readonly recovery?: {\n        readonly observation: 'visible-this-operation' | 'visible-other-record' | 'not-seen' | 'different-store' | 'unknown';\n        readonly current?: Omit<Origin, 'expectedTenant'> & {\n            readonly revision: number;\n        };\n    };\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "OpenUseOutcome",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export type OpenUseOutcome = {\n    readonly kind: 'use';\n    readonly use: GovernanceUse;\n    readonly origin: Origin;\n} | {\n    readonly kind: 'blocked';\n    readonly reason: AdmissionReason;\n};"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "Origin",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export interface Origin {\n    readonly centerId: string | null;\n    readonly accountId: string | null;\n    readonly loginStateHandle: string | null;\n    readonly expectedTenant?: {\n        readonly organization: string;\n        readonly account: string;\n    };\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "PublicExchange",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export interface PublicExchange {\n    readonly operation: string;\n    readonly reply: {\n        readonly result: unknown;\n    } | {\n        readonly failure: string;\n    };\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "ReadMode",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export type ReadMode = 'prefer-copy' | 'refresh';"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-client-operations",
+      "name": "RemoteObservation",
+      "newEntry": "@omne-harness-lite/governance-client-operations",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+          "text": "export interface RemoteObservation {\n    readonly status: 'not-attempted' | 'success' | 'rejected' | 'unavailable' | 'unknown';\n    readonly stage: 'none' | 'health' | 'identity' | 'operation';\n    /** Only the target governance request, not preparatory health/identity traffic. */\n    readonly sendAttempted: boolean;\n    readonly reply?: PublicExchange;\n    readonly answer?: 'version-mismatch' | 'login-state-rejected' | 'invalid-input' | 'unavailable';\n    readonly transportFailure?: 'connection' | 'trust' | 'timeout' | 'cancelled' | 'response-framing' | 'response-limit' | 'response-invalid';\n    readonly health?: {\n        readonly reachable: true;\n        readonly centerId: string;\n        readonly version: string;\n    };\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-center-client",
+      "name": "readPublicHealth",
+      "newEntry": "@omne-harness-lite/governance-center-client-https",
+      "typeOnly": false,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-client-https/dist/health.d.ts",
+          "text": "export declare function readPublicHealth(options: PublicHealthOptions): Promise<PublicHealthOutcome>;"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-center-client",
+      "name": "exchangeGovernance",
+      "newEntry": "@omne-harness-lite/governance-center-client-https",
+      "typeOnly": false,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-client-https/dist/governance.d.ts",
+          "text": "export declare function exchangeGovernance(options: PublicHealthOptions, input: unknown): Promise<GovernanceOutcome>;"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-center-client",
+      "name": "GovernanceOutcome",
+      "newEntry": "@omne-harness-lite/governance-center-entry-https-json",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/governance.d.ts",
+          "text": "export type GovernanceOutcome = ({\n    readonly kind: 'reply';\n    readonly reply: {\n        readonly result: unknown;\n    } | {\n        readonly failure: string;\n    };\n} | {\n    readonly kind: 'entry-answer';\n    readonly answer: EntryAnswer;\n} | {\n    readonly kind: 'unavailable';\n    readonly reason: HealthUnavailableReason;\n}) & {\n    readonly sendAttempted: boolean;\n};"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-center-client",
+      "name": "GovernanceClientConfigurationError",
+      "newEntry": "@omne-harness-lite/governance-center-entry-https-json",
+      "typeOnly": false,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/config.d.ts",
+          "text": "export declare class GovernanceClientConfigurationError extends Error {\n    readonly name = \"GovernanceClientConfigurationError\";\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-center-client",
+      "name": "CenterTrust",
+      "newEntry": "@omne-harness-lite/governance-center-entry-https-json",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/config.d.ts",
+          "text": "export type CenterTrust = {\n    readonly mode: 'ca';\n    readonly certificateAuthorities?: string | Uint8Array;\n} | {\n    readonly mode: 'spki';\n    readonly sha256: string;\n};"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-center-client",
+      "name": "PublicHealthOptions",
+      "newEntry": "@omne-harness-lite/governance-center-entry-https-json",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/config.d.ts",
+          "text": "export interface PublicHealthOptions {\n    readonly url: string | URL;\n    /** SPKI必须已由调用方确认；本包没有发现/接受/保存信任的副作用。 */\n    readonly trust?: CenterTrust;\n    readonly timeoutMs?: number;\n    readonly signal?: AbortSignal;\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-center-client",
+      "name": "PublicHealthReply",
+      "newEntry": "@omne-harness-lite/governance-center-entry-https-json",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/protocol.d.ts",
+          "text": "export interface PublicHealthReply {\n    readonly reachable: true;\n    readonly centerId: string;\n    readonly version: string;\n}"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-center-client",
+      "name": "PublicHealthOutcome",
+      "newEntry": "@omne-harness-lite/governance-center-entry-https-json",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/protocol.d.ts",
+          "text": "export type PublicHealthOutcome = {\n    readonly kind: 'health';\n    readonly reply: PublicHealthReply;\n} | {\n    readonly kind: 'entry-answer';\n    readonly answer: EntryAnswer;\n} | {\n    readonly kind: 'unavailable';\n    readonly reason: HealthUnavailableReason;\n};"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-center-client",
+      "name": "HealthUnavailableReason",
+      "newEntry": "@omne-harness-lite/governance-center-entry-https-json",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/protocol.d.ts",
+          "text": "export type HealthUnavailableReason = 'connection' | 'trust' | 'timeout' | 'cancelled' | 'response-framing' | 'response-limit' | 'response-invalid';"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-center-client",
+      "name": "EntryAnswer",
+      "newEntry": "@omne-harness-lite/governance-center-entry-https-json",
+      "typeOnly": true,
+      "disposition": "planned; preserve original capability, no compatibility export",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/protocol.d.ts",
+          "text": "export type EntryAnswer = 'version-mismatch' | 'login-state-rejected' | 'invalid-input' | 'unavailable';"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-center-entry-node",
+      "name": "GovernanceCenterId",
+      "newEntry": "@omne-harness-lite/governance-center-entry",
+      "typeOnly": true,
+      "disposition": "planned; public vocabulary moves, SQL layout remains provider",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry/dist/center-id.d.ts",
+          "text": "export type GovernanceCenterId = string & {\n    readonly [governanceCenterIdBrand]: true;\n};"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-center-entry-node",
+      "name": "isGovernanceCenterId",
+      "newEntry": "@omne-harness-lite/governance-center-entry",
+      "typeOnly": false,
+      "disposition": "planned; public vocabulary moves, SQL layout remains provider",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry/dist/center-id.d.ts",
+          "text": "export declare function isGovernanceCenterId(value: unknown): value is GovernanceCenterId;"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-center-entry-node",
+      "name": "ACCEPTED_PROTOCOL_VERSIONS",
+      "newEntry": "@omne-harness-lite/governance-center-entry",
+      "typeOnly": false,
+      "disposition": "planned; public vocabulary moves, SQL layout remains provider",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry/dist/routes.d.ts",
+          "text": "ACCEPTED_PROTOCOL_VERSIONS: readonly string[]"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-center-entry-node",
+      "name": "PUBLIC_HEALTH_ROUTE",
+      "newEntry": "@omne-harness-lite/governance-center-entry",
+      "typeOnly": false,
+      "disposition": "planned; public vocabulary moves, SQL layout remains provider",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry/dist/routes.d.ts",
+          "text": "PUBLIC_HEALTH_ROUTE = \"composition.governance-center-entry/v1#S-18\""
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-center-entry-node",
+      "name": "ROUTE_IDS",
+      "newEntry": "@omne-harness-lite/governance-center-entry",
+      "typeOnly": false,
+      "disposition": "planned; public vocabulary moves, SQL layout remains provider",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry/dist/routes.d.ts",
+          "text": "ROUTE_IDS: readonly [\"composition.account-registration/v2#S-8\", \"capability.account-identity/v3#S-15\", \"capability.account-identity/v3#S-16\", \"capability.account-identity/v3#S-37\", \"capability.organization-governance/v2#S-21\", \"capability.organization-governance/v2#S-22\", \"capability.organization-governance/v2#S-23\", \"capability.organization-governance/v2#S-24\", \"capability.organization-governance/v2#S-25\", \"capability.organization-governance/v2#S-26\", \"capability.organization-governance/v2#S-27\", \"capability.organization-governance/v2#S-28\", \"capability.organization-governance/v2#S-29\", \"capability.organization-governance/v2#S-30\", \"capability.organization-governance/v2#S-31\", \"capability.organization-governance/v2#S-32\", \"capability.organization-governance/v2#S-33\", \"capability.organization-governance/v2#S-34\", \"capability.organization-governance/v2#S-35\", \"capability.organization-governance/v2#S-36\", \"capability.organization-governance/v2#S-37\", \"capability.organization-governance/v2#S-55\", \"capability.organization-governance/v2#S-56\", \"capability.organization-governance/v2#S-57\", \"capability.organization-governance/v2#S-58\", \"capability.organization-governance/v2#S-59\", \"capability.organization-governance/v2#S-60\", \"capability.account-identity/v3#S-50\", \"capability.organization-governance/v2#S-61\", \"capability.organization-governance/v2#S-62\", \"composition.governance-center-entry/v2#S-50\"]"
+        }
+      ]
+    },
+    {
+      "oldEntry": "@omne-harness-lite/governance-center-entry-node",
+      "name": "RouteId",
+      "newEntry": "@omne-harness-lite/governance-center-entry",
+      "typeOnly": true,
+      "disposition": "planned; public vocabulary moves, SQL layout remains provider",
+      "status": "Pass",
+      "declarations": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry/dist/routes.d.ts",
+          "text": "export type RouteId = (typeof ROUTE_IDS)[number];"
+        }
+      ]
+    }
+  ],
+  "declaration_changes": [
+    {
+      "name": "openClientLocalState",
+      "before": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-baseline/clone/packages/frontend/client-local-state/dist/open.d.ts",
+          "text": "export declare function openClientLocalState(options: OpenClientLocalStateOptions): Promise<ClientLocalStateInstance>;"
+        }
+      ],
+      "after": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state-sqlite/dist/open.d.ts",
+          "text": "export declare function openClientLocalState(options: OpenClientLocalStateOptions, dependencies: OpenClientLocalStateDependencies): Promise<ClientLocalStateInstance>;"
+        }
+      ],
+      "reason": "Adopted explicit dependency factory or formal binding; strict external negative types and real plugin Config/injection checked separately"
+    },
+    {
+      "name": "CreateGovernanceClientOptions",
+      "before": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-baseline/clone/packages/frontend/governance-client-operations/dist/client.d.ts",
+          "text": "export interface CreateGovernanceClientOptions {\n    readonly state: ClientLocalState;\n    readonly timeoutMs?: number;\n}"
+        }
+      ],
+      "after": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations-local/dist/client.d.ts",
+          "text": "export interface CreateGovernanceClientOptions {\n    readonly state: ClientLocalState;\n    readonly transport: GovernanceTransport;\n    readonly timeoutMs?: number;\n}"
+        }
+      ],
+      "reason": "Adopted explicit dependency factory or formal binding; strict external negative types and real plugin Config/injection checked separately"
+    },
+    {
+      "name": "governanceClientOperationsPlugin",
+      "before": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-baseline/clone/packages/frontend/governance-client-operations/dist/plugin.d.ts",
+          "text": "governanceClientOperationsPlugin: import(\"@deepseek-ai/cordis\").Plugin.Object<{\n    readonly timeoutMs?: number;\n}>"
+        }
+      ],
+      "after": [
+        {
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations-local/dist/plugin.d.ts",
+          "text": "governanceClientOperationsPlugin: import(\"@deepseek-ai/cordis\").Plugin.Object<GovernanceClientConfig>"
+        }
+      ],
+      "reason": "Adopted explicit dependency factory or formal binding; strict external negative types and real plugin Config/injection checked separately"
+    }
+  ],
+  "records": [
+    {
+      "name": "@omne-harness-lite/client-local-state-sqlite",
+      "entry": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state-sqlite/dist/index.d.ts",
+      "resolved": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+client-local-state-sqlite@file+..+tarballs+omne-harness-lite-client-local-state-sqlite-0.0.0.tgz/node_modules/@omne-harness-lite/client-local-state-sqlite/dist/index.js",
+      "declarations": [
+        {
+          "name": "openClientLocalState",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state-sqlite/dist/open.d.ts",
+              "text": "export declare function openClientLocalState(options: OpenClientLocalStateOptions, dependencies: OpenClientLocalStateDependencies): Promise<ClientLocalStateInstance>;"
+            }
+          ]
+        },
+        {
+          "name": "OpenClientLocalStateOptions",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state-sqlite/dist/open.d.ts",
+              "text": "export interface OpenClientLocalStateOptions {\n    readonly directory: string;\n}"
+            }
+          ]
+        },
+        {
+          "name": "OpenClientLocalStateDependencies",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state-sqlite/dist/open.d.ts",
+              "text": "export interface OpenClientLocalStateDependencies {\n    readonly storage: LocalStateStorageFactory;\n}"
+            }
+          ]
+        },
+        {
+          "name": "ClientLocalStateInstance",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state-sqlite/dist/open.d.ts",
+              "text": "export interface ClientLocalStateInstance extends ClientLocalState {\n    close(): Promise<void>;\n}"
+            }
+          ]
+        },
+        {
+          "name": "ClientStateOpenFailure",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state-sqlite/dist/open-failure.d.ts",
+              "text": "export declare class ClientStateOpenFailure extends Error {\n    readonly reason: ReadFailure | 'unsafe-path' | 'invalid-directory';\n    readonly name = \"ClientStateOpenFailure\";\n    constructor(reason: ReadFailure | 'unsafe-path' | 'invalid-directory');\n}"
+            }
+          ]
+        }
+      ],
+      "runtime_exports": [
+        "ClientStateOpenFailure",
+        "openClientLocalState"
+      ]
+    },
+    {
+      "name": "@omne-harness-lite/client-local-state-sqlite/cordis",
+      "entry": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state-sqlite/dist/cordis.d.ts",
+      "resolved": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+client-local-state-sqlite@file+..+tarballs+omne-harness-lite-client-local-state-sqlite-0.0.0.tgz/node_modules/@omne-harness-lite/client-local-state-sqlite/dist/cordis.js",
+      "declarations": [
+        {
+          "name": "clientLocalStatePlugin",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state-sqlite/dist/plugin.d.ts",
+              "text": "clientLocalStatePlugin: import(\"@deepseek-ai/cordis\").Plugin.Object<OpenClientLocalStateOptions>"
+            }
+          ]
+        },
+        {
+          "name": "managedClientLocalStatePlugin",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state-sqlite/dist/plugin.d.ts",
+              "text": "managedClientLocalStatePlugin: import(\"@deepseek-ai/cordis\").Plugin.Object<OpenClientLocalStateOptions> & {\n    assemblyLifecycle: 1;\n}"
+            }
+          ]
+        }
+      ],
+      "runtime_exports": [
+        "clientLocalStatePlugin",
+        "managedClientLocalStatePlugin"
+      ]
+    },
+    {
+      "name": "@omne-harness-lite/client-local-state/cordis",
+      "entry": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/cordis.d.ts",
+      "resolved": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+client-local-state@file+..+tarballs+omne-harness-lite-client-local-state-0.0.0.tgz/node_modules/@omne-harness-lite/client-local-state/dist/cordis.js",
+      "declarations": [
+        {
+          "name": "ClientLocalStateService",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/cordis.d.ts",
+              "text": "export declare abstract class ClientLocalStateService extends Service implements ClientLocalState {\n    static readonly provide: \"clientLocalState\";\n    constructor(ctx: Context);\n    abstract read: ClientLocalState['read'];\n    abstract compareAndReplace: ClientLocalState['compareAndReplace'];\n}"
+            }
+          ]
+        },
+        {
+          "name": "CLIENT_LOCAL_STATE_SERVICE",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/cordis.d.ts",
+              "text": "CLIENT_LOCAL_STATE_SERVICE: \"clientLocalState\""
+            }
+          ]
+        },
+        {
+          "name": "ClientStateStorage",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/cordis.d.ts",
+              "text": "export declare abstract class ClientStateStorage extends Service implements LocalStateStorageFactory {\n    static readonly provide: \"clientStateStorage\";\n    constructor(ctx: Context);\n    abstract open: LocalStateStorageFactory['open'];\n}"
+            }
+          ]
+        },
+        {
+          "name": "CLIENT_STATE_STORAGE_SERVICE",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/cordis.d.ts",
+              "text": "CLIENT_STATE_STORAGE_SERVICE: \"clientStateStorage\""
+            }
+          ]
+        }
+      ],
+      "runtime_exports": [
+        "CLIENT_LOCAL_STATE_SERVICE",
+        "CLIENT_STATE_STORAGE_SERVICE",
+        "ClientLocalStateService",
+        "ClientStateStorage"
+      ]
+    },
+    {
+      "name": "@omne-harness-lite/client-local-state",
+      "entry": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+      "resolved": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+client-local-state@file+..+tarballs+omne-harness-lite-client-local-state-0.0.0.tgz/node_modules/@omne-harness-lite/client-local-state/dist/index.js",
+      "declarations": [
+        {
+          "name": "LocalRecord",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+              "text": "export interface LocalRecord {\n    readonly center: {\n        readonly centerId: string;\n        readonly endpoint: string;\n        readonly trust: {\n            readonly mode: 'ca';\n            readonly certificateAuthorities?: string;\n        } | {\n            readonly mode: 'spki';\n            readonly sha256: string;\n        };\n    };\n    readonly login?: {\n        readonly presentation: string;\n        readonly handle: string;\n        readonly accountId?: string;\n    };\n    readonly cache: readonly CachedRead[];\n}"
+            }
+          ]
+        },
+        {
+          "name": "CachedRead",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+              "text": "export interface CachedRead {\n    readonly centerId: string;\n    readonly accountId: string;\n    readonly tenant?: {\n        readonly organization: string;\n        readonly account: string;\n    };\n    readonly operation: string;\n    readonly payload: Readonly<Record<string, unknown>>;\n    readonly result: unknown;\n    readonly acquiredAt: string;\n}"
+            }
+          ]
+        },
+        {
+          "name": "SnapshotToken",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+              "text": "export interface SnapshotToken {\n    readonly [snapshotBrand]: true;\n}"
+            }
+          ]
+        },
+        {
+          "name": "LocalSnapshot",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+              "text": "export interface LocalSnapshot {\n    readonly storeId: string;\n    readonly revision: number;\n    readonly operationId: string | null;\n    readonly value: LocalRecord | null;\n    readonly token: SnapshotToken;\n}"
+            }
+          ]
+        },
+        {
+          "name": "ReadFailure",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+              "text": "export type ReadFailure = 'unavailable' | 'invalid-record' | 'unsupported-format';"
+            }
+          ]
+        },
+        {
+          "name": "ReadOutcome",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+              "text": "export type ReadOutcome = {\n    readonly kind: 'read';\n    readonly snapshot: LocalSnapshot;\n} | {\n    readonly kind: 'failed';\n    readonly reason: ReadFailure;\n};"
+            }
+          ]
+        },
+        {
+          "name": "ReplaceOutcome",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+              "text": "export type ReplaceOutcome = {\n    readonly kind: 'installed';\n    readonly snapshot: LocalSnapshot;\n} | {\n    readonly kind: 'conflict';\n    readonly current: LocalSnapshot;\n} | {\n    readonly kind: 'not-installed';\n    readonly reason: ReadFailure | 'invalid-input';\n} | {\n    readonly kind: 'unconfirmed';\n};"
+            }
+          ]
+        },
+        {
+          "name": "ClientLocalState",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+              "text": "export interface ClientLocalState {\n    read(): Promise<ReadOutcome>;\n    compareAndReplace(token: SnapshotToken, value: unknown, operationId: string): Promise<ReplaceOutcome>;\n}"
+            }
+          ]
+        },
+        {
+          "name": "ClientStateUsageDefect",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+              "text": "export declare class ClientStateUsageDefect extends Error {\n    readonly reason: 'closed' | 'invalid-snapshot';\n    readonly name = \"ClientStateUsageDefect\";\n    constructor(reason: 'closed' | 'invalid-snapshot');\n}"
+            }
+          ]
+        },
+        {
+          "name": "LocalStateStorageFactory",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+              "text": "export interface LocalStateStorageFactory {\n    open(file: string): Promise<LocalStateStorage>;\n}"
+            }
+          ]
+        },
+        {
+          "name": "LocalStateStorage",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/client-local-state/dist/index.d.ts",
+              "text": "export interface LocalStateStorage extends AtomicStorage {\n    close(): Promise<void>;\n}"
+            }
+          ]
+        }
+      ],
+      "runtime_exports": [
+        "ClientStateUsageDefect"
+      ]
+    },
+    {
+      "name": "@omne-harness-lite/governance-client-operations-local",
+      "entry": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations-local/dist/index.d.ts",
+      "resolved": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+governance-client-operations-local@file+..+tarballs+omne-harness-lit_0a5fc5ff9504b52796d852334517a755/node_modules/@omne-harness-lite/governance-client-operations-local/dist/index.js",
+      "declarations": [
+        {
+          "name": "createGovernanceClient",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations-local/dist/client.d.ts",
+              "text": "export declare function createGovernanceClient(options: CreateGovernanceClientOptions): GovernanceClientOperations;"
+            }
+          ]
+        },
+        {
+          "name": "CreateGovernanceClientOptions",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations-local/dist/client.d.ts",
+              "text": "export interface CreateGovernanceClientOptions {\n    readonly state: ClientLocalState;\n    readonly transport: GovernanceTransport;\n    readonly timeoutMs?: number;\n}"
+            }
+          ]
+        }
+      ],
+      "runtime_exports": [
+        "createGovernanceClient"
+      ]
+    },
+    {
+      "name": "@omne-harness-lite/governance-client-operations-local/cordis",
+      "entry": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations-local/dist/cordis.d.ts",
+      "resolved": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+governance-client-operations-local@file+..+tarballs+omne-harness-lit_0a5fc5ff9504b52796d852334517a755/node_modules/@omne-harness-lite/governance-client-operations-local/dist/cordis.js",
+      "declarations": [
+        {
+          "name": "governanceClientOperationsPlugin",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations-local/dist/plugin.d.ts",
+              "text": "governanceClientOperationsPlugin: import(\"@deepseek-ai/cordis\").Plugin.Object<GovernanceClientConfig>"
+            }
+          ]
+        },
+        {
+          "name": "managedGovernanceClientOperationsPlugin",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations-local/dist/managed-client.d.ts",
+              "text": "managedGovernanceClientOperationsPlugin: import(\"@deepseek-ai/cordis\").Plugin.Object<GovernanceClientConfig> & {\n    assemblyLifecycle: 1;\n}"
+            }
+          ]
+        }
+      ],
+      "runtime_exports": [
+        "governanceClientOperationsPlugin",
+        "managedGovernanceClientOperationsPlugin"
+      ]
+    },
+    {
+      "name": "@omne-harness-lite/governance-client-operations",
+      "entry": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/index.d.ts",
+      "resolved": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+governance-client-operations@file+..+tarballs+omne-harness-lite-gove_ae999c49ff5ecc7693ee02f7f3248dd4/node_modules/@omne-harness-lite/governance-client-operations/dist/index.js",
+      "declarations": [
+        {
+          "name": "exitStatus",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/exit-status.d.ts",
+              "text": "export declare function exitStatus(report: ActionReport): 0 | 2 | 3 | 4 | 5 | 70;"
+            }
+          ]
+        },
+        {
+          "name": "ReadMode",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export type ReadMode = 'prefer-copy' | 'refresh';"
+            }
+          ]
+        },
+        {
+          "name": "InvokeAction",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export interface InvokeAction {\n    readonly action: 'invoke';\n    readonly operation: string;\n    readonly payload: Readonly<Record<string, unknown>>;\n    readonly readMode?: ReadMode;\n}"
+            }
+          ]
+        },
+        {
+          "name": "ActionInput",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export type ActionInput = InvokeAction | {\n    readonly action: 'configure';\n    readonly endpoint: string;\n    readonly trust: LocalRecord['center']['trust'];\n} | {\n    readonly action: 'register' | 'login';\n    readonly payload: {\n        readonly loginIdentifier: string;\n        readonly credential: unknown;\n    };\n} | {\n    readonly action: 'health';\n} | {\n    readonly action: 'logout';\n};"
+            }
+          ]
+        },
+        {
+          "name": "ActionIntent",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export type ActionIntent = Exclude<ActionInput, {\n    action: 'register' | 'login';\n}> | {\n    readonly action: 'register' | 'login';\n    readonly payload: {\n        readonly loginIdentifier: string;\n    };\n};"
+            }
+          ]
+        },
+        {
+          "name": "TrustSummary",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export type TrustSummary = {\n    readonly mode: 'ca';\n    readonly source: 'system';\n} | {\n    readonly mode: 'ca';\n    readonly source: 'explicit';\n    readonly sha256: string;\n} | {\n    readonly mode: 'spki';\n    readonly sha256: string;\n};"
+            }
+          ]
+        },
+        {
+          "name": "PreviewIntent",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export type PreviewIntent = Exclude<ActionIntent, {\n    action: 'configure';\n}> | {\n    readonly action: 'configure';\n    readonly endpoint: string;\n    readonly trust: TrustSummary;\n};"
+            }
+          ]
+        },
+        {
+          "name": "ActionPreview",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export interface ActionPreview {\n    readonly intent: PreviewIntent;\n    readonly origin: Origin;\n    readonly endpoint: string;\n    readonly source: 'local-selection' | 'verified-center';\n}"
+            }
+          ]
+        },
+        {
+          "name": "PromptResult",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export type PromptResult = {\n    readonly kind: 'cancelled';\n} | {\n    readonly kind: 'continue';\n    readonly secrets: Readonly<Record<string, never>> | {\n        readonly credential: unknown;\n    } | {\n        readonly currentCredential: unknown;\n        readonly newCredential: unknown;\n    };\n};"
+            }
+          ]
+        },
+        {
+          "name": "InputPrompt",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export type InputPrompt = (preview: ActionPreview, signal: AbortSignal) => Promise<PromptResult>;"
+            }
+          ]
+        },
+        {
+          "name": "PublicExchange",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export interface PublicExchange {\n    readonly operation: string;\n    readonly reply: {\n        readonly result: unknown;\n    } | {\n        readonly failure: string;\n    };\n}"
+            }
+          ]
+        },
+        {
+          "name": "Origin",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export interface Origin {\n    readonly centerId: string | null;\n    readonly accountId: string | null;\n    readonly loginStateHandle: string | null;\n    readonly expectedTenant?: {\n        readonly organization: string;\n        readonly account: string;\n    };\n}"
+            }
+          ]
+        },
+        {
+          "name": "AdmissionReason",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export type AdmissionReason = 'not-configured' | 'not-logged-in' | 'selection-changed' | 'busy' | 'invalid-input' | 'reenter-required' | 'local-unavailable' | 'invalid-record' | 'unsupported-format' | 'identity-unavailable' | 'center-mismatch' | 'defect';"
+            }
+          ]
+        },
+        {
+          "name": "RemoteObservation",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export interface RemoteObservation {\n    readonly status: 'not-attempted' | 'success' | 'rejected' | 'unavailable' | 'unknown';\n    readonly stage: 'none' | 'health' | 'identity' | 'operation';\n    /** Only the target governance request, not preparatory health/identity traffic. */\n    readonly sendAttempted: boolean;\n    readonly reply?: PublicExchange;\n    readonly answer?: 'version-mismatch' | 'login-state-rejected' | 'invalid-input' | 'unavailable';\n    readonly transportFailure?: 'connection' | 'trust' | 'timeout' | 'cancelled' | 'response-framing' | 'response-limit' | 'response-invalid';\n    readonly health?: {\n        readonly reachable: true;\n        readonly centerId: string;\n        readonly version: string;\n    };\n}"
+            }
+          ]
+        },
+        {
+          "name": "LocalSettlement",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export interface LocalSettlement {\n    readonly status: 'not-requested' | 'installed' | 'conflict' | 'not-installed' | 'unconfirmed' | 'defect';\n    readonly reason?: 'invalid-input' | 'invalid-record' | 'unsupported-format' | 'unavailable';\n    readonly recovery?: {\n        readonly observation: 'visible-this-operation' | 'visible-other-record' | 'not-seen' | 'different-store' | 'unknown';\n        readonly current?: Omit<Origin, 'expectedTenant'> & {\n            readonly revision: number;\n        };\n    };\n}"
+            }
+          ]
+        },
+        {
+          "name": "DefectStage",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export type DefectStage = 'input' | 'local-read' | 'health' | 'identity' | 'operation' | 'settlement' | 'recovery' | 'output';"
+            }
+          ]
+        },
+        {
+          "name": "ActionReport",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export interface ActionReport {\n    readonly format: 'governance-client/1';\n    readonly actionId: string;\n    readonly action: ActionInput['action'] | 'invalid';\n    readonly operation: string | null;\n    readonly origin: Origin;\n    readonly admission: {\n        readonly status: 'admitted' | 'blocked';\n        readonly reason?: AdmissionReason;\n    };\n    readonly remote: RemoteObservation;\n    readonly local: LocalSettlement;\n    readonly view: {\n        readonly source: 'none' | 'online' | 'copy';\n        readonly acquiredAt?: string;\n        readonly data?: PublicExchange;\n        readonly query?: {\n            readonly operation: string;\n            readonly payload: Readonly<Record<string, unknown>>;\n        };\n        readonly tenant?: {\n            readonly organization: string;\n            readonly account: string;\n        };\n    };\n    readonly use: 'active' | 'reenter-required' | 'ended';\n    readonly defect?: {\n        readonly stage: DefectStage;\n        readonly code: 'internal-defect';\n    };\n}"
+            }
+          ]
+        },
+        {
+          "name": "GovernanceUse",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export interface GovernanceUse {\n    run(input: unknown): Promise<ActionReport>;\n    runPrepared(intent: unknown, prompt: InputPrompt): Promise<ActionReport>;\n    close(): Promise<void>;\n}"
+            }
+          ]
+        },
+        {
+          "name": "OpenUseOutcome",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export type OpenUseOutcome = {\n    readonly kind: 'use';\n    readonly use: GovernanceUse;\n    readonly origin: Origin;\n} | {\n    readonly kind: 'blocked';\n    readonly reason: AdmissionReason;\n};"
+            }
+          ]
+        },
+        {
+          "name": "GovernanceClientOperations",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export interface GovernanceClientOperations {\n    runAction(input: unknown): Promise<ActionReport>;\n    runPrepared(intent: unknown, prompt: InputPrompt): Promise<ActionReport>;\n    openUse(): Promise<OpenUseOutcome>;\n    close(): Promise<void>;\n}"
+            }
+          ]
+        },
+        {
+          "name": "ClientUseUsageDefect",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export declare class ClientUseUsageDefect extends Error {\n    readonly reason: 'closed' | 'invalid-use';\n    readonly name = \"ClientUseUsageDefect\";\n    constructor(reason: 'closed' | 'invalid-use');\n}"
+            }
+          ]
+        },
+        {
+          "name": "ClientCloseObservation",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/types.d.ts",
+              "text": "export interface ClientCloseObservation {\n    observe(attempt: Promise<void>): void;\n}"
+            }
+          ]
+        }
+      ],
+      "runtime_exports": [
+        "ClientUseUsageDefect",
+        "exitStatus"
+      ]
+    },
+    {
+      "name": "@omne-harness-lite/governance-client-operations/cordis",
+      "entry": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/cordis.d.ts",
+      "resolved": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+governance-client-operations@file+..+tarballs+omne-harness-lite-gove_ae999c49ff5ecc7693ee02f7f3248dd4/node_modules/@omne-harness-lite/governance-client-operations/dist/cordis.js",
+      "declarations": [
+        {
+          "name": "GovernanceClientOperationsService",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/cordis.d.ts",
+              "text": "export declare abstract class GovernanceClientOperationsService extends Service implements GovernanceClientOperations {\n    static readonly provide: \"governanceClientOperations\";\n    constructor(ctx: Context);\n    abstract runAction: GovernanceClientOperations['runAction'];\n    abstract runPrepared: GovernanceClientOperations['runPrepared'];\n    abstract openUse: GovernanceClientOperations['openUse'];\n    abstract close: GovernanceClientOperations['close'];\n}"
+            }
+          ]
+        },
+        {
+          "name": "GOVERNANCE_CLIENT_OPERATIONS_SERVICE",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/cordis.d.ts",
+              "text": "GOVERNANCE_CLIENT_OPERATIONS_SERVICE: \"governanceClientOperations\""
+            }
+          ]
+        },
+        {
+          "name": "GovernanceClientCloseObserver",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/cordis.d.ts",
+              "text": "export declare abstract class GovernanceClientCloseObserver extends Service implements ClientCloseObservation {\n    static readonly provide: \"governanceClientCloseObserver\";\n    constructor(ctx: Context);\n    abstract observe: ClientCloseObservation['observe'];\n}"
+            }
+          ]
+        },
+        {
+          "name": "GOVERNANCE_CLIENT_CLOSE_OBSERVER_SERVICE",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-client-operations/dist/cordis.d.ts",
+              "text": "GOVERNANCE_CLIENT_CLOSE_OBSERVER_SERVICE: \"governanceClientCloseObserver\""
+            }
+          ]
+        }
+      ],
+      "runtime_exports": [
+        "GOVERNANCE_CLIENT_CLOSE_OBSERVER_SERVICE",
+        "GOVERNANCE_CLIENT_OPERATIONS_SERVICE",
+        "GovernanceClientCloseObserver",
+        "GovernanceClientOperationsService"
+      ]
+    },
+    {
+      "name": "@omne-harness-lite/governance-center-client-https",
+      "entry": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-client-https/dist/index.d.ts",
+      "resolved": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+governance-center-client-https@file+..+tarballs+omne-harness-lite-go_f6a9ae19c39ffda5ee08612586f92ee2/node_modules/@omne-harness-lite/governance-center-client-https/dist/index.js",
+      "declarations": [
+        {
+          "name": "readPublicHealth",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-client-https/dist/health.d.ts",
+              "text": "export declare function readPublicHealth(options: PublicHealthOptions): Promise<PublicHealthOutcome>;"
+            }
+          ]
+        },
+        {
+          "name": "exchangeGovernance",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-client-https/dist/governance.d.ts",
+              "text": "export declare function exchangeGovernance(options: PublicHealthOptions, input: unknown): Promise<GovernanceOutcome>;"
+            }
+          ]
+        },
+        {
+          "name": "createGovernanceTransport",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-client-https/dist/instance.d.ts",
+              "text": "export declare function createGovernanceTransport(): GovernanceTransportInstance;"
+            }
+          ]
+        },
+        {
+          "name": "GovernanceTransportInstance",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-client-https/dist/instance.d.ts",
+              "text": "export interface GovernanceTransportInstance extends GovernanceTransport {\n    close(): Promise<void>;\n}"
+            }
+          ]
+        }
+      ],
+      "runtime_exports": [
+        "createGovernanceTransport",
+        "exchangeGovernance",
+        "readPublicHealth"
+      ]
+    },
+    {
+      "name": "@omne-harness-lite/governance-center-entry-https-json",
+      "entry": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/index.d.ts",
+      "resolved": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+governance-center-entry-https-json@file+..+tarballs+omne-harness-lit_c67d0ab4b9bd12d4eb2102a94efaf834/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/index.js",
+      "declarations": [
+        {
+          "name": "GovernanceTransport",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/index.d.ts",
+              "text": "export interface GovernanceTransport {\n    readPublicHealth(options: PublicHealthOptions): Promise<PublicHealthOutcome>;\n    exchangeGovernance(options: PublicHealthOptions, input: unknown): Promise<GovernanceOutcome>;\n}"
+            }
+          ]
+        },
+        {
+          "name": "GovernanceTransportStopped",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/index.d.ts",
+              "text": "export declare class GovernanceTransportStopped extends Error {\n    readonly name = \"GovernanceTransportStopped\";\n    constructor();\n}"
+            }
+          ]
+        },
+        {
+          "name": "CenterTrust",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/config.d.ts",
+              "text": "export type CenterTrust = {\n    readonly mode: 'ca';\n    readonly certificateAuthorities?: string | Uint8Array;\n} | {\n    readonly mode: 'spki';\n    readonly sha256: string;\n};"
+            }
+          ]
+        },
+        {
+          "name": "PublicHealthOptions",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/config.d.ts",
+              "text": "export interface PublicHealthOptions {\n    readonly url: string | URL;\n    /** SPKI必须已由调用方确认；本包没有发现/接受/保存信任的副作用。 */\n    readonly trust?: CenterTrust;\n    readonly timeoutMs?: number;\n    readonly signal?: AbortSignal;\n}"
+            }
+          ]
+        },
+        {
+          "name": "GovernanceClientConfigurationError",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/config.d.ts",
+              "text": "export declare class GovernanceClientConfigurationError extends Error {\n    readonly name = \"GovernanceClientConfigurationError\";\n}"
+            }
+          ]
+        },
+        {
+          "name": "PublicHealthReply",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/protocol.d.ts",
+              "text": "export interface PublicHealthReply {\n    readonly reachable: true;\n    readonly centerId: string;\n    readonly version: string;\n}"
+            }
+          ]
+        },
+        {
+          "name": "EntryAnswer",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/protocol.d.ts",
+              "text": "export type EntryAnswer = 'version-mismatch' | 'login-state-rejected' | 'invalid-input' | 'unavailable';"
+            }
+          ]
+        },
+        {
+          "name": "HealthUnavailableReason",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/protocol.d.ts",
+              "text": "export type HealthUnavailableReason = 'connection' | 'trust' | 'timeout' | 'cancelled' | 'response-framing' | 'response-limit' | 'response-invalid';"
+            }
+          ]
+        },
+        {
+          "name": "PublicHealthOutcome",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/protocol.d.ts",
+              "text": "export type PublicHealthOutcome = {\n    readonly kind: 'health';\n    readonly reply: PublicHealthReply;\n} | {\n    readonly kind: 'entry-answer';\n    readonly answer: EntryAnswer;\n} | {\n    readonly kind: 'unavailable';\n    readonly reason: HealthUnavailableReason;\n};"
+            }
+          ]
+        },
+        {
+          "name": "GovernanceOutcome",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/governance.d.ts",
+              "text": "export type GovernanceOutcome = ({\n    readonly kind: 'reply';\n    readonly reply: {\n        readonly result: unknown;\n    } | {\n        readonly failure: string;\n    };\n} | {\n    readonly kind: 'entry-answer';\n    readonly answer: EntryAnswer;\n} | {\n    readonly kind: 'unavailable';\n    readonly reason: HealthUnavailableReason;\n}) & {\n    readonly sendAttempted: boolean;\n};"
+            }
+          ]
+        }
+      ],
+      "runtime_exports": [
+        "GovernanceClientConfigurationError",
+        "GovernanceTransportStopped"
+      ]
+    },
+    {
+      "name": "@omne-harness-lite/governance-center-entry",
+      "entry": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry/dist/index.d.ts",
+      "resolved": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+governance-center-entry@file+..+tarballs+omne-harness-lite-governance-center-entry-0.0.0.tgz/node_modules/@omne-harness-lite/governance-center-entry/dist/index.js",
+      "declarations": [
+        {
+          "name": "EntryOpeningSignal",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry/dist/index.d.ts",
+              "text": "export interface EntryOpeningSignal {\n    wait(): Promise<void>;\n    isOpen(): boolean;\n}"
+            }
+          ]
+        },
+        {
+          "name": "EntryOpeningStopped",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry/dist/index.d.ts",
+              "text": "export declare class EntryOpeningStopped extends Error {\n    readonly name = \"EntryOpeningStopped\";\n    constructor();\n}"
+            }
+          ]
+        },
+        {
+          "name": "isGovernanceCenterId",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry/dist/center-id.d.ts",
+              "text": "export declare function isGovernanceCenterId(value: unknown): value is GovernanceCenterId;"
+            }
+          ]
+        },
+        {
+          "name": "GovernanceCenterId",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry/dist/center-id.d.ts",
+              "text": "export type GovernanceCenterId = string & {\n    readonly [governanceCenterIdBrand]: true;\n};"
+            }
+          ]
+        },
+        {
+          "name": "PUBLIC_HEALTH_ROUTE",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry/dist/routes.d.ts",
+              "text": "PUBLIC_HEALTH_ROUTE = \"composition.governance-center-entry/v1#S-18\""
+            }
+          ]
+        },
+        {
+          "name": "ROUTE_IDS",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry/dist/routes.d.ts",
+              "text": "ROUTE_IDS: readonly [\"composition.account-registration/v2#S-8\", \"capability.account-identity/v3#S-15\", \"capability.account-identity/v3#S-16\", \"capability.account-identity/v3#S-37\", \"capability.organization-governance/v2#S-21\", \"capability.organization-governance/v2#S-22\", \"capability.organization-governance/v2#S-23\", \"capability.organization-governance/v2#S-24\", \"capability.organization-governance/v2#S-25\", \"capability.organization-governance/v2#S-26\", \"capability.organization-governance/v2#S-27\", \"capability.organization-governance/v2#S-28\", \"capability.organization-governance/v2#S-29\", \"capability.organization-governance/v2#S-30\", \"capability.organization-governance/v2#S-31\", \"capability.organization-governance/v2#S-32\", \"capability.organization-governance/v2#S-33\", \"capability.organization-governance/v2#S-34\", \"capability.organization-governance/v2#S-35\", \"capability.organization-governance/v2#S-36\", \"capability.organization-governance/v2#S-37\", \"capability.organization-governance/v2#S-55\", \"capability.organization-governance/v2#S-56\", \"capability.organization-governance/v2#S-57\", \"capability.organization-governance/v2#S-58\", \"capability.organization-governance/v2#S-59\", \"capability.organization-governance/v2#S-60\", \"capability.account-identity/v3#S-50\", \"capability.organization-governance/v2#S-61\", \"capability.organization-governance/v2#S-62\", \"composition.governance-center-entry/v2#S-50\"]"
+            }
+          ]
+        },
+        {
+          "name": "ACCEPTED_PROTOCOL_VERSIONS",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry/dist/routes.d.ts",
+              "text": "ACCEPTED_PROTOCOL_VERSIONS: readonly string[]"
+            }
+          ]
+        },
+        {
+          "name": "RouteId",
+          "declarations": [
+            {
+              "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/@omne-harness-lite/governance-center-entry/dist/routes.d.ts",
+              "text": "export type RouteId = (typeof ROUTE_IDS)[number];"
+            }
+          ]
+        }
+      ],
+      "runtime_exports": [
+        "ACCEPTED_PROTOCOL_VERSIONS",
+        "EntryOpeningStopped",
+        "PUBLIC_HEALTH_ROUTE",
+        "ROUTE_IDS",
+        "isGovernanceCenterId"
+      ]
+    }
+  ],
+  "aliases": [
+    {
+      "name": "clientLocalStatePlugin",
+      "pure_root": "@omne-harness-lite/client-local-state-sqlite",
+      "rejected": true
+    },
+    {
+      "name": "CLIENT_LOCAL_STATE_SERVICE",
+      "pure_root": "@omne-harness-lite/client-local-state",
+      "rejected": true
+    },
+    {
+      "name": "governanceClientOperationsPlugin",
+      "pure_root": "@omne-harness-lite/governance-client-operations-local",
+      "rejected": true
+    },
+    {
+      "name": "GOVERNANCE_CLIENT_OPERATIONS_SERVICE",
+      "pure_root": "@omne-harness-lite/governance-client-operations",
+      "rejected": true
+    },
+    {
+      "pure_root": "@omne-harness-lite/client-local-state",
+      "name": "openClientLocalState",
+      "rejected": true
+    },
+    {
+      "pure_root": "@omne-harness-lite/governance-client-operations",
+      "name": "createGovernanceClient",
+      "rejected": true
+    },
+    {
+      "pure_root": "@omne-harness-lite/governance-center-entry-https-json",
+      "name": "readPublicHealth",
+      "rejected": true
+    },
+    {
+      "pure_root": "@omne-harness-lite/governance-center-entry-https-json",
+      "name": "exchangeGovernance",
+      "rejected": true
+    }
+  ],
+  "schemas": [
+    {
+      "name": "@omne-harness-lite/governance-client-operations/schema",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+governance-client-operations@file+..+tarballs+omne-harness-lite-gove_ae999c49ff5ecc7693ee02f7f3248dd4/node_modules/@omne-harness-lite/governance-client-operations/schema/governance-client-operations.schema.json",
+      "sha256": "e89e9f03a632b5bd5acfb725537538a1b2675ccfa7bbcadc82977e1bad143e35",
+      "bytes": 128166,
+      "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-client-operations/v1/governance-client-operations.schema.json",
+      "status": "Pass"
+    },
+    {
+      "name": "@omne-harness-lite/governance-client-operations/schema/v2",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+governance-client-operations@file+..+tarballs+omne-harness-lite-gove_ae999c49ff5ecc7693ee02f7f3248dd4/node_modules/@omne-harness-lite/governance-client-operations/schema/governance-client-operations-v2.schema.json",
+      "sha256": "ce0fb32438b8e5eb729985095e8a91d682c07b8b79fe3db548695b1783d261f6",
+      "bytes": 63477,
+      "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-client-operations/v2/governance-client-operations.schema.json",
+      "status": "Pass"
+    },
+    {
+      "name": "@omne-harness-lite/governance-center-entry/schema/v2",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+governance-center-entry@file+..+tarballs+omne-harness-lite-governance-center-entry-0.0.0.tgz/node_modules/@omne-harness-lite/governance-center-entry/schema/governance-center-entry-v2.schema.json",
+      "sha256": "7c7124396ea16e1f0d2eda7d6a44f4284d9be77f2546e74de7ae740d718a3b29",
+      "bytes": 96559,
+      "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json",
+      "status": "Pass"
+    }
+  ],
+  "consumers": [
+    {
+      "file": "apps/cli/src/application.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": false,
+      "text": "import { exitStatus, type ActionReport } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "apps/cli/src/assembly.ts",
+      "module": "@omne-harness-lite/client-local-state/cordis",
+      "type_only": false,
+      "text": "import {\n  ClientStateStorage,\n  CLIENT_LOCAL_STATE_SERVICE,\n} from '@omne-harness-lite/client-local-state/cordis'"
+    },
+    {
+      "file": "apps/cli/src/assembly.ts",
+      "module": "@omne-harness-lite/client-local-state-sqlite",
+      "type_only": false,
+      "text": "import { ClientStateOpenFailure } from '@omne-harness-lite/client-local-state-sqlite'"
+    },
+    {
+      "file": "apps/cli/src/assembly.ts",
+      "module": "@omne-harness-lite/client-local-state-sqlite/cordis",
+      "type_only": false,
+      "text": "import { managedClientLocalStatePlugin } from '@omne-harness-lite/client-local-state-sqlite/cordis'"
+    },
+    {
+      "file": "apps/cli/src/assembly.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json/cordis",
+      "type_only": false,
+      "text": "import { GOVERNANCE_TRANSPORT_SERVICE } from '@omne-harness-lite/governance-center-entry-https-json/cordis'"
+    },
+    {
+      "file": "apps/cli/src/assembly.ts",
+      "module": "@omne-harness-lite/governance-center-client-https/cordis",
+      "type_only": false,
+      "text": "import { managedGovernanceTransportPlugin } from '@omne-harness-lite/governance-center-client-https/cordis'"
+    },
+    {
+      "file": "apps/cli/src/assembly.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type { GovernanceClientOperations } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "apps/cli/src/assembly.ts",
+      "module": "@omne-harness-lite/governance-client-operations/cordis",
+      "type_only": false,
+      "text": "import {\n  GovernanceClientCloseObserver,\n  GOVERNANCE_CLIENT_OPERATIONS_SERVICE,\n} from '@omne-harness-lite/governance-client-operations/cordis'"
+    },
+    {
+      "file": "apps/cli/src/assembly.ts",
+      "module": "@omne-harness-lite/governance-client-operations-local/cordis",
+      "type_only": false,
+      "text": "import { managedGovernanceClientOperationsPlugin } from '@omne-harness-lite/governance-client-operations-local/cordis'"
+    },
+    {
+      "file": "apps/cli/src/client-assembly.ts",
+      "module": "@omne-harness-lite/client-local-state",
+      "type_only": true,
+      "text": "import type { ReadFailure } from '@omne-harness-lite/client-local-state'"
+    },
+    {
+      "file": "apps/cli/src/client-assembly.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type { GovernanceClientOperations } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "apps/cli/src/input.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type { ActionIntent, PromptResult } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "apps/cli/src/parser.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type { ActionIntent } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "apps/cli/src/presentation.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type {\n  ActionReport,\n  ActionPreview,\n  AdmissionReason,\n} from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "apps/cli/src/tui/application.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": false,
+      "text": "import {\n  exitStatus,\n  type ActionReport,\n  type ActionPreview,\n  type GovernanceClientOperations,\n  type GovernanceUse,\n  type Origin,\n} from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "apps/cli/src/tui/forms.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type { ActionIntent, PromptResult } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "apps/cli/src/validation.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type { ActionIntent, ActionReport } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "apps/cli/tests/application.spec.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type {\n  ActionReport,\n  GovernanceClientOperations,\n} from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "apps/cli/tests/support/client-assembly.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type { GovernanceClientOperations } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "apps/cli/tests/tui-application.spec.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type {\n  ActionReport,\n  GovernanceClientOperations,\n  InputPrompt,\n} from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "apps/tenancy-host/src/assembly.ts",
+      "module": "@omne-harness-lite/governance-center-entry",
+      "type_only": false,
+      "text": "import {\n  EntryOpeningStopped,\n  type EntryOpeningSignal,\n} from '@omne-harness-lite/governance-center-entry'"
+    },
+    {
+      "file": "apps/tenancy-host/src/assembly.ts",
+      "module": "@omne-harness-lite/governance-center-entry/cordis",
+      "type_only": false,
+      "text": "import { EntryOpening } from '@omne-harness-lite/governance-center-entry/cordis'"
+    },
+    {
+      "file": "apps/tenancy-host/src/boot.ts",
+      "module": "@omne-harness-lite/governance-center-entry-node",
+      "type_only": false,
+      "text": "import {\n  GovernanceCenterClockTimeoutError,\n  SERVING_EVENT,\n  type ServingNotice,\n  governanceCenterPreflight,\n} from '@omne-harness-lite/governance-center-entry-node'"
+    },
+    {
+      "file": "apps/tenancy-host/src/maintenance-command.ts",
+      "module": "@omne-harness-lite/governance-center-entry-node",
+      "type_only": false,
+      "text": "import {\n  createOfflineMaintenance,\n  maintenanceFailureResult,\n  OPS_SOCKET_NAME,\n  readOpsReplyBody,\n  validMaintenanceLocation,\n} from '@omne-harness-lite/governance-center-entry-node'"
+    },
+    {
+      "file": "apps/tenancy-host/src/manifest.ts",
+      "module": "@omne-harness-lite/governance-center-entry-node/cordis",
+      "type_only": false,
+      "text": "import {\n  managedGovernanceCenterEntryPlugin,\n  managedGovernanceCenterOpsPlugin,\n} from '@omne-harness-lite/governance-center-entry-node/cordis'"
+    },
+    {
+      "file": "apps/tenancy-host/src/manifest.ts",
+      "module": "@omne-harness-lite/governance-center-entry-node",
+      "type_only": false,
+      "text": "import {\n  type GovernanceCenterEntryConfig,\n  type GovernanceCenterOpsConfig,\n} from '@omne-harness-lite/governance-center-entry-node'"
+    },
+    {
+      "file": "apps/tenancy-host/src/migrations.ts",
+      "module": "@omne-harness-lite/governance-center-entry-node",
+      "type_only": false,
+      "text": "import { governanceCenterMigrations } from '@omne-harness-lite/governance-center-entry-node'"
+    },
+    {
+      "file": "apps/tenancy-host/src/snapshot-checks.ts",
+      "module": "@omne-harness-lite/governance-center-entry-node",
+      "type_only": false,
+      "text": "import {\n  governanceCenterSnapshotCheck,\n  CENTER_SNAPSHOT_TABLES,\n} from '@omne-harness-lite/governance-center-entry-node'"
+    },
+    {
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "module": "@omne-harness-lite/governance-center-entry-node",
+      "type_only": false,
+      "text": "import { GovernanceCenterClockTimeoutError } from '@omne-harness-lite/governance-center-entry-node'"
+    },
+    {
+      "file": "apps/tenancy-host/tests/managed-lifecycle.spec.ts",
+      "module": "@omne-harness-lite/governance-center-entry",
+      "type_only": false,
+      "text": "import {\n  EntryOpeningStopped,\n  type EntryOpeningSignal,\n} from '@omne-harness-lite/governance-center-entry'"
+    },
+    {
+      "file": "apps/tenancy-host/tests/pg.spec.ts",
+      "module": "@omne-harness-lite/governance-center-entry-node/cordis",
+      "type_only": false,
+      "text": "import { governanceCenterEntryPlugin } from '@omne-harness-lite/governance-center-entry-node/cordis'"
+    },
+    {
+      "file": "apps/tenancy-host/tests/pg.spec.ts",
+      "module": "@omne-harness-lite/governance-center-entry-node",
+      "type_only": false,
+      "text": "import {\n  type GovernanceCenterEntryConfig,\n  SERVING_EVENT,\n  type ServingNotice,\n} from '@omne-harness-lite/governance-center-entry-node'"
+    },
+    {
+      "file": "apps/tenancy-host/tests/snapshot-checks.spec.ts",
+      "module": "@omne-harness-lite/governance-center-entry-node",
+      "type_only": false,
+      "text": "import { readSnapshotCenterId } from '@omne-harness-lite/governance-center-entry-node'"
+    },
+    {
+      "file": "packages/core/governance-client-operations/src/types.ts",
+      "module": "@omne-harness-lite/client-local-state",
+      "type_only": true,
+      "text": "import type { LocalRecord } from '@omne-harness-lite/client-local-state'"
+    },
+    {
+      "file": "packages/frontend/client-local-state-sqlite/src/open-failure.ts",
+      "module": "@omne-harness-lite/client-local-state",
+      "type_only": true,
+      "text": "import type { ReadFailure } from '@omne-harness-lite/client-local-state'"
+    },
+    {
+      "file": "packages/frontend/client-local-state-sqlite/src/open.ts",
+      "module": "@omne-harness-lite/client-local-state",
+      "type_only": true,
+      "text": "import type {\n  ClientLocalState,\n  LocalStateStorageFactory,\n} from '@omne-harness-lite/client-local-state'"
+    },
+    {
+      "file": "packages/frontend/client-local-state-sqlite/src/plugin.ts",
+      "module": "@omne-harness-lite/client-local-state/cordis",
+      "type_only": false,
+      "text": "import {\n  ClientLocalStateService,\n  CLIENT_STATE_STORAGE_SERVICE,\n} from '@omne-harness-lite/client-local-state/cordis'"
+    },
+    {
+      "file": "packages/frontend/client-local-state-sqlite/src/record.ts",
+      "module": "@omne-harness-lite/client-local-state",
+      "type_only": true,
+      "text": "import type { LocalRecord } from '@omne-harness-lite/client-local-state'"
+    },
+    {
+      "file": "packages/frontend/client-local-state-sqlite/src/store.ts",
+      "module": "@omne-harness-lite/client-local-state",
+      "type_only": false,
+      "text": "import {\n  ClientStateUsageDefect,\n  type ClientLocalState,\n  type LocalSnapshot,\n  type ReadOutcome,\n  type ReadFailure,\n  type ReplaceOutcome,\n  type SnapshotToken,\n  type LocalStateStorage,\n} from '@omne-harness-lite/client-local-state'"
+    },
+    {
+      "file": "packages/frontend/client-local-state-sqlite/tests/plugin.spec.ts",
+      "module": "@omne-harness-lite/client-local-state/cordis",
+      "type_only": false,
+      "text": "import { CLIENT_LOCAL_STATE_SERVICE } from '@omne-harness-lite/client-local-state/cordis'"
+    },
+    {
+      "file": "packages/frontend/client-local-state-sqlite/tests/plugin.spec.ts",
+      "module": "@omne-harness-lite/client-local-state",
+      "type_only": false,
+      "text": "import { type ClientLocalState } from '@omne-harness-lite/client-local-state'"
+    },
+    {
+      "file": "packages/frontend/client-local-state-sqlite/tests/state.spec.ts",
+      "module": "@omne-harness-lite/client-local-state",
+      "type_only": false,
+      "text": "import {\n  ClientStateUsageDefect,\n  type LocalRecord,\n  type SnapshotToken,\n} from '@omne-harness-lite/client-local-state'"
+    },
+    {
+      "file": "packages/frontend/client-local-state-sqlite/tests/support.ts",
+      "module": "@omne-harness-lite/client-local-state",
+      "type_only": true,
+      "text": "import type { LocalRecord, LocalSnapshot } from '@omne-harness-lite/client-local-state'"
+    },
+    {
+      "file": "packages/frontend/governance-center-client-https/src/config.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json",
+      "type_only": false,
+      "text": "import {\n  GovernanceClientConfigurationError,\n  type PublicHealthOptions,\n} from '@omne-harness-lite/governance-center-entry-https-json'"
+    },
+    {
+      "file": "packages/frontend/governance-center-client-https/src/governance.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json",
+      "type_only": false,
+      "text": "import {\n  GovernanceClientConfigurationError,\n  type PublicHealthOptions,\n} from '@omne-harness-lite/governance-center-entry-https-json'"
+    },
+    {
+      "file": "packages/frontend/governance-center-client-https/src/governance.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json",
+      "type_only": true,
+      "text": "import type { GovernanceOutcome } from '@omne-harness-lite/governance-center-entry-https-json'"
+    },
+    {
+      "file": "packages/frontend/governance-center-client-https/src/health.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json",
+      "type_only": true,
+      "text": "import type { PublicHealthOptions } from '@omne-harness-lite/governance-center-entry-https-json'"
+    },
+    {
+      "file": "packages/frontend/governance-center-client-https/src/health.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json",
+      "type_only": false,
+      "text": "import { type PublicHealthOutcome } from '@omne-harness-lite/governance-center-entry-https-json'"
+    },
+    {
+      "file": "packages/frontend/governance-center-client-https/src/instance.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json",
+      "type_only": false,
+      "text": "import {\n  GovernanceTransportStopped,\n  type GovernanceTransport,\n  type PublicHealthOptions,\n} from '@omne-harness-lite/governance-center-entry-https-json'"
+    },
+    {
+      "file": "packages/frontend/governance-center-client-https/src/plugin.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json/cordis",
+      "type_only": false,
+      "text": "import { GovernanceTransportService } from '@omne-harness-lite/governance-center-entry-https-json/cordis'"
+    },
+    {
+      "file": "packages/frontend/governance-center-client-https/src/protocol.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json",
+      "type_only": true,
+      "text": "import type { PublicHealthOutcome } from '@omne-harness-lite/governance-center-entry-https-json'"
+    },
+    {
+      "file": "packages/frontend/governance-center-client-https/src/transport.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json",
+      "type_only": false,
+      "text": "import { type PublicHealthOptions } from '@omne-harness-lite/governance-center-entry-https-json'"
+    },
+    {
+      "file": "packages/frontend/governance-center-client-https/src/transport.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json",
+      "type_only": true,
+      "text": "import type { HealthUnavailableReason } from '@omne-harness-lite/governance-center-entry-https-json'"
+    },
+    {
+      "file": "packages/frontend/governance-center-client-https/tests/health.spec.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json",
+      "type_only": false,
+      "text": "import { GovernanceClientConfigurationError } from '@omne-harness-lite/governance-center-entry-https-json'"
+    },
+    {
+      "file": "packages/frontend/governance-center-client-https/tests/types.spec-d.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json",
+      "type_only": false,
+      "text": "import {\n  type PublicHealthOptions,\n  type PublicHealthOutcome,\n} from '@omne-harness-lite/governance-center-entry-https-json'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/actions.ts",
+      "module": "@omne-harness-lite/client-local-state",
+      "type_only": true,
+      "text": "import type {\n  ClientLocalState,\n  LocalRecord,\n  LocalSnapshot,\n} from '@omne-harness-lite/client-local-state'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/actions.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json",
+      "type_only": false,
+      "text": "import {\n  GovernanceClientConfigurationError,\n  type PublicHealthOptions,\n  type PublicHealthOutcome,\n  type GovernanceOutcome,\n} from '@omne-harness-lite/governance-center-entry-https-json'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/actions.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type { ActionIntent } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/cache.ts",
+      "module": "@omne-harness-lite/client-local-state",
+      "type_only": true,
+      "text": "import type { CachedRead, LocalRecord } from '@omne-harness-lite/client-local-state'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/client.ts",
+      "module": "@omne-harness-lite/client-local-state",
+      "type_only": true,
+      "text": "import type { ClientLocalState } from '@omne-harness-lite/client-local-state'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/client.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json",
+      "type_only": false,
+      "text": "import {\n  type GovernanceTransport,\n  GovernanceClientConfigurationError,\n} from '@omne-harness-lite/governance-center-entry-https-json'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/client.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": false,
+      "text": "import {\n  ClientUseUsageDefect,\n  type ActionReport,\n  type GovernanceClientOperations,\n  type OpenUseOutcome,\n} from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/client.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type { InputPrompt } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/managed-client.ts",
+      "module": "@omne-harness-lite/client-local-state/cordis",
+      "type_only": false,
+      "text": "import { CLIENT_LOCAL_STATE_SERVICE } from '@omne-harness-lite/client-local-state/cordis'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/managed-client.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json/cordis",
+      "type_only": false,
+      "text": "import { GOVERNANCE_TRANSPORT_SERVICE } from '@omne-harness-lite/governance-center-entry-https-json/cordis'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/managed-client.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type { GovernanceClientOperations } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/managed-client.ts",
+      "module": "@omne-harness-lite/governance-client-operations/cordis",
+      "type_only": false,
+      "text": "import { GOVERNANCE_CLIENT_CLOSE_OBSERVER_SERVICE } from '@omne-harness-lite/governance-client-operations/cordis'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/plugin.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type { GovernanceClientOperations } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/plugin.ts",
+      "module": "@omne-harness-lite/governance-client-operations/cordis",
+      "type_only": false,
+      "text": "import { GovernanceClientOperationsService } from '@omne-harness-lite/governance-client-operations/cordis'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/plugin.ts",
+      "module": "@omne-harness-lite/client-local-state/cordis",
+      "type_only": false,
+      "text": "import { CLIENT_LOCAL_STATE_SERVICE } from '@omne-harness-lite/client-local-state/cordis'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/plugin.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json/cordis",
+      "type_only": false,
+      "text": "import { GOVERNANCE_TRANSPORT_SERVICE } from '@omne-harness-lite/governance-center-entry-https-json/cordis'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/prepared.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type {\n  ActionIntent,\n  ActionInput,\n  ActionPreview,\n  InputPrompt,\n  PreviewIntent,\n} from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/report.ts",
+      "module": "@omne-harness-lite/client-local-state",
+      "type_only": true,
+      "text": "import type { LocalRecord } from '@omne-harness-lite/client-local-state'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/report.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json",
+      "type_only": true,
+      "text": "import type { GovernanceOutcome } from '@omne-harness-lite/governance-center-entry-https-json'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/report.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type {\n  ActionIntent,\n  ActionReport,\n  AdmissionReason,\n  Origin,\n  DefectStage,\n  PublicExchange,\n} from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/settlement.ts",
+      "module": "@omne-harness-lite/client-local-state",
+      "type_only": true,
+      "text": "import type {\n  ClientLocalState,\n  LocalRecord,\n  LocalSnapshot,\n} from '@omne-harness-lite/client-local-state'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/use.ts",
+      "module": "@omne-harness-lite/client-local-state",
+      "type_only": true,
+      "text": "import type { CachedRead, LocalRecord, LocalSnapshot } from '@omne-harness-lite/client-local-state'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/use.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type { InputPrompt } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/use.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json",
+      "type_only": true,
+      "text": "import type { GovernanceOutcome } from '@omne-harness-lite/governance-center-entry-https-json'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/use.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": false,
+      "text": "import {\n  ClientUseUsageDefect,\n  type ActionInput,\n  type ActionReport,\n  type GovernanceUse,\n} from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/validation.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type {\n  ActionInput,\n  ActionIntent,\n  ActionPreview,\n  ActionReport,\n  PromptResult,\n} from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/tests/actions.spec.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": false,
+      "text": "import { exitStatus } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/tests/actions.spec.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type { ActionInput, ActionReport } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/tests/cache.spec.ts",
+      "module": "@omne-harness-lite/client-local-state",
+      "type_only": true,
+      "text": "import type {\n  CachedRead,\n  ClientLocalState,\n  LocalRecord,\n} from '@omne-harness-lite/client-local-state'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/tests/cache.spec.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type { ActionReport, ActionInput } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/tests/cache.spec.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": false,
+      "text": "import { exitStatus } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/tests/lifecycle.spec.ts",
+      "module": "@omne-harness-lite/client-local-state",
+      "type_only": true,
+      "text": "import type { ClientLocalState } from '@omne-harness-lite/client-local-state'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/tests/plugin.spec.ts",
+      "module": "@omne-harness-lite/governance-center-client-https",
+      "type_only": false,
+      "text": "import {\n  readPublicHealth,\n  exchangeGovernance,\n} from '@omne-harness-lite/governance-center-client-https'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/tests/plugin.spec.ts",
+      "module": "@omne-harness-lite/governance-client-operations/cordis",
+      "type_only": false,
+      "text": "import { GOVERNANCE_CLIENT_OPERATIONS_SERVICE } from '@omne-harness-lite/governance-client-operations/cordis'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/tests/plugin.spec.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": false,
+      "text": "import { type GovernanceClientOperations } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/tests/prepared.spec.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": false,
+      "text": "import { exitStatus } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/tests/prepared.spec.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type {\n  ActionPreview,\n  InputPrompt,\n  PromptResult,\n} from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/tests/reentrant-close.spec.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": true,
+      "text": "import type {\n  GovernanceClientOperations,\n  GovernanceUse,\n} from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/tests/reentrant-close.spec.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json",
+      "type_only": true,
+      "text": "import type { GovernanceTransport } from '@omne-harness-lite/governance-center-entry-https-json'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/tests/settlement.spec.ts",
+      "module": "@omne-harness-lite/client-local-state",
+      "type_only": true,
+      "text": "import type { ClientLocalState } from '@omne-harness-lite/client-local-state'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/tests/settlement.spec.ts",
+      "module": "@omne-harness-lite/governance-client-operations",
+      "type_only": false,
+      "text": "import { exitStatus } from '@omne-harness-lite/governance-client-operations'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/tests/support.ts",
+      "module": "@omne-harness-lite/client-local-state-sqlite",
+      "type_only": false,
+      "text": "import {\n  openClientLocalState,\n  type ClientLocalStateInstance,\n} from '@omne-harness-lite/client-local-state-sqlite'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/tests/support.ts",
+      "module": "@omne-harness-lite/client-local-state",
+      "type_only": false,
+      "text": "import { type ClientLocalState, type LocalRecord } from '@omne-harness-lite/client-local-state'"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/tests/support.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json",
+      "type_only": true,
+      "text": "import type { GovernanceOutcome } from '@omne-harness-lite/governance-center-entry-https-json'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/src/center-id/read-or-mint.ts",
+      "module": "@omne-harness-lite/governance-center-entry",
+      "type_only": false,
+      "text": "import {\n  type GovernanceCenterId,\n  isGovernanceCenterId,\n} from '@omne-harness-lite/governance-center-entry'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/src/center-id/snapshot.ts",
+      "module": "@omne-harness-lite/governance-center-entry",
+      "type_only": false,
+      "text": "import {\n  isGovernanceCenterId,\n  type GovernanceCenterId,\n} from '@omne-harness-lite/governance-center-entry'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+      "module": "@omne-harness-lite/governance-center-entry",
+      "type_only": true,
+      "text": "import type { EntryOpeningSignal } from '@omne-harness-lite/governance-center-entry'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+      "module": "@omne-harness-lite/governance-center-entry/cordis",
+      "type_only": false,
+      "text": "import { ENTRY_OPENING_SERVICE } from '@omne-harness-lite/governance-center-entry/cordis'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+      "module": "@omne-harness-lite/governance-center-entry",
+      "type_only": true,
+      "text": "import type { EntryOpeningSignal } from '@omne-harness-lite/governance-center-entry'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+      "module": "@omne-harness-lite/governance-center-entry/cordis",
+      "type_only": false,
+      "text": "import { ENTRY_OPENING_SERVICE } from '@omne-harness-lite/governance-center-entry/cordis'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+      "module": "@omne-harness-lite/governance-center-entry",
+      "type_only": true,
+      "text": "import type { GovernanceCenterId } from '@omne-harness-lite/governance-center-entry'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/src/routing/answers.ts",
+      "module": "@omne-harness-lite/governance-center-entry",
+      "type_only": true,
+      "text": "import type { GovernanceCenterId } from '@omne-harness-lite/governance-center-entry'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/src/routing/answers.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json",
+      "type_only": true,
+      "text": "import type {\n  EntryAnswer,\n  PublicHealthReply,\n} from '@omne-harness-lite/governance-center-entry-https-json'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/src/routing/decide.ts",
+      "module": "@omne-harness-lite/governance-center-entry-https-json",
+      "type_only": true,
+      "text": "import type { EntryAnswer } from '@omne-harness-lite/governance-center-entry-https-json'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/src/routing/decide.ts",
+      "module": "@omne-harness-lite/governance-center-entry",
+      "type_only": false,
+      "text": "import {\n  ACCEPTED_PROTOCOL_VERSIONS,\n  PUBLIC_HEALTH_ROUTE,\n} from '@omne-harness-lite/governance-center-entry'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/src/routing/routes.ts",
+      "module": "@omne-harness-lite/governance-center-entry",
+      "type_only": true,
+      "text": "import type { RouteId } from '@omne-harness-lite/governance-center-entry'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/tests/basis.spec.ts",
+      "module": "@omne-harness-lite/governance-center-entry",
+      "type_only": false,
+      "text": "import { ROUTE_IDS } from '@omne-harness-lite/governance-center-entry'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/tests/bytes.spec.ts",
+      "module": "@omne-harness-lite/governance-center-entry",
+      "type_only": false,
+      "text": "import { ROUTE_IDS } from '@omne-harness-lite/governance-center-entry'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/tests/bytes.spec.ts",
+      "module": "@omne-harness-lite/governance-center-entry",
+      "type_only": false,
+      "text": "import { isGovernanceCenterId } from '@omne-harness-lite/governance-center-entry'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/tests/center-id.spec.ts",
+      "module": "@omne-harness-lite/governance-center-entry",
+      "type_only": false,
+      "text": "import { isGovernanceCenterId } from '@omne-harness-lite/governance-center-entry'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/tests/decide.spec.ts",
+      "module": "@omne-harness-lite/governance-center-entry",
+      "type_only": false,
+      "text": "import { ROUTE_IDS, isGovernanceCenterId } from '@omne-harness-lite/governance-center-entry'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/tests/skeleton.spec.ts",
+      "module": "@omne-harness-lite/governance-center-entry",
+      "type_only": false,
+      "text": "import { ACCEPTED_PROTOCOL_VERSIONS } from '@omne-harness-lite/governance-center-entry'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/tests/types.spec-d.ts",
+      "module": "@omne-harness-lite/governance-center-entry",
+      "type_only": true,
+      "text": "import type { EntryOpeningSignal } from '@omne-harness-lite/governance-center-entry'"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/tests/types.spec-d.ts",
+      "module": "@omne-harness-lite/governance-center-entry",
+      "type_only": false,
+      "text": "import { type GovernanceCenterId } from '@omne-harness-lite/governance-center-entry'"
+    }
+  ],
+  "command_bytes_sha256": "f9375c3fa4e310a6469555b109f9b2caddb3960e7ff8a0be649cabd52d99f434",
+  "limits": [
+    "Static import inventory and declaration equality do not prove runtime reachability. Actual route/CLI/assembly/packed runtime evidence is separate.",
+    "Adopted factory/binding shape changes have exact external type negatives and actual injection/strict Config observations."
+  ]
+}
