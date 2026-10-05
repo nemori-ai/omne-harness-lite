@@ -1,42 +1,19 @@
 // 记录读取与两处共用的判定：账号行的占用分类（S-13）、过期事实的首次落盘（S-13／S-14／S-18／S-38）、
 // 登录状态的判定（S-17 与 S-44 共用同一个函数——「不是第二份判据」由此兑现）。
 import type { CredentialMaterial } from '@omne-harness-lite/account-identity'
-import type { AccountId, LoginIdentifier, LoginStateId } from '@omne-harness-lite/identity-values'
+import type { AccountId, LoginStateId } from '@omne-harness-lite/identity-values'
 import { type Clock, type Instant, compareInstants } from '@omne-harness-lite/offer-expiry'
-import { StorageUnavailable, narrow, type ReadTx, type WriteTx } from '@omne-harness-lite/storage'
+import { StorageUnavailable } from '@omne-harness-lite/storage'
 import {
-  ACCOUNT_TABLE,
-  type AccountIdentityDb,
   type AccountRow,
-  LOGIN_STATE_TABLE,
   storedAccountId,
   storedFlag,
   storedInstant,
   storedRevision,
   type LoginStateRow,
-} from './schema.ts'
-
-export function selectAccountByIdentifier(
-  tx: ReadTx,
-  identifier: LoginIdentifier,
-): Promise<AccountRow | undefined> {
-  return narrow<AccountIdentityDb>(tx)
-    .selectFrom(ACCOUNT_TABLE)
-    .selectAll()
-    .where('login_identifier', '=', identifier)
-    .executeTakeFirst()
-}
-
-export function selectAccountById(
-  tx: ReadTx,
-  accountId: AccountId,
-): Promise<AccountRow | undefined> {
-  return narrow<AccountIdentityDb>(tx)
-    .selectFrom(ACCOUNT_TABLE)
-    .selectAll()
-    .where('account_id', '=', accountId)
-    .executeTakeFirst()
-}
+  type IdentityRead,
+  type IdentityWrite,
+} from './identity-data.ts'
 
 /** 一条账号行在某一刻的占用类别（S-13 前置①）。 */
 export type Occupancy =
@@ -84,7 +61,7 @@ export type ExpirySettlement = 'expired' | 'live' | 'clock-unavailable'
  * 调用方须已对该行锁定读（R-3），且该行未激活（已激活的行不参与期限判定，S-18 性质 1）。
  */
 export async function settleExpiry(
-  tx: WriteTx,
+  tx: IdentityWrite,
   row: AccountRow,
   clock: Clock,
 ): Promise<ExpirySettlement> {
@@ -92,19 +69,8 @@ export async function settleExpiry(
   const now = clock.now()
   if (now === 'unavailable') return 'clock-unavailable'
   if (compareInstants(now, storedInstant(row.retention_deadline)) <= 0) return 'live'
-  await landExpiry(tx, storedAccountId(row.account_id), now)
+  await tx.landAccountExpiry(storedAccountId(row.account_id), now)
   return 'expired'
-}
-
-/** 落盘过期事实：只对「未激活且尚未落盘」的行生效——`activated` 与 `expired_at` 的互斥由写路径守，不由 CHECK。 */
-export async function landExpiry(tx: WriteTx, accountId: AccountId, now: Instant): Promise<void> {
-  await narrow<AccountIdentityDb>(tx)
-    .updateTable(ACCOUNT_TABLE)
-    .set({ expired_at: now })
-    .where('account_id', '=', accountId)
-    .where('activated', '=', 0)
-    .where('expired_at', 'is', null)
-    .execute()
 }
 
 export const LOGIN_ABSOLUTE_MS = 28_800_000
@@ -144,19 +110,14 @@ export function loginValidAt(row: LoginStateRow, revision: number, now: Instant)
 
 /** Caller holds the common transaction boundary. This function never opens a read connection. */
 export async function judgeLoginState(
-  tx: ReadTx,
+  tx: IdentityRead,
   loginStateId: LoginStateId,
   clock: Clock,
 ): Promise<{ readonly ok: AccountId } | { readonly failure: 'login-state-rejected' }> {
-  const db = narrow<AccountIdentityDb>(tx)
-  const state = await db
-    .selectFrom(LOGIN_STATE_TABLE)
-    .selectAll()
-    .where('login_state_id', '=', loginStateId)
-    .executeTakeFirst()
+  const state = await tx.loginById(loginStateId)
   if (state === undefined || storedFlag(state.revoked)) return LOGIN_STATE_REJECTED
   const accountId = storedAccountId(state.account_id)
-  const account = await selectAccountById(tx, accountId)
+  const account = await tx.accountById(accountId)
   if (
     account === undefined ||
     !storedFlag(account.activated) ||

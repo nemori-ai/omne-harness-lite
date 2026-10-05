@@ -4,53 +4,18 @@
 // 不建 CHECK（M-7）：`activated` 与 `expired_at` 互斥、LoginStateId 的派生形状由本包写路径与测试守。
 import type { Kysely } from 'kysely'
 import type { Migration } from 'kysely/migration'
-import {
-  type AccountId,
-  type LoginIdentifier,
-  type LoginStateId,
-  isOk,
-  parseAccountId,
-  parseLoginIdentifier,
-  parseLoginStateId,
-} from '@omne-harness-lite/identity-values'
-import { type Instant, instantFromEpochMs } from '@omne-harness-lite/offer-expiry'
 import { StorageDefect, type MigrationFragment } from '@omne-harness-lite/storage'
+import {
+  ACCOUNT_LOGIN_IDENTIFIER_UNIQUE,
+  FLAG_TRUE,
+  type AccountRow,
+  type LoginStateRow,
+} from './identity-data.ts'
 
 export const ACCOUNT_TABLE = 'account' as const
 /** OG 外键的目标列；装配把它与 {@link ACCOUNT_TABLE} 传给 OG 的迁移工厂。 */
 export const ACCOUNT_ID_COLUMN = 'account_id' as const
 export const LOGIN_STATE_TABLE = 'login_state' as const
-
-export const ACCOUNT_LOGIN_IDENTIFIER_UNIQUE = 'account_login_identifier_unique'
-export const ACCOUNT_PKEY = 'account_pkey'
-export const LOGIN_STATE_PKEY = 'login_state_pkey'
-
-/** 布尔列：sqlite 存 0／1，pg 存 boolean；写一律写 0／1，读经 {@link storedFlag}。 */
-type StoredFlag = number | boolean
-/** 时间列（毫秒整数，bigint 列）：sqlite 读回 number，pg 读回字符串；读经 {@link storedInstant}。 */
-type StoredInstant = number | string
-
-/** 账号记录（S-4 的四样 + 三个存储属性）。**没有第二个 AccountId 类型的列**（S-11／S-35）。 */
-export interface AccountRow {
-  readonly account_id: string
-  readonly login_identifier: string
-  readonly credential_material: string
-  readonly credential_revision: number | string
-  readonly activated: StoredFlag
-  readonly produced_at: StoredInstant
-  readonly retention_deadline: StoredInstant
-  readonly expired_at: StoredInstant | null
-}
-
-/** 登录状态记录（S-9）：含签发/活动与代次，**没有出示物，也没有任何由出示物得来的第二个字段**（S-45、S-46）。 */
-export interface LoginStateRow {
-  readonly login_state_id: string
-  readonly account_id: string
-  readonly issued_at: StoredInstant
-  readonly last_activity_at: StoredInstant
-  readonly credential_revision: number | string
-  readonly revoked: StoredFlag
-}
 
 export interface AccountIdentityDb {
   readonly account: AccountRow
@@ -142,45 +107,3 @@ export const accountIdentityMigrations: readonly MigrationFragment[] = [
   { name: 'account_identity', migration: accountIdentityTables },
   { name: 'account_identity_bounded_logins', migration: boundedLoginMigration },
 ]
-
-export function storedRevision(value: number | string): number {
-  const revision = typeof value === 'string' ? Number(value) : value
-  if (!Number.isSafeInteger(revision) || revision < 0)
-    throw new StorageDefect('stored credential revision is not a nonnegative safe integer')
-  return revision
-}
-
-// ---- 从存储读回的值：本包自己写进去的，形状不对即存储缺陷，不是调用方的输入错误 ----
-
-export function storedFlag(value: StoredFlag): boolean {
-  if (value === true || value === 1) return true
-  if (value === false || value === 0) return false
-  throw new StorageDefect('stored flag is neither 0 nor 1')
-}
-
-export function storedInstant(value: StoredInstant): Instant {
-  const parsed = instantFromEpochMs(typeof value === 'string' ? Number(value) : value)
-  if (!isOk(parsed)) throw new StorageDefect('stored instant is not an integer millisecond value')
-  return parsed.ok
-}
-
-export function storedAccountId(value: string): AccountId {
-  const parsed = parseAccountId(value)
-  if (!isOk(parsed)) throw new StorageDefect('stored account_id is not an opaque identifier')
-  return parsed.ok
-}
-
-export function storedLoginStateId(value: string): LoginStateId {
-  const parsed = parseLoginStateId(value)
-  if (!isOk(parsed)) throw new StorageDefect('stored login_state_id is not an opaque identifier')
-  return parsed.ok
-}
-
-export function storedLoginIdentifier(value: string): LoginIdentifier {
-  const parsed = parseLoginIdentifier(value)
-  if (!isOk(parsed)) throw new StorageDefect('stored login_identifier is not an opaque identifier')
-  return parsed.ok
-}
-
-export const FLAG_TRUE = 1
-export const FLAG_FALSE = 0

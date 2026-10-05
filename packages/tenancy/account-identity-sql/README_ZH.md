@@ -69,3 +69,5 @@ pnpm --filter @omne-harness-lite/account-identity-sql run test
 
 - [公共账号定义](../../core/account-identity/README.md)
 - [组织提供者](../organization-governance-sql/README.md)
+
+私有记录接口将账号和登录策略与 SQL 操作分离。工厂把公开事务单元绑定到原存储实例；所有权和验证要求见[边界说明](adr/policy-persistence.md)。

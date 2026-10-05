@@ -69,3 +69,5 @@ Tests use real temporary SQLite files. This package’s checks do not close Post
 
 - [Public account definitions](../../core/account-identity/README.md)
 - [Organization provider](../organization-governance-sql/README.md)
+
+The private record interface separates account and login policy from SQL operations. The factory binds public transaction units to the original storage instance. See [the boundary decision](adr/policy-persistence.md) for ownership and verification requirements.

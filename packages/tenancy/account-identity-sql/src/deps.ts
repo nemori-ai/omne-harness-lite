@@ -6,9 +6,11 @@ import { StorageUnavailable, type AtomicStorage } from '@omne-harness-lite/stora
 import { type Diagnostics, type Notifier, describeError } from './diagnostics.ts'
 import type { RandomSource } from './presentation.ts'
 
-export interface ServiceDeps {
-  /** 必需 inject 的 `storage`。 */
-  readonly storage: AtomicStorage
+import type { IdentityPersistence } from './identity-data.ts'
+
+export interface PolicyDeps {
+  /** 原事务绑定的数据操作，不交出 SQL 或存储实例。 */
+  readonly persistence: IdentityPersistence
   /** 必需 inject 的 `clock`。 */
   readonly clock: Clock
   /** 可选依赖 `credentials`，**每次调用时解析**：缺席 ⇒ 凭据步骤判不出来（`storage-unavailable`），不是判为不合规。 */
@@ -23,6 +25,11 @@ export interface ServiceDeps {
   readonly diagnostics: Diagnostics
   /** 出示物的随机源；插件体不传，恒为 `node:crypto.randomBytes`。 */
   readonly random: RandomSource
+}
+
+/** Assembly dependencies retain the original public storage input. */
+export interface ServiceDeps extends Omit<PolicyDeps, 'persistence'> {
+  readonly storage: AtomicStorage
 }
 
 /**
