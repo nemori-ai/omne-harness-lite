@@ -1097,6 +1097,123 @@
       ],
       "status": "adopted",
       "source": "packages/tenancy/governance-center-entry-node/SPEC.md"
+    },
+    {
+      "id": "identity-shared-identity-values-policy",
+      "paths": [
+        "packages/core/identity-values/src/handoff-warrant.ts",
+        "packages/core/identity-values/src/identifier.ts",
+        "packages/core/identity-values/src/index.ts",
+        "packages/core/identity-values/src/predicates.ts"
+      ],
+      "layer": "policy",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/preservation.md"
+    },
+    {
+      "id": "identity-shared-identity-values-contract",
+      "paths": [
+        "packages/core/identity-values/src/opaque.ts",
+        "packages/core/identity-values/src/schema-inputs.ts",
+        "packages/core/identity-values/src/validate.ts",
+        "packages/core/identity-values/src/values.ts"
+      ],
+      "layer": "contract",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/preservation.md"
+    },
+    {
+      "id": "identity-shared-kernel-basis-assembly",
+      "paths": [
+        "packages/core/kernel-basis/src/cordis.ts",
+        "packages/core/kernel-basis/src/fiber-state.ts",
+        "packages/core/kernel-basis/src/plugin.ts",
+        "packages/core/kernel-basis/src/testing/index.ts"
+      ],
+      "layer": "assembly",
+      "domains": [],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/preservation.md"
+    },
+    {
+      "id": "identity-shared-kernel-basis-contract",
+      "paths": [
+        "packages/core/kernel-basis/src/index.ts"
+      ],
+      "layer": "contract",
+      "domains": [],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/preservation.md"
+    },
+    {
+      "id": "identity-shared-offer-expiry-contract",
+      "paths": [
+        "packages/core/offer-expiry/src/cordis.ts",
+        "packages/core/offer-expiry/src/index.ts",
+        "packages/core/offer-expiry/src/rfc3339-order.ts",
+        "packages/core/offer-expiry/src/schema-inputs.ts",
+        "packages/core/offer-expiry/src/time.ts",
+        "packages/core/offer-expiry/src/validate.ts"
+      ],
+      "layer": "contract",
+      "domains": [],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/preservation.md"
+    },
+    {
+      "id": "identity-shared-offer-expiry-policy",
+      "paths": [
+        "packages/core/offer-expiry/src/offer.ts",
+        "packages/core/offer-expiry/src/testing/index.ts"
+      ],
+      "layer": "policy",
+      "domains": [],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/preservation.md"
+    },
+    {
+      "id": "identity-shared-account-registration-sequential-contract",
+      "paths": [
+        "packages/tenancy/account-registration-sequential/src/config.ts"
+      ],
+      "layer": "contract",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/preservation.md"
+    },
+    {
+      "id": "identity-shared-account-registration-sequential-assembly",
+      "paths": [
+        "packages/tenancy/account-registration-sequential/src/cordis.ts",
+        "packages/tenancy/account-registration-sequential/src/plugin.ts",
+        "packages/tenancy/account-registration-sequential/src/provided-services.ts"
+      ],
+      "layer": "assembly",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/preservation.md"
+    },
+    {
+      "id": "identity-shared-account-registration-sequential-policy",
+      "paths": [
+        "packages/tenancy/account-registration-sequential/src/index.ts"
+      ],
+      "layer": "policy",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/preservation.md"
     }
   ],
   "rules": [
