@@ -3,25 +3,64 @@ import { once } from 'node:events'
 import { syncBuiltinESMExports } from 'node:module'
 import { DatabaseSync } from 'node:sqlite'
 import { boot, ENV } from '../../src/index.ts'
+import { StorageCompletion } from '@omne-harness-lite/storage/cordis'
+import { EntryMaintenance } from '@omne-harness-lite/governance-center-entry/cordis'
+import type { EntryMaintenanceResources } from '@omne-harness-lite/governance-center-entry'
+import type { Context } from '@deepseek-ai/cordis'
+import { resolveProvider } from '../support/tree.ts'
 import { callOps } from '../../src/maintenance-command.ts'
 
 const fault = process.argv[2]
+class PendingStorageCompletion extends StorageCompletion {
+  constructor(ctx: Context) {
+    super(ctx)
+  }
+  closed = () => {}
+}
+class PendingMaintenance extends EntryMaintenance {
+  readonly snapshotChecks: EntryMaintenanceResources['snapshotChecks']
+  constructor(ctx: Context, actual: EntryMaintenanceResources) {
+    super(ctx)
+    this.snapshotChecks = actual.snapshotChecks
+  }
+  closed = () => {}
+}
 const host = await boot({
   hooks: {
-    manifest: entries =>
-      entries.map(entry => {
-        if (
-          (fault === 'controller-pending' && entry.name === 'governance-center-ops') ||
-          (fault === 'storage-pending' && entry.name === 'storage-sql')
-        ) {
-          const config = entry.config as { maintenance: Record<string, unknown> }
-          return {
-            ...entry,
-            config: { ...config, maintenance: { ...config.maintenance, onClosed() {} } },
-          }
-        }
-        return entry
-      }),
+    resolveModule: async reference => {
+      const module = await resolveProvider(reference)
+      const selected =
+        (fault === 'controller-pending' &&
+          reference.export === 'managedGovernanceCenterOpsPlugin') ||
+        (fault === 'storage-pending' && reference.export === 'managedStorageSqlPlugin')
+      if (!selected) return module
+      if (typeof module !== 'object' || module === null) throw new Error('missing fixture module')
+      const plugin: unknown = Reflect.get(module, reference.export)
+      if (typeof plugin !== 'object' || plugin === null) throw new Error('missing fixture plugin')
+      const apply: unknown = Reflect.get(plugin, 'apply')
+      if (typeof apply !== 'function') throw new Error('missing fixture apply')
+      return {
+        ...module,
+        [reference.export]: {
+          ...plugin,
+          apply(ctx: Context, config: unknown) {
+            const key = fault === 'controller-pending' ? 'entryMaintenance' : 'storageCompletion'
+            const scoped = ctx.isolate(key)
+            if (fault === 'controller-pending') {
+              const actual = ctx.get('entryMaintenance')
+              if (actual === undefined) throw new Error('missing maintenance resource')
+              new PendingMaintenance(scoped, actual)
+            } else {
+              const supplied = scoped.plugin(inner => {
+                new PendingStorageCompletion(inner)
+              })
+              return supplied.then(() => apply(scoped, config))
+            }
+            return apply(scoped, config)
+          },
+        },
+      }
+    },
   },
 })
 const initial = once(process.stdin, 'data')

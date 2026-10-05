@@ -24,6 +24,7 @@
     "test:e2e": "vitest run tests/e2e"
   },
   "dependencies": {
+    "@omne-harness-lite/cordis-plugin-tree": "workspace:*",
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness-lite/account-identity": "workspace:*",
     "@omne-harness-lite/account-registration": "workspace:*",

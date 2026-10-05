@@ -3,17 +3,18 @@
 治理中心作为一个可部署应用的装配：一个进程、一个 Cordis 根 Context、八个业务职责行及其生命周期服务 fiber
 （storage-sql → clock → credential-verification → account-identity → organization-governance → account-registration
 → governance-center-ops → governance-center-entry），迁移合成与升级守卫，两步开闸，逆序撤除。
-这些是稳定行 id；具体管理插件的限定名称见 [manifest.ts](src/manifest.ts)。
-设计、选择理由与证据义务归实现映射节点
-[`realization/apps/tenancy-host`](../../.meta_harness/design/realization/apps/tenancy-host/README.md)；
+这些是发行树的稳定行 id；公共插件引用见 [tree.ts](src/tree.ts)。
+现行集成行为见 [SPEC.md](SPEC.md)，设计依据见[宿主接缝](../../.meta_harness/design/architecture/identity-integration/host-integration.md)；
+未迁业务和验证义务继续从[原实现映射](../../.meta_harness/design/realization/apps/tenancy-host/README.md)定位。
 本页只写**怎么起、怎么停、怎么配、运维要守什么**，以及源码取了哪些常量。
 
-R1-T2 的手写装配逐行等待 OwnedWork.ready、fiber ACTIVE、服务可见和代际资格。
+应用合并发行与运维树并准备全部公共插件，核验角色后才创建运行资源。
+正式插件树逐行等待 OwnedWork.ready、fiber ACTIVE、服务可见和代际资格。
 全部就绪后确认升级，再兑现同一个 EntryOpening；两张网络面直接检查它。
 任一管理行撤除使整个代际停止准入。已有工作按原提交边界收场，注册不得交下一步。
-资源按逆序关闭，随后撤 fiber、端口服务，最后核对维护及升级守卫。
+资源按逆序关闭，随后撤 fiber、行端口，核对维护及升级守卫后才撤外部资源服务。
 后继装配必须新建代际，不能在旧槽位重新开放。设计依据见[有序收尾](../../.meta_harness/design/architecture/identity-integration/retirement.md)。
-当前实现仍待 T2 的独立 L3 接受；插件树和其余运行资源服务化留 T4。
+T2/T3 已独立接受并合入；当前 T4 宿主迁移仍待完整独立 L3 验收。
 
 ## 命令
 
@@ -86,7 +87,7 @@ scrypt 派生参数取 credential-verification 的缺省（N = 2^17、r = 8、p 
 
 | 量                              | 取值                                     | 约束                                                                     | 源码                                 |
 | ------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------ |
-| 入口层排空上界 `drainTimeoutMs` | 10 s                                     | 仅约束业务网络排空                                             | `src/manifest.ts` `DRAIN_TIMEOUT_MS` |
+| 入口层排空上界 `drainTimeoutMs` | 10 s                                     | 仅约束业务网络排空                                             | `src/tree.ts` `DRAIN_TIMEOUT_MS` |
 | 停止诊断阈值                    | 30 s                                     | 记录一次仍在停止，不停止等待或释放源属主                          | `DISPOSE_TIMEOUT_MS`                 |
 | 等 `serving` 的上界             | `OMNE_TENANCY_CLOCK_READY_TIMEOUT` + 1 s | 盖住入口层开闸那一刻再读钟的上界（入口层用同一个 `clockReadyTimeoutMs`） | `SERVING_GRACE_MS`                   |
 | 日志导出阈值                    | WARN（2）                                | basis `logger-level-order-error-lowest`                                  | `src/log.ts`                         |

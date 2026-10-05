@@ -103,9 +103,10 @@ export const managedStorageSqlPlugin = Object.assign(
           const child = resourceScope(ctx, config, inner => {
             // Wait native completion, not parent disposal: the parent owns this child.
             inner.effect(() => () => {
-              void ctx.fiber
-                .dispose()
-                .catch(() => ctx.logger.error('storage-sql: binding disposal failed'))
+              // A repeated Cordis effect disposal can return void after its epoch ended.
+              void Promise.resolve(ctx.fiber.dispose()).catch(() =>
+                ctx.logger.error('storage-sql: binding disposal failed'),
+              )
               return closed.promise
             })
             if (executed) throw new AssemblyWorkStopped()

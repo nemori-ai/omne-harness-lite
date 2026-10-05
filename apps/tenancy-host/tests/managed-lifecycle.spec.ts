@@ -6,9 +6,13 @@ import {
   EntryOpeningStopped,
   type EntryOpeningSignal,
 } from '@omne-harness-lite/governance-center-entry'
-import { boot, HOST_PLUGIN_NAMES } from '../src/index.ts'
+import { boot } from '../src/index.ts'
+import { startAssemblyWork } from '@omne-harness-lite/assembly-lifecycle/cordis'
+import { DISTRIBUTION_IDS, replaceApply } from './support/tree.ts'
+import { inspectPluginTree } from '@omne-harness-lite/cordis-plugin-tree/cordis'
+import type { PluginTreeHandle } from '@omne-harness-lite/cordis-plugin-tree'
 import { deployment, asEnv, query, LogCapture } from './support/deployment.ts'
-import { Hosts } from './support/host.ts'
+import { Hosts, allDisposed } from './support/host.ts'
 import {
   bodyOf,
   envelope,
@@ -78,14 +82,17 @@ test('stopping during confirmation cannot open either face with the old signal',
   const release = Promise.withResolvers<void>()
   let opening: EntryOpeningSignal | undefined
   let storage: import('@deepseek-ai/cordis').Fiber | undefined
+  let tree: PluginTreeHandle | undefined
   const starting = boot({
     env: asEnv(d),
     log: new LogCapture(),
     hooks: {
-      observeFiber(name, fiber) {
-        if (name === 'storage-sql') storage = fiber
+      treeCreated(handle) {
+        tree = handle
       },
       async beforeConfirm(context) {
+        if (tree === undefined) throw new Error('tree unavailable')
+        storage = inspectPluginTree(tree).find(row => row.id === 'storage-sql')?.fiber
         opening = context.entryOpening
         paused.resolve()
         await release.promise
@@ -120,10 +127,80 @@ test('withdrawing any managed provider ends the old generation and permits a fre
   expect(opening.isOpen()).toBe(false)
   expect(await hosts.stop(host)).toEqual({ complete: true, unfinished: [] })
   expect(log.events('fiber-disposed').map(row => row['plugin'])).toEqual(
-    [...HOST_PLUGIN_NAMES].reverse(),
+    [...DISTRIBUTION_IDS].reverse(),
   )
   const next = await hosts.start(d)
   expect(next.host.serving.centerId).toBe(host.serving.centerId)
   expect(next.host.context.entryOpening.isOpen()).toBe(true)
   await expect(opening.wait()).rejects.toBeInstanceOf(EntryOpeningStopped)
+})
+
+test('failed clock readiness retains the private cause and waits for real prefix cleanup', async () => {
+  const d = await deployment('managed-failed-prefix')
+  const entered = Promise.withResolvers<void>(),
+    release = Promise.withResolvers<void>()
+  const original = new Error('prefix-private-regression-sentinel')
+  let tree: PluginTreeHandle | undefined
+  let settled = false
+  const refusing = hosts.refuse(d, {
+    treeCreated: handle => {
+      tree = handle
+    },
+    resolveModule: replaceApply(
+      '@omne-harness-lite/clock-lease',
+      ctx => {
+        startAssemblyWork(
+          ctx,
+          async () => {
+            entered.resolve()
+            throw original
+          },
+          async () => {
+            await release.promise
+            throw new Error('controlled prefix close rejection')
+          },
+        )
+      },
+      'managedClockPlugin',
+    ),
+  })
+  void refusing.then(
+    () => {
+      settled = true
+    },
+    () => {
+      settled = true
+    },
+  )
+  try {
+    await entered.promise
+    if (tree === undefined) throw new Error('tree unavailable')
+    await expect(tree.ready).rejects.toMatchObject({ code: 'apply-failed', rowId: 'clock-lease' })
+    let closed = false
+    void tree.closed.then(() => {
+      closed = true
+    })
+    await Promise.resolve()
+    expect(closed).toBe(false)
+    expect(settled).toBe(false)
+    expect(inspectPluginTree(tree).map(row => row.id)).toEqual(['storage-sql', 'clock-lease'])
+    release.resolve()
+    const refused = await refusing
+    expect(refused.failure).toMatchObject({ stage: 'plugin', item: 'clock-lease' })
+    expect(refused.failure.cause).toBe(original)
+    expect(allDisposed(refused.fibers)).toBe(true)
+    const report = await tree.closed
+    expect(report.complete).toBe(false)
+    expect(report.rows.find(row => row.id === 'clock-lease')?.result).toEqual({
+      kind: 'failed',
+      codes: ['setup', 'close'],
+    })
+    expect(refused.log.text()).not.toContain(original.message)
+    expect(refused.log.text()).not.toContain(
+      "Cannot read properties of undefined (reading 'catch')",
+    )
+  } finally {
+    release.resolve()
+    await refusing
+  }
 })

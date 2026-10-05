@@ -185,6 +185,9 @@ importers:
       '@omne-harness-lite/clock-lease':
         specifier: workspace:*
         version: link:../../packages/infra/clock-lease
+      '@omne-harness-lite/cordis-plugin-tree':
+        specifier: workspace:*
+        version: link:../../packages/core/cordis-plugin-tree
       '@omne-harness-lite/credential-verification-scrypt':
         specifier: workspace:*
         version: link:../../packages/tenancy/credential-verification-scrypt
