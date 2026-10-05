@@ -43,3 +43,13 @@ ops 只订阅 SERVING_EVENT/STOPPED_EVENT/DEFECT_EVENT，只派发 LISTENING_EVE
 本页只接续服务端工厂、绑定、资源和事件的公开集成承诺，不退役其余旧源。
 采用依据为[身份整体设计](../../../.meta_harness/design/record/decisions/identity-integration-design/decision.md)及[T4 接缝](../../../.meta_harness/design/record/decisions/identity-t4-host-coordinates/decision.md)。
 源码、声明、运行闭包和制品消费须分别验证；类型及静态图不能证明启动、隔离、事务或关闭。
+
+## 请求判定与协议装配
+
+`service-faces.ts`、`json-shapes.ts` 与 `routing/record-shapes.ts` 分别唯一拥有服务、读取结果与工程记录形状。`routing/routes.ts` 保留原31条业务调用及失败规则，`route-wire.ts` 按同一原 schema 拥有协议投影。内部形状与投影不成为新的公共操作。
+
+`decision-policy.ts` 通过私有协议、关联号和认证事务端口作原判定。`decide.ts` 绑定实际 JSON 读取、原协议编码/校验、关联号与原共同事务；五参与面仍在同一 atomic 回调按原次序构造。公开体检与无需查询的拒绝不读取服务或启动事务。
+
+成功路径仍按投影、矛盾检查、Schema 校验、编码、最后活动、真实提交、字节交付的原顺序完成。原捕获边界分别保持；校验和编码仍在提交前。已观察缺陷在回滚后保留，不被污染单元的终结异常覆盖。改密准备后最终事务使用原 caller/ticket，不再 exchange。注册仍保持三个独立提交。
+
+本成员策略不直接拥有 wire 编码、关联号 crypto 或存储终结。既有公共身份函数的传递运行闭包继续有效；此分离不宣称共享公共根无 crypto，也不扩大租户授权或同提交例外。

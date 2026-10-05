@@ -15,11 +15,7 @@ export {
   type GovernanceCenterWork,
   type GovernanceCenterLogger,
 } from './work.ts'
-export type {
-  GovernanceCenterEntryDependencies,
-  EntryNotifications,
-  EntryServices,
-} from './entry-dependencies.ts'
+export type { GovernanceCenterEntryDependencies, EntryNotifications } from './entry-dependencies.ts'
 export type { GovernanceCenterOpsDependencies, OpsNotifications } from './ops/dependencies.ts'
 export type { DeploymentKeyLoad, DeploymentParameters } from './ops/health.ts'
 export { OPS_SOCKET_NAME, OpsSocketError, type OpsSocketFailure } from './ops/socket.ts'
@@ -47,3 +43,5 @@ export {
   type GovernanceCenterIdentityFailure,
 } from './center-id/read-or-mint.ts'
 export { GOVERNANCE_CENTER_TABLE } from './center-id/table.ts'
+
+export type { EntryServices } from './service-faces.ts'

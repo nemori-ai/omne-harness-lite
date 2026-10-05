@@ -3,7 +3,7 @@
 // 桩故意能给出参与方类型不允许的值（集合外、没有值、形状不对）——那正是入口层要当作缺陷收场的输入，
 // 所以交给 `decide` 时整体按 `EntryServices` 收下（见 `entryServices()` 的注释）。
 import type { StorageUnit } from '@omne-harness-lite/storage'
-import type { EntryServices } from '../../src/entry-dependencies.ts'
+import type { EntryServices } from '../../src/service-faces.ts'
 
 export const ACCOUNT = 'acc_7f3c91'
 export const OTHER_ACCOUNT = 'acc_91ab40'

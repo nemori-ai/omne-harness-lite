@@ -2,31 +2,13 @@
 // 一个字面量数组，恰31条，键就是路由标识；每条写明：免不免认人、身份怎么推、补什么授权、调哪一个领域操作、
 // 领域答复的形状、失败怎么映射（S-14 的共同映射 + 本条的例外）、成功返回怎样投影成 `Result_<路由>`。
 // 没有按名字解析服务或方法的代码：每条的调用是一个写死的函数。
-import type {
-  LoginParticipation,
-  AccountParticipation,
-  PreparedCredentialChange,
-} from '@omne-harness-lite/account-identity'
+import type { PreparedCredentialChange } from '@omne-harness-lite/account-identity'
 import type { TenantId } from '@omne-harness-lite/identity-values'
-import type {
-  MembershipsParticipation,
-  OrganizationsParticipation,
-  OffersParticipation,
-} from '@omne-harness-lite/organization-governance'
-import { formatInstant } from '../ops/wire.ts'
 import type { Caller } from './caller.ts'
 import type { RouteId } from '@omne-harness-lite/governance-center-entry'
 
-import type { EntryServices } from '../entry-dependencies.ts'
-
-/** Ordinary independent operations are not present in the authenticated unit. */
-export interface AuthenticatedServices {
-  readonly accounts: Pick<AccountParticipation, 'resolveActivatedIdentifier'>
-  readonly logins: LoginParticipation
-  readonly organizations: OrganizationsParticipation
-  readonly memberships: MembershipsParticipation
-  readonly offers: OffersParticipation
-}
+import type { DecisionServices, AuthenticatedServices } from '../service-faces.ts'
+import { record, list } from './value-shapes.ts'
 
 /** 载荷已过 `Payload_<路由>`：成员封闭、形状合格。 */
 export type Payload = Readonly<Record<string, unknown>>
@@ -70,13 +52,11 @@ interface RouteCommon {
   readonly schema: string
   readonly reply: ReplyShape
   readonly failures: FailureTable
-  /** 成功返回投影成线上值（成员按 `Result_<路由>` 的书写次序）；形状不对即抛出（缺陷）。 */
-  readonly toWire: (ok: unknown, payload: Payload) => unknown
 }
 
 export interface ExemptRoute extends RouteCommon {
   readonly exempt: true
-  readonly invoke: (services: EntryServices, payload: Payload) => Promise<unknown>
+  readonly invoke: (services: DecisionServices, payload: Payload) => Promise<unknown>
 }
 
 export interface AuthenticatedRoute extends RouteCommon {
@@ -98,121 +78,6 @@ export interface AuthenticatedRoute extends RouteCommon {
 export type Route = ExemptRoute | AuthenticatedRoute
 
 // ---- 投影：领域值 → 线上值（S-12：成员按管它的定义的书写次序） ----
-
-function record(value: unknown): Readonly<Record<string, unknown>> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new TypeError('expected an object')
-  }
-  return value as Readonly<Record<string, unknown>>
-}
-
-function list(value: unknown): readonly unknown[] {
-  if (!Array.isArray(value)) throw new TypeError('expected an array')
-  return value
-}
-
-function instant(value: unknown): string {
-  if (typeof value !== 'number') throw new TypeError('expected an instant')
-  return formatInstant(value)
-}
-
-/** IV `TenantId`：organization、account。 */
-function tenantWire(value: unknown): unknown {
-  const tenant = record(value)
-  return { organization: tenant['organization'], account: tenant['account'] }
-}
-
-/** IV `MembershipStanding` 两支。 */
-function standingWire(value: unknown): unknown {
-  const standing = record(value)
-  if (standing['standing'] === 'effective') return { standing: 'effective', role: standing['role'] }
-  if (standing['standing'] === 'ineffective') return { standing: 'ineffective' }
-  throw new TypeError('expected a membership standing')
-}
-
-/** IV `ScopeLayerIdentity` 两支。 */
-function scopeLayerWire(value: unknown): unknown {
-  const layer = record(value)
-  if (layer['layer'] === 'organization') {
-    return { layer: 'organization', organization: layer['organization'] }
-  }
-  if (layer['layer'] === 'tenant') return { layer: 'tenant', tenant: tenantWire(layer['tenant']) }
-  throw new TypeError('expected a scope layer identity')
-}
-
-/** OE `OfferTiming`：issuedAt、expiresAt。 */
-function timingWire(value: unknown): unknown {
-  const timing = record(value)
-  return { issuedAt: instant(timing['issuedAt']), expiresAt: instant(timing['expiresAt']) }
-}
-
-/** `OrganizationView`：「无上级」⇒ `parentOrganization` 不出现。 */
-function organizationWire(value: unknown): unknown {
-  const organization = record(value)
-  const parent = organization['parent']
-  if (parent === undefined) throw new TypeError('expected parent or null')
-  return parent === null
-    ? { organization: organization['id'], organizationKind: organization['kind'] }
-    : {
-        organization: organization['id'],
-        organizationKind: organization['kind'],
-        parentOrganization: parent,
-      }
-}
-
-/** `InvitationView`。 */
-function invitationWire(value: unknown): unknown {
-  const invitation = record(value)
-  return {
-    invitation: invitation['id'],
-    issuerOrganization: invitation['issuer'],
-    invitedAccount: invitation['invitedAccount'],
-    role: invitation['role'],
-    offerTiming: timingWire(invitation['timing']),
-    offerState: invitation['state'],
-  }
-}
-
-/** `AffiliationRequestView`。 */
-function affiliationRequestWire(value: unknown): unknown {
-  const request = record(value)
-  return {
-    affiliationRequest: request['id'],
-    issuerOrganization: request['initiator'],
-    recipientOrganization: request['recipient'],
-    direction: request['direction'],
-    offerTiming: timingWire(request['timing']),
-    offerState: request['state'],
-  }
-}
-
-/** `IncomingAffiliationRequestView`：没有接收方组织（接收方就是调用方自己）。 */
-function incomingAffiliationRequestWire(value: unknown): unknown {
-  const request = record(value)
-  return {
-    affiliationRequest: request['id'],
-    issuerOrganization: request['initiator'],
-    direction: request['direction'],
-    offerTiming: timingWire(request['timing']),
-    offerState: request['state'],
-  }
-}
-
-/** `MemberView`。 */
-function memberWire(value: unknown): unknown {
-  const member = record(value)
-  return {
-    tenant: tenantWire(member['tenant']),
-    role: member['role'],
-    effective: member['effective'],
-  }
-}
-
-const ok = (value: unknown): unknown => value
-const constOk = (value: unknown): unknown => {
-  if (value !== 'ok') throw new TypeError('expected ok')
-  return 'ok'
-}
 
 // ---- 身份 ----
 
@@ -244,10 +109,6 @@ export const ROUTES: readonly Route[] = [
       pass: ['identifier-taken', 'credential-rejected', 'interrupted'],
       unreachable: ['identifier-held-by-expired-record'],
     },
-    toWire: value => {
-      if (value !== 'registered') throw new TypeError('expected registered')
-      return 'registered'
-    },
   },
   {
     id: 'capability.account-identity/v3#S-15',
@@ -262,10 +123,6 @@ export const ROUTES: readonly Route[] = [
       representation: ['invalid-input'],
     },
     // 出示物在全部输出里唯一出现的一处（S-19、S-29）
-    toWire: value => {
-      const issued = record(value)
-      return { loginState: issued['presentation'], loginStateHandle: issued['loginStateId'] }
-    },
   },
   {
     id: 'capability.account-identity/v3#S-16',
@@ -282,7 +139,6 @@ export const ROUTES: readonly Route[] = [
       unavailable: ['storage-unavailable'],
       representation: ['invalid-input'],
     },
-    toWire: constOk,
   },
   {
     id: 'capability.account-identity/v3#S-37',
@@ -298,17 +154,6 @@ export const ROUTES: readonly Route[] = [
       representation: ['invalid-input'],
     },
     // 每项恰 { loginStateHandle, issuedAt }，不含出示物；空列表过不了 Schema 的 minItems ⇒ 缺陷
-    toWire: value =>
-      list(value).map(item => {
-        const state = record(item)
-        return {
-          loginStateHandle: state['loginStateId'],
-          issuedAt: instant(state['issuedAt']),
-          lastActivityAt: instant(state['lastActivityAt']),
-          absoluteExpiresAt: instant(state['absoluteExpiresAt']),
-          idleExpiresAt: instant(state['idleExpiresAt']),
-        }
-      }),
   },
   {
     id: 'capability.organization-governance/v2#S-21',
@@ -326,7 +171,6 @@ export const ROUTES: readonly Route[] = [
       ...OG_FAILURES,
       unreachable: ['accountNotActivated', 'accountDoesNotExist'],
     },
-    toWire: value => record(value)['organization'],
   },
   {
     id: 'capability.organization-governance/v2#S-22',
@@ -337,7 +181,6 @@ export const ROUTES: readonly Route[] = [
     invoke: (services, { payload }) => services.organizations.read(payload['organization']),
     reply: 'outcome',
     failures: { pass: ['organizationDoesNotExist'], ...OG_FAILURES },
-    toWire: organizationWire,
   },
   {
     id: 'capability.organization-governance/v2#S-23',
@@ -373,7 +216,6 @@ export const ROUTES: readonly Route[] = [
       ],
       ...OG_FAILURES,
     },
-    toWire: ok,
   },
   {
     id: 'capability.organization-governance/v2#S-24',
@@ -387,7 +229,6 @@ export const ROUTES: readonly Route[] = [
       pass: ['invitationDoesNotExist', 'notAuthorized', 'alreadyConcluded'],
       ...OG_FAILURES,
     },
-    toWire: constOk,
   },
   {
     id: 'capability.organization-governance/v2#S-25',
@@ -407,7 +248,6 @@ export const ROUTES: readonly Route[] = [
       ...OG_FAILURES,
       unreachable: ['accountNotActivated', 'accountDoesNotExist'],
     },
-    toWire: tenantWire,
   },
   {
     id: 'capability.organization-governance/v2#S-26',
@@ -418,7 +258,6 @@ export const ROUTES: readonly Route[] = [
     invoke: (services, { payload }) => services.memberships.standing(payload['tenant']),
     reply: 'standing',
     failures: { pass: [], ...OG_FAILURES },
-    toWire: standingWire,
   },
   {
     id: 'capability.organization-governance/v2#S-27',
@@ -429,7 +268,6 @@ export const ROUTES: readonly Route[] = [
     reply: 'outcome',
     // 空列表过不了 Schema 的 minItems ⇒ 缺陷（已激活的账号本版不可能一个有效租户都没有）
     failures: { pass: [], ...OG_FAILURES },
-    toWire: value => list(value).map(tenantWire),
   },
   {
     id: 'capability.organization-governance/v2#S-28',
@@ -447,7 +285,6 @@ export const ROUTES: readonly Route[] = [
       pass: ['notAuthorized', 'membershipNotEffective', 'wouldLeaveNoSuperAdministrator'],
       ...OG_FAILURES,
     },
-    toWire: constOk,
   },
   {
     id: 'capability.organization-governance/v2#S-29',
@@ -466,7 +303,6 @@ export const ROUTES: readonly Route[] = [
       ],
       ...OG_FAILURES,
     },
-    toWire: constOk,
   },
   {
     id: 'capability.organization-governance/v2#S-30',
@@ -499,7 +335,6 @@ export const ROUTES: readonly Route[] = [
       ],
       ...OG_FAILURES,
     },
-    toWire: ok,
   },
   {
     id: 'capability.organization-governance/v2#S-31',
@@ -516,7 +351,6 @@ export const ROUTES: readonly Route[] = [
       pass: ['affiliationRequestDoesNotExist', 'notAuthorized', 'alreadyConcluded'],
       ...OG_FAILURES,
     },
-    toWire: constOk,
   },
   {
     id: 'capability.organization-governance/v2#S-32',
@@ -537,7 +371,6 @@ export const ROUTES: readonly Route[] = [
       ],
       ...OG_FAILURES,
     },
-    toWire: constOk,
   },
   {
     id: 'capability.organization-governance/v2#S-33',
@@ -551,7 +384,6 @@ export const ROUTES: readonly Route[] = [
       ),
     reply: 'ack',
     failures: { pass: ['noSuchAffiliation', 'notAuthorized'], ...OG_FAILURES },
-    toWire: constOk,
   },
   {
     id: 'capability.organization-governance/v2#S-34',
@@ -569,11 +401,6 @@ export const ROUTES: readonly Route[] = [
     reply: 'outcome',
     failures: { pass: ['organizationDoesNotExist'], ...OG_FAILURES },
     // 一个组织 ⇒ 上级链（数组）；两个 ⇒ 有共同上级（布尔）。按载荷的个数核，不由返回值自己说
-    toWire: (value, payload) => {
-      if (list(payload['organizations']).length === 1) return list(value)
-      if (typeof value !== 'boolean') throw new TypeError('expected a boolean')
-      return value
-    },
   },
   {
     id: 'capability.organization-governance/v2#S-35',
@@ -584,13 +411,6 @@ export const ROUTES: readonly Route[] = [
     invoke: (services, { payload }) => services.organizations.scopeLayers(payload['tenant']),
     reply: 'outcome',
     failures: { pass: [], ...OG_FAILURES },
-    toWire: value => {
-      const layers = record(value)
-      return {
-        organizationLayer: scopeLayerWire(layers['organization']),
-        tenantLayer: scopeLayerWire(layers['tenant']),
-      }
-    },
   },
   {
     id: 'capability.organization-governance/v2#S-36',
@@ -600,7 +420,7 @@ export const ROUTES: readonly Route[] = [
     invoke: (services, { caller }) => services.memberships.currentTenant(caller.loginStateId),
     reply: 'outcome',
     failures: { pass: [], rejected: ['loginStateNotValid'], ...OG_FAILURES },
-    toWire: tenantWire,
+
     contradicts: (value, caller) => record(value)['account'] !== caller.accountId,
   },
   {
@@ -616,7 +436,6 @@ export const ROUTES: readonly Route[] = [
       rejected: ['loginStateNotValid'],
       ...OG_FAILURES,
     },
-    toWire: constOk,
   },
   {
     id: 'capability.organization-governance/v2#S-55',
@@ -633,7 +452,6 @@ export const ROUTES: readonly Route[] = [
       ),
     reply: 'outcome',
     failures: { pass: ['invitationDoesNotExist'], ...OG_FAILURES },
-    toWire: invitationWire,
   },
   {
     id: 'capability.organization-governance/v2#S-56',
@@ -644,7 +462,6 @@ export const ROUTES: readonly Route[] = [
       services.offers.readAffiliationRequest(derived(input), input.payload['affiliationRequest']),
     reply: 'outcome',
     failures: { pass: ['affiliationRequestDoesNotExist'], ...OG_FAILURES },
-    toWire: affiliationRequestWire,
   },
   {
     id: 'capability.organization-governance/v2#S-57',
@@ -657,7 +474,6 @@ export const ROUTES: readonly Route[] = [
         : services.offers.listReceivedInvitations(caller.accountId),
     reply: 'outcome',
     failures: { pass: [], ...OG_FAILURES },
-    toWire: value => list(value).map(invitationWire),
   },
   {
     id: 'capability.organization-governance/v2#S-58',
@@ -670,13 +486,6 @@ export const ROUTES: readonly Route[] = [
         : services.offers.listIssued(derived(input)),
     reply: 'outcome',
     failures: { pass: ['notAuthorized'], ...OG_FAILURES },
-    toWire: value => {
-      const issued = record(value)
-      return {
-        invitations: list(issued['invitations']).map(invitationWire),
-        affiliationRequests: list(issued['affiliationRequests']).map(affiliationRequestWire),
-      }
-    },
   },
   {
     id: 'capability.organization-governance/v2#S-59',
@@ -689,7 +498,6 @@ export const ROUTES: readonly Route[] = [
         : services.memberships.list(derived(input)),
     reply: 'outcome',
     failures: { pass: ['notAuthorized'], ...OG_FAILURES },
-    toWire: value => list(value).map(memberWire),
   },
   {
     id: 'capability.organization-governance/v2#S-60',
@@ -705,7 +513,6 @@ export const ROUTES: readonly Route[] = [
         : services.offers.listReceivedAffiliationRequests(derived(input)),
     reply: 'outcome',
     failures: { pass: ['notAuthorized'], ...OG_FAILURES },
-    toWire: value => list(value).map(incomingAffiliationRequestWire),
   },
   {
     id: 'capability.account-identity/v3#S-50',
@@ -725,7 +532,6 @@ export const ROUTES: readonly Route[] = [
       unavailable: ['storage-unavailable'],
       representation: ['invalid-input'],
     },
-    toWire: constOk,
   },
   {
     id: 'capability.organization-governance/v2#S-61',
@@ -740,7 +546,6 @@ export const ROUTES: readonly Route[] = [
       unreachable: ['accountDoesNotExist', 'accountNotActivated'],
       ...OG_FAILURES,
     },
-    toWire: constOk,
   },
   {
     id: 'capability.organization-governance/v2#S-62',
@@ -757,7 +562,6 @@ export const ROUTES: readonly Route[] = [
       pass: ['affiliationRequestDoesNotExist', 'notAuthorized', 'alreadyConcluded'],
       ...OG_FAILURES,
     },
-    toWire: constOk,
   },
   {
     id: 'composition.governance-center-entry/v2#S-50',
@@ -798,7 +602,6 @@ export const ROUTES: readonly Route[] = [
       unreachable: ['accountNotActivated'],
       ...OG_FAILURES,
     },
-    toWire: ok,
   },
 ]
 

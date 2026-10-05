@@ -72,6 +72,8 @@ These values are implementation constants, not configuration fields. The public 
 | Live storage health probe                    | 2 seconds                                |
 | Clock polling interval                       | 100 ms, bounded by `clockReadyTimeoutMs` |
 
+The private request policy uses explicit protocol, correlation and transaction ports. Business routes and wire projections have separate owners. The adapter retains the original commit and reply order. See [the boundary decision](adr/decision-protocol.md).
+
 ## Development
 
 ```sh

@@ -1,3 +1,4 @@
+import { project } from '../src/routing/route-wire.ts'
 import { decisionStorage } from './support/decision-storage.ts'
 const storage = decisionStorage()
 // T-2 的固定字节快照（入口节点 T-2「version-mismatch 与公开体检的字节有快照，改动即红」；绑定 V-1、S-13、S-15）
@@ -180,7 +181,8 @@ describe('T-2：路由结果与完整体检的形状（examples §4、§5）', (
     expect(route).toBeDefined()
     if (route === undefined) return
     const at = Date.UTC(2026, 8, 23, 8, 0, 0)
-    const wire = route.toWire(
+    const wire = project(
+      route.schema,
       [
         {
           loginStateId: 'b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e',
@@ -293,10 +295,14 @@ describe('V-9：体的写出规则逐例（examples §7）', () => {
     if (tenantRoute === undefined || organizationRoute === undefined)
       throw new Error('route missing')
     expect(
-      JSON.stringify(tenantRoute.toWire({ account: 'acc_7f3c91', organization: 'org_kf22' }, {})),
+      JSON.stringify(
+        project(tenantRoute.schema, { account: 'acc_7f3c91', organization: 'org_kf22' }, {}),
+      ),
     ).toBe('{"organization":"org_kf22","account":"acc_7f3c91"}')
     expect(
-      JSON.stringify(organizationRoute.toWire({ parent: null, kind: 'team', id: 'org_kf22' }, {})),
+      JSON.stringify(
+        project(organizationRoute.schema, { parent: null, kind: 'team', id: 'org_kf22' }, {}),
+      ),
     ).toBe('{"organization":"org_kf22","organizationKind":"team"}')
   })
 })
