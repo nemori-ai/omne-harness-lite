@@ -125,4 +125,4 @@ I 只由可信完整输入观察产生。合成仍为 fullContribution 或 I+φ+
 
 RT10 的 [UsageCalibration.tla](../../../../spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla) 已有 AnchorSource、PrefixGuard、BasisGuard、NoDoubleOutput、ErrorReset、OriginalBatch、NoEarlyPublish、ReanchorProgress；既有证据仅在其有限抽象内成立。该模型的 output 是数值序列、ExactReplay/ExactNew 直接用 Count 差，**没有**显式多组 usage/origin、selection→span 关系、部分组 aggregate 选择或转换依据判定。NoDoubleOutput 只检查公式三项相等，不能证明本页组覆盖互斥；这些映射不得冒绑既有形式任务。
 
-H13-G1：runtime revision 1 唯一账本已供本稿引用，两个节点仍待主线联合审查及采用，依赖公开交接的实施受阻。H13-G2：新映射及 H13-V1～V9 尚无实际验证。H13-G3：多个 opaque 组的当前模型转换依据仍归各模型 owner，不以统一接口完成冒充模型认证。H13-G4：若主线要求形式证明组级互斥/转换守卫，需 spec owner 在新正式版本中显式建模 group/selected-target/region/mapping predicate，并配置「同组双加、跨区域 aggregate、无依据转换」负控；本节点不改冻结 TLA，主线须裁定补充证明义务与接受边界。上述缺口与消费者见 [候选验证](verification.md#h13-多个历史输出组候选)。
+H13-G1：runtime revision 1 唯一账本已供本稿引用，两个节点仍待主线联合审查及采用，依赖公开交接的实施受阻。H13-G2：新映射及 H13-V1～V9 尚无实际验证。H13-G3：多个 opaque 组的当前模型转换依据仍归各模型 owner，不以统一接口完成冒充模型认证。H13-G4：若主线要求形式证明组级互斥/转换守卫，需 spec owner 在新正式版本中显式建模 group/selected-target/region/mapping predicate，并配置「同组双加、跨区域 aggregate、无依据转换」负控；本节点不改冻结 TLA，主线须裁定补充证明义务与接受边界。上述缺口与消费者见 [候选验证](verification.md#h13-多个历史输出组)。

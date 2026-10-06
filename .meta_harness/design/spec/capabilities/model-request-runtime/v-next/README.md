@@ -8,4 +8,4 @@
 
 ## formal/
 
-[扩展的 ACK 行为模型](formal/README.md)：在 v12 冻结的 `AckLifecycle.tla` 上加入暂存行代际、回执未知的在途追加与恢复时的可读性；新增两份变异（反例 A、B），八份原变异逐字复制。执行结果在版本外 [verification](../verification.md#接缝-revision-2-修订2026-09-30)。
+[扩展的 ACK 行为模型](formal/README.md)：在 v12 冻结的 `AckLifecycle.tla` 上加入暂存行代际、回执未知的在途追加与恢复时的可读性；新增两份变异（反例 A、B），八份原变异逐字复制。执行结果在版本外 [verification](../verification.md#ack-处分与恢复接缝)。

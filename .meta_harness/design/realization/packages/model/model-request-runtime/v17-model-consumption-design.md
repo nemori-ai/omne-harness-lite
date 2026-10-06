@@ -122,4 +122,4 @@ runtime README/README_ZH 在实现时给普通 readAttempts 与显式 failure �
 - **M17-G2／RT10 G28、RAF2 G3**：正式生产 Run 终结读取协议与实际写方外置；缺席仍具名 unavailable。只阻依赖它的生产成功链，不要求本程交完整 Run/Session/Loop。
 - **M17-G3／Runner RUN5-G3**：真实受控历史 provider、调用级 source、同代际映射与 runner 服务接线待实施验；独立 scope/条件算法可先验，不用另一尾补认证。
 - **M17-G4／Runner RUN5-G4/G5**：P-5 当前登记服务由 runner 节点共同起草；实际 Cordis/共享宿主/physical stop 验收待跑。未知任务及等待 owner 责任不缩小；正式卡片来源外置。
-- **M17-G5**：生产 Run/真实 waiting 源之外，本节点承诺的模型侧正向条件消费、13 方法/实际 guard/unknown/隔离必须完成，不能把所有 success 都恒 unavailable 后宣称边界内已交。新增 bindings 0，具体反例见 [M17 验证](verification.md#m17-模型侧-run失败经过与默认重试接线候选)。
+- **M17-G5**：生产 Run/真实 waiting 源之外，本节点承诺的模型侧正向条件消费、13 方法/实际 guard/unknown/隔离必须完成，不能把所有 success 都恒 unavailable 后宣称边界内已交。新增 bindings 0，具体反例见 [M17 验证](verification.md#m17-模型侧-run失败经过与默认重试接线)。

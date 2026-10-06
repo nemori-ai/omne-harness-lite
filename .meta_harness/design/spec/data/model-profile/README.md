@@ -7,7 +7,7 @@
 **当前候选 `data.model-profile/v6`**：[契约](v6/contract.md)与[变化及证据](verification.md#v6-估算计量保证)。依据 PF-013 rev15，仅调整 token 估算与显式余量保证；尚未技术接受。已接受基线 v5 的采用依据是上方 D-100；以下各旧版本段落按当时事件读取，不能覆盖当前接受状态。
 
 
-**v4 起草时摘要（历史）**：区分有限供给上限与上游三态事实，完整快照保留两者；[契约](v4/contract.md)、[Schema](v4/model-profile.schema.json)、[规范实例](v4/examples.md)、[机读实例](v4/examples.json)、[验证与影响](verification.md#v4-变化的影响)。v4 未接受、未冻结；候选登记片段交唯一 registry owner 集成，本入口不声称中央登记已完成。
+**v4 起草时摘要（历史）**：区分有限供给上限与上游三态事实，完整快照保留两者；[契约](v4/contract.md)、[Schema](v4/model-profile.schema.json)、[规范实例](v4/examples.md)、[机读实例](v4/examples.json)、[验证与影响](verification.md#v4-输入限制的验证义务)。v4 未接受、未冻结；候选登记片段交唯一 registry owner 集成，本入口不声称中央登记已完成。
 
 **v3 已接受并冻结**，精确采用依据见 D-078 接受记录与 catalog；v2 同样保留历史采用。下面早期 v2/v3 记录按当时语境读取，不改变 registry 的现行状态。
 

@@ -98,7 +98,7 @@ PASS: design tree /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-r
 
 ### v3 形式证据的有限范围
 
-[规格验证记录](../../../../spec/capabilities/loop-extension-runner/verification.md#tlc-实际执行与范围)记录了 Runner.tla 的实际执行；本节点引用其范围，未重跑或升级为实现证据：Runner.cfg（两件一 worker）48,016 状态、RunnerUnfenced.cfg（一件两 worker）44,508、RunnerConcurrent.cfg（一件两 worker）332,712、RunnerProgress.cfg（一件一 worker＋显式弱公平）2,930，四者 exit 0。十份负控得到指定反例：九份不变量失败 exit 12，answered-stalls 进展失败 exit 13。它们表明指定断言可以被拧反，不是生产运行通过。
+[规格验证记录](../../../../spec/capabilities/loop-extension-runner/verification.md#runner-模型的有限范围)记录了 Runner.tla 的实际执行；本节点引用其范围，未重跑或升级为实现证据：Runner.cfg（两件一 worker）48,016 状态、RunnerUnfenced.cfg（一件两 worker）44,508、RunnerConcurrent.cfg（一件两 worker）332,712、RunnerProgress.cfg（一件一 worker＋显式弱公平）2,930，四者 exit 0。十份负控得到指定反例：九份不变量失败 exit 12，answered-stalls 进展失败 exit 13。它们表明指定断言可以被拧反，不是生产运行通过。
 
 模型限于单会话稳定锚、有限链、最多两尝试/一次崩溃、每件至多一次 ask、二值改写主体；两件两 worker 的探索未完成，没有 verdict。唯一身份、时钟、可信声明、实际耐久介质及原子提交是外部前提。任意链/重复多轮 ask、精确 JSON 与适配绑定、E1/E2 来源读取、结论后 ID 竞争、嵌套提醒 veto、批次 admit、取消、句柄、完整错误处置表和守卫失败枚举不在该次覆盖内；仍须 V3-1～12/14 的真实或纯函数分层证据。登记与归档接受由主线负责，本次不新增 binding。
 
@@ -195,7 +195,7 @@ G3-0 的 runner3/runtime3 candidate 登记已完成，LC4/MS4/MR4/AE4/AR3/MF3 �
 
 ## v7 模型路径服务接线
 
-对象为 [v7 revision1 candidate](v7-model-service-design.md)，新增绑定 0。本服务增量的实际运行证据：最终 SHA `cfc410ee` 上 R9 `service-v3` 经演示装配 lease 服务入口的 36 项真实认证（见 [pi-ai-transport 验证页的最终认证节](../../model/pi-ai-transport/verification.md)），以及 [runtime 验证页的 M17／F18 主线验收](../../model/model-request-runtime/verification.md#m17f18-主线验收2026-09-30)。既有公共函数 427 项报告保持它自己的版本/范围，不升格成 Cordis 或生产 Run/waiting 验证。
+对象为 [v7 revision1 candidate](v7-model-service-design.md)，新增绑定 0。本服务增量的实际运行证据：最终 SHA `cfc410ee` 上 R9 `service-v3` 经演示装配 lease 服务入口的 36 项真实认证（见 [pi-ai-transport 验证页的最终认证节](../../model/pi-ai-transport/verification.md)），以及 [runtime 验证页的 M17／F18 主线验收](../../model/model-request-runtime/verification.md#m17f18-实现检查映射)。既有公共函数 427 项报告保持它自己的版本/范围，不升格成 Cordis 或生产 Run/waiting 验证。
 
 | 门／条款                                  | 必须可失败的实际验证                                                                                                                                                                                                                                                                                                                                                                         | owner 与限制                                                                                   |
 | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |

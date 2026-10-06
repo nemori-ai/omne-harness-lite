@@ -2,13 +2,13 @@
 
 2026-09-29：D106同日后继已技术采用runner v8精确受审修订；原候选字节保留，实际来源接口、全部消费者迁移及正反验收尚未完成。此次修复noRun失败挪用为Run的已确认缺陷，不升级为完整Run交付。
 
-[v8-failure-execution-design.md](v8-failure-execution-design.md)补实际 RunnerPass.execution 到失败来源 verify 的显式交接，拒绝 noRun／另一 Run 失败被挪作当前经过，保留合法跨 attempt 重演。**语义接受：沿既有 Runner5/LC6/RT10；本技术增补尚未采用。可实施：候选与 runtime 同批上下文待共同评审采用。绑定：新增0。实际验证：R8-V1～V6 本身尚无独立记录；runtime F18-V4 的执行记录（runPass 第三参被伪造时 R8 服务例检出、README 字面 `failurePort` 编译执行）见 [runtime M17／F18 实际执行](../../model/model-request-runtime/verification.md#m17f18-实际执行2026-09-30)。** 已有源码或旧服务验收不证明此反例已修；受信示例借同一物理日志 owner，不新增完整 Run 产品。验收与缺口见 [R8](verification.md#v8-失败经过执行上下文)。
+[v8-failure-execution-design.md](v8-failure-execution-design.md)补实际 RunnerPass.execution 到失败来源 verify 的显式交接，拒绝 noRun／另一 Run 失败被挪作当前经过，保留合法跨 attempt 重演。**语义接受：沿既有 Runner5/LC6/RT10；本技术增补尚未采用。可实施：候选与 runtime 同批上下文待共同评审采用。绑定：新增0。实际验证：R8-V1～V6 本身尚无独立记录；runtime F18-V4 的执行记录（runPass 第三参被伪造时 R8 服务例检出、README 字面 `failurePort` 编译执行）见 [runtime M17／F18 实际执行](../../model/model-request-runtime/verification.md#m17f18-实现检查映射)。** 已有源码或旧服务验收不证明此反例已修；受信示例借同一物理日志 owner，不新增完整 Run 产品。验收与缺口见 [R8](verification.md#v8-失败经过执行上下文)。
 
 ## v7 模型路径服务接线候选（2026-09-29）
 
 **2026-09-29 模型路径窄增量已技术采用**：D106后继采用本节点新候选的精确受审字节及有限消费接续。语义沿现行接受规范；可实施范围见该决定；新增绑定0；实际源码和相应验收尚待，不把起草时candidate标签或旧checkpoint当现行采用结论。
 
-[v7-model-service-design.md](v7-model-service-design.md)接续已接受 Runner5/LC6 和 D106 公共执行面。**语义接受：既有契约有；本服务接线增量随 runtime v17（M17）于 2026-09-29 由 D106 后继技术采用，2026-09-30 实施与主线验收见 runtime 节点 verification.md 的 M17 两段**；**可实施：候选明确同 E 链读取、精确历史正文、登记/注销代际、同一公共 runPass 及纯 replay 核，待独立评审和采用**；**新增绑定：0**；**实际验证：R7-V1～V10 本身尚无独立记录；runtime M17-V9／V10 涉及的 P5 登记代际与缺席不发布见 [runtime M17／F18 实际执行](../../model/model-request-runtime/verification.md#m17f18-实际执行2026-09-30)**。当前源码已有公共 runPass/log adapter/task owner，既有 427 项函数证据不证明 Cordis 服务已经交付。
+[v7-model-service-design.md](v7-model-service-design.md)接续已接受 Runner5/LC6 和 D106 公共执行面。**语义接受：既有契约有；本服务接线增量随 runtime v17（M17）于 2026-09-29 由 D106 后继技术采用，2026-09-30 实施与主线验收见 runtime 节点 verification.md 的 M17 两段**；**可实施：候选明确同 E 链读取、精确历史正文、登记/注销代际、同一公共 runPass 及纯 replay 核，待独立评审和采用**；**新增绑定：0**；**实际验证：R7-V1～V10 本身尚无独立记录；runtime M17-V9／V10 涉及的 P5 登记代际与缺席不发布见 [runtime M17／F18 实际执行](../../model/model-request-runtime/verification.md#m17f18-实现检查映射)**。当前源码已有公共 runPass/log adapter/task owner，既有 427 项函数证据不证明 Cordis 服务已经交付。
 
 本轮仅模型必要经过与 P5 登记组合，不建设通用资产、完整 Run、卡片等待或工具执行。MF4/AR4 实际来源的有限接续、既有 MF 公开投影到 Runner5 S-6 的窄映射及真实 Cordis/manifest/JSONL 验收义务见 [R7 验证与缺口](verification.md#v7-模型路径服务接线)。不增加 registry API；外部 waiting/生产 Run 来源缺席仍 unavailable，不用假值放行。以下段落是各自历史观察时点，公共函数的当前实施事实不反写旧采用正文。
 

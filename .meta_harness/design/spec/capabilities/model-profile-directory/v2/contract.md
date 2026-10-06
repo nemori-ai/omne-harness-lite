@@ -6,7 +6,7 @@
   `family = capabilities`、`topic = model-profile-directory`、规范路径 `spec/capabilities/model-profile-directory/v2/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：已由 D-061 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-013 rev 12** 为准，另引 **PF-001 rev 19**、**PF-002 rev 20**、**PF-016 rev 8**；每次改 rev 之前逐版读 changelog 核过受影响的条款，结论记在[验证入口「变化的影响」](../verification.md#变化的影响)
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-013 rev 12** 为准，另引 **PF-001 rev 19**、**PF-002 rev 20**、**PF-016 rev 8**；每次改 rev 之前逐版读 changelog 核过受影响的条款，结论记在[验证入口「变化的影响」](../verification.md#消费者对齐)
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记）：
   - `omne-harness-lite-design-2026-09-15 · data.model-profile · v2`（candidate）
   - `omne-harness-lite-design-2026-09-15 · data.identity-values · v1`（accepted）
@@ -76,7 +76,7 @@
 | 档案记录的**形状**、路由名唯一的**规则与失败值名**、引用的形状与解析规则、请求参数词表 | `data.model-profile` v2（本契约执行其中几条，不复述） |
 | **合法目标集合、展示列表、选中模型、有效模型、一次模型调用** | `capability.model-request-runtime` v2（据点侧）。本契约只给它读面与取用面 |
 | **「这个范围允许哪些路由名」**——锁死与配成不允许 | **本版不收窄**（D-063 R-4：范围允许 = 这个范围里登记的全部档案，`A` 的来路见 [S-17](#s-17-listprofiles) 末段）；将来要收窄，作为设置走[作用域求值](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-scope-evaluation--作用域求值--scope-evaluation)（`capability.asset-evaluation` v2）。本契约的[列表](#s-17-listprofiles)**不是**「这个范围可用的档案」 |
-| **凭据本体**：存在哪、怎么加密、怎么送到据点、怎么续 | 保管方。**据点上那一份**：窄口接口契约 `capability.credential-custodian` v2（副本条目、加密落地、按登录状态丢；那份契约以坐标依赖本契约的 S-7、S-12，本契约不反向登记——互引按定义引用 ＋ 对齐义务，[验证入口](../verification.md#修订波2026-09-25-公开面)）；**中心一侧**：那份契约的 G-7；跨进程的那一半见 [S-22](#s-22-装配给的保证-vs-协议须给的保证) 与 [G-7](#十已知缺口) |
+| **凭据本体**：存在哪、怎么加密、怎么送到据点、怎么续 | 保管方。**据点上那一份**：窄口接口契约 `capability.credential-custodian` v2（副本条目、加密落地、按登录状态丢；那份契约以坐标依赖本契约的 S-7、S-12，本契约不反向登记——互引按定义引用 ＋ 对齐义务，[验证入口](../verification.md#消费者对齐)）；**中心一侧**：那份契约的 G-7；跨进程的那一半见 [S-22](#s-22-装配给的保证-vs-协议须给的保证) 与 [G-7](#十已知缺口) |
 | 成员关系与角色、隶属关系 | `capability.organization-governance` v1（本契约只消费它的成员资格判定；撞名判定不读隶属关系） |
 | 跨进程的线上形状（中心 ↔ 据点） | 把这些操作送过进程边界的那份组合契约（尚未立，[G-7](#十已知缺口)） |
 

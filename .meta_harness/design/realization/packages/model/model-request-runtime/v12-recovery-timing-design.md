@@ -97,4 +97,4 @@ core model-response 的候选投影将现有公开 `Timing.sentAt` 放宽为 `st
 
 T12-G1：本投影仍 candidate，B/C/A 相关实施须主线采用；新运行验收尚无。T12-G2：原 L1 永久撤除后 L2 认回与旧 owner 解除的交接未闭，不能因新增 originalInvocation 查询便声称恢复关闭成功；只阻相关换代恢复。T12-G3：withRun 的真 Run/attempt/late 解释沿 G-28，仍 unavailable，不降为两个布尔值。T12-G4：真实重启/kill、可信部分事实保留、0HTTP 与完整批竞争由主线装配和独立验收补证；有限模型不足。可先实施同代际合格恢复及冷恢复 noRun 表内分支，不把这些缺口放大为整条纵线停止。
 
-验收详见 [T12 义务](verification.md#v12-恢复时序候选义务)。本页不修改 bindings，不改 D-102/D-103 已采用字节与范围，也不声称十三操作交付完成。
+验收详见 [T12 义务](verification.md#v12-恢复时序义务)。本页不修改 bindings，不改 D-102/D-103 已采用字节与范围，也不声称十三操作交付完成。

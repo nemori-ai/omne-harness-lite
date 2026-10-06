@@ -18,7 +18,7 @@ SqlStorage 可选 `maintenance` facet；仅带已确认升级守卫的SQLite实�
 
 ## 在线固定观察
 
-snapshot使用原源文件专用只读DatabaseSync，BEGIN并首读固定观察；检查page_count×page_size≤1GiB和空间至少2×预估大小+256MiB。调用Node24.21 backup导出至隔离任务文件。每次progress检查取消/5分钟预算/WAL≥1GiB/实际页数上界；预算用单调时间，不是完成承诺。backup Promise真实结算才ROLLBACK和关闭原源句柄；失败路径同样等待。取消回调抛错的真实Finalize依据既有2026-09-25-backup-cancellation研究，固定观察依据pinned-read-backup研究。
+snapshot使用原源文件专用只读DatabaseSync，BEGIN并首读固定观察；检查page_count×page_size≤1GiB和空间至少2×预估大小+256MiB。调用Node24.21 backup导出至隔离任务文件。每次progress检查取消/5分钟预算/WAL≥1GiB/实际页数上界；预算用单调时间，不是完成承诺。backup Promise真实结算才ROLLBACK和关闭原源句柄；失败路径同样等待。取消回调异常后的Finalize顺序见[Node v24.21.0 BackupJob源码](https://raw.githubusercontent.com/nodejs/node/v24.21.0/src/node_sqlite.cc)；固定观察、回调取消与读事务释放由本包维护实现及机制输入分别验证，不能由单次探针输出代替实际生命周期。
 
 完成副本以只读句柄检查SQLite integrity_check恰一行ok、foreign_key_check无行；读所有用户表名及完整Kysely迁移登记；缺失/重复/非法登记为invalid-data。只读事务把这些和view提供给owner检查。SQL不识别centerId、clock列或备份文件头。源事务关闭后业务写不再保留WAL；源实例run仍覆盖use内发布与后续清理。最终副本所有读句柄结束才删任务文件。
 
@@ -38,7 +38,7 @@ R2结构读数：在同一副本只读事务使用sqlite_schema与PRAGMA table_x
 
 ## R3：物理完整性校验的单工作线程
 
-2026-09-26双平台约869MB/百万行/三索引探针表明，主线程integrity_check阻塞约3.4秒，超过clock续约周期；R2仅留性能义务不足以作为当前执行选择。R3替代“在请求线程执行全库物理检查”的绑定：固定副本的integrity_check与foreign_key_check在本包拥有的一个Node worker内顺序执行，其他owner的有限结构/标识/底线读取仍在同一固定副本上。副本文件生成后不再修改，先关闭导出写者；worker结束后再开启主线程只读view，所以无需跨线程传Kysely句柄。
+固定副本的integrity_check与foreign_key_check在本包拥有的一个Node worker内顺序执行，避免在请求线程同步执行全库物理检查；其他owner的有限结构/标识/底线读取仍在同一固定副本上。副本文件生成后不再修改，先关闭导出写者；worker结束后再开启主线程只读view，所以无需跨线程传Kysely句柄。实际业务/clock续约、近界副本和worker生命周期仍须按下文验证义务验收，不能从合成计时推定产品可用性。
 
 worker是storage任务的子执行资源，不是新fiber/service/资格拥有者。入口只接内部已验证工作根任务文件路径，代码入口固定本包文件，无来自网络的SQL/脚本/worker选项。Worker只读打开，执行两个固定pragma，完整输出不越过线程：只返回ok或具名invalid-data/unavailable和稳定错误类，不传行资料/SQL错误原文；finally关闭DatabaseSync后才发结果并关闭parentPort。主线程同时观察error/message/exit，必须有恰一个合法结果且实际exit=0才能继续；消息到达不等于退出。错误/缺结果/非零exit均失败，仍等待真实exit后才清理文件或释放run。
 

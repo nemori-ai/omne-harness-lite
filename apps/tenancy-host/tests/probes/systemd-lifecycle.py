@@ -1,0 +1,58 @@
+"""Isolated systemd semantics probe; not a product deployment or durability test."""
+import argparse,subprocess,json,time,pathlib
+parser=argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--out',required=True,help='Private task tmp directory to create')
+parser.add_argument('--name',required=True,help='Unique disposable container name')
+parser.add_argument('--image',required=True,help='Explicit locally built probe image')
+args=parser.parse_args()
+out=pathlib.Path(args.out);out.mkdir()
+name=args.name
+events=[]
+def call(args,check=True,timeout=50):
+ r=subprocess.run(args,text=True,capture_output=True,timeout=timeout)
+ events.append({'args':args,'code':r.returncode,'stdout':r.stdout,'stderr':r.stderr})
+ if check and r.returncode:raise RuntimeError(str(args)+' failed: '+r.stderr)
+ return r.stdout.strip()
+def ex(*args,**kw):return call(['docker','exec',name,*args],**kw)
+def put(path,text):
+ r=subprocess.run(['docker','exec','-i',name,'sh','-c','cat > "$1"','sh',path],input=text,text=True,capture_output=True)
+ assert r.returncode==0,r.stderr
+ (out/pathlib.Path(path).name).write_text(text)
+try:
+ call(['docker','run','--rm','-d','--name',name,'--network','none','--privileged','--cgroupns=private','--tmpfs','/run','--tmpfs','/run/lock','--tmpfs','/tmp',args.image])
+ for _ in range(50):
+  state=ex('systemctl','is-system-running',check=False)
+  if state in ['running','degraded']:break
+  time.sleep(.1)
+ assert state in ['running','degraded'],state
+ version=ex('systemd','--version')
+ ex('mkdir','-p','/opt/omne-probe')
+ put('/opt/omne-probe/center.sh',"#!/bin/sh\ntrap 'sleep 35; touch /opt/omne-probe/stopped; exit 0' TERM\ntouch /opt/omne-probe/started\nwhile :; do sleep 1; done\n")
+ put('/etc/systemd/system/omne-probe-center.service','[Unit]\nDescription=Owned lifecycle probe only\n[Service]\nType=simple\nExecStart=/bin/sh /opt/omne-probe/center.sh\nRestart=on-failure\nTimeoutStopSec=infinity\n')
+ put('/opt/omne-probe/backup.sh',"#!/bin/sh\nif systemctl is-active --quiet omne-probe-center.service; then echo attempted-live-backup; exit 0; fi\necho center-unavailable >&2\nexit 1\n")
+ put('/etc/systemd/system/omne-probe-backup.service','[Unit]\nDescription=Owned backup trigger probe only\nAfter=omne-probe-center.service\n[Service]\nType=oneshot\nExecStart=/bin/sh /opt/omne-probe/backup.sh\n')
+ put('/etc/systemd/system/omne-probe-backup.timer','[Unit]\nDescription=Owned timer probe only\n[Timer]\nOnActiveSec=1s\nAccuracySec=100ms\nUnit=omne-probe-backup.service\n')
+ ex('systemctl','daemon-reload')
+ ex('systemctl','start','omne-probe-center.service')
+ ex('systemctl','start','omne-probe-backup.service')
+ start=time.monotonic();ex('systemctl','stop','--no-block','omne-probe-center.service')
+ time.sleep(31)
+ mid=ex('systemctl','show','omne-probe-center.service','--property=ActiveState,SubState,MainPID')
+ assert 'ActiveState=deactivating' in mid and 'MainPID=0\n' not in mid+'\n',mid
+ for _ in range(100):
+  state=ex('systemctl','is-active','omne-probe-center.service',check=False)
+  if state=='inactive':break
+  time.sleep(.1)
+ assert state=='inactive',state
+ stop_duration=time.monotonic()-start
+ ex('test','-f','/opt/omne-probe/stopped')
+ ex('systemctl','start','omne-probe-backup.timer')
+ time.sleep(2)
+ final=ex('systemctl','show','omne-probe-center.service','--property=ActiveState,MainPID')
+ result=ex('systemctl','show','omne-probe-backup.service','--property=Result,ExecMainStatus')
+ assert 'ActiveState=inactive' in final and 'MainPID=0' in final,final
+ assert 'Result=exit-code' in result and 'ExecMainStatus=1' in result,result
+ (out/'result.json').write_text(json.dumps({'status':'PASS','version':version,'stopSeconds':stop_duration,'after31s':mid,'afterTimer':final,'backup':result,'scope':'real isolated Docker systemd + synthetic shell service; >30s stop waits; timer does not start stopped center; not actual product backup/disk failure or daily cadence'},indent=2)+'\n')
+finally:
+ call(['docker','stop','--time','5',name],check=False,timeout=15)
+ (out/'events.json').write_text(json.dumps(events,indent=2)+'\n')

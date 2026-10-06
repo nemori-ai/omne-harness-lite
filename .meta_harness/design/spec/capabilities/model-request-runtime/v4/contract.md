@@ -6,7 +6,7 @@
   `family = capabilities`、`topic = model-request-runtime`、规范路径 `spec/capabilities/model-request-runtime/v4/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：当前采用范围见 catalog；继承 D-076 已接受 v3，旧版的接受与证据不传递给本版。精确资源与采用状态由版本外入口及 registry 维护。
-- **设计依据**：继承 D-076 已接受 RT3 的全部未变化承诺及其精确产品依据（PF-013 rev 13、PF-012 rev 15，另引 PF-009 rev 8、PF-004 rev 12、PF-001 rev 19、PF-015 rev 11）。本轮仅据 D-081 与 D-083 演进到 SL3 消费；不把后续产品修订的新增 workspace 政策算作已经投影。模型适配方向沿已采用的提案及 [现行词义](../../../../ubiquitous_language/index.md)。[变化与证据](../verification.md#v4-候选变化与证据)分开维护。
+- **设计依据**：继承 D-076 已接受 RT3 的全部未变化承诺及其精确产品依据（PF-013 rev 13、PF-012 rev 15，另引 PF-009 rev 8、PF-004 rev 12、PF-001 rev 19、PF-015 rev 11）。本轮仅据 D-081 与 D-083 演进到 SL3 消费；不把后续产品修订的新增 workspace 政策算作已经投影。模型适配方向沿已采用的提案及 [现行词义](../../../../ubiquitous_language/index.md)。[变化与证据](../verification.md#v4-结算与未知提交)分开维护。
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记；接受状态以 [registry](../../../../registry/README.md) 为准）：
   - `omne-harness-lite-design-2026-09-15 · capability.model-profile-directory · v3`（accepted）
   - `omne-harness-lite-design-2026-09-15 · data.model-profile · v3`（accepted）
@@ -1548,7 +1548,7 @@ S-38 的单机/跨进程保证补下表；单机也须主动兑现，不能把�
 | G-2 | **已闭合**：五种记录的形状归 `data.messages/v4#S-49`、`#S-50`（D-060 §S16 S16-d） | — | — |
 | G-3 | **已闭合**：`ModelCallRequest` 定形（D-060 §S16 S16-c）；第一轮评审处置改为 `target` 恒在、加 `basis`、`tools` 是模型面名字（[S-28](#s-28-opencall) ①） | — | — |
 | G-4 | **已闭合（主线裁定，见 D-060 §五 K42）**：「用哪个模型」那项设置的允许集合**取值域是路由名**，与「设置记路由名」一致；它作为显式参数进 `capability.model-profile-directory/v3#S-17` 末段的规则（[S-11](#s-11-合法目标集合)）。**本行只闭合取值域**；这一项从哪来、是设置还是权限、锁与 `A` 的关系另立 [G-19](#十二已知缺口)（2026-09-25 按 D-063 R-4 闭合）（D-060 §七 M17） | — | — |
-| G-5 | **`status_cause_table` 的内容**：OpenRouter 各状态码归哪个成因。**`402`、`403` 两行已按成因定义定下**（[S-18](#s-18-成因按来源分类三类事实由守卫兑现) 末条：`402` ⇒ `credential_unavailable`、`403` ⇒ `request_rejected`；主线 2026-09-25 裁定，报产品负责人知悉），前提是这两个码的含义取证属实；其余各行的取证仍开着（提供者给出的候选表每一行都还是待核对主张，见[验证入口修订波表](../verification.md#修订波2026-09-25pi-ai-传输节点反推)）。**另一项前提**：首 token 之前的带内错误的 `code` 查同一张表，要上游带内 `code` 与 HTTP 状态是同一套码（S-18 表第四行） | 提供者设计（据 OpenRouter 文档取证） | OpenRouter 错误页入研究，表逐行对上；带内 `code` 的码空间核实 |
+| G-5 | **`status_cause_table` 的内容**：OpenRouter 各状态码归哪个成因。**`402`、`403` 两行已按成因定义定下**（[S-18](#s-18-成因按来源分类三类事实由守卫兑现) 末条：`402` ⇒ `credential_unavailable`、`403` ⇒ `request_rejected`；主线 2026-09-25 裁定，报产品负责人知悉），前提是这两个码的含义取证属实；其余各行的取证仍开着（提供者给出的候选表每一行都还是待核对主张，见[验证入口修订波表](../verification.md#变化的影响)）。**另一项前提**：首 token 之前的带内错误的 `code` 查同一张表，要上游带内 `code` 与 HTTP 状态是同一套码（S-18 表第四行） | 提供者设计（据 OpenRouter 文档取证） | OpenRouter 错误页入研究，表逐行对上；带内 `code` 的码空间核实 |
 | G-6 | **脱敏三个具名参数的取值**：`credential_fragment_min_length`、`credential_header_names`、`credential_patterns` | 提供者设计 ＋ 安全评审 | 取值定下，并以哨兵串场景（S-46）验证 |
 | G-7 | **已闭合**：首 token 之后停机 = `interrupted{runtime_lost}`（D-060 §S16 S16-g） | — | — |
 | G-8 | **已闭合（2026-09-25 修订波，D-063 R-6、D-060 §八 N-36）**：原「退避值取多少」改为**策略配置项与默认初值**——`default_retry_backoff` 是一个可配置策略对象（`kind`、`base`、`factor`、`max`、`jitter`，[S-35](#s-35-默认重试件可替换) 第 4 条），次数不是独立参数、由允许的供应商个数与回退声明推出；默认初值放配置层（N-36 记下的那一组），本契约不填值。同家要不要再试已裁（不允许回退时同家至多一次，D-060 §S16 S16-g） | — | — |

@@ -100,7 +100,7 @@ full 先按原件核：原 body 的 `model` 等于定义、原 body 与原 seria
 | 形状识别与投影 `visibleReasoningDetailText`／`projectVisibleReasoningBody` | 直接复用，同文键集合传 `['reasoning']`（与 Qwen 相同）；`[REDACTED]` 排除在共享函数内 | 不改共享函数。并行键政策四家：DeepSeek 任何并行键即拒，Moonshot 两键同文只计一次，Qwen 与本家族 `reasoning` 同文只计一次、`reasoning_content` 拒。沿主调度 2026-09-30 裁决 P1 同法登记为已知差异（P1 原只点名前三家）：产品路径永不同时发两键，差异只对直接调用者可见 |
 | `zai-candidate.ts` 无绑定历史候选 | 其纯字符串渲染被本页的生产路径取代 | 随实施删除，不留第二条同义路径；冻结探针若仍需候选计数，改用生产 meter（ZV5） |
 
-直接入口守门：三个 ZAI factory 现以 `Object.freeze` 返回 `defineInputMeter` 的对象，直接 `measureFull` 不经共同包装；规划器路径经 `plan.ts`／`input-limits.ts` 调共同包装。本页让带推理的历史首次可计量，不接线则直接调用 factory 方法可携非法显式 history 得到估算——DeepSeek 评审 N1 的同构。三个 factory 的公开 full／φ／δ 方法经唯一的通用接线函数 `guardInputMeter` 接到共同包装，五叶一并（含尚未释放的 GLM-5.3、Flash）：共同包装只加来源与表示校验，不改任何一叶的数值。这是 S-77、S-79⑥ 与 [H13](verification.md#h13-多个历史输出组候选) 的落实，不新增契约承诺。
+直接入口守门：三个 ZAI factory 现以 `Object.freeze` 返回 `defineInputMeter` 的对象，直接 `measureFull` 不经共同包装；规划器路径经 `plan.ts`／`input-limits.ts` 调共同包装。本页让带推理的历史首次可计量，不接线则直接调用 factory 方法可携非法显式 history 得到估算——DeepSeek 评审 N1 的同构。三个 factory 的公开 full／φ／δ 方法经唯一的通用接线函数 `guardInputMeter` 接到共同包装，五叶一并（含尚未释放的 GLM-5.3、Flash）：共同包装只加来源与表示校验，不改任何一叶的数值。这是 S-77、S-79⑥ 与 [H13](verification.md#h13-多个历史输出组) 的落实，不新增契约承诺。
 
 ## 失败层、版本与装卸
 
@@ -188,4 +188,4 @@ ZV5：已释放叶 definition／implementation／algorithm 唯一修订与显式
 
 ## 实施附注（2026-09-30，主线）
 
-ZV0 通过后第二批两叶释放（执行仓库 `fc5b5384`，`officialCatalogRevision` 2）：GLM-5.3 与 Flash 由 2／`pi-ai:zai@mp4-17` 升为 definition 3／`pi-ai:zai@mp4-18`，algorithm `glm-5.3-public-template-2`／`glm-5.3-flash-public-template-2`，tokenizer 显式钉在未变的 `tokenizer-basis/glm-5.3-public-template-1`／`tokenizer-basis/glm-5.3-flash-public-template-1`；逐叶采用矩阵与 ZG2 记录的是起草时状态，ZV0 读数与本机验证见 [verification.md](verification.md#zai-五叶可见推理历史候选义务)。
+ZV0 通过后第二批两叶释放（执行仓库 `fc5b5384`，`officialCatalogRevision` 2）：GLM-5.3 与 Flash 由 2／`pi-ai:zai@mp4-17` 升为 definition 3／`pi-ai:zai@mp4-18`，algorithm `glm-5.3-public-template-2`／`glm-5.3-flash-public-template-2`，tokenizer 显式钉在未变的 `tokenizer-basis/glm-5.3-public-template-1`／`tokenizer-basis/glm-5.3-flash-public-template-1`；逐叶采用矩阵与 ZG2 记录的是起草时状态，ZV0 读数与本机验证见 [verification.md](verification.md#zai-五叶可见推理历史义务)。

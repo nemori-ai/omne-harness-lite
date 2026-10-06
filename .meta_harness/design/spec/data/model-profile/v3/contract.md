@@ -89,7 +89,7 @@
 ### 消费者
 
 下表继承 v2 的消费者分工与已采用坐标，用于定位升级责任，**不声明这些旧坐标已经消费本候选**。
-采用 `adaptation` 的新消费者必须精确钉 v3；需要升级的契约和实现见 [G-14](#十已知缺口) 与[验证入口](../verification.md#v3-变化的影响)。
+采用 `adaptation` 的新消费者必须精确钉 v3；需要升级的契约和实现见 [G-14](#十已知缺口) 与[验证入口](../verification.md#v3-模型适配绑定的验证义务)。
 
 | 消费者 | 消费什么 |
 |---|---|
@@ -881,7 +881,7 @@ Schema 只挡住未登记的外层成员；`extra` 与 `adaptation.configuration
 
 **本版从已接受的 v2 演进**：`ModelProfileContent`、`ModelProfile`、`ModelProfileSnapshot` 新增必填 `adaptation`，公共定义新增 `ModelAdaptationBinding`（S-29）；S-30 规定配置值与写入者义务，S-31 规定模型 ID 对齐与表示层拒绝。S-1～S-28 的身份、范围、参数缺席、供应商与相等规则保留，受新增字段影响处明确扩展。
 
-这是表示上的不兼容演进：没有绑定的 v2 档案不能当作 v3 文档，禁止静默填默认绑定；本版不承诺兼容转换。消费者必须显式采用 v3，并升级相应档案、快照和嵌套表示；旧消费者继续钉 v2。同一 baseline 的语义演进不冒充行政坐标迁移，也不新增旧 baseline 的 lineage。消费者升级和证据重建在[验证入口](../verification.md#v3-变化的影响)列出。
+这是表示上的不兼容演进：没有绑定的 v2 档案不能当作 v3 文档，禁止静默填默认绑定；本版不承诺兼容转换。消费者必须显式采用 v3，并升级相应档案、快照和嵌套表示；旧消费者继续钉 v2。同一 baseline 的语义演进不冒充行政坐标迁移，也不新增旧 baseline 的 lineage。消费者升级和证据重建在[验证入口](../verification.md#v3-模型适配绑定的验证义务)列出。
 
 **本版的规范工件**：本文件、[`model-profile.schema.json`](model-profile.schema.json)、[`examples.md`](examples.md)。
 

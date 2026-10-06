@@ -2,7 +2,7 @@
 
 2026-09-28：D-104 接受本次恢复时序后继 v9 的全部规范资源；当前精确范围以该决定与 registry 为准。下文候选标签记录起草时状态，提供者迁移及真实恢复另验。
 
-**v6 起草时摘要（历史；后由 D-099 接受）**：[契约](v6/contract.md)、[实例](v6/examples.md)、[形式义务](v6/formal/README.md)、[消费者传播](v6/consumer-impact.md)、[验证](verification.md#v6-候选变化与证据)。完整继承 RT5，新增最终输入限制、MR6 未处分事实交接与 LC5 重试历史；跨包定型与未决项见 G-32～G-35。
+**v6 起草时摘要（历史；后由 D-099 接受）**：[契约](v6/contract.md)、[实例](v6/examples.md)、[形式义务](v6/formal/README.md)、[消费者传播](v6/consumer-impact.md)、[验证](verification.md#v6-最终计划pending-与完整历史)。完整继承 RT5，新增最终输入限制、MR6 未处分事实交接与 LC5 重试历史；跨包定型与未决项见 G-32～G-35。
 
 2026-09-28：D-101接受本次MP6/RT8计量后继；规范资源冻结，下面candidate标签保留起草事件，实际计量实现与发送验收另计。
 
@@ -17,7 +17,7 @@
 
 **2026-09-27 当前接受**：D086接受v4全部73条／27资源，精确消费SL3。新版提供者投影尚未采用，十三操作及真实组合未完成；冻结版本起草时candidate标签不覆盖registry接受状态。
 
-**已接受 v3（2026-09-27，D-076）**：[契约](v3/contract.md)保留十三个服务操作，补精确适配绑定、独立函数结果投影、内容门、显式宿主、观察者、当前求值输入端口和观测责任；[S-67](v3/contract.md#s-67-默认重试件的能力标识)补默认重试件标识 `omne-official:default-retry`；[规范实例](v3/examples.md)、[形式义务](v3/formal/README.md)与[验证状态](verification.md#v3-候选变化与证据)可追溯。v3 已由 D-076 接受并冻结；目录/档案/消息/响应、LC4、AE4 与 registry3 的精确采用以 registry 为准。v4 已由 D086 接受，提供者采用仍单独登记，真实组合验收独立于规格接受；manifest3 仅作历史参考，v2 保持原冻结字节。
+**已接受 v3（2026-09-27，D-076）**：[契约](v3/contract.md)保留十三个服务操作，补精确适配绑定、独立函数结果投影、内容门、显式宿主、观察者、当前求值输入端口和观测责任；[S-67](v3/contract.md#s-67-默认重试件的能力标识)补默认重试件标识 `omne-official:default-retry`；[规范实例](v3/examples.md)、[形式义务](v3/formal/README.md)与[验证状态](verification.md#v3-变化与验证义务)可追溯。v3 已由 D-076 接受并冻结；目录/档案/消息/响应、LC4、AE4 与 registry3 的精确采用以 registry 为准。v4 已由 D086 接受，提供者采用仍单独登记，真实组合验收独立于规格接受；manifest3 仅作历史参考，v2 保持原冻结字节。
 
 **会话据点上，一个会话怎样选模型、每一次[模型调用](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)怎样发出、怎样收场、停机之后怎样对账。**
 它拥有选中模型的切换、有效模型的四步求值、合法目标集合与展示列表、一次调用的状态与每一次发出、三类事实的发出守卫、两个耐久锚点、中断、恢复对账、成因分类、凭据现取与脱敏，以及系统自带的默认重试件。
@@ -69,11 +69,11 @@
 
 ## v4 接受：采用 SL3 的结算消费
 
-[契约](v4/contract.md)从 D-076 已接受 v3 演进，保留十三操作和独立 invokeModel，消费 D-083 已接受 session-log v3；S-68～S-73 补显式 condition、实际提交点 late、完整批认回、未知结果与争用耗尽责任。[实例](v4/examples.md#v4-增量结算竞争与恢复)、[形式义务](v4/formal/README.md#结算组合模型)、[消费者传播](v4/consumer-impact.md)与[证据状态](verification.md#v4-候选变化与证据)分别可查。v4 已由D086接受27资源，旧 v3仍沿registry冻结，新版不自动升级任何消费者；本轮不改变既有模型/参数/缓存或其他十六项精确依赖，不为生产 Run 认法、共同 codec、多值头或真实组合补默认。
+[契约](v4/contract.md)从 D-076 已接受 v3 演进，保留十三操作和独立 invokeModel，消费 D-083 已接受 session-log v3；S-68～S-73 补显式 condition、实际提交点 late、完整批认回、未知结果与争用耗尽责任。[实例](v4/examples.md#v4-增量结算竞争与恢复)、[形式义务](v4/formal/README.md#结算组合模型)、[消费者传播](v4/consumer-impact.md)与[证据状态](verification.md#v4-结算与未知提交)分别可查。v4 已由D086接受27资源，旧 v3仍沿registry冻结，新版不自动升级任何消费者；本轮不改变既有模型/参数/缓存或其他十六项精确依赖，不为生产 Run 认法、共同 codec、多值头或真实组合补默认。
 
 ## v5 起草时摘要（历史）：多值响应头事实交接
 
-[完整契约](v5/contract.md)继承 D-086 已接受 v4 的 73 条、十三服务操作及九项和 SL3 结算/恢复，仅将 MR4 精确依赖换为 [MR5 candidate](../../data/model-response/v5/contract.md)。同次 send 的公共可选 rawHeaders 经 invoke 未结算结果交到完整响应，保留已取得且留存的 string／有序 string[] 原值；取消和读体失败不擦掉事实，头不进入内容门、观察者或诊断。[规范实例](v5/examples.md#v5-增量同次响应头的交接与留存)、[消费者传播](v5/consumer-impact.md)、[形式继承边界](v5/formal/README.md)与[证据义务](verification.md#v5-候选变化与证据)分别维护。
+[完整契约](v5/contract.md)继承 D-086 已接受 v4 的 73 条、十三服务操作及九项和 SL3 结算/恢复，仅将 MR4 精确依赖换为 [MR5 candidate](../../data/model-response/v5/contract.md)。同次 send 的公共可选 rawHeaders 经 invoke 未结算结果交到完整响应，保留已取得且留存的 string／有序 string[] 原值；取消和读体失败不擦掉事实，头不进入内容门、观察者或诊断。[规范实例](v5/examples.md#v5-增量同次响应头的交接与留存)、[消费者传播](v5/consumer-impact.md)、[形式继承边界](v5/formal/README.md)与[证据义务](verification.md#v5-原始头交接)分别维护。
 
 起草当时 MR5/RT5 尚未接受（后来由 D-090 接受）；旧提供者与任何消费者均不自动升级。G-31 仅有候选表示/交接，core 公开接收、transport/runtime/codec 投影、全部真实写方和 TLS→invoke→append/reopen 仍待。四 TLA、十九配置逐字继承，六任务仅登记未运行，不能证明头事实留存或实际停止；其余原缺口保持。
 
@@ -86,7 +86,7 @@
 
 ## 2026-09-28 RT9 恢复时序候选
 
-[v9 契约](v9/contract.md) 为 candidate，未接受、未冻结；只补已确认锚点的中断结算中实际 sentAt 不可用表示。当前采用不自动升级，证据与消费者责任见[验证入口](verification.md#恢复时序候选)。
+[v9 契约](v9/contract.md) 为 candidate，未接受、未冻结；只补已确认锚点的中断结算中实际 sentAt 不可用表示。当前采用不自动升级，证据与消费者责任见[验证入口](verification.md#恢复时序)。
 
 
 ## 2026-09-29 响应校准候选 v10
@@ -100,6 +100,6 @@
 
 ## v12 ACK后继候选
 
-[v12 contract](v12/contract.md) · [消费者影响](v12/consumer-impact.md) · [验证义务](v12/verification.md)。**已接受并冻结**：registry 状态 `accepted`，依据 D-110 后继：接受模型调用 ACK 契约及实现映射（2026-09-30）；正文内的 candidate 标签是起草时快照，不覆盖 registry。ACK确认、真实处分与清理分别可见；接受不等于实现或真实组合验证完成，实际状态以 [verification](verification.md#v12-ack后继候选) 为准。
+[v12 contract](v12/contract.md) · [消费者影响](v12/consumer-impact.md) · [验证义务](v12/verification.md)。**已接受并冻结**：registry 状态 `accepted`，依据 D-110 后继：接受模型调用 ACK 契约及实现映射（2026-09-30）；正文内的 candidate 标签是起草时快照，不覆盖 registry。ACK确认、真实处分与清理分别可见；接受不等于实现或真实组合验证完成，实际状态以 [verification](verification.md#v12-ack后继) 为准。
 
 2026-09-30 版本外勘误指引（v12 已由 ACK 契约决定接受并冻结，正文不原地改）：[S-99⑧](v12/contract.md#s-99-ack-后的真实处分与-retainedresult)未写明暂存行的精确含义——暂存行 = 最近一次结果尚未确知为零写的追加所用完整批；`tailChanged` 确认零写后重构批须在新追加可能生效前耐久更新到该行；回执未知期间禁止覆盖。候选正文在ACK 后新处分接缝 revision 2，待并入项与扩展形式工件在 [v-next](v-next/README.md)；并入由下一版本 contract 完成，不改变 v12 的接受状态。

@@ -73,7 +73,7 @@ full 先按原件核：原 body 的 `model`、`provider` 与定义一致，原 b
 | `input-meter.ts` 共同包装 `measureFull`／`measureReplay`／`measureNew` | 来源、basis、history 校验的唯一所在 | 不复制；见下「直接入口守门」 |
 | 形状识别 | 共享四键谓词从 `projectDeepSeekMeterBody`（`deepseek-boundary.ts:47-57`）抽出，语义逐项相同（assistant、恰一项、own keys 恰四个、`reasoning.text`、字符串 text、字面 `unknown`、精确数值 0），DeepSeek、Moonshot 与本家族开源两叶共用；`[REDACTED]` 排除、并行键政策与目标槽位留在本家族 | 可见 JSON 替身分支的 `visibleDetails` 判定不动；DeepSeek 已采用页不回溯修改，其行为不因抽出而变。并行键政策三家不同：DeepSeek 任何并行键即拒，Moonshot 两键同文只计一次，本家族 `reasoning` 同文只计一次、`reasoning_content` 拒。按主调度 2026-09-30 裁决（P1）登记为已知差异：产品路径只发二者之一、永不同时发两键，差异只对直接调用者可见，待有真实带并行键回放证据时统一再议 |
 
-直接入口守门：当前 `createQwenInputMeter` 返回 `defineInputMeter` 的冻结对象，其直接 `measureFull` 不经共同包装；规划器路径经 `plan.ts`／`input-limits.ts` 调共同包装。本页让带 details 的历史首次可计量，不接线则直接调用 factory 方法可携非法显式 history 得到估算——DeepSeek 评审 N1 的同构。须把 Qwen factory 的公开 full／φ／δ 方法接到共同包装，包装再调私有原始对象、避免递归；复用唯一的通用接线函数（现名 `guardDeepSeekMeter`，内容与家族无关），不复制第二份。factory 同时产出八款 meter，接线对八款一并生效：共同包装只加来源与表示校验，不改六款可见替身的数值；六款的直接入口测试按主调度 2026-09-30 裁决（P3）不作本次验收门，随接线收口时补。这是 S-77、S-79⑥ 与 [H13](verification.md#h13-多个历史输出组候选) 的落实，不新增契约承诺。
+直接入口守门：当前 `createQwenInputMeter` 返回 `defineInputMeter` 的冻结对象，其直接 `measureFull` 不经共同包装；规划器路径经 `plan.ts`／`input-limits.ts` 调共同包装。本页让带 details 的历史首次可计量，不接线则直接调用 factory 方法可携非法显式 history 得到估算——DeepSeek 评审 N1 的同构。须把 Qwen factory 的公开 full／φ／δ 方法接到共同包装，包装再调私有原始对象、避免递归；复用唯一的通用接线函数（现名 `guardDeepSeekMeter`，内容与家族无关），不复制第二份。factory 同时产出八款 meter，接线对八款一并生效：共同包装只加来源与表示校验，不改六款可见替身的数值；六款的直接入口测试按主调度 2026-09-30 裁决（P3）不作本次验收门，随接线收口时补。这是 S-77、S-79⑥ 与 [H13](verification.md#h13-多个历史输出组) 的落实，不新增契约承诺。
 
 ## 失败层、版本与装卸
 

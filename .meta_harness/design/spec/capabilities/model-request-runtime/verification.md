@@ -1,7 +1,7 @@
 # 验证义务与有限覆盖范围
 
 本页维护 `capability.model-request-runtime` 的验证义务、责任接缝和模型有限范围。当前承诺及采用范围从[架构维护入口](../../../architecture/README.md)、[规格身份清单](../../../registry/README.md)与[当前契约 v12](v12/contract.md)定位；下文精确版本导航用于确定相应验证输入，不能从某版通过推定其他版本通过。
-公共定义归 `packages/core/model-request-runtime`，提供者归 `packages/model/model-request-runtime-local`；具体采用的终态由节点设计及模块旁 SPEC 维护。十五操作、必要独立函数和所有真实消费者均须按当前采用承诺验证。
+已迁公共定义归 `packages/core/model-request-runtime`；未迁完整接口按精确规格和节点继续消费。提供者归 `packages/model/model-request-runtime-local`；具体采用的终态由节点设计及模块旁 SPEC 维护。十五操作、必要独立函数和所有真实消费者均须按当前采用承诺验证。
 接受、实现和验证分别判断。本页不声明当前实现通过；提案、修复过程、评审及每次运行输出留执行工作树 `tmp/`。模型与配置是可复跑资源，语法解析、登记检查或文件存在均不代证性质或真实行为。
 
 ## v7 发布前破坏性演进

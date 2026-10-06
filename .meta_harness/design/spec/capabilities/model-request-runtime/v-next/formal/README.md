@@ -37,4 +37,4 @@
 - 接缝 R3（删除重试/唤醒复用 ACK 清理构件、删除回执未知从同行认回）、R4（代重送前重核 settle 资格）、反例 C 的认回/`alreadyEnded` 返回、D 的部分碰撞键、E 的代际比较：均未建模，证据在版本外 verification 登记的真实并发验收义务。
 - 不证明真实字节、SQL/JSONL 耐久、权限来源或密码学。
 
-实际执行结果与输入位置在版本外 [verification](../../verification.md#接缝-revision-2-修订2026-09-30)。
+实际执行结果与输入位置在版本外 [verification](../../verification.md#ack-处分与恢复接缝)。

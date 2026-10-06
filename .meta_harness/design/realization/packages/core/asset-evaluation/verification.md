@@ -58,7 +58,7 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 | 来源条款 | 需要什么证据 | 当前状态 | owner 与闭合条件 |
 |---|---|---|---|
-| V-1 结构性质 (i)～(x) | 契约侧是 Alloy 模型 `Evaluation.als`（**不是 formal task、不可绑定**）；实现侧须有对应的规范场景或性质测试，否则模型结论落不到实现上 | 未开始。契约侧的依据是 M31 之后的那次重跑（[契约验证入口](../../../../spec/capabilities/asset-evaluation/verification.md#已执行组合根只作身份之后的-alloy-运行2026-09-25)：十八条命令、十三个变异体与预期一致，**未登记为 formal task**；原始输出已在 2026-09-25-alloy-asset-evaluation 登记）；它**不建失败值**（`compositionCycle`、`categoryUnsupported`），M31 的三处改动按构造、不作证据 | 本节点：选几条模型性质写成实现上的性质测试（随机持有、锁、禁用组合）；随机生成器产出含 plugin 或 sub-agent 的组合时，断言结果是 `categoryUnsupported`，不是一份结果 |
+| V-1 结构性质 (i)～(x) | 契约侧是 Alloy 模型 `Evaluation.als`（**不是 formal task、不可绑定**）；实现侧须有对应的规范场景或性质测试，否则模型结论落不到实现上 | 未开始。契约侧的依据是 M31 之后的那次重跑（[契约验证入口](../../../../spec/capabilities/asset-evaluation/verification.md#组合根模型的判读与限制)：十八条命令、十三个变异体与预期一致，**未登记为 formal task**；原始输出已在 2026-09-25-alloy-asset-evaluation 登记）；它**不建失败值**（`compositionCycle`、`categoryUnsupported`），M31 的三处改动按构造、不作证据 | 本节点：选几条模型性质写成实现上的性质测试（随机持有、锁、禁用组合）；随机生成器产出含 plugin 或 sub-agent 的组合时，断言结果是 `categoryUnsupported`，不是一份结果 |
 | V-2 四格齐全的一次求值（S-33，E-1） | 五个集合与 E-1 逐项相等，`root` 是 `root.definition` 且不在 `composition` 里；同一输入重放；改一项权限只动那一项 | 未开始 | 本节点 |
 | V-3 先禁用后替换（S-34，E-2a、E-2b） | 规范场景 | 未开始 | 本节点 |
 | V-4 清单读入的留痕（S-35，E-3） | `readWorkspaceCarrier` 对 E-3 的持有与 `dropped` 逐项相等 | 未开始 | 本节点 |

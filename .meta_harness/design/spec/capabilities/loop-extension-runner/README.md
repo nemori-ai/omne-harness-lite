@@ -66,7 +66,7 @@
 
 ## 2026-09-27 v3 接受
 
-[v3 契约](v3/contract.md)与[完整失败输入及重试交接实例](v3/examples.md#8-v3完整绑定的失败主体经真实守卫交回-retry)是精确消费演进版本：采用 LC4、messages4、response4、content-blocks3 与 model-request-runtime3；两个操作与失败枚举保持。v3 已由 D-076 接受；冻结正文仍保留起草时状态文字，接受状态以 registry 为准，不自动升级既有消费者。[v3 变化与证据](verification.md#v3-候选精确消费演进)单独记录检查范围与缺口，不从旧模型或新实例推断生产组合通过。
+[v3 契约](v3/contract.md)与[完整失败输入及重试交接实例](v3/examples.md#8-v3完整绑定的失败主体经真实守卫交回-retry)是精确消费演进版本：采用 LC4、messages4、response4、content-blocks3 与 model-request-runtime3；两个操作与失败枚举保持。v3 已由 D-076 接受；冻结正文仍保留起草时状态文字，接受状态以 registry 为准，不自动升级既有消费者。[v3 变化与证据](verification.md#v3-精确消费演进)单独记录检查范围与缺口，不从旧模型或新实例推断生产组合通过。
 
 本轮追加候选已补齐当前拓展表的 MF3／registry3／AE4 同 E 读取，作者与 runner 提醒的身份责任、后置 ID 冲突收场，默认重试的 owner 标识，以及守卫全部失败映射。两操作及失败枚举保留，既有失败的适用范围已明确细化。[有限回放模型](v3/formal/README.md)含四份正向配置和十份反例配置；实际 TLC 结果与局限见 verification，未改变 candidate 状态。
 
@@ -74,6 +74,6 @@
 
 ## 2026-09-28 v4 候选
 
-[v4 契约](v4/contract.md)继承 v3 的 52 条款，新增 [S-53](v4/contract.md#s-53-失败结论的模型调用关联) 与 [S-54](v4/contract.md#s-54-重试结论历史与回放)，消费 LC5/MS5/MR6/RT6；两个操作、失败集合和先落后算保持。[规范场景](v4/examples.md#12-v4失败结论关联完整历史与提交后回放)、[形式工件](v4/formal/README.md)、[变化与证据](verification.md#v4-候选完整失败历史)可分别展开。候选尚未接受，不改 v2/v3 冻结工件，不自动迁移旧消费者；登记片段由主线统一合入 registry。
+[v4 契约](v4/contract.md)继承 v3 的 52 条款，新增 [S-53](v4/contract.md#s-53-失败结论的模型调用关联) 与 [S-54](v4/contract.md#s-54-重试结论历史与回放)，消费 LC5/MS5/MR6/RT6；两个操作、失败集合和先落后算保持。[规范场景](v4/examples.md#12-v4失败结论关联完整历史与提交后回放)、[形式工件](v4/formal/README.md)、[变化与证据](verification.md#v4-完整失败历史)可分别展开。候选尚未接受，不改 v2/v3 冻结工件，不自动迁移旧消费者；登记片段由主线统一合入 registry。
 
 2026-09-28：D-099在独立复评闭合后技术接受 v4；规范资源冻结。实现采用和验证另行交付，原文 candidate 是起草状态。

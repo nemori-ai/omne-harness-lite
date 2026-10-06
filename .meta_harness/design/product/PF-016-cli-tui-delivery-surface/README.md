@@ -121,4 +121,6 @@ PF-016-cli-tui-delivery-surface/
 没有独立的交流场次可记。**没有 `projection/`**：技术设计尚未开始，
 那个目录[由步骤 G 落盘](../README.md#与技术设计的关系)，不预先建空壳。
 
-本次并行修订的来源、编号协调与消费者复核见 [当前规则与范围](design.md)。
+本次并行修订的来源、编号协调与消费者复核见 decisions。
+
+会话的受理／未受理边界见 [PF-014 §6.8](../PF-014-inbound-intake-and-queueing/design.md#68-停机不会让一条入站到达永远悬着)，待消费保管及交接范围见 [PF-015 §6.26](../PF-015-session-lifecycle-and-ownership/design.md#626-待消费数据先持久保管再交接)；本包已有动作、结果保留与清理规则仍由本包正文拥有。

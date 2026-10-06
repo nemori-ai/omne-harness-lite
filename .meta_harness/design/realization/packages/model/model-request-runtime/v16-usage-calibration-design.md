@@ -125,4 +125,4 @@ demo 继续归 `examples/model-invocation-minimal-demo`：完整多轮/流式输
 - **U16-G4（S-81）**：真实 JSONL 并发、unknown 原批、旧任务停止、冷恢复及 lease 留存仍待验；有限模型不代实际 IO。
 - **U16-G5（S-82/S-83）**：百万性能与原型有效性待本实现测量；G-37 各模型真实口径/φ 与 G-36 estimated 硬 fit 原开放项保留，不把本地边际性能当上游精确性。已知当前四条 Anthropic explicit/last_message 缓存路由逐轮迁移缓存标记，并可能改变 string/text-array 包装；完整 wire-message 投影可能每轮 prefix_changed 而 full。该范围必须实测并交 transport/主线判定性能目标是否满足，不承诺全部模型正常 append 已增量，也不自行剥 cache_control 冒称 token-neutral。
 
-归装配的身份授权、真实读源、时钟/诊断、安全输入、旧宿主停止及冷恢复权限仍由既有示例/服务/日志 owner 承接；没有因此需要建立新的正式应用节点。所有新验证义务见 [U16 验证](verification.md#u16-输入观察校准实施候选)，均非已运行结果。
+归装配的身份授权、真实读源、时钟/诊断、安全输入、旧宿主停止及冷恢复权限仍由既有示例/服务/日志 owner 承接；没有因此需要建立新的正式应用节点。所有新验证义务见 [U16 验证](verification.md#u16-输入观察校准实施)，均非已运行结果。
