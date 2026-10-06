@@ -1064,12 +1064,18 @@ importers:
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
       '@omne-harness-lite/runtime-context':
         specifier: workspace:*
         version: link:../runtime-context
       '@omne-harness-lite/session-tenancy':
         specifier: workspace:*
         version: link:../session-tenancy
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../tool-definition
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
@@ -1548,9 +1554,15 @@ importers:
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../content-blocks
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../offer-expiry
       '@omne-harness-lite/session-tenancy':
         specifier: workspace:*
         version: link:../session-tenancy
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'

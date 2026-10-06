@@ -77,8 +77,14 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
     'session-tenancy',
     'asset-model',
   ],
-  'runtime-context': ['content-blocks', 'session-tenancy'],
-  'execution-environments': ['content-blocks', 'runtime-context', 'session-tenancy'],
+  'runtime-context': ['content-blocks', 'session-tenancy', 'offer-expiry'],
+  'execution-environments': [
+    'content-blocks',
+    'runtime-context',
+    'session-tenancy',
+    'identity-values',
+    'tool-definition',
+  ],
   'tool-execution-runtime': [
     // TE-25 uses the shared pure close-control types; this does not grant a Cordis face.
     'assembly-lifecycle',
@@ -258,6 +264,7 @@ export const PUBLIC_SUBPATHS: Readonly<Record<string, readonly string[]>> = {
 // grant module loading to value judges or the compiler-free code-runtime.
 const FIXED_SCHEMA_MODULE_SITES = new Set([
   'core/tool-execution-runtime/src/journal-values.ts',
+  'core/runtime-context/src/decode.ts',
   'core/offer-expiry/src/validate.ts',
   'core/offer-expiry/src/schema-inputs.ts',
   'core/content-blocks/src/schema.ts',
@@ -334,6 +341,11 @@ function allowedExternal(
   if (pkg === 'skill-package' && specifier === '@omne-harness-lite/skill-package/schema/v2')
     return true
   if (SCHEMA_JUDGE_OWNERS.has(pkg) && specifier === `@omne-harness-lite/${pkg}/schema`) return true
+  if (
+    path === 'core/runtime-context/src/schema-inputs.ts' &&
+    specifier === '@omne-harness-lite/runtime-context/schema'
+  )
+    return true
   // tool-runtime/1 is a fixed graph owned by the public journal codec, not a dynamic compiler.
   if (
     path === 'core/tool-execution-runtime/src/schema-inputs.ts' &&

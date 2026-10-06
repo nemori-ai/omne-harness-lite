@@ -1,14 +1,9 @@
+import { decodeContextData } from '@omne-harness-lite/runtime-context'
 import type { JsonValue } from '@omne-harness-lite/content-blocks'
-import { parseTenantId, parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import type {
-  ContextConsumer,
   ContextMutation,
-  ContextRead,
   ContextRegistration,
-  ContextSource,
-  ContextSourceRegistrations,
-  ContextValue,
   RuntimeContextOperations,
 } from '@omne-harness-lite/runtime-context'
 import type { SessionLog } from '@omne-harness-lite/session-log'
@@ -20,8 +15,11 @@ import type {
   SessionScope,
 } from '@omne-harness-lite/session-tenancy'
 import { createContextJournal, type ContextState } from './journal.ts'
-import { decode } from './codec.ts'
+import { decodeEvent } from './codec.ts'
 import { identity, own, object } from './values.ts'
+import { checkedScope } from './scope.ts'
+import { compatible, createContextReader } from './observation.ts'
+import { createContextSources } from './sources.ts'
 
 export interface RuntimeContextDependencies {
   readonly log: SessionLog
@@ -35,38 +33,8 @@ export interface RuntimeContextDependencies {
 }
 type Reason = Extract<ContextMutation, { kind: 'rejected' }>['reason']
 const rejected = <R extends string>(reason: R) => ({ kind: 'rejected', reason }) as const
-function checkedScope(scope: SessionScope): SessionScope | undefined {
-  try {
-    const value = own(scope)
-    if (!object(value) || Object.keys(value).some(key => key !== 'tenant' && key !== 'session'))
-      return undefined
-    const tenant = parseTenantId(value.tenant),
-      session = parseOpaqueIdentifier(value.session, 'SessionRef')
-    return 'ok' in tenant && 'ok' in session
-      ? Object.freeze({ tenant: Object.freeze(tenant.ok), session: session.ok })
-      : undefined
-  } catch {
-    return undefined
-  }
-}
-function compatible(
-  source: ContextSource,
-  registration: ContextRegistration,
-  state: ContextState,
-): boolean {
-  const required = state.seed?.required.find(item => item.key === registration.key)
-  return (
-    source.recovery === registration.recovery &&
-    registration.consumers.every(consumer => source.consumers.includes(consumer)) &&
-    Boolean(required) === source.requiredKeys.includes(registration.key) &&
-    registration.required === Boolean(required) &&
-    (!required || required.source === source.name)
-  )
-}
-
 export function createRuntimeContext(deps: RuntimeContextDependencies) {
-  const journal = createContextJournal(deps.log),
-    sources = new Map<string, ContextSource>()
+  const journal = createContextJournal(deps.log)
   let active = true
   function diagnostic(
     stage: Parameters<NonNullable<RuntimeContextDependencies['diagnostic']>>[0],
@@ -89,6 +57,7 @@ export function createRuntimeContext(deps: RuntimeContextDependencies) {
     }
   }
   async function state(scope: SessionScope) {
+    if (!active) return rejected('ownerStopped')
     const read = await journal.read(scope)
     if (!active) return rejected('ownerStopped')
     return 'state' in read && read.state.seed ? read : rejected('unavailable')
@@ -100,104 +69,7 @@ export function createRuntimeContext(deps: RuntimeContextDependencies) {
       diagnostic('notification', error)
     }
   }
-  const registrations: ContextSourceRegistrations = {
-    registerSource(input) {
-      if (!active) throw new Error('runtime context owner stopped')
-      if (
-        typeof input.name !== 'string' ||
-        !input.name ||
-        typeof input.read !== 'function' ||
-        !['persisted', 'reread_source', 'recompute'].includes(input.recovery) ||
-        !input.consumers.length ||
-        input.consumers.some(v => !['model', 'tool', 'extension'].includes(v)) ||
-        new Set(input.consumers).size !== input.consumers.length ||
-        input.requiredKeys.some(v => typeof v !== 'string' || !v) ||
-        new Set(input.requiredKeys).size !== input.requiredKeys.length
-      )
-        throw new TypeError('invalid context source')
-      if (sources.has(input.name)) throw new Error('duplicate context source')
-      const source: ContextSource = Object.freeze({
-        name: input.name,
-        read: input.read,
-        recovery: input.recovery,
-        consumers: Object.freeze([...input.consumers]),
-        requiredKeys: Object.freeze([...input.requiredKeys]),
-      })
-      sources.set(source.name, source)
-      notify()
-      return () => {
-        if (sources.get(source.name) === source) {
-          sources.delete(source.name)
-          notify()
-        }
-      }
-    },
-  }
-  async function readValues(
-    access: SessionAccess,
-    scope: SessionScope,
-    consumer: ContextConsumer,
-    keys: readonly string[],
-  ): Promise<ContextRead> {
-    const checked = await authorize(access, scope, 'context.read')
-    if (checked.kind === 'rejected') return checked
-    if (
-      checked.identity.consumer !== consumer ||
-      keys.some(key => !checked.identity.contextKeys.includes(key))
-    )
-      return rejected('notAuthorized')
-    if (keys.some(key => typeof key !== 'string' || !key) || new Set(keys).size !== keys.length)
-      return rejected('invalidInput')
-    const current = await state(scope)
-    if ('kind' in current) return current
-    const values: ContextValue[] = []
-    const adoptedSources = new Map<string, ContextSource>()
-    for (const key of keys) {
-      const registration = current.state.registrations.get(key)
-      if (!registration) return rejected('missingRegistration')
-      if (!registration.consumers.includes(consumer)) return rejected('notAuthorized')
-      const source = sources.get(registration.source)
-      if (!source || !compatible(source, registration, current.state))
-        return rejected('sourceUnavailable')
-      adoptedSources.set(source.name, source)
-      let content: ContextValue | undefined
-      if (registration.recovery === 'persisted') content = current.state.contents.get(key)
-      else {
-        try {
-          const result = await source.read(scope, own(registration.config))
-          if (result.kind !== 'values' || sources.get(source.name) !== source)
-            return rejected('sourceUnavailable')
-          const seen = new Set<string>()
-          for (const item of result.values) {
-            const value = decode('Value', item)
-            if (!value || seen.has(value.key)) return rejected('sourceUnavailable')
-            seen.add(value.key)
-            if (value.key === key) content = value
-          }
-        } catch (error) {
-          diagnostic('source', error)
-          return rejected('sourceUnavailable')
-        }
-      }
-      if (!content) return rejected('sourceUnavailable')
-      const fixed = current.state.seed?.fixed.find(item => item.key === key)
-      if (fixed && identity(fixed.value) !== identity(content.value))
-        return rejected('sourceUnavailable')
-      const copy = decode('Value', content)
-      if (!copy) return rejected('sourceUnavailable')
-      values.push(copy)
-    }
-    const stillAuthorized = await authorize(access, scope, 'context.read')
-    if (stillAuthorized.kind === 'rejected') return stillAuthorized
-    if (
-      stillAuthorized.identity.consumer !== consumer ||
-      keys.some(key => !stillAuthorized.identity.contextKeys.includes(key))
-    )
-      return rejected('notAuthorized')
-    if ([...adoptedSources].some(([name, source]) => sources.get(name) !== source))
-      return rejected('sourceUnavailable')
-    return { kind: 'values', values: Object.freeze(values) }
-  }
+  const sources = createContextSources({ active: () => active, state, notify })
   async function mutate(
     access: SessionAccess,
     inputScope: SessionScope,
@@ -225,11 +97,13 @@ export function createRuntimeContext(deps: RuntimeContextDependencies) {
       return rejected('invalidInput')
     }
     if (candidate.kind === 'rejected') return candidate
-    const event = decode('Event', candidate)
+    const event = decodeEvent(candidate)
     if (!event) return rejected('invalidInput')
     const latest = await authorize(access, scope, operation)
     if (latest.kind === 'rejected') return latest
     if (!latest.identity.contextKeys.includes(key)) return rejected('notAuthorized')
+    // A possibly committed write invalidates relevant reads before waiting for its receipt.
+    sources.changed(scope, [key], event.kind !== 'updated')
     const result = await journal.commit(scope, current.state, event)
     if (result !== 'applied') return rejected('unavailable')
     notify()
@@ -245,11 +119,13 @@ export function createRuntimeContext(deps: RuntimeContextDependencies) {
       if (result.identity.consumer !== consumer) return rejected('notAuthorized')
       return {
         kind: 'bound',
-        reader: Object.freeze({
-          read(keys: readonly string[]) {
-            if (!Array.isArray(keys)) return Promise.resolve(rejected('invalidInput'))
-            return readValues(access, scope, consumer, Object.freeze([...keys]))
-          },
+        reader: createContextReader({
+          scope,
+          consumer,
+          sources,
+          authorize: () => authorize(access, scope, 'context.read'),
+          state: () => state(scope),
+          diagnostic: error => diagnostic('source', error),
         }),
       }
     },
@@ -268,13 +144,13 @@ export function createRuntimeContext(deps: RuntimeContextDependencies) {
       return {
         kind: 'registrations',
         revision: current.state.registrationRevision,
-        entries: Object.freeze(entries.map(entry => decode('Registration', entry)!)),
+        entries: Object.freeze(entries),
       }
     },
     register(access, scope, input, expectedRevision) {
       if (typeof expectedRevision !== 'string' || !expectedRevision)
         return Promise.resolve(rejected('invalidInput'))
-      const registration = decode('Registration', input)
+      const registration = decodeContextData('Registration', input)
       if (!registration) return Promise.resolve(rejected('invalidInput'))
       return mutate(
         access,
@@ -382,10 +258,13 @@ export function createRuntimeContext(deps: RuntimeContextDependencies) {
   }
   return {
     operations: Object.freeze(operations),
-    sources: Object.freeze(registrations),
+    sources: Object.freeze(sources.registrations),
     closeAdmission() {
       active = false
     },
-    drain: journal.drain,
+    async drain() {
+      await sources.drain()
+      await journal.drain()
+    },
   }
 }

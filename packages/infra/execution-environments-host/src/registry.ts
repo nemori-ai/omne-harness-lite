@@ -1,9 +1,14 @@
+import { environmentVisibleInScope } from '@omne-harness-lite/execution-environments'
+import { createPlacementAuthority } from './placement.ts'
+import { createEnvironmentAcquirer } from './acquire.ts'
+import {
+  observeProvider as observed,
+  rejectEnvironment as reject,
+  type ProviderEntry as Entry,
+} from './provider-work.ts'
 import type {
-  EnvironmentAcquisition,
   EnvironmentDescription,
-  EnvironmentProvider,
   EnvironmentProviderRegistrations,
-  EnvironmentRejection,
   ExecutionEnvironmentOperations,
   ResourceRecoveryAuthority,
 } from '@omne-harness-lite/execution-environments'
@@ -13,23 +18,14 @@ import type {
   SessionAccessOperations,
   SessionScope,
 } from '@omne-harness-lite/session-tenancy'
-import { ownScope, ownDescription, ownReference, ownRequirement, ownResources } from './values.ts'
+import { ownScope, ownDescription, ownResources } from './values.ts'
 
-const reject = (reason: EnvironmentRejection['reason']): EnvironmentRejection => ({
-  kind: 'rejected',
-  reason,
-})
-interface Entry {
-  readonly provider: EnvironmentProvider
-  active: boolean
-  readonly jobs: Set<Promise<unknown>>
-  dispose(): Promise<void>
-}
 export function createEnvironmentRegistry(deps: {
   readonly access: SessionAccessOperations
   readonly recovery: ResourceRecoveryAuthority
 }) {
   let active = true
+  const placement = createPlacementAuthority(() => active)
   const entries = new Map<string, Entry>(),
     retiring = new Set<Entry>()
   async function authorize(
@@ -46,15 +42,6 @@ export function createEnvironmentRegistry(deps: {
       return reject('unavailable')
     }
   }
-  async function observed<T>(entry: Entry, task: () => Promise<T>): Promise<T> {
-    const job = Promise.resolve().then(task)
-    entry.jobs.add(job)
-    try {
-      return await job
-    } finally {
-      entry.jobs.delete(job)
-    }
-  }
   async function descriptions(scope: SessionScope, authorization: SessionAccess) {
     const output: { readonly entry: Entry; readonly description: EnvironmentDescription }[] = []
     try {
@@ -67,6 +54,7 @@ export function createEnvironmentRegistry(deps: {
           if (!description) return reject('providerUnavailable')
           if (
             description.reference.provider !== entry.provider.name ||
+            !environmentVisibleInScope(description, scope) ||
             new Set(description.facilities).size !== description.facilities.length
           )
             return reject('providerUnavailable')
@@ -168,67 +156,28 @@ export function createEnvironmentRegistry(deps: {
         values: Object.freeze(result.output.map(item => item.description)),
       }
     },
-    async acquire(request): Promise<EnvironmentAcquisition> {
-      if (request === null || typeof request !== 'object') return reject('invalidInput')
-      const scope = ownScope(request.scope),
-        requirement = ownRequirement(request.requirement)
-      const reference =
-        request.reference === undefined ? undefined : ownReference(request.reference)
-      if (
-        !scope ||
-        !requirement ||
-        (request.reference !== undefined && !reference) ||
-        !(request.resources?.closed instanceof AbortSignal) ||
-        ![request.resources.plan, request.resources.permit, request.resources.stopped].every(
-          value => typeof value === 'function',
-        )
-      )
-        return reject('invalidInput')
-      const resources = Object.freeze({
-        closed: request.resources.closed,
-        plan: request.resources.plan.bind(request.resources),
-        permit: request.resources.permit.bind(request.resources),
-        stopped: request.resources.stopped.bind(request.resources),
-      })
-      const input = Object.freeze({
-        scope,
-        requirement,
-        resources,
-        authorization: request.authorization,
-        ...(reference ? { reference } : {}),
-      })
-      const access = await authorize(input.authorization, input.scope, 'environment.acquire')
-      if (access.kind === 'rejected') return access
-      if (input.resources.closed.aborted) return reject('ownerStopped')
-      // An explicit reference selects its owner. Without one, only an unambiguous owner may decide.
-      const entry = input.reference
-        ? entries.get(input.reference.provider)
-        : entries.size === 1
-          ? entries.values().next().value
-          : undefined
-      if (!entry) return reject('noMatchingEnvironment')
-      if (!entry.active) return reject('providerUnavailable')
-      try {
-        const result = await observed(entry, () => entry.provider.acquire(input))
-        if (result.kind !== 'acquired') return result
-        if (!entry.active || !active || input.resources.closed.aborted) {
-          await result.lease.release()
-          return reject(active ? 'providerUnavailable' : 'ownerStopped')
-        }
-        return result
-      } catch {
-        return reject('providerUnavailable')
-      }
-    },
+    acquire: createEnvironmentAcquirer({
+      active: () => active,
+      placement,
+      provider: reference =>
+        reference
+          ? entries.get(reference.provider)
+          : entries.size === 1
+            ? entries.values().next().value
+            : undefined,
+      authorize: (authorization, scope) => authorize(authorization, scope, 'environment.acquire'),
+    }),
   }
   return {
     operations: Object.freeze(operations),
     registrations: Object.freeze(registrations),
+    placements: Object.freeze(placement.registrations),
     async close() {
       active = false
-      const results = await Promise.allSettled(
-        [...new Set([...entries.values(), ...retiring])].map(entry => entry.dispose()),
-      )
+      const results = await Promise.allSettled([
+        placement.drain(),
+        ...[...new Set([...entries.values(), ...retiring])].map(entry => entry.dispose()),
+      ])
       if (results.some(result => result.status === 'rejected'))
         throw new Error('environment registry retains unfinished cleanup')
     },

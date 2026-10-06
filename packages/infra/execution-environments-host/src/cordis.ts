@@ -13,6 +13,7 @@ import {
 import type {
   ExecutionEnvironmentOperations,
   EnvironmentProviderRegistrations,
+  EnvironmentPlacementRegistrations,
 } from '@omne-harness-lite/execution-environments'
 import { SESSION_ACCESS } from '@omne-harness-lite/session-tenancy/cordis'
 import { z } from 'zod'
@@ -33,6 +34,14 @@ class Registry extends ExecutionEnvironmentsService {
   }
   recover(...args: Parameters<EnvironmentProviderRegistrations['recover']>) {
     return this.owner.registrations.recover(...args)
+  }
+  registerPlacementSource(
+    ...args: Parameters<EnvironmentPlacementRegistrations['registerPlacementSource']>
+  ) {
+    const dispose = this.ctx.effect(() => this.owner.placements.registerPlacementSource(...args))
+    return async () => {
+      await dispose()
+    }
   }
   registerProvider(...args: Parameters<EnvironmentProviderRegistrations['registerProvider']>) {
     const dispose = this.ctx.effect(() => this.owner.registrations.registerProvider(...args))

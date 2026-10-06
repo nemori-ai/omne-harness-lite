@@ -1,8 +1,9 @@
+import { decodeContextData } from '@omne-harness-lite/runtime-context'
 import type { ContextMutation } from '@omne-harness-lite/runtime-context'
 import type { SessionLog } from '@omne-harness-lite/session-log'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
-import type { ContextSessionSeed } from './journal-types.ts'
-import { decode } from './codec.ts'
+import type { ContextSessionSeed } from '@omne-harness-lite/runtime-context'
+import { decodeEvent } from './codec.ts'
 import { createContextJournal, projectContext } from './journal.ts'
 import { identity, own } from './values.ts'
 
@@ -14,9 +15,9 @@ export function createContextSessionInitializer(log: SessionLog) {
       scope: SessionScope,
       input: ContextSessionSeed,
     ): Promise<ContextMutation> {
-      const seed = decode('Seed', input)
+      const seed = decodeContextData('Seed', input)
       if (!seed) return { kind: 'rejected', reason: 'invalidInput' }
-      const event = decode('Event', {
+      const event = decodeEvent({
         codec: 'runtime-context/1',
         scope,
         kind: 'session_initialized',
@@ -33,7 +34,8 @@ export function createContextSessionInitializer(log: SessionLog) {
               tenant: scope.tenant,
               session: scope.session,
               position: 1,
-              readKeys: [],
+              readKeys: ['runtime-context'],
+              dedupeKey: `context:${event.revision}`,
               payload: own(event),
             },
           ],

@@ -1,7 +1,11 @@
 import { copyJsonValue, type JsonValue } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import { instantToRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
-import type { RuntimeContextOperations } from '@omne-harness-lite/runtime-context'
+import type {
+  ContextBinding,
+  ContextReader,
+  RuntimeContextOperations,
+} from '@omne-harness-lite/runtime-context'
 import type { AccessOperation, SessionAccessOperations } from '@omne-harness-lite/session-tenancy'
 import {
   accept,
@@ -78,7 +82,14 @@ export function createExecutionOwner(input: {
   readonly authorization: SessionAccessOperations
   readonly admission: () => ToolAdmissionOperations | undefined
   readonly implementations: ToolImplementationOperations
-  readonly context: Pick<RuntimeContextOperations, 'bind'>
+  readonly context: {
+    bind(
+      ...args: Parameters<RuntimeContextOperations['bind']>
+    ): Promise<
+      | Extract<ContextBinding, { kind: 'rejected' }>
+      | { readonly kind: 'bound'; readonly reader: ContextReader }
+    >
+  }
   readonly invoke: InvokeTool
   readonly clock: Clock
   readonly attempts: number

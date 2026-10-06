@@ -1,6 +1,13 @@
 import type { JsonValue } from '@omne-harness-lite/content-blocks'
 import type { ContextScope } from '@omne-harness-lite/runtime-context'
 import type { SessionAccess } from '@omne-harness-lite/session-tenancy'
+import type { EnvironmentFacilityMap } from './facilities.ts'
+import type {
+  EnvironmentBinding,
+  EnvironmentCall,
+  EnvironmentContinuity,
+  EnvironmentPlacement,
+} from './placement.ts'
 
 export interface EnvironmentReference {
   readonly provider: string
@@ -10,48 +17,17 @@ export interface EnvironmentRequirement {
   readonly bindingLayer: 'host_machine' | 'stateless_sandbox' | 'session_sandbox' | 'tenant_sandbox'
   readonly facilities: readonly string[]
 }
-export interface EnvironmentDescription {
+export type EnvironmentDescription = {
   readonly reference: EnvironmentReference
-  readonly bindingLayer: EnvironmentRequirement['bindingLayer']
   readonly facilities: readonly string[]
-}
-export interface CommandRequest {
-  readonly executable: string
-  readonly args: readonly string[]
-  readonly cwd: string
-  readonly env: Readonly<Record<string, string>>
-  readonly stdin?: Uint8Array
-}
-export interface CommandResult {
-  readonly exit:
-    { readonly code: number } | { readonly signal: string } | { readonly unknown: true }
-  readonly stdout: Uint8Array
-  readonly stderr: Uint8Array
-  readonly truncated: boolean
-}
-export interface ProcessHandle {
-  readonly result: Promise<CommandResult>
-  readonly stop: (mode: 'graceful' | 'forced') => Promise<'confirmed' | 'unconfirmed'>
-}
-export type FacilityFailure = {
-  readonly kind: 'rejected'
-  readonly reason:
-    'invalidInput' | 'notAuthorized' | 'closed' | 'notFound' | 'unavailable' | 'effectUnknown'
-}
-export interface CommandFacility {
-  readonly start: (
-    request: CommandRequest,
-  ) => Promise<{ readonly kind: 'started'; readonly process: ProcessHandle } | FacilityFailure>
-}
-export interface FileFacility {
-  readonly read: (
-    path: string,
-  ) => Promise<{ readonly kind: 'read'; readonly data: Uint8Array } | FacilityFailure>
-  readonly write: (
-    path: string,
-    data: Uint8Array,
-  ) => Promise<{ readonly kind: 'written' } | FacilityFailure>
-}
+  readonly instance: { readonly id: string; readonly generation: string }
+  readonly continuity: EnvironmentContinuity
+} & {
+  [K in EnvironmentBinding['kind']]: {
+    readonly bindingLayer: K
+    readonly binding: Extract<EnvironmentBinding, { readonly kind: K }>
+  }
+}[EnvironmentBinding['kind']]
 /** A provider-specific recovery reference, never a live process or a bare PID. */
 export interface ManagedResource {
   readonly key: string
@@ -71,10 +47,8 @@ export interface ResourceLifecycle {
     status: 'confirmed' | 'unconfirmed',
   ) => Promise<'recorded' | 'unavailable'>
 }
-export interface EnvironmentFacilities {
+export interface EnvironmentFacilities extends Partial<EnvironmentFacilityMap> {
   readonly description: EnvironmentDescription
-  readonly command?: CommandFacility
-  readonly files?: FileFacility
 }
 export interface EnvironmentLease {
   readonly facilities: EnvironmentFacilities
@@ -109,6 +83,11 @@ export type EnvironmentRejection = {
     | 'ownerStopped'
     | 'invalidInput'
     | 'unavailable'
+    | 'policyUnavailable'
+    | 'placementChanged'
+    | 'ambiguousEnvironment'
+    | 'unsupportedFacility'
+    | 'notApplicable'
 }
 export type EnvironmentAcquisition =
   | { readonly kind: 'acquired'; readonly lease: EnvironmentLease; readonly evidence: JsonValue }
@@ -127,12 +106,19 @@ export interface ExecutionEnvironmentOperations {
     readonly reference?: EnvironmentReference
     readonly requirement: EnvironmentRequirement
     readonly resources: ResourceLifecycle
+    readonly call: EnvironmentCall
   }) => Promise<EnvironmentAcquisition>
 }
 /** Provider callbacks are trusted assembly inputs. All operations receive checked authority. */
-export interface EnvironmentProvider extends ExecutionEnvironmentOperations {
+export interface EnvironmentProvider {
   readonly name: string
   readonly generation: string
+  readonly describe: ExecutionEnvironmentOperations['describe']
+  readonly acquire: (
+    request: Parameters<ExecutionEnvironmentOperations['acquire']>[0] & {
+      readonly placement: EnvironmentPlacement
+    },
+  ) => Promise<EnvironmentAcquisition>
   readonly recover: (
     resource: ManagedResource,
   ) => Promise<'confirmedStopped' | 'pending' | 'unsupported'>

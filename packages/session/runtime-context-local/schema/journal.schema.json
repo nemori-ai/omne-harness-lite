@@ -3,115 +3,13 @@
   "$id": "https://omne-harness-lite/schema/runtime-context-local/1",
   "$defs": {
     "Registration": {
-      "type": "object",
-      "properties": {
-        "key": {
-          "type": "string",
-          "minLength": 1
-        },
-        "source": {
-          "type": "string",
-          "minLength": 1
-        },
-        "config": {},
-        "consumers": {
-          "type": "array",
-          "items": {
-            "enum": [
-              "model",
-              "tool",
-              "extension"
-            ]
-          },
-          "uniqueItems": true,
-          "minItems": 1
-        },
-        "required": {
-          "type": "boolean"
-        },
-        "recovery": {
-          "enum": [
-            "persisted",
-            "reread_source",
-            "recompute"
-          ]
-        }
-      },
-      "required": [
-        "key",
-        "source",
-        "config",
-        "consumers",
-        "required",
-        "recovery"
-      ],
-      "additionalProperties": false
+      "$ref": "https://omne-harness-lite/schema/runtime-context/1#/$defs/Registration"
     },
     "Value": {
-      "type": "object",
-      "properties": {
-        "key": {
-          "type": "string",
-          "minLength": 1
-        },
-        "revision": {
-          "type": "string",
-          "minLength": 1
-        },
-        "value": {},
-        "observedAt": {
-          "type": "string",
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
-        }
-      },
-      "required": [
-        "key",
-        "revision",
-        "value",
-        "observedAt"
-      ],
-      "additionalProperties": false
+      "$ref": "https://omne-harness-lite/schema/runtime-context/1#/$defs/Value"
     },
     "Seed": {
-      "type": "object",
-      "properties": {
-        "required": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/Registration"
-          }
-        },
-        "initial": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/Value"
-          }
-        },
-        "fixed": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "key": {
-                "type": "string",
-                "minLength": 1
-              },
-              "value": {}
-            },
-            "required": [
-              "key",
-              "value"
-            ],
-            "additionalProperties": false
-          }
-        }
-      },
-      "required": [
-        "required",
-        "initial",
-        "fixed"
-      ],
-      "additionalProperties": false
+      "$ref": "https://omne-harness-lite/schema/runtime-context/1#/$defs/Seed"
     },
     "Event": {
       "oneOf": [
