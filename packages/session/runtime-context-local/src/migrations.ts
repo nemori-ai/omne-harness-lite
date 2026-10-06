@@ -16,7 +16,7 @@ export const runtimeContextMigrations: readonly MigrationFragment[] = [
           .addColumn('registration_revision', 'text', c => c.notNull())
           .addColumn('initialization_revision', 'text', c => c.notNull())
           .addColumn('seed', 'text')
-          .addPrimaryKeyConstraint('rc_projection_meta_pk', ['tenant', 'session'])
+          .addPrimaryKeyConstraint('rc_projection_meta_pkey', ['tenant', 'session'])
           .execute()
         await db.schema
           .createTable('rc_projection_entries')
@@ -25,7 +25,7 @@ export const runtimeContextMigrations: readonly MigrationFragment[] = [
           .addColumn('key', 'text', c => c.notNull())
           .addColumn('registration', 'text', c => c.notNull())
           .addColumn('content', 'text')
-          .addPrimaryKeyConstraint('rc_projection_entries_pk', ['tenant', 'session', 'key'])
+          .addPrimaryKeyConstraint('rc_projection_entries_pkey', ['tenant', 'session', 'key'])
           .addForeignKeyConstraint(
             'rc_projection_entries_scope_fk',
             ['tenant', 'session'],

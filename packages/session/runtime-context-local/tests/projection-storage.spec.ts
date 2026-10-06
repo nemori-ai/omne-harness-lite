@@ -1,6 +1,19 @@
 import { expect, test } from 'vitest'
-import { narrow, StorageUnavailable, type Storage } from '@omne-harness-lite/storage'
+import {
+  narrow,
+  StorageUnavailable,
+  UniqueViolation,
+  type Storage,
+} from '@omne-harness-lite/storage'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
+import {
+  DummyDriver,
+  Kysely,
+  PostgresAdapter,
+  PostgresIntrospector,
+  PostgresQueryCompiler,
+} from 'kysely'
+import { runtimeContextMigrations } from '../src/migrations.ts'
 import { createProjectionStore } from '../src/projection-store.ts'
 import { projectContext } from '../src/projection.ts'
 import type { ProjectionTables } from '../src/projection-codec.ts'
@@ -20,6 +33,56 @@ async function rows(storage: Storage) {
       .execute(),
   }))
 }
+
+test('Postgres migration compilation names both primary keys with the canonical identities', async () => {
+  const statements: string[] = []
+  const db = new Kysely<ProjectionTables>({
+    dialect: {
+      createAdapter: () => new PostgresAdapter(),
+      createDriver: () => new DummyDriver(),
+      createIntrospector: database => new PostgresIntrospector(database),
+      createQueryCompiler: () => new PostgresQueryCompiler(),
+    },
+    log(event) {
+      if (event.level === 'query') statements.push(event.query.sql)
+    },
+  })
+  try {
+    for (const fragment of runtimeContextMigrations) await fragment.migration.up(db)
+    expect(statements).toHaveLength(2)
+    expect(statements[0]).toContain('constraint "rc_projection_meta_pkey" primary key')
+    expect(statements[1]).toContain('constraint "rc_projection_entries_pkey" primary key')
+  } finally {
+    await db.destroy()
+  }
+})
+
+test('real SQLite projection primary key failures expose the canonical constraint identities', async () => {
+  const h = await host()
+  try {
+    await init(h)
+    const stored = await rows(h.storage)
+    await expect(
+      h.storage.write(tx =>
+        narrow<ProjectionTables>(tx)
+          .insertInto('rc_projection_meta')
+          .values(stored.meta[0]!)
+          .execute(),
+      ),
+    ).rejects.toEqual(new UniqueViolation('rc_projection_meta_pkey'))
+    await expect(
+      h.storage.write(tx =>
+        narrow<ProjectionTables>(tx)
+          .insertInto('rc_projection_entries')
+          .values(stored.entries[0]!)
+          .execute(),
+      ),
+    ).rejects.toEqual(new UniqueViolation('rc_projection_entries_pkey'))
+    expect(await rows(h.storage)).toEqual(stored)
+  } finally {
+    await h.close()
+  }
+})
 
 test('a real SQLite transaction rolls back both progress and entries, then retries the original batch', async () => {
   const h = await host()
