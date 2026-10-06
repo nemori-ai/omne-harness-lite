@@ -12,7 +12,7 @@
 | 服务 `storage` 的实例 | [`infra/storage-sql`](../../infra/storage-sql/README.md)（据点那一份，装配给） | 必需 inject |
 | `TenantId` 及其校验 | [`core/identity-values`](../../core/identity-values/README.md) | 读出的值按 `data.identity-values/v1#S-5` 核一遍 |
 | `SessionRef` | [`core/messages`](../../core/messages/README.md) | 会话指认的表示层校验 |
-| `definePlugin` | [`core/kernel-basis`](../../core/kernel-basis/README.md) | 插件骨架 |
+| `definePlugin` | [`core/kernel-basis`](../../../../../../packages/core/kernel-basis/README.md) | 插件骨架 |
 
 **Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）。
 **配置**：本插件**没有 config**，也**没有策略配置项**——一个读，没有重试、计时、缓冲或上限可调。配置错误政策（启动失败）因此不产生本节点的条目。

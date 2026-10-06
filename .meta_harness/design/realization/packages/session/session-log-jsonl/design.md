@@ -15,7 +15,7 @@
 | `TenantId`、不透明标识的词法（`data.identity-values/v1#S-31`） | [`core/identity-values`](../../core/identity-values/README.md) | 租户身份、判重键与读取键的表示层校验 |
 | `SessionRef` | [`core/messages`](../../core/messages/README.md) | 会话指认 |
 | `RunId`、`AttemptId` | [`core/call-accounts`](../../core/call-accounts/README.md) | 条目壳的运行与尝试 |
-| `definePlugin` | [`core/kernel-basis`](../../core/kernel-basis/README.md) | 插件骨架与配置校验（配置错误 ⇒ 启动失败的唯一实现点） |
+| `definePlugin` | [`core/kernel-basis`](../../../../../../packages/core/kernel-basis/README.md) | 插件骨架与配置校验（配置错误 ⇒ 启动失败的唯一实现点） |
 
 **Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）。机制语义引 [basis](../../../../basis/README.md) 条目。
 **配置**：`dir`（日志根目录，绝对路径，无初值）与[策略配置项](#策略配置项)两项。**配置错误政策：启动失败**（形状不对、`dir` 缺席或不是绝对路径、策略项越界 ⇒ 插件体不跑、fiber `FAILED`、不 provide；basis [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)）——与 `infra/storage-sql`、`infra/clock` 与三个持钥节点同一政策。

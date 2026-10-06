@@ -23,7 +23,7 @@
 - **A／C 区分实验是实施的第一步**（D-033 随 A 一起接受的判据）：在钉住的副本上做完这四处之后量四个文件与测试的改动行数，**超过一半即改选 C（全自写）**，以新决定记录、取代 D-033 这一项范围。实验未跑（缺口 HI-N4）；它不改本页的插件边界，只改 fork 模块的来源。
 - **DSH 的许可与来历没有记录**：D-033 与所引研究都没有写 DSH 的许可证（缺口 HI-N3）。vendoring 之前核实并按 SYS-KERNEL 记下；许可不允许时直接走 C。
 - **方言版本钉死**（契约 S-5）：Claude Code `2.1.280`、Codex `5c5308fc`；升级即契约新版本，本节点不自行跟版。
-- **复用**：声明、输入（含执行环境句柄）、结论的形状取同批纯模块 [`packages/core/loop-extension`](../../core/loop-extension/README.md)（一契约一包，D-060 §八 M41）；共用件 `definePlugin`、`Outcome` 取 [kernel-basis](../../core/kernel-basis/README.md)。
+- **复用**：声明、输入（含执行环境句柄）、结论的形状取同批纯模块 [`packages/core/loop-extension`](../../core/loop-extension/README.md)（一契约一包，D-060 §八 M41）；共用件 `definePlugin`、`Outcome` 取 [kernel-basis](../../../../../../packages/core/kernel-basis/README.md)。
 
 ## 公开面
 

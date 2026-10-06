@@ -17,7 +17,7 @@
 | 技能包、斜杠命令、拓展件、MCP 接入点的形状与依赖声明 | [`core/skill-package`](../../core/skill-package/README.md)、[`core/slash-command`](../../core/slash-command/README.md)、[`core/loop-extension`](../../core/loop-extension/README.md)、[`core/mcp-endpoint`](../../core/mcp-endpoint/README.md)（[D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)：一契约一包） | 依赖解析与门控 |
 | 运行与尝试标识 `RunId`、`AttemptId` | [`core/call-accounts`](../../core/call-accounts/README.md) | 报告带的运行与尝试（M46） |
 | 时间源 `clock`（`now(): Instant \| 'unavailable'`，毫秒整数，不后退） | [`infra/clock`](../../infra/clock/README.md)（形状归 [`core/offer-expiry`](../../core/offer-expiry/README.md)） | `filledAt`、报告的 `computedAt` |
-| `definePlugin`、`resolveOptional` | [`core/kernel-basis`](../../core/kernel-basis/README.md) | 插件骨架、可选依赖的现取 |
+| `definePlugin`、`resolveOptional` | [`core/kernel-basis`](../../../../../../packages/core/kernel-basis/README.md) | 插件骨架、可选依赖的现取 |
 
 **Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）。机制语义引 [basis](../../../../basis/README.md) 条目。
 **配置**：本插件**没有 config**。配置错误政策（启动失败）因此不产生本节点的条目。

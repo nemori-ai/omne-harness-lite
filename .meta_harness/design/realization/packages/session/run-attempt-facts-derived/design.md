@@ -10,7 +10,7 @@
 |---|---|---|
 | 服务 `sessionLog` 的 `readSince`（`capability.session-log/v2#S-19`） | 验收装配里是 [`session-log-jsonl`](../session-log-jsonl/README.md) | 按水位追读条目壳 |
 | `SessionRef`、`RunId`、`AttemptId` | [`core/messages`](../../core/messages/README.md)、[`core/call-accounts`](../../core/call-accounts/README.md) | 输入的表示层校验 |
-| `definePlugin` | [`core/kernel-basis`](../../core/kernel-basis/README.md) | 插件骨架与配置校验 |
+| `definePlugin` | [`core/kernel-basis`](../../../../../../packages/core/kernel-basis/README.md) | 插件骨架与配置校验 |
 
 **Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）。
 **配置**：`runEndRecognizer`（可选，运行时对象，只有验收装配给）与[策略配置项](#策略配置项) `factsCacheLimit`。**配置错误政策：启动失败**（`definePlugin` 的 Config 校验，basis [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)）；`runEndRecognizer` 在 Config 里以 `z.custom` 描述、同引用交到插件体（与 storage-sql 守卫对象同一前提，那边 2026-09-23 已在 4.0.4 取证）。**缺 `runEndRecognizer` 不是配置错误**：产品装配本来就不给。

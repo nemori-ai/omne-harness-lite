@@ -10,7 +10,7 @@
 **自建，不 fork。**D-033 接受的 hooks 兼容层起点明写「不取 DSH 的 `runner`」（[D-033](../../../../record/decisions/hooks-compat-baseline/decision.md#选择与范围)）——它的「执行器拒绝 ⇒ 非阻断、永不抛」正是本契约 S-12 末条不继承的方向。
 
 - **求值不用 Cordis 的事件派发**：`emit` 丢掉返回值，`bail` 遇到异步监听者就把 Promise 当作结论交回、不等它（basis [`async-control-not-bail`](../../../../basis/cordis/async-control-not-bail.md)）；本契约 S-10 第 5 条要 runner 自己等每一件。链的次序与成员是会话级数据（装配清单），不是 Cordis 的注册序。runner 按清单逐件 `await` 直接调用实现。**名字相同、含义不同**：契约说的「逐件顺序求值」不是 Cordis 的 `waterfall`（契约 S-10 的注）。
-- **复用**：结论、输入、声明、记录的形状与表示层校验取同批纯模块 [`packages/core/loop-extension`](../../core/loop-extension/README.md)；消息、块、归属标识、响应体取 [`packages/core/messages`](../../core/messages/README.md)、[`packages/core/content-blocks`](../../core/content-blocks/README.md)、[`packages/core/call-accounts`](../../core/call-accounts/README.md)、[`packages/core/model-response`](../../core/model-response/README.md)（一契约一包，D-060 §八 M41）；句柄的不透明串用 `identity-values` 的 `generateOpaqueIdentifier()`；共用件 `definePlugin`、`resolveOptional`、`Outcome` 取 [kernel-basis](../../core/kernel-basis/README.md)。
+- **复用**：结论、输入、声明、记录的形状与表示层校验取同批纯模块 [`packages/core/loop-extension`](../../core/loop-extension/README.md)；消息、块、归属标识、响应体取 [`packages/core/messages`](../../core/messages/README.md)、[`packages/core/content-blocks`](../../core/content-blocks/README.md)、[`packages/core/call-accounts`](../../core/call-accounts/README.md)、[`packages/core/model-response`](../../core/model-response/README.md)（一契约一包，D-060 §八 M41）；句柄的不透明串用 `identity-values` 的 `generateOpaqueIdentifier()`；共用件 `definePlugin`、`resolveOptional`、`Outcome` 取 [kernel-basis](../../../../../../packages/core/kernel-basis/README.md)。
 - **效果合成、三张处置表都是纯函数**（契约 S-12、S-13、S-15、S-17 的表），与插件分开导出，场景逐格演练它们。
 
 ## 公开面
@@ -200,7 +200,7 @@ runner 的每一次写都是一次追加，**没有「同一提交」要跨 owne
 | **收到叫停即返回 `cancelled`，不等在途那一件** | 等它结束再返回：`dispatch` 返回时这一次经过里没有任何东西还在跑，取消路径更干净 | 返回之后那一件可能还在跑一小段（兼容件要等子进程确认退出），它的外部效果不因返回而停止 | 中：契约只要「它这一次求值不留记录」，没有要求等；等则取消的时长受一个无上界的件支配 |
 
 **runner 自身被撤除**（dispose，或因 `sessionLog` 换代而重跑；D-060 §八 M63）：在途的 `dispatch` **不继续**，以 `unavailable` 收场、**不再落任何结论记录**。
-- **检查点**：复用上面三处，查叫停的同时查「本实例已撤除」——判 `fiberIsActive(ctx)`（[kernel-basis](../../core/kernel-basis/README.md) 共用件，与 account-registration「每步之前检查本 fiber 是否仍 `ACTIVE`」同一写法）。等在途那一件时，与叫停一起竞速的还有**实例的停止信号**（执行环境句柄表那个 effect 的撤除函数第一步触发），一件慢件拖不住这次收场。在途那一件不另收停止信号：它的贡献者 inject 了本插件的登记面，随之重跑、自己收场（兼容件经撤除函数停子进程）。
+- **检查点**：复用上面三处，查叫停的同时查「本实例已撤除」——判 `fiberIsActive(ctx)`（[kernel-basis](../../../../../../packages/core/kernel-basis/README.md) 共用件，与 account-registration「每步之前检查本 fiber 是否仍 `ACTIVE`」同一写法）。等在途那一件时，与叫停一起竞速的还有**实例的停止信号**（执行环境句柄表那个 effect 的撤除函数第一步触发），一件慢件拖不住这次收场。在途那一件不另收停止信号：它的贡献者 inject 了本插件的登记面，随之重跑、自己收场（兼容件经撤除函数停子进程）。
 - **为什么查 fiber 状态、不只查撤除函数里的标记**：撤除开始时 runner fiber 先离开 `ACTIVE`，服务随后消失，贡献者的注销在那之后——所以一次「因撤除而查不到实现」一定发生在离开 `ACTIVE` 之后，而追加之前的检查排在查表之后，**必然看得见撤除**，指定挂件的否决写不进日志。撤除开始之前就已发出的追加照常落下：它依据的是撤除之前的登记表，是一条正当的结论。
 - **待核对主张**：「撤除开始即离开 `ACTIVE`，先于任何 effect 撤除」。kernel-basis 的 `fiber-state-readable` 没有观察到 `UNLOADING`（那个节点记下的缺口），basis [`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md) 第三条（`UNLOADING` 之后再建 effect 即抛）与它一致但不是它的 probe。会失败的证据是 [verification](verification.md#证据义务) 的最小场景：它不成立，场景里就会看到撤除之后落下的否决。
 - **不申请 S-8 例外**：已提交的结论都在；下一次对同一次经过的 `dispatch`（新实例上）从日志接着走、在途那一件重新求值——「换一个 runner 实例不改变任何一次经过的结果」（契约 S-8、S-33 末段）由此守住。

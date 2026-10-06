@@ -15,7 +15,7 @@
 | `HoldingScope`、`CredentialRef` 的形状 | [`core/asset-model`](../../core/asset-model/README.md) | `depositOAuth`／`resolve` 的持有与引用 |
 | AES-256-GCM、随机字节 | `node:crypto`（Node 内置；运行时前提 Node ≥ 24.18.0，与 [`core/content-blocks`](../../core/content-blocks/README.md) 同一条） | 条目本体的封存；引用与密钥的生成 |
 | 密钥文件的排他创建、按句柄取 `stat` | `node:fs/promises` | 本机密钥（[关键选择三、四](#关键选择)） |
-| `definePlugin` | [`core/kernel-basis`](../../core/kernel-basis/README.md) | 插件骨架、config 校验 |
+| `definePlugin` | [`core/kernel-basis`](../../../../../../packages/core/kernel-basis/README.md) | 插件骨架、config 校验 |
 
 **Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；机制语义引 [basis](../../../../basis/README.md) 条目。
 **上游语义未进 basis 的，逐条标假设**（须按 source-check 取证，[CCL-11](#实施缺口与消费者影响)）：`node:crypto` 的 GCM 解密在认证标签不符时于 `final()` 抛出、不交出任何明文；`fs.open(path, 'wx', 0o600)` 在文件已存在时以 `EEXIST` 失败且不改原文件；对同一句柄 `fstat` 得到的是打开的那个文件。

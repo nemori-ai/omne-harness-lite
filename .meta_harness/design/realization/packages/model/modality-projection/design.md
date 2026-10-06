@@ -10,7 +10,7 @@
 **全部自建；判定是纯函数，转换是三类小插件。**
 
 - **纯函数**（包入口导出）：`projectEntry`（一条日志条目对投影的贡献——契约 S-6 的可分解律让读投影的一方把它逐条并进去）与 `project`（对一串条目的折叠，等于逐条并集）、`compatible`、`converterKeysOf`（一个块的候选键，契约 S-10）、`checkConversion`（一次产出合不合法，契约 S-11）、`parseConverterKey`／`parseDeclaration`（表示层校验，契约 S-8、S-17 ①）。块与消息的形状与模态判定式取同批纯模块 [`packages/core/content-blocks`](../../core/content-blocks/README.md)、[`packages/core/messages`](../../core/messages/README.md)，档案取 [`packages/core/model-profile`](../../core/model-profile/README.md)，统一输入与结论取 [`packages/core/loop-extension`](../../core/loop-extension/README.md)（一契约一包，D-060 §八 M41），**判定式引用不复制**。
-- **插件**：见下节。共用件 `definePlugin`、`Outcome` 取 [kernel-basis](../../core/kernel-basis/README.md)。
+- **插件**：见下节。共用件 `definePlugin`、`Outcome` 取 [kernel-basis](../../../../../../packages/core/kernel-basis/README.md)。
 - **转换件实现**：本版不调模型（契约 S-24），只能是纯计算或本地识别库；**本版装哪几件、各登在哪几个键上没有人定**（缺口 MP-N3）。本节点只定它们接进来的形状。
 
 ## 公开面

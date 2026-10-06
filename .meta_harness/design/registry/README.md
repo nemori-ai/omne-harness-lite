@@ -20,6 +20,7 @@
 | -------------------- | ---------------------------------------------------------------------------------------------------------------- | -------------- |
 | `baseline.json`      | `format=1`、稳定 `baseline_id`、输入 `snapshot_id`、Schema `schema_namespace`、旧谱系清单及显式 `version_policy` | 基线切换       |
 | `catalog.json` | 每个契约版本一条：坐标、状态、资源清单、接受依据；依赖带精确坐标与消费 clauses。条数不在这里手写，看文件或 `make spec-retention` | 发布与接受 |
+| `retired-sources.json` | 已退役映射的原字节快照、源 commit 与双向冻结历史链接；不能供当前消费者恢复旧权威 | 退役批次接受 |
 | `frozen.json` | 已接受版本的每个资源一项：路径 → SHA-256。过渡期里字节变了就判失败，修订出新版本目录（见页首 D-113 的说明） | 冻结 |
 | `lineage.json`       | 旧→新 baseline 的条款关系、退出身份、`freeze_gate` 与实际产品消费者的旧/新谱系观察                                           | 重分解         |
 | `version-migrations.json` | 同 baseline 的行政版本迁移：原提交/完整快照、原新坐标、逐文件摘要及决定/产品修订映射；#9 的 34 份规格遵循 [D-066](../record/decisions/pr9-pr10-coordinate-reconciliation/decision.md) | 行政迁移 |

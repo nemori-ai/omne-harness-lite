@@ -6,7 +6,9 @@
 
 ## 设计信息包检查
 
-`check_design.py` 检查新设计谱系的身份、资源、引用、冻结和形式任务登记：
+`check_design.py` 检查新设计谱系的身份、资源、引用、冻结和形式任务登记。
+执行仓库用显式 `--source-root` 检查 workspace 成员拥有的源码与薄规格链接；独立复制不传该选项，保留设计区边界。
+`registry/retired-sources.json` 只恢复双向锁定原字节的历史链接，新增或修改的来源仍拒绝旧坐标：
 
 ```sh
 python tooling/src/check_design.py --root design --formal registered

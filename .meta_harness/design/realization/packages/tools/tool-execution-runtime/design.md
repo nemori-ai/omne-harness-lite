@@ -13,7 +13,7 @@ D-032 允许的**函数级借鉴**只登两项，都是「避坑」，不搬代�
 |---|---|---|
 | 存储协议（一次读／写事务、`lockSentinel`、四型失败、`mapStorageError`、`MigrationFragment`） | [`core/storage`](../../core/storage/README.md)；实例由 [`infra/storage-sql`](../../infra/storage-sql/README.md) provide | 全部持久事实与序列化（[要求清单](#对存储提供者的要求清单)） |
 | 时间源 `clock`（`now()` 不后退） | [`infra/clock`](../../infra/clock/README.md) | 账的起止、等待到点、前台阈值与上限的计时 |
-| `definePlugin`、`resolveOptional`、`Outcome` | [`core/kernel-basis`](../../core/kernel-basis/README.md) | 插件骨架、可选依赖的现取、失败返回值 |
+| `definePlugin`、`resolveOptional`、`Outcome` | [`core/kernel-basis`](../../../../../../packages/core/kernel-basis/README.md) | 插件骨架、可选依赖的现取、失败返回值 |
 | 到达装配的纯计算（`start`／`accept`／`snapshot`／`closeOut`／`abandon`） | [`core/stream-assembly`](../../core/stream-assembly/README.md)（纯模块，不是插件） | 工具一侧帧流的装配状态（S-39、S-62） |
 | 工具定义形状、`ModelToolName` 逆转写、参数判定、用法文本、结果检查 | [`core/tool-definition`](../../core/tool-definition/README.md) | S-23 ④ 参数判定与用法、S-41 交回检查、S-37 按定义名找执行者 |
 | 结果块、调用块与**严格的无损 JSON 读写**（候选 `readJsonStrict`／`writeJsonLossless`，[D-060 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | [`core/content-blocks`](../../core/content-blocks/README.md) | 执行记录与出站项里全部 JSON 的落盘与回读（[R-T9](#对存储提供者的要求清单)）、交给执行者的参数 |

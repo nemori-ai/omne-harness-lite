@@ -24,3 +24,8 @@ Raw service values in kernel probes do not establish an exception for product pr
 `./testing` belongs to tests. Startup rejects failures and missing required dependencies.
 Test assembly disposes loaded fibers in reverse order. Supplied resource objects remain their caller's closing responsibility.
 The helpers do not provide tenant isolation, transaction guarantees or a Session runtime.
+
+Outcome has either `ok` or `failure`, never both; `isSuccess` discriminates that shape.
+Test assembly rejects the original startup failure after cleaning up partially loaded fibers, including the failing one.
+A pending required dependency is a manifest error, not an instruction to wait indefinitely.
+The [verification owner](verification/README.md) maintains the adopted probe, product-import negative control and public-consumer obligations.

@@ -12,7 +12,7 @@
 | 严格无损 JSON 读取（候选 `readJsonStrict`） | [`core/content-blocks`](../../core/content-blocks/README.md)（[D-060 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | 答复体读成 JSON；读不成即「不是一份答复」 |
 | 入口契约 Schema 的 `PublicHealthReply`、`PublicHealthRequest`、`EntryAnswer` 定义 | 规范工件的**逐字节副本**随包（漂移由测试核对），ajv 校验——与 [`tenancy/governance-center-entry`](../../tenancy/governance-center-entry/README.md) 包的做法同形；**据点不 import 中心的包** | 判「读成的值属于这次请求应得的那一类」（传输绑定 [S-17](../../../../spec/compositions/governance-center-entry-https-json/v1/contract.md#s-17-客户端怎样读答复) 第 3、4 步） |
 | 时间源 `clock` | [`infra/clock`](../clock/README.md) | `since` 与这一次在场的起始时刻；**插件体里不读**（[关键选择五](#关键选择)）。探测节拍用本地定时器（单调计时）量，不读墙钟 |
-| `definePlugin` | [`core/kernel-basis`](../../core/kernel-basis/README.md) | 插件骨架、config 校验 |
+| `definePlugin` | [`core/kernel-basis`](../../../../../../packages/core/kernel-basis/README.md) | 插件骨架、config 校验 |
 
 **Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；机制语义引 [basis](../../../../basis/README.md) 条目。
 **Node TLS 与 HTTP 客户端的语义 basis 没有条目**，下面每一条都是**假设，须按 source-check 取证**（[CNP-8](#实施缺口与消费者影响)）：① `minVersion: 'TLSv1.3'` 使更低版本握不了手；② 给了 `ca` 时证书链不由它签发、或主机名对不上，请求以错误结束、交不出任何答复字节；③ `agent: false` 每次新开一条连接、答完即关；④ 销毁请求会关掉套接字、以错误事件收场；⑤ 答复体按 `Content-Length` 读满之前连接关闭时以错误或 `aborted` 到达，不交一个截短的体。

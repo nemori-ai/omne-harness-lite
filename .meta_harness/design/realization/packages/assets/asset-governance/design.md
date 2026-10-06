@@ -59,7 +59,7 @@
 
 ## 能力到 Cordis 的投影
 
-插件 `assetGovernancePlugin`（候选；插件名 `asset-governance`；经 [`core/kernel-basis` 的 `definePlugin`](../../core/kernel-basis/design.md#能力到-cordis-的投影) 定义）：
+插件 `assetGovernancePlugin`（候选；插件名 `asset-governance`；经 [`core/kernel-basis` 的 `definePlugin`](../../../../../../packages/core/kernel-basis/SPEC.md) 定义）：
 **inject** `storage`、`clock`、`memberships`、`organizations`，四个都必需；**config**（候选 `AssetGovernanceConfig`）五项——`copyNoticeTtlDefault`、`sharingInvitationTtlDefault`、`assetCreationKeyRetention`、`copyAttemptKeyRetention`、`officialManifest`；
 **provide** 四个服务面（候选服务名）：
 

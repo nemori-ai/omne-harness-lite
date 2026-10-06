@@ -16,7 +16,7 @@
 | in-memory | **不提供** | D-026 第一条；测试夹具就是本提供者的 sqlite 临时文件库 |
 | 升级守卫（排他、迁移前只读核对、升级快照、恢复与确认） | **自建薄层**，不引库：sqlite 的快照与恢复只用 `node:sqlite` 与 Node 内置文件操作；pg 只有排他与「迁移一个事务」两项 | 编排与要求来自 [tenancy-host「升级的整体性」](../../../apps/tenancy-host/design.md#升级的整体性迁移前只读核对快照与确认)的 R-U1～R-U8 与缺口 U-2；Kysely `Migrator` 只管迁移本身（它自带登记表 `kysely_migration` 与锁表 `kysely_migration_lock`），不管「迁移之后别的部件失败时撤回」。机制与取舍在[下文](#属主实例排他迁移前只读核对升级快照与确认) |
 
-**Cordis 版本**：采用 `@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/decision.md)）。本节点依赖的内核语义引 [basis](../../../../basis/README.md) 条目（四条均已按 4.0.4 回填 probe，`checked: 2026-09-22`）；「插件体或 config 抛出 ⇒ fiber `FAILED`」现已有条目 [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)；basis 仍没有条目的一条——`ctx.provide` 经 effect 纳管——与前者一起由 `core/kernel-basis` 的 probe（承载仓库 `packages/core/kernel-basis/tests/basis/provide-is-effect-managed.test.ts`、`plugin-throw-fails-fiber.test.ts`）在 4.0.4 上通过，登记在 [kernel-basis verification](../../core/kernel-basis/verification.md#证据义务)。
+**Cordis 版本**：采用 `@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/decision.md)）。本节点依赖的内核语义引 [basis](../../../../basis/README.md) 条目（四条均已按 4.0.4 回填 probe，`checked: 2026-09-22`）；「插件体或 config 抛出 ⇒ fiber `FAILED`」现已有条目 [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)；basis 仍没有条目的一条——`ctx.provide` 经 effect 纳管——与前者一起由 `core/kernel-basis` 的 probe（承载仓库 `packages/core/kernel-basis/tests/basis/provide-is-effect-managed.test.ts`、`plugin-throw-fails-fiber.test.ts`）在 4.0.4 上通过，登记在 [kernel-basis verification](../../../../../../packages/core/kernel-basis/verification/README.md#evidence-obligations)。
 
 **复杂度声明**：本节点引入的一切方言分支（锁语句、错误码、事务种类）都是**正确性机制**，各自指向一条 R；没有任何一处是为性能加的。连接队列、`busy_timeout` 都不是优化，是让 `DatabaseSync` 这个同步单句柄能承载异步调用方的最小代价。
 升级守卫（排他锁、快照、恢复）同样是正确性机制，各自指向一条 R-U；带迁移的实例由 config **显式二选一**（守卫或 `false`，[下文](#守卫为什么显式开启)），选 `false` 或不带迁移的实例没有这一层。
@@ -239,7 +239,7 @@ PreflightCheck = (input: PreflightInput { tx: ReadTx, tables: 已存在的表名
 | 消费的精确契约 | 实际提供者／解析方式与范围 | 工作中绑定与变更生效点 | 缺席、撤回和旧引用政策 |
 |---|---|---|---|
 | 存储协议（无契约，[`core/storage`](../../core/storage/README.md) 的接口与失败类型） | 包依赖：类型与三种错误类的构造；一致性套件作 dev 依赖 | 随包版本 | 协议接口变 ⇒ 本节点跟着改；协议是本节点的**规格**，不是运行时依赖 |
-| `definePlugin`（[`core/kernel-basis`](../../core/kernel-basis/README.md)，已建包） | 包依赖：插件定义与 config 校验的唯一入口，非法 config ⇒ 启动失败 | 随包版本 | — |
+| `definePlugin`（[`core/kernel-basis`](../../../../../../packages/core/kernel-basis/README.md)，已建包） | 包依赖：插件定义与 config 校验的唯一入口，非法 config ⇒ 启动失败 | 随包版本 | — |
 | Kysely 0.29.6、`pg` 8.23.0 | npm 依赖，版本钉在承载仓库 workspace catalog | 升级是「实现换方案」，记 changelog；`Driver` 接口变了要重核自写部分 | `pg` 静态 import（sqlite 部署也装它；按方言动态加载是候选，本版不做） |
 | `node:sqlite` | Node ≥ 24 内置 | 随 Node 大版本 | Node 25 若改 `DatabaseSync` API，Driver 自写部分要重核——这是自写的维护成本，比社区包低（社区包同样要等人改） |
 | 装配的迁移前核对 | 经 config `upgrade.checks` 注入（[形状](#迁移前只读核对)）；当前两条：数据格式版本（tenancy-host）、时钟未回拨（[`infra/clock`](../clock/design.md#迁移前的只读回拨核对) 导出，tenancy-host 放进列表） | 每次开了守卫的启动在⑤跑一次，只读 | 核对抛出（而不是返回 `ok: false`）⇒ 同样是「核对」阶段启动失败，`cause` 是那个异常 |

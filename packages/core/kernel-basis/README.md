@@ -122,3 +122,5 @@ pnpm --filter @omne-harness-lite/kernel-basis run test
 ```
 
 Build workspace dependencies first. These checks cover this package; integration behavior requires the actual consumer and provider.
+
+Behavior and verification obligations: [SPEC.md](SPEC.md) and [verification](verification/README.md).

@@ -16,7 +16,7 @@
 | `Instant` | [`core/offer-expiry`](../../core/offer-expiry/README.md) | `filledAt` 的表示与比较（毫秒整数） |
 | `SessionRef`；不透明标识的词法 | [`core/messages`](../../core/messages/README.md)；[`core/identity-values`](../../core/identity-values/README.md) | 会话指认；`EvaluationRef` 的表示层校验 |
 | `node:crypto`（随机字节） | Node 内置 | 铸 `EvaluationRef` |
-| `definePlugin` | [`core/kernel-basis`](../../core/kernel-basis/README.md) | 插件骨架与配置校验 |
+| `definePlugin` | [`core/kernel-basis`](../../../../../../packages/core/kernel-basis/README.md) | 插件骨架与配置校验 |
 
 **Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）。
 **配置**：只有 `presenceSource`（可选，运行时对象，只有验收装配给；在 Config 里以 `z.custom` 描述、同引用交到插件体，与 storage-sql 守卫对象同一前提）。**本节点没有策略配置项**：契约不许替写入方重试（S-3），没有计时、缓冲或上限可调。**配置错误政策：启动失败**（basis [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)）；**缺 `presenceSource` 不是配置错误**——产品装配本来就没有来源。
