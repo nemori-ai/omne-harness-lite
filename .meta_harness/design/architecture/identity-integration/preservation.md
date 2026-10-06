@@ -70,7 +70,7 @@ AR2 的三步不能改成全链同一个事务。本条校正任务计划早期�
 BASE AST 盘点覆盖 11 个成员的 273 个源码/测试文件、194 条相关 import/export/require，另有 34 个元数据消费者。
 静态入口包括根、`./cordis`、Schema 子入口和生成器。源码扫描不是动态可达性证明。
 计算路径的 Schema require 要按各 schema-inputs 的有限清单核对；Docker 测试的客户端路径要在包改名后执行。
-历史 record 与角色评估夹具保留当时输入，不做全仓替换。
+过程记录及某次运行输入、输出归各自工作树 `tmp/<task>/`。角色评估只保留实际消费者所需的最小夹具；有效终态回到明确拥有者，不以历史 record 作为永久输入。
 
 实际跨域消费者包括 model-invocation-minimal-demo、evaluation-input-store、loop-extension-runner、
 model-request-runtime-local 和 model-profile-directory。它们只做必要公共导入与组合改接。

@@ -1,5 +1,6 @@
 # organization-governance
 
+- 源码位置：本旧映射坐标为 `packages/tenancy/organization-governance`；当前实现归[实际成员](../../../../../../packages/tenancy/organization-governance-sql/README.md)。本坐标不声明旧路径仍是源码位置。
 - kind：`provider`
 - 当前定义：[公共组织治理包](../../../../../../packages/core/organization-governance/README_ZH.md)拥有四个操作面、失败类型、服务键和事件。[公共 SPEC](../../../../../../packages/core/organization-governance/SPEC.md)拥有共同参与、通知与集成行为。
 - 当前实现：[SQL 组织治理提供者](../../../../../../packages/tenancy/organization-governance-sql/README_ZH.md)拥有工厂、SQL 后端、配置、迁移及单 fiber 绑定，行为归其 [SPEC](../../../../../../packages/tenancy/organization-governance-sql/SPEC.md)。

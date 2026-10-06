@@ -1,5 +1,7 @@
 # clock
 
+- kind：`provider`
+- 源码位置：本旧映射坐标为 `packages/infra/clock`；当前实现归[实际成员](../../../../../../packages/infra/clock-lease/README.md)。本坐标不声明旧路径仍是源码位置。
 本节点维护尚未迁出的租约业务与验证义务。公开集成承诺按[共享 Storage/Clock 归属表](../../../../architecture/pilots/shared-storage-clock-ownership.md)定位：Clock 形状与 `Instant` 归 `packages/core/offer-expiry`，ClockService 与服务键归其 `./cordis` 入口，租约提供者的绑定、限定名称与装卸归 [`packages/infra/clock-lease/SPEC.md`](../../../../../../packages/infra/clock-lease/SPEC.md)。源码在 `packages/infra/clock-lease`。上述迁移只取代原公开键、根入口与 raw 发布投影；原租约表、时间源、窗口、回拨和关闭算法及消费者业务承诺继续有效。
 
 本节点的设计说明租约机制；公开集成边界由成员旁 SPEC 维护，不在此保留另一份插件定义。采用 Cordis 4.0.4。租约提供者拥有进程内用过的最晚时刻、存储中的一行高水位、续约定时器与迁移前只读核对；它借用 Storage，不拥有 `Instant` 的表示或消费者遇 `'unavailable'` 后的业务收场。高水位是写在前的租约：先持久化上界，再返回不超过该上界的值。依据与代价见[实现设计](design.md#高水位为什么是写在前的租约不是写在后的节流)。

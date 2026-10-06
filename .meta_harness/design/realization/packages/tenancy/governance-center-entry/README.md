@@ -1,5 +1,6 @@
 # governance-center-entry
 
+- 源码位置：本旧映射坐标为 `packages/tenancy/governance-center-entry`；当前实现归[实际成员](../../../../../../packages/tenancy/governance-center-entry-node/README.md)。本坐标不声明旧路径仍是源码位置。
 - kind：`provider`
 - 当前公共集成：[公共入口包](../../../../../../packages/core/governance-center-entry/README_ZH.md)拥有开闸、维护资源与通知形状，[公共 SPEC](../../../../../../packages/core/governance-center-entry/SPEC.md)拥有准入和资源责任。
 - 当前服务端：[Node 治理入口](../../../../../../packages/tenancy/governance-center-entry-node/README_ZH.md)拥有 TLS/Unix 工厂、配置、迁移、维护和 Cordis 绑定。其 [SPEC](../../../../../../packages/tenancy/governance-center-entry-node/SPEC.md)约束 setup/close、在途工作和实际资源。

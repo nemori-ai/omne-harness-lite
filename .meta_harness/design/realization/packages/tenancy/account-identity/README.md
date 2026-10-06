@@ -1,5 +1,6 @@
 # account-identity
 
+- 源码位置：本旧映射坐标为 `packages/tenancy/account-identity`；当前实现归[实际成员](../../../../../../packages/tenancy/account-identity-sql/README.md)。本坐标不声明旧路径仍是源码位置。
 - kind：`provider`
 - 当前定义：[公共身份包](../../../../../../packages/core/account-identity/README_ZH.md)拥有账号、登录、凭据验证的公开形状与出示物解析。[公共 SPEC](../../../../../../packages/core/account-identity/SPEC.md)拥有服务、通知及共同参与的集成承诺。
 - 当前实现：[SQL 身份提供者](../../../../../../packages/tenancy/account-identity-sql/README_ZH.md)拥有独立工厂、配置、迁移、记录后端及 Cordis 绑定。实现行为归其 [SPEC](../../../../../../packages/tenancy/account-identity-sql/SPEC.md)，不从本页旧文件清单定位源码。

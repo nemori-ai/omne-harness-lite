@@ -1,5 +1,7 @@
 # model-request-runtime
 
+- kind：`provider`
+- 源码位置：本旧映射坐标为 `packages/model/model-request-runtime`；当前实现归[实际成员](../../../../../../packages/model/model-request-runtime-local/README.md)。本坐标不声明旧路径仍是源码位置。
 本节点描述模型请求的协调责任。公开类型与行为承诺归 [core/model-request-runtime](../../../../../../packages/core/model-request-runtime/README.md)，实际提供者归 [model-request-runtime-local](../../../../../../packages/model/model-request-runtime-local/README.md)。已迁职责按[当前归属](../../../../architecture/pilots/n4-ownership.md)读取；未迁协议和增量仍按其明确的现行采用范围接续。
 
 独立调用能力和正式运行时分开消费。`invokeModel` 是单次调用；正式运行时负责锚点、发出、重试、结算、耐久内容、引用、ACK 与恢复。生产传输由 [pi-ai-transport](../pi-ai-transport/README.md) 提供；计量、日志、凭据和租户事实仍由各自拥有者提供。独立函数或局部用例通过，不能代替正式服务的跨 owner 保证。

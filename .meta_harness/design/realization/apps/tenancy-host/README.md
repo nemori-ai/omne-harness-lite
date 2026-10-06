@@ -1,5 +1,7 @@
 # tenancy-host 应用节点
 
+- 源码位置：本旧映射坐标为 `apps/tenancy-host`；当前实现归[实际成员](../../../../../apps/tenancy-host/README.md)。本坐标不声明旧路径仍是源码位置。
+- 交付面：[PF-017](../../../product/PF-017-governance-center-as-deployable-application/README.md)（rev 7）；[PF-001](../../../product/PF-001-identity-scope-and-agent-constraints/README.md)（rev 25）。已采用范围和未接续增量分别见下文。
 - kind：`assembly`
 - 当前实现：[治理宿主](../../../../../apps/tenancy-host/README.md)维护公开使用、配置、部署与运维入口。[应用 SPEC](../../../../../apps/tenancy-host/SPEC.md)拥有整体启动、共享事务域、确认、开闸与撤除性质。
 - 范围：[已迁与未迁范围](../../../architecture/pilots/n4-ownership.md)区分已迁集成与未迁业务，[有效语义与保持边界](../../../architecture/identity-integration/preservation.md)列明 AI3/OG2/AR2/OE2/EC3/HT3/IV1 的精确采用。客户端普通业务线协议不因服务端维护版本而自动升级。

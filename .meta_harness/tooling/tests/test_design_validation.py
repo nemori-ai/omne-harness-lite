@@ -536,6 +536,31 @@ def test_explicit_anchor_preserves_a_renamed_section_coordinate(tmp_path: Path) 
     assert "missing Markdown anchor: renamed.md#absent" in errors[0]
 
 
+def test_explicit_anchor_rejects_code_examples(tmp_path: Path) -> None:
+    build_tree(tmp_path)
+    source = tmp_path / "requirements/product/sample/requirements.md"
+    target = source.parent / "anchors.md"
+    target.write_text("# Target\n"
+                      '`<a id="inline-code"></a>`\n\n'
+                      '```html\n<a id="fenced-code"></a>\n```\n\n'
+                      '~~~html\n<a id="tilde-code"></a>\n~~~\n\n'
+                      '    <a id="indented-code"></a>\n\n'
+                      '``multi-line\n<a id="multi-line-code"></a>\nspan``\n\n'
+                      '\\<a id="escaped-code"></a>\n\n'
+                      "<a class='coordinate' id='Exact-ID'></a>\n"
+                      "<a name='named-coordinate'></a>\n", encoding="utf-8")
+    with source.open("a", encoding="utf-8") as handle:
+        for name in ("inline-code", "fenced-code", "tilde-code", "indented-code",
+                     "multi-line-code", "escaped-code", "Exact-ID", "named-coordinate"):
+            handle.write(f"[anchor](anchors.md#{name})\n")
+    errors, _ = validate(tmp_path)
+    assert len(errors) == 6
+    for name in ("inline-code", "fenced-code", "tilde-code", "indented-code",
+                 "multi-line-code", "escaped-code"):
+        assert any(f"missing Markdown anchor: anchors.md#{name}" in error
+                   for error in errors)
+
+
 @pytest.mark.parametrize("change, expected", [
     ({"scope_path": "spec/data/core-work/v1/contract.md"}, "exact contract_path"),
     ({"scope_clauses": []}, "must contain"),

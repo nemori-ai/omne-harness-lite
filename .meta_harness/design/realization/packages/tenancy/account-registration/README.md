@@ -1,5 +1,6 @@
 # account-registration
 
+- 源码位置：本旧映射坐标为 `packages/tenancy/account-registration`；当前实现归[实际成员](../../../../../../packages/tenancy/account-registration-sequential/README.md)。本坐标不声明旧路径仍是源码位置。
 - kind：`provider`
 - 当前定义：[公共注册包](../../../../../../packages/core/account-registration/README_ZH.md)拥有公开操作与结果。[公共 SPEC](../../../../../../packages/core/account-registration/SPEC.md)拥有分步提交、停止和依赖代际承诺。
 - 当前实现：[顺序注册提供者](../../../../../../packages/tenancy/account-registration-sequential/README_ZH.md)拥有独立工厂、签名与分步编排。实现边界归其 [SPEC](../../../../../../packages/tenancy/account-registration-sequential/SPEC.md)。

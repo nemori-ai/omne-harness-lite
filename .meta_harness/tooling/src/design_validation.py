@@ -14,6 +14,7 @@ import re
 import shutil
 import subprocess
 from dataclasses import dataclass
+from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
 from source_links import ModuleSources
@@ -26,6 +27,44 @@ ALLOWED_FAMILIES = {"data", "capabilities", "compositions"}
 ALLOWED_STATUSES = {"candidate", "accepted", "superseded", "withdrawn"}
 LINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)|!\[[^\]]*\]\(([^)]+)\)")
 HEADING_RE = re.compile(r"^#{1,6}\s+(.+?)\s*$")
+
+
+class _ExplicitAnchors(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.anchors: set[str] = set()
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "a":
+            self.anchors.update(value for name, value in attrs
+                                if name in {"id", "name"} and value is not None)
+
+
+def explicit_markdown_anchors(text: str) -> set[str]:
+    """Read actual HTML anchors, excluding fenced, indented and inline code."""
+    parser = _ExplicitAnchors()
+    fence: tuple[str, int] | None = None
+    lines: list[str] = []
+    for line in text.splitlines():
+        marker = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line)
+        if fence is not None:
+            if (marker and marker[1][0] == fence[0] and len(marker[1]) >= fence[1]
+                    and not marker[2].strip()):
+                fence = None
+            continue
+        if marker and (marker[1][0] != "`" or "`" not in marker[2]):
+            fence = (marker[1][0], len(marker[1]))
+            continue
+        if line.startswith(("    ", "\t")):
+            continue
+        lines.append(line)
+    # Code spans can cross lines; only an equal-length run closes a span.
+    plain = re.sub(r"(?<!`)(`+)(?!`)(.*?)(?<!`)\1(?!`)", "", "\n".join(lines),
+                   flags=re.S)
+    plain = re.sub(r"(?<!\\)((?:\\\\)*)\\<", r"\1&lt;", plain)
+    parser.feed(plain)
+    parser.close()
+    return parser.anchors
 
 
 @dataclass(frozen=True, order=True)
@@ -602,9 +641,7 @@ class DesignValidator:
                     count = duplicates.get(base, 0)
                     found.add(base if count == 0 else f"{base}-{count}")
                     duplicates[base] = count + 1
-                # 保留标题改名后的历史坐标；与设计评审入口识别的显式锚点一致。
-                for explicit in re.findall(r'<a\s+(?:name|id)="([^"]+)"', line):
-                    found.add(github_anchor(explicit))
+            found.update(explicit_markdown_anchors(path.read_text(encoding="utf-8")))
             anchors[path] = found
             return found
 
@@ -655,7 +692,9 @@ class DesignValidator:
                     continue
                 if not resolved.is_file():
                     self.error(f"{path.relative_to(self.root)}: broken local link: {raw}")
-                elif fragment and original.suffix == ".md" and github_anchor(unquote(fragment)) not in anchors_for(resolved):
+                elif (fragment and original.suffix == ".md"
+                      and unquote(fragment) not in anchors_for(resolved)
+                      and github_anchor(unquote(fragment)) not in anchors_for(resolved)):
                     self.error(f"{path.relative_to(self.root)}: missing Markdown anchor: {raw}")
 
     def _frozen(self, raw: Any) -> None:

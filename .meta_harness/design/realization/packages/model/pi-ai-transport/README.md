@@ -1,5 +1,7 @@
 # pi-ai-transport
 
+- kind：`provider`
+- 源码位置：本旧映射坐标为 `packages/model/pi-ai-transport`；当前实现归[实际成员](../../../../../../packages/model/pi-ai-transport/README.md)。本坐标不声明旧路径仍是源码位置。
 本节点描述 OpenRouter 传输适配提供者。实际源码、公开 API 和装载入口见[产品包](../../../../../../packages/model/pi-ai-transport/README.md)。公开函数可独立消费；Cordis 绑定从包的显式插件入口装载。
 
 传输负责请求规划、一次发送和流翻译；锚点、结算、最终成因分类、凭据来源和调用生命周期由 [model-request-runtime](../model-request-runtime/README.md) 及各承诺拥有者负责。传输不隐藏重试、回退或重定向。脚本化传输可以在验收装配中替换生产提供者。
