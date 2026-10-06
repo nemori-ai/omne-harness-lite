@@ -1,6 +1,6 @@
 # 验证责任、范围与实施门
 
-当前设计探针是小型机制／算法检查，代码归 [verification/probes](verification/probes/)，不成为产品实现。正式有限模型由[Session协调候选](contracts/session-runtime/SPEC.md)拥有，未来移动到其成员verification槽。具体运行结果及独立评审留执行工作树 tmp；本页不复制运行日志。
+当前设计探针是小型机制／算法检查，代码归 [verification/probes](verification/probes/README.md)，不成为产品实现。正式有限模型由[Session协调候选](contracts/session-runtime/SPEC.md)拥有，未来移动到其成员verification槽。具体运行结果及独立评审留执行工作树 tmp；本页不复制运行日志。
 
 | 义务 | 唯一责任拥有者 | 本阶段证据／实施后必须补 |
 |---|---|---|
@@ -31,7 +31,7 @@
 
 ## 执行入口与判读
 
-[有限模型和配置](verification/models/)共同维护。正配置检查有限不变量及 WorkEventuallyClaimed，公平性仅在 StartOrAdopt 上；三份去保护配置分别验证上述负控目标。
+[有限模型和配置](verification/models/README.md)共同维护。正配置检查有限不变量及 WorkEventuallyClaimed，公平性仅在 StartOrAdopt 上；三份去保护配置分别验证上述负控目标。
 模型、探针资源搬迁不表示本轮已执行或当前产品通过。探针从标准输出返回结果，由调用方写入自己的 tmp。
 
 - `node .meta_harness/design/architecture/session-agent-runtime-phase1/verification/probes/probe_cordis.mjs` 只验证 Cordis 4.0.4 的独立 Context、换代与替身原调用句柄。
