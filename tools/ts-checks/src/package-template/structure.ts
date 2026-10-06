@@ -11,7 +11,12 @@ export function readObject(path: string): Record<string, unknown> {
 function exportTarget(value: unknown, member: string, root: string, findings: Finding[]): void {
   if (typeof value === 'string') {
     const path = value.replace(/^\.\//u, '')
-    if (!safeRelative(path) || !path.endsWith('.json') || !existsSync(join(root, member, path)))
+    if (
+      !value.startsWith('./') ||
+      !safeRelative(path) ||
+      !path.endsWith('.json') ||
+      !existsSync(join(root, member, path))
+    )
       findings.push({
         code: 'resource-export',
         path: `${member}/package.json`,
@@ -35,6 +40,7 @@ function exportTarget(value: unknown, member: string, root: string, findings: Fi
     const path = target.replace(/^\.\//u, '')
     if (
       !safeRelative(path) ||
+      !target.startsWith('./') ||
       !path.startsWith('dist/') ||
       !path.endsWith(suffix) ||
       path.includes('*')
@@ -97,7 +103,31 @@ function checkPublication(member: string, manifest: Record<string, unknown>): Fi
       },
     ]
   }
-  return []
+  const exports = manifest['exports']
+  if (!object(exports)) return []
+  const targets = Object.values(exports).flatMap(value =>
+    typeof value === 'string' ? [value] : object(value) ? [value['types'], value['import']] : [],
+  )
+  return targets
+    .filter((target): target is string => typeof target === 'string')
+    .filter(target => {
+      const path = target.replace(/^\.\//u, '')
+      return !files.some(
+        file => typeof file === 'string' && (path === file || path.startsWith(`${file}/`)),
+      )
+    })
+    .map(target => ({
+      code: 'publication',
+      path: `${member}/package.json`,
+      reason: `Export is absent from the explicit package file list: ${target}`,
+    }))
+}
+function canonicalEntry(value: unknown, stem: string): boolean {
+  return (
+    object(value) &&
+    value['types'] === `./dist/${stem}.d.ts` &&
+    value['import'] === `./dist/${stem}.js`
+  )
 }
 /** Immutable structure rule set 1. Future incompatible semantics require another engine. */
 export function checkStructure(
@@ -133,11 +163,15 @@ export function checkStructure(
   const exports = manifest['exports']
   if (!object(exports) || !object(exports['.'])) add('exports', 'Missing explicit pure root export')
   else {
+    if (!canonicalEntry(exports['.'], 'index'))
+      add('exports', 'Pure root must resolve to dist/index in both declarations and runtime')
     for (const value of Object.values(exports)) exportTarget(value, member, root, findings)
     if (variant === 'module' && exports['./cordis'] !== undefined)
       add('variant', 'Use a binding variant for ./cordis')
     if (variant !== 'module' && exports['./cordis'] === undefined)
       add('variant', 'Binding variant requires ./cordis')
+    if (variant !== 'module' && !canonicalEntry(exports['./cordis'], 'cordis'))
+      add('exports', 'Binding entry must resolve to dist/cordis in both declarations and runtime')
   }
   if (variant === 'service-contract' && !member.startsWith('packages/core/'))
     add('variant', 'Public Service definition must belong to core')

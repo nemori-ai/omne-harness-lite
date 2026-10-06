@@ -152,6 +152,14 @@ describe('package creation', () => {
     ).toThrow('real package directory')
     expect(fs.readdirSync(outside)).toEqual([])
   })
+  it('rejects the same public package name in another group', () => {
+    const root = repository()
+    adopted(root)
+    expect(() =>
+      createPackage({ root, group: 'core', name: 'sample', variant: 'module', write: true }),
+    ).toThrow('Workspace package name already exists')
+    expect(fs.existsSync(join(root, 'packages/core/sample'))).toBe(false)
+  })
   it('rejects a dangling target symlink', () => {
     const root = repository()
     fs.mkdirSync(join(root, 'packages/util'))
@@ -275,6 +283,7 @@ describe('template adoption and observation', () => {
     fs.writeFileSync(join(root, member, 'schema/value.json'), '{}')
     changeManifest(root, member, value => {
       ;(value['exports'] as Record<string, unknown>)['./schema'] = './schema/value.json'
+      ;(value['files'] as string[]).push('schema')
     })
     expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('pass')
     fs.rmSync(join(root, member, 'schema/value.json'))
@@ -333,6 +342,33 @@ describe('template adoption and observation', () => {
     expect(
       inspectPackage(root, member, readTemplate(), deviation).findings.some(
         finding => finding.code === 'IC-4',
+      ),
+    ).toBe(true)
+  })
+  it('rejects a missing ./ prefix or an unpublished public resource', () => {
+    const root = repository(),
+      member = adopted(root)
+    fs.writeFileSync(join(root, member, 'value.json'), '{}')
+    changeManifest(root, member, value => {
+      ;(value['exports'] as Record<string, unknown>)['./value'] = 'value.json'
+    })
+    expect(
+      inspectPackage(root, member, readTemplate(), evidence).findings.map(finding => finding.code),
+    ).toEqual(expect.arrayContaining(['publication', 'resource-export']))
+  })
+  it('rejects a root redirected to a binding even with a matching declaration source', () => {
+    const root = repository(),
+      member = adopted(root)
+    fs.writeFileSync(join(root, member, 'src/cordis.ts'), 'export {}')
+    changeManifest(root, member, value => {
+      ;(value['exports'] as Record<string, unknown>)['.'] = {
+        types: './dist/cordis.d.ts',
+        import: './dist/cordis.js',
+      }
+    })
+    expect(
+      inspectPackage(root, member, readTemplate(), evidence).findings.some(
+        finding => finding.code === 'exports',
       ),
     ).toBe(true)
   })

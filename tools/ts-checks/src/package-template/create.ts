@@ -1,6 +1,6 @@
 import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
-import { workspacePatterns } from '../testing/members.ts'
+import { fileTree, listWorkspaceMembers, workspacePatterns } from '../testing/members.ts'
 import { object, type Variant } from './model.ts'
 import { readTemplate, TEMPLATE_DIRECTORY } from './template.ts'
 
@@ -36,6 +36,12 @@ function checkLocation(input: CreateInput): string {
   const target = join(root, 'packages', input.group, input.name)
   if (lstatSync(target, { throwIfNoEntry: false }) !== undefined)
     throw new Error(`Package target already exists: ${target}`)
+  if (
+    listWorkspaceMembers(fileTree(root), []).some(
+      member => member.name === `@omne-harness-lite/${input.name}`,
+    )
+  )
+    throw new Error(`Workspace package name already exists: @omne-harness-lite/${input.name}`)
   return target
 }
 function manifestText(input: CreateInput, id: string, version: string): string {
