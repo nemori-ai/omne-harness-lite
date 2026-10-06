@@ -104,6 +104,7 @@ PF-014-inbound-intake-and-queueing/
 ├── design.md         概念、模型、规则、取舍、边界      ← 必须
 ├── flows.md          到达与取走的旅程、插队的四种走法
 ├── acceptance.md     产品视角的验收标准
+├── stories.md        第一期消息受理与停止的交付切片
 ├── decisions.md      拍板记录 / PM 推导 / 待裁决       ← 必须
 └── changelog.md      产品设计本身的演进                ← 必须
 ```
