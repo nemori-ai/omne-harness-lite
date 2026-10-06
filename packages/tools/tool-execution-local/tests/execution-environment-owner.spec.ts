@@ -141,6 +141,63 @@ const completed: CommandOutcome = {
   },
 }
 
+test.each([{ facilities: ['files'] }, { facilities: ['command', 'files'] }])(
+  'injects exactly the effective facilities $facilities from one original lease',
+  async ({ facilities }) => {
+    const p = environmentPorts(),
+      tool: ToolDefinition = {
+        ...environmentDefinition,
+        settings: {
+          targetEnvironment: {
+            category: 'placement_identity',
+            default: { bindingLayer: 'host_machine', facilities },
+          },
+        },
+      }
+    const placement = { ...p.placement, requirement: { ...p.placement.requirement, facilities } }
+    p.operations.resolvePlacement.mockResolvedValue({ kind: 'placement', placement })
+    p.acquire.mockResolvedValue({
+      ...p.acquired,
+      adoption: { ...p.acquired.adoption, placement },
+    })
+    const f = await fixture(
+      async (_args, dependencies) => {
+        const environment = dependencies.environment
+        if (!environment) throw new Error('Original environment not injected')
+        expect(environment.description.facilities).toEqual(['command', 'files'])
+        expect(Boolean(environment.command)).toBe(facilities.includes('command'))
+        if (!environment.files) throw new Error('Required file facility not injected')
+        expect(await environment.files.read('/original')).toEqual({
+          kind: 'rejected',
+          reason: 'unavailable',
+        })
+        expect(await environment.files.write('/original', new Uint8Array([1]))).toEqual({
+          kind: 'rejected',
+          reason: 'unavailable',
+        })
+        return 'original facilities'
+      },
+      undefined,
+      tool,
+      p.operations,
+    )
+    try {
+      await f.owner.operations.submit(request)
+      await f.owner.idle()
+      expect(f.implementation).toHaveBeenCalledOnce()
+      expect(p.acquire).toHaveBeenCalledOnce()
+      expect(p.release).toHaveBeenCalledOnce()
+      const observer = await f.observer()
+      expect(await observer.read()).toMatchObject({
+        snapshot: { state: { terminal: { outcome: 'completed', result: 'original facilities' } } },
+      })
+      observer.release()
+    } finally {
+      await f.close()
+    }
+  },
+)
+
 test('author gets only required facilities after actual durable adoption and receives output before command completion', async () => {
   const p = environmentPorts(),
     seen: string[] = []
