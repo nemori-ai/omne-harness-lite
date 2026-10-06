@@ -1,13 +1,9 @@
-# 条款到证据的绑定表。
-# 空表：data.mcp-endpoint v2 没有登记的 formal task；源码不存在，没有测试可绑。
-# 证据义务与缺口记在 verification.md。
 version: 1
 node: "mcp-endpoint"
 kind: "provider"
 
 bindings:
 
-# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
 
   - clause: "data.mcp-endpoint/v2#S-11"
     evidence: "test:tools/core-verification/src/w6-asset-consumer.ts#w6.asset.mcp-schema-execution-boundary"

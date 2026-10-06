@@ -19,12 +19,12 @@
 | 想知道**这条承诺有没有实证、前提是什么** | `bindings.yaml`：`evidence` 指向 registry 的形式任务或实际测试，`assumptions` 是它成立的前提。**读结论时把前提一起带走** |
 | 契约成稿、要为它做提供者设计 | **先加载 skill**（「提供者与装配投影」+「Cordis 最小内核模型」），从 [node 模板包](.templates/node/README.md)建 `packages/<group>/<node>/`，`kind: provider`——第一层按 [README 的两层布局](README.md#packages-的两层布局)选 `core/`（数据契约、协议级构造、跨领域共享、能力契约的服务定义）或某个领域／限界上下文，再按 [Cordis 集成约定](cordis-integration-conventions.md)定服务定义、依赖、事件与配置。每条绑定先核「形状像但语义是否重合」——`intercept` 的合并顺序是装配链，领域优先级链是数据层次，两者不重合 |
 | 要为一个实际应用选提供者、写装配与完整动作链 | 同上加载 skill，建 `apps/<node>/`，`kind: assembly`。**建立条件是该交付面已有 PF**——不为没有产品设计的应用预建 |
-| 要为一个已开题、尚未开建的应用做**架构选型与框架设计**（拓扑、进程模型、交互面、包分层、技术栈、分发） | 同上加载 skill，建 `apps/<node>/` 并填 `architecture.md`，状态 `candidate`。候选比较先进 [proposals](../record/proposals/README.md)，采用进 [decisions](../record/decisions/README.md)，节点只引用；PF 仍是 draft 时不登记绑定。**不另立一个「应用架构」目录** |
+| 要为一个已开题、尚未开建的应用做**架构选型与框架设计**（拓扑、进程模型、交互面、包分层、技术栈、分发） | 同上加载 skill，建 `apps/<node>/` 并填 `architecture.md`，状态 `candidate`。候选比较与接受过程放工作树 tmp；当前选择、必要理由和未决归节点正文；PF 仍是 draft 时不登记绑定。**不另立一个「应用架构」目录** |
 | 评审一份应用节点的 `architecture.md` | 委派 [design-reviewer](../../agents/roles/README.md#按判断对象选择-reviewer) 判「选择」，给它 PF、契约坐标与提案；它核的是引用是否闭合、边上的保证有没有落在契约里，不代选技术栈 |
 | 落点判断依赖某条 Cordis 行为（重载时机、派发语义、isolate 交互） | 引用 [basis](../basis/README.md) 的条目名，**不在节点里重新推导上游**；basis 没有或 probe 为 null 的，标「待核对主张」，按 skill 的「来源核对」补 |
 | 做设计时发现契约某条兑现不了、或两份契约对不上 | 不在这里改语义、也不在 `design.md` 里写一段「实际按 X 做」。回 `spec/` 按 skill 的「规格演进」走；节点里只记缺口与受阻消费 |
-| 跑过测试或形式任务，要把结果挂到绑定上 | 原始配置、输入、输出归 [record/evidence](../record/evidence/README.md)；本节点 `verification.md` 只引用并写范围。**先有 run，再有绑定** |
-| 采用了某个精确版本、fork 了某个包、做了一次替换 | 那是接受事实，归 [record/decisions](../record/decisions/README.md) 与 [registry](../registry/README.md)；节点引用它们，不复述 |
+| 跑过测试或形式任务，要把结果挂到绑定上 | 实际运行输入/输出放工作树 tmp；本节点 `verification.md` 维护可复跑义务、前提和限制，不持久累计每次结果 |
+| 采用了某个精确版本、fork 了某个包、做了一次替换 | 当前采用范围归节点正文和 [registry](../registry/README.md)；接受过程放工作树 tmp |
 | 评审一份节点设计 | 委派 [design-reviewer](../../agents/roles/README.md#按判断对象选择-reviewer) 判「选择」；自己看也先加载同一份 skill——**评的判据要和写的判据是同一套** |
 
 ## 答案在哪一份
@@ -33,9 +33,9 @@
 查**这个应用起哪些进程、与谁有边、人和脚本从哪进、装配哪些包、采用了什么、怎么分发** → `architecture.md`（仅 assembly）；
 查**实现路径、插件边界、服务面、依赖、状态与失败映射、装卸配对** → `design.md`；
 查**本项目做出来的东西怎样接进 Cordis**（服务定义放哪、键怎么写、依赖与事件怎么声明、登记怎么撤、配置怎么校验、插件树怎么写）→ [Cordis 集成约定](cordis-integration-conventions.md)，对所有节点成立；
-查**哪条条款靠哪份证据、前提是什么、上次对着 basis 核是哪天** → `bindings.yaml`；
+查**哪条条款由哪个可复跑资源检查、前提和复核触发是什么** → `bindings.yaml`；
 查**这个节点在装配上打算提供、注入、发出什么**（机读）→ `bindings.yaml` 的 `assembly`／`composition`，字段含义见 README「装配声明」；
-查**实际跑过什么、覆盖到哪、还缺什么** → `verification.md`，原始结果在它链接的 evidence run；
+查**验证义务、方法、前提和明确缺口** → `verification.md`，原始结果仅在本次任务 tmp，不是终态依赖；
 查**契约到底承诺什么** → 它引用的 `spec/` 坐标。**这里到「由谁、靠什么原语兑现」为止。**
 
 ## 红线
@@ -51,7 +51,7 @@
 - **装载与撤除成对写。**卸载时释放什么、交接什么、什么仍为真；发出取消不等于已静止，外部效应不假定可回滚。
 - **节点名与它实现的包或应用同名，节点路径与源码路径逐字相同。**读设计与读源码用同一个词；`packages/` 第一层只有 `core/` 与领域名，**`core/` 只收数据契约、协议级构造、跨领域共享件与能力契约的 Cordis 服务定义**，不是公共工具箱。
 - **照 [Cordis 集成约定](cordis-integration-conventions.md)接进 Cordis。**服务定义在 `core`、服务键只写一次、包的根入口与 Cordis 无关、`inject` 写字面量、异步控制走 `serial`、登记即效应；核对表各行引它的 `IC-` 编号。
-- **应用节点不持有能力语义。**边上的保证一律指向契约，命令的产品含义一律指向 PF，采用一律指向决定；`architecture.md` 里出现第二份定义就是错。
+- **应用节点不持有能力语义。**边上的保证一律指向契约，命令的产品含义一律指向 PF，当前采用及必要理由归唯一拥有者；`architecture.md` 里出现第二份定义就是错。
 - **拓扑总图不手写。**节点只写自己的进程与自己那一侧的边；总图归 views 派生。
 
 返回[设计知识的准入与归属](../AGENTS.md)。

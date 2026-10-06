@@ -1,12 +1,12 @@
 # 持久调用引用、独立消费者与结果留存
 
-2026-09-29，revision 2，**candidate，未接受、未技术采用、未实施验收**。这是既有 provider `packages/model/model-request-runtime` 的后继；源码包已经存在，沿 `src/index.ts` 公开函数、`service-runtime.ts` 的统一服务、`service-container.ts` 的 store/准备 owner 与 `ModelCallHost` 扩展。保留 v7～v19 的精确历史文件，本页只拥有下列差异。
+当前技术采用范围与排除见本页“当前采用范围”；不据此宣称实现或验证完成。
 
 ## 输入与采用边界
 
-已核 [catalog](../../../../registry/catalog.json)：`capability.model-request-runtime/v11`（下称 RT11）、`data.model-response/v10`（MR10）、`data.messages/v7`（MS7）、`data.call-accounts/v3`（CA3）均为 candidate；`capability.session-log/v3`（SL3）为 accepted，本批不升版。规范基线 `omne-harness-lite-design-2026-09-15`，读取本批契约基线 `1254553f` 及本次 S-85/S-93/G-39、MS7 S-55 无GC适用条件修订。需求为 PF-013 rev16、PF-012 rev21、PF-015 rev20；范围和机制来源见 [r4](../../../../record/proposals/model-runtime-reference-lifecycle/technical-choices-r4.md)、[四表](../../../../record/proposals/model-runtime-reference-lifecycle/reconciliation.md) 与 [机制读数](../../../../record/proposals/model-runtime-reference-lifecycle/sources/mechanism-reading.md)。本次消费已完成的领域/机制读数，不重新声明双盲。
+已核 [catalog](../../../../registry/catalog.json)：`capability.model-request-runtime/v11`（下称 RT11）、`data.model-response/v10`（MR10）、`data.messages/v7`（MS7）、`data.call-accounts/v3`（CA3）均为 candidate；`capability.session-log/v3`（SL3）为 accepted，本批不升版。规范基线 `omne-harness-lite-design-2026-09-15`，读取本批契约基线 `1254553f` 及本次 S-85/S-93/G-39、MS7 S-55 无GC适用条件修订。需求为 PF-013 rev16、PF-012 rev21、PF-015 rev20；范围和机制来源见 r4、四表 与 机制读数。本次消费已完成的领域/机制读数，不重新声明双盲。
 
-Cordis 采用 [D025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)。只复用 Cordis；DSH registry 范式仅是提案的对比输入，不引入 DSH Agent、通用 registry、新进程、每调用 fiber 或完整 Session/Run 系统。P-2 仍提供一个 `modelRuntime`，P-5 默认重试消费沿 v17/v18 的真实原 Run 来源。公开 `invokeModel` 和纯构件仍可脱离 Cordis、会话、租户和存储使用。
+Cordis 采用 D025 的 4.0.4。只复用 Cordis；DSH registry 范式仅是提案的对比输入，不引入 DSH Agent、通用 registry、新进程、每调用 fiber 或完整 Session/Run 系统。P-2 仍提供一个 `modelRuntime`，P-5 默认重试消费沿 v17/v18 的真实原 Run 来源。公开 `invokeModel` 和纯构件仍可脱离 Cordis、会话、租户和存储使用。
 
 本页的新增服务成员、技术端口、类型、字段和存储对象名一律为**候选**；引用现有同名接口时显式注明“现有”。共同配置政策：静态必需端口/政策/密钥配置错误在初始化失败；显式调用表示错误沿原 `invalidInput`；受信来源不可达/不可核为 `unavailable`。业务上当前凭据不可取得仍按 RT11 原闭合分支处理，不改成启动配置错误。重试、等待、容量、追尾及关闭策略显式配置，不填猜测默认值。
 
@@ -199,3 +199,10 @@ English: The authenticated entry binds the existing service and an execution hos
 真并发反证义务见 verification R20-V6/V11/V14/V17/V19：内容未确认时marker必须不出现，已确认内容在marker失败/unknown及close/reopen后必须保持。独立GC路径未启用。撤权先提交时 settle/cancel 不得再通过；提交先行则事实保留而后续交付拒绝。cancel 先于 opened 则门不交首内容；opened 先行保留历史而后停后续。final 与 ready/过期索引、consumer A 清理与 B 登记都须在真实边界重演，不能靠单进程顺序模拟声明正确。
 
 R20-G1：RT11/MR10/MS7/CA3 与本映射均未接受，阻本增量实施，owner 为主线。R20-G2：RT11 S-87/S-93/S-94 G-38 的真实授权/撤权/消息写权及生产 Run 源未建立，阻相应生产读/处分/取消/新工作，owner 为访问与日志装配。R20-G3：S-85/S-86 G-39、MS7 S-55/MR10 S-46 的本版无GC私有内容行已给具体映射，真实持久化/冲突/冷读未验；外部引用保留provider缺席只阻其启用路径，owner 为runtime及实际外引用提供者。R20-G4：S-84/S-90/S-91 G-40 的真实冷重建、停止/唯一恢复、O(1) 读与代际清理未验，owner 为 runtime/宿主实施与独立验收。R20-G5：S-75/S-77～S-83/MR10 S-47 的持久媒体派生来源和transport后继未闭合，只阻真正启用该派生路径，不阻当前文本原值ref路径，owner 为原写方/转换件/transport；不阻普通原值路径。R20-G6：本页全部新增行为尚无实际实现/验收，见 R20-V1～V23；旧绑定只证明其旧版本范围，不新增绑定、不声称已兑现。
+
+## 当前采用范围
+
+RT11/MR10/MS7/CA3 引用生命周期增量：CallKey 查回、独立消费者、原执行 owner、不可变私有内容与原日志 marker、原完整 Pending/final 关系及费用唯一选择。
+
+技术采用不表示实现或实际验证已完成。验证义务：各节点当前关联验证义务；runtime R20-V1..R20-V23；SQL/JSONL 分域、unknown 留责、真实停止与来源当前性；正式包制品与全部受影响消费者。
+范围之外：ACK 之后永久保管/noGC：已被 ACK 后继取代；完整 Session/Run/Agent/通用 registry 或内容平台。

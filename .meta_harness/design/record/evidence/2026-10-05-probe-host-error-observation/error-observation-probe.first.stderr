@@ -1,8 +1,0 @@
-file:///data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/error-observation-probe.mjs:71
-await ctx.dispose()
-          ^
-
-TypeError: ctx.dispose is not a function
-    at file:///data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/error-observation-probe.mjs:71:11
-
-Node.js v24.21.0

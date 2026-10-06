@@ -1,6 +1,6 @@
 # 同一 SQL 实例的独立与 Service 访问面
 
-采用依据：[共享集成决定](../../../../.meta_harness/design/record/decisions/shared-storage-clock-integration/decision.md)。行为归 [SPEC](../SPEC.md)。
+采用依据：共享集成决定。行为归 [SPEC](../SPEC.md)。
 
 Cordis 4.0.4 为不同调用方返回不同代理。原对象严格比较会拒绝同一 SqlStorage 的合法代理。
 真实模型装配还会从 raw.atomic 发起事务，再让注入消费者参与，因此只包装 Service.atomic 的 unit 不完整。

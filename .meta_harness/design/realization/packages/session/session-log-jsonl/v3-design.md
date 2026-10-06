@@ -6,11 +6,11 @@
 
 | 输入 | 状态与本节点的消费范围 |
 | --- | --- |
-| [capability.session-log/v3](../../../../spec/capabilities/session-log/v3/contract.md) | baseline `omne-harness-lite-design-2026-09-15`，catalog accepted；[D-083](../../../../record/decisions/session-log-tail-condition-adoption/decision.md) 接受全 37 条及 24 项资源。contract SHA-256 `f327f1289e1d6c539dd959e8862b382869e3d303cf984b6a773fdd6a00e4bd26`。本页投影全部三操作，重点新增 S-32～S-37 |
+| [capability.session-log/v3](../../../../spec/capabilities/session-log/v3/contract.md) | baseline `omne-harness-lite-design-2026-09-15`，catalog accepted；D-083 接受全 37 条及 24 项资源。contract SHA-256 `f327f1289e1d6c539dd959e8862b382869e3d303cf984b6a773fdd6a00e4bd26`。本页投影全部三操作，重点新增 S-32～S-37 |
 | SL3 的五项精确依赖 | identity-values1、messages2、call-accounts2、content-blocks2、session-tenancy2，按 SL3 S-4；不把载荷消费者所用新版改成日志协议的规范依赖。日志不 inject sessionTenancy，如实填写 tenant 仍是写方责任 |
-| [已接受原节点 design](design.md) | [D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)；SHA-256 `a52d26d2042b260e53c4fa9cb849b883034b92381b19cc87f8cd815c253a025e`。沿用 JSONL 属主锁、每本日志队列、一行一批、datasync、派生索引及其前提；不是重新选择数据库 |
+| [已接受原节点 design](design.md) | D-062／D-065；SHA-256 `a52d26d2042b260e53c4fa9cb849b883034b92381b19cc87f8cd815c253a025e`。沿用 JSONL 属主锁、每本日志队列、一行一批、datasync、派生索引及其前提；不是重新选择数据库 |
 | [v2-design 修订 2](v2-design.md) | SHA-256 `a3cd98478faf5d158a8b09dd8e1491db568b4cc93091b0dc560b6e74a20ffbb6`；仅为未接受的起草输入。本页明确写出的无损载荷／unknown 责任才是本次待评内容，不把 G2-1～G2-7 追认为已经关闭 |
-| [D-081](../../../../record/decisions/model-late-coordination-direction/decision.md)／[D-076](../../../../record/decisions/model-runtime-delivery-adoption/decision.md) | 前者选择共同日志尾条件方向，后者既有准确 late、回复同批、unknown opened 与实际停止义务保留；SL3 接受不自动升级 runtime3、runner3 或任何写方 |
+| D-081／D-076 | 前者选择共同日志尾条件方向，后者既有准确 late、回复同批、unknown opened 与实际停止义务保留；SL3 接受不自动升级 runtime3、runner3 或任何写方 |
 | messages4／model-response4／content-blocks3／call-accounts2／model-profile3，runtime3／runner3 | 已接受的消费者及载荷输入；仅承接合法 JSON 原样存取和下述传播门。业务形状、完整 adaptation、金额／opaque、ResponseId／MessageId、Run 认法及 late 的解释均归它们的 owner |
 
 产品依据沿 SL3 所列 PF-012 rev 15、PF-015 rev 13、PF-000 rev 1；不把当前产品后续修订自动纳入已接受日志语义。
@@ -24,7 +24,7 @@
 
 ## 实现路径与公开面
 
-沿原节点的必要自建闭包＋薄 Cordis 插件：Node ≥24 文件操作，`node:sqlite` 只持根目录 `.owner-lock` 的文件锁，不存业务；采用 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md) 的 Cordis 4.0.4。原 `dir` 与策略配置、配置错误启动失败政策保持，缺失或非法配置不 provide；不增加数据库、日志协调服务或持久 Run 状态。
+沿原节点的必要自建闭包＋薄 Cordis 插件：Node ≥24 文件操作，`node:sqlite` 只持根目录 `.owner-lock` 的文件锁，不存业务；采用 D-025 的 Cordis 4.0.4。原 `dir` 与策略配置、配置错误启动失败政策保持，缺失或非法配置不 provide；不增加数据库、日志协调服务或持久 Run 状态。
 
 包根公开纯面与不依赖 Cordis 的生命周期闭包；插件面另行导出。静态导入纯面不加载 Cordis、不打开文件；实际调用者必须拥有并关闭闭包。所有名字为候选：
 
@@ -165,7 +165,7 @@ SL3 是四实参公开面：不保留三实参默认 unconditional 的兼容路�
 | SLJ3-V10／S-20/S-21；SYS-OPEN/OBSERVABILITY | 独立包消费者无 Cordis 导入纯面和闭包，真实文件 IO 后 close；实际 Cordis 非法配置 FAILED、服务不发布、单 effect 排空。工程诊断含受限阶段／相关标识／计数，无 payload、配置秘密、raw headers、业务键正文或原始错误泄漏；恢复读不复制敏感内容到日志 |
 | SLJ3-V11／S-34～S-37 | 精确新消费者规范采用后再跑全写方传播及旧 SL2 实例退出／同根锁交接；新版拒三参数，旧引用不可推进，新实例读回旧合法历史。完整键 codec、合法读权、真实 Run、unknown opened 与争用耗尽归对应 owner 的组合门；不能以日志单包通过代它们验收 |
 
-[D-083 的有限形式证据](../../../../record/evidence/2026-09-27-formal-session-log-v3/README.md) 只支持所列有限 SessionLog／TailSettlement 断言与前提：整批原子、稠密位置、真实读快照、payload 数字、租户与优先级、文件锁、实际 StopOld、生产 Run 认法均没有被这些模型完整证明。本节点不把 TypeOK、模型中单步追加或 StopOld 抽象绑定成真实 IO 已兑现，不声称无限争用下无饥饿。退避、重试、超时、争用预算与耗尽后未完成责任全部归消费者具名策略；日志没有暗中重算并重交的循环。
+D-083 的有限形式证据 只支持所列有限 SessionLog／TailSettlement 断言与前提：整批原子、稠密位置、真实读快照、payload 数字、租户与优先级、文件锁、实际 StopOld、生产 Run 认法均没有被这些模型完整证明。本节点不把 TypeOK、模型中单步追加或 StopOld 抽象绑定成真实 IO 已兑现，不声称无限争用下无饥饿。退避、重试、超时、争用预算与耗尽后未完成责任全部归消费者具名策略；日志没有暗中重算并重交的循环。
 
 | Gap／条款 | 受阻消费者、owner 与闭合条件 |
 | --- | --- |

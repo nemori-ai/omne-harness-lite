@@ -3,7 +3,7 @@
 `capability.credential-custodian` v2（candidate）的证据义务与执行状态。本文件可更新，位于规范版本目录之外；
 结果始终绑定实际规范、模型与实现修订。
 
-**当前状态（2026-09-25）：形式工件有证据，规范场景仍无。**没有实现，没有执行过任何场景；形式模型已执行一次（run [`2026-09-25-formal-credential-custodian`](../../../record/evidence/2026-09-25-formal-credential-custodian/README.md)，正配置无反例、五份核对全按预期）。
+**当前状态（2026-09-25）：形式工件有证据，规范场景仍无。**没有实现，没有执行过任何场景；形式模型已执行一次（run `2026-09-25-formal-credential-custodian`，正配置无反例、五份核对全按预期）。
 **通过不提升状态**（契约仍是 candidate）；有限检查不是证明，范围与前提见下表与那次 run 的「边界」。
 
 ## 证据义务
@@ -16,7 +16,7 @@
 | [S-18](v2/contract.md#s-18-清扫) 第 4 条：`OrphanEventuallySwept` | 同一模型，主配置；去保护配置 `Sweep_Validity_NoSweep.cfg` 须给出反例 | 每条条目上 `Sweep` 的弱公平性（本能力在场、存储与绑定读得到）；**上界 `sweepInterval` 不在模型里** | **已运行：主配置无反例**（同上一次）；`NoSweep` 推翻 `OrphanEventuallySwept`（退出 13），按预期 |
 | 两个探针（`granted` 可达、丢弃可达） | `Sweep_Reach_Granted.cfg`、`Sweep_Reach_Discard.cfg`，须各被反驳 | 同主配置 | **已运行：两个都被反驳**（退出 12，两个状态都可达） |
 
-**证据**：run [`2026-09-25-formal-credential-custodian`](../../../record/evidence/2026-09-25-formal-credential-custodian/README.md)（模型与配置取自 `a3877671`，到 `c6aa2fed` 未改；各目录带实际命令、输入快照 `SHA256SUMS` 与 TLC 原始日志）。正配置的结论以 `-workers 4` 那一次为准：两次的输入逐字节相同，第一次只是登记的时限太紧。
+**证据**：run `2026-09-25-formal-credential-custodian`（模型与配置取自 `a3877671`，到 `c6aa2fed` 未改；各目录带实际命令、输入快照 `SHA256SUMS` 与 TLC 原始日志）。正配置的结论以 `-workers 4` 那一次为准：两次的输入逐字节相同，第一次只是登记的时限太紧。
 **边界**（照那次 run）：常量取值（两个绑定、三个引用、`TTL = 1`、`MaxTime = 3`）与关闭的路径见 [formal 入口](v2/formal/README.md)，**有限检查不是无条件证明**；模型只覆盖 S-18 的清扫与 `granted` 的可解析；「在绑定上排序」与 `sweepInterval` 上界是前提、不在模型里，证据归场景 S-28；`OrphanEventuallySwept` 依赖 `Sweep` 的弱公平性，那是前提不是结论。**通过不提升本契约的状态。**
 
 **运行方式**（登记在 `registry/formal-tasks.json`，`timeout_seconds` 900）：`${JAVA_BIN} -cp ${TLA2TOOLS_JAR} tlc2.TLC -metadir tmp/tlc/credential-custodian-v2-sweep -cleanup -noGenerateSpecTE -workers 4 -config spec/capabilities/credential-custodian/v2/formal/Sweep.cfg spec/capabilities/credential-custodian/v2/formal/Sweep.tla`（工作目录 `.meta_harness/design`）；去保护配置与探针换 `-config` 即可，它们不登记为 formal task。
@@ -42,11 +42,6 @@
 | 完成时过期按排到之后的时刻判 | `capability.mcp-bridge` 的提供者（桥节点 C-3 与 `completeOAuth` 那一行） | [S-18](v2/contract.md#s-18-清扫) 第 2 条；模型的 `CompleteFreshTime` |
 | 取值问法只许具名消费者解析 | 装配与静态检查（模型档案目录节点 MPD-N4 那一类） | [S-19](v2/contract.md#s-19-装配给的保证-vs-协议须给的保证) 第 3 行 |
 
-## 实际执行
-
-- **形式工件**：run [`2026-09-25-formal-credential-custodian`](../../../record/evidence/2026-09-25-formal-credential-custodian/README.md)，正配置两次（单 worker 超时一次、`-workers 4` 退出 0 一次）加五份核对；结果在上面[形式工件](#形式工件)表。
-- **规范场景**：一条都没执行。
-
 ## 结果与反例
 
 - 主配置 `Sweep.cfg`：无反例（`-workers 4`，2,303,290 个不同状态）。
@@ -59,25 +54,25 @@
 
 ## 修订波（2026-09-25 公开面）
 
-依据链：[D-063](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1（替身改为接口契约 ＋ 最小提供者）；[D-060 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-33～N-37。候选未冻结，原地改。
+依据链：D-063 R-1（替身改为接口契约 ＋ 最小提供者）；D-060 §八 N-33～N-37。候选未冻结，原地改。
 
 | 变化 | 依据 | 落在哪 | 语义变不变、对消费者 |
 |---|---|---|---|
 | **最小提供者的形态**：副本条目与 OAuth 条目都以密文落在绑定所在的同一存储（`core/storage`），本机只放密钥；G-9 注明这一点不改 S-7 | N-37 ⑤ | [README](README.md) 提供者映射、[G-9](v2/contract.md#十一已知缺口) | 不改语义 |
 | 「尚无决定记录」改链 D-063 R-1；账本外名字标「主线已接受」 | R-1；N-37 ① | 设计依据两行 | 不改语义 |
 | 消费者核对：静态检查一行加「`readReplica` 只许模型档案读提供者调」（N-37 ⑩，节点 MPD-N4 那一侧落）；MCP 桥一行写明 C-4 ↔ G-2、C-5 ↔ G-4、C-6 ↔ G-3 本版不收 | N-37 ⑩ | 第十二节两行 | 不改语义。**桥与模型档案目录都以定义引用改指本契约、不反向登记**（本契约已以坐标依赖它们，登了成环）；两边的对齐义务写在它们各自的「修订波」里 |
-| **形式工件的运行结果填进**（主线另派，本波一并落）：三份配置的状态由「未运行」改为实际结果，证据指 [run 2026-09-25-formal-credential-custodian](../../../record/evidence/2026-09-25-formal-credential-custodian/README.md)；运行方式改为 `-workers 4` | N-37 ⑪ | 本文件顶部、[形式工件](#形式工件)、[实际执行](#实际执行)、[结果与反例](#结果与反例) | **状态不因通过而提升**：仍 candidate；有限常量下的模型检查不是证明。`registry/formal-tasks.json` 的 worker 数与 `timeout_seconds` 由主线改，本波未动 |
+| **形式工件的运行结果填进**（主线另派，本波一并落）：三份配置的状态由「未运行」改为实际结果，证据指 run 2026-09-25-formal-credential-custodian；运行方式改为 `-workers 4` | N-37 ⑪ | 本文件顶部、[形式工件](#形式工件)、[实际执行](verification.md)、[结果与反例](#结果与反例) | **状态不因通过而提升**：仍 candidate；有限常量下的模型检查不是证明。`registry/formal-tasks.json` 的 worker 数与 `timeout_seconds` 由主线改，本波未动 |
 
 **没有证据因此作废**：本波对正文的改动不触及形式模型建模的性质（交出判据、清扫三种）。
 
-**同日追加（保管方节点反推，主线裁定 [D-060 §八 N-40](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ③）**：
+**同日追加（保管方节点反推，主线裁定 D-060 §八 N-40 ③）**：
 
 | 变化 | 依据 | 落在哪 | 语义变不变、对证据 |
 |---|---|---|---|
 | **S-23「拷到 B 的据点下」写明只拷条目、B 的密钥不变 ⇒ 打不开**；连密钥文件一起拷是 S-3 明说不挡的情形，不作本场景的通过条件 | 节点 CCL-7 | [S-23](v2/contract.md#s-23-另一个账号的据点读不到)、[examples §2](v2/examples.md#2-据点隔离与加密落地) 那一行 | **不改语义**（S-3、S-7 原样）：把场景的做法写清，免得演练者连密钥一起拷、据此判一个正确的提供者失败 |
 | **S-18 第 4 条的上界补前提：一轮清扫能在 `sweepInterval/2` 之内做完**（提供者按半个间隔起一轮）；写进第七节进展性质的前提列 | 节点 CCL-8 | [S-18](v2/contract.md#s-18-清扫) 第 4 条、第七节 `OrphanEventuallySwept` 一行 | **收窄保证**：一轮做不完时「不晚于 `sweepInterval`」不成立。**形式模型不受影响**：`OrphanEventuallySwept` 检查的是「终将被丢」（弱公平性作前提），不检查时间上界；上界仍只由场景 S-28 按装配给的 `sweepInterval` 计时验证 |
 
-**N7 评审之后（主线裁定 [D-060 §八 N-42](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）**：
+**N7 评审之后（主线裁定 D-060 §八 N-42）**：
 
 | 变化 | 落在哪 | 语义变不变、对证据 |
 |---|---|---|

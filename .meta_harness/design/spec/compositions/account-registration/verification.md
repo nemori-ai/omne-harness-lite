@@ -3,38 +3,38 @@
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
 > **当前状态：改写后的模型已执行一次（run `-2`），上一次 run 对当前模型不适用；规范场景一条都没演练过。**
-> `composition.account-registration` v1 已由 [D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md) 接受并冻结（2026-09-22），提供者设计在 [`realization/packages/tenancy/account-registration`](../../../realization/packages/tenancy/account-registration/README.md)；尚无源码、尚无装配。**此后版本目录不再原地改，语义改动发布 v2。**
+> `composition.account-registration` v1 已由 D-023 接受并冻结（2026-09-22），提供者设计在 [`realization/packages/tenancy/account-registration`](../../../realization/packages/tenancy/account-registration/README.md)；尚无源码、尚无装配。**此后版本目录不再原地改，语义改动发布 v2。**
 >
-> **[2026-09-22 的第一次运行](#实际执行)跑的是改写之前的模型**：
+> **[2026-09-22 的第一次运行](verification.md)跑的是改写之前的模型**：
 > 它检查的 `Activate` 守卫写的是 `orgCount >= 1`，而评审轮一把那个守卫判为错误
 > （[`#S-14` 按契约读不到组织那一侧](../../capabilities/account-identity/v1/contract.md#s-2-消费者与依赖方向)）
 > 并改成 `warrant[a] ∧ ~expired`，另加了 `warrant` 变量、两条 `Rejected` 分支、
 > `ClaimExpired` 守卫谓词，并把 `progress.cfg` 的 `Expiring` 由 FALSE 改为 TRUE。
 > **模型与配置都变了，那三行结果只保留其历史记录价值，不再支持本表任何一条。**
 >
-> **改写后的模型已在 [run `2026-09-22-formal-tenant-domain-2`](#实际执行) 跑过三个配置，全部无反例。**
+> **改写后的模型已在 [run `2026-09-22-formal-tenant-domain-2`](verification.md) 跑过三个配置，全部无反例。**
 > **但「无反例」在本包仍然不能被读成强证据**：
-> [八个变异核对与两个有效性核对，本 run 一个都没登记](#实际执行)。
+> [八个变异核对与两个有效性核对，本 run 一个都没登记](verification.md)。
 > 变异没做，不变式可能是平凡的；有效性没做，「成功路径可达」这件事还没被验证过——
 > **不变式全绿也可能只是因为成功状态根本到不了**。
 > 修订模型的那位 agent 自报这十个核对全部通过，**但那次执行没有快照、没有原始输出，
-> 因此[只记作「修订者自报，未登记」](../../../record/evidence/2026-09-22-formal-tenant-domain-2/README.md#变异核对修订者自报本-run-未登记)，不计入本页任何一条。**
+> 因此只记作「修订者自报，未登记」，不计入本页任何一条。**
 > 规范场景同样**一条都没演练过**，它们要的是真实实现，而实现不存在。
-> 原始产物在 [`record/evidence/`](../../../record/evidence/README.md)。
+> 原始产物在 `record/evidence/`。
 
 ## 证据义务
 
 | 规范条款与性质 | 证据形式与抽象映射 | 实际证据入口、输入与范围 | 未完成义务、责任与受阻消费者 |
 |---|---|---|---|
-| [S-13](v1/contract.md#s-13-一个可用账号有且仅有一个个人组织) 可用账号有且仅有一个个人组织（含「不存在已激活却无个人组织的账号」那一面） | TLC：`ActivatedHasPersonalOrganization` ∧ `OnePersonalOrganizationPerAccount`，配置 [`basic.cfg`](v1/formal/basic.cfg) 与 [`crash.cfg`](v1/formal/crash.cfg) | **已执行**（[run `-2` · `basic` 与 `crash`](#实际执行)）：两个配置都**无反例**、完整穷尽。[第一次 run 跑的是改写之前的模型](#实际执行)（`Activate` 的守卫不同、`warrant` 变量不存在），**那两格不计入本条** | 范围仅限模型抽象（见 [formal/README 的语义映射](v1/formal/README.md#语义映射)），**不覆盖真实存储的提交原子性**。**变异核对未做**，因此这两条不变式是否平凡尚未被验证 |
+| [S-13](v1/contract.md#s-13-一个可用账号有且仅有一个个人组织) 可用账号有且仅有一个个人组织（含「不存在已激活却无个人组织的账号」那一面） | TLC：`ActivatedHasPersonalOrganization` ∧ `OnePersonalOrganizationPerAccount`，配置 [`basic.cfg`](v1/formal/basic.cfg) 与 [`crash.cfg`](v1/formal/crash.cfg) | **已执行**（[run `-2` · `basic` 与 `crash`](verification.md)）：两个配置都**无反例**、完整穷尽。[第一次 run 跑的是改写之前的模型](verification.md)（`Activate` 的守卫不同、`warrant` 变量不存在），**那两格不计入本条** | 范围仅限模型抽象（见 [formal/README 的语义映射](v1/formal/README.md#语义映射)），**不覆盖真实存储的提交原子性**。**变异核对未做**，因此这两条不变式是否平凡尚未被验证 |
 | [S-14](v1/contract.md#s-14-一个登录标识上至多一个账号) 一个登录标识至多一个账号 | **不由模型兑现**——模型把它吸收进了建模方式（[说明](v1/formal/README.md#模型吸收了哪一条不变量)）。证据形式是规范场景 [S-31](v1/contract.md#s-31-规范场景两个同标识并发注册) | **未执行。**需要一个实现了 ① 的提供者与真实存储 | 阻断在提供者缺席。**不得把 TLC 通过读成这一条已被检查** |
-| [S-15](v1/contract.md#s-15-激活不回退) 激活不回退 | TLC：由 `TypeOK` 与动作集合共同表达（`account` 无从 `"activated"` 出发的转移）；另由 `capability.account-identity` 的静态检查兑现 | **已执行**（[run `-2`](#实际执行)）：`TypeOK` 含 `warrant` 一项，三个配置下都无反例 | 静态检查那一半仍未执行，责任在 `capability.account-identity` 的提供者 |
-| [S-16](v1/contract.md#s-16-中断绝不被呈现为成功) 中断不呈现为成功 | TLC：`NoFalseSuccess`，**必须在 [`crash.cfg`](v1/formal/crash.cfg) 下检查**——无故障的配置证明不了这一条 | **已执行**（[run `-2` · `crash`](#实际执行)）：**无反例**，6978 distinct、完整穷尽 | 结论范围：`Attempts = {a1, a2, a3}`、模型抽象之内 |
-| [S-10](v1/contract.md#s-10-激活是唯一提交点) 激活的前置是个人组织已存在 | TLC：`OrganizationBeforeActivation`，动作性质 `[][A]_vars` | **已执行**（[run `-2` · `basic` 与 `crash`](#实际执行)）：**无反例**。**`progress.cfg` 不检查这一条**——它的性质集合只有 `TypeOK` 与 `EventualOutcome` | 同上 |
-| [S-35](v1/contract.md#s-35-个人组织不会变成孤儿) 个人组织不会变成孤儿 | TLC：`NoOrphanPersonalOrganization`，**只有 [`crash.cfg`](v1/formal/crash.cfg) 真正检查它**——`basic.cfg` 里 `Expiring = FALSE`，清除链根本不发生 | **已执行**（[run `-2` · **只有 `crash`** 计入](#实际执行)）：**无反例**。**`basic.cfg` 那一格不计入本条**——那里 `Expiring = FALSE`，它是平凡的 | **两个变异核对（M4／M5）仍然没做**：去掉清除链次序、去掉 `OrganizeOk` 的 `~expired`。**缺了它们，「无反例」区分不了「次序排对了」与「次序之间那个窗口也堵住了」**——而那正是本条唯一的保护点 |
-| [S-20](v1/contract.md#s-20-收敛) 静止时没有第三种形态 | TLC：`ConvergentOutcome`。**它是 S-13 与 S-16 的投影，不是独立证据**（[说明](v1/formal/README.md#convergentoutcome-不是一条独立性质)） | **已执行**（[run `-2` · `basic` 与 `crash`](#实际执行)）：**无反例**。**`progress.cfg` 不检查这一条** | **证据强度等于 S-13 与 S-16 通过，不叠加** |
-| [S-19](v1/contract.md#s-19-有前提的进展) 有前提的进展 | TLC：`EventualOutcome`（leads-to），**只在 [`progress.cfg`](v1/formal/progress.cfg)**，前提写成 `Failures = FALSE`、`Abandoning = FALSE` 与显式公平性 | **已执行**（[run `-2` · `progress`](#实际执行)）：**无反例**，`Expiring = TRUE`；时序性质 2 branches，在 374 total distinct states 上检查完。**检查范围比上一次大得多**（那次 62） | **前提 (a)(b)(c) 在真实系统中不可观察**：(b)(c) 在模型里是常量取值（`Abandoning = FALSE`、`Failures = FALSE`）加公平性假设，(a) 由前件 `pc[a] # "start"` 承接、不是常量，(d) 未建模——**都不是被证明的事实**；该性质**没有上界**，不能改写成回归检查的时限断言。**前提 (d)（服务面可解析）根本没有被建模**，[如实记在 formal/README](v1/formal/README.md#本版本选用什么)。**`Expiring` 不是前提**，评审轮一补上两条 `Rejected` 分支之后它由 FALSE 改为 TRUE——**关掉它反而缩小检查范围**。**还有一支根本不在前件内**：① 撞上已过期记录时尝试留在 `"start"`，而前件是 `pc[a] # "start"`，**TLC 对它什么也没说**；那一支的进展由 [S-8](v1/contract.md#s-8-三步次序与责任交接) 的分支表承担，证据是本表里「① 撞上过期记录时由本组合接手」与「① 最多重跑一次」两行的规范场景。**不得把 `progress.cfg` 无反例读成「撞上过期记录的尝试也一定会走到终结结果」** |
-| 不变式非平凡 | **变异核对**：[八个变异 M1～M8](v1/formal/README.md#变异核对证明不变式不平凡)每个都必须使某条不变式出反例 | **未登记。**（评审轮一由七个增到八个：`Activate` 拆守卫之后，原来那条「去掉 `orgCount >= 1`」换成 **M6 去掉 `~expired`** 与 **M7 去掉 `warrant[a]`** 两个。）**修订模型的 agent 自报八个全部出反例，但那次执行在它自己的工作区、无输入快照、无原始输出，[按证据准入不登记](../../../record/evidence/2026-09-22-formal-tenant-domain-2/README.md#变异核对修订者自报本-run-未登记)** | 责任：主线。**跳过它，上面每一条的「通过」都只说明断言没被违反，不说明断言有内容。**M4／M5 抓同一条不变量的两个不同的洞，M6／M7 抓另一条不变量在 ③ 那一侧的两个洞，**四个缺一不可** |
+| [S-15](v1/contract.md#s-15-激活不回退) 激活不回退 | TLC：由 `TypeOK` 与动作集合共同表达（`account` 无从 `"activated"` 出发的转移）；另由 `capability.account-identity` 的静态检查兑现 | **已执行**（[run `-2`](verification.md)）：`TypeOK` 含 `warrant` 一项，三个配置下都无反例 | 静态检查那一半仍未执行，责任在 `capability.account-identity` 的提供者 |
+| [S-16](v1/contract.md#s-16-中断绝不被呈现为成功) 中断不呈现为成功 | TLC：`NoFalseSuccess`，**必须在 [`crash.cfg`](v1/formal/crash.cfg) 下检查**——无故障的配置证明不了这一条 | **已执行**（[run `-2` · `crash`](verification.md)）：**无反例**，6978 distinct、完整穷尽 | 结论范围：`Attempts = {a1, a2, a3}`、模型抽象之内 |
+| [S-10](v1/contract.md#s-10-激活是唯一提交点) 激活的前置是个人组织已存在 | TLC：`OrganizationBeforeActivation`，动作性质 `[][A]_vars` | **已执行**（[run `-2` · `basic` 与 `crash`](verification.md)）：**无反例**。**`progress.cfg` 不检查这一条**——它的性质集合只有 `TypeOK` 与 `EventualOutcome` | 同上 |
+| [S-35](v1/contract.md#s-35-个人组织不会变成孤儿) 个人组织不会变成孤儿 | TLC：`NoOrphanPersonalOrganization`，**只有 [`crash.cfg`](v1/formal/crash.cfg) 真正检查它**——`basic.cfg` 里 `Expiring = FALSE`，清除链根本不发生 | **已执行**（[run `-2` · **只有 `crash`** 计入](verification.md)）：**无反例**。**`basic.cfg` 那一格不计入本条**——那里 `Expiring = FALSE`，它是平凡的 | **两个变异核对（M4／M5）仍然没做**：去掉清除链次序、去掉 `OrganizeOk` 的 `~expired`。**缺了它们，「无反例」区分不了「次序排对了」与「次序之间那个窗口也堵住了」**——而那正是本条唯一的保护点 |
+| [S-20](v1/contract.md#s-20-收敛) 静止时没有第三种形态 | TLC：`ConvergentOutcome`。**它是 S-13 与 S-16 的投影，不是独立证据**（[说明](v1/formal/README.md#convergentoutcome-不是一条独立性质)） | **已执行**（[run `-2` · `basic` 与 `crash`](verification.md)）：**无反例**。**`progress.cfg` 不检查这一条** | **证据强度等于 S-13 与 S-16 通过，不叠加** |
+| [S-19](v1/contract.md#s-19-有前提的进展) 有前提的进展 | TLC：`EventualOutcome`（leads-to），**只在 [`progress.cfg`](v1/formal/progress.cfg)**，前提写成 `Failures = FALSE`、`Abandoning = FALSE` 与显式公平性 | **已执行**（[run `-2` · `progress`](verification.md)）：**无反例**，`Expiring = TRUE`；时序性质 2 branches，在 374 total distinct states 上检查完。**检查范围比上一次大得多**（那次 62） | **前提 (a)(b)(c) 在真实系统中不可观察**：(b)(c) 在模型里是常量取值（`Abandoning = FALSE`、`Failures = FALSE`）加公平性假设，(a) 由前件 `pc[a] # "start"` 承接、不是常量，(d) 未建模——**都不是被证明的事实**；该性质**没有上界**，不能改写成回归检查的时限断言。**前提 (d)（服务面可解析）根本没有被建模**，[如实记在 formal/README](v1/formal/README.md#本版本选用什么)。**`Expiring` 不是前提**，评审轮一补上两条 `Rejected` 分支之后它由 FALSE 改为 TRUE——**关掉它反而缩小检查范围**。**还有一支根本不在前件内**：① 撞上已过期记录时尝试留在 `"start"`，而前件是 `pc[a] # "start"`，**TLC 对它什么也没说**；那一支的进展由 [S-8](v1/contract.md#s-8-三步次序与责任交接) 的分支表承担，证据是本表里「① 撞上过期记录时由本组合接手」与「① 最多重跑一次」两行的规范场景。**不得把 `progress.cfg` 无反例读成「撞上过期记录的尝试也一定会走到终结结果」** |
+| 不变式非平凡 | **变异核对**：[八个变异 M1～M8](v1/formal/README.md#变异核对证明不变式不平凡)每个都必须使某条不变式出反例 | **未登记。**（评审轮一由七个增到八个：`Activate` 拆守卫之后，原来那条「去掉 `orgCount >= 1`」换成 **M6 去掉 `~expired`** 与 **M7 去掉 `warrant[a]`** 两个。）**修订模型的 agent 自报八个全部出反例，但那次执行在它自己的工作区、无输入快照、无原始输出，按证据准入不登记** | 责任：主线。**跳过它，上面每一条的「通过」都只说明断言没被违反，不说明断言有内容。**M4／M5 抓同一条不变量的两个不同的洞，M6／M7 抓另一条不变量在 ③ 那一侧的两个洞，**四个缺一不可** |
 | 模型有效性 | **有效性核对**：两个临时否定不变量必须出反例，证明成功路径与「停在未激活」路径都可达 | **未登记。**两次 run 都没做；**修订者自报两个都按预期失败，同样无快照、不登记** | 责任：主线。**在它做完之前，上面全部「无反例」都还留着一种解释：成功状态根本不可达。**这两个否定配置**不写成文件、不登记为 formal task**——期望失败的检查与该清单的语义相反（检查器按退出码判成败） |
 | [S-27](v1/contract.md#s-27-规范场景中途失败后用同一标识重来) 中途失败后用同一标识重来 | 规范场景演练：真实存储 + 在 ② 提交前注入故障 | **未执行。**需要两个参与方的提供者 | 阻断在提供者缺席。受阻消费者：注册入口 |
 | [S-28](v1/contract.md#s-28-规范场景在任意位置中断没有第三种形态) 任意位置中断没有第三种形态 | 规范场景演练，三个中断位置各一次，**此后不再重试** | **未执行** | 同上。这条与 TLC 的 `ConvergentOutcome` **不能互相替代**：模型检查交错，场景检查真实存储 |
@@ -54,52 +54,12 @@
 | [`capability.account-identity/v1#S-14`](../../capabilities/account-identity/v1/contract.md#s-14-激活账号) 前置③在组合层的可观察形式（＝ [`capability.account-identity/v1#S-43`](../../capabilities/account-identity/v1/contract.md#s-43-依据产出之后记录才过期) 的组合侧那一面） | **同一次演练的两面**：能力侧场景 [`#S-43`](../../capabilities/account-identity/v1/contract.md#s-43-依据产出之后记录才过期) 的两支（故障注入支 ＋ 真并发支）——一次尝试走完 ②（依据已在手），让记录过期并跑清除链 ①，**然后**才调 ③；另让 ③ 与清除链 ① 在同一条已过期记录上并发提交 | **未执行** | 责任：提供者。**必须观察到** `account-record-expired`，**账号停在未激活**，本次尝试 `interrupted`；并发支两者**不会都成功**。**绝不能观察到**凭那份依据激活成功。**这是 [S-13](v1/contract.md#s-13-一个可用账号有且仅有一个个人组织) 第三个保护点的唯一真实证据**——模型里它对应 `ActivateOk` 的 `~expired`（变异 M6）。**两边不得各跑各的**：能力侧记「账号停在未激活」，本包记「发起者看到 `interrupted`」，证的是同一件事；`#S-43` 因此是本契约消费的 clause（[S-2](v1/contract.md#s-2-参与方与精确承诺)） |
 | [S-25](v1/contract.md#s-25-装配给的保证-vs-协议须给的保证) 跨进程后由协议兑现的部分 | **本版不验证**：跨进程的新鲜度界尚未定义（[G-3](v1/contract.md#九已知缺口)） | 不适用 | 责任：架构设计。**本版一切结果只保留其单机范围，不得外推。**清除链把这条推进一格：[S-35](v1/contract.md#s-35-个人组织不会变成孤儿) 依赖「已过期」被两边各自现读到同一个答案 |
 
-## 实际执行
-
-**按时间倒序。上面那一组对应当前模型，下面那一组对应旧模型。**
-
-| run id | 任务 id | 配置与范围 | 结果 | evidence |
-|---|---|---|---|---|
-| `2026-09-22-formal-tenant-domain-2` | `account-registration-v1-basic` | [`basic.cfg`](v1/formal/basic.cfg)：`Attempts = {a1, a2}`，`Failures` / `Abandoning` / `Expiring` **全 FALSE**，用 `SafeSpec`（**无公平性**） | **无反例**，退出 0；55 generated · 31 distinct · **0 left on queue**（完整穷尽）· 深度 7 | [原始输出](../../../record/evidence/2026-09-22-formal-tenant-domain-2/account-registration-v1-basic/output/tlc-basic.log) |
-| 同上 | `account-registration-v1-crash` | [`crash.cfg`](v1/formal/crash.cfg)：`Attempts = {a1, a2, a3}`，三个常量**全 TRUE**，用 `SafeSpec` | **无反例**，退出 0；32170 generated · **6978 distinct** · 0 left · 深度 16 | [原始输出](../../../record/evidence/2026-09-22-formal-tenant-domain-2/account-registration-v1-crash/output/tlc-crash.log) |
-| 同上 | `account-registration-v1-progress` | [`progress.cfg`](v1/formal/progress.cfg)：`Attempts = {a1, a2}`，`Failures`／`Abandoning` FALSE、**`Expiring = TRUE`**，用 `Spec`（**带公平性**：每次尝试的 `Organize`／`Activate` 各有 `WF_vars`，`Claim` **刻意不加**） | **无反例**，退出 0；491 generated · **187 distinct** · 0 left · 深度 12；时序性质 2 branches，在 **374** total distinct states 上检查完 | [原始输出](../../../record/evidence/2026-09-22-formal-tenant-domain-2/account-registration-v1-progress/output/tlc-progress.log) |
-| `2026-09-22-formal-tenant-domain` | 同样三个任务 id | **对应旧模型**：`Activate` 守卫是 `orgCount >= 1`、无 `warrant`、无两条 `Rejected` 分支；`progress.cfg` 的 `Expiring = FALSE` | 当时也**全部无反例**：basic 55/31、crash **17600/4422**（深度 13）、progress 时序在 **62** total distinct states 上检查完 | [run README](../../../record/evidence/2026-09-22-formal-tenant-domain/README.md) |
-
-**工具与环境**：两次相同——TLC2 2026.09.12.025210、Eclipse Adoptium 21.0.12.1，4 workers；
-精确版本、主机、时间戳与命令重建说明在
-[run `-2` 的 README](../../../record/evidence/2026-09-22-formal-tenant-domain-2/README.md#工具与环境)。
-**输入快照逐文件带 SHA-256**，与本包版本目录下的同名文件逐字节相同（写本页时核对过）。
-**退出码不在 TLC 日志里**，由主线执行时记录。
-
-**`basic.cfg` 两次的数字逐项相同（55/31/0，深度 7），这不说明模型没变**：
-新增的两条 `Rejected` 分支在 `Expiring = FALSE` 下都不可达，`warrant` 又与 `pc` 同步变化。
-[这是读日志与模型得出的解释，run README 里写明了推理](../../../record/evidence/2026-09-22-formal-tenant-domain-2/README.md#三处数字必须单独解释否则会被读错)。
-
-**run `-2` 没有做的，逐项写明**：
-
-- **变异核对，本 run 一个都没登记**（评审轮一之后是八个）。
-- **两个有效性核对，本 run 一个都没登记。**
-- 上面两行的口径是**「修订者自报，未登记」**，不是「已通过」：那次执行无快照、无原始输出。
-- **规范场景，一条都没演练。**
-
-**上一次 run 那一行是历史记录，不是当前证据。**评审轮一改写了模型与 `progress.cfg`，
-[本页开头已逐项写明改了什么](#验证覆盖与实际证据)；**它的结论不支持证据义务表里的任何一条**。
-它留在这里是为了给出可比对的基线，**不得被引用为「这三个配置在当前模型上跑通过」**。
-
-**三个配置的分工不因为都通过而合并。**`basic.cfg` 里
-`NoOrphanPersonalOrganization` 是平凡的（清除链不发生），
-它在那里的通过**不是** [S-35](v1/contract.md#s-35-个人组织不会变成孤儿) 的证据；
-`progress.cfg` 关掉的两条（`Failures`／`Abandoning`）**就是** [S-19](v1/contract.md#s-19-有前提的进展) 的前提本身，
-不是顺手关掉的——**`Expiring` 那一条不是前提，评审轮一已把它改为开着，run `-2` 跑的就是开着的版本**。
-
-**这两次执行都不提升本契约的状态。**它仍是 `candidate`，未接受、未冻结。
-
 ## 结果与反例
 
 ### 反例：一条都没有
 
-**对当前模型，只有一次运行**：[run `-2`](#实际执行)，三个配置**都没有找到反例**。
-[2026-09-22 的第一次运行跑的是评审轮一改写之前的模型](#实际执行)——
+**对当前模型，只有一次运行**：[run `-2`](verification.md)，三个配置**都没有找到反例**。
+[2026-09-22 的第一次运行跑的是评审轮一改写之前的模型](verification.md)——
 它当时也全部无反例，**但那不是当前模型的结论**，只作可比对的基线。
 **因此不要把「两次都没有反例」当作一句关于本契约的陈述**：它把一个已作废的结果算进了覆盖面。
 下一次执行时按上表的列补行，另记：模型修订（未冻结时写明「未冻结，无 hash 可绑」）、
@@ -108,7 +68,7 @@
 **变异核对与有效性核对的结果单独记**，不与正常运行混在一张表里。
 
 记录多时按执行拆文件并从本页链接，原始产物归
-[`record/evidence/`](../../../record/evidence/README.md)。
+`record/evidence/`。
 
 ### 必须分开陈述的三类结果
 
@@ -133,17 +93,17 @@
 
 - **已执行：architecture-reviewer 批次评审的处置**（2026-09-22）。非阻断 1：[S-34](v1/contract.md#s-34-第二条动作链未激活到期清除) 写死清扫提供者只发起本组合的清除链、不自持依据，因此 [S-22](v1/contract.md#s-22-编排本链的提供者被卸载或换代) 同样覆盖它，`purge-warrant-invalid` 不会因产出方换代而被误记为缺陷；非阻断 3：本页证据义务表**新增一行**「两个发起者在同一条记录上并发」（模型未建此交错，场景形式）。评审整体结论：批次的责任交接闭合，两条阻断均一处措辞／一行登记闭合，不触及能力边界。
 - **已执行：能力拆分投票裁定落地（修正 2 部分）**（2026-09-22，依据
-  [`record/proposals/tenant-capability-split/`](../../../record/proposals/tenant-capability-split/README.md#后续消费)
+  `record/proposals/tenant-capability-split/`
   的主线处置）。三票独立评审**全投维持五份拆分**，主线裁「A ＋ 修两处瑕疵」；
   **本轮只落地修正 2（改写拆分理由）**，修正 1（当前租户身份的存与取移交）未落盘，理由见下。
   **改动直接落在 v1 上**——本契约仍是 `candidate`，未接受、未冻结。
   **[`Registration.tla`](v1/formal/Registration.tla) 与三个 `.cfg` 一个字节没改**
   （它们建模的是注册三步与清除链的交错，**不涉及拆分理由的措辞**），因此
-  [run `-2` 的三行结论全部仍然适用](#实际执行)。
+  [run `-2` 的三行结论全部仍然适用](verification.md)。
 
   | 改的是什么 | 怎么改的 | 对证据的影响 |
   |---|---|---|
-  | **[S-2](v1/contract.md#s-2-参与方与精确承诺) 后注「换一次认证方式就会把整个组织治理重启一遍」** | **整段改写成一张四行表。**那句话在契约层不成立——治理 inject 的是账号能力的读面，**账号提供者换代本来就会重跑治理**，那个方向合不合并都一样。四行分别是：**反方向的半径收敛**（只需要「来者是谁」的消费者不因治理换代重跑，[`capability.account-identity/v1#S-17`](../../capabilities/account-identity/v1/contract.md#s-17-校验登录状态)／[`#S-18`](../../capabilities/account-identity/v1/contract.md#s-18-读账号)）、**契约层的失败隔离**（[`capability.organization-governance/v1#S-43`](../../capabilities/organization-governance/v1/contract.md#s-43-依赖的提供者不可用)／[`capability.account-identity/v1#S-28`](../../capabilities/account-identity/v1/contract.md#s-28-依赖不可用撤除与重启时的在途归属)）、**SYS-DEPLOY 的分布式缝已逐条标价**（[`#S-30`](../../capabilities/account-identity/v1/contract.md#s-30-装配给的保证-vs-协议须给的保证)／[`#S-42`](../../capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证)／本契约 [S-25](v1/contract.md#s-25-装配给的保证-vs-协议须给的保证)）、**账号身份非范围化**（[`#S-12`](../../capabilities/account-identity/v1/contract.md#s-12-账号身份事实不是范围化对象)、SYS-TENANT） | **不新增证据义务，不改任何承诺。**改的是一段设计理由的措辞，**没有动 [S-8](v1/contract.md#s-8-三步次序与责任交接) 的次序、[S-5](v1/contract.md#s-5-终结结果集合) 的终结结果集合、任何映射或提交点**。**catalog 不变**：新引的那批坐标是**拆分理由的依据**，不是本契约据以写出承诺、判定、映射或证据落点的条款，按[登记口径](../../README.md#当前状态)不登记为消费（正文已写明这一句），本契约的消费面仍以 [S-2](v1/contract.md#s-2-参与方与精确承诺) 的表为准 |
+  | **[S-2](v1/contract.md#s-2-参与方与精确承诺) 后注「换一次认证方式就会把整个组织治理重启一遍」** | **整段改写成一张四行表。**那句话在契约层不成立——治理 inject 的是账号能力的读面，**账号提供者换代本来就会重跑治理**，那个方向合不合并都一样。四行分别是：**反方向的半径收敛**（只需要「来者是谁」的消费者不因治理换代重跑，[`capability.account-identity/v1#S-17`](../../capabilities/account-identity/v1/contract.md#s-17-校验登录状态)／[`#S-18`](../../capabilities/account-identity/v1/contract.md#s-18-读账号)）、**契约层的失败隔离**（[`capability.organization-governance/v1#S-43`](../../capabilities/organization-governance/v1/contract.md#s-43-依赖的提供者不可用)／[`capability.account-identity/v1#S-28`](../../capabilities/account-identity/v1/contract.md#s-28-依赖不可用撤除与重启时的在途归属)）、**SYS-DEPLOY 的分布式缝已逐条标价**（[`#S-30`](../../capabilities/account-identity/v1/contract.md#s-30-装配给的保证-vs-协议须给的保证)／[`#S-42`](../../capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证)／本契约 [S-25](v1/contract.md#s-25-装配给的保证-vs-协议须给的保证)）、**账号身份非范围化**（[`#S-12`](../../capabilities/account-identity/v1/contract.md#s-12-账号身份事实不是范围化对象)、SYS-TENANT） | **不新增证据义务，不改任何承诺。**改的是一段设计理由的措辞，**没有动 [S-8](v1/contract.md#s-8-三步次序与责任交接) 的次序、[S-5](v1/contract.md#s-5-终结结果集合) 的终结结果集合、任何映射或提交点**。**catalog 不变**：新引的那批坐标是**拆分理由的依据**，不是本契约据以写出承诺、判定、映射或证据落点的条款，按[登记口径](../../README.md#当前采用)不登记为消费（正文已写明这一句），本契约的消费面仍以 [S-2](v1/contract.md#s-2-参与方与精确承诺) 的表为准 |
 
   **未落盘：修正 1（「当前租户身份」的存与取移交 `capability.account-identity`）。**
   它被一条硬约束挡住——当前租户身份的初值是「该账号的个人组织里的那个租户」，
@@ -154,18 +114,18 @@
   （清扫提供者[「不带任何租户身份」](v1/contract.md#s-2-参与方与精确承诺)，注册跑在账号可用之前）。
 
 - **已执行：PF-001 升到 rev 15**（2026-09-22，
-  [changelog rev 15](../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)）。
+  [changelog rev 15](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）。
   **rev 15 只改 [flows §4](../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作) 成员名单那一行**
   （拆成「有效成员」与「已解除的成员」两行，后者只归超管），**本契约不受影响**——
   它引的七处**一处也不在 flows §4 那张表里，原文逐字未变**（逐处见下一条）。
-  **[decisions §二那条「注册以激活为单一提交点」也特别核过](../../../product/PF-001-identity-scope-and-agent-constraints/decisions.md#二pm-推导)**：
+  **[decisions §二那条「注册以激活为单一提交点」也特别核过](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)**：
   rev 15 在那一节只改了「两类邀约的读面归哪一类」那一行，**本契约引的这一条一字未动**。
   **注册这条链上没有任何角色矩阵能管的动作**：它跑在账号可用之前，那时还谈不上「本组织的成员」，
   更谈不上「已解除的成员」。
   **只改 rev 标注**：抬头与[缺口表下那句「本契约当前的设计依据」](v1/contract.md#九已知缺口)，
   `rev 14` → `rev 15`。**不新增证据义务，已有结论不受影响。**
 - **已执行：PF-001 升到 rev 14**（2026-09-22，
-  [changelog rev 14](../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)）。
+  [changelog rev 14](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）。
   **rev 14 只改了 [flows §4 角色与操作](../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作) 那张表**
   （补三行读面授权，答的是 `capability.organization-governance/v1` 登记的缺口 G-11），
   **本契约不受影响**——它引的是 [§4 账号](../../../product/PF-001-identity-scope-and-agent-constraints/design.md#账号)、
@@ -182,7 +142,7 @@
 - **已执行：评审轮三修订**（2026-09-22，处置表在本轮任务区）。
   **本轮改动直接落在 v1 上**——本契约仍是 `candidate`，未接受、未冻结。
   **`Registration.tla` 与三个 `.cfg` 一个字节没改**，因此
-  [run `-2` 的三行结论全部仍然适用](#实际执行)。逐条落成：
+  [run `-2` 的三行结论全部仍然适用](verification.md)。逐条落成：
 
   | 评审发现与处置 | 本契约怎么改 | 对证据的影响 |
   |---|---|---|
@@ -199,7 +159,7 @@
 - **已执行：评审轮二修订**（2026-09-22，处置表在本轮任务区）。
   **本轮改动直接落在 v1 上**——本契约仍是 `candidate`，未接受、未冻结。
   **`Registration.tla` 与三个 `.cfg` 一个字节没改**，因此
-  [run `-2` 的三行结论全部仍然适用](#实际执行)。逐条落成：
+  [run `-2` 的三行结论全部仍然适用](verification.md)。逐条落成：
 
   | 评审发现与处置 | 本契约怎么改 | 对证据的影响 |
   |---|---|---|
@@ -218,7 +178,7 @@
   **本包此前在规范场景上没有任何已执行证据，因此本轮没有旧场景结果需要重判；
   TLC 那三行因为模型未改而全部仍然适用。**
 
-- **已执行：PF-001 升到 rev 13**（2026-09-22，[changelog](../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)）。
+- **已执行：PF-001 升到 rev 13**（2026-09-22，[changelog](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）。
   **本契约引的正文逐条复核过**，结论是**条款一条没改，但清除链多了一条正向依据**：
 
   | 本契约引的哪一处 | rev 13 动了什么 | 复核结论 |
@@ -252,8 +212,8 @@
   **新增的场景义务在[证据义务表](#证据义务)里各就各位，不集中在表尾**——
   按它们所属的条款排，[S-8](v1/contract.md#s-8-三步次序与责任交接) 的几条挨着 [S-8](v1/contract.md#s-8-三步次序与责任交接)，
   [S-34](v1/contract.md#s-34-第二条动作链未激活到期清除) 的几条挨着 [S-34](v1/contract.md#s-34-第二条动作链未激活到期清除)。
-  **本轮之后 TLC 跑过一次**：[run `2026-09-22-formal-tenant-domain-2`](#实际执行)，三个配置全部无反例。
-  [评审轮一之前那次运行的结论不再适用](#实际执行)——模型与 `progress.cfg` 都改了。
+  **本轮之后 TLC 跑过一次**：[run `2026-09-22-formal-tenant-domain-2`](verification.md)，三个配置全部无反例。
+  [评审轮一之前那次运行的结论不再适用](verification.md)——模型与 `progress.cfg` 都改了。
   **变异与有效性核对仍未登记。**
 
 - **已执行：两份参与方契约成稿，[S-2](v1/contract.md#s-2-参与方与精确承诺) 的消费面改用真实条款号**（2026-09-22）：
@@ -262,7 +222,7 @@
   逐条核对过「向本组合提供的保证」：`#S-13` 的幂等边界是登录标识、`#S-14` 对已激活无二次效果、
   `#S-20` 在单次提交内产生组织＋有效成员关系＋超级管理员且**明写不要求账号已激活**——
   与本表原有的三行保证**逐条对上，没有冲突**。**本契约语义不变，不需要新版本**；已有证据（当前为空）不受影响。
-- **已执行：PF-001 升到 rev 12**（2026-09-22，[changelog](../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)）。
+- **已执行：PF-001 升到 rev 12**（2026-09-22，[changelog](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）。
   **本轮改动直接落在 v1 上，不发布第二个版本**——本契约仍是 `candidate`，
   未接受、未冻结，[不可原地覆盖的是已发布规格](../../README.md)。
   **这一条推翻了本文件更早一版写的「须发布新版本」**：那句话的前提是本契约已发布，而它没有。

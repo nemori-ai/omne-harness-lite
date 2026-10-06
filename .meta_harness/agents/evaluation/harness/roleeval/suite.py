@@ -20,7 +20,7 @@ METRIC_KINDS = ("binary", "float", "judge")
 LABEL_LIMIT = 14
 SIGNOFFS = ("cases", "grading")
 WORKSPACE_KEYS = {
-    "material": ("base", "material_paths", "material_excludes", "subject_paths"),
+    "material": ("subject_paths",),
     "checkout": ("base", "excludes", "setup", "linked", "drop", "commit"),
 }
 
@@ -62,6 +62,8 @@ class Material:
     seeds: tuple[Seed, ...]
     contract: str | None = None
     known_issues: tuple[dict[str, str], ...] = ()
+    fixture: str | None = None
+    required_inputs: tuple[str, ...] = ()
     base: str | None = None
     source: str | None = None
     paths: tuple[str, ...] = ()
@@ -118,11 +120,15 @@ class Flow:
 
     def base(self, material: Material) -> str:
         """The commit a material is taken from: its own when it is a historical snapshot, else the suite's."""
-        return material.base or self.workspace["base"]
+        return f"fixture:{material.id}" if self.kind == "material" else material.base or self.workspace["base"]
 
-    def material_paths(self, material: Material) -> list[str]:
-        """What a copy takes from that commit: the suite's paths, and those only this material was reviewed against."""
-        return [*self.workspace["material_paths"], *material.paths]
+    def fixture(self, material: Material) -> Path:
+        if not material.fixture or Path(material.fixture).is_absolute():
+            raise SuiteError(f"{self.id}/{material.id}: missing or invalid fixture path")
+        path = (self.root / material.fixture).resolve()
+        if not path.is_relative_to(self.root.resolve()) or not path.is_file():
+            raise SuiteError(f"{self.id}/{material.id}: fixture is missing or outside suite root")
+        return path
 
     def subject_paths(self) -> list[str]:
         """What a copy takes from the working tree; a checkout takes everything from its commit."""
@@ -188,6 +194,9 @@ def _targets(root: Path, oracle: dict[str, Any]) -> dict[str, list[str]]:
 
 
 def _material(root: Path, raw: dict[str, Any], *, judged: bool, targets: dict[str, list[str]]) -> Material:
+    required = raw.get("required_inputs", [])
+    if not isinstance(required, list) or any(not isinstance(path, str) or not path.strip() for path in required):
+        raise SuiteError(f"{root.name}/{raw['id']}: required_inputs must be a list of non-empty paths")
     # A judged material says what should be reported, even when that is nothing; the others have no seeds.
     seeds = tuple(Seed(id=seed["id"], kind=seed["kind"], where=seed["where"], truth=seed["truth"],
                        op=seed.get("op"), check=seed.get("check"), quote=seed.get("quote"),
@@ -199,7 +208,8 @@ def _material(root: Path, raw: dict[str, Any], *, judged: bool, targets: dict[st
         task = {**task, "target_tests": targets.get(raw["id"])}
     return Material(id=raw["id"], target=raw["target"], brief=root / raw["brief"], tags=tuple(raw.get("tags", ())),
                     prepare=tuple(raw.get("prepare", ())), seeds=seeds, contract=raw.get("contract"),
-                    known_issues=tuple(raw.get("known_issues", ())), base=raw.get("base"), source=raw.get("source"),
+                    known_issues=tuple(raw.get("known_issues", ())), fixture=raw.get("fixture"),
+                    required_inputs=tuple(raw.get("required_inputs", ())), base=raw.get("base"), source=raw.get("source"),
                     paths=tuple(raw.get("material_paths", ())), task=task, defects=tuple(raw.get("defects", ())),
                     expected=raw.get("expected"), allowed_write=tuple(raw.get("allowed_write", ())),
                     delivery_note=root / raw["delivery_note"] if raw.get("delivery_note") else None)
@@ -218,6 +228,8 @@ def _check(flow: Flow) -> None:
         if key not in flow.workspace:
             raise SuiteError(f"{flow.id}: workspace lacks {key!r}")
     _check_family(flow)
+    if flow.kind == "material" and any(key in flow.workspace for key in ("base", "source", "material_paths")):
+        raise SuiteError(f"{flow.id}: historical material source protocol is retired")
     if "claude-code" not in flow.host:
         raise SuiteError(f"{flow.id}: no claude-code host settings")
     metric_ids = [metric["id"] for metric in flow.metrics]
@@ -232,6 +244,10 @@ def _check(flow: Flow) -> None:
     if len(set(material_ids)) != len(material_ids):
         raise SuiteError(f"{flow.id}: duplicate material ids")
     for material in flow.materials:
+        if flow.kind == "material":
+            flow.fixture(material)
+            if material.base or material.source or material.paths:
+                raise SuiteError(f"{flow.id}/{material.id}: historical material source protocol is retired")
         if not material.brief.is_file():
             raise SuiteError(f"{flow.id}/{material.id}: brief {material.brief.name} does not exist")
         seed_ids = [seed.id for seed in material.seeds]

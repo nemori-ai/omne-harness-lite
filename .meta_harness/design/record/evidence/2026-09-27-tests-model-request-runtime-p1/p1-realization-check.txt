@@ -1,9 +1,0 @@
-ERROR: realization/apps/model-request-acceptance/README.md:3: kind 写的是「assembly。」，只能是 provider 或 assembly
-ERROR: realization/packages/assets/evaluation-input-store/README.md:3: kind 写的是「`provider`，2026-09-27 首稿，**candidate**。」，只能是 provider 或 assembly
-ERROR: realization/packages/assets/evaluation-input-store/README.md: 没有「- 源码位置：」行
-ERROR: realization/packages/core/agent-definition/README.md:3: kind 写的是「`provider`；纯数据模块，候选节点 rev 1（2026-09-27）。」，只能是 provider 或 assembly
-ERROR: realization/packages/core/asset-evaluation/README.md:3: kind 写的是「`provider`；节点与源码路径均为 `packages/core/asset-evaluation`。v3 包真实存在；本次只起草 v4 映射，不修改源码。」，只能是 provider 或 assembly
-ERROR: realization/packages/core/messages/README.md:3: kind 写的是「`provider`；节点及源码位置仍为 `packages/core/messages`，已有 v3 源码。本次是[独立的 v4 增量设计](v4-design.md)，不覆盖已接受的 [design.md](design.md)。」，只能是 provider 或 assembly
-ERROR: realization/packages/core/model-profile/README.md:3: kind 写的是「`provider`，节点和源码路径均为 `packages/core/model-profile`；现有包已实现 v2，本次不是新建包。」，只能是 provider 或 assembly
-ERROR: realization/packages/core/model-response/README.md:3: kind 写的是「`provider`；节点与源码路径均为 `packages/core/model-response`。」，只能是 provider 或 assembly
-FAIL: 实现映射节点对账发现 8 处问题。

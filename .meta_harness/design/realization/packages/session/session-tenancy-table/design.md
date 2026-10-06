@@ -1,10 +1,10 @@
 # session-tenancy-table 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 ## 实现路径与来源
 
-**自建一个薄插件：一张表、一个读。**「会话持有哪个租户身份」是本项目的产品语义（PF-015 §6.12），没有上游对应物；存储走本仓库已实现的 `core/storage` 协议与 `infra/storage-sql` 提供者（[D-026](../../../../record/decisions/infrastructure-persistence-choices/decision.md)），不另开连接、不另选库。
+**自建一个薄插件：一张表、一个读。**「会话持有哪个租户身份」是本项目的产品语义（PF-015 §6.12），没有上游对应物；存储走本仓库已实现的 `core/storage` 协议与 `infra/storage-sql` 提供者（D-026），不另开连接、不另选库。
 
 | 用什么 | 从哪来 | 用来做什么 |
 |---|---|---|
@@ -14,7 +14,7 @@
 | `SessionRef` | [`core/messages`](../../core/messages/README.md) | 会话指认的表示层校验 |
 | `definePlugin` | [`core/kernel-basis`](../../../../../../packages/core/kernel-basis/README.md) | 插件骨架 |
 
-**Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）。
+**Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（D-025）。
 **配置**：本插件**没有 config**，也**没有策略配置项**——一个读，没有重试、计时、缓冲或上限可调。配置错误政策（启动失败）因此不产生本节点的条目。
 
 ## 公开面
@@ -104,7 +104,7 @@
 |---|---|---|---|
 | R-ST1 | 一次只读事务读一行，看到的是一个已提交快照 | S-8 ④ | `read(fn)`，P-6 |
 | R-ST2 | 主键唯一，冲突可识别且名字稳定 | S-5 第 1 条 | `UniqueViolation { constraint: 'session_tenancy_pkey' }`，P-11 |
-| R-ST3 | 提交之后跨进程重启仍在 | S-6、S-13 | P-7；**断电边界**：`synchronous = NORMAL` 下操作系统崩溃可丢最后一段已提交事务（[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md)）——STT-3 |
+| R-ST3 | 提交之后跨进程重启仍在 | S-6、S-13 | P-7；**断电边界**：`synchronous = NORMAL` 下操作系统崩溃可丢最后一段已提交事务（D-027）——STT-3 |
 | R-ST4 | 读不到可识别，不返回空、不返回旧快照 | S-7、S-15 | `StorageUnavailable`，P-8 |
 | R-ST5 | 缺陷（表不在、列不在）不折成不可用 | 失败映射 | `StorageDefect`，P-8 |
 | R-ST6 | 迁移幂等（`IF NOT EXISTS`），主键不命名 | 依 [storage-sql 对迁移文件的要求](../../infra/storage-sql/design.md#依赖作用域与绑定) | 装配合成 |
@@ -149,7 +149,7 @@
 |---|---|---|---|---|
 | STT-1 | **产品装配没有写入方**（契约 G-2）：表里没有一行，每一次读都是 `sessionNotFound` | 执行宿主 `submit`（整批失败）、派发器解析执行环境句柄、模型请求运行时凡要发起租户的操作（MRR-N10）、注册表的会话事实 | 会话那一程 PF-015 | 会话创建的契约写出那一写，且与会话日志第一条的租户同源 |
 | STT-2 | **真承接者未到**（契约 G-1，据点装配 C-13） | 同上 | 主线 → 会话那一程 | 那一程的会话契约收下或取代 ST v1，提供者节点互指或取代本节点 |
-| STT-3 | **「答出之后不变」的存储边界**（已知边界，主线已裁（[D-060 §八 N-40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)））：断电时 SQL 一侧可丢最后一段、升级未确认即撤除时快照恢复——边界与论证见 [session-log-jsonl SLJ-2](../session-log-jsonl/design.md#实施缺口与消费者影响)，本节点不另论证。落在本节点的后果：一个答过 `T` 的会话可能改答 `sessionNotFound`（契约 S-6 第 1 条的前提「存储持久」在那一刻不成立） | S-6、S-13 | 主线（已知边界）；装配（开闸在确认之后） | 不闭合的已知边界；升级恢复那一条来路由「开闸在确认之后」挡住——前提同 [SLJ-2](../session-log-jsonl/design.md#实施缺口与消费者影响)，已由 [cli 升级确认在第一次受理之前](../../../apps/cli/design.md#升级确认在第一次受理之前) 承接（据点清单 A-28，产品与验收装配同一时点：全部 fiber `ACTIVE` 之后 `guard.confirm()`，确认之后才开闸；证据义务 `assembly.upgrade-confirmed`，名候选，归 cli 节点） |
+| STT-3 | **「答出之后不变」的存储边界**（已知边界，主线已裁（D-060 §八 N-40））：断电时 SQL 一侧可丢最后一段、升级未确认即撤除时快照恢复——边界与论证见 [session-log-jsonl SLJ-2](../session-log-jsonl/design.md#实施缺口与消费者影响)，本节点不另论证。落在本节点的后果：一个答过 `T` 的会话可能改答 `sessionNotFound`（契约 S-6 第 1 条的前提「存储持久」在那一刻不成立） | S-6、S-13 | 主线（已知边界）；装配（开闸在确认之后） | 不闭合的已知边界；升级恢复那一条来路由「开闸在确认之后」挡住——前提同 [SLJ-2](../session-log-jsonl/design.md#实施缺口与消费者影响)，已由 [cli 升级确认在第一次受理之前](../../../apps/cli/design.md#升级确认在第一次受理之前) 承接（据点清单 A-28，产品与验收装配同一时点：全部 fiber `ACTIVE` 之后 `guard.confirm()`，确认之后才开闸；证据义务 `assembly.upgrade-confirmed`，名候选，归 cli 节点） |
 | STT-4 | **`./seed` 是产品包里的一段写代码**：没有结构检查时，任何产品组件都能 import 它补出契约没有的写面 | 契约 S-2「写下这一映射本版不收」 | 本节点 ＋ ts-checks owner | 结构检查「只有 `apps/cli` 的测试代码 import `./seed`」落地并带故意违反即失败的自测（V-1）；**这是本节点「可实施」的前置**——检查落地之前，本节点不声称可实施。直接对表 `INSERT` 的组件这条检查挡不住（`UPDATE`／`DELETE` 由 V-1 前半守；关键选择三的第三列与右列同样），本版不另设检查 |
 | STT-5 | **产品据点清单本版不装本节点**（据点装配关键选择 5） | —— | 主线 | 据点装配的改选条件成立 |
 

@@ -1,3 +1,0 @@
-A-2 [PF-001 flows §二「注册 1：凭据不符合规则 ⇒ 具体哪条规则不满足」 vs EC S-7／Schema RouteFailure（只有具名值）] 凭据短于政策的最短长度（minLength 12，给了 5 个字符）: 线上读成 failure credential-rejected（transcript 里 label「weak credential」）
-A-1 [PF-001 flows §二「撤销登录状态 2：指定的那一个已经失效 ⇒ 这个登录已经不在有效之列」 vs EC S-20／AI S-16「已撤销 ⇒ ok」] 列表上指定的那一个已被撤销之后再撤它: 线上读成 result "ok"（transcript 里 label「ada1:revokeLoginState」）
-A-3 [EC S-21 解除隶属「重发」一列 vs OG S-33 ②⑦] 原上级一方（cy，Y 的超管）在解除之后重发同一次解除: 线上读成 failure notAuthorized（transcript 里 label「cy1:dissolveAffiliation」）

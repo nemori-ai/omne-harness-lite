@@ -1,7 +1,0 @@
-# 交互输入生命周期的有限表达
-
-PreparedInput按S16抽象一个已经捕获身份的动作、一个外部选择变更、一次交互及一次目标和结算。PreviewMatchesExecution、NoLateSend、NoEarlyRelease、NoForgottenInteraction分别区分预览后跟随新登录、取消后迟到继续发请求、结算未完成释放、发出取消就当交互已完成；各有独立负控。
-
-Next弱公平与交互/网络/存储最终实际结束是进展前提。模型没有文件读取、TTY模式、Unicode、密码字节、完整结果矩阵或真实资源；那些由实现及CQ实际验证。初始已捕获original只覆盖捕获后的窗口；不替代CLS自身在捕获/初始化期间的正确性。
-
-v1模型和已有实现证据只在原完整Input路径继续适用；本模型也不扩大其结论。实际执行输入/日志归record/evidence，不写在规范目录。

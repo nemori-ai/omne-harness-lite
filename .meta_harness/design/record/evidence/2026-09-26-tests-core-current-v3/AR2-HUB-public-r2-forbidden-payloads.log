@@ -1,6 +1,0 @@
-../../tmp/w3-arrival-v3-equivalence/epoch3-eabfff0f/consumer/negative/forbidden-payloads.ts(5,46): error TS2322: Type '"text"' is not assignable to type '"image" | "file" | "tool_result"'.
-../../tmp/w3-arrival-v3-equivalence/epoch3-eabfff0f/consumer/negative/forbidden-payloads.ts(6,46): error TS2322: Type '"tool_call"' is not assignable to type '"text" | "image" | "thinking" | "voice" | "file" | "tool_result"'.
-../../tmp/w3-arrival-v3-equivalence/epoch3-eabfff0f/consumer/negative/forbidden-payloads.ts(7,53): error TS2322: Type 'string' is not assignable to type 'JsonNumber'.
-undefined
-/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tools/core-verification:
- ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 2: tsc -p /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tmp/w3-arrival-v3-equivalence/epoch3-eabfff0f/consumer/tsconfig-negative-forbidden-payloads.json --skipLibCheck false

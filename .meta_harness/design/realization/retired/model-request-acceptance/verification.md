@@ -6,7 +6,7 @@ revision 2，candidate，未接受。下面是本装配必须执行的验收方�
 
 候选入口按显式配置运行指定阶段/场景，在已核本机 owner 输出上下文交付机器可读总结果及逐场景结果：runId、scenarioId、状态（pass/fail/blocked/not_applicable）、失败或不可适用原因、实际代码/契约/配置版本摘要、开始/结束与实际资源停止状态、证据位置。模型行完整携带精确 ModelProfileRef/配置来源上下文、完整 ModelAdaptationBinding（含 implementation.name 及无损 configuration.values）、固定请求 provider route 与上游实际 provider 原串，并带 public/service 路径、门编号、request/generation/response 对照引用、费用 ledger 项引用和缓存原始计数；允许以受限证据引用承载完整值，读回缺失时不得判为匹配。秘密配置仅记“已提供/校验结果”，不散列后充当公开凭据标识；它们不能混入无秘密的 adaptation values。
 
-配置快照、版本清单、运行命令说明、机器输出和保留的失败反例组成可重跑包，持久接受证据归 [record/evidence](../../../record/evidence/README.md)；实际 run 尚未形成，不提前建空证据绑定。每次归档扫描完整秘密哨兵和片段、来源引用、真实内部身份的禁止外传字段。报错、stdout/stderr、trace、metrics、请求头/体、重试诊断、证据索引都在扫描范围；发现泄漏停止归档/后续发送，交相应 owner 修复，保留受限失败证据。不能删除失败只留成功，也不能把敏感原文贴进机器总结果。
+配置快照、版本清单、运行命令说明、机器输出和保留的失败反例组成可重跑包，持久接受证据归 record/evidence；实际 run 尚未形成，不提前建空证据绑定。每次归档扫描完整秘密哨兵和片段、来源引用、真实内部身份的禁止外传字段。报错、stdout/stderr、trace、metrics、请求头/体、重试诊断、证据索引都在扫描范围；发现泄漏停止归档/后续发送，交相应 owner 修复，保留受限失败证据。不能删除失败只留成功，也不能把敏感原文贴进机器总结果。
 
 模型认证的匹配值为 **精确 ModelProfileRef/配置来源上下文＋完整 ModelAdaptationBinding＋实际 provider route**，具体表示与相等规则见 [design 的认证边界](design.md#认证结果的完整匹配边界)。official ref 保留 origin/routeName；custom ref 保留 origin/完整 scope/routeName，包括所属组织或租户身份。implementation `{name, revision}`、definition `{modelId, revision}`、configuration `{revision, values}` 全部保留；五个字符串逐码点比较，values 严格无损 JSON 相等，完整命名范围不能压成裸 revision。无档案独立调用也必须保存显式配置来源上下文；本轮 official public 路径保存对应官方 ref 的真实来源快照。
 
@@ -61,7 +61,7 @@ A-V13 的所有修订字符串都只在对应完整命名范围内解释；实�
 
 ## 37 个模型的生产矩阵
 
-清单固定到[已确认研究卡片](../../../record/evidence/2026-09-27-probe-model-request-runtime/model-evidence-summary.json)，不会按上游新增目录自动扩大。本表仅以 modelId 列出所需验证范围，**所有生产认证状态均为未开始**；实际机器行必须按上文完整档案/配置来源上下文、完整 binding 和实际 provider route 展开，modelId 本身不是旧证据匹配键。各行冻结完整来源、不由厂商前缀推导，同时分别关联 public/service 证据；费用上限不允许用脚本 warm-hit 为任一列补 pass。
+清单固定到已确认研究卡片，不会按上游新增目录自动扩大。本表仅以 modelId 列出所需验证范围，**所有生产认证状态均为未开始**；实际机器行必须按上文完整档案/配置来源上下文、完整 binding 和实际 provider route 展开，modelId 本身不是旧证据匹配键。各行冻结完整来源、不由厂商前缀推导，同时分别关联 public/service 证据；费用上限不允许用脚本 warm-hit 为任一列补 pass。
 
 | 厂商／行数   | 必须分别出具证据的 modelId                                                                                                                                                                                                                                                                     |
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -87,15 +87,6 @@ A-V13 的所有修订字符串都只在对应完整命名范围内解释；实�
 | 缓存/费用      | 自动缓存 omit 手工控制与显式缓存配置分验；实际 read/write token 与已知零/未知、冷暖对照、TTL/断点实际发送、usage.cost 质量/单位、prompt token 组成、BYOK含义、generation对账与精确 ledger  | 正写不等于命中；read>0 才是该请求读命中；首请求可能已有缓存，暖读不证明独占冷态或 TTL 到期；要声称保留期必须另做 expiry 实验 |
 
 当前策略输入为 transport v3 的逐模型绑定：OpenAI/DeepSeek 等自动模式不得为了演示命中加隐藏控制；Anthropic 等显式模式的 TTL/断点值必须来自完整配置。Qwen/Z.ai 的具体 route 不同可能采用不同策略，禁止按整个家族统一强制 automatic/explicit。unsupported 模态/工具/replay 的公开提供边界必须先明确，测试仅核对应拒绝；不能看到失败后临时缩小模型能力。
-
-## 实际执行
-
-| 运行                    | 输入与范围                                        | 结果                                                                                 | 证据与限制                                                        |
-| ----------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| 2026-09-27 起草输入核对 | catalog、D-072/073/074、当前共享 ledger、研究卡片 | 37 张研究卡；ledger 162 settled，合计 USD `1.057233989500000000`；app 源码目录不存在 | 只读起草核对；运行期必须重读 ledger，不硬编码余额；研究摘要见上链 |
-| 2026-09-27 设计检查     | 四件套与全设计结构，formal skip                   | exit 0；`PASS: design tree … passed gate=internal; formal=skip.`                     | 不属于应用验收；所有 formal 明确 skipped，不计模型或存储通过      |
-
-实际执行命令为工作树的 `.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip`；revision 2 修订后同样 exit 0，`passed gate=internal; formal=skip`。`pnpm exec prettier --check` 对本节点四文件报告 `All matched files use Prettier code style!`，`git diff --check` 对本节点 exit 0；独立清单核对报告 `PASS: four files, exact 37 model IDs, no task-directory references`。这些只说明结构、格式与清单一致，不能成为 A-V0～A-V14 的通过证据。
 
 ## 覆盖缺口与接受边界
 

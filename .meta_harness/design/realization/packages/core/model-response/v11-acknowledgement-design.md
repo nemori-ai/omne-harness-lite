@@ -1,6 +1,6 @@
 # ACK 保留例外与完整响应值的接续
 
-2026-09-29，revision1，candidate，未接受/未实施，新增binding0。输入为MR11 S49及RT12/MS8/CA4同批候选、PF013rev17§6.19；前驱D110的v10。完整PendingModelResponse和ModelResponse字段形状不因ACK改变，变化是合法确认后模型副本保管责任结束，以及后继真实处分的来源核验承接。
+当前技术采用范围与排除见本页“当前采用范围”；不据此宣称实现或验证完成。
 
 本节点仍纯数据包，没有Cordis plugin/service/fiber、Storage/权限或删除任务。共同D025 Cordis4.0.4不由本包直接消费；运行行为由现model-request-runtime承担。
 
@@ -20,3 +20,10 @@
 迁移包括当前Schema/类型引用、公开精确资源与packed跨包消费者、README/README_ZH的Pending持有与ACK后核验责任说明；不保留旧实现入口，不修改冻结历史资源。当前源码尚未依据此稿更改，验收见verification R11-V1～V4，bindings无新增。
 
 选择权衡：新增pure摘要验证wrapper会重复MS8算法且可能暗授真实来源信任，因此直接复用MS8纯digest构件，由runtime组合当前来源/资格，再用本包既有完整值判定。代价是工程验收需覆盖跨包组合；无需新的共享数据平台。独立评审待完成。
+
+## 当前采用范围
+
+RT12/MS8/MR11/CA4 的 ACK 增量与原值/原账性质；messages 唯一拥有 ACK 记录和无损语义摘要，response 保持完整 Pending/final，accounts 只做原纯值费用计算。投影仅承接该窄增量。
+
+技术采用不表示实现或实际验证已完成。验证义务：各 owner 的 M8/R11/A4 验证义务；ACK 不授予写权、不等于处分；final > ACK witness > ready 按同 ResponseId 唯一原账；不能以 shape/brand 成功证明真实权限/来源/释放。
+范围之外：通用 GC/内容/账务服务；完整 Session/Run/Agent；独立 invokeModel 的 ACK 义务。

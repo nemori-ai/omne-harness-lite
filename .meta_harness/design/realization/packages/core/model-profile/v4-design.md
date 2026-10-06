@@ -1,6 +1,6 @@
 # model-profile v4 增量实现设计
 
-本稿为 **candidate**，兑现 `(omne-harness-lite-design-2026-09-15, data.model-profile, 4)`；[catalog](../../../../registry/catalog.json) 登记为 candidate，无本版接受。下文 S-n 指 [v4 契约](../../../../spec/data/model-profile/v4/contract.md)。需求依据为 [PF-013 rev 14](../../../../product/PF-013-model-profiles-and-invocation/design.md)及 [D-096](../../../../record/decisions/model-profile-input-limits-product-adoption/decision.md)。[v3 增量](v3-design.md)和 [v2 设计](design.md)保持原文与采用范围。
+本稿为 **candidate**，兑现 `(omne-harness-lite-design-2026-09-15, data.model-profile, 4)`；[catalog](../../../../registry/catalog.json) 登记为 candidate，无本版接受。下文 S-n 指 [v4 契约](../../../../spec/data/model-profile/v4/contract.md)。需求依据为 [PF-013 rev 14](../../../../product/PF-013-model-profiles-and-invocation/design.md)及 D-096。[v3 增量](v3-design.md)和 [v2 设计](design.md)保持原文与采用范围。
 
 ## 实现路径与公开面
 
@@ -46,7 +46,7 @@ root/schema 切换与消费者迁移是同一集成增量：messages v5、model-
 
 ## Cordis、依赖、存储与装卸
 
-本节点是纯值模块，无服务键、fiber、inject、事件、租户实例或存储要求（0 项），没有跨 owner 同提交承诺。本版不引入上游机制假设；项目 Cordis 采用仍为 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)，本包不依赖 Cordis，basis 绑定不适用。
+本节点是纯值模块，无服务键、fiber、inject、事件、租户实例或存储要求（0 项），没有跨 owner 同提交承诺。本版不引入上游机制假设；项目 Cordis 采用仍为 D-025 的 4.0.4，本包不依赖 Cordis，basis 绑定不适用。
 
 精确语义依赖保持 identity-values/v1、offer-expiry/v1、content-blocks/v2，与 MP4 catalog 一致；Schema 分别使用已存在的固定公开入口，JSON 数值设施沿 content-blocks 公共语义。固定 Schema 按规范原件逐字节分发，编译成功后同步纯函数可用；缺依赖、坏规范副本或内部分类不一致暴露制品/实现错误，不伪装为用户 malformed 或档案不存在。
 

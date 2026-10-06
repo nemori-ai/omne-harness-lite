@@ -4,9 +4,9 @@
 
 ## 契约与实现路径
 
-消费 [`data.loop-extension/v4`](../../../../spec/data/loop-extension/v4/contract.md) S-1～S-41（LC4），已由 [D-073](../../../../record/decisions/model-current-input-contracts-adoption/decision.md) 技术接受；精确状态以 [catalog](../../../../registry/catalog.json) 为准。MP3/MS4 已接受。产品来源和 rev 沿 LC4：PF-012 rev 15、PF-013 rev 13 等，不另改位置、干预力或拓展件政策。
+消费 [`data.loop-extension/v4`](../../../../spec/data/loop-extension/v4/contract.md) S-1～S-41（LC4），已由 D-073 技术接受；精确状态以 [catalog](../../../../registry/catalog.json) 为准。MP3/MS4 已接受。产品来源和 rev 沿 LC4：PF-012 rev 15、PF-013 rev 13 等，不另改位置、干预力或拓展件政策。
 
-继续提供 TypeScript 纯值函数、作者协议输入/输出表示、单条结论判定与属性声明推出；复用既有实现中的合法组合表、严格 JSON、无损数及 Schema 技术适配，仅升级有真实差异的版本装配。没有 Cordis 服务、事件派发、LLM 基类或插件；作者看到的“位置”和消息值不成为 Cordis event。Cordis 的项目采用版本仍为 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/decision.md)），本节点无 Cordis 依赖，因此没有需要新增 basis 绑定的机制主张。
+继续提供 TypeScript 纯值函数、作者协议输入/输出表示、单条结论判定与属性声明推出；复用既有实现中的合法组合表、严格 JSON、无损数及 Schema 技术适配，仅升级有真实差异的版本装配。没有 Cordis 服务、事件派发、LLM 基类或插件；作者看到的“位置”和消息值不成为 Cordis event。Cordis 的项目采用版本仍为 4.0.4（D-025），本节点无 Cordis 依赖，因此没有需要新增 basis 绑定的机制主张。
 
 ## 公开面与版本绑定
 

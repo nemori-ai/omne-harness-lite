@@ -1,7 +1,0 @@
-# QA 报告文字勘误
-
-2026-10-04，独立实施评审在核对已冻结 QA 报告时发现：`qa-candidate/report.md` 的 B5.protected 写“只有 clock.ts 路径注释不同”，与该报告引用的 `source-diff-retry2/source-diff.json` 原 SHA 不符。
-
-原机读输入、主会话 `protected-source-readback-final.json` 及实施评审的独立读回均确认 52 个保护文件字节相同，其中 clock.ts 的 BASE/HEAD SHA 同为 `33e95524` 前缀的完整散列。此处采用机读字节事实；不存在本批对该算法注释或实现的差分。
-
-这是文字误差，不影响保护文件判据及结果。原 QA 报告和 871 项清单保持冻结；本勘误单独保全，不改写原结果。精确散列及判断见独立实施评审 `final-supplement.md`。

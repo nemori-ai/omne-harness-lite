@@ -122,7 +122,7 @@ NOT RUN: TLC/Alloy; production old-format rejection; current-generation recovery
 
 ## 当前3实际模型运行（2026-09-26）
 
-[2026-09-26-formal-core-v3](../../../record/evidence/2026-09-26-formal-core-v3/README.md) 保存当前3冻结输入的实际执行与指定变异，主调度核原文/工具/冻结资源/归档字节，独立表达对应复核无阻断。按逐command的SAT/UNSAT与有解实例读取，263主读数中Messages11（含五变异），不是按退出0宣称通过；Alloy无正式task/binding。有限scope、被构造吸收的前提及实现范围以run和本版formal入口为准。旧执行输入不重标当前3；产品/真实组合仍独立验收。
+2026-09-26-formal-core-v3 保存当前3冻结输入的实际执行与指定变异，主调度核原文/工具/冻结资源/归档字节，独立表达对应复核无阻断。按逐command的SAT/UNSAT与有解实例读取，263主读数中Messages11（含五变异），不是按退出0宣称通过；Alloy无正式task/binding。有限scope、被构造吸收的前提及实现范围以run和本版formal入口为准。旧执行输入不重标当前3；产品/真实组合仍独立验收。
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
@@ -199,7 +199,7 @@ NOT RUN: TLC/Alloy; production old-format rejection; current-generation recovery
 ### 尚无的记录
 
 V-2～V-10、V-12 **一条执行记录也没有**。起草时的手核只保证 `examples.md` 的实例与它们的标注在起草者眼里不互相矛盾，
-**未登记、无输入快照、未进 [`record/evidence/`](../../../record/evidence/README.md)**，不作为任何一条义务的证据。
+**未登记、无输入快照、未进 `record/evidence/`**，不作为任何一条义务的证据。
 
 首次执行时在此记录工具与版本、环境、配置、输入范围、可复现步骤与原始结果位置；原始产物归 `record/evidence/`。
 **必须分开陈述**：Schema 校验的结果、拒绝值一致性的结果、日志序列检查的结果、规范场景演练的结果、真实组合的符合性——**几者不能互相冒充**。
@@ -276,7 +276,7 @@ V-2～V-10、V-12 **一条执行记录也没有**。起草时的手核只保证 
   **本版的全部证据只保留其单机范围，不得外推。**
 - **2026-09-24 切换事实记路由名（PF-013 rev 12；候选，未冻结，原地改）**：[S-49](v2/contract.md#s-49-模型请求运行时写的五种记录不是消息) 表里 `model_selection_changed` 的成员由 `profile`（`ModelProfileRef`）改为 `routeName`（`data.model-profile/v2#S-2` 的 `RouteName`）——产品正文定「用哪个模型」记路由名、落到哪一行由按层覆盖定，切换就是改这一格的值。Schema `ModelSelectionChangedRecord` 同改；实例第 313 行（通过）改为带 `routeName`，第 323 行（拒绝）改为带旧的 `profile` 引用。依赖表那一行改为 `S-2`、`S-5`；catalog 同步。**表示变更**：带 `profile` 的旧记录按新 Schema 被拒（`malformed`）。对证据：没有既有执行记录。
 
-- **2026-09-24 第一轮独立评审修复（候选未冻结，原地改）**——逐条处置见[独立评审](#独立评审)：
+- **2026-09-24 第一轮独立评审修复（候选未冻结，原地改）**——逐条处置见独立评审：
   - **产品依据逐 topic 复核到当前 rev**（按各 topic changelog 逐版读）：
     PF-009 rev 7→8：**`SystemMessage` 不落日志、每次组装现算** ⇒ S-1、S-7 改写，S-29 ④ 删去（编号保留），S-32 加 ⑦，Alloy 删 `SystemMsg`，G-9 闭合；「这次尝试的账」统一为「那次模型调用的账」⇒ S-10、S-21、S-48 措辞；**工具帧出错照常收尾** ⇒ S-13 写明成立判据、S-14 给出对应表；在途快照、入站语音、「开口是账」——与本契约既有条款一致（「已开口」早是 S-49 的一种记录），不改；
     PF-010 rev 5→6：**系统提示词本版只含文本** ⇒ S-6 的 `system` 列与 Schema `SystemMessage` 收窄为只收文本块，实例第 2 节加一个反例；要求五的三选一不涉本契约；
@@ -297,7 +297,7 @@ V-2～V-10、V-12 **一条执行记录也没有**。起草时的手核只保证 
   - **形式覆盖声明收窄**：第七节、V-11、`Readable.als` 文件头与 formal 入口改成逐条写证据强度；S-29 ③、S-32 ⑦、A3 的前提标「按构造，不作证据」。
   - 本地自检重跑（131/131 ＋ 第 11 节 5/5）；实例第 13 节的计数改为实际数（136 行）。
 
-- **2026-09-24 修复波 1b（主线裁定 [D-060 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) L1、L4、L5；候选未冻结，原地改）**：
+- **2026-09-24 修复波 1b（主线裁定 D-060 §六 L1、L4、L5；候选未冻结，原地改）**：
   - **L4**：S-49「已出门」加可选的 `parameterAdjustments`、`droppedParameters`——传输适配在出门之前为这一次发出定下的处置；约束（名字在 `parameters` 里、`requested` 等于那一项、缺席即断言、空数组不合法）与「实际发出的那一组」的算法写进 S-49；Schema 新增 `$defs/ParameterAdjustment`（43 项）、`ModelCallDispatchedRecord` 加两个成员。**形状按 `data.model-response/v2#S-11` 逐字自定义、不 `$ref`**：简报写「形状 `$ref` model-response」，但那份契约以 `$ref` 取本契约的 `AssistantMessage`，反向引用会让依赖图成环（与 `SelectedBy`、`CredentialScope` 同法，已报主线）。项名的含义取 `data.model-profile/v2#S-20`，catalog 对 `data.model-profile` 的依赖补 `S-20`（头部依赖表与包入口同改）。
     **表示改变**（放宽）：带这两项的「已出门」旧 Schema 拒、新 Schema 收；不带的照旧通过。**消费者影响**：`capability.model-request-runtime` S-33 的追补体从这一条读这两项（它的 G-18 关，归那份契约改）。
     实例第 14 节加四行（两条通过、其中一条是跨成员违约；两条空数组反例）；第 13 节计数改为 140 行（通过 56、拒绝 84）。**证据**：只重跑第 14 节——`jsonschema` 4.26.0（`Draft202012Validator` ＋ `referencing`，锁定 uv 环境，设计根下全部 Schema 按 `$id` 登表，脚本在会话暂存区、未入库），**27/27** 与「Schema」列一致；其余各节 Schema 未改、未重跑。
@@ -305,7 +305,7 @@ V-2～V-10、V-12 **一条执行记录也没有**。起草时的手核只保证 
   - **L1**：依赖表与 S-6、S-8 里指向 `data.content-blocks` S-8 的锚点随那边的新标题改为 `#s-8-文本块与来路标记`；原先那条对齐义务已兑现，删去。
   - 形式工件未改（Alloy 模型不涉「已出门」的成员），不重跑。
 
-- **2026-09-25 修复波 2（主线裁定 [D-060 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) M1、M2、M12、M23、M28；候选未冻结，原地改）**——逐条处置见[独立评审「第二轮」](#第二轮2026-09-25)：
+- **2026-09-25 修复波 2（主线裁定 D-060 §七 M1、M2、M12、M23、M28；候选未冻结，原地改）**——逐条处置见独立评审「第二轮」：
   - **M1**：第一节「它不拥有」、第十节「到达」两处改写——帧流与回复流的结局怎样对到 `ending` **归本契约**（S-14、S-10）；消费者表 `data.arrival-events` 一行改为「不消费本契约、只以坐标指路」，`capability.stream-assembly`、`capability.tool-execution-runtime`、`capability.model-request-runtime` 三行写明是这两张对应表的消费者。**语义与表示不变。**
   - **M12**：S-10 加「回复流的结局怎样对到本条」对应表（这张对应只在这里）；**运行被取消按谁发起的分两路、不新增取值**——用户发起 ⇒ 与用户叫停同一行（`interrupted_by_user`、S-21 `by: user`），系统发起（会话归档、宿主停止）与宿主被撤下 ⇒ 在途的流被放弃、`lost`、**不成为消息**，已交付的在那一次发出的响应体上（被中断、发起方 `run_cancelled`），S-21 `by: system`。S-14 对应表加「工具执行运行时有序撤下」一行（先放弃在途的装配状态、再当场写 `failed{abnormal_interruption}`，帧流 `lost`；主线在 TER 那一侧交付后点名补的，对 TER S-48）；S-11 占位表与 S-19 `background_execution_interrupted` 那一行同步写明「有序撤下时当场写下的是同一种」。S-21 `by` 的释义、S-48 规范场景（加运行被取消两支与一条「绝不能观察到」）、Schema `AssistantEnding`／`ToolInternalEnding`／`InterruptedSource` 的说明同步。
     顺带更正 S-10 一句旧字面：「无论哪一行都补一条中断提醒」包括了正常收尾，改为「这次调用以除正常收尾之外的哪一行收尾都补一条」，并写明按一次调用补、出错断之后又再发的那一次发出不另补（与 S-21「一次模型调用……被中断就追加一条」、S-48 本来的意思一致）。**表示不变。**
@@ -320,43 +320,9 @@ V-2～V-10、V-12 **一条执行记录也没有**。起草时的手核只保证 
 
 结果不改写规范。发现语义问题回到来源设计（PF-009／PF-010／PF-012／PF-014／PF-015／PF-006／PF-004／PF-008），不在这里改契约。
 
-## 独立评审
-
-| 评审 | 日期 | 基线 | 发现 | 处置 | 落点 |
-|---|---|---|---|---|---|
-| spec-reviewer，S25 第一轮批 R1 | 2026-09-24 | HUB `765b01dc` | MS-1 产品依据 rev 过时；PF-013 未列 | **改**：九个 topic 逐版复核（有实质的逐条改条款，见[变化的影响](#变化的影响)本轮一条），PF-013 补进头部 | 头部；S-1、S-6、S-7、S-10、S-13、S-14、S-29、S-32、S-49、S-50 |
-| 同上 | 同上 | 同上 | MS-2 `SystemMessage` 仍被当成可能在日志里 | **改**（主线 K3）：不落日志、每次现算；S-29 ④ 删去（编号保留），S-32 加 ⑦；G-9 闭合；Alloy 删 `SystemMsg` 并重跑 | S-1、S-7、S-29、S-32、CS-3、S-46；`formal/`；G-9 |
-| 同上 | 同上 | 同上 | MS-3 `system` 列允许非文本块 | **改**（主线 K3）：`system` 只收文本块 | S-6；Schema `SystemMessage`；实例第 2 节 |
-| 同上 | 同上 | 同上 | MS-4 `ToolInternalEnding` ↔ `FinishReason` 的对应无人拥有 | **改**（主线 K2）：本契约 S-14 拥有对应表；`no_answer`、桥换代落 `lost`；S-13 写明成立判据。流装配与工具执行运行时改引（跨批，见下「对齐义务」） | S-13、S-14；Schema `ToolInternalEnding` |
-| 同上 | 同上 | 同上 | MS-5 model-profile 的依赖三处说法不一 | **改**：README、S-37、Schema `$comment` 与依赖表、catalog 一致（S-2、S-5、S-13、S-15、S-27，后三个因「已出门」带绑定而新增） | README；S-37；Schema；catalog |
-| 同上 | 同上 | 同上 | MS-6 CB S-20 未登 | **改**：依赖表与 catalog 补 CB `S-20` | 头部；catalog；README |
-| 同上 | 同上 | 同上 | MS-7 `about.callId` 是模型调用、`callId` 却指工具调用 | **改**：成员改名 `about.call`，与 S-49 的 `call` 同义；S-21 写明本契约里 `callId` 只指工具调用 | S-21；Schema `InterruptedSource`；实例两行 |
-| 同上 | 同上 | 同上 | MS-8 卸载后的带摘要那条被列为占位 | **改**：按 UL-placeholder-message 移出占位表，另写一条说明它就是结果；「占位消息」链词条 | S-11；第二节 |
-| 同上 | 同上 | 同上 | MS-9 覆盖声明超过证据（④ 没有断言） | **改**：第七节加逐条证据强度表；V-11、`Readable.als` 文件头、formal 入口同改；④ 已随 K3 删去 | 第七节；V-11；`formal/` |
-| 同上 | 同上 | 同上 | MS-10 A3 与其余断言强度没分开 | **改**：注明 A3 无变异核对、前提按构造，证据归 SC-4 | 第七节；formal 入口 |
-| 同上 | 同上 | 同上 | MS-11 实例第 13 节统计过时 | **改**：改为实际行数（136 行，通过 54、拒绝 82） | 实例第 13 节 |
-| 同上 | 同上 | 同上 | MS-12 `modality_mismatch` 两处同名 | **改**（写明两个值域互不相干的那一种）：不改名——`cause` 的取值与 `data.loop-extension` 的 `FailureCause` 逐字相同，拒绝值取自 `data.content-blocks`，改任一个都会让两份契约的同一件事有两个名字 | S-50；Schema `ModelCallEndedRecord` |
-
-### 第二轮（2026-09-25）
-
-reviewer：spec-reviewer，S25 第二轮批 R1（另含批 R2b 转给本契约的一条）；基线 HUB `8ad37c50`。本批对本契约的总判是「不可进 F」，唯一原因是 MS2-1。依据一律是 [D-060 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)；只剩「待产品负责人追认」的不再登缺口。
-
-| # | 发现（等级） | 处置 | 落点 |
-|---|---|---|---|
-| MS2-1 | §一、§十 说帧流收尾的对应不归本契约，与 K2 和本契约 S-14 字面相反（阻断） | **改**（M1）：两处改为「归本契约」（帧流 S-14、回复流 S-10）；消费者表 AE 一行改「只以坐标指路」，流装配、工具执行运行时、模型请求运行时写明是对应表的消费者 | 第一节「它不拥有」与消费者表；第十节「到达」 |
-| MS2-2 | Schema 与 content-blocks 把卸载之后带摘要的那条叫「占位」（应修） | **改**：Schema `ToolMessage` 说明删去「卸载后的带摘要占位」、改写为「是那次调用的结果、不是占位」；实例 `m_t4` 同改。content-blocks 那一半由同一位起草者同轮改（见那份契约的验证入口） | Schema `ToolMessage`；实例第 5 节 |
-| MS2-3 | `terminated_by_agent` 落在工具消息上时是 `malformed` 还是只算写入方义务，没有落点（应修） | **改**（M23）：进 S-39 的单条消息约束，Schema `ToolMessage` 直接排除；S-11 写明 | S-11、S-39、「Schema 管得到什么」；Schema `ToolMessage`；实例 `m_t10`、`m_r1b`；V-1、V-3 |
-| MS2-4 | 运行被取消时模型已经开口，`ending` 与 `by` 取什么没写（应修） | **改**（M12）：S-10 加回复流结局的对应表；用户发起的 ⇒ `interrupted_by_user`、`by: user`；系统发起的（会话归档、宿主停止）与宿主被撤下 ⇒ 经放弃落 `lost`、不成为消息、`by: system`；不新增取值、不登缺口 | S-10、S-21、S-48；Schema `AssistantEnding`、`InterruptedSource` |
-| MS2-5 | 「有意停下」的列举漏了 agent 掐掉后台执行（建议） | **改**：S-14 那一行写成「收场为 `interrupted` 的全部情形」并补 `terminated_by_agent`；`data.arrival-events` S-16 由同一位起草者同轮改 | S-14 |
-| MS2-6 | 陈述过时六处（建议） | **改**：V-1 行数；Schema 根 `$comment` 补 `ParameterAdjustment`、`droppedParameters`；`m_u2`「来路标记」；`m_nc` 删施工用语；S-50「已报主线」改链 D-060 §四；设计依据补链 D-060 §六 N-5 | V-1；Schema 根 `$comment`；实例第 3、8 节；S-50；设计依据 |
-| MS2-7 | `SystemMessage` 的 `createdAt` 指什么没写（建议） | **改**：由组装出它的那一方给，记这一份被算出的时刻；不落日志、没有谁拿它比先后 | S-7 |
-| CB2-3（本契约那一半） | 引 `data.model-response` S-6／S-9～S-11 自定义同一形状、不登依赖，这条口径没有持久落点（应修） | **改**（M2）：口径已由主线写进 registry README；本契约头部与 G-3 行改链它与 D-060 §七 M2 | 头部依赖说明；第九节 G-3 行 |
-| R2b「L4 余项」 | 「已出门」没带上「`sent` 须在统一词表里表示得出」（建议，R2b 转来） | **改**：S-49 还原规则写明算出的那一组是合法的 `ModelRequestParameters`；同轮落 M28（`extra` 去空之后整个缺席） | S-49 |
-| R2b R2-MR-1（本契约那一半） | L4 字面要求 `$ref`、两份契约实际逐字自定义（阻断，登记层） | **不改条款**（M2 已在 D-060 §四 把 L4 改判为「逐字自定义 ＋ 对齐义务」）：本契约的做法本来就是这样，只把依据改链 | 头部；S-49 |
-
 ## 实现映射反推（2026-09-25）
 
-起因：realization-drafter 戊报回 MSG-3（与 SA-1 同一件事）；主线裁定 [D-060 §八 M36](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)（「JSON 解析口径（content-blocks S-12、stream-assembly S-10、messages）」）。**裁定不代替接受**，本契约仍是 candidate。
+起因：realization-drafter 戊报回 MSG-3（与 SA-1 同一件事）；主线裁定 D-060 §八 M36（「JSON 解析口径（content-blocks S-12、stream-assembly S-10、messages）」）。**裁定不代替接受**，本契约仍是 candidate。
 
 | 裁定 | 落点 | 本契约推导的部分（已报主线） |
 |---|---|---|
@@ -375,15 +341,10 @@ reviewer：spec-reviewer，S25 第二轮批 R1（另含批 R2b 转给本契约�
 
 - **`ToolInternalEnding` 的对应表只在 [S-14](v2/contract.md#s-14-toolinternalmessage-怎么收的尾)**：`capability.stream-assembly`（S-2 等处）与 `capability.tool-execution-runtime`（S-19、S-39）引用它、不各写一份；`no_answer`、桥换代与宿主被撤下（M12，TER S-48 放弃在途状态）都落 `lost`。`data.arrival-events` 的 `FinishReason` 改值时本表同轮复核。
 - **回复流结局的对应只在 [S-10](v2/contract.md#s-10-assistantmessage-怎么收的尾)**（M1、M12）：`capability.stream-assembly` 与 `capability.model-request-runtime` 按它包消息、不另写。同一句的另一侧：`capability.model-request-runtime` S-36、S-51 在宿主停止与撤除时对在途的流放弃（不再先 `interrupt(run_cancelled)` 让调用方收口出一条回复）；`data.model-response` S-12／S-13 把系统发起的运行取消记成没有回复、带 `delivered` 的 `interrupted{run_cancelled}`；`data.arrival-events` S-16 的 `interrupted` 不再含「宿主把它带走」。这三处归各自的起草者，本包不改。
-- **`SelectedBy`、`CredentialScope`、`ParameterAdjustment`、`droppedParameters` 的就地形状与 `ResponseId` 与 `data.model-response` v2 逐字相同**（V-12）：那份契约是这几项的家，本契约逐字自定义、不 `$ref`、不登依赖——registry「互引成环的登记口径」（[D-060 §七 M2](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)；§四 已把 L4 的「`$ref`」改判为这一口径）。那边改形状，本契约同轮改；「已出门」上写的值与同一次发出的响应体 `route` 必须相同。
+- **`SelectedBy`、`CredentialScope`、`ParameterAdjustment`、`droppedParameters` 的就地形状与 `ResponseId` 与 `data.model-response` v2 逐字相同**（V-12）：那份契约是这几项的家，本契约逐字自定义、不 `$ref`、不登依赖——registry「互引成环的登记口径」（D-060 §七 M2；§四 已把 L4 的「`$ref`」改判为这一口径）。那边改形状，本契约同轮改；「已出门」上写的值与同一次发出的响应体 `route` 必须相同。
 - **`model_call_ended.cause` 与 `data.loop-extension` v2 `FailureCause` 出门前四值逐字相同**（V-12）。
 - **`capability.model-request-runtime`**：写「已出门」时带上绑定（S-49）；续接或再发时凭据取不到写 `released{cause: credential_unavailable}`，不写 `undispatched`（S-50）。
 - **「已出门」上的 `parameterAdjustments`、`droppedParameters` 与同一次发出的响应体 `route` 上的同名两项逐项相同**（S-49）：`capability.model-request-runtime` 写「已出门」时带上传输适配定下的处置，停机之后补写响应体时从这一条读（它的 S-33）；`data.model-response` 改这两项的形状，本契约同轮改（V-12）。
-
-## 2026-09-26 D-068 当前 v3
-
-`data.messages · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，此前旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。
-
 
 ## MS7 本批候选验证（2026-09-29）
 

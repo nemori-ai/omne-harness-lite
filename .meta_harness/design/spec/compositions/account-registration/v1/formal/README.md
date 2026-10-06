@@ -131,13 +131,10 @@ Fairness == \A a \in Attempts : WF_vars(Organize(a)) /\ WF_vars(Activate(a))
 `accountRecordExpired` 与 `account-record-expired`，模型里就是 `OrganizeRejected` 与 `ActivateRejected`。
 **关掉它只会缩小这条性质的检查范围**，把「碰上到期还能不能走到终结」整块排除在外。
 
-> **这一格是评审轮一改的，改之前写的是 `Expiring = FALSE`。**
-> 那时的理由（「到期会让尝试推进不下去」）**当时是对的**：模型里 `Organize` 只有成功一路，
-> 一次走到 `"claimed"` 的尝试碰上到期就真的卡在那里。
-> 评审轮一按 [S-8](../contract.md#s-8-三步次序与责任交接) 的分支表补上两条 `Rejected` 支之后，
-> 卡住那条路径不存在了，这条前提随之失效——**所以删掉它，不是放宽，是它已经不是前提了**。
-> **两条 `Rejected` 支落在 `Organize(a)` / `Activate(a)` 的析取里**，
-> 因此 `Fairness` 的 `WF_vars` 同时覆盖它们：两个动作在各自的 `pc` 上恒可发生。
+> `Organize(a)` / `Activate(a)` 的析取包含两条 `Rejected` 支；
+> `Fairness` 的 `WF_vars` 同时覆盖它们，两个动作在各自的 `pc` 上恒可发生。
+> 到期配置覆盖到期收场；关闭到期会缩小覆盖。
+
 
 **`basic.cfg` 与 `crash.cfg` 为什么不合并**：合并之后仍然只出一个反例，
 但反例落在哪一层要靠人去读。分成两个配置，「哪一层坏了」由**哪个配置先红**直接回答。
@@ -182,15 +179,14 @@ M6、M7 抓的是**另一条**不变量（[S-13](../contract.md#s-13-一个可�
 **M7 是「依据绑的是另一条记录」**。
 **两者都被原来那个 `orgCount >= 1` 守卫藏住了**——直接读组织那一侧的状态，
 等于假定 ③ 看得见组织，而 [`#S-14` 按契约看不见](../../../../capabilities/account-identity/v1/contract.md#s-2-消费者与依赖方向)。
-**这是评审轮一发现的真洞，不是一次措辞修正。**
+
 
 执行状态在[验证入口](../../verification.md)；**本页不记录跑没跑过**。
 
 ### 结果入口
 
-TLC 的模型修订、实际配置、常量取值、限制范围、完成情况、反例与局限，
-全部在[验证入口](../../verification.md)记录，原始产物归
-[`record/evidence/`](../../../../../record/evidence/README.md)。
+[验证入口](../../verification.md)维护模型覆盖、配置与常量前提、复跑方法和局限。
+每次执行的输入、完成情况、反例及原始输出放执行工作树 `tmp/<task>/`。
 
 **TLA+ 描述行为规格，TLC 只对给定配置做检查。**在已检查范围内未发现反例，
 不自动成为任意范围的证明；尤其**不覆盖**：真实存储的提交原子性、跨进程、

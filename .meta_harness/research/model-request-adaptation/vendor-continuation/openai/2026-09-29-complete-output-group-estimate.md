@@ -36,4 +36,4 @@
 
 ## D-108 读取器后继的实验坐标
 
-采用 [D-108](../../../../design/record/decisions/openrouter-refusal-mapping-adoption/decision.md) 的共享拒答文本读取器后，三个非 Pro 叶的后继实验目标为 definition `8`／`mp4-17`。它保留上述 revision 7 的完整 algorithm、tokenizer、replay、transform 和 projection 值；解析器变化没有被写成新的数值计量算法。后继实验把原 `6`／`mp4-12`、原 `7`／`mp4-16` 和当前 `8`／`mp4-17` 分列为同型号的来源坐标，不增加跨型号、Pro 或部分组假设。它观察的是同一个完整组代理对已保存原事实的解释；工厂是否接受当前定义由产品实现及已采用映射所有，研究表格不提供旧工厂别名或接受决定。
+采用 D-108 的共享拒答文本读取器后，三个非 Pro 叶的后继实验目标为 definition `8`／`mp4-17`。它保留上述 revision 7 的完整 algorithm、tokenizer、replay、transform 和 projection 值；解析器变化没有被写成新的数值计量算法。后继实验把原 `6`／`mp4-12`、原 `7`／`mp4-16` 和当前 `8`／`mp4-17` 分列为同型号的来源坐标，不增加跨型号、Pro 或部分组假设。它观察的是同一个完整组代理对已保存原事实的解释；工厂是否接受当前定义由产品实现及已采用映射所有，研究表格不提供旧工厂别名或接受决定。

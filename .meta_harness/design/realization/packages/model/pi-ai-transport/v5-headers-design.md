@@ -6,10 +6,10 @@
 
 | 精确输入 | 本节点消费与状态 |
 | --- | --- |
-| baseline `omne-harness-lite-design-2026-09-15`；[RT5](../../../../spec/capabilities/model-request-runtime/v5/contract.md) S-18/S-20/S-38/S-53～S-59/S-63/S-64 | catalog `accepted`，由 [D-090](../../../../record/decisions/model-headers-v5-adoption/decision.md) 接受。S-58 是本节点的头事实出口，S-54/S-17 为接收与完整响应写方义务 |
+| baseline `omne-harness-lite-design-2026-09-15`；[RT5](../../../../spec/capabilities/model-request-runtime/v5/contract.md) S-18/S-20/S-38/S-53～S-59/S-63/S-64 | catalog `accepted`，由 D-090 接受。S-58 是本节点的头事实出口，S-54/S-17 为接收与完整响应写方义务 |
 | 同 baseline；[MR5](../../../../spec/data/model-response/v5/contract.md) S-20/S-21/S-22/S-26 | catalog `accepted`，同一 D-090；头值含义及秘密边界唯一来源。本节点不构造完整 ModelResponse |
-| [原设计](design.md)、[v3-design](v3-design.md)、[v4-definition-design](v4-definition-design.md) | 分别沿 D-062、[D-076](../../../../record/decisions/model-runtime-delivery-adoption/decision.md)、[D-082](../../../../record/decisions/model-definition-projection-adoption/decision.md) 的接受范围；历史 candidate 标签不取代这些决定 |
-| [头交接采用理由](../../../../record/proposals/model-request-adaptation/header-handoff.md)、[core v5 投影](../../core/model-response/v5-design.md) | D-090 采用表示 A、交接 A 和 core 显式 `./v5`／`./schema/v5`；D-090 明确尚未采用本 transport 增补 |
+| [原设计](design.md)、[v3-design](v3-design.md)、[v4-definition-design](v4-definition-design.md) | 分别沿 D-062、D-076、D-082 的接受范围；历史 candidate 标签不取代这些决定 |
+| 头交接采用理由、[core v5 投影](../../core/model-response/v5-design.md) | D-090 采用表示 A、交接 A 和 core 显式 `./v5`／`./schema/v5`；D-090 明确尚未采用本 transport 增补 |
 | 产品与其余数据输入 | 继承 RT5 的 PF-013 rev13、PF-012 rev15、PF-009 rev8、PF-004 rev12、PF-001 rev19、PF-015 rev11 与既有提供者精确依赖；不据产品新 rev 自动变更本节点 |
 
 语义接受已有；**本页的提供者选择未采用**。现有源码包已建，观察基线为 `965604ea96f036b0cc8a0b38109c941bd1eb3553`，公共 implementation revision7；本稿不预占下一修订号。新增绑定 **0 条**；实际验证只有既有修订各自的有限证据，本增补尚无源码、TLS 或制品运行。可实施输入还缺 PH-G1 的公共类型及 PH-G2 的完整脱敏接线，见 [覆盖缺口](verification.md#v5-响应头覆盖缺口)。
@@ -108,7 +108,7 @@ RT5 S-20 的三项政策由 runtime／可信装配拥有：`credential_fragment_
 
 ## Cordis 与成对的装卸
 
-采用 [D-025 的 Cordis 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)。稳定服务 `modelTransport`、贡献插件、lease 与网络 owner 的边界不变；H 是单次函数值，没有独立 plugin、fiber、service、effect 或事件。头采集不增加 inject 边，也不触发模型贡献换代。
+采用 D-025 的 Cordis 4.0.4。稳定服务 `modelTransport`、贡献插件、lease 与网络 owner 的边界不变；H 是单次函数值，没有独立 plugin、fiber、service、effect 或事件。头采集不增加 inject 边，也不触发模型贡献换代。
 
 | basis 或待核对主张 | 本增补的采用界限 |
 | --- | --- |

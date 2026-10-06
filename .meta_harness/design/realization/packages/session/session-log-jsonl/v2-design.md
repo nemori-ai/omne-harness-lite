@@ -10,14 +10,14 @@
 
 | 输入及精确版本 | 当前接受依据 | 本节点取用范围与传播责任 |
 |---|---|---|
-| [capability.session-log/v2](../../../../spec/capabilities/session-log/v2/contract.md) | [D-061](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)，catalog 当前接受记录指向 [坐标对账](../../../../record/decisions/pr9-pr10-coordinate-reconciliation/acceptance.json) | 全部三个操作；本稿重点 S-6～S-19、S-21～S-23。协议仍按自身精确依赖使用 messages2 的 SessionRef/壳归属、call-accounts2 的 RunId/AttemptId、content-blocks2 S-24 的无损口径，不把它的依赖表改成新版本 |
-| [既有 provider design](design.md) | [D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)、[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md) | 保留 JSONL、属主文件锁、每本日志队列、派生索引及其前提、一行一批、每批 datasync、关准入后排空的实现路径 |
-| [data.messages/v4](../../../../spec/data/messages/v4/contract.md)、[messages.schema.json](../../../../spec/data/messages/v4/messages.schema.json) | [模型适配首批接受](../../../../record/decisions/model-adaptation-binding-acceptance/decision.md)（提交 `19c7ec60d77f5e54ea36702d3b7f0d00cc3b7a0e` 的历史 D-070），catalog 当前由 [D-078](../../../../record/decisions/model-main-integration-coordination/acceptance.json) 接续 | 写入方与读方采用 S-37/S-39 的表示校验及 S-49/S-50 的运行时记录；provider 仅承载完整 JSON。AssistantMessage、SystemReminderMessage、五种 ModelInvocationRecord 都不投影成旧载荷 |
+| [capability.session-log/v2](../../../../spec/capabilities/session-log/v2/contract.md) | D-061，catalog 当前接受记录指向 坐标对账 | 全部三个操作；本稿重点 S-6～S-19、S-21～S-23。协议仍按自身精确依赖使用 messages2 的 SessionRef/壳归属、call-accounts2 的 RunId/AttemptId、content-blocks2 S-24 的无损口径，不把它的依赖表改成新版本 |
+| [既有 provider design](design.md) | D-062、D-065 | 保留 JSONL、属主文件锁、每本日志队列、派生索引及其前提、一行一批、每批 datasync、关准入后排空的实现路径 |
+| [data.messages/v4](../../../../spec/data/messages/v4/contract.md)、[messages.schema.json](../../../../spec/data/messages/v4/messages.schema.json) | 模型适配首批接受（提交 `19c7ec60d77f5e54ea36702d3b7f0d00cc3b7a0e` 的历史 D-070），catalog 当前由 D-078 接续 | 写入方与读方采用 S-37/S-39 的表示校验及 S-49/S-50 的运行时记录；provider 仅承载完整 JSON。AssistantMessage、SystemReminderMessage、五种 ModelInvocationRecord 都不投影成旧载荷 |
 | [data.model-response/v4](../../../../spec/data/model-response/v4/contract.md)、[model-response.schema.json](../../../../spec/data/model-response/v4/model-response.schema.json) | 同上 | 消费者采用 S-6/S-14/S-17～S-23/S-26/S-27/S-35～S-38；完整 route、绑定、实际执行方、usage/cost、timing、reply/delivered 与脱敏后原始事实原样存取 |
-| [data.content-blocks/v3](../../../../spec/data/content-blocks/v3/contract.md)、[content-blocks.schema.json](../../../../spec/data/content-blocks/v3/content-blocks.schema.json) | [core 规格协调接受](../../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json) | messages4/response4 中的块取该版本；S-24 的严格无损 JSON 与 SL2 沿用的 CB2 S-24 同义。provider 复用 [core/content-blocks](../../core/content-blocks/design.md) 的公开编解码，不解释工具调用、opaque、附件或派生表示 |
+| [data.content-blocks/v3](../../../../spec/data/content-blocks/v3/contract.md)、[content-blocks.schema.json](../../../../spec/data/content-blocks/v3/content-blocks.schema.json) | core 规格协调接受 | messages4/response4 中的块取该版本；S-24 的严格无损 JSON 与 SL2 沿用的 CB2 S-24 同义。provider 复用 [core/content-blocks](../../core/content-blocks/design.md) 的公开编解码，不解释工具调用、opaque、附件或派生表示 |
 | [data.model-profile/v3](../../../../spec/data/model-profile/v3/contract.md)、[model-profile.schema.json](../../../../spec/data/model-profile/v3/model-profile.schema.json) | 同一首批接受及 D-078 接续 | 间接载荷依赖：S-27/S-29～S-31 的完整快照与 adaptation，尤其 configuration.values；不从当前档案、当前注册实现或 revision 字符串回填历史配置 |
-| [data.loop-extension/v4](../../../../spec/data/loop-extension/v4/contract.md) | [D-073](../../../../record/decisions/model-current-input-contracts-adoption/acceptance.json) | runner 负责结论、完整提醒、模型失败主体的接收和落盘校验；provider 不认识结论种类或业务效果 |
-| [capability.model-request-runtime/v3](../../../../spec/capabilities/model-request-runtime/v3/contract.md)、[runtime v3-design](../../model/model-request-runtime/v3-design.md) | [D-076](../../../../record/decisions/model-runtime-delivery-adoption/acceptance.json) | 本稿逐项投影 L-1～L-7、Q-2/Q-3 的日志一侧；L-4 中 late 在实际写入点的正确性仍受 G2-7 阻断。P-2 的隔离、旧写者生命周期、S-33 时机仍归 runtime 与宿主 |
+| [data.loop-extension/v4](../../../../spec/data/loop-extension/v4/contract.md) | D-073 | runner 负责结论、完整提醒、模型失败主体的接收和落盘校验；provider 不认识结论种类或业务效果 |
+| [capability.model-request-runtime/v3](../../../../spec/capabilities/model-request-runtime/v3/contract.md)、[runtime v3-design](../../model/model-request-runtime/v3-design.md) | D-076 | 本稿逐项投影 L-1～L-7、Q-2/Q-3 的日志一侧；L-4 中 late 在实际写入点的正确性仍受 G2-7 阻断。P-2 的隔离、旧写者生命周期、S-33 时机仍归 runtime 与宿主 |
 | [capability.loop-extension-runner/v3](../../../../spec/capabilities/loop-extension-runner/v3/contract.md)、[runner v3-design](../../agent-loop/loop-extension-runner/v3-design.md) | D-076 | 承接沿用 RL-1～RL-6 的原子记录、栅栏、结论/提醒唯一、按锚有序读取及 ask 可见性；不承接卡片唯一性或工具执行 |
 
 Schema 闭包必须按上述精确 `$ref` 取用：messages4 → CB3/profile3/call-accounts2；response4 → messages4/CB3/profile3/call-accounts2，且其 FailureCause **仍引用 loop-extension3**；profile3 的模态与无损口径**仍引用 CB2**。同时出现旧、新版本是显式依赖，不得批量把 `$ref` 改成“最新”。Schema 根为定义登记处时，消费者选择命名 `$defs`，不以根模式通过宣称整条载荷合法。
@@ -29,11 +29,11 @@ Schema 闭包必须按上述精确 `$ref` 取用：messages4 → CB3/profile3/ca
 | 绑定证据 | [bindings.yaml](bindings.yaml) 仍为 0 条。本稿 V2-1～V2-10 是待执行义务，不登记为已存在测试或形式证明 |
 | 实际验证 | 尚无 provider 源码或真实三操作运行。设计检查只核引用、形状及已登记资源，不验证 IO、排空或语义 |
 
-需求基线沿 SL2：PF-012 rev 15、PF-015 rev 11、PF-000 rev 1；新增消费沿 D-076 指认的 runtime3/runner3 需求与[适配提案](../../../../record/proposals/model-request-adaptation/design.md)。不是重新定义消息、响应、模型适配绑定或会话日志。
+需求基线沿 SL2：PF-012 rev 15、PF-015 rev 11、PF-000 rev 1；新增消费沿 D-076 指认的 runtime3/runner3 需求与适配提案。不是重新定义消息、响应、模型适配绑定或会话日志。
 
 ## 实现路径、公开面与 Cordis 投影
 
-复用原节点的必要自建路径：Node ≥ 24 内置文件操作、严格无损 JSON 纯模块、既有身份值表示及 kernel-basis。没有新的数据库选型、业务表或载荷版本注册服务。Cordis 采用 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)；配置错误统一**启动失败**，非法 dir/策略不发布服务。
+复用原节点的必要自建路径：Node ≥ 24 内置文件操作、严格无损 JSON 纯模块、既有身份值表示及 kernel-basis。没有新的数据库选型、业务表或载荷版本注册服务。Cordis 采用 D-025 的 4.0.4；配置错误统一**启动失败**，非法 dir/策略不发布服务。
 
 公开面沿 [既有设计](design.md#公开面)：纯校验/判定/折叠/编解码；不依赖 Cordis 的 `openJsonlSessionLog` 闭包及其生命周期 `close`；一条 provider fiber 提供 `sessionLog` 的三个契约操作。`close` 是既有闭包 owner 的生命周期面，不成为第四个日志业务操作；不新增 `recover`、`drainSession` 或向消费者开放的锁操作。provider **不 inject 服务、不发事件**。时钟、密钥、模型注册表均不是它的依赖。
 

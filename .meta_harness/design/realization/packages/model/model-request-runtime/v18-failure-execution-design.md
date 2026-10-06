@@ -6,7 +6,7 @@
 
 已接受 [RT10](../../../../spec/capabilities/model-request-runtime/v10/contract.md) S-28/S-34/S-76、[Runner5](../../../../spec/capabilities/loop-extension-runner/v5/contract.md) S-5/S-21/S-26/S-53/S-54，以及 [LC6](../../../../spec/data/loop-extension/v6/contract.md) 的位置/主体与调用关联，要求实际同会话、同一次模型调用及该 Run 的失败经过；noRun 不能成为 after_model_call。Runner5 S-5 同时允许一次经过跨尝试存续，不允许把原发出 attempt 等于当前经过 attempt 当新准入门。
 
-RT10 SHA256 `add7ff23a73a6ad5a749f40f6707f408f60d33b6032080ad6ba4751f10d5695c`；Runner5 `e571e01d8e4d86fec3904d9decb37beb38615940125f320a72c250fd63ca4c43`；LC6 `d5cf4e24abc0a72ffe27072b8239489812382e3b94f2ee891ca9264338a1954a`。采用依据沿 [D106](../../../../record/decisions/runner-current-pure-provider-adoption/decision.md) 的 v17/runner 当前消费增补与 [D107](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md) 的 [v16](v16-usage-calibration-design.md)。本页只补绑定，不重开 D106 公共 runPass 或 U3 计量设计。
+RT10 SHA256 `add7ff23a73a6ad5a749f40f6707f408f60d33b6032080ad6ba4751f10d5695c`；Runner5 `e571e01d8e4d86fec3904d9decb37beb38615940125f320a72c250fd63ca4c43`；LC6 `d5cf4e24abc0a72ffe27072b8239489812382e3b94f2ee891ca9264338a1954a`。采用依据沿 D106 的 v17/runner 当前消费增补与 D107 的 [v16](v16-usage-calibration-design.md)。本页只补绑定，不重开 D106 公共 runPass 或 U3 计量设计。
 
 当前实现的 `ModelFailureSource.verify(subject)` 只比较 LC6 主体值，缺实际消费 Run 输入；主体不包含来源条目壳的 Run，形状相等不足以拒绝将 noRun 或 Run A 失败转投 Run B。另两处 `authorizedCalibration` 调用只传 callId/dispatch，丢了当前实际 run/attempt。两个缺陷均是已定语义的实现投影遗漏，不授权改日志或造新 Run。
 

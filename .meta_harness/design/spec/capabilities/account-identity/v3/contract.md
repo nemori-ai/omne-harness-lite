@@ -1,9 +1,9 @@
 # capability.account-identity v3
 
 - 坐标：`(omne-harness-lite-design-2026-09-15, capability.account-identity, 3)`。
-- 状态：accepted，按 [D-040](../../../../record/decisions/governance-identity-offer-contracts/decision.md) 采用并冻结；v1/v2 不变，实际消费者须单独升级。
+- 状态：accepted，按 D-040 采用并冻结；v1/v2 不变，实际消费者须单独升级。
 - 产品依据：[PF-001 rev18](../../../../product/PF-001-identity-scope-and-agent-constraints/README.md)、[PF-017 rev4](../../../../product/PF-017-governance-center-as-deployable-application/README.md)、[PF-016 rev7](../../../../product/PF-016-cli-tui-delivery-surface/README.md)，有限登录、主动更换及单机生产边界。
-- 机制来源：[登录 r3](../../../../record/proposals/governance-production-mechanisms/login-finalization.md)、[SQL 精化候选](../../../../record/proposals/governance-production-mechanisms/sql-transaction-refinement.md)；本次采用显式参与方向；提供者节点与真实SQL验证仍是实施门槛。
+- 机制来源：登录 r3、SQL 精化候选；本次采用显式参与方向；提供者节点与真实SQL验证仍是实施门槛。
 - 前版：[v2](../v2/contract.md) 已由 D-028 接受。保留 S-1～S-47 的主题身份并修订受影响语义，追加 S-48～S-54。能力只写语言无关含义；线上形状归 entry 下一版。
 - 技术构造：出示物、凭据代际和共同提交作用域仅为规格构造，不新造产品身份/词条。
 
@@ -75,7 +75,7 @@
 但对本契约仍是**语义扩张，须发布新版本**。
 
 **登录标识的形式与合法取值不由本契约定。**
-[早期本地开发可用用户名作标识，那不构成正式版决策](../../../../product/PF-001-identity-scope-and-agent-constraints/decisions.md#一拍板记录)；
+[早期本地开发可用用户名作标识，那不构成正式版决策](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md)；
 本契约只要求它是一个**可判相等、可判占用**的值。
 
 ### S-7 AccountId 与登录标识各管什么
@@ -216,7 +216,7 @@ LoginStateId  =  lowercase-hex( SHA-256( UTF-8( 出示物 ) ) )
 
 | 九件事 | 内容 |
 |---|---|
-| **输入与授权** | 输入：**登录标识**、**凭据材料**。**无授权前提**——[首版开放自助注册，不要求邀请或管理员代建](../../../../product/PF-001-identity-scope-and-agent-constraints/decisions.md#一拍板记录)，[任何能访问该部署的人](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#11-注册)都可调用。本操作**不接受** AccountId（它由本操作产生），**不接受**任何租户身份（[S-12](#s-12-账号身份事实不是范围化对象)） |
+| **输入与授权** | 输入：**登录标识**、**凭据材料**。**无授权前提**——[首版开放自助注册，不要求邀请或管理员代建](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md)，[任何能访问该部署的人](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#11-注册)都可调用。本操作**不接受** AccountId（它由本操作产生），**不接受**任何租户身份（[S-12](#s-12-账号身份事实不是范围化对象)） |
 | **前置** | ① 该登录标识未被占用，**或**被一条**未激活且仍在[留存期限](#s-39-unactivated_retention)内**的账号记录占用、且本次凭据与其匹配（幂等重入）。**「仍在留存期限内」是这一半的硬条件**：标识被一条**已过期**的未激活记录占用时，前置①一律不成立，收场见下面的 `identifier-held-by-expired-record`；② 凭据材料满足 [`credential_policy`](#s-26-credential_policy)。**幂等重入那一路不过前置②**（见下）。**求值次序是固定的**：表示层（`invalid-input`）→ **凭据合规**（`credential-rejected`）→ **占用判定**（`identifier-taken`／`identifier-held-by-expired-record`／幂等认回），见下 |
 | **提交点与原子性** | 账号记录写入的**那一次提交**。AccountId、登录标识、凭据材料、激活状态＝未激活**在同一次提交内一起成立**；**不存在**「登录标识已被占用但没有账号记录」或反之的中间态 |
 | **返回与失败集合** | 成功 → **AccountId**。失败集合**恰为** `{identifier-taken, identifier-held-by-expired-record, credential-rejected, invalid-input, storage-unavailable}` |

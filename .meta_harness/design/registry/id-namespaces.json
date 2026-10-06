@@ -15,12 +15,6 @@
       "description": "跨系统约束，形如 SYS-TENANT"
     },
     {
-      "prefix": "D-",
-      "kind": "decision",
-      "owner": "record/decisions",
-      "description": "已接受决定的稳定编号。分配规则：从 design_legacy 迁入的决定保留原号（同一次接受只发生过一次）；新决定从旧谱系已用的最大号（D-021）之后顺序分配，不回填空号"
-    },
-    {
       "prefix": "S-",
       "kind": "contract-clause",
       "owner": "spec",

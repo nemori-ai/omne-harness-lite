@@ -16,12 +16,6 @@
 
 AD-V6 的两条交错检验同版本来源，并非本包拥有跨 owner 原子提交。此处无共享写入对象、无形式化并发模型；registry/manifest 的共同提交归各自节点，不在纯函数里用锁补出来。类型、固定域构造或 Schema 接受不能代替上述会失败的测试。
 
-## 实际执行
-
-本节点未执行源码、Schema 符合性或真实消费者测试。设计检查只核链接、登记和格式，不自动提升语义接受或实现状态。
-
-2026-09-27 实际执行 `.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip`，退出 1：唯一错误是并行节点 `realization/packages/core/asset-evaluation/v4-design.md` 的 `verification.md#v4-候选增量的证据义务` 锚点缺失；本节点未被报告错误。全部形式任务明确跳过，没有执行 TLC/Alloy。检查输出末项为 `model-request-runtime-v3-adaptation-lifecycle: skipped by explicit --formal skip`。其他节点的缺口由其 owner 收口，不在本次写入范围内修复。
-
 ## 覆盖缺口
 
 | 缺口                                                           | 受阻消费者                                           | 所需下一份产物                                                                                                          |
@@ -29,6 +23,6 @@ AD-V6 的两条交错检验同版本来源，并非本包拥有跨 owner 原子�
 | AD-G1：候选未接受                                              | 本节点及所有采用 AD1 的消费者                        | 精确坐标的独立评审与主线采用记录                                                                                        |
 | AD-G2：真实根输入生产者/验收装配未指派，S-2/S-9 不由纯值证明   | AE4 根输入，后续 registry3/manifest3/runtime3 读取链 | 生产者节点及授权、所选不可变版本、实际交接测试；完整初值产品流程不由示例补齐                                            |
 | AD-G3：MP3 与旧 pinned Schema 公共资源闭包待完成，S-5/S-6/S-10 | 本包及独立制品消费                                   | 依赖 owner 的精确公开资源出口与真实打包导入证据                                                                         |
-| AD-G4：源码与 AD-V1～AD-V7 尚无                                | 本节点纯值使用者及整条模型请求验收                   | 实施输入接受后建立生产包；可重复原始结果归 [record/evidence](../../../../record/evidence/README.md)，再按实际断言填绑定 |
+| AD-G4：源码与 AD-V1～AD-V7 尚无                                | 本节点纯值使用者及整条模型请求验收                   | 实施输入接受后建立生产包；可重复原始结果归 record/evidence，再按实际断言填绑定 |
 
 完整 Agent Definition、sub-agent、master/委派/协作不在本节点范围，不以这份窄提供者替代契约 G-1。有限测试只能支持其实际版本、输入和组合范围。

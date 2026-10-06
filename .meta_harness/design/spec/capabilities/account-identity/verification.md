@@ -3,9 +3,9 @@
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
 > **当前状态：v2 的实现有一次入库的测试运行；v1 没有实现，也就没有 v1 的证据。**
-> `capability.account-identity` v1 已由 [D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md) 接受并冻结（2026-09-22）；v2 在身份清单里是 `accepted`（[D-028](../../../record/decisions/governance-center-design-acceptance/decision.md)，2026-09-23）。
+> `capability.account-identity` v1 已由 D-023 接受并冻结（2026-09-22）；v2 在身份清单里是 `accepted`（D-028，2026-09-23）。
 > 提供者是 [`realization/packages/tenancy/account-identity`](../../../realization/packages/tenancy/account-identity/README.md)（按 **v2** 实现）与 [`credential-verification`](../../../realization/packages/tenancy/credential-verification/README.md)，装配是 [`apps/tenancy-host`](../../../realization/apps/tenancy-host/README.md)。
-> 运行：[`2026-09-23-tests-tenancy-leg-2`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)（源码提交 `c9b5850`，0 失败）。**它针对的是 v2 实现**：按[继承规则](#v2候选的证据义务)，下面 v1 表各行在 v2 里对同号条款照样成立，所以那些行记的是「v2（同号继承）」的结果，**不是 v1 的证据**。
+> 运行：`2026-09-23-tests-tenancy-leg-2`（源码提交 `c9b5850`，0 失败）。**它针对的是 v2 实现**：按[继承规则](#v2候选的证据义务)，下面 v1 表各行在 v2 里对同号条款照样成立，所以那些行记的是「v2（同号继承）」的结果，**不是 v1 的证据**。
 > 承担者写成「文件 › describe › it」；不带路径的文件在 `packages/tenancy/account-identity/tests/` 下，`scenarios.spec.ts` 的 describe 是 `capability.account-identity v2 · 规范场景`（下文以 `…` 省略）；逐条状态在该 run 的 `cases.tsv`。
 > 本契约不发布 Schema，没有可被本地求值的工件；**通过不提升或改变任何接受状态**，文件存在不代替结果。
 > 本页从「证据义务」一节起，凡没有另行注明版本的，说的都是 v1 的条款。
@@ -37,7 +37,7 @@
 **v2 不建形式工件**，理由在 [v2 §八](v2/contract.md#八规范表达与验证义务)：本版改动没有新状态、新转移、新并发交错，也没有跨 owner 的代数；
 没有需要登记为 formal task 的配置，也没有否定配置。**「未运行」即现状**：没有任何模型被写出来，也就没有任何模型被运行。
 
-**v2 的实际执行**：见[实际执行](#实际执行)一节的 `2026-09-23-tests-tenancy-leg-2` 一行；它是实现测试，不是模型。
+**v2 的实际执行**：见[实际执行](verification.md)一节的 `2026-09-23-tests-tenancy-leg-2` 一行；它是实现测试，不是模型。
 
 ## 证据义务
 
@@ -85,7 +85,7 @@
 
 ## 结果与反例
 
-**v2 实现有一次入库的测试运行，0 失败、没有反例**（[实际执行](#实际执行)）；v1 没有实现，没有执行记录。分开陈述：
+**v2 实现有一次入库的测试运行，0 失败、没有反例**（[实际执行](verification.md)）；v1 没有实现，没有执行记录。分开陈述：
 
 - **静态检查**：失败集合闭合、记录结构走的是类型测试（v2 S-36、记录结构两行，通过）；S-35 的规则形式**跳过**、规则不存在；熵下限的实现审阅没有入库记录。
 - **场景演练**：S-31、S-33、S-34、S-40～S-44、S-46 通过；S-32、S-47 的「完整重启」那一支只有同进程重启调了 S-44，OS 进程重启只核了 S-17（部分）；S-29 没有用例。
@@ -93,38 +93,12 @@
 - **真实组合的符合性**：账号能力与真实 credential-verification、organization-governance、account-registration、`storage-sql`（sqlite 临时文件库）的组合在 account-registration 与 `apps/tenancy-host` 的用例里；pg 只跑了 `apps/tenancy-host/tests/pg.spec.ts` 的几支。
 
 记录多时按执行拆文件并从本页链接；工具与版本、环境、配置、输入范围与原始结果位置在 run 目录里；
-记录多时按执行拆文件并从本页链接，原始产物归 [record/evidence/](../../../record/evidence/README.md)。
+记录多时按执行拆文件并从本页链接，原始产物归 record/evidence/。
 
 记录时必须分开陈述：**静态检查的结果**、**场景演练的结果**、**故障注入的结果**、**真实组合的符合性**。
 [局部通过不能代替实际组合通过](../../README.md#按需展开形式化工件)；
 未重启的演练不能记作 [S-32](v1/contract.md#s-32-退出的持久性)，
 顺序演练不能记作 [S-19](v1/contract.md#s-19-登录标识部署内唯一) 的并发那一半。
-
-## 实际执行
-
-| run id | 本契约的哪条义务 | 结果 | evidence |
-|---|---|---|---|
-| `2026-09-23-tests-tenancy-leg-2` | **v2 实现**：v2 段与上表（同号继承）中标「已通过」「部分」「跳过」的各行；**v1 一条也没有**（没有 v1 实现） | 源码提交 `c9b5850`；本包 `tests/` 五个文件（`scenarios`、`obligations`、`plugin`、`config`、`types.spec-d`），`storage-sql` sqlite 临时文件库，时间源多为可前推的包内替身，`scenarios.spec.ts` 的夹具用真实 credential-verification、交错与持锁段的测试用凭据替身；另有 account-registration、`apps/tenancy-host`、`tools/ts-checks` 里的承担者；Node v24.18.0（OpenSSL 3.5.7）、vitest 4.1.11；pg 一侧（PostgreSQL 16.14）只有 `apps/tenancy-host/tests/pg.spec.ts`。本包 76 条 **66 通过、10 跳过**、0 失败（类型测试 19 条）——跳过的 10 条都是指向别处的占位，除 S-35 的规则形式外所指的事同 run 另有承担者；`lint:rules` 退出 0 | [run README](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)、`output/account-identity.log`、`json/account-identity.json`；义务对应 [`coverage.md`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/coverage.md#packagestenancyaccount-identity) |
-| `2026-09-22-formal-tenant-domain-2` | **一条也没有** | **本次运行不覆盖本契约。**理由同下一行 | [run README](../../../record/evidence/2026-09-22-formal-tenant-domain-2/README.md) |
-| `2026-09-22-formal-tenant-domain` | **一条也没有** | **本次运行不覆盖本契约。**它只跑了 `capability.organization-governance` v1 与 `composition.account-registration` v1 的形式工件；**本契约不建形式工件**，因此在那次运行里没有可跑的东西 | [run README](../../../record/evidence/2026-09-22-formal-tenant-domain/README.md) |
-
-**两行形式 run 必须写出来，不能留白**：同批契约跑过两轮，容易被读成「这批都验过了」。
-本契约**证据义务的规范形式**是**八条场景与两条静态检查**（「规范工件」一词只指构成本版的文件，见[契约 §八](v1/contract.md#八规范表达与验证义务)），
-**全部证据义务以上面那张表的登记为准**（还有若干条由条款直接触发、没有自己场景号的检查只在那里）；
-**对 v1 实现一条都没执行过**；测试那一行针对的是 v2 实现，它的通过**不是 v1 的证据**，也不说明任何模型性质。
-**有限检查不写成无条件证明**：sqlite 临时文件库、单主机、各跑一次；真并发只证这次调度走到的交错；「重启」多数是同进程整装配重启，OS 进程重启只有一条。
-
-**一处必须挡住的误读**：组合契约的 `Registration.tla` 里有
-`capability.account-identity/v1#S-13`、`#S-14`、`#S-18`、`#S-38` 的**抽象对应物**
-（`Claim`／`Activate`／`expired`／`ExpireAccount`）。
-**那是组合契约在检查自己的动作链，不是在检查本契约的操作语义**——
-模型把本契约的每一步都抽象成了「要么整个成立、要么没发生」，
-而那个抽象**正是本契约要兑现的承诺**，不是它的结论。
-**不得把那三个配置的通过读成本契约任何一条已被检查。**
-
-**catalog 登记**（2026-09-22，`candidate`，依赖 `data.identity-values` v1 的七条
-`S-1`／`S-2`／`S-9`／`S-30`／`S-31`／`S-33`／`S-35`，当前值以 [G-5](v1/contract.md#九已知缺口) 为准）
-**不产生任何证据**，它只是把坐标与资源放进采用面。
 
 ## 形式化工件
 
@@ -150,7 +124,7 @@
   S-30 第 4 行加的句子改成唯一读法：「前置检查」指判定、在提交内现做；凭据材料的计算可在提交外，条件是材料在提交内确认仍属同一 AccountId 且未改写，确认不成立按提交内现读状态重判、落在既有失败集合内；
   S-30 前言与 §十 记下第 4 行的改动并判「语义没变」，AR 一行补第 4 行的影响判断；§十 入口一行改为 catalog 现登 14 条（含 S-46）；S-2 入口一行点名两处新增（S-44、S-15 返回出示物）。
   **判定、失败集合与证据义务都不变**；[账号能力节点](../../../realization/packages/tenancy/account-identity/design.md)的 S-13／S-15 行与 R-8 按同一读法。
-- **已执行：PF-017 rev 1 被接受**（2026-09-23，[正式接受](../../../product/PF-017-governance-center-as-deployable-application/decisions.md#2026-09-23--正式接受)，rev 不升）。
+- **已执行：PF-017 rev 1 被接受**（2026-09-23，[正式接受](../../../product/PF-017-governance-center-as-deployable-application/design.md)，rev 不升）。
   v2 抬头、§四 两行、§十 抬头行与包入口里「PF-017 rev 1 是 draft」的说法改为「已接受（2026-09-23）」；
   抬头那条「PF-017 被接受之前本版不进入接受」改写为该前提已成立。**v2 仍是 `candidate`，条款语义不变，对证据的影响：无。**
 - **已执行：v2 评审轮一修订**（2026-09-23，spec-reviewer 对 v2 的评审经主线裁决；v2 仍是 `candidate`，原地改）。
@@ -164,7 +138,7 @@
   **对证据的影响**：v2 段新增 [S-33](v2/contract.md#s-33-退出的作用范围) 与 [S-21](v2/contract.md#s-21-未激活账号不能用于任何交互) 两行，
   S-44 的表示层注入多两类输入，S-46 与记录结构检查的范围随之改写；没有已执行的结果需要重判（v2 一条也没执行过）。
 - **已执行：起草 v2「出示物与登录状态标识分离」**（2026-09-23，[v2](v2/contract.md) 为 `candidate`）。
-  **v1 一个字未改**（已冻结，[D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md)）；
+  **v1 一个字未改**（已冻结，D-023）；
   逐条差异、条款号的恒等对应与消费者影响在 [v2 §十](v2/contract.md#十版本差异与规范工件)。
   **对证据的影响**：v1 没有任何已执行证据，因此没有旧结果需要重判；v2 新增与改写的义务登记在 [v2 段](#v2候选的证据义务)——
   两条新场景（[S-46](v2/contract.md#s-46-存储里翻不出能用的出示物)、[S-47](v2/contract.md#s-47-出示物的不可逆形式恒等于它的-loginstateid)）、
@@ -188,7 +162,7 @@
   [S-12](v1/contract.md#s-12-账号身份事实不是范围化对象) 不受触动，依赖方向不变。三票交集指出的
   「撤销时那项选择在存储层没有拥有者」由治理侧第 5 条闭合。**不新增证据义务。**
 - **未落盘：能力拆分投票裁定的修正 1 的原方向（移交）**（2026-09-22，依据
-  [`record/proposals/tenant-capability-split/`](../../../record/proposals/tenant-capability-split/README.md#后续消费)）。
+  `record/proposals/tenant-capability-split/`）。
   三票独立评审**全投维持五份拆分**，交集发现之一是「当前租户身份一条记录两个 owner」——
   登录状态记录归本契约（[S-9](v1/contract.md#s-9-登录状态记录)），挂在它上面的那项选择归治理契约
   （[S-2](v1/contract.md#s-2-消费者与依赖方向) 的「不拥有」表）。
@@ -208,17 +182,17 @@
   **因此本契约本轮一个字未改**：条款、失败集合、场景与 catalog 的 clauses 全部不变，
   已有结论不受影响；待裁项报回主线。
 - **已执行：PF-001 升到 rev 15**（2026-09-22，
-  [changelog rev 15](../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)）。
+  [changelog rev 15](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）。
   **rev 15 只改 [flows §4](../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作) 成员名单那一行**
   （拆成「有效成员」与「已解除的成员」两行，后者只归超管），**本契约不受影响**——
   它引的九处**一处也不在 flows §4 那张表里，原文逐字未变**（逐处见下一条）。
-  **[decisions §一那条「登录标识本版不提供修改」也特别核过](../../../product/PF-001-identity-scope-and-agent-constraints/decisions.md#一拍板记录)**：
+  **[decisions §一那条「登录标识本版不提供修改」也特别核过](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)**：
   rev 15 在那一节**加了一行新裁决，本契约引的这一条一字未动**。
   **本契约不拥有组织与成员这一侧的任何读面**，那一行讲的是组织内部谁看得见什么。
   **只改 rev 标注**：抬头与 [S-13 产生账号（未激活）](v1/contract.md#s-13-产生账号未激活) 里
   那句「它的产品依据是 PF-001 rev N 的 flows §2」，`rev 14` → `rev 15`。**不新增证据义务，已有结论不受影响。**
 - **已执行：PF-001 升到 rev 14**（2026-09-22，
-  [changelog rev 14](../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)）。
+  [changelog rev 14](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）。
   **rev 14 只改了 [flows §4 角色与操作](../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作) 那张表**
   （补三行读面授权，答的是 `capability.organization-governance/v1` 登记的缺口 G-11），
   **本契约不受影响**——它引的是 [§4 账号](../../../product/PF-001-identity-scope-and-agent-constraints/design.md#账号)、
@@ -274,7 +248,7 @@
 
   **本契约此前没有任何已执行证据，因此本轮同样没有旧结果需要重判。**
 
-- **已执行：PF-001 升到 rev 13**（2026-09-22，[changelog](../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)）。
+- **已执行：PF-001 升到 rev 13**（2026-09-22，[changelog](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）。
   **本契约引的三处正文逐条复核过**，结论是**条款一条没改**：
 
   | 本契约引的哪一处 | rev 13 动了什么 | 复核结论 |
@@ -302,7 +276,7 @@
 
   **本契约此前没有任何已执行证据，因此本轮同样没有旧结果需要重判。**
 
-- **已执行：PF-001 升到 rev 12**（2026-09-22，[changelog](../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)）。
+- **已执行：PF-001 升到 rev 12**（2026-09-22，[changelog](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）。
   **本轮改动直接落在 v1 上，不发布第二个版本**——本契约仍是 `candidate`，
   未接受、未冻结，[不可原地覆盖的是已发布规格](../../README.md)。
   （**catalog 已于当日晚些时候登记**，状态仍是 `candidate`，资源未进 `frozen.json`——

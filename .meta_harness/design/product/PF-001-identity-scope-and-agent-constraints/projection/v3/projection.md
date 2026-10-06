@@ -4,7 +4,7 @@
 
 - 对应需求：[PF-001](../../README.md) 全部条款里**租户相关领域**这一片——账号、登录状态、组织与隶属、成员关系与角色、两种邀约、租户身份与隔离义务、作用域层里组织级与租户级的身份。**不含**设置／权限／资产的求值与持有（PF-002）、资产流转（PF-003）、会话（PF-015）、成本计量（无 topic）。另取 [PF-003 §6.14](../../../PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期) 一句作邀约过期的第二消费者依据
 - 本版依据的需求修订：**PF-001 rev 16**（`README.md` front-matter），PF-003 rev 4
-- 状态：**当前，已接受为实施入口，租户领域已实现**（十一个 provider 节点 `implemented`，见[实现映射](../../../../realization/README.md)）——设计依据 五份契约与六节点依据 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22），入口层与账号能力 v2 依据 [D-028](../../../../record/decisions/governance-center-design-acceptance/README.md)（2026-09-23）。契约来源 `accepted`、已冻结（[provenance.json](provenance.json) 里契约的 sha256 即 `frozen.json` 登记值）；需求与节点来源不在冻结集合，实施前先核那些坐标
+- 状态：**当前，已接受为实施入口，租户领域已实现**（十一个 provider 节点 `implemented`，见[实现映射](../../../../realization/README.md)）——设计依据 五份契约与六节点依据 D-023（产品负责人，2026-09-22），入口层与账号能力 v2 依据 D-028（2026-09-23）。契约来源 `accepted`、已冻结（[provenance.json](../../design.md) 里契约的 sha256 即 `frozen.json` 登记值）；需求与节点来源不在冻结集合，实施前先核那些坐标
 - 未决 gap 数：**15**（见[第 7 节](#7-未决项)；Q-14、Q-15、Q-16 已闭合，条目保留并标注）
 
 **读法**：第 1～4 节回答「必须为真的是什么」，来源是契约；第 5～6 节回答「用哪些原语兑现、有什么证据」，来源是六个 provider 节点。
@@ -12,7 +12,7 @@
 
 ## 1. 本版覆盖的需求条款
 
-确认状态取自 PF-001 [decisions](../../decisions.md)：rev 10 把此前九条「正文转述」全部补上来路（[changelog rev 10 §三](../../changelog.md#rev-10--并发移除超管有了收场当前租户身份在创建那一刻被捕获--2026-09-22)），本表因此**没有「继承待核对」**。
+确认状态取自 PF-001 [decisions](../../design.md)：rev 10 把此前九条「正文转述」全部补上来路（[changelog rev 10 §三](../../design.md)），本表因此**没有「继承待核对」**。
 
 ### 1.1 账号那一侧
 
@@ -276,7 +276,7 @@ ctx（apps 装配，本批未建节点）
 
 ## 6. 绑定与证据
 
-运行登记在 [`record/evidence/`](../../../../record/evidence/README.md)：形式工件 [`2026-09-22-formal-tenant-domain-2`](../../../../record/evidence/2026-09-22-formal-tenant-domain-2/README.md)（模型未改，仍适用）与 [`2026-09-23-alloy-affiliation`](../../../../record/evidence/2026-09-23-alloy-affiliation/README.md)；实现测试 [`2026-09-23-tests-tenancy-leg-2`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)；黑盒端到端 [`2026-09-23-e2e-governance-center`](../../../../record/evidence/2026-09-23-e2e-governance-center/README.md)。通过不提升任何状态。逐条款绑定在各节点 `bindings.yaml`，逐行义务状态在各节点 `verification.md`。
+运行登记在 `record/evidence/`：形式工件 `2026-09-22-formal-tenant-domain-2`（模型未改，仍适用）与 `2026-09-23-alloy-affiliation`；实现测试 `2026-09-23-tests-tenancy-leg-2`；黑盒端到端 `2026-09-23-e2e-governance-center`。通过不提升任何状态。逐条款绑定在各节点 `bindings.yaml`，逐行义务状态在各节点 `verification.md`。
 
 | 契约条款 | 证据 | 前提 | 状态 |
 |---|---|---|---|
@@ -305,9 +305,9 @@ ctx（apps 装配，本批未建节点）
 | Q-11 | 当前租户身份残留清扫的触发与节奏（`og#G-13`） | 装配 | 提供 `sweepStaleSelections` 方法，不建定时器 |
 | Q-12 | 资产 owner 那一半隔离义务、S-49 的「不销毁」、PF-003 两类邀约的消费者（`oe#G-2`／`G-6`） | 资产领域规格（下一战役） | 本域只给判定与谓词 |
 | Q-13 | 三条待核对 Cordis 主张：可选 inject 语义、`ctx.provide` 是否自动纳管、插件体抛出后 fiber 状态；AR 读本 fiber 状态的 API | 按 source-check 对采用版本取证，回填 basis | 实施前先核；核不到按各节点写的退路 |
-| Q-14 | **已闭合**：Cordis 采用版本 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)，2026-09-22）；basis 六条已按 4.0.4 回填 probe | — | 按 4.0.4；节点新增的假设（内核原样传递 config 等）按 source-check 取证 |
-| Q-15 | **已闭合**：领域名 `tenancy`（[D-024](../../../../record/decisions/tenancy-domain-name/README.md)，2026-09-22） | — | 按 [realization 两层布局](../../../../realization/README.md#packages-的两层布局) |
-| Q-16 | **已闭合**：入口层身份核实有了契约 `composition.governance-center-entry` v1 与节点 `packages/tenancy/governance-center-entry`，账号能力发 v2（出示物与 LoginStateId 分离），都由 [D-028](../../../../record/decisions/governance-center-design-acceptance/README.md) 接受（2026-09-23）；存储、时钟与密钥三半由 [D-026](../../../../record/decisions/infrastructure-persistence-choices/README.md)／[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 裁定并落到 `packages/infra/{storage-sql,clock}`、`apps/tenancy-host` | — | 入口层那一半按 [PF-017 投影 v1](../../../PF-017-governance-center-as-deployable-application/projection/v1/projection.md) 实施；其中仍开着的 G-10 传输绑定、G-11 防冒充手段在实施前由入口层节点闭合 |
+| Q-14 | **已闭合**：Cordis 采用版本 4.0.4（D-025，2026-09-22）；basis 六条已按 4.0.4 回填 probe | — | 按 4.0.4；节点新增的假设（内核原样传递 config 等）按 source-check 取证 |
+| Q-15 | **已闭合**：领域名 `tenancy`（D-024，2026-09-22） | — | 按 [realization 两层布局](../../../../realization/README.md#packages-的两层布局) |
+| Q-16 | **已闭合**：入口层身份核实有了契约 `composition.governance-center-entry` v1 与节点 `packages/tenancy/governance-center-entry`，账号能力发 v2（出示物与 LoginStateId 分离），都由 D-028 接受（2026-09-23）；存储、时钟与密钥三半由 D-026／D-027 裁定并落到 `packages/infra/{storage-sql,clock}`、`apps/tenancy-host` | — | 入口层那一半按 [PF-017 投影 v1](../../../PF-017-governance-center-as-deployable-application/projection/v1/projection.md) 实施；其中仍开着的 G-10 传输绑定、G-11 防冒充手段在实施前由入口层节点闭合 |
 | Q-17 | 认证换代时旧凭据材料的迁移策略（CV：换方案 ⇒ 旧材料 `mismatch`） | 产品负责人 | 本版一种方案，不预埋迁移 |
 | Q-18 | 契约文本四处与现行设计对不上（不改语义，待 spec owner 修订）：`ar#S-34`「两步之间崩溃后发起者回来 ⇒ ① 认回、② 重建个人组织」与 `ai#S-13`「认回须未过期」矛盾——清除链只在已过期时跑，回来的人撞上的是 `identifier-held-by-expired-record`，走就地清除后全新注册；`ar#S-25` 第 1 行仍写「③ 读到 ② 提交后的事实」而修订后 `ai#S-14` 不读组织；`ai#S-30` 第 7 行左列「同一时间源 + 同一参数源」是旧兑现描述，现行用右列的「单点判定并携带的事实」；`ai#S-4`「AccountId 由存储生成」读作「在存储提交内生成、主键约束保证唯一」；`iv` 第六节 S-35 左格写 nonce 登记而正文把机制归 realization | spec owner | 按现行节点设计实施；四处都是措辞，不改任何失败集合或次序 |
 
@@ -332,7 +332,7 @@ v2 的九步全部完成（HUB 分支 `panqiwei/tenancy-leg-2`，2026-09-23）�
 
 ## 9. 验收判据对账（PF-001 acceptance → 证据）
 
-对账口径同 PF-017 投影 v2 第 9 节：证据是 [e2e run](../../../../record/evidence/2026-09-23-e2e-governance-center/README.md) 的场景（T 编号）或各包在 [tests run](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md) 里通过的测试；「不在本版」指资产、设置、会话那几块能力尚无契约，本投影只覆盖租户领域。原文以 [acceptance.md](../../acceptance.md) 为准。
+对账口径同 PF-017 投影 v2 第 9 节：证据是 e2e run 的场景（T 编号）或各包在 tests run 里通过的测试；「不在本版」指资产、设置、会话那几块能力尚无契约，本投影只覆盖租户领域。原文以 [acceptance.md](../../acceptance.md) 为准。
 
 [§一 可观察场景](../../acceptance.md#一可观察场景)：
 

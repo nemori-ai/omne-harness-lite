@@ -1,16 +1,9 @@
-# 条款到证据的绑定表。
-# 2026-09-27 v4 候选：新增 0 条；产品实现尚无，本版义务见 verification.md M4-V1～M4-V8。
-# 下方 1 条是原 v3 实际测试绑定，保留精确坐标；不作为 v4 通过或接受的依据。
-# 空表：data.messages v2 没有登记的 formal task；formal/Readable.als 是 Alloy 模型，不是 formal task
-# （alloy exec 的退出码不判断言，登记它会得到一个永远通过的任务），不可绑定。
-# 源码不存在，没有测试可绑。证据义务与缺口记在 verification.md。
 version: 1
 node: "messages"
 kind: "provider"
 
 bindings:
 
-# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
 
   - clause: "data.messages/v3#S-39"
     evidence: "test:tools/core-verification/src/w6-stream-consumer.ts#w6.stream.nested-message-identity-boundary"

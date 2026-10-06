@@ -908,7 +908,7 @@ S-13 说「可用账号必有个人组织」，本条说「个人组织必有账
 
 **v1设计期间关掉的一条缺口保留如下历史说明**（依据为PF-001 **rev 12**；
 **本版当前产品依据是 rev 18**，见抬头与
-[该 topic 的 changelog](../../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)）：
+[该 topic 的 changelog](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）：
 
 | 原编号 | 原来是什么 | 现在怎么了 |
 |---|---|---|

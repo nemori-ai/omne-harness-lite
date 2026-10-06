@@ -12,7 +12,7 @@
   Claude Code `2.1.280` 与本机 `SKILL.md`（本仓库 canonical 7 个、`~/.claude/plugins/` 下 115 个）。取证 2026-09-23
 - 第二轮新增对象：Agent Skills 开放格式 agentskills/agentskills `69ef37e9424c0a7ea9dd2293b559e43ec8176379`（规格无版本号；原文与参考库 skills-ref 0.1.0 钉存于 [sources/](sources/provenance.json)）；
   Codex `5c5308fc9a9ee789049d646ef11e5400384b9c6f` 的 skill 子系统（所读源码钉存）；omne-next `omne_agent_capabilities` 的 skill 聚合（domain 层）；本机 Codex CLI `0.156.1` 的 562 份 `SKILL.md` 与 538 份 `agents/openai.yaml`
-- 消费者：[proposal「Skill 规格采用」](../../design/record/proposals/skill-spec-adoption/design.md)（第二轮补的是它的「接受前必须补的一项」与扩展盘点）
+- 消费者：proposal「Skill 规格采用」（第二轮补的是它的「接受前必须补的一项」与扩展盘点）
 - 最近核对：2026-09-23 第二轮（补充，见 [changelog](changelog.md)）；首轮结论未重核、正文未改
 
 ## 准入核对

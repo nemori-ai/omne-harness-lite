@@ -14,7 +14,7 @@
 任一管理行撤除使整个代际停止准入。已有工作按原提交边界收场，注册不得交下一步。
 资源按逆序关闭，随后撤 fiber、行端口，核对维护及升级守卫后才撤外部资源服务。
 后继装配必须新建代际，不能在旧槽位重新开放。设计依据见[有序收尾](../../.meta_harness/design/architecture/identity-integration/retirement.md)。
-装配迁移的接受依据及验证范围见[插件树与治理宿主交付记录](../../.meta_harness/design/record/decisions/plugin-tree-host-delivery/README.md)。
+装配迁移的接受依据及验证范围见插件树与治理宿主交付记录。
 
 ## 命令
 
@@ -82,7 +82,7 @@ scrypt 派生参数取 credential-verification 的缺省（N = 2^17、r = 8、p 
 4. **磁盘要多容纳一份库的大小**：有待跑迁移时，迁移之前先建一份完整快照；确认之后删除。
 5. **权限**：运维面套接字目录只属于中心的运行用户、组与其他用户没有任何权限位（否则启动失败，中心不替你改）；
    四份部署密钥与 TLS 私钥文件 `0600`。
-6. **同步档位**：本中心按 [D-039](../../.meta_harness/design/record/decisions/governance-sqlite-full/decision.md) 显式使用 SQLite WAL + FULL；没有降档环境变量。耐久性依赖操作系统、文件系统和设备正确兑现同步请求；参数及进程回归不等于物理断电实验，也不涵盖磁盘毁损或旧备份安全恢复。
+6. **同步档位**：本中心按 D-039 显式使用 SQLite WAL + FULL；没有降档环境变量。耐久性依赖操作系统、文件系统和设备正确兑现同步请求；参数及进程回归不等于物理断电实验，也不涵盖磁盘毁损或旧备份安全恢复。
 7. **同步驱动下热循环会饿死定时器**：`node:sqlite` 是同步驱动；请求都经 I/O 到达，天然让出事件循环。不要在进程里挂别的忙循环任务。
 8. **升级 = 停着的时候换一个版本再启动。**sqlite 上确认之前的任何启动失败都把库恢复到升级前，旧版本照常能起；
    **确认之后开闸那一刻钟读不到**（`serving-timeout`，缺口 U-4）是已接受的残余情形：库已是新版本、旧版本起不来——**核过钟再用同一版本重启**。
@@ -124,6 +124,6 @@ scrypt 派生参数取 credential-verification 的缺省（N = 2^17、r = 8、p 
 
 [服务模板与操作步骤](deploy/README.md)包含原socket上的full-health/backup/backup-status，以及不依赖serve配置的verify/restore-isolated。命令输出只报告元信息和结果，等待实际输出完成；退出码见该操作说明。CLI/TUI业务协议仍为2，不随本次opsVersion1要求员工升级。
 
-行为依据归[已采用的维护装配](../../.meta_harness/design/realization/apps/tenancy-host/maintenance-binding.md)和[D055](../../.meta_harness/design/record/decisions/governance-online-maintenance-adoption/README.md)，这里维护安装与运行命令。
+行为依据归[已采用的维护装配](../../.meta_harness/design/realization/apps/tenancy-host/maintenance-binding.md)和D055，这里维护安装与运行命令。
 
 Maintenance commands use named effects. The assembly selects the existing Unix client and offline inspection provider. Parsing does not acquire resources; the command retains close responsibility for its acquired inspection.

@@ -6,7 +6,7 @@
 只回答一件事：**你手上这个 PF，改它的半径有多大。**
 
 > **本文件拥有一份清单**：哪些 topic 覆盖[架构内核](../ubiquitous_language/terms/architecture-core-and-extension.md#ul-architecture-core--架构内核--architecture-core)。
-> **词条引用这份清单，而不是写死编号**——[产品负责人的原话](../ubiquitous_language/decisions.md#ul-d-2--架构内核--2026-09-20)是
+> **词条引用这份清单，而不是写死编号**——[现行词义](../ubiquitous_language/index.md)是
 > 「未来可能会拓展其他 PF 归到这一类里面」。**往下面那张表加一行，那个 PF 就进了架构内核。**
 
 ## 什么是架构内核 PF
@@ -60,7 +60,7 @@ rev 1 把那个名字定为[归档](PF-015-session-lifecycle-and-ownership/desig
 > **五块大纲现已全部有落点**：工具权限那条腿由
 > [PF-007 §5.6](PF-007-meta-capabilities/design.md#56-一次放行判断走四步) 接住
 > （执行环境权限归 [PF-005](PF-005-execution-environments-and-sandboxes/README.md)）。
-> 它的接受范围见 [D-074](../record/decisions/session-workspace-product-acceptance/decision.md)，改动半径以[本 rev 覆盖到哪](PF-015-session-lifecycle-and-ownership/README.md#本-rev-覆盖到哪)为准。
+> 它的接受范围见 D-074，改动半径以[本 rev 覆盖到哪](PF-015-session-lifecycle-and-ownership/README.md#本-rev-覆盖到哪)为准。
 
 ## 改一个架构内核 PF 意味着什么
 
@@ -115,7 +115,7 @@ PF-004 用 PF-002 的定义、PF-003 的流动，PF-005 又接 PF-004 装配与�
 
 **2026-09-20，产品负责人裁决**，分两次给：先划范围，再定词。
 **两段原话、六条裁决与 PM 起草定义时的推理链，全部记在
-[UL-D-2](../ubiquitous_language/decisions.md#ul-d-2--架构内核--2026-09-20)**——
+[现行词义](../ubiquitous_language/index.md)**——
 那里是这件事的依据所在，**本文件不复制**。
 
 **裁决定的是：范围（当时的 16 个）· 含义（立规矩 vs 用规矩）· 清单可增补 ·

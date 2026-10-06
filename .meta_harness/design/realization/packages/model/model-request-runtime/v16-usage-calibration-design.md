@@ -4,7 +4,7 @@
 
 ## 输入与边界
 
-[catalog](../../../../registry/catalog.json) 中 MR9、RT10 均为 candidate，不能把独立评审或有限模型通过当接受。依据是 [U0 revision3](../../../../record/proposals/model-input-usage-calibration/design.md) 及其[施工简报（已外置）](../../../../record/evidence/2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件)。候选精确字节如下；正式接受后须由主线核对采用范围，不能自动跟随同名文件改动。
+[catalog](../../../../registry/catalog.json) 中 MR9、RT10 均为 candidate，不能把独立评审或有限模型通过当接受。依据是 U0 revision3 及其施工简报（已外置）。候选精确字节如下；正式接受后须由主线核对采用范围，不能自动跟随同名文件改动。
 
 | 输入 | SHA-256 |
 |---|---|
@@ -12,7 +12,7 @@
 | MR9 Schema | `f282244688fa9442787b94f11c02444923843c8d8ae471d323e42792c8ee457c` |
 | RT10 contract | `add7ff23a73a6ad5a749f40f6707f408f60d33b6032080ad6ba4751f10d5695c` |
 
-承接 [v7 公共施工面](v7-current-design.md)、[v8 当前 codec](v8-current-codec-design.md)、[v9 估算政策](v9-token-estimate-design.md)、[v10 组合 owner](v10-owner-assembly-design.md)、[v12 时序](v12-recovery-timing-design.md)及[恢复留存](v12-recovery-owner-supplement.md)、[v14 冷宿主](v14-cold-demo-host-design.md)、[v15 观测](v15-diagnostics-demo-design.md)。保留 D025 的 [Cordis 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)，SL3 抽象与既有 JSONL 提供者；不新增 plugin、fiber、service、数据库或计量真值 store。静态必需配置非法仍启动失败；函数显式输入非法沿 malformed，构件不可用沿 unavailable，业务缺凭据仍是既有具名失败。
+承接 [v7 公共施工面](v7-current-design.md)、[v8 当前 codec](v8-current-codec-design.md)、[v9 估算政策](v9-token-estimate-design.md)、[v10 组合 owner](v10-owner-assembly-design.md)、[v12 时序](v12-recovery-timing-design.md)及[恢复留存](v12-recovery-owner-supplement.md)、[v14 冷宿主](v14-cold-demo-host-design.md)、[v15 观测](v15-diagnostics-demo-design.md)。保留 D025 的 Cordis 4.0.4，SL3 抽象与既有 JSONL 提供者；不新增 plugin、fiber、service、数据库或计量真值 store。静态必需配置非法仍启动失败；函数显式输入非法沿 malformed，构件不可用沿 unavailable，业务缺凭据仍是既有具名失败。
 
 源码已有 `types.ts`、`invoke.ts`、`service-calls.ts`、`service-dispatch.ts`、`response-construction.ts`、共同 log codec、reconcile 与 example 消费者；本增量尚未接通。纯 `invokeModel` 与 plan 不要求 Cordis、tenant、session、log；P-2 服务是这些公开构件的消费者。完整 compaction、真实 Run/Loop、十三操作缺口与 G-36/G-37 不在本页被补造或关闭。
 

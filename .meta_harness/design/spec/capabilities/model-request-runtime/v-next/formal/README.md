@@ -1,6 +1,6 @@
 # v-next ACK 行为模型：暂存行扩展
 
-2026-09-30，candidate。本目录是 v12 冻结的 [`formal/AckLifecycle.tla`](../../v12/formal/AckLifecycle.tla) 的候选后继：按[接缝 revision 2](../../../../../record/proposals/model-runtime-reference-lifecycle/ack-post-confirmation-settlement.md) R1/R2 加入暂存行代际、回执未知的在途追加与恢复时的可读性；其余动作、常量与十条原不变量逐字保留，八份原变异配置与 v12 字节相同。它不是已登记的 formal task，不改 registry；下一版本冻结时随 contract 一起登记。抽象边界沿 [v12 ACK-README](../../v12/formal/ACK-README.md)：两个 call、两个 consumer、单 Focus、至多一次 crash，不建模真实权限来源、字节或密码学。
+2026-09-30，candidate。本目录是 v12 冻结的 [`formal/AckLifecycle.tla`](../../v12/formal/AckLifecycle.tla) 的候选后继：按接缝 revision 2 R1/R2 加入暂存行代际、回执未知的在途追加与恢复时的可读性；其余动作、常量与十条原不变量逐字保留，八份原变异配置与 v12 字节相同。它不是已登记的 formal task，不改 registry；下一版本冻结时随 contract 一起登记。抽象边界沿 [v12 ACK-README](../../v12/formal/ACK-README.md)：两个 call、两个 consumer、单 Focus、至多一次 crash，不建模真实权限来源、字节或密码学。
 
 ## 相对 v12 改了什么
 

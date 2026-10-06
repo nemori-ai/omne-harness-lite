@@ -1,8 +1,8 @@
 # hooks-import 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
-**2026-09-26 裁决对账**：[D-064 ⑭](../../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 已允许 hooks 子进程落宿主机，取代此前「产品未允许」的前提。现行未完成项是 EE G-3 的允许读面接线与 HI G-15 的工作目录、变量名单来路；缺席时仍按契约拒绝。本次只更新裁决依据，未登记实现或验证完成。
+**2026-09-26 裁决对账**：D-064 ⑭ 已允许 hooks 子进程落宿主机，取代此前「产品未允许」的前提。现行未完成项是 EE G-3 的允许读面接线与 HI G-15 的工作目录、变量名单来路；缺席时仍按契约拒绝。本次只更新裁决依据，未登记实现或验证完成。
 
 
 契约：[`capability.hooks-import` v2](../../../../spec/capabilities/hooks-import/v2/contract.md)（下文「契约 S-n」「契约 G-n」都指它）。
@@ -14,7 +14,7 @@
 
 | 部分 | 来源 | 本节点的处置 |
 |---|---|---|
-| matcher 求值、按方言的编解码、多件输出的合并、脱离运行的辅助、`HookOutput` 类型 | fork：DSH `c291e79` 的 `hook-protocol` 四个文件（`matcher`、`codec`、`merge`、`detached`）与类型；**剥掉对 `dsh-session` 的类型扩展** | 包内一个自有模块（候选路径 `src/vendor/hook-protocol/`），按 [SYS-KERNEL](../../../../foundation/cross-system-constraints/requirements.md#sys-kernel) 记来历；**不与上游同步**（D-033 保留前提：DSH 的基线已落后于两家来源产品）。先做[提案](../../../../record/proposals/hooks-compat-baseline/alternatives.md#推荐与仍待区分的事项)列的四处立刻要改的事（matcher 精确集对齐 Claude Code 现行规则、Claude Code 方言的退出码与 JSON 读法、merge 补 `defer` 与改写字段、剥掉 `dsh-session` 类型扩展），再逐格对契约 S-16、S-19、S-20；两者不一致处以契约为准 |
+| matcher 求值、按方言的编解码、多件输出的合并、脱离运行的辅助、`HookOutput` 类型 | fork：DSH `c291e79` 的 `hook-protocol` 四个文件（`matcher`、`codec`、`merge`、`detached`）与类型；**剥掉对 `dsh-session` 的类型扩展** | 包内一个自有模块（候选路径 `src/vendor/hook-protocol/`），按 [SYS-KERNEL](../../../../foundation/cross-system-constraints/requirements.md#sys-kernel) 记来历；**不与上游同步**（D-033 保留前提：DSH 的基线已落后于两家来源产品）。先做提案列的四处立刻要改的事（matcher 精确集对齐 Claude Code 现行规则、Claude Code 方言的退出码与 JSON 读法、merge 补 `defer` 与改写字段、剥掉 `dsh-session` 类型扩展），再逐格对契约 S-16、S-19、S-20；两者不一致处以契约为准 |
 | 导入与导入报告 | 自写 | 纯函数 `importHostHooks`（契约 S-11～S-15） |
 | 两张方言映射表 | 自写，**以契约 S-23、S-24 为唯一权威** | 一个静态数据模块，逐行对契约的表；不据研究材料另推导来源产品行为 |
 | 执行器（被调到时的全过程） | 自写 | 契约 S-16～S-22；**不继承** DSH「执行器拒绝 ⇒ 非阻断、永不抛」（契约 S-19 与 runner S-12 末条） |
@@ -77,7 +77,7 @@
 | S-8～S-10 干预力、工作区来源、兼容件载荷 | 纯函数：`power` 取映射表的上限；工作区来源的每件带 `requires_tenant_enablement`；声明显式写 `unavailability: skip` | 同上 | 落地时的拒收与禁用落格归资产治理（契约 G-7、G-8） |
 | S-11～S-15 导入与报告 | `importHostHooks`：先按方言解析整份、**任何一个 matcher 不合法即整份 `invalidInput`**，再逐条产出 `imported`／`degraded`／`skipped`；带 `args` 或 `shell` 字段的 CC handler 一律 `skipped{no_mapping}`（契约 S-14 ⑦，G-16 闭合之前） | 同上 | 场景 S-29、S-30、S-34 |
 | S-16 情形筛选 | 执行器第一步：情形不满足或 matcher 不匹配 ⇒ `observed`、不起子进程；matcher 求值用 fork 的 `matcher`（按方言） | 同上 | 比对值取不到 ⇒ 按报错（不当匹配也不当不匹配） |
-| S-17 原生输入 | `toHostInput`：不给 `transcript_path`、`permission_mode`、`session_id` 与租户标识；`stop_hook_active` 从日志数。执行器**要调 `resolveTenant`**——起、等、停子进程都要带租户（execution-environments S-13～S-15 ①；[D-060 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑩）——但租户身份**只进那三次调用，不进原生输入** | 同上 | 场景 S-36（断言原生输入里没有租户标识） |
+| S-17 原生输入 | `toHostInput`：不给 `transcript_path`、`permission_mode`、`session_id` 与租户标识；`stop_hook_active` 从日志数。执行器**要调 `resolveTenant`**——起、等、停子进程都要带租户（execution-environments S-13～S-15 ①；D-060 §八 N-37 ⑩）——但租户身份**只进那三次调用，不进原生输入** | 同上 | 场景 S-36（断言原生输入里没有租户标识） |
 | S-18 子进程在哪跑 | 起子进程之前经 `resolveTenant`、`resolveExecutionEnvironment(input.environment)` 取租户与这一会话的执行环境引用，工作目录交不出即起不来（契约 G-15，HI-N7），`startProcess(tenant, ref, buildLaunch(…))`；**不回退宿主机**、不拿别的会话的；时限取 handler 的 `timeout` 或方言默认 | 同上 | **接口已定、真承接者未到**（execution-environments v1；runner 契约 G-20）。**产品装配未交入允许时 fail-closed**：拓展件子进程的宿主机允许产品已给、装配尚未接入（execution-environments [G-3](../../../../spec/capabilities/execution-environments/v2/contract.md#十已知缺口)，账本 ⑭），`startProcess` 答 `noLanding{hostNotAllowed}` ⇒ 每一件「起不来」（HI-N1） |
 | S-19 起不来与报错 | 句柄解析不出、交不出工作目录、`startProcess` 答 `noLanding`／`unavailable`／`referenceNotValid`／`environmentsWithdrawn`／`startFailed{programNotFound \| launchRefused}`，都在**开始之前**判出 ⇒ 报「起不来」；开始之后按契约 [S-19](../../../../spec/capabilities/hooks-import/v2/contract.md#s-19-起不来与报错) 的各行归类，非阻断错误的收场按 S-19 与 [`capability.loop-extension-runner/v2#S-13`](../../../../spec/capabilities/loop-extension-runner/v2/contract.md#s-13-报错处置策略的执行)；判不出开始之前还是之后 ⇒ 按报错（[失败映射](#状态并发与失败映射)） | 同上 | 场景 S-32（含句柄解析不出、`noLanding` 两支） |
 | S-20、S-22 输出译回、越档 | fork 的 `codec`（按方言）→ 契约 S-20 的优先级取一样；越档不自降，交 runner 按报错处置 | 同上 | 场景 S-31 |
@@ -174,7 +174,7 @@
 
 | # | 缺口 | owner | 受阻的消费者 | 闭合条件 |
 |---|---|---|---|---|
-| HI-N1 | **执行环境：接口已定、真承接者未到；产品装配未交入允许时 fail-closed**。起、等、停三面由 `capability.execution-environments` v2 [S-13](../../../../spec/capabilities/execution-environments/v2/contract.md#s-13-startprocess)～S-15 接住（有界答复、未确认继续停，M64 的前提由它的 S-15 承诺）；runner 解析句柄的两条来路接口已定（runner 契约 G-20）。**仍挡着**：① 拓展件子进程的宿主机允许产品已给、装配尚未接入（execution-environments [G-3](../../../../spec/capabilities/execution-environments/v2/contract.md#十已知缺口)，**接线缺口，D-064 ⑭ 已裁**，[D-060 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑧）——产品装配未交入允许时，`startProcess` 答 `noLanding{hostNotAllowed}`，每一件兼容件都「起不来」、按声明跳过，可否决的兼容件那道闸这一次就没了，只剩那条不可用记录（与 N-26 一致）；会话级沙箱仍不在本版（那份契约 G-1），但已不阻止获准使用宿主机的 hooks。**真承接者未到，最小提供者节点 [`execution-environments-host`](../../infra/execution-environments-host/design.md#实施缺口与消费者影响) 已立（candidate）**：允许来自它的可选读面 `executionPlacementReadings`，产品装配里缺席 ⇒ `noLanding{hostNotAllowed}`（它的 EEH-2），验收装配由种子件给；它本版只进验收装配 | 执行环境与据点装配 owner；完整沙箱能力另归 PF-005 那一程 | 全部兼容件 | ① 产品允许已由 D-064 ⑭ 裁定；接上 execution-environments S-6 所需允许读面，保持只及 hooks 兼容件，那个节点的 RD-2 指到实际读面；**另挡在 HI-N7、HI-N8 之后** |
+| HI-N1 | **执行环境：接口已定、真承接者未到；产品装配未交入允许时 fail-closed**。起、等、停三面由 `capability.execution-environments` v2 [S-13](../../../../spec/capabilities/execution-environments/v2/contract.md#s-13-startprocess)～S-15 接住（有界答复、未确认继续停，M64 的前提由它的 S-15 承诺）；runner 解析句柄的两条来路接口已定（runner 契约 G-20）。**仍挡着**：① 拓展件子进程的宿主机允许产品已给、装配尚未接入（execution-environments [G-3](../../../../spec/capabilities/execution-environments/v2/contract.md#十已知缺口)，**接线缺口，D-064 ⑭ 已裁**，D-060 §八 N-37 ⑧）——产品装配未交入允许时，`startProcess` 答 `noLanding{hostNotAllowed}`，每一件兼容件都「起不来」、按声明跳过，可否决的兼容件那道闸这一次就没了，只剩那条不可用记录（与 N-26 一致）；会话级沙箱仍不在本版（那份契约 G-1），但已不阻止获准使用宿主机的 hooks。**真承接者未到，最小提供者节点 [`execution-environments-host`](../../infra/execution-environments-host/design.md#实施缺口与消费者影响) 已立（candidate）**：允许来自它的可选读面 `executionPlacementReadings`，产品装配里缺席 ⇒ `noLanding{hostNotAllowed}`（它的 EEH-2），验收装配由种子件给；它本版只进验收装配 | 执行环境与据点装配 owner；完整沙箱能力另归 PF-005 那一程 | 全部兼容件 | ① 产品允许已由 D-064 ⑭ 裁定；接上 execution-environments S-6 所需允许读面，保持只及 hooks 兼容件，那个节点的 RD-2 指到实际读面；**另挡在 HI-N7、HI-N8 之后** |
 | HI-N2 | **已闭合**（D-060 §八 M38）：统一输入加执行环境句柄（`data.loop-extension/v2#S-41`），契约 S-18 改为经它取，读面是 runner S-50；本节点的落法见[操作落点](#操作落点) S-18 一行 | — | — | — |
 | HI-N3 | **DSH 的许可与来历未核**：vendoring 之前必须核实并记下 | 本节点（核对）→ 主线（许可不允许时改选 C 的决定） | fork 模块 | 许可与来历记入 SYS-KERNEL 要求的位置 |
 | HI-N4 | **D-033 的 A／C 区分实验未跑**：实施第一步；超过一半改动即以新决定改选 C | 本节点（实施计划第一步）→ 主线（新决定） | fork 模块 | 实验跑完、结果记录；需要时出新决定 |

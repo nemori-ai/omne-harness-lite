@@ -5,7 +5,7 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.arrival-events, 2)`——
   `family = data`、`topic = arrival-events`、规范路径 `spec/data/arrival-events/v2/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：已由 [D-061](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
+- **状态**：已由 D-061 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-009 rev 8、PF-006 rev 19、PF-013 rev 12、PF-012 rev 14** 为准。
   2026-09-24 按各 topic 的 changelog 从起草时的 rev 逐版核到当前 rev：PF-009 rev 8 的「工具帧出错照常收尾」让帧流的 `lost` 多了两种来路（执行者没有回答、执行者换了代，[S-16](#s-16-收尾)）；
   「在途快照含已到片段」「开口是账」「入站语音整条到」与本契约既有条款一致；其余不改本契约条款。逐 topic 的记录见[验证入口「变化的影响」](../verification.md#变化的影响)
@@ -44,7 +44,7 @@
 | 首 token 指交出的第一样内容，不论模态；整交的块开了口不算 | [PF-013 §5.4 「已经开口说话了」](../../../../product/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类) | S-21 |
 | 用户中断不是故障、不带成因；故障带成因与原样状态码 | [PF-013 还有一种没走完](../../../../product/PF-013-model-profiles-and-invocation/design.md#还有一种没走完它不在这张表里) · [§5.7](../../../../product/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它) | S-16 |
 | 一次模型调用可以发出不止一次，两次发出是两条流 | [PF-013 §5.13](../../../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token) | S-5 |
-| 语法借 `StreamChunk` 骨架并条款化：五步与块索引关联、封口交完整块、用量独立一步且在收尾前、失败归一为收尾、参数保持原始串；唯一解析点在装配器；一个索引终身只开一次 | [D-035](../../../../record/decisions/message-and-stream-baseline/decision.md) 选择表第二行、保留前提 1、3、6、8 | S-6、S-7、S-13、S-17、S-24 |
+| 语法借 `StreamChunk` 骨架并条款化：五步与块索引关联、封口交完整块、用量独立一步且在收尾前、失败归一为收尾、参数保持原始串；唯一解析点在装配器；一个索引终身只开一次 | D-035 选择表第二行、保留前提 1、3、6、8 | S-6、S-7、S-13、S-17、S-24 |
 | 规格形式；部署边界 | [SYS-SPEC](../../../../foundation/cross-system-constraints/requirements.md#sys-spec) · [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) | S-25～S-29 |
 | 统一语言正式名 | [增量到达](../../../../ubiquitous_language/terms/record-and-context.md#ul-incremental-arrival--增量到达--incremental-arrival) · [在途状态](../../../../ubiquitous_language/terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival) · [执行帧](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame) · [发帧](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-frame-emission--发帧--frame-emission) · [内容块](../../../../ubiquitous_language/terms/record-and-context.md#ul-content-block--内容块--content-block) · [模态](../../../../ubiquitous_language/terms/record-and-context.md#ul-modality--模态--modality) | 全部 |
 
@@ -52,13 +52,13 @@
 >
 > | 条款 | 裁决 | 出处 |
 > |---|---|---|
-> | [S-7](#s-7-块索引) | 块索引由生产者给、装配一侧校验单调与唯一 | [D-058 Q4](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔) |
-> | [S-10](#s-10-呈现提示) | 块头带可选的呈现提示，取值集本版不定，非法值具名拒绝 | [D-058 Q17](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔) |
-> | [S-5](#s-5-信封与目标) 的 `dispatch` | 模型调用的目标按「哪一次发出」分开 | 主线裁定，见 [D-060 §一 S8-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s8model-response报回的) |
-> | [S-8](#s-8-开块) 的「帧入口」 | 工具侧块的 `id` 由宿主的帧入口编，与 `data.content-blocks/v2#S-3` 同一处 | 主线裁定，见 [D-060 §一 S4-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s4arrival-events--stream-assembly报回的) |
-> | [S-9](#s-9-块头)、[S-28](#s-28-表示层拒绝值) 的 `head_modality_mismatch` | 块头模态不符由本契约拒，进表示层拒绝值 | 主线裁定，见 [D-060 §五 K4](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) |
-> | [S-16](#s-16-收尾) 工具那一列 | 执行者没有回答、桥换代落 `lost`，只有有意停下才是 `interrupted`；对到 `ToolInternalEnding` 的表归 `data.messages` S-14 | 主线裁定，见 [D-060 §五 K2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) |
-> | [S-16](#s-16-收尾) 宿主放弃在途的流落 `lost`（`interrupted` 不含「宿主把它带走」）；回复流对到 `ending` 的表归 `data.messages` S-10 | 主线裁定，见 [D-060 §七 M1、M12](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) |
+> | [S-7](#s-7-块索引) | 块索引由生产者给、装配一侧校验单调与唯一 | D-058 Q4 |
+> | [S-10](#s-10-呈现提示) | 块头带可选的呈现提示，取值集本版不定，非法值具名拒绝 | D-058 Q17 |
+> | [S-5](#s-5-信封与目标) 的 `dispatch` | 模型调用的目标按「哪一次发出」分开 | 主线裁定，见 D-060 §一 S8-c |
+> | [S-8](#s-8-开块) 的「帧入口」 | 工具侧块的 `id` 由宿主的帧入口编，与 `data.content-blocks/v2#S-3` 同一处 | 主线裁定，见 D-060 §一 S4-a |
+> | [S-9](#s-9-块头)、[S-28](#s-28-表示层拒绝值) 的 `head_modality_mismatch` | 块头模态不符由本契约拒，进表示层拒绝值 | 主线裁定，见 D-060 §五 K4 |
+> | [S-16](#s-16-收尾) 工具那一列 | 执行者没有回答、桥换代落 `lost`，只有有意停下才是 `interrupted`；对到 `ToolInternalEnding` 的表归 `data.messages` S-14 | 主线裁定，见 D-060 §五 K2 |
+> | [S-16](#s-16-收尾) 宿主放弃在途的流落 `lost`（`interrupted` 不含「宿主把它带走」）；回复流对到 `ending` 的表归 `data.messages` S-10 | 主线裁定，见 D-060 §七 M1、M12 |
 >
 > **没有产品行、属规格层推导的条款**：[S-8](#s-8-开块) 的 `id` 与 `visibility`、[S-13](#s-13-封口) 的「工具调用的封口不带块」、
 > [S-15](#s-15-记账) 的「记账那一步就是 `{ usage, cost }`、引 `data.call-accounts` v2」（账只有一个家）与「工具执行这一侧没有记账这一步」、
@@ -86,7 +86,7 @@
 | 消费者 | 消费什么 |
 |---|---|
 | `capability.stream-assembly`（同批起草） | 全部：信封、六种事件、语法次序、归约、拒绝值；**违反语法时的失败值由它命名**（[S-24](#s-24-违反语法由消费一方判定并命名)） |
-| 模型调用一侧的传输适配（`capability.model-request-runtime` 之内，归提供者设计） | 把上游的流**只在这里**翻译成本语法（[D-035](../../../../record/decisions/message-and-stream-baseline/decision.md)）；[S-13](#s-13-封口) 的「参数保持原始串、不中间解析」、[S-16](#s-16-收尾) 的成因与状态码 |
+| 模型调用一侧的传输适配（`capability.model-request-runtime` 之内，归提供者设计） | 把上游的流**只在这里**翻译成本语法（D-035）；[S-13](#s-13-封口) 的「参数保持原始串、不中间解析」、[S-16](#s-16-收尾) 的成因与状态码 |
 | 工具执行一侧的发帧原语与 MCP 进度 → 发帧（`capability.tool-execution-runtime`、`capability.mcp-bridge`） | [S-23](#s-23-执行帧的另外四条) 与 [S-22](#s-22-节流只动填合并不改结果砍了要说)：帧的单位、帧里媒体只许引用、帧不给模型看、节流与「砍了要说」 |
 | 会话出站流（呈现一侧订阅，契约未建立） | 信封与事件本身：中途重进的观察者先拿在途状态、再续收事件；[S-10](#s-10-呈现提示) 的呈现提示 |
 | `data.call-accounts` v2 | 它的 `ToolCallAccount.frames`（是 `FrameAccount` 时的 `emitted`）数的「一帧」按 [S-23](#s-23-执行帧的另外四条) 的单位；那份契约以坐标引它、作定义性引用，**不登 catalog 依赖**——本契约已依赖那份契约，登了成环 |
@@ -221,7 +221,7 @@
   工具调用块更是**从不带着封口块到达**（[S-13](#s-13-封口)）。
 - **`visibility` 缺一即拒**：缺席或缺任一位，拒绝值取 `data.content-blocks/v2#S-26` 的 `visibility_missing`——**是同一件事：这一块没表过态**。
 - **`id` 的唯一范围是这条流装出的那整条消息**，含这条流里交出的块内嵌的块（`data.content-blocks/v2#S-3`）。分配它的一方要看得见整条消息：
-  **模型侧是生产的一方**（传输适配），**工具侧是宿主的帧入口**——工具作者与 MCP 桥经它交帧，它是工具侧唯一看得见整条消息的一处（与 `data.content-blocks/v2#S-3` 同一处，主线裁定，见 [D-060 §一 S4-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s4arrival-events--stream-assembly报回的)）。
+  **模型侧是生产的一方**（传输适配），**工具侧是宿主的帧入口**——工具作者与 MCP 桥经它交帧，它是工具侧唯一看得见整条消息的一处（与 `data.content-blocks/v2#S-3` 同一处，主线裁定，见 D-060 §一 S4-a）。
   一条消息里 `id` 重复在哪一步被拒，见 [S-24](#s-24-违反语法由消费一方判定并命名)。
 
 ### S-9 块头
@@ -237,8 +237,8 @@
 
 - **`voice` 为什么必带 `mediaType`**：一段语音可能永远等不到封口，消费一侧要用它落成语音块，而语音块的媒体类型必填（`data.content-blocks/v2#S-10`）。
 - **`tool_call` 为什么必带 `callId` 与 `tool`**：封口时消费一侧要用它们拼出那个调用块（[S-13](#s-13-封口)）；
-  它们是[调用的元数据，不是参数](../../../../record/decisions/message-and-stream-baseline/decision.md)，不能随「填」换掉。
-- **模态不符**（例如 `voice` 带 `image/png`）**是本契约的表示层拒绝 `head_modality_mismatch`**（[S-28](#s-28-表示层拒绝值)；主线裁定，见 [D-060 §五 K4](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）：只看这一个 `open` 事件就判得出，不需要这条流此前的任何事件，所以按 [S-24](#s-24-违反语法由消费一方判定并命名) 的判定时机归本契约，**不另由消费一侧命名**。
+  它们是调用的元数据，不是参数，不能随「填」换掉。
+- **模态不符**（例如 `voice` 带 `image/png`）**是本契约的表示层拒绝 `head_modality_mismatch`**（[S-28](#s-28-表示层拒绝值)；主线裁定，见 D-060 §五 K4）：只看这一个 `open` 事件就判得出，不需要这条流此前的任何事件，所以按 [S-24](#s-24-违反语法由消费一方判定并命名) 的判定时机归本契约，**不另由消费一侧命名**。
   它只在 `mediaType` 合乎规范形式时判；不合规范形式的，是嵌着的值不合 `data.content-blocks` v2，取那边的 `malformed`，不判模态（与 `data.content-blocks/v2#S-10` 同一条规矩）。
   **缺了必带的成员、或给不该给的类带了**是本契约的表示层拒绝 `malformed`。
 - **块头与封口块必须说同一件事**：封口块或整块的填若带了 `mediaType`，必须与块头的逐字相同（[S-13](#s-13-封口)）。
@@ -297,7 +297,7 @@
 - **封口交出完整的那一块**：[消费的一方可以自己把增量拼起来，但不必——两边各拼一次，就有了两个可能不一致的答案](../../../../product/PF-009-context-message-types/design.md#到达的过程有它自己的语法)。
   所以**封口块就是这块的最终内容**；它与各次填的关系是生产者的义务（[S-20](#s-20-封口块等于归约)）。
 - **工具调用为什么例外**：[没收齐的参数不解析；解析只发生一次，收齐之后、动手之前](../../../../product/PF-009-context-message-types/design.md#610-没收齐的工具调用参数不解析不执行)，
-  而[唯一的解析点在装配器](../../../../record/decisions/message-and-stream-baseline/decision.md)（D-035 保留前提 1：传输一侧**不得中间解析**）。
+  而唯一的解析点在装配器（D-035 保留前提 1：传输一侧**不得中间解析**）。
   完整的调用块要带解析后的 `arguments`（`data.content-blocks/v2#S-12`）——让生产者交出它，就是让生产者去解析。
   **所以工具调用块封口时不带块，参数保持原始串，由消费一侧在这一下解析。**
 - **封口的意思是「这一块到齐了」，不是「流停了」**：一块被写到上限截断、被用户叫停、帧流断了，**生产者不得替它封口**——
@@ -359,8 +359,8 @@
   `inBand: true` 只能与 `statusCode` 同在，在即那个状态码是流已开始之后带内错误的 `code`、不是 HTTP 状态（与 `data.model-response/v2#S-15` 同一个成员、同一个意思；主线裁定，D-060 §八 N-40 ④）。
   **别的组合带了是 `malformed`**：被中断不是故障，不带成因；帧流断了不是一次模型调用的故障。
 - **`lost` 不带 `error` 是合法的**：生产者知道断了、却说不出为什么。**缺席不等于「没有故障」**，成因怎样定归模型调用一侧（`data.model-response` v2），本契约不替它补。
-- **只有有意停下才是 `interrupted`**（主线裁定，见 [D-060 §五 K2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）：等待到点是执行者没有回答、桥换代是执行者没了——都不是谁决定让它停，写成 `interrupted`，读的人会去找一个并不存在的叫停者。
-- **宿主放弃在途的流一律是 `lost`**（主线裁定，见 [D-060 §七 M12](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)；与桥换代同类）：宿主停止或被撤下时，它对还开着的每一份装配状态做放弃动作（`capability.stream-assembly`），不以 `interrupted` 收尾；**这时不带 `error`**——那不是一次故障，没有成因可写。
+- **只有有意停下才是 `interrupted`**（主线裁定，见 D-060 §五 K2）：等待到点是执行者没有回答、桥换代是执行者没了——都不是谁决定让它停，写成 `interrupted`，读的人会去找一个并不存在的叫停者。
+- **宿主放弃在途的流一律是 `lost`**（主线裁定，见 D-060 §七 M12；与桥换代同类）：宿主停止或被撤下时，它对还开着的每一份装配状态做放弃动作（`capability.stream-assembly`），不以 `interrupted` 收尾；**这时不带 `error`**——那不是一次故障，没有成因可写。
   模型侧于是只有用户发起的停下才是 `interrupted`——那样收尾的回复落成的 `interrupted_by_user` 才找得到那个叫停的人。**回复流的四个结局怎样对到 `AssistantMessage` 的 `ending`，对应表只在 [`data.messages/v2#S-10`](../../messages/v2/contract.md#s-10-assistantmessage-怎么收的尾)**。
   **帧流的这四个结局怎样对到 `ToolInternalMessage` 的 `ending`，对应表只在 [`data.messages/v2#S-14`](../../messages/v2/contract.md#s-14-toolinternalmessage-怎么收的尾)**；本契约只定 `finish` 这一步的四个取值与它们的意思（PF-009 rev 8：执行怎么收场，已交付过块的那条消息都照常收尾）。
 - **生产者自己断了、连 `finish` 都没来得及发**的情形，由消费一侧的放弃动作补上一个 `lost`（`capability.stream-assembly`）；
@@ -728,7 +728,7 @@ event_unknown  >  trim_reason_unknown = finish_reason_unknown（互斥，不会�
 | **G-4** | **节流的参数与执行者未定**：单个增量的长度上限、一条流可送达的额度、哪些帧会被拒收，由谁（发帧原语、出站流）施行；模型回复一侧是否允许改变内容的砍 | 任何要节流的一方；`TrimSummary` 里三种改变内容的原因能否在模型侧出现 | **`capability.tool-execution-runtime` 与 PF-006 的 owner**；模型侧那一问归 **PF-009 的 owner** |
 | **G-5** | **整块载荷与不带载荷的事件怎样计 `omittedBytes`**：`data.call-accounts/v2#S-15` 只给了文本与二进制两种口径 | 砍掉或拒收一个整块的填、一个开块或封口时的字节数 | **整批对齐的执行者（主线）**，必要时回 `data.call-accounts` |
 | G-6 | **已闭合（2026-09-24 整批对齐）**：一条消息里块 `id` 重复在消息层的接收边界拒，拒绝值 `block_id_duplicate` 归 `data.messages`；流上不另设失败值（[S-24](#s-24-违反语法由消费一方判定并命名)） | — | — |
-| G-7 | **已闭合（2026-09-24 整批对齐；第一轮评审修复改写依据）**：Q4、Q17 已落为 [D-058](../../../../record/decisions/message-and-shape-rulings/decision.md)；`dispatch` 与帧入口链到 D-060 §一 S8-c、S4-a；其余几项改写成规格层推导、理由写在各条（[设计依据](#设计依据)下方） | — | — |
+| G-7 | **已闭合（2026-09-24 整批对齐；第一轮评审修复改写依据）**：Q4、Q17 已落为 D-058；`dispatch` 与帧入口链到 D-060 §一 S8-c、S4-a；其余几项改写成规格层推导、理由写在各条（[设计依据](#设计依据)下方） | — | — |
 
 ## 十、明确不承诺
 

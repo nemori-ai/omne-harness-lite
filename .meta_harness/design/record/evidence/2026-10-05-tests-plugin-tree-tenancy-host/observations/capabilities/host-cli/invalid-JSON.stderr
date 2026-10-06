@@ -1,1 +1,0 @@
-{"ts":1791185411686,"level":"error","name":"tenancy-host","event":"startup-failed","stage":"config","item":"--plugins","errorType":"SyntaxError","message":"tenancy-host startup failed at config: operator configuration could not be read"}

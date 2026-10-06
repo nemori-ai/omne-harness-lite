@@ -4,7 +4,7 @@
 
 ## 输入与采用边界
 
-依据 [已提交求值的读取链候选](../../../../record/proposals/model-request-adaptation/read-projection.md)及其 2026-09-27 存储归属修正。本节点补模型请求纵线的窄读取链；完整 Agent Definition、Agent Loop、自动初选与派发器构链仍归原拥有者。产品依据沿 manifest v3 的 PF-004 rev 12、PF-006 rev 19、PF-015 rev 11、PF-013 rev 13，不因本页候选而提升接受状态。
+依据 已提交求值的读取链候选及其 2026-09-27 存储归属修正。本节点补模型请求纵线的窄读取链；完整 Agent Definition、Agent Loop、自动初选与派发器构链仍归原拥有者。产品依据沿 manifest v3 的 PF-004 rev 12、PF-006 rev 19、PF-015 rev 11、PF-013 rev 13，不因本页候选而提升接受状态。
 
 依赖的当前接受状态与采用记录以 [registry catalog](../../../../registry/catalog.json) 为准；下表只固定本节点拟消费的精确版本，不以本页静态状态标签替代登记，也不因依赖被接受就提升本候选节点。
 
@@ -15,7 +15,7 @@
 | [`capability.asset-registry/v3`](../../../../spec/capabilities/asset-registry/v3/contract.md) | S-48～S-50 是生产者责任及跨节点验收输入，**不是 manifest 的反向契约依赖** |
 | `data.identity-values/v1`、`data.offer-expiry/v1`、`data.messages/v2`、`data.asset-model/v3`、`data.tool-definition/v2` | 精确消费面沿 manifest v3 S-4。这里的 SessionRef、严格 JSON 与 DependencyName 不随其他模型节点升级到新数据版本 |
 
-候选源码仍在同名两层路径。现有 `core/storage` 协议与 `infra/storage-sql` 提供者继续承接存储要求；[D-026](../../../../record/decisions/infrastructure-persistence-choices/decision.md)的采用与 [D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md)的 NORMAL 持久边界不变。此次不另选数据库、不迁移到会话 JSONL、不增加第二份清单权威。共享存储对象仍是 `assembly_manifest_record(session, seq)` 及同事务的 `assembly_manifest_table` 行；`owned_ref` 的唯一约束仍覆盖所有会话。
+候选源码仍在同名两层路径。现有 `core/storage` 协议与 `infra/storage-sql` 提供者继续承接存储要求；D-026的采用与 D-027的 NORMAL 持久边界不变。此次不另选数据库、不迁移到会话 JSONL、不增加第二份清单权威。共享存储对象仍是 `assembly_manifest_record(session, seq)` 及同事务的 `assembly_manifest_table` 行；`owned_ref` 的唯一约束仍覆盖所有会话。
 
 ## 契约责任到插件、服务与操作
 
@@ -54,7 +54,7 @@ registry S-48 的写入内容恰为 `{ evaluation, compositionOrder, filledBy }`
 | `presenceSource` | 原可选配置；仅需要其查询的验收装配给测试种子 | 未给合法，dependencyPresence 答 unavailable；与新读面无依赖 |
 | 消费者 | `packages/tools/asset-registry` 用旧读写面并采用 S-48；`apps/model-request-acceptance` 消费新增历史读面；拓展点派发只沿其自有版本采用 | runtime/v3 S-66 当前输入由 `packages/assets/evaluation-input-store` 提供，不能回退为本历史结果。采用动作须逐消费者确认；旧 v2 不自动拥有新方法，拓展链解释和完整 Agent Loop 不随本增量交付 |
 
-Cordis 采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）。已登记 basis：[`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)承载必需依赖；[`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)承载换代重跑；[`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)承载非法配置启动失败；[`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)说明不能依赖多个 disposer 次序。上述条目有 probe，但不构成本节点证据。`ctx.provide` 的 effect 纳管继续沿原 kernel-basis probe 记为**待核对主张**，新增真实宿主验证见 ME-6。没有本节点可选的时限、重试或轮询策略；装配层的退出等待策略仍显式配置，不在此硬编码。
+Cordis 采用 4.0.4（D-025）。已登记 basis：[`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)承载必需依赖；[`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)承载换代重跑；[`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)承载非法配置启动失败；[`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)说明不能依赖多个 disposer 次序。上述条目有 probe，但不构成本节点证据。`ctx.provide` 的 effect 纳管继续沿原 kernel-basis probe 记为**待核对主张**，新增真实宿主验证见 ME-6。没有本节点可选的时限、重试或轮询策略；装配层的退出等待策略仍显式配置，不在此硬编码。
 
 ## 存储要求与共同对象
 

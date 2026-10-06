@@ -1,18 +1,18 @@
 # Qwen 开源两叶可见推理详情的参考计量
 
-实施状态（2026-09-30，不改下文受审字节）：已按[采用决定](../../../../record/decisions/model-input-usage-calibration-adoption/qwen-visible-reasoning-decision.md)实施，两叶当前为 definition `4`／`pi-ai:qwen@mp4-19`、algorithm `qwen-38-public-template-effort-4`／`qwen-38-public-template-image-effort-5`；QV1–QV3 本机覆盖见 [verification](verification.md#2026-09-30-qwen-可见推理本机覆盖)，QV4 待 root。
+实施状态（2026-09-30，不改下文受审字节）：已按采用决定实施，两叶当前为 definition `4`／`pi-ai:qwen@mp4-19`、algorithm `qwen-38-public-template-effort-4`／`qwen-38-public-template-image-effort-5`；QV1–QV3 本机覆盖见 [verification](verification.md)，QV4 待 root。
 
-2026-09-30，revision 2，candidate，**待当前绑定真实形状确认后采用**；独立架构评审无阻断，按主调度 2026-09-30 裁决（R-P）在 QV0 之后与 Moonshot 同法采用（机制接线先行、QV4 真实回放作门）；尚未技术采用、未实施、未实际验证，新增 bindings 0。本页按已采用的 [DeepSeek 可见推理计量](deepseek-visible-reasoning-estimate-design.md)（[采用决定](../../../../record/decisions/model-input-usage-calibration-adoption/deepseek-visible-reasoning-decision.md)）的结构，补充已采用的 [v10](v10-token-estimate-design.md)、[v12](v12-usage-calibration-design.md)，与同日 [Moonshot 候选](moonshot-visible-reasoning-estimate-design.md)共用形状识别与守门接线，不改这些页的受审字节。持续消费者为 `qwen/qwen3.8-2.4t-a95b`、`qwen/qwen3.8-27b` 两款官方定义、`createQwenInputMeter` 的公开模板分支与模型调用规划器；固定公开模板、OpenRouter 推理详情协议或共享分组规则变化时复核本页。其余六款 Qwen（可见 JSON 替身分支）不在范围内。
+2026-09-30，revision 2，candidate，**待当前绑定真实形状确认后采用**；独立架构评审无阻断，按主调度 2026-09-30 裁决（R-P）在 QV0 之后与 Moonshot 同法采用（机制接线先行、QV4 真实回放作门）；尚未技术采用、未实施、未实际验证，新增 bindings 0。本页按已采用的 [DeepSeek 可见推理计量](deepseek-visible-reasoning-estimate-design.md)（采用决定）的结构，补充已采用的 [v10](v10-token-estimate-design.md)、[v12](v12-usage-calibration-design.md)，与同日 [Moonshot 候选](moonshot-visible-reasoning-estimate-design.md)共用形状识别与守门接线，不改这些页的受审字节。持续消费者为 `qwen/qwen3.8-2.4t-a95b`、`qwen/qwen3.8-27b` 两款官方定义、`createQwenInputMeter` 的公开模板分支与模型调用规划器；固定公开模板、OpenRouter 推理详情协议或共享分组规则变化时复核本页。其余六款 Qwen（可见 JSON 替身分支）不在范围内。
 
 ## 基准、性质与证据
 
-基准为已接受 [RT12](../../../../spec/capabilities/model-request-runtime/v12/contract.md)／[MR11](../../../../spec/data/model-response/v11/contract.md) 的计量语义（接受依据沿 [D107](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md)）与当前实现（两叶定义 `3`、`pi-ai:qwen@mp4-18`）。主调度 2026-09-30 裁定本轮 Qwen 以 full-only 交付、φ/δ 不作交付门（R-A），并允许两叶对已接受的 `high`/`max` 做无 holdout 的 full 估算扩展、不放宽 opaque/加密历史守门（R-B）；两项已登记于 D-111，见 G6。本页不新增公开操作、输出组语义、对象或存储；相关对象仍为 ModelDefinition、ModelProfile、ModelInvocationInput、PendingModelResponse，未经尚不存在的装配反查索引核实。
+基准为已接受 [RT12](../../../../spec/capabilities/model-request-runtime/v12/contract.md)／[MR11](../../../../spec/data/model-response/v11/contract.md) 的计量语义（接受依据沿 D107）与当前实现（两叶定义 `3`、`pi-ai:qwen@mp4-18`）。主调度 2026-09-30 裁定本轮 Qwen 以 full-only 交付、φ/δ 不作交付门（R-A），并允许两叶对已接受的 `high`/`max` 做无 holdout 的 full 估算扩展、不放宽 opaque/加密历史守门（R-B）；两项已登记于 D-111，见 G6。本页不新增公开操作、输出组语义、对象或存储；相关对象仍为 ModelDefinition、ModelProfile、ModelInvocationInput、PendingModelResponse，未经尚不存在的装配反查索引核实。
 
 沿用已封存性质，不声明新的双盲封存：全部实际输入有据计量或发前拒绝，估算须有适用依据、不以私有模板为普遍前置（[S-74](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-74-每次发送之前的完整输入限制与固定计划)③⑤）；来源真实性先于计量，可判矛盾不得借 full 绕过（[S-77](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-77-计量依据身份与两类失效)）；reasoning 不双加、不无条件用 I+O、margin 只应用一次（[S-78](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-78-递推关系精度与重新校准)）；独立公开计量无隐藏读取、来源不可核即 unavailable（[S-79](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-79-现有公开函数的九项增量)④⑥⑧）；下一请求的输入贡献由实际回放的 role/template/内容决定，原响应、实际 wire 与上游 usage 保留（[MR11 S-43](../../../../spec/data/model-response/v11/contract.md#s-43-outputgroup-与回放)）。
 
 ### 真实原件核实
 
-流式原件为 [2026-09-27 probe 证据 run](../../../../record/evidence/2026-09-27-probe-model-request-runtime/README.md) 归档 `openrouter-research.tar.gz` 的成员，SHA-256 与该 run 的[成员清单](../../../../record/evidence/2026-09-27-probe-model-request-runtime/input-and-output-hashes-v2.json)逐项一致。六份都是固定路由（`provider.order:["alibaba"]`、`allow_fallbacks:false`、`require_parameters:true`）、`stream:true`、单轮 system+user+user、无 tools、`reasoning:{effort:"low"}`，HTTP 200、`finish_reason:"stop"`，服务方展示名 `Alibaba`、上游 model 等于路由模型。起草者只读复算，未发请求；复算是独立 Python 读数，不是执行 TS reader。
+流式原件为 2026-09-27 probe 证据 run 归档 `openrouter-research.tar.gz` 的成员，SHA-256 与该 run 的成员清单逐项一致。六份都是固定路由（`provider.order:["alibaba"]`、`allow_fallbacks:false`、`require_parameters:true`）、`stream:true`、单轮 system+user+user、无 tools、`reasoning:{effort:"low"}`，HTTP 200、`finish_reason:"stop"`，服务方展示名 `Alibaba`、上游 model 等于路由模型。起草者只读复算，未发请求；复算是独立 Python 读数，不是执行 TS reader。
 
 | 叶 | 成员（`openrouter-research/…`） | SHA-256 | 带 details 的帧 |
 |---|---|---|---:|
@@ -73,7 +73,7 @@ full 先按原件核：原 body 的 `model`、`provider` 与定义一致，原 b
 | `input-meter.ts` 共同包装 `measureFull`／`measureReplay`／`measureNew` | 来源、basis、history 校验的唯一所在 | 不复制；见下「直接入口守门」 |
 | 形状识别 | 共享四键谓词从 `projectDeepSeekMeterBody`（`deepseek-boundary.ts:47-57`）抽出，语义逐项相同（assistant、恰一项、own keys 恰四个、`reasoning.text`、字符串 text、字面 `unknown`、精确数值 0），DeepSeek、Moonshot 与本家族开源两叶共用；`[REDACTED]` 排除、并行键政策与目标槽位留在本家族 | 可见 JSON 替身分支的 `visibleDetails` 判定不动；DeepSeek 已采用页不回溯修改，其行为不因抽出而变。并行键政策三家不同：DeepSeek 任何并行键即拒，Moonshot 两键同文只计一次，本家族 `reasoning` 同文只计一次、`reasoning_content` 拒。按主调度 2026-09-30 裁决（P1）登记为已知差异：产品路径只发二者之一、永不同时发两键，差异只对直接调用者可见，待有真实带并行键回放证据时统一再议 |
 
-直接入口守门：当前 `createQwenInputMeter` 返回 `defineInputMeter` 的冻结对象，其直接 `measureFull` 不经共同包装；规划器路径经 `plan.ts`／`input-limits.ts` 调共同包装。本页让带 details 的历史首次可计量，不接线则直接调用 factory 方法可携非法显式 history 得到估算——[DeepSeek 评审](../../../../record/proposals/model-input-usage-calibration/deepseek-visible-reasoning-review.md) N1 的同构。须把 Qwen factory 的公开 full／φ／δ 方法接到共同包装，包装再调私有原始对象、避免递归；复用唯一的通用接线函数（现名 `guardDeepSeekMeter`，内容与家族无关），不复制第二份。factory 同时产出八款 meter，接线对八款一并生效：共同包装只加来源与表示校验，不改六款可见替身的数值；六款的直接入口测试按主调度 2026-09-30 裁决（P3）不作本次验收门，随接线收口时补。这是 S-77、S-79⑥ 与 [H13](verification.md#h13-多个历史输出组候选) 的落实，不新增契约承诺。
+直接入口守门：当前 `createQwenInputMeter` 返回 `defineInputMeter` 的冻结对象，其直接 `measureFull` 不经共同包装；规划器路径经 `plan.ts`／`input-limits.ts` 调共同包装。本页让带 details 的历史首次可计量，不接线则直接调用 factory 方法可携非法显式 history 得到估算——DeepSeek 评审 N1 的同构。须把 Qwen factory 的公开 full／φ／δ 方法接到共同包装，包装再调私有原始对象、避免递归；复用唯一的通用接线函数（现名 `guardDeepSeekMeter`，内容与家族无关），不复制第二份。factory 同时产出八款 meter，接线对八款一并生效：共同包装只加来源与表示校验，不改六款可见替身的数值；六款的直接入口测试按主调度 2026-09-30 裁决（P3）不作本次验收门，随接线收口时补。这是 S-77、S-79⑥ 与 [H13](verification.md#h13-多个历史输出组候选) 的落实，不新增契约承诺。
 
 ## 失败层、版本与装卸
 
@@ -81,7 +81,7 @@ full 先按原件核：原 body 的 `model`、`provider` 与定义一致，原 b
 
 发布时两叶 definition、`pi-ai:qwen` 公开模板绑定修订与 algorithm 提升到新的唯一值，经既有 `qwenPublicTemplateBindings` 表核验；固定旧 lease 不热替换，已借出的旧 meter 跑完各自规划；不保留旧 factory 或兼容重载，旧到新 basis 未证兼容即 full。历史事实保留原坐标。
 
-Cordis 继续由原官方模型贡献插件与 transport service 固定整份 meter，采用版本沿 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md)；不新增 service、fiber、inject、effect 或事件，不新增上游内核主张。装载时 meter 取得既有 tokenizer（摘要不符即构造期抛错）与模板常量，初始化失败不发布半份；一次调用的派生副本随规划结束释放；插件卸载、lease 引用与实停责任不变。meter 是纯函数，没有在途调用可取消；跨进程无新状态可继承；已发请求与上游费用不因纯函数结束而改变。新增 Storage 要求 0、装配节点 0、bindings 0；无跨 owner 提交。
+Cordis 继续由原官方模型贡献插件与 transport service 固定整份 meter，采用版本沿 D-025；不新增 service、fiber、inject、effect 或事件，不新增上游内核主张。装载时 meter 取得既有 tokenizer（摘要不符即构造期抛错）与模板常量，初始化失败不发布半份；一次调用的派生副本随规划结束释放；插件卸载、lease 引用与实停责任不变。meter 是纯函数，没有在途调用可取消；跨进程无新状态可继承；已发请求与上游费用不因纯函数结束而改变。新增 Storage 要求 0、装配节点 0、bindings 0；无跨 owner 提交。
 
 ## 对账
 
@@ -145,5 +145,5 @@ QV5：两叶 definition／绑定／algorithm 唯一修订、`evidence` 字串、
 - G3 真实回放：带 details 的历史从未真实发送，上游接受、usage、cache 均未知。归主调度付费认证。受阻消费者：两叶 D7 逐模型真实多轮认证（现第 2 轮本地拒绝）。
 - G4 解释点（反例 10）：按 R-N 闭合，与 Moonshot 候选同一裁决。同文只在 wire 层强制，流级同文性由归档原件支撑，不另开共享层候选；反例 10 固定为可计（estimated）。
 - G5 证据归档：本页流式形状表是起草者对归档原件的复算，长期家应在 research。归主线。
-- G6 裁决入档：R-A、R-B、R-F＋R-L、R-K、R-M 已登记于 D-111（[D-111](../../../../record/decisions/model-request-runtime-rulings-2026-09-30/README.md)；HUB 已有，本 spoke 基线尚无该文件，合入后改为链接）。R-N 与 R-P（P1–P4）已裁未入档，随采用决定入档。R-L 的共享 reader 改动尚未进入本 spoke 基线，QV1 须在含 R-L 的 reader 上复跑。
+- G6 裁决入档：R-A、R-B、R-F＋R-L、R-K、R-M 已登记于 D-111（D-111；HUB 已有，本 spoke 基线尚无该文件，合入后改为链接）。R-N 与 R-P（P1–P4）已裁未入档，随采用决定入档。R-L 的共享 reader 改动尚未进入本 spoke 基线，QV1 须在含 R-L 的 reader 上复跑。
 - G7 六款可见替身的既有直接入口：它们已在 JSON 替身里放行可见 `reasoning.text`/`summary`，而同一 factory 的直接方法不经共同包装，与 DeepSeek 评审 N1 同构。这是本页之前就存在的缺口。主调度 2026-09-30 裁决（R-N）登记为 Qwen 家族既有缺口，随两叶接线一起收口，不阻本页采用；六款直接入口测试不作本次验收门（P3）。已裁未入档，随采用决定入档。

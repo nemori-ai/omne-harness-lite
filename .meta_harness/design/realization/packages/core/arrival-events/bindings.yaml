@@ -1,13 +1,9 @@
-# 条款到证据的绑定表。
-# 空表：data.arrival-events v2 没有登记的 formal task；源码不存在，没有测试可绑。
-# 证据义务与缺口记在 verification.md。
 version: 1
 node: "arrival-events"
 kind: "provider"
 
 bindings:
 
-# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
 
   - clause: "data.arrival-events/v2#S-19"
     evidence: "test:tools/core-verification/src/w6-stream-consumer.ts#w6.stream.decoded-voice-split-invariance"

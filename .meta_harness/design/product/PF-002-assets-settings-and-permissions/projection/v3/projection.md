@@ -1,8 +1,8 @@
 # PF-002-assets-settings-and-permissions · 设计投影 v3
 
 - 当前需求修订：rev 20，2026-09-26 已正式接受。
-- 状态：**accepted，post-review，未表示已实现或已验证**。G4／G5／G6 由 [D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md) 闭合。
-- 来源：当前产品、精确契约与节点；[provenance.json](provenance.json) 逐文件记录 SHA-256。只有 registry/frozen 的规格资源标 frozen；其他 hash 为快照校验。
+- 状态：**accepted，post-review，未表示已实现或已验证**。G4／G5／G6 由 D-065 闭合。
+- 来源：当前产品、精确契约与节点；[provenance.json](../../design.md) 逐文件记录 SHA-256。只有 registry/frozen 的规格资源标 frozen；其他 hash 为快照校验。
 - 本页按当前来源重建导航，不沿用 v1 的旧缺口计数或替身表。各操作的九项承诺与节点实现判断只在下列精确来源中定义；阅读本页时按链接展开完整条目，不从标题推导默认值。
 
 ## 1. 需求与确认范围
@@ -1772,4 +1772,4 @@
 已知实施缺口不因 G6 签署而关闭；这些步骤不发布新的产品规则、替身默认值或并行调度承诺。
 
 
-本快照的行政坐标迁移依据：[D-066](../../../../record/decisions/pr9-pr10-coordinate-reconciliation/decision.md)。原投影与原输入完整保存在该决定指向的 main 快照，不提升既有验证范围。
+本快照的行政坐标迁移依据：D-066。原投影与原输入完整保存在该决定指向的 main 快照，不提升既有验证范围。

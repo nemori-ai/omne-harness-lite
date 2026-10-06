@@ -28,7 +28,7 @@ R2候选补足：调用方signal和实例close只请求取消，session暴露只
 
 ## R3候选：调用方资源归入同一run
 
-沿EC3 S59与[候选比较](../../../../record/proposals/governance-production-mechanisms/maintenance-resource-lifetime.md)，SnapshotInspectionSession增加`ownResource(close: () => void | Promise<void>, isClosed: () => boolean): () => Promise<void>`，在线SnapshotSession继承。仅静态本地消费者用，不由网络传回调。登记归run级，覆盖封装输入/输出/目录FileHandle；SQL只调用收尾与闭合观察，不获得文件路径/格式/发布策略。entry在open实际成功后立即登记，返回函数是显式可重试的释放，不重放写入/发布。
+沿EC3 S59与候选比较，SnapshotInspectionSession增加`ownResource(close: () => void | Promise<void>, isClosed: () => boolean): () => Promise<void>`，在线SnapshotSession继承。仅静态本地消费者用，不由网络传回调。登记归run级，覆盖封装输入/输出/目录FileHandle；SQL只调用收尾与闭合观察，不获得文件路径/格式/发布策略。entry在open实际成功后立即登记，返回函数是显式可重试的释放，不重放写入/发布。
 
 取消与close只关新run，不提前关当前run登记窗口：已在途open仍须登记。fn与全部已发子操作结算后才封登记并关闭所有剩余资源；调用方不许逃逸未await的open。结束后的登记抛内部缺陷。登记回调正常返回但isClosed=false同样是内部缺陷，不能当已结束；close抛且isClosed=true保留失败但可以释放物理所有权；仍false则保留强引用、poisoned拒新run，close可再收尾，持续失败保留工作区和源锁直到真实故障退出。普通残余文件删除失败与未关句柄不同，沿D055规则。
 

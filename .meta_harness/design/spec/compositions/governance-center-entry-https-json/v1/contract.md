@@ -2,9 +2,9 @@
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, composition.governance-center-entry-https-json, 1)`。
   **绑定标识** `https-json/1` 是这个坐标的短名，二者一一对应；它不出现在线上。
-- **状态**：`candidate`。它是入口契约 [G-10](../../governance-center-entry/v1/contract.md#十三已知缺口)（传输绑定没有版本化的工件）的闭合工件，**接受并冻结之后**才闭合它；本契约自身的接受另行决定（待 D-029）。接受之前本目录可原地改，改动记在[验证入口的「变化的影响」](../verification.md#变化的影响)；接受后整体冻结。
+- **状态**：当前采用范围见 catalog。它是入口契约 [G-10](../../governance-center-entry/v1/contract.md#十三已知缺口)（传输绑定没有版本化的工件）的闭合工件，**接受并冻结之后**才闭合它；精确规范范围以 catalog 为准。接受之前本目录可原地改，改动记在[验证入口的「变化的影响」](../verification.md#变化的影响)；接受后整体冻结。
 - **采用依据**：入口层节点 [「传输机制候选」](../../../../realization/packages/tenancy/governance-center-entry/design.md#传输机制候选)——主线 2026-09-23 采用那里三张对比表的「选」列；
-  逐项理由的长期家是[提案「传输候选的采用」](../../../../record/proposals/governance-center-entry/design.md#传输候选的采用)。
+  逐项理由的长期家是提案「传输候选的采用」。
   节点那一节的[「传输绑定：将来冻结的工件」](../../../../realization/packages/tenancy/governance-center-entry/design.md#传输绑定将来冻结的工件)与[「防冒充：中心一侧的手段与材料」](../../../../realization/packages/tenancy/governance-center-entry/design.md#防冒充中心一侧的手段与材料)是本契约的起草输入。
 - **产品依据**：[PF-017](../../../../product/PF-017-governance-center-as-deployable-application/README.md) rev 2——
   [§5.1](../../../../product/PF-017-governance-center-as-deployable-application/design.md#51-中心有两张面没有第三张)、
@@ -126,7 +126,7 @@ G-11 的客户端一侧不在本契约（[S-3](#s-3-本契约明确不承诺什�
 
 **出示物只有一个承载位置：请求体里信封的 `presentedLoginState`**（EC S-4、S-5）。`Authorization` 头里的东西**不是出示物**：
 一个只在 `Authorization` 头里带了登录状态的请求，在本传输上就是**没带出示物**，经第 ② 步的路由得 `login-state-rejected`。
-理由：只有一个承载位置，「多个出示物」只在一个解析器里判，「版本先于出示物」也不跨头与体两处（[提案「传输候选的采用」](../../../../record/proposals/governance-center-entry/design.md#传输候选的采用)第一行）。
+理由：只有一个承载位置，「多个出示物」只在一个解析器里判，「版本先于出示物」也不跨头与体两处（提案「传输候选的采用」第一行）。
 
 ### S-7 请求体怎样读成信封
 

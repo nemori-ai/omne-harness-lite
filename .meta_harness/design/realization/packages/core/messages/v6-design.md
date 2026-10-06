@@ -4,9 +4,9 @@
 
 本稿为既有 `packages/core/messages` 纯模块的窄迁移候选，不新增 package、Cordis 插件、服务或工具平台。目标坐标为 `omne-harness-lite-design-2026-09-15 · data.messages · v6`（MS6），精确消费同 baseline 的 `data.model-profile · v5`（MP5）。两份候选正文位于 `spec/data/messages/v6/contract.md` 与 `spec/data/model-profile/v5/contract.md`；起草时尚未发布到本节点所在设计树的 catalog，最终资源及 hash 待契约 owner release、主线登记与采用，**不得据本稿宣称已接受或已实施**。
 
-已接受输入为 [MS5](../../../../spec/data/messages/v5/contract.md)、[MP4](../../../../spec/data/model-profile/v4/contract.md) 与 [D-099](../../../../record/decisions/model-input-limit-consumer-contract-adoption/decision.md)；需求沿 MS6 的 PF-009 rev 8、PF-013 rev 14 及其余精确依赖，不另立产品政策。最新发布前破坏性迁移要求由主线给定；本稿接续 [v4 设计](v4-design.md) 的纯模块、原数比较与拒绝次序，取代其保留旧运行入口的方向。[profile 破坏性增补](../model-profile/v4-breaking-migration.md)提供消费者范围；该增补的 MP4 坐标和兼容冲突仍由主线以后继采用收口，不把它当作 MP5 的接受依据。
+已接受输入为 [MS5](../../../../spec/data/messages/v5/contract.md)、[MP4](../../../../spec/data/model-profile/v4/contract.md) 与 D-099；需求沿 MS6 的 PF-009 rev 8、PF-013 rev 14 及其余精确依赖，不另立产品政策。最新发布前破坏性迁移要求由主线给定；本稿接续 [v4 设计](v4-design.md) 的纯模块、原数比较与拒绝次序，取代其保留旧运行入口的方向。[profile 破坏性增补](../model-profile/v4-breaking-migration.md)提供消费者范围；该增补的 MP4 坐标和兼容冲突仍由主线以后继采用收口，不把它当作 MP5 的接受依据。
 
-Cordis 采用版本仍为 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md) 的 4.0.4。本节点不 import Cordis、没有 basis 机制依赖，不新推导生命周期保证。以下函数名定位现有公开面，其 MS6 版本均为候选。
+Cordis 采用版本仍为 D-025 的 4.0.4。本节点不 import Cordis、没有 basis 机制依赖，不新推导生命周期保证。以下函数名定位现有公开面，其 MS6 版本均为候选。
 
 ## 契约责任到兑现点
 

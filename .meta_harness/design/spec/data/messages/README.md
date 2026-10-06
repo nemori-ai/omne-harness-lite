@@ -1,23 +1,23 @@
 # 消息
 
-2026-09-28：[D-100](../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 接受当前后继 v6 全部规范资源；旧格式运行兼容承诺被取代，未表示实现完成。
+2026-09-28：D-100 接受当前后继 v6 全部规范资源；旧格式运行兼容承诺被取代，未表示实现完成。
 
 **当前候选 `data.messages/v6`**：[契约](v6/contract.md)与[变化及证据](verification.md#v6-发布前破坏性演进)。由已接受 v5 机械演进，只更新精确消费链并删除旧格式兼容过渡义务；当前代际在途与历史责任保持。未接受、未冻结；中央登记由本批唯一 owner 集成，旧冻结版本不改。下文既有进展按原版本和当时事件读取。
 
 
 ## 当前采用与 v5 候选
 
-当前已接受版本为 `data.messages/v4`（[D-078](../../../record/decisions/model-main-integration-coordination/acceptance.json)）；[v5 契约](v5/contract.md)、[Schema](v5/messages.schema.json)、[实例](v5/examples.md)与[输入限制实例](v5/input-limit-examples.json)是 **candidate**。v5 精确采用 `data.model-profile/v4`，只扩展 S-49 的完整输入限制快照留存；七种消息与已有运行时记录语义保留。版本变化与证据见[验证入口](verification.md#v5-完整输入限制快照)。v5 未接受或冻结，旧消费者不自动升级；以下历史条目保留原版本范围。
+当前已接受版本为 `data.messages/v4`（D-078）；[v5 契约](v5/contract.md)、[Schema](v5/messages.schema.json)、[实例](v5/examples.md)与[输入限制实例](v5/input-limit-examples.json)是 **candidate**。v5 精确采用 `data.model-profile/v4`，只扩展 S-49 的完整输入限制快照留存；七种消息与已有运行时记录语义保留。版本变化与证据见[验证入口](verification.md#v5-完整输入限制快照)。v5 未接受或冻结，旧消费者不自动升级；以下历史条目保留原版本范围。
 
 **一份会话日志里的消息：七种各自是什么、带什么、谁感知得到、出门怎么办。**
 提醒的来源是一张怎样的闭合表、说状态的要带什么；压缩名单长什么样、什么样的名单合法；
 「此刻哪些块模型可读」怎样从日志里算出来；一次工具执行的真实结果落哪一种消息——以及一条消息不合形状时，拒绝值叫什么。
 
-它是 core 三层（[D-035](../../../record/decisions/message-and-stream-baseline/README.md)）里**块之上的那一层共用数据契约**：
+它是 core 三层（D-035）里**块之上的那一层共用数据契约**：
 会话日志、上下文组装与压缩、流装配、工具运行时、模型请求运行时、入站受理与恢复对账都引用它的 `$defs` 名与成员名，**不各自复述一份**。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.messages, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 `accepted`（`acceptance` 指向 D-061 的 `acceptance.json`）。`family=data`、`topic=messages`、
   `contract_path=spec/data/messages/v2/contract.md`，`resources` 另含 `v2/messages.schema.json`、`v2/examples.md`、`v2/formal/README.md`、`v2/formal/Readable.als`；
   依赖五项：`data.content-blocks` v2（十六条，含 `S-20`）、`data.offer-expiry` v1（`S-22`）、`data.identity-values` v1（`S-11`、`S-31`）、`data.call-accounts` v2（`S-37`）、`data.model-profile` v2（`S-2`、`S-5`、`S-13`、`S-15`、`S-20`、`S-27`）。**登记在 [registry](../../../registry/README.md)，本行只作索引**
@@ -63,13 +63,13 @@
 
 ## 2026-09-26 版本接受
 
-本次接受 `data.messages` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `data.messages` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
 
 ## 2026-09-26 D-068 当前 v3
 
-`data.messages · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，以上旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。
+`data.messages · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 D-068。本段为当前导航，以上旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。
 
-2026-09-28：[D-099](../../../record/decisions/model-input-limit-consumer-contract-adoption/decision.md)在独立复评闭合后技术接受 v5；规范资源冻结。实现采用和验证另行交付，原文 candidate 是起草状态。
+2026-09-28：D-099在独立复评闭合后技术接受 v5；规范资源冻结。实现采用和验证另行交付，原文 candidate 是起草状态。
 
 
 ## v7 candidate（本批）

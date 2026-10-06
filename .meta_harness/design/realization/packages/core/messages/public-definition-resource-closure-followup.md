@@ -1,12 +1,12 @@
 # MS7 / MR10 当前公开定义的精确资源闭包
 
-2026-09-29，revision 2，candidate，未采用；新增 binding 0。本页接续 D110 已接受的 [MS7映射](v7-design.md)、[MR10映射](../model-response/v10-reference-result-design.md)，仅修正资源注册/编译根的过度扩大，不改冻结 Schema、公开类型、judge 或契约版本。相关选择与范围见[附页](../../../../record/proposals/model-runtime-reference-lifecycle/public-schema-closure-choice.md)。
+2026-09-29，revision 2，candidate，未采用；新增 binding 0。本页接续 D110 已接受的 [MS7映射](v7-design.md)、[MR10映射](../model-response/v10-reference-result-design.md)，仅修正资源注册/编译根的过度扩大，不改冻结 Schema、公开类型、judge 或契约版本。相关选择与范围见附页。
 
 ## 已证差异与最小选择
 
 旧映射把依赖资源文件内**所有** `$defs` 都视为当前公开执行入口的依赖，从 MS7 的 TD3.ModelToolEntry 扩到资产定义，再扩到旧 LC/MS；MR10 的 LC6.FailureCause 也被扩到 LC6.ModelRequest/Subject。实际根是各包公开 `SCHEMA_DEF_NAMES`：MS7 50 项、MR10 25 项，加上生产显式编译的私有成员视图。按完整规范URI+JSON Pointer只递归触达定义，不以注册一个资源文件推出它所有defs都是执行入口。
 
-[T26原始证据](../../../../record/evidence/2026-09-29-model-public-schema-closure/README.md)在固定 `19a3b968` 上独立抽取根、沿定义引用求闭包，使用真实公共编译器：75公开defs及MR两个私有入口通过；18逐资源删除均以精确缺URI失败。静态审计96到该点core无diff。无需复写规范URI或增加 resolver；不是从静态数量猜运行通过。
+T26原始证据在固定 `19a3b968` 上独立抽取根、沿定义引用求闭包，使用真实公共编译器：75公开defs及MR两个私有入口通过；18逐资源删除均以精确缺URI失败。静态审计96到该点core无diff。无需复写规范URI或增加 resolver；不是从静态数量猜运行通过。
 
 | 当前执行根 | 必需原字节资源（含根，共9份） | 直接含义 |
 | --- | --- | --- |

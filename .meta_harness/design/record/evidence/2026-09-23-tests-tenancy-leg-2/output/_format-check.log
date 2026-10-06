@@ -1,9 +1,0 @@
-===== [workspace] format:check =====
-$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence) pnpm format:check
-
-> omne-harness-lite-workspace@ format:check /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence
-> ./scripts/format.sh check
-
-Checking formatting...
-All matched files use Prettier code style!
-exit: 0

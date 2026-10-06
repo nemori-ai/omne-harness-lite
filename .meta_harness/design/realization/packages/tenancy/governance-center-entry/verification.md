@@ -2,7 +2,7 @@
 
 ## EC2 / HT2 增量验证（2026-09-25）
 
-[D044](../../../../record/decisions/governance-entry-production-protocol/README.md)采用后，新增共同提交与生命周期验证见[实际运行](../../../../record/evidence/2026-09-25-tests-entry-production/README.md)。入口468通过/2原有跳过；14个新真实SQLite场景含暂存成功后clock/schema/异常回滚、预期身份冲突不touch、按名先授权、改密G优先、自失效不复活、运输清理异常仍等待完整工作。host定向83通过，独立进程e2e46通过；Linux arm64七组构建产物/真实HTTPS组合冒烟。没有物理多机、全量Linux套件或灾备/CLI验收。
+D044采用后，新增共同提交与生命周期验证见实际运行。入口468通过/2原有跳过；14个新真实SQLite场景含暂存成功后clock/schema/异常回滚、预期身份冲突不touch、按名先授权、改密G优先、自失效不复活、运输清理异常仍等待完整工作。host定向83通过，独立进程e2e46通过；Linux arm64七组构建产物/真实HTTPS组合冒烟。没有物理多机、全量Linux套件或灾备/CLI验收。
 
 静态只凭出示物认人规则按EC2 S50更新：允许注入accounts，但只准显式participate及授权后的resolveActivatedIdentifier；旧禁止解析accounts属于v1边界。继续禁止verify、解析或断言网络LoginStateId，以及普通账号读写。工具65项自测与20规则扫描通过。文本检查的接收者别名/调用顺序局限由类型收窄和真实未授权不查名测试补足，未宣称静态证明。
 
@@ -11,10 +11,10 @@
 
 契约侧的证据义务权威在 [`spec/compositions/governance-center-entry/verification.md`](../../../../spec/compositions/governance-center-entry/verification.md)：
 形式任务与否定核对（V-1～V-3）、规范场景与实现符合性（V-4～V-15）、静态检查（SC-1～SC-3）。本页按本节点的兑现点登记。
-原始配置、输入与运行结果归 [record/evidence](../../../../record/evidence/README.md)，本页只引用并写范围。
+原始配置、输入与运行结果归 record/evidence，本页只引用并写范围。
 
-> **当前状态：本节点的包内测试跑过一次并登记为证据**（run [`2026-09-23-tests-tenancy-leg-2`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)：424 条用例 422 通过、2 跳过、0 失败），
-> 契约的形式任务另有一次入库的执行（run [`2026-09-23-formal-governance-center-entry`](../../../../record/evidence/2026-09-23-formal-governance-center-entry/README.md)）。
+> **当前状态：本节点的包内测试跑过一次并登记为证据**（run `2026-09-23-tests-tenancy-leg-2`：424 条用例 422 通过、2 跳过、0 失败），
+> 契约的形式任务另有一次入库的执行（run `2026-09-23-formal-governance-center-entry`）。
 > registry 把契约 v1 记为 `accepted`；测试通过不提升契约或本节点设计的接受状态。
 
 ## 证据义务
@@ -56,22 +56,9 @@
 | 不读对端地址 | 本包源码不出现 `remoteAddress`、`x-forwarded-for` 一类读取 | S-16 | **已通过**（同 run）：`entry-rules.spec.ts` › `no-peer-address`（1 条）；`lint:rules` |
 | `credentials` 只调 `parse` | 本包源码不出现 `derive(`、`verify(`、`checkPolicy(` 对 `credentials` 的调用 | S-19；[本节点约束](design.md#本节点约束存储要求之外)第 7 条 | **已通过**（同 run）：`entry-rules.spec.ts` › `credentials-parse-only`（1 条）；`lint:rules` |
 | 只凭出示物认人 | 本包源码不出现对 `logins` 的 `.verify(` 调用、不 import `parseLoginStateId`、不出现 `as LoginStateId` 断言；认人所得的类型（候选 `Caller`）只在 ② 阶段模块里构造；以登录状态为发起方或调用方的四处调用只从它取实参。带「故意违反就失败」自测（例如把载荷里的句柄交给 `listEffective`） | S-11；AI v2 S-30「只有 S-44 认出示物」；[本节点约束](design.md#本节点约束存储要求之外)第 8 条 | **已通过**（同 run）：`entry-rules.spec.ts` › `presentation-only-authn`（4 条）；`lint:rules`；另有 `center.spec.ts` › `T-5 …` 的「拿句柄当出示物」 |
-| 网络监听只在本包（R-20） | `tenancy/*` 除本包外的源码不得 import `node:http`／`node:https`／`node:net`／`node:tls`（含 `listen(` 调用）；本包之内也只许在客户端面与运维面两个目录里出现 | S-25、[提案「能力间内部面不直接暴露」](../../../../record/proposals/governance-center-entry/design.md#能力间内部面不直接暴露怎样在结构上成立)；主线 2026-09-23 评审裁决 R-20 | **已通过**（同 run）：`entry-rules.spec.ts` › `no-network-listen-in-tenancy`（2 条）；`lint:rules` |
+| 网络监听只在本包（R-20） | `tenancy/*` 除本包外的源码不得 import `node:http`／`node:https`／`node:net`／`node:tls`（含 `listen(` 调用）；本包之内也只许在客户端面与运维面两个目录里出现 | S-25、提案「能力间内部面不直接暴露」；主线 2026-09-23 评审裁决 R-20 | **已通过**（同 run）：`entry-rules.spec.ts` › `no-network-listen-in-tenancy`（2 条）；`lint:rules` |
 | 包布局常量（SC-2 白名单的键） | 本包固定布局：`src/ops/**` = 运维面源码目录；`src/events.ts` = 事件声明模块（只导出 `serving`、`stopped`、`defect`、`listening` 四个常量，不 import 任何 `tenancy/*` 包）；`src/transport/**` = 客户端面（TLS 监听与 HTTP 落地）；`src/json.ts` = 严格 JSON 解析器；`src/routing/**` = 路由表与判定次序。规则按这些路径写，包偏离布局即规则失效——布局改动先改这里 | 契约 SC-2；[本节点约束](design.md#本节点约束存储要求之外)第 5 条 | 主线 2026-09-23 定（阶段 2 波次 1→2 门）；owner 本节点。**已通过**（同 run）：`entry-rules.spec.ts` › `ops-import-whitelist` › `入口层包不存在 ⇒ 静默通过；包在而运维面目录或事件声明模块缺席 ⇒ 报布局偏离`；`临时目录里造出入口层包：collectSources + CLI 真的会红`（2 条） |
 | 现有三条 | `no-bail-control`、`no-wall-clock`、`no-testing-import` 扫 `packages/`，本包建好后自动覆盖 | basis `async-control-not-bail`；offer-expiry SC-OE-3 | **已通过**（同 run）：`tools/ts-checks/tests/rules.spec.ts` › `no-bail-control`、`no-wall-clock`、`no-testing-import`；`pnpm run lint:rules` 退出 0（扫 `packages/` 与 `apps/`） |
-
-## 实际执行
-
-2026-09-24 的局部回归见 [生产 CLI 开发基线 run](../../../../record/evidence/2026-09-24-tests-production-cli-baseline/README.md)：macOS/Node 24.21.0，真实组合 `center.spec.ts` 15/15；生命周期 44 通过、1 原有跳过。N-18 真实入口超时断言具名错误并核端口释放；两来源地址使用显式可绑定的不同本机 IPv4，不代表多主机。
-
-| 运行 | 输入与配置范围 | 结果 | 证据位置 |
-|---|---|---|---|
-| [`2026-09-23-formal-governance-center-entry`](../../../../record/evidence/2026-09-23-formal-governance-center-entry/README.md) | 契约 v1 的 `EntryDecision.tla`：formal task `governance-center-entry-v1-decision`（`EntryDecision.cfg`，`-workers 1`，无 `-continue`）；另九个否定配置；TLC 2026.09.12、1 worker；输入快照与当前 `spec/`、`frozen.json` 逐字节相同 | 正配置**无反例**，退出 0：初始 224 · 804 generated · 776 distinct · 0 left · 深度 9，时序性质 `EventuallyAnswered` 在 776 个状态上检查完；九个否定配置各出预期反例（八个变异无 `-continue` 时退出 12） | 同左 run 的 `governance-center-entry-v1-decision/`（输入、原始输出、`validity-check/`） |
-| [`2026-09-23-tests-tenancy-leg-2`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md) | 源码提交 `c9b5850`；`tests/` 十三个文件：`decide`（参与方桩，判定次序与路由映射）、`center`（**真实组合**：真实 CV／AI／OG／AR 与本包两个插件同装在一个 Cordis Context，真实 `storage-sql` sqlite 临时文件库、`composeMigrations` 合成三家片段、`upgrade: false`，钟是可前推可答 `'unavailable'` 的包内替身，`FaultyStorage` 注入故障）、`transport`／`framing`／`json`／`bytes`（真 TLS 连接与 HTTP 报文层字节，测试根证书）、`ops`（真 Unix 套接字）、`lifecycle`、`center-id`、`slow`（按真实时长，接收时限 30 秒）等；Node v24.18.0（OpenSSL 3.5.7）、vitest 4.1.11；另含 `tools/ts-checks` 的入口规则自测、`lint:rules`，与 `apps/tenancy-host` 的 pg 支与进程级演练 | build、typecheck 退出 0；424 条用例 **422 通过、2 跳过**、0 失败（类型测试 4 条，无类型错误）——跳过的两条是 pg 真并发首启与「崩溃落在开闸之前」的占位，承担者在 `apps/tenancy-host`（pg 一侧与 `process.spec.ts`） | [`output/governance-center-entry.log`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/output/governance-center-entry.log)、[`json/governance-center-entry.json`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/json/governance-center-entry.json)；义务对应 [`coverage.md`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/coverage.md#packagestenancygovernance-center-entry)；字节独立核对在该 run 的 `byte-checks/` |
-
-形式那一行是**契约模型**的结果：它进了本节点的绑定，因为它会在模型的判定次序被改坏时失败（八个变异演示过对应断言会失败）；它不说明本节点的任何源码符合契约——那是测试那一行的事。**模型检查与实现测试分开陈述**，谁的通过都不说明另一类。
-
-**有限检查不写成无条件证明**：模型只在一次行为一个请求、环境任选读得到读不到、流水线带弱公平的前提下成立（[formal 入口](../../../../spec/compositions/governance-center-entry/v1/formal/README.md)）。测试在 sqlite 临时文件库、单主机上成立，pg 只跑了真并发首启与约束名；真实组合里的钟是替身（真实 clock 插件的组合在 `apps/tenancy-host`）；字节独立核对是函数级，连接上的一次写出由 `transport.spec.ts` › `V-1` 另证。**通过不提升契约或本节点的任何接受状态。**
 
 ## 覆盖缺口
 
@@ -93,15 +80,3 @@
 - **契约与实现映射已对上（N-15、N-17 已闭合）**：契约 S-28「前提」段与 S-36「那一格立起过就不被重建」行的判据已改为本节点 R-GC8 的那条（「已有别的治理事实却没有那一格所在的表」），T-8「表整个丢了」一支证的就是契约字面。**已知边界、不作测试**：只有占位行的新表被拼进已有事实的数据，或已铸的值被本包之外的写者改回 NULL——下次启动会铸出新标识，本包只碰一张表，没有可以断言「拒绝」的行为。
 - 撤销目标的契约冲突（N-14）已闭合：AI v2 S-16 的来源要求只针对发起方，撤销回到一次调用，T-5、T-10 的撤销几支不再受阻。
 - **契约 G-2～G-4、G-7、G-8** 不在本节点的证据范围内。G-1（存储与备份里的登录状态可冒用）契约已标闭合：持久内容的三种形式搜归账号能力一侧的 AI S-46，**不在本节点**；本节点这一侧是契约 S-41 的两半——列表与句柄交出去的都不是出示物、备份里的字符串从线上拿来用不了（T-5）。
-
-
-## 2026-09-26 D055/D056 实际维护验证
-
-[固定源码、制品和运行证据](../../../../record/evidence/2026-09-26-tests-governance-maintenance/README.md)保存原始故障、修正、源码回归及独立制品 QA。SQLite资源关闭/worker真实退出/跨进程保锁、封装与发布unknown、HT3与host信号/双槽、非root Linux systemd及近1GiB时的员工访问和租约续约分别验证。最终host r3运行字节与r1相同，文档和pnpm生成元数据差异经独立核验，r3再跑38项主旅程。没有实际断电/任意存储设备保证；独立QA的源变动精确分支未验，不计通过；恢复只隔离，整机损毁灾备与安全重新开放仍未交付。
-
-
-## 2026-09-26 终审修补与最终制品
-
-[最终固定输入、运行与独立QA](../../../../record/evidence/2026-09-26-tests-governance-review-fixes/README.md)接续D055/D056与D057：生产闭包移除测试运行器，初始化未收场责任与叠加故障诊断修复，领域契约不变。18成员最终合并1926通过/34跳过，host最终单独重跑；两包清单、严格独立类型消费、47项独立制品旅程及真实首启故障恢复、三组跨OS与systemd通过。最终host r3、CLI r2的SHA/BUILD_ID在该run；旧记录不提升到新制品。Fable三轮及主线处置均有公开记录，未发现本期阻断。
-
-限定：首次工作根创建须串行；原位源变动精确hash/fstat分支未独立验到；TUI仍限D054 profile，不是任意终端支持；恢复只隔离，同机备份不覆盖整机/磁盘毁损。公司实际部署、Agent工作会话与Web/desktop不属于本次验证。

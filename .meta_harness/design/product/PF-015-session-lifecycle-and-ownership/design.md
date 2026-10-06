@@ -1,6 +1,6 @@
 # PF-015：会话的生命周期与归属
 
-- 修订：rev 20，2026-09-29 · [变更历史](changelog.md)
+- 修订：rev 20，2026-09-29 · [变更历史](design.md)
 - 状态：active；规则范围与接受依据见 [README](README.md#状态)，未决项见第九节。
 
 ---
@@ -27,7 +27,7 @@
 
 **第三，会话与会话之间的关系是隐的。**agent 派出去一个子 agent，那边也开了一个会话。
 两个会话之间到底是什么关系、谁能看见谁、一个停了另一个怎么办——
-[UL-D-4](../../ubiquitous_language/decisions.md#ul-d-4--主会话与子会话--2026-09-21) 定了名字与拓扑，
+[现行词义](../../ubiquitous_language/index.md) 定了名字与拓扑，
 **但「一个归档了，另一个怎么办」仍然没有答案**。
 
 **第四，agent 干活时要感知的那些东西，没人说得出一共有哪些。**
@@ -321,7 +321,7 @@
 ### 5.2 会话与会话之间
 
 会话有[主会话与子会话两种性质](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-primary-session--主会话--primary-session)，
-关系与通信拓扑由 [UL-D-4](../../ubiquitous_language/decisions.md#ul-d-4--主会话与子会话--2026-09-21) 定，
+关系与通信拓扑由 [现行词义](../../ubiquitous_language/index.md) 定，
 本节只定**生命周期在这层关系上怎么传导**：
 
 ```text
@@ -405,7 +405,7 @@
 
 ### 5.6 十四项 meta runtime context
 
-**† 标记的那几格是 PM 推导**，推理链在 [decisions](decisions.md#二pm-推导)，**可以被逐条推翻**。
+**† 标记的那几格是 PM 推导**，推理链在 [decisions](design.md)，**可以被逐条推翻**。
 
 | # | 这一块 | 生产者 | 消费者 | 至少提供什么 |
 |---|---|---|---|---|

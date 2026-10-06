@@ -73,40 +73,8 @@ NOT RUN: TLC/Alloy; production old-format rejection; current-generation recovery
 |---|---|---|
 | 跨进程的新鲜度上界、单调读、秘密送达与轮换传播、调用方鉴别 | 中心 ↔ 据点的组合契约（尚未立） | [S-22](v2/contract.md#s-22-装配给的保证-vs-协议须给的保证)、[G-7](v2/contract.md#十已知缺口) |
 | 取值只交传输适配、锚是发起调用的租户、来源取自那次调用绑定的有效模型 | `capability.model-request-runtime` v2 | [S-12](v2/contract.md#s-12-秘密只在一个问法里出现)、[S-20](v2/contract.md#s-20-resolvecredential) ① |
-| 「范围允许」的求值——**本版不收窄**（[D-063 R-4](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)），`A` 由读的一方从同一次列表读取；将来收窄时归资产求值 | 本版：`capability.model-request-runtime` v2（读的一方）；将来：`capability.asset-evaluation` v2 | [S-3](v2/contract.md#s-3-本契约明确不承诺什么)、[S-17](v2/contract.md#s-17-listprofiles) 末段 |
+| 「范围允许」的求值——**本版不收窄**（D-063 R-4），`A` 由读的一方从同一次列表读取；将来收窄时归资产求值 | 本版：`capability.model-request-runtime` v2（读的一方）；将来：`capability.asset-evaluation` v2 | [S-3](v2/contract.md#s-3-本契约明确不承诺什么)、[S-17](v2/contract.md#s-17-listprofiles) 末段 |
 | 据点上凭据副本的加密落地、按登录状态丢、`absent` 与 `unavailable` 分开 | `capability.credential-custodian` v2（S-5～S-8、S-12～S-15） | [S-2](v2/contract.md#s-2-本契约不拥有什么)、[S-7](v2/contract.md#s-7-凭据绑定)、[S-20](v2/contract.md#s-20-resolvecredential) ⑧ |
-
-## 独立评审
-
-**第一轮**：spec-reviewer（只读），2026-09-24，基线 HUB `765b01dc`（批 R5：本契约与 `capability.model-request-runtime`、`capability.modality-projection` 同批）。
-处置按主线的修复简报（2026-09-24，裁定 K17、K35、K42 与全局规矩 G1～G6）；**评审意见不代替接受**，本契约仍是 candidate。
-
-| 发现 | 处置 | 落点 |
-|---|---|---|
-| MPD-1（阻断：⑥ 把 `unavailable` 排在 `routeNameTaken`／`profileNotFound` 之后，授权依赖不可用时字面会漏出名字） | **改**（裁定 K35）：S-13 写明授权所依赖的成员资格判定 `unavailable` 即立即以 `unavailable` 收场，先于一切要读存储才判得出的值；S-14、S-15、S-16、S-18、S-20、S-31、S-33 各张 ⑥ 重排；S-10 补谓词求值次序（第一个合取项不成立用不着成员资格判定）；场景 S-30 加故障注入一支；examples §6 回归例加一条 | [S-10](v2/contract.md#s-10-配置资格谁能在哪一格写)、[S-13](v2/contract.md#s-13-这一节每个操作写全九件事)、各操作 ⑥、[S-30](v2/contract.md#s-30-无权者探不到名字)；examples §6 |
-| MPD-2（输入不带 `registration`／`updatedAt`，却要过要求它们的 S-24） | **改**（裁定 K17）：S-14、S-18 的输入改为 `data.model-profile` v2 S-28 的「建档内容」（`ModelProfileContent`；不带那两个成员，带了即 `malformed`）；建档的 `origin` 不是 `custom` 取本契约自己的 `origin_not_custom`（与那份契约交接时定），清单条目的 `origin` 不是 `official` 按清单形状取 `malformed`；S-4 被消费面与 catalog 加 S-28；examples §6 加两行 | [S-14](v2/contract.md#s-14-registerprofile) ①⑧、[S-18](v2/contract.md#s-18-loadmanifest) ①⑧、[S-4](v2/contract.md#s-4-依赖方向与被消费的面) |
-| MPD-3（原样重装要交回第一次的处置，但处置不是耐久事实） | **改**：把「那一次装入交回的处置」列进本契约的耐久事实，与序号、档案行同一提交；⑦ 改为交回记下的那一份、「内容逐条相等」写明拿当前在册的官方行比；场景 S-27 加重启一支；examples §1 第 2 步随之改 | [S-18](v2/contract.md#s-18-loadmanifest) ④⑥⑦⑧、[S-23](v2/contract.md#s-23-依赖不可用撤除与重启)、第七节不变量、[S-27](v2/contract.md#s-27-清单的五种处置与旧清单被拒) |
-| MPD-4（胜出行只以 (T, r) 为参数，第二道滤依赖未列出的允许集合） | **改**（裁定 K42）：S-17 末段写成三参数 `胜出行(T, r, A)`／`落点(T, r, A)`，`A` 是「用哪个模型」设置在会话格上的允许集合、元素是路由名，不按 (T, r) 缓存、读不到即失败；`capability.model-request-runtime` v2 的 G-4 同轮闭合；examples §5 加三行 | [S-17](v2/contract.md#s-17-listprofiles) 末段；examples §5 |
-| MPD-5（PF-001、PF-002 rev 落后） | **改**：复核到 PF-001 rev 19、PF-002 rev 20（结论见[变化的影响](#变化的影响)本轮一条），不改条款 | 契约页首 |
-| MPD-6（examples §5 仍写「待产品负责人确认，G-11」；S-26「隶属树」一句已无判定意义） | **改**：两处删去或改写 | examples §5、[S-26](v2/contract.md#s-26-同名两条只有先成的一条成立) |
-| MPD-7（「保管方」「官方档案清单」「发布序号」无词条也未标；外部条款没按坐标写） | **改**：设计依据的词条表下列「（无词条）」四项（保管方、官方档案清单、发布序号、建档内容），报给主线；S-16、S-17 等处外部条款改为 `…/v1#S-n` 链接 | 契约「统一语言」一段、[S-16](v2/contract.md#s-16-readprofile)、[S-17](v2/contract.md#s-17-listprofiles) |
-
-
-### 第二轮
-
-spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/assets-runtimes/reviews/r2-R5.md` 第一节（批 R5）。裁定出处 [D-060 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)（下表简写「§七」）；**评审意见不代替接受**。
-
-| 编号 | 处置 | 落点 |
-|---|---|---|
-| R2-MPD-1（阻断：`updateProfile` 里要读行才判得出的 `invalidInput` 排在 `notAuthorized`、`unavailable` 之前） | **改**（§七 M14）：`invalidInput` 拆两处——只看输入本身（形状、定义域外的成员）的留最左；「改完的整份文档过 `data.model-profile/v2#S-24`」排在 `profileNotFound` 之后；⑧ 与末段「次序」同改，末段写明为什么；S-9 那一格注明这是「表示层校验在任何判定之前」唯一的例外；examples §6 加两条回归例（无权者 ＋ 会让整份非法的 `patch` ⇒ `notAuthorized`；定义域外成员仍 `invalidInput`） | [S-31](v2/contract.md#s-31-updateprofile) ⑥⑧ 与末段、[S-9](v2/contract.md#s-9-缺席时的默认答案)、examples §6 |
-| R2-MPD-2（G-8 仍开着，N-9 已登） | **改**：G-8 闭合、链 [D-060 §六 N-9](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；设计依据末表那一行、S-9 里 `origin_not_custom`「值名是本轮与那份契约交接时定的」改为链接 | G-8、设计依据末表、[S-9](v2/contract.md#s-9-缺席时的默认答案) |
-| R2-MPD-3（处置表「按 S-12 改写」与 ⑦「对照在册官方行」在 `maxOutputTokens` 例外下相抵） | **改**，取评审的第一种改法：`updated`／`relisted` 的行内容整份取自条目（身份分量、`registration`、`updatedAt` 除外），`data.model-profile/v2#S-12` 的 `maxOutputTokens` 例外不适用于装入（条目已整份过 S-28）；⑦ 那句补上依据。**选第一种而不是另存清单摘要是本契约推导**：不多一份耐久事实，⑦ 的对照依据仍是在册的行 | [S-18](v2/contract.md#s-18-loadmanifest) 处置表、表下一条、⑦ |
-| R2-MPD-4（页首「未经独立评审」过期） | **改**：契约页首与 README 的状态改为与 MRR 同一口径 | 契约页首、[README](README.md) |
-| 范围外 3（G-7、G-9 仍开着） | 不变 | — |
-
-## 实际执行
-
-**尚无。**
 
 ## 结果与反例
 
@@ -144,14 +112,14 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 - **2026-09-24 主线裁定 G-15（运行时那边闭合；候选，未冻结，原地改）**：同名按层覆盖挑胜者时**先滤掉已撤回的行，再取最具体一格**（类推 PF-002 §5.6）。[S-17](v2/contract.md#s-17-listprofiles) 末段由「按行是否存在判、不看在册状态」改为「只滤已撤回；凭据、范围、模态都不参与挑胜者」，指向运行时 G-15 的那句删去；[S-6](v2/contract.md#s-6-范围链) 那一条补「已撤回的行不参与」；[S-16](v2/contract.md#s-16-readprofile) 末段改写（⑧ 管按引用读，覆盖不放宽它）。不改操作，对证据无影响。
 - **2026-09-24 主线裁定：范围不允许的也在挑胜者前滤掉（候选，未冻结，原地改）**：[S-17](v2/contract.md#s-17-listprofiles) 末段与 [S-6](v2/contract.md#s-6-范围链)、[S-16](v2/contract.md#s-16-readprofile) 末段补「这个范围不允许的行不参与」；这一道滤由读的一方用 `capability.asset-evaluation` 的求值做，本契约不判范围允许（S-3）。不改操作，对证据无影响。
 - **2026-09-24 PF-013 rev 12 最后一轮简化（候选，未冻结，原地改）**：产品正文定「用哪个模型」记路由名；主线裁以产品为准。[S-17](v2/contract.md#s-17-listprofiles) 末段改写为**从路由名到一行的唯一规则**：`C → C₁（在册）→ C₂（范围允许）→ 胜出行`，以及没有胜出行时的「落点」与三种收场（范围不允许／都撤回即「已下架」／链上没有这个名字）；规则归本契约、不另开操作，「范围允许」仍由读的一方用 asset-evaluation 的求值给。[S-16](v2/contract.md#s-16-readprofile) 末段注明按引用读一行供目录内部与治理面用；消费者核对表里「用哪个模型」的取值校验改指 S-17 末段。头部对到 PF-013 rev 12。不改操作；对证据无影响。
-- **2026-09-24 第一轮独立评审处置**（基线 HUB `765b01dc`；逐条见[独立评审](#独立评审)，未冻结，原地改）：
+- **2026-09-24 第一轮独立评审处置**（基线 HUB `765b01dc`；逐条见独立评审，未冻结，原地改）：
   - **产品依据复核**：PF-001 rev 16 → 17——「权限锁的是界、不锁的是挑选」「提升不动持有」与三处方向词对齐，本契约只引 PF-001 的配置资格与范围链，无变化。PF-002 rev 19 → 20——连接件的事件目录、订阅、投递与触发会话的默认运行模式，不触模型档案与模型凭据，无变化。PF-013 rev 12、PF-016 rev 8 未变。
   - **K35／MPD-1**：判定次序改为 `unavailable` 先于一切要读存储才判得出的值；七张 ⑥ 重排。**K17／MPD-2**：输入改为建档内容（`data.model-profile/v2#S-28` 的 `ModelProfileContent`）；建档 `origin` 不是 `custom` 取 `origin_not_custom`。**MPD-3**：装入交回的处置成为耐久事实。**K42／MPD-4**：胜出行三参数。
-  - **依据**：「主线裁定……待产品负责人确认；账本 Sxx」改为 D-060 小节链接，本轮三条链 [D-060 §五 K17、K35、K42](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)；D-060 仍未收录的几条（`officialProfileReadOnly`、`relistProfile`／`loadManifest`／`relisted`、恢复在册不发通知、已撤回可修订）留在 [G-8](v2/contract.md#十已知缺口)，owner 主线。
+  - **依据**：「主线裁定……待产品负责人确认；账本 Sxx」改为 D-060 小节链接，本轮三条链 D-060 §五 K17、K35、K42；D-060 仍未收录的几条（`officialProfileReadOnly`、`relistProfile`／`loadManifest`／`relisted`、恢复在册不发通知、已撤回可修订）留在 [G-8](v2/contract.md#十已知缺口)，owner 主线。
   - **catalog**：`data.model-profile` 的消费 clauses 加建档内容那一条；**covers** 本契约条目未增减，改注见各条。
   - **对证据的影响**：没有既有证据（全部未开始）；场景 S-27、S-30 内容变了，上表对应各行已改；examples §1、§5、§6 改写。
   - **对消费者**：`capability.model-request-runtime` 调 S-17 末段的规则时须带允许集合 `A`（按会话格取）；中心的管理页与系统发布按建档内容交输入。
-- **2026-09-25 修复波 2（候选，未冻结，原地改）**：裁定出处 [D-060 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) M14、[§六 N-9](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；逐条处置见上文[第二轮](#第二轮)。
+- **2026-09-25 修复波 2（候选，未冻结，原地改）**：裁定出处 D-060 §七 M14、§六 N-9；逐条处置见上文第二轮。
   - **语义改变**：`updateProfile` 的判定次序——改完的整份文档不合法，由原来的最先判改为解析之后判；无权者带这样的 `patch` 从 `invalidInput` 变为 `notAuthorized`。`loadManifest` 的 `updated`／`relisted` 由「可改属性按清单改写」改为整份取自条目；原先会按 `maxOutputTokens` 例外保留旧值的那种组合，现在取条目的值。
   - **G-8 闭合**；没有新缺口。
   - **registry**：catalog、covers、formal-tasks、id-namespaces 不变（S-31 与 S-18 引的 `data.model-profile` S-12、S-18、S-24、S-28 原已登记）。
@@ -159,7 +127,7 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 
 ## 修订波（2026-09-25 公开面）
 
-依据链：[D-063](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1（替身改为接口契约 ＋ 最小提供者）、R-4（范围允许本版不收窄）；[D-060 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-37 ⑤（保管方最小提供者：条目以密文落在绑定所在的同一存储，本机只放密钥）、⑩（MPD-N4 静态检查加「`readReplica` 只许 P-1r 调」——节点那一侧的事，本契约不改）。候选未冻结，原地改。
+依据链：D-063 R-1（替身改为接口契约 ＋ 最小提供者）、R-4（范围允许本版不收窄）；D-060 §八 N-37 ⑤（保管方最小提供者：条目以密文落在绑定所在的同一存储，本机只放密钥）、⑩（MPD-N4 静态检查加「`readReplica` 只许 P-1r 调」——节点那一侧的事，本契约不改）。候选未冻结，原地改。
 
 | 变化 | 依据 | 落在哪 | 语义变不变、对消费者 |
 |---|---|---|---|
@@ -172,7 +140,7 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 
 ## v3 变化的影响
 
-2026-09-27，执行树基线 `d4eaf7673bc161bf22f6682385151e080d3323ae`；依据[模型请求适配提案 revision 2](../../../record/proposals/model-request-adaptation/design.md)、目录 v3 施工简报及主线关于配置修订生命周期和失败次序的补充裁定。候选未接受，v2 冻结正文及实例不改。
+2026-09-27，执行树基线 `d4eaf7673bc161bf22f6682385151e080d3323ae`；依据模型请求适配提案 revision 2、目录 v3 施工简报及主线关于配置修订生命周期和失败次序的补充裁定。候选未接受，v2 冻结正文及实例不改。
 
 | 改变 | 语义与采用影响 | 责任及证据 |
 |---|---|---|

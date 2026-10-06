@@ -72,7 +72,7 @@
 
 - **不能据此声称任何关于多租户会话的结论。** 四家都不是多租户系统，见 [research.md](research.md#四当前证据不支持什么)。
 - **不能据此声称任何一家的做法是「对的」。** 本页只记录它们做了什么、为此付了什么代价。
-  方案选择归 [record/proposals](../../design/record/proposals/README.md) 与 [record/decisions](../../design/record/decisions/README.md)。
+  方案选择归 record/proposals 与 record/decisions。
 - **不能把四家一致当成正确性证明。** 一致只说明另做一种选择时举证责任更重。
 - **所有结论都绑在上表的精确版本上。** 四家迭代都很快（Codex 的文档页甚至不带日期），
   下一轮核对时按 [research/README.md 的演进事件词](../README.md#演进事件词)记一条，不要原地覆盖。

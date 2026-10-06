@@ -17,7 +17,7 @@ v2／v3 的 C3、S-16／PRE-5、S-27／S-28 沿用旧工作区键和单清单；
 把结果装进会话归 PF-004 的契约（尚无）。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-evaluation, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 `accepted`。`family=capabilities`、`topic=asset-evaluation`、
   `contract_path=spec/capabilities/asset-evaluation/v2/contract.md`，
   `resources` 另含 `v2/examples.md`、`v2/formal/Evaluation.als`、`v2/formal/README.md`；
@@ -69,16 +69,16 @@ v2／v3 的 C3、S-16／PRE-5、S-27／S-28 沿用旧工作区键和单清单；
 
 ## 2026-09-26 版本接受
 
-本次接受 `capability.asset-evaluation` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `capability.asset-evaluation` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
 
 ## 2026-09-26 D-068 当前 v3
 
-`capability.asset-evaluation · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，以上旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。
+`capability.asset-evaluation · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 D-068。本段为当前导航，以上旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。
 
 ## 2026-09-27 v4 受限根设置候选
 
 [v4 契约](v4/contract.md)在已冻结 v3 上演进两个操作的输入和结果：`root` 显式携带受限 `attributes` 与 `source {asset, version}`；根不进组合，声明的时限和 `model` 设置按同一层序、配值资格及锁规则进入 `values`。声明由 `data.agent-definition/v1` 的窄正文规则给出；没有声明就没有项，不填时间或模型默认。
 
-本版 **candidate，未接受、未冻结**；两个操作和既有三值失败次序保留。新增 [S-45](v4/contract.md#s-45-组合根的受限设置声明)、[S-46](v4/contract.md#s-46-根设置与层锁的规范场景)及 [E-9](v4/examples.md#e-9-根设置的显式声明版本来源与层锁)。实际检查与仍未开始的真实生产者验收见[验证入口](verification.md#2026-09-27-v4-候选变化与证据)；有限模型不代替生产实现证据。新候选不会自动升级既有消费者。
+本版 **candidate，未接受、未冻结**；两个操作和既有三值失败次序保留。新增 [S-45](v4/contract.md#s-45-组合根的受限设置声明)、[S-46](v4/contract.md#s-46-根设置与层锁的规范场景)及 [E-9](v4/examples.md#e-9-根设置的显式声明版本来源与层锁)。实际检查与仍未开始的真实生产者验收见[验证入口](verification.md)；有限模型不代替生产实现证据。新候选不会自动升级既有消费者。
 
 同批读取补充：[S-47](v4/contract.md#s-47-成功结果的值读取)与 [E-10](v4/examples.md#e-10-成功结果的公共值读取)规定成功结果的公共纯值读取：闭合 DTO、严格无损 JSON、集合键与结果内关联；任意设置 JSON 保持开放，非空 unresolved 合法。读取不证明真实声明、版本来源或求值计算正确，也不新增服务操作。

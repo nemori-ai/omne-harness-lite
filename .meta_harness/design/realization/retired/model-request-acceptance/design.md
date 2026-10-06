@@ -6,11 +6,11 @@ revision 2，candidate，未接受；`apps/model-request-acceptance` 尚未建�
 
 单机 Node/TypeScript workspace 应用，源码仅在 `apps/model-request-acceptance/src`，场景在所属 `tests`。通过包公开入口组装提供者；没有产品 HTTP 监听器、产品 CLI/TUI、中心连接或通用控制台。机器驱动入口显式接配置和场景选择，输出运行标识、逐场景结果、证据位置与覆盖缺口；发布身份和总体接受由主线负责，应用不能自动宣布 official 支持。
 
-主进程持有 Cordis **4.0.4**（[D-025](../../../record/decisions/cordis-adoption-version/decision.md)）、共享资源及场景调度器。崩溃场景由外层验收驱动启动、杀死并重开实际子进程，使用同一指定持久目录，监督者不提供假业务事实。正常模型网络唯一出口为选定 pi fork 的生产 `send`，只去 OpenRouter；受控 HTTPS 故障服务器仅用于专门故障场景，不能产出任何模型认证通过行。
+主进程持有 Cordis **4.0.4**（D-025）、共享资源及场景调度器。崩溃场景由外层验收驱动启动、杀死并重开实际子进程，使用同一指定持久目录，监督者不提供假业务事实。正常模型网络唯一出口为选定 pi fork 的生产 `send`，只去 OpenRouter；受控 HTTPS 故障服务器仅用于专门故障场景，不能产出任何模型认证通过行。
 
-采用 [D-019](../../../record/decisions/model-provider-pi-ai-fork/decision.md) 的 pi 0.86.1、commit `3390bd93630965a12a0a1a5c36ce890ec22f7e1d` 定向 fork，来源/许可与十五项比较门归 [pi-ai-transport v3](../../packages/model/pi-ai-transport/v3-design.md)。应用不复制 SSE、家族适配、缓存映射或重试循环。公开独立函数与 Cordis 服务均采用同一批生产构件；前者不因本应用存在而依赖租户、日志或存储。
+采用 D-019 的 pi 0.86.1、commit `3390bd93630965a12a0a1a5c36ce890ec22f7e1d` 定向 fork，来源/许可与十五项比较门归 [pi-ai-transport v3](../../packages/model/pi-ai-transport/v3-design.md)。应用不复制 SSE、家族适配、缓存映射或重试循环。公开独立函数与 Cordis 服务均采用同一批生产构件；前者不因本应用存在而依赖租户、日志或存储。
 
-契约状态查 [catalog](../../../registry/catalog.json)。[D-070](../../../record/decisions/model-adaptation-binding-acceptance/decision.md)/[D-071](../../../record/decisions/model-value-provider-adoption/decision.md) 的纯值采用、[D-072](../../../record/decisions/agent-definition-read-adoption/decision.md)、[D-073](../../../record/decisions/model-current-input-contracts-adoption/decision.md) 与 [D-074](../../../record/decisions/model-read-provider-adoption/decision.md) 是已知输入；runtime3、runner3 及 transport/目录来源/凭据窄组件的未接受修订只作本稿候选依赖。发布前必须冻结本次全部契约、节点、源码与配置摘要，不借候选文字提前解除实施门。
+契约状态查 [catalog](../../../registry/catalog.json)。D-070/D-071 的纯值采用、D-072、D-073 与 D-074 是已知输入；runtime3、runner3 及 transport/目录来源/凭据窄组件的未接受修订只作本稿候选依赖。发布前必须冻结本次全部契约、节点、源码与配置摘要，不借候选文字提前解除实施门。
 
 ## 选择与动作链
 
@@ -86,7 +86,7 @@ A-1 的注册精确采用 [composition.account-registration/v2](../../../spec/co
 
 诊断沿 [SYS-OBSERVABILITY](../../../foundation/observability-and-logging/requirements.md) 与 runtime3 S-63：同一 runId 关联场景、tenant/session/call/dispatch、模型绑定各修订、阶段和原因；request/provider/response 身份只有实际来源，不由请求补响应。默认不记正文、工具参数/结果、推理、凭据、来源引用或其片段。仅使用受控合成内容的原始响应证据也须经过凭据/引用哨兵扫描、权限与大小检查；诊断记录不作恢复账本。慢、抛错、满 sink 和观察者退出均有独立可查询退化计数，不靠已坏 sink 自报；拒收/诊断故障不能制造业务成功、丢费用或提前释放资源。
 
-查询、导出和认证结果输出沿[适配提案既有本机 owner 政策](../../../record/proposals/model-request-adaptation/design.md)：只交经实际本机管理权限核实的运维所有者，普通租户不获得文件或网络读面。bootstrap 固定本次 OS 所有者及受限证据根，检查实际目录/文件归属与 owner-only 权限；目录采用 0700、数据/诊断/导出文件采用 0600，不靠 umask 推断最终 mode。重开及导出前重核，错误 owner、group/other 可访问或无法核实均拒绝相应读写/导出，不静默降权条件。候选本机查询入口每次要求显式 tenant 范围，缺席不能扩成全部；跨租户查询依靠同一已核本机管理权限和显式范围，不由 tenant 参数、当前会话或记录里的 owner 字段授予权限。
+查询、导出和认证结果输出沿适配提案既有本机 owner 政策：只交经实际本机管理权限核实的运维所有者，普通租户不获得文件或网络读面。bootstrap 固定本次 OS 所有者及受限证据根，检查实际目录/文件归属与 owner-only 权限；目录采用 0700、数据/诊断/导出文件采用 0600，不靠 umask 推断最终 mode。重开及导出前重核，错误 owner、group/other 可访问或无法核实均拒绝相应读写/导出，不静默降权条件。候选本机查询入口每次要求显式 tenant 范围，缺席不能扩成全部；跨租户查询依靠同一已核本机管理权限和显式范围，不由 tenant 参数、当前会话或记录里的 owner 字段授予权限。
 
 导出使用同一调用方权限、tenant 范围和内容裁剪判定，再核目标路径/句柄的固定 owner 与权限；不能借导出绕过查询拒绝，不能往其他所有者或宽权限文件落内容。机器场景结果及证据位置也只经该本机 owner 输出上下文交付，不新增普通租户可用的机器诊断 API；未核实输出目的地时不输出租户诊断或完整配置证据。A-V14 的真实调用方/文件权限负控验证本规则，不仅检查传入 tenant 是否相等。此处落实已采用的本机权限边界，不增新的产品授权政策。
 

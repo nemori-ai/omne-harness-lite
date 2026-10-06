@@ -74,4 +74,4 @@ RFC 8705 把双向 TLS 定位为「OAuth 客户端认证」即程序身份，不
 
 ## 采用与后续核对
 
-被 [D-029](../../design/record/decisions/governance-center-transport-binding-acceptance/README.md) 消费（2026-09-23）。
+被 D-029 消费（2026-09-23）。

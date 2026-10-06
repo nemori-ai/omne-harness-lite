@@ -8,13 +8,13 @@
 
 | 输入 | SHA256／采用依据 |
 |---|---|
-| [capability.model-request-runtime/v9](../../../../spec/capabilities/model-request-runtime/v9/contract.md)，S-17/S-33/S-36/S-38/S-69～S-72 | `3ae5ee1843a31cb229a11c77a35c2bdc66e51100953322be0febed1ef37e64fb`；[D-104](../../../../record/decisions/model-recovery-timing-adoption/decision.md) |
+| [capability.model-request-runtime/v9](../../../../spec/capabilities/model-request-runtime/v9/contract.md)，S-17/S-33/S-36/S-38/S-69～S-72 | `3ae5ee1843a31cb229a11c77a35c2bdc66e51100953322be0febed1ef37e64fb`；D-104 |
 | [data.model-response/v8](../../../../spec/data/model-response/v8/contract.md)，S-17/S-18 | `34b78e9c55df99fa8ea3756c98010914fae92a56375a429316e7fdafb966fe13`；D-104 |
-| [capability.session-log/v3](../../../../spec/capabilities/session-log/v3/contract.md)，S-13/S-14/S-19/S-21～S-23/S-33～S-35 | `f327f1289e1d6c539dd959e8862b382869e3d303cf984b6a773fdd6a00e4bd26`；[D-083](../../../../record/decisions/session-log-tail-condition-adoption/decision.md) |
-| [runtime v12 revision 1](v12-recovery-timing-design.md) | `66da0f35031af73e2994c778e23d5bdcbe8fccefca83f4337084b134b2c4aa11`；[D-105](../../../../record/decisions/model-recovery-timing-provider-adoption/decision.md) |
+| [capability.session-log/v3](../../../../spec/capabilities/session-log/v3/contract.md)，S-13/S-14/S-19/S-21～S-23/S-33～S-35 | `f327f1289e1d6c539dd959e8862b382869e3d303cf984b6a773fdd6a00e4bd26`；D-083 |
+| [runtime v12 revision 1](v12-recovery-timing-design.md) | `66da0f35031af73e2994c778e23d5bdcbe8fccefca83f4337084b134b2c4aa11`；D-105 |
 | [v12 留存补充 revision 1](v12-recovery-owner-supplement.md) | `49484bf1597667c7b2e27279d5084e8acca958f82136b8f7625b40696e8b6ba7`；D-105 追加采用 |
-| [session-log-jsonl v3 恢复 rev 2](../../session/session-log-jsonl/v3-recovery-design.md) | `ea205862968dbe54889d7ba4b80ffcb33e04318c5ba8a82fb09367c1bbd324ae`；[D-085](../../../../record/decisions/session-log-recovery-projection-adoption/decision.md) 已采用，原稿 candidate 字样不撤销采用 |
-| 组合 close／宿主与观察端口 | [D-102](../../../../record/decisions/model-runtime-owner-close-adoption/decision.md)、[D-103](../../../../record/decisions/model-runtime-host-observer-adoption/decision.md)，有效承诺全部保留 |
+| [session-log-jsonl v3 恢复 rev 2](../../session/session-log-jsonl/v3-recovery-design.md) | `ea205862968dbe54889d7ba4b80ffcb33e04318c5ba8a82fb09367c1bbd324ae`；D-085 已采用，原稿 candidate 字样不撤销采用 |
+| 组合 close／宿主与观察端口 | D-102、D-103，有效承诺全部保留 |
 
 - **语义接受**：上述已接受契约；需求来源沿 RT9 的 PF-013/PF-015 引用，不追加产品政策。
 - **可实施**：本候选须独立评审、主线精确采用；本页自身不授权施工。
@@ -34,7 +34,7 @@
 | MR8 S-17/S-18，RT9 S-33 真实事实规则 | 已持久 opened、原完整批；warm 原 handle 的 observedFacts | 原恢复构造不变；cold 没有原 closure 时不可从 IPC 显示内容拼账 | C14-V2/V3/V4 |
 | RT9 S-36/S-38，D-102/D-103 | worker 内组合 close；主管等待实际进程退出 | 原 ModelCallHost、runtime、日志 owner 顺序收口 | C14-V8/V9；close 不等于 exit |
 
-Cordis 采用 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)。worker 内继续现有插件与服务；主管只是示例的进程资源 owner，不新增 Cordis 服务或每请求 fiber。依据 [effect-disposal-concurrent-not-ordered](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md) 与 [plugin-body-reruns-on-provider-change](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)（均有 probe），不能把 fiber 撤除、重跑或 effect 完成当物理退出；有顺序要求的 close 仍由显式组合承担。
+Cordis 采用 D-025 的 4.0.4。worker 内继续现有插件与服务；主管只是示例的进程资源 owner，不新增 Cordis 服务或每请求 fiber。依据 [effect-disposal-concurrent-not-ordered](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md) 与 [plugin-body-reruns-on-provider-change](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)（均有 probe），不能把 fiber 撤除、重跑或 effect 完成当物理退出；有顺序要求的 close 仍由显式组合承担。
 
 ## 主管、worker 与 IPC
 

@@ -7,7 +7,7 @@
 
 | 来源条款 | 需要什么证据 | 当前状态 | owner 与闭合条件 |
 | --- | --- | --- | --- |
-| AT S-7、S-8、S-9、S-10、S-12、S-17、S-18、S-22、S-31、S-32、S-49、S-52 的模型性质 | TLC：`asset-transfer-v2-transfer`、`-share`、`-revival` 三个已登记任务 | **已通过（形式，契约模型）**：运行 [`2026-09-25-formal-assets-runtimes`](../../../../record/evidence/2026-09-25-formal-assets-runtimes/README.md) 三个任务退出 0、无反例（[bindings](bindings.yaml)）。**它证的是契约模型在给定规模内的交错语义，前提是存储兑现了序列化、时刻严格递增**；不证本节点的锁真的兑现了 `SameCommit`，也不证时刻严格递增（N-1） | 提供者那一半是下面 D-1～D-12 的真并发演练 |
+| AT S-7、S-8、S-9、S-10、S-12、S-17、S-18、S-22、S-31、S-32、S-49、S-52 的模型性质 | TLC：`asset-transfer-v2-transfer`、`-share`、`-revival` 三个已登记任务 | **已通过（形式，契约模型）**：运行 `2026-09-25-formal-assets-runtimes` 三个任务退出 0、无反例（[bindings](bindings.yaml)）。**它证的是契约模型在给定规模内的交错语义，前提是存储兑现了序列化、时刻严格递增**；不证本节点的锁真的兑现了 `SameCommit`，也不证时刻严格递增（N-1） | 提供者那一半是下面 D-1～D-12 的真并发演练 |
 | AG [S-54](../../../../spec/capabilities/asset-governance/v2/contract.md#s-54-结构性禁止与权限判定分得开)～[S-63](../../../../spec/capabilities/asset-governance/v2/contract.md#s-63-钉住的不随发布走分享来的钉不住) 十条规范场景 | 演练；S-54 的 `S` 必须是超管；S-57 另跑一支 S-29 连登两次；S-60 另跑提升结束分享一支；S-62 两组逐字比对 | 未开始 | 本节点；源码与测试夹具（真实 `storage-sql`、真实 OG） |
 | AT [S-39](../../../../spec/capabilities/asset-transfer/v2/contract.md#s-39-两类待确认件的三种收场)～[S-47](../../../../spec/capabilities/asset-transfer/v2/contract.md#s-47-不可用时明确失败)、[S-50](../../../../spec/capabilities/asset-transfer/v2/contract.md#s-50-组织内分享与成员关系)、[S-51](../../../../spec/capabilities/asset-transfer/v2/contract.md#s-51-方向矩阵逐格)、[S-53](../../../../spec/capabilities/asset-transfer/v2/contract.md#s-53-分享方删除与提升分享随之结束) | 演练；S-39 关掉任何后台清理（本节点本来没有）；S-45 另跑「移除后再持有同一份」一支；S-46 受阻于 AT G-5 | 未开始；S-45 那一支依赖 N-1（`since` 严格递增）；S-46 受阻 | 本节点 |
 | AT [S-44](../../../../spec/capabilities/asset-transfer/v2/contract.md#s-44-隶属解除之后分享失效复制留着不复活) 读序一支 | 契约写的是「读完 ① 之后、读 ② 之前注入解除—重建；颠倒两读应观察到复活」 | 未开始。**本节点在一次事务里取齐 ① 与 ②，没有「两读之间」**：改为在读事务进行中从另一连接提交「解除—重建」，观察判定与读事务开始时的状态一致（sqlite WAL、pg 各一遍）；「颠倒两读」一支在本实现上构造不出来，**不能按契约原文执行**（报主线） | 本节点 ＋ 主线（场景措辞是否按快照读改写） |
@@ -35,38 +35,12 @@
 | P-2 配置错误即启动失败 | 非正时长、非正保留期、不合法清单条目各一支 ⇒ fiber `FAILED`，一个面都不 provide | 未开始 | 本节点 ＋ tenancy-host |
 | P-3 监听者抛出不改变已提交的事实 | 登记一个抛出的监听者，写操作照常返回、事实已提交、error 日志一条 | 未开始 | 本节点 |
 
-## 实际执行
-
-| 运行 | 输入与配置范围 | 结果 | 证据位置 |
-| --- | --- | --- | --- |
-| `2026-09-25-formal-assets-runtimes` · `asset-transfer-v2-transfer` | `Transfer.tla` ＋ `Transfer.cfg`（七个开关全 `TRUE`，`Scene = "copy"`，`MaxClock = 3`），HUB `1667ea4c` | 退出 0、无反例；925185 generated · 195984 distinct · 深度 16 | [run README](../../../../record/evidence/2026-09-25-formal-assets-runtimes/README.md) |
-| 同 run · `asset-transfer-v2-share` | `Transfer_Share.cfg`（全 `TRUE`，`Scene = "share"`，`MaxClock = 2`） | 退出 0、无反例；8445161 generated · 1179208 distinct · 深度 20 | 同上 |
-| 同 run · `asset-transfer-v2-revival` | `Transfer_Revival.cfg`（同上配置，检查 `NoRevival`），4 workers | 退出 0、无反例；1179208 distinct · 深度 20 | 同上 |
-
-**三行都不是本节点的符合性证据**：它们检查的是契约的模型；十三个去保护配置的有效性核对归契约验证入口，不登记为 formal task。本节点的实现证据是上表 D、F、C、P 各行，**一条都还没有**。
-**有限检查不写成无条件证明**；通过不提升契约或本节点的任何接受状态。
-
 ## 覆盖缺口
 
 - **全部实现证据缺席**：源码不存在；上表除形式三行外全部未开始。
 - **模型吸收的语义不作证据、不绑**：`TypeOK`；`EffectsOnlyFromConfirmation`（效果与终结记录写在同一动作里）；`EndedStable`；AT S-52 的提升一支（`Promote` 守卫不看分享、按构造成立）；AT S-9 的两读先后（`Use` 一步原子读）；「血缘只在落进的那一层里找」（两个计数互不相干）；AT S-20 ⑦ 尝试键认回（版本数不在模型里）。它们的证据形式是上表对应的场景。
 - **AT S-44 读序一支**按本节点的快照读改写执行，契约原文的「颠倒两读」一支构造不出来——报主线定场景措辞。
-- **时刻严格递增**（N-1，`infra/clock` C-15）落地之前，D-8 同一毫秒那一支与 AT S-45「移除后再持有」那一支都跑不出绿——两支标「**有前提：C-15**」（C-15 已按 [D-060 §八 N-34](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 排为实施程前置任务 W-0e，落地后这两支是通过条件），不靠「等一会儿再做」变绿。
+- **时刻严格递增**（N-1，`infra/clock` C-15）落地之前，D-8 同一毫秒那一支与 AT S-45「移除后再持有」那一支都跑不出绿——两支标「**有前提：C-15**」（C-15 已按 D-060 §八 N-34 排为实施程前置任务 W-0e，落地后这两支是通过条件），不靠「等一会儿再做」变绿。
 - **pg 一侧**：L-1～L-6 在 sqlite 上都是空操作，sqlite 上的演练证不了锁；pg 不是本版部署目标，但 D-2、D-4、D-5、D-8～D-12 的 pg 一遍是这些锁的唯一实证。
 - **待核对主张与假设**：H-1（`ctx.provide` 由 effect 纳管，kernel-basis probe 已过、未升格）；H-2（事件不跨进程）与 H-4（`intercept` 合并顺序）是假设、没有 probe，**待补**；H-3 是 `core/storage` 协议的前提，`lockSentinel` 在 pg 上的覆盖本节点未核。
 - **受阻消费者**：资产的全部用户流程（N-5，未来资产/据点入口（版本未分配））；存量组织上的分享（N-11，半径是被分享方整个组织的快照）。
-
-## 独立评审
-
-2026-09-25 本节点随 N2 批（asset-governance、organization-governance v2、tenancy-host 本程追加）经一次独立的架构评审（只读结构核对，无运行，基线 HUB `00a4c1c6`）：本节点应修 2、建议 3、观察 1，无阻断；主线据此裁定 [D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M57、M58、M60～M62（批的结论见同节 N-28）。**处置不等于评审闭合**——是否闭合由复审判断。
-
-| 编号 | 发现 | 处置 | 落点 |
-| --- | --- | --- | --- |
-| AG-1 应修 | 锁表漏了待确认件行与 `sharing` 行：撤回‖确认、移除‖删除、撤销‖确认认回三对写入者没有共同存储对象，pg 上终结与结束记录可被改写，S-7×2、S-8 三条绑定的前提对这几对没有兑现 | 按 M57：加 L-6（待确认件行与 `sharing` 行的 `lockRow`，排在 L-5 之后）；每个写操作的锁集列表，确认分享的锁集恒含被分享方所在组织的 L-3（含认回支）；加三条 pg 交错演练；三条绑定写明前提由 L-1～L-6 兑现 | design「锁次序与插件内的同一提交」（L-6 行、锁集表、反证 (c)）；本页 D-10～D-12；bindings S-7×2、S-8 |
-| AG-2 应修 | 时刻严格递增交接给 `infra/clock`，接收方没有登记，且与它现有断言相反 | 按 M58：手段选时钟，登为 `infra/clock` 的 C-15（下一程）；N-1 改指 C-15；README 把 AT S-9、S-31、S-32 标「有前提：C-15」；D-8 同一毫秒那一支照原样记失败 | design「时刻」与 N-1；README 可实施范围；本页 D-8 与覆盖缺口 |
-| AG-3 建议 | AG S-48 末条的保护点是「没有订阅者」，不是会失败的检查 | 按 M60：README 保留 S-48 全条、末条标「结构给」；两条检查（`tools/ts-checks` 不得订阅 `asset.*`、启动期监听者集合为空）的义务落 tenancy-host；N-7 改指它们 | design「事件」与 N-7；README；[tenancy-host verification](../../../apps/tenancy-host/verification.md) |
-| AG-4 建议 | 快照面「整份或无」把存量记录无时刻的代价放大到被分享方整个组织 | 按 M61：N-11 写明半径与出路（S-29 移除、关系重建）；未上线、库可重建，不重新标价 | design N-11 |
-| AG-5 建议 | 非首次、无迁移、只改清单的启动没有快照兜底 | 按 M62：写明这一支的整体性靠幂等＋重登；tenancy-host 的义务扩到「清单新增条目失败」 | design「官方件登记」末段、装卸表官方件那一行 |
-| AG-6 观察 | 钉 v1 的服务名与读 v2 列的事务内读入口并存；提案草图的「设置视图用求值」细化为写时守卫用 S-23 | 已核对、无处置 | — |
-
-同一轮 N1 批的建议 3 也落到本节点：按 M51，`BodyContracts` 不再自组，改用 `core/asset-evaluation` 导出的 `defaultBodyContracts`（design「实现路径与来源」、依赖表、装卸表判定对象那一行）。

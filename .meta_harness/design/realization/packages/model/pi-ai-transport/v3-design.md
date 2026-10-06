@@ -4,7 +4,7 @@
 
 ## 输入与采用边界
 
-增量依据为 [model-request-adaptation 提案 rev 2](../../../../record/proposals/model-request-adaptation/design.md)，产品依据沿 `capability.model-request-runtime/v3` 记载的 PF-013 rev 13、PF-009 rev 8、PF-012 rev 15；37 个模型、专用提醒角色、可配置缓存及公共实现加窄适配来自提案记录的本轮用户要求，不追认为旧产品 rev 的已接受条款。全局开放函数与观测边界分别沿 [SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)、[SYS-OBSERVABILITY](../../../../foundation/observability-and-logging/requirements.md#sys-observability全链路可观测与日志完备)。
+增量依据为 model-request-adaptation 提案 rev 2，产品依据沿 `capability.model-request-runtime/v3` 记载的 PF-013 rev 13、PF-009 rev 8、PF-012 rev 15；37 个模型、专用提醒角色、可配置缓存及公共实现加窄适配来自提案记录的本轮用户要求，不追认为旧产品 rev 的已接受条款。全局开放函数与观测边界分别沿 [SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)、[SYS-OBSERVABILITY](../../../../foundation/observability-and-logging/requirements.md#sys-observability全链路可观测与日志完备)。
 
 | 精确坐标（baseline 均为 `omne-harness-lite-design-2026-09-15`） | 状态与本节点消费范围 |
 | --- | --- |
@@ -20,11 +20,11 @@
 
 ## 实现路径与来源
 
-继续 [D-019](../../../../record/decisions/model-provider-pi-ai-fork/decision.md) 与 [D-063 R-5](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) 的定向 fork：pi-ai **0.86.1**，提交 `3390bd93630965a12a0a1a5c36ce890ec22f7e1d`；保留 [原 fork 边界、MIT 许可与来源追踪](design.md#fork-边界)。只迁入已选片段，移植后是本项目维护的实现；不引入 pi 的模型目录、环境凭据、SDK 重试或第二套消息类型。DSH 与 omne-next 作为比较读数，不由“参考过”推出采用其 API、缓存默认值或生命周期政策；新的复用选择须另有精确来源与比较结果。
+继续 D-019 与 D-063 R-5 的定向 fork：pi-ai **0.86.1**，提交 `3390bd93630965a12a0a1a5c36ce890ec22f7e1d`；保留 [原 fork 边界、MIT 许可与来源追踪](design.md#fork-边界)。只迁入已选片段，移植后是本项目维护的实现；不引入 pi 的模型目录、环境凭据、SDK 重试或第二套消息类型。DSH 与 omne-next 作为比较读数，不由“参考过”推出采用其 API、缓存默认值或生命周期政策；新的复用选择须另有精确来源与比较结果。
 
 HTTP 继续 `node:https` 单次直发，产品端点固定 OpenRouter chat-completions。计划、发送和读流分别可公开取用；公共请求构造、严格 SSE 读取、无损 JSON、错误事实、费用/用量及诊断只实现一次。无需 LLM 抽象基类；状态只放在连接池、流读取器和版本引用容器，模型定义与家族规则用普通不可变数据及函数组合。
 
-采用 `@deepseek-ai/cordis` **4.0.4**，依据 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md)。上游承载只引用如下已登记机制，不从本节点推导新的内核保证：
+采用 `@deepseek-ai/cordis` **4.0.4**，依据 D-025。上游承载只引用如下已登记机制，不从本节点推导新的内核保证：
 
 | basis id 或待核对主张 | 本节点使用方式与界限 |
 | --- | --- |
@@ -36,7 +36,7 @@ HTTP 继续 `node:https` 单次直发，产品端点固定 OpenRouter chat-compl
 | [`emit-listener-throw-propagates`](../../../../basis/cordis/emit-listener-throw-propagates.md) | 不用全局 `emit` 作为业务观察或诊断隔离手段，输出走显式有界端口 |
 | `ctx.effect` 提前解除登记、`ctx.provide` 纳管、Node 请求取消及 socket 实际停止 | 前两项没有对应 basis 条目：**待核对主张**，有限原型只支持其已跑路径；Node 行为是**假设，须按 source-check 取证**。真实 socket、替换宿主及晚到回调的验收仍开着，不由 dispose 回调被调用推成停止已完成 |
 
-上述 basis 条目均有 probe；具体当前运行范围从各条目与 [kernel-basis](../../../../../../packages/core/kernel-basis/verification/README.md) 读。新增 effect 使用方式已有 [有限原型与失败修正](../../../../record/evidence/2026-09-27-probe-model-request-runtime/README.md#连续调用补验)，不是生产实现证据。OpenRouter 路由行为、缓存 TTL 与角色语义由最终真实比较门核对，目录元数据不作为充分证据。
+上述 basis 条目均有 probe；具体当前运行范围从各条目与 [kernel-basis](../../../../../../packages/core/kernel-basis/verification/README.md) 读。新增 effect 使用方式已有 有限原型与失败修正，不是生产实现证据。OpenRouter 路由行为、缓存 TTL 与角色语义由最终真实比较门核对，目录元数据不作为充分证据。
 
 ## 契约责任到兑现点
 
@@ -62,7 +62,7 @@ HTTP 继续 `node:https` 单次直发，产品端点固定 OpenRouter chat-compl
 | 模型窄定义 | definition.modelId/revision；该模型支持的统一参数值、模态、角色与路由缓存能力、配置校验 | 精确 modelId 等于档案 routeName；只登记确认的模型，目录新增条目不自动变成 official |
 | 配置值 | 完整 `configuration.revision/values`，TTL、缓存方式与断点布局等由已登记定义解释 | 每次从 binding 的完整值取，不按 revision 字符串跨档案找值；配置历史判重归目录，注册表不复制一份 |
 
-工厂/manifest 以精确名字列出 OpenAI 12、Anthropic 4、DeepSeek 2、Google 2、xAI 2、Qwen 8、Moonshot 2、Zai 5，共 37 个。名字及本轮路由样本见 [逐模型读数](../../../../record/evidence/2026-09-27-probe-model-request-runtime/model-evidence-summary.json)；生产 manifest 尚未产生。验收对用户确认的交付清单检查无遗漏、无自动扩容，且每项均能解析到确切 implementation/definition/configuration。不能把研究脚本可调用或 OpenRouter 目录可见当成 official 提供。
+工厂/manifest 以精确名字列出 OpenAI 12、Anthropic 4、DeepSeek 2、Google 2、xAI 2、Qwen 8、Moonshot 2、Zai 5，共 37 个。名字及本轮路由样本见 逐模型读数；生产 manifest 尚未产生。验收对用户确认的交付清单检查无遗漏、无自动扩容，且每项均能解析到确切 implementation/definition/configuration。不能把研究脚本可调用或 OpenRouter 目录可见当成 official 提供。
 
 家族共用以下规划规则，例外留在窄定义；“自动候选”有本次无控制字段的暖读支持，“显式候选”只表示已发送控制并出现暖读，不声称字段或 TTL 已被采纳。下表为后续生产验收的候选输入，不把探针升格为正式认证。
 

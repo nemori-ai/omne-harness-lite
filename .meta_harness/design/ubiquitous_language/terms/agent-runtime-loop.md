@@ -27,10 +27,10 @@
 >
 > - [会话](#ul-session--会话--session) · [运行](#ul-run--运行--run) · [触发](#ul-trigger--触发--trigger) ·
 >   [执行尝试](#ul-run-attempt--执行尝试--run-attempt) · [会话内单活跃](#ul-single-active-execution--会话内单活跃--single-active-execution)
->   → [UL-D-1](../decisions.md#ul-d-1--会话与运行--2026-09-18)
+>   → [现行词义](../index.md)
 > - [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime) ·
 >   [取消跟着宿主走](#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host)
->   → [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)
+>   → [现行词义](../index.md)
 
 ## 这一卷最硬的一条
 
@@ -45,10 +45,10 @@
 > violate this — that belongs **inside** the one active run.
 
 - **形态**：规则
-- **出处**：[UL-D-1 裁决 2](../decisions.md#定死了什么)（产品负责人 2026-09-18 直接裁决）；
-  **主语于 2026-09-20 由「agent runtime」换成 agent runtime**，见 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)
+- **出处**：[现行词义](../index.md)（产品负责人 2026-09-18 直接裁决）；
+  **主语于 2026-09-20 由「agent runtime」换成 agent runtime**，见 [现行词义](../index.md)
 - **⚠️ 它有明确的失效条件**：**开始设计支持 GPT-Live 时重新裁决**，在那之前一律遵循。
-  [GPT-Live 把语音层与推理层拆成两个模型](../../product/PF-009-context-message-types/interviews/2026-09-18-openai-gpt-live.md)，
+  [GPT-Live 把语音层与推理层拆成两个模型](../../product/PF-009-context-message-types/design.md)，
   **届时「谁在活跃」会有第二个答案**
 - **注意**：这条**不是性能约束，是治理约束**——「这个会话现在在干什么」**必须只有一个答案**，
   否则成本、失败与收束都算不清
@@ -71,7 +71,7 @@
 > system trigger opens one just the same.
 
 - **形态**：对象
-- **出处**：[UL-D-1](../decisions.md#ul-d-1--会话与运行--2026-09-18)（产品负责人 2026-09-18 直接裁决，定义由 PM 起草）
+- **出处**：[现行词义](../index.md)（产品负责人 2026-09-18 直接裁决，定义由 PM 起草）
 - **别混 ①**：**不是[终端会话](grounding-and-isolation.md#ul-terminal-session--终端会话--terminal-session)**。
   `Shell()` 开的那个是**执行环境里的东西**，两者毫无关系
 - **别混 ②**：**它是聚合，不是容器**——会话**不包含**消息与运行，而是**指向**它们。
@@ -110,7 +110,7 @@
 > none begins or ends because another did.
 
 - **形态**：变体（父：[会话](#ul-session--会话--session)）
-- **出处**：[UL-D-4 裁决 1、2](../decisions.md#ul-d-4--主会话与子会话--2026-09-21)（产品负责人 2026-09-21 直接裁决，定义由 PM 起草）
+- **出处**：[现行词义](../index.md)（产品负责人 2026-09-21 直接裁决，定义由 PM 起草）
 - **注意 ①**：**它是[会话](#ul-session--会话--session)的一种性质，不是另一种对象。**
   主会话与[子会话](#ul-child-session--子会话--child-session)**都完整地是会话**——
   都有耐久身份、归属边界、自己的日志，**只是在关系里扮演的角色不同**
@@ -135,7 +135,7 @@
 > input entry in the child's own log**.
 
 - **形态**：变体（父：[会话](#ul-session--会话--session)）
-- **出处**：[UL-D-4 裁决 1、3](../decisions.md#ul-d-4--主会话与子会话--2026-09-21)（产品负责人 2026-09-21 直接裁决，定义由 PM 起草）
+- **出处**：[现行词义](../index.md)（产品负责人 2026-09-21 直接裁决，定义由 PM 起草）
 - **别混 ①**：**不是 fork。**fork 复制或引用一段既有历史；它的历史**从那份副本这一条开始**，
   **父的日志不被指向、不被拷贝**，**派发之后父那边发生的事它看不见**。
   两个会话的**会话日志、投影与 runtime context 快照在存储上都不共享节点**（无指针引用）——
@@ -145,7 +145,7 @@
 - **注意 ①**：**嵌套层级不受约束**——子会话的 agent 可以再创建它自己的子会话
 - **注意 ②**：**通信拓扑是收窄的**：它的 agent **只能与自己的直接 parent、
   或它自己再创建出的子会话的 agent** 通信；**兄弟之间、隔代之间都不可**。
-  其中**子 → 直接父**这一向是 [UL-D-4 裁决 7](../decisions.md#ul-d-4--主会话与子会话--2026-09-21) 放开的，
+  其中**子 → 直接父**这一向是 [现行词义](../index.md) 放开的，
   用途是**确认事实、澄清需求**这类子主动发起的求助
 - **注意 ③**：**它的会话不因交回[报告](interaction-and-dispatch.md#ul-dispatch-report--派发报告--dispatch-report)而终结**——
   报告终结的是那次派发
@@ -188,7 +188,7 @@
 - **注意 ④**：**自动归的档和手动归的档，后果一模一样**——
   同样级联、同样中断、同样可撤销。**没有「系统归的比较轻」这回事**
 - **注意 ⑤**：**那条时限是[出厂配置，默认 30 天](../../product/PF-015-session-lifecycle-and-ownership/design.md#62-归档有两条来路人手动或到期自动)**，
-  **不是每个会话各设一个**；[租户改不改得动尚未裁决](../../product/PF-015-session-lifecycle-and-ownership/decisions.md#三待裁决)
+  **不是每个会话各设一个**；[租户改不改得动尚未裁决](../../product/PF-015-session-lifecycle-and-ownership/design.md)
 
 ### UL-session-type · 会话类型 · Session Type
 
@@ -273,7 +273,7 @@
 > background — **all of that is internal to it**.
 
 - **形态**：对象
-- **出处**：[UL-D-1](../decisions.md#ul-d-1--会话与运行--2026-09-18)（产品负责人 2026-09-18 直接裁决，定义由 PM 起草）；
+- **出处**：[现行词义](../index.md)（产品负责人 2026-09-18 直接裁决，定义由 PM 起草）；
   **边界那两句来自 2026-09-20 与 2026-09-22 的裁决**，见 [PF-012 §4 Run](../../product/PF-012-agent-loop-and-run/design.md#run)（rev 21）
 - **别混 ⓪**：**它是纯粹的逻辑概念**。「一次 Run」不对应任何一段进程、一个连接或一次请求——
   **换一个 agent runtime 接着跑，还是这一个**；**队列没空就退不出去，哪怕模型已经没话说了**
@@ -304,7 +304,7 @@
 > execution returning its result, or another session sending word are all triggers.
 
 - **形态**：属性
-- **出处**：[UL-D-1](../decisions.md#ul-d-1--会话与运行--2026-09-18)（PM 起草）；
+- **出处**：[现行词义](../index.md)（PM 起草）；
   **「队列从空变非空」这个精确形式来自 2026-09-20 的裁决**，
   见 [PF-012 §4 Run](../../product/PF-012-agent-loop-and-run/design.md#run)（rev 21）
 - **别混 ①**：**裸写「触发」作动词时不是术语**——这里指的是**那个起点本身**，它是一个可被记录、可被归因的事实
@@ -378,8 +378,8 @@
 > ordinal), derived from the attempt-start record in the log; it may be persisted as a projection, not as independent truth.**
 
 - **形态**：视图
-- **出处**：[UL-D-1 的推理链](../decisions.md#定义正文是-pm-起草的依据在这里)（PM 起草；与前身系统「logical Run / physical attempt」同构）；
-  **与 agent runtime 的对应关系于 2026-09-20 写明**，见 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)；
+- **出处**：[现行词义](../index.md)（PM 起草；与前身系统「logical Run / physical attempt」同构）；
+  **与 agent runtime 的对应关系于 2026-09-20 写明**，见 [现行词义](../index.md)；
   **形态与身份于 2026-09-22 定死**，见 [PF-012 §4 执行尝试](../../product/PF-012-agent-loop-and-run/design.md#执行尝试)（rev 21）
 - **别混**：**不是第二个执行体**——执行体只有一个，就是 agent runtime。
   **这一条是「从运行的角度看它」**：同一副协程，站在治理那一侧叫「这次运行的第几次尝试」
@@ -474,7 +474,7 @@
 > loop in the system**. **It owns no independent progression state**: progress is recorded in the session log, session configuration and recoverable context outlive the coroutine, and current conditions are obtained from their sources.
 
 - **形态**：对象
-- **出处**：[UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)（产品负责人 2026-09-20 直接裁决）
+- **出处**：[现行词义](../index.md)（产品负责人 2026-09-20 直接裁决）
 - **它就是 [SYS-COMPOSITION](../../foundation/definition-and-runtime-composition/requirements.md#sys-compositionc1三段结构) 说的「活体」**——
   那一段描述的计算资源、可回收可重建、因资源治理而生灭，**逐条说的都是协程**
 - **注意 ①**：**一次起一个，[一个会话同时至多一个](#ul-single-active-execution--会话内单活跃--single-active-execution)**；
@@ -693,7 +693,7 @@
   [PF-002 §5.6](../../product/PF-002-assets-settings-and-permissions/design.md#56-四步资产求值--组装--投影--层级计算)（rev 32）
 - **别混 ①**：**裸写「装配 / assembly」在跨领域的文字里不作数**——它专指把 agent 定义求值成清单的这个动作
 - **别混 ②**：**它的产物不是一个活物**——
-  **2026-09-20 之前本条写的是「变成一个运行实例」，那个说法已退役**，见 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)
+  **2026-09-20 之前本条写的是「变成一个运行实例」，那个说法已退役**，见 [现行词义](../index.md)
 - **注意**：**求值必须在装配之前**——只能纳入有资格且已有合法定义的能力；执行实现不可用不等于不得保留替换件
 
 ### UL-assembly-manifest · 装配清单 · Assembly Manifest
@@ -764,7 +764,7 @@
 - **形态**：规则
 - **出处**：[PF-012 §6.13](../../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 21）；[PF-006 §6.5](../../product/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 24）
 - **别混**：宿主在此指治理归属，不是调用栈父协程。归档、休眠和加载位置变化不是同一动作；句柄降到零也不构成取消。取消请求不保证不可撤销效果消失。
-- **弃用说法**：~~模型运行时永远挂在 Agent runtime 上~~、~~等模型时不能回收 Agent runtime~~、~~转后台就是换宿主~~。2026-09-29 的产品要求取代 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20) 中旧模型宿主表述，历史记录保留。
+- **弃用说法**：~~模型运行时永远挂在 Agent runtime 上~~、~~等模型时不能回收 Agent runtime~~、~~转后台就是换宿主~~。2026-09-29 的产品要求取代 [现行词义](../index.md) 中旧模型宿主表述，历史记录保留。
 - **注意**：`spawn`／`delegate` 子会话仍按归档规则递归停止；`handoff` 的独立主会话不在该递归范围。
 
 ### UL-graceful-cancellation · 优雅取消 · Graceful Cancellation
@@ -781,7 +781,7 @@
 - **形态**：过程
 - **出处**：[PF-012 §6.13](../../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走) · [§6.14](../../product/PF-012-agent-loop-and-run/design.md#614-停止有两级)（rev 21）
 - **弃用的说法**：**「实例退役 / Instance Retirement」**——
-  2026-09-20 之前的名字，主语是已退役的「运行实例」，见 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)
+  2026-09-20 之前的名字，主语是已退役的「运行实例」，见 [现行词义](../index.md)
 - **注意**：**等人回话时 agent runtime 可以被取消**——**等待是一个持久的事实，不是一个协程的姿势**。
   协程没了，**会话还在**
 

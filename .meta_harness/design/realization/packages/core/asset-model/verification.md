@@ -2,7 +2,7 @@
 
 本节点本阶段的 17 项本地／组合责任已由主调度按精确坐标签收；全程221/221（六混合项仅NonConnector部分），U1另13项。
 Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；其他节点采用不变。
-[新原始运行与逐项签收](../../../../record/evidence/2026-09-26-tests-core-skill-v3/README.md)记录6534项适用回归、54项Skill独立检查、真实20制品消费，以及22包57个双语公开示例。
+新原始运行与逐项签收记录6534项适用回归、54项Skill独立检查、真实20制品消费，以及22包57个双语公开示例。
 产品负责人已授权Skill收尾后总体发布／squash merge／清理；该条件已满足。源码复验坐标00999722，原06b运行与唯一SA测试坐标修复的适用性逐文件记录。
 下文旧日期／旧源的“未签／SP3／未完成／人的总体门待签”保留为当时事件，当前core阶段状态由本段取代。外部owner、真实运行时／IO、Connector和生产就绪没有提升；全仓make的三个main继承失败仍保留。
 
@@ -12,8 +12,8 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 - 语义采用：`data.asset-model/v3`；规范接受与冻结依据仍归 registry／原决定，本次不修改其语义。
 - 源码与公开面：`packages/core/asset-model` 已实施，实际复验源为 HUB `a53644ad`。公开操作、Cordis 服务及外部 owner 边界仍由 [design.md](design.md) 定义。
-- 本节点实际回归：**422 项通过，零失败、零跳过**；同源完整构建／严格类型、27 条源码规则以及实际20包的500类型／21 JSON入口／139×2私有路径拒绝通过。[原始执行、制品与范围](../../../../record/evidence/2026-09-26-tests-core-final/README.md)。
-- 逐项技术接受：本节点 11 项 core-local、6 项 core-composition 的本阶段责任已经主调度接受；[精确 ID、坐标和前提](../../../../record/evidence/2026-09-26-tests-core-final/technical-acceptance.json)。Connector 混合项只接受当前 NonConnector 部分，原整条及延期部分未签。
+- 本节点实际回归：**422 项通过，零失败、零跳过**；同源完整构建／严格类型、27 条源码规则以及实际20包的500类型／21 JSON入口／139×2私有路径拒绝通过。原始执行、制品与范围。
+- 逐项技术接受：本节点 11 项 core-local、6 项 core-composition 的本阶段责任已经主调度接受；精确 ID、坐标和前提。Connector 混合项只接受当前 NonConnector 部分，原整条及延期部分未签。
 - 分层限制：纯函数／显式输入与真实 core 组合分别按上述证据读取；外部事实、整个共享 CS、实际 transport／执行／存储宿主及人的总体接受未被提升。全仓 `make check` 因继承 main 的三个租户迁移测试失败而退出2，诊断及同源基线原件在同run，不能声称全仓门已通过。
 
 ## 既有设计入口与此前状态记录
@@ -41,29 +41,12 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 **修订波（2026-09-25 公开面）**：design 新增「[公开面](design.md#公开面)」一节（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)），只把既有入口归为公开函数面、写明 `BodyContracts` 端口是可替换构件，不新增语义，上表证据义务不变；AM-6 改指接口契约 `capability.credential-custodian/v2`。这一面成立的静态前提「本包源码不 import `@deepseek-ai/cordis`、`@omne-harness-lite/kernel-basis`、`@omne-harness-lite/storage` 与任何插件包」**规则尚无**（候选，本批十五个 `core` 纯模块共用一条，owner `tools/ts-checks`）。
 
-## 实际执行
-
-尚无。源码不存在。
-
 ## 覆盖缺口
 
 - **契约的每一条都没有实现侧证据**：没有源码，空绑定表与此一致。owner：本节点。
 - **嵌着的正文拒绝值要端口实现才测得了**：V-2 的那一半与六个正文包同时落地才闭合。owner：本节点与六个正文包。
 - **空白码点集合**（AM-1，实现期事项）：identity-values 补导出之前，S-2 第 2 条的测试只能对着一份自抄的集合跑——那样的测试证不了「与 identity-values 同一集合」。owner：identity-values 节点落包时。
 
-## 独立评审
-
-2026-09-25 本节点随 N1 批（`core` 十五个纯模块）经一次独立的架构评审（只读结构核对，无运行）：本节点建议 1（含两点），无阻断、无应修；主线据此裁定 [D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M51（批的结论见同节 N-28）。**处置不等于评审闭合**——是否闭合由复审判断。
-
-| 编号 | 发现 | 处置 | 落点 |
-| --- | --- | --- | --- |
-| 建议 3（前半） | 端口 `BodyContracts` 的类型形状未写；若不按类别判别，把一类实现交到另一类键下能编译、运行时只给错误裁决，没有会失败的检查 | 按 M51：端口类型按类别判别，错类编译期失败 | design.md 端口比较表「错类的实现」一行、依赖表那一行；本页新加一行 |
-| 建议 3（后半） | `BodyContracts` 有三处组合根（资产治理、据点注册表、asset-evaluation），分叉时没有检查失败 | 按 M51：只留一处——asset-evaluation 导出 `defaultBodyContracts`，治理与注册表 import 它；不另写多处一致性测试 | design.md 本方弱点、依赖表、AM-5；asset-evaluation「实现路径」 |
-
 ## D-068 当前验证epoch
 
-当前设计输入为 `data.asset-model · v3`，规范资源在 [acceptance.json](../../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json) 精确冻结。原包义务和既有证据保留原输入；补CB坏名未解析、TD指定拒绝、SA两行表示优先／工具名字128/129长度或AM/AE新标准正文闭包的本节点增量。完整source release、旧资源公开闭包、W6组合和逐ID接受尚待执行；用户最终整体接受未发生。历史formal run实际版本及注释差异分别核对，不把登记任务当已跑。
-
-## 2026-09-26 当前固定资源图先行探针
-
-[AM3当前25 defs编译的实际原文](../../../../record/evidence/2026-09-26-probe-core-schema-closure/README.md)保存13Schema输入/固定built引擎/逐def失败与25/0。只是候选时的固定资源编译观察，不是新提供者domain judge/W6/Connector实现或全旧资源图所有defs证明。设计采用D068已明确，source release及新实际组合要另留证。
+当前设计输入为 `data.asset-model · v3`，规范资源在 acceptance.json 精确冻结。原包义务和既有证据保留原输入；补CB坏名未解析、TD指定拒绝、SA两行表示优先／工具名字128/129长度或AM/AE新标准正文闭包的本节点增量。完整source release、旧资源公开闭包、W6组合和逐ID接受尚待执行；用户最终整体接受未发生。历史formal run实际版本及注释差异分别核对，不把登记任务当已跑。

@@ -4,10 +4,10 @@
 两件事共用同一个事实——**一个块有没有 [transcript](../../../ubiquitous_language/terms/record-and-context.md#ul-transcript--transcript--transcript)**：
 转换那一半在「消息落盘之前」决定它，[模态投影](../../../ubiquitous_language/terms/record-and-context.md#ul-modality-projection--模态投影--modality-projection)那一半在落盘之后读它，再由合法目标拿去判一份[模型档案](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile)能不能用。
 
-> **契约身份 `modality-projection` 沿用起草时的名字，它拥有两件事：投影判定 ＋ 转换件**——[模态投影](../../../ubiquitous_language/terms/record-and-context.md#ul-modality-projection--模态投影--modality-projection)与兼容判定，以及[模态转换件](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)的键、登记表（整份声明 `declareConverters`、查登记 `lookupConverter`）与一次转换（主线裁定，见 [D-060 §S17 S17-h](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s17modality-projection报回的)：改名收益不够）。
+> **契约身份 `modality-projection` 沿用起草时的名字，它拥有两件事：投影判定 ＋ 转换件**——[模态投影](../../../ubiquitous_language/terms/record-and-context.md#ul-modality-projection--模态投影--modality-projection)与兼容判定，以及[模态转换件](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)的键、登记表（整份声明 `declareConverters`、查登记 `lookupConverter`）与一次转换（主线裁定，见 D-060 §S17 S17-h：改名收益不够）。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.modality-projection, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 `accepted`；`family=capabilities`、`topic=modality-projection`、
   `contract_path=spec/capabilities/modality-projection/v2/contract.md`；`resources` 含契约与 `examples.md`；
   依赖五项（`data.content-blocks` v2、`data.messages` v2、`data.model-profile` v2、`data.loop-extension` v2、`data.identity-values` v1），clauses 取自[契约 S-4](v2/contract.md#s-4-依赖方向与被消费的面)
@@ -50,4 +50,4 @@
 
 ## 2026-09-26 版本接受
 
-本次接受 `capability.modality-projection` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `capability.modality-projection` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

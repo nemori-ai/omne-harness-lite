@@ -9,7 +9,7 @@
 | 来源条款 | 需要什么证据 | 当前状态 | owner 与闭合条件 |
 |---|---|---|---|
 | [S-17](../../../../spec/capabilities/organization-governance/v1/contract.md#s-17-同一组织的成员写入序列化) + 至少一位有效超管 | TLC `Membership.tla` + `Membership.cfg` | **已通过**（形式）：run `2026-09-22-formal-tenant-domain-2` 的 `organization-governance-v1-membership` 无反例；2026-09-23 核过模型与配置和当前 `spec/` 逐字节相同，未重跑（[bindings](bindings.yaml)）。**它证的是交错语义，不证选中的存储真的兑现了 R-3a**；测试 run 不承担模型性质 | 提供者那一半：S-48 真并发演练，见下面 S-48 行（run `2026-09-23-tests-tenancy-leg-2` 通过） |
-| [S-32](../../../../spec/capabilities/organization-governance/v1/contract.md#s-32-接受隶属请求) 判环、[S-6](../../../../spec/capabilities/organization-governance/v1/contract.md#s-6-两个变体与四条结构性禁止)／[S-12](../../../../spec/capabilities/organization-governance/v1/contract.md#s-12-上级链与有共同上级) | Alloy 三条 `check` | **部分**：Alloy 三条 `check` 在当前冻结文件（`1a72efa2…`）上重跑，三条 UNSAT、`run aNonTrivialTree` SAT（run [`2026-09-23-alloy-affiliation`](../../../../record/evidence/2026-09-23-alloy-affiliation/README.md)；此前 run-2 的快照差一行注释）——**未登记为 formal task，不可进 bindings**；契约 verification 点名的两个变异核对（注释掉判环、改回不含自身）**未做**。判环代码的单元测试有且通过（run `2026-09-23-tests-tenancy-leg-2`）：`organizations.spec.ts` › `S-32／S-33／S-34 隶属与上级链` › `S-32 判环两半…`、`S-32 判环的「child === newParent」那一半…（Alloy 曾给出的反例）`、`S-32 判环读不到部分链 ⇒ unavailable…` | 规格工具；本节点的对应义务是判环代码与契约④两半逐字一致的单元测试 |
+| [S-32](../../../../spec/capabilities/organization-governance/v1/contract.md#s-32-接受隶属请求) 判环、[S-6](../../../../spec/capabilities/organization-governance/v1/contract.md#s-6-两个变体与四条结构性禁止)／[S-12](../../../../spec/capabilities/organization-governance/v1/contract.md#s-12-上级链与有共同上级) | Alloy 三条 `check` | **部分**：Alloy 三条 `check` 在当前冻结文件（`1a72efa2…`）上重跑，三条 UNSAT、`run aNonTrivialTree` SAT（run `2026-09-23-alloy-affiliation`；此前 run-2 的快照差一行注释）——**未登记为 formal task，不可进 bindings**；契约 verification 点名的两个变异核对（注释掉判环、改回不含自身）**未做**。判环代码的单元测试有且通过（run `2026-09-23-tests-tenancy-leg-2`）：`organizations.spec.ts` › `S-32／S-33／S-34 隶属与上级链` › `S-32 判环两半…`、`S-32 判环的「child === newParent」那一半…（Alloy 曾给出的反例）`、`S-32 判环读不到部分链 ⇒ unavailable…` | 规格工具；本节点的对应义务是判环代码与契约④两半逐字一致的单元测试 |
 | [S-7](../../../../spec/capabilities/organization-governance/v1/contract.md#s-7-上级组织属性) 至多一个上级 | 静态检查：`parent` 单列、无第二条写路径 | **已通过**（run `2026-09-23-tests-tenancy-leg-2`）：`organizations.spec.ts` › `S-7 至多一个上级：静态检查`（2 条：源码里写 `parent` 的语句只有两条、存储形状恰一列 `parent`）——是测试文件里的源码／存储形状检查，不在 `tools/ts-checks` | 本节点 |
 | [S-46](../../../../spec/capabilities/organization-governance/v1/contract.md#s-46-邀约的三种收场) 三收场 + 第四支 | 场景演练，邀请与隶属请求各一遍，②③④同一次比对 `offerNoLongerValid` 逐字相同 | **已通过**（同 run）：`scenarios.spec.ts` › `capability.organization-governance v1 · 规范场景` › `S-46 邀约的三种收场（邀请）…`、`S-46 邀约的三种收场（隶属请求）…` | 本节点；同一次执行可同时兑现 offer-expiry S-23／S-24，**各自记结果** |
 | [S-47](../../../../spec/capabilities/organization-governance/v1/contract.md#s-47-过期之后接受被拒且没有中间状态) | 演练，可前推 `clock`，无后台清理（本节点本来就不提供） | **已通过**（同 run）：`scenarios.spec.ts` › … › `S-47 过期之后接受被拒，且没有中间状态…`（包内可前推的时间替身） | 本节点 + 装配（可控 `clock`） |
@@ -32,20 +32,6 @@
 | 「同一提交」的跨 owner 解释（[design.md](design.md#跨-owner-的同一提交账号行上的过期事实加组织行对账号行的引用约束)） | 与 account-identity S-43 第 2 支同一次真并发演练，**含两条交错**（激活 vs 清除、创建个人组织 vs 清除）；另一条 R-6 的注入测试：直接构造「组织行指着账号行」时 S-38 被拒、重扫后收敛 | **部分**（同 run）：真并发两条交错 `packages/tenancy/account-registration/tests/interleavings.spec.ts` › `ai#S-43 第 2 支 × ar 同一次演练…`（4 条，sqlite），pg 一侧 `apps/tenancy-host/tests/pg.spec.ts` › `pg 首跑 · 交错 I-12（…）`（3 条）；R-6 注入的插入方向 `organizations.spec.ts` › `S-20 创建个人组织` › `R-6：读账号之后、写入之前账号行被删 ⇒ 引用约束拒绝插入…`。义务点名的「直接构造『组织行指着账号行』时 S-38 被拒、重扫后收敛」没有逐字同名的用例——`account-registration/tests/purge.spec.ts` › `S-34 清除链…` 里有相关的几条 | 本节点 + account-identity + account-registration |
 
 **修订波（2026-09-25 公开面）**：design v2 段新增「[公开面](design.md#公开面)」一节（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)），写明装配不变、本包没有能力判定函数、`./tx-reads` 属存储级入口不属函数面；上表证据义务与下面的运行都不变，不新增义务。
-
-## 实际执行
-
-| 运行 | 输入与配置范围 | 结果 | 证据位置 |
-|---|---|---|---|
-| `2026-09-22-formal-tenant-domain-2` · `organization-governance-v1-membership` | `Membership.tla` + `Membership.cfg`（`Actors = {a1,a2}`，`Serialized = TRUE`） | 无反例，退出 0；19 generated · 7 distinct · 穷尽 | [run README](../../../../record/evidence/2026-09-22-formal-tenant-domain-2/README.md) |
-| 同 run · `validity-check/`（**非 formal task**） | `Membership_NoSerialization.cfg`（`Serialized = FALSE`） | **按预期**违反 `AtLeastOneSuperAdministrator`，退出 12 | 同上 |
-| 同 run · `unregistered-alloy-affiliation/`（**非 formal task**） | `Affiliation.als` 四条命令 | `aNonTrivialTree` SAT（预期）；三条 check UNSAT（预期无反例） | 同上 |
-| [`2026-09-23-alloy-affiliation`](../../../../record/evidence/2026-09-23-alloy-affiliation/README.md)（**非 formal task**） | `Affiliation.als` 当前冻结文件（`1a72efa2…`，与上一行快照只差一行注释），四条命令，Alloy 6.2.0 | 与上一行逐条相同：`aNonTrivialTree` SAT；三条 check UNSAT | 同左 |
-| [`2026-09-23-tests-tenancy-leg-2`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md) | 源码提交 `c9b5850`；`tests/` 九个文件，夹具是真实 `storage-sql`（sqlite 临时文件库，带迁移一律 `upgrade: false`）＋ 真实 Cordis 装配 ＋ 三个包内替身（`accounts`／`logins` 服从 AI v2 的冻结形状、`Clock` 可前推可答 `'unavailable'`）；另含 `account-registration` 包里的真并发交错（真实 AI／OG／AR）、`apps/tenancy-host` 的 pg 交错 I-12（PostgreSQL 16.14）与 `tools/ts-checks` 的规则自测、`lint:rules`；Node v24.18.0、vitest 4.1.11 | build、typecheck 退出 0；本包 103 条用例 **99 通过、4 跳过**、0 失败（类型测试 25 条，无类型错误）——跳过的 4 条是 S-49、S-50（跨契约，本版不做）与 S-54 ⑥⑦ 的占位（后两件在 `account-registration` 里另有承担者） | [`output/organization-governance.log`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/output/organization-governance.log)、[`json/organization-governance.json`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/json/organization-governance.json)；义务对应 [`coverage.md`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/coverage.md#packagestenancyorganization-governance) |
-
-前四行不是本节点的符合性证据：它们检查的是契约的模型。有效性核对那一行证明的是「序列化这条前提是 load-bearing 的」——正是存储要求 R-3a 存在的理由。测试那一行是本节点实现的证据。
-
-**有限检查不写成无条件证明。**包内测试的 `accounts`／`logins` 是替身（服从冻结形状、走原始存储实例），真实 AI 参与的只有 `account-registration` 包里的交错与 `apps/tenancy-host` 的组合；S-48 的真并发只在 sqlite 上跑过，pg 只跑了交错 I-12。真并发单次运行，交错取决于那一次的调度。**通过不提升契约或本节点的任何接受状态。**
 
 ## 覆盖缺口
 
@@ -71,15 +57,3 @@
 - **存量记录不补时刻**（V2-3，D-060 §八 N-19 已接受）：带 v1 数据的库上 v2 读面与资产流转判定的 `unavailable` 是预期结果，不是缺陷；半径是被分享方整个组织的快照（M61）。
 - **v2 两个服务名本版无人 inject**：v2 读面的唯一证据是 S-61（D-060 §八 M59）。
 - `./tx-reads` 的导入限定与钉版本的静态核对都没有规则（V2-4、V2-5）。
-
-## 独立评审
-
-2026-09-25 本节点的 v2 修订段随 N2 批经一次独立的架构评审（只读结构核对，无运行，基线 HUB `00a4c1c6`；v1 段不在范围）：本节点应修 1（与 asset-governance AG-2 同一件事）、建议 1、观察 1，无阻断；主线据此裁定 [D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M58、M59（批的结论见同节 N-28）。**处置不等于评审闭合**——是否闭合由复审判断。
-
-| 编号 | 发现 | 处置 | 落点 |
-| --- | --- | --- | --- |
-| OG-1 应修 | V2-2 交接给 `infra/clock` 未落，且与它现有断言相反 | 按 M58：手段选时钟，登为 `infra/clock` 的 C-15（下一程）；V2-2 改指 C-15，本节点无动作 | design V2-2 与「v2 S-42 两个时刻可比」行；本页覆盖缺口 |
-| OG-2 建议 | v2 两个读面服务名本版无人 inject；契约写的单机路径（代行读）与实现路径（事务内读）不同 | 按 M59：写明本版无消费者、唯一证据是 S-61，D-061 的接受口径不变；AT S-34 与 v2 S-42「代行读两个时刻」两行由主线加半句「同一存储内一次可串行化读（含事务内直读）即满足」 | design「双版本怎么服务」末段、「代行读两个时刻」行；本页覆盖缺口 |
-| OG-3 观察 | R-8 锁次序、`parent_established_at` 的静态检查、v2 绑定沿用 v1 模型、存量不补时刻的标价、装卸增量 | 已核对、无处置 | — |
-
-V2-3 的半径（被分享方整个组织的快照不可用）按 asset-governance 的 AG-4 与 M61 写进 design V2-3。

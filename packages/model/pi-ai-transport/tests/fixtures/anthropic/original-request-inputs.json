@@ -1,5 +1,4 @@
 {
-  "sourceCommit": "1c520b26",
   "note": "Actual original built planner execution before current factory migration; no rehashed or reconstructed original projection facts.",
   "sources": [
     {
@@ -59,8 +58,13 @@
           }
         ],
         "snapshot": {
-          "inputModalities": ["image", "text"],
-          "outputModalities": ["text"],
+          "inputModalities": [
+            "image",
+            "text"
+          ],
+          "outputModalities": [
+            "text"
+          ],
           "maxInputTokens": 872000,
           "maxOutputTokens": 128000,
           "inputConstraints": {
@@ -95,12 +99,16 @@
                 "cache": {
                   "mode": "explicit",
                   "ttl": "1h",
-                  "breakpoints": ["last_message"]
+                  "breakpoints": [
+                    "last_message"
+                  ]
                 }
               }
             }
           },
-          "providers": ["anthropic"],
+          "providers": [
+            "anthropic"
+          ],
           "allowFallback": false,
           "updatedAt": "2026-09-27T01:00:00Z"
         }
@@ -127,7 +135,9 @@
                 "cache": {
                   "mode": "explicit",
                   "ttl": "1h",
-                  "breakpoints": ["last_message"]
+                  "breakpoints": [
+                    "last_message"
+                  ]
                 }
               }
             }
@@ -144,7 +154,9 @@
       "body": {
         "model": "anthropic/claude-opus-5.5",
         "provider": {
-          "order": ["anthropic"],
+          "order": [
+            "anthropic"
+          ],
           "allow_fallbacks": false,
           "require_parameters": true
         },
@@ -225,8 +237,13 @@
           }
         ],
         "snapshot": {
-          "inputModalities": ["image", "text"],
-          "outputModalities": ["text"],
+          "inputModalities": [
+            "image",
+            "text"
+          ],
+          "outputModalities": [
+            "text"
+          ],
           "maxInputTokens": 872000,
           "maxOutputTokens": 128000,
           "inputConstraints": {
@@ -261,12 +278,16 @@
                 "cache": {
                   "mode": "explicit",
                   "ttl": "1h",
-                  "breakpoints": ["last_message"]
+                  "breakpoints": [
+                    "last_message"
+                  ]
                 }
               }
             }
           },
-          "providers": ["anthropic"],
+          "providers": [
+            "anthropic"
+          ],
           "allowFallback": false,
           "updatedAt": "2026-09-27T01:00:00Z"
         }
@@ -293,7 +314,9 @@
                 "cache": {
                   "mode": "explicit",
                   "ttl": "1h",
-                  "breakpoints": ["last_message"]
+                  "breakpoints": [
+                    "last_message"
+                  ]
                 }
               }
             }
@@ -310,7 +333,9 @@
       "body": {
         "model": "anthropic/claude-opus-5",
         "provider": {
-          "order": ["anthropic"],
+          "order": [
+            "anthropic"
+          ],
           "allow_fallbacks": false,
           "require_parameters": true
         },
@@ -391,8 +416,13 @@
           }
         ],
         "snapshot": {
-          "inputModalities": ["image", "text"],
-          "outputModalities": ["text"],
+          "inputModalities": [
+            "image",
+            "text"
+          ],
+          "outputModalities": [
+            "text"
+          ],
           "maxInputTokens": 872000,
           "maxOutputTokens": 128000,
           "inputConstraints": {
@@ -427,12 +457,16 @@
                 "cache": {
                   "mode": "explicit",
                   "ttl": "1h",
-                  "breakpoints": ["last_message"]
+                  "breakpoints": [
+                    "last_message"
+                  ]
                 }
               }
             }
           },
-          "providers": ["anthropic"],
+          "providers": [
+            "anthropic"
+          ],
           "allowFallback": false,
           "updatedAt": "2026-09-27T01:00:00Z"
         }
@@ -459,7 +493,9 @@
                 "cache": {
                   "mode": "explicit",
                   "ttl": "1h",
-                  "breakpoints": ["last_message"]
+                  "breakpoints": [
+                    "last_message"
+                  ]
                 }
               }
             }
@@ -476,7 +512,9 @@
       "body": {
         "model": "anthropic/claude-sonnet-5",
         "provider": {
-          "order": ["anthropic"],
+          "order": [
+            "anthropic"
+          ],
           "allow_fallbacks": false,
           "require_parameters": true
         },
@@ -557,8 +595,13 @@
           }
         ],
         "snapshot": {
-          "inputModalities": ["image", "text"],
-          "outputModalities": ["text"],
+          "inputModalities": [
+            "image",
+            "text"
+          ],
+          "outputModalities": [
+            "text"
+          ],
           "maxInputTokens": 872000,
           "maxOutputTokens": 128000,
           "inputConstraints": {
@@ -593,12 +636,16 @@
                 "cache": {
                   "mode": "explicit",
                   "ttl": "1h",
-                  "breakpoints": ["last_message"]
+                  "breakpoints": [
+                    "last_message"
+                  ]
                 }
               }
             }
           },
-          "providers": ["anthropic"],
+          "providers": [
+            "anthropic"
+          ],
           "allowFallback": false,
           "updatedAt": "2026-09-27T01:00:00Z"
         }
@@ -625,7 +672,9 @@
                 "cache": {
                   "mode": "explicit",
                   "ttl": "1h",
-                  "breakpoints": ["last_message"]
+                  "breakpoints": [
+                    "last_message"
+                  ]
                 }
               }
             }
@@ -642,7 +691,9 @@
       "body": {
         "model": "anthropic/claude-fable-5.1",
         "provider": {
-          "order": ["anthropic"],
+          "order": [
+            "anthropic"
+          ],
           "allow_fallbacks": false,
           "require_parameters": true
         },

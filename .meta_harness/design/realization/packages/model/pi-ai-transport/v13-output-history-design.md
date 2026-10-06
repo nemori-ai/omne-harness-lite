@@ -4,7 +4,7 @@
 
 ## 依据、输入与边界
 
-精确消费 baseline `omne-harness-lite-design-2026-09-15` 的 [MR9](../../../../spec/data/model-response/v9/contract.md) S-41～S-45、[RT10](../../../../spec/capabilities/model-request-runtime/v10/contract.md) S-74/S-77～S-83。两契约在 catalog 为 accepted，接受依据是 [D-107](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md)；PF-013 rev15 等需求版本沿 MR9 来源表，不另增产品政策。runtime 的现有来源、原批恢复与实际 Run 交接沿 [v16](../model-request-runtime/v16-usage-calibration-design.md)／[v18](../model-request-runtime/v18-failure-execution-design.md) 精确采用范围。
+精确消费 baseline `omne-harness-lite-design-2026-09-15` 的 [MR9](../../../../spec/data/model-response/v9/contract.md) S-41～S-45、[RT10](../../../../spec/capabilities/model-request-runtime/v10/contract.md) S-74/S-77～S-83。两契约在 catalog 为 accepted，接受依据是 D-107；PF-013 rev15 等需求版本沿 MR9 来源表，不另增产品政策。runtime 的现有来源、原批恢复与实际 Run 交接沿 [v16](../model-request-runtime/v16-usage-calibration-design.md)／[v18](../model-request-runtime/v18-failure-execution-design.md) 精确采用范围。
 
 现有公开 `ReplayMeterInput` 已向 φ 显式交出原 observation、绝对 unitIndices 和 selectionSpans；当前 full 只取得 body/serialized、δ 只取得新增投影，不能使用多个较早响应保留下来的 O。这是既有 MR9 部分事实与 RT10 显式输入责任的投影补足，不新增计量真值、领域对象、持久字段或模型操作。
 
@@ -94,7 +94,7 @@ I 只由可信完整输入观察产生。合成仍为 fullContribution 或 I+φ+
 | 组事实与 inputCalibration 不完整但合法 | 保留可判部分；缺 I 不抹 O，缺 O 不造零，partial 不升 complete |
 | provider 函数返回非法数字、范围或抛错 | 沿 v12 构件失败/全量回退责任，不假 exact，不凭 0 通过；具名诊断保留实际缺口 |
 
-不新增持久、并发共享状态、网络、环境读取、timer、service 或 fiber。贡献仍由既有 modelTransport/可信模型插件固定整份实现；公共函数不依赖 Cordis、Session、Run 或 ResponseId。Cordis 采用 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)，不增加上游语义主张。
+不新增持久、并发共享状态、网络、环境读取、timer、service 或 fiber。贡献仍由既有 modelTransport/可信模型插件固定整份实现；公共函数不依赖 Cordis、Session、Run 或 ResponseId。Cordis 采用 D-025 的 4.0.4，不增加上游语义主张。
 
 | 取得项／可用时点 | owner 与部分失败 | 撤除及不变事实 |
 |---|---|---|

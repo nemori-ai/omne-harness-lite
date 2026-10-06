@@ -38,7 +38,7 @@ Agent Runtime（Agent Loop）完全由本项目自主设计；Harness 层、工�
 2026-10-01，负责人重定 Cordis 的定位：它仍是内核，是让本项目有条件实现完全动态系统的、
 **全系统集成装配时要满足和遵循的契约规范**——架构设计与实现出来的东西，要能以 fiber、plugin、service、inject
 的方式集成装配；**它不是建模的视角**。领域与能力独立于 Cordis 建模，装配时逐项核对符合性。
-复用范围与采用方式不变。接受记录见 [D-112](../../record/decisions/cordis-as-assembly-contract/README.md)，
+复用范围与采用方式不变。接受记录见 D-112，
 确认来源见 [changes.md](changes.md#2026-10-01重定-cordis-的定位)。
 
 ## SYS-SPEC
@@ -47,7 +47,7 @@ Agent Runtime（Agent Loop）完全由本项目自主设计；Harness 层、工�
 副作用、并发、取消与恢复承诺由模块旁薄规格约束。设计不再要求编程语言无关。
 重要隔离、事务、恢复和进展问题仍保留相称的模型、探针或故障测试；实现不能替代承诺。
 规格与资源的唯一归属及未迁旧源读法见[架构维护入口](../../architecture/README.md)，
-确认与部分取代范围见 [D-115](../../record/decisions/actual-architecture-and-thin-spec/decision.md)。
+确认与部分取代范围见 D-115。
 
 ## SYS-DEPLOY
 

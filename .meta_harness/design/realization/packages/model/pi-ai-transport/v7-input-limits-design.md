@@ -4,7 +4,7 @@
 
 ## 基线与四层状态
 
-产品输入为 [PF-013 rev 14 / D-096](../../../../record/decisions/model-profile-input-limits-product-adoption/decision.md)。技术基线继承 [D-082 完整定义](../../../../record/decisions/model-definition-projection-adoption/decision.md)采用的 [v4 投影](v4-definition-design.md)、[D-095](../../../../record/decisions/model-credential-path-adoption/decision.md)采用的 [v6 来源与头交接](v6-credential-path-design.md)；这些冻结文件不改。本页只替代新代际里“未知输入上限一律阻断完整声明”的旧前提，未关闭模态、缓存或计量的实际验证义务。
+产品输入为 PF-013 rev 14 / D-096。技术基线继承 D-082 完整定义采用的 [v4 投影](v4-definition-design.md)、D-095采用的 [v6 来源与头交接](v6-credential-path-design.md)；这些冻结文件不改。本页只替代新代际里“未知输入上限一律阻断完整声明”的旧前提，未关闭模态、缓存或计量的实际验证义务。
 
 | 层 | 本增量状态 |
 | --- | --- |
@@ -90,7 +90,7 @@ token 算法的精确证据缺项是：所用 tokenizer/词表/特殊 token 版�
 
 ## 依赖、存储及装卸
 
-Cordis 采用 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)。本次数据与纯函数没有独立生命周期，继续复用稳定 modelTransport 及可信贡献插件，必需注入边不变。依据为 basis [`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)、[`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)、[`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)，这些条目已有 probe；本稿未重跑，不增加上游语义主张。
+Cordis 采用 D-025 的 4.0.4。本次数据与纯函数没有独立生命周期，继续复用稳定 modelTransport 及可信贡献插件，必需注入边不变。依据为 basis [`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)、[`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)、[`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)，这些条目已有 probe；本稿未重跑，不增加上游语义主张。
 
 | 装载所得 | owner / 对外可用时点 | 部分失败 | 撤除与保留 |
 | --- | --- | --- | --- |

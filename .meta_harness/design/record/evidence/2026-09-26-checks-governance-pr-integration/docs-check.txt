@@ -1,3 +1,0 @@
-uv run --locked omne-docs-check
-PASS: 1136 Markdown files; local links and skill mirrors.
-NOTE: retained originals are excluded by design; design-chain registrations are checked by the meta-harness design checker, not here.

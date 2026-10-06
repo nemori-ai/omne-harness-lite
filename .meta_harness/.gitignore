@@ -4,59 +4,9 @@
 /.codex/
 
 
-# TLC execution output is not a specification resource. Keep actual runs in
-# record/evidence; scratch and generated traces belong in the task tmp/.
+# Runtime traces and migration discussions belong in the execution worktree tmp/.
+/design/record/
 /design/spec/**/formal/*_TTrace_*
 /design/spec/**/formal/*_TE.*
 /design/spec/**/formal/states/
 /design/spec/**/formal/MC.out
-
-# One-off construction, registry patches and merge scheduling belong in tmp/.
-# Historical address aliases required by frozen contracts remain tracked.
-/design/record/proposals/**/spec-construction-brief.md
-/design/record/proposals/**/ack-spec-construction-brief.md
-/design/record/proposals/**/handoff-manifest.json
-/design/record/proposals/**/ack-final-handoff.md
-/design/record/proposals/**/ack-final-handoff-manifest.json
-/design/record/decisions/**/construction-brief.md
-/design/record/decisions/**/draft-report.md
-/design/record/decisions/**/candidate-diff.json
-/design/record/decisions/**/candidate-registry-patch.json
-/design/record/decisions/**/consumer-impact.json
-
-# Bulk snapshots are externally retained with hashes, not Git payloads.
-/design/record/evidence/**/closed-public-artifacts*.tar.gz
-/design/record/evidence/**/public-artifact*.tar.gz
-/design/record/evidence/**/source-config-and-runs.tar.gz
-/design/record/evidence/2026-09-27-tests-core-rfc3339-order/closed-public-artifacts-and-runs.tar.gz
-/design/record/evidence/2026-09-27-tests-model-request-runtime-boundaries/public-artifact-r6.tar.gz
-/design/record/evidence/2026-09-27-tests-model-request-runtime-boundaries/source-config-and-runs.tar.gz
-/design/record/evidence/2026-09-27-tests-model-request-runtime-conformance/public-artifact-r4.tar.gz
-/design/record/evidence/2026-09-27-tests-model-request-runtime-conformance/source-config-and-runs.tar.gz
-/design/record/evidence/2026-09-27-tests-model-request-runtime-definitions/closed-public-artifacts-r7.tar.gz
-/design/record/evidence/2026-09-27-tests-model-request-runtime-definitions/source-config-and-runs.tar.gz
-/design/record/evidence/2026-09-27-tests-model-request-runtime-guard-log/closed-public-artifacts-and-runs.tar.gz
-/design/record/evidence/2026-09-27-tests-model-request-runtime-p1/public-artifact-r1.tar.gz
-/design/record/evidence/2026-09-27-tests-model-request-runtime-p1/public-artifact-r2.tar.gz
-/design/record/evidence/2026-09-27-tests-model-request-runtime-p1/source-config-and-runs.tar.gz
-/design/record/evidence/2026-09-27-tests-model-request-runtime-p2/public-artifact-r1.tar.gz
-/design/record/evidence/2026-09-27-tests-model-request-runtime-p2/public-artifact-r2.tar.gz
-/design/record/evidence/2026-09-27-tests-model-request-runtime-p2/source-config-and-runs.tar.gz
-/design/record/evidence/2026-09-27-tests-model-request-runtime-parameters/public-artifact-r5.tar.gz
-/design/record/evidence/2026-09-27-tests-model-request-runtime-parameters/source-config-and-runs.tar.gz
-/design/record/evidence/2026-09-27-tests-model-request-runtime-retry-delay/closed-public-artifacts-and-runs.tar.gz
-/design/record/evidence/2026-09-27-tests-model-response-v5-core/evidence.tar.gz
-/design/record/evidence/2026-09-27-tests-model-transport-opaque-response/evidence.tar.gz
-/design/record/evidence/2026-09-28-tests-model-credential-redaction-pure/author-evidence.tar.gz
-/design/record/evidence/2026-09-28-tests-model-credential-redaction-pure/independent-evidence.tar.gz
-/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/align.py
-/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/clauses.py
-/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/data.py
-/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/docs.py
-/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/examples.py
-/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/finish-registry.py
-/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/handoff.md
-/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/model.py
-/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/refine.py
-/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/register.py
-/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/runtime.py

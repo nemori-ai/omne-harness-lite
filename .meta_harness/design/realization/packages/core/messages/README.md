@@ -1,6 +1,6 @@
 ## 2026-09-30 ACK 后继精确采用
 
-- **语义接受**：[D-110 ACK 后继](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)接受 RT12/MS8/MR11/CA4，精确版本与摘要由 registry 和接受文件登记。
+- **语义接受**：D-110 ACK 后继接受 RT12/MS8/MR11/CA4，精确版本与摘要由 registry 和接受文件登记。
 - **可实施**：本节点对应的 ACK 后继映射已技术采用，当前实现直接迁移；下方候选与 noGC 文字保留其历史快照，不代表现行采用状态。
 - **绑定证据**：新增 0，原绑定保持原范围；有限规格模型不提升实际提供者绑定。
 - **实际验证**：ACK 实现、该节点真实组合与公开制品验收仍待，不能据采用或旧实现通过宣称完成。
@@ -13,7 +13,7 @@
 - `@omne-harness-lite/model-profile/schema/v6`（MP6 原字节）：v7-design.md 的 MP6/MP5/MP2 行（created 精确 MP6）、[model-profile v6 资源增补](../model-profile/v6-schema-resource-design.md)发布的 `./schema/v6`；MS8 闭包同含 MP6。
 - `node:crypto`：仅供 MS8 S-56 语义摘要纯构件喂 SHA-256，依据 v8-acknowledgement-design.md「编码与依赖」中「可迭代/流式喂成熟SHA-256（提供者可用Node标准crypto）」。
 
-采用依据：v7-design 由 [D-110](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/decision.md) 采用，v8 由[ACK 后继决定](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)采用。`tools/ts-checks` 的 `core-pure-imports` 表随此登记对齐；这是静态边界检查，不是新增 binding（仍为 0）或行为证据。
+采用依据：v7-design 由 D-110 采用，v8 由ACK 后继决定采用。`tools/ts-checks` 的 `core-pure-imports` 表随此登记对齐；这是静态边界检查，不是新增 binding（仍为 0）或行为证据。
 
 ## v7 创建记录与回复关系候选（2026-09-29）
 
@@ -28,7 +28,7 @@
 
 ## v6 当前格式迁移候选（2026-09-28）
 
-2026-09-28：[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 采用 [v6-design.md](v6-design.md) 的当前迁移范围；绑定不新增，实际组合验证待实施。
+2026-09-28：D-100 采用 [v6-design.md](v6-design.md) 的当前迁移范围；绑定不新增，实际组合验证待实施。
 
 - 语义接受：**本版无**；目标 MS6/MP5 尚待候选发布、catalog 登记和主线采用。D-099 已接受的是 MS5/MP4，不能替代本版接受。
 - 可实施：候选明确 root/schema 单一当前格式、完整限制快照、精确七资源闭包和当前消费者迁移；不保留旧 messages 运行入口。契约最终资源与消费者精确采用未闭合前，不提升为可正式施工。
@@ -53,7 +53,7 @@
 
 本节点本阶段的 17 项本地／组合责任已由主调度按精确坐标签收；全程221/221（六混合项仅NonConnector部分），U1另13项。
 Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；其他节点采用不变。
-[新原始运行与逐项签收](../../../../record/evidence/2026-09-26-tests-core-skill-v3/README.md)记录6534项适用回归、54项Skill独立检查、真实20制品消费，以及22包57个双语公开示例。
+新原始运行与逐项签收记录6534项适用回归、54项Skill独立检查、真实20制品消费，以及22包57个双语公开示例。
 产品负责人已授权Skill收尾后总体发布／squash merge／清理；该条件已满足。源码复验坐标00999722，原06b运行与唯一SA测试坐标修复的适用性逐文件记录。
 下文旧日期／旧源的“未签／SP3／未完成／人的总体门待签”保留为当时事件，当前core阶段状态由本段取代。外部owner、真实运行时／IO、Connector和生产就绪没有提升；全仓make的三个main继承失败仍保留。
 
@@ -63,8 +63,8 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 - 语义采用：`data.messages/v3`；规范接受与冻结依据仍归 registry／原决定，本次不修改其语义。
 - 源码与公开面：`packages/core/messages` 已实施，实际复验源为 HUB `a53644ad`。公开操作、Cordis 服务及外部 owner 边界仍由 [design.md](design.md) 定义。
-- 本节点实际回归：**473 项通过，零失败、零跳过**；同源完整构建／严格类型、27 条源码规则以及实际20包的500类型／21 JSON入口／139×2私有路径拒绝通过。[原始执行、制品与范围](../../../../record/evidence/2026-09-26-tests-core-final/README.md)。
-- 逐项技术接受：本节点 15 项 core-local、2 项 core-composition 的本阶段责任已经主调度接受；[精确 ID、坐标和前提](../../../../record/evidence/2026-09-26-tests-core-final/technical-acceptance.json)。Connector 混合项只接受当前 NonConnector 部分，原整条及延期部分未签。
+- 本节点实际回归：**473 项通过，零失败、零跳过**；同源完整构建／严格类型、27 条源码规则以及实际20包的500类型／21 JSON入口／139×2私有路径拒绝通过。原始执行、制品与范围。
+- 逐项技术接受：本节点 15 项 core-local、2 项 core-composition 的本阶段责任已经主调度接受；精确 ID、坐标和前提。Connector 混合项只接受当前 NonConnector 部分，原整条及延期部分未签。
 - 分层限制：纯函数／显式输入与真实 core 组合分别按上述证据读取；外部事实、整个共享 CS、实际 transport／执行／存储宿主及人的总体接受未被提升。全仓 `make check` 因继承 main 的三个租户迁移测试失败而退出2，诊断及同源基线原件在同run，不能声称全仓门已通过。
 
 ## 既有设计入口与此前状态记录
@@ -73,23 +73,23 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 ## 当前采用与实施层（2026-09-26 D-068）
 
-设计显式采用 `data.messages · v3`，精确 [规范](../../../../spec/data/messages/v3/contract.md) 与 [接受](../../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json) 已冻结；采用依据为 [D-068追加](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md)。此段取代以下原2当前采用／源码不存在的旧说明，旧投影按历史读，不代替新实际验证。节点身份、纯模块或构件边界、公开操作、外部所有者与Connector延期不变。
+设计显式采用 `data.messages · v3`，精确 [规范](../../../../spec/data/messages/v3/contract.md) 与 接受 已冻结；采用依据为 D-068追加。此段取代以下原2当前采用／源码不存在的旧说明，旧投影按历史读，不代替新实际验证。节点身份、纯模块或构件边界、公开操作、外部所有者与Connector延期不变。
 
 - 可实施：沿新规范全部本节点责任和下文既有投影，只有D-068明确的表示／采用／错误例变化；不扩展外部runtime或存储。
 - 源码：`packages/core/messages` 已完整采用3；作者 `29abb185` 的末段交付已集成至 HUB `fad84ef3`。默认3及完整原字节 `schema/v2` 均保留；实际 AM 固定图和保留2消费者闭包已通过。
-- 实际验证：[当前源 HUB 复验](../../../../record/evidence/2026-09-26-tests-core-current-v3/README.md) 中本包 **473 tests**、构建、严格类型与公开消费者通过，六包合计2410；原2证据保留原坐标。W6最终两真实链、逐ID技术接受及用户总体接受仍待，不从局部通过推到外部责任。
+- 实际验证：当前源 HUB 复验 中本包 **473 tests**、构建、严格类型与公开消费者通过，六包合计2410；原2证据保留原坐标。W6最终两真实链、逐ID技术接受及用户总体接受仍待，不从局部通过推到外部责任。
 
 
 ## 原2采用投影记录
 
 - kind：`provider`
-- 对象与设计修订：状态 `accepted`，2026-09-25 首稿（按 [D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 一契约一包）；兑现 `omne-harness-lite-design-2026-09-15 · data.messages · v2`（[契约](../../../../spec/data/messages/v2/contract.md)，状态 `accepted`，接受由 [D-061](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
+- 对象与设计修订：状态 `accepted`，2026-09-25 首稿（按 D-060 §八 M41 一契约一包）；兑现 `omne-harness-lite-design-2026-09-15 · data.messages · v2`（[契约](../../../../spec/data/messages/v2/contract.md)，状态 `accepted`，接受由 D-061）
 - 源码位置：`packages/core/messages`——**尚未建包**。归 `core`：它是 `data.*`，被 `model`、`tools`、`agent-loop` 与连接件消费
 - 契约采用与边界依据：本节点是**纯模块，不是 Cordis 插件**——契约没有操作、提交点与状态转移。它提供七种消息与五种运行时记录的类型、两段式表示层校验、「此刻模型可读」与「合法名单」「配对与唯一」三项纯判定。**铸 `MessageId`、追加与去重、翻译出门都不在这里**，归会话日志的写入方与模型请求运行时
 
 ## 分层状态
 
-- 语义接受范围：**设计已接受**（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)；契约接受由 D-061 登记）。接受的是设计与显式缺口；可实施范围、绑定与实际验证各层沿用下列记录。
+- 语义接受范围：**设计已接受**（2026-09-26，D-062；契约接受由 D-061 登记）。接受的是设计与显式缺口；可实施范围、绑定与实际验证各层沿用下列记录。
 - 可实施范围：声称兑现 S-1～S-40、S-49、S-50 的形状与判定面（S-28 此刻模型可读、S-29 合法名单、S-32 配对与唯一的判定、S-37～S-40 两段式拒绝值）。**不兑现**：S-3 的铸号与唯一、S-32 的追加与幂等、S-34～S-36 的翻译（归写入方与传输适配）。逐条见 [design.md 投影表](design.md#契约责任--模块公开入口--实现--符合性依据或缺口)。源码不存在，以上**全部未实现**
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) **为空表**——契约没有登记的 formal task（Alloy 模型 `Readable.als` 不是 formal task，不可绑定）；源码不存在。证据义务见 [verification.md](verification.md)，全部未开始
 - 实际验证：**无**（源码不存在）
@@ -103,9 +103,9 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 | 要跑什么、谁来跑、还缺什么                 | [验证与证据](verification.md)       |
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
-契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 record/decisions。
 
-2026-09-29：[D-110](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/decision.md)已采用本节点 T29 精确增量；原候选正文保留受审字节，新增实现与验收尚待。
+2026-09-29：D-110已采用本节点 T29 精确增量；原候选正文保留受审字节，新增实现与验收尚待。
 
 ## 当前公开定义资源闭包后继候选（2026-09-29）
 
@@ -117,8 +117,8 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 ## 2026-10-03 固定Schema技术采用
 
-[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)与[本节点固定图装配](fixed-schema-precompile-design.md)补充现行设计。只改变固定图编译/装载时机；本机制实施、实际绑定与验证未完成，原契约和历史run的状态不据此改写。
+D-116与[本节点固定图装配](fixed-schema-precompile-design.md)补充现行设计。只改变固定图编译/装载时机；本机制实施、实际绑定与验证未完成，原契约和历史run的状态不据此改写。
 
 ## 2026-10-03 D-116 主体实施与有限验收
 
-本节点固定图已实施构建期生成与首次实际消费时的同步原生装载。全部定义、公开结果/errors、构建失败清理、恢复、新鲜性及制品消费的实际范围见[主体原始运行与有限签收](../../../../record/evidence/2026-10-03-tests-fixed-schema-main/README.md)。本段取代上文 D-116 补充中关于固定图实施/验证尚待的状态；原契约、其他能力与历史运行的边界不变。
+本节点固定图已实施构建期生成与首次实际消费时的同步原生装载。全部定义、公开结果/errors、构建失败清理、恢复、新鲜性及制品消费的实际范围见主体原始运行与有限签收。本段取代上文 D-116 补充中关于固定图实施/验证尚待的状态；原契约、其他能力与历史运行的边界不变。

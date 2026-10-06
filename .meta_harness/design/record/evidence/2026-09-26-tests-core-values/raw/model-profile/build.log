@@ -1,4 +1,0 @@
-
-> @omne-harness-lite/model-profile@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-model-profile/packages/core/model-profile
-> node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
-

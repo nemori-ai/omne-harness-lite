@@ -1,6 +1,0 @@
-
-> omne-harness-lite-workspace@ format:write /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-checks
-> ./scripts/format.sh write -- tools/ts-checks/src/rules/core-pure-imports.ts tools/ts-checks/tests/core-rules.spec.ts
-
-tools/ts-checks/src/rules/core-pure-imports.ts 91ms (unchanged)
-tools/ts-checks/tests/core-rules.spec.ts 57ms

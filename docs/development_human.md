@@ -41,7 +41,7 @@
   你坚持，它也不照办——这条纪律归你定，写在那份 skill 里；要改就改 skill 并走一次评审，不靠在会话里多说一遍。
 - **为什么这样定**：并行写入者省下的时间抵不过合并与复验；收工钩子与回路的传感器只量会话站着的那一棵检出，站在别处的写入者拿不到反馈。
   依据各自的日期、出处与成色（经验报告加本仓库一天的观察，不是对照实验）见
-  [依据页](../.meta_harness/agents/skills/worktree-discipline/canonical/references/why-one-writer.md)与[评估记录](../.meta_harness/agents/evaluation/worktree-single-session-2026-10-02.md)。
+  [依据页](../.meta_harness/agents/skills/worktree-discipline/canonical/references/why-one-writer.md)与评估记录。
 - **会话结束后那棵工作树要你来清**：会话移不掉自己站着的那棵树，它收尾时会留给你一条移除的命令。
 
 **一张卡记三个时间点**：定下要做它时记 `proposed`，主路径第一次照演示脚本跑通时记 `runnable`，你接受时记 `accepted`——
@@ -56,7 +56,7 @@
 |---|---|
 | 把卡从那个 topic 的 `stories.md` 删掉，提交带 `Accepted-Card: <卡号>`；以 squash 合入时合并说明里留着这一行 | `git log --format='%h %(trailers:key=Accepted-Card,valueonly)'` 在主线上查得到这张卡；这一行**只在你说了接受之后**才写 |
 | 把验收里只在交付那一刻有意义的断言拿掉（比如「与做这张卡之前一字不差」的快照比对） | 留下的每一条都是这几条场景以后一直该成立的事 |
-| 在那个 topic 的 `decisions.md` 记一笔你接受了 | 写的是你的原话，没有替你多认什么 |
+| 将已接受规则和范围写入该 topic 的现行正文 | 终态准确表达你接受的范围，没有替你多认什么 |
 
 之后想知道哪些场景已经交付：`make scenario-status`。它是从「有没有验收覆盖」推出来的，没有人手写。
 

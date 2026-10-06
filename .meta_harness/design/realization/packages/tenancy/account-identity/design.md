@@ -11,14 +11,14 @@ S-15 签发登录状态时要在**同一次提交**里现读账号的激活状�
 两张记录同存储、同提交域，拆成两个插件只会在中间造出一条 inject 边而收不回任何独立变化原因——账号事实与登录状态的消费者确实不同（治理只要 `accounts`，登录入口只要 `logins`），
 **但消费者不同只是 #8 的两个条件之一**，独立变化原因这一条不成立（两者随同一份产品正文变）。
 
-**兑现哪一版**：本页按 `capability.account-identity` **v2**（`accepted`，[D-028](../../../../record/decisions/governance-center-design-acceptance/README.md)）写。v2 与 v1 条款号恒等对应，
+**兑现哪一版**：本页按 `capability.account-identity` **v2**（`accepted`，D-028）写。v2 与 v1 条款号恒等对应，
 下表只在 v2 改写或新增的行标「**v2 差异**」，其余行在两版里逐字相同（[v2 §十 逐条差异](../../../../spec/capabilities/account-identity/v2/contract.md#逐条差异)）。
 钉 v1 的两个消费者（organization-governance、account-registration）消费的条款在 v2 里判定逐字相同，同一份实现对它们也兑现 v1；
 **v1 S-15 的返回形状（只有 LoginStateId）与 v1 S-17「持有即被认」的位置，本节点不再兑现**——v1 S-15 的唯一消费者是登录入口，入口节点已改按 v2 写。
 
 **v2 不改插件边界**：S-44 是 `logins` 上的一个方法；出示物的产生与派生是方法体内的纯计算加 Node 内置随机源，不是 Cordis 服务。没有新 inject、新 effect、新事件、新 config。
 
-**Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/decision.md)）。本节点依赖的内核语义逐条引 basis，所引六条都有 4.0.4 上通过的 probe。
+**Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（D-025）。本节点依赖的内核语义逐条引 basis，所引六条都有 4.0.4 上通过的 probe。
 
 ## 能力到 Cordis 的投影
 
@@ -248,7 +248,7 @@ S-15 签发登录状态时要在**同一次提交**里现读账号的激活状�
 
 ## 2026-09-25新增迁移片段的幂等修复
 
-host M-1要求片段可重跑且不改变后来有效登录。bounded片段在同一真实事务内完成列观察、三个新增列和legacy撤销；若传入db已在事务中便复用，否则自建片段局部事务。不能仅凭Kysely SQLite Migrator登记或三个列存在推断未保护的数据更新已完成；全局supportsTransactionalDdl及旧片段不改。完整列集合在该片段原子提交后允许无副作用返回，部分列拒绝而不猜测旧登录事实。正常旧版中断先由宿主guard恢复快照；未经guard的历史人工半截库不承诺自动修复。第三列后/UPDATE前实际故障须证明列与原记录一起回滚，再跑成功；必须从无外层事务的Migrator触发，否则测试会掩盖本片段的责任。独立评审反例与处置归[生产机制评审](../../../../record/proposals/governance-production-mechanisms/review.md)。
+host M-1要求片段可重跑且不改变后来有效登录。bounded片段在同一真实事务内完成列观察、三个新增列和legacy撤销；若传入db已在事务中便复用，否则自建片段局部事务。不能仅凭Kysely SQLite Migrator登记或三个列存在推断未保护的数据更新已完成；全局supportsTransactionalDdl及旧片段不改。完整列集合在该片段原子提交后允许无副作用返回，部分列拒绝而不猜测旧登录事实。正常旧版中断先由宿主guard恢复快照；未经guard的历史人工半截库不承诺自动修复。第三列后/UPDATE前实际故障须证明列与原记录一起回滚，再跑成功；必须从无外层事务的Migrator触发，否则测试会掩盖本片段的责任。独立评审反例与处置归生产机制评审。
 
 ## 维护副本的本版结构核对（候选R2，未实施）
 

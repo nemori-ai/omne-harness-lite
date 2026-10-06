@@ -1,6 +1,6 @@
 # loop-extension-runner 公共 runPass 执行面增补
 
-2026-09-29，revision 1，**candidate，未采用、未实施验证**。节点仍为 `packages/agent-loop/loop-extension-runner`，provider；`v6` 是提供者文档修订名，不是 Runner 契约版本。前身为 [v5 revision3](v5-current-design.md)，SHA256 `1a85cfa993a42dc721e39a68ce1492e474d1be96c25067a16561fa1975db7f13`。原文件及 [D106](../../../../record/decisions/runner-current-pure-provider-adoption/decision.md) 的采用字节不改；D106 只采用五个纯构件及后续 core 纯主体入口，**未采用 runPass 执行面**。
+2026-09-29，revision 1，**candidate，未采用、未实施验证**。节点仍为 `packages/agent-loop/loop-extension-runner`，provider；`v6` 是提供者文档修订名，不是 Runner 契约版本。前身为 [v5 revision3](v5-current-design.md)，SHA256 `1a85cfa993a42dc721e39a68ce1492e474d1be96c25067a16561fa1975db7f13`。原文件及 D106 的采用字节不改；D106 只采用五个纯构件及后续 core 纯主体入口，**未采用 runPass 执行面**。
 
 ## 输入、范围与分层状态
 

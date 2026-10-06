@@ -1,14 +1,9 @@
-# 条款到证据的绑定表。
-# 现有 1 条绑定只支持 data.model-profile v2 的实际测试。
-# v3 为候选：没有本版产品实现证据，新增绑定 0 条。
-# v3 义务 V3-1～V3-7 与 MP3-G1～G4 记在 verification.md；候选 Schema 自检不提升旧绑定。
 version: 1
 node: "model-profile"
 kind: "provider"
 
 bindings:
 
-# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
 
   - clause: "data.model-profile/v2#S-16"
     evidence: "test:packages/core/model-profile/tests/behavior.spec.ts#exact numeric constraints before Ajv projection"

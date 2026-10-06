@@ -48,5 +48,5 @@ unit 保留原 frame、busy、既有污染的校验次序，再核验实例身�
 
 未迁行为及验证义务继续归[旧节点设计](../../../.meta_harness/design/realization/packages/infra/storage-sql/design.md)与[验证义务](../../../.meta_harness/design/realization/packages/infra/storage-sql/verification.md)。
 本页只接续本批公开集成承诺；不据本页退役其余旧正文。
-集成边界依据 [D-114](../../../.meta_harness/design/record/decisions/cordis-integration-conventions/decision.md)，承诺归属依据 [D-115](../../../.meta_harness/design/record/decisions/actual-architecture-and-thin-spec/decision.md)。
-本批配置与资源责任依据[已采用的 T4 接缝](../../../.meta_harness/design/record/decisions/identity-t4-host-coordinates/decision.md)。PostgreSQL 独立路径保留，不据 SQLite 验证声明 PostgreSQL 恢复通过。
+集成边界依据 D-114，承诺归属依据 D-115。
+本批配置与资源责任依据已采用的 T4 接缝。PostgreSQL 独立路径保留，不据 SQLite 验证声明 PostgreSQL 恢复通过。

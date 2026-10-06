@@ -38,7 +38,7 @@
 
 ### 本地自检
 
-**2026-09-23，整批对齐波，一次。**不是登记的证据：没有输入快照、没有进 [`record/evidence/`](../../../record/evidence/README.md)，只说明本版 `examples.md` 的「Schema」一列与 Schema 在这一刻对得上。
+**2026-09-23，整批对齐波，一次。**不是登记的证据：没有输入快照、没有进 `record/evidence/`，只说明本版 `examples.md` 的「Schema」一列与 Schema 在这一刻对得上。
 
 - **工具**：锁定 uv 环境里的 `jsonschema` 4.26.0（`Draft202012Validator`）＋ `referencing`，把设计根下全部 `*.schema.json` 按 `$id` 登进同一个解析表，跨契约 `$ref` 按 `$id` 解析。
 - **做法**：逐节按「校验对象」把实例列喂给校验器，与「Schema」一列比对；第 13 节按每行第一列的 `$defs`。脚本在任务区暂存，不入库。
@@ -54,7 +54,7 @@
 ### 尚无的记录
 
 V-2～V-11 **一条执行记录也没有**。起草时的手核只保证 `examples.md` 的实例与它们的标注在起草者眼里不互相矛盾，
-**未登记、无输入快照、未进 [`record/evidence/`](../../../record/evidence/README.md)**，不作为任何一条义务的证据。
+**未登记、无输入快照、未进 `record/evidence/`**，不作为任何一条义务的证据。
 
 首次执行时在此记录工具与版本、环境、配置、输入范围、可复现步骤与原始结果位置；
 原始产物归 `record/evidence/`。**必须分开陈述**：Schema 校验的结果、拒绝值一致性的结果、规范场景演练的结果、真实组合的符合性——
@@ -96,7 +96,7 @@ V-2～V-11 **一条执行记录也没有**。起草时的手核只保证 `exampl
     rev 19（§5.3 说明必填、多命令只有命令清单）：不涉本契约。抬头随之对到 rev 19 并注明。
   - **证据**：Schema 与可机检的实例都没变，上一条的 25 处本地自检结果仍适用。
   - **（同日第三轮）** S-18 `backgrounded_auto` 那一行补「或前台上限到点且允许转后台」（PF-006 rev 18 §6.7 转后台那一行的原话）；措辞，不改取值与落格。
-- **2026-09-24 第一轮独立评审修复（候选未冻结，原地改）**——逐条处置见[独立评审](#独立评审)：
+- **2026-09-24 第一轮独立评审修复（候选未冻结，原地改）**——逐条处置见独立评审：
   - **产品依据复核到当前 rev**（按各 topic changelog 从起草时的 rev 逐版读）：
     PF-009 rev 7→8（`SystemMessage` 不落日志、在途快照、开口是账、工具帧出错照常收尾、入站语音整条到）——都在消息、到达与账那一层，块的形状与取值不变，**无影响**；
     PF-010 rev 5→6（系统提示词只含文本、要求五改「原件／派生表示／transcript」三选一）——S-5、S-19 本来就把取哪一份交给 PF-010，**无影响**；
@@ -109,14 +109,14 @@ V-2～V-11 **一条执行记录也没有**。起草时的手核只保证 `exampl
   - **词条**：`origin` 改称来路标记并链 [UL-origin-tag](../../../ubiquitous_language/terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag)（词条第四轮新立）；`MediaType`、`PlaceholderReason` 移进词条对照表。**S-8 的标题「文本块与来源标记」没改**：`data.connector`、`data.slash-command`、`data.skill-package`、`capability.mcp-bridge` 以这个锚点引用它，改名要同轮改那几处链接，已报主线。
   - **措辞**：S-20 括注改为 asset-model S-2 的真实词法（允许冒号、不含 `/`）；S-12 与 CS-2「由宿主接一条 `failed` 结果」改为由工具执行一侧即刻以失败收场（与 `capability.tool-execution-runtime` 那一侧一致）；P-5、S-16 的依据改为规格层推导。
   - **证据**：V-1 本地自检重跑，158 行 0 处不符（[本地自检](#本地自检)）。其余义务状态不变。
-- **2026-09-24 修复波 1b（主线裁定 [D-060 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) L1、L12；候选未冻结，原地改）**：
+- **2026-09-24 修复波 1b（主线裁定 D-060 §六 L1、L12；候选未冻结，原地改）**：
   - **L1**：S-8 标题由「文本块与来源标记」改为「文本块与来路标记」，锚点随之变为 `#s-8-文本块与来路标记`；S-8 里那句「标题是旧称」删去。本包内（契约、实例第 5 节九处、包入口、本页）同轮改；
     包外指向旧锚点的有 `data.slash-command`、`data.connector`、`data.skill-package`、`data.messages`（本轮同一位起草者改）与 `capability.mcp-bridge`（另一位起草者改）——已全树 grep（含 URL 编码形式）核过，没有别处。原先那条「S-8 标题改名」的对齐义务已兑现，删去。
   - **L12**：登 [G-9](v2/contract.md#八已知缺口)「工具调用块的 `tool` 是否 `$ref` `ModelToolName`」（owner 主线，第二轮评审后定），S-12 的 `tool` 一行指向它；对齐义务补一条。
   - G-6 的「遗留一处对不上」改指 D-060 §四 已登的「以词条为准」。
   - **语义与表示都不变**：Schema 与实例的 JSON 未改，V-1 不重跑。
 
-- **2026-09-25 修复波 2（主线裁定 [D-060 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) M2、M8、M22；候选未冻结，原地改）**——逐条处置见[独立评审「第二轮」](#第二轮2026-09-25)：
+- **2026-09-25 修复波 2（主线裁定 D-060 §七 M2、M8、M22；候选未冻结，原地改）**——逐条处置见独立评审「第二轮」：
   - **M8（G-9 关）**：完整工具调用块的 `tool` 取模型面名字，Schema 新增 `$defs/ModelToolName`（定义项 22 项），逐字照 `data.tool-definition` v2 的同名定义写（`^[A-Za-z0-9_-]{1,128}(?![\s\S])`），`ToolCallBlock.tool` 改引它；半截调用块的 `tool` 不变（收到的原值）。**不 `$ref` 那份契约、不登 catalog 依赖**：那份契约依赖本契约，按 [registry「互引成环的登记口径」](../../../registry/README.md#covers)逐字自定义、以它为家，对齐义务见下。
     **表示改变**（收紧）：`tool` 带 `:`、空白或别的字符的完整调用块，旧 Schema 收、新 Schema 拒（`malformed`）。全设计树的实例里调用名都已是模型面名字（核过），**消费者实例不受影响**。新立 [G-10](v2/contract.md#八已知缺口)：模型交回一个不合字符集的名字时这次调用怎样落，owner 主线，落点 `capability.stream-assembly`。实例第 9 节加 `b71`～`b74`。
   - **M12（TER 一侧交付后主线点名补的 data 侧）**：S-18 `abnormal_interruption` 一行的说明放宽——工具执行运行时有序撤下（撤除、替换）时在途的执行当场写这个值（`capability.tool-execution-runtime` v2 S-48）。**取值与落格都不变**，表示不变。
@@ -133,36 +133,9 @@ V-2～V-11 **一条执行记录也没有**。起草时的手核只保证 `exampl
 
 结果不改写规范。发现语义问题回到来源设计（PF-009／PF-010／PF-013／PF-006／PF-002），不在这里改契约。
 
-## 独立评审
-
-| 评审 | 日期 | 基线 | 发现 | 处置 | 落点 |
-|---|---|---|---|---|---|
-| spec-reviewer，S25 第一轮批 R1 | 2026-09-24 | HUB `765b01dc` | CB-1 产品依据 rev 过时 | **改**：七个 topic 逐版复核，本契约条款无语义变化，抬头对到当前 rev | 抬头；[变化的影响](#变化的影响)本轮一条 |
-| 同上 | 同上 | 同上 | CB-2 `origin` 与词条「来源标记」同名不同义 | **改**：词条第四轮立了 UL-origin-tag「来路标记」，正文、Schema、实例改用它并链接；`source` 才是来源标记。**S-8 标题暂不改**（四份外部契约引用它的锚点），已报主线同轮改 | 第二节对照表、S-8、S-25、Schema `TextBlock` |
-| 同上 | 同上 | 同上 | CB-3 `terminated_by_agent` 与占位原因词条字面相反 | **改**：移出 `PlaceholderReason`（十一值），写成后台那段执行收场的提醒上写的原因；块的 `reason.code` 仍收十二个值 | S-15、S-18、第二节；Schema `PlaceholderReason`、`ToolResultBlock`；实例第 13 节 |
-| 同上 | 同上 | 同上 | CB-4 「非词条」与 verification 自相矛盾 | **改**：`MediaType`、`PlaceholderReason`、`origin` 移进词条对照表并链接；本页对齐义务改写 | 第二节 |
-| 同上 | 同上 | 同上 | CB-5 S-20 括注的词法与 asset-model S-2 不符 | **改**：照 S-2 写「不含空白与 `/`、允许冒号、区分大小写」 | S-20 |
-| 同上 | 同上 | 同上 | CB-6 `origin` 两个取值以 slash-command 条款定义，未登 catalog | **改（写明，不登）**：它是定义性引用，登记会成环（slash-command → content-blocks），在 S-8 与包入口写明，并在下方对齐义务登复核 | S-8；[包入口](README.md)准入核对 |
-| 同上 | 同上 | 同上 | CB-7 实例统计数错 | **改**：重数并重跑自检，158 行（通过 58、拒绝 100） | 实例第 15 节；[本地自检](#本地自检) |
-| 同上 | 同上 | 同上 | CB-8 V-8 仍说 CS-4 停在 G-7 | **改** | V-8 |
-
-### 第二轮（2026-09-25）
-
-reviewer：spec-reviewer，S25 第二轮批 R1；基线 HUB `8ad37c50`。本批总判「可进 F 反向核对」。依据一律是 [D-060 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)（M1～M29）；只剩「待产品负责人追认」的不再登缺口。
-
-| # | 发现（等级） | 处置 | 落点 |
-|---|---|---|---|
-| CB2-1 | 「来源标记」三处残留（应修） | **改**：三处改「来路标记」，删去第二节那句旧称说明 | 消费者表 asset-model 行；第二节对照表 `origin` 行；Schema `TextBlock` 说明 |
-| CB2-2 | 后台收场提醒上的原因与 `PlaceholderReason` 同一组 token、两种含义（应修） | **改**（M22）：那一侧的取值域归 `capability.tool-execution-runtime` v2 S-10；`$defs/PlaceholderReason` 只描述占位；不立新词条。S-18 引言写成「横跨两种位置」 | S-18；第二节、第三节；S-15；「Schema 管得到什么」；Schema `PlaceholderReason`、`ToolResultBlock` |
-| CB2-3 | 定义性引用「会成环所以不登」只写在任务区与各契约正文（应修） | **改**（M2）：口径已由主线写进 registry README「互引成环的登记口径」；本契约的来路标记与新的 `ModelToolName` 都照它 | S-12；Schema `ModelToolName` 的 `$comment`；本页对齐义务 |
-| CB2-4 | 「没有产品行」表仍写「两处对不上，已报主线」（建议） | **改**：改链 D-060 §四「D-058 Q1」那一行；取值集以 S-8 为准。取值集是否一并被取代留在产品负责人对 D-060 的追认里，不登缺口 | 设计依据后的「没有产品行」表 |
-| MS2-2（本契约那一半） | 卸载之后带摘要的那一块在本契约里叫「占位」（应修） | **改**：「派生表示 ≠ 卸载之后带摘要的那份结果」；S-15 `offloaded`、S-22 末条、第九节、实例 `b88` 同改，与 `data.messages/v2#S-11` 一个说法 | 第二节；S-15；S-22；第九节；实例第 10 节 |
-| 范围外：G-9（L12 留到本轮之后裁） | — | **改**（M8）：`tool` 取 `ModelToolName`，逐字自定义；G-9 关，新立 G-10（不合字符集的名字怎样落） | S-12、S-13、S-24、S-26；第八节；Schema；实例第 9 节 |
-| 范围外：D-058 Q1 取值集 | — | **不改**：产品负责人追认 D-060 时一并确认；本契约不另登缺口 | — |
-
 ## 实现映射反推（2026-09-25）
 
-起因：realization-drafter 戊起草 `core/content-blocks`、`core/messages` 节点时报回 SA-1、MSG-3；主线裁定 [D-060 §八 M36](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)，读法由 [§八 N-20](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 补一句（「M36 在 stream-assembly 读作 S-10『解析不了的调用块』，`malformed` 只在读 JSON 文本的接收边界」）。**裁定不代替接受**，本契约仍是 candidate。
+起因：realization-drafter 戊起草 `core/content-blocks`、`core/messages` 节点时报回 SA-1、MSG-3；主线裁定 D-060 §八 M36，读法由 §八 N-20 补一句（「M36 在 stream-assembly 读作 S-10『解析不了的调用块』，`malformed` 只在读 JSON 文本的接收边界」）。**裁定不代替接受**，本契约仍是 candidate。
 
 | 裁定 | 落点 | 本契约推导的部分（已报主线） |
 |---|---|---|
@@ -181,7 +154,3 @@ reviewer：spec-reviewer，S25 第二轮批 R1；基线 HUB `8ad37c50`。本批�
 
 - **来路标记的两个取值与 `data.slash-command` v2 的 S-21、S-25 对齐**（定义性引用，不登 catalog）：那两条改了展开物或留痕的所指，[S-8](v2/contract.md#s-8-文本块与来路标记) 的 `slash_command_expansion`、`slash_command_record` 同轮复核。
 - **`$defs/ModelToolName` 是 `data.tool-definition` v2 同名定义的逐字副本**（[S-12](v2/contract.md#s-12-完整的工具调用)；家在那份契约的 S-6）：`type` 与 `pattern` 两处逐字相同；那份契约改字符集或长度，本契约同轮改、V-1 重跑。本契约不 `$ref` 它、不登依赖——那份契约以 `$ref` 取本契约，反向会成环（registry README「互引成环的登记口径」）。**任何一边改了而另一边没跟，不会报任何错**，这一条只能靠两份 Schema 片段的字面比较兜住。
-
-## 2026-09-26 D-068 当前 v3
-
-`data.content-blocks · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，此前旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。

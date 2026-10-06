@@ -1,11 +1,3 @@
-# 条款到证据的绑定表：空。
-# v3 候选新增绑定仍为 0：Runner.tla 已有 4 正向/10 反例实际结果，范围见 verification；没有生产实现证据。
-# v3-design.md 的真实服务/JSONL/Cordis 反例先执行、归档后再按范围登记，不借邻节点证据。
-# 以下为 v2 历史绑定状态：该版 S-35 的回放模型尚未建，registry 没有该版 formal task；
-# 效果合成与三张处置表按契约是「本文的表，由规范场景逐格演练」，不建模；
-# 规范场景 S-36～S-49 没有实现可跑。义务、状态与受阻原因登记在 verification.md，不写空绑定占位。
-# 会话日志契约的 formal task session-log-v2-appends（FenceHolds、UniqueDedupeKey）证的是日志接口的判法，
-# 不证本节点给每次写带了栅栏与判重键，所以不借来绑 S-11；本节点那一半的证据是 verification 的 C-1、C-2 真并发演练。
 version: 1
 node: "loop-extension-runner"
 kind: "provider"

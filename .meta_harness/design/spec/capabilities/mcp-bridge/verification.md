@@ -2,7 +2,7 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
-> **当前状态：未开始。**`capability.mcp-bridge` v2 是 `candidate`，经过两轮独立评审（处置见[独立评审](#独立评审)；2026-09-25 修复波 2 原地改，同日修复波 3 跨批对齐按 M37 改 S-17），未接受、未冻结；尚无提供者设计、尚无源码、尚无装配。
+> **当前状态：未开始。**`capability.mcp-bridge` v2 是 `candidate`，经过两轮独立评审（处置见独立评审；2026-09-25 修复波 2 原地改，同日修复波 3 跨批对齐按 M37 改 S-17），未接受、未冻结；尚无提供者设计、尚无源码、尚无装配。
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
 > 七条规范场景、四条消费者核对场景、六条静态检查**一条都未执行**；[`examples.md`](v2/examples.md) 里的值**没有过任何校验器**——文件存在不代替结果。
 > 起草时跑过的是 `make design-check`：它核对了 Markdown 链接与锚点、registry 登记——**它不校验任何实例、不执行任何场景**。
@@ -14,7 +14,7 @@
 | V-1 | **实例里的值过各自的 Schema**：[`examples.md`](v2/examples.md) 第 4.1 节两份工具定义过 `data.tool-definition/v2` 的 `SingleFunctionTool`；第 5 节的 `ToolResult` 与块过 `ToolResult`／`ContentBlock`；第 7 节的绑定过 `data.mcp-endpoint/v2` 的 `OAuthBinding` | Draft 2020-12 校验器（能按 `$id` 解析到四份数据契约的 Schema） | [S-17](v2/contract.md#s-17-projectactions)、[S-20](v2/contract.md#s-20-对端结果怎样成为-toolresult)、[S-8](v2/contract.md#s-8-oauth-绑定状态与迁移) 的**形状那一面** | **未运行。**起草者手核（[实例第 9 节](v2/examples.md#9-起草者逐条自核)）；**手核不是证据** |
 | V-2 | **投影与结果映射的逐项取值**：实例第 4、5 节每一行，给定输入、比对输出 | 投影函数与结果映射的表驱动测试（纯函数，不需要对端） | [S-17](v2/contract.md#s-17-projectactions)、[S-20](v2/contract.md#s-20-对端结果怎样成为-toolresult) | **未开始**；需要提供者 |
 | V-3 | **操作结局**：实例第 1、3、6、7 节每一行，在受控的对端（可编排的 MCP 测试服务端：可拉不起、可超时、可分页、可发坏项、可断线、可要 OAuth）上复现 | 集成测试；存储、保管方、时间源可注入不可用 | [S-5](v2/contract.md#s-5-接入点持有的寻址)～[S-9](v2/contract.md#s-9-凭据的出示与取用)、[S-16](v2/contract.md#s-16-refreshactions)、[S-18](v2/contract.md#s-18-availability)、[S-19](v2/contract.md#s-19-invoke)、[S-22](v2/contract.md#s-22-beginoauth)～[S-24](v2/contract.md#s-24-续期清值与作废) | **未开始** |
-| V-4 | **规范场景** [S-32](v2/contract.md#s-32-连不上时照上一份清单装替换件)～[S-38](v2/contract.md#s-38-桥换代时在途调用落异常中断)：每条一个正例、一个反例 | 规范场景演练；**反例要能让一个故意写错的实现失败** | [S-7](v2/contract.md#s-7-动作清单持久副本)、[S-9](v2/contract.md#s-9-凭据的出示与取用)、[S-19](v2/contract.md#s-19-invoke)、[S-23](v2/contract.md#s-23-completeoauth)、[S-24](v2/contract.md#s-24-续期清值与作废)、[S-27](v2/contract.md#s-27-桥被替换或卸载) | **未执行。**S-35 与 S-38 **必须在对端观察请求次数**：只看收场会漏掉重发；S-36 **必须观察配值的写入记录**：只看凭据可用会漏掉「续期被写成了改值」。**S-36 第一段（续上、不打扰任何人——[PF-002 acceptance §一](../../../product/PF-002-assets-settings-and-permissions/acceptance.md#一可观察场景)「续期不打扰任何人」）受阻 custodian [G-4](../credential-custodian/v2/contract.md#十一已知缺口)／[G-2](../credential-custodian/v2/contract.md#十一已知缺口)**：本版续出来的本体没有地方写回、静态凭据接入点连不上，这一段本版**不能通过、也不以别的场景代替**；第二段（拒绝续期 ⇒ `revoked`）不受阻（主线裁定 [D-060 §八 N-39](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)：本版已知缺口，已报产品负责人） |
+| V-4 | **规范场景** [S-32](v2/contract.md#s-32-连不上时照上一份清单装替换件)～[S-38](v2/contract.md#s-38-桥换代时在途调用落异常中断)：每条一个正例、一个反例 | 规范场景演练；**反例要能让一个故意写错的实现失败** | [S-7](v2/contract.md#s-7-动作清单持久副本)、[S-9](v2/contract.md#s-9-凭据的出示与取用)、[S-19](v2/contract.md#s-19-invoke)、[S-23](v2/contract.md#s-23-completeoauth)、[S-24](v2/contract.md#s-24-续期清值与作废)、[S-27](v2/contract.md#s-27-桥被替换或卸载) | **未执行。**S-35 与 S-38 **必须在对端观察请求次数**：只看收场会漏掉重发；S-36 **必须观察配值的写入记录**：只看凭据可用会漏掉「续期被写成了改值」。**S-36 第一段（续上、不打扰任何人——[PF-002 acceptance §一](../../../product/PF-002-assets-settings-and-permissions/acceptance.md#一可观察场景)「续期不打扰任何人」）受阻 custodian [G-4](../credential-custodian/v2/contract.md#十一已知缺口)／[G-2](../credential-custodian/v2/contract.md#十一已知缺口)**：本版续出来的本体没有地方写回、静态凭据接入点连不上，这一段本版**不能通过、也不以别的场景代替**；第二段（拒绝续期 ⇒ `revoked`）不受阻（主线裁定 D-060 §八 N-39：本版已知缺口，已报产品负责人） |
 | V-5 | **进程与环境**：P-8（环境白名单）与 P-12（进程组收口） | 在真实操作系统上拉起一个会再拉子进程、会打印环境的测试服务端；收口后查进程表 | [S-6](v2/contract.md#s-6-连接归桥不上签名不跨租户)、[S-26](v2/contract.md#s-26-连接的收口次序)、[S-28](v2/contract.md#s-28-据点停机与重启) | **未开始。**这两条**只能**由真实进程观察，模型检查给不出更强的证据（[S-31](v2/contract.md#s-31-本版选用哪些形式工件)） |
 | V-6 | **秘密不进呈现**：P-3 | 以已知秘密串驱动全部操作与失败路径，扫描返回值、失败值 `raw`、日志、帧、结果、stderr 留存 | [S-13](v2/contract.md#s-13-凭据与引用不进任何呈现) | **未开始**；扫描**不证明**对端变形过的秘密也被遮掉（S-13 已声明不承诺） |
 | V-7 | **消费者路径走查**（[CS-1～CS-4](v2/contract.md#十一消费者核对)） | 结构化走查；有提供者之后升级为真实演练 | [S-12](v2/contract.md#s-12-每次执行尝试重新列举尝试内不变)、[S-14](v2/contract.md#s-14-桥不做放行判断)、[S-16](v2/contract.md#s-16-refreshactions)、[S-19](v2/contract.md#s-19-invoke)、[S-22](v2/contract.md#s-22-beginoauth)、[S-23](v2/contract.md#s-23-completeoauth) | **未开始。**走查**不需要提供者**；CS-1 接到 `capability.asset-registry/v2#S-12`、CS-3 接到 `capability.asset-governance` v2 的 `assign`——停在别的契约不算走不通 |
@@ -48,7 +48,7 @@
 | 投影出的定义要过 `data.tool-definition` 的名字收窄与参数 schema 三条硬要求（产品负责人 2026-09-24 要求） | `data.tool-definition` v2 的 S-4、S-18；`data.mcp-endpoint` v2 的 S-11 | **已对齐（2026-09-24）**：[S-17](v2/contract.md#s-17-projectactions) 两种排除原因改写；**同日主线裁定由桥做最小规范化**，[G-18](v2/contract.md#十已知缺口) 关闭；接入点 name 在登记时收窄（`data.mcp-endpoint/v2#S-26`），条目名拼不出只可能因为对端动作名 |
 | 会话资产注册表、工具执行运行时、交付面对本契约操作的消费登记 | `capability.asset-registry`、`capability.tool-execution-runtime`；交付面尚无契约 | 依赖方向是它们 → 本契约，由它们各自登记（2026-09-24 两份已登 catalog；会话资产注册表同日加登本契约 S-5） |
 | 逐动作执行权限与执行时的接入点持有从哪来（第一轮评审 X2、X3） | `capability.asset-registry` S-11、S-24；`capability.asset-evaluation` S-6；`capability.tool-admission` S-8；`capability.tool-execution-runtime` S-23 | **已对齐（2026-09-24，D-060 §五 K30）**：会话资产注册表以此刻的求值得出持有、钉住动作集后再求一次值，二者钉进报告；本契约 [S-14](v2/contract.md#s-14-桥不做放行判断)、[S-19](v2/contract.md#s-19-invoke) ②、P-9、CS-2、CS-4 改引报告 |
-| 报告里查不到条目的 MCP 调用怎样收场；`not_in_composition` 适用面（第二轮评审 B2、M-b） | `capability.loop-extension-runner` S-29 第 5 条、S-48；`capability.asset-registry` S-11、S-12；`capability.tool-admission` S-8；`capability.tool-execution-runtime` S-23 ④ | **已对齐（2026-09-25，[D-060 §七 M10](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）**：本契约 [CS-4](v2/contract.md#cs-4-放行判断需要知道本契约做什么) 只指路；runner、会话资产注册表同为丁所写已同句；执行运行时 S-23 ② 第 6 条、④ 已读到；tool-admission S-8 已读到（2026-09-25，丙批） |
+| 报告里查不到条目的 MCP 调用怎样收场；`not_in_composition` 适用面（第二轮评审 B2、M-b） | `capability.loop-extension-runner` S-29 第 5 条、S-48；`capability.asset-registry` S-11、S-12；`capability.tool-admission` S-8；`capability.tool-execution-runtime` S-23 ④ | **已对齐（2026-09-25，D-060 §七 M10）**：本契约 [CS-4](v2/contract.md#cs-4-放行判断需要知道本契约做什么) 只指路；runner、会话资产注册表同为丁所写已同句；执行运行时 S-23 ② 第 6 条、④ 已读到；tool-admission S-8 已读到（2026-09-25，丙批） |
 
 ## 结果与反例
 
@@ -69,7 +69,7 @@
 V-1～V-8 **一条执行记录也没有**。起草时的手核只保证 `examples.md` 的值与它们的标注在起草者眼里不互相矛盾，
 **不支持**任何一条规范场景、任何一个操作的实现、任何一条消费者走查。
 
-首次执行时在此记录工具与版本、环境、配置、输入范围、可复现步骤与原始结果位置；原始产物归 [record/evidence/](../../../record/evidence/README.md)。
+首次执行时在此记录工具与版本、环境、配置、输入范围、可复现步骤与原始结果位置；原始产物归 record/evidence/。
 
 ## 形式化工件
 
@@ -77,57 +77,20 @@ V-1～V-8 **一条执行记录也没有**。起草时的手核只保证 `example
 `formal-tasks.json` 里没有、也不应有本契约的任务——**「未运行」如实登记**。
 **若多据点续期协议立项**（[S-30](v2/contract.md#s-30-装配给与协议给) 那一行的右列），那时要建 TLA+ 模型并登记 formal task：它有真正的并发与失联。
 
-## 独立评审
-
-| 评审者 | 日期 | 基线 | 范围 |
-|---|---|---|---|
-| spec-reviewer（第一轮，批 R4b） | 2026-09-24 | HUB `765b01dc` | 本契约 v2 的 `contract.md`、`examples.md`，registry 里本契约的条目；消费者路径走查（动作条目与 tool-definition 形状） |
-
-| 发现 | 处置 | 落点 |
-|---|---|---|
-| X1（产品依据 rev 落后） | **改**：头部改为 PF-002 rev 20、PF-006 rev 19，只引 PF-012 rev 14、PF-016 rev 8、PF-005 rev 5、PF-001 rev 19、PF-008 rev 7；逐版复核见下「变化的影响」，没有复核出与本契约相抵的变化 | 头部、S-12、P-7、covers 注记 |
-| X2（MCP 逐动作执行权限没有产出者） | **改**（D-060 §五 K30）：权威落点在会话资产注册表（报告的 `effectivePermissions`）与求值（`mcpActionSets`）；本契约 S-14 与 CS-4 改引报告，拿不到即全拒 | S-14、CS-4、头部 |
-| X3（执行时的 `endpointHolding` 没钉） | **改**（K30）：报告的 `endpointHoldings` 钉住，执行运行时按它寻址；P-9 的前提改写为会话资产注册表以此刻的持有与配值求值 | S-12、S-19 ②、P-9、CS-2 |
-| X4（「宿主」同名不同义） | 不涉本契约（本契约写「宿主机」，有词条） | — |
-| M1（`fetchedAt` 规则与目的句、例子相抵） | **改**（K34）：取**列举开始**时刻；规则、目的句、例子、P-5 四处一致 | S-7 第 4 条、S-16 ⑦、P-5、SC-2、examples §3 |
-| M2（`scope` 同名两义） | **改**：`scope` 只有 S-5 那一个含义；凭据要配上去的那一格恒是租户格、不是参数；`beginOAuth` 只在 `scope` 是租户格时发起（此时两者是同一份持有），组织格、出厂格、工作区格各写明为什么不发起 | S-8、S-22 ①③ 与表下、examples §7 |
-| M3（「凭据的值」两读） | **改**：连接的取用键是凭据**引用**本身；续期不换引用、不换连接 | S-6 第 1 条、P-1、SC-1 |
-| M4（排除原因看似举例） | **改**：`excluded` 的原因闭合为两种 `name_unformable{rejection}`、`input_rejected{rejection}`，各带 `data.tool-definition` S-26 的拒绝值；判定次序先名字后参数 | S-17、examples §4 |
-| M5（依赖缺 data.tool-definition S-18） | **改**：S-4 表与 catalog 补登 | S-4、`registry/catalog.json` |
-| M6（covers 注记仍写 G-2 未决） | **改**：注记改为 G-2 已闭合、租户层显式启用的表示归求值的 G-19 | `registry/covers.json` |
-
-### 第二轮
-
-| 评审者 | 日期 | 基线 | 范围 |
-|---|---|---|---|
-| spec-reviewer（第二轮，批 R4b，发现表 `tmp/assets-runtimes/reviews/r2-R4b.md`） | 2026-09-25 | HUB `8ad37c50` | 同上，另核第一轮处置与修复波 1b 的 N-10、G-14 |
-
-裁定出处：[D-060 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)。
-
-| 编号 | 处置 | 落点 |
-|---|---|---|
-| M-a（S-5 首句仍说「一次装配算出的」） | **改**：`endpointHolding` 是会话资产注册表在执行尝试开始时求值（配方同装配、持有与配值取此刻）得出、钉进报告的那一份，链 `capability.asset-registry/v2#S-11` 的 `endpointHoldings`，写明不是装配那一次的结果；读法依 [D-060 §六 L8、N-10](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) | [S-5](v2/contract.md#s-5-接入点持有的寻址) 首句 |
-| M-b（CS-4 没提 `not_in_composition`） | **改**（§七 M10，并入 B2 的选边）：CS-4 列出放行判断对 MCP 调用会遇到的四种情形——值、`unavailable` 全拒、查不到键即不进放行判断（`observed{reason: no_such_entry}` → 执行运行时 `unavailable{no_such_entry}`）、`not_in_composition` 对 MCP 动作不会出现 | [CS-4](v2/contract.md#cs-4-放行判断需要知道本契约做什么)、头部主线裁定一行 |
-| M-c（S-12「完整拿到的清单」与 S-16 ⑤「返回存储里那份更新的」相抵） | **改**：S-12 第一条补 S-16 ⑤ 这一个例外——并发、开始得更晚的列举已写下更新的副本时，交出的是存储里那一份 | [S-12](v2/contract.md#s-12-每次执行尝试重新列举尝试内不变) 第一条 |
-| B2（runner／registry 两侧的选边） | 本契约只落 CS-4 那一句（见 M-b）；选边本身落在会话资产注册表与 runner | CS-4 |
-| B1、R-a～R-c、A-1～A-3、H-a、H-b、范围外 2 | 不涉本契约 | — |
-| D-1、D-2 | 归主线（D-060 自身）；本契约 S-5 已改引 §六 L8、N-10 的读法，不再依 K30 原文措辞（D-2 指出的残留即 M-a） | S-5 |
-| 闭合核对（K34、G-14） | 评审判成立，无改动 | — |
-
 ## 变化的影响
 
 - **2026-09-25 修复波 3 跨批对齐（drafter 丑；候选，未冻结，原地改）**：见[实现映射反推](#实现映射反推2026-09-25)。**语义改变**：参数 schema 只在 `data.tool-definition` S-26 第 13 行被拒的对端动作，由「进 `excluded`、对 agent 不可见」改为「成条目、只能以替换件出现、原因 `schema_unsupported`」；「只能以替换件出现」的原因由一种变为闭合的两种。**操作、失败值集合与条款编号都没有变。**
-- **2026-09-25 修复波 2（候选，未冻结，原地改）**：裁定出处 [D-060 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) M8、M10；评审发现处置见[第二轮](#第二轮)。
+- **2026-09-25 修复波 2（候选，未冻结，原地改）**：裁定出处 D-060 §七 M8、M10；评审发现处置见第二轮。
   - **语义改变**：没有——S-5 首句改正的是依据的读法（持有取此刻），S-12、S-19 ②、P-9 早已按此写；S-12 补的例外原本就在 S-16 ⑤；CS-4 只指路别的契约的收场。
   - **registry**：catalog、covers、formal-tasks、id-namespaces 不变（CS-4 引 runner、执行运行时只是指路，不登依赖；S-5 引 asset-registry S-11 也是指路——依赖方向是会话资产注册表 → 本契约，反向登记会成环）。
   - **对证据的影响**：没有既有证据；V-7 走查 CS-4 时多两支（查不到键、`not_in_composition` 不出现），仍「未开始」。
-- **2026-09-25 修复波 1b（候选，未冻结，原地改）**：裁定出处 [D-060 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)（L1、N-10）。
+- **2026-09-25 修复波 1b（候选，未冻结，原地改）**：裁定出处 D-060 §六（L1、N-10）。
   - **L1**：设计依据表 `data.content-blocks` 那一行 S-8 的锚点随那份契约的标题改为「文本块与来路标记」（`#s-8-文本块与来路标记`）；本契约引它的语义不变。
   - **N-10，G-14 闭合**：`ConnectionHandle` 不上签名、`invoke` 按持有寻址、连接的收口次序、OAuth 落据点、由桥做最小规范化五条已登 D-060 §六；页首两行与 [S-8](v2/contract.md#s-8-oauth-绑定状态与迁移) 的「尚未汇编」改链，G-14 行改为已闭合。
   - **registry**：catalog、covers、formal-tasks、id-namespaces 不变（对 `data.content-blocks` 的消费 clauses 不变，只是锚点文字变了）。
   - **对证据的影响**：没有既有证据；场景全部仍「未开始」。
 
-- **2026-09-24 第一轮独立评审处置（候选，未冻结，原地改）**：处置逐条见[上表](#独立评审)。
+- **2026-09-24 第一轮独立评审处置（候选，未冻结，原地改）**：处置逐条见上表。
   - **产品依据 rev 复核**：PF-002 rev 17（MCP 按尝试重算进正文）→ S-12、P-7 改引正文；rev 18（组织层不持有 MCP 凭据）→ 早已落在 S-5、S-9、S-22；rev 19（「谁可以使用它」）、rev 20（连接件、拓展件不可用处置）→ 不涉本契约。PF-012 rev 11～14 → 只引的 §5.7「每一次尝试开始都要做四件事」无变化。PF-016 rev 8（组织层不持有模型凭据）→ 本契约引的 §5.6、§6.11、§6.17、§6.20 无语义变化。PF-001 rev 19 → 引的 §6.6 无变化。PF-008 rev 6～7（§6.1 清卡第三条路）→ 「不替人作答」不变，S-25 那一行照旧。
   - **语义改变**：`fetchedAt` 由列举完成时刻改为开始时刻——并发刷新留下的是后开始的那一次；`excluded` 的原因由两句散文改为两个带拒绝值的闭合取值；`beginOAuth` 的 `scope` 改按 S-5 读（被拒的情形与先前相同：都是 `scope` 不是租户格）。**操作、失败值集合与条款编号都没有变。**
   - **依据链**：账本名一律改引 D-060（§块 B PB-4、§S19、§五 K30／K34）；按尝试重算改引产品正文；仍未汇编的三条（连接不上签名、OAuth 落点、最小规范化）留在 G-14。
@@ -171,7 +134,7 @@ V-1～V-8 **一条执行记录也没有**。起草时的手核只保证 `example
 
 ## 实现映射反推（2026-09-25）
 
-起因：修复波 3 里 `data.tool-definition` 按 [D-060 §八 M37](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 加了拒绝值 `schema_unsupported`、给 MCP 来源开了「以同形替换件出现」的口子，`data.mcp-endpoint` S-10 同步；打标记的一方是本契约的投影，那一轮没有 drafter 负责本契约，主线在跨批对齐简报里交给丑。**裁定不代替接受**，本契约仍是 candidate。
+起因：修复波 3 里 `data.tool-definition` 按 D-060 §八 M37 加了拒绝值 `schema_unsupported`、给 MCP 来源开了「以同形替换件出现」的口子，`data.mcp-endpoint` S-10 同步；打标记的一方是本契约的投影，那一轮没有 drafter 负责本契约，主线在跨批对齐简报里交给丑。**裁定不代替接受**，本契约仍是 candidate。
 
 | 裁定 | 落点 | 本契约推导的部分（已报主线） |
 |---|---|---|
@@ -183,7 +146,7 @@ V-1～V-8 **一条执行记录也没有**。起草时的手核只保证 `example
 
 ## 修订波（2026-09-25 公开面）
 
-依据链：[D-063](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1（替身改为接口契约 ＋ 最小提供者）；[D-060 §八 N-37](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑤（保管方最小提供者：条目以密文落在绑定所在的同一存储，与桥 R-B5、C-1～C-3 同一约束域）、⑦（退出登录不丢 OAuth 令牌，寿命跟绑定走）、⑩（桥 C-4～C-6 本版不收）。候选未冻结，原地改。
+依据链：D-063 R-1（替身改为接口契约 ＋ 最小提供者）；D-060 §八 N-37 ⑤（保管方最小提供者：条目以密文落在绑定所在的同一存储，与桥 R-B5、C-1～C-3 同一约束域）、⑦（退出登录不丢 OAuth 令牌，寿命跟绑定走）、⑩（桥 C-4～C-6 本版不收）。候选未冻结，原地改。
 
 | 变化 | 依据 | 落在哪 | 语义变不变、对消费者 |
 |---|---|---|---|

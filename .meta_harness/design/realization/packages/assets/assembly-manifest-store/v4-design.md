@@ -1,6 +1,6 @@
 # assembly-manifest-store v4 增量实现设计
 
-本稿为 **candidate，未采用**。节点及源码路径均为 `packages/assets/assembly-manifest-store`，沿 [D-059](../../../../record/decisions/assets-runtimes-split-and-rulings/README.md)。旧 [design.md](design.md)、[v3-design.md](v3-design.md) 与绑定保持原字节；[D-074](../../../../record/decisions/model-read-provider-adoption/decision.md) 的技术采用不延伸至本稿。已有 MF3 五操作源码正在施工，文件存在不构成验收；**MF4 第六操作尚未交付，须规格与本稿精确采用后实施**。本页新增或调整的服务、方法、内部构件与存储名称均为候选投影，不冒充现成 API。
+本稿为 **candidate，未采用**。节点及源码路径均为 `packages/assets/assembly-manifest-store`，沿 D-059。旧 [design.md](design.md)、[v3-design.md](v3-design.md) 与绑定保持原字节；D-074 的技术采用不延伸至本稿。已有 MF3 五操作源码正在施工，文件存在不构成验收；**MF4 第六操作尚未交付，须规格与本稿精确采用后实施**。本页新增或调整的服务、方法、内部构件与存储名称均为候选投影，不冒充现成 API。
 
 | 分层状态 | v4 事实 |
 | --- | --- |
@@ -11,11 +11,11 @@
 
 ## 输入与实现路径
 
-本稿兑现 `(omne-harness-lite-design-2026-09-15, capability.assembly-manifest, 4)` 的 [MF4 候选正文](../../../../spec/capabilities/assembly-manifest/v4/contract.md)，继承 S-1～S-35，新增 S-36/S-37；[AR4 S-51/S-52](../../../../spec/capabilities/asset-registry/v4/contract.md#s-51-原完整填表来源与本次表头的关联) 是消费者交接。动因沿 [D-077](../../../../record/decisions/model-source-interfaces-adoption/decision.md) 与 [原 fill 来源缺口稿](../../tools/asset-registry/v3-original-fill-source.md)，不把缺口稿的候选末尾复核策略带入 AR4：**refresh 固定 H 后允许继续消费旧表，后续追加不触发末尾必须等于最新头的条件。** 本节点不反向规范依赖 AR4，不解释 assembly/六表/资产根。
+本稿兑现 `(omne-harness-lite-design-2026-09-15, capability.assembly-manifest, 4)` 的 [MF4 候选正文](../../../../spec/capabilities/assembly-manifest/v4/contract.md)，继承 S-1～S-35，新增 S-36/S-37；[AR4 S-51/S-52](../../../../spec/capabilities/asset-registry/v4/contract.md#s-51-原完整填表来源与本次表头的关联) 是消费者交接。动因沿 D-077 与 [原 fill 来源缺口稿](../../tools/asset-registry/v3-original-fill-source.md)，不把缺口稿的候选末尾复核策略带入 AR4：**refresh 固定 H 后允许继续消费旧表，后续追加不触发末尾必须等于最新头的条件。** 本节点不反向规范依赖 AR4，不解释 assembly/六表/资产根。
 
 精确数据依赖沿 MF4 S-4：identity-values v1、messages v2、content-blocks v2、asset-model v3、offer-expiry v1、tool-definition v2、asset-evaluation v4 的 S-47。运行时实现复用已有公开严格 JSON/ExactDecimal 与 AE4 完整结果读取构件；包 root 的实际采用版本按已接受公开实现显式核对，不因类型相近擅自升级规范坐标。
 
-继续复用本项目 `core/storage` 协议与 `infra/storage-sql`，公开 SQL 查询经既有 Kysely。采用依据仍为 [D-026](../../../../record/decisions/infrastructure-persistence-choices/decision.md) 与 [D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md)，不在本节点重选数据库。Cordis 固定 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)。不增加业务表、索引化来源副本、会话 JSONL 双写、后台追尾器或计时重试层。
+继续复用本项目 `core/storage` 协议与 `infra/storage-sql`，公开 SQL 查询经既有 Kysely。采用依据仍为 D-026 与 D-027，不在本节点重选数据库。Cordis 固定 D-025 的 4.0.4。不增加业务表、索引化来源副本、会话 JSONL 双写、后台追尾器或计时重试层。
 
 源码公开入口已存在 `createAssemblyManifestStore`、`checkManifestAppendInput`、`judgeManifestAppend`、`answerPresence`、`readEvaluationProjection`，以及五操作和独立 `close`；本轮只读其施工事实，不确认稳定制品。本稿拟沿同一闭包与 `assemblyManifest` 服务显式增加 `readGiven`，六个规范操作加一个技术关闭方法；不设“方法不存在就退回 readEvaluation”的兼容路径。可独立采用的纯构件及存储闭包继续不依赖 Cordis。
 

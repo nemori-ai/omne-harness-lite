@@ -4,9 +4,9 @@
 
 ## 实现路径与来源
 
-按[读取链提案](../../../../record/proposals/model-request-adaptation/read-projection.md)建设一个 TypeScript 纯模块，复用 [content-blocks](../content-blocks/design.md) 的严格无损 JSON 与中性 Schema 技术入口、[asset-model](../asset-model/design.md) 的共有表示，以及 tool-definition/model-profile 的精确 Schema。只自建两个槽位的约束组合、跨项排重和提取；不另写 JSON 解析器、任意 Schema 等价判定器或时长数值系统。
+按读取链提案建设一个 TypeScript 纯模块，复用 [content-blocks](../content-blocks/design.md) 的严格无损 JSON 与中性 Schema 技术入口、[asset-model](../asset-model/design.md) 的共有表示，以及 tool-definition/model-profile 的精确 Schema。只自建两个槽位的约束组合、跨项排重和提取；不另写 JSON 解析器、任意 Schema 等价判定器或时长数值系统。
 
-Cordis 的已接受版本为 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/decision.md)）。**本节点不依赖或调用 Cordis**，没有服务键、inject、fiber、effect、事件、身份或 LLM 基类；因此不以任何 basis 条目推导运行行为，也没有未核对的 Cordis API 主张。模型贡献的热更新由模型节点负责，本正文规则按消费者选定的代码版本调用。
+Cordis 的已接受版本为 4.0.4（D-025）。**本节点不依赖或调用 Cordis**，没有服务键、inject、fiber、effect、事件、身份或 LLM 基类；因此不以任何 basis 条目推导运行行为，也没有未核对的 Cordis API 主张。模型贡献的热更新由模型节点负责，本正文规则按消费者选定的代码版本调用。
 
 ## 公开面与校验路径
 

@@ -38,10 +38,6 @@ NOT RUN: TLC/Alloy; production old-format rejection; current-generation recovery
 本版仅继承该专题性质与来源证据，实际状态统一见本节「本次实际检查」；不声明本轮重新运行模型或实现测试。
 
 
-## 2026-09-27 v4 精确接受与有限形式结果
-
-[D086](../../../record/decisions/model-runtime-tail-settlement-adoption/decision.md)接受最终contract `4a31cb8b…`及27资源，未提升实际验证状态。独立架构／表达复审关闭ER1～4；全部24形式资源与revision2运行输入一致，新增四组规范向量仍待实际执行。运行及输入权威见 [新形式run](../../../record/evidence/2026-09-27-formal-model-request-settlement/README.md)：原run1为Fail，修复模型括号后run2新SANY／3正／6指定负控有限Pass。run2所测contract仍27f547…，不改称最终正文已执行；旧RT3继承形式不重标签为本轮运行。真实IO／完整合法读权／生产Run／共同codec和旧写者实际停止／多值headers、全部十三操作与37认证均未完成。下面candidate／未执行状态按其历史事件读取，当前接受沿D086与registry。
-
 ## v3 候选变化与证据
 
 **S-36 表达收敛（本次）**：按主线及独立架构确认，明确正常已知收场的 `run_cancelled` 与锚点未知隔离后 S-33 恢复分开；无耐久中断意图时，恢复只据 opened 有无落既有 `runtime_lost` 两支，不声称系统停止原因跨失联已保存。补系统停止后 opened 有/无的规范对照；不新增意图、记录、失败值或恢复禁止政策。仍为 67 条、13 个服务操作，S-55 九项未改，模型未改未重跑；真实故障验收未开始。本轮快照与检查在 `tmp/model-request-runtime/runtime-v3/system-stop-isolation/`。
@@ -71,7 +67,7 @@ NOT RUN: TLC/Alloy; production old-format rejection; current-generation recovery
 | S-63 诊断 | 正常/拒绝/失败/取消/恢复全链关联，秘密哨兵、缺 usage 与 0 区分、导出失败、关键诊断缺口状态；对照耐久锚点失败 | 未开始 |
 | 原有运行时义务 | v2 原规范场景与三条真并发/崩溃验收继续；新类型依赖与行为须重新过符合性 | v2 既有证据保留原范围；没有本轮产品实现证据 |
 
-注册/撤除、直接函数与 runtime 共用版本引用的有限模型由主线拥有 `v3/formal/Adaptation.tla` 及其配置；本起草者不以 ContentGate/AdaptationBinding 模型代证该范围。主线实际执行的[正向日志](../../../record/evidence/2026-09-27-probe-model-request-runtime/lifecycle-formal-2/Adaptation/stdout.txt) exit 0，20404 generated、5430 distinct、深度 17；三负控各 exit 12，分别反驳 NoAcquireRetired、NoDisposeWithLease、BindingPinned，原始运行参数与输出在[证据入口](../../../record/evidence/2026-09-27-probe-model-request-runtime/README.md)。RegistrationDoesNotAdopt 与 AdoptionFailureKeepsProfiles 只有正向检查，不声称变异有效性已覆盖。首轮 exit 150 语法错误保留于 lifecycle-formal。新增模型不含真实资源释放、追加失败或多会话状态；限制见[formal 入口](v3/formal/README.md)。
+注册/撤除、直接函数与 runtime 共用版本引用的有限模型由主线拥有 `v3/formal/Adaptation.tla` 及其配置；本起草者不以 ContentGate/AdaptationBinding 模型代证该范围。主线实际执行的正向日志 exit 0，20404 generated、5430 distinct、深度 17；三负控各 exit 12，分别反驳 NoAcquireRetired、NoDisposeWithLease、BindingPinned，原始运行参数与输出在证据入口。RegistrationDoesNotAdopt 与 AdoptionFailureKeepsProfiles 只有正向检查，不声称变异有效性已覆盖。首轮 exit 150 语法错误保留于 lifecycle-formal。新增模型不含真实资源释放、追加失败或多会话状态；限制见[formal 入口](v3/formal/README.md)。
 
 **本轮形式工具实际执行**：2026-09-27 使用 `/usr/local/bin/tlc`，原始 banner 为 `TLC2 Version 2026.09.12.025210 (rev: 867aefb)`。两个正向和四个否定配置均用 1 worker、180 秒外层上限，关闭 deadlock 检查（终态允许无动作，不声称死锁自由）。首轮因两条 action property 写法非法均 exit 150，保留原记录；修正为 stuttering 包裹后第二轮如下：
 
@@ -84,7 +80,7 @@ NOT RUN: TLC/Alloy; production old-format rejection; current-generation recovery
 | AdaptationBinding_UseLatest.cfg | `Invariant SentUsesOriginal is violated.` | 12 |
 | AdaptationBinding_MissingFallback.cfg | `Invariant SentMatchesRecord is violated.` | 12 |
 
-原始 argv、cwd、输入副本及 SHA-256、raw.log、exitcode、时间已由主线归档至第二轮运行清单（见[运行原始档案](../../../record/evidence/2026-09-27-probe-model-request-runtime/runtime-v3.tar.gz)中对应路径）；首轮原始错误保留在其上级 runtime-v3。两模型 SHA-256 分别为 `ContentGate.tla: 3610b3ba7b7ec3b92d48190de90bd4155dc3b49f56ab4e7c024706ae06d2e95e`、`AdaptationBinding.tla: dcdc3fcf8615a533bf09645c1e3690f4dcb341af68f0e12a2e2a411b5c3d32f4`，配置哈希见输入哈希（见[运行原始档案](../../../record/evidence/2026-09-27-probe-model-request-runtime/runtime-v3.tar.gz)中对应路径）。每个 result.json 保留完整命令，形式为 `tlc -metadir <独立目录> -cleanup -noGenerateSpecTE -workers 1 -config <配置副本> <模型副本>`。归档只对应所列形式输入：后补根属性与读面依赖的契约文字不在该模型输入里，不冒称这些新语义已经运行验证。证据只能支持 formal 入口所列有限范围，不能称为实现证明或接受依据已齐全。
+原始 argv、cwd、输入副本及 SHA-256、raw.log、exitcode、时间已由主线归档至第二轮运行清单（见运行原始档案中对应路径）；首轮原始错误保留在其上级 runtime-v3。两模型 SHA-256 分别为 `ContentGate.tla: 3610b3ba7b7ec3b92d48190de90bd4155dc3b49f56ab4e7c024706ae06d2e95e`、`AdaptationBinding.tla: dcdc3fcf8615a533bf09645c1e3690f4dcb341af68f0e12a2e2a411b5c3d32f4`，配置哈希见输入哈希（见运行原始档案中对应路径）。每个 result.json 保留完整命令，形式为 `tlc -metadir <独立目录> -cleanup -noGenerateSpecTE -workers 1 -config <配置副本> <模型副本>`。归档只对应所列形式输入：后补根属性与读面依赖的契约文字不在该模型输入里，不冒称这些新语义已经运行验证。证据只能支持 formal 入口所列有限范围，不能称为实现证明或接受依据已齐全。
 
 **检查状态**：本轮已运行 `.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip`。最后一次完整 raw 在工作树 `tmp/model-request-runtime/runtime-v3/final-candidate/design-check.stdout.txt`、`design-check.stderr.txt`、`design-check-run.json`，exit 1，共 4165 错：主要为主线新归档 response-v4/inputs 的原始 Markdown 快照相对链接被全树检查器扫描为断链，另含进行中的 asset-evaluation/v4 3 锚点与 response-v4 的 6 个 tmp 外链；本 runtime 包没有报错，已报对应 owner。该结果后补 S-40/G-26 的主线模型映射与根读取规范实例；该次检查时新增求值依赖仍待整批对齐；本次对齐后的结构检查另记如下，不能把部分无报错称为整树通过。registry 按任务授权由主线唯一集成，本起草者仅返回条目候选，未自行修改清单。尚无独立评审，未接受。
 
@@ -154,113 +150,6 @@ S2-B1 随 LC4 候选精确采用处理：失败主体保留完整 profile3/messa
 | 跨进程的新鲜度、秘密送达、转发链不越过锚点 | 组合契约（尚未立） | [S-38](v2/contract.md#s-38-装配给的保证-vs-协议须给的保证)、[G-12](v2/contract.md#十二已知缺口) |
 | 传输适配须兑现的十一条 | pi-ai 传输节点的符合性测试 T-1～T-11（[`realization/packages/model/pi-ai-transport`](../../../realization/packages/model/pi-ai-transport/verification.md)；fork 之后不再依赖上游库的缺省行为；2026-09-25 修订波，主线裁定 D-060 §八 N-40 ④）。本契约**不以坐标依赖**那个包：它不是契约，catalog 不登 | [S-38](v2/contract.md#s-38-装配给的保证-vs-协议须给的保证) 传输适配十一条、[G-10](v2/contract.md#十二已知缺口) |
 
-## 独立评审
-
-**第一轮**：spec-reviewer（只读），2026-09-24，基线 HUB `765b01dc`（批 R5：本契约与 `capability.model-profile-directory`、`capability.modality-projection` 同批）。
-处置按主线的修复简报（2026-09-24）与 [D-060 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) 的裁定（K10、K13、K16、K19～K22、K36、K40、K42）；**评审意见不代替接受**，本契约仍是 candidate，修复稿尚未复审。二十七条全部**改**。
-
-| 发现 | 处置 | 落点 |
-|---|---|---|
-| MRR-1（阻断：绑定只在内存里，失联补写的响应体与续接没有耐久来源） | **改**（K20）：「已出门」带这次调用的绑定（`data.messages/v2#S-49` 已改）；续接与对账从它读，不重读档案。**剩下一项**：传输适配改过的值与丢掉的项不在「已出门」上，追补体上参数那三项仍无耐久来源，立 **G-18** | [S-7](v2/contract.md#s-7-一次调用绑定了什么)、[S-28](v2/contract.md#s-28-opencall) ④、[S-33](v2/contract.md#s-33-reconcile)、[S-38](v2/contract.md#s-38-装配给的保证-vs-协议须给的保证) 快照那一行、[G-18](v2/contract.md#十二已知缺口)；场景 S-42 路由留痕一支 |
-| MRR-2（阻断：`ResponseId` 铸点与 `data.model-response/v2#S-6` 相冲） | **改**：权威处已改为「本能力写『已出门』时铸、各结算方沿用」（R2b 交付）；本契约引它，S-4 表写明 | [S-8](v2/contract.md#s-8-调用在会话日志里留下的六种记录)、[S-17](v2/contract.md#s-17-结算一处按序幂等先到者赢)、[S-4](v2/contract.md#s-4-依赖方向与被消费的面) |
-| MRR-3（阻断：续接或再发时凭据取不到没有合法编码） | **改**（K21）：写调用终结 `released{cause: credential_unavailable}`（`data.messages/v2#S-50`，成因名随 R1 交付定为 `credential_unavailable`）；`undispatched` 只指一次也没发出；S-6 `handed_up` 补入口；模型不建成因，`UndispatchedHasNoDispatch` 列为按构造 | [S-6](v2/contract.md#s-6-调用的状态)、[S-29](v2/contract.md#s-29-dispatch) ⑧、[S-30](v2/contract.md#s-30-dispatchagain) ⑧、[S-14](v2/contract.md#s-14-缺席时的默认答案与失败集合) 注；[formal 入口](v2/formal/README.md) 第二类；场景 S-41 凭据一支 |
-| MRR-4（阻断：`callId` 唯一范围与调用操作不收会话） | **改**（K19）：`callId` 会话内唯一（与 `data.call-accounts/v2#S-37` 一致）；指认一次调用的操作 ① 都收 `session`、先判归属，不符 `callNotFound` | [S-5](v2/contract.md#s-5-一次调用一次发出)、[S-29](v2/contract.md#s-29-dispatch)～[S-34](v2/contract.md#s-34-readattempts)、[S-49](v2/contract.md#s-49-settlereply)、[S-50](v2/contract.md#s-50-candispatchagain) ①、[S-14](v2/contract.md#s-14-缺席时的默认答案与失败集合)；examples §8 |
-| MRR-5（「已开口」写不进时编码冲突） | **改**：没写下的开口不算开口——内容不交给观察者、中止、按首 token 之前的故障结算、成因 `unrecognized`，响应体不带 `firstTokenAt`，缺席是如实的断言 | [S-15](v2/contract.md#s-15-两个锚点先写后行) 末条、[S-16](v2/contract.md#s-16-首-token-判据) 末段 |
-| MRR-6（交回之后没有收口者） | **改**（K36）：新状态 `reply_pending`；调用方把落盘成消息的那一条与消息同一提交写下，否决与被系统使用的那一条经新操作 `settleReply` 由本能力写；调用方没收口时由撤除或对账兜底；列进 formal 的吸收 | [S-6](v2/contract.md#s-6-调用的状态)、[S-17](v2/contract.md#s-17-结算一处按序幂等先到者赢)、[S-49](v2/contract.md#s-49-settlereply)、[S-36](v2/contract.md#s-36-宿主停止与撤除)、[G-11](v2/contract.md#十二已知缺口) ②；examples §11 |
-| MRR-7（不属于任何 Run 的调用没有对账触发点） | **改**：S-33 ② 加第二个调用时机——会话在据点上重新承载之后、会话级调用打开之前（规格层推导，谁来调归会话生命周期，[G-11](v2/contract.md#十二已知缺口) ③） | [S-33](v2/contract.md#s-33-reconcile) ②、[S-5](v2/contract.md#s-5-一次调用一次发出) |
-| MRR-8（从 `resumable` 放手时上交带什么） | **改**：`releaseCall` 一律写不带 `cause` 的 `released`，从 `resumable` 放手时没有成因可带；上交条目带什么立 **G-17**（loop／PF-011，产品疑问报 PF-013） | [S-32](v2/contract.md#s-32-releasecall) ④、[S-6](v2/contract.md#s-6-调用的状态)、[G-17](v2/contract.md#十二已知缺口) |
-| MRR-9（`selectModel` 判合法与判重复的先后） | **改**：先判合法，再判重复；重选已下架的当前选中得 `notLegalTarget{because: [withdrawn]}` | [S-27](v2/contract.md#s-27-selectmodel) ⑦ |
-| MRR-10（没改目标时 loop 怎么传 `target`） | **改**：`target` 恒在（`data.loop-extension/v2#S-15`）；加输入 `basis`（loop 填 `target` 时用的那份 `effectiveModel` ⑤）；用交来的 `target`、不重算；没有 `targetChangedBy` 时 `target` 必须等于 `basis.routeName`；`basis` 这个名字待主线定名（[G-13](v2/contract.md#十二已知缺口)） | [S-28](v2/contract.md#s-28-opencall) ①③④、[S-26](v2/contract.md#s-26-effectivemodel) ⑤；场景 S-43 交接一支；examples §8 |
-| MRR-11（runner 要的只读守卫缺失） | **改**（K22）：新操作 `canDispatchAgain(session, callId, plan)`，与 `dispatchAgain` 同一张表、同一次序；收 `plan` 是规格层推导（守卫 3 要看它） | [S-50](v2/contract.md#s-50-candispatchagain)、[S-30](v2/contract.md#s-30-dispatchagain) ③、第十三节；examples §11 |
-| MRR-12（发起者的来源） | **改**（K16）：发起者由承载条目壳上的租户身份给出；响应体上的 `initiator` 只指中断发起方 | [S-19](v2/contract.md#s-19-凭据每次发出现取取值只交给传输适配)、[S-5](v2/contract.md#s-5-一次调用一次发出) 末条 |
-| MRR-13（「切换事实／SelectionFact」） | **改**：改为「模型切换（UL-model-switch）落下的那条记录」，即 `data.messages/v2#S-49` 的 `model_selection_changed`；「切到哪条档案」改为「切到哪个路由名」 | [S-8](v2/contract.md#s-8-调用在会话日志里留下的六种记录)、[S-27](v2/contract.md#s-27-selectmodel) ④ |
-| MRR-14（合法目标集合多出一项） | **改**（K40）：合法目标恰三项（与词条一致）；「本据点传输能承载的模态」写成可发出的另一条前置，在出门前检查第 3 行挡下 | [S-11](v2/contract.md#s-11-合法目标集合) 末段、[S-12](v2/contract.md#s-12-展示列表) 注记表、[S-28](v2/contract.md#s-28-opencall) 出门前检查第 3 行；场景 S-45 传输一支 |
-| MRR-15（形式主张超过证据；守卫编号错位） | **改**：只对六条有否定配置的断言说「能失败」；四条按构造吸收的标「按构造，不作证据」并指向场景；其余十条标「只检查过」；守卫编号改为守卫 1（`already_spoke`）、守卫 2（`fact_class`），守卫 3 不在 `GuardOn` 里；模型注释同改 | [S-40](v2/contract.md#s-40-本版选用哪些形式工件)、[formal 入口](v2/formal/README.md)、`Invocation.tla` 注释、本页形式工件表 |
-| MRR-16（`open` 被中断、停机之后正文与模型不一致） | **改**：正文与模型都取「有中断意图 ⇒ 写调用终结 `interrupted`」；模型 `Reconcile` 的 `nd = 0` 一支分两支，整组重跑（下文） | [S-33](v2/contract.md#s-33-reconcile) 第 2 行与末条、`Invocation.tla` `Reconcile` |
-| MRR-17（注记判据对象；同一情形两个失败值） | **改**：名字有胜出行时判胜出行，没有时只判落点卡在哪一道滤、不判模态与凭据；选中模型的名字链上一行都没有时列表也得 `profileNotFound` | [S-12](v2/contract.md#s-12-展示列表)、[S-25](v2/contract.md#s-25-displaylist) ⑥⑧、[S-27](v2/contract.md#s-27-selectmodel)；examples §8 |
-| MRR-18（S-4 缺 `data.model-profile` S-2） | **改**：补一行 | [S-4](v2/contract.md#s-4-依赖方向与被消费的面) |
-| MRR-19（产品 rev 落后） | **改**：逐 rev 复核（结论见[变化的影响](#变化的影响)本轮一条），页首改为 PF-012 rev 14、PF-009 rev 8、PF-004 rev 12、PF-001 rev 19 | 契约页首 |
-| MRR-20（引注表里的 INV-／SAF-／LIV- 编号） | **改**：删去编号，改指决定记录 | 契约「设计依据」 |
-| MRR-21（`retryRefused` 后两条在非 `awaiting_decision` 时要不要求值） | **改**：守卫 2、3 只在 `awaiting_decision` 时求值；只读守卫同一口径 | [S-30](v2/contract.md#s-30-dispatchagain) ⑥ 与表头、[S-50](v2/contract.md#s-50-candispatchagain) ⑥；examples §8 回归例 |
-| MRR-22（身份不符判 `invalidInput`；括注可反读） | **改**：`selectModel` 不另收租户身份，「谁切的」从条目壳读；S-26 ⑤ 写成单向：`selectedBy = layer_lock` 当且仅当有一格上锁，不论名字是否相同 | [S-27](v2/contract.md#s-27-selectmodel) ②、[S-26](v2/contract.md#s-26-effectivemodel) ⑤ |
-| MRR-23（过期引用；宿主停止的调用终结没写发起方） | **改**：删去对已闭合 G-1 的引用；写明取 `run_cancelled` | [S-36](v2/contract.md#s-36-宿主停止与撤除)、[S-33](v2/contract.md#s-33-reconcile) 第 2 行 |
-| MRR-24（实例缺 `routeName`；守卫编号） | **改**：`effectiveModel` 的返回补 `routeName`；`already_spoke` 标守卫 1 | examples §1、§2、§4 |
-| MRR-25（README 的 fiber 一句；传输九条用库级措辞） | **改**：删去 README 那句；九条改为语言无关的性质（不再点名库与环境变量） | [README](README.md)、[S-38](v2/contract.md#s-38-装配给的保证-vs-协议须给的保证) 传输九条 |
-| MRR-26（`open` 调用读不到；条目没有「选中」；S-13 没登记对 MP S-6 的消费） | **改**：`readAttempts` 对本能力手里的 `open` 调用答 `{ state: open, dispatches: [] }`；展示列表条目加 `selected`；S-4 与 catalog 补 `capability.modality-projection` S-6 | [S-34](v2/contract.md#s-34-readattempts) ⑤⑧、[S-25](v2/contract.md#s-25-displaylist) ⑤、[S-13](v2/contract.md#s-13-模态投影读到的必须追到日志尾)、[S-4](v2/contract.md#s-4-依赖方向与被消费的面) |
-| MRR-27（运行记录没绑定可核对的修订） | **改**：2026-09-24 整组重跑，输入副本与 SHA-256 入主检出 `tmp/formal-runs/`，本页绑定 `Invocation.tla` 的哈希 | 下文「实际执行」 |
-
-
-### 第二轮
-
-spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/assets-runtimes/reviews/r2-R5.md` 第二节（批 R5）。裁定出处 [D-060 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)（下表简写「§七」）；**评审意见不代替接受**。
-
-| 编号 | 处置 | 落点 |
-|---|---|---|
-| R2-MRR-1（「已开口」写不进那一支，S-51 第 6、7 条没有承接） | **改**（§七 M15）：第 6 条补这一支——交 `finish{lost, error{cause: unrecognized}}`、这次发出就此中止；第 7 条写明这一支 `closeOut` 交出的块不进 `delivered`、响应体不带 `firstTokenAt`；S-52 加一支 | [S-51](v2/contract.md#s-51-模型侧到达装配前提的承诺) 第 6、7 条、[S-52](v2/contract.md#s-52-模型侧的装配宿主被拒的增量报一次收场之后的事件不进) |
-| R2-MRR-2（依赖说明写「不据以写出任何承诺」，catalog 漏登 arrival-events） | **改**：删去那句；S-4 表补 `data.arrival-events` 的 S-5、S-14、S-16、S-21，catalog 同步（已核无环：arrival-events 不依赖本契约）；页首依赖列表、G-14 闭合行、README 依赖数（十四项）随之改 | 页首、[S-4](v2/contract.md#s-4-依赖方向与被消费的面)、G-14、`registry/catalog.json`、README |
-| R2-MRR-3（「观测」没有定义，S-52 判不出） | **改**（§七 M16）：S-51 第 4 条改为一条结构化日志事件——不进会话日志、不成为六种记录之一，必带会话、`callId`、目标、被拒的值（`accept` 交回的失败值；收场之后到达的事件记 `event_after_finish`，这一取法是**本契约推导**）；依据 SYS-OBSERVABILITY.C3；事件名不由本契约取（归提供者设计）。S-52 断言改为「日志里有这条事件」 | [S-51](v2/contract.md#s-51-模型侧到达装配前提的承诺) 第 4 条、[S-52](v2/contract.md#s-52-模型侧的装配宿主被拒的增量报一次收场之后的事件不进)、设计依据表 |
-| R2-MRR-4（允许集合 `A` 没有来源） | **改**（§七 M17）：新立 [G-19](v2/contract.md#十二已知缺口)，owner PF-002／PF-004 ＋ `capability.asset-evaluation`，闭合条件照裁定；闭合之前 `A` 读不到即 `unavailable`、不以空集或全集代替；G-4 只保留「取值域是路由名」；S-11 那一行指向 G-19 | [S-11](v2/contract.md#s-11-合法目标集合)、G-4、G-19 |
-| R2-MRR-5（README 删去了 T-3 那一句） | **改**（§七 M18，维持 §一 T-3）：README 补「本能力的提供者是运行时协程」；统一语言 `conflicts.md` C-31 以此闭合（与 `capability.tool-execution-runtime` README 同一句） | [README](README.md)、`ubiquitous_language/conflicts.md` C-31 |
-| R2-MRR-6（S-51 第 1 条的路由键不带会话） | **改**（§七 M16）：第 1 条写明按（会话，目标）路由，第 9 条只推给本会话的观察者；S-52 加「两个会话同一个 `callId`」一支 | S-51 第 1、9 条、S-52 |
-| R2-MRR-7（第 9 条的快照没受「已开口」约束） | **改**：第 9 条补「『已开口』写下之前交出的快照不含内容」 | S-51 第 9 条 |
-| R2-MRR-8（S-51 第 6 条宿主停止交 `finish{interrupted}`，与 stream-assembly S-28 第 6 条字面不一） | **改**（§七 M12，评审原判「本契约不必改」，主线选边后要改）：宿主停止（系统发起的运行取消）与本能力自身被撤除时在途的流一律 `abandon`、不带缘由，流结局 `lost`，收场仍是 `interrupted{run_cancelled}`、没有回复；S-36 结算与末条同改；S-31 写明经本操作的 `run_cancelled` 只出自用户取消运行（**本契约推导**，已报主线）；G-11 ① 限定为用户取消运行那一路；examples §11 加一行 | [S-36](v2/contract.md#s-36-宿主停止与撤除)、[S-31](v2/contract.md#s-31-interrupt) ①、S-51 第 6 条、[S-6](v2/contract.md#s-6-调用的状态)、G-11、S-52、examples §11 |
-| R2-MRR-9（`trims` 没写换写） | **改**（§七 M24）：第 7 条写明一次也没砍时响应体的 `trims` 缺席；S-4 与 catalog 登 `capability.stream-assembly` 的 S-13（同轮另登 S-23：被拒的值） | S-51 第 7 条、S-4、`registry/catalog.json` |
-| R2-MRR-10 ①（G-10 写「九条」） | **改**：改为「十一条」 | G-10 |
-| R2-MRR-10 ②（`alreadyEnded` 括注把 `settleReply` 与 `reply_pending` 并列） | **改**：拆成两个分句、分别列适用的操作；写明 `settleReply` 在 `reply_pending` 上不得 `alreadyEnded`；examples §8 加回归例 | [S-14](v2/contract.md#s-14-缺席时的默认答案与失败集合)、examples §8 |
-| R2-MRR-10 ③（S-6「收场已定」与撤除、对账的兜底字面相左） | **改**：`reply_pending` 那一行写成「对调用方的操作而言已定」，并列出撤除与对账两处兜底例外 | [S-6](v2/contract.md#s-6-调用的状态) |
-| R2-MRR-10 ④（D-060 §五 K22 与 §六 N-9 的 `canDispatchAgain` 签名不一） | 归主线（D-060 自身）；本契约按 N-9 收 `plan`，不改 | — |
-| 范围外 1（「范围允许」到底是什么） | 与 R2-MRR-4 同一件，落 G-19，产品侧已在主线待裁清单 | G-19 |
-| 范围外 2（T-3 去留） | 主线维持（M18），见 R2-MRR-5 | — |
-| 范围外 3（仍开着的 G-5、G-6、G-8～G-12、G-17） | 不变 | — |
-| 未覆盖 5（`droppedParameters` 去掉 `extra` 全部键） | 归 data 契约（§七 M28，甲批）；本契约 S-7 只从「已出门」读，不改 | — |
-| 未覆盖（TER S-62 同形、runner S-14 ② 对 `canDispatchAgain` 其余失败值的处置） | 前者归丙批；后者归 runner（同为丁所写）：正常路径不出现，本轮不改，已报主线 | — |
-| L4、L6 专项结论 | 评审判一致；L6 的缺口即 R2-MRR-1、8、9 | — |
-
-## 实际执行
-
-### 2026-09-24 修复稿：TLC 十份配置（有效记录）
-
-- **模型修订**：工作树 `.worktrees/assets-runtimes`（分支 `panqiwei/assets-runtimes`，未提交）上的 `v2/formal/Invocation.tla`，SHA-256 `7dafcaa2185ca3ae41a043ff16bb6b4e2a81cd8720f7fa66d1ff23e5b5221b48`；十份配置的哈希在运行目录 `input.sha256`，与工作树逐字相同
-- **运行目录**：主检出 `tmp/formal-runs/model-request-runtime-v2-2026-09-24d/`（`run.sh`、`input/`、`logs/`、`run-exit.txt`、`summary.txt`）
-- **工具**：TLC2 Version 2026.09.12.025210 (rev: 867aefb)；Eclipse Adoptium (Temurin) 21.0.12.1；`-workers 1`，工作目录 `.meta_harness/design`
-- **相对上一次的模型改动**：`Reconcile` 的 `nd = 0` 一支，有中断意图时写调用终结 `interrupted`（MRR-16）；两处注释的守卫编号
-
-| 配置 | 退出码 | 结果 |
-|---|---|---|
-| `Invocation.cfg` | 0 | 29,521 states generated，15,802 distinct，深度 21；20 条不变量与进展性质 `SentEventuallySettled` 无违反；无死锁 |
-| `Invocation_NoFallback.cfg` | 0 | 13,861 generated，7,420 distinct；同上 |
-| `Invocation_Validity_NoGuard_Spoke.cfg` | 12 | `NoDispatchAfterSpoke` 违反：OpenPass → Dispatch → Send → FirstToken → FailAfter → DispatchAgain(1) |
-| `Invocation_Validity_NoGuard_Fact.cfg` | 12 | `ContinuationOnlyAfterStrategyOrSilentLoss` 违反：OpenPass → Dispatch → Send → FailBefore(事实类) → DispatchAgain(1) |
-| `Invocation_Validity_SpokeAfterObserve.cfg` | 12 | `NoDispatchAfterSeen` 违反：… → FirstToken（先交观察者）→ Crash → Reconcile（当成没开口）→ Dispatch → Send |
-| `Invocation_Validity_SendBeforeAnchor.cfg` | 12 | `QuiescentSettled` 违反：… → Send（锚点未写）→ Crash → Reconcile（找不到这次发出） |
-| `Invocation_Validity_AbortBeforeIntent.cfg` | 12 | `NoDispatchAfterInterrupt` 违反：OpenPass → Dispatch → Interrupt(user)（未写意图）→ Crash → Reconcile（当成失联）→ Dispatch → Send |
-| `Invocation_Validity_NonIdempotentSettle.cfg` | 12 | `AtMostOneBodyPerDispatch` 违反：… → Send → HostStop → FailBefore(策略类) → TeardownWrite（第二条） |
-| `Invocation_Reach_ResumeThenComplete.cfg` | 12 | 见证 `NotResumeThenComplete` 被报出：OpenPass → Dispatch → Crash → Reconcile → Dispatch → Send → FirstToken → Complete |
-| `Invocation_Reach_FallbackThenComplete.cfg` | 12 | 见证 `NotFallbackThenComplete` 被报出：… → FailBefore(策略类) → DispatchAgain(2) → Send → FirstToken → Complete |
-
-**这次运行能说明的**：六条断言在对应开关拧反时会失败，正向配置在所列常量内无反例；**不能说明的**：四条按构造成立的断言、模型吸收掉的语义（[formal 入口](v2/formal/README.md#模型吸收了什么不写成已由模型覆盖)），以及任何实现。
-
-### 2026-09-23 起草者本机：TLC 十份配置（已被上一节取代）
-
-- **模型修订**：本分支 `panqiwei/assets-runtimes-spec-modelrt` 上首次提交的 `v2/formal/Invocation.tla`（提交号见 `git log`，本页不填哈希）
-- **工具**：TLC2 Version 2026.09.12.025210 (rev: 867aefb)；openjdk 21.0.12.1；`-workers 1`，工作目录 `.meta_harness/design`
-- **命令形状**：`java -cp tla2tools.jar tlc2.TLC -metadir tmp/tlc/<id> -cleanup -noGenerateSpecTE -workers 1 -config <cfg> Invocation.tla`
-
-| 配置 | 退出码 | 结果 |
-|---|---|---|
-| `Invocation.cfg` | 0 | 29,521 states generated，15,802 distinct，深度 21；20 条不变量与进展性质 `SentEventuallySettled` 无违反；无死锁 |
-| `Invocation_NoFallback.cfg` | 0 | 13,861 generated，7,420 distinct；同上 |
-| `Invocation_Validity_NoGuard_Spoke.cfg` | 12 | `NoDispatchAfterSpoke` 违反：OpenPass → Dispatch → Send → FirstToken → FailAfter → DispatchAgain |
-| `Invocation_Validity_NoGuard_Fact.cfg` | 12 | `ContinuationOnlyAfterStrategyOrSilentLoss` 违反：OpenPass → Dispatch → Send → FailBefore(事实类) → DispatchAgain |
-| `Invocation_Validity_SpokeAfterObserve.cfg` | 12 | `NoDispatchAfterSeen` 违反：… → FirstToken（先交观察者）→ Crash → Reconcile（当成没开口）→ Dispatch → Send |
-| `Invocation_Validity_SendBeforeAnchor.cfg` | 12 | `QuiescentSettled` 违反：… → Send（锚点未写）→ Crash → Reconcile（找不到这次发出） |
-| `Invocation_Validity_AbortBeforeIntent.cfg` | 12 | `NoDispatchAfterInterrupt` 违反：… → Interrupt（未写意图）→ Crash → Reconcile（当成失联）→ Dispatch → Send |
-| `Invocation_Validity_NonIdempotentSettle.cfg` | 12 | `AtMostOneBodyPerDispatch` 违反：… → HostStop → FailBefore → TeardownWrite（第二条） |
-| `Invocation_Reach_ResumeThenComplete.cfg` | 12 | 见证 `NotResumeThenComplete` 被报出：续接路径可达 |
-| `Invocation_Reach_FallbackThenComplete.cfg` | 12 | 见证 `NotFallbackThenComplete` 被报出：换家路径可达 |
-
-原始输出只留在起草者本机的临时目录，**没有入库**、没有绑定哈希；对应的模型在 2026-09-24 已改（`Reconcile` 一支），**结论以上一节为准**。复跑以 `make design-check FORMAL=run`（两份登记配置）或运行目录里的 `run.sh`（十份）为准。
-
 ## 结果与反例
 
 **正向配置无反例。**否定配置的反例都是预期的，形状见上表；它们说明的是「对应开关拧反时断言会失败」，**不是契约的缺陷**。
@@ -268,14 +157,14 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 ## 变化的影响
 
 - **2026-09-23 起草**：首版，无旧证据。
-- **2026-09-24 整批对齐（候选，未冻结，原地改）**：依据行写「主线裁定 2026-09-23，待产品负责人确认」的，出处在 [D-060 §S16](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s16model-profile-directory--model-request-runtime报回的)。
+- **2026-09-24 整批对齐（候选，未冻结，原地改）**：依据行写「主线裁定 2026-09-23，待产品负责人确认」的，出处在 D-060 §S16。
   - **G-1 闭合**：`data.model-response` 的 `interrupted{initiator}` 三值、`attemptId` 在每一次发出上、`route.profileSnapshot`／`route.credentialScope`，`data.call-accounts` 的 `late` 与 `initiator` 都已落；「首 token 之前失联之后能否再发」的口径与本契约一致（那边 S-23 第 2 条）。**模型不变**：`lost_silent`／`lost_spoken`、`int_user`／`int_cancel` 正是那几支，`ContinuationOnlyAfterStrategyOrSilentLoss` 与对账表第三行不改。
   - **G-2 闭合**：五种记录的形状归 `data.messages/v2#S-49`、`#S-50`；场景的核对对象改为那里的成员名。不影响模型。
   - **G-3 闭合**：`ModelCallRequest` 定形（`parameters`、`tools: CapabilityId[]`、`targetChangedBy?`，与 `data.loop-extension` 的 `ModelRequest` 同名成员逐字相同）。
   - **`retryRefused{call_ended}` 删去**（S16-b）：已终结的调用在 `dispatch`／`dispatchAgain` 上一律 `alreadyEnded`；`why` 剩三值、守卫重新编号。模型里守卫是谓词、不带这个名字，**不需重跑**。
   - **默认重试件**：不允许回退的档案同家至多再试一次（S16-g）；它不在模型里（模型把 `dispatchAgain` 建成非确定选择，守卫是唯一约束），`Invocation_NoFallback.cfg` 的 `ProviderAllowed`（每一次都是第一家）照旧成立。实例第 7 节已改写。
   - **G-7 闭合**（S16-g：首 token 之后停机 = `interrupted{runtime_lost}`）；**G-8、G-9 收窄**；**G-4 改为产品缺口**（「范围允许」的输入是 asset-evaluation 求值结果里「用哪个模型」那一项的允许集合，S16-i）；**G-14 闭合**（三份并行契约登进 catalog；runner 只指路，它消费本契约、反向登记会成环）。
-  - **凭据链多一格**（`capability.model-profile-directory` 同轮改，[D-060 §S16 S16-f](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s16model-profile-directory--model-request-runtime报回的)）：S-19 取「最具体的一把」末尾加出厂格那一把，S-12 的 `credential_missing` 改为三格都没有；模型不含凭据取值，不受影响。
+  - **凭据链多一格**（`capability.model-profile-directory` 同轮改，D-060 §S16 S16-f）：S-19 取「最具体的一把」末尾加出厂格那一把，S-12 的 `credential_missing` 改为三格都没有；模型不含凭据取值，不受影响。
   - **对证据的影响**：没有既有证据失效；两个登记任务在本轮 `FORMAL=run` 重跑。
 - **2026-09-24 规格修订批（PF-013 rev 10 之后；候选，未冻结，原地改）**。依据：PF-013 rev 10 裁决 33–38、decisions P33–P37，主线施工简报第三节：
   - **取凭据次序同步目录**：[S-19](v2/contract.md#s-19-凭据每次发出现取取值只交给传输适配) 删「否则组织层」——发起租户有自己那一把就用它（不论档案建在哪一层），否则只有官方档案取出厂格那一把，自建档案没有就是 `credential_unavailable`；取用时带有效模型引用的 `origin`，不另填。[S-12](v2/contract.md#s-12-展示列表) 的 `credential_missing` 按每一条的来源各问一次；[S-28](v2/contract.md#s-28-opencall) 出门前检查第 4 行、[S-29](v2/contract.md#s-29-dispatch) ⑧ 措辞随改。
@@ -313,20 +202,20 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
   - **catalog**：本契约对 `data.model-profile` 补 `S-2`（`RouteName`）。**covers**：PF-013 §4「档案的身份」一条补 S-9、S-24、S-27。
   - **对证据的影响**：行为模型不含选中模型的形状与这些求值，**不需重跑，本轮未运行 TLC**；场景全部未开始，S-48 首次执行按新内容。
 - **（2026-09-24 同日续，主线裁定，不改语义）**：`data.loop-extension` v2 S-15 的 `target` 与 S-24 的 `profile` 改为 `RouteName`，[S-28](v2/contract.md#s-28-opencall) ① 与 ④ 随之改为直接取这个名字、经 S-10 第 2′ 步解析；上一条里「只取其中的路由名，形状仍是 `ModelProfileRef`」的过渡读法作废。**对证据的影响**：无既有证据；本轮未运行 TLC。
-- **2026-09-25 修复波 1b（候选，未冻结，原地改）**：裁定出处 [D-060 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)（L4、L6、N-9）。
+- **2026-09-25 修复波 1b（候选，未冻结，原地改）**：裁定出处 D-060 §六（L4、L6、N-9）。
   - **L4，G-18 闭合**：「已出门」另带传输适配为这一次定下的 `parameterAdjustments` 与 `droppedParameters`（形状归 `data.messages/v2#S-49`，与 `data.model-response/v2#S-11` 同名成员同义）；[S-7](v2/contract.md#s-7-一次调用绑定了什么) 写明由它还原实际送出的一组，[S-8](v2/contract.md#s-8-调用在会话日志里留下的六种记录) 已出门一行、[S-29](v2/contract.md#s-29-dispatch) ④ 的次序（改值与丢项先定、再写已出门、再出网）、[S-33](v2/contract.md#s-33-reconcile) ④ 追补体参数三项从「已出门」读；[S-38](v2/contract.md#s-38-装配给的保证-vs-协议须给的保证) 传输适配九条 → 十一条（第 10 条改值与丢项在出网之前定下，第 11 条不做逆转写）；实例第 3 节首行改写；场景 [S-42](v2/contract.md#s-42-开口之后断流不重发) 加参数一支。
   - **L6**：新条款 [S-51](v2/contract.md#s-51-模型侧到达装配前提的承诺)——对 `capability.stream-assembly/v2#S-28` 第 1、2、4、6、7、8、9 条逐条承诺，并写明模型侧名字不做逆转写（逆转写只在 `capability.tool-execution-runtime`，K10）；新场景 [S-52](v2/contract.md#s-52-模型侧的装配宿主被拒的增量报一次收场之后的事件不进)。`capability.stream-assembly` v2 G-2 随之闭合（那份契约同轮改）。S-1 加第 12 行、S-4 stream-assembly 一行改列 S-14、S-18～S-22、S-26、S-28，被消费者表加 stream-assembly 一行，安全性质加两行。
   - **N-9，G-13 闭合**：`settleReply` 与输入成员 `basis` 由主线接受；S-23、S-49 与依据表随改。
   - **registry**：catalog 本契约对 `capability.stream-assembly` 由 `S-16` 改为 `S-14`、`S-16`、`S-18`～`S-22`、`S-26`、`S-28`（与 S-4 表逐项相同）；对 `data.messages` 已消费 S-49，不变。covers、formal-tasks、id-namespaces 不变（S-51 是宿主前提的承诺、S-52 是场景，不对应新的产品条款）。
   - **对证据的影响**：行为模型不含参数、到达事件与装配状态（[formal 入口](v2/formal/README.md#模型吸收了什么不写成已由模型覆盖)已补两句），**十份配置不需重跑，本轮未运行 TLC**；场景全部未开始，S-42 参数一支与 S-52 首次执行按新内容。
-- **2026-09-24 第一轮独立评审修复（候选，未冻结，原地改）**：逐条处置见上文[独立评审](#独立评审)；裁定出处 [D-060 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)（K10、K13、K16、K19～K22、K36、K40、K42），正文里对这些 K 的依据都链到那里。
+- **2026-09-24 第一轮独立评审修复（候选，未冻结，原地改）**：逐条处置见上文独立评审；裁定出处 D-060 §五（K10、K13、K16、K19～K22、K36、K40、K42），正文里对这些 K 的依据都链到那里。
   - **产品 rev 复核**：PF-012 rev 10 → 14——rev 11 补的对账两行与本契约 S-33 一致；否决三路的模型回复一行（照常结束、记下被谁否决、不交给重试挂件）落为 S-49；「系统自带的几件，不可用时各有定法」落为 S-35「它挂了」；I-11「已发起的账迟到了照样落、标明迟到」落为 S-17 的 `late`（只在属于某个运行的调用上）；rev 12 的拓展件不可用处置由 `capability.loop-extension-runner` 执行、本契约只引；rev 13、14 只动转换件，不涉本契约。PF-009 rev 7 → 8——「已经开口是账」与本契约「已开口」记录一致，`SystemMessage` 不落日志与本契约无关，不改条款。PF-004 rev 10 → 12、PF-001 rev 16 → 17——本契约引的 §6.6、§6.4 含义未变，不改条款。
   - **新增的服务面**：`settleReply`（[S-49](v2/contract.md#s-49-settlereply)）、`canDispatchAgain`（[S-50](v2/contract.md#s-50-candispatchagain)）；新增状态 `reply_pending`。`settleReply` 与 `openCall` 的输入成员 `basis` 是规格层给的候选名，待主线定名（[G-13](v2/contract.md#十二已知缺口)）。
   - **新缺口**：[G-17](v2/contract.md#十二已知缺口)（从 `resumable` 放手时上交带什么）、[G-18](v2/contract.md#十二已知缺口)（追补体上参数三项没有耐久来源）。**G-4 闭合**（K42）。
   - **实例**：各调用加 `session`；第 3 节路由取自「已出门」；第 8 节加 `callId` 属于别的会话、`reply_pending` 上的 `alreadyEnded`、`target` 与 `basis` 不符、`settleReply` 两行、判定次序回归例两条、列表的 `profileNotFound`；新增第 11 节（交回之后的收口与只读守卫）。
   - **registry**：catalog 本契约对 `data.model-response` 补 S-3、S-35，对 `data.loop-extension` 补 S-14，对 `data.call-accounts` 补 S-25，对 `capability.modality-projection` 补 S-6（与 S-4 表逐项相同）；formal-tasks 不变（两个任务、配置名不变）。covers 补登 4 条（PF-012 §6.17 → S-17、PF-012 否决三路 → S-49、PF-012 系统自带件不可用 → S-35、PF-015 会话睡一觉醒来 → S-33），给 4 条追加条款（PF-013 §6.17 加 S-35、§6.5 加 S-11、§6.9 加 S-10／S-28、「它只有一个宿主」加 S-5），1 条注去掉施工标签；本契约条目 51 → 55。
   - **对证据的影响**：模型改了 `Reconcile` 一支（MRR-16），**十份配置整组重跑**（上文「实际执行」2026-09-24 一节），2026-09-23 那次作废；形式工件的主张收窄到六条能失败的断言，四条标「按构造，不作证据」。场景全部未开始，S-41、S-42、S-43、S-45 首次执行按新内容。
-- **2026-09-25 修复波 2（候选，未冻结，原地改）**：裁定出处 [D-060 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) M12、M15、M16、M17、M18、M24；逐条处置见上文[第二轮](#第二轮)。
+- **2026-09-25 修复波 2（候选，未冻结，原地改）**：裁定出处 D-060 §七 M12、M15、M16、M17、M18、M24；逐条处置见上文第二轮。
   - **语义改变**：宿主停止（系统发起）与本能力撤除时在途的流改走 `abandon`（流结局 `lost`），收场仍是 `interrupted{run_cancelled}`、**不再产出回复**——此前第 6 条交 `finish{interrupted}`，照它写出的回复会落成 `interrupted_by_user`；经 `interrupt` 的 `run_cancelled` 只出自用户取消运行。「已开口」写不进那一支的流收尾与记账写明。被拒事件的落点由「观测」改为结构化日志事件。
   - **表示改变**：响应体 `trims` 一次也没砍时缺席（原文只说「进响应体」）。没有已采用的消费者，无迁移。
   - **新缺口 G-19**（允许集合 `A` 的来源）；G-4 收窄、G-10、G-11、G-14 措辞改。
@@ -335,7 +224,7 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 
 ## 修订波（2026-09-25 公开面）
 
-依据链：[D-063](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-4（允许集合 `A` 本版不收窄）、R-6（重试是可配置策略、不写死）；[D-060 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-33（默认退避逐次取值、停止只由 S-35 决定）、N-36（策略对象的五个成员、次数由供应商个数与回退声明推出、默认初值放配置层、不引入执行器库）。候选未冻结，原地改。
+依据链：D-063 R-4（允许集合 `A` 本版不收窄）、R-6（重试是可配置策略、不写死）；D-060 §八 N-33（默认退避逐次取值、停止只由 S-35 决定）、N-36（策略对象的五个成员、次数由供应商个数与回退声明推出、默认初值放配置层、不引入执行器库）。候选未冻结，原地改。
 
 | 变化 | 依据 | 落在哪 | 语义变不变、对消费者 |
 |---|---|---|---|
@@ -345,7 +234,7 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 | **G-8 闭合、S-35 第 4 条改写**：`default_retry_backoff` 是一个可配置策略对象（`kind`、`base`、`factor`、`max`、`jitter`），次数与失败谓词不是它的成员（由第 1～3 条定）；默认初值放配置层，本契约不填 | R-6；N-36 | [S-35](v2/contract.md#s-35-默认重试件可替换) 第 4 条与末尾引文、[G-8](v2/contract.md#十二已知缺口)、设计依据新一行 | **不改默认件的行为规则**（第 1～3、5 条原样）；只把「一个退避值」改成「一个退避策略」。成员名沿 N-36（对齐 cockatiel 的退避词汇），**`kind` 各取值怎样长只写到性质**（封顶 `max`、`none` 不取随机），算式归提供者设计与它的性质测试 |
 | **G-20 保持开放，第 2 步区分「读不到」与「没有这一项」**：求值成功而 `values` 里没有「用哪个模型」这一项（`capability.asset-evaluation/v2#S-12`：组合根的设置本版不进 `values`）⇒ 第 2 步答「没有锁」——不存在的项上不可能有锁，是事实不是默认值；求值读不到才 `unavailable`。于是 `effectiveModel` 不再因这一项缺席而 `unavailable`；**从没切换过的会话选中模型仍判不出**（S-9），本程验收装配以种子写一条 `model_selection_changed` | 主线裁定（2026-09-25，回本文件「报主线」第一条） | [S-9](v2/contract.md#s-9-选中模型) 末句、[S-10](v2/contract.md#s-10-有效模型四步每步来源可查) 第 2 步、[G-20](v2/contract.md#十二已知缺口)、S-4 asset-evaluation 一行加 `#S-12` | **`effectiveModel` 对写过模型切换记录的会话解阻**；经 loop 的模型链在验收装配里走得通（种子写切换记录） |
 | **`openCall` ⑧ 删「层级求值」**：④ 用交来的 `target`、不重算，层级求值已在 `basis` 那一次 `effectiveModel` 里做过 | 主线裁定（2026-09-25，回「报主线」第二条） | [S-28](v2/contract.md#s-28-opencall) ⑧ | 失败集合不变，只是 `unavailable` 少了一个不会被读的来源 |
-| **会话日志的引用改指 `capability.session-log` v2**（与工具执行运行时同口径）：追加入口即 `append`（S-17，返回即持久 S-13）；两个锚点、中断意图与调用终结带栅栏、结算类不带（S-10 第 3 条）；响应体以 `ResponseId` 拼出判重键（S-8）；对账与读发出记录经 `readSince`（S-19）；条目壳 S-6 | 主线裁定 [D-060 §八 N-39](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) | [S-2](v2/contract.md#s-2-本契约不拥有什么)、[S-3](v2/contract.md#s-3-本契约明确不承诺什么) 两行、[S-7](v2/contract.md#s-7-一次调用绑定了什么) 那一行、[S-8](v2/contract.md#s-8-调用在会话日志里留下的六种记录) 首段、[S-38](v2/contract.md#s-38-装配给的保证-vs-协议须给的保证) 三行、S-4 新一行、页首依赖、README、本文件「由别处承担」那一行 | **不改语义**。**「哪几种写带栅栏」在本契约里是首次写出**，取自那份接口契约 S-10 第 3 条对本契约的读法（推导，与 S-17「结算写入不受栅栏拒收」一致；**主线已接受**，2026-09-25 第二轮补裁）；catalog 新增本契约 → `capability.session-log`（S-6、S-8、S-10、S-13、S-14、S-17、S-19），那份契约不以坐标依赖本契约，无环 |
+| **会话日志的引用改指 `capability.session-log` v2**（与工具执行运行时同口径）：追加入口即 `append`（S-17，返回即持久 S-13）；两个锚点、中断意图与调用终结带栅栏、结算类不带（S-10 第 3 条）；响应体以 `ResponseId` 拼出判重键（S-8）；对账与读发出记录经 `readSince`（S-19）；条目壳 S-6 | 主线裁定 D-060 §八 N-39 | [S-2](v2/contract.md#s-2-本契约不拥有什么)、[S-3](v2/contract.md#s-3-本契约明确不承诺什么) 两行、[S-7](v2/contract.md#s-7-一次调用绑定了什么) 那一行、[S-8](v2/contract.md#s-8-调用在会话日志里留下的六种记录) 首段、[S-38](v2/contract.md#s-38-装配给的保证-vs-协议须给的保证) 三行、S-4 新一行、页首依赖、README、本文件「由别处承担」那一行 | **不改语义**。**「哪几种写带栅栏」在本契约里是首次写出**，取自那份接口契约 S-10 第 3 条对本契约的读法（推导，与 S-17「结算写入不受栅栏拒收」一致；**主线已接受**，2026-09-25 第二轮补裁）；catalog 新增本契约 → `capability.session-log`（S-6、S-8、S-10、S-13、S-14、S-17、S-19），那份契约不以坐标依赖本契约，无环 |
 
 **没有证据因此作废**——本契约此前没有执行证据。
 
@@ -357,7 +246,7 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 
 ## 修订波（2026-09-25，pi-ai 传输节点反推）
 
-依据链：[D-060 §八 N-40](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ④（pi-ai-transport 节点 PAT-N3、N4、N9、N11、N16、N17 与 PAT-N14 ③ 的裁定）。候选未冻结，原地改。
+依据链：D-060 §八 N-40 ④（pi-ai-transport 节点 PAT-N3、N4、N9、N11、N16、N17 与 PAT-N14 ③ 的裁定）。候选未冻结，原地改。
 
 | 变化 | 依据 | 落在哪 | 语义变不变、对消费者 |
 |---|---|---|---|
@@ -375,7 +264,7 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 
 ## N7 评审之后（2026-09-25，主线裁定 D-060 §八 N-42）
 
-依据链：[D-060 §八 N-42](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)（N7 实现映射评审的契约侧处置）。候选未冻结，原地改。
+依据链：D-060 §八 N-42（N7 实现映射评审的契约侧处置）。候选未冻结，原地改。
 
 | 变化 | 落在哪 | 语义变不变、对消费者 |
 |---|---|---|
@@ -428,7 +317,7 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 
 ## v5 候选变化与证据
 
-**状态：candidate，未接受；真实符合性未开始。** 完整规范为 [contract](v5/contract.md)、[examples](v5/examples.md)、[consumer-impact](v5/consumer-impact.md) 和 [formal](v5/formal/README.md)。MR5 三份规范是固定 candidate 输入，不在本次改写；方向依据为 [header-handoff rev1](../../../record/proposals/model-request-adaptation/header-handoff.md)，技术选择评审不代本版全文评审或接受。
+**状态：candidate，未接受；真实符合性未开始。** 完整规范为 [contract](v5/contract.md)、[examples](v5/examples.md)、[consumer-impact](v5/consumer-impact.md) 和 [formal](v5/formal/README.md)。MR5 三份规范是固定 candidate 输入，不在本次改写；方向依据为 header-handoff rev1，技术选择评审不代本版全文评审或接受。
 
 **变化的影响**：完整保留 S-1～S-73、十三服务操作各九项、原失败/拒绝次序和 SL3 耐久结算/恢复；唯一依赖升级 MR4→MR5，原二十六 MR 消费条款与其余十六依赖保持。S-58 公共 rawHeaders 单一权威→S-54 最终结果→S-17 完整响应保留原值；S-59 不覆盖，S-16/S-20/S-62/S-63/S-64 承接首 token、秘密、观察与交接责任。没有新失败代码、Schema、模型调用、观察队列、政策默认或兼容决定。消费者须另做精确采用，旧 D-087/D-088 投影和 MR4 接收面不自动支持数组。
 
@@ -501,7 +390,7 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 
 2026-09-28：按本版实际义务重读 PF-004 rev13 §6.6、PF-001 rev23 §6.4、PF-015 rev13 §6.12 与会话恢复段，并核对各包工作区增量的变化范围。对应请求时模型绑定、租户隔离/成本归属、固定会话租户与恢复义务仍成立；contract 的来源元数据及表改引这些当前精确来源。共享工作区、参与治理、reload、实例/多 worktree 和 AGENTS.md 上下文变化不由本版新增保证，归其所属契约。不是盲改 rev，也不改变旧冻结版来源。
 
-[独立有限 TLC 证据](../../../record/evidence/2026-09-28-formal-model-input-successors/README.md)已完成本版新增三模型的四正六负：FinalPlan.cfg 退出0/49不同状态，FinalPlan_Public.cfg 退出0/43，PendingReply.cfg 退出0/8，RetryHistory.cfg 退出0/42；六负均退出12且分别命中 CheckedBeforeEffects、SameFixedPlan、UnknownNotExceeded、NoInventedDisposition、CompleteHandoff、CountsOwnConclusions。已实际读取本轮 REPORT.md 与首次失败日志；记录中的工具为 TLC2 2026.09.12.025210（rev867aefb），Java21.0.12.1。首次 FinalPlan 解析失败退出150的记录保留，修后模型哈希仍为 `bdc58e64ef05a4c598340386a7c2d8305393cc2dc1f55a89b4526c02324bbf92`，不是把解析失败当预期反例。
+独立有限 TLC 证据已完成本版新增三模型的四正六负：FinalPlan.cfg 退出0/49不同状态，FinalPlan_Public.cfg 退出0/43，PendingReply.cfg 退出0/8，RetryHistory.cfg 退出0/42；六负均退出12且分别命中 CheckedBeforeEffects、SameFixedPlan、UnknownNotExceeded、NoInventedDisposition、CompleteHandoff、CountsOwnConclusions。已实际读取本轮 REPORT.md 与首次失败日志；记录中的工具为 TLC2 2026.09.12.025210（rev867aefb），Java21.0.12.1。首次 FinalPlan 解析失败退出150的记录保留，修后模型哈希仍为 `bdc58e64ef05a4c598340386a7c2d8305393cc2dc1f55a89b4526c02324bbf92`，不是把解析失败当预期反例。
 
 此结果仅支持 formal 入口列出的有限安全范围及输入前提；不证明实际计量、附件取得、Schema完备性、完整日志来源、真实多写方/资源或生产Run识别。旧字节不变配置未重跑；Alloy、规范场景及真实IO未运行。证据目录由主线迁入，候选包本轮未修改 record/registry，也未接受规格。
 
@@ -554,11 +443,6 @@ FinalPlan 两份正配置实际 TLC 退出 0（WithLog=true：8737 不同状态�
 
 上述修订后同命令 internal/formal registered 实际退出 0，输出 `/tmp/recovery-timing-check-5.log`；`git diff --check` 通过。仍未执行 Schema 实例与 TLC。
 
-## 2026-09-28 恢复时序有限执行
-
-[D-104](../../../record/decisions/model-recovery-timing-adoption/decision.md) 已接受；[10个Schema边界与1正4负有限形式结果](../../../record/evidence/2026-09-28-formal-model-recovery-timing/README.md)实际执行通过预期。不是完整旧例回归、纯判定拒绝优先级、真实恢复或提供者迁移证据。
-
-
 ## RT11 本批候选验证（2026-09-29）
 
 变化和未开始的真实义务见[v11/verification](v11/verification.md)。实际工具运行：Schema检查57/57形状实例；RT11三个新增TLC正配置均exit0（ReferenceLifecycle:2206 generated/621 distinct；Publication:147/60；OpenedOrder:254/166），九个负控均exit12且命中目标不变量。未重跑继承形式工件，不将其旧结果算成本批覆盖。原始日志位于任务worktree的`tmp/model-registry-design/spec-draft/`（schema-check.log及tlc/）；提供者/装配/真实网络/权限/存储故障与性能测量均未开始。设计检查最终结果由本批交接记录，不预写通过。
@@ -579,7 +463,7 @@ FinalPlan 两份正配置实际 TLC 退出 0（WithLog=true：8737 不同状态�
 
 ### 接缝 revision 2 修订（2026-09-30）
 
-按独立定点架构评审的最小修订清单（[评审页](../../../record/proposals/model-runtime-reference-lifecycle/ack-seam-review.md)，含主调度裁决 R-G）把[ACK 后新处分接缝](../../../record/proposals/model-runtime-reference-lifecycle/ack-post-confirmation-settlement.md)修到 revision 2。v12 已接受冻结（[决定](../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)），本轮不改 v12 任何字节、不改 registry；契约侧变化以版本外勘误指引（[README](README.md#v12-ack后继候选)）与 [v-next 待并入项](v-next/README.md)承接。接受仍以修订落地后主调度复核为条件，本节不提升状态。
+按独立定点架构评审的最小修订清单（评审页，含主调度裁决 R-G）把ACK 后新处分接缝修到 revision 2。v12 已接受冻结（决定），本轮不改 v12 任何字节、不改 registry；契约侧变化以版本外勘误指引（[README](README.md#v12-ack后继候选)）与 [v-next 待并入项](v-next/README.md)承接。接受仍以修订落地后主调度复核为条件，本节不提升状态。
 
 变化的影响：
 
@@ -591,7 +475,7 @@ FinalPlan 两份正配置实际 TLC 退出 0（WithLog=true：8737 不同状态�
 
 #### 扩展模型的本次执行
 
-TLC2 2026.09.12.025210（rev 867aefb）、Temurin 21.0.12.1、`-workers 8`；输入为本 spoke [`v-next/formal/`](v-next/formal/README.md) 当前字节（`AckLifecycle.tla` SHA-256 `2d61138fe3390064bf2d76e3a065b643e17601948de6878128671db9fd29eb45`）。原始日志、每份配置、退出码与逐文件摘要已按 evidence 家族约定落盘：[2026-09-30-ack-seam-vnext-tlc](../../../record/evidence/2026-09-30-ack-seam-vnext-tlc/README.md)（v-next candidate 模型，非 v12 冻结模型重跑）。
+TLC2 2026.09.12.025210（rev 867aefb）、Temurin 21.0.12.1、`-workers 8`；输入为本 spoke [`v-next/formal/`](v-next/formal/README.md) 当前字节（`AckLifecycle.tla` SHA-256 `2d61138fe3390064bf2d76e3a065b643e17601948de6878128671db9fd29eb45`）。原始日志、每份配置、退出码与逐文件摘要已按 evidence 家族约定落盘：2026-09-30-ack-seam-vnext-tlc（v-next candidate 模型，非 v12 冻结模型重跑）。
 
 | 配置 | 本次结果 |
 |---|---|

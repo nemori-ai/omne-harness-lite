@@ -16,7 +16,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
-from source_links import ModuleSources, RetiredSources
+from source_links import ModuleSources
 
 from urllib.parse import unquote, urldefrag, urljoin, urlparse
 
@@ -24,8 +24,6 @@ from urllib.parse import unquote, urldefrag, urljoin, urlparse
 FORMAT = 1
 ALLOWED_FAMILIES = {"data", "capabilities", "compositions"}
 ALLOWED_STATUSES = {"candidate", "accepted", "superseded", "withdrawn"}
-# 接受声明（acceptance.json）所在的决定家：工作区布局是 record/decisions/，旧布局是根下 decisions/。
-DECISION_HOMES = ("record/decisions", "decisions")
 LINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)|!\[[^\]]*\]\(([^)]+)\)")
 HEADING_RE = re.compile(r"^#{1,6}\s+(.+?)\s*$")
 
@@ -217,12 +215,11 @@ class DesignValidator:
     def _baseline(self, raw: Any) -> bool:
         try:
             data = require_object(raw, "baseline.json")
-            require_keys(data, {"format", "baseline_id", "snapshot_id", "schema_namespace",
+            require_keys(data, {"format", "baseline_id", "schema_namespace",
                                 "legacy_baseline_ids", "version_policy"}, "baseline.json")
             if data["format"] != FORMAT:
                 raise Invalid(f"baseline.json.format must be {FORMAT}")
             self.baseline_id = require_text(data["baseline_id"], "baseline.json.baseline_id")
-            require_text(data["snapshot_id"], "baseline.json.snapshot_id")
             namespace = require_text(data["schema_namespace"], "baseline.json.schema_namespace").rstrip("/")
             parsed = urlparse(namespace)
             if parsed.scheme != "https" or not parsed.netloc or parsed.query or parsed.fragment:
@@ -279,7 +276,7 @@ class DesignValidator:
                 item = require_object(raw_item, where)
                 require_keys(item, {"id", "source", "source_clauses", "disposition", "target",
                                     "target_clauses", "clause_mappings", "consumers",
-                                    "release_evidence", "freeze_gate"}, where)
+                                    "current_bindings", "freeze_gate"}, where)
                 identity = require_text(item["id"], f"{where}.id")
                 if identity in self.rebase_relations:
                     raise Invalid(f"duplicate rebase relation id: {identity}")
@@ -311,7 +308,7 @@ class DesignValidator:
                     raise Invalid(f"{where}.consumers must contain non-empty consumer identities")
                 if len(set(consumers)) != len(consumers):
                     raise Invalid(f"{where}.consumers contains duplicates")
-                release_evidence = self._evidence_list(item["release_evidence"],
+                current_bindings = self._binding_list(item["current_bindings"],
                                                        f"{where}.release_evidence")
                 gate = require_object(item["freeze_gate"], f"{where}.freeze_gate")
                 require_keys(gate, {"blocked", "reason"}, f"{where}.freeze_gate")
@@ -331,29 +328,29 @@ class DesignValidator:
                 item["_target"] = target
                 item["_source_clauses"] = source_clauses
                 item["_target_clauses"] = target_clauses
-                item["_release_evidence"] = release_evidence
+                item["_current_bindings"] = current_bindings
                 self.rebase_relations[identity] = item
             for index, raw_item in enumerate(require_list(data["consumer_observations"],
                                                           "lineage.json.consumer_observations")):
                 where = f"lineage.json.consumer_observations[{index}]"
                 item = require_object(raw_item, where)
-                require_keys(item, {"consumer", "consumes", "status", "evidence"}, where)
+                require_keys(item, {"consumer", "consumes", "status", "current_binding"}, where)
                 consumer = require_text(item["consumer"], f"{where}.consumer")
                 if consumer in self.consumer_observations:
                     raise Invalid(f"duplicate consumer observation: {consumer}")
                 coordinate = Coordinate.read(item["consumes"], f"{where}.consumes")
                 status = item["status"]
-                if status not in {"observed-legacy", "verified-current", "unknown"}:
+                if status not in {"observed-legacy", "current", "unknown"}:
                     raise Invalid(f"{where}.status is invalid: {status!r}")
-                evidence = self._source_evidence(item["evidence"], f"{where}.evidence")
+                binding = self._current_binding(item["current_binding"], f"{where}.current_binding")
                 if status == "observed-legacy" and coordinate.baseline_id == self.baseline_id:
                     raise Invalid(f"{where} labels a current-baseline coordinate as legacy")
                 if status == "observed-legacy" and coordinate.baseline_id not in self.legacy_baseline_ids:
                     raise Invalid(f"{where} uses an undeclared legacy baseline")
-                if status == "verified-current" and coordinate.baseline_id != self.baseline_id:
+                if status == "current" and coordinate.baseline_id != self.baseline_id:
                     raise Invalid(f"{where} labels a non-current coordinate as current")
                 item["_coordinate"] = coordinate
-                item["_evidence"] = evidence
+                item["_current_binding"] = binding
                 self.consumer_observations[consumer] = item
                 if self.gate == "release" and status == "unknown":
                     raise Invalid(f"{where} is unknown and blocks the release gate")
@@ -369,32 +366,21 @@ class DesignValidator:
             raise Invalid(f"{where} contains duplicate clause identities")
         return set(values)
 
-    def _source_evidence(self, raw: Any, where: str) -> dict[str, Any]:
-        evidence = require_object(raw, where)
-        require_keys(evidence, {"source_commit", "source_path", "sha256", "snapshot_path"}, where)
-        commit = require_text(evidence["source_commit"], f"{where}.source_commit")
-        if not re.fullmatch(r"[0-9a-f]{40}", commit):
-            raise Invalid(f"{where}.source_commit must be a full lowercase Git commit")
-        require_text(evidence["source_path"], f"{where}.source_path")
-        expected = require_text(evidence["sha256"], f"{where}.sha256")
-        snapshot = checked_path(self.root, evidence["snapshot_path"], f"{where}.snapshot_path")
-        if not snapshot.is_file() or not re.fullmatch(r"[0-9a-f]{64}", expected) or digest(snapshot) != expected:
-            raise Invalid(f"{where} snapshot is missing or does not match sha256")
-        return evidence
+    def _current_binding(self, raw: Any, where: str) -> dict[str, Any]:
+        binding = require_object(raw, where)
+        require_keys(binding, {"owner_path"}, where)
+        if set(binding) != {"owner_path"}:
+            raise Invalid(f"{where} contains process/provenance fields")
+        path = checked_path(self.root, binding["owner_path"], f"{where}.owner_path")
+        relative = path.relative_to(self.root.resolve()).as_posix()
+        if (not path.is_file() or not relative.startswith(
+                ("spec/", "realization/", "product/", "architecture/", "basis/", "foundation/"))):
+            raise Invalid(f"{where} must identify an existing current semantic owner")
+        return binding
 
-    def _evidence_list(self, raw: Any, where: str) -> list[dict[str, Any]]:
-        values = require_list(raw, where)
-        result: list[dict[str, Any]] = []
-        for index, raw_item in enumerate(values):
-            item_where = f"{where}[{index}]"
-            item = require_object(raw_item, item_where)
-            require_keys(item, {"path", "sha256"}, item_where)
-            path = checked_path(self.root, item["path"], f"{item_where}.path")
-            expected = require_text(item["sha256"], f"{item_where}.sha256")
-            if not path.is_file() or not re.fullmatch(r"[0-9a-f]{64}", expected) or digest(path) != expected:
-                raise Invalid(f"{item_where} is missing or does not match sha256")
-            result.append(item)
-        return result
+    def _binding_list(self, raw: Any, where: str) -> list[dict[str, Any]]:
+        return [self._current_binding(item, f"{where}[{index}]")
+                for index, item in enumerate(require_list(raw, where))]
 
     def _catalog(self, raw: Any) -> None:
         try:
@@ -457,16 +443,9 @@ class DesignValidator:
                 if status == "accepted":
                     if acceptance is None:
                         raise Invalid(f"{where}.acceptance is required for accepted contract")
-                    accepted_path = checked_path(self.root, acceptance, f"{where}.acceptance")
-                    # 决定的家是 record/decisions/（工作区布局）；根下 decisions/ 是旧布局，仍接受。
-                    in_decisions = any(accepted_path.is_relative_to(self.root / home)
-                                       for home in DECISION_HOMES)
-                    if not accepted_path.is_file() or accepted_path.suffix != ".json" or not in_decisions:
-                        raise Invalid(f"{where}.acceptance must be an existing JSON declaration under "
-                                      + " or ".join(f"{home}/" for home in DECISION_HOMES))
-                    self._acceptance(accepted_path, coordinate, f"{where}.acceptance")
+                    self._acceptance(acceptance, item["contract_path"], f"{where}.acceptance")
                 elif acceptance is not None:
-                    checked_path(self.root, acceptance, f"{where}.acceptance")
+                    raise Invalid(f"{where}.acceptance is only valid for an accepted contract")
                 item["_where"] = where
                 item["_paths"] = resource_paths
                 self.coordinates[coordinate] = item
@@ -543,33 +522,25 @@ class DesignValidator:
             if self.gate == "release" and relation["freeze_gate"]["blocked"]:
                 self.error(f"rebase relation {identity} is blocked at release: "
                            f"{relation['freeze_gate']['reason']}")
-            if self.gate == "release" and not relation["_release_evidence"]:
-                self.error(f"rebase relation {identity} has no release evidence")
+            if self.gate == "release" and not relation["_current_bindings"]:
+                self.error(f"rebase relation {identity} has no current bindings")
         for consumer, observation in self.consumer_observations.items():
             coordinate = observation["_coordinate"]
-            if observation["status"] == "verified-current" and coordinate not in self.coordinates:
+            if observation["status"] == "current" and coordinate not in self.coordinates:
                 self.error(f"verified-current consumer {consumer} has no exact catalog coordinate: "
                            f"{coordinate.label()}")
 
-    def _acceptance(self, path: Path, coordinate: Coordinate, where: str) -> None:
-        data = require_object(load_json(path), where)
-        require_keys(data, {"format", "decision_path", "accepts"}, where)
-        if data["format"] != FORMAT:
-            raise Invalid(f"{where}.format must be {FORMAT}")
-        decision = checked_path(self.root, data["decision_path"], f"{where}.decision_path")
-        if not decision.is_file() or not decision.is_relative_to(path.parent):
-            raise Invalid(f"{where}.decision_path must identify a decision file in the same topic")
-        matches = []
-        for index, raw in enumerate(require_list(data["accepts"], f"{where}.accepts")):
-            item_where = f"{where}.accepts[{index}]"
-            item = require_object(raw, item_where)
-            require_keys(item, {"coordinate", "scope_clauses"}, item_where)
-            candidate = Coordinate.read(item["coordinate"], f"{item_where}.coordinate")
-            clauses = self._clauses(item["scope_clauses"], f"{item_where}.scope_clauses")
-            if candidate == coordinate:
-                matches.append(clauses)
-        if len(matches) != 1:
-            raise Invalid(f"{where} must declare this exact coordinate exactly once: {coordinate.label()}")
+    def _acceptance(self, raw: Any, contract_path: str, where: str) -> None:
+        data = require_object(raw, where)
+        require_keys(data, {"scope_path", "scope_clauses"}, where)
+        if set(data) != {"scope_path", "scope_clauses"}:
+            raise Invalid(f"{where} contains process/provenance fields")
+        if data["scope_path"] != contract_path:
+            raise Invalid(f"{where}.scope_path must match this exact contract_path")
+        scope = checked_path(self.root, data["scope_path"], f"{where}.scope_path")
+        if not scope.is_file():
+            raise Invalid(f"{where}.scope_path does not exist")
+        self._clauses(data["scope_clauses"], f"{where}.scope_clauses")
 
     def _schemas(self) -> None:
         for path, coordinate in sorted(self.resource_paths.items()):
@@ -608,11 +579,11 @@ class DesignValidator:
                     self.error(f"{path.relative_to(self.root)} {location}={reference!r}: {error}")
 
     def _markdown(self) -> None:
-        markdown = sorted(p for p in self.root.rglob("*.md") if ".templates" not in p.parts)
+        markdown = sorted(p for p in self.root.rglob("*.md") if ".templates" not in p.parts
+                          and not p.is_relative_to(self.root / "record"))
         anchors: dict[Path, set[str]] = {}
         try:
             modules = ModuleSources(self.source_root)
-            retired = RetiredSources(self.root, self.manifests / "retired-sources.json")
         except (ValueError, OSError, TypeError) as error:
             self.error(f"source links: {error}")
             return
@@ -659,9 +630,9 @@ class DesignValidator:
                     self.error(f"{path.relative_to(self.root)}: link escapes design root: {raw}")
                     continue
                 original = resolved
-                recovered = retired.recover(path, resolved, unquote(fragment))
-                if recovered is not None:
-                    resolved = recovered
+                if resolved.is_relative_to(self.root / "record"):
+                    self.error(f"{path.relative_to(self.root)}: process record is not a current owner: {raw}")
+                    continue
                 try:
                     owned = modules.owns(resolved)
                 except (ValueError, OSError) as error:

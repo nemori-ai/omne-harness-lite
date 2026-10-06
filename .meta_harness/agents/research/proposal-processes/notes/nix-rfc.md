@@ -57,22 +57,3 @@ related-issues: (will contain links to implementation PRs)
 ## 3. 决定记录在哪（观察）
 
 同 Rust：合入 `rfcs/` 即接受，关闭即拒绝；理由在 PR 线程。Nix 多一层：Shepherd Team 名单与 leader 写进 RFC 文件头，所以「谁做的决定」是文件自身的内容，不需要去查线程。
-
-## 4. 与本项目骨架的对照（推断）
-
-| 骨架条 | Nix 的对应 | 判断 |
-|---|---|---|
-| 提案 = 一组决定点，每个决定点有候选 | `For each design decision made, discuss possible alternatives and compare them to the chosen solution.` | **有先例**，是本轮最强的一条 |
-| ≥ 3 真候选 / 基线候选 | 无数量要求；`What is the impact of not doing this?` 仍是问句 | 无先例 |
-| 决定 = 选择 + 否决理由 + **复议条件** | 「无共识则关闭，并注明什么情况变了可以重提」 | **有先例** |
-| 评审者独立于作者 | `The author cannot be part of the Shepherd Team`；至多一半可来自 Steering Committee | **有先例**，且比 Rust/Swift 更硬 |
-
-- **值得引入**：「作者不得进入评审团」与「评审团一致签字才进 FCP」这两条独立性约束——本项目已在用独立 `architecture-reviewer`，Nix 给了「独立性写进文件头、可被核对」的形状。
-- **不适合**：`1 周内组建 shepherd team`、`FCP 十天` 这类日历门——本项目是单一作者 + 用户裁决的结构，时间窗没有对应物；本项目的对应约束应是「证据是否已就位」，不是「等了多久」。
-
-## 5. 局限与未覆盖
-
-- 只读 `README.md` 与 `0000-template.md`；未读 `rfcs/0036-rfc-process.md`（流程自身的 RFC，当前流程的权威来源）与 `rfcs/0001-rfc-process.md`。
-- 模板最后改动是 2023-06-13，README 是 2026-06-04；两者可能已有措辞不一致，本轮未逐条比对。
-- 未统计已合入 Nix RFC 中 `Alternatives` 小节的实际填充率，因此「每个设计决定逐条讨论备选」这条要求在实践中是否被兑现，**未覆盖**。
-- 未覆盖 Nix 社区对 AI 撰写 RFC 的政策。

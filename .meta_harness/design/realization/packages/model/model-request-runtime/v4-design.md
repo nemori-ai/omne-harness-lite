@@ -6,10 +6,10 @@
 
 | 输入／层 | 本次消费及状态 |
 | --- | --- |
-| 语义接受 | [D-086](../../../../record/decisions/model-runtime-tail-settlement-adoption/decision.md) 接受 baseline `omne-harness-lite-design-2026-09-15`、`capability.model-request-runtime/v4` 全部 S-1～S-73、27 资源、13 个九项操作；[contract](../../../../spec/capabilities/model-request-runtime/v4/contract.md) SHA256 `4a31cb8bc98ae5bbb55a28c671ff84a8f86520747de7dd07c180787183651689`。catalog accepted，冻结正文原 candidate 标签不改变接受事实 |
-| 日志语义与投影 | [D-083](../../../../record/decisions/session-log-tail-condition-adoption/decision.md) 接受 SL3，contract SHA256 `f327f1289e1d6c539dd959e8862b382869e3d303cf984b6a773fdd6a00e4bd26`；[D-084](../../../../record/decisions/session-log-jsonl-v3-projection-adoption/decision.md) 采用日志 [v3-design](../../session/session-log-jsonl/v3-design.md) rev 2，SHA256 `f8561eed58597fbb972d474b14648f74f74cafae3d1125f7813a45a4c241b351`；[D-085](../../../../record/decisions/session-log-recovery-projection-adoption/decision.md) 采用 [v3-recovery-design](../../session/session-log-jsonl/v3-recovery-design.md) rev 2，SHA256 `ea205862968dbe54889d7ba4b80ffcb33e04318c5ba8a82fb09367c1bbd324ae`。采用不代表 IO 验收完成 |
-| 原 runtime 投影与选择 | [D-076](../../../../record/decisions/model-runtime-delivery-adoption/decision.md) 采用 v3-design，SHA256 `31a46a46ad67bb6d1dd383cbc6a08a7a89d3354aa261d9db54ab8f7ae7d2ae99`；[D-081](../../../../record/decisions/model-late-coordination-direction/decision.md) 已从 [三候选](../../../../record/proposals/model-request-adaptation/late-coordination.md) 选共同日志尾条件。这里只补 L-2～L-5/L-7、Q-1～Q-4 的实际消费，不复议已决定方向 |
-| 公共适配面 | [D-082](../../../../record/decisions/model-definition-projection-adoption/decision.md) 的完整定义、显式 definitions、固定精确 lease 与无兼容迁移保持；不补官方模型未知事实。现有源码 `packages/model/model-request-runtime/src/index.ts` 公开 invokeModel、classifyCause 及 types；P-2/P-5 和十三操作尚未交付，不能把公共函数局部证据当服务面证据 |
+| 语义接受 | D-086 接受 baseline `omne-harness-lite-design-2026-09-15`、`capability.model-request-runtime/v4` 全部 S-1～S-73、27 资源、13 个九项操作；[contract](../../../../spec/capabilities/model-request-runtime/v4/contract.md) SHA256 `4a31cb8bc98ae5bbb55a28c671ff84a8f86520747de7dd07c180787183651689`。catalog accepted，冻结正文原 candidate 标签不改变接受事实 |
+| 日志语义与投影 | D-083 接受 SL3，contract SHA256 `f327f1289e1d6c539dd959e8862b382869e3d303cf984b6a773fdd6a00e4bd26`；D-084 采用日志 [v3-design](../../session/session-log-jsonl/v3-design.md) rev 2，SHA256 `f8561eed58597fbb972d474b14648f74f74cafae3d1125f7813a45a4c241b351`；D-085 采用 [v3-recovery-design](../../session/session-log-jsonl/v3-recovery-design.md) rev 2，SHA256 `ea205862968dbe54889d7ba4b80ffcb33e04318c5ba8a82fb09367c1bbd324ae`。采用不代表 IO 验收完成 |
+| 原 runtime 投影与选择 | D-076 采用 v3-design，SHA256 `31a46a46ad67bb6d1dd383cbc6a08a7a89d3354aa261d9db54ab8f7ae7d2ae99`；D-081 已从 三候选 选共同日志尾条件。这里只补 L-2～L-5/L-7、Q-1～Q-4 的实际消费，不复议已决定方向 |
+| 公共适配面 | D-082 的完整定义、显式 definitions、固定精确 lease 与无兼容迁移保持；不补官方模型未知事实。现有源码 `packages/model/model-request-runtime/src/index.ts` 公开 invokeModel、classifyCause 及 types；P-2/P-5 和十三操作尚未交付，不能把公共函数局部证据当服务面证据 |
 | 可实施 | 本候选给出条件选择、消费算法、争用配置和责任交接；独立复核、精确采用后才可实施。RT4 G-28～G-31 及原相关门只阻断依赖它们的接线，不补默认认法、键编码、读权或 headers 表示 |
 | 绑定证据 | 新增 0。原 [bindings](bindings.yaml) 保持各自版本和已运行范围；下文新增 R4-V 是待执行义务 |
 | 实际验证 | 本增补没有 IO、真实操作或产品运行。D-086 所引有限 Settlement 运行及 403 文件运行归档只支持其输入、模型前提和指定安全断言；不证明 StopOld、读权、文件持久、实际调度、全部十三操作或公平进展 |
@@ -18,7 +18,7 @@ RT4 的 **17 项精确规范依赖**按 catalog 原样消费：model-profile-dir
 
 ## 节点边界与公开构件
 
-沿用 P-2 `modelRuntime` 服务和 P-5 默认重试贡献。P-2 一次调用仍是显式宿主管的资源，不是可重跑并重发请求的 fiber；required `sessionLog` 换代使 P-2 按原生命周期停止，贡献定义更新不因此重发旧 call。Cordis 仍为 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md) 的 4.0.4。存储仍消费独立协议，不新选数据库、不新增持久调用状态表。
+沿用 P-2 `modelRuntime` 服务和 P-5 默认重试贡献。P-2 一次调用仍是显式宿主管的资源，不是可重跑并重发请求的 fiber；required `sessionLog` 换代使 P-2 按原生命周期停止，贡献定义更新不因此重发旧 call。Cordis 仍为 D-025 的 4.0.4。存储仍消费独立协议，不新选数据库、不新增持久调用状态表。
 
 `invokeModel` 及已公开构件保持无会话日志、租户 service、争用策略或 Run 读取依赖；独立消费者可直接使用原传输函数闭包。它只给未结算结果，不能承担 RT4 的耐久结算保证。P-2 消费同一函数，不建 LLM 基类或第二条网络循环。现有包根及双语 README 的函数例子保留；新增 runtime 服务例子只有相应实物交付后才可写成可运行示例。
 

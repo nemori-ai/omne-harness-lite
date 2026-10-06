@@ -1,6 +1,6 @@
 # SQLite 快照、检查与隔离 · 候选 R1
 
-消费 [core/storage 维护扩展](../../core/storage/maintenance.md) 与 EC3 S-59。仅候选，现有普通存储代码不据此提升支持状态。方案依据 [三种分工](../../../../record/proposals/governance-production-mechanisms/maintenance-ownership.md)。
+消费 [core/storage 维护扩展](../../core/storage/maintenance.md) 与 EC3 S-59。仅候选，现有普通存储代码不据此提升支持状态。方案依据 三种分工。
 
 ## 同一属主和生命周期
 

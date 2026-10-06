@@ -1,6 +1,6 @@
 # v-next：v12 之后的候选待并入项
 
-2026-09-30。本目录只收 v12（已接受冻结，[决定](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)）之后由[ACK 后新处分接缝 revision 2](../../../../record/proposals/model-runtime-reference-lifecycle/ack-post-confirmation-settlement.md)产生、必须在下一版本正文并入的候选材料。它不是已经开出的 v13：没有 `contract.md`，不登记 registry，不改变任何消费者的采用；下一版本起草者从这里取待并入项并按 `harness-design-handbook` skill 的「规格演进」发布。
+2026-09-30。本目录只收 v12（已接受冻结，决定）之后由ACK 后新处分接缝 revision 2产生、必须在下一版本正文并入的候选材料。它不是已经开出的 v13：没有 `contract.md`，不登记 registry，不改变任何消费者的采用；下一版本起草者从这里取待并入项并按 `harness-design-handbook` skill 的「规格演进」发布。
 
 ## 待并入正文
 

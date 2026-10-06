@@ -2,8 +2,8 @@
 
 - 状态：**post-review，待主线精确技术采用；未实现、未验证**。这是已审候选的局部派生快照，不是产品新政策，也不覆盖 PF-013 的全部技术交付。
 - 需求输入：PF-013 rev16、PF-009 rev9。范围仅为 OpenRouter Chat Completions 合法 refusal 文本到既有内容流的映射；十三操作、原终态和存储归属均不变。Session／Run／registry 后继候选不在本版范围。
-- 已审来源：[transport v14 revision 2](../../../../realization/packages/model/pi-ai-transport/v14-refusal-design.md)，SHA256 `cf687f33d8d60270a1982ce0e7bfe36819ac520695b80f3d33143215f3015a0e`；[独立评审与表达修正回读](../../../../record/proposals/openrouter-refusal-mapping/review.md)支持 A，无架构阻断。
-- [provenance.json](provenance.json)记录本次读数的精确源摘要。只有既有 registry 冻结资源标 frozen；其它摘要识别本次快照，不冒充已发布冻结。实施前须重新核对源及实际采用记录，变化时出后继快照。
+- 已审来源：[transport v14 revision 2](../../../../realization/packages/model/pi-ai-transport/v14-refusal-design.md)，SHA256 `cf687f33d8d60270a1982ce0e7bfe36819ac520695b80f3d33143215f3015a0e`；独立评审与表达修正回读支持 A，无架构阻断。
+- [provenance.json](../../design.md)记录本次读数的精确源摘要。只有既有 registry 冻结资源标 frozen；其它摘要识别本次快照，不冒充已发布冻结。实施前须重新核对源及实际采用记录，变化时出后继快照。
 
 ## 1. 已确认需求与对象
 
@@ -84,3 +84,10 @@ refusal 缺席/null/空串无事件；非空字符串含纯空白是文字；任
 ## 7. 明确未决
 
 技术采用、代码实现、RF-V1–V9 和新绑定的实际交付证据尚未完成；当次 Opus 的真实 refusal 值型及未知费用不由此设计补全。共享规格无需因本次映射升版；永久来源区分、生成内容秘密保证、错误后等待未来账单都没有在本次获得新承诺。所有技术判断回指受审节点，投影不是第二份权威。
+
+## 当前采用范围
+
+OpenRouter refusal 仅映射既有 text：缺席/null/空串无内容，非空 string 原样；其他值包括空数组 protocol；同帧 content 后 refusal，沿原首内容/结束/历史资格与来源政策。
+
+技术采用不表示实现或实际验证已完成。验证义务：RF-V1..RF-V9；共享 reader 绑定发布及固定旧 lease；公开包/双语消费者/实际 service 历史回放；旧认证适用范围不冒称新代码认证。
+范围之外：新增来源标记持久字段；新增公共业务操作；错误后额外 drain 取账单；图片准备/T29 生命周期的采用。

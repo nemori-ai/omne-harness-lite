@@ -2,7 +2,7 @@
 
 - 对应需求：[PF-017](../../README.md) 全部条款——治理中心作为一个可部署、可被客户端接入的应用：只认登录状态、判定次序与两种拒绝、要么整个起来、重启与停机、升级整体性、时间不倒退、部署密钥与参数、中心标识、运维面与两种体检。**不含**据点一侧的呈现与凭据保存（PF-016）、领域语义本身（PF-001，见 [PF-001 投影 v2](../../../PF-001-identity-scope-and-agent-constraints/projection/v2/projection.md)）。
 - 本版依据的需求修订：**PF-017 rev 2**（`README.md` front-matter；rev 2 于 2026-09-23 落三条裁决 INT-016～INT-018），PF-016 rev 3（对端），PF-001 rev 16（登录状态语义）。
-- 状态：**当前，已接受为实施入口**——[D-028](../../../../record/decisions/governance-center-design-acceptance/README.md)（产品负责人，2026-09-23）。两份契约来源 `accepted`、已冻结（[provenance.json](provenance.json) 里契约的 sha256 即 `frozen.json` 登记值）；需求与节点来源不在冻结集合，实施前先核那些坐标。
+- 状态：**当前，已接受为实施入口**——D-028（产品负责人，2026-09-23）。两份契约来源 `accepted`、已冻结（[provenance.json](../../design.md) 里契约的 sha256 即 `frozen.json` 登记值）；需求与节点来源不在冻结集合，实施前先核那些坐标。
 - 未决 gap 数：**11**（见[第 7 节](#7-未决项)），其中 **G-10、G-11 在入口层建包之前必须闭合**。
 
 **读法**：第 1～4 节回答「必须为真的是什么」，来源是契约；第 5～6 节回答「用哪些原语兑现、有什么证据」，来源是节点。

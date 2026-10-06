@@ -1,1 +1,0 @@
-{"exit_code":1,"error":"Initial audit assumed manifest path key; actual immutable independent manifest uses relative. Original script retained; correction changes audit metadata reading only, no delivered bytes or assertions."}

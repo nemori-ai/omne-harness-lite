@@ -7,7 +7,7 @@
 并给受理一侧一个「外部内容在交接那一刻长什么样」的共同定义。**连接件只能送消息进来**：本契约里没有任何一个值能承载读取、管理或控制。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.connector, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 `accepted`（`acceptance` 指向 D-061 的 `acceptance.json`）。`family=data`、`topic=connector`、
   `contract_path=spec/data/connector/v2/contract.md`，`resources` 另含 `v2/connector.schema.json` 与 `v2/examples.md`；
   依赖五项：`data.asset-model` v2、`data.messages` v2、`data.content-blocks` v2、`data.offer-expiry` v1、`data.identity-values` v1，
@@ -33,7 +33,7 @@
 | 本版本精确承诺什么 | [v1 契约](v2/contract.md) |
 | 交换与存储表示 | [v1 Schema](v2/connector.schema.json) |
 | 一个值长什么样、什么会被拒、拒绝值叫什么 | [v1 正反实例](v2/examples.md) |
-| 鉴权绑定与投递目标为什么不在正文里 | [S-2](v2/contract.md#s-2-鉴权绑定与投递目标不在正文里)——主线裁定，见 [D-060 §S21 S21-a、S21-b](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的) |
+| 鉴权绑定与投递目标为什么不在正文里 | [S-2](v2/contract.md#s-2-鉴权绑定与投递目标不在正文里)——主线裁定，见 D-060 §S21 S21-a、S21-b |
 | 连接件到底能让本系统做什么 | [S-14 没有读取面，也没有管理面](v2/contract.md#s-14-没有读取面也没有管理面) |
 | 哪里在等裁决 | [已知缺口](v2/contract.md#十已知缺口)——**G-4 让属性声明整组判不出来（两项权限的取值未定），G-5 让信封的归属没有落点，G-10 记着 PF-002 rev 19～20 与 PF-014 rev 7 对连接件的改动还没落（等连接件专项讨论）** |
 | 哪些条款有怎样的证据义务，现在到哪一步 | [验证与覆盖](verification.md) |
@@ -50,4 +50,4 @@
 
 ## 2026-09-26 版本接受
 
-本次接受 `data.connector` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `data.connector` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

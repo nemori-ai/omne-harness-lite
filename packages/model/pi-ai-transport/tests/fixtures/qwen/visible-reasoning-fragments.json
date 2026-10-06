@@ -1,5 +1,4 @@
 {
-  "source": ".meta_harness/design/record/evidence/2026-09-27-probe-model-request-runtime/openrouter-research.tar.gz",
   "note": "Ordered visible reasoning fragments of the six archived Qwen open-leaf raw streams (fixed alibaba route). Every reasoning frame's delta was exactly {content: '', role: 'assistant', reasoning: F, reasoning_details: [{type: 'reasoning.text', text: F, format: 'unknown', index: 0}]}; tests rebuild those frames and let the real reader merge them. No request was sent to obtain this file.",
   "streams": [
     {

@@ -201,6 +201,6 @@ ACK 不给响应体新增成员或处分。ACK 前消费方可自行保存上例
 
 `judgeResponseFinalization(pending, final)` 先取得完整 Pending 的自有无损值并按原顺序完整判定，通过后才取得并判定 final。比较只移除 final 顶层的 `replyDisposition` 和 `late`；原回复和已有派生、usage/cost、raw 引用、头值顺序与 inputCalibration 等其余全部 JSON 值必须精确相等。对象键顺序和数字同值异拼写不影响相等；数组顺序、重复、缺席和精确小数差异有意义。结果沿既有冻结判定，不改输入。
 
-S-46 允许 Pending 作为不可变内容保留，但它仍不是 final。本函数不证明原字节、来源、授权、耐久发布或费用选择，不查询当前 provider/meter、不重算原摘要、不把 unknown 补零。首次持久消息允许的成对 renderings/transcript 新增由 messages 的唯一 `judgeModelReplyMessage` 判断；final.reply 自身仍保留原值。runtime/写方组合两个值判定与真实来源、当前写权检查，再提交原批。[D-110](../../../.meta_harness/design/record/decisions/model-runtime-reference-lifecycle-adoption/decision.md) 采用本版，真实 runtime/存储组合仍需另行验证。
+S-46 允许 Pending 作为不可变内容保留，但它仍不是 final。本函数不证明原字节、来源、授权、耐久发布或费用选择，不查询当前 provider/meter、不重算原摘要、不把 unknown 补零。首次持久消息允许的成对 renderings/transcript 新增由 messages 的唯一 `judgeModelReplyMessage` 判断；final.reply 自身仍保留原值。runtime/写方组合两个值判定与真实来源、当前写权检查，再提交原批。D-110 采用本版，真实 runtime/存储组合仍需另行验证。
 
-当前资源注册与验证根按已接受的[公开定义闭包revision 2](../../../.meta_harness/design/realization/packages/core/messages/public-definition-resource-closure-followup.md)和[D110闭包决定](../../../.meta_harness/design/record/decisions/model-runtime-reference-lifecycle-adoption/public-schema-closure-decision.md)执行。MS2/MS3/MS6资源继续供真正的外部消费者使用，不提供旧执行codec；LC/AE后继迁移与runtime耐久行为由各自owner承担。
+当前资源注册与验证根按已接受的[公开定义闭包revision 2](../../../.meta_harness/design/realization/packages/core/messages/public-definition-resource-closure-followup.md)和D110闭包决定执行。MS2/MS3/MS6资源继续供真正的外部消费者使用，不提供旧执行codec；LC/AE后继迁移与runtime耐久行为由各自owner承担。

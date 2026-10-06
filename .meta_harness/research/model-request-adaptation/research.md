@@ -20,7 +20,7 @@
 
 ## 37 个模型均出现缓存暖读
 
-受控探针共 162 次发送，37 个模型均至少一次返回 `cached_tokens > 0`，实际账务累计 USD `1.057233989500000000`，未结算请求为零。[逐模型读数](../../design/record/evidence/2026-09-27-probe-model-request-runtime/model-evidence-summary.json)、[账本快照](../../design/record/evidence/2026-09-27-probe-model-request-runtime/ledger-snapshot.json)。
+受控探针共 162 次发送，37 个模型均至少一次返回 `cached_tokens > 0`，实际账务累计 USD `1.057233989500000000`，未结算请求为零。逐模型读数、账本快照。
 
 26 个模型的暖读请求没有发送缓存配置，可支持对应路由的自动缓存观察。Anthropic 四项、Qwen 六项及 Alibaba 路由的 GLM Prime 使用显式缓存控制；没有测 TTL 到期或续期，不能仅由暖读推断 TTL 生效。相同模型有多个路由，缓存行为与路由一起核对。
 
@@ -40,7 +40,7 @@ OpenAI 请求使用 developer，其他七家使用 user；本次请求和结果�
 
 ## Cordis 支持原型的生命周期组合，但不提供业务引用协议
 
-采用 Cordis 4.0.4，effect 提前注销和等待消费者释放可被应用组合。独立复审发现“曾归零后重新取得引用”的原型错误，真实交错确实失败；等待改为停止新准入后建立，重跑成功。[对应失败与修正](../../design/record/evidence/2026-09-27-probe-model-request-runtime/README.md#连续调用补验)。
+采用 Cordis 4.0.4，effect 提前注销和等待消费者释放可被应用组合。独立复审发现“曾归零后重新取得引用”的原型错误，真实交错确实失败；等待改为停止新准入后建立，重跑成功。对应失败与修正。
 
 这是可行性观察，消费者为模拟；HTTP 实际停止、异常释放、等待超时、持久状态恢复及正式提供者尚未测试。引用计数、租户权限和停止判断不由 Cordis 自动获得。
 

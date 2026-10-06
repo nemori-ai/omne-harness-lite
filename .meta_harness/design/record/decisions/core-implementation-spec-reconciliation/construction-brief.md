@@ -1,1 +1,0 @@
-../../evidence/2026-10-01-checks-model-runtime-repository-cleanup/relocated/core-implementation-spec-reconciliation__construction-brief.md.txt

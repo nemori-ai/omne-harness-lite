@@ -2,11 +2,11 @@
 
 本节点为 `packages/agent-loop/loop-extension-runner`，**尚未建包**。本稿消费 `omne-harness-lite-design-2026-09-15 · capability.loop-extension-runner · v3` 的[候选契约](../../../../spec/capabilities/loop-extension-runner/v3/contract.md)；以下 S-n、G-n 均指该版本。保留 [v2 已接受设计](design.md)，不改写其接受事实。本稿自身未接受，不把候选正文存在当作 catalog 登记或可实施性证明。
 
-增量依据是 [model-request-adaptation 提案](../../../../record/proposals/model-request-adaptation/design.md) 的公共执行路径、真实 runner 与默认重试交接；其 [既有评审](../../../../record/proposals/model-request-adaptation/review.md) 未覆盖本节点。需求坐标沿契约：PF-012 rev 15、PF-008 rev 7、PF-002 rev 20、PF-013 rev 13、PF-014 rev 7、PF-004 rev 12、PF-000 rev 1、PF-005 rev 6、PF-015 rev 11。
+增量依据是 model-request-adaptation 提案 的公共执行路径、真实 runner 与默认重试交接；其 既有评审 未覆盖本节点。需求坐标沿契约：PF-012 rev 15、PF-008 rev 7、PF-002 rev 20、PF-013 rev 13、PF-014 rev 7、PF-004 rev 12、PF-000 rev 1、PF-005 rev 6、PF-015 rev 11。
 
 ## 实现路径与边界
 
-继续采用既有的自建 TypeScript runner 路径，复用 core 纯值包和 kernel-basis；不 fork DSH runner，理由与 [D-033](../../../../record/decisions/hooks-compat-baseline/decision.md) 和旧节点相同。实际 Cordis 采用 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)。本稿内所有插件、服务、方法、端口、键编码及内部字段名均为**候选**，没有现成生产 API。
+继续采用既有的自建 TypeScript runner 路径，复用 core 纯值包和 kernel-basis；不 fork DSH runner，理由与 D-033 和旧节点相同。实际 Cordis 采用 D-025 的 4.0.4。本稿内所有插件、服务、方法、端口、键编码及内部字段名均为**候选**，没有现成生产 API。
 
 交付范围保留完整 `dispatch`、`replay` 两操作的控制语义：位置与维度过滤、两处末位、逐件等待、合法性、失败策略、记录、效果、提醒、回放、批次控制、取消和句柄。`after_model_call` 的失败与完整回复两维都走同一 runner；不是另写一个直接调用重试函数的捷径。runner 不执行工具、不成为 AgentLoop，也不拥有模型发送、Run 终态、等待卡片持久化或调用结算。
 

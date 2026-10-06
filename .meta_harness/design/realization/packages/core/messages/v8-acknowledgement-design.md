@@ -1,6 +1,6 @@
 # ACK 记录、原账见证与无损语义摘要
 
-2026-09-29，revision 1，candidate，未接受/未实施；新增binding 0。前驱为D110的[v7](v7-design.md)，资源注册边界沿[公共定义闭包纠正](public-definition-resource-closure-followup.md)。输入为PF013 rev17 §6.19、MS8 S56～59、MR11 S49、CA4 S43及RT12 S95～103的同批候选；采用仍归主线，不能据catalog候选写成accepted。
+当前技术采用范围与排除见本页“当前采用范围”；不据此宣称实现或验证完成。
 
 本节点仍是纯数据包，没有Cordis plugin/service/fiber、Storage、权限提供者或清理任务。共同内核采用D025 Cordis4.0.4；本包不直接消费其生命周期，不新增上游主张。摘要判定不是确认/处分权限，清理与日志认回完全归模型runtime。
 
@@ -39,3 +39,10 @@ MS8 witness CredentialScope引用本Schema已有定义，沿既有D060无环同�
 | 只编译公开defs可达图 | 全依赖defs易扫描但引入未消费环；本方维护精确图与负控 | 沿已评审资源纠正，不扩大闭包 |
 
 验收见verification M8-V1～V6；当前没有实际源码/测试证据，不新增bindings。
+
+## 当前采用范围
+
+RT12/MS8/MR11/CA4 的 ACK 增量与原值/原账性质；messages 唯一拥有 ACK 记录和无损语义摘要，response 保持完整 Pending/final，accounts 只做原纯值费用计算。投影仅承接该窄增量。
+
+技术采用不表示实现或实际验证已完成。验证义务：各 owner 的 M8/R11/A4 验证义务；ACK 不授予写权、不等于处分；final > ACK witness > ready 按同 ResponseId 唯一原账；不能以 shape/brand 成功证明真实权限/来源/释放。
+范围之外：通用 GC/内容/账务服务；完整 Session/Run/Agent；独立 invokeModel 的 ACK 义务。

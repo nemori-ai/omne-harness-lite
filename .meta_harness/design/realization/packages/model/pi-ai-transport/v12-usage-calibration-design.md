@@ -4,7 +4,7 @@
 
 ## 输入与责任边界
 
-精确消费 baseline `omne-harness-lite-design-2026-09-15` 的 [data.model-response/v9](../../../../spec/data/model-response/v9/contract.md)（MR9）和 [capability.model-request-runtime/v10](../../../../spec/capabilities/model-request-runtime/v10/contract.md)（RT10），两者在 catalog 中均为 candidate。沿用已接受 MP6、MS6、CA2、SL3；需求 rev 沿 MR9 来源表（PF-013 rev15 等），新增方向来自 [U0 C 及施工简报（已外置）](../../../../record/evidence/2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件)。[v10](v10-token-estimate-design.md) 的估算及配置余量、[v11](v11-registry-diagnostics-design.md) 的观测故障隔离继续适用。
+精确消费 baseline `omne-harness-lite-design-2026-09-15` 的 [data.model-response/v9](../../../../spec/data/model-response/v9/contract.md)（MR9）和 [capability.model-request-runtime/v10](../../../../spec/capabilities/model-request-runtime/v10/contract.md)（RT10），两者在 catalog 中均为 candidate。沿用已接受 MP6、MS6、CA2、SL3；需求 rev 沿 MR9 来源表（PF-013 rev15 等），新增方向来自 U0 C 及施工简报（已外置）。[v10](v10-token-estimate-design.md) 的估算及配置余量、[v11](v11-registry-diagnostics-design.md) 的观测故障隔离继续适用。
 
 这是现有 `packages/model/pi-ai-transport` 的提供者增量。已有 `planRequest`、`readStream`、`InputMeter`、贡献注册/lease 和 Cordis 插件；本页的新接口均为**候选**，尚未实现。`TransportAdapter`、`PlanInput`、`StreamEnd` 及规划结果的公开签名唯一归 [runtime 节点](../model-request-runtime/README.md)；MR9 六个共享值类型唯一归 [core/model-response](../../core/model-response/README.md)。本节点只拥有其实现和 `InputMeter` 组合，不复制这些 DTO 或增加第十四个操作。
 
@@ -93,7 +93,7 @@ provenance 的原字符串与其他上游回显经现有凭据 owner 的来源�
 
 ## 依赖、换代与装卸
 
-Cordis 采用 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)。本增量没有新 service、fiber、任务、计时器或 store。既有稳定 `modelTransport` 和可信模型贡献插件保持原边界；meter/投影/reader 均作为整份贡献的纯组件。
+Cordis 采用 D-025 的 4.0.4。本增量没有新 service、fiber、任务、计时器或 store。既有稳定 `modelTransport` 和可信模型贡献插件保持原边界；meter/投影/reader 均作为整份贡献的纯组件。
 
 | 取得项与可用时点 | owner／部分失败 | 撤除与保留 |
 |---|---|---|

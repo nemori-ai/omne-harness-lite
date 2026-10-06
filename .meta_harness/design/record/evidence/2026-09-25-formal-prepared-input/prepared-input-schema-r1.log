@@ -1,7 +1,0 @@
-PASS schema references/compile: Input
-PASS schema references/compile: Output
-PASS schema references/compile: Intent
-PASS schema references/compile: Preview
-PASS schema references/compile: PromptResult
-PASS schema references/compile: PromptExchange
-PASS candidate examples: 108

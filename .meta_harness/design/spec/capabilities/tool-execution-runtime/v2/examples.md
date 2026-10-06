@@ -88,7 +88,7 @@
 | 步 | 调用或发生 | 预期 | 依据 |
 |---|---|---|---|
 | 1 | 交回检查 | 合形状、合声明 → 收场 `completed`；本能力**不看大小、不改姿态、不截断** | [S-41](contract.md#s-41-交回)、[S-8](contract.md#s-8-姿态与阶段两个维度) |
-| 2 | 本能力存下声明卸载的原始结果（进那一关之前，不看卸载判定在不在） | 内联的 40 MB 存进存储，换成引用 `{ storage, key, mediaType: "text/plain", bytes: 41943040 }` | [S-36](contract.md#s-36-存一份原始结果)（[D-060 §S13 S13-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s13tool-execution-runtime报回的)） |
+| 2 | 本能力存下声明卸载的原始结果（进那一关之前，不看卸载判定在不在） | 内联的 40 MB 存进存储，换成引用 `{ storage, key, mediaType: "text/plain", bytes: 41943040 }` | [S-36](contract.md#s-36-存一份原始结果)（D-060 §S13 S13-b） |
 | 3 | `after_action`（`each`）：卸载判定拿到 `subject.result`，其中 `offload.raw` 已是第 2 步的引用 | 结论：改写结果块——`blocks` 是作者的摘要加「原始结果 40 MB、怎么取回」，`offloaded` 是那个引用；本能力照结论落 `ToolMessage`；**原始的 40 MB 从头到尾不进会话日志** | [S-42](contract.md#s-42-结果落成消息之前的那一关)；PF-012 §5.10 |
 
 **卸载判定此刻不在**：第 2 步照做，原始结果照样存着；只记可见——落进块的是 `content`（作者的摘要块），`raw` 的位置上**只落第 2 步的引用、摘要缺席**，留一条「落盘前那一关不可用」的条目（[S-15](contract.md#s-15-缺席时的默认答案)、[S-42](contract.md#s-42-结果落成消息之前的那一关)）。
@@ -109,7 +109,7 @@
 
 **agent 看到的是「失败，原因异常中断」**：要不要再调由它决定；系统不替它断定那一次做没做过。
 
-**上交之后撤下**（[S-41](contract.md#s-41-交回) ⑤、[S-47](contract.md#s-47-依赖的提供者不可用)；[D-060 §七 M13](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）：`deploy(call_b)` 交回时执行记录写不下去 ⇒ 交回得 `escalated`，本任撤下；loop 那副协程正在 `awaitForeground(T, ses_1, call_b)` ⇒ 返回 `runtimeStopped`，**不一直等**。
+**上交之后撤下**（[S-41](contract.md#s-41-交回) ⑤、[S-47](contract.md#s-47-依赖的提供者不可用)；D-060 §七 M13）：`deploy(call_b)` 交回时执行记录写不下去 ⇒ 交回得 `escalated`，本任撤下；loop 那副协程正在 `awaitForeground(T, ses_1, call_b)` ⇒ 返回 `runtimeStopped`，**不一直等**。
 存储随后恢复，**这一任也不补写**那次交回；下一任起来后照上表第 2～3 步把 `call_b` 落 `failed{abnormal_interruption}`、`frames` 写 `"unknown"`，loop 再等一次拿到的是它——**不会一任说 `completed`、另一任说 `failed`**。
 
 ## 7. 取消运行与插队
@@ -127,7 +127,7 @@
 | 失败值 | 局面 | 调用 | 结果 | 为什么不是别的值 |
 |---|---|---|---|---|
 | `invalidInput` | —— | `answerWait(T, ses_1, call_c, 缺, {value: {choice: "A"}, by: 人})` | `invalidInput` | `waitIndex` 缺席不替它猜成当前那一次（[S-30](contract.md#s-30-答复等待) ⑧）；**不是** `notWaiting`：表示层校验不是一次判定 |
-| `invalidInput`（报告不对） | `rpt_2` 是 `ses_1` 里另一次运行 `run_2` 的报告；`run_1` 已进到第 2 次尝试，`rpt_1` 是第 1 次尝试的那份 | `submit(T, ses_1, run_1, 1, rpt_2, [build(call_a)/tok_a])`；或 `submit(T, ses_1, run_1, 2, rpt_1, [build(call_a)/tok_a])`；或 `report` 缺席 | 三种都是整批 `invalidInput`，什么都不写，`call_a` 没有记录 | 报告带的会话、运行、尝试须与本次三者都相同：前一种运行不是 `run_1`，后一种尝试是 `1` 不是 `2`（[S-23](contract.md#s-23-提交一批) ⑥；[D-060 §八 M46](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）；缺席不替它现算一份、不取「最近一次」（⑧）；**不是** `dependencyUnavailable{registry}`：报告随请求交来，不是一个会读不到的依赖（[S-47](contract.md#s-47-依赖的提供者不可用)）；**不是** `crossTenant`：只比对交来的值，先于一切（[D-060 §八 M33](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） |
+| `invalidInput`（报告不对） | `rpt_2` 是 `ses_1` 里另一次运行 `run_2` 的报告；`run_1` 已进到第 2 次尝试，`rpt_1` 是第 1 次尝试的那份 | `submit(T, ses_1, run_1, 1, rpt_2, [build(call_a)/tok_a])`；或 `submit(T, ses_1, run_1, 2, rpt_1, [build(call_a)/tok_a])`；或 `report` 缺席 | 三种都是整批 `invalidInput`，什么都不写，`call_a` 没有记录 | 报告带的会话、运行、尝试须与本次三者都相同：前一种运行不是 `run_1`，后一种尝试是 `1` 不是 `2`（[S-23](contract.md#s-23-提交一批) ⑥；D-060 §八 M46）；缺席不替它现算一份、不取「最近一次」（⑧）；**不是** `dependencyUnavailable{registry}`：报告随请求交来，不是一个会读不到的依赖（[S-47](contract.md#s-47-依赖的提供者不可用)）；**不是** `crossTenant`：只比对交来的值，先于一切（D-060 §八 M33） |
 | `notAdmitted{why}` | `tok_b` 绑定的是 `deploy` 的另一份参数 | `submit(..., [build(call_a)/tok_a, deploy(call_b)/tok_b])` | 整批 `notAdmitted`；**`call_a` 也没有记录** | 一条凭据不符整批拒（[S-23](contract.md#s-23-提交一批) ②） |
 | `admissionUnavailable` | 放行核对面此刻不可用 | 同上一行的 `submit`（凭据都正确） | 整批 `admissionUnavailable`，一项都不执行 | 「判不出来」不是「判为不符」，也不放行（[S-15](contract.md#s-15-缺席时的默认答案)） |
 | `backgroundNotAllowed` | `deploy(call_b)` 在前台跑 | `background(T, ses_1, call_b)` | `backgroundNotAllowed` | 定义没声明 `allowBackground`＝不能（[S-27](contract.md#s-27-转后台) ⑧）；发起即后台的同一种情形在 `submit` 里**不是失败值**，是那一项的收场 `failed{background_start_refused}`（见本节末） |
@@ -145,7 +145,7 @@
 
 **不是失败值的那一支**：注册表把 `lint` 判为不可用——它是替换件，或所选的那条命令在 `commandAvailability` 里被关掉——`submit(..., [lint(call_d)/tok_d])` 批成立，
 `call_d` 的 `disposition` 是 `ended{unavailable}`，一条 `outcome: unavailable` 的 `ToolMessage` 已交付，块上写替换件的说明或注册表给的原因；执行者不起。
-**不是** `failed`：`failed` 让 agent 以为可以重试，而这个名字在这次尝试里就是用不了（[S-23](contract.md#s-23-提交一批) ④；[D-060 §S13 S13-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s13tool-execution-runtime报回的)）。
+**不是** `failed`：`failed` 让 agent 以为可以重试，而这个名字在这次尝试里就是用不了（[S-23](contract.md#s-23-提交一批) ④；D-060 §S13 S13-a）。
 
 **不是失败值的另一支：参数不合，或参数判不了**（[S-23](contract.md#s-23-提交一批) ④ 第 ② 条、[S-11](contract.md#s-11-失败的种类)；场景 [S-61](contract.md#s-61-参数不合即刻失败并带用法)）：
 
@@ -156,14 +156,14 @@
 | `fs(call_g, {command: "find", args: {}})` | 同上 | `find` 不是 `fs` 的命令；带 `fs` 的命令清单（每个命令一行，同模型面前那一份） |
 | `fs(call_i, {command: "pwd", args: {path: "src"}})` | 同上 | `path` 这个键 `pwd` 不收；用法：`pwd — 给出当前目录`，这个命令没有声明参数 |
 | `fs(call_h, {command: "peek", args: {anything: 1}})` | `accepted{foreground}` | ——（`peek` 显式写了 `additionalProperties: true`，收任何一个对象，对不对由工具自己判） |
-| `grep_logs(call_k, {q: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!"})`——作者写的单函数工具，参数 `q` 的 schema 带 `"pattern": "^(a+)+$"`；这个实现把它编成了可判的形式，**这一次判定超出实现登记的判定时限** | `ended{failed}`，记录上种类 **`schema_unsupported`**，执行者不起、外部效果「已确定未发生」；**同批别的项照常判** | 这个工具的参数在这个实现上判不了（判定超时）；**不说「参数不合」、不附用法**，也**不照常执行**（[S-11](contract.md#s-11-失败的种类)；[D-060 §八 N-22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) T-16）。编不出、`pattern` 超出长度或回溯保护的上限，同此收场 |
+| `grep_logs(call_k, {q: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!"})`——作者写的单函数工具，参数 `q` 的 schema 带 `"pattern": "^(a+)+$"`；这个实现把它编成了可判的形式，**这一次判定超出实现登记的判定时限** | `ended{failed}`，记录上种类 **`schema_unsupported`**，执行者不起、外部效果「已确定未发生」；**同批别的项照常判** | 这个工具的参数在这个实现上判不了（判定超时）；**不说「参数不合」、不附用法**，也**不照常执行**（[S-11](contract.md#s-11-失败的种类)；D-060 §八 N-22 T-16）。编不出、`pattern` 超出长度或回溯保护的上限，同此收场 |
 
 批里其余合格的项照常 `accepted`；**不是** `invalidInput`：那是本操作的输入不合形状，这里是对一次调用的判定。
 
 **不是失败值的第三支：发起即后台而工具不许后台**：`submit(..., [{ call: deploy(call_j), admission: tok_j, environment: env_1, definition: {name: deploy}, startInBackground: true }])` 批成立，
 `call_j` 的 `disposition` 是 `ended{failed}`，记录上种类 `background_start_refused`，一条 `outcome: failed` 的 `ToolMessage` 已交付；执行者不起、外部效果「已确定未发生」。**`submit` 没有逐条失败值**（[S-23](contract.md#s-23-提交一批) ⑤）。
 
-**不是失败值的第四支：这次尝试里没有这个名字**（[S-23](contract.md#s-23-提交一批) ②④；场景 [S-69](contract.md#s-69-查不到条目的调用即刻收场不可用)；[D-060 §七 M8、M10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）——模型调了一个编造的 `grep_files`，runner 在可用性报告里查不到它、不交进 `admit`，记 `observed{no_such_entry}`：
+**不是失败值的第四支：这次尝试里没有这个名字**（[S-23](contract.md#s-23-提交一批) ②④；场景 [S-69](contract.md#s-69-查不到条目的调用即刻收场不可用)；D-060 §七 M8、M10）——模型调了一个编造的 `grep_files`，runner 在可用性报告里查不到它、不交进 `admit`，记 `observed{no_such_entry}`：
 
 | 调用 | 结果 | 为什么 |
 |---|---|---|
@@ -204,7 +204,7 @@
 
 **两个变体**：一帧不发就交回 ⇒ 没有 `ToolInternalMessage`，账上 `frames.emitted = 0`、各项砍为零；`confirm_plan` 声明了到点、到点时没人答 ⇒ 收场 `no_answer`，本能力对装配状态调 `abandon`，有块时 `ending: lost`——**不是 `interrupted`**：没有谁决定让它停下（[S-39](contract.md#s-39-发帧)、`data.messages/v2#S-14`）。
 
-**形状不合与缺席**（[S-39](contract.md#s-39-发帧) ⑤⑧；[D-060 §七 M29](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)），接在第 2 步之后：
+**形状不合与缺席**（[S-39](contract.md#s-39-发帧) ⑤⑧；D-060 §七 M29），接在第 2 步之后：
 
 | 执行者发帧 | 发帧交回 | 装配状态 |
 |---|---|---|

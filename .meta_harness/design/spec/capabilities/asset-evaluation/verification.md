@@ -2,7 +2,7 @@
 
 ## 当前3实际模型运行（2026-09-26）
 
-[2026-09-26-formal-core-v3](../../../record/evidence/2026-09-26-formal-core-v3/README.md) 保存当前3冻结输入的实际执行与指定变异，主调度核原文/工具/冻结资源/归档字节，独立表达对应复核无阻断。按逐command的SAT/UNSAT与有解实例读取，263主读数中AE252（含13变异），不是按退出0宣称通过；Alloy无正式task/binding。有限scope、被构造吸收的前提及实现范围以run和本版formal入口为准。旧执行输入不重标当前3；产品/真实组合仍独立验收。
+2026-09-26-formal-core-v3 保存当前3冻结输入的实际执行与指定变异，主调度核原文/工具/冻结资源/归档字节，独立表达对应复核无阻断。按逐command的SAT/UNSAT与有解实例读取，263主读数中AE252（含13变异），不是按退出0宣称通过；Alloy无正式task/binding。有限scope、被构造吸收的前提及实现范围以run和本版formal入口为准。旧执行输入不重标当前3；产品/真实组合仍独立验收。
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
@@ -11,7 +11,7 @@
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
 > **八条规范场景（S-33～S-37、S-41、S-43、S-44）一条都未执行**——文件存在不代替结果。
 > Alloy 那一次的判读、范围与局限见[下节](#结果与反例)；它只支持[契约第七节](v2/contract.md#七性质与前提)标了 Alloy 的那几行，**且只在所列规模内**；(i) 那一行 2026-09-24 起标「按构造，不作证据」。
-> **2026-09-24 独立评审第一轮原地修订**（[处置表](#独立评审)）：`Evaluation.als` 一个字节未改，**当时不重跑**（理由见[变化的影响](#变化的影响)）。**2026-09-25 实现映射反推（[处置表](#实现映射反推2026-09-25)）改了第 2 步的三个定义**，SHA-256 由 `4a79c2f9…126a` 变为 `6935da22…505f`，2026-09-24c 那次作废，[新一次运行](#已执行组合根只作身份之后的-alloy-运行2026-09-25)对应现在的文件。
+> **2026-09-24 独立评审第一轮原地修订**（处置表）：`Evaluation.als` 一个字节未改，**当时不重跑**（理由见[变化的影响](#变化的影响)）。**2026-09-25 实现映射反推（[处置表](#实现映射反推2026-09-25)）改了第 2 步的三个定义**，SHA-256 由 `4a79c2f9…126a` 变为 `6935da22…505f`，2026-09-24c 那次作废，[新一次运行](#已执行组合根只作身份之后的-alloy-运行2026-09-25)对应现在的文件。
 
 ## 证据义务
 
@@ -45,7 +45,7 @@
 
 | 项 | 值 |
 |---|---|
-| 对象 | [`v2/formal/Evaluation.als`](v2/formal/Evaluation.als)，随 [D-060 §八 M31](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 改第 2 步之后的内容（未冻结）：`Root` 加 `rootRefs`；`reached` 在根有生效资产时从 `rootRefs` 起、否则为空；`composition` 减去 `rootCap`；`unresolvedCaps` 加上没有生效资产的 `rootCap`；头注释的 S-20 一行与「成环的收场」一句改写。断言、fact、`run`／`check` 命令与范围一字未动。SHA-256 `6935da2259130aafea0e770dad7c94578152fd517e3ef5d2f7bd006a8bba505f` |
+| 对象 | [`v2/formal/Evaluation.als`](v2/formal/Evaluation.als)，随 D-060 §八 M31 改第 2 步之后的内容（未冻结）：`Root` 加 `rootRefs`；`reached` 在根有生效资产时从 `rootRefs` 起、否则为空；`composition` 减去 `rootCap`；`unresolvedCaps` 加上没有生效资产的 `rootCap`；头注释的 S-20 一行与「成环的收场」一句改写。断言、fact、`run`／`check` 命令与范围一字未动。SHA-256 `6935da2259130aafea0e770dad7c94578152fd517e3ef5d2f7bd006a8bba505f` |
 | 工具 | 本机 `/usr/local/bin/alloy` 6.2.0（`/opt/alloy/alloy.jar`，JRE 21），`alloy exec -f -o out Evaluation.als` |
 | 怎么跑的 | 复制到主检出 `tmp/formal-runs/asset-evaluation-v2-2026-09-25/` 再跑：`run.log`、`out/`、`sha256.txt`；变异体 `mutants/M1.als`～`M13.als` 由 2026-09-24c 那十三个变异体对旧模型的差异原样打到新模型上得到（`mutants/M*.patch`，逐个只改一处，与新模型的差异在 `mutants-summary.txt`），各自的输出在 `mutants/M*.out`；**未入库** |
 | 判读 | `check` 行 `UNSAT` 读作**本范围内无反例**、`SAT` 读作找到反例；`run` 行 `SAT` 读作前件可满足（账本 S10-c） |
@@ -241,48 +241,13 @@
 ### 尚无的记录
 
 规范场景 S-33～S-37、S-41、S-43、S-44，静态检查 SC-1～SC-3 尚无执行记录。首次执行时在此记录工具与版本、环境、输入范围、
-可复现步骤与原始结果位置；原始产物归 [record/evidence/](../../../record/evidence/README.md)。
+可复现步骤与原始结果位置；原始产物归 record/evidence/。
 
 ## 形式化工件
 
-**选用 Alloy，不登记为 formal task。**[检查器只以退出码判成败](../../../registry/README.md#当前状态)，
+**选用 Alloy，不登记为 formal task。**[检查器只以退出码判成败](../../../registry/README.md#当前采用)，
 而 `alloy exec` 找到反例照样退出 0（上节八个变异体即是实例）——登记它只会得到一个永远通过的任务。
 映射、规模与盖不到的部分在 [formal 入口](v2/formal/README.md)。**`formal-tasks.json` 里本契约没有条目，这是有意的**，不是漏登。
-
-## 独立评审
-
-**第一轮**：spec-reviewer（只读），2026-09-24，基线 HUB `765b01dc`（批 R3：本契约与 `data.asset-model`、`capability.asset-governance`、`capability.asset-transfer`、`capability.organization-governance` v3 同批）。
-处置按主线的修复简报（2026-09-24，裁定 K9、K30、K43、K44——已收进 [D-060 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)——与全局规矩 G1～G6）；**评审意见不代替接受**，本契约仍是 candidate。
-
-| 发现 | 处置 | 落点 |
-|---|---|---|
-| B-1 / AE-1（S-16 ⑧「缺席或为空」与 `data.asset-model` S-24 相抵） | **改**：为空 ⇒ 没有配值；缺席 ⇒ ⑥ 的 `invalidInput` | [S-16](v2/contract.md#s-16-readworkspacecarrier) ⑥⑧ |
-| B-2 / AE-2（S-4 末段把 loop_extension 的规则指到一条不存在的 S-12） | **改**：指向 `data.loop-extension/v2#S-40`（同批新增）；loop_extension 那一格随之有了规则，G-3 只剩 Agent Definition 与 plugin；skill-package 补 S-17。按本契约 S-4「各类正文契约按规则引用、不按坐标」的口径，这条不进 catalog（与其余五类的规则条款同） | [S-4](v2/contract.md#s-4-依赖方向与被消费的面) 末段、[S-10](v2/contract.md#s-10-各类正文契约须供的两条规则)、[G-3](v2/contract.md#十一已知缺口) |
-| AE-3（`workspace_immutable` 到不了） | **改**：删去；`FilterReason` 七值 → 六值；工作区的 `immutable` 只在读入时以 `immutable_flag` 丢，求值输入再带即 C1 | [S-8](v2/contract.md#s-8-求值结果-effectiveassembly)、[S-18](v2/contract.md#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断)、[S-24](v2/contract.md#s-24-工作区那一格在第四步只贡献设置) |
-| AE-4（「只缺 `since`」没说配值上的那个） | **改**：持有与每条配值的 `since` 都由调用方以读到清单的时刻补 | [S-16](v2/contract.md#s-16-readworkspacecarrier) ⑤、[S-27](v2/contract.md#s-27-清单列的资产变成工作区那一格的持有)、[S-28](v2/contract.md#s-28-配值与禁用只对工作区提供的资产生效丢掉的留痕) |
-| AE-5（依赖表、catalog、README 三处不一） | **改**：① `identity-values` S-15 从表里拿掉并写明它是资产流转的消费；② `mcp-endpoint` 补 S-4（并随动作集补 S-9、S-14、S-15、S-16），catalog 同改；③ hooks-import 那处写明「指路，不是依赖」；④ README 改为五项 | [S-4](v2/contract.md#s-4-依赖方向与被消费的面)、[S-17](v2/contract.md#s-17-第一步之一先按禁用滤)、[README](README.md)、catalog |
-| AE-6（相邻依据 rev 落后） | **改**：按 changelog 复核到 PF-001 rev 19、PF-004 rev 12、PF-007 rev 18、PF-012 rev 14，复核结论写在页首——没有一条改本契约的规则（PF-001 rev 19 的界与挑选早已在 S-23；PF-004 rev 11/12 与 S-20、S-39 对上） | 契约页首「相邻依据」 |
-| AE-7（(i) 被建模方式吸收） | **改**（主线预判：标按构造、收窄，不补否定配置）：(i) 两半都标「按构造，不作证据」；「只来自持有」改由 E-1 新的「多带一份定义」那一支作证，前提那一半归资产流转 S-9、S-44 | [formal/README](v2/formal/README.md) (i)、契约第七节两行、[S-32](v2/contract.md#s-32-本版选用哪些形式工件)、[S-33](v2/contract.md#s-33-四格齐全的一次求值) |
-| X-1（「工作区自带资产」无词条） | **改**：按统一语言第四轮的结论不立新词，改用产品说法「工作区提供的资产」并链 [UL-workspace](../../../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace) 注意 ⑦；S-9、S-25、S-27、S-28 标题随之改（锚点变了，本包内链接同改，包外无引用） | [S-9](v2/contract.md#s-9-工作区提供的资产) 等 |
-| X-2（PRE-2 → 资产流转 S-9 不在 catalog） | **改为明写，不登记**：登记会成环（资产流转 → 资产治理 → 本契约 S-23）；页首「精确语义依赖」末条与 PRE-2 写明这是前提、不是消费，由资产流转第十二节列本契约为读者 | 页首、第七节 PRE-2 |
-| 走查 (a)(b) | 不在本契约：调用主体与 S-45 覆盖声明归资产流转与组织治理 v2（同批各自处置） | — |
-| 走查 (d)（工作区输入受 B-1、AM-2 影响） | **改**：随 B-1 与 `data.asset-model` 的 AM-2 一并写成同一句「每一种只在一处丢」 | [S-24](v2/contract.md#s-24-工作区那一格在第四步只贡献设置)、[S-28](v2/contract.md#s-28-配值与禁用只对工作区提供的资产生效丢掉的留痕) |
-
-**本轮另落的主线裁定**：钉住动作集之后再求一次——输入加可选 `mcpActionSets`，输出里逐动作执行权限 `execute:<名>`（[S-6](v2/contract.md#s-6-求值输入-evaluationinput)、C13、[S-21](v2/contract.md#s-21-第三步投影)、[S-12](v2/contract.md#s-12-缺席时的默认答案)、PRE-8）；工作区格条目的丢弃阶段按种类写定（[S-24](v2/contract.md#s-24-工作区那一格在第四步只贡献设置)）。依据全部改引 D-060（页首），D-060 未收录的几条已报主线。
-
-**第二轮**：spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`（批 R3，发现表 `tmp/assets-runtimes/reviews/r2-R3.md`）；修复波 2 处置，主线裁定见 [D-060 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)（M1～M29）。
-
-| 编号 | 发现 | 处置 | 落点 |
-|---|---|---|---|
-| B1（阻断，文字性） | S-8 末段、S-6 `mcpActionSets` 一行、第十二节注册表那一行把第二次求值写成只供逐动作执行权限、构成仍是装配那一次的，与 D-060 §六 L13、L15 及本契约 S-42 相抵 | **改**：三处写成「第二次求值供 `tool` 表每条条目的执行权限（含 `tenantAutoWritable`），以及判 `not_in_composition` 用的组合」，引 `capability.asset-registry/v2#S-11`、`#S-24` | [S-6](v2/contract.md#s-6-求值输入-evaluationinput)、[S-8](v2/contract.md#s-8-求值结果-effectiveassembly)、[第十二节](v2/contract.md#十二消费者核对) |
-| B2（阻断，语义） | S-42 对 MCP `execute:` 项可为真，写面却对这一类项一律 `unavailable`——摆出一个写不进去的第四档 | **改**（[M5](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）：`mcp` 逐动作项上 `tenantAutoWritable` 恒为假，直到资产治理 G-5 闭合；「与写面同一口径」限于 `tool` 的执行权限项；covers 那条 note 同改 | [S-42](v2/contract.md#s-42-执行权限项另带租户那一层写得进自动吗)；examples E-1；`registry/covers.json` |
-| 应修 1 | L8 的配方比注册表 S-24 ② 窄，`standing`、`definitions`、`session` 取哪一刻两份契约列得不一样 | **改**（[M6](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）：本契约不再列配方，S-6、S-8、第十二节只引 `capability.asset-registry/v2#S-24` ②（指路，不登依赖——那份契约消费本契约，反向登记会成环）。评审提到的 C9 风险（配方的定义版本与此刻的持有钉在更新的版本上）归那份契约的配方回答 | 同上三处；页首主线裁定一条 |
-| 应修 2 | 租户那一格有对 `c` 的持有却不在效或指向另一份资产时，S-42 仍可为真 | **改**（[M7](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）：第 4 条扩为「租户那一格若有对 `c` 的持有，它在效且指向 `A`，否则为假」；写面不判这一半，注明取更严 | [S-42](v2/contract.md#s-42-执行权限项另带租户那一层写得进自动吗) 第 4 条与「同一口径」一条；examples E-1 加一支；V-9 |
-| 建议（页首缺 PF-008） | S-42 以 PF-008 §5.2 为依据，页首相邻依据没列 PF-008 及其 rev | **改**：相邻依据补 PF-008 rev 7 §5.2 | 页首 |
-| （L7、L14 核对） | 评审核为已落 | 不改 | — |
-| （M3 跨批，起草者自查） | [M3](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) 把拓展件干预力项的取值域收到声明档及其以下，并写「asset-evaluation S-23 不改」；但 S-23 认干预力的判据是「取值域**恰是**三档」，声明 `rewrite` 的件（取值域 `observe`、`rewrite`）会从此不被认作分档权限，落档与「挑选恰一档」都不再适用 | **改一句认法，不改求值规则**（推导，已报主线）：S-23 与 S-4 表改为「取值域是干预力三档里含 `observe` 的非空子集」即干预力；界、挑选、合成与档序一字不动。读 M3 的「S-23 不改」为求值规则不改 | [S-23](v2/contract.md#s-23-第四步权限) 分档那一段；[S-4](v2/contract.md#s-4-依赖方向与被消费的面) 表 `data.loop-extension/v2#S-4` 一行 |
-
-**对证据的影响**：Alloy 模型不含 `tenantAutoWritable`、也不含第二次求值的输入怎么组（[formal 入口](v2/formal/README.md)），本轮改的三处都不进模型，`Evaluation.als` 未改，**不重跑 Alloy**；V-9 的规范场景多两支（`mcp` 恒假、`h6` 被禁用），仍未开始。
 
 ## 变化的影响
 
@@ -348,7 +313,7 @@
   - **（同轮追加，主线派发）PRE-2 认 S-9 的读序**：「谁兑现」一栏写明组输入的一方先判关系与有效性（边界、上级链、租户端有效）、再读时刻（隶属建立时刻、成员关系生效时刻），反过来读会让一次解除—重新接上落在两读之间而复活；单机一次可串行化的读即满足。顺手删去「那份契约的 G-11 闭合之前……都在这里收场」一句——那份契约的 G-11 已随组织治理 v2 的两个读面关闭。Alloy 仍不涉（读序不在本模型）。
   - **对消费者**：组输入的一方（`capability.asset-registry` 与装配）按 asset-transfer S-9 读，没有新的形状；`capability.asset-transfer` 的 S-9 是被转述的一方，本契约**仍不登它为依赖**（兑现处在组输入，不在本契约）。
 
-- **2026-09-24 独立评审第一轮（[处置表](#独立评审)；候选未冻结，原地改）**：
+- **2026-09-24 独立评审第一轮（处置表；候选未冻结，原地改）**：
   - **输入与输出**：`EvaluationInput` 加可选 `mcpActionSets`（`McpActionSet { endpoint, scope, actions }`）与 C13（只收 `fetched`）；[S-21](v2/contract.md#s-21-第三步投影) 写 `mcp` 规则二的第二个输入与「`execute:` 起头的项按项名认种类」（推导，已报主线）；[S-12](v2/contract.md#s-12-缺席时的默认答案) 加一行、S-15 ⑦ 缓存键加它、PRE-8、消费者核对加注册表钉住之后那一行。
     **`FilterReason` 七值 → 六值**（删 `workspace_immutable`）。**兼容性**：候选期，没有被采用的实现；消费者里读 `FilterReason` 穷举的（注册表、设置页）少一个分支，读输入的（注册表、装配）多一个可选成员。
   - S-16 ⑧ 缺席 ⇒ `invalidInput`；S-16 ⑤、S-27、S-28 写明配值的 `since`；S-18 第 1 条、S-24 表改写；S-24 与 `data.asset-model` S-20、S-24 第 5 条同一句。
@@ -358,16 +323,16 @@
   - **Alloy 不重跑，理由**：本轮对模型没有语义变化。① (i) 只是**判读**改为「按构造」，断言与 fact 不动；② 工作区那一格的锁在合法输入里不再出现——模型仍容许它、照旧不算，是更宽的输入空间，断言在收窄后照样成立；③ 逐动作项只是生效资产「声明了哪些项」多一个来源，模型把声明当给定。`Evaluation.als` 一个字节未改（SHA-256 `4a79c2f9…126a`），2026-09-24c 那次运行继续对应它；两行注释里的「S-24」沿用旧说法，写在 [formal/README](v2/formal/README.md) 语义映射表。
   - **对消费者**：`capability.asset-registry` 的 `refreshAvailability` 在钉住后发起这次求值、把 `execute:*` 与每个接入点的持有钉进报告（同批由它写）；`capability.tool-admission`、`capability.tool-execution-runtime` 从那份报告读；`capability.mcp-bridge` 的 S-5「`scope` 由求值结果的 `from` 得出」不变。
 
-- **2026-09-25 修复波 1b（候选未冻结，原地改）**：裁定出处 [D-060 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)（L7、L8、N-7、N-8）。
+- **2026-09-25 修复波 1b（候选未冻结，原地改）**：裁定出处 D-060 §六（L7、L8、N-7、N-8）。
   - **L7**：新条款 [S-42](v2/contract.md#s-42-执行权限项另带租户那一层写得进自动吗)——`values` 里每条执行权限项另带布尔 `tenantAutoWritable`（租户那一层此刻写不写得进一条不带锁的「自动」）；四条判据：生效资产声明了这一项、不是工作区提供的资产、组织那一格的界含「自动」、租户那一格没锁住这一项。第 3 条「不论组织那份持有在不在效」是**本契约推导**（取写面 `lockedAbove` 的口径，分叉时取严），已报主线。`EffectiveValue` 形状加可选成员（[S-8](v2/contract.md#s-8-求值结果-effectiveassembly)）；S-32 表、S-33、S-36 的必须观察、消费者核对加一行；examples E-1 加真假两种与「`h6` 带锁」一支、E-4 注五支皆假；上表加 V-9。`capability.tool-admission` v2 的 G-14 随之闭合（那份契约同轮改），`capability.loop-extension-runner` v2 S-29 第 5 条组装时带上。
   - **L8**：[S-6](v2/contract.md#s-6-求值输入-evaluationinput) `mcpActionSets` 一行、[S-8](v2/contract.md#s-8-求值结果-effectiveassembly) 末段与消费者核对里注册表那一行，二次求值的措辞由「以装配那一次的输入」改为「沿用装配那一次的配方（`root` 与 `workspace`），持有与配值取此刻的」（K30 的读法）。
   - **引用补齐**：页首「2026-09-23 的另几条追加裁定」由「D-060 尚未收录」改链 §六 N-7；[S-21](v2/contract.md#s-21-第三步投影) 末段「按项名认种类」改为主线接受（N-7）；[S-24](v2/contract.md#s-24-工作区那一格在第四步只贡献设置) K44 一句改链 §四（R3 落法取代「读入时丢弃」）；页首加修复波 1b 一条。PRE-2 里「租户格以 `organization` 支持有同一份被分享记录」一句当时仍写「D-060 尚未收录」，已报主线，同轮由 N-11 追认（见下一条）。
   - **L3 引用清理**：本包没有 `targetEnvironment` 的引用，无改动。
   - **registry**：catalog 本契约的依赖不变（S-42 只读已消费的 `data.tool-definition` S-15、`data.mcp-endpoint` S-14、`data.asset-model` S-19）；covers 加一条 PF-008「第三档和第四档各有约束」→ S-42；formal-tasks、id-namespaces 不变。
-  - **同轮追加（主线回裁）**：[D-060 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) L13、L14、N-11、N-12。**L14**：S-42 的三条推导（第 1、2 条与第 3 条「不论在不在效」）主线接受——「推导」字样保留、补链 L14；「租户格无持有时第四档怎样落地」并入 `capability.tool-admission` 的 G-2，S-42 末段与消费者核对那一行改指。**L13**：S-42 写明这一位经会话资产注册表每次尝试的可用性报告交到 runner（`capability.asset-registry/v2#S-11` 同轮扩到全部工具条目）。**N-11**：PRE-2 里租户格以 `organization` 支持有被分享记录那一句由「D-060 尚未收录」改链 N-11。**N-12**：[G-6](v2/contract.md#十一已知缺口) 补一句——闭合时读入工作区承载清单那条路也要判 `name_not_projectable`。catalog、covers 不因此变。
+  - **同轮追加（主线回裁）**：D-060 §六 L13、L14、N-11、N-12。**L14**：S-42 的三条推导（第 1、2 条与第 3 条「不论在不在效」）主线接受——「推导」字样保留、补链 L14；「租户格无持有时第四档怎样落地」并入 `capability.tool-admission` 的 G-2，S-42 末段与消费者核对那一行改指。**L13**：S-42 写明这一位经会话资产注册表每次尝试的可用性报告交到 runner（`capability.asset-registry/v2#S-11` 同轮扩到全部工具条目）。**N-11**：PRE-2 里租户格以 `organization` 支持有被分享记录那一句由「D-060 尚未收录」改链 N-11。**N-12**：[G-6](v2/contract.md#十一已知缺口) 补一句——闭合时读入工作区承载清单那条路也要判 `name_not_projectable`。catalog、covers 不因此变。
   - **对证据的影响**：Alloy 模型不含 `tenantAutoWritable`，也不含二次求值的输入怎么组（[formal 入口](v2/formal/README.md)已补一条盖不到），`Evaluation.als` 未改，**本轮未运行 Alloy**；规范场景全部未开始，V-2、V-5、V-9 首次执行按新内容。
 
-- **2026-09-25 第二轮独立评审的处置（修复波 2；候选未冻结，原地改）**：逐条见[独立评审](#独立评审)第二轮。
+- **2026-09-25 第二轮独立评审的处置（修复波 2；候选未冻结，原地改）**：逐条见独立评审第二轮。
   **语义改变**：[S-42](v2/contract.md#s-42-执行权限项另带租户那一层写得进自动吗) 收紧两处——`mcp` 逐动作项上 `tenantAutoWritable` 恒为假（M5）；租户那一格有持有却不在效或指向另一份资产时为假（M7）。放行判断因此在这两种情形下不再摆出第四档。**表示不变**：成员与取值集合未动。
   **认法放宽一处**（M3 的对齐，推导）：干预力按「取值域是三档里含 `observe` 的非空子集」认，声明低于 `veto` 的拓展件照样分档；求值规则不变。
   **措辞改正、不改计算**：第二次求值的用途与配方的归属（B1、M6）——本契约是纯函数，第二次求值与第一次同一套规则，改的只是对注册表怎样用它的转述，现在只引注册表。
@@ -380,7 +345,7 @@
 
 ## 实现映射反推（2026-09-25）
 
-起因：realization-drafter 戊起草 `packages/core/asset-evaluation` 节点时报回的 AE-1、AE-2 与其后第二次报回；主线裁定见 [D-060 §八 M31、M32、M45](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)。**裁定不代替接受**，本契约仍是 candidate。
+起因：realization-drafter 戊起草 `packages/core/asset-evaluation` 节点时报回的 AE-1、AE-2 与其后第二次报回；主线裁定见 D-060 §八 M31、M32、M45。**裁定不代替接受**，本契约仍是 candidate。
 
 | 裁定 | 落点 | 本契约推导的部分（已报主线） |
 |---|---|---|
@@ -398,51 +363,3 @@
 - **examples 对 Schema 的机检**：暂存区脚本（不入库），`jsonschema` 4.26.0（`Draft202012Validator` ＋ `referencing`，锁定 uv 环境），设计根下全部 `*.schema.json` 按 `$id` 登表。本契约不发布 Schema，examples 里是 data 契约之值的只有 E-3 的工作区承载清单（`data.asset-model` 的 `WorkspaceCarrierManifest`）：**1 处，0 不符**；E-1～E-8 的求值输入与结果是集合与表的记法，不是 Schema 实例，不判。只核形状，不是 V- 义务的执行证据。
 - **名字与形状核对**：组合根引用集 `root { definition, references }` 与 `AssetReference { capability, resident? }`（[S-6](v2/contract.md#s-6-求值输入-evaluationinput)）在 `capability.asset-registry` 的 S-4 表、S-23 ④、S-24 ②、消费者核对末行逐字一致（「`definition` 与从那一版定义正文读出的 `references`」）；Alloy 模型的 `rootCap`／`rootRefs` 对应写在 formal/README。无改动。
 - **G-1 的另一端**：`capability.asset-governance` 的 G-6 ③ 已改引 `compositionCycle`，那份契约的消费者核对补了 `categoryUnsupported`（丑落，见那边验证入口）；本契约 G-1 行「那份契约怎样改引归它（已报主线）」一句就此办完，不改本契约正文。
-
-## 2026-09-26 D-068 当前 v3
-
-`capability.asset-evaluation · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，此前旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。
-
-## 2026-09-27 v4 候选变化与证据
-
-**状态：candidate，未接受、未冻结。**本轮只改 v4 与版本外入口，冻结 v3 保留原字节；原运行不自动覆盖新增规则。
-
-变化的影响：输入 `root` 增加必需 `attributes`（可显式空）与 `source {asset, version}`；[S-7 C15/C16](v4/contract.md#s-7-输入的一致性条件)核三项受限声明与实际生效资产版本；[S-21](v4/contract.md#s-21-第三步投影)、[S-22](v4/contract.md#s-22-第四步设置)、[S-45](v4/contract.md#s-45-组合根的受限设置声明)让根声明参与设置求值，根仍不进 composition。根两槽位真实读法引用 `data.agent-definition/v1`，不在本契约重复定义域。两操作及 invalidInput → compositionCycle → categoryUnsupported 次序不变，新增输入不合法仍用 invalidInput、不加 reason 枚举。
-
-消费者影响：model-request-runtime/v3、asset-registry/v3、assembly-manifest/v3 必须显式采用 root 新外壳；注册表/装配生产者从同一已发布正文给引用和声明，source 与求值根生效资产版本相符。身份相符不证明内容真实性；[G-22](v4/contract.md#十一已知缺口)保留正文接受/采用和真实读取证据责任。完整 sub-agent、plugin 继续受 G-3/G-21 限制。
-
-| 证据义务 | 对应性质 | 本次状态 |
-|---|---|---|
-| 有限 Alloy 增量 + 定点变异 | C16、S-21/S-22/S-45：根不入组合但投影，根不可见不贡献、来源失配拒绝、最外锁及无锁时最内值 | 本次实际结果见本节下方；原模型保留字节，只作为层序/资产/锁函数依赖，未重跑原 18 条命令 |
-| E-9 声明 JSON 及拒绝变体 | 引用共用 schema，正有限 Duration、RouteName、声明缺失/重复/越域 | 本次纯值检查见下方；不是实现或真存储证据 |
-| 两操作既有规范场景 | 原 S-33～S-44；root 以显式空属性补齐，旧示例其余结果保持 | **未开始**生产实现符合性验收；旧模型结果不升级声明 |
-| 真实正文 → root 输入 → 求值 → runtime | PRE-9，E-9 A/D/E/F/G：不可变版本、换具体资产、换版、缺时限零出网 | **未开始**；须在窄正文与各消费者接受/采用后执行，fixture 不能替代 |
-| 独立规格评审与接受 | 新输入、失败次序、单向依赖、消费者更新 | **未开始**，归主线；本文不接受自己的草稿 |
-
-本轮 registry 由主线唯一集成者写入；起草者提供 metadata，不把交接候选称为已登记。新增 S-n 仍属本坐标局部编号，无新增编号族。`组合根引用集` 是既有无词条输入外壳，不新增领域对象。
-
-本次实际运行（2026-09-27，执行工作树 `panqiwei/model-request-runtime`；任务区原始文件交主线归档）：
-
-- `Alloy 6.2.0`，[RootSettings 规范模型](v4/formal/RootSettings.als)：`final-positive/run-c7vfp6kz/summary.json` 记录 **2 个 run 找到实例、6 个 check 无反例**；receipt 已按命令种类判读，不只看进程退出码。`final-validity/run-dbgfysrd/summary.json` 记录 **6 个定点变异均找到对应反例**。两次摘要均带原始模型/依赖/检查器 SHA-256 与实际 argv，原始 receipt 和实例同目录保存。目录前缀均为执行仓库 `tmp/model-request-runtime/evaluation-v4/`。
-- `uv run --no-sync python tmp/model-request-runtime/evaluation-v4/check.py`：E-9 正文声明与 24 个变体，共 **25 项 Schema 检查通过**；原始输出 `schema-check.log`、摘要 `schema-result.json` 保存具体输入文件 hash。**没有执行求值实现、没有核实真实正文来源、没有执行运行时零出网验收。**
-- `check_design.py --root .meta_harness/design --formal registered` 首次全树检查报告 **3 个并行材料链接错误**（transport realization 1 个锚点，runtime verification 2 个证据链接）；本包未报错。原始输出 `design-check.log`。它不是本新正模型的执行证据，也不代表 registry 已集成。
-
-`Evaluation.als` 与冻结 v3 同名文件逐字相同；本次运行将它作为新模型的导入依赖使用，不把「原字节不变」本身当原 18 条命令的重跑。Normative Schema 不由 capability 另发：本版仍只引用 data；其 JSON 例子的校验记录不赋予候选接受状态。
-
-最终检查补记：`design-check-final.log` 仍因并行 runtime verification 中 2 个证据链接尚未落盘而整体失败，本包未报错；不把全树失败记作通过。`input-hashes.json` 实际核对 v3 的 4 个冻结资源与 HEAD 完全一致、继承模型与 v3 逐字相同、v4 的 46 个 S-n 条款唯一且齐全，并记录 6 个候选资源 hash。目标 Markdown 的 Prettier check 通过（`format-check.log`）。这些是结构/冻结/格式证据，不是规格接受。
-
-### 同批补充：成功结果读取与捕获配方采用
-
-v4 仍为 candidate，新增 [S-47](v4/contract.md#s-47-成功结果的值读取)及 [E-10](v4/examples.md#e-10-成功结果的公共值读取)：五种结果 DTO、嵌套 CapabilityId 及已知 PermissionValue 的闭合成员、类型、集合键与结果内关系写全；任意设置 JSON 保持开放，文本读取采用 content-blocks/v3 S-24 的严格无损口径。合法非空 unresolved、根缺声明的成功结果仍可读，不因读取要求补项。原两个操作及失败枚举未改；`invalidInput` 不被借作结果读取的判定值。
-
-主线裁定并明确限制：只有结果自身可判的规则属于公共读取；没有声明输入便不能验证任意属性的种类、完整域、元数据应有性、未输出项及其计算正确性。真实 evaluate 生产者仍兑现这些义务。assembly-manifest/v3 消费本条并采用其既有 `unavailable{invalid_evaluation_content}` 收场；`judgeEffectiveAssembly` 的函数形状归 realization，不新增服务操作。
-
-同批来源对账补 [S-6](v4/contract.md#s-6-求值输入-evaluationinput)/C12 的采用注与 [E-11](v4/examples.md#e-11-捕获角色与当前资格分开)：通常输入当前成员事实；只有消费契约明确采用会话创建配方时才用捕获 standing 算角色。PRE-3 原文的「tenant 此刻有效、调用有权」保持不变，捕获 effective 不能证明它。组输入方须另从真实本机权威或明确有效副本核实，失效、无权或未知不能交成功输入；不借请求刷新会话身份/角色。此处仅导航 registry S-24 / runtime S-66，不反向登记规范依赖。
-
-S2-N2 修复：[formal 入口](v4/formal/README.md)页首与 S-32 明确继承 Evaluation 与新增 RootSettings 的各自范围；裸旧命令不登记，新增 receipt 检查器正配置可登记，变异不登记。两个 Alloy 模型均不覆盖 S-47 的 JSON/DTO 读取，也不覆盖 E-11 的真实资格来源。**本次没有重新运行 Alloy**，三个可执行形式输入逐字保留，旧正配置/变异证据保持原范围。
-
-证据义务：E-10 的公共结果读取实现符合性、manifest 的真实非法内容消费，以及 E-11 的真实当前权限/资格来源验收均为**未开始**。静态正文及共用 Schema 核对不能代替它们，不把场景存在记为行为通过。登记 metadata 交主线：新增直接依赖 content-blocks/v3 S-24、manifest 消费 AE4 S-47；没有新增操作、failure、cover、编号族或 formal task。
-
-本轮任务区为 `tmp/model-request-runtime/evaluation-v4/result-reading/`，原 `input-hashes.json` 的 46 条原始证据及旧运行均保留；增量产生新摘要，不覆盖旧 hash。结构脚本只检查正文、共用数据形状与精确小数读取，不是 S-47 的生产判定器。前轮 Prettier 记录补充适用范围：执行路径匹配仓库 `.prettierignore` 的 `.worktrees`，不得把工具成功退出推成目标 Markdown 已被格式验证；本轮不据此作覆盖声明。
-
-本次实际结果（2026-09-27）：`final-with-standing.log` 与 `run-0zag4b2u/summary.json` 记录 **65 项结构/共用值检查通过**，47 条 S-n 唯一，S-15/S-16 操作正文与 46 条原快照一致，冻结 v3 四资源及三个可执行形式输入字节未变；摘要含本次输入 SHA-256。中间的 60 项结果与摘要也保留，不覆盖为最终范围。`design-check.log` 记录 `check_design.py --formal registered` **退出 0，passed gate=internal; formal=registered**；只检查 formal 登记，没有请求执行。限定本 topic 的 `git diff --check` 退出 0。E-10/E-11 实现行为与来源验收仍未开始，Alloy 本轮未运行。

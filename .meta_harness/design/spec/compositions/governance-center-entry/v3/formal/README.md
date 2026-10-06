@@ -10,7 +10,7 @@
 
 三个模型均关闭终点死锁检查；不存在“全部性质已由形式化证明”的声明。AI3的LoginCommit/CredentialRevision提供独立登录/代际有限检查，S52最终G优先与实际路径仍需SQL验证。Schema检查具体逐路由值，不证明行为。
 
-继承的v2业务模型历史运行见[EntryCommit/EntryDecision证据](../../../../../record/evidence/2026-09-25-formal-entry-candidates/README.md)及[ExpectedTenant证据](../../../../../record/evidence/2026-09-24-formal-expected-tenant/README.md)。这些是相应输入修订的历史证据，不陈述v2当前采用状态，也不把旧证据提升为v3维护验证；v3仍为candidate，运行与采用状态分别见版本外verification和registry。
+继承的v2业务模型历史运行见EntryCommit/EntryDecision证据及ExpectedTenant证据。这些是相应输入修订的历史证据，不陈述v2当前采用状态，也不把旧证据提升为v3维护验证；v3仍为candidate，运行与采用状态分别见版本外verification和registry。
 
 ## 维护模型
 

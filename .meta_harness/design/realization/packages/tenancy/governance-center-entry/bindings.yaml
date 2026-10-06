@@ -1,22 +1,3 @@
-# 条款到证据的绑定表。
-# formal 条目：契约自己的形式任务 governance-center-entry-v1-decision（EntryDecision.tla + EntryDecision.cfg）。
-# 它检查的是契约的判定次序模型，不是本节点的源码；每条 assumptions 写明模型盖不到什么。
-# 只绑「对应断言有变异配置证明它会失败」的条款，外加 S-32 的进展性质（前提写明）。
-# 执行记录：record/evidence/2026-09-23-formal-governance-center-entry（输入快照与原始输出已入库，无反例）。
-# formal 条目按原样保留；其前提里写「T-n 未开始」的那些证据形式，现在由下面的 test: 绑定承担。
-#
-# test: 绑定（2026-09-23 起）：全部来自 record/evidence/2026-09-23-tests-tenancy-leg-2（源码提交 c9b5850；
-# 逐条状态 cases.tsv，义务对应 coverage.md），只登该 run 里跑过且通过的用例。本节点兑现两份契约：
-# composition.governance-center-entry v1（下称入口契约）与它认领的传输绑定 composition.governance-center-entry-https-json v1。
-# 证据 id 形式：test:<仓库相对测试文件路径>#<describe> › <it>，整组承担时写到 describe。
-# 各测试文件的夹具（条目里只写差异）：
-#   decide.spec.ts —— 参与方桩（六个被 inject 的治理面按可替换的处理函数作答），纯判定，不经传输；
-#   center.spec.ts —— 真实组合：真实 CV／AI／OG／AR 与本包两个插件同装在一个 Cordis Context，真实 storage-sql
-#     （sqlite 临时文件库，composeMigrations 合成三家片段，upgrade: false），钟是可前推、可答 'unavailable' 的包内替身，
-#     FaultyStorage 在真实存储外注入故障，真 TLS 连接（测试根证书）；
-#   transport／framing／json／bytes —— 真 TLS 连接与 HTTP 报文层字节，或解析器／写出器单元；
-#   ops.spec.ts —— 真 Unix 套接字；lifecycle.spec.ts —— bootAssembly ＋ 同一组合夹具；slow.spec.ts —— 按真实时长。
-# 全部单主机；Node v24.18.0（OpenSSL 3.5.7）、vitest 4.1.11。契约与本节点设计的接受状态不因这些绑定提升。
 version: 1
 node: "governance-center-entry"
 kind: "provider"
@@ -71,16 +52,7 @@ bindings:
       - "一次行为只有一个请求；多个请求之间的交错与排空不在模型里（节点测试 T-12 与契约 V-15）"
     alignment_checked: "2026-09-23"
 
-# 不绑 formal（它们的 test: 绑定见下）：
-# - S-7 答复闭合：AnsweredClosed 断言 reply 落在模型自己定义的 Replies 里，与 TypeOK 同属自指；
-#   具名值的闭合归 Schema 的 RouteFailureName 与节点测试 T-10。
-# - S-18 公开体检不受挡、S-19 免认人路由不看出示物：HealthUnconditional、ExemptIgnoresPresentation、
-#   ExemptInputWithoutLookup 没有变异证明它们会失败（契约 V-3 缺口）；证据形式是节点测试 T-8、T-10、T-17。
-# - S-15 δ = 0：模型一次行为只有一个请求，跨请求缓存无从表达；证据形式只有节点测试 T-7。
-# 没有承担者、不绑：传输绑定 S-17（客户端怎样读答复，归不存在的 apps/cli）；传输绑定 S-19 的「改协议版本时不许动」
-# 是对今后改动的约束，本 run 无法核；入口契约 G-11 的客户端一侧。
 
-  # ================= test: 绑定 · 入口契约 composition.governance-center-entry/v1 =================
 
   - clause: "composition.governance-center-entry/v1#S-17"
     evidence: "test:packages/tenancy/governance-center-entry/tests/decide.spec.ts#T-1 路由表封闭（S-17、S-24；SC-3）"
@@ -326,7 +298,6 @@ bindings:
       - "解析器报告那一半由 json.spec.ts › S-8 重复成员：报告每一处，不取其一…（7 条）承担"
     alignment_checked: 2026-09-23
 
-  # ---- 入口契约的规范场景（各条证据与上面对应的规范条款同一批用例）----
 
   - clause: "composition.governance-center-entry/v1#S-38"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center.spec.ts#T-3 判定次序（真实组合）"
@@ -382,7 +353,6 @@ bindings:
       - "搜索范围是 center.spec.ts 那一个文件的全部输出（按用例名），不是跑完全部测试之后的全部输出"
     alignment_checked: 2026-09-23
 
-  # ================= test: 绑定 · 传输绑定 composition.governance-center-entry-https-json/v1 =================
 
   - clause: "composition.governance-center-entry-https-json/v1#S-13"
     evidence: "test:packages/tenancy/governance-center-entry/tests/bytes.spec.ts#T-2：四种入口答复与 examples §1、§3 逐字节相同"
@@ -491,7 +461,6 @@ bindings:
       - "写出器逐例（11 条）；27 条路由的成功返回按 Exchange 校验由 decide.spec.ts › V-9 与 T-10 的成功那一支：27 条路由的成功返回（28 条）承担"
     alignment_checked: 2026-09-23
 
-  # ---- 传输绑定的规范场景 ----
 
   - clause: "composition.governance-center-entry-https-json/v1#S-26"
     evidence: "test:packages/tenancy/governance-center-entry/tests/transport.spec.ts#V-5 只看请求体（规范场景 S-26）"
@@ -523,7 +492,6 @@ bindings:
       - "中心一侧；客户端一侧无承担者（apps/cli 不存在）"
     alignment_checked: 2026-09-23
 
-  # D055/D056, actual runs: 2026-09-26-tests-governance-maintenance. Historical v1 rows retain their scope.
   - clause: "composition.governance-center-entry/v3#S-55"
     evidence: "test:packages/tenancy/governance-center-entry/tests/maintenance-operations.spec.ts#backs up online, verifies offline, and restores identical bytes with business closed"
     assumptions:

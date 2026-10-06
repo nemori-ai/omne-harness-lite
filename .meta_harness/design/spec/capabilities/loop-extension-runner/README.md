@@ -1,11 +1,11 @@
 # 拓展点协议的操作半边
 
-2026-09-28：[D-100](../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 接受当前后继 v5 全部规范资源；旧格式运行兼容承诺被取代，未表示实现完成。
+2026-09-28：D-100 接受当前后继 v5 全部规范资源；旧格式运行兼容承诺被取代，未表示实现完成。
 
 **当前候选 `capability.loop-extension-runner/v5`**：[契约](v5/contract.md)与[变化及证据](verification.md#v5-发布前破坏性演进)。由已接受 v4 机械演进，只更新精确消费链并删除旧格式兼容过渡义务；当前代际在途与历史责任保持。未接受、未冻结；中央登记由本批唯一 owner 集成，旧冻结版本不改。下文既有进展按原版本和当时事件读取。
 
 
-当前接受坐标为 `capability.loop-extension-runner/v3`（[D-076](../../../record/decisions/model-runtime-delivery-adoption/decision.md)）；当前新草稿为 [v4 candidate](v4/contract.md)，尚未接受。下面的 v2 导航保留其原采用范围，v3/v4 增量入口见文末。
+当前接受坐标为 `capability.loop-extension-runner/v3`（D-076）；当前新草稿为 [v4 candidate](v4/contract.md)，尚未接受。下面的 v2 导航保留其原采用范围，v3/v4 增量入口见文末。
 
 ## v2 已发布版本导航
 
@@ -18,7 +18,7 @@
 **兼容件对本契约与任何一件原生件没有区别**。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.loop-extension-runner, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 `accepted`；`family=capabilities`、`topic=loop-extension-runner`、
   `contract_path=spec/capabilities/loop-extension-runner/v2/contract.md`；`resources` 含契约与 `examples.md`；
   依赖十五项：六项数据契约（`data.loop-extension/v2`、`data.messages/v2`、`data.content-blocks/v2`、`data.call-accounts/v2`、`data.model-response/v2`、`data.identity-values/v1`），clauses 取自[契约 S-4](v2/contract.md#s-4-依赖方向与被消费的面)；
@@ -62,7 +62,7 @@
 
 ## 2026-09-26 版本接受
 
-本次接受 `capability.loop-extension-runner` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `capability.loop-extension-runner` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
 
 ## 2026-09-27 v3 接受
 
@@ -70,10 +70,10 @@
 
 本轮追加候选已补齐当前拓展表的 MF3／registry3／AE4 同 E 读取，作者与 runner 提醒的身份责任、后置 ID 冲突收场，默认重试的 owner 标识，以及守卫全部失败映射。两操作及失败枚举保留，既有失败的适用范围已明确细化。[有限回放模型](v3/formal/README.md)含四份正向配置和十份反例配置；实际 TLC 结果与局限见 verification，未改变 candidate 状态。
 
-2026-09-27：[D-076](../../../record/decisions/model-runtime-delivery-adoption/decision.md)技术接受并冻结v3精确资源；实际符合性验证尚待生产实现。版本内原候选标签不作为registry接受状态权威。
+2026-09-27：D-076技术接受并冻结v3精确资源；实际符合性验证尚待生产实现。版本内原候选标签不作为registry接受状态权威。
 
 ## 2026-09-28 v4 候选
 
 [v4 契约](v4/contract.md)继承 v3 的 52 条款，新增 [S-53](v4/contract.md#s-53-失败结论的模型调用关联) 与 [S-54](v4/contract.md#s-54-重试结论历史与回放)，消费 LC5/MS5/MR6/RT6；两个操作、失败集合和先落后算保持。[规范场景](v4/examples.md#12-v4失败结论关联完整历史与提交后回放)、[形式工件](v4/formal/README.md)、[变化与证据](verification.md#v4-候选完整失败历史)可分别展开。候选尚未接受，不改 v2/v3 冻结工件，不自动迁移旧消费者；登记片段由主线统一合入 registry。
 
-2026-09-28：[D-099](../../../record/decisions/model-input-limit-consumer-contract-adoption/decision.md)在独立复评闭合后技术接受 v4；规范资源冻结。实现采用和验证另行交付，原文 candidate 是起草状态。
+2026-09-28：D-099在独立复评闭合后技术接受 v4；规范资源冻结。实现采用和验证另行交付，原文 candidate 是起草状态。

@@ -71,16 +71,14 @@ PF-002 因对象的种类或组合形状变，本 topic 因流动的方向或语
 | 谁能复制或分享给谁 | [方向表](design.md#62-谁能流向谁) |
 | 分享怎么撤、邀约什么时候过期、谁来确认、失败了怎么办 | [流程与状态](flows.md) |
 | 做成什么样算做对了 | [验收标准](acceptance.md) |
-| 哪些是拍板定的，哪些是推导的 | [决策与来源](decisions.md) |
-| 这块设计怎么演变到今天 | [变更历史](changelog.md) |
-| 当时是怎么谈的 | [设计交流笔记](interviews/README.md) |
+| 哪些是拍板定的，哪些是推导的 | [当前规则与范围](design.md) |
+| 这块设计怎么演变到今天 | [当前规则与范围](design.md) |
 
 ## 状态
 
-- 产品设计：**rev 6**，本次工作区一致性增量**已正式接受**（2026-09-27，依据[本次登记](decisions.md#2026-09-27-工作区增量正式状态登记)）；此前 rev 5 的正式接受范围保留（[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)），现存未决与技术投影状态分别保留。
+- 产品设计：**rev 6**，本次工作区一致性增量**已正式接受**（2026-09-27，依据[当前规则与范围](design.md)）；此前 rev 5 的正式接受范围保留（D-065），现存未决与技术投影状态分别保留。
 - 未决项：**无**
-- 待裁决：**0**；提升时生效分享的现行规格处理已随 D-065 接受，历史候选与来由见 decisions.md。
-- 技术投影：[v2](projection/README.md)，当前 accepted／post-review；规格来源已冻结，产品与节点以快照 hash 核对；显式缺口及未实现状态分别保留
+- 技术投影：[v2](projection/README.md)，当前 accepted／post-review；规格来源已冻结，精确采用范围由当前正文表达；显式缺口及未实现状态分别保留
 
 技术投影按 `harness-design-handbook` skill 展开，
 产物按其步骤 G 落回本包的 `projection/v2/`。
@@ -93,7 +91,4 @@ PF-003-asset-transfer-and-sharing/
 ├── design.md         两个动作、边界、规则、取舍、未决
 ├── flows.md          旅程、异常分支、状态流转、角色矩阵
 ├── acceptance.md     可观察场景、绝不能发生的事、判据
-├── decisions.md      拍板记录 / PM 推导 / 待裁决 / 来源问题
-├── changelog.md      产品设计本身的演进
-└── interviews/       设计交流笔记（原始材料）
 ```

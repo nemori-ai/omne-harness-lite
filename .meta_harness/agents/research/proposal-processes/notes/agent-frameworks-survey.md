@@ -75,7 +75,7 @@
 
 **观察**：`Decision Log` 要求"每个决定 + 理由 + 日期/作者"，但**不要求备选**。`Surprises & Discoveries` 要求带证据（`with brief evidence`）。
 
-**推断**：`PLANS.md` 的设计目标是"让一次 agent 施工可被接手与复盘"，不是"让一个架构选择可被复议"。它对应本项目的[交付规划](../../../maintenance/knowledge-flow.md)一环，不对应提案。
+**推断**：`PLANS.md` 的设计目标是"让一次 agent 施工可被接手与复盘"，不是"让一个架构选择可被复议"。施工接续与架构选择是不同用途。
 
 ## 4. AI 撰写政策（观察，Q4 直接证据）
 
@@ -89,17 +89,3 @@
 **观察**：四家的共同点是——**AI 可以参与，但"论证的所有权"必须在人身上**，且必须可被追问。Letta 是唯一把它做成自动门（不合规自动关闭并锁定）的。
 
 **观察**：Letta 的 `AI_POLICY.md` 里还有一句直接针对本项目场景的判断：`It is rude and disrespectful to approach this boundary with low-effort, unqualified work, since it puts the burden of validation on the maintainer.`
-
-## 5. 与本项目骨架的对照（推断）
-
-- **没有一家 AI agent 框架给"提案 → 备选 → 决策"提供了可借鉴的正面先例。** 本项目若要在这一层建框架，参照系只有通用开源流程（Rust/PEP/KEP/Swift/TC39/Nix/EIP/IETF）、ADR 家族，以及 MCP / Semantic Kernel / DSH 三家。
-- **值得借鉴的一条**：`PLANS.md` 的 `Surprises & Discoveries`（带证据的意外发现）——本项目的[知识流转](../../../maintenance/knowledge-flow.md)里"新观测挑战有效决定"缺一个轻量入口，这个形状可用。
-- **必须正视的一条**：四份 AI 政策指向同一个判断——机器可以写，但要有人对论证负责、并能在被追问时用自己的话解释。本项目"由 AI agent 撰写与维护提案"的设定在上游没有先例支持，因此"谁为论证负责"必须由本项目自己的裁决分层（作者裁决 / 用户裁决）承担，不能诉诸上游惯例。
-
-## 6. 局限与未覆盖
-
-- 只看了仓库根目录、`.github/`、`docs/` 一层与几个明显的候选目录；**没有**全仓库 grep "RFC"/"ADR"/"design doc"，因此可能遗漏埋在子包里的设计决定记录。
-- 没有看任何一家的 GitHub Discussions 实际内容（只看了 discussion 模板），也没有看它们的公司内部流程（LangChain、Letta、Mastra、CrewAI 均有商业主体，内部可能有不公开的设计评审）。
-- `microsoft/autogen` HEAD 停在 2026-04-06，主线开发已迁往 `ag2ai/ag2`（社区 fork）与微软自己的后继项目；本笔记对 AutoGen 的观察只对该快照有效。
-- 未覆盖 Anthropic / OpenAI 自身的公开设计文档惯例——本轮能找到的最接近物是 MCP 的 SEP（Anthropic 发起）与 OpenAI Agents SDK 的 `PLANS.md`；两家公司内部的设计文档流程**不公开，本轮无法核对**。
-- Mastra 的 `explorations/` 只读了一份（`agent-network-vs-ralph-wiggum.md`）；其余七份的形态未逐份核对。

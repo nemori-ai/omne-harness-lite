@@ -27,7 +27,7 @@
 |---|---|
 | 已有规则内的文字、链接、工具修复或实现修正 | 定位内容所有者或精确契约，在任务范围内修改并做相称验证；不要求另造提案或决定 |
 | 新需求、新能力，或职责、身份、授权、生命周期、失败等语义变化 | 在 `.meta_harness/design/` 相应 family 接续或创建信息包，沿手册分析现有能力覆盖、剩余责任与候选；必要政策未明确时，暂停依赖它的实施 |
-| 新观察挑战已有决定 | 按 [record 家族](.meta_harness/design/record/README.md)的规矩关联受影响决定，提交可复现、可验证的因果依据；观察本身不自动取代决定 |
+| 新观察挑战已有决定 | 定位现行承诺与范围，在任务 tmp 提供反例和比较；当前正文经明确接受后修订，观察不自动改变承诺 |
 | 发布或修订正式规格 | 按[架构维护规则](.meta_harness/design/architecture/README.md)维护唯一承诺源、接受依据和消费者；未迁规格仍按 registry/spec 冻结，历史原件不覆盖 |
 | 衔接能力规格、提供者设计与实施交接 | 加载 `harness-design-handbook` skill 的「规格演进」，明确当前正文、就绪范围、受影响消费者与未完成义务 |
 | 创建或维护 skills、角色及宿主适配 | 在 [.meta_harness/agents](.meta_harness/agents/README.md) 修改源；skill 加载官方 `skill-creator`，角色加载 `design-subagents` skill，AGENTS.md 加载 `write-agents-md` skill |
@@ -95,7 +95,7 @@ agent 参与产出的提交另带 `Harness:` 与 `Agent-Role:` 两条来源 trai
 中的关键跨能力交接沿 `harness-design-handbook` skill 的「契约描述」→「沿完整动作链核对组合」核对。
 
 评审意见、设计接受、实现完成和验证通过分别记录。政策与正式规格的接受、部分
-接受或取代在 [record/decisions](.meta_harness/design/record/decisions/README.md) 闭合。
+当前采用范围归唯一承诺拥有者；接受或取代过程放工作树 tmp。
 合并、推送、发布或部署依任务授权执行，评审结论和本指南本身不授予这些动作的权限。
 
 ## 维护这份入口

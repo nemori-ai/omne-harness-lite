@@ -1,2 +1,0 @@
-{"ts":1791185408678,"level":"error","name":"tenancy-host","event":"dispose-incomplete","unfinished":["storage-sql"],"controller":"pending","storage":"pending"}
-{"ts":1791185408679,"level":"error","name":"tenancy-host","event":"startup-failed","stage":"plugin","errorType":"HostStartupFailure","message":"tenancy-host startup failed at plugin: plugin tree observer failed"}

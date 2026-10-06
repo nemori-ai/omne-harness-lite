@@ -11,10 +11,9 @@
 上游全部 7 个受 Git 管理的文件均进入 `canonical/`，包括 README、许可、规则说明、示例和检查器。
 这是本仓库维护的源码副本；Git 历史由上游提交定位，不引入嵌套仓库或 submodule。
 
-首次迁入的唯一调整是将 `SKILL.md` 的顶层 `version: 0.4.0` 移至 `metadata.version`，
-以通过 Codex 官方 skill 校验；名称、description、完整正文和其余文件逐字节保留。
-每份原件与迁入文件的 SHA-256、上游文件模式及调整记录见 [来源清单](.design/upstream.json)。
-清单记录本次引入基线，后续本地演进不回写这份历史观察。
+本地 `SKILL.md` 将上游 `version` 放入 `metadata.version`，以满足宿主校验；
+写作要求与适用范围由本地参考页维护。更新时对照上游修订和当前本地差异，
+不维护引入事件、逐文件迁移哈希或历史验证账本。
 
 上游采用 [MIT 许可](canonical/LICENSE)，保留原版权与许可全文。
 `canonical/README.md` 是保留的上游说明；本仓库的维护、生成与验证入口以本页为准。
@@ -44,7 +43,6 @@
 ```text
 asd-ste100/
 ├── README.md                  本地维护入口，不分发
-├── .design/upstream.json      原始引入基线，不分发
 ├── canonical/                 唯一运行源
 │   ├── SKILL.md
 │   ├── README.md              上游原说明

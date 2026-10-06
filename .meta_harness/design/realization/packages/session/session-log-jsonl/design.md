@@ -1,23 +1,23 @@
 # session-log-jsonl 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 ## 实现路径与来源
 
-**自建一个 Cordis 插件与它背后的一个不依赖 Cordis 的闭包，只用 Node 内置模块与本仓库的纯模块。**会话日志的判重、尝试栅栏与「一本日志一个租户」是本项目的产品语义（PF-012、PF-015），DSH 没有对应物；[D-026](../../../../record/decisions/infrastructure-persistence-choices/decision.md) 已把会话日志一类的本地持久化定为**文件系统 JSONL**，格式与目录留给本节点——所以不引嵌入式键值库，也不把日志放进 SQL（据点装配[关键选择 3](../../../apps/cli/design.md#关键选择)）。
+**自建一个 Cordis 插件与它背后的一个不依赖 Cordis 的闭包，只用 Node 内置模块与本仓库的纯模块。**会话日志的判重、尝试栅栏与「一本日志一个租户」是本项目的产品语义（PF-012、PF-015），DSH 没有对应物；D-026 已把会话日志一类的本地持久化定为**文件系统 JSONL**，格式与目录留给本节点——所以不引嵌入式键值库，也不把日志放进 SQL（据点装配[关键选择 3](../../../apps/cli/design.md#关键选择)）。
 
 | 用什么 | 从哪来 | 用来做什么 |
 |---|---|---|
 | `node:fs/promises`（追加写、`datasync`、按偏移读、`truncate`、`rename`、目录 `sync`） | Node ≥ 24 内置 | 日志与索引的落盘、确认、截回、重写 |
 | `node:crypto`（SHA-256） | 同上 | 会话指认 → 目录名 |
 | `node:sqlite`（只用来持一把随进程死亡释放的文件锁） | 同上 | 日志目录的属主排他——借 sqlite 的文件锁作原语，与 [`infra/storage-sql` 升级守卫的属主锁](../../infra/storage-sql/design.md#排他为什么是随进程死亡释放的锁)用的是同一原语（那边 2026-09-23 取证：同进程两句柄互斥、持有者被杀即可取得）；两者锁的对象与目的不同（那边是 sqlite 库的升级属主，这里是日志目录的属主），主线已裁不抽共享件（SLJ-3，观察项） |
-| `readJsonStrict`、`writeJsonLossless`、`JsonNumber` | [`core/content-blocks`](../../core/content-blocks/design.md#严格的无损-json-读写)（[D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M36、M53） | 载荷与整行的严格无损读写（契约 S-11 第 2 条） |
+| `readJsonStrict`、`writeJsonLossless`、`JsonNumber` | [`core/content-blocks`](../../core/content-blocks/design.md#严格的无损-json-读写)（D-060 §八 M36、M53） | 载荷与整行的严格无损读写（契约 S-11 第 2 条） |
 | `TenantId`、不透明标识的词法（`data.identity-values/v1#S-31`） | [`core/identity-values`](../../core/identity-values/README.md) | 租户身份、判重键与读取键的表示层校验 |
 | `SessionRef` | [`core/messages`](../../core/messages/README.md) | 会话指认 |
 | `RunId`、`AttemptId` | [`core/call-accounts`](../../core/call-accounts/README.md) | 条目壳的运行与尝试 |
 | `definePlugin` | [`core/kernel-basis`](../../../../../../packages/core/kernel-basis/README.md) | 插件骨架与配置校验（配置错误 ⇒ 启动失败的唯一实现点） |
 
-**Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）。机制语义引 [basis](../../../../basis/README.md) 条目。
+**Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（D-025）。机制语义引 [basis](../../../../basis/README.md) 条目。
 **配置**：`dir`（日志根目录，绝对路径，无初值）与[策略配置项](#策略配置项)两项。**配置错误政策：启动失败**（形状不对、`dir` 缺席或不是绝对路径、策略项越界 ⇒ 插件体不跑、fiber `FAILED`、不 provide；basis [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)）——与 `infra/storage-sql`、`infra/clock` 与三个持钥节点同一政策。
 
 ## 公开面
@@ -107,9 +107,9 @@
 | | 只写进操作系统，不强制刷盘（与 D-027 对 SQL 存储取 `synchronous = NORMAL` 同口径） | 刷盘政策做成配置项 | **每批写完 `fdatasync`，返回成功在它之后（选）** |
 |---|---|---|---|
 | 落选方的最强论证 | 契约 S-13 第 2 条只要求「进程崩溃再起来不丢」，写进操作系统就够；首 token 热路径上少一次耐久写（模型请求运行时节点 MRR-N7 未测）；与同一据点里那份 sqlite 的断电边界一致，只有一种口径 | 策略不写死：将来要换就改配置 | —— |
-| 本方弱点 | —— | —— | 每批多一次 `fdatasync`，延迟未测（实施程测量项，与 MRR-N7 同一测量）；它守住的只是日志一侧——SQL 一侧按 [D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md) 仍可能在断电时丢最后一段，**跨两种存储的断电次序不保证**（已知边界 SLJ-2） |
+| 本方弱点 | —— | —— | 每批多一次 `fdatasync`，延迟未测（实施程测量项，与 MRR-N7 同一测量）；它守住的只是日志一侧——SQL 一侧按 D-027 仍可能在断电时丢最后一段，**跨两种存储的断电次序不保证**（已知边界 SLJ-2） |
 | 为什么选它 | **会话日志是下游写入的前提**：执行宿主把出站项标成「已送达」、模型请求运行时发出请求，都在日志追加返回之后。只写进操作系统时，断电可以丢掉日志里那一行、却留下 sqlite 里更晚提交的「已送达」——两个文件的回写次序没有保证——**那条消息永远丢了**（据点装配[同一提交表](../../../apps/cli/design.md#存储要求清单与跨-owner-的同一提交)第一行的形状②由此失守）；刷盘之后，日志一侧总不晚于依它写下的那一侧 | 它不是调优旋钮而是上一格那条因果的前提：配成「不刷」时那条因果无声地断；D-027 同样没为 sqlite 开这个开关 | 断电边界随之收窄为：**本节点确认过的批次，断电后仍在**（前提：本地文件系统如实执行 `fdatasync`，SLJ-7）；日志一侧唯一还会在断电时丢的是「写了、没确认」的那一行，它的写入方本来就没收到成功 |
-| 置信度 | | | 中高：主线已裁（[D-060 §八 N-40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）接受——D-027 的 `NORMAL` 只管 sqlite 那一份存储，不约束文件系统日志；契约 S-13 第 5 条「提交即持久」是契约性质 |
+| 置信度 | | | 中高：主线已裁（D-060 §八 N-40）接受——D-027 的 `NORMAL` 只管 sqlite 那一份存储，不约束文件系统日志；契约 S-13 第 5 条「提交即持久」是契约性质 |
 
 **三、一行一次提交（选），不做「一行一条条目加提交标记行」。**
 
@@ -259,7 +259,7 @@
 | # | 缺口 | 受阻的消费或条款 | owner | 闭合条件 |
 |---|---|---|---|---|
 | SLJ-1 | **真承接者未到**：本节点是契约第十一节的最小提供者；整本会话日志的契约与真提供者归 loop 与会话那一程（契约 G-1，据点装配 C-1） | 产品据点清单里派发器与模型请求运行时停在 `PENDING`（本版不装本节点，据点装配关键选择 5） | 主线 → loop 与会话那一程 | 那一程的契约收下或取代 SL v1，提供者节点与本节点互指或取代本节点 |
-| SLJ-2 | **已知边界（主线已裁，[D-060 §八 N-40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ②）：每批 `datasync` 接受；跨两种存储的断电次序仍不保证。**D-027 的 `NORMAL` 只管 sqlite 那一份存储，不约束本节点的文件系统日志；契约 S-13 第 5 条「提交即持久」是契约性质，本节点照[关键选择二](#关键选择)兑现，**日志一侧确认过的批次断电后仍在**。SQL 一侧按 D-027 仍可能丢最后一段已提交事务；`storage-sql` 升级未确认即撤除时恢复快照，是同一形状的另一条来路（SQL 回退、日志不回退）——两种情形下，日志里已确认的条目都可能指着 SQL 一侧已经不在的行。**受影响的是 SQL 一侧的两处**：会话持有租户 `capability.session-tenancy/v2#S-6`（[session-tenancy-table](../session-tenancy-table/design.md#实施缺口与消费者影响) STT-3）、装配清单 `capability.assembly-manifest/v2#S-24` 与 S-13（[assembly-manifest-store](../../assets/assembly-manifest-store/design.md#实施缺口与消费者影响) AMS-4、AMS-5）——它们引这一条，不另论证。每批多一次耐久写的延迟未测，记为**实施程测量项**（verification V-13，与模型请求运行时 MRR-N7 同测） | 契约 S-13 第 5 条、G-3；ST S-6、AM S-24；首 token 热路径 | 主线（边界）；实现者（测量） | 不闭合的已知边界：产品要求跨存储的断电次序时另出决定（sqlite 改 `FULL`，或两处落进同一事务域）；升级恢复那一条来路由「开闸在确认之后」挡住——已由 [cli 升级确认在第一次受理之前](../../../apps/cli/design.md#升级确认在第一次受理之前) 承接（据点清单 A-28，产品与验收装配同一时点：全部 fiber `ACTIVE` 之后 `guard.confirm()`，确认之后才开闸；证据义务 `assembly.upgrade-confirmed`，名候选，归 cli 节点）；测量结果记入 verification |
+| SLJ-2 | **已知边界（主线已裁，D-060 §八 N-40 ②）：每批 `datasync` 接受；跨两种存储的断电次序仍不保证。**D-027 的 `NORMAL` 只管 sqlite 那一份存储，不约束本节点的文件系统日志；契约 S-13 第 5 条「提交即持久」是契约性质，本节点照[关键选择二](#关键选择)兑现，**日志一侧确认过的批次断电后仍在**。SQL 一侧按 D-027 仍可能丢最后一段已提交事务；`storage-sql` 升级未确认即撤除时恢复快照，是同一形状的另一条来路（SQL 回退、日志不回退）——两种情形下，日志里已确认的条目都可能指着 SQL 一侧已经不在的行。**受影响的是 SQL 一侧的两处**：会话持有租户 `capability.session-tenancy/v2#S-6`（[session-tenancy-table](../session-tenancy-table/design.md#实施缺口与消费者影响) STT-3）、装配清单 `capability.assembly-manifest/v2#S-24` 与 S-13（[assembly-manifest-store](../../assets/assembly-manifest-store/design.md#实施缺口与消费者影响) AMS-4、AMS-5）——它们引这一条，不另论证。每批多一次耐久写的延迟未测，记为**实施程测量项**（verification V-13，与模型请求运行时 MRR-N7 同测） | 契约 S-13 第 5 条、G-3；ST S-6、AM S-24；首 token 热路径 | 主线（边界）；实现者（测量） | 不闭合的已知边界：产品要求跨存储的断电次序时另出决定（sqlite 改 `FULL`，或两处落进同一事务域）；升级恢复那一条来路由「开闸在确认之后」挡住——已由 [cli 升级确认在第一次受理之前](../../../apps/cli/design.md#升级确认在第一次受理之前) 承接（据点清单 A-28，产品与验收装配同一时点：全部 fiber `ACTIVE` 之后 `guard.confirm()`，确认之后才开闸；证据义务 `assembly.upgrade-confirmed`，名候选，归 cli 节点）；测量结果记入 verification |
 | SLJ-3 | **已裁：观察项（主线，D-060 §八 N-40 ②）——不抽共享件。**`infra/storage-sql` 的排他是升级守卫的属主（sqlite 库级），本节点是日志目录的属主（借 sqlite 文件锁作原语）：机制与目的都不同，两份实现不是同一概念的两份权威 | —— | 主线 | 出现第三个「目录属主」消费者时再议抽共享件 |
 | SLJ-4 | **插件重跑时新实例早于旧实例放锁 ⇒ 启动失败**：重跑时旧 effect 的撤除是否先于新插件体**完成**，basis [`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md) 只说「先卸载再重跑」——**待核对主张**，与 storage-sql 交错 (d) 同一件 | 运行期重跑（据点装配本版不做） | `core/kernel-basis` owner | 按 source-check 取证后定要不要一条测试；若旧撤除不先完成，改为有界等待锁（届时是一个策略配置项） |
 | SLJ-5 | 两个策略项的初值没有测量依据；写与确认没有超时 | 长期待机的内存与句柄上界；挂住的文件系统 | 实现者 | 有测量再调初值；出现网络存储或挂住的实际案例再议超时 |

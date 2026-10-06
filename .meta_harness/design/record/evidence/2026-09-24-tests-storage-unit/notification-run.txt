@@ -1,8 +1,0 @@
-Source: captured tool output, 2026-09-24 22:01:37 local.
-Command: fnm exec --using 24 pnpm --filter @omne-harness-lite/storage-sql test tests/atomic-notifications.spec.ts
-Vitest 4.1.11
-Test Files  1 passed (1)
-Tests  2 passed (2)
-Type Errors  no errors
-Exit code 0
-This is a transcribed execution summary; no original JSON reporter was requested for this supplementary run.

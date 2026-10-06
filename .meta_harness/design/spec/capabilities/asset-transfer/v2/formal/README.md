@@ -1,7 +1,7 @@
 # 形式化工件与论证映射
 
 本页拥有**条款 → 性质 → 模型 → 检查配置**这一层对应关系，以及工件**盖不到什么**。
-它不是模型，也不是证明，**不填通过状态**——实际执行的工具、配置、范围与结果在[验证入口](../../verification.md)。
+它不是模型，也不是证明，**不填通过状态**。[验证入口](../../verification.md)维护方法、覆盖、前提和限制；每次运行输入与输出放本工作树 `tmp/<task>/`。
 
 本版只选一个工件：TLA+ 行为模型 [`Transfer.tla`](Transfer.tla)，理由在[契约 S-38](../contract.md#s-38-本版选用哪些形式工件)。
 **不建 Alloy、不建 Schema**：边界判据的结构性质归 `capability.organization-governance`（它的 v1 Alloy 在给定规模内检查过，v2 声明沿用、不含两个时刻；范围与尚未做的变异核对见[那份验证入口](../../../organization-governance/verification.md)，不算作本契约的证据），

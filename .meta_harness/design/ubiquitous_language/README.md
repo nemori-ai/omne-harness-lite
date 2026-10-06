@@ -70,7 +70,7 @@
 |---|---|
 | [index.md](index.md) | **全部词条一览**，查重从这里开始。**它不是定义** |
 | [conventions.md](conventions.md) | **格式契约**：词条长什么样、每个字段与每个[形态](conventions.md#形态这个词指的是哪一类东西)取值什么意思、`runtime` 这类写死了的用词规矩。读的人、写的人与对账器共用 |
-| [decisions.md](decisions.md) | **不归任何 topic 的那些概念**，产品负责人对它们的直接裁决 |
+| [现行词义](index.md) | **不归任何 topic 的那些概念**，产品负责人对它们的直接裁决 |
 | [conflicts.md](conflicts.md) | **提取时发现的对不上的地方**，如实记录，不静默改掉 |
 | [AGENTS.md](AGENTS.md) | 进到这一区的人各走哪条路：谁只读、谁要加载 skill，以及落字的红线 |
 
@@ -80,7 +80,7 @@
 > **有些概念不归任何一个 topic**——[会话与运行](terms/agent-runtime-loop.md)、
 > [架构内核](terms/architecture-core-and-extension.md)都是。
 > 它们是**跨全链的治理概念**，被很多 topic 引用却没有哪一个拥有，
-> **依据在 [decisions.md](decisions.md)**。**这是出处的第二种合法形式，没有第三种。**
+> **依据在 [现行词义](index.md)**。**这是出处的第二种合法形式，没有第三种。**
 
 ## 它怎么生长
 
@@ -114,7 +114,7 @@
 | **机器可读的词表** | 手写的家只有这一份。将来要给工具吃，由生成器产出到 [views/](../views/README.md)，**不在这里维护第二份** |
 | **给每个实例建词条** | `Tools()` `Shell()` 是 **meta tool 的实例**，不是概念。定义「meta tool」，不定义十三个名字 |
 | **收录只在一处出现的修辞** | 那是文风，不是术语。什么配有词条，五条准入判据在 `ubiquitous-language` skill |
-| **改 topic 正文的措辞** | 这里立规矩，**回改是另一件事**，要各 topic 的 owner 自己做并记 changelog |
+| **改 topic 正文的措辞** | 这里立规矩，**回改是另一件事**，要各 topic 的 owner 自己做并维护现行正文 |
 | **收上游内核与第三方的机制语义** | 归 [basis/](../basis/README.md)，那里有 probe |
 | **收契约里的精确承诺与字段** | 归 [spec/](../spec/README.md) |
 | **给设计材料的编号、一次分析里用的性质编号建词条** | PF 是设计材料的编号，不是系统里的概念；性质编号是任务产物，见 [id-namespaces](../registry/id-namespaces.json) |

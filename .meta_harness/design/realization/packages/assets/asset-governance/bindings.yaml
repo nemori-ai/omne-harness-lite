@@ -1,15 +1,3 @@
-# 条款到证据的绑定表。
-# 只绑已登记的 formal task：asset-transfer-v2-transfer（Transfer.cfg）、asset-transfer-v2-share（Transfer_Share.cfg）、
-# asset-transfer-v2-revival（Transfer_Revival.cfg），运行 record/evidence/2026-09-25-formal-assets-runtimes（HUB 1667ea4c，三个任务退出 0、无反例）。
-# 每条只绑到「去掉那一处保护会被反驳」的那个性质所在的任务（契约 formal/README 的映射表），不绑「相关的」任务。
-# 这些证据检查的是契约模型，不是本节点的实现（尚未建包）；共同前提（除非条目另写）：
-#   - 模型把确认、本人型发起、撤回、撤销、移除、删除与提升写成不可分割的动作，即假设本节点的存储锁（design 的 L-1～L-6）真的兑现了序列化——
-#     sqlite 上由写事务库级串行给，pg 上由锁给；这条由本节点与存储提供者承担，模型不检查（verification D-1～D-12）；
-#   - 规模：三个团队组织、两个账号的四个租户身份、两份资产、每类两份同源同落点的待确认件；更大规模是另一次检查；
-#   - 不带公平性假设，不检查进展；死锁检查关闭。
-# 不绑（被建模方式吸收，证据形式在 verification）：TypeOK；EffectsOnlyFromConfirmation；EndedStable；
-# AT S-52 的提升一支（Promote 守卫不看分享，按构造成立）；AT S-9 的两读先后（Use 一步原子读）；
-# 「血缘只在落进的那一层里找」；AT S-20 ⑦ 尝试键认回。capability.asset-governance 不建形式工件，无 formal 绑定。
 version: 1
 node: "asset-governance"
 kind: "provider"

@@ -1,19 +1,3 @@
-# 条款到证据的绑定表。
-# 2026-09-27 revision7：完整定义公共增量七条及当前37目标身份检查，实际 run 见
-# record/evidence/2026-09-27-tests-model-request-runtime-definitions；旧绑定保留其原运行范围。
-# 当前：D-076 采用后 P1 五条、P2 五条及revision4三条、revision5三条局部测试绑定；P2 原文见
-# record/evidence/2026-09-27-tests-model-request-runtime-p2；P1 输入/输出见
-# record/evidence/2026-09-27-tests-model-request-runtime-p1。以下 0 条说明是原历史读数。
-# 本节点 0 条：源码不存在，没有任何已登记的形式任务或测试以本节点的代码为对象。
-# 不绑：
-# - formal:model-request-runtime-v2-invocation——那份模型不含传输（契约 S-40 末段：追加口、成因表、脱敏、凭据都不在模型里），
-#   它的六条会失败的不变量证的是运行时层的次序，不证传输适配十一条中的任何一条。
-# - 2026-09-16 的真实短请求与 2026-09-23 的比较门现状（D-019 两份追加）——另一条实施线的代码与样本，不是本节点的实现。
-# 契约 S-38 传输适配十一条与生产者一侧义务的证据形式是本包的符合性测试（脚本化的本机 HTTP 端）与 D-019 比较门的实测，
-# 逐条登在 verification.md「证据义务」；有了实际运行（record/evidence 下的 run）再在这里登绑定，每条写 assumptions。
-# 2026-09-27 v3 增量仍为 0：Adaptation 有限模型及 Cordis 生命周期原型支持候选可行性，
-# 不以本节点生产注册表、真实 socket 或 37 模型适配代码为对象；范围与反例记 verification.md，
-# 不将原型运行名假造为 test id，不以单消费者至多 acquire 一次的模型构造绑定可重复取得语义。
 version: 1
 node: "pi-ai-transport"
 kind: "provider"

@@ -1,11 +1,11 @@
 # tenancy-host 验证与证据
 
-2026-09-26接续：[macOS夹具反例与修复](../../../record/evidence/2026-09-26-tests-host-macos-fixtures/README.md)。短化Unix socket路径、显式命名曲线后，在实际OpenSSL3.6.3工具链下host 187通过/11 PG跳过；合入HUB独立e2e 46/46。保留旧LibreSSL及路径失败原件；不扩为Docker或全平台结论。
+2026-09-26接续：macOS夹具反例与修复。短化Unix socket路径、显式命名曲线后，在实际OpenSSL3.6.3工具链下host 187通过/11 PG跳过；合入HUB独立e2e 46/46。保留旧LibreSSL及路径失败原件；不扩为Docker或全平台结论。
 
 本页登记本节点**触发了哪些证据义务、实际跑过什么、覆盖到哪里**。原始配置、输入快照与运行结果归
-[record/evidence](../../../record/evidence/README.md)，本页只引用并解释范围。
+record/evidence，本页只引用并解释范围。
 
-> **一句话状态：义务表 32 行——已实现部分 26 行，24 行已通过、2 行部分**（夹具、启动失败日志）；**本程追加的 6 行（候选）未开始**，run 是 [`2026-09-23-tests-tenancy-leg-2`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)；
+> **一句话状态：义务表 32 行——已实现部分 26 行，24 行已通过、2 行部分**（夹具、启动失败日志）；**本程追加的 6 行（候选）未开始**，run 是 `2026-09-23-tests-tenancy-leg-2`；
 > 其中 R-U7 与 `assembly.pg-wiring` 两行在 pg 一侧通过，sqlite 一侧是跳过。[bindings.yaml](bindings.yaml) 登了 25 条 `test:` 绑定，只挂契约坐标——本节点承担的「装配给」各行与入口契约的装配条款；
 > R-U 各行（PF-017 §6.9 的承接）、D-026、kernel-basis 的静态检查、CV 换代演练不是契约坐标，证据留在本页、不绑。
 
@@ -13,7 +13,7 @@
 [OG](../../../spec/capabilities/organization-governance/verification.md)、[AR](../../../spec/compositions/account-registration/verification.md)、
 [OE](../../../spec/data/offer-expiry/verification.md)、[入口契约](../../../spec/compositions/governance-center-entry/verification.md)——`composition.governance-center-entry/v1`）；那里把「装配给」各行记为**结构检查**（核对每条装配给都指向一个具体的装配事实）
 或「由别处承担」，治理中心入口的 V-15（起来即整体、停机）归装配与 governance-center-entry 节点一起。本页的义务从 [design.md](design.md) 声称的范围产生，**不从已有测试反推**。
-PF-017 rev 1 已接受（2026-09-23，同日升 rev 2）；入口契约 v1 与账号能力 v2 已由 [D-028](../../../record/decisions/governance-center-design-acceptance/decision.md) 接受（身份清单里是 `accepted`）。下面的通过**不提升**入口契约、本节点或任何节点设计的接受状态；绑定只登已登记 run 里通过的用例。
+PF-017 rev 1 已接受（2026-09-23，同日升 rev 2）；入口契约 v1 与账号能力 v2 已由 D-028 接受（身份清单里是 `accepted`）。下面的通过**不提升**入口契约、本节点或任何节点设计的接受状态；绑定只登已登记 run 里通过的用例。
 
 ## 证据义务
 
@@ -42,7 +42,7 @@ PF-017 rev 1 已接受（2026-09-23，同日升 rev 2）；入口契约 v1 与�
 | [AI S-32](../../../spec/capabilities/account-identity/v2/contract.md#s-32-退出的持久性) 的「完整重启」支 | `boot()` 在同一文件上起两次：第一次签发并撤销一个登录状态、`dispose()`；第二次 `logins.verify` 得 `login-state-rejected`。**演练本身归 AI**，本节点只保证 `boot()` 可重入同一文件 | **已通过**（同 run）：`lifecycle.spec.ts` › `AI S-32「完整重启」支：boot() 可重入同一文件`；另起 OS 进程的一支 `process.spec.ts` › `AI S-32 的完整进程重启（另起一个 Node 进程打开同一库）`（AI 节点绑的是这一条） | AI + 本节点 |
 | [AI S-43 第 2 支](../../../spec/capabilities/account-identity/v2/contract.md#s-43-依据产出之后记录才过期) 含两条交错的真并发演练；[OG S-54](../../packages/tenancy/organization-governance/verification.md#证据义务) ⑥⑦ | 本节点提供夹具：同一文件、同一外键、两个提供者实例（并发用例要两个独立连接，[core/storage 套件形状](../../packages/core/storage/design.md#一致性套件的形状)）；演练归三个节点 | **部分**：夹具本身没有单独的用例。用这个形状的演练通过——sqlite 一侧在 `packages/tenancy/account-registration/tests/interleavings.spec.ts`（`ai#S-43 第 2 支 × ar 同一次演练…`、`og#S-54 ⑥⑦…`）；**pg 一侧**在本节点 `pg.spec.ts` › `pg 首跑 · 交错 I-12（…真实 AI／OG／AR + 本节点的合成迁移）`（3 条）。sqlite 那批是否经本节点的夹具、是否两个独立连接，证据里看不出（未知） | AI + OG + AR + 本节点 |
 | [AR S-29](../../../spec/compositions/account-registration/v1/contract.md#s-29-规范场景参与方缺席时不放行) | 测试装配单独 dispose OG 的 fiber，区分装配期缺席（AR `PENDING`）与运行期 `unavailable` 两支；本节点的生产 `boot()` 不暴露单条句柄，演练走 `bootAssembly` | **已通过**（同 run，承担者在 AR 包）：`packages/tenancy/account-registration/tests/scenarios.spec.ts` › `S-29 参与方缺席时不放行`（3 条，走 `bootAssembly`） | AR + 本节点 |
-| [D-026「只改配置切 pg」](../../../record/decisions/infrastructure-persistence-choices/decision.md#选择与范围) | `assembly.pg-wiring`：同一份迁移与装载代码，方言配置切 `postgres` 后 `boot()` 成功且 `assembly.fk-organization-owner-account` 全绿；**本程 `describe.skip`**，前提「有一个可连的 pg ≥ 14」。**跳过不是通过** | **已通过（pg 一侧）**（同 run，PostgreSQL 16.14）：`pg.spec.ts` › `pg 首跑 · 装配（OMNE_TEST_PG_URL）` › `assembly.pg-wiring：…外键两向与约束名同 sqlite`；sqlite 一侧同名用例**跳过**（缺 pg URL）。左栏「本程 `describe.skip`」是写义务时的安排；「≥ 14」的下限没有跑（只有 16.14） | 装配，第二程 |
+| D-026「只改配置切 pg」 | `assembly.pg-wiring`：同一份迁移与装载代码，方言配置切 `postgres` 后 `boot()` 成功且 `assembly.fk-organization-owner-account` 全绿；**本程 `describe.skip`**，前提「有一个可连的 pg ≥ 14」。**跳过不是通过** | **已通过（pg 一侧）**（同 run，PostgreSQL 16.14）：`pg.spec.ts` › `pg 首跑 · 装配（OMNE_TEST_PG_URL）` › `assembly.pg-wiring：…外键两向与约束名同 sqlite`；sqlite 一侧同名用例**跳过**（缺 pg URL）。左栏「本程 `describe.skip`」是写义务时的安排；「≥ 14」的下限没有跑（只有 16.14） | 装配，第二程 |
 | [产品代码不 import `kernel-basis/testing`](../../../../../packages/core/kernel-basis/verification/README.md#evidence-obligations) | 静态检查：`apps/tenancy-host/src` 对 `@omne-harness-lite/kernel-basis/testing` 零 import | **已通过**（同 run）：`tools/ts-checks/tests/rules.spec.ts` › `no-testing-import`（产品源码 import `./testing` ⇒ 报出、测试文件豁免）；`lint:rules` 退出 0，扫描范围含 `apps/`。此前写的「受阻：现有三条规则不含它」已不成立——本 run 的规则集是 20 条，含这一条 | 主线加一条规则（与现有三条同形） |
 | 启动失败可观测；[PF-017 §6.6](../../../product/PF-017-governance-center-as-deployable-application/design.md#66-要么整个起来要么不起来)「告诉运维者差的是哪一样」；[S-29](../../../spec/compositions/governance-center-entry/v1/contract.md#s-29-秘密不进任何输出) | `assembly.boot-failure-log`：每种启动失败落恰一条结构化记录，含失败的阶段（config／配对自检／遗留快照恢复／只读核对／建快照／迁移／哪条 fiber，入口层等钟超界单列为「钟读不到」／恢复快照）、错误类型与点名的那一项、不含 PEM 与任何 config 值；恢复失败时含快照位置；精确形状等[全局观测契约](../../../foundation/observability-and-logging/requirements.md) | **部分**（同 run）：`lifecycle.spec.ts` › `assembly.boot-failure-log：每种启动失败落恰一条结构化记录，不含 PEM 与 config 值` › `config、密钥配对、清单、插件、只读核对各一次`；进程入口 `process.spec.ts` › `进程入口（src/cli.ts）` › `serve 启动失败 ⇒ 退出 1，标准错误流里恰一条 startup-failed`。左栏点名的遗留快照恢复、建快照、迁移、钟读不到、恢复快照五个阶段，用例名里没有；那几种失败在别的用例里断言了「拒绝于哪一阶段」，是否也断言「恰一条记录、不含值」看不出（未知） | 本节点 |
 | **本程追加（候选）**：[迁移追加](design.md#迁移追加) M-9 | `assembly.migration-composition` 扩一支：用上一版的合成序列建一份有数据的库，本版在末尾多三组片段（OG v3、资产、档案目录）⇒ 登记序列仍是前缀、升级成功；OG 的两列为空；全库外键仍只有 `organization_owner_account_fk` | **未开始**（源码不存在） | 本节点 ＋ 三个 owner 包 |
@@ -56,23 +56,6 @@ PF-017 rev 1 已接受（2026-09-23，同日升 rev 2）；入口契约 v1 与�
 不用「待补充」掩盖，也不新设一个「无法验证」的状态。
 
 **修订波（2026-09-25 公开面）**：design 新增「[公开面](design.md#公开面)」一节（[SYS-OPEN](../../../foundation/cross-system-constraints/requirements.md#sys-open)），写明装配不变、本节点没有能力的函数面；上表证据义务与下面的运行都不变，不新增义务。
-
-## 实际执行
-
-2026-09-24 的局部回归见 [生产 CLI 开发基线 run](../../../record/evidence/2026-09-24-tests-production-cli-baseline/README.md)：macOS/Node 24.21.0，`lifecycle.spec.ts` 17/17（含 N-18 两种错误归类反例），`slow.spec.ts` 仅真实等钟超时一项通过、其余三项未选中，最终 e2e 46/46。属于旧治理语义基线，不表示生产新政策已实现。
-
-| 运行 | 输入与配置范围 | 结果 | 证据位置 |
-|---|---|---|---|
-| [`2026-09-23-tests-tenancy-leg-2`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)（sqlite 一侧） | 源码提交 `c9b5850`；`apps/tenancy-host/tests/` 七个文件（`config`、`lifecycle`、`migrations`、`process`、`slow`、`upgrade`、`pg`）；sqlite 临时文件库，`OMNE_TEST_PG_URL` 显式 unset；`process.spec.ts` 另起 Node 子进程；Node v24.18.0（`node:sqlite` 的 SQLite 3.53.1）、vitest 4.1.11；同 run 的 `tools/ts-checks` 自测（65 条）与 `pnpm run lint:rules` | build、typecheck 退出 0；102 条用例 **91 通过、11 跳过**、0 失败——跳过的 11 条恰是 `pg.spec.ts` 整个文件（缺 pg URL）；`lint:rules` 退出 0（20 条规则，扫描 `packages/`、`apps/`，无违反） | [`output/tenancy-host.log`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/output/tenancy-host.log)、[`json/tenancy-host.json`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/json/tenancy-host.json)、[`output/_lint-rules.log`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/output/_lint-rules.log)；义务对应 [`coverage.md`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/coverage.md#appstenancy-host) |
-| 同 run（pg 一侧） | `apps/tenancy-host/tests/pg.spec.ts`；临时容器 PostgreSQL 16.14，入口库 `w4a_host_admin`，文件内为每条用例 `CREATE DATABASE` 一个新库、`afterAll` 全删 | 11 条 **11 通过**、0 失败；其中最后一条「收尾观察：pg 上 storage-sql 的 `close()` 是否拒绝」恒通过，**不是证据**（run README「异常」第 2 条） | [`output-pg/tenancy-host.pg.log`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/output-pg/tenancy-host.pg.log)、[`json-pg/tenancy-host.pg.json`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/json-pg/tenancy-host.pg.json) |
-
-上表两行是本节点实现的证据。formal evidence run（`2026-09-22-formal-tenant-domain-2`、`2026-09-23-formal-governance-center-entry`）检查的是契约模型，
-kernel-basis 的八条 probe 证的是 4.0.4 的内核语义（[basis 当前状态](../../../basis/README.md#当前状态)）——它们是本节点所装的提供者与机制依据的证据，**不是本节点的符合性证据**，不列入上表。
-
-**有限检查不写成无条件证明。**sqlite 一行在「sqlite 临时文件库、单主机、Node v24.18.0、design 所写的 WAL 与 `synchronous=NORMAL`、候选常量」下成立；
-pg 一行只有 `pg.spec.ts` 这 11 条、只在 PostgreSQL 16.14 上跑过，本节点其余用例在 pg 上没有结论。「回拨」是改写 `clock_lease` 行或推远 `lease_until` 模拟的，不是真的调系统时钟；「崩溃」是对子进程 `SIGKILL`，不是断电。
-真并发与两进程用例（交错 I-9、I-12）各跑一次，证的是这次调度走到的交错。升级快照的恢复只在「同一份库同一时刻只有一个属主进程」下有意义：那由 storage-sql 的属主独占保证（其 `upgrade.exclusive-owner` 与本节点 `process.spec.ts` › `交错 I-9：两进程属主排他，clock 租约在同一文件` 同 run 通过），非守卫实例不在其内（运维约定）。
-**通过不提升本节点或任何契约的接受状态。**
 
 ## 覆盖缺口
 
@@ -102,45 +85,13 @@ pg 一行只有 `pg.spec.ts` 这 11 条、只在 PostgreSQL 16.14 上跑过，�
 | **中心各面对外不可达**（U-6） | 入口契约 v1 路由表封闭；本节点在这件事上能给的证据只有「入口层不 inject 那几个面」的结构事实 | 主线：未来资产/据点入口（版本未分配） |
 | **时刻严格递增**（U-7） | 手段已选时钟（D-060 §八 M58），登为 `infra/clock` 的 C-15、下一程实施；在它之前「不复活」同一毫秒那一支没有能变绿的证据 | `infra/clock` 节点（C-15） |
 
-## 独立评审
-
-2026-09-25 本节点的「本程追加」段随 N2 批（asset-governance、organization-governance v2、tenancy-host）经一次独立的架构评审（只读结构核对，无运行，基线 HUB `00a4c1c6`；已实现的租户批段不在范围）：本节点建议 3、观察 1，无阻断；主线据此裁定 [D-060 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M59、M60、M62（批的结论见同节 N-28）。**处置不等于评审闭合**——是否闭合由复审判断。
-
-| 编号 | 发现 | 处置 | 落点 |
-| --- | --- | --- | --- |
-| TH-1 建议 | 「三件事第 1 条扩到新表」是 X-1～X-3 唯一的装配前提，义务只是候选 | 按 M59：列为实现后第一波必跑项 | 本页义务表「同一存储、同一约束域」一行；design「同一存储、同一约束域」 |
-| TH-2 建议 | 「中心进程里不登记任何资产事件的监听者」没有证据义务（与 asset-governance AG-3 同一件事） | 按 M60：加两条义务——`tools/ts-checks` 规则（`packages/` 除 asset-governance 与 `apps/tenancy-host` 内不得订阅 `asset.*`）＋启动期断言监听者集合为空 | 本页义务表「中心进程里没有资产事件的订阅者」一行；design 承接表「事件」一行 |
-| TH-3 建议 | 「首次登记随快照撤回」只盖首次；非首次、无迁移、只改清单的启动靠幂等＋重登（与 AG-5 同一件事） | 按 M62：义务扩为两支，第二支覆盖「清单新增条目失败」 | 本页义务表「整体性（两支）」一行；design「迁移追加」末段与装卸表资产提供者一行 |
-| TH-4 观察 | 新边的契约坐标「待立 v2」、装载与撤除次序、两处持久写在插件体、「钉哪一版」、承接表逐组 | 已核对、无处置 | — |
-
-
 ## D-039 同步档位增量 · 2026-09-24
 
-[实际运行](../../../record/evidence/2026-09-24-tests-sqlite-full/README.md)：macOS Node24，存储95通过/4跳过，中心启动与升级38通过，黑盒最终46通过；真实句柄/迁移/重开 FULL 与共享 NORMAL 默认分别检查。保留环境失败及错误过滤运行；未验证物理断电、Linux FULL 或 PostgreSQL，不提升历史证据范围。
-
-## 2026-09-25可搬运CLI与独立中心进程
-
-[本次运行](../../../record/evidence/2026-09-25-tests-cli-portable-host/README.md)：89项应用/打包故障、归档清单与BUILD_ID、三平台keygen/serve真实进程、正式scrypt成本、治理旅程与正常/强杀重启。中心仍从仓库dist启动，CLI从仓库外最终归档运行；不包含中心分发/服务管理器、物理多机、TUI或备份恢复。
-
-## 2026-09-25 D052/D053 新制品与全工作区回归
-
-[固定证据包](../../../record/evidence/2026-09-25-tests-host-startup/README.md)封存564份源输入、44份顶层运行记录、三组最终跨OS场景及两份完整归档。18成员1761通过/34跳过/0失败，build/types通过；独立无dist快照分别host先行与CLI先行打包通过。Mac/Linux arm64与Linux amd64真实HTTPS治理/重启通过；Docker网络与PTY不等同物理公司网络或macOS GUI终端验收。初版失败和旧实现迁移负控保留。宿主归档、启动修复已验证；服务管理/每日备份/隔离恢复和最终fable review仍未完成。
-
-
-## 2026-09-26 D055/D056 实际维护验证
-
-[固定源码、制品和运行证据](../../../record/evidence/2026-09-26-tests-governance-maintenance/README.md)保存原始故障、修正、源码回归及独立制品 QA。SQLite资源关闭/worker真实退出/跨进程保锁、封装与发布unknown、HT3与host信号/双槽、非root Linux systemd及近1GiB时的员工访问和租约续约分别验证。最终host r3运行字节与r1相同，文档和pnpm生成元数据差异经独立核验，r3再跑38项主旅程。没有实际断电/任意存储设备保证；独立QA的源变动精确分支未验，不计通过；恢复只隔离，整机损毁灾备与安全重新开放仍未交付。
-
-
-## 2026-09-26 终审修补与最终制品
-
-[最终固定输入、运行与独立QA](../../../record/evidence/2026-09-26-tests-governance-review-fixes/README.md)接续D055/D056与D057：生产闭包移除测试运行器，初始化未收场责任与叠加故障诊断修复，领域契约不变。18成员最终合并1926通过/34跳过，host最终单独重跑；两包清单、严格独立类型消费、47项独立制品旅程及真实首启故障恢复、三组跨OS与systemd通过。最终host r3、CLI r2的SHA/BUILD_ID在该run；旧记录不提升到新制品。Fable三轮及主线处置均有公开记录，未发现本期阻断。
-
-限定：首次工作根创建须串行；原位源变动精确hash/fstat分支未独立验到；TUI仍限D054 profile，不是任意终端支持；恢复只隔离，同机备份不覆盖整机/磁盘毁损。公司实际部署、Agent工作会话与Web/desktop不属于本次验证。
+实际运行：macOS Node24，存储95通过/4跳过，中心启动与升级38通过，黑盒最终46通过；真实句柄/迁移/重开 FULL 与共享 NORMAL 默认分别检查。保留环境失败及错误过滤运行；未验证物理断电、Linux FULL 或 PostgreSQL，不提升历史证据范围。
 
 ## Docker R5 停止绑定验收
 
-[D-071](../../../record/decisions/governance-docker-stop-adoption/decision.md)限定采用后，最终 helper 必须证明：显式SIGTERM配置与实际容器一致；running/restarting单次请求；完整wait值与同ID退出一致，空值/矛盾/丢回执unknown；初始exited不重启；启动失败始终非零且stderr保留收场事实；单次维护取消与真实完成竞争按原结果结算。上述逐项另与实际长IO／close残余／第二owner／timer及重建治理旅程组合验收。机制实验不填本表产品通过状态。采用时尚未执行最终R5 helper验收；后续实际范围见下节，D-071历史采用快照不改写。
+D-071限定采用后，最终 helper 必须证明：显式SIGTERM配置与实际容器一致；running/restarting单次请求；完整wait值与同ID退出一致，空值/矛盾/丢回执unknown；初始exited不重启；启动失败始终非零且stderr保留收场事实；单次维护取消与真实完成竞争按原结果结算。上述逐项另与实际长IO／close残余／第二owner／timer及重建治理旅程组合验收。机制实验不填本表产品通过状态。采用时尚未执行最终R5 helper验收；后续实际范围见下节，D-071历史采用快照不改写。
 
 ## Docker 最终制品的已运行范围 · 2026-09-27
 
@@ -148,19 +99,19 @@ pg 一行只有 `pg.spec.ts` 这 11 条、只在 PostgreSQL 16.14 上跑过，�
 
 | 范围 | 实际证据及边界 |
 | --- | --- |
-| 正常安装、维护与跨OS治理 | [helper启动](../../../record/evidence/2026-09-27-tests-docker-helper-start/README.md)、[维护与timer](../../../record/evidence/2026-09-27-tests-docker-r5-smoke/README.md)、[Mac/Linux治理、TLS与重建](../../../record/evidence/2026-09-27-tests-docker-cross-os/README.md)。自定义UID、原制品身份和第二属主拒绝已实测；不等于公司物理网络验收。 |
-| 安装拒绝 | [实际坏配置矩阵](../../../record/evidence/2026-09-27-tests-docker-install-validation/README.md)验证10类无效输入的validate/start拒绝；额外挂载另以真实inspect调用原校验函数，结论只在该组件边界，不称完整start拒绝。 |
-| 在线备份与关闭 | [长IO及关闭失败](../../../record/evidence/2026-09-27-tests-docker-r5-maintenance-io/README.md)、[业务并行备份与隔离拒绝](../../../record/evidence/2026-09-27-tests-docker-business-backup/README.md)、[调用者消失后的显式查询](../../../record/evidence/2026-09-27-tests-docker-online-caller-loss/README.md)。QA门绑定真实FileHandle，原应用清单不变；不称物理设备EIO或所有断连时序保证。 |
-| 已确认停止、启动失败与互斥 | [exit0跨Engine重启及同schema换镜像](../../../record/evidence/2026-09-27-tests-docker-recovery/README.md)、[exit1跨Engine重启](../../../record/evidence/2026-09-27-tests-docker-exit1-daemon/README.md)、[启动健康观察过期](../../../record/evidence/2026-09-27-tests-docker-startup-expiry/README.md)、[生命周期锁交错](../../../record/evidence/2026-09-27-tests-docker-lifecycle-lock/README.md)。均保留确切容器身份，不能推为非计划崩溃、任意升级迁移或断电保证。 |
-| 离线任务生命周期 | [已知任务TERM](../../../record/evidence/2026-09-27-tests-docker-offline-cancel/README.md)、[调用helper被SIGKILL](../../../record/evidence/2026-09-27-tests-docker-offline-caller-loss/README.md)、[不同工作根并行](../../../record/evidence/2026-09-27-tests-docker-offline-parallel/README.md)。真实完成前资源保持、同根busy、各任务独立；调用者未知结果不被稍后查询改写。 |
-| 定时备份的不可达边界 | [Engine离线timer](../../../record/evidence/2026-09-27-tests-docker-engine-offline-timer/README.md)实际触发失败且不拉起Engine或已停止中心；正常及停止中心的timer场景见前述维护证据。 |
-| 进程意外终止与升级顺序 | [进程SIGKILL后的恢复](../../../record/evidence/2026-09-27-tests-docker-unplanned-process/README.md)覆盖已确认治理事实、原备份与真实快照残留隔离；[timer协调换镜像](../../../record/evidence/2026-09-27-tests-docker-timer-replacement/README.md)验证实际停复顺序和原操作导出。两者不证明Engine损毁、新schema或失败升级的组合。 |
-| 未结算请求晚到 | [原运行及追加复核](../../../record/evidence/2026-09-27-tests-docker-late-request/README.md)记录调用者/锁释放之后，原请求仍可实际到达Engine；原调用保持unknown且未重发。原镜像身份判定错误的FAIL保留，另以修正判定器复核完整原始观测，不称新的产品执行。 |
+| 正常安装、维护与跨OS治理 | helper启动、维护与timer、Mac/Linux治理、TLS与重建。自定义UID、原制品身份和第二属主拒绝已实测；不等于公司物理网络验收。 |
+| 安装拒绝 | 实际坏配置矩阵验证10类无效输入的validate/start拒绝；额外挂载另以真实inspect调用原校验函数，结论只在该组件边界，不称完整start拒绝。 |
+| 在线备份与关闭 | 长IO及关闭失败、业务并行备份与隔离拒绝、调用者消失后的显式查询。QA门绑定真实FileHandle，原应用清单不变；不称物理设备EIO或所有断连时序保证。 |
+| 已确认停止、启动失败与互斥 | exit0跨Engine重启及同schema换镜像、exit1跨Engine重启、启动健康观察过期、生命周期锁交错。均保留确切容器身份，不能推为非计划崩溃、任意升级迁移或断电保证。 |
+| 离线任务生命周期 | 已知任务TERM、调用helper被SIGKILL、不同工作根并行。真实完成前资源保持、同根busy、各任务独立；调用者未知结果不被稍后查询改写。 |
+| 定时备份的不可达边界 | Engine离线timer实际触发失败且不拉起Engine或已停止中心；正常及停止中心的timer场景见前述维护证据。 |
+| 进程意外终止与升级顺序 | 进程SIGKILL后的恢复覆盖已确认治理事实、原备份与真实快照残留隔离；timer协调换镜像验证实际停复顺序和原操作导出。两者不证明Engine损毁、新schema或失败升级的组合。 |
+| 未结算请求晚到 | 原运行及追加复核记录调用者/锁释放之后，原请求仍可实际到达Engine；原调用保持unknown且未重发。原镜像身份判定错误的FAIL保留，另以修正判定器复核完整原始观测，不称新的产品执行。 |
 
-[Engine意外退出的实际运行与追加复核](../../../record/evidence/2026-09-27-tests-docker-daemon-loss/README.md)补齐本次同schema恢复窗口：私有DinD被SIGKILL后，测试显式恢复同一Engine，内部原中心自动恢复；已确认治理事实、先前备份和真实快照隔离保持。测量器独立于产品实现，root直接执行；原输入复制校验失败保留，新来源链复核另列，不称新产品运行或宿主Engine自动启动。
+Engine意外退出的实际运行与追加复核补齐本次同schema恢复窗口：私有DinD被SIGKILL后，测试显式恢复同一Engine，内部原中心自动恢复；已确认治理事实、先前备份和真实快照隔离保持。测量器独立于产品实现，root直接执行；原输入复制校验失败保留，新来源链复核另列，不称新产品运行或宿主Engine自动启动。
 
-[Fable整体评审及处置](../../../record/proposals/governance-docker-deployment/review.md#m0-固定交付的-fable-整体评审--2026-09-27)已完成；F1证据粒度追溯已由root明确接受，F5按[D072](../../../record/decisions/governance-docker-health-binding/decision.md)修补单进程健康绑定。其后的新制品验证与[M0 限定技术验收](../../../record/proposals/governance-docker-deployment/review.md#i4-定向复审与-m0-技术验收--2026-09-27)已完成，实际范围见下文。原失败记录不改写；修订判定器后的追加复核分别记录新判据、输入与有限接受依据，同机备份也不兑现整机或磁盘毁损灾备。
+Fable整体评审及处置已完成；F1证据粒度追溯已由root明确接受，F5按D072修补单进程健康绑定。其后的新制品验证与M0 限定技术验收已完成，实际范围见下文。原失败记录不改写；修订判定器后的追加复核分别记录新判据、输入与有限接受依据，同机备份也不兑现整机或磁盘毁损灾备。
 
-[D072局部实现与主线整合检查](../../../record/evidence/2026-09-27-tests-docker-health-binding/README.md)：公开main的同进程探针及严格期限/输出边界已实现，实施者37项与主线26项分别通过；真实socket客户端使用夹具服务端，尚不计作新镜像部署/外层Docker取消验收。旧I3证据保持原身份。
+D072局部实现与主线整合检查：公开main的同进程探针及严格期限/输出边界已实现，实施者37项与主线26项分别通过；真实socket客户端使用夹具服务端，尚不计作新镜像部署/外层Docker取消验收。旧I3证据保持原身份。
 
-[D072 新制品实际验证](../../../record/evidence/2026-09-27-tests-docker-health-i4/README.md)：I4 两架构完整清单与新镜像的正常治理／备份／停止通过，amd64 为具名 Rosetta 模拟；arm64 原健康命令在真实请求在途时受到 Docker 2 秒外层超时，原 PID／连接结束且未观察到遗留后代。QA 服务端取消场景与真实中心正常场景分别陈述。线程名误判的原 FAIL、追加复核及环境预检失败完整保留。Fable 定向复审无阻断，root 已接受 M0 限定技术验收完成；默认内部期限先到的原镜像故障组合未运行，内部计时器不保证强制中断永不结束的模块加载。后续改变公开 index 的传递依赖、导入期副作用或探针进程模型时，须重新核对加载、退出、期限与回收。
+D072 新制品实际验证：I4 两架构完整清单与新镜像的正常治理／备份／停止通过，amd64 为具名 Rosetta 模拟；arm64 原健康命令在真实请求在途时受到 Docker 2 秒外层超时，原 PID／连接结束且未观察到遗留后代。QA 服务端取消场景与真实中心正常场景分别陈述。线程名误判的原 FAIL、追加复核及环境预检失败完整保留。Fable 定向复审无阻断，root 已接受 M0 限定技术验收完成；默认内部期限先到的原镜像故障组合未运行，内部计时器不保证强制中断永不结束的模块加载。后续改变公开 index 的传递依赖、导入期副作用或探针进程模型时，须重新核对加载、退出、期限与回收。

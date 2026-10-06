@@ -6,7 +6,7 @@ v2／v3 的包内路径、资源读取与声明脚本边界与 PF-007 rev19 仍�
 
 依据：[冻结包规则与 P-4](v3/contract.md)；[Skills 产品边界](../../../product/PF-007-meta-capabilities/design.md#62-skills通向任意技能)。
 
-精确[新3规范](v3/contract.md)、[Schema](v3/skill-package.schema.json)、[实例](v3/examples.md)已按[D069](../../../record/decisions/skill-yaml-key-resolution/acceptance.json)接受冻结，规则为未知tag canonical关系最终阻止键唯一性判断时malformed/M16，ordinaryunknown仍忽略。根提供者将采用3；完整旧2Schema及纯值／正文保留供AM3／AE3／Slash2实际精确消费，新推荐不自动升级其它契约。新3读入不保留undetermined第三结果，旧2缺口和原运行范围不变。实现／验证状态仍按节点实际证据读取。
+精确[新3规范](v3/contract.md)、[Schema](v3/skill-package.schema.json)、[实例](v3/examples.md)已按D069接受冻结，规则为未知tag canonical关系最终阻止键唯一性判断时malformed/M16，ordinaryunknown仍忽略。根提供者将采用3；完整旧2Schema及纯值／正文保留供AM3／AE3／Slash2实际精确消费，新推荐不自动升级其它契约。新3读入不保留undetermined第三结果，旧2缺口和原运行范围不变。实现／验证状态仍按节点实际证据读取。
 
 下文是源2接受时的历史入口，旧“候选／v1／未接受”标签不改冻结事实；当前采用以上段及registry为准。
 
@@ -20,7 +20,7 @@ v2／v3 的包内路径、资源读取与声明脚本边界与 PF-007 rev19 仍�
 都读这一份形状，**引用它的 `$defs` 名，不各自复述一份**。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.skill-package, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 `accepted`（`acceptance` 指向 D-061 的 `acceptance.json`）。`family=data`、`topic=skill-package`、
   `contract_path=spec/data/skill-package/v2/contract.md`，`resources` 另含 `v2/skill-package.schema.json` 与 `v2/examples.md`；
   依赖三项：`data.asset-model` v2（`S-2`、`S-3`、`S-9`、`S-10`、`S-12`、`S-13`、`S-15`、`S-36`）、`data.content-blocks` v2（`S-7`）、
@@ -37,7 +37,7 @@ v2／v3 的包内路径、资源读取与声明脚本边界与 PF-007 rev19 仍�
 | 适用范围 | 一个部署之内；跨进程后要由协议重新兑现的，逐行列在[契约第五节](v2/contract.md#五装配给与协议给) |
 | 为什么是 data 而不是 capability | 它**没有操作**：没有提交点、没有状态转移、没有自己的授权前提。技能怎样被装载、取用、运行、持有与配值，归注册表、`Skills()`、执行运行时与资产的三份能力契约 |
 | 精确依赖 | 见上面「catalog 映射」一行 |
-| 起点 | [D-034](../../../record/decisions/skill-spec-adoption/README.md)：Agent Skills 开放格式为载体与核心字段、规则层自持、扩展声明走包内定义记录；开放格式钉 `69ef37e` |
+| 起点 | D-034：Agent Skills 开放格式为载体与核心字段、规则层自持、扩展声明走包内定义记录；开放格式钉 `69ef37e` |
 | 谁在等它 | `data.asset-model`（壳 `$ref` 本契约）、`capability.asset-registry`、`Skills()` 的契约、斜杠命令的数据契约、`capability.asset-evaluation`、导入器。完整清单见[契约的消费者表](v2/contract.md#消费者)——**那里是唯一的一份** |
 | 接受状态 | 已接受（D-061，2026-09-26） |
 
@@ -66,4 +66,4 @@ v2／v3 的包内路径、资源读取与声明脚本边界与 PF-007 rev19 仍�
 
 ## 2026-09-26 版本接受
 
-本次接受 `data.skill-package` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `data.skill-package` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

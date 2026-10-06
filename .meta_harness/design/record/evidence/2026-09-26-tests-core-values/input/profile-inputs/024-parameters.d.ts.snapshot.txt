@@ -1,8 +1,0 @@
-import { type JsonObject } from '@omne-harness-lite/content-blocks';
-import type { ModelRequestParameters } from './types.ts';
-export declare const PARAMETER_NAMES: readonly ["reasoningEffort", "temperature", "topP", "seed", "maxOutputTokens", "stopSequences", "frequencyPenalty", "presencePenalty"];
-/** S-20: extra contributes its keys, not the container name. No values are changed. */
-export declare function parameterNames(params: ModelRequestParameters): readonly string[];
-export declare function malformedParameters(value: unknown, onProfile: boolean): boolean;
-export declare function parametersOutOfRange(value: JsonObject): boolean;
-//# sourceMappingURL=parameters.d.ts.map

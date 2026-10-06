@@ -1,11 +1,3 @@
-# 条款到证据的绑定表。
-# 空：capability.assembly-manifest v2 本版不建形式工件（契约 S-25：条件追加的判定是一个整数相等，
-# 它的必要前提由场景 S-26 的真并发与故障注入给证据；「半截不可见」「读不到不是没有」被建模方式吸收），
-# registry 里没有它的 formal task；本节点尚未建包，没有测试。
-# 证据形式（契约场景 S-26～S-31 与本节点自己的 V-1～V-9）逐条记在 verification.md，全部未开始。
-# v3 候选新增 readEvaluation：仍无绑定；ME-1～ME-8 是待执行义务，不能绑定为已存在测试。
-# AE4 S-47 公共 judge 的候选投影已对齐；尚无本节点实际制品消费或失败映射证据，不因此新增绑定。
-# core 的既有有限测试或 session-log 模型不覆盖本节点的真实 SQL 读写与恢复。
 version: 1
 node: "assembly-manifest-store"
 kind: "provider"

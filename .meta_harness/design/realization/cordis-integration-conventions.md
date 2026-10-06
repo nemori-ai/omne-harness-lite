@@ -3,10 +3,10 @@
 本项目做出来的东西，怎样以 Cordis 插件与服务的方式接进系统：能力接缝怎么立、依赖怎么声明、事件怎么命名与派发、
 登记怎么撤、配置怎么校验、一个进程挂哪些插件怎么写。
 
-- 状态：已接受（[D-114](../record/decisions/cordis-integration-conventions/README.md)，2026-10-02）。
+- 状态：已接受（D-114，2026-10-02）。
 - 约束谁：新写或修订的提供者节点与装配节点，以及照这些节点写的代码。节点模板的「Cordis 符合性核对」表由本约定导出（见[最后一节](#与符合性核对表的对应)）。
 - 它不是契约：不进 `spec/`，不改任何契约的语义。契约写性质；这里写装配时怎样满足 Cordis 的契约规范
-  （[D-112](../record/decisions/cordis-as-assembly-contract/README.md)）。失效事件是实现换方案或上游换版本——
+  （D-112）。失效事件是实现换方案或上游换版本——
   Cordis 升版时先跑 [basis](../basis/README.md) 的全部 probe，失败的条目对应的规则跟着复核。
 - 起点：DeepSeek Harness 在 `639ed015` 上的 17 条约定（[调研](../../research/dsh-cordis-integration-conventions/research.md)，下文记作「DSH #N」）。
   每条规则标一种处置：**采用**（照 DSH 做）、**改造**（取 DSH 的做法、改其中一处）、**自补**（DSH 没有）；不取的单列一节。
@@ -59,7 +59,7 @@
 
 | 编号 | 规则 | 处置 | 理由 | 依据 | 怎么守 |
 |---|---|---|---|---|---|
-| IC-15 | 一个进程挂哪些 Cordis 插件、各带什么配置，写成数据：[Cordis 插件树](../ubiquitous_language/terms/architecture-core-and-extension.md#ul-cordis-plugin-tree--cordis-插件树--cordis-plugin-tree)由两格[插件树层](../ubiquitous_language/terms/architecture-core-and-extension.md#ul-plugin-tree-layer--插件树层--plugin-tree-layer)叠出——发行层在前、运维者层在后；没有组织、租户或会话这几格 | 改造 DSH #11（它叠 bundle、profile、home 与 `--patch` 多级） | 装配写成数据，运维者不改代码就能换一个提供者或调一项配置；层数由负责人定为两格 | 负责人 R7；[UL-D-7](../ubiquitous_language/decisions.md#ul-d-7--能力接缝与-cordis-插件树--2026-10-02)；DSH #11 | 装配节点的机读声明；评审 |
+| IC-15 | 一个进程挂哪些 Cordis 插件、各带什么配置，写成数据：[Cordis 插件树](../ubiquitous_language/terms/architecture-core-and-extension.md#ul-cordis-plugin-tree--cordis-插件树--cordis-plugin-tree)由两格[插件树层](../ubiquitous_language/terms/architecture-core-and-extension.md#ul-plugin-tree-layer--插件树层--plugin-tree-layer)叠出——发行层在前、运维者层在后；没有组织、租户或会话这几格 | 改造 DSH #11（它叠 bundle、profile、home 与 `--patch` 多级） | 装配写成数据，运维者不改代码就能换一个提供者或调一项配置；层数由负责人定为两格 | 负责人 R7；[现行词义](../ubiquitous_language/index.md)；DSH #11 | 装配节点的机读声明；评审 |
 | IC-16 | 插件树的一行 = 行 id ＋ 插件（包名与它 `./cordis` 入口里的导出名）＋ 配置。配置只放可序列化的数据；运行时对象（迁移提供者、信号、回调）不进树，由装配入口 provide 成服务、插件 inject（定义归属见 IC-1）。运维者层按行 id 整行替换配置、停用或插入新行；**指向不存在的行 id 即启动失败**；进程能打印最终的树，并标出每一行出自哪一层。发行层的行 id 因此是对运维者的稳定承诺：改名或删一行要写进装配节点的变更记录与发行说明 | 采用 DSH #11 的补丁语义（按行 id、整行替换、插入、打印最终的树）；改造两处：悬空补丁由告警改为启动失败，打印时标来源层 | DSH 的补丁函数遇到找不到的 id 只告警、跳过（`639ed015:vendor/include/src/index.ts:83`、`:111`），运维者写错一个 id 会静默不生效。代价是另一侧：发行层删或改名一行，给它打过补丁的部署升级时启动失败，必须同步改补丁——宁可大声失败，不要静默失效。加载器自建：[SYS-KERNEL](../foundation/cross-system-constraints/requirements.md#sys-kernel) 只采用 Cordis 本体，DSH 的 `cordis-plugin-loader`／`-include` 不在采用范围内，要引入须另立采用决定 | DSH #11；SYS-KERNEL | 装配节点的测试（悬空补丁即失败、打印出来源层）；评审 |
 
 ## 七、按会话装上的 Cordis 插件

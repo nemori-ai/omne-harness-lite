@@ -1,9 +1,0 @@
-
-> @omne-harness-lite/cli@0.0.0 typecheck /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/apps/cli
-> tsc -p tsconfig.test.json
-
-tests/tui-input.spec.ts(40,21): error TS2339: Property 'text' does not exist on type 'TerminalInput'.
-  Property 'text' does not exist on type '{ readonly kind: "mode"; readonly value: number; }'.
-/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/apps/cli:
- ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/cli@0.0.0 typecheck: `tsc -p tsconfig.test.json`
-Exit status 2

@@ -1,36 +1,0 @@
-Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
-Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
-Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [34.8 kB]
-Get:4 http://deb.debian.org/debian bookworm/main arm64 Packages [8689 kB]
-Get:5 http://deb.debian.org/debian bookworm-updates/main arm64 Packages [6936 B]
-Get:6 http://deb.debian.org/debian-security bookworm-security/main arm64 Packages [339 kB]
-Fetched 9277 kB in 1s (6774 kB/s)
-Reading package lists...
-Reading package lists...
-Building dependency tree...
-Reading state information...
-The following additional packages will be installed:
-  libssl3
-Suggested packages:
-  ca-certificates
-The following NEW packages will be installed:
-  libssl3 openssl
-0 upgraded, 2 newly installed, 0 to remove and 1 not upgraded.
-Need to get 3229 kB of archives.
-After this operation, 8535 kB of additional disk space will be used.
-Get:1 http://deb.debian.org/debian bookworm/main arm64 libssl3 arm64 3.0.20-1~deb12u2 [1824 kB]
-Get:2 http://deb.debian.org/debian bookworm/main arm64 openssl arm64 3.0.20-1~deb12u2 [1405 kB]
-debconf: delaying package configuration, since apt-utils is not installed
-Fetched 3229 kB in 1s (6305 kB/s)
-Selecting previously unselected package libssl3:arm64.
-(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 6090 files and directories currently installed.)
-Preparing to unpack .../libssl3_3.0.20-1~deb12u2_arm64.deb ...
-Unpacking libssl3:arm64 (3.0.20-1~deb12u2) ...
-Selecting previously unselected package openssl.
-Preparing to unpack .../openssl_3.0.20-1~deb12u2_arm64.deb ...
-Unpacking openssl (3.0.20-1~deb12u2) ...
-Setting up libssl3:arm64 (3.0.20-1~deb12u2) ...
-Setting up openssl (3.0.20-1~deb12u2) ...
-Processing triggers for libc-bin (2.36-9+deb12u14) ...
-OpenSSL 3.0.20 7 Apr 2026 (Library: OpenSSL 3.0.20 7 Apr 2026)
-{"status":"PASS","platform":"linux","arch":"arm64","node":"v24.21.0","checks":["real keygen/serve deployment process with new TLS material and file configuration","portable CLI child processes and real PTY preview","two accounts/multiple local clients/full governance journey","production default credential derivation cost","EPIPE exactly one observed target request","SIGTERM restart preserves current identity","duplicate host refused occupied","SIGKILL process restart retains acknowledged identity and old-login revocation","public CLI and host logs contain no credential input"],"scope":"Single OS/container, loopback HTTPS. Actual host process, clock and default credential cost; no accelerated expiry in this driver, physical machine loss, backups, TUI or installed service manager."}

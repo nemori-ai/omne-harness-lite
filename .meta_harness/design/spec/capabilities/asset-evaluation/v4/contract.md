@@ -1,9 +1,9 @@
 # capability.asset-evaluation v4
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-evaluation, 4)`
-- **状态**：candidate，未接受、未冻结。v3 已由 D-068 接受并冻结；本版继承其两个操作与失败次序，仅补组合根的受限属性输入、来源核对与设置求值。
-- **增量依据**：[模型请求适配提案](../../../../record/proposals/model-request-adaptation/design.md)与主线 2026-09-27 施工简报。根不进 `composition`；根声明显式交入、不读环境；时限不填固定默认值；初始选中模型仍由调用方显式 `selectModel`，不以本版提供一个默认首模型。
-- **需求 rev 对账**：PF-002 rev 20、PF-004 rev 12、PF-013 rev 13；继承 v3 所引其余精确 rev。本次只补模型请求纵线受限输入，不扩大成全部 Agent Definition 正文；真实输入生产者须采用 `data.agent-definition/v1` 并补集成证据（[G-22](#十一已知缺口)）。变化与实际证据见[验证入口](../verification.md#2026-09-27-v4-候选变化与证据)。
+- **状态**：当前采用范围见 catalog；v3 已由 D-068 接受并冻结；本版继承其两个操作与失败次序，仅补组合根的受限属性输入、来源核对与设置求值。
+- **增量依据**：模型请求适配提案与主线 2026-09-27 施工简报。根不进 `composition`；根声明显式交入、不读环境；时限不填固定默认值；初始选中模型仍由调用方显式 `selectModel`，不以本版提供一个默认首模型。
+- **需求 rev 对账**：PF-002 rev 20、PF-004 rev 12、PF-013 rev 13；继承 v3 所引其余精确 rev。本次只补模型请求纵线受限输入，不扩大成全部 Agent Definition 正文；真实输入生产者须采用 `data.agent-definition/v1` 并补集成证据（[G-22](#十一已知缺口)）。变化与实际证据见[验证入口](../verification.md)。
 - **设计依据**（PF-002 rev 20；2026-09-24 由 rev 16 对到 rev 20，按 changelog rev 17→20 逐条核过：rev 19 §5.2「谁可以使用它」与 §5.6 第 1 步三小步落进 [S-39](#s-39-谁可以使用它值与判定)、[S-17](#s-17-第一步之一先按禁用滤)、[S-18](#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断)，原 G-15 关闭；
   rev 17 §5.3「禁止」锁不锁都是界与落档规则落进 [S-23](#s-23-第四步权限)，§5.7 仓库带来的命令型 hook 默认不启用落进 S-17，§5.6「唯一会改组合的那项设置在第 2 步就地求值」落进 [S-20](#s-20-第二步组装)；rev 20 §5.7「管三样」的第三样（治理类里除禁用之外的项）落进 [S-24](#s-24-工作区那一格在第四步只贡献设置)——原 G-13、G-20 关闭；rev 20 其余各条只涉连接件的事件目录与投递，不涉本契约）：
   [§4 工作区](../../../../product/PF-002-assets-settings-and-permissions/design.md#工作区)及其四小节
@@ -53,20 +53,20 @@
   [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy)
 - **主线裁定**（都不是产品依据；产品负责人追认或推翻由后续决定取代）：
   - 会话那一格的值归会话记录、写面本版只有会话创建参数；求值链触发 Alloy；承载目录是 `<dir>/.omne/workspace.json` 一份显式清单、滤掉的项留痕——
-    见 [D-060 §一 块 A 形状 A5、A6、A8](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-a-形状shapes-draft-assets-v0md-a1a10)；
+    见 D-060 §一 块 A 形状 A5、A6、A8；
   - **设置按资产取值**、不跟随同标识的替换件；**只有带锁的配值是界、不锁的是挑选，内层覆盖外层**；「禁用先于锁」不改；清单读入的 `dropped` 只留本版产生得了的两种理由；前提编号用 `PRE-n`——
-    见 [D-060 §一 S10-a、S10-b、S10-e、S10-d、S10-f](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s10asset-evaluation报回的)；
-  - 工作区提供的 stdio 接入点默认禁用；落点与身份类设置带来处——见 [D-060 §一 S19-c、S19-f](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的)；
-  - `usableBy` 是八类共用的保留项——见 [D-060 §一 S18-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的) 与 [§二 S-U24-7](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#二2026-09-24-用户在场期间主线随用户裁决所作的自定账本-二-原文标主线自定的行)；
-  - `shared` 可落租户格、前提 PRE-2 对齐资产流转的三个合取项；`workspace_governance` 值名；工作区格上不良构的配值丢弃并留痕——见 [D-060 §三 R2-10、R2-12、R2-8、R2-11](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25)；
+    见 D-060 §一 S10-a、S10-b、S10-e、S10-d、S10-f；
+  - 工作区提供的 stdio 接入点默认禁用；落点与身份类设置带来处——见 D-060 §一 S19-c、S19-f；
+  - `usableBy` 是八类共用的保留项——见 D-060 §一 S18-c 与 §二 S-U24-7；
+  - `shared` 可落租户格、前提 PRE-2 对齐资产流转的三个合取项；`workspace_governance` 值名；工作区格上不良构的配值丢弃并留痕——见 D-060 §三 R2-10、R2-12、R2-8、R2-11；
   - 2026-09-23 的另几条追加裁定——权限项按能力标识跨层取交集、替换件缺的项取最严；权限的声明默认值只是作者建议；输入带成员资格（`standing`）作「谁可以用」的求值输入；会话格配值形状名 `SessionAssignment`；持有的 `versionSelection` 定第 3 步读哪一版；出厂持有的供给方由装配给；输出补所选版本、常驻值与「谁可以使用它」——
-    见 [D-060 §六 N-7](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)（「asset-evaluation 2026-09-23 追加裁定」）
+    见 D-060 §六 N-7（「asset-evaluation 2026-09-23 追加裁定」）
   - 独立评审第一轮的主线裁定——`loop_extension` 的推出规则由它的正文契约给（K9，[S-4](#s-4-依赖方向与被消费的面) 末段）；注册表钉住动作集之后再求一次、输出逐动作执行权限（K30，[S-6](#s-6-求值输入-evaluationinput)、[S-21](#s-21-第三步投影)）；
     清单缺列表即不合法、工作区的 `immutable` 只在读入时丢、工作区配值的 `since` 由读入方填（K43，[S-16](#s-16-readworkspacecarrier)、[S-27](#s-27-清单列的资产变成工作区那一格的持有)）；工作区格上不良构的条目丢弃并留痕、各种类只在一处丢（K44，[S-24](#s-24-工作区那一格在第四步只贡献设置)）——
-    见 [D-060 §五](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)
-  - 修复波 1b 的主线裁定——执行权限项另带 `tenantAutoWritable`（L7，[S-42](#s-42-执行权限项另带租户那一层写得进自动吗)）；注册表二次求值沿用装配那一次的配方、持有与配值取此刻的（L8；配方怎样组已改由注册表唯一拥有，见下一条 M6）；逐动作项按项名认种类（N-7，[S-21](#s-21-第三步投影) 末段）——见 [D-060 §六](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)
-  - 独立评审第二轮的主线裁定——`mcp` 的 `execute:` 项上 `tenantAutoWritable` 在资产治理 G-5 闭合前恒为假、「与写面同一口径」限于 `tool` 的执行权限项（M5）；第二次求值的配方由 `capability.asset-registry/v2#S-24` ② 唯一拥有，本契约只引、不另列（M6，[S-6](#s-6-求值输入-evaluationinput)、[S-8](#s-8-求值结果-effectiveassembly)、[第十二节](#十二消费者核对)）；租户那一格若有对 `c` 的持有，它须在效且指向生效资产（M7，[S-42](#s-42-执行权限项另带租户那一层写得进自动吗) 第 4 条）——见 [D-060 §七](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)
-  - 实现映射反推的主线裁定——输入 `root` 改为**组合根引用集** `{ definition, references }`：`definition` 只作组合根的身份、原样记进结果的 `root`，第 2 步从调用方读出的 `references` 起步，Agent Definition 的规则一因此由输入给出（M31，[S-6](#s-6-求值输入-evaluationinput)、[S-8](#s-8-求值结果-effectiveassembly)、[S-20](#s-20-第二步组装)，[G-3](#十一已知缺口) 收窄）；`evaluate` 的失败集合加 **`compositionCycle`**，带环上的能力标识序列作诊断（M32，[S-15](#s-15-evaluate)；原 G-1 关闭）；再加 **`categoryUnsupported{category}`**：第 2 步走到本版没有正文规则的一类生效资产（`plugin`、作 sub-agent 的 `agent_definition`）即以它失败，[G-3](#十一已知缺口)、[G-21](#十一已知缺口) 闭合时删去（M45，[S-15](#s-15-evaluate)、[S-12](#s-12-缺席时的默认答案)、[S-44](#s-44-读不了正文的一类即拒)）——见 [D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)
+    见 D-060 §五
+  - 修复波 1b 的主线裁定——执行权限项另带 `tenantAutoWritable`（L7，[S-42](#s-42-执行权限项另带租户那一层写得进自动吗)）；注册表二次求值沿用装配那一次的配方、持有与配值取此刻的（L8；配方怎样组已改由注册表唯一拥有，见下一条 M6）；逐动作项按项名认种类（N-7，[S-21](#s-21-第三步投影) 末段）——见 D-060 §六
+  - 独立评审第二轮的主线裁定——`mcp` 的 `execute:` 项上 `tenantAutoWritable` 在资产治理 G-5 闭合前恒为假、「与写面同一口径」限于 `tool` 的执行权限项（M5）；第二次求值的配方由 `capability.asset-registry/v2#S-24` ② 唯一拥有，本契约只引、不另列（M6，[S-6](#s-6-求值输入-evaluationinput)、[S-8](#s-8-求值结果-effectiveassembly)、[第十二节](#十二消费者核对)）；租户那一格若有对 `c` 的持有，它须在效且指向生效资产（M7，[S-42](#s-42-执行权限项另带租户那一层写得进自动吗) 第 4 条）——见 D-060 §七
+  - 实现映射反推的主线裁定——输入 `root` 改为**组合根引用集** `{ definition, references }`：`definition` 只作组合根的身份、原样记进结果的 `root`，第 2 步从调用方读出的 `references` 起步，Agent Definition 的规则一因此由输入给出（M31，[S-6](#s-6-求值输入-evaluationinput)、[S-8](#s-8-求值结果-effectiveassembly)、[S-20](#s-20-第二步组装)，[G-3](#十一已知缺口) 收窄）；`evaluate` 的失败集合加 **`compositionCycle`**，带环上的能力标识序列作诊断（M32，[S-15](#s-15-evaluate)；原 G-1 关闭）；再加 **`categoryUnsupported{category}`**：第 2 步走到本版没有正文规则的一类生效资产（`plugin`、作 sub-agent 的 `agent_definition`）即以它失败，[G-3](#十一已知缺口)、[G-21](#十一已知缺口) 闭合时删去（M45，[S-15](#s-15-evaluate)、[S-12](#s-12-缺席时的默认答案)、[S-44](#s-44-读不了正文的一类即拒)）——见 D-060 §八
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记）：
   - `omne-harness-lite-design-2026-09-15 · data.identity-values · v1`（accepted）
   - `omne-harness-lite-design-2026-09-15 · data.asset-model · v3`（accepted；原 G-12 闭合）
@@ -212,7 +212,7 @@
 
 [S-10](#s-10-各类正文契约须供的两条规则) 要求每一类资产的正文契约供两条规则。**那是本契约对它们的要求，不是本契约对它们的消费登记**——
 五类正文契约的候选已给出两条规则的落点——`data.tool-definition` S-16／S-31、`data.skill-package` S-13／S-17、`data.slash-command` S-6／S-11、`data.mcp-endpoint` S-14（与它的输入 S-15）、`data.connector` S-11（后两类不组合任何资产）；
-**`loop_extension` 的属性项推出规则由 [`data.loop-extension/v3#S-40`](../../../data/loop-extension/v3/contract.md#s-40-属性项的推出规则) 给出**（同批新增；主线裁定 [D-060 §五 K9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)：`position`、`dimension` 是绑定类设置项，`power` 是权限项，取值域各为本枚举、默认是声明值；`onError`、`needs`、`implementation`、`unavailability` 不出项）；它不组合任何资产（[谁能组合谁](../../../../product/PF-002-assets-settings-and-permissions/design.md#谁能组合谁)那一行全空），规则一恒为空集；
+**`loop_extension` 的属性项推出规则由 [`data.loop-extension/v3#S-40`](../../../data/loop-extension/v3/contract.md#s-40-属性项的推出规则) 给出**（同批新增；主线裁定 D-060 §五 K9：`position`、`dimension` 是绑定类设置项，`power` 是权限项，取值域各为本枚举、默认是声明值；`onError`、`needs`、`implementation`、`unavailability` 不出项）；它不组合任何资产（[谁能组合谁](../../../../product/PF-002-assets-settings-and-permissions/design.md#谁能组合谁)那一行全空），规则一恒为空集；
 **`agent_definition` 的完整正文契约未闭合**——组合根的引用列表与本版受限属性声明由显式输入给出（`root.references`、`root.attributes`，[S-45](#s-45-组合根的受限设置声明)），来源由 `root.source` 与 PRE-9 约束。真实正文先按 `data.agent-definition/v1` 的窄规则读取，采用与实际证据仍受 [G-22](#十一已知缺口) 约束；sub-agent 与 `plugin` 的属性项仍未定（[G-21](#十一已知缺口)）。它们「确定、可重放、只落在谁能组合谁表内」逐类核对是那几份契约的对齐义务；已被本版实质消费的推出规则按 catalog 精确登记，不以本段早期的「按规则引用」说明免登。
 
 ---
@@ -254,7 +254,7 @@
 | `holdings` | 出厂、组织、租户、工作区四格此刻的全部持有，每份一个 `AssetHolding`。工作区那一格的持有是 [S-16](#s-16-readworkspacecarrier) 的读入结果 | **必需**（可为空集，但出厂那一格见前提 PRE-4） |
 | `definitions` | 被持有的每份资产的定义，`AssetDefinition`；**可以多带**，多带的不进结果（[S-7](#s-7-输入的一致性条件) C5） | **必需** |
 | `session` | 会话格的配值：一组 **`SessionAssignment { capability: CapabilityId, assignment: AttributeAssignment }`**（形状名是主线裁定，文首）——`AttributeAssignment` 自己不带能力标识，项名只在一份资产内唯一，单凭它指不到项。值归会话记录，**本版的写面只有会话创建参数**（其余写面见 [G-7](#十一已知缺口)） | 可选；缺席即会话格没有值 |
-| `mcpActionSets` | 若干份 `mcp` 接入点持有此刻用的动作集：每份一个 **`McpActionSet { endpoint: CapabilityId, scope: Layer, actions: ActionSnapshot }`**——`scope` 那一格对 `endpoint` 的那份持有，用 `actions` 这份[动作清单副本](../../../data/mcp-endpoint/v2/contract.md#s-9-动作清单副本)推逐动作项（[S-21](#s-21-第三步投影)）。`endpoint`、`scope` 与本输入的 `tenant`（工作区那一格另加 `workspace`）合起来，就是 `capability.mcp-bridge/v2` S-5 里「接入点持有」的三项身份。**装配那一次求值不带它**；会话资产注册表在每次执行尝试开始时求两次值，钉住动作集之后的第二次带上它（两次求值的由来见 [D-060 §五 K30](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）。**两次的输入怎样组——配方取哪一刻（`standing`、`definitions`、`session`、`root`、`workspace`）、持有与配值取此刻——由 [`capability.asset-registry/v2#S-24`](../../asset-registry/v2/contract.md#s-24-refreshavailability每次执行尝试开始时现算) ② 唯一拥有，本契约不另列**（主线裁定，见 [D-060 §七 M6](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。第二次求值供 `tool` 表**每条条目**的执行权限（含 `tenantAutoWritable`，[S-42](#s-42-执行权限项另带租户那一层写得进自动吗)），以及注册表判 `not_in_composition` 用的组合（那份契约的 [`#S-11`](../../asset-registry/v2/contract.md#s-11-一次执行尝试的可用性报告)、`#S-24`；[§六 L13、L15](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)），不只逐动作项。**可以多带**：不是生效那份持有的，不进结果 | 可选；缺席即这次求值没有动作集，逐动作项推不出（[S-12](#s-12-缺席时的默认答案)） |
+| `mcpActionSets` | 若干份 `mcp` 接入点持有此刻用的动作集：每份一个 **`McpActionSet { endpoint: CapabilityId, scope: Layer, actions: ActionSnapshot }`**——`scope` 那一格对 `endpoint` 的那份持有，用 `actions` 这份[动作清单副本](../../../data/mcp-endpoint/v2/contract.md#s-9-动作清单副本)推逐动作项（[S-21](#s-21-第三步投影)）。`endpoint`、`scope` 与本输入的 `tenant`（工作区那一格另加 `workspace`）合起来，就是 `capability.mcp-bridge/v2` S-5 里「接入点持有」的三项身份。**装配那一次求值不带它**；会话资产注册表在每次执行尝试开始时求两次值，钉住动作集之后的第二次带上它（两次求值的由来见 D-060 §五 K30）。**两次的输入怎样组——配方取哪一刻（`standing`、`definitions`、`session`、`root`、`workspace`）、持有与配值取此刻——由 [`capability.asset-registry/v2#S-24`](../../asset-registry/v2/contract.md#s-24-refreshavailability每次执行尝试开始时现算) ② 唯一拥有，本契约不另列**（主线裁定，见 D-060 §七 M6）。第二次求值供 `tool` 表**每条条目**的执行权限（含 `tenantAutoWritable`，[S-42](#s-42-执行权限项另带租户那一层写得进自动吗)），以及注册表判 `not_in_composition` 用的组合（那份契约的 [`#S-11`](../../asset-registry/v2/contract.md#s-11-一次执行尝试的可用性报告)、`#S-24`；§六 L13、L15），不只逐动作项。**可以多带**：不是生效那份持有的，不进结果 | 可选；缺席即这次求值没有动作集，逐动作项推不出（[S-12](#s-12-缺席时的默认答案)） |
 | `root` | **组合根引用集**（无词条）的 v4 输入外壳 `{ definition, references, attributes, source }`：<br>· `definition`：组合根的 `CapabilityId`，类别恰为 `agent_definition`。第 1 步照常求它的生效资产，输出 `root` 原样记此标识；它仍不进 `composition`；<br>· `references`：所选正文的引用列表，元素引用 `data.agent-definition/v1#S-3` 的 `AssetReference`，按集合读、次序不承载含义；<br>· `attributes`：所选正文的受限属性声明列表，元素复用 `data.asset-model/v3#S-12` 的 `AttributeDeclaration`，本批项与精确域见 [S-45](#s-45-组合根的受限设置声明)，不带运行环境推导的值；<br>· `source`：`{ asset, version }`，`asset` 是 `data.asset-model/v3#S-4` 的 `AssetRecordId`，`version` 是该资产 `AssetVersion.number`（S-9，正整数）。两者标记 `references` 与 `attributes` 共同出自哪份不可变已发布正文。根有生效资产时须与其 `asset`、`version` 一致（C16）；内容确实等于那份正文的责任是 PRE-9，身份相符本身不证明内容相符。所有字段都显式交入，本契约不解析不透明正文 | **必需**；四个成员都必需，`references`、`attributes` 可各自为空列表，不可缺席；`source` 两个成员都必需 |
 
 **`standing` 的来源与 PRE-3 分开**：通常由组输入方交入租户当前有效成员资格事实。只有消费契约**明确采用会话创建时捕获的配方**，才用该会话已捕获的有效 `standing` 进行本次 S-39 角色求值；既有 registry 的 S-24 与本批 model-request-runtime/v3 的 S-66 属于这种采用（这里只导航消费者，不反向消费其规范）。这不逐次从中心更新会话捕获身份或角色，也**不撤销 PRE-3**：组输入者仍须依据真实本机权威来源或有明确资格效力的副本，核实 `tenant` 此刻有效、调用方此刻有权以它求值。已捕获 `effective` 不是这两件事的证明；判为失效、无权，或无法判明时，不得把输入作为满足前提的成功输入交给求值消费者。其来源读取与失败映射归组输入的一方，纯求值不增隐式环境读取或新失败值。规范场景见 [E-11](examples.md#e-11-捕获角色与当前资格分开)。
@@ -306,7 +306,7 @@
 
 | 成员 | 元素 | 含义 | 出自 |
 |---|---|---|---|
-| `root` | `CapabilityId`（单值，不是列表） | 这次展开的组合根：就是输入的 `root.definition`，原样记下（[D-060 §八 M31](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)「记进 `EffectiveAssembly`」；成员名 `root` 是本契约取的，已报主线）。**它不在 `composition` 里**；根生效时 `root.attributes` 的受限设置独立进入第 3、4 步及 `values`（S-45），不把根塞回组合。它有没有生效资产照常看 `assets` | 输入 |
+| `root` | `CapabilityId`（单值，不是列表） | 这次展开的组合根：就是输入的 `root.definition`，原样记下（D-060 §八 M31「记进 `EffectiveAssembly`」；成员名 `root` 是本契约取的，已报主线）。**它不在 `composition` 里**；根生效时 `root.attributes` 的受限设置独立进入第 3、4 步及 `values`（S-45），不把根塞回组合。它有没有生效资产照常看 `assets` | 输入 |
 | `assets` | `EffectiveAsset` = `{ capability, asset, version, from, replaced, lockedAt?, resident? }` | 每个能力标识**一份**生效资产：它是哪份资产（`AssetRecordId`）、**用的是它的哪一版**（`AssetVersion` 的编号，按选中那份持有的 `versionSelection` 定，[S-6](#s-6-求值输入-evaluationinput)）、来自哪一格、**替换了哪几格的那一份**、锁在哪一格；`resident` 恰在 `tool`、`skill` 两类上出现（[S-38](#s-38-常驻值)）。**在 `assets` 里的，就是这个租户用得了的**：official，或过了「谁可以使用它」那一滤的自定义件（[S-39](#s-39-谁可以使用它值与判定)）——不另带一个「可不可以用」的成员 | 第 1 步，[S-17](#s-17-第一步之一先按禁用滤)、[S-39](#s-39-谁可以使用它值与判定)、[S-18](#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断) |
 | `composition` | `CapabilityId` | 从 `root.references` 沿组合图展开、**实际装上的**能力标识；**不含组合根自己** | 第 2 步，[S-20](#s-20-第二步组装) |
 | `values` | `EffectiveValue` = `{ capability, item, value, from, lockedAt?, provenance?, tenantAutoWritable? }` | `composition` 里每份生效资产的每个属性项，加根生效时 `root.attributes` 声明的设置项——保留项 `usableBy`（[S-39](#s-39-谁可以使用它值与判定)），以及外层锁过、它却没声明的权限项（[S-23](#s-23-第四步权限)）——取什么值、来自哪一格、锁在哪一格；落点与身份类设置另带 `provenance`（[S-40](#s-40-落点与身份类设置的来处)）；执行权限项另带 `tenantAutoWritable`（[S-42](#s-42-执行权限项另带租户那一层写得进自动吗)）。设置的 `value` 是一个 JSON 值；权限的 `value` 是一个 `PermissionValue`（允许集合） | 第 3、4 步，[S-21](#s-21-第三步投影)～[S-25](#s-25-工作区提供的资产的权限项一律取最严值)、[S-42](#s-42-执行权限项另带租户那一层写得进自动吗) |
@@ -322,18 +322,18 @@
 | `locked_below` | 一份持有：它在一把锁以内、指向另一份资产 | [S-18](#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断) |
 | `workspace_permission` | 工作区那一格对一个权限项的配值 | [S-24](#s-24-工作区那一格在第四步只贡献设置) |
 | `workspace_placement` | 工作区那一格对一个落点与身份类设置项的配值 | [S-24](#s-24-工作区那一格在第四步只贡献设置) |
-| `workspace_governance` | 工作区那一格对一个治理类设置项（`disabled` 之外）的配值。值名见 [D-060 §三 R2-8](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25) | [S-24](#s-24-工作区那一格在第四步只贡献设置) |
+| `workspace_governance` | 工作区那一格对一个治理类设置项（`disabled` 之外）的配值。值名见 D-060 §三 R2-8 | [S-24](#s-24-工作区那一格在第四步只贡献设置) |
 
 **五个列表一律按集合读**：元素不重复，**顺序不承载含义**，两份结果相等就是 `root` 相同、五个集合各自相等。
 `filteredOut` 以 `(capability, from, reason)` 为一个元素——同一格对同一能力标识因同一个理由滤掉了好几项配值，记一条。
 `EffectiveValue` 与 `FilteredOut` **不带项的「种类」**：一项是设置还是权限、属于哪一类设置，看生效资产对它的声明（第 3 步）。成功结果的独立值读取边界见 [S-47](#s-47-成功结果的值读取)；它不从结果反推声明。
 
-**工作区那一格上的 `immutable` 不在这里留痕**（2026-09-24 删去原 `workspace_immutable`，主线裁定 [D-060 §五 K43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）：清单上的 `immutable` 在读入时已丢、以 `DropReason` 的 `immutable_flag` 留痕（[S-28](#s-28-配值与禁用只对工作区提供的资产生效丢掉的留痕)）；
+**工作区那一格上的 `immutable` 不在这里留痕**（2026-09-24 删去原 `workspace_immutable`，主线裁定 D-060 §五 K43）：清单上的 `immutable` 在读入时已丢、以 `DropReason` 的 `immutable_flag` 留痕（[S-28](#s-28-配值与禁用只对工作区提供的资产生效丢掉的留痕)）；
 求值输入里工作区那一格的持有与配值再带 `immutable = true`，就是不合 `data.asset-model/v3#S-20` 的形状，按 C1 为 `invalidInput`——一件事只有一个留痕值，也只有一条到得了的路。
 
 **`values` 里 `mcp` 生效资产的逐动作执行权限 `execute:<动作名>`**，恰在输入给了那份持有的动作集时出现（[S-21](#s-21-第三步投影)）：每个动作一条 `EffectiveValue`，与别的权限项同一个形状、同一套合成（[S-23](#s-23-第四步权限)、[S-25](#s-25-工作区提供的资产的权限项一律取最严值)）。
-**「钉住动作集之后再求一次」取的就是这份输出**：会话资产注册表在执行尝试开始时钉住动作集后，加上这份动作集再求一次（主线裁定 [D-060 §五 K30](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)；输入的配方由 [`capability.asset-registry/v2#S-24`](../../asset-registry/v2/contract.md#s-24-refreshavailability每次执行尝试开始时现算) ② 唯一拥有，本契约不另列——[§七 M6](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。
-**第二次求值供 `tool` 表每条条目的执行权限（含 `tenantAutoWritable`），以及判 `not_in_composition` 用的组合**（那份契约的 [`#S-11`](../../asset-registry/v2/contract.md#s-11-一次执行尝试的可用性报告)、`#S-24` ④ 第 5 步；[§六 L13、L15](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）：常驻与作者写的工具取它能力标识的执行权限项，MCP 动作取逐动作项；条目仍在注册表的快照里、能力标识却不在这次的 `composition` 里，注册表写 `not_in_composition`（查不到条目的不在此列，归注册表与执行运行时）。持有与配值取此刻的，是为了让这一次看得见此刻的收紧（例如外层刚配下的「禁止」）；本契约对两次求值一视同仁，同输入同结果（[S-11](#s-11-纯计算)）。
+**「钉住动作集之后再求一次」取的就是这份输出**：会话资产注册表在执行尝试开始时钉住动作集后，加上这份动作集再求一次（主线裁定 D-060 §五 K30；输入的配方由 [`capability.asset-registry/v2#S-24`](../../asset-registry/v2/contract.md#s-24-refreshavailability每次执行尝试开始时现算) ② 唯一拥有，本契约不另列——§七 M6）。
+**第二次求值供 `tool` 表每条条目的执行权限（含 `tenantAutoWritable`），以及判 `not_in_composition` 用的组合**（那份契约的 [`#S-11`](../../asset-registry/v2/contract.md#s-11-一次执行尝试的可用性报告)、`#S-24` ④ 第 5 步；§六 L13、L15）：常驻与作者写的工具取它能力标识的执行权限项，MCP 动作取逐动作项；条目仍在注册表的快照里、能力标识却不在这次的 `composition` 里，注册表写 `not_in_composition`（查不到条目的不在此列，归注册表与执行运行时）。持有与配值取此刻的，是为了让这一次看得见此刻的收紧（例如外层刚配下的「禁止」）；本契约对两次求值一视同仁，同输入同结果（[S-11](#s-11-纯计算)）。
 
 **`lockedAt` 缺席与出现是两件事**：缺席 = 这一处没有任何锁起作用；出现 = 锁在那一格，更里面的格改不了。
 
@@ -360,8 +360,8 @@
 
 **这两条规则缺席时的默认答案是「这一类求不了」，不是「没有引用」「没有属性项」**（[S-12](#s-12-缺席时的默认答案)）；它的值是 `evaluate` 的失败 `categoryUnsupported`（[S-15](#s-15-evaluate) ⑥，M45）。
 `data.asset-model/v3` 的 `agent_definition.body` 保持不透明壳；本版显式采用 `data.agent-definition/v1` 只解释根的 references/attributes 两槽位，其他正文语义和 sub-agent 规则未闭合。`plugin` 的属性项未定；`loop_extension` 的规则二由 [`data.loop-extension/v3#S-40`](../../../data/loop-extension/v3/contract.md#s-40-属性项的推出规则) 给出、规则一恒为空集；其余五类的正文契约候选已给出两条规则的落点（[S-4](#s-4-依赖方向与被消费的面) 末段）。
-**组合根的规则一由输入给出**（主线裁定，见 [D-060 §八 M31](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：`root.references` 就是根那一份 Agent Definition 的引用列表（[S-6](#s-6-求值输入-evaluationinput)），第 2 步从它起步，本契约不读根的正文；根不进 `composition`。本版根的规则二按 `data.agent-definition/v1#S-4` 由显式 `root.attributes` 给出（S-45），两份输入用 `root.source` 绑定所选版本（C16）；该窄正文只建立两槽位的读取规则，不因此建立完整正文读取权。
-**仍缺的两处**：被引用到的、根以外的 `agent_definition`（sub-agent）的规则一（[G-3](#十一已知缺口)）；sub-agent 与 plugin 的规则二、plugin「启用哪些成员」那一项（[G-21](#十一已知缺口)）。第 2 步走到这样一份生效资产时，`evaluate` 以 **`categoryUnsupported{category}`** 失败（[S-12](#s-12-缺席时的默认答案)、[S-15](#s-15-evaluate) ⑥；主线裁定，见 [D-060 §八 M45](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
+**组合根的规则一由输入给出**（主线裁定，见 D-060 §八 M31）：`root.references` 就是根那一份 Agent Definition 的引用列表（[S-6](#s-6-求值输入-evaluationinput)），第 2 步从它起步，本契约不读根的正文；根不进 `composition`。本版根的规则二按 `data.agent-definition/v1#S-4` 由显式 `root.attributes` 给出（S-45），两份输入用 `root.source` 绑定所选版本（C16）；该窄正文只建立两槽位的读取规则，不因此建立完整正文读取权。
+**仍缺的两处**：被引用到的、根以外的 `agent_definition`（sub-agent）的规则一（[G-3](#十一已知缺口)）；sub-agent 与 plugin 的规则二、plugin「启用哪些成员」那一项（[G-21](#十一已知缺口)）。第 2 步走到这样一份生效资产时，`evaluate` 以 **`categoryUnsupported{category}`** 失败（[S-12](#s-12-缺席时的默认答案)、[S-15](#s-15-evaluate) ⑥；主线裁定，见 D-060 §八 M45）。
 
 ---
 
@@ -400,7 +400,7 @@
 | `root.attributes` 显式为空，或未声明三个允许项中的某一项 | 那些项不进 `values`；对未声明项的配值不参与，也不进 `filteredOut` | 不从配值反推声明。缺时限的求值本身可成功，模型请求消费者必须明确不可用；缺 `model` 表示无该项、无该项上的锁，不创造默认选中模型 |
 | 根无生效资产 | 根进入 `unresolved`；根设置不进 `values` | `root.attributes` 和 `source` 都不授予资产可见性 |
 | 工作区提供的资产上、[S-25](#s-25-工作区提供的资产的权限项一律取最严值) 表外的一个权限项的最严值 | **空集**（没有任何一档被允许） | 最严的允许集合是空集；**不取资产自己声明的出厂值**（[G-8](#十一已知缺口)） |
-| 读入时判不出一项是不是权限项、是不是落点与身份类或治理类（[S-28](#s-28-配值与禁用只对工作区提供的资产生效丢掉的留痕)） | 照常读入，**由第 4 步 [S-24](#s-24-工作区那一格在第四步只贡献设置) 丢弃并留痕** | 读入面手上没有属性声明（[D-060 §一 S10-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s10asset-evaluation报回的)）；这一道一定会走，所以这不是放行 |
+| 读入时判不出一项是不是权限项、是不是落点与身份类或治理类（[S-28](#s-28-配值与禁用只对工作区提供的资产生效丢掉的留痕)） | 照常读入，**由第 4 步 [S-24](#s-24-工作区那一格在第四步只贡献设置) 丢弃并留痕** | 读入面手上没有属性声明（D-060 §一 S10-d）；这一道一定会走，所以这不是放行 |
 | `mcpActionSets` 缺席，或没有生效那份持有（`EffectiveAsset.from` 那一格）的动作集 | **`values` 里没有这个接入点的逐动作项** `execute:*`；四个固定项照常 | 这是「这次求值没拿到动作集」，**不是**「对端没有动作」，也**不是**「每个动作取作者默认」（`data.mcp-endpoint/v2#S-15`）。消费者不得据这份缺席放行：注册表拿不到钉住之后的那次求值，按不可用收场（`capability.asset-registry` v2） |
 | 几个 plugin 对同一成员的常驻标记不一致（[S-38](#s-38-常驻值)） | `resident` **缺席** | 不替产品选一个（[G-18](#十一已知缺口)） |
 | 租户层对工作区提供的 stdio 接入点的显式启用（[S-17](#s-17-第一步之一先按禁用滤)） | **仍禁用** | 表示不出启用，不当作启用（[G-19](#十一已知缺口)） |
@@ -418,12 +418,12 @@
 **不得**把一条 `unresolved` 升级成 `invalidInput`（那会让一次合法求值无从得知缺的是哪个），
 也**不得**把一次 `invalidInput` 降成一份带着空列表的成功结果（那会让一个坏输入看起来像「没有资产」）。
 
-**`compositionCycle` 是第三种：判出来的失败**（主线裁定，见 [D-060 §八 M32](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
+**`compositionCycle` 是第三种：判出来的失败**（主线裁定，见 D-060 §八 M32）。
 输入合法、求值开始了，第 2 步沿引用走回了路径上已有的能力标识——这份组合[展开不完](../../../../product/PF-002-assets-settings-and-permissions/design.md#谁能组合谁)，**没有一份结果可交**。
 它与 `invalidInput` 走同一条通道（操作的失败，**不返回任何 `EffectiveAssembly`，也不返回半份**），却**不是** `invalidInput`：形状与一致性条件都成立，环是判出来的；它也**不是**一条 `unresolved`——环上的每个能力标识都有生效资产。
 两者同时成立时报 `invalidInput`：求值根本没有开始，就判不出环。
 
-**`categoryUnsupported` 是第四种：判不出来**（主线裁定，见 [D-060 §八 M45](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
+**`categoryUnsupported` 是第四种：判不出来**（主线裁定，见 D-060 §八 M45）。
 输入合法、求值开始了，第 2 步走到一份生效资产，它那一类本版没有正文规则（[S-10](#s-10-各类正文契约须供的两条规则) 末段）——这份组合**展开不下去**，本契约**判不出**它由什么构成，也就没有一份结果可交。
 同一条通道、同样不返回任何结果；它**不是** `invalidInput`（输入没错），**不是** `unresolved`（那份资产有生效资产），也**不是**一份把那一类当作「没有引用」「没有属性项」「全部启用」的成功结果。它是**本版的范围**，不是产品规则：[G-3](#十一已知缺口)、[G-21](#十一已知缺口) 闭合时删去这个值。
 **与 `compositionCycle` 同时成立时报 `compositionCycle`**（本契约推导，已报主线）：沿读得了的那部分已经走回路径上的一个标识，这个环不论读不了的那一类引用了什么都在，是判出来的；判不出来的只是「还有没有别的环、构成是什么」。
@@ -464,7 +464,7 @@
 | ⑧ | 见 [S-12](#s-12-缺席时的默认答案)。**判不出来的一律不当作判出来了**：版本选用确定不了 ⇒ `invalidInput`；第 2 步走到某一类正文规则缺席的生效资产 ⇒ `categoryUnsupported`（[G-3](#十一已知缺口)、[G-21](#十一已知缺口)）；**不产出一份把这些缺口填成空集的 `EffectiveAssembly`**，成环时也不交出环以外求得出的那一部分 |
 | ⑨ | 不发 |
 
-**`compositionCycle`：什么时候报、带什么**（主线裁定，见 [D-060 §八 M32](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)；原 G-1 关闭）。[产品原话要求成环时拒绝并指出环在哪](../../../../product/PF-002-assets-settings-and-permissions/flows.md#二分支与异常)；成环**不是表示层问题**——它是第 2 步判出来的，所以是一个自己的值，不收进 `invalidInput`（[S-13](#s-13-invalidinput-是没开始判filteredout-与-unresolved-是判出来的结果)）。
+**`compositionCycle`：什么时候报、带什么**（主线裁定，见 D-060 §八 M32；原 G-1 关闭）。[产品原话要求成环时拒绝并指出环在哪](../../../../product/PF-002-assets-settings-and-permissions/flows.md#二分支与异常)；成环**不是表示层问题**——它是第 2 步判出来的，所以是一个自己的值，不收进 `invalidInput`（[S-13](#s-13-invalidinput-是没开始判filteredout-与-unresolved-是判出来的结果)）。
 
 - **哪些环算**是产品原话（[PF-002 谁能组合谁](../../../../product/PF-002-assets-settings-and-permissions/design.md#谁能组合谁)规则 2，rev 17）：环指展开不完的那一种——沿引用走（从组合根起：`root.definition` 经 `root.references`，再经各生效资产所选版本正文的规则一），**走回这条路径上已经走过的一个能力标识**；
   **只由那张表允许互引的那一对边构成的来回**（Skill 与 Tool 互相引用）**不算环**——可达集合照常求得出。引用列表里出现 `root.definition` 自己也算（根把自己当 sub-agent）。
@@ -472,7 +472,7 @@
 - **诊断 `cycle`**：环上的能力标识序列 `[c_1, …, c_k]`（k ≥ 1）——`c_{i+1}` 由 `c_i` 的引用直接指到，`c_1` 由 `c_k` 直接指到；这就是「指出环在哪」。有几个环时报哪一个、从哪一处起写，**不承载含义**：消费者只把它当说明呈现，**不据它作判定、不拿两次的诊断比较**（[S-11](#s-11-纯计算) 的例外只在这一处）。
 - **本版判得到的环**：根以外的 `agent_definition` 的引用列表本契约拿不到（[G-3](#十一已知缺口)），所以本版到得了的环只有「根的引用列表指回 `root.definition`」这一种；G-3 闭合之后，sub-agent 之间的环照同一条规则判，本条不改。
 
-**`categoryUnsupported`：什么时候报、带什么**（主线裁定，见 [D-060 §八 M45](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
+**`categoryUnsupported`：什么时候报、带什么**（主线裁定，见 D-060 §八 M45）。
 
 - **什么时候**：第 2 步沿引用走到一个能力标识，它**有生效资产**，而那一类本版没有 [S-10](#s-10-各类正文契约须供的两条规则) 的规则——本版恰两种：**`plugin`**（成员上的常驻标记与「启用哪些成员」那一项推不出，[G-21](#十一已知缺口)；不当作「全部启用」），**根以外的 `agent_definition`**（sub-agent 的引用列表拿不到，[G-3](#十一已知缺口)；属性项同样推不出，G-21）。
   **没被走到的不算**：没人引用、被禁用、这个租户用不了、求不出（进 `unresolved`）的，都不触发；只是被持有、不在组合图上的也不触发——`assets` 仍为每个标识求生效资产，那一步不读正文。
@@ -495,7 +495,7 @@
 | ⑨ | 不发 |
 
 **`DropReason` 是闭合枚举，恰两个值**：`immutable_flag` `unknown_asset`，含义见 [S-28](#s-28-配值与禁用只对工作区提供的资产生效丢掉的留痕)
-（主线裁定，见 [D-060 §一 S10-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s10asset-evaluation报回的)：不给产生不了的值留位）。
+（主线裁定，见 D-060 §一 S10-d：不给产生不了的值留位）。
 判断一项是不是权限项、是不是落点与身份类或治理类，要看那份资产的属性声明，而本操作的输入里没有它；**那三类配值照常读入，在第 4 步被 [S-24](#s-24-工作区那一格在第四步只贡献设置) 丢弃并以 `workspace_permission`／`workspace_placement`／`workspace_governance` 留痕**——
 [「那条路根本不走」](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)的承诺由那一道兑现。
 
@@ -517,7 +517,7 @@
 - 组织或租户那一格有一份指向 `a` 的持有，其 `disabled` 为真；**或者**
 - 工作区那一格有一份指向 `a` 的持有，**`a` 是[工作区提供的资产](#s-9-工作区提供的资产)**，且其 `disabled` 为真；**或者**
 - **`a` 是工作区提供的 `mcp` 资产，它那一版正文的连接目标是 `stdio`**（`data.mcp-endpoint` v2 [S-4](../../../data/mcp-endpoint/v2/contract.md#s-4-stdio)），**或者是工作区提供的 `loop_extension` 资产、它那一版正文的实现是外部命令**（`command`，[`data.loop-extension/v3#S-8`](../../../data/loop-extension/v3/contract.md#s-8-装配进来的实现与外部命令)）——**默认禁用**，要在租户层显式启用才用得上
-  （MCP 那一半：主线裁定，见 [D-060 §一 S19-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的)，[`data.mcp-endpoint/v2#S-17`](../../../data/mcp-endpoint/v2/contract.md#s-17-工作区格上的这些项)；两样合起来是 [PF-002 rev 17 §5.7](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)「仓库带来的、会在本机起一个命令的东西，默认不启用」：权力不从项目来，否则克隆一个仓库、开一次尝试就是在宿主机上跑仓库写的命令）。
+  （MCP 那一半：主线裁定，见 D-060 §一 S19-c，[`data.mcp-endpoint/v2#S-17`](../../../data/mcp-endpoint/v2/contract.md#s-17-工作区格上的这些项)；两样合起来是 [PF-002 rev 17 §5.7](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)「仓库带来的、会在本机起一个命令的东西，默认不启用」：权力不从项目来，否则克隆一个仓库、开一次尝试就是在宿主机上跑仓库写的命令）。
   **从别家配置导入的工作区来源 hook 不走这一条**：导入把它落成租户格的持有、租户格 `disabled` 为真（`capability.hooks-import/v2` S-9——**指路，不是本契约的依赖**：本契约只照输入里租户格的 `disabled` 求，不读那份契约），由第一条禁用、租户自己改回假即启用——那是租户格上表示得出的启用。
   **「租户层显式启用」在输入里怎样表示，本版没有**——租户那一格持有不了工作区提供的资产（C8 与 `data.asset-model/v3#S-19` 的 `carrier` 支），也没有别的项承载它（[G-19](#十一已知缺口)）；**所以本版它恒为禁用**：判不出启用，不当作启用。
 
@@ -536,7 +536,7 @@
 
 > **禁用先于替换的一个后果**：**更具体的一格可以让外层锁住的那份资产在自己这里不可见**——
 > 它换不成自己的（[S-18](#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断)），但能让那个标识退回更外一层、或者整个消失。
-> 这是 §5.6 次序的字面结果；**主线裁定不改**（见 [D-060 §一 S10-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s10asset-evaluation报回的)）：锁管的是替换与配值，不管可见性，PF-002「禁用任一层为真即不可见」「`immutable` 不能配到禁用上」原文即如此。
+> 这是 §5.6 次序的字面结果；**主线裁定不改**（见 D-060 §一 S10-e）：锁管的是替换与配值，不管可见性，PF-002「禁用任一层为真即不可见」「`immutable` 不能配到禁用上」原文即如此。
 
 ### S-18 第一步之三：最后取最具体的一份，锁在最外那一把处截断
 
@@ -582,7 +582,7 @@
 ### S-20 第二步：组装
 
 **先看组合根自己**：`root.definition` 在第 1 步没有生效资产（没人持有、被禁用、这个租户用不了），**根不可见，它的引用无从生效**——它进 `unresolved`（`referencedBy` 缺席），`composition` 为空，不再往下走。
-**否则从 `root.references` 起**（[S-6](#s-6-求值输入-evaluationinput)；主线裁定，见 [D-060 §八 M31](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），**再沿每个被引用到的能力标识的生效资产、它选用版本正文里声明的引用（[S-10](#s-10-各类正文契约须供的两条规则) 规则一）走，求可达的能力标识集合。**
+**否则从 `root.references` 起**（[S-6](#s-6-求值输入-evaluationinput)；主线裁定，见 D-060 §八 M31），**再沿每个被引用到的能力标识的生效资产、它选用版本正文里声明的引用（[S-10](#s-10-各类正文契约须供的两条规则) 规则一）走，求可达的能力标识集合。**
 这就是[资产组合](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-asset-composition--资产组合--asset-composition)从一个 Agent Definition 展开求值的结果——[组装不是第二种机制](../../../../product/PF-002-assets-settings-and-permissions/design.md#51-组合是一种关系不是几种)。
 每走一步，被引用的那个能力标识**用第 1 步求出的生效资产**——[引用指向能力标识，不指向具体资产](../../../../product/PF-002-assets-settings-and-permissions/design.md#63-组合的引用指向能力标识)，
 所以组织换上的那一份自动进入所有引用它的 plugin 与 agent definition。
@@ -620,7 +620,7 @@
   逐动作项 `execute:<对端动作名>`（[S-14](../../../data/mcp-endpoint/v2/contract.md#s-14-推出规则五类项)）由正文与 `mcpActionSets` 里 **`(c, EffectiveAsset.from)` 那一份**的 `actions` 推出——动作集按持有存放，用的是生效那份持有的。
   **没有那一份，逐动作项一条也不出**（[S-12](#s-12-缺席时的默认答案)），不当作「没有动作」。
 
-> **逐动作项按项名认种类**（本契约推导，主线接受，见 [D-060 §六 N-7](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)「evaluation S-21 `execute:` 前缀即权限项」）：`mcp` 类里项名以 `execute:` 起头的，就是那个动作的执行权限（取值域恒为三档，`data.mcp-endpoint/v2#S-14` 第 2 条保证四个固定项都不以它起头）。
+> **逐动作项按项名认种类**（本契约推导，主线接受，见 D-060 §六 N-7「evaluation S-21 `execute:` 前缀即权限项」）：`mcp` 类里项名以 `execute:` 起头的，就是那个动作的执行权限（取值域恒为三档，`data.mcp-endpoint/v2#S-14` 第 2 条保证四个固定项都不以它起头）。
 > 所以第 4 步读别的格的配值时（[S-23](#s-23-第四步权限)、[S-24](#s-24-工作区那一格在第四步只贡献设置)），一条 `execute:<名>` 的配值**不必拿到那一格所持那一份的动作集**就认得出它是执行权限：
 > 配值按动作名键、动作消失时照样留着（[`data.mcp-endpoint/v2#S-16`](../../../data/mcp-endpoint/v2/contract.md#s-16-逐动作项按动作名键)），外层为某个动作锁下的界因此跟着能力标识走到替换件上，工作区对它的配值也照样丢弃并留痕。
 
@@ -652,7 +652,7 @@
 会被带到仓库带来的同名接入点上、送到仓库指定的地址去（[S-33](#s-33-四格齐全的一次求值) 核对它没有发生）。
 
 **权限不这样取**，它按能力标识跨层取交集（[S-23](#s-23-第四步权限)，主线裁定）。**两条规则的分界就是设置与权限的分界**，由生效资产对这一项的声明决定。
-**「设置按资产」是主线裁定**（见 [D-060 §一 S10-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s10asset-evaluation报回的)，它改判了早先「设置项同理按标识跟随」的读法）：按标识跟随，凭据就会跟到同名替换件上；替换件要值得自己配。
+**「设置按资产」是主线裁定**（见 D-060 §一 S10-a，它改判了早先「设置项同理按标识跟随」的读法）：按标识跟随，凭据就会跟到同名替换件上；替换件要值得自己配。
 
 **设置这一侧的代价要写出来**：更具体的一格**换了实现**之后，外层为原实现配的**设置**不跟过去——
 包括外层锁住的设置值。外层要让自己的设置管住这个能力标识，**杠杆是锁替换**（[S-18](#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断)），见 [S-36](#s-36-换了实现设置不跟过去权限的约束跟过去)。
@@ -662,14 +662,14 @@
 对 `composition` 里的 `c`、生效资产 `A`、`A` 声明的一项权限 `i`：
 
 **这一项按能力标识跨层求**（主线 2026-09-23 追加裁定）：外层对**这个能力标识**配的值，作用于**任何一格的同标识实现**——不论生效的是哪一份。
-**每条配值要么是界，要么是挑选**（主线裁定，见 [D-060 §一 S10-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s10asset-evaluation报回的)；已落进 [PF-002 rev 17 §5.3](../../../../product/PF-002-assets-settings-and-permissions/design.md#53-两个例子两种合成)）：
+**每条配值要么是界，要么是挑选**（主线裁定，见 D-060 §一 S10-b；已落进 [PF-002 rev 17 §5.3](../../../../product/PF-002-assets-settings-and-permissions/design.md#53-两个例子两种合成)）：
 
 - **界**：带 `immutable` 的配值；**以及执行权限上配成恰 `{forbid}` 的配值，不论带不带锁**（[PF-002 rev 17 §5.3](../../../../product/PF-002-assets-settings-and-permissions/design.md#53-两个例子两种合成)「哪一层把执行权限配成『禁止』，锁不锁都是界」——放行判断里「任一层明确禁止」是终局，一个能被下一层挑掉的「禁止」撑不起那一条）。界参与交集，**换一份实现逃不出它**；
 - **挑选**：其余不带锁的配值，以及 `A` 声明的默认值（作者建议，**最外面的那一条挑选**；作者默认的 `forbid` 不是界）。**内层的挑选覆盖外层的挑选**，但只在界内算数。
   **界不同时是挑选**（2026-09-24 随 rev 17 §5.3 改：原先「带锁的那条同时也是这一格的挑选」删去——产品的「往外找第一个落在界内的挑选，是作者的默认」要求锁下的界不参与挑）。
 
 **执行权限、干预力是分档的权限**：一项权限的取值域恰是执行权限三档（`forbid`、`auto`、`ask`，[`data.tool-definition/v3#S-15`](../../../data/tool-definition/v3/contract.md#s-15-执行权限)；MCP 每个动作的 `execute:<名>` 同是这三档），它就是执行权限，档序由宽到严是 `auto` → `ask` → `forbid`；
-是干预力三档（`observe`、`rewrite`、`veto`，[`data.loop-extension/v3#S-4`](../../../data/loop-extension/v3/contract.md#s-4-干预力三档)）的一个**含 `observe` 的非空子集**，它就是干预力，档序由宽到严是 `veto` → `rewrite` → `observe`。**干预力这一项不要求恰是三档**：拓展件的推出规则把它的取值域收到声明档及其以下（[`data.loop-extension/v3#S-40`](../../../data/loop-extension/v3/contract.md#s-40-属性项的推出规则)；主线裁定 [D-060 §七 M3](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)），声明 `rewrite` 的件取值域是 `observe`、`rewrite` 两档，它照样分档、照样按这个档序落档。「含 `observe`」是本契约的推导：声明档及其以下总含最严那一档。
+是干预力三档（`observe`、`rewrite`、`veto`，[`data.loop-extension/v3#S-4`](../../../data/loop-extension/v3/contract.md#s-4-干预力三档)）的一个**含 `observe` 的非空子集**，它就是干预力，档序由宽到严是 `veto` → `rewrite` → `observe`。**干预力这一项不要求恰是三档**：拓展件的推出规则把它的取值域收到声明档及其以下（[`data.loop-extension/v3#S-40`](../../../data/loop-extension/v3/contract.md#s-40-属性项的推出规则)；主线裁定 D-060 §七 M3），声明 `rewrite` 的件取值域是 `observe`、`rewrite` 两档，它照样分档、照样按这个档序落档。「含 `observe`」是本契约的推导：声明档及其以下总含最严那一档。
 档序出自产品正文：执行权限是 [PF-002 §5.3](../../../../product/PF-002-assets-settings-and-permissions/design.md#53-两个例子两种合成) 的例子（界是「问一下」「禁止」、作者默认「自动」时落到「问一下」不落到「禁止」）与 [§5.7](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)（最严是「问一下」之于仓库带来的动作）；干预力是 [PF-012 干预力三档](../../../../product/PF-012-agent-loop-and-run/design.md#干预力三档直接用-pf-000-的)（最严是只观察）。
 其余权限项（「谁可以使用它」等）不分档。
 
@@ -746,7 +746,7 @@
 **这三类配值在进来之前没有谁能拒**：工作区那一格的持有与配值来自承载目录里的文件，没有一个写入面。
 **工作区那一格上不属于良构的条目，丢弃并留痕、不是 `malformed`，每一种只在一处丢**：`immutable` 标记与指向清单没列的资产的条目在清单读入时丢，留痕是 `DropReason`（[S-28](#s-28-配值与禁用只对工作区提供的资产生效丢掉的留痕)）；
 对权限项、落点与身份类设置项、治理类设置项（`disabled` 除外）的配值，读入面手上没有属性声明、判不出种类，照常读入，在求值第 4 步丢，留痕是 `FilterReason`（本条）。
-这句与 `data.asset-model/v3` 的 [S-20](../../../data/asset-model/v3/contract.md#s-20-出厂格与工作区格的持有)、[S-24](../../../data/asset-model/v3/contract.md#s-24-工作区承载清单) 第 5 条是同一句（主线裁定，见 [D-060 §三 R2-11](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25)；工作区格条目丢弃并留痕是 [D-060 §五 K44](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)；K44「读入时丢弃」一句已由 [§四](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#四被推翻或被覆盖的项追加登记) 的 R3 落法取代——按种类分两处，读入面判不出种类的那几种丢在第 4 步，一处只滤一次）。[E-1](examples.md#e-1-四格齐全的一次求值) 的 `h10` 正是这样一份持有。
+这句与 `data.asset-model/v3` 的 [S-20](../../../data/asset-model/v3/contract.md#s-20-出厂格与工作区格的持有)、[S-24](../../../data/asset-model/v3/contract.md#s-24-工作区承载清单) 第 5 条是同一句（主线裁定，见 D-060 §三 R2-11；工作区格条目丢弃并留痕是 D-060 §五 K44；K44「读入时丢弃」一句已由 §四 的 R3 落法取代——按种类分两处，读入面判不出种类的那几种丢在第 4 步，一处只滤一次）。[E-1](examples.md#e-1-四格齐全的一次求值) 的 `h10` 正是这样一份持有。
 
 **工作区提供的资产的落点与身份类设置「随资产一起来」**（[§5.2](../../../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)）：
 那是它的声明默认值（出厂那一格），**不是工作区那一格的配值**；本条挡的是**改别人资产的落点**，也挡住了仓库在清单里改自己那份的落点——后者本来就不需要。
@@ -848,7 +848,7 @@
 
 ### S-40 落点与身份类设置的来处
 
-**`values` 里每一条落点与身份类设置项（`data.asset-model/v3#S-13`）另带 `provenance`：这个值出自哪一格**（主线裁定，见 [D-060 §一 S19-f](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的)）：
+**`values` 里每一条落点与身份类设置项（`data.asset-model/v3#S-13`）另带 `provenance`：这个值出自哪一格**（主线裁定，见 D-060 §一 S19-f）：
 
 | 值从哪来 | `provenance` |
 |---|---|
@@ -862,22 +862,22 @@
 
 **`values` 里每一条执行权限项另带一个布尔成员 `tenantAutoWritable`**：租户那一层此刻给这个能力标识的这一项写下一条不带锁的「自动」（`{auto}`），写不写得进去。
 执行权限项是取值域恰为执行权限三档的项（[S-23](#s-23-第四步权限)）——`tool` 的执行权限、`mcp` 每个动作的 `execute:<名>`——**每个工具条目恰一位**。
-它是 `capability.tool-admission` v2 放行判断出卡时第四档「写得进去才出现」要的那一位（[PF-008 §5.2 第三档和第四档各有约束](../../../../product/PF-008-human-in-the-loop/design.md#第三档和第四档各有约束)），经会话资产注册表每次执行尝试的可用性报告（`capability.asset-registry` v2 的 S-11，它取第二次求值里每条工具条目的执行权限项）交到 `capability.loop-extension-runner` v2，组装放行输入时逐工具条目带上；名字与来处是主线裁定，见 [D-060 §六 L7、L13、N-8](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)。
+它是 `capability.tool-admission` v2 放行判断出卡时第四档「写得进去才出现」要的那一位（[PF-008 §5.2 第三档和第四档各有约束](../../../../product/PF-008-human-in-the-loop/design.md#第三档和第四档各有约束)），经会话资产注册表每次执行尝试的可用性报告（`capability.asset-registry` v2 的 S-11，它取第二次求值里每条工具条目的执行权限项）交到 `capability.loop-extension-runner` v2，组装放行输入时逐工具条目带上；名字与来处是主线裁定，见 D-060 §六 L7、L13、N-8。
 
-**`mcp` 每个动作的 `execute:<名>` 上它恒为假**，直到 `capability.asset-governance` v2 的 G-5（逐动作项的写面）闭合（主线裁定，见 [D-060 §七 M5](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）：那份契约的写面此刻对 `execute:` 开头的项一律 `unavailable`（它的 S-38 ⑧），租户那一层写不进去，摆出第四档就是一个按下去没有效果的选项（[PF-008 §5.2](../../../../product/PF-008-human-in-the-loop/design.md#第三档和第四档各有约束)「第四档还要写得进去才出现」）。
+**`mcp` 每个动作的 `execute:<名>` 上它恒为假**，直到 `capability.asset-governance` v2 的 G-5（逐动作项的写面）闭合（主线裁定，见 D-060 §七 M5）：那份契约的写面此刻对 `execute:` 开头的项一律 `unavailable`（它的 S-38 ⑧），租户那一层写不进去，摆出第四档就是一个按下去没有效果的选项（[PF-008 §5.2](../../../../product/PF-008-human-in-the-loop/design.md#第三档和第四档各有约束)「第四档还要写得进去才出现」）。
 
-对 `values` 里 `tool` 的执行权限项 `(c, i)`、`c` 的生效资产 `A`，**`tenantAutoWritable` 为真，当且仅当下面四条都成立**（第 1、2 条与第 3 条的「不论在不在效」是本契约推导，主线接受，见 [D-060 §六 L14](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）：
+对 `values` 里 `tool` 的执行权限项 `(c, i)`、`c` 的生效资产 `A`，**`tenantAutoWritable` 为真，当且仅当下面四条都成立**（第 1、2 条与第 3 条的「不论在不在效」是本契约推导，主线接受，见 D-060 §六 L14）：
 
 1. **`A` 声明了 `i`**：[S-23](#s-23-第四步权限) 末段「外层锁过、替换件缺的项」不在此列——租户那一层写不进一项生效资产没声明的项；
 2. **`A` 不是工作区提供的资产**：租户那一格持有不了它（C8；`data.asset-model/v3#S-19` 的 `carrier` 支），出厂那一格给它的界是最严值 `{问一下}`（[S-25](#s-25-工作区提供的资产的权限项一律取最严值)），不含「自动」；
 3. **组织那一格给的界含「自动」**：组织那一格对 `c` 的持有上 `i` 若有界——带锁的配值，或恰 `{forbid}` 的配值（[S-23](#s-23-第四步权限)）——它含 `auto`；组织那一格没有对 `c` 的持有、或那份持有上 `i` 没有界，这一条成立。**这里不论组织那份持有在不在效、指向哪一份资产，按项名对齐**；
-4. **租户那一格没把这一项锁住，且那一格若有对 `c` 的持有，它在效且指向 `A`**：租户那一格对 `c` 的持有上 `i` 没有带锁的配值；**那份持有在效**（[S-23](#s-23-第四步权限) 的「在效」：没被禁用滤掉、不在锁以里指向另一份资产）**且指向 `A`**——否则写下的 `{auto}` 挂在一份不在效的持有上、对值没有效果（主线裁定，见 [D-060 §七 M7](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。没有这份持有，这一条成立。
+4. **租户那一格没把这一项锁住，且那一格若有对 `c` 的持有，它在效且指向 `A`**：租户那一格对 `c` 的持有上 `i` 没有带锁的配值；**那份持有在效**（[S-23](#s-23-第四步权限) 的「在效」：没被禁用滤掉、不在锁以里指向另一份资产）**且指向 `A`**——否则写下的 `{auto}` 挂在一份不在效的持有上、对值没有效果（主线裁定，见 D-060 §七 M7）。没有这份持有，这一条成立。
 
 - **判据与写面同一口径——限于 `tool` 的执行权限项**：第 3 条是 `capability.asset-governance` v2 写面对租户层权限配值的 `lockedAbove`，第 4 条前半是它的 `lockedHere`（那份契约的 S-38；**只指路，不登依赖**——它消费本契约的 S-23，反向登记会成环）。`mcp` 的逐动作项在那份契约的写面上此刻判为 `unavailable`，两边对它说的同一句是「写不进去」（上面那一段）。第 4 条后半（在效且指向 `A`）写面不判——写面只管写不写得下，这一位答的是写下去有没有效果，取更严。
-  第 3 条「不论在不在效」比 [S-23](#s-23-第四步权限) 的「在效」宽，**是本契约推导**：写面对组织那一层的值按项名对齐、不看那份持有禁没禁用，这一位答的是「写不写得进去」，取写面那一口径；两者只在组织那份持有被禁用、租户换了一份实现时分叉，那时取假——更严（主线接受，[L14](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）。
+  第 3 条「不论在不在效」比 [S-23](#s-23-第四步权限) 的「在效」宽，**是本契约推导**：写面对组织那一层的值按项名对齐、不看那份持有禁没禁用，这一位答的是「写不写得进去」，取写面那一口径；两者只在组织那份持有被禁用、租户换了一份实现时分叉，那时取假——更严（主线接受，L14）。
 - **判得出**：四条（与 `mcp` 那一段）都只读输入里的持有、配值与声明，执行权限项上它**恒在**，没有「判不出」；其余项上它**缺席**，缺席在那里的意思是「这一项不是执行权限」，不是假。
 - **它不参与第 4 步的值**：`value`、`from`、`lockedAt` 照 [S-23](#s-23-第四步权限)、[S-25](#s-25-工作区提供的资产的权限项一律取最严值) 求；它只供消费者决定摆不摆出一个会写下这一项的选项。
-- **它不判租户那一格有没有对 `c` 的持有**：没有持有时，写面要先加入持有才配得了值；第四档按下去怎样落地（先加持有再配值，还是要求已有持有）并入 `capability.tool-admission` v2 的 G-2（[D-060 §六 L14](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)），本条只答界与锁。
+- **它不判租户那一格有没有对 `c` 的持有**：没有持有时，写面要先加入持有才配得了值；第四档按下去怎样落地（先加持有再配值，还是要求已有持有）并入 `capability.tool-admission` v2 的 G-2（D-060 §六 L14），本条只答界与锁。
 - **新鲜度**：它与同一次求值的 `values` 同属那一份输入（[S-11](#s-11-纯计算)）；外层在出卡之后又收紧，由写面在按下去时以 `lockedAbove` 拒，本条不承诺出卡与落地之间不变。
 
 ---
@@ -928,7 +928,7 @@
 | `unknown_asset` | 一条配值或一条禁用，指向清单自己没列的能力标识 |
 | `immutable_flag` | 一条配值上的 `immutable` 标记（值读进来了） |
 
-对权限项、对落点与身份类设置项、对治理类设置项的配值**照常读进来**，由 [S-24](#s-24-工作区那一格在第四步只贡献设置) 丢弃并以 `workspace_permission`／`workspace_placement`／`workspace_governance` 留痕（[D-060 §一 S10-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s10asset-evaluation报回的)；治理类那一样随 PF-002 rev 20 §5.7 补）。
+对权限项、对落点与身份类设置项、对治理类设置项的配值**照常读进来**，由 [S-24](#s-24-工作区那一格在第四步只贡献设置) 丢弃并以 `workspace_permission`／`workspace_placement`／`workspace_governance` 留痕（D-060 §一 S10-d；治理类那一样随 PF-002 rev 20 §5.7 补）。
 每一种条目只在一处丢：本条丢的两种不会再到第 4 步，第 4 步丢的三种在这里照常读入（[S-24](#s-24-工作区那一格在第四步只贡献设置) 那一句）。
 
 **`unknown_asset` 的第一行挡掉的正是产品想要、本版给不了的那件事**：工作区为别层提供的资产配设置（[G-4](#十一已知缺口)）。
@@ -991,14 +991,14 @@
 | # | 前提 | 谁兑现 | 不成立会怎样 |
 |---|---|---|---|
 | PRE-1 | 四格的持有、配值、定义与选用版本是**同一时刻的一致读** | 组输入的一方（读持有的面归 `capability.asset-governance`） | 一次求值看到租户新加的持有、却看到组织旧的锁，**锁截断在效果上被绕过** |
-| PRE-2 | **交进来的每份持有此刻仍然成立**。被分享来的——**组织格或租户格**以 `shared` 支持有的那份（接收方是组织落组织格，是租户落那个租户的格：组织内分享、本人型分享；`data.asset-model/v3#S-19`，主线裁定，见 [D-060 §三 R2-10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25)），**以及租户格以 `organization` 支持有同一份被分享记录、随它所在组织那份 `shared` 持有一起判的那份**（规格层推导，主线追认，见 [D-060 §六 N-11](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）——此刻可用，当且仅当存在一份分享 s：s 的资产就是这份持有的资产、s 的被分享方就是持有它的那一层，且 **生效(s) 的三个合取项都成立**：① 记录状态为 `active`；② **关系此刻成立**——两端同一个组织或过了分享边界，是租户的那一端此刻是有效成员；③ **关系自确认以来未断过**——连接两端的隶属关系、是租户那一端的成员关系，都不晚于 s 的确认时刻建立或生效（关系断过再接上，**分享不复活**）。判据原文是 [`capability.asset-transfer/v2#S-9`](../../asset-transfer/v2/contract.md#s-9-分享此刻是否生效)，本契约只转述、不另写一份（主线裁定，见 [D-060 §三 R2-12](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25)）。**不成立的不交进来**。
+| PRE-2 | **交进来的每份持有此刻仍然成立**。被分享来的——**组织格或租户格**以 `shared` 支持有的那份（接收方是组织落组织格，是租户落那个租户的格：组织内分享、本人型分享；`data.asset-model/v3#S-19`，主线裁定，见 D-060 §三 R2-10），**以及租户格以 `organization` 支持有同一份被分享记录、随它所在组织那份 `shared` 持有一起判的那份**（规格层推导，主线追认，见 D-060 §六 N-11）——此刻可用，当且仅当存在一份分享 s：s 的资产就是这份持有的资产、s 的被分享方就是持有它的那一层，且 **生效(s) 的三个合取项都成立**：① 记录状态为 `active`；② **关系此刻成立**——两端同一个组织或过了分享边界，是租户的那一端此刻是有效成员；③ **关系自确认以来未断过**——连接两端的隶属关系、是租户那一端的成员关系，都不晚于 s 的确认时刻建立或生效（关系断过再接上，**分享不复活**）。判据原文是 [`capability.asset-transfer/v2#S-9`](../../asset-transfer/v2/contract.md#s-9-分享此刻是否生效)，本契约只转述、不另写一份（主线裁定，见 D-060 §三 R2-12）。**不成立的不交进来**。
 **这是前提，不是依赖**：本契约不读那份条款，也不登它的坐标（文首「精确语义依赖」末条）；那份条款一改，这里的转述要跟着核 | 组输入的一方，按那条判据在组输入时现读（原 G-10 闭合），**并照它的读序**（`capability.asset-transfer/v2#S-9`「怎么读」）：**先**判关系与有效性——两个组织的分享边界与上级链、是租户那一端此刻有效（第二个合取项）；**再**读时刻——连接两端的每个组织的隶属建立时刻、租户那一端的成员关系生效时刻（第三个合取项）。**反过来读，一次「解除—重新接上」落在两读之间，旧时刻就配上了新接上的关系，分享复活**；按这个先后，两读之间的任何断开都按「断过」判。单机下在一次可串行化的读里取齐两者即满足这个先后。读不到分享记录、边界或那两个时刻，按那条判据以**不可用**收场——不交进来，也不当作可用 | 隶属关系解除或成员退出之后，[分享本该失效](../../../../product/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后)，**团队资产却继续出现在求值结果里**；或关系断过再接上，**一段已失效的分享悄悄复活** |
 | PRE-3 | `tenant` 此刻是有效成员，调用方有权以它求值 | 组输入的一方（`capability.organization-governance` v1 的成员资格判定） | 一个已被解除的成员照旧拿到那个组织的生效配置；或一次求值替别人算出了别人的配置 |
 | PRE-4 | 出厂那一格的持有**齐全**，且 meta 能力的出厂持有带锁 | 装配（[S-29](#s-29-装配给的保证-vs-协议须给的保证) 末行；原 G-11 闭合）。写出它的一步是[资产治理的官方件登记](../../asset-governance/v2/contract.md#s-29-registerofficial-登记官方件)（装配启动时按部署清单，出厂格 `immutable` 当且仅当 meta，`data.asset-model/v3#S-20`）——**指路，不是本契约的依赖** | 官方件缺一份时[本该是缺陷](../../../../product/PF-002-assets-settings-and-permissions/flows.md#二分支与异常)，本契约看不见；meta 能力被替换 |
 | PRE-5 | `workspace` 归会话租户持有、确实挂在这次会话上 | 会话创建（[PF-015 §6.13](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#613-工作区在创建时显式指定不指定就是空)） | C3 只核得到键的租户那一半；挂错了一份，读进来的是别人目录里的东西 |
 | PRE-6 | [S-10](#s-10-各类正文契约须供的两条规则) 的两条规则**确定、可重放** | 各类正文契约 | [S-11](#s-11-纯计算) 的「同输入同输出」不成立 |
 | PRE-7 | `manifest` 就是那份工作区承载目录里那份文件读出来的 | 读文件的提供者 | 一份伪造的清单往这一格塞进资产 |
-| PRE-8 | `mcpActionSets` 里的每份动作集，就是那份接入点持有此刻为这次执行尝试钉住的那一份 | 会话资产注册表（`capability.asset-registry` v2，钉住动作集之后发起这次求值；主线裁定 [D-060 §五 K30](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)） | 逐动作执行权限按一份别的动作集推出：对端此刻没有的动作得了一个值，或此刻有的动作没有值——放行判断读到的与这次尝试的条目对不上 |
+| PRE-8 | `mcpActionSets` 里的每份动作集，就是那份接入点持有此刻为这次执行尝试钉住的那一份 | 会话资产注册表（`capability.asset-registry` v2，钉住动作集之后发起这次求值；主线裁定 D-060 §五 K30） | 逐动作执行权限按一份别的动作集推出：对端此刻没有的动作得了一个值，或此刻有的动作没有值——放行判断读到的与这次尝试的条目对不上 |
 | PRE-9 | `root.references` 与 `root.attributes` 分别恰为 `root.source` 指认的不可变正文中的引用（含常驻标记）与本版受限声明；根有生效资产时它就是所选那一版。一条不多、一条不少，不能取进程环境或手工拼一个相同版本号冒充 | 组输入的一方（装配清单的读方）；精确采用 `data.agent-definition/v1#S-1～S-9` 读取根的两槽位（采用及实际证据归 G-22）。本契约用 C16 核身份/版本相符，不读不透明正文，不承担内容真实性证明 | 组合、时限或模型锁来自另一份内容，结果外观合法。版本号相同不能检测伪造声明；必须由真实生产者的正文解析、来源记录与集成证据兑现 |
 
 ---
@@ -1075,7 +1075,7 @@
 一旦某份组合契约把这两个操作投影到进程外，线上形状归它（[规格入口](../../../README.md#准入门槛与停止条件)）。
 
 **继承的 `Evaluation.als` 不单独登记为 formal task**：裸 `alloy exec` 的退出码与断言结果无关（找到反例照样退出 0），
-[检查器只以退出码判成败](../../../../registry/README.md#当前状态)——只登记它会得到一个永远通过的任务。v4 新增 `RootSettings.als` 的正配置由 receipt 检查器判命令与预期结果后返回退出码，按本批 metadata 交主线登记；反例变异不登记。S-47 的 DTO 读取不在这两个有限模型内，证据归 E-10 的规范场景。
+[检查器只以退出码判成败](../../../../registry/README.md#当前采用)——只登记它会得到一个永远通过的任务。v4 新增 `RootSettings.als` 的正配置由 receipt 检查器判命令与预期结果后返回退出码，按本批 metadata 交主线登记；反例变异不登记。S-47 的 DTO 读取不在这两个有限模型内，证据归 E-10 的规范场景。
 条款到模型的映射、检查范围、非平凡核对与盖不到的部分在 [`formal/README.md`](formal/README.md)；执行结果在[验证入口](../verification.md)，**不写进本版本目录**。
 
 ### 规范场景
@@ -1110,7 +1110,7 @@
 [`examples.md` E-3](examples.md#e-3-一次清单读入)：一份清单，给没列的资产配值、禁用没列的资产、给工作区提供的资产的一条配值加 `immutable`。
 
 **必须观察到**：`holdings` 与 `dropped` 与 E-3 逐项相等；**加了 `immutable` 的那一条值读进来了、标记没读进来**；
-清单里对权限项与连接目标的配值**读进来了**（读入面判不出，[D-060 §一 S10-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s10asset-evaluation报回的)），并在 E-1 的求值里被 [S-24](#s-24-工作区那一格在第四步只贡献设置) 丢弃并留痕。
+清单里对权限项与连接目标的配值**读进来了**（读入面判不出，D-060 §一 S10-d），并在 E-1 的求值里被 [S-24](#s-24-工作区那一格在第四步只贡献设置) 丢弃并留痕。
 
 #### S-36 换了实现，设置不跟过去，权限的约束跟过去
 
@@ -1120,7 +1120,7 @@
 **不锁替换**时，生效的是租户那份；**组织锁住的设置不跟过去**（取新实现的声明默认值），**组织锁住的执行权限跟过去**（值是界内的那一档，`lockedAt = organization`），
 **新实现没有的那一项取最严值**，组织锁住的那一档不算数；
 **组织把持有也锁上**时，租户那份以 `locked_below` 退出，生效的是出厂那份，组织的设置与权限都照常生效；
-**租户在锁住的执行权限上又配了别的档**时，那条挑选与界不交、被跳过，值是组织锁住的那一档——**不是空集**（[D-060 §一 S10-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s10asset-evaluation报回的)）；
+**租户在锁住的执行权限上又配了别的档**时，那条挑选与界不交、被跳过，值是组织锁住的那一档——**不是空集**（D-060 §一 S10-b）；
 **组织把执行权限配成「禁止」却不锁**时，它照样是界，租户挑的「自动」不作数，值是「禁止」（PF-002 rev 17 §5.3）；
 **组织锁下两档、作者默认落在界外、没人在界内挑过**时，值是界内离作者默认最近的那一档，不是更严的那一档（同上）。
 五支 `execution` 的 `tenantAutoWritable` 都为假——组织那一格给的界都不含「自动」（[S-42](#s-42-执行权限项另带租户那一层写得进自动吗) 第 3 条）；B 支里组织那份照常在效，A 支里它被替换、仍然算。
@@ -1144,7 +1144,7 @@
 
 #### S-43 成环即拒，并指出环在哪
 
-[`examples.md` E-7](examples.md#e-7-成环即拒并指出环在哪)：根的引用列表把根自己当 sub-agent；Skill 与 Tool 互相引用；根自己被禁用。三支同跑（主线裁定，见 [D-060 §八 M31、M32](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
+[`examples.md` E-7](examples.md#e-7-成环即拒并指出环在哪)：根的引用列表把根自己当 sub-agent；Skill 与 Tool 互相引用；根自己被禁用。三支同跑（主线裁定，见 D-060 §八 M31、M32）。
 
 **必须观察到**：A 支以 **`compositionCycle`** 失败，诊断 `cycle` 是 `[agent_definition:helper7]`，**不返回任何 `EffectiveAssembly`**——没有半份，也没有「环以外的那一部分」；它**不是** `invalidInput`，也不是一条 `unresolved`。
 B 支**成功**：Skill⇄Tool 那一对来回不算环，两者都在 `composition` 里、各一次。
@@ -1153,7 +1153,7 @@ C 支**成功**：根被禁用，`composition` 为空，`unresolved` 恰一条 `
 
 #### S-44 读不了正文的一类即拒
 
-[`examples.md` E-8](examples.md#e-8-读不了正文的一类即拒)：根引用一个 sub-agent；根引用一个 plugin；同一个 plugin 被禁用；sub-agent 与一个环同时出现。四支同跑（主线裁定，见 [D-060 §八 M45](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
+[`examples.md` E-8](examples.md#e-8-读不了正文的一类即拒)：根引用一个 sub-agent；根引用一个 plugin；同一个 plugin 被禁用；sub-agent 与一个环同时出现。四支同跑（主线裁定，见 D-060 §八 M45）。
 
 **必须观察到**：走到 sub-agent 的那一支以 **`categoryUnsupported`**、`category = agent_definition` 失败，走到 plugin 的那一支以 `category = plugin` 失败，**两支都不返回任何 `EffectiveAssembly`**；
 plugin 被禁用的那一支**成功**——它没被走到，进 `unresolved`，不触发；环与 sub-agent 同时出现的那一支报 **`compositionCycle`**（判定次序）。
@@ -1220,12 +1220,12 @@ plugin 被禁用的那一支**成功**——它没被走到，进 `unresolved`�
 
 | # | 缺口 | owner | 闭合条件 |
 |---|---|---|---|
-| G-1 | **已关闭（2026-09-25，[D-060 §八 M32](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）**：成环的收场值是 `evaluate` 的失败 **`compositionCycle`**，带环上的能力标识序列作诊断（[S-15](#s-15-evaluate) ⑥ 与其后一段、[S-13](#s-13-invalidinput-是没开始判filteredout-与-unresolved-是判出来的结果) 末段、[S-20](#s-20-第二步组装)）。`capability.asset-governance` G-6 ③ 说的是同一个答案，那份契约怎样改引归它（已报主线） | — | — |
+| G-1 | **已关闭（2026-09-25，D-060 §八 M32）**：成环的收场值是 `evaluate` 的失败 **`compositionCycle`**，带环上的能力标识序列作诊断（[S-15](#s-15-evaluate) ⑥ 与其后一段、[S-13](#s-13-invalidinput-是没开始判filteredout-与-unresolved-是判出来的结果) 末段、[S-20](#s-20-第二步组装)）。`capability.asset-governance` G-6 ③ 说的是同一个答案，那份契约怎样改引归它（已报主线） | — | — |
 | G-2 | **已闭合（2026-09-24 整批对齐）**：`versionSelection` 已在 `data.asset-model/v3#S-18`（第 6 条），工作区提供的资产的版本线恰一版（它的 S-19）；C9 按它核，`EffectiveAsset.version` 交出所选那一版 | — | — |
 | G-3 | **收窄到根以外的 Agent Definition**：根两槽位现在有 `data.agent-definition/v1` 的候选读取规则，精确采用与真实生产者证据见 G-22；sub-agent 的完整引用/属性/装配规则仍未成立，不能把根的窄规则推广到它。第 2 步走到根以外的 `agent_definition` 仍为 `categoryUnsupported`；完整规则后续版再删这一种失败 | PF-004 owner 与后续 Agent Definition 正文契约 | 闭合 sub-agent 的完整规则并显式演进本契约；本批不改变该失败 |
 | G-4 | **工作区给别层提供的资产配设置**（[§5.8](../../../../product/PF-002-assets-settings-and-permissions/design.md#58-三条层序各答一个问题)「设置它压过租户」）：持有形状**已能表示**——`data.asset-model/v3#S-19` 允许工作区格以 `organization` 支持有别层那一份——但清单只写能力标识，[S-16](#s-16-readworkspacecarrier) 手上没有外层持有，读不出它指向哪一份。本版仍以 C8 与 [S-28](#s-28-配值与禁用只对工作区提供的资产生效丢掉的留痕) 的 `unknown_asset` 明确挡下 | 主线（读入面加输入「外层对这些能力标识的持有」，或改清单形状） | 读入面能给出 `organization` 支的工作区持有；C8 撤除，[S-22](#s-22-第四步设置) 与 [S-17](#s-17-第一步之一先按禁用滤) 的工作区分句随之生效 |
 | G-5 | **已闭合（2026-09-24 整批对齐）**：`DropReason` 只留本版产生得了的两种理由（D-060 §一 S10-d），权限项、落点类与治理类配值一律由第 4 步 [S-24](#s-24-工作区那一格在第四步只贡献设置) 丢弃并留痕 | — | — |
-| G-6 | **收窄**：工作区提供的资产的记录号、所有者、作者、来源、使用权来路与版本线已由 `data.asset-model/v3#S-19` 的 `carrier` 支给出；**仍缺**：清单里 `source` 指向的资产包怎样解析成那一类的正文。**闭合时读入工作区承载清单那条路也要判 `name_not_projectable`**——`mcp` 类工作区提供的资产的能力标识 name 不合 `data.mcp-endpoint/v2#S-26` 的收窄即拒，拒绝值经 `data.asset-model/v3#S-27` 原名携带（mcp-endpoint S-26 已把「读入工作区承载清单」列为登记点；[D-060 §六 N-12](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）| 各类正文契约（解析） | 每一类的正文契约写明它在承载目录里的包形状 |
+| G-6 | **收窄**：工作区提供的资产的记录号、所有者、作者、来源、使用权来路与版本线已由 `data.asset-model/v3#S-19` 的 `carrier` 支给出；**仍缺**：清单里 `source` 指向的资产包怎样解析成那一类的正文。**闭合时读入工作区承载清单那条路也要判 `name_not_projectable`**——`mcp` 类工作区提供的资产的能力标识 name 不合 `data.mcp-endpoint/v2#S-26` 的收窄即拒，拒绝值经 `data.asset-model/v3#S-27` 原名携带（mcp-endpoint S-26 已把「读入工作区承载清单」列为登记点；D-060 §六 N-12）| 各类正文契约（解析） | 每一类的正文契约写明它在承载目录里的包形状 |
 | G-7 | **收窄**：两个名字已定（`SessionAssignment`、`standing`，主线裁定，文首）。**仍缺**：会话创建参数之外的会话格写面 | PF-015 / PF-016 的 owner | 写面有契约家 |
 | G-8 | **[S-25](#s-25-工作区提供的资产的权限项一律取最严值) 表外权限项的最严值**（「谁可以用」的取值域主线已裁，不在此列） | PF-002 的 owner | 每类资产的每个权限项都有最严值 |
 | G-9 | **收窄（2026-09-24 随 PF-002 rev 17 §5.3）**：分档的权限在**没有挑选落在界内**时恰得一档（[S-23](#s-23-第四步权限) 合成第 3 条，原先缺的那一半有了产品答案）。**仍缺**：一条**落在界内的挑选自己多于一档**、或是**空集**时，`P ∩ X` 落到放行判定是哪一档、空集算什么——产品把挑选写成「配一个值」，多档的不锁配值与空集挑选在产品里没有对应，是否该在写入面就挡下 | PF-007 / PF-002 的 owner；`capability.asset-governance`（若在写入面挡） | 规则写进消费它的放行判定契约，或写入面不再产生这两种挑选 |

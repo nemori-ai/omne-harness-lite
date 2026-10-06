@@ -11,7 +11,7 @@
 - 对象与设计修订：开发验收装配，revision 2，candidate；未接受。按独立评审 MAA-AR1/AR2 补全认证匹配值及本机查询/导出权限，待复审。
 - 源码位置：`apps/model-request-acceptance`（D-076 采用时的节点坐标；当前源码已迁至 `examples/model-invocation-minimal-demo`，此坐标不再是产品应用或当前源码位置）。下文起草时的「尚未建应用」是旧时点读数，不能用来判断当前源码状态。
 - 交付面：[PF-013 模型档案与调用](../../../product/PF-013-model-profiles-and-invocation/README.md) rev 13 的模型请求纵线技术验收；相关 PF-009 rev 8、PF-012 rev 15 采用范围沿 runtime3。不是新的产品交互面。
-- 边界依据：[适配提案](../../../record/proposals/model-request-adaptation/design.md)、[真实读取投影](../../../record/proposals/model-request-adaptation/read-projection.md)、[D-070](../../../record/decisions/model-adaptation-binding-acceptance/decision.md)、[D-072](../../../record/decisions/agent-definition-read-adoption/decision.md)、[D-073](../../../record/decisions/model-current-input-contracts-adoption/decision.md)、[D-074](../../../record/decisions/model-read-provider-adoption/decision.md)。
+- 边界依据：适配提案、真实读取投影、D-070、D-072、D-073、D-074。
 
 ## 分层状态
 
@@ -33,7 +33,7 @@
 
 ## 2026-09-27 最终技术采用
 
-[D-076](../../../record/decisions/model-runtime-delivery-adoption/decision.md)接受对应精确规格与本节点投影。旧候选读数和验证历史保留。此事件不代替源码、真实故障/停止或37模型生产认证；新增实际绑定另附运行证据。
+D-076接受对应精确规格与本节点投影。旧候选读数和验证历史保留。此事件不代替源码、真实故障/停止或37模型生产认证；新增实际绑定另附运行证据。
 
 ## 真实鉴权启动增量的分层状态
 
@@ -45,7 +45,7 @@
 - **实际验证**：尚无本增量应用运行证据。确认前基础 clock 租约允许写入；确认后清单已提交而后续启动失败时不整库回滚。确认删除后落盘失败等继承边界、真实身份和关闭证据缺口分别为 AB-G2/AB-G3，不表述为已修复。
 ## 真实身份启动顺序的当前采用（2026-09-27）
 
-[D-092](../../../record/decisions/model-auth-bootstrap-adoption/decision.md) 精确采用 [v3-auth-bootstrap rev1](v3-auth-bootstrap-design.md) 的窄范围。独立架构评审范围内无阻断：基础六 fiber 真实就绪后确认、目录/CCL/lookup 完整门后才准入；确认后失败保留业务事实且不整库回退。原设计与起草标签保留历史坐标；应用源码、AB-V1～V8和逐符号守卫未完成，新增绑定0，不提升完整纵线。
+D-092 精确采用 [v3-auth-bootstrap rev1](v3-auth-bootstrap-design.md) 的窄范围。独立架构评审范围内无阻断：基础六 fiber 真实就绪后确认、目录/CCL/lookup 完整门后才准入；确认后失败保留业务事实且不整库回退。原设计与起草标签保留历史坐标；应用源码、AB-V1～V8和逐符号守卫未完成，新增绑定0，不提升完整纵线。
 
 ## 2026-09-28 开发示例的当前落点
 

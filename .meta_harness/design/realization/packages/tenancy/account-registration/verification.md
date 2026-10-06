@@ -18,20 +18,6 @@
 | 主链就地清除再重跑 ① 只一次 | 演练：构造已过期记录 → `register` ⇒ `registered` 且新 AccountId；构造清除链失败三类 ⇒ `interrupted` 不重跑 | **已通过**（同 run）：`purge.spec.ts` › `S-8 撞上已过期记录：本组合就地跑清除链，两步都 ok 才重跑 ① 一次`（7 条） | 本节点 |
 | 缺陷记录可区分 | 演练：`warrant-invalid`／`accountDoesNotExist`（②）等落一条 `composition-defect` 记录，`interrupted` 计数不含它 | **已通过**（同 run）：`scenarios.spec.ts` › `S-8 参与方失败值 → 终结结果（主链…）`（4 条）；`purge.spec.ts` 中「记组合缺陷」「记契约违反」的几条；类型 `types.spec-d.ts` › … › `缺陷记录三类、五个步骤位置` | 本节点 |
 
-## 实际执行
-
-| 运行 | 输入与配置范围 | 结果 | 证据位置 |
-|---|---|---|---|
-| `2026-09-22-formal-tenant-domain-2` · `account-registration-v1-basic` | `basic.cfg`（`Attempts = {a1,a2}`，三开关 FALSE） | 无反例；55 generated · 31 distinct · 深度 7 | [run README](../../../../record/evidence/2026-09-22-formal-tenant-domain-2/README.md) |
-| 同 run · `-crash` | `crash.cfg`（`{a1,a2,a3}`，三开关 TRUE） | 无反例；32170 · 6978 · 深度 16 | 同上 |
-| 同 run · `-progress` | `progress.cfg`（`{a1,a2}`，`Expiring = TRUE`，其余 FALSE） | 无反例；时序性质在 374 total distinct states 上检查完 | 同上 |
-
-| [`2026-09-23-tests-tenancy-leg-2`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md) | 源码提交 `c9b5850`；`tests/` 六个文件，**真实组合**：真实 account-identity、organization-governance、credential-verification（scrypt 测试参数）与本包插件同装在一个 Cordis Context；存储是真实 `storage-sql`（sqlite 临时文件库，迁移用 `composeMigrations` 合成 AI、OG、clock 三家片段，`upgrade: false`）；时间缺省用真实 `clock` 插件，要前推的场景用包内替身；故障与交错由包在真实存储外的 `InstrumentedStorage` 按语句注入与编排；Node v24.18.0、vitest 4.1.11；另含 `tools/ts-checks` 的 `terminal-outcome-closed` 自测、`lint:rules`，与 `apps/tenancy-host` 的 pg 支（PostgreSQL 16.14） | build、typecheck 退出 0；61 条用例 **60 通过、1 跳过**、0 失败（类型测试 6 条，无类型错误）——跳过的那条是 I-6 撞唯一约束一支在 sqlite 下到不了的占位，pg 一侧另有承担者 | [`output/account-registration.log`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/output/account-registration.log)、[`json/account-registration.json`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/json/account-registration.json)；义务对应 [`coverage.md`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/coverage.md#packagestenancyaccount-registration) |
-
-前三行是契约模型的结果，不是本节点的符合性证据；`basic` 的数字与上一次 run 逐项相同但模型确实改了（run README 解释过）。2026-09-23 的形式工件 run 核过这三个任务的输入与当前 `spec/` 逐字节相同、未重跑，结论照旧适用。测试那一行是本节点实现的证据，**不是模型的证据**。
-
-**有限检查不写成无条件证明。**真实组合只在 sqlite 临时文件库、单进程上跑；「崩溃」「在途被撤」是撤编排者或注入失败，不是进程被杀；pg 只跑了 I-6 撞唯一约束那一支与交错 I-12。真并发与编排出的交错单次运行，证的是被编排出来的那些交错。**通过不提升契约或本节点的任何接受状态。**
-
 ## 覆盖缺口
 
 按上面这次 run 的对应清单，义务表每一行都有通过的承担者。**跳过不是通过**：`integration.spec.ts` 里 I-6 撞约束那一支的 sqlite 占位仍是跳过，它在 sqlite 下到不了，承担者在 pg 一侧。

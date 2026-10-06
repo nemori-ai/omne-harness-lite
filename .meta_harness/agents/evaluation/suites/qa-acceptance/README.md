@@ -16,7 +16,7 @@
 | `QA-2` | 输入文件的重复成员被接受；`machine --version` 被当成版本查询应答 | Fail | C4、C5 | C8 |
 | `QA-3` | 载荷文件的 BOM 被接受 | Fail | C6 | — |
 
-QA-2 的 C8 取原对照的[第 3 次修订](../../role-model-sonnet55/analysis-plan-r3-qa-serial.md)：第二处缺陷让 `machine --version` 输出版本说明而不是报告文档，同时违反 C8，判哪边都算对。
+QA-2 的 C8 取原对照的第 3 次修订：第二处缺陷让 `machine --version` 输出版本说明而不是报告文档，同时违反 C8，判哪边都算对。
 
 ## 一个用例集里多出来的文件
 

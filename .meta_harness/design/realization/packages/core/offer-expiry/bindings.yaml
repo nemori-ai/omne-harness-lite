@@ -1,8 +1,3 @@
-# 条款到证据的绑定表。
-# 本契约（data.offer-expiry v1）不建形式工件，没有已登记的 formal task。下面的 test: 绑定全部来自
-# record/evidence/2026-09-23-tests-tenancy-leg-2（源码提交 c9b5850；逐条状态 cases.tsv，义务对应 coverage.md），
-# 只登该 run 里跑过且通过的用例。证据 id 形式：test:<仓库相对测试文件路径>#<describe> › <it>，整组承担时写到 describe。
-# 本节点只证判定函数、解析器与三条静态规则；S-23～S-26 的规范场景与 S-17 的装配给各行在消费者与装配节点，不在这里绑。
 version: 1
 node: "offer-expiry"
 kind: "provider"
@@ -74,7 +69,6 @@ bindings:
       - "真实源码上的扫描是同 run 的 pnpm run lint:rules（退出 0）；「只 provide 一个 clock」那一半归装配"
     alignment_checked: 2026-09-23
 
-# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
 
   - clause: "data.offer-expiry/v2#S-7"
     evidence: "test:packages/core/offer-expiry/tests/derive.spec.ts#OE2 decline / overflow › declined remains final without clock or target and cannot be accepted"

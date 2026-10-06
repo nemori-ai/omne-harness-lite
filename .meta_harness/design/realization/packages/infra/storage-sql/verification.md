@@ -1,7 +1,7 @@
 # storage-sql 验证与证据
 
 本节点不兑现契约条款，义务来自四处：[`core/storage` 一致性套件](../../core/storage/design.md#要求到协议再到会红的测试)的每一条用例（套件归那个节点，**在本提供者上跑**归本节点）、方言切换、错误码映射，以及 [tenancy-host R-U1～R-U8](../../../apps/tenancy-host/design.md#升级的整体性迁移前只读核对快照与确认) 与属主排他（升级守卫，`upgrade.*`）。
-运行结果归 [record/evidence](../../../../record/evidence/README.md)，本页只引用并解释范围。
+运行结果归 record/evidence，本页只引用并解释范围。
 
 ## 证据义务
 
@@ -38,17 +38,6 @@
 | R-U8 具名失败；恢复失败快照不删 | `upgrade.named-failures`：被占／恢复／核对／快照（快照目录只读）／迁移五个阶段各触发一次，断言类型是 `StorageStartupFailure`、阶段对、**不是** `StorageUnavailable`；恢复失败（库目录只读）⇒ 失败里带快照位置、快照仍在。`upgrade.dispose-restore-failure-visible`：撤除路径上让恢复失败 ⇒ `fiber.dispose()` 照常 resolve（basis 所言），`guard.pending()` 仍报 `pending` 与位置，有一条 error 记录 | **已通过**（同 run）：`upgrade.spec.ts` › `upgrade.named-failures：五个阶段各触发一次`（5 条）；`upgrade.plugin.spec.ts` › `upgrade.dispose-restore-failure-visible`（1 条） | 本节点 |
 | `upgrade` 配置政策（带迁移必须显式给出） | `lifecycle.upgrade-config-policy`：带 `migrations` 而缺 `upgrade` ⇒ fiber `FAILED`、无 `storage` 服务；`upgrade` 对象而无 `migrations` ⇒ 同；`guard` 不是 `createUpgradeGuard()` 造的 ⇒ 同；带 `migrations` 且 `upgrade: false` ⇒ 照常 `ACTIVE`、不取锁、不建快照 | **已通过**（同 run）：`plugin.spec.ts` › `lifecycle.upgrade-config-policy：带迁移时 upgrade 必须显式给出`（5 条） | 本节点。「抛出 ⇒ `FAILED`」本身由 basis [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md) 核过 |
 
-## 实际执行
-
-| 运行 | 输入与配置范围 | 结果 | 证据位置 |
-|---|---|---|---|
-| 2026-09-22 sqlite 一致性套件 | `packages/infra/storage-sql/tests/conformance.sqlite.spec.ts`：`describeStorageConformance('sqlite (node:sqlite)', () => openStorage({ dialect: 'sqlite', file }))`，临时文件库、WAL、两个提供者实例 | C-1a/b/c、C-2、C-2b、C-3、C-4、C-5、C-6a/b、C-7、C-7b、C-8、C-9a、C-9b、C-10、C-11、C-12、C-13、C-14、C-15 全部通过（18 个 `it`） | 终端输出（本行是主线转述，尚未登记 record/evidence run） |
-| 2026-09-22 插件测试 | `tests/plugin.spec.ts`：迁移先跑再 provide、撤除后 `StorageUnavailable`、`:memory:` 拒绝 ⇒ 启动失败、迁移失败 ⇒ 启动失败、pg 配置形状被接受（不连接） | 4 条通过 | 终端输出（本行是主线转述，尚未登记 record/evidence run） |
-| [`2026-09-23-tests-tenancy-leg-2`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md) · sqlite 一侧 | 源码提交 `c9b5850`；`packages/infra/storage-sql/tests/` 七个文件：一致性套件（sqlite 临时文件库、WAL、两个实例同一文件）、插件测试（`bootAssembly`）、升级守卫（`upgrade.spec.ts` 直接打开、`upgrade.plugin.spec.ts` 经插件、`upgrade.process.spec.ts` 真子进程与 `SIGKILL`）；带迁移而不测守卫的夹具一律 `upgrade: false`；`OMNE_TEST_PG_URL` 未设；Node v24.18.0（`node:sqlite` 的 SQLite 3.53.1）、vitest 4.1.11 | build、typecheck 退出 0；70 条用例 **66 通过、4 跳过**、0 失败——跳过的 4 条都是 pg 文件在 sqlite 一侧的占位（缺 pg URL），见右列 pg 一侧 | [`output/storage-sql.log`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/output/storage-sql.log)、[`json/storage-sql.json`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/json/storage-sql.json)；义务对应 [`coverage.md`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/coverage.md#packagesinfrastorage-sql) |
-| 同 run · pg 一侧 | 临时容器 `postgres:16`（PostgreSQL **16.14**），`conformance.postgres.spec.ts` 与 `upgrade.postgres.spec.ts` 各在一个新建空库（`w4a_conformance`、`w4a_upgrade`）上跑一遍 | 一致性套件 **19／19 通过**；升级 **3／3 通过**（`upgrade.pg-close-once`、`upgrade.pg-single-transaction`、`upgrade.confirm（pg 支）`） | [`output-pg/storage-sql.conformance.postgres.log`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/output-pg/storage-sql.conformance.postgres.log)、[`output-pg/storage-sql.upgrade.postgres.log`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/output-pg/storage-sql.upgrade.postgres.log)、`json-pg/` 下同名两份 |
-
-**有限检查不写成无条件证明。** sqlite 一侧在临时文件库、单主机、WAL、`synchronous=NORMAL` 下成立；「崩溃」是子进程 `SIGKILL`，不是断电。pg 一侧只有 16.14 一个版本、直连单个库，没有跑「≥ 14」的下限，也没有经连接池。每种方言单次运行，真并发用例的交错取决于那一次的调度。`upgrade.postgres.spec.ts` 的 describe 名写「缺 `OMNE_TEST_PG_URL` 时未运行」，pg 一侧真跑时也显示这个名字——以用例状态为准。**通过不提升本节点的任何接受状态。**
-
 ## 覆盖缺口
 
 按上面这次 run 的对应清单，本节点还缺的证据：
@@ -72,22 +61,10 @@
 
 ## D-039 同步档位增量 · 2026-09-24
 
-[实际运行](../../../../record/evidence/2026-09-24-tests-sqlite-full/README.md)：macOS Node24，存储95通过/4跳过，中心启动与升级38通过，黑盒最终46通过；真实句柄/迁移/重开 FULL 与共享 NORMAL 默认分别检查。保留环境失败及错误过滤运行；未验证物理断电、Linux FULL 或 PostgreSQL，不提升历史证据范围。
+实际运行：macOS Node24，存储95通过/4跳过，中心启动与升级38通过，黑盒最终46通过；真实句柄/迁移/重开 FULL 与共享 NORMAL 默认分别检查。保留环境失败及错误过滤运行；未验证物理断电、Linux FULL 或 PostgreSQL，不提升历史证据范围。
 
-后续[Linux arm64 补充](../../../../record/evidence/2026-09-24-tests-sqlite-full/linux-supplement/README.md)：构建产物的 NORMAL/FULL 读写参数、提交行及重开四组通过；不是 Linux 全套回归或断电实验。
+后续Linux arm64 补充：构建产物的 NORMAL/FULL 读写参数、提交行及重开四组通过；不是 Linux 全套回归或断电实验。
 
 ## P-13 显式单元 · 2026-09-24
 
-[实际证据](../../../../record/evidence/2026-09-24-tests-storage-unit/README.md)：macOS存储全套110通过/4个PG跳过、core9通过、补充通知2通过、中心启动升级38通过；Linux实际构建产物8组冒烟。包括真实SQL回滚/排空和P-2边界，不代表完整领域参与面。ALS/通知/裸句柄范围见设计；物理故障及PG新组合未验。
-
-
-## 2026-09-26 D055/D056 实际维护验证
-
-[固定源码、制品和运行证据](../../../../record/evidence/2026-09-26-tests-governance-maintenance/README.md)保存原始故障、修正、源码回归及独立制品 QA。SQLite资源关闭/worker真实退出/跨进程保锁、封装与发布unknown、HT3与host信号/双槽、非root Linux systemd及近1GiB时的员工访问和租约续约分别验证。最终host r3运行字节与r1相同，文档和pnpm生成元数据差异经独立核验，r3再跑38项主旅程。没有实际断电/任意存储设备保证；独立QA的源变动精确分支未验，不计通过；恢复只隔离，整机损毁灾备与安全重新开放仍未交付。
-
-
-## 2026-09-26 终审修补与最终制品
-
-[最终固定输入、运行与独立QA](../../../../record/evidence/2026-09-26-tests-governance-review-fixes/README.md)接续D055/D056与D057：生产闭包移除测试运行器，初始化未收场责任与叠加故障诊断修复，领域契约不变。18成员最终合并1926通过/34跳过，host最终单独重跑；两包清单、严格独立类型消费、47项独立制品旅程及真实首启故障恢复、三组跨OS与systemd通过。最终host r3、CLI r2的SHA/BUILD_ID在该run；旧记录不提升到新制品。Fable三轮及主线处置均有公开记录，未发现本期阻断。
-
-限定：首次工作根创建须串行；原位源变动精确hash/fstat分支未独立验到；TUI仍限D054 profile，不是任意终端支持；恢复只隔离，同机备份不覆盖整机/磁盘毁损。公司实际部署、Agent工作会话与Web/desktop不属于本次验证。
+实际证据：macOS存储全套110通过/4个PG跳过、core9通过、补充通知2通过、中心启动升级38通过；Linux实际构建产物8组冒烟。包括真实SQL回滚/排空和P-2边界，不代表完整领域参与面。ALS/通知/裸句柄范围见设计；物理故障及PG新组合未验。

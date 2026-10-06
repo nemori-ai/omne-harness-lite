@@ -11,7 +11,7 @@
 | 绑定证据 | **新增 0 条。**本页的 MR5-PV1～PV9 是待实施证据义务；现有 MR3 测试绑定不换标签，规格探针不冒充生产实现 |
 | 实际验证 | **本增量尚无产品运行。**没有 v5 源码、独立制品、双语示例执行或真实 IO 证据；设计结构检查只证明其实际检查范围 |
 
-前身为既有 TypeScript 纯模块。D-062／D-065 接受原节点；MR4 及其提供者精确采用由 [D-078](../../../../record/decisions/model-main-integration-coordination/decision.md) 承接历史模型 D-070／D-071，原 [提供者采用](../../../../record/decisions/model-value-provider-adoption/decision.md) 明定根/schema 为 MR4、显式 v3 保留。历史设计页上的“candidate／尚未实施”按当时事件读取：本次现场源码 `packages/core/model-response/package.json`、`src/index.ts`、`src/judge.ts`、`src/schema.ts` 已有 MR4 根及 v3 子入口，本稿不把目录存在当作 MR5 验收。
+前身为既有 TypeScript 纯模块。D-062／D-065 接受原节点；MR4 及其提供者精确采用由 D-078 承接历史模型 D-070／D-071，原 提供者采用 明定根/schema 为 MR4、显式 v3 保留。历史设计页上的“candidate／尚未实施”按当时事件读取：本次现场源码 `packages/core/model-response/package.json`、`src/index.ts`、`src/judge.ts`、`src/schema.ts` 已有 MR4 根及 v3 子入口，本稿不把目录存在当作 MR5 验收。
 
 | 本次候选输入 | SHA-256（供核对，不是接受凭据） |
 |---|---|
@@ -19,13 +19,13 @@
 | [MR5 Schema](../../../../spec/data/model-response/v5/model-response.schema.json) | `acfd0652805dcecc3e97b34a39375eda9042044fc42fe64b0dc83d1af18ec8d7` |
 | [MR5 规范实例](../../../../spec/data/model-response/v5/examples.md) | `2f66ca0cdc0065101494e8d03f47a731984179bc28043333e38d12151d0c645d` |
 | [RT5 contract](../../../../spec/capabilities/model-request-runtime/v5/contract.md) | `21c3ef25ae703c7230b709f5a445bdd8daad9d9a808784c8824b2f98878a733e` |
-| [头事实交接提案 rev 1](../../../../record/proposals/model-request-adaptation/header-handoff.md) | `96749d7d17e05558525b85294d478d5f0119416fbc9f5a7eb8e2a83174277f01` |
+| 头事实交接提案 rev 1 | `96749d7d17e05558525b85294d478d5f0119416fbc9f5a7eb8e2a83174277f01` |
 
-下文 S-n 均指 MR5；RT5 只提供消费背景，不成为本 data 包的规范依赖。38 条中增补为 S-20/S-26/S-27，其余 35 条沿原字节；需求范围继承该契约列明的 PF-013 rev13、PF-009 rev8、PF-004 rev12、PF-012 rev15、PF-001 rev19、PF-011 rev4、PF-010 rev6，不重采纳新版产品。完整实例为原 58 加新增 19，共 77；其规格检查状态从 [MR5 验证入口](../../../../spec/data/model-response/verification.md#2026-09-27-v5-多值响应头候选验证) 读取，不升级为本包证据。
+下文 S-n 均指 MR5；RT5 只提供消费背景，不成为本 data 包的规范依赖。38 条中增补为 S-20/S-26/S-27，其余 35 条沿原字节；需求范围继承该契约列明的 PF-013 rev13、PF-009 rev8、PF-004 rev12、PF-012 rev15、PF-001 rev19、PF-011 rev4、PF-010 rev6，不重采纳新版产品。完整实例为原 58 加新增 19，共 77；其规格检查状态从 [MR5 验证入口](../../../../spec/data/model-response/verification.md) 读取，不升级为本包证据。
 
 ## 实现路径与公开采用账本
 
-继续使用原纯模块、content-blocks 的严格无损 JSON 与公开 Schema runtime、call-accounts 的 `ExactDecimal`。现有 runtime 源码通过 `ajv` **8.20.0** 的 Draft 2020-12 入口编译固定资源；该版本沿现有锁定依赖，不新引运行依赖、fork、时间服务或网络查询。没有需要 Cordis 承接的身份、状态、资源或运行生命周期；全局采用仍为 [D-025 的 Cordis 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)，本节点不使用其 API，也不依赖 basis 的生命周期主张。
+继续使用原纯模块、content-blocks 的严格无损 JSON 与公开 Schema runtime、call-accounts 的 `ExactDecimal`。现有 runtime 源码通过 `ajv` **8.20.0** 的 Draft 2020-12 入口编译固定资源；该版本沿现有锁定依赖，不新引运行依赖、fork、时间服务或网络查询。没有需要 Cordis 承接的身份、状态、资源或运行生命周期；全局采用仍为 D-025 的 Cordis 4.0.4，本节点不使用其 API，也不依赖 basis 的生命周期主张。
 
 以下新增路径、类型及内部函数均为**候选**，不是现存 API。主线本次已限定采用形状 A，待审的是它的具体兑现，不重新选择根升级。
 

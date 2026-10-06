@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import importlib.util
 import os
+import subprocess
 from pathlib import Path
 
 import yaml
@@ -22,7 +22,7 @@ IGNORED_DIRECTORIES = {".git", ".venv", "node_modules", ".dist", "dist", "build"
 
 # Retained originals keep the relative links they were written with, by design: rewriting them
 # would falsify the record of what the source actually said. Their own entries explain this.
-RETAINED = ("{meta}/design_legacy", "{meta}/research/legacy_backup", "{meta}/agents/research")
+RETAINED = ("{meta}/design_legacy", "{meta}/research/legacy_backup")
 
 # One byte-preserved upstream API source, sealed in the adjacent sha256.json.
 # Its relative links belong to Node's doc/api tree, not this repository. Keep the
@@ -43,7 +43,8 @@ def collect(root: Path) -> list[Path]:
             files.append(path)
         elif path.is_dir():
             for directory, children, names in os.walk(path):
-                children[:] = [child for child in children if child not in IGNORED_DIRECTORIES]
+                children[:] = [child for child in children if child not in IGNORED_DIRECTORIES
+                              and (Path(directory) / child).resolve() != (root / ".meta_harness/design/record").resolve()]
                 files.extend(Path(directory) / name for name in names if name.endswith(".md"))
     # `.templates/` holds placeholders such as `{{YYYY-MM-DD-topic}}.md`; they are meant to be
     # filled in when a topic is created, so they cannot resolve where they sit.
@@ -69,24 +70,17 @@ def check_skill_mirrors(root: Path, errors: list[str]) -> None:
             errors.append(f"skill mirror differs: {relative}")
 
 
-def historical_links(root: Path):
-    """Reuse the design owner's locked-history rule; do not create a second policy."""
-    design = root / ".meta_harness/design"
-    catalog = design / "registry/retired-sources.json"
-    if not catalog.exists():
-        return None
-    implementation = root / ".meta_harness/tooling/src/source_links.py"
-    spec = importlib.util.spec_from_file_location("meta_harness_source_links", implementation)
-    if spec is None or spec.loader is None:
-        raise ValueError("cannot load the retired-source owner")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.RetiredSources(design.resolve(), catalog)
-
 
 def check(root: Path):
     errors: list[str] = []
-    historical = historical_links(root)
+    record = root / ".meta_harness/design/record"
+    repository = subprocess.run(["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+                                capture_output=True, text=True)
+    if repository.returncode == 0 and Path(repository.stdout.strip()).resolve() == root:
+        tracked = subprocess.run(["git", "-C", str(root), "ls-files", "--", ".meta_harness/design/record"],
+                                 capture_output=True, text=True, check=True)
+        if tracked.stdout.strip():
+            errors.append("process record files must not be tracked in Git")
     for relative, expected in RETAINED_FILES.items():
         path = root / relative
         if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() != expected:
@@ -96,13 +90,9 @@ def check(root: Path):
         for raw in markdown_links(path):
             try:
                 target, fragment = local_target(path, raw, root)
-                recovered = (historical.recover(path, target, fragment)
-                             if historical is not None and target is not None and not target.exists()
-                             else None)
-                if recovered is None:
-                    validate_link(path, raw, root)
-                elif fragment and fragment not in headings(recovered):
-                    raise ValueError(f"broken historical anchor: {raw}")
+                if target is not None and target.resolve().is_relative_to(record.resolve()):
+                    raise ValueError("process record is not a current owner")
+                validate_link(path, raw, root)
             except ValueError as error:
                 errors.append(f"{path.relative_to(root)}: {error}")
     check_skill_mirrors(root, errors)

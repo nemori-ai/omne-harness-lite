@@ -42,19 +42,6 @@ v1 段（八条规范场景、两条静态检查、若干条没有场景号的�
 
 **受阻项**：原先的「本包的实现不存在」已不成立——本包、`storage-sql`、`clock`、credential-verification、governance-center-entry 与装配 `apps/tenancy-host` 都已建包，上表各行的承担者在下面这次 run 里。仍缺的见[覆盖缺口](#覆盖缺口)。
 
-## 实际执行
-
-| 运行 | 输入与配置范围 | 结果 | 证据位置 |
-|---|---|---|---|
-| `2026-09-22-formal-tenant-domain-2` | `Registration.tla` + `crash.cfg`（`Attempts = {a1,a2,a3}`，`Failures/Abandoning/Expiring = TRUE`）；本节点借它证 **v1** S-13／S-14／S-38 的**守卫与转移**（[bindings](bindings.yaml)） | 无反例，退出 0；32170 generated · 6978 distinct · 深度 16 | [run README](../../../../record/evidence/2026-09-22-formal-tenant-domain-2/README.md) |
-| [`2026-09-23-tests-tenancy-leg-2`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md) · 本包（**针对 v2 实现**） | 源码提交 `c9b5850`；`tests/` 五个文件：`config`、`obligations`（服务实现类直接构造，注入随机源、故障与插桩）、`plugin`（`bootAssembly` 装载）、`scenarios`（v2 规范场景）、`types.spec-d.ts`；夹具是真实 `storage-sql`（sqlite 临时文件库，带迁移一律 `upgrade: false`）＋ 真实 credential-verification ＋ 服从 offer-expiry `Clock` 形状的包内时间替身；Node v24.18.0、vitest 4.1.11，单进程，`OMNE_TEST_PG_URL` 未设 | build、typecheck 退出 0；76 条用例 **66 通过、10 跳过**、0 失败（类型测试 19 条，无类型错误）——跳过的 10 条都是本包内指向别处的占位，所指的那件事在同 run 里另有承担者，**除了** S-35 的规则形式（无） | [`output/account-identity.log`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/output/account-identity.log)、[`json/account-identity.json`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/json/account-identity.json)；义务对应 [`coverage.md`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/coverage.md#packagestenancyaccount-identity)，跳过清单见 [run README](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md#跳过清单sqlite-一侧的-34-条) |
-| 同 run · 别处的承担者 | `packages/tenancy/account-registration/tests/`（S-43 第 2 支与 I-1～I-4 的真并发交错、I-8 同进程整装配重启；sqlite）；`apps/tenancy-host/tests/`（`lifecycle` 同进程两次 `boot()`、`process` 另起 Node 进程、`upgrade` 翻升级快照，sqlite；`pg.spec.ts` 在 PostgreSQL 16.14 上的交错 I-12 与交错 ② 的 pg 支）；`tools/ts-checks/tests/`（五条规则的自测）与 `pnpm run lint:rules` | 各自所在成员的计数见 run README；上表点名的用例都通过 | 同 run 的 `output/`、`output-pg/` |
-
-**formal 那一行不是本节点的符合性证据**：它检查的是组合模型里的抽象动作，支持的只是「契约条款之间的次序推理不自相矛盾」——bindings 的 assumptions 逐条写了模型盖不到什么，也写了它对 v2 同号条款的适用前提。
-**测试那两行是 v2 的实际执行**：它们针对本节点的 v2 实现；要把它们同时算作钉 v1 的 organization-governance、account-registration 所消费条款的证据，须逐条另行写明（契约 verification 的继承规则），本页不做这件事。
-
-**有限检查不写成无条件证明。**sqlite 一侧是临时文件库、单主机、单进程（`process.spec.ts` 另起的子进程除外），时间是可前推的替身；pg 一侧只有 16.14 一个版本、只跑了交错 I-12 与交错 ② 两处。真并发用例单次运行，交错取决于那一次的调度。「完整重启」分三种：同一库文件两次装载、同进程整装配 `dispose` 再 `boot`、另起 OS 进程——各行写明是哪一种。**通过不提升契约或本节点的任何接受状态。**
-
 ## 覆盖缺口
 
 按上面这次 run 的对应清单，本节点还缺的证据（都针对 v2）：
@@ -79,4 +66,4 @@ v1 段（八条规范场景、两条静态检查、若干条没有场景号的�
 
 ## AI3 局部验证
 
-[2026-09-25运行](../../../../record/evidence/2026-09-25-tests-bounded-account/README.md)覆盖AI3 S48/49/50/51/52的包内场景及旧消费者回归。80项通过、10项既有跳过；Linux为局部插件装配。未证明entry成功路径统一finalize、OG选择清扫共同保护、业务Promise排空及正式恢复开闸；有限模型也不替代这些整装义务。bindings保持原证据坐标，不将旧注册模型改绑为完整AI3证据。
+2026-09-25运行覆盖AI3 S48/49/50/51/52的包内场景及旧消费者回归。80项通过、10项既有跳过；Linux为局部插件装配。未证明entry成功路径统一finalize、OG选择清扫共同保护、业务Promise排空及正式恢复开闸；有限模型也不替代这些整装义务。bindings保持原证据坐标，不将旧注册模型改绑为完整AI3证据。

@@ -6,8 +6,8 @@
   `family = data`、`topic = model-profile`、规范路径 `spec/data/model-profile/v4/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **演进基线**：已接受的 `data.model-profile/v3`；本候选的接受、采用与冻结状态只从[版本外入口](../README.md)和 registry 读取。旧版的接受不传递给本版。
-- **设计依据**：PF-013 **rev 14**（[D-096](../../../../record/decisions/model-profile-input-limits-product-adoption/decision.md)）；继承来源已复核为当前 PF-001 rev 23 §6.1（四层）、PF-004 rev 13 §6.6（每次请求实际模型留痕）、PF-010 rev 6 要求五（组装取得有效档案）。上游未知可明示、项目必须供给有限输入上限、组装与发送最终复核的边界来自 PF-013 §4／§8。
-- **候选表达依据**：主线裁定沿用 `maxInputTokens` 与 `inputConstraints.maxImageBytes` 表示有限供给，新增上游三态、闭合指标与完整快照。字段和下述 `InputLimitFact`／`UpstreamInputLimits` 是模型档案既有属性的技术投影（无独立词条），不引入领域身份。既有适配绑定沿 [UL-D-6](../../../../ubiquitous_language/decisions.md#ul-d-6--模型适配绑定--2026-09-27)。本候选未接受，旧版的接受不传递给本版。
+- **设计依据**：PF-013 **rev 14**（D-096）；继承来源已复核为当前 PF-001 rev 23 §6.1（四层）、PF-004 rev 13 §6.6（每次请求实际模型留痕）、PF-010 rev 6 要求五（组装取得有效档案）。上游未知可明示、项目必须供给有限输入上限、组装与发送最终复核的边界来自 PF-013 §4／§8。
+- **候选表达依据**：主线裁定沿用 `maxInputTokens` 与 `inputConstraints.maxImageBytes` 表示有限供给，新增上游三态、闭合指标与完整快照。字段和下述 `InputLimitFact`／`UpstreamInputLimits` 是模型档案既有属性的技术投影（无独立词条），不引入领域身份。既有适配绑定沿 [UL-D-6](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-adaptation-binding--模型适配绑定--model-adaptation-binding)。本坐标范围见 catalog，旧版的接受不传递给本版。
 - **精确语义依赖**（候选登记由本批 registry 单一 owner 集成）：
   - `omne-harness-lite-design-2026-09-15 · data.identity-values · v1`——
     取 **[S-11](../../identity-values/v1/contract.md#s-11-scopelayeridentity)** 的 `ScopeLayerIdentity` 作引用的范围分量（`$ref`，不复制），
@@ -45,7 +45,7 @@
 | 「送进去之前的限制」三段交接：本 topic 让它成为档案上的事实 | [PF-013 §8](../../../../product/PF-013-model-profiles-and-invocation/design.md#八边界与依赖) · [PF-010 要求五](../../../../product/PF-010-context-management-and-assembly/design.md#要求五组装的输入里必须有当下生效的那份模型档案) | S-8、S-9 |
 | 四层、出厂默认层由系统充当 | [PF-001 §6.1 层次](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#61-层次) | S-1、S-3（「同一范围」＝所在那一格） |
 | 实际用了哪个要留痕，那是请求的可追溯组成 | [PF-004 §6.6](../../../../product/PF-004-agent-definition-and-assembly/design.md#66-模型在每次请求时确定) | S-22（不在档案上；只引） |
-| 实际费用从响应拿，目录估算不得冒充实扣 | [D-019 选择与范围](../../../../record/decisions/model-provider-pi-ai-fork/decision.md#选择与范围) | S-22（价格不在档案上） |
+| 实际费用从响应拿，目录估算不得冒充实扣 | D-019 选择与范围 | S-22（价格不在档案上） |
 | 所有模型请求经 OpenRouter | [SYS-LLM](../../../../foundation/cross-system-constraints/requirements.md#sys-llm) | S-5（`ProviderName` 是 OpenRouter 的供应商标识） |
 | 单机交付、语义不变地可扩展 | [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) | [第六节](#六装配给与协议给) |
 | JSON Schema 定义数据契约 | [SYS-SPEC](../../../../foundation/cross-system-constraints/requirements.md#sys-spec) | S-24～S-26 |
@@ -55,12 +55,12 @@
 >
 > | 条款 | 依据来自哪 |
 > |---|---|
-> | [S-3](#s-3-撞名判定同一范围内唯一) 的比较规则：逐码点、不做大小写折叠与相似字判定 | 主线裁定，见 [D-060 §S6 S6-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s6model-profile报回的)——**只取它比较规则那一半**；它的「名字在全部档案里唯一」「新官方档案撞自建名同样拒建」已被产品负责人的裁定取代（[D-060 §四](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#四被推翻或被覆盖的项追加登记)）。撞名的**范围**（同一范围内唯一、不同范围并存）有产品行：[PF-013 §4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)（[裁决 35、38](../../../../product/PF-013-model-profiles-and-invocation/decisions.md#2026-09-24--档案的身份是所在范围加路由名列表每条带来源已撤回的可以恢复在册)，撤回了 [D-058 Q11](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔) 的「拒建」；组织层与租户层同名并存是[裁决 39、40](../../../../product/PF-013-model-profiles-and-invocation/decisions.md#2026-09-24--同路由名的档案并存按层从下往上覆盖)） |
-> | [S-7](#s-7-modality-与两组模态) 的「`inputModalities` 必含 `text`」与拒绝值 `input_text_missing` | 主线裁定，见 [D-060 §S6 S6-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s6model-profile报回的)。PF-013 几条规则（有 transcript 的块任何模型都读得了、附件引用是一段文本）隐含它，正文未明说 |
-> | [S-13](#s-13-modelprofileref) 的两支引用形状 | 主线裁定，见 [D-060 §S6 S6-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s6model-profile报回的)。它当时的理由「官方名对所有层保留」已随 Q11 撤回；**结论照旧成立**，前提换成「官方档案全在出厂默认层这一格、同一格里路由名不重复」（[S-3](#s-3-撞名判定同一范围内唯一)、[S-4](#s-4-profileorigin)）。官方那一支的范围由 `origin` 判别式带出，不另写一个分量 |
-> | [S-18](#s-18-档案参数的输出上限) 的「上游收紧输出上限时不改档案」 | 主线裁定，见 [D-060 §S6 S6-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s6model-profile报回的)。「不改的只是 `maxOutputTokens` 这一项、其余适用项照常更新」是**规格层推导**（理由在 S-18） |
+> | [S-3](#s-3-撞名判定同一范围内唯一) 的比较规则：逐码点、不做大小写折叠与相似字判定 | 主线裁定，见 D-060 §S6 S6-b——**只取它比较规则那一半**；它的「名字在全部档案里唯一」「新官方档案撞自建名同样拒建」已被产品负责人的裁定取代（D-060 §四）。撞名的**范围**（同一范围内唯一、不同范围并存）有产品行：[PF-013 §4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)（[裁决 35、38](../../../../product/PF-013-model-profiles-and-invocation/design.md)，撤回了 D-058 Q11 的「拒建」；组织层与租户层同名并存是[裁决 39、40](../../../../product/PF-013-model-profiles-and-invocation/design.md)） |
+> | [S-7](#s-7-modality-与两组模态) 的「`inputModalities` 必含 `text`」与拒绝值 `input_text_missing` | 主线裁定，见 D-060 §S6 S6-d。PF-013 几条规则（有 transcript 的块任何模型都读得了、附件引用是一段文本）隐含它，正文未明说 |
+> | [S-13](#s-13-modelprofileref) 的两支引用形状 | 主线裁定，见 D-060 §S6 S6-a。它当时的理由「官方名对所有层保留」已随 Q11 撤回；**结论照旧成立**，前提换成「官方档案全在出厂默认层这一格、同一格里路由名不重复」（[S-3](#s-3-撞名判定同一范围内唯一)、[S-4](#s-4-profileorigin)）。官方那一支的范围由 `origin` 判别式带出，不另写一个分量 |
+> | [S-18](#s-18-档案参数的输出上限) 的「上游收紧输出上限时不改档案」 | 主线裁定，见 D-060 §S6 S6-c。「不改的只是 `maxOutputTokens` 这一项、其余适用项照常更新」是**规格层推导**（理由在 S-18） |
 > | [S-11](#s-11-updatedat) `updatedAt` | **规格层推导**：历史上按五项上游属性推导；本版按主线裁定扩为六项，供给与事实的记载都会变化（[§4 模型档案](../../../../product/PF-013-model-profiles-and-invocation/design.md#模型档案)「差一点就是它」表第一行），消费者需要知道这份记载是什么时候的。产品正文没有这一项 |
-> | [S-27](#s-27-modelprofilesnapshot档案在某一刻的副本) 档案快照 | 主线裁定，见 [D-060 §块 C 对账 C-R1](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-c-对账d-reconciliation-c需主线看八项)（不给档案加修订身份，快照跟着发出记录走）；**家放在本契约**是规格层推导（理由在 S-27） |
+> | [S-27](#s-27-modelprofilesnapshot档案在某一刻的副本) 档案快照 | 主线裁定，见 D-060 §块 C 对账 C-R1（不给档案加修订身份，快照跟着发出记录走）；**家放在本契约**是规格层推导（理由在 S-27） |
 > | [S-28](#s-28-建档内容产生一条档案时给的那一份) 建档内容 | **规格层推导**：维护档案的能力建档与装入官方清单时收的正是这样一份（`capability.model-profile-directory` v2 S-14 ①、S-18 ①），两边要对同一份输入报同一个拒绝值，这份文档与它的拒绝值只能有一个家 |
 > | [S-10](#s-10-registration) 「恢复可以与属性改写同一次提交」 | **规格层推导**：官方档案的恢复只经清单装入，清单里重现的条目可能带着改过的属性（`capability.model-profile-directory` v2 S-18 `relisted`） |
 > | [S-20](#s-20-项与项名)、[S-24](#s-24-表示层校验是一次纯计算)～[S-26](#s-26-表示层拒绝与判定分开) | 由 [SYS-SPEC](../../../../foundation/cross-system-constraints/requirements.md#sys-spec) 供给：表示、校验与「表示层不等于判定」是规格形式的要求 |
@@ -202,7 +202,7 @@ Schema 里有词条的定义给「中文 · English」式标题；没有词条�
 
 - **只比同一格，不读别的格，也不读隶属关系。**官方档案与某一格里的自建档案同路由名、一个组织的组织层与它某个租户的租户层各有一条同名的、两个组织各有一条同名的，
   **都建得成、都在，谁也不挡谁**——它们在不同的范围里（[PF-013 §4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)、[§6.1](../../../../product/PF-013-model-profiles-and-invocation/design.md#61-档案是一个对象那项设置的取值是对它的引用)）。
-  组织层与租户层的同名并存是产品负责人的裁定（[PF-013 裁决 39、40](../../../../product/PF-013-model-profiles-and-invocation/decisions.md#2026-09-24--同路由名的档案并存按层从下往上覆盖)，已落进 §4 档案的身份）。
+  组织层与租户层的同名并存是产品负责人的裁定（[PF-013 裁决 39、40](../../../../product/PF-013-model-profiles-and-invocation/design.md)，已落进 §4 档案的身份）。
 - **并存之后同名的几条谁生效，不是本条的事**：那是运行时按层覆盖——以路由名为能力标识、在一条范围链上先滤掉已撤回的与这个范围不允许的、再取最具体一格的那条（租户 > 组织 > 出厂默认）；
   链上的先后归维护档案的能力（`capability.model-profile-directory` v2 S-17），求有效模型时怎样用它归模型请求运行时（`capability.model-request-runtime` v2 S-10）。
   **本条只保证同一格里不重名**，所以「一条链上某个路由名过滤之后最具体的那一格」至多挑出一条。
@@ -213,9 +213,9 @@ Schema 里有词条的定义给「中文 · English」式标题；没有词条�
   [S-1](#s-1-档案的身份所在范围与路由名) 与 [S-13](#s-13-modelprofileref) 只依赖这两句。
 
 它来自：产品负责人 2026-09-24 裁定档案的身份是（所在范围, 路由名）、「自建档案撞官方档案的路由名就拒建」去掉
-（[PF-013 decisions 裁决 35、38](../../../../product/PF-013-model-profiles-and-invocation/decisions.md#2026-09-24--档案的身份是所在范围加路由名列表每条带来源已撤回的可以恢复在册)；
-第 38 条撤回的是 [D-058 Q11](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔) 的「拒建」）；
-比较规则逐码点是主线裁定，见 [D-060 §S6 S6-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s6model-profile报回的)（只取比较规则那一半，上文设计依据已说明）。
+（[PF-013 decisions 裁决 35、38](../../../../product/PF-013-model-profiles-and-invocation/design.md)；
+第 38 条撤回的是 D-058 Q11 的「拒建」）；
+比较规则逐码点是主线裁定，见 D-060 §S6 S6-b（只取比较规则那一半，上文设计依据已说明）。
 
 **它是官方引用只带路由名的前提**（[S-13](#s-13-modelprofileref)）：同一格里名字不重复且官方档案只在一格，`{origin: "official", routeName}` 才指得清一条。
 
@@ -306,7 +306,7 @@ Schema 里有词条的定义给「中文 · English」式标题；没有词条�
 **`inputModalities` 必含 `text`；缺它即 `input_text_missing`。**
 PF-013 有几条规则建立在「每个模型都收得下文本」之上——[有 transcript 的块任何模型都读得了](../../../../product/PF-013-model-profiles-and-invocation/design.md#511-有-transcript-的块不再把任何模型挡在外面)、
 附件引用是一段文本、转换件的兜底是一段 transcript；一条不收文本的档案会让这几条同时落空。
-正文没有明说这一句，主线裁定写成约束，见 [D-060 §S6 S6-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s6model-profile报回的)。`outputModalities` 不受这一条约束。
+正文没有明说这一句，主线裁定写成约束，见 D-060 §S6 S6-d。`outputModalities` 不受这一条约束。
 
 ### S-8 两个上限
 
@@ -475,7 +475,7 @@ PF-013 有几条规则建立在「每个模型都收得下文本」之上——[
 `maxInputTokens`、`maxOutputTokens`、`inputConstraints`、`upstreamInputLimits`、`parameters`（可缺席）、`adaptation`，以及这份记载的 `updatedAt`。各项的取值域与 `ModelProfile` 的同名成员逐字相同。
 
 - **它是值，不是引用**：档案后来被改、被撤回，快照一个字不变。指认它是哪一条档案，靠与它**成对交出**的 `ModelProfileRef`（[S-1](#s-1-档案的身份所在范围与路由名)）；快照自己不带路由名与来源。
-- **家在本契约，消费者 `$ref` 它**：一次调用绑定的那一份记在响应体的路由留痕上，「调模型之后 · 失败」位置的拓展件也拿到同一份（主线裁定，见 [D-060 §块 C 对账 C-R1](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-c-对账d-reconciliation-c需主线看八项)：不给档案加修订身份，快照跟着发出记录走）。
+- **家在本契约，消费者 `$ref` 它**：一次调用绑定的那一份记在响应体的路由留痕上，「调模型之后 · 失败」位置的拓展件也拿到同一份（主线裁定，见 D-060 §块 C 对账 C-R1：不给档案加修订身份，快照跟着发出记录走）。
   放在这里而不放在那两份契约里，是因为两份都要用、而它们之间一份引用另一份——形状只能有一个两边都能引用的家。
 - **成员集合闭合**：它不带在册状态（发出那一刻是否在册由出门前检查判，不是快照的事）。全部输入 cap 及对应上游事实都带入：组装、重试与最终发送检查消费同一副本。
 - **[S-18](#s-18-档案参数的输出上限) 的关系在快照上照样成立，但快照不是表示层校验的一种文档**：它是一份已通过表示层校验的档案在某一刻的**原样副本**，
@@ -594,7 +594,7 @@ S-2 已将 `routeName` 定为上游认的模型名，本版不引入可指向另
   **不读任何别的记录**。
 - **本条只约束档案这一份文档。**一次请求的参数是档案参数被本次覆盖逐项替换之后的结果，**合并之后**再按有效模型档案的 `maxOutputTokens` 校验——
   那一步归模型请求运行时（[`capability.model-request-runtime/v2#S-7`](../../../capabilities/model-request-runtime/v2/contract.md#s-7-一次调用绑定了什么)）；覆盖能否去掉一项是 [G-8](#十已知缺口)。
-- **上游把输出上限降到档案 `parameters.maxOutputTokens` 之下时，档案的 `maxOutputTokens` 不跟着降**（主线裁定，见 [D-060 §S6 S6-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s6model-profile报回的)）：
+- **上游把输出上限降到档案 `parameters.maxOutputTokens` 之下时，档案的 `maxOutputTokens` 不跟着降**（主线裁定，见 D-060 §S6 S6-c）：
   既不把这一项更新到新上限（那会让文档违反本条），也不把建档者给的参数夹到新上限（那是替他改了他给的值）。
   **差额在发出时处理**：adapter 按 [S-21](#s-21-不静默丢也不静默改) 的「改了值再发出」发一个上游收得下的值，并**记下实际发出的那个值**。
   **这条义务归模型请求运行时**（它的 adapter）；代价是档案的 `maxOutputTokens` 这一刻起比上游的实际上限高（[S-11](#s-11-updatedat)）。
@@ -646,7 +646,7 @@ S-2 已将 `routeName` 定为上游认的模型名，本版不引入可指向另
 | 不放什么 | 为什么 | 它的家 |
 |---|---|---|
 | **[模型凭据](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)** | [凭据挂在范围上](../../../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上)，[档案自己不存](../../../../product/PF-013-model-profiles-and-invocation/design.md#62-凭据挂在范围上档案自己不存)；出厂默认那一格的那一把在部署装配阶段配置 | 租户身上的一项属性，组织那一层不持有（绑定与取用归 `capability.model-profile-directory` v2） |
-| **价格** | [实际费用从响应里拿，目录估算不得冒充实扣](../../../../record/decisions/model-provider-pi-ai-fork/decision.md#选择与范围)；档案上放一个价格，就会有人拿它当账 | `data.call-accounts`（一次调用的费用）与 `data.model-response` |
+| **价格** | 实际费用从响应里拿，目录估算不得冒充实扣；档案上放一个价格，就会有人拿它当账 | `data.call-accounts`（一次调用的费用）与 `data.model-response` |
 | **「这次实际用了哪条」** | [那是一次请求的可追溯组成，是历史](../../../../product/PF-004-agent-definition-and-assembly/design.md#66-模型在每次请求时确定) | `data.model-response` 的路由留痕（它**引用**档案） |
 | **超时、退避等时限** | [本 topic 不出现任何时限数值](../../../../product/PF-013-model-profiles-and-invocation/design.md#617-本-topic-不出现任何时限数值)；它们是重试件的配置，走资产那一套 | 重试件（拓展件，第八类资产）的设置 |
 | **能力评分** | [产品负责人裁决不留](../../../../product/PF-013-model-profiles-and-invocation/design.md#七取舍)：零消费者 | —— |
@@ -772,7 +772,7 @@ Schema 只挡住未登记的外层成员；`extra` 与 `adaptation.configuration
 
 | # | 性质 | 类 | 来源 | 谁在何处保护 | 违反时可观察到什么 |
 |---|---|---|---|---|---|
-| P-1 | （所在范围, 路由名）不重复——含已撤回行、逐码点比较；因而官方档案之间路由名不重复 | 不变量 | [PF-013 §4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)（裁决 35）；逐码点是主线裁定（[D-060 §S6 S6-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s6model-profile报回的)） | 建档与官方清单装入，判定读到的名字与写入同提交（[S-3](#s-3-撞名判定同一范围内唯一)） | 同一格里有两条同名档案；或两条官方档案同名，官方引用解析到两条 |
+| P-1 | （所在范围, 路由名）不重复——含已撤回行、逐码点比较；因而官方档案之间路由名不重复 | 不变量 | [PF-013 §4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)（裁决 35）；逐码点是主线裁定（D-060 §S6 S6-b） | 建档与官方清单装入，判定读到的名字与写入同提交（[S-3](#s-3-撞名判定同一范围内唯一)） | 同一格里有两条同名档案；或两条官方档案同名，官方引用解析到两条 |
 | P-2 | 路由名、来源、所在范围建档后不变 | 不变量 | [PF-013 §6.1](../../../../product/PF-013-model-profiles-and-invocation/design.md#61-档案是一个对象那项设置的取值是对它的引用) | 维护档案的能力不提供这些写路径（[S-12](#s-12-各属性何时定能不能改)） | 一条历史留痕里的引用，今天解析到一条意思变了的档案 |
 | P-3 | 行保留；在册状态只经撤回与恢复在册两条边变化，恢复的是同一行；名字在同一格里仍被占 | 不变量 | [PF-013 §6.4](../../../../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架) · [flows §3.1](../../../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案) | 维护档案的能力（[S-10](#s-10-registration)） | 行没了，会话只说得出「未知模型」、也再恢复不了；或「恢复」另起了一行，指着原来那条的引用断了；或同一格里另建出一条与已撤回行同名的档案 |
 | P-4 | 引用只精确解析，不跨层、不回退 | 安全 | [PF-013 §6.1](../../../../product/PF-013-model-profiles-and-invocation/design.md#61-档案是一个对象那项设置的取值是对它的引用) | 读面（[S-14](#s-14-引用只精确解析不跨层)） | 一个自建引用解析到了所在范围或来源与它不符的档案；或一个官方引用解析到了自建档案 |
@@ -781,8 +781,8 @@ Schema 只挡住未登记的外层成员；`extra` 与 `adaptation.configuration
 | P-7 | 参数不静默丢、不静默改 | 安全 | [PF-013 §4 请求参数](../../../../product/PF-013-model-profiles-and-invocation/design.md#模型档案) | adapter（[S-21](#s-21-不静默丢也不静默改)） | 上游不认的一项既没发出去、也查不到它没发出去；或发出去的值与留痕里的不同 |
 | P-8 | 档案参数的输出上限不超过档案的输出上限 | 不变量 | [PF-013 §4](../../../../product/PF-013-model-profiles-and-invocation/design.md#模型档案)：请求参数的取值归规格 | 表示层校验（[S-18](#s-18-档案参数的输出上限)） | 一条档案的 `parameters.maxOutputTokens` 大于它的 `maxOutputTokens` |
 | P-9 | 缺席不补值：参数项、范围分量、限制条目 | 安全 | [SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant)（范围分量）· PF-013 §4 | 调用方与 adapter（[S-13](#s-13-modelprofileref)、[S-17](#s-17-缺席即不带没有人补值)） | 一个缺 `origin` 或缺 `scope` 的引用被当成官方引用或「当前租户的」；或请求里出现一个档案没给、拓展件也没设的参数值 |
-| P-10 | 每条档案都收得下文本 | 不变量 | 主线裁定，[D-060 §S6 S6-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s6model-profile报回的)（PF-013 [§5.11](../../../../product/PF-013-model-profiles-and-invocation/design.md#511-有-transcript-的块不再把任何模型挡在外面) 等规则隐含） | Schema（`contains`）＋表示层校验（[S-7](#s-7-modality-与两组模态)） | 一条 `inputModalities` 不含 `text` 的档案被建出来，有 transcript 的块对它不再可读 |
-| P-11 | 建档拒不拒只取决于同一格里的名字：别的格里有同名档案不挡建档 | 安全 | [PF-013 §4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)（裁决 35、38）；组织层与租户层并存那一半是[裁决 39](../../../../product/PF-013-model-profiles-and-invocation/decisions.md#2026-09-24--同路由名的档案并存按层从下往上覆盖) | 建档操作（[S-3](#s-3-撞名判定同一范围内唯一)） | 一次自建建档因某条官方档案、同一个组织另一层、或别的组织里有同名档案而被拒；或一次官方发布因某一格里有同名自建档案而被拒 |
+| P-10 | 每条档案都收得下文本 | 不变量 | 主线裁定，D-060 §S6 S6-d（PF-013 [§5.11](../../../../product/PF-013-model-profiles-and-invocation/design.md#511-有-transcript-的块不再把任何模型挡在外面) 等规则隐含） | Schema（`contains`）＋表示层校验（[S-7](#s-7-modality-与两组模态)） | 一条 `inputModalities` 不含 `text` 的档案被建出来，有 transcript 的块对它不再可读 |
+| P-11 | 建档拒不拒只取决于同一格里的名字：别的格里有同名档案不挡建档 | 安全 | [PF-013 §4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)（裁决 35、38）；组织层与租户层并存那一半是[裁决 39](../../../../product/PF-013-model-profiles-and-invocation/design.md) | 建档操作（[S-3](#s-3-撞名判定同一范围内唯一)） | 一次自建建档因某条官方档案、同一个组织另一层、或别的组织里有同名档案而被拒；或一次官方发布因某一格里有同名自建档案而被拒 |
 | P-12 | 档案产生时的在册状态与 `updatedAt` 只由产生它的一方写：初值 `listed`、建档那一刻 | 不变量 | [flows §3.1](../../../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（建档 → 在册）；S-11 是规格层推导 | 表示层校验拒带这两个成员的建档内容（[S-28](#s-28-建档内容产生一条档案时给的那一份)）＋维护档案的能力在提交时写 | 一条档案以 `withdrawn` 产生；或一条档案的 `updatedAt` 是调用方给的、早于它真正建出的那一刻 |
 | P-13 | 档案、建档内容与快照都带完整适配绑定，不补默认 | 不变量 | 主线施工简报；S-27、S-29 | Schema 与快照写入者 | 无绑定的旧文档被静默当成 v3；或快照只留修订、丢了配置值 |
 | P-14 | 同命名域修订不改义，不跨档案按配置修订取值 | 安全 | 主线施工简报；S-29 | 实现/定义/档案写入者及运行时 | 相同命名域和修订对应不同含义；或调用取到别的租户的同修订配置 |
@@ -860,12 +860,12 @@ Schema 只挡住未登记的外层成员；`extra` 与 `adaptation.configuration
 | # | 缺口 | 阻断谁 | 谁来裁 | 闭合条件 |
 |---|---|---|---|---|
 | **G-2** | **`ProviderName` 的具体词法**（OpenRouter 供应商标识的字符集与大小写规则） | 需要校验或规范化供应商名的实现 | **传输适配层**（模型请求运行时的提供者设计） | 那份提供者设计写定供应商标识的词法，本契约据此出新版本收紧 `ProviderName` 的形状，或写明不收紧、只保留「非空、逐码点相等」 |
-| **G-8** | **一次请求的覆盖能否去掉档案上的某一项**（让这次不带它）。合成的其余部分已定：覆盖**逐项替换**档案参数，合并之后再按档案的输出上限校验（主线裁定，见 [D-060 §S6 S6-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s6model-profile报回的)；落在 [`capability.model-request-runtime/v2#S-7`](../../../capabilities/model-request-runtime/v2/contract.md#s-7-一次调用绑定了什么)） | `data.loop-extension` 的改写表示 | **模型请求运行时**的能力契约，与 `data.loop-extension` 协同 | 模型请求运行时的能力契约写明「能」或「不能」；若能，`data.loop-extension` 的改写表示给出「去掉这一项」的写法，本契约 S-17 补一句它与「缺席即不带」的关系 |
+| **G-8** | **一次请求的覆盖能否去掉档案上的某一项**（让这次不带它）。合成的其余部分已定：覆盖**逐项替换**档案参数，合并之后再按档案的输出上限校验（主线裁定，见 D-060 §S6 S6-e；落在 [`capability.model-request-runtime/v2#S-7`](../../../capabilities/model-request-runtime/v2/contract.md#s-7-一次调用绑定了什么)） | `data.loop-extension` 的改写表示 | **模型请求运行时**的能力契约，与 `data.loop-extension` 协同 | 模型请求运行时的能力契约写明「能」或「不能」；若能，`data.loop-extension` 的改写表示给出「去掉这一项」的写法，本契约 S-17 补一句它与「缺席即不带」的关系 |
 | **G-9** | **`extra` 里出现与统一项同义的上游拼法**（S-19）被 adapter 识别之后的收场：拒这次请求、以统一项为准并留痕、还是别的 | adapter 的实现 | **模型请求运行时**的能力契约 | 那份能力契约写定这种情形的收场与它的失败值或留痕；本契约 S-19 改指那一条 |
 | **G-10** | **会话的「默认主模型 ＋ 可选路由模型组」**（产品负责人 2026-09-23 口头，将来经 hook 做 model selector）：两个概念尚无词条、不在 PF-013 正文 | 不阻断本版；设置记路由名（PF-013 rev 12），「一组」照同一规矩记若干个路由名，本版不为它立形状 | **产品负责人**（PF-013 下次 rev，先立词条） | 两个概念进了统一语言与 PF-013 正文；若那时需要「一组」的形状，出本契约新版本，否则本行改为「不需要新形状」关闭 |
 | **G-14（历史来源项）** | v3 起草时登记的绑定消费者升级义务；当前精确采用已由 registry 及后续消费者契约拥有，不能再读作「当前全部仍采用 v2」 | 本版不据旧状态阻断；完整输入限制的新增消费缺口见 G-16 | **主线**协调消费者 owner | 既有升级的实现与验证仍按各自证据；不因 data 接受而宣称真实组合已验证 |
 
-**已关闭的缺口**（编号不复用；主线裁定关闭的几项见 [D-060 §S6](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s6model-profile报回的)，其中 G-4、G-5 的结论已被 2026-09-24 的产品裁定改掉，注在行内）：
+**已关闭的缺口**（编号不复用；主线裁定关闭的几项见 D-060 §S6，其中 G-4、G-5 的结论已被 2026-09-24 的产品裁定改掉，注在行内）：
 
 | # | 原来缺什么 | 怎么关的 | 落在哪 |
 |---|---|---|---|
@@ -873,11 +873,11 @@ Schema 只挡住未登记的外层成员；`extra` 与 `adaptation.configuration
 | **G-3** | 路由名大小写不同、Unicode 相似字算不算撞名 | 不算：逐码点比较，不做大小写折叠与相似字判定 | [S-2](#s-2-routename)、[S-3](#s-3-撞名判定同一范围内唯一) |
 | **G-4** | 新发布的官方档案撞上已有自建名 | 2026-09-23 关为「同样拒建」；**2026-09-24 按 PF-013 rev 10（裁决 35、38）改为：两者不在同一格，都建得出、并存** | [S-3](#s-3-撞名判定同一范围内唯一) |
 | **G-5** | 同一组织的组织层与租户层各有同名自建档案 | 2026-09-23 关为「后建的拒建」；**2026-09-24 按 PF-013 rev 10 §4「档案的身份」改为并存**——另立的 [G-13](#十已知缺口) 已于同日由产品负责人裁定并存 | [S-3](#s-3-撞名判定同一范围内唯一) |
-| **G-6** | 上游把一个已撤回的同名模型重新上架：撤回终态、名字永久占用 | **2026-09-24 产品负责人裁定（[PF-013 裁决 35–38](../../../../product/PF-013-model-profiles-and-invocation/decisions.md#2026-09-24--档案的身份是所在范围加路由名列表每条带来源已撤回的可以恢复在册)）**：已撤回可恢复在册（`withdrawn → listed`），恢复的是同一条；新官方档案与已有自建档案同名并存。当时待裁的另一种长相「撞名的自建档案改名之前，官方档案不进该组织的展示列表」**没有采用**——身份含范围，两条本不相撞 | [S-3](#s-3-撞名判定同一范围内唯一)、[S-10](#s-10-registration)、[S-14](#s-14-引用只精确解析不跨层) |
+| **G-6** | 上游把一个已撤回的同名模型重新上架：撤回终态、名字永久占用 | **2026-09-24 产品负责人裁定（[PF-013 裁决 35–38](../../../../product/PF-013-model-profiles-and-invocation/design.md)）**：已撤回可恢复在册（`withdrawn → listed`），恢复的是同一条；新官方档案与已有自建档案同名并存。当时待裁的另一种长相「撞名的自建档案改名之前，官方档案不进该组织的展示列表」**没有采用**——身份含范围，两条本不相撞 | [S-3](#s-3-撞名判定同一范围内唯一)、[S-10](#s-10-registration)、[S-14](#s-14-引用只精确解析不跨层) |
 | **G-7** | 上游把输出上限降到档案参数之下 | 档案的 `maxOutputTokens` 一项不跟着降（2026-09-24 第一轮评审修复写明：其余适用项照常更新）；发出时按「改了值再发出」处理并留痕，义务归模型请求运行时 | [S-18](#s-18-档案参数的输出上限)、[S-21](#s-21-不静默丢也不静默改) |
 | **G-12** | `inputModalities` 是否必含 `text` | 必含；缺它即 `input_text_missing` | [S-7](#s-7-modality-与两组模态)、[S-25](#s-25-拒绝值闭合一次恰一个) |
 | **G-11** | 维护档案的能力契约不存在：谁能建、改、撤回，读面的失败值，建档的幂等与并发 | `capability.model-profile-directory` v2（candidate）立起：建档、撤回、读、装入官方清单各写全九件事；S-3 的判定与 S-14 的三种收场落在那里（对齐波关闭） | S-3、S-10、S-12、S-14 的执行面 |
-| **G-13** | 「组织层与租户层的自建档案可同路由名并存」这一读法待产品负责人确认 | **2026-09-24 产品负责人裁定并存**（[PF-013 裁决 39、40](../../../../product/PF-013-model-profiles-and-invocation/decisions.md#2026-09-24--同路由名的档案并存按层从下往上覆盖)，原话记在那里；PF-013 rev 12 已写进 [§4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)）。本契约只把并存正式化；同名几条谁生效的「按层覆盖」归链的先后（`capability.model-profile-directory` v2 S-17）与求有效模型（`capability.model-request-runtime` v2 S-10） | [S-3](#s-3-撞名判定同一范围内唯一)、[S-14](#s-14-引用只精确解析不跨层) |
+| **G-13** | 「组织层与租户层的自建档案可同路由名并存」这一读法待产品负责人确认 | **2026-09-24 产品负责人裁定并存**（[PF-013 裁决 39、40](../../../../product/PF-013-model-profiles-and-invocation/design.md)，原话记在那里；PF-013 rev 12 已写进 [§4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)）。本契约只把并存正式化；同名几条谁生效的「按层覆盖」归链的先后（`capability.model-profile-directory` v2 S-17）与求有效模型（`capability.model-request-runtime` v2 S-10） | [S-3](#s-3-撞名判定同一范围内唯一)、[S-14](#s-14-引用只精确解析不跨层) |
 
 ### 本版新增缺口
 
@@ -906,7 +906,7 @@ Schema 只挡住未登记的外层成员；`extra` 与 `adaptation.configuration
 
 **本版从已接受的 v3 演进**：S-8/S-9 区分项目有限 cap 与新增 S-32 的上游三态；S-33 增加跨字段一致性；S-11 同时涵盖供给和事实变化；S-27 快照完整保留限制。绑定、配置修订、身份、参数和在册状态规则保持既有承诺。S-25 仍恰十个拒绝值，新增 M15/M16 属于既有 `malformed`。
 
-旧文档不是 v4：不得把旧缺键或 `{}` 变成 unknown/unbounded，不填默认 cap。已产生的快照与历史记录保留原版本、原内容，由旧 codec 只读/结算；新发送须有符合本版的完整快照，不能用当前目录回填旧调用。新版拒发与旧责任收口由运行时明确承担，不从数据形状推断它们自动完成。消费者迁移和实际执行在[验证入口](../verification.md#v4-变化的影响)登记；候选不自动升级任何消费者。
+旧文档不是 v4：不得把旧缺键或 `{}` 变成 unknown/unbounded，不填默认 cap。已产生的快照与历史记录保留原版本、原内容，由旧 codec 只读/结算；新发送须有符合本版的完整快照，不能用当前目录回填旧调用。新版拒发与旧责任收口由运行时明确承担，不从数据形状推断它们自动完成。消费者当前采用范围由 catalog 和实际绑定拥有者维护；本次执行放工作树 `tmp/<task>/`；候选不自动升级任何消费者。
 
 **本版的规范工件**：本文件、[`model-profile.schema.json`](model-profile.schema.json)、[`examples.md`](examples.md)、[`examples.json`](examples.json)。
 

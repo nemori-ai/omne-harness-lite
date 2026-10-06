@@ -71,7 +71,7 @@ config 总是固定的 `[redacted]`，不输出值、键、散列或长度。
 
 形状由[纯公开类型](../../../../packages/core/cordis-plugin-tree/src/types.ts)维护。
 六字段声明及静态／动态匹配的完整行为归[模块 SPEC](../../../../packages/core/cordis-plugin-tree/SPEC.md)，
-扩展范围见[限定采用](../../record/decisions/identity-shared-mechanism-projection/decision.md)。
+扩展范围见限定采用。
 
 
 provides/requires/optional 分别是静态所供键、必需键、可选键；dynamicProvides/dynamicRequires 表达固定 host 的动态贡献和消费。

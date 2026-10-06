@@ -1,10 +1,3 @@
-# 条款到证据的绑定表。
-# 本节点兑现的是 capability.account-identity 里凭据形式那一半（S-8 派生与比对、S-26 判定）；那份契约不建形式工件。
-# 下面的 test: 绑定全部来自 record/evidence/2026-09-23-tests-tenancy-leg-2（源码提交 c9b5850；逐条状态 cases.tsv，
-# 义务对应 coverage.md）。证据 id 形式：test:<仓库相对测试文件路径>#<describe> › <it>。
-# 版本：节点正文引的是 v1 坐标；S-8、S-26 在 v2 里原样（v2 §十「其余条款」），本节点的实现不分 v1／v2，
-# 这些证据对 v2 同号条款同样成立——但按契约 verification 的继承规则，另一版要算它须由消费者逐条写明。
-# 不绑：换代演练（证的是装配的重启半径论证，不是契约条款；登记在 verification.md）。
 version: 1
 node: "credential-verification"
 kind: "provider"

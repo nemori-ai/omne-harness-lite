@@ -52,19 +52,3 @@ PEP 1 §`What belongs in a successful PEP?` 原文列 13 项。与备选方案�
 
 - **观察**：`python/peps` 有 header 校验（`Status`、`Type`、`Created`、`Post-History` 等字段的取值域与格式）；本轮未读该校验的实现源码，只从 PEP 1 对 header 字段取值域的封闭枚举推断它可被校验。
 - **推断**：`Rejected Ideas` 的**存在性**可以机器检查（小节名固定），但「记录的是否是真实出现过的想法」不可以——PEP 1 的措辞（`Throughout the discussion… various ideas will be proposed`）把它绑定到讨论历史，机器无从核对。这一点与 DeepSeek Harness 的 `Alternatives are recorded, never invented` 是同一个困难。
-
-## 6. 与本项目骨架的对照（推断）
-
-| 本项目骨架条 | PEP 的对应 | 判断 |
-|---|---|---|
-| 每个决定点 ≥ 3 真候选 | 无数量要求；`Rejected Ideas` 数量由讨论决定 | 上游没有先例支持「强制数量」 |
-| 基线候选（不做 / 延后） | 无 | 无先例 |
-| 否决方公平陈述 + 复议条件 | `Rejected Ideas` 明确以「防止重复提出」为目的，接近「复议条件」的反面表达 | 最接近的先例 |
-| 决定 = 选择 + 否决理由 | 二者同文件（`Status` + `Rejected Ideas`） | 有先例 |
-
-## 7. 局限与未覆盖
-
-- 只读 PEP 1 与 PEP 12 两份；未统计实际 PEP 中 `Rejected Ideas` 的填充率。
-- 未读 PEP 13（治理）、PEP 8016（Steering Council 选举）等治理 PEP。
-- 未核对 `python/peps` 仓库的 CI 校验脚本，因此「哪些 header 字段被机器强制」是推断。
-- 未覆盖 Python 社区对 AI 撰写 PEP 的政策（本轮未检索）。

@@ -1,6 +1,0 @@
-tui-help PASS exit 0
-non-tty PASS exit 2
-bad-profile PASS exit 2
-bad-options PASS exit 2
-machine-tui PASS exit 2
-PASS CQ2 S1/S2/S11 smoke 5 / 5

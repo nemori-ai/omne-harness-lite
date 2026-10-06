@@ -1,6 +1,6 @@
 # PF-N1：贡献失败与规划失败的层次澄清
 
-2026-09-29，revision 1，candidate，待主线精确采用；不修改冻结契约、提供者 revision 5 或既有采用字节。前身为 [D107 优先两家后继](../../../../record/decisions/model-input-usage-calibration-adoption/priority-family-decision.md)（HUB `96ae5241b935f7735051f2ffae452a6d978c383c`）及 [revision 5](priority-family-output-cache-candidate.md) 的 signed-prefix/PF-N1。原文“贡献 unavailable，不能 invalidInput”约束计量贡献，未清楚限定层次；本页补完整消费者路径，不改变既有 PlanFailure。
+2026-09-29，revision 1，candidate，待主线精确采用；不修改冻结契约、提供者 revision 5 或既有采用字节。前身为 D107 优先两家后继（HUB `96ae5241b935f7735051f2ffae452a6d978c383c`）及 [revision 5](priority-family-output-cache-candidate.md) 的 signed-prefix/PF-N1。原文“贡献 unavailable，不能 invalidInput”约束计量贡献，未清楚限定层次；本页补完整消费者路径，不改变既有 PlanFailure。
 
 ## 现行权威与统一结论
 

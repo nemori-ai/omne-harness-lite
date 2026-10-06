@@ -1,6 +1,6 @@
 # MR10 原响应证据与耐久未处分值
 
-2026-09-29，candidate，未技术采用，新增绑定 0。接续 [v9](v9-usage-calibration-design.md)，输入为 [MR10](../../../../spec/data/model-response/v10/contract.md)、MS7、CA3 候选；当前语义锁定见 [引用设计 r4](../../../../record/proposals/model-runtime-reference-lifecycle/technical-choices-r4.md) 与其成组评审。原 MR9 的接受及实现证据保持原范围，本页不提升状态。
+2026-09-29，candidate，未技术采用，新增绑定 0。接续 [v9](v9-usage-calibration-design.md)，输入为 [MR10](../../../../spec/data/model-response/v10/contract.md)、MS7、CA3 候选；当前语义锁定见 引用设计 r4 与其成组评审。原 MR9 的接受及实现证据保持原范围，本页不提升状态。
 
 本节点仍为既有 `packages/core/model-response` 纯模块。当前源码已有 `judgeModelResponse`、`judgePendingModelResponse`、`copyInputCalibration` 和固定 Schema 资源图；本次迁移数据坐标并增加一处共享跨值关系，**不拥有**内容存储、CallKey 索引、授权、转换、读取 Session 日志或计费选择。Cordis 采用仍为 D025 的 4.0.4，但本模块不 import Cordis，没有新增 basis 行为主张。
 
@@ -60,3 +60,10 @@ MR10 S46/S47 的不可变字节、引用存续与来源核查由 model runtime/�
 README 与 README_ZH 同步说明当前 MR10/Pending、来源与纯判定区别、final 只增加两个字段、合法消息派生由另一关系判断、原计量不重算，提供从 Pending 构造合法 final 的明确示例、错误费用/原回复变更反例和 unknown 不填零示例。示例不得伪造已获当前权限；全部通过实际包制品编译/执行。
 
 R10-G1：本候选未技术采用。R10-G2：MR10 图迁移和新关系 helper 未实现、未验，原 MR9 证据不闭合。R10-G3：内容字节/真实来源/合法转换/原子最终批及实际 selected G/N 的组合证据由 runtime、消息写方、transport 提供者承担。验证义务见 [verification](verification.md#mr10-原响应与未处分内容候选义务)，不把纯 Schema 案例或有限 TLA 当物理持久证明。
+
+## 当前采用范围
+
+RT11/MR10/MS7/CA3 引用生命周期增量：CallKey 查回、独立消费者、原执行 owner、不可变私有内容与原日志 marker、原完整 Pending/final 关系及费用唯一选择。
+
+技术采用不表示实现或实际验证已完成。验证义务：各节点当前关联验证义务；runtime R20-V1..R20-V23；SQL/JSONL 分域、unknown 留责、真实停止与来源当前性；正式包制品与全部受影响消费者。
+范围之外：ACK 之后永久保管/noGC：已被 ACK 后继取代；完整 Session/Run/Agent/通用 registry 或内容平台。

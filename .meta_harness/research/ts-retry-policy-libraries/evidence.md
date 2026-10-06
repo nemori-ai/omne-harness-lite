@@ -22,7 +22,7 @@
 - 来源：本工作树 `panqiwei/assets-runtimes`，2026-09-25 读取。
   - [契约 `capability.model-request-runtime` v2](../../design/spec/capabilities/model-request-runtime/v2/contract.md)：S-29、S-30、S-35、G-8、S-41。
   - [节点 model-request-runtime 设计](../../design/realization/packages/model/model-request-runtime/design.md)：P-5 一行与「S-35 默认重试件」操作落点一行。
-  - [D-063](../../design/record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-6；D-060 N-33（`record/decisions/mainline-self-rulings-2026-09/decision.md`）。
+  - D-063 R-6；D-060 N-33（`record/decisions/mainline-self-rulings-2026-09/decision.md`）。
 - 来源立场：本项目自己的候选契约与裁决，不是上游事实。
 - 实际观察（原文摘录）：
   - S-30 ④：「`after` 给出时**由 loop 在退避到期之后才调用本操作**——本能力不替它计时」。

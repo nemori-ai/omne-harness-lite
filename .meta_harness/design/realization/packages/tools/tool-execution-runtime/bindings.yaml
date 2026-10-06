@@ -1,33 +1,3 @@
-# 条款到证据的绑定表。
-# 只绑已登记的 formal task：tool-execution-runtime-v2-execution（Execution.tla + Execution.cfg）。
-# run：record/evidence/2026-09-25-formal-assets-runtimes（退出 0、无反例，741344 distinct、深度 22、完整穷尽）。
-# 每条只绑「有去保护配置或补充否定配置证明它会失败」的性质；那几次否定运行的结果记在契约验证入口
-# spec/capabilities/tool-execution-runtime/verification.md 的「实际执行」（2026-09-24，与本 run 同一份 Execution.tla），
-# 不在上面那个 run 目录里——那一侧的原始输出没有落进 record/evidence/，这是本表每条共同的弱点；
-# 按 D-060 §八 M54 与 stream-assembly 的有效性核对同法，待下一次证据 run 一并跑并入库，入库后本段改指那个 run。
-# evidence 字段按 realization README 写 formal:<task-id>，run id 写在 assumptions（D-060 §八 N-19 的口径）。
-# 契约修复波 3（M33、M42、M46 等）没有改 Execution.tla 与配置（模型里没有报告、送达通知与账的内容），九条绑定照旧成立。
-#
-# 共同前提（除非条目另写）：
-# - 证的是契约模型，不是本节点的代码：本节点尚未建包，没有源码、没有测试。
-# - 固定规模：一个会话、两批四次调用、至多一次停机、MaxWaits = 2；更大的规模没有检查。
-# - 模型把每个动作建成不可分割的一步，即假设本节点的存储要求真的兑现：R-T3（每个写事务开头取会话哨兵、锁下现读再写）
-#   与 R-T1（执行记录、出站项同一次提交）。这两条由存储提供者与本节点代码承担，模型不检查。
-# - 模型里送达是「交付 + 追加」两步，本节点选的发件箱是其中一种形状；按 (会话, CallId, 段) 幂等在模型里由
-#   「追加即清掉交付物」兑现——真实的幂等靠会话日志一侧按耐久状态判「已在」（design.md L-1：消息按段、
-#   记录条目按出站项自己的 seq，M70）；那一侧的接口是 capability.session-log v2 S-8、S-14（2026-09-25 起草，candidate），
-#   最小提供者节点 session-log-jsonl 已立（candidate、尚未建包）——节点已立不等于有实现兑现它。
-# - 模型只覆盖运行时层：本节点的公开函数面 invokeTool（design.md「公开面」）不在模型里，函数层也不承诺这几条性质。
-# - 无公平性、不检查进展；CHECK_DEADLOCK 关闭。
-#
-# 不绑：
-# - 进展任务 tool-execution-runtime-v2-execution-progress（同 run 退出 0）：三条公平性前提（恢复终会发生、追加终会成功、
-#   强制停止终会生效）与它的三条结论一一对应，且没有否定配置——绑上去等于把前提登记成证据。
-# - 按构造成立的性质（ReminderAfterPlaceholder、ArchiveSettlesAll、WaitOnlyForeground、RunCancelSparesBackground、
-#   SequentialBatch、ConcurrencyCap、UnavailableOnlyFromStandIn、NoExecutionBackgrounded、BackgroundSegmentOutcome、
-#   PostureOneWay）与 TypeOK：去掉守卫是改模型，模型里没有会失败的断言。证据形式记在 verification.md。
-# - BackgroundHasPlaceholder（S-27）：VolatileHandoff 那次反例停在 EndedIsLanded，这一条没有单独被反驳过。
-# - CallOutcomeStable、AtMostOneReminder：没有对应的否定配置。
 version: 1
 node: "tool-execution-runtime"
 kind: "provider"

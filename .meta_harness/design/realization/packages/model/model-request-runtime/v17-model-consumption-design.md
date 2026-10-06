@@ -6,14 +6,14 @@
 
 | 已接受输入 | 精确坐标／本次承接 | 本候选新增映射，不重做原责任 |
 |---|---|---|
-| [D087](../../../../record/decisions/model-runtime-v4-projection-adoption/decision.md) 与 [v4 rev2](v4-design.md) | RT4 的 same-prefix、tailEquals、原批与 unknown 算法；现由 RT10 S-17/S-68～S-73 逐字承接 | 将当前多处 noRun-only 占位成组改为条件可执行，明确正向 Run 解释端口 |
-| [D100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 与 [v7](v7-current-design.md) | 当前类型、十三操作、共享 codec；原放行 noRun 不等于 withRun 已交 | 只补模型消费成功面，生产 G28 仍为外部来源前提 |
-| [D106](../../../../record/decisions/runner-current-pure-provider-adoption/decision.md) 与 [runner v5/v6](../../agent-loop/loop-extension-runner/v6-run-pass-design.md) | 已采用完整公共 runPass、同 prefix 核验、任务 owner、等待／重演控制 | 本节点落实失败主体的实际生产交接和 P-5，既有公共 runPass 不重写 |
-| [D107](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md) 与 [v16](v16-usage-calibration-design.md) | MR9/RT10、原 InputCalibration payload、原批恢复、计量与停止边界 | 本候选不变计量算法、校准来源或 reader 交接，withRun 全字段保留 |
+| D087 与 [v4 rev2](v4-design.md) | RT4 的 same-prefix、tailEquals、原批与 unknown 算法；现由 RT10 S-17/S-68～S-73 逐字承接 | 将当前多处 noRun-only 占位成组改为条件可执行，明确正向 Run 解释端口 |
+| D100 与 [v7](v7-current-design.md) | 当前类型、十三操作、共享 codec；原放行 noRun 不等于 withRun 已交 | 只补模型消费成功面，生产 G28 仍为外部来源前提 |
+| D106 与 [runner v5/v6](../../agent-loop/loop-extension-runner/v6-run-pass-design.md) | 已采用完整公共 runPass、同 prefix 核验、任务 owner、等待／重演控制 | 本节点落实失败主体的实际生产交接和 P-5，既有公共 runPass 不重写 |
+| D107 与 [v16](v16-usage-calibration-design.md) | MR9/RT10、原 InputCalibration payload、原批恢复、计量与停止边界 | 本候选不变计量算法、校准来源或 reader 交接，withRun 全字段保留 |
 
 当前规范：[RT10](../../../../spec/capabilities/model-request-runtime/v10/contract.md) SHA256 `add7ff23a73a6ad5a749f40f6707f408f60d33b6032080ad6ba4751f10d5695c`；[Runner5](../../../../spec/capabilities/loop-extension-runner/v5/contract.md) `e571e01d8e4d86fec3904d9decb37beb38615940125f320a72c250fd63ca4c43`；[SL3](../../../../spec/capabilities/session-log/v3/contract.md) `f327f1289e1d6c539dd959e8862b382869e3d303cf984b6a773fdd6a00e4bd26`；[LC6](../../../../spec/data/loop-extension/v6/contract.md) `d5cf4e24abc0a72ffe27072b8239489812382e3b94f2ee891ca9264338a1954a`。MR9/MS6 沿 D107/D100 精确采用，不新增 Schema。RT10 目录无服务操作 JSON Schema；十三操作的规范数据返回以契约九项为准，MS6/MR9/LC6 Schema 只承载各自值，不可塞入函数句柄。
 
-Cordis 仍采用 [D025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)；静态必需配置非法启动失败，贡献依赖未就绪不发布；运行期必要来源不可读按各原操作 unavailable。保持 P-2 `modelRuntime` 十三方法与 P-5 `model-default-retry` 独立贡献插件；不新增第十四个业务操作、领域 prefix ID、store、Run 终结载荷或完整 Loop。产品来源及未裁项沿规范，本页不补产品政策。
+Cordis 仍采用 D025 的 4.0.4；静态必需配置非法启动失败，贡献依赖未就绪不发布；运行期必要来源不可读按各原操作 unavailable。保持 P-2 `modelRuntime` 十三方法与 P-5 `model-default-retry` 独立贡献插件；不新增第十四个业务操作、领域 prefix ID、store、Run 终结载荷或完整 Loop。产品来源及未裁项沿规范，本页不补产品政策。
 
 ## 责任投影与实施边界
 

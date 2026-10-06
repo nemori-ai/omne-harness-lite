@@ -53,7 +53,7 @@ relations:
 | **会话间的关系** | ✅ [主会话与子会话](design.md#52-会话与会话之间) |
 | **会话的 [runtime context](../../ubiquitous_language/terms/scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context)** | ✅ **整块已接下**——[它是什么](design.md#runtime-context)、[哪些是每个会话必不可少的](design.md#56-十四项-meta-runtime-context)（**十四项**）、[怎么让模型感知到](design.md#69-模型看见一块-runtime-context只有两种形态) |
 
-[会话协作模式](design.md#会话协作模式)明确 co-work／auto-drive 两种方向，和权限、执行环境三维独立且运行期可变；两种模式以 Ask() 开关与目标完成检查的启用状态区分，装卸和切换细节归技术设计。交流来源见 [笔记](interviews/README.md)。
+[会话协作模式](design.md#会话协作模式)明确 co-work／auto-drive 两种方向，和权限、执行环境三维独立且运行期可变；两种模式以 Ask() 开关与目标完成检查的启用状态区分，装卸和切换细节归技术设计。交流来源见 [笔记](design.md)。
 
 **没覆盖的部分不要从本文推断。**未决项在 [§9](design.md#九未决项) 显式列着，
 那里是空的地方就是真的还没定。
@@ -85,10 +85,10 @@ relations:
 
 补齐重装配的意图、候选与实际生效输入、当前有效清单和执行承接关系；引用 PF-004 输入矩阵与 PF-012 交接规则。本次为产品设计增量，直接裁决与 PM 推导见 decisions；不扩大此前整包接受、规格或实现状态。
 
-**active，rev 20。**本轮收齐会话组成、创建输入、变化作用域、动态注册和持久化矩阵；三种模式的默认值来自租户设置，初始化后归会话。定义身份固定、同身份内容热重载；函数输入与三类 runtime 装配需要共同确定保存范围。此前 rev 13 已正式接受，其范围保留，接受依据见 [D-074](../../record/decisions/session-workspace-product-acceptance/decision.md)。[生命周期](design.md#会话的生命周期)、[会话间的传导](design.md#52-会话与会话之间)、
+**active，rev 20。**本轮收齐会话组成、创建输入、变化作用域、动态注册和持久化矩阵；三种模式的默认值来自租户设置，初始化后归会话。定义身份固定、同身份内容热重载；函数输入与三类 runtime 装配需要共同确定保存范围。此前 rev 13 已正式接受，其范围保留，接受依据见 D-074。[生命周期](design.md#会话的生命周期)、[会话间的传导](design.md#52-会话与会话之间)、
 [会话类型](design.md#会话类型)、[业务流程拓展点](design.md#业务流程拓展点)、
 [会话运行模式](design.md#会话运行模式)与[存储要守住的两件事](design.md#58-存储要守住的两件事)
-六块已由产品负责人拍板（[decisions](decisions.md#一拍板记录)，共 59 条），可以被下游引用；
+六块已由产品负责人拍板（[decisions](design.md)，共 59 条），可以被下游引用；
 其余按上表，**未覆盖即未定**。
 
 **待裁决**：当前会话与装配范围无；连接件是否保留为资产及接入设计搁置。
@@ -101,7 +101,7 @@ relations:
 本 rev 把那个名字定为[归档](design.md#会话归档)。
 
 
-创建、动态部件与持久化的当前规则见 [PF-015 完整矩阵](../PF-015-session-lifecycle-and-ownership/design.md#616-会话组成与创建输入)。本 topic 的本轮变更见 [changelog](changelog.md)。
+创建、动态部件与持久化的当前规则见 [PF-015 完整矩阵](../PF-015-session-lifecycle-and-ownership/design.md#616-会话组成与创建输入)。本 topic 的本轮变更见 [changelog](design.md)。
 
 
 本轮明确 [Session 归属、Run 工作与句柄](../PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)，持久关联见 [PF-015 §6.21](../PF-015-session-lifecycle-and-ownership/design.md#621-三类-runtime-的归属与执行关联)；释放 Agent runtime 不取消模型／工具执行。

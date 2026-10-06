@@ -86,16 +86,3 @@ Stuff that is being argued.
 **观察**：没有任何一条校验涉及 `Alternatives`、`Drawbacks` 的存在性或内容。被机器守住的是**身份、所有权、状态一致性**。
 
 `keps/README.md` 的 FAQ 把「presubmit checks for KEPs around metadata format and markdown validity」列为 KEP 流程自身「毕业出 beta」的条件之一——即元数据校验本身是被当作流程成熟度指标的。
-
-## 5. 与本项目骨架的对照（推断）
-
-- **值得引入**：`status` 与 `stage` 分离、跨字段一致性校验（`implemented ⇒ stable`）、approver 名单写进元数据而不是靠记忆——这些是本项目「决定 = 选择 + 范围 + 接受依据」可以直接机器化的形状。
-- **值得引入**：PRR 那种「把证据义务写成问卷、并把问卷的完成作为状态迁移的前提」的做法，与本项目「证据两级」（候选阶段证能否成立 / 决定后证实现是否符合）同向，但 K8s 只有后一级。
-- **不适合**：`Merge early and iterate` + `Alternatives` 放在文末三句话——本项目的提案骨架把候选比较放在第一位，与 K8s 的重心正好相反；K8s 的重心适合「已经确定要做、只是要保证能上生产」的工程，不适合「还要选形状」的设计。
-
-## 6. 局限与未覆盖
-
-- 未读 `KEP-0000`（KEP 流程自身的 KEP）与 `keps/sig-architecture/1194-prod-readiness`，因此 PRR 的完整规则只从模板注释块观察。
-- 未统计实际 KEP 中 `Alternatives` 小节的填充率（本轮只做了 Semantic Kernel 与 MCP 的统计）。
-- 未读 `pkg/kepval`、`test/metadata_test.go` 的完整断言，`api/proposal.go` 之外可能还有校验。
-- 未覆盖 enhancement freeze 的日历门（release 周期里的时间截止），只观察到 `latest-milestone` 字段的存在。

@@ -1,6 +1,0 @@
-{"name":"managed-provider-withdrawal","during":["remote-start","admission-stopped","client-drain"],"order":["remote-start","admission-stopped","client-drain","remote-result","cas-saved","client-close","state-close"],"saved":true,"report":{"complete":true,"assemblyErrors":[],"rows":[{"id":"client","kind":"closed","errors":[]},{"id":"state","kind":"closed","errors":[]}]}}
-{"name":"negative-direct-close","during":["remote-start","direct-state-close","admission-stopped","client-drain"],"order":["remote-start","direct-state-close","admission-stopped","client-drain","remote-result","cas-closed","client-close","state-close"],"saved":false,"report":{"complete":true,"assemblyErrors":[],"rows":[{"id":"client","kind":"closed","errors":[]},{"id":"state","kind":"closed","errors":[]}]}}
-{"name":"both-close-failures","report":{"complete":false,"assemblyErrors":[],"rows":[{"id":"second","kind":"failed","errors":["close"]},{"id":"first","kind":"failed","errors":["close"]}]}}
-{"name":"partial-setup","report":{"complete":false,"assemblyErrors":[],"rows":[{"id":"partial","kind":"failed","errors":["setup"]}]}}
-{"name":"second-generation-rejected","confirmed":true,"open":false,"stopping":true}
-{"name":"summary","positiveCases":5,"negativeControls":1,"passed":true}

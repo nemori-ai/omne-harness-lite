@@ -7,7 +7,7 @@
 > **EN**: The adaptation attribute held by a model invocation, identifying the exact versions of its shared implementation, family rules and narrow model definition, together with the adopted configuration. Rules and configuration in one binding do not change after later updates.
 
 - **形态**：属性
-- **出处**：[UL-D-6](../decisions.md#ul-d-6--模型适配绑定--2026-09-27)
+- **出处**：[现行词义](../index.md)
 - **别混**：与模型档案的范围身份、凭据以及 Cordis fiber 实例身份不同；不是独立领域对象。
 
 ### UL-model-prefix-cache-policy · 模型前缀缓存策略 · Model Prefix Cache Policy
@@ -17,7 +17,7 @@
 > **EN**: The configuration attribute of a model adaptation binding that controls upstream prompt-prefix caching, specifying automatic or explicit mode and its applicable configuration. Configuration does not establish that the upstream has written or read a cache.
 
 - **形态**：属性
-- **出处**：[UL-D-6](../decisions.md#ul-d-6--模型适配绑定--2026-09-27)
+- **出处**：[现行词义](../index.md)
 - **别混**：与完整响应缓存、缓存命中事实和本系统持久化日志不同。
 
 **这一卷回答：agent 由什么构成，以及它因此能做什么。**
@@ -554,7 +554,7 @@
 - **形态**：属性
 - **出处**：[PF-004 §4 注入](../../product/PF-004-agent-definition-and-assembly/design.md#注入)（rev 20） · [§5.3](../../product/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)（rev 20）
 - **弃用的说法**：**「agent 构成 / Instance Constitution」**——
-  2026-09-20 之前的名字，主语是已退役的「运行实例」，见 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)
+  2026-09-20 之前的名字，主语是已退役的「运行实例」，见 [现行词义](../index.md)
 - **别混**：构成记录、会话能力的当前采用值和单次调用的实际输入是不同时间粒度；能力条目变化本身不等于 runtime 的直接依赖变化。
 
 ### UL-action-space · 动作空间 · Action Space

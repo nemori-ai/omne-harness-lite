@@ -1,13 +1,3 @@
-# 条款到证据的绑定表。
-# 只绑已登记的 formal task：organization-governance-v1-membership（Membership.tla + Membership.cfg）。
-# Affiliation.als 未登记为 formal task（Alloy 退出码尚未归 tooling），不可绑；其结果只在 verification.md 引 evidence run。
-# test: 绑定（2026-09-23 起）：全部来自 record/evidence/2026-09-23-tests-tenancy-leg-2（源码提交 c9b5850；
-# 逐条状态 cases.tsv，义务对应 coverage.md），只登该 run 里跑过且通过的用例；登在本契约 v1 坐标上。
-# 证据 id 形式：test:<仓库相对测试文件路径>#<describe> › <it>，整组承担时写到 describe。
-# 共同前提（除非条目另写）：真实 storage-sql（sqlite 临时文件库，带迁移一律 upgrade: false）＋ 真实 Cordis 装配；
-# accounts／logins 是服从 AI v2 冻结形状的包内替身（走原始存储实例），时间是可前推、可答 'unavailable' 的包内替身；
-# 单进程；Node v24.18.0、vitest 4.1.11。
-# 不绑：S-49、S-50（跨契约，本版不做，占位跳过）；Alloy 三条 check（未登记为 formal task）。
 version: 1
 node: "organization-governance"
 kind: "provider"
@@ -38,10 +28,7 @@ bindings:
       - "同上：Serialized = TRUE、Actors = {a1, a2}、无公平性"
     alignment_checked: 2026-09-22
 
-# S-39（回来的是同一个租户）不绑 formal：Membership.tla 的 Rejoin 复用同一个 Actors 元素是建模方式，
-# 模型里没有任何在 S-39 被违反时会失败的断言；它的 test: 绑定见下（单元测试），跨契约场景 S-49 跳过。
 
-  # ---- test: 绑定（run 2026-09-23-tests-tenancy-leg-2）----
 
   - clause: "capability.organization-governance/v1#S-17"
     evidence: "test:packages/tenancy/organization-governance/tests/scenarios.spec.ts#capability.organization-governance v1 · 规范场景 › S-48 并发移除／降级对方只有先成的一方成立（真并发：两个装配、两个存储连接、同一库文件）"
@@ -183,9 +170,6 @@ bindings:
       - "义务点名的「直接构造『组织行指着账号行』时 S-38 被拒、重扫后收敛」没有逐字同名的用例"
     alignment_checked: 2026-09-23
 
-  # ---- v2（candidate，待 D-061；源码未改）----
-  # v2 S-45 声明形式工件沿用 v1、formal task organization-governance-v1-membership 仍是 S-17 那一格、不新登任务；
-  # 下面三条与上面三条 v1 formal 绑定同一任务、同一次运行，只是坐标换成 v2。两个时刻的证据是场景 S-61（未开始），不绑。
 
   - clause: "capability.organization-governance/v3#S-17"
     evidence: "formal:organization-governance-v1-membership"

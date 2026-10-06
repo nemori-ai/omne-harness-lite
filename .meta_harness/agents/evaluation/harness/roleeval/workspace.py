@@ -3,8 +3,8 @@
 A copy is one of two kinds, as the suite's ``workspace.kind`` says.
 
 ``material`` (the default): two kinds of paths go into the copy. *Material* paths are
-what the role is asked to work on; they come from a pinned commit, so a case stays the
-same input after the design tree moves on. *Subject* paths are what is under test
+what the role is asked to work on; explicit case fixtures keep those inputs stable
+after the design tree moves on. *Subject* paths are what is under test
 together with the role (skills, criteria pages, tooling); they come from the working
 tree, which has to be clean so that the recorded commit says what was run.
 
@@ -96,18 +96,42 @@ def is_ancestor(repo: Path, commit: str) -> bool:
     return done.returncode == 0
 
 
-def build(repo: Path, dest: Path, *, base: str, material_paths: list[str], material_excludes: list[str],
-          subject_paths: list[str]) -> None:
-    """Material from ``base``, subject from the working tree, into a fresh ``dest``."""
+def build(repo: Path, dest: Path, *, fixture: Path, subject_paths: list[str]) -> None:
+    """Prepare explicit case inputs without historical Git objects or process records."""
     if dest.exists():
         raise WorkspaceError(f"{dest} already exists; a run never reuses a copy")
+    try:
+        data = json.loads(fixture.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise WorkspaceError(f"invalid case fixture {fixture}: {error}") from error
+    if (not isinstance(data, dict) or set(data) != {"format", "files"}
+            or type(data["format"]) is not int or data["format"] != 1
+            or not isinstance(data["files"], dict) or not data["files"]):
+        raise WorkspaceError("case fixture needs format=1 and a non-empty files map")
+    rendered: list[tuple[Path, str]] = []
+    for relative, content in data["files"].items():
+        if (not isinstance(relative, str) or not relative or Path(relative).is_absolute()
+                or any(part in {"..", ".git"} for part in Path(relative).parts)
+                or Path(relative).is_relative_to(".meta_harness/design/record")
+                or not isinstance(content, str)):
+            raise WorkspaceError(f"invalid fixture target: {relative!r}")
+        target = dest / relative
+        if target.resolve() == dest.resolve() or not target.resolve().is_relative_to(dest.resolve()):
+            raise WorkspaceError(f"fixture target escapes copy: {relative}")
+        rendered.append((target, content))
+    for relative in subject_paths:
+        source = repo / relative
+        target = dest / relative
+        if (Path(relative).is_absolute() or ".." in Path(relative).parts or ".git" in Path(relative).parts
+                or not source.resolve().is_relative_to(repo.resolve())
+                or not target.resolve().is_relative_to(dest.resolve())):
+            raise WorkspaceError(f"subject path escapes repository or copy: {relative}")
+        if not source.exists():
+            raise WorkspaceError(f"subject path does not exist: {relative}")
     dest.mkdir(parents=True)
-    archive = subprocess.Popen(["git", "-C", str(repo), "archive", base, "--", *material_paths], stdout=subprocess.PIPE)
-    extract = subprocess.run(["tar", "-x", "-C", str(dest), *[f"--exclude={path}" for path in material_excludes]],
-                             stdin=archive.stdout, capture_output=True)
-    archive.stdout.close()
-    if archive.wait() != 0 or extract.returncode != 0:
-        raise WorkspaceError(f"could not extract {material_paths} at {base}: {extract.stderr.decode().strip()}")
+    for target, content in rendered:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
     for relative in subject_paths:
         source, target = repo / relative, dest / relative
         if not source.exists():

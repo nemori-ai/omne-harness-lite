@@ -24,7 +24,7 @@
 
 ## v3 候选增量（2026-09-27）
 
-对象为 [v3 候选实现设计](v3-design.md)，输入坐标 `capability.model-profile-directory/v3` 与 `data.model-profile/v3` 在起草后已由主线 [D-070](../../../../record/decisions/model-adaptation-binding-acceptance/decision.md) 接受；提供者候选仍未接受。本节不改变下方旧证据状态；没有本节点源码，不把计划中的测试记为执行结果。下表 S-n 默认目录 v3，data 指 model-profile/v3。
+对象为 [v3 候选实现设计](v3-design.md)，输入坐标 `capability.model-profile-directory/v3` 与 `data.model-profile/v3` 在起草后已由主线 D-070 接受；提供者候选仍未接受。本节不改变下方旧证据状态；没有本节点源码，不把计划中的测试记为执行结果。下表 S-n 默认目录 v3，data 指 model-profile/v3。
 
 ### 新增及受影响的证据义务
 
@@ -88,10 +88,6 @@ CCL owner 的 [v2-design 候选](../../infra/credential-custodian-local/v2-desig
 | 公开函数面（[design 的公开面](design.md#公开面)） | 单元测试：`scopeChain`、`winningRow`（含 `allowed` 为全部登记档案时与只读链等价，D-063 R-4）、`manifestDisposition`（五种处置与 `manifestNotNewer`）、`configEligibility`、`credentialSlot` 逐格；P-1 与 P-1r 的对应判定只调这几个函数（结构检查） | 未开始 | 本节点；有实现即可跑 |
 | `#S-14` 撞名后同一事务重读（pg） | 在 pg 上跑 `#S-26`，确认语句级失败后同一事务仍可读（core/storage P-2，由 storage-sql 承接） | 未开始 | 本节点 ＋ `infra/storage-sql` |
 
-## 实际执行
-
-没有。本契约没有登记的 formal task，本节点没有源码。
-
 ## 覆盖缺口
 
 - **没有任何证据**：全部义务未开始；中心取值与 P-1r 向中心取值两处受阻（MPD-N1 中心一侧、MPD-N2）。
@@ -99,22 +95,9 @@ CCL owner 的 [v2-design 候选](../../infra/credential-custodian-local/v2-desig
 - `bindings.yaml` 为空，与本页一致：没有一条契约承诺已有会失败的证据。
 - R-2 在 pg 上的兑现（范围键非空、唯一约束覆盖已撤回行）只有在 pg 上跑 S-26 才算覆盖；sqlite 上的通过不代表 pg。
 
-## 独立评审
-
-2026-09-25 本节点（修复波 3 对齐之后）随 N4 批经一次独立的架构评审（只读结构核对，无运行）：应修 1、建议 2，总判可进 G5；另有 N5 批（cli）反推出的离线凭据来源。主线据此裁定 [D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M47、M65、M69。**处置不等于评审闭合**——是否闭合由复审判断。
-
-| 编号 | 发现 | 处置 | 落点 |
-| --- | --- | --- | --- |
-| D-1（应修） | 装配给表「在册状态变化之后」一行指向一个没有节点的单进程装配；产品装配里它是协议给、受阻 | 按 M65：改为「产品装配（cli）：协议给——中心可达时经 P-1r 读中心，据点副本经保管方；`serveBaseFaces: true` 只供尚无节点的开发装配」 | design.md 装配给表第 2 行、「一个 Context 里这两个服务键」一条、单进程装配代价一段；README 边界依据 |
-| D-2（建议） | `profile.withdrawn` 不带 `thisArg` 的可见范围是未 probe 的假设 H-7；跨进程转发的过滤义务没有落处 | 按 M65：H-7 登 kernel-basis 待补 probe（MPD-N6）；「转发者按目标据点会话的范围链过滤」写进 G-7 的闭合条件——本节点记在 MPD-N2 闭合条件，契约那一处归主线 | design.md 事件 F③；MPD-N2、MPD-N6 |
-| D-3（建议） | S-14「同一事务里重读」依赖 core/storage P-2，pg 上要保存点 | 按 M65：S-14 行写明依 core/storage P-2、pg 由 storage-sql 承接 | design.md 操作落点 S-14 行；本页证据义务新增 pg 一行 |
-| N5 B-2（cli 批反推） | 离线调模型：P-1r 不落地凭据时据点上没有一条路读得到副本，与 PF-016 §6.17／§6.20 相抵 | 按 M47（改判 M44 的「P-1r 不持久凭据」）：P-1r 把租户那一把的副本经 `credentialCustodian` 落在据点（加密、按登录状态归属），取值先本地副本、中心可达时刷新；保管方缺席的本版离线如实 `credentialUnavailable`（P-2 记 `undispatched{credential_unavailable}`），显式缺口；`credentialLookup` 的静态检查加副本表一条 | design.md 插件表 P-1r 行、「不在本节点」一条、`credentialLookup` 一行、操作落点 S-20 行、inject 表、R-9 一段、装配给表第 3 行、依赖表、装卸表 P-1r 行、MPD-N1、MPD-N2、MPD-N4；README；本页证据义务新增一行 |
-| 服务键 | 保管方叫法两处不一 | 按 M69：定为 `credentialCustodian`（本节点原用名） | design.md 插件表 |
-| 反证清单 1～4 | 撞名判定域改成隶属树；成员撤销与目录写同一提交；据点副本要离线新鲜度或合并语义；保管方要求引用与绑定行同库立引用约束 | 照录为改选条件，本版都未触发（第 4 条随 C-5 起草复核） | 本表 |
-
 ## 修订波（2026-09-25 公开面）
 
-依据：[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1、R-2、R-4，[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)，[D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-37 ⑤⑩。本波只改节点；契约侧（引替身与 C-n 处）由规格侧并行落，本节点只引条款号。**处置不等于接受或评审闭合。**
+依据：D-063 R-1、R-2、R-4，[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)，D-060 §八 N-37 ⑤⑩。本波只改节点；契约侧（引替身与 C-n 处）由规格侧并行落，本节点只引条款号。**处置不等于接受或评审闭合。**
 
 | 事项 | 依据 | 处置 | 落点 |
 | --- | --- | --- | --- |

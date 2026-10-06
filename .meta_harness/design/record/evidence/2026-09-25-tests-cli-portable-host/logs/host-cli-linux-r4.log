@@ -1,9 +1,0 @@
-Err:1 http://deb.debian.org/debian bookworm InRelease
-  503  Service Unavailable [IP: 198.18.2.216 80]
-Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
-Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [34.8 kB]
-Get:4 http://deb.debian.org/debian bookworm-updates/main arm64 Packages [6936 B]
-Get:5 http://deb.debian.org/debian-security bookworm-security/main arm64 Packages [339 kB]
-Reading package lists...
-E: Failed to fetch http://deb.debian.org/debian/dists/bookworm/InRelease  503  Service Unavailable [IP: 198.18.2.216 80]
-E: The repository 'http://deb.debian.org/debian bookworm InRelease' is not signed.

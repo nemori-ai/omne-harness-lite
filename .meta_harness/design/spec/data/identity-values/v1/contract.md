@@ -5,7 +5,7 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.identity-values, 1)`——
   `family = data`、`topic = identity-values`、规范路径 `spec/data/identity-values/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
+- **状态**：当前采用范围见 catalog——语义可被审阅；精确规范范围以 catalog 为准；消费者采用和实现须分别核对
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-001 rev 15** 为准
 - **精确语义依赖**：**无 spec 依赖。**本契约是本基线的第一份身份值契约，不 `$ref` 任何其他 Schema，
   也不消费任何其他契约的条款。它的全部输入是产品正文与全局约束条款（非 spec 坐标），
@@ -1334,10 +1334,7 @@ ECMA-262 的 `\s` 含 U+FEFF，Python 的不含；把定义交给 `\s`，
 
 **本版是首版**，没有被采用的旧版本，因此没有语义或表示差异可记，也没有消费者迁移。
 
-2026-09-17 曾在 PF-001 rev 1 上建过一批候选契约（账号身份、租户治理、账号注册组合），
-**已于 2026-09-22 由产品负责人整体废弃**；它们从未被接受或冻结，
-**不构成本契约的前身，本契约不继承其任何条款**，也不与之建立 lineage 关系——
-`registry/lineage.json` 不因本契约而增加条目。见[规格容器的当前状态](../../../README.md#当前状态)。
+此前已退役且未接受的候选不构成本契约的前身；本版不继承其条款，也不产生 lineage 关系。
 
 **本版的规范工件**：本文件、[`identity-values.schema.json`](identity-values.schema.json)、
 [`examples.md`](examples.md)。

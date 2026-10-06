@@ -1,8 +1,7 @@
-"""Explicit module ownership and byte-locked historical link recovery."""
+"""Explicit module ownership for current maintained sources."""
 from __future__ import annotations
 
 import fnmatch
-import hashlib
 import json
 import re
 from pathlib import Path, PurePosixPath
@@ -58,55 +57,3 @@ class ModuleSources:
             return False
         data = json.loads(manifest.read_text(encoding="utf-8"))
         return isinstance(data, dict) and isinstance(data.get("name"), str) and bool(data["name"])
-
-
-class RetiredSources:
-    def __init__(self, root: Path, manifest: Path) -> None:
-        self.root = root
-        self.targets: dict[Path, Path] = {}
-        self.references: set[tuple[Path, Path, str]] = set()
-        if not manifest.exists():
-            return
-        data = json.loads(manifest.read_text(encoding="utf-8"))
-        if not isinstance(data, dict) or set(data) != {"format", "targets", "references"} or type(data["format"]) is not int or data["format"] != 1:
-            raise ValueError("invalid retired-sources manifest")
-        if not isinstance(data["targets"], list) or not isinstance(data["references"], list):
-            raise ValueError("retired sources must contain target and reference lists")
-        for row in data["targets"]:
-            if not isinstance(row, dict) or set(row) != {"path", "snapshot", "sha256", "commit"}:
-                raise ValueError("invalid retired source target")
-            target = relative_file(root, row["path"])
-            snapshot = relative_file(root, row["snapshot"])
-            if not target.is_relative_to(root / "realization") or target.exists() or target in self.targets:
-                raise ValueError("retired target is not a unique absent realization source")
-            if not snapshot.is_relative_to(root / "record/evidence") or snapshot.suffix != ".txt":
-                raise ValueError("historical snapshots must be non-authoritative record/evidence text")
-            if not isinstance(row["commit"], str) or re.fullmatch(r"[0-9a-f]{40}", row["commit"]) is None:
-                raise ValueError("retired source commit must be an exact object id")
-            if hashlib.sha256(snapshot.read_bytes()).hexdigest() != row["sha256"]:
-                raise ValueError("retired source snapshot hash differs")
-            self.targets[target] = snapshot
-        seen: set[Path] = set()
-        for row in data["references"]:
-            if not isinstance(row, dict) or set(row) != {"source", "sha256", "links"} or not isinstance(row["links"], list):
-                raise ValueError("invalid retired source consumer")
-            source = relative_file(root, row["source"])
-            if not (source.is_relative_to(root / "record") or source.is_relative_to(root / "realization/retired")):
-                raise ValueError("only frozen historical consumers can recover retired links")
-            if root / row["source"] != source:
-                raise ValueError("historical source identity cannot contain aliases")
-            if source in seen or hashlib.sha256(source.read_bytes()).hexdigest() != row["sha256"]:
-                raise ValueError("historical consumer hash differs or is duplicated")
-            seen.add(source)
-            for link in row["links"]:
-                if not isinstance(link, dict) or set(link) != {"target", "fragment"} or not isinstance(link["fragment"], str):
-                    raise ValueError("invalid historical source link")
-                target = relative_file(root, link["target"])
-                if target not in self.targets:
-                    raise ValueError("historical reference has no retired target")
-                self.references.add((source, target, link["fragment"]))
-
-    def recover(self, source: Path, target: Path, fragment: str) -> Path | None:
-        if source != source.resolve():
-            return None
-        return self.targets.get(target) if (source, target, fragment) in self.references else None

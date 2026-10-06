@@ -1,5 +1,0 @@
-
-> omne-harness-lite-workspace@ format:write /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish
-> ./scripts/format.sh write -- apps/cli/tests/tui-input.spec.ts
-
-apps/cli/tests/tui-input.spec.ts 36ms

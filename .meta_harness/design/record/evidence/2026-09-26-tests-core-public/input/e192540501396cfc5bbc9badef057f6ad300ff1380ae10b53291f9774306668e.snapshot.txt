@@ -1,1 +1,0 @@
-{"version":3,"file":"fiber-state.d.ts","sourceRoot":"","sources":["../src/fiber-state.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,OAAO,EAAE,MAAM,qBAAqB,CAAA;AAElD;;;;GAIG;AACH,eAAO,MAAM,WAAW;;;;;;;CAOd,CAAA;AAEV,MAAM,MAAM,eAAe,GAAG,CAAC,OAAO,WAAW,CAAC,CAAC,MAAM,OAAO,WAAW,CAAC,CAAA;AAE5E,kFAAkF;AAClF,wBAAgB,aAAa,CAAC,GAAG,EAAE,OAAO,GAAG,OAAO,CAEnD"}

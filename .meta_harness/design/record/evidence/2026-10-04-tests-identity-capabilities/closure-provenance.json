@@ -1,7 +1,0 @@
-{
-  "source": "tmp/arch-intent/remediation/r1-t2/packed-s2/pure-closure.mjs",
-  "source_sha256": "843d26afa53d4fe06b137f1812bbe17ff357e76e9fcfe96206d4bcc2099a25fd",
-  "functions_sha256": "3486cd46628614bb84d3677a93db17390928b35273b3be6a4e6ffd92c0190237",
-  "module_sha256": "b0a696551861f6e41e0c1a19cd4047c3ccf3ac1ceff4dbb2be63d02fe06d593a",
-  "change": "Only wrapper to inject repo/member map. Original imports/fileOf/closure functions byte-for-byte; no oracle changes."
-}

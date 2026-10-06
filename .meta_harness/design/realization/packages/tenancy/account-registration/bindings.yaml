@@ -1,17 +1,3 @@
-# 条款到证据的绑定表。
-# 三个已登记 formal task：account-registration-v1-basic / -crash / -progress（Registration.tla + 各 cfg）。
-# 前提照 record/evidence/2026-09-22-formal-tenant-domain-2 的配置写。模型检查的是契约的动作链，
-# 不是本节点的源码；每条 assumptions 写明模型盖不到什么。
-# formal 条目的前提里写「（未开始）」的那些证据形式（S-29 场景、AI S-41／S-42 等），现在由下面的 test: 绑定
-# 或 account-identity 节点的 test: 绑定承担——formal 条目本身按原样保留、不改写。
-#
-# test: 绑定（2026-09-23 起）：全部来自 record/evidence/2026-09-23-tests-tenancy-leg-2（源码提交 c9b5850；
-# 逐条状态 cases.tsv，义务对应 coverage.md），只登该 run 里跑过且通过的用例；登在本契约 v1 坐标上。
-# 证据 id 形式：test:<仓库相对测试文件路径>#<describe> › <it>，整组承担时写到 describe。
-# 共同前提（除非条目另写）：真实组合——真实 account-identity、organization-governance、credential-verification
-#（scrypt 测试参数）与本包插件同装在一个 Cordis Context；真实 storage-sql（sqlite 临时文件库，composeMigrations 合成
-# AI、OG、clock 三家片段，upgrade: false）；时间缺省是真实 clock 插件，要前推的场景用包内替身；故障与交错由
-# InstrumentedStorage 在真实存储外按语句注入与编排；单进程；Node v24.18.0、vitest 4.1.11。
 version: 1
 node: "account-registration"
 kind: "provider"
@@ -63,10 +49,7 @@ bindings:
       - "撞上已过期记录停在 start 那一支不在前件内，EventualOutcome 对它什么也没说；那一支的进展由 S-8 分支表承担，本节点的「重跑 ① 只一次」是它的兑现点，证据是场景（未开始）"
     alignment_checked: 2026-09-22
 
-# S-5（终结结果恰四值）不绑 formal：TypeOK 约束的是模型自己变量的值域，自指，否定不了实现的返回类型；
-# 它的证据是下面的 lint 与类型测试。
 
-  # ---- test: 绑定（run 2026-09-23-tests-tenancy-leg-2）----
 
   - clause: "composition.account-registration/v1#S-5"
     evidence: "test:tools/ts-checks/tests/consumer-rules.spec.ts#terminal-outcome-closed"

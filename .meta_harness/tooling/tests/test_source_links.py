@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import sys
 from pathlib import Path
@@ -9,26 +8,12 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from design_validation import DesignValidator
-from source_links import ModuleSources, RetiredSources
+from source_links import ModuleSources
 
 
 def save(path: Path, value: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(value, encoding='utf-8')
-
-
-def historical(repo: Path) -> tuple[Path, Path, Path, Path]:
-    root = repo / '.meta_harness/design'
-    target = root / 'realization/packages/core/kernel-basis/design.md'
-    snapshot = root / 'record/evidence/retirement/inputs/design.md.txt'
-    source = root / 'record/evidence/prior/README.md'
-    save(snapshot, '# Original\n')
-    save(source, '[original](../../../realization/packages/core/kernel-basis/design.md#original)\n')
-    catalog = root / 'registry/retired-sources.json'
-    save(root / 'registry/baseline.json', '{}')
-    data = {'format': 1, 'targets': [{'path':str(target.relative_to(root)), 'snapshot':str(snapshot.relative_to(root)), 'sha256':hashlib.sha256(snapshot.read_bytes()).hexdigest(), 'commit':'1'*40}], 'references':[{'source':str(source.relative_to(root)), 'sha256':hashlib.sha256(source.read_bytes()).hexdigest(), 'links':[{'target':str(target.relative_to(root)), 'fragment':'original'}]}]}
-    save(catalog, json.dumps(data))
-    return root, source, snapshot, catalog
 
 
 def markdown(root: Path, source_root: Path | None = None) -> list[str]:
@@ -37,35 +22,20 @@ def markdown(root: Path, source_root: Path | None = None) -> list[str]:
     return validator.errors
 
 
-def test_historical_recovery_checks_original_anchor(tmp_path: Path) -> None:
-    root, _, _, _ = historical(tmp_path)
-    assert markdown(root) == []
+@pytest.mark.parametrize('kind', ['proposals', 'decisions', 'evidence'])
+def test_process_directory_cannot_supply_current_owner(tmp_path: Path, kind: str) -> None:
+    root = tmp_path / '.meta_harness/design'
+    save(root / f'record/{kind}/prior/current.md', '# Shape\n')
+    save(root / 'architecture/current.md', f'[owner](../record/{kind}/prior/current.md#shape)\n')
+    assert any('process record is not a current owner' in error for error in markdown(root))
 
 
-@pytest.mark.parametrize('source', ['architecture/new.md', 'record/proposals/new/design.md', 'record/decisions/new/decision.md'])
-def test_new_current_or_record_consumer_cannot_recover_old_source(tmp_path: Path, source: str) -> None:
-    root, _, _, _ = historical(tmp_path)
-    p = root / source
-    import os
-    href = os.path.relpath(root / 'realization/packages/core/kernel-basis/design.md', p.parent)
-    save(p, f'[wrong]({href}#original)\n')
+def test_missing_owner_cannot_be_recovered_by_old_record_catalog(tmp_path: Path) -> None:
+    root = tmp_path / '.meta_harness/design'
+    save(root / 'record/evidence/past/snapshot.txt', '# Original\n')
+    save(root / 'registry/retired-sources.json', '{"format":1,"targets":[],"references":[]}')
+    save(root / 'architecture/current.md', '[owner](../realization/absent.md#original)\n')
     assert any('broken local link' in error for error in markdown(root))
-
-
-@pytest.mark.parametrize('mutation', ['body', 'snapshot', 'missing', 'source-outside', 'snapshot-outside', 'commit', 'fragment', 'present-target'])
-def test_retirement_integrity_negative_controls(tmp_path: Path, mutation: str) -> None:
-    root, source, snapshot, catalog = historical(tmp_path)
-    data = json.loads(catalog.read_text())
-    if mutation == 'body': source.write_text(source.read_text()+'[new](../../../realization/packages/core/kernel-basis/design.md#original)\n')
-    elif mutation == 'snapshot': snapshot.write_text('# Replacement\n')
-    elif mutation == 'missing': snapshot.unlink()
-    elif mutation == 'source-outside': data['references'][0]['source'] = '../outside.md'
-    elif mutation == 'snapshot-outside': data['targets'][0]['snapshot'] = 'architecture/current.txt'
-    elif mutation == 'commit': data['targets'][0]['commit'] = 'main'
-    elif mutation == 'fragment': data['references'][0]['links'][0]['fragment'] = 'other'
-    elif mutation == 'present-target': save(root/data['targets'][0]['path'], '# Original\n')
-    catalog.write_text(json.dumps(data))
-    assert markdown(root)
 
 
 def test_explicit_source_owner_positive_and_absent_owner_negative(tmp_path: Path) -> None:
@@ -108,29 +78,23 @@ def test_no_arbitrary_tool_or_tmp_owner(tmp_path: Path) -> None:
     assert not ModuleSources(tmp_path).owns(tmp_path/'tools/sample/SPEC.md')
 
 
-def test_current_file_alias_cannot_borrow_historical_identity(tmp_path: Path) -> None:
-    root, source, _, _ = historical(tmp_path)
-    alias = root / 'architecture/a/b/current.md'
-    alias.parent.mkdir(parents=True)
-    alias.symlink_to(source)
-    assert any('broken local link' in error for error in markdown(root))
 
 
-def test_parent_alias_cannot_borrow_historical_identity(tmp_path: Path) -> None:
-    root, source, _, catalog = historical(tmp_path)
+
+
+
+@pytest.mark.parametrize('parent_alias', [False, True])
+def test_alias_cannot_make_process_document_a_current_owner(tmp_path: Path, parent_alias: bool) -> None:
+    root = tmp_path / '.meta_harness/design'
+    target = root / 'record/decisions/past/current.md'
+    save(target, '# Shape\n')
     alias = root / 'architecture/alias'
     alias.parent.mkdir(parents=True)
-    alias.symlink_to(source.parent, target_is_directory=True)
-    links = RetiredSources(root, catalog)
-    target = root / 'realization/packages/core/kernel-basis/design.md'
-    assert links.recover(alias / source.name, target, 'original') is None
-
-
-def test_catalog_cannot_declare_source_alias_as_original(tmp_path: Path) -> None:
-    root, source, _, catalog = historical(tmp_path)
-    alias = source.parent / 'alias.md'
-    alias.symlink_to(source)
-    data = json.loads(catalog.read_text())
-    data['references'][0]['source'] = str(alias.relative_to(root))
-    catalog.write_text(json.dumps(data))
-    assert any('identity cannot contain aliases' in error for error in markdown(root))
+    if parent_alias:
+        alias.symlink_to(target.parent, target_is_directory=True)
+        href = 'alias/current.md'
+    else:
+        alias.symlink_to(target)
+        href = 'alias'
+    save(root / 'architecture/README.md', f'[owner]({href}#shape)\n')
+    assert any('process record is not a current owner' in error for error in markdown(root))

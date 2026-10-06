@@ -4,9 +4,9 @@
 
 ## 精确输入与状态
 
-[D-104](../../../../record/decisions/model-recovery-timing-adoption/decision.md) 已接受 `data.model-response/v8`、`capability.model-request-runtime/v9`；起草时逐一核对 [acceptance.json](../../../../record/decisions/model-recovery-timing-adoption/acceptance.json) 的 55 个资源 SHA256 全部一致，catalog 状态 accepted。冻结正文里保留的 candidate 是受审文本，不覆盖登记的采用状态。需求与政策沿上述契约的既有 PF 来源，本页没有新产品选择。
+D-104 已接受 `data.model-response/v8`、`capability.model-request-runtime/v9`；起草时逐一核对 acceptance.json 的 55 个资源 SHA256 全部一致，catalog 状态 accepted。冻结正文里保留的 candidate 是受审文本，不覆盖登记的采用状态。需求与政策沿上述契约的既有 PF 来源，本页没有新产品选择。
 
-保留 [D-102](../../../../record/decisions/model-runtime-owner-close-adoption/decision.md) 已采用的统一 store／组合 close，及 [D-103](../../../../record/decisions/model-runtime-host-observer-adoption/decision.md) 的宿主／观察端口。L1/L2 原 owner 交接、G-28 真 Run 解释未闭合，本页不借 nullable 时刻宣称解决。D-104 的[十个 Schema 与有限 TLC 结果](../../../../record/evidence/2026-09-28-formal-model-recovery-timing/README.md)不代证实际 I/O。
+保留 D-102 已采用的统一 store／组合 close，及 D-103 的宿主／观察端口。L1/L2 原 owner 交接、G-28 真 Run 解释未闭合，本页不借 nullable 时刻宣称解决。D-104 的十个 Schema 与有限 TLC 结果不代证实际 I/O。
 
 源码基线 `7a5810eb`：codec projection 和时间比较仍要求 string；anchored 两处锚点后未 send 取消用 `now()` 填 sentAt；service-reconcile 仅解释已有收场记录。以下新增类型、方法及文件划分均为**候选实施面**，不是已实现 API。
 
@@ -64,7 +64,7 @@ core model-response 的候选投影将现有公开 `Timing.sentAt` 放宽为 `st
 
 反证交错 A：恢复读无响应 → 原完整批已提交/ack 丢 → 恢复尝试追加；必须认回原批，不能覆盖实际时刻和账。反证交错 B：旧 opened writer 仍可能迟到 → 新读者读无 opened；必须 unavailable，null 不允许新读者先写无首 token 响应。两者均需真实受控追加/恢复演练，内存锁与 now 不能替代。
 
-无新 plugin/fiber；独立 invoke 仍无 Session/租户/Cordis 依赖，observedFacts 只供其自身持有者读取。P-2 消费同一实现。Cordis 4.0.4 沿 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md)，清理顺序及重载仍沿 basis [effect-disposal-concurrent-not-ordered](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)、[plugin-body-reruns-on-provider-change](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)，均有 probe；内核不提供真实停止、耐久认回或可信发送时刻。
+无新 plugin/fiber；独立 invoke 仍无 Session/租户/Cordis 依赖，observedFacts 只供其自身持有者读取。P-2 消费同一实现。Cordis 4.0.4 沿 D-025，清理顺序及重载仍沿 basis [effect-disposal-concurrent-not-ordered](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)、[plugin-body-reruns-on-provider-change](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)，均有 probe；内核不提供真实停止、耐久认回或可信发送时刻。
 
 | 取得的资源／状态 | owner 与可用时点 | 撤除或部分失败 |
 |---|---|---|

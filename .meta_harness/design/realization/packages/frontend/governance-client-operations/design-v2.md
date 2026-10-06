@@ -22,4 +22,4 @@ CG2 Schema的Input/Output/PublicExchange直接引用冻结CG1，最终格式仍�
 
 应用CQ1必须显式采用CG2后消费此面；TUI框架/真实终端尚有独立前提。此候选没有创建apps/cli的授权捷径，完整规范、模型、独立节点/规格审查和施工安排仍须收口。
 
-2026-09-25采用接续：本页以上评审稿由[D048](../../../../record/decisions/governance-prepared-input-adoption/README.md)明确采用；源码与新增验证尚待完成，标题中的候选保留稿件来源。
+2026-09-25采用接续：本页以上评审稿由D048明确采用；源码与新增验证尚待完成，标题中的候选保留稿件来源。

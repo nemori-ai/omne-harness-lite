@@ -5,8 +5,8 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.connector, 2)`——
   `family = data`、`topic = connector`、规范路径 `spec/data/connector/v2/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：已由 [D-061](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-002 rev 20、PF-014 rev 7、PF-000 rev 1、PF-015 rev 11、PF-003 rev 5** 为准（后两份各只取一处：会话持有租户身份、复制与分享带走正文）。**PF-002 rev 19～20 与 PF-014 rev 7 对连接件的改动只落了一条**——[S-11](#s-11-推出规则) 的触发会话的默认运行模式（主线裁定，见 [D-060 §三 R2-14](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25)：只改这一条；PF-015 另取会话运行模式三档原词）；其余等连接件专项讨论后收口，逐项列在 [G-10](#十已知缺口)
+- **状态**：已由 D-061 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-002 rev 20、PF-014 rev 7、PF-000 rev 1、PF-015 rev 11、PF-003 rev 5** 为准（后两份各只取一处：会话持有租户身份、复制与分享带走正文）。**PF-002 rev 19～20 与 PF-014 rev 7 对连接件的改动只落了一条**——[S-11](#s-11-推出规则) 的触发会话的默认运行模式（主线裁定，见 D-060 §三 R2-14：只改这一条；PF-015 另取会话运行模式三档原词）；其余等连接件专项讨论后收口，逐项列在 [G-10](#十已知缺口)
 - **精确语义依赖**：
 
   | 坐标 | 消费的条款 | 取它的什么 | 本契约怎么用 |
@@ -28,7 +28,7 @@
 | 身份是「类别 ＋ name」，其余归实现 | [PF-002 §4 身份是类别＋name](../../../../product/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现) · [UL-capability-identifier](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier) | S-1、S-3 |
 | 三方分工；设置项分四类，落点与身份类（含连接件的来源标识、投递目标与鉴权绑定）不从工作区来 | [PF-002 三方分工](../../../../product/PF-002-assets-settings-and-permissions/design.md#三方分工资产定形状各层配值运行时求值) · [设置项分四类](../../../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别) | S-1、S-11 |
 | 凭据类设置一份持有一份、不跨租户身份共用——「与连接件的鉴权绑定同一个形状」；值永不呈现 | [PF-002 MCP 凭据](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的) | S-2、S-12 |
-| 触发会话的默认运行模式：持有上的治理类设置，三档之一，配置的人必须给、作者声明的默认也不算数，工作区配不了 | [PF-002 rev 20 §4 触发会话的默认运行模式](../../../../product/PF-002-assets-settings-and-permissions/design.md#触发会话的默认运行模式) · [PF-015 §4 会话运行模式](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式) | S-11（主线裁定，见 [D-060 §三 R2-14](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25)） |
+| 触发会话的默认运行模式：持有上的治理类设置，三档之一，配置的人必须给、作者声明的默认也不算数，工作区配不了 | [PF-002 rev 20 §4 触发会话的默认运行模式](../../../../product/PF-002-assets-settings-and-permissions/design.md#触发会话的默认运行模式) · [PF-015 §4 会话运行模式](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式) | S-11（主线裁定，见 D-060 §三 R2-14） |
 | 斜杠命令只有人用它：不经交付面的来源送来的 `/xxx` 原样是内容 | [PF-002 §4 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command) · [PF-014 §5.10](../../../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走) | S-10 |
 | 入站到达：归属于恰好一个会话、有一个来源、送不进任何会话的在受理这一步具名拒绝；来源是属性不是类别 | [PF-014 §4 入站到达](../../../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达) · [UL-inbound-arrival](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) | S-4、S-5、S-8 |
 | 经连接件送达的一条外部消息落成 `UserMessage` | [PF-014 §5.7](../../../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空) | S-9 |
@@ -44,10 +44,10 @@
 >
 > | 条款 | 依据来自哪 |
 > |---|---|
-> | [S-3](#s-3-来源标识) 的两个分量、[S-4](#s-4-投递目标) 的那一支、[S-5](#s-5-入站信封) 的五个成员、[S-18](#s-18-表示层拒绝值) 的四个拒绝值 | **主线起草时给定的形状**。产品正文只到「来源标识、投递目标、鉴权绑定」三项设置的名字；主线接受登记，见 [D-060 §六 N-4](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)（起草时主线给定的形状，连接件专项讨论后按收口结果取代，见 [G-10](#十已知缺口)） |
-> | [S-1](#s-1-连接件正文) 正文只留可选的来源标识、[S-2](#s-2-鉴权绑定与投递目标不在正文里) 鉴权绑定与投递目标都不在正文里、[S-11](#s-11-推出规则) 与 [S-12](#s-12-鉴权绑定那一项) 的「未配即缺席」 | **主线裁定**，见 [D-060 §S21 S21-a、S21-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)：两者都是持有配值、无作者默认；「未配」只有缺席一种写法，与 MCP 接入点的凭据同 |
-> | [S-11](#s-11-推出规则)、[S-13](#s-13-两项权限) 两项权限按 PF-002 原话、项名 `install` 与 `processingIdentity` | **主线裁定**，见 [D-060 §S21 S21-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)；项名由整批对齐按原话定（这两项怎样随 PF-002 rev 19 收口，见 [G-10](#十已知缺口)） |
-> | [S-4](#s-4-投递目标) 的 `SessionRef` 取自 `data.messages`、[S-9](#s-9-信封落成一条用户消息) 第 2 条附件按媒体类型落块 | **主线裁定**，见 [D-060 §S21 S21-d、S21-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)；后者落在 `data.content-blocks/v2#S-34` |
+> | [S-3](#s-3-来源标识) 的两个分量、[S-4](#s-4-投递目标) 的那一支、[S-5](#s-5-入站信封) 的五个成员、[S-18](#s-18-表示层拒绝值) 的四个拒绝值 | **主线起草时给定的形状**。产品正文只到「来源标识、投递目标、鉴权绑定」三项设置的名字；主线接受登记，见 D-060 §六 N-4（起草时主线给定的形状，连接件专项讨论后按收口结果取代，见 [G-10](#十已知缺口)） |
+> | [S-1](#s-1-连接件正文) 正文只留可选的来源标识、[S-2](#s-2-鉴权绑定与投递目标不在正文里) 鉴权绑定与投递目标都不在正文里、[S-11](#s-11-推出规则) 与 [S-12](#s-12-鉴权绑定那一项) 的「未配即缺席」 | **主线裁定**，见 D-060 §S21 S21-a、S21-b：两者都是持有配值、无作者默认；「未配」只有缺席一种写法，与 MCP 接入点的凭据同 |
+> | [S-11](#s-11-推出规则)、[S-13](#s-13-两项权限) 两项权限按 PF-002 原话、项名 `install` 与 `processingIdentity` | **主线裁定**，见 D-060 §S21 S21-c；项名由整批对齐按原话定（这两项怎样随 PF-002 rev 19 收口，见 [G-10](#十已知缺口)） |
+> | [S-4](#s-4-投递目标) 的 `SessionRef` 取自 `data.messages`、[S-9](#s-9-信封落成一条用户消息) 第 2 条附件按媒体类型落块 | **主线裁定**，见 D-060 §S21 S21-d、S21-e；后者落在 `data.content-blocks/v2#S-34` |
 > | [S-11](#s-11-推出规则) 推出规则的形状 | **规格层推导**：`data.asset-model/v2#S-12` 要求每份正文契约给出推出规则 |
 > | [S-5](#s-5-入站信封) 的「非空才给」、[S-6](#s-6-externalid-是同一件事的说法) 的相等范围、[S-9](#s-9-信封落成一条用户消息) 的四条 | **规格层推导**，依据写在各条正文里 |
 > | [S-8](#s-8-信封不带归属) | **SYS-TENANT** 加 `data.identity-values/v1#S-16`、`#S-17` |
@@ -145,7 +145,7 @@
   外壳的判别（`category`）、这份资产的身份（`capability`）、所有者与版本线**仍归那份契约**。
 - **`source` 是作者给的默认来源标识**：它是由正文推出的 `source` 那一项设置的 `default`（[S-11](#s-11-推出规则)）——
   设置层序最外一格的值，不论这份资产是不是 official（`data.asset-model/v2#S-12`）。**作者不给，那一项就不带默认**：
-  各格都没配时求值得到缺席——**说不出从哪收，不放行**（「未配」只有缺席一种写法；主线裁定，见 [D-060 §S21 S21-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)）。
+  各格都没配时求值得到缺席——**说不出从哪收，不放行**（「未配」只有缺席一种写法；主线裁定，见 D-060 §S21 S21-b）。
   持有它的组织格、租户格可以**各配各的值**。
 - **投递目标与鉴权绑定都不在正文里**（[S-2](#s-2-鉴权绑定与投递目标不在正文里)）：两者都是持有上的配值，**没有作者默认**（[S-11](#s-11-推出规则)）。
 - 三项设置都是[落点与身份类](../../../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)，**工作区格配不了**（`data.asset-model/v2#S-20`）。
@@ -166,7 +166,7 @@
 **投递目标不在正文里，是同一组理由的另一面**：它是持有上的一项落点与身份类设置；正文里写一个会话指认，official 与组织所有的连接件写不出一个对每份持有都有意义的值，
 一份被复制或分享出去的正文还会把一个会话指认带到别的组织（上面第 3 条）。它只作为**持有上 `target` 那一项的配值**存在（[S-4](#s-4-投递目标)）。
 
-**两者都是主线裁定**，见 [D-060 §S21 S21-a、S21-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)（起草时的形状曾给正文带可选的 `credential` 与必填的 `target`，已作废）；原 G-1、G-2 闭合。
+**两者都是主线裁定**，见 D-060 §S21 S21-a、S21-b（起草时的形状曾给正文带可选的 `credential` 与必填的 `target`，已作废）；原 G-1、G-2 闭合。
 
 ### S-3 来源标识
 
@@ -192,7 +192,7 @@
 
 **`DeliveryTarget` 按 `kind` 判别，本版恰一支：`{ kind: "session", session }`——送进来的消息投进哪一个会话。**
 
-- `session` 是 `data.messages/v2` 在 [S-24](../../messages/v2/contract.md#s-24-别的会话捎话与到点了) 定义的 `SessionRef`：一个会话的不透明指认。**全树指认一个会话只用这一个名字，家在 `data.messages`**（主线裁定，见 [D-060 §S21 S21-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)；原 G-8）。
+- `session` 是 `data.messages/v2` 在 [S-24](../../messages/v2/contract.md#s-24-别的会话捎话与到点了) 定义的 `SessionRef`：一个会话的不透明指认。**全树指认一个会话只用这一个名字，家在 `data.messages`**（主线裁定，见 D-060 §S21 S21-d；原 G-8）。
 - **`kind` 集合闭合**：出现了但不是 `session`（含大小写不同、不是字符串）是 **`target_unknown`**；缺席是 `malformed`。
 - **`target_unknown` 只是「表示层判别不出是哪一种目标」**。
   指的会话**不存在、已归档、或以处理身份进不去**，都**不是**表示层的事：[送不进任何会话的东西，在受理这一步就被具名拒绝](../../../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)——
@@ -261,7 +261,7 @@
 
 1. **文本原样成为一块文本块，不带[来路标记](../../../../ubiquitous_language/terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag)**：来路标记的全部取值都出自斜杠命令那一路（`data.content-blocks/v2#S-8`），外部送来的文本不是。
 2. **每一个附件引用原样出现在这条消息里**：引用不变、次序不变、不丢一个。**落成哪一类块按 `data.content-blocks/v2` 的 [S-34](../../content-blocks/v2/contract.md#s-34-只给了引用的附件落成哪一类块) 定死**：
-   媒体类型的 type 是 `image` 落成图块、`audio` 落成语音块（都取引用形状），其余落成文件块——没有选择（主线裁定，见 [D-060 §S21 S21-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)；原 G-6）。
+   媒体类型的 type 是 `image` 落成图块、`audio` 落成语音块（都取引用形状），其余落成文件块——没有选择（主线裁定，见 D-060 §S21 S21-e；原 G-6）。
 3. **`externalId`、`receivedAt`、`source` 不进消息**：消息的成员集合是闭合的（`data.messages/v2#S-2`）。它们是这条入站到达的[来源](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival)，那条记录的形状未立（[G-5](#十已知缺口)）。
 4. **一份信封一条消息**：不拆成两条，也不与别的信封并成一条（规格层推导：[S-6](#s-6-externalid-是同一件事的说法) 的「同一件事」要能对到恰好一条）。
 
@@ -288,16 +288,16 @@
 | `source` | `setting` | `placement_identity` | `{ "kind": "open", "schema": { "$ref": "<本 Schema 的 $id>#/$defs/SourceIdentity" } }` | 正文的 `source`；正文没给就**不带** | PF-002：来源标识 |
 | `target` | `setting` | `placement_identity` | `{ "kind": "open", "schema": { "$ref": "<本 Schema 的 $id>#/$defs/DeliveryTarget" } }` | **不带**——没配即缺席 | PF-002：投递目标 |
 | `credential` | `setting` | `placement_identity` | `{ "kind": "open", "schema": { "$ref": "<data.asset-model v2 Schema 的 $id>#/$defs/CredentialRef" } }` | **不带**——没绑即缺席（[S-12](#s-12-鉴权绑定那一项)） | PF-002：鉴权绑定 |
-| `triggeredSessionRunMode` | `setting` | `governance` | `{ "kind": "open", "schema": { "enum": ["never", "auto_permission", "bypass-permissions"] } }` | **不带**——作者声明的默认也不算数 | PF-002：[触发会话的默认运行模式](../../../../product/PF-002-assets-settings-and-permissions/design.md#触发会话的默认运行模式)；主线裁定，见 [D-060 §三 R2-14](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25) |
+| `triggeredSessionRunMode` | `setting` | `governance` | `{ "kind": "open", "schema": { "enum": ["never", "auto_permission", "bypass-permissions"] } }` | **不带**——作者声明的默认也不算数 | PF-002：[触发会话的默认运行模式](../../../../product/PF-002-assets-settings-and-permissions/design.md#触发会话的默认运行模式)；主线裁定，见 D-060 §三 R2-14 |
 | `install` | `permission` | — | **取值未定**（[G-4](#十已知缺口)） | 未定 | PF-002：能不能安装；[S-13](#s-13-两项权限) |
 | `processingIdentity` | `permission` | — | **取值未定**（[G-4](#十已知缺口)） | 未定 | PF-002：送进来的消息按什么身份处理；[S-13](#s-13-两项权限) |
 
-- **项名**：前三项取 PF-002 三项设置的规格层名字（`source`、`target`、`credential`）；两项权限按 PF-002 原话定为 `install`、`processingIdentity`（主线裁定，见 [D-060 §S21 S21-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)）。**`triggeredSessionRunMode`** 由主线接受为项名（随 [D-060 §三 R2-14](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25)）。
-- **触发会话的默认运行模式**（主线裁定，见 [D-060 §三 R2-14](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25)；随 PF-002 rev 20）：**治理类**设置项（[`data.asset-model/v2#S-13`](../../asset-model/v2/contract.md#s-13-设置项类别)），取值域是[会话运行模式](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode)的三档原词（`never`、`auto_permission`、`bypass-permissions`，[PF-015 §4](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)）——**取值的权威是那条词条**：本契约只是把它的三档原词内联进取值域，**不依赖 `capability.tool-admission`**——那份契约的 S-10 用的是同一组三档原词，两处都以词条为准，不互引（主线裁定）；词条改了档，两处随之改；**不带 `default`**——PF-002 写明「配置连接件的人必须给这一项……作者声明的默认也不算数」，`data.asset-model/v2#S-12` 允许治理类项不带。各格都没配就是求值得到缺席；**那份连接件的事件开不出新会话**、受理时明说缺这一项——那是受理新会话一方的收场，不归本契约。
-- **三项落点与身份类设置都不带默认，除非作者在正文里给了来源标识**：`data.asset-model/v2#S-12` 允许落点与身份类的设置项不带 `default`；「没配」就是各格都没有配值、求值得到缺席——**不是一个值，取值域里没有「未配」「未绑」这样的取值**（主线裁定，见 [D-060 §S21 S21-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)；与 `data.mcp-endpoint` v2 的凭据同一种写法）。
+- **项名**：前三项取 PF-002 三项设置的规格层名字（`source`、`target`、`credential`）；两项权限按 PF-002 原话定为 `install`、`processingIdentity`（主线裁定，见 D-060 §S21 S21-c）。**`triggeredSessionRunMode`** 由主线接受为项名（随 D-060 §三 R2-14）。
+- **触发会话的默认运行模式**（主线裁定，见 D-060 §三 R2-14；随 PF-002 rev 20）：**治理类**设置项（[`data.asset-model/v2#S-13`](../../asset-model/v2/contract.md#s-13-设置项类别)），取值域是[会话运行模式](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode)的三档原词（`never`、`auto_permission`、`bypass-permissions`，[PF-015 §4](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)）——**取值的权威是那条词条**：本契约只是把它的三档原词内联进取值域，**不依赖 `capability.tool-admission`**——那份契约的 S-10 用的是同一组三档原词，两处都以词条为准，不互引（主线裁定）；词条改了档，两处随之改；**不带 `default`**——PF-002 写明「配置连接件的人必须给这一项……作者声明的默认也不算数」，`data.asset-model/v2#S-12` 允许治理类项不带。各格都没配就是求值得到缺席；**那份连接件的事件开不出新会话**、受理时明说缺这一项——那是受理新会话一方的收场，不归本契约。
+- **三项落点与身份类设置都不带默认，除非作者在正文里给了来源标识**：`data.asset-model/v2#S-12` 允许落点与身份类的设置项不带 `default`；「没配」就是各格都没有配值、求值得到缺席——**不是一个值，取值域里没有「未配」「未绑」这样的取值**（主线裁定，见 D-060 §S21 S21-b；与 `data.mcp-endpoint` v2 的凭据同一种写法）。
 - 它满足那四条义务里定得下来的部分：**是正文的确定函数**（只有 `source` 的 `default` 取自正文，其余与正文无关）；**`item` 互不相同**；
   **不产出 `disabled`、`usableBy`**——[「启用与否」就是 `disabled` 那一项](../../asset-model/v2/contract.md#s-15-disabled-是保留项名)，由 `data.asset-model` 保留、每一份资产都有；**治理类只产出触发会话的默认运行模式这一项**（2026-09-24 改：此前「不产出治理类的项」作废）。
-  `usableBy` 与本条的 `install` 怎样对上（`data.asset-model/v2#S-36` 第 2 条现写「连接件的『能不能安装』就是 `usableBy`」）**待连接件专项收口，本轮不动**（[D-060 §三 R2-14](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25)「只改这一条」；[G-10](#十已知缺口)）；「按谁的身份处理」是 `processingIdentity`。
+  `usableBy` 与本条的 `install` 怎样对上（`data.asset-model/v2#S-36` 第 2 条现写「连接件的『能不能安装』就是 `usableBy`」）**待连接件专项收口，本轮不动**（D-060 §三 R2-14「只改这一条」；[G-10](#十已知缺口)）；「按谁的身份处理」是 `processingIdentity`。
 - **两项权限在缺口上，所以本版整组声明判不出来。**消费者**停在缺口**：**不得把前三项当成连接件的全部属性项**，也不得替两项权限补一个取值域或默认值——
   「推不出」是「判不出来」，**不是「没有这几项」**（与 `data.asset-model/v2#S-12` 对不透明壳的规矩相同）。
 - **三项设置是落点与身份类，触发会话的默认运行模式是治理类**：[PF-002 设置项分四类](../../../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)那张表把「Connector 的来源标识、投递目标与鉴权绑定」点名列在落点与身份类，把「Connector 的触发会话的默认运行模式」列在治理类。
@@ -310,17 +310,17 @@
 - **一份持有一份值，不跨租户身份共用**：同一个人在两个租户下各配各的，[接的可以是对面两个不同的账号](../../../../product/PF-002-assets-settings-and-permissions/design.md#connector)。
 - **同一个租户身份要接同一个服务的两个账号，就是两份 name 不同的连接件**：同一身份在同一格对同一个能力标识只有一份持有、一份配值（`data.asset-model/v2#S-18`）。
 - **它不在正文里**（[S-2](#s-2-鉴权绑定与投递目标不在正文里)），**不从工作区来**（[S-11](#s-11-推出规则)），**不作为呈现内容**（`data.asset-model/v2#S-23` 第 5 条）。
-- **「还没绑」是缺席**（`data.asset-model/v2#S-23` 第 2 条；主线裁定，见 [D-060 §S21 S21-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)）：这一项不带默认，各格都没为它配值时求值得到缺席——**连不上对面，不放行**。
-  **撤掉就是删掉那一格的那条配值**，不是写回一个表示「没有」的值；取值域里**没有**这样的值。**一个不是 `CredentialRef` 的配值由写这条配值的资产治理写面判 `valueOutOfDomain`**（`capability.asset-governance` v2 [S-38](../../../capabilities/asset-governance/v2/contract.md#s-38-assign-配值) ②）：「凭据位写了非引用值」只有这一个拒绝值，本契约不另起（主线裁定，见 [D-060 §五 K7](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）。
+- **「还没绑」是缺席**（`data.asset-model/v2#S-23` 第 2 条；主线裁定，见 D-060 §S21 S21-b）：这一项不带默认，各格都没为它配值时求值得到缺席——**连不上对面，不放行**。
+  **撤掉就是删掉那一格的那条配值**，不是写回一个表示「没有」的值；取值域里**没有**这样的值。**一个不是 `CredentialRef` 的配值由写这条配值的资产治理写面判 `valueOutOfDomain`**（`capability.asset-governance` v2 [S-38](../../../capabilities/asset-governance/v2/contract.md#s-38-assign-配值) ②）：「凭据位写了非引用值」只有这一个拒绝值，本契约不另起（主线裁定，见 D-060 §五 K7）。
 - **组织格配不了这一项**：PF-002 rev 18 起「组织那一层不持有 MCP 凭据与连接件的鉴权绑定」（[PF-002 §4 MCP 凭据「归谁」](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)），资产治理写面对组织格上的这一项报 `layerNotAllowed`（同一条 ②）。**本条的形状不因此变**；[G-4](#十已知缺口) 里「组织格能不能配鉴权绑定」那一件由此已有答案，G-4 本身按主线要求本轮不动，随连接件专项一并改（[G-10](#十已知缺口)）。
 
 ### S-13 两项权限
 
 **连接件自带两项权限：「能不能安装」与「送进来的消息按什么身份处理」**（[PF-002 §4 Connector](../../../../product/PF-002-assets-settings-and-permissions/design.md#connector)）。
-按 `data.asset-model/v2#S-12`，它们是 `permission` 类的项、不带类别、取值域是一个枚举。**项名是 `install`、`processingIdentity`**（[S-11](#s-11-推出规则)；主线裁定，见 [D-060 §S21 S21-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)）；**取值与默认值产品正文没给**：[G-4](#十已知缺口)。
+按 `data.asset-model/v2#S-12`，它们是 `permission` 类的项、不带类别、取值域是一个枚举。**项名是 `install`、`processingIdentity`**（[S-11](#s-11-推出规则)；主线裁定，见 D-060 §S21 S21-c）；**取值与默认值产品正文没给**：[G-4](#十已知缺口)。
 
 - **「送进来的消息按什么身份处理」是租户隔离在入口处的那一道**：外部消息进了系统就要被某个身份承接，
-  [不定这一项，租户隔离会在入口处破掉](../../../../product/PF-002-assets-settings-and-permissions/decisions.md#设置项为什么分这四类)（PF-002 decisions「PM 推导」表的 rev 2 一行）。
+  [不定这一项，租户隔离会在入口处破掉](../../../../product/PF-002-assets-settings-and-permissions/design.md)（PF-002 decisions「PM 推导」表的 rev 2 一行）。
 - **它判不出来的时候，没有默认身份**：受理**不得**拿持有它的那一格、目标会话的租户身份、「当前租户」或任何环境值顶上
   （`data.identity-values/v1#S-17`）。判不出来就不放行；那次失败叫什么，归受理。
 - 它**不是信封上的一个成员**（[S-8](#s-8-信封不带归属)）：外部内容说自己是谁，不算数。
@@ -552,16 +552,16 @@ target_unknown  >  channel_empty  >  envelope_empty  >  malformed
 
 | # | 缺口 | 阻断谁 | 谁来裁 |
 |---|---|---|---|
-| **G-1** | **已闭合（2026-09-24 整批对齐）**：鉴权绑定不进正文（主线裁定，见 [D-060 §S21 S21-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)） | — | — |
-| **G-2** | **已闭合（2026-09-24 整批对齐）**：投递目标也不进正文；`target` 与 `credential` 都是持有配值、无作者默认，「未配」即缺席（主线裁定，见 [D-060 §S21 S21-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)）；`data.asset-model` 的 S-12 允许落点与身份类设置项不带 `default` | — | — |
+| **G-1** | **已闭合（2026-09-24 整批对齐）**：鉴权绑定不进正文（主线裁定，见 D-060 §S21 S21-a） | — | — |
+| **G-2** | **已闭合（2026-09-24 整批对齐）**：投递目标也不进正文；`target` 与 `credential` 都是持有配值、无作者默认，「未配」即缺席（主线裁定，见 D-060 §S21 S21-b）；`data.asset-model` 的 S-12 允许落点与身份类设置项不带 `default` | — | — |
 | **G-3** | **已收窄，并入 [G-10](#十已知缺口)（2026-09-24 第一轮独立评审的处置）**：产品已答——投递目标只指一个已有的会话（PF-002 rev 20「不改的」）；连接件的事件开新会话是另一条路（[PF-002 §4 两种投递方式](../../../../product/PF-002-assets-settings-and-permissions/design.md#两种投递方式动作主体不同) ②、[PF-014 §5.7](../../../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空) 第四行），不是投递目标的一支；按对面线程分会话是 PF-002 的非目标。新会话以哪个 agent definition、哪个租户身份建，产品归 PF-015／PF-014（已登记）；那一路在本契约里的形状归 G-10 | — | — |
 | **G-4** | **PF-002 没定的三件**：`install`（能不能安装）、`processingIdentity`（送进来的消息按什么身份处理）两项权限的**取值域与默认值**（项名已由主线裁定，S21-c）；**组织格能不能配鉴权绑定**（PF-002 §九只问了 MCP 凭据；主线并入同一道产品未决题） | [S-11](#s-11-推出规则)、[S-13](#s-13-两项权限)；受理求处理身份（CS-2）；组织格上鉴权绑定的写面 | **PF-002 的 owner** |
-| **G-5** | **连接件接入端与它的那一次交接没有契约**：交接携带哪些归属（持有、租户身份、目标、处理身份）、接入端怎样被认证、入站到达的来源信息记什么；`externalAccount` 与鉴权绑定实际认的账号由谁核、核不上怎么收 | [S-8](#s-8-信封不带归属) 的落点；[S-14](#s-14-没有读取面也没有管理面)「接入端只有一个动作」的落点；P-3、P-5 的保护者 | **PF-014 入站那一程**（主线裁定，见 [D-060 §S21 S21-f](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)：本程不立，归受理那一侧的契约） |
-| **G-6** | **已闭合（2026-09-24 整批对齐）**：附件按 `data.content-blocks/v2#S-34` 由媒体类型定死落块（主线裁定，见 [D-060 §S21 S21-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)） | — | — |
+| **G-5** | **连接件接入端与它的那一次交接没有契约**：交接携带哪些归属（持有、租户身份、目标、处理身份）、接入端怎样被认证、入站到达的来源信息记什么；`externalAccount` 与鉴权绑定实际认的账号由谁核、核不上怎么收 | [S-8](#s-8-信封不带归属) 的落点；[S-14](#s-14-没有读取面也没有管理面)「接入端只有一个动作」的落点；P-3、P-5 的保护者 | **PF-014 入站那一程**（主线裁定，见 D-060 §S21 S21-f：本程不立，归受理那一侧的契约） |
+| **G-6** | **已闭合（2026-09-24 整批对齐）**：附件按 `data.content-blocks/v2#S-34` 由媒体类型定死落块（主线裁定，见 D-060 §S21 S21-e） | — | — |
 | **G-7** | **外部消息被编辑之后算不算同一件事**：同一个 `(source, externalId)`、内容不同的两份信封，去重该吞掉后一份，还是当作一件新的事 | 受理的去重；接编辑频繁的来源（聊天工具） | **PF-014 的 owner** |
-| **G-8** | **已闭合（2026-09-24 整批对齐）**：`SessionRef` 的家定在 `data.messages`，全树不再出现 `SessionId`（主线裁定，见 [D-060 §S21 S21-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)） | — | — |
-| ~~G-9~~ | **已闭合（2026-09-25 第二轮独立评审的处置）**：来源标识的两个分量、投递目标那一支、信封的五个成员、四个拒绝值由 [D-060 §六 N-4](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) 登记（起草时主线给定的形状，专项讨论后按收口结果取代）；设计依据注表改链 | — | — |
-| **G-10** | **PF-002 rev 19～20 与 PF-014 rev 7 对连接件的改动，本契约只落了触发会话的默认运行模式一项**（主线裁定 [D-060 §三 R2-14](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25)：只改这一条，其余等连接件专项讨论后收口）。未落的：① 正文声明[事件目录](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-connector-event-type--连接件事件类型--connector-event-type)（类型名、说明、消息包形状），入站信封多一个事件类型成员、「厚信封」按目录的消息包形状承载，目录外与未订阅的在受理时拒绝（[PF-002 §4 事件目录与事件订阅](../../../../product/PF-002-assets-settings-and-permissions/design.md#事件目录与事件订阅)）；② 持有上的[事件订阅](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-event-subscription--事件订阅--event-subscription)（偏好类设置，[S-11](#s-11-推出规则) 少这一项）；③ 连接件的事件开新会话那一路（② 型投递）交给受理时携带什么（PF-014 rev 7 §5.7 第四行）；④ PF-002 rev 19 D-4：权限只剩「能不能安装」、取值与其余「谁可以……」同一种，「送进来的消息按谁的身份处理」是一条固定规则、不是权限——[S-11](#s-11-推出规则)、[S-13](#s-13-两项权限) 仍按两项权限写；⑤ PF-002 rev 18：组织那一层不配鉴权绑定（[S-12](#s-12-鉴权绑定那一项) 已按它写，G-4 的那一件随专项一并改）。**④⑤ 与 G-4 相关，按主线要求本轮不动 G-4** | [S-1](#s-1-连接件正文)、[S-5](#s-5-入站信封)、[S-11](#s-11-推出规则)、[S-13](#s-13-两项权限) 的形状；消费者按本版形状实现会与产品正文对不上——**停在本缺口**，不按本版的两项权限与五成员信封写死 | **主线 ＋ `data.connector` 的起草者**（连接件专项讨论后收口；闭合条件：`data.connector` 按专项结论改 S-1、S-5、S-11、S-13 与 G-4，本缺口关闭） |
+| **G-8** | **已闭合（2026-09-24 整批对齐）**：`SessionRef` 的家定在 `data.messages`，全树不再出现 `SessionId`（主线裁定，见 D-060 §S21 S21-d） | — | — |
+| ~~G-9~~ | **已闭合（2026-09-25 第二轮独立评审的处置）**：来源标识的两个分量、投递目标那一支、信封的五个成员、四个拒绝值由 D-060 §六 N-4 登记（起草时主线给定的形状，专项讨论后按收口结果取代）；设计依据注表改链 | — | — |
+| **G-10** | **PF-002 rev 19～20 与 PF-014 rev 7 对连接件的改动，本契约只落了触发会话的默认运行模式一项**（主线裁定 D-060 §三 R2-14：只改这一条，其余等连接件专项讨论后收口）。未落的：① 正文声明[事件目录](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-connector-event-type--连接件事件类型--connector-event-type)（类型名、说明、消息包形状），入站信封多一个事件类型成员、「厚信封」按目录的消息包形状承载，目录外与未订阅的在受理时拒绝（[PF-002 §4 事件目录与事件订阅](../../../../product/PF-002-assets-settings-and-permissions/design.md#事件目录与事件订阅)）；② 持有上的[事件订阅](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-event-subscription--事件订阅--event-subscription)（偏好类设置，[S-11](#s-11-推出规则) 少这一项）；③ 连接件的事件开新会话那一路（② 型投递）交给受理时携带什么（PF-014 rev 7 §5.7 第四行）；④ PF-002 rev 19 D-4：权限只剩「能不能安装」、取值与其余「谁可以……」同一种，「送进来的消息按谁的身份处理」是一条固定规则、不是权限——[S-11](#s-11-推出规则)、[S-13](#s-13-两项权限) 仍按两项权限写；⑤ PF-002 rev 18：组织那一层不配鉴权绑定（[S-12](#s-12-鉴权绑定那一项) 已按它写，G-4 的那一件随专项一并改）。**④⑤ 与 G-4 相关，按主线要求本轮不动 G-4** | [S-1](#s-1-连接件正文)、[S-5](#s-5-入站信封)、[S-11](#s-11-推出规则)、[S-13](#s-13-两项权限) 的形状；消费者按本版形状实现会与产品正文对不上——**停在本缺口**，不按本版的两项权限与五成员信封写死 | **主线 ＋ `data.connector` 的起草者**（连接件专项讨论后收口；闭合条件：`data.connector` 按专项结论改 S-1、S-5、S-11、S-13 与 G-4，本缺口关闭） |
 
 ## 十一、明确不承诺
 
@@ -586,4 +586,4 @@ target_unknown  >  channel_empty  >  envelope_empty  >  malformed
 
 **发布后**：本目录下的规范正文、Schema 与实例不可原地覆盖；修改发布新版本。
 [已知缺口](#十已知缺口)里 G-4、G-7、G-10 任一项在**冻结之后**被裁决，凡改变本契约语义或表示的，都出 **v2**；
-**冻结之前**在本候选里原地改，每次改在[验证入口「变化的影响」](../verification.md#变化的影响)记一笔。G-9 已闭合（只改了依据链接，不改语义）。**推荐版本不自动升级消费者。**
+**冻结之前**在本候选里原地改。G-9 已闭合（只改了依据链接，不改语义）。**推荐版本不自动升级消费者。** 本次修改影响与验证运行放执行工作树 `tmp/<task>/`，不在验证正文追加流水。

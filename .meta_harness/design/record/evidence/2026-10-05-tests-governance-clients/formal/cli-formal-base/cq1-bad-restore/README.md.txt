@@ -1,7 +1,0 @@
-# TerminalExit第二轮有限模型
-
-一个CLI进程、最多一次粘贴、一次目标网络与本地结算、一次可处理停止。raw是OS/模拟器恢复义务的抽象，不能证明真实termios或2004协议；inputDone/pasteOpen独立表示输入实际收场，workDone不从输出次数推断。正常路径完整CG关闭、CLS关闭后才输出。Close异常/EPIPE的具体报告映射不在模型内，须源码故障注入。
-
-valid检查TypeOK、TerminalRestored、RestoreBeforeInvoke、OneOutput、NoEarlyRelease、NoTailRelease、NoEarlyEcho与EventuallyClosed；六负控分别破坏依赖释放、模式恢复、单次输出、恢复前目标发起、输入尾段归属、尾段未结束提前恢复回显。每个负控只钉相应性质，避免别的断言更早挡住目标反例。
-
-进展依赖弱公平及外部粘贴/网络/结算实际最终结束，模型把这些结束动作显式列出；若真实输入永不结束，不由模型推出关闭会完成。首轮18状态旧运行属于旧模型，不支持本轮新断言。第二轮r2为44个distinct states及五负控；之后新增NoEarlyEcho及第六负控，r3另行运行，不倒写旧证据。

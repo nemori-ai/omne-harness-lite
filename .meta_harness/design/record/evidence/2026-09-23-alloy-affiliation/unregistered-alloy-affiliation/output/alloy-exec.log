@@ -1,5 +1,0 @@
-00. run   aNonTrivialTree          0    1/1     SAT
-01. check AcceptPreservesAcyclic     0       UNSAT
-02. check PersonalOrganizationSharesNoAncestor     0       UNSAT
-03. check ShareAncestorIsSameAffiliationTree     0       UNSAT
-exit=0

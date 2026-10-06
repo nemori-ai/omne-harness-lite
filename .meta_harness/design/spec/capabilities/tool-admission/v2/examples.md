@@ -176,7 +176,7 @@
 | `admit([item(c_gh, P(ask, tenant), auto_permission)])`，`definition = { name: "github__search_issues" }` | 照常判：`[ask{CARD(c_gh)}]` | [S-7](contract.md#s-7-admissioninput) |
 | 同上，但 `definition = { name: "github:search_issues" }`（定义名，带冒号） | **整次 `invalidInput`**——本能力不做逆转写，定义名与调用块里的模型面名字逐码点不等 | 同上；[S-47](contract.md#s-47-模型面名字逐码点比解析不了的调用不进来) |
 
-**不在组合里的工具条目单独判拒、不牵连同批**（[D-060 §六 L15](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）——会话里的 `send_mail` 此刻已被组织禁用（没有 reload，它还在会话的工具表里），可用性报告里它那一项是 `not_in_composition`：
+**不在组合里的工具条目单独判拒、不牵连同批**（D-060 §六 L15）——会话里的 `send_mail` 此刻已被组织禁用（没有 reload，它还在会话的工具表里），可用性报告里它那一项是 `not_in_composition`：
 
 | 输入 | 预期 | 依据 |
 |---|---|---|
@@ -185,7 +185,7 @@
 | `itemN(c_mail, auto_permission)` 另带 `tenantAutoWritable: true` | **整次 `invalidInput`**——这一项不带这一位 | [S-7](contract.md#s-7-admissioninput)、[S-17](contract.md#s-17-缺席时的默认答案) |
 | 同一批，但报告里 `c_mail` 那一项是 `unavailable`（第二次求值本身失败） | runner 不调 `admit`：本能力这一次**不可用**，两项都由全拒件顶上——**只有判不出来才整批全拒** | [S-8](contract.md#s-8-有效执行权限)、[S-34](contract.md#s-34-本能力缺席报错或判不出来) |
 
-**名字根本不在这次尝试 `tool` 表里的调用不交来**（[D-060 §七 M10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）：接入点被禁用之后，注册表不再为它钉动作条目，那个动作的调用在报告里查不到；模型编造的名字同样查不到。
+**名字根本不在这次尝试 `tool` 表里的调用不交来**（D-060 §七 M10）：接入点被禁用之后，注册表不再为它钉动作条目，那个动作的调用在报告里查不到；模型编造的名字同样查不到。
 这样的调用**不进 `admit`**，也**不是**上表的 `not_in_composition`（那是条目还在、组合里没了）——runner 记 `observed{no_such_entry}`，由工具执行运行时收场 `unavailable{no_such_entry}`；同批其余项照常交来判（[S-8](contract.md#s-8-有效执行权限)）。
 
 **参数解析不了的调用不进来**：

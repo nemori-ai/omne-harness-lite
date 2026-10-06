@@ -1,23 +1,23 @@
 # asset-registry v4 完整增量实现设计
 
-本稿为 **candidate，未采用**。节点及源码路径均为 `packages/tools/asset-registry`，沿 [D-059](../../../../record/decisions/assets-runtimes-split-and-rulings/README.md)；**本节点尚未建包**。本稿完整承接七操作的实现责任，并新增 AR4 原完整 fill 的公共认回投影；不改已采用的 [design.md](design.md)、[v3-design.md](v3-design.md) 或 [原来源缺口稿](v3-original-fill-source.md)。本页新增服务、函数、配置及内部状态名字均为候选投影；引用的其他包公开名字仅说明实际可用构件，不表示本节点已经接线。
+本稿为 **candidate，未采用**。节点及源码路径均为 `packages/tools/asset-registry`，沿 D-059；**本节点尚未建包**。本稿完整承接七操作的实现责任，并新增 AR4 原完整 fill 的公共认回投影；不改已采用的 [design.md](design.md)、[v3-design.md](v3-design.md) 或 [原来源缺口稿](v3-original-fill-source.md)。本页新增服务、函数、配置及内部状态名字均为候选投影；引用的其他包公开名字仅说明实际可用构件，不表示本节点已经接线。
 
 ## 精确输入与实现路径
 
-baseline 均为 `omne-harness-lite-design-2026-09-15`。[catalog](../../../../registry/catalog.json) 与 [D-079](../../../../record/decisions/model-original-fill-adoption/decision.md) 已接受 AR4/MF4 及 MF4 provider；**本 AR4 provider 仍 candidate**。D-078 的行政接续不改变 D-073～D-077 范围，D-079 也不替本节点接受或验收。
+baseline 均为 `omne-harness-lite-design-2026-09-15`。[catalog](../../../../registry/catalog.json) 与 D-079 已接受 AR4/MF4 及 MF4 provider；**本 AR4 provider 仍 candidate**。D-078 的行政接续不改变 D-073～D-077 范围，D-079 也不替本节点接受或验收。
 
 | 输入 | 精确范围与本稿消费 |
 | --- | --- |
 | [capability.asset-registry/v4](../../../../spec/capabilities/asset-registry/v4/contract.md)（下称 AR4、S-n） | SHA-256 `23ce5e5b88dbdaf4062184e2a0324cf0b75cd5af86cdf79aebaba05354c9b414`；完整保留 S-1～S-50，新增 S-51/S-52；不增领域操作或失败 |
 | [capability.assembly-manifest/v4](../../../../spec/capabilities/assembly-manifest/v4/contract.md)（MF4） | SHA-256 `46c3d605fb889c6f66822f8aecb815c1e691bf605600a036dc48ac0c9aeb6a2d`；采用六操作中的 readHead/append/readHistory/readEvaluation/readGiven，尤其 S-32/S-36/S-37 |
 | [MF4 provider 增量](../../assets/assembly-manifest-store/v4-design.md) | SHA-256 `d2394261503f5a37b39f67a6e11b552c19c218564e008bcf4884235be99c2784`；MG-1～MG-8、R-AMS4-1～5。此时 readGiven 尚未交付，MF3 五操作组件检查不证明第六操作 |
-| [D-074](../../../../record/decisions/model-read-provider-adoption/decision.md) 采用的 registry v3-design | SHA-256 `30b4be1f04cc13a8ed98294f422109e98dbbd4df24889d08a6edb20082a81438`；继承一插件、公开纯构件、清单唯一权威、七操作正常次序、生命周期与未关闭缺口 |
-| [D-077](../../../../record/decisions/model-source-interfaces-adoption/decision.md) 的 [EIS source interfaces revision 1](../../assets/evaluation-input-store/v3-source-interfaces.md) | SHA-256 `1d0be74b524b6609c2a1d61e5ce49ebdcf3247026b710458a951823ee83640b6`；SI-2/3/4 的受限 fixed-root 读面、当前资格与 C16 原因交接；SI-G1 须本节点真链证据关闭 |
+| D-074 采用的 registry v3-design | SHA-256 `30b4be1f04cc13a8ed98294f422109e98dbbd4df24889d08a6edb20082a81438`；继承一插件、公开纯构件、清单唯一权威、七操作正常次序、生命周期与未关闭缺口 |
+| D-077 的 [EIS source interfaces revision 1](../../assets/evaluation-input-store/v3-source-interfaces.md) | SHA-256 `1d0be74b524b6609c2a1d61e5ce49ebdcf3247026b710458a951823ee83640b6`；SI-2/3/4 的受限 fixed-root 读面、当前资格与 C16 原因交接；SI-G1 须本节点真链证据关闭 |
 | `capability.asset-evaluation/v4`（AE4，accepted） | S-6/S-7/C16、S-8/S-15/S-47；同一公开 evaluate、selectEvaluationRootSource、judgeEffectiveAssembly、defaultBodyContracts。纯值判定不证明来源真实 |
 | `capability.session-tenancy/v2`（STT2）、`capability.organization-governance/v2`（OG2） | 真实 holdingTenant；当前成员资格经 EIS 已采用的 OG 参与面读取。STT 不由 SessionRef 或请求 tenant 推导，捕获角色不充当当前许可 |
 | 其他规范依赖 | 精确沿 AR4 S-4：asset-model3、tool-definition3、loop-extension3、messages2、identity-values1、offer-expiry1、call-accounts2 及原 MCP/放行/治理等面；AD1 经 AE4/EIS 消费。包 root 的已实现版本须在制品接线时显式核对，不能凭同名类型自动升版 |
 
-继续自建薄领域组合，复用本项目成熟的纯值、严格 JSON、源读取和清单提供者。Cordis 固定 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)。本节点不 fork 内核、不建持久表、不直接取得 storage、不给 EIS/manifest 私有表增加旁路。源与清单是两个独立读取边界；本稿不增加完整 PF-004 装配代际、跨进程协议、中心同步、workspace/MCP/shared 来源政策或批量计划算法。
+继续自建薄领域组合，复用本项目成熟的纯值、严格 JSON、源读取和清单提供者。Cordis 固定 D-025 的 4.0.4。本节点不 fork 内核、不建持久表、不直接取得 storage、不给 EIS/manifest 私有表增加旁路。源与清单是两个独立读取边界；本稿不增加完整 PF-004 装配代际、跨进程协议、中心同步、workspace/MCP/shared 来源政策或批量计划算法。
 
 ## 契约责任到 Cordis 的投影
 
@@ -121,7 +121,7 @@ fill/reload 新表正文与历史重建的来源各自具名：前者可利用�
 | R-AR4-1：S-17/S-18/S-22/S-48.5；R-M1/2/3/5 | given/mint/reuse 的完整 E/O/filledBy 与全部目标表一起进入 `assembly_manifest_record(session,seq)` 及其 `assembly_manifest_table(session,seq,category)`；一次提交全成全败 | manifest.append 唯一物理写者；新旧 registry 实例、full fill/reload/收窄皆经它，互指 R-AMS4-2/3。来源证明就是该 given 原 record＋六表，另无来源提交 |
 | R-AR4-2：S-17/S-22⑦/S-23/S-51.4；R-M1/2 | expectedHead 判定和追加共同事务，同会话哨兵＋parent 主键排序；given 引用同库 owned_ref 全局唯一；reuse 只认同会话已存源 | R-AMS4-2/3；进程队列只能减碰撞，关闭队列后仍成立。parent/table 失败由 MF4 按语句阶段收口，registry 不吞冲突后自行写半张 |
 | R-AR4-3：S-6/S-25/S-33/S-51.1/2；R-M4/6/8/9 | readHead 自身一致；readGiven 在其单次 ReadTx 固定实读范围、显式 H 及完整不可变 record/tables；历史 category/filledAt 唯一，不能把读不到当无记录 | R-AMS4-1/4；两个公开读并非一个事务，H＋只增不可变历史建立关联。核完整给定用途仍归 AR，不要求 MF 解释 assembly |
-| R-AR4-4：S-18/S-32/S-33/S-48/S-52；R-M5/7/9 | 无损严格 JSON、记录只增不改、进程重开后保留已确认提交、故障可识别；表旧正文由相应 source owner 另保证 | R-AMS4-4/5；沿 [D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md) 实际耐久边界，不提升为断电无损；MF 历史存在不证明正文可读 |
+| R-AR4-4：S-18/S-32/S-33/S-48/S-52；R-M5/7/9 | 无损严格 JSON、记录只增不改、进程重开后保留已确认提交、故障可识别；表旧正文由相应 source owner 另保证 | R-AMS4-4/5；沿 D-027 实际耐久边界，不提升为断电无损；MF 历史存在不证明正文可读 |
 
 **发布先后。**append 确认 committed 后才替换可见快照；given alreadyRecorded 按真实当前六表判幂等，不当作新提交。保留缓存时，候选缓存条目以真实 readHead 的 H 或已确认记录 seq 为标签，完整候选快照先在调用自有空间建好，整项发布；同实例较晚完成的旧 H 不能覆盖已经发布的更高 H。后续 session 读必真实对头，不能用内存单调数代替存储读。每个操作保留自己取得的不可变 H 视图；共享缓存已更新不改变进行中 refresh 或报告历史读取。旧 fiber 的结果不写新 fiber 的缓存。
 

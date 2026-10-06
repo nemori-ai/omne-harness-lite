@@ -3,9 +3,9 @@
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
 > **当前状态：形式工件已执行第二次（run `-2`，评审轮一修订之后），规范场景一条都没演练过。**
-> `capability.organization-governance` v1 已由 [D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md) 接受并冻结（2026-09-22），提供者设计在 [`realization/packages/tenancy/organization-governance`](../../../realization/packages/tenancy/organization-governance/README.md)；尚无源码、尚无装配。**此后版本目录不再原地改，语义改动发布 v2。**
+> `capability.organization-governance` v1 已由 D-023 接受并冻结（2026-09-22），提供者设计在 [`realization/packages/tenancy/organization-governance`](../../../realization/packages/tenancy/organization-governance/README.md)；尚无源码、尚无装配。**此后版本目录不再原地改，语义改动发布 v2。**
 > 下表登记的是**已经触发的证据义务**，其中形式工件那一组在
-> [2026-09-22 的两次运行](#实际执行)里各执行过一遍，**结果记在那一节**。
+> [2026-09-22 的两次运行](verification.md)里各执行过一遍，**结果记在那一节**。
 >
 > **上一次 run 的四条 Alloy 结果对当前模型不适用**：`Affiliation.als` 在评审轮一之后改过
 > （`run aNonTrivialTree` 加了 `acyclic[c]` 前件，注释补了身份值契约坐标），
@@ -17,20 +17,20 @@
 > **八条规范场景仍然一条都没演练过**——它们要的是真实实现，而实现不存在。
 > **本包那三个 Alloy 变异／非平凡核对两次运行一条都没做**，因此模型那几条「无反例」
 > **只说明断言没被违反，不说明断言有内容**；唯一的例外是
-> [S-17 那条](#实际执行)，它的非平凡性由同一次运行里的有效性核对撑着。
+> [S-17 那条](verification.md)，它的非平凡性由同一次运行里的有效性核对撑着。
 > 此前那次抓到自环反例的 Alloy 执行仍然如实留在
 > [结果与反例](#已执行alloy-抓到-s-32-的判环漏掉自环2026-09-22)一节，
 > **它的结论对当前模型一条也不适用**。
 
 ## v2（`candidate`，2026-09-24）的证据义务
 
-> **[v2](v3/contract.md) 是加法版**：两个时刻（[成员关系生效时刻](v3/contract.md#s-8-成员关系记录)、[隶属建立时刻](v3/contract.md#s-7-上级组织属性)）、写下它们的几条写路径多一项、带出它们的三个读面多一项并多一种 `unavailable` 触发、[S-22](v3/contract.md#s-22-读组织) ② 指路更正；**逐条差异在 [v2 第十三节](v3/contract.md#十三版本差异与规范工件)，上面这些之外与 v1 同文**。经独立评审第一轮（[处置表](#独立评审)），未接受。
+> **[v2](v3/contract.md) 是加法版**：两个时刻（[成员关系生效时刻](v3/contract.md#s-8-成员关系记录)、[隶属建立时刻](v3/contract.md#s-7-上级组织属性)）、写下它们的几条写路径多一项、带出它们的三个读面多一项并多一种 `unavailable` 触发、[S-22](v3/contract.md#s-22-读组织) ② 指路更正；**逐条差异在 [v2 第十三节](v3/contract.md#十三版本差异与规范工件)，上面这些之外与 v1 同文**。经独立评审第一轮（处置表），未接受。
 > 因此下文「证据义务」一节里 v1 的每一行**对 v3 同样适用**（条款号相同、含义相同；S-22、S-36、S-59 那几行演练时另按 v3 的返回与失败触发核），实现采用 v3 时兑现一次即两版都有了；本节只登 v3 **新增**的义务与**沿用**的范围。
 > **v2 一条证据都还没有**：没有新的执行，规范场景未开始。
 
 | 规范条款与性质 | 证据形式 | 状态 | 适用范围、前提与未完成义务 |
 |---|---|---|---|
-| [v2 S-17](v3/contract.md#s-17-同一组织的成员写入序列化) ＋「至少一位有效超管」；[v2 S-7](v3/contract.md#s-7-上级组织属性) 三条结构约束与 [S-12](v3/contract.md#s-12-上级链与有共同上级) 的谓词 | **沿用 v1 的模型，不复制 cfg**：TLC 对 [`v1/formal/Membership.tla`](v1/formal/Membership.tla) ＋ [`Membership.cfg`](v1/formal/Membership.cfg)（formal task `organization-governance-v1-membership`）；Alloy [`v1/formal/Affiliation.als`](v1/formal/Affiliation.als) | **沿用 v1 的两次运行**（[下文](#实际执行)），**本版没有重跑**——模型与配置一个字节都没动 | **沿用成立的前提**：两个模型不含两个时刻；v2 给成员关系记录与上级组织属性多加的一项只随模型里已有的动作（加入、解除、接受隶属、解除隶属）一并写下，**不增加动作、不改守卫**，所以那几条结论在 v3 里**范围与前提不变**（`Actors = {a1, a2}`、存储兑现序列化；Alloy 的 scope）。**它们对两个时刻什么也没说**——不能把这一行读成「时刻已由模型覆盖」。v2 若日后给这两项加了守卫或新动作，这一行作废、要出 v3 自己的模型 |
+| [v2 S-17](v3/contract.md#s-17-同一组织的成员写入序列化) ＋「至少一位有效超管」；[v2 S-7](v3/contract.md#s-7-上级组织属性) 三条结构约束与 [S-12](v3/contract.md#s-12-上级链与有共同上级) 的谓词 | **沿用 v1 的模型，不复制 cfg**：TLC 对 [`v1/formal/Membership.tla`](v1/formal/Membership.tla) ＋ [`Membership.cfg`](v1/formal/Membership.cfg)（formal task `organization-governance-v1-membership`）；Alloy [`v1/formal/Affiliation.als`](v1/formal/Affiliation.als) | **沿用 v1 的两次运行**（[下文](verification.md)），**本版没有重跑**——模型与配置一个字节都没动 | **沿用成立的前提**：两个模型不含两个时刻；v2 给成员关系记录与上级组织属性多加的一项只随模型里已有的动作（加入、解除、接受隶属、解除隶属）一并写下，**不增加动作、不改守卫**，所以那几条结论在 v3 里**范围与前提不变**（`Actors = {a1, a2}`、存储兑现序列化；Alloy 的 scope）。**它们对两个时刻什么也没说**——不能把这一行读成「时刻已由模型覆盖」。v2 若日后给这两项加了守卫或新动作，这一行作废、要出 v3 自己的模型 |
 | [v2 S-61](v3/contract.md#s-61-两个时刻随写入写下按规则改写由三个读面带出) 两个时刻：随写入写下、解除不清（成员）／随值清空（隶属）、再接上改写成**严格更晚**的时刻；[S-22](v3/contract.md#s-22-读组织)／[S-36](v3/contract.md#s-36-当前租户身份查询)／[S-59](v3/contract.md#s-59-列出组织成员) 带出它们、读不到 ⇒ `unavailable` | 演练 ＋ 故障注入（两段，见条款） | **未开始** | 责任：提供者。**「严格更晚」一支必须在同一时钟分辨率内连做**，否则永远是绿的却什么也没证明——它是 [v2 S-42](v3/contract.md#s-42-装配给的保证-vs-协议须给的保证) 末行「先后两次串行提交的时刻不相等」唯一的实现侧证据。受阻：提供者缺席（实现映射仍钉 v1） |
 | [v2 S-42](v3/contract.md#s-42-装配给的保证-vs-协议须给的保证) 末行：两个时刻与消费者写下的时刻同一时间源、不后退、先后可区分 | 装配侧检查（时间源选型）＋ 上一行的连做 | **未开始** | 责任：装配。**消费者那一侧**：`capability.asset-transfer` 的 TLC 任务只在「时刻同源严格递增、使用时判定是一步原子读」两条前提下检查 `NoRevival`，**把这条当作前提、不证明它**；先读关系、后读时刻的读序被那一建模方式吸收，证据是那份契约的场景 S-44 |
 
@@ -40,12 +40,12 @@
 
 | 规范条款与性质 | 模型／命令及抽象映射 | 实际证据入口、输入与范围 | 未完成义务、责任与受阻消费者 |
 |---|---|---|---|
-| [S-17](v1/contract.md#s-17-同一组织的成员写入序列化) ＋「至少一位有效超管」 | TLC 对 [`Membership.tla`](v1/formal/Membership.tla)，配置 [`Membership.cfg`](v1/formal/Membership.cfg)（`Serialized = TRUE`）；映射见 [formal 入口](v1/formal/README.md#tla-与-tlc) | **已执行两次**（[run `2026-09-22-formal-tenant-domain` 与 run `…-2` · 任务 `organization-governance-v1-membership`](#实际执行)）：两次都**无反例**，19 generated · 7 distinct · 完整穷尽。**两次输入逐字节相同**（模型与 cfg 本轮未改） | 责任已从「跑通」转到范围：结论只在 `Actors = {a1, a2}`、**且存储真的兑现序列化**这个前提下成立。跨节点不自动成立（[S-42](v1/contract.md#s-42-装配给的保证-vs-协议须给的保证)） |
-| 同上的**有效性** | 同一模型，配置 [`Membership_NoSerialization.cfg`](v1/formal/Membership_NoSerialization.cfg)（`Serialized = FALSE`），**预期找到反例** | **已执行两次**（各自同一次 run 内，[run `-2` 的 `validity-check/`](../../../record/evidence/2026-09-22-formal-tenant-domain-2/organization-governance-v1-membership/validity-check/README.md)）：两次都**按预期违反**，反例轨迹与 [flows §3.3](../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系) 的局面对得上 | **这一条与上一条必须成对报告，两次都一起报了。**它**不登记为 formal task**——期望失败的检查与该清单的语义相反（检查器按退出码判成败，这次退出 12） |
-| [S-32](v1/contract.md#s-32-接受隶属请求) 判环 ＋ [S-7](v1/contract.md#s-7-上级组织属性) 无环 | Alloy `check AcceptPreservesAcyclic for 5 but exactly 2 Config`，**预期无反例** | **已执行**（[run `-2` · `unregistered-alloy-affiliation/`](../../../record/evidence/2026-09-22-formal-tenant-domain-2/README.md#alloy-的-scope)）：**UNSAT**，即该规模内无反例。**上一次 run 那一格不再适用**（模型已改）；本次跑的是加了 `acyclic[c]` 前件的当前模型 | 责任：规格工具。**两个非平凡核对本次没做**：① 注释掉判环前置后该 check 必须给出反例；② **判环改回不含自身的 `ancestorChain` 后也必须给出反例**（`child = newParent` 的自环）。**②在判断 Alloy 能否登记为任务时被顺带做过一次**（改坏后 check 确实变成 SAT），但那是在临时副本上做的，**不作为本条的核对记录**。缺了它们，这条「无反例」区分不了「判环起作用」与「规模太小碰不到环」 |
-| [S-6](v1/contract.md#s-6-两个变体与四条结构性禁止) ＋ [S-12](v1/contract.md#s-12-上级链与有共同上级) 个人组织恒不共祖 | Alloy `check PersonalOrganizationSharesNoAncestor for 5 but exactly 1 Config` | **已执行**（[run `-2`](../../../record/evidence/2026-09-22-formal-tenant-domain-2/README.md#alloy-的-scope)）：**UNSAT**。跑的是加了 `disj` 之后的新形式 | 责任：规格工具 |
-| [S-12](v1/contract.md#s-12-上级链与有共同上级)「有共同上级」**就是**「同一棵隶属树」 | Alloy `check ShareAncestorIsSameAffiliationTree for 5 but exactly 1 Config`，**预期无反例**（**这一格本轮改过**，改前预期找到反例） | **已执行**（[run `-2`](../../../record/evidence/2026-09-22-formal-tenant-domain-2/README.md#alloy-的-scope)）：**UNSAT** | 责任：规格工具。**第三个变异核对两次都没做**——把 `shareAncestor` 改回不含自身的读法后该 check 必须给出反例。**缺它，这条「无反例」不能被读成 A3 有内容**：若 `sameAffiliationTree` 被写成了同一个式子，A3 就是「X iff X」，永远无反例却什么也没检查 |
-| 模型的一致性 | Alloy `run aNonTrivialTree for 4 but exactly 1 Config`，**预期找到实例**。**本轮 pred 加了 `acyclic[c]` 前件** | **已执行**（[run `-2`](../../../record/evidence/2026-09-22-formal-tenant-domain-2/README.md#加-acyclicc-前件之后找到的实例换了一个)）：**SAT**，实例的 `parent` 是 `O3→O2→O0→O1`，**一条真正的三级无环链**。**上一次 run 那一格已作废**——当时的实例 `parent` 含 `O0→O1→O2→O0`，是个**环** | **加前件的理由**：不加，这个 run 可以靠一个**环**满足（环上任意两点互为对方上级链的成员），那样的实例既不是三级深的隶属树、**也落在 A3 前件 `acyclic[c]` 之外**——于是「模型能产生合法实例」对 A3 一条也不适用。**上一次真的就落在这个坑里**（见左列两次实例的对比）。重跑之后，上面三条 check 的「无反例」**在 A3 前件下有了一个见证**，但**仍不等于断言非平凡**——那要靠三个变异核对，[它们一个都没做](#三条成对报告的义务) |
+| [S-17](v1/contract.md#s-17-同一组织的成员写入序列化) ＋「至少一位有效超管」 | TLC 对 [`Membership.tla`](v1/formal/Membership.tla)，配置 [`Membership.cfg`](v1/formal/Membership.cfg)（`Serialized = TRUE`）；映射见 [formal 入口](v1/formal/README.md#tla-与-tlc) | **已执行两次**（[run `2026-09-22-formal-tenant-domain` 与 run `…-2` · 任务 `organization-governance-v1-membership`](verification.md)）：两次都**无反例**，19 generated · 7 distinct · 完整穷尽。**两次输入逐字节相同**（模型与 cfg 本轮未改） | 责任已从「跑通」转到范围：结论只在 `Actors = {a1, a2}`、**且存储真的兑现序列化**这个前提下成立。跨节点不自动成立（[S-42](v1/contract.md#s-42-装配给的保证-vs-协议须给的保证)） |
+| 同上的**有效性** | 同一模型，配置 [`Membership_NoSerialization.cfg`](v1/formal/Membership_NoSerialization.cfg)（`Serialized = FALSE`），**预期找到反例** | **已执行两次**（各自同一次 run 内，run `-2` 的 `validity-check/`）：两次都**按预期违反**，反例轨迹与 [flows §3.3](../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系) 的局面对得上 | **这一条与上一条必须成对报告，两次都一起报了。**它**不登记为 formal task**——期望失败的检查与该清单的语义相反（检查器按退出码判成败，这次退出 12） |
+| [S-32](v1/contract.md#s-32-接受隶属请求) 判环 ＋ [S-7](v1/contract.md#s-7-上级组织属性) 无环 | Alloy `check AcceptPreservesAcyclic for 5 but exactly 2 Config`，**预期无反例** | **已执行**（run `-2` · `unregistered-alloy-affiliation/`）：**UNSAT**，即该规模内无反例。**上一次 run 那一格不再适用**（模型已改）；本次跑的是加了 `acyclic[c]` 前件的当前模型 | 责任：规格工具。**两个非平凡核对本次没做**：① 注释掉判环前置后该 check 必须给出反例；② **判环改回不含自身的 `ancestorChain` 后也必须给出反例**（`child = newParent` 的自环）。**②在判断 Alloy 能否登记为任务时被顺带做过一次**（改坏后 check 确实变成 SAT），但那是在临时副本上做的，**不作为本条的核对记录**。缺了它们，这条「无反例」区分不了「判环起作用」与「规模太小碰不到环」 |
+| [S-6](v1/contract.md#s-6-两个变体与四条结构性禁止) ＋ [S-12](v1/contract.md#s-12-上级链与有共同上级) 个人组织恒不共祖 | Alloy `check PersonalOrganizationSharesNoAncestor for 5 but exactly 1 Config` | **已执行**（run `-2`）：**UNSAT**。跑的是加了 `disj` 之后的新形式 | 责任：规格工具 |
+| [S-12](v1/contract.md#s-12-上级链与有共同上级)「有共同上级」**就是**「同一棵隶属树」 | Alloy `check ShareAncestorIsSameAffiliationTree for 5 but exactly 1 Config`，**预期无反例**（**这一格本轮改过**，改前预期找到反例） | **已执行**（run `-2`）：**UNSAT** | 责任：规格工具。**第三个变异核对两次都没做**——把 `shareAncestor` 改回不含自身的读法后该 check 必须给出反例。**缺它，这条「无反例」不能被读成 A3 有内容**：若 `sameAffiliationTree` 被写成了同一个式子，A3 就是「X iff X」，永远无反例却什么也没检查 |
+| 模型的一致性 | Alloy `run aNonTrivialTree for 4 but exactly 1 Config`，**预期找到实例**。**本轮 pred 加了 `acyclic[c]` 前件** | **已执行**（run `-2`）：**SAT**，实例的 `parent` 是 `O3→O2→O0→O1`，**一条真正的三级无环链**。**上一次 run 那一格已作废**——当时的实例 `parent` 含 `O0→O1→O2→O0`，是个**环** | **加前件的理由**：不加，这个 run 可以靠一个**环**满足（环上任意两点互为对方上级链的成员），那样的实例既不是三级深的隶属树、**也落在 A3 前件 `acyclic[c]` 之外**——于是「模型能产生合法实例」对 A3 一条也不适用。**上一次真的就落在这个坑里**（见左列两次实例的对比）。重跑之后，上面三条 check 的「无反例」**在 A3 前件下有了一个见证**，但**仍不等于断言非平凡**——那要靠三个变异核对，[它们一个都没做](#三条成对报告的义务) |
 | [S-53](v1/contract.md#s-53-清除未激活账号的个人组织) 与「个人组织存在 ⇒ 账号记录存在」（第七节两条单向式之一；另一条「已激活的账号 ⇒ 恰有一个个人组织」的激活侧前提在账号契约，本包同样不建模） | **不由本包的模型兑现**：它跨本契约与账号契约两个提交边界，行为模型归 `composition.account-registration` v1 的[第二条动作链](../../compositions/account-registration/v1/contract.md#s-34-第二条动作链未激活到期清除)（不变式 `NoOrphanPersonalOrganization`）。本包这一侧的证据形式是**规范场景 [S-54](v1/contract.md#s-54-清除只对未激活账号成立)** | **未执行** | 责任：提供者 ＋ 组合契约。**本契约只兑现 ⇒ 那一半的一步**（现读激活状态、同提交删两条记录）；**次序由组合承担**，[S-53](v1/contract.md#s-53-清除未激活账号的个人组织) 不核实账号记录是否已被清 |
 | [S-7](v1/contract.md#s-7-上级组织属性)「至多一个上级」 | **不由断言兑现**：它是 Alloy 字段的 `lone` 多重性，写成断言按定义恒真 | **未执行。**证据形式是对实现数据形状的静态检查：**不存在写入第二个上级值的路径** | 责任：提供者。**Alloy 全绿不能记作本条已验证** |
 
@@ -97,47 +97,12 @@
 | **调用方身份已由入口层核实**（全部写操作与读面，[S-42](v1/contract.md#s-42-装配给的保证-vs-协议须给的保证) 末两行） | **apps 装配** | **本契约的授权判定全部以「身份值是真的」为前提，而这个前提不由本契约兑现**。谁拿到一个 `TenantId` 就能以那个身份调它的每一个操作。**因此本契约的面不得被直接暴露成终端 API**——装配必须在它前面放一层身份核实。**这一条没有本契约能单独跑出来的证据**：它的证据形式是装配侧的检查（终端 API 前有入口层）与跨进程时的协议重验（`data.identity-values/v1#S-30`），**两者都不在本包** |
 | [S-55](v1/contract.md#s-55-读邀请)～[S-57](v1/contract.md#s-57-列出账号收到的待接受邀请) 返回的派生状态**的判定式** | `data.offer-expiry` v1 | 本契约兑现的是**它在这几个读面上被按读取时点求值**（[上表](#规范场景)那一行）；判定式本身的证据在[那份契约的验证入口](../../data/offer-expiry/verification.md) |
 
-## 实际执行
-
-**按时间倒序。每一行自带它跑的是哪一版模型**——
-[`Membership.*` 本轮未改，`Affiliation.als` 改了](../../../record/evidence/2026-09-22-formal-tenant-domain-2/README.md#为什么重跑)，
-因此两个 run 的行**不是整批作废、也不是整批仍然有效**。
-
-| run id | 任务／命令 | 配置与范围 | 结果 | evidence |
-|---|---|---|---|---|
-| `2026-09-22-formal-tenant-domain-2` | **formal task** `organization-governance-v1-membership` | [`Membership.cfg`](v1/formal/Membership.cfg)：`Actors = {a1, a2}`、`Serialized = TRUE`、`CHECK_DEADLOCK FALSE`、**无公平性假设** | **无反例**，退出 0；19 generated · 7 distinct · **0 left on queue**（完整穷尽）· 报告深度 4 | [任务目录](../../../record/evidence/2026-09-22-formal-tenant-domain-2/organization-governance-v1-membership/output/tlc-Membership.log) |
-| 同上 | **有效性核对，不是任务** | 同一模型 ＋ [`Membership_NoSerialization.cfg`](v1/formal/Membership_NoSerialization.cfg)：`Serialized = FALSE` | **按预期违反** `AtLeastOneSuperAdministrator`，退出 **12**；148 generated · 76 distinct · **17 left on queue**（**未穷尽**，TLC 见到第一个反例就停） | [`validity-check/`](../../../record/evidence/2026-09-22-formal-tenant-domain-2/organization-governance-v1-membership/validity-check/README.md) |
-| 同上 | **Alloy 四条命令，未登记为任务** | `run aNonTrivialTree for 4 but exactly 1 Config`（**本轮 pred 加了 `acyclic[c]` 前件**）；三条 `check` 分别 `for 5 but exactly 2 / 1 / 1 Config`；求解器 sat4j，`bitwidth 4`，`symmetry 20` | `aNonTrivialTree` **SAT**（预期，实例是 `O3→O2→O0→O1` 这条**无环链**）；其余三条 **UNSAT**（预期无反例） | [原始输出与 receipt](../../../record/evidence/2026-09-22-formal-tenant-domain-2/unregistered-alloy-affiliation/output/alloy-exec.log) |
-| `2026-09-22-formal-tenant-domain` | **formal task** `organization-governance-v1-membership` | 同上，**输入与 run `-2` 逐字节相同** | **无反例**，退出 0；19 generated · 7 distinct · **0 left on queue** | [任务目录](../../../record/evidence/2026-09-22-formal-tenant-domain/organization-governance-v1-membership/output/tlc-Membership.log) |
-| 同上 | **有效性核对，不是任务** | 同上，**输入与 run `-2` 逐字节相同** | **按预期违反**，退出 **12**；149 generated · 78 distinct · **18 left on queue** | [`validity-check/`](../../../record/evidence/2026-09-22-formal-tenant-domain/organization-governance-v1-membership/validity-check/README.md) |
-| 同上 | **Alloy 四条命令，未登记为任务** | **对应旧模型**（`aNonTrivialTree` 的 pred 无 `acyclic[c]` 前件） | `aNonTrivialTree` **SAT**，但实例含 `O0→O1→O2→O0` **这个环**；三条 `check` **UNSAT**。**这四格对当前模型不适用** | [原始输出与 receipt](../../../record/evidence/2026-09-22-formal-tenant-domain/unregistered-alloy-affiliation/output/alloy-exec.log) |
-
-**TLA+ 那两行两次输入逐字节相同**（`Membership.tla` = `5c7656a4…`、`Membership.cfg` = `abaa8fa2…`），
-**因此上一次 run 的那两格不作废**。有效性核对两次计数略有出入（149/78/18 对 148/76/17）——
-**TLC 见到第一个反例就停，多 worker 下停在哪一刻不确定**，
-这恰好说明那几个数不是穷尽数，[run `-2` 的 validity-check README 记了这件事](../../../record/evidence/2026-09-22-formal-tenant-domain-2/organization-governance-v1-membership/validity-check/README.md#计数与上一次-run-略有出入输入却完全相同)。
-
-**工具与环境**：两次相同——TLC2 2026.09.12.025210、Eclipse Adoptium 21.0.12.1、Alloy 6.2.0，4 workers；
-精确版本、主机、时间戳与命令重建说明在
-[run `-2` 的 README](../../../record/evidence/2026-09-22-formal-tenant-domain-2/README.md#工具与环境)。
-**退出码不在 TLC 日志里**，由主线执行时记录。
-
-**Alloy 为什么没有登记成 formal task**：不是检查器不支持 `kind: "alloy"`——它支持。
-是 `alloy exec` **的退出码与断言结果无关**：把判环前置改坏之后
-`AcceptPreservesAcyclic` 变成 SAT（找到了反例），它**仍然退出 0**；
-而 `--formal run` 只看退出码，登记它会得到一个**永远通过的任务**。
-[对比过程与闭合条件在 run README](../../../record/evidence/2026-09-22-formal-tenant-domain-2/README.md#alloy-为什么仍然没有登记成任务)：
-要登记它，先得有一个会因断言被违反而非零退出的 runner，那是 `tooling/` 的改动。
-**run `-2` 没有出现任何改变这个判断的新情况。**
-
-**这两次执行都不提升本契约的状态。**它仍是 `candidate`，未接受、未冻结。
-
 ## 结果与反例
 
 ### 已执行：Alloy 抓到 S-32 的判环漏掉自环（2026-09-22）
 
 **这是本包的第一次执行记录，而且它的结论是一个反例。**
-它**早于[上节那次运行](#实际执行)**，跑的是**改写之前**的模型。
+它**早于[上节那次运行](verification.md)**，跑的是**改写之前**的模型。
 
 - **执行对象**：当时的 [`Affiliation.als`](v1/formal/Affiliation.als)，四个命令全跑。
 - **结果**：`AcceptPreservesAcyclic` **给出反例**。
@@ -154,19 +119,19 @@
   模型里那一行改成 `child not in newParent.*(c.parent)`。
   **同时新增一个变异核对**：判环改回不含自身的写法时该 check 必须重新给出这个反例。
 - **这次执行的结果对当前模型一条也不适用。**模型已改，**当时没有重跑**；
-  改写后的模型跑过两次，都在[上节](#实际执行)——**以 run `-2` 为准**，
+  改写后的模型跑过两次，都在[上节](verification.md)——**以 run `-2` 为准**，
   它跑的是又加了 `acyclic[c]` 前件之后的版本。
   **不得**把这一次的「抓到反例」读成当前模型的状态，也不得把它的通过项读成现在的通过项。
 - **它没有输入快照，因此不单独成为一次 run。**模型在反例之后立刻被改、改动未提交，
   当时跑的那份 `Affiliation.als` 已经不存在。
-  [上节那次 run 的 README 里如实记了这一句](../../../record/evidence/2026-09-22-formal-tenant-domain/README.md#先前运行)，
+  上节那次 run 的 README 里如实记了这一句，
   **没有用今天的文件补建一个 run 去冒充当时的输入**。
 - **它的副产物已经清掉了。**当时 Alloy 以
   `spec/compositions/account-registration/v1/formal/` 为工作目录，
   在那里生成过 `Affiliation/` 与 `Affiliation_probe/` 两个目录——
   既不是这个 topic，也[不该在任何版本目录里](../../README.md)。
   那两个目录现已不存在；本次重跑的产物一律落在
-  [`record/evidence/`](../../../record/evidence/README.md) 下。
+  `record/evidence/` 下。
 
 ### 尚无的记录
 
@@ -176,13 +141,13 @@
 **八条规范场景一条都没演练过**，**本包的三个 Alloy 变异／非平凡核对一个都没做**
 （就是[下节那三条成对报告义务](#三条成对报告的义务)点名的那三个）。
 **「三个」是本包自己的数**——此前这里写过「十一个」，那是**租户相关领域五份契约的跨包总数**，
-挂在本包名下会让读者以为本包欠着十一项；**跨包总数见[规格容器的当前状态](../../README.md#当前状态)**。
+挂在本包名下会让读者以为本包欠着十一项；**跨包总数见[规格容器的当前状态](../../README.md#当前采用)**。
 **本包另有一个 TLA+ 有效性核对**（`Membership_NoSerialization.cfg`），它**两次运行都做了**，
 与这三个未做的不在一类，[不要合起来数](#三条成对报告的义务)。
-下一次执行时按[实际执行](#实际执行)那张表的列补行：run id、任务或命令、配置与范围、
+下一次执行时按[实际执行](verification.md)那张表的列补行：run id、任务或命令、配置与范围、
 结果（含状态数与是否完整穷尽）、evidence 链接；
 反例另记 trace 位置与它对应的契约条款，原始产物归
-[record/evidence/](../../../record/evidence/README.md)。
+record/evidence/。
 
 记录时必须分开陈述：**模型检查的结果**、**规范场景演练的结果**、**真实组合的符合性**。
 三者范围不同，不能互相冒充：[有限模型未找到反例只支持已建模且已执行的范围](../../README.md#按需展开形式化工件)，
@@ -192,7 +157,7 @@
 
 1. **TLC 的两个配置必须一起报。**只报 `Serialized = TRUE` 通过，
    读者无从判断那条不变量是不是平凡的。
-   **两次运行都是两条一起报的**，见[实际执行](#实际执行)——**这一条已经满足**。
+   **两次运行都是两条一起报的**，见[实际执行](verification.md)——**这一条已经满足**。
 2. **Alloy 的 `AcceptPreservesAcyclic` 必须连同两个非平凡核对一起报**（整行注释掉、改回不含自身）。
    只报「无反例」，读者无从判断是判环起了作用、还是规模太小碰不到环、
    **还是判环又漏掉了自环那一档**——最后这一种已经真的发生过一次。
@@ -203,46 +168,11 @@
    **那样它就是「X iff X」，永远无反例却什么也没检查**。
    **这一条同样尚未满足**，两次运行都没做。
 
-## 独立评审
-
-**v2 第一轮**：spec-reviewer（只读），2026-09-24，基线 HUB `765b01dc`（批 R3：v2 与 `data.asset-model`、`capability.asset-evaluation`、`capability.asset-governance`、`capability.asset-transfer` 同批）。
-处置按主线的修复简报（2026-09-24，裁定 K37、K46——已收进 [D-060 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)——与全局规矩 G1～G6）；**评审意见不代替接受**，v2 仍是 candidate。**v1 目录一个字节未动**。
-
-| 发现 | 处置 | 落点 |
-|---|---|---|
-| OG-1（依据 rev 落后，未复核只是叙述） | **改**：PF-001 按 changelog 由 rev 15 复核到 17，相邻依据 PF-002 → 20、PF-003 → 5、PF-015 → 11、PF-007 → 18，逐条写出复核结论；只有 PF-003 rev 5 改了一处——第十二节「复制前提」一行按两条通则改写（给的面不变、仍够） | v3 抬头「设计依据」「相邻依据」「复核结论」、[第十二节](v3/contract.md#十二消费者核对) |
-| OG-2（「v1 消费者用到的条款在本版逐字相同」不实） | **改**（K46）：抬头、第十三节、包入口的「逐字相同」都改掉；第十三节逐个 v1 消费者列出它消费的条款里哪些变了、属于哪种相容性（写集合多一项／返回多一项／`unavailable` 多一种触发）；写明同一提供者同时服务 v1、v2 消费者的规则（写按 v2、答按调用方钉的版本、存量记录无时刻时 v3 读面收 `unavailable` 不补值） | [v2 第十三节](v3/contract.md#十三版本差异与规范工件)、v2 抬头、[README](README.md) |
-| OG-3（S-45 说消费者那一侧的交错「已由模型检查」过头） | **改**（K46）：收窄为「模型只在两条前提下检查 `NoRevival`，读序被建模方式吸收、证据是资产流转的场景 S-44」；本页 v3 S-42 那一行同改 | [v2 S-45](v3/contract.md#s-45-本版选用哪些形式工件) |
-| OG-4（S-22 ② 残留「（超管）」） | **改**（K46）：删去，改为按 S-59 ② 授权；第十三节差异表加一行（表示：更正指路） | [v2 S-22](v3/contract.md#s-22-读组织) ② |
-| OG-5（covers note 写「发布 v2」） | **改**：两条 note 改为「起草 v3 候选时登记」 | registry `covers.json` |
-| AT-2（读 S-59 的调用主体与资产流转说法不一） | **改**（K37）：第十二节「不复活」一行写与资产流转 S-9 ② 同一句「运行时代行」；跨进程时 S-59 ② 要认那个服务身份，并进 [G-7](v3/contract.md#十一已知缺口) | [v2 第十二节](v3/contract.md#十二消费者核对)、G-7 |
-
-**G2**：抬头的依据改引 D-060 §三 R2-1。**形式工件**：v2 不建自己的模型，本轮没有改任何模型或配置，**不重跑**；v1 的两次运行对 v3 的适用范围照旧（v2 S-45）。
-
-**v2 第二轮**：spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`（批 R3，发现表 `tmp/assets-runtimes/reviews/r2-R3.md`）；修复波 2 处置，主线裁定见 [D-060 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)。**只动 v2；v1 目录一个字节未动。**
-
-| 编号 | 发现 | 处置 | 落点 |
-|---|---|---|---|
-| 建议（空表头） | 第十三节「对消费者的影响」下有一个空表头 `\| 消费者 \| 钉哪一版 \| 影响 \|` 加分隔行，GFM 会把紧跟的两段正文并进表 | **改**：删去空表头 | [v2 第十三节](v3/contract.md#对消费者的影响) |
-| 建议（状态词） | 本页「变化的影响」写「已执行：**发布**候选 v2」，与 OG-5 同类 | **改**：「起草候选 v2」，并注明原写法 | 本页变化的影响 |
-| 建议（S-42 缺代行一行） | K37 的「代行」与跨进程时 S-59 ② 要认服务身份只写在第十二节，而该节自称不新增承诺；S-42「调用方身份已经核实过」那一行只讲入口层 | **改**：S-42 表加「（v2）代行读两个时刻」一行，左列装配给（单机由运行时代行、做不到按读不到收），右列协议给并入 G-7；第十三节差异表 S-42 那一行同改 | [v2 S-42](v3/contract.md#s-42-装配给的保证-vs-协议须给的保证)；第十三节 |
-| （OG-1～OG-5 核对） | 评审核为兑现 | 不改 | — |
-| （应修 4 的另一端） | `capability.asset-transfer` 以本契约 `#S-42` 为依据却未登记 | 不改本契约：消费者那一侧补登（同一位起草者同轮落） | `registry/catalog.json` |
-
-**形式工件**：没有模型或配置改动，**不重跑**。
-
-### 实现映射反推（2026-09-25，节点独立评审 N2）
-
-| 编号 | 发现 | 处置 | 落点 |
-|---|---|---|---|
-| OG-2（N2） | v3 S-42「代行读两个时刻」行的单机路径文字（运行时代行读 S-59／S-22）与节点实现路径（事务内直读，D-060 §八 N-19）不同；本版 `organizations-v2`／`memberships-v2` 无消费者 inject | 装配给列加半句「同一存储内一次可串行化读（含事务内直读）即满足，不要求经服务面代行」；接受口径不因无消费者而变（[D-060 §八 M59](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | [v2 S-42](v3/contract.md#s-42-装配给的保证-vs-协议须给的保证) |
-| OG-1（N2） | S-42 末行「先后两次串行提交的时刻不相等」由时钟分辨率给，`infra/clock` 尚未兑现（C-15，[D-060 §八 M58](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | 契约不改，手段已选时钟；提供者侧登缺口 | [infra/clock](../../../realization/packages/infra/clock/design.md#实施缺口与消费者影响) |
-
 ## 变化的影响
 
-- **已执行：独立评审第二轮的原地修订（v2）**（2026-09-25，[处置表](#独立评审)）。**v1 目录一个字节未动**。S-42 表多一行「代行读两个时刻」——**新增的是装配给／协议给的归属陈述，不是新语义**：同一句原本只在第十二节；第十三节差异表同步；删去一个空表头。**对消费者**：资产流转（钉 v2）从此能在 S-42 点到它依赖的那一行，并已把 `#S-42` 登进 catalog。**对证据**：无影响。
+- **已执行：独立评审第二轮的原地修订（v2）**（2026-09-25，处置表）。**v1 目录一个字节未动**。S-42 表多一行「代行读两个时刻」——**新增的是装配给／协议给的归属陈述，不是新语义**：同一句原本只在第十二节；第十三节差异表同步；删去一个空表头。**对消费者**：资产流转（钉 v2）从此能在 S-42 点到它依赖的那一行，并已把 `#S-42` 登进 catalog。**对证据**：无影响。
 
-- **已执行：独立评审第一轮的原地修订（v2）**（2026-09-24，[处置表](#独立评审)）。**v1 目录一个字节未动**。
+- **已执行：独立评审第一轮的原地修订（v2）**（2026-09-24，处置表）。**v1 目录一个字节未动**。
   **改了的**：v2 抬头（状态、依据改引 D-060、PF-001 与相邻依据复核到当前并写出结论、「逐字相同」改为逐项差异）；[S-22](v3/contract.md#s-22-读组织) ② 指路更正（这一处从此与 v1 不同文）；[S-45](v3/contract.md#s-45-本版选用哪些形式工件) 末行收窄；[G-7](v3/contract.md#十一已知缺口) 范围多一项；[第十二节](v3/contract.md#十二消费者核对)「复制前提」按 PF-003 rev 5 改写、「不复活」一行加调用主体一句；[第十三节](v3/contract.md#十三版本差异与规范工件)差异表加两行、「对消费者的影响」重写为逐个消费者的相容性表并加同一提供者服务两版的规则。
   **对证据的影响**：没有模型或配置改动，**没有要作废或重跑的**；v2 S-22、S-36、S-59 的演练义务按 v3 的返回形状与失败触发核（上文 v3 一节）。
   **对消费者**：钉 v1 的四份（注册组合、入口组合、资产治理、模型档案目录）不自动升；升时按第十三节那张表核。钉 v3 的资产流转与本版第十二节同句。
@@ -260,14 +190,14 @@
 - **已执行：G-12 闭合（S-21 加可选创建键）**（2026-09-22，产品负责人选 (b)）。[S-21](v1/contract.md#s-21-创建团队组织) ① 加可选创建键、④ 键登记同提交、⑦ 幂等边界 (创建者 AccountId, 创建键)、⑧ 登记读不到 ⇒ `unavailable`／键不合形状 ⇒ `invalidInput`；[S-16](v1/contract.md#s-16-缺席时的默认答案) 表加一行（缺席 = 不去重）；保留期 `team_creation_key_retention` 为部署配置。**失败集合不变、不改任何其他操作、模型不涉及**。**新增一条证据义务**（[上表](#规范场景) S-21 行：五支 + 故障注入）。这是**语义改动**，候选版本原地改，不发新版本。
 - **已执行：architecture-reviewer 批次评审的处置**（2026-09-22）。阻断 2（S-21 未知结果后重试的认回无拥有者）登记为 [G-12](v1/contract.md#十一已知缺口)，owner 入口层／apps 装配，闭合选项 (a) 入口层去重 / (b) S-21 加可选幂等键（语义改动）；非阻断 2（当前租户身份残留清扫）：[S-14](v1/contract.md#s-14-当前租户身份是登录状态上的一项选择) ⑤ 删「读到失效即删」（校验不过到不了记录，无执行点），登记 [G-13](v1/contract.md#十一已知缺口)。**不新增义务、不改任何操作**。
 - **已执行：PF-001 升到 rev 15**（2026-09-22，
-  [PF-001 changelog rev 15](../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)）。
+  [PF-001 changelog rev 15](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）。
   **rev 15 只改了 [flows §4 角色与操作](../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作) 里成员名单那一行**——
   拆成「查看成员名单（有效成员）」与「查看已解除的成员」两行，后者**只归超级管理员**；
   表下把「看已解除的成员」并进管理类那一句，[acceptance §一](../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#一可观察场景)／[§二](../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#二绝不能发生的事) 各补一条。其余各页一个字未动。
   它答的正是 [S-59](v1/contract.md#s-59-列出组织成员) 自己写下的那句「若产品认为已解除的只该给超管看，**那是一条新的产品规则**」。
   **形式工件一个字节都没动**：读面的授权不在 [`Membership.tla`](v1/formal/Membership.tla) 与
   [`Affiliation.als`](v1/formal/Affiliation.als) 的建模范围内（两个模型只管成员写入的交错与隶属链的结构），
-  **不触发重跑**，[run `-2` 的全部结论在其原有范围内继续有效](#实际执行)。
+  **不触发重跑**，[run `-2` 的全部结论在其原有范围内继续有效](verification.md)。
   **改动仍直接落在 v1 上，不发布第二个版本**——本契约仍是 `candidate`，未接受、未冻结。
 
   | rev 15 落在哪一条 | 复核结论 |
@@ -288,7 +218,7 @@
   而一个把①当成纯取值过滤实现的版本，**前九次全对，第十次把已解除的成员交给了普通成员**。
 
 - **已执行：能力拆分投票裁定落地（修正 2 部分）**（2026-09-22，依据
-  [`record/proposals/tenant-capability-split/`](../../../record/proposals/tenant-capability-split/README.md#后续消费)
+  `record/proposals/tenant-capability-split/`
   的主线处置）。三票独立评审**全投维持五份拆分**，主线裁「A ＋ 修两处瑕疵」。
   **本轮只落地其中的修正 2（改写拆分理由），修正 1（当前租户身份的存与取移交）未落盘**，理由见下。
   **改动仍直接落在 v1 上，不发布第二个版本**——本契约仍是 `candidate`，未接受、未冻结。
@@ -296,11 +226,11 @@
   [`Affiliation.als`](v1/formal/Affiliation.als) 建模的是**成员写入的交错**与**隶属链的结构**，
   **都不涉及当前租户身份，也不涉及拆分理由的措辞**（已逐文件核实：三个文件里没有任何
   tenant 选择／登录状态的状态变量或关系），**不触发重跑**，
-  [run `-2` 的全部结论在其原有范围内继续有效](#实际执行)。
+  [run `-2` 的全部结论在其原有范围内继续有效](verification.md)。
 
   | 改的是什么 | 怎么改的 | 对证据的影响 |
   |---|---|---|
-  | **[S-4](v1/contract.md#s-4-依赖方向与被消费的面) 末段「消费凭据校验会把整个组织治理重启一遍」** | **整段改写。**那句话在契约层不成立——本契约 inject 的是账号能力的读面，**那个提供者换代本来就会重跑本契约**，多消费或少消费它的一条操作不改变重启半径。改写为两半：① 不消费 [`#S-15`](../account-identity/v1/contract.md#s-15-验证凭据并签发登录状态) 的真正理由（没有共同的判定输入或不变量，登进清单会让「换掉它要不要重审本契约」得错答案，与排除 `data.identity-values/v1#S-13` 同一条规矩）；② 这条契约级边界实际买到的**四样**，逐样带落点坐标——反方向的半径收敛、契约层的失败隔离（[S-43](v1/contract.md#s-43-依赖的提供者不可用)／[`capability.account-identity/v1#S-28`](../account-identity/v1/contract.md#s-28-依赖不可用撤除与重启时的在途归属)）、SYS-DEPLOY 的分布式缝已逐条标价（[S-42](v1/contract.md#s-42-装配给的保证-vs-协议须给的保证)／[`#S-30`](../account-identity/v1/contract.md#s-30-装配给的保证-vs-协议须给的保证)／[`composition.account-registration/v1#S-25`](../../compositions/account-registration/v1/contract.md#s-25-装配给的保证-vs-协议须给的保证)）、账号身份非范围化（[`#S-12`](../account-identity/v1/contract.md#s-12-账号身份事实不是范围化对象)、SYS-TENANT） | **不新增证据义务，不改任何条款的承诺。**改的是一段设计理由的措辞，**没有动任何前置、失败集合、提交点或判定式**。**catalog 不变**：新引的那批坐标是**边界理由的依据**，不是本契约据以写出承诺、判定、映射或证据落点的条款，按[登记口径](../../README.md#当前状态)不登记为消费（正文已写明这一句） |
+  | **[S-4](v1/contract.md#s-4-依赖方向与被消费的面) 末段「消费凭据校验会把整个组织治理重启一遍」** | **整段改写。**那句话在契约层不成立——本契约 inject 的是账号能力的读面，**那个提供者换代本来就会重跑本契约**，多消费或少消费它的一条操作不改变重启半径。改写为两半：① 不消费 [`#S-15`](../account-identity/v1/contract.md#s-15-验证凭据并签发登录状态) 的真正理由（没有共同的判定输入或不变量，登进清单会让「换掉它要不要重审本契约」得错答案，与排除 `data.identity-values/v1#S-13` 同一条规矩）；② 这条契约级边界实际买到的**四样**，逐样带落点坐标——反方向的半径收敛、契约层的失败隔离（[S-43](v1/contract.md#s-43-依赖的提供者不可用)／[`capability.account-identity/v1#S-28`](../account-identity/v1/contract.md#s-28-依赖不可用撤除与重启时的在途归属)）、SYS-DEPLOY 的分布式缝已逐条标价（[S-42](v1/contract.md#s-42-装配给的保证-vs-协议须给的保证)／[`#S-30`](../account-identity/v1/contract.md#s-30-装配给的保证-vs-协议须给的保证)／[`composition.account-registration/v1#S-25`](../../compositions/account-registration/v1/contract.md#s-25-装配给的保证-vs-协议须给的保证)）、账号身份非范围化（[`#S-12`](../account-identity/v1/contract.md#s-12-账号身份事实不是范围化对象)、SYS-TENANT） | **不新增证据义务，不改任何条款的承诺。**改的是一段设计理由的措辞，**没有动任何前置、失败集合、提交点或判定式**。**catalog 不变**：新引的那批坐标是**边界理由的依据**，不是本契约据以写出承诺、判定、映射或证据落点的条款，按[登记口径](../../README.md#当前采用)不登记为消费（正文已写明这一句） |
   | **[包入口](README.md)第三段同一句** | 同口径改写，并指向 [S-4](v1/contract.md#s-4-依赖方向与被消费的面) 末段 | 无 |
 
   **修正 1 随后由主线改判并落地（2026-09-22）**：不搬家，改为在 [S-14](v1/contract.md#s-14-当前租户身份是登录状态上的一项选择)
@@ -325,13 +255,13 @@
   操作数仍是 25，catalog 的 clauses 不变**；缺口与待裁项报回主线（见该提案的「仍未闭合的事项」）。
 
 - **已执行：PF-001 升到 rev 14**（2026-09-22，
-  [PF-001 changelog rev 14](../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)）。
+  [PF-001 changelog rev 14](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）。
   **rev 14 只改了 [flows §4 角色与操作](../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作) 那张表**——
   补进「查看成员名单」「查看本组织发出的邀约」「查看本组织收到的隶属请求」三行，其余各页一个字未动。
   它答的正是本契约登记的[缺口 G-11](v1/contract.md#十一已知缺口)。
   **形式工件的语义一个字节都没动**：三条读面的授权不在 [`Membership.tla`](v1/formal/Membership.tla) 与
   [`Affiliation.als`](v1/formal/Affiliation.als) 的建模范围内（两个模型只管成员写入的交错与隶属链的结构），
-  **不触发重跑**，[run `-2` 的全部结论在其原有范围内继续有效](#实际执行)
+  **不触发重跑**，[run `-2` 的全部结论在其原有范围内继续有效](verification.md)
   （`Affiliation.als` **只改了一行 rev 注释**，见本条末尾）。
   **改动仍直接落在 v1 上，不发布第二个版本**——本契约仍是 `candidate`，未接受、未冻结。
 
@@ -354,7 +284,7 @@
   （**该判据自 rev 12 定下后未再改动**，改的只有 rev 标注）。
   [`Affiliation.als`](v1/formal/Affiliation.als) 的 `:73` 注释由「PF-001 §4（rev 13）的判据」改为 **rev 14**，
   **与评审轮二那次同一办法**：改的只有这一行注释，
-  **模型语义与四条命令一字未动，因此不重跑**，[run `-2` 的四格结论继续有效](#实际执行)。
+  **模型语义与四条命令一字未动，因此不重跑**，[run `-2` 的四格结论继续有效](verification.md)。
 
 - **已执行：评审轮三修订**（2026-09-22）。轮三处置表对本契约裁定阻断 3 条、非阻断 8 条、产品格 1 条，
   另有四条从别的包点名落到本契约（过期语义侧 N-3、身份值侧 N-2、注册组合侧 B2）与三条跨包同改（撤销一次性、时间源不后退、`accountDoesNotExist` 归缺陷型）；
@@ -362,7 +292,7 @@
   **形式工件一个字节都没动**：[`Membership.tla`](v1/formal/Membership.tla)、两个 cfg、[`Affiliation.als`](v1/formal/Affiliation.als) 与 [formal 入口](v1/formal/README.md)本轮**都未修改**
   （第七节拆开的两条单向式本来就不在本包的模型里，formal 入口第一表已写明 [S-53](v1/contract.md#s-53-清除未激活账号的个人组织) 不建模；
   `Affiliation.als` 与 formal 入口里提到的「缺口 G-5」指的是 shareAncestor 读法差异那条，**编号不变**），**不触发重跑**，
-  [run `-2` 的全部结论在其原有范围内继续有效](#实际执行)。
+  [run `-2` 的全部结论在其原有范围内继续有效](verification.md)。
 
   | 改的是什么 | 怎么改的 | 对证据的影响 |
   |---|---|---|
@@ -388,7 +318,7 @@
   主线逐条裁定处置，**改动仍直接落在 v1 上，不发布第二个版本**——本契约仍是 `candidate`，未接受、未冻结。
   **形式工件一个字节都没动**：本轮改的全是操作的输入、返回、失败集合与求值次序，
   [`Membership.tla`](v1/formal/Membership.tla)、两个 cfg 与 [`Affiliation.als`](v1/formal/Affiliation.als) 的**模型语义不受影响**，
-  [run `-2` 的全部结论在其原有范围内继续有效](#实际执行)。
+  [run `-2` 的全部结论在其原有范围内继续有效](verification.md)。
   （`Affiliation.als` **只改了一行注释**里的 rev 标注，见本节末；**不触发重跑**。）
 
   | 改的是什么 | 怎么改的 | 对证据的影响 |
@@ -408,7 +338,7 @@
   | **两处「两个指向组织」改为接收方单数**（过期语义侧阻断 3） | [S-11](v1/contract.md#s-11-隶属请求) 的宿主引注与[缺口 G-4](v1/contract.md#十一已知缺口) 都改为「按**接收方组织这一个**指向对象判过期」，并写明**「判定对象是单数」与「宿主未裁」是两件事**：前者[产品正文已经定了](../../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)，未裁的只有后者 | **不改变义务**。[S-11](v1/contract.md#s-11-隶属请求) 正文与 [S-56](v1/contract.md#s-56-读隶属请求)／[S-60](v1/contract.md#s-60-列出组织收到的隶属请求) 早已是单数写法，**这两处是上一轮漏改的残留**，且它们被拿来论证 G-4 不阻断，留着会把一处笔误写成论据 |
   | **[S-53](v1/contract.md#s-53-清除未激活账号的个人组织) ③ 的链接改指第七节**（非阻断 16） | 「空真的守卫」原链接指向[已知缺口](v1/contract.md#十一已知缺口)，改指[第七节不变量表](v1/contract.md#不变量)——**「由 `AccountId` 定位必得个人组织」的依据是那条不变量，不是任何缺口** | **不改变义务** |
   | **[缺口 G-10](v1/contract.md#十一已知缺口)（当时编号 G-5）的「23 条」改准**（非阻断 15） | 改为 **27 条**并列出号段（`S-1`、`S-3`～`S-12`、`S-14`～`S-19`、`S-26`～`S-35`），与[包入口](README.md)和 [S-4](v1/contract.md#s-4-依赖方向与被消费的面) 的表一致 | **不改变义务**。三处此前是 27／27／23，**catalog 按那张表登记，数不一致会让核对无从下手** |
-  | **verification 的「十一个变异」改准**（run `-2` 落盘者发现） | 本页三处改为「**本包三个 Alloy 变异／非平凡核对**」，并写明十一个是**跨包总数**、见[规格容器的当前状态](../../README.md#当前状态)；另点出本包的 TLA+ 有效性核对**两次都做了**，不与这三个合起来数 | **不改变义务**，改的是一个挂错名下的数 |
+  | **verification 的「十一个变异」改准**（run `-2` 落盘者发现） | 本页三处改为「**本包三个 Alloy 变异／非平凡核对**」，并写明十一个是**跨包总数**、见[规格容器的当前状态](../../README.md#当前采用)；另点出本包的 TLA+ 有效性核对**两次都做了**，不与这三个合起来数 | **不改变义务**，改的是一个挂错名下的数 |
 
   **rev 标注同步**（逐条复核见下一条）：PF-001 由 rev 12 改到 **rev 13**，
   **抬头三处「正文落盘中」全部删掉**（[S-23](v1/contract.md#s-23-发出邀请) ②的笔误裁决、
@@ -417,11 +347,11 @@
   PF-002 由 rev 8 改到 **rev 9**；[`Affiliation.als`](v1/formal/Affiliation.als) 的 `:73` 注释
   由「PF-001 §4（rev 12）的判据」改为 **rev 13**。
   **`Affiliation.als` 改的只有这一行注释，模型语义与四条命令一字未动，因此不重跑**；
-  [run `-2` 的四格结论继续有效](#实际执行)。
+  [run `-2` 的四格结论继续有效](verification.md)。
 
 - **已执行：PF-001 升到 rev 13、PF-002 升到 rev 9 的复核**（2026-09-22，
-  [PF-001 changelog rev 13](../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)、
-  [PF-002 changelog rev 9](../../../product/PF-002-assets-settings-and-permissions/changelog.md)）。
+  [PF-001 changelog rev 13](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)、
+  [PF-002 changelog rev 9](../../../product/PF-002-assets-settings-and-permissions/design.md)）。
   **rev 13 的「下游要复核什么」直接点了本契约三条**，逐条复核如下——
 
   | rev 13 点的是什么 | 复核结论 |
@@ -473,12 +403,12 @@
   （两个谓词的定义式归那份契约，本契约与模型都是引用）；
   **`run aNonTrivialTree` 的 pred 加了 `acyclic[c]` 前件**。
 
-  > **模型已改，[上次那轮 Alloy 执行的结果不再适用](#实际执行)。**
+  > **模型已改，[上次那轮 Alloy 执行的结果不再适用](verification.md)。**
   > `aNonTrivialTree` 的 pred 变了，它那次的 SAT 与实例**直接作废**；
   > 三条 `check` 的断言式未变，但**证据未绑定冻结 hash、模型文件已改**，
   > 按本页的口径**一律须重跑**。
   >
-  > **已于 run `-2` 全部重跑**（[结果](#实际执行)）：三条 `check` 仍 `UNSAT`，
+  > **已于 run `-2` 全部重跑**（[结果](verification.md)）：三条 `check` 仍 `UNSAT`，
   > `aNonTrivialTree` 这次给出的是 `O3→O2→O0→O1` 一条**无环链**，
   > 而上一次那个实例含环 `O0→O1→O2→O0`——**加前件要挡的正是它**。
   > 因此三条 check 的「无反例」现在**在 `acyclic[c]` 前件下有了一个见证**；
@@ -486,7 +416,7 @@
   > **[三条成对报告的义务](#三条成对报告的义务)不因这次重跑减少**，
   > **本包那三个 Alloy 变异／非平凡核对仍然一个都没做**。
 - **已执行：PF-001 升到 rev 12、PF-003 的标注对齐到 rev 4**（2026-09-22，
-  [PF-001 changelog](../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)）。
+  [PF-001 changelog](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）。
   **本轮改动直接落在 v1 上，不发布第二个版本**——本契约仍是 `candidate`，
   未接受、未冻结，[不可原地覆盖的是已发布规格](../../README.md)。
   （**catalog 已于当日晚些时候登记**，状态仍是 `candidate`；**登记不是发布**，
@@ -520,7 +450,7 @@
   [UL-scope-layer-identity](../../../ubiquitous_language/terms/scope-and-resolution.md#ul-scope-layer-identity--作用域层身份--scope-layer-identity)；
   两条词条与契约原有表述**逐条对上**（两取值、不可用不是第三个取值；出厂默认那一格没有身份对象）。
   **语义不变、不出新版本**，已有证据仍适用；原缺口 G-8 随之删除。
-- **已执行：PF-001 升到 rev 11**（2026-09-22，[changelog](../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)）：
+- **已执行：PF-001 升到 rev 11**（2026-09-22，[changelog](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）：
   邀约时长改为「每类各有默认值（部署配置），发出时发起者可指定这一份」。
   [S-10](v1/contract.md#s-10-邀请)／[S-11](v1/contract.md#s-11-隶属请求) 补写口径，
   [S-23](v1/contract.md#s-23-发出邀请)／[S-30](v1/contract.md#s-30-发出隶属请求) 的①补一个**可选**输入；
