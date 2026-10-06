@@ -188,7 +188,8 @@ export interface AcceptanceHooks {
   readonly toolProvidersInstalled?: (providers: {
     readonly officialAdmission: Fiber
     readonly admissionPublication: Fiber
-    readonly environments: import('@omne-harness-lite/execution-environments').EnvironmentProviderRegistrations
+    readonly environments: import('@omne-harness-lite/execution-environments').EnvironmentProviderRegistrations &
+      import('@omne-harness-lite/execution-environments').ExecutionEnvironmentOperations
   }) => void | Promise<void>
   /** Trusted fault control on the actual physical owner, before any consumer borrows it. */
   readonly sessionLogOpened?: (

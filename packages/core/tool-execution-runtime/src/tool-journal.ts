@@ -13,7 +13,10 @@ import type {
   WaitRequest,
   Answerer,
 } from './tool-execution.ts'
-import type { ManagedResource } from '@omne-harness-lite/execution-environments'
+import type {
+  ManagedResource,
+  EnvironmentAdoption,
+} from '@omne-harness-lite/execution-environments'
 import type { ContextValue } from '@omne-harness-lite/runtime-context'
 
 export type RawResultReference = AttachmentRef
@@ -35,6 +38,7 @@ export type ToolJournalPayload = {
       readonly input: JsonValue
     }
   | { readonly kind: 'execution_started'; readonly at: string }
+  | { readonly kind: 'execution_environment_adopted'; readonly adoption: EnvironmentAdoption }
   | {
       readonly kind: 'execution_context_read'
       readonly readIndex: number

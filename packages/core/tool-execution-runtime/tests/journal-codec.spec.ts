@@ -5,6 +5,7 @@ import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite
 import type { LogEntry } from '@omne-harness-lite/session-log'
 import {
   captureToolJournalValue,
+  environmentToolOf,
   inspectToolJournalEntry,
   prepareToolJournalEntry,
   projectToolJournal,
@@ -171,7 +172,51 @@ function executionEntries() {
   }))
 }
 test('projects waiting, answer, final account, delivery and physical cleanup without restarting', () => {
-  const entries = executionEntries()
+  const full = executionEntries(),
+    first = inspectToolJournalEntry(scope, full[0]!)
+  if (!('value' in first) || first.value.kind !== 'execution_intended' || !first.value.selected)
+    throw new Error('fixture intent missing')
+  const selected = {
+    ...first.value.selected,
+    definition: {
+      ...first.value.selected.definition,
+      settings: {
+        targetEnvironment: {
+          category: 'placement_identity' as const,
+          default: { bindingLayer: 'host_machine' as const, facilities: ['command'] },
+        },
+      },
+    },
+  }
+  const adopted = prepared({
+    kind: 'execution_environment_adopted',
+    revision: 1,
+    ref,
+    adoption: {
+      placement: {
+        scope,
+        execution: ref.callId,
+        tool: environmentToolOf(selected),
+        requirement: { bindingLayer: 'host_machine', facilities: ['command'] },
+        permission: 'always-allow',
+        revision: 'current',
+        evidence: null,
+      },
+      source: { name: 'current-tools', generation: 'one' },
+      description: {
+        reference: { provider: 'host', reference: 'original' },
+        bindingLayer: 'host_machine',
+        binding: { kind: 'host_machine' },
+        facilities: ['command'],
+        instance: { id: 'original', generation: 'one' },
+        continuity: { kind: 'notGuaranteed' },
+      },
+      providerEvidence: null,
+    },
+  })
+  const entries = [prepared({ ...first.value, selected }), full[1]!, adopted, ...full.slice(2)].map(
+    (value, index) => ({ ...value, position: index + 1 }),
+  )
   const history = projectToolJournal(scope, entries)
   expect(history).toHaveProperty('executions')
   if (!('executions' in history)) throw new Error('expected history')

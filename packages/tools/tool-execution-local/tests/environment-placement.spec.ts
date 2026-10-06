@@ -82,3 +82,54 @@ test.each([
     ),
   ).toThrow()
 })
+
+test.each(['session', 'tenant', 'callId'] as const)(
+  'an observer snapshot for a different %s grants no permission',
+  async field => {
+    const h = placementFixture()
+    const original = await h.read()
+    if (original.kind !== 'found') throw new Error('fixture missing')
+    const ref = {
+      ...original.snapshot.ref,
+      ...(field === 'tenant'
+        ? { tenant: { ...scope.tenant, account: 'foreign' } }
+        : { [field]: 'different' }),
+    }
+    h.read.mockResolvedValue({
+      kind: 'found',
+      snapshot: { ...original.snapshot, ref },
+    } as typeof original)
+    expect(await h.query()).toEqual({ kind: 'rejected', reason: 'notAuthorized' })
+    expect(h.inputs).not.toHaveBeenCalled()
+    expect(h.release).toHaveBeenCalledOnce()
+  },
+)
+test('a snapshot without a selected tool cannot cause a permission input read', async () => {
+  const h = placementFixture(),
+    original = await h.read()
+  if (original.kind !== 'found') throw new Error('fixture missing')
+  const { selected: _selected, ...snapshot } = original.snapshot
+  h.read.mockResolvedValue({ kind: 'found', snapshot })
+  expect(await h.query()).toEqual({ kind: 'rejected', reason: 'notAuthorized' })
+  expect(h.inputs).not.toHaveBeenCalled()
+  expect(h.release).toHaveBeenCalledOnce()
+})
+test.each(['notAuthorized', 'runtimeUnavailable'] as const)(
+  'observer read %s is classified and always releases',
+  async reason => {
+    const h = placementFixture()
+    h.read.mockResolvedValue({ kind: 'rejected', reason })
+    expect(await h.query()).toEqual({
+      kind: 'rejected',
+      reason: reason === 'notAuthorized' ? reason : 'unavailable',
+    })
+    expect(h.inputs).not.toHaveBeenCalled()
+    expect(h.release).toHaveBeenCalledOnce()
+  },
+)
+test('owner unavailability cannot cause a current-input read', async () => {
+  const h = placementFixture()
+  h.acquire.mockResolvedValue({ kind: 'rejected', reason: 'ownerStopped' })
+  expect(await h.query()).toEqual({ kind: 'rejected', reason: 'unavailable' })
+  expect(h.inputs).not.toHaveBeenCalled()
+})

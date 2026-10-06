@@ -162,3 +162,48 @@ test('operation authorization cannot grant a facility absent from the original r
   ).toEqual({ kind: 'rejected', reason: 'notAuthorized' })
   expect(h.inputs).toHaveBeenCalledOnce()
 })
+
+test.each(['notAuthorized', 'unavailable'] as const)(
+  'new operations reject a current %s result without selecting again',
+  async reason => {
+    const h = placementFixture(),
+      original = await h.query()
+    if (original.kind !== 'placement') throw new Error('fixture rejected')
+    if (reason === 'notAuthorized') h.acquire.mockResolvedValue({ kind: 'rejected', reason })
+    else h.setCurrent({ failure: 'unavailable' })
+    expect(
+      await h.source.authorizeOperation(scope, h.token, original.placement, description, 'command'),
+    ).toEqual({ kind: 'rejected', reason })
+    expect(h.select).not.toHaveBeenCalled()
+  },
+)
+test('new operations reject foreign scope before reading current input', async () => {
+  const h = placementFixture(),
+    original = await h.query()
+  if (original.kind !== 'placement') throw new Error('fixture rejected')
+  expect(
+    await h.source.authorizeOperation(
+      { ...scope, session: 'foreign' } as typeof scope,
+      h.token,
+      original.placement,
+      description,
+      'command',
+    ),
+  ).toEqual({ kind: 'rejected', reason: 'notAuthorized' })
+  expect(h.inputs).toHaveBeenCalledOnce()
+})
+test('new operations reject a required facility removed by the current session pick', async () => {
+  const h = placementFixture(),
+    original = await h.query()
+  if (original.kind !== 'placement') throw new Error('fixture rejected')
+  h.setCurrent({
+    input: sessionPick(h.input(), 'targetEnvironment', {
+      bindingLayer: 'host_machine',
+      facilities: ['files'],
+    }),
+  })
+  expect(
+    await h.source.authorizeOperation(scope, h.token, original.placement, description, 'command'),
+  ).toEqual({ kind: 'rejected', reason: 'notAuthorized' })
+  expect(h.select).not.toHaveBeenCalled()
+})

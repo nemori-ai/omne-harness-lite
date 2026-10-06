@@ -24,3 +24,6 @@ LP-8 Environment permission comes from the original asset-evaluation algorithm a
 LP-9 New facility operations re-read current input for the original call. The requested facility must belong to both the original and current requirements. A newly forbidden host effect rejects notAuthorized. A binding outside the original ownership rejects notAuthorized. Re-evaluation does not select or acquire a successor environment. Existing process observation and cleanup remain with their original owner.
 
 LP-10 The Cordis placement plugins are static exports. Their configuration contains only name, factoryPermission, and an explicit unique or reference selection policy. There is no implicit first-candidate policy. The reference must belong to the complete matched set. Trusted root construction can supply a different selection function. The plugin does not accept that function as configuration. Source contribution and its pending calls follow the registering plugin's lifetime.
+
+
+LP-11 原环境 lease 失效触发原终局路径，旧执行不获取替代环境。只有原 lease.release 确认 released 才放弃活体租约；pending 或异常仍由原执行 owner 持有并承担原释放责任。后续 close 只重试原 lease，失败不假报关闭完成。冷恢复仅维护原资源引用并异常收场，不重建作者栈或租约。单个工具 runtime 关闭不销毁共享环境 registry。

@@ -6,7 +6,10 @@ import type { AssemblySnapshot, AcceptRejection } from '@omne-harness-lite/strea
 import type { ExecutionOutcome } from '@omne-harness-lite/content-blocks'
 import type { SessionAccess } from '@omne-harness-lite/session-tenancy'
 import type { ContextReader, ContextScope, ContextValue } from '@omne-harness-lite/runtime-context'
-import type { EnvironmentFacilities } from '@omne-harness-lite/execution-environments'
+import type {
+  EnvironmentFacilities,
+  EnvironmentAdoption,
+} from '@omne-harness-lite/execution-environments'
 import type { ToolReturn } from '@omne-harness-lite/tool-definition'
 import type { AdmissionToken } from '@omne-harness-lite/tool-admission'
 import type { ToolResultWriter } from './tool-results.ts'
@@ -159,6 +162,7 @@ export interface ExecutionSnapshot {
   readonly origin: ExecutionOrigin
   /** Absent for malformed or unknown calls that never selected an implementation. */
   readonly selected?: SelectedTool
+  readonly adoptedEnvironment?: EnvironmentAdoption
   readonly adoptedContext: readonly ContextValue[]
   readonly state: ExecutionState
 }

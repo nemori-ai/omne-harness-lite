@@ -3,6 +3,8 @@ import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identit
 import { compareInteger, type LogEntry } from '@omne-harness-lite/session-log'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import { inspectToolJournalEntry, type InspectedToolJournalEntry } from './journal-codec.ts'
+import { environmentToolOf } from './environment-tool.ts'
+import type { ExecutionTerminal } from './tool-execution.ts'
 import type { ToolJournalPayload } from './tool-journal.ts'
 
 type RecordOf<K extends ToolJournalPayload['kind']> = InspectedToolJournalEntry & {
@@ -11,6 +13,7 @@ type RecordOf<K extends ToolJournalPayload['kind']> = InspectedToolJournalEntry 
 export interface ToolJournalHistory {
   readonly intent: RecordOf<'execution_intended'>
   started?: RecordOf<'execution_started'>
+  environment?: RecordOf<'execution_environment_adopted'>
   waiting?: RecordOf<'execution_waiting'>
   readonly answers: Map<number, RecordOf<'execution_answered'>>
   readonly contextReads: RecordOf<'execution_context_read'>[]
@@ -31,37 +34,31 @@ class InvalidHistory extends Error {}
 function check(condition: unknown): asserts condition {
   if (!condition) throw new InvalidHistory()
 }
-function apply(state: ToolJournalHistory, record: InspectedToolJournalEntry): void {
-  const value = record.value,
-    live = state.terminal === undefined
-  check(
-    record.entry.run === state.intent.entry.run &&
-      record.entry.attempt !== undefined &&
-      state.intent.entry.attempt !== undefined &&
-      compareInteger(record.entry.attempt, state.intent.entry.attempt) === 0,
+function environmentRequired(state: ToolJournalHistory): boolean {
+  return state.intent.value.selected?.definition.settings?.targetEnvironment !== undefined
+}
+function authorTerminal(value: ExecutionTerminal): boolean {
+  return (
+    value.outcome === 'completed' ||
+    value.outcome === 'no_answer' ||
+    (value.outcome === 'failed' &&
+      ['business_failure', 'implementation_error', 'result_rejected'].includes(value.code))
   )
+}
+function applyResources(
+  state: ToolJournalHistory,
+  record: RecordOf<'resource_planned' | 'resource_permitted' | 'physical_stop_observed'>,
+): void {
+  const value = record.value
   switch (value.kind) {
-    case 'execution_intended':
-      throw new InvalidHistory()
-    case 'execution_started':
-      check(live && state.started === undefined && state.intent.value.selected !== undefined)
-      state.started = { ...record, value }
-      break
-    case 'execution_context_read':
-      check(live && value.readIndex === state.contextReads.length + 1)
-      state.contextReads.push({ ...record, value })
-      break
     case 'resource_planned':
-      check(live && !state.resources.has(value.resource.key))
+      check(!state.terminal && !state.resources.has(value.resource.key))
       state.resources.set(value.resource.key, { planned: { ...record, value }, observations: [] })
       break
     case 'resource_permitted': {
       const resource = state.resources.get(value.key)
       check(
-        live &&
-          state.started !== undefined &&
-          resource !== undefined &&
-          resource.permitted === undefined,
+        !state.terminal && state.started && state.environment && resource && !resource.permitted,
       )
       resource.permitted = { ...record, value }
       break
@@ -72,60 +69,126 @@ function apply(state: ToolJournalHistory, record: InspectedToolJournalEntry): vo
       resource.observations.push({ ...record, value })
       break
     }
-    case 'execution_waiting':
-      check(
-        live &&
-          state.started !== undefined &&
-          state.waiting === undefined &&
-          value.waitIndex === state.waitIndex + 1,
-      )
-      state.waitIndex = value.waitIndex
-      state.waiting = { ...record, value }
+  }
+}
+function applyWait(
+  state: ToolJournalHistory,
+  record: RecordOf<'execution_waiting' | 'execution_answered'>,
+): void {
+  const value = record.value
+  check(state.terminal === undefined)
+  if (value.kind === 'execution_waiting') {
+    check(state.started && state.waiting === undefined && value.waitIndex === state.waitIndex + 1)
+    check(!environmentRequired(state) || state.environment !== undefined)
+    state.waitIndex = value.waitIndex
+    state.waiting = { ...record, value }
+  } else {
+    check(state.waiting?.value.waitIndex === value.waitIndex && !state.answers.has(value.waitIndex))
+    state.answers.set(value.waitIndex, { ...record, value })
+    delete state.waiting
+  }
+}
+function applyDelivery(
+  state: ToolJournalHistory,
+  record: RecordOf<'delivery_ready' | 'delivery_confirmed'>,
+): void {
+  const value = record.value
+  if (value.kind === 'delivery_ready') {
+    check(
+      state.terminal &&
+        state.ready === undefined &&
+        value.result.outcome === state.terminal.value.terminal.outcome,
+    )
+    if (value.basis.kind === 'recovered_without_after_action')
+      check(value.basis.pass === state.terminal.value.delivery.pass)
+    state.ready = { ...record, value }
+  } else {
+    check(state.ready && state.confirmed === undefined)
+    // Message review may rewrite the projection. Its provenance belongs to the common-prefix owner.
+    if (value.message.type === 'tool')
+      check(value.message.blocks[0].outcome === state.ready.value.result.outcome)
+    state.confirmed = { ...record, value }
+  }
+}
+function applyTerminal(state: ToolJournalHistory, record: RecordOf<'execution_ended'>): void {
+  const value = record.value
+  check(state.terminal === undefined)
+  if (value.terminal.outcome === 'no_answer')
+    check(state.waiting?.value.waitIndex === value.terminal.waitIndex)
+  if (authorTerminal(value.terminal)) {
+    check(state.started !== undefined)
+    check(!environmentRequired(state) || state.environment !== undefined)
+  }
+  state.terminal = record
+  delete state.waiting
+}
+function applyLifecycle(
+  state: ToolJournalHistory,
+  record: RecordOf<
+    | 'execution_started'
+    | 'execution_context_read'
+    | 'execution_environment_adopted'
+    | 'execution_ended'
+  >,
+): void {
+  const value = record.value
+  check(state.terminal === undefined)
+  switch (value.kind) {
+    case 'execution_started':
+      check(state.started === undefined && state.intent.value.selected !== undefined)
+      state.started = { ...record, value }
       break
-    case 'execution_answered':
-      check(
-        live &&
-          state.waiting?.value.waitIndex === value.waitIndex &&
-          !state.answers.has(value.waitIndex),
-      )
-      state.answers.set(value.waitIndex, { ...record, value })
-      delete state.waiting
+    case 'execution_context_read':
+      check(value.readIndex === state.contextReads.length + 1)
+      state.contextReads.push({ ...record, value })
       break
+    case 'execution_environment_adopted': {
+      const selected = state.intent.value.selected
+      check(
+        state.started && state.environment === undefined && selected && environmentRequired(state),
+      )
+      const tool = environmentToolOf(selected)
+      check(
+        value.adoption.placement.tool.name === tool.name &&
+          value.adoption.placement.tool.definition === tool.definition,
+      )
+      state.environment = { ...record, value }
+      break
+    }
     case 'execution_ended':
-      check(
-        live &&
-          (value.terminal.outcome !== 'no_answer' ||
-            state.waiting?.value.waitIndex === value.terminal.waitIndex),
-      )
-      if (
-        value.terminal.outcome === 'completed' ||
-        (value.terminal.outcome === 'failed' &&
-          ['business_failure', 'implementation_error', 'result_rejected'].includes(
-            value.terminal.code,
-          ))
-      )
-        check(state.started !== undefined)
-      state.terminal = { ...record, value }
-      delete state.waiting
+      applyTerminal(state, { ...record, value })
+      break
+  }
+}
+function sameOrigin(state: ToolJournalHistory, record: InspectedToolJournalEntry): boolean {
+  return (
+    record.entry.run === state.intent.entry.run &&
+    record.entry.attempt !== undefined &&
+    state.intent.entry.attempt !== undefined &&
+    compareInteger(record.entry.attempt, state.intent.entry.attempt) === 0
+  )
+}
+function apply(state: ToolJournalHistory, record: InspectedToolJournalEntry): void {
+  check(sameOrigin(state, record))
+  const value = record.value
+  switch (value.kind) {
+    case 'execution_intended':
+      throw new InvalidHistory()
+    case 'resource_planned':
+    case 'resource_permitted':
+    case 'physical_stop_observed':
+      applyResources(state, { ...record, value })
+      break
+    case 'execution_waiting':
+    case 'execution_answered':
+      applyWait(state, { ...record, value })
       break
     case 'delivery_ready':
-      check(
-        state.terminal !== undefined &&
-          state.ready === undefined &&
-          value.result.outcome === state.terminal.value.terminal.outcome,
-      )
-      if (value.basis.kind === 'recovered_without_after_action')
-        check(value.basis.pass === state.terminal.value.delivery.pass)
-      state.ready = { ...record, value }
-      break
     case 'delivery_confirmed':
-      check(state.ready !== undefined && state.confirmed === undefined)
-      if (value.message.type === 'tool')
-        // before_persist_message may rewrite the message projection. Its provenance belongs
-        // to the common-prefix owner; the tool domain preserves call and terminal outcome.
-        check(value.message.blocks[0].outcome === state.ready.value.result.outcome)
-      state.confirmed = { ...record, value }
+      applyDelivery(state, { ...record, value })
       break
+    default:
+      applyLifecycle(state, { ...record, value })
   }
 }
 

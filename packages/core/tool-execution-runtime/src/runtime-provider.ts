@@ -6,6 +6,7 @@ import type { SessionAccessOperations } from '@omne-harness-lite/session-tenancy
 import type { RuntimeContextOperations } from '@omne-harness-lite/runtime-context'
 import type {
   EnvironmentProviderRegistrations,
+  ExecutionEnvironmentOperations,
   RecoveryAccess,
 } from '@omne-harness-lite/execution-environments'
 import type {
@@ -59,7 +60,8 @@ export interface ToolRuntimeDependencies extends ToolRuntimeBootstrap {
   readonly admission: () => ToolAdmissionOperations | undefined
   readonly implementations: ToolImplementationOperations
   readonly context: Pick<RuntimeContextOperations, 'bind'>
-  readonly environments: Pick<EnvironmentProviderRegistrations, 'recover'>
+  readonly environments: Pick<EnvironmentProviderRegistrations, 'recover'> &
+    Pick<ExecutionEnvironmentOperations, 'resolvePlacement' | 'acquire'>
   readonly results: ToolResultStorageOperations
   readonly runnerHost: RunnerServiceHost
   readonly invoke: InvokeTool

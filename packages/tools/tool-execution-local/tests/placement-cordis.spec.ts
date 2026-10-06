@@ -7,14 +7,25 @@ import type {
   EnvironmentPlacement,
   EnvironmentPlacementSource,
 } from '@omne-harness-lite/execution-environments'
-import { toolEnvironmentPlacement } from '../src/cordis.ts'
+import { toolEnvironmentPlacement, managedToolEnvironmentPlacement } from '../src/cordis.ts'
+import { createAssemblyLifetime } from '@omne-harness-lite/assembly-lifecycle'
+import { AssemblyLifetimeService } from '@omne-harness-lite/assembly-lifecycle/cordis'
 import { description, placementFixture, scope } from './placement-fixture.ts'
 
 async function fixture(
   selection: { kind: 'unique' } | { kind: 'reference'; reference: typeof description.reference },
+  managed = false,
 ) {
   const root = new Context(),
     h = placementFixture()
+  const lifetime = createAssemblyLifetime(['placement'], () => {})
+  lifetime.tryClaim()
+  const port = lifetime.port('placement')
+  class Lifetime extends AssemblyLifetimeService {
+    isCurrent = port.isCurrent.bind(port)
+    register = port.register.bind(port)
+    retainClose = port.retainClose.bind(port)
+  }
   let registered: EnvironmentPlacementSource | undefined
   class Inputs extends CurrentEvaluationInputsService {
     read = h.inputs
@@ -68,13 +79,18 @@ async function fixture(
       new Inputs(ctx)
       new Tools(ctx)
       new Environments(ctx)
+      if (managed) new Lifetime(ctx)
     },
   })
-  const contributor = await root.plugin(toolEnvironmentPlacement, {
-    name: 'tools',
-    factoryPermission: 'always-allow',
-    selection,
-  })
+  const contributor = await root.plugin(
+    managed ? managedToolEnvironmentPlacement : toolEnvironmentPlacement,
+    {
+      name: 'tools',
+      factoryPermission: 'always-allow',
+      selection,
+    },
+  )
+  await expect.poll(() => registered).toBeDefined()
   if (!registered) throw new Error('placement contributor did not register')
   const source = registered
   const placement: EnvironmentPlacement = {
@@ -90,8 +106,10 @@ async function fixture(
     source,
     placement,
     contributor,
+    lifetime,
     registered: () => registered,
     async close() {
+      if (managed) await lifetime.close()
       await contributor.dispose()
       await providers.dispose()
       await root.fiber.dispose()
@@ -159,4 +177,44 @@ test('explicit reference selection cannot return a reference outside the matched
   } finally {
     await h.close()
   }
+})
+
+test('managed placement contributes under the original assembly row and withdraws when that row closes', async () => {
+  const h = await fixture({ kind: 'unique' }, true)
+  try {
+    expect(await h.source.select(h.placement, [description])).toEqual({
+      kind: 'selected',
+      reference: description.reference,
+    })
+    expect(h.registered()).toBe(h.source)
+    const report = await h.lifetime.close()
+    expect(report.complete).toBe(true)
+    expect(report.rows).toEqual([{ id: 'placement', result: { kind: 'closed' } }])
+    expect(h.registered()).toBeUndefined()
+  } finally {
+    await h.close()
+  }
+})
+test('managed placement describes the same required public ports and contributes no service key', () => {
+  expect(
+    managedToolEnvironmentPlacement.describeAssembly({
+      name: 'tools',
+      factoryPermission: 'never-allow',
+      selection: { kind: 'unique' },
+    }),
+  ).toEqual({
+    provides: [],
+    requires: ['currentEvaluationInputs', 'toolRuntimeRegistry', 'executionEnvironments'],
+    optional: [],
+    dynamicProvides: [],
+    dynamicRequires: [],
+    claims: [],
+  })
+  expect(() =>
+    managedToolEnvironmentPlacement.describeAssembly({
+      name: 'tools',
+      factoryPermission: 'auto',
+      selection: { kind: 'unique' },
+    }),
+  ).toThrow()
 })

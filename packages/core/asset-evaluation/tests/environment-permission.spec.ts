@@ -151,5 +151,28 @@ test.each([
   { toolEnvironmentPermission: 'always-allow', extra: true },
 ])('malformed explicit options reject evaluation (%j)', supplied => {
   // Exercise the runtime boundary with external malformed data, not a legal typed option.
-  expect(evaluate(input(), supplied as EvaluationOptions)).toHaveProperty('invalidInput')
+  expect(evaluate(input(), supplied as EvaluationOptions)).toEqual({
+    invalidInput: { diagnostics: [{ condition: 'C1', message: 'invalid EvaluationOptions' }] },
+  })
+})
+
+test('a legal pure tool stays applicable without inventing an environment permission', () => {
+  const base = input()
+  const { settings: _settings, ...pure } = tool
+  const captured = copyJsonValue(pure)
+  if ('failed' in captured) throw new Error('fixture must be ordinary data')
+  const result = evaluate(
+    {
+      ...base,
+      definitions: base.definitions.map(value =>
+        value.id === 'ast_value'
+          ? definition('ast_value', shell, { category: 'tool', definition: captured.ok })
+          : value,
+      ),
+    },
+    { toolEnvironmentPermission: 'always-allow' },
+  )
+  if (!('ok' in result)) throw new Error('legal pure tool rejected')
+  expect(result.ok.assets.some(value => value.asset === 'ast_value')).toBe(true)
+  expect(result.ok.values.some(value => value.item === 'executionEnvironment')).toBe(false)
 })

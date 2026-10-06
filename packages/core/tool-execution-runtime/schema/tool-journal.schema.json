@@ -357,6 +357,28 @@
               "$ref": "#/$defs/Ref"
             },
             "kind": {
+              "const": "execution_environment_adopted"
+            },
+            "adoption": {}
+          },
+          "required": [
+            "revision",
+            "ref",
+            "kind",
+            "adoption"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "const": 1
+            },
+            "ref": {
+              "$ref": "#/$defs/Ref"
+            },
+            "kind": {
               "const": "execution_context_read"
             },
             "readIndex": {

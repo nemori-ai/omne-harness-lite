@@ -33,7 +33,6 @@ const Config = ToolEnvironmentPlacementConfig.extend({
       .strict(),
   ]),
 }).strict()
-const requires = [CURRENT_EVALUATION_INPUTS, TOOL_RUNTIME_REGISTRY, EXECUTION_ENVIRONMENTS]
 
 /** Configuration is data. The static binding implements the explicit selection policy. */
 function register(ctx: Context, config: z.infer<typeof Config>) {
@@ -62,7 +61,7 @@ function register(ctx: Context, config: z.infer<typeof Config>) {
 export const toolEnvironmentPlacement = definePlugin({
   name: 'tool-environment-placement',
   Config,
-  inject: requires,
+  inject: [CURRENT_EVALUATION_INPUTS, TOOL_RUNTIME_REGISTRY, EXECUTION_ENVIRONMENTS],
   apply(ctx, config) {
     register(ctx, config)
   },
@@ -72,7 +71,12 @@ export const managedToolEnvironmentPlacement = Object.assign(
   definePlugin({
     name: 'tool-environment-placement-managed',
     Config,
-    inject: [...requires, ASSEMBLY_LIFETIME_SERVICE],
+    inject: [
+      CURRENT_EVALUATION_INPUTS,
+      TOOL_RUNTIME_REGISTRY,
+      EXECUTION_ENVIRONMENTS,
+      ASSEMBLY_LIFETIME_SERVICE,
+    ],
     apply(ctx, config) {
       let withdraw: (() => Promise<void>) | undefined
       startAssemblyWork(
@@ -92,7 +96,7 @@ export const managedToolEnvironmentPlacement = Object.assign(
       Config.parse(value)
       return {
         provides: [],
-        requires,
+        requires: [CURRENT_EVALUATION_INPUTS, TOOL_RUNTIME_REGISTRY, EXECUTION_ENVIRONMENTS],
         optional: [],
         dynamicProvides: [],
         dynamicRequires: [],

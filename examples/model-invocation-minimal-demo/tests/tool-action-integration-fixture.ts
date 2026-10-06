@@ -43,6 +43,7 @@ import {
   origin,
   scope,
   toolCall,
+  type FixtureTool,
 } from './tool-driver-history-fixture.ts'
 import { actionManifest } from './tool-action-manifest-fixture.ts'
 import { runtimeContextLocal } from '@omne-harness-lite/runtime-context-local/cordis'
@@ -52,6 +53,7 @@ import {
   runtimeRegistry,
   implementationRegistry,
   toolExecutionLocal,
+  toolEnvironmentPlacement,
 } from '@omne-harness-lite/tool-execution-local/cordis'
 import { TOOL_IMPLEMENTATIONS } from '@omne-harness-lite/tool-execution-runtime/cordis'
 import type { ToolExecutor } from '@omne-harness-lite/tool-execution-runtime'
@@ -60,6 +62,8 @@ import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import { tool } from './tool-driver-history-fixture.ts'
 import { createToolMaintenanceRunner } from '../src/tool-maintenance-runner.ts'
 import type { Context } from '@deepseek-ai/cordis'
+import type { EnvironmentProvider } from '@omne-harness-lite/execution-environments'
+import { toolEnvironmentInputs } from './tool-environment-input-fixture.ts'
 
 /** Actual Cordis providers and persistence. The model reply, external extension handles and login standing are controlled. */
 export async function actionIntegrationFixture(
@@ -73,15 +77,24 @@ export async function actionIntegrationFixture(
     readonly beforeRuntime?: (fixture: Awaited<ReturnType<typeof historyFixture>>) => Promise<void>
     readonly installRuntime?: boolean
     readonly ownedScopes?: readonly SessionScope[]
+    readonly adoptedTool?: FixtureTool
+    readonly environment?: {
+      readonly tool: FixtureTool
+      readonly providers: readonly EnvironmentProvider[]
+    }
   } = {},
 ) {
-  const f = await historyFixture(options.calls, options.permission),
+  const selectedTool = options.environment?.tool ?? options.adoptedTool ?? tool
+  const f = await historyFixture(options.calls, options.permission, selectedTool),
     directory = await mkdtemp(join(tmpdir(), 'omne-action-manifest-'))
   const manifest = await actionManifest(
     directory,
     options.pieces ?? [officialPiece()],
     options.ownedScopes ?? [scope],
   )
+  const environmentInputs = options.environment
+    ? await toolEnvironmentInputs(directory, selectedTool, manifest.sessionTenancy)
+    : undefined
   const actor = {
     tenant: scope.tenant,
     account: unwrap(parseOpaqueIdentifier('history-user', 'AccountId')),
@@ -127,6 +140,7 @@ export async function actionIntegrationFixture(
       'tool.stop',
       'context.read',
       'result.read',
+      ...(options.environment ? (['environment.describe', 'environment.acquire'] as const) : []),
     ])
     const authority = { scope, coordinator, access: coordinator, policy }
     const owner = await createAuthorizedLogOwner({
@@ -191,6 +205,9 @@ export async function actionIntegrationFixture(
         { name: 'toolActionHistory', value: toolActionHistory },
         { name: 'sessionLogOwner', value: owner.operations },
         { name: 'clock', value: { now: () => unwrap(instantFromRfc3339(at)) } },
+        ...(environmentInputs
+          ? [{ name: 'currentEvaluationInputs', value: environmentInputs.reader }]
+          : []),
         {
           name: 'resourceRecoveryAuthority',
           value: {
@@ -213,6 +230,29 @@ export async function actionIntegrationFixture(
               { plugin: implementationRegistry, config: {} },
               { plugin: runtimeContextLocal, config: {} },
               { plugin: environmentRegistry, config: {} },
+              ...(options.environment
+                ? [
+                    {
+                      plugin: toolEnvironmentPlacement,
+                      config: {
+                        name: 'environment-fixture',
+                        factoryPermission: 'always-allow',
+                        selection: { kind: 'unique' },
+                      },
+                    },
+                    {
+                      plugin: {
+                        name: 'fixture-environment-contributions',
+                        inject: ['executionEnvironments'],
+                        apply(ctx: Context) {
+                          for (const provider of options.environment!.providers)
+                            ctx.executionEnvironments.registerProvider(provider)
+                        },
+                      },
+                      config: {},
+                    },
+                  ]
+                : []),
               {
                 plugin: toolResultFiles,
                 config: { directory: join(directory, 'results'), storage: 'integration-results' },
@@ -223,8 +263,8 @@ export async function actionIntegrationFixture(
                   inject: [TOOL_IMPLEMENTATIONS],
                   apply(ctx: Context) {
                     ctx.toolImplementations.register({
-                      ...tool,
-                      definition: tool.definition as ToolDefinition,
+                      ...selectedTool,
+                      definition: selectedTool.definition,
                       executor: options.executor!,
                     })
                   },
@@ -318,6 +358,7 @@ export async function actionIntegrationFixture(
   current = await start()
   return {
     f,
+    environmentInputs,
     get current() {
       return current
     },
@@ -332,6 +373,7 @@ export async function actionIntegrationFixture(
     async close() {
       await current.close()
       await manifest.close()
+      await environmentInputs?.close()
       await f.close()
       await rm(directory, { recursive: true, force: true })
     },
