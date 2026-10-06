@@ -1,6 +1,11 @@
 import { Context } from '@deepseek-ai/cordis'
 import { expect, test } from 'vitest'
-import { AssemblyWorkStopped, createAssemblyLifetime, type OwnedWork } from '../src/index.ts'
+import {
+  AssemblyWorkStopped,
+  createAssemblyLifetime,
+  type OwnedWork,
+  type RetainedCloseControl,
+} from '../src/index.ts'
 import { AssemblyLifetimeService, startAssemblyWork } from '../src/cordis.ts'
 
 test.each(['cancel', 'participant-failure'] as const)(
@@ -17,6 +22,7 @@ test.each(['cancel', 'participant-failure'] as const)(
     const ctx = new Context()
     class Port extends AssemblyLifetimeService {
       isCurrent = () => lifetime.isCurrent()
+      retainClose = (control: RetainedCloseControl) => lifetime.port('row').retainClose(control)
       register = (work: OwnedWork) => {
         ready = work.ready
         return lifetime.port('row').register(work)

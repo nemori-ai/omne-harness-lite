@@ -12,7 +12,7 @@ function allowed(path: string): boolean {
     owner(path) ||
     /^packages\/assets\/evaluation-input-store\/tests\/.+\.(?:ts|mjs)$/u.test(path) ||
     path === 'packages/model/model-request-runtime-local/tests/session-selection-fixture.ts' ||
-    path === 'packages/agent-loop/loop-extension-runner/tests/runner-chain-support.ts' ||
+    path === 'packages/agent-loop/loop-extension-runner-local/tests/runner-chain-support.ts' ||
     path === 'examples/model-invocation-minimal-demo/src/bootstrap.ts' ||
     /^examples\/model-invocation-minimal-demo\/tests\/.+\.ts$/u.test(path)
   )

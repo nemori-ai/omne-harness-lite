@@ -10,7 +10,7 @@ import {
   decodeModelLogKey,
   inspectModelLogEntry,
   prepareModelLogEntry,
-} from './log-codec.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import { displayList, effectiveModel, legalTargets } from './selection.ts'
 import { captureSelectionJson } from './selection-capture.ts'
 import {

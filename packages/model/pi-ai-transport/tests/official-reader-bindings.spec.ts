@@ -31,9 +31,9 @@ import {
   createGlm53InputMeter,
   createZaiCommercialInputMeter,
   createOfficialProfileContent,
-  type ModelDefinition,
-  type InputMeter,
 } from '../src/index.ts'
+import { type ModelDefinition } from '@omne-harness-lite/model-request-runtime'
+import { type InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { planRequest } from '../src/plan.ts'
 import { usageScope } from '../src/usage-scope.ts'
 import { input, message } from './support.ts'

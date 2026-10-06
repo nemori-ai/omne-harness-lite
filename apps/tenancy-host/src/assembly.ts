@@ -31,10 +31,12 @@ export function createHostAssembly(ids: readonly string[]) {
     tryClaim: () => lifetime.tryClaim(),
     isCurrent: () => lifetime.isCurrent(),
     close: () => lifetime.close(),
+    closeControl: id => lifetime.closeControl(id),
     port(id) {
       const port = lifetime.port(id)
       return {
         isCurrent: () => port.isCurrent(),
+        retainClose: control => port.retainClose(control),
         register(work: OwnedWork) {
           let accepted = false
           void work.ready.catch(error => {

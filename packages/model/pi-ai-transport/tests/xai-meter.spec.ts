@@ -11,7 +11,8 @@ import {
   type JsonObject,
 } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime-local'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import {
   createOfficialProfileContent,
   createPiAiTransport,
@@ -20,7 +21,7 @@ import { createXaiInputMeter } from '../src/input-meters/xai.ts'
 import { createXaiHistoryCandidateInputMeter } from '../src/input-meters/xai-candidate.ts'
 import { object } from '../src/json.ts'
 import { xaiDefinitions } from '../src/official-models/xai.ts'
-import type { ModelDefinition } from '../src/definitions.ts'
+import type { ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import { certificate, content, finish, fixture, judgedMessage, policy } from './support.ts'
 
 interface Golden {

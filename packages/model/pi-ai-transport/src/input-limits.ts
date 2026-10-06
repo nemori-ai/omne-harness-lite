@@ -1,11 +1,12 @@
+import type { FinalInputEvidence } from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { JsonNumber, JsonObject, JsonValue } from '@omne-harness-lite/content-blocks'
 import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
 import type {
   InputLimitMetric,
   InputLimitRejection,
-  TokenMargin,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
+import type { TokenMargin } from '@omne-harness-lite/model-request-runtime'
 import { object } from './json.ts'
 import {
   meterMatches,
@@ -13,11 +14,13 @@ import {
   admissionTokens,
   tokenMarginValid,
   tokenMeasurementValid,
+} from './input-meter.ts'
+import {
   type InputMeter,
   type FullMeterInput,
   type TokenMeasurement,
-} from './input-meter.ts'
-import type { ModelDefinition } from './definitions.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 
 const metrics = ['maxInputTokens', 'maxRequestBytes', 'maxImageBytes', 'maxImages'] as const
 type Metric = (typeof metrics)[number]
@@ -121,17 +124,6 @@ function imageMeasurements(body: JsonObject): {
     }
   }
   return { sizes, count, unreadable }
-}
-
-export interface FinalInputEvidence {
-  readonly meterRevision: string
-  readonly meterEvidence: string
-  readonly inputTokens: TokenMeasurement
-  readonly tokenMargin: TokenMargin
-  readonly admissionTokens?: JsonNumber
-  readonly requestBytes: number
-  readonly imageBytes: readonly number[]
-  readonly images: number
 }
 
 /** Final bytes and media are measured from precisely the body sent by http.ts. */

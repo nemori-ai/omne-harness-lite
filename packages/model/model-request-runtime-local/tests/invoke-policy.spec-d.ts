@@ -1,13 +1,13 @@
 import { expectTypeOf, test } from 'vitest'
 import type { RawHeaders, Failure } from '@omne-harness-lite/model-response'
+import type { CredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
 import type {
-  CredentialRedactionConfig,
   InvocationPolicy,
   ModelInvocationResult,
   SendResult,
   StreamEnd,
   TransportFailure,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 test('D095 explicit complete configuration and one MR5 header handoff', () => {
   expectTypeOf<InvocationPolicy['credentialRedaction']>().toEqualTypeOf<CredentialRedactionConfig>()
   expectTypeOf<InvocationPolicy>().not.toHaveProperty('redact')

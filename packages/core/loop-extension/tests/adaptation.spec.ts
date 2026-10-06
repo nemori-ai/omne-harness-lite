@@ -1,3 +1,4 @@
+import { assertLoopSchemaTransition } from './schema-transition.ts'
 import { readFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
@@ -34,14 +35,15 @@ function retry(modelCallId = 'mc_01') {
     at,
   }
 }
-it('LC6 public Schema is exact; all 43 definitions compile; retained resources keep own ids', () => {
+it('LC6 public Schema changes only AR-2; all 43 definitions compile; retained resources keep own ids', () => {
   const source = readFileSync(
     new URL(
       '../../../../.meta_harness/design/spec/data/loop-extension/v6/loop-extension.schema.json',
       import.meta.url,
     ),
   )
-  expect(readFileSync(new URL('../schema/loop-extension.schema.json', import.meta.url))).toEqual(
+  assertLoopSchemaTransition(
+    readFileSync(new URL('../schema/loop-extension.schema.json', import.meta.url)),
     source,
   )
   expect(SCHEMA_DEF_NAMES).toHaveLength(43)

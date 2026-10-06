@@ -12,7 +12,7 @@ import {
 } from '@omne-harness-lite/call-accounts'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { judgeMessage, type LoggedMessage } from '@omne-harness-lite/messages'
-import { checkAppendInput, type LogEntry } from '@omne-harness-lite/session-log-jsonl'
+import { checkAppendInput, type LogEntry } from '@omne-harness-lite/session-log'
 import {
   encodeModelLogKey,
   inspectModelLogEntry,
@@ -21,7 +21,7 @@ import {
   type ModelLogSettlementCurrent,
   type ModelLogSettlementAnchors,
   type SettlementMembersResult,
-} from './log-codec.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementLogBinding,
   SettlementRegistration,

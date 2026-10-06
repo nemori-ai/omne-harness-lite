@@ -11,11 +11,7 @@ export type ReadCredentialBindingIn = (
   tenant: TenantId,
 ) => Promise<CredentialBindingRead>
 export type BoundReplicaRead = { readonly body: Uint8Array } | { readonly absent: true }
-export type ReadBoundReplicaIn = (
-  unit: StorageUnit,
-  tenant: TenantId,
-  expectedRef: CredentialRef,
-) => Promise<BoundReplicaRead>
+import type { ReadBoundReplicaIn } from '@omne-harness-lite/model-profile-directory'
 export interface StoreBoundReplicaInput {
   readonly loginState: LoginStateId
   readonly tenant: TenantId

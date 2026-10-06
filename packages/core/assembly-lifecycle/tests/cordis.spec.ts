@@ -1,6 +1,11 @@
 import { Context } from '@deepseek-ai/cordis'
 import { expect, test } from 'vitest'
-import { createAssemblyLifetime, type AssemblyLifetimePort, type OwnedWork } from '../src/index.ts'
+import {
+  createAssemblyLifetime,
+  type AssemblyLifetimePort,
+  type OwnedWork,
+  type RetainedCloseControl,
+} from '../src/index.ts'
 import { AssemblyLifetimeService, startAssemblyWork } from '../src/cordis.ts'
 
 class PortService extends AssemblyLifetimeService {
@@ -12,6 +17,7 @@ class PortService extends AssemblyLifetimeService {
   }
   isCurrent = () => this.port.isCurrent()
   register = (work: OwnedWork) => this.port.register(work)
+  retainClose = (control: RetainedCloseControl) => this.port.retainClose(control)
 }
 
 declare module '@deepseek-ai/cordis' {
@@ -34,6 +40,7 @@ test('managed setup remains owned after its active fiber is withdrawn', async ()
   const provider = await ctx.plugin(inner => {
     new PortService(inner, {
       isCurrent: () => port.isCurrent(),
+      retainClose: control => port.retainClose(control),
       register(work) {
         readiness = work.ready
         return port.register(work)

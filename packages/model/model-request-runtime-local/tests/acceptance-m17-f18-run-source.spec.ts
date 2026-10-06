@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { LosslessNumber, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import type { SessionRef } from '@omne-harness-lite/messages'
-import type { OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type { OwnedLogEntry } from '@omne-harness-lite/session-log'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { createModelFailureSource } from '../src/failure-subject.ts'
-import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
 import {
   interpretRunAtPrefix,

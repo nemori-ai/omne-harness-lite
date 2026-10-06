@@ -1,13 +1,12 @@
+import type { SessionLogService } from '@omne-harness-lite/session-log/cordis'
 import { expectTypeOf } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import {
   checkAppendInput,
-  openJsonlSessionLog,
-  type JsonlSessionLog,
   type AppendCondition,
   type SessionLog,
-  type SessionRef,
-} from '../src/index.ts'
+} from '@omne-harness-lite/session-log'
+import { openJsonlSessionLog, type JsonlSessionLog, type SessionRef } from '../src/index.ts'
 import '../src/plugin.ts'
 
 expectTypeOf(openJsonlSessionLog).returns.toEqualTypeOf<Promise<JsonlSessionLog>>()
@@ -22,7 +21,8 @@ expectTypeOf<AppendCondition>().toEqualTypeOf<
 declare const service: SessionLog
 declare const context: Context
 declare const session: SessionRef
-expectTypeOf(context.get('sessionLog')).toEqualTypeOf<SessionLog | undefined>()
+expectTypeOf(context.get('sessionLog')).toEqualTypeOf<SessionLogService | undefined>()
+expectTypeOf<SessionLogService>().toExtend<SessionLog>()
 // @ts-expect-error close belongs to the owner closure, not the three-operation service.
 service.close()
 // @ts-expect-error condition is mandatory; there is no three-argument compatibility path.

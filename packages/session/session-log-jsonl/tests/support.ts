@@ -4,14 +4,8 @@ import { createHash, randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import physicalProcess from 'node:process'
 import { isOk, parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
-import type {
-  AppendFence,
-  AppendCondition,
-  LogEntryInput,
-  SessionRef,
-  TenantId,
-  ProcessOwnership,
-} from '../src/index.ts'
+import type { AppendFence, AppendCondition, LogEntryInput } from '@omne-harness-lite/session-log'
+import type { SessionRef, TenantId, ProcessOwnership } from '../src/index.ts'
 import { fileIo, type FileIo, type LogFile } from '../src/file-io.ts'
 
 const knownProcesses = new Map<string, { exited: boolean }>()

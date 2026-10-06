@@ -14,7 +14,7 @@ import type {
   RuntimeConstruction,
   ModelRuntimeService,
 } from '../src/service-types.ts'
-import type { PlannedSemantics } from '../src/types.ts'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import { noWaitScheduler, policy as settlementPolicy } from './settlement-fixture.ts'

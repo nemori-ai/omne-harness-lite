@@ -20,7 +20,7 @@ import { publishModelCallContent } from '../src/reference-publish.ts'
 import { createModelCallFacts } from '../src/reference-facts.ts'
 import { OwnedReadTracker } from '../src/service-control.ts'
 import type { SettlementOwner, SettlementTask } from '../src/settlement-types.ts'
-import type { AppendResult } from '@omne-harness-lite/session-log-jsonl'
+import type { AppendResult } from '@omne-harness-lite/session-log'
 import {
   createModelCallContentStore,
   modelCallContentMigrations,

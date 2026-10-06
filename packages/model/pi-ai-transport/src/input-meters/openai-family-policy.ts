@@ -6,7 +6,7 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import type { ReasoningEffort } from '@omne-harness-lite/model-profile'
 import type { CountingBasis } from '@omne-harness-lite/model-response'
-import type { InputMeter } from '../input-meter.ts'
+import type { InputMeter } from '@omne-harness-lite/model-request-runtime'
 import type { OutputGroupSource, OutputHistoryPolicy } from './output-history.ts'
 import type { OriginalBasisApplies } from '../meter-transform.ts'
 import type { ImageRule } from './openai-images.ts'

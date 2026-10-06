@@ -8,7 +8,7 @@ const entry = '@omne-harness-lite/evaluation-input-store/registry-inputs'
 const implementation = 'packages/assets/evaluation-input-store/src/registry-inputs.ts'
 function allowed(path: string): boolean {
   return (
-    /^packages\/tools\/asset-registry\/(?:src|tests)\/.+\.ts$/u.test(path) ||
+    /^packages\/tools\/asset-registry-local\/(?:src|tests)\/.+\.ts$/u.test(path) ||
     /^packages\/assets\/evaluation-input-store\/tests\/.+\.spec(?:-d)?\.ts$/u.test(path) ||
     path === 'examples/model-invocation-minimal-demo/src/bootstrap.ts' ||
     /^examples\/model-invocation-minimal-demo\/tests\/.+\.ts$/u.test(path)

@@ -1,9 +1,9 @@
 import type { EffectiveAssembly } from '@omne-harness-lite/asset-evaluation'
-import type { CurrentEvaluationInputs } from '@omne-harness-lite/evaluation-input-store'
+import type { CurrentEvaluationInputs } from '@omne-harness-lite/asset-evaluation'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { RouteName } from '@omne-harness-lite/model-profile'
 import type { ModelCatalogRead } from '@omne-harness-lite/model-profile-directory'
-import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy-table'
+import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 import type { SettlementPrefix } from './settlement-prefix.ts'
 import type { SettlementLogBinding, SettlementOwner } from './settlement-types.ts'
 import type {

@@ -14,6 +14,7 @@ export interface DemoSupervisorOptions {
   readonly keyFile?: string
   readonly multiplier: string
   readonly reserveTokens: string
+  readonly tools?: boolean
   readonly maxOutputTokens: number
   readonly retirementWaitMilliseconds: number
   readonly maxPacketBytes: number
@@ -316,6 +317,7 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
       multiplier: options.multiplier,
       reserveTokens: options.reserveTokens,
       maxOutputTokens: options.maxOutputTokens,
+      tools: options.tools ?? false,
       retirementWaitMilliseconds: options.retirementWaitMilliseconds,
       covered: covered === true,
       ...(options.keyFile === undefined ? {} : { keyFile: options.keyFile }),

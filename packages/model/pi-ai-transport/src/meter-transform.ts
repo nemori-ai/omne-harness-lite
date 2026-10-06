@@ -1,6 +1,6 @@
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import { validate, type CountingBasis } from '@omne-harness-lite/model-response'
-import type { InputMeter } from './input-meter.ts'
+import type { InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { canonicalProjection, INPUT_PROJECTION_REVISION } from './projection.ts'
 import { object } from './json.ts'
 

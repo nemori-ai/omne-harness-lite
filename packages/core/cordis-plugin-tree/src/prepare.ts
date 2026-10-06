@@ -65,11 +65,25 @@ function keys(value: unknown): readonly string[] {
   return Object.freeze(result)
 }
 function declaration(value: unknown): AssemblyDeclaration {
-  const item = record(syncResult(value), ['provides', 'requires', 'optional', 'claims'])
+  const item = record(syncResult(value), [
+    'provides',
+    'requires',
+    'optional',
+    'dynamicProvides',
+    'dynamicRequires',
+    'claims',
+  ])
   const provides = keys(item.provides),
     requires = keys(item.requires),
-    optional = keys(item.optional)
-  if (provides.includes('assemblyLifetime') || requires.some(key => optional.includes(key)))
+    optional = keys(item.optional),
+    dynamicProvides = keys(item.dynamicProvides),
+    dynamicRequires = keys(item.dynamicRequires)
+  if (
+    [...provides, ...dynamicProvides, ...dynamicRequires].includes('assemblyLifetime') ||
+    provides.some(key => dynamicProvides.includes(key)) ||
+    requires.some(key => optional.includes(key) || dynamicRequires.includes(key)) ||
+    optional.some(key => dynamicRequires.includes(key))
+  )
     throw new TypeError('Invalid declaration')
   const seen = new Map<string, Set<number>>()
   const claims = array(item.claims).map(value => {
@@ -92,7 +106,14 @@ function declaration(value: unknown): AssemblyDeclaration {
       config: captureJson(claim.config),
     })
   })
-  return Object.freeze({ provides, requires, optional, claims: Object.freeze(claims) })
+  return Object.freeze({
+    provides,
+    requires,
+    optional,
+    dynamicProvides,
+    dynamicRequires,
+    claims: Object.freeze(claims),
+  })
 }
 async function prepareRow(
   row: ComposedRow,
@@ -136,23 +157,34 @@ function checkDependencies(
   rows: readonly PreparedRow[],
   externalServices: readonly string[],
 ): void {
-  const owners = new Map<string, number>(externalServices.map(key => [key, -1]))
-  owners.set('assemblyLifetime', -1)
+  const owners = new Map(externalServices.map(key => [key, { index: -1, dynamic: false }]))
+  owners.set('assemblyLifetime', { index: -1, dynamic: false })
   rows.forEach((item, index) => {
-    for (const key of item.declaration.provides) {
-      if (owners.has(key)) failure('duplicate-service', item.row, index)
-      owners.set(key, index)
+    for (const [dynamic, provided] of [
+      [false, item.declaration.provides],
+      [true, item.declaration.dynamicProvides],
+    ] as const) {
+      for (const key of provided) {
+        if (owners.has(key)) failure('duplicate-service', item.row, index)
+        owners.set(key, { index, dynamic })
+      }
     }
   })
   rows.forEach((item, index) => {
-    for (const key of item.declaration.requires) {
-      const owner = owners.get(key)
-      if (owner === undefined) failure('missing-service', item.row, index)
-      if (owner >= index) failure('service-order', item.row, index)
-    }
-    for (const key of item.declaration.optional) {
-      const owner = owners.get(key)
-      if (owner !== undefined && owner >= index) failure('service-order', item.row, index)
+    for (const [dynamic, required] of [
+      [false, item.declaration.requires],
+      [false, item.declaration.optional],
+      [true, item.declaration.dynamicRequires],
+    ] as const) {
+      for (const key of required) {
+        const owner = owners.get(key)
+        if (owner === undefined) {
+          if (item.declaration.optional.includes(key)) continue
+          failure('missing-service', item.row, index)
+        }
+        if (owner.index >= index) failure('service-order', item.row, index)
+        if (owner.dynamic !== dynamic) failure('invalid-declaration', item.row, index)
+      }
     }
   })
 }

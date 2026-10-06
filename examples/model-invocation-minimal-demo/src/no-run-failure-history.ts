@@ -1,7 +1,7 @@
 import type { ModelCallId } from '@omne-harness-lite/call-accounts'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
+import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
 import {
-  decodeModelLogKey,
   interpretCallHistory,
   type CurrentHistoryReaders,
   type SettlementPrefix,

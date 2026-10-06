@@ -6,7 +6,7 @@ import {
   type TenantId,
 } from '@omne-harness-lite/identity-values'
 import { narrow } from '@omne-harness-lite/storage'
-import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log-jsonl'
+import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
 import { interpretCallHistory } from '../src/call-history.ts'

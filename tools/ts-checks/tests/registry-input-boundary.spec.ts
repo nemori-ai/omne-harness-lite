@@ -3,8 +3,8 @@ import { registryInputBoundary } from '../src/rules/registry-input-boundary.ts'
 const entry = '@omne-harness-lite/evaluation-input-store/registry-inputs'
 const named = `import { createRegistryInputReader } from '${entry}'; const reader = createRegistryInputReader(deps);`
 test.each([
-  'packages/tools/asset-registry/src/input.ts',
-  'packages/tools/asset-registry/tests/source.spec.ts',
+  'packages/tools/asset-registry-local/src/input.ts',
+  'packages/tools/asset-registry-local/tests/source.spec.ts',
   'examples/model-invocation-minimal-demo/src/bootstrap.ts',
   'examples/model-invocation-minimal-demo/tests/sources.spec.ts',
   'packages/assets/evaluation-input-store/tests/registry.spec.ts',
@@ -37,14 +37,16 @@ test.each([
   `import { createRegistryInputReader } from '../../../assets/evaluation-input-store/src/registry-inputs.ts';`,
 ])('forwarding or private-path negative %s', text => {
   expect(
-    registryInputBoundary.check([{ path: 'packages/tools/asset-registry/src/input.ts', text }]),
+    registryInputBoundary.check([
+      { path: 'packages/tools/asset-registry-local/src/input.ts', text },
+    ]),
   ).not.toEqual([])
 })
 test('a TS-resolved alias cannot hide access, even at an approved path', () => {
   expect(
     registryInputBoundary.check([
       {
-        path: 'packages/tools/asset-registry/src/input.ts',
+        path: 'packages/tools/asset-registry-local/src/input.ts',
         text: "import { createRegistryInputReader } from 'sourceAlias';",
         resolvedModules: {
           sourceAlias: 'packages/assets/evaluation-input-store/src/registry-inputs.ts',
@@ -57,7 +59,7 @@ test('explicit type imports are permitted to the same trusted consumers', () => 
   expect(
     registryInputBoundary.check([
       {
-        path: 'packages/tools/asset-registry/src/input.ts',
+        path: 'packages/tools/asset-registry-local/src/input.ts',
         text: `import type { RegistryInputResult } from '${entry}'; import { type RegistryInputRequest } from '${entry}';`,
       },
     ]),

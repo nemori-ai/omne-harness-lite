@@ -1,4 +1,4 @@
-import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime-local'
+import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import { judgeContentBlock } from '@omne-harness-lite/content-blocks'
 import { copyInputCalibration } from '@omne-harness-lite/model-response'
@@ -10,10 +10,10 @@ import {
   canonicalProjection,
   INPUT_PROJECTION_REVISION,
   outputBlockDigestAtRevision,
-  type InputProjection,
 } from './projection.ts'
-import type { HistorySelectionSpan } from './input-meter.ts'
-import type { ReplayMeterInput } from './input-meter.ts'
+import { type InputProjection } from '@omne-harness-lite/model-request-runtime'
+import type { HistorySelectionSpan } from '@omne-harness-lite/model-request-runtime'
+import type { ReplayMeterInput } from '@omne-harness-lite/model-request-runtime'
 
 export interface MessageSpan {
   readonly start: number

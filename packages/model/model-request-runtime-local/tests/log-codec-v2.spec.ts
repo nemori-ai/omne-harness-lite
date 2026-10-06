@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import * as codec from '@omne-harness-lite/model-request-runtime-local'
+import * as codec from '@omne-harness-lite/model-request-runtime'
 import {
   anchors,
   batch,

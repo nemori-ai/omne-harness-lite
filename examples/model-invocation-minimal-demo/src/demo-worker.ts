@@ -61,6 +61,7 @@ async function start(message: DemoPacket, body: Readonly<Record<string, unknown>
     body.identity.length < 16 ||
     typeof body.multiplier !== 'string' ||
     typeof body.reserveTokens !== 'string' ||
+    (body.tools !== undefined && typeof body.tools !== 'boolean') ||
     !positiveInteger(body.maxOutputTokens) ||
     !positiveInteger(body.retirementWaitMilliseconds) ||
     typeof body.covered !== 'boolean' ||
@@ -138,6 +139,7 @@ async function start(message: DemoPacket, body: Readonly<Record<string, unknown>
           },
         },
       },
+      body.tools === true,
     )
     const started = send('started', message.id, {
       session: conversation.session,

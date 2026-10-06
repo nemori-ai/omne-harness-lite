@@ -8,6 +8,15 @@ export interface OwnedWork {
   close(): Promise<void>
 }
 
+/** retained does not establish quiescence or release of resources. */
+export type RetainedCloseAttempt = 'closed' | 'retained'
+
+/** Maintenance of the same original close, without starting assembly shutdown. */
+export interface RetainedCloseControl {
+  closeAttempt(): Promise<RetainedCloseAttempt>
+  retryClose(): Promise<RetainedCloseAttempt>
+}
+
 export interface LifetimeRegistration {
   readonly closed: Promise<CloseResult>
   requestStop(): void
@@ -16,6 +25,7 @@ export interface LifetimeRegistration {
 export interface AssemblyLifetimePort {
   isCurrent(): boolean
   register(work: OwnedWork): LifetimeRegistration
+  retainClose(control: RetainedCloseControl): void
 }
 
 export interface AssemblyCloseReport {
@@ -36,5 +46,6 @@ export interface AssemblyLifetime {
   tryClaim(): boolean
   isCurrent(): boolean
   port(id: string): AssemblyLifetimePort
+  closeControl(id: string): RetainedCloseControl | undefined
   close(): Promise<AssemblyCloseReport>
 }

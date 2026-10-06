@@ -9,34 +9,27 @@ import {
   assemblyManifestMigrations,
   createAssemblyManifestStore,
 } from '@omne-harness-lite/assembly-manifest-store'
-import {
-  createAssetRegistry,
-  type AssetRegistry,
-  type AssetRegistryService,
-} from '@omne-harness-lite/asset-registry'
+import { createAssetRegistry, type AssetRegistry } from '@omne-harness-lite/asset-registry-local'
+import { type AssetRegistryService } from '@omne-harness-lite/asset-registry'
 import { readOpaqueJson, toOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import {
-  CURRENT_EVALUATION_INPUTS_SERVICE,
-  type CurrentEvaluationInputs,
-} from '@omne-harness-lite/evaluation-input-store'
+import { CURRENT_EVALUATION_INPUTS as CURRENT_EVALUATION_INPUTS_SERVICE } from '@omne-harness-lite/asset-evaluation/cordis'
+import { type CurrentEvaluationInputs } from '@omne-harness-lite/asset-evaluation'
 import {
   createRegistryHistoryReader,
   type RegistryHistoryReader,
 } from '@omne-harness-lite/evaluation-input-store/registry-history'
 import { judgeMessage, type LoggedMessage } from '@omne-harness-lite/messages'
-import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime-local'
+import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
 import {
   anthropicDefinitions,
   createAnthropicInputMeter,
   createOfficialProfileContent,
-  type InputMeter,
 } from '@omne-harness-lite/pi-ai-transport'
+import { type InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { MEMBERSHIPS_SERVICE } from '@omne-harness-lite/organization-governance/cordis'
 import { type MembershipsService } from '@omne-harness-lite/organization-governance'
-import {
-  SESSION_TENANCY_SERVICE,
-  type SessionTenancyService,
-} from '@omne-harness-lite/session-tenancy-table'
+import { SESSION_TENANCY as SESSION_TENANCY_SERVICE } from '@omne-harness-lite/session-tenancy/cordis'
+import { type SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import { modelName, type ToolDefinition } from '@omne-harness-lite/tool-definition'
 import { createAcceptanceApplication } from '../src/index.ts'
@@ -274,11 +267,9 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
         diagnostics = await activateModelFixture(app, who, config)
         if (storage === undefined || context === undefined)
           throw new Error('provider capture missing')
-        const currentInputs: CurrentEvaluationInputs = context.get(
-          CURRENT_EVALUATION_INPUTS_SERVICE,
-        )
-        const tenancy: SessionTenancyService = context.get(SESSION_TENANCY_SERVICE)
-        const memberships: MembershipsService | undefined = context.get(MEMBERSHIPS_SERVICE)
+        const currentInputs = context.get(CURRENT_EVALUATION_INPUTS_SERVICE)
+        const tenancy = context.get(SESSION_TENANCY_SERVICE)
+        const memberships = context.get(MEMBERSHIPS_SERVICE)
         if (memberships === undefined) throw Error('membership service not ready in fixture')
         const clock = context.get('clock')
         if (

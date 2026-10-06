@@ -5,8 +5,11 @@ import type {
 import type { AttemptId, RunId } from '@omne-harness-lite/call-accounts'
 import { judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
-import type { AppendFence, AppendResult } from '@omne-harness-lite/session-log-jsonl'
-import { captureModelLogValue, prepareModelLogEntry } from './log-codec.ts'
+import type { AppendFence, AppendResult } from '@omne-harness-lite/session-log'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import { settlementAppendReceipt } from './settlement-receipt.ts'
 import { settlementGenerationCurrent } from './settlement-prefix.ts'
 import { readSettlementPrefix } from './settlement-prefix.ts'
@@ -28,7 +31,7 @@ import type {
   SessionRuntimeBinding,
 } from './service-types.ts'
 import type { DispatchGuardPhase } from './dispatch-guard.ts'
-import type { PlannedSemantics } from './types.ts'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementLogBinding,
   SettlementOwner,

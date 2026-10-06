@@ -7,3 +7,8 @@ export type { NonConnectorBodyContracts } from '@omne-harness-lite/asset-model'
 export { evaluate, selectEvaluationRootSource } from './evaluate.ts'
 export { readWorkspaceCarrier } from './reader.ts'
 export { judgeEffectiveAssembly } from './result.ts'
+
+export * from './current-inputs.ts'
+export * from './registry-inputs.ts'
+export * from './registry-history.ts'
+export * from './assembly-inputs.ts'

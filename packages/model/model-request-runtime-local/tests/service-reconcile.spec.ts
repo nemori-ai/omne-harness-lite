@@ -6,9 +6,13 @@ import {
   judgePendingModelResponse,
   type PendingModelResponse,
 } from '@omne-harness-lite/model-response'
-import { createSettlementCoordinator } from '@omne-harness-lite/model-request-runtime-local'
-import { captureModelLogValue, modelLogJsonEqual, prepareModelLogEntry } from '../src/log-codec.ts'
-import { inspectCurrentModelLogPrefix } from '../src/log-codec-settlement.ts'
+import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
+import {
+  captureModelLogValue,
+  modelLogJsonEqual,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
+import { inspectCurrentModelLogPrefix } from '@omne-harness-lite/model-request-runtime'
 import {
   createRuntimeReconcile,
   createRuntimeSettleReply,
@@ -23,16 +27,16 @@ import type {
   RuntimeRecoveryScope,
 } from '../src/service-types.ts'
 import type { AnchoredInvocationHandle } from '../src/anchored-invocation-types.ts'
-import type { PlannedSemantics } from '../src/types.ts'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type {
   DiagnosticAssociation,
   DiagnosticCollector,
-  DiagnosticEvent,
   DiagnosticScope,
 } from '../src/diagnostics-types.ts'
+import type { DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import type { SessionLog } from '@omne-harness-lite/session-log-jsonl'
+import type { SessionLog } from '@omne-harness-lite/session-log'
 import {
   dispatched as dispatchedFixture,
   opened as openedFixture,

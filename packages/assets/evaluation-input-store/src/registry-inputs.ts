@@ -1,12 +1,11 @@
 import {
-  evaluate,
-  selectEvaluationRootSource,
-  type EvaluationResult,
-  type EvaluationRootSource,
-  type NonConnectorEvaluationInput,
+  type RegistryInputRequest,
+  type RegistryInputStage,
+  type RegistryInputResult,
 } from '@omne-harness-lite/asset-evaluation'
+import { evaluate, selectEvaluationRootSource } from '@omne-harness-lite/asset-evaluation'
 import { BodyProviderUnavailableError } from '@omne-harness-lite/asset-model'
-import { parseTenantId, tenantIdEquals, type TenantId } from '@omne-harness-lite/identity-values'
+import { parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { validate as validateMessage } from '@omne-harness-lite/messages'
 import { narrow, StorageUnavailable } from '@omne-harness-lite/storage'
 import {
@@ -22,36 +21,6 @@ import {
   SourceUnavailable,
 } from './data.ts'
 import type { InputSourceDependencies, SourceDb } from './types.ts'
-
-export interface RegistryInputRequest {
-  readonly session: string
-  readonly tenant: TenantId
-  readonly purpose: 'reload' | 'refresh_availability'
-  /** Caller must verify the same-session original complete fill before calling this restricted component. */
-  readonly rootSource: EvaluationRootSource
-}
-export type RegistryInputStage =
-  | 'stopped'
-  | 'session_tenancy'
-  | 'current_membership'
-  | 'recipe'
-  | 'source'
-  | 'fixed_body'
-  | 'body_provider'
-  | 'evaluation_input'
-  | 'unsupported_source'
-  | 'storage'
-export type RegistryInputResult =
-  | { readonly input: NonConnectorEvaluationInput }
-  | {
-      readonly failure: 'rootSourceMismatch'
-      readonly input: NonConnectorEvaluationInput
-      readonly selected: EvaluationRootSource
-      readonly rejection: Extract<EvaluationResult, { readonly invalidInput: unknown }>
-      readonly sourceRevision: string
-    }
-  | { readonly failure: 'invalidInput' }
-  | { readonly failure: 'unavailable'; readonly stage: RegistryInputStage }
 export interface RegistryInputReader {
   read(request: unknown): Promise<RegistryInputResult>
   close(): Promise<void>

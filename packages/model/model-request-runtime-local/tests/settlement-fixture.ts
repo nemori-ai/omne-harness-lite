@@ -5,13 +5,10 @@ import { DatabaseSync } from 'node:sqlite'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
 import { writeJsonLossless, type JsonNumber } from '@omne-harness-lite/content-blocks'
+import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { type SessionLog, type AppendResult } from '@omne-harness-lite/session-log'
+import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
 import {
-  openJsonlSessionLog,
-  type SessionLog,
-  type AppendResult,
-} from '@omne-harness-lite/session-log-jsonl'
-import {
-  createSettlementCoordinator,
   type SettlementOwner,
   type SettlementTask,
   type SettlementTaskKind,
@@ -20,7 +17,7 @@ import {
   type SettlementScheduler,
   type SettlementLogBinding,
   type SettlementRequest,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '../src/settlement-types.ts'
 import { anchors, session, tenant } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 

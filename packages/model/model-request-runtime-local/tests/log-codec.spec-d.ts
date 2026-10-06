@@ -7,8 +7,8 @@ import {
   type ModelLogKey,
   type PrepareModelLogEntryInput,
   type SettlementMembersResult,
-} from '@omne-harness-lite/model-request-runtime-local'
-import type { OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
+} from '@omne-harness-lite/model-request-runtime'
+import type { OwnedLogEntry } from '@omne-harness-lite/session-log'
 
 test('D088 public root types keep explicit identity, reception and write/read boundaries', () => {
   expectTypeOf(encodeModelLogKey).parameter(0).toEqualTypeOf<ModelLogKey>()

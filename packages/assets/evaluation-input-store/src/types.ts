@@ -1,3 +1,4 @@
+import { type CurrentEvaluationInputs } from '@omne-harness-lite/asset-evaluation'
 import type {
   AssetDefinition,
   AssetHolding,
@@ -5,15 +6,12 @@ import type {
   HoldingScope,
   WorkspaceKey,
 } from '@omne-harness-lite/asset-model'
-import type {
-  SessionAssignment,
-  NonConnectorEvaluationInput,
-} from '@omne-harness-lite/asset-evaluation'
+import type { SessionAssignment } from '@omne-harness-lite/asset-evaluation'
 import type { JsonObject } from '@omne-harness-lite/content-blocks'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import type { MembershipsService } from '@omne-harness-lite/organization-governance'
-import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy-table'
+import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 
 export interface InputSourceDependencies {
   readonly storage: AtomicStorage
@@ -46,12 +44,6 @@ export interface SessionRecipeInput {
   readonly rootDefinition: CapabilityId
   readonly sessionAssignments?: readonly SessionAssignment[]
   readonly workspace?: WorkspaceKey
-}
-export type CurrentInputResult =
-  | { readonly input: NonConnectorEvaluationInput }
-  | { readonly failure: 'invalidInput' | 'unavailable' }
-export interface CurrentEvaluationInputs {
-  read(session: unknown, tenant: unknown): Promise<CurrentInputResult>
 }
 export interface CurrentInputReader extends CurrentEvaluationInputs {
   close(): Promise<void>

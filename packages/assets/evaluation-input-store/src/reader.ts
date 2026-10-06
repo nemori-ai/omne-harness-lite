@@ -10,12 +10,8 @@ import {
   recipeFromRow,
   SourceUnavailable,
 } from './data.ts'
-import type {
-  CurrentInputReader,
-  CurrentInputResult,
-  InputSourceDependencies,
-  SourceDb,
-} from './types.ts'
+import type { CurrentInputReader, InputSourceDependencies, SourceDb } from './types.ts'
+import type { CurrentInputResult } from '@omne-harness-lite/asset-evaluation'
 
 export function createEvaluationInputReader(
   dependencies: InputSourceDependencies,

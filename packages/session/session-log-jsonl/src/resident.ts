@@ -16,11 +16,12 @@ import {
   type FileIo,
   type LogFile,
 } from './file-io.ts'
-import { addInteger, compareInteger } from './numbers.ts'
+import { addInteger, compareInteger } from '@omne-harness-lite/session-log'
 import type { ProcessOwnership, SessionLogDiagnostic } from './policy.ts'
 import { enterRecovery, replaceRecovery } from './recovery.ts'
 import { emptyLogState, foldCommit } from './state.ts'
-import type { AppendRequest, AppendSuccess, LogEntry, LogState, SessionRef } from './types.ts'
+import type { AppendRequest, AppendSuccess, LogEntry } from '@omne-harness-lite/session-log'
+import type { LogState, SessionRef } from './types.ts'
 
 export interface Resident {
   readonly session: SessionRef

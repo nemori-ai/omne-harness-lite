@@ -8,10 +8,10 @@ import type {
   ModelReplicaOptions,
   StoreBoundReplicaInput,
   StoreBoundReplicaResult,
-  ReadBoundReplicaIn,
   ReadCredentialBindingIn,
   BoundReplicaRead,
 } from '../src/model-replica.ts'
+import type { ReadBoundReplicaIn } from '@omne-harness-lite/model-profile-directory'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 

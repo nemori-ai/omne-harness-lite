@@ -41,7 +41,6 @@
     "@omne-harness-lite/cordis-plugin-tree": "workspace:*"
   },
   "devDependencies": {
-    "@omne-harness-lite/clock-lease": "workspace:*",
     "@omne-harness-lite/storage-sql": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",

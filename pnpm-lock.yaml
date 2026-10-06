@@ -261,9 +261,12 @@ importers:
       '@omne-harness-lite/account-registration-sequential':
         specifier: workspace:*
         version: link:../../packages/tenancy/account-registration-sequential
-      '@omne-harness-lite/agent-definition':
+      '@omne-harness-lite/assembly-lifecycle':
         specifier: workspace:*
-        version: link:../../packages/core/agent-definition
+        version: link:../../packages/core/assembly-lifecycle
+      '@omne-harness-lite/assembly-manifest':
+        specifier: workspace:*
+        version: link:../../packages/core/assembly-manifest
       '@omne-harness-lite/assembly-manifest-store':
         specifier: workspace:*
         version: link:../../packages/assets/assembly-manifest-store
@@ -275,7 +278,10 @@ importers:
         version: link:../../packages/core/asset-model
       '@omne-harness-lite/asset-registry':
         specifier: workspace:*
-        version: link:../../packages/tools/asset-registry
+        version: link:../../packages/core/asset-registry
+      '@omne-harness-lite/asset-registry-local':
+        specifier: workspace:*
+        version: link:../../packages/tools/asset-registry-local
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../../packages/core/call-accounts
@@ -285,6 +291,9 @@ importers:
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../../packages/core/content-blocks
+      '@omne-harness-lite/cordis-plugin-tree':
+        specifier: workspace:*
+        version: link:../../packages/core/cordis-plugin-tree
       '@omne-harness-lite/credential-custodian-local':
         specifier: workspace:*
         version: link:../../packages/infra/credential-custodian-local
@@ -294,6 +303,12 @@ importers:
       '@omne-harness-lite/evaluation-input-store':
         specifier: workspace:*
         version: link:../../packages/assets/evaluation-input-store
+      '@omne-harness-lite/execution-environments':
+        specifier: workspace:*
+        version: link:../../packages/core/execution-environments
+      '@omne-harness-lite/execution-environments-host':
+        specifier: workspace:*
+        version: link:../../packages/infra/execution-environments-host
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../packages/core/identity-values
@@ -305,7 +320,10 @@ importers:
         version: link:../../packages/core/loop-extension
       '@omne-harness-lite/loop-extension-runner':
         specifier: workspace:*
-        version: link:../../packages/agent-loop/loop-extension-runner
+        version: link:../../packages/core/loop-extension-runner
+      '@omne-harness-lite/loop-extension-runner-local':
+        specifier: workspace:*
+        version: link:../../packages/agent-loop/loop-extension-runner-local
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../../packages/core/messages
@@ -314,7 +332,13 @@ importers:
         version: link:../../packages/core/model-profile
       '@omne-harness-lite/model-profile-directory':
         specifier: workspace:*
-        version: link:../../packages/model/model-profile-directory
+        version: link:../../packages/core/model-profile-directory
+      '@omne-harness-lite/model-profile-directory-local':
+        specifier: workspace:*
+        version: link:../../packages/model/model-profile-directory-local
+      '@omne-harness-lite/model-request-runtime':
+        specifier: workspace:*
+        version: link:../../packages/core/model-request-runtime
       '@omne-harness-lite/model-request-runtime-local':
         specifier: workspace:*
         version: link:../../packages/model/model-request-runtime-local
@@ -333,9 +357,21 @@ importers:
       '@omne-harness-lite/pi-ai-transport':
         specifier: workspace:*
         version: link:../../packages/model/pi-ai-transport
+      '@omne-harness-lite/runtime-context':
+        specifier: workspace:*
+        version: link:../../packages/core/runtime-context
+      '@omne-harness-lite/runtime-context-local':
+        specifier: workspace:*
+        version: link:../../packages/session/runtime-context-local
+      '@omne-harness-lite/session-log':
+        specifier: workspace:*
+        version: link:../../packages/core/session-log
       '@omne-harness-lite/session-log-jsonl':
         specifier: workspace:*
         version: link:../../packages/session/session-log-jsonl
+      '@omne-harness-lite/session-tenancy':
+        specifier: workspace:*
+        version: link:../../packages/core/session-tenancy
       '@omne-harness-lite/session-tenancy-table':
         specifier: workspace:*
         version: link:../../packages/session/session-tenancy-table
@@ -348,19 +384,37 @@ importers:
       '@omne-harness-lite/stream-assembly':
         specifier: workspace:*
         version: link:../../packages/core/stream-assembly
+      '@omne-harness-lite/tool-admission':
+        specifier: workspace:*
+        version: link:../../packages/core/tool-admission
+      '@omne-harness-lite/tool-admission-local':
+        specifier: workspace:*
+        version: link:../../packages/tools/tool-admission-local
       '@omne-harness-lite/tool-definition':
         specifier: workspace:*
         version: link:../../packages/core/tool-definition
+      '@omne-harness-lite/tool-execution-local':
+        specifier: workspace:*
+        version: link:../../packages/tools/tool-execution-local
+      '@omne-harness-lite/tool-execution-runtime':
+        specifier: workspace:*
+        version: link:../../packages/core/tool-execution-runtime
+      '@omne-harness-lite/tool-result-files':
+        specifier: workspace:*
+        version: link:../../packages/tools/tool-result-files
       sharp:
         specifier: 'catalog:'
         version: 0.35.3(@types/node@24.13.6)
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
-      '@omne-harness-lite/model-request-runtime':
-        specifier: workspace:*
-        version: link:../../packages/core/model-request-runtime
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -368,20 +422,20 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
-  packages/agent-loop/loop-extension-runner:
+  packages/agent-loop/loop-extension-runner-local:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
-      '@omne-harness-lite/assembly-manifest-store':
+      '@omne-harness-lite/assembly-manifest':
         specifier: workspace:*
-        version: link:../../assets/assembly-manifest-store
+        version: link:../../core/assembly-manifest
       '@omne-harness-lite/asset-evaluation':
         specifier: workspace:*
         version: link:../../core/asset-evaluation
-      '@omne-harness-lite/asset-model':
+      '@omne-harness-lite/asset-registry':
         specifier: workspace:*
-        version: link:../../core/asset-model
+        version: link:../../core/asset-registry
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../../core/call-accounts
@@ -400,18 +454,24 @@ importers:
       '@omne-harness-lite/loop-extension':
         specifier: workspace:*
         version: link:../../core/loop-extension
+      '@omne-harness-lite/loop-extension-runner':
+        specifier: workspace:*
+        version: link:../../core/loop-extension-runner
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../../core/messages
-      '@omne-harness-lite/model-request-runtime-local':
+      '@omne-harness-lite/model-request-runtime':
         specifier: workspace:*
-        version: link:../../model/model-request-runtime-local
-      '@omne-harness-lite/session-log-jsonl':
+        version: link:../../core/model-request-runtime
+      '@omne-harness-lite/session-log':
         specifier: workspace:*
-        version: link:../../session/session-log-jsonl
-      '@omne-harness-lite/session-tenancy-table':
+        version: link:../../core/session-log
+      '@omne-harness-lite/session-tenancy':
         specifier: workspace:*
-        version: link:../../session/session-tenancy-table
+        version: link:../../core/session-tenancy
+      '@omne-harness-lite/tool-admission':
+        specifier: workspace:*
+        version: link:../../core/tool-admission
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -428,9 +488,12 @@ importers:
       '@omne-harness-lite/account-registration-sequential':
         specifier: workspace:*
         version: link:../../tenancy/account-registration-sequential
-      '@omne-harness-lite/asset-registry':
+      '@omne-harness-lite/assembly-manifest-store':
         specifier: workspace:*
-        version: link:../../tools/asset-registry
+        version: link:../../assets/assembly-manifest-store
+      '@omne-harness-lite/asset-registry-local':
+        specifier: workspace:*
+        version: link:../../tools/asset-registry-local
       '@omne-harness-lite/clock-lease':
         specifier: workspace:*
         version: link:../../infra/clock-lease
@@ -443,6 +506,12 @@ importers:
       '@omne-harness-lite/organization-governance-sql':
         specifier: workspace:*
         version: link:../../tenancy/organization-governance-sql
+      '@omne-harness-lite/session-log-jsonl':
+        specifier: workspace:*
+        version: link:../../session/session-log-jsonl
+      '@omne-harness-lite/session-tenancy-table':
+        specifier: workspace:*
+        version: link:../../session/session-tenancy-table
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
@@ -464,9 +533,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
-      '@omne-harness-lite/asset-evaluation':
+      '@omne-harness-lite/assembly-manifest':
         specifier: workspace:*
-        version: link:../../core/asset-evaluation
+        version: link:../../core/assembly-manifest
       '@omne-harness-lite/asset-model':
         specifier: workspace:*
         version: link:../../core/asset-model
@@ -488,9 +557,6 @@ importers:
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
-      '@omne-harness-lite/tool-definition':
-        specifier: workspace:*
-        version: link:../../core/tool-definition
       kysely:
         specifier: 'catalog:'
         version: 0.29.6
@@ -498,9 +564,15 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
+      '@omne-harness-lite/asset-evaluation':
+        specifier: workspace:*
+        version: link:../../core/asset-evaluation
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../infra/storage-sql
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../../core/tool-definition
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -519,9 +591,9 @@ importers:
       '@omne-harness-lite/agent-definition':
         specifier: workspace:*
         version: link:../../core/agent-definition
-      '@omne-harness-lite/assembly-manifest-store':
+      '@omne-harness-lite/assembly-manifest':
         specifier: workspace:*
-        version: link:../assembly-manifest-store
+        version: link:../../core/assembly-manifest
       '@omne-harness-lite/asset-evaluation':
         specifier: workspace:*
         version: link:../../core/asset-evaluation
@@ -549,9 +621,9 @@ importers:
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
         version: link:../../core/organization-governance
-      '@omne-harness-lite/session-tenancy-table':
+      '@omne-harness-lite/session-tenancy':
         specifier: workspace:*
-        version: link:../../session/session-tenancy-table
+        version: link:../../core/session-tenancy
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
@@ -574,6 +646,9 @@ importers:
       '@omne-harness-lite/account-registration-sequential':
         specifier: workspace:*
         version: link:../../tenancy/account-registration-sequential
+      '@omne-harness-lite/assembly-manifest-store':
+        specifier: workspace:*
+        version: link:../assembly-manifest-store
       '@omne-harness-lite/clock-lease':
         specifier: workspace:*
         version: link:../../infra/clock-lease
@@ -583,6 +658,9 @@ importers:
       '@omne-harness-lite/organization-governance-sql':
         specifier: workspace:*
         version: link:../../tenancy/organization-governance-sql
+      '@omne-harness-lite/session-tenancy-table':
+        specifier: workspace:*
+        version: link:../../session/session-tenancy-table
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../infra/storage-sql
@@ -691,9 +769,6 @@ importers:
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../content-blocks
-      '@omne-harness-lite/identity-values':
-        specifier: workspace:*
-        version: link:../identity-values
       '@omne-harness-lite/loop-extension':
         specifier: workspace:*
         version: link:../loop-extension
@@ -701,6 +776,9 @@ importers:
         specifier: 'catalog:'
         version: 8.20.0
     devDependencies:
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -717,6 +795,43 @@ importers:
         specifier: 'catalog:'
         version: 4.0.4
     devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/assembly-manifest:
+    dependencies:
+      '@omne-harness-lite/asset-evaluation':
+        specifier: workspace:*
+        version: link:../asset-evaluation
+      '@omne-harness-lite/asset-model':
+        specifier: workspace:*
+        version: link:../asset-model
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../call-accounts
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../offer-expiry
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../tool-definition
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -750,9 +865,9 @@ importers:
       '@omne-harness-lite/mcp-endpoint':
         specifier: workspace:*
         version: link:../mcp-endpoint
-      '@omne-harness-lite/model-profile':
+      '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
-        version: link:../model-profile
+        version: link:../offer-expiry
       '@omne-harness-lite/skill-package':
         specifier: workspace:*
         version: link:../skill-package
@@ -763,6 +878,9 @@ importers:
         specifier: workspace:*
         version: link:../tool-definition
     devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -795,11 +913,54 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
-  packages/core/call-accounts:
+  packages/core/asset-registry:
     dependencies:
+      '@omne-harness-lite/assembly-manifest':
+        specifier: workspace:*
+        version: link:../assembly-manifest
+      '@omne-harness-lite/asset-evaluation':
+        specifier: workspace:*
+        version: link:../asset-evaluation
       '@omne-harness-lite/asset-model':
         specifier: workspace:*
         version: link:../asset-model
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../call-accounts
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/loop-extension':
+        specifier: workspace:*
+        version: link:../loop-extension
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../offer-expiry
+      '@omne-harness-lite/skill-package':
+        specifier: workspace:*
+        version: link:../skill-package
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../tool-definition
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/call-accounts:
+    dependencies:
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../content-blocks
@@ -813,6 +974,9 @@ importers:
         specifier: 'catalog:'
         version: 8.20.0
     devDependencies:
+      '@omne-harness-lite/asset-model':
+        specifier: workspace:*
+        version: link:../asset-model
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -888,6 +1052,31 @@ importers:
       '@types/validate-npm-package-name':
         specifier: 'catalog:'
         version: 4.0.2
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/execution-environments:
+    dependencies:
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/runtime-context':
+        specifier: workspace:*
+        version: link:../runtime-context
+      '@omne-harness-lite/session-tenancy':
+        specifier: workspace:*
+        version: link:../session-tenancy
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -1042,6 +1231,61 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
+  packages/core/loop-extension-runner:
+    dependencies:
+      '@omne-harness-lite/assembly-manifest':
+        specifier: workspace:*
+        version: link:../assembly-manifest
+      '@omne-harness-lite/asset-evaluation':
+        specifier: workspace:*
+        version: link:../asset-evaluation
+      '@omne-harness-lite/asset-model':
+        specifier: workspace:*
+        version: link:../asset-model
+      '@omne-harness-lite/asset-registry':
+        specifier: workspace:*
+        version: link:../asset-registry
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../call-accounts
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/loop-extension':
+        specifier: workspace:*
+        version: link:../loop-extension
+      '@omne-harness-lite/messages':
+        specifier: workspace:*
+        version: link:../messages
+      '@omne-harness-lite/model-request-runtime':
+        specifier: workspace:*
+        version: link:../model-request-runtime
+      '@omne-harness-lite/session-log':
+        specifier: workspace:*
+        version: link:../session-log
+      '@omne-harness-lite/session-tenancy':
+        specifier: workspace:*
+        version: link:../session-tenancy
+      '@omne-harness-lite/tool-admission':
+        specifier: workspace:*
+        version: link:../tool-admission
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
   packages/core/mcp-endpoint:
     dependencies:
       '@omne-harness-lite/asset-model':
@@ -1129,18 +1373,79 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
+  packages/core/model-profile-directory:
+    dependencies:
+      '@omne-harness-lite/asset-model':
+        specifier: workspace:*
+        version: link:../asset-model
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/model-profile':
+        specifier: workspace:*
+        version: link:../model-profile
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../offer-expiry
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../storage
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
   packages/core/model-request-runtime:
     dependencies:
+      '@omne-harness-lite/arrival-events':
+        specifier: workspace:*
+        version: link:../arrival-events
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../call-accounts
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/messages':
+        specifier: workspace:*
+        version: link:../messages
+      '@omne-harness-lite/model-profile':
+        specifier: workspace:*
+        version: link:../model-profile
+      '@omne-harness-lite/model-response':
+        specifier: workspace:*
+        version: link:../model-response
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../offer-expiry
+      '@omne-harness-lite/session-log':
+        specifier: workspace:*
+        version: link:../session-log
+      '@omne-harness-lite/stream-assembly':
+        specifier: workspace:*
+        version: link:../stream-assembly
       '@omne-harness-lite/tool-definition':
         specifier: workspace:*
         version: link:../tool-definition
     devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1228,6 +1533,84 @@ importers:
         specifier: workspace:*
         version: link:../storage
     devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/runtime-context:
+    dependencies:
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/session-tenancy':
+        specifier: workspace:*
+        version: link:../session-tenancy
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/session-log:
+    dependencies:
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../call-accounts
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/execution-environments':
+        specifier: workspace:*
+        version: link:../execution-environments
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/messages':
+        specifier: workspace:*
+        version: link:../messages
+      '@omne-harness-lite/session-tenancy':
+        specifier: workspace:*
+        version: link:../session-tenancy
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/session-tenancy:
+    dependencies:
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/messages':
+        specifier: workspace:*
+        version: link:../messages
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1335,6 +1718,43 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
+  packages/core/tool-admission:
+    dependencies:
+      '@omne-harness-lite/asset-registry':
+        specifier: workspace:*
+        version: link:../asset-registry
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../call-accounts
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/loop-extension':
+        specifier: workspace:*
+        version: link:../loop-extension
+      '@omne-harness-lite/session-log':
+        specifier: workspace:*
+        version: link:../session-log
+      '@omne-harness-lite/session-tenancy':
+        specifier: workspace:*
+        version: link:../session-tenancy
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../tool-definition
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
   packages/core/tool-definition:
     dependencies:
       '@eslint-community/regexpp':
@@ -1350,9 +1770,76 @@ importers:
         specifier: 'catalog:'
         version: 8.20.0
     devDependencies:
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/tool-execution-runtime:
+    dependencies:
+      '@omne-harness-lite/arrival-events':
+        specifier: workspace:*
+        version: link:../arrival-events
+      '@omne-harness-lite/assembly-lifecycle':
+        specifier: workspace:*
+        version: link:../assembly-lifecycle
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../call-accounts
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/execution-environments':
+        specifier: workspace:*
+        version: link:../execution-environments
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/loop-extension-runner':
+        specifier: workspace:*
+        version: link:../loop-extension-runner
+      '@omne-harness-lite/messages':
+        specifier: workspace:*
+        version: link:../messages
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../offer-expiry
+      '@omne-harness-lite/runtime-context':
+        specifier: workspace:*
+        version: link:../runtime-context
+      '@omne-harness-lite/session-log':
+        specifier: workspace:*
+        version: link:../session-log
+      '@omne-harness-lite/session-tenancy':
+        specifier: workspace:*
+        version: link:../session-tenancy
+      '@omne-harness-lite/stream-assembly':
+        specifier: workspace:*
+        version: link:../stream-assembly
+      '@omne-harness-lite/tool-admission':
+        specifier: workspace:*
+        version: link:../tool-admission
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../tool-definition
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -1552,6 +2039,9 @@ importers:
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values
+      '@omne-harness-lite/model-profile-directory':
+        specifier: workspace:*
+        version: link:../../core/model-profile-directory
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../core/offer-expiry
@@ -1565,6 +2055,46 @@ importers:
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../storage-sql
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/infra/execution-environments-host:
+    dependencies:
+      '@omne-harness-lite/assembly-lifecycle':
+        specifier: workspace:*
+        version: link:../../core/assembly-lifecycle
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../../core/content-blocks
+      '@omne-harness-lite/cordis-plugin-tree':
+        specifier: workspace:*
+        version: link:../../core/cordis-plugin-tree
+      '@omne-harness-lite/execution-environments':
+        specifier: workspace:*
+        version: link:../../core/execution-environments
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../../core/identity-values
+      '@omne-harness-lite/kernel-basis':
+        specifier: workspace:*
+        version: link:../../core/kernel-basis
+      '@omne-harness-lite/session-tenancy':
+        specifier: workspace:*
+        version: link:../../core/session-tenancy
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1615,7 +2145,7 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
-  packages/model/model-profile-directory:
+  packages/model/model-profile-directory-local:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
@@ -1635,6 +2165,9 @@ importers:
       '@omne-harness-lite/model-profile':
         specifier: workspace:*
         version: link:../../core/model-profile
+      '@omne-harness-lite/model-profile-directory':
+        specifier: workspace:*
+        version: link:../../core/model-profile-directory
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../core/offer-expiry
@@ -1686,16 +2219,13 @@ importers:
         version: link:../../core/asset-model
       '@omne-harness-lite/asset-registry':
         specifier: workspace:*
-        version: link:../../tools/asset-registry
+        version: link:../../core/asset-registry
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../../core/call-accounts
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../../core/content-blocks
-      '@omne-harness-lite/evaluation-input-store':
-        specifier: workspace:*
-        version: link:../../assets/evaluation-input-store
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values
@@ -1705,6 +2235,9 @@ importers:
       '@omne-harness-lite/loop-extension':
         specifier: workspace:*
         version: link:../../core/loop-extension
+      '@omne-harness-lite/loop-extension-runner':
+        specifier: workspace:*
+        version: link:../../core/loop-extension-runner
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../../core/messages
@@ -1713,7 +2246,7 @@ importers:
         version: link:../../core/model-profile
       '@omne-harness-lite/model-profile-directory':
         specifier: workspace:*
-        version: link:../model-profile-directory
+        version: link:../../core/model-profile-directory
       '@omne-harness-lite/model-request-runtime':
         specifier: workspace:*
         version: link:../../core/model-request-runtime
@@ -1723,12 +2256,12 @@ importers:
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../core/offer-expiry
-      '@omne-harness-lite/session-log-jsonl':
+      '@omne-harness-lite/session-log':
         specifier: workspace:*
-        version: link:../../session/session-log-jsonl
-      '@omne-harness-lite/session-tenancy-table':
+        version: link:../../core/session-log
+      '@omne-harness-lite/session-tenancy':
         specifier: workspace:*
-        version: link:../../session/session-tenancy-table
+        version: link:../../core/session-tenancy
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
@@ -1754,18 +2287,33 @@ importers:
       '@omne-harness-lite/account-registration-sequential':
         specifier: workspace:*
         version: link:../../tenancy/account-registration-sequential
+      '@omne-harness-lite/asset-registry-local':
+        specifier: workspace:*
+        version: link:../../tools/asset-registry-local
       '@omne-harness-lite/clock-lease':
         specifier: workspace:*
         version: link:../../infra/clock-lease
       '@omne-harness-lite/credential-verification-scrypt':
         specifier: workspace:*
         version: link:../../tenancy/credential-verification-scrypt
+      '@omne-harness-lite/evaluation-input-store':
+        specifier: workspace:*
+        version: link:../../assets/evaluation-input-store
+      '@omne-harness-lite/model-profile-directory-local':
+        specifier: workspace:*
+        version: link:../model-profile-directory-local
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
         version: link:../../core/organization-governance
       '@omne-harness-lite/organization-governance-sql':
         specifier: workspace:*
         version: link:../../tenancy/organization-governance-sql
+      '@omne-harness-lite/session-log-jsonl':
+        specifier: workspace:*
+        version: link:../../session/session-log-jsonl
+      '@omne-harness-lite/session-tenancy-table':
+        specifier: workspace:*
+        version: link:../../session/session-tenancy-table
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../infra/storage-sql
@@ -1808,9 +2356,6 @@ importers:
       '@omne-harness-lite/model-request-runtime':
         specifier: workspace:*
         version: link:../../core/model-request-runtime
-      '@omne-harness-lite/model-request-runtime-local':
-        specifier: workspace:*
-        version: link:../model-request-runtime-local
       '@omne-harness-lite/model-response':
         specifier: workspace:*
         version: link:../../core/model-response
@@ -1833,9 +2378,61 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness-lite/model-request-runtime-local':
+        specifier: workspace:*
+        version: link:../model-request-runtime-local
       '@omne-harness-lite/stream-assembly':
         specifier: workspace:*
         version: link:../../core/stream-assembly
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/session/runtime-context-local:
+    dependencies:
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../../core/call-accounts
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../../core/content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../../core/identity-values
+      '@omne-harness-lite/kernel-basis':
+        specifier: workspace:*
+        version: link:../../core/kernel-basis
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../../core/offer-expiry
+      '@omne-harness-lite/runtime-context':
+        specifier: workspace:*
+        version: link:../../core/runtime-context
+      '@omne-harness-lite/session-log':
+        specifier: workspace:*
+        version: link:../../core/session-log
+      '@omne-harness-lite/session-tenancy':
+        specifier: workspace:*
+        version: link:../../core/session-tenancy
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness-lite/session-log-jsonl':
+        specifier: workspace:*
+        version: link:../session-log-jsonl
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1863,6 +2460,9 @@ importers:
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../../core/messages
+      '@omne-harness-lite/session-log':
+        specifier: workspace:*
+        version: link:../../core/session-log
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -1900,6 +2500,9 @@ importers:
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../../core/messages
+      '@omne-harness-lite/session-tenancy':
+        specifier: workspace:*
+        version: link:../../core/session-tenancy
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
@@ -1937,6 +2540,9 @@ importers:
       '@omne-harness-lite/assembly-lifecycle':
         specifier: workspace:*
         version: link:../../core/assembly-lifecycle
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../../core/content-blocks
       '@omne-harness-lite/cordis-plugin-tree':
         specifier: workspace:*
         version: link:../../core/cordis-plugin-tree
@@ -2004,9 +2610,6 @@ importers:
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
         version: link:../../core/organization-governance
-      '@omne-harness-lite/storage':
-        specifier: workspace:*
-        version: link:../../core/storage
       kysely:
         specifier: 'catalog:'
         version: 0.29.6
@@ -2026,6 +2629,9 @@ importers:
       '@omne-harness-lite/organization-governance-sql':
         specifier: workspace:*
         version: link:../organization-governance-sql
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../core/storage
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../infra/storage-sql
@@ -2059,9 +2665,6 @@ importers:
       '@omne-harness-lite/kernel-basis':
         specifier: workspace:*
         version: link:../../core/kernel-basis
-      '@omne-harness-lite/storage':
-        specifier: workspace:*
-        version: link:../../core/storage
       kysely:
         specifier: 'catalog:'
         version: 0.29.6
@@ -2069,12 +2672,6 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
-      '@omne-harness-lite/clock-lease':
-        specifier: workspace:*
-        version: link:../../infra/clock-lease
-      '@omne-harness-lite/storage-sql':
-        specifier: workspace:*
-        version: link:../../infra/storage-sql
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -2139,9 +2736,6 @@ importers:
       '@omne-harness-lite/account-registration-sequential':
         specifier: workspace:*
         version: link:../account-registration-sequential
-      '@omne-harness-lite/clock-lease':
-        specifier: workspace:*
-        version: link:../../infra/clock-lease
       '@omne-harness-lite/credential-verification-scrypt':
         specifier: workspace:*
         version: link:../credential-verification-scrypt
@@ -2197,9 +2791,6 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
-      '@omne-harness-lite/clock-lease':
-        specifier: workspace:*
-        version: link:../../infra/clock-lease
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../infra/storage-sql
@@ -2213,59 +2804,41 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
-  packages/tools/asset-registry:
+  packages/tools/asset-registry-local:
     dependencies:
-      '@deepseek-ai/cordis':
-        specifier: 'catalog:'
-        version: 4.0.4
-      '@omne-harness-lite/assembly-manifest-store':
+      '@omne-harness-lite/assembly-manifest':
         specifier: workspace:*
-        version: link:../../assets/assembly-manifest-store
+        version: link:../../core/assembly-manifest
       '@omne-harness-lite/asset-evaluation':
         specifier: workspace:*
         version: link:../../core/asset-evaluation
       '@omne-harness-lite/asset-model':
         specifier: workspace:*
         version: link:../../core/asset-model
+      '@omne-harness-lite/asset-registry':
+        specifier: workspace:*
+        version: link:../../core/asset-registry
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../../core/call-accounts
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../../core/content-blocks
-      '@omne-harness-lite/evaluation-input-store':
-        specifier: workspace:*
-        version: link:../../assets/evaluation-input-store
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values
-      '@omne-harness-lite/kernel-basis':
-        specifier: workspace:*
-        version: link:../../core/kernel-basis
-      '@omne-harness-lite/loop-extension':
-        specifier: workspace:*
-        version: link:../../core/loop-extension
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../core/offer-expiry
-      '@omne-harness-lite/session-tenancy-table':
+      '@omne-harness-lite/session-tenancy':
         specifier: workspace:*
-        version: link:../../session/session-tenancy-table
-      '@omne-harness-lite/skill-package':
-        specifier: workspace:*
-        version: link:../../core/skill-package
+        version: link:../../core/session-tenancy
       '@omne-harness-lite/slash-command':
         specifier: workspace:*
         version: link:../../core/slash-command
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
-      '@omne-harness-lite/tool-definition':
-        specifier: workspace:*
-        version: link:../../core/tool-definition
-      zod:
-        specifier: 'catalog:'
-        version: 4.6.5
     devDependencies:
       '@omne-harness-lite/account-identity':
         specifier: workspace:*
@@ -2282,9 +2855,192 @@ importers:
       '@omne-harness-lite/organization-governance-sql':
         specifier: workspace:*
         version: link:../../tenancy/organization-governance-sql
-      '@omne-harness-lite/storage-sql':
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/tools/tool-admission-local:
+    dependencies:
+      '@omne-harness-lite/assembly-lifecycle':
         specifier: workspace:*
-        version: link:../../infra/storage-sql
+        version: link:../../core/assembly-lifecycle
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../../core/call-accounts
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../../core/content-blocks
+      '@omne-harness-lite/cordis-plugin-tree':
+        specifier: workspace:*
+        version: link:../../core/cordis-plugin-tree
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../../core/identity-values
+      '@omne-harness-lite/kernel-basis':
+        specifier: workspace:*
+        version: link:../../core/kernel-basis
+      '@omne-harness-lite/loop-extension':
+        specifier: workspace:*
+        version: link:../../core/loop-extension
+      '@omne-harness-lite/loop-extension-runner':
+        specifier: workspace:*
+        version: link:../../core/loop-extension-runner
+      '@omne-harness-lite/session-log':
+        specifier: workspace:*
+        version: link:../../core/session-log
+      '@omne-harness-lite/session-tenancy':
+        specifier: workspace:*
+        version: link:../../core/session-tenancy
+      '@omne-harness-lite/tool-admission':
+        specifier: workspace:*
+        version: link:../../core/tool-admission
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness-lite/loop-extension-runner-local':
+        specifier: workspace:*
+        version: link:../../agent-loop/loop-extension-runner-local
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/tools/tool-execution-local:
+    dependencies:
+      '@omne-harness-lite/assembly-lifecycle':
+        specifier: workspace:*
+        version: link:../../core/assembly-lifecycle
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../../core/call-accounts
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../../core/content-blocks
+      '@omne-harness-lite/cordis-plugin-tree':
+        specifier: workspace:*
+        version: link:../../core/cordis-plugin-tree
+      '@omne-harness-lite/execution-environments':
+        specifier: workspace:*
+        version: link:../../core/execution-environments
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../../core/identity-values
+      '@omne-harness-lite/kernel-basis':
+        specifier: workspace:*
+        version: link:../../core/kernel-basis
+      '@omne-harness-lite/loop-extension-runner':
+        specifier: workspace:*
+        version: link:../../core/loop-extension-runner
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../../core/offer-expiry
+      '@omne-harness-lite/runtime-context':
+        specifier: workspace:*
+        version: link:../../core/runtime-context
+      '@omne-harness-lite/session-log':
+        specifier: workspace:*
+        version: link:../../core/session-log
+      '@omne-harness-lite/session-tenancy':
+        specifier: workspace:*
+        version: link:../../core/session-tenancy
+      '@omne-harness-lite/stream-assembly':
+        specifier: workspace:*
+        version: link:../../core/stream-assembly
+      '@omne-harness-lite/tool-admission':
+        specifier: workspace:*
+        version: link:../../core/tool-admission
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../../core/tool-definition
+      '@omne-harness-lite/tool-execution-runtime':
+        specifier: workspace:*
+        version: link:../../core/tool-execution-runtime
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness-lite/session-log-jsonl':
+        specifier: workspace:*
+        version: link:../../session/session-log-jsonl
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/tools/tool-result-files:
+    dependencies:
+      '@omne-harness-lite/assembly-lifecycle':
+        specifier: workspace:*
+        version: link:../../core/assembly-lifecycle
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../../core/call-accounts
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../../core/content-blocks
+      '@omne-harness-lite/cordis-plugin-tree':
+        specifier: workspace:*
+        version: link:../../core/cordis-plugin-tree
+      '@omne-harness-lite/execution-environments':
+        specifier: workspace:*
+        version: link:../../core/execution-environments
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../../core/identity-values
+      '@omne-harness-lite/kernel-basis':
+        specifier: workspace:*
+        version: link:../../core/kernel-basis
+      '@omne-harness-lite/session-log':
+        specifier: workspace:*
+        version: link:../../core/session-log
+      '@omne-harness-lite/session-tenancy':
+        specifier: workspace:*
+        version: link:../../core/session-tenancy
+      '@omne-harness-lite/tool-admission':
+        specifier: workspace:*
+        version: link:../../core/tool-admission
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../../core/tool-definition
+      '@omne-harness-lite/tool-execution-runtime':
+        specifier: workspace:*
+        version: link:../../core/tool-execution-runtime
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness-lite/session-log-jsonl':
+        specifier: workspace:*
+        version: link:../../session/session-log-jsonl
+      '@omne-harness-lite/tool-execution-local':
+        specifier: workspace:*
+        version: link:../tool-execution-local
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

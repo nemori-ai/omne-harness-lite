@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
+import { invokeModel } from '../src/invoke.ts'
 import {
-  invokeModel,
   type InvocationInput,
   type PlannedSemantics,
   type PlanFailure,
   type TransportFailure,
   type StreamEnd,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { adapter, content, deferred, policy, request, result } from './invoke-policy-fixture.ts'
 const headers = Object.freeze({ 'x-values': Object.freeze(['b', '', 'b', 'a']), 'x-empty': '' })
 function invoke(

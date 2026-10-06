@@ -1,3 +1,4 @@
+import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import { z } from 'zod'
 import { isOk, loadVerificationKey } from '@omne-harness-lite/identity-values'
 import type { AccountIdentityConfig } from '@omne-harness-lite/account-identity'
@@ -15,7 +16,10 @@ const verificationKeyPem = z
 export const AccountIdentityConfigSchema: z.ZodType<AccountIdentityConfig, unknown> = z
   .object({
     // 键缺席与值为 undefined 同义：契约 S-27「缺席不是启动失败」
-    credentialPolicy: z.unknown().optional(),
+    credentialPolicy: z
+      .unknown()
+      .refine(value => 'ok' in copyJsonValue(value), 'credential policy must be JSON data')
+      .optional(),
     unactivatedRetention: z
       .number()
       .int()

@@ -30,7 +30,7 @@ import {
 import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
 import { authorizedCalibration } from './service-calibration.ts'
 import { createModelFailureSource, readFailureSubject } from './failure-subject.ts'
-import { modelLogJsonEqual } from './log-codec.ts'
+import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import {
   acknowledgedAsTerminal,
   rejectAcknowledgedHistory,
@@ -54,14 +54,11 @@ import type {
 } from './service-types.ts'
 import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
 import type { CredentialScope } from '@omne-harness-lite/model-response'
-import type { PlanInput, InvocationPolicy } from './types.ts'
-import type { PlannedSemantics } from './types.ts'
+import type { PlanInput, InvocationPolicy } from '@omne-harness-lite/model-request-runtime'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { SettlementDiagnostic } from './settlement-types.ts'
-import type {
-  DiagnosticAssociation,
-  DiagnosticEvent,
-  DiagnosticReference,
-} from './diagnostics-types.ts'
+import type { DiagnosticAssociation } from './diagnostics-types.ts'
+import type { DiagnosticEvent, DiagnosticReference } from '@omne-harness-lite/model-request-runtime'
 
 const settlementUnavailableKinds = new Set<string>([
   'settlement.unavailable.dependency',

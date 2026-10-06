@@ -3,20 +3,19 @@
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import {
-  invokeModel,
   type InvocationOutcome,
   type ModelInvocationResult,
   type PlanInput,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { createXaiInputMeter } from '../src/input-meters/xai.ts'
 import { xaiDefinitions } from '../src/official-models/xai.ts'
-import { MODEL_TRANSPORT_SERVICE, createModelPlugin } from '../src/plugin.ts'
-import {
-  createModelTransportService,
-  type AdaptationLease,
-  type RetirementPolicy,
-} from '../src/registry.ts'
+import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
+import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
+import { createModelTransportService } from '../src/registry.ts'
+import { type AdaptationLease } from '@omne-harness-lite/model-request-runtime'
+import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import { createPiAiTransport } from '../src/transport.ts'
 import { appendXaiCloseoutResponse, xaiCloseoutInput } from './fixtures/xai/closeout-scenarios.ts'
 import { certificate, content, finish, fixture, judgedMessage, policy, sse } from './support.ts'
@@ -241,7 +240,7 @@ describe.each(['public', 'service'] as const)('xAI X5 %s entry, identity guard',
           },
         }
         await ctx.plugin(provider)
-        await ctx.plugin(createModelPlugin(definition, meter, retirement), {})
+        await createModelPlugin(ctx, definition, meter, retirement)
         expect(ctx.get(MODEL_TRANSPORT_SERVICE)).toBe(service)
         const acquired = service.acquire(request.snapshot.adaptation, definition.modelId)
         if (!('lease' in acquired)) throw Error('service lease unavailable')

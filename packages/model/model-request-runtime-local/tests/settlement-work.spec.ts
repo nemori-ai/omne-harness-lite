@@ -4,8 +4,11 @@ import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { composeMigrations } from '@omne-harness-lite/storage'
 import { openStorage } from '@omne-harness-lite/storage-sql'
-import type { SessionLog } from '@omne-harness-lite/session-log-jsonl'
-import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
+import type { SessionLog } from '@omne-harness-lite/session-log'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import {
   createModelCallContentStore,
   modelCallContentMigrations,
@@ -14,7 +17,7 @@ import { createAcknowledgementCustody } from '../src/acknowledgement-custody.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createSettlementWork } from '../src/settlement-work.ts'
 import type { ModelCallSettlementWorkStore } from '../src/reference-types.ts'
-import type { PlannedSemantics } from '../src/types.ts'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { AcknowledgementCleanupPolicy } from '../src/service-types.ts'
 import type { SettlementScheduler } from '../src/settlement-types.ts'
 import { anchors, jsonObject, session } from './log-codec-fixture.ts'

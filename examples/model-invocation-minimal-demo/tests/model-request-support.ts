@@ -14,9 +14,9 @@ import {
   createOfficialProfileContent,
   createSharpImageCodec,
   modelImageBalancedV1,
-  type RetirementPolicy,
 } from '@omne-harness-lite/pi-ai-transport'
-import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime-local'
+import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
+import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
 import { createDemoDefaultRetryConfiguration } from '../src/index.ts'
 import type { AcceptanceConfig, AuthenticatedActor, ModelRequestDeployment } from '../src/index.ts'
 import { deployment } from './support.ts'

@@ -15,7 +15,7 @@ import {
   prepareModelLogEntry,
   recognizeMessageValue,
   type ModelLogKey,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import {
   anchors,
   batch,

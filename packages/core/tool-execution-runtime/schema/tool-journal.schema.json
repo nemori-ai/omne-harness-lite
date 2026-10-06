@@ -1,0 +1,657 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:omne:tool-runtime:journal:1",
+  "$defs": {
+    "Ref": {
+      "type": "object",
+      "properties": {
+        "tenant": {},
+        "session": {
+          "type": "string",
+          "minLength": 1
+        },
+        "callId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "tenant",
+        "session",
+        "callId"
+      ],
+      "additionalProperties": false
+    },
+    "Origin": {
+      "type": "object",
+      "properties": {
+        "run": {
+          "type": "string",
+          "minLength": 1
+        },
+        "attempt": {},
+        "assistantMessage": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "run",
+        "attempt",
+        "assistantMessage"
+      ],
+      "additionalProperties": false
+    },
+    "Selected": {
+      "type": "object",
+      "properties": {
+        "capability": {
+          "type": "string",
+          "minLength": 1
+        },
+        "asset": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "definition": {},
+        "adoption": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "capability",
+        "asset",
+        "version",
+        "definition",
+        "adoption"
+      ],
+      "additionalProperties": false
+    },
+    "Wait": {
+      "type": "object",
+      "properties": {
+        "prompt": {},
+        "answerSchema": {},
+        "deadline": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cardId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "prompt",
+        "answerSchema"
+      ],
+      "additionalProperties": false
+    },
+    "Answerer": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "human",
+            "system",
+            "agent"
+          ]
+        },
+        "principal": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "kind",
+        "principal"
+      ],
+      "additionalProperties": false
+    },
+    "Resource": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reference": {}
+      },
+      "required": [
+        "key",
+        "provider",
+        "reference"
+      ],
+      "additionalProperties": false
+    },
+    "Terminal": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "outcome": {
+              "const": "completed"
+            },
+            "result": {}
+          },
+          "required": [
+            "outcome",
+            "result"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "outcome": {
+              "const": "failed"
+            },
+            "code": {
+              "enum": [
+                "business_failure",
+                "implementation_error",
+                "result_rejected",
+                "unparseable",
+                "schema_unsupported",
+                "arguments_invalid",
+                "environment_unavailable",
+                "start_failed",
+                "abnormal_interruption"
+              ]
+            },
+            "result": {}
+          },
+          "required": [
+            "outcome",
+            "code"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "outcome": {
+              "const": "unavailable"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "outcome",
+            "reason"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "outcome": {
+              "const": "interrupted"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "outcome",
+            "reason"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "outcome": {
+              "const": "no_answer"
+            },
+            "waitIndex": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "outcome",
+            "waitIndex"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Delivery": {
+      "type": "object",
+      "properties": {
+        "result": {},
+        "raw": {},
+        "internal": {},
+        "pass": {
+          "type": "string",
+          "minLength": 1
+        },
+        "selectedChain": {}
+      },
+      "required": [
+        "result",
+        "pass",
+        "selectedChain"
+      ],
+      "additionalProperties": false
+    },
+    "Basis": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "conclusions"
+            },
+            "keys": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "kind",
+            "keys"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "recovered_without_after_action"
+            },
+            "pass": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "kind",
+            "pass"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Value": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "const": 1
+            },
+            "ref": {
+              "$ref": "#/$defs/Ref"
+            },
+            "kind": {
+              "const": "execution_intended"
+            },
+            "origin": {
+              "$ref": "#/$defs/Origin"
+            },
+            "selected": {
+              "$ref": "#/$defs/Selected"
+            },
+            "input": {}
+          },
+          "required": [
+            "revision",
+            "ref",
+            "kind",
+            "origin",
+            "input"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "const": 1
+            },
+            "ref": {
+              "$ref": "#/$defs/Ref"
+            },
+            "kind": {
+              "const": "execution_started"
+            },
+            "at": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "revision",
+            "ref",
+            "kind",
+            "at"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "const": 1
+            },
+            "ref": {
+              "$ref": "#/$defs/Ref"
+            },
+            "kind": {
+              "const": "execution_context_read"
+            },
+            "readIndex": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "values": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ContextValue"
+              }
+            }
+          },
+          "required": [
+            "revision",
+            "ref",
+            "kind",
+            "readIndex",
+            "values"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "const": 1
+            },
+            "ref": {
+              "$ref": "#/$defs/Ref"
+            },
+            "kind": {
+              "const": "resource_planned"
+            },
+            "resource": {
+              "$ref": "#/$defs/Resource"
+            }
+          },
+          "required": [
+            "revision",
+            "ref",
+            "kind",
+            "resource"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "const": 1
+            },
+            "ref": {
+              "$ref": "#/$defs/Ref"
+            },
+            "kind": {
+              "const": "resource_permitted"
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "revision",
+            "ref",
+            "kind",
+            "key"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "const": 1
+            },
+            "ref": {
+              "$ref": "#/$defs/Ref"
+            },
+            "kind": {
+              "const": "execution_waiting"
+            },
+            "waitIndex": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "request": {
+              "$ref": "#/$defs/Wait"
+            }
+          },
+          "required": [
+            "revision",
+            "ref",
+            "kind",
+            "waitIndex",
+            "request"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "const": 1
+            },
+            "ref": {
+              "$ref": "#/$defs/Ref"
+            },
+            "kind": {
+              "const": "execution_answered"
+            },
+            "waitIndex": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "answer": {},
+            "by": {
+              "$ref": "#/$defs/Answerer"
+            }
+          },
+          "required": [
+            "revision",
+            "ref",
+            "kind",
+            "waitIndex",
+            "answer",
+            "by"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "const": 1
+            },
+            "ref": {
+              "$ref": "#/$defs/Ref"
+            },
+            "kind": {
+              "const": "execution_ended"
+            },
+            "terminal": {
+              "$ref": "#/$defs/Terminal"
+            },
+            "account": {},
+            "delivery": {
+              "$ref": "#/$defs/Delivery"
+            }
+          },
+          "required": [
+            "revision",
+            "ref",
+            "kind",
+            "terminal",
+            "account",
+            "delivery"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "const": 1
+            },
+            "ref": {
+              "$ref": "#/$defs/Ref"
+            },
+            "kind": {
+              "const": "delivery_ready"
+            },
+            "result": {},
+            "basis": {
+              "$ref": "#/$defs/Basis"
+            }
+          },
+          "required": [
+            "revision",
+            "ref",
+            "kind",
+            "result",
+            "basis"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "const": 1
+            },
+            "ref": {
+              "$ref": "#/$defs/Ref"
+            },
+            "kind": {
+              "const": "delivery_confirmed"
+            },
+            "message": {}
+          },
+          "required": [
+            "revision",
+            "ref",
+            "kind",
+            "message"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "const": 1
+            },
+            "ref": {
+              "$ref": "#/$defs/Ref"
+            },
+            "kind": {
+              "const": "physical_stop_observed"
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "enum": [
+                "confirmed",
+                "unconfirmed"
+              ]
+            },
+            "at": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "revision",
+            "ref",
+            "kind",
+            "key",
+            "status",
+            "at"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Payload": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "const": "tool-runtime/1"
+        },
+        "category": {
+          "const": "execution"
+        },
+        "value": {
+          "$ref": "#/$defs/Value"
+        }
+      },
+      "required": [
+        "format",
+        "category",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "ContextValue": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {},
+        "observedAt": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "key",
+        "revision",
+        "value",
+        "observedAt"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

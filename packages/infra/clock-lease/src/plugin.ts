@@ -19,6 +19,8 @@ function describeAssembly(value: unknown): AssemblyDeclaration {
     provides: [CLOCK_SERVICE],
     requires: [STORAGE_SERVICE],
     optional: [],
+    dynamicProvides: [],
+    dynamicRequires: [],
     claims: [{ name: 'tenancy-host/clock', version: 1, config }],
   }
 }

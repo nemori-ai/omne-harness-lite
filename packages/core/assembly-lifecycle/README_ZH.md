@@ -18,7 +18,8 @@
 | `AssemblyLifetimePort`, `OwnedWork`, `LifetimeRegistration`                             | 行作用域准入与实际完成         |
 | `AssemblyCloseReport`, `CloseResult`                                                    | 包含分类失败的完成结果         |
 | `AssemblyWorkStopped`                                                                   | 停止后启动管理工作时的使用错误 |
-| `./cordis`: `AssemblyLifetimeService`, `ASSEMBLY_LIFETIME_SERVICE`, `startAssemblyWork` | 注入行端口并接入资源工作       |
+| `createRetainedWork`, `RetainedCloseControl`, `RetainedCloseAttempt` | 保有未确认关闭的原责任并显式重试 |
+| `./cordis`: `AssemblyLifetimeService`, `ASSEMBLY_LIFETIME_SERVICE`, `startAssemblyWork`, `startRetainedAssemblyWork` | 注入行端口并登记实际工作 |
 
 ## 示例
 

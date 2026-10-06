@@ -247,9 +247,11 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
       ).toHaveLength(1)
   })
 
-  it('model-response 无现行 core 依赖消费者，登记项存在不冒称已实际消费', () => {
+  it('model-response 的新增 core 消费者只限模型签名闭包', () => {
     expect(
-      Object.values(CORE_PURE_DEPENDENCIES).some(values => values.includes('model-response')),
-    ).toBe(false)
+      Object.entries(CORE_PURE_DEPENDENCIES)
+        .filter(([, values]) => values.includes('model-response'))
+        .map(([name]) => name),
+    ).toEqual(['model-request-runtime'])
   })
 })

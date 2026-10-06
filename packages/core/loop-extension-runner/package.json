@@ -1,0 +1,57 @@
+{
+  "name": "@omne-harness-lite/loop-extension-runner",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist",
+    "SPEC.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@omne-harness-lite/loop-extension": "workspace:*",
+    "@omne-harness-lite/messages": "workspace:*",
+    "@omne-harness-lite/session-log": "workspace:*",
+    "@omne-harness-lite/call-accounts": "workspace:*",
+    "@omne-harness-lite/content-blocks": "workspace:*",
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/model-request-runtime": "workspace:*",
+    "@omne-harness-lite/assembly-manifest": "workspace:*",
+    "@omne-harness-lite/asset-evaluation": "workspace:*",
+    "@omne-harness-lite/session-tenancy": "workspace:*",
+    "@omne-harness-lite/asset-model": "workspace:*",
+    "@omne-harness-lite/tool-admission": "workspace:*",
+    "@omne-harness-lite/asset-registry": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "@deepseek-ai/cordis": "catalog:"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    }
+  }
+}

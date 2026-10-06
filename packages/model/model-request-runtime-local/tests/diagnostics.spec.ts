@@ -4,12 +4,12 @@ import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { createDiagnosticCollector } from '../src/diagnostics.ts'
 import type {
   DiagnosticCollectorConfig,
-  DiagnosticEvent,
   DiagnosticJournalStore,
   DiagnosticOutputSink,
   DiagnosticRecord,
   DiagnosticScope,
 } from '../src/diagnostics-types.ts'
+import type { DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
 
 const local: DiagnosticScope = { kind: 'local' }
 const tenant: DiagnosticScope = {

@@ -5,8 +5,8 @@ import {
   anthropicDefinitions,
   createAnthropicInputMeter,
   createOfficialProfileContent,
-  type InputMeter,
 } from '@omne-harness-lite/pi-ai-transport'
+import { type InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import type { ModelResponse } from '@omne-harness-lite/model-response'
 import { createAcceptanceApplication, type ControlledRunFixturePort } from '../src/bootstrap.ts'

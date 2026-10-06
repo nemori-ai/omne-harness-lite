@@ -1,6 +1,6 @@
 import { beforeAll, afterAll, describe, it, expect } from 'vitest'
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
-import type { StreamEnd } from '@omne-harness-lite/model-request-runtime-local'
+import type { StreamEnd } from '@omne-harness-lite/model-request-runtime'
 import { certificate, fixture, planned, content, sse, finish } from './support.ts'
 let cert: ReturnType<typeof certificate>
 beforeAll(() => {

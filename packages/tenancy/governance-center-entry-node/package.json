@@ -45,7 +45,6 @@
     "@omne-harness-lite/governance-center-entry-https-json": "workspace:*"
   },
   "devDependencies": {
-    "@omne-harness-lite/clock-lease": "workspace:*",
     "@omne-harness-lite/storage-sql": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",

@@ -121,11 +121,7 @@ export async function inspectWithRuntime(
 `readAttempts`、`dispatch` 和 `dispatchAgain` 为需要运行失败扩展的调用方提供显式 `{ consumeFailure: true }` 重载，返回 `{ result, consumption }`。普通单参数调用仍只返回业务结果，不持有失败作用域。`consumption.kind === 'failure'` 给出不可序列化的 `ModelFailureSource`，来源就是产出失败结果的同一次授权完整前缀读取。来源会核对该前缀中的原 dispatched 条目壳和失败响应。交给 runner 前，须同时核验精确主体与**该次 runner 的实际 execution**，并始终释放借用。核验只检查自有快照、当前准入和代际，不另读更新的日志尾；无关追加不会使其失效，释放、撤权、宿主停止或代际替换则会。
 
 ```ts
-import type {
-  CallKey,
-  ModelFailureExecution,
-  ModelRuntimeService,
-} from '@omne-harness-lite/model-request-runtime-local'
+import type {CallKey, ModelFailureExecution, ModelRuntimeService} from '@omne-harness-lite/model-request-runtime-local'
 
 export async function inspectFailure(
   service: ModelRuntimeService,
@@ -1013,10 +1009,7 @@ export function invokeWithLocalDiagnostics<P extends PlannedSemantics, R>(
 `createDefaultRetryImplementation` 是独立的 LC6 贡献函数。调用方显式提供完整退避政策和采样来源。它只读取本次失败主体，包括有序保留的全部重试结论；它不等待、不发送请求，也不写结论。决策开始前取不到采样返回 `notStartedUnavailable`；被调用后的非法输入返回 `errored`。runner 仍须核验定位主体并调用 `canDispatchAgain`，获准后才接受 retry。
 
 ```ts
-import {
-  createDefaultRetryImplementation,
-  DEFAULT_RETRY_BUILTIN,
-} from '@omne-harness-lite/model-request-runtime-local'
+import {createDefaultRetryImplementation, DEFAULT_RETRY_BUILTIN} from '@omne-harness-lite/model-request-runtime-local'
 import type { RunnerImplementations } from '@omne-harness-lite/loop-extension-runner'
 
 export function registerDefaultRetry(registry: RunnerImplementations) {

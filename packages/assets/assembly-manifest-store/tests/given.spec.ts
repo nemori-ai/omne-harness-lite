@@ -12,11 +12,13 @@ import { openStorage } from '@omne-harness-lite/storage-sql'
 import {
   createAssemblyManifestStore,
   assemblyManifestStorePlugin,
-  checkManifestGivenReadInput,
   type ManifestDb,
   type ManifestDiagnostic,
-  type AssemblyManifestService,
 } from '../src/index.ts'
+import {
+  checkManifestGivenReadInput,
+  type AssemblyManifestService,
+} from '@omne-harness-lite/assembly-manifest'
 import { database, evaluated, input } from './support.ts'
 
 const categories = ['tool', 'skill', 'mcp', 'slash_command', 'plugin', 'loop_extension'] as const

@@ -8,7 +8,7 @@ import {
   validate as validateModelResponse,
 } from '@omne-harness-lite/model-response'
 import type { PendingModelResponse, ReplyDisposition } from '@omne-harness-lite/model-response'
-import type { AppendResult } from '@omne-harness-lite/session-log-jsonl'
+import type { AppendResult } from '@omne-harness-lite/session-log'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type {
   CallContainerStore,
@@ -28,7 +28,7 @@ import type { AnchoredInvocationHandle } from './anchored-invocation-types.ts'
 import {
   inspectCurrentModelLogPrefix,
   type ModelLogSettlementTarget,
-} from './log-codec-settlement.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import { interpretCallHistory, rejectAcknowledgedHistory } from './call-history.ts'
 import { acknowledgedFactsFromHistory } from './acknowledged-view.ts'
 import { judgeAcknowledgedSettlement } from './acknowledged-settlement.ts'
@@ -37,7 +37,7 @@ import { createSettlementWork, type SettlementWork } from './settlement-work.ts'
 import type { ModelCallSettlementWorkStore } from './reference-types.ts'
 import { interpretSettlementPrefix, readSettlementPrefix } from './settlement-prefix.ts'
 import type { SettlementPrefix } from './settlement-prefix.ts'
-import { modelLogJsonEqual } from './log-codec.ts'
+import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import { constructAnchoredInterruption } from './response-construction.ts'
 import { appendControlRecord } from './service-control.ts'
@@ -46,7 +46,7 @@ import { operationDiagnostics } from './service-diagnostics.ts'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import type { DiagnosticCollector } from './diagnostics-types.ts'
 import type { DispatchGuardPhase } from './dispatch-guard.ts'
-import type { PlannedSemantics } from './types.ts'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementContention,
   SettlementDiagnostic,

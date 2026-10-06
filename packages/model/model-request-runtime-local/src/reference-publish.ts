@@ -5,9 +5,13 @@ import type {
   ModelCallPayloadRef,
   ModelCallReplyReadyRecord,
 } from '@omne-harness-lite/messages'
-import type { AppendResult, OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
-import { captureModelLogValue, prepareModelLogEntry, modelLogJsonEqual } from './log-codec.ts'
-import { inspectCurrentModelLogPrefix } from './log-codec-settlement.ts'
+import type { AppendResult, OwnedLogEntry } from '@omne-harness-lite/session-log'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+  modelLogJsonEqual,
+} from '@omne-harness-lite/model-request-runtime'
+import { inspectCurrentModelLogPrefix } from '@omne-harness-lite/model-request-runtime'
 import {
   readSettlementPrefix,
   settlementGenerationCurrent,

@@ -23,6 +23,10 @@
     "./registry-history": {
       "types": "./dist/registry-history.d.ts",
       "import": "./dist/registry-history.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
     }
   },
   "files": [
@@ -48,10 +52,10 @@
     "@omne-harness-lite/asset-evaluation": "workspace:*",
     "@omne-harness-lite/agent-definition": "workspace:*",
     "@omne-harness-lite/call-accounts": "workspace:*",
-    "@omne-harness-lite/session-tenancy-table": "workspace:*",
-    "@omne-harness-lite/assembly-manifest-store": "workspace:*",
     "@omne-harness-lite/offer-expiry": "workspace:*",
-    "@omne-harness-lite/organization-governance": "workspace:*"
+    "@omne-harness-lite/organization-governance": "workspace:*",
+    "@omne-harness-lite/session-tenancy": "workspace:*",
+    "@omne-harness-lite/assembly-manifest": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness-lite/account-identity": "workspace:*",
@@ -62,6 +66,8 @@
     "typescript": "catalog:",
     "vitest": "catalog:",
     "@omne-harness-lite/organization-governance-sql": "workspace:*",
+    "@omne-harness-lite/assembly-manifest-store": "workspace:*",
+    "@omne-harness-lite/session-tenancy-table": "workspace:*",
     "@omne-harness-lite/credential-verification-scrypt": "workspace:*",
     "@omne-harness-lite/account-identity-sql": "workspace:*",
     "@omne-harness-lite/account-registration-sequential": "workspace:*"

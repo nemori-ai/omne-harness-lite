@@ -1,6 +1,6 @@
 import { expectTypeOf, it } from 'vitest'
+import { retryDelay } from '@omne-harness-lite/model-request-runtime'
 import {
-  retryDelay,
   type RetryDelayInput,
   type RetryDelayResult,
 } from '@omne-harness-lite/model-request-runtime'

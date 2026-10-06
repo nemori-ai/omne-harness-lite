@@ -8,7 +8,7 @@ import {
 import {
   captureModelLogValue,
   prepareModelLogEntry,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import {
   createOfficialProfileContent,
   deepseekV4Pro0813Definition,
@@ -18,8 +18,8 @@ import {
   createImagePreparer,
   createSharpImageCodec,
   modelImageBalancedV1,
-  type ModelDefinition,
 } from '@omne-harness-lite/pi-ai-transport'
+import { type ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import {
   historyProjection,
   messagePrefix,

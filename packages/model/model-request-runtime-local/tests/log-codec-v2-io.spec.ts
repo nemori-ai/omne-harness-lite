@@ -3,14 +3,9 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import * as codec from '@omne-harness-lite/model-request-runtime-local'
-import {
-  openJsonlSessionLog,
-  type JsonlSessionLog,
-  type LogEntry,
-  type OwnedLogEntry,
-  type ReadResult,
-} from '@omne-harness-lite/session-log-jsonl'
+import * as codec from '@omne-harness-lite/model-request-runtime'
+import { openJsonlSessionLog, type JsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { type LogEntry, type OwnedLogEntry, type ReadResult } from '@omne-harness-lite/session-log'
 import { anchors, batch, jsonObject, response, session, tenant } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 

@@ -18,7 +18,8 @@
   "files": [
     "dist",
     "schema",
-    "generated"
+    "generated",
+    "SPEC.md"
   ],
   "scripts": {
     "build": "node ../../../scripts/build-fixed-schemas.mjs",
@@ -34,6 +35,7 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "@omne-harness-lite/identity-values": "workspace:*"
   }
 }

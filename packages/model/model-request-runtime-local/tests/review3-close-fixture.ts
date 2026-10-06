@@ -5,7 +5,7 @@
  * receipt, the moment of a host stop); verdicts are read back from the durable log.
  */
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log-jsonl'
+import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log'
 import type { JsonObject } from '@omne-harness-lite/content-blocks'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'

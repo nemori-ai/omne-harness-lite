@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
-import type { SessionLog } from '@omne-harness-lite/session-log-jsonl'
+import type { SessionLog } from '@omne-harness-lite/session-log'
 import { createModelFailureSource } from '../src/failure-subject.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { readSettlementPrefix } from '../src/settlement-prefix.ts'

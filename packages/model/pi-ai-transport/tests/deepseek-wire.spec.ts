@@ -15,8 +15,8 @@ import {
   deepseekV41FlashConfiguration,
   deepseekV41FlashDefinition,
 } from '../src/official-models/deepseek.ts'
-import type { InputMeter } from '../src/input-meter.ts'
-import type { ModelDefinition } from '../src/definitions.ts'
+import type { InputMeter } from '@omne-harness-lite/model-request-runtime'
+import type { ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import { object } from '../src/json.ts'
 import { at, certificate, finish, fixture, input, judgedMessage, policy, sse } from './support.ts'
 

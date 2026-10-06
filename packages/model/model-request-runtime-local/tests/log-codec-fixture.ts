@@ -7,8 +7,8 @@ import {
   type ModelLogCategory,
   type ModelLogPurpose,
   type ModelLogShell,
-} from '@omne-harness-lite/model-request-runtime-local'
-import type { LogEntry, OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
+} from '@omne-harness-lite/model-request-runtime'
+import type { LogEntry, OwnedLogEntry } from '@omne-harness-lite/session-log'
 
 const parsedTenant = parseTenantId({ organization: 'codec-organization', account: 'codec-account' })
 if (!('ok' in parsedTenant)) throw new Error('fixture tenant')

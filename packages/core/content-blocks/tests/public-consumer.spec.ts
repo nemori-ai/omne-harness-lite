@@ -1,3 +1,4 @@
+import { assertContentSchemaTransition } from './schema-transition.ts'
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -42,5 +43,11 @@ it('consumes built public exports and Schema without source aliases or runtime s
     ],
     { cwd: resolve(import.meta.dirname, '..'), encoding: 'utf8' },
   )
-  expect(output).toBe(readFileSync(resolve(SPEC_DIR, '../v3/content-blocks.schema.json'), 'utf8'))
+  expect(output).toBe(
+    readFileSync(resolve(import.meta.dirname, '../schema/content-blocks.schema.json'), 'utf8'),
+  )
+  assertContentSchemaTransition(
+    Buffer.from(output),
+    readFileSync(resolve(SPEC_DIR, '../v3/content-blocks.schema.json')),
+  )
 })

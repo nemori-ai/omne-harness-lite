@@ -1,11 +1,11 @@
-import type { BoundCredentialRedaction } from './credential-redaction-types.ts'
-import type { DiagnosticEmitter, DiagnosticEvent } from './diagnostics-types.ts'
+import type { BoundCredentialRedaction } from '@omne-harness-lite/model-request-runtime'
+import type { DiagnosticEmitter, DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
 import type {
   InvocationInput,
   PlannedSemantics,
   PublicDiagnosticAssociation,
   TransportExecutionDiagnostics,
-} from './types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 
 function data(value: unknown, keys: readonly string[]): Record<string, unknown> | undefined {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return undefined

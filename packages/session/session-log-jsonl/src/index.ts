@@ -1,5 +1,5 @@
 export type * from './types.ts'
-export { checkAppendInput } from './input.ts'
+
 export { emptyLogState, foldCommit, judgeAppend } from './state.ts'
 export { commitFormatVersion, indexFoldVersion, encodeCommitLine, decodeLogBytes } from './codec.ts'
 export { openJsonlSessionLog } from './open.ts'

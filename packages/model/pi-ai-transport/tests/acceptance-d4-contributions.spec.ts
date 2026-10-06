@@ -8,7 +8,8 @@ import { createServer } from 'node:https'
 import type { ServerResponse } from 'node:http'
 import { resolve, join } from 'node:path'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime-local'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import {
   anthropicDefinitions,
@@ -16,16 +17,15 @@ import {
   createOfficialProfileContent,
   createModelTransportService,
   createPiAiTransport,
+} from '@omne-harness-lite/pi-ai-transport'
+import {
   type ModelDefinition,
   type ModelTransportService,
   type AdaptationLease,
-  type InputMeter,
-  type RetirementPolicy,
-} from '@omne-harness-lite/pi-ai-transport'
-import {
-  createModelPlugin,
-  MODEL_TRANSPORT_SERVICE,
-} from '@omne-harness-lite/pi-ai-transport/plugin'
+} from '@omne-harness-lite/model-request-runtime'
+import { type InputMeter, type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
+import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
+import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 import { input, message, networkPolicy, policy, content, finish, sse } from './support.ts'
 import { syntheticInputMeter } from './synthetic-input-meter.ts'
 
@@ -251,7 +251,7 @@ describe('D4 independent production contributions', () => {
       let calls=0; const forbidden=()=>{calls++;throw Error('network during import')};
       net.connect=forbidden; net.createConnection=forbidden; net.Socket.prototype.connect=forbidden;
       tls.connect=forbidden; http.request=forbidden; http.get=forbidden; https.request=forbidden; https.get=forbidden; globalThis.fetch=forbidden;
-      await import('@omne-harness-lite/pi-ai-transport'); await import('@omne-harness-lite/pi-ai-transport/plugin');
+      await import('@omne-harness-lite/pi-ai-transport'); await import('@omne-harness-lite/pi-ai-transport/cordis');
       if(calls!==0) throw Error('swallowed network attempt'); console.log('imports: network=0');
     `,
       ],
@@ -271,7 +271,7 @@ describe('D4 independent production contributions', () => {
     const leases: AdaptationLease[] = []
     try {
       await ctx.plugin(provider(service))
-      const contributionA = ctx.plugin(createModelPlugin(a, meterA.meter, waiting), {})
+      const contributionA = createModelPlugin(ctx, a, meterA.meter, waiting)
       await contributionA
       const original = await request(a),
         leaseA = acquire(service, original)
@@ -285,7 +285,7 @@ describe('D4 independent production contributions', () => {
         kind: 'from_usage',
         provenance: { adapterRevision: 'openrouter-usage-reader/2' },
       })
-      const contributionB = ctx.plugin(createModelPlugin(b, meterB.meter, waiting), {})
+      const contributionB = createModelPlugin(ctx, b, meterB.meter, waiting)
       await contributionB
       const retiringA = contributionA.dispose()
       await expect.poll(() => service.inspect().retiring).toBe(1)
@@ -499,7 +499,7 @@ describe('D4 independent production contributions', () => {
       await entered.promise
       await ctx.plugin(provider(newService))
       const invalidMeter = { ...createAnthropicInputMeter(def), provider: 'not-a-declared-route' }
-      const failed = ctx.plugin(createModelPlugin(def, invalidMeter, waiting), {})
+      const failed = createModelPlugin(ctx, def, invalidMeter, waiting)
       await expect(Promise.resolve(failed)).rejects.toThrow('model contribution rejected')
       expect(newService.inspect()).toMatchObject({ registrations: 0, references: 0, executions: 0 })
       expect(oldService.inspect().executions).toBeGreaterThan(0)

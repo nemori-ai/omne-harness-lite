@@ -22,8 +22,12 @@ import {
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { object } from '../json.ts'
-import type { InputMeter, MarginalMeterInput, TokenMeasurement } from '../input-meter.ts'
-import type { ModelDefinition } from '../definitions.ts'
+import type {
+  InputMeter,
+  MarginalMeterInput,
+  TokenMeasurement,
+} from '@omne-harness-lite/model-request-runtime'
+import type { ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 
 const BOS = '<｜begin▁of▁sentence｜>'
 const EOS = '<｜end▁of▁sentence｜>'

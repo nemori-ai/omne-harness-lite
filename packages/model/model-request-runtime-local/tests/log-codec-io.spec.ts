@@ -5,14 +5,10 @@ import { describe, expect, it } from 'vitest'
 import {
   modelLogJsonEqual,
   inspectSettlementMembers,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import {
-  openJsonlSessionLog,
-  type JsonlSessionLog,
-  type LogEntry,
-  type ReadResult,
-} from '@omne-harness-lite/session-log-jsonl'
+import { openJsonlSessionLog, type JsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { type LogEntry, type ReadResult } from '@omne-harness-lite/session-log'
 import { anchors, batch, response, session, tenant, reply } from './log-codec-fixture.ts'
 
 const fence = { kind: 'unfenced' } as const

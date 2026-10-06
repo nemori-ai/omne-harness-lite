@@ -29,7 +29,7 @@ import {
   judgePendingModelResponse,
   type PendingModelResponse,
 } from '@omne-harness-lite/model-response'
-import { modelLogJsonEqual } from './log-codec.ts'
+import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import type {
   AckPendingReason,
   ModelCallCleanupResult,

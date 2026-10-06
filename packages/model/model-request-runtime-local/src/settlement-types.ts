@@ -7,12 +7,12 @@ import type {
   AppendResult,
   OwnedLogEntry,
   SessionLog,
-} from '@omne-harness-lite/session-log-jsonl'
+} from '@omne-harness-lite/session-log'
 import type {
   ModelLogSettlementTarget,
   ModelLogSettlementCurrent,
   SettlementMembersResult,
-} from './log-codec.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type { SettlementPrefix } from './settlement-prefix.ts'
 
 /** G28's owner interprets both axes from the exact owned prefix supplied by this coordinator. */

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness-lite/content-blocks'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-import type { PlanInput, ReplaySelection } from '@omne-harness-lite/model-request-runtime-local'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import type { ReplaySelection } from '@omne-harness-lite/model-request-runtime'
 import { request } from './invoke-policy-fixture.ts'
 import { response } from './log-codec-fixture.ts'
 

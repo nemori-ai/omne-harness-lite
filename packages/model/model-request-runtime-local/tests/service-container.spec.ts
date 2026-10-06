@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
-import type { AppendResult } from '@omne-harness-lite/session-log-jsonl'
+import type { AppendResult } from '@omne-harness-lite/session-log'
 import type { SettlementTask } from '../src/settlement-types.ts'
 import type {
   CreateCallContainerInput,
@@ -15,7 +15,7 @@ import {
   createCallContainerStore,
   createCallPreparationOwner,
 } from '../src/service-container.ts'
-import type { PlannedSemantics } from '../src/types.ts'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { AnchoredInvocationHandle } from '../src/anchored-invocation-types.ts'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 

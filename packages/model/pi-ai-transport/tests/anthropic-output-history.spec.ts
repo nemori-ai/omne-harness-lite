@@ -2,16 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { toOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import type { Message } from '@omne-harness-lite/messages'
-import type {
-  PlanInput,
-  PlanOutputHistoryGroup,
-} from '@omne-harness-lite/model-request-runtime-local'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createAnthropicInputMeter } from '../src/input-meters/anthropic.ts'
 import originalInputs from './fixtures/anthropic/original-request-inputs.json' with { type: 'json' }
 import { anthropicReplayModels } from '../src/input-meters/anthropic-replay.ts'
 import { anthropicDefinitions } from '../src/official-models/anthropic.ts'
-import { planRequest, type PlannedRequest } from '../src/plan.ts'
+import { planRequest } from '../src/plan.ts'
+import { type PlannedRequest } from '@omne-harness-lite/model-request-runtime'
 import { projectOutput } from '../src/projection.ts'
 import { testImagePreparerFor } from './image-transport-support.ts'
 import { at, input, judgedMessage, message } from './support.ts'

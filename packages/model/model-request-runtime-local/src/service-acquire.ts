@@ -23,7 +23,7 @@ import type {
   AuthorizedCallObserver,
   ObserverReceiver,
 } from './service-types.ts'
-import type { PlannedSemantics } from './types.ts'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 
 const unavailable = Object.freeze({ unavailable: true } as const)
 const malformed = Object.freeze({ invalidInput: { reason: 'malformed' } } as const)

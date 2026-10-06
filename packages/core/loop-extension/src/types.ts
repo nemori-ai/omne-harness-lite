@@ -2,6 +2,7 @@ import type { CapabilityName } from '@omne-harness-lite/asset-model'
 import type {
   CallId,
   ExecutionOutcome,
+  ToolCallOutcome,
   JsonNumber,
   JsonObject,
   JsonValue,
@@ -153,15 +154,17 @@ export interface BeforeActionSubject {
   readonly definition: ToolDefinitionRef
   readonly batch: readonly [CallId, ...CallId[]]
 }
-export interface AfterActionEachSubject {
-  readonly callId: CallId
-  readonly outcome: ExecutionOutcome
-  readonly result?: ToolResultBlock
-}
+export type AfterActionEachSubject =
+  | {
+      readonly callId: CallId
+      readonly outcome: ExecutionOutcome
+      readonly result?: ToolResultBlock
+    }
+  | { readonly callId: CallId; readonly outcome: 'denied'; readonly result?: never }
 export interface AfterActionBatchSubject {
   readonly outcomes: readonly [
-    { readonly callId: CallId; readonly outcome: ExecutionOutcome },
-    ...{ readonly callId: CallId; readonly outcome: ExecutionOutcome }[],
+    { readonly callId: CallId; readonly outcome: ToolCallOutcome },
+    ...{ readonly callId: CallId; readonly outcome: ToolCallOutcome }[],
   ]
 }
 export interface BeforeTerminalSubject {

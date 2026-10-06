@@ -5,12 +5,12 @@ import {
   type JsonNumber,
 } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import type { BoundCredentialRedaction } from './credential-redaction-types.ts'
+import type { BoundCredentialRedaction } from '@omne-harness-lite/model-request-runtime'
 import type {
   DiagnosticBinding,
   DiagnosticMeasurementFact,
   DiagnosticCalibrationSource,
-} from './diagnostics-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 
 export const measurementDiagnosticKeys = [
   'kind',

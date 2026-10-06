@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { join } from 'node:path'
-import type { PlanFailure } from '@omne-harness-lite/model-request-runtime-local'
+import type { PlanFailure } from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import type { DiagnosticEvent } from '../src/diagnostics-types.ts'
+import type { DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
 import type { AnchoredInvocationInput } from '../src/anchored-invocation-types.ts'
 import { createAnchoredModelInvocation } from '../src/anchored-invocation.ts'
-import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import { appendControlRecord } from '../src/service-control.ts'
 import { judgePendingModelResponse } from '@omne-harness-lite/model-response'
 import {

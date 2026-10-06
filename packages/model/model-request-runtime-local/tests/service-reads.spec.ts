@@ -4,11 +4,14 @@ import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { createRuntimeReads } from '../src/service-reads.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
-import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import type { SessionModelSelectionInput } from '../src/session-selection-types.ts'
-import type { SessionLog } from '@omne-harness-lite/session-log-jsonl'
+import type { SessionLog } from '@omne-harness-lite/session-log'
 import type { RuntimeConstruction, SessionRuntimeBinding } from '../src/service-types.ts'
-import type { PlannedSemantics } from '../src/types.ts'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { SettlementRegistration, SettlementTaskKind } from '../src/settlement-types.ts'
 import { selectionHost, AT } from './session-selection-fixture.ts'
 import { dispatched, opened } from './log-codec-fixture.ts'

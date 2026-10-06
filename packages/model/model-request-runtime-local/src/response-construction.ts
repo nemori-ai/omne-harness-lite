@@ -14,14 +14,14 @@ import {
 } from '@omne-harness-lite/model-response'
 import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
 import type { AttemptId, RunId } from '@omne-harness-lite/call-accounts'
-import { captureModelLogValue, modelLogJsonEqual } from './log-codec.ts'
-import { reconstructAdaptedParameters } from './log-codec-settlement.ts'
+import { captureModelLogValue, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
+import { reconstructAdaptedParameters } from '@omne-harness-lite/model-request-runtime'
 import type {
   InvocationObservedFacts,
   ModelInvocationResult,
   OutputProjectionInput,
   OutputProjectionResult,
-} from './types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type { ResponseConstructionResult } from './anchored-invocation-types.ts'
 
 export interface ResponseConstructionInput {
