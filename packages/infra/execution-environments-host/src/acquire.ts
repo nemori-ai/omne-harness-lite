@@ -24,7 +24,7 @@ type Input = NonNullable<ReturnType<typeof captureAcquisition>>
 interface Dependencies {
   readonly active: () => boolean
   readonly placement: ReturnType<typeof createPlacementAuthority>
-  readonly provider: (reference?: EnvironmentReference) => ProviderEntry | undefined
+  readonly providers: (reference?: EnvironmentReference) => readonly ProviderEntry[]
   readonly authorize: (
     authorization: SessionAccess,
     scope: SessionScope,
@@ -131,7 +131,42 @@ async function prepareAcquisition(
   return { input, ticket }
 }
 
-/** PR1 uses the unique provider or explicit reference owner; discovery across providers is PR2. */
+/** Once selected, one original entry retains the permission, acquisition and adoption work. */
+async function acquireSelected(
+  deps: Dependencies,
+  input: Input,
+  ticket: PlacementTicket,
+  selection: { readonly entry: ProviderEntry; readonly selected: EnvironmentDescription },
+): Promise<EnvironmentAcquisition> {
+  const { entry } = selection
+  return observeProvider(entry, async () => {
+    const before = await deps.placement.recheck(ticket, input)
+    if (before) return before
+    const checked = await deps.authorize(input.authorization, input.scope)
+    if (checked.kind === 'rejected') return checked
+    if (
+      !entry.active ||
+      !deps.active() ||
+      !deps.placement.current(ticket) ||
+      input.resources.closed.aborted
+    )
+      return reject('ownerStopped')
+    const result = await observeProvider(entry, () =>
+      entry.provider.acquire(
+        Object.freeze({
+          ...input,
+          reference: selection.selected.reference,
+          placement: ticket.placement,
+        }),
+      ),
+    )
+    if (result.kind !== 'acquired') return result
+    const adopted = await adoptLease(deps, entry, input, ticket, selection.selected, result.lease)
+    return 'kind' in adopted ? adopted : { ...result, lease: adopted.lease }
+  })
+}
+
+/** Discovery precedes side effects; selection cannot transfer an acquisition to a replacement. */
 export function createEnvironmentAcquirer(
   deps: Dependencies,
 ): ExecutionEnvironmentOperations['acquire'] {
@@ -139,44 +174,12 @@ export function createEnvironmentAcquirer(
     const prepared = await prepareAcquisition(deps, request)
     if ('kind' in prepared) return prepared
     const { input, ticket } = prepared
-    const entry = deps.provider(input.reference)
-    if (!entry) return reject('noMatchingEnvironment')
-    if (!entry.active) return reject('providerUnavailable')
+    const entries = deps.providers(input.reference)
+    if (!entries.length) return reject('noMatchingEnvironment')
     try {
-      return await observeProvider(entry, async () => {
-        const selection = await selectEnvironment(entry, input, ticket, deps.placement)
-        if ('kind' in selection) return selection
-        const before = await deps.placement.recheck(ticket, input)
-        if (before) return before
-        const checked = await deps.authorize(input.authorization, input.scope)
-        if (checked.kind === 'rejected') return checked
-        if (
-          !entry.active ||
-          !deps.active() ||
-          !deps.placement.current(ticket) ||
-          input.resources.closed.aborted
-        )
-          return reject('ownerStopped')
-        const result = await observeProvider(entry, () =>
-          entry.provider.acquire(
-            Object.freeze({
-              ...input,
-              reference: selection.selected.reference,
-              placement: ticket.placement,
-            }),
-          ),
-        )
-        if (result.kind !== 'acquired') return result
-        const adopted = await adoptLease(
-          deps,
-          entry,
-          input,
-          ticket,
-          selection.selected,
-          result.lease,
-        )
-        return 'kind' in adopted ? adopted : { ...result, lease: adopted.lease }
-      })
+      const selection = await selectEnvironment(entries, input, ticket, deps.placement)
+      if ('kind' in selection) return selection
+      return await acquireSelected(deps, input, ticket, selection)
     } catch {
       return reject('providerUnavailable')
     }

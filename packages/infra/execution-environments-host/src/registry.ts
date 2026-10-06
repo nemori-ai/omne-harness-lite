@@ -159,12 +159,11 @@ export function createEnvironmentRegistry(deps: {
     acquire: createEnvironmentAcquirer({
       active: () => active,
       placement,
-      provider: reference =>
-        reference
-          ? entries.get(reference.provider)
-          : entries.size === 1
-            ? entries.values().next().value
-            : undefined,
+      providers: reference => {
+        if (!reference) return [...entries.values()]
+        const entry = entries.get(reference.provider)
+        return entry ? [entry] : []
+      },
       authorize: (authorization, scope) => authorize(authorization, scope, 'environment.acquire'),
     }),
   }
