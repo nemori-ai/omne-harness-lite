@@ -6,7 +6,11 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { CREDENTIALS_SERVICE } from '@omne-harness-lite/account-identity/cordis'
-import { type CredentialsService } from '@omne-harness-lite/account-identity'
+import type {
+  CredentialsService,
+  AccountsService,
+  LoginsService,
+} from '@omne-harness-lite/account-identity'
 import { credentialsPlugin } from '@omne-harness-lite/credential-verification-scrypt/cordis'
 import {
   type AccountId,
@@ -36,9 +40,8 @@ import {
   type StorageService,
 } from '@omne-harness-lite/storage/cordis'
 import { storageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
-import { AccountsImpl } from '../src/accounts.ts'
+import { assembleIdentityServices } from '../src/factory.ts'
 import { type Diagnostics, type Notifier, loggerDiagnostics } from '../src/diagnostics.ts'
-import { LoginsImpl } from '../src/logins.ts'
 import { type RandomSource, cryptoRandomSource } from '../src/presentation.ts'
 import { accountIdentityMigrations } from '../src/schema.ts'
 import type { IssuedLoginState } from '@omne-harness-lite/account-identity'
@@ -259,8 +262,8 @@ export interface RecordedEvent {
 }
 
 export interface Harness {
-  readonly accounts: AccountsImpl
-  readonly logins: LoginsImpl
+  readonly accounts: AccountsService
+  readonly logins: LoginsService
   readonly clock: TestClock
   readonly storage: FaultyStorage
   readonly probe: CredentialProbe
@@ -327,9 +330,10 @@ export async function openHarness(options: HarnessOptions = {}): Promise<Harness
     diagnostics,
     random: controllableRandom(random),
   }
+  const { accounts, logins } = assembleIdentityServices(deps)
   return {
-    accounts: new AccountsImpl(deps),
-    logins: new LoginsImpl(deps),
+    accounts,
+    logins,
     clock,
     storage,
     probe,

@@ -13,7 +13,7 @@ import {
   isOk,
   validate,
 } from '@omne-harness-lite/identity-values'
-import { type Observed, type Rejection, thrownValue } from './record.ts'
+import { type Observed, type Rejection, thrownValue } from './record-shapes.ts'
 
 /** 认人所得（S-12）。私有字段让它名义上唯一：本模块之外构造不出来（类本身不导出）。 */
 class CallerIdentity {

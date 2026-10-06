@@ -1,10 +1,4 @@
-import { randomUUID } from 'node:crypto'
-import {
-  narrow,
-  StorageUnavailable,
-  type AtomicStorage,
-  type ReadTx,
-} from '@omne-harness-lite/storage'
+import { StorageUnavailable } from '@omne-harness-lite/storage'
 import {
   capture,
   freeze,
@@ -21,69 +15,19 @@ import {
   type ReadFailure,
   type ReplaceOutcome,
   type SnapshotToken,
-  type LocalStateStorage,
 } from '@omne-harness-lite/client-local-state'
-import { unavailableIo } from './files.ts'
+import { unavailableIo } from './io-errors.ts'
 
-interface Row {
-  singleton: number
-  format_version: number
-  store_id: string
-  revision: number
-  operation_id: string | null
-  value_json: string
-}
-interface Database {
-  client_local_state: Row
-  sqlite_master: { name: string; type: string }
-}
+import type { Row, StateRead, StatePersistence } from './state-data.ts'
 type Reading =
   | { kind: 'row'; row: Row; value: LocalSnapshot['value'] }
   | { kind: 'failed'; reason: ReadFailure; emptyCatalog?: boolean }
 
-export async function initialize(storage: AtomicStorage): Promise<void> {
-  await storage.atomic(unit =>
-    unit.mutate(async tx => {
-      const db = narrow<Database>(tx)
-      await db.schema
-        .createTable('client_local_state')
-        .addColumn('singleton', 'integer', col => col.primaryKey())
-        .addColumn('format_version', 'integer', col => col.notNull())
-        .addColumn('store_id', 'text', col => col.notNull())
-        .addColumn('revision', 'integer', col => col.notNull())
-        .addColumn('operation_id', 'text')
-        .addColumn('value_json', 'text', col => col.notNull())
-        .execute()
-      await db
-        .insertInto('client_local_state')
-        .values({
-          singleton: 1,
-          format_version: 1,
-          store_id: randomUUID(),
-          revision: 0,
-          operation_id: null,
-          value_json: 'null',
-        })
-        .execute()
-    }),
-  )
-}
-
-export async function readRow(tx: ReadTx): Promise<Reading> {
-  const db = narrow<Database>(tx)
-  const objects = await db
-    .selectFrom('sqlite_master')
-    .select(['name', 'type'])
-    .where('name', 'not like', 'sqlite_%')
-    .execute()
-  if (
-    objects.length !== 1 ||
-    objects[0]?.name !== 'client_local_state' ||
-    objects[0].type !== 'table'
-  )
-    return { kind: 'failed', reason: 'invalid-record', emptyCatalog: objects.length === 0 }
-  // selectAll avoids converting a discoverably damaged layout into a missing-column defect.
-  const rows = await db.selectFrom('client_local_state').selectAll().execute()
+export async function readState(records: StateRead): Promise<Reading> {
+  const physical = await records.inspect()
+  if (physical.kind === 'invalid-layout')
+    return { kind: 'failed', reason: 'invalid-record', emptyCatalog: physical.emptyCatalog }
+  const rows = physical.rows
   if (rows.length !== 1) return { kind: 'failed', reason: 'invalid-record' }
   const row = rows[0]!
   if (Number.isSafeInteger(row.format_version) && row.format_version > 1)
@@ -117,8 +61,6 @@ export async function readRow(tx: ReadTx): Promise<Reading> {
   return { kind: 'row', row, value: freeze(value) }
 }
 
-export type StateStorage = LocalStateStorage
-
 /** Internal constructor for storage/fdatasync fault tests; not a package export. */
 export class LocalState implements ClientLocalState {
   readonly #proofs = new WeakMap<SnapshotToken, LocalSnapshot>()
@@ -126,7 +68,7 @@ export class LocalState implements ClientLocalState {
   #closed = false
   #closing: Promise<void> | undefined
   constructor(
-    readonly storage: StateStorage,
+    readonly storage: StatePersistence,
     private readonly syncDirectory: () => Promise<void>,
     private readonly closeDirectory: () => Promise<void>,
   ) {}
@@ -164,7 +106,7 @@ export class LocalState implements ClientLocalState {
   read(): Promise<ReadOutcome> {
     return this.#admit(async () => {
       try {
-        const read = await this.storage.read(readRow)
+        const read = await this.storage.read(readState)
         return read.kind === 'failed'
           ? { kind: 'failed', reason: read.reason }
           : { kind: 'read', snapshot: this.#snapshot(read) }
@@ -193,42 +135,33 @@ export class LocalState implements ClientLocalState {
         return { kind: 'not-installed', reason: 'invalid-input' }
       if (input.kind === 'limit') return { kind: 'not-installed', reason: 'unavailable' }
       try {
-        const outcome: ReplaceOutcome = await this.storage.atomic(unit =>
-          unit.mutate(async tx => {
-            const current = await readRow(tx)
-            if (current.kind === 'failed') return { kind: 'not-installed', reason: current.reason }
-            const snapshot = this.#snapshot(current)
-            if (
-              snapshot.storeId !== original.storeId ||
-              snapshot.revision !== original.revision ||
-              snapshot.value?.center.centerId !== original.value?.center.centerId ||
-              !sameLogin(snapshot.value, original.value)
-            )
-              return { kind: 'conflict', current: snapshot }
-            if (
-              !validTransition(snapshot.value, input.value) ||
-              snapshot.operationId === operationId
-            )
-              return { kind: 'not-installed', reason: 'invalid-input' }
-            if (snapshot.revision === Number.MAX_SAFE_INTEGER)
-              return { kind: 'not-installed', reason: 'unavailable' }
-            const next: Row = {
-              ...current.row,
-              revision: snapshot.revision + 1,
-              operation_id: operationId,
-              value_json: input.json,
-            }
-            await narrow<Database>(tx)
-              .updateTable('client_local_state')
-              .set(next)
-              .where('singleton', '=', 1)
-              .execute()
-            return {
-              kind: 'installed',
-              snapshot: this.#snapshot({ kind: 'row', row: next, value: input.value }),
-            }
-          }),
-        )
+        const outcome: ReplaceOutcome = await this.storage.atomic(async records => {
+          const current = await readState(records)
+          if (current.kind === 'failed') return { kind: 'not-installed', reason: current.reason }
+          const snapshot = this.#snapshot(current)
+          if (
+            snapshot.storeId !== original.storeId ||
+            snapshot.revision !== original.revision ||
+            snapshot.value?.center.centerId !== original.value?.center.centerId ||
+            !sameLogin(snapshot.value, original.value)
+          )
+            return { kind: 'conflict', current: snapshot }
+          if (!validTransition(snapshot.value, input.value) || snapshot.operationId === operationId)
+            return { kind: 'not-installed', reason: 'invalid-input' }
+          if (snapshot.revision === Number.MAX_SAFE_INTEGER)
+            return { kind: 'not-installed', reason: 'unavailable' }
+          const next: Row = {
+            ...current.row,
+            revision: snapshot.revision + 1,
+            operation_id: operationId,
+            value_json: input.json,
+          }
+          await records.replace(next)
+          return {
+            kind: 'installed',
+            snapshot: this.#snapshot({ kind: 'row', row: next, value: input.value }),
+          }
+        })
         if (outcome.kind === 'installed') await this.syncDirectory()
         return outcome
       } catch (error) {

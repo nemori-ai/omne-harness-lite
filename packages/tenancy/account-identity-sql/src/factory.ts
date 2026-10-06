@@ -7,7 +7,8 @@ import { loadVerificationKey, unwrap } from '@omne-harness-lite/identity-values'
 import { AccountsImpl } from './accounts.ts'
 import { LoginsImpl } from './logins.ts'
 import { AccountIdentityConfigSchema } from './config.ts'
-import type { ServiceDeps } from './deps.ts'
+import type { PolicyDeps, ServiceDeps } from './deps.ts'
+import { createIdentityPersistence } from './identity-sql.ts'
 
 export type AccountIdentityDependencies = Pick<
   ServiceDeps,
@@ -27,20 +28,67 @@ export interface AccountIdentityInstance {
   close(): Promise<void>
 }
 
+/** Internal assembly shared with fault fixtures; not exported by the package root. */
+export function assembleIdentityServices(dependencies: ServiceDeps): {
+  readonly accounts: AccountsService
+  readonly logins: LoginsService
+  clearPrepared(): void
+} {
+  const { persistence, bindUnit } = createIdentityPersistence(dependencies.storage)
+  const policy: PolicyDeps = {
+    persistence,
+    clock: dependencies.clock,
+    resolveCredentials: dependencies.resolveCredentials,
+    credentialPolicy: dependencies.credentialPolicy,
+    unactivatedRetention: dependencies.unactivatedRetention,
+    activationKey: dependencies.activationKey,
+    purgeKey: dependencies.purgeKey,
+    notifier: dependencies.notifier,
+    diagnostics: dependencies.diagnostics,
+    random: dependencies.random,
+  }
+  const accounts = new AccountsImpl(policy)
+  const logins = new LoginsImpl(policy)
+  return {
+    accounts: {
+      participate: unit => accounts.participate(bindUnit(unit)),
+      produce: (...args) => accounts.produce(...args),
+      activate: (...args) => accounts.activate(...args),
+      read: (...args) => accounts.read(...args),
+      purge: (...args) => accounts.purge(...args),
+    },
+    logins: {
+      participate: unit => logins.participate(bindUnit(unit)),
+      prepareCredentialChange: (...args) => logins.prepareCredentialChange(...args),
+      changeCredential: (...args) => logins.changeCredential(...args),
+      issue: (...args) => logins.issue(...args),
+      exchange: (...args) => logins.exchange(...args),
+      revoke: (...args) => logins.revoke(...args),
+      verify: (...args) => logins.verify(...args),
+      listEffective: (...args) => logins.listEffective(...args),
+    },
+    clearPrepared: () => logins.clearPrepared(),
+  }
+}
+
 export function createAccountIdentity(
   config: AccountIdentityConfig,
   dependencies: AccountIdentityDependencies,
 ): AccountIdentityInstance {
   const parsed = AccountIdentityConfigSchema.parse(config)
   const deps: ServiceDeps = {
-    ...dependencies,
+    storage: dependencies.storage,
+    clock: dependencies.clock,
+    resolveCredentials: dependencies.resolveCredentials,
+    notifier: dependencies.notifier,
+    diagnostics: dependencies.diagnostics,
+    random: dependencies.random,
     credentialPolicy: parsed.credentialPolicy,
     unactivatedRetention: parsed.unactivatedRetention,
     activationKey: unwrap(loadVerificationKey(parsed.activationVerificationKeyPem)),
     purgeKey: unwrap(loadVerificationKey(parsed.purgeVerificationKeyPem)),
   }
-  const accounts = new AccountsImpl(deps)
-  const logins = new LoginsImpl(deps)
+  const { accounts, logins, clearPrepared } = assembleIdentityServices(deps)
   const inFlight = new Set<Promise<unknown>>()
   let stopped = false
   let closing: Promise<void> | undefined
@@ -81,7 +129,7 @@ export function createAccountIdentity(
       if (closing) return closing
       stopped = true
       closing = Promise.allSettled([...inFlight]).then(() => {
-        logins.clearPrepared()
+        clearPrepared()
       })
       return closing
     },

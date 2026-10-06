@@ -16,34 +16,20 @@ import {
 } from '@omne-harness-lite/identity-values'
 import { type Ack, type Outcome, fail, succeed } from '@omne-harness-lite/kernel-basis'
 import { addDuration } from '@omne-harness-lite/offer-expiry'
-import {
-  ReferenceViolation,
-  UniqueViolation,
-  type WriteTx,
-  type StorageUnit,
-  narrow,
-} from '@omne-harness-lite/storage'
-import { type ServiceDeps, storageUnavailable } from './deps.ts'
+import { ReferenceViolation, UniqueViolation } from '@omne-harness-lite/storage'
+import { type PolicyDeps, storageUnavailable } from './deps.ts'
 import { defect, describeError } from './diagnostics.ts'
-import {
-  classifyAccount,
-  landExpiry,
-  sameOccupancy,
-  selectAccountById,
-  selectAccountByIdentifier,
-  settleExpiry,
-} from './records.ts'
+import { classifyAccount, sameOccupancy, settleExpiry } from './records.ts'
 import {
   ACCOUNT_LOGIN_IDENTIFIER_UNIQUE,
   ACCOUNT_PKEY,
-  ACCOUNT_TABLE,
-  type AccountIdentityDb,
   FLAG_FALSE,
-  FLAG_TRUE,
   storedFlag,
   storedAccountId,
   storedLoginIdentifier,
-} from './schema.ts'
+  type IdentityWrite,
+  type IdentityDataUnit,
+} from './identity-data.ts'
 import type {
   AccountReading,
   AccountsService,
@@ -61,8 +47,8 @@ const POLICY_UNAVAILABLE_REASON = 'credential-policy-unavailable'
 /** 快照之后同一标识上又有别的提交时，从快照重来的次数上限；再变 ⇒ `storage-unavailable`（判不出来）。 */
 const PRODUCE_ATTEMPTS = 2
 
-export class AccountsImpl implements AccountsService {
-  constructor(private readonly deps: ServiceDeps) {}
+export class AccountsImpl implements Omit<AccountsService, 'participate'> {
+  constructor(private readonly deps: PolicyDeps) {}
 
   // ---- S-13 ----
 
@@ -94,10 +80,10 @@ export class AccountsImpl implements AccountsService {
     credentials: CredentialsService,
     presented: PresentedCredential,
   ): Promise<ProduceResult | 'retry'> {
-    const { storage, clock } = this.deps
+    const { persistence, clock } = this.deps
     // ② 快照：分四类；凭据计算只对快照做，不进写事务（R-8）
     const snapshot = classifyAccount(
-      await storage.read(tx => selectAccountByIdentifier(tx, identifier)),
+      await persistence.read(tx => tx.accountByIdentifier(identifier)),
       clock,
     )
     if (snapshot === 'clock-unavailable') return STORAGE_UNAVAILABLE
@@ -119,9 +105,9 @@ export class AccountsImpl implements AccountsService {
       }
     }
     // ③ 一次写事务：锁定读，与快照是同一行、同一类才按类收场；否则不写、重来
-    return storage.write(async tx => {
-      await tx.lockRow(ACCOUNT_TABLE, { login_identifier: identifier })
-      const current = classifyAccount(await selectAccountByIdentifier(tx, identifier), clock)
+    return persistence.write(async tx => {
+      await tx.lockAccountByIdentifier(identifier)
+      const current = classifyAccount(await tx.accountByIdentifier(identifier), clock)
       if (current === 'clock-unavailable') return STORAGE_UNAVAILABLE
       if (!sameOccupancy(snapshot, current)) return 'retry'
       switch (current.kind) {
@@ -131,7 +117,7 @@ export class AccountsImpl implements AccountsService {
           return IDENTIFIER_TAKEN
         case 'expired':
           if (!current.landed && current.observedAt !== undefined)
-            await landExpiry(tx, current.accountId, current.observedAt)
+            await tx.landAccountExpiry(current.accountId, current.observedAt)
           return {
             failure: 'identifier-held-by-expired-record',
             expiredRecord: current.accountId,
@@ -143,7 +129,7 @@ export class AccountsImpl implements AccountsService {
   }
 
   async #insertAccount(
-    tx: WriteTx,
+    tx: IdentityWrite,
     identifier: LoginIdentifier,
     material: CredentialMaterial | undefined,
   ): Promise<ProduceResult | 'retry'> {
@@ -153,19 +139,16 @@ export class AccountsImpl implements AccountsService {
     if (producedAt === 'unavailable') return STORAGE_UNAVAILABLE
     const accountId = newAccountId()
     try {
-      await narrow<AccountIdentityDb>(tx)
-        .insertInto(ACCOUNT_TABLE)
-        .values({
-          account_id: accountId,
-          login_identifier: identifier,
-          credential_material: material,
-          credential_revision: 0,
-          activated: FLAG_FALSE,
-          produced_at: producedAt,
-          retention_deadline: addDuration(producedAt, this.deps.unactivatedRetention),
-          expired_at: null,
-        })
-        .execute()
+      await tx.insertAccount({
+        account_id: accountId,
+        login_identifier: identifier,
+        credential_material: material,
+        credential_revision: 0,
+        activated: FLAG_FALSE,
+        produced_at: producedAt,
+        retention_deadline: addDuration(producedAt, this.deps.unactivatedRetention),
+        expired_at: null,
+      })
     } catch (error) {
       if (error instanceof UniqueViolation) {
         // 同一标识在快照之后被另一次提交占用：本事务不写，从快照重来
@@ -205,14 +188,14 @@ export class AccountsImpl implements AccountsService {
     const parsed = parseAccountId(rawAccountId)
     if (!isOk(parsed)) return INVALID_INPUT
     const accountId = parsed.ok
-    const { storage, clock, activationKey } = this.deps
+    const { persistence, clock, activationKey } = this.deps
     try {
-      const outcome = await storage.write(
+      const outcome = await persistence.write(
         async (
           tx,
         ): Promise<{ readonly failure: ActivateFailure } | { readonly changed: boolean }> => {
-          await tx.lockRow(ACCOUNT_TABLE, { account_id: accountId })
-          const row = await selectAccountById(tx, accountId)
+          await tx.lockAccountById(accountId)
+          const row = await tx.accountById(accountId)
           // 次序：表示层 → 存在性 → 依据核验 → 状态判定；依据先于状态，坏掉的依据链不被「反正过期了」盖掉
           if (row === undefined) return fail('account-not-found')
           if (verifyHandoffWarrant(activationKey, 'activation', accountId, warrant) !== 'ok')
@@ -221,11 +204,7 @@ export class AccountsImpl implements AccountsService {
           const expiry = await settleExpiry(tx, row, clock)
           if (expiry === 'clock-unavailable') return fail('storage-unavailable')
           if (expiry === 'expired') return fail('account-record-expired')
-          await narrow<AccountIdentityDb>(tx)
-            .updateTable(ACCOUNT_TABLE)
-            .set({ activated: FLAG_TRUE })
-            .where('account_id', '=', accountId)
-            .execute()
+          await tx.activateAccount(accountId)
           return { changed: true }
         },
       )
@@ -241,17 +220,16 @@ export class AccountsImpl implements AccountsService {
 
   async read(rawAccountId: unknown): Promise<Outcome<AccountReading, ReadFailure>> {
     try {
-      return await this.deps.storage.atomic(unit => this.participate(unit).read(rawAccountId))
+      return await this.deps.persistence.atomic(unit => this.participate(unit).read(rawAccountId))
     } catch (error) {
       return storageUnavailable(this.deps.diagnostics, 'read', error)
     }
   }
 
   participate(
-    unit: StorageUnit,
+    unit: IdentityDataUnit,
   ): import('@omne-harness-lite/account-identity').AccountParticipation {
     const invoke = <T>(fn: () => Promise<T>): Promise<T> => {
-      unit.assertStorage(this.deps.storage)
       return unit.run(fn)
     }
     return {
@@ -260,7 +238,7 @@ export class AccountsImpl implements AccountsService {
           const parsed = parseAccountId(raw)
           if (!isOk(parsed)) return INVALID_INPUT
           return unit.mutate(async tx => {
-            const row = await selectAccountById(tx, parsed.ok)
+            const row = await tx.accountById(parsed.ok)
             if (row === undefined) return fail('account-not-found')
             if (storedFlag(row.activated)) return succeed(ACTIVATED_READING)
             const expiry = await settleExpiry(tx, row, this.deps.clock)
@@ -273,7 +251,7 @@ export class AccountsImpl implements AccountsService {
           const parsed = parseLoginIdentifier(raw)
           if (!isOk(parsed)) return INVALID_INPUT
           return unit.query(async tx => {
-            const row = await selectAccountByIdentifier(tx, parsed.ok)
+            const row = await tx.accountByIdentifier(parsed.ok)
             return row !== undefined && storedFlag(row.activated)
               ? succeed(storedAccountId(row.account_id))
               : fail('account-not-found')
@@ -288,17 +266,17 @@ export class AccountsImpl implements AccountsService {
     const parsed = parseAccountId(rawAccountId)
     if (!isOk(parsed)) return INVALID_INPUT
     const accountId = parsed.ok
-    const { storage, clock, purgeKey } = this.deps
+    const { persistence, clock, purgeKey } = this.deps
     try {
-      const outcome = await storage.write(
+      const outcome = await persistence.write(
         async (
           tx,
         ): Promise<
           { readonly failure: PurgeFailure } | { readonly deleted: LoginIdentifier | undefined }
         > => {
-          await tx.lockRow(ACCOUNT_TABLE, { account_id: accountId })
+          await tx.lockAccountById(accountId)
           // 次序：表示层 → 存在性（分流，不产生失败值）→ 依据核验 → 状态判定；幂等的 ok 也要等依据通过
-          const row = await selectAccountById(tx, accountId)
+          const row = await tx.accountById(accountId)
           if (verifyHandoffWarrant(purgeKey, 'purge', accountId, warrant) !== 'ok')
             return fail('purge-warrant-invalid')
           if (row === undefined) return { deleted: undefined }
@@ -308,10 +286,7 @@ export class AccountsImpl implements AccountsService {
           if (expiry === 'live') return fail('not-expired')
           try {
             // 删除一行即释放标识：标识就是这一行的一列，唯一约束建在它上面
-            await narrow<AccountIdentityDb>(tx)
-              .deleteFrom(ACCOUNT_TABLE)
-              .where('account_id', '=', accountId)
-              .execute()
+            await tx.deleteAccount(accountId)
           } catch (error) {
             if (error instanceof ReferenceViolation && error.kind === 'delete-restricted') {
               // 还有别的表（本版：个人组织行）引用它；本包不知道也不该知道是谁。清除链按抖动型重扫

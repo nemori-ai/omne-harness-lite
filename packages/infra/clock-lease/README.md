@@ -72,8 +72,8 @@ try {
 ```
 
 The caller owns `start()` and `close()` when using `LeaseClock` directly. Close
-the clock before its storage: closing clears the renewal timer, waits for its
-scheduled renewal, and attempts to reclaim the lease it last wrote. It does not
+the clock before its storage. Closing stops new time reads and renewals, clears
+the timer, waits for its scheduled renewal, and attempts to reclaim its last lease. It does not
 close the supplied storage. Use one start/close lifecycle per instance and await
 manually invoked `renew()` before closing.
 
@@ -108,7 +108,9 @@ class Startup extends StorageStartup {
 let storageFiber: Fiber | undefined
 let clockFiber: Fiber | undefined
 try {
-  await ctx.plugin(inner => { new Startup(inner) })
+  await ctx.plugin(inner => {
+    new Startup(inner)
+  })
   storageFiber = ctx.plugin(storageSqlPlugin, {
     dialect: 'sqlite',
     file: join(directory, 'clock.sqlite'),

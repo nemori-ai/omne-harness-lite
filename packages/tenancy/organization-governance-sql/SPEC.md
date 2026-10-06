@@ -39,3 +39,11 @@ close 停止新普通操作并等待已准入完整 Promise，不关闭借入依
 managedOrganizationGovernancePlugin 的纯 describeAssembly 声明提供四服务，必需 storage、clock、
 accounts、logins，投影原密钥和有效期为 tenancy-host/organizations v1。
 声明沿[插件树协议](../../core/cordis-plugin-tree/SPEC.md)。T4 树及真实宿主的完整组合仍须独立验收。
+
+## 策略与记录后端
+
+纯策略只消费私有具名记录面；原行表示仍在原业务观察位置解码。SQL 后端拥有查询、五类锁、原 upsert 和写谓词，不拥有授权、期限、成员资格或父链判断。公共操作、Schema 身份、六表结构及原失败次序保持。
+
+装配绑定原 StorageUnit，不提前核验、观察或终结。每次参与调用先检查真实 Storage 实例，再在原 unit.run 中依次构造账号和登录参与面。query、mutate、afterCommit 直接委托当前单元；普通操作恰有一次原 atomic。不可用在 run 内污染当前单元，不能由业务层捕获后提交先前暂存效果。
+
+四个公开独立工厂继续可单独消费。整体工厂共享一个依赖投影并保持原准入和关闭责任。后端不另开连接、缓存参与对象或关闭借入资源。实现理由及复核条件见[策略与记录后端](adr/policy-persistence.md)。

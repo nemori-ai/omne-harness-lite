@@ -1,6 +1,7 @@
 import { readJsonText } from '../json.ts'
 import { validBackupInput, validBackupStatusInput, validOpsResult } from '../maintenance/inputs.ts'
-import { metadataTime, type BackupDescriptor, type Metadata } from '../maintenance/metadata.ts'
+import { metadataTime } from '../maintenance/metadata-policy.ts'
+import type { BackupDescriptor, Metadata } from '../maintenance/backup-data.ts'
 import type { MaintenanceResult } from '../maintenance/results.ts'
 import { RECEIVE_LIMITS } from './limits.ts'
 import { formatInstant } from './wire.ts'

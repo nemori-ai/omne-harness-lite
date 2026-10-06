@@ -13,7 +13,7 @@ import {
   type GovernanceUse,
   type Origin,
 } from '@omne-harness-lite/governance-client-operations'
-import { providers, type CliRuntime } from '../application.ts'
+import type { CliRuntime } from '../application.ts'
 import { diagnosticText, InputFailure, type Diagnostic } from '../diagnostic.ts'
 import { commands } from '../parser.ts'
 import { reportText } from '../presentation.ts'
@@ -28,7 +28,7 @@ import {
   type PreparedForm,
   type Field,
 } from './forms.ts'
-import { openTerminal, type TerminalPort } from './terminal.ts'
+import type { TerminalPort } from './terminal.ts'
 
 interface Options {
   readonly directory: string
@@ -65,9 +65,6 @@ export interface TuiRuntime extends Pick<
   'home' | 'signal' | 'createAssembly' | 'stdout' | 'stderr'
 > {
   readonly terminal: (profile: string) => Promise<TerminalPort>
-}
-export function tuiProviders() {
-  return { ...providers(), terminal: openTerminal }
 }
 /** Both screen codes mean this terminal cannot carry the full-screen interface: point to machine. */
 function tuiDiagnosticText(code: Diagnostic): string {

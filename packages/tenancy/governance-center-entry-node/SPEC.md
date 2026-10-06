@@ -43,3 +43,31 @@ ops 只订阅 SERVING_EVENT/STOPPED_EVENT/DEFECT_EVENT，只派发 LISTENING_EVE
 本页只接续服务端工厂、绑定、资源和事件的公开集成承诺，不退役其余旧源。
 采用依据为[身份整体设计](../../../.meta_harness/design/record/decisions/identity-integration-design/decision.md)及[T4 接缝](../../../.meta_harness/design/record/decisions/identity-t4-host-coordinates/decision.md)。
 源码、声明、运行闭包和制品消费须分别验证；类型及静态图不能证明启动、隔离、事务或关闭。
+
+## 请求判定与协议装配
+
+`service-faces.ts`、`json-shapes.ts` 与 `routing/record-shapes.ts` 分别唯一拥有服务、读取结果与工程记录形状。`routing/routes.ts` 保留原31条业务调用及失败规则，`route-wire.ts` 按同一原 schema 拥有协议投影。内部形状与投影不成为新的公共操作。
+
+`decision-policy.ts` 通过私有协议、关联号和认证事务端口作原判定。`decide.ts` 绑定实际 JSON 读取、原协议编码/校验、关联号与原共同事务；五参与面仍在同一 atomic 回调按原次序构造。公开体检与无需查询的拒绝不读取服务或启动事务。
+
+成功路径仍按投影、矛盾检查、Schema 校验、编码、最后活动、真实提交、字节交付的原顺序完成。原捕获边界分别保持；校验和编码仍在提交前。已观察缺陷在回滚后保留，不被污染单元的终结异常覆盖。改密准备后最终事务使用原 caller/ticket，不再 exchange。注册仍保持三个独立提交。
+
+本成员策略不直接拥有 wire 编码、关联号 crypto 或存储终结。既有公共身份函数的传递运行闭包继续有效；此分离不宣称共享公共根无 crypto，也不扩大租户授权或同提交例外。
+
+R1-T5 的严格 JSON 形状搬迁只允许 json.ts 从 json-shapes.ts 以具名纯 type import 消费 JsonLimits、DuplicateMember、JsonReading。新叶子只能含 interface/type 声明，无导入、重导出和运行时语句。SC-2 对运维与只读叶子绕入治理/写逻辑的限制保持；本例外不开放其他名称、消费者或运行时绑定。
+
+## 维护策略与实际文件拥有者
+
+维护的 Metadata、BackupDescriptor、大小上限和文件名判据由 maintenance/backup-data.ts 唯一维护；原 MAGIC 文本仍相同。metadata-policy.ts 拥有原时间判据，metadata.ts 与 input-codec.ts 拥有原协议校验和字节编码。
+
+input、catalog、publication、online、offline 只消费 maintenance-ports.ts 的具名效果。实际文件/目录、同fd稳定检查和资源登记分别归 input-io、directory-io、file-io；assembly 唯一选择文件、codec、摘要和中心读取。useBackup 在同一次 files.useInput 回调内完成原 header、纯输入对象构造与业务调用，close 仍由真实资源拥有者和 session 负责。公开离线工厂的名字、选项、结果和错误不变；不增加其他导出路径。
+
+中心读取仍绑定原 readSnapshotCenterId，在同一原 view 内保留逐迁移、逐Check与原结构/身份SQL检查，不去重或另开快照。原单任务准入、stop请求/close实际完成、正常耗尽digest、中心筛选先于时间/耐久、可见发布不可撤销、未知耐久、残余与清理错误优先级保持。原三处测试与两构造改接实际装配，原类方法故障注入的作用阶段不变。
+
+维护输入及结果策略通过同一 MaintenanceEffects.validate 调用原 Schema 判据。assembly 在每个原调用时点取得实际校验器，构造不读取校验器、不缓存。输入校验仍先于准入及文件效果；结果仍在工作或原失败映射、残余报告之后校验，校验器缺陷继续原样传播。BackupInput 形状归 backup-data，inputs 只拥有交互校验实现。
+
+## 运维体检与连接装配
+
+ops/health-probe.ts 拥有原只读SQL探针及两秒竞速。超时只结束本次观察，实际读取继续；迟到StorageDefect仍走原诊断出口。health.ts 通过具名probe读取结果，保持原公开字段和字节顺序。health-sources.ts 延迟读取原字段，不在构造时探测、读取时钟或缓存值。
+
+ops/face.ts 拥有原完整连接控制；entry.ts 选择实际维护与探针提供者。三秒只限制网络排空；停止准入后仍等待已登记业务和维护真实关闭，才删除本实例socket并通知完成。订阅、未取得socket的启动前缀清理、原fullHealthBody故障注入坐标和公共工厂保持。

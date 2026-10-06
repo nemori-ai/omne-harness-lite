@@ -1,67 +1,29 @@
-// 四个服务面共用的依赖与助手。插件体每次运行建一份；事实都在存储里，这里不持有任何事实。
-import type { AccountsService, LoginsService } from '@omne-harness-lite/account-identity'
-import type { AccountId, SigningKey } from '@omne-harness-lite/identity-values'
-import type { Clock, Duration } from '@omne-harness-lite/offer-expiry'
-import {
-  mapStorageError,
-  StorageUnavailable,
-  type AtomicStorage,
-  type StorageUnit,
-} from '@omne-harness-lite/storage'
-import type {
-  OrganizationGovernanceEventName,
-  OrganizationGovernanceEventPayload,
-} from '@omne-harness-lite/organization-governance'
-
-/** 加载时校验过的政策参数。 */
-export interface ResolvedConfig {
-  readonly invitationTtlDefault: Duration
-  readonly affiliationRequestTtlDefault: Duration
-  readonly teamCreationKeyRetention: Duration
-  readonly purgeSigningKey: SigningKey
-}
-
-/** 本节点只消费账号能力的两个读面（契约 S-4：S-18 读账号、S-17 校验登录状态），不多 inject 一个方法。 */
-export type AccountsReadFace = Pick<AccountsService, 'participate'>
-export type LoginsVerifyFace = Pick<LoginsService, 'participate'>
-
-export interface Deps {
-  readonly storage: AtomicStorage
-  readonly clock: Clock
-  readonly accounts: AccountsReadFace
-  readonly logins: LoginsVerifyFace
-  readonly config: ResolvedConfig
-  readonly logger: {
-    error(message: string, ...values: unknown[]): void
-    info(message: string, ...values: unknown[]): void
-  }
-  /** 提交之后的通知派发（S-40）：不等待、不读返回值；监听者抛出只记日志，不改已提交的事实。 */
-  notify<K extends OrganizationGovernanceEventName>(
-    name: K,
-    payload: OrganizationGovernanceEventPayload<K>,
-  ): void
-}
-
+import type { AccountId } from '@omne-harness-lite/identity-values'
+import { mapStorageError, StorageUnavailable } from '@omne-harness-lite/storage'
+import type { PolicyDeps } from './policy-deps.ts'
+import type { OrgDataUnit, OrgParticipants } from './governance-data.ts'
 /** 内部显式参与上下文，不是具有独立提交语义的Storage。 */
-export interface OperationContext extends Pick<Deps, 'clock' | 'config' | 'logger' | 'notify'> {
-  readonly query: StorageUnit['query']
-  readonly mutate: StorageUnit['mutate']
-  readonly accounts: ReturnType<AccountsService['participate']>
-  readonly logins: ReturnType<LoginsService['participate']>
+export interface OperationContext extends Pick<
+  PolicyDeps,
+  'clock' | 'config' | 'logger' | 'notify'
+> {
+  readonly query: OrgDataUnit['query']
+  readonly mutate: OrgDataUnit['mutate']
+  readonly accounts: OrgParticipants['accounts']
+  readonly logins: OrgParticipants['logins']
 }
 
 export async function withParticipation<T>(
-  deps: Deps,
-  unit: StorageUnit,
+  deps: PolicyDeps,
+  unit: OrgDataUnit,
   work: (context: OperationContext) => Promise<T>,
 ): Promise<T> {
-  unit.assertStorage(deps.storage)
-  return unit.run(async () => {
+  return unit.run(async faces => {
     const result = await work({
       query: fn => unit.query(fn),
       mutate: fn => unit.mutate(fn),
-      accounts: deps.accounts.participate(unit),
-      logins: deps.logins.participate(unit),
+      accounts: faces.accounts,
+      logins: faces.logins,
       clock: deps.clock,
       config: deps.config,
       logger: deps.logger,
@@ -82,11 +44,11 @@ export async function withParticipation<T>(
 
 /** 只有普通独立提交的最终出口可以转换异常。参与操作必须让异常污染并退出外层。 */
 export async function withOperation<T>(
-  deps: Deps,
+  deps: PolicyDeps,
   work: (context: OperationContext) => Promise<T>,
 ): Promise<T | { readonly failure: 'unavailable' }> {
   try {
-    return await deps.storage.atomic(unit => withParticipation(deps, unit, work))
+    return await deps.persistence.atomic(unit => withParticipation(deps, unit, work))
   } catch (error) {
     return mapStorageError(error, 'unavailable')
   }

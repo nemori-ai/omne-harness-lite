@@ -1,7 +1,5 @@
-import { homedir } from 'node:os'
 import { isAbsolute, join } from 'node:path'
 import { exitStatus, type ActionReport } from '@omne-harness-lite/governance-client-operations'
-import { createClientAssembly } from './assembly.ts'
 import {
   assemblyCloseDiagnostics,
   ClientAssemblyStateFailure,
@@ -10,11 +8,11 @@ import {
   type ClientAssemblyFactory,
 } from './client-assembly.ts'
 import { diagnosticText, InputFailure, type Diagnostic } from './diagnostic.ts'
-import { buildIntent, readSecrets } from './input.ts'
+import type { buildIntent, readSecrets } from './input.ts'
 import { commands, parseInvocation, type Invocation } from './parser.ts'
 import { previewText, reportText, unopened } from './presentation.ts'
 import { validIntent, validReport } from './validation.ts'
-import { versionText } from './version.ts'
+import type { versionText } from './version.ts'
 
 /** Internal test seam; the executable fixes these providers and exposes no fault switches. */
 export interface CliRuntime {
@@ -27,18 +25,6 @@ export interface CliRuntime {
   readonly createAssembly: ClientAssemblyFactory
   readonly intent: typeof buildIntent
   readonly secrets: typeof readSecrets
-}
-export function providers(): Pick<
-  CliRuntime,
-  'home' | 'createAssembly' | 'intent' | 'secrets' | 'version'
-> {
-  return {
-    home: homedir(),
-    version: versionText,
-    createAssembly: createClientAssembly,
-    intent: buildIntent,
-    secrets: readSecrets,
-  }
 }
 /** What the no-screen signpost may name: the table's command, if the invocation recognized one. */
 function signpostFor(invocation: Invocation): { readonly command?: readonly string[] } {

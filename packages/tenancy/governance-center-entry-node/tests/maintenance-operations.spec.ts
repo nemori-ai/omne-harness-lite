@@ -21,11 +21,11 @@ import {
 } from '@omne-harness-lite/storage-sql'
 import { governanceCenterMigrations } from '../src/center-id/migrations.ts'
 import { governanceCenterSnapshotCheck } from '../src/center-id/snapshot.ts'
-import { OnlineMaintenance } from '../src/maintenance/online.ts'
-import { createOfflineMaintenance } from '../src/maintenance/offline.ts'
+import { createOnlineMaintenance, createOfflineMaintenance } from '../src/maintenance/assembly.ts'
 import { BackupInputFile } from '../src/maintenance/input.ts'
-import { metadataBytes, type Metadata } from '../src/maintenance/metadata.ts'
-import { MaintenanceDirectory } from '../src/maintenance/publication.ts'
+import { metadataBytes } from '../src/maintenance/metadata.ts'
+import type { Metadata } from '../src/maintenance/backup-data.ts'
+import { MaintenanceDirectory } from '../src/maintenance/directory-io.ts'
 
 const faults = vi.hoisted(() => ({ closePath: '', unlinkCode: '' }))
 vi.mock('node:fs/promises', async importOriginal => {
@@ -110,7 +110,7 @@ async function fixture(identity = centerId) {
         options,
       ),
   }
-  const online = new OnlineMaintenance({
+  const online = createOnlineMaintenance({
     ...format,
     source,
     clock,

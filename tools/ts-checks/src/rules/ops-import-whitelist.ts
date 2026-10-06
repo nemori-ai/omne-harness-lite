@@ -27,6 +27,7 @@ const OPS_PACKAGES = new Set([
 ])
 const MAINTENANCE = `${ENTRY_SRC}maintenance/`
 const JSON_MODULE = `${ENTRY_SRC}json`
+const JSON_SHAPES = `${ENTRY_SRC}json-shapes`
 const MAINTENANCE_LEAVES = new Set([
   JSON_MODULE,
   `${ENTRY_SRC}routing/schema`,
@@ -34,6 +35,7 @@ const MAINTENANCE_LEAVES = new Set([
 ])
 const READONLY_LEAVES = new Set([
   ...MAINTENANCE_LEAVES,
+  JSON_SHAPES,
   `${ENTRY_SRC}schema-inputs`,
   `${ENTRY_SRC}center-id/table`,
   `${ENTRY_SRC}center-id/snapshot-structure`,
@@ -75,6 +77,21 @@ export const opsImportWhitelist: Rule = {
       const inReadonlyLeaf = READONLY_LEAVES.has(withoutExtension(file.path))
       const isWork = withoutExtension(file.path) === WORK_MODULE
       if (!inOps && !isEvents && !inMaintenance && !inReadonlyLeaf && !isWork) continue
+      if (withoutExtension(file.path) === JSON_SHAPES) {
+        const source = ts.createSourceFile(file.path, file.text, ts.ScriptTarget.Latest, true)
+        if (
+          source.statements.some(
+            node => !ts.isInterfaceDeclaration(node) && !ts.isTypeAliasDeclaration(node),
+          )
+        ) {
+          out.push({
+            rule: this.id,
+            path: file.path,
+            line: 1,
+            message: '严格JSON形状叶子只许interface/type声明，不得承载运行时语句或重导出',
+          })
+        }
+      }
       for (const ref of importsOf(file)) {
         const verdict = inOps
           ? judgeOpsImport(file, ref)
@@ -171,6 +188,15 @@ function judgeReadonlyLeaf(file: SourceFile, ref: ImportRef): string | undefined
   if (specifier === undefined) return '运维只读叶子的动态导入说明符不是字面量'
   const module = withoutExtension(path)
   const resolved = resolveRelative(path, specifier)
+  // R1-T5 moved the same three JSON types to their sole dependency-free owner.
+  // Only the original reader may import them, and only as named types.
+  if (
+    module === JSON_MODULE &&
+    resolved !== undefined &&
+    withoutExtension(resolved) === JSON_SHAPES &&
+    pureTypeOnly(file, ref.index, ['JsonLimits', 'DuplicateMember', 'JsonReading'])
+  )
+    return undefined
   if (module === `${ENTRY_SRC}routing/schema`) {
     if (
       (resolved !== undefined && withoutExtension(resolved) === `${ENTRY_SRC}schema-inputs`) ||

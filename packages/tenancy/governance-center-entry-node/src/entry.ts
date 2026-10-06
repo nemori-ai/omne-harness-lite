@@ -24,7 +24,7 @@ import { readOrMintCenterId } from './center-id/read-or-mint.ts'
 import { RECEIVE_LIMITS } from './ops/limits.ts'
 import { entryAnswerBytes, publicHealthBytes } from './routing/answers.ts'
 import { decide } from './routing/decide.ts'
-import { type RequestRecord, thrownValue } from './routing/record.ts'
+import { type RequestRecord, thrownValue } from './routing/record-shapes.ts'
 import { ClientFace } from './transport/client-face.ts'
 
 /** 等钟可读时的轮询间隔。 */

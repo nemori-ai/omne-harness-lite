@@ -1,5 +1,5 @@
 import { SnapshotFailure, StorageDefect } from '@omne-harness-lite/storage'
-import { entryValidator } from '../routing/schema.ts'
+import type { MaintenanceEffects } from './maintenance-ports.ts'
 import {
   maintenanceFailure,
   MaintenanceFailure,
@@ -7,8 +7,8 @@ import {
   type MaintenanceFailureKind,
   type UnknownResult,
 } from './failure.ts'
-import type { MaintenanceReporter } from './publication.ts'
-import type { BackupDescriptor, Metadata } from './metadata.ts'
+import type { MaintenanceReporter } from './maintenance-options.ts'
+import type { BackupDescriptor, Metadata } from './backup-data.ts'
 
 export interface ObservedBackups {
   readonly status: 'observed'
@@ -54,6 +54,7 @@ export function failureResult(error: unknown): MaintenanceResult {
   return { status: last.kind }
 }
 export async function resultOf(
+  validate: MaintenanceEffects['validate'],
   definition: string,
   fn: () => Promise<MaintenanceResult>,
   onFailure?: (error: unknown) => void,
@@ -65,7 +66,7 @@ export async function resultOf(
     onFailure?.(error)
     result = failureResult(error)
   }
-  if (!entryValidator(definition)(result))
+  if (!validate(definition, result))
     throw new StorageDefect('maintenance result violates its accepted schema')
   return result
 }

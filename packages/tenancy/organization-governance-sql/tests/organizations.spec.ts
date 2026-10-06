@@ -418,7 +418,7 @@ describe('S-35 层身份', () => {
 })
 
 describe('S-7 至多一个上级：静态检查', () => {
-  it('parent 是 organization 的单列；写 parent 的语句只有两条（接受隶属填值、解除隶属清空），创建一律写 null', () => {
+  it('parent 是 organization 的单列；parent 只有一个后端写入点、两条原策略路径（接受填值、解除清空），创建一律写 null', () => {
     const src = new URL('../src/', import.meta.url)
     const sources = readdirSync(src)
       .filter(f => f.endsWith('.ts'))
@@ -431,21 +431,36 @@ describe('S-7 至多一个上级：静态检查', () => {
     )
     const updates = statements.filter(s => s.kind === 'updateTable')
     expect(
-      updates.map(u => `${u.file}: ${/\.set\(\{([^}]*)\}\)/.exec(u.body)?.[1]?.trim()}`).sort(),
-    ).toEqual([
-      'offers.ts: parent: newParent', // setParent（S-32 接受隶属请求）
-      'organizations.ts: parent: null', // clearParent（S-33 解除隶属）
+      updates.map(u => `${u.file}: ${/\.set\(\{([^}]*)\}\)/.exec(u.body)?.[1]?.trim()}`),
+    ).toEqual(['governance-sql.ts: parent'])
+    expect(updates[0]?.body).toContain(".where('organization_id', '=', child)")
+    // The two original policy origins are the only users of the unique backend writer.
+    const parentCalls = sources.flatMap(({ file, text }) =>
+      [...text.matchAll(/\.setParent\(([^)]*)\)/g)].map(m => `${file}: ${m[1]}`),
+    )
+    expect(parentCalls.sort()).toEqual([
+      'offers.ts: child, newParent',
+      'organizations.ts: record.id, null',
     ])
     const inserts = statements.filter(s => s.kind === 'insertInto')
-    expect(inserts).toHaveLength(1) // 创建组织只有一处（S-20／S-21 共用）
-    expect(inserts[0]?.body).toContain('parent: null')
-    // 除了这两个函数，源码里没有别处再写 organization 表
+    expect(inserts).toHaveLength(1)
+    expect(inserts[0]?.file).toBe('governance-sql.ts')
+    expect(inserts[0]?.body).toContain('.values(row)')
+    const creationCalls = sources.flatMap(({ file, text }) =>
+      [...text.matchAll(/\.insertOrganization\((\{[\s\S]*?\})\)/g)].map(m => ({
+        file,
+        body: m[1],
+      })),
+    )
+    expect(creationCalls).toHaveLength(1)
+    expect(creationCalls[0]?.file).toBe('organizations.ts')
+    expect(creationCalls[0]?.body).toContain('parent: null')
     expect(
       sources
         .filter(s => /updateTable\(/.test(s.text))
         .map(s => s.file)
         .sort(),
-    ).toEqual(['memberships.ts', 'offers.ts', 'organizations.ts'])
+    ).toEqual(['governance-sql.ts'])
     const migration = sources.find(s => s.file === 'migrations.ts')?.text ?? ''
     expect([...migration.matchAll(/addColumn\('parent'/g)]).toHaveLength(1)
   })

@@ -47,6 +47,8 @@ Read and compare-and-replace use the public [local-state contract](../../core/cl
 
 `close()` stops admission and waits for actual writes, durability work and storage close. Both bindings require `clientStateStorage`. The managed binding also requires an assembly lifetime port. See [SPEC.md](SPEC.md).
 
+The private CAS policy uses record ports from `state-data.ts`. `state-sql.ts` binds those ports inside the original storage callback. The open factory selects that binding. See [the boundary decision](adr/policy-persistence.md).
+
 ## Development
 
 ```sh

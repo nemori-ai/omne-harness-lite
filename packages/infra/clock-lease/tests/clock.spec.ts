@@ -339,6 +339,7 @@ describe('LeaseClock · 装卸', () => {
       closed = true
     })
     expect(vi.getTimerCount()).toBe(0)
+    expect(clock.now()).toBe('unavailable') // 停止准入先于实际定时续约排空
     await drain()
     expect(closed).toBe(false) // 撤除在等在途续约
     expect(control.writes).toBe(writes)

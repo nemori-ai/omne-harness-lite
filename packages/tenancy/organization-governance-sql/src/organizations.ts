@@ -1,3 +1,6 @@
+import type { OrgWrite, OrgDataUnit } from './governance-data.ts'
+import type { PolicyDeps } from './policy-deps.ts'
+import type { OrganizationsParticipation } from '@omne-harness-lite/organization-governance'
 // organizations 服务面：S-20 创建个人组织、S-21 创建团队组织、S-22 读组织、S-33 解除隶属、
 // S-34 上级链与有共同上级、S-35 层身份。
 import {
@@ -14,10 +17,8 @@ import {
 } from '@omne-harness-lite/identity-values'
 import { type Duration, type Instant, addDuration } from '@omne-harness-lite/offer-expiry'
 import { type Ack, type Outcome, fail, succeed } from '@omne-harness-lite/kernel-basis'
-import { ReferenceViolation, UniqueViolation, type WriteTx } from '@omne-harness-lite/storage'
+import { ReferenceViolation, UniqueViolation } from '@omne-harness-lite/storage'
 import {
-  type Db,
-  db,
   decodeInstant,
   isSuperAdministrator,
   loadParentSnapshot,
@@ -26,7 +27,6 @@ import {
   readOrganizationOwnedBy,
 } from './records.ts'
 import {
-  type Deps,
   type OperationContext,
   readAccountFacts,
   withOperation,
@@ -53,9 +53,6 @@ export class ParentChainCycle extends Error {
   }
 }
 
-/** 部署级隶属写序列化（R-3b）的哨兵名：S-32 与 S-33 的写事务开头都取它。 */
-export const AFFILIATION_SENTINEL = 'organization-governance/affiliation'
-
 function created(organization: OrganizationId, account: AccountId): CreatedOrganization {
   return { organization, tenant: { organization, account } }
 }
@@ -65,7 +62,7 @@ function created(organization: OrganizationId, account: AccountId): CreatedOrgan
  * 上级组织创建时一律为空（S-7：创建链不接受上级）。
  */
 async function insertOrganizationWithSuperAdministrator(
-  d: Db,
+  d: OrgWrite,
   row: {
     readonly id: OrganizationId
     readonly kind: 'personal' | 'team'
@@ -74,25 +71,19 @@ async function insertOrganizationWithSuperAdministrator(
     readonly createdAt: number
   },
 ): Promise<void> {
-  await d
-    .insertInto('organization')
-    .values({
-      organization_id: row.id,
-      kind: row.kind,
-      parent: null,
-      owner_account: row.ownerAccount,
-      created_at: row.createdAt,
-    })
-    .execute()
-  await d
-    .insertInto('membership')
-    .values({
-      organization_id: row.id,
-      account_id: row.creator,
-      effective: 1,
-      role: 'superAdministrator',
-    })
-    .execute()
+  await d.insertOrganization({
+    organization_id: row.id,
+    kind: row.kind,
+    parent: null,
+    owner_account: row.ownerAccount,
+    created_at: row.createdAt,
+  })
+  await d.insertMembership({
+    organization_id: row.id,
+    account_id: row.creator,
+    effective: 1,
+    role: 'superAdministrator',
+  })
 }
 
 async function createPersonal(
@@ -109,7 +100,7 @@ async function createPersonal(
   if (facts.ok.retentionExpired) return fail('accountRecordExpired')
 
   return deps.mutate(async tx => {
-    const d = db(tx)
+    const d = tx
     const existing = await readOrganizationOwnedBy(d, account)
     if (existing !== undefined) return succeed(created(existing.id, account))
     const now = deps.clock.now()
@@ -163,12 +154,12 @@ async function createTeam(
   if (!facts.ok.activated) return fail('accountNotActivated')
 
   return deps.mutate(async tx => {
-    const d = db(tx)
+    const d = tx
     const now = deps.clock.now()
     if (now === 'unavailable') return fail('unavailable')
     const id = mintIdentifier('OrganizationId')
     if (creationKey !== undefined) {
-      const replay = await registerCreationKey(d, tx, {
+      const replay = await registerCreationKey(d, {
         creator,
         creationKey,
         organization: id,
@@ -196,8 +187,7 @@ async function createTeam(
  * 先登记、后建组织：并发的同键创建撞主键 ⇒ 重读认回胜者，不留第二个组织。
  */
 async function registerCreationKey(
-  d: Db,
-  tx: WriteTx,
+  d: OrgWrite,
   entry: {
     readonly creator: AccountId
     readonly creationKey: string
@@ -206,20 +196,11 @@ async function registerCreationKey(
     readonly retention: Duration
   },
 ): Promise<OrganizationId | undefined> {
-  const lookup = async () =>
-    d
-      .selectFrom('team_creation_key')
-      .select(['organization_id', 'registered_at'])
-      .where('creator_account', '=', entry.creator)
-      .where('creation_key', '=', entry.creationKey)
-      .executeTakeFirst()
+  const lookup = async () => d.creationKey(entry.creator, entry.creationKey)
   const withinRetention = (registeredAt: unknown) =>
     entry.now <=
     addDuration(decodeInstant('team_creation_key', 'registered_at', registeredAt), entry.retention)
-  await tx.lockRow('team_creation_key', {
-    creator_account: entry.creator,
-    creation_key: entry.creationKey,
-  })
+  await d.lockCreationKey(entry.creator, entry.creationKey)
   const hit = await lookup()
   if (hit !== undefined) {
     if (withinRetention(hit.registered_at)) {
@@ -227,24 +208,16 @@ async function registerCreationKey(
       if (!isOk(organization)) throw new Error('team_creation_key.organization_id is malformed')
       return organization.ok
     }
-    await d
-      .updateTable('team_creation_key')
-      .set({ organization_id: entry.organization, registered_at: entry.now })
-      .where('creator_account', '=', entry.creator)
-      .where('creation_key', '=', entry.creationKey)
-      .execute()
+    await d.replaceCreationKey(entry.creator, entry.creationKey, entry.organization, entry.now)
     return undefined
   }
   try {
-    await d
-      .insertInto('team_creation_key')
-      .values({
-        creator_account: entry.creator,
-        creation_key: entry.creationKey,
-        organization_id: entry.organization,
-        registered_at: entry.now,
-      })
-      .execute()
+    await d.insertCreationKey({
+      creator_account: entry.creator,
+      creation_key: entry.creationKey,
+      organization_id: entry.organization,
+      registered_at: entry.now,
+    })
   } catch (error) {
     if (error instanceof UniqueViolation && error.constraint === 'team_creation_key_pkey') {
       const winner = await lookup()
@@ -264,7 +237,7 @@ async function read(
   const parsed = parseOrganizationId(organizationInput)
   if (!isOk(parsed)) return fail('invalidInput')
   return deps.query(async tx => {
-    const record = await readOrganization(db(tx), parsed.ok)
+    const record = await readOrganization(tx, parsed.ok)
     if (record === undefined) return fail('organizationDoesNotExist')
     return succeed({ id: record.id, kind: record.kind, parent: record.parent })
   })
@@ -279,8 +252,8 @@ async function dissolveAffiliation(
   const child = parseOrganizationId(childInput)
   if (!isOk(initiator) || !isOk(child)) return fail('invalidInput')
   const outcome = await deps.mutate(async tx => {
-    await tx.lockSentinel(AFFILIATION_SENTINEL)
-    const d = db(tx)
+    await tx.lockAffiliationGraph()
+    const d = tx
     const record = await readOrganization(d, child.ok)
     // ② 任一方组织的超级管理员，单方面即可（不需要一份隶属请求）
     const parties =
@@ -289,24 +262,12 @@ async function dissolveAffiliation(
       parties.includes(initiator.ok.organization) && (await isSuperAdministrator(d, initiator.ok))
     if (!authorized) return fail('notAuthorized')
     if (record === undefined || record.parent === null) return fail('noSuchAffiliation')
-    await clearParent(d, record.id)
+    await d.setParent(record.id, null)
     return succeed({ child: record.id, formerParent: record.parent })
   })
   if ('failure' in outcome) return outcome
   deps.notify('organization-governance/affiliation-dissolved', outcome.ok)
   return 'ok'
-}
-
-/**
- * S-7：上级组织属性的两条写路径之一（解除）。另一条是 offers 里接受隶属请求的 `setParent`；
- * 除这两处外没有任何写 `organization.parent` 的语句（创建时一律写 null），tests/static.spec.ts 守。
- */
-async function clearParent(d: Db, child: OrganizationId): Promise<void> {
-  await d
-    .updateTable('organization')
-    .set({ parent: null })
-    .where('organization_id', '=', child)
-    .execute()
 }
 
 async function ancestorChain(
@@ -316,7 +277,7 @@ async function ancestorChain(
   const parsed = parseOrganizationId(organizationInput)
   if (!isOk(parsed)) return fail('invalidInput')
   return deps.query(async tx => {
-    const d = db(tx)
+    const d = tx
     if ((await readOrganization(d, parsed.ok)) === undefined) {
       return fail('organizationDoesNotExist')
     }
@@ -336,7 +297,7 @@ async function shareAncestor(
   const b = parseOrganizationId(bInput)
   if (!isOk(a) || !isOk(b)) return fail('invalidInput')
   return deps.query(async tx => {
-    const d = db(tx)
+    const d = tx
     if (
       (await readOrganization(d, a.ok)) === undefined ||
       (await readOrganization(d, b.ok)) === undefined
@@ -361,7 +322,11 @@ function scopeLayers(tenantInput: unknown): Outcome<ScopeLayers, ScopeLayersFail
   })
 }
 
-export function createOrganizationsService(deps: Deps): OrganizationsService {
+export function createOrganizationsPolicy(
+  deps: PolicyDeps,
+): Omit<OrganizationsService, 'participate'> & {
+  participate(unit: OrgDataUnit): OrganizationsParticipation
+} {
   return {
     createPersonal: accountId => withOperation(deps, context => createPersonal(context, accountId)),
     createTeam: (creator, creationKey) =>

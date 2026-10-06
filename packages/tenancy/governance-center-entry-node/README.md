@@ -72,6 +72,8 @@ These values are implementation constants, not configuration fields. The public 
 | Live storage health probe                    | 2 seconds                                |
 | Clock polling interval                       | 100 ms, bounded by `clockReadyTimeoutMs` |
 
+The private request policy uses explicit protocol, correlation and transaction ports. Business routes and wire projections have separate owners. The adapter retains the original commit and reply order. See [the boundary decision](adr/decision-protocol.md).
+
 ## Development
 
 ```sh
@@ -89,3 +91,7 @@ Tests use real TLS, Unix sockets and SQLite files. Some transport cases require 
 - [Server-entry definitions](../../core/governance-center-entry/README.md)
 - [Transport definitions](../../core/governance-center-entry-https-json/README.md)
 - [End-to-end environment](../../../apps/tenancy-host/tests/e2e/README.md)
+
+The [maintenance boundary](adr/maintenance-effects.md) separates policy from file, codec and digest providers. The assembly keeps the original descriptor, publication and cleanup ownership.
+
+The ops health encoder consumes an injected probe. The assembly selects the existing SQL probe and maintenance provider. A probe timeout leaves the read running; network drain still waits for admitted business work before resource release.

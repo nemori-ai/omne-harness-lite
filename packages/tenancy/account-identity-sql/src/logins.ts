@@ -10,41 +10,25 @@ import {
   parseLoginStateId,
 } from '@omne-harness-lite/identity-values'
 import { type Ack, type Outcome, fail, succeed } from '@omne-harness-lite/kernel-basis'
-import {
-  StorageDefect,
-  StorageUnavailable,
-  UniqueViolation,
-  type StorageUnit,
-  type WriteTx,
-  narrow,
-} from '@omne-harness-lite/storage'
-import { type ServiceDeps, storageUnavailable } from './deps.ts'
+import { StorageDefect, StorageUnavailable, UniqueViolation } from '@omne-harness-lite/storage'
+import { type PolicyDeps, storageUnavailable } from './deps.ts'
 import { describeError } from './diagnostics.ts'
 import {
   type LoginStatePresentation,
   parseLoginStatePresentation,
 } from '@omne-harness-lite/account-identity'
 import { deriveLoginStateId, generatePresentation } from './presentation.ts'
+import { judgeLoginState, trustedNow, loginDeadlines, loginValidAt } from './records.ts'
 import {
-  judgeLoginState,
-  selectAccountByIdentifier,
-  selectAccountById,
-  trustedNow,
-  loginDeadlines,
-  loginValidAt,
-} from './records.ts'
-import {
-  ACCOUNT_TABLE,
-  type AccountIdentityDb,
   FLAG_FALSE,
-  FLAG_TRUE,
   LOGIN_STATE_PKEY,
-  LOGIN_STATE_TABLE,
   storedAccountId,
   storedFlag,
   storedRevision,
   storedLoginStateId,
-} from './schema.ts'
+  type IdentityWrite,
+  type IdentityDataUnit,
+} from './identity-data.ts'
 import type {
   ChangeCredentialFailure,
   PreparedCredentialChange,
@@ -65,7 +49,7 @@ const STORAGE_UNAVAILABLE = { failure: 'storage-unavailable' } as const
 /** 标识不存在、凭据错误、账号未激活三种情形的**同一个**返回值（S-15、S-22、S-31），没有子字段。 */
 const IDENTIFIER_OR_CREDENTIAL_REJECTED = { failure: 'identifier-or-credential-rejected' } as const
 
-export class LoginsImpl implements LoginsService {
+export class LoginsImpl implements Omit<LoginsService, 'participate'> {
   #prepared = new WeakMap<
     PreparedCredentialChange,
     {
@@ -75,7 +59,7 @@ export class LoginsImpl implements LoginsService {
       material: CredentialMaterial
     }
   >()
-  constructor(private readonly deps: ServiceDeps) {}
+  constructor(private readonly deps: PolicyDeps) {}
 
   /** Called only after all ordinary calls have finished. Old tickets cannot survive close. */
   clearPrepared(): void {
@@ -97,10 +81,10 @@ export class LoginsImpl implements LoginsService {
     }
     const presented = credentials.parse(rawCredential)
     if (!isOk(presented)) return INVALID_INPUT
-    const { storage } = this.deps
+    const { persistence } = this.deps
     try {
       // 事务外：读快照并对它比对凭据（R-8：scrypt 不进持锁段）
-      const snapshot = await storage.read(tx => selectAccountByIdentifier(tx, identifier.ok))
+      const snapshot = await persistence.read(tx => tx.accountByIdentifier(identifier.ok))
       if (snapshot === undefined) return IDENTIFIER_OR_CREDENTIAL_REJECTED
       const compared = await credentials.verify(
         // 材料列由 S-13 产生、S-50 替换，写进去的就是 `credentials.derive` 的返回；本包只存不读它的内部
@@ -111,7 +95,7 @@ export class LoginsImpl implements LoginsService {
       if (compared === 'mismatch') return IDENTIFIER_OR_CREDENTIAL_REJECTED
       const snapshotAccount = storedAccountId(snapshot.account_id)
       // match 才开写事务：重读「是快照那一行且已激活」，与签发写入同提交
-      return await storage.write(tx =>
+      return await persistence.write(tx =>
         this.#issueCommitted(
           tx,
           identifier.ok,
@@ -125,13 +109,13 @@ export class LoginsImpl implements LoginsService {
   }
 
   async #issueCommitted(
-    tx: WriteTx,
+    tx: IdentityWrite,
     identifier: LoginIdentifier,
     snapshotAccount: AccountId,
     snapshotRevision: number,
   ): Promise<Outcome<IssuedLoginState, IssueFailure>> {
-    await tx.lockRow(ACCOUNT_TABLE, { login_identifier: identifier })
-    const current = await selectAccountByIdentifier(tx, identifier)
+    await tx.lockAccountByIdentifier(identifier)
+    const current = await tx.accountByIdentifier(identifier)
     // 行已不在、换成了另一行、仍未激活：与「不存在／凭据错」同一个值
     if (
       current === undefined ||
@@ -162,17 +146,14 @@ export class LoginsImpl implements LoginsService {
     })
     try {
       // 普通插入：撞主键 ⇒ 不签发，不 upsert、不合并、不读回既有行的任何东西
-      await narrow<AccountIdentityDb>(tx)
-        .insertInto(LOGIN_STATE_TABLE)
-        .values({
-          login_state_id: loginStateId,
-          account_id: snapshotAccount,
-          issued_at: issuedAt,
-          last_activity_at: issuedAt,
-          credential_revision: snapshotRevision,
-          revoked: FLAG_FALSE,
-        })
-        .execute()
+      await tx.insertLogin({
+        login_state_id: loginStateId,
+        account_id: snapshotAccount,
+        issued_at: issuedAt,
+        last_activity_at: issuedAt,
+        credential_revision: snapshotRevision,
+        revoked: FLAG_FALSE,
+      })
     } catch (error) {
       if (error instanceof UniqueViolation && error.constraint === LOGIN_STATE_PKEY) {
         this.deps.diagnostics.error('login-state-id-collision', {})
@@ -190,7 +171,7 @@ export class LoginsImpl implements LoginsService {
     fn: (scope: LoginParticipation) => Promise<T>,
   ): Promise<T | { readonly failure: 'storage-unavailable' }> {
     try {
-      return await this.deps.storage.atomic(unit => fn(this.participate(unit)))
+      return await this.deps.persistence.atomic(unit => fn(this.participate(unit)))
     } catch (error) {
       return storageUnavailable(this.deps.diagnostics, operation, error)
     }
@@ -211,9 +192,8 @@ export class LoginsImpl implements LoginsService {
     return this.#ordinary('listEffective', scope => scope.listEffective(caller))
   }
 
-  participate(unit: StorageUnit): LoginParticipation {
+  participate(unit: IdentityDataUnit): LoginParticipation {
     const invoke = <T>(fn: () => Promise<T>): Promise<T> => {
-      unit.assertStorage(this.deps.storage)
       return unit.run(fn)
     }
     return {
@@ -240,20 +220,11 @@ export class LoginsImpl implements LoginsService {
           const outcome = await unit.mutate(async tx => {
             const judged = await judgeLoginState(tx, initiatorId.ok, this.deps.clock)
             if ('failure' in judged) return fail('not-authorized')
-            const db = narrow<AccountIdentityDb>(tx)
-            const row = await db
-              .selectFrom(LOGIN_STATE_TABLE)
-              .selectAll()
-              .where('login_state_id', '=', targetId.ok)
-              .executeTakeFirst()
+            const row = await tx.loginById(targetId.ok)
             if (row === undefined || storedAccountId(row.account_id) !== judged.ok)
               return fail('login-state-not-found')
             if (storedFlag(row.revoked)) return { revoked: undefined }
-            await db
-              .updateTable(LOGIN_STATE_TABLE)
-              .set({ revoked: FLAG_TRUE })
-              .where('login_state_id', '=', targetId.ok)
-              .execute()
+            await tx.revokeLogin(targetId.ok)
             return { revoked: { loginStateId: targetId.ok, accountId: judged.ok } }
           })
           if ('failure' in outcome) return outcome
@@ -272,15 +243,9 @@ export class LoginsImpl implements LoginsService {
             const clock = { now: () => (now ??= trustedNow(this.deps.clock)) }
             const judged = await judgeLoginState(tx, parsed.ok, clock)
             if ('failure' in judged) return judged
-            const account = await selectAccountById(tx, judged.ok)
+            const account = await tx.accountById(judged.ok)
             if (account === undefined) throw new StorageDefect('validated account disappeared')
-            const rows = await narrow<AccountIdentityDb>(tx)
-              .selectFrom(LOGIN_STATE_TABLE)
-              .selectAll()
-              .where('account_id', '=', judged.ok)
-              .orderBy('issued_at')
-              .orderBy('login_state_id')
-              .execute()
+            const rows = await tx.loginsByAccount(judged.ok)
             const values = rows
               .filter(row =>
                 loginValidAt(row, storedRevision(account.credential_revision), clock.now()),
@@ -302,11 +267,7 @@ export class LoginsImpl implements LoginsService {
           await unit.mutate(async tx => {
             const judged = await judgeLoginState(tx, parsed.ok, { now: () => now })
             if ('failure' in judged) return
-            await narrow<AccountIdentityDb>(tx)
-              .updateTable(LOGIN_STATE_TABLE)
-              .set({ last_activity_at: now })
-              .where('login_state_id', '=', parsed.ok)
-              .execute()
+            await tx.recordActivity(parsed.ok, now)
           })
           return 'ok'
         }),
@@ -317,7 +278,7 @@ export class LoginsImpl implements LoginsService {
             throw new StorageDefect('invalid or consumed credential preparation')
           this.#prepared.delete(ticket)
           return unit.mutate(async tx => {
-            const account = await selectAccountById(tx, prepared.accountId)
+            const account = await tx.accountById(prepared.accountId)
             if (
               account === undefined ||
               storedRevision(account.credential_revision) !== prepared.revision
@@ -329,14 +290,7 @@ export class LoginsImpl implements LoginsService {
               throw new StorageDefect('credential preparation account changed')
             if (prepared.revision === Number.MAX_SAFE_INTEGER)
               throw new StorageUnavailable('credential revision overflow')
-            await narrow<AccountIdentityDb>(tx)
-              .updateTable(ACCOUNT_TABLE)
-              .set({
-                credential_material: prepared.material,
-                credential_revision: prepared.revision + 1,
-              })
-              .where('account_id', '=', prepared.accountId)
-              .execute()
+            await tx.replaceCredential(prepared.accountId, prepared.material, prepared.revision + 1)
             return 'ok'
           })
         }),
@@ -356,11 +310,11 @@ export class LoginsImpl implements LoginsService {
     const newCredential = credentials.parse(next)
     if (!isOk(oldCredential) || !isOk(newCredential)) return INVALID_INPUT
     try {
-      const snapshot = await this.deps.storage.atomic(unit =>
+      const snapshot = await this.deps.persistence.atomic(unit =>
         unit.query(async tx => {
           const judged = await judgeLoginState(tx, parsed.ok, this.deps.clock)
           if ('failure' in judged) return judged
-          const row = await selectAccountById(tx, judged.ok)
+          const row = await tx.accountById(judged.ok)
           if (row === undefined) throw new StorageDefect('validated account disappeared')
           return succeed(row)
         }),

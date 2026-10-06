@@ -3,26 +3,7 @@ import { mkdir, open, type FileHandle } from 'node:fs/promises'
 import { dirname, isAbsolute, join, parse, resolve } from 'node:path'
 import { ClientStateOpenFailure } from './open-failure.ts'
 
-export function ioCode(error: unknown): string | undefined {
-  return error instanceof Error && 'code' in error && typeof error.code === 'string'
-    ? error.code
-    : undefined
-}
-export function unavailableIo(error: unknown): boolean {
-  return [
-    'EIO',
-    'ENOSPC',
-    'EDQUOT',
-    'EMFILE',
-    'ENFILE',
-    'EACCES',
-    'EPERM',
-    'EROFS',
-    'ENOENT',
-    'EBUSY',
-    'EINTR',
-  ].includes(ioCode(error) ?? '')
-}
+import { ioCode, unavailableIo } from './io-errors.ts'
 
 async function checkedDirectory(path: string, privateRoot: boolean): Promise<FileHandle> {
   const fd = await open(path, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW)

@@ -1,49 +1,45 @@
-import { mkdir, statfs } from 'node:fs/promises'
 import { dirname, isAbsolute, join } from 'node:path'
-import type { SnapshotInspection } from '@omne-harness-lite/storage'
-import { entryValidator } from '../routing/schema.ts'
-import { BackupInputFile, type SnapshotFormat } from './input.ts'
 import { hasCode, maintenanceFailure, MaintenanceFailure } from './failure.ts'
-import {
-  checkCancelled,
-  MaintenanceDirectory,
-  publishOutput,
-  withTemporaryOutput,
-  type MaintenanceReporter,
-} from './publication.ts'
+import { checkCancelled, publishOutput, withTemporaryOutput } from './publication.ts'
+import type { OfflineMaintenanceOptions } from './maintenance-options.ts'
+import type { MaintenanceEffects } from './maintenance-ports.ts'
 import { reportResiduals, resultOf, type MaintenanceResult } from './results.ts'
 
-export interface OfflineMaintenanceOptions extends SnapshotFormat {
-  readonly inspection: SnapshotInspection
-  /** The same protected root passed when constructing inspection. */
-  readonly workDirectory: string
-  readonly report: MaintenanceReporter
-}
 interface VerifyInput {
   readonly sourceLocation: string
 }
 interface RestoreInput extends VerifyInput {
   readonly targetLocation: string
 }
-function validVerify(input: unknown): input is VerifyInput {
-  return entryValidator('VerifyInput')(input)
+function validVerify(
+  validate: MaintenanceEffects['validate'],
+  input: unknown,
+): input is VerifyInput {
+  return validate('VerifyInput', input)
 }
-function validRestore(input: unknown): input is RestoreInput {
-  return entryValidator('RestoreIsolatedInput')(input)
+function validRestore(
+  validate: MaintenanceEffects['validate'],
+  input: unknown,
+): input is RestoreInput {
+  return validate('RestoreIsolatedInput', input)
 }
 
 /** Local file operations only: no Context, serving instance, or governance services. */
-export function createOfflineMaintenance(options: OfflineMaintenanceOptions) {
+export function createOfflinePolicy(
+  options: OfflineMaintenanceOptions,
+  effects: MaintenanceEffects,
+) {
   return {
     verify(input: unknown, signal?: AbortSignal): Promise<MaintenanceResult> {
-      if (!validVerify(input) || !isAbsolute(input.sourceLocation))
+      if (!validVerify(effects.validate, input) || !isAbsolute(input.sourceLocation))
         return Promise.resolve({ status: 'invalid-input' })
       return resultOf(
+        effects.validate,
         'VerifyResult',
         () =>
           options.inspection.run(
             session =>
-              BackupInputFile.use(input.sourceLocation, session, async source => {
+              effects.useBackup(input.sourceLocation, session, async source => {
                 const metadata = await source.inspect(session, options)
                 checkCancelled(session)
                 return { status: 'verified', metadata, businessOpen: false }
@@ -55,31 +51,32 @@ export function createOfflineMaintenance(options: OfflineMaintenanceOptions) {
     },
     restoreIsolated(input: unknown, signal?: AbortSignal): Promise<MaintenanceResult> {
       if (
-        !validRestore(input) ||
+        !validRestore(effects.validate, input) ||
         !isAbsolute(input.sourceLocation) ||
         !isAbsolute(input.targetLocation)
       )
         return Promise.resolve({ status: 'invalid-input' })
       let publishedLocation: string | null = null
       return resultOf(
+        effects.validate,
         'RestoreIsolatedResult',
         () =>
           options.inspection.run(
             session =>
-              BackupInputFile.use(input.sourceLocation, session, async source => {
+              effects.useBackup(input.sourceLocation, session, async source => {
                 const metadata = await source.inspect(session, options)
                 checkCancelled(session)
-                const space = await statfs(options.workDirectory)
+                const space = await effects.files.space(options.workDirectory)
                 if (space.bavail * space.bsize < metadata.byteLength * 2 + 268_435_456)
                   throw new MaintenanceFailure('capacity')
-                return MaintenanceDirectory.use(
+                return effects.files.useDirectory(
                   dirname(input.targetLocation),
                   session,
                   false,
                   async parent => {
                     checkCancelled(session)
                     try {
-                      await mkdir(input.targetLocation, { mode: 0o700 })
+                      await effects.files.mkdir(input.targetLocation)
                     } catch (error) {
                       if (hasCode(error, 'EEXIST'))
                         throw new MaintenanceFailure('target-exists', { cause: error })
@@ -87,7 +84,7 @@ export function createOfflineMaintenance(options: OfflineMaintenanceOptions) {
                     }
                     let published = false
                     try {
-                      return await MaintenanceDirectory.use(
+                      return await effects.files.useDirectory(
                         input.targetLocation,
                         session,
                         true,
@@ -99,9 +96,9 @@ export function createOfflineMaintenance(options: OfflineMaintenanceOptions) {
                             async output => {
                               for await (const bytes of source.bytes(true)) {
                                 checkCancelled(session)
-                                await output.handle.writeFile(bytes)
+                                await output.write(bytes)
                               }
-                              await output.handle.sync()
+                              await output.sync()
                               await source.stable()
                               await publishOutput(
                                 output.path,
@@ -118,6 +115,7 @@ export function createOfflineMaintenance(options: OfflineMaintenanceOptions) {
                                   publishedLocation = path
                                   output.markPublished(path)
                                 },
+                                effects.files,
                                 () => parent.confirm(),
                               )
                               return {
@@ -127,6 +125,7 @@ export function createOfflineMaintenance(options: OfflineMaintenanceOptions) {
                                 businessOpen: false,
                               }
                             },
+                            effects.files,
                           ),
                       )
                     } catch (error) {

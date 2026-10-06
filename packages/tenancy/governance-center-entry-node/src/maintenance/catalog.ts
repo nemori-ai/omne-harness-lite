@@ -1,42 +1,30 @@
-import { ownResourceAt } from './resources.ts'
-import { lstat, opendir } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { SnapshotInspectionSession } from '@omne-harness-lite/storage'
-import { BackupInputFile, type SnapshotFormat } from './input.ts'
-import {
-  maintenanceFailure,
-  MaintenanceFailure,
-  PublicationUnknown,
-  withCleanup,
-} from './failure.ts'
-import { BACKUP_FILE_NAME, metadataTime, type BackupDescriptor } from './metadata.ts'
-import { checkCancelled, MaintenanceDirectory } from './publication.ts'
+import type { SnapshotFormat } from './maintenance-options.ts'
+import type { MaintenanceEffects } from './maintenance-ports.ts'
+import { maintenanceFailure, MaintenanceFailure, PublicationUnknown } from './failure.ts'
+import { BACKUP_FILE_NAME, type BackupDescriptor } from './backup-data.ts'
+import { metadataTime } from './metadata-policy.ts'
+import { checkCancelled } from './publication.ts'
 import type { ObservedBackups } from './results.ts'
 
-async function names(path: string, session: SnapshotInspectionSession): Promise<string[]> {
-  const directory = await opendir(path)
-  let closed = false
-  const close = ownResourceAt(
-    session,
-    async () => {
-      await directory.close()
-      closed = true
-    },
-    () => closed,
-    path,
-  )
-  return withCleanup(async () => {
+async function names(
+  path: string,
+  session: SnapshotInspectionSession,
+  files: MaintenanceEffects['files'],
+): Promise<string[]> {
+  return files.withNames(path, session, async directory => {
     const candidates: string[] = []
     for (;;) {
       checkCancelled(session)
       const entry = await directory.read()
       if (entry === null) break
-      if (!BACKUP_FILE_NAME.test(entry.name)) continue
-      candidates.push(entry.name)
+      if (!BACKUP_FILE_NAME.test(entry)) continue
+      candidates.push(entry)
       if (candidates.length > 256) throw new MaintenanceFailure('capacity')
     }
     return candidates.sort()
-  }, close)
+  })
 }
 
 /** Complete validation and center filtering precede all time/durability decisions. */
@@ -46,21 +34,21 @@ export async function observeBackups(
   format: SnapshotFormat,
   centerId: string,
   now: number,
+  effects: MaintenanceEffects,
 ): Promise<ObservedBackups> {
-  return MaintenanceDirectory.use(path, session, true, async directory => {
-    const candidates = await names(path, session)
+  return effects.files.useDirectory(path, session, true, async directory => {
+    const candidates = await names(path, session, effects.files)
     let latest: BackupDescriptor | null = null
     let invalidCount = 0
     for (const fileName of candidates) {
       checkCancelled(session)
       const source = join(path, fileName)
-      const info = await lstat(source)
-      if (!info.isFile() || info.isSymbolicLink()) {
+      if (!(await effects.files.isPlainFile(source))) {
         invalidCount += 1
         continue
       }
       try {
-        const descriptor = await BackupInputFile.use(source, session, async input => {
+        const descriptor = await effects.useBackup(source, session, async input => {
           const metadata = await input.inspect(session, format)
           if (metadata.centerId !== centerId) return null
           if (metadataTime(metadata.startedAt) > now) throw new MaintenanceFailure('unavailable')

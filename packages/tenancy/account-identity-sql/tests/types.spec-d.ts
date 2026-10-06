@@ -21,7 +21,7 @@ import type {
   RevokeFailure,
   VerifyLoginFailure,
 } from '@omne-harness-lite/account-identity'
-import type { AccountRow, LoginStateRow } from '../src/schema.ts'
+import type { AccountRow, LoginStateRow } from '../src/identity-data.ts'
 import { defect, type Diagnostics, type Notifier } from '../src/diagnostics.ts'
 
 type FailuresOf<R> = R extends { readonly failure: infer F } ? F : never

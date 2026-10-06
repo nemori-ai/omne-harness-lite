@@ -6,7 +6,8 @@ import type {
   InputPrompt,
 } from '@omne-harness-lite/governance-client-operations'
 import { InputFailure } from '../src/diagnostic.ts'
-import { runTui, tuiProviders, type TuiRuntime } from '../src/tui/application.ts'
+import { runTui, type TuiRuntime } from '../src/tui/application.ts'
+import { tuiProviders } from '../src/tui/providers.ts'
 import { FakeTerminal, tick } from './support/tui.ts'
 import { validIntent, validReport } from '../src/validation.ts'
 import { forms } from '../src/tui/forms.ts'

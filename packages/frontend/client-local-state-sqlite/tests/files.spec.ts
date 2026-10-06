@@ -6,7 +6,7 @@ import type { ReadTx } from '@omne-harness-lite/storage'
 import { SqlStorage } from '@omne-harness-lite/storage-sql'
 import { describe, expect, it, vi } from 'vitest'
 import { openClientLocalState } from '../src/open.ts'
-import { initialize } from '../src/store.ts'
+import { initialize } from '../src/state-sql.ts'
 import { fixtures, logged, read } from './support.ts'
 
 describe('private file boundary', () => {

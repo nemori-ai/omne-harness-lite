@@ -1,35 +1,12 @@
-import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import { entryValidator } from '../routing/schema.ts'
 import { MaintenanceFailure } from './failure.ts'
+import { MAGIC_TEXT, MAX_HEADER_BYTES, MAX_DATA_BYTES, type Metadata } from './backup-data.ts'
+import { metadataTime } from './metadata-policy.ts'
 
-export const MAGIC = Buffer.from('OMNE-CENTER-BACKUP/1\n', 'ascii')
-export const MAX_HEADER_BYTES = 16_384
-export const MAX_DATA_BYTES = 1_073_741_824
-export const CHUNK_BYTES = 65_536
-export const BACKUP_FILE_NAME = /^[0-9a-f]{32}\.omne-backup$/
-
-export interface Metadata {
-  readonly format: 'omne-center-backup/1'
-  readonly centerId: string
-  readonly sourceBuildId: string | null
-  readonly migrationNames: readonly string[]
-  readonly startedAt: string
-  readonly finishedAt: string
-  readonly byteLength: number
-  readonly sha256: string
-}
-export interface BackupDescriptor {
-  readonly fileName: string
-  readonly metadata: Metadata
-}
+export const MAGIC = Buffer.from(MAGIC_TEXT, 'ascii')
 
 function validMetadata(value: unknown): value is Metadata {
   return entryValidator('Metadata')(value)
-}
-export function metadataTime(value: string): number {
-  const parsed = instantFromRfc3339(value)
-  if (!('ok' in parsed)) throw new MaintenanceFailure('invalid-backup')
-  return parsed.ok
 }
 export function parseMetadata(value: unknown): Metadata {
   if (

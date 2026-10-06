@@ -15,16 +15,13 @@ export {
   type GovernanceCenterWork,
   type GovernanceCenterLogger,
 } from './work.ts'
-export type {
-  GovernanceCenterEntryDependencies,
-  EntryNotifications,
-  EntryServices,
-} from './entry-dependencies.ts'
+export type { GovernanceCenterEntryDependencies, EntryNotifications } from './entry-dependencies.ts'
 export type { GovernanceCenterOpsDependencies, OpsNotifications } from './ops/dependencies.ts'
 export type { DeploymentKeyLoad, DeploymentParameters } from './ops/health.ts'
 export { OPS_SOCKET_NAME, OpsSocketError, type OpsSocketFailure } from './ops/socket.ts'
 export { RECEIVE_LIMITS, type ReceiveLimits } from './ops/limits.ts'
-export { createOfflineMaintenance, type OfflineMaintenanceOptions } from './maintenance/offline.ts'
+export { createOfflineMaintenance } from './maintenance/assembly.ts'
+export type { OfflineMaintenanceOptions } from './maintenance/maintenance-options.ts'
 export { validMaintenanceLocation } from './maintenance/inputs.ts'
 export {
   failureResult as maintenanceFailureResult,
@@ -47,3 +44,5 @@ export {
   type GovernanceCenterIdentityFailure,
 } from './center-id/read-or-mint.ts'
 export { GOVERNANCE_CENTER_TABLE } from './center-id/table.ts'
+
+export type { EntryServices } from './service-faces.ts'
