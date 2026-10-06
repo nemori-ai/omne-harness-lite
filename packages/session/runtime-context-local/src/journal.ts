@@ -125,16 +125,15 @@ export function createContextJournal(log: SessionLog, storage: Storage) {
   }
   async function current(scope: SessionScope, keys?: readonly string[]): Promise<JournalRead> {
     const key = identity(scope),
-      basis = await projection.load(scope, keys === undefined ? undefined : [])
+      held = pending.get(key)
+    // Do not advance derived progress using an observation that cannot recognize the original fact.
+    if (held && !(await recognize(scope, held))) return unavailable
+    const basis = await projection.load(scope, keys === undefined ? undefined : [])
     const caught = await catchUp(scope, basis, keys)
     if ('unavailable' in caught) return caught
     const state = caught.state
     verified.add(key)
-    const held = pending.get(key)
-    if (held) {
-      if (!(await recognize(scope, held))) return unavailable
-      pending.delete(key)
-    }
+    if (held) pending.delete(key)
     // History is not retained by current readers or projection state.
     return { state: selectedState(state, keys) }
   }
