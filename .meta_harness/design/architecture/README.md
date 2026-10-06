@@ -13,6 +13,8 @@
 [交付摘要](../record/evidence/2026-10-06-identity-domain-delivery/README.md)记录精确源码与验收范围。
 模型/Session 整改和未迁业务承诺仍按各自入口接续。
 
+[Session与Agent Runtime第一期候选设计](session-agent-runtime-phase1/README.md)定位包责任、持久动作链、消息投影和Cordis会话装配；新增承诺仍待限定接受，不表示第一期实现已交付。
+
 ## 一份承诺，一个拥有者
 
 | 内容 | 唯一拥有者 |

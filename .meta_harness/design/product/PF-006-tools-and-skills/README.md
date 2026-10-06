@@ -164,3 +164,5 @@ PF-006-tools-and-skills/
 
 
 本轮明确 [Session 归属、Run 工作与句柄](../PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)，持久关联见 [PF-015 §6.21](../PF-015-session-lifecycle-and-ownership/design.md#621-三类-runtime-的归属与执行关联)；释放 Agent runtime 不取消模型／工具执行。
+
+会话的受理／未受理边界见 [PF-014 §6.8](../PF-014-inbound-intake-and-queueing/design.md#68-停机不会让一条入站到达永远悬着)，待消费保管及交接范围见 [PF-015 §6.26](../PF-015-session-lifecycle-and-ownership/design.md#626-待消费数据先持久保管再交接)；本包已有动作、结果保留与清理规则仍由本包正文拥有。

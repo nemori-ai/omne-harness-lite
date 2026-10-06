@@ -2,7 +2,7 @@
 id: PF-012
 title: Agent Loop 与 Run
 status: active
-revision: 21
+revision: 24
 relations:
   supersedes: []
   depends-on:
@@ -63,8 +63,7 @@ relations:
 > 落一个[终态](design.md#运行终态)，才结束。**
 > **[队列不是真相，是日志的投影](design.md#待处理消息队列)**——已记录的输入减去已被承接的。
 
-**「触发」与「收束」因此不是两个独立概念，是这条规则的两端**——
-触发就是**让队列从空变非空的那件事**，收束就是**再没有可承接的输入、这个 Run 落终态**。
+**Trigger 促使检查和推进会话工作。**是否新建 Run、新建 attempt 或继续原 attempt，沿[持久事实及当前执行条件](design.md#边界什么让它开始什么让它结束)判断。队列边沿不等于 Run 开始，队列暂时为空也不等于 Run 终结。
 [什么东西会进队列、插队怎么被受理](../PF-014-inbound-intake-and-queueing/README.md)归 PF-014。
 
 **Run 存在的全部理由，是让下面这个判断只读日志就答得出来：**
@@ -197,7 +196,7 @@ relations:
 
 补齐重装配安全交接、独立模型／工具执行与待续判断的关联；旧模型建议中尚未发起的动作按新装配核对，绑定已移除或已变则不自动执行。本次为产品设计增量，直接裁决与 PM 推导见 decisions；不扩大此前整包接受、规格或实现状态。
 
-- 产品设计：**rev 21**，明确完整函数输入与持久化投影；新增表达不扩大历史接受范围。此前 **rev 15，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
+- 产品设计：**rev 24**，明确完整函数输入与持久化投影；新增表达不扩大历史接受范围。此前 **rev 15，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
 - **没有待裁决项**；[对账那条裁决](decisions.md#一拍板记录)有一处 PM 读法[由 D-065 确认](decisions.md#四已知的来源问题)（追补前提含「工具执行运行时里找不到它」）
 - **那个缺口已经有主了**：会话归 [PF-015](../PF-015-session-lifecycle-and-ownership/README.md)（rev 13，已正式接受；显式未决项保留）。
   **它没有终态**——[生命周期是四个状态，收束的锚点是归档](../PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)，
@@ -233,3 +232,5 @@ PF-012-agent-loop-and-run/
 本轮明确 [Session 归属、Run 工作与句柄](../PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)，持久关联见 [PF-015 §6.21](../PF-015-session-lifecycle-and-ownership/design.md#621-三类-runtime-的归属与执行关联)；释放 Agent runtime 不取消模型／工具执行。
 
 本次产品裁决：队列派生排除因归档取消的输入，历史与承接事实不改写。新增裁决的依据与范围见 decisions；不扩大既有整包接受、规格或实现状态。
+
+本次受理与消费边界的采用范围见 [限定采用](decisions.md#2026-10-06--持久受理与消费边界的限定采用)；共同保管及清除规则由 [PF-015 §6.26](../PF-015-session-lifecycle-and-ownership/design.md#626-待消费数据先持久保管再交接) 拥有，具体提交与恢复机制仍待技术设计。

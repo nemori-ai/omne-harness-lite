@@ -1,0 +1,12 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/session-agent-runtime-phase1/packages/infra/storage-sql
+
+
+ Test Files  2 passed (2)
+      Tests  16 passed (16)
+Type Errors  no errors
+   Start at  17:31:53
+   Duration  1.85s (transform 930ms, setup 0ms, import 2.55s, tests 286ms, environment 0ms)
+

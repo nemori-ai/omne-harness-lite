@@ -6,6 +6,7 @@ import json
 import re
 from datetime import date
 from functools import lru_cache
+from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
@@ -55,6 +56,17 @@ def slug(text: str) -> str:
     return re.sub(r"[^\w\- ]", "", text.lower()).replace(" ", "-")
 
 
+class _ExplicitAnchors(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.anchors: set[str] = set()
+
+    def handle_starttag(self, tag, attrs) -> None:
+        if tag == "a":
+            self.anchors.update(value for name, value in attrs
+                                if name in {"id", "name"} and value is not None)
+
+
 @lru_cache(maxsize=None)
 def headings(path: Path) -> set[str]:
     # 每条带锚点的链接都要查目标文件的标题集；一份上千行的契约被引用上千次时，
@@ -72,6 +84,15 @@ def headings(path: Path) -> set[str]:
             suffix += 1
             name = f"{base}-{suffix}"
         result.add(name)
+    # 只读真正的HTML token；代码示例里的同形文字不是链接目标。
+    explicit = _ExplicitAnchors()
+    for token in parsed:
+        if token.type == "html_block":
+            explicit.feed(token.content)
+        for child in token.children or []:
+            if child.type == "html_inline":
+                explicit.feed(child.content)
+    result.update(explicit.anchors)
     return result
 
 

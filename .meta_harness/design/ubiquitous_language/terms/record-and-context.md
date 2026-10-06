@@ -97,7 +97,7 @@
 
 - **形态**：对象
 - **出处**：[PF-012 §4 会话日志](../../product/PF-012-agent-loop-and-run/design.md#会话日志) ·
-  [§5.11 外面进来的事，怎么到 agent 眼前](../../product/PF-012-agent-loop-and-run/design.md#511-外面进来的事怎么到-agent-眼前)（rev 21）
+  [§5.11 外面进来的事，怎么到 agent 眼前](../../product/PF-012-agent-loop-and-run/design.md#511-外面进来的事怎么到-agent-眼前)（rev 24）
 - **别混**：**日志不等于「拿去用的那一份」**——**日志是一份，拿去用的有两份**
 - **⚠️ 注意 ①**：**只增不改没有例外。**[压缩](#ul-context-compaction--上下文压缩--context-compaction)不是例外
   （**它只往后追加一条[压缩记录](#ul-compaction-record--压缩记录--compaction-record)**——摘要是内容，
@@ -105,8 +105,8 @@
   [结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)也不是
   （**原始结果从来没进过日志**），agent 取回全文是**往后追加两条**
 - **注意 ②**：**它归[会话](agent-runtime-loop.md#ul-session--会话--session)，不归[运行](agent-runtime-loop.md#ul-run--运行--run)**
-- **注意 ③**：**外面进来的事，是以消息的身份落进日志的**——
-  **收进日志就是进队列**，**不存在「先收着，组装时再做成消息」这一步**。
+- **注意 ③**：**从外面进来的普通消息，是以消息的身份落进日志的**——
+  **受理事实与待处理资格一起持久成立**；卡片答复、控制指令及结算事实不作为普通消息入队。**不存在「先收着，组装时再做成消息」这一步**。
   **一处不在此列**：[会话空闲时 runtime context 的生产方推来的变更一律丢弃](../../product/PF-014-inbound-intake-and-queueing/design.md#610-注入的上下文变了没有运行在跑时什么都不做)，
   **它根本不成为一条到达，也就不落日志**
 - **注意 ④**：**日志里那些不是消息的事具体有哪些，本版不展开**，归 [PF-012](../../product/PF-012-agent-loop-and-run/README.md)
@@ -123,7 +123,7 @@
 > projection's own tradeoff, **and does not change what it is**.
 
 - **形态**：视图
-- **出处**：[PF-015 §5.8](../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)（rev 20）·
+- **出处**：[PF-015 §5.8](../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)（rev 21）·
   [PF-013 §4 模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)（rev 17）**给出了第一个实例**
 - **⚠️ 别混**：**不是 [runtime context](scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context)。**
   runtime context 是**会话内那三个角色**消费的；**投影多半是给会话外的服务用的**。
@@ -184,7 +184,7 @@
 - **出处**：[PF-009 §5.6 中断这件事本身，要让 agent 知道](../../product/PF-009-context-message-types/design.md#中断这件事本身要让-agent-知道) ·
   [§6.13](../../product/PF-009-context-message-types/design.md#613-只要发生了中断就补一条提醒)（rev 9） ·
   [PF-013 §5.5](../../product/PF-013-model-profiles-and-invocation/design.md#55-上交交给谁看模型说没说出话)（rev 17）
-- **注意 ①**：**它不算一次[触发](agent-runtime-loop.md#ul-trigger--触发--trigger)**——系统为已经发生的中断追补的这一条，[不让待处理消息队列从空变非空](../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（PF-014 rev 11），用户叫停之后它不会把 agent 重新叫起来
+- **注意 ①**：系统为已经发生的中断追补的提醒[本身不取得待处理资格](../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（PF-014 rev 13），不因此重开工作；Trigger 是推进通知，不能把这条提醒变成新输入。
 - **注意 ②**：**它管的是模型回复那一路。**工具执行没走完就收场的，交代原因的是那次调用位置上的[占位消息](#ul-placeholder-message--占位消息--placeholder-message)，不是它
 
 ### UL-placeholder-message · 占位消息 · Placeholder Message
@@ -247,7 +247,7 @@
 - **形态**：属性
 - **出处**：[PF-009 §6.5 来源是一个属性，不是另一种消息](../../product/PF-009-context-message-types/design.md#65-来源是一个属性不是另一种消息) ·
   [§4 SystemReminderMessage](../../product/PF-009-context-message-types/design.md#systemremindermessage)（rev 9） ·
-  [PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 11）
+  [PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 13）
 - **别混 ①**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official / customized）——那个词条已写明裸写「来源」不作数；**这里的正式名是「来源标记」**
 - **⚠️ 别混 ②**：**不是[来路标记](#ul-origin-tag--来路标记--origin-tag)**——那是**一块文本**身上「这段字从哪条路来」（斜杠命令的留痕、展开物、附带的参数），挂在块上；来源标记挂在到达与消息那一层，答的是「谁捎来的」。人敲一条斜杠命令，**来源仍是用户，来路才是命令**——同一条消息上两者可以都有
 - **弃用**：~~「来源属性」~~（正文的叙述说法，指的就是它）
@@ -268,7 +268,7 @@
 
 - **形态**：属性
 - **出处**：[PF-014 §5.10 斜杠命令在受理时分两路走](../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走) ·
-  [§5.6「消息落盘之前」那一刻，看得到什么](../../product/PF-014-inbound-intake-and-queueing/design.md#56-消息落盘之前那一刻看得到什么)（rev 11）
+  [§5.6「消息落盘之前」那一刻，看得到什么](../../product/PF-014-inbound-intake-and-queueing/design.md#56-消息落盘之前那一刻看得到什么)（rev 13）
 - **⚠️ 别混 ①**：**不是[来源标记](#ul-source-tag--来源标记--source-tag)**——那是入站到达与提醒上的「谁捎来的」，挂在到达与消息那一层；来路标记挂在一块文本上，说的是这段字怎么来的
 - **别混 ②**：**不是[块标注](#ul-block-annotation--块标注--block-annotation)**——标注答「给人看吗、给模型看吗」；来路标记不改变标注，留痕块与展开物各给不给模型读，由受理那一方定
 - **别混 ③**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official / customized）
@@ -541,7 +541,7 @@
 
 - **形态**：对象
 - **出处**：[PF-007 §6.9 `TodoItems()`](../../product/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)（rev 23）·
-  [PF-015 §5.6 第 13 项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 20）
+  [PF-015 §5.6 第 13 项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
 - **别混**：**与「目标」不是一回事**——那是**跨会话**的东西，
   [PF-007 明写它不装在这扇门后面，而设计链里还没有它的家](../../product/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)
 - **⚠️ 注意 ①**：**它是给 agent 自己看的，不是给系统执行的**——
@@ -565,7 +565,7 @@
 > give the same result.**
 
 - **形态**：过程
-- **出处**：[PF-010 §4 组装](../../product/PF-010-context-management-and-assembly/design.md#组装) · [§6.1](../../product/PF-010-context-management-and-assembly/design.md#61-组装只读日志不写日志)（rev 7）
+- **出处**：[PF-010 §4 组装](../../product/PF-010-context-management-and-assembly/design.md#组装) · [§6.1](../../product/PF-010-context-management-and-assembly/design.md#61-组装只读日志不写日志)（rev 8）
 - **别混**：**裸写「上下文」不作数**——它另有[运行时 context](scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context) 与
   `Cordis Context` 两个所指，[已记为冲突](../conflicts.md#现有冲突)
 - **注意**：**两侧形状不一样，根子是「人有记忆，模型没有」**
@@ -592,7 +592,7 @@
 > first, never everything.**
 
 - **形态**：视图
-- **出处**：[PF-010 §4 给用户那一侧](../../product/PF-010-context-management-and-assembly/design.md#给用户那一侧两个动作方向相反) · [§6.6](../../product/PF-010-context-management-and-assembly/design.md#66-给用户那一侧往回要与往后收是两个动作)（rev 7）
+- **出处**：[PF-010 §4 给用户那一侧](../../product/PF-010-context-management-and-assembly/design.md#给用户那一侧两个动作方向相反) · [§6.6](../../product/PF-010-context-management-and-assembly/design.md#66-给用户那一侧往回要与往后收是两个动作)（rev 8）
 - **⚠️ 注意**：**用户往上翻不是「再来一次刚才那个动作」**——
   那一次锚在「最近」，这一次锚在**当前已加载的最早点位**，**再往前多取一段接上去**。
   **锚点不同，所以是两回事**
@@ -613,7 +613,7 @@
 > turn**). **Only the second can be compacted.**
 
 - **形态**：视图
-- **出处**：[PF-010 §4 给模型那一侧](../../product/PF-010-context-management-and-assembly/design.md#给模型那一侧两块分别组装) · [§5.3](../../product/PF-010-context-management-and-assembly/design.md#53-给模型的那一份两块各自的名字里就写着要求)（rev 7）
+- **出处**：[PF-010 §4 给模型那一侧](../../product/PF-010-context-management-and-assembly/design.md#给模型那一侧两块分别组装) · [§5.3](../../product/PF-010-context-management-and-assembly/design.md#53-给模型的那一份两块各自的名字里就写着要求)（rev 8）
 - **⚠️ 注意 ①**：**混成一块，就会长出「把系统提示词也收走一段」这种东西**——
   **那等于把 agent 的身份和能力清单压没了**
 - **注意 ②**：**[五条要求](../../product/PF-010-context-management-and-assembly/design.md#54-组装必须满足的五条要求)**：
@@ -637,7 +637,7 @@
 > holds text only**.
 
 - **形态**：视图
-- **出处**：[PF-010 §4 给模型那一侧](../../product/PF-010-context-management-and-assembly/design.md#给模型那一侧两块分别组装)（rev 7）·
+- **出处**：[PF-010 §4 给模型那一侧](../../product/PF-010-context-management-and-assembly/design.md#给模型那一侧两块分别组装)（rev 8）·
   [PF-004 §5.4](../../product/PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列)（rev 20）
 - **注意**：走遍所有[meta 能力](capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)，
   取用动作本身不改写它；另行发生的合法能力数据更新可改变后续请求，不要求更换 Agent runtime
@@ -652,7 +652,7 @@
 > **equally a requirement on compaction**.
 
 - **形态**：规则
-- **出处**：[PF-010 §5.4 要求一](../../product/PF-010-context-management-and-assembly/design.md#要求一尽可能最大化前缀一致) · [§6.3](../../product/PF-010-context-management-and-assembly/design.md#63-前缀尽量与上一次逐字相同)（rev 7）
+- **出处**：[PF-010 §5.4 要求一](../../product/PF-010-context-management-and-assembly/design.md#要求一尽可能最大化前缀一致) · [§6.3](../../product/PF-010-context-management-and-assembly/design.md#63-前缀尽量与上一次逐字相同)（rev 8）
 - **注意**：**它与「保信息」「降长度」两两相冲**，见[压缩的三个联合目标](#ul-context-compaction--上下文压缩--context-compaction)
 
 ## 压缩
@@ -682,7 +682,7 @@
 - **形态**：过程
 - **出处**：[PF-010 §5.6](../../product/PF-010-context-management-and-assembly/design.md#56-压缩是一个闭包它的调子是三个联合目标) ·
   [§5.7](../../product/PF-010-context-management-and-assembly/design.md#57-压缩能做的只有两件事) ·
-  [§5.8](../../product/PF-010-context-management-and-assembly/design.md#58-压缩不能做的有三件事)（rev 7）
+  [§5.8](../../product/PF-010-context-management-and-assembly/design.md#58-压缩不能做的有三件事)（rev 8）
 - **⚠️ 注意 ①**：**它不回头去翻[块上那一位](#ul-block-annotation--块标注--block-annotation)。**
   那一位由产生这个块的人在落盘那一刻写下，**之后不再变**；
   **压缩写的是另一样东西——一份跟着摘要走的名单**。
@@ -713,7 +713,7 @@
 
 - **形态**：变体（父：[消息](#ul-message--消息--message)）
 - **出处**：[PF-009 §4 CompactionMessage](../../product/PF-009-context-message-types/design.md#compactionmessage)（rev 9）·
-  [PF-010 §6.4](../../product/PF-010-context-management-and-assembly/design.md#64-有压缩记录时边界由压缩记录定)（rev 7）
+  [PF-010 §6.4](../../product/PF-010-context-management-and-assembly/design.md#64-有压缩记录时边界由压缩记录定)（rev 8）
 - **⚠️ 注意**：**边界不是一条截断线。**压缩标的是**块**，而**块可以散布**——
   所以「这次取哪一段」的答案**本来就不是一个起点**，而是
   **「哪些块还模型可读」**，**它们可能落在最后一条摘要之前**。

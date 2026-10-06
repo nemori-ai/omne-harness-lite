@@ -631,6 +631,9 @@ class DesignValidator:
                     count = duplicates.get(base, 0)
                     found.add(base if count == 0 else f"{base}-{count}")
                     duplicates[base] = count + 1
+                # 保留标题改名后的历史坐标；与设计评审入口识别的显式锚点一致。
+                for explicit in re.findall(r'<a\s+(?:name|id)="([^"]+)"', line):
+                    found.add(github_anchor(explicit))
             anchors[path] = found
             return found
 
