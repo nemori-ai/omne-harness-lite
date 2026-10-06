@@ -2,6 +2,7 @@ import { readIntents, semanticIntent } from './intent.ts'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { fileAt, git } from '../metrics/git.ts'
+import { readRevisionTexts } from '../metrics/revision-files.ts'
 import { extractArchitecture } from './extract.ts'
 import { readArchitectureSource, type ArchitectureSource } from './source.ts'
 import { CONSTRAINT_PATH, readConstraints, roleAt, semanticConstraints } from './constraints.ts'
@@ -26,7 +27,7 @@ function nodeIntents(root: string, source: ArchitectureSource): IntentNode[] {
       path.slice(NODE_ROOT.length + 1),
     )
   if (source.source.kind === 'revision') {
-    for (const path of git(root, [
+    const paths = git(root, [
       'ls-tree',
       '-r',
       '--name-only',
@@ -34,11 +35,10 @@ function nodeIntents(root: string, source: ArchitectureSource): IntentNode[] {
       source.source.commit,
       '--',
       NODE_ROOT,
-    ]).split('\0')) {
-      if (!wanted(path)) continue
-      const text = fileAt(root, source.source.commit, path)
-      if (text === undefined)
-        throw new Error(`Cannot read intent ${path} from ${source.source.commit}`)
+    ])
+      .split('\0')
+      .filter(wanted)
+    for (const [path, text] of readRevisionTexts(root, source.source.commit, paths)) {
       texts.set(path, text)
     }
   } else {

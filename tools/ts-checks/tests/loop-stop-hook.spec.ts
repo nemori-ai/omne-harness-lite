@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { measureInWorker } from '../src/loop/hook-thread.ts'
 import {
   commit,
+  git,
   removeTemporaries,
   repository,
   temporaryDirectory,
@@ -121,6 +122,29 @@ describe('收工钩子的入口', { timeout: 60_000 }, () => {
     const result = hook(root, home, input(root))
     expect(result.status).toBe(0)
     expect(result.stdout).toBe('')
+  })
+
+  it('linked worktree sync advances the baseline and keeps its own new findings', () => {
+    const main = repository()
+    write(main, 'packages/core/a/src/index.ts', 'export const a = 1\n')
+    commit(main, 'member')
+    const root = temporaryDirectory('loop-hook-worktree-')
+    git(main, 'worktree', 'add', '-q', '-b', 'someone/sync', root)
+    const home = temporaryDirectory('loop-hook-home-')
+    write(root, 'packages/core/a/src/tangled.ts', tangled)
+    commit(root, 'own change')
+    write(main, 'packages/core/a/src/from-main.ts', tangled.replaceAll('tangled', 'fromMain'))
+    const updated = commit(main, 'main advances')
+    git(root, 'merge', '--no-edit', 'main')
+    expect(git(root, 'merge-base', 'main', 'HEAD')).toBe(updated)
+    const result = hook(main, home, input(root))
+    expect(result.status).toBe(0)
+    const output = JSON.parse(result.stdout) as { decision: string; reason: string }
+    expect(output.decision).toBe('block')
+    expect(output.reason).toContain('tangled')
+    expect(output.reason).not.toContain('fromMain')
+    expect(hook(main, home, input(root)).stdout).toBe('')
+    expect(hook(main, home, input(root, true)).stdout).toBe('')
   })
 
   it('度量自己坏了（成员源码里一个指向不存在文件的链接）：退出 0、只给用户一句警告、日志多一行', () => {

@@ -4,6 +4,17 @@ Structural checks for this repository's TypeScript product sources and trusted a
 
 [中文说明 and the existing rule catalogue](README_ZH.md)
 
+## Stop-hook revision reads
+
+The Stop hook recalculates the merge base with `primaryBranch` on each invocation.
+The global architecture reader resolves that base to a fixed commit and batches its selected source and intent blobs.
+They use byte lengths for UTF-8 content and preserve literal paths, empty files and read failures.
+No measurements persist across commits. Source ownership uses the longest member prefix and one inventory traversal.
+
+Synchronizing the primary branch can remove delivered changes from the current difference.
+For a task-wide report, run `make loop-status BASE=<task-start-commit>` with a fixed task anchor.
+That explicit base does not change the automatic hook's base. The internal 40-second limit and host error protocol remain unchanged.
+
 ## Run and consume
 
 Use the repository's locked Node and pnpm versions. The normal command scans `packages/`, `apps/` and `examples/`, then runs repository rules over actual execution modules in `packages/`, `apps/`, `examples/`, `tools/` and `scripts/`:
