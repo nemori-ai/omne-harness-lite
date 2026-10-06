@@ -1,5 +1,5 @@
 import { expect, test, vi } from 'vitest'
-import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
+import { instantFromRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
 import { unwrap, parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import { createExecutionEnvironment } from '../src/execution-environment.ts'
 import { at, scope, ref, request, access, fixture, deferred } from './execution-owner-fixture.ts'
@@ -36,7 +36,8 @@ async function journalFixture(started = true) {
   if (seeded.kind !== 'view') throw new Error(`Original journal seed rejected: ${seeded.reason}`)
   const closed = new AbortController(),
     retry = vi.fn(async () => {}),
-    invalidate = vi.fn()
+    invalidate = vi.fn(),
+    now = vi.fn<Clock['now']>(() => unwrap(instantFromRfc3339(at)))
   const journal = { ...f.journal, read: vi.fn(f.journal.read), commit: vi.fn(f.journal.commit) }
   const environment = createExecutionEnvironment({
     ref,
@@ -46,7 +47,7 @@ async function journalFixture(started = true) {
     journal,
     environments: ports.operations,
     closed: closed.signal,
-    clock: { now: () => unwrap(instantFromRfc3339(at)) },
+    clock: { now },
     attempts: 3,
     retry,
     invalidate,
@@ -57,6 +58,7 @@ async function journalFixture(started = true) {
     closed,
     retry,
     invalidate,
+    now,
     environment,
     controlledJournal: journal,
     async cleanup() {
@@ -205,7 +207,10 @@ test.each(['unreadable', 'retryExhausted', 'notStarted'] as const)(
     if (state === 'unreadable')
       f.controlledJournal.read.mockResolvedValue({ kind: 'rejected', reason: 'unavailable' })
     if (state === 'retryExhausted')
-      f.controlledJournal.commit.mockResolvedValue({ kind: 'rejected', reason: 'tailChanged' })
+      f.controlledJournal.commit.mockImplementation(async () => ({
+        kind: 'rejected',
+        reason: f.controlledJournal.commit.mock.calls.length <= 3 ? 'tailChanged' : 'unavailable',
+      }))
     try {
       expect(await f.environment.prepare()).toEqual(
         state === 'notStarted'
@@ -349,12 +354,20 @@ test.each(['unreadable', 'retryExhausted'] as const)(
     const f = await journalFixture()
     try {
       await f.environment.prepare()
+      f.controlledJournal.commit.mockClear()
       if (state === 'unreadable')
         f.controlledJournal.read.mockResolvedValue({ kind: 'rejected', reason: 'unavailable' })
-      else f.controlledJournal.commit.mockResolvedValue({ kind: 'rejected', reason: 'tailChanged' })
+      else
+        f.controlledJournal.commit.mockImplementation(async () => ({
+          kind: 'rejected',
+          reason: f.controlledJournal.commit.mock.calls.length <= 3 ? 'tailChanged' : 'unavailable',
+        }))
       expect(await f.ports.resources()!.plan(resource)).toBe('unavailable')
       expect((await history(f)).resources.has(resource.key)).toBe(false)
-      if (state === 'retryExhausted') expect(f.retry.mock.calls).toEqual([[0], [1], [2]])
+      if (state === 'retryExhausted') {
+        expect(f.controlledJournal.commit).toHaveBeenCalledTimes(3)
+        expect(f.retry.mock.calls).toEqual([[0], [1], [2]])
+      }
     } finally {
       await f.cleanup()
     }
@@ -411,6 +424,137 @@ test('closure while a resource prefix is read rejects the plan before physical a
     expect((await history(f)).resources.has(resource.key)).toBe(false)
   } finally {
     resume.resolve()
+    await f.cleanup()
+  }
+})
+
+test('closure during placement read rejects before acquiring any physical lease', async () => {
+  const f = await journalFixture(),
+    entered = deferred<void>(),
+    resume = deferred<void>()
+  f.ports.resolvePlacement.mockImplementationOnce(async () => {
+    entered.resolve()
+    await resume.promise
+    return { kind: 'placement', placement: f.ports.placement }
+  })
+  try {
+    const pending = f.environment.prepare()
+    await entered.promise
+    f.closed.abort()
+    resume.resolve()
+    expect(await pending).toEqual({ kind: 'rejected', reason: 'environment:closed' })
+    expect(f.ports.acquire).not.toHaveBeenCalled()
+    expect((await history(f)).environment).toBeUndefined()
+  } finally {
+    resume.resolve()
+    await f.cleanup()
+  }
+})
+
+test('provider acquisition rejection cannot fabricate an adoption or release a lease', async () => {
+  const f = await journalFixture()
+  f.ports.acquire.mockResolvedValueOnce({ kind: 'rejected', reason: 'notAuthorized' })
+  try {
+    expect(await f.environment.prepare()).toEqual({
+      kind: 'rejected',
+      reason: 'environment:notAuthorized',
+    })
+    expect((await history(f)).environment).toBeUndefined()
+    expect(await f.environment.release()).toBe('released')
+    expect(f.ports.release).not.toHaveBeenCalled()
+  } finally {
+    await f.cleanup()
+  }
+})
+
+test('original lease invalidation forwards the reason without acquiring a successor', async () => {
+  const f = await journalFixture()
+  try {
+    await f.environment.prepare()
+    f.ports.invalidated.resolve({ reason: 'original-provider-withdrawn' })
+    await f.ports.invalidated.promise
+    expect(f.invalidate).toHaveBeenCalledExactlyOnceWith('original-provider-withdrawn')
+    expect(f.ports.acquire).toHaveBeenCalledOnce()
+  } finally {
+    await f.cleanup()
+  }
+})
+
+test('failed original release stays pending; confirmation blocks later prepare and repeat release', async () => {
+  const f = await journalFixture()
+  try {
+    await f.environment.prepare()
+    f.ports.release.mockRejectedValueOnce(new Error('Original cleanup IO lost'))
+    expect(await f.environment.release()).toBe('pending')
+    expect(await f.environment.release()).toBe('released')
+    expect(await f.environment.release()).toBe('released')
+    expect(await f.environment.prepare()).toEqual({
+      kind: 'rejected',
+      reason: 'environment:closed',
+    })
+    expect(f.ports.release).toHaveBeenCalledTimes(2)
+    expect(f.ports.acquire).toHaveBeenCalledOnce()
+  } finally {
+    await f.cleanup()
+  }
+})
+
+test('unavailable stop timestamp does not append a physical observation', async () => {
+  const f = await journalFixture()
+  try {
+    await f.environment.prepare()
+    const resources = f.ports.resources()!
+    await resources.plan(resource)
+    f.now.mockReturnValueOnce('unavailable')
+    expect(await resources.stopped(resource.key, 'confirmed')).toBe('unavailable')
+    expect((await history(f)).resources.get(resource.key)?.observations).toHaveLength(0)
+  } finally {
+    await f.cleanup()
+  }
+})
+
+test('malformed resource identity is rejected before any durable append', async () => {
+  const f = await journalFixture()
+  try {
+    await f.environment.prepare()
+    const resources = f.ports.resources()!
+    const before = f.controlledJournal.commit.mock.calls.length
+    expect(await resources.plan({ ...resource, key: '' })).toBe('conflict')
+    expect(await resources.permit('')).toBe('unavailable')
+    expect(f.controlledJournal.commit).toHaveBeenCalledTimes(before)
+    expect((await history(f)).resources.size).toBe(0)
+  } finally {
+    await f.cleanup()
+  }
+})
+
+test('resource callback before execution starts cannot grant plan or permit', async () => {
+  const f = await journalFixture(false)
+  try {
+    expect(await f.environment.prepare()).toEqual({
+      kind: 'rejected',
+      reason: 'environment:closed',
+    })
+    const resources = f.ports.resources()!
+    expect(await resources.plan(resource)).toBe('unavailable')
+    expect(await resources.permit(resource.key)).toBe('unavailable')
+    expect((await history(f)).resources.size).toBe(0)
+  } finally {
+    await f.cleanup()
+  }
+})
+
+test('an unconfirmed adoption cannot grant permission for an original planned resource', async () => {
+  const f = await journalFixture()
+  f.controlledJournal.commit.mockResolvedValueOnce({ kind: 'rejected', reason: 'unavailable' })
+  try {
+    expect(await f.environment.prepare()).toEqual({ kind: 'retained' })
+    const resources = f.ports.resources()!
+    expect(await resources.plan(resource)).toBe('recorded')
+    expect(await resources.permit(resource.key)).toBe('unavailable')
+    expect((await history(f)).resources.get(resource.key)?.permitted).toBeUndefined()
+    expect((await history(f)).environment).toBeUndefined()
+  } finally {
     await f.cleanup()
   }
 })
