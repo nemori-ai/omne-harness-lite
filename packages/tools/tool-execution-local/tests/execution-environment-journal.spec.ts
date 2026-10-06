@@ -558,3 +558,52 @@ test('an unconfirmed adoption cannot grant permission for an original planned re
     await f.cleanup()
   }
 })
+
+test('a rejected original invalidation promise triggers the original failure callback', async () => {
+  const f = await journalFixture(),
+    failed = Promise.withResolvers<{ reason: string }>()
+  f.ports.acquire.mockResolvedValueOnce({
+    ...f.ports.acquired,
+    lease: { ...f.ports.acquired.lease, invalidated: failed.promise },
+  })
+  try {
+    await f.environment.prepare()
+    failed.reject(new Error('Original provider invalidation channel lost'))
+    await Promise.resolve()
+    expect(f.invalidate).toHaveBeenCalledExactlyOnceWith('environment_invalidated')
+    expect(f.ports.acquire).toHaveBeenCalledOnce()
+  } finally {
+    await f.cleanup()
+  }
+})
+
+test.each(['adoption', 'resource'] as const)(
+  'closure during %s retry rejects before an unavailable successor read',
+  async operation => {
+    const f = await journalFixture()
+    try {
+      if (operation === 'resource') await f.environment.prepare()
+      f.controlledJournal.read.mockClear()
+      f.controlledJournal.commit.mockResolvedValueOnce({ kind: 'rejected', reason: 'tailChanged' })
+      f.retry.mockImplementationOnce(async () => {
+        f.closed.abort()
+        f.controlledJournal.read.mockResolvedValueOnce({ kind: 'rejected', reason: 'unavailable' })
+      })
+      const reply =
+        operation === 'adoption'
+          ? await f.environment.prepare()
+          : await f.ports.resources()!.plan(resource)
+      expect(reply).toEqual(
+        operation === 'adoption' ? { kind: 'rejected', reason: 'environment:closed' } : 'closed',
+      )
+      expect(f.controlledJournal.read).toHaveBeenCalledOnce()
+      expect(f.retry).toHaveBeenCalledExactlyOnceWith(0)
+      const original = await history(f)
+      expect(Boolean(original.environment)).toBe(operation === 'resource')
+      expect(original.resources.size).toBe(0)
+      expect(f.ports.acquire).toHaveBeenCalledOnce()
+    } finally {
+      await f.cleanup()
+    }
+  },
+)
