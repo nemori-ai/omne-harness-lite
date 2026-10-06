@@ -36,7 +36,7 @@ Accepted legacy behavior and verification sources remain effective until their c
 | [packages/core/offer-expiry](../../../../packages/core/offer-expiry/README.md) | service-contract | 纯值、ClockService 和唯一 clock 键；不选择租约策略或复制时钟实现。 |
 | [packages/core/organization-governance](../../../../packages/core/organization-governance/README.md) | service-contract | 四抽象 Service 和五通知共用公共定义；同提交、清除及未实现 OG3 的范围分别保留。 |
 | [packages/core/runtime-context](../../../../packages/core/runtime-context/README.md) | service-contract | RuntimeContextService 唯一键及无载荷唤醒事件；SPEC/Observation 模型维护来源撤代、原工作和实际排空。 |
-| [packages/core/skill-package](../../../../packages/core/skill-package/README.md) | module | 技能值判断/文件读取与显式版本入口；不执行技能脚本或装配服务。 |
+| [packages/core/skill-package](../../../../packages/core/skill-package/README.md) | module | 技能值判断/文件读取与显式版本入口；不执行技能脚本或装配服务。JSON 值导出保留对象身份，修正发出声明的 JSON 引用，实际外部 NodeNext 消费复验。 |
 | [packages/core/slash-command](../../../../packages/core/slash-command/README.md) | module | 命令识别、参数展开及显式已选择技能；不作授权或选择具体运行时。 |
 | [packages/core/storage](../../../../packages/core/storage/README.md) | service-contract | 存储/启动/完成服务定义与 conformance 分面；参与身份和真实物理完成责任保持。 |
 | [packages/core/stream-assembly](../../../../packages/core/stream-assembly/README.md) | module | 传入事件的公开状态转移函数；不建立 transport、调用工具或注册 Cordis 服务。 |
