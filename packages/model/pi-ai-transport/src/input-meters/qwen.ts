@@ -15,14 +15,13 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
+import { codePointOrder, ruleAccepts } from '../definitions.ts'
 import {
-  codePointOrder,
-  ruleAccepts,
   type ModelDefinition,
   type ModelRoute,
   type ParameterRule,
-} from '../definitions.ts'
-import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { InputMeter, TokenMeasurement } from '@omne-harness-lite/model-request-runtime'
 import { object } from '../json.ts'
 import { guardInputMeter, projectVisibleReasoningBody } from './shared.ts'
 

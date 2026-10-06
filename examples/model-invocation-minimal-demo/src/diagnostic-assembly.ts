@@ -14,9 +14,9 @@ import type {
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type {
   ModelTransportService,
-  RetirementPolicy,
   RetirementResult,
-} from '@omne-harness-lite/pi-ai-transport'
+} from '@omne-harness-lite/model-request-runtime'
+import type { RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import { createDiagnosticJournal } from './diagnostic-journal.ts'
 import type { DiagnosticJournalConfig } from './diagnostic-journal.ts'
 

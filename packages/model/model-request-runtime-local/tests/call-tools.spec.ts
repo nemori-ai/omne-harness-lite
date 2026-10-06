@@ -8,12 +8,14 @@ import {
   buildReport,
   buildSnapshots,
   buildTableContents,
-  createAssetRegistry,
   type AssetRegistryService,
   type AvailabilityReport,
-  type RegistryDependencies,
   type RegistryEntry,
 } from '@omne-harness-lite/asset-registry'
+import {
+  createAssetRegistry,
+  type RegistryDependencies,
+} from '@omne-harness-lite/asset-registry-local'
 import { resolveCallTools, type CallToolRequest } from '../src/call-tools.ts'
 
 const session = unwrap(parseOpaqueIdentifier('session_tool_resolution', 'SessionRef'))

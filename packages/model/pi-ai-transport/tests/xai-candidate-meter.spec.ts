@@ -4,12 +4,13 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime-local'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import {
   createOfficialProfileContent,
   createPiAiTransport,
-  type ModelDefinition,
 } from '@omne-harness-lite/pi-ai-transport'
+import { type ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import { createXaiCandidateInputMeter } from '../src/input-meters/xai-candidate.ts'
 import { xaiDefinitions } from '../src/official-models/xai.ts'
 import { certificate, content, finish, fixture, judgedMessage, policy } from './support.ts'

@@ -5,7 +5,7 @@ import type {
   PlanResult,
   PlannedSemantics,
   TransportAdapter,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 
 test('D109 requires an asynchronous plan with explicit execution context', () => {
   expectTypeOf<Parameters<TransportAdapter<PlannedSemantics, object>['plan']>>().toEqualTypeOf<

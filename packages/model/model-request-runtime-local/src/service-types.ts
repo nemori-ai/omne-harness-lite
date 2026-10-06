@@ -1,6 +1,6 @@
 import type { AssetRegistryService, AvailabilityReport } from '@omne-harness-lite/asset-registry'
 import type { ArrivalEvent, ArrivalTarget } from '@omne-harness-lite/arrival-events'
-import type { CurrentEvaluationInputs } from '@omne-harness-lite/evaluation-input-store'
+import type { CurrentEvaluationInputs } from '@omne-harness-lite/asset-evaluation'
 import type { AttemptId, ModelCallId, RunId } from '@omne-harness-lite/call-accounts'
 import type { CapabilityId, JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { TenantId } from '@omne-harness-lite/identity-values'
@@ -48,9 +48,9 @@ import type {
   SelectedBy,
 } from '@omne-harness-lite/model-response'
 import type { ModelToolName } from '@omne-harness-lite/tool-definition'
-import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type { LogEntry } from '@omne-harness-lite/session-log'
 import type { CallHistoryDispatch, CallHistoryResult } from './call-history.ts'
-import type { ModelLogSettlementTarget } from './log-codec.ts'
+import type { ModelLogSettlementTarget } from '@omne-harness-lite/model-request-runtime'
 import type { DispatchGuardPhase } from './dispatch-guard.ts'
 import type {
   SessionModelSelectionInput,
@@ -71,10 +71,9 @@ import type {
   InputLimitRejection,
   InvocationPolicy,
   PlannedSemantics,
-  ReplaySelection,
-  TokenMargin,
   TransportAdapter,
-} from './types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { ReplaySelection, TokenMargin } from '@omne-harness-lite/model-request-runtime'
 import type { AnchoredInvocationHandle } from './anchored-invocation-types.ts'
 import type { DiagnosticCollector } from './diagnostics-types.ts'
 

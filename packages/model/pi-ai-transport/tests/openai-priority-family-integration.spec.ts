@@ -3,11 +3,9 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import sharp from 'sharp'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
-import {
-  invokeModel,
-  type PlanInput,
-  type PlanOutputHistoryGroup,
-} from '@omne-harness-lite/model-request-runtime-local'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { type PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import { readOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import {
   createOpenAiInputMeter,
@@ -16,13 +14,11 @@ import {
   createModelTransportService,
   openaiDefinitions,
   openaiConfiguration,
-  type AdaptationLease,
-  type RetirementPolicy,
 } from '@omne-harness-lite/pi-ai-transport'
-import {
-  createModelPlugin,
-  MODEL_TRANSPORT_SERVICE,
-} from '@omne-harness-lite/pi-ai-transport/plugin'
+import { type AdaptationLease } from '@omne-harness-lite/model-request-runtime'
+import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
+import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
+import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 import { openAiFamilyRecords } from '../src/input-meters/openai-family-policy.ts'
 import {
   at,
@@ -161,7 +157,7 @@ describe.each(['public', 'cordis'] as const)('%s actual OpenAI family transport'
             },
           }
           await context.plugin(provider)
-          await context.plugin(createModelPlugin(definition, meter, retirement), {})
+          await createModelPlugin(context, definition, meter, retirement)
           expect(context.get(MODEL_TRANSPORT_SERVICE)).toBe(service)
           const acquired = service.acquire(next.snapshot.adaptation, next.routeName)
           if ('rejected' in acquired) throw Error(acquired.rejected)

@@ -2,7 +2,10 @@
 // Real SQLite/JSONL runtime and tenant setup for current read-access regressions.
 import { describe, expect, it, vi } from 'vitest'
 import { getEventListeners } from 'node:events'
-import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { dispatched } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'

@@ -1,8 +1,8 @@
 import { expectTypeOf, test } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
+import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
+import { readSettlementPrefix } from '../src/settlement-prefix.ts'
 import {
-  createSettlementCoordinator,
-  readSettlementPrefix,
   type SettlementCoordinatorInput,
   type SettlementRequest,
   type SettlementResult,
@@ -11,7 +11,7 @@ import {
   type SettlementLogBinding,
   type SettlementRegistration,
   type SettlementContention,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '../src/settlement-types.ts'
 
 test('public settlement is an owned independent closure with precise policy numbers and no authority switches', () => {
   expectTypeOf(createSettlementCoordinator).parameter(0).toEqualTypeOf<SettlementCoordinatorInput>()

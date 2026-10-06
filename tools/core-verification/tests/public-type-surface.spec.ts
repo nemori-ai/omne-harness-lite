@@ -59,7 +59,7 @@ it('w1.types.inventory.all-five-built-members-with-kernel-binding', async () => 
     { node: 'content-blocks', file: 'index', subpath: '' },
   ]
   // 本次明确盘点的范围。新增/撤回根类型须重新交接，不能因库存来源变化而自动缩小。
-  const expectedCounts = [24, 10, 2, 2, 27, 38]
+  const expectedCounts = [24, 10, 2, 2, 32, 41]
   const inventory = []
   for (const [position, { node, file, subpath }] of entries.entries()) {
     const specifier = `@omne-harness-lite/${node}${subpath}`
@@ -94,7 +94,7 @@ it('w1.types.inventory.all-five-built-members-with-kernel-binding', async () => 
       sources: await dependencySurface(join(repository, 'packages/core', node, `src/${file}.ts`)),
     })
   }
-  expect(inventory.reduce((sum, item) => sum + item.exportedNamedTypes.length, 0)).toBe(103)
+  expect(inventory.reduce((sum, item) => sum + item.exportedNamedTypes.length, 0)).toBe(111)
   const root = evidencePath(
     repository,
     'tmp/w1-public-consumers/types-complete',

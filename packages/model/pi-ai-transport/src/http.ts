@@ -1,3 +1,5 @@
+import type { RawResponse, TransportPolicy } from '@omne-harness-lite/model-request-runtime'
+import { type Diagnostic } from '@omne-harness-lite/model-request-runtime'
 import { Agent, request, type RequestOptions } from 'node:https'
 import type { IncomingMessage } from 'node:http'
 import type { Socket } from 'node:net'
@@ -8,8 +10,9 @@ import {
   type TransportFailure,
   type SendResult,
   type TransportExecutionDiagnostics,
-} from '@omne-harness-lite/model-request-runtime-local'
-import { isPlannedRequest, type PlannedRequest } from './plan.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import { isPlannedRequest } from './plan.ts'
+import { type PlannedRequest } from '@omne-harness-lite/model-request-runtime'
 import { strictObject } from './json.ts'
 import {
   ownCredentialConfiguration,
@@ -18,19 +21,6 @@ import {
 } from './credential-policy.ts'
 import type { RawHeaders } from '@omne-harness-lite/model-response'
 import { reportDiagnostic, reportExecutionDiagnostic } from './diagnostics.ts'
-
-export interface TransportPolicy {
-  readonly maxConnections: number
-  readonly idleConnectionTimeoutMs: number
-  readonly connectTimeoutMs: number | null
-  readonly maxErrorBodyBytes: number
-  readonly maxSseEventBytes: number
-  readonly credentialRedaction: CredentialRedactionConfig
-}
-export interface Diagnostic {
-  readonly kind: string
-  readonly level: 'info' | 'error'
-}
 export interface NetworkResources {
   readonly agent: Agent
   readonly baseUrl: URL
@@ -40,10 +30,6 @@ export interface NetworkResources {
   readonly active: Set<Promise<void>>
   readonly closed: () => boolean
   readonly acquireConnection: (signal: AbortSignal) => Promise<(() => void) | undefined>
-}
-export interface RawResponse {
-  readonly stopped: Promise<void>
-  readonly stop: () => void
 }
 interface ResponseState {
   readonly stream: IncomingMessage

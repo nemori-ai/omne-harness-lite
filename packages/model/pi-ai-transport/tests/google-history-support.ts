@@ -2,14 +2,14 @@
 // local TLS host and read by the production reader through a transport bound to the V4
 // candidate meter, so every detail entry a test plans with was produced by the reader.
 import type { ServerOptions } from 'node:https'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import {
-  invokeModel,
   type InvocationOutcome,
   type ModelInvocationResult,
   type PlanInput,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { createPiAiTransport } from '../src/transport.ts'
-import type { InputMeter } from '../src/input-meter.ts'
+import type { InputMeter } from '@omne-harness-lite/model-request-runtime'
 import {
   googleHistoryDefinition,
   googleHistoryMeter,

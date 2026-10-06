@@ -4,6 +4,7 @@ import {
   createAssemblyLifetime,
   type AssemblyLifetimePort,
   type OwnedWork,
+  type RetainedCloseControl,
 } from '@omne-harness-lite/assembly-lifecycle'
 import { AssemblyLifetimeService } from '@omne-harness-lite/assembly-lifecycle/cordis'
 import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
@@ -29,6 +30,7 @@ class TestLifetime extends AssemblyLifetimeService {
     this.capture(work)
     return this.port.register(work)
   }
+  retainClose = (control: RetainedCloseControl) => this.port.retainClose(control)
 }
 
 describe('managed SQL startup ownership', () => {

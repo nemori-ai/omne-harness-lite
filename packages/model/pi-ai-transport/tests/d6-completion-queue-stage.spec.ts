@@ -3,7 +3,7 @@ import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
 import type {
   TransportDiagnosticFact,
   TransportExecutionDiagnostics,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { certificate, content, finish, fixture, input } from './support.ts'
 
 function latch() {

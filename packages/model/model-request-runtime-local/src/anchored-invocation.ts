@@ -3,11 +3,7 @@ import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-account
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
 import type { ModelCallDispatchedRecord } from '@omne-harness-lite/messages'
-import type {
-  AppendResult,
-  AppendSuccess,
-  OwnedLogEntry,
-} from '@omne-harness-lite/session-log-jsonl'
+import type { AppendResult, AppendSuccess, OwnedLogEntry } from '@omne-harness-lite/session-log'
 import type { ReplyDisposition } from '@omne-harness-lite/model-response'
 import { ownPlanInput, preflightMissingInputLimits } from './input.ts'
 import { invokeModel } from './invoke.ts'
@@ -15,8 +11,12 @@ import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import {
   createCredentialRedactionPolicy,
   CredentialRedactionConfigurationError,
-} from './credential-redaction.ts'
-import { captureModelLogValue, prepareModelLogEntry, modelLogJsonEqual } from './log-codec.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+  modelLogJsonEqual,
+} from '@omne-harness-lite/model-request-runtime'
 import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import { settlementAppendReceipt } from './settlement-receipt.ts'
 import { settlementGenerationCurrent } from './settlement-prefix.ts'
@@ -32,7 +32,7 @@ import type {
   ModelInvocationResult,
   InvocationPolicy,
   OutputProjectionInput,
-} from './types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementTask,
   SettlementRegistration,
@@ -51,7 +51,7 @@ import type {
   DiagnosticEmitter,
   DiagnosticEvent,
   DiagnosticRecordResult,
-} from './diagnostics-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import { requestStopAndWait } from './settlement-stop.ts'
 
 const unavailable = Object.freeze({ unavailable: true } as const)

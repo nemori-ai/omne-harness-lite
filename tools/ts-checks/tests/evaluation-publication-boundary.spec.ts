@@ -8,17 +8,17 @@ test.each([
   'packages/assets/evaluation-input-store/tests/crash-worker.mjs',
   'packages/assets/evaluation-input-store/tests/source.spec.ts',
   'packages/model/model-request-runtime-local/tests/session-selection-fixture.ts',
-  'packages/agent-loop/loop-extension-runner/tests/runner-chain-support.ts',
+  'packages/agent-loop/loop-extension-runner-local/tests/runner-chain-support.ts',
 ])('allowed publisher %s', path => {
   expect(evaluationPublicationBoundary.check([{ path, text: imported }])).toEqual([])
 })
 test.each([
   'packages/model/model-request-runtime-local/src/runtime.ts',
-  'packages/agent-loop/loop-extension-runner/src/runner-chain.ts',
-  'packages/agent-loop/loop-extension-runner/tests/unapproved-publication.ts',
+  'packages/agent-loop/loop-extension-runner-local/src/runner-chain.ts',
+  'packages/agent-loop/loop-extension-runner-local/tests/unapproved-publication.ts',
   'packages/model/model-request-runtime-local/src/session-selection-fixture.ts',
   'packages/model/model-request-runtime-local/tests/unapproved-publication.ts',
-  'packages/tools/asset-registry/src/index.ts',
+  'packages/tools/asset-registry-local/src/index.ts',
   'examples/model-invocation-minimal-demo/src/runtime.ts',
   'apps/model-request-acceptance/src/bootstrap.ts',
   'examples/unrelated/tests/test.ts',
@@ -76,7 +76,10 @@ test.each([
 ])('runner source fixture cannot forward or use private publication: %s', text => {
   expect(
     evaluationPublicationBoundary.check([
-      { path: 'packages/agent-loop/loop-extension-runner/tests/runner-chain-support.ts', text },
+      {
+        path: 'packages/agent-loop/loop-extension-runner-local/tests/runner-chain-support.ts',
+        text,
+      },
     ]),
   ).not.toEqual([])
 })

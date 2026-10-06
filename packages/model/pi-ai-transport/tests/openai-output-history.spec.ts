@@ -4,17 +4,16 @@ import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { describe, expect, it } from 'vitest'
 import { getEncoding } from 'js-tiktoken'
 import { writeJsonLossless, toOpaqueJson } from '@omne-harness-lite/content-blocks'
-import type {
-  PlanInput,
-  PlanOutputHistoryGroup,
-} from '@omne-harness-lite/model-request-runtime-local'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import type { Message } from '@omne-harness-lite/messages'
 import { projectAssistant } from '../src/assistant-projection.ts'
 import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'
-import type { ReplayMeterInput, InputMeter } from '../src/input-meter.ts'
+import type { ReplayMeterInput, InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { openaiConfiguration, openaiDefinitions } from '../src/official-models/openai.ts'
-import { planRequest, type PlannedRequest } from '../src/plan.ts'
+import { planRequest } from '../src/plan.ts'
+import { type PlannedRequest } from '@omne-harness-lite/model-request-runtime'
 import {
   projectInput,
   projectOutput,

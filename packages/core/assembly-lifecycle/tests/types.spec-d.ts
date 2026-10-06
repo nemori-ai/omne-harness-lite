@@ -4,9 +4,14 @@ import type {
   AssemblyCloseReport,
   LifetimeRegistration,
   OwnedWork,
+  RetainedCloseControl,
 } from '../src/index.ts'
-import { createAssemblyLifetime } from '../src/index.ts'
-import { AssemblyLifetimeService, startAssemblyWork } from '../src/cordis.ts'
+import { createAssemblyLifetime, createRetainedWork } from '../src/index.ts'
+import {
+  AssemblyLifetimeService,
+  startAssemblyWork,
+  startRetainedAssemblyWork,
+} from '../src/cordis.ts'
 import type { Context } from '@deepseek-ai/cordis'
 
 test('the Service exposes the row protocol without assembly control', () => {
@@ -22,4 +27,13 @@ test('the Service exposes the row protocol without assembly control', () => {
   expectTypeOf(startAssemblyWork).toEqualTypeOf<
     (ctx: Context, setup: () => Promise<void>, close: () => Promise<void>) => void
   >()
+  expectTypeOf(startRetainedAssemblyWork).toEqualTypeOf<typeof startAssemblyWork>()
+  expectTypeOf<AssemblyLifetimeService['retainClose']>().toEqualTypeOf<
+    (control: RetainedCloseControl) => void
+  >()
+  expectTypeOf(createRetainedWork).returns.toEqualTypeOf<{
+    readonly work: OwnedWork
+    readonly control: RetainedCloseControl
+  }>()
+  expectTypeOf(lifetime.closeControl('row')).toEqualTypeOf<RetainedCloseControl | undefined>()
 })

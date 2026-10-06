@@ -1,3 +1,5 @@
+import { SessionLogService } from '@omne-harness-lite/session-log/cordis'
+import type { SessionLog } from '@omne-harness-lite/session-log'
 import type { Context } from '@deepseek-ai/cordis'
 import { openJsonlSessionLog } from './open.ts'
 import type { SessionLogOptions } from './policy.ts'
@@ -19,16 +21,21 @@ export async function applySessionLog(
   })
   try {
     ctx.effect(() => () => owner.close(), 'session-log-jsonl.close')
-    ctx.provide(
-      'sessionLog',
-      Object.freeze({
-        append: owner.append,
-        readByKey: owner.readByKey,
-        readSince: owner.readSince,
-      }),
-    )
+    new LogProvider(ctx, owner)
   } catch (error) {
     await owner.close()
     throw error
+  }
+}
+
+class LogProvider extends SessionLogService {
+  readonly append: SessionLog['append']
+  readonly readByKey: SessionLog['readByKey']
+  readonly readSince: SessionLog['readSince']
+  constructor(ctx: Context, log: SessionLog) {
+    super(ctx)
+    this.append = (...args) => log.append(...args)
+    this.readByKey = (...args) => log.readByKey(...args)
+    this.readSince = (...args) => log.readSince(...args)
   }
 }

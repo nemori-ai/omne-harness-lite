@@ -29,7 +29,16 @@ Service 子类。配置 Schema 和 describeAssembly 必须同步、纯且确定�
 声明的 claim 配置可能包含秘密，不能打印。
 
 每个必需键必须来自更早的启用行或外部服务。可选键缺席允许；本树存在提供者时也须前置。
-各服务键集合由唯一非空字符串组成，requires 与 optional 不重叠。
+各服务键集合由唯一非空字符串组成。声明恰含 provides、requires、optional、dynamicProvides、dynamicRequires 与 claims。
+provides 与 dynamicProvides 不重叠；requires、optional、dynamicRequires 两两不重叠，
+动态消费不能由本行提供。静态和动态提供不能重复同一键。所有当前提供者声明都使用这一形状。
+
+dynamicProvides 表示固定 host 拥有可独立发布、撤除和替换的实际领域能力；dynamicRequires
+表示 host 内部工作按原领域协议读取这种动态能力。准备仍要求动态提供角色前置，不要求该
+能力在加载时或之后永久存在。其缺席和换代结果归原领域契约，不由 loader 补默认值。
+静态 requires/optional 不能消费动态提供者，dynamicRequires 不能消费静态提供者；
+混合投影以 invalid-declaration 拒绝。externalServices 仍只声明静态外部服务。
+隐含 assemblyLifetime 不能动态提供或动态消费。
 claim 的 name 非空、version 为正整数，同行 name/version 对不能重复；config 必须是有限 JSON。
 重复提供、外部冲突和缺失依赖均拒绝，不作拓扑排序。assemblyLifetime 是隐含行端口，
 不能声明提供。声明只说明提供者的承诺，真实行为仍须验证。
@@ -41,9 +50,13 @@ claim 的 name 非空、version 为正整数，同行 name/version 对不能重�
 句柄先于任何 apply 返回；准备后的导出不会再次按包名解析。
 
 每行通过独立端口登记 OwnedWork，再开始副作用。就绪须同时满足登记、OwnedWork.ready 成功、
-实际 fiber ACTIVE、声明服务可见及代际仍有效。未开始的后缀在失败或停止后不再加载。
+实际 fiber ACTIVE、静态 provides 声明的服务可见及代际仍有效。未开始的后缀在失败或停止后不再加载。
 ready 立即报告首个观察到的终结原因；已成功的 ready 保留历史结果。内部始终观察拒绝。
-实际依赖撤除、重新装载或改变可选依赖的资源拥有关系，均结束整代；不能承接到新代。
+固定 row/port 本身退出 ACTIVE，或静态 provides/requires/optional 的实际提供者丧失、
+同键换代或改变可选依赖拥有关系，均结束整代，不能承接新代。判断比较真实提供者身份，
+不能只比较是否仍可见。纯动态贡献子 fiber 退出不自动结束固定行；它撤掉静态声明服务时
+仍结束本代。动态服务缺席和换代按原领域契约处理。内部工作的失败与收尾仍由 host 拥有，
+动态声明不替代真实 OwnedWork.ready/close，也不授予租户或业务权限。
 
 dispose 请求停止并返回同一个 closed Promise。先等待协调器完成真实 OwnedWork，
 再逆序撤除行 fiber，最后逆序撤端口。setup、close、fiber 和端口失败分别保留。

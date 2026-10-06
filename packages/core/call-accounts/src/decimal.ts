@@ -67,6 +67,11 @@ export class ExactDecimal {
     return this.#source
   }
 
+  /** Equal decimal values have the same spelling, without expanding a large exponent. */
+  toCanonicalString(): string {
+    return `${this.#coefficient}e${this.#exponent}`
+  }
+
   toJsonNumber(): LosslessNumber {
     return new LosslessNumber(this.#source)
   }

@@ -16,6 +16,8 @@ const declaration = (optional: readonly string[] = []): AssemblyDeclaration => (
   provides: [],
   requires: [],
   optional,
+  dynamicProvides: [],
+  dynamicRequires: [],
   claims: [],
 })
 function managed(

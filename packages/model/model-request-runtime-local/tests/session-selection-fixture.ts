@@ -48,14 +48,12 @@ import type {
   AttributeAssignment,
 } from '@omne-harness-lite/asset-model'
 import type { ModelCatalog, ProfileRow } from '@omne-harness-lite/model-profile-directory'
-import { modelProfileDirectoryPlugin } from '@omne-harness-lite/model-profile-directory/plugin'
-import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory/migrations'
+import { modelProfileDirectoryPlugin } from '@omne-harness-lite/model-profile-directory-local/cordis'
+import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory-local/migrations'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
-import {
-  createSessionModelSelection,
-  type SessionModelSelectionInput,
-} from '@omne-harness-lite/model-request-runtime-local'
+import { createSessionModelSelection } from '../src/session-selection.ts'
+import { type SessionModelSelectionInput } from '../src/session-selection-types.ts'
 import { ControlledSettlementOwner } from './settlement-fixture.ts'
 
 export const ROOT = { category: 'agent_definition', name: 'example:selection-root' } as const

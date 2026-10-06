@@ -6,7 +6,7 @@ import {
   type ModelAdaptationBinding,
   type ModelRequestParameters,
 } from '@omne-harness-lite/model-profile'
-import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime-local'
+import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import { ownCalibration } from '../calibration.ts'
 import { object } from '../json.ts'
 import { ownBasis } from '../meter-transform.ts'
@@ -16,7 +16,7 @@ import type {
   ReplayMeterInput,
   HistorySelectionSpan,
   MarginalMeterInput,
-} from '../input-meter.ts'
+} from '@omne-harness-lite/model-request-runtime'
 
 function frozen(value: JsonValue): void {
   if (value !== null && typeof value === 'object') {

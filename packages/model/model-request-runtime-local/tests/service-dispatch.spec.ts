@@ -18,7 +18,10 @@ import { createModelCallContentStore } from '../src/reference-content.ts'
 import { createModelCallFacts } from '../src/reference-facts.ts'
 import { createRuntimeAcquire } from '../src/service-acquire.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
-import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import { noWaitScheduler, policy as settlementPolicy } from './settlement-fixture.ts'
 import { payload, transport, type TestPlan } from './anchored-invocation-fixture.ts'
@@ -31,13 +34,13 @@ import {
 import type { UnacknowledgedCallHistory } from '../src/call-history.ts'
 import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
 import type { RuntimeConstruction, SessionRuntimeBinding } from '../src/service-types.ts'
-import type { PlanFailure } from '../src/types.ts'
+import type { PlanFailure } from '@omne-harness-lite/model-request-runtime'
 import type {
   DiagnosticAssociation,
   DiagnosticCollector,
-  DiagnosticEvent,
   DiagnosticScope,
 } from '../src/diagnostics-types.ts'
+import type { DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
 
 const session = unwrap(parseOpaqueIdentifier('session_dispatch', 'SessionRef'))
 const creationKey = (value: string) => unwrap(parseOpaqueIdentifier(value, 'CreationKey'))

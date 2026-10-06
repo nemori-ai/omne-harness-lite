@@ -3,19 +3,18 @@ import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type {
   DiagnosticAssociation,
-  DiagnosticEvent,
-  DiagnosticFact,
   DiagnosticQueryResult,
   DiagnosticRecord,
   DiagnosticScope,
 } from '../src/diagnostics-types.ts'
+import type { DiagnosticEvent, DiagnosticFact } from '@omne-harness-lite/model-request-runtime'
 import { createDiagnosticCollector } from '../src/diagnostics.ts'
 import type {
   InvocationInput,
   PublicDiagnosticAssociation,
   TransportDiagnosticFact,
   TransportExecutionDiagnostics,
-} from '../src/types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 
 expectTypeOf(createDiagnosticCollector).toBeFunction()
 expectTypeOf<DiagnosticRecord['format']>().toEqualTypeOf<'model-diagnostics/1'>()
@@ -41,7 +40,7 @@ expectTypeOf<PublicDiagnosticAssociation['causedBy']>().toEqualTypeOf<
 expectTypeOf<InvocationInput<never, never>['diagnosticEmitterFactory']>().toEqualTypeOf<
   | ((
       association?: PublicDiagnosticAssociation,
-    ) => import('../src/diagnostics-types.ts').DiagnosticEmitter)
+    ) => import('@omne-harness-lite/model-request-runtime').DiagnosticEmitter)
   | undefined
 >()
 const transportFact: TransportDiagnosticFact = {

@@ -13,7 +13,7 @@ import {
   type ModelCallEndedRecord,
 } from '@omne-harness-lite/messages'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
-import type { AppendResult, LogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type { AppendResult, LogEntry } from '@omne-harness-lite/session-log'
 import { acknowledgementSummary, originOfEntry } from './acknowledged-view.ts'
 import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-custody.ts'
 import type { CallHistoryKnown } from './call-history.ts'
@@ -23,8 +23,8 @@ import {
   modelLogJsonEqual,
   prepareModelLogEntry,
   type ModelLogShell,
-} from './log-codec.ts'
-import { inspectCurrentModelLogPrefix } from './log-codec-settlement.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import { inspectCurrentModelLogPrefix } from '@omne-harness-lite/model-request-runtime'
 import { OwnedReadTracker, withOwnedReads } from './service-control.ts'
 import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
 import type { SettlementPrefix } from './settlement-prefix.ts'
@@ -43,7 +43,7 @@ import type {
   SettlementTask,
   SettlementOwner,
 } from './settlement-types.ts'
-import type { PlannedSemantics } from './types.ts'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { requestStopAndWait } from './settlement-stop.ts'
 
 const unavailable = Object.freeze({ unavailable: true } as const)

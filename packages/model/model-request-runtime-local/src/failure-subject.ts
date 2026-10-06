@@ -10,7 +10,7 @@ import {
 } from '@omne-harness-lite/call-accounts'
 import { copyJsonValue, isJsonNumber } from '@omne-harness-lite/content-blocks'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-import { modelLogJsonEqual } from './log-codec.ts'
+import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import {
   interpretCallHistory,
   rejectAcknowledgedHistory,

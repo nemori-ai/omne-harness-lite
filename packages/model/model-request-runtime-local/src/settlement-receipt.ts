@@ -8,7 +8,7 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
-import type { AppendResult } from '@omne-harness-lite/session-log-jsonl'
+import type { AppendResult } from '@omne-harness-lite/session-log'
 function object(value: unknown): value is JsonObject {
   return (
     value !== null && typeof value === 'object' && !Array.isArray(value) && !isJsonNumber(value)

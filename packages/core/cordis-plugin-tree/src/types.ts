@@ -49,6 +49,8 @@ export interface AssemblyDeclaration {
   readonly provides: readonly string[]
   readonly requires: readonly string[]
   readonly optional: readonly string[]
+  readonly dynamicProvides: readonly string[]
+  readonly dynamicRequires: readonly string[]
   readonly claims: readonly AssemblyClaim[]
 }
 export interface PreparationOptions {

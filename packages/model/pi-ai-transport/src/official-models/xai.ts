@@ -1,4 +1,5 @@
-import { ownDefinitions, type ModelDefinition, type ModelRoute } from '../definitions.ts'
+import { ownDefinitions } from '../definitions.ts'
+import { type ModelDefinition, type ModelRoute } from '@omne-harness-lite/model-request-runtime'
 
 // The xai endpoint of both confirmed Grok models uses this deliberately bounded
 // supplied subset. Dropped sampling fields are not claims of upstream absence.

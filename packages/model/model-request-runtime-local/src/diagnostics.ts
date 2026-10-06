@@ -9,29 +9,31 @@ import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import { parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type {
   DiagnosticAssociation,
-  DiagnosticBinding,
   DiagnosticCloseResult,
   DiagnosticCollector,
   DiagnosticCollectorConfig,
   DiagnosticCoverage,
-  DiagnosticDropReason,
-  DiagnosticEmitter,
-  DiagnosticEvent,
   DiagnosticExportLimits,
   DiagnosticExportResult,
-  DiagnosticFact,
   DiagnosticHealth,
   DiagnosticMetrics,
-  DiagnosticOutcome,
   DiagnosticQuery,
   DiagnosticQueryResult,
   DiagnosticRecord,
   DiagnosticReportCategory,
-  DiagnosticReference,
   DiagnosticScope,
-  DiagnosticSource,
   DiagnosticStage,
 } from './diagnostics-types.ts'
+import type {
+  DiagnosticBinding,
+  DiagnosticDropReason,
+  DiagnosticEmitter,
+  DiagnosticEvent,
+  DiagnosticFact,
+  DiagnosticOutcome,
+  DiagnosticReference,
+  DiagnosticSource,
+} from '@omne-harness-lite/model-request-runtime'
 
 const sources = ['runtime', 'invocation', 'transport', 'observer', 'assembly'] as const
 const stages = [

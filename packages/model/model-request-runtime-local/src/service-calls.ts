@@ -55,14 +55,14 @@ import type {
 } from './service-types.ts'
 import type { EffectiveModel } from './selection-types.ts'
 import type { SettlementOwner, SettlementRegistration, SettlementTask } from './settlement-types.ts'
-import type { AppendResult } from '@omne-harness-lite/session-log-jsonl'
+import type { AppendResult } from '@omne-harness-lite/session-log'
 import type { CallKey } from './service-types.ts'
 import type { CurrentHistoryReaders } from './service-types.ts'
 import type { SettlementLogBinding } from './settlement-types.ts'
-import type { PlannedSemantics } from './types.ts'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { AcknowledgedCallFacts, ModelCallPublishPermit } from './reference-types.ts'
 import { requestStopAndWait } from './settlement-stop.ts'
-import { modelLogJsonEqual } from './log-codec.ts'
+import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import { CreationPublication } from './creation-publication.ts'
 
 function observeAcquireRefusal<P extends PlannedSemantics, R>(

@@ -1,7 +1,7 @@
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
-import type { AppendResult, OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
-import { modelLogJsonEqual } from './log-codec.ts'
-import { inspectCurrentModelLogPrefix } from './log-codec-settlement.ts'
+import type { AppendResult, OwnedLogEntry } from '@omne-harness-lite/session-log'
+import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
+import { inspectCurrentModelLogPrefix } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallPublishPermit } from './reference-types.ts'
 import {
   readSettlementPrefix,

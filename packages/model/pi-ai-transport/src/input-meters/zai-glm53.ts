@@ -7,8 +7,8 @@ import {
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { object } from '../json.ts'
-import type { ModelDefinition } from '../definitions.ts'
-import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
+import type { ModelDefinition } from '@omne-harness-lite/model-request-runtime'
+import type { InputMeter, TokenMeasurement } from '@omne-harness-lite/model-request-runtime'
 import type { ZaiHistoryTreatment } from '../official-models/zai.ts'
 import { guardInputMeter } from './shared.ts'
 import { exactKeys, glm5Tokenizer, toolCalls, toolSchemas, visibleText } from './zai-glm52.ts'

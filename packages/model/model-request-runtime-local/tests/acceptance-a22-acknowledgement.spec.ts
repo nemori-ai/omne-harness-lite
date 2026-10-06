@@ -9,9 +9,12 @@ import {
   judgeModelCallSemanticDigest,
 } from '@omne-harness-lite/messages'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
-import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log-jsonl'
+import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log'
 import { payload } from './anchored-invocation-fixture.ts'
-import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import {
   acknowledgementHost,
   acknowledgements,

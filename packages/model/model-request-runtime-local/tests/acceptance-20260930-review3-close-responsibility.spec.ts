@@ -22,7 +22,7 @@
  * cold process, never from the runtime's own report alone.
  */
 import { afterAll, describe, expect, it } from 'vitest'
-import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type { LogEntry } from '@omne-harness-lite/session-log'
 import { ControlledSettlementOwner } from './settlement-fixture.ts'
 import { transport } from './anchored-invocation-fixture.ts'
 import { selectionHost } from './session-selection-fixture.ts'

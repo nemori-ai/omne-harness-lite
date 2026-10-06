@@ -8,11 +8,13 @@ import {
   createDiagnosticCollector,
   invokeModel,
   type DiagnosticCollectorConfig,
+  type DiagnosticRecord,
+} from '@omne-harness-lite/model-request-runtime-local'
+import {
   type DiagnosticEvent,
   type DiagnosticMeasurementFact,
-  type DiagnosticRecord,
   type InputMeasurement,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import {
   adapter,
   fixturePlan,

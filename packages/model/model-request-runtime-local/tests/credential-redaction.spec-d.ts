@@ -4,12 +4,14 @@ import {
   createCredentialRedactionPolicy,
   redact,
   openRouterCredentialRedactionConfig,
+} from '@omne-harness-lite/model-request-runtime'
+import {
   type CredentialRedactionConfig,
   type CredentialRedactionPolicy,
   type BoundCredentialRedaction,
   type CredentialRedactionResult,
   type CredentialRedactionHeaders,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 
 it('pure public signatures retain explicit config and JSON/header shapes without a secret accessor', () => {
   expectTypeOf(createCredentialRedactionPolicy)

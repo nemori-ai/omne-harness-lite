@@ -1,22 +1,19 @@
 import { readFileSync } from 'node:fs'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import {
-  invokeModel,
-  type PlanInput,
-  type PlanOutputHistoryGroup,
-} from '@omne-harness-lite/model-request-runtime-local'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { type PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { anthropicReplayModels } from '../src/input-meters/anthropic-replay.ts'
 import { createAnthropicInputMeter } from '../src/input-meters/anthropic.ts'
 import { anthropicDefinitions } from '../src/official-models/anthropic.ts'
 import { createPiAiTransport } from '../src/transport.ts'
-import {
-  createModelTransportService,
-  type RetirementPolicy,
-  type AdaptationLease,
-} from '../src/registry.ts'
-import { MODEL_TRANSPORT_SERVICE, createModelPlugin } from '../src/plugin.ts'
+import { createModelTransportService } from '../src/registry.ts'
+import { type AdaptationLease } from '@omne-harness-lite/model-request-runtime'
+import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
+import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
+import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
 import { imagePreparation } from './image-transport-support.ts'
 import {
   at,
@@ -125,7 +122,7 @@ describe.each(['public', 'service'] as const)(
           let transport: AdaptationLease['transport'] = direct
           if (entry === 'service') {
             await ctx.plugin(provider)
-            await ctx.plugin(createModelPlugin(definition, meter, retirement), {})
+            await createModelPlugin(ctx, definition, meter, retirement)
             expect(ctx.get(MODEL_TRANSPORT_SERVICE)).toBe(service)
             const acquired = service.acquire(profile.ok.adaptation, definition.modelId)
             if (!('lease' in acquired)) throw Error('service lease unavailable')

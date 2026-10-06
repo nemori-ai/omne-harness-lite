@@ -67,6 +67,45 @@ close 的兑现或拒绝都必须晚于本行全部业务工作静止。
 
 ## 装配与验证责任
 
+### 未确认关闭的保有
+
+纯根的 `createRetainedWork(ready, attemptClose)` 返回 `{work, control}`。
+`ready` 为 `Promise<void>`，`attemptClose` 为 `() => Promise<void>`。
+返回的 work 是 `OwnedWork`，control 是 `RetainedCloseControl`。
+`work.ready` 必须引用传入的同一 Promise，不替换原初始化结果。
+`work.close()` 只启动第一次原 attemptClose，每次返回同一个完成 Promise。
+原关闭成功后才兑现该完成 Promise。原关闭拒绝或同步抛错，只产生 retained 观察，完成仍 pending。
+真正 pending 的原关闭也保持 pending。适配不判断权限、物理停止或失败后重试安全，这些责任归原根。
+
+关闭开始前，control 的两个方法均固定等待第一次尝试，不发起停止或自动重试。
+关闭开始后，`closeAttempt()` 固定观察调用时最近已发起的尝试，后来重试不改变该次观察。
+`retryClose()` 在有在途尝试时加入它；没有在途尝试且未成功时，显式发起一次同原根重试。
+并发重试合并。成功后两方法返回 closed，不再调用原 attemptClose。
+closed 仅表示原关闭成功，retained 不能作为静止依据。没有定时或自动重试。
+
+行端口的 `retainClose(control)` 只接受已登记、尚未完成收尾的行。
+有效输入为非 null 对象，且 closeAttempt 和 retryClose 均为函数；检查仅判形状，不授予权限。
+正常返回表示原行已持有该引用。同引用重复可认回，异引用不得覆盖。
+未登记、已完成、冲突、无效输入或方法读取抛错均同步拒绝，并请求整个代际停止。
+这些使用错误抛出内建 Error，不定义封闭 code 或可依赖的错误正文；方法读取异常转为该使用错误。
+完成指实际 close 完成并即将兑现本行 receipt，不指 ready 成功。
+关闭已开始但本行未完成时，仍允许原 setup 交付控制；不能因停止丢失原责任。
+
+根的 `closeControl(id)` 只供实际装配拥有者取得原行维护控制，不给行提供者整体关闭权。
+未知 id 同步拒绝；已知但尚未保有返回 undefined。undefined 不能作为静止依据。
+未知 id 沿用 port 查询的内建 Error 使用错误，不承诺错误正文。
+已保有引用跨 Service/fiber 撤除及根完成保持原身份，不重新发现或绑定后继实例。
+控制不得进入插件 JSON、工具能力、runtime context 或模型输入。
+
+`./cordis` 的 `startRetainedAssemblyWork(ctx, setup, attemptClose)` 同步返回 void。
+精确签名为 `(ctx: Context, setup: () => Promise<void>, attemptClose: () => Promise<void>) => void`。
+它复用原管理启动流程，登记前构造 deferred ready 和安全 work。
+登记后、安装 effect 和调度 setup 前，向本行 Service 交付原 control。
+交付失败拒绝 managed ready 并请求停止，不执行 setup；原已登记 work 仍负责实际资源前缀。
+原 helper 的 effect、资格核验、异常保持及异步拒绝观察要求全部适用。
+普通 startAssemblyWork 保持原静止后 settle 要求，不自动转换资源失败。
+需要保有未确认责任的绑定显式选用新 helper；不能将 retained 写成业务成功或资源已释放。
+
 宿主先等待资源收尾，再逆序撤 fiber 和外部资源端口，最后核对自身 guard 与完成回调。
 下一代必须新建协调器和代际资源。独立函数调用方仍显式拥有其资源，不必加载本包。
 未采用此协议的独立 Cordis 绑定要求调用方先排空消费者再撤依赖。

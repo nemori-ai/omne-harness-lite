@@ -1,4 +1,4 @@
-import type { ModelDefinition, ParameterRules } from '@omne-harness-lite/pi-ai-transport'
+import type { ModelDefinition, ParameterRules } from '@omne-harness-lite/model-request-runtime'
 export const fixtureRules: ParameterRules = {
   reasoningEffort: {
     kind: 'select',

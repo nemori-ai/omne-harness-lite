@@ -22,7 +22,7 @@
  * host stop are disturbed; every verdict is read back from the durable log or a cold process.
  */
 import { afterAll, describe, expect, it } from 'vitest'
-import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type { LogEntry } from '@omne-harness-lite/session-log'
 import { ControlledSettlementOwner } from './settlement-fixture.ts'
 import { selectionHost } from './session-selection-fixture.ts'
 import {

@@ -25,22 +25,24 @@ import {
   readEvaluationProjection,
   sessionRef,
   validNames,
-} from './value.ts'
+} from '@omne-harness-lite/assembly-manifest'
 import type {
   AppendFacts,
   AppendResult,
-  AssemblyManifestStore,
   CheckedAppend,
   EvaluationRef,
   EvaluationReadResult,
   GivenReadResult,
-  ManifestDb,
-  ManifestDiagnostic,
-  ManifestOptions,
   ManifestRecord,
   ManifestSessionRef,
   ManifestTable,
   ReadFailure,
+} from '@omne-harness-lite/assembly-manifest'
+import type {
+  AssemblyManifestStore,
+  ManifestDb,
+  ManifestDiagnostic,
+  ManifestOptions,
 } from './types.ts'
 
 class ContentUnavailable extends StorageDefect {}

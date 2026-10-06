@@ -103,6 +103,8 @@ export interface Offload {
 }
 export interface ToolResult {
   readonly content: readonly ResultContentBlock[]
+  /** Ordinary business failure. Omitted or false means ordinary success. */
+  readonly isError?: boolean
   readonly offload?: Offload
   readonly attachments?: readonly AttachmentRef[]
 }

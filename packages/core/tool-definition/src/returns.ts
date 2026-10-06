@@ -12,6 +12,7 @@ import type { Offload, ToolResult } from './types.ts'
 
 interface WireResult {
   readonly content: readonly JsonValue[]
+  readonly isError?: boolean
   readonly offload?: {
     readonly raw: Offload['raw']
     readonly summary?: readonly [JsonValue, ...JsonValue[]]
@@ -49,6 +50,7 @@ export function toolResultOf(returned: unknown, blockId: BlockId): ToolResult {
   const offload = copied.offload
   return Object.freeze({
     content: Object.freeze(copied.content.map(resultBlock)),
+    ...(copied.isError === undefined ? {} : { isError: copied.isError }),
     ...(offload === undefined
       ? {}
       : {

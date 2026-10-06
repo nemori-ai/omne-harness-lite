@@ -8,18 +8,17 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
-import type { AppendResult, OwnedLogEntry, SessionLog } from '@omne-harness-lite/session-log-jsonl'
+import type { AppendResult, OwnedLogEntry, SessionLog } from '@omne-harness-lite/session-log'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { captureModelLogValue, encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
+import { interpretCallHistory } from '../src/call-history.ts'
 import {
-  captureModelLogValue,
-  encodeModelLogKey,
-  interpretCallHistory,
   interpretSettlementPrefix,
   readSettlementPrefix,
   type SettlementPrefix,
-  type SettlementTaskKind,
-} from '@omne-harness-lite/model-request-runtime-local'
-import { decodeModelLogKey } from '../src/log-codec-key.ts'
+} from '../src/settlement-prefix.ts'
+import { type SettlementTaskKind } from '../src/settlement-types.ts'
+import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
 import { dispatched, opened, prepare, session, tenant } from './log-codec-fixture.ts'
 import { prepareV2, responseV5 } from './log-codec-v2-fixture.ts'
 import { ControlledSettlementOwner } from './settlement-fixture.ts'

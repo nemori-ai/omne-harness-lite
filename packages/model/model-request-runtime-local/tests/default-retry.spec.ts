@@ -11,7 +11,7 @@ import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
 import { z } from 'zod'
 import { describe, expect, it } from 'vitest'
 import { createDefaultRetryImplementation, DEFAULT_RETRY_BUILTIN } from '../src/default-retry.ts'
-import { createModelDefaultRetryPlugin } from '../src/default-retry-plugin.ts'
+import { EffectImplementations, loadDefaultRetry } from './retry-assembly.ts'
 
 const adaptation = {
   implementation: { name: 'test-transport', revision: 'one' },
@@ -293,17 +293,17 @@ describe('P-5 default retry contribution', () => {
   it('registers only its Cordis generation and unregisters it on provider removal', async () => {
     const ctx = new Context()
     const registry = new Map<string, unknown>()
-    const consumer = await ctx.plugin(
-      createModelDefaultRetryPlugin({ policy, sample: () => 0 }),
-      {},
-    )
+    const consumer = await loadDefaultRetry(ctx, { policy, sample: () => 0 })
     expect(registry.size).toBe(0)
     const provider = await ctx.plugin(
       definePlugin({
         name: 'retry-registry-test',
         Config: z.object({}).strict(),
         apply(inner) {
-          inner.provide('loopExtensionImplementations', {
+          new EffectImplementations(inner, {
+            registerAdmission() {
+              throw new Error('Retry contributor must not register admission')
+            },
             registerBuiltin(name: string, implementation: unknown) {
               if (registry.has(name)) throw new Error('duplicate')
               registry.set(name, implementation)

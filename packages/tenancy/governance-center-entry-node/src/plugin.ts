@@ -94,6 +94,8 @@ function describeEntryAssembly(value: unknown): AssemblyDeclaration {
       ENTRY_OPENING_SERVICE,
     ],
     optional: [],
+    dynamicProvides: [],
+    dynamicRequires: [],
     claims: [
       {
         name: 'tenancy-host/entry',

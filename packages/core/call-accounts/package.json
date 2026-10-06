@@ -31,12 +31,12 @@
     "@omne-harness-lite/content-blocks": "workspace:*",
     "@omne-harness-lite/identity-values": "workspace:*",
     "@omne-harness-lite/offer-expiry": "workspace:*",
-    "ajv": "catalog:",
-    "@omne-harness-lite/asset-model": "workspace:*"
+    "ajv": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "@omne-harness-lite/asset-model": "workspace:*"
   }
 }

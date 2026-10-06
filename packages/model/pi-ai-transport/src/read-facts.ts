@@ -5,11 +5,11 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import type { ReadFacts } from '@omne-harness-lite/model-request-runtime-local'
+import type { ReadFacts } from '@omne-harness-lite/model-request-runtime'
 import type { ObservationProvenance, ObservedInput } from '@omne-harness-lite/model-response'
 import { accountFromUsage } from './accounts.ts'
 import { object, member } from './json.ts'
-import type { Diagnostic } from './http.ts'
+import type { Diagnostic } from '@omne-harness-lite/model-request-runtime'
 
 import { readerRevision, type UsageScope } from './usage-scope.ts'
 export { READER_REVISION } from './usage-scope.ts'

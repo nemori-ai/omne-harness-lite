@@ -1,3 +1,4 @@
+import { assertToolSchemaTransition } from './schema-transition.ts'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -36,7 +37,7 @@ describe('frozen v2 normative examples', () => {
         rejected: fixture.rejected,
         ...('malformed' in fixture ? { malformed: fixture.malformed } : {}),
       }))
-  it('V1 frozen Schema byte equality, TD1 ModelToolName assertion copy equality', () => {
+  it('V1 adopted isError delta and unchanged Schema remainder, TD1 ModelToolName assertion copy equality', () => {
     const packaged = readFileSync(
       fileURLToPath(new URL('../schema/tool-definition.schema.json', import.meta.url)),
     )
@@ -48,7 +49,7 @@ describe('frozen v2 normative examples', () => {
         ),
       ),
     )
-    expect(packaged.equals(normative)).toBe(true)
+    assertToolSchemaTransition(packaged, normative)
     const assertionFields = (definition: object) =>
       Object.fromEntries(
         Object.entries(definition).filter(

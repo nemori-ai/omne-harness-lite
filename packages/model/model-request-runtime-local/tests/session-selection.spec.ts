@@ -7,15 +7,12 @@ import {
   captureModelLogValue,
   prepareModelLogEntry,
   inspectModelLogEntry,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { deferred, ControlledSettlementOwner } from './settlement-fixture.ts'
 import { narrow } from '@omne-harness-lite/storage'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
-import type {
-  SettlementRegistration,
-  SettlementTaskKind,
-} from '@omne-harness-lite/model-request-runtime-local'
+import type { SettlementRegistration, SettlementTaskKind } from '../src/settlement-types.ts'
 
 describe('RT5 real session model selection and current evaluation', () => {
   it('each legality and repeat command reads current inputs; new model locks never filter the S11 set', async () => {

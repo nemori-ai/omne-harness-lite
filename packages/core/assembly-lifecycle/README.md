@@ -18,7 +18,8 @@ This is an experimental, private ESM workspace package, not an npm release. Foll
 | `AssemblyLifetimePort`, `OwnedWork`, `LifetimeRegistration`                             | Row-scoped admission and actual completion        |
 | `AssemblyCloseReport`, `CloseResult`                                                    | Completion results with classified failures       |
 | `AssemblyWorkStopped`                                                                   | Use error when managed work starts after stopping |
-| `./cordis`: `AssemblyLifetimeService`, `ASSEMBLY_LIFETIME_SERVICE`, `startAssemblyWork` | Inject a row port and adapt owned work            |
+| `createRetainedWork`, `RetainedCloseControl`, `RetainedCloseAttempt` | Keep an unconfirmed original close pending and explicitly retry it |
+| `./cordis`: `AssemblyLifetimeService`, `ASSEMBLY_LIFETIME_SERVICE`, `startAssemblyWork`, `startRetainedAssemblyWork` | Inject a row port and register actual work |
 
 ## Example
 

@@ -1,3 +1,4 @@
+import { assertContentSchemaTransition } from './schema-transition.ts'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -7,17 +8,16 @@ import { exampleRows, SPEC_DIR } from './spec-fixtures.ts'
 
 const rows = exampleRows()
 describe('V-1: frozen Schema and all normative instances', () => {
-  it('bundled bytes match the frozen source', () => {
-    expect(
-      readFileSync(resolve(import.meta.dirname, '../schema/content-blocks.schema.json')).equals(
-        readFileSync(resolve(SPEC_DIR, '../v3/content-blocks.schema.json')),
-      ),
-    ).toBe(true)
+  it('current Schema changes only AR-1; all other assertions match the frozen source', () => {
+    assertContentSchemaTransition(
+      readFileSync(resolve(import.meta.dirname, '../schema/content-blocks.schema.json')),
+      readFileSync(resolve(SPEC_DIR, '../v3/content-blocks.schema.json')),
+    )
   })
-  it('has the 162 normative rows (60 pass, 102 reject) and all 22 definitions', () => {
+  it('has the 162 normative rows (60 pass, 102 reject) and all 25 definitions', () => {
     expect(rows).toHaveLength(162)
     expect(rows.filter(row => row.valid)).toHaveLength(60)
-    expect(SCHEMA_DEF_NAMES).toHaveLength(22)
+    expect(SCHEMA_DEF_NAMES).toHaveLength(25)
     for (const name of SCHEMA_DEF_NAMES) expect(() => validate(name, null)).not.toThrow()
   })
   for (const row of rows) {

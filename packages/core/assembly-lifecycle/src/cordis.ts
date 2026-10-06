@@ -1,6 +1,7 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type { AssemblyLifetimePort } from './types.ts'
 import { AssemblyWorkStopped } from './errors.ts'
+import { createRetainedWork } from './retained-work.ts'
 
 /** @owner packages/core/assembly-lifecycle */
 export abstract class AssemblyLifetimeService extends Service implements AssemblyLifetimePort {
@@ -12,6 +13,7 @@ export abstract class AssemblyLifetimeService extends Service implements Assembl
 
   abstract isCurrent: AssemblyLifetimePort['isCurrent']
   abstract register: AssemblyLifetimePort['register']
+  abstract retainClose: AssemblyLifetimePort['retainClose']
 }
 
 export const ASSEMBLY_LIFETIME_SERVICE = AssemblyLifetimeService.provide
@@ -22,16 +24,36 @@ export function startAssemblyWork(
   setup: () => Promise<void>,
   close: () => Promise<void>,
 ): void {
+  startManagedWork(ctx, setup, close, false)
+}
+
+/** Retain an unconfirmed original close in the same assembly row. */
+export function startRetainedAssemblyWork(
+  ctx: Context,
+  setup: () => Promise<void>,
+  attemptClose: () => Promise<void>,
+): void {
+  startManagedWork(ctx, setup, attemptClose, true)
+}
+
+function startManagedWork(
+  ctx: Context,
+  setup: () => Promise<void>,
+  close: () => Promise<void>,
+  retain: boolean,
+): void {
   const lifetime = ctx.get(ASSEMBLY_LIFETIME_SERVICE)
   if (!lifetime) throw new Error('Assembly lifetime is required')
   const ready = Promise.withResolvers<void>()
   // Registration failure remains a synchronous usage error, before any effects.
-  const registration = lifetime.register({ ready: ready.promise, close })
+  const retained = retain ? createRetainedWork(ready.promise, close) : undefined
+  const registration = lifetime.register(retained?.work ?? { ready: ready.promise, close })
   const fail = (error: unknown): void => {
     ready.reject(error)
     registration.requestStop()
   }
   try {
+    if (retained) lifetime.retainClose(retained.control)
     ctx.effect(() => async () => {
       registration.requestStop()
       await registration.closed

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { types } from 'node:util'
-import type { ImagePreparePolicy, LoadedImageCodec } from './types.ts'
+import type { ImagePreparePolicy } from './types.ts'
+import type { LoadedImageCodec } from '@omne-harness-lite/model-request-runtime'
 export const positive = z.number().int().positive().max(Number.MAX_SAFE_INTEGER)
 const background = z
   .object({

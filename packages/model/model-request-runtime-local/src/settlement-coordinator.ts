@@ -15,12 +15,8 @@ import {
   type CapturedModelLogValue,
   type ModelLogSettlementCurrent,
   type ModelLogSettlementTarget,
-} from './log-codec.ts'
-import type {
-  AppendCondition,
-  AppendResult,
-  OwnedLogEntry,
-} from '@omne-harness-lite/session-log-jsonl'
+} from '@omne-harness-lite/model-request-runtime'
+import type { AppendCondition, AppendResult, OwnedLogEntry } from '@omne-harness-lite/session-log'
 import {
   readSettlementPrefix,
   interpretSettlementPrefix,

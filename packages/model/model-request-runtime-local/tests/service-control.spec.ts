@@ -19,7 +19,7 @@ import type {
   SettlementRegistration,
   SettlementTask,
 } from '../src/settlement-types.ts'
-import type { AppendResult } from '@omne-harness-lite/session-log-jsonl'
+import type { AppendResult } from '@omne-harness-lite/session-log'
 import { UnknownAppendTracker } from '../src/service-calls.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
 

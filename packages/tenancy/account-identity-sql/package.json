@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "capability.account-identity v2 的提供者：accounts 与 logins 两个服务面、登录状态出示物、两张表的迁移片段",
+  "description": "capability.account-identity v2 \u7684\u63d0\u4f9b\u8005\uff1aaccounts \u4e0e logins \u4e24\u4e2a\u670d\u52a1\u9762\u3001\u767b\u5f55\u72b6\u6001\u51fa\u793a\u7269\u3001\u4e24\u5f20\u8868\u7684\u8fc1\u79fb\u7247\u6bb5",
   "engines": {
     "node": ">=24 <25"
   },
@@ -36,7 +36,8 @@
     "zod": "catalog:",
     "@omne-harness-lite/account-identity": "workspace:*",
     "@omne-harness-lite/assembly-lifecycle": "workspace:*",
-    "@omne-harness-lite/cordis-plugin-tree": "workspace:*"
+    "@omne-harness-lite/cordis-plugin-tree": "workspace:*",
+    "@omne-harness-lite/content-blocks": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness-lite/clock-lease": "workspace:*",

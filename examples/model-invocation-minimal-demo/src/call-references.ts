@@ -4,6 +4,9 @@ import { isOk, parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/
 import type { CallKey, CreationKey, SessionRef } from '@omne-harness-lite/messages'
 import {
   encodeModelLogKey,
+  type ModelLogSettlementTarget,
+} from '@omne-harness-lite/model-request-runtime'
+import {
   type CallAccess,
   type CallAccessEvidence,
   type CallContainer,
@@ -14,10 +17,9 @@ import {
   type CallPresenceFact,
   type CallPresenceInput,
   type CallSource,
-  type ModelLogSettlementTarget,
   type SettlementLogBinding,
 } from '@omne-harness-lite/model-request-runtime-local'
-import type { PlannedRequest, RawResponse } from '@omne-harness-lite/pi-ai-transport'
+import type { PlannedRequest, RawResponse } from '@omne-harness-lite/model-request-runtime'
 
 type DemoContainer = CallContainer<PlannedRequest, RawResponse>
 

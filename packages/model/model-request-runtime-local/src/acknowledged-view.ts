@@ -9,9 +9,9 @@ import {
   type ModelResponse,
   type ResponseId,
 } from '@omne-harness-lite/model-response'
-import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type { LogEntry } from '@omne-harness-lite/session-log'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import { modelLogJsonEqual } from './log-codec-key.ts'
+import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import type { CallHistoryKnown } from './call-history.ts'
 import type {
   AcknowledgedAttempt,

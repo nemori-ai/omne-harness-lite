@@ -15,13 +15,22 @@
     "./seed": {
       "types": "./dist/seed.d.ts",
       "import": "./dist/seed.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    },
+    "./maintenance": {
+      "types": "./dist/maintenance.d.ts",
+      "import": "./dist/maintenance.js"
     }
   },
   "files": [
     "dist",
     "README.md",
     "README_ZH.md",
-    "generated"
+    "generated",
+    "SPEC.md"
   ],
   "scripts": {
     "build": "node ../../../scripts/build-fixed-schemas.mjs",
@@ -37,7 +46,8 @@
     "@deepseek-ai/cordis": "catalog:",
     "zod": "catalog:",
     "kysely": "catalog:",
-    "ajv": "catalog:"
+    "ajv": "catalog:",
+    "@omne-harness-lite/session-tenancy": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness-lite/storage-sql": "workspace:*",

@@ -3,8 +3,8 @@ import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
 import { isOk, parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { judgeMessage } from '@omne-harness-lite/messages'
+import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
 import {
-  decodeModelLogKey,
   type AcquireCallResult,
   type RetainedCallReadView,
 } from '@omne-harness-lite/model-request-runtime-local'

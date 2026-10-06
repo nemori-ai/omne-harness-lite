@@ -16,6 +16,8 @@ function describeAssembly(value: unknown): AssemblyDeclaration {
     provides: [CREDENTIALS_SERVICE],
     requires: [],
     optional: [],
+    dynamicProvides: [],
+    dynamicRequires: [],
     claims: [{ name: 'tenancy-host/credentials', version: 1, config }],
   }
 }

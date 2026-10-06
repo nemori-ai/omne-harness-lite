@@ -19,7 +19,7 @@
  */
 import { afterAll, describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log-jsonl'
+import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
 import { interpretCallHistory } from '../src/call-history.ts'

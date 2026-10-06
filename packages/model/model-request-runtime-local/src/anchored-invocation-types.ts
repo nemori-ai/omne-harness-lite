@@ -8,7 +8,7 @@ import type {
   ModelResponse,
   PendingModelResponse,
 } from '@omne-harness-lite/model-response'
-import type { CapturedModelLogValue } from './log-codec.ts'
+import type { CapturedModelLogValue } from '@omne-harness-lite/model-request-runtime'
 import type {
   InvocationInput,
   PlanInput,
@@ -17,13 +17,13 @@ import type {
   InvocationPolicy,
   PlanFailure,
   ModelInvocationHandle,
-} from './types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementCoordinatorInput,
   SettlementOwner,
   SettlementResult,
 } from './settlement-types.ts'
-import type { ModelLogSettlementTarget } from './log-codec-settlement.ts'
+import type { ModelLogSettlementTarget } from '@omne-harness-lite/model-request-runtime'
 
 export interface AnchoredInvocationInput<P extends PlannedSemantics, R> {
   /** Actual operation fence; this original dispatch identity is never inferred from recovery. */

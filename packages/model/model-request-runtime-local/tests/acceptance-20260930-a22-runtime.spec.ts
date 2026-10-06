@@ -27,14 +27,17 @@ import {
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import type { ModelCallAcknowledgedRecord } from '@omne-harness-lite/messages'
 import { narrow, type Storage } from '@omne-harness-lite/storage'
-import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log-jsonl'
+import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log'
 import { createModelCallContentStore } from '../src/reference-content.ts'
 import { createModelCallFacts } from '../src/reference-facts.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { acknowledgedAttempts, attemptFromWitness } from '../src/acknowledged-view.ts'
-import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import type {
   CallAccess,
   CallAccessAction,

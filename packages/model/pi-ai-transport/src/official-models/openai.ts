@@ -3,7 +3,8 @@ import {
   OPENAI_FAMILY_IMPLEMENTATION,
 } from '../input-meters/openai-family-policy.ts'
 import type { ModelAdaptationBinding } from '@omne-harness-lite/model-profile'
-import { ownDefinitions, type ModelDefinition, type ModelRoute } from '../definitions.ts'
+import { ownDefinitions } from '../definitions.ts'
+import { type ModelDefinition, type ModelRoute } from '@omne-harness-lite/model-request-runtime'
 
 // These rules cover the supplied route behavior; parameter drops do not claim
 // that the upstream models lack those parameters. Route certification is separate.

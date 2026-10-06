@@ -1,6 +1,6 @@
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { modelProfileDirectoryPlugin } from '@omne-harness-lite/model-profile-directory/plugin'
+import { modelProfileDirectoryPlugin } from '@omne-harness-lite/model-profile-directory-local/cordis'
 import { createAcceptanceApplication, type AcceptanceEvent } from '../src/index.ts'
 import { deployment, evidence, noBusinessBeforeConfirmation, persisted } from './support.ts'
 
@@ -72,7 +72,6 @@ describe('AB-V2 original ordering negative control', () => {
             extra = base.plugin(modelProfileDirectoryPlugin, {
               faceMode: 'management',
               officialManifest: config.officialManifest,
-              diagnostics: { record() {} },
             })
             try {
               await extra

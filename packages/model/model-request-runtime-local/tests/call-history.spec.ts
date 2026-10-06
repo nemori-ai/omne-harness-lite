@@ -3,17 +3,17 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
-import type { AppendResult, OwnedLogEntry, SessionLog } from '@omne-harness-lite/session-log-jsonl'
+import type { AppendResult, OwnedLogEntry, SessionLog } from '@omne-harness-lite/session-log'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
+import { interpretCallHistory } from '../src/call-history.ts'
+import { projectCallState } from '../src/call-state.ts'
 import {
-  encodeModelLogKey,
-  interpretCallHistory,
-  projectCallState,
   readSettlementPrefix,
   type SettlementPrefix,
   type SettlementPrefixResult,
-  type SettlementTaskKind,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '../src/settlement-prefix.ts'
+import { type SettlementTaskKind } from '../src/settlement-types.ts'
 import { acknowledgedAsTerminal, rejectAcknowledgedHistory } from '../src/call-history.ts'
 import { dispatched, opened, prepare, reply, session, tenant } from './log-codec-fixture.ts'
 import { batchV2, prepareV2, responseV5 } from './log-codec-v2-fixture.ts'

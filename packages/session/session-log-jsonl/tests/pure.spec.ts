@@ -5,14 +5,13 @@ import {
   toOpaqueJson,
   writeJsonLossless,
 } from '@omne-harness-lite/content-blocks'
+import { checkAppendInput, type AppendRequest } from '@omne-harness-lite/session-log'
 import {
-  checkAppendInput,
   decodeLogBytes,
   emptyLogState,
   encodeCommitLine,
   foldCommit,
   judgeAppend,
-  type AppendRequest,
   type LogCommit,
   type LogState,
 } from '../src/index.ts'

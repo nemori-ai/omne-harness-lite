@@ -2,11 +2,14 @@
 // Real Cordis, SQLite and JSONL verify creation identity and durable publication.
 import { expect, test, vi } from 'vitest'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import type { LogEntryInput } from '@omne-harness-lite/session-log-jsonl'
+import type { LogEntryInput } from '@omne-harness-lite/session-log'
 import { acknowledgementHost } from './acknowledgement-host-fixture.ts'
 import { kinds } from './acknowledgement-host-fixture.ts'
 import { ControlledSettlementOwner, deferred, policy } from './settlement-fixture.ts'
-import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { AvailabilityReport } from '@omne-harness-lite/asset-registry'
 import { instantFromEpochMs } from '@omne-harness-lite/offer-expiry'

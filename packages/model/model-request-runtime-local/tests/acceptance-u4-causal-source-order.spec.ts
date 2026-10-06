@@ -2,9 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { LosslessNumber, copyJsonValue, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type { LogEntry } from '@omne-harness-lite/session-log'
 import { authorizedCalibration } from '../src/service-calibration.ts'
-import { captureModelLogValue, modelLogJsonEqual, prepareModelLogEntry } from '../src/log-codec.ts'
+import {
+  captureModelLogValue,
+  modelLogJsonEqual,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import { readSettlementPrefix, type SettlementPrefix } from '../src/settlement-prefix.ts'
 import type { CurrentHistoryReaders } from '../src/service-types.ts'
 import {

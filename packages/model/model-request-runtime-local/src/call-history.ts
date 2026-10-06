@@ -11,13 +11,13 @@ import type {
   ModelCallReplyReadyRecord,
   SessionRef,
 } from '@omne-harness-lite/messages'
-import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type { LogEntry } from '@omne-harness-lite/session-log'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import { finalMatchesWitness } from './acknowledged-view.ts'
-import type { CapturedModelLogValue } from './log-codec-value.ts'
-import type { InspectedModelLogEntry } from './log-codec-entry.ts'
-import type { ModelLogResponseProjection } from './log-codec.ts'
-import { modelLogJsonEqual } from './log-codec-key.ts'
+import type { CapturedModelLogValue } from '@omne-harness-lite/model-request-runtime'
+import type { InspectedModelLogEntry } from '@omne-harness-lite/model-request-runtime'
+import type { ModelLogResponseProjection } from '@omne-harness-lite/model-request-runtime'
+import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import {
   interpretSettlementPrefix,
   isOwnedSettlementPrefix,
@@ -25,7 +25,7 @@ import {
   type SettlementPrefix,
 } from './settlement-prefix.ts'
 import type { DispatchGuardPhase } from './dispatch-guard.ts'
-import { inspectCurrentModelLogPrefix } from './log-codec-settlement.ts'
+import { inspectCurrentModelLogPrefix } from '@omne-harness-lite/model-request-runtime'
 
 export interface CallHistoryDispatch {
   readonly ordinal: JsonNumber

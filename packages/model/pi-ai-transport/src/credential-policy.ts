@@ -2,7 +2,7 @@ import {
   createCredentialRedactionPolicy,
   type BoundCredentialRedaction,
   type CredentialRedactionConfig,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import type { JsonObject } from '@omne-harness-lite/content-blocks'
 import { object } from './json.ts'
 

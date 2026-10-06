@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { invokeModel } from '../src/invoke.ts'
-import type { DiagnosticEvent } from '../src/diagnostics-types.ts'
+import type { DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
 import { adapter, deferred, policy, request } from './invoke-policy-fixture.ts'
 
 function observed() {

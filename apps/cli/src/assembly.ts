@@ -6,6 +6,7 @@ import {
   type OwnedWork,
   type LifetimeRegistration,
   type AssemblyCloseReport,
+  type RetainedCloseControl,
 } from '@omne-harness-lite/assembly-lifecycle'
 import {
   AssemblyLifetimeService,
@@ -60,6 +61,7 @@ class LifetimePort extends AssemblyLifetimeService {
   }
   isCurrent = () => this.port.isCurrent()
   register = (work: OwnedWork) => this.port.register(work)
+  retainClose = (control: RetainedCloseControl) => this.port.retainClose(control)
 }
 class CloseObserver extends GovernanceClientCloseObserver {
   constructor(
@@ -171,6 +173,7 @@ export function createClientAssembly(
     const bridge = scope.plugin(ctx => {
       new LifetimePort(ctx, {
         isCurrent: () => port.isCurrent(),
+        retainClose: control => port.retainClose(control),
         register(work) {
           const owned: OwnedWork =
             id === 'localState'

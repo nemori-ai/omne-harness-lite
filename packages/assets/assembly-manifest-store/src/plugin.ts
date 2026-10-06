@@ -3,7 +3,8 @@ import { z } from 'zod'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import type { Storage } from '@omne-harness-lite/storage'
 import { createAssemblyManifestStore } from './store.ts'
-import type { ManifestOptions, AssemblyManifestService } from './types.ts'
+import type { ManifestOptions } from './types.ts'
+import type { AssemblyManifestService } from '@omne-harness-lite/assembly-manifest'
 export const ASSEMBLY_MANIFEST_SERVICE = 'assemblyManifest' as const
 export const assemblyManifestStorePlugin = definePlugin({
   name: 'assembly-manifest-store',

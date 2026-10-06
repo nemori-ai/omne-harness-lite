@@ -1,0 +1,49 @@
+{
+  "name": "@omne-harness-lite/asset-registry-local",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "AR4 assembly-table composition and historical registry reads",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README_ZH.md"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@omne-harness-lite/storage": "workspace:*",
+    "@omne-harness-lite/content-blocks": "workspace:*",
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/asset-model": "workspace:*",
+    "@omne-harness-lite/asset-evaluation": "workspace:*",
+    "@omne-harness-lite/offer-expiry": "workspace:*",
+    "@omne-harness-lite/call-accounts": "workspace:*",
+    "@omne-harness-lite/slash-command": "workspace:*",
+    "@omne-harness-lite/asset-registry": "workspace:*",
+    "@omne-harness-lite/assembly-manifest": "workspace:*",
+    "@omne-harness-lite/session-tenancy": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "@omne-harness-lite/account-identity": "workspace:*",
+    "@omne-harness-lite/account-registration": "workspace:*",
+    "@omne-harness-lite/clock-lease": "workspace:*",
+    "@omne-harness-lite/organization-governance-sql": "workspace:*",
+    "@omne-harness-lite/credential-verification-scrypt": "workspace:*"
+  }
+}

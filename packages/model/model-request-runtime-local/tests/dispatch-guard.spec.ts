@@ -4,7 +4,7 @@ import {
   dispatchGuard,
   type DispatchGuardPhase,
   type DispatchGuardInput,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '../src/dispatch-guard.ts'
 import { guardInput, profile } from './dispatch-guard-fixture.ts'
 
 function callAt(phase: DispatchGuardPhase): DispatchGuardInput['call'] {

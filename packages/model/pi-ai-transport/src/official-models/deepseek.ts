@@ -1,5 +1,6 @@
 import type { ModelAdaptationBinding } from '@omne-harness-lite/model-profile'
-import { ownDefinitions, type ModelDefinition, type ModelRoute } from '../definitions.ts'
+import { ownDefinitions } from '../definitions.ts'
+import { type ModelDefinition, type ModelRoute } from '@omne-harness-lite/model-request-runtime'
 
 // Family route policies: shared by model-specific declarations below.
 // A declared supplied subset, not a claim that DeepInfra lacks the dropped parameters.

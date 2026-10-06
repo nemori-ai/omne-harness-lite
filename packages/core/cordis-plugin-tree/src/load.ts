@@ -1,9 +1,10 @@
-import type { Context, Fiber } from '@deepseek-ai/cordis'
+import { symbols, type Context, type Fiber } from '@deepseek-ai/cordis'
 import type {
   AssemblyCloseReport,
   AssemblyLifetime,
   AssemblyLifetimePort,
   OwnedWork,
+  RetainedCloseControl,
 } from '@omne-harness-lite/assembly-lifecycle'
 import {
   ASSEMBLY_LIFETIME_SERVICE,
@@ -34,6 +35,7 @@ class RowLifetime extends AssemblyLifetimeService {
   }
   isCurrent = (): boolean => this.port.isCurrent()
   register = (work: OwnedWork) => this.port.register(work)
+  retainClose = (control: RetainedCloseControl) => this.port.retainClose(control)
 }
 const inspections = new WeakMap<PluginTreeHandle, readonly LoadingRow[]>()
 export function inspectPluginTree(handle: PluginTreeHandle): readonly PluginTreeInspection[] {
@@ -52,7 +54,7 @@ class TreeRun {
   readonly #loaded: LoadingRow[] = []
   readonly #errors = new Set<AssemblyCloseReport['assemblyErrors'][number]>()
   readonly #listeners: (() => void)[] = []
-  readonly #visibility = new Map<string, boolean>()
+  readonly #visibility = new Map<string, unknown>()
   #failure?: PluginTreeStartError
   readonly handle: PluginTreeHandle
 
@@ -103,19 +105,16 @@ class TreeRun {
     ])
   }
   #owner(fiber: Fiber): LoadingRow | undefined {
-    let current = fiber
-    for (;;) {
-      const row = this.#loaded.find(
-        item => item.port?.ctx.fiber === current || item.fiber?.ctx.fiber === current,
-      )
-      if (row !== undefined) return row
-      const parent = current.parent.fiber
-      if (parent === current) return undefined
-      current = parent
-    }
+    return this.#loaded.find(row => row.port?.ctx.fiber === fiber || row.fiber?.ctx.fiber === fiber)
+  }
+  #visible(key: string): unknown {
+    const service = this.ctx.get(key)
+    return service !== null && (typeof service === 'object' || typeof service === 'function')
+      ? (Reflect.get(service, symbols.original) ?? service)
+      : service
   }
   #watch(): void {
-    for (const key of this.state.externalServices) this.#visibility.set(key, true)
+    for (const key of this.state.externalServices) this.#visibility.set(key, this.#visible(key))
     this.#listeners.push(
       this.ctx.on('internal/status', (fiber, oldState) => {
         if (this.#failure !== undefined) return
@@ -139,7 +138,7 @@ class TreeRun {
     this.#listeners.push(
       this.ctx.on('internal/service', key => {
         if (this.#failure !== undefined || !this.#visibility.has(key)) return
-        const visible = this.ctx.get(key) !== undefined
+        const visible = this.#visible(key)
         if (visible !== this.#visibility.get(key)) this.#stop('dependency-unavailable')
       }),
     )
@@ -158,6 +157,7 @@ class TreeRun {
     const target = this.lifetime.port(row.prepared.row.id)
     return {
       isCurrent: () => target.isCurrent(),
+      retainClose: control => target.retainClose(control),
       register: work => {
         // Observe before delegation: the lifetime also observes failure and may start draining.
         row.workReady = work.ready
@@ -180,7 +180,7 @@ class TreeRun {
     const row: LoadingRow = { prepared, scope }
     this.#loaded.push(row)
     for (const key of [...prepared.declaration.requires, ...prepared.declaration.optional]) {
-      if (key !== ASSEMBLY_LIFETIME_SERVICE) this.#visibility.set(key, scope.get(key) !== undefined)
+      if (key !== ASSEMBLY_LIFETIME_SERVICE) this.#visibility.set(key, this.#visible(key))
     }
     if (
       prepared.declaration.requires.some(
@@ -217,7 +217,7 @@ class TreeRun {
       this.#stop('provided-service-missing', id)
       return
     }
-    for (const key of prepared.declaration.provides) this.#visibility.set(key, true)
+    for (const key of prepared.declaration.provides) this.#visibility.set(key, this.#visible(key))
   }
   async #finish(report: AssemblyCloseReport): Promise<AssemblyCloseReport> {
     for (const code of report.assemblyErrors) this.#errors.add(code)

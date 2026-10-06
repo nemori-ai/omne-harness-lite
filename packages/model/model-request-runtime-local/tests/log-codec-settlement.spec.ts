@@ -11,8 +11,8 @@ import {
   modelLogJsonEqual,
   captureModelLogValue,
   type InspectSettlementMembersInput,
-} from '@omne-harness-lite/model-request-runtime-local'
-import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
+} from '@omne-harness-lite/model-request-runtime'
+import type { LogEntry } from '@omne-harness-lite/session-log'
 import {
   anchors,
   batch,

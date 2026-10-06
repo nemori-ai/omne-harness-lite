@@ -5,7 +5,7 @@ import {
   type PlanScopeBinding,
   type PlanReuseScopes,
 } from '../src/plan-reuse-scopes.ts'
-import type { PlannedSemantics } from '../src/types.ts'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { policy } from './invoke-policy-fixture.ts'
 
 function binding(tenant = 'one', session = 'session', generation: object = {}): PlanScopeBinding {

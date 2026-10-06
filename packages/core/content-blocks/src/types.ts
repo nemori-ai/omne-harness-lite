@@ -9,6 +9,28 @@ export type ModelToolName = string
 export type Modality = 'text' | 'image' | 'audio' | 'video'
 export type ExecutionOutcome =
   'completed' | 'failed' | 'unavailable' | 'backgrounded' | 'interrupted' | 'no_answer'
+/** A denied call has a reply but no execution or execution account. */
+export type ToolCallOutcome = ExecutionOutcome | 'denied'
+export type AdmissionDenialCode =
+  | 'not_held'
+  | 'permission_forbidden'
+  | 'authorization_denied'
+  | 'run_mode_never'
+  | 'human_refused'
+  | 'human_declined'
+export type ActionDenialReason =
+  | {
+      readonly kind: 'admission'
+      readonly code: AdmissionDenialCode
+      readonly by: string
+      readonly conclusion: string
+    }
+  | {
+      readonly kind: 'extension_veto' | 'admission_unavailable'
+      readonly by: string
+      readonly conclusion: string
+      readonly explanation: string
+    }
 export type PlaceholderReason =
   | 'user_interrupted'
   | 'backgrounded_auto'
@@ -138,6 +160,11 @@ export type ToolResultBlock = BlockIdentity & {
   readonly offloaded?: AttachmentRef
 } & (
     | { readonly outcome: 'completed' | 'unavailable' | 'no_answer'; readonly reason?: never }
+    | {
+        readonly outcome: 'denied'
+        readonly reason: ActionDenialReason
+        readonly offloaded?: never
+      }
     | { readonly outcome: 'failed'; readonly reason?: ToolResultReason<'abnormal_interruption'> }
     | {
         readonly outcome: 'backgrounded'

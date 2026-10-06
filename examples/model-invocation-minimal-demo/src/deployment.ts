@@ -15,19 +15,20 @@ import {
   deepseekV4Pro0813Definition,
   officialCatalog,
   officialCatalogRevision,
-  type InputMeter,
-  type ModelDefinition,
-  type RetirementPolicy,
 } from '@omne-harness-lite/pi-ai-transport'
+import { type ModelDefinition } from '@omne-harness-lite/model-request-runtime'
+import { type InputMeter, type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import type { ModelProfileContent } from '@omne-harness-lite/model-profile'
+import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
 import {
-  openRouterCredentialRedactionConfig,
   type AcknowledgementCleanupPolicy,
-  type TokenMargin,
   type DefaultRetryConfiguration,
 } from '@omne-harness-lite/model-request-runtime-local'
+import { type TokenMargin } from '@omne-harness-lite/model-request-runtime'
 import type { AcceptanceConfig, AuthenticatedActor, ModelInputSource } from './types.ts'
 import type { ProcessOwnership } from '@omne-harness-lite/session-log-jsonl'
+import { DEMO_TOOL_ASSETS, DEMO_TOOL_HOLDINGS } from './demo-tools.ts'
+import { OFFICIAL_ADMISSION_NAME } from '@omne-harness-lite/tool-admission'
 
 export const MODEL = deepseekV4Pro0813Definition.modelId
 /**
@@ -112,9 +113,19 @@ const URI =
 export function demoPublication(
   actor: AuthenticatedActor,
   expectedRevision: string | null = null,
+  enableTools = false,
 ): ModelInputSource['publication'] {
   const body: JsonObject = {
     references: [
+      ...(enableTools
+        ? [
+            ...DEMO_TOOL_ASSETS.map(asset => ({
+              capability: { category: asset.capability.category, name: asset.capability.name },
+              resident: true,
+            })),
+            { capability: { category: 'loop_extension', name: OFFICIAL_ADMISSION_NAME } },
+          ]
+        : []),
       {
         capability: {
           category: DEMO_DEFAULT_RETRY.category,
@@ -158,8 +169,13 @@ export function demoPublication(
     capability: DEMO_ROOT,
     origin: 'official',
     versions: [
+      ...(enableTools
+        ? demoPublication(actor, expectedRevision, false)
+            .definitions.filter(definition => definition.id === 'demo-model-invocation-root-asset')
+            .flatMap(definition => definition.versions)
+        : []),
       {
-        number: 1,
+        number: enableTools ? 2 : 1,
         publishedAt: PUBLICATION_TIME,
         content: { category: 'agent_definition', body: toOpaqueJson(body) },
       },
@@ -205,11 +221,47 @@ export function demoPublication(
     versionSelection: { kind: 'current' },
     since: PUBLICATION_TIME,
   }
+  const admission = judgeDefinition({
+    name: OFFICIAL_ADMISSION_NAME,
+    position: 'before_action',
+    power: 'veto',
+    implementation: { kind: 'builtin', builtinName: OFFICIAL_ADMISSION_NAME },
+  })
+  if (!('ok' in admission)) throw new Error('official admission declaration rejected')
+  const admissionAsset: AssetDefinition = {
+    id: 'demo-official-admission-asset',
+    capability: { category: 'loop_extension', name: OFFICIAL_ADMISSION_NAME },
+    origin: 'official',
+    versions: [
+      {
+        number: 1,
+        publishedAt: PUBLICATION_TIME,
+        content: { category: 'loop_extension', extension: admission.ok },
+      },
+    ],
+  }
+  const admissionHolding: AssetHolding = {
+    holder: { layer: 'factory' },
+    capability: admissionAsset.capability,
+    asset: admissionAsset.id,
+    basis: { kind: 'official' },
+    immutable: false,
+    assignments: [],
+    versionSelection: { kind: 'current' },
+    since: PUBLICATION_TIME,
+  }
   return {
     expectedRevision,
-    definitions: [asset, retryAsset],
+    definitions: [asset, retryAsset, ...(enableTools ? [...DEMO_TOOL_ASSETS, admissionAsset] : [])],
     scopes: [
-      { holder: { layer: 'factory' }, holdings: [holding, retryHolding] },
+      {
+        holder: { layer: 'factory' },
+        holdings: [
+          holding,
+          retryHolding,
+          ...(enableTools ? [...DEMO_TOOL_HOLDINGS, admissionHolding] : []),
+        ],
+      },
       { holder: { layer: 'organization', organization: actor.tenant.organization }, holdings: [] },
       { holder: { layer: 'tenant', tenant: actor.tenant }, holdings: [] },
     ],
@@ -224,6 +276,7 @@ export function createDemoConfig(
   tokenMargin: TokenMargin,
   retirement: RetirementPolicy,
   processOwnership?: ProcessOwnership,
+  enableTools = false,
 ): AcceptanceConfig {
   const keys = {
     activationSigning: join(directory, 'activation-private.pem'),
@@ -236,6 +289,18 @@ export function createDemoConfig(
   if (!isOk(ttl)) throw new Error('explicit demo duration invalid')
   const official = officialModels()
   return {
+    ...(enableTools
+      ? {
+          tools: {
+            directory: join(directory, 'tool-results'),
+            runtime: {
+              resultStorage: 'demo-results',
+              frameQueueBytes: 1048576,
+              tailRetry: { attempts: 3, minDelayMs: 10, maxDelayMs: 100 },
+            },
+          },
+        }
+      : {}),
     runId,
     databaseFile: join(directory, 'db.sqlite'),
     keys,
@@ -276,11 +341,23 @@ export function createDemoConfig(
         deployedOfficial: [
           { capability: DEMO_ROOT, meta: false },
           { capability: DEMO_DEFAULT_RETRY, meta: false },
+          ...(enableTools
+            ? [
+                ...DEMO_TOOL_ASSETS.map(asset => ({ capability: asset.capability, meta: false })),
+                {
+                  capability: {
+                    category: 'loop_extension' as const,
+                    name: OFFICIAL_ADMISSION_NAME,
+                  },
+                  meta: false,
+                },
+              ]
+            : []),
         ],
         monotonicNow: () => process.hrtime.bigint(),
         async prepare(actor) {
           return {
-            publication: demoPublication(actor),
+            publication: demoPublication(actor, null, enableTools),
             recipe: { rootDefinition: DEMO_ROOT },
           }
         },

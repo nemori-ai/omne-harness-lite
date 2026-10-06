@@ -15,13 +15,15 @@ import type {
   EncodedImage,
   ImageEncodeSpec,
   ImageMetadata,
+  LoadedImageCodec,
+} from '@omne-harness-lite/model-request-runtime'
+import type {
   ImagePrepareInput,
   ImagePreparePolicy,
   ImagePrepareRejection,
   ImagePrepareResult,
   ImagePreparerResult,
   ImagePreparer,
-  LoadedImageCodec,
   PreparedImage,
   PrepareRequestImagesInput,
 } from './types.ts'

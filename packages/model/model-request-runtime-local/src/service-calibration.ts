@@ -1,15 +1,18 @@
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { Message } from '@omne-harness-lite/messages'
 import { judgeModelResponse } from '@omne-harness-lite/model-response'
-import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type { LogEntry } from '@omne-harness-lite/session-log'
 import { interpretCallHistory, rejectAcknowledgedHistory } from './call-history.ts'
-import { inspectCurrentModelLogPrefix } from './log-codec-settlement.ts'
-import { modelLogJsonEqual } from './log-codec.ts'
+import { inspectCurrentModelLogPrefix } from '@omne-harness-lite/model-request-runtime'
+import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import { interpretSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
 import type { SettlementPrefix } from './settlement-prefix.ts'
 import type { CurrentHistoryReaders } from './service-types.ts'
-import { copyPlanOutputHistory } from './output-history.ts'
-import type { PlanCalibration, PlanOutputHistoryGroup } from './types.ts'
+import { copyPlanOutputHistory } from '@omne-harness-lite/model-request-runtime'
+import type {
+  PlanCalibration,
+  PlanOutputHistoryGroup,
+} from '@omne-harness-lite/model-request-runtime'
 
 export type AuthorizedCalibrationResult =
   | {

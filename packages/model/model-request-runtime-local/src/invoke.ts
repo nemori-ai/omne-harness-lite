@@ -28,14 +28,14 @@ import type {
   TransportFailure,
   InvocationPolicy,
   PlanFailure,
-} from './types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import { ownPlanInput, preflightMissingInputLimits } from './input.ts'
 import {
   createCredentialRedactionPolicy,
   CredentialRedactionConfigurationError,
-} from './credential-redaction.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import { ownedHeaders, processFailure } from './invoke-policy.ts'
-import type { BoundCredentialRedaction } from './credential-redaction-types.ts'
+import type { BoundCredentialRedaction } from '@omne-harness-lite/model-request-runtime'
 import { createInvocationDiagnostics, drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import { projectCalibrationDiagnostic } from './calibration-diagnostic.ts'
 

@@ -1,5 +1,3 @@
-export type * from './types.ts'
-export { copyPlanOutputHistory } from './output-history.ts'
 export { invokeModel, classifyCause } from './invoke.ts'
 export { dispatchGuard } from './dispatch-guard.ts'
 export type {
@@ -14,14 +12,7 @@ export { decideRetry } from './decide-retry.ts'
 export { createDefaultRetryImplementation, DEFAULT_RETRY_BUILTIN } from './default-retry.ts'
 export type { DefaultRetryConfiguration, DefaultRetryResult } from './default-retry.ts'
 export type { DecideRetryInput, DecideRetryResult, RetryFailureFact } from './decide-retry-types.ts'
-export * from './log-codec.ts'
-export {
-  createCredentialRedactionPolicy,
-  CredentialRedactionConfigurationError,
-  openRouterCredentialRedactionConfig,
-  redact,
-} from './credential-redaction.ts'
-export type * from './credential-redaction-types.ts'
+
 export { legalTargets, displayList, effectiveModel } from './selection.ts'
 export type * from './selection-types.ts'
 

@@ -18,8 +18,8 @@ import {
   qwenDefinitions,
   xaiDefinitions,
   zaiDefinitions,
-  type ModelDefinition,
 } from '../src/index.ts'
+import { type ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 
 const familyExports: Readonly<Record<string, readonly ModelDefinition[]>> = {
   openai: openaiDefinitions,
