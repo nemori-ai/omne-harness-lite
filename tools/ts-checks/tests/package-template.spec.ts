@@ -373,6 +373,19 @@ describe('template adoption and observation', () => {
       ),
     ).toBe(true)
   })
+  it('accepts existing require/default conditions only when they preserve the import target', () => {
+    const root = repository(),
+      member = adopted(root)
+    changeManifest(root, member, value => {
+      ;(value['exports'] as Record<string, unknown>)['.'] = {
+        default: './dist/index.js',
+        require: './dist/index.js',
+        types: './dist/index.d.ts',
+        import: './dist/index.js',
+      }
+    })
+    expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('pass')
+  })
   it('rejects an earlier default condition that actually redirects Node root imports', () => {
     const root = repository(),
       member = adopted(root)

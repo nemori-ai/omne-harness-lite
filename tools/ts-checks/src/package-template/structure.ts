@@ -32,12 +32,15 @@ function exportTarget(value: unknown, member: string, root: string, findings: Fi
     })
     return
   }
-  if (Object.keys(value).sort().join(',') !== 'import,types') {
+  if (
+    Object.keys(value).some(key => !['types', 'import', 'require', 'default'].includes(key)) ||
+    ['require', 'default'].some(key => value[key] !== undefined && value[key] !== value['import'])
+  ) {
     findings.push({
       code: 'export-conditions',
       path: `${member}/package.json`,
       reason:
-        'Rule set 1 supports only types/import conditions; additional runtime conditions require review',
+        'Rule set 1 supports types/import and optional require/default pointing to the same runtime target',
     })
   }
   for (const [key, suffix] of [
