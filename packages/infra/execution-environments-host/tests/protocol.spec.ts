@@ -273,9 +273,9 @@ test('aggregate-only command handles are not exposed as a valid streaming facili
   const h = fixture()
   try {
     const lease = await acquired(h)
-    // @ts-expect-error Negative provider boundary: mandatory output port is missing.
     vi.mocked(h.start).mockResolvedValueOnce({
       kind: 'started',
+      // @ts-expect-error Negative provider boundary: mandatory output port is missing.
       process: { ...h.process, output: undefined },
     })
     expect(await lease.facilities.command?.start(command)).toEqual({
