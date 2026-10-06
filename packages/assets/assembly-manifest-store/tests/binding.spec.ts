@@ -184,22 +184,31 @@ test('repeated disposal cannot substitute for a stable drain observation', async
   })
 })
 
-test('close failure stays observable and does not certify release', async () => {
-  await database(async storage => {
-    const ctx = new Context()
-    const store = createAssemblyManifestStore(storage)
-    const fault = Error('controlled close defect')
-    const fiber = await ctx.plugin((inner: Context) => {
-      new AssemblyManifestStoreService(inner, { ...store, close: () => Promise.reject(fault) })
+test.each(['reject', 'throw'] as const)(
+  'close %s stays observable and does not certify release',
+  async mode => {
+    await database(async storage => {
+      const ctx = new Context()
+      const store = createAssemblyManifestStore(storage)
+      const fault = Error('controlled close defect')
+      const fiber = await ctx.plugin((inner: Context) => {
+        new AssemblyManifestStoreService(inner, {
+          ...store,
+          close: () => {
+            if (mode === 'throw') throw fault
+            return Promise.reject(fault)
+          },
+        })
+      })
+      const service = ctx.assemblyManifest
+      if (!(service instanceof AssemblyManifestStoreService)) throw Error('wrong provider')
+      const observed = expect(service.closed).rejects.toBe(fault)
+      await fiber.dispose()
+      await observed
+      await store.close()
     })
-    const service = ctx.assemblyManifest
-    if (!(service instanceof AssemblyManifestStoreService)) throw Error('wrong provider')
-    const observed = expect(service.closed).rejects.toBe(fault)
-    await fiber.dispose()
-    await observed
-    await store.close()
-  })
-})
+  },
+)
 
 test('top-level port snapshot preserves bare diagnostics and the source receiver', async () => {
   await database(async storage => {

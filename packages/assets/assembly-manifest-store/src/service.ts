@@ -62,7 +62,11 @@ export class AssemblyManifestStoreService extends AssemblyManifestService {
     // Keep failure observable to owners even if no owner has attached yet.
     void completion.promise.catch(() => undefined)
     ctx.effect(() => () => {
-      void store.close().then(completion.resolve, completion.reject)
+      try {
+        completion.resolve(store.close())
+      } catch (error) {
+        completion.reject(error)
+      }
       return completion.promise
     })
     super(ctx)
