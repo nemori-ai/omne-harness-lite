@@ -12,7 +12,7 @@
 P／C 编号是该节点的协议与用例编号，没有独立契约坐标。
 
 公开消费者的采用依据是
-[kernel-basis](../../.meta_harness/design/realization/packages/core/kernel-basis/design.md)、
+[kernel-basis](../../packages/core/kernel-basis/SPEC.md)、
 [identity-values](../../.meta_harness/design/realization/packages/core/identity-values/design.md)、
 [offer-expiry](../../.meta_harness/design/realization/packages/core/offer-expiry/design.md)、
 [storage](../../.meta_harness/design/realization/packages/core/storage/design.md) 与

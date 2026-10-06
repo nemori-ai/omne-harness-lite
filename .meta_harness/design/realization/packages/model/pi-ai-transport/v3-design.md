@@ -36,7 +36,7 @@ HTTP 继续 `node:https` 单次直发，产品端点固定 OpenRouter chat-compl
 | [`emit-listener-throw-propagates`](../../../../basis/cordis/emit-listener-throw-propagates.md) | 不用全局 `emit` 作为业务观察或诊断隔离手段，输出走显式有界端口 |
 | `ctx.effect` 提前解除登记、`ctx.provide` 纳管、Node 请求取消及 socket 实际停止 | 前两项没有对应 basis 条目：**待核对主张**，有限原型只支持其已跑路径；Node 行为是**假设，须按 source-check 取证**。真实 socket、替换宿主及晚到回调的验收仍开着，不由 dispose 回调被调用推成停止已完成 |
 
-上述 basis 条目均有 probe；具体当前运行范围从各条目与 [kernel-basis](../../core/kernel-basis/verification.md) 读。新增 effect 使用方式已有 [有限原型与失败修正](../../../../record/evidence/2026-09-27-probe-model-request-runtime/README.md#连续调用补验)，不是生产实现证据。OpenRouter 路由行为、缓存 TTL 与角色语义由最终真实比较门核对，目录元数据不作为充分证据。
+上述 basis 条目均有 probe；具体当前运行范围从各条目与 [kernel-basis](../../../../../../packages/core/kernel-basis/verification/README.md) 读。新增 effect 使用方式已有 [有限原型与失败修正](../../../../record/evidence/2026-09-27-probe-model-request-runtime/README.md#连续调用补验)，不是生产实现证据。OpenRouter 路由行为、缓存 TTL 与角色语义由最终真实比较门核对，目录元数据不作为充分证据。
 
 ## 契约责任到兑现点
 

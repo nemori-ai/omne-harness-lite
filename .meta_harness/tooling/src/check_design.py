@@ -13,6 +13,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", required=True, type=Path,
                         help="Design root containing baseline/catalog/frozen/formal/rebase manifests")
+    parser.add_argument("--source-root", type=Path,
+                        help="Explicit execution checkout for module-owned links; absent preserves standalone boundaries")
     parser.add_argument("--previous-frozen", type=Path,
                         help="Earlier frozen manifest in the same baseline; registrations are append-only")
     parser.add_argument("--formal", choices=("registered", "skip", "run"), default="registered",
@@ -21,7 +23,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="Check editable internal consistency or fail-closed release readiness")
     args = parser.parse_args(argv)
     validator = DesignValidator(args.root, previous_frozen=args.previous_frozen, formal=args.formal,
-                                gate=args.gate)
+                                gate=args.gate, source_root=args.source_root)
     errors, notes = validator.validate()
     for note in notes:
         print(note)

@@ -17,7 +17,7 @@
 | 随机字节 | `node:crypto` | 执行环境引用与进程组引用（不透明，32 字节 base64url） |
 | 身份值类型与表示层校验（`TenantId`） | [`core/identity-values`](../../core/identity-values/README.md) | ① 的表示层校验 |
 | `SessionRef`、`ToolDefinitionRef` 的形状 | [`core/messages`](../../core/messages/README.md)、[`core/loop-extension`](../../core/loop-extension/README.md) | `resolveSessionEnvironment`、`placeExecution` 的输入 |
-| `definePlugin`、`resolveOptional` | [`core/kernel-basis`](../../core/kernel-basis/README.md) | 插件骨架、config 校验、读面的现取 |
+| `definePlugin`、`resolveOptional` | [`core/kernel-basis`](../../../../../../packages/core/kernel-basis/README.md) | 插件骨架、config 校验、读面的现取 |
 
 **Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；机制语义引 [basis](../../../../basis/README.md) 条目。
 **进程与信号的上游语义 basis 一条都没有**，下面每一条都是**假设，须按 source-check 取证**（[EEH-7](#实施缺口与消费者影响)）：① POSIX 上 `detached: true` 使子进程调 `setsid`，新会话、新进程组，组号等于子进程号；② `process.kill` 给负数即对整组发信号，组里一个进程都没有时以 `ESRCH` 失败；③ 起的进程已退出而未被回收（僵尸）时仍算组里有进程；Node 在 `exit` 事件前后回收它；④ `spawn` 的 `spawn` 事件表示程序已被执行，执行失败以 `error` 事件带错误码到达；⑤ 给了 `env` 选项时子进程的环境恰是它，不与本进程的环境合并；⑥ `exit` 事件给 `(code, signal)`，二者恰一个非空；⑦ 一个号在还是某个进程的进程号、进程组号或会话号时，操作系统不把它分给新进程（POSIX 的进程组寿命规则）；⑧ 子进程只由 Node 在事件循环上收回，收回与 `exit` 事件之间不跑任何 JS——子进程句柄上退出码与信号都还空 ⇔ 还没收回；本进程里没有别的代码对任意子进程调 `waitpid`。

@@ -16,6 +16,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
+from source_links import ModuleSources, RetiredSources
+
 from urllib.parse import unquote, urldefrag, urljoin, urlparse
 
 
@@ -152,8 +154,10 @@ def github_anchor(text: str) -> str:
 
 class DesignValidator:
     def __init__(self, root: Path, *, previous_frozen: Path | None = None,
-                 formal: str = "registered", gate: str = "internal") -> None:
+                 formal: str = "registered", gate: str = "internal",
+                 source_root: Path | None = None) -> None:
         self.root = root.resolve()
+        self.source_root = source_root
         # 清单可以直接放在设计根下，也可以集中在 registry/ 一区；两种布局都支持，
         # 因为它只改变清单的存放位置，不改变被登记资源的坐标——资源路径一律相对 root 解析。
         registry = self.root / "registry"
@@ -606,6 +610,12 @@ class DesignValidator:
     def _markdown(self) -> None:
         markdown = sorted(p for p in self.root.rglob("*.md") if ".templates" not in p.parts)
         anchors: dict[Path, set[str]] = {}
+        try:
+            modules = ModuleSources(self.source_root)
+            retired = RetiredSources(self.root, self.manifests / "retired-sources.json")
+        except (ValueError, OSError, TypeError) as error:
+            self.error(f"source links: {error}")
+            return
         workspace = self.root.parent if (self.root.name == "design" and
                                          self.root.parent.name == ".meta_harness") else None
 
@@ -648,7 +658,16 @@ class DesignValidator:
                 except OSError:
                     self.error(f"{path.relative_to(self.root)}: link escapes design root: {raw}")
                     continue
-                allowed = within(resolved, self.root)
+                original = resolved
+                recovered = retired.recover(path.resolve(), resolved, unquote(fragment))
+                if recovered is not None:
+                    resolved = recovered
+                try:
+                    owned = modules.owns(resolved)
+                except (ValueError, OSError) as error:
+                    self.error(f"{path.relative_to(self.root)}: invalid module owner: {error}")
+                    continue
+                allowed = within(resolved, self.root) or owned
                 if workspace is not None:
                     # design/ 是工作区的一区，不是自包含单元：它向 research/ 取事实、
                     # 向 agents/ 取方法。允许指向这些兄弟区，但仍禁止逃出工作区——
@@ -662,7 +681,7 @@ class DesignValidator:
                     continue
                 if not resolved.is_file():
                     self.error(f"{path.relative_to(self.root)}: broken local link: {raw}")
-                elif fragment and resolved.suffix == ".md" and github_anchor(unquote(fragment)) not in anchors_for(resolved):
+                elif fragment and original.suffix == ".md" and github_anchor(unquote(fragment)) not in anchors_for(resolved):
                     self.error(f"{path.relative_to(self.root)}: missing Markdown anchor: {raw}")
 
     def _frozen(self, raw: Any) -> None:

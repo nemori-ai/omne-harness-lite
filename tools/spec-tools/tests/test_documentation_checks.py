@@ -133,3 +133,41 @@ def test_one_sided_skill_directory_is_reported(tmp_path):
     result = run(tmp_path)
     assert result.returncode == 1
     assert "only one of the generated skill directories exists" in result.stdout
+
+
+def test_navigation_reuses_locked_historical_source_owner(tmp_path):
+    import hashlib
+    import json
+    base(tmp_path)
+    source = tmp_path / '.meta_harness/design/record/evidence/prior/README.md'
+    snapshot = tmp_path / '.meta_harness/design/record/evidence/retirement/inputs/design.md.txt'
+    write(source, '[old](../../../realization/packages/core/kernel-basis/design.md#original)\n')
+    write(snapshot, '# Original\n')
+    implementation = Path(__file__).resolve().parents[3] / '.meta_harness/tooling/src/source_links.py'
+    write(tmp_path / '.meta_harness/tooling/src/source_links.py', implementation.read_text())
+    target = 'realization/packages/core/kernel-basis/design.md'
+    catalog = {'format':1, 'targets':[{'path':target,'snapshot':'record/evidence/retirement/inputs/design.md.txt','sha256':hashlib.sha256(snapshot.read_bytes()).hexdigest(),'commit':'1'*40}], 'references':[{'source':'record/evidence/prior/README.md','sha256':hashlib.sha256(source.read_bytes()).hexdigest(),'links':[{'target':target,'fragment':'original'}]}]}
+    write(tmp_path / '.meta_harness/design/registry/retired-sources.json', json.dumps(catalog))
+    result = run(tmp_path)
+    assert result.returncode == 0, result.stdout + result.stderr
+    # A new proposal is not an old consumer, even though it is in record/.
+    write(tmp_path / '.meta_harness/design/record/proposals/new/design.md', source.read_text())
+    result = run(tmp_path)
+    assert result.returncode == 1 and 'broken link' in result.stdout
+
+
+def test_navigation_rejects_modified_historical_consumer(tmp_path):
+    import hashlib
+    import json
+    base(tmp_path)
+    source = tmp_path / '.meta_harness/design/record/evidence/prior/README.md'
+    snapshot = tmp_path / '.meta_harness/design/record/evidence/retirement/inputs/design.md.txt'
+    write(source, '[old](../../../realization/packages/core/kernel-basis/design.md#original)\n')
+    write(snapshot, '# Original\n')
+    implementation = Path(__file__).resolve().parents[3] / '.meta_harness/tooling/src/source_links.py'
+    write(tmp_path / '.meta_harness/tooling/src/source_links.py', implementation.read_text())
+    target = 'realization/packages/core/kernel-basis/design.md'
+    write(tmp_path / '.meta_harness/design/registry/retired-sources.json', json.dumps({'format':1,'targets':[{'path':target,'snapshot':'record/evidence/retirement/inputs/design.md.txt','sha256':hashlib.sha256(snapshot.read_bytes()).hexdigest(),'commit':'1'*40}],'references':[{'source':'record/evidence/prior/README.md','sha256':hashlib.sha256(source.read_bytes()).hexdigest(),'links':[{'target':target,'fragment':'original'}]}]}))
+    write(source, source.read_text()+'new text\n')
+    result = run(tmp_path)
+    assert result.returncode == 1 and 'consumer hash differs' in result.stdout

@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import os
 from pathlib import Path
 
 import yaml
-from .doc_support import markdown_links, repository_root, validate_link
+from .doc_support import headings, local_target, markdown_links, repository_root, validate_link
 
 ROOTS = ("README.md", "CONTRIBUTING.md", "AGENTS.md", "CLAUDE.md", "docs", "packages", "apps",
          "tools", "scripts", ".agents", ".claude", ".codex", ".meta_harness")
@@ -68,8 +69,24 @@ def check_skill_mirrors(root: Path, errors: list[str]) -> None:
             errors.append(f"skill mirror differs: {relative}")
 
 
+def historical_links(root: Path):
+    """Reuse the design owner's locked-history rule; do not create a second policy."""
+    design = root / ".meta_harness/design"
+    catalog = design / "registry/retired-sources.json"
+    if not catalog.exists():
+        return None
+    implementation = root / ".meta_harness/tooling/src/source_links.py"
+    spec = importlib.util.spec_from_file_location("meta_harness_source_links", implementation)
+    if spec is None or spec.loader is None:
+        raise ValueError("cannot load the retired-source owner")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.RetiredSources(design.resolve(), catalog)
+
+
 def check(root: Path):
     errors: list[str] = []
+    historical = historical_links(root)
     for relative, expected in RETAINED_FILES.items():
         path = root / relative
         if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() != expected:
@@ -78,7 +95,14 @@ def check(root: Path):
     for path in sorted(files):
         for raw in markdown_links(path):
             try:
-                validate_link(path, raw, root)
+                target, fragment = local_target(path, raw, root)
+                recovered = (historical.recover(path.resolve(), target, fragment)
+                             if historical is not None and target is not None and not target.exists()
+                             else None)
+                if recovered is None:
+                    validate_link(path, raw, root)
+                elif fragment and fragment not in headings(recovered):
+                    raise ValueError(f"broken historical anchor: {raw}")
             except ValueError as error:
                 errors.append(f"{path.relative_to(root)}: {error}")
     check_skill_mirrors(root, errors)

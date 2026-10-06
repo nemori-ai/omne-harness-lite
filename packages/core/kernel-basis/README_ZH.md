@@ -123,3 +123,5 @@ pnpm --filter @omne-harness-lite/kernel-basis run test
 ```
 
 先构建 workspace 依赖。这些检查覆盖本包；组合行为需针对实际消费者与提供者验证。
+
+行为与验证义务：[SPEC.md](SPEC.md) 和[验证入口](verification/README.md)。
