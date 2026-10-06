@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, matchesGlob, relative, resolve } from 'node:path'
-import { fileAt, git } from '../metrics/git.ts'
+import { git } from '../metrics/git.ts'
+import { readRevisionTexts } from '../metrics/revision-files.ts'
 import { listWorkspaceMembers, ownerOf, workspacePatterns, type Tree } from '../testing/members.ts'
 import type { Member } from '../metrics/graph.ts'
 import type { Snapshot } from './actual-model.ts'
@@ -56,12 +57,9 @@ function sourceTree(
     for (const path of git(root, ['ls-tree', '-r', '--name-only', '-z', commit]).split('\0')) {
       if (path === '' || ignoredPath(path)) continue
       paths.push(path)
-      if (!retained(path)) continue
-      // This path came from the fixed tree. A failed read is an error, never an absent file.
-      const text = fileAt(root, commit, path)
-      if (text === undefined) throw new Error(`Cannot read ${path} from fixed commit ${commit}`)
-      texts.set(path, text)
     }
+    for (const [path, text] of readRevisionTexts(root, commit, paths.filter(retained)))
+      texts.set(path, text)
   } else {
     const walk = (dir: string): void => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -117,18 +115,20 @@ function patternsOf(texts: ReadonlyMap<string, string>): string[] {
       throw new Error(`Unsupported workspace pattern ${pattern}: only whole-segment * is supported`)
   return patterns
 }
-function filesOf(
-  member: string,
+function filesByOwner(
   inventory: readonly string[],
   members: readonly { readonly path: string }[],
-): { sources: string[]; dataFiles: string[] } {
-  const files = inventory
-    .filter(path => ownerOf(path, members)?.path === member && path.startsWith(`${member}/src/`))
-    .sort()
-  return {
-    sources: files.filter(path => /\.[cm]?tsx?$/u.test(path)),
-    dataFiles: files.filter(path => !/\.[cm]?tsx?$/u.test(path)),
+): Map<string, { sources: string[]; dataFiles: string[] }> {
+  const out = new Map<string, { sources: string[]; dataFiles: string[] }>()
+  for (const path of [...inventory].sort()) {
+    const owner = ownerOf(path, members)
+    if (owner === undefined || !path.startsWith(`${owner.path}/src/`)) continue
+    const files = out.get(owner.path) ?? { sources: [], dataFiles: [] }
+    out.set(owner.path, files)
+    if (/\.[cm]?tsx?$/u.test(path)) files.sources.push(path)
+    else files.dataFiles.push(path)
   }
+  return out
 }
 function membersOf(
   texts: ReadonlyMap<string, string>,
@@ -147,6 +147,7 @@ function membersOf(
     ).values(),
   ]
   const names = new Set<string>()
+  const files = filesByOwner(inventory, declared)
   return declared
     .map(item => {
       if (names.has(item.name)) throw new Error(`Duplicate workspace package name: ${item.name}`)
@@ -162,7 +163,7 @@ function membersOf(
           ? ('product' as const)
           : ('development' as const),
         manifest: { path, value: manifest(text, path) },
-        ...filesOf(item.path, inventory, declared),
+        ...(files.get(item.path) ?? { sources: [], dataFiles: [] }),
       }
     })
     .sort((a, b) => a.path.localeCompare(b.path))
