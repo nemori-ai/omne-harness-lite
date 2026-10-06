@@ -19,13 +19,19 @@ type Input = NonNullable<ReturnType<typeof captureAcquisition>>
 export const sameReference = (a: EnvironmentReference, b: EnvironmentReference) =>
   a.provider === b.provider && writeJsonLossless(a.reference) === writeJsonLossless(b.reference)
 
-/** Discovery validates descriptions; selection adopts only a candidate from that result. */
-export async function selectEnvironment(
+interface Candidate {
+  readonly entry: ProviderEntry
+  readonly description: EnvironmentDescription
+}
+
+/** Provider data is captured before it can participate in a matching set. */
+async function readDescriptions(
   entry: ProviderEntry,
   input: Input,
   ticket: PlacementTicket,
   placement: ReturnType<typeof createPlacementAuthority>,
-): Promise<{ readonly selected: EnvironmentDescription } | EnvironmentRejection> {
+): Promise<{ readonly descriptions: readonly EnvironmentDescription[] } | EnvironmentRejection> {
+  if (!entry.active) return reject('providerUnavailable')
   const result = await observeProvider(entry, () =>
     entry.provider.describe(input.scope, input.authorization),
   )
@@ -33,31 +39,90 @@ export async function selectEnvironment(
   if (!entry.active || !placement.current(ticket)) return reject('providerUnavailable')
   const descriptions: EnvironmentDescription[] = []
   for (const raw of result.values) {
-    const value = captureEnvironmentDescription(raw)
-    if (!value || value.reference.provider !== entry.provider.name)
+    const description = captureEnvironmentDescription(raw)
+    if (
+      !description ||
+      description.reference.provider !== entry.provider.name ||
+      descriptions.some(value => sameReference(value.reference, description.reference))
+    )
       return reject('providerUnavailable')
-    descriptions.push(value)
+    descriptions.push(description)
   }
-  const owned = descriptions.filter(value => environmentBelongsTo(value, input.scope, input.call))
-  const eligible = owned.filter(value => value.bindingLayer === input.requirement.bindingLayer)
-  const candidates = eligible.filter(value =>
-    matchesEnvironmentRequirement(value, input.requirement),
-  )
+  return { descriptions }
+}
+
+/** Matching retains the original entry and requires all facilities in that same instance. */
+async function collectCandidates(
+  entries: readonly ProviderEntry[],
+  input: Input,
+  ticket: PlacementTicket,
+  placement: ReturnType<typeof createPlacementAuthority>,
+): Promise<{ readonly candidates: readonly Candidate[] } | EnvironmentRejection> {
+  const candidates: Candidate[] = []
+  let hasEligible = false
+  for (const entry of entries) {
+    const result = await readDescriptions(entry, input, ticket, placement)
+    if ('kind' in result) return result
+    const owned = result.descriptions.filter(
+      description =>
+        environmentBelongsTo(description, input.scope, input.call) &&
+        description.bindingLayer === input.requirement.bindingLayer,
+    )
+    hasEligible ||= owned.length > 0
+    candidates.push(
+      ...owned
+        .filter(description => matchesEnvironmentRequirement(description, input.requirement))
+        .map(description => ({ entry, description })),
+    )
+  }
+  if (input.reference && !candidates.length) return reject('referenceExpired')
+  if (!candidates.length) return reject(hasEligible ? 'missingFacility' : 'noMatchingEnvironment')
+  return { candidates }
+}
+
+/** An explicit reference is a constraint; a strategy must not replace it. */
+async function chooseReference(
+  candidates: readonly Candidate[],
+  input: Input,
+  ticket: PlacementTicket,
+  placement: ReturnType<typeof createPlacementAuthority>,
+): Promise<EnvironmentReference | EnvironmentRejection> {
   const requested = input.reference
-  if (requested && !candidates.some(value => sameReference(value.reference, requested)))
+  if (requested && !candidates.some(value => sameReference(value.description.reference, requested)))
     return reject('referenceExpired')
-  if (!candidates.length)
-    return reject(eligible.length ? 'missingFacility' : 'noMatchingEnvironment')
-  let reference = input.reference
-  if (ticket.placement.permission === 'auto_place' || (!reference && candidates.length !== 1)) {
-    const choice = await placement.select(ticket, candidates)
+  const reference =
+    requested ?? (candidates.length === 1 ? candidates[0]?.description.reference : undefined)
+  if (ticket.placement.permission === 'auto_place' || !reference) {
+    const choice = await placement.select(
+      ticket,
+      Object.freeze(candidates.map(value => value.description)),
+    )
     if ('kind' in choice) return choice
-    if (reference && !sameReference(reference, choice.reference)) return reject('placementChanged')
-    reference = choice.reference
+    if (requested && !sameReference(requested, choice.reference)) return reject('placementChanged')
+    return choice.reference
   }
-  const adopted = reference
-  const selected = adopted
-    ? candidates.find(value => sameReference(value.reference, adopted))
-    : candidates[0]
-  return selected ? { selected } : reject('noMatchingEnvironment')
+  return reference
+}
+
+/** Selection sees the full matching snapshot, never a first provider's private subset. */
+export async function selectEnvironment(
+  entries: readonly ProviderEntry[],
+  input: Input,
+  ticket: PlacementTicket,
+  placement: ReturnType<typeof createPlacementAuthority>,
+): Promise<
+  | { readonly entry: ProviderEntry; readonly selected: EnvironmentDescription }
+  | EnvironmentRejection
+> {
+  const collected = await collectCandidates(entries, input, ticket, placement)
+  if ('kind' in collected) return collected
+  const reference = await chooseReference(collected.candidates, input, ticket, placement)
+  if ('kind' in reference) return reference
+  const selected = collected.candidates.find(value =>
+    sameReference(value.description.reference, reference),
+  )
+  if (!selected) return reject('noMatchingEnvironment')
+  return selected.entry.active
+    ? { entry: selected.entry, selected: selected.description }
+    : reject('providerUnavailable')
 }

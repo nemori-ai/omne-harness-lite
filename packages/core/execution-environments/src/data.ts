@@ -12,6 +12,7 @@ import {
 import type { ContextScope } from '@omne-harness-lite/runtime-context'
 import type {
   EnvironmentDescription,
+  EnvironmentAdoption,
   EnvironmentReference,
   EnvironmentRequirement,
 } from './execution-environments.ts'
@@ -220,4 +221,32 @@ export function matchesEnvironmentRequirement(
     description.bindingLayer === requirement.bindingLayer &&
     requirement.facilities.every(name => description.facilities.includes(name))
   )
+}
+
+function capturePlacementSource(input: unknown): EnvironmentAdoption['source'] | undefined {
+  const source = record(input, ['name', 'generation'])
+  return source && text(source.name) && text(source.generation)
+    ? Object.freeze({ name: source.name, generation: source.generation })
+    : undefined
+}
+/** Checks represented adoption data. Shape alone does not prove the issuing authority. */
+export function captureEnvironmentAdoption(input: unknown): EnvironmentAdoption | undefined {
+  const value = record(input, ['placement', 'source', 'description', 'providerEvidence'])
+  if (!value || value.providerEvidence === undefined) return undefined
+  const placement = captureEnvironmentPlacement(value.placement),
+    description = captureEnvironmentDescription(value.description),
+    source = capturePlacementSource(value.source)
+  if (!placement || !description || !source) return undefined
+  if (
+    !environmentBelongsTo(description, placement.scope, placement) ||
+    !matchesEnvironmentRequirement(description, placement.requirement) ||
+    (placement.permission === 'never-allow' && description.bindingLayer === 'host_machine')
+  )
+    return undefined
+  return Object.freeze({
+    placement,
+    description,
+    source,
+    providerEvidence: value.providerEvidence,
+  })
 }

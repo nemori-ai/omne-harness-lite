@@ -2937,6 +2937,12 @@ importers:
       '@omne-harness-lite/assembly-lifecycle':
         specifier: workspace:*
         version: link:../../core/assembly-lifecycle
+      '@omne-harness-lite/asset-evaluation':
+        specifier: workspace:*
+        version: link:../../core/asset-evaluation
+      '@omne-harness-lite/asset-model':
+        specifier: workspace:*
+        version: link:../../core/asset-model
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../../core/call-accounts

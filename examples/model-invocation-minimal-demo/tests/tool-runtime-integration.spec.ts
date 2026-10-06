@@ -23,13 +23,18 @@ import {
   tool,
   completeActions,
   type historyFixture,
+  type FixtureTool,
 } from './tool-driver-history-fixture.ts'
 import type {} from '@omne-harness-lite/execution-environments/cordis'
 import { EXECUTION_ENVIRONMENTS } from '@omne-harness-lite/execution-environments/cordis'
-import type { ToolRuntimeDependencies } from '@omne-harness-lite/tool-execution-runtime'
+import {
+  environmentToolOf,
+  type ToolRuntimeDependencies,
+} from '@omne-harness-lite/tool-execution-runtime'
+import type { EnvironmentAdoption } from '@omne-harness-lite/execution-environments'
 import type { Context } from '@deepseek-ai/cordis'
 import { copyJsonValue, type JsonValue } from '@omne-harness-lite/content-blocks'
-import type { OwnedLogEntry } from '@omne-harness-lite/session-log'
+import { compareInteger, type OwnedLogEntry } from '@omne-harness-lite/session-log'
 
 const config = {
   resultStorage: 'integration-results',
@@ -62,7 +67,11 @@ async function history(f: Awaited<ReturnType<typeof actionIntegrationFixture>>) 
   if ('invalid' in projected) throw new Error('tool history invalid')
   return projected.executions.get(f.f.calls[0]!.callId)!
 }
-async function cold(f: Awaited<ReturnType<typeof historyFixture>>, waiting = false) {
+async function cold(
+  f: Awaited<ReturnType<typeof historyFixture>>,
+  waiting = false,
+  environment?: { readonly tool: FixtureTool; readonly adoption: EnvironmentAdoption },
+) {
   await completeActions(f)
   const ref = { ...scope, callId: f.calls[0]!.callId }
   const values: ToolJournalPayload[] = [
@@ -72,10 +81,10 @@ async function cold(f: Awaited<ReturnType<typeof historyFixture>>, waiting = fal
       ref,
       origin,
       selected: {
-        capability: tool.capability,
-        asset: tool.asset,
-        version: tool.version,
-        definition: tool.definition as import('@omne-harness-lite/tool-definition').ToolDefinition,
+        capability: (environment?.tool ?? tool).capability,
+        asset: (environment?.tool ?? tool).asset,
+        version: (environment?.tool ?? tool).version,
+        definition: (environment?.tool ?? tool).definition,
         adoption: f.adoption,
       },
       input: {
@@ -89,6 +98,16 @@ async function cold(f: Awaited<ReturnType<typeof historyFixture>>, waiting = fal
   if (waiting)
     values.push(
       { kind: 'execution_started', revision: 1, ref, at: '2026-10-04T00:00:00Z' },
+      ...(environment
+        ? [
+            {
+              kind: 'execution_environment_adopted',
+              revision: 1,
+              ref,
+              adoption: environment.adoption,
+            } as const,
+          ]
+        : []),
       {
         kind: 'execution_waiting',
         revision: 1,
@@ -374,12 +393,51 @@ test('unconfirmed resource cleanup prevents readiness and retains the actual jou
       provider: 'fixture-resource-owner',
       reference: { ownership: 'fixture-scope' },
     }
+  const coldTool: FixtureTool = {
+    ...tool,
+    definition: {
+      ...tool.definition,
+      settings: {
+        targetEnvironment: {
+          category: 'placement_identity',
+          default: {
+            bindingLayer: 'host_machine',
+            facilities: ['command'],
+          },
+        },
+      },
+    },
+  }
   const f = await actionIntegrationFixture({
     executor,
+    adoptedTool: coldTool,
     installRuntime: false,
     async beforeRuntime(fixture) {
-      await cold(fixture, true)
       const ref = { ...scope, callId: fixture.calls[0]!.callId }
+      await cold(fixture, true, {
+        tool: coldTool,
+        adoption: {
+          placement: {
+            scope,
+            execution: ref.callId,
+            tool: environmentToolOf({ ...coldTool, adoption: fixture.adoption }),
+            requirement: { bindingLayer: 'host_machine', facilities: ['command'] },
+            permission: 'always-allow',
+            revision: 'cold-input',
+            evidence: null,
+          },
+          source: { name: 'cold-source', generation: 'original' },
+          description: {
+            reference: { provider: resource.provider, reference: 'original' },
+            bindingLayer: 'host_machine',
+            binding: { kind: 'host_machine' },
+            facilities: ['command'],
+            instance: { id: 'original', generation: 'one' },
+            continuity: { kind: 'notGuaranteed' },
+          },
+          providerEvidence: null,
+        },
+      })
       for (const value of [
         { kind: 'resource_planned', revision: 1, ref, resource },
         { kind: 'resource_permitted', revision: 1, ref, key: resource.key },
@@ -427,9 +485,9 @@ test('unconfirmed resource cleanup prevents readiness and retains the actual jou
       outcome: 'failed',
       code: 'abnormal_interruption',
     })
-    expect(execution.resources.get(resource.key)?.observations.at(-1)?.entry.position).toBeLessThan(
-      execution.terminal!.entry.position as number,
-    )
+    const stopped = execution.resources.get(resource.key)?.observations.at(-1)
+    if (!stopped) throw new Error('Confirmed physical stop record missing')
+    expect(compareInteger(stopped.entry.position, execution.terminal!.entry.position)).toBe(-1)
     expect(executor).not.toHaveBeenCalled()
     expect(recover).toHaveBeenCalledTimes(3)
   } finally {

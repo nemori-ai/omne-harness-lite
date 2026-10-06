@@ -114,7 +114,7 @@ test('reference expiry and multiple owners never fall back to another environmen
   registry.registrations.registerProvider(host)
   registry.registrations.registerProvider(createHostEnvironment({ name: 'two', access }))
   expect(await registry.operations.acquire(request())).toMatchObject({
-    reason: 'noMatchingEnvironment',
+    reason: 'ambiguousEnvironment',
   })
   expect(
     await registry.operations.acquire({

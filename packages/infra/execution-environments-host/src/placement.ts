@@ -30,7 +30,7 @@ export interface PlacementRequest {
   readonly scope: SessionScope
   readonly authorization: SessionAccess
   readonly call: EnvironmentCall
-  readonly requirement: EnvironmentRequirement
+  readonly requirement?: EnvironmentRequirement
 }
 const sameCall = (a: EnvironmentCall, b: EnvironmentCall) =>
   a.execution === b.execution &&
@@ -40,6 +40,17 @@ const sameRequirement = (a: EnvironmentRequirement, b: EnvironmentRequirement) =
   a.bindingLayer === b.bindingLayer &&
   a.facilities.length === b.facilities.length &&
   a.facilities.every(key => b.facilities.includes(key))
+
+/** Captures one returned placement and verifies its relation to the original request. */
+function returnedPlacement(value: unknown, input: PlacementRequest) {
+  const placement = captureEnvironmentPlacement(value)
+  return placement &&
+    sameEnvironmentScope(placement.scope, input.scope) &&
+    sameCall(placement, input.call) &&
+    (input.requirement === undefined || sameRequirement(placement.requirement, input.requirement))
+    ? placement
+    : undefined
+}
 /** The trusted contribution is unique. Caller-controlled metadata never selects its authority. */
 export function createPlacementAuthority(active: () => boolean) {
   let current: Entry | undefined
@@ -72,14 +83,8 @@ export function createPlacementAuthority(active: () => boolean) {
           ? rejected(result.reason)
           : rejected('policyUnavailable')
       if (result.kind !== 'placement') return rejected('policyUnavailable')
-      const placement = captureEnvironmentPlacement(result.placement)
-      if (
-        !placement ||
-        !sameEnvironmentScope(placement.scope, input.scope) ||
-        !sameCall(placement, input.call) ||
-        !sameRequirement(placement.requirement, input.requirement)
-      )
-        return rejected('placementChanged')
+      const placement = returnedPlacement(result.placement, input)
+      if (!placement) return rejected('placementChanged')
       return { entry, placement }
     } catch {
       return rejected('policyUnavailable')

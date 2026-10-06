@@ -19,6 +19,7 @@ import {
   type CapturedModelLogValue,
 } from '@omne-harness-lite/model-request-runtime'
 import type { Message } from '@omne-harness-lite/messages'
+import type { ToolDefinition } from '@omne-harness-lite/tool-definition'
 import { createContextSessionInitializer } from '@omne-harness-lite/runtime-context-local'
 import type { CheckedPrefix, LogEntryInput, OwnedLogEntry } from '@omne-harness-lite/session-log'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
@@ -35,6 +36,13 @@ export const scope = {
   session: unwrap(parseOpaqueIdentifier('history-session', 'SessionRef')),
 }
 export const origin = { run: 'run', attempt: 1, assistantMessage: 'reply-1' }
+export interface FixtureTool {
+  readonly name: string
+  readonly capability: string
+  readonly asset: string
+  readonly version: string
+  readonly definition: ToolDefinition
+}
 export const tool = {
   name: 'echo',
   capability: 'tool:echo',
@@ -48,7 +56,7 @@ export const tool = {
     input: { type: 'object', properties: {}, description: 'Input' },
     permissions: { execute: { default: 'auto' } },
   },
-}
+} satisfies FixtureTool
 export function toolCall(id = 'call', unparseable = false): ToolCallBlock {
   const judged = judgeContentBlock({
     kind: 'tool_call',
@@ -86,6 +94,7 @@ export const dk = (parts: string[]) => `tool-driver/1/${JSON.stringify(parts)}`
 export async function historyFixture(
   calls: readonly ToolCallBlock[] = [toolCall()],
   permission: 'auto' | 'forbid' = 'auto',
+  adoptedTool: FixtureTool = tool,
 ) {
   const dir = await mkdtemp(join(tmpdir(), 'omne-driver-history-'))
   const options = {
@@ -157,7 +166,7 @@ export async function historyFixture(
       adoption: dk(['attempt', 'run', `${n}e0`]),
       startedMessageKey: started.dedupeKey,
       context: [],
-      tools: [tool],
+      tools: [adoptedTool],
       report: {
         session: scope.session,
         runId: 'run',

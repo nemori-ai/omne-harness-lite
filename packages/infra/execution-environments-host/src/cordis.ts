@@ -29,6 +29,9 @@ class Registry extends ExecutionEnvironmentsService {
   describe(...args: Parameters<ExecutionEnvironmentOperations['describe']>) {
     return this.owner.operations.describe(...args)
   }
+  resolvePlacement(...args: Parameters<ExecutionEnvironmentOperations['resolvePlacement']>) {
+    return this.owner.operations.resolvePlacement(...args)
+  }
   acquire(...args: Parameters<ExecutionEnvironmentOperations['acquire']>) {
     return this.owner.operations.acquire(...args)
   }

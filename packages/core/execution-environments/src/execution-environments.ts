@@ -7,6 +7,7 @@ import type {
   EnvironmentCall,
   EnvironmentContinuity,
   EnvironmentPlacement,
+  PlacementRead,
 } from './placement.ts'
 
 export interface EnvironmentReference {
@@ -89,10 +90,35 @@ export type EnvironmentRejection = {
     | 'unsupportedFacility'
     | 'notApplicable'
 }
-export type EnvironmentAcquisition =
+/** Raw provider success remains provisional until the registry checks its authority. */
+export type EnvironmentProviderAcquisition =
   | { readonly kind: 'acquired'; readonly lease: EnvironmentLease; readonly evidence: JsonValue }
   | EnvironmentRejection
+/** Ordinary data produced by the registry, never self-issued by the physical provider. */
+export interface EnvironmentAdoption {
+  readonly placement: EnvironmentPlacement
+  readonly source: { readonly name: string; readonly generation: string }
+  readonly description: EnvironmentDescription
+  readonly providerEvidence: JsonValue
+}
+export type EnvironmentAcquisition =
+  | (Extract<EnvironmentProviderAcquisition, { readonly kind: 'acquired' }> & {
+      readonly adoption: EnvironmentAdoption
+    })
+  | EnvironmentRejection
+export type EnvironmentPlacementResolution =
+  | Exclude<PlacementRead, { readonly kind: 'rejected' }>
+  | {
+      readonly kind: 'rejected'
+      readonly reason: Exclude<EnvironmentRejection['reason'], 'notApplicable'>
+    }
 export interface ExecutionEnvironmentOperations {
+  /** Read the current effective requirement and permission; grants no facilities. */
+  readonly resolvePlacement: (
+    scope: ContextScope,
+    authorization: EnvironmentAuthorization,
+    call: EnvironmentCall,
+  ) => Promise<EnvironmentPlacementResolution>
   readonly describe: (
     scope: ContextScope,
     authorization: EnvironmentAuthorization,
@@ -118,7 +144,7 @@ export interface EnvironmentProvider {
     request: Parameters<ExecutionEnvironmentOperations['acquire']>[0] & {
       readonly placement: EnvironmentPlacement
     },
-  ) => Promise<EnvironmentAcquisition>
+  ) => Promise<EnvironmentProviderAcquisition>
   readonly recover: (
     resource: ManagedResource,
   ) => Promise<'confirmedStopped' | 'pending' | 'unsupported'>

@@ -1,6 +1,6 @@
 # Local Tool Runtime
 
-The root exports `createToolInvoker`, `createToolImplementationRegistry`, `createToolRuntimeRegistry`, and `createToolRuntime`. Public operation and construction types belong to [core/tool-execution-runtime](../../core/tool-execution-runtime/src/index.ts). Root factories do not import Cordis.
+The root exports `createToolInvoker`, `createToolImplementationRegistry`, `createToolRuntimeRegistry`, `createToolRuntime`, and `createToolEnvironmentPlacementSource`. Public operation and construction types belong to [core/tool-execution-runtime](../../core/tool-execution-runtime/src/index.ts). Root factories do not import Cordis.
 
 `createToolRuntime(config, dependencies)` returns an instance with `operations`, `ready`, `idle()`, and `close()`. Await `ready` before registering its operations. The factory uses the actual shared log generation, complete action history, runtime context, result storage, and immutable runner-chain reader. Its bootstrap receives the application's private recovery authority.
 
@@ -10,7 +10,11 @@ The managed exports are `managedRuntimeRegistry`, `managedImplementationRegistry
 
 The current delivery runs pure tool functions and records successful context reads before exposing their values. Observation release does not stop execution. A result writer binds before author entry, so later business revocation does not discard an existing receipt. Business queries still require current authorization. Cold recovery ends queued, running, or waiting records without re-entering the author function. It retains unknown cost and frame evidence and refuses readiness while resource cleanup is unconfirmed.
 
-Environment acquisition, external service resolution, declared settings, interactive wait, and accepted cost reports require later implementation increments. Their unavailable paths do not substitute declaration defaults or report successful reception. The application delivery owner continues the durable A/B/C protocol; this package does not declare a result delivered when the author function returns.
+Tools with a `targetEnvironment` declaration now use current asset inputs to resolve their requirement and permission. The environment registry selects one instance that supplies all required facilities. The runtime retains that original lease and confirms its data adoption in the shared log before author entry. The author receives only the required facility ports. A pure tool does not acquire an environment. See [TE-26–28](../../core/tool-execution-runtime/SPEC.md) and [LP-7–11](SPEC.md) for adoption, authority changes, and retained cleanup responsibilities.
+
+`./cordis` also exports `toolEnvironmentPlacement` and `managedToolEnvironmentPlacement`. They inject the existing `currentEvaluationInputs`, `toolRuntimeRegistry`, and `executionEnvironments` services. Their data configuration requires a name, an explicit `factoryPermission`, and a `selection` policy (`unique` or `reference`). The managed binding uses the shared assembly lifetime. Trusted root callers can instead pass a selection function to `createToolEnvironmentPlacementSource`.
+
+The built-in host does not supply an OS command or file backend. External service resolution, other declared dependencies or settings, interactive wait, and accepted cost reports require later implementation increments. Their unavailable paths do not substitute declaration defaults or report successful reception. The application delivery owner continues the durable A/B/C protocol; this package does not declare a result delivered when the author function returns.
 
 
 ## Persistent acceptance

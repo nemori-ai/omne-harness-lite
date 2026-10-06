@@ -18,6 +18,9 @@ export abstract class ExecutionEnvironmentsService
   constructor(ctx: Context) {
     super(ctx, ExecutionEnvironmentsService.provide)
   }
+  abstract resolvePlacement(
+    ...args: Parameters<ExecutionEnvironmentOperations['resolvePlacement']>
+  ): ReturnType<ExecutionEnvironmentOperations['resolvePlacement']>
   abstract describe(
     ...args: Parameters<ExecutionEnvironmentOperations['describe']>
   ): ReturnType<ExecutionEnvironmentOperations['describe']>

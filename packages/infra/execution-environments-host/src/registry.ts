@@ -1,9 +1,13 @@
-import { environmentVisibleInScope } from '@omne-harness-lite/execution-environments'
+import {
+  captureEnvironmentCall,
+  environmentVisibleInScope,
+} from '@omne-harness-lite/execution-environments'
 import { createPlacementAuthority } from './placement.ts'
 import { createEnvironmentAcquirer } from './acquire.ts'
 import {
   observeProvider as observed,
   rejectEnvironment as reject,
+  releaseProvisional,
   type ProviderEntry as Entry,
 } from './provider-work.ts'
 import type {
@@ -91,6 +95,7 @@ export function createEnvironmentRegistry(deps: {
         provider,
         active: true,
         jobs: new Set(),
+        provisional: new Set(),
         dispose() {
           if (retirement) return retirement
           entry.active = false
@@ -98,6 +103,7 @@ export function createEnvironmentRegistry(deps: {
           retiring.add(entry)
           const task = (async () => {
             await Promise.allSettled([...entry.jobs])
+            await releaseProvisional(entry)
             const result = await provider.retire()
             if (result.kind !== 'drained')
               throw new Error('environment cleanup pending; original provider retained')
@@ -141,6 +147,22 @@ export function createEnvironmentRegistry(deps: {
     },
   }
   const operations: ExecutionEnvironmentOperations = {
+    async resolvePlacement(inputScope, authorization, inputCall) {
+      const scope = ownScope(inputScope),
+        call = captureEnvironmentCall(inputCall)
+      if (!scope || !call) return reject('invalidInput')
+      const before = await authorize(authorization, scope, 'environment.acquire')
+      if (before.kind === 'rejected') return before
+      const ticket = await placement.read({ scope, authorization, call })
+      const after = await authorize(authorization, scope, 'environment.acquire')
+      if (after.kind === 'rejected') return after
+      if ('kind' in ticket)
+        return ticket.reason === 'notApplicable'
+          ? { kind: 'notApplicable' }
+          : { kind: 'rejected', reason: ticket.reason }
+      if (!placement.current(ticket)) return reject('placementChanged')
+      return { kind: 'placement', placement: ticket.placement }
+    },
     async describe(inputScope, authorization) {
       const scope = ownScope(inputScope)
       if (!scope) return reject('invalidInput')
@@ -159,12 +181,11 @@ export function createEnvironmentRegistry(deps: {
     acquire: createEnvironmentAcquirer({
       active: () => active,
       placement,
-      provider: reference =>
-        reference
-          ? entries.get(reference.provider)
-          : entries.size === 1
-            ? entries.values().next().value
-            : undefined,
+      providers: reference => {
+        if (!reference) return [...entries.values()]
+        const entry = entries.get(reference.provider)
+        return entry ? [entry] : []
+      },
       authorize: (authorization, scope) => authorize(authorization, scope, 'environment.acquire'),
     }),
   }

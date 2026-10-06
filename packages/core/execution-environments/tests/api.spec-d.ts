@@ -11,6 +11,9 @@ import type {
 import type { ExecutionEnvironmentsService } from '../src/cordis.ts'
 
 test('Cordis ABC derives every callable signature from the shared owner', () => {
+  expectTypeOf<ExecutionEnvironmentsService['resolvePlacement']>().toEqualTypeOf<
+    ExecutionEnvironmentOperations['resolvePlacement']
+  >()
   expectTypeOf<ExecutionEnvironmentsService['acquire']>().toEqualTypeOf<
     ExecutionEnvironmentOperations['acquire']
   >()
