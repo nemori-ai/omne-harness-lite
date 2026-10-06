@@ -322,9 +322,10 @@ function scopeLayers(tenantInput: unknown): Outcome<ScopeLayers, ScopeLayersFail
   })
 }
 
-export function createOrganizationsPolicy(
-  deps: PolicyDeps,
-): Omit<OrganizationsService, 'participate'> & {
+export function createOrganizationsPolicy(deps: PolicyDeps): Omit<
+  OrganizationsService,
+  'participate'
+> & {
   participate(unit: OrgDataUnit): OrganizationsParticipation
 } {
   return {
