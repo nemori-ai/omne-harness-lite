@@ -14,6 +14,7 @@ import {
 import { checkStructure, readObject } from './structure.ts'
 import { readTemplate } from './template.ts'
 import { checkLayout } from './layout.ts'
+import { discoverProducts } from './discovery.ts'
 
 export interface ScanEvidence {
   readonly actual: ActualExtraction
@@ -122,10 +123,19 @@ export function inspectPackage(
 /** Uses the existing workspace/source resolver and conformance facts; no second extractor. */
 export function scanPackages(root: string, members?: readonly string[]): PackageScan[] {
   root = resolve(root)
+  const candidates = discoverProducts(root)
   const source = readArchitectureSource(root)
   const analysis = analyzeConformance(root, source)
   const template = readTemplate()
   const products = source.members.filter(member => /^packages\/[^/]+\/[^/]+$/u.test(member.path))
+  if (
+    candidates.join('\n') !==
+    products
+      .map(member => member.path)
+      .sort()
+      .join('\n')
+  )
+    throw new Error('Product discovery and source inventory disagree: scan is uncovered')
   if (members !== undefined)
     for (const member of members) {
       if (!products.some(item => item.path === member))

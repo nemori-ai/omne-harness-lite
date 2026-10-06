@@ -81,6 +81,12 @@ Keep temporary traces and logs with task evidence. A bounded model run does not 
 
 ## Complete structure comparison
 
+Member discovery first checks real package directories and manifest files against workspace patterns.
+It compares those candidates with the source inventory before inspecting packages.
+Missing or invalid manifests, directory links and unexpected non-directory nodes cause exit 2.
+The scanner cannot report a successful inventory that silently omits these candidates.
+Group navigation files are limited to README.md, README_ZH.md, AGENTS.md and CLAUDE.md.
+
 The scanner visits **every owned file and directory**, including untracked files and empty directories.
 It reports the full node inventory and compares it with the selected variant's instantiated template tree.
 Fixed required nodes, optional resource roles and repeated source slots are all declared in manifest.json.

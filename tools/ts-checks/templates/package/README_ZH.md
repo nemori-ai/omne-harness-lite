@@ -17,6 +17,8 @@ pnpm package:template scan --member packages/core/storage --check
 
 生成结果报告来源模板的 id/version/variant，**草稿不写采用标识**。占位带 PACKAGE_TEMPLATE_DRAFT，真实接口、已接受行为和有效验证完成后才可删除。不生成假 Service、空 SPEC 或伪通过测试。
 
+成员发现先按 workspace 模式核对真实包目录和 manifest，再与源码成员清单对账。缺失或异常 manifest、目录软链接或非目录节点使扫描退出 2，不能把漏掉成员的空清单报告成通过。组目录只允许 README.md、README_ZH.md、AGENTS.md、CLAUDE.md 作为非目录导航文件。
+
 结构判定遍历源码包的全部文件、目录、空目录及节点种类。按变体、明确可选资源与重复源码槽实例化模板，再核对完整节点集合。不是只看几个入口文件。未声明路径、错位文件、空目录、软链接及其他节点均失败；Git ignore 不能隐藏源码文件。
 
 只排除根下明确声明的真实 node_modules、dist、generated、coverage、tmp 目录，并输出排除清单。同名文件或软链接不被跳过，嵌套目录没有这项豁免。构建/依赖/临时结果不作为源码权威。

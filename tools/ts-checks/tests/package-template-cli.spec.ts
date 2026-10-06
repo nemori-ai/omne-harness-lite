@@ -1,6 +1,14 @@
 import { afterEach, expect, it } from 'vitest'
 import { spawnSync, execFileSync } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -94,3 +102,44 @@ it('reports malformed options and unknown members with no successful check', () 
   expect(run(root, ['scan', '--write']).status).toBe(2)
   expect(run(root, ['scan', '--json']).status).toBe(0)
 })
+it.each([
+  'manifest-link',
+  'manifest-directory',
+  'manifest-missing',
+  'member-link',
+  'member-file',
+  'group-link',
+  'group-file',
+  'root-link',
+])(
+  'rejects %s during real all-package discovery instead of reporting an empty successful inventory',
+  kind => {
+    const root = fixture()
+    expect(
+      run(root, ['create', '--group', 'util', '--name', 'sample', '--variant', 'module', '--write'])
+        .status,
+    ).toBe(0)
+    const member = 'packages/util/sample'
+    const node = kind.startsWith('manifest')
+      ? `${member}/package.json`
+      : kind.startsWith('member')
+        ? member
+        : kind.startsWith('group')
+          ? 'packages/util'
+          : 'packages'
+    const target = join(root, 'outside')
+    if (kind === 'manifest-link') writeFileSync(target, readFileSync(join(root, node)))
+    else mkdirSync(target)
+    rmSync(join(root, node), { recursive: true, force: true })
+    if (kind.endsWith('link')) symlinkSync(target, join(root, node))
+    else if (kind === 'manifest-directory') mkdirSync(join(root, node))
+    else if (kind.endsWith('file')) writeFileSync(join(root, node), 'Invalid directory node\n')
+    for (const selection of [[], ['--member', member]]) {
+      const result = run(root, ['scan', '--check', '--json', ...selection])
+      expect(result.status).toBe(2)
+      expect(result.stderr).toMatch(/product discovery/u)
+      expect(result.stdout).toBe('')
+    }
+  },
+  20_000,
+)
