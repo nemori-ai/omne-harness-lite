@@ -107,3 +107,8 @@ relations:
 本轮明确 [Session 归属、Run 工作与句柄](../PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)，持久关联见 [PF-015 §6.21](../PF-015-session-lifecycle-and-ownership/design.md#621-三类-runtime-的归属与执行关联)；释放 Agent runtime 不取消模型／工具执行。
 
 本次产品裁决：确定连续空闲默认30天归档、计时恢复与重置，取消排队任务、拒收新任务并保留历史；连接件设计搁置。新增裁决的依据与范围见 decisions；不扩大既有整包接受、规格或实现状态。
+
+## 验收与故事卡
+
+- [验收标准](acceptance.md)：创建、恢复、运行时关联与供给的可观察场景；各规则仍由 design 拥有。
+- [第一期故事卡](stories.md)：会话起步、历史读取与恢复；具体顺序待评审，产品就绪不表示实际交付完成。
