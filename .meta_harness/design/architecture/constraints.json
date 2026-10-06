@@ -54,31 +54,47 @@
   ],
   "roles": [
     {
-      "id": "cli-interaction",
+      "id": "cli-composition",
       "paths": [
-        "apps/cli/src/presentation.ts",
-        "apps/cli/src/input.ts",
-        "apps/cli/src/parser.ts",
-        "apps/cli/src/tui/forms.ts"
-      ],
-      "layer": "interaction",
-      "domains": [
-        "admission"
-      ],
-      "status": "adopted",
-      "source": ".meta_harness/design/realization/apps/cli/design.md"
-    },
-    {
-      "id": "cli-client-composition",
-      "paths": [
-        "apps/cli/src/assembly.ts"
+        "apps/cli/src/assembly.ts",
+        "apps/cli/src/default-providers.ts",
+        "apps/cli/src/main.ts",
+        "apps/cli/src/tui/providers.ts",
+        "apps/cli/src/schema-inputs.ts"
       ],
       "layer": "assembly",
       "domains": [
         "admission"
       ],
       "status": "adopted",
-      "source": ".meta_harness/design/architecture/identity-integration/client-integration.md"
+      "source": "apps/cli/SPEC.md"
+    },
+    {
+      "id": "cli-interaction",
+      "paths": [
+        "apps/cli/src/application.ts",
+        "apps/cli/src/client-assembly.ts",
+        "apps/cli/src/diagnostic.ts",
+        "apps/cli/src/input.ts",
+        "apps/cli/src/parser.ts",
+        "apps/cli/src/presentation.ts",
+        "apps/cli/src/validation.ts",
+        "apps/cli/src/version.ts",
+        "apps/cli/src/tui/application.ts",
+        "apps/cli/src/tui/dialog.ts",
+        "apps/cli/src/tui/forms.ts",
+        "apps/cli/src/tui/framer.ts",
+        "apps/cli/src/tui/mode-replies.ts",
+        "apps/cli/src/tui/raw-mode.ts",
+        "apps/cli/src/tui/screen.ts",
+        "apps/cli/src/tui/terminal.ts"
+      ],
+      "layer": "interaction",
+      "domains": [
+        "admission"
+      ],
+      "status": "adopted",
+      "source": "apps/cli/SPEC.md"
     },
     {
       "id": "host-composition",
@@ -126,18 +142,6 @@
       ],
       "status": "adopted",
       "source": ".meta_harness/design/realization/packages/tenancy/account-registration/design.md"
-    },
-    {
-      "id": "mixed-cli",
-      "paths": [
-        "apps/cli/src/**"
-      ],
-      "layer": "unknown",
-      "domains": [
-        "admission"
-      ],
-      "status": "candidate",
-      "source": "system-intent.md#分层约束"
     },
     {
       "id": "mixed-governance-entry",
