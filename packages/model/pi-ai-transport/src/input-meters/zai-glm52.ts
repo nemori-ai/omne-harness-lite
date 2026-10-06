@@ -220,7 +220,9 @@ function renderToolResponse(
 
 let sharedTokenizer: Tokenizer | undefined
 function pinnedJson(name: string, sha256: string): JsonObject {
-  const bytes = readFileSync(new URL(`../../tokenizers/zai-glm5/${name}`, import.meta.url))
+  const bytes = readFileSync(
+    new URL(`../../resources/tokenizers/zai-glm5/${name}`, import.meta.url),
+  )
   if (createHash('sha256').update(bytes).digest('hex') !== sha256)
     throw new TypeError(`GLM-5.2 ${name} failed pinned hash`)
   const parsed: unknown = JSON.parse(bytes.toString('utf8'))

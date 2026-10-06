@@ -99,7 +99,7 @@ describe.each(families)('$definition.modelId visible reasoning detail estimate',
   const read = (name: string) =>
     readFileSync(new URL(`./fixtures/${family.fixtures}/${name}`, import.meta.url), 'utf8')
   const pinnedTokenizer = () => {
-    const root = new URL(`../tokenizers/${family.tokenizer}/`, import.meta.url)
+    const root = new URL(`../resources/tokenizers/${family.tokenizer}/`, import.meta.url)
     return new Tokenizer(
       JSON.parse(readFileSync(new URL('tokenizer.json', root), 'utf8')),
       JSON.parse(readFileSync(new URL('tokenizer_config.json', root), 'utf8')),

@@ -9,7 +9,8 @@
   },
   "bin": {
     "omne-ts-checks": "./dist/cli.js",
-    "omne-architecture": "./dist/arch/cli.js"
+    "omne-architecture": "./dist/arch/cli.js",
+    "omne-package-template": "./dist/package-template/cli.js"
   },
   "exports": {
     ".": {
@@ -27,7 +28,8 @@
     "test": "vitest run",
     "scan": "node --experimental-strip-types src/cli.ts ../../packages ../../apps ../../examples",
     "metrics": "node --experimental-strip-types src/metrics/cli.ts",
-    "architecture": "node --experimental-strip-types src/arch/cli.ts"
+    "architecture": "node --experimental-strip-types src/arch/cli.ts",
+    "package:template": "node --experimental-strip-types src/package-template/cli.ts"
   },
   "devDependencies": {
     "@jscpd/core": "catalog:",

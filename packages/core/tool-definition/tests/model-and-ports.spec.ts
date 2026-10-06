@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import frozen from './examples-fixtures.json' with { type: 'json' }
+import frozen from './fixtures/examples-fixtures.json' with { type: 'json' }
 import {
   createParameterJudge,
   definitionNameOf,

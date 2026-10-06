@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.content-blocks v3 \u7684\u7eaf\u6a21\u5757\uff1a\u5185\u5bb9\u5757\u3001\u8868\u793a\u6821\u9a8c\u4e0e\u4e25\u683c\u65e0\u635f JSON",
+  "description": "data.content-blocks v3 的纯模块：内容块、表示校验与严格无损 JSON",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -33,7 +33,9 @@
     "dist",
     "schema",
     "generated",
-    "SPEC.md"
+    "SPEC.md",
+    "README.md",
+    "README_ZH.md"
   ],
   "scripts": {
     "build": "node ../../../scripts/build-fixed-schemas.mjs",
@@ -48,5 +50,12 @@
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "module"
+    }
   }
 }

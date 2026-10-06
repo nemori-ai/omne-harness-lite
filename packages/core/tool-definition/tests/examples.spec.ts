@@ -2,7 +2,7 @@ import { assertToolSchemaTransition } from './schema-transition.ts'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import frozen from './examples-fixtures.json' with { type: 'json' }
+import frozen from './fixtures/examples-fixtures.json' with { type: 'json' }
 import schema from '@omne-harness-lite/tool-definition/schema' with { type: 'json' }
 import contentSchema from '@omne-harness-lite/content-blocks/schema' with { type: 'json' }
 import {

@@ -20,7 +20,10 @@
   "files": [
     "dist",
     "schema",
-    "generated"
+    "generated",
+    "README.md",
+    "README_ZH.md",
+    "SPEC.md"
   ],
   "scripts": {
     "build": "node ../../../scripts/build-fixed-schemas.mjs",
@@ -53,5 +56,12 @@
     "@omne-harness-lite/account-identity-sql": "workspace:*",
     "@omne-harness-lite/account-registration-sequential": "workspace:*",
     "@omne-harness-lite/credential-verification-scrypt": "workspace:*"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "cordis-module"
+    }
   }
 }

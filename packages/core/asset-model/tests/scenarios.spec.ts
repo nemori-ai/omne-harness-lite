@@ -6,7 +6,7 @@ import {
   parseCapabilityCanonicalString,
 } from '../src/index.ts'
 import { isObject } from '../src/judge.ts'
-import fixtures from './examples.json' with { type: 'json' }
+import fixtures from './fixtures/examples.json' with { type: 'json' }
 import { bodies, json } from './ports.ts'
 
 const judge = createAssetModelJudge(bodies)

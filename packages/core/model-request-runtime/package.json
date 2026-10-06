@@ -19,7 +19,9 @@
   },
   "files": [
     "dist",
-    "SPEC.md"
+    "SPEC.md",
+    "README.md",
+    "README_ZH.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

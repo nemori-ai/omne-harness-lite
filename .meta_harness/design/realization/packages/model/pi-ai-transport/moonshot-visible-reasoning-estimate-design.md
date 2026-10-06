@@ -131,7 +131,7 @@ MV3：反例 8；必须直接调用两叶 factory 返回的方法，不以规划
 
 MV4：真实路线由 root 沿唯一预算账本执行：每叶有、无 tools 各至少一组当前绑定三轮真实流，第 2 轮起回放 details；记录上游是否接受、`prompt_tokens` 与本地估算残差、cache 与 cost，并逐帧核对 details 形状（含是否出现显式 `signature: null`）。**必做**同路由对照（主调度 2026-09-30 裁决 P2）：同一历史分别以 `reasoning` 字符串与 details 回放，比较 `prompt_tokens`，检验「同一槽位」假设；这是闭合 G1 的唯一探针，归 root 付费账本。残差只作记录，不引入修正常数，受控 usage 不当精度。
 
-MV5：两叶 definition／implementation／algorithm 唯一修订、`evidence` 字串、包 README／README_ZH 双语段与制品消费；`tokenizers/moonshot/provenance.json` 的实现坐标由其 owner 更新；未知与失败原件保留。无新代数或并发性质，不扩 TLA 范围，以既有共享形式边界和上述正反例承接。候选须经独立 architecture-reviewer 与主线技术采用后才释放实现。
+MV5：两叶 definition／implementation／algorithm 唯一修订、`evidence` 字串、包 README／README_ZH 双语段与制品消费；`resources/tokenizers/moonshot/provenance.json` 的实现坐标由其 owner 更新；未知与失败原件保留。无新代数或并发性质，不扩 TLA 范围，以既有共享形式边界和上述正反例承接。候选须经独立 architecture-reviewer 与主线技术采用后才释放实现。
 
 ## 缺口与受阻消费者
 

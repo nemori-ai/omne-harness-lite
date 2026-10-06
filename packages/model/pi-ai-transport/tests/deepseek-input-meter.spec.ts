@@ -45,7 +45,7 @@ describe('DeepSeek V4 public encoder projection', () => {
   })
 
   it('pins the model tokenizer against independent Rust tokenizers 0.22.1 vectors', () => {
-    const root = new URL('../tokenizers/deepseek-v4/', import.meta.url)
+    const root = new URL('../resources/tokenizers/deepseek-v4/', import.meta.url)
     const tokenizer = new Tokenizer(
       JSON.parse(readFileSync(new URL('tokenizer.json', root), 'utf8')),
       JSON.parse(readFileSync(new URL('tokenizer_config.json', root), 'utf8')),

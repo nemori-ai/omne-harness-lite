@@ -39,7 +39,9 @@ const visibleEvidence =
   'google-gemma4-pilot-2026-09-28:fit-F1-F2/holdout-H1-H2; messages/tools Gemma4 surrogate plus frozen offset6, not Gemini tokenizer; declared request effort is a generation control outside this input projection, private hosted framing unverified; low/medium/high scope is an estimated implementation extension without actual effort holdout or error bound'
 
 function verifiedFile(name: string, hash: string): Buffer {
-  const content = readFileSync(new URL(`../../tokenizers/google-gemma4/${name}`, import.meta.url))
+  const content = readFileSync(
+    new URL(`../../resources/tokenizers/google-gemma4/${name}`, import.meta.url),
+  )
   if (createHash('sha256').update(content).digest('hex') !== hash)
     throw new TypeError(`Google comparator ${name} digest mismatch`)
   return content

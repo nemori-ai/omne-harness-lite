@@ -24,6 +24,8 @@ Cordis 直接使用官方发布包。维护边界归 [SYS-KERNEL](.meta_harness/
 
 以上是[系统目标与全局约束](.meta_harness/design/foundation/README.md)的简短投影。系统目标是后续建模、能力定义、设计与产品化的前提和基础；具体采用边界、接受状态和未决事项沿相应入口展开。架构与实现现状不写在这里：从[架构维护入口](.meta_harness/design/architecture/README.md)定位实际数据与承诺拥有者；未迁单元继续查[身份清单](.meta_harness/design/registry/README.md)与[实现映射](.meta_harness/design/realization/README.md)。**产品设计不是架构结论**。
 
+新建或按新结构整改产品包时，使用[版本化包模板入口](docs/development.md#创建和整改产品包)，先核对已接受的职责再创建，不手写另一套骨架。模板标识只记录结构采用，不替代接口、行为或架构验收。
+
 ## `.meta_harness/` 拥有什么，外面做什么
 
 [`.meta_harness/`](.meta_harness/AGENTS.md) 是可独立迁出的私有设计工作区。

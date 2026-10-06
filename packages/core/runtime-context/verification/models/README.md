@@ -7,9 +7,9 @@ revision代表本次可见读取的持久依据，不代表整条日志的tail�
 TLC命令从仓库根执行：
 
 ```sh
-tlc -config packages/core/runtime-context/models/Observation.cfg \
+tlc -config packages/core/runtime-context/verification/models/Observation.cfg \
   -metadir tmp/context-observation-tlc \
-  packages/core/runtime-context/models/Observation.tla
+  packages/core/runtime-context/verification/models/Observation.tla
 ```
 
 逐一令GuardAuthority/Generation/Prefix/Hint/Metadata为FALSE应产生反例。实际状态数、工具版本、负控配置和报告归本次运行证据，不写固定结论。真实实现映射为读取前后授权、来源对象代核对、选定注册/内容依据核对、scope/key在途watch及可见注册投影；相应测试在runtime-context-local和独立验收中。

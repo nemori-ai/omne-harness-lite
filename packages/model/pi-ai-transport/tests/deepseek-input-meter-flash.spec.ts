@@ -45,7 +45,7 @@ describe('DeepSeek V4.1 Flash public encoder projection', () => {
   })
 
   it('pins Flash tokenizer vectors separately from V4 Pro', () => {
-    const root = new URL('../tokenizers/deepseek-v41-flash/', import.meta.url)
+    const root = new URL('../resources/tokenizers/deepseek-v41-flash/', import.meta.url)
     const tokenizer = new Tokenizer(
       JSON.parse(readFileSync(new URL('tokenizer.json', root), 'utf8')),
       JSON.parse(readFileSync(new URL('tokenizer_config.json', root), 'utf8')),

@@ -53,7 +53,7 @@ const sharedTokenizers = new Map<string, Tokenizer>()
 function tokenizer(directory: string): Tokenizer {
   const cached = sharedTokenizers.get(directory)
   if (cached) return cached
-  const base = new URL(`../../tokenizers/${directory}/`, import.meta.url)
+  const base = new URL(`../../resources/tokenizers/${directory}/`, import.meta.url)
   // Both pinned repositories publish byte-identical tokenizer.json files.
   const data = readFileSync(new URL('../qwen-38-24t/tokenizer.json', base))
   if (createHash('sha256').update(data).digest('hex') !== tokenizerSha256)

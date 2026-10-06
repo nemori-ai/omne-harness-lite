@@ -9,7 +9,7 @@ import {
 } from './deepseek-boundary.ts'
 import { guardInputMeter } from './shared.ts'
 // Projection adapted from DeepSeek-V4.1-Flash encoding/encoding.py at
-// dba1be0a40aa45a94ad051997016db3960a90277 (MIT; tokenizers/deepseek-v41-flash/LICENSE).
+// dba1be0a40aa45a94ad051997016db3960a90277 (MIT; resources/tokenizers/deepseek-v41-flash/LICENSE).
 // This is an estimate of the chosen OpenRouter/DeepInfra route, not a claim that
 // its private prompt construction is byte-identical to the public reference.
 import { createHash } from 'node:crypto'
@@ -400,7 +400,7 @@ let sharedTokenizer: Tokenizer | undefined
 
 function pinnedFile(name: string, sha256: string): JsonObject {
   const bytes = readFileSync(
-    new URL(`../../tokenizers/deepseek-v41-flash/${name}`, import.meta.url),
+    new URL(`../../resources/tokenizers/deepseek-v41-flash/${name}`, import.meta.url),
   )
   if (createHash('sha256').update(bytes).digest('hex') !== sha256)
     throw new TypeError(`DeepSeek V4.1 Flash ${name} failed pinned hash`)

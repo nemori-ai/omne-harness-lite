@@ -17,7 +17,7 @@ from pathlib import Path
 import jinja2
 
 root = Path(__file__).resolve().parents[3]
-templates_dir = root / 'tokenizers/zai-glm5'
+templates_dir = root / 'resources/tokenizers/zai-glm5'
 source = Path(__file__).with_name('history-complete-streams.json')
 fragments_source = Path(__file__).with_name('visible-reasoning-fragments.json')
 env = jinja2.Environment(extensions=['jinja2.ext.loopcontrols'])
