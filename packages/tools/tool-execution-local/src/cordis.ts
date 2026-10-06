@@ -42,6 +42,11 @@ import {
 import { createToolInvoker } from './invoker.ts'
 import { createToolRuntime } from './runtime.ts'
 
+export {
+  toolEnvironmentPlacement,
+  managedToolEnvironmentPlacement,
+} from './environment-placement-cordis.ts'
+
 class RuntimeRegistry extends ToolRuntimeRegistryService {
   private readonly operations = createToolRuntimeRegistry()
   register(provider: ToolRuntimeOperations) {
@@ -59,18 +64,39 @@ class RuntimeRegistry extends ToolRuntimeRegistryService {
     // Install ownership before awaiting acquisition; caller disposal may win that race.
     let released = false
     let release: (() => void) | undefined
-    this.ctx.effect(() => () => {
+    const finish = () => {
+      if (released) return
       released = true
       release?.()
-    })
-    const result = await this.operations.acquire(...args)
-    if (result.kind !== 'acquired') return result
+    }
+    const dispose = this.ctx.effect(() => finish, 'tool-runtime-registry.observer')
+    let result: Awaited<ReturnType<ToolRuntimeOperations['acquire']>>
+    try {
+      result = await this.operations.acquire(...args)
+    } catch (error) {
+      await dispose()
+      throw error
+    }
+    if (result.kind !== 'acquired') {
+      await dispose()
+      return result
+    }
     release = result.observer.release
     if (released) {
       release()
+      await dispose()
       return { kind: 'rejected', reason: 'ownerStopped' }
     }
-    return result
+    return {
+      ...result,
+      observer: Object.freeze({
+        ...result.observer,
+        release() {
+          finish()
+          void dispose()
+        },
+      }),
+    }
   }
   stop(...args: Parameters<ToolRuntimeOperations['stop']>) {
     return this.operations.stop(...args)

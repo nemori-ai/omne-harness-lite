@@ -37,3 +37,11 @@ EE-16 输出有显式字节缓冲及块大小界限。无人读、慢读或提�
 EE-17 类型增补不安装设施或授予操作权限。本期可获取的设施为 command／files；其他键可声明查询，但获取需求遇到未知键明确 unsupportedFacility，不交原始对象。未来设施定义拥有者须同时提供运行时验证、逐操作授权适配和契约验证，之后才能扩展实际获取路径；不能只凭同名字段或 cast 获得能力。
 
 EE-18 文件路径按环境实例解释，不把 cwd 当安全隔离。读／写字节独立持有，大小界限由实现配置；部分写入或回执未知如实报告 effectUnknown，不自动重试。lease 释放或观察者离开不能宣称外部文件作用已撤销。
+
+以下EE-19/20沿2026-10-06用户PR2实施授权，经选择及表达无剩余阻断后技术采用；实现与验证状态另记，不据规格存在宣称完成。
+
+EE-19 resolvePlacement 只读同一租户／会话／原call的当前求值，不授设施或资源许可。调用前后核当前access及原source；notApplicable不伪造placement。读取与acquire不是原子事务，后者必须重读和核对实际requirement；旧读取不能固定未来权限。
+
+查询不适用唯一返回kind:notApplicable，不返回rejected(reason:notApplicable)。调用参数或合法求值输入的形状非法返回invalidInput；前后授权失败保留原原因；读取前无来源或来源读取抛错为policyUnavailable；在途原来源撤除／换代为placementChanged。来源placement回执无法捕获或不对应原scope/call也为placementChanged。其他来源拒绝沿EE-11的合法拒绝值返回。acquire的不适用仍沿原rejected编码，此查询规范不更改它。
+
+EE-20 provider成功仍是原始回执。registry最终核验原source代、placement和选中description后构造EnvironmentAdoption；provider evidence不作为自签权限。公开capture只验证普通数据及内部归属／匹配关系，不证明其来自registry。记录或重读adoption不恢复JS lease，也不重授旧许可；调用者必须保留原租约直至耐久采用确认或原释放/清理责任完成。

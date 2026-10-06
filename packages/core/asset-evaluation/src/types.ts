@@ -11,10 +11,15 @@ import type {
 } from '@omne-harness-lite/asset-model'
 import type { JsonNumber, JsonValue } from '@omne-harness-lite/content-blocks'
 import type { MembershipStanding, TenantId } from '@omne-harness-lite/identity-values'
+import type { EnvironmentPermission } from '@omne-harness-lite/tool-definition'
 import type { ActionSnapshot } from '@omne-harness-lite/mcp-endpoint'
 
 export type Layer = 'factory' | 'organization' | 'tenant' | 'workspace' | 'session'
 export type HoldingLayer = Exclude<Layer, 'session'>
+/** Explicit factory policy for tool environment declarations; no implicit permission default. */
+export interface EvaluationOptions {
+  readonly toolEnvironmentPermission: EnvironmentPermission
+}
 export interface AssetReference {
   readonly capability: CapabilityId
   readonly resident?: boolean

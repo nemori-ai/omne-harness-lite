@@ -9,9 +9,9 @@ export interface ProviderEntry {
   readonly jobs: Set<Promise<unknown>>
   dispose(): Promise<void>
 }
-export const rejectEnvironment = (
-  reason: EnvironmentRejection['reason'],
-): EnvironmentRejection => ({ kind: 'rejected', reason })
+export const rejectEnvironment = <R extends EnvironmentRejection['reason']>(
+  reason: R,
+): EnvironmentRejection & { readonly reason: R } => ({ kind: 'rejected', reason })
 
 /** Retirement retains exactly the callbacks admitted to the original provider. */
 export async function observeProvider<T>(entry: ProviderEntry, work: () => Promise<T>): Promise<T> {

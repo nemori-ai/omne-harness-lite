@@ -1,4 +1,7 @@
-import { environmentVisibleInScope } from '@omne-harness-lite/execution-environments'
+import {
+  captureEnvironmentCall,
+  environmentVisibleInScope,
+} from '@omne-harness-lite/execution-environments'
 import { createPlacementAuthority } from './placement.ts'
 import { createEnvironmentAcquirer } from './acquire.ts'
 import {
@@ -141,6 +144,22 @@ export function createEnvironmentRegistry(deps: {
     },
   }
   const operations: ExecutionEnvironmentOperations = {
+    async resolvePlacement(inputScope, authorization, inputCall) {
+      const scope = ownScope(inputScope),
+        call = captureEnvironmentCall(inputCall)
+      if (!scope || !call) return reject('invalidInput')
+      const before = await authorize(authorization, scope, 'environment.acquire')
+      if (before.kind === 'rejected') return before
+      const ticket = await placement.read({ scope, authorization, call })
+      const after = await authorize(authorization, scope, 'environment.acquire')
+      if (after.kind === 'rejected') return after
+      if ('kind' in ticket)
+        return ticket.reason === 'notApplicable'
+          ? { kind: 'notApplicable' }
+          : { kind: 'rejected', reason: ticket.reason }
+      if (!placement.current(ticket)) return reject('placementChanged')
+      return { kind: 'placement', placement: ticket.placement }
+    },
     async describe(inputScope, authorization) {
       const scope = ownScope(inputScope)
       if (!scope) return reject('invalidInput')

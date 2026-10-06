@@ -1,5 +1,6 @@
 import {
   captureEnvironmentFacilities,
+  captureEnvironmentAdoption,
   type EnvironmentAcquisition,
   type EnvironmentDescription,
   type EnvironmentLease,
@@ -9,6 +10,7 @@ import {
   type FacilityFailure,
 } from '@omne-harness-lite/execution-environments'
 import type { SessionAccess, SessionScope } from '@omne-harness-lite/session-tenancy'
+import type { JsonValue } from '@omne-harness-lite/content-blocks'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { captureAcquisition } from './acquisition.ts'
 import type { createPlacementAuthority, PlacementTicket } from './placement.ts'
@@ -48,6 +50,8 @@ function operationAuthority(
   description: EnvironmentDescription,
 ) {
   return async (facility: 'command' | 'files') => {
+    if (!input.requirement.facilities.includes(facility))
+      return facilityFailure(reject('notAuthorized'))
     const granted = await deps.authorize(input.authorization, input.scope)
     if (granted.kind === 'rejected') return facilityFailure(granted)
     const policy = await deps.placement.authorize(ticket, input, description, facility)
@@ -57,8 +61,8 @@ function operationAuthority(
   }
 }
 
-/** Provider success is not delivery until authority and the original description still agree. */
-async function adoptLease(
+/** Rechecks the original authority and the actual returned facilities before adoption. */
+async function validateProvisionalLease(
   deps: Dependencies,
   entry: ProviderEntry,
   input: Input,
@@ -66,28 +70,44 @@ async function adoptLease(
   selected: EnvironmentDescription,
   raw: EnvironmentLease,
 ) {
+  const changed = await deps.placement.recheck(ticket, input)
+  const latest = await deps.authorize(input.authorization, input.scope)
+  if (latest.kind === 'rejected') return latest
+  if (changed) return changed
+  if (
+    !entry.active ||
+    !deps.active() ||
+    !deps.placement.current(ticket) ||
+    input.resources.closed.aborted
+  )
+    return reject(deps.active() ? 'providerUnavailable' : 'ownerStopped')
+  const facilities = captureEnvironmentFacilities(raw.facilities)
+  if (!facilities || writeJsonLossless(facilities.description) !== writeJsonLossless(selected))
+    return reject('providerUnavailable')
+  return facilities
+}
+
+/** Owns provisional release until the registry has constructed a validated adoption. */
+async function adoptLease(
+  deps: Dependencies,
+  entry: ProviderEntry,
+  input: Input,
+  ticket: PlacementTicket,
+  selected: EnvironmentDescription,
+  raw: EnvironmentLease,
+  providerEvidence: JsonValue,
+) {
   let delivered = false
   try {
-    const changed = await deps.placement.recheck(ticket, input)
-    const latest = await deps.authorize(input.authorization, input.scope)
-    const facilities = captureEnvironmentFacilities(raw.facilities)
-    const invalid =
-      latest.kind === 'rejected'
-        ? latest
-        : (changed ??
-          (!entry.active ||
-          !deps.active() ||
-          !deps.placement.current(ticket) ||
-          input.resources.closed.aborted
-            ? reject(deps.active() ? 'providerUnavailable' : 'ownerStopped')
-            : undefined))
-    if (
-      invalid ||
-      !facilities ||
-      writeJsonLossless(facilities.description) !== writeJsonLossless(selected)
-    ) {
-      return invalid ?? reject('providerUnavailable')
-    }
+    const facilities = await validateProvisionalLease(deps, entry, input, ticket, selected, raw)
+    if ('kind' in facilities) return facilities
+    const adoption = captureEnvironmentAdoption({
+      placement: ticket.placement,
+      source: { name: ticket.entry.source.name, generation: ticket.entry.source.generation },
+      description: selected,
+      providerEvidence,
+    })
+    if (!adoption) return reject('providerUnavailable')
     const lease = createLeaseView({
       lease: raw,
       available: () =>
@@ -100,7 +120,7 @@ async function adoptLease(
     })
     if (lease) {
       delivered = true
-      return { lease }
+      return { lease, adoption }
     }
     return reject('providerUnavailable')
   } finally {
@@ -161,8 +181,23 @@ async function acquireSelected(
       ),
     )
     if (result.kind !== 'acquired') return result
-    const adopted = await adoptLease(deps, entry, input, ticket, selection.selected, result.lease)
-    return 'kind' in adopted ? adopted : { ...result, lease: adopted.lease }
+    const adopted = await adoptLease(
+      deps,
+      entry,
+      input,
+      ticket,
+      selection.selected,
+      result.lease,
+      result.evidence,
+    )
+    return 'kind' in adopted
+      ? adopted
+      : {
+          kind: 'acquired',
+          lease: adopted.lease,
+          evidence: adopted.adoption.providerEvidence,
+          adoption: adopted.adoption,
+        }
   })
 }
 

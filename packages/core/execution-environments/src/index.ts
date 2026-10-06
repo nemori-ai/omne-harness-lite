@@ -8,6 +8,7 @@ export {
   captureEnvironmentCall,
   captureEnvironmentPlacement,
   captureEnvironmentDescription,
+  captureEnvironmentAdoption,
   sameEnvironmentScope,
   environmentBelongsTo,
   environmentVisibleInScope,
