@@ -9,7 +9,9 @@
 [机读约束](constraints.json)区分已采用入口、候选映射和未知；实际源码结构仍由工具生成。
 
 [身份领域集成设计](identity-integration/README.md)已限定采用服务/包、行为保持和装配责任。
-这是后续迁移的设计输入，正式提供者与领域验收尚未完成。
+正式提供者、插件树及 R1 限定领域验收已交付；
+[交付摘要](../record/evidence/2026-10-06-identity-domain-delivery/README.md)记录精确源码与验收范围。
+模型/Session 整改和未迁业务承诺仍按各自入口接续。
 
 ## 一份承诺，一个拥有者
 
