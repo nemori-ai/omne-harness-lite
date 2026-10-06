@@ -38,12 +38,8 @@ import type {
   ManifestTable,
   ReadFailure,
 } from '@omne-harness-lite/assembly-manifest'
-import type {
-  AssemblyManifestStore,
-  ManifestDb,
-  ManifestDiagnostic,
-  ManifestOptions,
-} from './types.ts'
+import type { ManifestDiagnostic, ManifestOptions } from '@omne-harness-lite/assembly-manifest'
+import type { AssemblyManifestStore, ManifestDb } from './types.ts'
 
 class ContentUnavailable extends StorageDefect {}
 /** A known malformed stored value, never a generic SQL/schema/programming defect. */

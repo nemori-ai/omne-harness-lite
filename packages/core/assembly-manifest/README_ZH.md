@@ -24,3 +24,5 @@ pnpm --filter @omne-harness-lite/assembly-manifest run build
 pnpm --filter @omne-harness-lite/assembly-manifest run typecheck
 pnpm --filter @omne-harness-lite/assembly-manifest run test
 ```
+
+[集成行为](SPEC.md)区分六操作业务承诺与借用端口责任。PresenceSource、ManifestOptions、ManifestDiagnostic 归纯根入口；资源 Service 归 ./cordis。

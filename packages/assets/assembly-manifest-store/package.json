@@ -11,12 +11,18 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
     }
   },
   "files": [
     "dist",
     "README.md",
-    "README_ZH.md"
+    "README_ZH.md",
+    "SPEC.md",
+    "verification"
   ],
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
@@ -43,5 +49,12 @@
     "vitest": "catalog:",
     "@omne-harness-lite/tool-definition": "workspace:*",
     "@omne-harness-lite/asset-evaluation": "workspace:*"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "service-provider"
+    }
   }
 }

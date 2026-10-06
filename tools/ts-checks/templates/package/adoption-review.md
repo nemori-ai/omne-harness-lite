@@ -55,6 +55,9 @@ Accepted legacy behavior and verification sources remain effective until their c
 | [packages/util/unix-format](../../../../packages/util/unix-format/README.md) | module | 只返回字符串的输出格式化；无运行时依赖或隐含 Service，provenance 保留实际来源。 |
 | [packages/util/xml-format](../../../../packages/util/xml-format/README.md) | module | 显式字段规则驱动 XML 字符串；无运行时依赖或 Service，provenance 保留实际来源。 |
 
+| [packages/core/assembly-manifest](../../../../packages/core/assembly-manifest/README.md) | service-contract | H3 全树核对；纯端口单一拥有者与正式资源 Service，六操作及未迁 MF4/模型来源保留。新增真实公共判定测试，不造业务 Service 包装。 |
+| [packages/assets/assembly-manifest-store](../../../../packages/assets/assembly-manifest-store/README.md) | service-provider | H3 全树及实际工厂核对；纯根/绑定分离、正式六操作 Service、必需资源注入与稳定真实排空观察。实际 SQLite、旧引用和换代测试；全模型业务接受仍沿原限定。 |
+
 ## Packages without a marker
 
 These packages remain visible in every inventory. Absence is not an automatic finding of nonconformance.
@@ -63,9 +66,7 @@ Do not add a marker until the specific missing resource or integration qualifica
 | Package | Remaining scope |
 | --- | --- |
 | [packages/agent-loop/loop-extension-runner-local](../../../../packages/agent-loop/loop-extension-runner-local/README.md) | 缺少提供者薄 SPEC；完整运行、贡献关闭及公开五类依赖仍需 H4/H6 核对。 |
-| [packages/assets/assembly-manifest-store](../../../../packages/assets/assembly-manifest-store/README.md) | IC-2 普通对象发布与 6 条 IC-4 根闭包偏离；H3 承接，不贴模板标识。 |
 | [packages/assets/evaluation-input-store](../../../../packages/assets/evaluation-input-store/README.md) | 缺少本包薄 SPEC；R1 的共享路径证据不能替代提供者全量集成核对，H4 承接。 |
-| [packages/core/assembly-manifest](../../../../packages/core/assembly-manifest/README.md) | 缺少真实 tests 与薄 SPEC；已有抽象 Service 不等于全部模板资源已经接续。 |
 | [packages/core/asset-evaluation](../../../../packages/core/asset-evaluation/README.md) | 已有 SPEC 只接续环境扩展；完整公共集成与旧操作条款尚需按 H4/H6 实际范围核验。 |
 | [packages/core/asset-registry](../../../../packages/core/asset-registry/README.md) | 缺少模块薄 SPEC；公共类型存在不代表当前 registry 提供者/共同行为已经整改。 |
 | [packages/core/model-profile-directory](../../../../packages/core/model-profile-directory/README.md) | 缺少真实 tests 与薄 SPEC；H4 五类公共依赖整改仍未完成。 |

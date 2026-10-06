@@ -9,16 +9,14 @@ import {
   UniqueViolation,
 } from '@omne-harness-lite/storage'
 import { openStorage } from '@omne-harness-lite/storage-sql'
+import { createAssemblyManifestStore, type ManifestDb } from '../src/index.ts'
 import {
-  createAssemblyManifestStore,
-  assemblyManifestStorePlugin,
-  type ManifestDb,
   type ManifestDiagnostic,
-} from '../src/index.ts'
-import {
   checkManifestGivenReadInput,
   type AssemblyManifestService,
 } from '@omne-harness-lite/assembly-manifest'
+import { assemblyManifestStorePlugin, AssemblyManifestResourcesService } from '../src/cordis.ts'
+import { AssemblyManifestService as ManifestService } from '@omne-harness-lite/assembly-manifest/cordis'
 import { database, evaluated, input } from './support.ts'
 
 const categories = ['tool', 'skill', 'mcp', 'slash_command', 'plugin', 'loop_extension'] as const
@@ -375,22 +373,23 @@ test('Cordis withdrawal closes all six methods and waits for an actual given rea
     const events: ManifestDiagnostic[] = []
     const ctx = new Context()
     ctx.provide('storage', storage)
-    const fiber = ctx.plugin(assemblyManifestStorePlugin, {
+    new AssemblyManifestResourcesService(ctx, {
       diagnostic: (event: ManifestDiagnostic) => events.push(event),
       diagnosticFailure: () => {},
     })
+    const fiber = ctx.plugin(assemblyManifestStorePlugin, {})
     await fiber
     const service = ctx.get('assemblyManifest') as AssemblyManifestService
-    expect(Object.keys(service).sort()).toEqual(
-      [
-        'append',
-        'dependencyPresence',
-        'readEvaluation',
-        'readGiven',
-        'readHead',
-        'readHistory',
-      ].sort(),
-    )
+    expect(service).toBeInstanceOf(ManifestService)
+    for (const operation of [
+      'append',
+      'dependencyPresence',
+      'readEvaluation',
+      'readGiven',
+      'readHead',
+      'readHistory',
+    ] as const)
+      expect(typeof service[operation]).toBe('function')
     await service.readGiven('session', 0)
     let release!: () => void, entered!: () => void
     const gate = new Promise<void>(resolve => {
