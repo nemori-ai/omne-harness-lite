@@ -1,5 +1,6 @@
 import type { JsonValue } from '@omne-harness-lite/content-blocks'
 import type { SessionAccess, SessionScope } from '@omne-harness-lite/session-tenancy'
+import type { ContextSnapshotReader, ContextSourceHandle } from './observation.ts'
 
 export type ContextScope = SessionScope
 export type ContextConsumer = 'model' | 'tool' | 'extension'
@@ -26,6 +27,7 @@ export type ContextRead =
         | 'invalidInput'
         | 'notAuthorized'
         | 'missingRegistration'
+        | 'viewChanged'
         | 'sourceUnavailable'
         | 'ownerStopped'
         | 'unavailable'
@@ -55,7 +57,7 @@ export interface ContextSource {
 }
 export interface ContextSourceRegistrations {
   /** The disposer removes only this registration generation, not session registrations. */
-  readonly registerSource: (source: ContextSource) => () => void
+  readonly registerSource: (source: ContextSource) => ContextSourceHandle
 }
 export type ContextMutation =
   | { readonly kind: 'applied'; readonly revision: string }
@@ -72,7 +74,7 @@ export type ContextMutation =
     }
 export type ContextAccess = SessionAccess
 export type ContextBinding =
-  | { readonly kind: 'bound'; readonly reader: ContextReader }
+  | { readonly kind: 'bound'; readonly reader: ContextSnapshotReader }
   | Extract<ContextRead, { kind: 'rejected' }>
 export interface RuntimeContextOperations {
   /** consumer is checked against the live identity; it never grants a role. */

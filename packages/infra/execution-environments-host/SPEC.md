@@ -11,3 +11,13 @@ Service withdrawal does not transfer that responsibility or create a replacement
 
 The standalone registry keeps its direct close result. Its caller must retain the original instance and dependencies after failure.
 The adapter does not authorize recovery or determine physical quiescence. Those decisions remain with the actual environment provider.
+
+## Placement and lease adoption
+
+The registry admits one trusted placement source per owner. Its caller fiber owns the contribution. Withdrawal immediately rejects new reads and new effects. The source disposer waits for callbacks already admitted to that exact contribution; replacement does not adopt those callbacks.
+
+An acquisition owns its input data and original resource callbacks before the first authority wait. PR1 supports one unambiguous provider or the owner named by an explicit reference. Discovery across several providers belongs to the next increment. Candidate selection checks binding ownership and all requested facilities before consulting the source strategy. It must not choose by provider registration order.
+
+Provider success is provisional. Before delivery, the registry checks current access, the original source, and the selected description. Failure releases that exact lease; it does not acquire another instance. Each new command or file operation checks current authority for the original adopted instance. Existing process observation and stop controls remain with the original provider after access withdrawal.
+
+The built-in host currently advertises no command or file facility. Protocol fixtures do not establish an OS backend, sandbox isolation, or physical resource recovery.

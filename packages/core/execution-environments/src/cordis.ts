@@ -3,12 +3,16 @@ import type {
   ExecutionEnvironmentOperations,
   EnvironmentProviderRegistrations,
   ResourceRecoveryAuthority,
+  EnvironmentPlacementRegistrations,
 } from './index.ts'
 
-/** @contract capability.execution-environments */
+/** @owner packages/core/execution-environments */
 export abstract class ExecutionEnvironmentsService
   extends Service
-  implements ExecutionEnvironmentOperations, EnvironmentProviderRegistrations
+  implements
+    ExecutionEnvironmentOperations,
+    EnvironmentProviderRegistrations,
+    EnvironmentPlacementRegistrations
 {
   static readonly provide = 'executionEnvironments'
   constructor(ctx: Context) {
@@ -23,13 +27,16 @@ export abstract class ExecutionEnvironmentsService
   abstract registerProvider(
     ...args: Parameters<EnvironmentProviderRegistrations['registerProvider']>
   ): ReturnType<EnvironmentProviderRegistrations['registerProvider']>
+  abstract registerPlacementSource(
+    ...args: Parameters<EnvironmentPlacementRegistrations['registerPlacementSource']>
+  ): ReturnType<EnvironmentPlacementRegistrations['registerPlacementSource']>
   abstract recover(
     ...args: Parameters<EnvironmentProviderRegistrations['recover']>
   ): ReturnType<EnvironmentProviderRegistrations['recover']>
 }
 export const EXECUTION_ENVIRONMENTS = ExecutionEnvironmentsService.provide
 
-/** @contract capability.execution-environments */
+/** @owner packages/core/execution-environments */
 export abstract class ResourceRecoveryAuthorityService
   extends Service
   implements ResourceRecoveryAuthority

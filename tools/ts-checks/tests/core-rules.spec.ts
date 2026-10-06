@@ -61,6 +61,7 @@ describe('core-pure-imports', () => {
       'core/call-accounts/src/schema.ts',
       'core/mcp-endpoint/src/schema.ts',
       'core/slash-command/src/schema.ts',
+      'core/runtime-context/src/decode.ts',
     ])
       expect(
         corePureImports.check([file(path, "import { createRequire } from 'node:module'")]),
@@ -70,6 +71,8 @@ describe('core-pure-imports', () => {
       'core/content-blocks/src/content.ts',
       'core/messages/src/judge.ts',
       'core/asset-model/src/schema.ts',
+      'core/runtime-context/src/runtime-context.ts',
+      'core/runtime-context/src/observation.ts',
     ])
       expect(
         corePureImports.check([file(path, "import { createRequire } from 'node:module'")]),
