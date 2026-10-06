@@ -199,3 +199,89 @@ test('ordinary adoption data is captured before caller mutation and contains no 
     }),
   ).toEqual({ invalid: true })
 })
+
+test.each(['capability', 'asset', 'version'] as const)(
+  'environment identity distinguishes the original selected %s without becoming authority',
+  key => {
+    const original = environmentToolOf(selected)
+    expect(environmentToolOf({ ...selected })).toEqual(original)
+    expect(environmentToolOf({ ...selected, [key]: `${selected[key]}-other` })).not.toEqual(
+      original,
+    )
+    expect(Object.isFrozen(original)).toBe(true)
+  },
+)
+
+test('a pure tool author result does not require an environment adoption', () => {
+  const pure = {
+    ...intent,
+    selected: { ...selected, definition: { ...selected.definition, settings: undefined } },
+  }
+  // Omit the property: undefined is not ordinary JSON.
+  delete pure.selected.definition.settings
+  expect(projectToolJournal(scope, entries([pure, started, ended()]))).toHaveProperty('executions')
+})
+
+test.each([
+  { outcome: 'completed', result: { content: [], isError: false } },
+  { outcome: 'failed', code: 'business_failure', result: { content: [], isError: true } },
+  { outcome: 'failed', code: 'implementation_error' },
+  { outcome: 'failed', code: 'result_rejected' },
+])('every supported author terminal requires original adoption (%#)', terminal => {
+  const original = ended(),
+    value = {
+      ...original,
+      terminal,
+      delivery: {
+        ...original.delivery,
+        result: { ...original.delivery.result, outcome: terminal.outcome },
+      },
+    }
+  expect(projectToolJournal(scope, entries([intent, started, value]))).toEqual({ invalid: true })
+  expect(projectToolJournal(scope, entries([intent, started, adopted, value]))).toHaveProperty(
+    'executions',
+  )
+})
+
+test('a no-answer terminal refers to the original wait while cleanup cannot add a new plan', () => {
+  const waiting = {
+    kind: 'execution_waiting',
+    revision: 1,
+    ref,
+    waitIndex: 1,
+    request: { prompt: 'confirm', answerSchema: { type: 'boolean' } },
+  }
+  const original = ended(),
+    value = {
+      ...original,
+      terminal: { outcome: 'no_answer', waitIndex: 1 },
+      delivery: {
+        ...original.delivery,
+        result: { ...original.delivery.result, outcome: 'no_answer' },
+      },
+    }
+  expect(
+    projectToolJournal(scope, entries([intent, started, adopted, waiting, value])),
+  ).toHaveProperty('executions')
+  expect(
+    projectToolJournal(
+      scope,
+      entries([
+        intent,
+        started,
+        adopted,
+        waiting,
+        { ...value, terminal: { outcome: 'no_answer', waitIndex: 2 } },
+      ]),
+    ),
+  ).toEqual({ invalid: true })
+  const planned = {
+    kind: 'resource_planned',
+    revision: 1,
+    ref,
+    resource: { key: 'after-terminal', provider: 'host', reference: 'original' },
+  }
+  expect(projectToolJournal(scope, entries([intent, started, adopted, ended(), planned]))).toEqual({
+    invalid: true,
+  })
+})
