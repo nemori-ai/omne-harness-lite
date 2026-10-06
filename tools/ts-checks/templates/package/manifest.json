@@ -1,0 +1,30 @@
+{
+  "format": 1,
+  "id": "typescript-package",
+  "version": "1.0.0",
+  "requiredFiles": ["README.md", "README_ZH.md", "tsconfig.build.json", "tsconfig.test.json", "vitest.config.ts", "src/index.ts"],
+  "common": [
+    {"source": "common/package.json.tpl", "target": "package.json"},
+    {"source": "common/tsconfig.build.json.tpl", "target": "tsconfig.build.json"},
+    {"source": "common/tsconfig.test.json.tpl", "target": "tsconfig.test.json"},
+    {"source": "common/vitest.config.ts.tpl", "target": "vitest.config.ts"},
+    {"source": "common/README.md.tpl", "target": "README.md"},
+    {"source": "common/README_ZH.md.tpl", "target": "README_ZH.md"}
+  ],
+  "variants": {
+    "module": [{"source": "variants/module/src/index.ts.tpl", "target": "src/index.ts"}],
+    "cordis-module": [
+      {"source": "variants/cordis-module/src/index.ts.tpl", "target": "src/index.ts"},
+      {"source": "variants/cordis-module/src/cordis.ts.tpl", "target": "src/cordis.ts"}
+    ],
+    "service-contract": [
+      {"source": "variants/service-contract/src/index.ts.tpl", "target": "src/index.ts"},
+      {"source": "variants/service-contract/src/cordis.ts.tpl", "target": "src/cordis.ts"}
+    ],
+    "service-provider": [
+      {"source": "variants/service-provider/src/index.ts.tpl", "target": "src/index.ts"},
+      {"source": "variants/service-provider/src/cordis.ts.tpl", "target": "src/cordis.ts"}
+    ]
+  },
+  "previousVersions": {}
+}

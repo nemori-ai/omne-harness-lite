@@ -17,7 +17,8 @@
     "format:hook:install": "./scripts/install-format-hook.sh",
     "test:format": "./scripts/test-formatting.sh",
     "check": "pnpm run format:check && pnpm run test:format && pnpm run build && pnpm run typecheck && pnpm run test:gate && pnpm run lint:rules",
-    "lint:rules": "pnpm --filter @omne-harness-lite/ts-checks run scan"
+    "lint:rules": "pnpm --filter @omne-harness-lite/ts-checks run scan",
+    "package:template": "node --experimental-strip-types tools/ts-checks/src/package-template/cli.ts"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "catalog:",

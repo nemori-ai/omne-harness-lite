@@ -77,6 +77,30 @@ pnpm format:write
 需要本地提交检查时，确认没有既有 `pre-commit` hook 后运行 `pnpm format:hook:install`。
 安装器不覆盖已有 hook；所装检查只读 Git index 中已暂存的文件，**不 stash、不改工作区**。
 
+## 创建和整改产品包
+
+产品包先明确已接受的职责、公开接口与行为依据。建包时使用[版本化包模板](../tools/ts-checks/templates/package/README_ZH.md)，不要手写另一套结构。模板不能替代架构设计或技术接受。
+
+从仓库根先预览，再创建草稿：
+
+```sh
+pnpm package:template create --group core --name example-capability --variant service-contract
+pnpm package:template create --group core --name example-capability --variant service-contract --write
+```
+
+按职责选择 module、cordis-module、service-contract 或 service-provider。公共 Service 定义归 core；独立能力从纯根导出，Cordis 集成放 ./cordis。源码、薄 SPEC、Schema、模型及 ADR 的归属详见模板说明。生成的草稿占位须由真实承诺与验证替换，不生成空测试或假 Service。
+
+现存包整改先做只读盘点，再按精确版本核对实际结构：
+
+```sh
+pnpm package:template scan --json
+pnpm package:template scan --member packages/core/storage --check
+```
+
+逐包补齐结构并核对绑定后，才能添加 omneHarness.packageTemplate 的 id/version/variant。保留原公开能力、源码、Schema 身份及模型义务，不批量抬升标识。标识表示模板采用，不表示完整架构或业务验收。
+
+扫描区分当前、旧版、无标识、非法和未知版本，并另报结构通过、失败或未覆盖。普通盘点退出 0 不表示合规；--check 的 0/1/2 分别表示限定检查通过、采用或结构失败、规则未覆盖或输入错误。动态绑定及架构 unknown 仍是覆盖限制。创建命令不覆盖已有目标，扫描不改文件。
+
 ## 博客子模块
 
 `docs/blogs/` 是独立的个人博客仓库，地址由根 `.gitmodules` 记录。

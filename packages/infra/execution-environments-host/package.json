@@ -19,7 +19,8 @@
   "files": [
     "dist",
     "README.md",
-    "SPEC.md"
+    "SPEC.md",
+    "README_ZH.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -48,6 +49,13 @@
   "peerDependenciesMeta": {
     "@deepseek-ai/cordis": {
       "optional": true
+    }
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "service-provider"
     }
   }
 }

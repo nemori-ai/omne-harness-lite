@@ -1,0 +1,83 @@
+#!/usr/bin/env node
+import { resolve } from 'node:path'
+import { createPackage } from './create.ts'
+import { readTemplate } from './template.ts'
+import { variant } from './model.ts'
+import { scanPackages, scanExitCode } from './scan.ts'
+
+const HELP = `Usage:
+  package-template create --name <leaf> --group <group> --variant <variant> [--root <repo>] [--write]
+  package-template scan [--root <repo>] [--member packages/<group>/<name>]... [--check] [--json]
+Creation previews by default. --write creates a draft without replacing files.
+Inventory scan is read-only, not a conformance assertion. --check requires current markers and checked structure.
+Variants: module, cordis-module, service-contract, service-provider.`
+
+function options(args: readonly string[], command: string) {
+  const values = new Map<string, string>()
+  const flags = new Set<string>()
+  const members: string[] = []
+  const allowed =
+    command === 'create'
+      ? ['--root', '--name', '--group', '--variant', '--write']
+      : ['--root', '--member', '--check', '--json']
+  for (let i = 0; i < args.length; i += 1) {
+    const key = args[i]
+    if (key === undefined || !allowed.includes(key)) throw new Error(HELP)
+    if (['--write', '--check', '--json'].includes(key)) {
+      if (flags.has(key)) throw new Error(`Repeated option: ${key}`)
+      flags.add(key)
+      continue
+    }
+    const value = args[i + 1]
+    if (value === undefined || value === '' || value.startsWith('--')) throw new Error(HELP)
+    if (key === '--member') {
+      if (members.includes(value)) throw new Error(`Repeated member: ${value}`)
+      members.push(value)
+    } else {
+      if (values.has(key)) throw new Error(`Repeated option: ${key}`)
+      values.set(key, value)
+    }
+    i += 1
+  }
+  return { values, flags, members }
+}
+try {
+  const [command, ...args] = process.argv.slice(2)
+  if (command === '--help') process.stdout.write(`${HELP}\n`)
+  else if (command === 'create' || command === 'scan') {
+    const { values, flags, members } = options(args, command)
+    const root = resolve(values.get('--root') ?? '.')
+    if (command === 'create') {
+      const name = values.get('--name'),
+        group = values.get('--group'),
+        selected = values.get('--variant')
+      if (name === undefined || group === undefined || !variant(selected)) throw new Error(HELP)
+      process.stdout.write(
+        `${JSON.stringify(createPackage({ root, name, group, variant: selected, write: flags.has('--write') }), null, 2)}\n`,
+      )
+    } else {
+      const template = readTemplate()
+      const results = scanPackages(root, members.length === 0 ? undefined : members)
+      if (flags.has('--json'))
+        process.stdout.write(
+          `${JSON.stringify({ template: `${template.id}@${template.version}`, packages: results, limits: 'Template structure and existing static subset only; not business, tenancy, transaction, lifecycle or formal proof acceptance' }, null, 2)}\n`,
+        )
+      else {
+        for (const item of results) {
+          process.stdout.write(
+            `${item.path}: ${item.adoption} / ${item.variant} / ${item.structure}; architecture unknowns=${item.architectureUnknowns}; binding unknowns=${item.bindingUnknowns.length}\n`,
+          )
+          for (const finding of item.findings)
+            process.stdout.write(`  ${finding.code}: ${finding.path}: ${finding.reason}\n`)
+        }
+        process.stdout.write(
+          `Packages: ${results.length}. Static structure is not business or lifecycle acceptance.\n`,
+        )
+      }
+      process.exitCode = scanExitCode(results, flags.has('--check'))
+    }
+  } else throw new Error(HELP)
+} catch (error) {
+  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`)
+  process.exitCode = 2
+}

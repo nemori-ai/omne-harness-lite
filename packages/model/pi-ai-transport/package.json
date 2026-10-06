@@ -70,5 +70,12 @@
     "typescript": "catalog:",
     "vitest": "catalog:",
     "@omne-harness-lite/model-request-runtime-local": "workspace:*"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "service-provider"
+    }
   }
 }
