@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { runCli, providers } from './application.ts'
+import { runCli } from './application.ts'
+import { providers } from './default-providers.ts'
 
 const controller = new AbortController()
 const stop = () => controller.abort()
@@ -20,7 +21,8 @@ try {
     stderr: (text: string) => write(process.stderr, text),
   }
   if (args[0] === 'tui') {
-    const { runTui, tuiProviders } = await import('./tui/application.ts')
+    const { runTui } = await import('./tui/application.ts')
+    const { tuiProviders } = await import('./tui/providers.ts')
     process.exitCode = await runTui(args, { ...tuiProviders(), ...io })
   } else
     process.exitCode = await runCli(args, {

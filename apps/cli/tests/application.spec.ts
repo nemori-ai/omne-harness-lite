@@ -4,7 +4,8 @@ import type {
   ActionReport,
   GovernanceClientOperations,
 } from '@omne-harness-lite/governance-client-operations'
-import { runCli, providers, type CliRuntime } from '../src/application.ts'
+import { runCli, type CliRuntime } from '../src/application.ts'
+import { providers } from '../src/default-providers.ts'
 import { diagnosticText } from '../src/diagnostic.ts'
 import { commands } from '../src/parser.ts'
 import { json, unopened } from '../src/presentation.ts'
