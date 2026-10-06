@@ -140,6 +140,21 @@ test.each([
     }),
   ).toEqual({ invalid: true })
 })
+test('rejects a different tool name even when its adopted definition identity is unchanged', () => {
+  const mismatched = {
+    ...adopted,
+    adoption: {
+      ...adoption,
+      placement: {
+        ...adoption.placement,
+        tool: { ...adoption.placement.tool, name: 'tool:other' },
+      },
+    },
+  }
+  expect(projectToolJournal(scope, entries([intent, started, mismatched]))).toEqual({
+    invalid: true,
+  })
+})
 test('physical cleanup follows a planned resource after terminal but a new permit requires adoption', () => {
   const planned = {
     kind: 'resource_planned',
