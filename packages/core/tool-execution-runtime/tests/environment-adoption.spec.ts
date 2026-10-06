@@ -215,10 +215,8 @@ test.each(['capability', 'asset', 'version'] as const)(
 test('a pure tool author result does not require an environment adoption', () => {
   const pure = {
     ...intent,
-    selected: { ...selected, definition: { ...selected.definition, settings: undefined } },
+    selected: { ...selected, definition: { ...selected.definition, settings: {} } },
   }
-  // Omit the property: undefined is not ordinary JSON.
-  delete pure.selected.definition.settings
   expect(projectToolJournal(scope, entries([pure, started, ended()]))).toHaveProperty('executions')
 })
 
