@@ -91,3 +91,5 @@ PF-020-workspace/
     ├── 2026-09-27-directory-layout.md
     └── 2026-09-27-omne-host.md
 ```
+
+用户可见交付切片见[故事卡](stories.md)。
