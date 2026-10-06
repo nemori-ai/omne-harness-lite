@@ -114,3 +114,5 @@ PF-008-human-in-the-loop/
 ```
 
 用户可见交付切片见[故事卡](stories.md)。
+
+会话的受理／未受理边界见 [PF-014 §6.8](../PF-014-inbound-intake-and-queueing/design.md#68-停机不会让一条入站到达永远悬着)，待消费保管及交接范围见 [PF-015 §6.26](../PF-015-session-lifecycle-and-ownership/design.md#626-待消费数据先持久保管再交接)；本包已有动作、结果保留与清理规则仍由本包正文拥有。

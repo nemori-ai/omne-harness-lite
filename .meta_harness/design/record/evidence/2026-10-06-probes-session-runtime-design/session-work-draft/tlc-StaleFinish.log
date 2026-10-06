@@ -1,0 +1,105 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 126 and seed -7894348570745335974 with 1 worker on 8 cores with 6955MB heap and 64MB offheap memory [pid: 51026] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/session-agent-runtime-phase1/.meta_harness/design/record/proposals/session-agent-runtime-phase1/verification/models/SessionWork.tla
+Parsing file /tmp/tlc-11056519173772203124/Naturals.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-11056519173772203124/FiniteSets.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-11056519173772203124/_TLCTrace.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/_TLCTrace.tla)
+Parsing file /tmp/tlc-11056519173772203124/Sequences.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-11056519173772203124/TLC.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-11056519173772203124/TLCExt.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLCExt.tla)
+Parsing file /tmp/tlc-11056519173772203124/Integers.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Integers
+Semantic processing of module TLCExt
+Semantic processing of module _TLCTrace
+Semantic processing of module SessionWork
+Linting of module TLCExt
+Linting of module _TLCTrace
+Linting of module SessionWork
+Starting... (2026-10-06 17:33:01)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-06 17:33:02.
+Error: Invariant NoStaleFinish is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ pending = {}
+/\ badFinish = FALSE
+/\ adopted = (i1 :> 0 @@ i2 :> 0)
+/\ alive = FALSE
+/\ active = 0
+/\ notice = FALSE
+/\ attempt = (r1 :> 0 @@ r2 :> 0)
+/\ terminal = {}
+/\ badIssue = FALSE
+/\ settled = {}
+/\ admitted = {}
+/\ issued = (c1 :> [run |-> 0, a |-> 0])
+/\ created = {}
+
+State 2: <Accept(i1) line 15, col 14 to line 19, col 71 of module SessionWork>
+/\ pending = {i1}
+/\ badFinish = FALSE
+/\ adopted = (i1 :> 0 @@ i2 :> 0)
+/\ alive = FALSE
+/\ active = 0
+/\ notice = FALSE
+/\ attempt = (r1 :> 0 @@ r2 :> 0)
+/\ terminal = {}
+/\ badIssue = FALSE
+/\ settled = {}
+/\ admitted = {i1}
+/\ issued = (c1 :> [run |-> 0, a |-> 0])
+/\ created = {}
+
+State 3: <Begin(r1) line 20, col 13 to line 25, col 48 of module SessionWork>
+/\ pending = {}
+/\ badFinish = FALSE
+/\ adopted = (i1 :> r1 @@ i2 :> 0)
+/\ alive = FALSE
+/\ active = r1
+/\ notice = FALSE
+/\ attempt = (r1 :> 0 @@ r2 :> 0)
+/\ terminal = {}
+/\ badIssue = FALSE
+/\ settled = {}
+/\ admitted = {i1}
+/\ issued = (c1 :> [run |-> 0, a |-> 0])
+/\ created = {r1}
+
+State 4: <Accept(i2) line 15, col 14 to line 19, col 71 of module SessionWork>
+/\ pending = {i2}
+/\ badFinish = FALSE
+/\ adopted = (i1 :> r1 @@ i2 :> 0)
+/\ alive = FALSE
+/\ active = r1
+/\ notice = FALSE
+/\ attempt = (r1 :> 0 @@ r2 :> 0)
+/\ terminal = {}
+/\ badIssue = FALSE
+/\ settled = {}
+/\ admitted = {i1, i2}
+/\ issued = (c1 :> [run |-> 0, a |-> 0])
+/\ created = {r1}
+
+State 5: <Finish line 48, col 11 to line 52, col 43 of module SessionWork>
+/\ pending = {i2}
+/\ badFinish = TRUE
+/\ adopted = (i1 :> r1 @@ i2 :> 0)
+/\ alive = FALSE
+/\ active = 0
+/\ notice = FALSE
+/\ attempt = (r1 :> 0 @@ r2 :> 0)
+/\ terminal = {r1}
+/\ badIssue = FALSE
+/\ settled = {}
+/\ admitted = {i1, i2}
+/\ issued = (c1 :> [run |-> 0, a |-> 0])
+/\ created = {r1}
+
+60 states generated, 38 distinct states found, 22 states left on queue.
+The depth of the complete state graph search is 5.
+Finished in 01s at (2026-10-06 17:33:02)
+Trace exploration spec path: .meta_harness/design/record/proposals/session-agent-runtime-phase1/verification/models/SessionWork_TTrace_1791307980.tla

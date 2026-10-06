@@ -1,0 +1,96 @@
+{
+  "head": "2fbc2fd515a5f50172cef0325cc2fcb24480f81d",
+  "captured_after_execution": true,
+  "files": [
+    {
+      "source": ".meta_harness/design/record/proposals/session-agent-runtime-phase1/verification/models/SessionWork.tla",
+      "snapshot": "session-work-draft/SessionWork.tla",
+      "sha256": "3ce654c1b092060293a5815a3569a1320e7fd18e740240ca76f255e1ad31031b"
+    },
+    {
+      "source": ".meta_harness/design/record/proposals/session-agent-runtime-phase1/verification/models/SessionWork.cfg",
+      "snapshot": "session-work-draft/SessionWork.cfg",
+      "sha256": "3a8069e4acbbe9edcdcc1d221817c63c57ef60584bd370b5ed2b9aa4bbabfe4c"
+    },
+    {
+      "source": "tmp/session-agent-runtime-phase1/evidence/design-completion/HalfAccept.cfg",
+      "snapshot": "session-work-draft/HalfAccept.cfg",
+      "sha256": "2e888f68f20a39018b14b0b7e52c79e0df56c8ac80984e0bbd96f792dd86424a"
+    },
+    {
+      "source": "tmp/session-agent-runtime-phase1/evidence/design-completion/OldIssue.cfg",
+      "snapshot": "session-work-draft/OldIssue.cfg",
+      "sha256": "804965e223047f5964b0223e5d7944e33a29f42cb44947d44e5ed7797662202a"
+    },
+    {
+      "source": "tmp/session-agent-runtime-phase1/evidence/design-completion/StaleFinish.cfg",
+      "snapshot": "session-work-draft/StaleFinish.cfg",
+      "sha256": "c4795d823c57e3475d5958f144c1d9c8e1982d48620522d1e512b519992661de"
+    },
+    {
+      "source": "tmp/session-agent-runtime-phase1/evidence/design-completion/tlc-positive.log",
+      "snapshot": "session-work-draft/tlc-positive.log",
+      "sha256": "adf2a2b476494c53412068774c4d6a6f426f683561d420649dddb6e16ebb5892"
+    },
+    {
+      "source": "tmp/session-agent-runtime-phase1/evidence/design-completion/tlc-HalfAccept.log",
+      "snapshot": "session-work-draft/tlc-HalfAccept.log",
+      "sha256": "572240e588518251cd6e90ddf336e74360bd2af437704a8dffd9be8cd1d6e8dd"
+    },
+    {
+      "source": "tmp/session-agent-runtime-phase1/evidence/design-completion/tlc-OldIssue.log",
+      "snapshot": "session-work-draft/tlc-OldIssue.log",
+      "sha256": "400ceb2211192129b4344325c10cbbbd406b26298222c125b34da76228a0e62e"
+    },
+    {
+      "source": "tmp/session-agent-runtime-phase1/evidence/design-completion/tlc-StaleFinish.log",
+      "snapshot": "session-work-draft/tlc-StaleFinish.log",
+      "sha256": "58e331af89c3d7be5a4c2be8aa62dba351de9675a80d7a1ad02d180188640949"
+    },
+    {
+      "source": "tmp/session-agent-runtime-phase1/probe_projection.py",
+      "snapshot": "projection/probe_projection.py",
+      "sha256": "34ebecec31e3340b2f8658face7a867922251357cbe5a7fbcc987c0273876c6b"
+    },
+    {
+      "source": "tmp/session-agent-runtime-phase1/evidence/design-completion/projection-probe.json",
+      "snapshot": "projection/projection-probe.json",
+      "sha256": "062637beb5349afabeba9b307ef354be68d95c52700f3a6e64c5bb47377b5e90"
+    },
+    {
+      "source": "tmp/session-agent-runtime-phase1/probe_cordis.mjs",
+      "snapshot": "cordis/probe_cordis.mjs",
+      "sha256": "b44b5c973e2a1c141f76d6df10c4f85593aaf50a521431e32cc047e90de481b1"
+    },
+    {
+      "source": "tmp/session-agent-runtime-phase1/evidence/design-completion/cordis-probe.json",
+      "snapshot": "cordis/cordis-probe.json",
+      "sha256": "33375843d1749c232f81a6bdc84cfbfd0ce1cd9a393fd8ef7cf454f860966dae"
+    },
+    {
+      "source": "tmp/session-agent-runtime-phase1/probe_transactions.py",
+      "snapshot": "sqlite-protocol/probe_transactions.py",
+      "sha256": "2a79e0818a4a6e7761773e37737c68ecd6644ac4b2c997b0835a62e56e6237ef"
+    },
+    {
+      "source": "tmp/session-agent-runtime-phase1/evidence/design-completion/transaction-probe.json",
+      "snapshot": "sqlite-protocol/transaction-probe.json",
+      "sha256": "fc11efe0b53abc5addcffe951fb5e3252617063f54cff322b1d7f5f00bb129fa"
+    },
+    {
+      "source": "tmp/session-agent-runtime-phase1/evidence/design-completion/storage-build.log",
+      "snapshot": "existing-storage/storage-build.log",
+      "sha256": "6df484d285043c00bb30341f5370fb11839544028a42e5f5c2b0bab88795f14e"
+    },
+    {
+      "source": "tmp/session-agent-runtime-phase1/evidence/design-completion/storage-atomic-tests.log",
+      "snapshot": "existing-storage/storage-atomic-tests.log",
+      "sha256": "99c2a2b3108c98e32109d657857009fbc56d945a98e735955a90aafe054027f8"
+    }
+  ],
+  "unchanged_environment_inputs": {
+    "pnpm-lock.yaml": "0999bc5f3f2c1684bd48322378891c91bd12dc76ffa1e615514e8af8838d054d",
+    "packages/core/kernel-basis/package.json": "71e22e3b80bdcf8c0b7e0b7fd35456b426cd3c4e99c51f102bb787ddb411a947",
+    "packages/infra/storage-sql/package.json": "c109ff803791be6668cf271e9fa2110f4c5096a152d833b5e7427bd51453f3ba"
+  }
+}

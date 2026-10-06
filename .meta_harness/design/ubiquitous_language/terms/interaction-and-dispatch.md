@@ -283,7 +283,7 @@
 > running towards strictness: **it cannot be replaced, disabled or narrowed**.
 
 - **形态**：过程
-- **出处**：[PF-008 §4 放行判断](../../product/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 7） · [PF-012 §5.8 系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪) · [系统自带的几件，不可用时各有定法](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 21）
+- **出处**：[PF-008 §4 放行判断](../../product/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 7） · [PF-012 §5.8 系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪) · [系统自带的几件，不可用时各有定法](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 24）
 - **注意 ①**：**没有任何一样单独说了算。**获批不等于自动放行，有权限设置也不等于请示没意义
 - **注意 ②**：**权限设置里明确禁止的，会话授权翻不了案**——
   否则任何禁止都能靠「让用户在会话里点个同意」绕过去，
@@ -402,19 +402,18 @@
 
 > **中**：**外面要送进一个[会话](agent-runtime-loop.md#ul-session--会话--session)的一件事，
 > 被受理之后成为的那条事实。**受理**是一个动作，不是一个通道**——
-> 东西送到了不等于被受理；**受理的那一刻，它成为一条可以被指着说「就是它」的事实**。
+> 东西送到了不等于被受理；**受理以完整持久提交为准**。普通消息的受理事实与待处理资格一起成立；卡片答复和控制指令记录各自目标与处置责任，不进入普通消息队列。回执未知不表示未受理。
 > 它**归属于恰好一个会话**、**有一个来源**，而且**受理了就不会凭空消失**：
 > 要么被消费，要么被明确关掉，**两种都留痕**。
 >
 > **EN**: **A thing from outside, destined for one session, as it exists once it has
 > been admitted.** Admission is **an action, not a channel** — something reaching the
-> system is not yet admitted; at the moment of admission it becomes a fact one can
-> point at. It **belongs to exactly one session**, **carries a source**, and **once
+> system is not yet admitted. Admission requires a complete durable commit. For ordinary messages, the admission fact and pending eligibility take effect together. Card replies and control commands retain their own targets and handling responsibility; they do not enter the ordinary-message queue. A missing acknowledgement does not mean admission failed. It **belongs to exactly one session**, **carries a source**, and **once
 > admitted never vanishes silently**: it is either consumed or explicitly closed out,
 > and **both leave a trace**.
 
 - **形态**：对象
-- **出处**：[PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 11）
+- **出处**：[PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 13）
 - **别混 ①**：**它不是一条[消息](record-and-context.md#ul-message--消息--message)。**
   消息回答**谁在说话**；入站到达回答**外面送进来了一件什么事**。
   **有的到达会成为消息**（进[待处理消息队列](agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue)），
@@ -446,7 +445,7 @@
 - **形态**：属性
 - **出处**：[PF-002 §4 Connector](../../product/PF-002-assets-settings-and-permissions/design.md#connector) · [两种投递方式](../../product/PF-002-assets-settings-and-permissions/design.md#两种投递方式动作主体不同) ·
   [§5.2 设置项分四类](../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32） ·
-  [PF-014 §5.7 穷举一](../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（rev 11）
+  [PF-014 §5.7 穷举一](../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（rev 13）
 - **别混 ①**：**不是[交付面](#ul-delivery-surface--交付面--delivery-surface)**（Delivery Surface）——那是人碰到这个系统的那一面，这里是连接件把外面的消息送往哪里
 - **别混 ②**：**不是[连接目标](capabilities-and-composition.md#ul-connection-target--连接目标--connection-target)**——那是 MCP 接入点往外连到哪，方向相反
 - **注意**：送进来的消息**受理之后怎么走**，归[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)那一套，与它无关
@@ -464,7 +463,7 @@
 > mark on that log at all** — a defining property, not an implementation detail.
 
 - **形态**：位置
-- **出处**：[PF-015 §4 业务流程拓展点](../../product/PF-015-session-lifecycle-and-ownership/design.md#业务流程拓展点) · [§6.6](../../product/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)（rev 20）
+- **出处**：[PF-015 §4 业务流程拓展点](../../product/PF-015-session-lifecycle-and-ownership/design.md#业务流程拓展点) · [§6.6](../../product/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)（rev 21）
 - **⚠️ 别混**：**它不是 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)**——
   **那一类只能靠改会话日志起作用**，这一类恰恰一个字都不能改。
   两者是**并列的两类拓展点**，不是同一类的两个位置
@@ -490,7 +489,7 @@
 > defines that action**.
 
 - **形态**：变体（父：[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)）
-- **出处**：[PF-014 §4 控制指令](../../product/PF-014-inbound-intake-and-queueing/design.md#控制指令)（rev 11）
+- **出处**：[PF-014 §4 控制指令](../../product/PF-014-inbound-intake-and-queueing/design.md#控制指令)（rev 13）
 - **别混 ①**：**与[斜杠命令](capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command)不是一回事。**
   绑定提示词或 skill 的斜杠命令是**内容**——它要 agent 去做一件事，因此进队列；
   绑定系统业务流程的那种不进队列，但它触发的是一条业务流程、留一条记录，也不是处置；
@@ -516,7 +515,7 @@
 > why**.
 
 - **形态**：变体（父：[控制指令](#ul-control-command--控制指令--control-command)）
-- **出处**：[PF-014 §4 插队](../../product/PF-014-inbound-intake-and-queueing/design.md#插队)（rev 11）
+- **出处**：[PF-014 §4 插队](../../product/PF-014-inbound-intake-and-queueing/design.md#插队)（rev 13）
 - **别混 ①**：**它不终止[运行](agent-runtime-loop.md#ul-run--运行--run)。**
   这是它与**取消**最要紧的差别：取消让运行落终态，
   **插队只是把运行推到下一次取消息那一点**，运行一直活着

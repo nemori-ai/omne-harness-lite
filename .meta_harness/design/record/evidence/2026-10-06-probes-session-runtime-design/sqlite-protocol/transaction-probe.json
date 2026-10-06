@@ -1,0 +1,8 @@
+{
+  "scope": "SQLite deterministic protocol prototype, not product provider/migration/concurrent scheduler proof",
+  "sqlite": "3.53.1",
+  "rollback_both_participants": true,
+  "speculative_pattern_retries": 100,
+  "locked_claims_with_continuing_appends": 100,
+  "duplicate_new_execution_owners": 0
+}

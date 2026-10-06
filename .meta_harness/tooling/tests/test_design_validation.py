@@ -565,6 +565,22 @@ def test_workspace_navigation_rejects_missing_targets_anchors_and_escapes(tmp_pa
     assert sum("link escapes design root" in error for error in errors) == 3
 
 
+def test_explicit_anchor_preserves_a_renamed_section_coordinate(tmp_path: Path) -> None:
+    build_tree(tmp_path)
+    source = tmp_path / "requirements/product/sample/requirements.md"
+    target = source.parent / "renamed.md"
+    target.write_text('<a id="old-title"></a>\n\n# Current title\n'
+                      '<a name="named-coordinate"></a>\n', encoding="utf-8")
+    with source.open("a", encoding="utf-8") as handle:
+        handle.write("[old](renamed.md#old-title) "
+                     "[new](renamed.md#current-title) "
+                     "[named](renamed.md#named-coordinate) "
+                     "[missing](renamed.md#absent)\n")
+    errors, _ = validate(tmp_path)
+    assert len(errors) == 1
+    assert "missing Markdown anchor: renamed.md#absent" in errors[0]
+
+
 def test_decision_acceptance_must_name_exact_coordinate_and_scope(tmp_path: Path) -> None:
     build_tree(tmp_path)
     path = tmp_path / "decisions/accept-current/acceptance.json"

@@ -446,7 +446,7 @@ specific.
 > among its blocks.
 
 - **形态**：总称
-- **出处**：[PF-015 §4 runtime context](../../product/PF-015-session-lifecycle-and-ownership/design.md#runtime-context)（rev 20）；块的两类来源沿用 [PF-001 §4 Context](../../product/PF-001-identity-scope-and-agent-constraints/design.md#contextagent-运行时可感知的上下文信息)（rev 25）
+- **出处**：[PF-015 §4 runtime context](../../product/PF-015-session-lifecycle-and-ownership/design.md#runtime-context)（rev 21）；块的两类来源沿用 [PF-001 §4 Context](../../product/PF-001-identity-scope-and-agent-constraints/design.md#contextagent-运行时可感知的上下文信息)（rev 25）
 - **弃用说法**：~~会话上下文感知域~~——**同一个概念**，正文统一写 runtime context
 - **别混 ①**：**不是 Cordis 的 `Context`**——那是依赖注入与生命周期的容器，属技术设计。指它时**必须写全 `Cordis Context`**
 - **别混 ②**：**不是[给模型看的上下文](../index.md#记录与上下文)**。**裸写「上下文 / context」在跨 topic 的文字里一律不作数**，[已记为冲突](../conflicts.md#现有冲突)
@@ -471,7 +471,7 @@ specific.
   [会话被重新加载、归档被撤销之后，它们必须还在](../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)。
   **实时算的那些没有「恢复」这回事**
 
-- **注意**：会话内的块注册与块内容分别变化；允许增删非必需注册，必需 meta 块保持在场。注册及恢复要求见 [PF-015 §6.18](../../product/PF-015-session-lifecycle-and-ownership/design.md#618-runtime-context-注册与内容分别变化)（rev 20）。
+- **注意**：会话内的块注册与块内容分别变化；允许增删非必需注册，必需 meta 块保持在场。注册及恢复要求见 [PF-015 §6.18](../../product/PF-015-session-lifecycle-and-ownership/design.md#618-runtime-context-注册与内容分别变化)（rev 21）。
 
 ### UL-meta-runtime-context · 元 runtime context · Meta Runtime Context
 
@@ -484,7 +484,7 @@ specific.
 > may be missing.**
 
 - **形态**：总称
-- **出处**：[PF-015 §4 meta runtime context](../../product/PF-015-session-lifecycle-and-ownership/design.md#meta-runtime-context) · [§5.6 十四项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 20）
+- **出处**：[PF-015 §4 meta runtime context](../../product/PF-015-session-lifecycle-and-ownership/design.md#meta-runtime-context) · [§5.6 十四项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
 - **注意 ①**：**与 [meta 能力](capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)同构**——
   那边是每个 agent 必不可少的**能力**，这边是每个会话必不可少的**感知**。**两边都不可禁用、不可替换**
 - **注意 ②**：**当前恰有十四项**，[逐项的生产者、消费者与至少提供什么见正文](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)
@@ -529,7 +529,7 @@ specific.
 > **EN**: Setting values and inheritance declarations owned by a session, including its initial values and subsequent session-local overrides. Persisting them does not turn them into tenant defaults.
 
 - **形态**：属性
-- **出处**：[PF-015 §6.17](../../product/PF-015-session-lifecycle-and-ownership/design.md#617-默认值会话值与共享修改)（rev 20）
+- **出处**：[PF-015 §6.17](../../product/PF-015-session-lifecycle-and-ownership/design.md#617-默认值会话值与共享修改)（rev 21）
 - **别混**：当前求值结果、会话日志投影与外部共享配置不是同一份权威；具体取值仍受上级锁定及授权约束。
 
 ### UL-runtime-context-registration · 运行时 context 注册 · Runtime Context Registration
@@ -539,5 +539,5 @@ specific.
 > **EN**: A session's declaration that a runtime context block participates in consumption, specifying its source, configuration and consumers. Eligible blocks can be registered or removed dynamically; registration is distinct from the block's current value.
 
 - **形态**：属性
-- **出处**：[PF-015 §6.18](../../product/PF-015-session-lifecycle-and-ownership/design.md#618-runtime-context-注册与内容分别变化)（rev 20）
+- **出处**：[PF-015 §6.18](../../product/PF-015-session-lifecycle-and-ownership/design.md#618-runtime-context-注册与内容分别变化)（rev 21）
 - **别混**：不是共享数据源的创建或删除；不引入独立于会话的对象身份。
