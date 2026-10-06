@@ -12,7 +12,7 @@
 | 六叶三轮汇总 `summary.json` | `private/paid-out/batch8-f8e55130/qwenc-<叶>/` | 与研究页所记六个 SHA-256 前后缀一致；本目录 `summaries/` 为逐字节副本，见 [SHA256SUMS](SHA256SUMS) |
 | `manifest.json`、18 份原始 SSE | 同上 | 脚本逐份核对 SSE 的 SHA-256 等于汇总里的 `rawResponse.sha256` |
 | 已批准场景 `<叶>-three-turn.b8.approved.json` | `current-certification/scenarios/r6-families/qwen/` | 脚本按 `manifest.scenarioSha256` 选中唯一文件 |
-| 固定模板与 tokenizer | 执行仓库 `packages/model/pi-ai-transport/tokenizers/qwen-38-24t/` | `chat_template.jinja` `40ce34a5…5e4e`、`tokenizer.json` `0997f410…b9f3`，脚本不符即停 |
+| 固定模板与 tokenizer | 执行仓库 `packages/model/pi-ai-transport/resources/tokenizers/qwen-38-24t/` | `chat_template.jinja` `40ce34a5…5e4e`、`tokenizer.json` `0997f410…b9f3`，脚本不符即停 |
 
 派发说明写的「每轮真实 wire 请求体从 `family-observed-*.json` 取」与原件不符：这些文件只有 `plannedWireSha256`，没有请求体，`liveWireSha256` 记为 `unavailable`。所以请求体由场景加前几轮 SSE 重建，再用 run 记下的三种哈希验证重建结果（见下文「wire 重建」）。
 
@@ -32,7 +32,7 @@ uv run --offline --no-project --with jinja2==3.1.6 --with tokenizers==0.23.2 \
   python recompute.py \
   --private-dir <HUB>/tmp/model-request-runtime/private/paid-out/batch8-f8e55130 \
   --scenario-dir <HUB>/tmp/model-request-runtime/current-certification/scenarios/r6-families/qwen \
-  --tokenizer-dir <执行仓库>/packages/model/pi-ai-transport/tokenizers/qwen-38-24t \
+  --tokenizer-dir <执行仓库>/packages/model/pi-ai-transport/resources/tokenizers/qwen-38-24t \
   --out recompute-output.json
 ```
 

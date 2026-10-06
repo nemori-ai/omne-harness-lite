@@ -46,7 +46,7 @@
     "packageTemplate": {
       "id": "typescript-package",
       "version": "1.0.0",
-      "variant": "service-provider"
+      "variant": "cordis-module"
     }
   }
 }

@@ -56,12 +56,5 @@
     "vitest": "catalog:",
     "@omne-harness-lite/organization-governance-sql": "workspace:*",
     "@omne-harness-lite/organization-governance": "workspace:*"
-  },
-  "omneHarness": {
-    "packageTemplate": {
-      "id": "typescript-package",
-      "version": "1.0.0",
-      "variant": "service-provider"
-    }
   }
 }

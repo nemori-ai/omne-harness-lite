@@ -8,6 +8,7 @@ import {
   version,
   type FileTemplate,
   type TemplateManifest,
+  type LayoutRules,
 } from './model.ts'
 
 export const TEMPLATE_DIRECTORY = resolve(
@@ -41,6 +42,46 @@ function fileList(value: unknown): value is FileTemplate[] {
     )
   )
 }
+function layoutRules(value: unknown): value is LayoutRules {
+  return (
+    object(value) &&
+    Object.keys(value).sort().join(',') ===
+      'companions,files,ignoredDirectories,requiredDirectories,requiredFileGroups' &&
+    stringArray(value['files']) &&
+    value['files'].length > 0 &&
+    value['files'].every(path =>
+      path.split('/').every(part => !part.includes('**') || part === '**'),
+    ) &&
+    stringArray(value['requiredDirectories']) &&
+    Array.isArray(value['requiredFileGroups']) &&
+    value['requiredFileGroups'].every(
+      group =>
+        object(group) &&
+        stringArray(group['patterns']) &&
+        group['patterns'].length > 0 &&
+        typeof group['minimum'] === 'number' &&
+        Number.isSafeInteger(group['minimum']) &&
+        group['minimum'] > 0,
+    ) &&
+    stringArray(value['ignoredDirectories']) &&
+    value['ignoredDirectories'].every(path => !path.includes('/') && !path.includes('*')) &&
+    Array.isArray(value['companions']) &&
+    value['companions'].every(
+      item =>
+        object(item) &&
+        typeof item['path'] === 'string' &&
+        safeRelative(item['path']) &&
+        stringArray(item['requires']),
+    )
+  )
+}
+function variantFiles(value: unknown): boolean {
+  return (
+    object(value) &&
+    Object.keys(value).sort().join(',') === [...VARIANTS].sort().join(',') &&
+    VARIANTS.every(key => stringArray(value[key]))
+  )
+}
 export function readTemplate(directory = TEMPLATE_DIRECTORY): TemplateManifest {
   const value: unknown = JSON.parse(readFileSync(join(directory, 'manifest.json'), 'utf8'))
   if (
@@ -50,6 +91,8 @@ export function readTemplate(directory = TEMPLATE_DIRECTORY): TemplateManifest {
     !version(value['version']) ||
     !fileList(value['common']) ||
     !stringArray(value['requiredFiles']) ||
+    !layoutRules(value['layout']) ||
+    !variantFiles(value['variantRequiredFiles']) ||
     !object(value['variants']) ||
     !object(value['previousVersions'])
   )
@@ -65,7 +108,9 @@ export function readTemplate(directory = TEMPLATE_DIRECTORY): TemplateManifest {
       !version(key) ||
       !object(rules) ||
       !stringArray(rules['requiredFiles']) ||
-      rules['ruleSet'] !== 1 ||
+      !layoutRules(rules['layout']) ||
+      !variantFiles(rules['variantRequiredFiles']) ||
+      rules['ruleSet'] !== 2 ||
       !older(key, value['version'])
     )
       throw new Error('Invalid historical template rules')

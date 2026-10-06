@@ -45,12 +45,5 @@
     "@omne-harness-lite/clock-lease": "workspace:*",
     "@omne-harness-lite/organization-governance-sql": "workspace:*",
     "@omne-harness-lite/credential-verification-scrypt": "workspace:*"
-  },
-  "omneHarness": {
-    "packageTemplate": {
-      "id": "typescript-package",
-      "version": "1.0.0",
-      "variant": "module"
-    }
   }
 }

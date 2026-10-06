@@ -54,12 +54,5 @@
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
-  },
-  "omneHarness": {
-    "packageTemplate": {
-      "id": "typescript-package",
-      "version": "1.0.0",
-      "variant": "service-provider"
-    }
   }
 }

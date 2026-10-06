@@ -78,6 +78,13 @@ function adopted(root: string): string {
       join(root, member, file),
       file.endsWith('.ts') ? 'export const value = 1\n' : '# Actual accepted module\n',
     )
+  fs.mkdirSync(join(root, member, 'tests'))
+  fs.writeFileSync(join(root, member, 'tests/value.spec.ts'), 'export {}\n')
+  changeManifest(root, member, value => {
+    value['omneHarness'] = {
+      packageTemplate: { id: 'typescript-package', version: '1.0.0', variant: 'module' },
+    }
+  })
   return member
 }
 function changeManifest(
@@ -106,11 +113,7 @@ describe('package creation', () => {
       createPackage({ root, group, name: 'sample', variant, write: true })
       const member = `packages/${group}/sample`
       const value = JSON.parse(fs.readFileSync(join(root, member, 'package.json'), 'utf8'))
-      expect(value.omneHarness.packageTemplate).toEqual({
-        id: 'typescript-package',
-        version: '1.0.0',
-        variant,
-      })
+      expect(value.omneHarness).toBeUndefined()
       expect(value.engines).toEqual({ node: '>=24 <25' })
       expect('./cordis' in value.exports).toBe(variant !== 'module')
       expect(fs.existsSync(join(root, member, 'tests'))).toBe(false)
@@ -270,7 +273,12 @@ describe('template adoption and observation', () => {
     const fixture = {
       ...readTemplate(),
       previousVersions: {
-        '0.9.0': { ruleSet: 1 as const, requiredFiles: ['README.md', 'src/index.ts'] },
+        '0.9.0': {
+          ruleSet: 2 as const,
+          requiredFiles: ['README.md', 'src/index.ts'],
+          variantRequiredFiles: readTemplate().variantRequiredFiles,
+          layout: readTemplate().layout,
+        },
       },
     }
     const result = inspectPackage(root, member, fixture, evidence)
@@ -321,6 +329,8 @@ describe('template adoption and observation', () => {
     const result = inspectPackage(root, member, readTemplate(), unknown)
     expect(result.structure).toBe('pass')
     expect(result.bindingUnknowns).toHaveLength(1)
+    expect(result.integration).toBe('unknown')
+    expect(scanExitCode([result], true)).toBe(0)
     const deviation = {
       ...evidence,
       conformance: {
@@ -460,11 +470,121 @@ describe('template adoption and observation', () => {
       adoption: 'current',
       variant: 'module',
       structure: 'fail',
+      tree: [],
+      excludedDirectories: [],
+      integration: 'static-pass',
       findings: [],
       architectureUnknowns: 0,
       bindingUnknowns: [],
     } satisfies PackageScan
     expect(scanExitCode([result], false)).toBe(0)
     expect(scanExitCode([result], true)).toBe(1)
+  })
+  it.each([
+    'notes.txt',
+    'src/leaked.json',
+    'models/State.tla',
+    'verification/State.tla',
+    'ADR/choice.md',
+    'contract.md',
+    'dist',
+  ])('rejects the undeclared node %s anywhere in the complete tree', file => {
+    const root = repository(),
+      member = adopted(root)
+    fs.mkdirSync(join(root, member, file, '..'), { recursive: true })
+    fs.writeFileSync(join(root, member, file), 'unexpected')
+    const result = inspectPackage(root, member, readTemplate(), evidence)
+    expect(result.structure).toBe('fail')
+    expect(
+      result.findings.some(
+        finding => finding.code === 'layout' && finding.path === `${member}/${file}`,
+      ),
+    ).toBe(true)
+  })
+  it('rejects empty and symlinked directories, and reports the actual node kind', () => {
+    const root = repository(),
+      member = adopted(root)
+    fs.mkdirSync(join(root, member, 'src/unused'))
+    fs.symlinkSync(join(root, member, 'src'), join(root, member, 'src/shortcut'))
+    const result = inspectPackage(root, member, readTemplate(), evidence)
+    expect(result.structure).toBe('fail')
+    expect(result.tree).toContainEqual({ path: 'src/shortcut', kind: 'symlink' })
+    expect(result.findings.filter(finding => finding.code === 'layout')).toHaveLength(2)
+  })
+  it('checks all declared conditional resources and excludes only declared root output directories', () => {
+    const root = repository(),
+      member = adopted(root)
+    const files = [
+      'src/codec/value.ts',
+      'tests/fixtures/data.bin',
+      'schema/value.json',
+      'verification/models/State.tla',
+      'verification/models/State.cfg',
+      'verification/proofs/argument.md',
+      'verification/README.md',
+      'adr/choice.md',
+      'acceptance/entry.ts',
+      'vitest.acceptance.config.ts',
+      'examples/use.mjs',
+    ]
+    for (const file of files) {
+      fs.mkdirSync(join(root, member, file, '..'), { recursive: true })
+      fs.writeFileSync(join(root, member, file), 'actual resource')
+    }
+    fs.mkdirSync(join(root, member, 'dist'))
+    fs.writeFileSync(join(root, member, 'dist/generated.bin'), 'build output')
+    const result = inspectPackage(root, member, readTemplate(), evidence)
+    expect(result.structure).toBe('pass')
+    expect(result.excludedDirectories).toEqual(['dist'])
+    expect(result.tree.filter(node => node.kind === 'file')).toHaveLength(files.length + 8)
+    fs.rmSync(join(root, member, 'verification/README.md'))
+    expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('fail')
+  })
+  it('does not use Git ignore rules to hide undeclared owned files', () => {
+    const root = repository(),
+      member = adopted(root)
+    fs.writeFileSync(join(root, '.gitignore'), '*.secret\n')
+    fs.writeFileSync(join(root, member, 'src/hidden.secret'), 'ignored by Git')
+    expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('fail')
+  })
+  it('does not substitute a README or helper for the required actual test slot', () => {
+    const root = repository(),
+      member = adopted(root)
+    fs.rmSync(join(root, member, 'tests/value.spec.ts'))
+    fs.writeFileSync(join(root, member, 'tests/README.md'), 'Test notes')
+    expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('fail')
+  })
+  it('rejects a legacy historical entry without the complete tree rules', () => {
+    const root = repository(),
+      directory = join(root, 'old-incomplete-rules')
+    fs.cpSync(TEMPLATE_DIRECTORY, directory, { recursive: true })
+    const path = join(directory, 'manifest.json'),
+      value = JSON.parse(fs.readFileSync(path, 'utf8'))
+    value.previousVersions = { '0.9.0': { ruleSet: 2, requiredFiles: ['README.md'] } }
+    fs.writeFileSync(path, JSON.stringify(value))
+    expect(() => readTemplate(directory)).toThrow('Invalid historical')
+  })
+  it('requires the complete historical layout, not just historical required files', () => {
+    const root = repository(),
+      member = adopted(root)
+    fs.writeFileSync(join(root, member, 'extra.json'), '{}')
+    changeManifest(root, member, value => {
+      value['omneHarness'] = {
+        packageTemplate: { id: 'typescript-package', version: '0.9.0', variant: 'module' },
+      }
+    })
+    const template = readTemplate()
+    const historical = {
+      ...template,
+      previousVersions: {
+        '0.9.0': {
+          ruleSet: 2 as const,
+          requiredFiles: template.requiredFiles,
+          variantRequiredFiles: template.variantRequiredFiles,
+          layout: template.layout,
+        },
+      },
+    }
+    expect(inspectPackage(root, member, historical, evidence).structure).toBe('fail')
   })
 })

@@ -30,7 +30,7 @@ import type {
 // for models since Claude 3. It is not the Claude 4.7+/5 tokenizer.
 // https://github.com/anthropics/anthropic-tokenizer-typescript/tree/4d75e64d32fe5cd2b5a24d954242f9fab12e8b4b
 const artifactSha256 = '58dad83d85e9cd57be209172449ebfbc395df2b455c11fe8b7e5b661e6f462ad'
-const artifact = new URL('../../tokenizers/anthropic-legacy/claude.json', import.meta.url)
+const artifact = new URL('../../resources/tokenizers/anthropic-legacy/claude.json', import.meta.url)
 const dataUrl =
   /^data:(image\/(?:png|jpeg|webp|gif));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==))$/u
 const highResolutionEdge = 2576

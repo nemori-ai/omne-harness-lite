@@ -1,6 +1,6 @@
 import { defineInputMeter } from '../input-meter.ts'
 // Prompt projections adapted from Moonshot K3 encoding_k3.py at f831ab6 and
-// K2.7 Code chat_template.jinja at 74797c9; see tokenizers/moonshot/provenance.json.
+// K2.7 Code chat_template.jinja at 74797c9; see resources/tokenizers/moonshot/provenance.json.
 // OpenRouter may transform the prompt, so both results are estimates.
 import {
   isJsonNumber,

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { SCHEMA_DEF_NAMES, schemaId, validate, judgeValue } from '../src/index.ts'
 import schema from '@omne-harness-lite/loop-extension/schema' with { type: 'json' }
-import fixture from './normative-examples.json' with { type: 'json' }
+import fixture from './fixtures/normative-examples.json' with { type: 'json' }
 
 describe('frozen normative instances', () => {
   it('LE-FROZEN: original LC6 bytes, adopted AR-2 delta and all 43 definitions', () => {

@@ -84,7 +84,7 @@ function render(body: JsonObject, settings?: QwenTemplateSettings): string | und
 // An independent handle on the pinned tokenizer, for counts under settings no leaf binds.
 let tokenizer: Tokenizer
 beforeAll(() => {
-  const directory = new URL('../tokenizers/qwen-38-24t/', import.meta.url)
+  const directory = new URL('../resources/tokenizers/qwen-38-24t/', import.meta.url)
   tokenizer = new Tokenizer(
     JSON.parse(readFileSync(new URL('tokenizer.json', directory), 'utf8')),
     JSON.parse(readFileSync(new URL('tokenizer_config.json', directory), 'utf8')),
@@ -106,7 +106,9 @@ describe('QC-V2 template oracle: parameterized renderer equals independent Jinja
     expect(golden.chatTemplateSha256).toBe(
       createHash('sha256')
         .update(
-          readFileSync(new URL('../tokenizers/qwen-38-24t/chat_template.jinja', import.meta.url)),
+          readFileSync(
+            new URL('../resources/tokenizers/qwen-38-24t/chat_template.jinja', import.meta.url),
+          ),
         )
         .digest('hex'),
     )

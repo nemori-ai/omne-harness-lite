@@ -10,6 +10,17 @@ export interface FileTemplate {
   readonly source: string
   readonly target: string
 }
+export interface LayoutRules {
+  /** Closed file slots. * matches within one component, ** matches whole directories. */
+  readonly files: readonly string[]
+  readonly requiredDirectories: readonly string[]
+  readonly requiredFileGroups: readonly {
+    readonly patterns: readonly string[]
+    readonly minimum: number
+  }[]
+  readonly ignoredDirectories: readonly string[]
+  readonly companions: readonly { readonly path: string; readonly requires: readonly string[] }[]
+}
 export interface TemplateManifest {
   readonly format: 1
   readonly id: string
@@ -17,9 +28,19 @@ export interface TemplateManifest {
   readonly common: readonly FileTemplate[]
   readonly variants: Readonly<Record<Variant, readonly FileTemplate[]>>
   readonly requiredFiles: readonly string[]
+  readonly variantRequiredFiles: Readonly<Record<Variant, readonly string[]>>
+  readonly layout: LayoutRules
   /** Exact historical versions only. These are structural rules, never old template bodies. */
   readonly previousVersions: Readonly<
-    Record<string, { readonly requiredFiles: readonly string[]; readonly ruleSet: 1 }>
+    Record<
+      string,
+      {
+        readonly requiredFiles: readonly string[]
+        readonly variantRequiredFiles: Readonly<Record<Variant, readonly string[]>>
+        readonly layout: LayoutRules
+        readonly ruleSet: 2
+      }
+    >
   >
 }
 export interface Finding {
@@ -34,6 +55,12 @@ export interface PackageScan {
   readonly marker?: TemplateMarker
   readonly variant: Variant
   readonly structure: 'pass' | 'fail' | 'uncovered'
+  readonly tree: readonly {
+    readonly path: string
+    readonly kind: 'file' | 'directory' | 'symlink' | 'other'
+  }[]
+  readonly excludedDirectories: readonly string[]
+  readonly integration: 'deviation' | 'unknown' | 'static-pass'
   readonly findings: readonly Finding[]
   readonly architectureUnknowns: number
   readonly bindingUnknowns: readonly { readonly path: string; readonly reason: string }[]

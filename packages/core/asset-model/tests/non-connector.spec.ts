@@ -12,7 +12,7 @@ import {
   type SchemaDefName,
 } from '../src/index.ts'
 import { bindBodyContracts, isObject } from '../src/judge.ts'
-import fixtures from './examples.json' with { type: 'json' }
+import fixtures from './fixtures/examples.json' with { type: 'json' }
 import { bodies } from './ports.ts'
 
 /** Five W2 protocol doubles; the real five-provider chain belongs to W6. */

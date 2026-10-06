@@ -19,3 +19,5 @@ Opaque `reasoning_details` has no identified model-token or OpenRouter replay pr
 ## Observation limits
 
 Offline reference vectors cover 1×1, 544×544 and 2048×2048 dimensions for both pinned configurations. The package test exercises complete prior/current image history through production `planRequest` and local TLS; the captured wire equals the fixed plan in this environment. This does not observe the selected OpenRouter routes, their billing, cache retention, opaque replay, or service-level durable composition.
+
+资源归位附注（2026-10-06）：本页记录的包内 tokenizer 资源现位于 `packages/model/pi-ai-transport/resources/tokenizers/`。原输入字节、散列、上游出处和历史检出坐标保持；这是物理路径迁移，不修订本页研究结论。

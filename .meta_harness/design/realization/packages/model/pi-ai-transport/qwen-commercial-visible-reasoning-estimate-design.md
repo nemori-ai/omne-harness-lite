@@ -22,7 +22,7 @@
 
 ### 上游与固定模板（差异）
 
-模板仍是开源页那份固定 2.4T `chat_template.jinja`（执行仓库 `tokenizers/qwen-38-24t/`，SHA-256 `40ce34a5bcbc0231462740761215bc31a83882a8b3a4b6aa1c6e869b95945e4e`），本页用到它的两个开关（第 24–33、65–97 行）：
+模板仍是开源页那份固定 2.4T `chat_template.jinja`（执行仓库 `resources/tokenizers/qwen-38-24t/`，SHA-256 `40ce34a5bcbc0231462740761215bc31a83882a8b3a4b6aa1c6e869b95945e4e`），本页用到它的两个开关（第 24–33、65–97 行）：
 
 - `preserve_thinking` 缺省或为真：全部历史 assistant 渲 `<think>\n…\n</think>\n\n`，即开源两叶现行路径。为假：只有下标大于 `last_query_index` 的 assistant 渲 think 块，其余只渲 `content` 与工具调用，**连空 think 块也不留**。`last_query_index` 是倒序扫描遇到的第一条内容（trim 后）不被 `<tool_response>…</tool_response>` 包裹的 `user` 消息的下标，下标按整份 `messages`（含 system 与 tool）计。
 - effort 说明：缺省 `xhigh` 在 system 前加一句说明，即现行路径。「无说明」在公开模板里等同 `reasoning_effort` 取 `medium` 的渲染（该档没有说明句）；这只是渲染等价，不主张 3.7 以 `medium` 运行。无 system 且无工具时不渲 system 块。

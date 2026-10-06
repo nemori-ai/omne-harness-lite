@@ -28,22 +28,30 @@
 ### 定义插件并管理服务生命周期
 
 ```ts
-import { Context } from '@deepseek-ai/cordis'
+import { Context, Service } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { definePlugin, fiberIsActive, resolveOptional } from '@omne-harness-lite/kernel-basis/cordis'
+
+class Greeting extends Service {
+  static readonly provide = 'greeting'
+  constructor(ctx: Context, private readonly prefix: string) {
+    super(ctx, Greeting.provide)
+  }
+  greet(name: string): string { return `${this.prefix}, ${name}` }
+}
 
 const greeting = definePlugin({
   name: 'greeting',
   Config: z.object({ prefix: z.string().min(1) }),
   apply(ctx, config) {
-    ctx.provide('greeting', { greet: (name: string) => `${config.prefix}, ${name}` })
+    new Greeting(ctx, config.prefix)
   },
 })
 const ctx = new Context()
 const fiber = ctx.plugin(greeting, { prefix: 'Hello' })
 try {
   await fiber
-  const service = resolveOptional<{ greet(name: string): string }>(ctx, 'greeting')
+  const service = resolveOptional<Greeting>(ctx, Greeting.provide)
   if (service === undefined) throw new Error('greeting unavailable')
   console.log(service.greet('Ada')) // Hello, Ada
   console.log(fiberIsActive(fiber.ctx)) // true
@@ -93,6 +101,10 @@ try {
   await assembly.dispose()
 }
 ```
+
+现有 helper 承诺见 [SPEC.md](SPEC.md)。
+
+现有 helper 承诺见 [SPEC.md](SPEC.md)。
 
 ## 边界与失败处理
 

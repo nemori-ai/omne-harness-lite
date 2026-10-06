@@ -65,12 +65,5 @@
     "@omne-harness-lite/credential-verification-scrypt": "workspace:*",
     "@omne-harness-lite/account-identity-sql": "workspace:*",
     "@omne-harness-lite/account-registration-sequential": "workspace:*"
-  },
-  "omneHarness": {
-    "packageTemplate": {
-      "id": "typescript-package",
-      "version": "1.0.0",
-      "variant": "service-provider"
-    }
   }
 }

@@ -57,9 +57,20 @@ it('runs real preview/write/scan paths and rejects a Cordis leak despite a curre
       join(root, member, file),
       file.endsWith('.ts') ? 'export const example = 1\n' : '# Completed fixture\n',
     )
+  mkdirSync(join(root, member, 'tests'))
+  writeFileSync(join(root, member, 'tests/value.spec.ts'), 'export {}\n')
+  const manifestPath = join(root, member, 'package.json')
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  manifest.omneHarness = {
+    packageTemplate: { id: 'typescript-package', version: '1.0.0', variant: 'module' },
+  }
+  writeFileSync(manifestPath, JSON.stringify(manifest))
   const clean = run(root, ['scan', '--member', member, '--check', '--json'])
   expect(clean.stderr).toBe('')
+  // A full tree assertion does not resolve this fixture's unknown architectural role.
   expect(clean.status).toBe(0)
+  expect(JSON.parse(clean.stdout).packages[0].structure).toBe('pass')
+  expect(JSON.parse(clean.stdout).packages[0].integration).toBe('unknown')
   expect(JSON.parse(clean.stdout).packages).toHaveLength(1)
   const before = readFileSync(join(root, member, 'package.json'))
   writeFileSync(

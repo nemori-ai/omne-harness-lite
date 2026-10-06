@@ -1,7 +1,7 @@
 import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileTree, listWorkspaceMembers, workspacePatterns } from '../testing/members.ts'
-import { object, type Variant } from './model.ts'
+import { object, type Variant, type TemplateMarker } from './model.ts'
 import { readTemplate, TEMPLATE_DIRECTORY } from './template.ts'
 
 export interface CreateInput {
@@ -17,6 +17,7 @@ export interface Creation {
   readonly files: readonly string[]
   readonly written: boolean
   readonly draft: true
+  readonly template: TemplateMarker
 }
 function checkLocation(input: CreateInput): string {
   const name = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u
@@ -44,7 +45,7 @@ function checkLocation(input: CreateInput): string {
     throw new Error(`Workspace package name already exists: @omne-harness-lite/${input.name}`)
   return target
 }
-function manifestText(input: CreateInput, id: string, version: string): string {
+function manifestText(input: CreateInput): string {
   const rootManifest: unknown = JSON.parse(readFileSync(join(input.root, 'package.json'), 'utf8'))
   if (
     !object(rootManifest) ||
@@ -71,7 +72,6 @@ function manifestText(input: CreateInput, id: string, version: string): string {
       },
       dependencies: binding ? { '@deepseek-ai/cordis': 'catalog:' } : {},
       devDependencies: { '@types/node': 'catalog:', typescript: 'catalog:', vitest: 'catalog:' },
-      omneHarness: { packageTemplate: { id, version, variant: input.variant } },
     },
     null,
     2,
@@ -83,7 +83,7 @@ function render(input: CreateInput): Map<string, string> {
   const files = [...manifest.common, ...manifest.variants[input.variant]]
   if (files.length === 0) throw new Error('Template contains no files')
   const replacements: Record<string, string> = {
-    PACKAGE_JSON: manifestText(input, manifest.id, manifest.version),
+    PACKAGE_JSON: manifestText(input),
     PACKAGE_NAME: input.name,
     VARIANT: input.variant,
   }
@@ -122,6 +122,7 @@ function writeNewPackage(target: string, files: ReadonlyMap<string, string>): vo
 /** Preview by default. Creation never installs dependencies or runs package code. */
 export function createPackage(input: CreateInput): Creation {
   const target = checkLocation(input)
+  const template = readTemplate(input.templateDirectory ?? TEMPLATE_DIRECTORY)
   const files = render(input)
   if (input.write === true) {
     // Recheck after rendering; do not let template validation bypass target safety.
@@ -133,5 +134,6 @@ export function createPackage(input: CreateInput): Creation {
     files: [...files.keys()],
     written: input.write === true,
     draft: true,
+    template: { id: template.id, version: template.version, variant: input.variant },
   }
 }

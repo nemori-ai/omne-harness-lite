@@ -13,6 +13,7 @@ import {
 } from './model.ts'
 import { checkStructure, readObject } from './structure.ts'
 import { readTemplate } from './template.ts'
+import { checkLayout } from './layout.ts'
 
 export interface ScanEvidence {
   readonly actual: ActualExtraction
@@ -60,14 +61,15 @@ export function inspectPackage(
     adoption === 'unmarked' ||
     adoption === 'current' ||
     (adoption === 'older' && previous !== undefined)
-  const required = previous?.requiredFiles ?? template.requiredFiles
-  const findings = checkStructure(root, member, manifest, selected, required)
-  if (selected !== inferred)
-    findings.push({
-      code: 'variant',
-      path: `${member}/package.json`,
-      reason: `Declared ${selected}; observed ${inferred}. Review the binding ownership`,
-    })
+  const rules = previous ?? template
+  const required = [...rules.requiredFiles, ...rules.variantRequiredFiles[selected]]
+  const layout = checkLayout(root, member, previous?.layout ?? template.layout)
+  const findings = [
+    ...layout.findings,
+    ...checkStructure(root, member, manifest, selected, required),
+  ]
+  // A private helper's Service/provide fact does not decide public responsibility.
+  // Unmarked inference is an inventory hint; adopted variants require manual review.
   if (adoption === 'invalid')
     findings.push({
       code: 'marker',
@@ -81,7 +83,11 @@ export function inspectPackage(
       reason:
         'No exact structural rules for the declared identity/version; current rules cannot certify it',
     })
-  for (const row of evidence.conformance.rows) {
+  const structure = !supported ? 'uncovered' : findings.length === 0 ? 'pass' : 'fail'
+  const deviations = evidence.conformance.rows.filter(
+    row => row.member === member && row.state === 'deviation',
+  )
+  for (const row of deviations) {
     if (row.member !== member || row.state !== 'deviation') continue
     findings.push({ code: row.rule, path: row.sites[0]?.path ?? member, reason: row.reason })
   }
@@ -90,7 +96,9 @@ export function inspectPackage(
   const bindingUnknowns = [...evidence.actual.unknown, ...evidence.actual.importUnknown]
     .filter(item => item.member === member)
     .map(item => ({ path: item.path, reason: item.reason }))
-  const structure = !supported ? 'uncovered' : findings.length === 0 ? 'pass' : 'fail'
+  const architectureUnknowns = evidence.conformance.rows.filter(
+    row => row.member === member && row.state === 'unknown',
+  ).length
   return {
     path: member,
     name: String(manifest['name']),
@@ -98,10 +106,16 @@ export function inspectPackage(
     ...(marker === undefined ? {} : { marker }),
     variant: selected,
     structure,
+    tree: layout.tree,
+    excludedDirectories: layout.excludedDirectories,
+    integration:
+      deviations.length > 0
+        ? 'deviation'
+        : architectureUnknowns > 0 || bindingUnknowns.length > 0
+          ? 'unknown'
+          : 'static-pass',
     findings,
-    architectureUnknowns: evidence.conformance.rows.filter(
-      row => row.member === member && row.state === 'unknown',
-    ).length,
+    architectureUnknowns,
     bindingUnknowns,
   }
 }
@@ -129,5 +143,12 @@ export function scanPackages(root: string, members?: readonly string[]): Package
 export function scanExitCode(results: readonly PackageScan[], check: boolean): number {
   if (!check) return 0 // inventory is not an assertion; every state is still reported
   if (results.some(item => item.structure === 'uncovered')) return 2
-  return results.some(item => item.adoption !== 'current' || item.structure !== 'pass') ? 1 : 0
+  // This command asserts the full template tree, not a full integration acceptance.
+  // Unknown integration facts remain visible and require manual adoption review.
+  return results.some(
+    item =>
+      item.adoption !== 'current' || item.structure !== 'pass' || item.integration === 'deviation',
+  )
+    ? 1
+    : 0
 }

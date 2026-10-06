@@ -9,7 +9,7 @@ const HELP = `Usage:
   package-template create --name <leaf> --group <group> --variant <variant> [--root <repo>] [--write]
   package-template scan [--root <repo>] [--member packages/<group>/<name>]... [--check] [--json]
 Creation previews by default. --write creates a draft without replacing files.
-Inventory scan is read-only, not a conformance assertion. --check requires current markers and checked structure.
+Inventory scan is read-only. --check requires current markers, complete template structure and no known static integration deviations. Unknowns still require manual review.
 Variants: module, cordis-module, service-contract, service-provider.`
 
 function options(args: readonly string[], command: string) {
@@ -60,12 +60,12 @@ try {
       const results = scanPackages(root, members.length === 0 ? undefined : members)
       if (flags.has('--json'))
         process.stdout.write(
-          `${JSON.stringify({ template: `${template.id}@${template.version}`, packages: results, limits: 'Template structure and existing static subset only; not business, tenancy, transaction, lifecycle or formal proof acceptance' }, null, 2)}\n`,
+          `${JSON.stringify({ template: `${template.id}@${template.version}`, packages: results, limits: 'Complete declared package tree comparison; integration facts remain a static subset and require manual qualification before adoption. No business or lifecycle proof.' }, null, 2)}\n`,
         )
       else {
         for (const item of results) {
           process.stdout.write(
-            `${item.path}: ${item.adoption} / ${item.variant} / ${item.structure}; architecture unknowns=${item.architectureUnknowns}; binding unknowns=${item.bindingUnknowns.length}\n`,
+            `${item.path}: ${item.adoption} / ${item.variant} / structure=${item.structure} / integration=${item.integration}; owned nodes=${item.tree.length}; architecture unknowns=${item.architectureUnknowns}; binding unknowns=${item.bindingUnknowns.length}\n`,
           )
           for (const finding of item.findings)
             process.stdout.write(`  ${finding.code}: ${finding.path}: ${finding.reason}\n`)

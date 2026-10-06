@@ -29,22 +29,30 @@ Each TypeScript example is self-contained and uses the built public exports.
 ### Define a plugin and manage its service lifetime
 
 ```ts
-import { Context } from '@deepseek-ai/cordis'
+import { Context, Service } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { definePlugin, fiberIsActive, resolveOptional } from '@omne-harness-lite/kernel-basis/cordis'
+
+class Greeting extends Service {
+  static readonly provide = 'greeting'
+  constructor(ctx: Context, private readonly prefix: string) {
+    super(ctx, Greeting.provide)
+  }
+  greet(name: string): string { return `${this.prefix}, ${name}` }
+}
 
 const greeting = definePlugin({
   name: 'greeting',
   Config: z.object({ prefix: z.string().min(1) }),
   apply(ctx, config) {
-    ctx.provide('greeting', { greet: (name: string) => `${config.prefix}, ${name}` })
+    new Greeting(ctx, config.prefix)
   },
 })
 const ctx = new Context()
 const fiber = ctx.plugin(greeting, { prefix: 'Hello' })
 try {
   await fiber
-  const service = resolveOptional<{ greet(name: string): string }>(ctx, 'greeting')
+  const service = resolveOptional<Greeting>(ctx, Greeting.provide)
   if (service === undefined) throw new Error('greeting unavailable')
   console.log(service.greet('Ada')) // Hello, Ada
   console.log(fiberIsActive(fiber.ctx)) // true
@@ -94,6 +102,8 @@ try {
   await assembly.dispose()
 }
 ```
+
+The existing helper commitments are in [SPEC.md](SPEC.md).
 
 ## Boundaries and failures
 

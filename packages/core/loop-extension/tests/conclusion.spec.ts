@@ -12,7 +12,7 @@ import {
   visibility,
   reminder,
 } from './helpers.ts'
-import fixture from './normative-examples.json' with { type: 'json' }
+import fixture from './fixtures/normative-examples.json' with { type: 'json' }
 import { readJsonStrict } from '@omne-harness-lite/content-blocks'
 
 function admittedInput(value: JsonObject): ConclusionInputs {

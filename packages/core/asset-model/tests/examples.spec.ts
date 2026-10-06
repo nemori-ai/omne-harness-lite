@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import fixtures from './examples.json' with { type: 'json' }
+import fixtures from './fixtures/examples.json' with { type: 'json' }
 import { createAssetModelJudge, SCHEMA_DEF_NAMES } from '../src/index.ts'
 import { bodies } from './ports.ts'
 

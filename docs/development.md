@@ -88,7 +88,7 @@ pnpm package:template create --group core --name example-capability --variant se
 pnpm package:template create --group core --name example-capability --variant service-contract --write
 ```
 
-按职责选择 module、cordis-module、service-contract 或 service-provider。公共 Service 定义归 core；独立能力从纯根导出，Cordis 集成放 ./cordis。源码、薄 SPEC、Schema、模型及 ADR 的归属详见模板说明。生成的草稿占位须由真实承诺与验证替换，不生成空测试或假 Service。
+按职责选择 module、cordis-module、service-contract 或 service-provider。公共 Service 定义归 core；独立能力从纯根导出，Cordis 集成放 ./cordis。源码、薄 SPEC、Schema、模型及 ADR 的归属详见模板说明。生成的草稿只报告模板来源，不写采用标识。占位须由真实承诺与验证替换，不生成空测试或假 Service。
 
 现存包整改先做只读盘点，再按精确版本核对实际结构：
 
@@ -97,9 +97,9 @@ pnpm package:template scan --json
 pnpm package:template scan --member packages/core/storage --check
 ```
 
-逐包补齐结构并核对绑定后，才能添加 omneHarness.packageTemplate 的 id/version/variant。保留原公开能力、源码、Schema 身份及模型义务，不批量抬升标识。标识表示模板采用，不表示完整架构或业务验收。
+逐包核对全部目录、文件和资源归属，完成模板全量适配及适用集成责任的人工核验后，才能添加 omneHarness.packageTemplate 的 id/version/variant。保留原公开能力、源码、Schema 身份及模型义务，不批量抬升标识。不完整、未核对和仍有适用偏离的包保持无标识。[逐包核对记录](../tools/ts-checks/templates/package/adoption-review.md)列明本批采用与剩余范围。标识表示完整模板采用，不表示全系统或业务验收。
 
-扫描区分当前、旧版、无标识、非法和未知版本，并另报结构通过、失败或未覆盖。普通盘点退出 0 不表示合规；--check 的 0/1/2 分别表示限定检查通过、采用或结构失败、规则未覆盖或输入错误。动态绑定及架构 unknown 仍是覆盖限制。创建命令不覆盖已有目标，扫描不改文件。
+扫描遍历全部源码节点，按精确版本与变体实例化模板树，未声明路径、错位资源、空目录和软链接均报失败；不沿 Git ignore 隐藏源码。只排除模板声明的根构建/依赖/临时目录并报告清单。标识状态、完整结构及静态集成结果分别显示。普通盘点退出 0 不表示合规；--check 的 0/1/2 分别表示当前完整结构通过且无已知集成偏离、采用/结构/偏离失败、规则未覆盖或输入错误。集成 unknown 仍须人工核对，0 不表示生命周期或业务验收。创建不覆盖已有目标，扫描不改文件。
 
 ## 博客子模块
 
