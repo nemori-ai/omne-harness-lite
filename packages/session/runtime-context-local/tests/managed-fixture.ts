@@ -4,7 +4,7 @@ import { createAssemblyLifetime } from '@omne-harness-lite/assembly-lifecycle'
 import { SessionLogBackingService } from '@omne-harness-lite/session-log/cordis'
 import { SessionAccessService } from '@omne-harness-lite/session-tenancy/cordis'
 import { ClockService } from '@omne-harness-lite/offer-expiry/cordis'
-import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
+import { instantFromRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
 import { StorageService } from '@omne-harness-lite/storage/cordis'
 import { createRuntimeContextLocal } from '../src/cordis.ts'
 import { at, host } from './fixture.ts'
@@ -13,11 +13,13 @@ export async function managedHost(
   options: {
     beforeStorageRead?: () => Promise<void>
     release?: () => Promise<void>
+    binding?: ReturnType<typeof createRuntimeContextLocal>
+    now?: Clock['now']
   } = {},
 ) {
   const h = await host(),
     ctx = new Context(),
-    binding = createRuntimeContextLocal()
+    binding = options.binding ?? createRuntimeContextLocal()
   h.owner.closeAdmission()
   await h.owner.drain()
   const lifetime = createAssemblyLifetime(['context'], binding.closeAdmission)
@@ -57,7 +59,7 @@ export async function managedHost(
     authorize = h.auth.operations.authorize
   }
   class Time extends ClockService {
-    now = () => instant
+    now = options.now ?? (() => instant)
   }
   const dependencies = await ctx.plugin({
     name: 'managed-context-fixture',
@@ -69,7 +71,13 @@ export async function managedHost(
       new Time(inner)
     },
   })
-  const fiber = await ctx.plugin(binding.plugin, {})
+  const fiber = await Promise.resolve(ctx.plugin(binding.plugin, {})).catch(async error => {
+    // A rejected mount has not registered owned work. Do not stop a factory owned elsewhere.
+    await dependencies.dispose()
+    await ctx.fiber.dispose()
+    await h.close()
+    throw error
+  })
   return {
     h,
     ctx,

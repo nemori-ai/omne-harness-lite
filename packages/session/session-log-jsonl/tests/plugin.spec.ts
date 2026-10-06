@@ -1,4 +1,6 @@
 import { Context, Fiber } from '@deepseek-ai/cordis'
+import { unlink } from 'node:fs/promises'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { openJsonlSessionLog } from '../src/index.ts'
 import { Config, createSessionLogJsonl } from '../src/cordis.ts'
@@ -13,6 +15,7 @@ import {
   session,
   unfenced,
   unconditional,
+  paths,
 } from './support.ts'
 
 const sessionLogJsonl = createSessionLogJsonl({ processOwnership })
@@ -35,12 +38,23 @@ describe('actual Cordis 4.0.4 thin provider ownership', () => {
     expect(Object.keys(parsed.policy!).sort()).toEqual(Object.keys(policy).sort())
     expect(Config.parse({ dir: input.dir })).not.toHaveProperty('policy')
   })
-  it.each([{ processOwnership: {} }, { processOwnership, diagnostic: 'not-a-function' }])(
-    'rejects invalid trusted live bindings before mounting: %j',
-    bindings => {
-      expect(() => Reflect.apply(createSessionLogJsonl, undefined, [bindings])).toThrow(TypeError)
-    },
-  )
+  it.each([
+    { processOwnership: {} },
+    { processOwnership: { current: '', observeExit: async () => 'unknown' } },
+    { processOwnership, diagnostic: 'not-a-function' },
+  ])('rejects invalid trusted live bindings before mounting: %j', bindings => {
+    expect(() => Reflect.apply(createSessionLogJsonl, undefined, [bindings])).toThrow(TypeError)
+  })
+  it.each([
+    { dir: 'relative' },
+    { dir: '/invalid\u0000path' },
+    { dir: '/serialized-log', policy: { appendQueueLimit: 0 } },
+    { dir: '/serialized-log', policy: { appendQueueLimit: 1.5 } },
+    { dir: '/serialized-log', policy: { residentLogsLimit: 0 } },
+    { dir: '/serialized-log', policy: { residentLogsLimit: 1.5 } },
+  ])('rejects invalid serialized config without invoking a provider: %j', input => {
+    expect(Config.safeParse(input).success).toBe(false)
+  })
   it.each([
     {},
     { dir: '/unused-live-config', processOwnership },
@@ -90,6 +104,42 @@ describe('actual Cordis 4.0.4 thin provider ownership', () => {
     } finally {
       await next.close()
     }
+  })
+  it('retains the trusted legacy observer receiver and diagnostic sink during real recovery', async () => {
+    const dir = await root()
+    const original = await openJsonlSessionLog({ processOwnership, dir })
+    await original.append(session(), [entry()], unfenced, unconditional)
+    await original.close()
+    await unlink(join(paths(dir).directory, 'recovery.json'))
+    let observed = 0
+    const events: unknown[] = []
+    const ownership = {
+      ...processOwnership,
+      async observeLegacyExit(directory: string): Promise<'exited'> {
+        expect(this).toBe(ownership)
+        expect(directory).toBe(paths(dir).directory)
+        observed++
+        return 'exited'
+      },
+    }
+    const plugin = createSessionLogJsonl({
+      processOwnership: ownership,
+      diagnostic: event => events.push(event),
+    })
+    const ctx = new Context()
+    const fiber = await ctx.plugin(plugin, { dir })
+    disposers.push(() => fiber.dispose())
+    const service = ctx.get('sessionLog')
+    if (!service) throw new Error('service unavailable')
+    expect(await service.readSince(session(), 0)).toHaveProperty('tail', 1)
+    expect(observed).toBe(1)
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        stage: 'recovery',
+        recoverySource: 'legacy',
+        ownerObserved: 'exited',
+      }),
+    )
   })
   it('provide is effect managed: a later body failure withdraws the actual service and releases owner', async () => {
     const dir = await root()
