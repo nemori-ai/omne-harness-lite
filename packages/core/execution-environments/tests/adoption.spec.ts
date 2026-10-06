@@ -96,3 +96,18 @@ test('a never-allow placement cannot adopt host facilities, while explicit alway
     }),
   ).toBeUndefined()
 })
+
+test.each(['placement', 'description', 'source', 'providerEvidence'] as const)(
+  'omitted mandatory %s rejects ordinary JSON adoption data',
+  key => {
+    const value = adoption()
+    Reflect.deleteProperty(value, key)
+    expect(captureEnvironmentAdoption(value)).toBeUndefined()
+  },
+)
+
+test('never-allow still permits the explicitly required isolated instance', () => {
+  const original = adoption(),
+    isolated = { ...original, placement: { ...original.placement, permission: 'never-allow' } }
+  expect(captureEnvironmentAdoption(isolated)).toEqual(isolated)
+})
