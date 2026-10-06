@@ -53,7 +53,7 @@
   声称给出的各项**已实现（HUB `c9b5850`）**；本节点的函数、常量、环境变量名都是实名（公开入口 `src/index.ts`），它装配的九个包也都已实现（各节点 README「源码位置」）。`tools/ts-checks` 的规则扫 `packages/` 与 `apps/`，接进 `pnpm run check`。
   **本程追加（设计已接受，尚未实现）声称给出**：装载清单再装两条 fiber 与新的撤除次序；迁移末尾追加三组片段（OG v3 单独导出）、不新增外键；两份官方清单随本应用发布并在启动时交进插件、登记或装入失败即启动失败（`manifestNotNewer` 按 P-1 的收场记 error、照常服务）；两个保留期与出厂格凭据**引用**的来源；P-1 在中心不 provide 取值面（`serveBaseFaces: false`）；钉 v1／v2 的服务名绑定；中心进程里没有 `asset.*` 订阅者的结构保护（AG S-48 末条，两条检查）；AG S-50、AT S-34、OG v3 S-42 两行、MPD S-22 左列的逐组承接（[design](design.md#本程追加资产治理与模型档案目录的中心侧候选尚未实现)）。**不给出**：中心各面对外可达（U-6，未来资产/据点入口（版本未分配））；时刻严格递增（U-7，`infra/clock` 的 C-15）；清单序号跨发布单调（U-8，发布流程）；凭据取值（U-9，保管方）；官方件清单的内容（U-10）
 - **绑定与证据**：本节点的装配测试（`tests/` 下 `lifecycle`、`migrations`、`upgrade`、`config`、`process`、`slow`、`pg`）与 `tools/ts-checks` 的 `restricted-call-sites` 等规则都已存在；[`bindings.yaml`](bindings.yaml) 的绑定与 [verification.md](verification.md) 的逐条状态待回填。basis probe 证的是内核语义，入口契约的 formal task 证的是契约模型，都不是本节点的条款。**本程追加：0 条绑定**——没有会失败的证据；verification 里五条候选义务未开始
-- **实际验证**：运行 `2026-09-23-tests-tenancy-leg-2`（证据登记在 `record/evidence/2026-09-23-tests-tenancy-leg-2/`，HUB）：本包测试随十三个 TS 成员 build／typecheck／test 在 sqlite 下全过（真实 sqlite 文件库、真实 TLS 连接与 Unix 套接字、八个真实插件、两进程真并发与子进程 `SIGKILL`）；pg 16 容器上本包的 pg 用例 11／11 通过——pg 仍不是本版部署目标。逐条覆盖待 verification 回填。**本程追加：无**（源码不存在）
+- **验证义务**：真实 SQLite 文件库、TLS 连接、Unix 套接字、真实插件组合、两进程并发与子进程终止场景须按 [verification.md](verification.md) 验证；构建、类型检查与包内测试不能替代完整装配。PostgreSQL 的测试范围与本版部署目标分别判断，不以历史一次测试声称当前部署已兑现。
 
 ## 按当前问题展开
 
@@ -67,7 +67,7 @@
 | 为什么是 Kysely + `node:sqlite`、为什么无 in-memory                                                                                                                                               | D-026 与[研究](../../../../research/agent-harness-persistence-and-identity-infra/research.md) |
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
-契约语义变化回 [spec](../../../spec/README.md)，采用选择回 record/decisions。
+契约语义变化回 [spec](../../../spec/README.md)，获准采用的终态写回当前承诺拥有者；比较与接受过程留本工作树 tmp。
 
 D052已采用[宿主分发与共享开发工具](packaging.md)限定路径，尚待实现与实际归档验证；跨OS现有宿主闭包实测不是最终打包器验证。
 

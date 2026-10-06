@@ -16,8 +16,8 @@
 
 - 语义接受范围：**无契约条款归本节点。**`data.offer-expiry` v1 全部条款已被 D-023 接受，其中 S-16 的形状与 S-17「`now` 不后退」那一行是本节点**承接**的对象，provider 仍是 offer-expiry 节点；本节点作为承接者的选型被 D-026 接受。到此为止，不提升下面三层。入口契约 S-36 末行与 S-34 那两条（产品依据 PF-017 rev 2）随入口契约 v1 由 D-028 接受（2026-09-23）；本节点本程的设计（现读墙钟、`clockPreflight`、R-C2 的真实窗口）随同一决定接受为实现路径
 - 可实施范围：本节点声称兑现 S-17 五行里的两行——「`now` 与 `expiresAt` 同源可比」的**一半**（只 provide 一个实例；另一半「消费者不得另用 `Date.now()`」是 offer-expiry 的 lint SC-OE-3）与「`now` 不后退」除操作系统崩溃之外的全部（进程内不后退、跨进程崩溃与重启不后退、启动时回拨 fail-closed）；另声称入口契约 S-36 末行（运行中回拨 ⇒ `'unavailable'` 直到追上）与 S-34 那条前提；逐条见 [design.md「能力到 Cordis 的投影」](design.md#能力到-cordis-的投影)，以上连同迁移前核对 `clockPreflight` **已实现（HUB `c9b5850`）**。**不兑现**：**操作系统崩溃或断电之后的不后退**（[R-C2](design.md#对存储提供者的要求清单)：`synchronous=NORMAL` 下丢的是上一次检查点以来尚未被操作系统回写的全部续约，空闲时窗口可达约 55 分钟、实际由回写延迟决定；重启时墙钟落在那一段里则回拨检不出，那一段里的过期判定复活——D-027 不承诺，本节点只标价）、墙钟前跳后被校正回来时的可用性（停摆等于跳幅、重启绕不过、无运维出口，出口归产品；[代价表](design.md#运行中回拨每次现读墙钟比对用过的最晚时刻)）、与真实时间的偏差上界（本节点跟墙钟走，不承诺墙钟准）、跨进程的单调（[投影 Q-8](../../../../product/PF-001-identity-scope-and-agent-constraints/projection/v1/projection.md#7-未决项)，两个进程各管各的「用过的最晚时刻」）、消费者侧「`'unavailable'` 时各操作失败」（各消费者节点）
-- 绑定与证据：[`bindings.yaml`](bindings.yaml) 为**空表**——无已存在的证据可绑（本节点不是契约 provider，S-17 那一行在契约 verification 里也没有可绑的形式任务；承接的入口契约两条已有包内测试，运行结果尚未登记 record/evidence run）；证据义务（回拨、重启后租约、写失败、装卸）登记在 [verification.md](verification.md)，包内测试覆盖的已标「已通过」
-- 实际验证：2026-09-22 包内 8 条测试通过（进程内单调、回拨 ⇒ `start()` 抛出且实例闩住、崩溃后快速重启追上前 `'unavailable'`、干净撤除不用等、续约写失败 ⇒ 越过租约即 `'unavailable'`、撤除后 `'unavailable'`、插件 provide／撤除、缺迁移 ⇒ `StorageDefect` 启动失败）；见 [verification.md「实际执行」](verification.md)。那 8 条对的是按单调钟推算的旧实现；现读墙钟、运行中回拨与迁移前核对的包内测试（`tests/clock.spec.ts`、`tests/preflight.spec.ts`、`tests/plugin.spec.ts`）在运行 `2026-09-23-tests-tenancy-leg-2` 里随十三个 TS 成员在 sqlite 下全过，证据登记在 `record/evidence/2026-09-23-tests-tenancy-leg-2/`（HUB）；逐条覆盖待 verification 回填
+- 绑定范围：[`bindings.yaml`](bindings.yaml) 保持空表。本节点承接时间源形状与装配前提，不作为独立契约 provider；绑定只指向实际存在且能失败的断言，不以永久 run 登记作为条件。回拨、重启后租约、写失败与装卸的验证义务归 [verification.md](verification.md)。
+- 验证义务：检查进程内单调、启动回拨抛出并闩住、崩溃后重启追上租约前 `unavailable`、干净撤除、续约失败越过租约后的 `unavailable`、撤除后的 `unavailable`、插件装卸和缺迁移时 `StorageDefect`；另检查现读墙钟、运行中回拨与迁移前只读核对。范围与前提归 [verification.md](verification.md)，进程崩溃不能代替操作系统崩溃或断电验证。
 
 ## 按当前问题展开
 
@@ -29,4 +29,4 @@
 | 回拨、重启、写失败三条义务与还缺什么                                                                     | [验证与证据](verification.md)                                                                                                                                              |
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
-契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 record/decisions。
+契约语义变化回 [spec](../../../../spec/README.md)，获准采用的终态写回当前承诺拥有者；比较与接受过程留本工作树 tmp。

@@ -6,7 +6,7 @@ revision 2，candidate，未接受。下面是本装配必须执行的验收方�
 
 候选入口按显式配置运行指定阶段/场景，在已核本机 owner 输出上下文交付机器可读总结果及逐场景结果：runId、scenarioId、状态（pass/fail/blocked/not_applicable）、失败或不可适用原因、实际代码/契约/配置版本摘要、开始/结束与实际资源停止状态、证据位置。模型行完整携带精确 ModelProfileRef/配置来源上下文、完整 ModelAdaptationBinding（含 implementation.name 及无损 configuration.values）、固定请求 provider route 与上游实际 provider 原串，并带 public/service 路径、门编号、request/generation/response 对照引用、费用 ledger 项引用和缓存原始计数；允许以受限证据引用承载完整值，读回缺失时不得判为匹配。秘密配置仅记“已提供/校验结果”，不散列后充当公开凭据标识；它们不能混入无秘密的 adaptation values。
 
-配置快照、版本清单、运行命令说明、机器输出和保留的失败反例组成可重跑包，持久接受证据归 record/evidence；实际 run 尚未形成，不提前建空证据绑定。每次归档扫描完整秘密哨兵和片段、来源引用、真实内部身份的禁止外传字段。报错、stdout/stderr、trace、metrics、请求头/体、重试诊断、证据索引都在扫描范围；发现泄漏停止归档/后续发送，交相应 owner 修复，保留受限失败证据。不能删除失败只留成功，也不能把敏感原文贴进机器总结果。
+验收使用显式配置、精确版本和可复跑场景；单次输入快照、机器输出与失败反例留本工作树 tmp，不形成永久接受证据。输出前扫描完整秘密哨兵和片段、来源引用、真实内部身份的禁止外传字段。报错、stdout/stderr、trace、metrics、请求头/体、重试诊断和结果索引均在扫描范围；发现泄漏停止输出和后续发送，交相应 owner 修复。不得只保留成功而隐去失败，也不得把敏感原文贴进机器总结果。
 
 模型认证的匹配值为 **精确 ModelProfileRef/配置来源上下文＋完整 ModelAdaptationBinding＋实际 provider route**，具体表示与相等规则见 [design 的认证边界](design.md#认证结果的完整匹配边界)。official ref 保留 origin/routeName；custom ref 保留 origin/完整 scope/routeName，包括所属组织或租户身份。implementation `{name, revision}`、definition `{modelId, revision}`、configuration `{revision, values}` 全部保留；五个字符串逐码点比较，values 严格无损 JSON 相等，完整命名范围不能压成裸 revision。无档案独立调用也必须保存显式配置来源上下文；本轮 official public 路径保存对应官方 ref 的真实来源快照。
 

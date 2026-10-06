@@ -1,14 +1,8 @@
 # 验证覆盖与实际证据
 
-## 当前3实际模型运行（2026-09-26）
+## 形式模型的覆盖边界
 
-2026-09-26-formal-core-v3 保存当前3冻结输入的实际执行与指定变异，主调度核原文/工具/冻结资源/归档字节，独立表达对应复核无阻断。SA正配置826411 distinct且完成探索，三个变异命中规定反例。两条binding仅覆盖正式有限模型S-6/P-1及S-27/P-7，不等于实现符合性。有限scope、被构造吸收的前提及实现范围以run和本版formal入口为准。旧执行输入不重标当前3；产品/真实组合仍独立验收。
-
-本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
-
-> **当前状态：形式检查已跑（有界；作证据的只有 P-1、P-7，P-2～P-6 在模型里按构造成立、不作证据）；其余一律未开始。**`capability.stream-assembly` v2 是 `candidate`，未接受、未冻结；
-> 尚无提供者设计、尚无源码、尚无装配。工具侧宿主已逐条承诺 [S-28](v2/contract.md#s-28-宿主要兑现的前提)（`capability.tool-execution-runtime/v2#S-62`，candidate），模型侧也已逐条承诺（`capability.model-request-runtime/v2#S-51`，candidate；原 G-2 闭合）。
-> 下表登记的是**已经触发的证据义务**，不是已完成的检查。
+正式有限模型覆盖 S-6/P-1 及 S-27/P-7，不等于实现符合性；P-2～P-6 被构造吸收，不作为证据，须由规范场景验证。精确有限范围与宿主前提见 formal 入口及 S-28；模型、提供者与实际组合各自验证，不能以旧输入冒充当前版本执行。
 
 ## 证据义务
 
@@ -33,42 +27,13 @@
 | SC-3 | 被拒的那条路径上不存在任何对状态的写 | [S-26](v2/contract.md#s-26-被拒不改状态后果归宿主) | 未开始 |
 | SC-4 | 快照交出的值与状态不共享可变部分 | [S-7](v2/contract.md#s-7-快照交出什么) | 未开始 |
 
-## 结果与反例
+## 验证方法与限制
 
-### V-1：TLC，2026-09-24（S25 第一轮修复之后，现行）
+用当前 `Assembly.tla` 与相应配置检查，正例配置与三个否定配置须成对判读：`Assembly_OrderByClose.cfg` 应暴露后开先封导致块序错误；`Assembly_ReplaceAsAppend.cfg` 应暴露整体替换被当作追加；`Assembly_OneShotCloseFirst.cfg` 应暴露先封后填，使一次性输入落在已封口块上。
 
-- **规范修订**：工作树 `panqiwei/assets-runtimes`，HEAD `ff7867d1` 之上未提交的修改（本轮修复）。四份输入逐文件复制进证据目录并记 sha256：
-  `Assembly.tla` `82349727…264b`、`Assembly.cfg` `af96e0ff…c82c`、`Assembly_OrderByClose.cfg` `7a437b75…bbe3`、`Assembly_ReplaceAsAppend.cfg` `7e5e1c6d…231`、`Assembly_OneShotCloseFirst.cfg` `2680ba91…986`。
-- **工具**：TLC2 Version 2026.09.12.025210（rev 867aefb），`-workers 1`，`/usr/local/bin/java`、`/opt/tlaplus/tla2tools.jar`；每个配置单独一次，脚本、输入、原始日志与退出码在 `tmp/formal-runs/stream-assembly-v2-2026-09-24d/`（任务区，**未登记进 `record/evidence/`**）。
+`Assembly.cfg` 的有限范围为 `Indices = {0, 1}`、`Frags = {"a", "b"}`、`MaxEvents = 6`。P-1/P-7 对应的 `BlockOrderIsOpenOrder`、`SplitInvariance`、`OneShotAccepted` 须与各自否定对照核对；P-2～P-6 按构造，不能计为独立模型检查证据。`OneShotAccepted` 只到 `Valid`，不证明一次性形式通过表示层判定。
 
-| 配置 | 结果 | 范围与数字 |
-|---|---|---|
-| `Assembly.cfg`（登记为 `stream-assembly-v2-assembly`） | **退出码 0：九个不变量在本范围内无反例**；作证据的是 `BlockOrderIsOpenOrder`、`SplitInvariance`、`OneShotAccepted` | 常量 `Indices = {0, 1}`、`Frags = {"a", "b"}`、`MaxEvents = 6`。生成 871,519 个状态、826,411 个不同状态，完整状态图深度 9，用时 1 分 10 秒 |
-| `Assembly_OrderByClose.cfg`（有效性核对，不登记） | **退出码 12：`BlockOrderIsOpenOrder` 被违反**，如预期 | 18,457 个状态时停；反例里有后开先封的两块 |
-| `Assembly_ReplaceAsAppend.cfg`（有效性核对，不登记） | **退出码 12：`SplitInvariance` 被违反**，如预期 | 4,454 个状态时停；反例里有一个被填两次的整体替换块 |
-| `Assembly_OneShotCloseFirst.cfg`（有效性核对，不登记；本轮新增） | **退出码 12：`OneShotAccepted` 被违反**，如预期 | 3,362 个状态时停；反例 6 步：模型侧开 0、填 `a`、封 0、放弃——一次性形式把封口排到填之前，填落在已封口的块上 |
-
-**模型改了什么**（相对 2026-09-23）：新增 `OneShotAccepted`（S-27 的前一半）与变异 `oneshot_close_first`；注释改用「本能力」「到达装配这一步」、标出按构造成立的六个不变量。`Assemble`、`Valid`、`OneShot`、`SplitInvariance` 的定义没有改。
-
-**不能据此声称**：任意常量下成立；P-2～P-6 被模型检查过（按构造，不作证据）；一次性形式过得了表示层判定（`OneShotAccepted` 只到 `Valid`）；解析、被砍过的调用、快照、首个内容、砍的汇总已被检查；实现符合本契约。
-
-### V-1：TLC，2026-09-23（首次，已被上一节取代）
-
-- **规范修订**：本分支工作区（`panqiwei/assets-runtimes-spec-arrival`，基线 `73f13ea` 之上、本契约首次提交之前的工作树）；模型文件 `v2/formal/Assembly.tla`。
-- **工具**：TLC2 Version 2026.09.12.025210（rev 867aefb），`-workers 1`，Java 21（Eclipse Adoptium 21.0.12.1），经 `make design-check FORMAL=run`。
-
-| 配置 | 结果 | 范围与数字 |
-|---|---|---|
-| `Assembly.cfg`（登记为 `stream-assembly-v2-assembly`） | **退出码 0：八个不变量在本范围内无反例** | 常量 `Indices = {0, 1}`、`Frags = {"a", "b"}`、`MaxEvents = 6`。同一常量下另跑一次以取统计：生成 871,519 个状态、826,411 个不同状态，完整状态图深度 9，用时 52 秒。**那一次是临时包了一个恒假的后置条件让 TLC 把统计打出来（退出码 255），不是登记的任务**；包装文件已删 |
-| `Assembly_OrderByClose.cfg`（临时登记、跑完即撤） | **退出码 12：`BlockOrderIsOpenOrder` 被违反**，如预期 | 反例 7 步：开 0、开 1、封 1、封 0、放弃 ⇒ 块次序 `1, 0`。对得上变异的含义（后开先封） |
-| `Assembly_ReplaceAsAppend.cfg`（临时登记、跑完即撤） | **退出码 12：`SplitInvariance` 被违反**，如预期 | 反例 6 步：以整体替换开 0、填 `a`、再填 `a`、放弃 ⇒ 分次到达得 `a a`、一次性到达得 `a`。对得上变异的含义 |
-
-**这三次运行之后**，模型文件只改过两处注释里的条款号（不改任何定义）。**提交前复跑**（2026-09-23 20:33–20:34 UTC，`make design-check FORMAL=run`）：
-`FORMAL stream-assembly-v2-assembly: executed; exit=0`——当时没有记下所绑定的提交号与输入哈希，**这次复跑不可复核**；检查器在成功时不回显 TLC 输出，状态数取自上表那一次。
-2026-09-24 整批对齐那一笔写的「本轮重跑」没有留下结果，同样不作证据。两者都已被上一节的运行取代。
-原始输出未存档进 `record/evidence/`——本次只在工作树里跑、未登记 run；**这是一次起草时的检查，不是可复现的证据登记**。
-
-**不能据此声称**：任意常量下成立；解析、被砍过的调用、快照、首个内容、砍的汇总已被检查（它们不在模型里）；实现符合本契约。
+这些配置不检查任意常量规模、解析、被砍过的调用、快照、首个内容、砍的汇总或真实实现符合性；相关场景须另行验证。单次输入、命令结果与反例留本工作树 `tmp/`，不保留旧模型的运行统计。
 
 ## 变化的影响
 

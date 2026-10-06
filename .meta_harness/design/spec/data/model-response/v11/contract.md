@@ -866,7 +866,7 @@ S-14 persisted仍需该唯一合法派生扩展后的消息与保留原 reply �
 
 ### S-48 表示校验、性质与缺口
 
-纯值校验沿S-27/S-28，输入是显式选择的Pending或final定义，成功为合法，失败是原闭合表示拒绝值，不授权、不写日志、无默认身份。Pending作为不可变内容读取仍用同一个$defs/PendingModelResponse，根ModelResponse缺disposition继续拒绝；不另起PersistentPending同义定义。跨记录断言见RT12的publication与final模型，Schema正反例在ready-examples.json，实际运行只在verification报告。
+纯值校验沿S-27/S-28，输入是显式选择的Pending或final定义，成功为合法，失败是原闭合表示拒绝值，不授权、不写日志、无默认身份。Pending作为不可变内容读取仍用同一个$defs/PendingModelResponse，根ModelResponse缺disposition继续拒绝；不另起PersistentPending同义定义。跨记录断言见RT12的publication与final模型，Schema正反例在ready-examples.json，实际运行输入和结果放执行工作树 `tmp/<task>/`。
 
 | 缺口 | owner | 影响 |
 |---|---|---|

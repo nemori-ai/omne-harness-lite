@@ -9,7 +9,6 @@ bindings:
       - "只承接 S-17 第 5 行「now 不后退」的进程内那一半；契约 provider 是 core/offer-expiry，其余四行不在本节点"
       - "墙钟由测试注入并在紧密循环里推进、原地、后退；不证真实系统时钟或校时服务的行为"
       - "单进程，Node v24.18.0；run 2026-09-23-tests-tenancy-leg-2"
-    alignment_checked: 2026-09-23
 
   - clause: "data.offer-expiry/v1#S-17"
     evidence: "test:packages/infra/clock/tests/clock.spec.ts#LeaseClock › clock.restart-respects-lease：崩溃（不走撤除）之后新实例的第一个返回值 ≥ 旧实例最后返回值；走过撤除则立即可服务"
@@ -17,7 +16,6 @@ bindings:
       - "跨重启那一半：「崩溃」是丢弃实例而不走撤除，同一 sqlite 文件上再装新实例；不证进程被杀、操作系统崩溃或断电之后（D-027 不承诺）"
       - "续约写失败时的收场另由同 describe › clock.write-failure-goes-unavailable… 与 clock.write-defect-latches… 承担（同 run 通过）：写不进高水位就越界答 unavailable，不返回可能后退的值"
       - "租约表被外部删除会让它失守，本节点检测不到，只靠运维约定"
-    alignment_checked: 2026-09-23
 
   - clause: "data.offer-expiry/v1#S-17"
     evidence: "test:packages/infra/clock/tests/clock.spec.ts#LeaseClock › clock.step-back-fails-boot：回拨 ⇒ start() 抛出（启动失败）且实例闩住：重启时墙钟小于上次写下的 written_at"
@@ -26,7 +24,6 @@ bindings:
       - "单进程，同一 sqlite 文件；run 2026-09-23-tests-tenancy-leg-2"
     basis:
       - plugin-throw-fails-fiber
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-36"
     evidence: "test:packages/infra/clock/tests/clock.spec.ts#LeaseClock › clock.running-rollback-unavailable-until-caught-up：运行中回拨 ⇒ 下一次 now() 即 unavailable，追上最后返回值才恢复；成对的 warn/info；续约不改小 written_at"
@@ -34,18 +31,15 @@ bindings:
       - "只承接 S-36 末行（运行中回拨）在时钟一侧的那一半；消费者侧 clockSane = false 与要看时间的路由归 governance-center-entry 的 T-9／T-18"
       - "同行另两处承担者（同 run 通过）：同 describe › clock.rollback-then-restart…（回拨后重启确定回拨）与 clock.forward-jump-bounded…（前跳至多一个续约周期不可用、被校正回来即停摆到追上）"
       - "墙钟回拨与前跳都是注入的读数；不证真实休眠或校时步进"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-34"
     evidence: "test:packages/infra/clock/tests/plugin.spec.ts#clock.no-self-dispose：运行期的不可用只是返回值，fiber 仍 ACTIVE、服务仍解析得到"
     assumptions:
       - "承接 S-34 的前提「时钟不可用只表现为返回值、不表现为面缺席」：三条（运行中回拨、续约写失败、续约写缺陷闩住）之后 clock fiber 仍 ACTIVE、服务仍解析得到"
       - "经 bootAssembly 装 storage-sql + clock（sqlite 临时文件库）；不含入口层，面是否应答归 governance-center-entry 与 tenancy-host"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-34"
     evidence: "test:packages/infra/clock/tests/clock.spec.ts#LeaseClock › clock.startup-window-bounded：上一实例续约后崩溃；新实例以墙钟 = written_at 启动 ⇒ 恰好 L 不可用；以 written_at + 3 s 启动 ⇒ L − 3 s"
     assumptions:
       - "承接 S-34「启动成功以钟可读为条件」在时钟一侧的那一半：不可用窗口有界（至多 L）；入口层以 clockReadyTimeoutMs 等钟的那一半归 governance-center-entry T-18 与 tenancy-host assembly.clock-ready-timeout"
       - "L 取候选常量；墙钟注入，不按真实时长等待（真实时长的那几条在 tenancy-host 的 slow.spec.ts）"
-    alignment_checked: 2026-09-23

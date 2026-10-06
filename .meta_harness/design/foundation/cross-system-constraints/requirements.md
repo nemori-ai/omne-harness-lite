@@ -12,11 +12,8 @@ migration_status: equivalent-current-requirement
 
 # 已确认的跨系统约束
 
-以下各 ID 对应标题下的已确认正文，不包括后续设计候选。可恢复来源由[来源、确认与变化](changes.md)及本页 front matter 的
-`source_commit`、`source_file`、`source_sha256` 与 `source_anchor` 共同固定。新增或冲突输入按
-`harness-design-handbook` skill 的「需求归位」→「绑定当前系统而非历史设想」处理。
-2026-09-12 本轮用户叙述进一步明确组织或个人的服务对象与最终目标，已分别归属
-目标正文。条款保留原 ID。
+以下各 ID 对应标题下的已确认正文，不包括后续设计候选。条款保留稳定 ID。
+新增或冲突输入按 `harness-design-handbook` skill 的「需求归位」与「绑定当前系统而非历史设想」处理。
 
 ## SYS-IDENTITY
 
@@ -31,23 +28,16 @@ Agent Runtime（Agent Loop）完全由本项目自主设计；Harness 层、工�
 和其他子系统同样由本项目自行定义和实现。DeepSeek Harness 不作为本项目的实现，
 本项目不称为 Cordis Harness。实际采用的 Cordis 版本与实现映射仍需固定。
 
-2026-09-28，用户明确纠正复用边界：仅采用 Cordis，自主设计 Agent Runtime（Agent Loop），
-不采用 DSH `agent` 原语。本条取代此前「Cordis 与 DSH `agent` 原语」的复用范围，
-以及 2026-09-13 对其他选定 DSH 组件采用 fork 的安排；确认来源与影响见 [changes.md](changes.md)。
-
-2026-10-01，负责人重定 Cordis 的定位：它仍是内核，是让本项目有条件实现完全动态系统的、
-**全系统集成装配时要满足和遵循的契约规范**——架构设计与实现出来的东西，要能以 fiber、plugin、service、inject
-的方式集成装配；**它不是建模的视角**。领域与能力独立于 Cordis 建模，装配时逐项核对符合性。
-复用范围与采用方式不变。接受记录见 D-112，
-确认来源见 [changes.md](changes.md#2026-10-01重定-cordis-的定位)。
+Cordis 是全系统集成装配时要满足和遵循的契约规范。架构设计与实现要能以 fiber、plugin、service、inject
+的方式集成装配。领域与能力独立于 Cordis 建模，装配时逐项核对符合性，不把 Cordis 当作建模视角。
 
 ## SYS-SPEC
 
 公开 TypeScript 类型与必要运行时校验拥有模块形状；类型表达不出的不变量、失败、
 副作用、并发、取消与恢复承诺由模块旁薄规格约束。设计不再要求编程语言无关。
 重要隔离、事务、恢复和进展问题仍保留相称的模型、探针或故障测试；实现不能替代承诺。
-规格与资源的唯一归属及未迁旧源读法见[架构维护入口](../../architecture/README.md)，
-确认与部分取代范围见 D-115。
+规格与资源的唯一归属及未迁旧源读法见[架构维护入口](../../architecture/README.md)。
+已迁单元与未迁旧源的适用范围按该入口区分。
 
 ## SYS-DEPLOY
 

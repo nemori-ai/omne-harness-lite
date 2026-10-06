@@ -326,6 +326,6 @@ ctx（apps 装配，本批未建节点）
 | 6 | `packages/tenancy/organization-governance` 25 个操作 | 1–5 | `og#S-46`～`#S-48`、`#S-51`、`#S-52`、`#S-54`（八支）全过；`#S-48` 真并发；创建键五支；时长两路 |
 | 7 | `packages/tenancy/account-registration` 两条链 | 5、6 | `ar#S-27`～`#S-31` 全过；`ai#S-43` 第 2 支**含两条交错**与 `og#S-54` ⑥⑦ 同一批真并发演练过，孤儿组织与「已激活无个人组织」两个状态都不可达；缺陷记录可区分 |
 | 8 | 静态检查器（SC-1／SC-2／SC-9、SC-OE-1～3、失败集合闭合、`TerminalOutcome` 四值、**方法级**：`accounts.produce` 调用点与 `organization-purge` 解析点（含 `ctx.get`）只在 AR） | 1–7 | 每条规则有「故意违反就失败」自测 |
-| 9 | 把 5–8 的运行结果登进 `record/evidence/`，回填各节点 bindings（`test:` 证据） | 5–8 | bindings 不再只有 formal；README「实际验证」不再是「尚无」 |
+| 9 | 把 5–8 的运行结果保存在本工作树 `tmp/`，将可复跑测试资源及适用前提写入对应拥有者并回填 bindings（`test:`） | 5–8 | bindings 不再只有 formal；README「实际验证」不再是「尚无」 |
 
 跨契约场景（`og#S-49`、`#S-50`）与资产／会话契约相关，**不在本版顺序内**。

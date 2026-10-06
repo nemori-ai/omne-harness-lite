@@ -78,7 +78,7 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 | 缺口 | 受阻条款／消费者 | owner 与闭合条件 |
 |---|---|---|
-| M4-G1：契约与节点未接受、v4源码未实现 | messages4 S-37/S-39/S-49；新 response4/runtime3 的实施采用 | 主线完成独立审阅与精确接受；messages 实施者完成 M4-V1～V7，运行原始证据归 record/evidence |
+| M4-G1：契约与节点未接受、v4源码未实现 | messages4 S-37/S-39/S-49；新 response4/runtime3 的实施采用 | 主线完成独立审阅与精确接受；messages 实施者完成 M4-V1～V7，单次运行输入与结果留本工作树 tmp |
 | M4-G2：保留 profile2 的公开纯值与 Schema 端口未实施 | messages2/3 Schema图及 v3 的 ModelProfileSnapshot 类型、参数判定；loop-extension3 与 response3 保留消费者 | profile owner 交付精确2端口；消费者显式接线且实际制品通过 M4-V7，不能把新profile3当旧2 |
 | M4-G3：未来2消费者的采用范围未由本节点决定 | messages2 S-37/S-39；尚未实施而仍钉2的消费者需要的完整判定责任 | 主线/对应消费者按独立采用决定选Schema读取或演进契约；本批保留面仅现有schema/v2，不新增messages2/CB2纯函数。不阻断本节点4/3实现，不能据资源存在声称未来2消费者已具备实现 |
 | M4-G4：耐久及身份不是纯值模块的责任 | messages4 S-9/S-33/S-49 的身份壳、唯一、跨记录绑定、出门前锚点；新runtime服务/恢复消费者 | runtime 写入者、session-log owner及主线指定的真实验收装配完成 M4-V8。新验收装配尚未建立；不把Schema、配置字符串扫描或旧单元测试当作授权/秘密检测/日志耐久证明 |
@@ -108,7 +108,7 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 | 来源条款 | 需要什么证据 | 当前状态 | owner 与闭合条件 |
 |---|---|---|---|
-| V-1 形状校验 | `examples.md` 参与机检的各节逐行过包内校验；包内 Schema 副本与 spec 逐字节相同 | 未开始 | 本节点：包内测试，CI 跑过、结果登记进 record/evidence 即闭合 |
+| V-1 形状校验 | `examples.md` 参与机检的各节逐行过包内校验；包内 Schema 副本与 spec 逐字节相同 | 未开始 | 本节点：包内可复跑测试核对本行观察；单次输入与结果留本工作树 tmp |
 | V-2 拒绝值的具名与两段次序 | 每个拒绝行逐字相同；第 12 节六行专验第一段的次序 | 未开始 | 本节点 |
 | V-3 单条消息里 Schema 管不到的约束 | 工具消息两个 `callId` 相等等；`block_id_duplicate` 含嵌套与派生表示 | 未开始 | 本节点 |
 | S-37 读 JSON 文本的口径（M36） | examples 新加的两例：顶层 `type` 出现两次的文本得 `malformed`（不取任一个）；含 `12345678901234567890` 的记录经 `readJsonStrict`／`writeJsonLossless` 往返逐字相同 | 未开始 | 本节点做模块内那一半；会话日志落盘与回读那一跳归日志写入方（content-blocks CB-2） |

@@ -17,7 +17,7 @@
   **不兑现**：S-21 的前提（一切交互经 S-17 或 S-44，归各入口 owner）、S-25 的另一半（其他 owner 的数据）、S-22 与 S-44 的时序侧信道（契约明列不承诺）、S-29 的另一半（运行控制，G-4）、G-1 个人 context、S-30 右列的全部协议给保证；S-30「进程外来的身份一律先过 S-44」在接收边界一侧的兑现（归入口节点，本节点只收窄签名并提出检查形式）；出示物在途与客户端一侧的保存。
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) **三条**，全部绑到 `composition.account-registration` 的形式任务，钉的是 **v1** 坐标 S-13／S-14／S-38——那份模型把这三条建成抽象动作；三条在 v2 里逐字相同，对 v2 的适用性写在各条前提的最后一项，**不另登 v2 坐标**（组合 v1 钉 AI v1）。本契约自己不建形式工件（v1、v2 同）。
   v2 新增或改写的 S-15、S-17、S-44、S-45 的绑定待 [verification.md](verification.md) 与绑定表回填；十条规范场景、两条静态检查、记录结构检查、熵审阅与两处故障注入的逐条状态同样待回填
-- 实际验证：按 v2 的包内测试（`tests/{scenarios,obligations,plugin,config}.spec.ts`、`tests/types.spec-d.ts`；归别处的写成带指向的 `it.skip`）在运行 `2026-09-23-tests-tenancy-leg-2` 里随十三个 TS 成员 build／typecheck／test 在 sqlite 下全过，证据登记在 `record/evidence/2026-09-23-tests-tenancy-leg-2/`（HUB）；逐条覆盖待 [verification.md](verification.md) 回填
+- 验证义务：场景、故障、插件配置和公开类型须按 [verification.md](verification.md) 检查；属于其他 owner 的义务明确承担者，跳过不计通过。包内场景、完整进程恢复与真实装配分别验证。
 
 ## 按当前问题展开
 
@@ -28,7 +28,7 @@
 | 实际跑过什么、v1 与 v2 各要什么证据、还缺什么                                                                                                                          | [验证与证据](verification.md) |
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
-契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 record/decisions。
+契约语义变化回 [spec](../../../../spec/README.md)，获准采用的终态写回当前承诺拥有者；比较与接受过程留本工作树 tmp。
 
 ## v3 提供者修订候选
 

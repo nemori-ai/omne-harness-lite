@@ -9,6 +9,5 @@ bindings:
     evidence: "test:tools/core-verification/src/w6-asset-consumer.ts#w6.skill.slash-expansion-to-messages"
     assumptions:
       - "调用者给定已确定技能包／两个块标识，实际技能正文和原参数成为两个来源块；不证明真实目录读取或执行。"
-      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
-      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
-    alignment_checked: "2026-09-26"
+      - "本条仅绑定上述具名用例的有限输入；执行输入、输出及接受过程归本工作树 tmp/。"
+      - "有限实现测试，不是任意输入证明；测试通过不提升整体接受状态。"

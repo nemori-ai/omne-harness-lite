@@ -201,7 +201,7 @@ dispose()：逆序撤除（总超时常量），入口层先于运维面
 
 | 契约条款 | 证据 | 前提 | 状态 |
 |---|---|---|---|
-| `gce#S-10`、`#S-11`、`#S-13`、`#S-14`、`#S-32`、`#S-33` | `formal:governance-center-entry-v1-decision`（TLC 正配置）+ 八个否定配置 | 参与方动作抽象为原子、判定为布尔；模型证「同一个答复值」，不证逐字节相同、不证跨请求缓存 | 已跑无反例（契约稿定后重跑）；原始输出**尚未登进 `record/evidence/`** |
+| `gce#S-10`、`#S-11`、`#S-13`、`#S-14`、`#S-32`、`#S-33` | `formal:governance-center-entry-v1-decision`（TLC 正配置）+ 八个否定配置 | 参与方动作抽象为原子、判定为布尔；模型证「同一个答复值」，不证逐字节相同、不证跨请求缓存 | 正配置与八个否定配置须分别核验；执行结果留本工作树 `tmp/`，不以此表声明本次验证完成 |
 | 入口层节点 bindings 六条 | 绑到上述模型的具名不变式与变异配置 | 同上 | 已登记；节点无任何运行 |
 | `gce#S-38`～`#S-46` 规范场景、SC-1～SC-3、节点 T-1～T-18、tenancy-host `assembly.*`、storage-sql `upgrade.*`／`lifecycle.upgrade-config-policy`、clock `clock.*`、AI R-8 检查与 `no-presentation-in-diagnostics` | 各节点 verification.md | — | **全部未开始**；bindings 只绑已存在的证据 |
 
@@ -233,6 +233,6 @@ dispose()：逆序撤除（总超时常量），入口层先于运维面
 | E-5 | 入口层包：路由表、判定次序、Schema 取名、`governance_center` 片段与三态读或铸、`governanceCenterPreflight`、四个通知、两张面 | E-0～E-4 | T-1～T-13 全过（pg 支除外）；SC-1～SC-3 有「故意违反就失败」自测 |
 | E-6 | tenancy-host：迁移合成加入口层片段、`upgrade.checks` 三项、两步开闸、有界等 `serving`、运维约定、启动失败具名阶段 | E-5 | `assembly.*` 全部义务过（含 U-3 反向支、交错 guard 支、显式 upgrade 支） |
 | E-7 | 结构检查器补齐：SC-2 事件订阅、只碰一张表、入口层不 import `parseLoginStateId`、AI R-8、`no-presentation-in-diagnostics` | 与 L2-7 同批 | 每条规则自测 |
-| E-8 | 把 TLC 原始输出与 E-1～E-6 的运行登进 `record/evidence/`，回填各节点 bindings（`test:`） | E-1～E-7 | bindings 不再只有 formal；README「实际验证」不再是「尚无」 |
+| E-8 | 把 TLC 原始输出与 E-1～E-6 的运行结果保存在本工作树 `tmp/`，将可复跑资源和适用前提写回各节点并回填 bindings（`test:`） | E-1～E-7 | bindings 不再只有 formal；README「实际验证」不再是「尚无」 |
 
 CLI 据点侧代理（PF-016 实施）不在本版顺序内；它从入口契约的 Schema 取名，等 E-0 的传输绑定冻结。

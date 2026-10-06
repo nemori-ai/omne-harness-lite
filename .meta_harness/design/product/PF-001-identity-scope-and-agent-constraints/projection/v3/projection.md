@@ -276,7 +276,7 @@ ctx（apps 装配，本批未建节点）
 
 ## 6. 绑定与证据
 
-运行登记在 `record/evidence/`：形式工件 `2026-09-22-formal-tenant-domain-2`（模型未改，仍适用）与 `2026-09-23-alloy-affiliation`；实现测试 `2026-09-23-tests-tenancy-leg-2`；黑盒端到端 `2026-09-23-e2e-governance-center`。通过不提升任何状态。逐条款绑定在各节点 `bindings.yaml`，逐行义务状态在各节点 `verification.md`。
+逐条款的可复跑资源与前提绑定在各节点 `bindings.yaml`，逐行义务范围在各节点 `verification.md`。形式结论只适用于对应模型、配置及成立前提；每次运行结果留本工作树 `tmp/`，通过不提升任何状态。
 
 | 契约条款 | 证据 | 前提 | 状态 |
 |---|---|---|---|

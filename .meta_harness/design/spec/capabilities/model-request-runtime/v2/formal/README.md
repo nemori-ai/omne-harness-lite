@@ -1,7 +1,7 @@
 # formal：一次调用 × 多次发出 × 停机 × 中断
 
-属于 `capability.model-request-runtime` v2 的规范工件。**这里只写模型表达了什么、每条断言对应哪条条款、成立的前提、模型吸收了什么**；
-。[验证入口](../../verification.md)维护方法、覆盖、前提和限制；每次运行输入与输出放本工作树 `tmp/<task>/`。
+属于 `capability.model-request-runtime` v2 的规范工件。**这里只写模型表达了什么、每条断言对应哪条条款、成立的前提、模型吸收了什么**。
+[验证入口](../../verification.md)维护方法、覆盖、前提和限制；每次运行输入与输出放本工作树 `tmp/<task>/`。
 
 ## 模型
 
@@ -78,7 +78,7 @@
 | `AtMostOneTerminal` | [S-6](../contract.md#s-6-调用的状态) | 调用终结记录与一条终态响应体并存 |
 | `InterruptNotMisregistered` | [S-31](../contract.md#s-31-interrupt)：**被叫停的那次发出不被记成失联** | 对账把有中断意图的发出写成 `runtime_lost` |
 
-每份否定配置只检查它那一条（第一类），**这十条没有在任何否定配置里检查过**。`EverySentIsAnchored`、`EverySeenIsAnchored` 与第一类的 `QuiescentSettled`、`NoDispatchAfterSeen` 由同两个开关（`OutFirst`、`SpokeFirst`）控制，把它们也列进那两份配置即可补证，本轮没有做。
+每份否定配置只检查它那一条（第一类），**这十条没有在任何否定配置里检查过**。`EverySentIsAnchored`、`EverySeenIsAnchored` 与第一类的 `QuiescentSettled`、`NoDispatchAfterSeen` 由同两个开关（`OutFirst`、`SpokeFirst`）控制，把它们也列进那两份配置即可补证，现有否定配置没有包含这些断言。
 
 | 进展性质 | 条款 | 前提 |
 |---|---|---|

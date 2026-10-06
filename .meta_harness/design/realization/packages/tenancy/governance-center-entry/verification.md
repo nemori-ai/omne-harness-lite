@@ -11,7 +11,7 @@ D044采用后，新增共同提交与生命周期验证见实际运行。入口4
 
 契约侧的证据义务权威在 [`spec/compositions/governance-center-entry/verification.md`](../../../../spec/compositions/governance-center-entry/verification.md)：
 形式任务与否定核对（V-1～V-3）、规范场景与实现符合性（V-4～V-15）、静态检查（SC-1～SC-3）。本页按本节点的兑现点登记。
-原始配置、输入与运行结果归 record/evidence，本页只引用并写范围。
+本页维护验证义务、方法与限制；单次配置、输入与运行结果留本工作树 `tmp/`。
 
 > **当前状态：本节点的包内测试跑过一次并登记为证据**（run `2026-09-23-tests-tenancy-leg-2`：424 条用例 422 通过、2 跳过、0 失败），
 > 契约的形式任务另有一次入库的执行（run `2026-09-23-formal-governance-center-entry`）。

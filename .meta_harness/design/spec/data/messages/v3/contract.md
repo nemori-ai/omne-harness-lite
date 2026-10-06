@@ -1,6 +1,6 @@
 # data.messages v3
 
-> v3 候选的变化影响、证据义务与本轮实际检查见 起草报告。下文版本外 verification 中的旧运行仅属于其原输入，不据此宣称 v3 已验证。
+> 验证义务见版本外 verification；实际检查输入与结果放执行工作树 `tmp/<task>/`。旧输入结果不证明 v3 已验证。
 
 > 规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
 
@@ -8,9 +8,9 @@
   `family = data`、`topic = messages`、规范路径 `spec/data/messages/v3/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：当前采用范围见 catalog；采用范围以 catalog 为准。
-- **本轮需求 rev 对账**：PF-012 rev 14 → rev 15；PF-013 rev 12 → rev 13。仅更新本次依据：PF-005 的增量归外部 hooks／执行环境，PF-012 的栅栏与迟到账责任归运行时，PF-013 的增量只收窄 UI 验收适用；本契约所用值与声明的规则不变。源2历史复核文字保留其原 rev；精确差异及 owner 见 起草报告。
+- **产品依据及采用范围**：PF-012 rev 14 → rev 15；PF-013 rev 12 → rev 13。采用范围：PF-005 的增量归外部 hooks／执行环境，PF-012 的栅栏与迟到账责任归运行时，PF-013 的增量只收窄 UI 验收适用；本契约所用值与声明的规则不变。原采用范围不自动升级到其他产品版本。
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-009 rev 8、PF-010 rev 6、PF-012 rev 15、PF-013 rev 13、PF-014 rev 7、PF-015 rev 11、PF-006 rev 19、PF-004 rev 12、PF-008 rev 7** 为准。
-  2026-09-24 按各 topic 的 changelog 从起草时的 rev 逐版核到当前 rev：PF-009 rev 8 与 PF-010 rev 6 改了 `SystemMessage`（不落会话日志、每次组装现算、本版只含文本，[S-7](#s-7-systemmessage)、[S-6](#s-6-每种消息能装哪几类块)、[S-29](#s-29-合法名单的判定)、[S-32](#s-32-会话日志里的配对与唯一)）与工具帧的收尾（出错照常收尾，[S-13](#s-13-toolinternalmessage)、[S-14](#s-14-toolinternalmessage-怎么收的尾)）；PF-014 rev 6 的「被中断的回复不交出动作」进 [S-10](#s-10-assistantmessage-怎么收的尾)；其余不改本契约条款。逐 topic 的记录见[验证入口「变化的影响」](../verification.md#变化的影响)
+  产品依据到本契约的映射：PF-009 rev 8 与 PF-010 rev 6 改了 `SystemMessage`（不落会话日志、每次组装现算、本版只含文本，[S-7](#s-7-systemmessage)、[S-6](#s-6-每种消息能装哪几类块)、[S-29](#s-29-合法名单的判定)、[S-32](#s-32-会话日志里的配对与唯一)）与工具帧的收尾（出错照常收尾，[S-13](#s-13-toolinternalmessage)、[S-14](#s-14-toolinternalmessage-怎么收的尾)）；PF-014 rev 6 的「被中断的回复不交出动作」进 [S-10](#s-10-assistantmessage-怎么收的尾)；其余不改本契约条款。
 - **精确语义依赖**：
 
   | 坐标 | 消费 clauses | 取它的什么 | Schema 里怎么用 |

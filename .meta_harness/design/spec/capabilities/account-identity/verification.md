@@ -92,8 +92,7 @@
 - **故障注入**：S-27 逐行、S-26、随机源不可用、派生值碰撞、S-38 同提交通过；S-39 的参数一侧由启动失败兑现，本行要的观察没有出现（部分）。
 - **真实组合的符合性**：账号能力与真实 credential-verification、organization-governance、account-registration、`storage-sql`（sqlite 临时文件库）的组合在 account-registration 与 `apps/tenancy-host` 的用例里；pg 只跑了 `apps/tenancy-host/tests/pg.spec.ts` 的几支。
 
-记录多时按执行拆文件并从本页链接；工具与版本、环境、配置、输入范围与原始结果位置在 run 目录里；
-记录多时按执行拆文件并从本页链接，原始产物归 record/evidence/。
+本页维护验证义务、方法、前提与覆盖限制。单次执行的工具与版本、环境、配置、输入范围、步骤和原始结果留本工作树 `tmp/`，不建立永久运行索引。
 
 记录时必须分开陈述：**静态检查的结果**、**场景演练的结果**、**故障注入的结果**、**真实组合的符合性**。
 [局部通过不能代替实际组合通过](../../README.md#按需展开形式化工件)；
@@ -161,26 +160,7 @@
   它的不可达与清理归治理。**不新增条款、不改任何前置或失败集合、不改 catalog**；
   [S-12](v1/contract.md#s-12-账号身份事实不是范围化对象) 不受触动，依赖方向不变。三票交集指出的
   「撤销时那项选择在存储层没有拥有者」由治理侧第 5 条闭合。**不新增证据义务。**
-- **未落盘：能力拆分投票裁定的修正 1 的原方向（移交）**（2026-09-22，依据
-  `record/proposals/tenant-capability-split/`）。
-  三票独立评审**全投维持五份拆分**，交集发现之一是「当前租户身份一条记录两个 owner」——
-  登录状态记录归本契约（[S-9](v1/contract.md#s-9-登录状态记录)），挂在它上面的那项选择归治理契约
-  （[S-2](v1/contract.md#s-2-消费者与依赖方向) 的「不拥有」表）。
-  裁定方向是把那项选择的**存与取移到本契约**（登录状态记录上的一个字段，随 [S-16](v1/contract.md#s-16-撤销登录状态) 的撤销一起失效）。
-  **本轮未落盘**，被一条硬约束挡住：那项选择的**初值**是「该账号的个人组织里的那个租户」，
-  而个人组织的 `OrganizationId` **不透明、由存储在创建时生成、不可从 `AccountId` 派生**
-  （[`data.identity-values/v1#S-3`](../../data/identity-values/v1/contract.md#s-3-organizationid)、
-  [`#S-5`](../../data/identity-values/v1/contract.md#s-5-tenantid-的构成与相等)），
-  它是 [`capability.organization-governance/v1#S-20`](../organization-governance/v1/contract.md#s-20-创建个人组织) 产生的事实——
-  本契约要算得出初值就必须消费治理读面，**那会翻转 [S-2](v1/contract.md#s-2-消费者与依赖方向) 声明的依赖方向**。
-  同一处还有两项未决：本契约的
-  [S-12](v1/contract.md#s-12-账号身份事实不是范围化对象)「不携带任何租户身份、不读任何租户身份」
-  与「登录状态记录上带一个 `TenantId` 字段」**正面冲突，须一并改写**；
-  裁定给切换操作的收场「只核登录状态有效并写入、不核目标成员资格」
-  会**删掉**治理侧现有的 `membershipNotEffective` 收场，那是一次**承诺变更**，
-  与该提案「两处修正不改变任何已定承诺」的证据义务不符。
-  **因此本契约本轮一个字未改**：条款、失败集合、场景与 catalog 的 clauses 全部不变，
-  已有结论不受影响；待裁项报回主线。
+- **职责与依赖边界**：当前租户选择由组织治理整体拥有，以 `LoginStateId` 引用登录状态。账号身份契约不存取该选择；撤销或过期时不修改它，残留清理由治理负责。个人组织的 `OrganizationId` 是不透明、由存储创建的值，不能从 `AccountId` 派生；账号身份不因此消费治理读面。验证须按现行消费者与依赖方向检查，不恢复未采用的字段移交方案。
 - **已执行：PF-001 升到 rev 15**（2026-09-22，
   [changelog rev 15](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）。
   **rev 15 只改 [flows §4](../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作) 成员名单那一行**

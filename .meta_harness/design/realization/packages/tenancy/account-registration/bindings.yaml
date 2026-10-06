@@ -9,7 +9,6 @@ bindings:
       - "不变式 ActivatedHasPersonalOrganization ∧ OnePersonalOrganizationPerAccount；crash.cfg：Attempts = {a1,a2,a3}，Failures = TRUE，Abandoning = TRUE，Expiring = TRUE"
       - "模型不表达组织内部结构（成员资格、角色）；「组织 + 首个成员同提交」是治理节点存储要求 R-1 的事，模型假设"
       - "单登录标识模型；三个参与方动作被抽象为原子动作，存储原子性与隔离由 account-identity／organization-governance 的存储要求兑现，模型不检查"
-    alignment_checked: 2026-09-22
 
   - clause: "composition.account-registration/v1#S-35"
     evidence: "formal:account-registration-v1-crash"
@@ -18,28 +17,24 @@ bindings:
       - "依据的形状与不可伪造性不在模型里（sweep 是布尔式阶段标记）；那一半的证据是 capability.account-identity/v1 场景 S-41 ④⑤、S-42 第 1 支（未开始）"
       - "清扫的发起者与节奏不在模型里：Expire 与两步清除是可在任何位置插入的环境动作（最坏情况）"
       - "「已过期」单调、Expire 原子、三个读点同答案在模型里由结构给出；真实系统靠 account-identity 账号行上的 expiredAt 事实（首次观测时落盘、行锁序列化）+ organization-governance R-6 引用约束（组织行指向账号行、删除受限）；NoOrphanPersonalOrganization 在真实系统里靠那条约束成立，模型不检查"
-    alignment_checked: 2026-09-22
 
   - clause: "composition.account-registration/v1#S-16"
     evidence: "formal:account-registration-v1-crash"
     assumptions:
       - "安全性质 NoFalseSuccess，在 Failures = TRUE 下检查；「回执只在 ③ 提交之后发出」由本节点方法体结构兑现，模型把它建成 Finish 动作的守卫"
       - "配置同上（crash.cfg）"
-    alignment_checked: 2026-09-22
 
   - clause: "composition.account-registration/v1#S-10"
     evidence: "formal:account-registration-v1-crash"
     assumptions:
       - "动作性质 OrganizationBeforeActivation（[][A]_vars 形式）；ActivateOk 的守卫是 warrant[a] ∧ ¬expired，即「持有本次 ② 产出的依据且记录未过期」——依据被抽象为布尔，不表达绑定 AccountId"
       - "配置同上（crash.cfg）"
-    alignment_checked: 2026-09-22
 
   - clause: "composition.account-registration/v1#S-20"
     evidence: "formal:account-registration-v1-crash"
     assumptions:
       - "ConvergentOutcome 是上面几条不变式的投影，不是独立性质（formal/README 明写）；绑定它只为让「静止时没有第三种形态」这句验收措辞有落点"
       - "配置同上（crash.cfg）"
-    alignment_checked: 2026-09-22
 
   - clause: "composition.account-registration/v1#S-19"
     evidence: "formal:account-registration-v1-progress"
@@ -47,7 +42,6 @@ bindings:
       - "时序性质 EventualOutcome（leads-to）；progress.cfg：Attempts = {a1,a2}，Failures = FALSE（前提 (c) 存储最终持续可用），Abandoning = FALSE（前提 (b) 发起者不放弃），Expiring = TRUE；公平性 WF_vars(Organize) ∧ WF_vars(Activate)——这些是假设不是被证明的事实"
       - "前提 (d)（两个参与方的服务面都能被解析到）根本没有被建模；证据形式是场景 S-29（未开始）"
       - "撞上已过期记录停在 start 那一支不在前件内，EventualOutcome 对它什么也没说；那一支的进展由 S-8 分支表承担，本节点的「重跑 ① 只一次」是它的兑现点，证据是场景（未开始）"
-    alignment_checked: 2026-09-22
 
 
 
@@ -56,32 +50,27 @@ bindings:
     assumptions:
       - "规则自测 4 条，含对真实 AR 源码的变异核对（追加一个返回第五个值的 register ⇒ 报出）；真实源码扫描是同 run 的 pnpm run lint:rules（退出 0）"
       - "类型层另由 packages/tenancy/account-registration/tests/types.spec-d.ts › account-registration 类型闭合 › S-5 终结结果恰四值 与 register 的返回恰是四值终结结果… 承担（同 run 通过）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.account-registration/v1#S-13"
     evidence: "test:packages/tenancy/account-registration/tests/faults.spec.ts#S-13／S-35 两个不可达状态：每一步之间注入失败"
     assumptions:
       - "实现侧的故障注入（3 条：主链全新标识、主链撞上已过期记录、清扫发起的清除链），每条语句失败、每个写事务回滚、每次提交后撤编排者；不是模型证据，模型证据是上面的 formal 条目"
       - "「撤编排者」是同进程里 dispose 插件，不是进程被杀；共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.account-registration/v1#S-35"
     evidence: "test:packages/tenancy/account-registration/tests/faults.spec.ts#S-13／S-35 两个不可达状态：每一步之间注入失败"
     assumptions:
       - "同 S-13 那条；孤儿组织不可达在真实系统里靠 organization.owner_account → account 的引用约束（真实外键存在性由 apps/tenancy-host 的 assembly.fk-organization-owner-account 证）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.account-registration/v1#S-27"
     evidence: "test:packages/tenancy/account-registration/tests/scenarios.spec.ts#S-27 中途失败后用同一标识重来"
     assumptions:
       - "3 条：② 前注入存储故障后重来、停在 ①②③ 任一位置之后重来、③ 提交成立而回执没到；共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.account-registration/v1#S-28"
     evidence: "test:packages/tenancy/account-registration/tests/scenarios.spec.ts#S-28 在任意位置中断，没有第三种形态"
     assumptions:
       - "三个位置各以撤编排者与存储故障两种方式中断、此后不重试；共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.account-registration/v1#S-29"
     evidence: "test:packages/tenancy/account-registration/tests/scenarios.spec.ts#S-29 参与方缺席时不放行"
@@ -90,53 +79,45 @@ bindings:
       - "装配期缺席那一支依赖「必需服务缺席 ⇒ 不跑插件体」的内核语义（basis plugin-body-reruns-on-provider-change，4.0.4）"
     basis:
       - plugin-body-reruns-on-provider-change
-    alignment_checked: 2026-09-23
 
   - clause: "composition.account-registration/v1#S-30"
     evidence: "test:packages/tenancy/account-registration/tests/scenarios.spec.ts#S-30 编排者被卸载，在途尝试等同崩溃 › ① 与 ② 之间卸载 registration ⇒ interrupted；账号停在未激活、没有任何清理；装回后以同一标识重来接着完成"
     assumptions:
       - "卸载是同进程里 dispose 本插件；「主动停步」的机制是读 fiber 状态（S-22 依赖的 API 未做来源核对，行为在 4.0.4 上如此）"
       - "共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.account-registration/v1#S-31"
     evidence: "test:packages/tenancy/account-registration/tests/scenarios.spec.ts#S-31 两个同标识并发注册"
     assumptions:
       - "3 条（同凭据、不同凭据、强制交错），sqlite 一侧：写事务 BEGIN IMMEDIATE 串行，撞唯一约束那一支在 sqlite 下到不了（integration.spec.ts 的占位跳过）"
       - "共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.account-registration/v1#S-31"
     evidence: "test:apps/tenancy-host/tests/pg.spec.ts#pg 首跑 · 各包留给 pg 的支 › AR I-6 撞 account_login_identifier_unique 那一支的 pg 变体：同一标识两路并发注册 ⇒ 恰一路 registered；另一路 identifier-taken，或（撞约束重来之后记录又变了一次 ⇒ AI 答 storage-unavailable）interrupted、重来即 identifier-taken；不变量成立，且至少一轮真的撞到了唯一约束"
     assumptions:
       - "pg 一侧：PostgreSQL 16.14 临时容器，每条用例一个新建空库；sqlite 一侧同名占位跳过，以 pg 一侧的通过为准"
       - "经 apps/tenancy-host 的交错夹具（真实 AI／OG／AR／CV + 本节点合成迁移）；单次运行"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.account-registration/v1#S-34"
     evidence: "test:packages/tenancy/account-registration/tests/purge.spec.ts#S-34 清除链（清扫经 purgeExpired 发起）"
     assumptions:
       - "6 条：走得通且可重扫、跳过 ① 直接调 ② 被拒、两步之间中断与回来、三分类原样带出；清扫的发起者是测试调 purgeExpired（本版没有真实的清扫提供者）"
       - "共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.account-registration/v1#S-34"
     evidence: "test:packages/tenancy/account-registration/tests/interleavings.spec.ts#ar#S-34 与注册主链并发：交错表其余几格"
     assumptions:
       - "交错表其余四格；两个发起者在同一条过期记录上并发另由 purge.spec.ts › S-34 两个发起者在同一条过期记录上并发（2 条）承担，AI S-43 第 2 支与 OG S-54 ⑥⑦ 那几格在同文件另两个 describe（同 run 通过）"
       - "交错由 InstrumentedStorage 在语句处编排，证的是被编排出的交错；sqlite 一侧（pg 一侧只重跑了 I-1／I-2／I-4）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.account-registration/v1#S-8"
     evidence: "test:packages/tenancy/account-registration/tests/purge.spec.ts#S-8 撞上已过期记录：本组合就地跑清除链，两步都 ok 才重跑 ① 一次"
     assumptions:
       - "7 条：就地清除后重跑 ① 只一次得新 AccountId；清除链抖动型、缺陷型与不可达终止型各支 ⇒ interrupted、不重跑；部分失败值由伪造或配错公钥构造"
       - "共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.account-registration/v1#S-8"
     evidence: "test:packages/tenancy/account-registration/tests/scenarios.spec.ts#S-8 参与方失败值 → 终结结果（主链；清除链那一半在 purge.spec）"
     assumptions:
       - "4 条：①②③ 各自的失败值映射与缺陷记录（warrant-invalid 由 AI 核实公钥与本插件私钥不配对构造）；缺陷记录的类型层另由 types.spec-d.ts › … › 缺陷记录三类、五个步骤位置 承担"
       - "共同前提（见文件头）"
-    alignment_checked: 2026-09-23

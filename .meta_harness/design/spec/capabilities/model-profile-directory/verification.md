@@ -1,252 +1,101 @@
-# 验证覆盖与实际证据
+# 验证义务与有限覆盖范围
+
+本页维护 `capability.model-profile-directory` 的验证义务、提供者责任和有限覆盖范围。当前承诺与采用范围由[架构维护入口](../../../architecture/README.md)、[规格身份清单](../../../registry/README.md)及[当前契约 v5](v5/contract.md)定位；下文保留精确版本的场景导航，以明确验证输入。
+接受、实现和验证是三个独立结论。本页不以结构检查、模型工件存在或旧次执行结果推定当前实现通过。提案、修复过程、检查输出和每次验收结果留执行工作树 `tmp/`。
 
 ## v5 发布前破坏性演进
 
-本轮表达复评点名的版本自称、精确消费坐标与前驱执行声明已定点修订；MR7 与 runner5 当前产品依据按实际消费范围核对。字段结构、行为模型与既有操作责任保持不变。
+本批精确链为 MP5 / Directory5 / MS6 / MR7 / LC6 / RT7 / runner5；既有 IV、CB、日志、资产和 hooks 等精确依赖不随本批自动升级。验证应核对 `$id` / `$ref` 的精确解析、共享结构与形式工件字节，不能从字节相同推出工具已执行。
 
-本轮从已接受且冻结的 `capability.model-profile-directory/v4` 起草 candidate v5，基线 `11c6c5b0`。源接受依据为 D-097（MP4）或 D-099（其余六份）；本版没有接受、冻结或实现完成声明。
-
-### 变化的影响（本轮）
-
-- 只更新本批精确链 MP5 / Directory5 / MS6 / MR7 / LC6 / RT7 / runner5，并删除旧格式 codec、只读、认回与结算过渡义务；既有 IV、CB、日志、资产与 hooks 等精确依赖不升级。
-- 字段、值域、Schema 结构、操作、失败集合、发送门、数值与策略不变；RT S-34 的完整失败主体重取继续原义。data 的 `$id` / `$ref` 与注释中的对应坐标同步迁移。
-- 不原地改写、清空或回填用户旧数据；不兼容输入沿既有边界明确拒绝。当前代际已经受理的任务、不可变快照、未知结果、原批认回与释放结算责任继续成立。
-
-| 证据义务 | 可失败观察 | 状态 / owner |
-|---|---|---|
-| 精确依赖及 Schema 同构 | 除本批坐标和说明文字外出现结构差异即失败；所有 `$ref` 精确解析 | 本次检查结果见下；规格起草 / 集成 owner |
-| 冻结源与形式工件保持 | 源登记 hash 改变，或 `.tla`/`.cfg`/`.als` 任一字节改变即失败 | 本次检查结果见下；规格起草 |
-| 当前格式唯一运行路径 | 旧不兼容输入不得进入旧 codec、不得降级/回填、不得写/清空原数据 | 未开始；相应数据接收者 / 提供者 |
-| 当前代际责任不丢失 | 当前任务未知提交或已受理工作仍由原 owner 认回/恢复/结算；新格式拒绝不能抹旧事实 | 未开始；runtime / runner / 日志提供者 |
-| 公共操作与最终门不退化 | 原输入上限、Pending 回复、重试历史及 S-34 失败重取仍按原精确性质成立 | 未开始；对应消费者及验证 owner |
-
-### 本次实际检查
-
-本轮使用本树 `uv run --locked python` 执行临时审计脚本，实际输出：
-
-```text
-PASS: 584 frozen source hashes unchanged; 4 schemas structurally identical after exact $id/$ref remap; 276 refs resolved; 58 formal source/config files byte-identical; 86 explicit schema cases matched; RT S-34 unchanged except coordinates; all dependency clauses unchanged.
-NOT RUN: TLC/Alloy; production old-format rejection; current-generation recovery/settlement and actual IO.
-```
-
-`uv run --locked python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip` 的本轮检查返回 0，输出 `PASS`（gate=internal; formal=skip）；候选中央登记尚待集成，检查通过不声称已登记或接受。`git diff --check` 返回 0。
-
-本次核对本基线全部 **584** 个冻结资源，脚本与日志在本次任务区交集成 owner 保留，尚未归档为 record/evidence。本版 82 个规范资源中的 58 份形式源/配置均与各自前驱逐字节相同。**本轮形式工具未运行**，源有限结果只保留相同模型输入与断言范围，不提升为本版真实实现验证。当前格式拒绝与责任不丢失的实现场景仍为未开始；原有缺口的 owner 保留，旧格式分发缺口改为当前格式采用与拒绝证据。
-
-### v5 变化的影响
-
-本版仅继承该专题性质与来源证据，实际状态统一见本节「本次实际检查」；不声明本轮重新运行模型或实现测试。
-
-
-`capability.model-profile-directory` 已接受 v2 与候选 v3 的证据义务及执行状态。本文件可更新，位于规范版本目录之外；
-结果始终绑定实际规范与实现修订。
-
-**行为验证状态：全部义务「未开始」。**下方既有义务与评审历史属于 v2；本批 v3 的变化、检查范围及独立义务在文末单列。文档检查不等于实现或场景通过。
+当前格式是唯一运行路径：不兼容输入沿既有边界拒绝，不进入旧 codec、不降级或回填，不改写、清空用户旧数据。已经受理的任务、不可变快照、未知提交、原批认回、恢复和释放结算责任仍由原 owner 承担。runtime / runner / 日志提供者须验证上述责任及输入上限、Pending 回复、完整重试历史和 RT S-34 失败主体重取；格式拒绝不构成责任释放。
 
 ## 证据义务
 
 ### 形式工件
 
-**无。**本版不建 TLA+、Alloy 或 Schema，理由在[契约 S-24](v2/contract.md#s-24-本版选用哪些形式工件)：
+目录不独立建立 TLA+、Alloy 或 Schema，理由在[契约 S-24](v2/contract.md#s-24-本版选用哪些形式工件)：
 每个写操作单次提交、没有跨提交的状态机；路由名唯一与「一范围一把」是单存储里的唯一性谓词，写进模型只会是被建模方式吸收的原子动作，**没有一条会在条款被违反时失败的断言**。
 因此下表**不把任何条款登记为「已由模型覆盖」**。
 
 ### 规范场景
 
-| 条款与性质 | 场景 | 证据形式与前提 | 状态 |
+| 条款与性质 | 场景 | 证据形式与前提 | 验证范围 |
 |---|---|---|---|
-| [S-15](v2/contract.md#s-15-withdrawprofile)、[S-33](v2/contract.md#s-33-relistprofile)、[S-16](v2/contract.md#s-16-readprofile) 行不删、撤回与恢复在册都改同一行、各自幂等、撤回不重发事件、恢复不发事件 | [S-25](v2/contract.md#s-25-建档撤回再读已撤回仍读得出)；[examples §2](v2/examples.md#2-自建档案建认回撤回再读) 第 11～14 步 | 对真实存储的集成测试；恢复之后逐成员比对 | 未开始 |
-| [S-14](v2/contract.md#s-14-registerprofile) ④、[S-18](v2/contract.md#s-18-loadmanifest) ④ 判名与写入同提交，边界覆盖那一格；只比同一格（官方与自建、组织层与租户层、不同组织都并存） | [S-26](v2/contract.md#s-26-同名两条只有先成的一条成立) | **必须真跑并发**（同一格两位超管同时建同名；另建租户层、别的组织、官方清单同名各一次，都成功）；前提：提供者的存储兑现 S-22 第一行 | 未开始 |
-| [S-14](v2/contract.md#s-14-registerprofile) ⑦ 认回 | S-26 另一支 | 同一输入原样重发 | 未开始 |
-| [S-18](v2/contract.md#s-18-loadmanifest) 五种处置（含 `relisted`：同一行回到在册）、序号单调、整份不半装、不读自建行；原样重装交回记下的那一份处置（重启之后也是） | [S-27](v2/contract.md#s-27-清单的五种处置与旧清单被拒) | 逐支演练；含一份带坏条目的清单、一条与某自建档案同名的条目；**重启一支**须对真实存储跑（重启之后再原样重装） | 未开始 |
-| [S-20](v2/contract.md#s-20-resolvecredential) 取哪一把（租户那一把，否则只对官方档案取出厂格那一把）、读不到不落到出厂格、个人范围与组织层永不取；[S-32](v2/contract.md#s-32-unbindcredential) 解绑后按「没配」取；[S-19](v2/contract.md#s-19-bindcredential) 组织身份即 `invalidInput` | [S-28](v2/contract.md#s-28-取最具体的一把读不到不回落) | **故障注入**：让租户那一格的读失败；另跑有无出厂格那一把两种部署；官方与自建两种来源各问一次 | 未开始 |
-| [S-31](v2/contract.md#s-31-updateprofile) 只改可改项、改完整份过校验（排在解析之后）、`updatedAt` 只随上游五项动、身份分量不可改 | [examples §2](v2/examples.md#2-自建档案建认回撤回再读) 第 8～10 步；[examples §6](v2/examples.md#6-每个失败值一个反例) 次序回归例第 4、5 条 | 对真实存储的集成测试；并发两次修订按提交先后；无权者带会让整份非法的 `patch`，行在与不在两次答案逐字相同（`notAuthorized`） | 未开始 |
-| [S-12](v2/contract.md#s-12-秘密只在一个问法里出现) 秘密与引用不出本契约 | [S-29](v2/contract.md#s-29-秘密不出本契约) | 以已知原文扫全部返回、失败说明与事件；另加静态检查：读面返回类型里没有凭据与引用 | 未开始 |
-| [S-14](v2/contract.md#s-14-registerprofile) 末段、[S-16](v2/contract.md#s-16-readprofile) ② 授权先于解析；[S-13](v2/contract.md#s-13-这一节每个操作写全九件事) 授权依赖不可用时 `unavailable` 先于一切要读存储才判得出的值 | [S-30](v2/contract.md#s-30-无权者探不到名字) | 两次失败逐字比较；**故障注入**：成员资格判定以 `unavailable` 失败、名字已占，须得 `unavailable` 而不是 `routeNameTaken` | 未开始 |
-| [S-9](v2/contract.md#s-9-缺席时的默认答案) 失败值闭合与判定次序 | [examples §6](v2/examples.md#6-每个失败值一个反例) | 每个失败值一个反例 ＋ 五条次序回归例（含成员资格不可用、`updateProfile` 改完的文档那两条） | 未开始 |
-| [S-14](v2/contract.md#s-14-registerprofile) ⑧、[S-18](v2/contract.md#s-18-loadmanifest) ⑧ 建档内容带 `registration`／`updatedAt` 即 `invalidInput`（`malformed`） | [examples §6](v2/examples.md#6-每个失败值一个反例) 那一行 | 表示层校验的单元测试；前提：`data.model-profile` v2 的建档内容文档种类定稿 | 未开始 |
-| [S-17](v2/contract.md#s-17-listprofiles) 从路由名到一行的规则以允许集合为显式参数、不按 (租户, 路由名) 缓存 | [examples §5](v2/examples.md#5-同路由名不同的格各有一条都成立) 末三行 | 同一租户、同一路由名、两份不同的允许集合各求一次，胜出行随允许集合变；允许集合读不到时失败 | 未开始 |
+| [S-15](v2/contract.md#s-15-withdrawprofile)、[S-33](v2/contract.md#s-33-relistprofile)、[S-16](v2/contract.md#s-16-readprofile) 行不删、撤回与恢复在册都改同一行、各自幂等、撤回不重发事件、恢复不发事件 | [S-25](v2/contract.md#s-25-建档撤回再读已撤回仍读得出)；[examples §2](v2/examples.md#2-自建档案建认回撤回再读) 第 11～14 步 | 对真实存储的集成测试；恢复之后逐成员比对 | 真实行为须另验 |
+| [S-14](v2/contract.md#s-14-registerprofile) ④、[S-18](v2/contract.md#s-18-loadmanifest) ④ 判名与写入同提交，边界覆盖那一格；只比同一格（官方与自建、组织层与租户层、不同组织都并存） | [S-26](v2/contract.md#s-26-同名两条只有先成的一条成立) | **必须真跑并发**（同一格两位超管同时建同名；另建租户层、别的组织、官方清单同名各一次，都成功）；前提：提供者的存储兑现 S-22 第一行 | 真实行为须另验 |
+| [S-14](v2/contract.md#s-14-registerprofile) ⑦ 认回 | S-26 另一支 | 同一输入原样重发 | 真实行为须另验 |
+| [S-18](v2/contract.md#s-18-loadmanifest) 五种处置（含 `relisted`：同一行回到在册）、序号单调、整份不半装、不读自建行；原样重装交回记下的那一份处置（重启之后也是） | [S-27](v2/contract.md#s-27-清单的五种处置与旧清单被拒) | 逐支演练；含一份带坏条目的清单、一条与某自建档案同名的条目；**重启一支**须对真实存储跑（重启之后再原样重装） | 真实行为须另验 |
+| [S-20](v2/contract.md#s-20-resolvecredential) 取哪一把（租户那一把，否则只对官方档案取出厂格那一把）、读不到不落到出厂格、个人范围与组织层永不取；[S-32](v2/contract.md#s-32-unbindcredential) 解绑后按「没配」取；[S-19](v2/contract.md#s-19-bindcredential) 组织身份即 `invalidInput` | [S-28](v2/contract.md#s-28-取最具体的一把读不到不回落) | **故障注入**：让租户那一格的读失败；另跑有无出厂格那一把两种部署；官方与自建两种来源各问一次 | 真实行为须另验 |
+| [S-31](v2/contract.md#s-31-updateprofile) 只改可改项、改完整份过校验（排在解析之后）、`updatedAt` 只随上游五项动、身份分量不可改 | [examples §2](v2/examples.md#2-自建档案建认回撤回再读) 第 8～10 步；[examples §6](v2/examples.md#6-每个失败值一个反例) 次序回归例第 4、5 条 | 对真实存储的集成测试；并发两次修订按提交先后；无权者带会让整份非法的 `patch`，行在与不在两次答案逐字相同（`notAuthorized`） | 真实行为须另验 |
+| [S-12](v2/contract.md#s-12-秘密只在一个问法里出现) 秘密与引用不出本契约 | [S-29](v2/contract.md#s-29-秘密不出本契约) | 以已知原文扫全部返回、失败说明与事件；另加静态检查：读面返回类型里没有凭据与引用 | 真实行为须另验 |
+| [S-14](v2/contract.md#s-14-registerprofile) 末段、[S-16](v2/contract.md#s-16-readprofile) ② 授权先于解析；[S-13](v2/contract.md#s-13-这一节每个操作写全九件事) 授权依赖不可用时 `unavailable` 先于一切要读存储才判得出的值 | [S-30](v2/contract.md#s-30-无权者探不到名字) | 两次失败逐字比较；**故障注入**：成员资格判定以 `unavailable` 失败、名字已占，须得 `unavailable` 而不是 `routeNameTaken` | 真实行为须另验 |
+| [S-9](v2/contract.md#s-9-缺席时的默认答案) 失败值闭合与判定次序 | [examples §6](v2/examples.md#6-每个失败值一个反例) | 每个失败值一个反例 ＋ 五条次序回归例（含成员资格不可用、`updateProfile` 改完的文档那两条） | 真实行为须另验 |
+| [S-14](v2/contract.md#s-14-registerprofile) ⑧、[S-18](v2/contract.md#s-18-loadmanifest) ⑧ 建档内容带 `registration`／`updatedAt` 即 `invalidInput`（`malformed`） | [examples §6](v2/examples.md#6-每个失败值一个反例) 那一行 | 表示层校验的单元测试；前提：`data.model-profile` v2 的建档内容文档种类定稿 | 真实行为须另验 |
+| [S-17](v2/contract.md#s-17-listprofiles) 从路由名到一行的规则以允许集合为显式参数、不按 (租户, 路由名) 缓存 | [examples §5](v2/examples.md#5-同路由名不同的格各有一条都成立) 末三行 | 同一租户、同一路由名、两份不同的允许集合各求一次，胜出行随允许集合变；允许集合读不到时失败 | 真实行为须另验 |
 
 ### 由别处承担、本契约只写明要求的
 
 | 要求 | 由谁承担 | 本契约位置 |
 |---|---|---|
-| 跨进程的新鲜度上界、单调读、秘密送达与轮换传播、调用方鉴别 | 中心 ↔ 据点的组合契约（尚未立） | [S-22](v2/contract.md#s-22-装配给的保证-vs-协议须给的保证)、[G-7](v2/contract.md#十已知缺口) |
+| 跨进程的新鲜度上界、单调读、秘密送达与轮换传播、调用方鉴别 | 中心 ↔ 据点的组合契约（G-7） | [S-22](v2/contract.md#s-22-装配给的保证-vs-协议须给的保证)、[G-7](v2/contract.md#十已知缺口) |
 | 取值只交传输适配、锚是发起调用的租户、来源取自那次调用绑定的有效模型 | `capability.model-request-runtime` v2 | [S-12](v2/contract.md#s-12-秘密只在一个问法里出现)、[S-20](v2/contract.md#s-20-resolvecredential) ① |
-| 「范围允许」的求值——**本版不收窄**（D-063 R-4），`A` 由读的一方从同一次列表读取；将来收窄时归资产求值 | 本版：`capability.model-request-runtime` v2（读的一方）；将来：`capability.asset-evaluation` v2 | [S-3](v2/contract.md#s-3-本契约明确不承诺什么)、[S-17](v2/contract.md#s-17-listprofiles) 末段 |
+| 「范围允许」的求值——**本版不收窄**，`A` 由读的一方从同一次列表读取；将来收窄时归资产求值 | 本版：`capability.model-request-runtime` v2（读的一方）；将来：`capability.asset-evaluation` v2 | [S-3](v2/contract.md#s-3-本契约明确不承诺什么)、[S-17](v2/contract.md#s-17-listprofiles) 末段 |
 | 据点上凭据副本的加密落地、按登录状态丢、`absent` 与 `unavailable` 分开 | `capability.credential-custodian` v2（S-5～S-8、S-12～S-15） | [S-2](v2/contract.md#s-2-本契约不拥有什么)、[S-7](v2/contract.md#s-7-凭据绑定)、[S-20](v2/contract.md#s-20-resolvecredential) ⑧ |
 
-## 结果与反例
+## 消费者对齐
 
-**尚无。**
-
-## 变化的影响
-
-- **2026-09-23 起草**：首版，无旧证据。
-- **2026-09-24 整批对齐（候选，未冻结，原地改）**：依据行写「主线裁定 2026-09-23，待产品负责人确认」的，出处在主线的裁定清单（账本 S16-e、S16-f、PC-2、RP-22）。
-  - **撞名改判落地**（RP-22、PC-2）：S-14 ④ 的比较范围读判定那一刻的隶属树，新增对 `capability.organization-governance/v1#S-34`、`data.identity-values/v1#S-15` 的消费；提交边界改为「全部档案行」；隶属变化后的同名并存被 `data.model-profile` 接受。S-26 场景改为「同一棵树里恰一条成功、另一棵树同名成功」；实例的 `routeNameTaken` 反例改为同一棵树里的一次，另加跨树成功的一行。**G-2 闭合**。
-  - **出厂格那一把**（S16-f）：S-6、S-7、S-20 改为链的最末一格、由装配给、写面够不着；**G-3 闭合**；它是否只供官方档案另立 **G-10**（PF-013 owner）。
-  - **两个新写面**（S16-e）：[S-31](v2/contract.md#s-31-updateprofile) `updateProfile`、[S-32](v2/contract.md#s-32-unbindcredential) `unbindCredential`，九件事写全；**G-5、G-6 闭合**；实例第 2、4 节加五步。
-  - **对证据的影响**：没有既有证据（全部未开始）；S-26、S-28 的场景内容变了，首次执行按新内容。
-- **2026-09-24 规格修订批（PF-013 rev 10 之后；候选，未冻结，原地改）**。依据：PF-013 rev 10 裁决 33–38 与 decisions P33–P36（账本 U-1、U-2），主线施工简报第三节：
-  - **凭据只在租户层**（裁决 33）：[S-7](v2/contract.md#s-7-凭据绑定) 绑定改以 `TenantId` 为键、没有组织那一支；[S-19](v2/contract.md#s-19-bindcredential)、[S-32](v2/contract.md#s-32-unbindcredential) 的输入由 `scope: ScopeLayerIdentity` 改为 `tenant: TenantId`，给组织身份即 `invalidInput`；[S-6](v2/contract.md#s-6-范围链) 写明凭据那一侧只有租户那一格与出厂格。**G-4 闭合**。
-  - **[S-20](v2/contract.md#s-20-resolvecredential) resolveCredential 删「否则组织层」**：输入改为 `tenant` 加这次要用的档案的来源 `origin`；租户有则租户那一把（不论来源），否则只对官方档案取出厂格那一把，自建档案不落到出厂格（P33、P34）。**G-10 闭合**；`present` 答出的 `scope` 只剩租户一支与出厂格。
-  - **撤回可恢复**（裁决 37、P35、P36）：新增 [S-33](v2/contract.md#s-33-relistprofile) 恢复在册（九件事写全；服务面名当时账本未给，后由主线裁为 `relistProfile`，见下条）；[S-18](v2/contract.md#s-18-loadmanifest) 处置表 `notRelisted` 改 `relisted`；[S-15](v2/contract.md#s-15-withdrawprofile) ⑦ 改指 S-33；[S-8](v2/contract.md#s-8-官方档案清单与发布序号) 序号的理由改写（撤回可恢复，但旧清单仍不该有效力）。**G-1 闭合**。
-  - **同一范围内唯一**（裁决 35、38）：[S-14](v2/contract.md#s-14-registerprofile) ④ 只比同一格、不读隶属关系，提交边界收窄到那一格；[S-18](v2/contract.md#s-18-loadmanifest) 的 `routeNameTaken` 处置删去（清单装入不读自建行）；catalog 去掉对 `capability.organization-governance` S-34 与 `data.identity-values` S-15 的消费。组织层与租户层同名并存这一读法另立 **G-11**（待产品负责人确认）。
-  - **对证据的影响**：没有既有证据（全部未开始）；S-25、S-26、S-27、S-28 的场景内容变了，上表对应各行已改；examples 第 1、2、4、5、6 节改写。
-- **U-2 裁定（原 [G-1](v2/contract.md#十已知缺口)）**已由上一条落地。
-- **2026-09-24 主线裁定落地（候选，未冻结，原地改）**：
-  - **官方档案只读统一一个拒绝值 `officialProfileReadOnly`**：[S-15](v2/contract.md#s-15-withdrawprofile)、[S-31](v2/contract.md#s-31-updateprofile)、[S-33](v2/contract.md#s-33-relistprofile) 三处 ③⑥ 同名，取代 `officialProfileNotWithdrawable`（撤回）与修订、恢复两处的 `invalidInput`；[S-9](v2/contract.md#s-9-缺席时的默认答案) 失败值集合同步（仍是八个）；S-31 次序改为「形状 → 结构性禁止 → 授权 → 解析」。
-  - **S-33 服务面名 `relistProfile`**，标题与锚点随之改（`#s-33-relistprofile`）；S-18 处置值 `relisted` 保留；**恢复在册不加通知**，S-33 ⑨ 写明本版只有撤回一个通知、正确性靠现读。
-  - **已撤回的行允许修订**：[S-31](v2/contract.md#s-31-updateprofile) ④ 注明 flows §3.1「恢复之后照常修订」不是禁止。
-  - 产品依据改 PF-013 rev 11（rev 11 只动转换件呈现落点，不影响本契约条款）。
-  - **S-18 服务面名 `loadManifest`**（主线裁定 2026-09-24）：标题与锚点随之改（`#s-18-loadmanifest`，本包 42 处引用一并改，工作区别处没有引用）；操作清单、账本说明句、裁定表同步。
-  - **`manifestNotNewer` 收入账本**（主线裁定 2026-09-24）：值名不变，裁定表那一行改为「由主线裁定收入账本」。
-  - **另引的产品依据对到 PF-016 rev 8、PF-002 rev 19**：核两份 changelog 最新节——PF-016 rev 8 把「组织那一把」改为不存在、新增 §6.21，本契约引的 §6.11 未变；PF-002 rev 17–19 不涉及模型档案与模型凭据（rev 18 组织那一层不持有 MCP 凭据，与本契约 S-7 同向）。不改条款。
-  - **对证据的影响**：没有既有证据；examples 第 2 节第 11–14 步、第 6 节失败表与回归例改写。
-- **2026-09-24 产品负责人裁定 G-11（候选，未冻结，原地改）**：原话「允许并存，它就像资产一样，路由名就是能力，从下往上（租户 -> 组织 -> official）在运行时覆盖」。
-  - **G-11 闭合**：组织层与租户层同名并存正式化；[S-14](v2/contract.md#s-14-registerprofile) ④ 的判定不变（只比同一格）。设计依据表「档案的身份」一行、S-4 末注、规范场景 S-26 的「待确认」去掉；「发布后」一段删去「尤其 G-11」。
-  - **同名按层覆盖的先后**：[S-6](v2/contract.md#s-6-范围链) 加一条「链的先后就是同名覆盖的先后」；[S-17](v2/contract.md#s-17-listprofiles) 末段写明同一路由名在链上有多条时取最具体一格（租户 > 组织 > 出厂默认），列表本身仍列全部行、按行存在判（不看在册状态，已撤回或用不了的最具体那条要不要让位是 `capability.model-request-runtime` v2 G-15）；[S-16](v2/contract.md#s-16-readprofile) 写明按引用读不做覆盖、⑧ 的「不回退到别层同名」不因覆盖放宽。消费者核对表那一行补「同名几条谁覆盖谁」。
-  - **catalog 不变**：运行时已消费本契约 S-6、S-17。covers 里 PF-013 §4「档案的身份」那一条补 S-6、S-17。
-  - **对证据的影响**：没有既有证据；场景 S-26 的内容不变（只改措辞）。覆盖的先后没有独立场景，由运行时的场景 S-48 与实例第 9、10 节兑现。
-- **2026-09-24 主线裁定 G-15（运行时那边闭合；候选，未冻结，原地改）**：同名按层覆盖挑胜者时**先滤掉已撤回的行，再取最具体一格**（类推 PF-002 §5.6）。[S-17](v2/contract.md#s-17-listprofiles) 末段由「按行是否存在判、不看在册状态」改为「只滤已撤回；凭据、范围、模态都不参与挑胜者」，指向运行时 G-15 的那句删去；[S-6](v2/contract.md#s-6-范围链) 那一条补「已撤回的行不参与」；[S-16](v2/contract.md#s-16-readprofile) 末段改写（⑧ 管按引用读，覆盖不放宽它）。不改操作，对证据无影响。
-- **2026-09-24 主线裁定：范围不允许的也在挑胜者前滤掉（候选，未冻结，原地改）**：[S-17](v2/contract.md#s-17-listprofiles) 末段与 [S-6](v2/contract.md#s-6-范围链)、[S-16](v2/contract.md#s-16-readprofile) 末段补「这个范围不允许的行不参与」；这一道滤由读的一方用 `capability.asset-evaluation` 的求值做，本契约不判范围允许（S-3）。不改操作，对证据无影响。
-- **2026-09-24 PF-013 rev 12 最后一轮简化（候选，未冻结，原地改）**：产品正文定「用哪个模型」记路由名；主线裁以产品为准。[S-17](v2/contract.md#s-17-listprofiles) 末段改写为**从路由名到一行的唯一规则**：`C → C₁（在册）→ C₂（范围允许）→ 胜出行`，以及没有胜出行时的「落点」与三种收场（范围不允许／都撤回即「已下架」／链上没有这个名字）；规则归本契约、不另开操作，「范围允许」仍由读的一方用 asset-evaluation 的求值给。[S-16](v2/contract.md#s-16-readprofile) 末段注明按引用读一行供目录内部与治理面用；消费者核对表里「用哪个模型」的取值校验改指 S-17 末段。头部对到 PF-013 rev 12。不改操作；对证据无影响。
-- **2026-09-24 第一轮独立评审处置**（基线 HUB `765b01dc`；逐条见独立评审，未冻结，原地改）：
-  - **产品依据复核**：PF-001 rev 16 → 17——「权限锁的是界、不锁的是挑选」「提升不动持有」与三处方向词对齐，本契约只引 PF-001 的配置资格与范围链，无变化。PF-002 rev 19 → 20——连接件的事件目录、订阅、投递与触发会话的默认运行模式，不触模型档案与模型凭据，无变化。PF-013 rev 12、PF-016 rev 8 未变。
-  - **K35／MPD-1**：判定次序改为 `unavailable` 先于一切要读存储才判得出的值；七张 ⑥ 重排。**K17／MPD-2**：输入改为建档内容（`data.model-profile/v2#S-28` 的 `ModelProfileContent`）；建档 `origin` 不是 `custom` 取 `origin_not_custom`。**MPD-3**：装入交回的处置成为耐久事实。**K42／MPD-4**：胜出行三参数。
-  - **依据**：「主线裁定……待产品负责人确认；账本 Sxx」改为 D-060 小节链接，本轮三条链 D-060 §五 K17、K35、K42；D-060 仍未收录的几条（`officialProfileReadOnly`、`relistProfile`／`loadManifest`／`relisted`、恢复在册不发通知、已撤回可修订）留在 [G-8](v2/contract.md#十已知缺口)，owner 主线。
-  - **catalog**：`data.model-profile` 的消费 clauses 加建档内容那一条；**covers** 本契约条目未增减，改注见各条。
-  - **对证据的影响**：没有既有证据（全部未开始）；场景 S-27、S-30 内容变了，上表对应各行已改；examples §1、§5、§6 改写。
-  - **对消费者**：`capability.model-request-runtime` 调 S-17 末段的规则时须带允许集合 `A`（按会话格取）；中心的管理页与系统发布按建档内容交输入。
-- **2026-09-25 修复波 2（候选，未冻结，原地改）**：裁定出处 D-060 §七 M14、§六 N-9；逐条处置见上文第二轮。
-  - **语义改变**：`updateProfile` 的判定次序——改完的整份文档不合法，由原来的最先判改为解析之后判；无权者带这样的 `patch` 从 `invalidInput` 变为 `notAuthorized`。`loadManifest` 的 `updated`／`relisted` 由「可改属性按清单改写」改为整份取自条目；原先会按 `maxOutputTokens` 例外保留旧值的那种组合，现在取条目的值。
-  - **G-8 闭合**；没有新缺口。
-  - **registry**：catalog、covers、formal-tasks、id-namespaces 不变（S-31 与 S-18 引的 `data.model-profile` S-12、S-18、S-24、S-28 原已登记）。
-  - **对证据的影响**：没有既有证据；S-31 那一行场景的内容变了，examples §6 多两条回归例，仍「未开始」。
-
-## 修订波（2026-09-25 公开面）
-
-依据链：D-063 R-1（替身改为接口契约 ＋ 最小提供者）、R-4（范围允许本版不收窄）；D-060 §八 N-37 ⑤（保管方最小提供者：条目以密文落在绑定所在的同一存储，本机只放密钥）、⑩（MPD-N4 静态检查加「`readReplica` 只许 P-1r 调」——节点那一侧的事，本契约不改）。候选未冻结，原地改。
-
-| 变化 | 依据 | 落在哪 | 语义变不变、对消费者 |
-|---|---|---|---|
-| **本版 `A` 的来路写定**：`A` 就是本列表里出现的全部路由名，读的一方从同一次列表读取；「这个名字这个范围不允许」本版不出现；式子仍以 `A` 为显式参数（将来收窄时改由资产求值给，出新版本） | R-4 | [S-17](v2/contract.md#s-17-listprofiles) 末段两处、[S-2](v2/contract.md#s-2-本契约不拥有什么) 那一行、[S-3](v2/contract.md#s-3-本契约明确不承诺什么) 那一条、设计依据新一行、[examples §5](v2/examples.md#5-同路由名不同的格各有一条都成立) 表下注 | **规则不变**（三参数、三种收场不折叠），只是本版的 `A` 有了确定来路；`capability.model-request-runtime` v2 的 S-11 同波改为「`A` 由目录读面直接给」 |
-| **凭据本体的保管改指 `capability.credential-custodian` v2**（据点上那一份）；中心一侧仍是那份契约的 G-7 | R-1；N-37 ⑤ | [S-2](v2/contract.md#s-2-本契约不拥有什么) 那一行、[S-7](v2/contract.md#s-7-凭据绑定) 第一条、「由别处承担」新一行 | 不改语义。**互引**：那份契约以坐标依赖本契约（S-7、S-12），本契约只作定义引用、**不登 catalog 依赖**（登了成环）；对齐义务见下 |
-
-**对齐义务（与 `capability.credential-custodian` v2）**：本契约 [S-7](v2/contract.md#s-7-凭据绑定)「一个租户至多一把、替换即轮换」与 [S-12](v2/contract.md#s-12-秘密只在一个问法里出现)「秘密只在取值问法里出现」一改，那份契约的 S-5、S-8 要跟着改（它的 catalog 边指着这两条）；那份契约的副本条目、`absent`／`unavailable` 两分一改，本契约 S-20 ⑧ 的「租户那一格读不到 ⇒ `unavailable`」要复核。两边都是 candidate，谁先改谁在自己的「变化的影响」里点名另一边。
-
-**没有证据因此作废**——本契约此前没有执行证据。
+凭据保管的规范由 `capability.credential-custodian` 拥有。目录 [S-7](v2/contract.md#s-7-凭据绑定) 或 [S-12](v2/contract.md#s-12-秘密只在一个问法里出现) 改变时，须复核 custodian S-5/S-8；副本条目或 `absent` / `unavailable` 区分改变时，须复核目录 S-20 ⑧。目录只作定义引用，不增加会形成依赖环的反向 catalog 边。当前精确消费者与规范坐标按各自契约的依赖表核对。
 
 ## v3 变化的影响
 
-2026-09-27，执行树基线 `d4eaf7673bc161bf22f6682385151e080d3323ae`；依据模型请求适配提案 revision 2、目录 v3 施工简报及主线关于配置修订生命周期和失败次序的补充裁定。候选未接受，v2 冻结正文及实例不改。
+[v3 契约](v3/contract.md)拥有完整模型适配绑定、配置修订终身判重与发布交接的规范；本节规定其验证义务。
 
-| 改变 | 语义与采用影响 | 责任及证据 |
-|---|---|---|
-| [v3 S-4](v3/contract.md#s-4-依赖方向与被消费的面) 采用 data.model-profile v3 | 五份直接依赖仅档案数据升版；新增实质消费 S-29～S-31。目录十个操作及八失败值保留；不声称 v2 已接收或返回绑定 | 主线集成 candidate catalog、covers；不新增编号族或 formal task |
-| [S-14](v3/contract.md#s-14-registerprofile)、[S-16](v3/contract.md#s-16-readprofile)、[S-17](v3/contract.md#s-17-listprofiles)、[S-18](v3/contract.md#s-18-loadmanifest)、[S-31](v3/contract.md#s-31-updateprofile)、[S-34](v3/contract.md#s-34-模型适配绑定的读写) 完整绑定读写 | 绑定必给且模型 ID 与路由名相等；整项替换，完整值参与认回；未注册不会阻断目录结构合法的写入。运行时准入另判可用性 | 数据校验与目录接收边界、治理调用者及运行时读面显式采用新版本 |
-| 同档案配置修订不可改义 | 主线确认覆盖整个档案生命周期；增加耐久判重事实，和档案变化同提交；不同档案同修订可各有值。不提供历史档案读面 | 提供者补存储要求；并发、失败注入与重启场景未开始 |
-| 有状态内容冲突仍为 `invalidInput{reason: malformed}` | 授权前不读历史；register 的冲突先于 routeNameTaken；update 在解析及完整形状后；manifest 在旧序号或同序号认回/拒绝之后。单文档 Schema 不能判该冲突 | 新 [examples §7](v3/examples.md#7-v3-绑定的写入修订与隔离)、[§8](v3/examples.md#8-发布采用与停止旧准入的交接)；不增加 data 表示层拒绝值 |
-| [S-35](v3/contract.md#s-35-发布采用与停止旧准入) 发布三动作 | 注册、目录采用、显式停止旧准入分别成功或失败；自建行不随 official 自动变化；不引入跨 owner 原子提交 | 注册及 runtime owner 的模型与真实组合证据，目录局部检查不代替 |
-| [S-22](v3/contract.md#s-22-装配给的保证-vs-协议须给的保证) 本批独立单机装配 | 允许现读同一权威存储；凭据仍须真实授权/保管。G-7 中心到据点协议保留；本地通过不覆盖副本新鲜度或秘密下发 | realization 与装配 owner；不新建中心凭据能力、不写提供者设计 |
-| PF-013 rev 12 → 13 核对 | rev 13 只收窄据点 factory 凭据验收及呈现归属，不改变本能力范围与授权。既有出厂凭据场景仅在明确配有该凭据的本地部署使用，不推为真实据点承诺 | 本版输入更新为 PF-013 rev 13；PF-001 rev 19、PF-002 rev 20、PF-016 rev 8 不变 |
-| 修正旧导航与示例前提 | README 的 OG v2 误记改按 catalog 取 OG v1；S-26 两个并发建档显式内容不同但配置同修订同值，以排除认回与新配置冲突分支；选中模型仍记路由名 | 表达修正沿既有条款，不改变政策；仅影响新 v3 场景，旧冻结资源不动 |
-
-### v3 消费者传播
-
-| 消费者 | 当前状态及所需变化 | 闭合条件 |
-|---|---|---|
-| 目录提供者与独立验收装配 | 既有接受设计仍基于 v2；需采用 v3 完整内容、判重事实的存储与事务、本机真实读取及授权 | 对应 realization 明确采用并通过真实存储/组合验收；目录候选不代替设计或实现 |
-| 模型请求运行时 | 旧 v2 消费者不能接收新绑定；本批 runtime v3 须显式采用目录 v3、完整快照及 exact-version 取得 | 新候选批对齐、评审、接受及真实生命周期验证分别完成 |
-| 管理入口与 official 发布者 | 建档/清单必填绑定；旧文档不得补默认值后冒称原输入。自建修改须整体替换；发布序号 producer 保留 G-9 | 显式采用数据和目录 v3，并验证失败原子性及发布动作授权 |
-| credential-custodian v2 及其采用者 | S-7、S-12、S-20 的来源与范围语义未改变；仍按既有反向依赖/对齐口径，不反向新增目录→custodian catalog 边 | 复核绑定查询与 absent/unavailable；中心一侧、跨进程 G-7 继续显式阻断 |
+- 建档、单读、列表、清单、修订完整往返绑定；模型 ID 与路由名相等、整项替换且参与认回。目录合法写入不以适配实现已注册为前提；发送准入由运行时判断。
+- 同档案配置修订的耐久判重覆盖整个生命周期，与档案修改同提交；不同档案同修订可以有不同值，不提供历史档案读面。
+- 冲突判定不得泄漏授权前历史。register 的冲突先于 routeNameTaken；update 在解析与完整形状校验后；manifest 先按旧序号或同序号认回/拒绝。单文档 Schema 不能判该有状态冲突。
+- 注册、目录采用、显式停止旧准入分别成功或失败，不假定跨 owner 原子提交；official 变化不自动改写 custom。发布方仍负责 G-9 的身份与序号来源。
+- 单机可现读同一权威存储；凭据授权和保管仍须真实兑现。本机通过不覆盖 G-7 的中心↔据点新鲜度、秘密下发或调用方鉴别。出厂凭据场景仅用于明确配有该凭据的本地部署，不推为真实据点承诺。
 
 ### v3 证据义务
 
-全部运行行为义务**未开始**。继承前述 v2 场景的规范目标，实际执行必须针对 v3 接收边界和新表示重跑，不能把旧数据的通过追认为新版本通过。
+继承规范场景须按 v3 完整表示与接收边界执行。旧数据场景通过不能追认为新版本通过。
 
-| 条款/性质 | 可失败的检查与前提 | 状态/owner |
+| 条款/性质 | 可失败的检查与前提 | owner |
 |---|---|---|
-| S-14、S-16、S-17、S-18、S-31 完整往返 | 建档、单读、列表、清单、修订真实路径均比较完整 binding；缺绑定、缺 values、模型错配拒绝 | 未开始；目录提供者 |
-| S-34 精确配置值 | 对象重排及数值等价应认回；超出 IEEE-754 的相邻整数不得误认相等；重复 JSON 成员在对象化前拒绝 | 未开始；数据接收边界与目录提供者 |
-| S-34 生命周期不可改义 | c1→c2→重启→c1 不同值拒绝；撤回、恢复后仍拒绝；跨档案同修订不同值允许 | 未开始；真实存储检查 |
-| S-34 同提交 | 并发同新修订不同值只一方成功；注入行写/判重写/清单提交失败，无半份状态；读不到判重依据返回 unavailable | 未开始；目录提供者，必须真并发及故障注入 |
-| S-9/S-14/S-18/S-31 拒绝次序 | 无权者在行存在/不存在、冲突/不冲突时结果不可区分；旧序号在配置冲突之前拒绝；已授权写明确冲突 | 未开始；目录符合性测试 |
-| S-35 发布交接 | 新版本注册失败、目录采用失败、official 更新不动 custom、旧版本提前停准入，观察各 owner 的实际状态 | 未开始；发布/注册/runtime 真实组合 |
-| S-22 本机读与凭据 | 同存储读只见提交后的完整状态；授权真实，租户失败不回落 factory，秘密只在 value 返回 | 未开始；独立单机装配，G-7 跨进程不在此范围 |
+| S-14、S-16、S-17、S-18、S-31 完整往返 | 建档、单读、列表、清单、修订真实路径均比较完整 binding；缺绑定、缺 values、模型错配拒绝 | 目录提供者 |
+| S-34 精确配置值 | 对象重排及数值等价应认回；超出 IEEE-754 的相邻整数不得误认相等；重复 JSON 成员在对象化前拒绝 | 数据接收边界与目录提供者 |
+| S-34 生命周期不可改义 | c1→c2→重启→c1 不同值拒绝；撤回、恢复后仍拒绝；跨档案同修订不同值允许 | 真实存储检查 |
+| S-34 同提交 | 并发同新修订不同值只一方成功；注入行写/判重写/清单提交失败，无半份状态；读不到判重依据返回 unavailable | 目录提供者，必须真并发及故障注入 |
+| S-9/S-14/S-18/S-31 拒绝次序 | 无权者在行存在/不存在、冲突/不冲突时结果不可区分；旧序号在配置冲突之前拒绝；已授权写明确冲突 | 目录符合性测试 |
+| S-35 发布交接 | 新版本注册失败、目录采用失败、official 更新不动 custom、旧版本提前停准入，观察各 owner 的实际状态 | 发布/注册/runtime 真实组合 |
+| S-22 本机读与凭据 | 同存储读只见提交后的完整状态；授权真实，租户失败不回落 factory，秘密只在 value 返回 | 独立单机装配，G-7 跨进程不在此范围 |
 
-本包不新增 TLA+/Alloy/Schema。注册、取得引用与撤除模型归 runtime 候选；本页不将其存在登记为本目录已验证。目录文档检查范围与实际输出另列，不能由检查器通过推出上述行为成立。
-
-### v3 报给主线
-
-- 本包保持 candidate；registry 四清单由主线唯一 owner 集成，起草者提供精确候选 metadata，未自行登记、接受或冻结。
-- 主线已裁定同档案配置修订终身判重及失败次序；提供者必须补同存储提交要求，不得仅比较当前行。
-- 新增模型适配绑定使用已有词条，无新增术语或产品政策。旧文中保管方、官方清单、发布序号等“无词条”标记沿用，不在本任务补造词条。
-- 仍未闭合 **G-7**（中心↔据点组合协议；架构 owner）和 **G-9**（发布序号单一来源及发布方鉴别；发布/装配 owner）。其余已闭合编号不复用；本版未新增 G-n。
-
-### v3 本次实际文档检查
-
-2026-09-27，在上述工作树中使用本检出的 `.venv/bin/python`：
-
-- `tmp/model-request-runtime/directory-v3/check.py`：**83 项结构检查通过**。检查 35 条唯一条款、十操作各九项、候选资源、五项精确依赖的消费锚点、21 项覆盖不冒称复核、正文没有提供者 API 词，以及 v2 两个冻结文件与基线逐字相同。输出为任务区的 `structural-check.txt`；输入摘要为 `input-hashes.json`。这是结构检查，不是操作行为测试。
-- `check_design.py --root .meta_harness/design --formal registered`：**退出 1，6 项错误**，均为并行 `data.model-response/v4/verification.md` 到任务区文件的链接越出 design root；未报告本目录包错误。原输出为同一任务区的 `design-check.txt`。该次检查时目录 v3 registry 候选尚由主线待集成，不能据此声称候选已登记或发布就绪。
-- `git diff --check -- .meta_harness/design/spec/capabilities/model-profile-directory`：**退出 0**。
-- TLA+、Alloy、真实存储、目录操作、凭据与运行时组合：**未运行**。`--formal registered` 只检查登记，不执行模型。
-
-任务区材料供本批集成归档，不是长期设计证据入口；没有从设计正文链接到可清理的任务区。后续主线集成候选登记或修复并行文件后，应重新执行整批检查，按实际输出另记，不改写本次失败结果。
-
+注册、取得引用与撤除模型的生命周期模型归 runtime；目录不得将其存在登记为目录行为已验证。
 
 ## v4 变化的影响
 
-**2026-09-28 整批评审后的依据修订核对**：候选头部 PF-001 rev 19 → 23、PF-002 rev 20 → 26、PF-016 rev 8 → 10。逐版核对三份 changelog，并核对当前正文的实质消费条款：PF-001 §6.1 的身份层次、§6.4 的显式租户与不可用/失权区分、§6.6 的下一道准入仍成立；PF-002 §5.6 仍先禁用过滤、再使用资格过滤、最后取最具体者；PF-016 §6.11 仍只许呈现凭据的有无、范围与配置时刻。新增修订涉及工作区身份、共享实例、本地来源、参与关系和交付呈现；未改变本目录的范围链、授权、凭据隔离或秘密呈现承诺，不把工作区加入档案范围链。本轮只更新候选依据版本及验证入口锚点，S-1～S-38、实例、精确规格依赖和 registry 均不变；已有行为证据义务与未开始状态不变。
+[v4 契约](v4/contract.md)拥有 cap/facts、比较、时间标记与完整读写边界；[v4 实例](v4/examples.md)提供相应反例。范围链不增加工作区身份；范围、授权、凭据隔离与秘密呈现按契约执行。
 
-2026-09-28，从已接受目录 v3 演进；执行树基线 `fd4c87f2bc2809843ecec7937834a235906b2163`。
-输入是 PF-013 rev 14 / D-096 与本批定型 data.model-profile v4；核实共享 Schema SHA-256 为
-`cfdb0878cab32f961cfd8e1471e714c0abf2f8ca6d360e4326f7e0e076c72278`。主线确认此最终修订仅改 Schema 根 description 的版本号，结构未变；contract SHA-256 为 `7c682a8d9f7e64a58fcafee1184f1bdf5077b498c7b7d9b3a72737b6428552b2`。定型供起草引用不表示已接受。
-本版 candidate 的资源为 [v4/contract.md](v4/contract.md)、[v4/examples.md](v4/examples.md)，共 38 条 S-n。
-
-| 变化 | 消费者与影响 | 依据/状态 |
-|---|---|---|
-| 精确采用 data.model-profile v4 | 三条内容写路径与完整读回增加 cap/facts，既有配置历史、授权、整行/整清单提交不变；十操作、八失败值保持 | S-4、S-14、S-16～S-18、S-31、S-34、S-36；candidate |
-| 相等与 updatedAt | 三态变化与 cap 变化进入比较；六项不变保留时标，只有绑定/注册状态变化不动；时标不当修订 ID | S-36；data v4 S-11/S-28 |
-| 旧行缺新必填项 | v4 read/list 返回 unavailable，列表不部分返回；不增加默认值，不声称自动迁移或额外 v3 公开面 | 主线明确裁定，S-36；G-12 |
-| 表示层拒绝与有状态失败保持区分 | M15/M16 沿 data v4 malformed；不新建目录失败值；更新整份校验在授权/解析之后 | S-9/S-31/S-36 |
-| 候选依赖与覆盖 | catalog 片段 1 条、依赖 5 条；profile 升 4，增加 S-8/S-9/S-27/S-32/S-33；covers 21 条 reviewed:false | 任务授权四清单片段在任务区交主线集成，中央 registry 未写；无新编号族或 formal task |
-| 版本保持 | v2/v3 规范字节不动；其他提供者、消息、响应、runtime 消费坐标由各 owner 显式升级 | 不以本候选代替接受或迁移证据 |
+三条写路径与两条读面完整传递 cap/facts，配置历史、授权和整行/整清单提交责任保持。六项上游事实（含 cap）不变时保留 `updatedAt`；只有绑定或注册状态变化不改变时标，时标不作为配置修订 ID。缺项旧行的 read/list 为 unavailable、列表不部分返回，不补默认值或从现目录补取得快照；显式完整升级输入由 G-12 的提供者/正式清单拥有者承担。表示层 M15/M16 与有状态失败分开，更新后的整份校验仍排在授权和解析之后。
 
 ### v4 证据义务
 
-以下操作/存储/真实组合证据均**未开始**，旧版通过不能追认为 v4 通过。
-
-| 性质 | 可失败的检查、前提 | owner / 状态 |
+| 性质 | 可失败的检查、前提 | owner |
 |---|---|---|
-| 完整形状与跨字段关系 | 构造 unknown/unbounded/limited；image cap/事实缺项、非 image 带图指标、cap 大于同名 limited；等于合法。Schema 外必须执行 S-33，不能只看 Schema | 目录接收边界；未开始 |
-| 三条内容写路径/两条读面往返 | 显式完整 cap/facts 建档、更新、清单，再单读/列表逐值比较；对象重排相等，事实分支变化不等 | 目录提供者；未开始 |
-| 时标精确性 | S-37 与 examples §9；用可区分时刻查 cap-only、fact-only、binding-only、relist；同精度允许相等、不同值不得倒退 | 目录提供者与时钟 owner；未开始 |
-| 失败顺序与无信息泄露 | 无权者对依赖旧值才可知的非法 patch 仍 notAuthorized；有权者解析后 malformed；同序号合法不同事实为 manifestNotNewer | 目录符合性；未开始 |
-| 原子性与配置历史保持 | S-38 真并发读写和存储故障；清单任一无效条目不能留下行、配置历史、序号或处置半份；重启不忘已采用修订 | 真实存储提供者；未开始 |
-| 旧行与旧调用 | v4 read/list 遇旧行缺项为 unavailable；显式来源核实完整升级后可读；已取得调用快照不随目录变化、不从现目录补值 | 目录提供者、runtime/codec owner；未开始，G-12 |
-| 每项适用输入约束的实际计量与发前判定 | 本目录仅保证数据完整，发送消费者须检验最终表示和计量证据；目录成功不证明可发 | runtime/transport/正式清单 owner；未开始 |
+| 完整形状与跨字段关系 | 构造 unknown/unbounded/limited；image cap/事实缺项、非 image 带图指标、cap 大于同名 limited；等于合法。Schema 外必须执行 S-33，不能只看 Schema | 目录接收边界 |
+| 三条内容写路径/两条读面往返 | 显式完整 cap/facts 建档、更新、清单，再单读/列表逐值比较；对象重排相等，事实分支变化不等 | 目录提供者 |
+| 时标精确性 | S-37 与 examples §9；用可区分时刻查 cap-only、fact-only、binding-only、relist；同精度允许相等、不同值不得倒退 | 目录提供者与时钟 owner |
+| 失败顺序与无信息泄露 | 无权者对依赖旧值才可知的非法 patch 仍 notAuthorized；有权者解析后 malformed；同序号合法不同事实为 manifestNotNewer | 目录符合性 |
+| 原子性与配置历史保持 | S-38 真并发读写和存储故障；清单任一无效条目不能留下行、配置历史、序号或处置半份；重启不忘已采用修订 | 真实存储提供者 |
+| 旧行与旧调用 | v4 read/list 遇旧行缺项为 unavailable；显式来源核实完整升级后可读；已取得调用快照不随目录变化、不从现目录补值 | 目录提供者、runtime/codec owner，G-12 |
+| 每项适用输入约束的实际计量与发前判定 | 本目录仅保证数据完整，发送消费者须检验最终表示和计量证据；目录成功不证明可发 | runtime/transport/正式清单 owner |
 
-沿 S-24 不新增 TLA+/Alloy/Schema；capability 的值形状唯一来自 data.model-profile v4。
-本轮没有新增状态机或跨 owner 原子协议。真实存储的完整提交、授权与计量不能用原子建模或静态检查冒充；形式工具**未运行**。
+沿 [S-24](v2/contract.md#s-24-本版选用哪些形式工件)不增加目录的 TLA+/Alloy/Schema；值形状唯一归共享 data 定义。真实存储完整提交、授权和计量不能由原子建模或静态检查代证。
 
 ### v4 报给主线与缺口
 
-- 本轮政策来自简报与 data v4；把新成员纳入既有内容认回、清单比较和更新原子提交是目录承诺的直接延伸，不另选政策。
-- G-7：中心↔据点协议，owner 架构；G-9：发布身份与序号来源，owner 发布/装配；G-12：实际旧行升级完整输入及证据，owner 目录提供者/正式清单。
-- 无新服务、领域对象或正式术语；data v4 的技术投影名沿其无独立词条声明。没有发现需要自行改判的共享形状冲突。
-- 本轮 registry 只有交主线的候选片段，不能声称中央登记已落或本规格已接受。
+缺口编号与当前处置由适用版本契约维护。本页保留以下验证责任，不凭历史关闭或重开状态：G-7 中心↔据点组合协议归架构 owner；G-9 发布身份及序号来源归发布/装配 owner；G-12 旧行升级的完整输入归目录提供者/正式清单 owner。已关闭编号不复用。
 
+### 目录结构核对的限制
 
-### v4 本次实际检查
-
-在本执行树使用 root 准备的本地 `.venv/bin/python`：
-
-- `tmp/model-request-runtime/input-limit-successor/directory4/check.py` 输出：`PASS: 238 scoped structural checks; 38 clauses, 10 operations x 9 items, 5 dependencies, 21 covers; old frozen resources and central registry unchanged. No behavioral execution.` 检查条款唯一、九项齐全、精确依赖锚点/候选片段、最终共享 Schema 指纹、旧 v2/v3 字节不变及中央 registry 不变。
-- `check_design.py --root .meta_harness/design --formal registered` 输出 `PASS`，`gate=internal; formal=registered`，退出 0。此模式只检查已有登记；directory4 片段尚未集成中央 registry，不表述为新版本已登记或所有消费者已闭合。
-- `git diff --check` 退出 0。
-- TLA+、Alloy、Schema 实例执行、真实存储、目录行为及发送路径：**未运行**；本次静态检查不替代上表的「未开始」。
-
-原始输出和候选四清单片段交主线保存在本批任务区；这些不是设计正文的长期引用依据。
+条款唯一、十个操作各九项、精确依赖和共享 Schema 结构核对只验证结构。`formal=registered` 只检查任务登记，不执行 TLA+/Alloy，也不证明 Schema 实例、真实存储、目录行为或发送路径。目录写入成功不证明实际请求可以发送。

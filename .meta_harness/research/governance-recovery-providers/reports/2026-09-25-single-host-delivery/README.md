@@ -8,4 +8,4 @@
 
 复跑：从D051实现运行包source.tar.gz恢复仓库/构建，在同Node/pnpm版本执行pnpm --filter @omne-harness-lite/tenancy-host --config.inject-workspace-packages=true deploy --prod --offline --ignore-scripts <新绝对目录>，将测试deploy.ts里的HOST_APP指到该目录；TMPDIR=/tmp node host-journey.mjs <CLI制品入口> <新raw输出>。需要openssl/script/mkfifo；脚本原有相对路径以其归档前的tmp/production-cli-onboarding/maintenance-probe位置为准。sqlite-backup.mjs只依赖Node，自建合成库并清理。
 
-本报告只提供观察和局限，不选择备份/部署架构。方案由design/record/proposals/governance-production-mechanisms/single-host-delivery.md承接。
+本报告只提供观察和局限，不选择备份/部署架构。候选比较与采用过程留本工作树 tmp；获准部署规则写回实际装配拥有者。

@@ -7,9 +7,9 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.messages, 8)`——
   `family = data`、`topic = messages`、规范路径 `spec/data/messages/v8/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **前驱版本的需求复核记录（历史）**：本轮 PF-013 rev 13 → rev 14 的输入上限增量落在 S-49。另按各 topic changelog 核对 PF-004 12 → 13、PF-006 19 → 20、PF-014 7 → 8、PF-015 11 → 13：增量是工作区来源、显式 reload、会话工作区引用与感知责任；本契约未定义工作区引用的内部结构（S-17/S-25 的值保持不透明，G-6 不闭合），也不拥有装载或受理操作，故不改变消息值规则。PF-012 仍为 rev 15，其栅栏与迟到账责任归运行时。源2历史复核文字保留原 rev；本轮变化见[验证入口](../verification.md#v6-变化的影响)。
+- **产品依据及采用范围**：PF-013 rev 13 → rev 14 的输入上限承诺落在 S-49。涉及的产品版本为 PF-004 12 → 13、PF-006 19 → 20、PF-014 7 → 8、PF-015 11 → 13：增量是工作区来源、显式 reload、会话工作区引用与感知责任；本契约未定义工作区引用的内部结构（S-17/S-25 的值保持不透明，G-6 不闭合），也不拥有装载或受理操作，故不改变消息值规则。PF-012 仍为 rev 15，其栅栏与迟到账责任归运行时。原采用范围不自动升级到其他产品版本。
 - **当前设计依据与需求 rev**：PF-004 rev 20、PF-006 rev 23、PF-008 rev 7、PF-009 rev 9、PF-010 rev 7、PF-012 rev 21、PF-013 rev 17、PF-014 rev 11、PF-015 rev 20；仅消费 [source-alignment.md](source-alignment.md) 逐项列出的范围，历史接受与裁决保持其原 rev。
-  **前驱历史复核**：2026-09-24 按各 topic 的 changelog 从起草时的 rev 逐版核到当前 rev：PF-009 rev 8 与 PF-010 rev 6 改了 `SystemMessage`（不落会话日志、每次组装现算、本版只含文本，[S-7](#s-7-systemmessage)、[S-6](#s-6-每种消息能装哪几类块)、[S-29](#s-29-合法名单的判定)、[S-32](#s-32-会话日志里的配对与唯一)）与工具帧的收尾（出错照常收尾，[S-13](#s-13-toolinternalmessage)、[S-14](#s-14-toolinternalmessage-怎么收的尾)）；PF-014 rev 6 的「被中断的回复不交出动作」进 [S-10](#s-10-assistantmessage-怎么收的尾)；其余不改本契约条款。逐 topic 的记录见[验证入口「变化的影响」](../verification.md#变化的影响)
+  **继承依据的映射**：产品依据到本契约的映射：PF-009 rev 8 与 PF-010 rev 6 改了 `SystemMessage`（不落会话日志、每次组装现算、本版只含文本，[S-7](#s-7-systemmessage)、[S-6](#s-6-每种消息能装哪几类块)、[S-29](#s-29-合法名单的判定)、[S-32](#s-32-会话日志里的配对与唯一)）与工具帧的收尾（出错照常收尾，[S-13](#s-13-toolinternalmessage)、[S-14](#s-14-toolinternalmessage-怎么收的尾)）；PF-014 rev 6 的「被中断的回复不交出动作」进 [S-10](#s-10-assistantmessage-怎么收的尾)；其余不改本契约条款。
 - **精确语义依赖**：
 
   | 坐标 | 消费 clauses | 取它的什么 | Schema 里怎么用 |

@@ -1,7 +1,7 @@
 # v5 行为模型与继承范围
 
 本目录没有运行结果；本版六个任务均未运行，执行结果只进[版本外验证入口](../../verification.md#v5-候选变化与证据)。
-执行使用主线给定的 TLC 工具链，精确版本、输入哈希、原始输出、退出码及修复前失败记录在版本外验证入口定位；模型与配置存在不等于已运行或实现符合。
+执行须使用指定 TLC 工具链。每次执行的精确版本、输入、原始输出、退出码及失败记录放执行工作树 `tmp/<task>/`；模型与配置存在不等于已运行或实现符合。
 
 ## 原状态机的采用边界
 
@@ -33,8 +33,8 @@ v5 保留十三个服务操作，原有交错消费已冻结 [v2 Invocation](../
 | [Adaptation_DisposeActive.cfg](validity-check/Adaptation_DisposeActive.cfg)（主线拥有） | 仍有持有者时释放资源 | `NoDisposeWithLease` |
 | [Adaptation_Rebind.cfg](validity-check/Adaptation_Rebind.cfg)（主线拥有） | 在途绑定随新采用版本改变 | `BindingPinned` |
 
-以上是配置的预期结果；实际执行见版本外验证入口。正向无反例与否定出现指定反例须成对记录；某断言若只在正向列中通过，不能说已证实它能失败。
-RT3 起草时三个正向任务的登记名分别为 `model-request-runtime-v3-content-gate`、`model-request-runtime-v3-adaptation-binding`、`model-request-runtime-v3-adaptation-lifecycle`；本版在候选 registry 以 v5 精确路径另列对应任务，旧运行不改记为 v5。这三模型的七份否定配置均不登记为正向 formal task。
+以上是配置的预期结果；实际执行输入和结果放执行工作树 `tmp/<task>/`。正向无反例与否定出现指定反例须成对检查；某断言若只在正向列中通过，不能说已证实它能失败。
+RT3 的三个正向任务的登记名分别为 `model-request-runtime-v3-content-gate`、`model-request-runtime-v3-adaptation-binding`、`model-request-runtime-v3-adaptation-lifecycle`；本版在候选 registry 以 v5 精确路径另列对应任务，旧输入结果不能代替 v5。这三模型的七份否定配置均不登记为正向 formal task。
 没有新 Alloy 模型：本批新增值结构由 model-profile/messages/model-response 的 Schema 承接，本契约只引值不另立结构权威。
 
 继承的 ContentGate/AdaptationBinding 与 Adaptation 各保留原义务；这三份模型不承载 `retryDelay` 的实数关系、结果投影的全部字段、发送前取消的外层结果形状或S-66 当前输入提供者的真实读取、跨源一致性或 S-28/S-29 续接新输入分支。这些由规范向量及实现符合性验收承担。
@@ -69,4 +69,4 @@ S-15/S-16/S-17/S-33/S-55 的 opened 回执未知及取消后迟到提交分支�
 
 本版逐字携带 RT4 的四份 TLA 与十九份配置；上表原条款、有限范围、常量和公平性前提不变。原 Invocation 继续指向 v2；Settlement 的耐久结算交错不扩成实际恢复证明。六个 v5 候选任务为 model-request-runtime-v5-content-gate、model-request-runtime-v5-adaptation-binding、model-request-runtime-v5-adaptation-lifecycle、model-request-runtime-v5-settlement、model-request-runtime-v5-settlement-ended-unknown、model-request-runtime-v5-settlement-no-run。仅任务 ID/版本路径/metadir 换版，十三个负配置只作 validity-check，均不是新正式任务。
 
-**新增头事实没有建模**：这些模型没有 rawHeaders 或它与最终结果的交接，不得以 TypeOK、内容门或 CancelEventuallyStops 声称已证明值原形、空值/缺席、凭据脱敏、取消后保留、公开制品接收或真实 TLS→invoke→append/reopen。相应可失败 oracle 在 [RT5-H1～H6](../examples.md#v5-增量同次响应头的交接与留存)，须由端口符合性及真实多写方组合/负控执行；本轮未运行 TLC/Alloy 或任何真实 IO。旧执行结果只绑定旧精确输入，不是 v5 重跑或新头性质证据。
+**新增头事实没有建模**：这些模型没有 rawHeaders 或它与最终结果的交接，不得以 TypeOK、内容门或 CancelEventuallyStops 声称已证明值原形、空值/缺席、凭据脱敏、取消后保留、公开制品接收或真实 TLS→invoke→append/reopen。相应可失败 oracle 在 [RT5-H1～H6](../examples.md#v5-增量同次响应头的交接与留存)，须由端口符合性及真实多写方组合/负控执行。实际执行输入和结果放执行工作树 `tmp/<task>/`。旧执行结果只绑定旧精确输入，不是 v5 重跑或新头性质证据。

@@ -35,7 +35,7 @@ EC3/HT3 已采用并实现；业务31路由与协议2保留，opsVersion1增加�
   以上**已实现（HUB `c9b5850`）**；本节点的名字都是实名（包公开入口 `src/index.ts`）
 - **绑定与证据**：[`bindings.yaml`](bindings.yaml) 两类——绑到契约 formal task `governance-center-entry-v1-decision` 的六条（S-10、S-11、S-13、S-14、S-32、S-33，证的是**契约模型**，不是本节点源码），与绑到本包测试的 `test:` 条目（入口契约与 https-json 绑定的各条款，证据 run `2026-09-23-tests-tenancy-leg-2`）；前提逐条写在各绑定里，逐行的通过／部分／无证据见 [verification.md](verification.md#证据义务)。
   S-7、S-15、S-18、S-19 不绑（自指、模型表达不了、或没有变异证明会失败），理由在 bindings 末尾。S-11 那条的前提已改为 AI v2 S-44，并与契约稳定稿核过（N-11）。本节点自己的十九条测试义务 T-1～T-19 与结构检查已有包内测试与 `tools/ts-checks` 规则，逐条状态待 [verification.md](verification.md#证据义务) 回填
-- **实际验证**：包内测试（`tests/` 下 `decide`、`bytes`、`framing`、`json`、`transport`、`center-id`、`center`、`ops`、`lifecycle`、`skeleton`、`basis`、`slow` 与类型测试；真实 TLS 连接、真实 Unix 套接字、真实 sqlite 文件库与四个真实参与方插件）在运行 `2026-09-23-tests-tenancy-leg-2` 里随十三个 TS 成员 build／typecheck／test 在 sqlite 下全过，证据登记在 `record/evidence/2026-09-23-tests-tenancy-leg-2/`（HUB）；入口层答复字节与传输绑定 examples 逐字节相同已另行独立核过。契约模型：运行 `2026-09-23-formal-governance-center-entry`，TLC 正配置无反例、九个否定配置各出反例——那是契约的证据，不是本节点源码的（[verification「实际执行」](verification.md)）。逐条覆盖待 verification 回填
+- **验证义务**：决策、字节、framing、JSON、transport、中心身份、操作及生命周期须由真实 TLS、Unix 套接字、SQLite 文件库和实际参与方组合验证；入口答复字节与传输绑定规范实例逐字节比较。形式模型的正配置和对应否定配置分别核对，它们只检查契约模型，不证明本节点源码。方法见 [verification.md](verification.md)。
 
 ## 按当前问题展开
 
@@ -46,7 +46,7 @@ EC3/HT3 已采用并实现；业务31路由与协议2保留，opsVersion1增加�
 | 要证什么、实际跑过什么、还缺什么                                                                                                            | [验证与证据](verification.md) |
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
-契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 record/decisions。
+契约语义变化回 [spec](../../../../spec/README.md)，获准采用的终态写回当前承诺拥有者；比较与接受过程留本工作树 tmp。
 
 D055/D056 已采用并实施的维护提供者精化：[maintenance](maintenance.md)。
 

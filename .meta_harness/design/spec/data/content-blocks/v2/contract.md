@@ -6,7 +6,7 @@
   `family = data`、`topic = content-blocks`、规范路径 `spec/data/content-blocks/v2/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：已由 D-061 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-009 rev 8、PF-010 rev 6、PF-013 rev 12、PF-006 rev 19、PF-002 rev 20、PF-001 rev 19、PF-012 rev 14** 为准（2026-09-24 按各 topic 的 changelog 从起草时的 rev 逐版核到当前 rev，本契约条款无语义变化；逐 topic 核了哪些变化，见[验证入口「变化的影响」](../verification.md#变化的影响)）
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-009 rev 8、PF-010 rev 6、PF-013 rev 12、PF-006 rev 19、PF-002 rev 20、PF-001 rev 19、PF-012 rev 14** 为准
 - **精确语义依赖**：`omne-harness-lite-design-2026-09-15 · data.identity-values · v1` 的两条——
   [`#S-31` 不透明标识的交换表示](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示)（`BlockId`、`CallId` 与 `AttachmentRef` 的 `storage`／`key` 按它的散文表示；Schema **不** `$ref` 它的 `OpaqueIdentifier`——那一项自述不单独被引用，各契约按散文自写形状，主线裁定，见 D-060 §一 S1-a）、
   [`#S-34` 语义身份与实现地址分开](../../identity-values/v1/contract.md#s-34-语义身份与实现地址分开)（[S-21](#s-21-attachmentref)、[S-23](#s-23-块不携带租户身份) 据它写出「引用是地址不是资格」）。

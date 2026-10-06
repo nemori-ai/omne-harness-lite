@@ -9,6 +9,5 @@ bindings:
     evidence: "test:tools/core-verification/src/w6-stream-consumer.ts#w6.stream.trim-pairing-and-frame-formulas"
     assumptions:
       - "接收帧和trim全部显式提供，精确手算公式／邻接配对；不证实际传输计数或外部计费。"
-      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
-      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
-    alignment_checked: "2026-09-26"
+      - "本条仅绑定上述具名用例的有限输入；执行输入、输出及接受过程归本工作树 tmp/。"
+      - "有限实现测试，不是任意输入证明；测试通过不提升整体接受状态。"

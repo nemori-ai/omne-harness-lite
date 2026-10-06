@@ -9,7 +9,6 @@ bindings:
       - "依据不变式 VersionFirst（变异 Validity_readPresentationBeforeVersion 使它被违反）与 InputAfterAuth（变异 Validity_inputBeforeAuth 在 -continue 下使它被违反）；EntryDecision.cfg：Mutation = \"none\"，一次行为只有一个请求，每次现读读得到或读不到由环境任选"
       - "同属 S-10 的 NoDomainWithoutGates 没有专门变异证明它会失败（契约 verification V-3 的已知缺口），本绑定不以它为依据"
       - "模型的阶段（CheckVersion、CheckEnvelope、Authenticate、CheckPayload、Derive、Gate、Dispatch）与本节点请求处理函数的阶段是否一一对应，由节点测试 T-3 核；T-3 未开始"
-    alignment_checked: "2026-09-23"
 
   - clause: "composition.governance-center-entry/v1#S-11"
     evidence: "formal:governance-center-entry-v1-decision"
@@ -19,14 +18,12 @@ bindings:
       - "RejectionOnlyWhenJudged 没有专门变异，本绑定不以它为依据"
       - "前提：参与方 capability.account-identity v2（candidate）的 S-44 把一切判不了收成 storage-unavailable；参与方另给出集合外的值时走 S-14 缺陷路径，不在本条"
       - "模型的 Authenticate 不区分认人调的是哪个参与方操作；入口契约改钉 AI v2 之后 S-11 的出口表（AI S-44 的四个出口）与本条前提已逐条核过，契约记 TLC 重跑无变化（节点 design N-11 已闭合）"
-    alignment_checked: "2026-09-23"
 
   - clause: "composition.governance-center-entry/v1#S-13"
     evidence: "formal:governance-center-entry-v1-decision"
     assumptions:
       - "依据不变式 CannotJudgeIsUnavailable 在 Gate 读不到那一支（变异 Validity_gateUnavailableAsDenied 使它被违反）：补授权读不到不收成 notAuthorized"
       - "补授权判的是哪个组织、调用方是哪个账号不在模型里；证据形式是节点测试 T-6（契约场景 S-43），未开始"
-    alignment_checked: "2026-09-23"
 
   - clause: "composition.governance-center-entry/v1#S-14"
     evidence: "formal:governance-center-entry-v1-decision"
@@ -34,14 +31,12 @@ bindings:
       - "依据不变式 DefectIsUnavailable（变异 Validity_defectAsResult 使它被违反）：缺陷一律 unavailable"
       - "「缺陷在完整体检的 defectCount 里可见」不在模型里：那一半的证据是节点测试 T-4（契约场景 S-40），未开始"
       - "模型把全部路由结果收成一个 result；各路由失败值的逐条映射由节点测试 T-10 核，未开始"
-    alignment_checked: "2026-09-23"
 
   - clause: "composition.governance-center-entry/v1#S-33"
     evidence: "formal:governance-center-entry-v1-decision"
     assumptions:
       - "依据不变式 LateRevocationUniform（变异 Validity_passthroughStateNotValid 使它被违反）；撤销是不受公平性约束的环境动作 Revoke，可在答复之前任何时刻发生"
       - "只检查到「同一个答复值」；与第 ② 步拒绝逐字节相同由节点测试 T-2 的第七次核，未开始"
-    alignment_checked: "2026-09-23"
 
   - clause: "composition.governance-center-entry/v1#S-32"
     evidence: "formal:governance-center-entry-v1-decision"
@@ -50,7 +45,6 @@ bindings:
       - "环境不受公平性约束；P2（数据所在够得着）、P3（钟可读未倒退）、P4（版本对得上）不成立时模型只保证得到答复，不保证得到领域的答复"
       - "没有变异配置演示这条性质会失败；它失败的形态是某个阶段在某个状态下没有使能的动作"
       - "一次行为只有一个请求；多个请求之间的交错与排空不在模型里（节点测试 T-12 与契约 V-15）"
-    alignment_checked: "2026-09-23"
 
 
 
@@ -58,221 +52,186 @@ bindings:
     evidence: "test:packages/tenancy/governance-center-entry/tests/decide.spec.ts#T-1 路由表封闭（S-17、S-24；SC-3）"
     assumptions:
       - "T-1（3 条）：路由表的键恰等于 Schema EnvelopeRouteId 的枚举、表外 operation ⇒ invalid-input、本包源码不按名字解析服务或方法（SC-3，测试里读源码）；decide.spec 夹具（参与方桩）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-24"
     evidence: "test:packages/tenancy/governance-center-entry/tests/decide.spec.ts#T-1 路由表封闭（S-17、S-24；SC-3） › 表外的 operation（含不投影的 AI S-13／S-17／S-18、OG S-20／S-53）⇒ invalid-input，认人没有发生"
     assumptions:
       - "运行期那一半；静态那一半（SC-1：入口层包与其他非 owner 包不调被限定的方法）由下一条承担"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-24"
     evidence: "test:tools/ts-checks/tests/entry-rules.spec.ts#restricted-call-sites：入口 SC-1 新增的四个方法"
     assumptions:
       - "SC-1 新增四个方法（createPersonal／activate／purge／sweepStaleSelections）的规则自测 2 条；原有 .produce(、'organization-purge' 由 tools/ts-checks/tests/rules.spec.ts › restricted-call-sites 承担；真实源码扫描是同 run 的 pnpm run lint:rules（退出 0）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-6"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center.spec.ts#T-2 线上逐字节相同（真实组合）"
     assumptions:
       - "真实组合、真 TLS 连接上比较状态行、全部头与体（2 条）；快照那一半由 bytes.spec.ts › T-2：四种入口答复与 examples §1、§3 逐字节相同（5 条）承担，快照直接读传输绑定的冻结 examples.md（0efcc32c…）"
       - "center.spec 夹具（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-11"
     evidence: "test:packages/tenancy/governance-center-entry/tests/decide.spec.ts#T-2 桩那一半：六种不认与其间撤销逐字节相同；表示层不合格不调 exchange"
     assumptions:
       - "桩那一半（3 条）：exchange 由桩作答（storage-unavailable ⇒ unavailable、集合外 ⇒ 缺陷）；认人走 AI v2 S-44 的真实行为在 center.spec 的真实组合里（T-2、T-3 同 run 通过）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-11"
     evidence: "test:tools/ts-checks/tests/entry-rules.spec.ts#presentation-only-authn"
     assumptions:
       - "只凭出示物认人的静态一形（4 条自测）：入口层不调 logins.verify、不 import parseLoginStateId、不写 as LoginStateId、不解析 accounts；真实源码扫描是同 run 的 pnpm run lint:rules（退出 0）；文本规则看不到经辅助函数的间接调用"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-33"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center.spec.ts#T-2 线上逐字节相同（真实组合） › 没带、两个、三种表示层不合格、查不到、已撤销、撤销落在认人与办事之间：八次都是同一份 137 字节；表示层不合格那三次没调 exchange"
     assumptions:
       - "「撤销落在认人与办事之间」由测试编排在认人之后、办事之前撤销；与第 ② 步拒绝逐字节相同。center.spec 夹具（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-8"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center.spec.ts#T-2 线上逐字节相同（真实组合） › 请求体含非法 UTF-8 ⇒ version-mismatch；公开体检一次运行期间是同一份字节，没有 Date 头"
     assumptions:
       - "跨版本不变的两样在本版本上的行为；另由 bytes.spec.ts › V-2：任何别的答复的体都不等于 \"version-mismatch\" 那 18 个字节 承担（同 run 通过）。「将来改协议版本时这组测试不许动」是对今后改动的约束，本 run 无法核"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-10"
     evidence: "test:packages/tenancy/governance-center-entry/tests/decide.spec.ts#T-3 判定次序（桩那一半）"
     assumptions:
       - "桩那一半（7 条）；真实组合那一半 center.spec.ts › T-3 判定次序（真实组合）（2 条，FaultyStorage 让数据所在够不着）同 run 通过"
       - "模型阶段与实现阶段是否一一对应，由这两组测试的可观察次序间接证，不是逐阶段的映射检查"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-14"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center.spec.ts#T-4 三个出口不合并（真实组合 + 运维面）"
     assumptions:
       - "缺陷在完整体检的 defectCount 里可见那一半；参与方给出集合外的值由测试构造。center.spec 夹具（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-14"
     evidence: "test:packages/tenancy/governance-center-entry/tests/decide.spec.ts#T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23）"
     assumptions:
       - "逐路由的失败映射（142 条）与缺陷格；参与方桩给出每个失败值，不经真实参与方"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-7"
     evidence: "test:packages/tenancy/governance-center-entry/tests/decide.spec.ts#T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23）"
     assumptions:
       - "具名值的闭合：每个可达失败值都映射到路由表所写，集合外 ⇒ 缺陷；成功那一支由 decide.spec.ts › V-9 与 T-10 的成功那一支：27 条路由的成功返回（28 条）承担"
       - "只覆盖桩能给出的值；真实参与方是否给出集合外的值由各参与方自己的失败集合闭合检查守"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-9"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center.spec.ts#T-5 列表句柄、撤销与备份（真实组合）"
     assumptions:
       - "4 条，含备份那一半（停机做备份，备份里每个字符串当出示物都用不了，含两个仍有效出示物的正对照）与两条交错；桩那一半 decide.spec.ts › T-5 桩那一半：句柄、撤销与列表（2 条）同 run 通过"
       - "备份是 sqlite 库文件的副本；持久内容三种形式的搜查归账号能力一侧 AI S-46，不以本条代替"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-20"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center.spec.ts#T-5 列表句柄、撤销与备份（真实组合）"
     assumptions:
       - "撤销与列出两条路由在真实组合上的行为；逐失败值映射另由 decide.spec.ts › T-10… 承担。center.spec 夹具（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-12"
     evidence: "test:packages/tenancy/governance-center-entry/tests/decide.spec.ts#T-6 身份推导与补授权（桩那一半）"
     assumptions:
       - "桩那一半（7 条）；真实组合 center.spec.ts › T-6 身份推导与补授权（真实组合）（2 条）同 run 通过"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-13"
     evidence: "test:packages/tenancy/governance-center-entry/tests/decide.spec.ts#T-6 身份推导与补授权（桩那一半）"
     assumptions:
       - "补授权多个组织全部读完、不短路（两种次序）与读不到 ⇒ unavailable 在桩上断言；真实组合那一半 center.spec.ts › T-6…（同 run 通过）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-15"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center.spec.ts#T-7 δ = 0：每个请求现读（真实组合）"
     assumptions:
       - "单进程、单个入口层实例上的 δ = 0；跨进程的撤销传播时延不在此。center.spec 夹具（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-16"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center.spec.ts#T-16 不记住来访、不区别对待来者"
     assumptions:
       - "两个对端地址都在本机回环上；静态一形 tools/ts-checks/tests/entry-rules.spec.ts › no-peer-address（1 条）与 lint:rules 同 run 通过"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-27"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center-id.spec.ts#读或铸（S-28 ④） › 铸出的值合 S-27（32 个小写十六进制），两次铸出不同"
     assumptions:
       - "值不合 S-27 的收场另由同 describe › 值不合 S-27 ⇒ malformed，不修不重铸… 承担（同 run 通过）；sqlite 临时文件库"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-28"
     evidence: "test:packages/tenancy/governance-center-entry/tests/lifecycle.spec.ts#T-8 经插件：中心标识的读或铸"
     assumptions:
       - "经插件的 6 条：两次从零首启不同、同一份数据重启同一标识、读不出／写不进／那一格不存在／值不合形各自起不来且不铸新的、存储中途不可用时公开体检照样答；故障由 FaultyStorage 注入"
       - "直接调用那一层 center-id.spec.ts › 读或铸（S-28 ④）另有 8 条通过（该 describe 的 pg 真并发占位跳过）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-28"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center-id.spec.ts#读或铸（S-28 ④） › 真并发首启（sqlite）：两个写事务同时读或铸 ⇒ 只铸一次、两者拿到同一个标识"
     assumptions:
       - "sqlite 一侧的真并发；pg 一侧由 apps/tenancy-host/tests/pg.spec.ts › pg 首跑 · 各包留给 pg 的支 › 入口层「真并发首启（pg）」… 承担（PostgreSQL 16.14，pg 一侧通过）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-28"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center-id.spec.ts#T-8「表整个丢了」：storage-sql 的迁移前核对拒绝，不重建、不动数据"
     assumptions:
       - "「那一格立起过就不被重建」的判据（已有别的治理事实却没有那一格所在的表）：保留与清空迁移登记两种情形都被 storage-sql 的迁移前核对拒绝；核对本身另由 center-id.spec.ts › 迁移前核对 governanceCenterPreflight（R-GC8；三支）承担"
       - "直接打开 storage-sql（带 createUpgradeGuard）；装配一侧由 apps/tenancy-host 的 assembly.upgrade-preflight-refuses ③ 承担"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-28"
     evidence: "test:tools/ts-checks/tests/entry-rules.spec.ts#single-table-entry"
     assumptions:
       - "只碰一张表的静态一形（3 条自测）：入口层包源码的表名只能是 governance_center、不出现 sql 模板；真实源码扫描是同 run 的 lint:rules（退出 0）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-18"
     evidence: "test:packages/tenancy/governance-center-entry/tests/bytes.spec.ts#T-2：公开体检（examples §2）"
     assumptions:
       - "公开体检的请求经成帧器与判定次序得到公开体检答复、答复字节等于 examples §2（2 条）；「存储中途不可用时照样答出三样」由 lifecycle.spec.ts › T-8 经插件… › 存储中途不可用时公开体检照样答出三样 承担（同 run 通过）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-19"
     evidence: "test:packages/tenancy/governance-center-entry/tests/decide.spec.ts#T-17 凭据表示层跟随 credentials.parse（S-19）"
     assumptions:
       - "凭据表示层跟随 inject 进来的 credentials.parse（2 条，桩）；「免认人的路由不看出示物」由 decide.spec.ts › T-3 判定次序（桩那一半） › 免认人的路由不看出示物，也不看它的重复（examples §6 #12）承担；逐失败值映射由 T-10 承担"
       - "静态一形 tools/ts-checks/tests/entry-rules.spec.ts › credentials-parse-only（1 条）与 lint:rules 同 run 通过"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-21"
     evidence: "test:packages/tenancy/governance-center-entry/tests/decide.spec.ts#T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23）"
     assumptions:
       - "组织治理写路由的逐失败值映射；参与方桩给出每个失败值"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-22"
     evidence: "test:packages/tenancy/governance-center-entry/tests/decide.spec.ts#T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23）"
     assumptions:
       - "组织治理读路由的逐失败值映射；补授权那一半见 S-13 的绑定"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-23"
     evidence: "test:packages/tenancy/governance-center-entry/tests/decide.spec.ts#T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23）"
     assumptions:
       - "当前租户身份两条路由的逐失败值映射；「切换后下一个请求就以新身份行事」由 center.spec.ts › T-7… 承担"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-25"
     evidence: "test:packages/tenancy/governance-center-entry/tests/ops.spec.ts#V-8 运维面的承载（S-20）"
     assumptions:
       - "运维面只在本机套接字上、不经网络可达（3 条，真 Unix 套接字）；客户端一面没有第三张面由 center.spec.ts › T-9 客户端一面没有第三张面 承担"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-25"
     evidence: "test:tools/ts-checks/tests/entry-rules.spec.ts#ops-import-whitelist"
     assumptions:
       - "SC-2 运维面导入白名单（5 条自测，含包布局偏离报出）；事件订阅白名单由同文件 › ops-event-whitelist（4 条，含 ctx.on('login.revoked', …) 报出）承担；真实源码扫描是同 run 的 lint:rules（退出 0）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-26"
     evidence: "test:packages/tenancy/governance-center-entry/tests/ops.spec.ts#T-18 两张面同起同停与十项的来源"
     assumptions:
       - "十项来源、等钟、startedAt 取自开门那一刻、storage 换代两种次序（12 条）；钟是按调用次序给值的包内替身，换代经单独的存储宿主插件在运行中撤掉再装回"
       - "运维面答复的形状与现探由 ops.spec.ts › T-9、V-8 运维面的答复（S-21、S-26）承担；defectCount 由 center.spec.ts › T-4… 承担（同 run 通过）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-29"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center.spec.ts#T-11 秘密不进任何输出（本文件全部答复、体检、工程记录）"
     assumptions:
       - "搜索范围按用例名是 center.spec.ts 那一个文件的全部答复、体检与工程记录，不是全部测试的输出；出示物按原样、base64url 带与不带填充、十六进制大小写搜"
       - "日志与启动失败说明另由 lifecycle.spec.ts › T-14 配置错误一个政策… › 全部日志与启动失败说明里没有私钥、没有 config 的值（目录路径）承担（同 run 通过）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-30"
     evidence: "test:packages/tenancy/governance-center-entry/tests/decide.spec.ts#T-2 桩那一半：六种不认与其间撤销逐字节相同；表示层不合格不调 exchange › 工程记录分得出 absent／multiple／malformed／judged"
     assumptions:
       - "「只写入口层观察到的失败值」另由 decide.spec.ts › T-4 缺陷那一半 承担；桩上断言记录的字段，不是日志汇的真实输出格式"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-34"
     evidence: "test:packages/tenancy/governance-center-entry/tests/lifecycle.spec.ts#T-12 停机时的在途请求（S-34）"
     assumptions:
       - "停机时的在途归属（2 条）：drainTimeoutMs 内答完的照常答、超时的被销毁而它的领域写要么完整在要么完全不在"
       - "单主机；「崩溃落在开闸之前」那一支由 apps/tenancy-host/tests/process.spec.ts › assembly.no-commit-before-open ②… 承担（真子进程 SIGKILL）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-34"
     evidence: "test:packages/tenancy/governance-center-entry/tests/lifecycle.spec.ts#T-12 两张面同起同停；存储不可用时不卸载"
     assumptions:
       - "同起同停与「存储不可用时两个插件都不卸载、只以返回值收场」（2 条）；装配层面的同起同停在 apps/tenancy-host"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-34"
     evidence: "test:packages/tenancy/governance-center-entry/tests/lifecycle.spec.ts#T-12 inject 缺一即 PENDING ⇒ 装配启动失败"
@@ -282,76 +241,64 @@ bindings:
     basis:
       - plugin-body-reruns-on-provider-change
       - plugin-throw-fails-fiber
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-34"
     evidence: "test:packages/tenancy/governance-center-entry/tests/lifecycle.spec.ts#T-12 openSignal：就绪与开门分两步 › 兑现之前：入口层 ACTIVE、端口已绑，连接一律被关闭没有答复，运维面也不答，没有 serving；兑现之后才开门并发 serving"
     assumptions:
       - "同 describe 另两条（兑现之前撤除、被拒绝）同 run 通过；该 describe 的「崩溃落在开闸之前」占位跳过，承担者在 apps/tenancy-host 的 process.spec.ts"
       - "openSignal 经 config 原样传给插件体是假设（内核原样传递 config），storage-sql 的 upgrade.guard-binding 与 ops.spec.ts › loadPlugin 夹具自检 对这一点有同 run 的取证"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-4"
     evidence: "test:packages/tenancy/governance-center-entry/tests/decide.spec.ts#T-15 重复成员落在它那一步（S-4；https-json/1 S-8）"
     assumptions:
       - "四个顶层成员各重复一次与载荷内部重复（9 条）；载荷内部重复按 payload 重复同一步收场是本节点的读法（N-3）"
       - "解析器报告那一半由 json.spec.ts › S-8 重复成员：报告每一处，不取其一…（7 条）承担"
-    alignment_checked: 2026-09-23
 
 
   - clause: "composition.governance-center-entry/v1#S-38"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center.spec.ts#T-3 判定次序（真实组合）"
     assumptions:
       - "规范场景「答复的先后」的真实组合形式（2 条）；center.spec 夹具（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-39"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center.spec.ts#T-2 线上逐字节相同（真实组合） › 没带、两个、三种表示层不合格、查不到、已撤销、撤销落在认人与办事之间：八次都是同一份 137 字节；表示层不合格那三次没调 exchange"
     assumptions:
       - "规范场景「拒绝逐字相同」：真 TLS 连接上比较整个 HTTP 答复；center.spec 夹具（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-40"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center.spec.ts#T-4 三个出口不合并（真实组合 + 运维面）"
     assumptions:
       - "补授权两个组织交换读的先后那一支在 decide.spec.ts › T-6 身份推导与补授权（桩那一半）里（桩）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-41"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center.spec.ts#T-5 列表句柄、撤销与备份（真实组合）"
     assumptions:
       - "列表、撤销与备份两半都在（4 条），含正对照；备份是 sqlite 库文件副本"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-42"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center.spec.ts#T-16 不记住来访、不区别对待来者"
     assumptions:
       - "前半（不认客户端）；后半（撤销之后立刻再来）由 center.spec.ts › T-7 δ = 0：每个请求现读（真实组合）承担（同 run 通过）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-43"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center.spec.ts#T-6 身份推导与补授权（真实组合）"
     assumptions:
       - "真实组合 2 条；桩那一半 7 条在 decide.spec.ts（同 run 通过）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-44"
     evidence: "test:packages/tenancy/governance-center-entry/tests/lifecycle.spec.ts#T-8 经插件：中心标识的读或铸"
     assumptions:
       - "规范场景「中心标识」的经插件形式；「表整个丢了」那一支见 S-28 的第三条绑定；pg 真并发首启在 apps/tenancy-host 的 pg 一侧"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-45"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center.spec.ts#T-9 客户端一面没有第三张面"
     assumptions:
       - "客户端一面那一半；运维面只答完整体检由 ops.spec.ts › T-9、V-8 运维面的答复（S-21、S-26）承担；静态检查 SC-1～SC-3 见 S-24、S-25、S-17 的绑定"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-46"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center.spec.ts#T-11 秘密不进任何输出（本文件全部答复、体检、工程记录）"
     assumptions:
       - "搜索范围是 center.spec.ts 那一个文件的全部输出（按用例名），不是跑完全部测试之后的全部输出"
-    alignment_checked: 2026-09-23
 
 
   - clause: "composition.governance-center-entry-https-json/v1#S-13"
@@ -359,177 +306,148 @@ bindings:
     assumptions:
       - "快照直接读冻结的 examples.md（0efcc32c…，= frozen.json），不另存一份；run 另有函数级的独立字节核对（不复用包内解析器，含测量自检）"
       - "函数级字节；连接上一次写出见 S-11 的绑定"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-11"
     evidence: "test:packages/tenancy/governance-center-entry/tests/transport.spec.ts#V-1：每一份答复在连接上一次写出 › Http1Connection 只调一次 end(整份答复)，不调 write"
     assumptions:
       - "一次写出按实现的调用断言（只调一次 end）；真 TLS 上的完整字节由 center.spec.ts › T-2 线上逐字节相同（真实组合）承担（同 run 通过）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-15"
     evidence: "test:packages/tenancy/governance-center-entry/tests/bytes.spec.ts#T-2：公开体检（examples §2）"
     assumptions:
       - "标识与版本代成 examples §2 的值后逐字节相同；冻结的 examples.md 直接当快照"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-18"
     evidence: "test:packages/tenancy/governance-center-entry/tests/bytes.spec.ts#V-2：任何别的答复的体都不等于 \"version-mismatch\" 那 18 个字节"
     assumptions:
       - "同条款另几处承担者（同 run 通过）：framing.spec.ts › 接收上界与时限的取值不低于契约下限…；json.spec.ts › S-7 四级读法（examples §6）；transport.spec.ts › V-7 与 T-19… › 只提供 TLS 1.2 的客户端握不了手；version-mismatch 的 133 字节在 bytes.spec.ts › T-2：四种入口答复…"
       - "「改 accepted_protocol_versions、加一条路由时这组测试都不许动」是对今后改动的约束，本 run 无法核"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-7"
     evidence: "test:packages/tenancy/governance-center-entry/tests/json.spec.ts#S-7 四级读法（examples §6）"
     assumptions:
       - "严格 JSON 解析器单元（8 条）；值的读法另由同文件 › S-7 JSON 值的读法（6 条）承担，#15／#16 的领域一侧由 decide.spec.ts › T-15… › examples §6 #15、#16… 承担"
       - "逐行对应哪一条用例看用例名里的 # 号"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-8"
     evidence: "test:packages/tenancy/governance-center-entry/tests/json.spec.ts#S-8 重复成员：报告每一处，不取其一（examples §6 #9～#14、#17、#19）"
     assumptions:
       - "解析器报告（7 条）；答复落在哪一步由 decide.spec.ts › T-15 重复成员落在它那一步…（9 条，含两份出示物其一有效）承担"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-6"
     evidence: "test:packages/tenancy/governance-center-entry/tests/transport.spec.ts#V-5 只看请求体（规范场景 S-26）"
     assumptions:
       - "真 TLS 连接、测试自己拼 HTTP/1.1 报文（15 条）：换方法、路径、Expect、keep-alive、Authorization、缺或重复 Host 答复字节不变"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-5"
     evidence: "test:packages/tenancy/governance-center-entry/tests/transport.spec.ts#V-5 只看请求体（规范场景 S-26）"
     assumptions:
       - "一连接一请求、关闭次序（先 close_notify）、读尽上界超出即全关在这一组里；读尽时限由 transport.spec.ts › 读尽时限（S-5；两张面同一连接层）承担（同 run 通过）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-33"
     evidence: "test:packages/tenancy/governance-center-entry/tests/transport.spec.ts#V-5 只看请求体（规范场景 S-26）"
     assumptions:
       - "有意偏离里可在线上观察的那几件（HEAD 带体、不写 100 Continue、缺 Host 照答）；成帧不了不写 4xx 由 transport.spec.ts › V-6 成帧不了与超界… 承担"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-10"
     evidence: "test:packages/tenancy/governance-center-entry/tests/framing.spec.ts#成帧不了（S-10）"
     assumptions:
       - "成帧器单元（20 条）；线上形式由 transport.spec.ts › V-6 成帧不了与超界：收不到任何 HTTP 字节，也收不到 4xx（10 条）承担"
       - "接收下限与各上界判的先后见下一条"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-10"
     evidence: "test:packages/tenancy/governance-center-entry/tests/framing.spec.ts#接收上界：恰在下限上照收，上界 + 1 即判（V-11；S-10）"
     assumptions:
       - "恰在下限上照收、上界 + 1 即判（3 条）；嵌套与成员数由 json.spec.ts › 嵌套深度与成员数两个上界…（6 条）承担；接近 30 秒才发完由 slow.spec.ts › 接收时限：下限 30 秒之内不被切，到了时限还没收齐就关闭不写（3 条，按真实时长）承担"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-16"
     evidence: "test:packages/tenancy/governance-center-entry/tests/transport.spec.ts#V-6 成帧不了与超界：收不到任何 HTTP 字节，也收不到 4xx"
     assumptions:
       - "问不到的几种来由：成帧不了、超界（10 条）；开门之前问不到由 transport.spec.ts › V-6：开门之前问不到 承担，停机时的在途由 lifecycle.spec.ts › T-12 停机时的在途请求（S-34）承担（同 run 通过）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-4"
     evidence: "test:packages/tenancy/governance-center-entry/tests/transport.spec.ts#V-7 与 T-19：只有 TLS、服务端认证、不收早期数据"
     assumptions:
       - "中心一侧（4 条）：没有明文监听、TLS 1.2 握不了手、出示的证书链与 config 那一份逐字节相同、会话票据不许早期数据；测试根证书自签"
       - "客户端一侧「确认不了就不交出登录状态」无承担者：apps/cli 的客户端代理不存在"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-22"
     evidence: "test:packages/tenancy/governance-center-entry/tests/center.spec.ts#T-11 秘密不进任何输出（本文件全部答复、体检、工程记录）"
     assumptions:
       - "私钥与原始请求不外泄在 center.spec.ts 那一个文件的全部输出上搜（按用例名）；不收早期数据见 S-4 的绑定"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-20"
     evidence: "test:packages/tenancy/governance-center-entry/tests/ops.spec.ts#V-8 运维面的承载（S-20）"
     assumptions:
       - "真 Unix 套接字（3 条）：文件名、目录权限、残留套接字；「客户端一面不应答时运维面也不应答」由 ops.spec.ts › T-18… 与 transport.spec.ts › V-6：开门之前问不到 承担；运维面接收时限由 slow.spec.ts › 接收时限… › 运维面同一时限… 承担"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-21"
     evidence: "test:packages/tenancy/governance-center-entry/tests/ops.spec.ts#T-9、V-8 运维面的答复（S-21、S-26）"
     assumptions:
       - "任意请求都答完整体检、成员次序如 FullHealthReply、现探（2 条）；真 Unix 套接字"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-12"
     evidence: "test:packages/tenancy/governance-center-entry/tests/bytes.spec.ts#V-9：体的写出规则逐例（examples §7）"
     assumptions:
       - "写出器逐例（11 条）；27 条路由的成功返回按 Exchange 校验由 decide.spec.ts › V-9 与 T-10 的成功那一支：27 条路由的成功返回（28 条）承担"
-    alignment_checked: 2026-09-23
 
 
   - clause: "composition.governance-center-entry-https-json/v1#S-26"
     evidence: "test:packages/tenancy/governance-center-entry/tests/transport.spec.ts#V-5 只看请求体（规范场景 S-26）"
     assumptions:
       - "同 S-6 那条；固定字节那一半见 S-13 的绑定"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-27"
     evidence: "test:packages/tenancy/governance-center-entry/tests/bytes.spec.ts#V-2：任何别的答复的体都不等于 \"version-mismatch\" 那 18 个字节"
     assumptions:
       - "只在本版承载的协议版本上断言；跨两个协议版本的比对要等第二个版本出现"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-28"
     evidence: "test:packages/tenancy/governance-center-entry/tests/transport.spec.ts#V-6 成帧不了与超界：收不到任何 HTTP 字节，也收不到 4xx › 恰在下限上（V-11；规范场景 S-28）：头部块 8192、请求体 65536、嵌套 64、成员 1024 ⇒ 都得公开体检答复"
     assumptions:
       - "请求体读法与重复成员那几例由 json.spec.ts 的 S-7／S-8 两组承担；接近 30 秒才发完那一例由 slow.spec.ts › 接收时限… 承担（同 run 通过）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-29"
     evidence: "test:packages/tenancy/governance-center-entry/tests/transport.spec.ts#V-6：开门之前问不到"
     assumptions:
       - "前一半的另几支见 S-16 的绑定；后一半（运维面）见 S-20、S-21 的绑定"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry-https-json/v1#S-30"
     evidence: "test:packages/tenancy/governance-center-entry/tests/transport.spec.ts#V-7 与 T-19：只有 TLS、服务端认证、不收早期数据"
     assumptions:
       - "中心一侧；客户端一侧无承担者（apps/cli 不存在）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v3#S-55"
     evidence: "test:packages/tenancy/governance-center-entry/tests/maintenance-operations.spec.ts#backs up online, verifies offline, and restores identical bytes with business closed"
     assumptions:
       - "SQLite临时文件；成功发布、offline校验与同字节封装；不代表物理断电或任意设备"
-    alignment_checked: 2026-09-26
 
   - clause: "composition.governance-center-entry/v3#S-56"
     evidence: "test:packages/tenancy/governance-center-entry/tests/maintenance-operations.spec.ts#uses 20h due and strictly greater than 24h overdue, with deterministic name ties"
     assumptions:
       - "固定测试时钟核边界；外中心、坏候选与未知发布另由同文件具名用例承载"
-    alignment_checked: 2026-09-26
 
   - clause: "composition.governance-center-entry/v3#S-57"
     evidence: "test:packages/tenancy/governance-center-entry/tests/maintenance-operations.spec.ts#backs up online, verifies offline, and restores identical bytes with business closed"
     assumptions:
       - "同一个实际封装的副本/结构/摘要路径；异常输入另见format测试与独立QA"
-    alignment_checked: 2026-09-26
 
   - clause: "composition.governance-center-entry/v3#S-58"
     evidence: "test:packages/tenancy/governance-center-entry/tests/maintenance-operations.spec.ts#retains restored output when confirmation of the new target parent fails"
     assumptions:
       - "实际目录fsync故障注入，不是断电；输出保留且不开放业务"
-    alignment_checked: 2026-09-26
 
   - clause: "composition.governance-center-entry/v3#S-59"
     evidence: "test:packages/tenancy/governance-center-entry/tests/maintenance-ops.spec.ts#network drain finishes before a blocked owned run, without releasing the source or replaying it"
     assumptions:
       - "真实Unix socket与SQLite属主；测试gate控制run，必须实际解除后才释放"
-    alignment_checked: 2026-09-26
 
   - clause: "composition.governance-center-entry-https-json/v3#S-20"
     evidence: "test:packages/tenancy/governance-center-entry/tests/maintenance-ops.spec.ts#dispatches actual online backup and status through the original Unix socket"
     assumptions:
       - "限定本机私有socket；无业务授权或离线操作网络入口"
-    alignment_checked: 2026-09-26
 
   - clause: "composition.governance-center-entry-https-json/v3#S-21"
     evidence: "test:packages/tenancy/governance-center-entry/tests/maintenance-wire.spec.ts#matches every frozen maintenance response byte example, including metadata time formatting"
     assumptions:
       - "固定规范hex答复另由本文件参数化用例逐字比对，运行原文归维护证据"
-    alignment_checked: 2026-09-26

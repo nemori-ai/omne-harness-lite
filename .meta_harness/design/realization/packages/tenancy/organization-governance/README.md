@@ -21,7 +21,7 @@
 - 语义接受范围：**设计已接受**（2026-09-26，D-062；契约接受由 D-061 登记）。存量实现对应的旧契约接受仍有效，本次新增设计尚未实现。
 - 可实施范围：本节点声称兑现 25 个操作的九件事、四条贯穿规矩（S-15～S-18）、S-14 五条（含 ⑤ 残留清扫的**方法**，触发与节奏归装配 G-13）、五个通知事件、S-42 表左列九行里落到本节点或存储要求上的部分，逐条见 [design.md](design.md#能力到-cordis-的投影)，以上**已实现（HUB `c9b5850`）**；S-32 的判定次序与 design 不一致，待主线裁定（[实施缺口](design.md#实施缺口与消费者影响)）。**不兑现**：S-42 右列全部协议给保证；S-38 的「不可达」（资产 owner）；S-49／S-50 的另一半（资产、会话契约尚无）；G-1 会话级层身份；G-2 组织消失的事件源（契约禁止预埋）；G-3 计量；G-6 运行控制。**v3 声称兑现（设计，尚未实现）**：v3 S-1～S-61 中与 v1 不同的全部条款——S-7、S-8 两个时刻，S-20／S-21／S-25／S-29／S-32／S-33 ④ 的写集合，S-22／S-36／S-59 ⑤⑧ 的读面，S-42 新增两行在单机上的兑现，S-45 的 v3 行，S-61 场景，§十三「写按 v3、答按调用方钉的版本、存量记录不补时刻」；v1 同文条款沿用上面的已实现部分。**v3 不兑现**：S-42 两行的右列（G-7）；「先后两次串行提交的时刻不相等」在 `infra/clock` 交接落地之前兑现不了（[V3-2](design.md#实施缺口与消费者影响)）
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) **三条**，绑到 `formal:organization-governance-v1-membership`（S-17／S-28／S-29 的序列化不变量；S-39 不绑——模型没有在它被违反时会失败的断言）。Alloy 模型**未登记为 formal task**（退出码归 tooling 的缺口），不可绑；规范场景 S-46～S-54 已有包内测试（见下一项），逐条状态待 [verification.md](verification.md) 回填。**v3 另三条**：`capability.organization-governance/v3#S-17`／`#S-28`／`#S-29` 绑到同一个 formal task（v3 [S-45](../../../../spec/capabilities/organization-governance/v3/contract.md#s-45-本版选用哪些形式工件) 声明沿用、模型不含两个时刻）；两个时刻的证据是场景 S-61，**未开始**，没有绑定
-- 实际验证：包内测试（`tests/{scenarios,organizations,memberships,offers,faults,inputs,migrations,plugin}.spec.ts`、`tests/types.spec-d.ts`；跨契约与归别处的写成带指向的 `it.skip`）在运行 `2026-09-23-tests-tenancy-leg-2` 里随十三个 TS 成员 build／typecheck／test 在 sqlite 下全过，证据登记在 `record/evidence/2026-09-23-tests-tenancy-leg-2/`（HUB）；逐条覆盖待 [verification.md](verification.md) 回填。**v3：无**（源码未改）
+- 验证义务：组织、成员、邀请、故障、输入、迁移、插件和公开类型须按 [verification.md](verification.md) 检查；跨契约义务明确承担者，跳过不计通过。历史版本的测试不自动证明新版本源码符合性。
 
 ## 按当前问题展开
 
@@ -33,6 +33,6 @@
 | 实际跑过什么、九条场景各缺什么                                                                                                 | [验证与证据](verification.md) |
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
-契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 record/decisions。
+契约语义变化回 [spec](../../../../spec/README.md)，获准采用的终态写回当前承诺拥有者；比较与接受过程留本工作树 tmp。
 
 2026-09-25增量：D042/D043范围内的新版本局部实现及测试见证据。旧bindings不整批升级；新entry/host组合未验，不声明生产开闸。

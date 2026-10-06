@@ -1,17 +1,8 @@
 # 验证覆盖与实际证据
 
-## 当前3实际模型运行（2026-09-26）
+## 求值模型的覆盖边界
 
-2026-09-26-formal-core-v3 保存当前3冻结输入的实际执行与指定变异，主调度核原文/工具/冻结资源/归档字节，独立表达对应复核无阻断。按逐command的SAT/UNSAT与有解实例读取，263主读数中AE252（含13变异），不是按退出0宣称通过；Alloy无正式task/binding。有限scope、被构造吸收的前提及实现范围以run和本版formal入口为准。旧执行输入不重标当前3；产品/真实组合仍独立验收。
-
-本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
-
-> **当前状态：规范场景与静态检查未开始；Alloy 模型随 D-060 §八 M31（组合根只作身份）改过之后 2026-09-25 重跑一次（十八条命令、十三个变异体，全部与预期一致），原始输出在主检出 `tmp/formal-runs/asset-evaluation-v2-2026-09-25/`，未登记为 formal task。**
-> `capability.asset-evaluation` v2 是 `candidate`，未接受、未冻结；尚无提供者设计、尚无源码、尚无装配。
-> 下表登记的是**已经触发的证据义务**，不是已完成的检查。
-> **八条规范场景（S-33～S-37、S-41、S-43、S-44）一条都未执行**——文件存在不代替结果。
-> Alloy 那一次的判读、范围与局限见[下节](#结果与反例)；它只支持[契约第七节](v2/contract.md#七性质与前提)标了 Alloy 的那几行，**且只在所列规模内**；(i) 那一行 2026-09-24 起标「按构造，不作证据」。
-> **2026-09-24 独立评审第一轮原地修订**（处置表）：`Evaluation.als` 一个字节未改，**当时不重跑**（理由见[变化的影响](#变化的影响)）。**2026-09-25 实现映射反推（[处置表](#实现映射反推2026-09-25)）改了第 2 步的三个定义**，SHA-256 由 `4a79c2f9…126a` 变为 `6935da22…505f`，2026-09-24c 那次作废，[新一次运行](#已执行组合根只作身份之后的-alloy-运行2026-09-25)对应现在的文件。
+Alloy 按每条命令的 SAT/UNSAT 与有解实例判读，不按退出0判断通过；只支持性质表标为 Alloy 的那些行及给定有限规模，按构造吸收的前提不作为证据。规范场景、静态检查及真实提供者/装配分别验证，文件存在不等于执行。精确模型内容与范围见 formal 入口。
 
 ## 证据义务
 
@@ -41,43 +32,11 @@
 
 ## 结果与反例
 
-### 已执行：组合根只作身份之后的 Alloy 运行（2026-09-25）
+### 组合根模型的判读与限制
 
-| 项 | 值 |
-|---|---|
-| 对象 | [`v2/formal/Evaluation.als`](v2/formal/Evaluation.als)，随 D-060 §八 M31 改第 2 步之后的内容（未冻结）：`Root` 加 `rootRefs`；`reached` 在根有生效资产时从 `rootRefs` 起、否则为空；`composition` 减去 `rootCap`；`unresolvedCaps` 加上没有生效资产的 `rootCap`；头注释的 S-20 一行与「成环的收场」一句改写。断言、fact、`run`／`check` 命令与范围一字未动。SHA-256 `6935da2259130aafea0e770dad7c94578152fd517e3ef5d2f7bd006a8bba505f` |
-| 工具 | 本机 `/usr/local/bin/alloy` 6.2.0（`/opt/alloy/alloy.jar`，JRE 21），`alloy exec -f -o out Evaluation.als` |
-| 怎么跑的 | 复制到主检出 `tmp/formal-runs/asset-evaluation-v2-2026-09-25/` 再跑：`run.log`、`out/`、`sha256.txt`；变异体 `mutants/M1.als`～`M13.als` 由 2026-09-24c 那十三个变异体对旧模型的差异原样打到新模型上得到（`mutants/M*.patch`，逐个只改一处，与新模型的差异在 `mutants-summary.txt`），各自的输出在 `mutants/M*.out`；**未入库** |
-| 判读 | `check` 行 `UNSAT` 读作**本范围内无反例**、`SAT` 读作找到反例；`run` 行 `SAT` 读作前件可满足（账本 S10-c） |
-| 结果 | 全部十八条与预期一致，墙钟约 12.5 秒；退出码 0： |
+模型输入为 [Evaluation.als](v2/formal/Evaluation.als)。check 的 UNSAT 仅表示给定范围内无反例，SAT 表示找到反例；run 的 SAT 表示前件可满足。正断言须配套对应变异反例，不能用退出0判断成立。
 
-```text
-00. run   fourLayerInstance                    SAT
-01. run   replacementConstrained               SAT
-02. run   pickSkipped                          SAT
-03. run   usableByFallback                     SAT
-04. run   unusableConstrains                   SAT
-05. run   unlockedForbid                       SAT
-06. check TeamAssetsStayInTree                 UNSAT
-07. check LockTruncates                        UNSAT
-08. check DisableIsDisjunction                 UNSAT
-09. check WorkspaceNeverSourcesPermission      UNSAT
-10. check WorkspaceNeverSourcesPlacement       UNSAT
-11. check WorkspaceNeverSourcesGovernance      UNSAT
-12. check OfficialLowerBound                   UNSAT
-13. check ReplacementCannotEscapePermission    UNSAT
-14. check NonFittingPickNeverSources           UNSAT
-15. check UnusableNeverEffective               UNSAT
-16. check UnusableKeepsBounds                  UNSAT
-17. check ForbidIsBound                        UNSAT
-```
-
-**变异体**：M1～M13 全部退出 0，找到反例的断言与 2026-09-24c 那张表**逐行相同**（M1：`LockTruncates`、`ReplacementCannotEscapePermission`；M8：`NonFittingPickNeverSources` 且 `run pickSkipped` 变 `UNSAT`；M7：`ReplacementCannotEscapePermission`、`UnusableKeepsBounds`；其余各一条），与预期一致。
-
-**范围与局限**（下一节那几条仍然成立，另加两条）：
-
-- **M31 的三处改动按定义构造，不作证据**：没有断言守「`composition` 不含根」「根不可见即不往下走」，也没有变异体——它们由规范场景 V-2（E-1 第 5 件事）与 V-10（E-7 C 支）兜。这次重跑说明的是：**第 2 步换了起点之后，十条结构性质与各自的非平凡核对照旧成立**，`run fourLayerInstance` 的「有一个引用求不出」仍可满足。
-- **成环不建**：`compositionCycle` 是失败值，模型不建失败；含环的实例里 `composition` 照定义算出，**不对应任何一份结果**（[formal 入口](v2/formal/README.md)「没有进模型的」）。PRE-9 不建，`rootRefs` 任取。
+composition 不含根、根不可见不往下走按定义构造，没有断言或变异体保护；由 V-2（E-1第5件）与 V-10（E-7 C支）真实场景兜底。模型不构建 compositionCycle 失败，含环实例按定义算出的 composition 不对应任何结果；PRE-9未建模，rootRefs任取。有限结构性质不证明真实求值、权限或组合符合性。
 
 ### 已作废：吸收 PF-002 rev 17 到 rev 20 之后的 Alloy 运行（2026-09-24c）
 
@@ -240,8 +199,7 @@
 
 ### 尚无的记录
 
-规范场景 S-33～S-37、S-41、S-43、S-44，静态检查 SC-1～SC-3 尚无执行记录。首次执行时在此记录工具与版本、环境、输入范围、
-可复现步骤与原始结果位置；原始产物归 record/evidence/。
+本页维护验证义务、方法、前提与覆盖限制。单次执行的工具与版本、环境、配置、输入范围、步骤和原始结果留本工作树 `tmp/`，不建立永久运行索引。
 
 ## 形式化工件
 

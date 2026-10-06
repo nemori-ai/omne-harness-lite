@@ -14,7 +14,6 @@ bindings:
     assumptions:
       - "{{前提及其失效时的责任方}}"
 
-    alignment_checked: "{{YYYY-MM-DD}}"
 
 assembly:
   importExceptions: []

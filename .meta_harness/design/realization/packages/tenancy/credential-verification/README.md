@@ -10,7 +10,7 @@
 - 语义接受范围：`capability.account-identity` v1 里本节点兑现的 [S-8](../../../../spec/capabilities/account-identity/v1/contract.md#s-8-凭据材料) 第 1 条与 [S-26](../../../../spec/capabilities/account-identity/v1/contract.md#s-26-credential_policy)，依据 D-023（产品负责人，2026-09-22）；本节点的设计（密码方案、可整体替换的 `credentials` 服务面）随同一决定被接受为实现路径；入口契约 S-19 把凭据解析规则的发布处定在本节点，随 D-028 接受（2026-09-23）。接受不提升下面三层
 - 可实施范围：本节点声称兑现 S-8 的第 1 条（材料不以可读形式保存——**派生函数**保证）、S-8 的「比对方式属实现选择」、S-26 的判定与形状，以上**已实现（HUB `c9b5850`）**。**不兑现**：S-8 的第 2、3 条（材料只在两处被读、读面不含它——那是 account-identity 的数据形状）、S-15 的任何一件事、S-13 的任何一层。本版**只有一个实现：密码**；OIDC／passkey 是本节点存在的理由但**没有设计**
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) 空表。证据义务见 [verification.md](verification.md)
-- 实际验证：包内能证的各条是真实测试（`tests/obligations.spec.ts`），归别处的两条写成带指向的 `it.skip`；在运行 `2026-09-23-tests-tenancy-leg-2` 里随十三个 TS 成员 build／typecheck／test 在 sqlite 下全过，证据登记在 `record/evidence/2026-09-23-tests-tenancy-leg-2/`（HUB）；逐条覆盖待 [verification.md](verification.md) 回填
+- 验证义务：包内规范义务由真实测试覆盖；属于其他 owner 的义务明确指出承担者，跳过不计通过。覆盖与方法见 [verification.md](verification.md)，单次运行结果留本工作树 tmp。
 
 ## 按当前问题展开
 

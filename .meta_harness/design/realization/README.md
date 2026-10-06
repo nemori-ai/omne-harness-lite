@@ -96,7 +96,6 @@ bindings:
     evidence: 'formal:live-agent-v1-progress'
     assumptions:
       - 'Failures = FALSE：该进展性质只在无失败路径上检查'
-    alignment_checked: 2026-09-16
 ```
 
 | 字段                | 必填 | 含义                                                            |
@@ -105,7 +104,6 @@ bindings:
 | `basis`             | 否   | 该绑定依赖的[机制语义条目](../basis/README.md)                  |
 | `evidence`          | 是   | `test:<id>` 或 `formal:<task-id>`；后者指向 registry 的形式任务 |
 | `assumptions`       | 是   | 该证据成立的前提；无前提写空列表，不省略字段                    |
-| `alignment_checked` | 是   | 最后一次对着所引 basis 条目核对的日期                           |
 
 **`assumptions` 必填，因为多数生命周期与进展性质的证据都是有前提的。**
 省掉它，一条「在无失败路径上成立」的检查会被读成无条件保证；
@@ -165,10 +163,9 @@ composition:                   # 只有装配节点写：Cordis 插件树挂哪�
 ### 两条可以机器判的检查
 
 - **事件派发一致**：绑定声明了异步控制语义，而源码里用的是 `ctx.bail(`，直接失败。
-  这类错误静态可查，而它造成的后果是**静默**的——授权检查返回 Promise，
-  不被判为 bail 值，于是悄悄放行。
-- **绑定复核过期**：`alignment_checked` 早于所引 basis 条目的 `checked`，
-  该绑定进入待复核。这是上游变动传播到设计的唯一通路。
+  Promise 本身会成为 bail 值并结束同步派发，调用方尚未取得最终授权值；不能将其直接当成授权结论。
+- **前提变化须复核**：所引 basis 的采用版本或机制前提变化后，核对受影响绑定的当前假设与验证方法。
+  不用上次核对日期代替前提一致性判断，不要求永久保存每次复核过程。
 
 ## 准入门槛与停止条件
 

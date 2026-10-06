@@ -1,6 +1,6 @@
 # data.content-blocks v3
 
-> v3 候选的变化影响、证据义务与本轮实际检查见 起草报告。下文版本外 verification 中的旧运行仅属于其原输入，不据此宣称 v3 已验证。
+> 验证义务见版本外 verification；实际检查输入与结果放执行工作树 `tmp/<task>/`。旧输入结果不证明 v3 已验证。
 
 > 规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
 
@@ -8,8 +8,8 @@
   `family = data`、`topic = content-blocks`、规范路径 `spec/data/content-blocks/v3/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：当前采用范围见 catalog；采用范围以 catalog 为准。
-- **本轮需求 rev 对账**：PF-012 rev 14 → rev 15；PF-013 rev 12 → rev 13。仅更新本次依据：PF-005 的增量归外部 hooks／执行环境，PF-012 的栅栏与迟到账责任归运行时，PF-013 的增量只收窄 UI 验收适用；本契约所用值与声明的规则不变。源2历史复核文字保留其原 rev；精确差异及 owner 见 起草报告。
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-009 rev 8、PF-010 rev 6、PF-013 rev 13、PF-006 rev 19、PF-002 rev 20、PF-001 rev 19、PF-012 rev 15** 为准（2026-09-24 按各 topic 的 changelog 从起草时的 rev 逐版核到当前 rev，本契约条款无语义变化；逐 topic 核了哪些变化，见[验证入口「变化的影响」](../verification.md#变化的影响)）
+- **产品依据及采用范围**：PF-012 rev 14 → rev 15；PF-013 rev 12 → rev 13。采用范围：PF-005 的增量归外部 hooks／执行环境，PF-012 的栅栏与迟到账责任归运行时，PF-013 的增量只收窄 UI 验收适用；本契约所用值与声明的规则不变。原采用范围不自动升级到其他产品版本。
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-009 rev 8、PF-010 rev 6、PF-013 rev 13、PF-006 rev 19、PF-002 rev 20、PF-001 rev 19、PF-012 rev 15** 为准
 - **精确语义依赖**：`omne-harness-lite-design-2026-09-15 · data.identity-values · v1` 的两条——
   [`#S-31` 不透明标识的交换表示](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示)（`BlockId`、`CallId` 与 `AttachmentRef` 的 `storage`／`key` 按它的散文表示；Schema **不** `$ref` 它的 `OpaqueIdentifier`——那一项自述不单独被引用，各契约按散文自写形状，主线裁定，见 D-060 §一 S1-a）、
   [`#S-34` 语义身份与实现地址分开](../../identity-values/v1/contract.md#s-34-语义身份与实现地址分开)（[S-21](#s-21-attachmentref)、[S-23](#s-23-块不携带租户身份) 据它写出「引用是地址不是资格」）。

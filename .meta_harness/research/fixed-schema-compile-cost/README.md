@@ -11,7 +11,7 @@ CLI 启动或整套测试的收益——那归 #65 的提案与决定。
   源码末次变更 `99d8a08af`）；Ajv `8.20.0`（仓库锁定，`node_modules/.pnpm/ajv@8.20.0`）；Node `v24.21.0`；
   替代库 `typebox@1.3.34`、`@sinclair/typebox@0.34.52`、`@exodus/schemasafe@1.3.0`、`@cfworker/json-schema@4.1.1`、`@hyperjump/json-schema@1.17.8`；
   同行 DSH `639ed015`、pi `a13d35a7`（v1.0.0）；取证 2026-10-02。
-- 消费者：#65 的提案与决定（待出现于 record/proposals、record/decisions）。
+- 消费者：固定 Schema 构造与发布的实际拥有者；采用范围见对应模块正文，比较与采用过程留本工作树 tmp。
 - 最近核对：2026-10-02 / 上述版本。
 
 ## 准入核对

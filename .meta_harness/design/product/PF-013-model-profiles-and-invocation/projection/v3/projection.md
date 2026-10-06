@@ -1676,7 +1676,7 @@
 | `packages/tools/asset-registry` | [条款、会失败的证据与 assumptions](../../../../realization/packages/tools/asset-registry/bindings.yaml) | [已跑范围、未跑义务、评审处置与已知缺口](../../../../realization/packages/tools/asset-registry/verification.md) |
 | `packages/tools/mcp-bridge` | [条款、会失败的证据与 assumptions](../../../../realization/packages/tools/mcp-bridge/bindings.yaml) | [已跑范围、未跑义务、评审处置与已知缺口](../../../../realization/packages/tools/mcp-bridge/verification.md) |
 
-形式工具只在有限模型与其登记前提内提供证据。本次接受没有执行新测试、形式任务或真实供应商调用；此前实际运行查 record/evidence，不把本次状态登记当作运行证据。
+形式工具只在有限模型与其明确前提内提供证据。接受状态不表示测试、形式任务或真实供应商调用已完成；每次执行结果留本工作树 tmp，不把状态登记当作运行证据。
 
 ## 7. 未决缺口与受阻消费
 下表逐份指向当前契约与节点中的完整缺口清单，owner、闭合条件和缺席答复均以这些清单为准。已在后续裁决闭合的产品确认项不再列作待签；未实现的读面、输入接线、loop、比较门等仍保留。

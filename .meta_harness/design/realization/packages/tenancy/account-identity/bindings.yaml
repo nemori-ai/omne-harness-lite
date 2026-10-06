@@ -8,11 +8,10 @@ bindings:
     assumptions:
       - "模型把本操作抽象为 ActivateOk / ActivateRejected 两个原子动作；前置③（已过留存期限 ⇒ account-record-expired）对应 ActivateRejected 的 expired 守卫。存储提交的原子性与隔离（本节点存储要求 R-1／R-3）是模型的假设，不是被检查的事实"
       - "依据核验被抽象成布尔 warrant[a]；「不可伪造」与「与 AccountId 绑定」不在模型里，证据形式是契约场景 S-42（未开始）"
-      - "run 配置 crash.cfg：Attempts = {a1, a2, a3}，Failures = TRUE，Abandoning = TRUE，Expiring = TRUE；结论只在该常量范围内成立（record/evidence/2026-09-22-formal-tenant-domain-2）"
+      - "run 配置 crash.cfg：Attempts = {a1, a2, a3}，Failures = TRUE，Abandoning = TRUE，Expiring = TRUE；结论只在该常量范围内成立"
       - "「已过留存期限」在模型里是全局布尔 expired，Expire 是原子动作、三个读点读到同一个值——这正是模型抽象掉的部分；真实系统里由账号行上的 expiredAt 事实（首次观测时落盘）+ 存储要求 R-3 锁定读 + R-7 引用约束兑现（design.md「过期事实」一节），证据形式是 S-43 第 2 支含两条交错的真并发演练（未开始），模型不检查"
       - "依据的不可伪造有两个前提不在模型里：activation 私钥只由 account-registration 持有且不外泄；本节点持有的 activation 公钥与那把私钥配对。两者是部署配置输入（缺 ⇒ 启动失败），由装配兑现，本版没有可机检的证据形式"
       - "对 v2：capability.account-identity/v2#S-14 与本条逐字相同，模型检查的守卫与转移对它同样成立；前提是 v2 接受时该条仍逐字相同、组合改钉 v2 时模型的抽象动作不变。那之前只登 v1 坐标"
-    alignment_checked: 2026-09-22
 
   - clause: "capability.account-identity/v1#S-13"
     evidence: "formal:account-registration-v1-crash"
@@ -21,7 +20,6 @@ bindings:
       - "单标识模型：登录标识唯一性被建模方式吸收，不是被检查的性质；真实系统里由存储唯一约束 R-2 兑现，证据形式是组合契约场景 S-31（未开始）"
       - "run 配置同上（crash.cfg）"
       - "对 v2：capability.account-identity/v2#S-13 与本条逐字相同，适用性同 S-14 那条的最后一项"
-    alignment_checked: 2026-09-22
 
   - clause: "capability.account-identity/v1#S-38"
     evidence: "formal:account-registration-v1-crash"
@@ -32,7 +30,6 @@ bindings:
       - "依据不可伪造的两个前提同 S-14 那条：purge 私钥只由 organization-governance 持有且不外泄；本节点的 purge 公钥与之配对。部署配置输入，装配兑现"
       - "run 配置同上（crash.cfg）；NoOrphanPersonalOrganization 只在此配置下被真正检查"
       - "对 v2：capability.account-identity/v2#S-38 与本条逐字相同，适用性同 S-14 那条的最后一项"
-    alignment_checked: 2026-09-22
 
 
   - clause: "capability.account-identity/v2#S-31"
@@ -40,7 +37,6 @@ bindings:
     assumptions:
       - "三种情形在同一次演练里比对返回值；只比返回值，时序侧信道不在契约承诺内"
       - "共同前提（见文件头）；凭据用真实 credential-verification（scrypt 测试参数）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-32"
     evidence: "test:packages/tenancy/account-identity/tests/plugin.spec.ts#account-identity 插件 › S-32 退出的持久性 + S-47 第 2 支：同一库文件两次装载（不是完整进程重启），verify 与 exchange 给同一个值；再注入存储读不到"
@@ -48,61 +44,52 @@ bindings:
       - "「重启」是同一 sqlite 库文件上两次装载插件，不是完整进程重启；两支（重启后已撤销的得 login-state-rejected、注入存储读不到得 storage-unavailable）同跑，verify 与 exchange 各调一次"
       - "同进程整装配重启另由 apps/tenancy-host/tests/lifecycle.spec.ts › AI S-32「完整重启」支：boot() 可重入同一文件 承担（verify 拒、出示物换不出身份）"
       - "共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-32"
     evidence: "test:apps/tenancy-host/tests/process.spec.ts#AI S-32 的完整进程重启（另起一个 Node 进程打开同一库） › 进程一签发并撤销一个登录状态、SIGTERM 退出；进程二里 logins.verify 得 login-state-rejected"
     assumptions:
       - "真 OS 进程重启：进程一 SIGTERM 退出、进程二打开同一 sqlite 库；按用例名只断言 verify 得 login-state-rejected，没有 exchange——契约 v2 写「只跑 S-17 不得记作本条的 v2 已验证」，所以这一条单独不构成 S-32 的 v2 证据"
       - "经 apps/tenancy-host 的 boot() 装出整套装配（真实 clock 插件、部署密钥由 keygen 生成）；单主机"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-33"
     evidence: "test:packages/tenancy/account-identity/tests/scenarios.spec.ts#capability.account-identity v2 · 规范场景 › S-33 退出的作用范围：撤销 A 之后，B 过 verify、B 的出示物过 exchange，A 的出示物被拒"
     assumptions:
       - "共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-16"
     evidence: "test:packages/tenancy/account-identity/tests/scenarios.spec.ts#capability.account-identity v2 · 规范场景 › S-16 撤销（v2 改写：来源要求只及发起方）：目标以未标类型的字符串交进去，五支同一次里跑"
     assumptions:
       - "目标以未标类型的字符串交进去模拟来自线上；发起方是品牌 LoginStateId（取自 S-15 的结果）"
       - "共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-34"
     evidence: "test:packages/tenancy/account-identity/tests/scenarios.spec.ts#capability.account-identity v2 · 规范场景 › S-34 同标识四路对比 + 求值次序支，同一次演练里比对"
     assumptions:
       - "四路与求值次序支同一次比对；已过期那一路靠可前推的时间替身，不按真实时长等待"
       - "共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-40"
     evidence: "test:packages/tenancy/account-identity/tests/scenarios.spec.ts#capability.account-identity v2 · 规范场景 › S-40 有效登录状态列得全 + 读不到不返回空集，两支同一次里跑"
     assumptions:
       - "读不到那一支是向存储注入读失败；共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-41"
     evidence: "test:packages/tenancy/account-identity/tests/scenarios.spec.ts#capability.account-identity v2 · 规范场景 › S-41 未激活记录到期释放标识：五支同一次里跑"
     assumptions:
       - "到期靠可前推的时间替身，不按真实时长等待；① 同时证存储要求 R-6 在 sqlite 上成立"
       - "共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-42"
     evidence: "test:packages/tenancy/account-identity/tests/scenarios.spec.ts#capability.account-identity v2 · 规范场景 › S-42 伪造的依据两侧都被拒：用另一把密钥签一份形状合法的凭证，三支同一次里跑"
     assumptions:
       - "「自制」= 用另一把密钥签形状合法的凭证，真的绕过产出方；不可伪造的前提（私钥不外泄）不在测试里"
       - "共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-43"
     evidence: "test:packages/tenancy/account-identity/tests/scenarios.spec.ts#capability.account-identity v2 · 规范场景 › S-43 第 1 支（可操纵时间源）：依据先产出、记录后过期 ⇒ account-record-expired，账号停在未激活"
     assumptions:
       - "第 1 支（故障注入支）：时间替身前推过期并跑掉清除链 ① 之后拿早先的依据调 S-14；只跑这一支不够，真并发支见下两条"
       - "共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-43"
     evidence: "test:packages/tenancy/account-registration/tests/interleavings.spec.ts#ai#S-43 第 2 支 × ar 同一次演练：激活与清除链 ① 在同一条已过期记录上并发"
@@ -110,42 +97,36 @@ bindings:
       - "第 2 支（真并发，sqlite）：4 条，含 design 列的两条交错 (a)、(b)；同 run 另有同文件 › 架构评审点名的集成交错（I-1～I-4；与上面 S-43 第 2 支同一批）3 条"
       - "真实 AI／OG／AR 插件同装在一个 Cordis Context，两个存储连接指向同一 sqlite 文件；交错由 InstrumentedStorage 在语句处停住编排——证的是这些被编排出来的交错，不是任意调度"
       - "sqlite 下写事务 BEGIN IMMEDIATE 串行；行锁语义的直接实证是一致性套件 C-4"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-43"
     evidence: "test:apps/tenancy-host/tests/pg.spec.ts#pg 首跑 · 交错 I-12（AR 包 I-1／I-2／I-4 在 pg 上重跑；真实 AI／OG／AR + 本节点的合成迁移）"
     assumptions:
       - "pg 一侧：PostgreSQL 16.14 临时容器，每条用例一个新建空库；sqlite 一侧同名 3 条跳过（缺 OMNE_TEST_PG_URL），以 pg 一侧的通过为准"
       - "只重跑 I-1／I-2／I-4 三格；pg 版本只有 16.14"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-44"
     evidence: "test:packages/tenancy/account-identity/tests/scenarios.spec.ts#capability.account-identity v2 · 规范场景 › S-44 求值与三个出口：①–⑥ 同一次里跑，加本节点的第 ⑦ 支（不设捷径）"
     assumptions:
       - "⑥⑦ 的存储读不到是注入；⑤ 的上界取契约的候选值 1024"
       - "共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-45"
     evidence: "test:packages/tenancy/account-identity/tests/scenarios.spec.ts#capability.account-identity v2 · 规范场景 › S-45 出示物的形状：43 个 base64url 字符、无填充、过 IV S-31 与 S-45 的解析，且每次都不同"
     assumptions:
       - "只证交换表示的形状与每次不同；熵下限（≥ 256 位、密码学安全随机源）演练测不出来，另由实现审阅承担（本 run 不承担）"
       - "同时守 Node 假设「base64url 不带填充」（Node v24.18.0）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-45"
     evidence: "test:packages/tenancy/account-identity/tests/obligations.spec.ts#S-45 派生值碰撞与 S-15 的提交点 › 随机源每次返回同一组字节：第二次 issue ⇒ storage-unavailable，第一次的行原样，第二次的返回里没有任何东西"
     assumptions:
       - "碰撞收场：真碰撞跑不出来，靠注入一个每次返回同一组字节的随机源；同 describe › 两个并发的 issue 撞同一主键（真并发）… 另证并发一支（同 run 通过）"
       - "共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-45"
     evidence: "test:tools/ts-checks/tests/account-identity-rules.spec.ts#no-random-source-inline"
     assumptions:
       - "熵审阅的两条文本规则（本包源码不出现 Math.random、出示物模块外不取 randomBytes、插件体不传别的随机源）的自测 4 条，含对真实 plugin.ts 的变异核对；真实源码扫描是同 run 的 pnpm run lint:rules（退出 0）"
       - "规则不代替实现审阅：熵是演练测不出来的，本条只证「没有明显的弱随机源进入」"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-46"
     evidence: "test:packages/tenancy/account-identity/tests/scenarios.spec.ts#capability.account-identity v2 · 规范场景 › S-46 存储里翻不出能用的出示物：①（库文件、预写日志、每一条记录的每一个字符串值，含正对照）②（诊断与事件）③（拿列表当凭证）同一次里跑"
@@ -153,54 +134,46 @@ bindings:
       - "按原样、base64url、十六进制三种形式搜，其他可还原编码不覆盖（由记录结构的类型测试守）；含两个仍有效出示物的正对照"
       - "只翻 sqlite 库文件与预写日志；pg 上的持久内容没有翻"
       - "共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-46"
     evidence: "test:apps/tenancy-host/tests/upgrade.spec.ts#AI S-46 ① 的快照部分：翻装配留下的升级快照，里面没有能用的出示物 › 确认之前停住，快照里每一段可打印串交给 S-44 都换不出身份；三个出示物以任何形式都不在快照里"
     assumptions:
       - "快照部分：经 apps/tenancy-host 的 boot() 在确认之前停住，翻 storage-sql 升级守卫留下的 sqlite 快照；sqlite 临时文件库"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-46"
     evidence: "test:tools/ts-checks/tests/account-identity-rules.spec.ts#no-presentation-in-diagnostics"
     assumptions:
       - "② 诊断输出那一支的静态一形：出示物进日志、emit、new Error(、defect( 的实参即报出（3 条自测，含对真实 logins.ts 的变异核对）；只看得到本包源码，看不到依赖与提供者的诊断输出——动态翻查（上面第一条）保留作兜底"
       - "类型一形另由 packages/tenancy/account-identity/tests/types.spec-d.ts › no-presentation-in-diagnostics（类型一形）… 承担（同 run 通过）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-47"
     evidence: "test:packages/tenancy/account-identity/tests/scenarios.spec.ts#capability.account-identity v2 · 规范场景 › S-47 第 1 支：已知答案向量（外部工具算好）+ 每次登录的独立重算"
     assumptions:
       - "第 1 支：被测实现之外独立重算；同 describe › S-47 第 1 支（向量对着被测派生函数）… 含非 ASCII 一条（同 run 通过）"
       - "第 2 支（完整重启后仍通过 exchange）只有同进程重启的承担者（见下一条）；OS 进程重启没有"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-47"
     evidence: "test:packages/tenancy/account-registration/tests/integration.spec.ts#I-8 同一库文件整装配重启（同进程 dispose 再 boot，不是 OS 进程重启） › S-32／S-47 的重启一支：签发 → 整个装配撤掉 → 同一库文件、同一组部署密钥再装 ⇒ 出示物仍换得同一个 LoginStateId；撤销之后再重启仍无效"
     assumptions:
       - "「重启」是同进程里整个装配 dispose 再 boot，不是 OS 进程重启；契约的「完整重启」若读作进程重启，本条只证了一半"
       - "真实 AI／OG／AR／CV 与真实 clock 插件，sqlite 临时文件库"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-35"
     evidence: "test:packages/tenancy/account-identity/tests/types.spec-d.ts#tests/types.spec-d.ts > 记录结构（S-9、S-45「永不以可读形式保存」、S-35） › 账号行只有一个 AccountId 列（S-11／S-35 的类型层）"
     assumptions:
       - "只有类型层一半：账号行类型里只有一个 AccountId 类型的列；identity-values SC-2 的规则形式不存在（本包的占位跳过），真实表结构不由这条检查"
       - "TypeScript 6.0.3、vitest typecheck"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-36"
     evidence: "test:packages/tenancy/account-identity/tests/types.spec-d.ts#tests/types.spec-d.ts > S-36 失败集合逐字对契约（九个方法）"
     assumptions:
       - "类型测试 10 条：九个方法的失败字面量集合逐条等于契约、S-44 的失败类型与 S-17 的是同一个、两个服务面恰九个方法；参数类型那一表另由同文件 › 参数类型：用来认人的是品牌 LoginStateId，其余收 unknown（3 条）承担"
       - "只证编译期类型；运行期返回值是否越出集合由各场景的返回值断言兜底。规则形式（tools/ts-checks）不存在，义务不要求"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-9"
     evidence: "test:packages/tenancy/account-identity/tests/types.spec-d.ts#tests/types.spec-d.ts > 记录结构（S-9、S-45「永不以可读形式保存」、S-35）"
     assumptions:
       - "类型测试 4 条：登录状态行恰四列、没有出示物；三个事件载荷的字段全是品牌标识；出示物与 LoginStateId 互不可赋值——证的是类型，真实表结构由迁移片段与 S-46 的翻查兜底"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-27"
     evidence: "test:packages/tenancy/account-identity/tests/obligations.spec.ts#S-27 缺席时的默认答案：逐行注入"
@@ -208,20 +181,17 @@ bindings:
       - "逐行注入 7 条：发起方已失效、依据缺席、存储读不到或写不进、credential_policy 取不到、credentials 提供者缺席、时间源读不到、随机源不可用；服务实现类直接构造以注入故障"
       - "第 1 行（表示层）另由同文件 › 逐操作表示层注入（S-27 第 1 行）：九个操作都在任何判定之前给 invalid-input 承担（同 run 通过）"
       - "共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-15"
     evidence: "test:packages/tenancy/account-identity/tests/obligations.spec.ts#S-45 派生值碰撞与 S-15 的提交点 › S-15「出示物只在提交成立之后交出」：提交失败 ⇒ storage-unavailable，返回里没有出示物，表里没有新行"
     assumptions:
       - "提交失败是注入（存储在事务中途失败）；共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-38"
     evidence: "test:packages/tenancy/account-identity/tests/obligations.spec.ts#S-45 派生值碰撞与 S-15 的提交点 › S-38 删记录与释放标识同提交：提交失败 ⇒ 记录与标识占用都原样（没有「记录没了但标识还占着」或反之）"
     assumptions:
       - "只在提交失败处中断一次（注入）；依据的防伪与绑定由 S-41 ④⑤、S-42 承担"
       - "共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-39"
     evidence: "test:packages/tenancy/account-identity/tests/plugin.spec.ts#account-identity 插件 › config 校验：留存期限非正或缺席、公钥缺席、给了私钥、多余成员 ⇒ 启动失败（S-39 参数缺席由启动失败兑现）"
@@ -230,7 +200,6 @@ bindings:
       - "「抛出 ⇒ 启动失败」的内核语义见 basis plugin-throw-fails-fiber（4.0.4）"
     basis:
       - plugin-throw-fails-fiber
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-30"
     evidence: "test:tools/ts-checks/tests/entry-rules.spec.ts#presentation-only-authn"
@@ -238,7 +207,6 @@ bindings:
       - "S-30「进程外来的身份一律先过 S-44」接收边界一侧的静态检查：入口层包不调 logins.verify、不 import parseLoginStateId、不写 as LoginStateId、不解析 accounts 服务（4 条自测）；真实源码扫描是同 run 的 pnpm run lint:rules（退出 0）"
       - "本节点这一侧的品牌参数另由 packages/tenancy/account-identity/tests/types.spec-d.ts › 参数类型：… 承担；运行期由 scenarios.spec.ts › S-30「只有 S-44 认出示物」… 承担（同 run 通过）"
       - "这一条失守是静默的；文本规则只看入口层包的源码，看不到将来别的跨进程边界"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-30"
     evidence: "test:packages/tenancy/account-identity/tests/obligations.spec.ts#凭据计算挪出写事务之后的交错（节点 design「状态、并发与失败映射」）"
@@ -246,17 +214,14 @@ bindings:
       - "S-30 第 4 行「前置检查与写入在同一次提交内」在本节点的读法：凭据计算在提交外、在提交内按同一行确认仍属同一记录且未改写；5 条交错（①、②、② 的变体、③、④）证这个读法下判定不变"
       - "② 的 pg 支另由 apps/tenancy-host/tests/pg.spec.ts › pg 首跑 · 各包留给 pg 的支 › AI「凭据计算挪出写事务之后的交错 ②」pg 支… 承担（PostgreSQL 16.14，pg 一侧通过）"
       - "交错由测试放行 credentials 替身编排；共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-22"
     evidence: "test:packages/tenancy/account-identity/tests/scenarios.spec.ts#capability.account-identity v2 · 规范场景 › S-22 登录路径分辨不出账号存在性：已过期未激活、已清除的记录也与不存在逐字相同"
     assumptions:
       - "只比返回值；时序不在契约承诺内。共同前提（见文件头）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-22"
     evidence: "test:tools/ts-checks/tests/rules.spec.ts#restricted-call-sites › account-registration 之外调 accounts.produce( 或解析 organization-purge ⇒ 报出"
     assumptions:
       - "S-22 第二处例外的装配纪律：.produce( 的调用点只在 account-registration；文本规则同时覆盖 inject 与 ctx.get 动态解析后的调用；真实源码扫描是同 run 的 pnpm run lint:rules（退出 0）"
       - "规则只对那一次扫描到的源码成立；经辅助函数改名的间接调用不在文本规则的视野里"
-    alignment_checked: 2026-09-23

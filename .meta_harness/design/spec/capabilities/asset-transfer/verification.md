@@ -6,7 +6,7 @@
 > `capability.asset-transfer` v2 是 `candidate`，经独立评审第一轮（处置表），**未接受**；尚无提供者设计、尚无源码。
 > 下表登记的是**已经触发的证据义务**。三个正例配置的「无反例」**之所以有内容**，是因为同一次执行里十三个去保护配置都按预期给出了反例；
 > 两条按构造成立的性质（`EndedStable`、`EffectsOnlyFromConfirmation`）**不作为证据**，理由在 [formal 入口](v2/formal/README.md#本版选用什么)。
-> **原始输出与输入快照在主检出的任务区** `tmp/formal-runs/asset-transfer-v2-2026-09-24d/`（`input/`、`input.sha256`、`run.sh`、`logs/`、`summary.txt`），**没有存进 `record/evidence/`**：起草者对那一区没有写权限，**正式证据 run 待主线落盘**。
+> 单次模型执行须明确当前输入、配置、作用域与正反对照的判读；原始结果留本工作树 `tmp/`，不以模型结果代替真实场景。
 > **不复活要的两个时刻由 `capability.organization-governance` v3 给出**——那份也是 `candidate`；[S-9](v2/contract.md#s-9-分享此刻是否生效) 两读的先后被模型吸收，**只有场景能给证据**。
 
 ## 证据义务

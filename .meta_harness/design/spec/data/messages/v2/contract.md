@@ -7,7 +7,7 @@
   **文件位置不代替这个三元组身份。**
 - **状态**：已由 D-061 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-009 rev 8、PF-010 rev 6、PF-012 rev 14、PF-013 rev 12、PF-014 rev 7、PF-015 rev 11、PF-006 rev 19、PF-004 rev 12、PF-008 rev 7** 为准。
-  2026-09-24 按各 topic 的 changelog 从起草时的 rev 逐版核到当前 rev：PF-009 rev 8 与 PF-010 rev 6 改了 `SystemMessage`（不落会话日志、每次组装现算、本版只含文本，[S-7](#s-7-systemmessage)、[S-6](#s-6-每种消息能装哪几类块)、[S-29](#s-29-合法名单的判定)、[S-32](#s-32-会话日志里的配对与唯一)）与工具帧的收尾（出错照常收尾，[S-13](#s-13-toolinternalmessage)、[S-14](#s-14-toolinternalmessage-怎么收的尾)）；PF-014 rev 6 的「被中断的回复不交出动作」进 [S-10](#s-10-assistantmessage-怎么收的尾)；其余不改本契约条款。逐 topic 的记录见[验证入口「变化的影响」](../verification.md#变化的影响)
+  产品依据到本契约的映射：PF-009 rev 8 与 PF-010 rev 6 改了 `SystemMessage`（不落会话日志、每次组装现算、本版只含文本，[S-7](#s-7-systemmessage)、[S-6](#s-6-每种消息能装哪几类块)、[S-29](#s-29-合法名单的判定)、[S-32](#s-32-会话日志里的配对与唯一)）与工具帧的收尾（出错照常收尾，[S-13](#s-13-toolinternalmessage)、[S-14](#s-14-toolinternalmessage-怎么收的尾)）；PF-014 rev 6 的「被中断的回复不交出动作」进 [S-10](#s-10-assistantmessage-怎么收的尾)；其余不改本契约条款。
 - **精确语义依赖**：
 
   | 坐标 | 消费 clauses | 取它的什么 | Schema 里怎么用 |

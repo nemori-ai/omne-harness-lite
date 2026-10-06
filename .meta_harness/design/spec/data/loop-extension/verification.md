@@ -20,18 +20,9 @@
 | 当前代际责任不丢失 | 当前任务未知提交或已受理工作仍由原 owner 认回/恢复/结算；新格式拒绝不能抹旧事实 | 未开始；runtime / runner / 日志提供者 |
 | 公共操作与最终门不退化 | 原输入上限、Pending 回复、重试历史及 S-34 失败重取仍按原精确性质成立 | 未开始；对应消费者及验证 owner |
 
-### 本次实际检查
+### 静态核对与实现验证的边界
 
-本轮使用本树 `uv run --locked python` 执行临时审计脚本，实际输出：
-
-```text
-PASS: 584 frozen source hashes unchanged; 4 schemas structurally identical after exact $id/$ref remap; 276 refs resolved; 58 formal source/config files byte-identical; 86 explicit schema cases matched; RT S-34 unchanged except coordinates; all dependency clauses unchanged.
-NOT RUN: TLC/Alloy; production old-format rejection; current-generation recovery/settlement and actual IO.
-```
-
-`uv run --locked python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip` 的本轮检查返回 0，输出 `PASS`（gate=internal; formal=skip）；候选中央登记尚待集成，检查通过不声称已登记或接受。`git diff --check` 返回 0。
-
-本次核对本基线全部 **584** 个冻结资源，脚本与日志在本次任务区交集成 owner 保留，尚未归档为 record/evidence。本版 82 个规范资源中的 58 份形式源/配置均与各自前驱逐字节相同。**本轮形式工具未运行**，源有限结果只保留相同模型输入与断言范围，不提升为本版真实实现验证。当前格式拒绝与责任不丢失的实现场景仍为未开始；原有缺口的 owner 保留，旧格式分发缺口改为当前格式采用与拒绝证据。
+冻结源与形式工件的字节核对不构成形式工具执行，也不证明真实实现。当前格式拒绝、恢复与结算须由对应消费者和验证 owner 执行实现场景；格式变更不能丢失已经受理工作的责任。
 
 ### v6 完整快照与重试结论历史
 
@@ -65,15 +56,9 @@ NOT RUN: TLC/Alloy; production old-format rejection; current-generation recovery
 
 不新增 Alloy/TLA+ 工件或 formal task：本包没有新行为状态，形状由 Schema 表达，跨记录关系由对照原日志的场景核实；结论提交、完整前缀生产和恢复由 runtime/runner 行为模型及真实组合证据承接。形式工具本轮**未运行**，不把数据形状检查登记成行为或完整性证明。
 
-### v5 本轮实际检查
+### 完整历史的验证限制
 
-2026-09-28，spoke `panqiwei/model-request-runtime-loop5-spec`，基线 `fd4c87f2bc2809843ecec7937834a235906b2163`。使用本工作树 `.venv/bin/python`：Python 3.12.13、jsonschema 4.26.0、referencing 0.37.0；没有安装依赖或访问网络。离线解析本树既有 Schema，并加入兄弟起草树已确认定型的 MP4 与 MS5 Schema；实际输入摘要随临时检查输出交主线保存。
-
-实际输出：`PASS normative table rows 114`、`PASS normative JSON blocks 17`、`PASS LC4 schema preserved except approved refs/modelCallId/history additions`、`PASS assertions 179 defs 43 subject positions 13`。共 179 个形状断言符合预期；结构回退对照说明本轮没有暗改其余 LC4 Schema 规则。该脚本不判具体拒绝值优先级，不验证生产日志完整性、无损传输、真实回放或默认件执行行为。
-
-本 spoke 源树执行 `check_design.py --root .meta_harness/design --formal skip`：`FAIL: design validation found 7 error(s).`，全部是 MP4/MS5 尚未合入本树导致的依赖链接缺失。随后在临时副本中加入已定型的 MP4/MS5 完整包、对应验证入口及三份候选的 catalog/covers 片段，实际输出 `PASS: design tree …/overlay/.meta_harness/design passed gate=internal; formal=skip.`（退出 0）。该结果只覆盖这份依赖副本，不声称原树或最终七包集成已通过。
-
-`git diff --check` 通过；43 条编号 S-1～S-43 唯一且连续；LC1～LC4 全部规范文件与基线逐字节一致。临时脚本、输入摘要和原始输出交主线保存，尚无长期证据入口，不把临时路径作为永久依据。
+Schema 与结构差异检查不判具体拒绝值优先级，不证明生产日志完整性、无损传输、真实回放或默认构件执行行为。完整组合应解析全部实际共享依赖，替身或临时依赖副本通过不等于最终组合通过。
 
 ### v5 登记输入与报给主线
 
@@ -154,27 +139,10 @@ NOT RUN: TLC/Alloy; production old-format rejection; current-generation recovery
 
 ## 结果与反例
 
-**尚无任何执行记录。**首次执行时在此记录工具与版本、环境、输入范围、可复现步骤与原始结果位置；
-原始产物归 `record/evidence/`。
+本页维护验证义务、方法、前提与覆盖限制。单次执行的工具与版本、环境、配置、输入范围、步骤和原始结果留本工作树 `tmp/`，不建立永久运行索引。
 **必须分开陈述**：Schema 校验、规范场景演练、真实组合的符合性——三者不能互相冒充（[S-38](v2/contract.md#s-38-表示层拒绝不是判定)）。
 
-**本轮只跑过设计检查器**——它只检查登记、`$id`、`$ref` 解析与 Markdown 链接锚点，**不校验任何实例**，因此不支持上表任何一条义务：
-
-| 运行 | 对象 | 结果 |
-|---|---|---|
-| `make design-check`，2026-09-23，本分支起草提交之前的工作树 | 真实设计树 | **FAIL，27 个错误，全部指向并行候选的缺席**：1 个是 catalog 依赖 `data.content-blocks` v2 坐标未知（检查器在一条目的第一个未知依赖处停下，其余四个同类依赖被它遮住），26 个是指向 content-blocks、messages、model-profile、call-accounts、tool-definition 五份 Schema 的 `$ref` 解析不到。**没有 Markdown 链接或锚点错误**。make 在第一步失败后中止，**同一目标里的对象清单与实现节点两步没有跑**（本包没有碰它们的输入） |
-| 同一检查器（`check_design.py --root`）跑在临时副本上 | 真实设计树的副本 ＋ content-blocks 草稿 `204d078` 的原件 ＋ 其余四份的**桩**（只含本包引用的那几个 `$defs` 名、空定义）＋ 五条 catalog 候选登记 | **PASS**。说明：五份到齐后，本包的 `$id`、全部 `$ref` 指针（含指到 `CapabilityId/properties/name` 的那一个）、catalog 依赖与链接都解析得到。**桩是空定义，它不说明本包的实例能过真实定义**——那是 V-1 |
-
-按主线裁定原地修订之后（2026-09-23，本分支修订提交之前的工作树）又跑了四次：
-
-| 运行 | 对象 | 结果 |
-|---|---|---|
-| `make design-check` | 本分支工作树 | **FAIL，37 个错误**：1 个 catalog 依赖（`data.content-blocks` 坐标未知）＋ 29 个 `$ref` 解析不到（比首稿多的 3 个是 `RunId`、`AttemptId` 的三处引用，`data.call-accounts` 在本分支整份缺席）＋ 7 个链接断开，**全部指向 D-058**（`record/decisions/message-and-shape-rulings/decision.md`）——那份决定只在 HUB 上、不在本分支的基线里。没有别的错误 |
-| `make docs-check` | 本分支工作树 | **FAIL，7 个错误**，恰是上一行那 7 个 D-058 链接 |
-| `check_design.py --root`（同一检查器） | HUB `panqiwei/assets-runtimes` 在 `3b99594a` 的 `.meta_harness` 快照 ＋ 本包 ＋ 本包的 catalog 条目与 46 条 covers ＋ **`data.messages` 的桩**（只含本包引用的四个 `$defs` 名、空定义；HUB 上那份还没合入） | **PASS**。说明：content-blocks、call-accounts（含 `RunId`、`AttemptId`）、model-profile、model-response、tool-definition 用的是 HUB 上的真稿，D-058 的两个锚点也解析得到；`data.model-response` 引本包 `FailureCause` 的那一处同样解析得到。**messages 仍是桩**，它不说明本包的实例能过真实定义——那是 V-1 |
-| `omne-docs-check --root` | HUB `3b99594a` 的整仓快照 ＋ 本包 ＋ 同上的两份清单 | **PASS**（686 个 Markdown 文件） |
-
-这组报错在本包合入 HUB、`data.messages` 定型之后应当消失；在那之前，本包**不能**被当成已通过检查。
+设计检查器只检查登记、`$id`、`$ref` 解析与 Markdown 链接锚点，不校验实例，因此不能支持上表的行为义务。临时桩、空 `$defs` 或补入草稿得到的导航通过不能代替真实依赖的实例校验；须对当前完整设计树执行检查，V-1 另用真实定义核对。
 
 ## 形式化工件
 

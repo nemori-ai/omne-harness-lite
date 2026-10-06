@@ -112,7 +112,7 @@ G-20初始模型完整推出规则、中心/据点复制、完整Agent Loop和�
 
 以下为原v2记录，按当时的版本读取；旧seed退避、历史求值读取、旧schema主体等验收不代替上述v3义务。
 
-本页记本节点触发的证据义务、实际跑过什么、覆盖到哪里。原始输入与输出归 record/evidence；契约层的证据状态归[契约验证入口](../../../../spec/capabilities/model-request-runtime/verification.md)，本页只写它们与本节点的关系。**源码不存在，本节点没有任何实现层的证据。**
+本页维护本节点的验证义务、方法、前提与覆盖限制。单次输入与输出留本工作树 `tmp/`。契约层的验证义务归[契约验证入口](../../../../spec/capabilities/model-request-runtime/verification.md)；本页只维护这些义务与本节点的关系。
 
 ## 证据义务
 

@@ -8,9 +8,9 @@
   `family = data`、`topic = model-response`、规范路径 `spec/data/model-response/v4/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：当前采用范围见 catalog；已接受基线为 D-068 的 model-response/v3。增量依据为 model-request-adaptation 提案 rev 2 与 [UL-D-6](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-adaptation-binding--模型适配绑定--model-adaptation-binding)。本版不自动升级消费者。
-- **本轮需求 rev 对账**：沿已接受 v3 采用的 PF-013 rev 13、PF-009 rev 8、PF-004 rev 12、PF-012 rev 15、PF-001 rev 19、PF-011 rev 4、PF-010 rev 6；与工作区各 topic 当前 revision 一致。增量来源为上列提案与施工裁定，不改写产品正文的确认范围。
+- **产品依据及采用范围**：沿已接受 v3 采用的 PF-013 rev 13、PF-009 rev 8、PF-004 rev 12、PF-012 rev 15、PF-001 rev 19、PF-011 rev 4、PF-010 rev 6；与工作区各 topic 当前 revision 一致。增量来源为上列提案与施工裁定，不改写产品正文的确认范围。
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-013 rev 13**、**PF-009 rev 8**、**PF-004 rev 12**、**PF-012 rev 15**、**PF-001 rev 19**、**PF-011 rev 4**、**PF-010 rev 6** 为准（PF-010 只取「要求三」一句：压缩摘要落成压缩记录那条消息，见设计依据表）；
-  首 token 判据与请求参数来自源2所引的 PF-013 rev 5–12、PF-009 rev 5–8。PF-013 当前 rev 13 的接受见 D-065，本轮按上述限定映射采用；PF-009 保留源2的依据与确认范围。源版各次复核记在[验证入口「变化的影响」](../verification.md#变化的影响)。
+  首 token 判据与请求参数来自源2所引的 PF-013 rev 5–12、PF-009 rev 5–8。PF-013 当前 rev 13 的接受见 D-065，本轮按上述限定映射采用；PF-009 保留源2的依据与确认范围。实际复核过程放执行工作树 `tmp/<task>/`。
 - **精确语义依赖**（引用名字，不复制定义）：
 
   | 坐标 | 取它的什么 | 状态 |

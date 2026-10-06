@@ -20,24 +20,9 @@
 | 当前代际责任不丢失 | 当前任务未知提交或已受理工作仍由原 owner 认回/恢复/结算；新格式拒绝不能抹旧事实 | 未开始；runtime / runner / 日志提供者 |
 | 公共操作与最终门不退化 | 原输入上限、Pending 回复、重试历史及 S-34 失败重取仍按原精确性质成立 | 未开始；对应消费者及验证 owner |
 
-### 本次实际检查
+### 静态核对与实现验证的边界
 
-本轮使用本树 `uv run --locked python` 执行临时审计脚本，实际输出：
-
-```text
-PASS: 584 frozen source hashes unchanged; 4 schemas structurally identical after exact $id/$ref remap; 276 refs resolved; 58 formal source/config files byte-identical; 86 explicit schema cases matched; RT S-34 unchanged except coordinates; all dependency clauses unchanged.
-NOT RUN: TLC/Alloy; production old-format rejection; current-generation recovery/settlement and actual IO.
-```
-
-`uv run --locked python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip` 的本轮检查返回 0，输出 `PASS`（gate=internal; formal=skip）；候选中央登记尚待集成，检查通过不声称已登记或接受。`git diff --check` 返回 0。
-
-本次核对本基线全部 **584** 个冻结资源，脚本与日志在本次任务区交集成 owner 保留，尚未归档为 record/evidence。本版 82 个规范资源中的 58 份形式源/配置均与各自前驱逐字节相同。**本轮形式工具未运行**，源有限结果只保留相同模型输入与断言范围，不提升为本版真实实现验证。当前格式拒绝与责任不丢失的实现场景仍为未开始；原有缺口的 owner 保留，旧格式分发缺口改为当前格式采用与拒绝证据。
-
-
-本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
-
-> **当前状态：未开始。**`data.model-response` v2 是 `candidate`（2026-09-23 起草），未接受、未冻结；没有提供者设计、没有源码、没有装配。
-> 下表登记的是**已经触发的证据义务**，不是已完成的检查。起草时一条都未执行；**V-1 的本地自检跑过四次**（整批对齐、凭据对齐、第一轮评审修复、修复波 2，都只判通过与拒绝，见[结果与反例](#结果与反例)），其余义务仍未开始。
+冻结源与形式工件的字节核对不构成形式工具执行，也不证明真实实现。当前格式拒绝、恢复与结算须由对应消费者和验证 owner 执行实现场景；格式变更不能丢失已经受理工作的责任。
 
 ## 证据义务
 
@@ -70,37 +55,14 @@ NOT RUN: TLC/Alloy; production old-format rejection; current-generation recovery
 
 ## 结果与反例
 
-### 本地自检：Schema 正反实例（修复波 2，2026-09-25）
+### 响应形状的校验方法与限制
 
-同上一次的口径（`jsonschema` 4.26.0、`Draft202012Validator` ＋ `referencing`，`uv run --offline`，设计根下全部 Schema 按 `$id` 登表；脚本在会话暂存区，不入库），第一、二节 **42 块，0 处不符**（通过 13、拒绝 29）。本轮本契约只改了 Schema 的一处说明与实例的说明文字；重跑是因为 `data.content-blocks` 收紧了完整工具调用块的 `tool`（`reply` 里的调用块取它）。**这不是 V-2 以后任何一条义务的证据。**
-
-### 本地自检：Schema 正反实例（第一轮评审修复，2026-09-24）
-
-**工具**：CPython ＋ `jsonschema`（`Draft202012Validator`）＋ `referencing`，按仓库 `uv.lock`（`uv run --locked`），设计树下全部 `*.schema.json` 按 `$id` 建 registry；脚本在会话暂存区，不入库。
-**输入**：[`examples.md`](v2/examples.md) 第一、二节每个 JSON 块作根模式实例（第四节那条 `CostCorrection` 不是响应体，不参与）。
-
-| 预期通过 | 预期拒绝 | 不符 |
-|---|---|---|
-| 13（E-1～E-12，E-6／E-7、E-8a／E-8b 各两块） | 29（R-1～R-29） | **0** |
-
-**只判通过与拒绝**：拒绝值是哪一个仍由人按 S-27 次序逐块核（校验器报的错落在哪一支）；新增的 R-25～R-29 各恰违反一处。第三节不参与。**这不是 V-2 以后任何一条义务的证据。**
-
-### 本地自检：Schema 正反实例（整批对齐，2026-09-24）
-
-**工具**：Draft 2020-12 校验器（`jsonschema`，按仓库 `uv.lock`），以对齐后整棵设计树的全部 Schema 建 registry；脚本在任务暂存区，不入库。
-**输入**：[`examples.md`](v2/examples.md) 第一、二节每个 JSON 块作根模式实例，块前「预期」给出通过或拒绝。
-
-| 预期通过 | 预期拒绝 | 不符 |
-|---|---|---|
-| 12（E-1～E-11，E-6／E-7、E-8a／E-8b 各两块） | 23（R-1～R-23） | **0** |
-
-**只判通过与拒绝**：给出的是不是块前写的那个拒绝值，校验器不回答——Schema 只报「不合法」，给哪个值由 S-27 的次序定；本轮按错误落在哪一支逐块人工核过，每个反例恰违反一处（R-10 为此补了一条 `localError`）。
-第三节的反例不参与，它们本来就过得了 Schema。**这不是 V-2 以后任何一条义务的证据。**
+实例第一、二节每个 JSON 块作为根模式求值；CostCorrection 不是响应体，不参与根模式校验。Schema 只判合法与否，具体拒绝值仍按 S-27 次序验证；第三节形状合法的语义反例另在实现中验证。形状检查不支持 V-2 之后的场景义务。
 
 ### 尚无的记录
 
-规范场景 S-29～S-34 与写入者检查尚无执行记录。首次执行时在此记录工具与版本、环境、配置、输入范围、可复现步骤与原始结果位置；
-原始产物归 record/evidence/。记录时分开陈述：Schema 校验的结果、规范场景演练的结果、真实组合的符合性。
+本页维护验证义务、方法、前提与覆盖限制。单次执行的工具与版本、环境、配置、输入范围、步骤和原始结果留本工作树 `tmp/`，不建立永久运行索引。
+记录时分开陈述：Schema 校验的结果、规范场景演练的结果、真实组合的符合性。
 
 ## 形式化工件
 

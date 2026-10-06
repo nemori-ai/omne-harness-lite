@@ -20,18 +20,9 @@
 | 当前代际责任不丢失 | 当前任务未知提交或已受理工作仍由原 owner 认回/恢复/结算；新格式拒绝不能抹旧事实 | 未开始；runtime / runner / 日志提供者 |
 | 公共操作与最终门不退化 | 原输入上限、Pending 回复、重试历史及 S-34 失败重取仍按原精确性质成立 | 未开始；对应消费者及验证 owner |
 
-### 本次实际检查
+### 验证方法与限制
 
-本轮使用本树 `uv run --locked python` 执行临时审计脚本，实际输出：
-
-```text
-PASS: 584 frozen source hashes unchanged; 4 schemas structurally identical after exact $id/$ref remap; 276 refs resolved; 58 formal source/config files byte-identical; 86 explicit schema cases matched; RT S-34 unchanged except coordinates; all dependency clauses unchanged.
-NOT RUN: TLC/Alloy; production old-format rejection; current-generation recovery/settlement and actual IO.
-```
-
-`uv run --locked python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip` 的本轮检查返回 0，输出 `PASS`（gate=internal; formal=skip）；候选中央登记尚待集成，检查通过不声称已登记或接受。`git diff --check` 返回 0。
-
-本次核对本基线全部 **584** 个冻结资源，脚本与日志在本次任务区交集成 owner 保留，尚未归档为 record/evidence。本版 82 个规范资源中的 58 份形式源/配置均与各自前驱逐字节相同。**本轮形式工具未运行**，源有限结果只保留相同模型输入与断言范围，不提升为本版真实实现验证。当前格式拒绝与责任不丢失的实现场景仍为未开始；原有缺口的 owner 保留，旧格式分发缺口改为当前格式采用与拒绝证据。
+冻结资源与形式源的字节核对、精确引用解析和 Schema 实例校验分别验证自己的范围。它们不执行 TLC/Alloy，也不证明生产接收边界、当前代际恢复、结算或真实 I/O。当前格式拒绝与责任不丢失由相应接收者、runtime、runner 和日志提供者的实现场景验证；新格式拒绝不能抹除已经受理工作的事实。
 
 ### v5 变化的影响
 
@@ -67,26 +58,9 @@ NOT RUN: TLC/Alloy; production old-format rejection; current-generation recovery
 
 本数据包没有新增并发协议、共享操作代数或装卸状态机。三态与有限数值是单文档结构，Schema 与 S-33 比较即可表达；时间、目录提交及快照不可变需要消费者场景，模型责任归目录/runtime。**不新增 TLA+/Alloy，不登记 formal task，形式工具未运行**；不能把形状校验说成 token 计量或并发保证已证明。
 
-### v4 本次实际检查
+### 表示层验证限制
 
-2026-09-28，在本 spoke 的 `.venv/bin/python`（Python 3.12、jsonschema 4.26.0）执行本地实例检查，实际输出：
-
-```text
-PASS: Draft202012 schema valid; 42 exact $refs resolved; 74 schema cases matched; all 14 definitions covered; 9 S-33 declarative comparisons matched.
-NOT RUN: production representation validator/rejection priority; directory time/transactions; snapshot/codec scenarios; actual token/media metering; formal tools.
-```
-
-命令 `.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip` 实际返回 0：
-
-```text
-PASS: design tree /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-profile4-spec/.meta_harness/design passed gate=internal; formal=skip.
-```
-
-`git diff --check` 返回 0；v2/v3 路径的 `git diff --quiet` 返回 0。首次系统 Python 3.8 尝试因 `PurePosixPath.is_relative_to` 不存在中止；随后 Python 3.12 的一次检查点名尚未补齐的 verification 锚点，补齐后上列重跑通过。均不把早期失败记成通过。
-
-上述本地原始日志与可重跑实例脚本交 root 保存在本次任务区，未归档成 record/evidence。Schema 自检不是实现验收，规范比较谓词自检不代替生产 validator。检查器本次未集成候选中央登记，主线整批集成后还须核对新消费坐标与登记片段。
-
-独立表达复评点名的两处残留已修：Schema 描述中的旧 v3 作用域；抬头继承产品来源复核到 PF-001 rev23 §6.1、PF-004 rev13 §6.6（适用性质未变）。没有修改 Schema 结构。
+Schema 实例校验不代替生产表示层 validator 的完整拒绝值及优先级校验；规范比较谓词自检也不代替生产 validator。目录时间和事务、快照与 codec、实际 token/media 计量需对应消费者独立验证。
 
 ## v3 候选与证据义务
 
@@ -154,7 +128,7 @@ FAIL: design validation found 9 error(s).
 
 > **当前状态：未开始。**`data.model-profile` v2 是 `candidate`（2026-09-23 起草），未接受、未冻结；
 > 没有提供者、没有装配、没有源码。下表登记的是**已经触发的证据义务**，不是已完成的检查。
-> 跑过的只有对 [`examples.md`](v2/examples.md) 正反实例的两次**本地自检**（未登记、未进 `record/evidence/`），
+> [`examples.md`](v2/examples.md) 的形状自检与拒绝值分类须区分，范围与局限以对应验证方法为准；
 > 范围与局限见[下节](#结果与反例)；最近一次（2026-09-24）同时核「通过／拒绝」与表示层的四种文档「拒绝值是哪一个」，**不支持** S-3、S-10、S-14、S-21 任何一条。
 
 ## 证据义务
@@ -194,32 +168,13 @@ FAIL: design validation found 9 error(s).
 
 ## 结果与反例
 
-### 已执行：第一轮评审修复后的本地自检（2026-09-24）
+### 表示层与分类的一致性
 
-| 项 | 值 |
-|---|---|
-| 对象 | 第一轮评审修复之后的 `v2/model-profile.schema.json`（`$defs` 11 项，新增 `ModelProfileContent`）与 `v2/examples.md`（新增第 10 节），均未冻结，无 hash 可绑 |
-| 工具 | CPython 3.12.13 ＋ `jsonschema` 4.26.0（`Draft202012Validator`）＋ `referencing` 0.37.0，工作区锁定 uv 环境（`uv run --locked`），未另装依赖；设计根下 `spec/*/*/v*/*.schema.json` 按 `$id` 登进同一个解析表，`Modality`、`ScopeLayerIdentity`、`Instant` 都解析到真身 |
-| 做了什么 | **两种求值，逐行与表比对**：① 表示层校验 = Schema ＋ S-18 那一步（对 `ModelProfile` 与建档内容）；② 按 S-25 的表与次序手写的分类，给出拒绝值与命中的 M 编号——只对四种文档（档案、建档内容、引用、参数独立值）的行做。第 1 节四条正例（A、B、C 与第 10 节的 D）与三个引用、第 2／6／10 节「在正例上改一处」的行、第 3～5、9 节的字面实例、5.3 节表里每个取值各算一行 |
-| 结果 | **151 行，与「预期」一列全部一致**（通过 44、拒绝 107）；其中 106 行做了分类，**拒绝值与表里写的逐行相同**，表里注了 M 编号的都在命中的 M 编号之中；四条正例与三个引用两种求值都通过 |
-| 脚本在哪 | 会话暂存区，**未入库** |
-| 范围与局限 | 分类是**同一个人按 S-25 写的第二种读法**，不是独立实现；它与表一致只说明表、Schema 与 S-25 三者自洽。第 7、8 节是判定与写路径场景，不参与。**不支持** S-3、S-10、S-14、S-21、S-27 任何一条 |
-
-### 已执行：整批对齐时的本地自检（2026-09-23）
-
-| 项 | 值 |
-|---|---|
-| 对象 | 对齐波改过之后的 `v2/model-profile.schema.json` 与 `v2/examples.md`（未冻结，无 hash 可绑） |
-| 工具 | CPython 3.12 ＋ `jsonschema` 4.26.0（`Draft202012Validator`）＋ `referencing`，工作区锁定 uv 环境，未另装依赖；设计根下全部 `*.schema.json` 按 `$id` 登进同一个解析表，`Modality`（`data.content-blocks`）、`ScopeLayerIdentity`（`data.identity-values`）、`Instant`（`data.offer-expiry`）都解析到真身 |
-| 做了什么 | 按表示层校验求值 = **Schema ＋ S-18 那一步跨字段比较**：第 1 节三条正例与它们的三个引用；第 2、6 节「在正例上改一处」的行按本页「怎么读」的规则生成文档；第 3～5 节的字面实例；5.3 节表里每个取值各算一行 |
-| 结果 | **139/139** 与「预期」一列一致（通过 42、拒绝 97，含第 9 节快照六行）；三条正例与三个引用全部通过 |
-| 脚本在哪 | 会话暂存区，**未入库** |
-| 范围与局限 | 只核**通过还是拒绝**，**不核拒绝值是哪一个**（S-25 的次序一列未机核）；第 7、8 节是判定与写路径场景，不参与。**不支持** S-3、S-10、S-14、S-21 任何一条 |
+验证分别进行 Schema 加跨字段比较、按契约拒绝次序的分类，逐行比对规范实例的预期、拒绝值及 M 编号。按同一条款另写分类脚本只能检查表、Schema 与条款自洽，不是独立实现符合性。判定与写路径场景需另验；本方法不证明 S-3、S-10、S-14、S-21 或 S-27。
 
 ### 尚无的记录
 
-规范场景与静态检查尚无执行记录。首次执行时在此记录工具与版本、环境、输入范围、可复现步骤与原始结果位置；
-原始产物归 record/evidence/。
+本页维护验证义务、方法、前提与覆盖限制。单次执行的工具与版本、环境、配置、输入范围、步骤和原始结果留本工作树 `tmp/`，不建立永久运行索引。
 记录时必须分开陈述：Schema 校验的结果、Schema 之外那一步（S-18）的结果、规范场景演练的结果、真实组合的符合性。
 
 ## 形式化工件
@@ -340,10 +295,6 @@ PF-013 rev15 产品语义由用户明确确认，正文来源 a61cc601 与 §8 �
 
 既有缺口owner保持，MP G-15与RT G-33仍要求逐模型/供应商/版本的计量及材料证据；RT G-28生产Run终结认法不因本轮关闭。无新术语定义；tokenMargin及metadata为既有计量概念的技术参数（无独立词条）。中央registry未修改，候选登记片段在任务区fragments，主线负责合入与接受。
 
-### 本次实际检查（2026-09-28）
+### 估算计量的模型限制
 
-候选静态检查 240 项全部通过：MP5/MP6 Schema 断言逐项相同、同一组实例在两版结果相同、纯判定不变；RT8 保留 76 条与十三操作各九项及原失败集合、其他六个 TLA 模型及其配置逐字继承，五组精确十进制公式向量通过。`check_design.py --root .meta_harness/design --formal registered` 实际退出 0；它检查中央已有登记，不代替候选片段集成。片段资源路径、消费条款与覆盖条款另经上述静态检查。
-
-FinalPlan 两份正配置实际 TLC 退出 0（WithLog=true：8737 不同状态；公开无日志：8545）；九份负配置均退出 12，分别命中 CheckedBeforeEffects、SameFixedPlan、UnknownNotExceeded、EstimateCanProceed、MarginApplied、EstimateNotActual、MissingPriority、BytesExact、UsageFromUpstream。模型允许 estimated≤cap 而实际上游 token>cap 的发送；这不是本契约承诺排除的状态。首次运行使用异类型集合导致 TLC 指纹错误退出 75，原日志保留；改成带标签记录后另存最终输入重跑。未重跑其他继承模型，未运行 Alloy 或真实 IO。
-
-本次本地证据位于 spoke 的 `tmp/model-request-runtime/token-estimate/`：`checks/checks.json`、`checks/check-design-run.json` 及原始输出；`formal-run-1/` 保留首次工具失败，`formal-run-2/runs.json`、`formal-run-2/sha256.json` 与各配置原始输出保存最终形式输入和结果；`fragments/` 保存八份待集成登记片段，`CHANGE-AUDIT.md` 记录最小变动与推导项。主线需归档这些临时证据；它们不是已经归入 record 的接受材料。
+FinalPlan 模型区分日志路径与公开无日志路径，配套负控核对 CheckedBeforeEffects、SameFixedPlan、UnknownNotExceeded、EstimateCanProceed、MarginApplied、EstimateNotActual、MissingPriority、BytesExact、UsageFromUpstream。模型允许 estimated≤cap 而实际上游 token>cap 的发送；本契约不承诺排除该状态。有限模型和 Schema 对照不证明真实 I/O；registered 模式只核登记。

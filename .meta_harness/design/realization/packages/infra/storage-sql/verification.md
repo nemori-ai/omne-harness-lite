@@ -1,7 +1,7 @@
 # storage-sql 验证与证据
 
 本节点不兑现契约条款，义务来自四处：[`core/storage` 一致性套件](../../core/storage/design.md#要求到协议再到会红的测试)的每一条用例（套件归那个节点，**在本提供者上跑**归本节点）、方言切换、错误码映射，以及 [tenancy-host R-U1～R-U8](../../../apps/tenancy-host/design.md#升级的整体性迁移前只读核对快照与确认) 与属主排他（升级守卫，`upgrade.*`）。
-运行结果归 record/evidence，本页只引用并解释范围。
+本页维护验证义务、方法与限制；单次运行结果留本工作树 `tmp/`。
 
 ## 证据义务
 

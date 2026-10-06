@@ -1,7 +1,7 @@
 # clock 验证与证据
 
 契约侧的证据义务权威在 [`spec/data/offer-expiry/verification.md`](../../../../spec/data/offer-expiry/verification.md)；S-17 五行装配给保证在那里没有可跑的证据形式（offer-expiry 节点 [覆盖缺口](../../core/offer-expiry/verification.md#覆盖缺口)明写）。
-本页登记的是**本节点作为「`now` 不后退」承接者自己能证的几条**，入口契约（`candidate`）经 tenancy-host 转交的运行中回拨、不自撤与启动窗口，tenancy-host 要的迁移前核对，加装卸配对。运行结果归 record/evidence，本页只引用并解释范围。
+本页登记的是**本节点作为「`now` 不后退」承接者自己能证的几条**，入口契约（`candidate`）经 tenancy-host 转交的运行中回拨、不自撤与启动窗口，tenancy-host 要的迁移前核对，加装卸配对。单次运行结果留本工作树 `tmp/`；本页维护验证方法、前提与覆盖限制。
 
 ## 证据义务
 

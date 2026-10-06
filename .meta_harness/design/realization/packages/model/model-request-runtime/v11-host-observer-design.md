@@ -2,7 +2,7 @@
 
 2026-09-28，revision 1，**candidate，未接受、未实现验收**。本增补精化已采用的 [v3 R3-P8/P9](v3-design.md)，承接 [RT8 S-51/S-61/S-62](../../../../spec/capabilities/model-request-runtime/v8/contract.md)。RT8、data.arrival-events/v2、capability.stream-assembly/v3 均在 [catalog](../../../../registry/catalog.json) 为 accepted；RT8 采用沿 D-101。不新增插件、服务或第十四操作，不修改业务结果集合。需求沿 RT8 所列 PF-010/PF-013 来源；本次无产品政策选择。
 
-下文类型、方法和文件分工均为**候选施工接口**，不是已有公开 API。现有源码只有独立 invoke 的 `onAccepted(event, snapshot)`、会话数据绑定和调用容器；`OpenCallInput.host: SessionRuntimeBinding` 尚不能兑现 S-61。共享 owner 的统一 store／组合 close 已由 D-102 采用（2026-09-28，承载提交 `8a48caf0`，决定正文 `record/decisions/model-runtime-owner-close-adoption/decision.md`）；L1/L2 交接不在其采用范围。本页仅给已采用统一收口必须纳管的新增资源，不替代恢复与耐久结算设计。
+下文类型、方法和文件分工均为**候选施工接口**，不是已有公开 API。现有源码只有独立 invoke 的 `onAccepted(event, snapshot)`、会话数据绑定和调用容器；`OpenCallInput.host: SessionRuntimeBinding` 尚不能兑现 S-61。共享 owner 的统一 store／组合 close 已技术采用，精确范围见 [统一收口](v10-owner-assembly-design.md#当前采用的收口范围)；L1/L2 交接不在其采用范围。本页仅给已采用统一收口必须纳管的新增资源，不替代恢复与耐久结算设计。
 
 ## 契约责任到实现
 

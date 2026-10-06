@@ -20,7 +20,7 @@
 > 修订模型的那位 agent 自报这十个核对全部通过，**但那次执行没有快照、没有原始输出，
 > 因此只记作「修订者自报，未登记」，不计入本页任何一条。**
 > 规范场景同样**一条都没演练过**，它们要的是真实实现，而实现不存在。
-> 原始产物在 `record/evidence/`。
+> 单次执行的输入与原始结果留本工作树 `tmp/`；永久正文维护当前验证义务与限制。
 
 ## 证据义务
 
@@ -67,8 +67,7 @@
 反例的原始 trace 位置与它对应的契约条款；
 **变异核对与有效性核对的结果单独记**，不与正常运行混在一张表里。
 
-记录多时按执行拆文件并从本页链接，原始产物归
-`record/evidence/`。
+本页维护验证义务、方法、前提与覆盖限制。单次执行的工具与版本、环境、配置、输入范围、步骤和原始结果留本工作树 `tmp/`，不建立永久运行索引。
 
 ### 必须分开陈述的三类结果
 
@@ -92,26 +91,7 @@
 ## 变化的影响
 
 - **已执行：architecture-reviewer 批次评审的处置**（2026-09-22）。非阻断 1：[S-34](v1/contract.md#s-34-第二条动作链未激活到期清除) 写死清扫提供者只发起本组合的清除链、不自持依据，因此 [S-22](v1/contract.md#s-22-编排本链的提供者被卸载或换代) 同样覆盖它，`purge-warrant-invalid` 不会因产出方换代而被误记为缺陷；非阻断 3：本页证据义务表**新增一行**「两个发起者在同一条记录上并发」（模型未建此交错，场景形式）。评审整体结论：批次的责任交接闭合，两条阻断均一处措辞／一行登记闭合，不触及能力边界。
-- **已执行：能力拆分投票裁定落地（修正 2 部分）**（2026-09-22，依据
-  `record/proposals/tenant-capability-split/`
-  的主线处置）。三票独立评审**全投维持五份拆分**，主线裁「A ＋ 修两处瑕疵」；
-  **本轮只落地修正 2（改写拆分理由）**，修正 1（当前租户身份的存与取移交）未落盘，理由见下。
-  **改动直接落在 v1 上**——本契约仍是 `candidate`，未接受、未冻结。
-  **[`Registration.tla`](v1/formal/Registration.tla) 与三个 `.cfg` 一个字节没改**
-  （它们建模的是注册三步与清除链的交错，**不涉及拆分理由的措辞**），因此
-  [run `-2` 的三行结论全部仍然适用](verification.md)。
-
-  | 改的是什么 | 怎么改的 | 对证据的影响 |
-  |---|---|---|
-  | **[S-2](v1/contract.md#s-2-参与方与精确承诺) 后注「换一次认证方式就会把整个组织治理重启一遍」** | **整段改写成一张四行表。**那句话在契约层不成立——治理 inject 的是账号能力的读面，**账号提供者换代本来就会重跑治理**，那个方向合不合并都一样。四行分别是：**反方向的半径收敛**（只需要「来者是谁」的消费者不因治理换代重跑，[`capability.account-identity/v1#S-17`](../../capabilities/account-identity/v1/contract.md#s-17-校验登录状态)／[`#S-18`](../../capabilities/account-identity/v1/contract.md#s-18-读账号)）、**契约层的失败隔离**（[`capability.organization-governance/v1#S-43`](../../capabilities/organization-governance/v1/contract.md#s-43-依赖的提供者不可用)／[`capability.account-identity/v1#S-28`](../../capabilities/account-identity/v1/contract.md#s-28-依赖不可用撤除与重启时的在途归属)）、**SYS-DEPLOY 的分布式缝已逐条标价**（[`#S-30`](../../capabilities/account-identity/v1/contract.md#s-30-装配给的保证-vs-协议须给的保证)／[`#S-42`](../../capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证)／本契约 [S-25](v1/contract.md#s-25-装配给的保证-vs-协议须给的保证)）、**账号身份非范围化**（[`#S-12`](../../capabilities/account-identity/v1/contract.md#s-12-账号身份事实不是范围化对象)、SYS-TENANT） | **不新增证据义务，不改任何承诺。**改的是一段设计理由的措辞，**没有动 [S-8](v1/contract.md#s-8-三步次序与责任交接) 的次序、[S-5](v1/contract.md#s-5-终结结果集合) 的终结结果集合、任何映射或提交点**。**catalog 不变**：新引的那批坐标是**拆分理由的依据**，不是本契约据以写出承诺、判定、映射或证据落点的条款，按[登记口径](../../README.md#当前采用)不登记为消费（正文已写明这一句），本契约的消费面仍以 [S-2](v1/contract.md#s-2-参与方与精确承诺) 的表为准 |
-
-  **未落盘：修正 1（「当前租户身份」的存与取移交 `capability.account-identity`）。**
-  它被一条硬约束挡住——当前租户身份的初值是「该账号的个人组织里的那个租户」，
-  而个人组织的 `OrganizationId` **不可从 `AccountId` 派生**，是治理契约的事实；
-  账号契约要算得出它就得消费治理读面，**依赖方向会翻转**。
-  详见 [`capability.organization-governance` 的验证入口](../../capabilities/organization-governance/verification.md#变化的影响)。
-  **本契约不受这项未决影响**：它的两条动作链都不读当前租户身份
-  （清扫提供者[「不带任何租户身份」](v1/contract.md#s-2-参与方与精确承诺)，注册跑在账号可用之前）。
+- **职责与依赖边界**：参与方与消费面以 [S-2](v1/contract.md#s-2-参与方与精确承诺) 为准；反方向的范围、失败隔离、分布式交接前提和账号身份非范围化均按现行契约核对，不以认证方式变化推导整个治理的重启范围。`Registration.tla` 覆盖注册三步与清除链交错，不覆盖拆分理由或当前租户选择。注册在账号可用前进行，清扫不携带租户身份，两条动作链都不读当前租户选择。
 
 - **已执行：PF-001 升到 rev 15**（2026-09-22，
   [changelog rev 15](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）。
