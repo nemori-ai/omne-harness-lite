@@ -1042,7 +1042,6 @@ export function createAcceptanceApplication(
     fixedRootInput: async () => fixedRootInput?.close(),
     registryHistory: async () => registryHistory?.close(),
     assemblyManifest: async () => manifest?.close(),
-    replica: async () => replica?.close(),
   }
   async function closeAssemblyResource(name: ResourceCloseStep) {
     const close = resourceClosers[name]
@@ -1111,7 +1110,8 @@ export function createAcceptanceApplication(
       const order = resourceCloseOrder()
       for (const [index, name] of order.entries()) {
         try {
-          await closeAssemblyResource(name)
+          if (name === 'replica') await replica?.close()
+          else await closeAssemblyResource(name)
           record({ event: 'close', phase: name, outcome: 'closed' })
         } catch {
           unfinished.push(...order.slice(index))
@@ -1283,11 +1283,7 @@ export function createAcceptanceApplication(
     assertNotClosing()
     return confirmation
   }
-  async function startDirectoryAndReplica(
-    prepared: Awaited<ReturnType<typeof prepare>>,
-    clock: Clock,
-    storage: SqlStorage,
-  ) {
+  async function startDirectory(prepared: Awaited<ReturnType<typeof prepare>>) {
     new DirectoryDiagnostics(context, {
       record(event) {
         record({
@@ -1298,36 +1294,6 @@ export function createAcceptanceApplication(
       },
     })
     await load('directory', modelProfileDirectoryPlugin, prepared.directory)
-    phase = 'replica'
-    category = 'failed'
-    await hooks?.beforeReplica?.()
-    assertNotClosing()
-    const readCredentialBindingIn = createCredentialBindingReader(storage)
-    replica = await createModelReplicaCustodian({
-      storage,
-      clock,
-      keyFile: config.keys.modelReplica,
-      readCredentialBindingIn,
-      diagnostics: {
-        record(event) {
-          record({
-            event: 'replica',
-            phase: event.phase,
-            outcome: event.outcome,
-            ...(event.tenant === undefined ? {} : { tenant: event.tenant }),
-            ...(event.sourceMatch === undefined ? {} : { sourceMatch: event.sourceMatch }),
-          })
-        },
-        sinkFailure() {
-          diagnosticFailures += 1
-        },
-      },
-    })
-    assertNotClosing()
-    phase = 'lookup'
-    await hooks?.beforeLookup?.()
-    new ReplicaReader(context, { readIn: replica.readBoundReplicaIn })
-    await load('lookup', localCredentialLookupPlugin, { mode: 'localCredentialOnly' })
   }
   async function startSessionTenancy() {
     if (preparationStage) {
@@ -1487,7 +1453,37 @@ export function createAcceptanceApplication(
       await load('registration', registrationPlugin, prepared.registration)
       const clock = await awaitClockReady()
       const confirmation = await confirmUpgrade(clock)
-      await startDirectoryAndReplica(prepared, clock, storage)
+      await startDirectory(prepared)
+      phase = 'replica'
+      category = 'failed'
+      await hooks?.beforeReplica?.()
+      assertNotClosing()
+      const readCredentialBindingIn = createCredentialBindingReader(storage)
+      replica = await createModelReplicaCustodian({
+        storage,
+        clock,
+        keyFile: config.keys.modelReplica,
+        readCredentialBindingIn,
+        diagnostics: {
+          record(event) {
+            record({
+              event: 'replica',
+              phase: event.phase,
+              outcome: event.outcome,
+              ...(event.tenant === undefined ? {} : { tenant: event.tenant }),
+              ...(event.sourceMatch === undefined ? {} : { sourceMatch: event.sourceMatch }),
+            })
+          },
+          sinkFailure() {
+            diagnosticFailures += 1
+          },
+        },
+      })
+      assertNotClosing()
+      phase = 'lookup'
+      await hooks?.beforeLookup?.()
+      new ReplicaReader(context, { readIn: replica.readBoundReplicaIn })
+      await load('lookup', localCredentialLookupPlugin, { mode: 'localCredentialOnly' })
       await startSessionTenancy()
       if (logStage) await openPhysicalLog(logDeployment)
       captureBusinessServices()
