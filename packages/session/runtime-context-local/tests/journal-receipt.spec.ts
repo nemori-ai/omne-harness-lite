@@ -6,6 +6,45 @@ import type { ContextEvent } from '../src/journal-types.ts'
 import { compareInteger, type SessionLog, type LogEntry } from '@omne-harness-lite/session-log'
 import { host, init, scope, identityRegistration } from './fixture.ts'
 
+test('a rejected append promise keeps the original durable fact for honest receipt recovery', async () => {
+  const h = await host()
+  let journal: ReturnType<typeof createContextJournal> | undefined
+  try {
+    await init(h)
+    h.owner.closeAdmission()
+    await h.owner.drain()
+    journal = createContextJournal(
+      {
+        ...h.log,
+        async append(...args) {
+          await h.log.append(...args)
+          throw new Error('controlled lost append response')
+        },
+      },
+      h.storage,
+    )
+    const before = await journal.read(scope)
+    if ('unavailable' in before) throw new Error('fixture prefix unavailable')
+    const event: ContextEvent = {
+      codec: 'runtime-context/1',
+      scope,
+      revision: 'original-lost-response',
+      previous: before.state.registrationRevision,
+      kind: 'registered',
+      registration: { ...identityRegistration, key: 'public', required: false },
+    }
+    expect(await journal.commit(scope, before.state, event)).toBe('unavailable')
+    expect(journal.unresolved).toBe(1)
+    expect(await journal.read(scope)).toMatchObject({
+      state: { registrationRevision: event.revision },
+    })
+    expect(journal.unresolved).toBe(0)
+  } finally {
+    await journal?.drain()
+    await h.close()
+  }
+})
+
 test('a real tail-condition rejection settles the original append and allows a fresh retry', async () => {
   const h = await host()
   try {

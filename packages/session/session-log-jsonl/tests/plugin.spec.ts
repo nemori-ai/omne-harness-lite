@@ -1,7 +1,7 @@
 import { Context, Fiber } from '@deepseek-ai/cordis'
 import { unlink } from 'node:fs/promises'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { openJsonlSessionLog } from '../src/index.ts'
 import { Config, createSessionLogJsonl } from '../src/cordis.ts'
 import { applySessionLog } from '../src/plugin-owner.ts'
@@ -18,7 +18,10 @@ import {
   paths,
 } from './support.ts'
 
-const sessionLogJsonl = createSessionLogJsonl({ processOwnership })
+let sessionLogJsonl: ReturnType<typeof createSessionLogJsonl>
+beforeEach(() => {
+  sessionLogJsonl = createSessionLogJsonl({ processOwnership })
+})
 const disposers: (() => Promise<void>)[] = []
 const barriers: (() => void)[] = []
 afterEach(async () => {
