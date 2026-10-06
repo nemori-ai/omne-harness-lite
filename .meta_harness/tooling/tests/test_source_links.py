@@ -106,3 +106,31 @@ def test_no_arbitrary_tool_or_tmp_owner(tmp_path: Path) -> None:
     save(tmp_path/'pnpm-workspace.yaml', 'packages:\n  - tools/*\n  - tmp/*\n')
     save(tmp_path/'tools/sample/package.json', '{"name":"tool"}')
     assert not ModuleSources(tmp_path).owns(tmp_path/'tools/sample/SPEC.md')
+
+
+def test_current_file_alias_cannot_borrow_historical_identity(tmp_path: Path) -> None:
+    root, source, _, _ = historical(tmp_path)
+    alias = root / 'architecture/a/b/current.md'
+    alias.parent.mkdir(parents=True)
+    alias.symlink_to(source)
+    assert any('broken local link' in error for error in markdown(root))
+
+
+def test_parent_alias_cannot_borrow_historical_identity(tmp_path: Path) -> None:
+    root, source, _, catalog = historical(tmp_path)
+    alias = root / 'architecture/alias'
+    alias.parent.mkdir(parents=True)
+    alias.symlink_to(source.parent, target_is_directory=True)
+    links = RetiredSources(root, catalog)
+    target = root / 'realization/packages/core/kernel-basis/design.md'
+    assert links.recover(alias / source.name, target, 'original') is None
+
+
+def test_catalog_cannot_declare_source_alias_as_original(tmp_path: Path) -> None:
+    root, source, _, catalog = historical(tmp_path)
+    alias = source.parent / 'alias.md'
+    alias.symlink_to(source)
+    data = json.loads(catalog.read_text())
+    data['references'][0]['source'] = str(alias.relative_to(root))
+    catalog.write_text(json.dumps(data))
+    assert any('identity cannot contain aliases' in error for error in markdown(root))

@@ -659,7 +659,7 @@ class DesignValidator:
                     self.error(f"{path.relative_to(self.root)}: link escapes design root: {raw}")
                     continue
                 original = resolved
-                recovered = retired.recover(path.resolve(), resolved, unquote(fragment))
+                recovered = retired.recover(path, resolved, unquote(fragment))
                 if recovered is not None:
                     resolved = recovered
                 try:

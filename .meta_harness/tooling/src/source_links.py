@@ -93,6 +93,8 @@ class RetiredSources:
             source = relative_file(root, row["source"])
             if not (source.is_relative_to(root / "record") or source.is_relative_to(root / "realization/retired")):
                 raise ValueError("only frozen historical consumers can recover retired links")
+            if root / row["source"] != source:
+                raise ValueError("historical source identity cannot contain aliases")
             if source in seen or hashlib.sha256(source.read_bytes()).hexdigest() != row["sha256"]:
                 raise ValueError("historical consumer hash differs or is duplicated")
             seen.add(source)
@@ -105,4 +107,6 @@ class RetiredSources:
                 self.references.add((source, target, link["fragment"]))
 
     def recover(self, source: Path, target: Path, fragment: str) -> Path | None:
+        if source != source.resolve():
+            return None
         return self.targets.get(target) if (source, target, fragment) in self.references else None

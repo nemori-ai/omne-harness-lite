@@ -171,3 +171,23 @@ def test_navigation_rejects_modified_historical_consumer(tmp_path):
     write(source, source.read_text()+'new text\n')
     result = run(tmp_path)
     assert result.returncode == 1 and 'consumer hash differs' in result.stdout
+
+
+def test_navigation_current_alias_cannot_borrow_historical_identity(tmp_path):
+    # Use the independently frozen original source and recreate IR's alias counterexample.
+    import hashlib
+    import json
+    base(tmp_path)
+    source = tmp_path / '.meta_harness/design/record/evidence/prior/README.md'
+    snapshot = tmp_path / '.meta_harness/design/record/evidence/retirement/inputs/design.md.txt'
+    write(source, '[old](../../../realization/packages/core/kernel-basis/design.md#original)\n')
+    write(snapshot, '# Original\n')
+    implementation = Path(__file__).resolve().parents[3] / '.meta_harness/tooling/src/source_links.py'
+    write(tmp_path / '.meta_harness/tooling/src/source_links.py', implementation.read_text())
+    target = 'realization/packages/core/kernel-basis/design.md'
+    write(tmp_path / '.meta_harness/design/registry/retired-sources.json', json.dumps({'format':1,'targets':[{'path':target,'snapshot':'record/evidence/retirement/inputs/design.md.txt','sha256':hashlib.sha256(snapshot.read_bytes()).hexdigest(),'commit':'1'*40}],'references':[{'source':'record/evidence/prior/README.md','sha256':hashlib.sha256(source.read_bytes()).hexdigest(),'links':[{'target':target,'fragment':'original'}]}]}))
+    alias = tmp_path / '.meta_harness/design/architecture/a/b/current.md'
+    alias.parent.mkdir(parents=True)
+    alias.symlink_to(source)
+    result = run(tmp_path)
+    assert result.returncode == 1 and 'broken link' in result.stdout

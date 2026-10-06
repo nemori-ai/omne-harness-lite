@@ -96,7 +96,7 @@ def check(root: Path):
         for raw in markdown_links(path):
             try:
                 target, fragment = local_target(path, raw, root)
-                recovered = (historical.recover(path.resolve(), target, fragment)
+                recovered = (historical.recover(path, target, fragment)
                              if historical is not None and target is not None and not target.exists()
                              else None)
                 if recovered is None:
