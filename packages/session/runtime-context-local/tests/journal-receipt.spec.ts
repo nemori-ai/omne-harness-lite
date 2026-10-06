@@ -6,6 +6,55 @@ import type { ContextEvent } from '../src/journal-types.ts'
 import { compareInteger, type SessionLog, type LogEntry } from '@omne-harness-lite/session-log'
 import { host, init, scope, identityRegistration } from './fixture.ts'
 
+test('a real tail-condition rejection settles the original append and allows a fresh retry', async () => {
+  const h = await host()
+  try {
+    await init(h)
+    h.owner.closeAdmission()
+    await h.owner.drain()
+    let interleave = true
+    const journal = createContextJournal(
+      {
+        ...h.log,
+        async append(...args) {
+          if (interleave) {
+            interleave = false
+            await h.log.append(
+              scope.session,
+              [{ tenant: scope.tenant, readKeys: [], payload: { unrelated: true } }],
+              { kind: 'unfenced' },
+              { kind: 'unconditional' },
+            )
+          }
+          return h.log.append(...args)
+        },
+      },
+      h.storage,
+    )
+    const before = await journal.read(scope)
+    if ('unavailable' in before) throw new Error('fixture unavailable')
+    const event: ContextEvent = {
+      codec: 'runtime-context/1',
+      scope,
+      revision: 'after-rejection',
+      previous: before.state.registrationRevision,
+      kind: 'registered',
+      registration: { ...identityRegistration, key: 'public', required: false },
+    }
+    expect(await journal.commit(scope, before.state, event)).toBe('unavailable')
+    expect(journal.unresolved).toBe(0)
+    await journal.drain()
+    const fresh = await journal.read(scope)
+    if ('unavailable' in fresh) throw new Error('fresh prefix unavailable')
+    expect(fresh.state.registrations.has('public')).toBe(false)
+    expect(await journal.commit(scope, fresh.state, event)).toBe('applied')
+    expect(journal.unresolved).toBe(0)
+    await journal.drain()
+  } finally {
+    await h.close()
+  }
+})
+
 for (const observation of ['absent', 'newTail', 'differentBody'] as const)
   test(`an unknown original log append stays owned after ${observation}, until its complete original event is visible`, async () => {
     const h = await host()
