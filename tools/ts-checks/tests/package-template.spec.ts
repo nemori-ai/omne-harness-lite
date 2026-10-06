@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as fs from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createPackage } from '../src/package-template/create.ts'
@@ -372,6 +373,54 @@ describe('template adoption and observation', () => {
       ),
     ).toBe(true)
   })
+  it('rejects an earlier default condition that actually redirects Node root imports', () => {
+    const root = repository(),
+      member = adopted(root)
+    fs.mkdirSync(join(root, member, 'dist'))
+    fs.mkdirSync(join(root, 'node_modules/@omne-harness-lite'), { recursive: true })
+    fs.writeFileSync(join(root, member, 'dist/index.js'), 'export const surface = "pure"')
+    fs.writeFileSync(join(root, member, 'dist/cordis.js'), 'export const surface = "binding"')
+    fs.symlinkSync(join(root, member), join(root, 'node_modules/@omne-harness-lite/sample'))
+    changeManifest(root, member, value => {
+      ;(value['exports'] as Record<string, unknown>)['.'] = {
+        default: './dist/cordis.js',
+        types: './dist/index.d.ts',
+        import: './dist/index.js',
+      }
+    })
+    const actual = spawnSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        'console.log((await import("@omne-harness-lite/sample")).surface)',
+      ],
+      { cwd: root, encoding: 'utf8' },
+    )
+    expect(actual.status).toBe(0)
+    expect(actual.stdout.trim()).toBe('binding')
+    expect(
+      inspectPackage(root, member, readTemplate(), evidence).findings.some(
+        finding => finding.code === 'export-conditions',
+      ),
+    ).toBe(true)
+  })
+  it.each([{ noEmit: true }, { emitDeclarationOnly: true }, { declaration: false }])(
+    'rejects build settings that suppress a promised artifact: %j',
+    overrides => {
+      const root = repository(),
+        member = adopted(root),
+        path = join(root, member, 'tsconfig.build.json')
+      const config = JSON.parse(fs.readFileSync(path, 'utf8'))
+      Object.assign(config.compilerOptions, overrides)
+      fs.writeFileSync(path, JSON.stringify(config))
+      expect(
+        inspectPackage(root, member, readTemplate(), evidence).findings.some(
+          finding => finding.code === 'configuration',
+        ),
+      ).toBe(true)
+    },
+  )
   it('rejects emission drift and missing published Chinese documentation', () => {
     const root = repository(),
       member = adopted(root)

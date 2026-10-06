@@ -32,6 +32,14 @@ function exportTarget(value: unknown, member: string, root: string, findings: Fi
     })
     return
   }
+  if (Object.keys(value).sort().join(',') !== 'import,types') {
+    findings.push({
+      code: 'export-conditions',
+      path: `${member}/package.json`,
+      reason:
+        'Rule set 1 supports only types/import conditions; additional runtime conditions require review',
+    })
+  }
   for (const [key, suffix] of [
     ['types', '.d.ts'],
     ['import', '.js'],
@@ -78,7 +86,11 @@ function checkConfigurations(root: string, member: string): Finding[] {
     }
     const valid =
       file === 'tsconfig.build.json'
-        ? options['rootDir'] === 'src' && options['outDir'] === 'dist'
+        ? options['rootDir'] === 'src' &&
+          options['outDir'] === 'dist' &&
+          options['noEmit'] !== true &&
+          options['emitDeclarationOnly'] !== true &&
+          options['declaration'] !== false
         : options['noEmit'] === true
     if (!valid)
       findings.push({
