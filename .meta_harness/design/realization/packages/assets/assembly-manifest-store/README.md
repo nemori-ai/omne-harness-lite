@@ -1,5 +1,12 @@
 # assembly-manifest-store
 
+## 当前集成入口（H3）
+
+实际包已有 MF4 六操作实现；本轮将纯工厂与 Cordis 提供者分面，采用正式 Service、具名资源注入和真实排空观察。当前集成承诺归[提供者薄规格](../../../../../../packages/assets/assembly-manifest-store/SPEC.md)与[公共定义](../../../../../../packages/core/assembly-manifest/SPEC.md)，验证归[包内入口](../../../../../../packages/assets/assembly-manifest-store/verification/README.md)。下文“尚未建包”等表述保留原 v2/v3 当时范围，不代表当前源码状态；旧集成图不再作为本次已迁绑定的现行依据。
+
+MF4 业务仍按 [D-079](../../../../record/decisions/model-original-fill-adoption/decision.md)及其精确来源消费，未迁的模型、授权、PG 和完整生产链义务继续有效。绑定整改与组件验证不提升为整个模型域或产品接受。
+
+
 > 历史路径提示：本页所称 `apps/model-request-acceptance`／`model-request-acceptance` 是 D-076 采用时的技术验收装配坐标；当前已退出 `apps/` 映射。现行归属与剩余责任以[实现映射入口](../../../README.md)为准。
 
 

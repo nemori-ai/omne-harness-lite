@@ -1,5 +1,5 @@
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { AssemblyManifestService as Operations0 } from './index.ts'
+import type { ManifestOptions, AssemblyManifestService as Operations0 } from './index.ts'
 
 /** @contract capability.assembly-manifest */
 export abstract class AssemblyManifestService extends Service implements Operations0 {
@@ -26,8 +26,21 @@ export abstract class AssemblyManifestService extends Service implements Operati
 }
 export const ASSEMBLY_MANIFEST = AssemblyManifestService.provide
 
+/** @owner packages/core/assembly-manifest
+ * Runtime ports are borrowed; their owner retains them until the consumer drains.
+ */
+export abstract class AssemblyManifestResources extends Service {
+  static readonly provide = 'assemblyManifestResources'
+  abstract readonly options: ManifestOptions
+  constructor(ctx: Context) {
+    super(ctx, AssemblyManifestResources.provide)
+  }
+}
+export const ASSEMBLY_MANIFEST_RESOURCES = AssemblyManifestResources.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     assemblyManifest: AssemblyManifestService
+    assemblyManifestResources: AssemblyManifestResources
   }
 }
