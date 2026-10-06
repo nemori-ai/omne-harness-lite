@@ -13,6 +13,8 @@ const invalidSeeds: readonly [string, ContextSessionSeed][] = [
   ],
   ['fixed value mismatch', { ...seed, fixed: [{ key: 'identity', value: 'different' }] }],
   ['duplicate initial key', { ...seed, initial: [seed.initial[0]!, seed.initial[0]!] }],
+  ['duplicate fixed key', { ...seed, fixed: [seed.fixed[0]!, seed.fixed[0]!] }],
+  ['fixed key without initial content', { ...seed, fixed: [{ key: 'missing', value: null }] }],
 ]
 
 test.each(invalidSeeds)(
@@ -68,6 +70,18 @@ function invalidMutation(fault: string, previous: string): ContextEvent {
       },
     },
     requiredRemoval: { ...shell, kind: 'removed', key: 'identity' },
+    absentRemoval: { ...shell, kind: 'removed', key: 'missing' },
+    duplicateRegistration: {
+      ...shell,
+      kind: 'registered',
+      registration: { ...identityRegistration, required: false },
+    },
+    contentIdentity: {
+      ...shell,
+      kind: 'updated',
+      previous: 'initial',
+      content: { ...seed.initial[0]!, revision: 'different-from-event' },
+    },
   }
   const event = cases[fault]
   if (!event) throw new Error('unknown fixture fault')
@@ -80,6 +94,9 @@ test.each([
   'contentRevision',
   'fixedUpdate',
   'requiredRemoval',
+  'absentRemoval',
+  'duplicateRegistration',
+  'contentIdentity',
 ])('a durably appended %s cannot become a successful current view', async fault => {
   const h = await host()
   let next: ReturnType<typeof createRuntimeContext> | undefined
