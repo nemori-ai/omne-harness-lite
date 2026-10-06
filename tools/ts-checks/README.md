@@ -4,6 +4,17 @@ Structural checks for this repository's TypeScript product sources and trusted a
 
 [中文说明 and the existing rule catalogue](README_ZH.md)
 
+## Stop-hook revision reads
+
+The Stop hook recalculates the merge base with `primaryBranch` on each invocation.
+The global architecture reader resolves that base to a fixed commit and batches its selected source and intent blobs.
+They use byte lengths for UTF-8 content and preserve literal paths, empty files and read failures.
+No measurements persist across commits. Source ownership uses the longest member prefix and one inventory traversal.
+
+Synchronizing the primary branch can remove delivered changes from the current difference.
+For a task-wide report, run `make loop-status BASE=<task-start-commit>` with a fixed task anchor.
+That explicit base does not change the automatic hook's base. The internal 40-second limit and host error protocol remain unchanged.
+
 ## Run and consume
 
 Use the repository's locked Node and pnpm versions. The normal command scans `packages/`, `apps/` and `examples/`, then runs repository rules over actual execution modules in `packages/`, `apps/`, `examples/`, `tools/` and `scripts/`:
@@ -35,15 +46,17 @@ import { modelCredentialBoundary, type SourceFile } from './dist/index.js'
 const source: SourceFile = {
   path: 'examples/model-invocation-minimal-demo/src/bootstrap.ts',
   text: `
-    import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory/tx-reads';
+    import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads';
     import { createModelReplicaCustodian } from '@omne-harness-lite/credential-custodian-local/model-replica';
-    import { localCredentialLookupPlugin } from '@omne-harness-lite/model-profile-directory/plugin';
+    import { localCredentialLookupPlugin } from '@omne-harness-lite/model-profile-directory-local/cordis';
+    import { ReplicaReader } from './assembly-inputs.ts';
     export function createAcceptanceApplication() {
       let replica;
       async function start() {
         const reader = createCredentialBindingReader(storage);
         replica = await createModelReplicaCustodian({ readCredentialBindingIn: reader });
-        ctx.plugin(localCredentialLookupPlugin, { readBoundReplicaIn: replica.readBoundReplicaIn });
+        new ReplicaReader(ctx, { readIn: replica.readBoundReplicaIn });
+        ctx.plugin(localCredentialLookupPlugin, { mode: 'localCredentialOnly' });
       }
       function publishCredential() { return replica.storeBoundReplica(input); }
       async function closeResources() { await replica.close(); }
@@ -67,14 +80,14 @@ import { REPOSITORY_RULES } from './dist/repository.js'
 
 const violations = runRules([{
   path: 'packages/model/example/src/runtime.ts',
-  text: "import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory/tx-reads';",
+  text: "import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads';",
 }], REPOSITORY_RULES)
 assert(violations.some(v => v.rule === 'model-credential-boundary'))
 ```
 
 ## Evaluation publication boundary
 
-`evaluation-publication-boundary` permits static imports of the public EIS publication entry in its component owner, the trusted acceptance bootstrap/tests, and the exact `packages/model/model-request-runtime/tests/session-selection-fixture.ts` fixture. That fixture constructs real SQL/governance/EIS sources for selection tests. The permission does not extend to runtime product sources or adjacent test files; re-exports, dynamic forwarding and private publication imports remain rejected. Run its focused positive and negative checks with `pnpm --filter @omne-harness-lite/ts-checks exec vitest run tests/evaluation-publication-boundary.spec.ts`.
+`evaluation-publication-boundary` permits static imports of the public EIS publication entry in its component owner, the trusted acceptance bootstrap/tests, and the exact `packages/model/model-request-runtime-local/tests/session-selection-fixture.ts` fixture. That fixture constructs real SQL/governance/EIS sources for selection tests. The permission does not extend to runtime product sources or adjacent test files; re-exports, dynamic forwarding and private publication imports remain rejected. Run its focused positive and negative checks with `pnpm --filter @omne-harness-lite/ts-checks exec vitest run tests/evaluation-publication-boundary.spec.ts`.
 
 ## Model credential boundary
 
@@ -83,10 +96,10 @@ assert(violations.some(v => v.rule === 'model-credential-boundary'))
 | Value or operation | Permitted use |
 | --- | --- |
 | Directory binding-reader factory | Directory owns the implementation; exact `bootstrap.ts` / `createAcceptanceApplication` / `start` constructs and transfers the reader to the CCL factory |
-| Returned binding reader | Directory `plugin.ts` / `localCredentialLookupPlugin` and CCL `model-replica.ts` execute it; bootstrap does not execute or return it |
+| Returned binding reader | Directory `cordis.ts` / `localCredentialLookupPlugin` and CCL `model-replica.ts` execute it; bootstrap does not execute or return it |
 | CCL component factory | Exact app `start` has one construction site; lookup borrows the read closure |
 | `storeBoundReplica` | App `publishCredential`, with origin and actor verification provided by the real assembly |
-| `readBoundReplicaIn` | App `start` only passes it as lookup configuration; P1r and the CCL component execute it |
+| `readBoundReplicaIn` | App `start` lends only the read method through `ReplicaReader`; lookup consumes the definition service, and CCL retains its own method |
 | Component `close` | App `closeResources` and the owning CCL implementation; borrowers cannot receive it |
 
 The checker follows same-file lexical declarations, assignment aliases, named/namespace imports, ordinary destructuring, literal computed members and bounded aggregate aliases. Local expression-body arrow results retain recognized capability provenance when called; restricted returns fail closed for both expression and block bodies. Recognized restricted values may not escape through unknown arguments, constructors, return/export, callback results, object assignment or rendering. Non-literal member access on such a value fails. Ordinary arrow results remain valid, and unrelated `close` methods are not matched merely by name. Product test paths are excluded; negative fixtures use actual product paths. The dedicated CLI regression uses the built `dist/` artifact, so build the tool before running its tests.
@@ -101,4 +114,4 @@ Existing pure-core, tenancy, entry and repository rules are described in the [Ch
 
 Run `pnpm --filter @omne-harness-lite/ts-checks exec vitest run tests/core-rules.spec.ts` for the positive and negative boundary checks.
 
-The exact `packages/agent-loop/loop-extension-runner/tests/runner-chain-support.ts` fixture may also use public EIS publication to establish real immutable history for D106 R7 acceptance. Neighboring runner tests and all runner product sources remain forbidden. The history rule allows runner product sources to import reader types only; runner tests may construct the real reader. No factory re-export or production publication authority is granted.
+The exact `packages/agent-loop/loop-extension-runner-local/tests/runner-chain-support.ts` fixture may also use public EIS publication to establish real immutable history for D106 R7 acceptance. Neighboring runner tests and all runner product sources remain forbidden. The history rule allows runner product sources to import reader types only; runner tests may construct the real reader. No factory re-export or production publication authority is granted.

@@ -1,0 +1,108 @@
+{
+  "base": "beef18017170eb70cae2c6bf3afb121b18a0139e",
+  "commit": "7df742c4b7b0c5d735da2245605be682b6a35f7c",
+  "working_tree": "clean-candidate",
+  "candidate_input_manifest": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/inputs/candidate-tracked-before.json",
+  "run_id": "r1-t3-managed-clients",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "exit_code": 0,
+  "mode": "candidate",
+  "results": [
+    {
+      "id": "cls-metadata-and-missing-dependency",
+      "status": "Pass"
+    },
+    {
+      "id": "transport-metadata-and-missing-dependency",
+      "status": "Pass"
+    },
+    {
+      "id": "cg-metadata-and-missing-dependency",
+      "status": "Pass"
+    },
+    {
+      "id": "strong-CLS-withdraw-keeps-remote-CAS-owner",
+      "status": "Pass",
+      "report": {
+        "format": "governance-client/1",
+        "actionId": "04748eee-040e-4693-9c44-7b7d59ba31c0",
+        "action": "login",
+        "operation": "capability.account-identity/v3#S-15",
+        "origin": {
+          "centerId": "11111111111111111111111111111111",
+          "accountId": null,
+          "loginStateHandle": null
+        },
+        "admission": {
+          "status": "admitted"
+        },
+        "remote": {
+          "status": "success",
+          "stage": "operation",
+          "sendAttempted": true,
+          "reply": {
+            "operation": "capability.account-identity/v3#S-15",
+            "reply": {
+              "result": {
+                "loginStateHandle": "qa-new-handle"
+              }
+            }
+          }
+        },
+        "local": {
+          "status": "installed"
+        },
+        "view": {
+          "source": "online",
+          "data": {
+            "operation": "capability.account-identity/v3#S-15",
+            "reply": {
+              "result": {
+                "loginStateHandle": "qa-new-handle"
+              }
+            }
+          }
+        },
+        "use": "ended"
+      },
+      "closed": {
+        "complete": true,
+        "assemblyErrors": [],
+        "rows": [
+          {
+            "id": "cg",
+            "result": {
+              "kind": "closed"
+            }
+          },
+          {
+            "id": "transport",
+            "result": {
+              "kind": "closed"
+            }
+          },
+          {
+            "id": "cls",
+            "result": {
+              "kind": "closed"
+            }
+          },
+          {
+            "id": "factory",
+            "result": {
+              "kind": "closed"
+            }
+          }
+        ]
+      },
+      "events": [
+        "assembly-stopping",
+        "CG-full-action-returned",
+        "original-CG-close-fulfilled",
+        "CLS-owned-storage-closed",
+        "factory-closed",
+        "CLS-fiber-actually-disposed"
+      ]
+    }
+  ]
+}

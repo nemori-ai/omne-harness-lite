@@ -9,9 +9,8 @@ import {
   createOfficialProfileContent,
   interpretConfiguration,
   readModelDefinition,
-  type ModelDefinition,
-  type ModelRoute,
 } from '@omne-harness-lite/pi-ai-transport'
+import { type ModelDefinition, type ModelRoute } from '@omne-harness-lite/model-request-runtime'
 import {
   qwen37FlashAlibabaRoute,
   qwen38FlashAlibabaRoute,

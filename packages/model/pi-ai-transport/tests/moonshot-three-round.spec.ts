@@ -6,24 +6,21 @@ import { Context } from '@deepseek-ai/cordis'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { Message } from '@omne-harness-lite/messages'
-import {
-  invokeModel,
-  type InputMeasurement,
-  type PlanInput,
-  type TransportAdapter,
-} from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput, type TransportAdapter } from '@omne-harness-lite/model-request-runtime'
+import { type InputMeasurement } from '@omne-harness-lite/model-request-runtime'
 import {
   createModelTransportService,
   createPiAiTransport,
+} from '@omne-harness-lite/pi-ai-transport'
+import {
   type ModelTransportService,
   type PlannedRequest,
   type RawResponse,
-  type RetirementPolicy,
-} from '@omne-harness-lite/pi-ai-transport'
-import {
-  createModelPlugin,
-  MODEL_TRANSPORT_SERVICE,
-} from '@omne-harness-lite/pi-ai-transport/plugin'
+} from '@omne-harness-lite/model-request-runtime'
+import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
+import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
+import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 import { normalizeToolCallId } from '../src/assistant-projection.ts'
 import { createMoonshotInputMeter } from '../src/input-meters/moonshot.ts'
 import { at, certificate, fixture, judgedMessage, policy, type CapturedRequest } from './support.ts'
@@ -410,7 +407,7 @@ describe('Moonshot three rounds through the Cordis transport service and officia
         const provided: unknown = ctx.get(MODEL_TRANSPORT_SERVICE)
         if (!transportService(provided)) throw new Error('model transport service unavailable')
         service = provided
-        const contribution = ctx.plugin(createModelPlugin(definition, meter, retirement), {})
+        const contribution = createModelPlugin(ctx, definition, meter, retirement)
         await contribution
         expect(service.inspect()).toMatchObject({ registrations: 1, references: 0 })
         const request = moonshotRequest(model, { tools: withTools })

@@ -6,7 +6,7 @@ import type {
   NewMeterInput,
   TokenMeasurement,
   MeterContribution,
-} from '../src/input-meter.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import { countingBasis, projectInput } from '../src/projection.ts'
 import { measureFinalInput } from '../src/input-limits.ts'
 import { input } from './support.ts'

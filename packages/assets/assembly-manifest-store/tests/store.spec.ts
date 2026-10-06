@@ -18,8 +18,8 @@ import {
   createAssemblyManifestStore,
   assemblyManifestStorePlugin,
   type ManifestDb,
-  type AssemblyManifestService,
 } from '../src/index.ts'
+import { type AssemblyManifestService } from '@omne-harness-lite/assembly-manifest'
 import { database, input, evaluated } from './support.ts'
 
 test('known empty, lossless record, history and evaluation survive real file reopen', async () => {

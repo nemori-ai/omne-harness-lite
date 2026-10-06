@@ -3,7 +3,8 @@ import { randomBytes } from 'node:crypto'
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { resolve, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { LOGINS_SERVICE, type LoginsService } from '@omne-harness-lite/account-identity'
+import { LOGINS_SERVICE } from '@omne-harness-lite/account-identity/cordis'
+import { type LoginsService } from '@omne-harness-lite/account-identity'
 import { generateHandoffKeyPair } from '@omne-harness-lite/identity-values'
 import {
   createAcceptanceApplication,
@@ -12,9 +13,9 @@ import {
   type ModelRequestDeployment,
 } from '../src/index.ts'
 import {
-  MODEL_CATALOG_SERVICE,
-  CREDENTIAL_LOOKUP_SERVICE,
-} from '@omne-harness-lite/model-profile-directory/plugin'
+  MODEL_CATALOG as MODEL_CATALOG_SERVICE,
+  CREDENTIAL_LOOKUP as CREDENTIAL_LOOKUP_SERVICE,
+} from '@omne-harness-lite/model-profile-directory/cordis'
 import type {
   ModelCatalog,
   CredentialLookup,
@@ -24,6 +25,8 @@ import {
   ORGANIZATIONS_SERVICE,
   OFFERS_SERVICE,
   MEMBERSHIPS_SERVICE,
+} from '@omne-harness-lite/organization-governance/cordis'
+import {
   type OrganizationsService,
   type OffersService,
   type MembershipsService,
@@ -36,10 +39,8 @@ import {
   deepseekV4Pro0813Definition,
   deepseekV4Pro0813Configuration,
 } from '@omne-harness-lite/pi-ai-transport'
-import {
-  decodeModelLogKey,
-  openRouterCredentialRedactionConfig,
-} from '@omne-harness-lite/model-request-runtime'
+import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
+import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { actor, ref, duration, activateModelFixture } from './support.ts'
 import { ROOT, publication, demoRetirement } from './model-request-support.ts'

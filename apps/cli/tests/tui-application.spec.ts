@@ -1,3 +1,4 @@
+import { fixtureAssembly } from './support/client-assembly.ts'
 import { expect, it, vi } from 'vitest'
 import type {
   ActionReport,
@@ -5,7 +6,8 @@ import type {
   InputPrompt,
 } from '@omne-harness-lite/governance-client-operations'
 import { InputFailure } from '../src/diagnostic.ts'
-import { runTui, tuiProviders, type TuiRuntime } from '../src/tui/application.ts'
+import { runTui, type TuiRuntime } from '../src/tui/application.ts'
+import { tuiProviders } from '../src/tui/providers.ts'
 import { FakeTerminal, tick } from './support/tui.ts'
 import { validIntent, validReport } from '../src/validation.ts'
 import { forms } from '../src/tui/forms.ts'
@@ -100,13 +102,18 @@ function fixture() {
     order.push('restore')
     await originalRestore()
   }
-  const runtime: TuiRuntime = {
+  const openState = vi.fn(async () => {
+    return state
+  })
+  const createClient = vi.fn(() => client)
+  const runtime: TuiRuntime & { openState: typeof openState; createClient: typeof createClient } = {
     ...tuiProviders(),
     home: '/home',
     signal: controller.signal,
     terminal: vi.fn(async () => terminal),
-    openState: vi.fn(async () => state),
-    createClient: () => client,
+    openState,
+    createClient,
+    createAssembly: options => fixtureAssembly(options, openState, createClient),
     stdout: async text => {
       outputs.push(text)
     },

@@ -1,11 +1,20 @@
 # `@omne-harness-lite/tenancy-host`
 
-治理中心作为一个可部署应用的装配：一个进程、一个 Cordis 根 Context、八条 fiber
-（storage-sql → clock → credential-verification → account-identity → organization-governance → account-registration
+治理中心作为一个可部署应用的装配：一个进程、一个 Cordis 根 Context、八个业务职责行及其生命周期服务 fiber
+（storage-sql → clock-lease → credential-verification → account-identity → organization-governance → account-registration
 → governance-center-ops → governance-center-entry），迁移合成与升级守卫，两步开闸，逆序撤除。
-设计、选择理由与证据义务归实现映射节点
-[`realization/apps/tenancy-host`](../../.meta_harness/design/realization/apps/tenancy-host/README.md)；
+这些是发行树的稳定行 id；公共插件引用见 [tree.ts](src/tree.ts)。
+现行集成行为见 [SPEC.md](SPEC.md)，设计依据见[宿主接缝](../../.meta_harness/design/architecture/identity-integration/host-integration.md)；
+未迁业务和验证义务继续从[原实现映射](../../.meta_harness/design/realization/apps/tenancy-host/README.md)定位。
 本页只写**怎么起、怎么停、怎么配、运维要守什么**，以及源码取了哪些常量。
+
+应用合并发行与运维树并准备全部公共插件，核验角色后才创建运行资源。
+正式插件树逐行等待 OwnedWork.ready、fiber ACTIVE、服务可见和代际资格。
+全部就绪后确认升级，再兑现同一个 EntryOpening；两张网络面直接检查它。
+任一管理行撤除使整个代际停止准入。已有工作按原提交边界收场，注册不得交下一步。
+资源按逆序关闭，随后撤 fiber、行端口，核对维护及升级守卫后才撤外部资源服务。
+后继装配必须新建代际，不能在旧槽位重新开放。设计依据见[有序收尾](../../.meta_harness/design/architecture/identity-integration/retirement.md)。
+装配迁移的接受依据及验证范围见[插件树与治理宿主交付记录](../../.meta_harness/design/record/decisions/plugin-tree-host-delivery/README.md)。
 
 ## 命令
 
@@ -13,12 +22,19 @@
 pnpm --filter @omne-harness-lite/tenancy-host run build          # 先 build 全部依赖包：pnpm run build
 node apps/tenancy-host/dist/cli.js keygen <directory>            # 一次性生成两对部署密钥
 node apps/tenancy-host/dist/cli.js serve                         # 从环境变量起治理中心
+node apps/tenancy-host/dist/cli.js serve --plugins <file> --print-plugins  # 只准备并打印安全来源
 ```
 
-| 子命令         | 行为                                                                                                                                                     | 退出码                                                     |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `keygen <dir>` | 写四份 Ed25519 PEM（`0600`，目录不存在即以 `0700` 建出）；标准输出一行 JSON 给出四个 `_FILE` 变量与路径，**不含密钥内容**；四份里任一已存在 ⇒ 一份都不写 | 0 成功；1 已存在或写失败；64 用法错误                       |
-| `serve`        | `boot()`；收到 `SIGTERM`／`SIGINT` ⇒ 按装载逆序撤除 ⇒ 退出                                                                                               | 0 收场确认；1 启动或收场失败；64 用法错误；30 s 仅诊断并继续等 |
+| 子命令                     | 行为                                                                                                                                                     | 退出码                                                         |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `keygen <dir>`             | 写四份 Ed25519 PEM（`0600`，目录不存在即以 `0700` 建出）；标准输出一行 JSON 给出四个 `_FILE` 变量与路径，**不含密钥内容**；四份里任一已存在 ⇒ 一份都不写 | 0 成功；1 已存在或写失败；64 用法错误                          |
+| `serve [--plugins <file>]` | 先合并/准备 JSON 运维编辑，再 `boot()`；收到 `SIGTERM`／`SIGINT` ⇒ 按装载逆序撤除 ⇒ 退出                                                                 | 0 收场确认；1 启动或收场失败；64 用法错误；30 s 仅诊断并继续等 |
+
+`serve --print-plugins` 使用同一静态准备和职责政策，stdout 输出安全 DTO 数组 JSON 加换行，成功返回 0；不等待停机信号，不创建数据库、备份/套接字目录或监听器。配置全部显示为 `[redacted]`。
+`--plugins <file>` 读取 JSON 运维编辑数组，缺省为 `[]`；与 `--print-plugins` 顺序可交换且各至多一次。
+未知/重复选项或缺文件参数返回 64，读文件、JSON 或静态准备失败返回 1并记录安全启动错误。
+运维编辑采用正式[插件树接口](../../packages/core/cordis-plugin-tree/SPEC.md)：replace、disable 或按稳定 id 插入；宿主仍要求原八职责恰各一份，依赖/声明/配置不能绕过准备。
+例如 `[{"op":"replace","id":"clock-lease","config":{}}]` 保持原时钟提供者，来源标为 operator。
 
 **本版不轮换密钥。**重生密钥等于换钥：两步之间的注册与清除会以契约已定义的方式收场（重来即可），但换钥必须在中心停着的时候做。
 
@@ -29,7 +45,7 @@ node apps/tenancy-host/dist/cli.js serve                         # 从环境变�
 
 | 变量                                                                                                                                                                   | 内容                                                                               |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `OMNE_TENANCY_STORAGE_DIALECT`                                                                                                                                         | `sqlite`（缺省）或 `postgres`                                                      |
+| `OMNE_TENANCY_STORAGE_DIALECT`                                                                                                                                         | `sqlite`（缺省）；`postgres` 当前在启动前拒绝                                      |
 | `OMNE_TENANCY_STORAGE_FILE`                                                                                                                                            | sqlite 库文件路径（`:memory:` 被拒）                                               |
 | `OMNE_TENANCY_STORAGE_URL`                                                                                                                                             | pg 连接串（方言为 `postgres` 时）                                                  |
 | `OMNE_TENANCY_ACTIVATION_SIGNING_KEY_PEM[_FILE]`、`…_ACTIVATION_VERIFICATION_KEY_PEM[_FILE]`、`…_PURGE_SIGNING_KEY_PEM[_FILE]`、`…_PURGE_VERIFICATION_KEY_PEM[_FILE]`  | 两对部署密钥；文件对 group／other 可读 ⇒ 启动失败；两对不配对 ⇒ 起插件之前启动失败 |
@@ -76,16 +92,16 @@ scrypt 派生参数取 credential-verification 的缺省（N = 2^17、r = 8、p 
 
 ## 实现映射：本装配的常量
 
-| 量                              | 取值                                     | 约束                                                                     | 源码                                 |
-| ------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------ |
-| 入口层排空上界 `drainTimeoutMs` | 10 s                                     | 仅约束业务网络排空                                             | `src/manifest.ts` `DRAIN_TIMEOUT_MS` |
-| 停止诊断阈值                    | 30 s                                     | 记录一次仍在停止，不停止等待或释放源属主                          | `DISPOSE_TIMEOUT_MS`                 |
-| 等 `serving` 的上界             | `OMNE_TENANCY_CLOCK_READY_TIMEOUT` + 1 s | 盖住入口层开闸那一刻再读钟的上界（入口层用同一个 `clockReadyTimeoutMs`） | `SERVING_GRACE_MS`                   |
-| 日志导出阈值                    | WARN（2）                                | basis `logger-level-order-error-lowest`                                  | `src/log.ts`                         |
-| 中心版本 `version`              | 包版本 `0.0.0`                           | 构建常量，测试核与 `package.json` 一致                                   | `src/version.ts`                     |
+| 量                              | 取值                                     | 约束                                                                     | 源码                             |
+| ------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------ | -------------------------------- |
+| 入口层排空上界 `drainTimeoutMs` | 10 s                                     | 仅约束业务网络排空                                                       | `src/tree.ts` `DRAIN_TIMEOUT_MS` |
+| 停止诊断阈值                    | 30 s                                     | 记录一次仍在停止，不停止等待或释放源属主                                 | `DISPOSE_TIMEOUT_MS`             |
+| 等 `serving` 的上界             | `OMNE_TENANCY_CLOCK_READY_TIMEOUT` + 1 s | 盖住入口层开闸那一刻再读钟的上界（入口层用同一个 `clockReadyTimeoutMs`） | `SERVING_GRACE_MS`               |
+| 日志导出阈值                    | WARN（2）                                | basis `logger-level-order-error-lowest`                                  | `src/log.ts`                     |
+| 中心版本 `version`              | 包版本 `0.0.0`                           | 构建常量，测试核与 `package.json` 一致                                   | `src/version.ts`                 |
 
 入口层包自己的常量（TLS 握手 30 s、接收时限 30 s、运维面撤除 3 s、存储现探 2 s）见
-[它的 README](../../packages/tenancy/governance-center-entry/README.md#实现映射包内常量)；本装配的常量没有一个短于它们所盖住的那一段。
+[它的 README](../../packages/tenancy/governance-center-entry-node/README_ZH.md#传输常量)；本装配的常量没有一个短于它们所盖住的那一段。
 
 ## 验证
 
@@ -109,3 +125,5 @@ scrypt 派生参数取 credential-verification 的缺省（N = 2^17、r = 8、p 
 [服务模板与操作步骤](deploy/README.md)包含原socket上的full-health/backup/backup-status，以及不依赖serve配置的verify/restore-isolated。命令输出只报告元信息和结果，等待实际输出完成；退出码见该操作说明。CLI/TUI业务协议仍为2，不随本次opsVersion1要求员工升级。
 
 行为依据归[已采用的维护装配](../../.meta_harness/design/realization/apps/tenancy-host/maintenance-binding.md)和[D055](../../.meta_harness/design/record/decisions/governance-online-maintenance-adoption/README.md)，这里维护安装与运行命令。
+
+Maintenance commands use named effects. The assembly selects the existing Unix client and offline inspection provider. Parsing does not acquire resources; the command retains close responsibility for its acquired inspection.

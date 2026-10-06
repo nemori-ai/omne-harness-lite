@@ -1,13 +1,9 @@
 // boot() 的测试封装：记下起来的中心供收尾撤除；启动失败时收下拒绝与观察到的 fiber。
 import type { Fiber } from '@deepseek-ai/cordis'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
-import {
-  type BootHooks,
-  type HostPluginName,
-  HostStartupFailure,
-  type TenancyHost,
-  boot,
-} from '../../src/index.ts'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
+import { type BootHooks, HostStartupFailure, type TenancyHost, boot } from '../../src/index.ts'
+import { inspectPluginTree } from '@omne-harness-lite/cordis-plugin-tree/cordis'
+import type { PluginTreeHandle } from '@omne-harness-lite/cordis-plugin-tree'
 import { type Deployment, LogCapture, asEnv } from './deployment.ts'
 
 export interface Started {
@@ -18,33 +14,47 @@ export interface Started {
 export interface Refused {
   readonly failure: HostStartupFailure
   readonly log: LogCapture
-  readonly fibers: readonly { readonly name: HostPluginName; readonly fiber: Fiber }[]
+  readonly fibers: readonly { readonly name: string; readonly fiber: Fiber }[]
 }
 
 export class Hosts {
   readonly #running: TenancyHost[] = []
 
-  async start(d: Deployment, hooks: BootHooks = {}, log = new LogCapture()): Promise<Started> {
-    const host = await boot({ env: asEnv(d), log, hooks })
+  async start(
+    d: Deployment,
+    hooks: BootHooks = {},
+    log = new LogCapture(),
+    operator: unknown = [],
+  ): Promise<Started> {
+    const host = await boot({ env: asEnv(d), log, hooks, operator })
     this.#running.push(host)
     return { host, log }
   }
 
   /** 期望 boot() 拒绝；拒绝值必须是 HostStartupFailure。 */
-  async refuse(d: Deployment, hooks: BootHooks = {}, log = new LogCapture()): Promise<Refused> {
-    const fibers: { name: HostPluginName; fiber: Fiber }[] = []
+  async refuse(
+    d: Deployment,
+    hooks: BootHooks = {},
+    log = new LogCapture(),
+    operator: unknown = [],
+  ): Promise<Refused> {
+    let handle: PluginTreeHandle | undefined
     const observed: BootHooks = {
       ...hooks,
-      observeFiber: (name, fiber) => {
-        fibers.push({ name, fiber })
-        hooks.observeFiber?.(name, fiber)
+      treeCreated: value => {
+        handle = value
+        hooks.treeCreated?.(value)
       },
     }
     let host: TenancyHost
     try {
-      host = await boot({ env: asEnv(d), log, hooks: observed })
+      host = await boot({ env: asEnv(d), log, hooks: observed, operator })
     } catch (error) {
       if (!(error instanceof HostStartupFailure)) throw error
+      const fibers =
+        handle === undefined
+          ? []
+          : inspectPluginTree(handle).map(({ id, fiber }) => ({ name: id, fiber }))
       return { failure: error, log, fibers }
     }
     this.#running.push(host)

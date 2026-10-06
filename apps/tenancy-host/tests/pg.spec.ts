@@ -1,3 +1,4 @@
+import { governanceCenterEntryPlugin } from '@omne-harness-lite/governance-center-entry-node/cordis'
 // pg 首跑（D-026「只改配置切 pg」；verification：assembly.pg-wiring、assembly.pg-upgrade-atomic、U-3 在 pg 上的真形状；
 // 交错 I-12 = AR 包的 I-1／I-2／I-4 在 pg 上重跑；AI「凭据计算挪出写事务后的交错 ②」pg 支；入口层「真并发首启（pg）」；
 // AR I-6「撞 account_login_identifier_unique」一支的 pg 变体）。
@@ -5,12 +6,8 @@
 import { randomBytes } from 'node:crypto'
 import pg from 'pg'
 import { afterAll, afterEach, describe, expect, it } from 'vitest'
-import {
-  type GovernanceCenterEntryConfig,
-  SERVING_EVENT,
-  type ServingNotice,
-  governanceCenterEntryPlugin,
-} from '@omne-harness-lite/governance-center-entry'
+import { type GovernanceCenterEntryConfig } from '@omne-harness-lite/governance-center-entry-node'
+import { SERVING_EVENT, type ServingNotice } from '@omne-harness-lite/governance-center-entry'
 import { ReferenceViolation, type Storage, UniqueViolation } from '@omne-harness-lite/storage'
 import { ENV } from '../src/index.ts'
 import { type Deployment, deployment } from './support/deployment.ts'
@@ -426,7 +423,9 @@ describePg('pg 首跑 · 各包留给 pg 的支', () => {
       version: '0.0.0',
       drainTimeoutMs: 1_000,
       clockReadyTimeoutMs: 11_000,
-      openSignal: Promise.resolve(),
+    })
+    const opening = await c.ctx.plugin(ctx => {
+      ctx.provide('entryOpening', { wait: async () => {}, isOpen: () => true })
     })
     const [a, b] = [
       c.ctx.plugin(governanceCenterEntryPlugin, await config()),
@@ -443,6 +442,7 @@ describePg('pg 首跑 · 各包留给 pg 的支', () => {
     } finally {
       await a.dispose()
       await b.dispose()
+      await opening.dispose()
     }
   })
 

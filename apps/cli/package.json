@@ -26,10 +26,18 @@
     "@earendil-works/pi-tui": "catalog:",
     "@omne-harness-lite/client-local-state": "workspace:*",
     "@omne-harness-lite/governance-client-operations": "workspace:*",
-    "@omne-harness-lite/governance-center-client": "workspace:*",
+    "ajv": "catalog:",
     "@omne-harness-lite/identity-values": "workspace:*",
     "@omne-harness-lite/offer-expiry": "workspace:*",
-    "ajv": "catalog:"
+    "@omne-harness-lite/governance-center-entry": "workspace:*",
+    "@omne-harness-lite/client-local-state-sqlite": "workspace:*",
+    "@omne-harness-lite/governance-client-operations-local": "workspace:*",
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness-lite/assembly-lifecycle": "workspace:*",
+    "@omne-harness-lite/governance-center-entry-https-json": "workspace:*",
+    "@omne-harness-lite/governance-center-client-https": "workspace:*",
+    "@omne-harness-lite/storage-sql": "workspace:*",
+    "@omne-harness-lite/kernel-basis": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

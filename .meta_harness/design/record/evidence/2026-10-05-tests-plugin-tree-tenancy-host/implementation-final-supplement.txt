@@ -1,0 +1,58 @@
+# R1-T4 最终 L3 实施补审
+
+执行仓库：`/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent`。BASE `cdd05d1050dc9d7857f7eb3569d834ae4291c4d5`，最终候选 `bca26b3043d9502dd829a9d91994d44cc04917a1`；产品代码仍与首轮 `4123ccd32b8c4b2e8578e8ebe5529f48f0ca25d9` 相同。原首轮及两份补审、原始失败不覆盖。本轮只读产品与冻结 QA，未重跑产品测试、构建或度量，未用测试锁包装器/队列；只向本外部目录追加评审证据。
+
+**本次范围内未发现阻断问题。** 首轮 IR-T4-M13-1 精确投影缺口已闭合，最终 QA 和隔离硬线的原缺口已取得可读回证据。该结论不是产品正确性证明、领域完成或技术接受。
+
+## 工具与证据读回
+
+| 本轮实际动作 | 结果 | 本目录证据 |
+|---|---|---|
+| `git rev-parse HEAD`、tracked status | 固定 bca26b304；干净 | final-state.json |
+| Python3 对 QA manifest 全量逐文件 SHA/长度核对 | 1425项、325358400字节，0不匹配；manifest SHA `041f95c3fa49eafa7ab9ffc982678ab3ad17042c714991a795a256c99cf91232` | final-qa-manifest-readback.json |
+| 冻结52条标准与最终report逐字段比较 | 52编号齐；原标准字段无变化 | final-state.json |
+| 原Vitest JSON逐组计数与report对应 | 1273 passed、0 failed、19 skipped，逐组无差异；不把能力驱动另加成Vitest数 | final-report-claims-readback.json |
+| 32个声明消费者与QA15/根补18类型集合核对 | 无缺失；其中kernel-basis属于额外QA检查，不将15+18误称33个原闭包成员 | final-report-claims-readback.json |
+| 原direct acceptance与传感器发布目录全部文件比较 | 5文件逐字节一致；原账本5项通过、base=null、同HEAD且clean | final-manual-readback.json |
+| 隔离STRICT首次/重试读回、处置多重集复核 | 首次exit1及acceptance silent保留；r2 exit0、64.789秒，四硬线齐、无silent/off；108项结构事实与处置无缺/多项 | final-manual-readback.json |
+
+本轮结束坐标与UTC时间见 final-state.json。首轮独立运行仍为30 pass/1 Unix长路径设施失败，不改为全绿；本轮没有重算全部源码或代替QA执行其场景。
+
+## 阻断及既有发现
+
+没有剩余的本切片产品阻断发现。IR-T4-M13-1 保持已修复：只迁精确tree/policy及三个Cordis适配文件的采用角色，独立current conformance已核，不扩大整个提供者/应用装配豁免。未采用另一端职责产生的unknown仍存在，属于后续逐项架构判断，不能宣称其已收敛。
+
+QA独立结论是50 Pass、2 Pass with issues，共52项；不是实施评审者作出的验收判决。A06保留形式包装器问题；A07报告封存时根隔离硬线尚缺，本轮已核最终补跑闭合该证据缺口，但不修改QA原判决。
+
+最终直接调度的consumer build及18成员types均exit0，原命令/输出与补集相符。根按手动实际影响范围选择的说明已明确：机械full56由两个全局清单/锁触发，实际32声明反向消费者；生产业务改变集中于管理绑定、工厂和宿主，模型消费者仅类型/构建复验，Python完整套件不选。此为已披露的手动范围，不是全工作区测试通过。正式docs/agents/design registered/format及原有限模型证据继续按精确未变输入承接。
+
+最终acceptance直接执行5项exit0；首次隔离loop未找到由--out写出的账本，只有acceptance sensor silent，不称其通过。随后发布原执行产生的同一5文件，ledger SHA `661c61d60189f3277eaff0799e9019d54fc989b21f0c374e1d2bbc1bd5388bbd`前后相同。仅重算失败的STRICT，未重跑已绿5项或修改产品/检查判据。r2读取任务独立metrics/acceptance home、同bca输入，四硬线及传感器均满足；两轮explain完全相同。最终新home无旧趋势快照，不把f226读数冒称本批改善。
+
+## 行为、公开边界及保持证据的强度
+
+冻结QA实际完成130能力观察，另有11个真实SQLite业务、14个中心CLI、4个打包发布观察；9原套件1200项加新tree14、工具54、正式CLI acceptance5，共1273项。19 skip已逐项列明，未因本次改接口新增或偷偷计通过。
+
+原本评审未完成的Unix工厂观察，现由干净短路径QA实际完成：entry-factories/result.json的8项包括真实TLS、真实Unix、三个同步订阅、同步业务重入close等待持久化，以及部分订阅失败撤除。观察缺口已补齐，仍保留本评审原长路径失败。
+
+实际六根完成源码、声明、运行闭包及外部类型消费；18这个文字计数有误，实物为19个不同产品tarball，见下节。实际packed host执行SQLite/TLS/Unix与complete close，打印检查不创建数据库/备份/socket目录。231原导出外部TS消费、5手工装配结构替代和4个具体拒绝观察互不混成同一个计数。31原路由测试含外部能力桩，不能扩写为31个完整真后端场景。
+
+QA独立重算1161函数/3263断言，59函数差量和29接口断言适配保留索引；91保护项中3项为已核类型归属，163形式输入仍原字节，历史链接有Git blob依据。17123项源码/构建输入前后SHA一致是QA的冻结读回结果；本轮验证其冻结原件，不冒称重新计算这17123项。本评审首轮41个生产差量及租户、同提交、秘密诊断、真实close热点的判断继续有效。
+
+prefix首失的修正只把普通Error的stage期望clock改为plugin，时限/原原因/真实close未变。已再次读取BASE boot分类器：除精确具名错误外返回plugin；采用host-integration表也要求沿原分类器。新控制有plugin正控及错误clock等负控，原stage=clock失败仍保留，因此不是用放宽业务标准求绿。
+
+## 非阻断事项与流程限制
+
+1. **QA报告tarball计数误差**：report.md/A03写18，但冻结manifest有19个不同tgz、consumer package.json有19个产品file依赖、packed-release/result.json有19个实际origin。三个原件一致，未发现缺制品。需在收口说明或erratum中使用19；冻结QA报告与manifest保持不动。已通知root，不要求重跑或重开QA。
+2. consumer-disposition原“108条旧映射”已经仅文字更正为64；本轮比对确认67处替换之外JSON无差量，原件保留。108总处置和64旧映射的区别已闭合。
+3. 原Entry模型wrapper exit1继续保留；47 TLC实际输入/轨迹及7 Alloy逻辑观察（4进程）、7 bounded控制有实际原件，QA只读回。包装器两分类缺陷归形式设施责任，不把有限反例/可达性改称无条件证明。
+4. 之前使用with-test-slot及全局measurement home是实际流程偏离，包括本评审按错误澄清执行的调用。workflow-deviations和本目录原补审保留经过，不改计划追认。最终调度移除HELD、直接串行且用独立home，使本轮证据边界满足要求；它不抹除历史违规，不能声明全程遵守计划。
+
+总体红项现在有明确读法：3登记工作树/4重叠不是3活动写者证明，其他会话不清理，合入前仍须刷新主线并复核共享成员；11 topic churn属于历史窗口；model runtime44预算归R2；7动态服务键及host resolver继续unknown。66 stock偏离和64旧映射差分是不同读数，均没有据“已记录”关闭责任。
+
+## 范围外待裁决与未覆盖
+
+没有新增产品政策或设计选择待本评审代裁。R1-T5/R2/R3及N5/N6仍须按原责任处理领域/系统架构、未迁旧源及剩余偏离。
+
+PostgreSQL整体、原45秒冷恢复因果、EIS5000、完整W6、模型域行为、完整终端矩阵/GUI/IME与付费调用仍未覆盖或保持开放。没有全量make check、全量基准或完整Python回归结果，不能把手动检查表述成这些检查已执行。
+
+本切片所需的此前最终证据缺口已读回；剩余上述限制和非阻断文字/设施事项需要随交付保留。技术接受与合入由派发者决定。报告落盘后释放本目录写权，无运行中工具、测试或构建。

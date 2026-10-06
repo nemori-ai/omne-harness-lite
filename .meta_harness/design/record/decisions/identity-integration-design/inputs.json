@@ -1,0 +1,22 @@
+{
+  "kind": "limited design adoption, not implementation acceptance",
+  "adopted_at": "2026-10-04T18:02:31.077484+00:00",
+  "base": "588628544ab92bd542f24efa1801634eb6eee56e",
+  "files": {
+    ".meta_harness/design/architecture/identity-integration/README.md": "1553a63f25382f904c15b3e1deaec29abf3826b04cc17df994ecbc37ff441f13",
+    ".meta_harness/design/architecture/identity-integration/behavior.md": "23b42b2821ba72f5c9a6a16dddba484ffb2f50925fc7e017b5fddd1eb3fec5b2",
+    ".meta_harness/design/architecture/identity-integration/delivery.md": "9c985d491febf3fcd9d223870edb37ce0b552ba68d0da1113b5dc603edde97c0",
+    ".meta_harness/design/architecture/identity-integration/design.md": "71a47fdd9fafc52bf86bc4edb96d9667b06e334bae89ddf4fdc4ec6f95270fb0",
+    ".meta_harness/design/architecture/identity-integration/plugin-tree.md": "1e7943fba240b7f9d1435e5edaf60ee9f6292d0837591d01832bf553a1d003ba",
+    ".meta_harness/design/architecture/identity-integration/preservation.md": "75476d107ba19f9378fff27be727f47c93901877be852bb276bb113cb1f288ed",
+    ".meta_harness/design/architecture/identity-integration/retirement.md": "923a2f1dd1823ffd1b0abf96af91d4405892b2a323d851a234e5fd87f568c851"
+  },
+  "reviewed_candidate": "r5 plus reviewed source-dependency diagram clarification and acceptance allocations; status/headings updated upon adoption",
+  "unimplemented": [
+    "formal assembly lifecycle and plugin tree APIs",
+    "managed providers",
+    "actual host and client migration",
+    "L3 implementation review and clean-checkout QA"
+  ],
+  "source_inventory": "382 inputs including all seven contract directories; task archive owns inventory and reviews"
+}

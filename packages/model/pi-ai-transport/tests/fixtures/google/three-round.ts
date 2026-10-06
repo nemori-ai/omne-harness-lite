@@ -1,11 +1,8 @@
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import type {
-  ModelInvocationResult,
-  PlanInput,
-  PlanOutputHistoryGroup,
-} from '@omne-harness-lite/model-request-runtime'
-import type { ModelDefinition } from '@omne-harness-lite/pi-ai-transport'
+import type { ModelInvocationResult, PlanInput } from '@omne-harness-lite/model-request-runtime'
+import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
+import type { ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import { googleCertificationRequest, googleCertificationTool } from './cases.ts'
 import { judgedMessage, message } from '../../support.ts'
 

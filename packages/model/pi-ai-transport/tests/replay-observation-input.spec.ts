@@ -2,14 +2,11 @@ import { testImagePreparerFor } from './image-transport-support.ts'
 import { describe, expect, it, vi } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import type { PlanCalibration, PlanInput } from '@omne-harness-lite/model-request-runtime'
-import {
-  planRequest,
-  projectOutput,
-  type InputMeter,
-  type PlannedRequest,
-  type ReplayMeterInput,
-} from '../src/index.ts'
+import type { PlanCalibration } from '@omne-harness-lite/model-request-runtime'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { planRequest, projectOutput } from '../src/index.ts'
+import { type PlannedRequest } from '@omne-harness-lite/model-request-runtime'
+import { type InputMeter, type ReplayMeterInput } from '@omne-harness-lite/model-request-runtime'
 import { input, message, judgedMessage, at } from './support.ts'
 import { testDefinitions } from './definitions.ts'
 import { syntheticInputMeter } from './synthetic-input-meter.ts'

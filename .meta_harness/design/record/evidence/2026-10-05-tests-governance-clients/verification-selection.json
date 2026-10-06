@@ -1,0 +1,31 @@
+{
+  "base": "beef18017170eb70cae2c6bf3afb121b18a0139e",
+  "head": "113c465e50c33563b385aea3b6ff1a9de642e2f7",
+  "at": "2026-10-05T00:43:39.363176+00:00",
+  "automated_plan": "s3-affected-plan.log",
+  "global_reasons": [
+    "pnpm-lock.yaml",
+    "tools/ts-checks/test-runs.config.json"
+  ],
+  "manual_scope_reason": "Lock package/snapshot bytes identical; importer paths and explicit workspace dependencies migrate only. Test runner config only migrates one provider path. No full make check/queue per task; run actual affected graph and relevant rule readers manually.",
+  "lock_package_snapshot_sha256": "2481bb3bb84b587bce13a2377b250e3ba3dc36ad33314b396fa030130a9f887a",
+  "selected": [
+    "three new core definitions and existing EC",
+    "three renamed frontend implementations",
+    "CLI and real external callers",
+    "entry-node affected source vocabulary",
+    "assembly-lifecycle helper and tenancy-host lifecycle consumer",
+    "ts-checks affected/group-direction/ops/no-wall-clock rules",
+    "fixed-schema generator",
+    "architecture/docs/design/agents/format and strict common hard lines"
+  ],
+  "not_run": [
+    "all 55 members",
+    "unrelated Python suites",
+    "full model/runtime suite",
+    "PG",
+    "paid external model",
+    "full benchmark"
+  ],
+  "qa": "full frozen 47 criteria, real journeys and actual packed external consumption remain independent candidate QA"
+}

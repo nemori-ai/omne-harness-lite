@@ -1,3 +1,5 @@
+import { EvaluationInputSupportService } from '@omne-harness-lite/asset-evaluation/cordis'
+import { evaluationInputStorePlugin } from '../src/cordis.ts'
 import { expect, test, vi } from 'vitest'
 import { fork } from 'node:child_process'
 import { once } from 'node:events'
@@ -8,11 +10,8 @@ import {
   type JsonObject,
 } from '@omne-harness-lite/content-blocks'
 import { narrow, StorageDefect, StorageUnavailable } from '@omne-harness-lite/storage'
-import {
-  createEvaluationInputReader,
-  createEvaluationInputStorePlugin,
-  type CurrentEvaluationInputs,
-} from '../src/index.ts'
+import { createEvaluationInputReader } from '../src/index.ts'
+import { type CurrentEvaluationInputs } from '@omne-harness-lite/asset-evaluation'
 import {
   publishLocalInputs,
   captureSessionRecipe,
@@ -517,10 +516,22 @@ test('real Cordis wrapper reads the same component; withdrawal disables old refe
       name: 'source-session-host',
       apply(ctx) {
         ctx.provide('sessionTenancy', h.sessionTenancy)
+        class Support extends EvaluationInputSupportService {
+          monotonicNow() {
+            return h.deps.monotonicNow()
+          }
+          diagnostics(...args: Parameters<typeof h.deps.diagnostics>) {
+            return h.deps.diagnostics(...args)
+          }
+          onDiagnosticFailure(...args: Parameters<typeof h.deps.onDiagnosticFailure>) {
+            return h.deps.onDiagnosticFailure(...args)
+          }
+        }
+        new Support(ctx)
       },
     })
     await host
-    const fiber = h.assembly.ctx.plugin(createEvaluationInputStorePlugin(h.deps), {
+    const fiber = h.assembly.ctx.plugin(evaluationInputStorePlugin, {
       storeKey: h.deps.storeKey,
       deployedOfficial: [...h.deps.deployedOfficial],
     })

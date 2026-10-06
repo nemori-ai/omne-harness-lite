@@ -1,0 +1,69 @@
+<alloy builddate="2025-01-09T08:17:18.350Z">
+
+<instance bitwidth="4" maxseq="4" mintrace="-1" maxtrace="-1" command="Run aNonTrivialTree for 4 but exactly 1 Config" filename="" tracelength="1" looplength="1">
+
+<sig label="seq/Int" ID="0" parentID="1" builtin="yes">
+</sig>
+
+<sig label="Int" ID="1" parentID="2" builtin="yes">
+</sig>
+
+<sig label="String" ID="3" parentID="2" builtin="yes">
+</sig>
+
+<sig label="this/Organization" ID="4" parentID="2">
+   <atom label="Organization$0"/>
+   <atom label="Organization$1"/>
+   <atom label="Organization$2"/>
+   <atom label="Organization$3"/>
+</sig>
+
+<sig label="this/Config" ID="5" parentID="2">
+   <atom label="Config$0"/>
+</sig>
+
+<field label="parent" ID="6" parentID="5">
+   <tuple> <atom label="Config$0"/> <atom label="Organization$0"/> <atom label="Organization$1"/> </tuple>
+   <tuple> <atom label="Config$0"/> <atom label="Organization$2"/> <atom label="Organization$0"/> </tuple>
+   <tuple> <atom label="Config$0"/> <atom label="Organization$3"/> <atom label="Organization$2"/> </tuple>
+   <types> <type ID="5"/> <type ID="4"/> <type ID="4"/> </types>
+</field>
+
+<sig label="univ" ID="2" builtin="yes">
+</sig>
+
+<sig label="this/PersonalOrganization" ID="7">
+   <type ID="4"/>
+</sig>
+
+<sig label="this/TeamOrganization" ID="8">
+   <atom label="Organization$0"/>
+   <atom label="Organization$1"/>
+   <atom label="Organization$2"/>
+   <atom label="Organization$3"/>
+   <type ID="4"/>
+</sig>
+
+<skolem label="$aNonTrivialTree_c" ID="9">
+   <tuple> <atom label="Config$0"/> </tuple>
+   <types> <type ID="5"/> </types>
+</skolem>
+
+<skolem label="$aNonTrivialTree_a" ID="10">
+   <tuple> <atom label="Organization$3"/> </tuple>
+   <types> <type ID="4"/> </types>
+</skolem>
+
+<skolem label="$aNonTrivialTree_b" ID="11">
+   <tuple> <atom label="Organization$2"/> </tuple>
+   <types> <type ID="4"/> </types>
+</skolem>
+
+<skolem label="$aNonTrivialTree_d" ID="12">
+   <tuple> <atom label="Organization$1"/> </tuple>
+   <types> <type ID="4"/> </types>
+</skolem>
+
+</instance>
+
+</alloy>

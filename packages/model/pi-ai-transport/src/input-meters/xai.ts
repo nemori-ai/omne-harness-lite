@@ -15,9 +15,14 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import { jsonEqual, ruleAccepts, type ModelDefinition } from '../definitions.ts'
+import { jsonEqual, ruleAccepts } from '../definitions.ts'
+import { type ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import { object } from '../json.ts'
-import type { FullMeterInput, InputMeter, TokenMeasurement } from '../input-meter.ts'
+import type {
+  FullMeterInput,
+  InputMeter,
+  TokenMeasurement,
+} from '@omne-harness-lite/model-request-runtime'
 import { xaiDefinitions } from '../official-models/xai.ts'
 
 // Per-model fit-only offsets; shared wire algorithm and scope below.

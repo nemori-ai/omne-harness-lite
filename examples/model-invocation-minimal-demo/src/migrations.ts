@@ -2,11 +2,11 @@ import {
   ACCOUNT_ID_COLUMN,
   ACCOUNT_TABLE,
   accountIdentityMigrations,
-} from '@omne-harness-lite/account-identity'
-import { clockMigrations } from '@omne-harness-lite/clock'
+} from '@omne-harness-lite/account-identity-sql'
+import { clockMigrations } from '@omne-harness-lite/clock-lease'
 import { replicaMigrations } from '@omne-harness-lite/credential-custodian-local/migrations'
-import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory/migrations'
-import { organizationGovernanceMigrations } from '@omne-harness-lite/organization-governance'
+import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory-local/migrations'
+import { organizationGovernanceMigrations } from '@omne-harness-lite/organization-governance-sql'
 import { sessionTenancyMigrations } from '@omne-harness-lite/session-tenancy-table'
 import {
   composedMigrationName,

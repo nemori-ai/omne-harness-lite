@@ -7,7 +7,7 @@ import {
   deepseekV41FlashConfiguration,
   deepseekV41FlashDefinition,
 } from '@omne-harness-lite/pi-ai-transport'
-import type { RetirementPolicy } from '@omne-harness-lite/pi-ai-transport'
+import type { RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import { createDemoTransportRetention } from '../src/diagnostic-assembly.ts'
 
 function policy(waitMilliseconds: number): RetirementPolicy {

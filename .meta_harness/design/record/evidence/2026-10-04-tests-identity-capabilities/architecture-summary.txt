@@ -1,0 +1,15 @@
+实际架构 cf4ce5874100c4271bd3b01327da7b81c443a39a · revision · inputDirty false
+产品成员 49；具体未知 17。
+符合性对照 baseline；预期变更 1。运行绑定未观测。
+结构度量 cf4ce5874 · 分支 固定版本快照 · 基线 精确提交 67eecc1ae53be30efec473206e5d1926dd5d500f
+范围：变更 13 个成员、517 个函数
+结构：方向违规 0，环 0，已登记例外 1，变更触及的跨成员导入 63 条；成员风险 红 19、黄 9、绿 21
+圈复杂度（warn 10／alert 12）：变更函数超 alert 20、超 warn 6；存量超 alert 202、超 warn 260
+覆盖率：未开启，只报圈复杂度
+变更函数里超阈值的前 5 个：
+  packages/tenancy/governance-center-entry-node/src/routing/decide.ts:364 authenticatedCaller CC 22
+  packages/tenancy/governance-center-entry-node/src/routing/caller.ts:43 authenticate CC 19
+  packages/tenancy/governance-center-entry-node/src/maintenance/catalog.ts:43 observeBackups CC 18
+  packages/tenancy/governance-center-entry-node/src/routing/decide.ts:108 decide CC 18
+  apps/tenancy-host/src/boot.ts:302 assemble CC 17
+审讯页：/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/architecture-cf4/report.html

@@ -1,5 +1,7 @@
 # @omne-harness-lite/storage-sql
 
+The root exposes the independent SQL provider. `./cordis` exports both owning plugins, their data-only `StorageSqlPluginConfig`, and the borrowed `SqlStorageService`. Storage keys and resource Services belong to `@omne-harness-lite/storage/cordis`. See [integration commitments](SPEC.md).
+
 [中文](README_ZH.md)
 
 A Kysely provider for the shared [storage protocol](../../core/storage/README.md),
@@ -18,8 +20,8 @@ import, such as `kysely` and `@omne-harness-lite/storage`.
 | Purpose                        | Exports                                                                                                                                                                      |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Direct provider                | `openStorage`, `OpenStorageOptions`, `SqlStorage`, `StorageSqlConfig` (runtime schema and type)                                                                              |
-| Cordis service                 | `storageSqlPlugin`, `STORAGE_SERVICE` (`'storage'`)                                                                                                                          |
-| Owned upgrade                  | `createUpgradeGuard`, `UpgradeGuard`, `UpgradeConfirmation`, `UpgradePending`, `UpgradeGuardNotAttached`, `StorageStartupFailure`, `StorageStartupStage`, `StorageSqlLogger` |
+| Cordis service                 | `./cordis`: `storageSqlPlugin`, `managedStorageSqlPlugin`, `StorageSqlPluginConfig`, `SqlStorageService` |
+| Owned upgrade                  | `createUpgradeGuard`, `UpgradeGuard`, `UpgradeGuardNotAttached`, `StorageStartupFailure`, `StorageStartupStage`, `StorageSqlLogger`; `storage`: `UpgradeConfirmation`, `UpgradePending` |
 | Lower-level SQLite integration | `NodeSqliteDialect`, `NodeSqliteDriver`, `NodeSqliteDialectOptions`                                                                                                          |
 | Error translation              | `translateSqliteError`, `translatePgError`                                                                                                                                   |
 | SQLite inspection              | `openSnapshotInspection`, `storageSnapshotCheck`, `STORAGE_SNAPSHOT_TABLES`                                                                                                  |
@@ -151,27 +153,28 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { sql } from 'kysely'
-import {
-  STORAGE_SERVICE,
-  createUpgradeGuard,
-  storageSqlPlugin,
-  type SqlStorage,
-} from '@omne-harness-lite/storage-sql'
+import { createUpgradeGuard } from '@omne-harness-lite/storage-sql'
+import { storageSqlPlugin, type SqlStorageService } from '@omne-harness-lite/storage-sql/cordis'
+import { STORAGE_SERVICE, StorageStartup } from '@omne-harness-lite/storage/cordis'
 
 const directory = await mkdtemp(join(tmpdir(), 'omne-sql-owner-example-'))
 const ctx = new Context()
 const guard = createUpgradeGuard()
+class Startup extends StorageStartup {
+  readonly migrations = { getMigrations: async () => ({}) }
+  readonly upgrade = { checks: [], guard }
+}
 let fiber: Fiber | undefined
 try {
+  await ctx.plugin(inner => { new Startup(inner) })
   fiber = ctx.plugin(storageSqlPlugin, {
     dialect: 'sqlite',
     file: join(directory, 'owned.sqlite'),
     synchronous: 'full',
-    migrations: { getMigrations: async () => ({}) },
-    upgrade: { checks: [], guard },
+    startup: 'migrate',
   })
   await fiber
-  const storage = ctx.get(STORAGE_SERVICE) as SqlStorage | undefined
+  const storage = ctx.get(STORAGE_SERVICE) as SqlStorageService | undefined
   assert.ok(storage)
   const rows = await storage.read(
     async tx => (await sql<{ ready: number }>`SELECT 1 AS ready`.execute(tx.db)).rows,
@@ -182,13 +185,17 @@ try {
   console.log(confirmation)
 } finally {
   await fiber?.dispose()
+  await ctx.fiber.dispose()
   // Cordis logs disposer failures; retain the fixture if recovery is pending.
   assert.equal(await guard.pending(), 'clear')
   await rm(directory, { recursive: true, force: true })
 }
 ```
 
-With migrations, configuration must explicitly give either `upgrade: false` or
+For owning plugins, `startup: 'migrate'` obtains `migrations` and `upgrade` from `StorageStartup`.
+The default `startup: 'plain'` requires no resource Service and forbids maintenance.
+Plugin configuration rejects runtime objects and unknown fields.
+With migrations, the independent input or startup resource must explicitly give either `upgrade: false` or
 `upgrade: { checks, guard }`. A guarded SQLite owner takes an exclusive owner lock,
 checks the database before migration, and retains an upgrade snapshot or an
 absent-database marker until confirmation. Closing or restarting an unconfirmed
@@ -259,7 +266,9 @@ already-open connections: the first `SELECT *` can miss new columns or fail with
 schema-changing multi-connection workflows are safe. Treat such a failure as a
 defect to investigate, rather than evidence that no data exists.
 
-For optional SQLite maintenance, configure an absolute `maintenance.workDirectory`
+For owning plugins, configuration contains only `maintenance.workDirectory`.
+They obtain the completion target from `StorageCompletion.closed`.
+For optional SQLite maintenance in an independent call, configure an absolute `maintenance.workDirectory`
 and `maintenance.onClosed` alongside a guarded owner. After confirmation,
 `storage.maintenance.run` supplies borrowed snapshot/inspection sessions. Offline
 `openSnapshotInspection(workDirectory)` supplies an inspection lifetime that the

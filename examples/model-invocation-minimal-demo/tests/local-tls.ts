@@ -60,8 +60,16 @@ export async function createLocalTls(
   const pending = new Set<Promise<void>>()
   const failures: unknown[] = []
   let nextUsageJson: string | null | undefined = finalUsageJson
-  let mode: 'complete' | 'reasoning' | 'hold' | 'usage_hold' | 'http503' | 'http503empty' | 'tool' =
-      'complete',
+  let mode:
+      | 'complete'
+      | 'reasoning'
+      | 'hold'
+      | 'usage_hold'
+      | 'http503'
+      | 'http503empty'
+      | 'tool'
+      | 'tool_nonce' = 'complete',
+    nonceRequestStart = 0,
     closedSockets = 0,
     held: ServerResponse | undefined
   const server = createServer({ key: await readFile(key), cert: certBytes }, (req, res) => {
@@ -91,9 +99,9 @@ export async function createLocalTls(
         'x-request-id': 'independent-upstream-id',
         'set-cookie': ['safe-one=1', 'safe-two=2'],
       })
-      if (mode === 'tool') {
+      if (mode === 'tool' || (mode === 'tool_nonce' && requests.length === nonceRequestStart + 1)) {
         res.end(
-          `data: ${JSON.stringify({ id: 'independent-generation', model: responseModel, provider, choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_exact', function: { name: 'example__read', arguments: '{}' } }] }, finish_reason: null }] })}\n\n` +
+          `data: ${JSON.stringify({ id: 'independent-generation', model: responseModel, provider, choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_exact', function: { name: mode === 'tool_nonce' ? 'demo__nonce' : 'example__read', arguments: '{}' } }] }, finish_reason: null }] })}\n\n` +
             `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'tool_calls' }], usage: { prompt_tokens: 9, completion_tokens: 3, total_tokens: 12, prompt_tokens_details: { cached_tokens: 4, cache_write_tokens: 0 }, cost: 0.0000117 } })}\n\ndata: [DONE]\n\n`,
         )
         return
@@ -166,6 +174,7 @@ export async function createLocalTls(
     },
     setMode(value: typeof mode) {
       mode = value
+      nonceRequestStart = requests.length
     },
     /** Null omits usage; undefined restores the standard controlled usage frame. */
     setUsageJson(value: string | null | undefined) {

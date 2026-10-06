@@ -4,7 +4,7 @@ import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite
 import {
   readSettlementPrefix,
   type SettlementRegistration,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
@@ -18,8 +18,8 @@ import {
   createImagePreparer,
   createSharpImageCodec,
   modelImageBalancedV1,
-  type ModelDefinition,
 } from '@omne-harness-lite/pi-ai-transport'
+import { type ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import {
   historyProjection,
   messagePrefix,

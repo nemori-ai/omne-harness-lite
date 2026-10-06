@@ -174,6 +174,7 @@ export function hardLinesBroken(lines: HardLines): boolean {
 
 /** 这次变更里要解释的红项，五类；全量，终端只列前 explainTop 条。 */
 export interface Explain {
+  readonly conformance?: Reading<import('../arch/conformance-model.ts').Conformance>
   /** 碰过、带位不是 ok，且比基线涨了、新出现或拿不准的函数。 */
   readonly functions: readonly ExplainedFunction[]
   /** 碰过、原来就在线外、这次没有变差的函数：不要解释，但数出来。 */
@@ -332,6 +333,18 @@ function explainLines(view: StatusView): string[] {
     )
   if (explain.assemblyChanges !== undefined)
     section('装配声明改动', explain.assemblyChanges, item => `${item.member}（${item.path}）`)
+  if (explain.conformance?.status === 'data') {
+    section(
+      '新增全局架构偏离',
+      { status: 'data', data: explain.conformance.data.rows.filter(row => row.age === 'new') },
+      row => `${row.rule} ${row.member} ${row.key}${at(row.sites[0])}`,
+    )
+    section(
+      '全局及原节点预期改动',
+      { status: 'data', data: explain.conformance.data.changes },
+      row => `${row.id}（${row.path}）`,
+    )
+  }
   if (out.length === 1) out.push('  无')
   // 不要解释、但不让它们无声消失：放在最后，不影响上面「无」的判断。
   if (explain.functionsNotWorse.length > 0)

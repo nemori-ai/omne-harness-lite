@@ -9,9 +9,8 @@ import {
   createOfficialProfileContent,
   interpretConfiguration,
   readModelDefinition,
-  type ModelDefinition,
-  type ModelRoute,
 } from '@omne-harness-lite/pi-ai-transport'
+import { type ModelDefinition, type ModelRoute } from '@omne-harness-lite/model-request-runtime'
 import { kimiK3MoonshotRoute, kimiK27CodeMoonshotRoute } from '../src/official-models/moonshot.ts'
 
 const provider = 'moonshotai/test-route'

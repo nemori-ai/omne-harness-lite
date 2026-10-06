@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import { invokeModel } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import { createPiAiTransport } from '../src/transport.ts'
 import { createOfficialProfileContent } from '../src/configuration.ts'
@@ -15,8 +15,8 @@ import {
   deepseekV41FlashConfiguration,
   deepseekV41FlashDefinition,
 } from '../src/official-models/deepseek.ts'
-import type { InputMeter } from '../src/input-meter.ts'
-import type { ModelDefinition } from '../src/definitions.ts'
+import type { InputMeter } from '@omne-harness-lite/model-request-runtime'
+import type { ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import { object } from '../src/json.ts'
 import { at, certificate, finish, fixture, input, judgedMessage, policy, sse } from './support.ts'
 

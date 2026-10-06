@@ -10,7 +10,7 @@ import { jsonNumberSource, writeJsonLossless } from '@omne-harness-lite/content-
 import {
   invokeModel,
   openRouterCredentialRedactionConfig,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   createOfficialProfileContent,
   createPiAiTransport,

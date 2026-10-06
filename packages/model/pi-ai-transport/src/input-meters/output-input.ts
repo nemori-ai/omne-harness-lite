@@ -16,7 +16,7 @@ import type {
   ReplayMeterInput,
   HistorySelectionSpan,
   MarginalMeterInput,
-} from '../input-meter.ts'
+} from '@omne-harness-lite/model-request-runtime'
 
 function frozen(value: JsonValue): void {
   if (value !== null && typeof value === 'object') {

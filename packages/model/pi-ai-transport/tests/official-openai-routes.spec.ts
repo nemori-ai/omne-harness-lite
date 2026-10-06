@@ -7,9 +7,8 @@ import {
   createOfficialProfileContent,
   interpretConfiguration,
   readModelDefinition,
-  type ModelDefinition,
-  type ModelRoute,
 } from '@omne-harness-lite/pi-ai-transport'
+import { type ModelDefinition, type ModelRoute } from '@omne-harness-lite/model-request-runtime'
 import { openaiRoutes } from '../src/official-models/openai.ts'
 import { input as baseInput, judgedMessage, message } from './support.ts'
 

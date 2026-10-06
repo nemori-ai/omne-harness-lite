@@ -11,17 +11,15 @@ import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { readOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { Message } from '@omne-harness-lite/messages'
-import {
-  invokeModel,
-  type PlanInput,
-  type TransportAdapter,
-} from '@omne-harness-lite/model-request-runtime'
-import type { RawResponse } from '../src/http.ts'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput, type TransportAdapter } from '@omne-harness-lite/model-request-runtime'
+import type { RawResponse } from '@omne-harness-lite/model-request-runtime'
 import { admissionTokens } from '../src/input-meter.ts'
 import { createMoonshotInputMeter } from '../src/input-meters/moonshot.ts'
 import { object } from '../src/json.ts'
-import type { PlannedRequest } from '../src/plan.ts'
-import { createModelPlugin, MODEL_TRANSPORT_SERVICE } from '../src/plugin.ts'
+import type { PlannedRequest } from '@omne-harness-lite/model-request-runtime'
+import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
+import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 import { createModelTransportService } from '../src/registry.ts'
 import { createPiAiTransport } from '../src/transport.ts'
 import { directFull } from './direct-full-input.ts'
@@ -128,7 +126,7 @@ describe.each(cases.map((value, offset) => ({ ...value, offset })))(
           },
         }
         await ctx.plugin(provider)
-        await ctx.plugin(createModelPlugin(definition, meter, retirement), {})
+        await createModelPlugin(ctx, definition, meter, retirement)
         const initial = moonshotRequest(model, { tools, effort })
         const acquired = service.acquire(initial.snapshot.adaptation, initial.routeName)
         if (!('lease' in acquired)) throw new Error('registered Moonshot adaptation unavailable')

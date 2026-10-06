@@ -9,7 +9,7 @@ export async function seedHoldingTenant(
   tx: WriteTx,
   value: unknown,
   tenantValue: unknown,
-): Promise<void> {
+): Promise<'created' | 'alreadyPresent'> {
   const session = sessionValue(value)
   const tenant = parseTenantId(tenantValue)
   if (session === undefined || !('ok' in tenant))
@@ -22,11 +22,12 @@ export async function seedHoldingTenant(
     .where('session', '=', session)
     .executeTakeFirst()
   if (old !== undefined) {
-    if (tenantIdEquals(decodeTenant(old.tenant), tenant.ok)) return
+    if (tenantIdEquals(decodeTenant(old.tenant), tenant.ok)) return 'alreadyPresent'
     throw new UniqueViolation('session_tenancy_pkey')
   }
   await db
     .insertInto('session_tenancy')
     .values({ session, tenant: writeJsonLossless(tenant.ok) })
     .execute()
+  return 'created'
 }

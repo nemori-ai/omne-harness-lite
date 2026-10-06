@@ -1,0 +1,71 @@
+{
+  "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+  "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+  "run_id": "t4-storage-resources",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "started": "2026-10-05T07:30:04.748Z",
+  "results": [
+    {
+      "id": "plain-JSON-config-no-runtime-dependencies",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.995Z"
+    },
+    {
+      "id": "JSON-reject-plain-maintenance",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:05.021Z"
+    },
+    {
+      "id": "JSON-reject-function-config",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:05.022Z"
+    },
+    {
+      "id": "JSON-reject-guard-config",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:05.023Z"
+    },
+    {
+      "id": "JSON-reject-callback-config",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:05.024Z"
+    },
+    {
+      "id": "JSON-reject-unknown-field",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:05.027Z"
+    },
+    {
+      "id": "missing-startup",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:05.028Z"
+    },
+    {
+      "id": "missing-completion",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:05.032Z"
+    },
+    {
+      "id": "conditional-child-withdrawal-stops-generation-but-waits-actual-SQL",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:05.034Z",
+      "observed": [
+        "stopping",
+        "write-completed",
+        "native-closed:clean"
+      ]
+    },
+    {
+      "id": "private-guard-identity-and-live-generation-reuse-rejected",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:05.101Z"
+    },
+    {
+      "id": "borrowed-service-does-not-own-native-handle",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:05.149Z"
+    }
+  ],
+  "exit_code": 0,
+  "ended": "2026-10-05T07:30:05.161Z"
+}

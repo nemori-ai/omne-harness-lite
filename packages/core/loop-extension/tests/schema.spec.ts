@@ -1,3 +1,4 @@
+import { assertLoopSchemaTransition } from './schema-transition.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
@@ -7,7 +8,7 @@ import schema from '@omne-harness-lite/loop-extension/schema' with { type: 'json
 import fixture from './normative-examples.json' with { type: 'json' }
 
 describe('frozen normative instances', () => {
-  it('LE-FROZEN: LC6 full bytes and all 43 definitions', () => {
+  it('LE-FROZEN: original LC6 bytes, adopted AR-2 delta and all 43 definitions', () => {
     const local = readFileSync(new URL('../schema/loop-extension.schema.json', import.meta.url))
     const original = readFileSync(
       new URL(
@@ -15,8 +16,8 @@ describe('frozen normative instances', () => {
         import.meta.url,
       ),
     )
-    expect(local.equals(original)).toBe(true)
-    expect(createHash('sha256').update(local).digest('hex')).toBe(
+    assertLoopSchemaTransition(local, original)
+    expect(createHash('sha256').update(original).digest('hex')).toBe(
       '5c74a3d0827449f3eb32b0c4468c410c78ef9714026bfb0801d4c6e361858727',
     )
     expect(SCHEMA_DEF_NAMES).toHaveLength(43)

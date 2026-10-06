@@ -1,0 +1,1 @@
+{"ts":1791185407280,"level":"error","name":"tenancy-host","event":"startup-failed","stage":"manifest","item":"clock","errorType":"HostPluginPolicyError","message":"tenancy-host startup failed at manifest: plugin tree rejected","code":"duplicate-role","role":"clock"}

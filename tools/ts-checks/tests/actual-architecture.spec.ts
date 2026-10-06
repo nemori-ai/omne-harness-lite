@@ -45,6 +45,27 @@ function output(json: string): ActualArchitectureDocument {
   return JSON.parse(json) as ActualArchitectureDocument
 }
 describe('independent actual architecture protocol', { timeout: 60_000 }, () => {
+  it('assigns each source/data file once to its longest member prefix', () => {
+    const root = workspace(['packages/outer', 'packages/outer/src/nested', 'packages/outer-extra'])
+    member(root, 'packages/outer', '@test/outer', 'export const parent=1')
+    member(root, 'packages/outer/src/nested', '@test/nested', 'export const child=1')
+    member(root, 'packages/outer-extra', '@test/extra', 'export const extra=1')
+    write(root, 'packages/outer/src/nested/src/data.json', '{}')
+    const head = commit(root, 'nested members')
+    for (const revision of [undefined, head]) {
+      const members = readArchitectureSource(root, revision).members
+      expect(members.find(m => m.name === '@test/outer')?.sources).toEqual([
+        'packages/outer/src/index.ts',
+      ])
+      expect(members.find(m => m.name === '@test/nested')).toMatchObject({
+        sources: ['packages/outer/src/nested/src/index.ts'],
+        dataFiles: ['packages/outer/src/nested/src/data.json'],
+      })
+      expect(members.find(m => m.name === '@test/extra')?.sources).toEqual([
+        'packages/outer-extra/src/index.ts',
+      ])
+    }
+  })
   it('retains every helper invocation when argument strings contain memo delimiters', () => {
     const root = workspace()
     member(

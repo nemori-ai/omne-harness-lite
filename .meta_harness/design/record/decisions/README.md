@@ -2,6 +2,14 @@
 
 # 决定
 
+[治理客户端与 CLI 集成的限定产品接受](governance-clients-delivery/README.md)：R1-T3 公共定义、限定提供者、正式绑定与实际收场完成；插件树、领域验收与旧范式退役仍待。
+
+[T3 客户端集成坐标的限定采用](identity-t3-binding-coordinates/README.md)：公共工厂、双面绑定、拥有传输实例及 CLI 收尾；M05 与实际产品验收仍待。
+
+[身份与治理能力的限定产品接受](identity-capabilities-delivery/README.md)：R1-T2 公共定义、纯工厂、正式 Service 和真实宿主管理生命周期；业务及数据身份保持，T3/T4 与领域完成门继续开放。
+
+[kernel-basis 公共入口分面的限定采用](kernel-basis-entry-split-adoption/README.md)：R1-T1a 精确候选的纯根、Cordis 绑定及消费者迁移；业务语义保持，其他领域整改和验证设施缺口继续保留。
+
 [D-115：实际架构视图与就近薄规格](actual-architecture-and-thin-spec/README.md)：接受全局视图目标、维护边界及逐步退役方向，部分取代 D-112/113/114 的表达与路径前提；实际实现及迁移分别验收。
 
 [D-108：OpenRouter refusal 文本映射](openrouter-refusal-mapping-adoption/README.md)：采用 transport v14 revision 2 及局部投影；共享规格不升版，RF-V1–V9 和实际交付待验。
@@ -212,3 +220,5 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 [D-115：Moonshot 两叶空串文本段窄修复](moonshot-empty-text-adoption/README.md)（2026-10-03）：技术采用精确两叶、新实现修订的提供者规则；投影仍 /3，MV5 与修后真实调用待执行。
 
 [D-116：固定Schema构建期生成与原生文本校验](fixed-schema-precompile/README.md)（2026-10-03）：限定技术采用；先释放CB/messages/identity代表性实现，实际扩散门与全量迁移/性能/最终接受仍待；不改变契约或作者owner语义。
+
+2026-10-06：[共享机制投影的限定采用](identity-shared-mechanism-projection/README.md)接续保有关闭、六字段动态声明及两个精确 JSON 公开路径。原 main117 历史接受状态保持 Unknown，完整 R1-T5 验收仍待。

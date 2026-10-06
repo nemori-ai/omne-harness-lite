@@ -48,6 +48,7 @@ export function rewriteChangesImmutable(
         !exceptEqual(original.call, rewritten.call, ['arguments'])
       )
     case 'after_action': {
+      if (original.outcome === 'denied') return !equal(original, rewritten)
       if (!exceptEqual(original, rewritten, ['result'])) return true
       if (!Object.hasOwn(rewritten, 'result')) return false
       const result = rewritten.result

@@ -3,18 +3,18 @@ import { registryHistoryBoundary } from '../src/rules/registry-history-boundary.
 const entry = '@omne-harness-lite/evaluation-input-store/registry-history'
 const factory = `import {createRegistryHistoryReader as create} from '${entry}'; const reader = create(deps)`
 const bootstrap = 'examples/model-invocation-minimal-demo/src/bootstrap.ts'
-const registry = 'packages/tools/asset-registry/src/registry.ts'
+const registry = 'packages/tools/asset-registry-local/src/registry.ts'
 test.each([
   bootstrap,
   'examples/model-invocation-minimal-demo/tests/chain.ts',
-  'packages/tools/asset-registry/tests/real.spec.ts',
+  'packages/tools/asset-registry-local/tests/real.spec.ts',
   'packages/assets/evaluation-input-store/tests/history.spec.ts',
 ])('only trusted construction path %s admits the actual factory', path => {
   expect(registryHistoryBoundary.check([{ path, text: factory }])).toEqual([])
 })
 test.each([
   registry,
-  'packages/model/model-request-runtime/src/index.ts',
+  'packages/model/model-request-runtime-local/src/index.ts',
   'packages/model/pi-ai-transport/src/index.ts',
   'apps/other/tests/chain.ts',
   'tools/probe/src/index.ts',
@@ -59,7 +59,7 @@ test('TS-resolved private aliases do not bypass the public entry', () => {
 })
 
 test('D106 permits runner read types and real source acceptance construction, never production factory ownership', () => {
-  const source = 'packages/agent-loop/loop-extension-runner/src/runner-chain.ts'
+  const source = 'packages/agent-loop/loop-extension-runner-local/src/runner-chain.ts'
   expect(
     registryHistoryBoundary.check([
       { path: source, text: `import type {RegistryHistoryReader} from '${entry}'` },
@@ -69,7 +69,7 @@ test('D106 permits runner read types and real source acceptance construction, ne
   expect(
     registryHistoryBoundary.check([
       {
-        path: 'packages/agent-loop/loop-extension-runner/tests/runner-chain-support.ts',
+        path: 'packages/agent-loop/loop-extension-runner-local/tests/runner-chain-support.ts',
         text: factory,
       },
     ]),

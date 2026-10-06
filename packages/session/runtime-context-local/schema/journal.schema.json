@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite/schema/runtime-context-local/1",
+  "$defs": {
+    "Registration": {
+      "$ref": "https://omne-harness-lite/schema/runtime-context/1#/$defs/Registration"
+    },
+    "Value": {
+      "$ref": "https://omne-harness-lite/schema/runtime-context/1#/$defs/Value"
+    },
+    "Seed": {
+      "$ref": "https://omne-harness-lite/schema/runtime-context/1#/$defs/Seed"
+    },
+    "Event": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "codec": {
+              "const": "runtime-context/1"
+            },
+            "scope": {
+              "type": "object",
+              "properties": {
+                "tenant": {
+                  "type": "object",
+                  "properties": {
+                    "organization": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "account": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "organization",
+                    "account"
+                  ],
+                  "additionalProperties": false
+                },
+                "session": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "tenant",
+                "session"
+              ],
+              "additionalProperties": false
+            },
+            "revision": {
+              "type": "string",
+              "minLength": 1
+            },
+            "previous": {
+              "type": "string",
+              "minLength": 1
+            },
+            "kind": {
+              "const": "session_initialized"
+            },
+            "seed": {
+              "$ref": "#/$defs/Seed"
+            }
+          },
+          "required": [
+            "codec",
+            "scope",
+            "revision",
+            "previous",
+            "kind",
+            "seed"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "codec": {
+              "const": "runtime-context/1"
+            },
+            "scope": {
+              "type": "object",
+              "properties": {
+                "tenant": {
+                  "type": "object",
+                  "properties": {
+                    "organization": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "account": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "organization",
+                    "account"
+                  ],
+                  "additionalProperties": false
+                },
+                "session": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "tenant",
+                "session"
+              ],
+              "additionalProperties": false
+            },
+            "revision": {
+              "type": "string",
+              "minLength": 1
+            },
+            "previous": {
+              "type": "string",
+              "minLength": 1
+            },
+            "kind": {
+              "const": "registered"
+            },
+            "registration": {
+              "$ref": "#/$defs/Registration"
+            }
+          },
+          "required": [
+            "codec",
+            "scope",
+            "revision",
+            "previous",
+            "kind",
+            "registration"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "codec": {
+              "const": "runtime-context/1"
+            },
+            "scope": {
+              "type": "object",
+              "properties": {
+                "tenant": {
+                  "type": "object",
+                  "properties": {
+                    "organization": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "account": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "organization",
+                    "account"
+                  ],
+                  "additionalProperties": false
+                },
+                "session": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "tenant",
+                "session"
+              ],
+              "additionalProperties": false
+            },
+            "revision": {
+              "type": "string",
+              "minLength": 1
+            },
+            "previous": {
+              "type": "string",
+              "minLength": 1
+            },
+            "kind": {
+              "const": "removed"
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "codec",
+            "scope",
+            "revision",
+            "previous",
+            "kind",
+            "key"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "codec": {
+              "const": "runtime-context/1"
+            },
+            "scope": {
+              "type": "object",
+              "properties": {
+                "tenant": {
+                  "type": "object",
+                  "properties": {
+                    "organization": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "account": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "organization",
+                    "account"
+                  ],
+                  "additionalProperties": false
+                },
+                "session": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "tenant",
+                "session"
+              ],
+              "additionalProperties": false
+            },
+            "revision": {
+              "type": "string",
+              "minLength": 1
+            },
+            "previous": {
+              "type": "string",
+              "minLength": 1
+            },
+            "kind": {
+              "const": "updated"
+            },
+            "content": {
+              "$ref": "#/$defs/Value"
+            }
+          },
+          "required": [
+            "codec",
+            "scope",
+            "revision",
+            "previous",
+            "kind",
+            "content"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

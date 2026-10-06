@@ -11,17 +11,14 @@ import {
   type ContentBlock,
 } from '@omne-harness-lite/content-blocks'
 import type { Message } from '@omne-harness-lite/messages'
-import {
-  invokeModel,
-  type PlanInput,
-  type TransportAdapter,
-} from '@omne-harness-lite/model-request-runtime'
-import type { RawResponse } from '../src/http.ts'
-import type { PlannedRequest } from '../src/plan.ts'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput, type TransportAdapter } from '@omne-harness-lite/model-request-runtime'
+import type { RawResponse } from '@omne-harness-lite/model-request-runtime'
+import type { PlannedRequest } from '@omne-harness-lite/model-request-runtime'
 
 type ModelTransport = TransportAdapter<PlannedRequest, RawResponse>
 import { createOfficialProfileContent } from '../src/configuration.ts'
-import type { InputMeter } from '../src/input-meter.ts'
+import type { InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { createDeepSeekV4ProInputMeter } from '../src/input-meters/deepseek-v4-pro.ts'
 import { createDeepSeekV41FlashInputMeter } from '../src/input-meters/deepseek-v41-flash.ts'
 import {
@@ -30,7 +27,8 @@ import {
   deepseekV41FlashConfiguration,
   deepseekV41FlashDefinition,
 } from '../src/official-models/deepseek.ts'
-import { createModelPlugin, MODEL_TRANSPORT_SERVICE } from '../src/plugin.ts'
+import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
+import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 import { createModelTransportService } from '../src/registry.ts'
 import { createPiAiTransport } from '../src/transport.ts'
 import {
@@ -245,7 +243,7 @@ describe.each(cases)(
           },
         }
         await ctx.plugin(provider)
-        await ctx.plugin(createModelPlugin(definition, bound, retirement), {})
+        await createModelPlugin(ctx, definition, bound, retirement)
         const initial = request()
         const acquired = service.acquire(initial.snapshot.adaptation, initial.routeName)
         if (!('lease' in acquired)) throw Error('registered DeepSeek adaptation unavailable')

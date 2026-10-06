@@ -2,7 +2,8 @@ import { execFile } from 'node:child_process'
 import { readFile, readdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
-import { parseMaintenanceCommand, runMaintenanceCommand } from '../src/maintenance-command.ts'
+import { createMaintenanceCommands } from '../src/maintenance-assembly.ts'
+const { parse: parseMaintenanceCommand, run: runMaintenanceCommand } = createMaintenanceCommands()
 import { deployment } from './support/deployment.ts'
 import { Hosts } from './support/host.ts'
 

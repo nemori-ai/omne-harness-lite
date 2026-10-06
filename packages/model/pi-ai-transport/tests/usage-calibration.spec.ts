@@ -9,7 +9,8 @@ import { canonicalProjection, INPUT_PROJECTION_REVISION, projectOutput } from '.
 import { createReadFactsAccumulator } from '../src/read-facts.ts'
 import { anthropicDefinitions } from '../src/official-models/anthropic.ts'
 import { createAnthropicInputMeter } from '../src/input-meters/anthropic.ts'
-import { planRequest, type PlannedRequest } from '../src/plan.ts'
+import { planRequest } from '../src/plan.ts'
+import { type PlannedRequest } from '@omne-harness-lite/model-request-runtime'
 import { input, message, at, judgedMessage } from './support.ts'
 import { testDefinitions } from './definitions.ts'
 import { syntheticInputMeter } from './synthetic-input-meter.ts'
@@ -84,10 +85,12 @@ describe('response calibration actual planner', () => {
   it('signed contributions and one margin; never tokenizes anchor; content/basis changes full', async () => {
     const base = syntheticInputMeter(testDefinitions[0]!, 'openai')
     const full = vi.fn(base.measureFull)
-    const delta = vi.fn((_input: import('../src/input-meter.ts').MarginalMeterInput) => ({
-      kind: 'estimated' as const,
-      tokens: -3,
-    }))
+    const delta = vi.fn(
+      (_input: import('@omne-harness-lite/model-request-runtime').MarginalMeterInput) => ({
+        kind: 'estimated' as const,
+        tokens: -3,
+      }),
+    )
     const meter = { ...base, measureFull: full, measureNew: delta }
     const first = await plan(input(), testDefinitions, meter)
     const request = {

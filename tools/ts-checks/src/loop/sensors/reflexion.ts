@@ -61,9 +61,23 @@ export function compareRevisions(
   const current = extractArchitecture(head),
     headNodes = readIntents(head, nodeRoot)
   const baseNodes = base === undefined ? undefined : readIntents(base, nodeRoot)
+  return compareObserved(
+    current,
+    headNodes,
+    base === undefined ? undefined : extractArchitecture(base),
+    baseNodes,
+    nodeRoot,
+  )
+}
+export function compareObserved(
+  current: IntentImplementation,
+  headNodes: readonly IntentNode[],
+  base: IntentImplementation | undefined,
+  baseNodes: readonly IntentNode[] | undefined,
+  nodeRoot: string,
+): Reflexion {
   const comparison = compareArchitecture(current, baseNodes ?? headNodes)
-  const baseline =
-    base === undefined ? undefined : compareArchitecture(extractArchitecture(base), baseNodes ?? [])
+  const baseline = base === undefined ? undefined : compareArchitecture(base, baseNodes ?? [])
   const historical = new Set(
     baseline?.comparisons.filter(item => item.state === 'deviation').map(item => item.id),
   )

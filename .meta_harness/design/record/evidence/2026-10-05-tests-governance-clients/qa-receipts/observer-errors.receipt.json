@@ -1,0 +1,31 @@
+{
+  "base": "beef18017170eb70cae2c6bf3afb121b18a0139e",
+  "commit": "7df742c4b7b0c5d735da2245605be682b6a35f7c",
+  "working_tree": "clean-candidate",
+  "candidate_input_manifest": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/inputs/candidate-tracked-before.json",
+  "run_id": "observer-errors",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "argv": [
+    "/data/qiwei/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
+    "--experimental-import-meta-resolve",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/scenarios/observer-errors.mjs",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/observer-errors",
+    "candidate"
+  ],
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone",
+  "started": "2026-10-05T00:58:39.877Z",
+  "ended": "2026-10-05T00:58:40.343Z",
+  "duration_ms": 465.2433209999999,
+  "timeout_ms": 120000,
+  "timed_out": false,
+  "exit_code": 0,
+  "signal": null,
+  "input_files": [
+    {
+      "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/scenarios/observer-errors.mjs",
+      "sha256": "5d56086a2ad9e15e259bb14ac9a43277765c752947efbedb3aa4005fdad82f0c"
+    }
+  ],
+  "actual_executor": "qa:/root/r1_t1a_candidate_qa"
+}

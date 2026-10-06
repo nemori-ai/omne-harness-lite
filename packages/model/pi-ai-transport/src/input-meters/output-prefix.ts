@@ -1,7 +1,7 @@
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import type { InputProjection } from '../projection.ts'
+import type { InputProjection } from '@omne-harness-lite/model-request-runtime'
 import { prefixDigest } from '../projection.ts'
-import type { NewMeterInput, ReplayMeterInput } from '../input-meter.ts'
+import type { NewMeterInput, ReplayMeterInput } from '@omne-harness-lite/model-request-runtime'
 import type { OutputGroupSource } from './output-history.ts'
 
 interface PrefixFact {

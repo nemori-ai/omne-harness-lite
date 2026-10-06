@@ -1,0 +1,95 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Warning: Please run the Java VM, which executes TLC with a throughput optimized garbage collector, by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 126 and seed -2660661817331828360 with 1 worker on 8 cores with 7824MB heap and 64MB offheap memory [pid: 134325] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/formal-base/ai-commit-bad-observer/LoginCommit.tla
+Parsing file /tmp/tlc-9095319212032212711/Naturals.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-9095319212032212711/TLC.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-9095319212032212711/_TLCTrace.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/_TLCTrace.tla)
+Parsing file /tmp/tlc-9095319212032212711/Sequences.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-9095319212032212711/FiniteSets.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-9095319212032212711/TLCExt.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLCExt.tla)
+Parsing file /tmp/tlc-9095319212032212711/Integers.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Integers
+Semantic processing of module TLCExt
+Semantic processing of module _TLCTrace
+Semantic processing of module LoginCommit
+Linting of module TLCExt
+Linting of module _TLCTrace
+Linting of module LoginCommit
+Starting... (2026-10-04 18:20:33)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-04 18:20:33.
+Error: Invariant NoObservedRevival is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ pending = 0
+/\ now = 0
+/\ lastSuccess = 0
+/\ effects = 0
+/\ phase = "idle"
+/\ pendingEffect = 0
+/\ observedExpired = FALSE
+
+State 2: <Tick line 9, col 9 to line 10, col 93 of module LoginCommit>
+/\ pending = 0
+/\ now = 1
+/\ lastSuccess = 0
+/\ effects = 0
+/\ phase = "idle"
+/\ pendingEffect = 0
+/\ observedExpired = FALSE
+
+State 3: <Admit line 11, col 10 to line 12, col 92 of module LoginCommit>
+/\ pending = 0
+/\ now = 1
+/\ lastSuccess = 0
+/\ effects = 0
+/\ phase = "running"
+/\ pendingEffect = 0
+/\ observedExpired = FALSE
+
+State 4: <Stage(TRUE) line 15, col 14 to line 18, col 72 of module LoginCommit>
+/\ pending = 1
+/\ now = 1
+/\ lastSuccess = 0
+/\ effects = 0
+/\ phase = "staged"
+/\ pendingEffect = 1
+/\ observedExpired = FALSE
+
+State 5: <Tick line 9, col 9 to line 10, col 93 of module LoginCommit>
+/\ pending = 1
+/\ now = 2
+/\ lastSuccess = 0
+/\ effects = 0
+/\ phase = "staged"
+/\ pendingEffect = 1
+/\ observedExpired = FALSE
+
+State 6: <Observe line 25, col 12 to line 27, col 84 of module LoginCommit>
+/\ pending = 1
+/\ now = 2
+/\ lastSuccess = 0
+/\ effects = 0
+/\ phase = "staged"
+/\ pendingEffect = 1
+/\ observedExpired = TRUE
+
+State 7: <Commit line 19, col 11 to line 21, col 71 of module LoginCommit>
+/\ pending = 1
+/\ now = 2
+/\ lastSuccess = 1
+/\ effects = 1
+/\ phase = "idle"
+/\ pendingEffect = 1
+/\ observedExpired = TRUE
+
+175 states generated, 66 distinct states found, 23 states left on queue.
+The depth of the complete state graph search is 7.
+Finished in 00s at (2026-10-04 18:20:33)
+Trace exploration spec path: ./LoginCommit_TTrace_1791138032.tla

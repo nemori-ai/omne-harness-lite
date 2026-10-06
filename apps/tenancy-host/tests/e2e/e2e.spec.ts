@@ -1772,7 +1772,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
       const waiting = records.filter(
         r =>
           r['level'] === 'warn' &&
-          r['name'] === 'clock' &&
+          r['name'] === 'clock-lease' &&
           Number(r['ts']) <= Number(serving?.['ts']),
       )
       expect(waiting.length, '工程记录里看得见开闸之前的等钟').toBeGreaterThan(0)

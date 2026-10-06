@@ -14,11 +14,11 @@ const file = (path: string, text: string): SourceFile => ({ path, text })
 describe('no-wall-clock', () => {
   it('CG1显示时刻仅豁免具名文件，其余frontend和领域文件仍报错', () => {
     const observation = file(
-      'frontend/governance-client-operations/src/observation-time.ts',
+      'frontend/governance-client-operations-local/src/observation-time.ts',
       'new Date()',
     )
-    const action = file('frontend/governance-client-operations/src/actions.ts', 'new Date()')
-    const domain = file('tenancy/account-identity/src/observation-time.ts', 'new Date()')
+    const action = file('frontend/governance-client-operations-local/src/actions.ts', 'new Date()')
+    const domain = file('tenancy/account-identity-sql/src/observation-time.ts', 'new Date()')
     expect(noWallClock.check([observation, action, domain]).map(x => x.path)).toEqual([
       action.path,
       domain.path,
@@ -26,10 +26,13 @@ describe('no-wall-clock', () => {
   })
 
   it('产品源码用 Date.now() ⇒ 报出；infra/clock 与测试豁免', () => {
-    const bad = file('tenancy/organization-governance/src/offers.ts', 'const t = Date.now()\n')
+    const bad = file('tenancy/organization-governance-sql/src/offers.ts', 'const t = Date.now()\n')
     const clockImpl = file('infra/clock/src/clock.ts', 'wall: () => Date.now()\n')
-    const test = file('tenancy/organization-governance/tests/x.spec.ts', 'Date.now()\n')
-    const clean = file('tenancy/organization-governance/src/offers.ts', 'const t = clock.now()\n')
+    const test = file('tenancy/organization-governance-sql/tests/x.spec.ts', 'Date.now()\n')
+    const clean = file(
+      'tenancy/organization-governance-sql/src/offers.ts',
+      'const t = clock.now()\n',
+    )
     expect(noWallClock.check([bad])).toMatchObject([
       { rule: 'no-wall-clock', path: bad.path, line: 1 },
     ])
@@ -39,8 +42,11 @@ describe('no-wall-clock', () => {
 
 describe('no-bail-control', () => {
   it('ctx.bail( ⇒ 报出；serial 不报', () => {
-    const bad = file('tenancy/account-identity/src/plugin.ts', "const vetoed = ctx.bail('x', 1)\n")
-    const clean = file('tenancy/account-identity/src/plugin.ts', "await ctx.serial('x', 1)\n")
+    const bad = file(
+      'tenancy/account-identity-sql/src/plugin.ts',
+      "const vetoed = ctx.bail('x', 1)\n",
+    )
+    const clean = file('tenancy/account-identity-sql/src/plugin.ts', "await ctx.serial('x', 1)\n")
     expect(noBailControl.check([bad])).toHaveLength(1)
     expect(noBailControl.check([clean])).toEqual([])
   })
@@ -49,22 +55,22 @@ describe('no-bail-control', () => {
 describe('restricted-call-sites', () => {
   it('account-registration 之外调 accounts.produce( 或解析 organization-purge ⇒ 报出', () => {
     const badProduce = file(
-      'tenancy/organization-governance/src/x.ts',
+      'tenancy/organization-governance-sql/src/x.ts',
       'await accounts.produce(id, cred)\n',
     )
     const badPurge = file(
-      'apps-ish/tenancy/account-identity/src/x.ts',
+      'apps-ish/tenancy/account-identity-sql/src/x.ts',
       "ctx.get('organization-purge')\n",
     )
     const okRegistration = file(
-      'tenancy/account-registration/src/register.ts',
+      'tenancy/account-registration-sequential/src/register.ts',
       "accounts.produce(a, b); ctx.get('organization-purge')\n",
     )
     const okOwner = file(
-      'tenancy/organization-governance/src/index.ts',
+      'tenancy/organization-governance-sql/src/index.ts',
       "export const ORGANIZATION_PURGE_SERVICE = 'organization-purge' as const\n",
     )
-    const okAiOwner = file('tenancy/account-identity/src/accounts.ts', 'produce(a, b) { }\n')
+    const okAiOwner = file('tenancy/account-identity-sql/src/accounts.ts', 'produce(a, b) { }\n')
     expect(restrictedCallSites.check([badProduce, badPurge])).toHaveLength(2)
     expect(restrictedCallSites.check([okRegistration, okOwner, okAiOwner])).toEqual([])
   })
@@ -73,15 +79,15 @@ describe('restricted-call-sites', () => {
 describe('no-testing-import', () => {
   it('产品源码 import ./testing ⇒ 报出；测试文件豁免', () => {
     const bad = file(
-      'tenancy/account-identity/src/plugin.ts',
+      'tenancy/account-identity-sql/src/plugin.ts',
       "import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'\n",
     )
     const test = file(
-      'tenancy/account-identity/tests/x.spec.ts',
+      'tenancy/account-identity-sql/tests/x.spec.ts',
       "import { testClock } from '@omne-harness-lite/offer-expiry/testing'\n",
     )
     const clean = file(
-      'tenancy/account-identity/src/plugin.ts',
+      'tenancy/account-identity-sql/src/plugin.ts',
       "import { definePlugin } from '@omne-harness-lite/kernel-basis'\n",
     )
     expect(noTestingImport.check([bad])).toHaveLength(1)

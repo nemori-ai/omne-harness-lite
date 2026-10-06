@@ -1,0 +1,75 @@
+# N4 独立 L3 实施评审：修复复核
+
+评审仓库：`/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent`。
+基线：`92b4e7dec8c066655992662820b38b0eb96ea089`。
+本次最终阅读候选：`c8b4539aef5a17762b7f71bd10ce02db05635edb`。
+接受级别：L3。日期：2026-10-04 UTC。
+
+本报告接续 [首轮报告](review-8c06386a.md)，保留首轮失败原文。已逐项重核 `8c06386a → c8b4539a` 的全部 20 个修复文件。初轮的 2 项阻断已关闭；增量评审发现的 1 项检查器误判也已关闭。源码审阅覆盖和边界见下文；本报告不接受交付。
+
+## 工具一览
+
+首轮完整命令及输出见首轮报告。本表补充修复复核。带“读取”者是本次读取主线实际输出，不声称由评审者执行。
+
+| 入口 | 命令或读取动作 | 结果 | 证据 |
+|---|---|---|---|
+| 范围与逐提交 | `git diff --name-status -M BASE c8b4539a`、`git diff -M 8c06386a c8b4539a`、`git log --format=fuller --name-status 8c06386a..c8b4539a` | 退出 0；修复增量 20 文件，无新增业务政策 | `closeout-files.log`、`closeout-diff.log`、`closeout-commits.log` |
+| 工作树 | `git status --porcelain=v1` | 退出 0，c8b4539a 干净 | `closeout-position.log` |
+| 原 TS2305 修复 | `pnpm --dir packages/model/pi-ai-transport exec tsc -p tsconfig.build.json --noEmit`，在 6cedab32 | 退出 0；后续该生产声明未变 | `r2-transport-typecheck.log`、`closeout-diff.log` |
+| 新架构类型检查 | `pnpm --dir tools/ts-checks exec tsc -p tsconfig.build.json --noEmit`，在 62d8a3f4 | 退出 0；c8 只改四份 fixture | `final-tools-typecheck.log`、`final-command-index.json` |
+| 精确来源配对用例 | `pnpm --dir tools/ts-checks exec vitest run tests/architecture-conformance.spec.ts`，在 62d8a3f4 | 退出 0，18 用例通过 | `final-architecture-test.log` |
+| 独立同一行反例 | `node --experimental-strip-types tmp/arch-intent/n4/implementation-review/probe-same-line.mts`，在 62d8a3f4 | 退出 0；Context 指向未标注 B 时正确为 deviation | `probe-same-line.mts`、`same-line-probe.log`、`final-same-line-probe.log` |
+| 仓库规则 | `pnpm run lint:rules`，在 62d8a3f4 | 退出 0；27 包规则、8 仓库规则、1009 提交，无违反。c8 提交的人类署名及两 trailer 已读 | `final-rules.log`、`final-command-index.json`、`closeout-commits.log` |
+| 冻结资源与热点 | 比较 BASE、8c、62d 的 SHA-256；`git diff --exit-code BASE 62d -- .meta_harness/design/spec .meta_harness/design/registry/formal-tasks.json` | 16/16 热点同字节；冻结差异退出 0；历史输入恢复为 BASE。c8 仅 fixture 差异 | `final-fix-verification.json`、`closeout-diff.log` |
+| 结构初读数 | 首轮 `make metrics BASE=92b4e7dec8c066655992662820b38b0eb96ea089 OUT=tmp/arch-intent/n4/implementation-review/metrics` | 143 个超线函数字节在 BASE 原样存在；不将这份审计用作后续工具新函数的证据 | `metrics/summary.md`、`red-function-baseline-audit.json` |
+| 修复后真实组合 | 读取主线 transport、host 和 demo 复跑原日志 | transport 2、host 18、demo 4 文件 25 用例，以及架构/抽取 56 用例通过；这是读取结果 | `../plan/transport-anchored-r2.log`、`../plan/host-lifecycle-r2.log`、`../plan/demo-consumer-guards-r2.log`、`../plan/tools-pairing-final-r3.log` |
+| 工具函数结构 | 读取主线调用仓库 functionMetrics 的 before/after 结果 | `discoverAugmentation` CC 18→25；`checkDefinitions` 17→19；新增 `serviceDefinition` CC 9。增长已逐项说明 | `../plan/tool-function-metrics.json` |
+| 最终整洁回路 | 读取 `node --experimental-strip-types tools/ts-checks/src/loop/cli.ts --base BASE --out tmp/arch-intent/n4/loop-62d8 --strict` 输出 | make 非零；唯一硬线无数据为默认验收账本路径，方向/环均 0、验收锁未破、删卡齐。实际 scoped 验收账本存在且通过 | `../plan/loop-final-r1.log`、`../loop-62d8/status.json` |
+| CLI 验收 | 读取 `../gates/acceptance-62d8a3f4/ledger.json` 与 summary | 精确 62d 干净检出，1 文件、5 用例、exitCode 0；c8 只改 demo fixture | `../gates/acceptance-62d8a3f4/ledger.json` |
+| 旧形式实际输出 | 读取原模型输入、原始 TLC 日志及 results，再按 archive SHA 与当前模型逐项核对；未运行 TLC | ACK 24 文件归档摘要全部匹配；5 个 OG2/RT12 主模型/配置与原运行输入同字节 | `formal-evidence-read.json` |
+
+## 阻断
+
+**本次范围内未发现阻断问题。**受影响批次仍有未完成的归因，不能据此宣称全批验证通过或接受交付。
+
+- **IR-1 已关闭**：`TokenMargin` 转导出迁到 `model-request-runtime-local`。独立 noEmit 编译由 TS2305 变为退出 0；没有给纯 retry 包增兼容导出。
+- **IR-2 已关闭**：历史 `content-blocks/package.json` 恢复到 BASE 原字节。`final-fix-verification.json` 记录 exact equality，旧失败证据保留。
+
+## 非阻断
+
+当前没有未关闭的非阻断源码发现。
+
+**IR-3 已关闭**，对应检查表第 5、10 问。6ced/eef 的类来源只以 path/line 配对。实际负例在同一行定义带 contract 的 A 与未标注的 B，并令 Context.data 指向 B；当时 Context 行错误显示 converged，B 本身和 IC-1 仍偏离，因此不是全局检查绕过。62d 改为同成员、同键、同文件、同位置 offset、同 symbol 精确配对。原独立 probe 现显示 Context/B 两行 deviation，A converged；新增同一行不同名和 namespace 内同短名两负例，18 项测试实际通过。原事实行保留，不靠删除 Context 事实降低 IC 读数。
+
+## 范围外待裁决
+
+无新增业务政策问题。Session scope 仍是候选设计；其方向与表达归设计评审，不因本次工具/源码检查而接受。旧 OG3 及未迁 ACK/数据协议保持原身份，本评审未推进 N5。
+
+## 测试变化、热点与形式证据
+
+检查表第 1–20 问的首轮逐项覆盖继续以首轮报告为准，修复没有改动其中业务热点。增量还逐行读了架构事实形状、抽取与 IC-1/IC-3 配对逻辑，以及所有改动测试。
+
+- `organizations.spec.ts` 保持精确方法集合，只显式加入 Service 的 ctx/name 元数据。host 清单仍要求恰一个 account-registration 消费者，服务键机械迁到 `organizationPurge`。
+- host CV 换代用例改比对 `symbols.original` 的底层服务对象，仍使用严格 `toBe`。本次读取本地官方 Cordis 4.0.4 `src/utils.ts:173–175`：调用方代理在该符号上返回原 target。原服务方法、fiber 状态和开关门断言未删除。主线已明确认可这些 Service 形状适配。
+- 四个 demo fixture 把 get 结果声明为 `MembershipsService | undefined`，并显式在缺席时 throw，再进入原流程；没有使用断言、默认对象或删掉就绪检查。原 TS2322 输出保留，主线 `demo-typecheck-r2.log` 已无诊断；改动四文件复跑 25 用例全部通过，日志没有 skip。
+- import、vi.mock、README 读者、运行 fixture 和 fingerprint 都改向新拥有者；fingerprint 增加新 core retry 闭包。没有改已有业务断言的期望值以容忍不同业务结果，也没有新 skip。
+- 首轮逐行阅读的租户传播、StorageUnit 参与异常回滚、SQL 换代、ACK/recovery/停止热点仍与 BASE 同字节。原独立治理故障/参与/替换 13 项实际通过；其中租户与同一提交保证仍受原精确条款约束。
+
+第 20 问：主线 `formal-trigger-and-reuse.json` 对 62d 明示 0 个新增/变化模型和 0 次本轮模型运行。这个判断与本次冻结 diff 相符。本评审实际读取并核对的历史结论只有：
+
+1. OG2 Membership 对应 2026-09-22 的原输入，TLA/cfg 同字节；原 TLC 日志为 19 generated、7 distinct、0 left。负配置原日志明确违反 `AtLeastOneSuperAdministrator`。此模型只有两个 actor、假设 Serialized=TRUE，不承诺进展，不证明真实数据库或 Service 生命周期。
+2. RT12 AckLifecycle/AckProgress 对应 2026-09-29 formal-run-03，24 份归档文件 SHA 全匹配。主 TLA 与两 cfg 和当前 RT12 同字节；原 results 记录两个正例 exit 0、八个负例 exit 12，原日志为 6688 generated、2124 distinct。只有两 calls、两 consumers；进展依赖 FairSpec 的原公平性假设，不外推真实 IO、身份校验或任意实现。
+
+结构补充：默认 metrics 不采 tools，主线另用同一个 functionMetrics 实测新增工具逻辑，未把此缺口写成“无红项”。主线保留复杂度增长的理由是同一次 AST 遍历建立真实 Service 类型来源，并在同成员、同键、唯一声明位置匹配；interface-only、错键、同一行不同名、namespace 同短名、重复类有正反例。未提出无行为价值的拆分。loop 的业务超线和 `observedFacts` 同名歧义由 143 函数字节审计解释；其余跨成员边、克隆和架构 gap 是显式迁移读数，不因本轮实施评审消失。
+
+没有把 2026-09-30 v-next 候选运行冒充冻结 RT12 运行。其余 111 资源盘点只用于输入未变，不当作本轮运行或已读取验证输出。新 Service 接缝由实际 Cordis/SQL 测试支持，原模型不能替代它。
+
+## 未覆盖与待补结果
+
+- 全仓 `make check`、PG、分布式部署、全部模型和模型基准没有运行；任务明确限定手算影响范围。
+- 主线 16 成员批次曾有 host 键/代理比较失败、transport fixture 装载失败，已见明确源码归因及定点复跑。demo 完整批次与两条冷恢复 timeout 的归因尚在主线处理，本报告不把“仍在跑”或单次重跑写成全批通过。
+- 最终 loop strict 输出因默认验收账本路径缺记录而非零；本评审读取了精确 62d 的 scoped 验收账本，不能把 loop 非零写成通过。两处工具函数复杂度增长已披露并解释，不属于未交代红项；原 143 函数字节审计只适用于旧业务函数。
+- 未通读既有 runtime 所有分支与整个脱敏算法。已读热点、具体行段和同字节依据见首轮报告。
+- A1–A7 的独立接受测试归 QA，最终接受归派发者。报告不替代其判断。
+
+评审者全程未写 tracked 文件或现有测试，未安装依赖、提交、切换分支/工作树或继续委派。所有报告和辅助 probe 仅落在获准的 `tmp/arch-intent/n4/implementation-review/`。宿主没有路径写保护；只读边界由指令约束执行。

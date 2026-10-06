@@ -1,0 +1,25 @@
+{
+  "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+  "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+  "run_id": "independent-evidence-readback-r2",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "argv": [
+    "python3",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/evidence-readback.py",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123"
+  ],
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+  "started": "2026-10-05T07:57:45.570Z",
+  "ended": "2026-10-05T07:57:47.050Z",
+  "duration_ms": 1478.7288489999999,
+  "timeout_ms": 120000,
+  "timed_out": false,
+  "exit_code": 0,
+  "signal": null,
+  "input_files": [
+    {
+      "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/evidence-readback.py",
+      "sha256": "eb19e0d8535d793bcf81fc9a953b5715efa1fda0a605e4f145653cd6db9c35eb"
+    }
+  ]
+}

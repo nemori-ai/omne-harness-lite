@@ -14,16 +14,16 @@ function ownSource(path: string): boolean {
 function valueAllowed(path: string): boolean {
   return (
     path === 'examples/model-invocation-minimal-demo/src/bootstrap.ts' ||
-    /^packages\/agent-loop\/loop-extension-runner\/tests\/.+\.ts$/u.test(path) ||
-    /^packages\/tools\/asset-registry\/tests\/.+\.ts$/u.test(path) ||
+    /^packages\/agent-loop\/loop-extension-runner-local\/tests\/.+\.ts$/u.test(path) ||
+    /^packages\/tools\/asset-registry-local\/tests\/.+\.ts$/u.test(path) ||
     /^examples\/model-invocation-minimal-demo\/tests\/.+\.ts$/u.test(path)
   )
 }
 function typeAllowed(path: string): boolean {
   return (
     valueAllowed(path) ||
-    /^packages\/tools\/asset-registry\/src\/.+\.ts$/u.test(path) ||
-    /^packages\/agent-loop\/loop-extension-runner\/src\/.+\.ts$/u.test(path)
+    /^packages\/tools\/asset-registry-local\/src\/.+\.ts$/u.test(path) ||
+    /^packages\/agent-loop\/loop-extension-runner-local\/src\/.+\.ts$/u.test(path)
   )
 }
 function restricted(file: SourceFile, specifier: string): boolean {

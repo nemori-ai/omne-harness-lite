@@ -1,0 +1,9 @@
+{
+  "original": "qa-receipts/current-conformance.stdout",
+  "storage": "qa-receipts/current-conformance.stdout.gz",
+  "original_bytes": 31390045,
+  "original_sha256": "7b6e8e522c134a73cf485479f6e0a4c19091e5b5ef33f60e9b81fc5605e20e77",
+  "compressed_bytes": 1033116,
+  "decompressed_readback_identical": true,
+  "original_preserved_in": "working task and complete external archive"
+}

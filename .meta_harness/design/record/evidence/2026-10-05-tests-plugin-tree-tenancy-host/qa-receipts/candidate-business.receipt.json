@@ -1,0 +1,27 @@
+{
+  "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+  "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+  "run_id": "candidate-business",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "argv": [
+    "node",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/business.mjs",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/business",
+    "candidate"
+  ],
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+  "started": "2026-10-05T07:39:47.856Z",
+  "ended": "2026-10-05T07:39:48.849Z",
+  "duration_ms": 991.3802700000001,
+  "timeout_ms": 120000,
+  "timed_out": false,
+  "exit_code": 0,
+  "signal": null,
+  "input_files": [
+    {
+      "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/business.mjs",
+      "sha256": "ec86d3bac9f4fdd82b0d555a8fcfb178fa46dd457ed6b76310eb56a16ca332ee"
+    }
+  ]
+}

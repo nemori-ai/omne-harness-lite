@@ -1,23 +1,22 @@
+import { loadTransport } from './cordis-assembly.ts'
 import { imagePreparation } from './image-transport-support.ts'
 import { Context } from '@deepseek-ai/cordis'
 import {
   createDiagnosticCollector,
   type DiagnosticCollectorConfig,
-  type DiagnosticEvent,
   type DiagnosticJournalStore,
   type DiagnosticRecord,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
+import { type DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
+import { createModelTransportService } from '@omne-harness-lite/pi-ai-transport'
 import {
-  createModelTransportService,
   type ModelDefinition,
   type ModelTransportService,
-  type RetirementPolicy,
-} from '@omne-harness-lite/pi-ai-transport'
-import {
-  createModelPlugin,
-  MODEL_TRANSPORT_SERVICE,
-  piAiTransportPlugin,
-} from '@omne-harness-lite/pi-ai-transport/plugin'
+} from '@omne-harness-lite/model-request-runtime'
+import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
+import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
+import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
+import { piAiTransportPlugin } from '@omne-harness-lite/pi-ai-transport/cordis'
 import { describe, expect, it } from 'vitest'
 import { testDefinitions } from './definitions.ts'
 import { syntheticInputMeter } from './synthetic-input-meter.ts'
@@ -470,7 +469,7 @@ describe('actual registry engineering diagnostics', () => {
     const ctx = new Context()
     const next = { ...definition, revision: `${definition.revision}-next` }
     try {
-      await ctx.plugin(piAiTransportPlugin, {
+      await loadTransport(ctx, {
         imagePreparation,
         policy: networkPolicy,
         retirement: policy(),
@@ -479,15 +478,14 @@ describe('actual registry engineering diagnostics', () => {
           { executionId: 'cordis-service' },
         ),
       })
-      const old = ctx.plugin(
-        createModelPlugin(definition, syntheticInputMeter(definition, 'openai'), policy()),
-        {},
+      const old = createModelPlugin(
+        ctx,
+        definition,
+        syntheticInputMeter(definition, 'openai'),
+        policy(),
       )
       await old
-      const newer = ctx.plugin(
-        createModelPlugin(next, syntheticInputMeter(next, 'openai'), policy()),
-        {},
-      )
+      const newer = createModelPlugin(ctx, next, syntheticInputMeter(next, 'openai'), policy())
       await newer
       const service: unknown = ctx.get(MODEL_TRANSPORT_SERVICE)
       if (

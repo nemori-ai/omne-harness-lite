@@ -3,10 +3,10 @@ import { dirname } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { Fiber } from '@deepseek-ai/cordis'
 import { generateHandoffKeyPair } from '@omne-harness-lite/identity-values'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import { StorageUnavailable } from '@omne-harness-lite/storage'
 import type { ModelCatalogRead } from '@omne-harness-lite/model-profile-directory'
-import { MODEL_CATALOG_SERVICE } from '@omne-harness-lite/model-profile-directory/plugin'
+import { MODEL_CATALOG as MODEL_CATALOG_SERVICE } from '@omne-harness-lite/model-profile-directory/cordis'
 import {
   createAcceptanceApplication,
   AcceptanceStartupFailure,

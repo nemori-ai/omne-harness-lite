@@ -9,8 +9,8 @@ import {
   createOfficialProfileContent,
   interpretConfiguration,
   readModelDefinition,
-  type ModelDefinition,
 } from '@omne-harness-lite/pi-ai-transport'
+import { type ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import { deepseekV41FlashDeepInfraRoute } from '../src/official-models/deepseek.ts'
 
 const provider = 'deepinfra/fp8'

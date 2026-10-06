@@ -10,8 +10,10 @@ TUI入口为 `node apps/cli/dist/main.js tui --terminal-profile xterm-379 --stat
 
 使用可信渠道取得归档及摘要，在新空目录解压，预装相同Node版本后执行 `node <目录>/app/dist/main.js --help`。代码升级用另一个新目录，沿用明确的 `--state-dir`；保留旧代码不保证能读取新格式状态。构建异常可能留下暂存；若已完成发布，后续输出失败仍可能留下有效归档，应核摘要，不能直接重跑覆盖。
 
-设计与行为权威见[CLI节点](../../.meta_harness/design/realization/apps/cli/README.md)。应用只装配CG2与CLS；成员`test`/`typecheck`用于开发验证。D050文件CLI归档验证平台为macOS arm64、Linux arm64/amd64，macOS Intel尚未验证；新增TUI不得继承旧版所有平台通过状态。完整部署、TUI与备份恢复的验收状态以节点证据为准。
+设计与行为权威见[CLI节点](../../.meta_harness/design/realization/apps/cli/README.md)。应用装配CG2、CLS与HTTPS传输；成员`test`/`typecheck`用于开发验证。D050文件CLI归档验证平台为macOS arm64、Linux arm64/amd64，macOS Intel尚未验证；新增TUI不得继承旧版所有平台通过状态。完整部署、TUI与备份恢复的验收状态以节点证据为准。
 
 macOS新增已采用的实现路径 `--terminal-profile iterm-3.7.1beta1`，要求精确iTerm版本、UTF8、直接独占TTY和普通纯文本粘贴。不得使用特殊粘贴、文件URL、auto-composer、广播、tmux、粘贴期间的按键直通或终端取消粘贴；先完成输入法组合再粘贴，粘贴中不提交输入法。`NoSyncTurnOffBracketedPasteOnHostChange`不得为true，若出现关闭粘贴保护提示，不选Yes/Always。程序不改用户全局偏好；profile是明确环境前提，不是自动认证。模式答复先独立分帧，关闭与查询失败仍等待已收到的半答复结束。产品GUI和独立验收状态见设计节点，不能仅因allowlist存在认定已验证。
 
 凭据使用文件的完整 UTF-8 文本，包括末尾换行、空格和 BOM；不会 trim 或规范化。`echo` 默认附加换行，与不加换行的 `printf` 结果是不同凭据。创建时检查编辑器/导出工具的尾换行设置，后续登录保留相同内容；本期没有管理员密码重置。
+
+集成边界及生命周期见本模块 [SPEC](SPEC.md)。控制模块消费公共操作和应用内句柄，具体提供者只由 `src/assembly.ts` 选择。

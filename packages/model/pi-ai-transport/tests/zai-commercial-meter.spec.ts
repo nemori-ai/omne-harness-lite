@@ -12,7 +12,7 @@ import {
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
-import { invokeModel } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import { createOfficialProfileContent } from '../src/configuration.ts'
@@ -20,7 +20,7 @@ import {
   createZaiCommercialInputMeter,
   renderZaiCommercialPrompt,
 } from '../src/input-meters/zai-commercial.ts'
-import type { InputMeter } from '../src/input-meter.ts'
+import type { InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { object } from '../src/json.ts'
 import { zaiDefinitions } from '../src/official-models/zai.ts'
 import { planRequest } from '../src/plan.ts'

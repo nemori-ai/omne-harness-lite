@@ -1,32 +1,11 @@
-import { connect } from 'node:net'
-import { isAbsolute, join } from 'node:path'
-import {
-  createOfflineMaintenance,
-  maintenanceFailureResult,
-  OPS_SOCKET_NAME,
-  readOpsReplyBody,
-  validMaintenanceLocation,
-} from '@omne-harness-lite/governance-center-entry'
-import { openSnapshotInspection } from '@omne-harness-lite/storage-sql'
-import { hostSnapshotChecks } from './snapshot-checks.ts'
-import { composedMigrationNames, hostMigrationFragments } from './migrations.ts'
+import { isAbsolute } from 'node:path'
+import type { MaintenanceCommand, MaintenanceCommandIo } from './command-data.ts'
+import type { MaintenanceCommandEffects } from './maintenance-ports.ts'
 
-export type MaintenanceCommand =
-  | {
-      readonly kind: 'ops'
-      readonly socketDirectory: string
-      readonly operation: 'full-health' | 'backup' | 'backup-status'
-      readonly onlyIfDue: boolean
-    }
-  | { readonly kind: 'verify'; readonly sourceLocation: string; readonly workDirectory: string }
-  | {
-      readonly kind: 'restore-isolated'
-      readonly sourceLocation: string
-      readonly workDirectory: string
-      readonly targetLocation: string
-    }
-
-export function parseMaintenanceCommand(argv: readonly string[]): MaintenanceCommand | undefined {
+export function parseMaintenanceCommand(
+  argv: readonly string[],
+  validLocation: MaintenanceCommandEffects['validLocation'],
+): MaintenanceCommand | undefined {
   const [kind, ...rest] = argv
   if (kind !== 'ops' && kind !== 'verify' && kind !== 'restore-isolated') return undefined
   const flags = new Map<string, string>()
@@ -52,7 +31,7 @@ export function parseMaintenanceCommand(argv: readonly string[]): MaintenanceCom
             : ['--source', '--target', '--work-dir']
       if (!allowed.includes(word) || flags.has(word)) return undefined
       const value = rest[++i]
-      if (!validMaintenanceLocation(value) || !isAbsolute(value)) return undefined
+      if (!validLocation(value) || !isAbsolute(value)) return undefined
       flags.set(word, value)
     }
   }
@@ -76,72 +55,6 @@ export function parseMaintenanceCommand(argv: readonly string[]): MaintenanceCom
     : { kind, sourceLocation, workDirectory, targetLocation }
 }
 
-/** One request, no retries. Disconnect only abandons the client's wait. */
-export function callOps(
-  command: Extract<MaintenanceCommand, { kind: 'ops' }>,
-  signal: AbortSignal,
-): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    const socket = connect(join(command.socketDirectory, OPS_SOCKET_NAME))
-    let done = false
-    let bytes = Buffer.alloc(0)
-    const finish = (error?: Error, value?: unknown) => {
-      if (done) return
-      done = true
-      signal.removeEventListener('abort', abort)
-      socket.destroy()
-      if (error !== undefined) reject(error)
-      else resolve(value)
-    }
-    const abort = () => finish(new Error('ops-result-unconfirmed'))
-    signal.addEventListener('abort', abort, { once: true })
-    if (signal.aborted) abort()
-    socket.on('error', abort)
-    socket.on('close', () => {
-      if (!done) abort()
-    })
-    socket.on('connect', () => {
-      if (done) return
-      const body = JSON.stringify({
-        opsVersion: '1',
-        operation: command.operation,
-        payload: command.operation === 'backup' ? { onlyIfDue: command.onlyIfDue } : {},
-      })
-      socket.end(`POST / HTTP/1.1\r\nContent-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`)
-    })
-    socket.on('data', (chunk: Buffer) => {
-      if (done) return
-      if (bytes.length + chunk.length > 8192 + 65_536) {
-        abort()
-        return
-      }
-      bytes = Buffer.concat([bytes, chunk])
-    })
-    socket.on('end', () => {
-      if (done) return
-      const boundary = bytes.indexOf('\r\n\r\n')
-      const header = bytes.subarray(0, boundary + 4).toString('latin1')
-      const match =
-        /^HTTP\/1\.1 200 OK\r\nContent-Type: application\/json\r\nCache-Control: no-store\r\nContent-Length: (0|[1-9][0-9]*)\r\nConnection: close\r\n\r\n$/.exec(
-          header,
-        )
-      if (boundary < 0 || match === null || Number(match[1]) !== bytes.length - boundary - 4) {
-        abort()
-        return
-      }
-      try {
-        finish(undefined, readOpsReplyBody(command.operation, bytes.subarray(boundary + 4)))
-      } catch {
-        abort()
-      }
-    })
-  })
-}
-
-export interface MaintenanceCommandIo {
-  stdout(text: string): void | Promise<void>
-  stderr(text: string): void | Promise<void>
-}
 export function maintenanceExit(value: unknown): number {
   if (typeof value !== 'object' || value === null || !('status' in value)) return 0 // validated full-health
   if (value.status === 'outcome-unknown' || value.status === 'unavailable') return 1
@@ -155,24 +68,20 @@ export async function runMaintenanceCommand(
   command: MaintenanceCommand,
   io: MaintenanceCommandIo,
   signal: AbortSignal,
+  effects: MaintenanceCommandEffects,
 ): Promise<number> {
   const diagnostics: string[] = []
   let closingFailed = false
   try {
     let result: unknown
-    if (command.kind === 'ops') result = await callOps(command, signal)
+    if (command.kind === 'ops') result = await effects.callOps(command, signal)
     else {
-      let inspection
+      let lease
       try {
-        inspection = await openSnapshotInspection(command.workDirectory)
-        const offline = createOfflineMaintenance({
-          inspection,
-          workDirectory: command.workDirectory,
-          snapshotChecks: hostSnapshotChecks,
-          migrationNames: composedMigrationNames(hostMigrationFragments),
-          // Buffer local diagnostics so every output write is awaited outside the callback.
-          report: diagnostic => diagnostics.push(JSON.stringify(diagnostic) + '\n'),
-        })
+        lease = await effects.openOffline(command.workDirectory)
+        const offline = lease.create(diagnostic =>
+          diagnostics.push(JSON.stringify(diagnostic) + '\n'),
+        )
         result =
           command.kind === 'verify'
             ? await offline.verify({ sourceLocation: command.sourceLocation }, signal)
@@ -181,10 +90,10 @@ export async function runMaintenanceCommand(
                 signal,
               )
       } catch (error) {
-        result = maintenanceFailureResult(error)
+        result = effects.failureResult(error)
       } finally {
         try {
-          await inspection?.close()
+          await lease?.close()
         } catch {
           closingFailed = true
           diagnostics.push('tenancy-host: maintenance cleanup incomplete\n')

@@ -7,7 +7,8 @@ import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { toOpaqueJson } from '@omne-harness-lite/content-blocks'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import { decodeModelLogKey, invokeModel } from '@omne-harness-lite/model-request-runtime'
+import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import {
   createPiAiTransport,
   deepseekV4Pro0813Configuration,

@@ -8,21 +8,21 @@ import type {
   PlanInput,
   PlanResult,
 } from '@omne-harness-lite/model-request-runtime'
-import { planRequest, claimPlan, planAvailable, type PlannedRequest } from './plan.ts'
-import {
-  sendRequest,
-  type RawResponse,
-  type NetworkResources,
-  type TransportPolicy,
-  type Diagnostic,
-} from './http.ts'
+import { planRequest, claimPlan, planAvailable } from './plan.ts'
+import { type PlannedRequest } from '@omne-harness-lite/model-request-runtime'
+import { sendRequest, type NetworkResources } from './http.ts'
+import { type RawResponse, type TransportPolicy } from '@omne-harness-lite/model-request-runtime'
+import { type Diagnostic } from '@omne-harness-lite/model-request-runtime'
 import { readStream } from './stream.ts'
-import { ownDefinitions, type ModelDefinition } from './definitions.ts'
+import { ownDefinitions } from './definitions.ts'
+import { type ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import { ownCredentialConfiguration } from './credential-policy.ts'
 import { connectionAdmission } from './connections.ts'
-import { meterMatches, ownInputMeter, type InputMeter } from './input-meter.ts'
+import { meterMatches, ownInputMeter } from './input-meter.ts'
+import { type InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { createImagePreparer } from './image-preparation/index.ts'
-import type { ImagePreparePolicy, LoadedImageCodec } from './image-preparation/types.ts'
+import type { ImagePreparePolicy } from './image-preparation/types.ts'
+import type { LoadedImageCodec } from '@omne-harness-lite/model-request-runtime'
 import { ownPolicy } from './image-preparation/validation.ts'
 import { createScopeCleaner } from './scope-cleanup.ts'
 

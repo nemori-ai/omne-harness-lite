@@ -1,0 +1,234 @@
+{
+  "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+  "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+  "run_id": "t4-compose",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "started": "2026-10-05T07:30:04.381Z",
+  "results": [
+    {
+      "id": "replace-insert-disable-source-order",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.394Z",
+      "observed": [
+        {
+          "id": "a",
+          "plugin": {
+            "package": "@qa/provider",
+            "export": "Managed"
+          },
+          "config": "[redacted]",
+          "enabled": true,
+          "source": "operator",
+          "editIndex": 0,
+          "position": 0
+        },
+        {
+          "id": "c",
+          "plugin": {
+            "package": "@qa/provider",
+            "export": "Managed"
+          },
+          "config": "[redacted]",
+          "enabled": true,
+          "source": "operator",
+          "editIndex": 1,
+          "position": 1
+        },
+        {
+          "id": "b",
+          "plugin": {
+            "package": "@qa/provider",
+            "export": "Managed"
+          },
+          "config": "[redacted]",
+          "enabled": false,
+          "source": "operator",
+          "editIndex": 2,
+          "position": 2
+        }
+      ]
+    },
+    {
+      "id": "provider-replacement-and-input-snapshot",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.398Z"
+    },
+    {
+      "id": "print-redacts-keys-values-length-hash",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.398Z"
+    },
+    {
+      "id": "duplicate-row",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.399Z"
+    },
+    {
+      "id": "unknown-row-key",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.402Z"
+    },
+    {
+      "id": "distribution-not-array",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.403Z"
+    },
+    {
+      "id": "operator-not-array",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.405Z"
+    },
+    {
+      "id": "missing-replace",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.406Z"
+    },
+    {
+      "id": "missing-disable",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.407Z"
+    },
+    {
+      "id": "duplicate-edit",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.408Z"
+    },
+    {
+      "id": "insert-modified-again",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.409Z"
+    },
+    {
+      "id": "disabled-anchor",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.410Z"
+    },
+    {
+      "id": "insert-duplicate",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.411Z"
+    },
+    {
+      "id": "two-anchors",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.412Z"
+    },
+    {
+      "id": "unknown-edit-key",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.413Z"
+    },
+    {
+      "id": "invalid-id-\"\"",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.414Z"
+    },
+    {
+      "id": "invalid-id-\"A\"",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.415Z"
+    },
+    {
+      "id": "invalid-id-\"../a\"",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.415Z"
+    },
+    {
+      "id": "invalid-id-\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.416Z"
+    },
+    {
+      "id": "invalid-json-undefined-undefined",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.417Z"
+    },
+    {
+      "id": "invalid-json-function-()=>{}",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.418Z"
+    },
+    {
+      "id": "invalid-json-bigint-1",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.419Z"
+    },
+    {
+      "id": "invalid-json-symbol-Symbol(secret)",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.420Z"
+    },
+    {
+      "id": "invalid-json-number-NaN",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.421Z"
+    },
+    {
+      "id": "invalid-json-number-Infinity",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.422Z"
+    },
+    {
+      "id": "invalid-json-object-Mon Oct 05 2026 07:30:04 GMT+0000 (Coordinated Universal Time)",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.423Z"
+    },
+    {
+      "id": "invalid-json-object-[object Object]",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.424Z"
+    },
+    {
+      "id": "invalid-json-cycle",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.425Z"
+    },
+    {
+      "id": "invalid-json-accessor",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.426Z"
+    },
+    {
+      "id": "invalid-json-nested-undefined",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.427Z"
+    },
+    {
+      "id": "invalid-json-sparse-array",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.428Z"
+    },
+    {
+      "id": "invalid-reference-./provider",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.429Z"
+    },
+    {
+      "id": "invalid-reference-https://x.invalid/",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.430Z"
+    },
+    {
+      "id": "invalid-reference-@qa/provider/cordis",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.431Z"
+    },
+    {
+      "id": "invalid-reference-../x",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.432Z"
+    },
+    {
+      "id": "invalid-export-identifier",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.433Z"
+    },
+    {
+      "id": "complete-edit-validation-before-use",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.435Z"
+    }
+  ],
+  "exit_code": 0,
+  "ended": "2026-10-05T07:30:04.436Z"
+}

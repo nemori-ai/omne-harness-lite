@@ -1,10 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { readOpaqueJson } from '@omne-harness-lite/content-blocks'
-import {
-  invokeModel,
-  type PlanInput,
-  type PlanOutputHistoryGroup,
-} from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { type PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import { readStream } from '@omne-harness-lite/pi-ai-transport'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createAnthropicInputMeter } from '../src/input-meters/anthropic.ts'

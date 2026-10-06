@@ -1,3 +1,4 @@
+import { assertContentSchemaTransition } from '../../content-blocks/tests/schema-transition.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -60,21 +61,19 @@ describe('INPUT frozen adoption and language-neutral source artifacts', () => {
       }
     }
   })
-  it('INPUT-02 consumes exact dependency Schema copies and creates no assembly Schema', () => {
+  it('INPUT-02 consumes unchanged dependency schemas and the adopted CB delta and creates no assembly Schema', () => {
     // call-accounts 包根已是 CA4；本节点仍采用 CA2，比对其公开 `./schema/v2` 原字节。
     for (const [name, file, version] of [
       ['arrival-events', 'arrival-events.schema.json', 2],
       ['content-blocks', 'content-blocks.schema.json', 3],
       ['call-accounts', 'v2/call-accounts.schema.json', 2],
     ] as const) {
-      expect(
-        readFileSync(resolve(root, `packages/core/${name}/schema/${file}`)).equals(
-          readFileSync(
-            resolve(root, `.meta_harness/design/spec/data/${name}/v${version}/${name}.schema.json`),
-          ),
-        ),
-        name,
-      ).toBe(true)
+      const current = readFileSync(resolve(root, `packages/core/${name}/schema/${file}`))
+      const previous = readFileSync(
+        resolve(root, `.meta_harness/design/spec/data/${name}/v${version}/${name}.schema.json`),
+      )
+      if (name === 'content-blocks') assertContentSchemaTransition(current, previous)
+      else expect(current.equals(previous), name).toBe(true)
     }
     const manifest: { exports: Record<string, unknown> } = JSON.parse(
       readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
@@ -113,11 +112,11 @@ describe('INPUT frozen adoption and language-neutral source artifacts', () => {
           ),
         )
         const path = `spec/data/${name}/v${version}/${name}.schema.json`
-        expect(
-          bytes.equals(readFileSync(resolve(root, `.meta_harness/design/${path}`))),
-          path,
-        ).toBe(true)
-        expect(createHash('sha256').update(bytes).digest('hex'), path).toBe(frozen.files[path])
+        const previous = readFileSync(resolve(root, `.meta_harness/design/${path}`))
+        if (name === 'content-blocks' && version === 3)
+          assertContentSchemaTransition(bytes, previous)
+        else expect(bytes.equals(previous), path).toBe(true)
+        expect(createHash('sha256').update(previous).digest('hex'), path).toBe(frozen.files[path])
         const parsed = readJsonStrict(bytes.toString('utf8'))
         if ('failed' in parsed || !object(parsed.ok))
           throw new Error(`invalid frozen resource: ${path}`)

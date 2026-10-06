@@ -1,5 +1,6 @@
 // P-13：显式事务参与。ALS 只跟踪单元内调用帧，不合并普通 Storage 调用。
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { isStorageInstance } from './service-identity.ts'
 import {
   ReferenceViolation,
   StorageDefect,
@@ -48,7 +49,8 @@ export class SqlStorageUnit implements StorageUnit {
 
   assertStorage(expected: Storage): void {
     if (this.#frame().busy) this.#fail('storage unit calls overlap')
-    if (expected !== this.storage) this.#fail('storage unit belongs to a different instance')
+    if (!isStorageInstance(expected, this.storage))
+      this.#fail('storage unit belongs to a different instance')
   }
 
   #invoke<T>(fn: () => Promise<T>, statement: boolean): Promise<T> {

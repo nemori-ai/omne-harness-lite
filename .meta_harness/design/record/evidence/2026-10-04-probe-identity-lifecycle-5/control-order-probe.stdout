@@ -1,0 +1,4 @@
+{"case":"synchronous-claim-positive","secondRejected":true,"firstUnaffected":true,"applies":1}
+{"case":"unclaimed-control-negative","secondRejected":false,"firstUnaffected":false,"applies":0}
+{"case":"optional-order-positive","result":"saved","events":["consumer-close-start","consumer-continuation","consumer-close-end","backend-close-start","backend-close-end"]}
+{"case":"ignored-optional-edge-negative","result":"backend-closed","events":["backend-close-start","backend-close-end","consumer-close-start","consumer-continuation","consumer-close-end"]}

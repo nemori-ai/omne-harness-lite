@@ -16,14 +16,13 @@ import type {
   InvocationPolicy,
   InvocationOutcome,
 } from '@omne-harness-lite/model-request-runtime'
+import { createPiAiTransport, type PiAiTransport } from '@omne-harness-lite/pi-ai-transport'
 import {
-  createPiAiTransport,
-  type PiAiTransport,
   type PlannedRequest,
   type TransportPolicy,
-  type Diagnostic,
   type ModelDefinition,
-} from '@omne-harness-lite/pi-ai-transport'
+} from '@omne-harness-lite/model-request-runtime'
+import { type Diagnostic } from '@omne-harness-lite/model-request-runtime'
 
 export const at = '2026-09-27T01:00:00Z'
 export function message(type = 'user', text = 'hello', id = type): Message {

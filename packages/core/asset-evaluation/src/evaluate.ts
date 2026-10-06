@@ -13,7 +13,12 @@ import {
 import { parseMembershipStanding, parseTenantId } from '@omne-harness-lite/identity-values'
 import { judgeMcpValue } from '@omne-harness-lite/mcp-endpoint'
 import { judgeAgentDefinitionBody } from '@omne-harness-lite/agent-definition'
-import { isJsonNumber, type JsonObject } from '@omne-harness-lite/content-blocks'
+import { isJsonNumber, copyJsonValue, type JsonObject } from '@omne-harness-lite/content-blocks'
+import {
+  ENVIRONMENT_PERMISSION_VALUES,
+  isToolDefinition,
+  toolEnvironmentPermissionDeclaration,
+} from '@omne-harness-lite/tool-definition'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { getAssetJudge, defaultBodyContracts } from './defaults.ts'
 import { invalidInput } from './diagnostics.ts'
@@ -27,6 +32,7 @@ import type {
   EvaluationResult,
   EvaluationRootSelectionInput,
   EvaluationRootSelectionResult,
+  EvaluationOptions,
 } from './types.ts'
 
 type RawInput = NonConnectorEvaluationInput | EvaluationRootSelectionInput
@@ -216,6 +222,7 @@ function heldDeclarations(
   input: RawInput,
   holding: AssetHolding,
   version: AssetVersion,
+  options?: EvaluationOptions,
 ): readonly AttributeDeclaration[] {
   const derived = derivedDeclarations(input, holding, version)
   if (
@@ -224,10 +231,22 @@ function heldDeclarations(
       capabilityCanonicalString(input.root.definition)
   )
     return [USABLE_BY_DECLARATION, ...input.root.attributes]
-  return 'underivable' in derived ? [USABLE_BY_DECLARATION] : derived.declarations
+  const declarations = 'underivable' in derived ? [USABLE_BY_DECLARATION] : derived.declarations
+  if (
+    options &&
+    version.content.category === 'tool' &&
+    isToolDefinition(version.content.definition)
+  ) {
+    const permission = toolEnvironmentPermissionDeclaration(
+      version.content.definition,
+      options.toolEnvironmentPermission,
+    )
+    if (permission.kind === 'declaration') return [...declarations, permission.declaration]
+  }
+  return declarations
 }
 /** Project only resolvable held versions. Invalid C5/C9 inputs are left to the shared computation, never thrown during projection. */
-function projectFacts(input: RawInput): EvaluationFacts {
+function projectFacts(input: RawInput, options?: EvaluationOptions): EvaluationFacts {
   const definitions = new Map(input.definitions.map(entry => [entry.id, entry]))
   const declarations = new Map<AssetHolding, readonly AttributeDeclaration[]>()
   const references = new Map<AssetVersion, readonly CapabilityId[]>()
@@ -236,7 +255,7 @@ function projectFacts(input: RawInput): EvaluationFacts {
     if (definition === undefined) continue
     const version = versionOf(holding, definition)
     if (version === undefined) continue
-    declarations.set(holding, heldDeclarations(input, holding, version))
+    declarations.set(holding, heldDeclarations(input, holding, version, options))
     if (!references.has(version)) {
       const derivedReferences = referencesOf(version.content, defaultBodyContracts)
       if (!('underivable' in derivedReferences))
@@ -246,10 +265,26 @@ function projectFacts(input: RawInput): EvaluationFacts {
   return { declarations, references }
 }
 
-export function evaluate(input: NonConnectorEvaluationInput): EvaluationResult {
+function captureOptions(input: unknown): EvaluationOptions | undefined {
+  const copied = copyJsonValue(input)
+  if ('failed' in copied || !object(copied.ok) || Object.keys(copied.ok).length !== 1) return
+  const configured = copied.ok.toolEnvironmentPermission
+  const permission = ENVIRONMENT_PERMISSION_VALUES.find(value => value === configured)
+  return permission === undefined
+    ? undefined
+    : Object.freeze({ toolEnvironmentPermission: permission })
+}
+
+export function evaluate(
+  input: NonConnectorEvaluationInput,
+  options?: EvaluationOptions,
+): EvaluationResult {
+  const captured = options === undefined ? undefined : captureOptions(options)
+  if (options !== undefined && captured === undefined)
+    return invalidInput({ condition: 'C1', message: 'invalid EvaluationOptions' })
   const bad = shape(input)
   if (bad !== undefined) return invalidInput(bad)
-  return computeEvaluation(input, projectFacts(input))
+  return computeEvaluation(input, projectFacts(input, captured))
 }
 
 export function selectEvaluationRootSource(

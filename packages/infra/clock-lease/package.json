@@ -1,0 +1,44 @@
+{
+  "name": "@omne-harness-lite/clock-lease",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "clock 服务：offer-expiry 的 Clock 形状的实现——单调钟锚定 + 存储里写在前的租约，回拨 ⇒ 'unavailable'",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness-lite/kernel-basis": "workspace:*",
+    "@omne-harness-lite/offer-expiry": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*",
+    "kysely": "catalog:",
+    "zod": "catalog:",
+    "@omne-harness-lite/assembly-lifecycle": "workspace:*",
+    "@omne-harness-lite/cordis-plugin-tree": "workspace:*"
+  },
+  "devDependencies": {
+    "@omne-harness-lite/storage-sql": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

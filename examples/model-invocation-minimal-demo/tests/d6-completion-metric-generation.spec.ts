@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { createDiagnosticCollector } from '@omne-harness-lite/model-request-runtime'
+import { createDiagnosticCollector } from '@omne-harness-lite/model-request-runtime-local'
 import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { createDemoDiagnosticConfig } from '../src/demo.ts'
 import { createDiagnosticJournal } from '../src/diagnostic-journal.ts'

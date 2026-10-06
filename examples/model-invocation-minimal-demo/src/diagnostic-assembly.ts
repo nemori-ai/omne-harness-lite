@@ -1,4 +1,4 @@
-import { createDiagnosticCollector } from '@omne-harness-lite/model-request-runtime'
+import { createDiagnosticCollector } from '@omne-harness-lite/model-request-runtime-local'
 import { resolve } from 'node:path'
 import type {
   DiagnosticCloseResult,
@@ -10,13 +10,13 @@ import type {
   DiagnosticQuery,
   DiagnosticQueryResult,
   DiagnosticScope,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type {
   ModelTransportService,
-  RetirementPolicy,
   RetirementResult,
-} from '@omne-harness-lite/pi-ai-transport'
+} from '@omne-harness-lite/model-request-runtime'
+import type { RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import { createDiagnosticJournal } from './diagnostic-journal.ts'
 import type { DiagnosticJournalConfig } from './diagnostic-journal.ts'
 

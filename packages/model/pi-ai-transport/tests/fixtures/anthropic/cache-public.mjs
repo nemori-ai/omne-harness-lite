@@ -12,7 +12,7 @@ import {
   invokeModel,
   openRouterCredentialRedactionConfig,
   createCredentialRedactionPolicy,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { createPiAiTransport, createAnthropicInputMeter, planRequest } from '../../../dist/index.js'
 import {
   openProductionLedger,
@@ -260,7 +260,8 @@ export async function sourceFingerprint() {
   // frozen execution checkout stays alive through expiry while HUB moves forward.
   for (const relative of [
     '../../../dist/',
-    '../../../../model-request-runtime/dist/',
+    '../../../../model-request-runtime-local/dist/',
+    '../../../../../core/model-request-runtime/dist/',
     '../../../../../core/stream-assembly/dist/',
     '../../../../../core/content-blocks/dist/',
     '../../../../../core/call-accounts/dist/',

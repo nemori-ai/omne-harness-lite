@@ -1,0 +1,16 @@
+
+> @omne-harness-lite/cli@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/apps/cli
+> vitest run
+
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/apps/cli
+
+
+ Test Files  12 passed (12)
+      Tests  144 passed (144)
+Type Errors  no errors
+   Start at  00:31:40
+   Duration  2.00s (transform 2.96s, setup 0ms, import 6.98s, tests 1.83s, environment 2ms)
+

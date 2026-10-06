@@ -5,7 +5,7 @@ import {
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import type { CountingBasis } from '@omne-harness-lite/model-response'
-import type { InputMeter } from '../input-meter.ts'
+import type { InputMeter } from '@omne-harness-lite/model-request-runtime'
 import type { OriginalBasisApplies } from '../meter-transform.ts'
 import { object } from '../json.ts'
 import { canonicalProjection, INPUT_PROJECTION_REVISION } from '../projection.ts'

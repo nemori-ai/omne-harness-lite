@@ -1,0 +1,126 @@
+{
+  "count": 24,
+  "items": [
+    {
+      "file": "packages/frontend/client-local-state-sqlite/src/open.ts",
+      "name": "openClientLocalState",
+      "disposition": "显式依赖工厂；原算法与配置边界保持"
+    },
+    {
+      "file": "packages/frontend/client-local-state-sqlite/src/plugin.ts",
+      "name": "apply",
+      "disposition": "改用正式Service及明确注入；独立绑定原所有权不变"
+    },
+    {
+      "file": "packages/frontend/client-local-state-sqlite/src/store.ts",
+      "name": "LocalState.#admit",
+      "disposition": "在可重入依赖/输入回调前登记完整工作；关闭Promise在取消前保存；原busy/捕获/业务完成语义保持"
+    },
+    {
+      "file": "packages/frontend/client-local-state-sqlite/tests/support.ts",
+      "name": "fixtures",
+      "disposition": "显式传入原SQLite full工厂，保持原测试输入/结果"
+    },
+    {
+      "file": "packages/frontend/client-local-state-sqlite/tests/support.ts",
+      "name": "open",
+      "disposition": "显式传入原SQLite full工厂，保持原测试输入/结果"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/client.ts",
+      "name": "createGovernanceClient",
+      "disposition": "显式依赖工厂；原算法与配置边界保持"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/client.ts",
+      "name": "Client.#track",
+      "disposition": "在可重入依赖/输入回调前登记完整工作；关闭Promise在取消前保存；原busy/捕获/业务完成语义保持"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/client.ts",
+      "name": "Client.openUse",
+      "disposition": "在可重入依赖/输入回调前登记完整工作；关闭Promise在取消前保存；原busy/捕获/业务完成语义保持"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/client.ts",
+      "name": "Client.runAction",
+      "disposition": "在可重入依赖/输入回调前登记完整工作；关闭Promise在取消前保存；原busy/捕获/业务完成语义保持"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/client.ts",
+      "name": "Client.runPrepared",
+      "disposition": "在可重入依赖/输入回调前登记完整工作；关闭Promise在取消前保存；原busy/捕获/业务完成语义保持"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/client.ts",
+      "name": "Client.#run",
+      "disposition": "在可重入依赖/输入回调前登记完整工作；关闭Promise在取消前保存；原busy/捕获/业务完成语义保持"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/client.ts",
+      "name": "Client.close",
+      "disposition": "在可重入依赖/输入回调前登记完整工作；关闭Promise在取消前保存；原busy/捕获/业务完成语义保持"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/plugin.ts",
+      "name": "apply",
+      "disposition": "改用正式Service及明确注入；独立绑定原所有权不变"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/use.ts",
+      "name": "Use.run",
+      "disposition": "在可重入依赖/输入回调前登记完整工作；关闭Promise在取消前保存；原busy/捕获/业务完成语义保持"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/use.ts",
+      "name": "Use.runPrepared",
+      "disposition": "在可重入依赖/输入回调前登记完整工作；关闭Promise在取消前保存；原busy/捕获/业务完成语义保持"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/use.ts",
+      "name": "Use.runCaptured",
+      "disposition": "在可重入依赖/输入回调前登记完整工作；关闭Promise在取消前保存；原busy/捕获/业务完成语义保持"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/use.ts",
+      "name": "Use.#run",
+      "disposition": "在可重入依赖/输入回调前登记完整工作；关闭Promise在取消前保存；原busy/捕获/业务完成语义保持"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/src/use.ts",
+      "name": "Use.close",
+      "disposition": "在可重入依赖/输入回调前登记完整工作；关闭Promise在取消前保存；原busy/捕获/业务完成语义保持"
+    },
+    {
+      "file": "packages/frontend/governance-client-operations-local/tests/support.ts",
+      "name": "fixtures",
+      "disposition": "显式传入原SQLite full工厂，保持原测试输入/结果"
+    },
+    {
+      "file": "apps/cli/src/application.ts",
+      "name": "providers",
+      "disposition": "由应用装配选固定提供者，控制面只取得createAssembly。"
+    },
+    {
+      "file": "apps/cli/src/application.ts",
+      "name": "runCli",
+      "disposition": "以clientStopped和closed接续原关闭许可，保留业务报告和诊断；初始化资格失效与真实打开失败分别处理。"
+    },
+    {
+      "file": "apps/cli/src/tui/application.ts",
+      "name": "runTui",
+      "disposition": "CG实际结束后先等输入/输出并恢复终端，再放行CLS；CG拒绝保留资源。原菜单/表单/业务分支不重写。"
+    },
+    {
+      "file": "apps/cli/tests/application.spec.ts",
+      "name": "fixture",
+      "disposition": "仅在测试适配新的应用句柄；原state/client故障与全部原断言保留。"
+    },
+    {
+      "file": "apps/cli/tests/tui-application.spec.ts",
+      "name": "fixture",
+      "disposition": "仅在测试适配新的应用句柄；原终端、CG拒绝与CLS关闭顺序断言保留。"
+    }
+  ],
+  "new_mechanisms": "Managed bindings, private CLI assembly, close observer, owning HTTPS instance and stopped error are new code; AST baseline does not prove their behavior. Frozen actual combinations and L3 cover them."
+}

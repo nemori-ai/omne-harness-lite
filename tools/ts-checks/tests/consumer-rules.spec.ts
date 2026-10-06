@@ -12,9 +12,9 @@ import {
   type SourceFile,
 } from '../src/index.ts'
 
-const OG = 'tenancy/organization-governance/src/'
-const AI = 'tenancy/account-identity/src/'
-const AR = 'tenancy/account-registration/src/'
+const OG = 'tenancy/organization-governance-sql/src/'
+const AI = 'tenancy/account-identity-sql/src/'
+const AR = 'tenancy/account-registration-sequential/src/'
 const file = (path: string, text: string): SourceFile => ({ path, text })
 const real = (path: string): SourceFile =>
   file(path, readFileSync(new URL(`../../../packages/${path}`, import.meta.url), 'utf8'))
@@ -52,7 +52,7 @@ describe('sc-oe-1', () => {
 
   it('变异核对：真实的 OG records.ts 原文无违反；把 settled 改成 OfferState ⇒ 报出', () => {
     const original = real(`${OG}records.ts`)
-    expect(scOe1.check([original, real(`${OG}types.ts`)])).toEqual([])
+    expect(scOe1.check([original, real('core/organization-governance/src/types.ts')])).toEqual([])
     const anchor = 'readonly settled: SettledState | null'
     expect(original.text).toContain(anchor)
     const mutated = file(
@@ -153,7 +153,7 @@ describe('sc-cv-1', () => {
       ].join('\n'),
     )
     const cv = file(
-      'tenancy/credential-verification/src/scrypt.ts',
+      'tenancy/credential-verification-scrypt/src/scrypt.ts',
       "const parts = material.split('$')",
     )
     expect(scCv1.check([clean, cv])).toEqual([])
@@ -232,8 +232,8 @@ describe('terminal-outcome-closed', () => {
   })
 
   it('变异核对：真实的 AR 源码原文无违反；追加一个返回第五个值的 register ⇒ 报出', () => {
-    // 常量在 types.ts（实现后的布局），index.ts 只再导出；规则看整包，所以两份都喂
-    const types = real(`${AR}types.ts`)
+    // 常量属于公共定义，方法属于提供者；规则同时核对两者，不丢失第五值反例。
+    const types = real('core/account-registration/src/types.ts')
     const original = real(`${AR}index.ts`)
     expect(terminalOutcomeClosed.check([types, original])).toEqual([])
     const mutated = file(
@@ -247,7 +247,7 @@ describe('terminal-outcome-closed', () => {
 describe('og-s42-dynamic-resolve', () => {
   it('AR 之外经 ctx.get、resolveOptional、inject 解析 organization-purge，或引用常量 ⇒ 报出（OG 自己解析也算）', () => {
     const entry = file(
-      'tenancy/governance-center-entry/src/x.ts',
+      'tenancy/governance-center-entry-node/src/x.ts',
       [
         "import { ORGANIZATION_PURGE_SERVICE } from '@omne-harness-lite/organization-governance'", // 1
         'const p = ctx.get(ORGANIZATION_PURGE_SERVICE)', // 2（常量引用也在这一行）
@@ -258,12 +258,12 @@ describe('og-s42-dynamic-resolve', () => {
     const og = file(`${OG}plugin.ts`, 'const self = ctx.get(ORGANIZATION_PURGE_SERVICE)')
     const found = ogS42DynamicResolve.check([entry, og])
     expect(found.map(v => `${v.path.split('/')[1]}:${v.line}`).sort()).toEqual([
-      'governance-center-entry:1',
-      'governance-center-entry:2',
-      'governance-center-entry:2',
-      'governance-center-entry:3',
-      'governance-center-entry:4',
-      'organization-governance:1',
+      'governance-center-entry-node:1',
+      'governance-center-entry-node:2',
+      'governance-center-entry-node:2',
+      'governance-center-entry-node:3',
+      'governance-center-entry-node:4',
+      'organization-governance-sql:1',
     ])
   })
 
@@ -277,7 +277,7 @@ describe('og-s42-dynamic-resolve', () => {
       "export const ORGANIZATION_PURGE_SERVICE = 'organization-purge' as const\nctx.provide(ORGANIZATION_PURGE_SERVICE, svc)",
     )
     const test = file(
-      'tenancy/organization-governance/tests/purge.spec.ts',
+      'tenancy/organization-governance-sql/tests/purge.spec.ts',
       "ctx.get('organization-purge')",
     )
     expect(ogS42DynamicResolve.check([ar, og, test])).toEqual([])
@@ -286,7 +286,7 @@ describe('og-s42-dynamic-resolve', () => {
   it('变异核对：真实的 OG plugin.ts 原文无违反；让它自己解析一次 ⇒ 报出', () => {
     const original = real(`${OG}plugin.ts`)
     expect(ogS42DynamicResolve.check([original])).toEqual([])
-    const anchor = 'ctx.provide(ORGANIZATION_PURGE_SERVICE,'
+    const anchor = 'new OrganizationPurgeSqlService(ctx,'
     expect(original.text).toContain(anchor)
     const mutated = file(
       original.path,
@@ -326,7 +326,7 @@ describe('no-dialect-bypass', () => {
       ].join('\n'),
     )
     const test = file(
-      'tenancy/organization-governance/tests/support.ts',
+      'tenancy/organization-governance-sql/tests/support.ts',
       "import { openStorage } from '@omne-harness-lite/storage-sql'\nnew Kysely({ dialect })",
     )
     const infra = file('infra/storage-sql/src/open.ts', 'const db = new Kysely({ dialect })')

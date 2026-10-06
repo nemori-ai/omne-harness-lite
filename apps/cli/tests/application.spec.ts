@@ -1,9 +1,11 @@
+import { fixtureAssembly } from './support/client-assembly.ts'
 import { describe, expect, it, vi } from 'vitest'
 import type {
   ActionReport,
   GovernanceClientOperations,
 } from '@omne-harness-lite/governance-client-operations'
-import { runCli, providers, type CliRuntime } from '../src/application.ts'
+import { runCli, type CliRuntime } from '../src/application.ts'
+import { providers } from '../src/default-providers.ts'
 import { diagnosticText } from '../src/diagnostic.ts'
 import { commands } from '../src/parser.ts'
 import { json, unopened } from '../src/presentation.ts'
@@ -64,7 +66,12 @@ function fixture(overrides: Partial<CliRuntime> = {}) {
       return report
     }),
   }
-  const runtime: CliRuntime = {
+  const openState = vi.fn(async () => {
+    order.push('state-open')
+    return state
+  })
+  const createClient = vi.fn(() => client)
+  const runtime: CliRuntime & { openState: typeof openState; createClient: typeof createClient } = {
     ...providers(),
     signal: controller.signal,
     stdoutIsTTY: true,
@@ -76,11 +83,9 @@ function fixture(overrides: Partial<CliRuntime> = {}) {
     stderr: async text => {
       stderr.push(text)
     },
-    openState: vi.fn(async () => {
-      order.push('state-open')
-      return state
-    }),
-    createClient: vi.fn(() => client),
+    openState,
+    createClient,
+    createAssembly: options => fixtureAssembly(options, openState, createClient),
     ...overrides,
   }
   return { runtime, controller, order, stdout, stderr, client, state }

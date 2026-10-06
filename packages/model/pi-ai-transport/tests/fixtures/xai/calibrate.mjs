@@ -23,7 +23,7 @@ import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-value
 import {
   invokeModel,
   openRouterCredentialRedactionConfig,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   createPiAiTransport,
   createSharpImageCodec,

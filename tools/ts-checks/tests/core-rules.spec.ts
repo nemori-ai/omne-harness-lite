@@ -43,6 +43,21 @@ const purePackages = [
 ]
 
 describe('core-pure-imports', () => {
+  it('the context fixed graph grants only its own schema input site, without a handwritten compiler', () => {
+    const resource = "import '@omne-harness-lite/runtime-context/schema'"
+    expect(
+      corePureImports.check([file('core/runtime-context/src/schema-inputs.ts', resource)]),
+    ).toEqual([])
+    for (const path of ['schema-inputs.ts', 'decode.ts', 'types.ts', 'index.ts']) {
+      expect(
+        corePureImports.check([file(`core/runtime-context/src/${path}`, "import 'ajv'")]),
+      ).toHaveLength(1)
+      if (path !== 'schema-inputs.ts')
+        expect(
+          corePureImports.check([file(`core/runtime-context/src/${path}`, resource)]),
+        ).toHaveLength(1)
+    }
+  })
   it('D-116 native loading is confined to declared fixed-schema and build sites', () => {
     for (const path of [
       'core/content-blocks/src/schema.ts',
@@ -61,6 +76,7 @@ describe('core-pure-imports', () => {
       'core/call-accounts/src/schema.ts',
       'core/mcp-endpoint/src/schema.ts',
       'core/slash-command/src/schema.ts',
+      'core/runtime-context/src/decode.ts',
     ])
       expect(
         corePureImports.check([file(path, "import { createRequire } from 'node:module'")]),
@@ -70,6 +86,8 @@ describe('core-pure-imports', () => {
       'core/content-blocks/src/content.ts',
       'core/messages/src/judge.ts',
       'core/asset-model/src/schema.ts',
+      'core/runtime-context/src/runtime-context.ts',
+      'core/runtime-context/src/observation.ts',
     ])
       expect(
         corePureImports.check([file(path, "import { createRequire } from 'node:module'")]),
@@ -307,6 +325,40 @@ import { ArrivalEnvelope } from '@omne-harness-lite/arrival-events'`,
         ),
       ]),
     ).toHaveLength(1)
+  })
+
+  it.each(['storage', 'offer-expiry'])('只允许 %s 的正式绑定入口加载 Cordis', pkg => {
+    expect(
+      corePureImports.check([
+        file(`core/${pkg}/src/cordis.ts`, "import { Service } from '@deepseek-ai/cordis'"),
+      ]),
+    ).toEqual([])
+    for (const body of [
+      "import type { Context } from '@deepseek-ai/cordis'",
+      "export * from './cordis.ts'",
+      "export type { Service } from './cordis.ts'",
+      "const binding = import('./cordis.ts')",
+      "import { binding } from '@omne-harness-lite/storage/cordis/private'",
+    ])
+      expect(corePureImports.check([file(`core/${pkg}/src/index.ts`, body)])).toHaveLength(1)
+  })
+
+  it('storage 只保留既有查询依赖及两个符合性文件的 runner 类型', () => {
+    expect(
+      corePureImports.check([
+        file('core/storage/src/protocol.ts', "import type { Kysely } from 'kysely'"),
+        file('core/storage/src/migration.ts', "import type { Migration } from 'kysely/migration'"),
+        file('core/storage/src/snapshot-check.ts', "import { isDeepStrictEqual } from 'node:util'"),
+        file('core/storage/src/conformance/index.ts', "import type * as Vitest from 'vitest'"),
+      ]),
+    ).toEqual([])
+    for (const [path, body] of [
+      ['conformance/index.ts', "import * as Vitest from 'vitest'"],
+      ['conformance/extra.ts', "import type * as Vitest from 'vitest'"],
+      ['index.ts', "import Ajv from 'ajv'"],
+      ['index.ts', "import { db } from 'kysely/dist/private'"],
+    ] as const)
+      expect(corePureImports.check([file(`core/storage/src/${path}`, body)])).toHaveLength(1)
   })
 
   it('不经私有 src、dist、未登记子入口或相对路径穿透包边界', () => {
@@ -594,7 +646,7 @@ function unrelated(path: FilePath) {}`,
 })
 
 describe('identity SC-2 账号记录', () => {
-  const path = 'tenancy/account-identity/src/schema.ts'
+  const path = 'tenancy/account-identity-sql/src/identity-data.ts'
   it('两个AccountId字段（含改名与品牌别名）必红；登录状态引用与合法账号记录不报', () => {
     const source = file(
       path,

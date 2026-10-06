@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { evaluate } from '@omne-harness-lite/asset-evaluation'
-import {
-  CURRENT_EVALUATION_INPUTS_SERVICE,
-  type CurrentEvaluationInputs,
-} from '@omne-harness-lite/evaluation-input-store'
+import { CURRENT_EVALUATION_INPUTS as CURRENT_EVALUATION_INPUTS_SERVICE } from '@omne-harness-lite/asset-evaluation/cordis'
+import { type CurrentEvaluationInputs } from '@omne-harness-lite/asset-evaluation'
 import {
   createAcceptanceApplication,
   MODEL_REQUEST_FIBERS,

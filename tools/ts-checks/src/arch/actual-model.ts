@@ -27,6 +27,12 @@ export interface Fact extends Site {
   readonly contract?: string
   readonly owner?: string
   readonly definitionForm?: 'context-augmentation' | 'service-class'
+  /** Class provenance links a Context property to its Service definition. */
+  readonly serviceDefinition?: Site & {
+    readonly member?: string
+    readonly symbol: string
+    readonly offset: number
+  }
   readonly provideForm?: 'ctx.provide' | 'service-instance' | 'class-plugin'
   readonly expression?: string
   readonly expressionShape?: string
@@ -62,6 +68,8 @@ export interface PackageImport extends Site {
   readonly specifier: string
   readonly symbol: string
   readonly local?: string
+  /** Version-local resolved module source, including imports inside the same member. */
+  readonly resolvedPath?: string
   readonly type: boolean
   readonly form: ImportFact['form']
   readonly target:

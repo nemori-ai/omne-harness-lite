@@ -8,3 +8,9 @@ export { toolResultOf } from './returns.ts'
 export { toolDependencies } from './dependencies.ts'
 export { toolBodyContract } from './body.ts'
 export { PATTERN_MAX_CODE_POINTS, PATTERN_MAX_FINITE_COUNT } from './pattern.ts'
+export {
+  toolEnvironmentPermissionDeclaration,
+  ENVIRONMENT_PERMISSION_VALUES,
+  type EnvironmentPermission,
+  type ToolEnvironmentPermissionDeclaration,
+} from './environment-permission.ts'

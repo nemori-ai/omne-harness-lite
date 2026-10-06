@@ -1,0 +1,30 @@
+import { ACCEPTED_PROTOCOL_VERSIONS } from '@omne-harness-lite/governance-center-entry'
+// 公开提供者入口与公共词汇拥有者分别消费。
+import { describe, expect, it } from 'vitest'
+import * as entry from '../src/index.ts'
+import * as bindings from '../src/cordis.ts'
+import * as definitions from '@omne-harness-lite/governance-center-entry'
+
+describe('公开入口', () => {
+  it('装配消费的名字都在：两个插件、两份 config Schema、迁移片段、迁移前核对、四个通知名', () => {
+    expect(bindings.governanceCenterEntryPlugin.name).toBe('governance-center-entry-node')
+    expect(bindings.governanceCenterOpsPlugin.name).toBe('governance-center-entry-node-ops')
+    expect(entry.GovernanceCenterEntryConfigSchema).toBeDefined()
+    expect(entry.GovernanceCenterOpsConfigSchema).toBeDefined()
+    expect(entry.governanceCenterMigrations).toHaveLength(1)
+    expect(typeof entry.governanceCenterPreflight).toBe('function')
+    expect([
+      definitions.SERVING_EVENT,
+      definitions.STOPPED_EVENT,
+      definitions.DEFECT_EVENT,
+      definitions.LISTENING_EVENT,
+    ]).toEqual([
+      'governance-center-entry/serving-started',
+      'governance-center-entry/serving-stopped',
+      'governance-center-entry/defect-observed',
+      'governance-center-entry/ops-listening-started',
+    ])
+    expect(entry.OPS_SOCKET_NAME).toBe('governance-center-ops.sock')
+    expect(ACCEPTED_PROTOCOL_VERSIONS).toEqual(['2'])
+  })
+})

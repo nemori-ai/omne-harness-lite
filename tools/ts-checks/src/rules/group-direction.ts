@@ -34,14 +34,7 @@ export const GROUP_DIRECTION_POLICY: GroupDirectionPolicy = {
     },
   ],
   assemblyOnly: [{ group: 'packages/infra', source: `${LAYOUT} infra 行「被装配层选用」` }],
-  exceptions: [
-    {
-      from: 'packages/frontend/client-local-state',
-      to: 'packages/infra/storage-sql',
-      reason:
-        '客户端本地状态直接打开本机 SQLite；随 D-046（record/decisions/client-local-state-adoption）采用，层位待产品负责人确认',
-    },
-  ],
+  exceptions: [],
 }
 
 export function createGroupDirection(policy: GroupDirectionPolicy): Rule {

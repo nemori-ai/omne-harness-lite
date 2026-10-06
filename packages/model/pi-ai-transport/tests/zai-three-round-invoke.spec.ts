@@ -7,26 +7,25 @@ import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { readOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { ContentBlock } from '@omne-harness-lite/content-blocks'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import {
-  invokeModel,
   type ModelInvocationResult,
   type PlanInput,
-  type PlanOutputHistoryGroup,
 } from '@omne-harness-lite/model-request-runtime'
+import { type PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import {
   createModelTransportService,
   createOfficialProfileContent,
   createPiAiTransport,
-  type AdaptationLease,
-  type InputMeter,
-  type ModelDefinition,
-  type RetirementPolicy,
 } from '@omne-harness-lite/pi-ai-transport'
 import {
-  createModelPlugin,
-  MODEL_TRANSPORT_SERVICE,
-} from '@omne-harness-lite/pi-ai-transport/plugin'
+  type AdaptationLease,
+  type ModelDefinition,
+} from '@omne-harness-lite/model-request-runtime'
+import { type InputMeter, type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
+import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
+import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 import { createGlm52InputMeter } from '../src/input-meters/zai-glm52.ts'
 import { createGlm53InputMeter } from '../src/input-meters/zai-glm53.ts'
 import { createZaiCommercialInputMeter } from '../src/input-meters/zai-commercial.ts'
@@ -440,7 +439,7 @@ async function openEntry(
     },
   }
   await context.plugin(provided)
-  await context.plugin(createModelPlugin(definition, meter, retirement), {})
+  await createModelPlugin(context, definition, meter, retirement)
   expect(context.get(MODEL_TRANSPORT_SERVICE)).toBe(service)
   const acquired = service.acquire(first.snapshot.adaptation, first.routeName)
   if ('rejected' in acquired) throw new Error(acquired.rejected)

@@ -46,9 +46,12 @@ const MEMBERS = [
   member('packages/infra/plain'),
   member('packages/infra/credential-custodian-local'),
   member('packages/infra/custodian-user', ['@x/credential-custodian-local']),
-  member('packages/model/model-profile-directory'),
-  member('packages/frontend/governance-client-operations'),
-  member('packages/tenancy/governance-center-entry'),
+  member('packages/model/model-profile-directory-local'),
+  member('packages/tools/tool-execution-local', [], {
+    acceptance: 'vitest run --config vitest.acceptance.config.ts',
+  }),
+  member('packages/frontend/governance-client-operations-local'),
+  member('packages/tenancy/governance-center-entry-node'),
   member('apps/top', ['@x/mid'], { acceptance: 'vitest run --dir acceptance' }),
   member('tools/core-verification', ['@x/base']),
   member('tools/ts-checks', ['@x/identity-values']),
@@ -166,10 +169,10 @@ describe('影响面计划（真实规则）', () => {
   })
 
   it('别的成员的 TLS 夹具：那个成员自己，加上没声明依赖却读它的 governance-client-operations', () => {
-    const result = plan(['packages/tenancy/governance-center-entry/tests/fixtures/tls/ca.pem'])
+    const result = plan(['packages/tenancy/governance-center-entry-node/tests/fixtures/tls/ca.pem'])
     expect(result.test).toEqual([
-      'packages/frontend/governance-client-operations',
-      'packages/tenancy/governance-center-entry',
+      'packages/frontend/governance-client-operations-local',
+      'packages/tenancy/governance-center-entry-node',
     ])
   })
 
@@ -203,7 +206,7 @@ describe('影响面计划（真实规则）', () => {
       '全局文件 .meta_harness/design/spec/data/x/v1/contract.md 有改动（命中 .meta_harness/design/spec/**）',
     )
     expect(result.test).toHaveLength(MEMBERS.length)
-    expect(result.acceptance).toEqual(['apps/top'])
+    expect(result.acceptance).toEqual(['packages/tools/tool-execution-local', 'apps/top'])
     expect(result.python.run).toBe(true)
     expect(describe_(result)).toContain('构建：全部（根 pnpm run build')
   })
@@ -288,6 +291,14 @@ describe('影响面计划（真实规则）', () => {
     ]
     const result = planCheck(['packages/infra/ring-a/data/x.json'], ring, RULES)
     expect([...result.test].sort()).toEqual(['packages/infra/ring-a', 'packages/infra/ring-b'])
+  })
+
+  it('模型工具demo的输入变化选中实际产品验收成员，仍不把examples加入默认构建', () => {
+    const result = plan(['examples/model-invocation-minimal-demo/src/bootstrap.ts'])
+    expect(result.mode).toBe('scoped')
+    expect(result.acceptance).toEqual(['packages/tools/tool-execution-local'])
+    expect(result.test).toContain('packages/tools/tool-execution-local')
+    expect(result.build.some(entry => entry.path.startsWith('examples/'))).toBe(false)
   })
 
   it('成员目录里的文件按最长前缀归属；被排除的 examples 的 TS 只带上 ts-checks', () => {

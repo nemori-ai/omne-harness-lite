@@ -6,8 +6,8 @@ import {
   xaiDefinitions,
   createXaiInputMeter,
   createOfficialProfileContent,
-  type InputMeter,
 } from '@omne-harness-lite/pi-ai-transport'
+import { type InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'
 import { createLocalTls } from './local-tls.ts'

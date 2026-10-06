@@ -6,8 +6,8 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import { isOk, parseTenantId } from '@omne-harness-lite/identity-values'
 import { indexFoldVersion } from './codec.ts'
-import { checkKey, object } from './input.ts'
-import { addInteger, compareInteger, positiveInteger } from './numbers.ts'
+import { checkKey, object } from '@omne-harness-lite/session-log'
+import { addInteger, compareInteger, positiveInteger } from '@omne-harness-lite/session-log'
 import { emptyLogState } from './state.ts'
 import type { JsonNumber, LogCommit, LogState, TenantId, AttemptId } from './types.ts'
 

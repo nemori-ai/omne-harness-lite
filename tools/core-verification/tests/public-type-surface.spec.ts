@@ -37,7 +37,7 @@ it('w1.types.inventory.detects-missing-and-aliased-imports', () => {
   expect(() => namedTypeImports("import type * as Types from 'package'")).toThrow(/direct named/)
 })
 
-it('w1.types.inventory.all-five-built-root-declarations', async () => {
+it('w1.types.inventory.all-five-built-members-with-kernel-binding', async () => {
   const importerText = await readFile(consumer, 'utf8')
   const imports = namedTypeImports(importerText)
   const configPath = join(member, 'tsconfig.test.json')
@@ -50,12 +50,19 @@ it('w1.types.inventory.all-five-built-root-declarations', async () => {
   expect(parsed.options.exactOptionalPropertyTypes).toBe(true)
   expect(parsed.options.noUncheckedIndexedAccess).toBe(true)
 
-  const nodes = ['identity-values', 'offer-expiry', 'kernel-basis', 'storage', 'content-blocks']
+  const entries = [
+    { node: 'identity-values', file: 'index', subpath: '' },
+    { node: 'offer-expiry', file: 'index', subpath: '' },
+    { node: 'kernel-basis', file: 'index', subpath: '' },
+    { node: 'kernel-basis', file: 'cordis', subpath: '/cordis' },
+    { node: 'storage', file: 'index', subpath: '' },
+    { node: 'content-blocks', file: 'index', subpath: '' },
+  ]
   // 本次明确盘点的范围。新增/撤回根类型须重新交接，不能因库存来源变化而自动缩小。
-  const expectedCounts = [24, 10, 4, 27, 38]
+  const expectedCounts = [24, 10, 2, 2, 32, 41]
   const inventory = []
-  for (const [position, node] of nodes.entries()) {
-    const specifier = `@omne-harness-lite/${node}`
+  for (const [position, { node, file, subpath }] of entries.entries()) {
+    const specifier = `@omne-harness-lite/${node}${subpath}`
     const resolved = ts.resolveModuleName(
       specifier,
       consumer,
@@ -65,7 +72,7 @@ it('w1.types.inventory.all-five-built-root-declarations', async () => {
     expect(resolved, specifier).toBeDefined()
     if (resolved === undefined) throw new Error(`public type module unavailable: ${specifier}`)
     const declaration = await realpath(resolved.resolvedFileName)
-    expect(declaration).toBe(join(repository, 'packages/core', node, 'dist/index.d.ts'))
+    expect(declaration).toBe(join(repository, 'packages/core', node, `dist/${file}.d.ts`))
     const bytes = await readFile(declaration)
     const names = namedTypeExports(bytes.toString('utf8'))
     const imported = imports.get(specifier) ?? []
@@ -84,10 +91,10 @@ it('w1.types.inventory.all-five-built-root-declarations', async () => {
       exportedNamedTypes: names,
       directlyImportedNamedTypes: imported,
       declarations: await dependencySurface(declaration, true),
-      sources: await dependencySurface(join(repository, 'packages/core', node, 'src/index.ts')),
+      sources: await dependencySurface(join(repository, 'packages/core', node, `src/${file}.ts`)),
     })
   }
-  expect(inventory.reduce((sum, item) => sum + item.exportedNamedTypes.length, 0)).toBe(103)
+  expect(inventory.reduce((sum, item) => sum + item.exportedNamedTypes.length, 0)).toBe(111)
   const root = evidencePath(
     repository,
     'tmp/w1-public-consumers/types-complete',

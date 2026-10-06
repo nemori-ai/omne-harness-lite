@@ -239,3 +239,5 @@ make a deployment pass.
 
 No dedicated TUI-to-Docker interaction was tested here; prior terminal and profile
 evidence retains its recorded scope.
+
+The image also accepts `serve --plugins <container-path> --print-plugins` with the same deployment environment. Use a path in an existing bind mount, such as `/state/plugins.json`; the file remains outside the image. Omit `--print-plugins` to start that operator layer. The shipped Compose command uses the empty layer; a locally maintained command override must pass the same arguments. Printing redacts all configuration and creates no data or listener resources. Host role and dependency checks still apply.

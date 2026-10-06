@@ -3,6 +3,7 @@ import { join, relative, dirname, resolve } from 'node:path'
 import ts from 'typescript'
 import type { SourceFile } from './rule.ts'
 import { sessionSeedBoundary, sessionMappingImmutable } from './rules/session-seed.ts'
+import { sessionCatalogBoundary } from './rules/session-catalog.ts'
 import { registryInputBoundary } from './rules/registry-input-boundary.ts'
 import { evaluationPublicationBoundary } from './rules/evaluation-publication-boundary.ts'
 import { manifestImmutable } from './rules/manifest-immutable.ts'
@@ -13,6 +14,7 @@ import { groupDirection } from './rules/group-direction.ts'
 
 export const REPOSITORY_RULES = [
   sessionSeedBoundary,
+  sessionCatalogBoundary,
   sessionMappingImmutable,
   registryInputBoundary,
   evaluationPublicationBoundary,

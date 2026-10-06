@@ -315,7 +315,9 @@ describe('assembly.invalid-config-fails-boot：每一项坏法都启动失败、
       }),
     )
     expect(bodyOf(reply)).toEqual({ failure: 'credential-rejected' })
-    expect(host.fibers['account-identity']?.config).toMatchObject({ credentialPolicy: undefined })
+    expect(
+      Reflect.get(host.fibers['account-identity']?.config ?? {}, 'credentialPolicy'),
+    ).toBeUndefined()
   })
 
   it('反向：五项部署参数与运维面完整体检里的 deploymentParameters 逐项相等（同一组值只解析一次）', async () => {

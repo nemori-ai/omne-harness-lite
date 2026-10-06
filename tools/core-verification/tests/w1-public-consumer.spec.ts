@@ -6,6 +6,7 @@ import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
+import { assertContentSchemaTransition } from '../../../packages/core/content-blocks/tests/schema-transition.ts'
 
 const member = fileURLToPath(new URL('../', import.meta.url))
 const evidenceRoot = evidencePath(
@@ -117,8 +118,14 @@ async function consume(negativeControl: boolean) {
     const bytes = await readFile(join(member, '../../.meta_harness/design', specPath))
     const sha256 = createHash('sha256').update(bytes).digest('hex')
     expect(schema.specifier).toBe(`@omne-harness-lite/${name}/schema`)
-    expect(schema.sha256).toBe(sha256)
     expect(sha256).toBe(frozenFiles[specPath])
+    if (name === 'content-blocks') {
+      const current = await readFile(
+        join(member, '../../packages/core/content-blocks/schema/content-blocks.schema.json'),
+      )
+      assertContentSchemaTransition(current, bytes)
+      expect(schema.sha256).toBe(createHash('sha256').update(current).digest('hex'))
+    } else expect(schema.sha256).toBe(sha256)
   }
   return cases
 }

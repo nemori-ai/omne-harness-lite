@@ -10,7 +10,7 @@ import {
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { judgeModelResponse } from '@omne-harness-lite/model-response'
 import { openJsonlSessionLog } from '../src/index.ts'
-import { object } from '../src/input.ts'
+import { object } from '@omne-harness-lite/session-log'
 import { processOwnership, entry, root, session, unfenced, unconditional } from './support.ts'
 
 function record(value: JsonValue | undefined): JsonObject {

@@ -18,8 +18,8 @@ import {
   createOfficialProfileContent,
   interpretConfiguration,
   readModelDefinition,
-  type PlannedRequest,
 } from '@omne-harness-lite/pi-ai-transport'
+import { type PlannedRequest } from '@omne-harness-lite/model-request-runtime'
 import {
   deepseekV4Pro0813Definition as definition,
   deepseekV4Pro0813Configuration as configuration,

@@ -9,14 +9,14 @@ const RESTRICTED_METHODS: readonly {
 }[] = [
   {
     name: 'createPersonal',
-    owner: 'organization-governance',
+    owner: 'organization-governance-sql',
     why: 'OG S-20 建个人组织只由注册主链 ② 调',
   },
-  { name: 'activate', owner: 'account-identity', why: 'AI S-14 激活只由注册主链 ③ 调' },
-  { name: 'purge', owner: 'account-identity', why: 'AI S-38 清除只由清除链 ② 调' },
+  { name: 'activate', owner: 'account-identity-sql', why: 'AI S-14 激活只由注册主链 ③ 调' },
+  { name: 'purge', owner: 'account-identity-sql', why: 'AI S-38 清除只由清除链 ② 调' },
   {
     name: 'sweepStaleSelections',
-    owner: 'organization-governance',
+    owner: 'organization-governance-sql',
     why: 'OG S-14 ⑤ 残留清扫的触发归装配（OG G-13），不经别的产品包',
   },
 ]
@@ -36,22 +36,28 @@ export const restrictedCallSites: Rule = {
   check(files) {
     const allowed = (path: string, owner: string) =>
       isTestPath(path) ||
-      path.startsWith('tenancy/account-registration/') ||
-      path.startsWith(`tenancy/${owner}/`)
+      path.startsWith('tenancy/account-registration-sequential/') ||
+      path.startsWith(`tenancy/${owner}/`) ||
+      (owner === 'account-identity-sql' &&
+        (path === 'core/account-identity/src/types.ts' ||
+          path === 'core/account-identity/src/cordis.ts')) ||
+      (owner === 'organization-governance-sql' &&
+        (path === 'core/organization-governance/src/types.ts' ||
+          path === 'core/organization-governance/src/cordis.ts'))
     return [
       ...scanLines(
         this,
         files,
         /\.produce\(/,
         '调用了 accounts.produce(；只有注册组合能产生账号',
-        path => allowed(path, 'account-identity'),
+        path => allowed(path, 'account-identity-sql'),
       ),
       ...scanLines(
         this,
         files,
-        /['"]organization-purge['"]/,
+        /['"](?:organizationPurge|organization-purge)['"]/,
         '解析了 organization-purge 服务；只有清除链能调 S-53',
-        path => allowed(path, 'organization-governance'),
+        path => allowed(path, 'organization-governance-sql'),
       ),
       ...restrictedMethodCalls(this.id, files, allowed),
     ]

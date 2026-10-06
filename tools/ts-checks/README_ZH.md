@@ -1,6 +1,6 @@
 # ts-checks
 
-`evaluation-publication-boundary` 仅允许 EIS 自身、受信验收 bootstrap/tests，以及精确的 `packages/model/model-request-runtime/tests/session-selection-fixture.ts` 通过静态公开入口访问发布面。该 fixture 为选择测试构造真实 SQL／治理／EIS 来源；许可不扩展到 runtime 产品源码或相邻测试文件，转导出、动态转发和私有发布入口仍拒绝。正反验证命令：`pnpm --filter @omne-harness-lite/ts-checks exec vitest run tests/evaluation-publication-boundary.spec.ts`。
+`evaluation-publication-boundary` 仅允许 EIS 自身、受信验收 bootstrap/tests，以及精确的 `packages/model/model-request-runtime-local/tests/session-selection-fixture.ts` 通过静态公开入口访问发布面。该 fixture 为选择测试构造真实 SQL／治理／EIS 来源；许可不扩展到 runtime 产品源码或相邻测试文件，转导出、动态转发和私有发布入口仍拒绝。正反验证命令：`pnpm --filter @omne-harness-lite/ts-checks exec vitest run tests/evaluation-publication-boundary.spec.ts`。
 
 产品源码与开发示例（`packages/`、`apps/` 与 `examples/`）的结构检查：契约与 realization 节点 verification 点名的静态检查，
 规则检查文本、路径与 TypeScript 语法，不做跨文件类型分析。类型层的检查（失败集合闭合等）
@@ -16,7 +16,7 @@
 
 | 规则                             | 来源                                                                                  | 查什么                                                                                                                                                                                                                                                                                                                                                                                   | 不覆盖                                                                                                                                                |
 | -------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `no-wall-clock` | offer-expiry 节点 SC-OE-3 | 原生产范围保留，infra 与测试豁免；CG1/D047仅另豁免 `frontend/governance-client-operations/src/observation-time.ts` 的副本显示时刻；Date.now、performance.now、无参 new Date，含解码成员与同文件 const/解构别名 | 跨文件/可变赋值/函数传参/动态成员的数据流 |
+| `no-wall-clock` | offer-expiry 节点 SC-OE-3 | 原生产范围保留，infra 与测试豁免；CG1/D047仅另豁免 `frontend/governance-client-operations-local/src/observation-time.ts` 的副本显示时刻；Date.now、performance.now、无参 new Date，含解码成员与同文件 const/解构别名 | 跨文件/可变赋值/函数传参/动态成员的数据流 |
 | `no-bail-control`                | basis `async-control-not-bail`                                                        | 不得调用 `ctx.bail(`，异步控制走 `serial`                                                                                                                                                                                                                                                                                                                                                | —                                                                                                                                                     |
 | `no-testing-import` | apps/tenancy-host verification | 产品源码不得 import testing 子入口；静态、侧效应、字面动态/require、重导出、类型与解码说明符均查，测试豁免 | 非字面说明符、通过函数传参的动态装载 |
 | `restricted-call-sites`          | AI S-30、OG S-42、入口契约 SC-1                                                       | `accounts.produce(` 与 `'organization-purge'` 只出现在 `tenancy/account-registration`（及定义它们的包）；`createPersonal(`、`activate(`、`purge(`、`sweepStaleSelections(`（`.m(` 与解构后的 `m(` 都算）同样只许在 AR 与定义它们的包（OG；AI）。入口层路由表不点名这四个，入口层包里出现即违反                                                                                           | `apps/` 不在扫描根内（装配调 `sweepStaleSelections` 不受查）；经别名或 `obj[name](` 调用                                                              |
@@ -34,7 +34,7 @@
 | `sc-oe-2`                        | offer-expiry S-13；offer-expiry 节点 SC-OE-2                                          | 消费者的接受路径——名为 `accept` 后接大写字母的函数、方法、赋给该名的箭头函数的块体（含其中嵌套回调）——不对 `pending`／`accepted`／`withdrawn`／`expired` 做 `===`／`!==`／`case` 比较，只经 `acceptable()`                                                                                                                                                                               | 经辅助函数逐值比较；`includes`／查表式分派；不以 `accept*` 命名的接受路径                                                                             |
 | `sc-cv-1`                        | AI S-8；CV 节点 SC-CV-1                                                               | `tenancy/*` 除 CV 包外，对凭据材料值（标注为 `CredentialMaterial` 的名字、末段为 `material`／`credential_material` 的成员、`(… as CredentialMaterial)`）不做任何成员访问或下标、不交给正则 `.exec(`／`.test(` 或 `JSON.parse(`。品牌断言本身不算违反                                                                                                                                     | 经别的变量转手后再解析；`String.prototype.split.call(m)` 一类间接调用                                                                                 |
 | `terminal-outcome-closed`        | AR S-5；AR verification「S-5 四值闭合」                                               | AR 包的 `TERMINAL_OUTCOMES` 恰为 S-5 的四个字面量；`TerminalOutcome` 只由它派生；返回类型标注含 `TerminalOutcome` 的函数体（扣掉嵌套函数）里 `return '<字面量>'` 都在常量里；不出现 `as TerminalOutcome`／`<TerminalOutcome>`                                                                                                                                                            | 条件表达式或辅助函数给出的返回值（由类型检查兜底）                                                                                                    |
-| `og-s42-dynamic-resolve`         | OG S-42 第 4 行；AI S-30                                                              | `organization-purge` 服务经 `ctx.get(…)`、`resolveOptional(ctx, …)`、`inject: [...]`／`{...}`／`ctx.inject([...])` 解析只许在 AR（OG 自己也不许，它只 provide）；`ORGANIZATION_PURGE_SERVICE` 常量只在 AR 与 OG 出现                                                                                                                                                                     | 服务名经变量拼出后再解析                                                                                                                              |
+| `og-s42-dynamic-resolve`         | OG S-42 第 4 行；AI S-30                                                              | `organization-purge` 服务经 `ctx.get(…)`、`resolveOptional(ctx, …)`、`inject: [...]`／`{...}`／`ctx.inject([...])` 解析只许在 AR（OG 自己也不许，它只 provide）；公共服务键另允许在宿主私有职责表比较声明，不能解析服务、导出或传出表                                                                                                                                                                     | 服务名经变量拼出后再解析                                                                                                                              |
 | `no-dialect-bypass`              | 架构评审 N-2；storage-sql 节点「Driver 的边界」；tenancy-host「同一存储、同一约束域」 | `tenancy/*/src` 不从 `@omne-harness-lite/storage-sql` 导入 `NodeSqliteDialect`、`NodeSqliteDriver`、`SqlStorage`、`openStorage`（具名导入，或命名空间／默认导入的成员），不 `new Kysely(`；测试豁免                                                                                                                                                                                      | 经别的包转手取得连接；`kysely` 的其他构造入口                                                                                                         |
 
 ```sh
@@ -124,7 +124,7 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 | `group-direction` | [realization「packages 的两层布局」](../../.meta_harness/design/realization/README.md#packages-的两层布局)；[workspace 规范](../../docs/workspace.md)「装配负责选择提供者」 | 成员产品源码（不含测试）经 `@omne-harness-lite/*` 字面导入形成的成员间边：只能指向同层或更内层；`packages/infra` 只由最外层与它自己依赖；成员之间、组之间不成环；出现没登记层位的新组即报出 | 测试里的导入；非字面说明符；相对路径越出包边界（由包公开入口约定承担）；**层位本身对不对**——那是设计正文定的，这里只核对方向 |
 
 层位与例外在 `src/rules/group-direction.ts` 的 `GROUP_DIRECTION_POLICY`，每条带 `source` 指回设计正文；它是机检投影，不是第二份权威：
-改层位先改 realization 的布局正文，再改这张表。现存例外只有一条（`frontend/client-local-state` 直接打开本机 SQLite），登记了理由。
+改层位先改 realization 的布局正文，再改这张表。现存例外只有一条（`frontend/client-local-state-sqlite` 直接打开本机 SQLite），登记了理由。
 
 ## 提交署名
 
@@ -341,7 +341,7 @@ make metrics BASE=<基线> COVERAGE=1    # 再对变更成员逐个跑测试，�
 | `architecture.json` | 总览、关系与来源的派生浏览投影；与旧 graph.json 分开 |
 | `coverage/` | 开了覆盖率时各成员的原始 `<成员>/coverage-final.json` 与测试输出 `<成员>.vitest.log`；每个成员的耗时与退出码另记在 `metrics.json` 的 `meta` 里，运行时逐个打到标准错误 |
 
-审讯页的网址后带成员路径可直接定位，例如 `review.html#packages/model/model-request-runtime`。
+审讯页的网址后带成员路径可直接定位，例如 `review.html#packages/model/model-request-runtime-local`。
 
 怎么算的：
 
@@ -591,10 +591,11 @@ rev 翻动只数改了 `revision:` 行的提交，不看改了什么。自测：
 1. `OMNE_LOOP_HOOK=off` → 什么都不做；输入解析不了、不是对象 → 不反馈。
 2. `stop_hook_active` 为 `true`（这次收工已经因钩子续跑过）→ 不反馈。**每次收工至多拦一次。**
 3. 工作目录取输入的 `cwd`，没有就用进程的当前目录；不在 git 仓库里 → 不反馈。`loop.config.json` 的 `hook.enabled` 为 `false` → 不反馈。
-4. 这次变更（相对与 `primaryBranch` 的合并点，求不出就只看未提交的；已提交、未提交、未跟踪都算）没碰 `packages/`、`apps/` 成员的被度量源码（与度量同一个判定）→ 不反馈。
+4. 这次变更（相对与 `primaryBranch` 的合并点，求不出就只看未提交的；已提交、未提交、未跟踪都算）没碰产品源码、全局 `constraints.json` 或原 realization 的 `bindings.yaml` → 不反馈。
 5. 量**静态那部分**读数：变更函数里超 alert、且比基线涨了或新出现的（与 `make loop-status` 同一个判法，见上「要解释的函数与基线比」，基线是这里的合并点；
    反馈的那一行末尾补「原 N」「新出现」或拿不准的原因，原来就超线、这次没变差的不反馈）、新增的跨成员依赖、其中稳定依赖不稳定的、改动过的测试文件里没有断言的用例，加方向违规与环两条硬线（全仓的）。
    不跑重复代码（全仓二十多秒）、覆盖率、工作树与 topic 那几项。量在 worker 线程里跑，超过 `hook.timeoutSeconds`（初值 40；宿主那侧另配 60）就放弃。
+   同时按 BASE 的架构预期判断新增偏离，分别报告全局及原节点预期的语义改动；机械范围见 [CONFORMANCE](src/arch/CONFORMANCE.md)。仅修改预期也可产生反馈，未发布新全局预期的节点继续由原声明传感器消费。
 6. 没有红项 → 不反馈。同一分支上同一组读数已经反馈过 → 不反馈：每条取「类别＋位置（路径与函数名、或成员对）」，**不含行号**，排序后求哈希，
    连同分支名记进回路目录的 `hook-state.json`，最多记 `hook.stateLimit`（初值 200）组，超了丢最旧的。多了一项、换了分支都算新的一组。
 7. 反馈的文字列前 `hook.maxItems`（初值 12）条，多的写「另有 N 条」，整段不超过 `hook.maxChars`（初值 4000）个字符；硬线排最前，截断时截掉的是报告项。
@@ -607,13 +608,20 @@ rev 翻动只数改了 `revision:` 行的提交，不看改了什么。自测：
 跑它自己的；否则跑主检出里的那一份，量的仍是会话所在的那棵工作树。刚 `git worktree add` 出来、还没装依赖的工作树走的就是后一条——
 2026-10-02 第一次在真实会话里触发时正是栽在这里：脚本在新工作树里加载不了解析器，只记了日志。主检出自己也没装依赖时，结果是上面那句警告。
 
+每次调用都重新计算 `git merge-base <primaryBranch> HEAD`，不沿用上一次的基线。
+架构读取先把基线解析成固定 commit，再按该树的 blob ID 批量读取文件；不缓存跨提交的读数，也不逐文件启动 Git。
+成员源码与数据文件按最长成员路径前缀分配，文件清单只遍历一次。读取失败仍报错，不以当前工作树补齐旧提交的缺失文件。
+同步主线可能让已交付的改动退出本次差分。需要核对整个任务时，用固定的任务起点运行
+`make loop-status BASE=<任务起点commit>`；这个显式 BASE 不改变自动钩子的基线。
+没有输出时还需区分没有新红项、已反馈、递归 Stop 和测量错误，不能仅凭同步发生在先就认定基线损坏。
+
 实测（本仓库全量，2026-10-01，8 核机器上负载很低时）：碰了产品源码、有一处红项的一次 2.5 秒；没碰产品源码的 0.8 秒。
 另有一轮完整检查在跑时，前者量到过 3.2 秒。大头是解析全部产品源码（方向与稳定依赖都要全图），约 1.7 秒。
 函数与基线比之后（2026-10-02，机器上另有一轮完整检查、1 分钟负载 2 到 7）：存量超线函数改一行不加分支、不反馈的三次 2.6 到 3.2 秒，
 加一个分支、反馈一条的 2.5 秒；多出的一次 `git diff -M --name-status` 与每个文件一次 `git show` 合计十几毫秒，再加只解析那几个文件的基线文本。
 
 **不能声称**：反馈过的读数被处理了——它只提醒一次，交代与否由交付说明与接受的人核对；没被反馈等于没有红项——
-没碰产品源码、钩子关了、出错或超时、`stop_hook_active` 为真时都不反馈，重复代码与覆盖率不在其中，
+没碰产品源码、全局约束或原节点声明，或者钩子关了、出错或超时、`stop_hook_active` 为真时都不反馈，重复代码与覆盖率不在其中，
 **改动落在会话当前目录之外的另一棵工作树里时也不反馈**（它只量输入的 `cwd` 所在的那一棵检出；一个会话只用一棵工作树、先 `cd` 进去再干活，见 `worktree-discipline` skill）；宿主真的调用了它——
 生成配置不等于宿主已加载、已信任，要在真实会话里另行核实（Claude Code 一端 2026-10-02 见过一次真实调用；Codex 一端还没有）；
 警告一定到了用户眼前——`systemMessage` 怎样显示由宿主定，两端都只按文档核对过，没有在真实会话里看过它显示出来的样子。
@@ -853,10 +861,10 @@ pnpm 自带的 `--filter "...[<基线>]"` 只做反向依赖那一部分，而�
 | 符号 | 允许点 |
 | --- | --- |
 | `createCredentialBindingReader` | 目录 owner；精确 bootstrap 文件中 `createAcceptanceApplication` 的 `start` 构造，向 CCL 工厂传递 |
-| 返回的 binding reader | 目录 `plugin.ts` 的 `localCredentialLookupPlugin` 和 CCL `model-replica.ts` 执行；bootstrap 不执行、不返回 |
+| 返回的 binding reader | 目录 `cordis.ts` 的 `localCredentialLookupPlugin` 和 CCL `model-replica.ts` 执行；bootstrap 不执行、不返回 |
 | `createModelReplicaCustodian` | 同一 app 的 `start` 唯一构造点；目录不能重建 |
 | `storeBoundReplica` | app `publishCredential` 的真实来源写入路径；真实资格／来源真实性仍须运行验收 |
-| `readBoundReplicaIn` | app `start` 只借给 lookup 配置；P1r／CCL 执行 |
+| `readBoundReplicaIn` | app `start` 经 `ReplicaReader` 只借出读方法；lookup 消费定义服务，CCL 保留自身方法 |
 | 组件 `close` | app `closeResources` 和 CCL 所有者执行；借用者不得取得 |
 
 公开构建模块 `dist/index.js` 导出 `Rule/SourceFile/Violation`、`collectSources/runRules/RULES`、逐项规则与规则工厂；`dist/repository.js` 导出 `collectRepositorySources/REPOSITORY_RULES`。`SourceFile` 包含路径、文本及可选 `resolvedModules`，规则不加载或执行产品模块。包规则通常取 packages 根相对路径，仓库规则取仓库相对路径；模型守卫另兼容相应包根／app 根路径。包是私有 workspace 开发工具，不是 Cordis 插件或沙箱。
@@ -870,15 +878,17 @@ import { modelCredentialBoundary, type SourceFile } from './dist/index.js'
 const source: SourceFile = {
   path: 'examples/model-invocation-minimal-demo/src/bootstrap.ts',
   text: `
-    import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory/tx-reads';
+    import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads';
     import { createModelReplicaCustodian } from '@omne-harness-lite/credential-custodian-local/model-replica';
-    import { localCredentialLookupPlugin } from '@omne-harness-lite/model-profile-directory/plugin';
+    import { localCredentialLookupPlugin } from '@omne-harness-lite/model-profile-directory-local/cordis';
+    import { ReplicaReader } from './assembly-inputs.ts';
     export function createAcceptanceApplication() {
       let replica;
       async function start() {
         const reader = createCredentialBindingReader(storage);
         replica = await createModelReplicaCustodian({ readCredentialBindingIn: reader });
-        ctx.plugin(localCredentialLookupPlugin, { readBoundReplicaIn: replica.readBoundReplicaIn });
+        new ReplicaReader(ctx, { readIn: replica.readBoundReplicaIn });
+        ctx.plugin(localCredentialLookupPlugin, { mode: 'localCredentialOnly' });
       }
       function publishCredential() { return replica.storeBoundReplica(input); }
       async function closeResources() { await replica.close(); }
@@ -902,7 +912,7 @@ import { REPOSITORY_RULES } from './dist/repository.js'
 
 const violations = runRules([{
   path: 'packages/model/example/src/runtime.ts',
-  text: "import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory/tx-reads';",
+  text: "import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads';",
 }], REPOSITORY_RULES)
 assert(violations.some(v => v.rule === 'model-credential-boundary'))
 ```
@@ -911,4 +921,4 @@ assert(violations.some(v => v.rule === 'model-credential-boundary'))
 
 限制：不解释任意 JavaScript，不推导无类型的跨文件值，不证明真实来源对、共同事务、运行期唯一实例、反射隔离或资源实际关闭。模块别名解析定位 provider，不增加权限。缺席 app 的扫描通过不是 app 合规证据；最终冻结 app 仍须集成扫描和独立联合验收，工具自测不能单独关闭 MCR-V7 或 P3。
 
-精确路径 `packages/agent-loop/loop-extension-runner/tests/runner-chain-support.ts` 可通过 EIS 公开发布入口建立 D106 R7 验收的真实不可变历史。相邻 runner 测试和全部 runner 产品源码仍禁止发布。历史边界规则只允许 runner 产品源码导入 reader 类型，测试可构造真实 reader；不允许工厂转发，也不授予产品侧发布权。
+精确路径 `packages/agent-loop/loop-extension-runner-local/tests/runner-chain-support.ts` 可通过 EIS 公开发布入口建立 D106 R7 验收的真实不可变历史。相邻 runner 测试和全部 runner 产品源码仍禁止发布。历史边界规则只允许 runner 产品源码导入 reader 类型，测试可构造真实 reader；不允许工厂转发，也不授予产品侧发布权。

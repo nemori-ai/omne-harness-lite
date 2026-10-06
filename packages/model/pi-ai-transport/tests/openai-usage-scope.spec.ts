@@ -1,7 +1,8 @@
 import { imagePreparation } from './image-transport-support.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import { createReadFactsAccumulator } from '../src/read-facts.ts'
 import { usageScope, PRO_READER_REVISION } from '../src/usage-scope.ts'
 import { openaiDefinitions, openaiConfiguration } from '../src/official-models/openai.ts'
@@ -9,8 +10,9 @@ import { openAiFamilyRecords } from '../src/input-meters/openai-family-policy.ts
 import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createPiAiTransport } from '../src/transport.ts'
-import { createModelTransportService, type RetirementPolicy } from '../src/registry.ts'
-import type { ModelDefinition } from '../src/definitions.ts'
+import { createModelTransportService } from '../src/registry.ts'
+import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
+import type { ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import { certificate, fixture, input, message, policy, sse, finish } from './support.ts'
 
 function request(definition: ModelDefinition): PlanInput {

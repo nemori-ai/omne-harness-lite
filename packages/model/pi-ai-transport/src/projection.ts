@@ -1,3 +1,4 @@
+import { type InputProjection } from '@omne-harness-lite/model-request-runtime'
 import { cacheNeutralBody } from './anthropic-cache.ts'
 import { createHash } from 'node:crypto'
 import {
@@ -8,7 +9,7 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import type { CountingBasis, RequestInputEvidence } from '@omne-harness-lite/model-response'
+import type { CountingBasis } from '@omne-harness-lite/model-response'
 import type {
   PlanInput,
   OutputProjectionInput,
@@ -16,7 +17,7 @@ import type {
 } from '@omne-harness-lite/model-request-runtime'
 import { codePointOrder } from './definitions.ts'
 import { object, ownedObject } from './json.ts'
-import type { InputMeter } from './input-meter.ts'
+import type { InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { deepSeekBoundaries } from './input-meters/deepseek-boundary.ts'
 import { renderDeepSeekV4Prompt } from './input-meters/deepseek-v4-pro.ts'
 import { renderDeepSeekV41Prompt } from './input-meters/deepseek-v41-flash.ts'
@@ -70,11 +71,6 @@ export function outputBlockDigestAtRevision(block: unknown, revision: string): s
 }
 export function prefixDigest(units: readonly JsonValue[]): string {
   return projectionDigest('input-prefix', units)
-}
-export interface InputProjection {
-  readonly units: readonly JsonValue[]
-  readonly envelope: JsonObject
-  readonly requestInput: Extract<RequestInputEvidence, { kind: 'known' }>
 }
 export function countingBasis(
   input: PlanInput,

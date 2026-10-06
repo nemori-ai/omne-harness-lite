@@ -1,3 +1,4 @@
+import ts from 'typescript'
 import { productSourceIn } from '../layout.ts'
 import type { Rule, Violation } from '../rule.ts'
 import { lineAt, resolveRelative } from '../source-text.ts'
@@ -5,6 +6,115 @@ import { syntaxImports, syntaxOf } from '../syntax.ts'
 
 /** 当前已接受节点 design 的依赖表；工具依赖（如 content-blocks 无损写）也明确登记。 */
 export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>> = {
+  storage: [],
+  'cordis-plugin-tree': ['assembly-lifecycle'],
+  'offer-expiry': ['identity-values'],
+  'organization-governance': ['storage', 'identity-values', 'offer-expiry', 'kernel-basis'],
+  // Tool runtime stage 2: m1/b1 accepted signature closure, plus N4 retry ownership.
+  'model-request-runtime': [
+    'content-blocks',
+    'call-accounts',
+    'tool-definition',
+    'identity-values',
+    'messages',
+    'session-log',
+    'model-response',
+    'offer-expiry',
+    'arrival-events',
+    'model-profile',
+    'stream-assembly',
+  ],
+  'session-log': [
+    'call-accounts',
+    'content-blocks',
+    'identity-values',
+    'messages',
+    'session-tenancy',
+    'execution-environments',
+  ],
+  'session-tenancy': ['identity-values', 'messages'],
+  'assembly-manifest': [
+    'asset-model',
+    'asset-evaluation',
+    'content-blocks',
+    'identity-values',
+    'offer-expiry',
+    'call-accounts',
+    'tool-definition',
+  ],
+  'asset-registry': [
+    'asset-model',
+    'asset-evaluation',
+    'assembly-manifest',
+    'tool-definition',
+    'skill-package',
+    'loop-extension',
+    'content-blocks',
+    'call-accounts',
+    'offer-expiry',
+    'identity-values',
+  ],
+  'model-profile-directory': [
+    'asset-model',
+    'content-blocks',
+    'identity-values',
+    'model-profile',
+    'offer-expiry',
+    'storage',
+  ],
+  'loop-extension-runner': [
+    'asset-registry',
+    'tool-admission',
+    'loop-extension',
+    'messages',
+    'session-log',
+    'call-accounts',
+    'content-blocks',
+    'identity-values',
+    'model-request-runtime',
+    'assembly-manifest',
+    'asset-evaluation',
+    'session-tenancy',
+    'asset-model',
+  ],
+  'runtime-context': ['content-blocks', 'session-tenancy', 'offer-expiry'],
+  'execution-environments': [
+    'content-blocks',
+    'runtime-context',
+    'session-tenancy',
+    'identity-values',
+    'tool-definition',
+  ],
+  'tool-execution-runtime': [
+    // TE-25 uses the shared pure close-control types; this does not grant a Cordis face.
+    'assembly-lifecycle',
+    // Adopted r10 i1/b1: the public runtime factory receives the core RunnerServiceHost read port.
+    'loop-extension-runner',
+    // Public tool-runtime/1 log codec owns its durable shell and value checks.
+    'session-log',
+    'identity-values',
+    'offer-expiry',
+    'content-blocks',
+    'call-accounts',
+    'arrival-events',
+    'tool-definition',
+    'stream-assembly',
+    'session-tenancy',
+    'runtime-context',
+    'execution-environments',
+    'tool-admission',
+    'messages',
+  ],
+  // Adopted ar3: ToolActionHistory consumes these definitions, never a concrete driver/provider.
+  'tool-admission': [
+    'content-blocks',
+    'loop-extension',
+    'session-tenancy',
+    'asset-registry',
+    'call-accounts',
+    'session-log',
+    'tool-definition',
+  ],
   'content-blocks': ['identity-values'],
   'asset-model': ['identity-values', 'offer-expiry', 'content-blocks'],
   'agent-definition': [
@@ -67,6 +177,7 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
   'slash-command': ['asset-model', 'content-blocks', 'identity-values', 'skill-package'],
   'stream-assembly': ['arrival-events', 'content-blocks', 'call-accounts'],
   'asset-evaluation': [
+    'offer-expiry',
     'agent-definition',
     'call-accounts',
     'model-profile',
@@ -83,6 +194,7 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
 }
 
 const BUILTINS: Readonly<Record<string, readonly string[]>> = {
+  storage: ['node:util'],
   // S-17：只规范化显式绝对路径的字面形状，不从 cwd 补齐、也不读文件系统。
   'asset-model': ['node:crypto', 'node:buffer', 'node:path'],
   'arrival-events': ['node:buffer'],
@@ -91,6 +203,42 @@ const BUILTINS: Readonly<Record<string, readonly string[]>> = {
   // MS8 S-56 语义摘要喂 SHA-256：messages v8-acknowledgement-design「编码与依赖」。
   messages: ['node:crypto'],
 }
+
+const CORDIS_DEFINITION_OWNERS = new Set([
+  'storage',
+  'offer-expiry',
+  'organization-governance',
+  'model-request-runtime',
+  'asset-evaluation',
+  'session-log',
+  'session-tenancy',
+  'assembly-manifest',
+  'asset-registry',
+  'model-profile-directory',
+  'loop-extension-runner',
+  'runtime-context',
+  'execution-environments',
+  'tool-execution-runtime',
+  'tool-admission',
+])
+
+const SCHEMA_JUDGE_OWNERS = new Set([
+  'organization-governance',
+  'content-blocks',
+  'asset-model',
+  'agent-definition',
+  'model-profile',
+  'call-accounts',
+  'messages',
+  'tool-definition',
+  'loop-extension',
+  'skill-package',
+  'connector',
+  'mcp-endpoint',
+  'arrival-events',
+  'model-response',
+  'slash-command',
+])
 
 /** 精确子入口登记不替代上面的包依赖批准，也不准许相邻私有路径。 */
 export const PUBLIC_SUBPATHS: Readonly<Record<string, readonly string[]>> = {
@@ -115,6 +263,10 @@ export const PUBLIC_SUBPATHS: Readonly<Record<string, readonly string[]>> = {
 // D-116 native loading/build assembly: finite technical sites only. This does not
 // grant module loading to value judges or the compiler-free code-runtime.
 const FIXED_SCHEMA_MODULE_SITES = new Set([
+  'core/tool-execution-runtime/src/journal-values.ts',
+  'core/runtime-context/src/decode.ts',
+  'core/offer-expiry/src/validate.ts',
+  'core/offer-expiry/src/schema-inputs.ts',
   'core/content-blocks/src/schema.ts',
   'core/content-blocks/src/exact-schema.ts',
   'core/content-blocks/src/schema-runtime.ts',
@@ -133,12 +285,42 @@ const FIXED_SCHEMA_MODULE_SITES = new Set([
   'core/slash-command/src/schema.ts',
 ])
 
+const treeBindingPath = (path: string): boolean =>
+  ['prepare.ts', 'prepared.ts', 'load.ts', 'cordis.ts'].some(
+    name => path === `core/cordis-plugin-tree/src/${name}`,
+  )
+
 function allowedExternal(
   pkg: string,
   dependencies: readonly string[],
   specifier: string,
   path: string,
 ): boolean {
+  if (pkg === 'cordis-plugin-tree') {
+    const binding = treeBindingPath(path)
+    if (
+      binding &&
+      [
+        '@deepseek-ai/cordis',
+        '@standard-schema/spec',
+        '@omne-harness-lite/assembly-lifecycle/cordis',
+        '@omne-harness-lite/kernel-basis/cordis',
+      ].includes(specifier)
+    )
+      return true
+    if (
+      path === 'core/cordis-plugin-tree/src/tree.ts' &&
+      ['validate-npm-package-name', '@babel/helper-validator-identifier'].includes(specifier)
+    )
+      return true
+  }
+  // IC-4: only the explicitly exported Cordis face may load the kernel.
+  if (
+    CORDIS_DEFINITION_OWNERS.has(pkg) &&
+    path === `core/${pkg}/src/cordis.ts` &&
+    specifier === '@deepseek-ai/cordis'
+  )
+    return true
   if (
     (specifier === 'node:module' || specifier === 'module') &&
     FIXED_SCHEMA_MODULE_SITES.has(path)
@@ -158,10 +340,16 @@ function allowedExternal(
   if (pkg === 'asset-model' && specifier === '@omne-harness-lite/asset-model/schema/v2') return true
   if (pkg === 'skill-package' && specifier === '@omne-harness-lite/skill-package/schema/v2')
     return true
+  if (SCHEMA_JUDGE_OWNERS.has(pkg) && specifier === `@omne-harness-lite/${pkg}/schema`) return true
   if (
-    pkg !== 'stream-assembly' &&
-    pkg !== 'asset-evaluation' &&
-    specifier === `@omne-harness-lite/${pkg}/schema`
+    path === 'core/runtime-context/src/schema-inputs.ts' &&
+    specifier === '@omne-harness-lite/runtime-context/schema'
+  )
+    return true
+  // tool-runtime/1 is a fixed graph owned by the public journal codec, not a dynamic compiler.
+  if (
+    path === 'core/tool-execution-runtime/src/schema-inputs.ts' &&
+    specifier === '@omne-harness-lite/tool-execution-runtime/journal-schema'
   )
     return true
   if (
@@ -177,22 +365,26 @@ function allowedExternal(
     return true
   if (BUILTINS[pkg]?.includes(specifier.startsWith('node:') ? specifier : `node:${specifier}`))
     return true
-  // 数据节点的既定校验器采用。两个纯 capability 节点不采用 Ajv。
+  if (pkg === 'storage') return specifier === 'kysely' || specifier === 'kysely/migration'
+  // tk1 / core/loop-extension-runner SPEC TLT-3: deterministic SHA-256 at this one codec site.
+  // This import allowance does not establish purity of arbitrary crypto calls.
   if (
-    pkg !== 'stream-assembly' &&
-    pkg !== 'asset-evaluation' &&
-    (specifier === 'ajv' || specifier.startsWith('ajv/'))
+    path === 'core/loop-extension-runner/src/admission-digest.ts' &&
+    (specifier === 'node:crypto' || specifier === 'crypto')
   )
+    return true
+  // 数据节点的既定校验器采用。两个纯 capability 节点不采用 Ajv。
+  if (SCHEMA_JUDGE_OWNERS.has(pkg) && (specifier === 'ajv' || specifier.startsWith('ajv/')))
     return true
   if (pkg === 'skill-package' && specifier === 'yaml') return true
   return pkg === 'tool-definition' && specifier === '@eslint-community/regexpp'
 }
 
-/** 一条规则同时承载十五个纯模块边界、SA SC-2 与 AE SC-1 的 import 面。 */
+/** 核对已登记纯模块边界及精确的 Cordis 绑定例外。 */
 export const corePureImports: Rule = {
   id: 'core-pure-imports',
   source:
-    '十五个新 core 节点 design「公开面／依赖」 · stream-assembly SC-2 · asset-evaluation SC-1',
+    'core 节点公开面／依赖 · storage/offer-expiry SPEC · stream-assembly SC-2 · asset-evaluation SC-1',
   description: '纯 core 模块只从节点登记的公开入口、本包源码/Schema 与已采用纯构件导入',
   check(files) {
     const out: Violation[] = []
@@ -211,9 +403,31 @@ export const corePureImports: Rule = {
         const resolved = specifier === undefined ? undefined : resolveRelative(file.path, specifier)
         const local =
           resolved !== undefined &&
-          (resolved.startsWith(`core/${pkg}/src/`) ||
+          !(
+            pkg === 'cordis-plugin-tree' &&
+            treeBindingPath(resolved) &&
+            !treeBindingPath(file.path)
+          ) &&
+          ((resolved.startsWith(`core/${pkg}/src/`) &&
+            !(CORDIS_DEFINITION_OWNERS.has(pkg) && resolved === `core/${pkg}/src/cordis.ts`)) ||
             (resolved.startsWith(`core/${pkg}/schema/`) && resolved.endsWith('.json')))
+        // Existing APIs use these types without loading a test runner or schema compiler.
+        const boundaryType =
+          ((pkg === 'storage' &&
+            [
+              'core/storage/src/conformance/index.ts',
+              'core/storage/src/conformance/atomic.ts',
+            ].includes(file.path) &&
+            specifier === 'vitest') ||
+            (file.path === 'core/offer-expiry/src/validate.ts' && specifier === 'ajv')) &&
+          syntaxOf(file).statements.some(
+            statement =>
+              ts.isImportDeclaration(statement) &&
+              statement.getStart(syntaxOf(file)) === ref.index &&
+              statement.importClause?.isTypeOnly === true,
+          )
         if (
+          boundaryType ||
           local ||
           (specifier !== undefined && allowedExternal(pkg, dependencies, specifier, file.path))
         )

@@ -8,17 +8,19 @@ import type {
   SettlementPrefix,
   SelectionProjection,
   SelectionCompatibility,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   captureModelLogValue,
   decodeModelLogKey,
   inspectModelLogEntry,
-  interpretCallHistory,
   modelLogJsonEqual,
 } from '@omne-harness-lite/model-request-runtime'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime-local'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type { LogEntry } from '@omne-harness-lite/session-log'
 import { inspectRunnerConclusion } from '@omne-harness-lite/loop-extension-runner'
+import { toolDriverAll } from './tool-driver-codec.ts'
+import { readToolDriverHistory } from './tool-driver-history.ts'
 
 /** This deliberately limited local fixture selects one actual fenced Run/attempt. */
 export interface ControlledSingleRunSelection {
@@ -30,6 +32,7 @@ export interface ControlledSingleRunSelection {
 export function messagePrefixWithSources(
   prefix: SettlementPrefix,
   selectedRun?: ControlledSingleRunSelection,
+  ownerGeneration?: string,
 ):
   | {
       readonly messages: readonly LoggedMessage[]
@@ -39,6 +42,31 @@ export function messagePrefixWithSources(
       }[]
     }
   | { readonly unavailable: true } {
+  if (
+    ownerGeneration !== undefined &&
+    (selectedRun === undefined ||
+      prefix.entries.some(entry => entry.readKeys.includes(toolDriverAll)))
+  ) {
+    const history = readToolDriverHistory({
+      scope: { tenant: prefix.binding.tenant, session: prefix.binding.session },
+      ownerGeneration,
+      entries: prefix.entries,
+      tail: prefix.tail,
+    })
+    if ('unavailable' in history) return { unavailable: true }
+    const selected = history.models.entries.flatMap(record =>
+      record.captured.message && record.captured.message.type !== 'system'
+        ? [{ message: record.captured.message, entry: record.entry }]
+        : [],
+    )
+    return {
+      messages: selected.map(record => record.message),
+      selectedMessageSources: selected.map((record, messageIndex) => ({
+        messageIndex,
+        entry: record.entry,
+      })),
+    }
+  }
   const messages: LoggedMessage[] = []
   const selectedMessageSources: { readonly messageIndex: number; readonly entry: LogEntry }[] = []
   let started = false
@@ -168,8 +196,9 @@ export function messagePrefixWithSources(
 export function messagePrefix(
   prefix: SettlementPrefix,
   selectedRun?: ControlledSingleRunSelection,
+  ownerGeneration?: string,
 ): { readonly messages: readonly LoggedMessage[] } | { readonly unavailable: true } {
-  const history = messagePrefixWithSources(prefix, selectedRun)
+  const history = messagePrefixWithSources(prefix, selectedRun, ownerGeneration)
   return 'unavailable' in history ? history : { messages: history.messages }
 }
 
@@ -179,23 +208,45 @@ export function readDemoCalibrationHistory(
   selectedMessages: readonly Message[],
   target: Parameters<CurrentHistoryReaders['calibration']>[2],
   selectedRun?: ControlledSingleRunSelection,
+  ownerGeneration?: string,
 ): CalibrationHistoryResult {
-  // The default noRun reader never infers a Run's selected branch. Only a
-  // construction-time owner can pass its actual single-Run selection here.
-  if (selectedRun === undefined) {
+  const toolOwned =
+    ownerGeneration !== undefined &&
+    prefix.entries.some(entry => entry.readKeys.includes(toolDriverAll))
+  if (toolOwned) {
+    const history = readToolDriverHistory({
+      scope: { tenant: prefix.binding.tenant, session: prefix.binding.session },
+      ownerGeneration: ownerGeneration!,
+      entries: prefix.entries,
+      tail: prefix.tail,
+    })
+    if ('unavailable' in history || target.run === undefined || target.attempt === undefined)
+      return { sourceUnavailable: true }
+    const run = history.runs.get(target.run)
     if (
-      Object.hasOwn(target, 'run') ||
-      Object.hasOwn(target, 'attempt') ||
-      prefix.entries.some(entry => entry.run !== undefined || entry.attempt !== undefined)
+      !run?.latest ||
+      run.end ||
+      ExactDecimal.from(run.latest.value.attempt).compare(ExactDecimal.from(target.attempt)) !== 0
     )
       return { sourceUnavailable: true }
-  } else if (
-    target.run !== selectedRun.run ||
-    target.attempt === undefined ||
-    ExactDecimal.from(target.attempt).compare(ExactDecimal.from(selectedRun.attempt)) !== 0
-  )
-    return { sourceUnavailable: true }
-  const decoded = messagePrefixWithSources(prefix, selectedRun)
+  } else {
+    // The default noRun reader never infers a Run's selected branch. Only a
+    // construction-time owner can pass its actual single-Run selection here.
+    if (selectedRun === undefined) {
+      if (
+        Object.hasOwn(target, 'run') ||
+        Object.hasOwn(target, 'attempt') ||
+        prefix.entries.some(entry => entry.run !== undefined || entry.attempt !== undefined)
+      )
+        return { sourceUnavailable: true }
+    } else if (
+      target.run !== selectedRun.run ||
+      target.attempt === undefined ||
+      ExactDecimal.from(target.attempt).compare(ExactDecimal.from(selectedRun.attempt)) !== 0
+    )
+      return { sourceUnavailable: true }
+  }
+  const decoded = messagePrefixWithSources(prefix, selectedRun, ownerGeneration)
   if ('unavailable' in decoded) return { sourceUnavailable: true }
   const selectedSources: {
     readonly messageIndex: number
@@ -265,6 +316,7 @@ export function readDemoCalibrationHistory(
     )
     if (dispatch === undefined) return { sourceUnavailable: true }
     if (
+      !toolOwned &&
       selectedRun !== undefined &&
       (dispatch.dispatched.run !== selectedRun.run ||
         dispatch.dispatched.attempt === undefined ||
@@ -338,8 +390,9 @@ export function readDemoCalibrationHistory(
 export async function historyProjection(
   prefix: SettlementPrefix,
   selectedRun?: ControlledSingleRunSelection,
+  ownerGeneration?: string,
 ): Promise<SelectionProjection> {
-  const history = messagePrefix(prefix, selectedRun)
+  const history = messagePrefix(prefix, selectedRun, ownerGeneration)
   if ('unavailable' in history) return { unknown: true }
   const modalities = new Set<Modality>()
   function visit(blocks: readonly ContentBlock[]): void {

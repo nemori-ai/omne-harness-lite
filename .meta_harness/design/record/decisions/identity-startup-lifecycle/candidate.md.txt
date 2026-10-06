@@ -1,0 +1,65 @@
+# T2 启动期收尾补差候选
+
+状态：待 Choice 审阅及主线限定采用。不能据本页直接迁移提供者。
+原采用范围及业务语义保持，候选只补异步 setup 与 Cordis apply 之间的责任。
+
+## 新反例与候选选择
+
+T2-S1 实际执行冻结 QA 场景，发现 async apply 等待外部 setup 时，撤除尚不运行其 effect。
+因此“只在 effect 请求停止”不能及时使代际失效。原 D0 探针未覆盖这条交错。
+[新正负控](../../record/evidence/2026-10-04-probe-identity-startup/README.md) 保留原因和实际输入。
+
+| 候选 | 责任与代价 | 当前判断 |
+|---|---|---|
+| A：同步 apply，独立 OwnedWork.ready | Cordis 先完成绑定安装；资源准备由登记的 ready 与装配观察；共用窄绑定函数 | 推荐。现有端口形状不变，需明确两种就绪并同步改装配 |
+| B：async apply 加内核通知监听 | 监听 internal/plugin 等通知先请求停止；还须覆盖启动中依赖资格失效 | 未选。直接撤除通知不能自行证明所有依赖撤除路径，新增监听责任及内核耦合 |
+| C：只许宿主先 close 再 dispose | 宿主控制停止绕过 apply 等待，第三方直接撤除延迟到 setup 返回 | 排除。不能兑现原管理行强制撤除及启动取消的范围，等同放宽原保证 |
+
+不 fork Cordis，不重写其注入或状态机。同步 apply 不表示资源准备完成。
+
+## 候选精确责任
+
+所有 `assemblyLifecycle: 1` 管理导出的 apply 必须同步返回 void，不能返回或等待 setup Promise。
+装配不能仅用 `await fiber` 判资源就绪。一个管理行就绪须同时满足：
+已登记、OwnedWork.ready 成功、实际 fiber ACTIVE、provides 可见且仍有资格。
+手写宿主与后续 loader 的逐行端口实现捕获登记的 ready，立即观察失败，并等待其真正完成。
+该观察只在装配内部，不给行端口增加查询或整体关闭权限。
+
+`assembly-lifecycle/cordis` 增加共用绑定函数：
+
+```ts
+function startAssemblyWork(
+  ctx: Context,
+  setup: () => Promise<void>,
+  close: () => Promise<void>,
+): void
+```
+
+函数必需取得 `assemblyLifetime`。它先创建 ready 占位并 register，再安装同 fiber effect。
+effect 同步 requestStop，并等待 registration.closed，不调用 close。
+只有上述步骤成功才异步调用 setup。setup 前检查本 fiber 尚未撤除以及 lifetime.isCurrent。
+setup 成功返回后再次检查这两个资格，然后才能兑现 ready。
+各提供者在跨 await 后提供 Service 或开放网络之前也须核对本行资格，避免已停止代际重新开放。
+已经取得的资源仍由 close 处理，不从资格失效推断外部效果没有发生。
+
+setup 拒绝、资格失效或 effect 安装失败均拒绝 ready，并 requestStop。
+函数自己立即观察异步任务的拒绝，不向全局留下无人观察的 Promise。
+effect 安装失败时不调用 setup；登记失败则同步抛出使用错误，不创建资源。
+effect 之后的失败通过 ready 与原关闭报告交付，不在 Cordis logger 中再输出原错误文本。
+setup 原异常只进入受控进程内 ready；公共诊断继续只输出安全分类。
+
+close 必须处理任意资源前缀，并等本行业务静止才兑现或拒绝。
+所有资源仍只有这一处实际关闭者。整体关闭顺序、一次接管及不可复用约束不变。
+setup 若失去响应，报告保持 pending；停止资格仍应先失效。
+独立版绑定没有自动获得此组合保证，其调用方排空前提不变。
+
+## 消费者与验证
+
+T2-S1 实现上述公共 helper 及实际交错测试。T2-S3 的八个管理绑定与手写 host 同时接入。
+T3 CLI、T4 loader 复用，不另建异步启动机制。无需新增业务类型、事务或数据迁移。
+
+冻结 QA 原 async apply 场景保留为反例，不能直接删除或放宽“及时停止、实际完成”的 oracle。
+采用后由 QA 新冻一份基于正式 helper/管理协议的正控，保留旧输入和首次失败。
+至少验证启动前取消、setup 中撤除、依赖失效、ready/close 双失败、丢失响应保持 pending，
+以及 await fiber 成功但 ready 未完时宿主不得开放。
+独立 Choice 无阻断、限定采用及 QA 设施接续完成后，才释放依赖切片。

@@ -45,7 +45,13 @@ describe('actual Cordis 4.0.4 thin provider ownership', () => {
     const service = ctx.get('sessionLog')
     if (service === undefined) throw new Error('service unavailable')
     expect(sessionLogJsonl.inject).toBeUndefined()
-    expect(Object.keys(service).sort()).toEqual(['append', 'readByKey', 'readSince'])
+    expect(
+      Object.keys(service)
+        .filter(key => typeof Reflect.get(service, key) === 'function')
+        .sort(),
+    ).toEqual(['append', 'readByKey', 'readSince'])
+    expect(service).not.toHaveProperty('close')
+    expect(service).not.toHaveProperty('log')
     expect(
       fiber.getEffects().filter(effect => effect.label === 'session-log-jsonl.close'),
     ).toHaveLength(1)

@@ -9,9 +9,8 @@ import {
   createOfficialProfileContent,
   interpretConfiguration,
   readModelDefinition,
-  type ModelDefinition,
-  type ModelRoute,
 } from '@omne-harness-lite/pi-ai-transport'
+import { type ModelDefinition, type ModelRoute } from '@omne-harness-lite/model-request-runtime'
 import { gemini37FlashRoutes, gemini38FlashRoutes } from '../src/official-models/google.ts'
 import { certificate, content, finish, fixture as httpsFixture } from './support.ts'
 

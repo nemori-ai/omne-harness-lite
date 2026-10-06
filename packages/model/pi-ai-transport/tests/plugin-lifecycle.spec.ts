@@ -1,26 +1,22 @@
+import { Support, loadTransport } from './cordis-assembly.ts'
 import { imagePreparation } from './image-transport-support.ts'
 import { testDefinitions } from './definitions.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
-import {
-  invokeModel,
-  type PlanInput,
-  type StreamEnd,
-} from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput, type StreamEnd } from '@omne-harness-lite/model-request-runtime'
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
+import { createModelTransportService } from '@omne-harness-lite/pi-ai-transport'
 import {
-  createModelTransportService,
   type AdaptationLease,
   type AdaptationRegistration,
   type ModelDefinition,
   type ModelTransportService,
-  type RetirementPolicy,
-} from '@omne-harness-lite/pi-ai-transport'
-import {
-  createModelPlugin as createModelPluginWithMeter,
-  MODEL_TRANSPORT_SERVICE,
-  piAiTransportPlugin,
-} from '@omne-harness-lite/pi-ai-transport/plugin'
+} from '@omne-harness-lite/model-request-runtime'
+import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
+import { loadModelContribution as createModelPluginWithMeter } from './cordis-assembly.ts'
+import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
+import { piAiTransportPlugin } from '@omne-harness-lite/pi-ai-transport/cordis'
 import {
   certificate,
   content,
@@ -32,8 +28,13 @@ import {
 } from './support.ts'
 import { syntheticInputMeter } from './synthetic-input-meter.ts'
 
-function createModelPlugin(definition: ModelDefinition, policy: RetirementPolicy) {
-  return createModelPluginWithMeter(definition, syntheticInputMeter(definition, 'openai'), policy)
+function createModelPlugin(ctx: Context, definition: ModelDefinition, policy: RetirementPolicy) {
+  return createModelPluginWithMeter(
+    ctx,
+    definition,
+    syntheticInputMeter(definition, 'openai'),
+    policy,
+  )
 }
 
 // Cordis 4.0.4 publishes these numeric FiberState values in its public declaration.
@@ -153,12 +154,12 @@ afterAll(() => cert.dispose())
 describe('actual Cordis 4.0.4 model contribution lifecycle', () => {
   it('missing stable service keeps a contribution pending; later provision activates it without false registration', async () => {
     const ctx = new Context()
-    const contribution = ctx.plugin(createModelPlugin(firstDefinition(), retirement()), {})
+    const contribution = createModelPlugin(ctx, firstDefinition(), retirement())
     try {
       await new Promise<void>(resolve => setImmediate(resolve))
       expect(contribution.state).toBe(fiberState.pending)
       expect(ctx.get(MODEL_TRANSPORT_SERVICE)).toBeUndefined()
-      const provider = ctx.plugin(piAiTransportPlugin, {
+      const provider = loadTransport(ctx, {
         imagePreparation,
         policy: networkPolicy,
         retirement: retirement(),
@@ -181,11 +182,12 @@ describe('actual Cordis 4.0.4 model contribution lifecycle', () => {
       { policy: { ...networkPolicy, maxConnections: 0 }, retirement: retirement() },
       { policy: networkPolicy },
       { policy: networkPolicy, retirement: { ...retirement(), waitMilliseconds: 0 } },
-      { policy: networkPolicy, retirement: { waitMilliseconds: 30, force: false } },
+      { policy: networkPolicy, retirement: { waitMilliseconds: 30, force: false, schedule() {} } },
     ]
     for (const config of invalidConfigurations) {
       const ctx = new Context()
       try {
+        new Support(ctx, { retirementSchedule: retirement().schedule })
         const provider = ctx.plugin(pluginAtUnknownConfigBoundary, config)
         await expect(Promise.resolve(provider)).rejects.toThrow(/invalid config/)
         expect(provider.state).toBe(fiberState.failed)
@@ -213,7 +215,7 @@ describe('actual Cordis 4.0.4 model contribution lifecycle', () => {
       },
     }
     try {
-      const provider = ctx.plugin(piAiTransportPlugin, {
+      const provider = loadTransport(ctx, {
         imagePreparation,
         policy: networkPolicy,
         retirement: retirement(),
@@ -222,17 +224,19 @@ describe('actual Cordis 4.0.4 model contribution lifecycle', () => {
       const stable = serviceOf(ctx)
       const unrelated = ctx.plugin(consumer)
       await unrelated
-      const v1 = ctx.plugin(createModelPlugin(firstDefinition(), retirement()), {})
+      const v1 = createModelPlugin(ctx, firstDefinition(), retirement())
       await v1
       const oldRequest = requestFor(firstDefinition())
       const oldLease = acquire(stable, oldRequest)
       leases.push(oldLease)
-      const v2 = ctx.plugin(createModelPlugin(nextDefinition(), retirement()), {})
+      const v2 = createModelPlugin(ctx, nextDefinition(), retirement())
       await v2
       const newRequest = requestFor(nextDefinition())
       const newLease = acquire(stable, newRequest)
       leases.push(newLease)
-      expect(serviceOf(ctx)).toBe(stable)
+      // Cordis returns caller-tracked proxies. Both views must expose the same live registrations.
+      expect(serviceOf(ctx).inspect()).toEqual(stable.inspect())
+      expect(serviceOf(ctx).inspect().registrations).toBe(2)
       expect(provider.state).toBe(fiberState.active)
       expect(unrelated.state).toBe(fiberState.active)
       expect(starts).toBe(1)
@@ -263,20 +267,18 @@ describe('actual Cordis 4.0.4 model contribution lifecycle', () => {
       disposed = false
     let disposal: Promise<void> | undefined
     try {
-      await ctx.plugin(piAiTransportPlugin, {
+      await loadTransport(ctx, {
         imagePreparation,
         policy: networkPolicy,
         retirement: retirement(),
       })
       const service = serviceOf(ctx)
-      const v1 = ctx.plugin(
-        createModelPlugin(
-          firstDefinition(),
-          retirement(false, () => {
-            deadlines++
-          }),
-        ),
-        {},
+      const v1 = createModelPlugin(
+        ctx,
+        firstDefinition(),
+        retirement(false, () => {
+          deadlines++
+        }),
       )
       await v1
       const oldRequest = requestFor(firstDefinition())
@@ -288,7 +290,7 @@ describe('actual Cordis 4.0.4 model contribution lifecycle', () => {
       const b = acquire(service, oldRequest)
       leases.push(b)
       expect(service.inspect().references).toBe(1)
-      const v2 = ctx.plugin(createModelPlugin(nextDefinition(), retirement()), {})
+      const v2 = createModelPlugin(ctx, nextDefinition(), retirement())
       await v2
       disposal = v1.dispose().then(() => {
         disposed = true
@@ -408,14 +410,12 @@ describe('public registry actual HTTPS execution ownership', () => {
         },
       }
       await ctx.plugin(localProvider)
-      const contribution = ctx.plugin(
-        createModelPlugin(
-          firstDefinition(),
-          retirement(true, () => {
-            deadlines++
-          }),
-        ),
-        {},
+      const contribution = createModelPlugin(
+        ctx,
+        firstDefinition(),
+        retirement(true, () => {
+          deadlines++
+        }),
       )
       await contribution
       expect(serviceOf(ctx)).toBe(service)

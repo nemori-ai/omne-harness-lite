@@ -3,11 +3,11 @@ import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
 import { isOk, parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { judgeMessage } from '@omne-harness-lite/messages'
+import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
 import {
-  decodeModelLogKey,
   type AcquireCallResult,
   type RetainedCallReadView,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { DEMO_REFERENCE_SOURCE_VERSION, deriveCreationKey } from '../src/call-references.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'

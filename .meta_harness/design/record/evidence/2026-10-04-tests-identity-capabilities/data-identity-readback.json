@@ -1,0 +1,58 @@
+[
+  {
+    "old": "packages/tenancy/account-identity/src/schema.ts",
+    "new": "packages/tenancy/account-identity-sql/src/schema.ts",
+    "unchanged": true,
+    "before": "3d4458d3113080b30ceda2e1e1d6a1c42ac6b76d4406ef3b55a0e722a3369dab",
+    "after": "3d4458d3113080b30ceda2e1e1d6a1c42ac6b76d4406ef3b55a0e722a3369dab"
+  },
+  {
+    "old": "packages/tenancy/account-identity/src/snapshot.ts",
+    "new": "packages/tenancy/account-identity-sql/src/snapshot.ts",
+    "unchanged": true,
+    "before": "b2904b9d6b864fa30848ad9539f3432b6167295a14a144f42b7c89be78b20a5a",
+    "after": "b2904b9d6b864fa30848ad9539f3432b6167295a14a144f42b7c89be78b20a5a"
+  },
+  {
+    "old": "packages/tenancy/organization-governance-sql/src/migrations.ts",
+    "new": "packages/tenancy/organization-governance-sql/src/migrations.ts",
+    "unchanged": true,
+    "before": "2e7c4c81b38fb71d925bda7939dfd8de68097d8e50a5e9fc9dce8a6d45b7550d",
+    "after": "2e7c4c81b38fb71d925bda7939dfd8de68097d8e50a5e9fc9dce8a6d45b7550d"
+  },
+  {
+    "old": "packages/tenancy/organization-governance-sql/src/records.ts",
+    "new": "packages/tenancy/organization-governance-sql/src/records.ts",
+    "unchanged": true,
+    "before": "9642d449be7d441d08ead72f51603a09c263811d2bcf33dde593ad20e01a45d3",
+    "after": "9642d449be7d441d08ead72f51603a09c263811d2bcf33dde593ad20e01a45d3"
+  },
+  {
+    "old": "packages/tenancy/organization-governance-sql/src/snapshot.ts",
+    "new": "packages/tenancy/organization-governance-sql/src/snapshot.ts",
+    "unchanged": true,
+    "before": "e99a6d136f54b7f144424f52b07b663be56f92d8617840c6d84da3e414d72a62",
+    "after": "e99a6d136f54b7f144424f52b07b663be56f92d8617840c6d84da3e414d72a62"
+  },
+  {
+    "old": "packages/tenancy/governance-center-entry/src/center-id/table.ts",
+    "new": "packages/tenancy/governance-center-entry-node/src/center-id/table.ts",
+    "unchanged": true,
+    "before": "c5d85676e18d66008d69516e542a1de7c267eed760efa8baea6d966576e01fba",
+    "after": "c5d85676e18d66008d69516e542a1de7c267eed760efa8baea6d966576e01fba"
+  },
+  {
+    "old": "packages/tenancy/governance-center-entry/src/center-id/snapshot.ts",
+    "new": "packages/tenancy/governance-center-entry-node/src/center-id/snapshot.ts",
+    "unchanged": true,
+    "before": "11e12ecec2710dac66db99bcf343984b247449e01f9e801dc622326a804809ea",
+    "after": "11e12ecec2710dac66db99bcf343984b247449e01f9e801dc622326a804809ea"
+  },
+  {
+    "old": "packages/tenancy/governance-center-entry/src/center-id/snapshot-structure.ts",
+    "new": "packages/tenancy/governance-center-entry-node/src/center-id/snapshot-structure.ts",
+    "unchanged": true,
+    "before": "273fb9ebb865348c4e689d04cae93beb35bc88aa9522189e5cf0aacef35d6c00",
+    "after": "273fb9ebb865348c4e689d04cae93beb35bc88aa9522189e5cf0aacef35d6c00"
+  }
+]

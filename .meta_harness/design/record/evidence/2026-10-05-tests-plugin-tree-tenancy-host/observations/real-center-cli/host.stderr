@@ -1,0 +1,32 @@
+{"ts":1791185990136,"level":"info","name":"tenancy-host","event":"manifest-active","plugins":["storage-sql","clock-lease","credential-verification","account-identity","organization-governance","account-registration","governance-center-ops","governance-center-entry"]}
+{"ts":1791185990140,"level":"info","name":"tenancy-host","event":"upgrade-confirmed","migrated":true,"snapshotTaken":true,"snapshotRemoved":true}
+{"ts":1791185990140,"level":"info","name":"tenancy-host","event":"open-signal"}
+{"ts":1791185990141,"level":"info","name":"tenancy-host","event":"serving","centerId":"6d41370ab7d2cf6550992a8e4178ba48","version":"0.0.0","startedAt":1791185990141}
+{"ts":1791185990639,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"public-health\",\"answer\":\"public-health\"}"}
+{"ts":1791185991135,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"public-health\",\"answer\":\"public-health\"}"}
+{"ts":1791185991603,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"public-health\",\"answer\":\"public-health\"}"}
+{"ts":1791185992038,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"composition.account-registration/v2#S-8\",\"answer\":\"result\"}"}
+{"ts":1791185992523,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"public-health\",\"answer\":\"public-health\"}"}
+{"ts":1791185992557,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"composition.account-registration/v2#S-8\",\"answer\":\"failure:identifier-taken\"}"}
+{"ts":1791185993041,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"public-health\",\"answer\":\"public-health\"}"}
+{"ts":1791185993460,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"capability.account-identity/v3#S-15\",\"answer\":\"failure:identifier-or-credential-rejected\"}"}
+{"ts":1791185993951,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"public-health\",\"answer\":\"public-health\"}"}
+{"ts":1791185994443,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"capability.account-identity/v3#S-15\",\"answer\":\"result\"}"}
+{"ts":1791185994986,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"public-health\",\"answer\":\"public-health\"}"}
+{"ts":1791185995014,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"capability.organization-governance/v2#S-36\",\"account\":\"41992656f09afb560579a48fb309f9dc265666c978c3d0a0587d2ac3794807f5\",\"answer\":\"result\"}"}
+{"ts":1791185995043,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"capability.organization-governance/v2#S-27\",\"account\":\"41992656f09afb560579a48fb309f9dc265666c978c3d0a0587d2ac3794807f5\",\"answer\":\"result\"}"}
+{"ts":1791185995577,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"public-health\",\"answer\":\"public-health\"}"}
+{"ts":1791185995615,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"capability.organization-governance/v2#S-21\",\"account\":\"41992656f09afb560579a48fb309f9dc265666c978c3d0a0587d2ac3794807f5\",\"answer\":\"result\"}"}
+{"ts":1791185996134,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"public-health\",\"answer\":\"public-health\"}"}
+{"ts":1791185996171,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"capability.organization-governance/v2#S-22\",\"account\":\"41992656f09afb560579a48fb309f9dc265666c978c3d0a0587d2ac3794807f5\",\"answer\":\"result\"}"}
+{"ts":1791185996688,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"public-health\",\"answer\":\"public-health\"}"}
+{"ts":1791185996724,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"capability.account-identity/v3#S-16\",\"account\":\"41992656f09afb560579a48fb309f9dc265666c978c3d0a0587d2ac3794807f5\",\"answer\":\"result\"}"}
+{"ts":1791185997286,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"governance-center-entry"}
+{"ts":1791185997286,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"governance-center-ops"}
+{"ts":1791185997286,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"account-registration"}
+{"ts":1791185997287,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"organization-governance"}
+{"ts":1791185997287,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"account-identity"}
+{"ts":1791185997287,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"credential-verification"}
+{"ts":1791185997287,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"clock-lease"}
+{"ts":1791185997287,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"storage-sql"}
+{"ts":1791185997287,"level":"info","name":"tenancy-host","event":"disposed","complete":true}

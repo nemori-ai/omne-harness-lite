@@ -1,5 +1,7 @@
 # @omne-harness-lite/storage-sql
 
+根入口公开独立 SQL 提供者。`./cordis` 公开两个拥有插件、纯数据 `StorageSqlPluginConfig` 和借用绑定 `SqlStorageService`。服务键及资源服务归 `@omne-harness-lite/storage/cordis`。见[集成承诺](SPEC.md)。
+
 [English](README.md)
 
 共享[存储协议](../../core/storage/README.md)的 Kysely 提供者：文件 SQLite 使用 Node 内置 `node:sqlite`，PostgreSQL 使用 `pg`。公开读写事务、显式共同事务单元、迁移、Cordis 服务，以及可选的属主升级与 SQLite 快照维护。
@@ -11,8 +13,8 @@
 | 用途             | 导出                                                                                                                                                                         |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 直接提供者       | `openStorage`, `OpenStorageOptions`, `SqlStorage`, `StorageSqlConfig` （运行时 schema 与类型）                                                                               |
-| Cordis 服务      | `storageSqlPlugin`, `STORAGE_SERVICE` (`'storage'`)                                                                                                                          |
-| 属主升级         | `createUpgradeGuard`, `UpgradeGuard`, `UpgradeConfirmation`, `UpgradePending`, `UpgradeGuardNotAttached`, `StorageStartupFailure`, `StorageStartupStage`, `StorageSqlLogger` |
+| Cordis 服务      | `./cordis`: `storageSqlPlugin`, `managedStorageSqlPlugin`, `StorageSqlPluginConfig`, `SqlStorageService` |
+| 属主升级         | `createUpgradeGuard`, `UpgradeGuard`, `UpgradeGuardNotAttached`, `StorageStartupFailure`, `StorageStartupStage`, `StorageSqlLogger`; `storage`: `UpgradeConfirmation`, `UpgradePending` |
 | 底层 SQLite 接入 | `NodeSqliteDialect`, `NodeSqliteDriver`, `NodeSqliteDialectOptions`                                                                                                          |
 | 错误翻译         | `translateSqliteError`, `translatePgError`                                                                                                                                   |
 | SQLite 检查      | `openSnapshotInspection`, `storageSnapshotCheck`, `STORAGE_SNAPSHOT_TABLES`                                                                                                  |
@@ -128,27 +130,28 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { sql } from 'kysely'
-import {
-  STORAGE_SERVICE,
-  createUpgradeGuard,
-  storageSqlPlugin,
-  type SqlStorage,
-} from '@omne-harness-lite/storage-sql'
+import { createUpgradeGuard } from '@omne-harness-lite/storage-sql'
+import { storageSqlPlugin, type SqlStorageService } from '@omne-harness-lite/storage-sql/cordis'
+import { STORAGE_SERVICE, StorageStartup } from '@omne-harness-lite/storage/cordis'
 
 const directory = await mkdtemp(join(tmpdir(), 'omne-sql-owner-example-'))
 const ctx = new Context()
 const guard = createUpgradeGuard()
+class Startup extends StorageStartup {
+  readonly migrations = { getMigrations: async () => ({}) }
+  readonly upgrade = { checks: [], guard }
+}
 let fiber: Fiber | undefined
 try {
+  await ctx.plugin(inner => { new Startup(inner) })
   fiber = ctx.plugin(storageSqlPlugin, {
     dialect: 'sqlite',
     file: join(directory, 'owned.sqlite'),
     synchronous: 'full',
-    migrations: { getMigrations: async () => ({}) },
-    upgrade: { checks: [], guard },
+    startup: 'migrate',
   })
   await fiber
-  const storage = ctx.get(STORAGE_SERVICE) as SqlStorage | undefined
+  const storage = ctx.get(STORAGE_SERVICE) as SqlStorageService | undefined
   assert.ok(storage)
   const rows = await storage.read(
     async tx => (await sql<{ ready: number }>`SELECT 1 AS ready`.execute(tx.db)).rows,
@@ -159,13 +162,16 @@ try {
   console.log(confirmation)
 } finally {
   await fiber?.dispose()
+  await ctx.fiber.dispose()
   // Cordis logs disposer failures; retain the fixture if recovery is pending.
   assert.equal(await guard.pending(), 'clear')
   await rm(directory, { recursive: true, force: true })
 }
 ```
 
-带迁移时，配置必须明确给出 `upgrade: false` 或 `upgrade: { checks, guard }`。受守卫保护的 SQLite 属主取得排他属主锁，在迁移前核对数据库，并将升级快照或“数据库原先不存在”标记保留到确认。关闭或重启未确认升级会恢复该状态，包括撤回快照之后的写。决定确认前不要放行正常应用流量。
+拥有插件使用 `startup: 'migrate'` 从 `StorageStartup` 取得 migrations 和 upgrade。
+缺省 `startup: 'plain'` 不依赖资源服务，也不允许维护。插件配置拒绝运行对象及未知字段。
+带迁移时，独立输入或启动资源必须明确给出 `upgrade: false` 或 `upgrade: { checks, guard }`。受守卫保护的 SQLite 属主取得排他属主锁，在迁移前核对数据库，并将升级快照或“数据库原先不存在”标记保留到确认。关闭或重启未确认升级会恢复该状态，包括撤回快照之后的写。决定确认前不要放行正常应用流量。
 
 `confirm()` 返回 `{ migrated, snapshotTaken, snapshotRemoved }`。核验 `snapshotTaken ⇒ snapshotRemoved`；另一个参与者删掉快照时，这个条件可能为假。在属主就绪前或开始撤除后调用会以 `UpgradeGuardNotAttached` 拒绝。撤除后，`pending()` 报告残留恢复工作；`'clear'` 描述快照状态，不代表所有资源健康。属主机制排斥其他守卫属主，不能阻止无守卫进程打开同一生产库；应始终经守卫访问生产库。
 
@@ -198,5 +204,7 @@ SQLite 必须使用文件，内存数据库被拒绝。提供者使用 WAL、外
 Node 24.18 的 `node:sqlite` 存在已知限界：已打开的连接跨结构变化后，第一次 `SELECT *` 可能漏掉新列，或报 `ERR_INVALID_STATE`。例子使用显式列，不声称改变结构的多连接流程安全。遇到这种失败应按缺陷调查，不应据此判定数据不存在。
 
 可选 SQLite 维护需要在守卫属主上配置绝对路径 `maintenance.workDirectory` 与 `maintenance.onClosed`。确认后，`storage.maintenance.run` 提供借用的快照/检查会话。离线 `openSnapshotInspection(workDirectory)` 提供由调用者负责关闭的检查生命周期。等待会话工作，每次只执行一个操作，视图不得保留到回调外。取消请求清理，完成关闭才建立资源释放。`storageSnapshotCheck` 检查迁移登记表结构，不检查业务有效性、租户权限，也不授权恢复后的应用重新开放。这些 API 不执行灾难恢复。
+
+拥有插件只在配置中给出 maintenance.workDirectory，完成目标从 `StorageCompletion.closed` 取得；独立 openStorage 仍在原输入中接收 onClosed。
 
 开发本包时运行该成员的 `build`、`typecheck` 和 `test` 脚本。PostgreSQL 测试需要专用 `OMNE_TEST_PG_URL`；跳过不能验证 PostgreSQL 行为。

@@ -26,10 +26,10 @@ import {
 import { createDemoCallHost } from './model-call-host.ts'
 import type { AuthenticatedActor } from './types.ts'
 import { createDemoConfig, MODEL } from './deployment.ts'
-import type { RetirementPolicy } from '@omne-harness-lite/pi-ai-transport'
+import type { RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import type { ProcessOwnership } from '@omne-harness-lite/session-log-jsonl'
 import type { TenantId } from '@omne-harness-lite/identity-values'
-import { systemTimeSources } from '@omne-harness-lite/clock'
+import { systemTimeSources } from '@omne-harness-lite/clock-lease'
 
 interface LocalState {
   readonly version: 1
@@ -268,6 +268,7 @@ export async function openDemo(
     /** A worker-local provider read only after old durable work is reconciled. */
     readonly readCredential?: () => Promise<Uint8Array | undefined>
   },
+  enableTools = false,
 ): Promise<DemoConversation> {
   if (!Number.isSafeInteger(maxOutputTokens) || maxOutputTokens <= 0)
     throw new Error('max output tokens must be a positive safe integer')
@@ -303,6 +304,7 @@ export async function openDemo(
     tokenMargin,
     retirement,
     host?.processOwnership,
+    enableTools,
   )
   app = createAcceptanceApplication(config, {
     ...testOptions,
@@ -336,6 +338,12 @@ export async function openDemo(
       const existing = await app.readSessionLog(actor, session)
       if (!('entries' in existing)) throw new Error('demo session ownership or log unavailable')
     }
+    if (enableTools) {
+      const created = initialized.fresh
+        ? await app.createToolSession(actor, session)
+        : await app.bindToolSession(actor, session)
+      if (created.kind !== 'bound') throw new Error('tool session context unavailable')
+    }
     const prepared = await app.prepareSession(actor, session)
     if (!('session' in prepared)) throw new Error('demo session preparation rejected')
     const reconciled = await app.reconcileModelRuntime(actor, session)
@@ -344,8 +352,8 @@ export async function openDemo(
     const bound = await app.bindModelRuntime(actor, session)
     if (!('service' in bound)) throw new Error('demo model runtime unavailable')
     if (initialized.fresh) {
-      if (!('prepared' in (await app.prepareModelInputs(actor, session))))
-        throw new Error('demo input preparation rejected')
+      const preparedInputs = await app.prepareModelInputs(actor, session)
+      if (!('prepared' in preparedInputs)) throw new Error('demo input preparation rejected')
       const selected = await app.selectModel(actor, session, MODEL)
       if (!('selected' in selected)) throw new Error('explicit demo model selection rejected')
     }
@@ -386,6 +394,7 @@ export async function openDemo(
       await rename(temporary, join(directory, 'demo-state.json'))
     }
     let activeHost: ReturnType<typeof createDemoCallHost> | undefined
+    let activeTurn: AbortController | undefined
     let stopped = false
     return {
       session,
@@ -401,6 +410,8 @@ export async function openDemo(
         const id = randomUUID()
         const host = createDemoCallHost()
         activeHost = host
+        const turn = new AbortController()
+        activeTurn = turn
         let grant:
           | Extract<
               Awaited<ReturnType<typeof app.openModelObserver>>,
@@ -441,8 +452,8 @@ export async function openDemo(
             user.ok.type === 'user'
           ) {
             grant = opened
-            const sent = await app.startServiceCall(actor, session, {
-              parameters: { reasoningEffort: 'low', maxOutputTokens },
+            const request = {
+              parameters: { reasoningEffort: 'low' as const, maxOutputTokens },
               host: host.host,
               observer: {
                 session: parsedSession.ok,
@@ -451,16 +462,26 @@ export async function openDemo(
                 observer_max_buffered_bytes: observerBounds.bytes,
               },
               user: user.ok,
-            })
-            if ('result' in sent && 'replyPending' in sent.result) {
-              const settled = await app.persistModelReply(actor, session, sent.result.replyPending)
-              const response = 'settled' in settled ? settled.settled.response.response : null
-              if (response === null || !('ok' in judgeModelResponse(response)))
-                result = { kind: 'unconfirmed' }
-              else result = { kind: 'saved', response: response as unknown as ModelResponse }
-            } else if ('result' in sent && 'settled' in sent.result) {
-              result = { kind: 'failed', response: sent.result.settled }
-            } else result = { kind: 'refused', reason: refusalReason(sent) }
+            }
+            if (enableTools) {
+              const sent = await app.runToolTurn(actor, session, request, turn.signal)
+              result = sent.kind === 'rejected' ? { kind: 'refused', reason: sent.reason } : sent
+            } else {
+              const sent = await app.startServiceCall(actor, session, request)
+              if ('result' in sent && 'replyPending' in sent.result) {
+                const settled = await app.persistModelReply(
+                  actor,
+                  session,
+                  sent.result.replyPending,
+                )
+                const response = 'settled' in settled ? settled.settled.response.response : null
+                if (response === null || !('ok' in judgeModelResponse(response)))
+                  result = { kind: 'unconfirmed' }
+                else result = { kind: 'saved', response: response as unknown as ModelResponse }
+              } else if ('result' in sent && 'settled' in sent.result) {
+                result = { kind: 'failed', response: sent.result.settled }
+              } else result = { kind: 'refused', reason: refusalReason(sent) }
+            }
           } else result = { kind: 'refused', reason: 'observerUnavailable' }
         } catch {
           result = { kind: 'unconfirmed' }
@@ -468,6 +489,7 @@ export async function openDemo(
         const stopResult = await host.stop()
         const revoked = await grant?.revoke()
         if (activeHost === host) activeHost = undefined
+        if (activeTurn === turn) activeTurn = undefined
         const released =
           'released' in stopResult && (revoked === undefined || 'released' in revoked)
         return 'response' in result
@@ -478,6 +500,7 @@ export async function openDemo(
       },
       stopActive() {
         stopped = true
+        activeTurn?.abort()
         const host = activeHost
         if (host !== undefined) void host.stop().catch(() => undefined)
       },

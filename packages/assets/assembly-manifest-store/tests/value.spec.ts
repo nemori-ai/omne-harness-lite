@@ -7,7 +7,7 @@ import {
   checkManifestAppendInput,
   judgeManifestAppend,
   readEvaluationProjection,
-} from '../src/index.ts'
+} from '@omne-harness-lite/assembly-manifest'
 import { evaluated, input } from './support.ts'
 
 test.each([undefined, null, '', ' session', 'session\n', {}])(

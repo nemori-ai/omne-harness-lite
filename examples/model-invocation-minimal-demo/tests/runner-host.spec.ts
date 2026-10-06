@@ -1,5 +1,5 @@
 import { mkdir, mkdtemp, open, type FileHandle } from 'node:fs/promises'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import { judgeDefinition, judgePositionedSubject } from '@omne-harness-lite/loop-extension'
@@ -14,7 +14,7 @@ import {
   readSettlementPrefix,
   interpretCallHistory,
   type SettlementLogBinding,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { createDemoRunnerHost, type DemoRunnerRequest } from '../src/runner-host.ts'
 import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { createRequestOwner } from '../src/model-request-owner.ts'
@@ -92,7 +92,7 @@ async function fixture(label: string, wrap?: (log: JsonlSessionLog) => JsonlSess
 }
 
 async function fault(dir: string, repairFails: boolean, delayed = false) {
-  const probe = await open(join(dir, 'probe'), 'w')
+  const probe = await open(join(dirname(dir), `${basename(dir)}.probe`), 'w')
   const prototype = Object.getPrototypeOf(probe) as Pick<FileHandle, 'datasync' | 'truncate'>
   const sync = prototype.datasync,
     truncate = prototype.truncate

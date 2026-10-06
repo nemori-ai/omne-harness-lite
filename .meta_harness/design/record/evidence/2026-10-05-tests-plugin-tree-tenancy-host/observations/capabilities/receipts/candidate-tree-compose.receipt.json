@@ -1,0 +1,28 @@
+{
+  "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+  "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+  "run_id": "candidate-tree-compose",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "argv": [
+    "node",
+    "--experimental-transform-types",
+    "--experimental-import-meta-resolve",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/tree-compose.mjs",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/capabilities/tree-compose"
+  ],
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+  "started": "2026-10-05T07:30:04.333Z",
+  "ended": "2026-10-05T07:30:04.446Z",
+  "duration_ms": 112.71874000000003,
+  "timeout_ms": 120000,
+  "timed_out": false,
+  "exit_code": 0,
+  "signal": null,
+  "input_files": [
+    {
+      "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/tree-compose.mjs",
+      "sha256": "0a183507ddc0e7b6212ef9b4a7a66a7a4418e2fab13d3954ed2f043d07f94dad"
+    }
+  ]
+}

@@ -1,0 +1,3760 @@
+{
+  "schema": 1,
+  "verdict": "Pass with issues",
+  "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+  "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+  "product_commit": "4123ccd32b8c4b2e8578e8ebe5529f48f0ca25d9",
+  "run_id": "r1-t4-clean-candidate-bca26b304-independent-qa",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "exit_code": 0,
+  "started": "2026-10-05T07:28:49.932876+00:00",
+  "ended": "2026-10-05T08:13:37.654095+00:00",
+  "status": "QA completed; not technical acceptance",
+  "coordinates": {
+    "clone": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+    "primary_read_only": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent",
+    "lock_sha256": "8bf8860be52b597fe3b0d1e2e6a01b04038f62ce98b7a79420b7545e5b7f5ab8",
+    "tracked_clean": true,
+    "source_dist_inputs": 17123,
+    "source_dist_changes": 0
+  },
+  "env": {
+    "node": "24.21.0",
+    "pnpm": "10.28.1",
+    "Cordis": "4.0.4",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "VITEST_MAX_WORKERS": 1,
+    "NODE_OPTIONS": "--experimental-transform-types --experimental-import-meta-resolve",
+    "QA_T4_CONTEXT": "clean-candidate",
+    "OMNE_METRICS_HOME": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/homes/metrics",
+    "OMNE_ACCEPTANCE_LEDGER_HOME": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/homes/acceptance",
+    "OMNE_TEST_LEDGER_HOME": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/homes/tests",
+    "scheduling": "real flock execution.lock; no queue/no with-test-slot/no fake held flag"
+  },
+  "criteria": [
+    {
+      "id": "F01",
+      "source": "R1-T4-A1",
+      "trigger": "读取精确采用决定与五轮原机制证据",
+      "expected": "接受依据和正负控输入可恢复；探针不能冒充产品 loader",
+      "driver": "inputs/adopted-design + inputs/inherited-mechanism",
+      "base_evidence": "evidence/input-readback.json; evidence/inherited-mechanism-readback.json",
+      "baseline_status": "Pass",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "inputs/adopted-design + inputs/inherited-mechanism",
+      "evidence": [
+        "evidence/frozen-input-readback.json",
+        "facility-readback.json"
+      ],
+      "observations": {},
+      "attempts": 1,
+      "notes": "M05及三次资格差量的原输入逐项SHA读回；继承机制不冒称loader运行。",
+      "baseline_status_retained": "Pass"
+    },
+    {
+      "id": "F02",
+      "source": "R1-T4-A7 / preservation",
+      "trigger": "固定 BASE 所有1161函数、3263断言、91现行保护项和3历史链接",
+      "expected": "独立 AST/字节核对；候选改变逐项依据，身份/SQL/Schema/业务算法不借改接口改变",
+      "driver": "preservation.mjs + 原输入及候选差量审阅",
+      "base_evidence": "evidence/preservation/result.json",
+      "baseline_status": "Pass",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "preservation.mjs + 原输入及候选差量审阅",
+      "evidence": [
+        "evidence/preservation/preservation.json",
+        "evidence/preservation/preservation-disposition.json",
+        "evidence/readback/result.json"
+      ],
+      "observations": {},
+      "attempts": 1,
+      "notes": "1161原函数/3263原断言独立重算；59函数与29断言差量逐项索引，三保护项仅类型归属/导入，3历史链接Git blob保持。行为由实际套件及驱动观察。",
+      "baseline_status_retained": "Pass"
+    },
+    {
+      "id": "C01",
+      "source": "T4-Q1 / R1-T4-A2",
+      "trigger": "同一发行/运维输入两次合成",
+      "expected": "稳定 id、确定顺序、完整替换配置，输入不变，结果不可变",
+      "driver": "tree-compose.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-compose.mjs",
+      "evidence": [
+        "evidence/capabilities/tree-compose/result.json"
+      ],
+      "observations": {
+        "tree-compose": 37
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "C02",
+      "source": "T4-Q1 / R1-T4-A2",
+      "trigger": "replace 有/无 plugin；disable；before/after insert",
+      "expected": "来源/editIndex准确，无深合并；停用行保留位置",
+      "driver": "tree-compose.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-compose.mjs",
+      "evidence": [
+        "evidence/capabilities/tree-compose/result.json"
+      ],
+      "observations": {
+        "tree-compose": 37
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "C03",
+      "source": "T4-Q1 / R1-T4-A3",
+      "trigger": "非法 id/package/export/未知字段、重复/悬空/停用锚点/双位置编辑",
+      "expected": "完整拒绝，任何 apply 前失败，封闭 code/合法行定位",
+      "driver": "tree-compose.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-compose.mjs",
+      "evidence": [
+        "evidence/capabilities/tree-compose/result.json"
+      ],
+      "observations": {
+        "tree-compose": 37
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "C04",
+      "source": "T4-Q1 / R1-T4-A3",
+      "trigger": "undefined、accessor、非普通原型、环、函数、bigint、Symbol、非有限数",
+      "expected": "程序调用和 JSON 输入同一严格边界，不以 stringify 丢字段",
+      "driver": "tree-compose.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-compose.mjs",
+      "evidence": [
+        "evidence/capabilities/tree-compose/result.json"
+      ],
+      "observations": {
+        "tree-compose": 37
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "C05",
+      "source": "T4-Q1 / R1-T4-A3",
+      "trigger": "配置键和值含秘密诱饵后打印/报错",
+      "expected": "DTO 固定 redacted；无原值/键/hash/长度/原异常文本",
+      "driver": "tree-compose.mjs; tree-prepare.mjs; host-tree.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-compose.mjs; tree-prepare.mjs; host-tree.mjs",
+      "evidence": [
+        "evidence/capabilities/tree-compose/result.json",
+        "evidence/capabilities/tree-prepare/result.json",
+        "evidence/capabilities/host-tree/result.json"
+      ],
+      "observations": {
+        "tree-compose": 37,
+        "tree-prepare": 27,
+        "host-tree": 16
+      },
+      "attempts": 1,
+      "notes": "秘密键/值与原错误诱饵为合成输入，实际产品诊断和打印接受检查。",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "P01",
+      "source": "T4-Q1",
+      "trigger": "模块/导出缺失、函数导出、Schema 缺失/抛错/async/issues",
+      "expected": "prepare 拒绝且零 apply，安全模块/配置 code",
+      "driver": "tree-prepare.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-prepare.mjs",
+      "evidence": [
+        "evidence/capabilities/tree-prepare/result.json"
+      ],
+      "observations": {
+        "tree-prepare": 27
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "P02",
+      "source": "T4-Q1",
+      "trigger": "Service 类及具名插件对象合法导出",
+      "expected": "prepare 不实例化/不启动资源；正确捕获",
+      "driver": "tree-prepare.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-prepare.mjs",
+      "evidence": [
+        "evidence/capabilities/tree-prepare/result.json"
+      ],
+      "observations": {
+        "tree-prepare": 27
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "P03",
+      "source": "T4-Q1",
+      "trigger": "非法/异步声明、重复键、required/optional重叠、坏claim",
+      "expected": "prepare 拒绝；assemblyLifetime 不能声明提供",
+      "driver": "tree-prepare.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-prepare.mjs",
+      "evidence": [
+        "evidence/capabilities/tree-prepare/result.json"
+      ],
+      "observations": {
+        "tree-prepare": 27
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "P04",
+      "source": "T4-Q1",
+      "trigger": "required 缺席/后置、重复provider/外部冲突",
+      "expected": "prepare 拒绝 missing/service-order/duplicate-service",
+      "driver": "tree-prepare.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-prepare.mjs",
+      "evidence": [
+        "evidence/capabilities/tree-prepare/result.json"
+      ],
+      "observations": {
+        "tree-prepare": 27
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "P05",
+      "source": "T4-Q1 / R1-T4-A4",
+      "trigger": "optional 缺席、前置和后置",
+      "expected": "缺席允许，前置依赖可捕获，后置拒绝；不改成required",
+      "driver": "tree-prepare.mjs; 原声明真实性审阅",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-prepare.mjs; 原声明真实性审阅",
+      "evidence": [
+        "evidence/capabilities/tree-prepare/result.json"
+      ],
+      "observations": {
+        "tree-prepare": 27
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "P06",
+      "source": "T4-Q1",
+      "trigger": "Schema 转换以及 prepare 后原输入修改",
+      "expected": "声明用校验输出；实际 Cordis 接原捕获值，只转换一次",
+      "driver": "tree-prepare.mjs; tree-load.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-prepare.mjs; tree-load.mjs",
+      "evidence": [
+        "evidence/capabilities/tree-prepare/result.json",
+        "evidence/capabilities/tree-load/result.json"
+      ],
+      "observations": {
+        "tree-prepare": 27,
+        "tree-load": 17
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "P07",
+      "source": "T4-Q1",
+      "trigger": "伪造 Prepared、原始非法合层、缺外部实际服务",
+      "expected": "前置无作用拒绝；不改 pristine lifetime，不开始资源",
+      "driver": "tree-prepare.mjs; tree-load.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-prepare.mjs; tree-load.mjs",
+      "evidence": [
+        "evidence/capabilities/tree-prepare/result.json",
+        "evidence/capabilities/tree-load/result.json"
+      ],
+      "observations": {
+        "tree-prepare": 27,
+        "tree-load": 17
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "H01",
+      "source": "T4-Q1 / R1-T4-A2",
+      "trigger": "真实 host 八角色/缺席/重复/版本/投影/未知role/provides不符",
+      "expected": "六种政策 code 全拒绝且零apply/无DB；unknownrole不回显任意claim",
+      "driver": "host-tree.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "host-tree.mjs",
+      "evidence": [
+        "evidence/capabilities/host-tree/result.json"
+      ],
+      "observations": {
+        "host-tree": 16
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "H02",
+      "source": "T4-Q1 / R1-T4-A6",
+      "trigger": "旧 clock id 换无角色helper；停用后插入等价新id",
+      "expected": "前者拒绝，后者真实启动；fibers 按最终行id记录",
+      "driver": "host-tree.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "host-tree.mjs",
+      "evidence": [
+        "evidence/capabilities/host-tree/result.json"
+      ],
+      "observations": {
+        "host-tree": 16
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "H03",
+      "source": "T4-Q4",
+      "trigger": "plain或unguarded storage角色、maintenance migrationNames投影不符",
+      "expected": "宿主政策阶段拒绝，通用 loader 不能替代宿主验证",
+      "driver": "host-tree.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "host-tree.mjs",
+      "evidence": [
+        "evidence/capabilities/host-tree/result.json"
+      ],
+      "observations": {
+        "host-tree": 16
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "L01",
+      "source": "T4-Q3",
+      "trigger": "同步 load 返回、同 tick 双 load",
+      "expected": "句柄先于apply；第二次拒绝且不干扰首个",
+      "driver": "tree-load.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-load.mjs",
+      "evidence": [
+        "evidence/capabilities/tree-load/result.json"
+      ],
+      "observations": {
+        "tree-load": 17
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "L02",
+      "source": "T4-Q3",
+      "trigger": "实际fiber ACTIVE、OwnedWork.ready尚未结束",
+      "expected": "handle.ready仍pending，不错误开放资格",
+      "driver": "tree-load.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-load.mjs",
+      "evidence": [
+        "evidence/capabilities/tree-load/result.json"
+      ],
+      "observations": {
+        "tree-load": 17
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "L03",
+      "source": "T4-Q3",
+      "trigger": "apply前/启动中 dispose",
+      "expected": "ready以首个stopped拒绝，closed等实际setup/close，重复dispose同一promise",
+      "driver": "tree-load.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-load.mjs",
+      "evidence": [
+        "evidence/capabilities/tree-load/result.json"
+      ],
+      "observations": {
+        "tree-load": 17
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "L04",
+      "source": "T4-Q3",
+      "trigger": "B setup失败，A close未完再失败",
+      "expected": "ready及时拒绝，closed保持pending；C不启动；B setup与A close均报告",
+      "driver": "tree-load.mjs; host-prefix-resources.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-load.mjs; host-prefix-resources.mjs",
+      "evidence": [
+        "evidence/capabilities/tree-load/result.json",
+        "evidence/capabilities/host-prefix-resources/result.json"
+      ],
+      "observations": {
+        "tree-load": 17,
+        "host-prefix-resources": 6
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "L05",
+      "source": "T4-Q3",
+      "trigger": "未登记、apply同步throw、声称提供但服务不存在",
+      "expected": "首个正确StartError；完整资源责任不因ready拒绝丢弃",
+      "driver": "tree-load.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-load.mjs",
+      "evidence": [
+        "evidence/capabilities/tree-load/result.json"
+      ],
+      "observations": {
+        "tree-load": 17
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "L06",
+      "source": "T4-Q3",
+      "trigger": "强制撤行/依赖失效/换代",
+      "expected": "整代及时停止，旧资源等全部在途后关闭，后继不得重用旧责任",
+      "driver": "tree-load.mjs; storage-resources.mjs; 原replacement tests",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-load.mjs; storage-resources.mjs; 原replacement tests",
+      "evidence": [
+        "evidence/capabilities/tree-load/result.json",
+        "evidence/capabilities/storage-resources/result.json",
+        "evidence/member-suites/host.vitest.json"
+      ],
+      "observations": {
+        "tree-load": 17,
+        "storage-resources": 11
+      },
+      "attempts": 1,
+      "notes": "真实行及条件子fiber撤除；原有替换/在途场景同时保留。",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "L07",
+      "source": "T4-Q3",
+      "trigger": "真实fiber/行端口dispose抛错",
+      "expected": "OwnedWork先静止；assembly-fiber/port-dispose-failed保留，complete=false",
+      "driver": "tree-load.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-load.mjs",
+      "evidence": [
+        "evidence/capabilities/tree-load/result.json"
+      ],
+      "observations": {
+        "tree-load": 17
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "L08",
+      "source": "T4-Q3",
+      "trigger": "晚接ready观察者、inspection伪造/前缀",
+      "expected": "无unhandled；安全真实handle快照，不要求wrapper===raw Fiber",
+      "driver": "tree-load.mjs",
+      "base_evidence": "evidence/fixture-precheck/result.json",
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-load.mjs",
+      "evidence": [
+        "evidence/capabilities/tree-load/result.json"
+      ],
+      "observations": {
+        "tree-load": 17
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "L09",
+      "source": "T4-Q3 / R1-T4-A4",
+      "trigger": "树关闭后继续使用借入Context",
+      "expected": "loader不释放宿主Context，仍可新插件使用",
+      "driver": "tree-load.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "tree-load.mjs",
+      "evidence": [
+        "evidence/capabilities/tree-load/result.json"
+      ],
+      "observations": {
+        "tree-load": 17
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "L10",
+      "source": "T4-Q3",
+      "trigger": "30秒仍有scrypt/业务/维护在途",
+      "expected": "仅still-stopping，保留owner和closed等待；无放弃Promise",
+      "driver": "原host lifecycle tests / member-suites.mjs",
+      "base_evidence": "evidence/member-suites/host.vitest.json",
+      "baseline_status": "Pass",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "原host lifecycle tests / member-suites.mjs",
+      "evidence": [
+        "evidence/member-suites/host.vitest.json"
+      ],
+      "observations": {},
+      "attempts": 1,
+      "notes": "slow.spec.ts原30秒still-stopping真实等待，单次30772ms；保持closed及原owner。",
+      "baseline_status_retained": "Pass"
+    },
+    {
+      "id": "R01",
+      "source": "T4-Q4 / R1-T4-A4",
+      "trigger": "SQL plain/migrate/maintenance及runtime函数配置",
+      "expected": "plain无startup；migrate/维护必需Service，JSON拒绝资源/回调/未知字段",
+      "driver": "storage-resources.mjs; public-types.mts",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "storage-resources.mjs; public-types.mts",
+      "evidence": [
+        "evidence/capabilities/storage-resources/result.json",
+        "evidence/packed/type-receipts/public-types.receipt.json"
+      ],
+      "observations": {
+        "storage-resources": 11
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "R02",
+      "source": "T4-Q4",
+      "trigger": "缺startup/completion服务",
+      "expected": "实际 owning ready失败，不长期静默pending或关闭维护",
+      "driver": "storage-resources.mjs; host-prefix-resources.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "storage-resources.mjs; host-prefix-resources.mjs",
+      "evidence": [
+        "evidence/capabilities/storage-resources/result.json",
+        "evidence/capabilities/host-prefix-resources/result.json"
+      ],
+      "observations": {
+        "storage-resources": 11,
+        "host-prefix-resources": 6
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "R03",
+      "source": "T4-Q4",
+      "trigger": "fake guard或别代guard在真实SQL/host取得",
+      "expected": "私有身份/归属拒绝，不伪造授权；host不开闸",
+      "driver": "storage-resources.mjs; host-prefix-resources.mjs",
+      "base_evidence": "evidence/member-suites/host.vitest.json",
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "storage-resources.mjs; host-prefix-resources.mjs",
+      "evidence": [
+        "evidence/capabilities/storage-resources/result.json",
+        "evidence/capabilities/host-prefix-resources/result.json"
+      ],
+      "observations": {
+        "storage-resources": 11,
+        "host-prefix-resources": 6
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "R04",
+      "source": "T4-Q4",
+      "trigger": "连续真实boot+两份startup服务/guard+迁移列表",
+      "expected": "每boot真实实例唯一且不同，迁移列表等于同源实际输入",
+      "driver": "host-prefix-resources.mjs; host-tree.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "host-prefix-resources.mjs; host-tree.mjs",
+      "evidence": [
+        "evidence/capabilities/host-prefix-resources/result.json",
+        "evidence/capabilities/host-tree/result.json"
+      ],
+      "observations": {
+        "host-tree": 16,
+        "host-prefix-resources": 6
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "R05",
+      "source": "T4-Q3/Q4",
+      "trigger": "SQL条件子作用域取得startup后强撤资源，write尚在途",
+      "expected": "整代及时停；native SQL和完成回调等write真正结束；一次通知",
+      "driver": "storage-resources.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "storage-resources.mjs",
+      "evidence": [
+        "evidence/capabilities/storage-resources/result.json",
+        "evidence/member-suites/sql.vitest.json"
+      ],
+      "observations": {
+        "storage-resources": 11
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "R06",
+      "source": "T4-Q3 / R1-T4-A4",
+      "trigger": "撤 borrowed SqlStorageService",
+      "expected": "仅撤服务，原生句柄仍可读；真正 owner后关闭",
+      "driver": "storage-resources.mjs",
+      "base_evidence": "evidence/member-suites/sql.vitest.json",
+      "baseline_status": "Pass",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "storage-resources.mjs",
+      "evidence": [
+        "evidence/capabilities/storage-resources/result.json",
+        "evidence/member-suites/sql.vitest.json"
+      ],
+      "observations": {
+        "storage-resources": 11
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Pass"
+    },
+    {
+      "id": "E01",
+      "source": "R1-T4-A4/A5",
+      "trigger": "独立entry/ops工厂构造、setup重复、close提前/重复",
+      "expected": "构造零资源；稳定promise；提前close后setup拒绝正式Stopped",
+      "driver": "entry-factories.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "entry-factories.mjs",
+      "evidence": [
+        "evidence/capabilities/entry-factories/result.json",
+        "evidence/member-suites/entry.vitest.json"
+      ],
+      "observations": {
+        "entry-factories": 8
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "E02",
+      "source": "R1-T4-A4/A5",
+      "trigger": "setup/业务依赖同步重入close；已接纳业务返回晚",
+      "expected": "先登记后依赖；close等实际SQL/网络业务，准入及时停止",
+      "driver": "entry-factories.mjs",
+      "base_evidence": "evidence/member-suites/entry.vitest.json",
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "entry-factories.mjs",
+      "evidence": [
+        "evidence/capabilities/entry-factories/result.json",
+        "evidence/member-suites/entry.vitest.json"
+      ],
+      "observations": {
+        "entry-factories": 8
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "E03",
+      "source": "R1-T4-A4/A5",
+      "trigger": "ops首个await前通知、部分订阅失败、通知listener抛错",
+      "expected": "三订阅先注册；原setup/close结果保留，部分资源清理",
+      "driver": "entry-factories.mjs",
+      "base_evidence": "evidence/member-suites/entry.vitest.json",
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "entry-factories.mjs",
+      "evidence": [
+        "evidence/capabilities/entry-factories/result.json",
+        "evidence/member-suites/entry.vitest.json"
+      ],
+      "observations": {
+        "entry-factories": 8
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "H04",
+      "source": "T4-Q2 / R1-T4-A5",
+      "trigger": "正常真实host SQLite/TLS/Unix",
+      "expected": "全ACTIVE→beforeConfirm→guard.confirm→open→serving→答复；未开门零答复",
+      "driver": "原host assembly tests / member-suites.mjs; host-tree.mjs",
+      "base_evidence": "evidence/member-suites/host.vitest.json",
+      "baseline_status": "Pass",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "原host assembly tests / member-suites.mjs; host-tree.mjs",
+      "evidence": [
+        "evidence/capabilities/host-tree/result.json",
+        "evidence/member-suites/host.vitest.json",
+        "evidence/packed-release/result.json"
+      ],
+      "observations": {
+        "host-tree": 16
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Pass"
+    },
+    {
+      "id": "H05",
+      "source": "T4-Q2 / R1-T4-A5",
+      "trigger": "确认前故障/崩溃、确认后clock失败、私有guard交错",
+      "expected": "前者恢复/首启删除，确认后不回滚；centerId和原事务身份保持",
+      "driver": "原host upgrade/crash tests / member-suites.mjs",
+      "base_evidence": "evidence/member-suites/host.vitest.json",
+      "baseline_status": "Pass",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "原host upgrade/crash tests / member-suites.mjs",
+      "evidence": [
+        "evidence/member-suites/host.vitest.json",
+        "evidence/member-suites/sql.vitest.json"
+      ],
+      "observations": {},
+      "attempts": 1,
+      "notes": "实际SQLite/升级/维护/进程恢复；不关闭A5原45秒因果问题或PG范围。",
+      "baseline_status_retained": "Pass"
+    },
+    {
+      "id": "H06",
+      "source": "T4-Q2 / R1-T4-A5",
+      "trigger": "treeCreated回调抛错或前缀setup/close双失败",
+      "expected": "停止同一handle、等待真完成后固定plugin或原role失败；私有原cause保留",
+      "driver": "host-prefix-resources.mjs",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "host-prefix-resources.mjs",
+      "evidence": [
+        "evidence/capabilities/host-prefix-resources/result.json",
+        "evidence/prefix-stage.diff",
+        "evidence/capabilities/prefix-stage-controls/result.json"
+      ],
+      "observations": {
+        "host-prefix-resources": 6
+      },
+      "attempts": 1,
+      "notes": "保持原stage=clock首失；按BASE分类器及采用表，仅修正普通Error的设施谓词为plugin，并有错误clock负控。",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "H07",
+      "source": "T4-Q2 / R1-T4-A5",
+      "trigger": "真实升级/maintenance预检/恢复/清除/在途",
+      "expected": "原锁、快照、SQL、finalization、Unix维护承诺完整",
+      "driver": "原host/sql tests / member-suites.mjs",
+      "base_evidence": "evidence/member-suites/host.vitest.json; evidence/member-suites/sql.vitest.json",
+      "baseline_status": "Pass",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "原host/sql tests / member-suites.mjs",
+      "evidence": [
+        "evidence/member-suites/host.vitest.json",
+        "evidence/member-suites/sql.vitest.json"
+      ],
+      "observations": {},
+      "attempts": 1,
+      "notes": "实际SQLite/升级/维护/进程恢复；不关闭A5原45秒因果问题或PG范围。",
+      "baseline_status_retained": "Pass"
+    },
+    {
+      "id": "H08",
+      "source": "T4-Q1 / R1-T4-A3",
+      "trigger": "实际serve --plugins/--print-plugins，各一次/交换次序/重复/坏JSON",
+      "expected": "usage/failed/ok原退出码；安全DTO数组+LF；无DB/目录/guard/listener副作用",
+      "driver": "host-cli.mjs; host-tree.mjs + 原host cli tests",
+      "base_evidence": "evidence/member-suites/host.vitest.json",
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "host-cli.mjs; host-tree.mjs + 原host cli tests",
+      "evidence": [
+        "evidence/capabilities/host-cli/result.json",
+        "evidence/capabilities/host-tree/result.json",
+        "evidence/packed-release/result.json"
+      ],
+      "observations": {
+        "host-tree": 16,
+        "host-cli": 8
+      },
+      "attempts": 1,
+      "notes": "",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "B01",
+      "source": "R1-T4-A5 / preservation",
+      "trigger": "真实两个身份/租户、注册登录、同提交和失败",
+      "expected": "原授权拒绝、回滚、持久结果与通知均不变",
+      "driver": "business.mjs",
+      "base_evidence": "evidence/business/business.json",
+      "baseline_status": "Pass",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "business.mjs",
+      "evidence": [
+        "evidence/business/business.json"
+      ],
+      "observations": {},
+      "attempts": 1,
+      "notes": "11个真实SQLite身份/租户/事务观察。",
+      "baseline_status_retained": "Pass"
+    },
+    {
+      "id": "B02",
+      "source": "R1-T4-A5/A6",
+      "trigger": "真实中心子进程+独立CLI客户端",
+      "expected": "14观察、SQLite/TLS/Unix、退出码、记录和secret边界可复验",
+      "driver": "real-center-cli.mjs",
+      "base_evidence": "evidence/real-center-cli/result.json",
+      "baseline_status": "Pass",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "real-center-cli.mjs",
+      "evidence": [
+        "evidence/real-center-cli/result.json"
+      ],
+      "observations": {},
+      "attempts": 1,
+      "notes": "14个观察，实际中心/CLI子进程、TLS/Unix/SQLite；原45000ms就绪上限未改。",
+      "baseline_status_retained": "Pass"
+    },
+    {
+      "id": "B03",
+      "source": "R1-T4-A5/A6",
+      "trigger": "31线上路由与原真实依赖/桩路由oracle",
+      "expected": "完整原输入和断言保留，桩不声称完整真后端每路由覆盖",
+      "driver": "原entry tests / member-suites.mjs",
+      "base_evidence": "evidence/member-suites/entry.vitest.json",
+      "baseline_status": "Pass",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "原entry tests / member-suites.mjs",
+      "evidence": [
+        "evidence/member-suites/entry.vitest.json"
+      ],
+      "observations": {},
+      "attempts": 1,
+      "notes": "31路由原oracle含外部依赖桩；不称每路由都跑完整真后端。",
+      "baseline_status_retained": "Pass"
+    },
+    {
+      "id": "B04",
+      "source": "R1-T4-A4/A6",
+      "trigger": "T2/T3受影响shared/clock/AI/OG/AR/client应用",
+      "expected": "真实撤除/替换/在途及原CLI控制错误优先不变；跨域仅公共消费改接",
+      "driver": "member-suites.mjs; business.mjs",
+      "base_evidence": "evidence/member-suites/groups-progress.json; evidence/business/business.json",
+      "baseline_status": "Pass",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "member-suites.mjs; business.mjs",
+      "evidence": [
+        "evidence/member-suites/groups-progress.json",
+        "evidence/business/business.json",
+        "evidence/cli-acceptance.vitest.json"
+      ],
+      "observations": {},
+      "attempts": 1,
+      "notes": "9组含shared14/clock25/AI8/OG5/AR10/CLI144，真实撤除及受控外部依赖分列；CLI正式acceptance另5通过。",
+      "baseline_status_retained": "Pass"
+    },
+    {
+      "id": "A01",
+      "source": "R1-T4-A6/A7",
+      "trigger": "236导出及432源码边/109非源码入口逐项迁移",
+      "expected": "所有拥有者和消费者/部署同步，旧manifest/资源Config/事件/别名删除",
+      "driver": "原exports-migration/non-source清单 + 实际TS工具/包消费与逐项审阅",
+      "base_evidence": "inputs/root-inventory/exports-migration.json; inputs/root-inventory/non-source-consumers.json",
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "原exports-migration/non-source清单 + 实际TS工具/包消费与逐项审阅",
+      "evidence": [
+        "evidence/preservation/preservation.json",
+        "evidence/preservation/exports-migration-final.json",
+        "evidence/packed/export-witness-provenance.json",
+        "evidence/receipts/original-export-types.receipt.json",
+        "evidence/readback/result.json"
+      ],
+      "observations": {},
+      "attempts": 1,
+      "notes": "231留用/迁移导出实际外部TS，5结构面替代有旧入口负控；432原源码边与109非源码路径索引保留，N5/N6旧映射不称退役。",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "A02",
+      "source": "R1-T4-A6/A7",
+      "trigger": "四个事件旧字符串/旧provider入口仍有活动消费者",
+      "expected": "迁唯一coreEC新strings；载荷/次数/通知次序保留，旧活动入口拒绝",
+      "driver": "public-types.mts + 原events消费清单/源码和声明实际查询",
+      "base_evidence": null,
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "public-types.mts + 原events消费清单/源码和声明实际查询",
+      "evidence": [
+        "evidence/readback/result.json",
+        "evidence/packed-release/result.json",
+        "evidence/packed/type-receipts/public-types.receipt.json",
+        "evidence/member-suites/entry.vitest.json"
+      ],
+      "observations": {},
+      "attempts": 1,
+      "notes": "4个新字符串唯一core EC拥有者；全产品src无精确旧事件活动引用。工具非目标fixture的旧字串仅为范围观察，不能当拒绝负控。",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "A03",
+      "source": "R1-T4-A7",
+      "trigger": "纯根源码/声明/运行/真实tarball消费六根",
+      "expected": "无绑定闭包且全部公开独立函数可用；旧别名负类型，未知边不假消除",
+      "driver": "source-closure.mjs; packed.mjs; external-types.mjs",
+      "base_evidence": "evidence/source-closure-qualified/result.json; evidence/packed-qualified/result.json",
+      "baseline_status": "Pass with issues",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "source-closure.mjs; packed.mjs; external-types.mjs",
+      "evidence": [
+        "evidence/source-closure/result.json",
+        "evidence/packed/result.json",
+        "evidence/packed/type-receipts/public-types.receipt.json",
+        "evidence/packed-release/result.json"
+      ],
+      "observations": {},
+      "attempts": 1,
+      "notes": "6根四层闭包；18实际产品tgz独立安装，真实打包host两面及CLI打印。独立工厂另见E01–03，不假借装配替身。",
+      "baseline_status_retained": "Pass with issues"
+    },
+    {
+      "id": "A04",
+      "source": "R1-T4-A7",
+      "trigger": "真实CJS/ESM/类型/本地binding/transitive闭包负控",
+      "expected": "成熟resolver捕捉已知绑定/类型/传递CJS，不能仅扫直接Cordis包",
+      "driver": "source-closure.mjs; literal-closure.mjs",
+      "base_evidence": "evidence/source-closure-qualified/result.json",
+      "baseline_status": "Pass",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "source-closure.mjs; literal-closure.mjs",
+      "evidence": [
+        "evidence/source-closure/result.json",
+        "evidence/capabilities/esm-controls/controls.json",
+        "evidence/packed/result.json"
+      ],
+      "observations": {},
+      "attempts": 1,
+      "notes": "复用已合格literal resolver；类型/本地binding/传递CJS正负控，真实host origin ESM；无require条件回退。",
+      "baseline_status_retained": "Pass"
+    },
+    {
+      "id": "A05",
+      "source": "R1-T4-A7",
+      "trigger": "八发行职责的源码/导出/实际Service与视图",
+      "expected": "责任可追溯且实际符合IC；旧unknown如实保留，不以包装/改标签或扩大工具消项",
+      "driver": "现有arch提取/正负控 + 元数据/源与实际host职责证据",
+      "base_evidence": "inputs/root-inventory/inventory-base.json",
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass",
+      "actual_script": "现有arch提取/正负控 + 元数据/源与实际host职责证据",
+      "evidence": [
+        "evidence/architecture/conformance.json",
+        "evidence/architecture/report/actual.json",
+        "evidence/readback/result.json",
+        "evidence/architecture-controls.vitest.json",
+        "evidence/capabilities/host-tree/result.json"
+      ],
+      "observations": {
+        "host-tree": 16
+      },
+      "attempts": 1,
+      "notes": "独立图53产品成员、8发行composition；八inject为公开导入键字面数组。BASE对照66 stock/0 added，22原偏离消失；8具体unknown及15587符合性unknown保留。",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "A06",
+      "source": "R1-T4-A1/A7",
+      "trigger": "163原形式输入与采用机制配置",
+      "expected": "受影响模型真实执行含正负控；本轮仅独立SHA捕获不冒称运行",
+      "driver": "原formal-input-inventory + model原运行命令",
+      "base_evidence": "inputs/root-inventory/formal-input-inventory.json; evidence/inherited-mechanism-readback.json",
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass with issues",
+      "actual_script": "原formal-input-inventory + model原运行命令",
+      "evidence": [
+        "evidence/readback/result.json",
+        "evidence/readback/formal"
+      ],
+      "observations": {},
+      "attempts": 1,
+      "notes": "根执行47TLC、4Alloy进程/7逻辑命令、7bounded；QA仅读回。保留Entry wrapperexit1及两分类设施缺陷，不称原包装全绿。",
+      "baseline_status_retained": "Unable to verify"
+    },
+    {
+      "id": "A07",
+      "source": "R1-T4-A7",
+      "trigger": "最终固定候选干净L3、适用构建/类型/测试/共同硬线",
+      "expected": "独立证据四态；红项逐个处置；接受和合入由root",
+      "driver": "候选QA/实施审阅及根硬线证据",
+      "base_evidence": "evidence/checkout.json; evidence/receipts/base-build.receipt.json",
+      "baseline_status": "Unable to verify",
+      "candidate_required": true,
+      "verdict": "Pass with issues",
+      "actual_script": "候选QA/实施审阅及根硬线证据",
+      "evidence": [
+        "evidence/checkout.json",
+        "evidence/clone-inputs-after.json",
+        "evidence/build/progress.json",
+        "evidence/types/progress.json",
+        "evidence/member-suites/groups-progress.json",
+        "evidence/root-hardlines/status-original.json"
+      ],
+      "observations": {},
+      "attempts": 1,
+      "notes": "QA独立9成员TS构建、15类型、1273测试/19skip及52项；根原硬线已读回，但全局home/with-test-slot历史调度需根在隔离home直接复验后接受。QA不接受。",
+      "baseline_status_retained": "Unable to verify"
+    }
+  ],
+  "summary": {
+    "Pass": 50,
+    "Pass with issues": 2,
+    "Fail": 0,
+    "Unable to verify": 0,
+    "original_suites_passed": 1200,
+    "extra_suites_passed": 73,
+    "total_test_passed": 1273,
+    "skipped": 19,
+    "frozen_capability_observations": 130,
+    "business": 11,
+    "real_center_cli": 14,
+    "packed_release": 4,
+    "types_members": 15,
+    "TS_build_members": 9
+  },
+  "suites": [
+    {
+      "name": "ai-binding",
+      "evidence": "evidence/member-suites/ai-binding.vitest.json",
+      "passed": 8,
+      "skipped": 1,
+      "failed": 0
+    },
+    {
+      "name": "cli",
+      "evidence": "evidence/member-suites/cli.vitest.json",
+      "passed": 144,
+      "skipped": 0,
+      "failed": 0
+    },
+    {
+      "name": "clock",
+      "evidence": "evidence/member-suites/clock.vitest.json",
+      "passed": 25,
+      "skipped": 0,
+      "failed": 0
+    },
+    {
+      "name": "entry",
+      "evidence": "evidence/member-suites/entry.vitest.json",
+      "passed": 532,
+      "skipped": 2,
+      "failed": 0
+    },
+    {
+      "name": "host",
+      "evidence": "evidence/member-suites/host.vitest.json",
+      "passed": 227,
+      "skipped": 11,
+      "failed": 0
+    },
+    {
+      "name": "lifetime",
+      "evidence": "evidence/member-suites/lifetime.vitest.json",
+      "passed": 14,
+      "skipped": 0,
+      "failed": 0
+    },
+    {
+      "name": "og-binding",
+      "evidence": "evidence/member-suites/og-binding.vitest.json",
+      "passed": 5,
+      "skipped": 0,
+      "failed": 0
+    },
+    {
+      "name": "registration",
+      "evidence": "evidence/member-suites/registration.vitest.json",
+      "passed": 10,
+      "skipped": 1,
+      "failed": 0
+    },
+    {
+      "name": "sql",
+      "evidence": "evidence/member-suites/sql.vitest.json",
+      "passed": 235,
+      "skipped": 4,
+      "failed": 0
+    }
+  ],
+  "additional_suites": [
+    {
+      "name": "new-tree",
+      "evidence": "evidence/new-tree-member.vitest.json",
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "name": "tool-controls",
+      "evidence": "evidence/architecture-controls.vitest.json",
+      "passed": 54,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "name": "CLI-acceptance",
+      "evidence": "evidence/cli-acceptance.vitest.json",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    }
+  ],
+  "groups": {
+    "tree-compose": {
+      "file": "evidence/capabilities/tree-compose/result.json",
+      "observations": 37,
+      "exit_code": 0,
+      "cases": [
+        "replace-insert-disable-source-order",
+        "provider-replacement-and-input-snapshot",
+        "print-redacts-keys-values-length-hash",
+        "duplicate-row",
+        "unknown-row-key",
+        "distribution-not-array",
+        "operator-not-array",
+        "missing-replace",
+        "missing-disable",
+        "duplicate-edit",
+        "insert-modified-again",
+        "disabled-anchor",
+        "insert-duplicate",
+        "two-anchors",
+        "unknown-edit-key",
+        "invalid-id-\"\"",
+        "invalid-id-\"A\"",
+        "invalid-id-\"../a\"",
+        "invalid-id-\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"",
+        "invalid-json-undefined-undefined",
+        "invalid-json-function-()=>{}",
+        "invalid-json-bigint-1",
+        "invalid-json-symbol-Symbol(secret)",
+        "invalid-json-number-NaN",
+        "invalid-json-number-Infinity",
+        "invalid-json-object-Mon Oct 05 2026 07:30:04 GMT+0000 (Coordinated Universal Time)",
+        "invalid-json-object-[object Object]",
+        "invalid-json-cycle",
+        "invalid-json-accessor",
+        "invalid-json-nested-undefined",
+        "invalid-json-sparse-array",
+        "invalid-reference-./provider",
+        "invalid-reference-https://x.invalid/",
+        "invalid-reference-@qa/provider/cordis",
+        "invalid-reference-../x",
+        "invalid-export-identifier",
+        "complete-edit-validation-before-use"
+      ]
+    },
+    "tree-prepare": {
+      "file": "evidence/capabilities/tree-prepare/result.json",
+      "observations": 27,
+      "exit_code": 0,
+      "cases": [
+        "ordered-providers-and-optional-absent",
+        "external-and-disabled-resolution",
+        "named-Service-class-is-valid-without-instantiation",
+        "missing-module",
+        "missing-export",
+        "function-export",
+        "missing-schema",
+        "schema-private-issues",
+        "async-schema",
+        "async-declaration",
+        "throwing-declaration",
+        "missing-lifecycle",
+        "missing-describe",
+        "duplicate-provides",
+        "empty-required",
+        "required-optional-overlap",
+        "duplicate-claims",
+        "bad-version",
+        "non-JSON-claim",
+        "implicit-port-provider",
+        "required-absent",
+        "required-later",
+        "optional-later",
+        "duplicate-provider",
+        "external-conflict",
+        "raw-composed-revalidated",
+        "validated-output-declaration-original-input-retained"
+      ]
+    },
+    "tree-load": {
+      "file": "evidence/capabilities/tree-load/result.json",
+      "observations": 17,
+      "exit_code": 0,
+      "cases": [
+        "handle-before-apply-same-tick-single-claim",
+        "usage-error-has-no-lifetime-effects",
+        "missing-external-before-claim",
+        "ACTIVE-does-not-mean-OwnedWork-ready",
+        "dispose-during-setup-keeps-actual-completion",
+        "dispose-before-any-setup",
+        "ready-failure-with-pending-prefix-and-double-errors",
+        "missing-registration",
+        "synchronous-apply-failure",
+        "declared-service-not-visible",
+        "forced-row-withdrawal-stops-whole-generation",
+        "Schema-transforms-exactly-once-at-apply",
+        "inspection-forgery-refused-fixed-message",
+        "borrowed-root-Context-remains-usable-after-tree-closed",
+        "actual-fiber-dispose-exception-is-retained",
+        "actual-port-dispose-exception-is-retained",
+        "late-ready-observer-no-unhandled-rejection"
+      ]
+    },
+    "storage-resources": {
+      "file": "evidence/capabilities/storage-resources/result.json",
+      "observations": 11,
+      "exit_code": 0,
+      "cases": [
+        "plain-JSON-config-no-runtime-dependencies",
+        "JSON-reject-plain-maintenance",
+        "JSON-reject-function-config",
+        "JSON-reject-guard-config",
+        "JSON-reject-callback-config",
+        "JSON-reject-unknown-field",
+        "missing-startup",
+        "missing-completion",
+        "conditional-child-withdrawal-stops-generation-but-waits-actual-SQL",
+        "private-guard-identity-and-live-generation-reuse-rejected",
+        "borrowed-service-does-not-own-native-handle"
+      ]
+    },
+    "entry-factories": {
+      "file": "evidence/capabilities/entry-factories/result.json",
+      "observations": 8,
+      "exit_code": 0,
+      "cases": [
+        "construct-zero-IO-close-before-setup",
+        "setup-close-stable-and-real-TLS-health",
+        "setup-barrier-close-awaits-real-prefix",
+        "setup-storage-synchronous-close-reentry-owned",
+        "actual-business-sync-close-reentry-waits-admitted-register",
+        "notification-throw-does-not-change-setup-or-close",
+        "ops-three-subscriptions-before-first-wait-and-real-Unix",
+        "ops-partial-subscription-failure-cleanup-not-masked"
+      ]
+    },
+    "host-tree": {
+      "file": "evidence/capabilities/host-tree/result.json",
+      "observations": 16,
+      "exit_code": 0,
+      "cases": [
+        "original-eight-real-roles-with-treeCreated-before-apply",
+        "duplicate-edit",
+        "dangling-edit",
+        "bad-config",
+        "missing-role",
+        "duplicate-role",
+        "unsupported-version",
+        "incompatible-role-config",
+        "unknown-role",
+        "role-service-mismatch",
+        "migration-list-resource-projection-mismatch",
+        "host-cannot-select-plain-or-unguarded-storage-role",
+        "same-id-helper-claim-does-not-prove-role",
+        "disable-original-insert-new-id-equivalent-role",
+        "missing-module-sanitized-before-data",
+        "print-real-subprocess-has-no-data-or-listener-effects"
+      ]
+    },
+    "host-prefix-resources": {
+      "file": "evidence/capabilities/host-prefix-resources/result.json",
+      "observations": 6,
+      "exit_code": 0,
+      "cases": [
+        "treeCreated-throws-before-apply-but-keeps-same-close-owner",
+        "real-host-runtime-resources-are-fresh-per-boot-with-exact-migrations",
+        "host-missing-startup",
+        "host-fake-guard",
+        "host-guard-owned-by-another-SQL-generation",
+        "host-ready-failure-keeps-actual-prefix-close-and-private-original"
+      ]
+    },
+    "host-cli": {
+      "file": "evidence/capabilities/host-cli/result.json",
+      "observations": 8,
+      "exit_code": 0,
+      "cases": [
+        "operator-first",
+        "print-first",
+        "print-default",
+        "duplicate-print",
+        "duplicate-plugins",
+        "missing-value",
+        "unknown-flag",
+        "invalid-JSON"
+      ]
+    }
+  },
+  "skipped": [
+    {
+      "file": "packages/tenancy/account-identity-sql/tests/plugin.spec.ts",
+      "name": "account-identity 插件 S-32／S-47 第 2 支的完整进程重启（另起一个 Node 进程打开同一库）——归 W2-A／W3-A（tenancy-host 可重启装配）",
+      "status": "skipped"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/tests/center-id.spec.ts",
+      "name": "读或铸（S-28 ④） 真并发首启（pg）——pg 零运行，归装配第二程（W3-A）",
+      "status": "skipped"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/tests/lifecycle.spec.ts",
+      "name": "T-12 openSignal：就绪与开门分两步 崩溃落在开闸之前：恢复升级快照后没有任何客户端见过的写丢失——要 apps/tenancy-host 的 boot() 与升级快照，与 U-1 一起归 W3-A",
+      "status": "skipped"
+    },
+    {
+      "file": "apps/tenancy-host/tests/pg.spec.ts",
+      "name": "pg 首跑 · 装配（OMNE_TEST_PG_URL） assembly.pg-wiring：同一份迁移与装载代码只改方言配置 ⇒ boot() 成功、答复、铸标识；重启标识不变；外键两向与约束名同 sqlite",
+      "status": "skipped"
+    },
+    {
+      "file": "apps/tenancy-host/tests/pg.spec.ts",
+      "name": "pg 首跑 · 装配（OMNE_TEST_PG_URL） assembly.pg-upgrade-atomic：本版多两个片段、第二个失败 ⇒ 启动失败于迁移；登记与 schema 都回到迁移前（R-U7，一个事务）",
+      "status": "skipped"
+    },
+    {
+      "file": "apps/tenancy-host/tests/pg.spec.ts",
+      "name": "pg 首跑 · 装配（OMNE_TEST_PG_URL） U-3 在 pg 上的真形状：迁移提交之后没有快照 ⇒ 不拒起，启动日志恰一条「本次升级不可撤回（U-3）」；迁移后入口层失败撤不回（缺口 U-3，记录现状）",
+      "status": "skipped"
+    },
+    {
+      "file": "apps/tenancy-host/tests/pg.spec.ts",
+      "name": "pg 首跑 · 装配（OMNE_TEST_PG_URL） 交错 I-9 的 pg 支：属主排他（咨询锁）——A 在役时 B 于「被占」拒绝",
+      "status": "skipped"
+    },
+    {
+      "file": "apps/tenancy-host/tests/pg.spec.ts",
+      "name": "pg 首跑 · 交错 I-12（AR 包 I-1／I-2／I-4 在 pg 上重跑；真实 AI／OG／AR + 本节点的合成迁移） I-1 S-14 先：③ 在自己的事务里写下激活、尚未提交；期限过去，清除链发起——提交后 ① 现读到已激活 ⇒ accountIsActivated。终态：已激活 ∧ 有个人组织",
+      "status": "skipped"
+    },
+    {
+      "file": "apps/tenancy-host/tests/pg.spec.ts",
+      "name": "pg 首跑 · 交错 I-12（AR 包 I-1／I-2／I-4 在 pg 上重跑；真实 AI／OG／AR + 本节点的合成迁移） I-2 清除链 ① 先：② 已提交、依据在手；期限过去，清除链 ① 删组织、尚未提交；③ 排在它后面，提交后现读到已落盘的过期 ⇒ interrupted。终态：没有可用账号、没有孤儿",
+      "status": "skipped"
+    },
+    {
+      "file": "apps/tenancy-host/tests/pg.spec.ts",
+      "name": "pg 首跑 · 交错 I-12（AR 包 I-1／I-2／I-4 在 pg 上重跑；真实 AI／OG／AR + 本节点的合成迁移） I-4 插入方向：S-20 读到「未过期」之后、提交之前清除链整条跑完（账号行被删）⇒ S-20 的插入被引用约束拒绝 ⇒ interrupted。终态：什么都没有，没有孤儿组织",
+      "status": "skipped"
+    },
+    {
+      "file": "apps/tenancy-host/tests/pg.spec.ts",
+      "name": "pg 首跑 · 各包留给 pg 的支 AI「凭据计算挪出写事务之后的交错 ②」pg 支：同标识同凭据两路并发 ⇒ 同一个 AccountId、一行；不同凭据 ⇒ 恰一个账号、另一路 identifier-taken（撞唯一约束那条路）",
+      "status": "skipped"
+    },
+    {
+      "file": "apps/tenancy-host/tests/pg.spec.ts",
+      "name": "pg 首跑 · 各包留给 pg 的支 AR I-6 撞 account_login_identifier_unique 那一支的 pg 变体：同一标识两路并发注册 ⇒ 恰一路 registered；另一路 identifier-taken，或（撞约束重来之后记录又变了一次 ⇒ AI 答 storage-unavailable）interrupted、重来即 identifier-taken；不变量成立，且至少一轮真的撞到了唯一约束",
+      "status": "skipped"
+    },
+    {
+      "file": "apps/tenancy-host/tests/pg.spec.ts",
+      "name": "pg 首跑 · 各包留给 pg 的支 入口层「真并发首启（pg）」：两个入口层实例同时读或铸 ⇒ 只铸一次、两者开门时报同一个标识",
+      "status": "skipped"
+    },
+    {
+      "file": "apps/tenancy-host/tests/pg.spec.ts",
+      "name": "pg 首跑 · 各包留给 pg 的支 收尾观察：pg 上 storage-sql 的 close() 是否拒绝（已报主线的缺陷；本条只记录，不作判据）",
+      "status": "skipped"
+    },
+    {
+      "file": "packages/tenancy/account-registration-sequential/tests/integration.spec.ts",
+      "name": "I-6 清除完成之前同一标识重新注册 I-6 撞 account_login_identifier_unique 那一支——sqlite 下到不了：写事务 BEGIN IMMEDIATE 串行，AI 在写事务里按标识重读（current），先成者的行总被看见，走的是「不同类 ⇒ 重来」而不是插入撞唯一索引；那一支只在 pg 上走，归 W3-A（pg 首跑，AI verification 已登记同一条）",
+      "status": "skipped"
+    },
+    {
+      "file": "packages/infra/storage-sql/tests/conformance.postgres.spec.ts",
+      "name": "storage conformance · postgres（缺 OMNE_TEST_PG_URL，未运行） skipped",
+      "status": "skipped"
+    },
+    {
+      "file": "packages/infra/storage-sql/tests/upgrade.postgres.spec.ts",
+      "name": "upgrade · postgres（缺 OMNE_TEST_PG_URL 时未运行） upgrade.pg-close-once：读写两个句柄共用一个 pool，close() 只结束它一次",
+      "status": "skipped"
+    },
+    {
+      "file": "packages/infra/storage-sql/tests/upgrade.postgres.spec.ts",
+      "name": "upgrade · postgres（缺 OMNE_TEST_PG_URL 时未运行） upgrade.pg-single-transaction：第二个迁移失败 ⇒ 登记与 schema 都回到迁移前",
+      "status": "skipped"
+    },
+    {
+      "file": "packages/infra/storage-sql/tests/upgrade.postgres.spec.ts",
+      "name": "upgrade · postgres（缺 OMNE_TEST_PG_URL 时未运行） upgrade.confirm（pg 支）：跑过迁移 ⇒ { migrated: true, snapshotTaken: false, snapshotRemoved: false }、不抛（U-3）",
+      "status": "skipped"
+    }
+  ],
+  "preservation": {
+    "originalFunctions": 1161,
+    "originalProduction": 600,
+    "same": 1091,
+    "sameBodyNewFile": 11,
+    "changed": 29,
+    "replaced": 30,
+    "originalAssertions": 3263,
+    "unchangedAssertions": 3234,
+    "adaptedAssertions": 29,
+    "addedOrAdapted": 103,
+    "protectedFiles": 91,
+    "changedProtected": 3,
+    "formalFiles": 163,
+    "changedFormal": 0,
+    "retainedOrMovedExports": 231,
+    "replacedExports": 5
+  },
+  "issues": [
+    {
+      "id": "QA-T4-FAC-COUNT",
+      "severity": "low",
+      "summary": "新增只读汇总设施误把7个Alloy逻辑命令当7进程。",
+      "original": "evidence/receipts/independent-evidence-readback.receipt.json",
+      "correction": "inputs/evidence-readback.first.py与scenarios/evidence-readback.py，仅核4进程与7命令；所有模型/receipt/结果不改。第二次有原因读回exit0。",
+      "owner": "QA facility maintainer"
+    },
+    {
+      "id": "QA-T4-ROOT-PROVENANCE",
+      "severity": "low",
+      "summary": "根原strict家目录在primary，原acceptance使用with-test-slot；QA本轮未使用该wrapper。",
+      "original": "evidence/root-hardlines/status-original.json; evidence/root-hardlines/acceptance-original.stdout",
+      "remaining": "根在任务独立home直接执行最终硬线/账本，保留旧件，不以f226旧趋势称T4改善。技术接受之前完成。",
+      "owner": "root"
+    },
+    {
+      "id": "QA-T4-FORMAL-WRAPPER",
+      "severity": "low",
+      "summary": "原Entry模型包装两分类假设不符原轨迹，原exit1保持。",
+      "evidence": "evidence/readback/result.json",
+      "facts": "同一trace同时违反AppliedExpected/CheckedSameCommit；-continue九Never均可达并exit0。",
+      "owner": "formal verification facility maintainer"
+    }
+  ],
+  "preparation_failures": [
+    {
+      "evidence": "evidence/preparation-first-failure.json",
+      "cause": "Python3.8缺Path.is_relative_to；改等价relative_to/ValueError路径资格观察。产品检查未开始。"
+    },
+    {
+      "evidence": "evidence/preservation/first-invocation-failure.json",
+      "cause": "cwd为clone时相对driver路径不存在；原文件不改，精确绝对路径复验。非产品失败。"
+    }
+  ],
+  "inherited_failure_preservation": [
+    "原M05/port/Service-return/private-parent/ESM首失与预算均未改。",
+    "原prefix stage=clock首失保持；新限定谓词和plugin正/clock负控在本scope冻结。",
+    "原SQL dispose().catch TypeError在旧资格原件保留；候选SQL及host真实ready/closed前缀通过，无该异常。"
+  ],
+  "uncovered": [
+    "PostgreSQL整体/19项原skip详表及两项模块延期均保留，不以SQLite通过替代。",
+    "A5原45秒冷恢复因果未知未复跑或关闭；EIS5000、W6完整资产缺陷未执行/未关闭。",
+    "无付费调用、全量make check、检查/合并队列、全量基准或模型请求域重构验收。",
+    "本增量是宿主命令/服务，未改CLI展示；继承T3退出恢复责任。CLI144控制面含FakeTerminal，未跑完整终端矩阵、GUI/IME。",
+    "QA只读根形式与硬线原件，不称QA运行模型或根最终隔离硬线。"
+  ],
+  "boundaries": [
+    "SQL/TLS/Unix/OS/CLI/实际Cordis均真实。",
+    "受控setup/close/业务Promise与resolver插件元数据、通知throw为故障输入；不是替身装配。",
+    "31原路由含外部能力桩，不能证明全部路由的完整真后端。",
+    "秘密诱饵、pure closure和错误stage控制是合成输入，不是产品路径植入变异。"
+  ],
+  "residual_risks": [
+    "全局66项stock deviation及未知继续R1-T5/R2，不以本QA关闭领域或系统。",
+    "41个生产函数差量的独立实现审阅由root/IR负责；本QA提供实际行为与精确保全输入，不作接受。",
+    "有限模型/边界输入及单机本地环境，不提供任意状态或无条件形式证明。"
+  ],
+  "cleanup": {
+    "active_QA_processes": [],
+    "tracked_clean": true,
+    "source_dist_unchanged": true,
+    "clone_unique_sqlite_files": 0,
+    "consumer_product_sources": "18 installed tgz; no product source/dist links to worktree or clone",
+    "retirement": "保留clone及consumer安装直到root读回manifest、存证和Git提交可恢复；QA不删除。所有独有证据/输入已外置Q；仅node_modules/clone和可重建consumer安装排除最终manifest。"
+  },
+  "commands": [
+    {
+      "file": "evidence/types/types-packages__infra__storage-sql.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "types-packages__infra__storage-sql",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/infra/storage-sql",
+      "started": "2026-10-05T07:47:06.504Z",
+      "ended": "2026-10-05T07:47:09.203Z",
+      "duration_ms": 2699.2153209999997,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/types/types-tools__ts-checks.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "types-tools__ts-checks",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/tools/ts-checks",
+      "started": "2026-10-05T07:47:30.616Z",
+      "ended": "2026-10-05T07:47:35.533Z",
+      "duration_ms": 4916.789905999998,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/types/types-apps__cli.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "types-apps__cli",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/apps/cli",
+      "started": "2026-10-05T07:47:28.294Z",
+      "ended": "2026-10-05T07:47:30.615Z",
+      "duration_ms": 2320.580268999998,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/types/types-packages__tenancy__account-registration-sequential.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "types-packages__tenancy__account-registration-sequential",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/tenancy/account-registration-sequential",
+      "started": "2026-10-05T07:47:19.138Z",
+      "ended": "2026-10-05T07:47:21.711Z",
+      "duration_ms": 2573.0784700000004,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/types/types-packages__tenancy__credential-verification-scrypt.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "types-packages__tenancy__credential-verification-scrypt",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/tenancy/credential-verification-scrypt",
+      "started": "2026-10-05T07:47:11.221Z",
+      "ended": "2026-10-05T07:47:13.154Z",
+      "duration_ms": 1932.7824990000008,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/types/types-packages__core__cordis-plugin-tree.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "types-packages__core__cordis-plugin-tree",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/cordis-plugin-tree",
+      "started": "2026-10-05T07:47:03.281Z",
+      "ended": "2026-10-05T07:47:04.994Z",
+      "duration_ms": 1713.7337220000009,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/types/types-packages__infra__clock-lease.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "types-packages__infra__clock-lease",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/infra/clock-lease",
+      "started": "2026-10-05T07:47:09.204Z",
+      "ended": "2026-10-05T07:47:11.220Z",
+      "duration_ms": 2016.0921999999991,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/types/types-packages__tenancy__governance-center-entry-node.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "types-packages__tenancy__governance-center-entry-node",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/tenancy/governance-center-entry-node",
+      "started": "2026-10-05T07:47:21.712Z",
+      "ended": "2026-10-05T07:47:25.199Z",
+      "duration_ms": 3487.033221999998,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/types/types-packages__tenancy__organization-governance-sql.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "types-packages__tenancy__organization-governance-sql",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/tenancy/organization-governance-sql",
+      "started": "2026-10-05T07:47:16.123Z",
+      "ended": "2026-10-05T07:47:19.137Z",
+      "duration_ms": 3014.025716,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/types/types-apps__tenancy-host.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "types-apps__tenancy-host",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/apps/tenancy-host",
+      "started": "2026-10-05T07:47:25.200Z",
+      "ended": "2026-10-05T07:47:28.294Z",
+      "duration_ms": 3093.529346000003,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/types/types-packages__core__governance-center-entry.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "types-packages__core__governance-center-entry",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/governance-center-entry",
+      "started": "2026-10-05T07:47:04.995Z",
+      "ended": "2026-10-05T07:47:06.503Z",
+      "duration_ms": 1508.040342000002,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/types/types-packages__tenancy__account-identity-sql.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "types-packages__tenancy__account-identity-sql",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/tenancy/account-identity-sql",
+      "started": "2026-10-05T07:47:13.155Z",
+      "ended": "2026-10-05T07:47:16.122Z",
+      "duration_ms": 2967.5066179999994,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/types/types-packages__core__assembly-lifecycle.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "types-packages__core__assembly-lifecycle",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/assembly-lifecycle",
+      "started": "2026-10-05T07:47:01.765Z",
+      "ended": "2026-10-05T07:47:03.280Z",
+      "duration_ms": 1514.8522430000012,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/types/types-packages__core__storage.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "types-packages__core__storage",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/storage",
+      "started": "2026-10-05T07:46:59.855Z",
+      "ended": "2026-10-05T07:47:01.764Z",
+      "duration_ms": 1908.7630009999993,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/types/types-packages__core__kernel-basis.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "types-packages__core__kernel-basis",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/kernel-basis",
+      "started": "2026-10-05T07:46:58.188Z",
+      "ended": "2026-10-05T07:46:59.855Z",
+      "duration_ms": 1667.151346999999,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/build/build-packages__infra__storage-sql.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "build-packages__infra__storage-sql",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.build.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/infra/storage-sql",
+      "started": "2026-10-05T08:03:27.880Z",
+      "ended": "2026-10-05T08:03:30.099Z",
+      "duration_ms": 2219.0616260000006,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/build/build-apps__tenancy-host.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "build-apps__tenancy-host",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.build.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/apps/tenancy-host",
+      "started": "2026-10-05T08:03:32.909Z",
+      "ended": "2026-10-05T08:03:34.939Z",
+      "duration_ms": 2029.599924,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/build/build-packages__tenancy__governance-center-entry-node.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "build-packages__tenancy__governance-center-entry-node",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.build.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/tenancy/governance-center-entry-node",
+      "started": "2026-10-05T08:03:30.100Z",
+      "ended": "2026-10-05T08:03:32.908Z",
+      "duration_ms": 2808.1891720000003,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/build/build-packages__core__governance-center-entry.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "build-packages__core__governance-center-entry",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.build.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/governance-center-entry",
+      "started": "2026-10-05T08:03:24.009Z",
+      "ended": "2026-10-05T08:03:25.278Z",
+      "duration_ms": 1269.085171,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/build/build-tools__ts-checks.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "build-tools__ts-checks",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.build.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/tools/ts-checks",
+      "started": "2026-10-05T08:03:36.936Z",
+      "ended": "2026-10-05T08:03:41.094Z",
+      "duration_ms": 4158.5258109999995,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/build/build-apps__cli.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "build-apps__cli",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.build.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/apps/cli",
+      "started": "2026-10-05T08:03:34.939Z",
+      "ended": "2026-10-05T08:03:36.935Z",
+      "duration_ms": 1995.6256250000006,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/build/build-packages__core__assembly-lifecycle.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "build-packages__core__assembly-lifecycle",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.build.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/assembly-lifecycle",
+      "started": "2026-10-05T08:03:25.278Z",
+      "ended": "2026-10-05T08:03:26.475Z",
+      "duration_ms": 1196.79911,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/build/build-packages__core__cordis-plugin-tree.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "build-packages__core__cordis-plugin-tree",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.build.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/cordis-plugin-tree",
+      "started": "2026-10-05T08:03:26.476Z",
+      "ended": "2026-10-05T08:03:27.879Z",
+      "duration_ms": 1403.4637629999997,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/build/build-packages__core__storage.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "build-packages__core__storage",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.build.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/storage",
+      "started": "2026-10-05T08:03:22.097Z",
+      "ended": "2026-10-05T08:03:24.007Z",
+      "duration_ms": 1909.1259420000001,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/member-suites/clock.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "clock",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/member-suites/clock.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/infra/clock-lease",
+      "started": "2026-10-05T07:36:25.036Z",
+      "ended": "2026-10-05T07:36:28.044Z",
+      "duration_ms": 3007.780662999954,
+      "timeout_ms": 1200000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/member-suites/lifetime.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "lifetime",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/member-suites/lifetime.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/assembly-lifecycle",
+      "started": "2026-10-05T07:36:22.288Z",
+      "ended": "2026-10-05T07:36:25.036Z",
+      "duration_ms": 2747.704515999998,
+      "timeout_ms": 1200000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/member-suites/og-binding.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "og-binding",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "tests/plugin.spec.ts",
+        "tests/service-replacement.spec.ts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/member-suites/og-binding.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/tenancy/organization-governance-sql",
+      "started": "2026-10-05T07:36:30.594Z",
+      "ended": "2026-10-05T07:36:33.151Z",
+      "duration_ms": 2556.598813999968,
+      "timeout_ms": 1200000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/member-suites/sql.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "sql",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/member-suites/sql.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/infra/storage-sql",
+      "started": "2026-10-05T07:31:24.651Z",
+      "ended": "2026-10-05T07:31:54.209Z",
+      "duration_ms": 29556.840095000003,
+      "timeout_ms": 1200000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/member-suites/entry.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "entry",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/member-suites/entry.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/tenancy/governance-center-entry-node",
+      "started": "2026-10-05T07:31:54.210Z",
+      "ended": "2026-10-05T07:33:14.029Z",
+      "duration_ms": 79818.392425,
+      "timeout_ms": 1200000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/member-suites/host.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "host",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/member-suites/host.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/apps/tenancy-host",
+      "started": "2026-10-05T07:33:14.029Z",
+      "ended": "2026-10-05T07:36:22.287Z",
+      "duration_ms": 188258.17845699997,
+      "timeout_ms": 1200000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/member-suites/cli.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "cli",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/member-suites/cli.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/apps/cli",
+      "started": "2026-10-05T07:36:49.787Z",
+      "ended": "2026-10-05T07:36:55.771Z",
+      "duration_ms": 5984.453624000016,
+      "timeout_ms": 1200000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/member-suites/registration.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "registration",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "tests/factory.spec.ts",
+        "tests/integration.spec.ts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/member-suites/registration.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/tenancy/account-registration-sequential",
+      "started": "2026-10-05T07:36:33.152Z",
+      "ended": "2026-10-05T07:36:49.786Z",
+      "duration_ms": 16634.611613999994,
+      "timeout_ms": 1200000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/member-suites/ai-binding.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "ai-binding",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "tests/config.spec.ts",
+        "tests/plugin.spec.ts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/member-suites/ai-binding.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/tenancy/account-identity-sql",
+      "started": "2026-10-05T07:36:28.045Z",
+      "ended": "2026-10-05T07:36:30.594Z",
+      "duration_ms": 2549.0665229999577,
+      "timeout_ms": 1200000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/capabilities/receipts/candidate-owner-controls.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "candidate-owner-controls",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "--experimental-transform-types",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/owner-controls.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/capabilities/owner-controls"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:30:04.257Z",
+      "ended": "2026-10-05T07:30:04.332Z",
+      "duration_ms": 75.10955100000001,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/owner-controls.mjs",
+          "sha256": "7923856331f6486cecd6f57be0f3a597607294e3aeb9d7b025120c667ea84356"
+        }
+      ]
+    },
+    {
+      "file": "evidence/capabilities/receipts/candidate-tree-load.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "candidate-tree-load",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "--experimental-transform-types",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/tree-load.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/capabilities/tree-load"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:30:04.563Z",
+      "ended": "2026-10-05T07:30:04.700Z",
+      "duration_ms": 137.08333400000015,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/tree-load.mjs",
+          "sha256": "c045858e61187c4c53950a686522fe9139eac18db439c520a5ed8f4509bebca3"
+        }
+      ]
+    },
+    {
+      "file": "evidence/capabilities/receipts/candidate-host-cli.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "candidate-host-cli",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "--experimental-transform-types",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/host-cli.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/capabilities/host-cli"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:30:09.218Z",
+      "ended": "2026-10-05T07:30:11.716Z",
+      "duration_ms": 2497.163589,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/host-cli.mjs",
+          "sha256": "7f2fccbb474436edce392087177b590f266afa45b37f7e86033c299872e6d1ca"
+        }
+      ]
+    },
+    {
+      "file": "evidence/capabilities/receipts/candidate-host-tree.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "candidate-host-tree",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "--experimental-transform-types",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/host-tree.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/capabilities/host-tree"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:30:06.417Z",
+      "ended": "2026-10-05T07:30:08.100Z",
+      "duration_ms": 1683.6239789999995,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/host-tree.mjs",
+          "sha256": "78cf94ef087fea984c6220adb3a24802615e9ce261ad8cacc0118164f0ed005d"
+        }
+      ]
+    },
+    {
+      "file": "evidence/capabilities/receipts/candidate-esm-controls.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "candidate-esm-controls",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "--experimental-transform-types",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/esm-controls.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/capabilities/esm-controls"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:30:03.004Z",
+      "ended": "2026-10-05T07:30:04.256Z",
+      "duration_ms": 1251.922879,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/esm-controls.mjs",
+          "sha256": "89c50c23708f16ba2332d4b23818b9227e7f560eb91aa4af2c3f4008ebe50d90"
+        }
+      ]
+    },
+    {
+      "file": "evidence/capabilities/receipts/candidate-tree-prepare.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "candidate-tree-prepare",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "--experimental-transform-types",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/tree-prepare.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/capabilities/tree-prepare"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:30:04.446Z",
+      "ended": "2026-10-05T07:30:04.562Z",
+      "duration_ms": 115.51056799999992,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/tree-prepare.mjs",
+          "sha256": "cef4168a87bd845923bdbeaee5a4070435c2c5ce9034ef1b67f1de156859cf4d"
+        }
+      ]
+    },
+    {
+      "file": "evidence/capabilities/receipts/candidate-storage-resources.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "candidate-storage-resources",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "--experimental-transform-types",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/storage-resources.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/capabilities/storage-resources"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:30:04.701Z",
+      "ended": "2026-10-05T07:30:05.174Z",
+      "duration_ms": 473.497484,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/storage-resources.mjs",
+          "sha256": "7ebf6cfee5a2c24fe8b4706bebb7d6b11a1f98704e1b4978650175ed4886a681"
+        }
+      ]
+    },
+    {
+      "file": "evidence/capabilities/receipts/candidate-prefix-stage-controls.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "candidate-prefix-stage-controls",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "--experimental-transform-types",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/prefix-stage-controls.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/capabilities/prefix-stage-controls",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/inputs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:30:02.939Z",
+      "ended": "2026-10-05T07:30:03.002Z",
+      "duration_ms": 61.629515,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/prefix-stage-controls.mjs",
+          "sha256": "5604b12d5dc1645e81922e73b380faeb90da151ebc90c4b1c85ba80c92d339c0"
+        }
+      ]
+    },
+    {
+      "file": "evidence/capabilities/receipts/candidate-entry-factories.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "candidate-entry-factories",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "--experimental-transform-types",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/entry-factories.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/capabilities/entry-factories"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:30:05.175Z",
+      "ended": "2026-10-05T07:30:06.416Z",
+      "duration_ms": 1240.550726,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/entry-factories.mjs",
+          "sha256": "1ec6740974bd37ce2e90ccb867efa85ceee0b247669f8a8f8920cd9fe0d7cd2a"
+        }
+      ]
+    },
+    {
+      "file": "evidence/capabilities/receipts/candidate-host-prefix-resources.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "candidate-host-prefix-resources",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "--experimental-transform-types",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/host-prefix-resources.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/capabilities/host-prefix-resources"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:30:08.101Z",
+      "ended": "2026-10-05T07:30:09.218Z",
+      "duration_ms": 1116.2290860000003,
+      "timeout_ms": 300000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/host-prefix-resources.mjs",
+          "sha256": "3dd766e606534775e033bc80e9a751418ed095d3614e1ba03780a6c3633b8639"
+        }
+      ]
+    },
+    {
+      "file": "evidence/capabilities/receipts/candidate-tree-compose.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "candidate-tree-compose",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "--experimental-transform-types",
+        "--experimental-import-meta-resolve",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/tree-compose.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/capabilities/tree-compose"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:30:04.333Z",
+      "ended": "2026-10-05T07:30:04.446Z",
+      "duration_ms": 112.71874000000003,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/tree-compose.mjs",
+          "sha256": "0a183507ddc0e7b6212ef9b4a7a66a7a4418e2fab13d3954ed2f043d07f94dad"
+        }
+      ]
+    },
+    {
+      "file": "evidence/packed/receipts/pack-credential-verification-scrypt.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "pack-credential-verification-scrypt",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "pack",
+        "--pack-destination",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/tarballs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/tenancy/credential-verification-scrypt",
+      "started": "2026-10-05T07:40:06.716Z",
+      "ended": "2026-10-05T07:40:07.160Z",
+      "duration_ms": 443.92097100000046,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/receipts/runtime-storage.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "runtime-storage",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/consumer/storage-runtime.mjs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:46:50.958Z",
+      "ended": "2026-10-05T07:46:51.027Z",
+      "duration_ms": 69.30701099999999,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/consumer/storage-runtime.mjs",
+          "sha256": "ee752f6c6eb6422f49ca2b1216c668c9c2e41f1feddc7f2fe98c4eeee0eb04d8"
+        }
+      ]
+    },
+    {
+      "file": "evidence/packed/receipts/runtime-governance-center-entry-node.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "runtime-governance-center-entry-node",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/consumer/governance-center-entry-node-runtime.mjs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:46:52.848Z",
+      "ended": "2026-10-05T07:46:53.020Z",
+      "duration_ms": 171.41638000000012,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/consumer/governance-center-entry-node-runtime.mjs",
+          "sha256": "735633dbaf363e2049302a6e71fd5bb566e4d1e928ea16cd59797ec396b759a6"
+        }
+      ]
+    },
+    {
+      "file": "evidence/packed/receipts/pack-governance-center-entry.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "pack-governance-center-entry",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "pack",
+        "--pack-destination",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/tarballs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/governance-center-entry",
+      "started": "2026-10-05T07:40:00.224Z",
+      "ended": "2026-10-05T07:40:00.631Z",
+      "duration_ms": 406.76600399999995,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/receipts/pack-clock-lease.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "pack-clock-lease",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "pack",
+        "--pack-destination",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/tarballs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/infra/clock-lease",
+      "started": "2026-10-05T07:40:05.842Z",
+      "ended": "2026-10-05T07:40:06.269Z",
+      "duration_ms": 426.6591849999995,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/receipts/pack-governance-center-entry-node.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "pack-governance-center-entry-node",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "pack",
+        "--pack-destination",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/tarballs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/tenancy/governance-center-entry-node",
+      "started": "2026-10-05T07:40:03.220Z",
+      "ended": "2026-10-05T07:40:03.748Z",
+      "duration_ms": 527.6714010000001,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/receipts/pack-assembly-lifecycle.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "pack-assembly-lifecycle",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "pack",
+        "--pack-destination",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/tarballs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/assembly-lifecycle",
+      "started": "2026-10-05T07:40:01.485Z",
+      "ended": "2026-10-05T07:40:01.902Z",
+      "duration_ms": 417.72746700000016,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/receipts/runtime-storage-sql.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "runtime-storage-sql",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/consumer/storage-sql-runtime.mjs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:46:51.996Z",
+      "ended": "2026-10-05T07:46:52.299Z",
+      "duration_ms": 303.87128600000005,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/consumer/storage-sql-runtime.mjs",
+          "sha256": "6e0ce621b082596abae1281c107ec54a5ffd3af4250ec41a6a5ca1bc5a12c7d9"
+        }
+      ]
+    },
+    {
+      "file": "evidence/packed/receipts/pack-tenancy-host.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "pack-tenancy-host",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "pack",
+        "--pack-destination",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/tarballs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/apps/tenancy-host",
+      "started": "2026-10-05T07:40:05.386Z",
+      "ended": "2026-10-05T07:40:05.841Z",
+      "duration_ms": 454.93042199999945,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/receipts/pack-kernel-basis.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "pack-kernel-basis",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "pack",
+        "--pack-destination",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/tarballs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/kernel-basis",
+      "started": "2026-10-05T07:40:02.802Z",
+      "ended": "2026-10-05T07:40:03.220Z",
+      "duration_ms": 417.23831999999993,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/receipts/pack-account-identity-sql.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "pack-account-identity-sql",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "pack",
+        "--pack-destination",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/tarballs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/tenancy/account-identity-sql",
+      "started": "2026-10-05T07:40:07.161Z",
+      "ended": "2026-10-05T07:40:07.593Z",
+      "duration_ms": 432.5361069999999,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/receipts/pack-cordis-plugin-tree.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "pack-cordis-plugin-tree",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "pack",
+        "--pack-destination",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/tarballs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/cordis-plugin-tree",
+      "started": "2026-10-05T07:40:02.391Z",
+      "ended": "2026-10-05T07:40:02.801Z",
+      "duration_ms": 410.3979059999997,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/receipts/pack-account-identity.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "pack-account-identity",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "pack",
+        "--pack-destination",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/tarballs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/account-identity",
+      "started": "2026-10-05T07:40:03.749Z",
+      "ended": "2026-10-05T07:40:04.173Z",
+      "duration_ms": 423.62944000000016,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/receipts/runtime-governance-center-entry.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "runtime-governance-center-entry",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/consumer/governance-center-entry-runtime.mjs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:46:51.375Z",
+      "ended": "2026-10-05T07:46:51.424Z",
+      "duration_ms": 48.88790200000017,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/consumer/governance-center-entry-runtime.mjs",
+          "sha256": "6fc58c7a285e6ba3abdeebb19f8a2f17023a7b30cb54dc6424337b088c452f0d"
+        }
+      ]
+    },
+    {
+      "file": "evidence/packed/receipts/pack-offer-expiry.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "pack-offer-expiry",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "pack",
+        "--pack-destination",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/tarballs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/offer-expiry",
+      "started": "2026-10-05T07:40:00.632Z",
+      "ended": "2026-10-05T07:40:01.061Z",
+      "duration_ms": 429.50443000000007,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/receipts/pack-account-registration-sequential.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "pack-account-registration-sequential",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "pack",
+        "--pack-destination",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/tarballs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/tenancy/account-registration-sequential",
+      "started": "2026-10-05T07:40:07.594Z",
+      "ended": "2026-10-05T07:40:08.008Z",
+      "duration_ms": 414.7120239999995,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/receipts/pack-account-registration.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "pack-account-registration",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "pack",
+        "--pack-destination",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/tarballs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/account-registration",
+      "started": "2026-10-05T07:40:04.173Z",
+      "ended": "2026-10-05T07:40:04.587Z",
+      "duration_ms": 413.79407700000047,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/receipts/pack-organization-governance-sql.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "pack-organization-governance-sql",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "pack",
+        "--pack-destination",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/tarballs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/tenancy/organization-governance-sql",
+      "started": "2026-10-05T07:40:06.269Z",
+      "ended": "2026-10-05T07:40:06.715Z",
+      "duration_ms": 445.87223900000026,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/receipts/pack-organization-governance.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "pack-organization-governance",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "pack",
+        "--pack-destination",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/tarballs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/organization-governance",
+      "started": "2026-10-05T07:40:04.588Z",
+      "ended": "2026-10-05T07:40:04.986Z",
+      "duration_ms": 398.43422199999986,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/receipts/runtime-cordis-plugin-tree.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "runtime-cordis-plugin-tree",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/consumer/cordis-plugin-tree-runtime.mjs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:46:53.025Z",
+      "ended": "2026-10-05T07:46:53.081Z",
+      "duration_ms": 56.175722999999834,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/consumer/cordis-plugin-tree-runtime.mjs",
+          "sha256": "32cd8d2f4907623e46b26adc86d3dbc03f298f007e6bc1364c86241d547d34d3"
+        }
+      ]
+    },
+    {
+      "file": "evidence/packed/receipts/pack-storage.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "pack-storage",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "pack",
+        "--pack-destination",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/tarballs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/storage",
+      "started": "2026-10-05T07:39:59.790Z",
+      "ended": "2026-10-05T07:40:00.223Z",
+      "duration_ms": 431.52925600000003,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/receipts/runtime-assembly-lifecycle.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "runtime-assembly-lifecycle",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/consumer/assembly-lifecycle-runtime.mjs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:46:51.426Z",
+      "ended": "2026-10-05T07:46:51.475Z",
+      "duration_ms": 49.02198199999998,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/consumer/assembly-lifecycle-runtime.mjs",
+          "sha256": "abd19916f993a85b4ba5f2571072b4da0a313cdcd2d960d7a809c8e2335ea294"
+        }
+      ]
+    },
+    {
+      "file": "evidence/packed/receipts/pack-storage-sql.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "pack-storage-sql",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "pack",
+        "--pack-destination",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/tarballs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/infra/storage-sql",
+      "started": "2026-10-05T07:40:01.903Z",
+      "ended": "2026-10-05T07:40:02.390Z",
+      "duration_ms": 487.17701999999963,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/receipts/pack-governance-center-entry-https-json.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "pack-governance-center-entry-https-json",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "pack",
+        "--pack-destination",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/tarballs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/governance-center-entry-https-json",
+      "started": "2026-10-05T07:40:04.987Z",
+      "ended": "2026-10-05T07:40:05.386Z",
+      "duration_ms": 399.0911750000005,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/receipts/pack-identity-values.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "pack-identity-values",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "pack",
+        "--pack-destination",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/tarballs"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/identity-values",
+      "started": "2026-10-05T07:40:01.062Z",
+      "ended": "2026-10-05T07:40:01.484Z",
+      "duration_ms": 422.4045880000001,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/type-receipts/public-types.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "public-types",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "--ignoreConfig",
+        "--noEmit",
+        "--strict",
+        "--skipLibCheck",
+        "false",
+        "--types",
+        "node",
+        "--module",
+        "NodeNext",
+        "--moduleResolution",
+        "NodeNext",
+        "--target",
+        "ES2024",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/consumer/public-types.mts"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/consumer",
+      "started": "2026-10-05T07:46:53.152Z",
+      "ended": "2026-10-05T07:46:58.179Z",
+      "duration_ms": 5026.164962,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/packed/install-receipts/qa-offline-install.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "qa-offline-install",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "install",
+        "--ignore-workspace",
+        "--ignore-scripts",
+        "--offline"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/consumer",
+      "started": "2026-10-05T07:46:49.035Z",
+      "ended": "2026-10-05T07:46:50.177Z",
+      "duration_ms": 1140.9548379999999,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/receipts/packed-verify.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "packed-verify",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/packed.mjs",
+        "verify",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed",
+        "candidate"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:46:50.178Z",
+      "ended": "2026-10-05T07:46:53.105Z",
+      "duration_ms": 2927.1193630000007,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/packed.mjs",
+          "sha256": "f8f4e40bd6aac10fe44918150f4629b67cf0552ae8c2a93abc424fb881f2a1de"
+        }
+      ]
+    },
+    {
+      "file": "evidence/receipts/packed-release.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "packed-release",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/packed-release.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed-release",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:51:39.712Z",
+      "ended": "2026-10-05T07:51:41.324Z",
+      "duration_ms": 1612.553833,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/packed-release.mjs",
+          "sha256": "510ed1b255355550439591c338b3eacb08d33ea86082a563dae37c69c668020f"
+        }
+      ]
+    },
+    {
+      "file": "evidence/receipts/independent-evidence-readback-r2.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "independent-evidence-readback-r2",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "python3",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/evidence-readback.py",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:57:45.570Z",
+      "ended": "2026-10-05T07:57:47.050Z",
+      "duration_ms": 1478.7288489999999,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/evidence-readback.py",
+          "sha256": "eb19e0d8535d793bcf81fc9a953b5715efa1fda0a605e4f145653cd6db9c35eb"
+        }
+      ]
+    },
+    {
+      "file": "evidence/receipts/original-export-types.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "original-export-types",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "--ignoreConfig",
+        "--noEmit",
+        "--strict",
+        "--skipLibCheck",
+        "false",
+        "--types",
+        "node",
+        "--module",
+        "NodeNext",
+        "--moduleResolution",
+        "NodeNext",
+        "--target",
+        "ES2024",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/consumer/original-export-witness.mts"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed/consumer",
+      "started": "2026-10-05T07:51:34.552Z",
+      "ended": "2026-10-05T07:51:39.710Z",
+      "duration_ms": 5157.831016,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/receipts/independent-evidence-readback.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "independent-evidence-readback",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "python3",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/evidence-readback.py",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:56:22.856Z",
+      "ended": "2026-10-05T07:56:23.151Z",
+      "duration_ms": 294.055128,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 1,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/evidence-readback.py",
+          "sha256": "ee8ae70aa8ccfac74e5ebb6a48659cda37d71ef28cc7ee2207381d8d6937eb1f"
+        }
+      ]
+    },
+    {
+      "file": "evidence/receipts/cli-acceptance-direct.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "cli-acceptance-direct",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "acceptance/vitest.config.ts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/cli-acceptance.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/apps/cli",
+      "started": "2026-10-05T08:05:12.145Z",
+      "ended": "2026-10-05T08:05:15.121Z",
+      "duration_ms": 2974.699258,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/receipts/candidate-packed-prepare.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "candidate-packed-prepare",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/packed.mjs",
+        "prepare",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed",
+        "candidate"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:39:59.737Z",
+      "ended": "2026-10-05T07:40:08.021Z",
+      "duration_ms": 8283.517947,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/packed.mjs",
+          "sha256": "f8f4e40bd6aac10fe44918150f4629b67cf0552ae8c2a93abc424fb881f2a1de"
+        }
+      ]
+    },
+    {
+      "file": "evidence/receipts/architecture.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "architecture",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/tools/ts-checks/dist/arch/cli.js",
+        "--root",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+        "--revision",
+        "bca26b3043d9502dd829a9d91994d44cc04917a1",
+        "--base",
+        "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+        "--conformance",
+        "--out",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/architecture/conformance.json",
+        "--report",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/architecture/report"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:51:47.333Z",
+      "ended": "2026-10-05T07:52:45.557Z",
+      "duration_ms": 58223.649593999995,
+      "timeout_ms": 180000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/receipts/candidate-real-center-cli.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "candidate-real-center-cli",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/real-center-cli.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/real-center-cli"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:39:48.851Z",
+      "ended": "2026-10-05T07:39:57.334Z",
+      "duration_ms": 8483.123679,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/real-center-cli.mjs",
+          "sha256": "b23283baf8b90acf20c955d05d0a4174fe193aaaad0e8867b829b618bfe0d8dd"
+        }
+      ]
+    },
+    {
+      "file": "evidence/receipts/candidate-business.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "candidate-business",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/business.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/business",
+        "candidate"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:39:47.856Z",
+      "ended": "2026-10-05T07:39:48.849Z",
+      "duration_ms": 991.3802700000001,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/business.mjs",
+          "sha256": "ec86d3bac9f4fdd82b0d555a8fcfb178fa46dd457ed6b76310eb56a16ca332ee"
+        }
+      ]
+    },
+    {
+      "file": "evidence/receipts/candidate-source-closure.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "candidate-source-closure",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/source-closure.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/source-closure",
+        "candidate"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:39:57.335Z",
+      "ended": "2026-10-05T07:39:59.737Z",
+      "duration_ms": 2402.132062999999,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/source-closure.mjs",
+          "sha256": "fa2c0ebad58aa7aeecae63dc6504a480192a7d4cda3dac93658c13939c25c80b"
+        }
+      ]
+    },
+    {
+      "file": "evidence/receipts/architecture-controls.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "architecture-controls",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "tests/arch-extract.spec.ts",
+        "tests/group-direction.spec.ts",
+        "tests/integration-conventions.spec.ts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/architecture-controls.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/tools/ts-checks",
+      "started": "2026-10-05T07:51:41.326Z",
+      "ended": "2026-10-05T07:51:47.333Z",
+      "duration_ms": 6007.151101,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    },
+    {
+      "file": "evidence/receipts/external-types.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "external-types",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "node",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/external-types.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/packed"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone",
+      "started": "2026-10-05T07:46:53.106Z",
+      "ended": "2026-10-05T07:46:58.187Z",
+      "duration_ms": 5080.327098000001,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": [
+        {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/scenarios/external-types.mjs",
+          "sha256": "a850adbb96e530222dfdf7eb62ff873272d9b4c0a193a172a10da8f996907b90"
+        }
+      ]
+    },
+    {
+      "file": "evidence/receipts/new-tree-member-suite.receipt.json",
+      "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "run_id": "new-tree-member-suite",
+      "verifier": "/root/r1_t1a_candidate_qa",
+      "argv": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/evidence/new-tree-member.vitest.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/packages/core/cordis-plugin-tree",
+      "started": "2026-10-05T07:59:28.969Z",
+      "ended": "2026-10-05T07:59:32.159Z",
+      "duration_ms": 3189.2677679999997,
+      "timeout_ms": 120000,
+      "timed_out": false,
+      "exit_code": 0,
+      "signal": null,
+      "input_files": []
+    }
+  ],
+  "ownership": "write access returned when final manifest/readback message is delivered; no further QA writes after that message"
+}

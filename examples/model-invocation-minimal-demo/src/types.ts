@@ -1,24 +1,21 @@
+import type { UpgradeConfirmation, UpgradePending } from '@omne-harness-lite/storage'
 import type { Fiber } from '@deepseek-ai/cordis'
 import type { AccountId, LoginStateId, TenantId } from '@omne-harness-lite/identity-values'
 import type { AccountIdentityConfig } from '@omne-harness-lite/account-identity'
 import type { CredentialRef } from '@omne-harness-lite/asset-model'
 import type { AssetRegistryService } from '@omne-harness-lite/asset-registry'
-import type { CredentialVerificationConfig } from '@omne-harness-lite/credential-verification'
+import type { CredentialVerificationConfig } from '@omne-harness-lite/credential-verification-scrypt'
 import type { SessionRef } from '@omne-harness-lite/messages'
 import type { ModelCatalog, OfficialManifest } from '@omne-harness-lite/model-profile-directory'
 import type { OrganizationGovernanceConfig } from '@omne-harness-lite/organization-governance'
 import type { ProcessOwnership, SessionLogPolicy } from '@omne-harness-lite/session-log-jsonl'
 import type { DeployedOfficialEntry } from '@omne-harness-lite/evaluation-input-store'
 import type { ModelInputSource, PublishSourceFailure, CaptureRecipeFailure } from './bootstrap.ts'
-import type {
-  TransportOptions,
-  RetirementPolicy,
-  ModelDefinition,
-} from '@omne-harness-lite/pi-ai-transport'
+import type { TransportOptions } from '@omne-harness-lite/pi-ai-transport'
+import type { ModelDefinition } from '@omne-harness-lite/model-request-runtime'
+import type { RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import type {
   AcknowledgementCleanupPolicy,
-  InvocationPolicy,
-  TokenMargin,
   SettlementContention,
   SettlementScheduler,
   ReservationWaitPolicy,
@@ -26,14 +23,12 @@ import type {
   ObserverDiagnostic,
   SettlementDiagnostic,
   DefaultRetryConfiguration,
-} from '@omne-harness-lite/model-request-runtime'
-import type { HoldingTenantResult } from '@omne-harness-lite/session-tenancy-table'
+} from '@omne-harness-lite/model-request-runtime-local'
+import type { InvocationPolicy } from '@omne-harness-lite/model-request-runtime'
+import type { TokenMargin } from '@omne-harness-lite/model-request-runtime'
+import type { HoldingTenantResult } from '@omne-harness-lite/session-tenancy'
 import type { AtomicStorage, MigrationFragment } from '@omne-harness-lite/storage'
-import type {
-  UpgradeConfirmation,
-  UpgradeGuard,
-  UpgradePending,
-} from '@omne-harness-lite/storage-sql'
+import type { UpgradeGuard } from '@omne-harness-lite/storage-sql'
 
 export const BASE_FIBERS = Object.freeze([
   'storage',
@@ -51,6 +46,9 @@ export const REQUEST_PREPARATION_FIBERS = Object.freeze([
 export const SESSION_LOG_FIBERS = Object.freeze([
   ...REQUEST_PREPARATION_FIBERS,
   'sessionLog',
+  'sessionAccess',
+  'runtimeContext',
+  'sessionContextSource',
 ] as const)
 export const MODEL_REQUEST_FIBERS = Object.freeze([
   ...SESSION_LOG_FIBERS,
@@ -129,6 +127,10 @@ export interface ModelRequestDeployment {
   }
 }
 export interface AcceptanceConfig {
+  readonly tools?: {
+    readonly directory: string
+    readonly runtime: import('@omne-harness-lite/tool-execution-runtime').ToolRuntimeConfig
+  }
   readonly modelRequest?: ModelRequestDeployment
   readonly sessionLog?: SessionLogDeployment
   readonly runId: string
@@ -182,6 +184,20 @@ export interface AcceptanceDiagnostics {
 }
 /** Trusted test controls, never supplied by a tenant or a model profile. */
 export interface AcceptanceHooks {
+  /** Trusted contribution withdrawal, after the actual tool providers have become active. */
+  readonly toolProvidersInstalled?: (providers: {
+    readonly officialAdmission: Fiber
+    readonly admissionPublication: Fiber
+    readonly environments: import('@omne-harness-lite/execution-environments').EnvironmentProviderRegistrations &
+      import('@omne-harness-lite/execution-environments').ExecutionEnvironmentOperations
+  }) => void | Promise<void>
+  /** Trusted fault control on the actual physical owner, before any consumer borrows it. */
+  readonly sessionLogOpened?: (
+    log: import('@omne-harness-lite/session-log').SessionLog,
+  ) =>
+    | void
+    | import('@omne-harness-lite/session-log').SessionLog
+    | Promise<void | import('@omne-harness-lite/session-log').SessionLog>
   readonly extraMigrations?: readonly MigrationFragment[]
   readonly storageOpened?: (storage: AtomicStorage, guard: UpgradeGuard) => void | Promise<void>
   readonly fiberCreated?: (name: StageFiber, fiber: Fiber) => void | Promise<void>
@@ -239,7 +255,7 @@ export type ProviderRejection =
   | {
       readonly step: 'currentInputs'
       readonly result: Extract<
-        import('@omne-harness-lite/evaluation-input-store').CurrentInputResult,
+        import('@omne-harness-lite/asset-evaluation').CurrentInputResult,
         { readonly failure: string }
       >
     }

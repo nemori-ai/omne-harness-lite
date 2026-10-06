@@ -1,8 +1,6 @@
 import { expect, test, vi } from 'vitest'
-import {
-  createRegistryHistoryReader,
-  type RegistryHistoryRequest,
-} from '@omne-harness-lite/evaluation-input-store/registry-history'
+import { createRegistryHistoryReader } from '@omne-harness-lite/evaluation-input-store/registry-history'
+import { type RegistryHistoryRequest } from '@omne-harness-lite/asset-evaluation'
 import { createAssemblyManifestStore } from '@omne-harness-lite/assembly-manifest-store'
 import { instantFromEpochMs } from '@omne-harness-lite/offer-expiry'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'

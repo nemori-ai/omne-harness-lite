@@ -1,0 +1,33 @@
+{
+  "label": "s4-rule-tests",
+  "verifier": "root implementation",
+  "command": [
+    "env",
+    "VITEST_MAX_WORKERS=1",
+    "pnpm",
+    "--filter",
+    "@omne-harness-lite/ts-checks",
+    "exec",
+    "vitest",
+    "run",
+    "tests/account-identity-rules.spec.ts",
+    "tests/affected.spec.ts",
+    "tests/core-rules.spec.ts",
+    "tests/group-direction.spec.ts",
+    "tests/metrics-report.spec.ts",
+    "tests/rules.spec.ts"
+  ],
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent",
+  "base": "67eecc1ae53be30efec473206e5d1926dd5d500f",
+  "head": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+  "working_tree": [],
+  "started_at": "2026-10-04T21:18:08.241350+00:00",
+  "completed_at": "2026-10-04T21:19:22.196713+00:00",
+  "elapsed_seconds": 73.955,
+  "exit_code": 0,
+  "environment": {
+    "LANG": "en_US.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "VITEST_MAX_WORKERS": null
+  }
+}

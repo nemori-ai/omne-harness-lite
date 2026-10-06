@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
-import type { DiagnosticScope } from '@omne-harness-lite/model-request-runtime'
+import type { DiagnosticScope } from '@omne-harness-lite/model-request-runtime-local'
 import {
   createDeepSeekV41FlashInputMeter,
   createModelTransportService,
@@ -11,7 +11,8 @@ import {
   deepseekV41FlashConfiguration,
   deepseekV41FlashDefinition,
 } from '@omne-harness-lite/pi-ai-transport'
-import type { ModelTransportService, RetirementPolicy } from '@omne-harness-lite/pi-ai-transport'
+import type { ModelTransportService } from '@omne-harness-lite/model-request-runtime'
+import type { RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import {
   createDemoTransportRetention,
   openDemoDiagnosticAssembly,

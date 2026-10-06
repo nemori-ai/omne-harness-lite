@@ -4,22 +4,21 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   accountIdentityMigrations,
-  accountIdentityPlugin,
   ACCOUNT_TABLE,
   ACCOUNT_ID_COLUMN,
-  type LoginsService,
-} from '@omne-harness-lite/account-identity'
-import {
-  registrationPlugin,
-  type RegistrationService,
-} from '@omne-harness-lite/account-registration'
-import { credentialsPlugin } from '@omne-harness-lite/credential-verification'
-import { clockMigrations, clockPlugin } from '@omne-harness-lite/clock'
+} from '@omne-harness-lite/account-identity-sql'
+import { accountIdentityPlugin } from '@omne-harness-lite/account-identity-sql/cordis'
+import { type LoginsService } from '@omne-harness-lite/account-identity'
+import { registrationPlugin } from '@omne-harness-lite/account-registration-sequential/cordis'
+import { type RegistrationService } from '@omne-harness-lite/account-registration'
+import { credentialsPlugin } from '@omne-harness-lite/credential-verification-scrypt/cordis'
+import { clockMigrations } from '@omne-harness-lite/clock-lease'
+import { clockPlugin } from '@omne-harness-lite/clock-lease/cordis'
 import { generateHandoffKeyPair, type TenantId } from '@omne-harness-lite/identity-values'
 import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
+import { organizationGovernanceMigrations } from '@omne-harness-lite/organization-governance-sql'
+import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance-sql/cordis'
 import {
-  organizationGovernanceMigrations,
-  organizationGovernancePlugin,
   type MembershipsService,
   type OrganizationsService,
   type OffersService,

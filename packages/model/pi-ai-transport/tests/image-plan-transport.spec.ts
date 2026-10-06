@@ -3,10 +3,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import sharp from 'sharp'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
-import {
-  createModelPlugin,
-  MODEL_TRANSPORT_SERVICE,
-} from '@omne-harness-lite/pi-ai-transport/plugin'
+import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
+import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 import { createHash } from 'node:crypto'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
@@ -19,10 +17,12 @@ import {
   planRequest,
   createImagePreparer,
   inspectTransformRevision,
+} from '@omne-harness-lite/pi-ai-transport'
+import { type PlannedRequest } from '@omne-harness-lite/model-request-runtime'
+import {
   type FullMeterInput,
   type LoadedImageCodec,
-  type PlannedRequest,
-} from '@omne-harness-lite/pi-ai-transport'
+} from '@omne-harness-lite/model-request-runtime'
 import { certificate, fixture, input, judgedMessage, at, content, finish } from './support.ts'
 import { testDefinitions } from './definitions.ts'
 
@@ -475,7 +475,7 @@ describe('real sharp prepared request transport', () => {
     let release = () => {}
     try {
       await ctx.plugin(localProvider)
-      await ctx.plugin(createModelPlugin(definition, meter(), retirement), {})
+      await createModelPlugin(ctx, definition, meter(), retirement)
       expect(ctx.get(MODEL_TRANSPORT_SERVICE)).toBe(service)
       expect(service.inspect().registrations).toBe(1)
       const request = imageRequest(medium, 'image/png', 30000),

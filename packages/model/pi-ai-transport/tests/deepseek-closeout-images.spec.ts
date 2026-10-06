@@ -4,7 +4,8 @@ import { beforeAll, afterAll, describe, expect, it } from 'vitest'
 import sharp from 'sharp'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import {
   createModelTransportService,
   createSharpImageCodec,
@@ -12,13 +13,13 @@ import {
   createDeepSeekV41FlashInputMeter,
   deepseekV41FlashDefinition,
   createOfficialProfileContent,
-  type LoadedImageCodec,
-  type FullMeterInput,
 } from '@omne-harness-lite/pi-ai-transport'
 import {
-  createModelPlugin,
-  MODEL_TRANSPORT_SERVICE,
-} from '@omne-harness-lite/pi-ai-transport/plugin'
+  type LoadedImageCodec,
+  type FullMeterInput,
+} from '@omne-harness-lite/model-request-runtime'
+import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
+import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 import {
   at,
   certificate,
@@ -153,7 +154,7 @@ describe('DeepSeek Flash D109 production codec and service', () => {
       source = writeJsonLossless(initial)
     try {
       await ctx.plugin(provider)
-      await ctx.plugin(createModelPlugin(definition, meter, retirement), {})
+      await createModelPlugin(ctx, definition, meter, retirement)
       const acquired = service.acquire(initial.snapshot.adaptation, initial.routeName)
       if (!('lease' in acquired)) throw Error('actual registered Flash unavailable')
       release = acquired.lease.release

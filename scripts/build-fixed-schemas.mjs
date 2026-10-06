@@ -15,6 +15,7 @@ const owners = new Set([
   'packages/core/agent-definition',
   'packages/core/arrival-events',
   'packages/core/tool-definition',
+  'packages/core/tool-execution-runtime',
   'packages/core/loop-extension',
   'packages/core/model-response',
   'packages/core/model-profile',
@@ -23,11 +24,14 @@ const owners = new Set([
   'packages/core/mcp-endpoint',
   'packages/core/slash-command',
   'packages/session/session-tenancy-table',
-  'packages/tenancy/governance-center-entry',
-  'packages/frontend/client-local-state',
-  'packages/frontend/governance-center-client',
-  'packages/frontend/governance-client-operations',
+  'packages/core/runtime-context',
+  'packages/session/runtime-context-local',
+  'packages/tenancy/governance-center-entry-node',
+  'packages/frontend/client-local-state-sqlite',
+  'packages/frontend/governance-center-client-https',
+  'packages/frontend/governance-client-operations-local',
   'apps/cli',
+  'examples/model-invocation-minimal-demo',
 ])
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
 const snapshot = value => {

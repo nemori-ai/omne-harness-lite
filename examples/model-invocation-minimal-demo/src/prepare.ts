@@ -1,9 +1,9 @@
 import { constants } from 'node:fs'
 import { lstat, open } from 'node:fs/promises'
 import { dirname, isAbsolute } from 'node:path'
-import { AccountIdentityConfigSchema } from '@omne-harness-lite/account-identity'
-import { AccountRegistrationConfigSchema } from '@omne-harness-lite/account-registration'
-import { CredentialVerificationConfig } from '@omne-harness-lite/credential-verification'
+import { AccountIdentityConfigSchema } from '@omne-harness-lite/account-identity-sql'
+import { AccountRegistrationConfigSchema } from '@omne-harness-lite/account-registration-sequential'
+import { CredentialVerificationConfig } from '@omne-harness-lite/credential-verification-scrypt'
 import {
   isOk,
   issueHandoffWarrant,
@@ -12,8 +12,8 @@ import {
   parseAccountId,
   verifyHandoffWarrant,
 } from '@omne-harness-lite/identity-values'
-import { ModelProfileDirectoryConfigSchema } from '@omne-harness-lite/model-profile-directory/plugin'
-import { OrganizationGovernanceConfigSchema } from '@omne-harness-lite/organization-governance'
+import { ModelProfileDirectoryConfigSchema } from '@omne-harness-lite/model-profile-directory-local/cordis'
+import { OrganizationGovernanceConfigSchema } from '@omne-harness-lite/organization-governance-sql'
 import type { AcceptanceConfig } from './types.ts'
 
 async function readOwnedFile(path: string, modelKey = false): Promise<Buffer> {

@@ -196,3 +196,5 @@ PF-010-context-management-and-assembly/
 ├── changelog.md      产品设计本身的演进
 └── interviews/       设计交流笔记（原始材料）
 ```
+
+用户可见交付切片见[故事卡](stories.md)。

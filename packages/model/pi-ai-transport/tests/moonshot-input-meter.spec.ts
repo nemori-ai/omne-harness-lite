@@ -4,7 +4,8 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import {
   createMoonshotInputMeter,
   referenceMoonshotImageTokens,
@@ -19,10 +20,8 @@ import { createOfficialProfileContent } from '../src/configuration.ts'
 import { planRequest } from '../src/plan.ts'
 import { object } from '../src/json.ts'
 import { createPiAiTransport } from '@omne-harness-lite/pi-ai-transport'
-import {
-  createModelTransportService,
-  type RetirementPolicy,
-} from '@omne-harness-lite/pi-ai-transport'
+import { createModelTransportService } from '@omne-harness-lite/pi-ai-transport'
+import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import {
   certificate,
   content,

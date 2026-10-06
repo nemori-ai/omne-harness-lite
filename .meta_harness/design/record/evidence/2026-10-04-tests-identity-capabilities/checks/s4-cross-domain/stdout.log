@@ -1,0 +1,56 @@
+Scope: 4 of 54 workspace projects
+
+> @omne-harness-lite/evaluation-input-store@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/packages/assets/evaluation-input-store
+> vitest run
+
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/packages/assets/evaluation-input-store
+
+
+ Test Files  5 passed (5)
+      Tests  70 passed (70)
+Type Errors  no errors
+   Start at  21:05:50
+   Duration  22.43s (transform 1.22s, setup 0ms, import 3.73s, tests 18.01s, environment 1ms)
+
+
+> @omne-harness-lite/model-request-runtime-local@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/packages/model/model-request-runtime-local
+> vitest run
+
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/packages/model/model-request-runtime-local
+
+
+ Test Files  80 passed (80)
+      Tests  846 passed (846)
+Type Errors  no errors
+   Start at  21:06:13
+   Duration  115.84s (transform 3.30s, setup 0ms, import 4.48s, tests 103.09s, environment 0ms, typecheck 7.98s)
+
+
+> @omne-harness-lite/loop-extension-runner@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/packages/agent-loop/loop-extension-runner
+> vitest run
+
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/packages/agent-loop/loop-extension-runner
+
+
+ Test Files  14 passed (14)
+      Tests  462 passed (462)
+Type Errors  no errors
+   Start at  21:08:09
+   Duration  46.97s (transform 2.42s, setup 0ms, import 11.88s, tests 30.11s, environment 1ms, typecheck 3.09s)
+
+
+> @omne-harness-lite/model-invocation-minimal-demo@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/examples/model-invocation-minimal-demo
+> vitest run
+
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/examples/model-invocation-minimal-demo
+
+
+ Test Files  91 passed (91)
+      Tests  446 passed (446)
+   Start at  21:08:57
+   Duration  1420.39s (transform 4.91s, setup 0ms, import 97.61s, tests 1309.35s, environment 13ms)
+

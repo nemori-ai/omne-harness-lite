@@ -1,0 +1,30 @@
+{
+  "base": "beef18017170eb70cae2c6bf3afb121b18a0139e",
+  "commit": "7df742c4b7b0c5d735da2245605be682b6a35f7c",
+  "working_tree": "clean-candidate",
+  "candidate_input_manifest": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/inputs/candidate-tracked-before.json",
+  "run_id": "changed-rule-controls",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "argv": [
+    "pnpm",
+    "exec",
+    "vitest",
+    "run",
+    "tests/group-direction.spec.ts",
+    "tests/rules.spec.ts",
+    "tests/affected.spec.ts",
+    "tests/entry-rules.spec.ts",
+    "--reporter=json",
+    "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/changed-rules.vitest.json"
+  ],
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/clone/tools/ts-checks",
+  "started": "2026-10-05T01:11:34.124Z",
+  "ended": "2026-10-05T01:12:25.991Z",
+  "duration_ms": 51867.036521999995,
+  "timeout_ms": 480000,
+  "timed_out": false,
+  "exit_code": 0,
+  "signal": null,
+  "input_files": [],
+  "actual_executor": "qa:/root/r1_t1a_candidate_qa"
+}

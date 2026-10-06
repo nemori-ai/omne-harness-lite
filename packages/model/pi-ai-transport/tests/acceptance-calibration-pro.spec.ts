@@ -7,8 +7,8 @@ import {
   createOpenAiInputMeter,
   createOfficialProfileContent,
   createPiAiTransport,
-  type ModelDefinition,
 } from '../src/index.ts'
+import { type ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import { syntheticInputMeter } from './synthetic-input-meter.ts'
 import { certificate, fixture, input, message, content, sse, finish } from './support.ts'
 

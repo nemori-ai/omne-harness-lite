@@ -13,6 +13,7 @@ import { buildReport, summaryLines, type CoverageInput } from './report.ts'
 import { baseTextsOf, collectMemberSources } from './sources.ts'
 import { readActualArchitecture } from '../arch/actual.ts'
 import { buildArchitectureView } from '../arch/view.ts'
+import { readConformance } from '../arch/conformance.ts'
 
 interface Options {
   readonly base?: string
@@ -139,7 +140,12 @@ function main(): void {
     root,
     ...(options.base === undefined ? {} : { base: options.base }),
   })
-  const architecture = buildArchitectureView(actual, config.bands)
+  const conformance = readConformance({
+    root,
+    ...(options.base === undefined ? {} : { base: options.base }),
+  })
+  const architecture = { ...buildArchitectureView(actual, config.bands), conformance }
+  writeFileSync(join(outDir, 'conformance.json'), JSON.stringify(conformance, null, 2) + '\n')
   writeFileSync(join(outDir, 'actual.json'), JSON.stringify(actual, null, 2) + '\n')
   writeFileSync(join(outDir, 'architecture.json'), JSON.stringify(architecture, null, 2) + '\n')
   writeFileSync(reviewPath, renderPage(report, page, architecture))

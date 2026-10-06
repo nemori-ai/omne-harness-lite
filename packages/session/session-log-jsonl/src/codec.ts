@@ -1,7 +1,7 @@
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
-import { checkAppendInput, object } from './input.ts'
-import { addInteger, compareInteger, positiveInteger } from './numbers.ts'
+import { checkAppendInput, object } from '@omne-harness-lite/session-log'
+import { addInteger, compareInteger, positiveInteger } from '@omne-harness-lite/session-log'
 import type {
   LogCommit,
   LogDecodeResult,

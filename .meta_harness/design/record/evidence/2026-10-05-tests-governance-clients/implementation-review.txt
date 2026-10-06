@@ -1,0 +1,48 @@
+R1-T3 L3 独立实施审阅及最终补审完成。**本次范围内未发现尚未关闭的阻断问题。** 有一处非阻断的证据链接误差，具体位置如下。本报告不构成技术接受。
+
+评审仓库为 `/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent`，BASE 为 `beef18017170eb70eb70…` 的正确完整坐标 **`beef18017170eb70cae2c6bf3afb121b18a0139e`**，最终候选为 `69492d46c10ec27bbc6943c7194d8be2d7b259d2`。产品代码审至 `113c465e5`；随后逐项核对格式修订 `e0706e327`、角色投影修订 `7df742c4b`、负类型测试定位修订 `69492d46c`。结束时 HEAD 正确、tracked clean；未修改产品、测试、QA 或工作树文件。
+
+以下 `E` 指 `tmp/arch-intent/remediation/r1-t3`，`R` 指 `/tmp/r1-t3-review-113c465e5`。
+
+| 检查入口及实际范围 | 结果与证据 |
+|---|---|
+| Git 逐提交、文件清单、完整差异 | 未发现越出施工范围。首轮记录于 `R/{changes,diff,commits}.*`；后三次 delta 已逐项读回。 |
+| `make acceptance-lock BASE=beef…`、`make card-retire BASE=beef…` | 独立执行 exit 0；`R/acceptance-lock.*`、`R/card-retire.*`。 |
+| `pnpm run lint:rules` | 独立执行 exit 0；方向、受限入口、署名无违规；`R/rules.*`。运行坐标为 `113c465e5`。 |
+| 从 Git BASE 重采并核对函数、原断言及保护资源 | 232 函数体：208 相同、24 已解释、0 缺失；650 原断言：639 相同、11 仅工厂参数；3 Schema 字节相同。`R/preservation.json`、`R/assertions.json`。 |
+| 56 原导出的声明消费 | 独立执行，0 diagnostics；`R/exports-result.json`。此项是工作区制品检查，实际 tarball 由 QA 另验。 |
+| ops 白名单精确正负控 | 独立执行 11/11；两个符号只允许精确 snapshot 叶子，非法形式及错误叶子均拒绝；`R/ops-probe.json`。 |
+| 精确 BASE 结构及共同硬线 | 已读原件。6 CC、8 clone、32 新边、50 旧映射均有逐项处置；88 IC 偏离均为存量。`E/s3-structural-disposition.json`、`E/s3-loop-7df742c4b/`。 |
+| 当前采用预期符合性 | 固定 `7df742c4b`、`inputDirty=false`、`comparedWith=current`；M13 修复闭合。`E/s3-current-conformance-7df742c4b.json`。 |
+| 形式原始运行与输入 | 独立读回 27 次：5 正、22 负；37 输入散列相符。未重新运行 TLC；`R/independent-preservation-formal-readback.json`。 |
+| 独立 QA 最终结果 | 47 项 Pass；所选测试 539 通过、0 失败、0 跳过；12 成员类型检查通过。`E/qa-candidate-e0706e327/report.{md,json}`。 |
+| QA 冻结清单及标准 | 本次独立逐项读取 890 件、97,358,204 字节及 1,121 件外部原件，SHA／字节全部匹配；47 个 ID 和 oracle 与冻结 40＋7 标准完全一致。 |
+
+冻结 manifest SHA 为：
+
+`202b93bc16598555a51047d5c0719032f94503f67c3e1ac52db8ba295ec0a793`
+
+**阻断发现及关闭依据**
+
+- **IR-T3-M13-1，检查表 2／8，已闭合。** 原约束缺少三个已采用 core 定义角色。`7df742c4b` 精确补齐 contract role，并将 `errors.ts` 纳入既有协议角色；没有扩大装配豁免。当前预期输出中三 core 不再有 ROLE unknown 行，CLI assembly 指向三 core 的 12 条分层判定及错误文件 4 条关系为 converged。工具未输出 converged ROLE，不能称为“9 项 ROLE 通过”。当前与 BASE 预期对照的 deviation ID 集合均为原 88 项，新增 0。
+- **QA-T3-S2-STARTUP-1，修复证据闭合。** 固定候选真实 CLI/TUI 的取消两支均返回 2；另六条打开不可用、非法及双失败路径保留原 3／2／70 优先级。原 37 Pass／2 Fail 保留，未以取消状态吞掉真实参与者错误。
+- **QA-T3-TYPE-1，修复证据闭合。** 原 typecheck 的 TS2578／TS2353 与 exit 2 保留。`69492d46c` 仅将同一 `@ts-expect-error` 移到非法 credential 属性前；我从两份 Git 原件重算完整有序 AST 相同、指令仍为一条。QA 独立 12 成员 tsc exit 0，没有弱化负输入。
+- 三个 BASE 同步重入关闭反例已由候选同门控观察覆盖。源码落实先登记完整工作、后调用可重入依赖；稳定关闭 Promise 在取消回调前保存。
+
+**非阻断**
+
+- **IR-T3-DOC-1，检查表 2：QA 首失链接指向错误输出文件。** `report.md` 首失表及 `report.json` 的 `QA-T3-TYPE-1.first` 指向 `evidence/receipts/affected-typecheck.stderr`，该文件为 0 字节；实际 TS2578／TS2353 在同名 **stdout 第 26–27 行**，对应 exit 2 收据正确。原错误和修复证据完整，不影响该缺陷关闭。主会话可在勘误或接受记录中引用准确 stdout，无需修改冻结 QA 原件。
+
+没有发现其他未交代的新结构红项、原验收削弱或本批契约反例。
+
+**覆盖与适用限制**
+
+已按检查表 1–20 完成审阅，并逐行核对租户及凭据流、CAS、工作登记、Use 优先级、稳定 close、ManagedCG 原拒绝保留、启动前缀、终端恢复与 CLS 释放顺序。
+
+QA 实际范围包括七纯根的 21 个不同源码／声明闭包、七 tarball 运行边界、七外部 `./cordis` 入口、52 项机制观察、固定 EC2 TLS 对端的 31 路由＋34 CLI 动作、另行真实中心 14 项，以及 5 项前置检查和 4 项 PTY 生命周期检查。读取的最终报告没有将这些扩大为全部真实中心业务或完整终端发布验收。
+
+主体运行发生于 `7df742c4b`；QA 独立核对最终仅一个测试文件变化，生产、Schema、锁及 3,244 件构建产物相同，故继承到 `69492d46c` 合理。旧运行提交没有改写。
+
+完整 GUI／IME／尺寸／宽字符／resize／scrollback／SIGKILL 终端矩阵、全 host/server、PG、A5 冷恢复因果、EIS 原超时、完整 W6、T4／R2／N5～N8 均继续保留。形式模型仅在原有限对象、公平性和外部工作最终完成前提下成立。最终 `694` 共同硬线、归档与技术接受由主会话完成；本报告不将正在执行的入口记为通过。
+
+首轮机器记录为 `00:41:41–00:54:23 UTC`；最终补审结束于 `01:38:22 UTC`，跨轮窗口含等待约 56 分 41 秒。评审进程已结束，临时证据写权已释放。

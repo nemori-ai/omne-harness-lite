@@ -1,5 +1,9 @@
 import type { Rule, SourceFile, Violation } from '../rule.ts'
-import { ACCOUNT_REGISTRATION_SRC, productSourceIn } from '../layout.ts'
+import {
+  ACCOUNT_REGISTRATION_SRC,
+  ACCOUNT_REGISTRATION_DEFINITION_SRC,
+  productSourceIn,
+} from '../layout.ts'
 import {
   blockBodies,
   codeMatches,
@@ -34,7 +38,11 @@ export const terminalOutcomeClosed: Rule = {
   description:
     'account-registration 的 TERMINAL_OUTCOMES 恰为 S-5 四值，TerminalOutcome 只由它派生，源码里不出现第五个终结结果',
   check(files) {
-    const arFiles = files.filter(f => productSourceIn(f.path, ACCOUNT_REGISTRATION_SRC))
+    const arFiles = files.filter(
+      f =>
+        productSourceIn(f.path, ACCOUNT_REGISTRATION_SRC) ||
+        productSourceIn(f.path, ACCOUNT_REGISTRATION_DEFINITION_SRC),
+    )
     if (arFiles.length === 0) return []
     const out: Violation[] = []
     const push = (file: SourceFile | undefined, index: number, message: string) =>

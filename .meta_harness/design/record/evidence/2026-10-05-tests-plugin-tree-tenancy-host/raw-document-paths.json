@@ -1,0 +1,331 @@
+{
+  "at": "2026-10-05T08:42:05.660020+00:00",
+  "reason": "imported frozen historical README uses original model/spec layout; copied raw documentation is a byte-identical txt observation, not current authority; original .md preserved in local hash-verified archive",
+  "first_failure": "r1-t4/delivery-checks/docs.stdout, exit2; 209 broken old-layout links in33 raw files; no scanner exception or model/config edits",
+  "moves": [
+    {
+      "original_snapshot_path": "formal/client-formal/cg1-bad-flatten/README.md",
+      "durable_path": "formal/client-formal/cg1-bad-flatten/README.txt",
+      "sha256": "df67808afd16ce98b709cf6f384fe716956fced34b3c9a5027e82a20979344b4",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/client-formal/cg1-bad-follow/README.md",
+      "durable_path": "formal/client-formal/cg1-bad-follow/README.txt",
+      "sha256": "df67808afd16ce98b709cf6f384fe716956fced34b3c9a5027e82a20979344b4",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/client-formal/cg1-bad-late/README.md",
+      "durable_path": "formal/client-formal/cg1-bad-late/README.txt",
+      "sha256": "df67808afd16ce98b709cf6f384fe716956fced34b3c9a5027e82a20979344b4",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/client-formal/cg1-bad-release/README.md",
+      "durable_path": "formal/client-formal/cg1-bad-release/README.txt",
+      "sha256": "df67808afd16ce98b709cf6f384fe716956fced34b3c9a5027e82a20979344b4",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/client-formal/cg1-valid/README.md",
+      "durable_path": "formal/client-formal/cg1-valid/README.txt",
+      "sha256": "df67808afd16ce98b709cf6f384fe716956fced34b3c9a5027e82a20979344b4",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/client-formal/cg2-bad-follow/README.md",
+      "durable_path": "formal/client-formal/cg2-bad-follow/README.txt",
+      "sha256": "52f72957c9a226b80dbafe1e3a8a69e8a531b14af84505a478a2b97b7ed4fb62",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/client-formal/cg2-bad-forget/README.md",
+      "durable_path": "formal/client-formal/cg2-bad-forget/README.txt",
+      "sha256": "52f72957c9a226b80dbafe1e3a8a69e8a531b14af84505a478a2b97b7ed4fb62",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/client-formal/cg2-bad-late/README.md",
+      "durable_path": "formal/client-formal/cg2-bad-late/README.txt",
+      "sha256": "52f72957c9a226b80dbafe1e3a8a69e8a531b14af84505a478a2b97b7ed4fb62",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/client-formal/cg2-bad-release/README.md",
+      "durable_path": "formal/client-formal/cg2-bad-release/README.txt",
+      "sha256": "52f72957c9a226b80dbafe1e3a8a69e8a531b14af84505a478a2b97b7ed4fb62",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/client-formal/cg2-valid/README.md",
+      "durable_path": "formal/client-formal/cg2-valid/README.txt",
+      "sha256": "52f72957c9a226b80dbafe1e3a8a69e8a531b14af84505a478a2b97b7ed4fb62",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/client-formal/cls-bad-claim/README.md",
+      "durable_path": "formal/client-formal/cls-bad-claim/README.txt",
+      "sha256": "83d2fe79d5f7ef6b7696f9ee5f65bbd2d42072a878fc26623e4263a87b3cc85a",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/client-formal/cls-bad-instance/README.md",
+      "durable_path": "formal/client-formal/cls-bad-instance/README.txt",
+      "sha256": "83d2fe79d5f7ef6b7696f9ee5f65bbd2d42072a878fc26623e4263a87b3cc85a",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/client-formal/cls-bad-split/README.md",
+      "durable_path": "formal/client-formal/cls-bad-split/README.txt",
+      "sha256": "83d2fe79d5f7ef6b7696f9ee5f65bbd2d42072a878fc26623e4263a87b3cc85a",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/client-formal/cls-valid/README.md",
+      "durable_path": "formal/client-formal/cls-valid/README.txt",
+      "sha256": "83d2fe79d5f7ef6b7696f9ee5f65bbd2d42072a878fc26623e4263a87b3cc85a",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/client-formal/inputs/cg1/README.md",
+      "durable_path": "formal/client-formal/inputs/cg1/README.txt",
+      "sha256": "df67808afd16ce98b709cf6f384fe716956fced34b3c9a5027e82a20979344b4",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/client-formal/inputs/cg2/README.md",
+      "durable_path": "formal/client-formal/inputs/cg2/README.txt",
+      "sha256": "52f72957c9a226b80dbafe1e3a8a69e8a531b14af84505a478a2b97b7ed4fb62",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/client-formal/inputs/cls/README.md",
+      "durable_path": "formal/client-formal/inputs/cls/README.txt",
+      "sha256": "83d2fe79d5f7ef6b7696f9ee5f65bbd2d42072a878fc26623e4263a87b3cc85a",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-EntryDecision/README.md",
+      "durable_path": "formal/entry-formal/ec-EntryDecision/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-MaintenanceValidity_plaintextEarly/README.md",
+      "durable_path": "formal/entry-formal/ec-MaintenanceValidity_plaintextEarly/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-MaintenanceValidity_releaseEarly/README.md",
+      "durable_path": "formal/entry-formal/ec-MaintenanceValidity_releaseEarly/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-MaintenanceValidity_removeProtection/README.md",
+      "durable_path": "formal/entry-formal/ec-MaintenanceValidity_removeProtection/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-MaintenanceValidity_unknownSuccess/README.md",
+      "durable_path": "formal/entry-formal/ec-MaintenanceValidity_unknownSuccess/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-Validity_Reachability/README.md",
+      "durable_path": "formal/entry-formal/ec-Validity_Reachability/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-Validity_authBeforeEnvelope/README.md",
+      "durable_path": "formal/entry-formal/ec-Validity_authBeforeEnvelope/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-Validity_defectAsResult/README.md",
+      "durable_path": "formal/entry-formal/ec-Validity_defectAsResult/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-Validity_deriveBeforePayload/README.md",
+      "durable_path": "formal/entry-formal/ec-Validity_deriveBeforePayload/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-Validity_gateUnavailableAsDenied/README.md",
+      "durable_path": "formal/entry-formal/ec-Validity_gateUnavailableAsDenied/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-Validity_inputBeforeAuth/README.md",
+      "durable_path": "formal/entry-formal/ec-Validity_inputBeforeAuth/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-Validity_passthroughStateNotValid/README.md",
+      "durable_path": "formal/entry-formal/ec-Validity_passthroughStateNotValid/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-Validity_readPresentationBeforeVersion/README.md",
+      "durable_path": "formal/entry-formal/ec-Validity_readPresentationBeforeVersion/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-Validity_unavailableAsRejected/README.md",
+      "durable_path": "formal/entry-formal/ec-Validity_unavailableAsRejected/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-bad-no-compare/README.md",
+      "durable_path": "formal/entry-formal/ec-bad-no-compare/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-bad-no-protection/README.md",
+      "durable_path": "formal/entry-formal/ec-bad-no-protection/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-commit-bad-catch/README.md",
+      "durable_path": "formal/entry-formal/ec-commit-bad-catch/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-commit-bad-notify/README.md",
+      "durable_path": "formal/entry-formal/ec-commit-bad-notify/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-commit-valid/README.md",
+      "durable_path": "formal/entry-formal/ec-commit-valid/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-maintenance-progress/README.md",
+      "durable_path": "formal/entry-formal/ec-maintenance-progress/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-maintenance-valid/README.md",
+      "durable_path": "formal/entry-formal/ec-maintenance-valid/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/ec-valid/README.md",
+      "durable_path": "formal/entry-formal/ec-valid/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/entry-formal/inputs/ec/README.md",
+      "durable_path": "formal/entry-formal/inputs/ec/README.txt",
+      "sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/identity-formal/ai-bad-admission/README.md",
+      "durable_path": "formal/identity-formal/ai-bad-admission/README.txt",
+      "sha256": "ed307368826855ad70779f143f2b4cd3d722317dc5a25e561471705431ae8f1b",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/identity-formal/ai-commit-bad-observer/README.md",
+      "durable_path": "formal/identity-formal/ai-commit-bad-observer/README.txt",
+      "sha256": "ed307368826855ad70779f143f2b4cd3d722317dc5a25e561471705431ae8f1b",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/identity-formal/ai-commit-valid/README.md",
+      "durable_path": "formal/identity-formal/ai-commit-valid/README.txt",
+      "sha256": "ed307368826855ad70779f143f2b4cd3d722317dc5a25e561471705431ae8f1b",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/identity-formal/ai-revision-bad/README.md",
+      "durable_path": "formal/identity-formal/ai-revision-bad/README.txt",
+      "sha256": "ed307368826855ad70779f143f2b4cd3d722317dc5a25e561471705431ae8f1b",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/identity-formal/ai-revision-valid/README.md",
+      "durable_path": "formal/identity-formal/ai-revision-valid/README.txt",
+      "sha256": "ed307368826855ad70779f143f2b4cd3d722317dc5a25e561471705431ae8f1b",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/identity-formal/ai-valid/README.md",
+      "durable_path": "formal/identity-formal/ai-valid/README.txt",
+      "sha256": "ed307368826855ad70779f143f2b4cd3d722317dc5a25e561471705431ae8f1b",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/identity-formal/ar-basic/README.md",
+      "durable_path": "formal/identity-formal/ar-basic/README.txt",
+      "sha256": "c3fc3281dc7b400310119536f2a50fe276db81e874f40c15b608d917d9997d9a",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/identity-formal/ar-crash/README.md",
+      "durable_path": "formal/identity-formal/ar-crash/README.txt",
+      "sha256": "c3fc3281dc7b400310119536f2a50fe276db81e874f40c15b608d917d9997d9a",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/identity-formal/ar-progress/README.md",
+      "durable_path": "formal/identity-formal/ar-progress/README.txt",
+      "sha256": "c3fc3281dc7b400310119536f2a50fe276db81e874f40c15b608d917d9997d9a",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/identity-formal/inputs/ai/README.md",
+      "durable_path": "formal/identity-formal/inputs/ai/README.txt",
+      "sha256": "ed307368826855ad70779f143f2b4cd3d722317dc5a25e561471705431ae8f1b",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/identity-formal/inputs/ar/README.md",
+      "durable_path": "formal/identity-formal/inputs/ar/README.txt",
+      "sha256": "c3fc3281dc7b400310119536f2a50fe276db81e874f40c15b608d917d9997d9a",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/identity-formal/inputs/og/README.md",
+      "durable_path": "formal/identity-formal/inputs/og/README.txt",
+      "sha256": "154bd8cd1a12ef429fbee4f83bb4825902c76900cd0a59ad6d33e2fc70ba3023",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/identity-formal/og-Membership/README.md",
+      "durable_path": "formal/identity-formal/og-Membership/README.txt",
+      "sha256": "154bd8cd1a12ef429fbee4f83bb4825902c76900cd0a59ad6d33e2fc70ba3023",
+      "bytes_unchanged": true
+    },
+    {
+      "original_snapshot_path": "formal/identity-formal/og-Membership_NoSerialization/README.md",
+      "durable_path": "formal/identity-formal/og-Membership_NoSerialization/README.txt",
+      "sha256": "154bd8cd1a12ef429fbee4f83bb4825902c76900cd0a59ad6d33e2fc70ba3023",
+      "bytes_unchanged": true
+    }
+  ]
+}

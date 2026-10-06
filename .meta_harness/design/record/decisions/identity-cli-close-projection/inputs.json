@@ -1,0 +1,39 @@
+{
+  "adopted_at": "2026-10-04T23:23:59.967328+00:00",
+  "base": "beef18017170eb70cae2c6bf3afb121b18a0139e",
+  "head_before": "426fbf1873f6488098ab81d9cbd551552c1baf15",
+  "files": {
+    ".meta_harness/design/architecture/identity-integration/cli-lifecycle.md": "eef72506bb9f6f3d3cceb05bfaeb332586942e68b90daf465e772cded360c25e",
+    ".meta_harness/design/architecture/identity-integration/client-integration.md": "b05044aca8237757a5e48c74b1940906cb8b71a580fb7ff15add08f9cd15b3df",
+    ".meta_harness/design/architecture/identity-integration/design.md": "b6ffa0e5f48c463e4fb855be4888fa6add5d84b5dd0d3a8b827288c55f5bb852",
+    ".meta_harness/design/architecture/identity-integration/README.md": "145e1ce769ac68343482bd59304375b5ca74b5e3dbb41f3cce1decc3f3a221dd"
+  },
+  "task_evidence": {
+    "tmp/arch-intent/remediation/r1-t3/binding-supplement/cli-close-expression-v1.md": "1d83ccbcf13924690b372dbd1765a0b66fbffe0031b0d79f1ea2997152eba781",
+    "tmp/arch-intent/remediation/r1-t3/binding-supplement/close-prefix-probe-result.json": "699ca6b668b0b7559b786b4da147fc1858f92165ac5ee3b8c3c0880b3749a28e",
+    "tmp/arch-intent/remediation/r1-t3/binding-supplement/close-prefix-probe.log": "d0a37bc5b1ec101d62515fa1808e6b97a4c308c40a0e81e0967d83f645a5d64f",
+    "tmp/arch-intent/remediation/r1-t3/binding-supplement/cli-close-choice-v3.md": "56a6c3e30d5bcc315e93b7d0715eaca9280afbe944fca802204a5db448165bdf",
+    "tmp/arch-intent/remediation/r1-t3/binding-supplement/cli-close-choice-v1-v2.md": "249610297c3a367beaea23555e5502d97eb8772c2553548b8f3570c3d25459ce",
+    "tmp/arch-intent/remediation/r1-t3/binding-supplement/close-prefix-probe.mjs.first": "007d590b3391d24327a8d2807010f5914dacd74527892b667ebe93a982b01a7e",
+    "tmp/arch-intent/remediation/r1-t3/binding-supplement/cli-close-candidate-v2.md": "c433df48031eaa7fbfe2d299d7166e12d1ac48d477391248ec73ab4897435893",
+    "tmp/arch-intent/remediation/r1-t3/binding-supplement/close-structure-diagnosis.md": "55b086cb1fa49c68fd0a79059b2e1a3b15e4dbd266978c0ce3ddfdeddd7b7b6b",
+    "tmp/arch-intent/remediation/r1-t3/binding-supplement/close-prefix-probe-infrastructure-failure.log": "6b113c7c9cba6fd4f57f249f7ee7b795d8ae62e478d26ee97c8ce4205da09fd5",
+    "tmp/arch-intent/remediation/r1-t3/binding-supplement/cli-close-expression-v3.md": "49bdc6b46a0bd42d534a45c1c4c843dba6bda3a8dbfd9eea3e84569ce7ccfbd1",
+    "tmp/arch-intent/remediation/r1-t3/binding-supplement/cli-close-candidate-v3.md": "828dddc0490edeef8f8abe85a9af3f7459fec3d9176284aa490f0c55c69d6c99",
+    "tmp/arch-intent/remediation/r1-t3/binding-supplement/cli-close-inputs-v3.json": "fe6a57d9c9ca3d0a8f6a5625b0c80bb5e26977931821877e0b2dca2f64e8f0a4",
+    "tmp/arch-intent/remediation/r1-t3/binding-supplement/cli-close-inputs-v2.json": "fec473b635f7ff42933767162c7c908835c337b036f43967535b1afe1c0b4090",
+    "tmp/arch-intent/remediation/r1-t3/binding-supplement/close-prefix-probe.mjs": "91047ad8fd3392eeb8d9cec16f04f6f2b906aa170bf341ff9bcfc646a7d063b1",
+    "tmp/arch-intent/remediation/r1-t3/binding-supplement/close-prefix-probe-result.json.first": "bbebbec5d8b39150cb2e13476d180237849f113f2a22184492d2335f334c16cf",
+    "tmp/arch-intent/remediation/r1-t3/binding-supplement/cli-close-candidate.md": "b37ca461e64f55098f67b069d50842a665a9414ffa57b0633e743f7ead7b55fa",
+    "tmp/arch-intent/remediation/r1-t3/binding-supplement/cli-close-expression-v2.md": "1f7d801ec9de49e94b84376b32898a7fe3b127d82400f3a8ae51cb90f9a14f0e",
+    "tmp/arch-intent/remediation/r1-t3/binding-supplement/cli-close-inputs.json": "ce54afe8c448a718f7bfa502be5b69319e14d81e40384b747c65ec16d908da4e",
+    "tmp/arch-intent/remediation/r1-t3/binding-supplement/close-prefix-probe.log.first": "b297edf1f30afa142047cba1d91aff0dd53cfd63eaf70f94160036200510dfdd"
+  },
+  "scope": "CLI close design correction only; product and independent acceptance pending",
+  "effective_inputs": {
+    ".meta_harness/design/spec/compositions/governance-cli-entry/v1/contract.md": "c709ffba5f46d8eb4a1f4b14a13fe60057dc3f0614c54deb70e06b25fa4f8abd",
+    ".meta_harness/design/spec/compositions/governance-cli-entry/v2/contract.md": "2d31eb40d7b2a0fcab7c081c3c1600fcd7b4b3fe22b1fcf63eb8b81642e4c0ee",
+    "packages/core/assembly-lifecycle/src/lifetime.ts": "0425a85cafbbe2f58e74b8baca45a50aaeb02bae503eb058b006d4b43d307c0c",
+    "packages/core/assembly-lifecycle/src/cordis.ts": "b307da111fcf2cf8c3fb569d412c1bb53a7a6355cfc01bd132e087d131c95a1c"
+  }
+}

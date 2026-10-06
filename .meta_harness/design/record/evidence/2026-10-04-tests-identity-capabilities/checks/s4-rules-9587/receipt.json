@@ -1,0 +1,22 @@
+{
+  "label": "s4-rules-9587",
+  "verifier": "root implementation",
+  "command": [
+    "pnpm",
+    "run",
+    "lint:rules"
+  ],
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent",
+  "base": "67eecc1ae53be30efec473206e5d1926dd5d500f",
+  "head": "9587dd5c8b107429ef32b311c08b6dcb1320cbc6",
+  "working_tree": [],
+  "started_at": "2026-10-04T21:06:47.512395+00:00",
+  "completed_at": "2026-10-04T21:07:25.764214+00:00",
+  "elapsed_seconds": 38.252,
+  "exit_code": 0,
+  "environment": {
+    "LANG": "en_US.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "VITEST_MAX_WORKERS": null
+  }
+}

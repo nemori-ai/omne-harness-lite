@@ -2,15 +2,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { planRequest } from './synthetic-input-meter.ts'
 import { readOpaqueJson, toOpaqueJson } from '@omne-harness-lite/content-blocks'
 import type { ModelRequestParameters } from '@omne-harness-lite/model-profile'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import {
   configurationSchema,
   createOfficialProfileContent,
   interpretConfiguration,
   readModelDefinition,
-  type ModelDefinition,
-  type ModelRoute,
 } from '@omne-harness-lite/pi-ai-transport'
+import { type ModelDefinition, type ModelRoute } from '@omne-harness-lite/model-request-runtime'
 import { grok47XaiRoute, grok46XaiRoute } from '../src/official-models/xai.ts'
 import {
   certificate,

@@ -10,24 +10,18 @@ import type {
   QueryId,
   RootOperationNode,
 } from 'kysely'
-import {
-  ACCOUNTS_SERVICE,
-  type AccountsService,
-  accountIdentityPlugin,
-} from '@omne-harness-lite/account-identity'
-import {
-  REGISTRATION_SERVICE,
-  type RegistrationService,
-  registrationPlugin,
-} from '@omne-harness-lite/account-registration'
-import { credentialsPlugin } from '@omne-harness-lite/credential-verification'
+import { ACCOUNTS_SERVICE } from '@omne-harness-lite/account-identity/cordis'
+import { type AccountsService } from '@omne-harness-lite/account-identity'
+import { accountIdentityPlugin } from '@omne-harness-lite/account-identity-sql/cordis'
+import { REGISTRATION_SERVICE } from '@omne-harness-lite/account-registration/cordis'
+import { type RegistrationService } from '@omne-harness-lite/account-registration'
+import { registrationPlugin } from '@omne-harness-lite/account-registration-sequential/cordis'
+import { credentialsPlugin } from '@omne-harness-lite/credential-verification-scrypt/cordis'
 import { generateHandoffKeyPair } from '@omne-harness-lite/identity-values'
 import { type Assembly, bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
-import {
-  ORGANIZATION_PURGE_SERVICE,
-  type OrganizationPurgeService,
-  organizationGovernancePlugin,
-} from '@omne-harness-lite/organization-governance'
+import { ORGANIZATION_PURGE_SERVICE } from '@omne-harness-lite/organization-governance/cordis'
+import { type OrganizationPurgeService } from '@omne-harness-lite/organization-governance'
+import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance-sql/cordis'
 import {
   type ReadTx,
   type Storage,

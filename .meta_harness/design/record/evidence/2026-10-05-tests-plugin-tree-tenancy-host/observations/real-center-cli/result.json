@@ -1,0 +1,528 @@
+{
+  "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+  "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+  "run_id": "r1-t3-real-center-cli",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "exit_code": 0,
+  "results": [
+    {
+      "id": "unix-full-health",
+      "status": "Pass",
+      "readiness_ms": 627.8601590000001,
+      "original_timeout_ms": 45000,
+      "health": {
+        "reachable": true,
+        "centerId": "6d41370ab7d2cf6550992a8e4178ba48",
+        "version": "0.0.0",
+        "startedAt": "2026-10-05T07:39:50.141Z",
+        "storageReachable": true,
+        "deploymentKeyPresent": true,
+        "deploymentKeyComplete": true,
+        "clockSane": true,
+        "defectCount": 0,
+        "deploymentParameters": {
+          "unactivatedRetention": 604800000,
+          "invitationTtlDefault": 1209600000,
+          "affiliationRequestTtlDefault": 1209600000,
+          "copyNoticeTtlDefault": 604800000,
+          "sharingInvitationTtlDefault": 604800000
+        }
+      }
+    },
+    {
+      "id": "configure",
+      "status": "Pass",
+      "exit_code": 0,
+      "report": {
+        "format": "governance-client/1",
+        "actionId": "d2450ffe-71da-4257-a9da-a2661823d7d7",
+        "action": "configure",
+        "operation": null,
+        "origin": {
+          "centerId": "6d41370ab7d2cf6550992a8e4178ba48",
+          "accountId": null,
+          "loginStateHandle": null
+        },
+        "admission": {
+          "status": "admitted"
+        },
+        "remote": {
+          "status": "success",
+          "stage": "health",
+          "sendAttempted": false,
+          "health": {
+            "reachable": true,
+            "centerId": "6d41370ab7d2cf6550992a8e4178ba48",
+            "version": "0.0.0"
+          }
+        },
+        "local": {
+          "status": "installed"
+        },
+        "view": {
+          "source": "none"
+        },
+        "use": "ended"
+      }
+    },
+    {
+      "id": "health",
+      "status": "Pass",
+      "exit_code": 0,
+      "report": {
+        "format": "governance-client/1",
+        "actionId": "c82540a8-6647-4154-b484-4a7306b8ac2f",
+        "action": "health",
+        "operation": null,
+        "origin": {
+          "centerId": "6d41370ab7d2cf6550992a8e4178ba48",
+          "accountId": null,
+          "loginStateHandle": null
+        },
+        "admission": {
+          "status": "admitted"
+        },
+        "remote": {
+          "status": "success",
+          "stage": "health",
+          "sendAttempted": false,
+          "health": {
+            "reachable": true,
+            "centerId": "6d41370ab7d2cf6550992a8e4178ba48",
+            "version": "0.0.0"
+          }
+        },
+        "local": {
+          "status": "not-requested"
+        },
+        "view": {
+          "source": "none"
+        },
+        "use": "ended"
+      }
+    },
+    {
+      "id": "register",
+      "status": "Pass",
+      "exit_code": 0,
+      "report": {
+        "format": "governance-client/1",
+        "actionId": "60cf932b-2f19-45fb-b4c7-4f3e6ab38acb",
+        "action": "register",
+        "operation": "composition.account-registration/v2#S-8",
+        "origin": {
+          "centerId": "6d41370ab7d2cf6550992a8e4178ba48",
+          "accountId": null,
+          "loginStateHandle": null
+        },
+        "admission": {
+          "status": "admitted"
+        },
+        "remote": {
+          "status": "success",
+          "stage": "operation",
+          "sendAttempted": true,
+          "reply": {
+            "operation": "composition.account-registration/v2#S-8",
+            "reply": {
+              "result": "registered"
+            }
+          }
+        },
+        "local": {
+          "status": "not-requested"
+        },
+        "view": {
+          "source": "online",
+          "data": {
+            "operation": "composition.account-registration/v2#S-8",
+            "reply": {
+              "result": "registered"
+            }
+          }
+        },
+        "use": "ended"
+      }
+    },
+    {
+      "id": "duplicate-register",
+      "status": "Pass",
+      "exit_code": 4,
+      "report": {
+        "format": "governance-client/1",
+        "actionId": "b0290eeb-f661-4c34-815e-7b8808819a36",
+        "action": "register",
+        "operation": "composition.account-registration/v2#S-8",
+        "origin": {
+          "centerId": "6d41370ab7d2cf6550992a8e4178ba48",
+          "accountId": null,
+          "loginStateHandle": null
+        },
+        "admission": {
+          "status": "admitted"
+        },
+        "remote": {
+          "status": "rejected",
+          "stage": "operation",
+          "sendAttempted": true,
+          "reply": {
+            "operation": "composition.account-registration/v2#S-8",
+            "reply": {
+              "failure": "identifier-taken"
+            }
+          }
+        },
+        "local": {
+          "status": "not-requested"
+        },
+        "view": {
+          "source": "none"
+        },
+        "use": "ended"
+      }
+    },
+    {
+      "id": "wrong-login",
+      "status": "Pass",
+      "exit_code": 4,
+      "report": {
+        "format": "governance-client/1",
+        "actionId": "220e90ff-df75-441b-81a0-db6bd5c84e3d",
+        "action": "login",
+        "operation": "capability.account-identity/v3#S-15",
+        "origin": {
+          "centerId": "6d41370ab7d2cf6550992a8e4178ba48",
+          "accountId": null,
+          "loginStateHandle": null
+        },
+        "admission": {
+          "status": "admitted"
+        },
+        "remote": {
+          "status": "rejected",
+          "stage": "operation",
+          "sendAttempted": true,
+          "reply": {
+            "operation": "capability.account-identity/v3#S-15",
+            "reply": {
+              "failure": "identifier-or-credential-rejected"
+            }
+          }
+        },
+        "local": {
+          "status": "not-requested"
+        },
+        "view": {
+          "source": "none"
+        },
+        "use": "ended"
+      }
+    },
+    {
+      "id": "login",
+      "status": "Pass",
+      "exit_code": 0,
+      "report": {
+        "format": "governance-client/1",
+        "actionId": "537f9ea0-0e3f-451a-afdc-a4433d908304",
+        "action": "login",
+        "operation": "capability.account-identity/v3#S-15",
+        "origin": {
+          "centerId": "6d41370ab7d2cf6550992a8e4178ba48",
+          "accountId": null,
+          "loginStateHandle": null
+        },
+        "admission": {
+          "status": "admitted"
+        },
+        "remote": {
+          "status": "success",
+          "stage": "operation",
+          "sendAttempted": true,
+          "reply": {
+            "operation": "capability.account-identity/v3#S-15",
+            "reply": {
+              "result": {
+                "loginStateHandle": "c3197ce47c51a5fe07f838bf833fbf2e560d98097c2f3cc5bb14e77b52701246"
+              }
+            }
+          }
+        },
+        "local": {
+          "status": "installed"
+        },
+        "view": {
+          "source": "online",
+          "data": {
+            "operation": "capability.account-identity/v3#S-15",
+            "reply": {
+              "result": {
+                "loginStateHandle": "c3197ce47c51a5fe07f838bf833fbf2e560d98097c2f3cc5bb14e77b52701246"
+              }
+            }
+          }
+        },
+        "use": "ended"
+      }
+    },
+    {
+      "id": "tenants",
+      "status": "Pass",
+      "exit_code": 0,
+      "report": {
+        "format": "governance-client/1",
+        "actionId": "cca5bb57-78a4-494a-bfeb-996fbf9d0216",
+        "action": "invoke",
+        "operation": "capability.organization-governance/v2#S-27",
+        "origin": {
+          "centerId": "6d41370ab7d2cf6550992a8e4178ba48",
+          "accountId": "belz5rqhvehtzo56fpitf4mini",
+          "loginStateHandle": "c3197ce47c51a5fe07f838bf833fbf2e560d98097c2f3cc5bb14e77b52701246"
+        },
+        "admission": {
+          "status": "admitted"
+        },
+        "remote": {
+          "status": "success",
+          "stage": "operation",
+          "sendAttempted": true,
+          "reply": {
+            "operation": "capability.organization-governance/v2#S-27",
+            "reply": {
+              "result": [
+                {
+                  "organization": "cbkpf4utcte5rr6nugbgxkwote",
+                  "account": "belz5rqhvehtzo56fpitf4mini"
+                }
+              ]
+            }
+          }
+        },
+        "local": {
+          "status": "installed"
+        },
+        "view": {
+          "source": "online",
+          "data": {
+            "operation": "capability.organization-governance/v2#S-27",
+            "reply": {
+              "result": [
+                {
+                  "organization": "cbkpf4utcte5rr6nugbgxkwote",
+                  "account": "belz5rqhvehtzo56fpitf4mini"
+                }
+              ]
+            }
+          },
+          "query": {
+            "operation": "capability.organization-governance/v2#S-27",
+            "payload": {}
+          },
+          "acquiredAt": "2026-10-05T07:39:55.045Z"
+        },
+        "use": "ended"
+      }
+    },
+    {
+      "id": "organization-create",
+      "status": "Pass",
+      "exit_code": 0,
+      "report": {
+        "format": "governance-client/1",
+        "actionId": "aef1d8ff-59d9-41a0-bc1d-74bcfaa95f39",
+        "action": "invoke",
+        "operation": "capability.organization-governance/v2#S-21",
+        "origin": {
+          "centerId": "6d41370ab7d2cf6550992a8e4178ba48",
+          "accountId": "belz5rqhvehtzo56fpitf4mini",
+          "loginStateHandle": "c3197ce47c51a5fe07f838bf833fbf2e560d98097c2f3cc5bb14e77b52701246"
+        },
+        "admission": {
+          "status": "admitted"
+        },
+        "remote": {
+          "status": "success",
+          "stage": "operation",
+          "sendAttempted": true,
+          "reply": {
+            "operation": "capability.organization-governance/v2#S-21",
+            "reply": {
+              "result": "sh4pcaznftuazeaaqkmuzub64u"
+            }
+          }
+        },
+        "local": {
+          "status": "installed"
+        },
+        "view": {
+          "source": "online",
+          "data": {
+            "operation": "capability.organization-governance/v2#S-21",
+            "reply": {
+              "result": "sh4pcaznftuazeaaqkmuzub64u"
+            }
+          }
+        },
+        "use": "ended"
+      }
+    },
+    {
+      "id": "organization-inspect",
+      "status": "Pass",
+      "exit_code": 0,
+      "report": {
+        "format": "governance-client/1",
+        "actionId": "15b1174f-2ba5-4c12-8379-16fe587d2767",
+        "action": "invoke",
+        "operation": "capability.organization-governance/v2#S-22",
+        "origin": {
+          "centerId": "6d41370ab7d2cf6550992a8e4178ba48",
+          "accountId": "belz5rqhvehtzo56fpitf4mini",
+          "loginStateHandle": "c3197ce47c51a5fe07f838bf833fbf2e560d98097c2f3cc5bb14e77b52701246"
+        },
+        "admission": {
+          "status": "admitted"
+        },
+        "remote": {
+          "status": "success",
+          "stage": "operation",
+          "sendAttempted": true,
+          "reply": {
+            "operation": "capability.organization-governance/v2#S-22",
+            "reply": {
+              "result": {
+                "organization": "sh4pcaznftuazeaaqkmuzub64u",
+                "organizationKind": "team"
+              }
+            }
+          }
+        },
+        "local": {
+          "status": "installed"
+        },
+        "view": {
+          "source": "online",
+          "data": {
+            "operation": "capability.organization-governance/v2#S-22",
+            "reply": {
+              "result": {
+                "organization": "sh4pcaznftuazeaaqkmuzub64u",
+                "organizationKind": "team"
+              }
+            }
+          },
+          "query": {
+            "operation": "capability.organization-governance/v2#S-22",
+            "payload": {
+              "organization": "sh4pcaznftuazeaaqkmuzub64u"
+            }
+          },
+          "acquiredAt": "2026-10-05T07:39:56.180Z",
+          "tenant": {
+            "organization": "sh4pcaznftuazeaaqkmuzub64u",
+            "account": "belz5rqhvehtzo56fpitf4mini"
+          }
+        },
+        "use": "ended"
+      }
+    },
+    {
+      "id": "logout",
+      "status": "Pass",
+      "exit_code": 4,
+      "report": {
+        "format": "governance-client/1",
+        "actionId": "964b02c1-697b-4c62-aecb-73c469438bd4",
+        "action": "logout",
+        "operation": "capability.account-identity/v3#S-16",
+        "origin": {
+          "centerId": "6d41370ab7d2cf6550992a8e4178ba48",
+          "accountId": "belz5rqhvehtzo56fpitf4mini",
+          "loginStateHandle": "c3197ce47c51a5fe07f838bf833fbf2e560d98097c2f3cc5bb14e77b52701246"
+        },
+        "admission": {
+          "status": "admitted"
+        },
+        "remote": {
+          "status": "success",
+          "stage": "operation",
+          "sendAttempted": true,
+          "reply": {
+            "operation": "capability.account-identity/v3#S-16",
+            "reply": {
+              "result": "ok"
+            }
+          }
+        },
+        "local": {
+          "status": "installed"
+        },
+        "view": {
+          "source": "online",
+          "data": {
+            "operation": "capability.account-identity/v3#S-16",
+            "reply": {
+              "result": "ok"
+            }
+          }
+        },
+        "use": "reenter-required"
+      }
+    },
+    {
+      "id": "post-logout",
+      "status": "Pass",
+      "exit_code": 4,
+      "report": {
+        "format": "governance-client/1",
+        "actionId": "923198f7-755c-4cd9-9199-ca9afe32a922",
+        "action": "invoke",
+        "operation": "capability.organization-governance/v2#S-27",
+        "origin": {
+          "centerId": null,
+          "accountId": null,
+          "loginStateHandle": null
+        },
+        "admission": {
+          "status": "blocked",
+          "reason": "not-logged-in"
+        },
+        "remote": {
+          "status": "not-attempted",
+          "stage": "none",
+          "sendAttempted": false
+        },
+        "local": {
+          "status": "not-requested"
+        },
+        "view": {
+          "source": "none"
+        },
+        "use": "ended"
+      }
+    },
+    {
+      "id": "durable-logout",
+      "status": "Pass",
+      "selected_login_removed": true,
+      "cache_cleared": true,
+      "center_retained": true
+    },
+    {
+      "id": "host-actual-close",
+      "status": "Pass",
+      "exit_code": 0
+    }
+  ],
+  "commands": [
+    "# real-ca.cnf: [req] | prompt = no | distinguished_name = dn | [dn] | CN = real-ca | [v3_ca] | basicConstraints = critical,CA:TRUE | keyUsage = critical,keyCertSign,cRLSign | subjectKeyIdentifier = hash",
+    "(cd /tmp/omne-qa-t3-center-dgk3Nf/tls && openssl req -x509 -config /tmp/omne-qa-t3-center-dgk3Nf/tls/real-ca.cnf -extensions v3_ca -newkey ec -pkeyopt ec_paramgen_curve:P-256 -pkeyopt ec_param_enc:named_curve -nodes -keyout real-ca.key -out real-ca.pem -days 3)",
+    "# real-server.cnf: [req] | prompt = no | distinguished_name = dn | [dn] | CN = localhost",
+    "(cd /tmp/omne-qa-t3-center-dgk3Nf/tls && openssl req -new -config /tmp/omne-qa-t3-center-dgk3Nf/tls/real-server.cnf -newkey ec -pkeyopt ec_paramgen_curve:P-256 -pkeyopt ec_param_enc:named_curve -nodes -keyout real-server.key -out real-server.csr)",
+    "# real-server.ext: subjectAltName = DNS:localhost,IP:127.0.0.1 | basicConstraints = critical,CA:FALSE | keyUsage = critical,digitalSignature | extendedKeyUsage = serverAuth | subjectKeyIdentifier = hash | authorityKeyIdentifier = keyid",
+    "(cd /tmp/omne-qa-t3-center-dgk3Nf/tls && openssl x509 -req -in real-server.csr -CA /tmp/omne-qa-t3-center-dgk3Nf/tls/real-ca.pem -CAkey /tmp/omne-qa-t3-center-dgk3Nf/tls/real-ca.key -CAcreateserial -out real-server.pem -days 2 -sha256 -extfile /tmp/omne-qa-t3-center-dgk3Nf/tls/real-server.ext)",
+    "cat real-server.pem real-ca.pem > real-server.chain.pem",
+    "node /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/apps/tenancy-host/dist/cli.js keygen /tmp/omne-qa-t3-center-dgk3Nf/keys",
+    "# [t3-real-center] env OMNE_TENANCY_ACTIVATION_SIGNING_KEY_PEM_FILE OMNE_TENANCY_ACTIVATION_VERIFICATION_KEY_PEM_FILE OMNE_TENANCY_AFFILIATION_REQUEST_TTL_DEFAULT OMNE_TENANCY_CLOCK_READY_TIMEOUT OMNE_TENANCY_COPY_NOTICE_TTL_DEFAULT OMNE_TENANCY_CREDENTIAL_POLICY OMNE_TENANCY_ENTRY_LISTEN OMNE_TENANCY_ENTRY_TLS_CERT_CHAIN_PEM_FILE OMNE_TENANCY_ENTRY_TLS_PRIVATE_KEY_PEM_FILE OMNE_TENANCY_INVITATION_TTL_DEFAULT OMNE_TENANCY_OPS_SOCKET_DIR OMNE_TENANCY_PURGE_SIGNING_KEY_PEM_FILE OMNE_TENANCY_PURGE_VERIFICATION_KEY_PEM_FILE OMNE_TENANCY_SHARING_INVITATION_TTL_DEFAULT OMNE_TENANCY_STORAGE_FILE OMNE_TENANCY_TEAM_CREATION_KEY_RETENTION OMNE_TENANCY_UNACTIVATED_RETENTION node /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/qa-candidate-4123/clone/apps/tenancy-host/dist/cli.js serve"
+  ]
+}

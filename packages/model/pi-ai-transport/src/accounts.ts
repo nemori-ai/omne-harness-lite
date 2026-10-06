@@ -8,7 +8,7 @@ import {
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { member } from './json.ts'
-import type { Diagnostic } from './http.ts'
+import type { Diagnostic } from '@omne-harness-lite/model-request-runtime'
 
 export function accountFromUsage(
   raw: JsonObject,

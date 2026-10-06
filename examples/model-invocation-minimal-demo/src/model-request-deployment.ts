@@ -1,8 +1,7 @@
-import {
-  createCredentialRedactionPolicy,
-  createDefaultRetryImplementation,
-} from '@omne-harness-lite/model-request-runtime'
-import { type RetirementPolicy, type TransportOptions } from '@omne-harness-lite/pi-ai-transport'
+import { createCredentialRedactionPolicy } from '@omne-harness-lite/model-request-runtime'
+import { createDefaultRetryImplementation } from '@omne-harness-lite/model-request-runtime-local'
+import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
+import { type TransportOptions } from '@omne-harness-lite/pi-ai-transport'
 import type { ModelRequestDeployment } from './types.ts'
 
 function validRetirement(value: RetirementPolicy | undefined): value is RetirementPolicy {

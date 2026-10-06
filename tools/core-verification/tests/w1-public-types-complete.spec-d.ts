@@ -38,12 +38,8 @@ import type {
   SchemaDefName as OfferSchemaDefName,
   SchemaValidation as OfferSchemaValidation,
 } from '@omne-harness-lite/offer-expiry'
-import type {
-  Outcome,
-  Ack,
-  FiberStateValue,
-  PluginDefinition,
-} from '@omne-harness-lite/kernel-basis'
+import type { Outcome, Ack } from '@omne-harness-lite/kernel-basis'
+import type { FiberStateValue, PluginDefinition } from '@omne-harness-lite/kernel-basis/cordis'
 import type {
   ReferenceViolationKind,
   StorageFailure,
@@ -72,6 +68,11 @@ import type {
   SnapshotRunOptions,
   SnapshotMaintenance,
   SnapshotInspection,
+  UpgradeConfirmation,
+  UpgradePending,
+  UpgradeGuardHandle,
+  StorageStartupResources,
+  StorageCompletionPort,
 } from '@omne-harness-lite/storage'
 import type {
   JsonNumber,
@@ -87,6 +88,9 @@ import type {
   ModelToolName,
   Modality,
   ExecutionOutcome,
+  ToolCallOutcome,
+  AdmissionDenialCode,
+  ActionDenialReason,
   PlaceholderReason,
   Visibility,
   CapabilityId,
@@ -113,7 +117,7 @@ import type {
   SchemaDefName as ContentSchemaDefName,
   SchemaValidation as ContentSchemaValidation,
 } from '@omne-harness-lite/content-blocks'
-import { FIBER_STATE, definePlugin } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE, definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import {
   generateHandoffKeyPair,
   issueHandoffWarrant,
@@ -280,6 +284,45 @@ test('w1.types.complete.storage-atomic-and-maintenance', () => {
   expectTypeOf(rejectMisuse).toBeFunction()
 })
 
+test('w1.types.complete.storage-consumer-contract-does-not-transfer-physical-close', () => {
+  expectTypeOf<Extract<keyof Storage, 'close'>>().toEqualTypeOf<never>()
+  expectTypeOf<ReturnType<StorageInstance['close']>>().toEqualTypeOf<Promise<void>>()
+})
+
+test('w1.types.complete.denial-is-a-call-outcome-without-execution', () => {
+  expectTypeOf<Extract<ToolCallOutcome, 'denied'>>().toEqualTypeOf<'denied'>()
+  expectTypeOf<Extract<ExecutionOutcome, 'denied'>>().toEqualTypeOf<never>()
+  expectTypeOf<AdmissionDenialCode>().toEqualTypeOf<
+    | 'not_held'
+    | 'permission_forbidden'
+    | 'authorization_denied'
+    | 'run_mode_never'
+    | 'human_refused'
+    | 'human_declined'
+  >()
+  type Denied = Extract<ToolResultBlock, { readonly outcome: 'denied' }>
+  expectTypeOf<Denied['reason']>().toEqualTypeOf<ActionDenialReason>()
+  expectTypeOf<Denied['offloaded']>().toEqualTypeOf<undefined>()
+  const check = (
+    base: Pick<ToolResultBlock, 'id' | 'visibility' | 'callId' | 'blocks'>,
+    attachment: AttachmentRef,
+  ) => {
+    const reason: ActionDenialReason = {
+      kind: 'admission',
+      code: 'not_held',
+      by: 'admission',
+      conclusion: 'not held',
+    }
+    const denied: Denied = { ...base, kind: 'tool_result', outcome: 'denied', reason }
+    // @ts-expect-error A denied result must carry its reason.
+    const missingReason: Denied = { ...base, kind: 'tool_result', outcome: 'denied' }
+    // @ts-expect-error An unexecuted call cannot reference offloaded execution output.
+    const withOutput: Denied = { ...denied, offloaded: attachment }
+    void [missingReason, withOutput]
+  }
+  expectTypeOf(check).toBeFunction()
+})
+
 test('w1.types.complete.content-json-and-schema', () => {
   const number: JsonNumber = 1
   const array: JsonArray = [number, null]
@@ -365,4 +408,22 @@ test('w1.types.complete.content-call-result-and-judgment', () => {
     return { resultContent, judgment, rejection, nestedCall, repaired }
   }
   expectTypeOf(consume).toBeFunction()
+})
+
+test('w1.types.complete.main-storage-startup-and-completion-do-not-grant-attachment', () => {
+  expectTypeOf<ReturnType<UpgradeGuardHandle['confirm']>>().toEqualTypeOf<
+    Promise<UpgradeConfirmation>
+  >()
+  expectTypeOf<ReturnType<UpgradeGuardHandle['pending']>>().toEqualTypeOf<Promise<UpgradePending>>()
+  expectTypeOf<Parameters<StorageCompletionPort['closed']>>().toEqualTypeOf<
+    [status: 'clean' | 'error']
+  >()
+  expectTypeOf<
+    Extract<StorageStartupResources['upgrade'], object>['guard']
+  >().toEqualTypeOf<UpgradeGuardHandle>()
+  const observation = (guard: UpgradeGuardHandle) => {
+    // @ts-expect-error The borrowed observation face cannot attach a storage provider.
+    guard.attach()
+  }
+  expectTypeOf(observation).toBeFunction()
 })

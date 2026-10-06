@@ -1,0 +1,49 @@
+{
+  "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+  "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+  "run_id": "t4-port-owner-controls",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "started": "2026-10-05T07:30:04.305Z",
+  "results": [
+    {
+      "id": "caller-projected-context-is-exact-caller-not-provider",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.317Z",
+      "observed": {
+        "caller_equals_provider": false,
+        "old_locator_equals_caller": true
+      }
+    },
+    {
+      "id": "original-symbol-and-store-identify-the-exact-provider",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.317Z",
+      "observed": {
+        "exact_value": true,
+        "exact_providing_owner": true
+      }
+    },
+    {
+      "id": "strict-owner-positive-control",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.318Z"
+    },
+    {
+      "id": "caller-fiber-negative-control",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.319Z"
+    },
+    {
+      "id": "unrelated-real-fiber-negative-control",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.320Z"
+    },
+    {
+      "id": "same-shaped-fake-value-negative-control",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.321Z"
+    }
+  ],
+  "exit_code": 0,
+  "ended": "2026-10-05T07:30:04.323Z"
+}
