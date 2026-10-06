@@ -74,7 +74,8 @@ describe('actual Cordis 4.0.4 thin provider ownership', () => {
   it('has no inject/events and publishes exactly three operations with one owner cleanup', async () => {
     const dir = await root()
     const ctx = new Context()
-    const fiber = await ctx.plugin(sessionLogJsonl, { dir })
+    const plugin = createSessionLogJsonl({ processOwnership })
+    const fiber = await ctx.plugin(plugin, { dir })
     disposers.push(() => fiber.dispose())
     const service = ctx.get('sessionLog')
     if (service === undefined) throw new Error('service unavailable')
