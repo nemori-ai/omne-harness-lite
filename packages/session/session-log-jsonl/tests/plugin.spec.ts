@@ -25,6 +25,24 @@ afterEach(async () => {
 describe('actual Cordis 4.0.4 thin provider ownership', () => {
   it.each([
     {},
+    { appendQueueLimit: 1 },
+    { residentLogsLimit: 2 },
+    { appendQueueLimit: 1, residentLogsLimit: 2 },
+  ])('preserves each supplied serialized policy field: %j', policy => {
+    const input = { dir: '/serialized-log', policy }
+    const parsed = Config.parse(JSON.parse(JSON.stringify(input)))
+    expect(parsed).toEqual(input)
+    expect(Object.keys(parsed.policy!).sort()).toEqual(Object.keys(policy).sort())
+    expect(Config.parse({ dir: input.dir })).not.toHaveProperty('policy')
+  })
+  it.each([{ processOwnership: {} }, { processOwnership, diagnostic: 'not-a-function' }])(
+    'rejects invalid trusted live bindings before mounting: %j',
+    bindings => {
+      expect(() => Reflect.apply(createSessionLogJsonl, undefined, [bindings])).toThrow(TypeError)
+    },
+  )
+  it.each([
+    {},
     { dir: '/unused-live-config', processOwnership },
     { dir: '/unused-live-config', diagnostic: () => {} },
     { dir: 'relative' },
