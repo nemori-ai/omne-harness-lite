@@ -300,3 +300,61 @@ test('registration admitted during the final authority wait invalidates the comp
     await h.close()
   }
 })
+
+test('two keys sharing a source cannot adopt different generations into one successful view', async () => {
+  const h = await host(),
+    entered = Promise.withResolvers<void>(),
+    resume = Promise.withResolvers<void>()
+  const metadata = source('shared', 'reread_source')
+  const old = h.owner.sources.registerSource({
+    ...metadata,
+    async read() {
+      entered.resolve()
+      await resume.promise
+      return {
+        kind: 'values',
+        values: [{ key: 'public', revision: 'old', observedAt: at, value: 'old-generation' }],
+      }
+    },
+  })
+  try {
+    let revision = await init(h)
+    for (const key of ['public', 'secret']) {
+      const result = await h.owner.operations.register(
+        h.access,
+        scope,
+        {
+          key,
+          source: 'shared',
+          config: null,
+          consumers: ['tool'],
+          required: false,
+          recovery: 'reread_source',
+        },
+        revision,
+      )
+      if (result.kind !== 'applied') throw new Error('registration fixture failed')
+      revision = result.revision
+    }
+    h.auth.setKeys(h.tool, ['public', 'secret'])
+    const r = await reader(h),
+      observing = r.snapshot()
+    await entered.promise
+    const draining = old.dispose()
+    h.owner.sources.registerSource({
+      ...metadata,
+      async read() {
+        return {
+          kind: 'values',
+          values: [{ key: 'secret', revision: 'new', observedAt: at, value: 'new-generation' }],
+        }
+      },
+    })
+    resume.resolve()
+    expect(await observing).toEqual({ kind: 'rejected', reason: 'sourceUnavailable' })
+    await draining
+  } finally {
+    resume.resolve()
+    await h.close()
+  }
+})

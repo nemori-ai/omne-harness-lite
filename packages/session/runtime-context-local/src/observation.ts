@@ -96,7 +96,7 @@ async function resolveValues(
     adopted = new Map<string, ContextSource>(),
     generations = new Map<string, string>()
   for (const entry of registrations) {
-    const source = deps.sources.get(entry.source),
+    const source = adopted.get(entry.source) ?? deps.sources.get(entry.source),
       generation = source && deps.sources.generation(source)
     if (!source || !generation || !compatible(source, entry, state))
       return rejected('sourceUnavailable')

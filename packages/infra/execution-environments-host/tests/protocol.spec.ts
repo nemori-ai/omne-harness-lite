@@ -436,3 +436,31 @@ test('an exception at provisional lease validation still releases the original l
     await h.dispose()
   }
 })
+
+test('access revoked during the final placement reread prevents lease delivery and releases the original', async () => {
+  const h = fixture(),
+    entered = Promise.withResolvers<void>(),
+    resume = Promise.withResolvers<void>()
+  const original = vi.mocked(h.source.read).getMockImplementation()
+  if (!original) throw new Error('placement fixture missing')
+  let reads = 0
+  vi.mocked(h.source.read).mockImplementation(async (...args) => {
+    if (++reads === 3) {
+      entered.resolve()
+      await resume.promise
+    }
+    return original(...args)
+  })
+  try {
+    const acquiring = h.registry.operations.acquire(h.request())
+    await entered.promise
+    h.revoke()
+    resume.resolve()
+    expect(await acquiring).toEqual({ kind: 'rejected', reason: 'notAuthorized' })
+    expect(h.release).toHaveBeenCalledTimes(1)
+    expect(h.start).not.toHaveBeenCalled()
+  } finally {
+    resume.resolve()
+    await h.dispose()
+  }
+})

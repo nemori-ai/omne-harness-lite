@@ -43,6 +43,21 @@ const purePackages = [
 ]
 
 describe('core-pure-imports', () => {
+  it('the context fixed graph grants only its own schema input site, without a handwritten compiler', () => {
+    const resource = "import '@omne-harness-lite/runtime-context/schema'"
+    expect(
+      corePureImports.check([file('core/runtime-context/src/schema-inputs.ts', resource)]),
+    ).toEqual([])
+    for (const path of ['schema-inputs.ts', 'decode.ts', 'types.ts', 'index.ts']) {
+      expect(
+        corePureImports.check([file(`core/runtime-context/src/${path}`, "import 'ajv'")]),
+      ).toHaveLength(1)
+      if (path !== 'schema-inputs.ts')
+        expect(
+          corePureImports.check([file(`core/runtime-context/src/${path}`, resource)]),
+        ).toHaveLength(1)
+    }
+  })
   it('D-116 native loading is confined to declared fixed-schema and build sites', () => {
     for (const path of [
       'core/content-blocks/src/schema.ts',

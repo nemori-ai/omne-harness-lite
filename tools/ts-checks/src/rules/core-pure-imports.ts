@@ -223,7 +223,6 @@ const CORDIS_DEFINITION_OWNERS = new Set([
 ])
 
 const SCHEMA_JUDGE_OWNERS = new Set([
-  'runtime-context',
   'organization-governance',
   'content-blocks',
   'asset-model',
@@ -342,6 +341,11 @@ function allowedExternal(
   if (pkg === 'skill-package' && specifier === '@omne-harness-lite/skill-package/schema/v2')
     return true
   if (SCHEMA_JUDGE_OWNERS.has(pkg) && specifier === `@omne-harness-lite/${pkg}/schema`) return true
+  if (
+    path === 'core/runtime-context/src/schema-inputs.ts' &&
+    specifier === '@omne-harness-lite/runtime-context/schema'
+  )
+    return true
   // tool-runtime/1 is a fixed graph owned by the public journal codec, not a dynamic compiler.
   if (
     path === 'core/tool-execution-runtime/src/schema-inputs.ts' &&

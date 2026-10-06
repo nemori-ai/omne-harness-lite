@@ -56,6 +56,24 @@ function temporary(prefix: string): string {
 }
 
 describe('范围：改动行按成员分组', () => {
+  it('a deletion before line one does not become an invalid zero-line mutation range', () => {
+    const changed = parseDiff(
+      [
+        'diff --git a/packages/core/alpha/src/a.ts b/packages/core/alpha/src/a.ts',
+        '--- a/packages/core/alpha/src/a.ts',
+        '+++ b/packages/core/alpha/src/a.ts',
+        '@@ -1 +0,0 @@',
+        '-removed import',
+        '@@ -4 +3 @@',
+        '-old effect',
+        '+new effect',
+      ].join('\n'),
+    )
+    expect(changedTargets(changed, MEMBERS).map(mutateEntries)).toEqual([['src/a.ts:3-3']])
+    expect(changedTargets(new Map([['packages/core/alpha/src/a.ts', [[0, 0]]]]), MEMBERS)).toEqual(
+      [],
+    )
+  })
   it('只留 packages/ 与 apps/ 成员 src/ 下的源码；测试、类型声明、工具与示例不在内', () => {
     const changed = new Map<string, [number, number][]>([
       ['packages/core/alpha/src/a.ts', [[3, 5]]],

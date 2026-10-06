@@ -32,10 +32,13 @@ export function changedTargets(
   const eligible = members.filter(inMutationRoots)
   const grouped = new Map<TestMember, Map<string, LineRange[]>>()
   for (const [path, ranges] of changed) {
+    // A pure deletion before the first remaining line has the Git anchor [0, 0].
+    // It has no executable line on the new side and is not a Stryker mutation range.
+    const present = ranges.filter(([start, end]) => start >= 1 && end >= start)
     const owner = ownerOf(path, eligible)
-    if (owner === undefined || !isProductSource(path, owner.path) || ranges.length === 0) continue
+    if (owner === undefined || !isProductSource(path, owner.path) || present.length === 0) continue
     const files = grouped.get(owner) ?? new Map<string, LineRange[]>()
-    files.set(path, [...ranges])
+    files.set(path, [...present])
     grouped.set(owner, files)
   }
   return [...grouped]

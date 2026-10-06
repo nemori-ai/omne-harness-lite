@@ -68,14 +68,17 @@ async function adoptLease(
 ) {
   let delivered = false
   try {
-    const latest = await deps.authorize(input.authorization, input.scope)
     const changed = await deps.placement.recheck(ticket, input)
+    const latest = await deps.authorize(input.authorization, input.scope)
     const facilities = captureEnvironmentFacilities(raw.facilities)
     const invalid =
       latest.kind === 'rejected'
         ? latest
         : (changed ??
-          (!entry.active || !deps.active() || input.resources.closed.aborted
+          (!entry.active ||
+          !deps.active() ||
+          !deps.placement.current(ticket) ||
+          input.resources.closed.aborted
             ? reject(deps.active() ? 'providerUnavailable' : 'ownerStopped')
             : undefined))
     if (
