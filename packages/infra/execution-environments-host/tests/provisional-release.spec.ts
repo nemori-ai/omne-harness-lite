@@ -51,3 +51,44 @@ test.each(['pending', 'throws'] as const)(
     }
   },
 )
+
+test('partial provisional cleanup retries only the still-pending original lease', async () => {
+  const h = fixture()
+  let confirmed = false
+  const first = vi.fn<EnvironmentLease['release']>(async () => ({ kind: 'released' }))
+  const second = vi.fn<EnvironmentLease['release']>(async () =>
+    confirmed ? { kind: 'released' } : { kind: 'pending', resources: [] },
+  )
+  const initialFirst = vi.fn<EnvironmentLease['release']>(async () => ({
+    kind: 'pending',
+    resources: [],
+  }))
+  const original = vi.mocked(h.provider.acquire).getMockImplementation()!
+  let index = 0
+  vi.mocked(h.provider.acquire).mockImplementation(async request => {
+    const value = await original(request)
+    h.setPermission('never-allow')
+    if (value.kind !== 'acquired') return value
+    const release = index++ === 0 ? initialFirst : second
+    return { ...value, lease: { ...value.lease, release } }
+  })
+  try {
+    expect(await h.registry.operations.acquire(h.request())).toMatchObject({ kind: 'rejected' })
+    initialFirst.mockImplementation(first)
+    h.setPermission('always-allow')
+    expect(await h.registry.operations.acquire(h.request())).toMatchObject({ kind: 'rejected' })
+    await expect(h.registry.close()).rejects.toThrow('unfinished cleanup')
+    expect(first).toHaveBeenCalledOnce()
+    expect(second).toHaveBeenCalledTimes(2)
+    expect(h.provider.retire).not.toHaveBeenCalled()
+    confirmed = true
+    await h.registry.close()
+    expect(first).toHaveBeenCalledOnce()
+    expect(second).toHaveBeenCalledTimes(3)
+    expect(h.provider.acquire).toHaveBeenCalledTimes(2)
+    expect(h.provider.retire).toHaveBeenCalledOnce()
+  } finally {
+    confirmed = true
+    await h.dispose()
+  }
+})

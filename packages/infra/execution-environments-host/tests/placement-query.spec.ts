@@ -88,6 +88,43 @@ test('source withdrawal during a pending query cannot return the old placement',
     await h.dispose()
   }
 })
+test.each(['withdraw', 'replace'] as const)(
+  'the last query authorization cannot return the old source after %s',
+  async change => {
+    const h = fixture(),
+      entered = Promise.withResolvers<void>(),
+      resumed = Promise.withResolvers<void>()
+    const authorize = vi.mocked(h.access.authorize),
+      original = authorize.getMockImplementation()!
+    let calls = 0,
+      removeReplacement: (() => Promise<void>) | undefined
+    authorize.mockImplementation(async (...args) => {
+      if (++calls === 2) {
+        entered.resolve()
+        await resumed.promise
+      }
+      return original(...args)
+    })
+    try {
+      const pending = h.registry.operations.resolvePlacement(scope, h.token, call)
+      await entered.promise
+      await h.removeSource()
+      if (change === 'replace')
+        removeReplacement = h.registry.placements.registerPlacementSource({
+          ...h.source,
+          generation: 'successor',
+        })
+      resumed.resolve()
+      expect(await pending).toEqual({ kind: 'rejected', reason: 'placementChanged' })
+      expect(h.provider.acquire).not.toHaveBeenCalled()
+      expect(h.source.read).toHaveBeenCalledOnce()
+    } finally {
+      resumed.resolve()
+      await removeReplacement?.()
+      await h.dispose()
+    }
+  },
+)
 test('permission revocation during query IO wins over its returned placement', async () => {
   const h = fixture(),
     original = vi.mocked(h.source.read).getMockImplementation()!

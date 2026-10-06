@@ -1,6 +1,32 @@
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { createToolEnvironmentPlacementSource } from '../src/index.ts'
 import { at, definition, placementFixture, scope } from './placement-fixture.ts'
+
+test('source configuration rejects an accessor without executing it', () => {
+  const h = placementFixture(),
+    getter = vi.fn(() => 'always-allow')
+  const config = { name: 'source', factoryPermission: 'always-allow' as const }
+  Object.defineProperty(config, 'factoryPermission', { enumerable: true, get: getter })
+  expect(() =>
+    createToolEnvironmentPlacementSource(config, {
+      tools: { acquire: h.acquire },
+      currentInputs: { read: h.inputs },
+      select: h.select,
+    }),
+  ).toThrow('ordinary environment placement configuration required')
+  expect(getter).not.toHaveBeenCalled()
+})
+
+test('current input accessors reject placement without executing or granting permission', async () => {
+  const h = placementFixture(),
+    input = h.input(),
+    getter = vi.fn(() => scope.tenant)
+  Object.defineProperty(input, 'tenant', { enumerable: true, get: getter })
+  h.setCurrent({ input })
+  expect(await h.query()).toEqual({ kind: 'rejected', reason: 'invalidInput' })
+  expect(getter).not.toHaveBeenCalled()
+  expect(h.release).toHaveBeenCalledOnce()
+})
 
 test('pure tools do not read permission inputs or acquire an environment', async () => {
   const { settings: _settings, ...pure } = definition
