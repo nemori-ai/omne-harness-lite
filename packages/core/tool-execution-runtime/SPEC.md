@@ -65,6 +65,6 @@ ToolRuntimeCloseAttempt 和 ToolRuntimeCloseControl 直接引用 assembly-lifecy
 
 TE-26 有 targetEnvironment 声明的运行时调用必须从当前来源求值并获取环境。无声明时不获取环境。execution_environment_adopted 只保存普通数据，关联原执行 scope、CallId、SelectedTool、输入与原来源／实例代；开始之后、终局之前最多采用一次。codec 核对 scope／CallId；历史核对原工具身份及环境声明。环境工具等待或发布作者结果之前必须已有采用。作者结果为 completed、no_answer、failed{business_failure,implementation_error,result_rejected}；其他公共终局允许无采用。记录关系不能证明作者真实进入，也不恢复活体租约或执行权限。
 
-TE-27 工具作者取得环境设施之前，原租约须被持有、实际设施须满足求值要求，采用记录须耐久确认。未知采用回执只沿原 key／内容重读认回，不重新获取实例或再次进入作者。尾冲突重读完整共同前缀，沿原租约重试；终局先到时不采用或进入作者。只注入所需端口，但设施描述保留原完整事实。缺端口或命令流接口时作者零执行。
+TE-27 工具作者取得环境设施之前，原租约须被持有、实际设施须满足求值要求，采用记录须耐久确认。未知采用回执只沿原 key／内容重读认回，不重新获取实例或再次进入作者。尾冲突重读完整共同前缀，沿原租约重试；终局先到时不采用或进入作者。只注入所需端口，但设施描述保留原完整事实。注入前检查所需 facility 的可检查调用端口：command 必须有 start 函数，files 必须有 read／write 函数；缺这些端口时不进入作者。ProcessHandle 在 command.start 返回后才存在，其 output／outputPolicy／result／stop 的可检查形状在返回边界动态校验。kind:started 成功回执的句柄形状不符合要求时返回 effectUnknown，承认可能已有外部效果，不承诺作者零进入、自动撤销或补偿。合法 rejected 回执不包含 process。返回边界不证明未来输出块、result 完成值或 stop 物理效果；正常流、独立终局和停止行为仍受 execution-environments 的 EE-15～16 约束。
 
 TE-28 第一次收场或 owner 关闭即永久禁止该执行的新环境作用；未知终局回执不重新开放。作者 abort 仍在确认终局之后发出。新资源许可须有启动、环境采用和无终局；plan／permit 沿原日志共同 prefix／CAS 提交。同 key 同资源可认回，异数据冲突；未知许可不授作用。physical_stop_observed 可以晚于终局或撤权，但只能引用原已计划资源。不承诺外部物理动作和日志事务原子提交。

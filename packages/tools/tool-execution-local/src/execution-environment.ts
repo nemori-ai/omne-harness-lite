@@ -135,7 +135,8 @@ export function createExecutionEnvironment(input: {
         expected: view.prefix,
         values: [value],
       })
-      if (committed.kind === 'view') return 'recorded' as const
+      if (committed.kind === 'view')
+        return newEffect && input.closed.aborted ? ('closed' as const) : ('recorded' as const)
       if (committed.reason !== 'tailChanged') return 'unavailable' as const
       await input.retry?.(attempt)
     }

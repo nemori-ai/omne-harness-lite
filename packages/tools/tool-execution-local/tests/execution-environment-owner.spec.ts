@@ -1,5 +1,5 @@
 import { expect, test, vi } from 'vitest'
-import { environmentToolOf } from '@omne-harness-lite/tool-execution-runtime'
+import { environmentToolOf, projectToolJournal } from '@omne-harness-lite/tool-execution-runtime'
 import type { ToolDefinition } from '@omne-harness-lite/tool-definition'
 import type {
   EnvironmentAcquisition,
@@ -309,6 +309,66 @@ test('pending release retains the same lease for explicit close retry and never 
     expect(p.acquire).toHaveBeenCalledOnce()
   } finally {
     p.release.mockResolvedValue({ kind: 'released' })
+    await f.close()
+  }
+})
+
+test('closing before the physical permit append completes retains the fact but never grants a new effect', async () => {
+  const p = environmentPorts(),
+    appending = deferred<void>(),
+    resume = deferred<void>()
+  const f = await fixture(
+    async (_args, dependencies) => {
+      expect(
+        await dependencies.environment!.command!.start({
+          executable: 'controlled',
+          args: [],
+          cwd: '/controlled',
+          env: {},
+        }),
+      ).toEqual({ kind: 'rejected', reason: 'closed' })
+      if (!dependencies.signal.aborted)
+        await new Promise<void>(resolve =>
+          dependencies.signal.addEventListener('abort', () => resolve(), { once: true }),
+        )
+      return 'late-return'
+    },
+    undefined,
+    environmentDefinition,
+    p.operations,
+  )
+  let closing: Promise<void> | undefined
+  f.append.mockImplementation(async (...args) => {
+    if (args[1].some(entry => JSON.stringify(entry.payload).includes('resource_permitted'))) {
+      appending.resolve()
+      await resume.promise
+    }
+    return f.log.append(...args)
+  })
+  try {
+    await f.owner.operations.submit(request)
+    await appending.promise
+    closing = f.owner.close()
+    expect(p.resources()?.closed.aborted).toBe(true)
+    resume.resolve()
+    await closing
+    expect(f.implementation).toHaveBeenCalledOnce()
+    expect(p.acquire).toHaveBeenCalledOnce()
+    expect(p.release).toHaveBeenCalledOnce()
+    expect(p.stop).not.toHaveBeenCalled()
+    const prefix = await f.log.readSince(scope.session, 0)
+    if ('failure' in prefix) throw new Error('Original physical prefix unavailable')
+    const view = projectToolJournal(scope, prefix.entries)
+    if ('invalid' in view) throw new Error('Original permit fact invalid')
+    expect(view.executions.get(ref.callId)?.resources.get('process')?.permitted).toBeDefined()
+    expect(view.executions.get(ref.callId)?.terminal?.value.terminal).toEqual({
+      outcome: 'failed',
+      code: 'abnormal_interruption',
+    })
+  } finally {
+    resume.resolve()
+    p.result.resolve(completed)
+    await closing
     await f.close()
   }
 })

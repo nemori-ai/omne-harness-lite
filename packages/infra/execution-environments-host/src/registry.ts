@@ -7,6 +7,7 @@ import { createEnvironmentAcquirer } from './acquire.ts'
 import {
   observeProvider as observed,
   rejectEnvironment as reject,
+  releaseProvisional,
   type ProviderEntry as Entry,
 } from './provider-work.ts'
 import type {
@@ -94,6 +95,7 @@ export function createEnvironmentRegistry(deps: {
         provider,
         active: true,
         jobs: new Set(),
+        provisional: new Set(),
         dispose() {
           if (retirement) return retirement
           entry.active = false
@@ -101,6 +103,7 @@ export function createEnvironmentRegistry(deps: {
           retiring.add(entry)
           const task = (async () => {
             await Promise.allSettled([...entry.jobs])
+            await releaseProvisional(entry)
             const result = await provider.retire()
             if (result.kind !== 'drained')
               throw new Error('environment cleanup pending; original provider retained')

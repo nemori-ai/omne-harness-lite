@@ -98,6 +98,7 @@ async function adoptLease(
   providerEvidence: JsonValue,
 ) {
   let delivered = false
+  entry.provisional.add(raw)
   try {
     const facilities = await validateProvisionalLease(deps, entry, input, ticket, selected, raw)
     if ('kind' in facilities) return facilities
@@ -125,7 +126,11 @@ async function adoptLease(
     return reject('providerUnavailable')
   } finally {
     // A provisional lease stays owned by this attempt until delivery or original release.
-    if (!delivered) await raw.release()
+    if (delivered) entry.provisional.delete(raw)
+    else {
+      const result = await raw.release()
+      if (result.kind === 'released') entry.provisional.delete(raw)
+    }
   }
 }
 
