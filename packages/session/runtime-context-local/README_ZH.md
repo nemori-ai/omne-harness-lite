@@ -2,7 +2,9 @@
 
 [English](README.md)
 
-独立 createRuntimeContext 与 createContextSessionInitializer 工厂、历史检查及上下文投影。owner 重放耐久前缀，不提供后续持久当前投影或 O(1) 要求。
+独立 `createRuntimeContext` 工厂共同拥有修改、SQL 当前投影、来源、观察和可信 initializer。日志仍是事实源。启动 owner 前，装配方先应用 `runtimeContextMigrations`。Cordis 的 `createRuntimeContextLocal` 工厂使用 managed assembly work，并借用原日志 backing；公共服务没有初始化方法。冷恢复核验日志前缀，热读取按所需 key 读取投影，并只折叠新后缀。
+
+模型、前提及运行入口见 [verification](verification/README.md)。生命周期和成本要求必须由实际交付证据核验，不能根据包结构推断已完成。
 
 ## 公开入口
 

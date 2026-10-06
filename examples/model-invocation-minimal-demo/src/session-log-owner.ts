@@ -1,9 +1,9 @@
+import { isProcessOwnership } from '@omne-harness-lite/session-log-jsonl'
 import { lstat } from 'node:fs/promises'
-import { isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
-import { Config as SessionLogConfig } from '@omne-harness-lite/session-log-jsonl/plugin'
+import { Config as SessionLogConfig } from '@omne-harness-lite/session-log-jsonl/cordis'
 import type { SessionLogBackingOperations } from '@omne-harness-lite/session-log'
 import {
   SessionLogBackingService,
@@ -14,26 +14,22 @@ import type { SessionLogDeployment } from './types.ts'
 import { BorrowedSessionLog } from './assembly-inputs.ts'
 
 /** The deployment supplies ownership evidence; this checks its shape, not its truth. */
+function completePolicy(value: unknown) {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    Object.hasOwn(value, 'appendQueueLimit') &&
+    Object.hasOwn(value, 'residentLogsLimit')
+  )
+}
 export async function prepareSessionLogDeployment(
   input: SessionLogDeployment | undefined,
 ): Promise<SessionLogDeployment> {
-  if (
-    input === undefined ||
-    input === null ||
-    typeof input.dir !== 'string' ||
-    !isAbsolute(input.dir) ||
-    input.dir.includes('\0') ||
-    input.policy === undefined ||
-    input.policy === null ||
-    !Object.hasOwn(input.policy, 'appendQueueLimit') ||
-    !Object.hasOwn(input.policy, 'residentLogsLimit') ||
-    !Number.isInteger(input.policy.appendQueueLimit) ||
-    input.policy.appendQueueLimit < 1 ||
-    !Number.isInteger(input.policy.residentLogsLimit) ||
-    input.policy.residentLogsLimit < 1
-  )
+  if (!input || !completePolicy(input.policy) || !isProcessOwnership(input.processOwnership))
     throw new Error('acceptance log deployment invalid')
-  SessionLogConfig.parse(input)
+  if (Object.keys(input).some(key => !['dir', 'policy', 'processOwnership'].includes(key)))
+    throw new Error('acceptance log deployment unknown field')
+  SessionLogConfig.parse({ dir: input.dir, policy: input.policy })
   const directory = await lstat(input.dir)
   if (
     !directory.isDirectory() ||

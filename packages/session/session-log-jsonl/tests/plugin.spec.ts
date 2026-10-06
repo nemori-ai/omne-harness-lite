@@ -1,10 +1,9 @@
 import { Context, Fiber } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { openJsonlSessionLog } from '../src/index.ts'
-import { Config, sessionLogJsonl } from '../src/plugin.ts'
+import { Config, createSessionLogJsonl } from '../src/cordis.ts'
 import { applySessionLog } from '../src/plugin-owner.ts'
 import { openWithIo } from '../src/open.ts'
-import type { SessionLogOptions } from '../src/policy.ts'
 import {
   processOwnership,
   deferred,
@@ -16,6 +15,7 @@ import {
   unconditional,
 } from './support.ts'
 
+const sessionLogJsonl = createSessionLogJsonl({ processOwnership })
 const disposers: (() => Promise<void>)[] = []
 const barriers: (() => void)[] = []
 afterEach(async () => {
@@ -25,9 +25,11 @@ afterEach(async () => {
 describe('actual Cordis 4.0.4 thin provider ownership', () => {
   it.each([
     {},
-    { processOwnership, dir: 'relative' },
-    { processOwnership, dir: '/unused-invalid-policy', policy: { appendQueueLimit: 0 } },
-    { processOwnership, dir: '/unused-invalid-policy', policy: { residentLogsLimit: 1.5 } },
+    { dir: '/unused-live-config', processOwnership },
+    { dir: '/unused-live-config', diagnostic: () => {} },
+    { dir: 'relative' },
+    { dir: '/unused-invalid-policy', policy: { appendQueueLimit: 0 } },
+    { dir: '/unused-invalid-policy', policy: { residentLogsLimit: 1.5 } },
   ])('invalid config fails before providing or acquiring files: %j', async config => {
     const ctx = new Context()
     const value: unknown = Reflect.apply(ctx.plugin, ctx, [sessionLogJsonl, config])
@@ -40,7 +42,7 @@ describe('actual Cordis 4.0.4 thin provider ownership', () => {
   it('has no inject/events and publishes exactly three operations with one owner cleanup', async () => {
     const dir = await root()
     const ctx = new Context()
-    const fiber = await ctx.plugin(sessionLogJsonl, { processOwnership, dir })
+    const fiber = await ctx.plugin(sessionLogJsonl, { dir })
     disposers.push(() => fiber.dispose())
     const service = ctx.get('sessionLog')
     if (service === undefined) throw new Error('service unavailable')
@@ -78,12 +80,12 @@ describe('actual Cordis 4.0.4 thin provider ownership', () => {
       {
         name: 'post-provide-failure',
         Config,
-        async apply(inner: Context, config: SessionLogOptions) {
-          await applySessionLog(inner, config)
+        async apply(inner: Context, config: ReturnType<typeof Config.parse>) {
+          await applySessionLog(inner, { ...config, processOwnership })
           throw new Error('deliberate post-provide failure')
         },
       },
-      { processOwnership, dir },
+      { dir },
     )
     await expect(fiber).rejects.toThrow('deliberate post-provide failure')
     expect(ctx.get('sessionLog')).toBeUndefined()
@@ -117,12 +119,14 @@ describe('actual Cordis 4.0.4 thin provider ownership', () => {
     const fiber = await ctx.plugin(
       {
         ...sessionLogJsonl,
-        async apply(inner: Context, config: SessionLogOptions) {
+        async apply(inner: Context, config: ReturnType<typeof Config.parse>) {
           openings++
-          await applySessionLog(inner, config, options => openWithIo(options, io))
+          await applySessionLog(inner, { ...config, processOwnership }, options =>
+            openWithIo(options, io),
+          )
         },
       },
-      { processOwnership, dir },
+      { dir },
     )
     disposers.push(() => fiber.dispose())
     const old = ctx.get('sessionLog')
