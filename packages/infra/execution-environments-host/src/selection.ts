@@ -59,7 +59,7 @@ async function collectCandidates(
   placement: ReturnType<typeof createPlacementAuthority>,
 ): Promise<{ readonly candidates: readonly Candidate[] } | EnvironmentRejection> {
   const candidates: Candidate[] = []
-  let eligible = 0
+  let hasEligible = false
   for (const entry of entries) {
     const result = await readDescriptions(entry, input, ticket, placement)
     if ('kind' in result) return result
@@ -68,7 +68,7 @@ async function collectCandidates(
         environmentBelongsTo(description, input.scope, input.call) &&
         description.bindingLayer === input.requirement.bindingLayer,
     )
-    eligible += owned.length
+    hasEligible ||= owned.length > 0
     candidates.push(
       ...owned
         .filter(description => matchesEnvironmentRequirement(description, input.requirement))
@@ -76,7 +76,7 @@ async function collectCandidates(
     )
   }
   if (input.reference && !candidates.length) return reject('referenceExpired')
-  if (!candidates.length) return reject(eligible ? 'missingFacility' : 'noMatchingEnvironment')
+  if (!candidates.length) return reject(hasEligible ? 'missingFacility' : 'noMatchingEnvironment')
   return { candidates }
 }
 
