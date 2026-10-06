@@ -55,6 +55,7 @@ export function createExecutionContextReader(input: {
                 'invalidInput',
                 'notAuthorized',
                 'missingRegistration',
+                'viewChanged',
                 'sourceUnavailable',
                 'ownerStopped',
                 'unavailable',

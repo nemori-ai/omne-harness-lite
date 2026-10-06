@@ -32,6 +32,9 @@ export function createHostEnvironment(options: {
     reference,
     bindingLayer: 'host_machine',
     facilities: Object.freeze([]),
+    instance: Object.freeze({ id: options.name, generation }),
+    binding: Object.freeze({ kind: 'host_machine' as const }),
+    continuity: Object.freeze({ kind: 'notGuaranteed' as const }),
   })
   const leases = new Set<() => void>()
   let active = true

@@ -1,13 +1,10 @@
-import type { JsonValue } from '@omne-harness-lite/content-blocks'
-import type { ContextRegistration, ContextValue } from '@omne-harness-lite/runtime-context'
+import type {
+  ContextRegistration,
+  ContextValue,
+  ContextSessionSeed,
+} from '@omne-harness-lite/runtime-context'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 
-export interface ContextSessionSeed {
-  readonly required: readonly ContextRegistration[]
-  readonly initial: readonly ContextValue[]
-  /** Only actual immutable identity blocks belong here. */
-  readonly fixed: readonly { readonly key: string; readonly value: JsonValue }[]
-}
 export type ContextEvent = {
   readonly codec: 'runtime-context/1'
   readonly scope: SessionScope

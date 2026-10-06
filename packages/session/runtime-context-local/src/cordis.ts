@@ -5,6 +5,7 @@ import { RuntimeContextService } from '@omne-harness-lite/runtime-context/cordis
 import type {
   RuntimeContextOperations,
   ContextSourceRegistrations,
+  ContextSourceHandle,
 } from '@omne-harness-lite/runtime-context'
 import { SESSION_LOG } from '@omne-harness-lite/session-log/cordis'
 import { SESSION_ACCESS } from '@omne-harness-lite/session-tenancy/cordis'
@@ -35,10 +36,19 @@ class Provider extends RuntimeContextService {
     return this.operations.remove(...args)
   }
   registerSource(...args: Parameters<ContextSourceRegistrations['registerSource']>) {
-    const dispose = this.ctx.effect(() => this.sources.registerSource(...args))
-    return () => {
-      void dispose()
-    }
+    let handle: ContextSourceHandle | undefined
+    const dispose = this.ctx.effect(() => {
+      handle = this.sources.registerSource(...args)
+      return handle.dispose
+    })
+    if (!handle) throw new Error('source registration effect did not run')
+    return Object.freeze({
+      generation: handle.generation,
+      invalidate: handle.invalidate,
+      dispose: async () => {
+        await dispose()
+      },
+    })
   }
 }
 export const runtimeContextLocal = definePlugin({

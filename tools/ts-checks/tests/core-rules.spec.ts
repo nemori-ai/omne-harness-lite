@@ -43,6 +43,21 @@ const purePackages = [
 ]
 
 describe('core-pure-imports', () => {
+  it('the context fixed graph grants only its own schema input site, without a handwritten compiler', () => {
+    const resource = "import '@omne-harness-lite/runtime-context/schema'"
+    expect(
+      corePureImports.check([file('core/runtime-context/src/schema-inputs.ts', resource)]),
+    ).toEqual([])
+    for (const path of ['schema-inputs.ts', 'decode.ts', 'types.ts', 'index.ts']) {
+      expect(
+        corePureImports.check([file(`core/runtime-context/src/${path}`, "import 'ajv'")]),
+      ).toHaveLength(1)
+      if (path !== 'schema-inputs.ts')
+        expect(
+          corePureImports.check([file(`core/runtime-context/src/${path}`, resource)]),
+        ).toHaveLength(1)
+    }
+  })
   it('D-116 native loading is confined to declared fixed-schema and build sites', () => {
     for (const path of [
       'core/content-blocks/src/schema.ts',
@@ -61,6 +76,7 @@ describe('core-pure-imports', () => {
       'core/call-accounts/src/schema.ts',
       'core/mcp-endpoint/src/schema.ts',
       'core/slash-command/src/schema.ts',
+      'core/runtime-context/src/decode.ts',
     ])
       expect(
         corePureImports.check([file(path, "import { createRequire } from 'node:module'")]),
@@ -70,6 +86,8 @@ describe('core-pure-imports', () => {
       'core/content-blocks/src/content.ts',
       'core/messages/src/judge.ts',
       'core/asset-model/src/schema.ts',
+      'core/runtime-context/src/runtime-context.ts',
+      'core/runtime-context/src/observation.ts',
     ])
       expect(
         corePureImports.check([file(path, "import { createRequire } from 'node:module'")]),

@@ -1,11 +1,12 @@
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { instantFromEpochMs, instantToRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
-import type { ContextRegistration, ContextValue } from '@omne-harness-lite/runtime-context'
-import {
-  createContextSessionInitializer,
-  type ContextSessionSeed,
-} from '@omne-harness-lite/runtime-context-local'
+import type {
+  ContextRegistration,
+  ContextValue,
+  ContextSessionSeed,
+} from '@omne-harness-lite/runtime-context'
+import { createContextSessionInitializer } from '@omne-harness-lite/runtime-context-local'
 import type { SessionLogBackingOperations } from '@omne-harness-lite/session-log'
 import type { SessionScope, SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 

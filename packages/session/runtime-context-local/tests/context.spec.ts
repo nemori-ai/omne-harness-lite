@@ -1,6 +1,3 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { join } from 'node:path'
-import { tmpdir } from 'node:os'
 import { expect, test, vi } from 'vitest'
 import {
   parseTenantId,
@@ -19,129 +16,10 @@ import type {
   ContextConsumer,
   ContextRegistration,
   ContextSource,
+  ContextSessionSeed,
 } from '@omne-harness-lite/runtime-context'
-import {
-  createRuntimeContext,
-  createContextSessionInitializer,
-  type ContextSessionSeed,
-} from '../src/index.ts'
-const tenant = parseTenantId({ organization: 'org', account: 'alice' }),
-  session = parseOpaqueIdentifier('session', 'SessionRef')
-if (!('ok' in tenant) || !('ok' in session)) throw new Error('fixture invalid')
-const scope: SessionScope = { tenant: tenant.ok, session: session.ok }
-const at = '2026-10-04T00:00:00Z'
-const identityRegistration: ContextRegistration = {
-  key: 'identity',
-  source: 'session',
-  config: null,
-  consumers: ['model', 'tool', 'extension'],
-  required: true,
-  recovery: 'persisted',
-}
-const seed: ContextSessionSeed = {
-  required: [identityRegistration],
-  initial: [
-    {
-      key: 'identity',
-      revision: 'initial',
-      observedAt: at,
-      value: { tenant: { ...scope.tenant }, session: scope.session },
-    },
-  ],
-  fixed: [{ key: 'identity', value: { tenant: { ...scope.tenant }, session: scope.session } }],
-}
-function authority() {
-  const bindings = new Map<SessionAccess, AccessIdentity>()
-  const operations: SessionAccessOperations = {
-    authorize: vi.fn<SessionAccessOperations['authorize']>(async (access, requested) => {
-      const identity = bindings.get(access)
-      return identity &&
-        tenantIdEquals(requested.tenant, identity.scope.tenant) &&
-        requested.session === identity.scope.session
-        ? { kind: 'authorized', identity }
-        : { kind: 'rejected', reason: 'notAuthorized' }
-    }),
-  }
-  return {
-    operations,
-    bind(consumer: AccessIdentity['consumer'], keys: readonly string[], boundScope = scope) {
-      // Test authority oracle; product issuance is covered separately with real Cordis generations.
-      const token = Object.freeze({}) as SessionAccess
-      bindings.set(token, {
-        binding: 'fixture',
-        principal: 'fixture',
-        principalKind: 'system',
-        scope: boundScope,
-        consumer,
-        contextKeys: keys,
-      })
-      return token
-    },
-    revoke(token: SessionAccess) {
-      bindings.delete(token)
-    },
-  }
-}
-function source(
-  name = 'session',
-  recovery: ContextSource['recovery'] = 'persisted',
-): ContextSource {
-  return {
-    name,
-    recovery,
-    consumers: ['model', 'tool', 'extension'],
-    requiredKeys: name === 'session' ? ['identity'] : [],
-    read: async () => ({ kind: 'values', values: [] }),
-  }
-}
-async function host(now: Parameters<typeof createRuntimeContext>[0]['now'] = () => at) {
-  const dir = await mkdtemp(join(tmpdir(), 'omne-context-')),
-    log = await openJsonlSessionLog({
-      dir,
-      processOwnership: { current: 'context-tests', observeExit: async () => 'exited' },
-    })
-  const auth = authority(),
-    initializer = createContextSessionInitializer(log)
-  const observedLog = { ...log, readSince: vi.fn(log.readSince) }
-  const owner = createRuntimeContext({ log: observedLog, access: auth.operations, now })
-  const access = auth.bind('coordinator', ['identity', 'public', 'secret'])
-  const publisher = auth.bind('source', ['identity', 'public', 'secret'])
-  const tool = auth.bind('tool', ['identity', 'public', 'secret'])
-  const disposeSource = owner.sources.registerSource(source())
-  return {
-    dir,
-    log,
-    observedLog,
-    auth,
-    initializer,
-    owner,
-    access,
-    publisher,
-    tool,
-    disposeSource,
-    async close() {
-      owner.closeAdmission()
-      await owner.drain()
-      await initializer.drain()
-      await log.close()
-      await rm(dir, { recursive: true, force: true })
-    },
-  }
-}
-async function init(h: Awaited<ReturnType<typeof host>>) {
-  const result = await h.initializer.initializeContextSession(scope, seed)
-  if (result.kind !== 'applied') throw new Error('init failed')
-  return result.revision
-}
-async function reader(
-  h: Awaited<ReturnType<typeof host>>,
-  token = h.tool,
-  consumer: ContextConsumer = 'tool',
-) {
-  const bound = await h.owner.operations.bind(token, scope, consumer)
-  if (bound.kind !== 'bound') throw new Error('binding failed')
-  return bound.reader
-}
+import { createRuntimeContext, createContextSessionInitializer } from '../src/index.ts'
+import { scope, at, identityRegistration, seed, source, host, init, reader } from './fixture.ts'
 
 test('independent registration/content revisions, immutable data, required identities and persistent removal', async () => {
   const h = await host()
@@ -176,7 +54,7 @@ test('independent registration/content revisions, immutable data, required ident
         'initial',
       ),
     ).toMatchObject({ reason: 'invalidInput' })
-    h.disposeSource()
+    await h.disposeSource.dispose()
     expect(await api.remove(h.access, scope, 'identity', added.revision)).toMatchObject({
       reason: 'requiredRegistration',
     })
@@ -256,14 +134,14 @@ for (const recovery of ['reread_source', 'recompute'] as const)
       expect(await read.read(['public'])).toMatchObject({ values: [{ value: 2 }] })
       readSource.mockResolvedValue({ kind: 'values', values: [] })
       expect(await read.read(['public'])).toMatchObject({ reason: 'sourceUnavailable' })
-      dispose()
+      await dispose.dispose()
       expect(await read.read(['public'])).toMatchObject({ reason: 'sourceUnavailable' })
       h.owner.sources.registerSource({
         ...source('live', recovery),
         requiredKeys: ['public'],
         read: readSource,
       })
-      dispose() // stale disposer cannot remove a replacement generation
+      await dispose.dispose() // stale disposer cannot remove a replacement generation
       expect(await read.read(['public'])).toMatchObject({ reason: 'sourceUnavailable' })
       expect(await h.owner.operations.registrations(h.access, scope)).toMatchObject({
         entries: [{ key: 'identity' }, { key: 'public', required: false }],
@@ -455,7 +333,7 @@ test('removing one session registration leaves the shared source and the other s
     expect(await h.owner.operations.bind(h.tool, secondScope, 'tool')).toMatchObject({
       reason: 'notAuthorized',
     })
-    dispose()
+    await dispose.dispose()
     expect(await secondBinding.reader.read(['public'])).toMatchObject({
       reason: 'sourceUnavailable',
     })

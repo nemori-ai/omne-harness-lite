@@ -223,7 +223,7 @@ async function fixture(
       }
     },
   }
-  const bind = vi.fn(async () => ({
+  const bind = vi.fn<Parameters<typeof createExecutionOwner>[0]['context']['bind']>(async () => ({
     kind: 'bound' as const,
     reader: {
       read: async (keys: readonly string[]) => ({
@@ -486,6 +486,36 @@ test('successful execution context reads are durable before the executor receive
       snapshot: {
         adoptedContext: [{ key: 'workspace', revision: '1', value: 'actual-context' }],
         state: { terminal: { outcome: 'completed', result: 'used-context' } },
+      },
+    })
+    observer.release()
+  } finally {
+    await f.close()
+  }
+})
+test('a changed context view stays an explicit rejection and is never durably adopted', async () => {
+  let f!: Awaited<ReturnType<typeof fixture>>
+  f = await fixture(async (_args, dependencies) => {
+    expect(await dependencies.context.read(['workspace'])).toEqual({
+      kind: 'rejected',
+      reason: 'viewChanged',
+    })
+    const view = await f.journal.read(scope, ref.callId)
+    if (view.kind !== 'view') throw new Error('fixture context unavailable')
+    expect(view.executions.get(ref.callId)?.contextReads).toHaveLength(0)
+    return 'context-not-adopted'
+  })
+  f.bind.mockResolvedValueOnce({
+    kind: 'bound',
+    reader: { read: async () => ({ kind: 'rejected', reason: 'viewChanged' }) },
+  })
+  try {
+    await f.owner.operations.submit(request)
+    const observer = await f.observer()
+    expect(await observer.waitForEnd()).toMatchObject({
+      snapshot: {
+        adoptedContext: [],
+        state: { terminal: { outcome: 'completed', result: 'context-not-adopted' } },
       },
     })
     observer.release()

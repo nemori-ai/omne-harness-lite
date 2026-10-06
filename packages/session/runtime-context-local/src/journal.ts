@@ -1,10 +1,12 @@
+import { decodeContextData } from '@omne-harness-lite/runtime-context'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { ContextRegistration, ContextValue } from '@omne-harness-lite/runtime-context'
 import type { SessionLog } from '@omne-harness-lite/session-log'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
-import { decode } from './codec.ts'
-import type { ContextEvent, ContextSessionSeed } from './journal-types.ts'
-import { identity, object, sameScope } from './values.ts'
+import { inspectContextLogEntry } from './history.ts'
+import type { ContextEvent } from './journal-types.ts'
+import type { ContextSessionSeed } from '@omne-harness-lite/runtime-context'
+import { identity, sameScope } from './values.ts'
 
 export interface ContextState {
   readonly tail: JsonNumber
@@ -20,6 +22,72 @@ const unavailable = { unavailable: true } as const
 /** A decoded prefix violates this provider's durable context relations. */
 export class ContextHistoryInvalid extends Error {}
 
+/** Initialization owns the required registrations, initial values and fixed-value relation. */
+function initializeProjection(
+  seed: ContextSessionSeed,
+  registrations: Map<string, ContextRegistration>,
+  contents: Map<string, ContextValue>,
+) {
+  for (const value of seed.required) {
+    if (!value.required || registrations.has(value.key))
+      throw new ContextHistoryInvalid('invalid required declarations')
+    registrations.set(value.key, value)
+  }
+  for (const value of seed.initial) {
+    if (
+      !registrations.has(value.key) ||
+      contents.has(value.key) ||
+      !decodeContextData('Value', value)
+    )
+      throw new ContextHistoryInvalid('invalid initial context')
+    contents.set(value.key, value)
+  }
+  const fixed = new Set<string>()
+  for (const item of seed.fixed) {
+    const content = contents.get(item.key)
+    if (fixed.has(item.key) || !content || identity(content.value) !== identity(item.value))
+      throw new ContextHistoryInvalid('invalid fixed context')
+    fixed.add(item.key)
+  }
+}
+function updateProjection(
+  event: Extract<ContextEvent, { kind: 'updated' }>,
+  seed: ContextSessionSeed,
+  registrations: ReadonlyMap<string, ContextRegistration>,
+  contents: Map<string, ContextValue>,
+) {
+  const prior = contents.get(event.content.key)
+  if (
+    !registrations.has(event.content.key) ||
+    event.previous !== (prior?.revision ?? 'absent') ||
+    event.content.revision !== event.revision ||
+    !decodeContextData('Value', event.content)
+  )
+    throw new ContextHistoryInvalid('invalid content revision')
+  const fixed = seed.fixed.find(item => item.key === event.content.key)
+  if (fixed && identity(fixed.value) !== identity(event.content.value))
+    throw new ContextHistoryInvalid('fixed context changed')
+  contents.set(event.content.key, event.content)
+}
+function changeRegistrations(
+  event: Extract<ContextEvent, { kind: 'registered' | 'removed' }>,
+  seed: ContextSessionSeed,
+  registrations: Map<string, ContextRegistration>,
+  contents: Map<string, ContextValue>,
+) {
+  if (event.kind === 'registered') {
+    if (event.registration.required || registrations.has(event.registration.key))
+      throw new ContextHistoryInvalid('required set or registration changed')
+    registrations.set(event.registration.key, event.registration)
+  } else {
+    const prior = registrations.get(event.key)
+    if (!prior || prior.required || seed.required.some(item => item.key === event.key))
+      throw new ContextHistoryInvalid('invalid context removal')
+    registrations.delete(event.key)
+    contents.delete(event.key)
+  }
+}
+
 export function projectContext(
   scope: SessionScope,
   entries: readonly import('@omne-harness-lite/session-log').LogEntry[],
@@ -33,67 +101,24 @@ export function projectContext(
   for (const entry of entries) {
     if (!sameScope(scope, { tenant: entry.tenant, session: entry.session }))
       throw new ContextHistoryInvalid('context log scope mismatch')
-    const payload = entry.payload
-    if (
-      !object(payload) ||
-      typeof payload.codec !== 'string' ||
-      !payload.codec.startsWith('runtime-context/')
-    )
-      continue
-    const event = decode('Event', payload)
-    if (!event || !sameScope(event.scope, scope) || events.has(event.revision))
+    const inspected = inspectContextLogEntry(scope, entry)
+    if ('unrelated' in inspected) continue
+    if ('invalid' in inspected || events.has(inspected.event.revision))
       throw new ContextHistoryInvalid('invalid context journal')
+    const event = inspected.event
     if (event.kind === 'session_initialized') {
       if (seed || event.previous !== 'absent')
         throw new ContextHistoryInvalid('context initialized twice')
       seed = event.seed
-      for (const value of seed.required) {
-        if (!value.required || registrations.has(value.key))
-          throw new ContextHistoryInvalid('invalid required declarations')
-        registrations.set(value.key, value)
-      }
-      for (const value of seed.initial) {
-        if (!registrations.has(value.key) || contents.has(value.key) || !decode('Value', value))
-          throw new ContextHistoryInvalid('invalid initial context')
-        contents.set(value.key, value)
-      }
-      const fixed = new Set<string>()
-      for (const item of seed.fixed) {
-        const content = contents.get(item.key)
-        if (fixed.has(item.key) || !content || identity(content.value) !== identity(item.value))
-          throw new ContextHistoryInvalid('invalid fixed context')
-        fixed.add(item.key)
-      }
+      initializeProjection(seed, registrations, contents)
       registrationRevision = event.revision
     } else {
       if (!seed) throw new ContextHistoryInvalid('context declaration missing')
-      if (event.kind === 'updated') {
-        const prior = contents.get(event.content.key)
-        if (
-          !registrations.has(event.content.key) ||
-          event.previous !== (prior?.revision ?? 'absent') ||
-          event.content.revision !== event.revision ||
-          !decode('Value', event.content)
-        )
-          throw new ContextHistoryInvalid('invalid content revision')
-        const fixed = seed.fixed.find(item => item.key === event.content.key)
-        if (fixed && identity(fixed.value) !== identity(event.content.value))
-          throw new ContextHistoryInvalid('fixed context changed')
-        contents.set(event.content.key, event.content)
-      } else {
+      if (event.kind === 'updated') updateProjection(event, seed, registrations, contents)
+      else {
         if (event.previous !== registrationRevision)
           throw new ContextHistoryInvalid('invalid registration revision')
-        if (event.kind === 'registered') {
-          if (event.registration.required || registrations.has(event.registration.key))
-            throw new ContextHistoryInvalid('required set or registration changed')
-          registrations.set(event.registration.key, event.registration)
-        } else {
-          const prior = registrations.get(event.key)
-          if (!prior || prior.required || seed.required.some(item => item.key === event.key))
-            throw new ContextHistoryInvalid('invalid context removal')
-          registrations.delete(event.key)
-          contents.delete(event.key)
-        }
+        changeRegistrations(event, seed, registrations, contents)
         registrationRevision = event.revision
       }
     }
@@ -106,7 +131,7 @@ export function projectContext(
 export function createContextJournal(log: SessionLog) {
   const pending = new Map<string, ContextEvent>()
   const active = new Set<Promise<unknown>>()
-  async function read(scope: SessionScope): Promise<JournalRead> {
+  async function readPrefix(scope: SessionScope): Promise<JournalRead> {
     try {
       const result = await log.readSince(scope.session, 0)
       if ('failure' in result) return unavailable
@@ -121,6 +146,15 @@ export function createContextJournal(log: SessionLog) {
       return { state }
     } catch {
       return unavailable
+    }
+  }
+  async function read(scope: SessionScope): Promise<JournalRead> {
+    const task = Promise.resolve().then(() => readPrefix(scope))
+    active.add(task)
+    try {
+      return await task
+    } finally {
+      active.delete(task)
     }
   }
   async function commit(
