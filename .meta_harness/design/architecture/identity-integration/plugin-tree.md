@@ -69,25 +69,13 @@ config 总是固定的 `[redacted]`，不输出值、键、散列或长度。
 `describeAssembly(validatedConfig: unknown): AssemblyDeclaration`。它是所选插件导出的静态成员，
 不能从运维 JSON 传入函数。声明的根类型归 core/cordis-plugin-tree：
 
-```ts
-interface AssemblyClaim {
-  readonly name: string
-  readonly version: number
-  readonly config: JsonValue
-}
-interface AssemblyDeclaration {
-  readonly provides: readonly string[]
-  readonly requires: readonly string[]
-  readonly optional: readonly string[]
-  readonly claims: readonly AssemblyClaim[]
-}
-interface PreparationOptions {
-  readonly externalServices: readonly string[]
-  readonly resolveModule: (reference: PluginReference) => Promise<unknown>
-}
-```
+形状由[纯公开类型](../../../../packages/core/cordis-plugin-tree/src/types.ts)维护。
+六字段声明及静态／动态匹配的完整行为归[模块 SPEC](../../../../packages/core/cordis-plugin-tree/SPEC.md)，
+扩展范围见[限定采用](../../record/decisions/identity-shared-mechanism-projection/decision.md)。
 
-provides/requires/optional 分别是所供键、必需键、可选键的唯一非空字符串集合，重复键拒绝。
+
+provides/requires/optional 分别是静态所供键、必需键、可选键；dynamicProvides/dynamicRequires 表达固定 host 的动态贡献和消费。
+声明恰含这五个键集合及 claims。键集合是唯一非空字符串，重复及静态／动态混合投影拒绝。
 同一键不能同时出现在 requires 和 optional。可选依赖不因关闭顺序变成必需注入。
 assemblyLifetime 为 loader 注入的隐含行端口，不由插件声明提供。
 声明必须覆盖子作用域和逐调用取得的全部必需/可选资源依赖，允许按配置选择 plain/migrate 等路径。
@@ -109,7 +97,10 @@ prepare 检查每个必需键来自更早的启用行或 externalServices；任�
 这条边保护已经捕获的可选实例在整个用例结束前不被关闭，不能只检查必需 inject。
 外部服务及其实际资源由宿主保持到整树 closed 后；运行中不能从未登记/更晚拥有者取得依赖。
 可选服务更换或新增若改变这个资源拥有关系，必须结束旧代际并重新准备，不能跨代承接旧工作。
-load 在任何 apply 前确认这些外部 Service 已可见。可选业务依赖仍按原逐调用规则解析。
+load 在任何 apply 前确认这些静态外部 Service 已可见。可选业务依赖仍按原逐调用规则解析。
+动态能力可以缺席或换代，其结果仍归原领域协议；动态声明不替代 OwnedWork 或授权。
+纯动态贡献退出不自动结束固定行；它若撤掉静态声明服务，仍须停止本代。
+固定行及静态服务的真实提供者身份必须保持，同键新实例不等于原实例。
 声明不能证明代码遵守协议，实际装配及 QA 必须核对；这一真实性边界不能写成预先证明。
 
 PreparedPluginTree 是不可伪造、不可变的进程内准备结果，由实现私有身份核验。
@@ -155,7 +146,8 @@ loader 按准备后的顺序建行端口、调用 ctx.plugin、登记 handle。
 并立即请求本代停止。未开始后缀不再启动。已登记前缀按 lifetime 的实际 close 处理。
 loader 在行端口登记时就观察 OwnedWork.ready 的失败，不等 Cordis 完成失败卸载后才交付启动错误。
 否则 fiber 的清理等待资源收场，会把 ready 的失败报告错误地拖到 closed 之后。
-装配成功须所有行 ACTIVE、声明的 provides 实际可见、必需依赖满足，然后 ready 兑现。
+装配成功须所有固定行 ACTIVE、声明的静态 provides 实际可见、静态依赖满足，然后 ready 兑现。
+原八个 R1 绑定保持静态声明；空动态数组不免除共享 loader 身份与撤除路径复验。
 运行状态不能证明任意受信插件没有隐藏副作用；违反声明的提供者不能通过实际验收。
 
 ready 的失败为 PluginTreeStartError，携带安全 rowId 和首个 code：

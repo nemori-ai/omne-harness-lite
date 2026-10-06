@@ -57,44 +57,15 @@ Cordis 不提供跨消费者排空屏障，也不向 dispose 调用者传播 eff
 
 ## 公共形状
 
-根的协议不含 Cordis 类型：
-
-```ts
-type CloseResult = { readonly kind: 'closed' }
-  | { readonly kind: 'failed'; readonly codes: readonly ('setup' | 'close')[] }
-interface OwnedWork {
-  readonly ready: Promise<void>
-  close(): Promise<void>
-}
-interface LifetimeRegistration {
-  readonly closed: Promise<CloseResult>
-  requestStop(): void
-}
-interface AssemblyLifetimePort {
-  isCurrent(): boolean
-  register(work: OwnedWork): LifetimeRegistration
-}
-interface AssemblyLifetime {
-  readonly ids: readonly string[]
-  readonly closed: Promise<AssemblyCloseReport>
-  isPristine(): boolean
-  tryClaim(): boolean
-  isCurrent(): boolean
-  port(id: string): AssemblyLifetimePort
-  close(): Promise<AssemblyCloseReport>
-}
-interface AssemblyCloseReport {
-  readonly complete: boolean
-  readonly assemblyErrors: readonly ('assembly-stop-failed'
-    | 'assembly-protocol-failed' | 'assembly-fiber-dispose-failed'
-    | 'assembly-port-dispose-failed')[]
-  readonly rows: readonly { readonly id: string; readonly result: CloseResult }[]
-}
-```
+公开形状由 [assembly-lifecycle 的纯类型](../../../../packages/core/assembly-lifecycle/src/types.ts)维护，
+类型之外的关闭及保有承诺归[模块 SPEC](../../../../packages/core/assembly-lifecycle/SPEC.md)。
+本页只维护跨模块装配责任；共享保有扩展见[限定采用](../../record/decisions/identity-shared-mechanism-projection/decision.md)。
 
 每行一个 AssemblyLifetimePort。唯一 Service `AssemblyLifetimeService` 的键为 `assemblyLifetime`，
 标 `@owner packages/core/assembly-lifecycle`，精确 implements AssemblyLifetimePort。
-它只暴露 isCurrent/register，不暴露整体协调器的 ids、port、close 或 closed。
+它暴露 isCurrent/register/retainClose，不暴露整体协调器的 ids、port、closeControl、close 或 closed。
+retainClose 是必需方法，交付的仍是原行控制；整体 closeControl 只归实际装配拥有者。
+undefined 或 retained 不证明资源静止。普通 R1 绑定的关闭与失败义务不因此改变。
 装配为每行单独 isolate **这个服务键**，其他业务服务的可见性保持原样。
 调用方不传任意 row id，行身份由装配提供的端口固定，不能串报另一行完成。
 该隔离只用于路由关闭责任，不是租户授权。

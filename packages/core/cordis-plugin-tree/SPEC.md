@@ -71,3 +71,5 @@ inspectPluginTree 只返回已创建行的真实句柄快照，保留失败和�
 npm 的 validate-npm-package-name 与 Babel 的 helper-validator-identifier 校验引用名称。
 有限 JSON 捕获使用属性描述符检查，避免调用访问器；其他领域允许无损数字的 JSON 表示不适用此协议。
 资源完成复用 assembly-lifecycle，Cordis 状态取自已验证的 kernel-basis 绑定，不另建关闭协调器。
+
+六字段声明和固定 host 的动态贡献范围由[共享机制投影采用](../../../.meta_harness/design/record/decisions/identity-shared-mechanism-projection/decision.md)接续。行端口的 retainClose 仍交付原行控制；整体 closeControl 只归实际装配拥有者，行为归 assembly-lifecycle 的模块 SPEC。

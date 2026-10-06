@@ -220,3 +220,5 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 [D-115：Moonshot 两叶空串文本段窄修复](moonshot-empty-text-adoption/README.md)（2026-10-03）：技术采用精确两叶、新实现修订的提供者规则；投影仍 /3，MV5 与修后真实调用待执行。
 
 [D-116：固定Schema构建期生成与原生文本校验](fixed-schema-precompile/README.md)（2026-10-03）：限定技术采用；先释放CB/messages/identity代表性实现，实际扩散门与全量迁移/性能/最终接受仍待；不改变契约或作者owner语义。
+
+2026-10-06：[共享机制投影的限定采用](identity-shared-mechanism-projection/README.md)接续保有关闭、六字段动态声明及两个精确 JSON 公开路径。原 main117 历史接受状态保持 Unknown，完整 R1-T5 验收仍待。

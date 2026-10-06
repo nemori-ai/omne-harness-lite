@@ -481,6 +481,19 @@
       "source": "system-intent.md#责任方向"
     },
     {
+      "id": "content-blocks-public-data",
+      "paths": [
+        "packages/core/content-blocks/src/index.ts",
+        "packages/core/content-blocks/src/json.ts"
+      ],
+      "layer": "contract",
+      "domains": [
+        "context"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/record/decisions/identity-shared-mechanism-projection/decision.md"
+    },
+    {
       "id": "packages/core/stream-assembly",
       "paths": [
         "packages/core/stream-assembly/src/**"
@@ -604,7 +617,8 @@
       "paths": [
         "packages/core/assembly-lifecycle/src/index.ts",
         "packages/core/assembly-lifecycle/src/lifetime.ts",
-        "packages/core/assembly-lifecycle/src/cordis.ts"
+        "packages/core/assembly-lifecycle/src/cordis.ts",
+        "packages/core/assembly-lifecycle/src/retained-work.ts"
       ],
       "layer": "assembly",
       "domains": [],
