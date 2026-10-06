@@ -1121,6 +1121,7 @@
       "id": "identity-shared-identity-values-contract",
       "paths": [
         "packages/core/identity-values/src/opaque.ts",
+        "packages/core/identity-values/src/parsed.ts",
         "packages/core/identity-values/src/schema-inputs.ts",
         "packages/core/identity-values/src/validate.ts",
         "packages/core/identity-values/src/values.ts"
@@ -1148,7 +1149,8 @@
     {
       "id": "identity-shared-kernel-basis-contract",
       "paths": [
-        "packages/core/kernel-basis/src/index.ts"
+        "packages/core/kernel-basis/src/index.ts",
+        "packages/core/kernel-basis/src/outcome.ts"
       ],
       "layer": "contract",
       "domains": [],
@@ -1257,9 +1259,24 @@
     {
       "id": "identity-host-credentials-tenancy-host-contract",
       "paths": [
-        "apps/tenancy-host/src/maintenance-ports.ts"
+        "apps/tenancy-host/src/command-data.ts",
+        "apps/tenancy-host/src/failure.ts",
+        "apps/tenancy-host/src/maintenance-ports.ts",
+        "apps/tenancy-host/src/version.ts"
       ],
       "layer": "contract",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/host-integration.md"
+    },
+    {
+      "id": "identity-host-finalization-policy",
+      "paths": [
+        "apps/tenancy-host/src/maintenance-state.ts"
+      ],
+      "layer": "policy",
       "domains": [
         "identity"
       ],
