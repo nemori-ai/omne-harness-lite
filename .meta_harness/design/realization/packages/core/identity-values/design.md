@@ -12,7 +12,7 @@
 它由消费者包**直接 import**，不注册服务、不持有 fiber、不 inject 任何东西。
 把它做成插件只会造出一个「值的提供者」，而值没有提供者换代这回事。
 
-**Cordis 版本**：采用 `@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis，此项只为与同批节点对齐。
+**Cordis 版本**：采用 `@deepseek-ai/cordis` 4.0.4（D-025）；本模块不依赖 Cordis，此项只为与同批节点对齐。
 
 ## 能力到 Cordis 的投影
 

@@ -1,9 +1,0 @@
-{
-  "at_utc": "2026-09-26T11:38:40.068124+00:00",
-  "destination": "/data/qiwei/repos/omne-harness-lite/tmp/core-delivery/spoke-evidence/upstream-sqlite-baseline",
-  "copied_and_hash_verified_payloads": 32,
-  "original_manifest_sha256": "0d8ec82a32e24592e522071862b6d661d868c9bcd42d4ba08b6d17353a851c81",
-  "status": "original baseline complete/32 payload hashes verified; active consumers released",
-  "target_head": "127d63dadf00358576b52fbfaed66e6e0c3f20dc",
-  "tracked_clean": true
-}

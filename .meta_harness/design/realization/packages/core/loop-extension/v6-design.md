@@ -4,11 +4,11 @@
 
 ## 输入、范围与接受门
 
-已接受语义基线是 [D099](../../../../record/decisions/model-input-limit-consumer-contract-adoption/decision.md) 采用的 [LC5](../../../../spec/data/loop-extension/v5/contract.md)。目标 `data.loop-extension/v6`（LC6）及其 MP5/MS6 精确后继正在成稿；registry 尚未登记接受，资源哈希须在主线释放后核对。本稿据主线给定的机械演进范围起草：移除旧格式过渡义务、更新精确引用；保留 LC5 S-1～S-43 的值与判断责任。不能仅凭本稿把候选当已接受规格实施。
+已接受语义基线是 D099 采用的 [LC5](../../../../spec/data/loop-extension/v5/contract.md)。目标 `data.loop-extension/v6`（LC6）及其 MP5/MS6 精确后继正在成稿；registry 尚未登记接受，资源哈希须在主线释放后核对。本稿据主线给定的机械演进范围起草：移除旧格式过渡义务、更新精确引用；保留 LC5 S-1～S-43 的值与判断责任。不能仅凭本稿把候选当已接受规格实施。
 
 产品依据承接 LC5：PF-012 rev15、PF-013 rev14；其他来源沿该契约依赖表。本次不新定产品政策。候选的条款坐标以下均指 LC6；接受前以其正式释放正文再核。LC5 S-43／版本差异中旧记录继续按旧格式读取的义务，须由主线通过后继规范明确替换；本节点不自行忽略冻结条款。
 
-范围是 `packages/core/loop-extension` 的纯值实现和当前消费者迁移。完整 runner、Loop、工具执行、日志读取与落盘、默认重试政策不在本节点。沿 [D025](../../../../record/decisions/cordis-adoption-version/decision.md) 采用 Cordis 4.0.4，但本包不依赖 Cordis；没有新增上游机制主张或 basis 绑定。
+范围是 `packages/core/loop-extension` 的纯值实现和当前消费者迁移。完整 runner、Loop、工具执行、日志读取与落盘、默认重试政策不在本节点。沿 D025 采用 Cordis 4.0.4，但本包不依赖 Cordis；没有新增上游机制主张或 basis 绑定。
 
 ## 公开面、实现路径与精确依赖
 

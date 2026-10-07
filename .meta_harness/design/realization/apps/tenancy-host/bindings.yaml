@@ -1,18 +1,3 @@
-# 条款到证据的绑定表。
-# 本节点是采用型装配，不拥有契约条款；它承接的是六份契约里「装配给」各行
-# （AI S-30、OG S-42、AR S-25、OE S-17、IV 第六节，以及 composition.governance-center-entry/v1 的 S-36）在单机上的兑现——
-# 每一行在 design.md「归装配」承接表里有落点；另登入口契约里由承载装配兑现的 S-28 ③、S-29、S-34，与 AR S-35 在存储层的实证。
-# 下面的 test: 绑定全部来自 record/evidence/2026-09-23-tests-tenancy-leg-2（源码提交 c9b5850；逐条状态 cases.tsv，
-# 义务对应 coverage.md 的 apps/tenancy-host 一节）。证据 id 形式：test:<仓库相对测试文件路径>#<describe> › <it>；
-# 嵌套 describe 按 cases.tsv 用「 > 」连接；整个 describe 都承担时只写到 describe。
-# 不绑（证据登记在 verification.md）：
-#   - R-U1～R-U8（PF-017 §6.9、§6.10 的承接）、D-026 的 pg 接线、kernel-basis 的 no-testing-import、CV 换代演练——不是契约坐标；
-#   - IV 第六节的表行——没有 S- 条款号；
-#   - registry 的 formal task 与 kernel-basis 的 probe——证的是契约模型与内核语义，在本节点的装配语义消失时不会失败；probe 作为 basis 记在各绑定里；
-#   - 2026-09-25 本程追加（候选，尚未实现）：AG S-50、AT S-34、OG v2 S-42、MPD S-22 在本节点的承接——源码与测试都不存在，没有会失败的证据，一条不绑
-#     （义务在 verification.md 标「本程追加（候选）」的五行，全部未开始）。
-# 共同前提：sqlite 临时文件库（pg 另注）、单主机、Node v24.18.0、vitest 4.1.11；真实八插件经本节点 boot() 装出，除非另注；
-# 「回拨」是改写 clock_lease 行模拟的，「崩溃」是对子进程 SIGKILL；每条只跑一次。
 version: 1
 node: "tenancy-host"
 kind: "assembly"
@@ -25,14 +10,12 @@ bindings:
       - "文本规则，只认 `.produce(` 这个字面形状；不经这个字面形状的调用（解构后直接调用等）不在它的范围内"
       - "自测用的是构造的违反样例；真实源码上的结论来自同 run 的 pnpm run lint:rules（20 条规则，扫描 packages/、apps/，退出 0）"
       - "同一用例在 account-identity 节点绑在 S-22（方法级 owner）；这里登的是装配给那一行"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-30"
     evidence: "test:apps/tenancy-host/tests/config.spec.ts#assembly.key-pairing-mismatch-fails-boot：四份各自合法、但不配对 ⇒ 起插件之前拒绝"
     assumptions:
       - "承接第 9 行（两份交接凭证不可伪造）装配那一半：两对 Ed25519 由装配下发且公私配对；三种错配各一条、配对正确的反向一条，都在起插件之前判定"
       - "四份 PEM 由 keygen 在临时目录生成；不证私钥不外泄（只有窄形式，另见 S-29 的 keys-only-in-owner-config），不证密钥轮换（本版不轮换）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-30"
     evidence: "test:apps/tenancy-host/tests/config.spec.ts#assembly.missing-key-fails-boot：四份部署密钥各五种坏法"
@@ -42,7 +25,6 @@ bindings:
       - "「没有任何 fiber 留在 ACTIVE、库句柄已关」是否每种都断言，用例名看不出"
     basis:
       - plugin-throw-fails-fiber
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-30"
     evidence: "test:apps/tenancy-host/tests/upgrade.spec.ts#AI S-46 ① 的快照部分：翻装配留下的升级快照，里面没有能用的出示物 › 确认之前停住，快照里每一段可打印串交给 S-44 都换不出身份；三个出示物以任何形式都不在快照里"
@@ -50,7 +32,6 @@ bindings:
       - "承接第 12 行（存储与备份里没有出示物）装配那一半：本节点留下的升级快照是库的一份持久副本，里面没有能用的出示物"
       - "只查 sqlite 的升级快照；产品之外的备份与恢复（入口契约 G-7）不在范围"
       - "同一用例在 account-identity 节点绑在 S-46"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.account-identity/v2#S-30"
     evidence: "test:apps/tenancy-host/tests/migrations.spec.ts#assembly.constraint-names-resolve（经装配出的 storage，任何一条映射成 StorageDefect 就是片段没按 M-2／M-3 命名） › 唯一约束与主键都报迁移里起的名字"
@@ -58,21 +39,18 @@ bindings:
       - "承接第 1 行（登录标识唯一）装配那一半：合成的迁移里有 account_login_identifier_unique，重复插入经 storage-sql 映射成带这个名字的 UniqueViolation"
       - "只证约束存在且名字可解析，不证并发下的唯一性判定（那归 AI 与 AR 的交错演练）"
       - "第 14 行（LoginStateId 部署内唯一）不在这条里：义务点名的约束里没有 login_state_pkey（verification 覆盖缺口）"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.organization-governance/v1#S-42"
     evidence: "test:apps/tenancy-host/tests/migrations.spec.ts#assembly.constraint-names-resolve（经装配出的 storage，任何一条映射成 StorageDefect 就是片段没按 M-2／M-3 命名） › 唯一约束与主键都报迁移里起的名字"
     assumptions:
       - "承接第 3 行（每账号至多一个个人组织）：organization_owner_account_unique 存在、名字可解析；owner_account 为 NULL 的团队组织两条都能插"
       - "只证约束，不证 OG S-20 的判定路径"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.account-registration/v1#S-25"
     evidence: "test:apps/tenancy-host/tests/migrations.spec.ts#assembly.constraint-names-resolve（经装配出的 storage，任何一条映射成 StorageDefect 就是片段没按 M-2／M-3 命名） › 唯一约束与主键都报迁移里起的名字"
     assumptions:
       - "承接第 2、3 行（两个幂等边界：标识唯一、个人组织唯一）的约束那一半：account_login_identifier_unique 与 organization_owner_account_unique 存在、名字可解析"
       - "组合在撞约束时的收场归 account-registration 自己的演练，不在本条"
-    alignment_checked: 2026-09-23
 
   - clause: "capability.organization-governance/v1#S-42"
     evidence: "test:apps/tenancy-host/tests/lifecycle.spec.ts#assembly.manifest-shape"
@@ -80,7 +58,6 @@ bindings:
       - "承接第 4 行（S-53 只由清除链调用）的装载清单那一半：inject organization-purge 的插件恰为 AR；结构检查那一半在 organization-governance 节点（og-s42-dynamic-resolve）与 restricted-call-sites"
       - "承接第 1、2、5、6 行「本节点只保证恰一个 storage」与第 7 行「恰一个 clock」：运行中五个消费 storage 的插件解析到同一个实例，clock 的消费者解析到同一个实例"
       - "序列化、判环、可见性本身由 storage-sql 的一致性套件与 OG 的演练证，不在本条"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.account-registration/v1#S-35"
     evidence: "test:apps/tenancy-host/tests/migrations.spec.ts#assembly.fk-organization-owner-account（S-35 孤儿不可达在存储层的唯一直接实证） › ① 指向不存在账号的组织行 ⇒ missing-target；② 删被引用的账号行 ⇒ delete-restricted、账号行仍在；③ 负向运行：外键关着的裸句柄删除静默成功"
@@ -88,14 +65,12 @@ bindings:
       - "存储层那一半：本节点合成的迁移里 organization → account 的外键真实存在，两向都拒；③ 用外键关着的裸句柄证①②看的是那条外键"
       - "pg 上的外键两向由 pg.spec.ts › pg 首跑 · 装配（OMNE_TEST_PG_URL） › assembly.pg-wiring… 断言（同 run pg 一侧，PostgreSQL 16.14）"
       - "领域层的两条交错（AI S-43 第 2 支）与故障注入归 account-registration 与 account-identity 节点"
-    alignment_checked: 2026-09-23
 
   - clause: "data.offer-expiry/v1#S-17"
     evidence: "test:apps/tenancy-host/tests/lifecycle.spec.ts#assembly.manifest-shape"
     assumptions:
       - "承接第 1 行（now 与 expiresAt 同源）装配那一半：清单里恰一个 clockPlugin，clock 的消费者解析到同一个实例"
       - "同源之外的时钟语义（不后退、不可用即失败）由 infra/clock 节点证"
-    alignment_checked: 2026-09-23
 
   - clause: "data.offer-expiry/v1#S-17"
     evidence: "test:apps/tenancy-host/tests/config.spec.ts#assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 › invitationTtlDefault 为负"
@@ -103,28 +78,24 @@ bindings:
       - "承接第 4 行（默认 offer_ttl 为正，加载配置时校验）：非正即启动失败、点名那一项"
       - "同 describe 另三条同一性质的用例同 run 通过：affiliationRequestTtlDefault 不是时长、PF-003 部署参数 copyNoticeTtlDefault 缺、sharingInvitationTtlDefault 非正；每类只测一种坏法"
       - "单进程装配，一个节点加载配置；右列「每个承载发出操作的节点各自校验」是跨进程之后的事，本版无证据形式"
-    alignment_checked: 2026-09-23
 
   - clause: "data.offer-expiry/v1#S-17"
     evidence: "test:apps/tenancy-host/tests/slow.spec.ts#assembly.clock-ready-timeout ②③ 与快速重启 › ③／快速重启：written_at ≤ 墙钟 < lease_until ⇒ 入口层等钟可读之后成功（至多一个租约宽度），startedAt 不早于 lease_until"
     assumptions:
       - "承接第 5 行（now 不后退）在真实装配上的跨重启那一半：真实 clock 插件、真实时长，快速重启后开闸时刻不早于上一次的 lease_until"
       - "进程内与注入墙钟的各支在 infra/clock 节点；租约表被外部删除不在范围（运维约定）"
-    alignment_checked: 2026-09-23
 
   - clause: "data.offer-expiry/v1#S-17"
     evidence: "test:apps/tenancy-host/tests/upgrade.spec.ts#assembly.upgrade-preflight-refuses：只读核对不过 ⇒ 不碰数据 › ② clock_lease.written_at 在墙钟之后 ⇒ 在跑任何迁移之前拒绝（钟比中心用过的最晚时刻早），库的内容不变"
     assumptions:
       - "承接第 5 行在启动时回拨那一半的装配一侧：clock 的只读核对装进 storage-sql 的迁移前核对，回拨在跑任何迁移之前拒绝"
       - "回拨是把 written_at 写到墙钟之后模拟的，不是调系统时钟"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-34"
     evidence: "test:apps/tenancy-host/tests/lifecycle.spec.ts#assembly.no-commit-before-open 与 assembly.entry-loads-last"
     assumptions:
       - "起来即整体、两张面同起同停：停在确认处时八条 fiber 都 ACTIVE 而两张面都不答、库里没有新行；正常路径全部 ACTIVE → 确认 → 兑现 → serving → 第一条答复；运维面只在 serving 与 stopped 之间作答"
       - "确认处的停顿是测试钩子；「面缺席只有三种时候」里的换代一支不在本条（CV 换代演练记在 verification）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-34"
     evidence: "test:apps/tenancy-host/tests/lifecycle.spec.ts#assembly.pending-is-manifest-error：PENDING 是清单错误，同步判定、不等待"
@@ -133,7 +104,6 @@ bindings:
       - "PENDING 的结构判定依 basis inject-has-no-optional-form"
     basis:
       - inject-has-no-optional-form
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-34"
     evidence: "test:apps/tenancy-host/tests/upgrade.spec.ts#assembly.upgrade-restore-on-boot-failure：确认之前的任何启动失败都撤回升级 › 入口层端口被占 ⇒ 拒绝；库回到升级前，上一版照常能起、中心标识不变"
@@ -142,35 +112,30 @@ bindings:
       - "升级整体性本身（§6.9）不归入口契约（其 G-12），证据记在 verification 的 R-U 各行"
     basis:
       - plugin-throw-fails-fiber
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-34"
     evidence: "test:apps/tenancy-host/tests/slow.spec.ts#assembly.clock-ready-timeout ②③ 与快速重启 › ② 钟在界内一直读不到（lease_until 推到界之外）⇒ 入口层超界、boot() 拒绝于「钟读不到」、其余已撤、升级快照已恢复"
     assumptions:
       - "启动成功以钟可读为条件：超过承载装配定的界（clockReadyTimeoutMs）仍读不到 ⇒ 启动失败并点名是钟"
       - "只测了把 lease_until 推到界之外那一种；续约写持续失败那一种没有单独用例"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-34"
     evidence: "test:apps/tenancy-host/tests/process.spec.ts#assembly.no-commit-before-open ②：确认之前 SIGKILL，没有任何答复见过被撤回的值"
     assumptions:
       - "「起来之前的任何失败外面只看到问不到」：停在确认处时客户端与运维面都问不到；子进程被 SIGKILL 之后下一次启动恢复遗留快照（非首次逐表相等；首次标识被重铸）"
       - "崩溃是对子进程 SIGKILL，不是断电"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-34"
     evidence: "test:apps/tenancy-host/tests/slow.spec.ts#assembly.no-commit-before-open ⑤：确认之后等不到 serving（已接受的残余情形 U-4） › 开闸那一刻钟读不到 ⇒ 等 clockReadyTimeoutMs + 1 s 之后拒绝「钟读不到或回拨：重启前先核钟」、逆序撤完、端口已放；快照已确认、不恢复；恢复钟后同一版本照常起；钟往回拨则在只读核对上拒绝"
     assumptions:
       - "启动成功以钟可读为条件在开闸那一刻的一支：等不到 serving 即启动失败、此前没有任何答复；快照已确认不恢复是已接受的残余情形 U-4"
       - "§6.9「旧版本照常能起」在这一支上不要求，本条不证"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-34"
     evidence: "test:apps/tenancy-host/tests/slow.spec.ts#assembly.dispose-timeout › 一个故意挂住的 disposer ⇒ dispose() 在总超时后仍返回，记下未完成（含没轮到）的 fiber"
     assumptions:
       - "「等待的上界归承载装配」：撤除总超时是本节点的候选常量，挂住的 disposer 不让 dispose() 永不返回"
       - "超时之后那条 fiber 持有的资源是否释放，本条不证"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-36"
     evidence: "test:apps/tenancy-host/tests/lifecycle.spec.ts#assembly.dispose-reverse-order 与 assembly.dispose-with-inflight"
@@ -180,21 +145,18 @@ bindings:
       - "在途只构造了一次注册请求，一次调度"
     basis:
       - effect-disposal-concurrent-not-ordered
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-36"
     evidence: "test:apps/tenancy-host/tests/lifecycle.spec.ts#assembly.manifest-shape"
     assumptions:
       - "承接「中心标识与治理事实同一存储」行：governance_center 与治理事实同库，五个消费 storage 的插件解析到同一个实例"
       - "承接「运维者没有门」行装配那一半：运维面的 config 里没有任何服务句柄；导入白名单那一半归 tools/ts-checks（ops-import-whitelist，governance-center-entry 节点绑定）"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-28"
     evidence: "test:apps/tenancy-host/tests/upgrade.spec.ts#assembly.upgrade-restore-on-boot-failure：确认之前的任何启动失败都撤回升级 > 首次启动支：库文件与附属文件都不存在，下一次启动仍是第一次（S-28 ③）"
     assumptions:
       - "S-28 ③ 在承载装配上的一支：首次启动在运维面或入口层失败（套接字目录权限过宽、端口被占、铸标识的写失败）⇒ 库文件与附属文件都不存在，下一次启动仍是第一次"
       - "读或铸本身、真并发首启归 governance-center-entry 节点"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-29"
     evidence: "test:apps/tenancy-host/tests/lifecycle.spec.ts#assembly.keys-only-in-owner-config（窄形式：它不证同进程别的代码读不到） › PEM 字段恰为 AR←activation 私钥、OG←purge 私钥、AI←两把公钥、入口层←TLS 证书链与私钥；服务里、日志里、完整体检里都没有 PEM"
@@ -202,18 +164,14 @@ bindings:
       - "承载装配那一半：部署签名私钥与 TLS 私钥只在持有者的 config 里，服务 store、日志、完整体检里都没有 PEM"
       - "窄形式：不证同进程别的代码读不到——持钥插件的 config 沿 fiber 树可达"
       - "入口层自己的输出搜索（出示物、凭据材料等）归 governance-center-entry 的 T-11"
-    alignment_checked: 2026-09-23
 
   - clause: "composition.governance-center-entry/v1#S-29"
     evidence: "test:apps/tenancy-host/tests/lifecycle.spec.ts#assembly.boot-failure-log：每种启动失败落恰一条结构化记录，不含 PEM 与 config 值 › config、密钥配对、清单、插件、只读核对各一次"
     assumptions:
       - "启动失败说明不含 PEM 与任何 config 值，只在这五个阶段各测一次；遗留快照恢复、建快照、迁移、钟读不到、恢复快照没有对应用例（verification 覆盖缺口）"
       - "精确的记录形状等全局观测契约"
-    alignment_checked: 2026-09-23
 
-  # D055/D056 actual assembly observations; no new domain authority in host.
   - clause: "composition.governance-center-entry/v3#S-59"
     evidence: "test:apps/tenancy-host/tests/maintenance-signal.process.spec.ts#SIGINT ends the ops client wait while the admitted server run keeps source ownership and completes once"
     assumptions:
       - "真实客户端SIGINT和SQLite第二属主竞争；源run由测试gate控制；无任意调度/IO时限证明"
-    alignment_checked: 2026-09-26

@@ -14,7 +14,7 @@
 | [PF-014 rev 11](../../../../product/PF-014-inbound-intake-and-queueing/design.md) | §5.4 用户中断保留部分且不交动作、§5.7 输入消息、§6.10 context 提醒 | MS 中断消息/提醒及不执行调用块保持；输入队列/工作区 reload/组装状态不在本批 |
 | [PF-015 rev 20](../../../../product/PF-015-session-lifecycle-and-ownership/design.md) | §6.12 创建租户、第一件恢复与日志投影、§6.19 函数输入及持久化范围 | 原身份与派生投影无独立事实保持；RT 当前访问/恢复责任显式，MS runtime context 内部结构继续不透明 |
 
-R2 交叉规则按 [technical-choices-r4](../../../../record/proposals/model-runtime-reference-lifecycle/technical-choices-r4.md) 定型为候选；未升级产品包接受状态。具体变更与消费者见 [consumer-impact](consumer-impact.md)。
+R2 交叉规则按 technical-choices-r4 定型为候选；未升级产品包接受状态。具体变更与消费者见 [consumer-impact](consumer-impact.md)。
 
 ## 正文实际来源锚点索引
 

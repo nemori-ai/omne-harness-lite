@@ -94,4 +94,4 @@ CG 为最后业务行，它的真实 receipt.closed 不等待 CLS 表示门；�
 另覆盖观察资源缺席/重复observe/observe失败、CG已创建但未公开时setup与close双失败，以及未登记/已登记但未observe/observe已发生三类启动前缀（CLS失败、transport失败、CG部分setup）、重复停止、输入/输出/恢复长期未完成、恢复实际抛错，及真实强撤CLS。
 原 CQ1/CQ2 两组形式资源须实际运行并保留原有限前提；模型没有覆盖关闭异常，不能替代拒绝故障驱动。
 
-采用依据见[限定修正决定](../../record/decisions/identity-cli-close-projection/decision.md)。原业务条款和未迁义务仍有效。
+采用依据见限定修正决定。原业务条款和未迁义务仍有效。

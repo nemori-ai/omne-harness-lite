@@ -7,10 +7,10 @@
 | 输入 | 当前接受与本页消费 |
 |---|---|
 | [Runner5](../../../../spec/capabilities/loop-extension-runner/v5/contract.md)、[LC6](../../../../spec/data/loop-extension/v6/contract.md) | 已接受；S-6 当前链、S-7 贡献在场、S-21 dispatch、S-22 replay、S-34 撤除、S-53/S-54 同调用来源。本页不改两操作语义 |
-| [v3](v3-design.md)、[v5 revision3](v5-current-design.md)、[v6 revision1](v6-run-pass-design.md) | 既有服务责任沿 D-076；当前公共 runPass/codec/log adapter/task owner 沿 [D106](../../../../record/decisions/runner-current-pure-provider-adoption/decision.md)。D106 未采用完整服务接线，本页补这一个技术采用输入 |
+| [v3](v3-design.md)、[v5 revision3](v5-current-design.md)、[v6 revision1](v6-run-pass-design.md) | 既有服务责任沿 D-076；当前公共 runPass/codec/log adapter/task owner 沿 D106。D106 未采用完整服务接线，本页补这一个技术采用输入 |
 | [MF4](../../../../spec/capabilities/assembly-manifest/v4/contract.md)、[AR4](../../../../spec/capabilities/asset-registry/v4/contract.md)、[AE4](../../../../spec/capabilities/asset-evaluation/v4/contract.md) | 均已接受且有源码。Runner5 冻结依赖仍为 MF3/AR3；本页只映射 MF4 保留的 readHead/readHistory/dependencyPresence 与 AR4 同 E/历史正文读取，不据“更新版本”自动升级规范依赖。该有限提供者接续须主线显式采用 |
 | [SL3](../../../../spec/capabilities/session-log/v3/contract.md)、[RT10](../../../../spec/capabilities/model-request-runtime/v10/contract.md) | 均已接受；SL3 沿 D106 的当前日志绑定。RT10 S-50/S-67/S-76 由 runtime 当前提供者消费；新增调用级失败来源和 P5 政策适配归 [runtime 节点](../../model/model-request-runtime/README.md)，本页只接其受控端口 |
-| 不可变历史正文与身份 | [EIS 历史读取投影](../../assets/evaluation-input-store/v4-history-source-interfaces.md)由 [D080](../../../../record/decisions/model-registry-history-provider-adoption/decision.md)采用；STT2、IV1 沿原 runner 依赖。正文来源不是调用者提交的一份相似声明 |
+| 不可变历史正文与身份 | [EIS 历史读取投影](../../assets/evaluation-input-store/v4-history-source-interfaces.md)由 D080采用；STT2、IV1 沿原 runner 依赖。正文来源不是调用者提交的一份相似声明 |
 
 需求 topic/rev 沿 Runner5 来源表，技术接续不新增产品政策。实际源码基线 `b8018e93` 已有公共 `runPass`、`createRunnerLogAdapter`、`createRunnerReminderLogAdapter`、`createRunnerTaskOwner`；尚无本页 Cordis 服务/登记接线。公共函数 427 项既有运行报告保留原范围，本页未复跑、不把它们计为服务证据。
 
@@ -88,7 +88,7 @@ replay 不 invoke/presence、不开句柄、不 readAskState、不问 retry guar
 
 ## 装卸、共享存储与并发
 
-Cordis 采用 [D025 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)。只 inject 日志依据 [inject-has-no-optional-form](../../../../basis/cordis/inject-has-no-optional-form.md)；提供者换代依 [plugin-body-reruns-on-provider-change](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)；禁止靠兄弟 effect 顺序等待依 [effect-disposal-concurrent-not-ordered](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)；配置错误启动失败依 [plugin-throw-fails-fiber](../../../../basis/cordis/plugin-throw-fails-fiber.md)。控制直接 await，不用事件 bail；[async-control-not-bail](../../../../basis/cordis/async-control-not-bail.md) 保持。精确“离开 ACTIVE 与贡献注销先后”未有 basis 条目，本候选不据此建立保证，而用显式停止门、原公共 isActive 检查和实际 Cordis 交错验收。
+Cordis 采用 D025 4.0.4。只 inject 日志依据 [inject-has-no-optional-form](../../../../basis/cordis/inject-has-no-optional-form.md)；提供者换代依 [plugin-body-reruns-on-provider-change](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)；禁止靠兄弟 effect 顺序等待依 [effect-disposal-concurrent-not-ordered](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)；配置错误启动失败依 [plugin-throw-fails-fiber](../../../../basis/cordis/plugin-throw-fails-fiber.md)。控制直接 await，不用事件 bail；[async-control-not-bail](../../../../basis/cordis/async-control-not-bail.md) 保持。精确“离开 ACTIVE 与贡献注销先后”未有 basis 条目，本候选不据此建立保证，而用显式停止门、原公共 isActive 检查和实际 Cordis 交错验收。
 
 | 取得项／对外可用 | owner 与部分失败 | 撤除、实际完成及保留 |
 |---|---|---|

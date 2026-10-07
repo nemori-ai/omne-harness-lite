@@ -1,6 +1,6 @@
 # asset-evaluation 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 契约：[`capability.asset-evaluation` v2](../../../../spec/capabilities/asset-evaluation/v2/contract.md)（candidate）。下文的 S-n、C-n、PRE-n 都指这份契约；引别的契约写全坐标。
 导出名、类型名一律为**已接受的设计**，源码不存在。
@@ -9,9 +9,9 @@
 
 **自建一个 TypeScript 纯模块。**四步求值、三条层序、锁截断、官方件下界、工作区滤权都是本项目的产品语义（PF-002），没有可采用的实现。
 
-- **包内依赖**：[asset-model](../asset-model/README.md)（全部输入输出的值类型、`carrierRecordId`、表示层判定）；[tool-definition](../tool-definition/README.md)（执行权限三档）、[loop-extension](../loop-extension/README.md)（干预力的档）、[mcp-endpoint](../mcp-endpoint/README.md)（接入点正文与动作集的推出规则）——这三份原本就登在 catalog；另从 [skill-package](../skill-package/README.md)、[slash-command](../slash-command/README.md)、[connector](../connector/README.md) 取各自那一类的两条规则（契约 S-4 末段「按规则引用，不按坐标」），这三条边已由 [D-060 §八 M52](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 登进 catalog（[依赖表](#依赖作用域与绑定)单列）；`@omne-harness-lite/identity-values`（`TenantId`、`MembershipStanding`、`TenantRole`）。包依赖图随之无环（[D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
-- asset-model 的判定要一套正文端口（[那里的选择](../asset-model/design.md#正文契约的判定经端口注入不-import-正文包)）；**本模块是它唯一的组合根**（[D-060 §八 M51](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：把六个正文包各自导出的那一份组合成 `BodyContracts`（按类别判别的类型，错类编译不过），**导出为 `defaultBodyContracts`**（候选名，不可变常量）；本模块自己用它构造一次 asset-model 的判定对象，资产治理插件体与据点注册表 import 它、不各自再组。S-27「同一值在每个接收边界得同一个拒绝值」由这一个来源保证。
-- **Cordis 版本**：采用 `@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
+- **包内依赖**：[asset-model](../asset-model/README.md)（全部输入输出的值类型、`carrierRecordId`、表示层判定）；[tool-definition](../tool-definition/README.md)（执行权限三档）、[loop-extension](../loop-extension/README.md)（干预力的档）、[mcp-endpoint](../mcp-endpoint/README.md)（接入点正文与动作集的推出规则）——这三份原本就登在 catalog；另从 [skill-package](../skill-package/README.md)、[slash-command](../slash-command/README.md)、[connector](../connector/README.md) 取各自那一类的两条规则（契约 S-4 末段「按规则引用，不按坐标」），这三条边已由 D-060 §八 M52 登进 catalog（[依赖表](#依赖作用域与绑定)单列）；`@omne-harness-lite/identity-values`（`TenantId`、`MembershipStanding`、`TenantRole`）。包依赖图随之无环（D-060 §八 M41）。
+- asset-model 的判定要一套正文端口（[那里的选择](../asset-model/design.md#正文契约的判定经端口注入不-import-正文包)）；**本模块是它唯一的组合根**（D-060 §八 M51）：把六个正文包各自导出的那一份组合成 `BodyContracts`（按类别判别的类型，错类编译不过），**导出为 `defaultBodyContracts`**（候选名，不可变常量）；本模块自己用它构造一次 asset-model 的判定对象，资产治理插件体与据点注册表 import 它、不各自再组。S-27「同一值在每个接收边界得同一个拒绝值」由这一个来源保证。
+- **Cordis 版本**：采用 `@deepseek-ai/cordis` 4.0.4（D-025）；本模块不依赖 Cordis。
 
 ## 公开面
 
@@ -62,7 +62,7 @@
 |---|---|---|---|
 | [S-5](../../../../spec/capabilities/asset-evaluation/v2/contract.md#s-5-层与三条层序)～[S-8](../../../../spec/capabilities/asset-evaluation/v2/contract.md#s-8-求值结果-effectiveassembly) 层、输入（`root` 是组合根引用集 `{ definition, references }`，M31）、一致性 C1～C14、结果 | 类型 `EvaluationInput`、`CompositionRoot`、`AssetReference`、`EffectiveAssembly`、`Layer`、`FilterReason`、`SessionAssignment`、`McpActionSet` | C1 交给 asset-model 的判定；C2～C14 逐条判，任一不满足即 `invalidInput`，诊断信息附带那条的编号与（若有）asset-model 的拒绝值 | V-6（examples E-5 十份，含 M31 新加的两份）；**五个列表按集合读**：交出时按能力标识的码点序排好，两份结果相等就是 `root` 相同、逐项相等 |
 | [S-10](../../../../spec/capabilities/asset-evaluation/v2/contract.md#s-10-各类正文契约须供的两条规则) 各类正文的两条规则 | 内部规则表：六类取六个正文包的实现；`plugin` 的规则一是它的 `members`（`data.asset-model/v2#S-11`），规则二与「启用哪些成员」推不出（G-21）；组合根的规则一由输入的 `root.references` 给出；**根以外的 `agent_definition`（sub-agent）没有条目**（G-3） | 静态组合，不经端口（[下节](#正文规则直接-import不经端口)） | PRE-6（规则确定、可重放）由各正文包的推出规则保证；第 2 步走到缺条目的一类（有生效资产的 `plugin` 或 sub-agent）即 `categoryUnsupported`（M45），**不当作没有引用、没有属性项、全部启用** |
-| [S-11](../../../../spec/capabilities/asset-evaluation/v2/contract.md#s-11-纯计算)～[S-13](../../../../spec/capabilities/asset-evaluation/v2/contract.md#s-13-invalidinput-是没开始判filteredout-与-unresolved-是判出来的结果) 纯计算、缺席的默认答案、`invalidInput` 与判出结果分开、`compositionCycle`、`categoryUnsupported` | `evaluate` 的返回类型：`{ ok: EffectiveAssembly } \| { invalidInput: { diagnostics } } \| { compositionCycle: { cycle } } \| { categoryUnsupported: { category } }`；`readWorkspaceCarrier` 只有前两支 | 判出来的 `filteredOut`、`unresolved` 只在 `ok` 里；四支互不相容；失败的判定次序 `invalidInput` → `compositionCycle` → `categoryUnsupported`（S-13 末段、S-15 ⑥；[D-060 §八 N-21](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 接受）：先判完 C1～C14，再走第 2 步；第 2 步遇到读不了的一类**先记下、不立刻返回**，走完读得了的那部分仍无环才报它——环不论那一类引用了什么都在 | SC-1、SC-3 |
+| [S-11](../../../../spec/capabilities/asset-evaluation/v2/contract.md#s-11-纯计算)～[S-13](../../../../spec/capabilities/asset-evaluation/v2/contract.md#s-13-invalidinput-是没开始判filteredout-与-unresolved-是判出来的结果) 纯计算、缺席的默认答案、`invalidInput` 与判出结果分开、`compositionCycle`、`categoryUnsupported` | `evaluate` 的返回类型：`{ ok: EffectiveAssembly } \| { invalidInput: { diagnostics } } \| { compositionCycle: { cycle } } \| { categoryUnsupported: { category } }`；`readWorkspaceCarrier` 只有前两支 | 判出来的 `filteredOut`、`unresolved` 只在 `ok` 里；四支互不相容；失败的判定次序 `invalidInput` → `compositionCycle` → `categoryUnsupported`（S-13 末段、S-15 ⑥；D-060 §八 N-21 接受）：先判完 C1～C14，再走第 2 步；第 2 步遇到读不了的一类**先记下、不立刻返回**，走完读得了的那部分仍无环才报它——环不论那一类引用了什么都在 | SC-1、SC-3 |
 | [S-15](../../../../spec/capabilities/asset-evaluation/v2/contract.md#s-15-evaluate) evaluate；[S-17](../../../../spec/capabilities/asset-evaluation/v2/contract.md#s-17-第一步之一先按禁用滤)～[S-26](../../../../spec/capabilities/asset-evaluation/v2/contract.md#s-26-每份持有都有去处)、[S-38](../../../../spec/capabilities/asset-evaluation/v2/contract.md#s-38-常驻值)～[S-42](../../../../spec/capabilities/asset-evaluation/v2/contract.md#s-42-执行权限项另带租户那一层写得进自动吗) 四步的规则 | `evaluate(input)` | 第 1 步：先按禁用滤（析取）、再判「谁可以使用它」、再取最具体的一份并在最外那把锁处截断，官方件是下界；第 2 步：`root.definition` 没有生效资产即进 `unresolved`、`composition` 为空，否则从 `root.references` 沿规则一展开（深度优先、带路径集合；走回路径上的能力标识即 `compositionCycle`；走到有生效资产的 `plugin` 或 sub-agent 即记下 `categoryUnsupported` 的类别、不往下走；两个诊断——`cycle` 取按码点序最小的起点写、`category` 取第一次记下的那一类——实现上确定，**契约豁免其确定性**（S-11 的两处例外），消费者只作说明呈现）；第 3 步：规则二推属性项（`mcp` 用给定的动作集）；第 4 步：设置覆盖、权限按[界与挑选](#s-23-的界与挑选单独导出)求交与落档、工作区只贡献设置、工作区提供的资产的权限取最严 | V-2～V-5、V-8～V-11 的规范场景（E-1～E-8，含 S-43 成环即拒、S-44 读不了正文的一类即拒）；V-1 的 Alloy 结论 |
 | S-23 界与挑选（单独导出，供资产治理写时守卫） | `classifyPermissionAssignment(declaration, assignment) → { role: "bound" \| "pick", tiers: TierOrder \| null }`；`boundOf(declaration, bounds)`；`pickWithinBound(pick, bound)`（候选名） | **与 `evaluate` 第 4 步共用同一实现**：第 4 步的权限合成（S-23 合成第 1、2 条）就是调这三个函数，不另写一份；见[下节](#s-23-的界与挑选单独导出) | S-23 的产品原话表七行各作一条单元检查；资产治理 S-38～S-41 的写时守卫据它判 `lockedAbove`、`selectionNotSingleTier` |
 | S-15 ⑦ 结果可缓存、键须覆盖整份输入 | `evaluationInputFingerprint(input)` | 整份输入（含 `root.references`）的规范 JSON（成员名按码点序、无空白、数字按原文，经 content-blocks 的 `writeJsonLossless`）取 SHA-256 | 给消费者一个**不会漏项**的缓存键，SC-2 的检查就只剩「消费者用的是它」；[下节](#给消费者一个整份输入的指纹) |
@@ -115,8 +115,8 @@ S-15 ⑦ 与 SC-2 要求消费者的缓存键覆盖整份输入（含 `standing`
 | `capability.asset-transfer/v2#S-9`（PRE-2 的判据） | **不是依赖**：由组输入的一方现读，本模块不读 | — | — |
 | 被消费 | 资产治理（设置视图；写时守卫用界与挑选三函数）、注册表、MCP 桥、拓展件派发、据点装配；资产治理与注册表另取 `defaultBodyContracts`（M51） | 普通包依赖 | 契约出 v2 另开入口 |
 
-**不在 catalog 原有登记里的四条边**（契约 S-4 末段「按规则引用、不按坐标」是契约的表达口径，不妨碍 registry 登记消费）：上表 skill-package、slash-command、connector 三行由 [D-060 §八 M52](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 登进 catalog，这三份契约演进时消费者影响分析会点名本节点；content-blocks 无损写那一行是工具依赖，不进 catalog。
-包依赖的环检查按 [D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)：本包在 core 依赖图的顶上，没有 core 包依赖它（资产治理与注册表在 `core` 之外 import 它）。**没有配置项。**
+**不在 catalog 原有登记里的四条边**（契约 S-4 末段「按规则引用、不按坐标」是契约的表达口径，不妨碍 registry 登记消费）：上表 skill-package、slash-command、connector 三行由 D-060 §八 M52 登进 catalog，这三份契约演进时消费者影响分析会点名本节点；content-blocks 无损写那一行是工具依赖，不进 catalog。
+包依赖的环检查按 D-060 §八 M41：本包在 core 依赖图的顶上，没有 core 包依赖它（资产治理与注册表在 `core` 之外 import 它）。**没有配置项。**
 
 ## 状态、并发与失败映射
 
@@ -143,16 +143,16 @@ S-15 ⑦ 与 SC-2 要求消费者的缓存键覆盖整份输入（含 `standing`
 
 契约的 G-3、G-4、G-6～G-9、G-14、G-18、G-19、G-21 不重抄。本节点自己的缺口（编号不重排）：
 
-- **AE-1 已关闭**：组合里走到 plugin 或 sub-agent 的收场由 [D-060 §八 M45](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 定为 `categoryUnsupported{category}`，契约 S-15 ⑥、S-44 已落，三值次序由 N-21 接受；已落进上表。**产品后果仍在**：本版组合里有 plugin 或 sub-agent 的 agent 一个也求不出，装配据它明确失败——那是契约 G-3、G-21 的范围，不是本节点的缺口。
-- **AE-2 已关闭**：成环的收场值由 [D-060 §八 M32](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 定为 `compositionCycle`，契约 S-15 ⑥、S-43 已落；已落进上表。
+- **AE-1 已关闭**：组合里走到 plugin 或 sub-agent 的收场由 D-060 §八 M45 定为 `categoryUnsupported{category}`，契约 S-15 ⑥、S-44 已落，三值次序由 N-21 接受；已落进上表。**产品后果仍在**：本版组合里有 plugin 或 sub-agent 的 agent 一个也求不出，装配据它明确失败——那是契约 G-3、G-21 的范围，不是本节点的缺口。
+- **AE-2 已关闭**：成环的收场值由 D-060 §八 M32 定为 `compositionCycle`，契约 S-15 ⑥、S-43 已落；已落进上表。
 - **AE-3 已关闭**：包级依赖成环由 D-060 §八 M41 解开。
 - **AE-4 清单读入的上一步**：本模块收的是已解析的清单值；读文件、防符号链接逃逸、用 asset-model 的 `parseWorkspaceManifestText`（看得见重复成员名）解析，归读文件的一方（PRE-7、[AM-4](../asset-model/design.md#实施缺口与消费者影响)）。跨节点交接：据点侧读工作区的节点。
 - **AE-5 组输入的两份上游（下一程）**：`root.references` 由装配清单的读方从 Agent Definition 正文读出（PRE-9）——装配清单的接口契约 [`capability.assembly-manifest/v2`](../../../../spec/capabilities/assembly-manifest/v2/contract.md) 已定，但它**不收记录内容的形状**（[S-2](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-2-本契约不拥有什么) 前两行），`root.references` 怎样从正文读出不在接口里，仍归 PF-004 那一程、真承接者未到（该契约 [G-1](../../../../spec/capabilities/assembly-manifest/v2/contract.md#十已知缺口)，即 D-060 §八 M43 C-2）；据点上组输入要的「四格同一时刻的一致读」（PRE-1）经中心事实副本的读面——**本程不补**，M43 C-3（随未来资产/据点入口（版本未分配））。owner：主线。本模块不受阻（它只收值）；受阻的是据点侧组输入的一方（注册表、据点装配）。
-- **AE-6 已对齐**：三个导出函数的签名与 asset-governance 节点的写时守卫已对齐，[D-060 §八 N-22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 推导接受。资产治理把「界写在界外」也交给 `pickWithinBound` 判，是那边对 S-23 第 2 条「落在界内」的读法；本模块的函数语义（`P ∩ X` 非空或 `P` 是空集）不因此变，两处用法共用这一份实现。
+- **AE-6 已对齐**：三个导出函数的签名与 asset-governance 节点的写时守卫已对齐，D-060 §八 N-22 推导接受。资产治理把「界写在界外」也交给 `pickWithinBound` 判，是那边对 S-23 第 2 条「落在界内」的读法；本模块的函数语义（`P ∩ X` 非空或 `P` 是空集）不因此变，两处用法共用这一份实现。
 - **AE-7 组合根的消费方**：`defaultBodyContracts` 由资产治理插件体与据点注册表 import（M51）。资产治理节点已按此改写；注册表那一侧的改写归 asset-registry 节点。owner：各自节点。
 
 ## D-068：当前3的精确投影
 
-本节点设计采用 `capability.asset-evaluation · v3`（[规范](../../../../spec/capabilities/asset-evaluation/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 [D-068](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md) 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
+本节点设计采用 `capability.asset-evaluation · v3`（[规范](../../../../spec/capabilities/asset-evaluation/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 D-068 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
 
 六data默认schema为3并各公开`./schema/v2`原2完整字节/$id；AR/CA/MP/Skill/MCP/Slash仍2，固定Schema图显式取旧资源。SA/AE没有自有Schema，不造空文件或空集通过。Connector只保留被AM规范引用的冻结资源，真实提供者纵线延期。

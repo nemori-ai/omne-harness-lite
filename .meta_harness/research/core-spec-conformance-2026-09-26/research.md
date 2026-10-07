@@ -1,6 +1,6 @@
 # CB2／SA2 一致性调查
 
-对象为 baseline omne-harness-lite-design-2026-09-15 的 CB2、SA2及公开 core 消费者；观察时间2026-09-26，静态固定基线a5c54b15，主调度公开CB产物probe在4e9a0c3a。CB源码与frozen资源在这两基线相同。逐资源摘要及实际结果归 [evidence](../../design/record/evidence/2026-09-26-core-spec-reconciliation/README.md)。两项观察足以构成局部矛盾，不构成全规格不成立或所有实现错误的推广。
+对象为 baseline omne-harness-lite-design-2026-09-15 的 CB2、SA2及公开 core 消费者；观察时间2026-09-26，静态固定基线a5c54b15，主调度公开CB产物probe在4e9a0c3a。CB源码与frozen资源在这两基线相同。逐资源摘要及实际结果归 evidence。两项观察足以构成局部矛盾，不构成全规格不成立或所有实现错误的推广。
 
 ## 一手事实
 

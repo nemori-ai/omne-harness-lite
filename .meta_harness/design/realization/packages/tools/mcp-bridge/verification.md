@@ -54,10 +54,6 @@
 | 列举结果是否原样保留 `execution.taskSupport` | S-17 | 从原始应答读 |
 | OAuth 客户端钩子（令牌读写、PKCE、401 时续期） | S-22～S-24 | 自写授权码流程与续期 |
 
-## 实际执行
-
-**无。**本节点没有源码；契约本版没有形式任务；SDK 能力一项都没有取证。
-
 ## 覆盖缺口
 
 - **全部条款没有任何实现证据**：源码、测试、集成运行都不存在。
@@ -67,22 +63,9 @@
 - **契约 S-30 右列（协议须给）**本节点一条都不兑现；跨进程逐行重开。
 - **断电边界**：sqlite `synchronous = NORMAL` 下丢最后一段已提交事务会丢进程登记行或 `granted` 迁移（design R-B7）；没有证据形式。
 
-## 独立评审
-
-2026-09-25 本节点随 N3 批（`tools` 三节点）经一次独立的架构评审（只读结构核对，无运行）：本节点应修 2、同意附条件 1、建议 1，无阻断；N4／N5 批另有一条服务键的统一落到本节点。主线据此裁定 [D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M69、M71、M72、M73（批的结论见同节 N-28）。**处置不等于评审闭合**——是否闭合由复审判断。
-
-| 编号 | 发现 | 处置 | 落点 |
-| --- | --- | --- | --- |
-| MB-1（应修） | 跨 owner 同一提交的反证漏了一条：保管方按原 C-3 清扫会删掉正等着迁 `granted` 的待生效行，桥随后迁 `granted` 并记下一个已不存在的引用 | 按 M72：C-3 只清 `revoked`、已过 `oauthPendingTtl` 的 `pending`、`granted` 而引用不符的三种；待生效行不清；不立反向引用约束。清扫与完成锁同一绑定行、各自锁到之后取时刻 | design.md C-3、S-23 行、跨 owner 一节第三条反证；本页 N-2 |
-| MB-2（应修） | 撤桥时贡献插件先被卸载；交给执行运行时的包装若依赖贡献者 fiber 存活，`bridgeWithdrawn` 交不回，那次执行永不收场 | 按 M73：包装只持桥本体引用与交回原语，不在贡献者 `ctx` 上建 effect；N-10 加桥换代方向 | design.md 插件表 `mcp-bridge-executor` 行、S-20／S-21 行、装卸表「执行者登记」行；本页 N-10 |
-| MB-3（同意，附条件） | 关键选择四（续期者唯一到 A-1 为止）在「本版不换代」前提下够用；建议把 A-1 列进 kernel-basis 待补 | 按 M73：A-1 与 `provide-is-effect-managed` 升格一起列 kernel-basis 待补 | design.md B-4；本页 N-13 |
-| MB-4（建议） | B-1 六项 SDK 能力的取证姿势正确；精确钉版应在实现开工前出决定 | 按 M73：钉版的决定排在实施开工前（D-037 前提） | design.md B-1 |
-| 他批（N4／N5，M69） | 保管方服务键两处叫法不一（`credentialCustody`／`credentialCustodian`） | 统一为 `credentialCustodian`（原 D-060 N-23「立节点时定」提前闭合） | design.md S-9 行、依赖表保管方行 |
-| 范围外 3（TER-3 的连带） | 撤除次序在依赖驱动的卸载路径上不可得 | 按 M71：归装配的事项改写为「装配须显式先撤执行运行时与桥，再撤存储与时钟」，`apps/cli` 已按 M48 A-1 承接 | design.md「归装配的事项」 |
-
 ## 修订波（2026-09-25 公开面）
 
-依据：[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1、R-2，[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)，[D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-37 ⑤⑩。本波只改节点；契约侧（本契约 G-7 改指保管方接口）由规格侧并行落，本节点只引条款号。**处置不等于接受或评审闭合。**
+依据：D-063 R-1、R-2，[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)，D-060 §八 N-37 ⑤⑩。本波只改节点；契约侧（本契约 G-7 改指保管方接口）由规格侧并行落，本节点只引条款号。**处置不等于接受或评审闭合。**
 
 | 事项 | 依据 | 处置 | 落点 |
 | --- | --- | --- | --- |
@@ -96,5 +79,5 @@
 | 撤回借来的形式绑定（主线 2026-09-25 第二轮） | 模型证的是契约不是代码；「在绑定上排序」是模型前提 | `bindings.yaml` 改为空表、文件头写明不借的理由；S-23 的证据改登场景：N-2 引保管方 S-28 真并发交错，新增 N-18（S-23 ④ 两次提交之间强杀、迁移那一次提交失败）；上一行的处置由本行取代 | bindings.yaml；README 绑定层与阅读表；本页 N-2、N-18、覆盖缺口 |
 | 对齐契约第二轮（`47e36d14`）：`EnvAllowlist` | `capability.execution-environments/v2#S-13` 表下 `EnvAllowlist` 一条；`capability.mcp-bridge/v2#S-6` | B-9 闭合；config 一段改指那一条 | design.md config、B-9 |
 | 保管方最小提供者节点立起（主线 2026-09-25，按 `credential-custodian-local` 的 CCL-1） | `packages/infra/credential-custodian-local`（candidate）的 K-3～K-5、CCL-1～CCL-3 | 导出存储级子入口 `./tx-reads`（`readOAuthBinding`、`lockOAuthBinding`，候选）；`mcp_oauth_binding` 的四列 `binding_id`、`state`、`since`、`credential_ref` 与绑定行锁登记为有外部消费者的实现细节（X-1、X-2）；R-B4、R-B5、C-1～C-3 改指它的 K-4、K-3、K-5；B-2 改「最小提供者节点已立」；导入限定登 B-10 | design.md 公开面、跨 owner 一节、外部依赖登记、R-B4、R-B5、C-1～C-3、依赖表、装配给表、归装配、B-2、B-10、报给主线；README；本页 N-2、N-3、N-14、覆盖缺口 |
-| 独立评审 N7 F-1：过期谓词在两个 owner 各写一份 | [D-060 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ②（谓词只一份；契约写明运算符） | `./tx-reads` 再导出 `isPendingExpired(binding, now, ttl)`（`now > since + ttl`，严格大于，同 `Sweep.tla`），本插件的 S-8 判定与保管方清扫共用；登记为 X-3；S-8、S-23 行、C-3、第三条反证改用它，反证加「恰在边界」一格与两边运算符分叉时的反例 | design.md 公开面 `./tx-reads` 一段、S-8 行、S-23 行、给凭据保管方的外部依赖（X-3 与末段）、C-3、跨 owner 一节第三条反证；README 受阻一段；本页 N-2（边界一支与三点单元用例）、N-14（谓词只经 X-3 的静态检查） |
-| 独立评审 N7 D-1：`oauthPendingTtl` 双持还是写成绑定行一列 | [D-060 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ③（主线裁：维持双持＋相等装配测试） | 本节点没记替代形状；归装配那一句标「已裁」，表不改 | design.md 归装配 |
+| 独立评审 N7 F-1：过期谓词在两个 owner 各写一份 | D-060 §八 N-42 ②（谓词只一份；契约写明运算符） | `./tx-reads` 再导出 `isPendingExpired(binding, now, ttl)`（`now > since + ttl`，严格大于，同 `Sweep.tla`），本插件的 S-8 判定与保管方清扫共用；登记为 X-3；S-8、S-23 行、C-3、第三条反证改用它，反证加「恰在边界」一格与两边运算符分叉时的反例 | design.md 公开面 `./tx-reads` 一段、S-8 行、S-23 行、给凭据保管方的外部依赖（X-3 与末段）、C-3、跨 owner 一节第三条反证；README 受阻一段；本页 N-2（边界一支与三点单元用例）、N-14（谓词只经 X-3 的静态检查） |
+| 独立评审 N7 D-1：`oauthPendingTtl` 双持还是写成绑定行一列 | D-060 §八 N-42 ③（主线裁：维持双持＋相等装配测试） | 本节点没记替代形状；归装配那一句标「已裁」，表不改 | design.md 归装配 |

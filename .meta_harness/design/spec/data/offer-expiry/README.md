@@ -13,8 +13,8 @@
 各归发出它的那个能力契约。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.offer-expiry, 1)`
-- **状态**：`accepted`，资源已冻结——[D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）接受 v1 全部条款，含[已知缺口](v1/contract.md#八已知缺口)作为显式缺口；**此后语义改动发布 v2，不原地改 v1**。接受不表示已实现或已验证
-- **catalog 映射**：**已登记并接受**（2026-09-22，状态 `accepted`，`acceptance` 指向 D-023 的 [`acceptance.json`](../../../record/decisions/tenant-domain-design-acceptance/acceptance.json)）。`family=data`、`topic=offer-expiry`、
+- **状态**：`accepted`，资源已冻结——D-023（产品负责人，2026-09-22）接受 v1 全部条款，含[已知缺口](v1/contract.md#八已知缺口)作为显式缺口；**此后语义改动发布 v2，不原地改 v1**。接受不表示已实现或已验证
+- **catalog 映射**：**已登记并接受**（2026-09-22，状态 `accepted`，`acceptance` 指向 D-023 的 `acceptance.json`）。`family=data`、`topic=offer-expiry`、
   `contract_path=spec/data/offer-expiry/v1/contract.md`，
   `resources` 另含 `spec/data/offer-expiry/v1/offer-expiry.schema.json`；
   依赖一项：`omne-harness-lite-design-2026-09-15 · data.identity-values · v1`，
@@ -32,7 +32,7 @@
 | 适用范围 | 待接受的邀约。**已经被接受之后产生的东西不在范围内**——[分享确认之后的使用权没有到期](../../../product/PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期)，租户与上级组织属性同理 |
 | 为什么是 data 而不是 capability | 它没有需要被别人调用的行为：到期时刻是值，判定是纯计算，没有自己的授权前提与失败模式。发出、撤回、接受这些**有**授权与失败的操作，归各自的能力契约 |
 | 精确依赖 | `data.identity-values` v1，只取 OrganizationId、AccountId 两个名字 |
-| 接受状态 | 已接受：[D-023](../../../record/decisions/tenant-domain-design-acceptance/decision.md)，2026-09-22；catalog `acceptance` 指向该包的 `acceptance.json` |
+| 接受状态 | 已接受：D-023，2026-09-22；catalog `acceptance` 指向该包的 `acceptance.json` |
 
 ## 按当前问题展开
 

@@ -222,7 +222,7 @@ DSH 的定义里没有帧字段，但 `ToolRunContext` 也没有发帧原语，�
 ### 各源作为基线的外部代价
 
 - **DSH**：MIT。`dsh-tools` peer 依赖九个 DSH 包；Cordis 是 vendored 的 `@deepseek-ai/cordis` 4.0.2，
-  而本项目 [D-025](../../design/record/decisions/cordis-adoption-version/decision.md) 接受的是 4.0.4，两版差异未读。
+  而本项目 D-025 接受的是 4.0.4，两版差异未读。
   同一 commit 内已有文档与代码的漂移：README 说 `ToolDefinition` 在 `types.ts`，实际在 `index.ts`；
   作者笔记说 cordis 工具是三件，生成目录列了七件。
 - **omne-next**：Python。定义形状建在 LangChain `BaseTool`（`langchain-core 1.6.1`）与 Pydantic 上，

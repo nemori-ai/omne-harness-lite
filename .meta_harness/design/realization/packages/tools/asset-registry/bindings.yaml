@@ -1,9 +1,3 @@
-# 条款到证据的绑定表。
-# v3 candidate 新增绑定 0 条：VE-1～VE-13 尚无产品运行，旧来源版本不改。
-# C16 失败映射已按 v3 S-16/S-23/S-24/S-31/S-50 补齐投影；VE-2/4/6 仍是未执行义务，不新增证据绑定。
-# 空：capability.asset-registry v2 本版不建形式工件（契约 S-35：换表串行、快照只在四个时刻换等性质被建模方式吸收，
-# 没有会在条款被违反时失败的断言），registry 里没有它的 formal task；本节点尚未建包，没有测试。
-# 证据形式（规范场景 S-36～S-47、本节点的真并发与故障注入）逐条记在 verification.md，全部未开始。
 version: 1
 node: "asset-registry"
 kind: "provider"

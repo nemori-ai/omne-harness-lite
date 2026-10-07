@@ -6,9 +6,9 @@
 
 节点仍为 `packages/core/asset-evaluation`，是被资产治理、注册表和装配共同消费的纯计算包。现有 v3 源码已存在；v4 增量尚未实施。复用既有四步求值、设置计算、权限构件、清单读取及无损值工具，只增加组合根声明和来源校验。无新 Cordis 插件、服务、数据库或正文读取端口。
 
-输入坐标已在 [catalog](../../../../registry/catalog.json) 登记：`capability.asset-evaluation/v4`、`data.agent-definition/v1`、`data.model-profile/v3` 为 candidate，`data.asset-model/v3` 为 accepted。共同 baseline 为 `omne-harness-lite-design-2026-09-15`。范围来自 PF-002 rev 20、PF-004 rev 12、PF-013 rev 13，以及[已提交求值读取链候选](../../../../record/proposals/model-request-adaptation/read-projection.md)。本稿不接受完整 Agent Definition、sub-agent、Connector 或 Agent Loop。
+输入坐标已在 [catalog](../../../../registry/catalog.json) 登记：`capability.asset-evaluation/v4`、`data.agent-definition/v1`、`data.model-profile/v3` 为 candidate，`data.asset-model/v3` 为 accepted。共同 baseline 为 `omne-harness-lite-design-2026-09-15`。范围来自 PF-002 rev 20、PF-004 rev 12、PF-013 rev 13，以及已提交求值读取链候选。本稿不接受完整 Agent Definition、sub-agent、Connector 或 Agent Loop。
 
-系统 Cordis 采用 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)；本包不导入或调用 Cordis，不依赖其生命周期、事件或注入语义，因此没有新增 basis 绑定或待核对上游 API。装配采用什么存储不影响本纯值接口。本包没有启动配置、密钥或时限初值；输入错误统一沿契约返回具名失败，不转成启动失败或运行期重试。
+系统 Cordis 采用 D-025 的 4.0.4；本包不导入或调用 Cordis，不依赖其生命周期、事件或注入语义，因此没有新增 basis 绑定或待核对上游 API。装配采用什么存储不影响本纯值接口。本包没有启动配置、密钥或时限初值；输入错误统一沿契约返回具名失败，不转成启动失败或运行期重试。
 
 ## 契约责任到兑现点
 
@@ -117,7 +117,7 @@
 
 ## 存储要求与装卸配对
 
-**对存储提供者的要求清单：无。** S-11/S-30 禁止本节点读写存储；没有跨 owner 的同提交写入。registry 表与 manifest 求值记录的共同提交对象属于[读取链提案](../../../../record/proposals/model-request-adaptation/read-projection.md)和对应提供者，不能在本包加一个缓存表或事务来冒充该保证。
+**对存储提供者的要求清单：无。** S-11/S-30 禁止本节点读写存储；没有跨 owner 的同提交写入。registry 表与 manifest 求值记录的共同提交对象属于读取链提案和对应提供者，不能在本包加一个缓存表或事务来冒充该保证。
 
 **装载贡献与撤除义务：0 对。** 模块加载只构造有界、不可变的纯规则和公开函数，无 Fiber、inject、effect 或资源取得。构建/链接失败由部署入口处理；没有本包受管资源可释放。调用已经同步开始时按自己的输入计算结束；本包不声明“卸载时由内核取消计算”。已有结果的持久保留和作废由消费者承担。
 

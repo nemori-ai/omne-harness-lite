@@ -1,12 +1,12 @@
 # capability.account-identity v2
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.account-identity, 2)`
-- **状态**：`candidate`，未接受、未冻结；已登记进 catalog（2026-09-23，`candidate`，[G-6](#九已知缺口) 已闭合）。
-  前身是 [v1](../v1/contract.md)（`accepted`、已冻结，[D-023](../../../../record/decisions/tenant-domain-design-acceptance/README.md)）；
+- **状态**：当前采用范围见 catalog；已登记进 catalog（2026-09-23，当前采用范围见 catalog，[G-6](#九已知缺口) 已闭合）。
+  前身是 [v1](../v1/contract.md)（`accepted`、已冻结，D-023）；
   **v1 一个字不改**，本版与它的逐条差异、对每个消费者的影响在 [§十](#十版本差异与规范工件)。
-  **本版的主责产品要求**：[PF-017](../../../../product/PF-017-governance-center-as-deployable-application/README.md) **rev 1，已接受（2026-09-23，[正式接受](../../../../product/PF-017-governance-center-as-deployable-application/decisions.md#2026-09-23--正式接受)）**
+  **本版的主责产品要求**：[PF-017](../../../../product/PF-017-governance-center-as-deployable-application/README.md) **rev 1，已接受（2026-09-23，[正式接受](../../../../product/PF-017-governance-center-as-deployable-application/design.md)）**
   [§8](../../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)
-  「中心存下来的登录状态，读到数据或备份的人不能直接拿去用」——本版进入接受须以 PF-017 被接受为前提，**这一前提已于 2026-09-23 成立**；本版自身仍是 `candidate`
+  「中心存下来的登录状态，读到数据或备份的人不能直接拿去用」——本版进入接受须以 PF-017 被接受为前提，**这一前提已于 2026-09-23 成立**；本版自身仍是 当前采用范围见 catalog
 - **设计依据**：[PF-001 §4 账号](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#账号)、
   [§6.4 隔离](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)、
   [§6.5 本地资源定位](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#65-本地资源定位)、
@@ -21,15 +21,15 @@
   [§4 未激活的账号记录不会永久占着那个名字](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#未激活的账号记录不会永久占着那个名字)；
   [§2 非目标](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#非目标)；
   [acceptance §二、§三](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#三判据)；
-  [decisions 2026-09-22 九条确认](../../../../product/PF-001-identity-scope-and-agent-constraints/decisions.md#2026-09-22--九条正文规则逐条确认为产品要求)的第 1、2 条，
-  以及 [decisions 2026-09-22「登录标识本版不提供修改」](../../../../product/PF-001-identity-scope-and-agent-constraints/decisions.md#一拍板记录)（PF-001 **rev 15**）——
+  [decisions 2026-09-22 九条确认](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md)的第 1、2 条，
+  以及 [decisions 2026-09-22「登录标识本版不提供修改」](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md)（PF-001 **rev 15**）——
   以上是 v1 的依据，**本版原样沿用**；本版新增的依据是 PF-017 rev 1（已接受，2026-09-23）的
   [§6.14 产品不把任何秘密的值交给运维者](../../../../product/PF-017-governance-center-as-deployable-application/design.md#614-产品不把任何秘密的值交给运维者)
   与 [§8「不交出能直接用的凭证」](../../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)、
   [§6.7 重启不让任何人退出登录](../../../../product/PF-017-governance-center-as-deployable-application/design.md#67-重启不让任何人退出登录)，
   以及 [PF-017 acceptance §三](../../../../product/PF-017-governance-center-as-deployable-application/acceptance.md#三判据)的「不交出能直接用的凭证」「重启不让任何人退出登录」两条判据，
   以及产品负责人 2026-09-23 的裁定「登录态是否合法、怎么鉴权……业界都有标准做法……直接参考你来决定」
-  （[PF-017 拍板原始输入 INT-011](../../../../product/PF-017-governance-center-as-deployable-application/interviews/2026-09-23-rulings.md#int-011)）——本版据此采业界对持有者凭证的通行做法，引用与理由在 [S-45](#s-45-登录状态出示物) 的「为什么」一段
+  （[PF-017 拍板原始输入 INT-011](../../../../product/PF-017-governance-center-as-deployable-application/design.md)）——本版据此采业界对持有者凭证的通行做法，引用与理由在 [S-45](#s-45-登录状态出示物) 的「为什么」一段
 - **全局约束依据**：[SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant)、[SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy)
 - **精确语义依赖**：`omne-harness-lite-design-2026-09-15 · data.identity-values · v1`——
   取 **AccountId**、**LoginStateId** 两个身份值、**登录标识与 AccountId 的区分**、
@@ -50,7 +50,7 @@
   本版依赖项已随本版一起登记进 catalog（2026-09-23）。
   **`#S-31` 必须列出来**：[S-36](#s-36-静态检查失败集合闭合) 用它界定 `invalid-input` 的闭合触发条件，
   那是一条静态检查真正依赖的语义，不是背景链接。
-  **`#S-30` 也必须列出来**（评审轮三定的判据：**正文以坐标引用某条款即登记为消费，只有否定式提及不登**）：
+  **`#S-30` 也必须列出来**（**正文以坐标引用某条款即登记为消费，只有否定式提及不登**）：
   [S-30](#s-30-装配给的保证-vs-协议须给的保证) 的三行右列——「持有 AccountId 不再构成读的资格」、
   「交接凭证跨进程后须可被接收边界独立核实」，以及本版新增的「进程外来的身份一律先过 S-44」——都以它为依据
 - **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用须写全坐标，如 `capability.account-identity/v2#S-15`。
@@ -146,7 +146,7 @@
 - **登录状态的到期、刷新与出示物的轮换。**[PF-001 rev 15 的登录状态只有撤销、没有到期](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#32-登录状态)；
   本契约照此不提供操作、不预留参数。**这是产品侧的未决项，不是本契约的缺口**：
   [PF-017 §9](../../../../product/PF-017-governance-center-as-deployable-application/design.md#九未决项) 把「登录状态没有到期，只有撤销」登记为 **PF-001 owner** 的未决项；
-  [INT-011](../../../../product/PF-017-governance-center-as-deployable-application/interviews/2026-09-23-rulings.md#int-011) 把「过期」一并交给按业界做法定，
+  [INT-011](../../../../product/PF-017-governance-center-as-deployable-application/design.md) 把「过期」一并交给按业界做法定，
   但 PF-001 rev 15 的正文仍写着没有到期——**先由 PF-001 的 owner 改那份正文，本契约才有依据改**（[§十](#十版本差异与规范工件)）。
 
 ---
@@ -221,7 +221,7 @@
 但对本契约仍是**语义扩张，须发布新版本**。
 
 **登录标识的形式与合法取值不由本契约定。**
-[早期本地开发可用用户名作标识，那不构成正式版决策](../../../../product/PF-001-identity-scope-and-agent-constraints/decisions.md#一拍板记录)；
+[早期本地开发可用用户名作标识，那不构成正式版决策](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md)；
 本契约只要求它是一个**可判相等、可判占用**的值。
 
 ### S-7 AccountId 与登录标识各管什么
@@ -426,7 +426,7 @@ LoginStateId  =  lowercase-hex( SHA-256( UTF-8( 出示物 ) ) )
 
 | 九件事 | 内容 |
 |---|---|
-| **输入与授权** | 输入：**登录标识**、**凭据材料**。**无授权前提**——[首版开放自助注册，不要求邀请或管理员代建](../../../../product/PF-001-identity-scope-and-agent-constraints/decisions.md#一拍板记录)，[任何能访问该部署的人](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#11-注册)都可调用。本操作**不接受** AccountId（它由本操作产生），**不接受**任何租户身份（[S-12](#s-12-账号身份事实不是范围化对象)） |
+| **输入与授权** | 输入：**登录标识**、**凭据材料**。**无授权前提**——[首版开放自助注册，不要求邀请或管理员代建](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md)，[任何能访问该部署的人](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#11-注册)都可调用。本操作**不接受** AccountId（它由本操作产生），**不接受**任何租户身份（[S-12](#s-12-账号身份事实不是范围化对象)） |
 | **前置** | ① 该登录标识未被占用，**或**被一条**未激活且仍在[留存期限](#s-39-unactivated_retention)内**的账号记录占用、且本次凭据与其匹配（幂等重入）。**「仍在留存期限内」是这一半的硬条件**：标识被一条**已过期**的未激活记录占用时，前置①一律不成立，收场见下面的 `identifier-held-by-expired-record`；② 凭据材料满足 [`credential_policy`](#s-26-credential_policy)。**幂等重入那一路不过前置②**（见下）。**求值次序是固定的**：表示层（`invalid-input`）→ **凭据合规**（`credential-rejected`）→ **占用判定**（`identifier-taken`／`identifier-held-by-expired-record`／幂等认回），见下 |
 | **提交点与原子性** | 账号记录写入的**那一次提交**。AccountId、登录标识、凭据材料、激活状态＝未激活**在同一次提交内一起成立**；**不存在**「登录标识已被占用但没有账号记录」或反之的中间态 |
 | **返回与失败集合** | 成功 → **AccountId**。失败集合**恰为** `{identifier-taken, identifier-held-by-expired-record, credential-rejected, invalid-input, storage-unavailable}` |
@@ -600,7 +600,7 @@ LoginStateId  =  lowercase-hex( SHA-256( UTF-8( 出示物 ) ) )
 
 | 情形 | 依据 |
 |---|---|
-| 该登录标识不存在 | [flows §2 三行反馈完全一致](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#二分支与异常)；[decisions 2026-09-22 第 1 条确认为产品要求](../../../../product/PF-001-identity-scope-and-agent-constraints/decisions.md#2026-09-22--九条正文规则逐条确认为产品要求) |
+| 该登录标识不存在 | [flows §2 三行反馈完全一致](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#二分支与异常)；[decisions 2026-09-22 第 1 条确认为产品要求](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md) |
 | 凭据错误 | 同上 |
 | **账号未激活** | 同上。[未激活的账号不能用于任何交互，包括登录](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#31-账号) |
 
@@ -934,8 +934,8 @@ LoginStateId 不透明、由高熵的出示物派生（[S-45](#s-45-登录状态
 | 不变量 | [S-19](#s-19-登录标识部署内唯一) 任一时刻至多一个账号持有某个登录标识；**释放之后可被新账号取得** | [S-13](#s-13-产生账号未激活) 的前置与提交 ＋ [S-38](#s-38-清除到期的未激活账号记录) 的单次提交 | [acceptance §三](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#三判据) |
 | 不变量 | [S-20](#s-20-已激活不回退不消失) 已激活不回退、不消失 | 数据形状：无此写路径 | [flows §3.1](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#31-账号) |
 | 安全 | [S-21](#s-21-未激活账号不能用于任何交互) 未激活账号不能完成任何交互 | [S-15](#s-15-验证凭据并签发登录状态) 的前置③ | [acceptance §二](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#二绝不能发生的事) |
-| 安全 | [S-22](#s-22-账号存在性不从登录路径泄漏) 从登录反馈分辨不出账号存在性 | [S-15](#s-15-验证凭据并签发登录状态) 的单一失败值 | [decisions 第 1 条](../../../../product/PF-001-identity-scope-and-agent-constraints/decisions.md#2026-09-22--九条正文规则逐条确认为产品要求) |
-| 安全 | [S-23](#s-23-登录状态失效持久且只及被指定的那一个) 失效持久且只及一个 | [S-10](#s-10-撤销是持久记录不是内存生命周期)＋[S-16](#s-16-撤销登录状态) 的幂等边界＋[S-17](#s-17-校验登录状态) 的缺席默认 | [decisions 第 2 条](../../../../product/PF-001-identity-scope-and-agent-constraints/decisions.md#2026-09-22--九条正文规则逐条确认为产品要求)、[flows §1.3](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#13-退出) |
+| 安全 | [S-22](#s-22-账号存在性不从登录路径泄漏) 从登录反馈分辨不出账号存在性 | [S-15](#s-15-验证凭据并签发登录状态) 的单一失败值 | [decisions 第 1 条](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md) |
+| 安全 | [S-23](#s-23-登录状态失效持久且只及被指定的那一个) 失效持久且只及一个 | [S-10](#s-10-撤销是持久记录不是内存生命周期)＋[S-16](#s-16-撤销登录状态) 的幂等边界＋[S-17](#s-17-校验登录状态) 的缺席默认 | [decisions 第 2 条](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md)、[flows §1.3](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#13-退出) |
 | 安全 | [S-24](#s-24-失败不显示成功不接错账号) 失败不显示成功，不接错账号 | 九个操作的枚举失败集合＋各自提交点 | [acceptance §二](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#二绝不能发生的事) |
 | 安全 | [S-25](#s-25-两个账号之间没有通路) 两个账号之间没有通路 | [S-11](#s-11-账号记录不含跨账号关联字段) 的数据形状（**只管本契约这一份**） | [PF-001 §6.4](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离) |
 | 安全 | 一个账号上有效的登录状态**一个都不会从列表里漏掉** | [S-37](#s-37-列出本账号有效登录状态) 的返回定义＋「读不到不得返回空集」的缺席默认 | [acceptance §二](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#二绝不能发生的事)、[§三](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#三判据) |
@@ -1317,7 +1317,7 @@ LoginStateId 不透明、由高熵的出示物派生（[S-45](#s-45-登录状态
 
 **本版起两支都要再用那个登录状态的出示物调一次 [S-44](#s-44-按出示物换取身份)**，必须观察到与 [S-17](#s-17-校验登录状态) **同一个值**。
 
-**边界（装配给，本版不承诺）：机器断电或操作系统崩溃。**按 [D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 接受的存储持久性档位，崩溃前最后一段已提交事务可能丢失：那一段里的撤销（[S-16](#s-16-撤销登录状态)）与签发（[S-15](#s-15-验证凭据并签发登录状态)）会退回到崩溃前更早的状态——已撤销的又能用、已答复的登录状态不在。本演练的「完整重启」指**进程重启**，不含断电；断电那一支不在本条的观察范围内。产品负责人已把这条边界写进产品正文（PF-017 rev 2 [§6.7](../../../../product/PF-017-governance-center-as-deployable-application/design.md#67-重启不让任何人退出登录)、[§6.8](../../../../product/PF-017-governance-center-as-deployable-application/design.md#68-停机已确认的都在没确认的等于没发生)），[S-10](#s-10-撤销是持久记录不是内存生命周期) 与 [S-23](#s-23-登录状态失效持久且只及被指定的那一个) 同受此边界约束，协议补不了。
+**边界（装配给，本版不承诺）：机器断电或操作系统崩溃。**按 D-027 接受的存储持久性档位，崩溃前最后一段已提交事务可能丢失：那一段里的撤销（[S-16](#s-16-撤销登录状态)）与签发（[S-15](#s-15-验证凭据并签发登录状态)）会退回到崩溃前更早的状态——已撤销的又能用、已答复的登录状态不在。本演练的「完整重启」指**进程重启**，不含断电；断电那一支不在本条的观察范围内。产品负责人已把这条边界写进产品正文（PF-017 rev 2 [§6.7](../../../../product/PF-017-governance-center-as-deployable-application/design.md#67-重启不让任何人退出登录)、[§6.8](../../../../product/PF-017-governance-center-as-deployable-application/design.md#68-停机已确认的都在没确认的等于没发生)），[S-10](#s-10-撤销是持久记录不是内存生命周期) 与 [S-23](#s-23-登录状态失效持久且只及被指定的那一个) 同受此边界约束，协议补不了。
 [验收判据的「旧登录态」](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#三判据)到了线上就是出示物，
 只查 [S-17](#s-17-校验登录状态) 证明不了线上那条路也被挡住。
 
@@ -1335,7 +1335,7 @@ LoginStateId 不透明、由高熵的出示物派生（[S-45](#s-45-登录状态
 会让读者以为跑完它就检查过那条不变量；实际上 [S-19](#s-19-登录标识部署内唯一) 还要
 [S-41](#s-41-未激活记录到期释放标识) 的释放那一支与一次并发演练才算齐（见[验证入口](../verification.md)）。
 
-> **标题里的「两路」是评审轮一改名时留下的说法，不是支数。**本条实际是**四路**（第四路含两支），
+> **标题里的「两路」不表示分支数量。**本条实际是**四路**（第四路含两支），
 > **以下面的列表为准**；标题不改是为了不让已被引用的锚点漂移（抬头的「条款编号」同一规矩）。
 
 **四路，必须在同一次演练里对比**（第四路含两支）。每一路都用同一个登录标识调两次
@@ -1563,7 +1563,7 @@ LoginStateId 不透明、由高熵的出示物派生（[S-45](#s-45-登录状态
 | **G-6** | **已闭合（2026-09-23）**：主线把本版登进 catalog（`candidate`、资源只有 `contract.md`、对 `data.identity-values` v1 的 clauses，现为含 `#S-19` 的八条，与抬头一致）并按 [§十](#十版本差异与规范工件) 补登 covers（PF-001 十九条随 v1 复制并补 S-44／S-45，PF-017 四条）。**v1→v2 的条款对应没有登进 lineage**：检查器只表达跨 baseline 的重基关系，同一 baseline 内的版本对应以 §十 的差异表为准，工具是否扩展另议。编号保留不复用 | — | — |
 
 **v1 还关掉过两条缺口，它们不在上表**（关掉它们的是 PF-001 **rev 12**，见
-[该 topic 的 changelog](../../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)；本版的依据是 rev 15）：
+[该 topic 的 changelog](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md)；本版的依据是 rev 15）：
 
 | 原编号 | 原来是什么 | 现在怎么了 |
 |---|---|---|
@@ -1586,7 +1586,7 @@ v1 里被校验的是「持有 LoginStateId」，存储里存的也是它，所�
 **不在本版**：登录状态的**到期**、**刷新**、出示物的**轮换**、**多设备策略**，以及 [S-16](#s-16-撤销登录状态)／[S-37](#s-37-列出本账号有效登录状态) 的**签名改动**。
 PF-001 rev 15 的登录状态[只有撤销、没有到期](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#32-登录状态)，
 把它改成有到期是一次产品变更，[PF-017 §9 已把它登记为 PF-001 owner 的未决项](../../../../product/PF-017-governance-center-as-deployable-application/design.md#九未决项)。
-[INT-011](../../../../product/PF-017-governance-center-as-deployable-application/interviews/2026-09-23-rulings.md#int-011) 的原话把「过期」也一并交给按业界做法定，但 PF-001 rev 15 的正文仍写着没有到期——
+[INT-011](../../../../product/PF-017-governance-center-as-deployable-application/design.md) 的原话把「过期」也一并交给按业界做法定，但 PF-001 rev 15 的正文仍写着没有到期——
 **先由 PF-001 的 owner 改那份正文，本契约才有依据改**，这件事另立议题。
 **它不是本契约的缺口**，因此不进 [§九](#九已知缺口)。
 
@@ -1649,7 +1649,7 @@ PF-001 rev 15 的登录状态[只有撤销、没有到期](../../../../product/P
 **D-023 点名留给 v2 的几处措辞，本版没有收口**：[S-39](#s-39-unactivated_retention)「此后的判定」的两种读法、
 [S-4](#s-4-账号记录)「由存储生成」、[S-30](#s-30-装配给的保证-vs-协议须给的保证) 第 7 行左列，
 以及与 `composition.account-registration` v1 S-34 相对的 [S-13](#s-13-产生账号未激活)「认回须未过期」
-（[D-023 的已知张力](../../../../record/decisions/tenant-domain-design-acceptance/decision.md)）。
+（D-023 的已知张力）。
 它们与出示物无关，在本版范围之外；这几处在本版里与 v1 逐字相同，实施仍按现行节点设计。
 
 接受状态、冻结记录与执行结果都在本版本目录之外维护，本文件不填进度、通过状态或哈希。

@@ -1,4 +1,0 @@
-
-> @omne-harness-lite/mcp-endpoint@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/packages/core/mcp-endpoint
-> tsc -p tsconfig.test.json
-

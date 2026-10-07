@@ -128,7 +128,7 @@ def test_stale_revision_fails_by_default_and_can_be_reported(tree: Path) -> None
     assert any("objects.md UL-account「依据」" in e and "rev 2" in e and "rev 3" in e for e in found)
     assert any("UL-account「出处」" in e for e in found)
     assert any("design.md" in e and "以 front-matter 为准" in e for e in found)
-    assert any("changelog.md" in e and "以 front-matter 为准" in e for e in found)
+    assert not any("changelog.md" in e for e in found)
     reported = Reconciler(tree, stale="report")
     reported.load()
     reported.reconcile()

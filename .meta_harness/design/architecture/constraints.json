@@ -491,7 +491,7 @@
         "context"
       ],
       "status": "adopted",
-      "source": ".meta_harness/design/record/decisions/identity-shared-mechanism-projection/decision.md"
+      "source": "apps/tenancy-host/SPEC.md"
     },
     {
       "id": "packages/core/stream-assembly",

@@ -856,7 +856,7 @@ pnpm 自带的 `--filter "...[<基线>]"` 只做反向依赖那一部分，而�
 
 ## 模型凭据的逐符号结构守卫
 
-`model-credential-boundary` 登记在 `src/repository.ts` 的 `REPOSITORY_RULES`，正常 CLI 同时扫描实际 `packages/`、`apps/`、`examples/`、`tools/`、`scripts/` 执行模块及配置别名解析结果。collector 先规范化仓库根路径，末尾斜杠不会改变根 `tsconfig` 的别名解析。它采用 [D-075](../../.meta_harness/design/record/decisions/model-credential-source-projection/decision.md)、目录 v3 V3-10、CCL rev2 MCR-V7 与 [D-092](../../.meta_harness/design/record/decisions/model-auth-bootstrap-adoption/decision.md) 的装配权限。
+`model-credential-boundary` 登记在 `src/repository.ts` 的 `REPOSITORY_RULES`，正常 CLI 同时扫描实际 `packages/`、`apps/`、`examples/`、`tools/`、`scripts/` 执行模块及配置别名解析结果。collector 先规范化仓库根路径，末尾斜杠不会改变根 `tsconfig` 的别名解析。它采用 D-075、目录 v3 V3-10、CCL rev2 MCR-V7 与 D-092 的装配权限。
 
 | 符号 | 允许点 |
 | --- | --- |

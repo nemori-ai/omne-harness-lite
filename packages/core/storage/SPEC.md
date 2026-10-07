@@ -38,4 +38,4 @@ SQL owning 绑定在 migrate 路径必需注入 storageStartup；plain 不取得
 未迁行为及验证义务继续归[旧节点设计](../../../.meta_harness/design/realization/packages/core/storage/design.md)与[验证义务](../../../.meta_harness/design/realization/packages/core/storage/verification.md)。
 快照维护继续归[原维护协议](../../../.meta_harness/design/realization/packages/core/storage/maintenance.md)。
 本页只接续本批公开集成承诺；不据本页退役其余旧正文。
-集成边界依据 [D-114](../../../.meta_harness/design/record/decisions/cordis-integration-conventions/decision.md)，承诺归属依据 [D-115](../../../.meta_harness/design/record/decisions/actual-architecture-and-thin-spec/decision.md)。
+集成边界依据 D-114，承诺归属依据 D-115。

@@ -1,6 +1,6 @@
 # 模型请求运行时：pi-ai 传输、D-019 比较门与 minimal-runtime 的落点
 
-[D-019](../../design/record/decisions/model-provider-pi-ai-fork/decision.md) 接受了「定向 fork pi-ai 作 OpenRouter 传输」的方向，并列了一道实施时必须逐项对照的比较门。
+D-019 接受了「定向 fork pi-ai 作 OpenRouter 传输」的方向，并列了一道实施时必须逐项对照的比较门。
 这项调查要区分三件事：**比较门现在逐项做到了哪**（以未进 main 的 minimal-runtime 为样本）；
 **pi-ai 从本仓库钉住的 0.85.1 到 0.86.1 有没有动 D-019 的前提**；
 **PF-013 对模型请求运行时的要求**（单独中断、首 token 规则、宿主、三类事实与状态码直通、八个成因、按范围取凭据、模态、逐条成本）
@@ -14,7 +14,7 @@ minimal-runtime 的 pi-ai 传输只闭合了非推理文本/工具的正常路�
   `@earendil-works/pi-ai@0.85.1` 发布物与本仓库补丁（`feat/minimal-runtime@d79484d` 的 `patches/`）；
   `feat/minimal-runtime@d79484d9f4b8c726b6d7e37a36ae5698f4c8ecac` 的 `packages/model/{execution,llm}`（未进 main，只作样本，不是证据链上的实现）；
   DSH `c291e7961a515f6d7af9304e7fd1d257929aef26` 的 `packages/llm/{llm,llm-pi-ai,llm-retry,token-meter}` 与作者笔记。2026-09-23 离线取证。
-- 消费者：[D-019 的比较门现状补记（2026-09-23）](../../design/record/decisions/model-provider-pi-ai-fork/gate-status-2026-09-23.md)（已落）；本程块 C 的架构读数（待出现）。
+- 消费者：D-019 的比较门现状补记（2026-09-23）（已落）；本程块 C 的架构读数（待出现）。
 - 最近核对：2026-09-23 / 上列版本（首轮）。
 
 ## 准入核对

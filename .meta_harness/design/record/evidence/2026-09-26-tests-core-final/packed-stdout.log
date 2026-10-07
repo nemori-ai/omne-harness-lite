@@ -1,7 +1,0 @@
-{
-  "directory": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tmp/core-delivery/final-core-check-a53644ad/packed/run/packed-consumers/run-WaAGES",
-  "scope": "18 core + 2 util",
-  "packages": 20,
-  "types": 500,
-  "status": "passed"
-}

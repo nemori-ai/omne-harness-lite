@@ -1,2 +1,0 @@
-tools/ts-checks/src/rules/core-pure-imports.ts 98ms
-tools/ts-checks/tests/core-rules.spec.ts 59ms

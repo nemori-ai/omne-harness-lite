@@ -1,6 +1,6 @@
 # ACK 后原账见证的纯数据接续
 
-2026-09-29，revision1，candidate，未接受/未实施，新增binding0。输入为PF013rev17§6.19、CA4 S43及MS8/RT12/MR11同批候选，前驱D110的[v3](v3-design.md)。产品确认、架构复评与准确义务见[ACK选择](../../../../record/proposals/model-runtime-reference-lifecycle/ack-technical-choices.md)。
+当前技术采用范围与排除见本页“当前采用范围”；不据此宣称实现或验证完成。
 
 本节点继续纯值/计算，没有Cordis plugin/service/fiber、Storage或日志查询能力。D025 Cordis4.0.4不被本包直接消费。ACK小账见证由MS8拥有，实际选择与授权由模型runtime的当前日志读面兑现；本包不因新增来源就变成账务service。
 
@@ -20,3 +20,10 @@
 关键选择：在runtime同源前缀中选一次原事实，可验证来源完整性；若在pure summarize里自行加载日志就会增加存储/授权/生命周期且跨越本节点责任。保留纯构件的代价是组合验收必须真实覆盖witness→final、unknown迟到账及不同dispatch；这是已有CA3选择责任的窄接续。置信度高，独立评审待完成。
 
 验收见verification A4-V1～V4；当前无新实现/实际证据，bindings保持0新增。
+
+## 当前采用范围
+
+RT12/MS8/MR11/CA4 的 ACK 增量与原值/原账性质；messages 唯一拥有 ACK 记录和无损语义摘要，response 保持完整 Pending/final，accounts 只做原纯值费用计算。投影仅承接该窄增量。
+
+技术采用不表示实现或实际验证已完成。验证义务：各 owner 的 M8/R11/A4 验证义务；ACK 不授予写权、不等于处分；final > ACK witness > ready 按同 ResponseId 唯一原账；不能以 shape/brand 成功证明真实权限/来源/释放。
+范围之外：通用 GC/内容/账务服务；完整 Session/Run/Agent；独立 invokeModel 的 ACK 义务。

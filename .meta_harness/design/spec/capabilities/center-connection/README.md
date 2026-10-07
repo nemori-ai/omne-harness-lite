@@ -7,14 +7,14 @@
 中心标识的比较（PF-016 那一程）、可达性变化的推送（交付面呈现契约，未立）。**依赖方向是单向的：本契约 → 入口组合、传输绑定、时间点。**
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.center-connection, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 accepted。`family=capabilities`、`topic=center-connection`、
   `contract_path=spec/capabilities/center-connection/v2/contract.md`，`resources` 另含 `v2/examples.md`；
   依赖三项，消费 clauses 取自[契约 S-4 的被消费面表](v2/contract.md#s-4-依赖方向与被消费的面)：
   `composition.governance-center-entry` v1、`composition.governance-center-entry-https-json` v1、`data.offer-expiry` v2
 - **formal-tasks 映射**：无——本版不建 TLA+／Alloy，理由见[契约 S-12](v2/contract.md#s-12-本版选用哪些形式工件)
 - **提供者/装配映射**：[packages/infra/center-connection-probe](../../../realization/packages/infra/center-connection-probe/README.md)；当前节点设计已由 D-062 接受，源码／实际验证按各节点四层状态分别读取。
-  **最小提供者的形态**（本程施工简报定；接口契约 ＋ 最小提供者取代验收替身见 [D-063 R-1](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）：**按脚本模拟**——从测试种子读一段对端行为，按它回放可达性；满足[契约 S-5](v2/contract.md#s-5-可达性三态) 不变量的回放都合法，
+  **最小提供者的形态**（本程施工简报定；接口契约 ＋ 最小提供者取代验收替身见 D-063 R-1）：**按脚本模拟**——从测试种子读一段对端行为，按它回放可达性；满足[契约 S-5](v2/contract.md#s-5-可达性三态) 不变量的回放都合法，
   断线与重连不以本能力的撤除或替换表达（[S-7](v2/contract.md#s-7-在场不随可达性变)）。真提供者（经真实连接探中心）随入口组合 v2 那一程（[G-1](v2/contract.md#八已知缺口)）
 
 ## 准入核对
@@ -38,4 +38,4 @@
 
 ## 2026-09-26 版本接受
 
-本次接受 `capability.center-connection` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `capability.center-connection` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

@@ -39,12 +39,6 @@
 | EIS-5 | PG、跨库或据点远端副本 | storage/治理 owner 另行给相干读协议与证据；当前有限 SQLite 结果不外推 |
 | EIS-6 | 全部实现与实际组合 | 本节点/runtime/acceptance app；EIS-V1～V10 的适用范围逐项执行、独立验收后才登记绑定 |
 
-## 实际执行
-
-2026-09-27，rev 2 补充 SQL 成本量测及 OG2 S-63 参与异常边界后，实际运行 `.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal registered --gate internal`，退出 0，输出末行为 `PASS: design tree /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/.meta_harness/design passed gate=internal; formal=registered.`。formal 项只报告 `registered; execution was not requested`。
-
-本节点无实现测试、真实 IO 或 formal run。文档检查不表示独立评审、采用或实际实现完成。
-
 ## 部署清单与固定根读取补充义务（candidate，2026-09-27）
 
 对应 [v3-source-interfaces.md](v3-source-interfaces.md)，只是新增技术投影的证据义务，不改上文已采用设计或历史结果。新增 bindings 为 0；当前 EIS 有施工源码，但两个新增接口尚未采用/实现验证。D-074 的 EIS/registry 输入哈希与当前字节一致；本段不能据此声称新接口已接受。
@@ -63,12 +57,6 @@
 新增停止点分别为 SI-G1（原装配来源认回，registry owner）、SI-G2（旧裸部署格式接续，EIS/storage/装配 owner）、SI-G3（工作区/MCP/分享实际来源，对应 owner）、SI-G4（本稿采用及真实组合证据，主线/实施者）。新增输入面不能关闭完整产品会话、工作区或中心复制缺口；无真实来源保持 unavailable。成功与失配都使用公共纯构件及真实源，不以 fixture EvaluationInput 或假身份服务替代。
 
 本补充实际运行 `.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip`，exit 0，末行 `PASS: design tree … passed gate=internal; formal=skip.`；形式项均明确 skipped。新补充稿的 Prettier check 与两条授权路径的 `git diff --check` 均 exit 0。字节核对确认原 design SHA 仍为 `01e0d2a1ff4fbdaab11321a1126bec8e0e3c01d91a18e8c1f6e3cd162a134bd4`、本节之前 verification 的 SHA 仍为 D-074 的 `96c0cb5fa64ff0ccdd060ae604fa8c6e296a2172b465cd15c1b5e6803a855d26`。这里没有新实现测试或模型验证结果，不新增 bindings。
-
-## 2026-09-27 实际组件实现与检查
-
-源码已建于 `packages/assets/evaluation-input-store`，包含普通读取、受限固定根读取、发布/捕获、迁移及 Cordis 插件。D-074/D-077 的采用范围不变。真实 SQLite/account/login/OG/STT 组件测试共 45 项通过，build 与 typecheck 退出 0；静态边界工具完整 386 项测试通过，实际源码扫描通过。实际记录见 [组件证据补充](../../../../record/evidence/2026-09-27-probe-model-request-runtime/component-checks.md)。
-
-本次为实施者组件检查；没有独立验收结论，不将各表的场景自动标成完整通过。原 fill 来源认回 SI-G1 仍待 manifest/registry 真组合；runtime 消费、两次求值的端到端量测、完整 source 竞争负控及验收应用未完成。bindings 仍为 0，生产模型认证仍为 0/37。上文“无实现”的历史读数由本段接续，不重写旧采用输入。
 
 ## 历史正文读取增量义务（candidate，2026-09-27）
 
@@ -89,7 +77,3 @@
 | HI-V9：公开入口、AST 与权限交付 | 正常 app bootstrap 构造真实依赖，registry 仅 type import＋借用 read，外部独立包 fixture 经 exports 编译/运行。分别让 runtime/runner/adapter/tool/其他 apps/src 导入或转导出新面；named、namespace、dynamic import、路径别名/private src/私表访问及 wrapper 转发负控必须被 gate 否定。registry src 值导入 factory 也拒绝。未获闭包的租户即使知道 tuple 也无调用入口，tenant 参数不充授权 | EIS/静态工具/app；AST 不宣称进程内安全沙箱，真实闭包分发与入口授权另验 |
 
 覆盖缺口：HI-G1 是旧报告与未持有版本的成功交付，owner 为 registry/MF/EIS/app；HI-G2 的报告/原表完整用途校验仍归 AR owner，不由本面判定；HI-G3 保留跨库 EIS/OG 与非本机历史来源分支；HI-G4 是新入口 guard、关闭和观测接线。新稿静态检查结果只能证明文档可被工具读取，实际组合与独立验收状态仍为尚无，不新增 formal 或 bindings。
-
-## 2026-09-27 历史正文组件检查补充
-
-D-080 精确采用后的源码、配置及原始运行见[历史正文组件证据](../../../../record/evidence/2026-09-27-probe-model-request-runtime/eis-history-component-checks.md)。EIS68/工具428项测试、构建/类型检查及实际27+6规则扫描通过。保留 HI-V1～9 的原待执行义务，不将完整组自动标为通过：真实 MF tuple fixture/本机发布版本/STT/OG atomic/重开/零 IO/close/异常分离只关闭归档内组件场景。AR完整producer及旧报告成功恢复、完整制品/宿主换代、装配退化查询和OS边界尚未验证，HI-G1/AR4-G3/SI-G1仍开放；bindings0。

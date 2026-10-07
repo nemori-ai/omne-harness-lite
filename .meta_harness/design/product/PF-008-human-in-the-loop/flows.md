@@ -221,7 +221,7 @@
 （[§6.1](design.md#61-永远等着系统不替人作答)）。
 
 **前四个出口与 [PF-007 的问询出口同形](../PF-007-meta-capabilities/design.md#611-ask通向人)**，
-不另立一套；最后一个，PF-007 的问询出口表里还没有（见 [decisions 第四节](decisions.md#四已知的来源问题)）。
+不另立一套；最后一个，PF-007 的问询出口表里还没有（见 [decisions 第四节](design.md)）。
 
 ### 3.2 一批卡片
 

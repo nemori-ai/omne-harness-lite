@@ -6,7 +6,7 @@
 
 | 选择点 | 采用 | 依据 |
 |---|---|---|
-| 要不要查询层 | 要，且只因为一条要求：**只改配置即切 PostgreSQL**（[D-026 第二条](../../../../record/decisions/infrastructure-persistence-choices/decision.md#选择与范围)） | 研究正文[「被调研的五家 CLI harness 没有一家用查询构建器」](../../../../../research/agent-harness-persistence-and-identity-infra/research.md#被调研的五家-cli-harness-没有一家用查询构建器)——它们不需要切方言，本项目需要。**这是引入 Kysely 的唯一理由**：若将来放弃 pg，Kysely 相对原生 SQL 就是无收益复杂度，回 D-026 重判 |
+| 要不要查询层 | 要，且只因为一条要求：**只改配置即切 PostgreSQL**（D-026 第二条） | 研究正文[「被调研的五家 CLI harness 没有一家用查询构建器」](../../../../../research/agent-harness-persistence-and-identity-infra/research.md#被调研的五家-cli-harness-没有一家用查询构建器)——它们不需要切方言，本项目需要。**这是引入 Kysely 的唯一理由**：若将来放弃 pg，Kysely 相对原生 SQL 就是无收益复杂度，回 D-026 重判 |
 | Kysely 而不是 Drizzle | Kysely：单一 `Kysely<DB>` 类型，方言在构造时传；迁移是 TS `up/down(db)`，同一份可跑多方言 | 研究正文[「Drizzle 在类型层按方言分裂，Kysely 在构造时传方言」](../../../../../research/agent-harness-persistence-and-identity-infra/research.md#drizzle-在类型层按方言分裂kysely-在构造时传方言)：Drizzle 的 `sqlite-core` 与 `pg-core` 是两套类型，切方言等于改代码。**Kysely 的代价也在同一节**：它不替你抹平 `FOR UPDATE`、`RETURNING`、`ON CONFLICT` 与列类型名——锁语义的方言分支由本节点承担（[下文](#两种方言的锁语义映射)） |
 | sqlite 驱动 | Node 24 内置 `node:sqlite` 的 `DatabaseSync` | 研究正文[「TS 实现的同行 harness 用内置 node:sqlite，不用原生插件」](../../../../../research/agent-harness-persistence-and-identity-infra/research.md#ts-实现的同行-harness-用内置-nodesqlite不用原生插件)：DSH、Cursor、opencode 三家；内置模块决定 Node 下限（承载仓库 engines 已钉 `>=24 <25`）、能进单文件可执行程序、无原生插件打包问题 |
 | Kysely 的 sqlite 方言 | **自写薄 Driver**，复用 kysely 导出的 `SqliteAdapter`、`SqliteQueryCompiler`、`SqliteIntrospector` | 同一节：Kysely 没有官方 `node:sqlite` 方言（主仓 issue 自 2024-12 open），社区包 `kysely-node-native-sqlite` 3 star、3 次提交同一天、此后无维护——**成熟度不足以承载 R-3 的锁语义**。自写部分只有 `Driver` + `DatabaseConnection` 两个接口，不是 fork |
@@ -16,7 +16,7 @@
 | in-memory | **不提供** | D-026 第一条；测试夹具就是本提供者的 sqlite 临时文件库 |
 | 升级守卫（排他、迁移前只读核对、升级快照、恢复与确认） | **自建薄层**，不引库：sqlite 的快照与恢复只用 `node:sqlite` 与 Node 内置文件操作；pg 只有排他与「迁移一个事务」两项 | 编排与要求来自 [tenancy-host「升级的整体性」](../../../apps/tenancy-host/design.md#升级的整体性迁移前只读核对快照与确认)的 R-U1～R-U8 与缺口 U-2；Kysely `Migrator` 只管迁移本身（它自带登记表 `kysely_migration` 与锁表 `kysely_migration_lock`），不管「迁移之后别的部件失败时撤回」。机制与取舍在[下文](#属主实例排他迁移前只读核对升级快照与确认) |
 
-**Cordis 版本**：采用 `@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/decision.md)）。本节点依赖的内核语义引 [basis](../../../../basis/README.md) 条目（四条均已按 4.0.4 回填 probe，`checked: 2026-09-22`）；「插件体或 config 抛出 ⇒ fiber `FAILED`」现已有条目 [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)；basis 仍没有条目的一条——`ctx.provide` 经 effect 纳管——与前者一起由 `core/kernel-basis` 的 probe（承载仓库 `packages/core/kernel-basis/tests/basis/provide-is-effect-managed.test.ts`、`plugin-throw-fails-fiber.test.ts`）在 4.0.4 上通过，登记在 [kernel-basis verification](../../../../../../packages/core/kernel-basis/verification/README.md#evidence-obligations)。
+**Cordis 版本**：采用 `@deepseek-ai/cordis` 4.0.4（D-025）。本节点依赖的内核语义引 [basis](../../../../basis/README.md) 条目（四条均已按 4.0.4 回填 probe，`checked: 2026-09-22`）；「插件体或 config 抛出 ⇒ fiber `FAILED`」现已有条目 [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)；basis 仍没有条目的一条——`ctx.provide` 经 effect 纳管——与前者一起由 `core/kernel-basis` 的 probe（承载仓库 `packages/core/kernel-basis/tests/basis/provide-is-effect-managed.test.ts`、`plugin-throw-fails-fiber.test.ts`）在 4.0.4 上通过，登记在 [kernel-basis verification](../../../../../../packages/core/kernel-basis/verification/README.md#evidence-obligations)。
 
 **复杂度声明**：本节点引入的一切方言分支（锁语句、错误码、事务种类）都是**正确性机制**，各自指向一条 R；没有任何一处是为性能加的。连接队列、`busy_timeout` 都不是优化，是让 `DatabaseSync` 这个同步单句柄能承载异步调用方的最小代价。
 升级守卫（排他锁、快照、恢复）同样是正确性机制，各自指向一条 R-U；带迁移的实例由 config **显式二选一**（守卫或 `false`，[下文](#守卫为什么显式开启)），选 `false` 或不带迁移的实例没有这一层。
@@ -291,7 +291,7 @@ PreflightCheck = (input: PreflightInput { tx: ReadTx, tables: 已存在的表名
 - **`UPDATE` 改被引用主键在 P-10 分类下会被记成 `missing-target`**：假设本程无此写路径，尚未按 AI／OG 操作表核。
 - **pg 写锁等待没有上限**：本版没有设 `lock_timeout`，pg 上 `lockRow`／`lockSentinel` 与行锁的等待是无限的——[clock](../clock/design.md#状态并发与失败映射) 续约依赖的「写锁等待上限 5 s」在 pg 上没有兑现点。候选是写事务开头 `SET LOCAL lock_timeout = '5s'`（`55P03` 已映射为 `StorageUnavailable`）。owner：本节点。
 - **pg 唯一冲突不带约束名**：错误对象缺 `constraint` 时源码给 `UniqueViolation('unknown')`，而协议 P-11 要「映射不到 ⇒ `StorageDefect`」；pg 对命名约束总带这个字段，这一支只在迁移没守命名纪律时出现。owner：本节点。
-- **R-4 的断电边界**：`synchronous=NORMAL` 由 [D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 拍板（2026-09-23）；[D-039](../../../../record/decisions/governance-sqlite-full/decision.md) 已接受可选 `normal/full`，中心明确选 FULL；共享默认仍 NORMAL，物理断电未实测。owner：装配（[`apps/tenancy-host`](../../../apps/tenancy-host/README.md)）。
+- **R-4 的断电边界**：`synchronous=NORMAL` 由 D-027 拍板（2026-09-23）；D-039 已接受可选 `normal/full`，中心明确选 FULL；共享默认仍 NORMAL，物理断电未实测。owner：装配（[`apps/tenancy-host`](../../../apps/tenancy-host/README.md)）。
 - **pg 各行**（读事务隔离级、错误码、`pool.end()`、SAVEPOINT）的依据是 pg 上的一致性套件与 `upgrade.postgres` 测试，只在 `OMNE_TEST_PG_URL` 指向一个可连的 pg（≥ 14）时运行，缺时 `describe.skip`——跳过不是通过，每次运行的结果与是否跳过登记在 verification。
 - **`better-sqlite3` 退路**：若 `node:sqlite` 在 Node 24 上有本程绕不过的缺陷（同步 API 之外的），退到 `better-sqlite3` 12.x + Kysely 内置 `SqliteDialect`——只换 Driver，协议与一致性套件不动。D-026 明写这条退路归本节点登记。
 - **`streamQuery` 不支持**：协议没有流式读面；将来有了再补。
@@ -304,18 +304,18 @@ PreflightCheck = (input: PreflightInput { tx: ReadTx, tables: 已存在的表名
 - **装配忘了调 `guard.confirm()`**：快照一直在，下一次撤除恢复它，那次启动以来的写全部消失——这是「给了守卫就是声明会确认」的代价面（[对比](#守卫为什么显式开启)）。调了却调在别的守卫上不属于这一条：那是 `UpgradeGuardNotAttached`，响的（[交错 (f)](#自构的交错)）。挡「忘了调」的是装配自己的 `assembly.upgrade-confirmed`；本节点在每次恢复时记一条 warn 记录，写明快照建立的时刻，让「一直没确认」在日志里看得见。owner：装配。
 - **「数据未碰」在 sqlite 上指内容，不指字节**：关最后一个句柄时 sqlite 会把预写日志检查点进库文件，已提交内容不变、库文件的字节可能变；上一次是干净停机（预写日志为空）时才逐字节不变。tenancy-host 的 `assembly.upgrade-preflight-refuses` 断言「库文件逐字节不变」，前提要写上这一条，否则按内容（逐表）比对——那个断言归该节点，本节点只登记。
 - **上游语义**：三条 basis 条目（`plugin-body-reruns-on-provider-change`、`effect-disposal-concurrent-not-ordered`、`plugin-throw-fails-fiber`）与 kernel-basis 一条不对应条目的 probe（`provide-is-effect-managed`）均已在 4.0.4 上通过；装卸表各行引用它们作证据来源。本节点的 bindings 仍为空表，因为无契约条款可绑。
-- **JSON 列按文本存取（全库口径，[D-060 §八 M53](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）**：凡存 JSON 文本的列以 `text` 存取，Driver 与 Kysely 不得自动 `JSON.parse`／`stringify`（否则超出 2^53 的整数在回读那一跳静默失真，没有检查会红）；无损读写在应用层由 [content-blocks](../../core/content-blocks/design.md#严格的无损-json-读写) 兑现。本版方言表尚未写这一条，登为实施缺口，闭合时给 pg 与 sqlite 各一条「回读原文逐字节相等」的测试。owner：本节点。
+- **JSON 列按文本存取（全库口径，D-060 §八 M53）**：凡存 JSON 文本的列以 `text` 存取，Driver 与 Kysely 不得自动 `JSON.parse`／`stringify`（否则超出 2^53 的整数在回读那一跳静默失真，没有检查会红）；无损读写在应用层由 [content-blocks](../../core/content-blocks/design.md#严格的无损-json-读写) 兑现。本版方言表尚未写这一条，登为实施缺口，闭合时给 pg 与 sqlite 各一条「回读原文逐字节相等」的测试。owner：本节点。
 - **消费者**：AI、OG、`infra/clock`、入口层必需 inject `storage`；本节点接口一变四者重跑，接口形状归协议节点，本节点只兑现。`apps/tenancy-host` 消费存储协议之外的四样：config `upgrade`（带迁移时必填）、`createUpgradeGuard` 与守卫的 `confirm()`／`pending()`、`UpgradeGuardNotAttached`、`StorageStartupFailure` 的 `stage`（与[该节点 R-U 表](../../../apps/tenancy-host/design.md#升级的整体性迁移前只读核对快照与确认)互指）；`infra/clock` 另给出一条放进 `upgrade.checks` 的只读核对。
 
 ## D-039 增量：显式同步档位
 
 SQLite config 增加可选 `synchronous: 'normal' | 'full'`；缺省 NORMAL，其他值在 openStorage 的 schema 校验时拒绝。openHandles 传递到 openSqlite，由两个 Driver 及每个后开连接设置同一档位。迁移使用同一个写 Driver，因此同样为 FULL。固定 SQL 枚举映射，不把输入拼进 PRAGMA。
 
-FULL 在 WAL 且底层兑现同步请求的前提下强化 P-7/R-4；不更改事务语义、升级快照的文件协议或 PostgreSQL。采用见 [D-039](../../../../record/decisions/governance-sqlite-full/decision.md)，实际测试另记 verification；历史 NORMAL 证据不重标成 FULL。
+FULL 在 WAL 且底层兑现同步请求的前提下强化 P-7/R-4；不更改事务语义、升级快照的文件协议或 PostgreSQL。采用见 D-039，实际测试另记 verification；历史 NORMAL 证据不重标成 FULL。
 
 ## P-13 显式共同事务扩展
 
-按 D-040 的 AI3 S-49/51 需要，采用[提供者候选 r2](../../../../record/proposals/governance-production-mechanisms/storage-unit.md)的显式单元；已独立定向评审无阻断。主线在既定实施授权内采用此绑定。原 Storage 和 P-1～P-12 不变，新增 AtomicStorage 扩展与 StorageUnit（run/query/mutate/assertStorage/afterCommit）。普通 read/write 不隐式参与，嵌套仍拒绝。
+按 D-040 的 AI3 S-49/51 需要，采用提供者候选 r2的显式单元；已独立定向评审无阻断。主线在既定实施授权内采用此绑定。原 Storage 和 P-1～P-12 不变，新增 AtomicStorage 扩展与 StorageUnit（run/query/mutate/assertStorage/afterCommit）。普通 read/write 不隐式参与，嵌套仍拒绝。
 
 unit 的 query/mutate 是同一 tx 的暂存，不代表独立提交；query 只给 ReadTx 类型，不声称数据库硬只读。作用域同域/活跃帧/串行子调用检查，任何逃出 run 的异常永久污染；P-2冲突只可在参与操作内部处理。接纳即挂内部拒绝观察；作用域结束若有调用在途，禁止新调用并等待其静止后回滚。不是检测所有await/背景交接或沙箱化裸SQL。
 
@@ -329,11 +329,11 @@ SqlStorage.atomic 复用已有 write 事务和排空；单元局部 ALS 只管�
 
 ### 2026-09-25 容量故障映射修复
 
-SQLite主错误码SQLITE_FULL(13)映射StorageUnavailable；不是调用者误用，不落StorageDefect。真实max_page_count故障验证回滚和下一笔事务；CLS组合在受限tmpfs上另验证真实容量耗尽的未知结果收场。证据见[本地状态提供者运行](../../../../record/evidence/2026-09-25-tests-client-local-state/README.md)。不改变只读误用与未声明异常的缺陷传播。
+SQLite主错误码SQLITE_FULL(13)映射StorageUnavailable；不是调用者误用，不落StorageDefect。真实max_page_count故障验证回滚和下一笔事务；CLS组合在受限tmpfs上另验证真实容量耗尽的未知结果收场。证据见本地状态提供者运行。不改变只读误用与未声明异常的缺陷传播。
 
 ## 2026-09-25属主启动竞争的提供者修复
 
-真实两进程同时启动曾在BEGIN EXCLUSIVE、timeout0下双双occupied，未出现双属主；经独立架构核对，空锁库只需唯一写事务槽，不需排斥只读元信息观察。SqliteOwnerSite改为BEGIN IMMEDIATE、保留MEMORY/timeout0、同一文件路径、模块强引用及显式释放/进程死亡释放；生产数据库事务、升级快照与确认不改。此为已有属主排他责任的限定提供者修复，不新增治理语义。依据与反对方案归[正常启动反例](../../../../record/proposals/governance-production-mechanisms/single-host-delivery.md)；有限双平台探针不能推出任意调度进展。旧EXCLUSIVE与新IMMEDIATE相互拒绝、GC/释放/强杀与真实boot回归仍必须执行。
+真实两进程同时启动曾在BEGIN EXCLUSIVE、timeout0下双双occupied，未出现双属主；经独立架构核对，空锁库只需唯一写事务槽，不需排斥只读元信息观察。SqliteOwnerSite改为BEGIN IMMEDIATE、保留MEMORY/timeout0、同一文件路径、模块强引用及显式释放/进程死亡释放；生产数据库事务、升级快照与确认不改。此为已有属主排他责任的限定提供者修复，不新增治理语义。依据与反对方案归正常启动反例；有限双平台探针不能推出任意调度进展。旧EXCLUSIVE与新IMMEDIATE相互拒绝、GC/释放/强杀与真实boot回归仍必须执行。
 
 维护提供者精化：[maintenance](maintenance.md)，采用与实际验证状态见[节点入口](README.md)；该精确稿保留接受时的文字。
 

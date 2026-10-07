@@ -1,7 +1,7 @@
 # 形式化工件与论证映射
 
 本页拥有**条款 → 性质 → 模型 → 检查配置**这一层对应关系，以及工件**盖不到什么**。
-它不是模型，也不是证明，**不填通过状态**——实际执行的工具、配置、范围与结果在[验证入口](../../verification.md)。
+它不是模型，也不是证明，**不填通过状态**。[验证入口](../../verification.md)维护方法、覆盖、前提和限制；每次运行输入与输出放本工作树 `tmp/<task>/`。
 
 本版只选一个工件：TLA+ 行为模型 [`Execution.tla`](Execution.tla)，理由在[契约 S-49](../contract.md#s-49-本版选用哪些形式工件)。
 **不建 Alloy、不建 Schema**。
@@ -34,7 +34,7 @@
   | 模型里的 | 契约里的 |
   |---|---|
   | `Submit(b)` | [S-23](../contract.md#s-23-提交一批) 整批一次提交；判为不可用的项即刻 `unavailable`、发起即后台即刻交付占位。**不在模型里**：判重与重放、租户核对、凭据核对、参数解析不了的调用、查不到条目的调用（`UnlistedCall`）——模型里每批只提交一次、租户与凭据恒相符、名字恒查得到；它们的证据是场景 [S-69](../contract.md#s-69-查不到条目的调用即刻收场不可用)、 [S-60](../contract.md#s-60-凭据不符与核对不了都整批不执行)、[S-64](../contract.md#s-64-参数收齐却解析不了)、[S-65](../contract.md#s-65-重放同一批返回首次的结果)、[S-67](../contract.md#s-67-租户不符整批不收) |
-  | 常量 `StandIn`、原因 `"standin"`、不变量名 `UnavailableOnlyFromStandIn` | **注册表判为不可用的项**：替换件、条目 `unavailable{reason}`、关掉的命令三支（[D-060 §S13 S13-a](../../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s13tool-execution-runtime报回的) 之后同归收场 `unavailable`）；注册表对一个 `AdmittedCall` 答「没有」（`unavailable{no_such_entry}`，[D-060 §七 M8](../../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）在提交上与它们同形，但模型对「查注册表」这一步没有断言，**不作它的证据**（证据是场景 [S-69](../contract.md#s-69-查不到条目的调用即刻收场不可用)）。几支在模型里行为相同，只用一个集合表示；名字沿用起草时的，不改模型 |
+  | 常量 `StandIn`、原因 `"standin"`、不变量名 `UnavailableOnlyFromStandIn` | **注册表判为不可用的项**：替换件、条目 `unavailable{reason}`、关掉的命令三支（D-060 §S13 S13-a 之后同归收场 `unavailable`）；注册表对一个 `AdmittedCall` 答「没有」（`unavailable{no_such_entry}`，D-060 §七 M8）在提交上与它们同形，但模型对「查注册表」这一步没有断言，**不作它的证据**（证据是场景 [S-69](../contract.md#s-69-查不到条目的调用即刻收场不可用)）。几支在模型里行为相同，只用一个集合表示；名字保持当前模型标识，不代表各分支分别被验证 |
   | `Start` / `StartFail` | [S-38](../contract.md#s-38-起执行者)：起来了，或落点、执行者任一不成立（执行者没跑过）。**参数不合不在这里**：2026-09-24 起它在提交时即刻收场 `failed{arguments_invalid}`（[S-23](../contract.md#s-23-提交一批) ④ 第 ② 条），**模型里没有这一支、对它没有断言**；证据是场景 [S-61](../contract.md#s-61-参数不合即刻失败并带用法)。参数解析不了的调用（`failed{unparseable}`）同样在提交时即刻收场、同样不在模型里，证据是场景 [S-64](../contract.md#s-64-参数收齐却解析不了) |
   | `EnterWait` / `Answer(c, k)` / `WaitExpire` | [S-12](../contract.md#s-12-等待)、[S-30](../contract.md#s-30-答复等待)；`k` 是答复所指的第几次等待 |
   | `Return(c, o)` | [S-41](../contract.md#s-41-交回)：交回完成或失败。执行者一侧的另三个原语（[S-39](../contract.md#s-39-发帧) 发帧、[S-40](../contract.md#s-40-报账) 报账、等待的返回值）与帧流、到达装配前提（[S-62](../contract.md#s-62-工具侧到达装配前提的承诺)）都不在模型里，证据是场景 [S-53](../contract.md#s-53-等待再次等待与迟到的答复)、[S-66](../contract.md#s-66-帧被拒报一次收场之后的帧不进) |

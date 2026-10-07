@@ -2,7 +2,7 @@
 
 The standalone factory and migrations stay in the pure root. The concrete services and plugin are exported only from `./cordis`.
 Business behavior remains [MF4](../../../.meta_harness/design/spec/capabilities/assembly-manifest/v4/contract.md),
-[D-079](../../../.meta_harness/design/record/decisions/model-original-fill-adoption/decision.md) and its exact accepted provider clauses.
+D-079 and its exact accepted provider clauses.
 SQL algorithms, tables, identities, capacity, error order and diagnostic facts are unchanged by this binding migration.
 
 The named `assembly-manifest-store` plugin requires storage and assemblyManifestResources.

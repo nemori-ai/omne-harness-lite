@@ -8,14 +8,14 @@
 **依赖方向是单向的：本契约 → 身份值、会话引用、拓展点统一输入、工具定义的目标环境。**
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.execution-environments, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 accepted。`family=capabilities`、`topic=execution-environments`、
   `contract_path=spec/capabilities/execution-environments/v2/contract.md`，`resources` 另含 `v2/examples.md`；
   依赖四项，消费 clauses 取自[契约 S-4 的被消费面表](v2/contract.md#s-4-依赖方向与被消费的面)：
   `data.identity-values` v1、`data.messages` v2、`data.loop-extension` v2、`data.tool-definition` v2
 - **formal-tasks 映射**：无——本版不建 TLA+／Alloy，理由见[契约 S-18](v2/contract.md#s-18-本版选用哪些形式工件)
 - **提供者/装配映射**：[packages/infra/execution-environments-host](../../../realization/packages/infra/execution-environments-host/README.md)；当前节点设计已由 D-062 接受，源码／实际验证按各节点四层状态分别读取。
-  **最小提供者的形态**（本程施工简报定；接口契约 ＋ 最小提供者取代验收替身见 [D-063 R-1](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）：**直接起本机进程**——落点判断从测试种子读执行环境权限与拓展件子进程的允许（顶替[契约 G-2](v2/contract.md#十已知缺口)、[G-3](v2/contract.md#十已知缺口) 的来路，只供验收装配），起停用本机操作系统的进程组。
+  **最小提供者的形态**（本程施工简报定；接口契约 ＋ 最小提供者取代验收替身见 D-063 R-1）：**直接起本机进程**——落点判断从测试种子读执行环境权限与拓展件子进程的允许（顶替[契约 G-2](v2/contract.md#十已知缺口)、[G-3](v2/contract.md#十已知缺口) 的来路，只供验收装配），起停用本机操作系统的进程组。
   真承接者是 PF-005 那一程（[G-1](v2/contract.md#十已知缺口)）
 
 ## 准入核对
@@ -39,4 +39,4 @@
 
 ## 2026-09-26 版本接受
 
-本次接受 `capability.execution-environments` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `capability.execution-environments` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

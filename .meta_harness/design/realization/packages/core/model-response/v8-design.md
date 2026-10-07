@@ -4,7 +4,7 @@
 
 ## 精确采用输入与四层状态
 
-已核 catalog 中 baseline `omne-harness-lite-design-2026-09-15` 的 `data.model-response/8`（MR8）与 `capability.model-request-runtime/9`（RT9）均 accepted；[D104](../../../../record/decisions/model-recovery-timing-adoption/decision.md) 只接受规范，不自动采用本提供者映射。MR8 语义依赖仍为 CA2/CB3/MS6/MP5/LC6/OE1/IV1，RT9 是消费者责任坐标，不反向成为本 data 包依赖。产品依据按 MR8 引用继承；本增量不重开、不裁决原产品来源未裁项及 L1/L2 恢复交接事项。
+已核 catalog 中 baseline `omne-harness-lite-design-2026-09-15` 的 `data.model-response/8`（MR8）与 `capability.model-request-runtime/9`（RT9）均 accepted；D104 只接受规范，不自动采用本提供者映射。MR8 语义依赖仍为 CA2/CB3/MS6/MP5/LC6/OE1/IV1，RT9 是消费者责任坐标，不反向成为本 data 包依赖。产品依据按 MR8 引用继承；本增量不重开、不裁决原产品来源未裁项及 L1/L2 恢复交接事项。
 
 | 已冻结输入 | SHA-256 |
 |---|---|
@@ -13,7 +13,7 @@
 | [MR8 examples](../../../../spec/data/model-response/v8/examples.md) | `b60980e124e1eff02ad78932f3e39385d28b9a5dd06b5fb2b4f81b26df910fbf` |
 | [RT9 contract](../../../../spec/capabilities/model-request-runtime/v9/contract.md) | `3ae5ee1843a31cb229a11c77a35c2bdc66e51100953322be0febed1ef37e64fb` |
 
-四层：**语义已接受**（[精确清单](../../../../record/decisions/model-recovery-timing-adoption/acceptance.json)）；**可实施路径候选**见下表，须主线采用；**新增绑定 0**，原 binding 不换版本；**实际实现验证尚无本增量结果**。[既有有限证据](../../../../record/evidence/2026-09-28-formal-model-recovery-timing/README.md) 是 10 个 Schema 边界与 RecoveryTiming 一正四负 TLC，不证明生产 judge 优先级、真实恢复或消费者编译。
+四层：**语义已接受**（精确清单）；**可实施路径候选**见下表，须主线采用；**新增绑定 0**，原 binding 不换版本；**实际实现验证尚无本增量结果**。既有有限证据 是 10 个 Schema 边界与 RecoveryTiming 一正四负 TLC，不证明生产 judge 优先级、真实恢复或消费者编译。
 
 ## 契约责任到公开实现
 
@@ -51,7 +51,7 @@ S-17 的**真实时刻来源与先后比较由写入者兑现**；本 data judge
 
 ## 状态、存储、装卸与取舍
 
-仍是无领域状态、无配置/密钥/IO 的纯模块。存储要求 **0 项**，受管装载贡献 **0 项**，撤除责任 **0 项**；不新增 plugin、fiber、service、store、后台工作或同提交协调。固定 Schema 编译错误暴露为导入/构建缺陷，不吞成业务 malformed；同步函数不拥有在途 HTTP。Cordis 采用依据沿 [D025](../../../../record/decisions/cordis-adoption-version/decision.md)，本包不使用其 API，无新增 basis 主张。
+仍是无领域状态、无配置/密钥/IO 的纯模块。存储要求 **0 项**，受管装载贡献 **0 项**，撤除责任 **0 项**；不新增 plugin、fiber、service、store、后台工作或同提交协调。固定 Schema 编译错误暴露为导入/构建缺陷，不吞成业务 malformed；同步函数不拥有在途 HTTP。Cordis 采用依据沿 D025，本包不使用其 API，无新增 basis 主张。
 
 | 选择 | 落选方最强论证 | 本方弱点与置信度 |
 |---|---|---|

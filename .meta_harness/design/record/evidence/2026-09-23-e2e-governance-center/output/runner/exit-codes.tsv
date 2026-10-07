@@ -1,6 +1,0 @@
-step	exit	seconds
-build	0	16
-e2e	0	49
-tenancy-host-test	0	73
-lint-rules	0	1
-format-check	0	6

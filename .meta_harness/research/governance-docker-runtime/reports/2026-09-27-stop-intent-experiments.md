@@ -43,4 +43,4 @@
 
 ## 归档及主线复核
 
-[原始证据包](../sources/2026-09-27-stop-intent-evidence.tar.gz) SHA256 `034a60ccfdc8561b51c9a86ce80436e397f95ece35bba8fbad2257673c5467e6`，601文件；包内SHA256SUMS列600项。主线逐件复算包内内容与原manifest，并独立重跑V5 oracle及读取TERM、挂载、磁盘旗标和同行warning原件。独立spec-reviewer另核76份V5文件及表述，没有执行Docker或oracle。六轮结果保持各自输入与失败身份；采用归[D-071](../../../design/record/decisions/governance-docker-stop-adoption/decision.md)，不是本报告替实施/QA签字。
+[原始证据包](../sources/2026-09-27-stop-intent-evidence.tar.gz) SHA256 `034a60ccfdc8561b51c9a86ce80436e397f95ece35bba8fbad2257673c5467e6`，601文件；包内SHA256SUMS列600项。主线逐件复算包内内容与原manifest，并独立重跑V5 oracle及读取TERM、挂载、磁盘旗标和同行warning原件。独立spec-reviewer另核76份V5文件及表述，没有执行Docker或oracle。六轮结果保持各自输入与失败身份；采用归D-071，不是本报告替实施/QA签字。

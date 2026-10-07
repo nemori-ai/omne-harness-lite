@@ -1,1 +1,0 @@
-{"ts":1790234989191,"level":"error","name":"tenancy-host","event":"startup-failed","stage":"config","item":"OMNE_TENANCY_SHARING_INVITATION_TTL_DEFAULT","errorType":"HostStartupFailure","message":"tenancy-host startup failed at config: OMNE_TENANCY_SHARING_INVITATION_TTL_DEFAULT: missing"}

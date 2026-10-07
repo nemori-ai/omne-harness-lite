@@ -14,7 +14,7 @@
 导入结果落成资产（写哪一层、新资产还是新版本、禁用落在哪一格）归资产治理。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.hooks-import, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 `accepted`；`family=capabilities`、`topic=hooks-import`、
   `contract_path=spec/capabilities/hooks-import/v2/contract.md`；`resources` 含契约与 `examples.md`；
   依赖八项（`capability.loop-extension-runner`、`capability.tool-admission`、`capability.execution-environments`、`data.loop-extension`、`data.asset-model`、`data.messages`、`data.content-blocks`、`data.identity-values`，均为 v1；`capability.execution-environments` 2026-09-25 修订波登记），clauses 取自[契约 S-4](v2/contract.md#s-4-依赖方向与被消费的面)
@@ -53,4 +53,4 @@
 
 ## 2026-09-26 版本接受
 
-本次接受 `capability.hooks-import` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `capability.hooks-import` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

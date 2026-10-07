@@ -10,4 +10,4 @@
 
 三个模型均关闭终点死锁检查；不存在“全部性质已由形式化证明”的声明。AI3的LoginCommit/CredentialRevision提供独立登录/代际有限检查，S52最终G优先与实际路径仍需SQL验证。Schema检查具体逐路由值，不证明行为。
 
-实际运行见[EntryCommit/EntryDecision证据](../../../../../record/evidence/2026-09-25-formal-entry-candidates/README.md)及[ExpectedTenant证据](../../../../../record/evidence/2026-09-24-formal-expected-tenant/README.md)。EntryDecision范围独立复核及组合/运输/生命周期映射未全部就绪，entry2仍候选。
+实际运行见EntryCommit/EntryDecision证据及ExpectedTenant证据。EntryDecision范围独立复核及组合/运输/生命周期映射未全部就绪，entry2仍候选。

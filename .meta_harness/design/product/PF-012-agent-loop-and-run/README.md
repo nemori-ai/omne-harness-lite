@@ -186,9 +186,8 @@ relations:
 | 一次运行具体怎么走、崩了怎么接、状态怎么流转 | [流程与状态](flows.md) |
 | 怎么算这块设计站得住 | [验收标准](acceptance.md) |
 | 第一期准备交付哪些结果 | [故事卡](stories.md) |
-| 哪些是拍板定的，哪些是推导的，还剩什么没定 | [决策与来源](decisions.md) |
-| 这块设计怎么演变到今天 | [变更历史](changelog.md) |
-| 当时是怎么谈的 | [设计交流笔记](interviews/README.md) |
+| 哪些是拍板定的，哪些是推导的，还剩什么没定 | [当前规则与范围](design.md) |
+| 这块设计怎么演变到今天 | [当前规则与范围](design.md) |
 
 ## 状态
 
@@ -196,8 +195,8 @@ relations:
 
 补齐重装配安全交接、独立模型／工具执行与待续判断的关联；旧模型建议中尚未发起的动作按新装配核对，绑定已移除或已变则不自动执行。本次为产品设计增量，直接裁决与 PM 推导见 decisions；不扩大此前整包接受、规格或实现状态。
 
-- 产品设计：**rev 24**，明确完整函数输入与持久化投影；新增表达不扩大历史接受范围。此前 **rev 15，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
-- **没有待裁决项**；[对账那条裁决](decisions.md#一拍板记录)有一处 PM 读法[由 D-065 确认](decisions.md#四已知的来源问题)（追补前提含「工具执行运行时里找不到它」）
+- 产品设计：**rev 24**，明确完整函数输入与持久化投影；新增表达不扩大历史接受范围。此前 **rev 15，已正式接受**（产品负责人，2026-09-26，D-065）。现行规则及显式缺口按本包正文。
+- **没有待裁决项**；对账那条裁决有一处 PM 读法由 D-065 确认（追补前提含「工具执行运行时里找不到它」）
 - **那个缺口已经有主了**：会话归 [PF-015](../PF-015-session-lifecycle-and-ownership/README.md)（rev 13，已正式接受；显式未决项保留）。
   **它没有终态**——[生命周期是四个状态，收束的锚点是归档](../PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)，
   而 [§6.6](design.md#66-终态不可逆且只有一个出口) 说的三个终态**是 Run 的，不是会话的**，两者从来不是一回事
@@ -206,7 +205,7 @@ relations:
 - **[C-19 已闭合](../../ubiquitous_language/conflicts.md#现有冲突)**：[执行尝试](design.md#执行尝试)是**视图**，
   身份 (哪个 Run, 第几次) 从日志派生，**不另存、不建对象**
 - **欠 [PF-000](../PF-000-occurrences-and-record-entries/README.md) 一次跟进**：
-  [§6.16 点名的几种条目与四个字段那边还没有](../PF-000-occurrences-and-record-entries/decisions.md#四已知的来源问题)，
+  [当前规则与范围](../PF-000-occurrences-and-record-entries/design.md)，
   **没有直接矛盾**，条目的种类与形状仍归那边定
 - 技术投影：尚未开始
 
@@ -218,19 +217,16 @@ PF-012-agent-loop-and-run/
 ├── design.md         Run 与 Agent Loop、状态转移方程、执行尝试、归属与记录、十一个 Loop 拓展点、两条线
 ├── flows.md          一次运行怎么走完、崩了怎么接、状态流转、拓展点站在哪
 ├── acceptance.md     可观察场景、绝不能发生的事、判据
-├── decisions.md      拍板记录 / PM 推导 / 待裁决 / 来源问题
-├── changelog.md      产品设计本身的演进
-└── interviews/       设计交流笔记（原始材料）
 ```
 
 返回[产品设计入口](../README.md)。
 
 
-创建、动态部件与持久化的当前规则见 [PF-015 完整矩阵](../PF-015-session-lifecycle-and-ownership/design.md#616-会话组成与创建输入)。本 topic 的本轮变更见 [changelog](changelog.md)。
+创建、动态部件与持久化的当前规则见 [PF-015 完整矩阵](../PF-015-session-lifecycle-and-ownership/design.md#616-会话组成与创建输入)。本 topic 的本轮变更见 [当前规则与范围](design.md)。
 
 
 本轮明确 [Session 归属、Run 工作与句柄](../PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)，持久关联见 [PF-015 §6.21](../PF-015-session-lifecycle-and-ownership/design.md#621-三类-runtime-的归属与执行关联)；释放 Agent runtime 不取消模型／工具执行。
 
 本次产品裁决：队列派生排除因归档取消的输入，历史与承接事实不改写。新增裁决的依据与范围见 decisions；不扩大既有整包接受、规格或实现状态。
 
-本次受理与消费边界的采用范围见 [限定采用](decisions.md#2026-10-06--持久受理与消费边界的限定采用)；共同保管及清除规则由 [PF-015 §6.26](../PF-015-session-lifecycle-and-ownership/design.md#626-待消费数据先持久保管再交接) 拥有，具体提交与恢复机制仍待技术设计。
+本次受理与消费边界的采用范围见 限定采用；共同保管及清除规则由 [PF-015 §6.26](../PF-015-session-lifecycle-and-ownership/design.md#626-待消费数据先持久保管再交接) 拥有，具体提交与恢复机制仍待技术设计。

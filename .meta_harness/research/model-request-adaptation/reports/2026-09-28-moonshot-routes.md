@@ -14,7 +14,7 @@
 | Endpoint 参数名 | `reasoning`、`reasoning_effort`、`max_tokens`、`stop`、`frequency_penalty`、`presence_penalty`、tools/tool_choice | `reasoning`、`max_tokens`、`stop`、`frequency_penalty`、`presence_penalty`、tools/tool_choice | `supported_parameters` 只证明网关列名，不能推出各值域和组合条件。两条均不列 temperature、top_p、seed。 |
 | Native 推理／采样 | K3 effort `low/high/max`，默认 max；temperature 固定 1、top_p 固定 0.95、两 penalty 固定 0 | K2.7 始终 thinking；`reasoning_effort` 不支持，若显式 `thinking` 仅 `{type:enabled,keep:all}`；相同固定采样值 | Moonshot 模型参数表；实际经 OpenRouter `reasoning.effort` 逐值发送尚未验证。 |
 | 提醒角色 | 未发现 Moonshot 专用的 reminder 消息角色；保留标识后用 user | 同左 | Moonshot Chat 消息及指南和 OpenRouter Chat 公开角色查阅范围内的**未发现**，不是已构造反例证明永不存在。 |
-| Prefix cache | OpenRouter 的 [Moonshot 缓存说明](https://openrouter.ai/docs/guides/best-practices/prompt-caching)称自动、无手工控制；既有同 tag 短探针 K3 `cache_read_tokens=5888`，K2.7 `5632` | 同左 | 既有[读数](../../../design/record/evidence/2026-09-27-probe-model-request-runtime/model-evidence-summary.json)为有限暖读；本轮未付费。公开 endpoints JSON 的 `supports_implicit_caching=false` **与文档及已观察到的 read tokens 不一致**，其语义未查清，不能以该 flag 单独声称不缓存。 |
+| Prefix cache | OpenRouter 的 [Moonshot 缓存说明](https://openrouter.ai/docs/guides/best-practices/prompt-caching)称自动、无手工控制；既有同 tag 短探针 K3 `cache_read_tokens=5888`，K2.7 `5632` | 同左 | 既有读数为有限暖读；本轮未付费。公开 endpoints JSON 的 `supports_implicit_caching=false` **与文档及已观察到的 read tokens 不一致**，其语义未查清，不能以该 flag 单独声称不缓存。 |
 
 Moonshot 的[缓存说明](https://platform.kimi.ai/docs/guide/context-caching.md)给 native Chat `prompt_cache_options` 可选 5m／1h TTL，缺席时 5m。OpenRouter 固定路由的公开文档只承诺自动缓存，未证明 native TTL 字段可由网关转发，因此 OpenRouter 适配不能自行补一个 TTL，也不能以配置字段存在证明命中。缓存命中应比较相同前缀的冷暖请求、实际同 tag 响应及 `usage.cache_read_tokens`，TTL 留存期还需到期对照。
 

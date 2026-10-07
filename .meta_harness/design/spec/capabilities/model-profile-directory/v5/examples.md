@@ -102,7 +102,7 @@ B 给自己的租户层配了 `K_B`；B 在个人组织 `P` 里给 `T_P` 配了 
 | `胜出行(T_C, "vendor/new-model", A₂)`，**同一个 `T_C`** 的另一个会话格，`A₂` 不含它 | **没有胜出行**；落点是 `Q` 组织层那条，收场「这个范围不允许」——**同一租户同一路由名，胜出行随 `A` 变**，按 `(T, r)` 缓存的实现在这里答错 | 同上 |
 | 允许集合读不到时求 `胜出行(T_C, "vendor/new-model", ·)` | **读的一方以失败收场**，不拿 `∅`（全拒）或全集（全放）顶替 | 同上 |
 
-**本版 `A` 就是 `listProfiles(T_C)` 里出现的全部路由名**（[D-063 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)：不收窄），同一个 `T_C` 下各会话格的 `A` 相同，`A₂` 那一行演示的是将来收窄之后的规则、**本版不出现**；本版「允许集合读不到」就是列表读不到（[S-17](contract.md#s-17-listprofiles) ⑧）。
+**本版 `A` 就是 `listProfiles(T_C)` 里出现的全部路由名**（D-063 R-4：不收窄），同一个 `T_C` 下各会话格的 `A` 相同，`A₂` 那一行演示的是将来收窄之后的规则、**本版不出现**；本版「允许集合读不到」就是列表读不到（[S-17](contract.md#s-17-listprofiles) ⑧）。
 
 ## 6. 每个失败值一个反例
 
@@ -131,7 +131,7 @@ B 给自己的租户层配了 `K_B`；B 在个人组织 `P` 里给 `T_P` 配了 
 | `registerProfile(T_B, organization(O), {routeName: "acme/finetune-7b", …})` | `notAuthorized` | `O` 的组织层里确有这个名字，但授权先于名字判定——无权者拿不到 `routeNameTaken`（[S-14](contract.md#s-14-registerprofile) 末段） |
 | 同上，**成员资格判定以 `unavailable` 失败**（故障注入） | **`unavailable`** | 授权判不出来，名字不再判：`unavailable` 排在 `routeNameTaken` 之前（[S-13](contract.md#s-13-这一节每个操作写全九件事)）。**得到 `routeNameTaken` 即违约**——那是把名字交给了一个没判出有权的调用方 |
 | `withdrawProfile(T_C, {origin: official, routeName: "openai/gpt-5"})` | `officialProfileReadOnly` | 结构性禁止先于授权（[S-15](contract.md#s-15-withdrawprofile) 末段）；`updateProfile`、`relistProfile` 同样先于授权 |
-| `updateProfile(T_C, {origin: custom, scope: organization(O), routeName: "acme/finetune-7b"}, {parameters: {maxOutputTokens: 1000000}})`——`O` 不在 `T_C` 的链上，这个 `patch` 会让那一行改完之后过不了 `data.model-profile/v5#S-18` | **`notAuthorized`** | 「改完的整份文档过 S-24」要读出那一行才判得出，排在授权与解析之后；**得到 `invalidInput{max_output_exceeds_profile}` 即违约**——那等于告诉无权者那一行在、且输出上限小于 10⁶，二分几次就测出上限（[S-31](contract.md#s-31-updateprofile) ⑥ 与末段；[D-060 §七 M14](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。那一行不存在时同样 `notAuthorized`，两种答案分不开 |
+| `updateProfile(T_C, {origin: custom, scope: organization(O), routeName: "acme/finetune-7b"}, {parameters: {maxOutputTokens: 1000000}})`——`O` 不在 `T_C` 的链上，这个 `patch` 会让那一行改完之后过不了 `data.model-profile/v5#S-18` | **`notAuthorized`** | 「改完的整份文档过 S-24」要读出那一行才判得出，排在授权与解析之后；**得到 `invalidInput{max_output_exceeds_profile}` 即违约**——那等于告诉无权者那一行在、且输出上限小于 10⁶，二分几次就测出上限（[S-31](contract.md#s-31-updateprofile) ⑥ 与末段；D-060 §七 M14）。那一行不存在时同样 `notAuthorized`，两种答案分不开 |
 | 同上，但 `patch` 提到定义域以外的成员 `routeName` | `invalidInput{malformed}` | 只看输入本身的形状，仍在最左——它不泄露那一行的任何事（[S-31](contract.md#s-31-updateprofile) ③⑥） |
 
 ## 7. v3 绑定的写入修订与隔离

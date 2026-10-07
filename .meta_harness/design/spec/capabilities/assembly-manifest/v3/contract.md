@@ -1,8 +1,8 @@
 # capability.assembly-manifest v3
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.assembly-manifest, 3)`
-- **状态**：candidate；继承已接受 v2 的四操作与判定，补运行时求值投影读面。依据 [模型请求适配增量提案 rev 2](../../../../record/proposals/model-request-adaptation/design.md) 及主线 2026-09-27 施工裁定；未接受。
-- **这一版是什么**：**窄口的接口契约**。产品负责人 2026-09-25 同意把验收装配里的替身换成「接口契约 ＋ 最小提供者」，接口按消费者已列出的需要定窄口，将来真提供者要更多走新版本（[D-063 R-1](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）。
+- **状态**：当前采用范围见 catalog；继承已接受 v2 的四操作与判定，补运行时求值投影读面。依据 模型请求适配增量提案 rev 2 及主线 2026-09-27 施工裁定。
+- **这一版是什么**：**窄口的接口契约**。产品负责人 2026-09-25 同意把验收装配里的替身换成「接口契约 ＋ 最小提供者」，接口按消费者已列出的需要定窄口，将来真提供者要更多走新版本（D-063 R-1）。
   其 v2 前身收四个操作：**读表头、条件追加、按表时刻读回历史换表记录**——会话资产注册表节点对装配清单提供者的要求 [R-M1～R-M9](../../../../realization/packages/tools/asset-registry/design.md#对装配清单提供者的要求清单)；**以及依赖在场判定 `dependencyPresence`**——简报裁定并入本契约作一个查询，消费者是拓展点派发（`capability.loop-extension-runner/v2#S-12` ①；[节点](../../../../realization/packages/agent-loop/loop-extension-runner/design.md) RUN-N5；据点装配 C-14）。
   本版保留上述四操作，另加 [S-33 `readEvaluation`](#s-33-readevaluation读取已提交的求值)，只补模型请求运行时与内建重试所需投影读面。**不替 PF-004 那一程设计完整装配清单**（[G-1](#十已知缺口)）。
 - **设计依据**（PF-004 rev 12、PF-006 rev 19、PF-015 rev 11；新增读面消费 PF-013 rev 13）：
@@ -11,7 +11,7 @@
   PF-015 [§6.11 会话睡醒之后，还是原来那个](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#611-会话睡醒之后还是原来那个)；
   [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy)
   新增读面仅支撑 PF-013 [§6.17 运行时设置项](../../../../product/PF-013-model-profiles-and-invocation/design.md#617-本-topic-不出现任何时限数值)与模型设置求值的读取责任；不自行定义这些设置的产品政策。
-- **决定**：[D-060 §S22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s22asset-registry报回的) S22-e（重启按装配清单记下的构成重建）、S22-g（装配清单的追加面与记录形状归 PF-004 的契约）；[§块 B](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-b-拆分提案报回的推荐-c按拥有者分领域) PB-6（reload 结果记进装配清单）；[§八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M35（被顶替的快照仍要读得到）、M43（C-2 留给下一程）、M48（C-14 登记）；[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md)（sqlite 的持久边界）
+- **决定**：D-060 §S22 S22-e（重启按装配清单记下的构成重建）、S22-g（装配清单的追加面与记录形状归 PF-004 的契约）；§块 B PB-6（reload 结果记进装配清单）；§八 M35（被顶替的快照仍要读得到）、M43（C-2 留给下一程）、M48（C-14 登记）；D-027（sqlite 的持久边界）
 - **精确语义依赖**（六项，消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记）：
   - `omne-harness-lite-design-2026-09-15 · data.identity-values · v1`（accepted）
   - `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1`（accepted，只取 `Instant`）
@@ -127,7 +127,7 @@
 2. **`given`**：写入方带来的引用（会话资产注册表把装配交来的那个带来，`capability.asset-registry/v2#S-13`、`#S-22` ②）。同一个会话里**再以同一个引用 `given` 追加**，得 `alreadyRecorded{record}` 并交回已有的那一条——回执丢了的重试认回同一次（[S-17](#s-17-append条件追加一条换表记录) ⑦）；这个引用已经指认了**别的**记录（别的会话的，或本能力铸的），得 `evaluationRefConflict`。
 3. **`mint`**：本能力在提交时铸一个新的，与已有的任何一个都不相等。
 4. **`reuse{ref}`**：`ref` 必须指认**这个会话里**一条 `given` 或 `mint` 记录；否则 `recordNotFound`。`reuse` 记录不指认任何求值——它们没有自己的求值，只沿用。
-5. **`EvaluationRef` 的权威在本条**（主线裁定 [D-060 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ③；原 [G-6](#十已知缺口) 闭合）：`capability.asset-registry` v2 [S-13](../../asset-registry/v2/contract.md#s-13-evaluationref) 以坐标引用本条、不另下定义，catalog 登那一侧 → 本契约的依赖；本契约不以坐标依赖那份契约——它是消费者。
+5. **`EvaluationRef` 的权威在本条**（主线裁定 D-060 §八 N-37 ③；原 [G-6](#十已知缺口) 闭合）：`capability.asset-registry` v2 [S-13](../../asset-registry/v2/contract.md#s-13-evaluationref) 以坐标引用本条、不另下定义，catalog 登那一侧 → 本契约的依赖；本契约不以坐标依赖那份契约——它是消费者。
 
 ### S-9 表时刻：同一类别上严格递增
 
@@ -206,7 +206,7 @@
 | `unavailable` | 判定或写入做不出来（[S-14](#s-14-缺席时的默认答案) 第二行）。**与已接受的 `capability.organization-governance` v1 同名同义** | 失败 |
 | `unavailable{reason: invalid_evaluation_content}` | 只用于 S-33：源记录可读，但 S-32 必需投影缺失或非法。`reason` 是本版新增的闭合诊断值，不等于「没有模型锁」或空求值 | 失败 |
 
-> **账本外的名字**：除 `invalidInput`、`unavailable` 外，上表的值与操作名 `readHead`、`readHistory` 都是本契约起草时给的**候选名**（施工简报的账本只给了四个操作的描述与 `dependencyPresence` 一个名字），**主线已接受**（[D-060 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ①）；`headMismatch` 就是会话资产注册表节点 R-M1 说的「冲突」，`alreadyRecorded` 就是 R-M2 说的「已在」。
+> **账本外的名字**：除 `invalidInput`、`unavailable` 外，上表的值与操作名 `readHead`、`readHistory` 都是本契约起草时给的**候选名**（施工简报的账本只给了四个操作的描述与 `dependencyPresence` 一个名字），**主线已接受**（D-060 §八 N-37 ①）；`headMismatch` 就是会话资产注册表节点 R-M1 说的「冲突」，`alreadyRecorded` 就是 R-M2 说的「已在」。
 
 上述历史账本不包括本候选的新名。`readEvaluation` 与 `invalid_evaluation_content` 由本次主线 2026-09-27 施工账本明确给定；其状态仍随 v3 候选，不能引用旧 D-060 声称已经接受。
 
@@ -476,12 +476,12 @@
 
 | # | 缺口 | owner | 闭合条件 |
 |---|---|---|---|
-| G-1 | **本版与真承接者那一程的关系**（据点装配缺口 C-2、C-14）：本版是窄口——换表记录的三个操作只收会话资产注册表节点 R-M1～R-M9，`dependencyPresence` 按简报并入作一个查询。**装配清单的完整契约与真提供者**（记录内容的形状、依据的定义版本、成本归属、运行中增量装、清单的复用与失效、留存期限）归 PF-004 那一程；在场判定面的来路归派发器契约的 owner（C-14）。那一程起草时，本版的条款要么原样收进，要么在新版本里明写差异；**消费者不因此升级**，直到它们改钉新版 | 主线 → PF-004 那一程（[D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M43 的 C-2）；C-14 → 派发器契约的 owner（M48） | 那一程的装配清单契约发布，写明与本版的对应；`capability.asset-registry` 的 G-1 随之闭合；提供者节点互指 |
+| G-1 | **本版与真承接者那一程的关系**（据点装配缺口 C-2、C-14）：本版是窄口——换表记录的三个操作只收会话资产注册表节点 R-M1～R-M9，`dependencyPresence` 按简报并入作一个查询。**装配清单的完整契约与真提供者**（记录内容的形状、依据的定义版本、成本归属、运行中增量装、清单的复用与失效、留存期限）归 PF-004 那一程；在场判定面的来路归派发器契约的 owner（C-14）。那一程起草时，本版的条款要么原样收进，要么在新版本里明写差异；**消费者不因此升级**，直到它们改钉新版 | 主线 → PF-004 那一程（D-060 §八 M43 的 C-2）；C-14 → 派发器契约的 owner（M48） | 那一程的装配清单契约发布，写明与本版的对应；`capability.asset-registry` 的 G-1 随之闭合；提供者节点互指 |
 | G-2 | **在场事实从哪里来、它是不是本契约的事**：[PF-006 §6.4](../../../../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析) 说的是「有没有在场且可用的提供者」「提供者换了或没了 → 重算」——那是提供者的在场与自报，**不是装配清单记下的构成**。本版按简报把查询放在这里，但它的事实没有写面、没有权威来源；**产品装配里因此每个名字都判不出 ⇒ `unavailable`**（派发器对带 `needs` 的件收「判不出」，与今天读面缺席时相同）。与 `capability.asset-registry` 的 G-6 同题 | 主线（这个查询的家）；PF-006 依赖解析与据点装配那一程（事实的来源） | 在场事实有写面与来源；若它的家不在装配清单，从本契约的新版本移出，派发器改钉 |
-| G-3 | **断电的边界**：成功返回之后操作系统崩溃或断电，最后一条是否仍在。最小提供者若是 sqlite `synchronous = NORMAL`，最后一段已提交事务可能丢（[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md)；会话资产注册表节点 R-M7） | 提供者设计 ＋ 主线 | 提供者节点写明刷盘政策与断电边界；若产品要求断电不丢，本契约出新版把 S-13 第 5 条改为承诺 |
+| G-3 | **断电的边界**：成功返回之后操作系统崩溃或断电，最后一条是否仍在。最小提供者若是 sqlite `synchronous = NORMAL`，最后一段已提交事务可能丢（D-027；会话资产注册表节点 R-M7） | 提供者设计 ＋ 主线 | 提供者节点写明刷盘政策与断电边界；若产品要求断电不丢，本契约出新版把 S-13 第 5 条改为承诺 |
 | G-4 | **本候选补窄读面，完整闭合待依赖与采用**：S-32/S-33 给出求值与有序组成的读取；写方须采用其新版本真实产生并在同一条换表记录中保存。`capability.asset-evaluation` v4 的根属性与组成顺序、写方新版本尚须完成独立评审与接受；原 v2 写方不能冒充已经满足。完整 Agent 定义与自动初选仍不由此读面覆盖 | 主线；资产求值、会话资产注册表的规格及提供者 owner；消费者 runtime/runner 的 owner | 精确依赖候选就绪并被显式接受，真实生产者/读取者采用后通过 S-34/S-35；只有读写 JSON 不能关闭产品证据缺口 |
 | G-5 | **跨进程**：[S-21](#s-21-装配给的保证-vs-协议须给的保证) 右列 | 架构设计（本版单机不阻断） | 分布式演化启动时给出，**作为本契约的新版本发布** |
-| G-6 | **已闭合（2026-09-25 修订波，[D-060 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ③）**：`EvaluationRef` 的权威在本契约 [S-8](#s-8-求值引用-evaluationref)；会话资产注册表 [S-13](../../asset-registry/v2/contract.md#s-13-evaluationref) 改为引用它，对齐义务撤销 | — | — |
+| G-6 | **已闭合（2026-09-25 修订波，D-060 §八 N-37 ③）**：`EvaluationRef` 的权威在本契约 [S-8](#s-8-求值引用-evaluationref)；会话资产注册表 [S-13](../../asset-registry/v2/contract.md#s-13-evaluationref) 改为引用它，对齐义务撤销 | — | — |
 | G-7 | **`mint`／`reuse` 追加没有认回键**：回执丢了只能读回最后一条比对（[S-22](#s-22-回执丢失与结果未知) 第 2 条）；单机单写入者时比对得出，跨进程或多写入者时不够 | 主线；PF-004 那一程 | 给这两种追加一个写入方铸的请求键（与 `given` 同一种认回），出新版 |
 
 ---
@@ -519,4 +519,4 @@
 
 **本版从已接受 v2 演进为 v3 候选**。原四操作、条件追加顺序、幂等、持久与留存不变；增加只读 `readEvaluation` 及 S-32～S-35 的求值投影和验收义务。`data.asset-model` 依赖显式采用已接受 v3，既有 S-1 类别不变，并消费 S-3 能力标识与相等；其他旧 data 依赖保持原版。旧 v2 资源保持冻结，消费者只有显式改钉才采用本版。
 **本版的规范工件**：本文件与 [`examples.md`](examples.md)。接受状态、冻结记录与执行结果都在本版本目录之外维护。
-**发布后**：本目录下的规范正文与实例不可原地覆盖；修改发布新版本。**接受之前**，候选可以原地修订，每次修订记在[验证入口「变化的影响」](../verification.md#变化的影响)。
+**发布后**：本目录下的规范正文与实例不可原地覆盖；修改发布新版本。**接受之前**，候选可以原地修订。 本次修改影响与验证运行放执行工作树 `tmp/<task>/`，不在验证正文追加流水。

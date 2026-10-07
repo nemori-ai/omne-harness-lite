@@ -211,9 +211,9 @@ runner 把 `modality-converter` 移到末位——链是 `pii-scrubber` → `mod
 | `replay` 一次从没开始过的经过 | **空列表** | 与「读不到」（`unavailable`）是两个值 | [S-22](contract.md#s-22-replay从日志重建一次经过) ⑤ |
 | 一批 `[c1, c2]` 只带 `[c1]` 调 `dispatch`（拆批；`c2` 解析成功） | **`invalidInput`**，没有记录 | `batch` 里的 `c2` 不在 `actions` 里、又不是解析不了的调用；接受子集会让这一轮的 `admit` 看不到整批 | [S-21](contract.md#s-21-dispatch一次经过) ⑥ |
 | 一批 `[c1, c2]`，`c2` 参数收齐却解析不了；只带 `[c1]`、`batch = [c1, c2]` 调 `dispatch` | **正常受理**：`c1` 一次经过，`c2` 不过这一关 | 解析不了的调用不进 `actions`、仍列在 `batch` 里，收场归执行运行时 | [S-21](contract.md#s-21-dispatch一次经过) ①、[S-29](contract.md#s-29-一批动作每个动作一次经过) 第 1 条 |
-| `before_action` 上不带 `admission`，或带了另一个运行的报告，或带了同一运行上一次尝试（`attempt = 1`，这一次是 `2`）的报告 | **`invalidInput`**，没有记录 | runner 不替这一次尝试现算一份报告，也不认别的运行、别的尝试的那一份——核会话、运行、尝试三者（[D-060 §八 M46](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | [S-21](contract.md#s-21-dispatch一次经过) ①、[S-16](contract.md#s-16-缺席时的默认答案) |
+| `before_action` 上不带 `admission`，或带了另一个运行的报告，或带了同一运行上一次尝试（`attempt = 1`，这一次是 `2`）的报告 | **`invalidInput`**，没有记录 | runner 不替这一次尝试现算一份报告，也不认别的运行、别的尝试的那一份——核会话、运行、尝试三者（D-060 §八 M46） | [S-21](contract.md#s-21-dispatch一次经过) ①、[S-16](contract.md#s-16-缺席时的默认答案) |
 | 连续否决上限这项运行时设置此刻读不到 | **`unavailable`** | 读不到不是「没有上限」 | [S-30](contract.md#s-30-连续被否决的回复) 第 3 条 |
-| `before_action` 链 `budget-guard` → 兼容件 `hooks.claude_code.…PreToolUse.1.1` → `admission`；`budget-guard` 已落 `observed`，兼容件的子进程还在跑时用户取消这个运行，取消请求落日志后调用方叫停这一次 `dispatch` | **`cancelled`**：`budget-guard` 那条结论在；兼容件收到停止信号、子进程被停下，**它没有记录**；`admission` 没被求值、没有 `admit`；没有提醒、没有效果 | 不是报错（叫停不是那一件出了错，不按策略落 `veto`）；不是不可用（它已经开始了，也不跳过接着求 `admission`）；不是 `unavailable`（不是判不出来，运行已被取消，没有下一次尝试接着它） | [S-21](contract.md#s-21-dispatch一次经过) ②⑥、[S-34](contract.md#s-34-撤下回收与取消时在途的经过)；[D-060 §八 M39](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) |
+| `before_action` 链 `budget-guard` → 兼容件 `hooks.claude_code.…PreToolUse.1.1` → `admission`；`budget-guard` 已落 `observed`，兼容件的子进程还在跑时用户取消这个运行，取消请求落日志后调用方叫停这一次 `dispatch` | **`cancelled`**：`budget-guard` 那条结论在；兼容件收到停止信号、子进程被停下，**它没有记录**；`admission` 没被求值、没有 `admit`；没有提醒、没有效果 | 不是报错（叫停不是那一件出了错，不按策略落 `veto`）；不是不可用（它已经开始了，也不跳过接着求 `admission`）；不是 `unavailable`（不是判不出来，运行已被取消，没有下一次尝试接着它） | [S-21](contract.md#s-21-dispatch一次经过) ②⑥、[S-34](contract.md#s-34-撤下回收与取消时在途的经过)；D-060 §八 M39 |
 
 ## 6. 不可用处置：租户件按声明，放行判断整批失败按报错
 
@@ -252,7 +252,7 @@ runner 把 `modality-converter` 移到末位——链是 `pii-scrubber` → `mod
 `call_22` 同形。两项效果都是 `vetoed{by: admission}`；`reason` 不借用任何一个拒绝原因 token（[S-29](contract.md#s-29-一批动作每个动作一次经过) 第 6、7 条；记录形状与 `capability.tool-admission/v2#S-29`、`#S-34` 一致）。**放行判断不可用**（不是 `admit` 失败）时则是两条 `skipped: unavailable`、`unavailability: fallback`、不带 `output`，效果同为 `vetoed`（[S-17](contract.md#s-17-系统自带件不可用时一律关门)）。
 
 **6c. 报告里查不到条目。**一批 `[call_31, call_32]` 都走到末位：`call_31` 调的是作者写的工具 `grep`；`call_32` 的 `tool` 是 `gh__create_issue`，而组织在这次尝试开始前禁用了接入点 `gh`——这一次尝试的可用性报告里没有它的任何动作条目。
-runner 以 `grep` 在 `admission.report` 的 `effectivePermissions` 里查到那一项，以 `gh__create_issue` 查不到：这一轮的 `admit` 输入恰是 `call_31`；`call_32` **不进** `admit`，它那次经过在放行判断那一格落一条 `observed`（原因 `no_such_entry`，这个原因在记录上的落处是 [G-19](contract.md#十三已知缺口)），效果 `proceed`、**没有放行凭据**；执行运行时收到它时即刻收场 `unavailable{no_such_entry}`（那一侧的条款）。`call_31` 照常判——**不因 `call_32` 被牵连成全拒**（[S-29](contract.md#s-29-一批动作每个动作一次经过) 第 5 条；主线裁定，见 [D-060 §七 M10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。
+runner 以 `grep` 在 `admission.report` 的 `effectivePermissions` 里查到那一项，以 `gh__create_issue` 查不到：这一轮的 `admit` 输入恰是 `call_31`；`call_32` **不进** `admit`，它那次经过在放行判断那一格落一条 `observed`（原因 `no_such_entry`，这个原因在记录上的落处是 [G-19](contract.md#十三已知缺口)），效果 `proceed`、**没有放行凭据**；执行运行时收到它时即刻收场 `unavailable{no_such_entry}`（那一侧的条款）。`call_31` 照常判——**不因 `call_32` 被牵连成全拒**（[S-29](contract.md#s-29-一批动作每个动作一次经过) 第 5 条；主线裁定，见 D-060 §七 M10）。
 
 ## 7. 兼容件的非阻断错误：固定按 `ignore`，记录与越档同形
 

@@ -92,17 +92,3 @@
 > In a perfect world, AI assistance would produce equal or higher quality work than any human. That isn't the world we live in today, and in most cases where human supervision or expertise is not in the loop, it's generating code or changes that cannot be reasonably maintained or evolved.
 
 **观察**：披露的**目的被写明**——决定施加多少审查强度。这与"禁止"（TC39）和"必须有人类完全理解"（Letta、AG2，见 [agent-frameworks-survey](agent-frameworks-survey.md)）构成 AI 生态的三种态度。
-
-## 5. 与本项目骨架的对照（推断）
-
-- **值得引入**：`sep-NNNN.yaml` traceability 文件——把规范里每条 MUST/SHOULD 映射到检查 ID 或一条**记录在案的豁免（附跟踪 issue）**。这比"证据齐不齐"的人工判断可核对得多，且"豁免必须留痕"正好对上本项目"缺口、失败、未执行分别保留"的要求。
-- **值得引入**：`dormant ≠ rejected` 与"提交竞争性 SEP"这两条——它们给"候选没有被否决、只是没人推"和"不同意方向"各留了一条不污染决定记录的出口。
-- **值得引入**：状态只能由 sponsor（评审方）改，不能由作者改。本项目对应的是"作者裁决 / 用户裁决分层"，可以把"谁能改哪个状态字段"写成同样明确的规则。
-- **反面教材**：把 `Alternatives Considered` 放进 `Additional Optional Sections`，结果 29% 的兑现率。与 EIP 的 `TBD` 占位一起，构成同一条规律：**没有会失败的门，模板小节就不会被填**。
-
-## 6. 局限与未覆盖
-
-- 统计是机械的标题匹配 + 关键词匹配，会**低估**把备选写在 `Specification` / `Motivation` 里而不加标题的情况；反过来也会把只提一句 "we considered X" 的算作"有"。统计结论只支持"结构上找不到备选"，不支持"作者没有考虑过备选"。
-- 未读 `SEP-2484`（一致性测试要求的完整规范，含 traceability 文件格式与争议流程）正文，只读了流程页的摘要。
-- 未读 `GOVERNANCE.md` 全文与 Core Maintainer 会议纪要，因此"正式评审如何形成决定"只有流程页的描述。
-- 未覆盖 `Rejected` / `Dormant` 状态的 SEP——`seps/` 目录里 42 份全是 `Final`，被拒绝的提案不在目录里，它们的记录形态**未覆盖**。这是一个重要缺口：本项目关心的正是"被否决的候选如何留档"。

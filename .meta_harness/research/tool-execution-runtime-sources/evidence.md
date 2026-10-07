@@ -11,7 +11,7 @@
 | minimal-runtime local-execution | `.worktrees/minimal-runtime`，`feat/minimal-runtime@d79484d9f4b8c726b6d7e37a36ae5698f4c8ecac`；包 `@omne-harness-lite/local-execution@0.0.0`（private） | 工作树直读；`git merge-base --is-ancestor` 核对提交关系 | 本仓库未接受的实施产物；设计依据属已退役设计链 |
 | 已知问题记录 | 主检出 `tmp/local-execution-stop-io-coordination.md`（2026-09-16） | 直读 | 实施侧自述，非契约 |
 | 产品正文与统一语言 | HUB `.worktrees/assets-runtimes`：PF-006 rev 14、PF-012 rev 7、PF-014 rev 3、PF-015 rev 10、PF-005 rev 5、PF-007 rev 16 | 直读 | 本项目需求权威 |
-| 本项目约束 | D-026（`design/record/decisions/infrastructure-persistence-choices/decision.md:16`）；主检出 `pnpm-workspace.yaml:8`（main `2c1a108`） | 直读 | 已接受决定 / 仓库事实 |
+| 本项目约束 | 当前基础设施后端采用规则；主检出 `pnpm-workspace.yaml:8`（main `2c1a108`） | 直读 | 已接受决定 / 仓库事实 |
 
 > DSH 抽取副本的 `SHA256SUMS` 行：`f08cfc86cb05d4186be3319670e2756375cb2788b3d2164dd7f30b885f350860  dsh-c291e79.tar.gz`；
 > 复核：在主检出 `tmp/sources/` 下 `sha256sum -c SHA256SUMS`。
@@ -165,11 +165,9 @@
 
 ## E-10 本项目约束：无 in-memory 与存储协议
 
-- 消费对象：research.md 结论 3、11
-- 来源与精确修订：`design/record/decisions/infrastructure-persistence-choices/decision.md:16,25`（D-026）；main `2c1a108` 的 `packages/core/storage/src/protocol.ts:1-40`（`Storage.read/write`、`WriteTx.lockRow/lockSentinel`，基于 Kysely）。
-- 来源立场：已接受决定 / 仓库事实
-- 实际观察：D-026 表行「基础设施是否提供 in-memory 实现 | **不提供** | 存储、消息队列两类；时钟不在此列」。
-- 支持范围：约束只点名存储与消息队列两类基础设施；**对「进程内的活体句柄表（取消回调、waiter）」是否算 in-memory 实现没有说法**——这是本轮在结论 3 中标出的判断前提。
+- 消费对象：research.md 结论 3、11。
+- 当前采用范围：[基础设施后端规则](../../design/architecture/infrastructure-policy.md)。存储与消息队列两类不提供 in-memory 后端，时钟不在此列；活体句柄表的归类尚未定案，不能从后端约束推定其生命周期。
+- 存储协议：[公共 SPEC](../../../packages/core/storage/SPEC.md)与实际公开入口维护 read/write 及事务锁语义。本研究的旧源码观察只适用于其原输入，不证明现行消费者或消息队列符合性。
 
 ## E-11 产品正文的对照锚点
 

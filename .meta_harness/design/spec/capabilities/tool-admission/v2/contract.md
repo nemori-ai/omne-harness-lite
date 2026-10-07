@@ -5,7 +5,7 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.tool-admission, 2)`——
   `family = capabilities`、`topic = tool-admission`、规范路径 `spec/capabilities/tool-admission/v2/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：已由 [D-061](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
+- **状态**：已由 D-061 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **契约种类**：**接口型**——本契约只定[放行判断](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision)**对外的输入、输出、判定次序与凭据**；
   授权表达怎样求值（函数体）、卡片怎样投递、调用怎样执行，都不在这里（[S-2](#s-2-本契约不拥有什么)）
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-007 rev 18、PF-008 rev 7、PF-012 rev 14、PF-015 rev 11、PF-002 rev 20、PF-014 rev 7、PF-001 rev 19** 为准（2026-09-24 逐版复核，见[验证入口「变化的影响」](../verification.md#变化的影响)）
@@ -53,30 +53,30 @@
 | 工作区不参与权限计算；工作区自己提供的资产执行权限取最严值「问一下」 | [PF-002 §5.7](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算) · [§5.8](../../../../product/PF-002-assets-settings-and-permissions/design.md#58-三条层序各答一个问题) | [S-8](#s-8-有效执行权限)、[S-24](#s-24-失败值与它们的次序) |
 | 插队时悬着的运行等待态卡片按「人明确拒绝回复」处置 | [PF-014 §5.4.2](../../../../product/PF-014-inbound-intake-and-queueing/design.md#542-两种等人答机制各归各产品语义是同一条) | [S-12](#s-12-答复) |
 | 撤销只影响下一道尚未通过的准入 | [PF-001 §6.6](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#66-撤销不等于强制停止) | [S-19](#s-19-每道准入现读结论不存)、[S-36](#s-36-撤销取消与归档) |
-| 同一位置只按装配清单顺序；结论封闭 | [D-058](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔) Q8 · Q19 | [S-29](#s-29-位置干预力与结论投影) |
+| 同一位置只按装配清单顺序；结论封闭 | D-058 Q8 · Q19 | [S-29](#s-29-位置干预力与结论投影) |
 | 规格形式；部署边界；租户隔离 | [SYS-SPEC](../../../../foundation/cross-system-constraints/requirements.md#sys-spec) · [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) · [SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant) | [S-16](#s-16-admissiontoken-与参数相等)、[S-17](#s-17-缺席时的默认答案)、[S-24](#s-24-失败值与它们的次序)、[S-33](#s-33-装配给的保证-vs-协议须给的保证) |
 
-**没有产品行、或产品正文只给了方向的条款，依据各落在哪**（产品负责人尚未逐条追认的主线裁定汇编在 [D-060](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md)）：
+**没有产品行、或产品正文只给了方向的条款，依据各落在哪**（产品负责人尚未逐条追认的主线裁定汇编在 D-060）：
 
 | 条款 | 依据 |
 |---|---|
 | [S-29](#s-29-位置干预力与结论投影)、[S-34](#s-34-本能力缺席报错或判不出来)：本能力不可用时由全拒件顶上 | [PF-012 §5.8 系统自带的几件，不可用时各有定法](../../../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 12）· [PF-008 §4 放行判断](../../../../product/PF-008-human-in-the-loop/design.md#放行判断)（rev 7） |
-| [S-32](#s-32-这一件不得被替换禁用或收窄)：这一件不得被替换、禁用或收窄 | [PF-012 §5.8 系统自带的几件，各站在哪](../../../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪)（rev 12）；主线裁定原文见 [D-060 §S14 S14-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s14tool-admission报回的) |
-| [S-29](#s-29-位置干预力与结论投影)、[S-30](#s-30-放行之后参数不再变)：钉在 `before_action` 瀑布末位 | 主线裁定，见 [D-060 §S15 S15-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s15loop-extension-runner--hooks-import报回的) |
-| [S-16](#s-16-admissiontoken-与参数相等)、[S-26](#s-26-令牌有效的条件)：凭据是日志引用、按（`callId`，最终结论）指认；[S-25](#s-25-verifytoken) 的三件输入；[S-12](#s-12-答复) 的 `answer`；[S-14](#s-14-拒绝原因)、[S-15](#s-15-定死的四档选项与卡片草稿)、[S-26](#s-26-令牌有效的条件) 的 token 由本契约命名；[S-24](#s-24-失败值与它们的次序) 的 `unavailable` | 主线裁定，见 [D-060 §S14 S14-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s14tool-admission报回的) |
-| [S-8](#s-8-有效执行权限)：三档 token 只有一个名字 `ExecutePermission` | 主线裁定，见 [D-060 §S14 S14-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s14tool-admission报回的) |
+| [S-32](#s-32-这一件不得被替换禁用或收窄)：这一件不得被替换、禁用或收窄 | [PF-012 §5.8 系统自带的几件，各站在哪](../../../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪)（rev 12）；主线裁定原文见 D-060 §S14 S14-d |
+| [S-29](#s-29-位置干预力与结论投影)、[S-30](#s-30-放行之后参数不再变)：钉在 `before_action` 瀑布末位 | 主线裁定，见 D-060 §S15 S15-e |
+| [S-16](#s-16-admissiontoken-与参数相等)、[S-26](#s-26-令牌有效的条件)：凭据是日志引用、按（`callId`，最终结论）指认；[S-25](#s-25-verifytoken) 的三件输入；[S-12](#s-12-答复) 的 `answer`；[S-14](#s-14-拒绝原因)、[S-15](#s-15-定死的四档选项与卡片草稿)、[S-26](#s-26-令牌有效的条件) 的 token 由本契约命名；[S-24](#s-24-失败值与它们的次序) 的 `unavailable` | 主线裁定，见 D-060 §S14 S14-b |
+| [S-8](#s-8-有效执行权限)：三档 token 只有一个名字 `ExecutePermission` | 主线裁定，见 D-060 §S14 S14-a |
 | [S-31](#s-31-一批里还有一条在等谁都不执行)：放行之后到执行之间不重判 | [PF-012 §5.8 一批动作先全部判完](../../../../product/PF-012-agent-loop-and-run/design.md#一批动作先全部判完再执行任何一个)（rev 11） |
 | [S-34](#s-34-本能力缺席报错或判不出来)：本能力整次失败时不放行、否决与来由看得见 | [PF-008 flows §二](../../../../product/PF-008-human-in-the-loop/flows.md#二异常分支)（rev 6：写不出卡 ＝ 不放行 ＋ 告知） |
 | [S-10](#s-10-会话运行模式)：三档运行模式取产品原词；`auto_permission` 算不出就问人 | [PF-015 §4 会话运行模式](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式) · [PF-007 §5.6](../../../../product/PF-007-meta-capabilities/design.md#56-一次放行判断走四步) |
-| [S-15](#s-15-定死的四档选项与卡片草稿)：第四档写得进去才出现；[S-7](#s-7-admissioninput) 的输入 `tenantAutoWritable`（名字由本契约取，主线接受，见 [D-060 §六 N-8](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；来处 [§六 L7](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)，原 G-14 闭合） | 出不出现：[PF-008 §5.2 第三档和第四档各有约束](../../../../product/PF-008-human-in-the-loop/design.md#第三档和第四档各有约束)（rev 6）；由本能力出草稿时滤：主线裁定，见 [D-060 §五 K48](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) |
-| [S-7](#s-7-admissioninput)：`definition.name` 与 `call.tool` 都是模型面名字；参数解析不了的调用不进 `admit` | 主线裁定，见 [D-060 §五 K10、K24](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) |
-| [S-16](#s-16-admissiontoken-与参数相等)：凭据本身不含会话，核对按（会话，`callId`，生效参数） | 主线裁定，见 [D-060 §五 K27](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) |
-| [S-26](#s-26-令牌有效的条件)：本能力这一件的能力标识 `omne-official:admission-judgment` | 主线裁定，见 [D-060 §五 K29](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) |
-| [S-8](#s-8-有效执行权限)：MCP 动作的有效执行权限取自这次尝试的可用性报告，拿不到即本能力这一次不可用 | 主线裁定，见 [D-060 §五 K30](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) |
-| [S-8](#s-8-有效执行权限) 末条、[S-14](#s-14-拒绝原因) `not_held`、[S-22](#s-22-判定次序) 第 ⓪ 步：不在此刻组合里的工具条目单独判拒、不牵连同批 | 主线裁定，见 [D-060 §六 L15](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) |
-| [S-29](#s-29-位置干预力与结论投影)、[S-34](#s-34-本能力缺席报错或判不出来)：`admit` 失败记 `skipped: errored` ＋ `error` | 主线裁定，见 [D-060 §五 K26](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) |
-| [S-7](#s-7-admissioninput)、[S-8](#s-8-有效执行权限)：`not_in_composition` 只指条目仍在快照里；报告里查不到条目的调用不进 `admit` | 主线裁定，见 [D-060 §七 M10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) |
-| [S-8](#s-8-有效执行权限)：meta 门条目的执行权限恒为「自动」、本能力照常判；永久形式是 [G-15](#十一已知缺口) | 主线裁定，见 [D-060 §七 M21](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)；[PF-007 §5.7](../../../../product/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门) |
+| [S-15](#s-15-定死的四档选项与卡片草稿)：第四档写得进去才出现；[S-7](#s-7-admissioninput) 的输入 `tenantAutoWritable`（名字由本契约取，主线接受，见 D-060 §六 N-8；来处 §六 L7，原 G-14 闭合） | 出不出现：[PF-008 §5.2 第三档和第四档各有约束](../../../../product/PF-008-human-in-the-loop/design.md#第三档和第四档各有约束)（rev 6）；由本能力出草稿时滤：主线裁定，见 D-060 §五 K48 |
+| [S-7](#s-7-admissioninput)：`definition.name` 与 `call.tool` 都是模型面名字；参数解析不了的调用不进 `admit` | 主线裁定，见 D-060 §五 K10、K24 |
+| [S-16](#s-16-admissiontoken-与参数相等)：凭据本身不含会话，核对按（会话，`callId`，生效参数） | 主线裁定，见 D-060 §五 K27 |
+| [S-26](#s-26-令牌有效的条件)：本能力这一件的能力标识 `omne-official:admission-judgment` | 主线裁定，见 D-060 §五 K29 |
+| [S-8](#s-8-有效执行权限)：MCP 动作的有效执行权限取自这次尝试的可用性报告，拿不到即本能力这一次不可用 | 主线裁定，见 D-060 §五 K30 |
+| [S-8](#s-8-有效执行权限) 末条、[S-14](#s-14-拒绝原因) `not_held`、[S-22](#s-22-判定次序) 第 ⓪ 步：不在此刻组合里的工具条目单独判拒、不牵连同批 | 主线裁定，见 D-060 §六 L15 |
+| [S-29](#s-29-位置干预力与结论投影)、[S-34](#s-34-本能力缺席报错或判不出来)：`admit` 失败记 `skipped: errored` ＋ `error` | 主线裁定，见 D-060 §五 K26 |
+| [S-7](#s-7-admissioninput)、[S-8](#s-8-有效执行权限)：`not_in_composition` 只指条目仍在快照里；报告里查不到条目的调用不进 `admit` | 主线裁定，见 D-060 §七 M10 |
+| [S-8](#s-8-有效执行权限)：meta 门条目的执行权限恒为「自动」、本能力照常判；永久形式是 [G-15](#十一已知缺口) | 主线裁定，见 D-060 §七 M21；[PF-007 §5.7](../../../../product/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门) |
 
 > **没有产品行、由本契约推导的条款，逐条点名**（理由写在各条里）：
 > [S-1](#s-1-本契约拥有什么) 的「四步只判工具」（别的资产类别的权限项在装配时判）；
@@ -225,11 +225,11 @@ MCP 带来的动作用的是接入点那份持有上的逐动作执行权限（[
 | `effectivePermission` | 这个工具条目此刻的有效执行权限，带来源；**或显式值 `not_in_composition`**——这个工具条目此刻不在这个租户的组合里（[S-8](#s-8-有效执行权限)） | 见 S-8 | 必有 |
 | `grants` | 这个会话此刻的授权上下文（[S-9](#s-9-授权上下文与求值)） | `AuthorizationContext`，不透明 | 必有 |
 | `runMode` | 这个会话的运行模式（[S-10](#s-10-会话运行模式)） | `SessionRunMode` | 必有 |
-| `tenantAutoWritable` | 租户那一层给**这个工具条目**写下执行权限「自动」，此刻写不写得进去——落在外层（组织与出厂）给的界内、这一层该项没被锁住 | 布尔值 | 必有——**唯一的例外**：`effectivePermission` 是 `not_in_composition` 的项**不带**（没有那条求值结果可取；这一项只会被拒，不出卡），带了即 `invalidInput`。它只决定第四档出不出现（[S-15](#s-15-定死的四档选项与卡片草稿)），**不参与判定**。**来处**：资产求值在这个工具条目的执行权限项上给出的那一位（`capability.asset-evaluation/v2#S-42`，判据与资产治理写面的 `lockedAbove`、`lockedHere` 同一口径），组装输入的一方原样带上（`capability.loop-extension-runner/v2#S-29` 第 5 条，与 `effectivePermission` 取自同一条）；本契约不读那两份的面（原 G-14 闭合，[D-060 §六 L7](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)） |
+| `tenantAutoWritable` | 租户那一层给**这个工具条目**写下执行权限「自动」，此刻写不写得进去——落在外层（组织与出厂）给的界内、这一层该项没被锁住 | 布尔值 | 必有——**唯一的例外**：`effectivePermission` 是 `not_in_composition` 的项**不带**（没有那条求值结果可取；这一项只会被拒，不出卡），带了即 `invalidInput`。它只决定第四档出不出现（[S-15](#s-15-定死的四档选项与卡片草稿)），**不参与判定**。**来处**：资产求值在这个工具条目的执行权限项上给出的那一位（`capability.asset-evaluation/v2#S-42`，判据与资产治理写面的 `lockedAbove`、`lockedHere` 同一口径），组装输入的一方原样带上（`capability.loop-extension-runner/v2#S-29` 第 5 条，与 `effectivePermission` 取自同一条）；本契约不读那两份的面（原 G-14 闭合，D-060 §六 L7） |
 | `parent` | 这个会话是[子会话](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-child-session--子会话--child-session)时，父会话此刻的摘要（[S-11](#s-11-父会话摘要与宽的次序)） | `EffectivePermissionSummary` | **是子会话就必带**；不是就不带（带不带由调用方按会话关系定，[G-12](#十一已知缺口)） |
 | `answer` | 本能力为**这一次调用**出过的那张卡片上，人给的答复（[S-12](#s-12-答复)） | 四个选项 id 之一或 `declined` | 只在那张卡片答完之后、调用方回来收结论时带 |
 
-**`answer` 由本契约推导**（主线采纳，见 [D-060 §S14 S14-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s14tool-admission报回的)）：没有它，「不允许」与「不回答」两种答复无路可回——
+**`answer` 由本契约推导**（主线采纳，见 D-060 §S14 S14-b）：没有它，「不允许」与「不回答」两种答复无路可回——
 它们**都不落成授权表达**（[PF-008 §5.2](../../../../product/PF-008-human-in-the-loop/design.md#它吐出来的卡片选项是固定的) 的表「不允许」那一行落点为空；[§6.5](../../../../product/PF-008-human-in-the-loop/design.md#65-不回答是合法答复)），
 只靠重跑四步，拿到的仍是「算不出 → 问人」，**同一张卡片会被无限重出**；而 agent 必须分得出「人不同意」与「没有答案」（[§6.9](../../../../product/PF-008-human-in-the-loop/design.md#69-人拒绝之后agent-分得出那是拒绝)）。
 
@@ -244,7 +244,7 @@ MCP 带来的动作用的是接入点那份持有上的逐动作执行权限（[
 | 成员 | 取值 | 含义 |
 |---|---|---|
 | `value` | **恰三个**：`forbid` / `auto` / `ask`——就是 [`data.tool-definition/v2#S-15`](../../../data/tool-definition/v2/contract.md#s-15-执行权限) 的三档 token（禁止 / 自动 / 问一下） | 这个工具条目此刻的执行权限：出厂默认 ∩ 组织级 ∩ 租户级收成的**一个**档位（[PF-007 §5.6](../../../../product/PF-007-meta-capabilities/design.md#56-一次放行判断走四步) 第 ① 步的交集） |
-| `from` | **恰四个**：`factory` / `organization` / `tenant` / `workspace`——就是 [`data.asset-model/v2#S-16`](../../../data/asset-model/v2/contract.md#s-16-持有范围) 的 `HoldingScope.layer` 四个 token，**不带身份值** | 这个档位从哪来：`factory` ＝ 没有哪一层收窄它，用的是定义给的默认值（`data.asset-model/v2#S-20`、[D-058 Q6](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔)）；`organization`、`tenant` ＝ 那一层的配值定下了它；`workspace` ＝ **这是工作区自己提供的资产，按 [PF-002 §5.7](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算) 取最严值** |
+| `from` | **恰四个**：`factory` / `organization` / `tenant` / `workspace`——就是 [`data.asset-model/v2#S-16`](../../../data/asset-model/v2/contract.md#s-16-持有范围) 的 `HoldingScope.layer` 四个 token，**不带身份值** | 这个档位从哪来：`factory` ＝ 没有哪一层收窄它，用的是定义给的默认值（`data.asset-model/v2#S-20`、D-058 Q6）；`organization`、`tenant` ＝ 那一层的配值定下了它；`workspace` ＝ **这是工作区自己提供的资产，按 [PF-002 §5.7](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算) 取最严值** |
 
 - **判定只看 `value`，不看 `from`。**`from` 只用来写卡片说明与拒绝的来由（「为什么」要看得见，[PF-007 §5.7](../../../../product/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门)）；同一个 `value` 在四种 `from` 下给出同一个结论。
 - **`from = workspace` 时 `value` 只能是 `ask`**：工作区配的权限在读入时就被滤掉，工作区自己提供的资产**没有任何一层配得了它**（`data.asset-model/v2#S-20`）。
@@ -261,13 +261,13 @@ MCP 带来的动作用的是接入点那份持有上的逐动作执行权限（[
   **组装输入的一方按这张表收**；本能力收到一个集合而不是一个档位即 `invalidInput`——空集也不例外，它必须先被收成 `forbid` 再交来。
 - **MCP 动作的那一份**：接入点持有上逐动作的执行权限，在注册表钉住这一次尝试的动作集之后**再求一次值**，与接入点持有一起钉进这次尝试的可用性报告——报告的 `effectivePermissions` 里那个动作的那一项，就是那个接入点 `execute:<对端动作名>` 的求值结果（`capability.asset-registry` 的 S-11、`capability.asset-evaluation` 的 S-21；本契约只提及，依赖方向是它们 → 本契约）。
   **调用方从那份报告取、按上面那张表收成 `value`**，与别的工具条目同一规则；本能力只收档位，不读报告。
-  **作者写的与官方的工具也从同一份报告取**：报告的 `effectivePermissions` 对 `tool` 表每条条目恰一项（作者写的与官方的工具是它的 `execute` 那一项），一次尝试内不变（[D-060 §六 L13](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；组装的一方见 `capability.loop-extension-runner/v2#S-29` 第 5 条）。下一行的缺席收场对它们同样成立。
+  **作者写的与官方的工具也从同一份报告取**：报告的 `effectivePermissions` 对 `tool` 表每条条目恰一项（作者写的与官方的工具是它的 `execute` 那一项），一次尝试内不变（D-060 §六 L13；组装的一方见 `capability.loop-extension-runner/v2#S-29` 第 5 条）。下一行的缺席收场对它们同样成立。
   **报告里这一项缺席**（条目在这次尝试的 `tool` 表里，`effectivePermissions` 里却没有它那一项）**或写着 `unavailable`** ⇒ 本能力这一次**不可用**——它要的依据不在场——按 [S-29](#s-29-位置干预力与结论投影) 由全拒件顶上；**不得补一个档位**，也不得交一个缺了这一项的输入。**写着 `not_in_composition` 不在此列**（下一条）；**名字根本不在 `tool` 表里的调用也不在此列**（再下一条）。
 - **`not_in_composition`：这个租户此刻不再持有它**。可用性报告里这一项写着它（`capability.asset-registry/v2#S-11`），意思是**条目仍在这次尝试的快照里、它的能力标识却不在此刻的求值组合里**——被禁用、被移除、这个租户用不了；组装的一方原样交成 `effectivePermission = not_in_composition`、不带 `tenantAutoWritable`。
-  本能力对这一项**单独**判 `deny{not_held}`（[S-22](#s-22-判定次序) 第 ⓪ 步）：**不算缺依据、不使整次 `admit` 失败**，同批其他项照常判（主线裁定，[D-060 §六 L15](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）。**理由**：租户此刻不再持有它是一个结论，不是没有结论；整批全拒只留给判不出来。
-- **报告里查不到条目的调用不进 `admit`**（主线裁定，见 [D-060 §七 M10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）：名字不在这次尝试的 `tool` 表里——失去生效持有的接入点的动作（注册表不为它钉动作条目）、模型编造的名字——没有工具条目，也就没有执行权限可判；那一次经过由 runner 记 `observed`、`reason: no_such_entry`，由工具执行运行时以 `unavailable{no_such_entry}` 收场（`capability.tool-execution-runtime/v2#S-23`）。**它不是 `not_in_composition`**：后者只指条目仍在快照里；也不是「这一项缺席」，不使本能力不可用。
-- **meta 门条目**（[PF-007 §5.7 权限关不掉一扇门](../../../../product/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门)）：可用性报告里它那一项**恒为「自动」、`tenantAutoWritable` 为假**，不读求值（`capability.asset-registry/v2#S-11`；主线裁定，见 [D-060 §七 M21](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。本能力**照常判**——第 ② 步即放行，不认 meta 门、不另开分支。「声明层怎样表达这一项不可收窄」的永久形式是 [G-15](#十一已知缺口)。
-- **三档 token 只有一个名字**：`data.tool-definition` 的 `ExecutePermission`（[S-15](../../../data/tool-definition/v2/contract.md#s-15-执行权限)）的那三个取值（主线裁定，见 [D-060 §S14 S14-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s14tool-admission报回的)）。本契约不另立类型名。
+  本能力对这一项**单独**判 `deny{not_held}`（[S-22](#s-22-判定次序) 第 ⓪ 步）：**不算缺依据、不使整次 `admit` 失败**，同批其他项照常判（主线裁定，D-060 §六 L15）。**理由**：租户此刻不再持有它是一个结论，不是没有结论；整批全拒只留给判不出来。
+- **报告里查不到条目的调用不进 `admit`**（主线裁定，见 D-060 §七 M10）：名字不在这次尝试的 `tool` 表里——失去生效持有的接入点的动作（注册表不为它钉动作条目）、模型编造的名字——没有工具条目，也就没有执行权限可判；那一次经过由 runner 记 `observed`、`reason: no_such_entry`，由工具执行运行时以 `unavailable{no_such_entry}` 收场（`capability.tool-execution-runtime/v2#S-23`）。**它不是 `not_in_composition`**：后者只指条目仍在快照里；也不是「这一项缺席」，不使本能力不可用。
+- **meta 门条目**（[PF-007 §5.7 权限关不掉一扇门](../../../../product/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门)）：可用性报告里它那一项**恒为「自动」、`tenantAutoWritable` 为假**，不读求值（`capability.asset-registry/v2#S-11`；主线裁定，见 D-060 §七 M21）。本能力**照常判**——第 ② 步即放行，不认 meta 门、不另开分支。「声明层怎样表达这一项不可收窄」的永久形式是 [G-15](#十一已知缺口)。
+- **三档 token 只有一个名字**：`data.tool-definition` 的 `ExecutePermission`（[S-15](../../../data/tool-definition/v2/contract.md#s-15-执行权限)）的那三个取值（主线裁定，见 D-060 §S14 S14-a）。本契约不另立类型名。
 
 ### S-9 授权上下文与求值
 
@@ -365,7 +365,7 @@ MCP 带来的动作用的是接入点那份持有上的逐动作执行权限（[
 
 ### S-14 拒绝原因
 
-**`deny.reason` 恰六个，闭合**（前五个 token 由本契约命名，主线采纳，见 [D-060 §S14 S14-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s14tool-admission报回的)；`not_held` 由主线给出，见 [D-060 §六 L15](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）：
+**`deny.reason` 恰六个，闭合**（前五个 token 由本契约命名，主线采纳，见 D-060 §S14 S14-b；`not_held` 由主线给出，见 D-060 §六 L15）：
 
 | token | 出自哪一步 | agent 与审计据此知道什么 |
 |---|---|---|
@@ -391,7 +391,7 @@ MCP 带来的动作用的是接入点那份持有上的逐动作执行权限（[
 | `allow_session` | 本会话内，这类情况都允许 | 不带 |
 | `allow_tenant` | 将来本租户所有会话，这类情况全允许 | 不带 |
 
-- **`label` 是原词，逐字**；`id` 是本契约命名的 token（[D-060 §S14 S14-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s14tool-admission报回的)）。**四档的含义由 `id` 定，写在 [S-27](#s-27-四档答复各落在哪)，不由 `effect` 携带**——`effect` 是出卡那一件自己解释的附带数据，本能力不用它。
+- **`label` 是原词，逐字**；`id` 是本契约命名的 token（D-060 §S14 S14-b）。**四档的含义由 `id` 定，写在 [S-27](#s-27-四档答复各落在哪)，不由 `effect` 携带**——`effect` 是出卡那一件自己解释的附带数据，本能力不用它。
 - **第四档写得进去才出现**（[PF-008 §5.2 第三档和第四档各有约束](../../../../product/PF-008-human-in-the-loop/design.md#第三档和第四档各有约束)）：它会写下的是租户层这个工具条目的执行权限「自动」；组织那一层把它收窄到不含「自动」、或那一格被锁住时写不进去，**摆出来按下去也不生效，这时它不出现**。本能力出草稿时按 `tenantAutoWritable` 滤（[S-7](#s-7-admissioninput)）。
   **另一条约束不在这里**：草稿写成时还不知道谁来答，**「没有资格改租户权限设置的人看不到第四档」是陈列与答复那一侧的义务**，归卡片契约（[G-3](#十一已知缺口)）。
 - **`about = { position: before_action, callId: call.callId }`**。
@@ -408,7 +408,7 @@ MCP 带来的动作用的是接入点那份持有上的逐动作执行权限（[
 ### S-16 AdmissionToken 与参数相等
 
 **`AdmissionToken` 是放行凭据（无词条）：一个不透明值，指认「本能力为一次调用下的那条放行结论」与「被判的那一份参数」**——
-**它是日志引用，不是另发的凭证**（主线裁定，见 [D-060 §S14 S14-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s14tool-admission报回的)）：
+**它是日志引用，不是另发的凭证**（主线裁定，见 D-060 §S14 S14-b）：
 
 | 它指认的 | 怎样指认 |
 |---|---|
@@ -530,7 +530,7 @@ MCP 带来的动作用的是接入点那份持有上的逐动作执行权限（[
         never → deny{run_mode_never}   auto_permission → ask{card}   bypass-permissions → allow
 ```
 
-**第 ⓪ 步在最前**（主线裁定，[D-060 §六 L15](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）：这个租户此刻不再持有这个工具，执行权限无从谈起；它与禁止一样终局、不产卡，**有答复也照判**——卡片挂着期间工具被禁用或移除，人点了允许也做不成。
+**第 ⓪ 步在最前**（主线裁定，D-060 §六 L15）：这个租户此刻不再持有这个工具，执行权限无从谈起；它与禁止一样终局、不产卡，**有答复也照判**——卡片挂着期间工具被禁用或移除，人点了允许也做不成。
 
 **三处刻意的次序**，照 PF-007 原文，逐条写成会失败的断言：
 
@@ -571,7 +571,7 @@ MCP 带来的动作用的是接入点那份持有上的逐动作执行权限（[
 - **`modeUnknown` 为什么从 `invalidInput` 里单独拿出来**：运行模式是最容易被「就近映射」的一个值——早先的草稿里就写过 `bypass`，上游产品的另一档叫 `auto`；
   **把一个没见过的模式读成最近的那一档，就是凭空多出一条放行路**。单列一个值，让这种错在日志里一眼可辨。
 - **`parentNarrower` 不是表示层**：输入每一项都合形状，是两个合法的值放在一起违反了一条性质。它排在两个表示层值之后。
-- **`unavailable` 最后**：只有前三条都过了、真的走到第 ③ 步才可能出现；**不走第 ③ 步的项不会引出它**（执行权限是禁止或自动、是 `not_in_composition`、或带着答复）。**失败值与次序不因 `not_in_composition` 改变**：它是第 ⓪ 步的结论，不是失败（[D-060 §六 L15](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）。
+- **`unavailable` 最后**：只有前三条都过了、真的走到第 ③ 步才可能出现；**不走第 ③ 步的项不会引出它**（执行权限是禁止或自动、是 `not_in_composition`、或带着答复）。**失败值与次序不因 `not_in_composition` 改变**：它是第 ⓪ 步的结论，不是失败（D-060 §六 L15）。
 - **四个都不是 `deny`**，也都不借用 [S-14](#s-14-拒绝原因) 的任何原因。
 
 ### S-25 verifyToken
@@ -590,7 +590,7 @@ MCP 带来的动作用的是接入点那份持有上的逐动作执行权限（[
 | ⑧ | 日志读不到 ⇒ `unavailable`，**不得**给 `valid`，**也不得**给 `invalid`——前者放过一次没核对的执行，后者把一次读不到讲成「没放行」；消费者对 `unavailable` 同样**不执行**（[S-34](#s-34-本能力缺席报错或判不出来)）。`session` 缺席 ⇒ `invalidInput`，不得取「当前会话」（[S-17](#s-17-缺席时的默认答案)） |
 | ⑨ | 不发 |
 
-**输入是三件**（本契约推导，主线采纳，见 [D-060 §S14 S14-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s14tool-admission报回的)）——核对按（会话，`callId`，生效参数）：
+**输入是三件**（本契约推导，主线采纳，见 D-060 §S14 S14-b）——核对按（会话，`callId`，生效参数）：
 没有 `call`，「参数变了即作废」无从判——要比的正是「将被执行的那一份」；没有 `session`，`CallId` 只在一份会话日志里唯一（`data.content-blocks/v2#S-14`），核对就不知道去哪份日志找那条结论，**跨会话、跨租户的凭据就有了一条缝**。
 
 ### S-26 令牌有效的条件
@@ -657,7 +657,7 @@ MCP 带来的动作用的是接入点那份持有上的逐动作执行权限（[
 | 项 | 取值 | 依据 |
 |---|---|---|
 | 位置 | `before_action` | PF-012 §5.8 |
-| 在瀑布里的次序 | **最后一件**：同一位置上的其他件（租户自定义的改写、否决、出卡）都排在它之前 | 主线裁定，见 [D-060 §S15 S15-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s15loop-extension-runner--hooks-import报回的)（[S-30](#s-30-放行之后参数不再变)） |
+| 在瀑布里的次序 | **最后一件**：同一位置上的其他件（租户自定义的改写、否决、出卡）都排在它之前 | 主线裁定，见 D-060 §S15 S15-e（[S-30](#s-30-放行之后参数不再变)） |
 | 不可用处置 | **替换为指定挂件**：全拒件（不经声明，装配预先声明） | [PF-012 §5.8 系统自带的几件，不可用时各有定法](../../../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法) |
 | [干预力](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-intervention-power--干预力--intervention-power) | `veto`（`data.loop-extension/v2#S-4`） | PF-012 §5.8 |
 | 报错处置策略 | `treat_as_veto`（`data.loop-extension/v2#S-5`） | 可否决一档的默认；PF-008 flows §二「失败必须是停下来」 |
@@ -857,7 +857,7 @@ MCP 带来的动作用的是接入点那份持有上的逐动作执行权限（[
 让求值读不到（故障注入），`runMode = bypass-permissions`，`value = ask`；再让日志读不到时核对一张有效凭据。
 **必须观察到**：`admit` 整次 `unavailable`，**不是 `allow`，也不是 `deny`**；runner 这一侧每一项的那次经过记 `skipped: errored` ＋ `error`，效果 `vetoed`；核对得 `unavailable`，执行运行时不执行。
 **这条最容易被「读不到就当算不出」抹掉，必须真跑。**
-**再跑一支（结论不是判不出）**：同一批两项，一项 `effectivePermission = not_in_composition`、一项 `value = auto`——**必须观察到** `[deny{not_held}, allow{…}]`，**整次不失败**，`auto` 那一项照常放行；再让求值读不到，结果不变（两项都不走第 ③ 步）。**绝不能观察到**：整批 `unavailable`、runner 以全拒件顶上，或 `not_held` 那一项被读成 `permission_forbidden`（[D-060 §六 L15](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）。
+**再跑一支（结论不是判不出）**：同一批两项，一项 `effectivePermission = not_in_composition`、一项 `value = auto`——**必须观察到** `[deny{not_held}, allow{…}]`，**整次不失败**，`auto` 那一项照常放行；再让求值读不到，结果不变（两项都不走第 ③ 步）。**绝不能观察到**：整批 `unavailable`、runner 以全拒件顶上，或 `not_held` 那一项被读成 `permission_forbidden`（D-060 §六 L15）。
 （[examples §7](examples.md#7-失败值的反例)、[§8](examples.md#8-第四档名字与解析不了的调用)）
 
 #### S-45 工作区来的工具不提权
@@ -893,7 +893,7 @@ MCP 带来的动作用的是接入点那份持有上的逐动作执行权限（[
 | # | 缺口 | owner | 闭合条件 |
 |---|---|---|---|
 | G-1 | **授权表达怎样求值**（[S-9](#s-9-授权上下文与求值)）：函数体；「同一件事」的粒度（参数变到什么程度算另一件事）；「这一次」那一档怎样对到一批调用；自由作答怎样理解；`allow_session` 那一笔管到哪些「这类情况」 | PF-007 owner（产品面）；实现 | 产品正文写明「同一件事」的判据；实现给出求值并满足 S-9 的三条约束。**本契约的四步不因此改变** |
-| G-2 | **答复落成授权由谁写**（[S-27](#s-27-四档答复各落在哪)）：`allow_session` 追加进会话授权上下文、`allow_tenant` 写租户层执行权限配值、自由作答落成语义化的授权表达——写入者是谁、与卡片答复是否同一次提交、写失败怎样告知人。**含租户格无该资产持有时先加持有再配值、还是要求已有持有**（`tenantAutoWritable` 只答界与锁、不判有没有持有，`capability.asset-evaluation/v2#S-42`；并入本条见 [D-060 §六 L14](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)） | 会话授权上下文的 owner（PF-007 / PF-015）、`capability.asset-governance` 的写面、PF-008 卡片契约 | 有契约拥有这三次写入并写明失败收场。**在此之前，三个「允许」对这一次调用的结论照样成立** |
+| G-2 | **答复落成授权由谁写**（[S-27](#s-27-四档答复各落在哪)）：`allow_session` 追加进会话授权上下文、`allow_tenant` 写租户层执行权限配值、自由作答落成语义化的授权表达——写入者是谁、与卡片答复是否同一次提交、写失败怎样告知人。**含租户格无该资产持有时先加持有再配值、还是要求已有持有**（`tenantAutoWritable` 只答界与锁、不判有没有持有，`capability.asset-evaluation/v2#S-42`；并入本条见 D-060 §六 L14） | 会话授权上下文的 owner（PF-007 / PF-015）、`capability.asset-governance` 的写面、PF-008 卡片契约 | 有契约拥有这三次写入并写明失败收场。**在此之前，三个「允许」对这一次调用的结论照样成立** |
 | G-3 | **收窄（2026-09-24）**：组织收窄时第四档不出现已有产品答案（[PF-008 §5.2](../../../../product/PF-008-human-in-the-loop/design.md#第三档和第四档各有约束) rev 6），落在 [S-15](#s-15-定死的四档选项与卡片草稿)。**仍缺**：按看卡片的人的资格隐藏第四档、答复面拒收无资格者的 `allow_tenant` | PF-008 卡片契约 | 卡片契约写明资格判定与收场 |
 | G-4 | **卡片答复的记录形状**：`data.messages` 的 `CardAnswer` 只是占位；「不回答」与自由作答怎样表示（与 `data.messages` 的 G-5 同一件） | PF-008 卡片契约 | 卡片契约定下形状，runner 据它把答复收成 `answer` |
 | G-5 | **收窄（2026-09-24）**：有效执行权限怎样对到一个档位已写进 [S-8](#s-8-有效执行权限)（`capability.asset-evaluation` v2 的 S-23 给值）。**仍缺**：会话运行模式的 token（[S-10](#s-10-会话运行模式)）与会话的指认（[S-25](#s-25-verifytoken)）的家 | PF-015 的会话契约（未建立） | 那份契约定下后，本契约改为引用它，**token 不变** |
@@ -904,8 +904,8 @@ MCP 带来的动作用的是接入点那份持有上的逐动作执行权限（[
 | G-10 | **已闭合（2026-09-24）**：[放行之后到真正执行之间，不再重判](../../../../product/PF-012-agent-loop-and-run/design.md#一批动作先全部判完再执行任何一个)（PF-012 rev 11），[S-31](#s-31-一批里还有一条在等谁都不执行) 按此写 | — | — |
 | G-12 | **父会话摘要从哪来**（[S-11](#s-11-父会话摘要与宽的次序)）：谁现读父会话此刻的执行权限与运行模式；父没装这个工具时摘要里是什么；`handoff` 派出去的会话带不带摘要（它不是子会话，但 PF-007 §5.8 说的是「派出去的 agent」） | PF-007 / PF-015 的派发与会话契约 | 那份契约写明摘要的来源与缺席收场 |
 | G-13 | **已闭合（2026-09-24）**：[PF-008 flows §二](../../../../product/PF-008-human-in-the-loop/flows.md#二异常分支)（rev 6）写明写不出卡 ＝ 不放行 ＋ 告知，[S-34](#s-34-本能力缺席报错或判不出来) 按此写 | — | — |
-| G-14 | **已闭合（修复波 1b，[D-060 §六 L7](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）**：`tenantAutoWritable` 由 `capability.asset-evaluation/v2#S-42` 在每条执行权限项上给出（组织那一格的界含「自动」、租户那一格没锁住这一项、生效资产声明了它且不是工作区提供的），`capability.loop-extension-runner/v2#S-29` 第 5 条组装进 [S-7](#s-7-admissioninput) 的输入；取不到时那一方按本能力不可用收场、不交缺项输入 | — | — |
-| G-15 | **meta 门的执行权限「不可收窄」怎样在声明层表达**（[PF-007 §5.7](../../../../product/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门)：权限关不掉一扇门）。本版由会话资产注册表对 meta 门条目恒给「自动」、不读求值、`tenantAutoWritable` 为假兑现，本能力照常判（[S-8](#s-8-有效执行权限)；[D-060 §七 M21](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）——这是一处按身份的特判，不是声明给出的性质：哪些能力标识是 meta 门本身也没有契约家（`capability.asset-registry` 的 G-7）；各层能否给这一项配值、配了怎样拒，也没有写面规则 | **主线** ＋ PF-007 owner | 声明层（工具定义或资产模型的权限项推出规则）能表达「这一项不可收窄」、求值据它给出恒为「自动」的值，或产品正文写明 meta 门的执行权限由哪一层钉住、别的层配值怎样拒；届时 [S-8](#s-8-有效执行权限) 的那一条改指它 |
+| G-14 | **已闭合（修复波 1b，D-060 §六 L7）**：`tenantAutoWritable` 由 `capability.asset-evaluation/v2#S-42` 在每条执行权限项上给出（组织那一格的界含「自动」、租户那一格没锁住这一项、生效资产声明了它且不是工作区提供的），`capability.loop-extension-runner/v2#S-29` 第 5 条组装进 [S-7](#s-7-admissioninput) 的输入；取不到时那一方按本能力不可用收场、不交缺项输入 | — | — |
+| G-15 | **meta 门的执行权限「不可收窄」怎样在声明层表达**（[PF-007 §5.7](../../../../product/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门)：权限关不掉一扇门）。本版由会话资产注册表对 meta 门条目恒给「自动」、不读求值、`tenantAutoWritable` 为假兑现，本能力照常判（[S-8](#s-8-有效执行权限)；D-060 §七 M21）——这是一处按身份的特判，不是声明给出的性质：哪些能力标识是 meta 门本身也没有契约家（`capability.asset-registry` 的 G-7）；各层能否给这一项配值、配了怎样拒，也没有写面规则 | **主线** ＋ PF-007 owner | 声明层（工具定义或资产模型的权限项推出规则）能表达「这一项不可收窄」、求值据它给出恒为「自动」的值，或产品正文写明 meta 门的执行权限由哪一层钉住、别的层配值怎样拒；届时 [S-8](#s-8-有效执行权限) 的那一条改指它 |
 
 **`G-11` 不使用**（编号保留）：三档 token 的类型名统一为 `ExecutePermission`，见 [S-8](#s-8-有效执行权限) 末段。
 
@@ -938,4 +938,4 @@ MCP 带来的动作用的是接入点那份持有上的逐动作执行权限（[
 接受状态、冻结记录与执行结果都在本版本目录之外维护，本文件不填进度、通过状态或哈希。
 
 **发布后**：本目录下的规范正文与实例不可原地覆盖；修改发布新版本。[已知缺口](#十一已知缺口)任一项在冻结之后被裁决而改变本契约语义或表示的（G-5 换引用），都出 **v2**；
-推荐版本不自动升级消费者。**接受之前**，候选可以原地修订，每次修订记在[验证入口「变化的影响」](../verification.md#变化的影响)。
+推荐版本不自动升级消费者。**接受之前**，候选可以原地修订。 本次修改影响与验证运行放执行工作树 `tmp/<task>/`，不在验证正文追加流水。

@@ -4,11 +4,11 @@
 
 ## 输入、范围与实现路径
 
-坐标基线均为 `omne-harness-lite-design-2026-09-15`：[capability.model-profile-directory/v3](../../../../spec/capabilities/model-profile-directory/v3/contract.md) 和 [data.model-profile/v3](../../../../spec/data/model-profile/v3/contract.md) 起草时为 candidate，现已由主线 [D-070](../../../../record/decisions/model-adaptation-binding-acceptance/decision.md) 接受并登记；这不接受本提供者候选，也不自动升级 v2 消费者。产品来源沿目录契约的 PF-013 rev 13、PF-001 rev 19、PF-002 rev 20、PF-016 rev 8；本轮机制输入为[适配提案 revision 2](../../../../record/proposals/model-request-adaptation/design.md)及[已提交求值读取链](../../../../record/proposals/model-request-adaptation/read-projection.md)。后者不赋予本节点资产求值责任。
+坐标基线均为 `omne-harness-lite-design-2026-09-15`：[capability.model-profile-directory/v3](../../../../spec/capabilities/model-profile-directory/v3/contract.md) 和 [data.model-profile/v3](../../../../spec/data/model-profile/v3/contract.md) 起草时为 candidate，现已由主线 D-070 接受并登记；这不接受本提供者候选，也不自动升级 v2 消费者。产品来源沿目录契约的 PF-013 rev 13、PF-001 rev 19、PF-002 rev 20、PF-016 rev 8；本轮机制输入为适配提案 revision 2及已提交求值读取链。后者不赋予本节点资产求值责任。
 
 保留 P-1 权威目录插件和旧 P-1r 的独立生命周期划分；P-1r 的中心/据点协议仍受阻。主线明确的本轮接线是 P-1 提供管理面和同存储 `modelCatalogRead`，P-1r 的本机装法只提供 `credentialLookup`，不装中心连接和刷新。**独立评审后修订**：本机取值必须解析实际当前 CredentialRef，并由保管方核对副本对应同一引用；仅复用 readReplica(tenant) 不足。本页给出有限的提供者替代方案，依赖 CCL 新候选增量，尚不能据旧接口实施本机 tenant 成功路径。旧完整据点装法不改。源码位置仍为 `packages/model/model-profile-directory`，尚不存在。
 
-采用 Cordis 4.0.4 的依据是 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md)。档案验证与无损 JSON 复用 `packages/core/model-profile` 对 v3 的显式实现；目前 v3 采用与实现仍待主线完成，不从旧包存在推定。持久性只依赖 [core/storage 协议](../../core/storage/design.md#协议)，时钟用 [infra/clock](../../infra/clock/README.md)，不在目录节点新增数据库选择。独立验收按主线范围使用已采用的 [infra/storage-sql](../../infra/storage-sql/README.md) SQLite 文件库；其采用版本、方言、耐久档位仍由该提供者和装配声明，SQLite 结果不外推 PostgreSQL。
+采用 Cordis 4.0.4 的依据是 D-025。档案验证与无损 JSON 复用 `packages/core/model-profile` 对 v3 的显式实现；目前 v3 采用与实现仍待主线完成，不从旧包存在推定。持久性只依赖 [core/storage 协议](../../core/storage/design.md#协议)，时钟用 [infra/clock](../../infra/clock/README.md)，不在目录节点新增数据库选择。独立验收按主线范围使用已采用的 [infra/storage-sql](../../infra/storage-sql/README.md) SQLite 文件库；其采用版本、方言、耐久档位仍由该提供者和装配声明，SQLite 结果不外推 PostgreSQL。
 
 目录只实现目录契约已有十个操作与通知；不新增适配注册、版本回收、模型认证、配置 TTL 默认值、凭据保管或资产求值 API。公开的五个判定函数沿 [v2 公开面](design.md#公开面)，加入对 v3 完整绑定的透明搬运，历史判重不被包装成无状态 data 校验。
 
@@ -205,4 +205,4 @@ configuration.values 必须以无损 JSON 读写；不得经过 IEEE-754 有损�
 | G3-6 | 保留旧 MPD-N2／N6：G-7 远端新鲜度、凭据传播未定；不带 thisArg 的通知范围仍为旧 H-7 待核对主张 | 产品 cli 的 P-1r，以及任何新跨租户通知监听／转发者；本轮不接这些监听者、不宣称闭合 |
 | G3-7 | [CCL 新候选](../../infra/credential-custodian-local/v2-design.md) 已成稿，保留 CCL2 六个领域操作；实际引用捕获／匹配及 R3-7/R3-8 反向存储要求已对齐，尚未独立复审采用与实施。旧 storeReplica/readReplica 不能顶替 | 本机 tenant/custom 凭据成功路径；两节点需验证同一 Unit、读取权限、漂移拒绝、无 ref 条目失败、可信来源与唯一生命周期 owner。若无法作为提供者精化承载，由主线决定契约演进，本文不造第七领域操作 |
 
-诊断按[全局可观测性](../../../../foundation/observability-and-logging/requirements.md)及[适配提案](../../../../record/proposals/model-request-adaptation/design.md#可观测性)：记录操作类别、授权／提交／认回／拒绝、适用范围、配置修订标记、清单序号和具名失败；不记配置 values、CredentialRef、secret 或请求正文。作用域身份只在受治理日志中关联，不成为高基数指标标签。sink 失败不改已提交结局，sink 生命周期、权限、限额和留存归 G3-3 装配。诊断不代替配置历史或目录权威存储。
+诊断按[全局可观测性](../../../../foundation/observability-and-logging/requirements.md)及适配提案：记录操作类别、授权／提交／认回／拒绝、适用范围、配置修订标记、清单序号和具名失败；不记配置 values、CredentialRef、secret 或请求正文。作用域身份只在受治理日志中关联，不成为高基数指标标签。sink 失败不改已提交结局，sink 生命周期、权限、限额和留存归 G3-3 装配。诊断不代替配置历史或目录权威存储。

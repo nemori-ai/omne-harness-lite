@@ -90,7 +90,6 @@ def test_real_heading_tokens_unicode_duplicates_and_reference_links(tmp_path):
 @pytest.mark.parametrize("area", [
     ".meta_harness/design_legacy",
     ".meta_harness/research/legacy_backup",
-    ".meta_harness/agents/research",
 ])
 def test_retained_originals_keep_their_original_links(tmp_path, area):
     """Retained originals are excluded: rewriting their links would falsify the record."""
@@ -99,19 +98,15 @@ def test_retained_originals_keep_their_original_links(tmp_path, area):
     assert run(tmp_path).returncode == 0
 
 
-def test_sealed_upstream_file_keeps_original_links_but_not_its_neighbors(tmp_path):
-    from omne_harness_lite_spec_tools.check_docs import RETAINED_FILES
+def test_research_resource_and_neighbors_use_normal_link_checks(tmp_path):
     base(tmp_path)
-    source_root = Path(__file__).resolve().parents[3]
-    for relative in RETAINED_FILES:
-        target = tmp_path / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes((source_root / relative).read_bytes())
-        assert run(tmp_path).returncode == 0
-        write(target.parent.parent / "README.md", "[missing](missing.md)")
-        assert "README.md: broken link" in run(tmp_path).stdout
-        target.write_bytes(target.read_bytes() + b"\nchanged\n")
-        assert "retained upstream source digest differs" in run(tmp_path).stdout
+    area = tmp_path / ".meta_harness/research/mechanism/sources"
+    write(area / "upstream.md", "[broken source](missing.md)")
+    write(area.parent / "README.md", "[broken neighbor](missing.md)")
+    result = run(tmp_path)
+    assert result.returncode == 1
+    assert "upstream.md: broken link" in result.stdout
+    assert "README.md: broken link" in result.stdout
 
 
 def test_templates_are_excluded(tmp_path):
@@ -153,59 +148,35 @@ def test_one_sided_skill_directory_is_reported(tmp_path):
     assert "only one of the generated skill directories exists" in result.stdout
 
 
-def test_navigation_reuses_locked_historical_source_owner(tmp_path):
-    import hashlib
-    import json
+def test_navigation_rejects_existing_process_owner(tmp_path):
     base(tmp_path)
-    source = tmp_path / '.meta_harness/design/record/evidence/prior/README.md'
-    snapshot = tmp_path / '.meta_harness/design/record/evidence/retirement/inputs/design.md.txt'
-    write(source, '[old](../../../realization/packages/core/kernel-basis/design.md#original)\n')
-    write(snapshot, '# Original\n')
-    implementation = Path(__file__).resolve().parents[3] / '.meta_harness/tooling/src/source_links.py'
-    write(tmp_path / '.meta_harness/tooling/src/source_links.py', implementation.read_text())
-    target = 'realization/packages/core/kernel-basis/design.md'
-    catalog = {'format':1, 'targets':[{'path':target,'snapshot':'record/evidence/retirement/inputs/design.md.txt','sha256':hashlib.sha256(snapshot.read_bytes()).hexdigest(),'commit':'1'*40}], 'references':[{'source':'record/evidence/prior/README.md','sha256':hashlib.sha256(source.read_bytes()).hexdigest(),'links':[{'target':target,'fragment':'original'}]}]}
-    write(tmp_path / '.meta_harness/design/registry/retired-sources.json', json.dumps(catalog))
+    write(tmp_path / '.meta_harness/design/record/decisions/past/current.md', '# Current\n')
+    write(tmp_path / 'docs/current.md', '[owner](../.meta_harness/design/record/decisions/past/current.md)\n')
     result = run(tmp_path)
-    assert result.returncode == 0, result.stdout + result.stderr
-    # A new proposal is not an old consumer, even though it is in record/.
-    write(tmp_path / '.meta_harness/design/record/proposals/new/design.md', source.read_text())
+    assert result.returncode == 1 and 'process record is not a current owner' in result.stdout
+
+
+def test_navigation_does_not_recover_missing_owner_from_snapshots(tmp_path):
+    base(tmp_path)
+    write(tmp_path / '.meta_harness/design/registry/retired-sources.json', '{"format":1,"targets":[],"references":[]}')
+    write(tmp_path / '.meta_harness/design/record/evidence/past/input.txt', '# Original\n')
+    write(tmp_path / 'docs/current.md', '[owner](../packages/core/absent/SPEC.md)\n')
     result = run(tmp_path)
     assert result.returncode == 1 and 'broken link' in result.stdout
 
 
-def test_navigation_rejects_modified_historical_consumer(tmp_path):
-    import hashlib
-    import json
+def test_git_cannot_track_process_record_even_if_ignored(tmp_path):
+    import subprocess
     base(tmp_path)
-    source = tmp_path / '.meta_harness/design/record/evidence/prior/README.md'
-    snapshot = tmp_path / '.meta_harness/design/record/evidence/retirement/inputs/design.md.txt'
-    write(source, '[old](../../../realization/packages/core/kernel-basis/design.md#original)\n')
-    write(snapshot, '# Original\n')
-    implementation = Path(__file__).resolve().parents[3] / '.meta_harness/tooling/src/source_links.py'
-    write(tmp_path / '.meta_harness/tooling/src/source_links.py', implementation.read_text())
-    target = 'realization/packages/core/kernel-basis/design.md'
-    write(tmp_path / '.meta_harness/design/registry/retired-sources.json', json.dumps({'format':1,'targets':[{'path':target,'snapshot':'record/evidence/retirement/inputs/design.md.txt','sha256':hashlib.sha256(snapshot.read_bytes()).hexdigest(),'commit':'1'*40}],'references':[{'source':'record/evidence/prior/README.md','sha256':hashlib.sha256(source.read_bytes()).hexdigest(),'links':[{'target':target,'fragment':'original'}]}]}))
-    write(source, source.read_text()+'new text\n')
+    subprocess.run(['git', 'init', str(tmp_path)], check=True, capture_output=True)
+    write(tmp_path / '.gitignore', '.meta_harness/design/record/\n')
+    write(tmp_path / '.meta_harness/design/record/decisions/past/decision.md', '# Past\n')
+    subprocess.run(['git', '-C', str(tmp_path), 'add', '-f', '.meta_harness/design/record'], check=True)
     result = run(tmp_path)
-    assert result.returncode == 1 and 'consumer hash differs' in result.stdout
+    assert result.returncode == 1 and 'must not be tracked' in result.stdout
 
 
-def test_navigation_current_alias_cannot_borrow_historical_identity(tmp_path):
-    # Use the independently frozen original source and recreate IR's alias counterexample.
-    import hashlib
-    import json
+def test_current_method_research_cannot_hide_broken_links(tmp_path):
     base(tmp_path)
-    source = tmp_path / '.meta_harness/design/record/evidence/prior/README.md'
-    snapshot = tmp_path / '.meta_harness/design/record/evidence/retirement/inputs/design.md.txt'
-    write(source, '[old](../../../realization/packages/core/kernel-basis/design.md#original)\n')
-    write(snapshot, '# Original\n')
-    implementation = Path(__file__).resolve().parents[3] / '.meta_harness/tooling/src/source_links.py'
-    write(tmp_path / '.meta_harness/tooling/src/source_links.py', implementation.read_text())
-    target = 'realization/packages/core/kernel-basis/design.md'
-    write(tmp_path / '.meta_harness/design/registry/retired-sources.json', json.dumps({'format':1,'targets':[{'path':target,'snapshot':'record/evidence/retirement/inputs/design.md.txt','sha256':hashlib.sha256(snapshot.read_bytes()).hexdigest(),'commit':'1'*40}],'references':[{'source':'record/evidence/prior/README.md','sha256':hashlib.sha256(source.read_bytes()).hexdigest(),'links':[{'target':target,'fragment':'original'}]}]}))
-    alias = tmp_path / '.meta_harness/design/architecture/a/b/current.md'
-    alias.parent.mkdir(parents=True)
-    alias.symlink_to(source)
-    result = run(tmp_path)
-    assert result.returncode == 1 and 'broken link' in result.stdout
+    write(tmp_path / ".meta_harness/agents/research/topic/README.md", "[broken](missing.md)")
+    assert "broken link" in run(tmp_path).stdout

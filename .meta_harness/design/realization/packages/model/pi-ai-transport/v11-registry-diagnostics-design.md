@@ -4,7 +4,7 @@
 
 ## 来源与边界
 
-沿 [RT9 S-53/S-61/S-63/S-64](../../../../spec/capabilities/model-request-runtime/v9/contract.md) 和已由 [D-076 增补](../../../../record/decisions/model-runtime-delivery-adoption/decision.md)采用的 [v15 工程观测 revision 2](../model-request-runtime/v15-diagnostics-demo-design.md)。后者要求实际 registration/retirement 事件、诊断不改变业务，以及可独立观察诊断退化。本增补只补注册表事件的借用端口和失败计数归属，不新增契约、存储、插件、服务或业务状态机。
+沿 [RT9 S-53/S-61/S-63/S-64](../../../../spec/capabilities/model-request-runtime/v9/contract.md) 和已由 D-076 增补采用的 [v15 工程观测 revision 2](../model-request-runtime/v15-diagnostics-demo-design.md)。后者要求实际 registration/retirement 事件、诊断不改变业务，以及可独立观察诊断退化。本增补只补注册表事件的借用端口和失败计数归属，不新增契约、存储、插件、服务或业务状态机。
 
 现有 `ModelTransportService.diagnostics()` 继续返回底层网络诊断的 failed/pending/dropped，不混入注册表事件或 collector 的写盘/查询故障。collector.health仍只报告它实际观察到的接纳、写入与查询事实。任意自定义回调在交给collector之前抛错，collector不能凭空知道该失败。
 

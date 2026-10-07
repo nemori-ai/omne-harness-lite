@@ -4,7 +4,7 @@
 
 ## 实现路径与精确输入
 
-采用[当前输入读取链提案](../../../../record/proposals/model-request-adaptation/read-projection.md)的本地真实源。会话创建时捕获不可变配方；资产的已发布版本和当前层持有由可信本地发布者持久写入。每次读取都取得本地当前事实。既有 manifest 只作历史参考，本节点不依赖其表或从 EffectiveAssembly 反向构造输入。
+采用当前输入读取链提案的本地真实源。会话创建时捕获不可变配方；资产的已发布版本和当前层持有由可信本地发布者持久写入。每次读取都取得本地当前事实。既有 manifest 只作历史参考，本节点不依赖其表或从 EffectiveAssembly 反向构造输入。
 
 精确依赖的当前接受状态及采用依据以 [registry catalog](../../../../registry/catalog.json) 为准；本节点仍为候选，不以本页静态标签替代登记。
 
@@ -18,7 +18,7 @@
 | `data.asset-model/v3`、`data.identity-values/v1`、`data.content-blocks/v3` | 资产/持有/身份及严格无损表示。间接域与正文版本严格沿 AE4/AD1，不使用“最新 schema” |
 | `data.call-accounts/v2` 对应的 core 公共数值工具 | 仅复用包根 `ExactDecimal.from/compare/isInteger` 做精确版本比较，不引入账目语义，不新建 CB 公共面 |
 
-存储继续用已有 `core/storage` 抽象及 `infra/storage-sql`，来源为 [D-026](../../../../record/decisions/infrastructure-persistence-choices/decision.md)、[D-042](../../../../record/decisions/governance-participation-provider/decision.md)。**本轮实际组合限同一 SQLite 实例**：`AtomicStorage.atomic` 下 BEGIN IMMEDIATE 可把资格读取和输入读取排在全部本地写入之间。`StorageUnit.query` 只是 ReadTx 类型，不是数据库硬只读或 PG 快照保证；PG 的 READ COMMITTED 不能据此声称一致读取，EIS-5 保持受阻。不在普通 `storage.read` 中伪造 StorageUnit，也不在事务中嵌套调用独立提交服务。
+存储继续用已有 `core/storage` 抽象及 `infra/storage-sql`，来源为 D-026、D-042。**本轮实际组合限同一 SQLite 实例**：`AtomicStorage.atomic` 下 BEGIN IMMEDIATE 可把资格读取和输入读取排在全部本地写入之间。`StorageUnit.query` 只是 ReadTx 类型，不是数据库硬只读或 PG 快照保证；PG 的 READ COMMITTED 不能据此声称一致读取，EIS-5 保持受阻。不在普通 `storage.read` 中伪造 StorageUnit，也不在事务中嵌套调用独立提交服务。
 
 已核仓库公开面：`packages/core/storage/src/index.ts` 导出 AtomicStorage/StorageUnit；`packages/tenancy/organization-governance/src/index.ts` 导出 MembershipsService，其 `participate(unit).standing(tenant)` 经 `unit.assertStorage` 确认同存储。调用方只使用该公开参与面，不读取组织治理私有表。上述源码核对确认接口现状，**不是本节点组合验证**。
 
@@ -132,7 +132,7 @@ runtime 在成功返回后仍对这份 input 调用 AE4 evaluate，承担其设�
 | 正在执行的 atomic 单元与 Promise | 每次操作持有；storage 拥有实际事务，发布方/调用方 await 全部 Promise | 异常经最外层收口，污染单元不可提交；不把子任务脱离 | 取消请求或停止等待不取消已进入事务；跑完实际提交/回滚/只读结果再释放，不能提前标静止 |
 | 发布闭包与诊断端口 | 可信装配持有；不作为 runtime 服务公开 | 发布/观测各自故障具名可见 | 装配先停新发布/读取并等实际在途，最后关闭 OG/storage；重开重新建闭包，记录保留 |
 
-Cordis 4.0.4 采用 [D-025](../../../../record/decisions/cordis-adoption-version/README.md)。basis [`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)、[`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)、[`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)、[`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)分别约束依赖、重跑、启动失败与清理顺序，均有已有 probe；不是本节点证明。`ctx.provide` 纳管沿 kernel-basis 的待核对主张，本节点真实宿主测试另做。发布/读没有内部重试、退避或默认时限；装配停止等待若有策略必须配置，不写死期限。
+Cordis 4.0.4 采用 D-025。basis [`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)、[`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)、[`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)、[`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)分别约束依赖、重跑、启动失败与清理顺序，均有已有 probe；不是本节点证明。`ctx.provide` 纳管沿 kernel-basis 的待核对主张，本节点真实宿主测试另做。发布/读没有内部重试、退避或默认时限；装配停止等待若有策略必须配置，不写死期限。
 
 ## 关键选择与反例
 

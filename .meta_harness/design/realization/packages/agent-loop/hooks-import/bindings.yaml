@@ -1,7 +1,3 @@
-# 条款到证据的绑定表：空。
-# 契约 S-28 不选用形式工件（导入是纯函数、映射是有限的查表；回放的恢复规则归 runner 的行为模型），
-# registry 里没有这份契约的 formal task；规范场景 S-29～S-36 与映射表的逐行测试都没有实现可跑。
-# 义务、状态与受阻原因登记在 verification.md，不写空绑定占位。
 version: 1
 node: "hooks-import"
 kind: "provider"

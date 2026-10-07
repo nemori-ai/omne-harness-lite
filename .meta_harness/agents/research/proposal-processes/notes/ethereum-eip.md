@@ -70,17 +70,3 @@ EIP editors **明确不做价值判断**：
 > For Core EIPs, given that they require client implementations to be considered **Final**… you will need to either provide an implementation for clients or convince clients to implement your EIP.
 
 > Negative community feedback will be taken into consideration and may prevent your EIP from moving past the Draft stage.
-
-## 5. 与本项目骨架的对照（推断）
-
-- **反面教材**：EIP 是「有 Rationale 小节但强制力为零」的最清晰样本。可对照的规律：**同一份模板里，写了拒绝条款的小节（Security Considerations）被兑现，没写拒绝条款的小节（Rationale）被 `TBD` 占位。** 本项目若要求「每个决定点 ≥ 3 真候选」，光写进模板不够，必须配一个会失败的检查或一个会拒绝的评审动作。
-- **值得引入**：`Withdrawn` 使编号作废、重提算新提案——这条给「复议」划了清楚的界：撤回不是暂停。本项目对「提案 → 决定」的取代关系已有[版本规范](../../../maintenance/versioning.md)，可对照这条的严格度。
-- **值得引入**：状态迁移 PR 只改状态、内容变更必须先行独立提交——这使「决定的对象是哪一版正文」可机器定位。
-- **不适合**：`Stagnant`（6 个月自动停滞）这类基于日历的自动降级，对单作者项目无意义。
-
-## 6. 局限与未覆盖
-
-- 未统计已发布 EIP 中 `Rationale` 的实际填充率（本轮只对 MCP SEP 与 Semantic Kernel ADR 做了统计）；因此「`TBD` 占位在实践中有多普遍」**未覆盖**。
-- 未读 EIP-5069（EIP editor 的选任）与 `CONTRIBUTING.md`。
-- 未覆盖 ERC（应用层）与 Core EIP 在流程上的差异细节，只读到「Core EIP 需要客户端实现」这一条。
-- 未覆盖 Ethereum 社区对 AI 撰写 EIP 的政策。

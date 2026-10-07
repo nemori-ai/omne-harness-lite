@@ -1,10 +1,10 @@
-# messages v7 创建记录与回复关系候选
+# messages v7 创建记录与回复关系
 
 ## 实现路径与来源
 
 本稿为既有 `packages/core/messages` 的 candidate 增量，源码已经存在、当前 root 实施 MS6；不修改 [既有设计](design.md) 与 [v6 设计](v6-design.md)，不声称本稿已被接受或实现。节点仍为 `provider`，落点为共享数据与纯计算，无插件、服务、fiber、存储或权限面。
 
-精确输入为 baseline `omne-harness-lite-design-2026-09-15` 的 [data.messages/v7](../../../../spec/data/messages/v7/contract.md)（catalog candidate）、[MR10](../../../../spec/data/model-response/v10/contract.md)、[CA3](../../../../spec/data/call-accounts/v3/contract.md)、[RT11](../../../../spec/capabilities/model-request-runtime/v11/contract.md)；后三份同为 candidate。MS7 的 MP6/MP5 等依赖按下表，不将结构同形视为相同版本。需求增量为 PF-013 rev16、PF-012 rev21、PF-015 rev20，范围沿 MS7 source-alignment；共同方向来自 [technical-choices-r4](../../../../record/proposals/model-runtime-reference-lifecycle/technical-choices-r4.md)，不是采用决定。
+精确输入为 baseline `omne-harness-lite-design-2026-09-15` 的 [data.messages/v7](../../../../spec/data/messages/v7/contract.md)（catalog candidate）、[MR10](../../../../spec/data/model-response/v10/contract.md)、[CA3](../../../../spec/data/call-accounts/v3/contract.md)、[RT11](../../../../spec/capabilities/model-request-runtime/v11/contract.md)；后三份同为 candidate。MS7 的 MP6/MP5 等依赖按下表，不将结构同形视为相同版本。需求增量为 PF-013 rev16、PF-012 rev21、PF-015 rev20，范围沿 MS7 source-alignment；共同方向来自 technical-choices-r4，不是采用决定。
 
 直接复用现有 `src/{schema,types,values,json,judge,parameters,blocks,prefix}.ts` 的固定 Schema 图、品牌恢复与无损 JSON 判定；不引入通用 diff/transform 框架。现有公开入口没有下述回复关系判定，本稿新增该必要纯函数。下文新函数、类型及子路径均为**候选**；已存在函数明确写作“既有”。TS 表示是契约的投影，不改变正式技术值的唯一 owner。
 
@@ -22,7 +22,7 @@
 | M7-P6：MS7 S-1～S-50 未变部分与 S-55 无环副本 | 既有消息、日志前缀、可读性与配对公开面；本包 Schema 中的 MR 同义形状 | 七消息/十四拒绝及既有优先级保持，技术 marker 不进入 Message、OutboundMessage 或模型上下文；与 MR10 对齐 ResponseId、SelectedBy、CredentialScope、ParameterAdjustment、dropped 项 | M7-V2/V6；MR10 唯一拥有 Pending 和 final 同事实比较，本包不反向依赖 MR |
 | M7-P7：MS7 本版运行格式边界 | root、`./schema` 与明确保留的 Schema 资源 | root 统一 MS7；公开当前精确图所需旧原字节资源，无旧消息执行路由、修补或自动降级 | M7-V1/V6/V8；各消费者的冻结规范采用不自动升级 |
 
-项目 Cordis 采用版本为 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)。本包不依赖 Cordis，公开函数不要求 Context、Session、tenant、store 或 runtime。无服务面、inject、event、effect，因而无必需／可选注入选择。消费者重载及清理的上游依据分别为 basis [`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)、[`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)（4.0.4，probe 非 null）；本包不据它们声称业务取消、可靠清理或事务成立。本稿没有新增依赖 probe:null 的主张。
+项目 Cordis 采用版本为 D-025 的 4.0.4。本包不依赖 Cordis，公开函数不要求 Context、Session、tenant、store 或 runtime。无服务面、inject、event、effect，因而无必需／可选注入选择。消费者重载及清理的上游依据分别为 basis [`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)、[`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)（4.0.4，probe 非 null）；本包不据它们声称业务取消、可靠清理或事务成立。本稿没有新增依赖 probe:null 的主张。
 
 ## 候选公开函数及判定顺序
 
@@ -120,3 +120,10 @@ S-52～S-55 的引用内容保留、marker 发布与回收互斥由 [runtime 节
 本次新增绑定 **0**，既有 v3 绑定不改。没有本版实际验证；独立评审、语义接受、制品实现与外部组合证据分别由主线及各 owner 闭合，详见 M7-G1～G3。
 
 MP6 资源与当前 MP5 完整副本的精确差异及制品验收见 [model-profile 窄资源增补](../model-profile/v6-schema-resource-design.md)；本节点不要求 profile 根执行面升级。
+
+## 当前采用范围
+
+RT11/MR10/MS7/CA3 引用生命周期增量：CallKey 查回、独立消费者、原执行 owner、不可变私有内容与原日志 marker、原完整 Pending/final 关系及费用唯一选择。
+
+技术采用不表示实现或实际验证已完成。验证义务：各节点当前关联验证义务；runtime R20-V1..R20-V23；SQL/JSONL 分域、unknown 留责、真实停止与来源当前性；正式包制品与全部受影响消费者。
+范围之外：ACK 之后永久保管/noGC：已被 ACK 后继取代；完整 Session/Run/Agent/通用 registry 或内容平台。

@@ -324,7 +324,7 @@
   - [tool-definition design.md](../../design/realization/packages/core/tool-definition/design.md) 第 126 行：「模块级只有本包自己 Schema 的校验函数，加载时编一次，有界、不变」；
     [tool-definition verification.md](../../design/realization/packages/core/tool-definition/verification.md) 第 33 行：「编译作者 schema 的 ajv 实例不得出现在模块顶层；本包自己 Schema 的校验函数是有界常量，不在此列」。
   - [content-blocks design.md](../../design/realization/packages/core/content-blocks/design.md) 第 169 行：「编译器/缓存归构造它的调用方随引用释放，标准元Schema是固定输入，不建立module增长作者cache」；第 175 行迁移门含「修改资源/作者Schema不改绑定validator」。
-  - 「no module-level author cache」的来源 [mainline-self-rulings-2026-09](../../design/record/decisions/mainline-self-rulings-2026-09/decision.md) 的 M50：tool-definition 参数判定「不设模块级缓存」，编译产物由消费者持有的判定对象持有。
+  - 「no module-level author cache」的来源 mainline-self-rulings-2026-09 的 M50：tool-definition 参数判定「不设模块级缓存」，编译产物由消费者持有的判定对象持有。
 - 支持范围：这几处约束的是「何时编译、失败何时暴露、作者 Schema 的缓存归谁」；它们针对作者／对端输入的缓存，不针对本包固定 Schema 的编译产物（tool-definition verification 第 33 行明文把后者排除在外）。
 
 ## 冲突与不一致

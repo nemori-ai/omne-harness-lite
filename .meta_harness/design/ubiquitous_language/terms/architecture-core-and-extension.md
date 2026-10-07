@@ -21,7 +21,7 @@
 
 > **本卷的词条都不归任何一个 topic**：架构内核横跨全部架构内核 topic，
 > 能力接缝与 Cordis 插件树是装配上的说法，没有产品 topic 拥有它们。
-> 依据分别在 [UL-D-2](../decisions.md#ul-d-2--架构内核--2026-09-20) 与 [UL-D-7](../decisions.md#ul-d-7--能力接缝与-cordis-插件树--2026-10-02)。
+> 依据分别在 [现行词义](../index.md) 与 [现行词义](../index.md)。
 
 ## 词条
 
@@ -40,7 +40,7 @@
 > grows as the design grows.
 
 - **形态**：总称
-- **出处**：[UL-D-2](../decisions.md#ul-d-2--架构内核--2026-09-20)（产品负责人 2026-09-20 直接裁决）
+- **出处**：[现行词义](../index.md)（产品负责人 2026-09-20 直接裁决）
 - **判据**：拿一样东西问——**它是在立规矩，还是在用规矩？**立，在架构内核内；用，在外。
 - **别混 ①**：与**上游内核不是一回事**。本项目仅复用 Cordis 官方包，不复用 DSH `agent` 原语；
   SYS-KERNEL约束这项技术底座——[它到底保证什么归 basis](../../basis/README.md)；
@@ -50,7 +50,7 @@
 - **别混 ②**：它**不是那批 PF 本身**。PF 是**设计材料**，架构内核是那些材料**所描述的那部分系统**——
   给索引页加一个 PF，是**认定**某块内容属于架构内核，不是**造出**一块新的架构内核。
 - **弃用**：~~`Harness Core` / 「harness 内核」~~——**不是错**，
-  [产品负责人明示两者在本系统里同义](../decisions.md#ul-d-2--架构内核--2026-09-20)；
+  [现行词义](../index.md)；
   **但正文统一写正式名**，理由见那条裁决。
 
 ### UL-capability-seam · 能力接缝 · Capability Seam
@@ -68,7 +68,7 @@
 > on its own is a seam.
 
 - **形态**：位置
-- **出处**：[UL-D-7](../decisions.md#ul-d-7--能力接缝与-cordis-插件树--2026-10-02)（产品负责人 2026-10-02 直接裁决）
+- **出处**：[现行词义](../index.md)（产品负责人 2026-10-02 直接裁决）
 - **别混 ①**：不是那项能力的契约。契约写性质与保证；接缝是它在装配上落成的位点，一个服务键一个接缝。
 - **别混 ②**：不是 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)——
   拓展点是 agent loop 运行流程上挂拓展件的位置，接缝是一项能力的接入位，与 loop 走到哪一步无关。
@@ -86,7 +86,7 @@
 > implementation. Every seam has exactly one.
 
 - **形态**：属性
-- **出处**：[UL-D-7](../decisions.md#ul-d-7--能力接缝与-cordis-插件树--2026-10-02)（产品负责人 2026-10-02 直接裁决）
+- **出处**：[现行词义](../index.md)（产品负责人 2026-10-02 直接裁决）
 - **别混 ①**：只有类型、不占服务键的东西（例如一个 TypeScript `interface`）**不是**它——没有服务键，消费者就无从按键取用。
 - **别混 ②**：不是那项能力的契约。契约写性质与保证；服务定义只给出 Cordis 上的名字与形状。
 - **弃用**：~~Service Definition~~（DSH 原名，不带 Cordis 限定）
@@ -103,7 +103,7 @@
 > the service definition nor the consumers.
 
 - **形态**：属性
-- **出处**：[UL-D-7](../decisions.md#ul-d-7--能力接缝与-cordis-插件树--2026-10-02)（产品负责人 2026-10-02 直接裁决）
+- **出处**：[现行词义](../index.md)（产品负责人 2026-10-02 直接裁决）
 - **别混 ①**：不是[允许的供应商](capabilities-and-composition.md#ul-allowed-providers--允许的供应商--allowed-providers)里的「供应商」——
   那是模型请求发往的上游服务商，英文同样是 provider。
 - **别混 ②**：不是实现映射里的**提供者节点**（`kind: provider`）——那是一份设计文档的种类；
@@ -123,7 +123,7 @@
 > (an optional dependency).
 
 - **形态**：属性
-- **出处**：[UL-D-7](../decisions.md#ul-d-7--能力接缝与-cordis-插件树--2026-10-02)（产品负责人 2026-10-02 直接裁决）
+- **出处**：[现行词义](../index.md)（产品负责人 2026-10-02 直接裁决）
 - **别混**：直接 import 某个包里的函数来用、不经服务键，**不是**这个角色——那是一条普通的编译期依赖，
   与哪个接缝都无关。
 - **弃用**：~~Consumer~~（DSH 原名，不带限定）
@@ -140,7 +140,7 @@
 > plugins mounted for an agent per session at run time are not part of it.
 
 - **形态**：视图
-- **出处**：[UL-D-7](../decisions.md#ul-d-7--能力接缝与-cordis-插件树--2026-10-02)（产品负责人 2026-10-02 直接裁决）
+- **出处**：[现行词义](../index.md)（产品负责人 2026-10-02 直接裁决）
 - **别混 ①**：不是 [Agent 装配](agent-runtime-loop.md#ul-agent-assembly--agent-装配--agent-assembly)，
   也不是[装配清单](agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)——那两样按会话求值出「agent 是什么样」；
   插件树是进程这一级的，与哪个会话、哪个 agent 都无关。
@@ -161,7 +161,7 @@
 > **There are no organization, tenant or session layers.**
 
 - **形态**：位置
-- **出处**：[UL-D-7](../decisions.md#ul-d-7--能力接缝与-cordis-插件树--2026-10-02)（产品负责人 2026-10-02 直接裁决）
+- **出处**：[现行词义](../index.md)（产品负责人 2026-10-02 直接裁决）
 - **别混**：不是[作用域层](scope-and-resolution.md#ul-scope-layer--作用域层--scope-layer)——那四层（出厂默认、组织、租户、会话）
   管[范围化对象](scope-and-resolution.md#ul-scoped-object--范围化对象--scoped-object)怎么求值；插件树层不参与求值，上面也不挂范围化对象。
   发行层也不是「出厂默认」那一层。

@@ -1,4 +1,0 @@
-{"ts":1791185409036,"level":"error","name":"tenancy-host","event":"resource-close-failed","plugin":"storage-sql","codes":["setup"]}
-{"ts":1791185409036,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"storage-sql"}
-{"ts":1791185409037,"level":"error","name":"tenancy-host","event":"dispose-incomplete","unfinished":["storage-sql"],"controller":"pending","storage":"pending"}
-{"ts":1791185409037,"level":"error","name":"tenancy-host","event":"startup-failed","stage":"storage-open","item":"storage-sql","errorType":"Error","message":"tenancy-host startup failed at storage-open: the storage could not be opened"}

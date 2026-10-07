@@ -4,7 +4,7 @@ Scope: read-only public OpenRouter metadata and previously retained warm-read ev
 
 ## Observed routes and capabilities
 
-The retained [model-evidence summary](../../../design/record/evidence/2026-09-27-probe-model-request-runtime/model-evidence-summary.json) records positive cache reads on `z-ai/fp8` for GLM 5.3, Flash, FlashX and 5.2; GLM 5.3 Prime's positive reads are on `alibaba`. That summary identifies the request mode as `automatic_no_control` for the native Z.ai route and `explicit_control_sent` for Prime. It does **not** establish TTL expiry, whether a particular explicit TTL was honored, or the behavior of another provider offering the same model.
+The retained model-evidence summary records positive cache reads on `z-ai/fp8` for GLM 5.3, Flash, FlashX and 5.2; GLM 5.3 Prime's positive reads are on `alibaba`. That summary identifies the request mode as `automatic_no_control` for the native Z.ai route and `explicit_control_sent` for Prime. It does **not** establish TTL expiry, whether a particular explicit TTL was honored, or the behavior of another provider offering the same model.
 
 The public [Models API](https://openrouter.ai/api/v1/models) reports text input/output for GLM 5.3, Prime and 5.2, but text, image and video input for Flash and FlashX. Thus a text-only complete official profile for either Flash variant would discard known input modalities. The aggregate `top_provider` fields are not the selected route's limits.
 

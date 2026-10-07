@@ -74,10 +74,6 @@
 | N-9 | **被顶替快照的留存**（[关键选择四](design.md#关键选择)）：一次尝试里接连两次 reload（内存只留上一份）⇒ 那一次尝试的读仍按它的报告所依的那一份，按装配清单记录现建；装配清单删了那条历史记录 ⇒ `unavailable`（R-M9 的反例） | 演练（前一支用清单最小提供者；「删了」那一支用按 `capability.assembly-manifest` v2 行为、另开删除口的测试替身——最小提供者本版不删，S-24） | 未开始 | 本节点 ＋ 装配清单提供者（互指 R-M9） |
 | N-10 | **公开函数面**（[design 的公开面](design.md#公开面)）：四个函数不装 Cordis、不给清单与时钟即可调；`buildSnapshots` 撞名得 `toolNameConflict`；`computeAvailability` 读数缺一项即那一项「读不到」；`findInSnapshot` 只在给定那一份里找——**反证**：函数层不判「这一份是不是报告所依那一份」，那是服务面的事 | 单元测试 | 未开始 | 本节点；有实现即可跑 |
 
-## 实际执行
-
-**无。**本节点没有源码；契约本版没有形式任务。
-
 ## 覆盖缺口
 
 - **全部条款没有任何实现证据**：源码、测试、集成运行都不存在。
@@ -87,20 +83,9 @@
 - **不绑形式结论**：契约没有形式工件；[bindings](bindings.yaml) 为空。
 - **契约 S-31 右列（协议须给）**本节点一条都不兑现；跨进程逐行重开（契约 G-11）。
 
-## 独立评审
-
-2026-09-25 本节点随 N3 批（`tools` 三节点）经一次独立的架构评审（只读结构核对，无运行）：本节点建议 1、观察 1，无阻断、无应修；另有 N1 批（`core` 纯模块）的一条建议落到本节点。主线据此裁定 [D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M51 并处置 AR-1（批的结论见同节 N-28）。**处置不等于评审闭合**——是否闭合由复审判断。
-
-| 编号 | 发现 | 处置 | 落点 |
-| --- | --- | --- | --- |
-| AR-1（建议） | `slash_command` 的 `lookup`／`list` 每次现跑一次完整求值，交付面命令识别的频率乘以这份代价；节点已按契约 S-25 ⑦ 不加无测量的缓存并登 A-8 | 不改设计；A-8 加「G5 放行后第一轮测量排入」 | design.md 缺口 A-8 |
-| AR-2（观察） | `refreshAvailability` 逐接入点串行调桥，尝试开始的时长上界是接入点数 × `connectTimeout` | 不作发现；design 已写「接入点多了再议」 | —— |
-| N1 建议 3（落到本节点） | `BodyContracts` 有三处组合根（资产治理插件体、本注册表插件体、`core/asset-evaluation` 加载时），S-27「同一值在每个接收边界得同一个拒绝值」要三处组合逐一相同，而没有检查 | 按 M51：只 import `core/asset-evaluation` 导出的 `defaultBodyContracts`，不自组 | design.md 实现路径表「正文端口的组合根」行；README；本页 N-7 |
-| 转 spec-reviewer（表达） | 本页义务表 N-9 排在 N-4 与 N-5 之间 | 顺手移到 N-8 之后，内容不变 | 本页证据义务表 |
-
 ## 修订波（2026-09-25 公开面）
 
-依据：[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1、R-2，[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)，[D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-37 ③。契约侧（本契约 S-13 改 `$ref`、G-1／A-1 改指 manifest）由规格侧并行落，本节点只引条款号。**处置不等于接受或评审闭合。**
+依据：D-063 R-1、R-2，[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)，D-060 §八 N-37 ③。契约侧（本契约 S-13 改 `$ref`、G-1／A-1 改指 manifest）由规格侧并行落，本节点只引条款号。**处置不等于接受或评审闭合。**
 
 | 事项 | 依据 | 处置 | 落点 |
 | --- | --- | --- | --- |

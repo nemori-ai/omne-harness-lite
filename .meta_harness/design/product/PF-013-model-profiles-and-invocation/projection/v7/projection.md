@@ -2,7 +2,7 @@
 
 2026-09-29，**post-review candidate，未采用、未实施**。在D109已采用v6及transport v15 r4/runtime v21 r3之后，仅投影两条实施前漏出的技术承接边；不覆盖这些已接受字节，不替代PF-013全部投影，不夹带T29。主线对本候选作D109后继采用；候选存在和编号不表示接受。
 
-来源与精确摘要见[provenance](provenance.json)，候选冻结commit `4ebcd9c05a969554999802b0d6ab24ab69bbaa01`。两项均沿[原v6产品范围](../v6/projection.md#需求及确认范围)、[封存领域读数](../../../../record/proposals/model-request-image-preparation/sources/domain-reading.md)及[RT10](../../../../spec/capabilities/model-request-runtime/v10/contract.md)/[MR9](../../../../spec/data/model-response/v9/contract.md)，没有新增产品政策、业务操作、持久字段或对象。
+来源与精确摘要见[provenance](../../design.md)，候选冻结commit `4ebcd9c05a969554999802b0d6ab24ab69bbaa01`。两项均沿[原v6产品范围](../v6/projection.md#需求及确认范围)、封存领域读数及[RT10](../../../../spec/capabilities/model-request-runtime/v10/contract.md)/[MR9](../../../../spec/data/model-response/v9/contract.md)，没有新增产品政策、业务操作、持久字段或对象。
 
 ## 缺口与性质承载
 
@@ -21,6 +21,6 @@
 
 ## 验收与接受状态
 
-两reviewer对上述精确三文件各自范围无阻断，历次反例及修复见[定点评审记录](../../../../record/proposals/model-request-image-preparation/scope-and-basis-followup-review.md)。曾误把8125e085新增target8/第三行表标成716400a3，已按git object修正；不能用当前工作树反推旧来源。cleanup源码基线716400a3，basis新增行源码基线8125e085，均在provenance分别记账。
+两reviewer对上述精确三文件各自范围无阻断，历次反例及修复见定点评审记录。曾误把8125e085新增target8/第三行表标成716400a3，已按git object修正；不能用当前工作树反推旧来源。cleanup源码基线716400a3，basis新增行源码基线8125e085，均在provenance分别记账。
 
 新增实际bindings 0，SC1～9与BR1～7未执行。主线先采用精确后继，B实现runtime端口与异常留责，C实现provider清理及basis predicate；A有限图片准备算法沿原D109继续。集成验收须真缓存释放、撤回后清理、async→void负控、两个租户/多代际适用范围、旧已证O full/new且I失效、未知原basis、坏source、prefix与basis同时变化首原因，并更新改动包双语README。设计通过不表示这些工程验收已完成。

@@ -6,7 +6,7 @@
 
 调用一次显式模型传输，把响应流装配为最终结果，提供取消、内容时限和异步首内容门。本包是实验性 ESM workspace 成员，尚未发布到 npm。
 
-当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及纯调用历史解释器。`createModelRuntime` 已把 RT12 的十五个类型化方法组合在同一个进程内调用 owner 下。第十五操作 `acknowledgeCall`（S-96）为每次调用固定一条耐久确认，再经保留门释放该调用的模型副本；此后各读取入口、同键 `openCall` 认回与 `reconcile` 都回 S-97 已确认小视图，控制与新工作到达其终态拒绝（S-100）。ACK 后自带 `retainedResult` 的 `settleReply` 按 S-99 核验后，经一份暂存的写责任完成结算（S-99⑧，见下文「ACK 后的结算」）。属于 Run 的结算消费宿主显式提供的已授权 Run 历史读源；生产 Run 终结与恢复 owner 仍由宿主负责。`./cordis` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的原完整批；有 Run 的条件恢复保留响应原 attempt，并在较新 attempt 中归账。对于已耐久记录「已出门」但缺响应的调用，不属于 Run 的对账可读取实际停止的原执行事实，或经宿主确认的冷恢复缺席，追补一条中断响应且不再发模型请求。只有中断意图、没有发出记录的调用由耐久终结记录收口。显式调用宿主和有界观察接线遵循 [D103](../../../.meta_harness/design/record/decisions/model-runtime-host-observer-adoption/decision.md)；共享端口和队列自身不能证明真实会话接收端已接入，须由宿主提供（[最小示例](../../../examples/model-invocation-minimal-demo/README_ZH.md)为其单进程装配提供了一个）。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)、[D105 恢复映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-timing-design.md)及[恢复 owner 补充](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-owner-supplement.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的生产成功路径仍依赖宿主真实的 Run 终结来源与 owner。
+当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及纯调用历史解释器。`createModelRuntime` 已把 RT12 的十五个类型化方法组合在同一个进程内调用 owner 下。第十五操作 `acknowledgeCall`（S-96）为每次调用固定一条耐久确认，再经保留门释放该调用的模型副本；此后各读取入口、同键 `openCall` 认回与 `reconcile` 都回 S-97 已确认小视图，控制与新工作到达其终态拒绝（S-100）。ACK 后自带 `retainedResult` 的 `settleReply` 按 S-99 核验后，经一份暂存的写责任完成结算（S-99⑧，见下文「ACK 后的结算」）。属于 Run 的结算消费宿主显式提供的已授权 Run 历史读源；生产 Run 终结与恢复 owner 仍由宿主负责。`./cordis` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的原完整批；有 Run 的条件恢复保留响应原 attempt，并在较新 attempt 中归账。对于已耐久记录「已出门」但缺响应的调用，不属于 Run 的对账可读取实际停止的原执行事实，或经宿主确认的冷恢复缺席，追补一条中断响应且不再发模型请求。只有中断意图、没有发出记录的调用由耐久终结记录收口。显式调用宿主和有界观察接线遵循 D103；共享端口和队列自身不能证明真实会话接收端已接入，须由宿主提供（[最小示例](../../../examples/model-invocation-minimal-demo/README_ZH.md)为其单进程装配提供了一个）。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)、[D105 恢复映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-timing-design.md)及[恢复 owner 补充](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-owner-supplement.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的生产成功路径仍依赖宿主真实的 Run 终结来源与 owner。
 
 ## 公开接口
 
@@ -186,7 +186,7 @@ export function readNoRunCall(prefix: SettlementPrefix, session: SessionRef, cal
 
 MS8 `model_call_acknowledged` 记录使用独立的按调用稳定日志键；只有本前缀核实其创建键与条目壳、每项可释放载荷都属于该调用（仅当调用不拥有任何载荷时才允许空列表）、目标确为该调用真实终结记录或最后一次终结响应后，才以 `known.acknowledged`（`{ record, entry }`）暴露。仅有 ready 标记时还须带原账见证；若 final 先于 ACK 胜出，解释器把该 final 与见证逐项比较 outcome、initiator、usage、cost、provider、凭据范围与时序。创建与保留结果摘要需要内容，解释器不核。缺少或矛盾的终态来源、或出现不同值的第二条 ACK，返回原因 `history` 的 `unavailable`。`projectCallState` 仍拒绝已确认历史；服务消费者对控制与新工作使用 `acknowledgedAsTerminal`，对读取使用 S-97 小视图，不当作缺席，也不从缓存再给全文。日志只按键去重，`acknowledgeCall` 只从整值读回的耐久值认回自己的批。见 [runtime v22 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v22-acknowledgement-design.md)。
 
-响应 usage 校准遵循 [D107 采用决定](../../../.meta_harness/design/record/decisions/model-input-usage-calibration-adoption/decision.md)及 [runtime v16 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v16-usage-calibration-design.md)。
+响应 usage 校准遵循 D107 采用决定及 [runtime v16 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v16-usage-calibration-design.md)。
 
 ## ACK 的确认、撤回与释放
 
@@ -444,7 +444,7 @@ console.log(delay.ok, next.ok)
 
 ## 显式共享凭据脱敏
 
-`createCredentialRedactionPolicy(config)` 构造 [D093](../../../.meta_harness/design/record/decisions/model-credential-policy-adoption/decision.md) 采用的纯政策。三个具名参数缺一不可。`openRouterCredentialRedactionConfig` 是显式交入、深度不可变的 `openrouter-redaction/1` 基线：片段最小长度 8、已采用的 11 项头名单与 sk-/Bearer/Basic 三个有限描述。算法没有隐式配置、环境、网络、存储或 Cordis 依赖。
+`createCredentialRedactionPolicy(config)` 构造 D093 采用的纯政策。三个具名参数缺一不可。`openRouterCredentialRedactionConfig` 是显式交入、深度不可变的 `openrouter-redaction/1` 基线：片段最小长度 8、已采用的 11 项头名单与 sk-/Bearer/Basic 三个有限描述。算法没有隐式配置、环境、网络、存储或 Cordis 依赖。
 
 `policy.bind(knownCredential)` 返回 `{ ok: bound }` 或 `{ rejected: 'invalidInput' }`。冻结的闭包只公开 `text(value)`、`headers(value)`、`json(value)`，三个操作沿同一明确结果壳。已知凭据须为非空可打印 ASCII；完整凭据即使短于片段阈值也会保护。所有匹配均从原输入求区间并集，每段变为 `█`，不正规化、不猜未知编码、不执行开放正则。头先按原键的 ASCII 大小写折叠剥除名单项，再处理键和值；字符串／有序字符串数组的形状、重复与空值保留。JSON 处理键及全部 scalar token，包括精确数字、布尔和 null；命中的非字符串 scalar 整体变成标记字符串，未命中的类型与数字词法保持。输出独立且冻结，安全值再次处理在值意义上相等。 精确数字准入在模块初始化时捕获可信的公开 LosslessNumber source getter，显式读取品牌源后立即复制为标准自有数字；token 匹配在这份副本上调用 jsonNumberSource，调用者原型的 Get trap 不能替换该数字 token。
 
@@ -573,9 +573,9 @@ pnpm --filter @omne-harness-lite/model-request-runtime-local run test
 
 ## 日志值的捕获、构造与认回
 
-成员检查消费 [D089 已采用](../../../.meta_harness/design/record/decisions/model-time-order-projection-adoption/decision.md) 的 offer-expiry 公共根比较器：实际 `sentAt` 已知时核 `sentAt <= firstTokenAt <= endedAt`，首 token 缺席时核 `sentAt <= endedAt`。[D105](../../../.meta_harness/design/record/decisions/model-recovery-timing-provider-adoption/decision.md) 下仅已锚定的 `interrupted` 响应允许 `sentAt: null`；首 token 与 ended 的比较、opened 原值相等仍须核对。null 表示实际发送时刻不可用，不证明零次发送或零费用。普通调用结果和待处分响应仍须有实际字符串时刻。静态非法日期与已知时刻逆序不能返回成员完整；任意小数、时区同点与 opened 原字符串均照原样保留。
+成员检查消费 D089 已采用 的 offer-expiry 公共根比较器：实际 `sentAt` 已知时核 `sentAt <= firstTokenAt <= endedAt`，首 token 缺席时核 `sentAt <= endedAt`。D105 下仅已锚定的 `interrupted` 响应允许 `sentAt: null`；首 token 与 ended 的比较、opened 原值相等仍须核对。null 表示实际发送时刻不可用，不证明零次发送或零费用。普通调用结果和待处分响应仍须有实际字符串时刻。静态非法日期与已知时刻逆序不能返回成员完整；任意小数、时区同点与 opened 原字符串均照原样保留。
 
-本包根入口公开 `modelLogFormat`、`encodeModelLogKey`、`decodeModelLogKey`、`captureModelLogValue`、`prepareModelLogEntry`、`inspectModelLogEntry`、`inspectSettlementMembers`、`modelLogJsonEqual`、`recognizeMessageValue` 及其类型，消费 [D088 的精确采用](../../../.meta_harness/design/record/decisions/model-runtime-log-codec-adoption/decision.md)。所有这些构件均为纯函数；静态导入和调用不打开日志、不装 Cordis、不读取环境凭据或时钟、不发号。日志类型只从 session-log-jsonl 根入口借用。
+本包根入口公开 `modelLogFormat`、`encodeModelLogKey`、`decodeModelLogKey`、`captureModelLogValue`、`prepareModelLogEntry`、`inspectModelLogEntry`、`inspectSettlementMembers`、`modelLogJsonEqual`、`recognizeMessageValue` 及其类型，消费 D088 的精确采用。所有这些构件均为纯函数；静态导入和调用不打开日志、不装 Cordis、不读取环境凭据或时钟、不发号。日志类型只从 session-log-jsonl 根入口借用。
 
 文本与值接收是两个显式模式。任意层重复成员、getter、`toJSON`、非 JSON 对象及伪数字品牌均拒绝。捕获返回自有不可变原 JSON，保留数字词法；响应 judge 的 `{ ok: true }` 不会替调用方制造 owned ModelResponse。
 
@@ -759,7 +759,7 @@ export function inspectReplyBatch(input: InspectSettlementMembersInput) {
 
 上游错误与本地文本经绑定的共享 JSON／text 政策处理，raw/error 的 key 与所有 scalar 都覆盖；独立协议状态和真实 usage/cost 即使字面值与凭据巧合仍保真。处理拒绝或 defect 时省略不安全载荷，交固定阶段诊断，已持有 H 保留。发送前 bind defect 以受控阶段异常拒绝 outcome，不造发出结果；诊断 sink 失败不改变业务。
 
-业务 reply／工具片段保持原装配语义。本实现不关闭内容回显政策、raw.body 附件、完整 S20、生产 TLS 组合或耐久服务。精确采用范围见 [D095](../../../.meta_harness/design/record/decisions/model-credential-path-adoption/decision.md)。
+业务 reply／工具片段保持原装配语义。本实现不关闭内容回显政策、raw.body 附件、完整 S20、生产 TLS 组合或耐久服务。精确采用范围见 D095。
 
 ## 耐久结算构件
 

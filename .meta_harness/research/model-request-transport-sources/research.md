@@ -3,7 +3,7 @@
 - 调查对象与日期：`@earendil-works/pi-ai@0.86.1`（pi `3390bd93630965a12a0a1a5c36ce890ec22f7e1d`）源码；
   本仓库钉住的 `@earendil-works/pi-ai@0.85.1` 发布物与补丁；`feat/minimal-runtime@d79484d` 的 `packages/model/{execution,llm}`；
   DSH `c291e7961a515f6d7af9304e7fd1d257929aef26` 的 `packages/llm/*`。2026-09-23，全部离线取证。
-- 消费者：[D-019 的比较门现状补记（2026-09-23）](../../design/record/decisions/model-provider-pi-ai-fork/gate-status-2026-09-23.md)（已落）；本程块 C 的架构读数（待出现）。
+- 消费者：D-019 的比较门现状补记（2026-09-23）（已落）；本程块 C 的架构读数（待出现）。
 - 最近核对：2026-09-23 / 上列版本（首轮）。
 - 当前结论：D-019 的两处丢失（实际执行方、实际费用）在 0.86.1 上原样存在，补丁仍要；
   minimal-runtime 的 pi-ai 传输只闭合了非推理文本/工具的正常路径，比较门里的私有 replay、请求字段按模型实测、
@@ -34,7 +34,7 @@ PF-013 的运行时要求在「pi-ai 传输 + minimal-runtime host」上各落�
 
 ### D-019 的比较门在 minimal-runtime 上只闭合了文本/工具正常路径的那一半
 
-[D-019](../../design/record/decisions/model-provider-pi-ai-fork/decision.md) 列了十五项比较门（`decision.md:51-53`），外加「请求差异须按所选模型实测」这条保留前提（`:46-48`）。
+D-019 列了十五项比较门（`decision.md:51-53`），外加「请求差异须按所选模型实测」这条保留前提（`:46-48`）。
 在 `d79484d` 的源码与测试源码里看得到落点的：模型/provider/order/禁用回退/要求参数（发网前核对并强制写入）、原始工具参数与结果回传 ID、
 实际 provider 与响应 ID、`usage.cost` 的质量标记（actual/unknown）、重定向拒绝、abort（首内容前）、无隐藏重试（出站计数 + `maxRetries:0`）、
 无 finish 的 EOF。**没有落点的**：私有 replay（推理路由在发网前整条拒绝，所以根本没走到 replay）；
@@ -277,5 +277,5 @@ pi-ai 按 provider id 与 baseURL 自动推断请求形状（`detectCompat`，`:
 
 ## 采用与后续核对
 
-已落地的消费者：[D-019 的比较门现状补记（2026-09-23）](../../design/record/decisions/model-provider-pi-ai-fork/gate-status-2026-09-23.md)。预期消费者还有本程块 C 的架构读数（待出现）。
+已落地的消费者：D-019 的比较门现状补记（2026-09-23）。预期消费者还有本程块 C 的架构读数（待出现）。
 pi-ai 换版本时 grep 本包的 `0.85.1`、`0.86.1`、`3390bd9`；minimal-runtime 前移时 grep `d79484d`。

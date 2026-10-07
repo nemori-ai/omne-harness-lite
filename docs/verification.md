@@ -48,13 +48,13 @@
 `make design-check` 的三个形式模式含义不同：`FORMAL=registered`（默认）只确认任务与工件已登记，
 `FORMAL=skip` 记录本次明确跳过，**`FORMAL=run` 才真正调用 runner** 并传播缺工具、超时和非零退出。
 前两种**都不是**模型已通过的证据。`GATE=release` 作为切换/冻结门，对任一 blocked relation、
-unknown consumer 或缺 release evidence 的关系失败。
+unknown consumer 或缺 current_bindings 的关系失败。
 
 对账那两支默认把「rev 落后」判为失败：某个产品 topic 升了 rev，引用它的词条出处、对象条目依据
 与实现映射节点的交付面就要逐条复核后才能把 rev 改到当前值。本地迭代时可用 `STALE=report`
 （节点检查里 `warn` 是它的同义词）只列出待复核队列而不失败；**它不是通过的证据**，交付前仍须以默认模式通过。
 
-> **留档区不在检查范围内。**`design_legacy/`、`research/legacy_backup/` 与 `agents/research/`
+> **留档区不在检查范围内。**`design_legacy/` 与 `research/legacy_backup/`
 > 保持原件搬来时的相对链接——改写它们就会篡改「当初那份材料实际写了什么」。
 > 单独封存的 Node 24 worker API 原文也按精确路径和 SHA-256 保留上游相对链接；
 > 检查器拒绝该原文字节变化，周围研究说明仍接受本地导航检查。
@@ -66,7 +66,7 @@ unknown consumer 或缺 release evidence 的关系失败。
 与根 `package.json` 指定的 Node/pnpm。`uv sync --locked` 依据锁文件准备 Python 3.12+
 及 JSON Schema、Markdown、YAML 验证依赖，并以 editable 方式安装 workspace 工具包。
 `make test` 的临时目录为 `tmp/test-runs/`，只用于本仓库测试。
-测试运行器的耗时账本与各成员日志落**主检出**的 `tmp/test-ledger/<提交短号>[-dirty]/<时间>/`
+测试运行器的耗时账本与各成员日志落**执行工作树**的 `tmp/test-ledger/<提交短号>[-dirty]/<时间>/`
 （环境变量 `OMNE_TEST_LEDGER_HOME` 可改根目录）；工作树不干净的账本不是任何提交的账本。
 
 形式工具链**装在系统全局路径**，不依赖任何仓库内的临时目录：

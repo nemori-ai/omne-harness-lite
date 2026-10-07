@@ -95,7 +95,7 @@
 > 这会把「账号存不存在」告诉发起者——**本版接受**：
 > 一个组织统一部署一个中心，已注册的标识就是同事，不是秘密；
 > 而假装发出去了，会让超管本来看得到的[邀约清单](../PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作)撒谎。
-> [PF-001 为登录路径写死的三行相同反馈](../PF-001-identity-scope-and-agent-constraints/flows.md#二分支与异常)防的是猜凭据，威胁不同，**不外推到这里**（推理链在 [decisions §二](decisions.md#二pm-推导)，可被推翻）。
+> [PF-001 为登录路径写死的三行相同反馈](../PF-001-identity-scope-and-agent-constraints/flows.md#二分支与异常)防的是猜凭据，威胁不同，**不外推到这里**（推理链在 [decisions §二](design.md)，可被推翻）。
 
 ### 1.3 在一个会话里干活
 

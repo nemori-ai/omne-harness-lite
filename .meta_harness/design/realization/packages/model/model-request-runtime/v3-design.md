@@ -4,13 +4,13 @@
 
 ## 输入、范围与实现路径
 
-输入为 [capability.model-request-runtime/v3](../../../../spec/capabilities/model-request-runtime/v3/contract.md) S-1～S-67，候选输入 SHA-256 `9d73735d3c22033dd583f10f8c7ea61b5b6865769e25de652399a59e2949747a`；本摘要仅用于核对本稿输入，不表示冻结。采用依据为[适配提案 revision 2](../../../../record/proposals/model-request-adaptation/design.md)、[当前求值输入补充裁定](../../../../record/proposals/model-request-adaptation/read-projection.md#2026-09-27-实时输入补充裁定)，产品 rev 沿契约的 PF-013 rev 13、PF-009 rev 8、PF-012 rev 15。当前提供者与整条交付仍待独立评审及接受。
+输入为 [capability.model-request-runtime/v3](../../../../spec/capabilities/model-request-runtime/v3/contract.md) S-1～S-67，候选输入 SHA-256 `9d73735d3c22033dd583f10f8c7ea61b5b6865769e25de652399a59e2949747a`；本摘要仅用于核对本稿输入，不表示冻结。采用依据为适配提案 revision 2、当前求值输入补充裁定，产品 rev 沿契约的 PF-013 rev 13、PF-009 rev 8、PF-012 rev 15。当前提供者与整条交付仍待独立评审及接受。
 
-交付前已核 [catalog](../../../../registry/catalog.json)：model-profile3、messages4、model-response4、model-profile-directory3 已由 [D-070](../../../../record/decisions/model-adaptation-binding-acceptance/decision.md) 接受；agent-definition1 由 [D-072](../../../../record/decisions/agent-definition-read-adoption/decision.md) 接受；asset-evaluation4、assembly-manifest3、asset-registry3、loop-extension4 由 [D-073](../../../../record/decisions/model-current-input-contracts-adoption/decision.md) 接受。runtime3与runner3仍为candidate。runtime3已显式消费LC4与session-tenancy2，不再以assembly-manifest3为当前设置依赖。R3-G1保留候选接受与实施接续义务；已接受依赖不接受本节点，不回退LC3，也不以删掉adaptation迁就旧输入。
+交付前已核 [catalog](../../../../registry/catalog.json)：model-profile3、messages4、model-response4、model-profile-directory3 已由 D-070 接受；agent-definition1 由 D-072 接受；asset-evaluation4、assembly-manifest3、asset-registry3、loop-extension4 由 D-073 接受。runtime3与runner3仍为candidate。runtime3已显式消费LC4与session-tenancy2，不再以assembly-manifest3为当前设置依赖。R3-G1保留候选接受与实施接续义务；已接受依赖不接受本节点，不回退LC3，也不以删掉adaptation迁就旧输入。
 
 保留两个插件：P-2 提供 `modelRuntime` 十三个操作；P-5 向 runner 登记系统默认重试实现。一次调用仍是显式宿主拥有的资源，不是一条重载即重发的 fiber。公共函数、纯判定及状态归约公开可单取；P-2 消费同一 `invokeModel`，没有第二套网络发出循环。传输由 [pi-ai-transport v3 候选](../pi-ai-transport/v3-design.md)提供，沿 D-019 的 pi 0.86.1 定向 fork 比较门；本节点不再复制家族/模型映射、SSE、缓存或费用解析。
 
-Cordis 采用 **4.0.4**（[D-025](../../../../record/decisions/cordis-adoption-version/decision.md)）。存储消费独立协议，不在本节点选数据库；会话日志由 [session-log-jsonl](../../session/session-log-jsonl/design.md)实现确认即持久的追加，缓存消费 [core/storage](../../core/storage/design.md)。系统计时戳来自 [infra/clock](../../infra/clock/README.md)，等待/截止调度另显式注入可替换构件，不把 `clock.now` 当成已有 timer API。
+Cordis 采用 **4.0.4**（D-025）。存储消费独立协议，不在本节点选数据库；会话日志由 [session-log-jsonl](../../session/session-log-jsonl/design.md)实现确认即持久的追加，缓存消费 [core/storage](../../core/storage/design.md)。系统计时戳来自 [infra/clock](../../infra/clock/README.md)，等待/截止调度另显式注入可替换构件，不把 `clock.now` 当成已有 timer API。
 
 ## 契约到 Cordis 的投影
 
@@ -56,7 +56,7 @@ P-5 的能力身份由runtime3 S-67唯一拥有：`{ category: loop_extension, n
 | storage 协议、offer-expiry1 时间 | required `storage`、`clock`；实际存储和clock提供者 | 缓存写失败可重算；clock不可用不能补造时间戳；换代按S-36收口 |
 | runtime3 S-53/S-57～S-59 | required `modelTransport`；pi-ai-transport候选 | 注册表内版本变化不重跑runtime；整个服务替换仍会；缺版本unavailable，绝不自动换版 |
 | session-tenancy2 S-8 | 调用时 `resolveOptional` 取 `sessionTenancy.holdingTenant`；session-tenancy-table | 无记录或不可用即依赖操作unavailable；不接受调用方提供tenant作替代；换代不重跑全部调用 |
-| runtime3 S-66 → AE4 → agent-definition1/asset-model3；OG2 S-26/S-63由输入provider消费 | 调用时取 `currentEvaluationInputs`；[evaluation-input-store](../../assets/evaluation-input-store/design.md) 的读取投影已由[D-074](../../../../record/decisions/model-read-provider-adoption/decision.md)采用，通过真实memberships参与面与配方/源同原子单元读；取得input后公开evaluate | 服务未装、当前核权失败/未知、当前源无效或evaluate失败均不可发；不接恒真授权回调或fixture兜底。采用不代替R3-G2真实组合 |
+| runtime3 S-66 → AE4 → agent-definition1/asset-model3；OG2 S-26/S-63由输入provider消费 | 调用时取 `currentEvaluationInputs`；[evaluation-input-store](../../assets/evaluation-input-store/design.md) 的读取投影已由D-074采用，通过真实memberships参与面与配方/源同原子单元读；取得input后公开evaluate | 服务未装、当前核权失败/未知、当前源无效或evaluate失败均不可发；不接恒真授权回调或fixture兜底。采用不代替R3-G2真实组合 |
 | asset-registry3 S-11/S-25 | 调用时取 `assetRegistry`；`packages/tools/asset-registry` | report三身份先核；有run取report快照，无run取session当前；不存在unknownTool，不可读取unavailable；不代算report |
 | modality-projection2、stream-assembly3 | 公开纯函数import；传输转换登记按对应节点 | 单条流一个装配状态，拒收后trim与晚到诊断按S-51；不把CB/工具参数解析再实现一次 |
 | messages4、response4、profile3、content-blocks3、tool-definition3、call-accounts2、arrival-events2、identity-values1、offer-expiry1 | core公开入口和精确保留Schema端口；构建锁图 | 不随默认导出自动升级未采用消费者；LC4已接受，runner3候选仍须独立接受，数据接受不代表运行组合通过 |
@@ -140,7 +140,7 @@ S-36的普通系统停止在锚点结果已确知时仍结算 `interrupted{run_c
 | 观察端口队列 | 校验session/target及双限后可用 | 不明归属不发布；错误不借全局emit传播 | 关端口清本端缓冲/监听，迟到拒收；费用和response继续结算 |
 | P-5默认重试贡献 | S-67精确CapabilityId、after_model_call/failure声明及完整配置通过runner登记后可被选择 | 名字/声明不符或登记失败无假贡献；不覆盖已有贡献，配置错误启动失败 | 仅撤除本次登记；在途判定按原输入完成/明确失败，不撤销已落结论，不因名称授予额外power |
 
-宿主适配的 `ctx.effect` 提前解除及无漏取消登记是**待核对主张**，目前没有对应basis条目。已有[有限Cordis原型及连续调用反例](../../../../record/evidence/2026-09-27-probe-model-request-runtime/README.md#连续调用补验)只支持已运行路径，产品宿主/真实IO组合仍需R3-V16。同步寿命容器必须在stop先置位再遍历登记；登记不能跨await漏进已停宿主。框架登记失败也要收回已取得资源。
+宿主适配的 `ctx.effect` 提前解除及无漏取消登记是**待核对主张**，目前没有对应basis条目。已有有限Cordis原型及连续调用反例只支持已运行路径，产品宿主/真实IO组合仍需R3-V16。同步寿命容器必须在stop先置位再遍历登记；登记不能跨await漏进已停宿主。框架登记失败也要收回已取得资源。
 
 策略正常退役不能触发旧call宿主停止；只停止新acquire，等待当前真实引用。排空Promise在retiring之后按当前引用建立，不复用active期间首次归零已resolve的Promise。强制退役显式取消所有runtime/direct持有者，真实停止并结算前不能销毁实现。整个modelTransport服务替换仍会按required边重跑P-2，并按S-36处置；不把贡献热更新夸成整个服务无中断。超时只能报告未停/未结算范围及诊断，不可以释放尚在用资源后报告成功。
 

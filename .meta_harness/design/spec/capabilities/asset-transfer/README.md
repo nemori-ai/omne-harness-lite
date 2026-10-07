@@ -10,7 +10,7 @@ fork 一份、此后各走各的，按两条通则：**本人型**（同一个�
 > 这个动作的正式名是「资产复制」，**「转移」是弃用说法**，正文一律不用。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-transfer, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **需求 rev**：PF-003 rev 5；相邻 PF-002 rev 20、PF-001 rev 19（2026-09-24 按 changelog 复核到当前，结论在[契约页首](v2/contract.md)）
 - **catalog 映射**：已登记为 `accepted`；`family=capabilities`、`topic=asset-transfer`、
   `contract_path=spec/capabilities/asset-transfer/v2/contract.md`；`resources` 含契约、`examples.md`、`formal/` 下的模型、十六个配置与入口页；
@@ -56,4 +56,4 @@ fork 一份、此后各走各的，按两条通则：**本人型**（同一个�
 
 ## 2026-09-26 版本接受
 
-本次接受 `capability.asset-transfer` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `capability.asset-transfer` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

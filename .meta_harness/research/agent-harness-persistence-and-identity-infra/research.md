@@ -1,7 +1,7 @@
 # 同行 harness 的持久化选型，以及「只改配置切方言」在 TS 里做得到什么
 
 - 调查对象与日期：见 [README](README.md)；2026-09-22 首轮
-- 消费者：[D-026](../../design/record/decisions/infrastructure-persistence-choices/README.md)；四个基础设施 realization 节点；identity-values 节点的签名方案
+- 消费者：D-026；四个基础设施 realization 节点；identity-values 节点的签名方案
 - 最近核对：2026-09-22 / 首轮
 - 当前结论：同行 CLI 里没有查询构建器，也没有 redis；TS 同行用内置 `node:sqlite`；JSONL 是转录的通行形态，多家让 sqlite 只做派生索引；Drizzle 在类型层按方言分裂、Kysely 不分裂但也不替你抹平 `FOR UPDATE` 这类语义差异。身份部分：服务端会话令牌的通行范式是高熵不透明 ID + 服务端记录 + 每请求现查；密钥作部署配置有 env 与文件两条路；三条签名凭证路线里只有直签把「无有效期、核绑定」作默认，jose 默认不核绑定、paseto 默认强制过期。
 
@@ -152,5 +152,5 @@ Node `crypto.sign/verify` 直签：零依赖；要自己定载荷规范化（签
 
 ## 采用与后续核对
 
-[D-026](../../design/record/decisions/infrastructure-persistence-choices/decision.md) 已消费第一部分。
+D-026 已消费第一部分。
 四个基础设施节点建立时回填链接。

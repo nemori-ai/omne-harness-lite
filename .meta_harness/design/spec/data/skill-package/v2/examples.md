@@ -72,7 +72,7 @@
 | `{"path": ".hidden/..notes"}` | 通过 | — | [S-9](contract.md#s-9-资源条目与包内路径)：以点开头的段不是 `.` 或 `..` 段 |
 | `{"path": "skill.md"}` | 通过 | — | [S-9](contract.md#s-9-资源条目与包内路径)：逐码点比较，它不是 `SKILL.md`（大小写不敏感文件系统上的撞名归读入方，[契约第十节](contract.md#十明确不承诺)） |
 | `{"path": "scripts/extract.py", "executable": true}` | 拒绝 | `malformed`（M3） | [S-10](contract.md#s-10-资源只被读取不因读取而运行) 第 3 条：条目上没有执行位，**不被丢掉这一位后收下** |
-| `{"path": "scripts/extract.py", "executable": false}` | 拒绝 | `malformed`（M3） | 同上：写 `false` 也不行——原来那个恒为 `false` 的成员已删（[D-060 §S18 S18-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的)） |
+| `{"path": "scripts/extract.py", "executable": false}` | 拒绝 | `malformed`（M3） | 同上：写 `false` 也不行——原来那个恒为 `false` 的成员已删（D-060 §S18 S18-d） |
 | `{"path": "a.md", "mediaType": "Text/Markdown"}` | 拒绝 | `malformed`（M9） | `data.content-blocks/v2#S-7`：媒体类型要小写 |
 | `{"path": "a.md", "sha256": "9f86"}` | 拒绝 | `malformed`（M3） | [S-9](contract.md#s-9-资源条目与包内路径)：本版表示里没有摘要（[G-6](contract.md#九已知缺口)） |
 | `{"path": "../other-skill/SKILL.md"}` | 拒绝 | `resource_escapes` | [S-9](contract.md#s-9-资源条目与包内路径) 第 2 条：`..` 段 |

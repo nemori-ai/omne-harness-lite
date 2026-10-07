@@ -1,6 +1,6 @@
 # 模型适配与缓存的路由观察
 
-调查对象：用户确认的八家 37 个 OpenRouter 模型及其实际路由；2026-09-27 目录快照、受控消息/缓存探针和 Cordis 4.0.4 生命周期原型。消费者为[模型适配提案](../../design/record/proposals/model-request-adaptation/README.md)、传输与 runtime 候选设计。
+调查对象：用户确认的八家 37 个 OpenRouter 模型及其实际路由；2026-09-27 目录快照、受控消息/缓存探针和 Cordis 4.0.4 生命周期原型。消费者为模型适配提案、传输与 runtime 候选设计。
 
 本包成立为一次技术调查：确切模型、路由、请求配置与 usage 可复核，观察不等于 official 认证。
 

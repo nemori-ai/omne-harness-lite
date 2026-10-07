@@ -6,11 +6,11 @@
 
 在现有 `packages/core/model-profile` 纯模块上接续。当前实际 `src/index.ts` 导出类型、`judgeModelProfileDocument`、`refMatches`、`parameterNames` 与固定 Schema 的 `validate`；`package.json` 只有 `.`、`./schema` 两个公开入口，均采用 v2。v3 的以下接口变化均是**候选，尚未实现**。
 
-共同分工取 [模型请求适配提案 revision 2](../../../../record/proposals/model-request-adaptation/design.md)及其[独立评审范围](../../../../record/proposals/model-request-adaptation/review.md)：本节点持有绑定的纯值表示；目录持有档案写入及配置修订历史；runtime 与传输提供者持有可用性、准入、在途版本和释放。新增绑定没有独立生命周期，不立 LLM 基类、注册服务或模型插件。
+共同分工取 模型请求适配提案 revision 2及其独立评审范围：本节点持有绑定的纯值表示；目录持有档案写入及配置修订历史；runtime 与传输提供者持有可用性、准入、在途版本和释放。新增绑定没有独立生命周期，不立 LLM 基类、注册服务或模型插件。
 
 需求背景为 PF-013 rev 13，沿契约所列产品接受边界读取；S-29～S-31 的新增承诺来自本批用户要求与提案，不追认为旧产品 rev 已有承诺。本稿不形成新的产品接受。
 
-实现继续采用现有 Ajv 8.20.0 的 Draft 2020-12 入口与 content-blocks 公共无损 JSON 设施，不增加库。Schema 采用 v3 原件并逐字节核对；完整判定继续以具名条件次序为准，不从 Ajv 错误顺序推导拒绝值。Cordis 采用版本仍为 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)，本模块不依赖 Cordis，也不依赖任何 basis 机制主张。
+实现继续采用现有 Ajv 8.20.0 的 Draft 2020-12 入口与 content-blocks 公共无损 JSON 设施，不增加库。Schema 采用 v3 原件并逐字节核对；完整判定继续以具名条件次序为准，不从 Ajv 错误顺序推导拒绝值。Cordis 采用版本仍为 D-025 的 4.0.4，本模块不依赖 Cordis，也不依赖任何 basis 机制主张。
 
 ## 契约责任到实现的投影
 

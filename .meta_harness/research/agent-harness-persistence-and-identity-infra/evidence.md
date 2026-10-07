@@ -79,7 +79,7 @@
 
 ### 10. `@deepseek-ai/cordis` 发布信息（顺带）
 
-- 消费对象：[D-025](../../design/record/decisions/cordis-adoption-version/README.md)
+- 消费对象：D-025
 - 来源：`https://registry.npmjs.org/@deepseek-ai%2Fcordis`（2026-09-22）：`latest` 4.0.4；4.0.2 发布 2026-08-30，4.0.3 与 4.0.4 均 2026-09-22；依赖 `@deepseek-ai/cosmokit ~1.8.5`、`@standard-schema/spec ^1.1.0`；`vendor/cordis/CHANGELOG.md` 在 DSH 主仓 404
 - 支持范围：版本存在性；不支持 4.0.2→4.0.4 的变更内容
 

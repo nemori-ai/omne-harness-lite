@@ -1,8 +1,8 @@
 # T4 宿主迁移接缝
 
 状态：补充设计已采用，实际实现与 M05 仍未完成。采用依据见
-[限定决定](../../record/decisions/identity-t4-host-coordinates/decision.md)及
-[诊断投影补充](../../record/decisions/identity-t4-host-coordinates/diagnostics.md)。BASE 为 `cdd05d1050dc9d7857f7eb3569d834ae4291c4d5`。
+限定决定及
+诊断投影补充。BASE 为 `cdd05d1050dc9d7857f7eb3569d834ae4291c4d5`。
 本页补齐[插件树协议](plugin-tree.md)在 T2/T3 合入后的精确实施坐标。
 它不重写领域业务，也不替代原模型。施工和完整接受仍归[交付](delivery.md)的 T4-S1～S3。
 

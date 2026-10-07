@@ -2,7 +2,7 @@
 
 The root owns public shapes, pure decisions and runtime-port types. It does not load Cordis or select a provider.
 The existing six business operations retain [MF4](../../../.meta_harness/design/spec/capabilities/assembly-manifest/v4/contract.md)
-and [D-079](../../../.meta_harness/design/record/decisions/model-original-fill-adoption/decision.md).
+and D-079.
 This page owns integration behavior only. It does not replace the remaining business clauses, schemas or model duties.
 
 `./cordis` owns `AssemblyManifestService`, key `assemblyManifest`, and their Context type.

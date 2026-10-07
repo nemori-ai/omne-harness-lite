@@ -1,16 +1,3 @@
-# 条款到证据的绑定表。
-# 当前3的实际模型绑定追加在下方；最初两条2绑定保留历史范围，不证明当前3实现。
-# 证据 run：record/evidence/2026-09-25-formal-assets-runtimes（HUB 提交 1667ea4c；任务目录 stream-assembly-v2-assembly/，
-# 退出 0、无反例；输入快照与登记命令逐项相同）。evidence 字段按 realization README 的格式写 formal:<task-id>，run id 写在每条的 assumptions 里。
-#
-# 只绑模型里「作证据」的两条性质（契约 formal/README「本版选用什么」）：P-1 BlockOrderIsOpenOrder、P-7 SplitInvariance ＋ OneShotAccepted，
-# 它们各有预期出反例的变异配置（order_by_close／replace_as_append／oneshot_close_first），驳得倒才算数。
-# 变异配置按契约原话不登 formal task；它们的反例以证据 run record/evidence/2026-09-25-validity-stream-assembly 入库
-# （HUB 提交 0ea85c0b，三份全部退出 12、找到反例，输入快照的 Assembly.tla 与主 run 相同；D-060 §八 M54）。
-# 不绑：P-2～P-6（FinishIsLast、AccountAtMostOnce、ToolHasNoAccount、OpenIndicesIncrease、FillsLandOnOpenBlocks、ResultOnlyWithFinish）——
-# 按构造成立、复述 Valid 与 CloseOut／Abandon 的守卫，模型里没有会在条款被违反时失败的断言；P-9「被拒不改状态」是建模方式本身。
-# 它们的证据形式是规范场景与一致性用例，记在 verification.md，现在一条也没有。
-# 源码不存在：下面两条证的都是模型，不是实现；实现与模型对得上要靠一致性用例（V-2）与性质测试（V-3），尚无。
 version: 1
 node: "stream-assembly"
 kind: "provider"
@@ -23,10 +10,9 @@ bindings:
       - "常量 Indices = {0, 1}、Frags = {\"a\", \"b\"}、MaxEvents = 6：两块、两种片段、至多六个事件之内无反例；更大规模未穷举"
       - "一个模型实例是一条流、一个串行调用方；路由、分叉、乱序、重复与宿主重建不在模型里（宿主前提 S-28、部署表 S-29）"
       - "无公平性假设，只查安全性质；死锁检查关闭（本能力不承诺进展）"
-      - "证据有效的前提是变异配置 Assembly_OrderByClose.cfg 给得出反例：run record/evidence/2026-09-25-validity-stream-assembly（HUB 0ea85c0b）目录 Assembly_OrderByClose/ 退出 12、BlockOrderIsOpenOrder 被违反，输入快照的 Assembly.tla 与本 run 相同（D-060 §八 M54）；那个 run 只证变异后的模型出反例，常量与规模界限同主配置"
+      - "证据有效的前提是 Assembly_OrderByClose.cfg 在同一模型与相同规模下给出 BlockOrderIsOpenOrder 的反例；该负控只检查变异模型，不扩大主配置的常量与规模范围。"
       - "证的是模型 Assembly.tla，不是实现；实现是否等于模型须由一致性用例（契约 V-2）核，尚无"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes（HUB 1667ea4c），任务 stream-assembly-v2-assembly 退出 0，826411 个不同状态"
-    alignment_checked: "2026-09-25"
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.stream-assembly/v2#S-27"
     evidence: "formal:stream-assembly-v2-assembly"
@@ -36,53 +22,42 @@ bindings:
       - "模型里没有参数解析、没有「被砍过的调用落成半截」规则、trim 不改任何东西：前提「σ 里没有在工具调用块开着时被接受的改变内容的砍」由模型的构造满足，S-12 那一支不被本证据覆盖"
       - "载荷抽象成符号序列；块标识、标注、块头不在模型里；「封口块等于归约」作为生产者前提写进模型"
       - "常量 Indices = {0, 1}、Frags = {\"a\", \"b\"}、MaxEvents = 6（Abandon 补的收尾不占上限）；无公平性假设"
-      - "证据有效的前提是变异配置 Assembly_ReplaceAsAppend.cfg、Assembly_OneShotCloseFirst.cfg 给得出反例：run record/evidence/2026-09-25-validity-stream-assembly（HUB 0ea85c0b）目录 Assembly_ReplaceAsAppend/ 与 Assembly_OneShotCloseFirst/ 各退出 12，SplitInvariance、OneShotAccepted 分别被违反，输入与本 run 相同（D-060 §八 M54）"
+      - "证据有效的前提是 Assembly_ReplaceAsAppend.cfg、Assembly_OneShotCloseFirst.cfg 在同一模型与相同规模下分别给出 SplitInvariance、OneShotAccepted 的反例。"
       - "证的是模型，不是实现；实现侧的证据是性质测试 V-3（随机切分与合并），尚无"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes（HUB 1667ea4c），任务 stream-assembly-v2-assembly 退出 0"
-    alignment_checked: "2026-09-25"
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
-# 2026-09-26：当前正式3输入重新实际执行，完整原始run已独立核读/归档。
   - clause: "capability.stream-assembly/v3#S-6"
     evidence: "formal:stream-assembly-v3-assembly"
     assumptions:
       - "只核P-1 BlockOrderIsOpenOrder（formal入口另列S-9落块对应），不覆盖S-6全部归约/封口/调用行为"
       - "Indices={0,1}、Frags={a,b}、MaxEvents=6；abandon补finish不计入上限；无公平性假设、关闭死锁检查"
-      - "实际正配置1 worker/600秒，871519 generated、826411 distinct、depth9、queue0、exit0"
-      - "同输入OrderByClose变异exit12，反向封口实际破坏BlockOrderIsOpenOrder；有效性轨迹和原输出保存在同run"
-      - "run record/evidence/2026-09-26-formal-core-v3；当前冻结模型/配置逐项SHA对应，历史raw1/alias2不重标为此运行"
+      - "应在上述有限配置下完成正配置检查；执行环境、状态数、耗时及退出结果留本工作树 tmp/。"
+      - "OrderByClose 变异必须在同输入下破坏 BlockOrderIsOpenOrder；有效性轨迹与执行结果留本工作树 tmp/。"
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
       - "只证明给定有限模型检查范围；参数/载荷/砍过的调用/快照/首内容/汇总/完整表示与失败次序/真实代码及宿主前提不在模型"
-    alignment_checked: "2026-09-26"
 
   - clause: "capability.stream-assembly/v3#S-27"
     evidence: "formal:stream-assembly-v3-assembly"
     assumptions:
       - "只核P-7两半SplitInvariance与OneShotAccepted；后者只到模型Valid所表达语法，不等于完整表示接收"
       - "Indices={0,1}、Frags={a,b}、MaxEvents=6；abandon补finish不计入上限；无公平性假设、关闭死锁检查"
-      - "实际正配置退出0并探索完毕；ReplaceAsAppend/OneShotCloseFirst分别exit12，命中SplitInvariance/OneShotAccepted与规定有效性轨迹"
+      - "正配置须完成有限检查；ReplaceAsAppend/OneShotCloseFirst 变异须分别反驳 SplitInvariance/OneShotAccepted，并符合规定的有效性轨迹。"
       - "前提σ没有在开工具调用时接受改变内容的砍被构造吸收；模型无参数解析、载荷形状、replace_payload_shape、工具error等完整表示判定"
-      - "run record/evidence/2026-09-26-formal-core-v3；当前冻结输入SHA对应；结果相等范围排除位置/firstContentAt/砍的汇总/emitted"
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质；结果相等范围排除位置/firstContentAt/砍的汇总/emitted。"
       - "这是给定有限模型证据；真实实现符合性及所有宿主/跨进程义务仍需独立产品与组合运行"
-    alignment_checked: "2026-09-26"
 
-# 2026-09-26 核正：以上stream-assembly-v2-assembly是D066行政登记alias；历史raw目录实际v1。
-# 当前Assembly.tla/cfg与历史raw差坐标注释，不能声称当前冻字节等于旧运行输入。
-# D068当前采用3的模型/配置与源2同字节；前两条v2绑定保持历史范围，不提升为当前3实际执行或实现验收。
-# 后两条v3绑定只引用本次2026-09-26-formal-core-v3实际运行，不引用历史alias作为当前运行。
 
-# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
 
   - clause: "capability.stream-assembly/v3#S-10"
     evidence: "test:tools/core-verification/src/w6-stream-consumer.ts#w6.stream.duplicate-parameters-versus-outer-text"
     assumptions:
       - "只核start／accept／snapshot／closeOut组成的重复参数键封口unparseable与raw原文保持；parsed和abandon不由这条用例证明，不扩展既有有限模型证明。"
-      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
-      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
-    alignment_checked: "2026-09-26"
+      - "本条仅绑定上述具名用例的有限输入；执行输入、输出及接受过程归本工作树 tmp/。"
+      - "有限实现测试，不是任意输入证明；测试通过不提升整体接受状态。"
 
   - clause: "capability.stream-assembly/v3#S-25"
     evidence: "test:tools/core-verification/src/w6-stream-consumer.ts#w6.stream.refusal-priority-and-historical-state"
     assumptions:
       - "表示判定在先、序列拒绝及旧状态不变的列举场景；全部八个序列失败还由同链其它具体场景与479本包测试承担。"
-      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
-      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
-    alignment_checked: "2026-09-26"
+      - "本条仅绑定上述具名用例的有限输入；执行输入、输出及接受过程归本工作树 tmp/。"
+      - "有限实现测试，不是任意输入证明；测试通过不提升整体接受状态。"

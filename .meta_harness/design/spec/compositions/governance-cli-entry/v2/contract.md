@@ -1,6 +1,6 @@
 # 治理CLI与TUI入口契约 · 候选
 
-坐标：omne-harness-lite-design-2026-09-15 / composition.governance-cli-entry / 2（CQ2）。本版在CQ1单次CLI旁增加明确的`tui`入口。依据PF016 rev7与CLI-TUI§14；不增加治理能力、不接受Agent会话交付。尚未接受或冻结。
+坐标：omne-harness-lite-design-2026-09-15 / composition.governance-cli-entry / 2（CQ2）。本版在CQ1单次CLI旁增加明确的`tui`入口。依据PF016 rev7与CLI-TUI§14；不增加治理能力、不接受Agent会话交付。采用范围以 catalog 为准。
 
 ## S-1 精确参与方与旧消费者
 

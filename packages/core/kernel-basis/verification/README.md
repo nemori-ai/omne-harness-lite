@@ -1,7 +1,7 @@
 # Kernel helper verification
 
 Behavior belongs to [SPEC.md](../SPEC.md). The adopted version is official Cordis 4.0.4;
-[the adoption decision](../../../../.meta_harness/design/record/decisions/cordis-adoption-version/decision.md) and the
+the adoption decision and the
 [basis entries](../../../../.meta_harness/design/basis/README.md) retain their authority.
 Run the package build, typecheck and tests when these helpers or the adopted version change.
 A passing bounded probe is not a guarantee for other versions or all interleavings.
@@ -40,9 +40,9 @@ Product source must not depend on `./testing`; package tests are allowed to do s
 Public behavior and startup cleanup are also exercised through built exports by
 [w1-public-consumer](../../../../tools/core-verification/src/w1-public-consumer.ts), including its Outcome negative control.
 Entry changes require actual archive consumption, strict declarations, runtime loading and private-path rejection.
-Existing [entry-split evidence](../../../../.meta_harness/design/record/evidence/2026-10-04-tests-kernel-basis-entry-split/README.md)
+Existing entry-split evidence
 retains its original inputs and limitations; it is not a fresh run after this migration.
 
 The retired mapping's historical text is recoverable from
-[the retirement record](../../../../.meta_harness/design/record/evidence/2026-10-06-kernel-basis-retirement/README.md).
+the retirement record.
 Its original state counts, dates and validation results do not define current behavior or remove these obligations.

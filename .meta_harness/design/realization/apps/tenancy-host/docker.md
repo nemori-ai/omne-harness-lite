@@ -1,6 +1,6 @@
 # Docker 单机部署映射 · R5
 
-适用节点：tenancy-host；消费PF017 rev5、EC3 S-55～S-59、HT3及D055/D056/D057。本页只新增部署提供路径，健康探针的同进程公开CLI绑定由[D-072](../../../record/decisions/governance-docker-health-binding/decision.md)接续，中心内部八fiber、领域契约、31条业务路由和旧运维结果不变。语义已接受；R4由[D-070](../../../record/decisions/core11-integration-coordination/decision.md#docker-r4)承接；本R5停止控制绑定由[D-071](../../../record/decisions/governance-docker-stop-adoption/decision.md)采用，可按固定施工单实施。旧I3已有逐项有限运行与整体Fable评审，健康探针修补后的新制品和Docker整体接受仍待完成；旧制品结果保持原身份。候选比较/评审归[部署提案](../../../record/proposals/governance-docker-deployment/README.md)。
+适用节点：tenancy-host；消费PF017 rev5、EC3 S-55～S-59、HT3及D055/D056/D057。本页只新增部署提供路径，健康探针的同进程公开CLI绑定由D-072接续，中心内部八fiber、领域契约、31条业务路由和旧运维结果不变。语义已接受；R4由D-070承接；本R5停止控制绑定由D-071采用，可按固定施工单实施。旧I3已有逐项有限运行与整体Fable评审，健康探针修补后的新制品和Docker整体接受仍待完成；旧制品结果保持原身份。候选比较/评审归部署提案。
 
 ## 采用范围与责任
 

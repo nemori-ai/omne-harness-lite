@@ -59,8 +59,7 @@ LINK_RE = re.compile(r"\]\(([^)\s]+)\)")
 SOURCE_PATH_RE = re.compile(r"\b(apps|packages)/([A-Za-z0-9][A-Za-z0-9._/-]*)")
 COORDINATE_RE = re.compile(r"`([A-Za-z0-9][A-Za-z0-9.\-]*)/v(\d+)`")
 PF_README_RE = re.compile(r"product/(PF-\d{3})[^/]*/README\.md$")
-DECISION_RE = re.compile(r"^record/decisions/[^/]+/decision\.md$")
-PROPOSAL_RE = re.compile(r"^record/proposals/[^/]+/.+$")
+OWNER_RE = re.compile(r"^(?:realization/(?:apps|packages)/|spec/|product/PF-|basis/|foundation/|architecture/).+\.md$")
 REVISION_RE = re.compile(r"\A---\n.*?^revision:\s*(\d+)\s*$.*?^---", re.S | re.M)
 STATUS_RE = re.compile(r"^status:\s*(\S+)\s*$", re.M)
 CELL_SPLIT_RE = re.compile(r"(?<!\\)\|")
@@ -403,36 +402,37 @@ class Checker:
                 if not any(row):
                     continue
                 if status == ADOPTED:
-                    self.check_basis(path, number, basis, DECISION_RE,
-                                     "「已采用」的依据要链到 record/decisions/<topic>/decision.md")
+                    self.check_basis(path, number, basis)
                 elif status == CANDIDATE:
-                    self.check_basis(path, number, basis, PROPOSAL_RE,
-                                     "「candidate」的依据要链到 record/proposals/<topic>/ 下的文件")
+                    self.check_basis(path, number, basis)
                 else:
                     self.error(f"{self.rel(path)}:{number}: 状态写的是「{status}」，只能是 {ADOPTED} 或 {CANDIDATE}")
         if not checked:
             self.error(f"{self.rel(path)}: 「{STACK_SECTION}」一节里没有带「状态」「依据」两列的表")
 
-    def check_basis(self, path: Path, number: int, text: str, pattern: re.Pattern[str], expected: str) -> None:
+    def check_basis(self, path: Path, number: int, text: str) -> None:
         missing: list[str] = []
         for href in LINK_RE.findall(text):
-            target, _ = urldefrag(unquote(href))
-            if urlparse(href).scheme or not target:
+            target, anchor = urldefrag(unquote(href))
+            if urlparse(href).scheme:
                 continue
-            resolved = (path.parent / target).resolve()
+            resolved = (path.parent / target).resolve() if target else path.resolve()
             try:
                 relative = resolved.relative_to(self.root).as_posix()
             except ValueError:
                 continue
-            if not pattern.match(relative):
+            if not OWNER_RE.match(relative):
                 continue
             if resolved.is_file():
+                if anchor and anchor not in markdown_anchors(resolved):
+                    self.error(f"{self.rel(path)}:{number}: 现行依据缺少锚点 {anchor}")
+                    continue
                 return
             missing.append(relative)
         if missing:
             self.error(f"{self.rel(path)}:{number}: 依据链到 {missing[0]}，但这个文件不存在")
         else:
-            self.error(f"{self.rel(path)}:{number}: {expected}，现在是「{text}」")
+            self.error(f"{self.rel(path)}:{number}: 技术栈依据必须指向当前语义拥有者，不能指向过程记录、tmp 或外部快照；现在是「{text}」")
 
     def check_coordinates(self, path: Path, lines: list[str]) -> None:
         """写契约坐标的那些列：坐标要在 catalog 里；契约还没立的写「待立：<拟议名>」。"""

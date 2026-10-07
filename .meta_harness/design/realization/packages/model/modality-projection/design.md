@@ -1,6 +1,6 @@
 # modality-projection 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 契约：[`capability.modality-projection` v2](../../../../spec/capabilities/modality-projection/v2/contract.md)（下文「契约 S-n」「契约 G-n」都指它）。
 本页的插件名、服务名、方法名一律是**候选**；契约的九件事不复述，只写兑现点与缺口。
@@ -166,7 +166,7 @@
 
 | # | 缺口 | owner | 受阻的消费者 | 闭合条件 |
 |---|---|---|---|---|
-| MP-N1 | **已闭合**（[D-060 §八 M38](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：统一输入加执行环境句柄（`data.loop-extension/v2#S-41`），`tenant` 经它取（契约 S-20 ②、runner S-50）。句柄解析的来路 2026-09-25 起**接口已定**（`capability.session-tenancy` v2 S-8），真承接者未到、产品装配里没有写入方——runner 契约 G-20，不在此重抄 | — | — | — |
+| MP-N1 | **已闭合**（D-060 §八 M38）：统一输入加执行环境句柄（`data.loop-extension/v2#S-41`），`tenant` 经它取（契约 S-20 ②、runner S-50）。句柄解析的来路 2026-09-25 起**接口已定**（`capability.session-tenancy` v2 S-8），真承接者未到、产品装配里没有写入方——runner 契约 G-20，不在此重抄 | — | — | — |
 | MP-N2 | **转换件的能力标识未定型**（runner 契约 G-3 的一项，owner 是本契约）：runner 认不出它，钉不了 `before_persist_message` 末位，缺席时的记录也写不出 `extension` | 本契约 owner | runner 的末位与指定挂件那一格 | 本契约定下标识 |
 | MP-N3 | **本版装哪几件转换件、声明写哪几个键没有人定**：空声明合法，但它意味着每个语音、图、文件块都原样落盘、永久进投影（契约 S-6 末段的产品后果） | 系统装配（[cli](../../../apps/cli/README.md)）＋ 产品（PF-013 §4 转换件） | 交付面、模型请求运行时的合法目标 | 装配写明声明与所装的 P-4\* |
 | MP-N4 | **静态检查规则未写**：`converterAssembly` 只给声明者与转换件包；`convert` 只许那一件的实现模块调；转换件包不得够到模型请求运行时 | 本节点 ＋ 承载仓库 `tools/ts-checks` | 契约 S-26 第 1、4 行、S-24 的装配给 | 规则写成并在 CI 里跑 |

@@ -4,11 +4,11 @@
 
 ## 输入与实施路径
 
-主线将 `apps/model-request-acceptance` 指定为本程独立开发验收装配，读取链依据见[提案](../../../../record/proposals/model-request-adaptation/read-projection.md)。本节点继续用一个插件提供 `sessionTenancy.holdingTenant`；没有 config，不读 clock。公开闭包 `createSessionTenancyReader(storage)`、迁移片段和独立子入口 `./seed` 沿旧设计；以下新增名字、路径、服务投影、表和列均为**候选**。
+主线将 `apps/model-request-acceptance` 指定为本程独立开发验收装配，读取链依据见提案。本节点继续用一个插件提供 `sessionTenancy.holdingTenant`；没有 config，不读 clock。公开闭包 `createSessionTenancyReader(storage)`、迁移片段和独立子入口 `./seed` 沿旧设计；以下新增名字、路径、服务投影、表和列均为**候选**。
 
-Cordis 采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/decision.md)）。必需 inject `storage` 与依赖换代沿 basis [`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)、[`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)。没有依赖 disposer 顺序的新机制（[`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)）；旧设计对 provide 纳管的待核对主张仍需实际验证，本次不提升其证据状态。
+Cordis 采用 4.0.4（D-025）。必需 inject `storage` 与依赖换代沿 basis [`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)、[`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)。没有依赖 disposer 顺序的新机制（[`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)）；旧设计对 provide 纳管的待核对主张仍需实际验证，本次不提升其证据状态。
 
-存储继续依赖 [core/storage](../../core/storage/design.md#p-13-显式共同事务扩展) 已公开的 `Storage`、`AtomicStorage`、`StorageUnit`，实现由 [storage-sql](../../infra/storage-sql/README.md) 承接。共同事务不是本节点新发明：采用边界沿 [D-042](../../../../record/decisions/governance-participation-provider/decision.md) 的同一 SQLite 组合。本节点不另选数据库；单独读面原有协议范围保持，新增与 OG 的共同单元仅计划在本轮 SQLite 装配验收，不推定 PG 相干读成立。
+存储继续依赖 [core/storage](../../core/storage/design.md#p-13-显式共同事务扩展) 已公开的 `Storage`、`AtomicStorage`、`StorageUnit`，实现由 [storage-sql](../../infra/storage-sql/README.md) 承接。共同事务不是本节点新发明：采用边界沿 D-042 的同一 SQLite 组合。本节点不另选数据库；单独读面原有协议范围保持，新增与 OG 的共同单元仅计划在本轮 SQLite 装配验收，不推定 PG 相干读成立。
 
 ## 契约责任到兑现点
 

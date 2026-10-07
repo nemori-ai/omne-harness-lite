@@ -1,6 +1,6 @@
 # TypeScript 里「可配置重试策略」的现成库：cockatiel、p-retry 与同类
 
-以 [D-063 R-6](../../design/record/decisions/assets-runtimes-rulings-2026-09-25/README.md)「重试做成可配置策略、调度复用成熟 TS 库（对应 Python 的 tenacity）」为问题，
+以 D-063 R-6「重试做成可配置策略、调度复用成熟 TS 库（对应 Python 的 tenacity）」为问题，
 以 [`capability.model-request-runtime` v2](../../design/spec/capabilities/model-request-runtime/v2/contract.md) 的 S-35（默认重试件）、S-30（`dispatchAgain` 与三道守卫）、G-8，
 以及 [model-request-runtime 节点](../../design/realization/packages/model/model-request-runtime/design.md) 的 P-5 为对照基准，核对 npm 上八个重试库能交出什么。
 

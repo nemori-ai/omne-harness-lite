@@ -11,8 +11,8 @@
 [MR9](../../../../spec/data/model-response/v9/contract.md) S-41～S-45 与
 [RT10](../../../../spec/capabilities/model-request-runtime/v10/contract.md) S-74/S-77～S-81，
 两坐标在 [catalog](../../../../registry/catalog.json) 为 accepted；接受与 v16／transport v12 revision 2
-采用归 [D107](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md)。
-v18 采用归 [D106](../../../../record/decisions/runner-current-pure-provider-adoption/decision.md)。
+采用归 D107。
+v18 采用归 D106。
 需求沿 [PF-013 rev15](../../../../product/PF-013-model-profiles-and-invocation/design.md)。
 
 本页兑现的已有性质是：MR9 S-43 的输出组不以准确输入计量存在为前提；RT10 S-78 的较早输入锚
@@ -29,7 +29,7 @@ v18 采用归 [D106](../../../../record/decisions/runner-current-pure-provider-a
 
 节点与源码仍为 `packages/model/model-request-runtime`。复用现 P-2、公开 `invokeModel`、
 `TransportAdapter.plan`、历史 reader 与固定 lease；不新增 plugin、fiber、service、inject 或数据库。
-Cordis 采用 [D025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)。
+Cordis 采用 D025 的 4.0.4。
 配置政策保持 v16：必需静态配置错误启动失败，显式输入非法具名 malformed，必要构件/来源不可用
 沿既有 unavailable，业务缺凭据保持原具名失败。完整 Run、Session、compaction 与工具执行均外置。
 

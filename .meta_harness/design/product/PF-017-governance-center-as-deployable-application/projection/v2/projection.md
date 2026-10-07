@@ -1,10 +1,10 @@
 # PF-017 治理中心作为可部署应用 · 设计投影 v2
 
-> **v2 相对 v1 改了什么**（v1 保留不改）：第 8 节的实施步骤 E-0～E-8 **全部完成**并有登记的运行证据；G-10、G-11 由 [D-029](../../../../record/decisions/governance-center-transport-binding-acceptance/README.md) 闭合，A-1 由测试取证闭合；第 6 节由「全部未开始」改为实际证据；新增第 9 节**验收判据对账**（PF-017 acceptance §一～§三逐条对到证据）与黑盒验收核出的三处来源问题。第 1～5 节的语义未变，只把 `https-json` 绑定从候选改为已冻结。需求修订不变（PF-017 rev 2）。
+> **v2 相对 v1 改了什么**（v1 保留不改）：第 8 节的实施步骤 E-0～E-8 **全部完成**并有登记的运行证据；G-10、G-11 由 D-029 闭合，A-1 由测试取证闭合；第 6 节由「全部未开始」改为实际证据；新增第 9 节**验收判据对账**（PF-017 acceptance §一～§三逐条对到证据）与黑盒验收核出的三处来源问题。第 1～5 节的语义未变，只把 `https-json` 绑定从候选改为已冻结。需求修订不变（PF-017 rev 2）。
 
 - 对应需求：[PF-017](../../README.md) 全部条款——治理中心作为一个可部署、可被客户端接入的应用：只认登录状态、判定次序与两种拒绝、要么整个起来、重启与停机、升级整体性、时间不倒退、部署密钥与参数、中心标识、运维面与两种体检。**不含**据点一侧的呈现与凭据保存（PF-016）、领域语义本身（PF-001，见 [PF-001 投影 v2](../../../PF-001-identity-scope-and-agent-constraints/projection/v2/projection.md)）。
 - 本版依据的需求修订：**PF-017 rev 2**（`README.md` front-matter；rev 2 于 2026-09-23 落三条裁决 INT-016～INT-018），PF-016 rev 3（对端），PF-001 rev 16（登录状态语义）。
-- 状态：**当前，已接受为实施入口，且已实现**——设计依据 [D-028](../../../../record/decisions/governance-center-design-acceptance/README.md)（产品负责人，2026-09-23）。两份契约来源 `accepted`、已冻结（[provenance.json](provenance.json) 里契约的 sha256 即 `frozen.json` 登记值）；需求与节点来源不在冻结集合，实施前先核那些坐标。
+- 状态：**当前，已接受为实施入口，且已实现**——设计依据 D-028（产品负责人，2026-09-23）。两份契约来源 `accepted`、已冻结（[provenance.json](../../design.md) 里契约的 sha256 即 `frozen.json` 登记值）；需求与节点来源不在冻结集合，实施前先核那些坐标。
 - 实现状态（2026-09-23）：入口层节点 `implemented`、`apps/tenancy-host` `assembled`（[实现映射](../../../../realization/README.md)）；证据 run 四次（第 6 节）。
 - 未决 gap 数：**8**（见[第 7 节](#7-未决项)；G-10、G-11、A-1 已闭合，条目保留并标注）。
 
@@ -202,13 +202,13 @@ dispose()：逆序撤除（总超时常量），入口层先于运维面
 
 ## 6. 绑定与证据
 
-四次运行登记在 [`record/evidence/`](../../../../record/evidence/README.md)；通过不提升任何状态。逐条款的绑定在各节点 `bindings.yaml`（`test:<文件>#<describe> › <it>` 形式，共 195 条加 18 条 formal），逐行义务的通过／部分／无证据在各节点 `verification.md`「证据义务」表。
+逐条款的资源与适用前提在各节点 `bindings.yaml`（`test:<文件>#<describe> › <it>` 形式），逐行义务范围在各节点 `verification.md`「证据义务」表。每次执行结果留本工作树 `tmp/`，通过不提升任何状态。
 
 | 证据 | 内容 | 结果 | 前提与边界 |
 |---|---|---|---|
-| [`2026-09-23-formal-governance-center-entry`](../../../../record/evidence/2026-09-23-formal-governance-center-entry/README.md) | `formal:governance-center-entry-v1-decision`（TLC 正配置）+ 九个否定配置；输入与冻结哈希逐字节相同 | 正配置无反例（804 generated／776 distinct）；九个否定配置各按预期给反例 | 参与方动作抽象为原子、判定为布尔；模型证「同一个答复值」，不证逐字节相同 |
-| [`2026-09-23-tests-tenancy-leg-2`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md) | 13 个 TS 成员 build／typecheck／test；`lint:rules` 20 条；pg 16.14 容器上 storage-sql 与 tenancy-host 的 pg 用例；入口层答复字节与 `https-json` examples、Schema 副本、入口契约 255 行样例的独立核对 | 1218 条：1184 通过、34 跳过、0 失败；pg 33/33；字节逐字节相同 | sqlite 临时文件库、单进程；跳过的 34 条逐条原因入库，不算通过 |
-| [`2026-09-23-e2e-governance-center`](../../../../record/evidence/2026-09-23-e2e-governance-center/README.md) | 黑盒端到端：`keygen` + 自签证书 + 环境变量 + `serve` 起进程，零产品包引用的客户端按 D-029 规则核证书，走 PF-001 flows 与 PF-017 acceptance | 46 条场景全过；从外面触发不了的行逐条记「未覆盖」 | 一台机器上两个进程；「另一台机器」以 127.0.0.2 近似；升级、断电、改钟从外面造不出 |
+| `2026-09-23-formal-governance-center-entry` | `formal:governance-center-entry-v1-decision`（TLC 正配置）+ 九个否定配置；输入与冻结哈希逐字节相同 | 正配置无反例（804 generated／776 distinct）；九个否定配置各按预期给反例 | 参与方动作抽象为原子、判定为布尔；模型证「同一个答复值」，不证逐字节相同 |
+| `2026-09-23-tests-tenancy-leg-2` | 13 个 TS 成员 build／typecheck／test；`lint:rules` 20 条；pg 16.14 容器上 storage-sql 与 tenancy-host 的 pg 用例；入口层答复字节与 `https-json` examples、Schema 副本、入口契约 255 行样例的独立核对 | 1218 条：1184 通过、34 跳过、0 失败；pg 33/33；字节逐字节相同 | sqlite 临时文件库、单进程；跳过的 34 条逐条原因入库，不算通过 |
+| `2026-09-23-e2e-governance-center` | 黑盒端到端：`keygen` + 自签证书 + 环境变量 + `serve` 起进程，零产品包引用的客户端按 D-029 规则核证书，走 PF-001 flows 与 PF-017 acceptance | 46 条场景全过；从外面触发不了的行逐条记「未覆盖」 | 一台机器上两个进程；「另一台机器」以 127.0.0.2 近似；升级、断电、改钟从外面造不出 |
 | `2026-09-23-e2e-governance-center-2` | 独立验收者在干净检出复跑与四态判定 | 见该 run | — |
 | 入口契约 `gce#S-38`～`#S-46` 规范场景、SC-1～SC-3、节点 T-1～T-19、tenancy-host `assembly.*`、storage-sql `upgrade.*`、clock `clock.*` | 各节点 verification.md「证据义务」表 | 201 行义务：通过 177、部分 14、跳过 3、无证据 7 | 无证据的七行与部分的十四行逐条列在各节点「覆盖缺口」 |
 
@@ -221,7 +221,7 @@ dispose()：逆序撤除（总超时常量），入口层先于运维面
 | G-4 | PF-003 两项部署参数无消费者 | 复制通知与分享邀请的契约（未立） | 装配校验并保存，不读 |
 | G-7 | 「登录状态效力不变」以不经备份恢复为前提 | PF-001 owner | 不为备份恢复预埋失效传播（e2e T40／T41 核过恢复后的收场） |
 | G-8 | 多进程后的新鲜度界 | 架构设计 | 单机；不引入分布式假设 |
-| G-10 | **已闭合**（[D-029](../../../../record/decisions/governance-center-transport-binding-acceptance/decision.md)，2026-09-23）：传输绑定 `composition.governance-center-entry-https-json` v1 接受并冻结；cli 提案 D11「Bearer 头」被取代 | — | 按冻结的绑定；T-2 快照对的就是它 |
+| G-10 | **已闭合**（D-029，2026-09-23）：传输绑定 `composition.governance-center-entry-https-json` v1 接受并冻结；cli 提案 D11「Bearer 头」被取代 | — | 按冻结的绑定；T-2 快照对的就是它 |
 | G-11 | **已闭合**（D-029）：中心一侧只有 TLS 监听、出示 config 里的证书链；客户端一侧五条信任规则落 [`apps/cli` 节点](../../../../realization/apps/cli/design.md#客户端信任中心的规则d-029)；确认失败的呈现仍归 PF-016 | — | e2e T42～T44 按那五条规则核过中心一侧 |
 | G-12 | 升级整体性与启动前只读核对无契约家 | 架构主线 | 按 tenancy-host 承接；pg 上 §6.9 不成立（U-3）如实带着 |
 | U-3／U-4／U-5 | pg 无快照；确认之后到开闸之间的失败支；确认删除后落盘失败 | 接受的遗留（tenancy-host + storage-sql） | 按节点写的收场；U-3 闭合条件改为「pg 部署前定手段」；U-5 无证据形式，只有运维说明 |
@@ -251,7 +251,7 @@ CLI 据点侧代理（PF-016 实施）仍不在本版顺序内；它按冻结的
 
 ## 9. 验收判据对账（PF-017 acceptance → 证据）
 
-对账口径：证据是 [`2026-09-23-e2e-governance-center`](../../../../record/evidence/2026-09-23-e2e-governance-center/README.md) 的场景（T 编号）、或各节点的包内／装配级测试（在 tests run 里通过）；「未覆盖」指从部署面外部触发不了、本版没有证据。**通过不等于接受**；判据的原文以 [acceptance.md](../../acceptance.md) 为准。
+对账口径：证据是 `2026-09-23-e2e-governance-center` 的场景（T 编号）、或各节点的包内／装配级测试（在 tests run 里通过）；「未覆盖」指从部署面外部触发不了、本版没有证据。**通过不等于接受**；判据的原文以 [acceptance.md](../../acceptance.md) 为准。
 
 - [§一 可观察场景](../../acceptance.md#一可观察场景)：46 行，e2e 通过 31、未覆盖 15（数据所在够不着 ×3、中心自身故障、升级 ×2、注册走到一半时停机、断电 ×2、改钟 ×3、未激活记录 ×2、模型凭据）——逐行在 e2e run README「场景表」。
 - [§二 绝不能发生的事](../../acceptance.md#二绝不能发生的事)：25 行，e2e 通过 16、未覆盖 9（「冒牌货」客户端一侧待 `apps/cli`；半开、答不出答成别的、升级 ×3、改钟、未激活记录）。

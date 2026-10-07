@@ -9,7 +9,7 @@
 它有生命周期（随 `accounts`／`organizations` 换代重跑），这是 fiber 的判据之一。
 **但它不拥有资源、不拥有事实**——插件体只做 config 校验与一次 `provide`。
 
-**Cordis 版本**：采用 `@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）。
+**Cordis 版本**：采用 `@deepseek-ai/cordis` 4.0.4（D-025）。
 
 ## 能力到 Cordis 的投影
 

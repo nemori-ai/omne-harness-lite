@@ -1,7 +1,7 @@
 你被派来评审一份提案的选择：消息的数据契约、到达语法与流装配器这三层，各以谁为起点。
 
 - **设计工作区**：`{WORKDIR}/.meta_harness`（当前目录 `{WORKDIR}` 是承载它的仓库根）。
-- **待审对象**：提案 `.meta_harness/design/record/proposals/message-and-stream-baseline/` 首稿，
+- **待审对象**：提案 `.meta_harness/design/case-inputs/message-and-stream-baseline/` 首稿，
   三份文件 `README.md`、`design.md`、`alternatives.md`。精确快照：本检出的 HEAD。
   四个候选：A 以 DSH `llm/llm` 为起点扩展、B 以 pi-ai 的类型为起点、C 全部自研、D 逐层混合；作者推荐 D，尚无接受。
 - **依据**：提案 README「输入基线」列出的产品正文（PF-009 rev 5 与 PF-013 rev 5、rev 6 待产品负责人确认）、

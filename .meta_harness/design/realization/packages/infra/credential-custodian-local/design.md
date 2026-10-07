@@ -1,10 +1,10 @@
 # credential-custodian-local 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 ## 实现路径与来源
 
-**自建一个小的 Cordis 插件，没有可复用的上游对象**：保管条目的两种、交出的条件、清扫的三种是本项目的契约语义（`capability.credential-custodian` v2）。加密、随机与文件都用 Node 内置模块，**不引第三方依赖**，也不引任何执行器类库替本节点调度清扫（与 [D-060 §八 N-36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 同一口径）。
+**自建一个小的 Cordis 插件，没有可复用的上游对象**：保管条目的两种、交出的条件、清扫的三种是本项目的契约语义（`capability.credential-custodian` v2）。加密、随机与文件都用 Node 内置模块，**不引第三方依赖**，也不引任何执行器类库替本节点调度清扫（与 D-060 §八 N-36 同一口径）。
 
 | 用什么 | 从哪来 | 用来做什么 |
 |---|---|---|
@@ -17,7 +17,7 @@
 | 密钥文件的排他创建、按句柄取 `stat` | `node:fs/promises` | 本机密钥（[关键选择三、四](#关键选择)） |
 | `definePlugin` | [`core/kernel-basis`](../../../../../../packages/core/kernel-basis/README.md) | 插件骨架、config 校验 |
 
-**Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；机制语义引 [basis](../../../../basis/README.md) 条目。
+**Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（D-025）；机制语义引 [basis](../../../../basis/README.md) 条目。
 **上游语义未进 basis 的，逐条标假设**（须按 source-check 取证，[CCL-11](#实施缺口与消费者影响)）：`node:crypto` 的 GCM 解密在认证标签不符时于 `final()` 抛出、不交出任何明文；`fs.open(path, 'wx', 0o600)` 在文件已存在时以 `EEXIST` 失败且不改原文件；对同一句柄 `fstat` 得到的是打开的那个文件。
 **配置错误一个政策**（与同批节点、`apps/cli` 同一条）：config 经 `definePlugin` 的 `Config` 在插件体之前校验，不过即 fiber `FAILED`、装配启动失败（basis [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)）；诊断点名那一项、**不含值**。
 
@@ -47,7 +47,7 @@
 ### 插件边界与服务面
 
 **一个插件 `credential-custodian-local`（候选名），一条 fiber，据点根作用域一份。必需 inject：`storage`、`clock`。不 inject 桥**：读绑定行是在本插件自己的事务里调桥导出的纯读函数，不经桥的服务面（存储协议 P-13 禁止在事务里调别的插件的服务）。
-它 provide 一个服务 `credentialCustodian`（服务键 [D-060 §八 M69](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），方法与契约第四节六个操作一一对应：`storeReplica`、`readReplica`、`discardReplica`、`discardLoginState`、`depositOAuth`、`resolve`。**全部尚未实现**。
+它 provide 一个服务 `credentialCustodian`（服务键 D-060 §八 M69），方法与契约第四节六个操作一一对应：`storeReplica`、`readReplica`、`discardReplica`、`discardLoginState`、`depositOAuth`、`resolve`。**全部尚未实现**。
 
 插件体 provide 服务、登记**一个** effect，持有：清扫定时器、在途操作计数、撤除标记。**不持有**任何条目、任何密钥——条目在存储里，密钥每次现读（[关键选择三](#关键选择)）。
 
@@ -90,7 +90,7 @@
 | 为什么选它 | 「密钥此刻取不到 ⇒ `unavailable`」（S-7）在常驻之后永远不会发生，S-26 的「另让密钥取不到」只能以启动失败观察——那是「服务不在」，不是契约要的 `unavailable`；手工换钥也要重启才生效 | S-7 的「此刻」按字面兑现；换钥下一次操作即生效（旧条目按「打不开」收，S-7） |
 | 置信度 | 中高 | |
 
-**四、密钥文件缺席时：两张条目表都空才生成，任一张非空即启动失败（选；主线裁定 [D-060 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ②）。**
+**四、密钥文件缺席时：两张条目表都空才生成，任一张非空即启动失败（选；主线裁定 D-060 §八 N-42 ②）。**
 
 | | 要求装配预先生成（缺席一律启动失败，同 `apps/tenancy-host` 的部署密钥） | 缺席一律在插件体里生成，表里已有条目时留 error 级记录 | **缺席且两张表都空 ⇒ 排他生成；缺席而任一张非空 ⇒ 启动失败（选）** |
 |---|---|---|---|
@@ -188,7 +188,7 @@
 | K-4 | 锁定读：清扫的写事务里对那一个绑定行取排他锁，与桥迁状态的写事务排成一个次序 | S-18 第 2 条 | P-4。**与桥 R-B4、C-3 互指**（锁的是同一行） |
 | K-5 | 只读事务快照一致：条目行与绑定行在同一快照里读 | S-17 ④ | P-6。**与桥 C-2 互指** |
 | K-6 | 读已提交下的并发删除按行的新版本重判条件 | S-15 末条 | P-3（pg 写事务 READ COMMITTED） |
-| K-7 | 持久：提交成立后跨重启仍在。**边界**：sqlite `synchronous = NORMAL` 下操作系统崩溃或断电可能丢最后一段已提交事务（[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/README.md)）——丢的若是一条副本，调用方已被告知成功，下一次中心可达时重取；丢的若是一条 OAuth 条目而桥已记下它的引用，那个绑定「`granted` 却交不出」，人要重取一次 | S-20 第 1 条 | P-7 |
+| K-7 | 持久：提交成立后跨重启仍在。**边界**：sqlite `synchronous = NORMAL` 下操作系统崩溃或断电可能丢最后一段已提交事务（D-027）——丢的若是一条副本，调用方已被告知成功，下一次中心可达时重取；丢的若是一条 OAuth 条目而桥已记下它的引用，那个绑定「`granted` 却交不出」，人要重取一次 | S-20 第 1 条 | P-7 |
 | K-8 | 不可用可识别：不返回空、不返回旧快照 | S-9 第 3 行 | P-8 |
 | K-9 | 两张表与桥的 `mcp_oauth_binding` 在**同一个** `storage` 实例、同一约束域 | S-19 第 2 行 | 装配（cli 要求 S-a、S-h）；本节点只能写下要求 |
 

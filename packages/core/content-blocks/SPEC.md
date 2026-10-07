@@ -13,7 +13,7 @@
 
 ## JSON 公开边界
 
-本节按[共享机制投影的限定采用](../../../.meta_harness/design/record/decisions/identity-shared-mechanism-projection/decision.md)
+本节按共享机制投影的限定采用
 接续 README 的 JSON 承诺；不修订上面的调用拒绝语义。
 
 readJsonStrict 拒绝解码后重名成员。普通安全整数字面量使用 number，

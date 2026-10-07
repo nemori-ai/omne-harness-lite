@@ -1,6 +1,6 @@
 ## D-069：Skill3 已接受采用（2026-09-26）
 
-[用户判等拒绝策略](../../../../record/decisions/skill-yaml-key-resolution/decision.md)已接受；[新3规范](../../../../spec/data/skill-package/v3/contract.md)已独立复审并按[技术接受](../../../../record/decisions/skill-yaml-key-resolution/acceptance.json)冻结；本节提供者投影已接受，可据此实施，源码与实际验证另记。节点仍是纯模块，原正文责任、调用者IO／目录观测／授权／注册／执行边界不变。
+用户判等拒绝策略已接受；[新3规范](../../../../spec/data/skill-package/v3/contract.md)已独立复审并按技术接受冻结；本节提供者投影已接受，可据此实施，源码与实际验证另记。节点仍是纯模块，原正文责任、调用者IO／目录观测／授权／注册／执行边界不变。
 
 ### 公开面与精确采用
 
@@ -28,7 +28,7 @@
 
 # skill-package 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 契约：[`data.skill-package` v2](../../../../spec/data/skill-package/v2/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
 导出名、类型名一律为**已接受的设计**。源码已进入 HUB；下文初稿投影表中的「未实现／候选」是设计接受时基线，实际证据与 SP-3 未闭合范围分别登记，不据源码存在提升整包完成状态。
@@ -36,8 +36,8 @@
 ## 实现路径与来源
 
 **自建一个 TypeScript 纯模块**，写法与 [content-blocks](../content-blocks/design.md#实现路径与来源) 相同：`ajv` 8.20.0 的 Draft 2020-12 入口、Schema 原样复制并逐字节核对、拒绝值[按契约次序逐条判](../content-blocks/design.md#拒绝值按契约的次序逐条判不从-schema-错误里反推)。
-S-20 第 5、6 条要一个 YAML 1.2 解析器：第三方包 `yaml`（[下文](#skillmd-的-yaml-读法)）是**候选依赖，版本钉定与许可核对在实施程**（[D-060 §八 M55](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)，同 M44 的实现期事项口径，不另出决定）。
-**Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
+S-20 第 5、6 条要一个 YAML 1.2 解析器：第三方包 `yaml`（[下文](#skillmd-的-yaml-读法)）是**候选依赖，版本钉定与许可核对在实施程**（D-060 §八 M55，同 M44 的实现期事项口径，不另出决定）。
+**Cordis 版本**：采用 4.0.4（D-025）；本模块不依赖 Cordis。
 
 ## 公开面
 
@@ -113,7 +113,7 @@ S-20 第 5、6 条要一个 YAML 1.2 解析器：第三方包 `yaml`（[下文](
 | YAML 1.2 解析 | 第三方 `yaml` 2.9.1（ISC）；Core 与明确配置见上文 | 随锁定版本 | 静态 import |
 | 被消费 | slash-command、asset-evaluation、资产治理、注册表、执行运行时、工作区读入方 | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
 
-包依赖与 catalog 的契约依赖同构（[D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
+包依赖与 catalog 的契约依赖同构（D-060 §八 M41），无环。**没有配置项**。
 
 ## 状态、并发与失败映射
 

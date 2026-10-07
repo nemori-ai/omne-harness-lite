@@ -1,9 +1,0 @@
-{
-  "scope": [
-    "realization/packages/model/model-request-runtime",
-    "realization/packages/model/pi-ai-transport"
-  ],
-  "errors": [],
-  "notes": [],
-  "result": "pass"
-}

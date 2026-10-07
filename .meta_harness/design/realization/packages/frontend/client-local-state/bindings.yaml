@@ -7,28 +7,23 @@ bindings:
     assumptions:
       - "Node24.21.0 macOS arm64，真实临时SQLite；2026-09-25-tests-client-local-state最终快照"
       - "只覆盖具名交错/故障，不证明物理断电或整机灾备；CLI组合另验"
-    alignment_checked: 2026-09-25
   - clause: "capability.client-local-state/v1#S-4"
     evidence: "test:packages/frontend/client-local-state/tests/state.spec.ts#complete local record › retains identity, revision and the whole record across reopen"
     assumptions:
       - "Node24.21.0 macOS arm64，真实临时SQLite；2026-09-25-tests-client-local-state最终快照"
       - "只覆盖具名交错/故障，不证明物理断电或整机灾备；CLI组合另验"
-    alignment_checked: 2026-09-25
   - clause: "capability.client-local-state/v1#S-5"
     evidence: "test:packages/frontend/client-local-state/tests/process.spec.ts#real process coordination › allows only one of two writes based on the same original snapshot"
     assumptions:
       - "Node24.21.0 macOS arm64，真实临时SQLite；2026-09-25-tests-client-local-state最终快照"
       - "只覆盖具名交错/故障，不证明物理断电或整机灾备；CLI组合另验"
-    alignment_checked: 2026-09-25
   - clause: "capability.client-local-state/v1#S-6"
     evidence: "test:packages/frontend/client-local-state/tests/failures.spec.ts#commit uncertainty and ownership › does not call a completed but unconfirmed commit not-installed"
     assumptions:
       - "Node24.21.0 macOS arm64，真实临时SQLite；2026-09-25-tests-client-local-state最终快照"
       - "只覆盖具名交错/故障，不证明物理断电或整机灾备；CLI组合另验"
-    alignment_checked: 2026-09-25
   - clause: "capability.client-local-state/v1#S-7"
     evidence: "test:packages/frontend/client-local-state/tests/failures.spec.ts#commit uncertainty and ownership › closes admission immediately but retains storage until postcommit work finishes"
     assumptions:
       - "Node24.21.0 macOS arm64，真实临时SQLite；2026-09-25-tests-client-local-state最终快照"
       - "只覆盖具名交错/故障，不证明物理断电或整机灾备；CLI组合另验"
-    alignment_checked: 2026-09-25

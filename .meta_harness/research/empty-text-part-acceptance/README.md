@@ -8,7 +8,7 @@
 
 - 调查对象与基线：OpenRouter Chat Completions，31 条声明图片输入的路由各钉一个供应商、不回退，三轮付费探针 2026-10-02T16:59:56Z–17:09:23Z，共 97 个请求；
   本仓库 `73fbfd5ff`（前两轮记的是 `c731530f9`，两者之间探针依赖的文件没有变）的投影、计划与计量器；pi `3390bd9`（0.86.1）、`a13d35a`（1.0.0）与修复提交 `1b6ddca8`；OpenRouter 文档 2026-10-02T17:16:59Z 抓取。
-- 消费者：issue #50 第二项待办——投影要不要升版（[窄修复提案](../../design/record/proposals/moonshot-empty-text/README.md)、[D-115](../../design/record/decisions/moonshot-empty-text-adoption/README.md)）；[pi-ai-transport 实现节点](../../design/realization/packages/model/pi-ai-transport/README.md)。
+- 消费者：issue #50 第二项待办——投影要不要升版（窄修复提案、D-115）；[pi-ai-transport 实现节点](../../design/realization/packages/model/pi-ai-transport/README.md)。
 - 最近核对：2026-10-02 / 上述窗口与版本。
 
 ## 准入核对

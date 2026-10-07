@@ -1,6 +1,6 @@
 # model-profile 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 契约：[`data.model-profile` v2](../../../../spec/data/model-profile/v2/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
 导出名、类型名沿已接受设计；源码已于 `cd67215b` 落在 `packages/core/model-profile/`，实际验证范围沿本节点 verification 登记。
@@ -10,7 +10,7 @@
 **自建一个 TypeScript 纯模块**，写法与 [content-blocks](../content-blocks/design.md#实现路径与来源) 相同：`ajv` 8.20.0 的 Draft 2020-12 入口、Schema 原样复制并逐字节核对、拒绝值[按契约次序逐条判](../content-blocks/design.md#拒绝值按契约的次序逐条判不从-schema-错误里反推)。
 注意本契约的次序里 **`malformed`（M1～M12）排第一**（S-25），与别的数据契约「`malformed` 是剩余项」不同——同一种写法，清单次序不同。
 `Modality` 取 [content-blocks](../content-blocks/README.md) 的那一份（`data.content-blocks/v2#S-6`，**只有一份定义**）。
-**Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
+**Cordis 版本**：采用 4.0.4（D-025）；本模块不依赖 Cordis。
 
 ## 公开面
 
@@ -70,7 +70,7 @@
 | `data.content-blocks` v2（`Modality`）、`data.identity-values` v1、`data.offer-expiry` v1 | [content-blocks](../content-blocks/README.md)、已实现的 identity-values 与 offer-expiry | 随包版本 | 静态 import |
 | 被消费 | messages（`RouteName` 等）、loop-extension（`select_model`）、model-response、模型档案目录、模型请求运行时、模态投影 | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
 
-包依赖与 catalog 的契约依赖同构（[D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
+包依赖与 catalog 的契约依赖同构（D-060 §八 M41），无环。**没有配置项**。
 
 ## 状态、并发与失败映射
 

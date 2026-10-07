@@ -4,16 +4,16 @@
 
 ## 基线与分层状态
 
-[D-076](../../../../record/decisions/model-runtime-delivery-adoption/decision.md) 采用的 v3 文件 SHA-256 为 `297d42b6eb6b8841169724d3922bd9be4f1114a8432c498aa27cba4b9f75e0cd`；该文件开头的历史 candidate 字样不取代采用记录。本增量只细化其“公共实现＋家族规则＋模型窄定义”和“完整配置由定义解释”的既定责任。
+D-076 采用的 v3 文件 SHA-256 为 `297d42b6eb6b8841169724d3922bd9be4f1114a8432c498aa27cba4b9f75e0cd`；该文件开头的历史 candidate 字样不取代采用记录。本增量只细化其“公共实现＋家族规则＋模型窄定义”和“完整配置由定义解释”的既定责任。
 
 | 层 | 本次状态 |
 | --- | --- |
-| 语义接受 | baseline `omne-harness-lite-design-2026-09-15` 下 `data.model-profile/v3`、`capability.model-request-runtime/v3` 在 catalog 为 accepted；前者采用记录经 [D-078](../../../../record/decisions/model-main-integration-coordination/decision.md) 行政承接，后者及本节点 v3 沿 D-076。本页新增实现投影尚未采用 |
+| 语义接受 | baseline `omne-harness-lite-design-2026-09-15` 下 `data.model-profile/v3`、`capability.model-request-runtime/v3` 在 catalog 为 accepted；前者采用记录经 D-078 行政承接，后者及本节点 v3 沿 D-076。本页新增实现投影尚未采用 |
 | 可实施 | 既有源码包已存在：五成员 `ModelDefinition`、37 个显式身份、两个默认 pilot、纯 plan/send/read 和进程内 lease 已有局部实现。本页扩充的完整定义、公开读取与统一解释器尚未实现；不据此直接发布 37 份正式档案 |
 | 绑定证据 | 新增绑定 **0 条**；本页下列 ND-V 是待执行义务，不伪造 `test:` 登记，不扩大既有 bindings 的适用范围 |
 | 实际验证 | 本增量暂无实现运行。既有 [verification](verification.md) 的参数、生命周期及外部制品结果仅证明各自冻结输入；既有暖读不证明全参数、模态、工具、推理 replay 或 TTL 保留期 |
 
-精确输入为 [profile3 S-5～S-9、S-15～S-21、S-27～S-31](../../../../spec/data/model-profile/v3/contract.md)、[runtime3 S-53、S-57、S-58、S-64](../../../../spec/capabilities/model-request-runtime/v3/contract.md)、[messages4 S-35](../../../../spec/data/messages/v4/contract.md)、[response4 S-11](../../../../spec/data/model-response/v4/contract.md) 与 [既有适配提案](../../../../record/proposals/model-request-adaptation/design.md)。产品来源沿 D-076/v3 对 PF-013 rev 13、PF-009 rev 8、PF-012 rev 15 和本轮 37 模型用户要求的明确采用范围，不把其后产品变化自动算作已投影。
+精确输入为 [profile3 S-5～S-9、S-15～S-21、S-27～S-31](../../../../spec/data/model-profile/v3/contract.md)、[runtime3 S-53、S-57、S-58、S-64](../../../../spec/capabilities/model-request-runtime/v3/contract.md)、[messages4 S-35](../../../../spec/data/messages/v4/contract.md)、[response4 S-11](../../../../spec/data/model-response/v4/contract.md) 与 既有适配提案。产品来源沿 D-076/v3 对 PF-013 rev 13、PF-009 rev 8、PF-012 rev 15 和本轮 37 模型用户要求的明确采用范围，不把其后产品变化自动算作已投影。
 
 源码观察基线为 `ea000728b0819c3b7c7534f01bd4c2b4e0b1c76b`，implementation revision 5、definition revision 1；它是观察坐标，不是新增接受事实。后续同时发生的公共实现修复应按实际合入修订重新核对；本候选不预占未来 revision 数字。
 
@@ -144,7 +144,7 @@
 
 ## 注册、版本、资源与并发
 
-本增量不改变一个稳定传输插件、共享连接池及模型贡献插件的边界；纯读取、Schema 生成和参数规则不各建 fiber/service。Cordis 继续 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md) 的 4.0.4；pi fork 路径继续 v3 的 0.86.1／`3390bd93630965a12a0a1a5c36ce890ec22f7e1d`，未选新第三方运行依赖。
+本增量不改变一个稳定传输插件、共享连接池及模型贡献插件的边界；纯读取、Schema 生成和参数规则不各建 fiber/service。Cordis 继续 D-025 的 4.0.4；pi fork 路径继续 v3 的 0.86.1／`3390bd93630965a12a0a1a5c36ce890ec22f7e1d`，未选新第三方运行依赖。
 
 | 资源／贡献 | 取得、可见与部分失败 | 撤除及保持 |
 | --- | --- | --- |

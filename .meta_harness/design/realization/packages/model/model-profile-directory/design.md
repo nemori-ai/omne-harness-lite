@@ -1,6 +1,6 @@
 # model-profile-directory 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 契约：[`capability.model-profile-directory` v2](../../../../spec/capabilities/model-profile-directory/v2/contract.md)（下文「契约 S-n」「契约 G-n」都指它）。
 本页的插件名、服务名、方法名、表名与列名一律是**候选**；契约的九件事不复述，只写兑现点与缺口。
@@ -22,7 +22,7 @@
 | 导出（候选） | 做什么 | 输入与输出的契约坐标 |
 |---|---|---|
 | `scopeChain(tenant)` | 由 `TenantId` 派生范围链（租户格 → 组织格 → 出厂格） | [S-6](../../../../spec/capabilities/model-profile-directory/v2/contract.md#s-6-范围链)；`data.identity-values/v1` |
-| `winningRow(rows, routeName, allowed)` | 链上各格的行 → 一个路由名的胜出行（在册且范围允许）；`allowed` 由调用方交 | S-17 末段；[D-063 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)：本版 `allowed` 就是那一格登记的全部档案 |
+| `winningRow(rows, routeName, allowed)` | 链上各格的行 → 一个路由名的胜出行（在册且范围允许）；`allowed` 由调用方交 | S-17 末段；D-063 R-4：本版 `allowed` 就是那一格登记的全部档案 |
 | `manifestDisposition(loaded, manifest)` | 已装入状态与一份清单 → 逐条处置（新增、更新、撤回）或 `manifestNotNewer` | S-8、S-18 ④ |
 | `configEligibility(initiator, scope, standing)` | 配置资格：先比发起者与格，再看调用方交来的成员资格答复 | S-10；`standing` 的答复形状照 `capability.organization-governance/v1#S-26` |
 | `credentialSlot(binding, origin, factoryConfigured)` | 取哪一格的那一把、「有没有」怎样答（不碰值） | S-20 ④ 的判定部分 |
@@ -55,7 +55,7 @@
 |---|---|---|
 | `modelCatalog` | `registerProfile`、`withdrawProfile`、`relistProfile`、`updateProfile`、`readProfile`、`listProfiles`、`bindCredential`、`unbindCredential`、`credentialPresent`（≡ `resolveCredential(…, present)`） | 中心的管理面与治理面（未来资产/据点入口（版本未分配） 的路由，未起草） |
 | `modelCatalogRead` | `readProfile`、`listProfiles`、`credentialPresent` | 模型请求运行时（展示列表按每一条的来源问「有没有」）、据点交付面（「有没有、哪个范围、什么时候配的」） |
-| `credentialLookup` | `value(tenant, origin)`（≡ `resolveCredential(…, value)`） | **只有模型请求运行时**：静态检查候选规则（同 OG 的 `restricted-call-sites`）——只许 `packages/model/model-request-runtime` 解析这个服务名；随 M47 加一条：P-1r 的副本表（`model_catalog_replica`）与两个读面的返回类型都不含凭据值与引用，**据点上的值只经保管方落地、只经 `credentialLookup.value` 读出**；随 [D-060 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑩ 再加一条：**保管方的 `readReplica` 只许 P-1r 调**（`credentialCustodian` 的其余消费者——MCP 桥——只许调 `depositOAuth`、`resolve`；保管方契约 [S-19](../../../../spec/capabilities/credential-custodian/v2/contract.md#s-19-装配给的保证-vs-协议须给的保证) 第 3 行） |
+| `credentialLookup` | `value(tenant, origin)`（≡ `resolveCredential(…, value)`） | **只有模型请求运行时**：静态检查候选规则（同 OG 的 `restricted-call-sites`）——只许 `packages/model/model-request-runtime` 解析这个服务名；随 M47 加一条：P-1r 的副本表（`model_catalog_replica`）与两个读面的返回类型都不含凭据值与引用，**据点上的值只经保管方落地、只经 `credentialLookup.value` 读出**；随 D-060 §八 N-37 ⑩ 再加一条：**保管方的 `readReplica` 只许 P-1r 调**（`credentialCustodian` 的其余消费者——MCP 桥——只许调 `depositOAuth`、`resolve`；保管方契约 [S-19](../../../../spec/capabilities/credential-custodian/v2/contract.md#s-19-装配给的保证-vs-协议须给的保证) 第 3 行） |
 
 | | 两种问法同在 `credentialLookup`（草图） | **取值单列（本方）** |
 |---|---|---|
@@ -198,9 +198,9 @@ P-1r 的副本表（候选 `model_catalog_replica`）由[据点装配](../../../
 
 ## 实施缺口与消费者影响
 
-**消费者影响（[D-063 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)，G-19 闭合）**：模型请求运行时的允许集合 `A` 本版就是「这个范围里登记的全部档案」——胜出行存在即在册且范围允许，第二道滤在本版是空滤；它由本节点的读面（`listProfiles`、`readProfile`）直接给出，**本节点不因此加操作**。将来要收窄，那一项走资产求值（PF-002），`winningRow` 的 `allowed` 参数就是为它留的口。
+**消费者影响（D-063 R-4，G-19 闭合）**：模型请求运行时的允许集合 `A` 本版就是「这个范围里登记的全部档案」——胜出行存在即在册且范围允许，第二道滤在本版是空滤；它由本节点的读面（`listProfiles`、`readProfile`）直接给出，**本节点不因此加操作**。将来要收窄，那一项走资产求值（PF-002），`winningRow` 的 `allowed` 参数就是为它留的口。
 
-契约自己的 G-n 不在此重抄；下面是本节点的缺口。其中「本程不补、留给下一程」（owner 主线，[D-060 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）的是：MPD-N1（C-5 `infra/secrets`）、MPD-N2（C-3 据点上的中心事实副本读面、C-4 未来资产/据点入口（版本未分配））。
+契约自己的 G-n 不在此重抄；下面是本节点的缺口。其中「本程不补、留给下一程」（owner 主线，D-060 §八 M43）的是：MPD-N1（C-5 `infra/secrets`）、MPD-N2（C-3 据点上的中心事实副本读面、C-4 未来资产/据点入口（版本未分配））。
 
 | # | 缺口 | owner | 受阻的消费者 | 闭合条件 |
 |---|---|---|---|---|

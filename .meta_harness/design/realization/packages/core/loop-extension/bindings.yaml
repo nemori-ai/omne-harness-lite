@@ -1,21 +1,13 @@
-# 条款到证据的绑定表。
-# 空表：data.loop-extension v2 没有登记的 formal task；源码不存在，没有测试可绑。
-# 证据义务与缺口记在 verification.md。
 version: 1
 node: "loop-extension"
 kind: "provider"
 
 bindings:
 
-# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
 
   - clause: "data.loop-extension/v3#S-37"
     evidence: "test:packages/core/loop-extension/tests/boundaries.spec.ts#LE-ORDER-1: ordinary malformed wins over position/power/dimension"
     assumptions:
       - "只证本纯模块在指定混合错误输入的拒绝次序；before_action表示接纳不代表实际派发准入。"
-      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
-      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
-    alignment_checked: "2026-09-26"
-
-# 2026-09-27：LC4 提供者修订尚未实施，新增绑定 0 条。
-# 上方 LC3 条目保留原版本/运行范围；新义务见 verification 的 LV4-1～LV4-6。
+      - "本条仅绑定上述具名用例的有限输入；执行输入、输出及接受过程归本工作树 tmp/。"
+      - "有限实现测试，不是任意输入证明；测试通过不提升整体接受状态。"

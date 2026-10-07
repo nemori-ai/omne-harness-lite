@@ -1,5 +1,0 @@
-// data.offer-expiry v1 的纯模块。公开入口以 realization 节点 core/offer-expiry 的投影表为准。
-export { instantFromEpochMs, instantFromRfc3339, instantToRfc3339, compareInstants, addDuration, parseOfferTtl, } from "./time.js";
-export { SETTLED_STATES, OFFER_STATES, timingFrom, parseOfferTiming, parseSettledState, deriveState, acceptable, } from "./offer.js";
-export { SCHEMA_DEF_NAMES, validate, schemaId, } from "./validate.js";
-//# sourceMappingURL=index.js.map

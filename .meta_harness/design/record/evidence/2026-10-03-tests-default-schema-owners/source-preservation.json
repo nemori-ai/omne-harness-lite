@@ -1,8 +1,0 @@
-{
-  "path": "/data/qiwei/repos/omne-harness-lite/tmp/test-tiers-mutation/default-owners-preqa.bundle",
-  "bytes": 32372,
-  "sha256": "4b83a414e9924758b2e627685af91fe657c241a262dd9eaa57ceffbea0b3bf52",
-  "head": "75c6a66eff119dc702224cab1265ba2564464dd8",
-  "baseline": "52bc6005dc168f2254d21ff79f6cd2df021676b8",
-  "verified": true
-}

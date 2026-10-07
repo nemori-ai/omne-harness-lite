@@ -6,10 +6,9 @@ scope: Cordis 形式结果的组件义务及本项目治理推论
 
 # Cordis 形式结果与组件责任
 
-2026-09-14 核对 [A Programming Paradigm for Spatiotemporal Composability，v1](https://arxiv.org/pdf/2608.25512v1)。
-这是论文版本，不是本项目依赖包版本。官方 API 的研究修订仍固定为 DSH
-`c291e7961a515f6d7af9304e7fd1d257929aef26`；本项目当前 agent 包声明采用官方
-Cordis `4.0.2`，三者不混为同一实现依据。
+事实范围是 [A Programming Paradigm for Spatiotemporal Composability，v1](https://arxiv.org/pdf/2608.25512v1)
+及固定 DSH 修订 `c291e7961a515f6d7af9304e7fd1d257929aef26` 的文档。
+论文版本、源码文档修订和项目实际采用的 Cordis 发行物是不同依据，不能互相替代。
 
 ## 可核对的观察
 
@@ -20,15 +19,10 @@ Cordis `4.0.2`，三者不混为同一实现依据。
 | 论文 §6.1，页 70–71 | 受控范围按具体位置的访问和恢复能力判断；资源获取与外部输出不同，补偿的应用等价关系需另行论证组合条件 |
 | [固定修订的 Fiber 文档](https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/c291e7961a515f6d7af9304e7fd1d257929aef26/docs/cordis-api/fiber.md) | effect 登记及调用清理的 API 语义，不能据此证明任意回调正确 |
 
-已有[装载清理来源](design-spec-maintenance/effect-cleanup-sources.md)和
-[实现映射](../architecture-guide/reference/cordis-mapping.md)保留具体机制及采用范围。
-本次没有运行 Cordis 发行物实验、插件契约测试、故障注入或证明工具。
+具体清理 API 事实见[装载清理来源](design-spec-maintenance/effect-cleanup-sources.md)。
+当前设计核对方法归 handbook 的[组合性质](../skills/harness-design-handbook/canonical/references/architecture/assurance/composability.md)。
 
-## 项目推论与局限
-
-[本轮提案](../proposals/evidence-governance/README.md)据用户要求，将关键性质的
-前提、责任方和证据连接到提案接受、精确规格与交付计划。证明门槛、机器检查
-触发和任务阻塞方式是项目治理选择，不是论文规定的开发流程。
+## 适用边界
 
 论文的结论不直接证明项目的实现、租户授权、持久恢复或生成插件安全。引用有效
 证明需要核对命题和前提，实际包及具体提供者还需实现符合性证据。共享资源的

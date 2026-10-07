@@ -83,7 +83,7 @@ CG关闭拒绝、未登记启动前缀和恢复后CLS释放的精确责任由[CL
 - 真实 CLI/TUI、状态私有文件/CAS、替代 transport/state，以及强撤 CLS 时 CG 的远端后 CAS。
 - 接续原 CLS/CG1/CG2 模型的有限前提，保持原基线错误与全部未覆盖项。
 
-本补充采用记录见[限定决定](../../record/decisions/identity-t3-binding-coordinates/decision.md)。采用后才冻结相应候选坐标。QA 仍须完成真实 BASE 观察和 M05；接受补充本身不释放产品实施。
+本补充采用记录见限定决定。采用后才冻结相应候选坐标。QA 仍须完成真实 BASE 观察和 M05；接受补充本身不释放产品实施。
 
 ## 公开 Schema 与路由计数坐标
 

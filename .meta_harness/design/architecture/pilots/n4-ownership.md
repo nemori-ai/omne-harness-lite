@@ -1,9 +1,9 @@
 # N4：薄规格试点的承诺归属
 
-本批依据 D-114 的集成要求、[D-115](../../record/decisions/actual-architecture-and-thin-spec/decision.md)
+本批依据 D-114 的集成要求、D-115
 与负责人 2026-10-04 的 N4 实施/验收授权。形状与集成变化不新增业务政策。
-本批限定采用见[接受事件](../../record/decisions/thin-spec-pilots-adoption/decision.md)。
-下表明确唯一源和未迁范围。实现与验收状态归[本批证据](../../record/evidence/2026-10-04-thin-spec-pilots/README.md)。
+本批限定采用见接受事件。
+下表明确唯一源和未迁范围。实现与验收状态归本批证据。
 
 ## 组织治理
 
@@ -23,7 +23,7 @@
 N4 当时的实际视图保留四个 IC-4 静态读数：治理根的类型依赖沿未迁 `kernel-basis` 公开根触及 Cordis。
 N4 运行装载试验确认纯根不会加载 Cordis，但当时不能据此声称源码或声明闭包全部符合 IC-4。
 后继 R1-T1a 已完成 `kernel-basis` 纯结果与绑定入口分面，并迁移全部直接消费者。
-[限定接受](../../record/decisions/kernel-basis-entry-split-adoption/decision.md)及[实际证据](../../record/evidence/2026-10-04-tests-kernel-basis-entry-split/README.md)
+限定接受及实际证据
 关闭这四项闭包偏离；原业务语义和公共类型拥有者保持，其他未迁偏离继续可见。
 
 ## 模型请求运行时

@@ -47,7 +47,7 @@
 - **身份**：正文未述
 - **生灭**：发起，**带一个到期时刻** → 被接受（下级组织的「上级组织」属性有了值，**不产生租户**）；接受之前可以被撤回，也会过期——隶属请求这一类有默认时长、发出时发起者可指定这一份的，它指向的组织不存在了则自动过期（**这一分支本版无触发源**：[没有任何隶属请求指向个人组织——个人组织不参与隶属关系，而团队组织无终结路径](#ul-organization--组织)）；撤回、过期或接收组织超管拒绝都不建立隶属；若再合作须另发一份
 - **依据**：[PF-001 §4 隶属关系怎么建立与解除](../product/PF-001-identity-scope-and-agent-constraints/design.md#隶属关系怎么建立与解除)（rev 25）；[PF-001 §4 两种邀约都会过期](../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)（rev 25）；[PF-001 flows §1.7](../product/PF-001-identity-scope-and-agent-constraints/flows.md#17-建立与解除组织隶属)（rev 25）；[PF-001 flows §2](../product/PF-001-identity-scope-and-agent-constraints/flows.md#二分支与异常)（rev 25）
-- **未裁**：**宿主是发起方组织还是接收方组织**。两端都是组织，而正文只写了「它**指向的**那个组织不存在了则自动过期」——发起方组织没了它怎么样，正文没说。归 PF-001 的 owner，[已记入该 topic 的「已知的来源问题」](../product/PF-001-identity-scope-and-agent-constraints/decisions.md#四已知的来源问题)
+- **未裁**：**宿主是发起方组织还是接收方组织**。两端都是组织，而正文只写了「它**指向的**那个组织不存在了则自动过期」——发起方组织没了它怎么样，正文没说。归 PF-001 的 owner，[已记入该 topic 的「已知的来源问题」](../product/PF-001-identity-scope-and-agent-constraints/design.md)
 
 - **本轮依据复核**：[PF-001 接收方拒绝](../product/PF-001-identity-scope-and-agent-constraints/design.md#接收方可以明确拒绝待处理邀约)（rev 25）增加终结分支；宿主、身份与接受结果不变，不新增对象。
 

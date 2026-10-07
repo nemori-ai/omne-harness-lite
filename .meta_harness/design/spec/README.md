@@ -6,7 +6,7 @@
 
 失效事件：语义变更。
 
-**规格只留最新一版**（[D-113](../record/decisions/spec-single-revision/README.md)，2026-10-01）。
+**规格只留最新一版**。
 终态是每份契约在树里只有一份正文：路径里没有版本号，修订在原地做，修订号记在登记里，旧字节在 Git 历史里。
 **切换还没做，在那之前守过渡期的规矩**：
 
@@ -56,6 +56,11 @@ Schema、Alloy、TLA+ 行为模型及规范场景按表达与证据需要加入�
 catalog 依赖必须给精确 `coordinate`、消费 `clauses` 与血缘关系。模板负责收集这些语义输入，
 不自行生成或批准清单；清单间身份、路径、资源与接受关系不一致时停止发布，由唯一集成拥有者修正。
 
+登记的是实质消费：本契约据以写出承诺、判定、映射或验证义务的条款。
+方向只算消费者 → 提供者。否定式提及（「不来自」「不同于」）、结构性前提
+（例如对方的依赖方向声明）和类比不登记为依赖。data 契约引用 capability／composition
+作消费落点（谁使用它），不构成 data 对这些能力或组合的反向依赖。
+
 这里的 `candidate`、`accepted` 和 `frozen` 只陈述规格采用与资源不可变性；`implemented` 与
 `assembled` 由 [realization/](../realization/README.md) 的实际证据拥有。任一缺失以具名 `gap` 保留，
 不能用旧基线接受、形式任务登记、目标设计或文件存在补齐。完整状态词见[系统设计链](../README.md#状态词怎样组合)。
@@ -78,7 +83,7 @@ catalog 依赖必须给精确 `coordinate`、消费 `clauses` 与血缘关系。
 └── verification.md              覆盖与实际证据的可变入口
 ```
 
-实际执行的配置、输入快照和原始结果归 [record/evidence/](../record/evidence/README.md)，
+实际执行的输入和原始结果归各自工作树 tmp，
 不写进版本目录——它们是运行产物，与规范的冻结边界分属两类失效事件。
 
 图中的模型与执行目录是选用后的落点示意；当前模板不包含可运行的空模型或伪造结果。
@@ -94,76 +99,8 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 从 [数据](data/README.md)、[能力](capabilities/README.md)、[组合](compositions/README.md) 继续导航；
 `archive/` 仅保留历史来源，`.templates/` 是写作资源，二者都不能当作当前接受的规格。
 
-## 当前状态
 
-**2026-09-25 新增七份接口契约（已接受）**：`capabilities/{session-log, assembly-manifest, session-tenancy, run-attempt-facts, credential-custodian, execution-environments, center-connection}` v2——两块运行时 inject 依赖的窄口，按消费者需要定，真提供者随各自那一程到来时出新版本（[D-063 R-1](../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）。连同本程此前的 27 份，共 34 份，已由 D-061 于 2026-09-26 接受并冻结。
+## 当前采用
 
-2026-09-24增量：[D-040](../record/decisions/governance-identity-offer-contracts/README.md)接受并冻结账号能力v3（有限登录/主动更换/显式参与）与邀约时间数据v2（接收方拒绝），以及相应有限模型。旧消费者仍钉旧版，新的组织治理/入口与提供者组合尚未采用，不能据规格接受推断生产交付完成。精确版本以registry为准。
-
-### 前两程的基线记录
-
-
-**D-028 接受时有六个 topic**，都属租户相关领域，**全部 `accepted`、资源已冻结**：
-前五个 v1 依据 [D-023](../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）；
-`compositions/governance-center-entry` v1 与 `capabilities/account-identity` **v2** 依据 [D-028](../record/decisions/governance-center-design-acceptance/README.md)（产品负责人，2026-09-23；主责产品依据 PF-017 rev 2）。账号能力 v1 与 v2 并存：注册组合与治理契约仍钉 v1，入口契约钉 v2：
-
-| topic | 拥有什么 |
-|---|---|
-| [`data/identity-values`](data/identity-values/README.md) | 身份值的形状与隔离义务 |
-| [`data/offer-expiry`](data/offer-expiry/README.md) | 一份待接受的邀约何时不再可被接受 |
-| [`capabilities/account-identity`](capabilities/account-identity/README.md) | 账号事实、登录状态、凭据校验 |
-| [`capabilities/organization-governance`](capabilities/organization-governance/README.md) | 组织、成员关系、邀请与隶属请求、当前租户身份 |
-| [`compositions/account-registration`](compositions/account-registration/README.md) | 一次注册从入口走到稳定点的整体责任 |
-| [`compositions/governance-center-entry`](compositions/governance-center-entry/README.md) | 客户端 ↔ 治理中心这条边：判定次序、四种入口答复、身份推导与补授权、公开体检与运维面、治理中心标识 |
-
-**第七个 topic 后来也接受了**：[`compositions/governance-center-entry-https-json`](compositions/governance-center-entry-https-json/README.md) v1（2026-09-23 起草，同日由 [D-029](../record/decisions/governance-center-transport-binding-acceptance/README.md) 接受并冻结）——入口契约落在 HTTP/1.1 over TLS + JSON 上的全部字节事实（传输绑定 `https-json/1`，闭合入口契约 G-10 与 G-11 的中心一侧）。
-
-**本程此前新增 26 份 v1（2026-09-23 起草，2026-09-24 整批对齐），已由 D-061 接受并冻结**：data 13 份（`content-blocks`、`call-accounts`、`model-profile`、`model-response`、`tool-definition`、`asset-model`、`loop-extension`、`messages`、`connector`、`arrival-events`、`skill-package`、`slash-command`、`mcp-endpoint`），capabilities 13 份（`asset-transfer`、`asset-governance`、`asset-evaluation`、`modality-projection`、`stream-assembly`、`tool-admission`、`asset-registry`、`mcp-bridge`、`loop-extension-runner`、`hooks-import`、`model-profile-directory`、`model-request-runtime`、`tool-execution-runtime`）。它们都已在 catalog 登记（`acceptance` 指向 D-061），依赖 159 条（2026-09-25 修复波 3 跨批对齐时按 catalog 实际计数；整批对齐时为 150）、全部带条款号、依赖图无环；covers 按各包口径登记、全部 `reviewed: false`；带 TLA+ 的四份共 6 个 formal task，两份 Alloy 模型（`asset-evaluation`、`messages`）按「`check` 行 UNSAT 读作无反例」判读、不登记为任务。各包的实际状态以其 `verification.md` 为准。
-
-**上面六个 topic 的七个版本都在 [catalog](../registry/README.md) 登记并接受**（第七个 topic 的传输绑定 v1 由 D-029 接受，`acceptance` 指向 D-029）：五份 v1 的 `acceptance` 指向 D-023 的 `acceptance.json`，
-入口契约 v1 与账号能力 v2 指向 D-028 的；`frozen.json` 登记了五个 v1 目录的 18 项资源，加入口契约 v1 的 15 项与账号能力 v2 的 1 项。
-它们之间的依赖带精确坐标与消费 clauses，登记口径是**正文以坐标引用某条款即为消费**，
-只有否定式提及（「不来自」「不同于」）不登；**方向只算消费者 → 提供者**：data 契约正文以坐标引用
-capability／composition 条款作「落点」（谁在用它），不构成 data 契约对它们的依赖；
-**登的是实质消费**——本契约据以写出承诺、判定、映射或证据落点的条款；只作结构性前提
-（如引用对方的依赖方向声明）或类比（「与……是同一条规矩」）的引用不登；`organization-governance` 对 `data.identity-values`
-的消费面已于评审轮二收齐为 27 条，与 [契约 S-4 的表](capabilities/organization-governance/README.md)一致。
-
-**接受由 [D-023](../record/decisions/tenant-domain-design-acceptance/decision.md) 完成，冻结由 registry 完成。**
-评审期间「PF-001 升 rev 的语义变化直接落在 v1 上」的做法**自接受起终止**：
-v1 目录任何字节变化都会被检查器报 `frozen file changed`，语义改动[发布 v2](#路径即身份)
-（`baseline.json` 的 `version_policy` 已是 `evolving`）。D-023 已点名四处措辞与现行节点设计对不上、
-一处 S-39 读法待收口——**都留给 v2，实施按现行节点设计**。
-接受不表示已实现或已验证：五个 `verification.md` 在版本外，仍可变，实际状态以它们为准。
-
-**形式工件已执行过两轮**（都在 2026-09-22：
-[第一轮](../record/evidence/2026-09-22-formal-tenant-domain/README.md)，
-以及评审轮一改了模型之后的[第二轮](../record/evidence/2026-09-22-formal-tenant-domain-2/README.md)）：
-`organization-governance` 的 `Membership.cfg` 与 `account-registration` 的三个配置
-**四个都登记成了 formal task**，两轮**四个都无反例**；
-`Membership_NoSerialization.cfg` 两轮都**按预期给出反例**（有效性核对，因期望失败而不登记为任务）；
-四条 Alloy 命令按预期 SAT／UNSAT，但 **`alloy exec` 的退出码与断言结果无关，因此未登记为任务**。
-**当前模型的结论以第二轮为准**——`Registration.tla`、`progress.cfg` 与 `Affiliation.als` 都改过，
-只有 `Membership.tla` 与它的两个 cfg 两轮逐字节相同。
-
-**「无反例」在这里离「已验证」还差一大截**：
-两份 formal 入口一共列了 11 个变异核对与 2 个 TLA+ 有效性核对，**两轮一个都没登记**；
-五份契约的规范场景**一条都没演练**。
-各包的实际状态与边界以其 `verification.md` 的「实际执行」一节为准。
-
-2026-09-17 建在 PF-001 rev 1 上的三份候选
-（账号身份、租户治理、账号注册组合）已于 2026-09-22 由产品负责人裁定**整体废弃**，
-它们从未被接受或冻结，原件只在 Git 历史里；架构与规格设计从 PF-001 rev 8 及其后续修订从零起步，
-第一站是租户相关领域。
-
-存量 topic 尚未从 `design_legacy/spec/` 迁入。由于路径形状不变，
-迁入是整目录搬运：`$id`、冻结清单中的相对路径与包内相对链接都不需要重写，
-SHA-256 也不改变。
-
-候选设计可使用本次明确输入并保留版本/接受缺口。返回 [系统设计链](../README.md)。
-
-**2026-09-26**：本程 34 份契约均已由 [D-061](../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受并冻结；catalog 当前 42 条全部 accepted。缺口、reviewed 标记和实际验证各自保留。
-
-## 2026-09-26：D-068 八份 core v3
-
-六份data（content-blocks/messages/model-response/loop-extension/tool-definition/asset-model）与两份capability（stream-assembly/asset-evaluation）v3已在独立复审后接受并冻结；精确范围见 [D-068](../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。这次有CB表示例外、TD拒绝变化、SA两示例及表达修正，不是纯行政迁移。旧2原字节保留；24外部消费者仍钉2，不自动迁移。实现采用和实际新验证由realization分别登记，接受不代替实施或最终用户签收。
+精确坐标及接受范围以 registry/catalog.json 为准。单份正文的起草标签不扩大或撤销确切范围，规范采用不等于已实现、已验证或消费者已经升级。
+当前未迁消费者继续按有效精确版本执行；消费者及相应验证义务接续后才能退役旧源。

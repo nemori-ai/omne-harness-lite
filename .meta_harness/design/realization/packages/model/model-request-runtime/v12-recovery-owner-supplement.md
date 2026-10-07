@@ -1,6 +1,6 @@
 # 恢复任务与作用域留存的实施补充
 
-2026-09-28，revision 1，candidate，待窄评和技术采用。接续 [D-105](../../../../record/decisions/model-recovery-timing-provider-adoption/decision.md) 采用的 [v12](v12-recovery-timing-design.md)，不改其冻结字节、MR8/RT9、十三操作或恢复授权。持续消费者是本节点的恢复实现与 runtime 组合；失效事件是实现的所有权与关闭方式变化。
+2026-09-28，revision 1，candidate，待窄评和技术采用。接续 D-105 采用的 [v12](v12-recovery-timing-design.md)，不改其冻结字节、MR8/RT9、十三操作或恢复授权。持续消费者是本节点的恢复实现与 runtime 组合；失效事件是实现的所有权与关闭方式变化。
 
 ## 已有责任与具体持有
 

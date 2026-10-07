@@ -1,6 +1,6 @@
 # Model profile directory
 
-The current directory consumes adopted `capability.model-profile-directory/v5` and `data.model-profile/v5` under [D100](../../../.meta_harness/design/record/decisions/model-runtime-current-generation-adoption/decision.md), through the [current provider projection](../../../.meta_harness/design/realization/packages/model/model-profile-directory/v5-current-design.md). It owns the durable catalog, append-only configuration revision facts, official manifest state and tenant credential bindings.
+The current directory consumes adopted `capability.model-profile-directory/v5` and `data.model-profile/v5` under D100, through the [current provider projection](../../../.meta_harness/design/realization/packages/model/model-profile-directory/v5-current-design.md). It owns the durable catalog, append-only configuration revision facts, official manifest state and tenant credential bindings.
 
 The definition package `@omne-harness-lite/model-profile-directory` owns the pure judgments and service protocols. This provider root exports its configuration types. `./cordis` contains the two Cordis plugins and schemas; `./migrations` contains `modelProfileDirectoryMigrations`; restricted `./tx-reads` contains `createCredentialBindingReader`. The authoritative directory exists as a service.
 

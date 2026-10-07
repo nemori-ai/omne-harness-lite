@@ -2,7 +2,7 @@
 
 This page states the existing helper behavior from the package documentation and adopted kernel probes.
 It adds no capability, service key or lifecycle policy.
-The [accepted entry split](../../../.meta_harness/design/record/decisions/kernel-basis-entry-split-adoption/decision.md) owns its adoption scope.
+The accepted entry split owns its adoption scope.
 
 The root exports operation results only. It has no Cordis source, declaration or runtime import dependency.
 `./cordis` exports plugin definitions, optional lookup and fiber-state helpers.

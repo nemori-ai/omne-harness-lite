@@ -1,6 +1,6 @@
 # loop-extension 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 契约：[`data.loop-extension` v2](../../../../spec/data/loop-extension/v2/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
 导出名、类型名一律为**已接受的设计**。源码已进入 HUB，纯值接口已实际复验释放；下文「未实现／候选」是设计接受时的投影基线，逐项持久证据登记与 runner 外部责任分别保留。
@@ -8,7 +8,7 @@
 ## 实现路径与来源
 
 **自建一个 TypeScript 纯模块**，写法与 [content-blocks](../content-blocks/design.md#实现路径与来源) 相同：`ajv` 8.20.0 的 Draft 2020-12 入口、Schema 原样复制并逐字节核对、拒绝值[按契约次序逐条判](../content-blocks/design.md#拒绝值按契约的次序逐条判不从-schema-错误里反推)。
-**Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
+**Cordis 版本**：采用 4.0.4（D-025）；本模块不依赖 Cordis。
 
 ## 公开面
 
@@ -35,7 +35,7 @@
 | 服务键 | 无 | — |
 | `inject` 关系 | **无**；`loopExtensionBodyContract`（asset-model 端口的那一份）是普通值 | — |
 | effect 装卸 | **无装载效应**（0 行） | — |
-| 事件派发 | **不发、不听**。「位置」是 agent loop 的一个时点、结论是一个值，都不是 Cordis 事件；派发器怎样逐件调用归派发器。没有事件能越过租户或会话边界：统一输入**不暴露会话标识**；`environment` 句柄（[S-41](../../../../spec/data/loop-extension/v2/contract.md#s-41-执行环境句柄)，[D-060 §八 M38](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）按会话作用域、不透明、每次调用一只新的，解析归 runner | S-41 |
+| 事件派发 | **不发、不听**。「位置」是 agent loop 的一个时点、结论是一个值，都不是 Cordis 事件；派发器怎样逐件调用归派发器。没有事件能越过租户或会话边界：统一输入**不暴露会话标识**；`environment` 句柄（[S-41](../../../../spec/data/loop-extension/v2/contract.md#s-41-执行环境句柄)，D-060 §八 M38）按会话作用域、不透明、每次调用一只新的，解析归 runner | S-41 |
 | 存储 | **无**：结论落日志归派发器 | S-30～S-32 |
 
 ### 装配给 vs 协议给
@@ -75,7 +75,7 @@ S-37 的 `inject_source_mismatch` 与 frozen examples §7 最后一行一致：�
 | `data.identity-values`、`data.offer-expiry` v1 | 已实现的 core 包 | 同上 | 同上 |
 | 被消费 | arrival-events、model-response、asset-evaluation、派发器、兼容层、模型请求运行时、模态投影 | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
 
-包依赖与 catalog 的契约依赖同构（[D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
+包依赖与 catalog 的契约依赖同构（D-060 §八 M41），无环。**没有配置项**。
 
 ## 状态、并发与失败映射
 
@@ -95,7 +95,7 @@ S-37 的 `inject_source_mismatch` 与 frozen examples §7 最后一行一致：�
 
 ## D-068：当前3的精确投影
 
-本节点设计采用 `data.loop-extension · v3`（[规范](../../../../spec/data/loop-extension/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 [D-068](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md) 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
+本节点设计采用 `data.loop-extension · v3`（[规范](../../../../spec/data/loop-extension/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 D-068 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
 
 六data默认schema为3并各公开`./schema/v2`原2完整字节/$id；AR/CA/MP/Skill/MCP/Slash仍2，固定Schema图显式取旧资源。SA/AE没有自有Schema，不造空文件或空集通过。Connector只保留被AM规范引用的冻结资源，真实提供者纵线延期。
 

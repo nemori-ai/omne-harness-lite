@@ -11,7 +11,7 @@
 | [PF-013 rev 17](../../../../product/PF-013-model-profiles-and-invocation/design.md) | §5 模型选择/失败/凭据/转换、§5.13 独立执行及停机、§6 输入/路由保证 | 原绑定、首内容后不重发、实际费用 unknown 保持；Session 生命周期与消费释放分离、ready 持久化，不扩重试政策 |
 | [PF-015 rev 20](../../../../product/PF-015-session-lifecycle-and-ownership/design.md) | §6.12 创建租户、第一件恢复与日志投影、§6.19 函数输入及持久化范围 | 原身份与派生投影无独立事实保持；RT 当前访问/恢复责任显式，MS runtime context 内部结构继续不透明 |
 
-R2 交叉规则按 [technical-choices-r4](../../../../record/proposals/model-runtime-reference-lifecycle/technical-choices-r4.md) 定型为候选；未升级产品包接受状态。具体变更与消费者见 [consumer-impact](consumer-impact.md)。
+R2 交叉规则按 technical-choices-r4 定型为候选；未升级产品包接受状态。具体变更与消费者见 [consumer-impact](consumer-impact.md)。
 
 ## 正文实际来源锚点索引
 

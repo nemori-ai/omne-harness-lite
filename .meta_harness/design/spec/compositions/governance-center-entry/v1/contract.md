@@ -1,7 +1,7 @@
 # composition.governance-center-entry v1
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, composition.governance-center-entry, 1)`
-- **状态**：`candidate`。主责产品依据 [PF-017](../../../../product/PF-017-governance-center-as-deployable-application/README.md) **rev 1 已接受（2026-09-23）**（[PF-017 decisions §一「正式接受」](../../../../product/PF-017-governance-center-as-deployable-application/decisions.md#2026-09-23--正式接受)；rev 不升，正文就是第二轮修订之后的那一版）。本契约自身的接受另行决定。
+- **状态**：当前采用范围见 catalog。主责产品依据 [PF-017](../../../../product/PF-017-governance-center-as-deployable-application/README.md) **rev 1 已接受（2026-09-23）**（[PF-017 decisions §一「正式接受」](../../../../product/PF-017-governance-center-as-deployable-application/design.md)；rev 不升，正文就是第二轮修订之后的那一版）。精确规范范围以 catalog 为准。
   **所依赖的 `capability.account-identity` v2 仍是 `candidate`**（它的主责产品依据同是 PF-017 rev 1）；它被接受之前，本契约不进入接受。
 - **设计依据**：
   - PF-017 rev 1（已接受，2026-09-23）：[§部署前提](../../../../product/PF-017-governance-center-as-deployable-application/design.md#部署前提)、
@@ -39,8 +39,8 @@
   **不带缩写的 `S-n` 只指本契约自己的条款**。
 - **为什么是一份组合契约**：判定次序、四种入口答复与身份推导对**每一个**请求都一样，横跨三份契约，
   任何一个单项能力都拥有不了；理由的长期家是
-  [提案 · 入口契约为什么是一份 composition 契约](../../../../record/proposals/governance-center-entry/alternatives.md#入口契约为什么是一份-composition-契约)
-  与[为什么不拆、为什么不并](../../../../record/proposals/governance-center-entry/design.md#为什么不拆为什么不并)。
+  提案 · 入口契约为什么是一份 composition 契约
+  与为什么不拆、为什么不并。
 - **本契约用到的四个技术名**，都**没有词条**（无词条），只在本契约里当技术名用，不是统一语言的正式名：
   **入口层**（无词条：兑现本契约客户端那一面的提供者）、**运维面**（无词条：[运维者](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-deployment-operator--运维者--deployment-operator)那一面在运行中的中心上唯一的部分）、
   **出示物**（无词条：信封成员 `presentedLoginState` 里携带的那个值，就是 AI 的「登录状态出示物」）、**列表句柄**（无词条：成员 `loginStateHandle` 的值，就是那个登录状态的 `LoginStateId`）。
@@ -130,7 +130,7 @@
 - **出示物就是 [AI S-45](../../../capabilities/account-identity/v2/contract.md#s-45-登录状态出示物) 的「登录状态出示物」**：[AI S-15](../../../capabilities/account-identity/v2/contract.md#s-15-验证凭据并签发登录状态) 签发一个登录状态时一次性交出的那个不透明字符串，
   按持有者即被认的方式使用（bearer；[PF-001 §4 登录状态](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#登录状态)）：持有它本身就是 [AI S-44](../../../capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份) 校验的那件事。
   **它不是 `LoginStateId`**：`LoginStateId` 是它的不可逆形式，可以被看见（列表里就有，[S-9](#s-9-列表句柄)），拿来当出示物过不了 AI S-44。
-  这是产品负责人把登录态的合法性、鉴权与保存交给业界通行做法之后的形状（[PF-017 INT-011](../../../../product/PF-017-governance-center-as-deployable-application/interviews/2026-09-23-rulings.md#int-011)）。
+  这是产品负责人把登录态的合法性、鉴权与保存交给业界通行做法之后的形状（[当前规则与范围](../../../../product/PF-017-governance-center-as-deployable-application/design.md)）。
 - **交换表示就是 AI S-45 的「交换表示」一行，入口层用同一条判、不另立一条**：Unicode 标量值序列（不含孤立的代理码点）、非空、至多 1024 个标量值、首末字符都不属于 [`data.identity-values/v1#S-31`](../../../data/identity-values/v1/contract.md#s-31-不透明标识的交换表示) 列出的空白码点集合；逐码点相等，不做任何规范化。上界 1024 是 AI S-45 的候选值，随它的接受一起定。入口层不解析它、不对它的字母表设任何限制。
 - **恰好一个。**一个请求带了不止一个出示物 ⇒ [S-11](#s-11-认人) 判「无效」。
 - **出示物不是「输入」，是身份。**它在表示层就不合格（不满足上一条的交换表示）时，
@@ -233,7 +233,7 @@
 
 **「输入」指载荷，信封不是输入；信封不合格在认人之前拒绝。**[§6.4 ④](../../../../product/PF-017-governance-center-as-deployable-application/design.md#64-无效与答不出是两个不同的答复)说「要登录状态的事，认出人之后才看输入」，
 那里的「输入」是**那件事本身的输入**，在线上就是 `payload`；`operation` 与表外成员是**信封**的事——不知道要办哪件事，就谈不上「那件事的输入」，
-所以 ①′ 排在认人之前、答 `invalid-input`，与 ④ 不冲突。这一读法是产品负责人 2026-09-23 的裁定（[PF-017 INT-013](../../../../product/PF-017-governance-center-as-deployable-application/interviews/2026-09-23-rulings.md#int-013)：认人之前拒绝）。
+所以 ①′ 排在认人之前、答 `invalid-input`，与 ④ 不冲突。这一读法是产品负责人 2026-09-23 的裁定（[当前规则与范围](../../../../product/PF-017-governance-center-as-deployable-application/design.md)：认人之前拒绝）。
 
 ### S-11 认人
 
@@ -296,7 +296,7 @@
 
 **这是本契约按隔离原则给四条读面加的前置**，依据是 [PF-001 §6.4 隔离](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)：
 没有明确所有权或成员资格依据时，跨租户访问默认拒绝。一个组织的类型、它的上级链、别人在它里面的成员资格效力，都不向与那个组织无关的人开放。
-产品负责人 2026-09-23 裁定这是隔离原则的自然延伸，由架构与规格设计自定、不需要产品另提需求（[PF-017 INT-014](../../../../product/PF-017-governance-center-as-deployable-application/interviews/2026-09-23-rulings.md#int-014)）。
+产品负责人 2026-09-23 裁定这是隔离原则的自然延伸，由架构与规格设计自定、不需要产品另提需求（[当前规则与范围](../../../../product/PF-017-governance-center-as-deployable-application/design.md)）。
 
 | 路由 | 「该组织」是哪个 | 补的那一道 |
 |---|---|---|
@@ -709,7 +709,7 @@
 前提编号只在本表内作行标：**P1** 中心在运行且够得到；**P2** 数据所在够得着；**P3** 时钟读得到且未倒退；**P4** 版本对得上；
 **P6** 其间没有从备份恢复；**P8** 未激活记录在留存期限内；**P9** 账号已激活、来者持有凭据。
 
-**进展表「P3 不成立 ⇒ `unavailable`」这条映射有一条例外：跨 OS 崩溃或断电，「时钟不后退」不在本契约的承诺内。**按 [D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 接受的持久性政策，OS 崩溃或断电可能丢掉最后一段已提交事务，时钟判回拨所依据的最近那次记录可能随之丢失；
+**进展表「P3 不成立 ⇒ `unavailable`」这条映射有一条例外：跨 OS 崩溃或断电，「时钟不后退」不在本契约的承诺内。**按 D-027 接受的持久性政策，OS 崩溃或断电可能丢掉最后一段已提交事务，时钟判回拨所依据的最近那次记录可能随之丢失；
 那之后的一次倒退可能检不出，要看时间的判定按倒退之后的时刻做出。
 这是**装配给的边界**，本契约的协议补不了；判定与失败集合不因此改变。**同一边界也及于本契约其他依赖已提交事实的承诺**——中心标识的首次铸造（[S-28](#s-28-铸造存放与不变)）、撤销后的效力不变（[S-31](#s-31-不变量与安全性质)）、停机时「已确认的都在」（[S-34](#s-34-起来即整体停机时在途请求归谁)）：崩溃前最后一段已提交事务丢失时，那些事实退回到崩溃前更早的状态。它在 [S-36](#s-36-装配给的保证-vs-协议须给的保证) 以「已提交事实跨 OS 崩溃」一行统一登记，不逐条改写各承诺；产品负责人已裁把这条边界写进产品正文（PF-017 rev 2 的 [§6.7](../../../../product/PF-017-governance-center-as-deployable-application/design.md#67-重启不让任何人退出登录)、[§6.8](../../../../product/PF-017-governance-center-as-deployable-application/design.md#68-停机已确认的都在没确认的等于没发生)、[§6.10](../../../../product/PF-017-governance-center-as-deployable-application/design.md#610-时间不能倒着走)、[§6.12](../../../../product/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来)），本契约与之同口径。
 
@@ -783,7 +783,7 @@
 | 保证（来源） | 本版单机：由谁给 | 这条边上／跨进程之后：谁兑现 | 做不到会怎样 |
 |---|---|---|---|
 | **撤销之后立刻生效**（[`capability.account-identity/v2#S-30`](../../../capabilities/account-identity/v2/contract.md#s-30-装配给的保证-vs-协议须给的保证) 第 3 行） | 装配：入口层与账号能力读同一个存储 | **协议给**：[S-15](#s-15-δ--0每个请求现读入口不跨请求缓存) 的中心一侧 δ = 0。中心被拆开之后，账号能力那一行的 δ 须定义，本条的 0 随之变成那个 δ | 退出或被撤销的登录状态在缓存窗口里还能用——[PF-001 §6.6](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#66-撤销不等于强制停止) 被破 |
-| **持有 `AccountId` 即可读账号**（同上第 6 行） | 装配：只有进程内调用方 | **靠不暴露兑现**：[S-24](#s-24-有意不投影) 不投影 [AI S-18](../../../capabilities/account-identity/v2/contract.md#s-18-读账号)；线上任何 `AccountId` 都不作行事依据（[S-12](#s-12-身份推导)）。只要线上不出现 AI S-18，本版不需要账号能力的新版本。**残余暴露**：对已知 `AccountId` 可探知存在与激活状态（须先成为某组织超管并发一次邀请——[OG S-23](../../../capabilities/organization-governance/v1/contract.md#s-23-发出邀请) 透传 `accountNotActivated`／`accountDoesNotExist`）；**接受**（[PF-017 INT-012](../../../../product/PF-017-governance-center-as-deployable-application/interviews/2026-09-23-rulings.md#int-012)），理由：`AccountId` 不透明（[IV S-31](../../../data/identity-values/v1/contract.md#s-31-不透明标识的交换表示)），且被邀请者会看到这次邀请。**「`AccountId` 猜不出、枚举不了」是前提，不由本组合兑现**：它归 AI [G-2](../../../capabilities/account-identity/v2/contract.md#九已知缺口) 的 `AccountId` 那一半（提供者设计给出形式并说明是否不可猜测）；那一半若裁成可猜测，这条残余暴露的范围随之扩大，须回到 INT-012 重新确认 | 任何拿到一个 `AccountId` 的人读得到它的激活与过期状态 |
+| **持有 `AccountId` 即可读账号**（同上第 6 行） | 装配：只有进程内调用方 | **靠不暴露兑现**：[S-24](#s-24-有意不投影) 不投影 [AI S-18](../../../capabilities/account-identity/v2/contract.md#s-18-读账号)；线上任何 `AccountId` 都不作行事依据（[S-12](#s-12-身份推导)）。只要线上不出现 AI S-18，本版不需要账号能力的新版本。**残余暴露**：对已知 `AccountId` 可探知存在与激活状态（须先成为某组织超管并发一次邀请——[OG S-23](../../../capabilities/organization-governance/v1/contract.md#s-23-发出邀请) 透传 `accountNotActivated`／`accountDoesNotExist`）；**接受**（[当前规则与范围](../../../../product/PF-017-governance-center-as-deployable-application/design.md)），理由：`AccountId` 不透明（[IV S-31](../../../data/identity-values/v1/contract.md#s-31-不透明标识的交换表示)），且被邀请者会看到这次邀请。**「`AccountId` 猜不出、枚举不了」是前提，不由本组合兑现**：它归 AI [G-2](../../../capabilities/account-identity/v2/contract.md#九已知缺口) 的 `AccountId` 那一半（提供者设计给出形式并说明是否不可猜测）；那一半若裁成可猜测，这条残余暴露的范围随之扩大，须回到 INT-012 重新确认 | 任何拿到一个 `AccountId` 的人读得到它的激活与过期状态 |
 | **`identifier-held-by-expired-record` 只流向注册组合**（同上第 8 行） | 装配：只有注册组合调 [AI S-13](../../../capabilities/account-identity/v2/contract.md#s-13-产生账号未激活) | **结构上兑现**：[S-24](#s-24-有意不投影) 不投影 AI S-13；注册路由只给[四个终结结果](#s-19-免认人的两条路由注册登录)；限定调用点的静态检查覆盖入口层（[SC-1](../verification.md#静态检查义务)） | 「某个名字上挂着一条已过期记录、它的 `AccountId` 是这个」开放给任何人 |
 | **OG S-53 只由清除链调用**（[`capability.organization-governance/v1#S-42`](../../../capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证) 第 4 行；[`composition.account-registration/v1#S-25`](../../account-registration/v1/contract.md#s-25-装配给的保证-vs-协议须给的保证) 第 7 行） | 装配 | **结构上兑现**：不投影 [OG S-53](../../../capabilities/organization-governance/v1/contract.md#s-53-清除未激活账号的个人组织)，入口层不引用清除个人组织那一面（[SC-1](../verification.md#静态检查义务)） | 一条直接删任何账号个人组织的入口 |
 | **成员资格的可见性**（[OG S-42](../../../capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证) 第 5 行） | 装配：写入即被下一次读看到 | **协议给**：中心一侧 δ = 0，入口层不缓存（[S-15](#s-15-δ--0每个请求现读入口不跨请求缓存)） | 被移出的人在缓存窗口里仍被放行 |
@@ -810,10 +810,10 @@
 | **起来即整体**（本契约 [S-34](#s-34-起来即整体停机时在途请求归谁)） | **装配给**：入口层对它消费的每一个面都是必需依赖，任一缺席就不应答（[`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)）；启动中任一步失败即整体失败、不留半个面（[`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)）；运维面与客户端一面同起同停。**前提**：存储或时钟不可用只能表现为返回值上的不可用（[IV S-19](../../../data/identity-values/v1/contract.md#s-19-不可用即明确失败)），不得表现为面缺席——由存储与时钟的提供者兑现（实现映射）；面缺席只在启动、停机、换代三种时候。**又一前提**：本版运行中不换代存储与时钟的提供者（装配保证）——它们一换代，两张面各自重来、先后不定，同起同停与换代后恢复应答都没有保证（[S-34](#s-34-起来即整体停机时在途请求归谁)）；「换代」在本版只指参与方能力的提供者 | **协议给**：中心被拆开之后，入口够不着某个领域时对那条路由答 `unavailable`，**绝不以部分成功或空结果顶替** | 能登录却答不出成员资格、能建组织却记不下邀请的半开中心 |
 | **运维者没有门**（本契约 [S-25](#s-25-运维面只在中心所在的机器上且没有治理路由)） | **装配给**：通道分离、运维面不引用治理能力。进程内**没有**访问边界可依——同一棵上下文树里任何插件都解析得到兄弟插件提供的面（[`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)），可见性隔离也不隔数据（[`isolate-hides-instances-not-data`](../../../../basis/cordis/isolate-hides-instances-not-data.md)）；所以这一条由静态检查守（[SC-2](../verification.md#静态检查义务)） | 不变：运维面仍须与治理能力分开，拆进程不改变这一条 | 运维面引用了一个治理能力，就出现了一扇不经登录状态的门，而且没人看得见 |
 | **中心标识与治理事实同一存储**（本契约 [S-28](#s-28-铸造存放与不变)） | 装配：一个存储 | **协议给**：存储被拆开之后，标识须仍与治理事实的权威副本同在、同备份、同恢复 | 只备份治理事实的那份备份恢复出来是「另一个中心」 |
-| **已提交事实跨 OS 崩溃**——中心标识的首次铸造（[S-28](#s-28-铸造存放与不变)）、撤销后效力不变（[S-31](#s-31-不变量与安全性质)、[S-17](#s-17-路由表封闭每条路由的九件事从哪读)）、停机时「已确认的都在」（[S-34](#s-34-起来即整体停机时在途请求归谁)）在 OS 崩溃或断电后仍成立 | **装配给的边界，本版不承诺**：按 [D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/README.md)，崩溃前最后一段已提交事务可能丢失，那些事实退回到更早的状态（已撤销的又能用、已铸的标识消失而下次首启另铸、已答复的登录状态不在）。进程崩溃（非 OS）不在此列 | **协议给**：无——跨进程后这条仍归每个存储提供者的持久性政策；分布式时须由协调域各自给出耐久边界 | 已撤销的登录状态在崩溃后又能用（与 G-7 同形）；客户端已见过的中心标识在崩溃后消失，全组织据点把它认成另一个中心 |
+| **已提交事实跨 OS 崩溃**——中心标识的首次铸造（[S-28](#s-28-铸造存放与不变)）、撤销后效力不变（[S-31](#s-31-不变量与安全性质)、[S-17](#s-17-路由表封闭每条路由的九件事从哪读)）、停机时「已确认的都在」（[S-34](#s-34-起来即整体停机时在途请求归谁)）在 OS 崩溃或断电后仍成立 | **装配给的边界，本版不承诺**：按 D-027，崩溃前最后一段已提交事务可能丢失，那些事实退回到更早的状态（已撤销的又能用、已铸的标识消失而下次首启另铸、已答复的登录状态不在）。进程崩溃（非 OS）不在此列 | **协议给**：无——跨进程后这条仍归每个存储提供者的持久性政策；分布式时须由协调域各自给出耐久边界 | 已撤销的登录状态在崩溃后又能用（与 G-7 同形）；客户端已见过的中心标识在崩溃后消失，全组织据点把它认成另一个中心 |
 | **那一格立起过就不被重建**（本契约 [S-28](#s-28-铸造存放与不变) 的前提） | **装配给**：启动前的只读核对里判「存储里已有别的治理事实、却没有那一格所在的表」⇒ 启动失败、不重建、不铸造——机制归存储提供者（[storage-sql 的迁移前只读核对](../../../../realization/packages/infra/storage-sql/design.md#迁移前只读核对)），判据归本组合的实现映射，承载装配把判据接进核对 | **协议给**：存储被拆开之后，每一处存放那一格的节点都须有同一道核对，结构的建立不得绕过它 | 恢复不全丢了那一格所在的表，启动时被当成全新存储重建，读到「未铸」，带着已有账号与组织铸出另一个标识——全组织的据点把它认成另一个中心 |
 | **停机时先停收、再等在途、再关闭**（本契约 [S-34](#s-34-起来即整体停机时在途请求归谁)） | **装配给**：三步放在同一个装载效应的收尾里依次执行——不同效应的收尾彼此并发、不保序（[`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)） | 不变 | 先关闭后等待：在途请求被截断，来者收不到答复（事实仍是要么在、要么不在，但不必要地多丢答复） |
-| **运行中钟往回倒 ⇒ 要看时间的答 `unavailable`**（[§6.10](../../../../product/PF-017-governance-center-as-deployable-application/design.md#610-时间不能倒着走)） | **装配给**：时钟的提供者在运行中检出回拨并让时间读面给出「不可用」；本契约按 [S-14](#s-14-失败映射) 把它映射成 `unavailable`。**例外（装配给的边界，协议补不了）**：跨 OS 崩溃或断电，「时钟不后退」不在本契约承诺内——存储的持久性政策可丢最后一段已提交事务，时钟判回拨所依据的记录可能随之丢失（[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/README.md)；[S-32](#s-32-进展性质与前提) 的 P3 例外） | 不变 | 倒退的钟上做出的判定让过期的邀约复活，而每一步都显示成功。跨 OS 崩溃或断电之后这正是可能发生的情形，本版接受（D-027） |
+| **运行中钟往回倒 ⇒ 要看时间的答 `unavailable`**（[§6.10](../../../../product/PF-017-governance-center-as-deployable-application/design.md#610-时间不能倒着走)） | **装配给**：时钟的提供者在运行中检出回拨并让时间读面给出「不可用」；本契约按 [S-14](#s-14-失败映射) 把它映射成 `unavailable`。**例外（装配给的边界，协议补不了）**：跨 OS 崩溃或断电，「时钟不后退」不在本契约承诺内——存储的持久性政策可丢最后一段已提交事务，时钟判回拨所依据的记录可能随之丢失（D-027；[S-32](#s-32-进展性质与前提) 的 P3 例外） | 不变 | 倒退的钟上做出的判定让过期的邀约复活，而每一步都显示成功。跨 OS 崩溃或断电之后这正是可能发生的情形，本版接受（D-027） |
 
 [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) 要求领域语义在分布式演化中不变，
 因此右列不是「以后再说」，而是本契约已经记下的待兑现项；中心自身被拆开时要补的部分登记在 [G-8](#十三已知缺口)。

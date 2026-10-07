@@ -89,7 +89,7 @@
 - **出示物就是 [AI S-45](../../../capabilities/account-identity/v3/contract.md#s-45-登录状态出示物) 的「登录状态出示物」**：[AI S-15](../../../capabilities/account-identity/v3/contract.md#s-15-验证凭据并签发登录状态) 签发一个登录状态时一次性交出的那个不透明字符串，
   按持有者即被认的方式使用（bearer；[PF-001 §4 登录状态](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#登录状态)）：持有它本身就是 [AI S-44](../../../capabilities/account-identity/v3/contract.md#s-44-按出示物换取身份) 校验的那件事。
   **它不是 `LoginStateId`**：`LoginStateId` 是它的不可逆形式，可以被看见（列表里就有，[S-9](#s-9-列表句柄)），拿来当出示物过不了 AI S-44。
-  这是产品负责人把登录态的合法性、鉴权与保存交给业界通行做法之后的形状（[PF-017 INT-011](../../../../product/PF-017-governance-center-as-deployable-application/interviews/2026-09-23-rulings.md#int-011)）。
+  这是产品负责人把登录态的合法性、鉴权与保存交给业界通行做法之后的形状（[PF-017 INT-011](../../../../product/PF-017-governance-center-as-deployable-application/design.md)）。
 - **交换表示就是 AI S-45 的「交换表示」一行，入口层用同一条判、不另立一条**：Unicode 标量值序列（不含孤立的代理码点）、非空、至多 1024 个标量值、首末字符都不属于 [`data.identity-values/v1#S-31`](../../../data/identity-values/v1/contract.md#s-31-不透明标识的交换表示) 列出的空白码点集合；逐码点相等，不做任何规范化。上界 1024 是 AI S-45 的候选值，随它的接受一起定。入口层不解析它、不对它的字母表设任何限制。
 - **恰好一个。**一个请求带了不止一个出示物 ⇒ [S-11](#s-11-认人) 判「无效」。
 - **出示物不是「输入」，是身份。**它在表示层就不合格（不满足上一条的交换表示）时，
@@ -192,7 +192,7 @@
 
 **「输入」指载荷，信封不是输入；信封不合格在认人之前拒绝。**[§6.4 ④](../../../../product/PF-017-governance-center-as-deployable-application/design.md#64-无效与答不出是两个不同的答复)说「要登录状态的事，认出人之后才看输入」，
 那里的「输入」是**那件事本身的输入**，在线上就是 `payload`；`operation` 与表外成员是**信封**的事——不知道要办哪件事，就谈不上「那件事的输入」，
-所以 ①′ 排在认人之前、答 `invalid-input`，与 ④ 不冲突。这一读法是产品负责人 2026-09-23 的裁定（[PF-017 INT-013](../../../../product/PF-017-governance-center-as-deployable-application/interviews/2026-09-23-rulings.md#int-013)：认人之前拒绝）。
+所以 ①′ 排在认人之前、答 `invalid-input`，与 ④ 不冲突。这一读法是产品负责人 2026-09-23 的裁定（[PF-017 INT-013](../../../../product/PF-017-governance-center-as-deployable-application/design.md)：认人之前拒绝）。
 
 ### S-11 认人
 
@@ -250,7 +250,7 @@
 
 **这是本契约按隔离原则给四条读面加的前置**，依据是 [PF-001 §6.4 隔离](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)：
 没有明确所有权或成员资格依据时，跨租户访问默认拒绝。一个组织的类型、它的上级链、别人在它里面的成员资格效力，都不向与那个组织无关的人开放。
-产品负责人 2026-09-23 裁定这是隔离原则的自然延伸，由架构与规格设计自定、不需要产品另提需求（[PF-017 INT-014](../../../../product/PF-017-governance-center-as-deployable-application/interviews/2026-09-23-rulings.md#int-014)）。
+产品负责人 2026-09-23 裁定这是隔离原则的自然延伸，由架构与规格设计自定、不需要产品另提需求（[PF-017 INT-014](../../../../product/PF-017-governance-center-as-deployable-application/design.md)）。
 
 | 路由 | 「该组织」是哪个 | 补的那一道 |
 |---|---|---|

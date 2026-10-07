@@ -1,6 +1,6 @@
 # 验证责任、范围与实施门
 
-当前设计探针是小型机制／算法取证，代码放任务tmp，不成为产品实现。正式有限模型由[Session协调候选](../../record/proposals/session-agent-runtime-phase1/contracts/session-runtime/SPEC.md)拥有，未来移动到其成员verification槽。具体运行结果及独立评审留record证据；本页不复制运行日志。
+当前设计探针是小型机制／算法检查，代码归 [verification/probes](verification/probes/README.md)，不成为产品实现。正式有限模型由[Session协调候选](contracts/session-runtime/SPEC.md)拥有，未来移动到其成员verification槽。具体运行结果及独立评审留执行工作树 tmp；本页不复制运行日志。
 
 | 义务 | 唯一责任拥有者 | 本阶段证据／实施后必须补 |
 |---|---|---|
@@ -16,7 +16,7 @@
 负例必须分别移除同提交、发起栅栏和新输入收尾核验，观察真实counterexample；若负例也通过，模型不能作为该性质的证据。
 原模型／工具已采用模型继续按精确资源执行，本模型不替代first-token／ACK custody／官方准入／成本校准等原证明义务。
 
-其中SingleActive只检查active当前指针属于已创建且未终结Run，模型用单指针表达选择，不能证明真实存储不存在第二个未终结Run。ResultsAttributed仅检查已结算调用的原Run属于created，不证明完整多owner／租户／费用归因。AdmissionConserved、NoOldIssue与NoStaleFinish已有去保护反例；前两项较弱检查没有被提升为完整性质证明。实际并发唯一性、完整归因和持续追加进展仍需真实provider故障验收。
+其中SingleActive只检查active当前指针属于已创建且未终结Run，模型用单指针表达选择，不能证明真实存储不存在第二个未终结Run。ResultsAttributed仅检查已结算调用的原Run属于created，不证明完整多owner／租户／费用归因。HalfAccept、OldIssue、StaleFinish 三份配置分别应产生 AdmissionConserved、NoOldIssue、NoStaleFinish 反例，实际结果须执行后判读；前两项较弱检查没有被提升为完整性质证明。实际并发唯一性、完整归因和持续追加进展仍需真实provider故障验收。
 
 ## 实施前与接受前
 
@@ -28,3 +28,12 @@
 
 每个unknownCommit、blocked recovery、pending close、stale projection标记带操作／Session／Run／call/来源版本及阶段；公开诊断不能含消息正文、密钥或凭据。
 指标包括未承接工作数、最旧义务、扫描进度、重复受理、fence拒绝、失联对账、未完成关闭、缓存命中/失效理由与线性工作量；没有来源数值预算不造SLA。
+
+## 执行入口与判读
+
+[有限模型和配置](verification/models/README.md)共同维护。正配置检查有限不变量及 WorkEventuallyClaimed，公平性仅在 StartOrAdopt 上；三份去保护配置分别验证上述负控目标。
+模型、探针资源搬迁不表示本轮已执行或当前产品通过。探针从标准输出返回结果，由调用方写入自己的 tmp。
+
+- `node .meta_harness/design/architecture/session-agent-runtime-phase1/verification/probes/probe_cordis.mjs` 只验证 Cordis 4.0.4 的独立 Context、换代与替身原调用句柄。
+- 两份 Python 探针分别验证简化投影算法和 SQLite 同事务回滚，使用本工作树工具链执行。
+- 正式 Session、真实提供者、持久化接口、SQL 公平调度和网络协议须按上表另行验收。

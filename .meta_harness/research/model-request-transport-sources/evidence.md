@@ -30,23 +30,14 @@ SHA-256 `29b35ae69e9cc7696cfdd0992e157892dfedc857c50762f49d752584358e4163`，
 
 ## E1 D-019 与旧评估
 
-- 消费对象：[比较门现状](research.md#d-019-的比较门在-minimal-runtime-上只闭合了文本工具正常路径的那一半)
-- 来源与精确修订：`.meta_harness/design/record/decisions/model-provider-pi-ai-fork/decision.md`（本 HUB 工作树，2026-09-23 读取）；
-  `/data/qiwei/repos/omne-harness-lite/tmp/model-provider-reuse-pi-ai.md`（2026-09-16 实施调研稿）。
-- 来源立场：项目自己的决定与实施调研。
-- 实际观察：
-  - `decision.md:26-29` 接受的范围只到「以 pi-ai 的 OpenRouter provider、模型目录、协议请求和流/工具解析为传输基线」+「定向 fork」；
-    拒绝整包接入 DSH `llm-pi-ai` 的设置/凭据层；拒绝目录估价冒充实扣。
-  - `decision.md:42-49` 三条保留前提：owner 责任不转移；请求差异（最大生成长度参数名、`store`、推理努力度、`strict`）不默认等价、须按所选模型实测；
-    取证不覆盖全部路由、成本形状、私有 replay、故障与取消。
-  - `decision.md:51-53` 比较门原文：模型/provider/order/禁用回退/要求参数、原始工具参数与结果回传 ID、流终态与无尾随事件、
-    实际 provider 与响应 ID、`usage.cost` 的质量标记、私有 replay、重定向、错误、断流、abort、无隐藏重试。
-  - `decision.md:76` 明写 BYOK、缓存、折扣、断流、abort、迟到、私有 replay 全部未验证。
-  - 旧评估 `:32`、`:34`：真实短请求里 pi-ai 发 `max_completion_tokens=16`、`store=false`，直接 transport 发 `max_tokens=16`；
-    pi-ai 还生成 `reasoning.effort=none` 与 `strict:false`。`:36` 定位 0.85.1 `dist/api/openai-completions.js:369-380`、`:175`、`:1178-1206`，
-    并称上游 issue #8940 当时 open。
-- 支持范围：决定接受了什么、没接受什么；旧评估当日观察到的请求字段差异。**不支持**任何 0.86.1 的结论。
-- 后续核对：D-019 升版或被取代时重读。
+当前传输采用及比较义务由 [pi-ai-transport 设计](../../design/realization/packages/model/pi-ai-transport/design.md) 与[验证方法](../../design/realization/packages/model/pi-ai-transport/verification.md)维护；本研究不授予采用或逐型号认证。
+
+- 传输复用只取 OpenRouter provider、模型目录、协议请求和流/工具解析基线并定向 fork；不整体接入 DSH 设置/凭据层，不用目录估价冒充实际费用。
+- owner 责任不转移。最大生成长度字段、`store`、推理努力度和 `strict` 的请求差异不能默认等价，须按所选模型核对。
+- 比较范围包括模型/provider/order/禁用回退/要求参数、原始工具参数与回传 ID、流终态与无尾随事件、实际 provider 与响应 ID、`usage.cost` 质量、私有 replay、重定向、错误、断流、abort 和无隐藏重试。局部样本不覆盖全部路由、成本形状、BYOK、缓存、折扣、故障、取消或迟到结果。
+- 0.85.1 的有限样本请求差异为 pi-ai 使用 `max_completion_tokens=16`、`store=false`、`reasoning.effort=none`、`strict:false`，直接传输使用 `max_tokens=16`。此观察不支持任何 0.86.1 或当前代码上的等价结论。
+
+本页后续源码观察仅适用于各节明确标出的上游修订；当前采用改变时须由实际拥有者复核相应差异。每次执行与比较过程留本工作树 tmp。
 
 ## E2 pi-ai 0.86.1 源码
 

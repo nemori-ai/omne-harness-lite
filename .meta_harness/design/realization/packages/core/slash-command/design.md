@@ -1,6 +1,6 @@
 # slash-command 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 契约：[`data.slash-command` v2](../../../../spec/data/slash-command/v2/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
 导出名、类型名一律为**已接受的设计**，源码不存在。
@@ -9,7 +9,7 @@
 
 **自建一个 TypeScript 纯模块**，写法与 [content-blocks](../content-blocks/design.md#实现路径与来源) 相同：`ajv` 8.20.0 的 Draft 2020-12 入口、Schema 原样复制并逐字节核对、拒绝值[按契约次序逐条判](../content-blocks/design.md#拒绝值按契约的次序逐条判不从-schema-错误里反推)。
 识别与切分**手写**：契约明写切分规则（S-17 六条），不用 shell 词法库——那些库的引号与转义规则与 S-17 不同。
-**Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
+**Cordis 版本**：采用 4.0.4（D-025）；本模块不依赖 Cordis。
 
 ## 公开面
 
@@ -89,7 +89,7 @@
 | `data.asset-model` v2、`data.content-blocks` v2、`data.identity-values` v1、`data.skill-package` v2 | [asset-model](../asset-model/README.md)、[content-blocks](../content-blocks/README.md)、已实现的 identity-values、[skill-package](../skill-package/README.md) | 随包版本 | 静态 import |
 | 被消费 | 交付面、受理面、注册表、求值、资产治理 | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
 
-包依赖与 catalog 的契约依赖同构（[D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
+包依赖与 catalog 的契约依赖同构（D-060 §八 M41），无环。**没有配置项**。
 
 ## 状态、并发与失败映射
 

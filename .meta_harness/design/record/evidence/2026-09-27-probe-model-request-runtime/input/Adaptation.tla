@@ -1,1 +1,0 @@
-../../../../spec/capabilities/model-request-runtime/v10/formal/Adaptation.tla

@@ -2,7 +2,7 @@
 
 2026-09-29，revision 2，**candidate，未采用、未实施、未验证，新增 bindings 0**。接续 [现有 reader](design.md#上游的流怎样译成到达事件)、[v6 来源政策](v6-credential-path-design.md)、[v12 revision 2](v12-usage-calibration-design.md) 与 [v13](v13-output-history-design.md) 的原精确采用范围，接受状态由各自决定/registry 给出。
 
-依据为 [候选比较与性质](../../../../record/proposals/openrouter-refusal-mapping/README.md)、[固定官方协议调查](../../../../../research/openrouter-refusal-mapping/README.md)。精确语义仍消费 CB3、AR2、SA3、MS6、MR9、RT10；没有新增持久字段、枚举、操作或公共函数参数，故不需要共享 spec 升版。只替换本节点旧 refusal 不承载及空数组忽略规则，其他成员旧规则不被暗改。
+依据为 候选比较与性质、[固定官方协议调查](../../../../../research/openrouter-refusal-mapping/README.md)。精确语义仍消费 CB3、AR2、SA3、MS6、MR9、RT10；没有新增持久字段、枚举、操作或公共函数参数，故不需要共享 spec 升版。只替换本节点旧 refusal 不承载及空数组忽略规则，其他成员旧规则不被暗改。
 
 ## 值域与确定映射
 
@@ -71,3 +71,10 @@ refusal 本身不改变 finish_reason。以下沿现行 MR9 S12/S13 与 MS6 S10�
 | RF-V9 | 受控 TLS 的公共 reader/invoke 与真实 Cordis service 共用生产代码；持久化/重开后下一轮线上 body 包含完整拒答文字；raw 留存失败/过期不可取不阻合法 reply 的文字回放、不伪造 origin；公开包两语言 README 示例/typecheck |
 
 采用前置：主线确认本稿和三候选比较的精确修订；独立 architecture-reviewer 收齐 R1–R8、四表、逆向检查；确认无需共享 spec 升版；按 skill 完成 PF-013 projection 的受审快照交接。本候选不自动取代冻结 design.md，不允许实施者自行将 content_filter 改成功或把未知成本置零。正式模型路径再验属于模型认证，本地受控用例不声称复原此前 Opus 的真实拒答类型/后帧账单。
+
+## 当前采用范围
+
+OpenRouter refusal 仅映射既有 text：缺席/null/空串无内容，非空 string 原样；其他值包括空数组 protocol；同帧 content 后 refusal，沿原首内容/结束/历史资格与来源政策。
+
+技术采用不表示实现或实际验证已完成。验证义务：RF-V1..RF-V9；共享 reader 绑定发布及固定旧 lease；公开包/双语消费者/实际 service 历史回放；旧认证适用范围不冒称新代码认证。
+范围之外：新增来源标记持久字段；新增公共业务操作；错误后额外 drain 取账单；图片准备/T29 生命周期的采用。

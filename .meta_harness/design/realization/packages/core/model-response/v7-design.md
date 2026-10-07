@@ -4,14 +4,14 @@
 
 ## 精确输入、状态与迁移门
 
-同一 baseline 为 `omne-harness-lite-design-2026-09-15`。已核 catalog：`data.model-response/6`（MR6）、`data.messages/5`（MS5）、`data.loop-extension/5`（LC5）由 [D099](../../../../record/decisions/model-input-limit-consumer-contract-adoption/acceptance.json) 接受；`data.model-profile/4`（MP4）由 [D097](../../../../record/decisions/model-profile-v4-limit-contract-adoption/acceptance.json) 接受。字段、Pending 表示、完整失败主体和限制快照的基线均来自这些接受版本。
+同一 baseline 为 `omne-harness-lite-design-2026-09-15`。已核 catalog：`data.model-response/6`（MR6）、`data.messages/5`（MS5）、`data.loop-extension/5`（LC5）由 D099 接受；`data.model-profile/4`（MP4）由 D097 接受。字段、Pending 表示、完整失败主体和限制快照的基线均来自这些接受版本。
 
 | 本次目标 | 当前状态与采用边界 |
 |---|---|
 | `data.model-response/7`（MR7） | 后继候选；沿 MR6 S-1～S-40，只撤除旧格式兼容义务并更新精确依赖；尚未在本节点基线 catalog 登记或接受 |
 | `data.messages/6`（MS6）、`data.model-profile/5`（MP5）、`data.loop-extension/6`（LC6） | 同批后继候选；完整值的结构与此前接受版本相同，精确版本闭包必须一起采用 |
 | MR7/LC6/MS6/MP5 的最终工件 SHA | **null，等待候选发布并登记**；此页不能把正在制作的文件哈希冒充冻结采用 |
-| 产品依据 | 输入限制为 PF-013 rev14/[D096](../../../../record/decisions/model-profile-input-limits-product-adoption/decision.md)；其余需求按 MR6 精确依据继承，不自动升级产品 rev |
+| 产品依据 | 输入限制为 PF-013 rev14/D096；其余需求按 MR6 精确依据继承，不自动升级产品 rev |
 
 用户已要求第一版发布前直接破坏性重构，迁移全部当前消费者、移除兼容过渡。本设计服从该明确要求；但 MR6 S-40 仍承诺旧响应由精确旧版本读取结算，**本页不声称删除旧 codec 同时符合该旧条款**。MR7 等后继须先完成接受并由主线采用本映射。G7-1 只阻断与版本采用有关的交付，不重新打开已定字段和纯值算法。
 
@@ -84,7 +84,7 @@ RawHeaders 保持 string 或有序 string[]，保留空字符串、空数组、�
 
 ## 状态、存储、失败与装卸
 
-这是数据 owner 的纯模块：无 Cordis service/fiber/plugin、运行配置、密钥、计时器、监听、后台任务或跨调用业务状态。全局 Cordis 采用依据仍为 [D025/4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)，此节点不使用其 API，不借用 basis 的生命周期保证。对存储提供者要求 **0 项**，本节点无提交点或跨 owner 同提交声明。
+这是数据 owner 的纯模块：无 Cordis service/fiber/plugin、运行配置、密钥、计时器、监听、后台任务或跨调用业务状态。全局 Cordis 采用依据仍为 D025/4.0.4，此节点不使用其 API，不借用 basis 的生命周期保证。对存储提供者要求 **0 项**，本节点无提交点或跨 owner 同提交声明。
 
 装载贡献和撤除责任均为 **0 项**；固定 Schema 编译产物仅为模块私有纯构件，初始化失败即模块不可用且异常明确暴露，无受管资源需回滚。同步调用自行结束；卸载 runtime 不会由本纯模块取消在途 HTTP。替换版本不能免除当前代际运行 owner 的未结算责任；旧数据拒绝不等于对当前已发送调用假称未发送。
 

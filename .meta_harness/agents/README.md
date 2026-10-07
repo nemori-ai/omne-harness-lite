@@ -2,7 +2,7 @@
 
 本目录是私有工作区资产的唯一编译源。三个独立 skills 与八个角色已迁入；
 承载它的当前 worktree 根 `.agents/`、`.claude/`、`.codex/` 已通过相对软链接暴露生成物，
-旧实体和原局部指引已[退役留档](evaluation/host-entry-retirement/README.md)，不能当作维护源。
+旧实体和原局部指引已退役留档，不能当作维护源。
 
 | 输入 | 输出（相对显式指定的输出根） |
 |---|---|
@@ -10,10 +10,9 @@
 | `roles/<name>/role.md`、`codex.toml`、`claude.yaml`，可选 assembly / adaptation | `.codex/agents/<name>.toml`、`.claude/agents/<name>.md` |
 | [`hooks/hooks.yaml`](hooks/README.md)（宿主无关的收工钩子声明） | `.claude/settings.json`、`.codex/hooks.json` |
 
-[`research/`](research/README.md) 不是编译源，也不产出任何东西：它保存**当初据以立规的观察**——
-上游流程怎么要求候选比较、形式化证明到哪为止、评测怎样进入决策。
-规矩本身归 skills 与各 family 的 README；那里只回答「这条规矩当时看了什么」。
-它与[待设计系统的研究](../research/README.md)按失效事件分家，判据见其入口。
+[`research/`](research/README.md) 保存方法仍依赖的上游事实、适用版本与限制，
+不保存本项目如何讨论、迁移或验证这些方法的过程。规矩本身归 canonical skills 与 roles。
+开发草稿、评审与运行结果放执行工作树 `tmp/<task>/`。
 
 skills 的共享正文与资源放在 `canonical/`。即使两端直接复制，也分别提供显式策略；
 局部宿主差异通过策略声明的 Markdown slots 表达。包内相对引用保持不变，不猜测或
@@ -29,8 +28,8 @@ skills 的共享正文与资源放在 `canonical/`。即使两端直接复制，
 `role.md` 是角色共享语义，`codex.toml`、`claude.yaml` 与可选适配段承载宿主差异；
 不为统一文件名重复建立另一层 strategy。当前角色 renderer 仍验证完整双端配置，
 即使只选择一个输出宿主也一样；这是现有成对源格式的明确限制。
-角色正文、公共契约与配置已迁入 [roles](roles/README.md)；三个 reviewer 按新手册分别
-审能力设计、规格表达和交付依赖。旧运行证据归 [evaluation](evaluation/README.md)，不充当新提示的结果。
+角色正文、公共契约与配置归 [roles](roles/README.md)；评审角色按判断对象加载相应判据。
+[evaluation](evaluation/README.md) 维护评估方法、用例与必要夹具，运行结果归工作树 tmp。
 
 编译遍历 skills 和 roles 的直接子目录；缺少必要文件、重复输出名称、符号链接等均报错，
 不静默跳过坏源。缓存目录不会成为资源。所有输入完成验证之后才写入输出。
@@ -57,7 +56,5 @@ skills 的共享正文与资源放在 `canonical/`。即使两端直接复制，
 | `ubiquitous-language` | 统一语言的取名、分卷、无歧义中英文定义、判形态、查重、冲突处置与出处复核；**只有要新增或修改词条的人加载**，该区约定归 [design/ubiquitous_language](../design/ubiquitous_language/AGENTS.md) |
 | `domain-objects` | 领域对象条目的宿主、身份、生灭与并入怎么判，待裁怎么登记，topic 升 rev 后怎么逐条复核，全量重提怎么做；**只有要在那一区落字的人加载**，该区约定归 [design/domain_objects](../design/domain_objects/AGENTS.md) |
 
-`design-subagents`、`worktree-discipline` 与 `ubiquitous-language` 三个 skill 完整保留原资源，
-原件哈希与迁入调整分别记录在各自 `.design/`；
-外部项目依赖改为明确工作区/执行仓库输入，不暗接父仓库。编译保留草稿状态，
+外部项目依赖必须作为明确工作区/执行仓库输入，不暗接父仓库。编译保留草稿状态，
 生成不代表接受、安装、宿主加载或模型行为已验证。

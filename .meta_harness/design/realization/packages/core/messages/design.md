@@ -1,6 +1,6 @@
 # messages 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 契约：[`data.messages` v2](../../../../spec/data/messages/v2/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
 导出名、类型名一律为**已接受的设计**，源码不存在。
@@ -8,8 +8,8 @@
 ## 实现路径与来源
 
 **自建一个 TypeScript 纯模块**，写法与 [content-blocks](../content-blocks/design.md#实现路径与来源) 相同：`ajv` 8.20.0 的 Draft 2020-12 入口（V-1 要求 `unevaluatedProperties`、`dependentRequired`），Schema 从 spec 原样复制进包并逐字节核对；
-拒绝值[按契约次序逐条判](../content-blocks/design.md#拒绝值按契约的次序逐条判不从-schema-错误里反推)；从 JSON 文本读消息（与运行时记录）一律经 content-blocks 的[严格无损读写](../content-blocks/design.md#严格的无损-json-读写)：契约 [S-37](../../../../spec/data/messages/v2/contract.md#s-37-规范表示) 的读写口径与 `data.content-blocks/v2#S-24` 同一条（[D-060 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）——任何一层对象里重复的成员名 ⇒ `malformed`（读不出即拒，不挑一个再交给第一段判定），数无损、落盘与回读同一个十进制数。
-普通新消息 `MessageId` 与工具侧／新增派生 `BlockId` 沿同一随机生成器；这是生成选择，不是接收词法收窄，pi 的 BlockId／CallId 例外由 [D-070](../../../../record/decisions/core11-integration-coordination/decision.md#生产者铸号)承接（[那里的选择](../content-blocks/design.md#标识的词法沿用-identity-values-的生成器)）。**Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
+拒绝值[按契约次序逐条判](../content-blocks/design.md#拒绝值按契约的次序逐条判不从-schema-错误里反推)；从 JSON 文本读消息（与运行时记录）一律经 content-blocks 的[严格无损读写](../content-blocks/design.md#严格的无损-json-读写)：契约 [S-37](../../../../spec/data/messages/v2/contract.md#s-37-规范表示) 的读写口径与 `data.content-blocks/v2#S-24` 同一条（D-060 §八 M36）——任何一层对象里重复的成员名 ⇒ `malformed`（读不出即拒，不挑一个再交给第一段判定），数无损、落盘与回读同一个十进制数。
+普通新消息 `MessageId` 与工具侧／新增派生 `BlockId` 沿同一随机生成器；这是生成选择，不是接收词法收窄，pi 的 BlockId／CallId 例外由 D-070承接（[那里的选择](../content-blocks/design.md#标识的词法沿用-identity-values-的生成器)）。**Cordis 版本**：采用 4.0.4（D-025）；本模块不依赖 Cordis。
 
 ## 公开面
 
@@ -73,7 +73,7 @@
 | `data.identity-values`、`data.offer-expiry` v1 | 已实现的 core 包 | 同上 | 同上 |
 | 被消费 | model-response、loop-extension、connector、两个运行时、拓展件派发、模态投影、写日志的一方 | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
 
-包依赖与 catalog 的契约依赖同构（[D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
+包依赖与 catalog 的契约依赖同构（D-060 §八 M41），无环。**没有配置项**。
 
 ## 状态、并发与失败映射
 
@@ -98,7 +98,7 @@
 
 契约的已知缺口（G-1、G-2、G-5～G-7、G-11）不重抄。本节点自己的缺口：
 
-- **MSG-1 `MessageId` 的铸号方**：词法候选已给；铸号与会话内唯一归写入方。**接口已定、真承接者未到**：[`capability.session-log/v1`](../../../../spec/capabilities/session-log/v2/contract.md) [S-3](../../../../spec/capabilities/session-log/v2/contract.md#s-3-本契约明确不承诺什么) 写明日志不铸 `MessageId`，写入方把它拼进判重键、由 [S-8](../../../../spec/capabilities/session-log/v2/contract.md#s-8-判重键) 按日志的耐久内容守「至多一条」；完整的会话日志契约与真提供者归 loop 与会话那一程（该契约 [G-1](../../../../spec/capabilities/session-log/v2/contract.md#十已知缺口)，即 [D-060 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 的 C-1）。owner 主线。
+- **MSG-1 `MessageId` 的铸号方**：词法候选已给；铸号与会话内唯一归写入方。**接口已定、真承接者未到**：[`capability.session-log/v1`](../../../../spec/capabilities/session-log/v2/contract.md) [S-3](../../../../spec/capabilities/session-log/v2/contract.md#s-3-本契约明确不承诺什么) 写明日志不铸 `MessageId`，写入方把它拼进判重键、由 [S-8](../../../../spec/capabilities/session-log/v2/contract.md#s-8-判重键) 按日志的耐久内容守「至多一条」；完整的会话日志契约与真提供者归 loop 与会话那一程（该契约 [G-1](../../../../spec/capabilities/session-log/v2/contract.md#十已知缺口)，即 D-060 §八 M43 的 C-1）。owner 主线。
 - **MSG-2 名单判定的两项输入无家**：S-29 ⑤ 要卡片 owner 的答复（契约 G-5）、⑥ 要「最近一次模型请求落在日志哪一处」（契约 G-2：条目壳）。条目壳的最小成员与日志位置已由 `capability.session-log/v1` [S-6](../../../../spec/capabilities/session-log/v2/contract.md#s-6-条目与它的壳)、[S-7](../../../../spec/capabilities/session-log/v2/contract.md#s-7-日志位置与尾位置) 定（接口已定），壳的其余字段该契约本版不收（[S-2](../../../../spec/capabilities/session-log/v2/contract.md#s-2-本契约不拥有什么)，与本契约 G-2 同一件事），真承接者未到。本模块只能收这两样作参数、缺则「判不了」。受阻：PF-010 的压缩一侧（无契约）。owner：主线（下一程）。
 
 ## 共享Schema技术依赖
@@ -107,7 +107,7 @@
 
 ## D-068：当前3的精确投影
 
-本节点设计采用 `data.messages · v3`（[规范](../../../../spec/data/messages/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 [D-068](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md) 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
+本节点设计采用 `data.messages · v3`（[规范](../../../../spec/data/messages/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 D-068 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
 
 六data默认schema为3并各公开`./schema/v2`原2完整字节/$id；AR/CA/MP/Skill/MCP/Slash仍2，固定Schema图显式取旧资源。SA/AE没有自有Schema，不造空文件或空集通过。Connector只保留被AM规范引用的冻结资源，真实提供者纵线延期。
 

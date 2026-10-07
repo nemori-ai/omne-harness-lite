@@ -124,7 +124,7 @@ class Reconciler:
             status = re.search(r"^status:\s*(\S+)\s*$", match.group(0), re.M)
             if status and status.group(1) == "draft":
                 self.drafts.add(topic)
-            for name, probe in (("design.md", self._header_rev), ("changelog.md", self._changelog_rev)):
+            for name, probe in (("design.md", self._header_rev),):
                 target = readme.parent / name
                 if target.is_file():
                     stated = probe(target.read_text(encoding="utf-8").splitlines())
@@ -153,22 +153,6 @@ class Reconciler:
             match = re.search(r"\brev\s*(\d+)", line)
             if match:
                 return int(match.group(1))
-        return None
-
-    @staticmethod
-    def _changelog_rev(lines: list[str]) -> int | None:
-        for index, line in enumerate(lines):
-            if not line.startswith("## "):
-                continue
-            match = re.search(r"\brev\s*(\d+)", line)
-            if match:
-                return int(match.group(1))
-            if "当前修订" in line:
-                for follow in lines[index + 1:index + 8]:
-                    match = re.search(r"\brev\s*(\d+)", follow)
-                    if match:
-                        return int(match.group(1))
-                return None
         return None
 
     def _load_terms(self) -> None:

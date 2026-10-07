@@ -27,7 +27,7 @@
 | `tenancy/account-registration-sequential`                                                             | `composition.account-registration` v1 的 `registration` 服务面                                                                                                                                                                    | 实现完整                                                                                                                                          |
 | `tenancy/governance-center-entry-node`                                                          | `composition.governance-center-entry` v1 的入口层，落在传输绑定 `…-https-json` v1 上：插件 `governance-center-entry`（TLS 客户端一面、判定次序、27 条路由）与 `governance-center-ops`（本机套接字完整体检）、迁移片段、迁移前核对 | 实现完整；包内常量见包 [README](tenancy/governance-center-entry-node/README.md)                                                                        |
 
-`infra` 组名与 `apps/tenancy-host` 节点名已由产品负责人拍板（[D-027](../.meta_harness/design/record/decisions/infrastructure-names-and-sqlite-durability/README.md)，2026-09-23）。
+`infra` 组名与 `apps/tenancy-host` 节点名已由产品负责人拍板（D-027，2026-09-23）。
 各包的分层状态与遗留见各自的 realization 节点 README；全部成员的测试记在运行 `2026-09-23-tests-tenancy-leg-2`。
 
 ## 硬约束
@@ -41,7 +41,7 @@
 
 2026-09-20 这里曾回退到空骨架：此前一批上游 fork 源码与「目标设计」文档随旧设计链退役，
 原件在 Git 历史（`git log --oneline -- packages/session/session`）。2026-09-22 起按
-[D-023](../.meta_harness/design/record/decisions/tenant-domain-design-acceptance/README.md)
+D-023
 接受的租户领域规格重新建包。
 
 N4 公共形状与纯计算分别归 [core/organization-governance](core/organization-governance/SPEC.md) 和 [core/model-request-runtime](core/model-request-runtime/SPEC.md)。SQL 治理和 local 模型提供者的现行范围由模块旁 SPEC 明确。

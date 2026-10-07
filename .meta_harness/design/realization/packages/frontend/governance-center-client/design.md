@@ -4,7 +4,7 @@
 
 ## 实现路径与候选
 
-已有项目 Node24/TypeScript 工具链下，比较：A 使用 `node:https` 的 HTTP/1.1 成帧，加显式 TLS 核验/有界收集/精确结果解析；B `node:tls` 上自行维护全部 HTTP 状态行/头/长度解析；C fetch/Undici 加自有 dispatcher。A 复用成熟解析器，现有隔离探针覆盖其关键行为；B 多一套安全敏感成帧实现；C 对握手后才发送、SPKI替代、重定向及隐式行为仍需更深适配。[D-038](../../../../record/decisions/governance-health-client-adoption/README.md)在独立节点评审后接受 A，不假定探针接受了选型。
+已有项目 Node24/TypeScript 工具链下，比较：A 使用 `node:https` 的 HTTP/1.1 成帧，加显式 TLS 核验/有界收集/精确结果解析；B `node:tls` 上自行维护全部 HTTP 状态行/头/长度解析；C fetch/Undici 加自有 dispatcher。A 复用成熟解析器，现有隔离探针覆盖其关键行为；B 多一套安全敏感成帧实现；C 对握手后才发送、SPKI替代、重定向及隐式行为仍需更深适配。D-038在独立节点评审后接受 A，不假定探针接受了选型。
 
 不需要长驻插件实例或新服务维度：这是一次调用自己取得并关闭连接的协议消费函数，没有共享状态/后台循环。调用者若处于 Cordis effect 中，向操作传入该 effect 拥有的 AbortSignal 并等待操作收场；本模块不自行建立 root Context、fiber、Agent 或后台进程。
 

@@ -1,2 +1,0 @@
-export declare function generateOpaqueIdentifier(): string;
-//# sourceMappingURL=identifier.d.ts.map

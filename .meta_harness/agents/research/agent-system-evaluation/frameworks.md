@@ -50,17 +50,12 @@ Session 格式变化后出现打开大会话的明显性能退化，促成了专
 AI 评测矩阵、重复比较报告和统一质量采用协议。搜索中出现的社区 `dsh-eval`
 不能作为 DeepSeek 官方已实现的证据。
 
-### 本地调用补充
+### 模拟机制与真实模型评分的区别
 
-已在仓库外安装 `deepseek-harness-sdk` 与匹配原生运行时 `0.1.5rc1`，实际执行
-官方 `sdk-default`、`sdk-minimal`、`sdk-custom`，三项均通过。它们覆盖完整轮次、
-持续 shell 状态、同一 session 多轮调用，以及日志和快照检查；模型响应由官方
-本机模拟服务提供。版本、调用方式、结果和未覆盖范围见[执行记录](dsh-invocation.md)。
-
-进一步核对的官方 `sdk-live` 通过两轮工具任务与中途随机改写文件检验模型是否
-重新读取真实状态；评分检查字节结果，不只检查完成声明。该场景本次未执行，
-不能把上面三个无密钥 smoke 当成真实模型质量成绩。
-[真实模型入口及验证](https://github.com/deepseek-ai/deepseek-harness/blob/c291e7961a515f6d7af9304e7fd1d257929aef26/scripts/smoke-python-runtime.py#L868)
+固定上游的 `sdk-default`、`sdk-minimal`、`sdk-custom` 以官方 `MockModel` 提供模型响应，
+覆盖 SDK、工具与会话机制；这类断言不能衡量真实模型推理质量。
+`sdk-live` 在两轮工具任务之间随机改写文件，要求模型重新读取真实状态，按字节结果评分，
+而不是接受完成声明。[官方场景与评分](https://github.com/deepseek-ai/deepseek-harness/blob/c291e7961a515f6d7af9304e7fd1d257929aef26/scripts/smoke-python-runtime.py#L868)
 
 ## Pi
 

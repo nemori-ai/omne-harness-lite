@@ -62,7 +62,7 @@ probe 断言什么。
 - 给不出会失败的 probe 时，条目登记为待核对主张（`probe: null` 并在正文写明缺口），
   **它不能作为设计依据**；不要用「读过源码」代替可执行证据。
 - 上游的应用策略、推荐用法、示例风格不进这里。上游约定不自动成为本项目约定；
-  本项目采用了什么归 [record/decisions/](../record/decisions/README.md)。
+  本项目当前采用范围和必要理由归实际拥有者；讨论与运行结果归工作树 tmp。
 
 条目可以从 [research/](../../research/README.md#升格为-basis-条目) 的结论升格而来：那边拥有送出的时机，
 本页拥有能不能进。升格条目的 `version` 与 `checked` 继承原结论最近一次核对的对象版本与日期，
@@ -93,7 +93,7 @@ probe 断言什么。
 治理中心入口层的机制读数依赖它们：门只在必需服务全部 `ACTIVE` 时才开、配置错误即启动失败、「没有门」不能靠内核）。
 
 六条的 `probe` 均已落在 `packages/core/kernel-basis/tests/basis/`，对采用版本 4.0.4 通过
-（采用版本见 [D-025](../record/decisions/cordis-adoption-version/decision.md)）；
+（采用版本见 D-025）；
 `async-control-not-bail` 的读数在取证时按 4.0.4 源码改正过（Promise 被当作 bail 值，而非被忽略）。
 同目录下另有两条**不对应 basis 条目**的 probe（`provide-is-effect-managed`、`fiber-state-readable`），
 核对的是 realization 节点依赖的共用主张；要不要升格为条目，按本页准入另议。手册正文与历次走查中的其余机制主张尚未迁入。

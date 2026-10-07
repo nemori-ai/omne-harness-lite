@@ -77,25 +77,3 @@ Describe them as open questions here, and adjust the description once you make a
 并指出：写清楚之后评审者不会反复问 "what about [已排除的备选]"；`reviewers and other stakeholders may not have that context` 关于设计决定的上下文。
 
 另有一个独立小节 `Stakeholder Feedback / Opposition`——**观察**：把"谁反对、反对什么"从 alternatives 里分出来单列，是本轮唯一这么做的模板。
-
-## 4. 与本项目骨架的对照（推断）
-
-| 骨架条 | TAG 的对应 | 判断 |
-|---|---|---|
-| 提案 = 一组决定点，每个决定点是一条轴 | `from high level architectural decisions down to alternative naming choices`（粒度覆盖，但不组织成"决定点"） | 半个先例 |
-| 每个候选写：形状、成本、失败模式 | `[描述]` + `Pros` + `Cons` + `Reason for rejection` | **最强先例**，缺"成本"与"证据义务"两格 |
-| 否决方公平陈述 | `Pros` 是强制格，必须写出备选的优点 | **有先例**（与 Swift 的 "fair but not neutral" 同向，且更结构化） |
-| 决定 = 选择 + 否决理由 + 复议条件 | `Reason for rejection` = 否决理由；未决候选作为 open question 留在原地 | 有先例（复议条件仍缺） |
-| ≥ 3 真候选 / 基线候选 | 无下限、无基线 | 无先例 |
-| 评审清单 | 无（但 TAG 另有 security/privacy questionnaire，本轮未读） | — |
-
-- **值得引入**：`### 候选` + `#### Pros/Cons/Reason for rejection` 这套嵌套结构。它把「每个候选是否被公平陈述、是否给了否决理由」变成**纯结构问题**：候选数 = `###` 数；每个候选是否完整 = 三个 `####` 是否齐。这是本轮找到的最可机器核对的备选方案形状。
-- **值得引入**：把"未决的候选"表达为留在原地的 open question，而不是删掉或假装已决——正对本项目"初审可有未知"的现状。
-- **可考虑**：`Stakeholder Feedback / Opposition` 独立成节。本项目当前把评审意见与裁决放在提案 README 的裁决表里（见[工具执行提案](../../../proposals/tool-execution/README.md)），与之同向。
-
-## 5. 局限与未覆盖
-
-- `index.bs`（指南正文）只经页面抓取定向提取，**未逐行读**；`template.md` 已逐行读。
-- 未统计实际 W3C/WHATWG explainer 对该模板的兑现率——因此"结构强 ⇒ 实际被填满"这一推断**没有证据支持**，不能当结论。
-- 未读 TAG 的 security/privacy self-review questionnaire（仓库 `w3ctag/w3ctag.github.io/security-questionnaire`），它可能是"评审清单"问题的更好来源。
-- 未覆盖 TAG design review 的实际决定记录形态（TAG 的 review 结论写在 `w3ctag/design-reviews` 的 issue 里，本轮未读）。

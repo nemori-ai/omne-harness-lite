@@ -72,7 +72,7 @@
 | `{"path": ".hidden/..notes"}` | 通过 | — | [S-9](contract.md#s-9-资源条目与包内路径)：以点开头的段不是 `.` 或 `..` 段 |
 | `{"path": "skill.md"}` | 通过 | — | [S-9](contract.md#s-9-资源条目与包内路径)：逐码点比较，它不是 `SKILL.md`（大小写不敏感文件系统上的撞名归读入方，[契约第十节](contract.md#十明确不承诺)） |
 | `{"path": "scripts/extract.py", "executable": true}` | 拒绝 | `malformed`（M3） | [S-10](contract.md#s-10-资源只被读取不因读取而运行) 第 3 条：条目上没有执行位，**不被丢掉这一位后收下** |
-| `{"path": "scripts/extract.py", "executable": false}` | 拒绝 | `malformed`（M3） | 同上：写 `false` 也不行——原来那个恒为 `false` 的成员已删（[D-060 §S18 S18-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的)） |
+| `{"path": "scripts/extract.py", "executable": false}` | 拒绝 | `malformed`（M3） | 同上：写 `false` 也不行——原来那个恒为 `false` 的成员已删（D-060 §S18 S18-d） |
 | `{"path": "a.md", "mediaType": "Text/Markdown"}` | 拒绝 | `malformed`（M9） | `data.content-blocks/v2#S-7`：媒体类型要小写 |
 | `{"path": "a.md", "sha256": "9f86"}` | 拒绝 | `malformed`（M3） | [S-9](contract.md#s-9-资源条目与包内路径)：本版表示里没有摘要（[G-6](contract.md#九已知缺口)） |
 | `{"path": "../other-skill/SKILL.md"}` | 拒绝 | `resource_escapes` | [S-9](contract.md#s-9-资源条目与包内路径) 第 2 条：`..` 段 |
@@ -348,7 +348,7 @@
 
 ## 11. 起草者逐条自核
 
-本节以下三项是从源 v2 保留的历史说明，仅描述原输入与当时检查，不是 v3 的执行结果。本版新增第 6.1 节及第 10 节三行的实际验证尚未开始；本次静态检查与待交接证据义务见 [candidate 起草报告](../../../../record/decisions/skill-yaml-key-resolution/draft-report.md)。
+本节以下三项是从源 v2 保留的历史说明，仅描述原输入与当时检查，不是 v3 的执行结果。本版新增第 6.1 节及第 10 节三行的实际验证尚未开始；本次静态检查与待交接证据义务见 candidate 起草报告。
 
 - **Schema 列跑过本地自检**（整批对齐 2026-09-24 一次；修复波 1b 把执行环境要求改为定义记录的固定成员后重跑一次，结果都在[验证入口](../verification.md#结果与反例)）；「拒绝值」一列仍是手核，**手核不是证据**。
 - 手核时特别看过的几处：`SkillName` 与 `ResourceEntry.path` 两条 pattern 的首尾（`(?![\s\S])` 收尾、`..` 段在中间与末尾都被挡、以点开头的普通段不被挡）；

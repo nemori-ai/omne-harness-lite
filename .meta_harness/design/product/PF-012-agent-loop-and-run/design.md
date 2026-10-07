@@ -1,6 +1,6 @@
 # PF-012：Agent Loop 与 Run
 
-**rev 24**，2026-10-06 · [变更历史](changelog.md)
+**rev 24**，2026-10-06
 
 ---
 
@@ -472,7 +472,7 @@
 
 > **它就是 [SYS-COMPOSITION 说的「活体」](../../foundation/definition-and-runtime-composition/requirements.md#sys-compositionc1三段结构)。**
 > 那一段描述的「计算资源、占用即消耗、可回收可重建、因资源治理而生灭」，
-> **逐条说的都是协程**——[命名与归属的裁决见 UL-D-3](../../ubiquitous_language/decisions.md#ul-d-3--runtime-与活体--2026-09-20)。
+> **逐条说的都是协程**——[现行词义](../../ubiquitous_language/index.md)。
 
 **三类 runtime 的生命周期归属都是会话，Run 承担所关联工作的逻辑治理。**Agent runtime 在存活期间持有 Model runtime 与 Tool runtime 的[运行时句柄](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-runtime-handle--运行时句柄--runtime-handle)，作为发起者、等待者与结果消费者，不作为它们的生命周期宿主。它释放或销毁时句柄释放，已发起执行仍独立运行；取消传播与重新取得句柄见 [§6.13](#613-取消跟着宿主走)。
 
@@ -722,7 +722,7 @@
 压了几轮、丢了多少，都得靠它自己往外说。
 
 **压缩的输入区间两头都有界，两个界都归 [PF-010](../PF-010-context-management-and-assembly/design.md#由此压缩的输入区间是一个左右都有界的区间)**——
-**本 topic 不复述**，[否则同一个事实就有了两个说法](../PF-010-context-management-and-assembly/decisions.md#四已知的来源问题)。
+**本 topic 不复述**，[否则同一个事实就有了两个说法](../PF-010-context-management-and-assembly/design.md)。
 
 #### 压完还超：这一层腾不出空间了
 
@@ -915,7 +915,7 @@ T2′ 要求「队列也空」，正是为了把这两种情形分开。
 | **[装配清单](../PF-004-agent-definition-and-assembly/design.md#装配清单)** | **它是数据**，不占用计算资源、不会停 | 不适用。**下一次尝试直接复用**，除非[它已经失效](../PF-004-agent-definition-and-assembly/design.md#67-装配清单的生与失效) |
 
 > **这两样单独列出来，是因为它们最容易被误当成「第四个、第五个运行时」**——
-> 而[叫 runtime 的东西必须是一个协程](../../ubiquitous_language/decisions.md#ul-d-3--runtime-与活体--2026-09-20)。
+> 而[现行词义](../../ubiquitous_language/index.md)。
 > **它们停机之后没有处置可言，因为它们根本不会停。**
 
 > **三者各自的细则归各自的 topic，本节只并排摆出来。**
@@ -2336,3 +2336,11 @@ Run 外模型调用的归属由 PF-015 §6.21 明确；压缩后仍装不下的�
 ---
 
 返回[本 topic 入口](README.md)。
+
+## 当前适用边界与待接续事项
+
+- 每次尝试重算后，哪些能力当前调得通可能不同；能力不可用不使已经合法纳入会话的身份消失，原位由替换件给出不可用原因。不能把可用性变化读成每次移除动作空间条目。
+
+## 当前限定采用范围
+
+持久受理／承接、Trigger 四分支及尝试事实与模型消息分开的限定规则有效。尝试开始不自动形成 SystemReminderMessage，真实业务提醒、异常中断原因、归因和尝试栅栏保留。其余产品修订、技术契约、故事卡和实现没有因此整体接受。

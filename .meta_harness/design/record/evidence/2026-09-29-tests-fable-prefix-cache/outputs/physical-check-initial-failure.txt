@@ -1,1 +1,0 @@
-Initial post-run evidence assembly failed AssertionError because the verifier incorrectly compared response.reply (a full message) to message.id (a string). No product or receipt was changed. The corrected verifier compares the full reply value to the physical message value and checks response identity, usage and cost against each receipt; all three original batches passed.
