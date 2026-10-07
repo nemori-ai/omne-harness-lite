@@ -103,6 +103,7 @@ export function createEnvironmentRegistry(deps: {
         retire: input.retire.bind(input),
       })
       let retirement: Promise<void> | undefined
+      let providerDrained = false
       const entry: Entry = {
         provider,
         active: true,
@@ -114,11 +115,16 @@ export function createEnvironmentRegistry(deps: {
           if (entries.get(provider.name) === entry) entries.delete(provider.name)
           retiring.add(entry)
           const task = (async () => {
-            await Promise.allSettled([...entry.jobs])
+            // Withdraw the original permission writer before waiting for admitted callbacks.
+            const jobs = [...entry.jobs]
+            if (!providerDrained) {
+              const first = await provider.retire()
+              if (first.kind !== 'drained')
+                throw new Error('environment cleanup pending; original provider retained')
+              providerDrained = true
+            }
+            await Promise.allSettled(jobs)
             await releaseProvisional(entry)
-            const result = await provider.retire()
-            if (result.kind !== 'drained')
-              throw new Error('environment cleanup pending; original provider retained')
             retiring.delete(entry)
           })()
           retirement = task

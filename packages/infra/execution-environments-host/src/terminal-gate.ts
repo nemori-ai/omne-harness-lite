@@ -5,6 +5,7 @@ import { createInterface } from 'node:readline'
 import { terminalScript } from './terminal-script.ts'
 import { hostTerminalDirectory } from './terminal-directory.ts'
 import { recordHostGateEntry } from './native-evidence.ts'
+import { readHostProcessStat } from './process-observation.ts'
 
 interface Command {
   readonly kind: 'command'
@@ -91,15 +92,10 @@ async function finish(state: CommandState) {
   send({ kind: 'completed', id: state.message.id, code: state.marker.code, cwd: state.marker.cwd })
 }
 async function executing(pid: number): Promise<boolean> {
-  try {
-    const stat = await readFile(`/proc/${pid}/stat`, 'utf8')
-    return stat.slice(stat.lastIndexOf(')') + 2).split(' ')[0] !== 'Z'
-  } catch (error) {
-    if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')
-      return false
-    throw error
-  }
+  const stat = await readHostProcessStat(pid)
+  return stat !== undefined && stat.slice(stat.lastIndexOf(')') + 2).split(' ')[0] !== 'Z'
 }
+
 async function createStream(state: CommandState, stream: 'stdout' | 'stderr', path: string) {
   let connected = false
   const server = createServer(socket => {

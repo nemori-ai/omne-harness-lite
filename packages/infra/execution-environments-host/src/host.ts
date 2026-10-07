@@ -104,26 +104,27 @@ export function createHostEnvironment(options: {
       return Object.fromEntries(
         Object.entries(port).map(([key, operation]) => [
           key,
-          async (...args: unknown[]) => {
-            const captured =
-              kind === 'command'
-                ? captureCommandArguments(key as keyof CommandFacility, args)
-                : captureFileArguments(key as keyof FileFacility, args)
-            if (!captured) return { kind: 'rejected', reason: 'invalidInput' }
-            if (!open()) return { kind: 'rejected', reason: 'closed' }
-            const checked = await authorize(
-              request.authorization,
-              request.scope,
-              'environment.acquire',
-            )
-            if (checked.kind === 'rejected')
-              return {
-                kind: 'rejected',
-                reason: checked.reason === 'notAuthorized' ? 'notAuthorized' : 'unavailable',
-              }
-            if (!open()) return { kind: 'rejected', reason: 'closed' }
-            return Reflect.apply(operation, port, captured)
-          },
+          (...args: unknown[]) =>
+            owner.retainOperation(request.call.execution, async () => {
+              const captured =
+                kind === 'command'
+                  ? captureCommandArguments(key as keyof CommandFacility, args)
+                  : captureFileArguments(key as keyof FileFacility, args)
+              if (!captured) return { kind: 'rejected', reason: 'invalidInput' }
+              if (!open()) return { kind: 'rejected', reason: 'closed' }
+              const checked = await authorize(
+                request.authorization,
+                request.scope,
+                'environment.acquire',
+              )
+              if (checked.kind === 'rejected')
+                return {
+                  kind: 'rejected',
+                  reason: checked.reason === 'notAuthorized' ? 'notAuthorized' : 'unavailable',
+                }
+              if (!open()) return { kind: 'rejected', reason: 'closed' }
+              return Reflect.apply(operation, port, captured)
+            }),
         ]),
       ) as T
     }
@@ -133,7 +134,7 @@ export function createHostEnvironment(options: {
       invalidation.resolve({ reason: 'ownerStopped' })
       request.resources.closed.removeEventListener('abort', invalidated)
       const pending = await owner.release(request)
-      if (pending.length) return { kind: 'pending', resources: pending }
+      if (pending.pending) return { kind: 'pending', resources: pending.resources }
       leases.delete(release)
       return { kind: 'released' }
     }

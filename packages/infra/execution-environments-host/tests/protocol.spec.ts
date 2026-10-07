@@ -374,7 +374,7 @@ test('describe never exposes a foreign tenant or session binding, even if the pr
   }
 })
 
-test('provider retirement waits through provisional lease adoption and original release', async () => {
+test('provider withdrawal closes permission before waiting for provisional adoption and original release', async () => {
   const h = fixture(),
     entered = Promise.withResolvers<void>(),
     resume = Promise.withResolvers<void>()
@@ -392,12 +392,12 @@ test('provider retirement waits through provisional lease adoption and original 
     const acquiring = h.registry.operations.acquire(h.request())
     await entered.promise
     const removing = h.removeProvider()
-    expect(h.provider.retire).not.toHaveBeenCalled()
+    expect(h.provider.retire).toHaveBeenCalledOnce()
     resume.resolve()
     expect(await acquiring).toMatchObject({ reason: 'providerUnavailable' })
     await removing
     expect(h.release).toHaveBeenCalledTimes(1)
-    expect(vi.mocked(h.release).mock.invocationCallOrder[0]).toBeLessThan(
+    expect(vi.mocked(h.release).mock.invocationCallOrder[0]).toBeGreaterThan(
       vi.mocked(h.provider.retire).mock.invocationCallOrder[0] ?? 0,
     )
   } finally {

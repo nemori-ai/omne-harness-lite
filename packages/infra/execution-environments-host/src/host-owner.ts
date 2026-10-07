@@ -40,6 +40,7 @@ export function createHostOwner(input: {
   const writes = new Map<string, Promise<unknown>>()
   const stopping = new Map<string, Promise<ResourceRecoveryResult>>()
   const fileWorks = new Set<Promise<unknown>>()
+  const operations = new Map<Promise<unknown>, string>()
   let active = true
   const uncreated = new Map<string, NativeRecord>()
   let fileTail: Promise<unknown> = Promise.resolve()
@@ -68,6 +69,20 @@ export function createHostOwner(input: {
     retainFileWork(work)
     fileTail = work.catch(() => undefined)
     return work
+  }
+  function retainOperation<T>(call: string, operation: () => Promise<T>): Promise<T> {
+    const work = Promise.resolve().then(operation)
+    operations.set(work, call)
+    void work.finally(() => operations.delete(work)).catch(() => undefined)
+    return work
+  }
+  function pendingCall(call: string) {
+    return [...operations.values()].includes(call)
+  }
+  async function permit(request: HostAcquireRequest, key: string) {
+    if (!active || request.resources.closed.aborted) return false
+    const granted = await request.resources.permit(key)
+    return granted === 'confirmed' && active && !request.resources.closed.aborted
   }
   async function original(
     request: HostAcquireRequest,
@@ -99,6 +114,10 @@ export function createHostOwner(input: {
     uncreated.set(key, record)
     await store.create(record)
     uncreated.delete(key)
+    if (!active || request.resources.closed.aborted) {
+      await stopped(record, request.resources, true)
+      return undefined
+    }
     return record
   }
   async function stopped(record: NativeRecord, lifecycle: ResourceLifecycle, confirmed: boolean) {
@@ -182,7 +201,9 @@ export function createHostOwner(input: {
       stopped: true,
       cleanupPending: true,
     }))
-    return finishHostCleanup(record, store, input.policy)
+    const result = await finishHostCleanup(record, store, input.policy)
+    if (result.status === 'confirmedStopped') writes.delete(record.resource.key)
+    return result
   }
   return {
     store,
@@ -192,9 +213,15 @@ export function createHostOwner(input: {
     writes,
     serializeFiles,
     retainFileWork,
+    retainOperation,
+    permit,
     isActive: () => active,
     hasPendingWork: () =>
-      fileWorks.size > 0 || stopping.size > 0 || writes.size > 0 || uncreated.size > 0,
+      operations.size > 0 ||
+      fileWorks.size > 0 ||
+      stopping.size > 0 ||
+      writes.size > 0 ||
+      uncreated.size > 0,
     async verify() {
       await store.verify()
       await creator
@@ -213,7 +240,7 @@ export function createHostOwner(input: {
         prepared.kind !== 'ready' ||
         !active ||
         request.resources.closed.aborted ||
-        (await request.resources.permit(record.resource.key)) !== 'confirmed'
+        !(await permit(request, record.resource.key))
       ) {
         await stopped(
           record,
@@ -225,12 +252,14 @@ export function createHostOwner(input: {
       if ((await prepared.control.go()) !== 'started')
         return { kind: 'rejected' as const, reason: 'effectUnknown' as const }
       const process = prepared.control.process
-      const result = process.result.then(async outcome => {
-        const confirmed = (await prepared.control.stop('forced')) === 'confirmed'
-        await stopped(record, request.resources, confirmed)
-        if (confirmed) controls.delete(record.resource.key)
-        return outcome
-      })
+      const result = retainFileWork(
+        process.result.then(async outcome => {
+          const confirmed = (await prepared.control.stop('forced')) === 'confirmed'
+          await stopped(record, request.resources, confirmed)
+          if (confirmed) controls.delete(record.resource.key)
+          return outcome
+        }),
+      )
       return {
         kind: 'started' as const,
         process: {
@@ -276,6 +305,16 @@ export function createHostOwner(input: {
           record => record.scope === writeJsonLossless(request.scope),
         ),
       ]
+      if (pendingCall(request.call.execution))
+        return {
+          pending: true,
+          resources: records
+            .filter(
+              record =>
+                (record.resource.reference as { call?: string }).call === request.call.execution,
+            )
+            .map(record => record.resource),
+        }
       for (const record of records) {
         if (
           record.generation !== input.generation ||
@@ -288,10 +327,11 @@ export function createHostOwner(input: {
         if (reference.call !== request.call.execution) continue
         if ((await observeStop(record)).status !== 'confirmedStopped') pending.push(record.resource)
       }
-      return pending
+      return { pending: pending.length > 0, resources: pending }
     },
     async retire() {
       active = false
+      for (const control of controls.values()) control.closePermission()
       const pending: ManagedResource[] = []
       for (const record of [...(await store.list()), ...uncreated.values()]) {
         if (record.generation !== input.generation || (record.stopped && !record.cleanupPending))

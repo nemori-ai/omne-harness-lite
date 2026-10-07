@@ -1,3 +1,4 @@
+import { readHostProcessStat } from './process-observation.ts'
 import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { copyJsonValue, writeJsonLossless } from '@omne-harness-lite/content-blocks'
@@ -132,16 +133,12 @@ function decode(row: Row): NativeRecord {
   return data
 }
 async function startTicks(pid: number): Promise<string | undefined> {
-  try {
-    const stat = await readFile(`/proc/${pid}/stat`, 'utf8')
-    const fields = stat.slice(stat.lastIndexOf(')') + 2).split(' ')
-    return fields[0] === 'Z' ? undefined : fields[19]
-  } catch (error) {
-    if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')
-      return undefined
-    throw error
-  }
+  const stat = await readHostProcessStat(pid)
+  if (stat === undefined) return undefined
+  const fields = stat.slice(stat.lastIndexOf(')') + 2).split(' ')
+  return fields[0] === 'Z' ? undefined : fields[19]
 }
+
 export async function hostCreatorIdentity(): Promise<HostCreator> {
   const ticks = await startTicks(process.pid)
   if (!ticks) throw new Error('Host creator identity unavailable')

@@ -21,3 +21,9 @@ Cleanup requires the original stage device, inode, and birth time. Matching byte
 ## Reconsideration signals
 
 Reconsider this mechanism when a supported platform lacks systemd user scopes, a manager change invalidates entry or stop evidence, or the workload needs stronger external filesystem isolation. Reconsider the single mutation queue only when measured contention warrants another mechanism that preserves the same ownership and failure commitments. A sandbox provider must implement the same public facilities with its own isolation boundary.
+
+## Stage disposal assurance
+
+POSIX unlink operates on a path. It does not compare a requested inode identity atomically. The provider checks the original stage identity and preserves every replacement it observes. Cleanup requires no external rebinding of that stage entry or its resolving parent paths between the final check and unlink. This premise includes accidental external changes. Reserved stage names do not provide OS isolation.
+
+A rename into a quarantine path would add movement and crash-recovery obligations. It would still leave a final pathname race under the same UID. This provider does not add that mechanism or claim atomic identity deletion. Target recognition remains read-only. Target publication retains its separately stated external check window.

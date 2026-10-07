@@ -37,16 +37,25 @@ export function createHostFiles(
     const run = () => operation(() => !expired)
     const work = serialize ? owner.serializeFiles(run) : run()
     owner.writes.set(record.resource.key, work)
-    const settled = work.finally(async () => {
-      await owner.stopped(record, request.resources, true)
-      owner.writes.delete(record.resource.key)
-    })
-    // Expiration limits the caller's wait. Original work and cleanup responsibility remain owned.
+    const settled = owner.retainFileWork(
+      work
+        .catch(() => unknown)
+        .then(async value => {
+          try {
+            if (await owner.stopped(record, request.resources, true))
+              owner.writes.delete(record.resource.key)
+          } catch {
+            // Keep the original completed IO until the same cleanup owner can retry.
+          }
+          return value
+        }),
+    )
+    // Cleanup failure cannot erase an independently confirmed publication receipt.
     const observed = await observeWithin(settled, policy.commandDeadlineMs)
     if (!observed) expired = true
-    void settled.catch(() => undefined) // The original durable record retains failed cleanup for recovery.
     return observed ? observed.value : unknown
   }
+
   async function batch(
     entries: readonly FileBatchEntry[],
     serialize = true,

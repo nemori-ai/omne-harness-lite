@@ -65,7 +65,7 @@ export function createHostTerminals(owner: HostOwner, policy: HostNativePolicy) 
     if (
       prepared.kind !== 'ready' ||
       request.resources.closed.aborted ||
-      (await request.resources.permit(record.resource.key)) !== 'confirmed'
+      !(await owner.permit(request, record.resource.key))
     ) {
       await owner.stopped(
         record,
@@ -96,6 +96,10 @@ export function createHostTerminals(owner: HostOwner, policy: HostNativePolicy) 
     } catch {
       await started.terminal.stop('forced')
       return { kind: 'rejected' as const, reason: 'effectUnknown' as const }
+    }
+    if (!owner.isActive()) {
+      await owner.recover(record.resource)
+      return { kind: 'rejected' as const, reason: 'closed' as const }
     }
     const reference = Object.freeze({ id: randomUUID(), generation: record.generation })
     terminals.set(reference.id, {
@@ -143,11 +147,7 @@ export function createHostTerminals(owner: HostOwner, policy: HostNativePolicy) 
       import('./native-command.ts').HostPreparedProcess
     >,
   ) {
-    return (
-      prepared.kind === 'ready' &&
-      !request.resources.closed.aborted &&
-      (await request.resources.permit(record.resource.key)) === 'confirmed'
-    )
+    return prepared.kind === 'ready' && (await owner.permit(request, record.resource.key))
   }
   async function execute(request: HostAcquireRequest, value: TerminalExecuteRequest) {
     const terminal = lookup(request, value.terminal)
@@ -182,7 +182,7 @@ export function createHostTerminals(owner: HostOwner, policy: HostNativePolicy) 
       return { kind: 'rejected' as const, reason: 'effectUnknown' as const }
     }
     const process = prepared.control.process
-    const result = settleLeg(terminal, record, request, process)
+    const result = owner.retainFileWork(settleLeg(terminal, record, request, process))
     return { kind: 'started' as const, process: { ...process, result } }
   }
   return {
