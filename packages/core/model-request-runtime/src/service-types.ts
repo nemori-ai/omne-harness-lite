@@ -598,6 +598,10 @@ export interface RuntimeRecoveryScope {
 }
 
 export interface RuntimeRecoveryAccess {
+  /** Current caller qualification only. This does not certify stop or acquire a recovery scope. */
+  readonly authorize: (
+    input: ReconcileInput,
+  ) => Promise<{ readonly authorized: true } | ServiceUnavailable>
   readonly enter: (
     input: ReconcileInput,
   ) => Promise<{ readonly scope: RuntimeRecoveryScope } | { readonly unavailable: true }>

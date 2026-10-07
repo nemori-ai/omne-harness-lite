@@ -168,6 +168,8 @@ describe('RT10 thirteen-operation noRun public service gate', () => {
           run: () => ({ unavailable: true }),
         },
         recovery: {
+async authorize() { return { authorized: true as const } },
+
           enter: async () => ({
             scope: {
               binding: { log: selected.input.binding },

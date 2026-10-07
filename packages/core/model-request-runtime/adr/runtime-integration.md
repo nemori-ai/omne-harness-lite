@@ -57,14 +57,14 @@ dispatch、dispatchAgain、readAttempts 的失败消费重载、acknowledgeCall 
 
 跨包宿主端口的纯形状归本包。`ModelRuntimeHostInputs` 只组合以下已存在的语义端口：
 
-| 字段           | 责任与现行形状                                                                        |
-| -------------- | ------------------------------------------------------------------------------------- |
-| `sessions`     | `RuntimeSessionAccess`；每次绑定实际 tenant/Session、日志、档案、当前输入及观察者归属 |
-| `history`      | `CurrentHistoryReaders`；原调用、失败、校准、Run 的同一完整前缀解释                   |
-| `recovery`     | `RuntimeRecoveryAccess`；真实旧写者停止、唯一恢复资格、原调用定位及恢复作用域 close   |
-| `callAccess`   | `CallAccess`；每次使用点的当前读/等待/处分/控制资格                                   |
-| `callPresence` | `CallPresence`；实际执行代际及连续性，notFound 与 unknown 分开                        |
-| `identities`   | `ModelIdentitySource`；实际 call/response/message 身份来源，不替换已有数据身份        |
+| 字段           | 责任与现行形状                                                                                                   |
+| -------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `sessions`     | `RuntimeSessionAccess`；每次绑定实际 tenant/Session、日志、档案、当前输入及观察者归属                            |
+| `history`      | `CurrentHistoryReaders`；原调用、失败、校准、Run 的同一完整前缀解释                                              |
+| `recovery`     | `RuntimeRecoveryAccess`；每次 authorize 核当前主体资格；enter 拥有真实旧写者停止、唯一 scope、原调用定位及 close |
+| `callAccess`   | `CallAccess`；每次使用点的当前读/等待/处分/控制资格                                                              |
+| `callPresence` | `CallPresence`；实际执行代际及连续性，notFound 与 unknown 分开                                                   |
+| `identities`   | `ModelIdentitySource`；实际 call/response/message 身份来源，不替换已有数据身份                                   |
 
 它是受信宿主的集成接缝，不拥有模型发送、费用、结果或 Session 业务状态。宿主桥分别借用原拥有者的端口，不复制其事实或给予统一的授权答案。
 绑定为 `ModelRuntimeHostInputsService`，静态键 `modelRuntimeHostInputs`。`capture()` 无业务输入，同步返回 `{ inputs: ModelRuntimeHostInputs, lease: ModelRuntimeHostLease }`。宿主桥拥有 capture 与借用登记；模型提供者拥有取得的租约引用。租约形状为 `{ generation: object, isCurrent(): boolean, release(): void }`；generation 是宿主桥本次实际资源代际；各被借用来源仍携带自己的原 generation/sourceVersion，不能用桥代际替代日志或执行身份，isCurrent 只判新准入资格，release 幂等地交还这一份借用，不取消执行、不写 ACK，也不声称底层资源已关闭。

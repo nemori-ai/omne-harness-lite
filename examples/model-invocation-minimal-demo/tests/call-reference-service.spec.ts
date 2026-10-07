@@ -1,3 +1,5 @@
+import { LOGINS_SERVICE } from '@omne-harness-lite/account-identity/cordis'
+import type { LoginsService } from '@omne-harness-lite/account-identity'
 import { dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
@@ -12,8 +14,8 @@ import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { DEMO_REFERENCE_SOURCE_VERSION, deriveCreationKey } from '../src/call-references.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'
 import { callDeployment } from './model-request-support.ts'
-import { createLocalTls } from './local-tls.ts'
-import { activateModelFixture, actor, ref } from './support.ts'
+import { createLocalTls, deferred } from './local-tls.ts'
+import { activateModelFixture, actor, ref, PASSWORD } from './support.ts'
 
 const MODEL = 'deepseek/deepseek-v4-pro-0813'
 const AT = '2026-09-28T00:00:00Z'
@@ -64,13 +66,21 @@ function user(label: string, text = 'controlled reference') {
   return judged.ok
 }
 
-async function ready(label: string) {
+async function ready(label: string, onReceive: () => Promise<void> = async () => {}) {
   const config = await callDeployment(label)
-  const tls = await createLocalTls(join(dirname(config.databaseFile), 'tls'))
+  const tls = await createLocalTls(join(dirname(config.databaseFile), 'tls'), onReceive)
+  let logins: LoginsService | undefined
   const app = createAcceptanceApplication(config, {
     stage: 'modelRequest',
     developmentTransport: tls.developmentTransport,
     diagnostics: { record() {} },
+    hooks: {
+      async fiberCreated(name, fiber) {
+        if (name !== 'accountIdentity') return
+        await fiber
+        logins = fiber.ctx.get(LOGINS_SERVICE)
+      },
+    },
   })
   const host = createDemoCallHost()
   await app.ready
@@ -96,6 +106,7 @@ async function ready(label: string) {
   if (!('effectiveModel' in effective)) throw new Error('effective model unavailable')
   return {
     app,
+    logins,
     tls,
     host,
     databaseFile: config.databaseFile,
@@ -112,6 +123,81 @@ async function ready(label: string) {
 }
 
 describe('durable call references through the actual demo model service', () => {
+  it('keeps two same-Session login projections independent through wait, revocation, settlement and ACK', async () => {
+    const gate = deferred()
+    const f = await ready('reference-fixed-subject', () => gate.promise)
+    let sending: Promise<unknown> | undefined
+    try {
+      const second = await f.app.authenticate('alice', PASSWORD)
+      if (!('account' in second) || !f.logins) throw new Error('second real login unavailable')
+      expect(second.account).toBe(f.who.account)
+      expect(second.loginState).not.toBe(f.who.loginState)
+      const bound = await f.app.bindModelRuntime(second, f.session)
+      if (!('service' in bound)) throw new Error('second runtime projection unavailable')
+      const b = bound.service
+      const opened = await f.service.openCall({
+        creationKey: deriveCreationKey({ session: f.session, userMessage: user('fixed').id }),
+        session: f.session,
+        target: f.basis.routeName,
+        basis: f.basis,
+        messages: [user('fixed')],
+        tools: [],
+        parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+        host: f.host.host,
+      })
+      if (!('callId' in opened) || !('ref' in opened))
+        throw new Error('shared original call unavailable')
+      const reference = opened.ref
+      sending = f.service.dispatch(reference)
+      await expect.poll(() => f.tls.requests.length).toBe(1)
+      const waiting = await b.acquireCall({ ref: reference, mode: 'wait' })
+      if (!('consumer' in waiting) || !waiting.consumer)
+        throw new Error('real waiting consumer absent')
+      expect(await f.logins.revoke(second.loginState, f.who.loginState)).toBe('ok')
+      // A's new call cannot replace the retained B consumer's qualification source.
+      expect(await f.logins.verify(f.who.loginState)).toEqual({ ok: f.who.account })
+      expect(await f.service.acquireCall({ ref: reference, mode: 'read' })).toHaveProperty('view')
+      expect(await waiting.consumer.wait({})).toEqual({ unavailable: true })
+      waiting.consumer.release()
+      await waiting.consumer.stopped
+      expect(await b.effectiveModel({ session: f.session })).toEqual({ unavailable: true })
+      expect(
+        await b.settleReply({ ...reference, disposition: { consumed: { by: 'side_query' } } }),
+      ).toEqual({ unavailable: true })
+      expect(
+        await b.acknowledgeCall({
+          ref: reference,
+          expectedResult: { kind: 'ended', ending: 'released' },
+        }),
+      ).toEqual({ unavailable: true })
+      gate.resolve()
+      const result = await sending
+      if (!result || typeof result !== 'object' || !('replyPending' in result))
+        throw new Error('original dispatch did not complete')
+      expect(
+        await f.service.settleReply({
+          ...reference,
+          disposition: { consumed: { by: 'side_query' } },
+        }),
+      ).toEqual({ callId: opened.callId, state: 'complete' })
+      const view = retained(await f.service.acquireCall({ ref: reference, mode: 'read' })).view
+      expect(view.result?.disposition).toBe('final')
+      if (view.result?.disposition !== 'final') throw new Error('original final absent')
+      expect(
+        await f.service.acknowledgeCall({
+          ref: reference,
+          expectedResult: { kind: 'response', response: view.result.response.id },
+        }),
+      ).toHaveProperty('acknowledged')
+      expect(contentRows(f.databaseFile, opened.callId)).toBe(0)
+      expect(f.tls.requests).toHaveLength(1)
+    } finally {
+      gate.resolve()
+      await sending
+      await f.close()
+    }
+  })
+
   it('creates one durable call per derived creation key and sends nothing before dispatch', async () => {
     const f = await ready('reference-creation')
     try {

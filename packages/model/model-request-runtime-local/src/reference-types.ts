@@ -219,3 +219,6 @@ export interface CallFacts {
   ) => Promise<{ readonly current: true } | ServiceUnavailable>
   readonly close: () => Promise<RuntimeCloseResult>
 }
+
+/** Borrowed readers of the same physical content/index; no independent close owner. */
+export type CallFactsView = Omit<CallFacts, 'close'>

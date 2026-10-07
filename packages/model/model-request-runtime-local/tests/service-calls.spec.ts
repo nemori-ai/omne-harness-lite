@@ -85,18 +85,25 @@ test('unknown append recognition reuses its only registration before release', a
     unresolvedWrites: () => [],
   }
   const tracker = new UnknownAppendTracker()
-  tracker.keep({ session, callId: 'unknown-call' }, binding, owner, registration, {
-    completion: Promise.resolve({ failure: 'unavailable' }),
-    stopped: Promise.resolve(),
-    requestStop() {},
-  })
-  expect(await tracker.close({ concurrent: 1, call: () => ({ absent: true }) })).toEqual({
+  tracker.keep(
+    { session, callId: 'unknown-call' },
+    binding,
+    owner,
+    registration,
+    {
+      completion: Promise.resolve({ failure: 'unavailable' }),
+      stopped: Promise.resolve(),
+      requestStop() {},
+    },
+    () => ({ absent: true }),
+  )
+  expect(await tracker.close()).toEqual({
     unavailable: true,
   })
   expect(released).toBe(0)
   readable = true
-  const first = tracker.close({ concurrent: 1, call: () => ({ absent: true }) })
-  const concurrent = tracker.close({ concurrent: 1, call: () => ({ absent: true }) })
+  const first = tracker.close()
+  const concurrent = tracker.close()
   expect(concurrent).toBe(first)
   await vi.waitFor(() => expect(readSince).toHaveBeenCalledTimes(2))
   expect(released).toBe(0)
@@ -105,7 +112,7 @@ test('unknown append recognition reuses its only registration before release', a
   expect(acquire).not.toHaveBeenCalled()
   expect(readSince).toHaveBeenCalledTimes(2)
   expect(released).toBe(1)
-  expect(await tracker.close({ concurrent: 1, call: () => ({ absent: true }) })).toEqual({
+  expect(await tracker.close()).toEqual({
     released: true,
   })
   expect(released).toBe(1)

@@ -74,7 +74,7 @@ export type AuthorizedRunnerScope = { readonly binding: SettlementLogBinding } &
 /** This port is supplied only by an actual external Run/environment owner. */
 export interface DemoRunnerServiceHostDependencies {
   readonly runnerHost: ReturnType<typeof createDemoRunnerHost>
-  readonly model: ModelRuntimeOperations
+  readonly model: (actor: AuthenticatedActor) => ModelRuntimeOperations
   readonly manifest: AssemblyManifestStore
   readonly history: RunnerReadScope['sources']['history']
   readonly sessionTenancy: SessionTenancyService
@@ -473,9 +473,10 @@ export function createDemoRunnerServiceHost(
         scope.release()
         return { failure: 'unavailable' }
       }
-      let consumed: Awaited<ReturnType<typeof dependencies.model.readAttempts>>
+      const model = dependencies.model(authorization.actor)
+      let consumed: Awaited<ReturnType<typeof model.readAttempts>>
       try {
-        consumed = await dependencies.model.readAttempts(
+        consumed = await model.readAttempts(
           { session: settlement.session, callId },
           { consumeFailure: true },
         )
@@ -589,7 +590,7 @@ export function createDemoRunnerServiceHost(
           async judgeCapabilities(input, output) {
             if (!scope.isActive() || !failurePosition(input) || output.kind !== 'retry')
               return { kind: 'unavailable' }
-            const guarded = await dependencies.model.canDispatchAgain({
+            const guarded = await model.canDispatchAgain({
               session: settlement.session,
               callId,
               plan: output.plan,
