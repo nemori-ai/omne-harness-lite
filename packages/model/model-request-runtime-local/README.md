@@ -127,7 +127,7 @@ export async function inspectWithRuntime(
 `readAttempts`, `dispatch` and `dispatchAgain` have an explicit `{ consumeFailure: true }` overload for a caller that will run the failure extension. It returns `{ result, consumption }`; a normal one-argument call still returns only the business result and holds no failure scope. `consumption.kind === 'failure'` provides a non-serializable `ModelFailureSource` from the same authorized full-prefix read that supplied the failed result. The source checks the original dispatched entry shells and failed response in that prefix. Verify the exact subject **and the actual runner execution** before passing it to the runner, and always release the borrow. Verification reads the owned snapshot and current admission/generation, without reading a later log tail. A later unrelated append does not invalidate it; release, owner revocation, host stop or generation replacement does.
 
 ```ts
-import type { CallKey } from '@omne-harness-lite/model-request-runtime-local'
+import type { CallKey } from '@omne-harness-lite/model-request-runtime'
 import type {
   ModelFailureExecution,
   ModelRuntimeOperations,
