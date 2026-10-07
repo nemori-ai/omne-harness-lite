@@ -405,6 +405,9 @@ importers:
       '@omne-harness-lite/tool-result-files':
         specifier: workspace:*
         version: link:../../packages/tools/tool-result-files
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
       sharp:
         specifier: 'catalog:'
         version: 0.35.3(@types/node@24.13.6)
@@ -415,9 +418,6 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
-      ajv:
-        specifier: 'catalog:'
-        version: 8.20.0
       kysely:
         specifier: 'catalog:'
         version: 0.29.6

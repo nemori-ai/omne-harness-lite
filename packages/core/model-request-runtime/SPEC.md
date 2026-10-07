@@ -98,6 +98,8 @@ interrupt 只作用于指定调用，先耐久意图再通知实际执行方，�
 
 releaseCall 只从 awaiting_decision/resumable 放手，上交不是失败重试、ACK 或引用释放。真实宿主独立于等待/观察消费者持有网络、内容门、写任务及实现引用；登记与停止有共同寿命，不漏刚登记调用。请求停止、实际停止、结算及物理资源释放分开；消费者退出、Map 清空、函数 outcome、取消确认或 fence 均不证明旧效果不能迟到。
 
+每次 reconcile 在原输入校验与停止检查之后，先由本次固定主体的 RuntimeRecoveryAccess.authorize 核当前读取/恢复准入。拒绝或不可判返回 unavailable，不读取、清理或触碰原 entry/scope；等待授权期间关闭后，也不登记新工作。许可不缓存为长期资格，也不证明旧写者停止或唯一恢复范围。即使认回原 entry，新调用也不能借其 entered/scope 跳过当前资格。原工作和解释来源继续归原拥有者。
+
 reconcile 只读依次认回 final、ready、调用终结及 live 原状态；live 不取消、不要求先停止、不阻塞新 attempt 的只读对账。仅需实际追补的分支要求旧效果全停及唯一恢复资格，使用同日志完整前缀和稳定原批，不发请求、不加载旧适配替代事实、不返回部分成功。中断意图优先；无意图且已 dispatched 未 opened 的 runtime_lost 可 resumable，同家续接；已 opened 的 runtime_lost 终结且不再发出。恢复保留旧绑定、参数、真实时刻、头及账；无法取得必要事实即 unavailable，原已提交批不回滚。
 
 ## 引用、ACK 与释放

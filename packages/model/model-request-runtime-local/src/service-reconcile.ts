@@ -1,3 +1,4 @@
+import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import { randomUUID } from 'node:crypto'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { RunHistoryReader } from '@omne-harness-lite/model-request-runtime'
@@ -163,7 +164,7 @@ export async function settlePendingReply(input: {
 }
 
 /** A cold ready reply has its own runtime-owned writer until its original batch is resolved. */
-export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
+interface SettleReplyConstruction<P extends PlannedSemantics, R> {
   readonly calls: CallContainerStore<P, R>
   readonly sessions: RuntimeSessionAccess
   readonly callAccess: CallAccess
@@ -177,16 +178,33 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
   readonly custody: AcknowledgementCustody
   /** This runtime instance; recorded on each work row it starts. */
   readonly instance: string
-}): {
+}
+
+interface SettleReplyOwner {
   readonly settleReply: (request: SettleReplyInput) => Promise<SettleReplyResult>
   /** Whether this component currently owns a started post-ACK work of the call. */
   readonly ownsWork: (ref: CallKey) => boolean
   readonly close: () => Promise<{ readonly released: true } | { readonly unavailable: true }>
-} {
-  const entries = new Map<string, DurableReplySettlement>()
+}
+
+export function createRuntimeSettleReply<P extends PlannedSemantics, R>(
+  input: SettleReplyConstruction<P, R>,
+): ProjectedComponent<SettleReplyOwner, SettleReplyConstruction<P, R>> {
+  return buildRuntimeSettleReply(input)
+}
+
+class RuntimeSettleReplyState {
+  readonly entries = new Map<string, DurableReplySettlement>()
+  readonly works = new Map<string, SettlementWork>()
+  closed = false
+}
+
+function buildRuntimeSettleReply<P extends PlannedSemantics, R>(
+  input: SettleReplyConstruction<P, R>,
+  physical: RuntimeSettleReplyState = new RuntimeSettleReplyState(),
+): ProjectedComponent<SettleReplyOwner, SettleReplyConstruction<P, R>> {
   /** RT12 S-99⑧: started post-ACK write responsibilities, one per CallKey. */
-  const works = new Map<string, SettlementWork>()
-  let closed = false
+
   const keyOf = (request: SettleReplyInput): string =>
     JSON.stringify([request.session, request.callId])
 
@@ -207,7 +225,7 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
         return { invalidInput: { reason: 'malformed' } }
       retainedResult = copied.ok
     }
-    if (closed) return { unavailable: true }
+    if (physical.closed) return { unavailable: true }
     const admitted = await input.calls.waitReserve(request, {
       policy: input.reservationWaitPolicy,
       scheduler: input.scheduler,
@@ -216,29 +234,6 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
     if ('unavailable' in admitted) return { unavailable: true }
     const { reservation } = admitted
     try {
-      const container = input.calls.find(request)
-      const local = container?.view()
-      if (
-        !entries.has(keyOf(request)) &&
-        container !== undefined &&
-        local?.operation.phase === 'reply_pending' &&
-        local.invocation !== undefined
-      ) {
-        reservation.publish({ phase: 'settling' })
-        const result = await settlePendingReply({
-          request,
-          pending: local.operation.pending,
-          invocation: local.invocation,
-        })
-        if ('callId' in result || 'alreadyEnded' in result) {
-          reservation.publish({ phase: 'ready' })
-          const stopped = await container.close()
-          if ('released' in stopped && stopped.released === true) input.calls.remove(reservation)
-        } else {
-          reservation.publish(local.operation)
-        }
-        return result
-      }
       const bound = await input.sessions.bind(request.session)
       if ('failure' in bound) return { unavailable: true }
       const session = bound.binding
@@ -249,6 +244,63 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
       )
         return { unavailable: true }
       const fact = await input.callFacts.lookup({ binding: session.log, ref: request })
+      const container = input.calls.find(request)
+      const local = container?.view()
+      if (
+        !physical.entries.has(keyOf(request)) &&
+        container !== undefined &&
+        local?.operation.phase === 'reply_pending' &&
+        local.invocation !== undefined &&
+        'view' in fact &&
+        fact.view.result !== undefined &&
+        (fact.view.result.disposition === 'disposition_pending'
+          ? modelLogJsonEqual(fact.view.result.pending, local.operation.pending)
+          : 'ok' in
+            judgeResponseFinalization(local.operation.pending, fact.view.result.response)) &&
+        local.session.log === session.log
+      ) {
+        const pending = local.operation.pending
+        const invocation = local.invocation
+        const authorized = await input.callAccess.check(
+          { binding: session.log, ref: request, action: 'settle', origin: fact.view.origin },
+          async evidence => {
+            if (
+              evidence.action !== 'settle' ||
+              evidence.ref.session !== request.session ||
+              evidence.ref.callId !== request.callId ||
+              evidence.source.generation !== session.log.generation ||
+              ExactDecimal.from(evidence.source.progress).compare(
+                ExactDecimal.from(fact.view.source.progress),
+              ) !== 0 ||
+              evidence.revoked.aborted ||
+              physical.closed ||
+              session.log.currentGeneration() !== session.log.generation
+            )
+              return { unavailable: true } as const
+            reservation.publish({ phase: 'settling' })
+            const result = await settlePendingReply({
+              request,
+              pending,
+              invocation,
+            })
+            if ('callId' in result || 'alreadyEnded' in result) {
+              reservation.publish({ phase: 'ready' })
+              const stopped = await container.close()
+              if ('released' in stopped && stopped.released === true)
+                input.calls.remove(reservation)
+            } else {
+              reservation.publish(local.operation)
+            }
+            return result
+          },
+        )
+        return 'allowed' in authorized
+          ? authorized.allowed
+          : 'invalidInput' in authorized
+            ? authorized
+            : { unavailable: true }
+      }
+
       if ('acknowledged' in fact) {
         // RT12 S-99②: the current settle authority first; ACK grants no disposition right.
         const facts = fact.acknowledged
@@ -271,7 +323,10 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
         if ('allowed' in admittedAck) return admittedAck.allowed
         return 'invalidInput' in admittedAck ? admittedAck : { unavailable: true }
       }
-      if ('view' in fact && (fact.view.result !== undefined || entries.has(keyOf(request)))) {
+      if (
+        'view' in fact &&
+        (fact.view.result !== undefined || physical.entries.has(keyOf(request)))
+      ) {
         const admittedSettle = await input.callAccess.check(
           { binding: session.log, ref: request, action: 'settle', origin: fact.view.origin },
           async evidence => {
@@ -287,7 +342,7 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
             )
               return { unavailable: true } as const
             const key = keyOf(request)
-            let entry = entries.get(key)
+            let entry = physical.entries.get(key)
             if (entry === undefined) {
               // RT12 S-99④⑦/S-86: a committed final decides by itself, after the current settle
               // authority: the same disposition recognizes it, another is alreadyEnded. No value
@@ -327,7 +382,7 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
                 }),
                 processing: false,
               }
-              entries.set(key, entry)
+              physical.entries.set(key, entry)
             } else if (
               retainedResult !== undefined &&
               !modelLogJsonEqual(retainedResult, entry.pending)
@@ -348,11 +403,11 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
               if (!('settled' in result)) {
                 // Keep the owner while an original batch may exist; otherwise nothing is owned.
                 if (result.reason !== 'write_unknown' && (await closeEntry(entry)))
-                  entries.delete(key)
+                  physical.entries.delete(key)
                 return { unavailable: true } as const
               }
               if (!(await closeEntry(entry))) return { unavailable: true } as const
-              entries.delete(key)
+              physical.entries.delete(key)
               if (
                 result.settled.disposition === 'firstWinner' ||
                 !modelLogJsonEqual(entry.disposition, request.disposition)
@@ -391,7 +446,7 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
   ): Promise<SettleReplyResult> {
     const key = keyOf(request)
     const ref = { session: request.session, callId: request.callId }
-    let work = works.get(key)
+    let work = physical.works.get(key)
     if (work === undefined) {
       const existing = await input.callFacts.content.work.read({
         binding: session.log,
@@ -421,13 +476,13 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
         ...(input.run === undefined ? {} : { run: input.run }),
         diagnostic: input.diagnostic,
         // A pre-ACK writer of this call still owned here must actually stop first.
-        obstacles: () => (entries.has(key) ? ['writer_in_flight'] : []),
+        obstacles: () => (physical.entries.has(key) ? ['writer_in_flight'] : []),
       })
-      works.set(key, work)
+      physical.works.set(key, work)
     }
     const outcome = await work.advance()
     if ('retained' in outcome) return { unavailable: true }
-    works.delete(key)
+    physical.works.delete(key)
     // Ended: nothing of this work was written; the consumer may apply again with its value.
     if ('ended' in outcome) return { unavailable: true }
     const original = outcome.settled.response.response
@@ -481,32 +536,35 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
 
   /** Actively stops and resolves each retained original; unresolved work keeps close unavailable. */
   async function close(): Promise<{ readonly released: true } | { readonly unavailable: true }> {
-    closed = true
+    physical.closed = true
     const outcomes = await Promise.all(
-      [...entries.values()].map(async entry => {
+      [...physical.entries.values()].map(async entry => {
         if (entry.processing || !(await closeEntry(entry))) return false
-        entries.delete(entry.key)
+        physical.entries.delete(entry.key)
         return true
       }),
     )
     // A work whose writer stopped keeps only its durable row; the recovery owner concludes it.
     const workOutcomes = await Promise.all(
-      [...works.entries()].map(async ([key, work]) => {
+      [...physical.works.entries()].map(async ([key, work]) => {
         if (!(await work.close())) return false
-        works.delete(key)
+        physical.works.delete(key)
         return true
       }),
     )
-    return outcomes.every(Boolean) && workOutcomes.every(Boolean) && entries.size === 0
+    return outcomes.every(Boolean) && workOutcomes.every(Boolean) && physical.entries.size === 0
       ? { released: true }
       : { unavailable: true }
   }
 
-  return Object.freeze({
-    settleReply,
-    ownsWork: (ref: CallKey) => works.has(JSON.stringify([ref.session, ref.callId])),
-    close,
-  })
+  return retainRuntimeProjection(
+    Object.freeze({
+      settleReply,
+      ownsWork: (ref: CallKey) => physical.works.has(JSON.stringify([ref.session, ref.callId])),
+      close,
+    }),
+    (next: SettleReplyConstruction<P, R>) => buildRuntimeSettleReply(next, physical),
+  )
 }
 
 async function recognizeSettledReply(
@@ -678,7 +736,7 @@ async function recoverSettlementWork(input: {
 }
 
 /** S-33 recovery owns every entered scope until its original work and full-prefix read are settled. */
-export function createRuntimeReconcile(input: {
+interface ReconcileConstruction {
   readonly recovery: RuntimeRecoveryAccess
   readonly run?: RunHistoryReader
   readonly contention: SettlementContention
@@ -697,14 +755,29 @@ export function createRuntimeReconcile(input: {
    * of this runtime owns. Without it such rows are only kept, never judged.
    */
   readonly settlementWork?: SettlementWorkRecovery
-}): {
+}
+
+interface ReconcileOwner {
   readonly reconcile: (request: ReconcileInput) => Promise<ReconcileResult>
   readonly close: () => Promise<{ readonly released: true } | { readonly unavailable: true }>
-} {
-  const entries = new Map<ReconcileInput['session'], RecoveryEntry>()
-  let closed = false
-  let closing: Promise<{ readonly released: true } | { readonly unavailable: true }> | undefined
+}
 
+export function createRuntimeReconcile(
+  input: ReconcileConstruction,
+): ProjectedComponent<ReconcileOwner, ReconcileConstruction> {
+  return buildRuntimeReconcile(input)
+}
+
+class RuntimeReconcileState {
+  readonly entries = new Map<ReconcileInput['session'], RecoveryEntry>()
+  closed = false
+  closing: Promise<{ readonly released: true } | { readonly unavailable: true }> | undefined
+}
+
+function buildRuntimeReconcile(
+  input: ReconcileConstruction,
+  physical: RuntimeReconcileState = new RuntimeReconcileState(),
+): ProjectedComponent<ReconcileOwner, ReconcileConstruction> {
   async function releaseRead(entry: RecoveryEntry, owned: RecoveryRead): Promise<boolean> {
     const tasks = [...owned.tasks]
     for (const task of tasks) {
@@ -731,25 +804,20 @@ export function createRuntimeReconcile(input: {
         const entered = await entry.entered
         if ('scope' in entered) entry.scope = entered.scope
       } catch {
-        entries.delete(entry.session)
+        physical.entries.delete(entry.session)
         return true
       }
     }
     const scope = entry.scope
     if (scope === undefined) {
-      entries.delete(entry.session)
+      physical.entries.delete(entry.session)
       return true
     }
     let safe = true
     for (const owned of [...entry.reads]) {
       if (!(await releaseRead(entry, owned))) safe = false
     }
-    const control = await entry.unknownControl.close({
-      concurrent: input.contention.limits.concurrent,
-      // Recognition of an original stopped writer's batch reads no payload and no phase-derived
-      // action, so a later acknowledgement neither hides nor replaces that durable fact.
-      call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
-    })
+    const control = await entry.unknownControl.close()
     if ('unavailable' in control) safe = false
     if (safe && entry.pendingControl.size !== 0) {
       const read = await readRecoveryPrefix(entry, input.contention)
@@ -804,7 +872,7 @@ export function createRuntimeReconcile(input: {
     entry.exitAttempted = true
     try {
       await scope.close()
-      entries.delete(entry.session)
+      physical.entries.delete(entry.session)
       return true
     } catch {
       return false
@@ -828,22 +896,31 @@ export function createRuntimeReconcile(input: {
   async function reconcile(request: ReconcileInput): Promise<ReconcileResult> {
     if (typeof request.session !== 'string' || request.session.length === 0)
       return { invalidInput: { reason: 'malformed' } }
-    if (closed) return { unavailable: true }
-    const previous = entries.get(request.session)
+    if (physical.closed) return { unavailable: true }
+    try {
+      const authorization = await input.recovery.authorize(request)
+      if (!('authorized' in authorization) || physical.closed) return { unavailable: true }
+    } catch {
+      return { unavailable: true }
+    }
+    const previous = physical.entries.get(request.session)
     let entry: RecoveryEntry
     if (previous !== undefined) {
       if (previous.active !== undefined) return { unavailable: true }
       const ready = await releaseEntry(previous, previous.exitAttempted)
       if (!ready) return { unavailable: true }
-      if (closed) return { unavailable: true }
+      if (physical.closed) return { unavailable: true }
       if (previous.exitAttempted) {
-        if (entries.has(request.session)) return { unavailable: true }
-      } else if (previous.active !== undefined || entries.get(request.session) !== previous) {
+        if (physical.entries.has(request.session)) return { unavailable: true }
+      } else if (
+        previous.active !== undefined ||
+        physical.entries.get(request.session) !== previous
+      ) {
         return { unavailable: true }
       }
     }
     entry =
-      previous !== undefined && entries.get(request.session) === previous
+      previous !== undefined && physical.entries.get(request.session) === previous
         ? previous
         : {
             session: request.session,
@@ -857,7 +934,8 @@ export function createRuntimeReconcile(input: {
             releasing: undefined,
             exitAttempted: false,
           }
-    if (entries.get(request.session) !== entry) entries.set(request.session, entry)
+    if (physical.entries.get(request.session) !== entry)
+      physical.entries.set(request.session, entry)
     const entering = entry.entered ?? Promise.resolve().then(() => input.recovery.enter(request))
     entry.entered = entering
     const active = (async (): Promise<ReconcileResult> => {
@@ -895,12 +973,12 @@ export function createRuntimeReconcile(input: {
             reportDiagnosticFailure()
           }
         }
-        if (closed) return { unavailable: true }
+        if (physical.closed) return { unavailable: true }
         const result = await readRecoveredCalls(
           request,
           entry,
           input,
-          () => closed,
+          () => physical.closed,
           anchor => {
             let recovered: ReturnType<typeof operationDiagnostics> | undefined
             try {
@@ -943,7 +1021,7 @@ export function createRuntimeReconcile(input: {
             }
           },
         )
-        if (closed) return { unavailable: true }
+        if (physical.closed) return { unavailable: true }
         if ('unavailable' in result) {
           observer?.record({
             source: 'runtime',
@@ -994,10 +1072,10 @@ export function createRuntimeReconcile(input: {
   }
 
   function close(): Promise<{ readonly released: true } | { readonly unavailable: true }> {
-    if (closing !== undefined) return closing
-    closed = true
+    if (physical.closing !== undefined) return physical.closing
+    physical.closed = true
     const attempt = (async () => {
-      for (const entry of entries.values()) {
+      for (const entry of physical.entries.values()) {
         for (const read of entry.reads)
           for (const task of read.tasks) {
             try {
@@ -1023,9 +1101,9 @@ export function createRuntimeReconcile(input: {
       }
       // A held task keeps its own scope, but does not prevent an independent
       // session's stopped scope from leaving recovery admission.
-      const active = [...entries.values()].some(entry => entry.active !== undefined)
+      const active = [...physical.entries.values()].some(entry => entry.active !== undefined)
       const outcomes = await Promise.allSettled(
-        [...entries.values()]
+        [...physical.entries.values()]
           .filter(entry => entry.active === undefined)
           .map(entry => releaseEntry(entry, true)),
       )
@@ -1033,15 +1111,17 @@ export function createRuntimeReconcile(input: {
         ? ({ released: true } as const)
         : ({ unavailable: true } as const)
     })()
-    closing = attempt
+    physical.closing = attempt
     const finish = () => {
-      if (closing === attempt) closing = undefined
+      if (physical.closing === attempt) physical.closing = undefined
     }
     void attempt.then(finish, finish)
     return attempt
   }
 
-  return { reconcile, close }
+  return retainRuntimeProjection({ reconcile, close }, (next: ReconcileConstruction) =>
+    buildRuntimeReconcile(next, physical),
+  )
 }
 
 async function readRecoveredCalls(
@@ -1164,6 +1244,7 @@ async function readRecoveredCalls(
             scope.owner,
             registration,
             task,
+            (prefix, callId) => interpretCallHistory({ prefix, callId }),
           )
         },
         trackTask(task) {

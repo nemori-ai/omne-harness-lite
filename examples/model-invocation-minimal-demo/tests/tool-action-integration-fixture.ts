@@ -186,7 +186,7 @@ export async function actionIntegrationFixture(
     const maintenance = new AsyncLocalStorage<SessionScope>()
     const host = createDemoRunnerServiceHost({
       runnerHost,
-      model: {} as ModelRuntimeOperations,
+      model: () => ({}) as ModelRuntimeOperations,
       manifest: manifest.manifest,
       history: manifest.history,
       sessionTenancy: manifest.sessionTenancy,

@@ -1,3 +1,5 @@
+import { projectRuntimeComponent } from './runtime-projection.ts'
+import type { CallFactsView } from './reference-types.ts'
 import { randomUUID } from 'node:crypto'
 import { createPlanReuseScopes } from './plan-reuse-scopes.ts'
 import { createRuntimeAcquire } from './service-acquire.ts'
@@ -11,6 +13,7 @@ import { createRuntimeReconcile, createRuntimeSettleReply } from './service-reco
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import type {
   ModelRuntimeOperations,
+  ModelRuntimeHostInputs,
   RuntimeCloseResult,
   FailureConsumableOperation,
   FailureConsumption,
@@ -27,6 +30,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   construction: RuntimeConstruction<P, R>,
 ): {
   readonly service: ModelRuntimeOperations
+  readonly project: (inputs: ModelRuntimeHostInputs, facts: CallFactsView) => ModelRuntimeOperations
   readonly close: () => Promise<RuntimeCloseResult>
 } {
   if (ownedStores.has(construction.calls)) throw new TypeError('call store already owned')
@@ -46,19 +50,21 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   const calls = createServiceCalls(construction, scopes, custody)
   const dispatch = createServiceDispatch(construction, scopes)
   const control = createServiceControl(construction)
-  const settleReply = createRuntimeSettleReply({
-    calls: construction.calls,
-    sessions: construction.sessions,
-    callAccess: construction.callAccess,
-    callFacts: construction.callFacts,
-    contention: construction.settlementContention,
-    scheduler: construction.settlementScheduler,
-    reservationWaitPolicy: construction.reservationWaitPolicy,
-    ...(construction.history.run === undefined ? {} : { run: construction.history.run }),
-    diagnostic: construction.diagnostic,
+  const instance = randomUUID()
+  const settlementInputs = (source: RuntimeConstruction<P, R>) => ({
+    calls: source.calls,
+    sessions: source.sessions,
+    callAccess: source.callAccess,
+    callFacts: source.callFacts,
+    contention: source.settlementContention,
+    scheduler: source.settlementScheduler,
+    reservationWaitPolicy: source.reservationWaitPolicy,
+    ...(source.history.run === undefined ? {} : { run: source.history.run }),
+    diagnostic: source.diagnostic,
     custody,
-    instance: randomUUID(),
+    instance,
   })
+  const settleReply = createRuntimeSettleReply(settlementInputs(construction))
   let recoveryDiagnosticReportEnabled = true
   const reportRecoveryDiagnosticFailure = (): void => {
     if (!recoveryDiagnosticReportEnabled) return
@@ -71,20 +77,21 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
       recoveryDiagnosticReportEnabled = false
     }
   }
-  const reconcile = createRuntimeReconcile({
-    recovery: construction.recovery,
-    run: construction.history.run,
-    contention: construction.settlementContention,
-    scheduler: construction.settlementScheduler,
-    now: construction.policy.now,
-    diagnostic: construction.diagnostic,
-    ...(construction.diagnosticCollector === undefined
+  const recoveryInputs = (source: RuntimeConstruction<P, R>) => ({
+    recovery: source.recovery,
+    run: source.history.run,
+    contention: source.settlementContention,
+    scheduler: source.settlementScheduler,
+    now: source.policy.now,
+    diagnostic: source.diagnostic,
+    ...(source.diagnosticCollector === undefined
       ? {}
-      : { diagnosticCollector: construction.diagnosticCollector }),
+      : { diagnosticCollector: source.diagnosticCollector }),
     onDiagnosticFailure: reportRecoveryDiagnosticFailure,
     custody,
-    settlementWork: { store: construction.callFacts.content.work, owns: settleReply.ownsWork },
+    settlementWork: { store: source.callFacts.content.work, owns: settleReply.ownsWork },
   })
+  const reconcile = createRuntimeReconcile(recoveryInputs(construction))
   ownedStores.add(construction.calls)
 
   const inFlight = new Set<Promise<void>>()
@@ -145,24 +152,78 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
     return invoke
   }
 
-  const service: ModelRuntimeOperations = Object.freeze({
-    acquireCall: guarded(acquire.acquireCall, unavailable, true),
-    legalTargets: guarded(reads.methods.legalTargets, unavailable),
-    displayList: guarded(reads.methods.displayList, unavailable),
-    effectiveModel: guarded(reads.methods.effectiveModel, unavailable),
-    selectModel: guarded(reads.methods.selectModel, unavailable),
-    openCall: guarded(calls.openCall, runtimeStopped),
-    dispatch: guardedFailure(dispatch.dispatch, runtimeStopped),
-    dispatchAgain: guardedFailure(dispatch.dispatchAgain, runtimeStopped),
-    interrupt: guarded(control.interrupt, unavailable),
-    releaseCall: guarded(control.releaseCall, unavailable),
-    reconcile: guarded(reconcile.reconcile, unavailable),
-    readAttempts: guardedFailure(reads.methods.readAttempts, unavailable),
-    settleReply: guarded(settleReply.settleReply, unavailable),
-    canDispatchAgain: guarded(reads.methods.canDispatchAgain, unavailable),
-    // RT12 S-100: host stop does not hide a durable ACK or its cleanup recognition.
-    acknowledgeCall: guarded(acknowledge.acknowledgeCall, unavailable, true),
+  function operations(components: {
+    reads: Pick<typeof reads, 'methods'>
+    acquire: Pick<typeof acquire, 'acquireCall'>
+    acknowledge: Pick<typeof acknowledge, 'acknowledgeCall'>
+    calls: Pick<typeof calls, 'openCall'>
+    dispatch: Pick<typeof dispatch, 'dispatch' | 'dispatchAgain'>
+    control: Pick<typeof control, 'interrupt' | 'releaseCall'>
+    reconcile: Pick<typeof reconcile, 'reconcile'>
+    settleReply: Pick<typeof settleReply, 'settleReply'>
+  }): ModelRuntimeOperations {
+    const { reads, acquire, acknowledge, calls, dispatch, control, reconcile, settleReply } =
+      components
+    return Object.freeze({
+      acquireCall: guarded(acquire.acquireCall, unavailable, true),
+      legalTargets: guarded(reads.methods.legalTargets, unavailable),
+      displayList: guarded(reads.methods.displayList, unavailable),
+      effectiveModel: guarded(reads.methods.effectiveModel, unavailable),
+      selectModel: guarded(reads.methods.selectModel, unavailable),
+      openCall: guarded(calls.openCall, runtimeStopped),
+      dispatch: guardedFailure(dispatch.dispatch, runtimeStopped),
+      dispatchAgain: guardedFailure(dispatch.dispatchAgain, runtimeStopped),
+      interrupt: guarded(control.interrupt, unavailable),
+      releaseCall: guarded(control.releaseCall, unavailable),
+      reconcile: guarded(reconcile.reconcile, unavailable),
+      readAttempts: guardedFailure(reads.methods.readAttempts, unavailable),
+      settleReply: guarded(settleReply.settleReply, unavailable),
+      canDispatchAgain: guarded(reads.methods.canDispatchAgain, unavailable),
+      // RT12 S-100: host stop does not hide a durable ACK or its cleanup recognition.
+      acknowledgeCall: guarded(acknowledge.acknowledgeCall, unavailable, true),
+    })
+  }
+  const service = operations({
+    reads,
+    acquire,
+    acknowledge,
+    calls,
+    dispatch,
+    control,
+    reconcile,
+    settleReply,
   })
+
+  function project(inputs: ModelRuntimeHostInputs, facts: CallFactsView): ModelRuntimeOperations {
+    if (facts.content !== construction.callFacts.content)
+      throw new TypeError('runtime projection must borrow the original content owner')
+    const next: RuntimeConstruction<P, R> = Object.freeze({
+      ...construction,
+      sessions: inputs.sessions,
+      history: inputs.history,
+      recovery: inputs.recovery,
+      callAccess: inputs.callAccess,
+      callPresence: inputs.callPresence,
+      identities: inputs.identities,
+      callFacts: Object.freeze({
+        content: construction.callFacts.content,
+        lookup: facts.lookup,
+        creation: facts.creation,
+        refresh: facts.refresh,
+        close: construction.callFacts.close,
+      }),
+    })
+    return operations({
+      reads: projectRuntimeComponent(reads, next),
+      acquire: projectRuntimeComponent(acquire, next),
+      acknowledge: projectRuntimeComponent(acknowledge, next),
+      calls: projectRuntimeComponent(calls, next),
+      dispatch: projectRuntimeComponent(dispatch, next),
+      control: projectRuntimeComponent(control, next),
+      settleReply: projectRuntimeComponent(settleReply, settlementInputs(next)),
+      reconcile: projectRuntimeComponent(reconcile, recoveryInputs(next)),
+    })
+  }
 
   const owners = [
     ['reads', reads.close],
@@ -263,5 +324,5 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
     return closing
   }
 
-  return Object.freeze({ service, close })
+  return Object.freeze({ service, project, close })
 }

@@ -370,7 +370,14 @@ describe('RT7 S-31/S-68 actual control append', () => {
         record: { kind: 'model_call_interrupt_intent', call: 'control-call', initiator: 'user' },
         retainUnknown(registration, task) {
           retained = { registration, task }
-          tracker.keep({ session, callId: 'control-call' }, binding, owner, registration, task)
+          tracker.keep(
+            { session, callId: 'control-call' },
+            binding,
+            owner,
+            registration,
+            task,
+            (prefix, callId) => interpretCallHistory({ prefix, callId }),
+          )
         },
       })
       expect(result).toEqual({ unavailable: true })
@@ -387,22 +394,12 @@ describe('RT7 S-31/S-68 actual control append', () => {
         value: { kind: 'model_call_interrupt_intent', call: 'control-call' },
       })
       await retained?.task.stopped
-      expect(
-        await tracker.close({
-          concurrent: 1,
-          call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
-        }),
-      ).toEqual({ unavailable: true })
+      expect(await tracker.close()).toEqual({ unavailable: true })
       expect(releases).toBe(0)
       expect(active).toBe(1)
       expect(acquires).toBe(1)
       readAvailable = true
-      expect(
-        await tracker.close({
-          concurrent: 1,
-          call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
-        }),
-      ).toEqual({ released: true })
+      expect(await tracker.close()).toEqual({ released: true })
       expect(completeReads).toBe(1)
       expect(releases).toBe(1)
       expect(active).toBe(0)

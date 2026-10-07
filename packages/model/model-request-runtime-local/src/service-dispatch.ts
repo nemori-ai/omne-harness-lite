@@ -1,3 +1,4 @@
+import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import { offerReferenceConsumers } from './reference-consumer.ts'
 import { publishModelCallContent } from './reference-publish.ts'
 import {
@@ -338,24 +339,35 @@ export interface ServiceDispatch {
 export function createServiceDispatch<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
   borrowedScopes?: PlanReuseScopes,
-): ServiceDispatch {
-  const scopes = borrowedScopes ?? createPlanReuseScopes(runtime)
-  const invocations = new Set<ReturnType<typeof createAnchoredModelInvocation<P, R>>>()
-  const retainedReads = new OwnedReadTracker()
-  const appends = new OwnedAppendTracker()
-  const unknownWrites = new UnknownAppendTracker()
-  const lastDiagnosticByCall = new WeakMap<object, DiagnosticReference>()
-  const sources = new Set<ModelFailureSource>()
-  let closing = false
+): ProjectedComponent<ServiceDispatch, RuntimeConstruction<P, R>> {
+  return buildServiceDispatch(runtime, borrowedScopes)
+}
 
-  let diagnosticFailureReportEnabled = true
+class ServiceDispatchState<P extends PlannedSemantics, R> {
+  readonly invocations = new Set<ReturnType<typeof createAnchoredModelInvocation<P, R>>>()
+  readonly retainedReads = new OwnedReadTracker()
+  readonly appends = new OwnedAppendTracker()
+  readonly unknownWrites = new UnknownAppendTracker()
+  readonly lastDiagnosticByCall = new WeakMap<object, DiagnosticReference>()
+  readonly sources = new Set<ModelFailureSource>()
+  closing = false
+  diagnosticFailureReportEnabled = true
+}
+
+function buildServiceDispatch<P extends PlannedSemantics, R>(
+  runtime: RuntimeConstruction<P, R>,
+  borrowedScopes?: PlanReuseScopes,
+  physical: ServiceDispatchState<P, R> = new ServiceDispatchState<P, R>(),
+): ProjectedComponent<ServiceDispatch, RuntimeConstruction<P, R>> {
+  const scopes = borrowedScopes ?? createPlanReuseScopes(runtime)
+
   function reportDiagnosticFailure(kind = 'model_runtime.diagnostic_sink_failed'): void {
-    if (!diagnosticFailureReportEnabled) return
+    if (!physical.diagnosticFailureReportEnabled) return
     try {
       const returned: unknown = runtime.policy.diagnostic({ kind })
-      if (drainDiagnosticThenable(returned)) diagnosticFailureReportEnabled = false
+      if (drainDiagnosticThenable(returned)) physical.diagnosticFailureReportEnabled = false
     } catch {
-      diagnosticFailureReportEnabled = false
+      physical.diagnosticFailureReportEnabled = false
     }
   }
 
@@ -381,7 +393,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
     again: boolean,
     onFailure?: (source: ModelFailureSource) => void,
   ): Promise<DispatchResult | DispatchAgainResult> {
-    if (closing) return { runtimeStopped: true }
+    if (physical.closing) return { runtimeStopped: true }
     if (!validDispatchInput(input)) return { invalidInput: { reason: 'malformed' } }
     if (again && !('plan' in input)) return { invalidInput: { reason: 'malformed' } }
     const key: CallKey = { session: input.session, callId: input.callId }
@@ -417,7 +429,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
     let untransferredScope: PlanReuseScopeLease | undefined
     let earlyDiagnostics: ReturnType<typeof operationDiagnostics> | undefined
     try {
-      if (closing) return { runtimeStopped: true }
+      if (physical.closing) return { runtimeStopped: true }
       const local = reservation.view()
       if (local !== undefined && local.session !== session) return { unavailable: true }
       const owner = local?.owner ?? session.selection.owner
@@ -428,7 +440,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
       const received = await withOwnedReads(
         owner,
         runtime.settlementContention.limits.concurrent,
-        retainedReads,
+        physical.retainedReads,
         async registration => {
           const prefix = await readSettlementPrefix({ binding: session.log, registration })
           // RT12 S-100: an acknowledged call is its real terminal state: alreadyEnded, zero send.
@@ -500,9 +512,12 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
       }
       const diagnosticOwner = runtime.calls.find(key)
       const priorDiagnostic =
-        diagnosticOwner === undefined ? undefined : lastDiagnosticByCall.get(diagnosticOwner)
+        diagnosticOwner === undefined
+          ? undefined
+          : physical.lastDiagnosticByCall.get(diagnosticOwner)
       const rememberDiagnostic = (reference: DiagnosticReference): void => {
-        if (diagnosticOwner !== undefined) lastDiagnosticByCall.set(diagnosticOwner, reference)
+        if (diagnosticOwner !== undefined)
+          physical.lastDiagnosticByCall.set(diagnosticOwner, reference)
       }
       const executionId = randomUUID()
       earlyDiagnostics = operationDiagnostics(
@@ -553,7 +568,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
         admission.dispatch,
         admission.provider,
         input.attempt,
-        retainedReads,
+        physical.retainedReads,
       )
       if ('unavailable' in prepared) {
         earlyDiagnostics.record({
@@ -578,7 +593,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
         })
         return prepared
       }
-      if (closing) return { runtimeStopped: true }
+      if (physical.closing) return { runtimeStopped: true }
       if ('credentialUnavailable' in prepared) {
         earlyDiagnostics.record({
           source: 'runtime',
@@ -588,7 +603,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
         })
         const first = 'absent' in history || history.known.dispatches.length === 0
         const appended = await appendControlRecord({
-          trackTask: task => appends.track(task),
+          trackTask: task => physical.appends.track(task),
           binding: session.log,
           owner,
           concurrent: runtime.settlementContention.limits.concurrent,
@@ -609,7 +624,14 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
                 cause: 'credential_unavailable',
               },
           retainUnknown(registration, task) {
-            unknownWrites.keep(key, session.log, owner, registration, task)
+            physical.unknownWrites.keep(
+              key,
+              session.log,
+              owner,
+              registration,
+              task,
+              runtime.history.call,
+            )
           },
         })
         if ('unavailable' in appended) return { unavailable: true }
@@ -770,7 +792,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
             bufferedBytes: 0,
           })
       }
-      if (closing || local.request.host.signal.aborted || local.request.host.stopping())
+      if (physical.closing || local.request.host.signal.aborted || local.request.host.stopping())
         return { runtimeStopped: true }
       if (owner.admission() !== 'open') return { runtimeStopped: true }
       if (reservation.view()?.operation.phase !== 'ready') return { unavailable: true }
@@ -816,7 +838,9 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
               return
             }
             const prior =
-              diagnosticOwner === undefined ? undefined : lastDiagnosticByCall.get(diagnosticOwner)
+              diagnosticOwner === undefined
+                ? undefined
+                : physical.lastDiagnosticByCall.get(diagnosticOwner)
             const observer = operationDiagnostics(
               collector,
               session.log.tenant,
@@ -907,10 +931,10 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
           },
         })
         untransferredScope = undefined
-        invocations.add(created)
+        physical.invocations.add(created)
         const drained = () => {
           scopeLease.release()
-          invocations.delete(created)
+          physical.invocations.delete(created)
         }
         created.outcome.then(drained, drained)
         return created
@@ -963,15 +987,23 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
           binding: session.log,
           owner: view.owner,
           concurrent: runtime.settlementContention.limits.concurrent,
-          reads: retainedReads,
+          reads: physical.retainedReads,
           contentStore: runtime.callFacts.content,
           content: { kind: 'reply_ready', value: pending },
           locator: pending.id,
           version: 'v1',
           at: runtime.policy.now(),
-          trackTask: task => appends.track(task),
+          trackTask: task => physical.appends.track(task),
           retainUnknown(registration, task, permit) {
-            unknownWrites.keep(key, session.log, view.owner, registration, task, permit)
+            physical.unknownWrites.keep(
+              key,
+              session.log,
+              view.owner,
+              registration,
+              task,
+              runtime.history.call,
+              permit,
+            )
           },
         })
         if (!('published' in published)) {
@@ -979,7 +1011,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
           return { unavailable: true }
         }
         const closed = await handle.finishReady()
-        if ('released' in closed) invocations.delete(handle)
+        if ('released' in closed) physical.invocations.delete(handle)
         if ('unavailable' in closed) return { unavailable: true }
         const state = pending.outcome === 'interrupted' ? 'interrupted' : 'complete'
         finish.reservation.publish({ phase: state, pending })
@@ -994,7 +1026,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
         // The shared MR7 judge validated the captured JSON value at this boundary.
         const response = outcome.settled.settled.response.value as unknown as ModelResponse
         const closed = await handle.close()
-        if ('released' in closed) invocations.delete(handle)
+        if ('released' in closed) physical.invocations.delete(handle)
         if ('unavailable' in closed) return { unavailable: true }
         finish.reservation.publish({ phase: 'ready' })
         if (response.outcome === 'failed') {
@@ -1002,7 +1034,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
           const got = await withOwnedReads(
             view.owner,
             runtime.settlementContention.limits.concurrent,
-            retainedReads,
+            physical.retainedReads,
             async registration => {
               const prefix = await readSettlementPrefix({ binding: session.log, registration })
               if ('unavailable' in prefix) return { unavailable: true } as const
@@ -1031,12 +1063,14 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
                   owner: view.owner,
                   subject: subject.subject,
                   usable: () =>
-                    !closing && !view.request.host.stopping() && !view.request.host.signal.aborted,
+                    !physical.closing &&
+                    !view.request.host.stopping() &&
+                    !view.request.host.signal.aborted,
                   retain: value => {
-                    sources.add(value)
+                    physical.sources.add(value)
                   },
                   forget: value => {
-                    sources.delete(value)
+                    physical.sources.delete(value)
                   },
                 })
                 if (source === null) return { unavailable: true } as const
@@ -1060,7 +1094,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
       }
       if ('rejected' in outcome) {
         const closed = await handle.close()
-        if ('released' in closed) invocations.delete(handle)
+        if ('released' in closed) physical.invocations.delete(handle)
         if ('unavailable' in closed) return { unavailable: true }
         finish.reservation.publish({ phase: 'ready' })
         if (outcome.rejected === 'invalidInput') {
@@ -1094,9 +1128,9 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
         }
         if (outcome.rejected === 'modality_not_carried') {
           if (dispatchNumber > 1) return { invalidInput: { reason: 'modality_mismatch' } }
-          if (closing) return { runtimeStopped: true }
+          if (physical.closing) return { runtimeStopped: true }
           const appended = await appendControlRecord({
-            trackTask: task => appends.track(task),
+            trackTask: task => physical.appends.track(task),
             binding: session.log,
             owner: view.owner,
             concurrent: runtime.settlementContention.limits.concurrent,
@@ -1110,7 +1144,14 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
               cause: 'modality_mismatch',
             },
             retainUnknown(registration, task) {
-              unknownWrites.keep(key, session.log, view.owner, registration, task)
+              physical.unknownWrites.keep(
+                key,
+                session.log,
+                view.owner,
+                registration,
+                task,
+                runtime.history.call,
+              )
             },
           })
           if ('appended' in appended) await retire(finish.reservation)
@@ -1194,34 +1235,39 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
             source === undefined ? { kind: 'notApplicable' } : { kind: 'failure', source },
         }
   }
-  return Object.freeze({
-    dispatch,
-    dispatchAgain,
-    close: async () => {
-      closing = true
-      for (const source of sources) source.release()
-      for (const invocation of invocations) invocation.abort()
-      const drained = await Promise.allSettled(
-        [...invocations].map(async invocation => {
-          const result = await invocation.close()
-          if ('released' in result) invocations.delete(invocation)
-          return result
-        }),
-      )
-      const [reads, appendResult] = await Promise.all([retainedReads.close(), appends.close()])
-      const writes = await unknownWrites.close({
-        concurrent: runtime.settlementContention.limits.concurrent,
-        call: runtime.history.call,
-      })
-      return drained.every(result => result.status === 'fulfilled' && 'released' in result.value) &&
-        'released' in reads &&
-        'released' in appendResult &&
-        'released' in writes &&
-        (borrowedScopes !== undefined || 'released' in scopes.close())
-        ? ({ released: true } as const)
-        : ({ unavailable: true } as const)
-    },
-  })
+  return retainRuntimeProjection(
+    Object.freeze({
+      dispatch,
+      dispatchAgain,
+      close: async () => {
+        physical.closing = true
+        for (const source of physical.sources) source.release()
+        for (const invocation of physical.invocations) invocation.abort()
+        const drained = await Promise.allSettled(
+          [...physical.invocations].map(async invocation => {
+            const result = await invocation.close()
+            if ('released' in result) physical.invocations.delete(invocation)
+            return result
+          }),
+        )
+        const [reads, appendResult] = await Promise.all([
+          physical.retainedReads.close(),
+          physical.appends.close(),
+        ])
+        const writes = await physical.unknownWrites.close()
+        return drained.every(
+          result => result.status === 'fulfilled' && 'released' in result.value,
+        ) &&
+          'released' in reads &&
+          'released' in appendResult &&
+          'released' in writes &&
+          (borrowedScopes !== undefined || 'released' in scopes.close())
+          ? ({ released: true } as const)
+          : ({ unavailable: true } as const)
+      },
+    }),
+    (next: RuntimeConstruction<P, R>) => buildServiceDispatch(next, borrowedScopes, physical),
+  )
 }
 type PreparationResult =
   | { readonly prepared: PreparedSend }

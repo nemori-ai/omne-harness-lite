@@ -158,7 +158,12 @@ function buildRuntime(host: Host, options: RuntimeOptions = {}) {
       failure: () => ({ unavailable: true }),
       run: () => ({ unavailable: true }),
     },
-    recovery: { enter: async () => ({ unavailable: true }) },
+    recovery: {
+      async authorize() {
+        return { authorized: true as const }
+      },
+      enter: async () => ({ unavailable: true }),
+    },
     diagnostic() {},
   }
   const runtime = createModelRuntime(construction)

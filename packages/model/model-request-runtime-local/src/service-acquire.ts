@@ -1,3 +1,4 @@
+import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { isNonNegativeJsonInteger } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
@@ -103,10 +104,32 @@ function sameOrigin(first: CallOrigin, next: CallOrigin, binding: SettlementLogB
 export function createRuntimeAcquire<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
   sharedCustody?: AcknowledgementCustody,
-): {
-  readonly acquireCall: (input: AcquireCallInput) => Promise<AcquireCallResult>
-  readonly close: () => Promise<RuntimeCloseResult>
-} {
+): ProjectedComponent<
+  {
+    readonly acquireCall: (input: AcquireCallInput) => Promise<AcquireCallResult>
+    readonly close: () => Promise<RuntimeCloseResult>
+  },
+  RuntimeConstruction<P, R>
+> {
+  return buildRuntimeAcquire(runtime, sharedCustody)
+}
+
+class RuntimeAcquireState {
+  readonly resources = new Set<{ readonly close: () => Promise<RuntimeCloseResult> }>()
+  closed = false
+}
+
+function buildRuntimeAcquire<P extends PlannedSemantics, R>(
+  runtime: RuntimeConstruction<P, R>,
+  sharedCustody?: AcknowledgementCustody,
+  physical: RuntimeAcquireState = new RuntimeAcquireState(),
+): ProjectedComponent<
+  {
+    readonly acquireCall: (input: AcquireCallInput) => Promise<AcquireCallResult>
+    readonly close: () => Promise<RuntimeCloseResult>
+  },
+  RuntimeConstruction<P, R>
+> {
   if (
     typeof runtime.callAccess?.check !== 'function' ||
     typeof runtime.callPresence?.read !== 'function' ||
@@ -121,8 +144,7 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
     throw new TypeError('trusted access, original presence and durable call facts required')
   const ownCustody = sharedCustody === undefined ? runtimeCustody(runtime) : undefined
   const custody = sharedCustody ?? ownCustody
-  const resources = new Set<{ readonly close: () => Promise<RuntimeCloseResult> }>()
-  let closed = false
+
   async function acquireCall(input: AcquireCallInput): Promise<AcquireCallResult> {
     const inspected = ownInput(input)
     if ('invalidInput' in inspected) return inspected
@@ -219,7 +241,7 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
                 presence.kind !== 'live'
               )
                 return { view: actual }
-              if (closed) return { runtimeStopped: true as const }
+              if (physical.closed) return { runtimeStopped: true as const }
               const container = runtime.calls.find(owned.ref)
               const local = container?.view()
               if (
@@ -261,7 +283,7 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
                       await consumer?.stopped
                       unregister?.()
                       unregister = undefined
-                      resources.delete(entry)
+                      physical.resources.delete(entry)
                       return { released: true as const }
                     })
                     .catch(() => unavailable)
@@ -271,7 +293,7 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
                   return closing
                 },
               }
-              resources.add(entry)
+              physical.resources.add(entry)
               const retained = local.request.host.register(entry.close)
               if (!('registration' in retained)) {
                 await entry.close()
@@ -427,7 +449,11 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
           if ('view' in admitted.allowed) admitted.allowed.consumer?.release()
           return unavailable
         }
-        if ('view' in admitted.allowed && admitted.allowed.consumer !== undefined && closed) {
+        if (
+          'view' in admitted.allowed &&
+          admitted.allowed.consumer !== undefined &&
+          physical.closed
+        ) {
           admitted.allowed.consumer.release()
           return { runtimeStopped: true }
         }
@@ -438,18 +464,21 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
       return unavailable
     }
   }
-  return Object.freeze({
-    acquireCall,
-    async close() {
-      closed = true
-      const outcomes = await Promise.allSettled([
-        ...[...resources].map(resource => resource.close()),
-        ...(ownCustody === undefined ? [] : [ownCustody.close()]),
-      ])
-      return resources.size === 0 &&
-        outcomes.every(result => result.status === 'fulfilled' && 'released' in result.value)
-        ? { released: true as const }
-        : unavailable
-    },
-  })
+  return retainRuntimeProjection(
+    Object.freeze({
+      acquireCall,
+      async close() {
+        physical.closed = true
+        const outcomes = await Promise.allSettled([
+          ...[...physical.resources].map(resource => resource.close()),
+          ...(ownCustody === undefined ? [] : [ownCustody.close()]),
+        ])
+        return physical.resources.size === 0 &&
+          outcomes.every(result => result.status === 'fulfilled' && 'released' in result.value)
+          ? { released: true as const }
+          : unavailable
+      },
+    }),
+    (next: RuntimeConstruction<P, R>) => buildRuntimeAcquire(next, sharedCustody, physical),
+  )
 }

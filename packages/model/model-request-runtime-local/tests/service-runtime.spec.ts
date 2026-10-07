@@ -98,15 +98,151 @@ function construction(
     },
     reservationWaitPolicy: { maxWaitersPerCall: 1, timeoutMs: 1 },
     acknowledgementCleanup: { next: () => ({ stop: true }) },
-    recovery: { enter: async () => ({ unavailable: true }) },
+    recovery: {
+      async authorize() {
+        return { authorized: true as const }
+      },
+      enter: async () => ({ unavailable: true }),
+    },
     diagnostic() {},
   }
 }
 
+describe('fixed-subject projections of a single physical runtime', () => {
+  it('retains each original source, rechecks current qualification, and closes admission for all projections', async () => {
+    const original = construction()
+    const runtime = createModelRuntime(original)
+    const seen: string[] = []
+    let validA = true
+    const a = runtime.project(
+      {
+        ...original,
+        sessions: {
+          async bind() {
+            seen.push(validA ? 'A-current' : 'A-revoked')
+            return { failure: 'unavailable' }
+          },
+        },
+      },
+      original.callFacts,
+    )
+    const b = runtime.project(
+      {
+        ...original,
+        sessions: {
+          async bind() {
+            seen.push('B-current')
+            return { failure: 'unavailable' }
+          },
+        },
+      },
+      original.callFacts,
+    )
+    await a.effectiveModel({ session })
+    await b.effectiveModel({ session })
+    validA = false
+    await a.effectiveModel({ session })
+    expect(seen).toEqual(['A-current', 'B-current', 'A-revoked'])
+    const stop = await runtime.close()
+    expect(stop).toEqual({ released: true })
+    expect(await a.openCall({} as never)).toEqual({ runtimeStopped: true })
+    expect(await b.dispatch({ session, callId: 'missing' })).toEqual({ runtimeStopped: true })
+  })
+
+  it('rejects a different physical content owner rather than adopting it', async () => {
+    const original = construction(),
+      other = construction()
+    const runtime = createModelRuntime(original)
+    expect(() => runtime.project(original, other.callFacts)).toThrow(TypeError)
+    expect(await runtime.close()).toEqual({ released: true })
+    expect(await other.calls.close()).toEqual({ released: true })
+  })
+
+  it('does not reopen recovery after authorization returns following overall close', async () => {
+    const original = construction()
+    const authorization = deferred<{ readonly authorized: true }>()
+    const enteredAuthorization = deferred<void>()
+    let entered = 0
+    const runtime = createModelRuntime(original)
+    const projected = runtime.project(
+      {
+        ...original,
+        recovery: {
+          authorize() {
+            enteredAuthorization.finish()
+            return authorization.promise
+          },
+          async enter() {
+            entered++
+            return { unavailable: true }
+          },
+        },
+      },
+      original.callFacts,
+    )
+    const pending = projected.reconcile({ session })
+    await enteredAuthorization.promise
+    const closing = runtime.close()
+    authorization.finish({ authorized: true })
+    expect(await pending).toEqual({ unavailable: true })
+    expect(await closing).toEqual({ released: true })
+    expect(entered).toBe(0)
+  })
+
+  it('authorizes every recovery call and treats a thrown source as unavailable without entering', async () => {
+    const original = construction()
+    let entered = 0,
+      checks = 0
+    const runtime = createModelRuntime(original)
+    const denied = runtime.project(
+      {
+        ...original,
+        recovery: {
+          async authorize() {
+            checks++
+            return { unavailable: true }
+          },
+          async enter() {
+            entered++
+            return { unavailable: true }
+          },
+        },
+      },
+      original.callFacts,
+    )
+    const failed = runtime.project(
+      {
+        ...original,
+        recovery: {
+          async authorize() {
+            checks++
+            throw new Error('original source failed')
+          },
+          async enter() {
+            entered++
+            return { unavailable: true }
+          },
+        },
+      },
+      original.callFacts,
+    )
+    expect(await denied.reconcile({ session })).toEqual({ unavailable: true })
+    expect(await failed.reconcile({ session })).toEqual({ unavailable: true })
+    expect(checks).toBe(2)
+    expect(entered).toBe(0)
+    expect(await runtime.close()).toEqual({ released: true })
+  })
+})
+
 describe('D102 unified model runtime owner', () => {
-  it.each([false, true])(
-    'runs the real SQLite/JSONL runtime through close (scope cleanup initially fails: %s)',
-    async initiallyFails => {
+  it.each([
+    [false, false],
+    [true, false],
+    [false, true],
+    [true, true],
+  ])(
+    'runs the real SQLite/JSONL runtime through close (scope cleanup fails: %s, projected: %s)',
+    async (initiallyFails, projected) => {
       const host = await selectionHost(true, true)
       try {
         const selected = host.create()
@@ -199,19 +335,31 @@ describe('D102 unified model runtime owner', () => {
             failure: () => ({ unavailable: true }),
             run: () => ({ unavailable: true }),
           },
-          recovery: { enter: async () => ({ unavailable: true }) },
+          recovery: {
+            async authorize() {
+              return { authorized: true as const }
+            },
+            enter: async () => ({ unavailable: true }),
+          },
           diagnostic() {},
         }
         const runtime = createModelRuntime(construction)
+        const service = projected
+          ? runtime.project(construction, construction.callFacts)
+          : runtime.service
+        const successor = runtime.project(construction, construction.callFacts)
+        expect(Object.keys(service).sort()).toEqual(Object.keys(runtime.service).sort())
+        expect(service).not.toHaveProperty('close')
+
         expect(
-          await runtime.service.selectModel({
+          await service.selectModel({
             session: host.session,
             routeName: 'example/model-a',
           }),
         ).toEqual({ selected: 'example/model-a' })
-        const effective = await runtime.service.effectiveModel({ session: host.session })
+        const effective = await service.effectiveModel({ session: host.session })
         if (!('effectiveModel' in effective)) throw new Error('effective model absent')
-        const opened = await runtime.service.openCall({
+        const opened = await service.openCall({
           creationKey: unwrap(parseOpaqueIdentifier('runtime_create_1', 'CreationKey')),
           session: host.session,
           target: effective.effectiveModel.routeName,
@@ -225,7 +373,7 @@ describe('D102 unified model runtime owner', () => {
           callId: 'runtime-call-1',
           state: 'open',
         })
-        const dispatched = await runtime.service.dispatch({
+        const dispatched = await service.dispatch({
           session: host.session,
           callId: 'runtime-call-1',
         })
@@ -233,7 +381,7 @@ describe('D102 unified model runtime owner', () => {
         expect(wire.sends()).toBe(1)
         // S-86/S-34⑤: the confirmed ready is complete with disposition_pending on every read
         // face; readAttempts carries the complete original result, never reply_pending.
-        const beforeSettle = await runtime.service.readAttempts({
+        const beforeSettle = await service.readAttempts({
           session: host.session,
           callId: 'runtime-call-1',
         })
@@ -246,13 +394,13 @@ describe('D102 unified model runtime owner', () => {
           ready: { record: { kind: 'model_call_reply_ready', response: 'runtime-response' } },
           result: { disposition: 'disposition_pending', pending: { id: 'runtime-response' } },
         })
-        const settled = await runtime.service.settleReply({
+        const settled = await (projected ? successor : service).settleReply({
           session: host.session,
           callId: 'runtime-call-1',
           disposition: { vetoed: { by: 'runtime-gate' } },
         })
         expect(settled).toEqual({ callId: 'runtime-call-1', state: 'complete' })
-        const attempts = await runtime.service.readAttempts({
+        const attempts = await service.readAttempts({
           session: host.session,
           callId: 'runtime-call-1',
         })
@@ -275,7 +423,7 @@ describe('D102 unified model runtime owner', () => {
         // later entry answers the small acknowledged branch or its terminal refusal.
         const acknowledgedRef = { session: host.session, callId: 'runtime-call-1' }
         const target = { kind: 'response' as const, response: 'runtime-response' }
-        const acknowledged = await runtime.service.acknowledgeCall({
+        const acknowledged = await (projected ? successor : service).acknowledgeCall({
           ref: acknowledgedRef,
           expectedResult: target,
         })
@@ -303,21 +451,21 @@ describe('D102 unified model runtime owner', () => {
             },
           ],
         }
-        const read = await runtime.service.acquireCall({ ref: acknowledgedRef, mode: 'read' })
+        const read = await service.acquireCall({ ref: acknowledgedRef, mode: 'read' })
         expect(read).toMatchObject({ view: small })
         expect(read).not.toHaveProperty('consumer')
-        expect(await runtime.service.readAttempts(acknowledgedRef)).toMatchObject({
+        expect(await service.readAttempts(acknowledgedRef)).toMatchObject({
           acknowledged: small,
         })
         expect(
-          await runtime.service.canDispatchAgain({
+          await service.canDispatchAgain({
             ...acknowledgedRef,
             plan: { provider: 'test' },
           }),
         ).toEqual({ alreadyEnded: true })
-        expect(await runtime.service.dispatch(acknowledgedRef)).toEqual({ alreadyEnded: true })
+        expect(await service.dispatch(acknowledgedRef)).toEqual({ alreadyEnded: true })
         expect(
-          await runtime.service.acknowledgeCall({
+          await service.acknowledgeCall({
             ref: acknowledgedRef,
             expectedResult: { kind: 'ended', ending: 'released' },
           }),
@@ -328,7 +476,7 @@ describe('D102 unified model runtime owner', () => {
         expect(refusedLog.entries).toHaveLength(acknowledgedLog.entries.length)
         expect(wire.sends()).toBe(1)
         expect(
-          await runtime.service.openCall({
+          await service.openCall({
             creationKey: unwrap(parseOpaqueIdentifier('runtime_create_2', 'CreationKey')),
             session: host.session,
             target: effective.effectiveModel.routeName,
@@ -343,7 +491,7 @@ describe('D102 unified model runtime owner', () => {
           state: 'open',
         })
         holdBind = true
-        const lateOpen = runtime.service.openCall({
+        const lateOpen = service.openCall({
           creationKey: unwrap(parseOpaqueIdentifier('runtime_create_3', 'CreationKey')),
           session: host.session,
           target: effective.effectiveModel.routeName,
@@ -359,7 +507,7 @@ describe('D102 unified model runtime owner', () => {
         })
         await Promise.resolve()
         expect(closeFinished).toBe(false)
-        expect(await runtime.service.openCall({} as never)).toEqual({ runtimeStopped: true })
+        expect(await service.openCall({} as never)).toEqual({ runtimeStopped: true })
         bound.finish({ binding })
         expect(await lateOpen).toEqual({ runtimeStopped: true })
         expect(await closing).toEqual(initiallyFails ? { unavailable: true } : { released: true })

@@ -19,7 +19,7 @@ import {
 import {
   type CallContainer,
   type CallContainerStore,
-  type CallFacts,
+  type CallFactsView,
 } from '@omne-harness-lite/model-request-runtime-local'
 import type { PlannedRequest, RawResponse } from '@omne-harness-lite/model-request-runtime'
 
@@ -150,14 +150,14 @@ export interface DemoCallAccessHost {
    * application captured at its authenticated entry, then yields the borrowed log binding.
    */
   readonly authorize: (session: SessionRef) => Promise<DemoAccessAuthorization>
-  readonly facts: CallFacts
+  readonly facts: CallFactsView
   /** Aborted when the application withdraws access; never a cached grant. */
   readonly revoked: AbortSignal
   readonly diagnostic: (outcome: 'allowed' | 'denied' | 'unavailable') => void
 }
 
 async function sourceOf(
-  facts: CallFacts,
+  facts: CallFactsView,
   binding: SettlementLogBinding,
   ref: CallKey,
   origin: CallOrigin | undefined,
