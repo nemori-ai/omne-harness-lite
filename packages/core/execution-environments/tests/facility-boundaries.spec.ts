@@ -12,6 +12,7 @@ import {
 
 const reference = { id: 'original', generation: 'generation' }
 const bytes = () => new Uint8Array([1, 2, 3])
+const info = { path: '/a', type: 'file', sizeBytes: 3, modifiedMs: 1, version: 'v1' }
 
 test('malformed process accessors return false without leaking exceptions', () => {
   const input = Object.defineProperty({}, 'outputMode', {
@@ -34,12 +35,15 @@ test.each([NaN, Infinity, -Infinity, '1', {}])(
     expect(
       captureFileResult('stat', {
         kind: 'stat',
-        value: { name: 'a', path: '/a', kind: 'file', sizeBytes: 3, modifiedMs, version: 'v1' },
+        value: { ...info, modifiedMs },
       }),
     ).toBeUndefined()
   },
 )
-const info = { path: '/a', type: 'file', sizeBytes: 3, modifiedMs: 1, version: 'v1' }
+test.each([0, -1, 1, Number.MAX_VALUE])('file observations accept finite timestamps: %s', modifiedMs => {
+  const result = { kind: 'stat', value: { ...info, modifiedMs } }
+  expect(captureFileResult('stat', result)).toEqual(result)
+})
 type Case<M> = { method: M; value: Record<string, unknown> | string; required: readonly string[] }
 const fileInputs: Case<keyof FileFacility>[] = [
   { method: 'read', value: { path: '/a', offsetBytes: 0, limitBytes: 3 }, required: ['path'] },
