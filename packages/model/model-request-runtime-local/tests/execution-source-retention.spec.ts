@@ -119,10 +119,91 @@ async function fixture() {
     if (!('replyPending' in result)) throw new Error('dispatch ' + JSON.stringify(result))
     return { ref: opened.ref, pending: result.replyPending }
   }
-  return { host, runtime, calls, ready }
+  return { host, runtime, calls, ready, binding, content: construction.callFacts.content }
 }
 
 describe('ACK erases the source private copy independently of metadata and idle frames', () => {
+  it('checks live process copies even when another custodian has released durable content', async () => {
+    const f = await fixture()
+    let frame: ReturnType<typeof f.runtime.executionSource.capture> | undefined
+    try {
+      const { ref, pending } = await f.ready()
+      frame = f.runtime.executionSource.capture(f.host.session)
+      if (!('capture' in frame)) throw new Error('capture missing')
+      const target = {
+        ref,
+        expectedResult: { kind: 'response' as const, response: pending.id },
+      }
+      expect(await f.runtime.service.acknowledgeCall(target)).toMatchObject({
+        acknowledged: { cleanup: 'pending', pendingReasons: ['external_retention'] },
+      })
+      // The real content owner cannot see another process's in-memory source pins.
+      expect(
+        await f.content.releaseAcknowledged({ binding: f.binding.log, call: ref.callId }),
+      ).toEqual({ cleanup: 'released' })
+      expect(await f.content.retention({ binding: f.binding.log, call: ref.callId })).toEqual({
+        phase: 'released',
+        publishers: 0,
+      })
+      expect(await f.runtime.service.acknowledgeCall(target)).toMatchObject({
+        acknowledged: { cleanup: 'pending', pendingReasons: ['external_retention'] },
+      })
+      expect(f.runtime.executionSource.lookup(ref)).toMatchObject({
+        execution: { copyReleased: false },
+      })
+      expect(await f.content.retention({ binding: f.binding.log, call: ref.callId })).toEqual({
+        phase: 'released',
+        publishers: 0,
+      })
+      frame.capture.release()
+      expect(await f.runtime.service.acknowledgeCall(target)).toMatchObject({
+        acknowledged: { cleanup: 'released' },
+      })
+      expect(f.runtime.executionSource.lookup(ref)).toMatchObject({
+        execution: { copyReleased: true },
+      })
+    } finally {
+      if (frame && 'capture' in frame) frame.capture.release()
+      await f.runtime.close()
+      await f.host.close()
+    }
+  }, 90_000)
+
+  it('keeps private copies when an original physical reservation blocks in-memory cleanup', async () => {
+    const f = await fixture()
+    let held: ReturnType<typeof f.calls.reserve> | undefined
+    try {
+      const { ref, pending } = await f.ready()
+      held = f.calls.reserve(ref)
+      if (!('reservation' in held)) throw new Error('reservation missing')
+      const target = {
+        ref,
+        expectedResult: { kind: 'response' as const, response: pending.id },
+      }
+      expect(await f.runtime.service.acknowledgeCall(target)).toMatchObject({
+        acknowledged: { cleanup: 'pending', pendingReasons: ['read_in_flight'] },
+      })
+      expect(f.runtime.executionSource.lookup(ref)).toMatchObject({
+        execution: { registered: true, released: false, copyReleased: false },
+      })
+      expect(await f.content.retention({ binding: f.binding.log, call: ref.callId })).toEqual({
+        phase: 'acknowledged',
+        publishers: 0,
+      })
+      held.reservation.release()
+      expect(await f.runtime.service.acknowledgeCall(target)).toMatchObject({
+        acknowledged: { cleanup: 'released' },
+      })
+      expect(f.runtime.executionSource.lookup(ref)).toMatchObject({
+        execution: { copyReleased: true },
+      })
+    } finally {
+      if (held && 'reservation' in held) held.reservation.release()
+      await f.runtime.close()
+      await f.host.close()
+    }
+  }, 90_000)
+
   it('attributes GC correctly with a retained and an unreferenced positive control', async () => {
     let held: object | undefined = { big: new Array(1000).fill('x') }
     const weak = new WeakRef(held)
