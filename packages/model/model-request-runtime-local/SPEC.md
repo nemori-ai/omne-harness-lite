@@ -1,13 +1,13 @@
 # 本地模型请求运行时提供者
 
 本包提供既有模型调用、默认策略、日志 codec 与耐久运行时。
-纯退避计算从[公共定义](../../core/model-request-runtime/SPEC.md)消费，不在此复制算法。
+公共操作协议、形状和独立算法从[公共定义](../../core/model-request-runtime/SPEC.md)消费，不在此复制算法。
 根入口公开独立函数/工厂，Cordis 插件从 `./cordis` 导出。旧插件子入口已移除。
 
 ## 保持的运行责任
 
-十五操作的业务形状、失败、凭据、恢复、保留、引用与 acknowledge 行为仍采用精确旧源，
-见[迁移范围](../../../.meta_harness/design/architecture/pilots/n4-ownership.md#模型请求运行时)。
+十五操作的形状归公共 `ModelRuntimeOperations`；类型之外的共享行为归公共 SPEC。
+尚未迁移的具体生命周期投影与跨拥有者组合义务继续按精确旧源，见[迁移范围](../../../.meta_harness/design/architecture/pilots/n4-ownership.md#模型请求运行时)。
 接口迁移不得把当前 local 实现限制写成通用模型能力政策。
 
 运行时负责提交后的观测、取消、退出和恢复。在途工作未实际停止前不得释放其责任。

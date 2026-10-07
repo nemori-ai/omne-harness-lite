@@ -12,13 +12,13 @@ import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import type { AppendResult, OwnedLogEntry, SessionLog } from '@omne-harness-lite/session-log'
 import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { captureModelLogValue, encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
-import { interpretCallHistory } from '../src/call-history.ts'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import {
   interpretSettlementPrefix,
   readSettlementPrefix,
   type SettlementPrefix,
-} from '../src/settlement-prefix.ts'
-import { type SettlementTaskKind } from '../src/settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import { type SettlementTaskKind } from '@omne-harness-lite/model-request-runtime'
 import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
 import { dispatched, opened, prepare, session, tenant } from './log-codec-fixture.ts'
 import { prepareV2, responseV5 } from './log-codec-v2-fixture.ts'
@@ -44,7 +44,7 @@ async function withLog(name: string, work: (h: Harness) => Promise<void>) {
     log,
     generation,
     currentGeneration: () => generation,
-    readPrefix(this: import('../src/settlement-types.ts').SettlementLogBinding) {
+    readPrefix(this: import('@omne-harness-lite/model-request-runtime').SettlementLogBinding) {
       return log.fixturePrefix({ session: this.session, tenant: this.tenant }, this.log)
     },
     originalIssue: log.fixtureOriginalIssue,

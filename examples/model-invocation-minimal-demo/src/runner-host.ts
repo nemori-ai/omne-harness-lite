@@ -17,7 +17,7 @@ import {
   readSettlementPrefix,
   type SettlementLogBinding,
   type SettlementRegistration,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import type { SqlSessionLog } from '@omne-harness-lite/session-log-sql'
 import type { SessionLogBackingOperations } from '@omne-harness-lite/session-log'
 import { tenantIdEquals, parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'

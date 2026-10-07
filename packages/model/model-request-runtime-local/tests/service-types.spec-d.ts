@@ -1,6 +1,7 @@
 import { expectTypeOf } from 'vitest'
 import type { SessionRef } from '@omne-harness-lite/messages'
-import type { RuntimeConstruction, ModelIdentitySource } from '../src/service-types.ts'
+import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { ModelIdentitySource } from '@omne-harness-lite/model-request-runtime'
 import type {
   ModelRuntimeOperations,
   OpenCallInput,

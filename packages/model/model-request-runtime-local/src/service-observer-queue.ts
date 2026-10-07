@@ -9,10 +9,10 @@ import {
   type JsonNumber,
 } from '@omne-harness-lite/content-blocks'
 import type { AssemblySnapshot } from '@omne-harness-lite/stream-assembly'
+import type { ObserverDiagnostic } from '@omne-harness-lite/model-request-runtime'
 import type {
   ModelObserverQueue,
   ModelObserverQueueInput,
-  ObserverDiagnostic,
   ObserverOfferResult,
 } from './service-types.ts'
 

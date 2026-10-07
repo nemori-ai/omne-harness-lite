@@ -5,34 +5,7 @@ import type {
   ModelInputMeters as Operations2,
   ModelRetrySample as Operations3,
   DevelopmentTransportTls as Operations4,
-  ModelRuntimeOperations as RuntimeOperations,
 } from './index.ts'
-
-/** The unique public Service definition for all fifteen model runtime operations.
- * @owner packages/core/model-request-runtime
- */
-export abstract class ModelRuntimeService extends Service implements RuntimeOperations {
-  static readonly provide = 'modelRuntime'
-  constructor(ctx: Context) {
-    super(ctx, ModelRuntimeService.provide)
-  }
-  abstract readonly acquireCall: RuntimeOperations['acquireCall']
-  abstract readonly legalTargets: RuntimeOperations['legalTargets']
-  abstract readonly displayList: RuntimeOperations['displayList']
-  abstract readonly effectiveModel: RuntimeOperations['effectiveModel']
-  abstract readonly selectModel: RuntimeOperations['selectModel']
-  abstract readonly openCall: RuntimeOperations['openCall']
-  abstract readonly dispatch: RuntimeOperations['dispatch']
-  abstract readonly dispatchAgain: RuntimeOperations['dispatchAgain']
-  abstract readonly interrupt: RuntimeOperations['interrupt']
-  abstract readonly releaseCall: RuntimeOperations['releaseCall']
-  abstract readonly reconcile: RuntimeOperations['reconcile']
-  abstract readonly readAttempts: RuntimeOperations['readAttempts']
-  abstract readonly settleReply: RuntimeOperations['settleReply']
-  abstract readonly canDispatchAgain: RuntimeOperations['canDispatchAgain']
-  abstract readonly acknowledgeCall: RuntimeOperations['acknowledgeCall']
-}
-export const MODEL_RUNTIME_SERVICE = ModelRuntimeService.provide
 
 /** @contract capability.model-request-runtime */
 export abstract class ModelTransportService extends Service implements Operations0 {
@@ -100,9 +73,114 @@ export abstract class DevelopmentTransportTlsService extends Service implements 
 }
 export const DEVELOPMENT_TRANSPORT_TLS = DevelopmentTransportTlsService.provide
 
+import type {
+  ModelRuntimeOperations as Operations,
+  ModelRuntimeHostInputOperations,
+  ModelRuntimeExecutionSupport,
+  FailureConsumption,
+  DispatchInput,
+  DispatchResult,
+  DispatchAgainInput,
+  DispatchAgainResult,
+  ReadAttemptsResult,
+} from './index.ts'
+import type { CallKey } from '@omne-harness-lite/messages'
+
+/** @contract capability.model-request-runtime */
+export abstract class ModelRuntimeService extends Service implements Operations {
+  static readonly provide = 'modelRuntime'
+  constructor(ctx: Context) {
+    super(ctx, ModelRuntimeService.provide)
+  }
+  abstract acquireCall(
+    ...args: Parameters<Operations['acquireCall']>
+  ): ReturnType<Operations['acquireCall']>
+  abstract legalTargets(
+    ...args: Parameters<Operations['legalTargets']>
+  ): ReturnType<Operations['legalTargets']>
+  abstract displayList(
+    ...args: Parameters<Operations['displayList']>
+  ): ReturnType<Operations['displayList']>
+  abstract effectiveModel(
+    ...args: Parameters<Operations['effectiveModel']>
+  ): ReturnType<Operations['effectiveModel']>
+  abstract selectModel(
+    ...args: Parameters<Operations['selectModel']>
+  ): ReturnType<Operations['selectModel']>
+  abstract openCall(...args: Parameters<Operations['openCall']>): ReturnType<Operations['openCall']>
+  abstract dispatch(input: DispatchInput): Promise<DispatchResult>
+  abstract dispatch(
+    input: DispatchInput,
+    options: { readonly consumeFailure: true },
+  ): Promise<FailureConsumption<DispatchResult>>
+  abstract dispatchAgain(input: DispatchAgainInput): Promise<DispatchAgainResult>
+  abstract dispatchAgain(
+    input: DispatchAgainInput,
+    options: { readonly consumeFailure: true },
+  ): Promise<FailureConsumption<DispatchAgainResult>>
+  abstract interrupt(
+    ...args: Parameters<Operations['interrupt']>
+  ): ReturnType<Operations['interrupt']>
+  abstract releaseCall(
+    ...args: Parameters<Operations['releaseCall']>
+  ): ReturnType<Operations['releaseCall']>
+  abstract reconcile(
+    ...args: Parameters<Operations['reconcile']>
+  ): ReturnType<Operations['reconcile']>
+  abstract readAttempts(input: CallKey): Promise<ReadAttemptsResult>
+  abstract readAttempts(
+    input: CallKey,
+    options: { readonly consumeFailure: true },
+  ): Promise<FailureConsumption<ReadAttemptsResult>>
+  abstract settleReply(
+    ...args: Parameters<Operations['settleReply']>
+  ): ReturnType<Operations['settleReply']>
+  abstract canDispatchAgain(
+    ...args: Parameters<Operations['canDispatchAgain']>
+  ): ReturnType<Operations['canDispatchAgain']>
+  abstract acknowledgeCall(
+    ...args: Parameters<Operations['acknowledgeCall']>
+  ): ReturnType<Operations['acknowledgeCall']>
+}
+export const MODEL_RUNTIME_SERVICE = ModelRuntimeService.provide
+/** @contract capability.model-request-runtime */
+export abstract class ModelRuntimeHostInputsService
+  extends Service
+  implements ModelRuntimeHostInputOperations
+{
+  static readonly provide = 'modelRuntimeHostInputs'
+  constructor(ctx: Context) {
+    super(ctx, ModelRuntimeHostInputsService.provide)
+  }
+  abstract capture(): ReturnType<ModelRuntimeHostInputOperations['capture']>
+}
+export const MODEL_RUNTIME_HOST_INPUTS = ModelRuntimeHostInputsService.provide
+/** @contract capability.model-request-runtime */
+export abstract class ModelRuntimeExecutionSupportService
+  extends Service
+  implements ModelRuntimeExecutionSupport
+{
+  static readonly provide = 'modelRuntimeExecutionSupport'
+  constructor(ctx: Context) {
+    super(ctx, ModelRuntimeExecutionSupportService.provide)
+  }
+  abstract readonly settlementContention: ModelRuntimeExecutionSupport['settlementContention']
+  abstract readonly settlementScheduler: ModelRuntimeExecutionSupport['settlementScheduler']
+  abstract readonly policy: ModelRuntimeExecutionSupport['policy']
+  abstract readonly acknowledgementCleanup: ModelRuntimeExecutionSupport['acknowledgementCleanup']
+  abstract readonly diagnostic: ModelRuntimeExecutionSupport['diagnostic']
+  abstract readonly diagnosticCollector?: Exclude<
+    ModelRuntimeExecutionSupport['diagnosticCollector'],
+    undefined
+  >
+}
+export const MODEL_RUNTIME_EXECUTION_SUPPORT = ModelRuntimeExecutionSupportService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     modelRuntime: ModelRuntimeService
+    modelRuntimeHostInputs: ModelRuntimeHostInputsService
+    modelRuntimeExecutionSupport: ModelRuntimeExecutionSupportService
     modelTransport: ModelTransportService
     modelTransportSupport: ModelTransportSupportService
     modelInputMeters: ModelInputMetersService

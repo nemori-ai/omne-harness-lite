@@ -1,9 +1,3 @@
-import type {
-  ModelDisplayAnnotation,
-  ModelDisplayEntry,
-  SelectionFailure,
-  SelectionInvalidInput,
-} from '@omne-harness-lite/model-request-runtime'
 import type { Modality } from '@omne-harness-lite/content-blocks'
 import { tenantIdEquals, type TenantId } from '@omne-harness-lite/identity-values'
 import {
@@ -21,6 +15,8 @@ import type {
   DisplayListResult,
   EffectiveModelResult,
   LegalTargetsResult,
+  ModelDisplayAnnotation,
+  ModelDisplayEntry,
   ModelLockFact,
   RowCredentialFact,
   SelectedRouteFact,
@@ -28,6 +24,8 @@ import type {
   SelectionCompatibility,
   SelectionCompatibilityResult,
   SelectionFact,
+  SelectionFailure,
+  SelectionInvalidInput,
   SelectionProjection,
   SelectionRows,
 } from './selection-types.ts'

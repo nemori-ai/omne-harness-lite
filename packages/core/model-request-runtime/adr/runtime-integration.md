@@ -1,8 +1,8 @@
 # 完整模型请求的公共边界与宿主接缝
 
 本页记录模型能力的目标边界和集成选择，不复制操作业务条款。
-完整十五操作的公共形状已迁到本包纯根；其未迁业务行为仍归[精确 RT12](../../../../.meta_harness/design/spec/capabilities/model-request-runtime/v12/contract.md)及[N4 取代范围](../../../../.meta_harness/design/architecture/pilots/n4-ownership.md#模型请求运行时)。
-F0实现了该公开定义、Cordis定义类和本地转发类。下文具名宿主桥、执行支持和调用方主体投影仍是后续集成目标，不能据此声明已交付；完整Session生产来源与产品卡也未交付。
+完整十五操作、公共端口及必要独立算法已迁入本包；现行行为归 [SPEC](../SPEC.md)。[精确保留范围](../../../../.meta_harness/design/architecture/pilots/n4-ownership.md#模型请求运行时)继续约束未迁提供者投影与综合模型。
+本页不会把设计采用提升为公共入口、提供者或生产来源已经交付。
 
 ## 唯一拥有者
 
@@ -13,9 +13,9 @@ F0实现了该公开定义、Cordis定义类和本地转发类。下文具名宿
 完整方法集合为 acquireCall、legalTargets、displayList、effectiveModel、selectModel、openCall、dispatch、dispatchAgain、interrupt、releaseCall、reconcile、readAttempts、settleReply、canDispatchAgain、acknowledgeCall。
 每个方法保持其原输入、闭合结果、错误判定次序和异步结果。
 dispatch、dispatchAgain、readAttempts 的失败消费重载、acknowledgeCall 的明确目标及原 pending 认回不得在类包装中丢失。绑定保留完整函数类型，不能只用取最后一个签名的 Parameters/ReturnType 代替全部重载。
-公开形状迁移时，类型外行为随本包 SPEC 接续；当前仍按精确旧源，不以本页摘要替代完整承诺。
+公开形状迁移时，类型外行为随本包 SPEC 接续；以本包 SPEC 接续公共行为，不以本页摘要替代完整承诺。
 
-当前完整形状见[操作接口](../src/runtime-operations.ts)。整套接口只有本包一个定义拥有者，提供者私有construction不因迁移成为公共业务契约。
+完整形状见[操作接口](../src/service-types.ts)。迁移单位是下列整套接口，不按方法分批留下两个定义拥有者。
 
 | 操作             | 显式输入 → 闭合结果                                        | 行为定位    |
 | ---------------- | ---------------------------------------------------------- | ----------- |
@@ -145,3 +145,5 @@ Session 的保管承接不能成为通用 ACK 布尔值。
 当宿主输入的字段出现不同替换/生命周期拥有者，或租约不能保留真实旧来源时，拆分相应支持接缝，而不增加整个 provider 依赖豁免。
 新 Session 准入、日志事务参加或原调用 ACK 适配若改变当前业务/提交保证，须有其独立采用范围及真实组合；本页不接受完整 Session/Agent 第一期 API 或其数据格式切换。
 公开契约、实际 provider 和消费者全部切换后才退役精确旧源；未迁义务保持。
+
+完整日志前缀的私有品牌、唯一 reader 与解释器同归公共拥有者，保留唯一模块 token。读取通过显式原日志/任务登记执行 IO，品牌仅防止绕过完整前缀校验，不认证授权、真实日志来源或后续写方停止。实际注册、停止、代际与 IO 责任留原宿主/提供者。

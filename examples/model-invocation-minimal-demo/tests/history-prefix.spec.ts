@@ -6,7 +6,7 @@ import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite
 import {
   readSettlementPrefix,
   type SettlementRegistration,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import {
   captureModelLogValue,
   prepareModelLogEntry,

@@ -20,13 +20,14 @@ import type {
   SettlementRegistration,
   SettlementTask,
   SettlementTaskKind,
-} from '../src/settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type { AppendResult, LogEntry, SessionLog } from '@omne-harness-lite/session-log'
-import type { RuntimeConstruction, SessionRuntimeBinding } from '../src/service-types.ts'
+import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallHost } from '@omne-harness-lite/model-request-runtime'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
-import { interpretCallHistory } from '../src/call-history.ts'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import {
   captureModelLogValue,
   prepareModelLogEntry,

@@ -8,21 +8,21 @@
 
 ## 公开接口
 
-| 导出                                                                    | 用途                                                           |
-| ----------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `ModelDefinition`、`ModelRoute`、`ParameterRule`、`ParameterRules`      | 完整能力及逐路由提醒、八项参数规则、已认得的私有键和缓存允许值 |
-| `readModelDefinition(definitions, coordinates)`                         | 精确版本的不可变观察，不取得使用权                             |
-| `configurationSchema(definition, provider)`                             | 路由数据生成的闭合 Draft 2020-12 Schema，没有默认值            |
-| `interpretConfiguration(definition, values, provider)`                  | 从同一路由声明严格、无损解释配置                               |
-| `createOfficialProfileContent(definition, options)`                     | 构造并判定 core 内容，不写目录、不登记、不生成时间             |
-| `planRequest(input, definitions, meter, execution, preparer?)`                                | 固定字节规划与可信逐路由计量器的最终输入准入                   |
-| `createPiAiTransport(options)`                                          | 显式定义、绑定计量器与自持连接池的 plan/send/read/close        |
-| `sendRequest`、`readStream`                                             | 借用明确网络资源的独立函数                                     |
-| `createModelTransportService`、`AdaptationLease`、`RetirementPolicy`    | 进程内精确登记、固定引用和显式排空                             |
-| `parseSSE`、`canonicalInteger`、`generatedCallId`                       | 分帧与精确确定性标识辅助                                       |
-| `officialModelIds`、八个 `<family>Definitions` 与 `<family>ModelRoutes` | 完整 MP4 声明、精确路由策略及派生的目标身份                    |
+| 导出                                                                                          | 用途                                                                                         |
+| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `ModelDefinition`、`ModelRoute`、`ParameterRule`、`ParameterRules`                            | 完整能力及逐路由提醒、八项参数规则、已认得的私有键和缓存允许值                               |
+| `readModelDefinition(definitions, coordinates)`                                               | 精确版本的不可变观察，不取得使用权                                                           |
+| `configurationSchema(definition, provider)`                                                   | 路由数据生成的闭合 Draft 2020-12 Schema，没有默认值                                          |
+| `interpretConfiguration(definition, values, provider)`                                        | 从同一路由声明严格、无损解释配置                                                             |
+| `createOfficialProfileContent(definition, options)`                                           | 构造并判定 core 内容，不写目录、不登记、不生成时间                                           |
+| `planRequest(input, definitions, meter, execution, preparer?)`                                | 固定字节规划与可信逐路由计量器的最终输入准入                                                 |
+| `createPiAiTransport(options)`                                                                | 显式定义、绑定计量器与自持连接池的 plan/send/read/close                                      |
+| `sendRequest`、`readStream`                                                                   | 借用明确网络资源的独立函数                                                                   |
+| `createModelTransportService`、`AdaptationLease`、`RetirementPolicy`                          | 进程内精确登记、固定引用和显式排空                                                           |
+| `parseSSE`、`canonicalInteger`、`generatedCallId`                                             | 分帧与精确确定性标识辅助                                                                     |
+| `officialModelIds`、八个 `<family>Definitions` 与 `<family>ModelRoutes`                       | 完整 MP4 声明、精确路由策略及派生的目标身份                                                  |
 | `officialCatalog`、`officialCatalogRevision`、`createOfficialCatalogProfile(entry, revision)` | 全部官方叶及其唯一路由、绑定的计量器工厂与推导的初始缓存配置；目录发布修订；逐项构造档案内容 |
-| `OPENROUTER_BASE_URL`、`PI_AI_CARRIABLE_MODALITIES`                     | 产品端点与当前可承载的 text/image 输入                         |
+| `OPENROUTER_BASE_URL`、`PI_AI_CARRIABLE_MODALITIES`                                           | 产品端点与当前可承载的 text/image 输入                                                       |
 
 纯读取返回 `{ ok }`、invalidInput 或 unavailable。内容构造器保留 core 表示拒绝原名（如 parameter_out_of_range、max_output_exceeds_profile）；定义/路由/配置一致性失败仍为提供者 invalidInput。陌生精确版本/路由不可用，非法定义/配置为输入错误。失败只给有限拒绝类别，不输出配置正文。根入口不加载 Cordis；`./plugin` 显式依赖 Cordis 4.0.4。
 
@@ -48,7 +48,7 @@ import type {
 import {
   openRouterCredentialRedactionConfig,
   type PlanInput,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 
@@ -320,7 +320,7 @@ definitions 必填，缺席、undefined、非数组或不完整定义在建立�
 
 ```ts
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
-import type { PlanInput, ReadFacts } from '@omne-harness-lite/model-request-runtime-local'
+import type { PlanInput, ReadFacts } from '@omne-harness-lite/model-request-runtime'
 import type { PiAiTransport } from '@omne-harness-lite/pi-ai-transport'
 
 // 只用于提前结束未读完的 reader，从不作为读取事实上报。
@@ -623,16 +623,25 @@ const scope = {}
 try {
   const bytes = await sharp({
     create: { width: 64, height: 64, channels: 3, background: 'blue' },
-  }).png().toBuffer()
-  const result = await instance.ready.prepareRequestImages({
-    images: [{ position: 'user/0/image/0', bytes, mediaType: 'image/png', targetMaxBytes: 1_000_000 }],
-    maxRequestBytes: null,
-    nonImageWireBytes: 0,
-    signal: new AbortController().signal,
-  }, scope)
+  })
+    .png()
+    .toBuffer()
+  const result = await instance.ready.prepareRequestImages(
+    {
+      images: [
+        { position: 'user/0/image/0', bytes, mediaType: 'image/png', targetMaxBytes: 1_000_000 },
+      ],
+      maxRequestBytes: null,
+      nonImageWireBytes: 0,
+      signal: new AbortController().signal,
+    },
+    scope,
+  )
   // 先判 prepared/rejected，再消费自有 bytes。
   if ('rejected' in result) throw new Error(result.rejected.reason)
-  console.log(result.prepared.images.map(({ width, height, changed }) => ({ width, height, changed })))
+  console.log(
+    result.prepared.images.map(({ width, height, changed }) => ({ width, height, changed })),
+  )
 } finally {
   instance.ready.clearScope(scope)
   await instance.ready.close()
@@ -656,7 +665,11 @@ try {
 为自定义有限家族，将公开公共核与纯可见计数函数、具版本的规则组合：
 
 ```ts
-import { fullOutputHistory, newOutputHistory, replayOutputHistory } from '@omne-harness-lite/pi-ai-transport'
+import {
+  fullOutputHistory,
+  newOutputHistory,
+  replayOutputHistory,
+} from '@omne-harness-lite/pi-ai-transport'
 import { meter, finiteFamilyPolicy, visibleBodyCounter } from './my-finite-model.js'
 
 const full = fullOutputHistory(fullInput, meter, visibleBodyCounter, finiteFamilyPolicy)
@@ -665,6 +678,5 @@ const replay = replayOutputHistory(replayInput, meter, visibleBodyCounter, finit
 ```
 
 三种输入都携带实际原组及选择区间；只有不存在已选入的原观测时才显式给空历史。`fullInput` 另携带真实序列化 body 及其投影。独立 full 的畸形输入返回 unavailable；畸形 new/replay 返回 invalidInput。合法来源缺少必要解释或签名前缀依据时，贡献返回 unavailable。planner 先从增量回退全量；全量仍不可计量时，既有 `invalidInput/input_size_unavailable` 表示准入失败，不表示签名或参数值非法。
-
 
 仅当前两条官方 Moonshot 完整绑定，在 user／system／reminder／compaction 的最终数组含其他内容时省略恰为空串的文本段；标记先加入，全空串、空数组、空白和调用者块均保留。assistant／tool 规则与其他路由保持原值。实现升至 `mp4-19`，definition 修订 3 与输入投影 `/3` 保持；计量和发送消费同一固定最终 body。见 D-115。

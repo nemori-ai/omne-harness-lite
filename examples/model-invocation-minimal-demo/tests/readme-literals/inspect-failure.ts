@@ -1,4 +1,4 @@
-import type { CallKey } from '@omne-harness-lite/model-request-runtime-local'
+import type { CallKey } from '@omne-harness-lite/model-request-runtime'
 import type {
   ModelFailureExecution,
   ModelRuntimeOperations,

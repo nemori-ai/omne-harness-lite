@@ -4,7 +4,7 @@ import type { SessionRef } from '@omne-harness-lite/messages'
 import type {
   AuthorizedCallObserver,
   SessionObserverAccess,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import type {
   ModelArrivalTarget,
   ModelObserverEndpoint,

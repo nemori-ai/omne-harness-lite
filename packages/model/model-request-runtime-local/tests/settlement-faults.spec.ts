@@ -5,8 +5,11 @@ import { describe, expect, it } from 'vitest'
 import { LosslessNumber, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
-import { readSettlementPrefix } from '../src/settlement-prefix.ts'
-import { type SettlementScheduler, type SettlementOwner } from '../src/settlement-types.ts'
+import { readSettlementPrefix } from '@omne-harness-lite/model-request-runtime'
+import {
+  type SettlementScheduler,
+  type SettlementOwner,
+} from '@omne-harness-lite/model-request-runtime'
 import {
   modelLogJsonEqual,
   captureModelLogValue,
@@ -15,7 +18,7 @@ import {
 import {
   interpretRunAtPrefix,
   readSettlementPrefix as readRunPrefix,
-} from '../src/settlement-prefix.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type { SessionLog, AppendResult } from '@omne-harness-lite/session-log'
 import {
   anchors,

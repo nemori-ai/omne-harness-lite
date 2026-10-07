@@ -1,36 +1,181 @@
-# 模型请求运行时公共定义
+# 模型请求运行时：公共行为契约
 
-根入口拥有十五操作公共类型、原发起窄协议、日志 codec 与纯策略函数；`./cordis` 拥有 ModelRuntime Service 定义。实际提供者与私有 construction 归 model/model-request-runtime-local。
-原十五操作的完整耐久行为仍沿精确未迁旧源；接口搬动不替代其恢复、保管、ACK 与费用义务。本文件拥有迁入的 S-60 函数行为及下述日志／发起增量。F0 完整交付验收尚未完成。
-[迁移范围](../../../.meta_harness/design/architecture/pilots/n4-ownership.md#模型请求运行时)保留其他精确旧源和模型义务。
+形状归 [公开根](src/index.ts)，集成绑定归 [./cordis](src/cordis.ts)。本页接续完整十五操作及独立构件的类型外行为，不新增业务政策。
 
-## 显式输入与失败
+## 边界
 
-计算只读显式输入，不读取账号、环境、时钟或其他外部状态，不调用模型，不发送事件。
-函数不调度等待，不产生随机数。调用方给出 uniformSample，承担样本来源的责任。
-输入不得被修改，结果由函数拥有。非法形状/值返回 invalidInput/malformed，不补默认政策。
+本包拥有模型请求的公共服务协议、共享端口和后端无关计算。公开根不加载 Cordis；正式服务、服务键和类型化集成由 `./cordis` 拥有。公开形状以源码为准，本规格只补充身份、授权、次序、生命周期、错误、重复调用和副作用的行为承诺。
 
-n 为严格正整数，factor 为有限且不小于 1 的数。base/max 为有限非负 TD3 Duration。
+`ModelRuntimeOperations` 的十五个操作是同一能力的公共协议。公开算法可独立取用；独立 `invokeModel` 和具体 runtime 是协议的消费者。公共协议不要求完整 Agent Loop，也不把提供者工厂、私有队列、存储后端或具体实现策略搬成本包的业务定义。
+
+纯计算只消费显式输入，不读环境凭据、当前 Context 或持久服务，不发送、不调度、不结算。`readSettlementPrefix` 通过显式端口读取日志并登记真实任务，具有读取副作用；它不因位于公开根而变为无 IO 计算。
+
+数据身份、快照、响应、账和日志记录沿其公开拥有者；本包不复制这些形状，不改变 Schema ID，不建立旧格式兼容、回填、改写或清空旧记录的通路。不能确定当前格式与完整原批时明确失败。
+
+## 调用身份、绑定与状态
+
+调用按同一会话中的 CallKey 识别；callId 在会话内唯一且不复用。发出序号从 1 开始，在同一次调用跨尝试连续递增。创建时固定租户及原 Session/Run/attempt 关联；无 Run 的调用不补 Run/attempt，其账归该会话。创建尝试、原发出尝试与恢复时实际归账尝试不能互相代填。
+
+每次调用固定有效模型的来源、完整档案快照、精确适配绑定及请求参数。后续目录改版、同名配置值或其他调用不能改变原绑定；恢复与再次发出只取得原精确版本，缺失即 unavailable，不改用最新实现。凭据每次发出现取，两个时限每次发出前现求；这两类当前输入不重选原模型。
+
+终态吸收，不重新发出。ready 确认 complete/interrupted 及待处分结果；它不是回复消息，不预填最终处置或提交时的 late。未确认写入形成的本地 reply_pending 责任不等于耐久 ready/final。回执未知时不得凭本地旧状态授予再发许可。ACK 后按显式小视图回答，不把内容已释放当 callNotFound、损坏或可重新创建。
+
+## 真实授权和失败次序
+
+先校验请求表示，再按当前调用动作核验会话、创建租户及当前资格，之后才向已授权主体区分调用是否存在、终态与阶段。拒绝和不可判对外均为 unavailable，诊断仍区分实际原因。CallKey、持有引用、generation、隔离标签、Context 或旧 captured standing 均不授予权限。
+
+读取、等待、处分、取消和 ACK 分别核验；授权与撤权在实际准入及交付点有顺序，已持有的 consumer 不能持续使用旧许可。停新工作不取消现有事实的读取、对账、处分或 ACK 责任，各操作保留自己的失败集合和判定次序。
+
+发出守卫共同适用于 dispatchAgain 与 canDispatchAgain：终态先返回 alreadyEnded；曾开口先于 wrongPhase；随后在 awaiting_decision 检查事实类成因及原快照的供应商/回退约束。只读 allowed 只说明该观察点的事实，不预约未来发出。未知或未结算发出不成为 failureSubject 或重发许可。
+
+### 逐操作失败判定
+
+下表从左到右判定；S-87/S-92 接续的当前资格核验位于表示校验之后、存在性及状态之前，拒绝或不可核均为 unavailable。需要读取才能判定的条件在其输入不可得时立即 unavailable，不能跳过它去判后项。重复的 unavailable 表示不同作用点；不是统一提前屏蔽业务操作。所有操作不发新增业务事件，诊断不能替代提交事实。
+
+| 操作             | 表示校验及当前资格之后的次序                                                                                                                                                                                                      |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| legalTargets     | invalidInput → unavailable（当前资格及完整来源）                                                                                                                                                                                  |
+| displayList      | invalidInput → unavailable → profileNotFound                                                                                                                                                                                      |
+| effectiveModel   | invalidInput → profileNotFound → unavailable；当前资格仍先于目录存在性，读不到所需来源立即 unavailable                                                                                                                            |
+| selectModel      | invalidInput → unavailable → profileNotFound → notLegalTarget；合法之后才判断重复                                                                                                                                                 |
+| openCall         | invalidInput → unavailable（当前资格）→ creationConflict → callNotFound → runtimeStopped → wrongPhase → unavailable（必要来源）→ profileNotFound                                                                                  |
+| dispatch         | invalidInput → unavailable（当前资格）→ callNotFound → alreadyEnded → retryRefused{already_spoke} → wrongPhase → runtimeStopped → unavailable                                                                                     |
+| dispatchAgain    | invalidInput → unavailable（当前资格）→ callNotFound → alreadyEnded → retryRefused{already_spoke} → wrongPhase → retryRefused{fact_class \| provider_not_allowed} → runtimeStopped → unavailable                                  |
+| interrupt        | invalidInput → unavailable（当前 cancel 资格）→ callNotFound → alreadyEnded → unavailable（意图提交）；已有 ready 是 alreadyEnded                                                                                                 |
+| releaseCall      | invalidInput → unavailable（当前放弃资格）→ callNotFound → alreadyEnded → wrongPhase → unavailable（终结提交）                                                                                                                    |
+| reconcile        | invalidInput → unavailable；先 final、ready、终结、live、created 认回，只有实际追补才要求恢复来源与停止资格                                                                                                                       |
+| readAttempts     | invalidInput → unavailable（当前 read 资格）→ callNotFound → unavailable（完整历史来源）                                                                                                                                          |
+| settleReply      | invalidInput（含非法 disposition）→ unavailable（当前 settle 资格）→ callNotFound → alreadyEnded → wrongPhase → unavailable；相同合法处分认回原成功，不同合法处分 alreadyEnded                                                    |
+| canDispatchAgain | invalidInput → unavailable（当前资格）→ callNotFound → alreadyEnded → wrongPhase → unavailable；already_spoke 先于 wrongPhase 返回 refused，fact_class/provider_not_allowed 只在 awaiting_decision 判定；没有 runtimeStopped 失败 |
+| acquireCall      | invalidInput → unavailable（read 及附加 wait 资格/当前性）→ callNotFound（完整权威来源证不存在）→ runtimeStopped（停止且无法提供请求资源）→ unavailable（来源/内容/代际不可判）                                                   |
+| acknowledgeCall  | invalidInput → unavailable（当前 ACK 资格/来源）→ callNotFound → wrongPhase（非终态/目标不符）→ invalidInput{malformed}（可判值矛盾）→ unavailable（写入/回执/必要装配）；确认后清理失败返回 acknowledged+pending                 |
+
+## 模型选择与当前输入
+
+选中路由由权威日志获得，无初值时不猜。层锁锁定路由名；同名解析先排除已撤回和范围不允许的行，再取最具体的一行。模态不兼容、缺凭据不触发落回其他行，也不改写选中模型。每个展示路由只一条，被覆盖行保留各自来源与注记；合法集合仅按原三条件判定，不增加凭据或 model 配值第四条件。
+
+legalTargets、displayList、effectiveModel 必须使用覆盖同一权威日志尾的投影及相应合法来源；无法获得完整事实即整体失败，不交部分或假空集合。selectModel 先判断合法、后判断重复，切换记录耐久后才成功；确定零写只说明本次未产生切换，未知回执不承诺回滚、恰一次或自动重放。
+
+effectiveModel 到 openCall 保留既有选择窗口，openCall 使用显式 basis/target，不重算或静默换模型。真实 holdingTenant 固定租户；当前求值输入来自同租户的真实会话配方、捕获 standing、当前本机权威或明确采用副本、真实不可变资产正文与有效版本。捕获 standing 只作配方，每次读取另核当前成员有效性和内部调用权限。缺源、租户错配、源版本不符、正文不可读或无法确认跨源一致性均 unavailable；不回退历史 manifest、fixture、空定义或固定宿主值。求值失败零 HTTP、零新发出/响应/终结并保持原责任。
+
+## 创建与发出
+
+openCall 按 creationKey 固定创建输入；对象成员次序不影响语义相等，数组次序及精确数值有意义。非值输入由稳定 sourceVersions 关联，不用对象地址或凭据值。相同 key 的相同输入认回原 CallKey；不同输入返回 creationConflict 且不泄漏原内容，不重新选模型或生成 ID。
+
+完整创建内容先持久、created marker 后发布；初次创建拒绝按既有整批发布输入和终结。内容存储与 JSONL 不冒称同一事务。创建回执或内容写入未知，保留原稳定身份、完整输入及旧写任务责任；须实际停旧写方并权威认回，不能仅凭缺席或取消信号重交。
+
+每次发出依次：读当前求值输入取得正时限、现取凭据、按精确实现规划并计量、固定最终请求及调整/丢项、耐久写 dispatched、至多一次请求出网。发出的就是该锚点可还原的参数；出网后不再改。完整 Run/report 取同一已授权快照；无 Run 时才用实际当前工具来源，缺事实不冒称 unknownTool。
+
+首次模态/凭据拒绝按未发出终结；已有发出的规划拒绝保持原 resumable/awaiting_decision，供调用者修正输入或放手。已有发出再缺凭据为 released{credential_unavailable}，不称 undispatched。时限、实现或必要来源不可用不出门、不改既有响应。
+
+首次真实内容包括非文本内容和非空封口块，不包括头、空开块或空增量。耐久 opened 成功先于任何快照、增量及结果可见内容。确定零写收为本地 unrecognized，无首 token、无 delivered；回执未知则强门隔离，不把函数无内容投影结算成未开口响应，也不交失败主体或重发。
+
+## 计量与校准
+
+planned 表示同次固定的实际线上输入已满足全部适用限制，不能以布尔标记认证来源。缺有限 cap、计量不可用、超限按原优先级及子值拒绝；等于 cap 允许。严格解码图片字节、完整序列化 UTF-8 与所有输入贡献，引用声明 bytes 不充当核实值。
+
+exact、upperBound 和 estimated 保持真实含义；tokenMargin 恰含显式 multiplier 与 reserveTokens，无默认。multiplier 是有限且 ≥1 的十进制数，reserveTokens 是 ≥0 的整数。完整 cap/上游事实校验之后、实际计量之前校验政策；缺席或非法为 invalidInput{malformed}。estimatedTokens 是非负整数，admissionTokens = ceil(estimatedTokens × multiplier) + reserveTokens，按精确十进制向上取整，对最终预测只施加一次。估算分支用 admissionTokens 对每个适用有限 token 限制判断；exact/upperBound 不追加估算余量，但公开计量输入仍须显式提供 tokenMargin。上界超限而实际不知不能称准确超限，估计不成为实际 usage。规划输入、计量依据、工具配对或禁止内部消息不合承诺均零新锚点、HTTP、响应或终结。
+
+增量校准只复用当前真实请求与已授权同日志完整前缀中的真实因果祖先或同调用重试观察，选择本次实际因果链上最新已确认且适用的观察；不用物理到达顺序、ResponseId 排序、旧预测或旧缓存结论冒充依据。核对完整选择、原始 witness、计量版本、前缀与输出归属；可判矛盾为 malformed，来源/派生/实际选择真实性不可核为 unavailable，不能 full 掩盖；已证合法而贡献映射不足才可全量，仍不足 input_size_unavailable。来源原因按 source_unavailable、no_observation、prefix_changed、basis_changed 排首个适用者；CompactionMessage 是核查触发，实际最终非新增输入相等才是守卫。
+
+复用已确认 P，只计新增 φ/δ，不 tokenize 已验证全前缀，不重复计 O/reasoning，完整 byte/图数检查仍覆盖全请求。计量兼容需固定版本提供者给出范围、相等语义与实际适用证据，caller布尔不充分；非法或不可得贡献转全量而非零。两项 exact 合成 exact；只含 exact/upperBound 且至少一个 upperBound 合成 upperBound；任一 estimated 合成 estimated。部分输出组无逐块准确依据不得分配成精确值。新准确观察替代派生预测，不追改历史；缺新观察可用仍合法的更早因果祖先，但未覆盖全部输入纳入新增。缓存配置不证明上游命中，零、未知与正数分开。显式 mode、回退原因、basis/precision/贡献等是规划语义，不另造线上DTO；重锚及终止只在合法来源、实际处理与稳定后继等已声明前提下承诺，不成为无条件进展或estimated不越窗保证。
+
+## 响应、费用与整批结算
+
+每次已锚定发出有唯一稳定 ResponseId，费用按该身份唯一结算，失败历史各保留自己的账。实际供应商、请求供应商、用量与金额、原始头、实际发送时刻、首内容事实与参数三项各沿真实来源；未知不是零，sentAt:null 只供锚点恢复投影，不证明零发送、零费用或可重试。分类先看首内容，再看来源和显式状态表；不以本地错误猜上游状态。取消不是故障，不进失败拓展维度。
+
+有回复先耐久 ready，再交完整 PendingModelResponse 给合法处分者；failed 或无回复 interrupted 必须完整响应已提交或合法认回后才成功返回。persisted 的消息与最终响应同一完整批；vetoed/consumed 由 settleReply 写最终响应，不写消息。同一处置认回原结果，不同合法处置 alreadyEnded；首个合法完整批获胜，不能换 ID、补残批或覆盖原值。首次合法消息派生须有真实转换/权限来源，不借放宽语义比较修改原回复。
+
+Run 结算由同一份合法完整稠密前缀共同给事实和尾：原 attempt 已被替代或原 Run 已终结才 late。Run 终结必须由真实 owner 解释，model_call_ended 不代表 Run 终结。整批 unfenced/tailEquals 对全日志不可插入地检查键、尾并提交；批内不加入改变该 late 判据的新边界。无 Run 沿原 unfenced/unconditional，仍守身份、完整批和未知义务。其他记录显式采用其原 fence/condition；opened/ready 也必须以真实同前缀、当前原执行资格核验后提交。
+
+alreadyRecorded 只表明本次零写与键碰撞；认回需确认完整原批的身份、所有成员、关联与原值。tailChanged 只证明本次零写；重构只更新尚未提交批的 late，保留 ID、参数、绑定、处置、收场和已知账，不重发或重跑模型规划。原追加未知时，即使新返回零写/拒绝也不能关闭旧责任；旧网络、门回调和全部可能迟到的 unfenced 写方须实际停止，再权威读取。
+
+条件争用由具名可替换的显式策略管理读取、重构、重交和有限预算；不借模型重试策略填默认。耗尽、取消或源不可用返回原未完成结果，保留锚点、稳定批和原恢复责任，不虚构已结算或可重发。进展依赖真实提交机会、有效源、工作处理及预算，公平调度不保证无界成功。
+
+## 中断、停止与恢复
+
+interrupt 只作用于指定调用，先耐久意图再通知实际执行方，意图已写即可返回当前阶段，不等结算；意图写不进不发 abort。重复意图不另写；既定收场先到者保留。user/run_cancelled 在本操作只表达用户叫停；系统归档/宿主停止由原执行 owner 停止，在途装配 abandon，无回复，以 run_cancelled 收场，不冒称用户回复。
+
+releaseCall 只从 awaiting_decision/resumable 放手，上交不是失败重试、ACK 或引用释放。真实宿主独立于等待/观察消费者持有网络、内容门、写任务及实现引用；登记与停止有共同寿命，不漏刚登记调用。请求停止、实际停止、结算及物理资源释放分开；消费者退出、Map 清空、函数 outcome、取消确认或 fence 均不证明旧效果不能迟到。
+
+reconcile 只读依次认回 final、ready、调用终结及 live 原状态；live 不取消、不要求先停止、不阻塞新 attempt 的只读对账。仅需实际追补的分支要求旧效果全停及唯一恢复资格，使用同日志完整前缀和稳定原批，不发请求、不加载旧适配替代事实、不返回部分成功。中断意图优先；无意图且已 dispatched 未 opened 的 runtime_lost 可 resumable，同家续接；已 opened 的 runtime_lost 终结且不再发出。恢复保留旧绑定、参数、真实时刻、头及账；无法取得必要事实即 unavailable，原已提交批不回滚。
+
+## 引用、ACK 与释放
+
+每次 acquireCall 都须当前 action=read；取得等待或观察资源另须 action=wait。read 不创建等待消费者；wait 创建独立可释放消费者。它只等已确认 ready/final，并复制合法可见值；待机句柄不持有大内容读取 pin。consumer.release 幂等地结束该消费者及其监听、缓冲；单次 wait 的 abort 只终止该次等待，consumer 仍可再次等待。两者不取消模型、不处分回复、不自动 ACK。引用数零不关闭原执行、不抹已发生费用。normal keyed lookup 不扫描全部历史；索引仅是同来源、generation、progress 校验的派生物，重建未追尾时 unavailable，不能用索引替代完整前缀结算。readAttempts 的成本允许随所返回历史增长。
+
+acknowledgeCall 只针对实际终态及精确最终 ResponseId 或 ended 目标，由当前 ACK 权限的消费者表示已处理或自行保存。读、等待、旧引用或取消权限不授予 ACK；不是每次失败发出的 ACK。准备不可变原批并在同一持久 retention 控制对象停止新的模型侧大内容读取，JSONL ACK 耐久后才确认。cleanup 失败是已确认 ACK 的 pending，不抹 ACK。重复相同目标重验权限，返回原确认时刻及当前清理进展；不同目标 wrongPhase。
+
+ACK 后所有公共读取返回小视图：原创建关联、真实终态、原发出账壳、完整小账序列及当前处分。完整档案/参数、输入/回复/delivered、原始响应与校准大对象不能经缓存或 consumer 重泄露；已进入的实际授权复制可完成。成功释放须在同一 Storage 提交内确认 ACK、真实 writer/read 已排空、外部持有已释放，并删除精确内容及记录 released；JSONL 与 Storage 不是一个提交。当前障碍列真实非空无重复 pendingReasons，未知控制需认回；清缓存/监听/队列与物理释放不是靠 GC 时间推断。公平机会、存储恢复和真实引用排空后自动推进，不要求调用者回来、Run 终结或第二次 ACK。
+
+ACK 后未 final 的 settleReply 必须取得调用者保留的完整原 PendingModelResponse；当前 settle 资格及来源先核验；已 ACK、无 final 且缺 retainedResult 返回 wrongPhase。已给值的表示、身份或摘要可判矛盾返回 invalidInput{malformed}，资格或来源不可核返回 unavailable。已有 final 先沿原相同处分认回/不同合法处分 alreadyEnded，不要求 retainedResult。验证原身份、ResponseId、dispatch、来源、完整语义摘要及小账 witness，不重新读取已删除输入/适配。首次可能写入前持久 stage 完整整批及稳定键；未知保留 stage/写责任。只有 final 确认且全部旧写方实际停止，或已证明零写且显式策略终止，才删除 stage。不得复活 ready 或改 cleanup 阶段，不要求第二次 ACK；已有 final 按原重复规则，不要求大内容。persisted 外部写方承担相同义务。
+
+## 独立执行、传输与装配端口
+
+invokeModel 单次独立发出，无隐藏 Session、目录、存储、租户授权或业务结算依赖。基本输入先校验；send 前的取消返回 cancelledBeforeSend、零 send，无 invocation result/timing；send 已开始后的取消属于原四值终局。每句柄仅一最终结果，取消/拒绝先到的终局不被迟到工作改写。abort 是请求，实际停止仍需观察真实执行任务。
+
+snapshot 与增量共享同一接受序列和位置，首内容门成功至多一次且先于所有可见读面。门失败本地 unrecognized，无未许可内容；门等待时取消，迟到成功不能重新交出。函数首内容时刻不等于日志 opened，服务面须以自己耐久事实决定结算。
+
+plan 不联网、取凭据或读持久源，固定输入、精确实现与计量依据给同一结果。send 消费同一已认证固定 planned 值，至多一上游请求，禁止隐藏重试、fallback、重定向和环境凭据回退。read 只读同次响应，不二次发送或竞争读取，不逆转写模型工具名，工具参数只在流装配解析。显式 read 最终事实交接实际执行方、usage/cost 和 observedInput；分项不完整但总量已知时保留 upstream_total，不从不透明响应、诊断或附件另拼事实。
+
+send 是 rawHeaders 唯一交接权威，自有不可变原值在后续读失败、取消或门失败中保留；不排序、拼接、取首、去重、去空白或补空对象。不向 snapshot/增量/诊断 detail 交头。未知实报供应商不能以请求值代填，缓存零与未知分开。凭据写入/留存/错误诊断前脱敏：适用完整值、片段阈值、头名和模式规则，附件不得绕过；凭据原值只交真实发送适配，不绑定到调用或外传内部身份。
+
+一次会话/目标/dispatch 一份串行装配状态，收场后迟到事件不进入下一次发出。拒收增量紧接报告 rejected trim，先截短再拒收只计拒收一次；自身 trim/finish 失败及收场后事件不再写回响应，只留可关联工程诊断。正常/用户停止/lost/系统 abandon 分支、零 trims 缺席、模型工具名原样进出、快照/增量位置和首内容门沿既有装配契约。
+
+观察端口在交付前核对同会话目标，按实际表示字节和显式正事件/字节界限缓冲；缺限不默认无限。满缓冲或接收故障独立拒收，业务结算继续；accepted 不表示人已读或日志耐久，不承诺恰一次或可靠重放。端口关闭清监听和本端缓冲，迟到拒收不复活调用。
+
+诊断不能成为耐久事实、恢复真相或费用来源；必须区分准入、规划、版本、排队/触达、门、取消请求/实际停止、结算/恢复、观察拒收及诊断出口缺口。只采显式关联，不造租户/Session；敏感正文和凭据默认不采，高基数原文不作指标标签。诊断失败不改变业务结果或抹已知事实，耐久记录失败仍阻止对应可见动作。
+
+## 独立计算与辅助投影
+
+八个原独立计算入口的语义分别是：classifyCause 的来源优先分类；redact 的显式凭据政策；legalTargets/displayList/effectiveModel 的同名胜者与来源；dispatchGuard 的唯一守卫；decideRetry 的完整失败主体重试决定；retryDelay 的精确等待值。它们不自行取得授权或发出，并保持原未知/非法输入拒绝。
+
+默认重试能力身份为 omne-official:default-retry，不因类名或注册位置变更。重试主体中的完整 retryConclusions 沿同调用权威历史构造，保留未发出、自定义件及跨尝试关联，不由发出次数或内存隐藏计数猜。只对 upstream_unavailable/unrecognized 考虑重试；允许回退按原供应商序列取最近一次实际供应商的下一家、各家至多一次，无下一家 observed；不允许回退给第一家至多一次额外重试。第 n 次重试按本件既有结论数 h+1，runtime_lost 同家续接不经过本件、不占其名额。重试只选择原许可供应商，不换模型；默认件有限试尽，自定义策略终止性不由默认件代保证。缺默认件沿runner既有指定挂件处置，不自动再发；默认退避初值归配置，runtime不代loop计时。
+
+retryDelay 不调度或随机采样。n 为严格正整数，factor 为有限且不小于 1 的数。base/max 为有限非负 TD3 Duration。
 uniformSample 为有限数，满足 0 ≤ u < 1。未知 kind/jitter、缺项或额外字段均非法。
 Duration 与 JsonNumber 使用公开精确值语义，不能先转成毫秒浮点数再计算。
 
-## 算法
+令 D=min(max,B)，constant 的 B=base，linear 的 B=base×n，exponential 的 B=base×factor^(n−1)；none 为 D，full 为 uD，half 为 D/2+uD/2。decorrelated 另用 lo=min(base,max)、hi=min(max,max(lo,previousDelay×factor))，返回 lo+u(hi−lo)，首次 previousDelay 显式为 base。保持精确数值，不隐式离散化；非法/缺项按原 malformed 拒绝。
 
-以同一时长单位计算。B 根据 kind 取 base、base × n 或 base × factor^(n−1)。
-D = min(max, B)。none 返回 D，full 返回 u × D，half 返回 D/2 + u × D/2。
+以下公共辅助入口不授予领域权限，也不提交其返回的事实：
 
-对于 decorrelated，previousDelay 必须是有限非负时长。第一次重试明确给 previousDelay = base。
-lo = min(base, max)，hi = min(max, max(lo, previousDelay × factor))。
-返回 lo + u × (hi − lo)。不得改用其他 jitter 的 D 来替代这个区间。
+| 入口                                                                                                                                                                          | 类型之外的行为                                                                                                                                                                                             |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| captureSelectionJson、copyPlanContentBlocks、copyPlanMessages、copyPlanOutputHistory                                                                                          | 按当前公开表示取得自有值，保持精确数值、序列及真实关联；不能把复制成功当来源/授权证明。outputHistory 的源/选择/块/见证关系不得被复制绕过。                                                                 |
+| encodeModelLogKey、decodeModelLogKey、modelLogJsonEqual                                                                                                                       | 保持当前 codec 的稳定身份/读写键关系及语义相等；相同逻辑写方不能加 owner 前缀绕开共同判重，不能把 dedupeKey 自动当 readKey。                                                                               |
+| captureModelLogValue、recognizeMessageValue、prepareModelLogEntry、inspectModelLogEntry、inspectSettlementMembers、inspectCurrentModelLogPrefix、reconstructAdaptedParameters | 只解释当前精确格式、原关联及完整成员，拒绝未知/不兼容值、部分碰撞、参数三项矛盾及非法原批；不读 IO、不认定实际提交、不创造旧格式兼容。                                                                     |
+| readSettlementPrefix、isOwnedSettlementPrefix、settlementGenerationCurrent                                                                                                    | 读取必须登记真实任务并验证读取前后 generation、同租户稠密完整前缀及同尾，再铸造不可自行构造的 OwnedPrefix；brand/current 检查不是授权，持有 prefix 不证明之后仍可提交。                                    |
+| interpretRunAtPrefix、interpretSettlementPrefix、interpretCallHistory                                                                                                         | 消费该 owned 完整前缀及显式真实 Run 来源，核对原 attempt/同日志关联和完整原批；不以诊断、局部索引或独立布尔代替 Run 终结事实。                                                                             |
+| rejectAcknowledgedHistory、acknowledgedAsTerminal、projectCallState                                                                                                           | ACK 不能被假装成未 ACK 大视图；控制面可取其真实终态，缺小视图的投影须拒绝。耐久事实优先于本地未确认责任，本地 open/reply_pending 不授权重试。                                                              |
+| constructAssistantReply、constructPendingModelResponse、constructModelResponse、constructAnchoredInterruption                                                                 | 只以真实原 dispatched/opened、实际结果、原参数三项及合法处分构造值；Pending 不预填处分/late，系统停止不造用户回复；锚点恢复用真实时刻或 null、已知账原样及未知缺项，不假造发送。构造成功不等于日志已提交。 |
+| originOfEntry、attemptFromFinal、attemptFromWitness、acknowledgedAttempts、acknowledgedFactsFromHistory、acknowledgementSummary、completeAcknowledgedView                     | 从合法已验证原关联/最终响应/witness构造小账视图，冲突在来源优先之前拒绝，保持 failed 历史、原账壳、未知账及原 ACK 时间；不恢复被释放的大内容。                                                             |
+| createCredentialRedactionPolicy、CredentialRedactionConfigurationError、policyKind、policyJitter                                                                              | 校验显式政策，不静默默认未知枚举；创建脱敏政策不授予内容权限。公开部署初值不替代必需当前输入或业务政策。                                                                                                   |
 
-函数不进行舍入或离散化。实际计时器的精度与等待方式由消费者决定。
-u = 0 取下界。上界在非退化区间不被取到，退化区间返回唯一值。
+## 正式集成定义与停止边界
 
-## 验证与消费者
+纯协议 `ModelRuntimeOperations` 与 `./cordis` 的 `ModelRuntimeService` 分面，键只从类的静态 provide 导出。dispatch、dispatchAgain、readAttempts 的普通调用与 consumeFailure 调用是不同完整重载，包装不丢失同一授权读取产生的 source。source 校验实际执行及当前资格，release 只交还其消费引用，不伪造耐久失败事实。
 
-迁入的精确向量和非法输入用例验证算法、边界、冻结结果与输入不变。
-默认重试组件通过此公共入口消费，策略配置仍由运行时拥有。
-根入口和纯实现不加载 Cordis。Service 定义仅在 `./cordis`。
+`ModelRuntimeHostInputOperations.capture()` 是同步、无业务输入的受信集成接缝。它保留本次调用 fiber 的真实主体、原宿主桥及各来源代际；capture 始终返回完整的端口组合；仅不可取得的对应来源端口返回失败，其他可用端口继续工作。未知主体不能取得需要其资格的来源，不抛业务异常、不改用 provider 特权或后继桥。停止新准入不统一拒绝原来源仍可支持的读取、处分或 ACK。每次具体操作仍在原使用点重新核验资格。桥租约 isCurrent 只约束新准入，旧结算/读取/ACK 仍保留原来源责任；release 幂等地交还借用，不取消执行、写 ACK 或证明底层停止。
+
+执行支持的显式政策、调度、清理与诊断从各真实拥有者借用。policy.diagnostic 与 support 的顶层 diagnostic 保持各自既有回调承诺；可选 collector 只消费 emitter，不取得 journal/query/export 权。单一执行池与在途资源的实际实现、撤除和恢复沿提供者的未迁投影继续验证。定义类存在不表示提供者已正式集成，也不表示完整 Session/Run 恢复来源已交付。
+
+## 验证与采用范围
+
+公共操作、共享端口、独立计算及公开辅助投影的现行行为归本页与公开类型。各方法定位如下；公共类型拥有闭合结果，操作不统一为一种失败。
+
+| 操作                                                   | 本页行为                                            |
+| ------------------------------------------------------ | --------------------------------------------------- |
+| legalTargets、displayList、effectiveModel、selectModel | 模型选择与当前输入、真实授权和失败次序              |
+| openCall                                               | 调用身份/绑定、创建与发出、引用/ACK 后同键认回      |
+| dispatch、dispatchAgain、canDispatchAgain              | 发出守卫、完整当前输入、失败主体与重试、停止准入    |
+| interrupt、releaseCall                                 | 中断、停止与恢复；上交不等于 ACK 或引用释放         |
+| reconcile、readAttempts                                | 原事实/完整前缀、真实恢复、历史/小账与失败消费      |
+| acquireCall                                            | 当前读取权、read/wait 双寿命、引用与可见结果        |
+| settleReply、acknowledgeCall                           | 响应处分/整批结算、ACK/释放及 retainedResult 的条件 |
+
+[验证资源](verification/README.md)维护性质、模型规模/公平性、正负控与实际组合义务；运行结果留任务 tmp。现行公共定义不再由冻结 RT12 充当第二权威。
+[精确保留范围](../../../.meta_harness/design/architecture/pilots/n4-ownership.md#模型请求运行时)仍约束未迁的具体提供者投影、跨拥有者兑现及综合模型，不因公共接口移动而关闭。
 
 ## 日志拥有者与原件
 
@@ -41,6 +186,8 @@ codec 接受合法的其他拥有者消息键；消息身份、日志 shell 和�
 attempt 开始由 Session 事实拥有者记录，不是模型消息。事件不得转换为 SystemReminderMessage。响应原件与持久回复按原完整关联校验；投影只能生成派生视图，不能改原 ModelResponse 或用可读子集冒充原完整回复。
 
 `inspectModelMessageEntry` 只校验单条消息的正文、shell 与拥有者键，成本与该条目的大小成正比。它不读取或认证历史，不证明 tool return、compaction 或 assistant 的原关联成立。调用者必须另核完整历史关联；生产投影用其一次线性索引履行该义务。`inspectModelLogEntry` 与准备写入入口仍要求完整合法的 messagePrefix，不能用此窄入口放行写入。
+
+完整结算前缀通过显式 `SettlementLogBinding.readPrefix` 取得，并核对其 SourceToken 的租户、会话、journal、generation 和尾。缺少该读取端口时返回 dependency unavailable，不降级到不含持久来源坐标的 `readSince`。品牌只表示通过完整前缀校验，不授予当前权限或恢复资格。
 
 ## 原发起窄协议
 

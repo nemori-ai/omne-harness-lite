@@ -14,15 +14,12 @@ import { isNonNegativeJsonInteger } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { createIndependentCallConsumer } from './reference-consumer.ts'
 import { createModelObserverQueue } from './service-observer-queue.ts'
-import { settlementGenerationCurrent } from './settlement-prefix.ts'
+import { settlementGenerationCurrent } from '@omne-harness-lite/model-request-runtime'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-custody.ts'
-import type { SettlementLogBinding } from './settlement-types.ts'
-import type {
-  RuntimeConstruction,
-  ModelObserverQueue,
-  AuthorizedCallObserver,
-} from './service-types.ts'
+import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
+import type { RuntimeConstruction, ModelObserverQueue } from './service-types.ts'
+import type { AuthorizedCallObserver } from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 
 const unavailable = Object.freeze({ unavailable: true } as const)

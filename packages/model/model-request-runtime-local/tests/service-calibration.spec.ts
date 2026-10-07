@@ -4,14 +4,17 @@ import { copyJsonValue, type JsonObject } from '@omne-harness-lite/content-block
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-import { readSettlementPrefix, type SettlementPrefix } from '../src/settlement-prefix.ts'
+import {
+  readSettlementPrefix,
+  type SettlementPrefix,
+} from '@omne-harness-lite/model-request-runtime'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
 import { authorizedCalibration } from '../src/service-calibration.ts'
 import { copyPlanOutputHistory } from '@omne-harness-lite/model-request-runtime'
-import type { CurrentHistoryReaders } from '../src/service-types.ts'
+import type { CurrentHistoryReaders } from '@omne-harness-lite/model-request-runtime'
 import type { LogEntry } from '@omne-harness-lite/session-log'
 import {
   batch,
@@ -24,7 +27,7 @@ import {
   session,
 } from './log-codec-fixture.ts'
 import { controlled, type ControlledSettlementOwner } from './settlement-fixture.ts'
-import type { SettlementLogBinding } from '../src/settlement-types.ts'
+import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
 
 const digest = (character: string) => character.repeat(64)
 function bodyValue(value: ModelResponse): JsonObject {

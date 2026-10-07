@@ -94,7 +94,6 @@
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
-    "@omne-harness-lite/model-request-runtime": "workspace:*",
     "ajv": "catalog:",
     "kysely": "catalog:",
     "@omne-harness-lite/session-log-sql": "workspace:*",

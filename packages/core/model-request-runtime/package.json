@@ -47,7 +47,8 @@
     "@omne-harness-lite/model-profile-directory": "workspace:*",
     "@omne-harness-lite/asset-registry": "workspace:*",
     "@omne-harness-lite/storage": "workspace:*",
-    "@omne-harness-lite/session-tenancy": "workspace:*"
+    "@omne-harness-lite/session-tenancy": "workspace:*",
+    "@omne-harness-lite/session-runtime": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
@@ -61,6 +62,13 @@
   "peerDependenciesMeta": {
     "@deepseek-ai/cordis": {
       "optional": true
+    }
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "service-contract"
     }
   }
 }

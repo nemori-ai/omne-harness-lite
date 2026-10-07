@@ -9,12 +9,14 @@ import {
 import {
   type CallAccess,
   type CallAccessEvidence,
-  type CallContainer,
-  type CallContainerStore,
-  type CallFacts,
   type CallPresence,
   type CallPresenceInput,
   type SettlementLogBinding,
+} from '@omne-harness-lite/model-request-runtime'
+import {
+  type CallContainer,
+  type CallContainerStore,
+  type CallFacts,
 } from '@omne-harness-lite/model-request-runtime-local'
 import type {
   CallOrigin,

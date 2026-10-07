@@ -10,9 +10,12 @@ import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model
 import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { type LogEntry } from '@omne-harness-lite/session-log'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
-import { readSettlementPrefix, type SettlementPrefix } from '../src/settlement-prefix.ts'
+import {
+  readSettlementPrefix,
+  type SettlementPrefix,
+} from '@omne-harness-lite/model-request-runtime'
 import { authorizedCalibration } from '../src/service-calibration.ts'
-import type { CurrentHistoryReaders } from '../src/service-types.ts'
+import type { CurrentHistoryReaders } from '@omne-harness-lite/model-request-runtime'
 import {
   anchors,
   batch,
@@ -121,7 +124,7 @@ async function realPrefix(
         generation,
         currentGeneration: () => generation,
         log,
-        readPrefix(this: import('../src/settlement-types.ts').SettlementLogBinding) {
+        readPrefix(this: import('@omne-harness-lite/model-request-runtime').SettlementLogBinding) {
           return log.fixturePrefix({ session: this.session, tenant: this.tenant }, this.log)
         },
         originalIssue: log.fixtureOriginalIssue,

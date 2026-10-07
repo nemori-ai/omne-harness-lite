@@ -1,7 +1,7 @@
 import { expectTypeOf } from 'vitest'
 import type { CallKey } from '@omne-harness-lite/messages'
 import type { PendingModelResponse, ResponseId } from '@omne-harness-lite/model-response'
-import type { CallAccessAction } from '../src/reference-types.ts'
+import type { CallAccessAction } from '@omne-harness-lite/model-request-runtime'
 import type {
   AckTarget,
   AcknowledgedCallView,

@@ -35,7 +35,7 @@ import { OFFICIAL_ADMISSION_NAME } from '@omne-harness-lite/tool-admission'
 import {
   readSettlementPrefix,
   type SettlementRegistration,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { driverKey, prepareDriverEntry } from '../src/tool-driver-codec.ts'
 
 export const at = '2026-10-04T00:00:00Z'

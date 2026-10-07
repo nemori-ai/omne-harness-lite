@@ -1,3 +1,4 @@
+import type { CreateCallContainerInput } from '../src/service-types.ts'
 import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 // @module-tag slow
 // 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
@@ -20,20 +21,19 @@ import {
   settlePendingReply,
 } from '../src/service-reconcile.ts'
 import { createCallContainer, createCallContainerStore } from '../src/service-container.ts'
+import type { SystemStopControl } from '../src/service-types.ts'
 import type {
-  CreateCallContainerInput,
   SessionRuntimeBinding,
-  SystemStopControl,
   RuntimeRecoveryScope,
-} from '../src/service-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type { SettleReplyInput } from '@omne-harness-lite/model-request-runtime'
-import type { AnchoredInvocationHandle } from '../src/anchored-invocation-types.ts'
+import type { AnchoredInvocationHandle } from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type {
   DiagnosticAssociation,
-  DiagnosticCollector,
   DiagnosticScope,
-} from '../src/diagnostics-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { DiagnosticCollector } from '../src/diagnostics-types.ts'
 import type { DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'

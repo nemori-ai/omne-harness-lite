@@ -1,3 +1,5 @@
+import { encodeModelLogKey } from './log-codec-key.ts'
+import { inspectModelLogEntry } from './log-codec-entry.ts'
 import { readAttemptStarted } from '@omne-harness-lite/session-runtime'
 import {
   copyJsonValue,
@@ -21,20 +23,18 @@ import {
   type LogEntry,
 } from '@omne-harness-lite/session-log'
 import {
-  encodeModelLogKey,
-  inspectModelLogEntry,
   inspectSettlementMembers,
   type ModelLogSettlementTarget,
   type ModelLogSettlementCurrent,
   type ModelLogSettlementAnchors,
   type SettlementMembersResult,
-} from '@omne-harness-lite/model-request-runtime'
+} from './log-codec-settlement.ts'
 import type {
   SettlementLogBinding,
   SettlementRegistration,
   SettlementUnavailableReason,
   RunHistoryReader,
-} from './settlement-types.ts'
+} from './index.ts'
 
 function object(value: unknown): value is { readonly [key: string]: unknown } {
   return (

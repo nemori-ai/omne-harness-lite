@@ -22,18 +22,19 @@ import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-value
 import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
-import { interpretCallHistory } from '../src/call-history.ts'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { createModelCallContentStore } from '../src/reference-content.ts'
 import { createModelCallFacts } from '../src/reference-facts.ts'
-import type { CallAccess, CallPresence } from '../src/reference-types.ts'
-import type { RuntimeConstruction, SessionRuntimeBinding } from '../src/service-types.ts'
+import type { CallAccess, CallPresence } from '@omne-harness-lite/model-request-runtime'
+import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallHost } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementOwner,
   SettlementRegistration,
   SettlementTask,
   SettlementTaskKind,
-} from '../src/settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import {
   ControlledSettlementOwner,

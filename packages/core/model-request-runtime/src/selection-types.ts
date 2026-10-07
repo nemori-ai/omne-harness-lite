@@ -1,8 +1,3 @@
-import type {
-  EffectiveModel,
-  ModelDisplayEntry,
-  SelectionFailure,
-} from '@omne-harness-lite/model-request-runtime'
 import type { Modality } from '@omne-harness-lite/content-blocks'
 import type {
   ModelProfile,
@@ -14,6 +9,11 @@ import type { CatalogScope, ProfileRow } from '@omne-harness-lite/model-profile-
 
 /** Explicit caller facts; unknown never means an empty set or an absent setting. */
 export type SelectionFact<T> = { readonly known: T } | { readonly unknown: true }
+export type SelectionInvalidInput = {
+  readonly invalidInput: { readonly reason: ModelProfileRejection }
+}
+export type SelectionUnavailable = { readonly unavailable: true }
+export type SelectionFailure = SelectionInvalidInput | SelectionUnavailable
 
 /** The caller supplies the pure compatibility implementation for the full current profile. */
 export type SelectionCompatibilityResult =
@@ -27,6 +27,31 @@ export type SelectionCompatibility = (
 export interface RowCredentialFact {
   readonly ref: ModelProfileRef
   readonly present: SelectionFact<boolean>
+}
+
+export type ModelDisplayAnnotation =
+  | 'legal'
+  | 'withdrawn'
+  | 'scope_disallowed'
+  | 'modality_mismatch'
+  | 'credential_missing'
+  | { readonly overridden_by: { readonly scope: CatalogScope } }
+export interface ModelDisplayCoveredRow {
+  readonly ref: ModelProfileRef
+  readonly annotations: readonly ModelDisplayAnnotation[]
+}
+export interface ModelDisplayEntry {
+  readonly routeName: RouteName
+  readonly ref: ModelProfileRef
+  readonly annotations: readonly ModelDisplayAnnotation[]
+  readonly covered: readonly ModelDisplayCoveredRow[]
+  readonly selected: boolean
+}
+export interface EffectiveModel {
+  readonly routeName: RouteName
+  readonly profile: ModelProfileRef
+  readonly selectedBy: 'session' | 'layer_lock'
+  readonly selected: RouteName
 }
 export type LegalTargetsResult = { readonly ok: readonly RouteName[] } | SelectionFailure
 export type DisplayListResult =

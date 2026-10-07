@@ -20,10 +20,8 @@ import {
 import { createHash } from 'node:crypto'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import {
-  invokeModel,
-  openRouterCredentialRedactionConfig,
-} from '@omne-harness-lite/model-request-runtime-local'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
 import {
   createPiAiTransport,
   createSharpImageCodec,

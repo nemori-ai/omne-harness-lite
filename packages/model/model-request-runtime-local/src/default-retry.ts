@@ -6,7 +6,7 @@ import {
   type ExtensionOutput,
 } from '@omne-harness-lite/loop-extension'
 import type { Duration } from '@omne-harness-lite/tool-definition'
-import { decideRetry } from './decide-retry.ts'
+import { decideRetry } from '@omne-harness-lite/model-request-runtime'
 import { retryDelay } from '@omne-harness-lite/model-request-runtime'
 import type { RetryBackoffPolicy } from '@omne-harness-lite/model-request-runtime'
 import { policyKind, policyJitter } from '@omne-harness-lite/model-request-runtime'

@@ -1,8 +1,8 @@
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { isJsonNumber, type JsonNumber } from '@omne-harness-lite/content-blocks'
 import { judgeValue } from '@omne-harness-lite/loop-extension'
-import { retryDelay } from '@omne-harness-lite/model-request-runtime'
-import type { RetryBackoffPolicy, RetryDelayResult } from '@omne-harness-lite/model-request-runtime'
+import { retryDelay } from './retry-delay.ts'
+import type { RetryBackoffPolicy, RetryDelayResult } from './retry-delay-types.ts'
 import type { DecideRetryInput, DecideRetryResult } from './decide-retry-types.ts'
 
 function object(value: unknown): value is Readonly<Record<string, unknown>> {

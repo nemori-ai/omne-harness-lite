@@ -11,7 +11,7 @@ import {
   type SettlementRegistration,
   type SettlementTask,
   type SettlementTaskKind,
-} from '../src/settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type { AppendResult, SessionLog } from '@omne-harness-lite/session-log'
 import {
   ControlledSettlementOwner,
@@ -24,7 +24,7 @@ import {
 import { dispatched, opened, prepare, session, tenant } from './log-codec-fixture.ts'
 import { batchV2 } from './log-codec-v2-fixture.ts'
 import { createRuntimeReconcile } from '../src/service-reconcile.ts'
-import type { SessionRuntimeBinding } from '../src/service-types.ts'
+import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 import { storeUnavailableCustody } from './reference-ports-fixture.ts'
 

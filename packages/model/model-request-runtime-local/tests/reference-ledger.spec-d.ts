@@ -1,7 +1,7 @@
 import { expectTypeOf, test } from 'vitest'
 import type { ReplyDisposition } from '@omne-harness-lite/model-response'
 import type { CallKey as SharedCallKey, CreationKey } from '@omne-harness-lite/messages'
-import type { CallKey } from '../src/reference-types.ts'
+import type { CallKey } from '@omne-harness-lite/model-request-runtime'
 import type { CallConsumer, AcquireCallInput } from '@omne-harness-lite/model-request-runtime'
 import type {
   ModelRuntimeOperations,

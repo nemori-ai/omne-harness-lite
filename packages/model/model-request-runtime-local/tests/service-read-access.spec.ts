@@ -7,11 +7,11 @@ import {
   captureModelLogValue,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
-import { interpretCallHistory } from '../src/call-history.ts'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { dispatched } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import type { CallAccessEvidence } from '../src/reference-types.ts'
+import type { CallAccessEvidence } from '@omne-harness-lite/model-request-runtime'
 import { createRuntimeReads } from '../src/service-reads.ts'
 import { acknowledgementHost } from './acknowledgement-host-fixture.ts'
 import { ControlledSettlementOwner, deferred } from './settlement-fixture.ts'

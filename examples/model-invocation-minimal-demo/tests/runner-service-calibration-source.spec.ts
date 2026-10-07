@@ -4,7 +4,7 @@ import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite
 import {
   readSettlementPrefix,
   type SettlementRegistration,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { readDemoCalibrationHistory } from '../src/model-request-text.ts'
 
 test('the default no-Run calibration reader refuses an unproved Run source', async () => {

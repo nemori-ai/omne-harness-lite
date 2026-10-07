@@ -7,7 +7,7 @@ import type {
   RunnerDispatchRequest,
   RunnerDispatchScope,
 } from '@omne-harness-lite/loop-extension-runner'
-import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime-local'
+import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
 import type {
   ModelFailureSource,
   ModelRuntimeOperations,

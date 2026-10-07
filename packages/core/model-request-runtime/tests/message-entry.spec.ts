@@ -3,10 +3,7 @@ import { expect, it } from 'vitest'
 import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { messageLogPayload, type LogEntry } from '@omne-harness-lite/session-log'
-import {
-  inspectModelLogEntry,
-  inspectModelMessageEntry,
-} from '@omne-harness-lite/model-request-runtime'
+import { inspectModelLogEntry, inspectModelMessageEntry } from '../src/index.ts'
 const tenant = unwrap(parseTenantId({ organization: 'message-org', account: 'message-user' }))
 const scope = { session: 'message-session', tenant }
 function entry(value: unknown): LogEntry {

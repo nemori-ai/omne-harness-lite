@@ -1,7 +1,3 @@
-import type {
-  CallHistoryDispatch,
-  DispatchGuardPhase,
-} from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal, type ModelCallId } from '@omne-harness-lite/call-accounts'
 import type { JsonNumber, JsonValue } from '@omne-harness-lite/content-blocks'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
@@ -18,17 +14,39 @@ import type {
 import type { LogEntry } from '@omne-harness-lite/session-log'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import { finalMatchesWitness } from './acknowledged-view.ts'
-import type { CapturedModelLogValue } from '@omne-harness-lite/model-request-runtime'
-import type { InspectedModelLogEntry } from '@omne-harness-lite/model-request-runtime'
-import type { ModelLogResponseProjection } from '@omne-harness-lite/model-request-runtime'
-import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
+import type { CapturedModelLogValue } from './log-codec-value.ts'
+import type { InspectedModelLogEntry } from './log-codec-entry.ts'
+import type { ModelLogResponseProjection } from './log-codec-value.ts'
+import { modelLogJsonEqual } from './log-codec-key.ts'
 import {
   interpretSettlementPrefix,
   isOwnedSettlementPrefix,
   settlementGenerationCurrent,
   type SettlementPrefix,
 } from './settlement-prefix.ts'
-import { inspectCurrentModelLogPrefix } from '@omne-harness-lite/model-request-runtime'
+import type { DispatchGuardPhase } from './dispatch-guard.ts'
+import { inspectCurrentModelLogPrefix } from './log-codec-settlement.ts'
+
+export interface CallHistoryDispatch {
+  readonly ordinal: JsonNumber
+  readonly dispatched: LogEntry
+  readonly record: ModelCallDispatchedRecord
+  readonly opened: LogEntry | null
+  readonly response: {
+    /** Original complete validated response, including raw usage and billing facts. */
+    readonly value: JsonValue
+    readonly projection: ModelLogResponseProjection
+    readonly entry: LogEntry
+  } | null
+  /**
+   * RT11/RT12 S-86: the confirmed ready marker of this dispatch. Its complete original result
+   * lives in the immutable content row; this prefix alone proves only that it is durable.
+   */
+  readonly ready: {
+    readonly record: ModelCallReplyReadyRecord
+    readonly entry: LogEntry
+  } | null
+}
 
 /**
  * `acknowledged` names a consumer that met a durable RT12 S-97 acknowledgement it does not yet

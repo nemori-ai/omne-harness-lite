@@ -54,7 +54,7 @@ import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profil
 import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { createSessionModelSelection } from '../src/session-selection.ts'
-import { type SessionModelSelectionInput } from '../src/session-selection-types.ts'
+import { type SessionModelSelectionInput } from '@omne-harness-lite/model-request-runtime'
 import { ControlledSettlementOwner } from './settlement-fixture.ts'
 
 export const ROOT = { category: 'agent_definition', name: 'example:selection-root' } as const
@@ -324,7 +324,7 @@ export async function selectionHost(model = true, factoryCredential = false) {
         log,
         generation,
         currentGeneration: () => generation,
-        readPrefix(this: import('../src/settlement-types.ts').SettlementLogBinding) {
+        readPrefix(this: import('@omne-harness-lite/model-request-runtime').SettlementLogBinding) {
           return log.fixturePrefix({ session: this.session, tenant: this.tenant }, this.log)
         },
         originalIssue: log.fixtureOriginalIssue,

@@ -1,111 +1,59 @@
 import type {
-  AckPendingReason,
-  AckTarget,
-  AcknowledgedCallView,
-  AcquireCallInput,
-  AcquireCallResult,
-  CallAcknowledgement,
-  CallHistoryDispatch,
-  CallLifecycleState,
-  CallResultFact,
-  DispatchGuardPhase,
-  EffectiveModel,
-  ModelArrivalTarget,
-  ModelDisplayEntry,
-  ModelObserverRequest,
-  ObserverReceiver,
-  ObserverScope,
-  OpenCallInput,
-  ReconcileInput,
-  RuntimeCloseResult,
   ServiceInvalidInput,
-  ServiceRuntimeStopped,
   ServiceUnavailable,
-  SessionSelectModelResult,
+  ServiceRuntimeStopped,
+  ModelArrivalTarget,
+  ObserverScope,
+  ObserverReceiver,
+  ModelObserverRequest,
+  AuthorizedCallObserver,
+  ObserverDiagnostic,
+  OpenCallInput,
+  AcknowledgementCleanupPolicy,
+  SessionRuntimeBinding,
+  RuntimeSessionAccess,
+  ModelIdentitySource,
+  CurrentHistoryReaders,
+  RuntimeRecoveryAccess,
+  RuntimeCloseResult,
 } from '@omne-harness-lite/model-request-runtime'
-import type { AssetRegistryService, AvailabilityReport } from '@omne-harness-lite/asset-registry'
-import type { ArrivalEvent, ArrivalTarget } from '@omne-harness-lite/arrival-events'
-import type { CurrentEvaluationInputs } from '@omne-harness-lite/asset-evaluation'
-import type { AttemptId, ModelCallId, RunId } from '@omne-harness-lite/call-accounts'
-import type { CapabilityId, JsonNumber } from '@omne-harness-lite/content-blocks'
-import type { TenantId } from '@omne-harness-lite/identity-values'
+
+import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
+
+import type { AttemptId } from '@omne-harness-lite/call-accounts'
+import type { JsonNumber } from '@omne-harness-lite/content-blocks'
+
 import type { AssemblySnapshot } from '@omne-harness-lite/stream-assembly'
-import type {
-  AfterModelCallFailureSubject,
-  ModelRequest,
-  RetryPlan,
-} from '@omne-harness-lite/loop-extension'
-import type {
-  CallKey,
-  CreationKey,
-  Message,
-  MessageId,
-  SessionRef,
-} from '@omne-harness-lite/messages'
-import type { CallAccess, CallFacts, CallPresence } from './reference-types.ts'
-export type { CallKey } from '@omne-harness-lite/messages'
+
+import type { CallKey } from '@omne-harness-lite/messages'
+import type { CallAccess, CallPresence } from '@omne-harness-lite/model-request-runtime'
+import type { CallFacts } from './reference-types.ts'
 import type {
   ModelAdaptationBinding,
   ModelProfileRef,
-  ModelProfileRejection,
   ModelProfileSnapshot,
   ModelRequestParameters,
   RouteName,
 } from '@omne-harness-lite/model-profile'
-import type { CredentialLookup, ModelCatalogRead } from '@omne-harness-lite/model-profile-directory'
-import type {
-  ModelResponse,
-  PendingModelResponse,
-  ReplyDisposition,
-  ResponseId,
-  SelectedBy,
-} from '@omne-harness-lite/model-response'
-import type { ModelToolName } from '@omne-harness-lite/tool-definition'
-import type { LogEntry } from '@omne-harness-lite/session-log'
-import type { CallHistoryResult } from './call-history.ts'
-import type { ModelLogSettlementTarget } from '@omne-harness-lite/model-request-runtime'
-import type { SessionModelSelectionInput } from './session-selection-types.ts'
-import type { SettlementPrefix } from './settlement-prefix.ts'
+
+import type { PendingModelResponse, SelectedBy } from '@omne-harness-lite/model-response'
+
 import type {
   SettlementContention,
-  SettlementCoordinator,
   SettlementDiagnostic,
-  SettlementLogBinding,
   SettlementOwner,
   SettlementScheduler,
-  RunHistoryReader,
-} from './settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { SettlementCoordinator } from './settlement-types.ts'
 import type {
-  InputLimitRejection,
   InvocationPolicy,
   PlannedSemantics,
   TransportAdapter,
 } from '@omne-harness-lite/model-request-runtime'
-import type { ReplaySelection, TokenMargin } from '@omne-harness-lite/model-request-runtime'
-import type { AnchoredInvocationHandle } from './anchored-invocation-types.ts'
+import type { TokenMargin } from '@omne-harness-lite/model-request-runtime'
+import type { AnchoredInvocationHandle } from '@omne-harness-lite/model-request-runtime'
 import type { DiagnosticCollector } from './diagnostics-types.ts'
-export type ObserverScopeResult =
-  | { readonly valid: true }
-  | { readonly invalidInput: { readonly reason: 'observer_scope_mismatch' } }
-  | ServiceUnavailable
-export interface AuthorizedCallObserver {
-  readonly check: (target: ModelArrivalTarget) => ObserverScopeResult
-  readonly open: (
-    target: ModelArrivalTarget,
-  ) =>
-    { readonly receiver: ObserverReceiver } | Exclude<ObserverScopeResult, { readonly valid: true }>
-  readonly close: () => Promise<RuntimeCloseResult>
-}
-export interface SessionObserverAccess {
-  readonly authorize: (input: {
-    readonly request: ModelObserverRequest
-    readonly session: SessionRef
-    readonly tenant: TenantId
-    readonly callId: ModelCallId
-  }) =>
-    | { readonly observer: AuthorizedCallObserver }
-    | Exclude<ObserverScopeResult, { readonly valid: true }>
-}
+
 export type ObserverDelivery =
   | {
       readonly scope: ObserverScope
@@ -118,29 +66,19 @@ export type ObserverDelivery =
       readonly position: JsonNumber
       readonly event: ArrivalEvent
     }
+
 export type ObserverOfferResult =
   | { readonly accepted: true }
   | { readonly invalidInput: { readonly reason: 'malformed' | 'observer_scope_mismatch' } }
   | ServiceUnavailable
   | { readonly rejected: { readonly reason: 'buffer_full' | 'consumer_failed' } }
 
-export interface ObserverDiagnostic {
-  readonly session: SessionRef
-  readonly tenant: TenantId
-  readonly callId: ModelCallId
-  readonly dispatch: JsonNumber
-  readonly stage: 'offer' | 'delivery' | 'close'
-  readonly reason:
-    'malformed' | 'observer_scope_mismatch' | 'unavailable' | 'buffer_full' | 'consumer_failed'
-  readonly position?: JsonNumber
-  readonly bufferedEvents: JsonNumber
-  readonly bufferedBytes: JsonNumber
-}
 export interface ModelObserverQueue {
   readonly offer: (event: ArrivalEvent, snapshot: AssemblySnapshot) => ObserverOfferResult
   readonly start: (snapshot: AssemblySnapshot) => ObserverOfferResult
   readonly close: () => Promise<RuntimeCloseResult>
 }
+
 export interface ModelObserverQueueInput {
   readonly scope: ObserverScope
   readonly authorization: AuthorizedCallObserver
@@ -148,43 +86,6 @@ export interface ModelObserverQueueInput {
   readonly maxBufferedEvents: JsonNumber
   readonly maxBufferedBytes: JsonNumber
   readonly diagnostic: (event: ObserverDiagnostic) => void
-}
-/**
- * RT12 S-98: the explicit schedule of automatic retries of durable ACK cleanup. There is no
- * default; `stop` only ends the current round and never drops the durable responsibility.
- */
-export interface AcknowledgementCleanupPolicy {
-  readonly next: (input: {
-    readonly attempts: JsonNumber
-    readonly pendingReasons: readonly AckPendingReason[]
-  }) => { readonly waitMs: JsonNumber } | { readonly stop: true }
-}
-
-export interface SessionRuntimeBinding {
-  readonly log: SettlementLogBinding
-  readonly selection: SessionModelSelectionInput
-  readonly tools: Pick<AssetRegistryService, 'lookup'>
-  readonly catalog: ModelCatalogRead
-  readonly credentials: CredentialLookup
-  /** Immutable version identifiers for non-value report/context/assembly inputs. */
-  readonly sourceVersions: Readonly<Record<string, string>>
-  readonly currentEvaluationInputs: CurrentEvaluationInputs
-  readonly observers?: SessionObserverAccess
-}
-export interface RuntimeSessionAccess {
-  /** Every bind checks the request identity against all returned session/tenant/generation owners. */
-  readonly bind: (
-    session: SessionRef,
-  ) => Promise<
-    | { readonly binding: SessionRuntimeBinding }
-    | { readonly failure: 'invalidInput' | 'unavailable' }
-  >
-}
-export interface ModelIdentitySource {
-  readonly call: () => ModelCallId
-  readonly response: () => ResponseId
-  /** Distinct actual MessageId for a handed-off assistant reply. */
-  readonly message: () => MessageId
 }
 
 /** The exact acquired version remains owned until real work stops. */
@@ -195,6 +96,7 @@ export interface ExactTransportLease<P extends PlannedSemantics, R> {
   readonly track: <T>(completion: Promise<T>) => Promise<T>
   readonly release: () => void
 }
+
 export interface ExactTransportAcquirer<P extends PlannedSemantics, R> {
   /** Synchronously clear caches through every still-owned provider; only undefined is success. */
   readonly clearReuseScope: (scope: object) => void
@@ -206,6 +108,7 @@ export interface ExactTransportAcquirer<P extends PlannedSemantics, R> {
     | { readonly unavailable: true }
     | { readonly invalidInput: { readonly reason: 'malformed' } }
 }
+
 export interface PreparedCallBinding<P extends PlannedSemantics, R> {
   readonly profile: ModelProfileRef
   readonly snapshot: ModelProfileSnapshot
@@ -213,61 +116,6 @@ export interface PreparedCallBinding<P extends PlannedSemantics, R> {
   readonly selectedBy: SelectedBy
   readonly lease: ExactTransportLease<P, R>
 }
-
-export interface CurrentHistoryReaders {
-  readonly call: (prefix: SettlementPrefix, callId: ModelCallId) => CallHistoryResult
-  readonly failure: (
-    prefix: SettlementPrefix,
-    callId: ModelCallId,
-  ) => { readonly subject: AfterModelCallFailureSubject } | { readonly unavailable: true }
-  /** The host interprets actual selected sources; the runtime rechecks every locator in prefix. */
-  readonly calibration: (
-    prefix: SettlementPrefix,
-    messages: readonly Message[],
-    target: {
-      readonly callId: ModelCallId
-      readonly dispatch: JsonNumber
-    } & (
-      | { readonly run: RunId; readonly attempt: AttemptId }
-      | { readonly run?: never; readonly attempt?: never }
-    ),
-  ) => CalibrationHistoryResult
-  /** Actual G28 terminal recognition remains a host-supplied source. */
-  readonly run: RunHistoryReader
-}
-
-export interface CalibrationSelectedSource {
-  readonly messageIndex: number
-  /** Null is legal only for a message with no durable source, never for an assistant ancestor. */
-  readonly entry: LogEntry | null
-}
-export interface CalibrationHistoryCandidate {
-  readonly dispatchedEntry: LogEntry
-  readonly responseEntry: LogEntry
-  readonly response: ModelResponse
-  readonly replaySelection: readonly ReplaySelection[]
-}
-export type LocatedCalibrationCandidate = CalibrationHistoryCandidate &
-  (
-    | {
-        readonly origin: 'selected_reply'
-        readonly messageEntry: LogEntry
-        readonly messageIndex: number
-      }
-    | {
-        readonly origin: 'same_call_retry'
-        readonly messageEntry?: never
-        readonly messageIndex?: never
-      }
-  )
-export type CalibrationHistoryResult =
-  | {
-      readonly selectedSources: readonly CalibrationSelectedSource[]
-      /** Actual selected causal ancestors, newest first; not physical-response ordering. */
-      readonly candidates: readonly LocatedCalibrationCandidate[]
-    }
-  | { readonly sourceUnavailable: true }
-  | { readonly noObservation: true }
 
 export interface RuntimeConstruction<P extends PlannedSemantics, R> {
   readonly callAccess: CallAccess
@@ -298,26 +146,6 @@ export interface RuntimeConstruction<P extends PlannedSemantics, R> {
   /** Engineering diagnostics are bound per operation after verified session ownership. */
   readonly diagnosticCollector?: Pick<DiagnosticCollector, 'emitter'>
 }
-/** The host actually stops old effect-capable writers before returning a scope. */
-export interface RuntimeRecoveryScope {
-  readonly binding: { readonly log: SettlementLogBinding }
-  readonly owner: SettlementOwner
-  /** The host checks original session, tenant, call, dispatch and ResponseId ownership. */
-  readonly originalInvocation: (
-    key: CallKey,
-    target: ModelLogSettlementTarget,
-  ) =>
-    | { readonly original: AnchoredInvocationHandle }
-    | { readonly absent: true }
-    | { readonly unavailable: true }
-  /** Leaves the new host's recovery admission after its own work actually stops. */
-  readonly close: () => Promise<void>
-}
-export interface RuntimeRecoveryAccess {
-  readonly enter: (
-    input: ReconcileInput,
-  ) => Promise<{ readonly scope: RuntimeRecoveryScope } | { readonly unavailable: true }>
-}
 
 /** Process-local admission budget, independent of durable settlement contention. */
 export interface ReservationWaitPolicy {
@@ -347,6 +175,7 @@ export interface CallContainerStore<P extends PlannedSemantics, R> {
   /** Closes new admission synchronously and attempts to release every owned call. */
   readonly close: () => Promise<RuntimeCloseResult>
 }
+
 export type CallOperationState =
   | { readonly phase: 'ready' }
   | { readonly phase: 'complete' | 'interrupted'; readonly pending: PendingModelResponse }
@@ -359,6 +188,7 @@ export type CallOperationState =
     }
   | { readonly phase: 'reply_pending'; readonly pending: PendingModelResponse }
   | { readonly phase: 'settling' }
+
 export interface CallContainerView<P extends PlannedSemantics, R> {
   /** Real instance generation for host presence and independent receiver attachment. */
   readonly executionGeneration: object
@@ -374,11 +204,13 @@ export interface CallContainerView<P extends PlannedSemantics, R> {
   readonly observerReplacementPending: boolean
   readonly operation: CallOperationState
 }
+
 export interface CallObserverBinding {
   readonly request: ModelObserverRequest
   readonly authorization: AuthorizedCallObserver
   readonly queue?: ModelObserverQueue
 }
+
 export interface CallContainer<P extends PlannedSemantics, R> {
   readonly key: CallKey
   readonly view: () => CallContainerView<P, R>
@@ -393,6 +225,7 @@ export interface CallContainer<P extends PlannedSemantics, R> {
   /** True only after close has released its exact lease. */
   readonly canRemove: () => boolean
 }
+
 /** Registered before preparation; owns a late resource even if store publication loses a race. */
 export interface CallPreparationOwner<P extends PlannedSemantics, R> {
   readonly signal: AbortSignal
@@ -404,6 +237,7 @@ export interface CallPreparationOwner<P extends PlannedSemantics, R> {
   readonly discard: () => Promise<RuntimeCloseResult>
   readonly close: () => Promise<RuntimeCloseResult>
 }
+
 export type CallPreparationResult<P extends PlannedSemantics, R> =
   | { readonly owner: CallPreparationOwner<P, R> }
   | ServiceInvalidInput
@@ -415,6 +249,7 @@ export interface SystemStopControl<P extends PlannedSemantics, R> {
   /** Only the same original owner's S-36 closure may settle and clear a stopped operation. */
   readonly publishStopped: () => void
 }
+
 export interface CallReservation<P extends PlannedSemantics, R> {
   readonly key: CallKey
   readonly view: () => CallContainerView<P, R> | undefined

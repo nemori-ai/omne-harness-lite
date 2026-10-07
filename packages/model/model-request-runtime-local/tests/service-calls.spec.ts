@@ -19,23 +19,26 @@ import {
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
 import { createCallContainerStore } from '../src/service-container.ts'
-import { interpretCallHistory } from '../src/call-history.ts'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { createModelCallFacts } from '../src/reference-facts.ts'
+import type { RuntimeConstruction } from '../src/service-types.ts'
 import type {
   CurrentHistoryReaders,
-  RuntimeConstruction,
   SessionRuntimeBinding,
-} from '../src/service-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type { OpenCallInput, ModelCallHost } from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
-import type { DiagnosticAssociation, DiagnosticScope } from '../src/diagnostics-types.ts'
+import type {
+  DiagnosticAssociation,
+  DiagnosticScope,
+} from '@omne-harness-lite/model-request-runtime'
 import type { DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementLogBinding,
   SettlementOwner,
   SettlementRegistration,
   SettlementTask,
-} from '../src/settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 
 const session = unwrap(parseOpaqueIdentifier('session_open_call', 'SessionRef'))
 const creationKey = (value: string) => unwrap(parseOpaqueIdentifier(value, 'CreationKey'))

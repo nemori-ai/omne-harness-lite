@@ -16,8 +16,8 @@ import {
   type SettlementContention,
   type SettlementScheduler,
   type SettlementLogBinding,
-  type SettlementRequest,
-} from '../src/settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import { type SettlementRequest } from '../src/settlement-types.ts'
 import { anchors, session, tenant } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 
@@ -148,7 +148,7 @@ export async function controlled(
     session,
     tenant: parsed.ok,
     log: source,
-    readPrefix(this: import('../src/settlement-types.ts').SettlementLogBinding) {
+    readPrefix(this: import('@omne-harness-lite/model-request-runtime').SettlementLogBinding) {
       return log.fixturePrefix({ session: this.session, tenant: this.tenant }, this.log)
     },
     originalIssue: log.fixtureOriginalIssue,

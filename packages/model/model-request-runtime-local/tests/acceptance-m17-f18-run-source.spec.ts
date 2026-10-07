@@ -5,7 +5,7 @@ import { LosslessNumber, type JsonObject } from '@omne-harness-lite/content-bloc
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import type { SessionRef } from '@omne-harness-lite/messages'
 import type { OwnedLogEntry } from '@omne-harness-lite/session-log'
-import { interpretCallHistory } from '../src/call-history.ts'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { createModelFailureSource } from '../src/failure-subject.ts'
 import {
   captureModelLogValue,
@@ -16,8 +16,11 @@ import {
   interpretRunAtPrefix,
   readSettlementPrefix,
   type SettlementPrefix,
-} from '../src/settlement-prefix.ts'
-import type { RunHistoryReader, SettlementLogBinding } from '../src/settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type {
+  RunHistoryReader,
+  SettlementLogBinding,
+} from '@omne-harness-lite/model-request-runtime'
 import { dispatched, jsonObject, opened } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 import {

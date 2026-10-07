@@ -20,9 +20,9 @@ import {
 } from '@omne-harness-lite/messages'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import type { AppendResult, LogEntry } from '@omne-harness-lite/session-log'
-import { acknowledgementSummary, originOfEntry } from './acknowledged-view.ts'
+import { acknowledgementSummary, originOfEntry } from '@omne-harness-lite/model-request-runtime'
 import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-custody.ts'
-import type { CallHistoryKnown } from './call-history.ts'
+import type { CallHistoryKnown } from '@omne-harness-lite/model-request-runtime'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import {
   captureModelLogValue,
@@ -32,17 +32,22 @@ import {
 } from '@omne-harness-lite/model-request-runtime'
 import { inspectCurrentModelLogPrefix } from '@omne-harness-lite/model-request-runtime'
 import { OwnedReadTracker, withOwnedReads } from './service-control.ts'
-import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
-import type { SettlementPrefix } from './settlement-prefix.ts'
+import {
+  readSettlementPrefix,
+  settlementGenerationCurrent,
+} from '@omne-harness-lite/model-request-runtime'
+import type { SettlementPrefix } from '@omne-harness-lite/model-request-runtime'
 import { settlementAppendReceipt } from './settlement-receipt.ts'
-import type { CallAccessEvidence, ModelCallContentValue } from './reference-types.ts'
-import type { RuntimeConstruction, SessionRuntimeBinding } from './service-types.ts'
+import type { ModelCallContentValue } from './reference-types.ts'
+import type { CallAccessEvidence } from '@omne-harness-lite/model-request-runtime'
+import type { RuntimeConstruction } from './service-types.ts'
+import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementLogBinding,
   SettlementRegistration,
   SettlementTask,
   SettlementOwner,
-} from './settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { requestStopAndWait } from './settlement-stop.ts'
 

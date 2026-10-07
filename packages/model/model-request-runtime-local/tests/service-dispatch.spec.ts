@@ -19,7 +19,7 @@ import { createRuntimeReads } from '../src/service-reads.ts'
 import { createModelCallContentStore } from '../src/reference-content.ts'
 import { createModelCallFacts } from '../src/reference-facts.ts'
 import { createRuntimeAcquire } from '../src/service-acquire.ts'
-import { interpretCallHistory } from '../src/call-history.ts'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
@@ -33,15 +33,16 @@ import {
   dispatchAgainAdmission,
   positiveDurationMs,
 } from '../src/service-dispatch.ts'
-import type { UnacknowledgedCallHistory } from '../src/call-history.ts'
+import type { UnacknowledgedCallHistory } from '@omne-harness-lite/model-request-runtime'
 import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
-import type { RuntimeConstruction, SessionRuntimeBinding } from '../src/service-types.ts'
+import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
+import type { RuntimeConstruction } from '../src/service-types.ts'
 import type { PlanFailure } from '@omne-harness-lite/model-request-runtime'
 import type {
   DiagnosticAssociation,
-  DiagnosticCollector,
   DiagnosticScope,
-} from '../src/diagnostics-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { DiagnosticCollector } from '../src/diagnostics-types.ts'
 import type { DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
 
 const session = unwrap(parseOpaqueIdentifier('session_dispatch', 'SessionRef'))

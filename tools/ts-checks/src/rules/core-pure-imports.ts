@@ -57,7 +57,9 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
     'asset-registry',
     'loop-extension',
     'storage',
+    'session-runtime',
     'session-tenancy',
+    'asset-evaluation',
   ],
   'session-log': [
     'call-accounts',

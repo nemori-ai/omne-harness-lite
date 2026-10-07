@@ -211,7 +211,7 @@ export async function harness(
         session: session.ok,
         tenant: tenant.ok,
         log: recording,
-        readPrefix(this: import('../src/settlement-types.ts').SettlementLogBinding) {
+        readPrefix(this: import('@omne-harness-lite/model-request-runtime').SettlementLogBinding) {
           return log.fixturePrefix({ session: this.session, tenant: this.tenant }, this.log)
         },
         originalIssue,
