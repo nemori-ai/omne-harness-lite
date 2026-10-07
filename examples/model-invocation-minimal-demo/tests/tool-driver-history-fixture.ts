@@ -25,7 +25,8 @@ import {
   runtimeContextMigrations,
 } from '@omne-harness-lite/runtime-context-local'
 import { openStorage } from '@omne-harness-lite/storage-sql'
-import { composeMigrations } from '@omne-harness-lite/storage'
+import { composeMigrations, type MigrationFragment } from '@omne-harness-lite/storage'
+import type { ContextSessionSeed } from '@omne-harness-lite/runtime-context'
 import type { CheckedPrefix, LogEntryInput, OwnedLogEntry } from '@omne-harness-lite/session-log'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { OFFICIAL_ADMISSION_NAME } from '@omne-harness-lite/tool-admission'
@@ -100,6 +101,8 @@ export async function historyFixture(
   calls: readonly ToolCallBlock[] = [toolCall()],
   permission: 'auto' | 'forbid' = 'auto',
   adoptedTool: FixtureTool = tool,
+  additionalMigrations: readonly MigrationFragment[] = [],
+  contextSeed: ContextSessionSeed = { required: [], initial: [], fixed: [] },
 ) {
   const dir = await mkdtemp(join(tmpdir(), 'omne-driver-history-'))
   const logDir = join(dir, 'logs')
@@ -112,7 +115,7 @@ export async function historyFixture(
   const storage = await openStorage({
     dialect: 'sqlite',
     file: join(dir, 'context.sqlite'),
-    migrations: composeMigrations(runtimeContextMigrations),
+    migrations: composeMigrations([...runtimeContextMigrations, ...additionalMigrations]),
     upgrade: false,
   })
   const messages: Exclude<Message, { type: 'system' }>[] = []
@@ -178,7 +181,12 @@ export async function historyFixture(
       attempt: n,
       adoption: dk(['attempt', 'run', `${n}e0`]),
       startedMessageKey: started.dedupeKey,
-      context: [],
+      context: contextSeed.initial.filter(value =>
+        contextSeed.required.some(
+          registration =>
+            registration.key === value.key && registration.consumers.includes('model'),
+        ),
+      ),
       tools: [adoptedTool],
       report: {
         session: scope.session,
@@ -338,11 +346,7 @@ export async function historyFixture(
     access: { authorize: async () => ({ kind: 'rejected', reason: 'notAuthorized' }) },
     now: () => at,
   })
-  const initialized = await context.initializer.initializeContextSession(scope, {
-    required: [],
-    initial: [],
-    fixed: [],
-  })
+  const initialized = await context.initializer.initializeContextSession(scope, contextSeed)
   if (initialized.kind !== 'applied') throw new Error('context fixture')
   context.closeAdmission()
   await context.drain()

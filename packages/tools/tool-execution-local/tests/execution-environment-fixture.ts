@@ -1,3 +1,4 @@
+import { commandFixture, fileFixture } from './facility-fixture.ts'
 import { vi } from 'vitest'
 import { environmentToolOf } from '@omne-harness-lite/tool-execution-runtime'
 import type { ToolDefinition } from '@omne-harness-lite/tool-definition'
@@ -90,11 +91,11 @@ export function environmentPorts() {
     lease: {
       facilities: {
         description,
-        command,
-        files: {
+        command: commandFixture(command),
+        files: fileFixture({
           read: async () => ({ kind: 'rejected', reason: 'unavailable' }),
           write: async () => ({ kind: 'rejected', reason: 'unavailable' }),
-        },
+        }),
       },
       invalidated: invalidated.promise,
       release,

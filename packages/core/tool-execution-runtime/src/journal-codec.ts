@@ -30,20 +30,26 @@ export interface ToolJournalEnvelope {
   readonly category: 'execution'
   readonly value: ToolJournalPayload
 }
+function keySuffix(value: ToolJournalPayload): readonly string[] {
+  switch (value.kind) {
+    case 'resource_planned':
+      return [value.resource.key]
+    case 'resource_permitted':
+    case 'resource_adopted':
+      return [value.key]
+    case 'physical_stop_observed':
+      return [value.key, value.status, value.at]
+    case 'execution_waiting':
+    case 'execution_answered':
+      return [String(value.waitIndex)]
+    case 'execution_context_read':
+      return [String(value.readIndex)]
+    default:
+      return []
+  }
+}
 function keyOf(value: ToolJournalPayload): string {
-  const suffix =
-    value.kind === 'resource_planned'
-      ? [value.resource.key]
-      : value.kind === 'resource_permitted'
-        ? [value.key]
-        : value.kind === 'physical_stop_observed'
-          ? [value.key, value.status, value.at]
-          : value.kind === 'execution_waiting' || value.kind === 'execution_answered'
-            ? [String(value.waitIndex)]
-            : value.kind === 'execution_context_read'
-              ? [String(value.readIndex)]
-              : []
-  return `${toolJournalFormat}/${JSON.stringify([value.kind, value.ref.callId, ...suffix])}`
+  return `${toolJournalFormat}/${JSON.stringify([value.kind, value.ref.callId, ...keySuffix(value)])}`
 }
 function callKey(callId: string): string {
   return `${toolJournalFormat}/call/${JSON.stringify(callId)}`

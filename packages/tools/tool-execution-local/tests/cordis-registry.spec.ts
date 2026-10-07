@@ -37,6 +37,7 @@ function observer() {
                 ref,
                 origin: { run: 'run', attempt: 1, assistantMessage: 'reply' },
                 adoptedContext: [],
+                resources: [],
                 state: { phase: 'queued' },
               },
             }

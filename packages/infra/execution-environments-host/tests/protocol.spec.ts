@@ -122,7 +122,9 @@ test('new command/files check current permission; original output, completion an
     await Promise.resolve()
     expect(settled).toBe(false)
     h.setPermission('never-allow')
-    expect(await files.write('/original', new Uint8Array([3]))).toEqual({
+    expect(
+      await files.write({ path: '/original', data: new Uint8Array([3]), mode: 'replace' }),
+    ).toEqual({
       kind: 'rejected',
       reason: 'notAuthorized',
     })
@@ -159,7 +161,7 @@ test('an access revoke during policy authorization cannot start a new file effec
       await finish.promise
       return { kind: 'authorized' }
     })
-    const pending = files.write('/original', new Uint8Array([1]))
+    const pending = files.write({ path: '/original', data: new Uint8Array([1]), mode: 'replace' })
     await entered.promise
     h.revoke()
     finish.resolve()

@@ -3,6 +3,7 @@ import {
   environmentVisibleInScope,
 } from '@omne-harness-lite/execution-environments'
 import { createPlacementAuthority } from './placement.ts'
+import { createRecoveryOperations } from './recovery.ts'
 import { createEnvironmentAcquirer } from './acquire.ts'
 import {
   observeProvider as observed,
@@ -22,7 +23,7 @@ import type {
   SessionAccessOperations,
   SessionScope,
 } from '@omne-harness-lite/session-tenancy'
-import { ownScope, ownDescription, ownResources } from './values.ts'
+import { ownScope, ownDescription } from './values.ts'
 
 export function createEnvironmentRegistry(deps: {
   readonly access: SessionAccessOperations
@@ -71,14 +72,24 @@ export function createEnvironmentRegistry(deps: {
     }
   }
   const registrations: EnvironmentProviderRegistrations = {
+    ...createRecoveryOperations({
+      active: () => active,
+      entries: () => [...entries.values(), ...retiring],
+      provider: name => entries.get(name),
+      authority: deps.recovery,
+    }),
     registerProvider(input) {
       if (!active) throw new Error('environment registry stopped')
       if (
         !input.name ||
         !input.generation ||
-        ![input.acquire, input.describe, input.recover, input.retire].every(
-          value => typeof value === 'function',
-        )
+        ![
+          input.acquire,
+          input.describe,
+          input.listRecoveryResources,
+          input.recover,
+          input.retire,
+        ].every(value => typeof value === 'function')
       )
         throw new TypeError('invalid environment provider')
       if (entries.has(input.name)) throw new Error('duplicate environment provider')
@@ -88,6 +99,7 @@ export function createEnvironmentRegistry(deps: {
         acquire: input.acquire.bind(input),
         describe: input.describe.bind(input),
         recover: input.recover.bind(input),
+        listRecoveryResources: input.listRecoveryResources.bind(input),
         retire: input.retire.bind(input),
       })
       let retirement: Promise<void> | undefined
@@ -119,33 +131,8 @@ export function createEnvironmentRegistry(deps: {
       entries.set(provider.name, entry)
       return entry.dispose
     },
-    async recover(inputScope, authorization, inputResources) {
-      if (!active) return reject('ownerStopped')
-      const scope = ownScope(inputScope),
-        resources = ownResources(inputResources)
-      if (!scope || !resources) return reject('invalidInput')
-      try {
-        const result = await deps.recovery.authorizeRecovery(authorization, scope, resources)
-        if (!active) return reject('ownerStopped')
-        if (result !== 'authorized') return reject(result)
-        const values: {
-          resource: (typeof resources)[number]
-          status: 'confirmedStopped' | 'pending' | 'unsupported'
-        }[] = []
-        for (const resource of resources) {
-          const entry = entries.get(resource.provider)
-          if (!entry) return reject('providerUnavailable')
-          const status = await observed(entry, () => entry.provider.recover(resource))
-          if (!['confirmedStopped', 'pending', 'unsupported'].includes(status))
-            return reject('providerUnavailable')
-          values.push({ resource, status })
-        }
-        return Object.freeze(values)
-      } catch {
-        return reject('unavailable')
-      }
-    },
   }
+
   const operations: ExecutionEnvironmentOperations = {
     async resolvePlacement(inputScope, authorization, inputCall) {
       const scope = ownScope(inputScope),

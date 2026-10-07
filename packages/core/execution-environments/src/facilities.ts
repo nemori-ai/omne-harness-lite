@@ -1,3 +1,7 @@
+import type { CommandFacility } from './terminal.ts'
+import type { FileFacility } from './file-facility.ts'
+export type { CommandFacility } from './terminal.ts'
+export type { FileFacility } from './file-facility.ts'
 /** A process receives literal arguments and an explicit environment, never ambient env. */
 export interface CommandRequest {
   readonly executable: string
@@ -49,7 +53,16 @@ export type CommandOutcome = CommandResult | CommandFailure
 export type FacilityFailure = {
   readonly kind: 'rejected'
   readonly reason:
-    'invalidInput' | 'notAuthorized' | 'closed' | 'notFound' | 'unavailable' | 'effectUnknown'
+    | 'invalidInput'
+    | 'notAuthorized'
+    | 'closed'
+    | 'notFound'
+    | 'unavailable'
+    | 'effectUnknown'
+    | 'conflict'
+    | 'busy'
+    | 'capacity'
+    | 'unsupported'
 }
 
 export interface ProcessHandle {
@@ -58,22 +71,6 @@ export interface ProcessHandle {
   readonly outputPolicy: CommandOutputPolicy
   readonly result: Promise<CommandOutcome>
   readonly stop: (mode: 'graceful' | 'forced') => Promise<'confirmed' | 'unconfirmed'>
-}
-
-export interface CommandFacility {
-  readonly start: (
-    request: CommandRequest,
-  ) => Promise<{ readonly kind: 'started'; readonly process: ProcessHandle } | FacilityFailure>
-}
-
-export interface FileFacility {
-  readonly read: (
-    path: string,
-  ) => Promise<{ readonly kind: 'read'; readonly data: Uint8Array } | FacilityFailure>
-  readonly write: (
-    path: string,
-    data: Uint8Array,
-  ) => Promise<{ readonly kind: 'written' } | FacilityFailure>
 }
 
 /** Type augmentation declares vocabulary. It installs neither providers nor call authority. */

@@ -2,25 +2,40 @@
 
 [中文说明](README_ZH.md)
 
-Standalone createEnvironmentRegistry and createHostEnvironment factories. The registry retains original leases and provider retirement responsibility. The built-in host advertises no command or file facility, OS backend, or sandbox isolation.
+This package provides real host command and file facilities through the original environment registry. It includes persistent Bash terminals and durable recovery ownership. It does not provide sandbox isolation.
 
 ## Public entries
 
-The root exports public types and standalone functions. `./cordis` contains the integration binding. Import each through its explicit package export.
+The root exports standalone native functions, policy, and provider factories. `./cordis` exports integration plugins. `./migrations` exports the host resource-index migrations. Use the package exports for cross-package imports.
 
 - [Root exports](src/index.ts)
-- [Cordis](src/cordis.ts)
+- [Cordis bindings](src/cordis.ts)
+- [Migrations](src/migrations.ts)
+- [Behavior beyond types](SPEC.md)
+- [Verification obligations](verification/README.md)
 
-Behavior beyond types belongs to [SPEC.md](SPEC.md).
+`createHostEnvironment({ name, access, storage, policy? })` requires original Storage with `hostEnvironmentMigrations` installed. The assembly composes these migrations with its other owners. Creating the factory does not execute a user command. Register the provider with the original environment registry and retain both owners until retirement confirms completion.
 
-The template marker reports structural adoption. It does not establish complete business or lifecycle acceptance.
+The managed `hostEnvironment` plugin injects the original environment registry, SessionAccess, Storage, and assembly lifetime. Its config contains only `provider` and optional policy data. The plugin retains its registration and close duty through assembly-lifecycle. It adds no HostService or ToolRuntime service.
+
+## Capabilities and use
+
+Command supports explicit executable/args/cwd/env, separate byte streams, bounded buffering, and original stop controls. A persistent terminal preserves shell state. Its later commands each require a new call permission. Releasing its creator call does not close an adopted terminal.
+
+Files supports bounded read/write, stat/list/search, move/copy/remove/mkdir, conditional batches, and read-only batch recognition. Versions describe metadata identity. External processes can change targets between checks and publication. Multi-path changes are not an atomic filesystem transaction.
+
+Native functions work without Storage or Runtime. A standalone caller must retain returned controls and manifests. Always confirm process stop before disposing its native gate evidence with `clearHostGateEntry`. The `executeHostCommand` process stop combines these steps. For batches, retain the returned stage identities and pass them to `clearHostBatchStages`. An unknown copy carries the same original recovery values. Never repeat an unknown command or batch automatically.
+
+The host requires Linux, a working systemd user manager and scopes, Node, and `/bin/bash`. User commands receive only their explicit environment. The user manager receives a separate controlled technical environment. Policy bounds govern output, input, deadlines, terminal capacity, file bytes, and traversal.
 
 ## Development
 
-Run from the repository root:
+Build before tests. Real child workers use the current `dist` files.
 
 ```sh
 pnpm --filter @omne-harness-lite/execution-environments-host run build
 pnpm --filter @omne-harness-lite/execution-environments-host run typecheck
 pnpm --filter @omne-harness-lite/execution-environments-host run test
 ```
+
+Real process, filesystem, and SIGKILL tests carry the slow tag. Test fixtures do not establish the formal Shell or Files author packages.

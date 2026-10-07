@@ -45,3 +45,15 @@ EE-19 resolvePlacement 只读同一租户／会话／原call的当前求值，�
 查询不适用唯一返回kind:notApplicable，不返回rejected(reason:notApplicable)。调用参数或合法求值输入的形状非法返回invalidInput；前后授权失败保留原原因；读取前无来源或来源读取抛错为policyUnavailable；在途原来源撤除／换代为placementChanged。来源placement回执无法捕获或不对应原scope/call也为placementChanged。其他来源拒绝沿EE-11的合法拒绝值返回。acquire的不适用仍沿原rejected编码，此查询规范不更改它。
 
 EE-20 provider成功仍是原始回执。registry最终核验原source代、placement和选中description后构造EnvironmentAdoption；provider evidence不作为自签权限。公开capture只验证普通数据及内部归属／匹配关系，不证明其来自registry。记录或重读adoption不恢复JS lease，也不重授旧许可；调用者必须保留原租约直至耐久采用确认或原释放/清理责任完成。
+
+## 终端、文件批次与原 owner 恢复
+
+EE-21 终端引用只定位同scope、原实例代的终端，不授执行权。创建先确认原plan/permit，ResourceLifecycle.adopt与原执行终局沿同一耐久事实顺序。先终局则拒移交；移交成功只转交既有资源责任。正常call释放不能删除已移交终端，维护owner继续持有原责任。未知移交须认回原事实，不借未知回执返回created。
+
+EE-22 每条后续终端命令确认本次plan/permit，同终端只一个在途命令；busy拒绝，不排队。cwd、变量、函数和shell选项持续。显式cwd或env覆盖使整条命令在子shell运行，不反写基态。完成标记、输出EOF、后代停止分别判定。控制损坏、超时、exit/exec或无法确认后代停止使终端失效；不得换新shell假装继续。stop可能停止整个终端，旧leg确认完成后不得误停新leg。
+
+EE-23 文件expectedVersion是观察版本条件，不是权限或外部CAS。全批先检查全部输入、唯一不相交目标、原条件及容量；失败不改目标。暂存不是目标提交。create/null条件使用原生no-replace，不覆盖外部新建目标；replace存在外部检查窗口。每路径独立发布，不承诺多路径原子提交或任意外部读写隔离。
+
+EE-24 批次身份和首次副作用前恢复依据先确认。中断或未知回执保留原batch及确认范围，不宣称全成功或全未改，不自动重发。recoverBatch只读原manifest、目标和收据，区分完整、部分、中断、冲突和待确认。matchingPrepared只说明当前字节匹配，不代替历史发布收据。恢复不继续发布、不回滚、不覆盖外部新写；清理仅原暂存对象，未知manifest保留。
+
+EE-25 listRecoveryResources只枚举原owner索引证明的同scope回收责任。recoverOwned先核独立RecoveryAccess，再逐provider组核实际原资源；本组失败不抹已处理部分，不把枚举失败当空集。evidence只是普通观察数据，不授新许可。确认physical stop不证明文件作用撤销或批次成功。当前代已移交活终端不进入冷代回收。冷恢复不得重建shell、重授旧许可或重跑原作用。

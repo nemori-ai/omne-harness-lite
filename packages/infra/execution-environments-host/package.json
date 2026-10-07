@@ -14,6 +14,10 @@
     "./cordis": {
       "types": "./dist/cordis.d.ts",
       "import": "./dist/cordis.js"
+    },
+    "./migrations": {
+      "types": "./dist/migrations.d.ts",
+      "import": "./dist/migrations.js"
     }
   },
   "files": [
@@ -28,6 +32,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@omne-harness-lite/storage": "workspace:*",
     "@omne-harness-lite/assembly-lifecycle": "workspace:*",
     "@omne-harness-lite/cordis-plugin-tree": "workspace:*",
     "@omne-harness-lite/content-blocks": "workspace:*",
@@ -38,6 +43,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@omne-harness-lite/storage-sql": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",

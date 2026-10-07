@@ -102,6 +102,10 @@ function controlledProvider() {
                   },
                 }
               },
+              createTerminal: async () => ({ kind: 'rejected', reason: 'unsupported' }),
+              executeTerminal: async () => ({ kind: 'rejected', reason: 'unsupported' }),
+              closeTerminal: async () => ({ kind: 'rejected', reason: 'unsupported' }),
+              terminals: async () => ({ kind: 'rejected', reason: 'unsupported' }),
             },
           },
           async release() {
@@ -112,7 +116,8 @@ function controlledProvider() {
         },
       }
     },
-    recover: async () => 'confirmedStopped',
+    listRecoveryResources: async () => ({ kind: 'resources', values: [] }),
+    recover: async () => ({ status: 'confirmedStopped' }),
     retire: async () => ({ kind: 'drained' }),
   }
   return { provider, acquired, entered, finished, invalidated, release }

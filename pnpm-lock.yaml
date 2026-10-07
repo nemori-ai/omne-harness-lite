@@ -2103,6 +2103,9 @@ importers:
       '@omne-harness-lite/session-tenancy':
         specifier: workspace:*
         version: link:../../core/session-tenancy
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../core/storage
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -2110,6 +2113,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../storage-sql
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

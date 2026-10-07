@@ -449,9 +449,9 @@ test('unconfirmed resource cleanup prevents readiness and retains the actual jou
     },
   })
   let confirmed = false
-  const recover = vi.fn(async () =>
-    confirmed ? ('confirmedStopped' as const) : ('pending' as const),
-  )
+  const recover = vi.fn(async () => ({
+    status: confirmed ? ('confirmedStopped' as const) : ('pending' as const),
+  }))
   const fiber = f.current.assembly.ctx.plugin({
     name: 'fixture-resource-owner',
     inject: [EXECUTION_ENVIRONMENTS],
@@ -461,6 +461,7 @@ test('unconfirmed resource cleanup prevents readiness and retains the actual jou
         generation: 'resource-generation',
         describe: async () => ({ kind: 'descriptions', values: [] }),
         acquire: async () => ({ kind: 'rejected', reason: 'noMatchingEnvironment' }),
+        listRecoveryResources: async () => ({ kind: 'resources', values: [] }),
         recover,
         retire: async () => ({ kind: 'drained' }),
       })

@@ -1,3 +1,4 @@
+import { isResourceJournalValue, type ResourceJournalValue } from './journal-resources.ts'
 import { createRequire } from 'node:module'
 import { judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import {
@@ -100,28 +101,31 @@ function waitRelations(value: RecordOf<'execution_waiting'>): boolean {
     (value.request.cardId === undefined || journalIdentity(value.request.cardId))
   )
 }
+function resourceRelations(value: ResourceJournalValue): boolean {
+  if (value.kind === 'resource_planned')
+    return journalIdentity(value.resource.key) && journalIdentity(value.resource.provider)
+  return (
+    journalIdentity(value.key) && (value.kind !== 'physical_stop_observed' || instant(value.at))
+  )
+}
 function runtimeRelations(
   value: RecordOf<
     | 'execution_started'
     | 'execution_context_read'
     | 'resource_planned'
     | 'resource_permitted'
+    | 'resource_adopted'
     | 'physical_stop_observed'
     | 'execution_waiting'
     | 'execution_answered'
   >,
 ): boolean {
+  if (isResourceJournalValue(value)) return resourceRelations(value)
   switch (value.kind) {
     case 'execution_started':
       return instant(value.at)
     case 'execution_context_read':
       return contextRelations(value)
-    case 'resource_planned':
-      return journalIdentity(value.resource.key) && journalIdentity(value.resource.provider)
-    case 'resource_permitted':
-      return journalIdentity(value.key)
-    case 'physical_stop_observed':
-      return journalIdentity(value.key) && instant(value.at)
     case 'execution_waiting':
       return waitRelations(value)
     case 'execution_answered':

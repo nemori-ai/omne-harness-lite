@@ -6,24 +6,49 @@ import type {
   EnvironmentProvider,
   EnvironmentRejection,
 } from '@omne-harness-lite/execution-environments'
-import type {
-  AccessOperation,
-  SessionAccess,
-  SessionAccessOperations,
-} from '@omne-harness-lite/session-tenancy'
-import { ownScope, ownRequirement, ownReference } from './values.ts'
+import {
+  captureCommandArguments,
+  captureFileArguments,
+  type CommandFacility,
+  type FileFacility,
+} from '@omne-harness-lite/execution-environments'
+import type { SessionAccessOperations } from '@omne-harness-lite/session-tenancy'
+import type { Storage } from '@omne-harness-lite/storage'
+import { ownScope } from './values.ts'
+import { captureAcquisition } from './acquisition.ts'
+import { createHostOwner, type HostAcquireRequest } from './host-owner.ts'
+import { createHostFiles } from './host-files.ts'
+import { createHostTerminals } from './host-terminals.ts'
+import {
+  captureHostNativePolicy,
+  defaultHostNativePolicy,
+  type HostNativePolicy,
+} from './native-policy.ts'
+
 const reject = (reason: EnvironmentRejection['reason']): EnvironmentRejection => ({
   kind: 'rejected',
   reason,
 })
-
-/** Phase 2 has no process/file facilities. Acquisition still uses real scope checks and leases. */
+/** The durable consumer of native actions. The assembly installs the exported migrations. */
 export function createHostEnvironment(options: {
   readonly name: string
   readonly access: SessionAccessOperations
+  readonly storage: Storage
+  readonly policy?: HostNativePolicy
 }): EnvironmentProvider {
-  if (!options.name) throw new TypeError('host provider name required')
-  const generation = randomUUID()
+  if (process.platform !== 'linux' || !process.getuid)
+    throw new TypeError('Host execution requires Linux user scopes')
+  if (!options.name || !options.storage)
+    throw new TypeError('Host name and original Storage required')
+  const generation = randomUUID(),
+    policy = captureHostNativePolicy(options.policy ?? defaultHostNativePolicy)
+  const owner = createHostOwner({
+    name: options.name,
+    generation,
+    storage: options.storage,
+    policy,
+  })
+  const terminals = createHostTerminals(owner, policy)
   const reference = Object.freeze({
     provider: options.name,
     reference: Object.freeze({ generation }),
@@ -31,101 +56,169 @@ export function createHostEnvironment(options: {
   const description: EnvironmentDescription = Object.freeze({
     reference,
     bindingLayer: 'host_machine',
-    facilities: Object.freeze([]),
+    facilities: Object.freeze(['command', 'files']),
     instance: Object.freeze({ id: options.name, generation }),
     binding: Object.freeze({ kind: 'host_machine' as const }),
     continuity: Object.freeze({ kind: 'notGuaranteed' as const }),
   })
-  const leases = new Set<() => void>()
-  let active = true
+  const leases = new Set<EnvironmentLease['release']>()
   async function authorize(
-    access: SessionAccess,
-    scope: Parameters<EnvironmentProvider['describe']>[0],
-    operation: AccessOperation,
+    authorization: HostAcquireRequest['authorization'],
+    scope: HostAcquireRequest['scope'],
+    operation: 'environment.describe' | 'environment.acquire',
   ) {
-    if (!active) return reject('ownerStopped')
+    if (!owner.isActive()) return reject('ownerStopped')
     try {
-      const decision = await options.access.authorize(access, scope, operation)
-      return !active
-        ? reject('ownerStopped')
-        : decision.kind === 'rejected'
-          ? reject(decision.reason)
-          : decision
+      const decision = await options.access.authorize(authorization, scope, operation)
+      if (!owner.isActive()) return reject('ownerStopped')
+      return decision.kind === 'rejected' ? reject(decision.reason) : decision
     } catch {
       return reject('unavailable')
     }
   }
+  function validateRequest(request: HostAcquireRequest) {
+    const captured = captureAcquisition(request)
+    if (!captured) return reject('invalidInput')
+    if (captured.requirement.bindingLayer !== 'host_machine') return reject('noMatchingEnvironment')
+    if (captured.requirement.facilities.some(name => name !== 'command' && name !== 'files'))
+      return reject('missingFacility')
+    if (
+      captured.reference &&
+      writeJsonLossless(captured.reference) !== writeJsonLossless(reference)
+    )
+      return reject('referenceExpired')
+    return captured
+  }
+  function lease(request: HostAcquireRequest): EnvironmentLease {
+    const invalidation = Promise.withResolvers<{ readonly reason: string }>()
+    let held = true
+    const open = () => held && owner.isActive() && !request.resources.closed.aborted
+    const closure = new AbortController()
+    const call = { ...request, resources: { ...request.resources, closed: closure.signal } }
+    const files = createHostFiles(owner, call, policy)
+    const command = {
+      start: (value: Parameters<typeof owner.start>[1]) => owner.start(call, value),
+      ...terminals.forCall(call),
+    }
+    function guard<T extends object>(port: T, kind: 'command' | 'files'): T {
+      return Object.fromEntries(
+        Object.entries(port).map(([key, operation]) => [
+          key,
+          async (...args: unknown[]) => {
+            const captured =
+              kind === 'command'
+                ? captureCommandArguments(key as keyof CommandFacility, args)
+                : captureFileArguments(key as keyof FileFacility, args)
+            if (!captured) return { kind: 'rejected', reason: 'invalidInput' }
+            if (!open()) return { kind: 'rejected', reason: 'closed' }
+            const checked = await authorize(
+              request.authorization,
+              request.scope,
+              'environment.acquire',
+            )
+            if (checked.kind === 'rejected')
+              return {
+                kind: 'rejected',
+                reason: checked.reason === 'notAuthorized' ? 'notAuthorized' : 'unavailable',
+              }
+            if (!open()) return { kind: 'rejected', reason: 'closed' }
+            return Reflect.apply(operation, port, captured)
+          },
+        ]),
+      ) as T
+    }
+    async function release(): ReturnType<EnvironmentLease['release']> {
+      held = false
+      closure.abort()
+      invalidation.resolve({ reason: 'ownerStopped' })
+      request.resources.closed.removeEventListener('abort', invalidated)
+      const pending = await owner.release(request)
+      if (pending.length) return { kind: 'pending', resources: pending }
+      leases.delete(release)
+      return { kind: 'released' }
+    }
+    function invalidated() {
+      held = false
+      closure.abort()
+      invalidation.resolve({ reason: 'ownerStopped' })
+      // Retire retries this original lease if asynchronous release cannot complete.
+      void release().catch(() => {
+        /* The original release remains registered for explicit retire retry. */
+      })
+    }
+    request.resources.closed.addEventListener('abort', invalidated, { once: true })
+    leases.add(release)
+    return Object.freeze({
+      facilities: Object.freeze({
+        description,
+        command: guard(command, 'command'),
+        files: guard(files, 'files'),
+      }),
+      invalidated: invalidation.promise,
+      release,
+    })
+  }
   return Object.freeze({
     name: options.name,
     generation,
-    async describe(inputScope, authorization) {
-      const scope = ownScope(inputScope)
+    async describe(rawScope, authorization) {
+      const scope = ownScope(rawScope)
       if (!scope) return reject('invalidInput')
       const checked = await authorize(authorization, scope, 'environment.describe')
       return checked.kind === 'rejected' ? checked : { kind: 'descriptions', values: [description] }
     },
     async acquire(request) {
-      if (request === null || typeof request !== 'object') return reject('invalidInput')
-      const scope = ownScope(request.scope),
-        requirement = ownRequirement(request.requirement)
-      const selected = request.reference === undefined ? undefined : ownReference(request.reference)
-      const resources = request.resources
-      if (
-        !scope ||
-        !requirement ||
-        (request.reference !== undefined && !selected) ||
-        !(resources?.closed instanceof AbortSignal)
-      )
-        return reject('invalidInput')
-      const checked = await authorize(request.authorization, scope, 'environment.acquire')
-      if (checked.kind === 'rejected') return checked
-      if (requirement.bindingLayer !== 'host_machine') return reject('noMatchingEnvironment')
-      if (requirement.facilities.length) return reject('missingFacility')
-      if (
-        selected &&
-        (selected.provider !== options.name ||
-          writeJsonLossless(selected.reference) !== writeJsonLossless(reference.reference))
-      )
-        return reject('referenceExpired')
-      if (resources.closed.aborted) return reject('ownerStopped')
-      const invalidation = Promise.withResolvers<{ readonly reason: string }>()
-      let held = true
-      const invalidate = () => {
-        if (held) {
-          held = false
-          leases.delete(invalidate)
-          resources.closed.removeEventListener('abort', invalidate)
-          invalidation.resolve({ reason: 'ownerStopped' })
-        }
+      const checked = validateRequest(request)
+      if ('kind' in checked) return checked
+      const decision = await authorize(request.authorization, checked.scope, 'environment.acquire')
+      if (decision.kind === 'rejected') return decision
+      if (request.resources.closed.aborted) return reject('ownerStopped')
+      try {
+        await owner.verify()
+      } catch {
+        return reject('unavailable')
       }
-      leases.add(invalidate)
-      resources.closed.addEventListener('abort', invalidate, { once: true })
-      const lease: EnvironmentLease = Object.freeze({
-        facilities: Object.freeze({ description }),
-        invalidated: invalidation.promise,
-        async release() {
-          invalidate()
-          return { kind: 'released' } as const
-        },
-      })
       return {
         kind: 'acquired',
-        lease,
-        evidence: Object.freeze({
+        lease: lease({ ...request, ...checked }),
+        evidence: {
           provider: options.name,
           generation,
           reference: reference.reference,
-          facilities: [],
-        }),
+          facilities: description.facilities,
+        },
       }
     },
-    async recover() {
-      return 'unsupported'
+    async listRecoveryResources(scope) {
+      const captured = ownScope(scope)
+      if (!captured) return { kind: 'unavailable' }
+      try {
+        return { kind: 'resources', values: await owner.list(captured) }
+      } catch {
+        return { kind: 'unavailable' }
+      }
     },
+    recover: owner.recover,
     async retire() {
-      active = false
-      for (const invalidate of [...leases]) invalidate()
-      return { kind: 'drained' }
+      const resources = await owner.retire()
+      let leasePending = false
+      for (const release of [...leases]) {
+        try {
+          const result = await release()
+          if (result.kind === 'pending') {
+            leasePending = true
+            resources.push(...result.resources)
+          }
+        } catch {
+          leasePending = true
+        }
+      }
+      return leasePending || resources.length || owner.hasPendingWork()
+        ? {
+            kind: 'pending',
+            resources: [...new Map(resources.map(resource => [resource.key, resource])).values()],
+          }
+        : { kind: 'drained' }
     },
   } satisfies EnvironmentProvider)
 }

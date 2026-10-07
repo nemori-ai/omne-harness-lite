@@ -1,3 +1,4 @@
+import { commandFixture, fileFixture } from './facility-fixture.ts'
 import { expect, test, vi } from 'vitest'
 import type {
   EnvironmentDescription,
@@ -25,15 +26,20 @@ function another(h: ReturnType<typeof fixture>, name: string, facilities = ['com
       lease: {
         facilities: {
           description: value,
-          ...(facilities.includes('command') ? { command: { start: h.start } } : {}),
-          ...(facilities.includes('files') ? { files: { read: h.read, write: h.write } } : {}),
+          ...(facilities.includes('command')
+            ? { command: commandFixture({ start: h.start }) }
+            : {}),
+          ...(facilities.includes('files')
+            ? { files: fileFixture({ read: h.read, write: h.write }) }
+            : {}),
         },
         invalidated: ended.promise,
         release: vi.fn(async () => ({ kind: 'released' as const })),
       },
       evidence: { provider: name },
     })),
-    recover: async () => 'unsupported',
+    listRecoveryResources: async () => ({ kind: 'resources', values: [] }),
+    recover: async () => ({ status: 'unsupported' }),
     retire: vi.fn<EnvironmentProvider['retire']>(async () => {
       ended.resolve({ reason: 'ownerStopped' })
       return { kind: 'drained' }
