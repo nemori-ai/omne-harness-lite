@@ -109,6 +109,8 @@ describe('physical execution source', () => {
   it('keeps an actually accepted candidate when insert throws after acceptance, preserving receivers', async () => {
     const actual = createCallContainerStore<PlannedSemantics, never>()
     const receivers: string[] = []
+    const insertions: boolean[] = []
+    let acceptedReturnLost = false
     const physical: CallContainerStore<PlannedSemantics, never> = {
       find(key) {
         expect(this).toBe(physical)
@@ -127,7 +129,10 @@ describe('physical execution source', () => {
       },
       insert(held, prepared) {
         expect(this).toBe(physical)
-        expect(actual.insert(held, prepared)).toBe(true)
+        const inserted = actual.insert(held, prepared)
+        insertions.push(inserted)
+        expect(inserted).toBe(!acceptedReturnLost)
+        acceptedReturnLost = true
         throw new Error('accepted but return lost')
       },
       remove(held) {
@@ -150,6 +155,17 @@ describe('physical execution source', () => {
     expect(observed.execution.session).toBe(first.view().session)
     expect(observed.execution.owner).toBe(first.view().owner)
     expect(observed.execution.registered).toBe(true)
+    // A repeated lost return still names the same physical execution, not another generation.
+    expect(() => calls.insert(held, first)).toThrow('accepted but return lost')
+    expect(insertions).toEqual([true, false])
+    expect(source.snapshot(session)).toHaveLength(1)
+    expect(source.lookup(first.key)).toMatchObject({
+      execution: {
+        executionGeneration: first.view().executionGeneration,
+        session: first.view().session,
+        owner: first.view().owner,
+      },
+    })
     expect(await first.close()).toEqual({ released: true })
     expect(calls.remove(held)).toBe(true)
     held.release()
