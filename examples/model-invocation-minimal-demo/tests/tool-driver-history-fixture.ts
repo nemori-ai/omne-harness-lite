@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { REGISTERED_CATEGORIES } from '@omne-harness-lite/asset-registry'
@@ -20,7 +20,12 @@ import {
 } from '@omne-harness-lite/model-request-runtime'
 import type { Message } from '@omne-harness-lite/messages'
 import type { ToolDefinition } from '@omne-harness-lite/tool-definition'
-import { createContextSessionInitializer } from '@omne-harness-lite/runtime-context-local'
+import {
+  createRuntimeContext,
+  runtimeContextMigrations,
+} from '@omne-harness-lite/runtime-context-local'
+import { openStorage } from '@omne-harness-lite/storage-sql'
+import { composeMigrations } from '@omne-harness-lite/storage'
 import type { CheckedPrefix, LogEntryInput, OwnedLogEntry } from '@omne-harness-lite/session-log'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { OFFICIAL_ADMISSION_NAME } from '@omne-harness-lite/tool-admission'
@@ -97,11 +102,19 @@ export async function historyFixture(
   adoptedTool: FixtureTool = tool,
 ) {
   const dir = await mkdtemp(join(tmpdir(), 'omne-driver-history-'))
+  const logDir = join(dir, 'logs')
+  await mkdir(logDir)
   const options = {
-    dir,
+    dir: logDir,
     processOwnership: { current: 'history-test', observeExit: async () => 'exited' as const },
   }
   let log = await openJsonlSessionLog(options)
+  const storage = await openStorage({
+    dialect: 'sqlite',
+    file: join(dir, 'context.sqlite'),
+    migrations: composeMigrations(runtimeContextMigrations),
+    upgrade: false,
+  })
   const messages: Exclude<Message, { type: 'system' }>[] = []
   let currentAttempt = 1
   async function append(entries: readonly LogEntryInput[]) {
@@ -319,12 +332,20 @@ export async function historyFixture(
     if ('failure' in result) throw new Error('prefix fixture')
     return { scope, ownerGeneration: 'owner-one', ...result }
   }
-  const initialized = await createContextSessionInitializer(log).initializeContextSession(scope, {
+  const context = createRuntimeContext({
+    log,
+    storage,
+    access: { authorize: async () => ({ kind: 'rejected', reason: 'notAuthorized' }) },
+    now: () => at,
+  })
+  const initialized = await context.initializer.initializeContextSession(scope, {
     required: [],
     initial: [],
     fixed: [],
   })
   if (initialized.kind !== 'applied') throw new Error('context fixture')
+  context.closeAdmission()
+  await context.drain()
   const user = model(
     'message',
     { id: 'inbound', type: 'user', createdAt: at, blocks: [] },
@@ -352,7 +373,8 @@ export async function historyFixture(
     }
   let active = true
   return {
-    dir,
+    dir: logDir,
+    storage,
     options,
     get log() {
       return log
@@ -388,6 +410,7 @@ export async function historyFixture(
       log = await openJsonlSessionLog(options)
     },
     async close() {
+      await storage.close()
       await log.close()
       await rm(dir, { recursive: true, force: true })
     },

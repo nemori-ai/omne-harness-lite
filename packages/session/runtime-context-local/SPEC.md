@@ -1,11 +1,42 @@
-# Local context observation
+# Local Runtime Context behavior
 
-The public behavior belongs to core/runtime-context/SPEC.md. This page states the local owner's additional obligations; it does not introduce another public contract or accept a product story.
+采用依据：2026-10-06用户授权PR3正式实施；rc-d3/rcl-c2经选择、表达、计划及形式对应复核无剩余阻断，由主会话技术采用。公开语义归core/runtime-context/SPEC.md RC-1～14，本页只补提供者责任。不据此接受故事卡或宣称所有义务已实现。
 
-The journal uses the same owned-event classification for replay and public history inspection. A record that claims to be a context event but has an invalid envelope or unsupported codec makes the context unavailable. Unrelated records do not change the context projection. Unknown append receipts retain the original event until its presence can be established. Read and write jobs retain the original journal dependency through drain.
+RCL-1 日志是 context 修改的事实源。持久当前投影可以重建，不能成为独立修改事实的入口。只有经过同一事件分类、完整初始化及修订链核验的前缀才能用于折叠。日志不合法或来源事实不可核验时不可用，不能跳过事件继续返回成功。
 
-A reader resolves persisted values against one decoded journal prefix. It validates selected registration/content facts again after source reads. In-flight watches reject participating local writes and source hints, including a registration admitted while the final authority read is pending. The Cordis assembly has one local context mutation owner for that journal; independent writers must not bypass its mutation boundary. The snapshot does not promise an atomic transaction with an external authorization store or external source.
+RCL-2 每个 tenant/session 的投影条目、注册集修订、已折叠位置及构建代在同一存储事务中推进。条目删除后仍保留最后一次注册集修订。构建代或原进度变化时，晚到的投影事务不得覆盖新结果。unknown SQL 回执核对原提交，不再造一个日志修改事件。
 
-Source qualification is removed before its read/invalidate jobs drain. Late values cannot be adopted after removal. A new same-named contribution has another generation and does not inherit the old contribution's work. Reader cursors retain only visible projections, values and generation strings in a WeakMap; the owner does not keep a strong history table or source callbacks through a cursor.
+派生 SQL 批次通过原 Storage，在同一 scope 的 sentinel 排他提交边界内结算。原 basis 是该批构造时读取的 `rc_projection_meta.projection_revision`，或明确的元数据缺席；原目标构建代是该批另行生成的 `projection_revision`，两者不能混同。若原目标构建代仍在，必须逐内容核对原完整元数据及该批目标条目。若原 basis 已被合法后继构建代替代，原批及其任何晚到提交都必须比较同一原 basis，且合法写路径不得复用已替代的构建代，因此原批不能再写入。这种结算只解除可重建派生批次的未来写责任，不证明它历史上肯定未提交，不据此返回业务 applied，也不解除 RCL-5 的日志未知责任。仅查询到缺席、新尾号或另一构建代不够；必须建立上述同锁、同 basis 的结算依据。不能完成结算时继续保留原批及依赖，drain 不得假成功。
 
-This implementation still replays the durable prefix for observation. It does not deliver the later increment's persistent current projection or O(1) requirement.
+RCL-3 指定当前值读取只能采用已追平且完成本次依据核验的投影。落后时先追平；不能确认时回 unavailable，期间相关视图变化按 RC-11 拒绝。相关数据、授权及来源发生变化时不能部分成功。无关日志只推进折叠位置，不能改变可见视图修订。
+
+RCL-4 register/remove 使用注册集修订，update 使用块内容修订，均延续 RC-6。确认日志后，必须核验对应当前投影，才能由本提供者返回 applied。日志已落盘而投影失败或回执未知时，失败响应不承诺事实未发生。后续读写必须先认回或追平，不能用旧当前值继续修改。
+
+RCL-5 追加回执未知时保留原事件、原数据、原观察时刻、原 dedupe 身份及原依赖。一次缺席、新尾号或另一次请求的拒绝不证明原事件未写。只有核验原完整记录或获得原物理操作的确定未写结论，才能解除原未知责任。不能以重算值或新的请求替换原责任。
+
+RCL-6 同一 context owner 拥有 initializer、mutation、projection 及来源工作。可信初始化不会绕过原 pending、CAS 或关闭门。普通业务服务不暴露 initializer。其重复、冲突和 applied 确认语义见下节。迁移、日志恢复和该 scope 初始化／前缀核验未完成时，公共读取不能成功。停止后不得因晚初始化回执重新开放服务。
+
+RCL-7 本代开始关闭即禁止新的业务／来源工作。旧任务结算仍使用原依赖，不能为收尾重新查找同名新代。来源原代、context 任务、未知日志／投影认回排空后，才允许原日志借用 release；未确认时维持同一关闭控制及依赖。物理日志／SQL owner 必须等本代及其他用户全部完成。retained 不等于物理关闭完成，也不允许后继写者接管。
+
+RCL-8 冷恢复和首次重建可以扫描历史，但要与原前缀折叠同结果。指定当前值的热查询在投影追平、resident 初始化完成及无后缀的前提下，不扫描历史条目或整个索引。返回列表按结果规模计，增量追平按后缀规模计，冷重建单独计。费用和源读取不冒充常数成本。
+
+RCL-9 观察游标只保留调用者当前可见的基线，不保留完整历史或来源函数。来源换代、授权范围变化及进程重建后的原游标不能继续提供变化。既有唤醒事件不是正文或可靠提交依据。生产者、通知与读取失败不变为空变化。
+
+## 可信初始化端口的精确行为
+
+此节约束既有 ContextSessionInitializer，不新增 Service 方法。会话创建者通过可信工厂得到端口，普通业务调用方不能得到它。
+
+| 项 | 要求 |
+| --- | --- |
+| 输入与权限 | 显式 scope 和完整 ContextSessionSeed，身份不提供默认值。可信创建者拥有初始化权；端口不接受业务 access/role 字符串来升级权限。非法 scope、数据形状、重复 key、fixed 关系或必需声明回 invalidInput。来源尚未挂载不使合法持久必需声明失效。 |
+| 前置 | owner 接纳初始化，迁移和原日志恢复已完成；未达成这些前置回 unavailable，停止后回 ownerStopped。该 scope 尚未 seed 不是错误，本调用正是建立它。 |
+| 提交 | 新 scope 的初始化批在原日志的一次追加中提交，投影确认另有 SQL 提交。applied 必须确认原初始化事实与包含该事实的合法当前投影；不声称与其他存储的会话创建同事务。 |
+| 返回与失败 | 合法首次／同 seed 重复：applied，revision 为原初始化事件修订，不能返回后来的注册集修订。不同 seed：revisionConflict。非法输入：invalidInput。停止：ownerStopped。依赖不可用、原未知或投影不能确认：unavailable；失败不证明原日志未发生。此可信端口不返回 sourceUnavailable、requiredRegistration 或 notAuthorized。 |
+| 幂等 | 同 tenant/session 仅有一个初始化事实。比较原持久 seed 与本次完整 seed 的 canonical JSON 值：对象属性顺序无关，数组顺序和所有字段（含原 revision/observedAt）参与比较。相同 seed 不再追加，不重置当前已变化内容；不同 seed 不替换原声明。并发认回后沿此判据决定返回。 |
+| 事件 | 初始化已提交的通知只是唤醒。沿既有 runtime-context/cache-invalidated 类型化通知及 emit，不承诺可靠投递、正文承载或可否决。通知失败不撤销日志事实；读取不能拿通知证明已确认。 |
+| 缺席 | 迁移/恢复不确定、投影未知、日志非法时不可用，不当空 seed；原追加缺席判断沿 RCL-5，不能另写一批来替代未知批。 |
+| 在途归属 | 初始化、认回、投影都属于原 owner，停止不撤销已发生事实，晚回只能结算，不能重新开放。新代不得代替原任务，原资源排空沿 RCL-7。 |
+| 装配／协议 | 可信工厂负责端口授予和 scope 创建调用关系，Service 不暴露初始化。一次性声明、原未知责任及成功确认条件是提供者行为，不能只靠 demo 调用顺序成立。 |
+
+
+来源/观察保留现行义务：同一owner拥有本日志context mutation。绑定后仍核验当前权限，来源代及参与注册/内容在交付前再次核验。来源资格先撤除，再排空原任务；同名新代不接管旧工作。游标用WeakMap，只保存可见基线，不保留来源回调。

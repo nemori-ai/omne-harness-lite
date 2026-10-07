@@ -12,7 +12,6 @@ import {
   createOfficialCatalogProfile,
   createSharpImageCodec,
   modelImageBalancedV1,
-  deepseekV4Pro0813Definition,
   officialCatalog,
   officialCatalogRevision,
 } from '@omne-harness-lite/pi-ai-transport'
@@ -30,7 +29,7 @@ import type { ProcessOwnership } from '@omne-harness-lite/session-log-jsonl'
 import { DEMO_TOOL_ASSETS, DEMO_TOOL_HOLDINGS } from './demo-tools.ts'
 import { OFFICIAL_ADMISSION_NAME } from '@omne-harness-lite/tool-admission'
 
-export const MODEL = deepseekV4Pro0813Definition.modelId
+export const MODEL = 'openai/gpt-6-luna'
 /**
  * The directory keeps a manifest whose ordinal equals the stored one but whose entries differ as
  * `manifestNotNewer`, so the ordinal must rise with every change of the installed entries. Catalog

@@ -51,7 +51,7 @@ describe('demo official model installation follows the package catalog', () => {
     expect(DEMO_OFFICIAL_MANIFEST_ORDINAL).toBe(DEMO_MANIFEST_BASE + officialCatalogRevision)
     expect(DEMO_OFFICIAL_MANIFEST_ORDINAL).toBeGreaterThan(3)
     expect(transport.definitions.some(definition => definition.modelId === MODEL)).toBe(true)
-    expect(MODEL).toBe('deepseek/deepseek-v4-pro-0813')
+    expect(MODEL).toBe('openai/gpt-6-luna')
   })
 
   it.each(officialCatalog.map(entry => [entry.definition.modelId, entry] as const))(

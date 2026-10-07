@@ -1,10 +1,12 @@
+import type { KyselyPlugin } from 'kysely'
+import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import { expect, it, vi } from 'vitest'
 import { LOGINS_SERVICE } from '@omne-harness-lite/account-identity/cordis'
 import type { LoginsService } from '@omne-harness-lite/account-identity'
-import type { AtomicStorage } from '@omne-harness-lite/storage'
+import { StorageUnavailable, type AtomicStorage } from '@omne-harness-lite/storage'
 import { seedHoldingTenant } from '@omne-harness-lite/session-tenancy-table/seed'
 import { createAcceptanceApplication, type ToolSessionBinding } from '../src/bootstrap.ts'
 import { sessionIdentitySource } from '../src/session-context-source.ts'
@@ -24,11 +26,17 @@ async function configuration(label: string): Promise<AcceptanceConfig> {
     },
   }
 }
-function open(config: AcceptanceConfig) {
+function open(config: AcceptanceConfig, extraHooks: AcceptanceHooks = {}) {
   let ctx: Context | undefined, source: Fiber | undefined, storage: AtomicStorage | undefined
+  let log: Parameters<NonNullable<AcceptanceHooks['sessionLogOpened']>>[0] | undefined
   const hooks: AcceptanceHooks = {
-    storageOpened(value) {
+    sessionLogOpened(value) {
+      log = { ...value, readSince: vi.fn(value.readSince) }
+      return log
+    },
+    storageOpened(value, guard) {
       storage = value
+      return extraHooks.storageOpened?.(value, guard)
     },
     async fiberCreated(name, fiber) {
       if (name === 'runtimeContext') {
@@ -45,6 +53,10 @@ function open(config: AcceptanceConfig) {
   })
   return {
     app,
+    get log() {
+      if (!log) throw new Error('physical log absent')
+      return log
+    },
     get ctx() {
       if (!ctx) throw new Error('context absent')
       return ctx
@@ -192,7 +204,7 @@ it('does not turn an unsupported context version or a failed read into default i
     const user = await actor(h.app)
     const session = await h.app.prepareSession(user, 'unknown-version')
     if (!('session' in session)) throw new Error('session absent')
-    await h.ctx.sessionLog.append(
+    await h.log.append(
       session.session,
       [
         {
@@ -215,9 +227,7 @@ it('does not turn an unsupported context version or a failed read into default i
 
     const binding = bound(await h.app.createToolSession(user, 'read-failure'))
     const original = await h.app.readSessionLog(user, 'read-failure')
-    const readFailure = vi
-      .spyOn(h.ctx.sessionLog, 'readSince')
-      .mockResolvedValue({ failure: 'unavailable' })
+    const readFailure = vi.spyOn(h.log, 'readSince').mockResolvedValue({ failure: 'unavailable' })
     try {
       expect(await h.app.createToolSession(user, 'read-failure')).toMatchObject({
         reason: 'unavailable',
@@ -272,5 +282,69 @@ it('does not start initialization when application close overtakes an admitted a
     })
   } finally {
     expect((await reopened.app.close()).complete).toBe(true)
+  }
+})
+
+it('retains the original log and SQLite after a lost projection receipt, and retries the same managed close', async () => {
+  const pendingSession = unwrap(parseOpaqueIdentifier('pending-projection', 'SessionRef'))
+  let cut: 'off' | 'lost' | 'unavailable' = 'off'
+  const h = open(await configuration('context-original-sql-retained'), {
+    storageOpened(storage) {
+      const original = storage.write.bind(storage)
+      const write: AtomicStorage['write'] = async fn => {
+        let projection = false
+        const probe: KyselyPlugin = {
+          transformQuery({ node }) {
+            if (JSON.stringify(node).includes('"name":"rc_projection_meta"')) {
+              projection = true
+              if (cut === 'unavailable')
+                throw new StorageUnavailable('original projection SQL unavailable')
+            }
+            return node
+          },
+          async transformResult({ result }) {
+            return result
+          },
+        }
+        const result = await original(tx => fn({ ...tx, db: tx.db.withPlugin(probe) }))
+        if (projection && cut === 'lost') {
+          cut = 'unavailable'
+          throw new StorageUnavailable('original SQL receipt lost')
+        }
+        return result
+      }
+      vi.spyOn(storage, 'write').mockImplementation(write)
+    },
+  })
+  try {
+    await h.app.ready
+    const user = await actor(h.app)
+    cut = 'lost'
+    expect(await h.app.createToolSession(user, 'pending-projection')).toMatchObject({
+      reason: 'unavailable',
+    })
+    const retained = await h.app.close()
+    expect(retained.complete).toBe(false)
+    expect(retained.unfinished).toContain('runtimeContext')
+    expect(retained.unfinished).toContain('sessionLog')
+    expect(retained.unfinished).toContain('storage')
+    expect(
+      await h.storage.read(tx =>
+        tx.db.selectFrom('rc_projection_meta').select('projection_revision').execute(),
+      ),
+    ).toHaveLength(1)
+    expect(await h.log.readSince(pendingSession, 0)).toMatchObject({ entries: [], tail: 0 })
+    expect(await h.app.createToolSession(user, 'after-close')).toMatchObject({
+      reason: 'ownerStopped',
+    })
+    cut = 'off'
+    expect((await h.app.close()).complete).toBe(true)
+    expect(await h.log.readSince(pendingSession, 0)).toMatchObject({ failure: 'unavailable' })
+    await expect(
+      h.storage.read(tx => tx.db.selectFrom('rc_projection_meta').selectAll().execute()),
+    ).rejects.toBeInstanceOf(StorageUnavailable)
+  } finally {
+    cut = 'off'
+    expect((await h.app.close()).complete).toBe(true)
   }
 })

@@ -12,15 +12,16 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./plugin": {
-      "types": "./dist/plugin.d.ts",
-      "import": "./dist/plugin.js"
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
     }
   },
   "files": [
     "dist",
     "README.md",
-    "README_ZH.md"
+    "README_ZH.md",
+    "SPEC.md"
   ],
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
@@ -50,5 +51,12 @@
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "service-provider"
+    }
   }
 }

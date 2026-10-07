@@ -237,7 +237,8 @@ import { AuthorizedLogOwner, createAuthorizedLogOwner } from './authorized-log-o
 import { createSessionIngress, SessionIngressAuthority } from './session-ingress.ts'
 import { createSessionContextCreator } from './session-context-creation.ts'
 import { sessionIdentitySource } from './session-context-source.ts'
-import { runtimeContextLocal } from '@omne-harness-lite/runtime-context-local/cordis'
+import { runtimeContextMigrations } from '@omne-harness-lite/runtime-context-local'
+import { startRuntimeContextAssembly } from './runtime-context-assembly.ts'
 import { createTrustedSessionAccessPlugin } from './trusted-session-access.ts'
 import type {
   SessionAccess,
@@ -614,7 +615,7 @@ export function createAcceptanceApplication(
           : STAGE_FIBERS
   const context = new Context()
   const guard = createUpgradeGuard()
-  const fibers = new Map<StageFiber, Fiber>()
+  const fibers = new Map<ResourceCloseStep, Fiber>()
   const admitted = new Set<Promise<unknown>>()
   const hooks = options.hooks
   let storage: SqlStorage | undefined
@@ -624,6 +625,7 @@ export function createAcceptanceApplication(
   let authorizedLogOwner: Awaited<ReturnType<typeof createAuthorizedLogOwner>> | undefined
   let sessionIngress: ReturnType<typeof createSessionIngress> | undefined
   let contextCreator: ReturnType<typeof createSessionContextCreator> | undefined
+  let contextAssembly: Awaited<ReturnType<typeof startRuntimeContextAssembly>> | undefined
   const trustedAccess = createTrustedSessionAccessPlugin()
   let runnerHost: ReturnType<typeof createDemoRunnerHost> | undefined
   let runnerService: LoopExtensionRunnerService | undefined
@@ -911,6 +913,157 @@ export function createAcceptanceApplication(
     record({ event: 'fiber', phase: name, outcome: 'active', fiber: name, state: fiber.state })
     assertNotClosing()
   }
+  type ResourceCloseStep =
+    | StageFiber
+    | 'replica'
+    | 'sessionLogOwner'
+    | 'sessionLogBorrows'
+    | 'authorizedLogOwner'
+    | 'contextCreator'
+    | 'modelContributions'
+    | 'assetRegistry'
+    | 'registryHistory'
+    | 'fixedRootInput'
+    | 'assemblyManifest'
+
+  async function drainToolConsumers() {
+    if ((await toolAssembly?.closeAuthors()) === 'retained')
+      throw new Error('Tool author close retained')
+    for (const driver of toolDrivers.values()) await driver.close()
+    toolDrivers.clear()
+    for (const delivery of toolDeliveries.values()) await delivery.close()
+    toolDeliveries.clear()
+    await toolFacilities?.close()
+    if ((await toolAssembly?.closeDependencies()) === 'retained')
+      throw new Error('Tool dependency close retained')
+    await runnerServiceFiber?.dispose()
+    await defaultRetryFiber?.dispose()
+  }
+  function modelResourcesRetained(
+    stoppedRuntime: Awaited<ReturnType<NonNullable<typeof modelRuntime>['close']>> | undefined,
+  ) {
+    return (
+      retainedSettlements.size !== 0 ||
+      (stoppedRuntime !== undefined && 'unavailable' in stoppedRuntime) ||
+      (transportService !== undefined &&
+        (transportService.inspect().references !== 0 ||
+          transportService.inspect().executions !== 0)) ||
+      [...sessionBorrows.values()].some(borrow => borrow.owner.retained())
+    )
+  }
+  async function drainModelConsumers() {
+    // Recovery may still need this runtime's service, binding and JSONL owner.
+    await Promise.allSettled([...recoveryTasks])
+    const stoppedRuntime = await modelRuntime?.close()
+    const stoppedSelections = await Promise.allSettled(
+      [...sessionBorrows.values()].flatMap(borrow =>
+        borrow.selector === undefined ? [] : [borrow.selector.close()],
+      ),
+    )
+    await Promise.allSettled([...admitted])
+    const lateObservers = await Promise.allSettled([...observerGrants].map(grant => grant.revoke()))
+    // An unresolved original settlement write is resolved on its own coordinator, or it stays owned.
+    await Promise.allSettled(
+      [...retainedSettlements].map(async coordinator => {
+        await coordinator.close()
+        retainedSettlements.delete(coordinator)
+      }),
+    )
+    const consumerUnavailable = [...stoppedSelections, ...lateObservers].some(
+      result => result.status === 'rejected' || 'unavailable' in result.value,
+    )
+    if (consumerUnavailable || modelResourcesRetained(stoppedRuntime)) return false
+    for (const borrow of sessionBorrows.values()) borrow.owner.release()
+    return true
+  }
+  function resourceCloseOrder(): readonly ResourceCloseStep[] {
+    return [
+      ...(stage === 'modelRequest'
+        ? ([
+            'modelContributions',
+            'modelTransport',
+            'assetRegistry',
+            'fixedRootInput',
+            'registryHistory',
+            'assemblyManifest',
+            'evaluationInputs',
+          ] as const)
+        : []),
+      ...(logStage
+        ? ([
+            'contextCreator',
+            'sessionContextSource',
+            'runtimeContext',
+            'authorizedLogOwner',
+            'sessionAccess',
+            'sessionLogBorrows',
+            'sessionLogOwner',
+            'sessionLog',
+          ] as const)
+        : []),
+      ...(preparationStage ? (['sessionTenancy'] as const) : []),
+      'lookup',
+      'directory',
+      'replica',
+      'registration',
+      'governance',
+      'accountIdentity',
+      'credentials',
+      'clock',
+      'storage',
+    ]
+  }
+  const resourceClosers: Partial<Record<ResourceCloseStep, () => Promise<unknown>>> = {
+    async modelContributions() {
+      const retired = await Promise.allSettled(
+        [...modelContributions].reverse().map(fiber => fiber.dispose()),
+      )
+      if (retired.some(result => result.status === 'rejected'))
+        throw new Error('model contribution cleanup failed')
+    },
+    contextCreator: async () => contextCreator?.drain(),
+    async runtimeContext() {
+      if ((await contextAssembly?.close()) === 'retained')
+        throw new Error('runtime context close retained')
+    },
+    authorizedLogOwner: async () => authorizedLogOwner?.drain(),
+    sessionLogBorrows: async () => sessionLogBacking?.drain(),
+    async sessionLogOwner() {
+      if (!runnerHost) {
+        await sessionLogOwner?.close()
+        return
+      }
+      const result = await runnerHost.close()
+      if (!result.complete) throw new Error('runner task recovery unfinished')
+      for (const item of result.recovered)
+        record({ event: 'close', phase: 'runnerRecovery', outcome: item.kind })
+    },
+    assetRegistry: async () => assetRegistry?.close(),
+    fixedRootInput: async () => fixedRootInput?.close(),
+    registryHistory: async () => registryHistory?.close(),
+    assemblyManifest: async () => manifest?.close(),
+  }
+  async function closeAssemblyResource(name: ResourceCloseStep) {
+    const close = resourceClosers[name]
+    if (close) await close()
+    else await fibers.get(name)?.dispose()
+  }
+  async function closePhysicalResources(unfinished: string[]) {
+    if (unfinished.length) return
+    try {
+      await storage?.close()
+      record({ event: 'close', phase: 'storageOwner', outcome: 'closed' })
+    } catch {
+      unfinished.push('storageOwner')
+      record({ event: 'close', phase: 'storageOwner', outcome: 'failed' })
+      return
+    }
+    try {
+      await context.fiber.dispose()
+    } catch {
+      unfinished.push('context')
+    }
+  }
   async function closeResources(): Promise<CloseResult> {
     if (cleanupPromise !== undefined) return cleanupPromise
     closing = true
@@ -918,22 +1071,13 @@ export function createAcceptanceApplication(
     accessRevocation.abort()
     runnerHost?.closeAdmission()
     contextCreator?.closeAdmission()
+    contextAssembly?.closeAdmission()
     record({ event: 'gate', phase: 'scenario', outcome: 'closed' })
     const attempt = (async () => {
       // Stop actual consumers before waiting admitted work: setup work cannot start a new call once closing.
       await Promise.allSettled([...observerGrants].map(grant => grant.revoke()))
       try {
-        if ((await toolAssembly?.closeAuthors()) === 'retained')
-          throw new Error('Tool author close retained')
-        for (const driver of toolDrivers.values()) await driver.close()
-        toolDrivers.clear()
-        for (const delivery of toolDeliveries.values()) await delivery.close()
-        toolDeliveries.clear()
-        await toolFacilities?.close()
-        if ((await toolAssembly?.closeDependencies()) === 'retained')
-          throw new Error('Tool dependency close retained')
-        await runnerServiceFiber?.dispose()
-        await defaultRetryFiber?.dispose()
+        await drainToolConsumers()
       } catch {
         return {
           complete: false,
@@ -941,37 +1085,7 @@ export function createAcceptanceApplication(
           pending: await guard.pending(),
         }
       }
-      // Recovery may still need this runtime's service, binding and JSONL owner.
-      await Promise.allSettled([...recoveryTasks])
-      const stoppedRuntime = await modelRuntime?.close()
-      const stoppedSelections = await Promise.allSettled(
-        [...sessionBorrows.values()].flatMap(borrow =>
-          borrow.selector === undefined ? [] : [borrow.selector.close()],
-        ),
-      )
-      await Promise.allSettled([...admitted])
-      const lateObservers = await Promise.allSettled(
-        [...observerGrants].map(grant => grant.revoke()),
-      )
-      // An unresolved original settlement write is resolved on its own coordinator, or it stays owned.
-      await Promise.allSettled(
-        [...retainedSettlements].map(async coordinator => {
-          await coordinator.close()
-          retainedSettlements.delete(coordinator)
-        }),
-      )
-      const consumerUnavailable = [...stoppedSelections, ...lateObservers].some(
-        result => result.status === 'rejected' || 'unavailable' in result.value,
-      )
-      if (
-        consumerUnavailable ||
-        retainedSettlements.size !== 0 ||
-        (stoppedRuntime !== undefined && 'unavailable' in stoppedRuntime) ||
-        (transportService !== undefined &&
-          (transportService.inspect().references !== 0 ||
-            transportService.inspect().executions !== 0)) ||
-        [...sessionBorrows.values()].some(borrow => borrow.owner.retained())
-      ) {
+      if (!(await drainModelConsumers()))
         return {
           complete: false,
           unfinished: [
@@ -983,8 +1097,6 @@ export function createAcceptanceApplication(
           ],
           pending: await guard.pending(),
         }
-      }
-      for (const borrow of sessionBorrows.values()) borrow.owner.release()
       // Admitted delivery can still need a maintenance read to recognize its complete C batch.
       // The business gate is already closed; keep the physical owner available until consumers drain.
       authorizedLogOwner?.closeAdmission()
@@ -995,77 +1107,11 @@ export function createAcceptanceApplication(
       runtimeBindings.clear()
       controlledRuns.clear()
       const unfinished: string[] = []
-      const order: readonly (
-        | StageFiber
-        | 'replica'
-        | 'sessionLogOwner'
-        | 'sessionLogBorrows'
-        | 'authorizedLogOwner'
-        | 'contextCreator'
-        | 'modelContributions'
-        | 'assetRegistry'
-        | 'registryHistory'
-        | 'fixedRootInput'
-        | 'assemblyManifest'
-      )[] = [
-        ...(stage === 'modelRequest'
-          ? ([
-              'modelContributions',
-              'modelTransport',
-              'assetRegistry',
-              'fixedRootInput',
-              'registryHistory',
-              'assemblyManifest',
-              'evaluationInputs',
-            ] as const)
-          : []),
-        ...(logStage
-          ? ([
-              'contextCreator',
-              'sessionContextSource',
-              'runtimeContext',
-              'authorizedLogOwner',
-              'sessionAccess',
-              'sessionLogBorrows',
-              'sessionLogOwner',
-              'sessionLog',
-            ] as const)
-          : []),
-        ...(preparationStage ? (['sessionTenancy'] as const) : []),
-        'lookup',
-        'directory',
-        'replica',
-        'registration',
-        'governance',
-        'accountIdentity',
-        'credentials',
-        'clock',
-        'storage',
-      ]
+      const order = resourceCloseOrder()
       for (const [index, name] of order.entries()) {
         try {
-          if (name === 'modelContributions') {
-            const retired = await Promise.allSettled(
-              [...modelContributions].reverse().map(fiber => fiber.dispose()),
-            )
-            if (retired.some(result => result.status === 'rejected'))
-              throw new Error('model contribution cleanup failed')
-          } else if (name === 'contextCreator') await contextCreator?.drain()
-          else if (name === 'authorizedLogOwner') await authorizedLogOwner?.drain()
-          else if (name === 'sessionLogBorrows') await sessionLogBacking?.drain()
-          else if (name === 'sessionLogOwner') {
-            if (runnerHost !== undefined) {
-              const result = await runnerHost.close()
-              if (!result.complete) throw new Error('runner task recovery unfinished')
-              for (const item of result.recovered)
-                record({ event: 'close', phase: 'runnerRecovery', outcome: item.kind })
-            } else await sessionLogOwner?.close()
-          } else if (name === 'assetRegistry') await assetRegistry?.close()
-          else if (name === 'fixedRootInput') await fixedRootInput?.close()
-          else if (name === 'registryHistory') await registryHistory?.close()
-          else if (name === 'assemblyManifest') await manifest?.close()
-          else if (name === 'replica') await replica?.close()
-          else await fibers.get(name)?.dispose()
+          if (name === 'replica') await replica?.close()
+          else await closeAssemblyResource(name)
           record({ event: 'close', phase: name, outcome: 'closed' })
         } catch {
           unfinished.push(...order.slice(index))
@@ -1073,22 +1119,7 @@ export function createAcceptanceApplication(
           break
         }
       }
-      if (unfinished.length === 0) {
-        try {
-          await storage?.close()
-          record({ event: 'close', phase: 'storageOwner', outcome: 'closed' })
-        } catch {
-          unfinished.push('storageOwner')
-          record({ event: 'close', phase: 'storageOwner', outcome: 'failed' })
-        }
-      }
-      if (unfinished.length === 0) {
-        try {
-          await context.fiber.dispose()
-        } catch {
-          unfinished.push('context')
-        }
-      }
+      await closePhysicalResources(unfinished)
       const pending = await guard.pending()
       const result = {
         complete: unfinished.length === 0,
@@ -1111,137 +1142,318 @@ export function createAcceptanceApplication(
     })
     return attempt
   }
+  function migrationFragments() {
+    return [
+      ...(preparationStage ? requestPreparationMigrations : acceptanceMigrations),
+      ...(stage === 'modelRequest' ? evaluationInputMigrations : []),
+      ...(stage === 'modelRequest' ? assemblyManifestMigrations : []),
+      ...(stage === 'modelRequest' ? modelCallContentMigrations('sqlite') : []),
+      ...(logStage ? runtimeContextMigrations : []),
+      ...(hooks?.extraMigrations ?? []).filter(
+        extra => !assemblyManifestMigrations.some(builtin => builtin === extra),
+      ),
+    ]
+  }
+  async function prepareDeploymentStage() {
+    if (
+      stage !== 'authentication' &&
+      stage !== 'requestPreparation' &&
+      stage !== 'sessionLog' &&
+      stage !== 'modelRequest'
+    )
+      throw new Error('acceptance stage invalid')
+    const logDeployment = logStage
+      ? await prepareSessionLogDeployment(config.sessionLog)
+      : undefined
+    requestDeployment =
+      stage === 'modelRequest'
+        ? prepareModelRequestDeployment(config.modelRequest, options.developmentTransport)
+        : undefined
+    const prepared = await prepare(config)
+    assertNotClosing()
+    record({ event: 'stage', phase: 'prepare', outcome: 'ready' })
+    return { prepared, logDeployment }
+  }
+  function databaseReplaced(
+    prepared: Awaited<ReturnType<typeof prepare>>,
+    owner: { readonly dev: bigint; readonly ino: bigint; readonly birthtimeNs: bigint },
+  ) {
+    const prior = prepared.databaseIdentity
+    return (
+      prior === undefined ||
+      prior.dev !== owner.dev ||
+      prior.ino !== owner.ino ||
+      prior.birthtimeNs !== owner.birthtimeNs
+    )
+  }
+  async function verifyDatabaseOwner(prepared: Awaited<ReturnType<typeof prepare>>) {
+    const database = await open(config.databaseFile, constants.O_RDONLY | constants.O_NOFOLLOW)
+    try {
+      const owner = await database.stat({ bigint: true })
+      const uid = process.getuid?.()
+      if (!owner.isFile() || uid === undefined || owner.uid !== BigInt(uid))
+        throw new Error('acceptance database owner invalid')
+      // The read-only precheck already refused unsafe preexisting files.
+      // Only a genuinely new/replaced owned file is eligible for restriction.
+      const replaced = databaseReplaced(prepared, owner)
+      if (replaced) await database.chmod(0o600)
+      const info = await database.stat()
+      if (!info.isFile() || info.uid !== process.getuid?.() || (info.mode & 0o777) !== 0o600)
+        throw new Error('acceptance database owner invalid')
+      record({
+        event: 'stage',
+        phase: 'databaseOwner',
+        outcome: replaced
+          ? prepared.databaseIdentity === undefined
+            ? 'created'
+            : 'restored'
+          : 'verified',
+      })
+    } finally {
+      await database.close()
+    }
+  }
+  async function openStorageStage(prepared: Awaited<ReturnType<typeof prepare>>) {
+    phase = 'storage'
+    category = 'storage'
+    const fragments = migrationFragments()
+    storage = await openStorage(
+      {
+        dialect: 'sqlite',
+        file: config.databaseFile,
+        migrations: composeMigrations(fragments),
+        upgrade: { guard, checks: [migrationPrefixCheck(fragments), clockPreflight()] },
+      },
+      {
+        logger: {
+          info: () => record({ event: 'provider', phase: 'storage', outcome: 'info' }),
+          warn: () => record({ event: 'provider', phase: 'storage', outcome: 'warn' }),
+          error: () => record({ event: 'provider', phase: 'storage', outcome: 'error' }),
+        },
+      },
+    )
+    await verifyDatabaseOwner(prepared)
+    record({ event: 'stage', phase: 'migrations', outcome: 'complete' })
+    await hooks?.storageOpened?.(storage, guard)
+    assertNotClosing()
+    await load('storage', storageBinding(storage), {})
+
+    return storage
+  }
+  async function awaitClockReady() {
+    phase = 'clockReady'
+    category = 'clockUnavailable'
+    const clock: unknown = context.get(CLOCK_SERVICE)
+    if (!clockFace(clock)) throw new Error('acceptance clock absent')
+    activeClock = clock
+    const deadline = config.wait.monotonicNow() + config.wait.clockTimeoutMs
+    let waiting = false
+    while (clock.now() === 'unavailable') {
+      if (!waiting) {
+        waiting = true
+        record({ event: 'stage', phase: 'clockReady', outcome: 'waiting' })
+      }
+      assertNotClosing()
+      const remaining = deadline - config.wait.monotonicNow()
+      if (remaining <= 0) throw new Error('acceptance clock deadline')
+      await config.wait.sleep(Math.min(config.wait.pollMs, remaining))
+    }
+    record({ event: 'stage', phase: 'clockReady', outcome: 'ready' })
+    if (!allActive(BASE_FIBERS)) {
+      category = 'failed'
+      throw new Error('acceptance base changed')
+    }
+    return clock
+  }
+  async function confirmUpgrade(clock: Clock) {
+    phase = 'confirm'
+    category = 'confirmation'
+    await hooks?.beforeConfirm?.(guard)
+    assertNotClosing()
+    if (!allActive(BASE_FIBERS) || clock.now() === 'unavailable')
+      throw new Error('acceptance base no longer ready')
+    record({ event: 'confirm', phase: 'upgrade', outcome: 'started' })
+    const confirmation = await guard.confirm()
+    if (confirmation.snapshotTaken && !confirmation.snapshotRemoved)
+      throw new Error('acceptance snapshot not removed')
+    record({ event: 'confirm', phase: 'upgrade', outcome: 'succeeded', confirmation })
+    category = 'failed'
+    assertNotClosing()
+    await hooks?.afterConfirm?.()
+    assertNotClosing()
+    return confirmation
+  }
+  async function startDirectory(prepared: Awaited<ReturnType<typeof prepare>>) {
+    new DirectoryDiagnostics(context, {
+      record(event) {
+        record({
+          event: 'directory',
+          phase: event.operation,
+          outcome: event.outcome ?? event.phase,
+        })
+      },
+    })
+    await load('directory', modelProfileDirectoryPlugin, prepared.directory)
+  }
+  async function startSessionTenancy() {
+    if (preparationStage) {
+      await load('sessionTenancy', sessionTenancyTablePlugin, {})
+      const value: unknown = context.get(SESSION_TENANCY)
+      if (!sessionTenancyFace(value)) throw new Error('acceptance session tenancy absent')
+      sessionTenancy = value
+    }
+  }
+  async function openPhysicalLog(logDeployment: AcceptanceConfig['sessionLog']) {
+    phase = 'sessionLog'
+    category = 'failed'
+    assertNotClosing()
+    if (logDeployment === undefined) throw new Error('acceptance log deployment absent')
+    const ownedLogOptions: Parameters<typeof openJsonlSessionLog>[0] = {
+      ...logDeployment,
+      diagnostic: event =>
+        record({
+          event: 'sessionLog',
+          phase: event.stage,
+          outcome: event.outcome ?? event.level,
+        }),
+    }
+    sessionLogOwner = await openJsonlSessionLog(ownedLogOptions)
+    const consumerLog = (await hooks?.sessionLogOpened?.(sessionLogOwner)) ?? sessionLogOwner
+    sessionLogBacking = createSessionLogBacking(consumerLog)
+    new SessionLogBacking(context, sessionLogBacking.operations)
+    runnerHost = createDemoRunnerHost(
+      sessionLogOwner,
+      ownedLogOptions,
+      sessionLogBacking.operations.ownerGeneration,
+    )
+    await load('sessionLog', borrowedSessionLog, {})
+  }
+  function captureBusinessServices() {
+    const loginValue: unknown = context.get(LOGINS_SERVICE),
+      membershipValue: unknown = context.get(MEMBERSHIPS_SERVICE),
+      catalogValue: unknown = context.get(MODEL_CATALOG),
+      lookupValue: unknown = context.get(CREDENTIAL_LOOKUP),
+      registrationValue: unknown = context.get(REGISTRATION_SERVICE)
+    if (
+      !loginFace(loginValue) ||
+      !membershipFace(membershipValue) ||
+      !catalogFace(catalogValue) ||
+      !lookupFace(lookupValue) ||
+      !registrationFace(registrationValue)
+    )
+      throw new Error('acceptance service mapping invalid')
+    logins = loginValue
+    memberships = membershipValue
+    catalog = catalogValue
+    lookup = lookupValue
+    registration = registrationValue
+  }
+  const authorizeSessionIngress: Parameters<typeof createSessionIngress>[0] = async (
+    actor,
+    scope,
+  ) => {
+    if (closing || sessionTenancy === undefined) return 'unavailable'
+    const checked = await checkActor(actor)
+    if (!('account' in checked)) return 'notAuthorized'
+    if (!tenantIdEquals(checked.tenant, scope.tenant)) return 'notAuthorized'
+    const held = await sessionTenancy.holdingTenant(scope.session)
+    if ('failure' in held) return held.failure === 'unavailable' ? 'unavailable' : 'notAuthorized'
+    return tenantIdEquals(held.tenant, scope.tenant) ? 'authorized' : 'notAuthorized'
+  }
+  async function startLogicalLogDomain(
+    logDeployment: AcceptanceConfig['sessionLog'],
+    storage: SqlStorage,
+    clock: Clock,
+  ) {
+    sessionIngress = createSessionIngress(authorizeSessionIngress)
+    new SessionIngressAuthority(context, sessionIngress.operations)
+    await load('sessionAccess', trustedAccess.plugin, {})
+    if (!sessionLogBacking || !sessionTenancy || !logDeployment)
+      throw new Error('session log owner dependencies absent')
+    const catalogStorage = storage
+    const owner = await createAuthorizedLogOwner({
+      dir: logDeployment.dir,
+      backing: sessionLogBacking.operations,
+      access: context.sessionAccess,
+      tenancy: sessionTenancy,
+      catalog: () => catalogStorage.read(tx => readSessionCatalogIn(tx)),
+    })
+    authorizedLogOwner = owner
+    context.effect(() => () => owner.drain())
+    new AuthorizedLogOwner(context, owner.operations)
+    await restoreContextPrefixes(owner)
+    await startContextProvider(catalogStorage, sessionTenancy, clock)
+  }
+  async function restoreContextPrefixes(
+    owner: Awaited<ReturnType<typeof createAuthorizedLogOwner>>,
+  ) {
+    // No creation or user write is admitted until every existing physical prefix is checked.
+    const owned = await owner.operations.enumerate(owner.recovery)
+    if (owned.kind !== 'sessions') throw new Error('session log catalog unavailable')
+    for (const { scope } of owned.sessions) {
+      const prefix = await owner.operations.readPrefix(owner.recovery, scope)
+      if (prefix.kind !== 'prefix') throw new Error('session log prefix recovery unavailable')
+    }
+  }
+  async function startContextProvider(
+    catalogStorage: SqlStorage,
+    sessionTenancy: SessionTenancyService,
+    clock: Clock,
+  ) {
+    contextAssembly = await startRuntimeContextAssembly(context)
+    await contextAssembly.ready
+    const contextFiber = contextAssembly.fiber()
+    if (!contextFiber) throw new Error('runtime context fiber missing')
+    fibers.set('runtimeContext', contextFiber)
+    await hooks?.fiberCreated?.('runtimeContext', contextFiber)
+    if (contextFiber.state !== FIBER_STATE.ACTIVE) throw new Error('runtime context fiber inactive')
+    record({
+      event: 'fiber',
+      phase: 'runtimeContext',
+      outcome: 'active',
+      fiber: 'runtimeContext',
+      state: contextFiber.state,
+    })
+    assertNotClosing()
+    await load('sessionContextSource', sessionIdentitySource, {})
+    const creator = createSessionContextCreator({
+      initializer: contextAssembly.initializer,
+      tenancy: sessionTenancy,
+      clock,
+      createRow: scope =>
+        catalogStorage.atomic(unit =>
+          unit.mutate(tx => seedHoldingTenant(tx, scope.session, scope.tenant)),
+        ),
+    })
+    contextCreator = creator
+    context.effect(() => () => creator.drain())
+  }
+
+  function openAdmission() {
+    phase = 'admission'
+    assertNotClosing()
+    if (!allActive(stage === 'modelRequest' ? SESSION_LOG_FIBERS : requiredFibers))
+      throw new Error('acceptance required stage changed')
+    if (stage === 'modelRequest') identityGateOpen = true
+    else gateOpen = true
+    record({
+      event: 'gate',
+      phase: 'scenario',
+      outcome: stage === 'modelRequest' ? 'identityOpen' : 'open',
+    })
+  }
   async function start(): Promise<{ readonly confirmation: UpgradeConfirmation }> {
     try {
-      if (
-        stage !== 'authentication' &&
-        stage !== 'requestPreparation' &&
-        stage !== 'sessionLog' &&
-        stage !== 'modelRequest'
-      )
-        throw new Error('acceptance stage invalid')
-      const logDeployment = logStage
-        ? await prepareSessionLogDeployment(config.sessionLog)
-        : undefined
-      requestDeployment =
-        stage === 'modelRequest'
-          ? prepareModelRequestDeployment(config.modelRequest, options.developmentTransport)
-          : undefined
-      const prepared = await prepare(config)
-      assertNotClosing()
-      record({ event: 'stage', phase: 'prepare', outcome: 'ready' })
-      phase = 'storage'
-      category = 'storage'
-      const fragments = [
-        ...(preparationStage ? requestPreparationMigrations : acceptanceMigrations),
-        ...(stage === 'modelRequest' ? evaluationInputMigrations : []),
-        ...(stage === 'modelRequest' ? assemblyManifestMigrations : []),
-        ...(stage === 'modelRequest' ? modelCallContentMigrations('sqlite') : []),
-        ...(hooks?.extraMigrations ?? []).filter(
-          extra => !assemblyManifestMigrations.some(builtin => builtin === extra),
-        ),
-      ]
-      storage = await openStorage(
-        {
-          dialect: 'sqlite',
-          file: config.databaseFile,
-          migrations: composeMigrations(fragments),
-          upgrade: { guard, checks: [migrationPrefixCheck(fragments), clockPreflight()] },
-        },
-        {
-          logger: {
-            info: () => record({ event: 'provider', phase: 'storage', outcome: 'info' }),
-            warn: () => record({ event: 'provider', phase: 'storage', outcome: 'warn' }),
-            error: () => record({ event: 'provider', phase: 'storage', outcome: 'error' }),
-          },
-        },
-      )
-      const database = await open(config.databaseFile, constants.O_RDONLY | constants.O_NOFOLLOW)
-      try {
-        const owner = await database.stat({ bigint: true })
-        const uid = process.getuid?.()
-        if (!owner.isFile() || uid === undefined || owner.uid !== BigInt(uid))
-          throw new Error('acceptance database owner invalid')
-        // The read-only precheck already refused unsafe preexisting files.
-        // Only a genuinely new/replaced owned file is eligible for restriction.
-        const replaced =
-          prepared.databaseIdentity === undefined ||
-          prepared.databaseIdentity.dev !== owner.dev ||
-          prepared.databaseIdentity.ino !== owner.ino ||
-          prepared.databaseIdentity.birthtimeNs !== owner.birthtimeNs
-        if (replaced) await database.chmod(0o600)
-        const info = await database.stat()
-        if (!info.isFile() || info.uid !== process.getuid?.() || (info.mode & 0o777) !== 0o600)
-          throw new Error('acceptance database owner invalid')
-        record({
-          event: 'stage',
-          phase: 'databaseOwner',
-          outcome: replaced
-            ? prepared.databaseIdentity === undefined
-              ? 'created'
-              : 'restored'
-            : 'verified',
-        })
-      } finally {
-        await database.close()
-      }
-      record({ event: 'stage', phase: 'migrations', outcome: 'complete' })
-      await hooks?.storageOpened?.(storage, guard)
-      assertNotClosing()
-      await load('storage', storageBinding(storage), {})
-
+      const { prepared, logDeployment } = await prepareDeploymentStage()
+      const storage = await openStorageStage(prepared)
       await load('clock', clockPlugin, {})
       await load('credentials', credentialsPlugin, prepared.credentials)
       await load('accountIdentity', accountIdentityPlugin, prepared.identity)
       await load('governance', organizationGovernancePlugin, prepared.governance)
       await load('registration', registrationPlugin, prepared.registration)
-      phase = 'clockReady'
-      category = 'clockUnavailable'
-      const clock: unknown = context.get(CLOCK_SERVICE)
-      if (!clockFace(clock)) throw new Error('acceptance clock absent')
-      activeClock = clock
-      const deadline = config.wait.monotonicNow() + config.wait.clockTimeoutMs
-      let waiting = false
-      while (clock.now() === 'unavailable') {
-        if (!waiting) {
-          waiting = true
-          record({ event: 'stage', phase: 'clockReady', outcome: 'waiting' })
-        }
-        assertNotClosing()
-        const remaining = deadline - config.wait.monotonicNow()
-        if (remaining <= 0) throw new Error('acceptance clock deadline')
-        await config.wait.sleep(Math.min(config.wait.pollMs, remaining))
-      }
-      record({ event: 'stage', phase: 'clockReady', outcome: 'ready' })
-      if (!allActive(BASE_FIBERS)) {
-        category = 'failed'
-        throw new Error('acceptance base changed')
-      }
-      phase = 'confirm'
-      category = 'confirmation'
-      await hooks?.beforeConfirm?.(guard)
-      assertNotClosing()
-      if (!allActive(BASE_FIBERS) || clock.now() === 'unavailable')
-        throw new Error('acceptance base no longer ready')
-      record({ event: 'confirm', phase: 'upgrade', outcome: 'started' })
-      const confirmation = await guard.confirm()
-      if (confirmation.snapshotTaken && !confirmation.snapshotRemoved)
-        throw new Error('acceptance snapshot not removed')
-      record({ event: 'confirm', phase: 'upgrade', outcome: 'succeeded', confirmation })
-      category = 'failed'
-      assertNotClosing()
-      await hooks?.afterConfirm?.()
-      assertNotClosing()
-      new DirectoryDiagnostics(context, {
-        record(event) {
-          record({
-            event: 'directory',
-            phase: event.operation,
-            outcome: event.outcome ?? event.phase,
-          })
-        },
-      })
-      await load('directory', modelProfileDirectoryPlugin, prepared.directory)
+      const clock = await awaitClockReady()
+      const confirmation = await confirmUpgrade(clock)
+      await startDirectory(prepared)
       phase = 'replica'
       category = 'failed'
       await hooks?.beforeReplica?.()
@@ -1272,113 +1484,11 @@ export function createAcceptanceApplication(
       await hooks?.beforeLookup?.()
       new ReplicaReader(context, { readIn: replica.readBoundReplicaIn })
       await load('lookup', localCredentialLookupPlugin, { mode: 'localCredentialOnly' })
-      if (preparationStage) {
-        await load('sessionTenancy', sessionTenancyTablePlugin, {})
-        const value: unknown = context.get(SESSION_TENANCY)
-        if (!sessionTenancyFace(value)) throw new Error('acceptance session tenancy absent')
-        sessionTenancy = value
-      }
-      if (logStage) {
-        phase = 'sessionLog'
-        category = 'failed'
-        assertNotClosing()
-        if (logDeployment === undefined) throw new Error('acceptance log deployment absent')
-        const ownedLogOptions: Parameters<typeof openJsonlSessionLog>[0] = {
-          ...logDeployment,
-          diagnostic: event =>
-            record({
-              event: 'sessionLog',
-              phase: event.stage,
-              outcome: event.outcome ?? event.level,
-            }),
-        }
-        sessionLogOwner = await openJsonlSessionLog(ownedLogOptions)
-        const consumerLog = (await hooks?.sessionLogOpened?.(sessionLogOwner)) ?? sessionLogOwner
-        sessionLogBacking = createSessionLogBacking(consumerLog)
-        new SessionLogBacking(context, sessionLogBacking.operations)
-        runnerHost = createDemoRunnerHost(
-          sessionLogOwner,
-          ownedLogOptions,
-          sessionLogBacking.operations.ownerGeneration,
-        )
-        await load('sessionLog', borrowedSessionLog, {})
-      }
-      const loginValue: unknown = context.get(LOGINS_SERVICE),
-        membershipValue: unknown = context.get(MEMBERSHIPS_SERVICE),
-        catalogValue: unknown = context.get(MODEL_CATALOG),
-        lookupValue: unknown = context.get(CREDENTIAL_LOOKUP),
-        registrationValue: unknown = context.get(REGISTRATION_SERVICE)
-      if (
-        !loginFace(loginValue) ||
-        !membershipFace(membershipValue) ||
-        !catalogFace(catalogValue) ||
-        !lookupFace(lookupValue) ||
-        !registrationFace(registrationValue)
-      )
-        throw new Error('acceptance service mapping invalid')
-      logins = loginValue
-      memberships = membershipValue
-      catalog = catalogValue
-      lookup = lookupValue
-      registration = registrationValue
-      if (logStage) {
-        sessionIngress = createSessionIngress(async (actor, scope) => {
-          if (closing || sessionTenancy === undefined) return 'unavailable'
-          const checked = await checkActor(actor)
-          if (!('account' in checked)) return 'notAuthorized'
-          if (!tenantIdEquals(checked.tenant, scope.tenant)) return 'notAuthorized'
-          const held = await sessionTenancy.holdingTenant(scope.session)
-          if ('failure' in held)
-            return held.failure === 'unavailable' ? 'unavailable' : 'notAuthorized'
-          return tenantIdEquals(held.tenant, scope.tenant) ? 'authorized' : 'notAuthorized'
-        })
-        new SessionIngressAuthority(context, sessionIngress.operations)
-        await load('sessionAccess', trustedAccess.plugin, {})
-        if (!sessionLogBacking || !sessionTenancy || !logDeployment)
-          throw new Error('session log owner dependencies absent')
-        const catalogStorage = storage
-        const owner = await createAuthorizedLogOwner({
-          dir: logDeployment.dir,
-          backing: sessionLogBacking.operations,
-          access: context.sessionAccess,
-          tenancy: sessionTenancy,
-          catalog: () => catalogStorage.read(tx => readSessionCatalogIn(tx)),
-        })
-        authorizedLogOwner = owner
-        context.effect(() => () => owner.drain())
-        new AuthorizedLogOwner(context, owner.operations)
-        // No creation or user write is admitted until every existing physical prefix is checked.
-        const owned = await owner.operations.enumerate(owner.recovery)
-        if (owned.kind !== 'sessions') throw new Error('session log catalog unavailable')
-        for (const { scope } of owned.sessions) {
-          const prefix = await owner.operations.readPrefix(owner.recovery, scope)
-          if (prefix.kind !== 'prefix') throw new Error('session log prefix recovery unavailable')
-        }
-        await load('runtimeContext', runtimeContextLocal, {})
-        await load('sessionContextSource', sessionIdentitySource, {})
-        const creator = createSessionContextCreator({
-          backing: sessionLogBacking.operations,
-          tenancy: sessionTenancy,
-          clock,
-          createRow: scope =>
-            catalogStorage.atomic(unit =>
-              unit.mutate(tx => seedHoldingTenant(tx, scope.session, scope.tenant)),
-            ),
-        })
-        contextCreator = creator
-        context.effect(() => () => creator.drain())
-      }
-      phase = 'admission'
-      assertNotClosing()
-      if (!allActive(stage === 'modelRequest' ? SESSION_LOG_FIBERS : requiredFibers))
-        throw new Error('acceptance required stage changed')
-      if (stage === 'modelRequest') identityGateOpen = true
-      else gateOpen = true
-      record({
-        event: 'gate',
-        phase: 'scenario',
-        outcome: stage === 'modelRequest' ? 'identityOpen' : 'open',
-      })
+      await startSessionTenancy()
+      if (logStage) await openPhysicalLog(logDeployment)
+      captureBusinessServices()
+      if (logStage) await startLogicalLogDomain(logDeployment, storage, clock)
+      openAdmission()
       return { confirmation }
     } catch (error) {
       if (error instanceof StorageStartupFailure) category = 'storage'
@@ -2131,6 +2241,7 @@ export function createAcceptanceApplication(
                 gateOpen = false
                 runnerHost?.closeAdmission()
                 contextCreator?.closeAdmission()
+                contextAssembly?.closeAdmission()
               },
             })
             await toolAssembly.ready

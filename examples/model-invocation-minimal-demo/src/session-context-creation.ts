@@ -5,9 +5,8 @@ import type {
   ContextRegistration,
   ContextValue,
   ContextSessionSeed,
+  ContextSessionInitializer,
 } from '@omne-harness-lite/runtime-context'
-import { createContextSessionInitializer } from '@omne-harness-lite/runtime-context-local'
-import type { SessionLogBackingOperations } from '@omne-harness-lite/session-log'
 import type { SessionScope, SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 
 export const sessionRegistration: ContextRegistration = Object.freeze({
@@ -45,14 +44,13 @@ const prepared: Result = { kind: 'prepared' }
 
 /** Application-private creation authority. An existing SQL row never grants initialization. */
 export function createSessionContextCreator(deps: {
-  readonly backing: SessionLogBackingOperations
+  readonly initializer: ContextSessionInitializer
   readonly tenancy: SessionTenancyService
   readonly clock: Clock
   /** The result must be the confirmed outcome of the transaction that inserts the row. */
   readonly createRow: (scope: SessionScope) => Promise<'created' | 'alreadyPresent'>
 }) {
-  const borrow = deps.backing.borrow()
-  const initializer = createContextSessionInitializer(borrow.log)
+  const initializer = deps.initializer
   const records = new Map<
     string,
     {
@@ -125,8 +123,8 @@ export function createSessionContextCreator(deps: {
       await Promise.allSettled([...jobs.values()])
       if ([...records.values()].some(record => record.status === 'uncertain'))
         throw new Error('session creation transaction was not confirmed')
-      await initializer.drain()
-      await borrow.release()
+      // Created-row initialization receipts remain owned by the common context owner.
+      records.clear()
     },
   })
 }

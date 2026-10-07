@@ -14,6 +14,7 @@ import type {
 import type { AccessIdentity } from '@omne-harness-lite/session-tenancy'
 import type { ContextState } from './journal.ts'
 import type { createContextSources } from './sources.ts'
+import { StorageDefect } from '@omne-harness-lite/storage'
 
 import { identity, own } from './values.ts'
 
@@ -46,7 +47,9 @@ interface Dependencies {
   readonly authorize: () => Promise<
     { readonly kind: 'authorized'; readonly identity: AccessIdentity } | ContextObservationFailure
   >
-  readonly state: () => Promise<{ readonly state: ContextState } | ContextObservationFailure>
+  readonly state: (
+    keys?: readonly string[],
+  ) => Promise<{ readonly state: ContextState } | ContextObservationFailure>
   readonly diagnostic: (error: unknown) => void
 }
 const visible = (state: ContextState, caller: AccessIdentity, consumer: ContextConsumer) =>
@@ -54,6 +57,38 @@ const visible = (state: ContextState, caller: AccessIdentity, consumer: ContextC
     .filter(entry => entry.consumers.includes(consumer) && caller.contextKeys.includes(entry.key))
     .sort((a, b) => a.key.localeCompare(b.key))
 const range = (caller: AccessIdentity) => identity([...new Set(caller.contextKeys)].sort())
+function selectRegistrations(
+  state: ContextState,
+  caller: AccessIdentity,
+  consumer: ContextConsumer,
+  requested?: readonly string[],
+) {
+  const selected = requested
+    ? requested.map(key => state.registrations.get(key))
+    : visible(state, caller, consumer)
+  const registrations: ContextRegistration[] = []
+  for (const entry of selected) {
+    if (!entry) return rejected('missingRegistration')
+    if (!entry.consumers.includes(consumer)) return rejected('notAuthorized')
+    registrations.push(entry)
+  }
+  return { registrations }
+}
+function sourceFailure(deps: Dependencies, error: unknown) {
+  if (error instanceof StorageDefect) throw error
+  deps.diagnostic(error)
+  return rejected('sourceUnavailable')
+}
+async function authorizeSelection(deps: Dependencies, requested?: readonly string[]) {
+  const checked = await deps.authorize()
+  if (checked.kind === 'rejected') return checked
+  if (
+    checked.identity.consumer !== deps.consumer ||
+    requested?.some(key => !checked.identity.contextKeys.includes(key))
+  )
+    return rejected('notAuthorized')
+  return checked
+}
 const basis = (state: ContextState, keys: readonly string[]) =>
   identity(
     keys.map(key => ({
@@ -146,28 +181,19 @@ function verifyView(
 export function createContextReader(deps: Dependencies): ContextSnapshotReader {
   const cursors = new WeakMap<ContextCursor, View>()
   async function view(requested?: readonly string[]): Promise<View | ContextObservationFailure> {
-    const checked = await deps.authorize()
+    const checked = await authorizeSelection(deps, requested)
     if (checked.kind === 'rejected') return checked
-    if (checked.identity.consumer !== deps.consumer) return rejected('notAuthorized')
-    if (requested?.some(key => !checked.identity.contextKeys.includes(key)))
-      return rejected('notAuthorized')
-    const current = await deps.state()
+    const current = await deps.state(requested)
     if ('kind' in current) return current
-    const selected = requested
-      ? requested.map(key => current.state.registrations.get(key))
-      : visible(current.state, checked.identity, deps.consumer)
-    const registrations: ContextRegistration[] = []
-    for (const entry of selected) {
-      if (!entry) return rejected('missingRegistration')
-      if (!entry.consumers.includes(deps.consumer)) return rejected('notAuthorized')
-      registrations.push(entry)
-    }
+    const selected = selectRegistrations(current.state, checked.identity, deps.consumer, requested)
+    if ('kind' in selected) return selected
+    const registrations = selected.registrations
     const keys = registrations.map(entry => entry.key),
       watch = deps.sources.watch(deps.scope, keys, !requested)
     try {
       const resolved = await resolveValues(deps, registrations, current.state)
       if ('kind' in resolved) return resolved
-      const latest = await deps.state()
+      const latest = await deps.state(requested)
       if ('kind' in latest) return latest
       const authorized = await deps.authorize()
       if (authorized.kind === 'rejected') return authorized
@@ -195,8 +221,7 @@ export function createContextReader(deps: Dependencies): ContextSnapshotReader {
         viewRevision: identity({ registrations: projection, values: resolved.values }),
       }
     } catch (error) {
-      deps.diagnostic(error)
-      return rejected('sourceUnavailable')
+      return sourceFailure(deps, error)
     } finally {
       watch.release()
     }

@@ -2,7 +2,9 @@
 
 [中文说明](README_ZH.md)
 
-Standalone createRuntimeContext and createContextSessionInitializer factories, history inspection and context projection. The owner replays durable prefixes. It does not provide the later persistent current projection or O(1) requirement.
+The standalone `createRuntimeContext` factory owns mutations, current SQL projection, sources, observation and a trusted initializer. The log remains the fact source. Apply `runtimeContextMigrations` before starting the owner. The Cordis `createRuntimeContextLocal` factory uses managed assembly work and borrows the original log backing. The initializer is absent from the public service. Cold recovery verifies the log prefix; warm selected reads load requested keys and apply only the new suffix.
+
+Models, assumptions and run instructions belong to [verification](verification/README.md). Delivery evidence must establish lifecycle and cost behavior; the module structure alone does not establish them.
 
 ## Public entries
 
