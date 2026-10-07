@@ -231,8 +231,7 @@ test.each([
     f.authorize.mockRejectedValueOnce(new Error('authority unavailable'))
   if (mode === 'enumeration-throws')
     f.enumerate.mockRejectedValueOnce(new Error('index unavailable'))
-  if (mode === 'enumeration-rejects')
-    f.enumerate.mockResolvedValueOnce({ kind: 'unavailable' })
+  if (mode === 'enumeration-rejects') f.enumerate.mockResolvedValueOnce({ kind: 'unavailable' })
   if (mode === 'resource-authority-throws')
     f.authorize
       .mockResolvedValueOnce('authorized')
