@@ -48,9 +48,11 @@ You> /models
   anthropic/claude-fable-5.1 [official] legal
   anthropic/claude-opus-5 [official] legal
   ...
-* deepseek/deepseek-v4-pro-0813 [official] legal
+  deepseek/deepseek-v4-pro-0813 [official] legal
   deepseek/deepseek-v4.1-flash [official] legal
   google/gemini-3.7-flash [official] legal
+  ...
+* openai/gpt-6-luna [official] legal
   ...
   z-ai/glm-5.3-prime [official] legal
 You> /model deepseek/deepseek-v4.1-flash
@@ -91,7 +93,7 @@ The data directory holds SQLite state, JSONL session history (`session-logs/`), 
 
 ### Models
 
-The demo installs every official definition published by `@omne-harness-lite/pi-ai-transport`: through the package's official catalog `officialCatalog` it loads 37 leaves from eight families (OpenAI 12, Anthropic 4, Google 2, DeepSeek 2, xAI 2, Qwen 8, Moonshot 2, ZAI 5), one official profile and one input meter per leaf. Each profile pins the single provider route that the leaf's definition declares, with fallback disabled. The cache setting is derived from the route's cache declaration: automatic caching stays automatic, and explicit caching takes the first declared TTL and breakpoint layout (for Anthropic, `1h` / `last_message`). The model-to-meter-to-cache mapping lives only in that package catalog; the demo keeps no mapping of its own. **`deepseek/deepseek-v4-pro-0813`** is still only the first session's explicit selection. **Installed does not mean certified**: which leaves have real certification is recorded in the per-leaf evidence table of the [realization verification page](../../.meta_harness/design/realization/packages/model/pi-ai-transport/verification.md); input calibration for the two Google, eight Qwen and five ZAI leaves is still on its incremental track. `/models` reads the current display list (the 37 routes in name order; the sample output above elides rows with `...`), `/model` shows the selected and effective route, and `/model <identifier>` durably changes the selected route for later requests without resetting the session or its history. A layer lock can make the effective route differ from the selected one; a restart reads the durable selection. Restarting with an existing data directory registers the added profiles through the higher official manifest ordinal and updates the two earlier DeepSeek profiles to the new configuration revision.
+The demo installs every official definition published by `@omne-harness-lite/pi-ai-transport`: through the package's official catalog `officialCatalog` it loads 37 leaves from eight families (OpenAI 12, Anthropic 4, Google 2, DeepSeek 2, xAI 2, Qwen 8, Moonshot 2, ZAI 5), one official profile and one input meter per leaf. Each profile pins the single provider route that the leaf's definition declares, with fallback disabled. The cache setting is derived from the route's cache declaration: automatic caching stays automatic, and explicit caching takes the first declared TTL and breakpoint layout (for Anthropic, `1h` / `last_message`). The model-to-meter-to-cache mapping lives only in that package catalog; the demo keeps no mapping of its own. A new session explicitly selects **`openai/gpt-6-luna`**. An existing session keeps its durable selection. **Installed does not mean certified**: which leaves have real certification is recorded in the per-leaf evidence table of the [realization verification page](../../.meta_harness/design/realization/packages/model/pi-ai-transport/verification.md); input calibration for the two Google, eight Qwen and five ZAI leaves is still on its incremental track. `/models` reads the current display list (the 37 routes in name order; the sample output above elides rows with `...`), `/model` shows the selected and effective route, and `/model <identifier>` durably changes the selected route for later requests without resetting the session or its history. A layer lock can make the effective route differ from the selected one; a restart reads the durable selection. Restarting with an existing data directory registers the added profiles through the higher official manifest ordinal and updates the two earlier DeepSeek profiles to the new configuration revision.
 
 ## Assembling the runtime's public surface
 

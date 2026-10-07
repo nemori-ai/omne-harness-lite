@@ -1,17 +1,26 @@
+import { STORAGE_SERVICE } from '@omne-harness-lite/storage/cordis'
 import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import type { Context } from '@deepseek-ai/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
-import { RuntimeContextService } from '@omne-harness-lite/runtime-context/cordis'
+import { RUNTIME_CONTEXT, RuntimeContextService } from '@omne-harness-lite/runtime-context/cordis'
 import type {
   RuntimeContextOperations,
   ContextSourceRegistrations,
   ContextSourceHandle,
 } from '@omne-harness-lite/runtime-context'
-import { SESSION_LOG } from '@omne-harness-lite/session-log/cordis'
+import { SESSION_LOG_BACKING } from '@omne-harness-lite/session-log/cordis'
 import { SESSION_ACCESS } from '@omne-harness-lite/session-tenancy/cordis'
 import { z } from 'zod'
 import { instantToRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
 import { createRuntimeContext } from './runtime.ts'
+import {
+  ASSEMBLY_LIFETIME_SERVICE,
+  startRetainedAssemblyWork,
+} from '@omne-harness-lite/assembly-lifecycle/cordis'
+import type { AssemblyDeclaration } from '@omne-harness-lite/cordis-plugin-tree'
+import type { ContextSessionInitializer } from '@omne-harness-lite/runtime-context'
+import type { SessionLogBackingOperations } from '@omne-harness-lite/session-log'
+import { verifyProjectionStorage } from './projection-store.ts'
 class Provider extends RuntimeContextService {
   constructor(
     ctx: Context,
@@ -51,33 +60,100 @@ class Provider extends RuntimeContextService {
     })
   }
 }
-export const runtimeContextLocal = definePlugin({
-  name: 'runtime-context-local',
-  inject: [SESSION_LOG, SESSION_ACCESS, CLOCK_SERVICE],
-  Config: z.object({}).strict(),
-  apply(ctx) {
-    const time: unknown = ctx.get(CLOCK_SERVICE)
-    if (!time || typeof time !== 'object' || !('now' in time) || typeof time.now !== 'function')
-      throw new TypeError('runtime context requires Clock')
-    const clock = time as Clock
-    const owner = createRuntimeContext({
-      log: ctx.sessionLog,
-      access: ctx.sessionAccess,
-      now() {
-        const value = clock.now()
-        return value === 'unavailable' ? { unavailable: true } : instantToRfc3339(value)
+const Config = z.object({}).strict()
+const requires = [SESSION_LOG_BACKING, SESSION_ACCESS, CLOCK_SERVICE, STORAGE_SERVICE] as const
+
+/** One trusted factory owns the service generation, initializer and original dependency borrow. */
+export function createRuntimeContextLocal() {
+  let mounted = false,
+    stopped = false,
+    initialized = false
+  let owner: ReturnType<typeof createRuntimeContext> | undefined
+  let borrow: ReturnType<SessionLogBackingOperations['borrow']> | undefined
+  const ready = Promise.withResolvers<void>()
+  // The factory can be discarded before mounting. Readiness is also observed by the managed row.
+  void ready.promise.catch(() => undefined)
+  function closeAdmission() {
+    stopped = true
+    owner?.closeAdmission()
+  }
+  async function close() {
+    closeAdmission()
+    await owner?.drain()
+    await borrow?.release()
+  }
+  const plugin = Object.assign(
+    definePlugin({
+      name: 'runtime-context-local',
+      inject: [...requires, ASSEMBLY_LIFETIME_SERVICE],
+      Config,
+      apply(ctx) {
+        if (mounted) throw new Error('runtime context factory already mounted')
+        mounted = true
+        // Capture original generation references before asynchronous setup or shutdown.
+        const backing = ctx.sessionLogBacking,
+          storage = ctx.storage,
+          access = ctx.sessionAccess
+        const clock: Clock = ctx.clock
+        startRetainedAssemblyWork(
+          ctx,
+          async () => {
+            try {
+              if (stopped) throw new Error('runtime context owner stopped')
+              borrow = backing.borrow()
+              owner = createRuntimeContext({
+                log: borrow.log,
+                storage,
+                access,
+                now() {
+                  const value = clock.now()
+                  return value === 'unavailable' ? { unavailable: true } : instantToRfc3339(value)
+                },
+                changed: () => {
+                  ctx.emit('runtime-context/cache-invalidated')
+                },
+                diagnostic: stage => {
+                  ctx.logger.error(`runtime_context.${stage}_unavailable`)
+                },
+              })
+              await verifyProjectionStorage(storage)
+              if (stopped) throw new Error('runtime context owner stopped during setup')
+              new Provider(ctx, owner.operations, owner.sources)
+              initialized = true
+              ready.resolve()
+            } catch (error) {
+              ready.reject(error)
+              throw error
+            }
+          },
+          close,
+        )
       },
-      changed: () => {
-        ctx.emit('runtime-context/cache-invalidated')
+    }),
+    {
+      assemblyLifecycle: 1 as const,
+      describeAssembly(value: unknown): AssemblyDeclaration {
+        Config.parse(value)
+        return {
+          provides: [RUNTIME_CONTEXT],
+          requires: [...requires],
+          optional: [],
+          dynamicProvides: [],
+          dynamicRequires: [],
+          claims: [],
+        }
       },
-      diagnostic: stage => {
-        ctx.logger.error(`runtime_context.${stage}_unavailable`)
-      },
-    })
-    ctx.effect(() => async () => {
-      owner.closeAdmission()
-      await owner.drain()
-    })
-    new Provider(ctx, owner.operations, owner.sources)
-  },
-})
+    },
+  )
+  const initializer: ContextSessionInitializer = Object.freeze({
+    initializeContextSession(
+      ...args: Parameters<ContextSessionInitializer['initializeContextSession']>
+    ) {
+      if (stopped) return Promise.resolve({ kind: 'rejected', reason: 'ownerStopped' } as const)
+      if (!owner || !initialized)
+        return Promise.resolve({ kind: 'rejected', reason: 'unavailable' } as const)
+      return owner.initializer.initializeContextSession(...args)
+    },
+  })
+  return Object.freeze({ plugin, initializer, ready: ready.promise, closeAdmission })
+}

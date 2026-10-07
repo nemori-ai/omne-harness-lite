@@ -415,6 +415,9 @@ importers:
       ajv:
         specifier: 'catalog:'
         version: 8.20.0
+      kysely:
+        specifier: 'catalog:'
+        version: 0.29.6
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -2408,12 +2411,18 @@ importers:
 
   packages/session/runtime-context-local:
     dependencies:
+      '@omne-harness-lite/assembly-lifecycle':
+        specifier: workspace:*
+        version: link:../../core/assembly-lifecycle
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../../core/call-accounts
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../../core/content-blocks
+      '@omne-harness-lite/cordis-plugin-tree':
+        specifier: workspace:*
+        version: link:../../core/cordis-plugin-tree
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values
@@ -2432,6 +2441,9 @@ importers:
       '@omne-harness-lite/session-tenancy':
         specifier: workspace:*
         version: link:../../core/session-tenancy
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../core/storage
       ajv:
         specifier: 'catalog:'
         version: 8.20.0
@@ -2445,9 +2457,15 @@ importers:
       '@omne-harness-lite/session-log-jsonl':
         specifier: workspace:*
         version: link:../session-log-jsonl
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../../infra/storage-sql
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      kysely:
+        specifier: 'catalog:'
+        version: 0.29.6
       typescript:
         specifier: 'catalog:'
         version: 6.0.3

@@ -366,9 +366,16 @@ export function rowsSince(
   log: Resident,
   after: import('./types.ts').JsonNumber,
 ): readonly IndexRow[] {
-  return Object.freeze(
-    log.rows.filter(row => compareInteger(addInteger(row.first, row.count - 1), after) > 0),
-  )
+  if (compareInteger(after, log.state.tail) >= 0) return Object.freeze([])
+  let low = 0,
+    high = log.rows.length
+  while (low < high) {
+    const middle = low + Math.floor((high - low) / 2)
+    const row = log.rows[middle]!
+    if (compareInteger(addInteger(row.first, row.count - 1), after) <= 0) low = middle + 1
+    else high = middle
+  }
+  return Object.freeze(log.rows.slice(low))
 }
 export function rowsByKey(log: Resident, key: string): readonly IndexRow[] {
   const positions = log.state.readPositions

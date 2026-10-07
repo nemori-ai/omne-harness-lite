@@ -393,6 +393,8 @@ describe('D4 independent runtime retained leases and historical reacquisition', 
     const host = createDemoCallHost()
     try {
       const first = await supervisor.open()
+      // This recovery case removes A, so select A explicitly rather than using the demo default.
+      expect(await first.selectModel(model.modelId)).toEqual({ selected: model.modelId })
       const sending = first.send('crash before headers and opened anchor', async () => {})
       await entered.promise
       expect(tls.requests).toHaveLength(1)

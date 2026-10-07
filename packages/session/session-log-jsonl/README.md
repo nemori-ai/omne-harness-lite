@@ -2,7 +2,7 @@
 
 A local JSONL provider for the three operations in session-log v3: conditional batch append, read by an opaque key, and read after a position. Each batch occupies one line. Payloads pass the core strict, lossless JSON boundary; the provider does not interpret Run records, model responses, or business keys.
 
-The package root exports `checkAppendInput`, `judgeAppend`, `emptyLogState`, `foldCommit`, `encodeCommitLine`, `decodeLogBytes`, `commitFormatVersion`, `indexFoldVersion`, `openJsonlSessionLog`, `defaultSessionLogPolicy`, and the policy, option, diagnostic and process-ownership types. These functions and the owner closure do not resolve Cordis. `./plugin` exports `Config`, `sessionLogJsonl`, and its default plugin export. The `sessionLog` service has exactly `append`, `readByKey`, and `readSince`; `close` belongs to the physical owner.
+The package root exports `checkAppendInput`, `judgeAppend`, `emptyLogState`, `foldCommit`, `encodeCommitLine`, `decodeLogBytes`, `commitFormatVersion`, `indexFoldVersion`, `openJsonlSessionLog`, `defaultSessionLogPolicy`, and the policy, option, diagnostic and process-ownership types. These functions and the owner closure do not resolve Cordis. `./cordis` exports the data-only `Config` and `createSessionLogJsonl` trusted factory. The factory captures process ownership and an optional diagnostic sink. These live inputs do not enter plugin configuration. The `sessionLog` service has exactly `append`, `readByKey`, and `readSince`; `close` belongs to the physical owner.
 
 ## Pure components
 
@@ -130,7 +130,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { checkAppendInput } from '@omne-harness-lite/session-log-jsonl'
-import { sessionLogJsonl } from '@omne-harness-lite/session-log-jsonl/plugin'
+import { createSessionLogJsonl } from '@omne-harness-lite/session-log-jsonl/cordis'
 
 // Create once at physical process startup; reuse across every open and fiber.
 const processOwnership = {
@@ -139,7 +139,7 @@ const processOwnership = {
 }
 const dir = await mkdtemp(join(tmpdir(), 'omne-session-log-plugin-'))
 const ctx = new Context()
-const fiber = await ctx.plugin(sessionLogJsonl, { dir, processOwnership })
+const fiber = await ctx.plugin(createSessionLogJsonl({processOwnership}), {dir})
 try {
   const service = ctx.get('sessionLog')
   if (service === undefined) throw new Error('service unavailable')
@@ -174,3 +174,5 @@ Directories from an older writer have no formal marker and require explicit `obs
 Source adoption: [SL3](../../../.meta_harness/design/spec/capabilities/session-log/v3/contract.md), [D083](../../../.meta_harness/design/record/decisions/session-log-tail-condition-adoption/decision.md), [D084 projection](../../../.meta_harness/design/realization/packages/session/session-log-jsonl/v3-design.md), and [D085 recovery projection](../../../.meta_harness/design/realization/packages/session/session-log-jsonl/v3-recovery-design.md). Run interpretation, common business key codecs, legal read authority, consumer retry policies and stopping all old business writers remain their respective owners' responsibilities.
 
 The model-data regression (`tests/model-data.spec.ts`) round-trips the MS6 reply and MR9 response fixtures, which the current `messages` and `model-response` judges still admit, including the response-owned input calibration, through append and reopen. The log stores JSON values without interpreting calibration or repairing business-invalid payloads; model consumers own those judgments.
+
+Non-type provider commitments belong to [SPEC.md](SPEC.md). A warmed read at the current tail does not scan resident history rows. A nonempty suffix uses binary range selection; full cold validation and read-by-key costs are separate.
