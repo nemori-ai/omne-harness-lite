@@ -4,6 +4,7 @@ import type {
   ModelRuntimeOperations,
   RuntimeRecoveryAccess,
   PlannedSemantics,
+  ModelRuntimeExecutionSource,
 } from '@omne-harness-lite/model-request-runtime'
 import { createModelRuntime } from '../src/service-runtime.ts'
 import { createModelCallFacts } from '../src/reference-facts.ts'
@@ -29,3 +30,7 @@ void incompleteRecovery
 expectTypeOf<
   ReturnType<typeof createModelCallFacts>['project']
 >().returns.toEqualTypeOf<CallFactsView>()
+
+expectTypeOf(runtime.executionSource).toEqualTypeOf<ModelRuntimeExecutionSource>()
+// @ts-expect-error Fixed-subject business projections do not carry assembly execution capabilities.
+runtime.project(inputs, facts).executionSource

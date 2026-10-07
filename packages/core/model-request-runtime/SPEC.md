@@ -178,3 +178,35 @@ Duration 与 JsonNumber 使用公开精确值语义，不能先转成毫秒浮�
 
 [验证资源](verification/README.md)维护性质、模型规模/公平性、正负控与实际组合义务；运行结果留任务 tmp。现行公共定义不再由冻结 RT12 充当第二权威。
 [精确保留范围](../../../.meta_harness/design/architecture/pilots/n4-ownership.md#模型请求运行时)仍约束未迁的具体提供者投影、跨拥有者兑现及综合模型，不因公共接口移动而关闭。
+
+## 物理拥有者的执行来源
+
+`ModelRuntimeExecutionSource` 供物理运行时的受信装配拥有者使用。
+它携带原 binding、settlement owner 和 invocation 的内部能力引用。
+`readonly` 和冻结投影不撤销这些引用的原权限。
+业务 host、十五操作及其结果、普通调用方 Context 和 JSON 配置不得取得这个新增来源。
+原 `ModelCallHost.register(close)` 的能力保持。
+
+生产者在实际容器接受的同步边界保有原引用，覆盖正常创建和恢复重建。
+最终业务结果失败不能删除已经产生的执行责任。
+同一逻辑调用可以有不同物理代际；来源须保有每份原代际，不覆盖或推测最新一份。
+
+`lookup(ref, executionGeneration?)` 返回唯一原执行或 `unknown`。
+先拒绝同 key 的代际碰撞或多份仍登记容器，再按查询分支选择。
+显式代际仅匹配唯一原代际，即使另有已撤的不同代际也可返回。
+未指定代际时，优先唯一仍登记的容器；没有仍登记容器时，仅返回唯一保有记录。
+未指定代际且保有多份已撤记录时返回 `unknown`。
+`snapshot(session)` 返回该 Session 所有保有原容器的当次观察。
+查询不读耐久数据、不关闭句柄、不授予租户权限；原资源读取异常向受信调用方传播。
+空观察、缺失或含糊来源不能证明停止。
+
+观察固定原 key、binding、owner、executionGeneration 与当次可选 invocation。
+`registered` 表示原物理 store 仍认该容器；`released` 表示该容器已实际释放。
+外部消费者须另核当前资格、原 tenant/Session/log/owner 及未知 writer。
+同步观察不形成未来状态的保证或资源租约。
+
+整体 `close` 成功后仍保有观察，供原收场和恢复消费者认回责任。
+`source.release()` 在整体 `close` 尚未确认时返回 `unavailable` 并保有全部记录。
+装配拥有者须先完成自己的观察和恢复责任，再显式释放来源。
+释放幂等，之后 lookup 为 `unknown`、snapshot 为空。
+它不写 ACK、不关闭外部已保有的原引用，也不证明那些引用已经释放。

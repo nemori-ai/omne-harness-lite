@@ -14,6 +14,8 @@ Public operation types and portable policy/history/response functions in the API
 
 `validDispatchInput(input)` shares the dispatch entry's identifier checks. It does not validate a retry plan or authorize a call. See [SPEC.md](SPEC.md).
 
+The physical factory owner also receives `executionSource`. It retains actual accepted containers across removal and overall close. Business projections and hosts do not receive it. Complete the assembly owner's recovery work before `executionSource.release()`; confirmed overall close is required. See [source production](SPEC.md#实际执行来源的生产).
+
 ## Public API
 
 | Export                                                                                    | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |

@@ -44,3 +44,23 @@ runner 在实际 authorize 返回后取得并保有该主体的模型投影，�
 没有主体的 maintenance 不能取得模型重试资格。
 原 calls、facts、warm/cold 恢复及在途收场拥有者继续提供真实来源。
 该接线不声明正式 ModelRuntime Service、完整 Session/Run 或无 Agent 恢复驱动已完成。
+
+## 受信执行来源与恢复
+
+装配拥有者只在私有 presence 和暖恢复组合中消费 runtime.executionSource。
+业务 host 仍只接收原 close；十五操作、业务结果与普通 runner 不取得来源。
+来源在开闸前固定，缺失来源不能当作停止。
+
+presence 核原 tenant、Session 和日志代际；live 需要原 registered 且未 released。
+stopped 需要该原容器 released，且原 settlement owner 没有未知 writer。
+来源含糊为 unknown，读取异常沿原业务入口报告 unavailable。
+冷 worker 退出仍由原冷恢复来源证明，空 snapshot 不构成退出证据。
+
+暖恢复关 Session 准入后捕获全部原 invocation，再停止原 host 并排空原任务与 writer。
+重新 snapshot 对照每份原 binding/owner/代际，所有原容器须实际 released。
+完整前缀保有调用身份。单一原句柄沿既有恢复路径；多个句柄只接受唯一
+observedFacts(target) 匹配，零或多匹配返回 unavailable。
+仍须逐使用点重核当前资格，不以执行标签代替租户授权。
+
+只有恢复任务、观察者、原 runtime 和 settlement 消费者收场均确认后，装配才显式释放来源。
+来源清空不解除外部原引用的责任。原 45000ms 冷恢复阈值保持。

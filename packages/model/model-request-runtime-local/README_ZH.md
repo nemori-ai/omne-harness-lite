@@ -14,6 +14,8 @@
 
 `validDispatchInput(input)` 复用 dispatch 入口的身份表示检查，不校验重试计划，不授予调用权限。行为见 [SPEC.md](SPEC.md)。
 
+物理工厂拥有者另取得 `executionSource`，在原容器移除及整体关闭后仍保有实际执行来源。业务投影和 host 不取得它。完成装配自己的恢复责任后再显式调用 `executionSource.release()`；整体 close 必须已确认。见[来源生产](SPEC.md#实际执行来源的生产)。
+
 ## 公开接口
 
 | 导出                                                                                      | 用途                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |

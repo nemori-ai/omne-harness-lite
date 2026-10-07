@@ -17,7 +17,7 @@
 
 ## 固定主体与共享执行
 
-`createModelRuntime(construction)` 返回默认完整 `service`、`project(inputs, facts)` 与唯一整体 `close`。
+`createModelRuntime(construction)` 返回默认完整 `service`、`project(inputs, facts)`、唯一整体 `close` 与物理拥有者的 `executionSource`。
 `inputs` 是受信装配提供的 `ModelRuntimeHostInputs`，每个端口固定本次真实主体和来源。
 资格在原操作使用点重核。端口是当前资格的事实来源，不能捕获一次允许后永久放行。
 装配须提供稳定端口对象，不能在投影建立后将其中的方法替换为另一主体。
@@ -67,3 +67,19 @@
 
 既有耐久、恢复、保留、默认策略和 codec 用例保持。纯 retryDelay 向量随其唯一拥有者迁移。
 真实消费者用新公开入口，独立验证须对本批精确版本核对隔离、同提交、撤除与恢复热点。
+
+## 实际执行来源的生产
+
+工厂物理拥有者另外取得公共 `ModelRuntimeExecutionSource`；service/project 不携带它。
+所有投影共用原 calls store 的私有转接，正常与 resumable 创建都在 insert 的同步边界登记。
+原 insert 前先保有 prepared 原引用，不读取 view、不 await 或调用外部登记回调。
+预保有分配失败时原 insert 尚未发生，准备责任沿原失败收场。
+原 insert 返回 false 只撤本次新增引用；true 后不再分配登记；抛错时保有原候选并传播原失败。
+其余 store 方法保持原 receiver、reservation 身份和结果。
+物理 store 的唯一拥有者检查仍用原 store 身份。
+
+索引只保有原容器，不新增实际 store、事实、Schema、writer 或任务。
+每次观察只读取一次原 view，以原 find 和 canRemove 取得登记/释放事实。
+所有同 key 原代际保有到显式 source.release；查询选择沿公共协议。
+整体 close 不隐式删除索引；仅其实际 released 结果允许来源释放。
+来源不能关闭别人已取得的原句柄，也不更改业务取消、费用或 ACK 责任。

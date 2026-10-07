@@ -1,3 +1,8 @@
+import {
+  captureExecutionInvocations,
+  releasedExecutionCalls,
+  originalExecutionInvocation,
+} from './recovery-executions.ts'
 import type { UpgradeConfirmation } from '@omne-harness-lite/storage'
 import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance-sql/cordis'
@@ -69,7 +74,6 @@ import {
   type SettlementCoordinator,
   type SessionModelSelection,
   type SessionEffectiveModelResult,
-  type CallContainer,
 } from '@omne-harness-lite/model-request-runtime-local'
 import {
   type ModelLogSettlementTarget,
@@ -696,10 +700,6 @@ export function createAcceptanceApplication(
   const runtimeBindings = new Map<SessionRef, SessionRuntimeBinding>()
   const controlledRuns = new Map<SessionRef, ControlledSingleRunSelection>()
   const calls = createCallContainerStore<PlannedRequest, RawResponse>()
-  const trackedCalls = new Map<
-    SessionRef,
-    Map<string, CallContainer<PlannedRequest, RawResponse>>
-  >()
   const callHosts = new Map<SessionRef, Set<DemoCallHost>>()
   const sessionTasks = new Map<SessionRef, Set<Promise<unknown>>>()
   const recoveryTasks = new Set<Promise<unknown>>()
@@ -891,13 +891,6 @@ export function createAcceptanceApplication(
     job.then(finish, finish)
     return job
   }
-  function retainCall(session: SessionRef, callId: string): void {
-    const container = calls.find({ session, callId })
-    if (container === undefined) return
-    const sessionCalls = trackedCalls.get(session) ?? new Map()
-    sessionCalls.set(callId, container)
-    trackedCalls.set(session, sessionCalls)
-  }
   async function load<C>(
     name: StageFiber,
     plugin: Plugin.Object<C>,
@@ -982,6 +975,8 @@ export function createAcceptanceApplication(
       result => result.status === 'rejected' || 'unavailable' in result.value,
     )
     if (consumerUnavailable || modelResourcesRetained(stoppedRuntime)) return false
+    if (modelRuntime !== undefined && !('released' in modelRuntime.executionSource.release()))
+      return false
     for (const borrow of sessionBorrows.values()) borrow.owner.release()
     return true
   }
@@ -1884,8 +1879,7 @@ export function createAcceptanceApplication(
           }
           if (storage === undefined) throw new Error('acceptance storage absent')
           const callPresence = createDemoCallPresence({
-            calls,
-            retained: ref => trackedCalls.get(ref.session)?.get(ref.callId),
+            executions: () => modelRuntime?.executionSource,
             settled: session => {
               const owner = sessionBorrows.get(session)?.owner.owner
               return (
@@ -2023,7 +2017,9 @@ export function createAcceptanceApplication(
                         cold === undefined ||
                         cold.response !== target.response ||
                         !modelLogJsonEqual(cold.dispatch, target.dispatch) ||
-                        trackedCalls.get(key.session)?.has(key.callId)
+                        modelRuntime?.executionSource
+                          .snapshot(key.session)
+                          .some(record => record.key.callId === key.callId)
                       )
                         return { unavailable: true }
                       return { absent: true }
@@ -2973,7 +2969,6 @@ export function createAcceptanceApplication(
           if (![...(callHosts.get(session) ?? [])].some(owner => owner.host === value.host))
             return { runtimeStopped: true } as const
           const result = await service.openCall(value)
-          if ('callId' in result) retainCall(session, result.callId)
           return result
         })
       },
@@ -3061,15 +3056,14 @@ export function createAcceptanceApplication(
         if (ready === undefined) {
           const owners = callHosts.get(key)
           const cold = owners === undefined
-          if (cold && (runtimeBindings.has(key) || trackedCalls.has(key)))
+          if (
+            cold &&
+            (runtimeBindings.has(key) || modelRuntime.executionSource.snapshot(key).length !== 0)
+          )
             return { unavailable: true }
           for (const previous of owners ?? []) if (previous.released?.()) owners?.delete(previous)
           // Capture the original handle before stop may remove the container from the store.
-          const captured = new Map<string, AnchoredInvocationHandle>()
-          for (const [callId, container] of trackedCalls.get(key) ?? []) {
-            const handle = container.view().invocation
-            if (handle !== undefined) captured.set(callId, handle)
-          }
+          const captured = captureExecutionInvocations(modelRuntime.executionSource.snapshot(key))
           // Stop active HTTP dispatch before draining admitted work: that work can be
           // waiting for the very abort which the host owns.
           const stopping = Promise.allSettled(
@@ -3079,30 +3073,29 @@ export function createAcceptanceApplication(
           const stopped = await stopping
           await access.borrow.owner.drain()
           const warmBinding = runtimeBindings.get(key)
-          const ownedCalls = trackedCalls.get(key)
+          const executions = modelRuntime.executionSource.snapshot(key)
           if (
             (!cold && warmBinding === undefined) ||
             (warmBinding !== undefined && warmBinding.log !== access.borrow.binding) ||
             access.borrow.binding.currentGeneration() !== access.borrow.binding.generation
           )
             return { unavailable: true }
-          for (const [callId, container] of ownedCalls ?? []) {
-            const view = container.view()
-            if (
-              view.key.session !== key ||
-              view.key.callId !== callId ||
-              view.session !== warmBinding ||
-              view.owner !== access.borrow.owner.owner
-            )
-              return { unavailable: true }
-            if (!captured.has(callId) && view.invocation !== undefined)
-              captured.set(callId, view.invocation)
-          }
+          const ownedCalls = releasedExecutionCalls(
+            executions,
+            key,
+            warmBinding,
+            access.borrow.owner.owner,
+          )
           if (
-            stopped.some(result => result.status === 'rejected' || 'unavailable' in result.value) ||
-            [...(ownedCalls?.values() ?? [])].some(container => !container.canRemove())
+            ownedCalls === undefined ||
+            stopped.some(result => result.status === 'rejected' || 'unavailable' in result.value)
           )
             return { unavailable: true }
+          for (const [callId, handles] of captureExecutionInvocations(executions)) {
+            const originals = captured.get(callId) ?? new Set<AnchoredInvocationHandle>()
+            for (const handle of handles) originals.add(handle)
+            captured.set(callId, originals)
+          }
           if (
             access.borrow.owner.retained() ||
             access.borrow.owner.owner.admission() !== 'open' ||
@@ -3149,19 +3142,19 @@ export function createAcceptanceApplication(
             string,
             { readonly target: ModelLogSettlementTarget; readonly handle: AnchoredInvocationHandle }
           >()
-          for (const [callId, handle] of captured) {
+          for (const [callId, handles] of captured) {
             const history = interpretCallHistory({ prefix: prefix.prefix, callId })
             if (!('known' in history)) return { unavailable: true }
             const last = history.known.dispatches.at(-1)
             if (last === undefined || last.response !== null) continue
-            originals.set(callId, {
-              target: {
-                call: callId,
-                dispatch: last.record.dispatch,
-                response: last.record.response,
-              },
-              handle,
-            })
+            const target: ModelLogSettlementTarget = {
+              call: callId,
+              dispatch: last.record.dispatch,
+              response: last.record.response,
+            }
+            const handle = originalExecutionInvocation(handles, target)
+            if (handle === undefined) return { unavailable: true }
+            originals.set(callId, { target, handle })
           }
           ready = {
             binding: { log: access.borrow.binding },
@@ -3400,7 +3393,6 @@ export function createAcceptanceApplication(
           ? {}
           : { run: request.run, attempt: request.attempt, report: request.report }),
       })
-      if ('callId' in opened) retainCall(borrow.binding.session, opened.callId)
       if (!('state' in opened) || (opened.state !== 'open' && opened.state !== 'resumable'))
         return opened
       const result = await service.dispatch({
@@ -3649,7 +3641,6 @@ export function createAcceptanceApplication(
             attempt: adopted.attempt,
             report: adopted.report,
           })
-          if ('callId' in opened) retainCall(borrow.binding.session, opened.callId)
           if (!('state' in opened) || (opened.state !== 'open' && opened.state !== 'resumable')) {
             await grant?.revoke()
             return reject(
