@@ -9,12 +9,12 @@
 | 模型消息派生、前缀缓存、复杂度和Run进度 | [投影组合](projections.md) |
 | Cordis接缝、会话装配、换代与事件 | [集成](cordis.md) |
 | 验证义务、探针范围、未来协议 | [验证](verification.md) |
-| 模块目标接口与选择依据 | `packages/core/session-runtime/README.md`（设计准备，尚非workspace成员） |
+| 当前候选接口与共用规则 | `packages/core/session-runtime/README.md`（设计准备，尚非workspace成员） |
 
-规则源：PF-012 rev24、PF-010 rev8、PF-014 rev13、PF-015 rev21及其限定决策；现行统一语言／对象清单；[系统约束](../../foundation/cross-system-constraints/requirements.md)；[架构维护](../README.md)；[IC](../../realization/cordis-integration-conventions.md)。
+规则源：PF-012 rev24、PF-010 rev8、PF-014 rev13、PF-015 rev21及其正文中的限定采用范围；现行统一语言／对象清单；[系统约束](../../foundation/cross-system-constraints/requirements.md)；[架构维护](../README.md)；[IC](../../realization/cordis-integration-conventions.md)。
 存储、模型／工具、拓展runner、runtime context的未迁承诺按其真实入口继续有效；本设计不靠删除历史材料改变接受状态。
 
 本设计覆盖第一期15卡需要的完整责任链；近期实现切片是ST-015-01。第二期协作、消息转换、连接件和运行中其他业务命令只留接缝与明确排除，不定义未知产品政策。
 核心能力公开函数可独立取用，runtime只是一种消费者。复用Cordis官方4.0.4，不复用DSH agent原语。
 
-模块目标设计已按用户要求移到对应包的SPEC／adr／verification槽。新目录目前仅接收设计，不是workspace成员；建立真实接口、实现与测试后再完成模板核对。原消费者和接受状态不因物理迁移改变。过程记录只在本工作树tmp维护，不再依赖record目录。
+模块候选按负责人已指定的包内归属保存唯一正文，明确为待限定接受设计，不能作为已接受公开接口消费。新目录没有manifest或源码，只是设计准备槽；实际建设前须取得限定采用并补齐真实成员，逐项切换消费者，不建立空包或兼容双轨。过程记录只留本工作树tmp。

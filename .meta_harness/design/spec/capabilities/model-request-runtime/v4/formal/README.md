@@ -1,7 +1,7 @@
 # v4 行为模型与继承范围
 
-本目录没有运行结果；执行结果只进[版本外验证入口](../../verification.md#v4-候选变化与证据)。
-执行使用主线给定的 TLC 工具链，精确版本、输入哈希、原始输出、退出码及修复前失败记录在版本外验证入口定位；模型与配置存在不等于已运行或实现符合。
+本目录没有运行结果；执行结果只进[版本外验证入口](../../verification.md#v4-结算与未知提交)。
+执行须使用指定 TLC 工具链。每次执行的精确版本、输入、原始输出、退出码及失败记录放执行工作树 `tmp/<task>/`；模型与配置存在不等于已运行或实现符合。
 
 ## 原状态机的采用边界
 
@@ -33,8 +33,8 @@ v4 保留十三个服务操作，原有交错消费已冻结 [v2 Invocation](../
 | [Adaptation_DisposeActive.cfg](validity-check/Adaptation_DisposeActive.cfg)（主线拥有） | 仍有持有者时释放资源 | `NoDisposeWithLease` |
 | [Adaptation_Rebind.cfg](validity-check/Adaptation_Rebind.cfg)（主线拥有） | 在途绑定随新采用版本改变 | `BindingPinned` |
 
-以上是配置的预期结果；实际执行见版本外验证入口。正向无反例与否定出现指定反例须成对记录；某断言若只在正向列中通过，不能说已证实它能失败。
-RT3 起草时三个正向任务的登记名分别为 `model-request-runtime-v3-content-gate`、`model-request-runtime-v3-adaptation-binding`、`model-request-runtime-v3-adaptation-lifecycle`；本版在候选 registry 以 v4 精确路径另列对应任务，旧运行不改记为 v4。七份否定配置均不登记为正向 formal task。
+以上是配置的预期结果；实际执行输入和结果放执行工作树 `tmp/<task>/`。正向无反例与否定出现指定反例须成对检查；某断言若只在正向列中通过，不能说已证实它能失败。
+RT3 的三个正向任务的登记名分别为 `model-request-runtime-v3-content-gate`、`model-request-runtime-v3-adaptation-binding`、`model-request-runtime-v3-adaptation-lifecycle`；本版在候选 registry 以 v4 精确路径另列对应任务，旧输入结果不能代替 v4。七份否定配置均不登记为正向 formal task。
 没有新 Alloy 模型：本批新增值结构由 model-profile/messages/model-response 的 Schema 承接，本契约只引值不另立结构权威。
 
 继承的 ContentGate/AdaptationBinding 与 Adaptation 各保留原义务；这三份模型不承载 `retryDelay` 的实数关系、结果投影的全部字段、发送前取消的外层结果形状或S-66 当前输入提供者的真实读取、跨源一致性或 S-28/S-29 续接新输入分支。这些由规范向量及实现符合性验收承担。
@@ -44,7 +44,7 @@ S-15/S-16/S-17/S-33/S-55 的 opened 回执未知及取消后迟到提交分支�
 
 ## 结算组合模型
 
-[Settlement.tla](Settlement.tla) 承接 S-17/S-68～S-73。新模型与以下配置为 candidate；作者未执行 TLC，正式运行由独立验证者负责。SL3 模型及旧 RT3 运行均不代替本模型的执行。
+[Settlement.tla](Settlement.tla) 承接 S-17/S-68～S-73。独立验证须运行以下正负配置；SL3 模型和旧 RT3 运行均不代替本模型的执行。
 
 模型使用两个有共同 ResponseId 的结算者：1 写单响应，2 写同一 MessageId 的消息+响应批；一个原发出、一个新尝试或同 Run 终结边界、至多 NoiseLimit 个无关追加。所有日志条目是单一序列；读取与提交分开，真实 Run 语义由边界种类抽象。Budget 是有限实验预算，不是产品默认值。配置不施加公平性，只检查安全/责任不变量，不声称无饥饿或预算内必成功。
 

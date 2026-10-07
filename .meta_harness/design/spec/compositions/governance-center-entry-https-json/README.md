@@ -14,11 +14,11 @@
 入口契约 S-8 说「跨协议版本永不改的两样」，它们在传输上的具体字节就在这里；入口契约 S-6「同一个入口答复整个线上答复逐字相同」的那份字节也在这里。
 
 **为什么它是一份单独的契约**：入口契约把传输机制留在契约之外，只约束落地必须保持的性质，并把「传输绑定没有版本化的工件」登成缺口 G-10；
-这份工件要能被冻结、被按版本引用，而实现映射节点是可变的、已冻结的入口契约 v1 目录又不能再放东西——理由的长期家是[提案「传输候选的采用」](../../../record/proposals/governance-center-entry/design.md#传输候选的采用)。
+这份工件要能被冻结、被按版本引用，而实现映射节点是可变的、已冻结的入口契约 v1 目录又不能再放东西——理由的长期家是提案「传输候选的采用」。
 **它不拥有入口契约的任何语义，只拥有本传输自身的事实**：判定次序、答复是什么、线上形状全在入口契约与它的 Schema 里。它**接受并冻结之后**才闭合入口契约的 G-10 与 G-11 的中心一侧。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, composition.governance-center-entry-https-json, 1)`；绑定标识 `https-json/1`。
-- **状态**：`accepted`，[D-029](../../../record/decisions/governance-center-transport-binding-acceptance/README.md)（2026-09-23）；`v1/` **已冻结**，任何字节变化都发新版本。接受前的三轮修订记在[验证入口的「变化的影响」](verification.md#变化的影响)。
+- **状态**：`accepted`，D-029（2026-09-23）；`v1/` **已冻结**，任何字节变化都发新版本。接受前的三轮修订记在[验证入口的「变化的影响」](verification.md#变化的影响)。
 - **catalog 映射**：`family=compositions`、`topic=governance-center-entry-https-json`、`contract_path=spec/compositions/governance-center-entry-https-json/v1/contract.md`；
   `resources` 是 `v1/contract.md` 与 `v1/examples.md`；`acceptance` 为 null。依赖三项，全部 `rebase_relation: null`：
   `composition.governance-center-entry` v1（`accepted`）、`data.offer-expiry` v1（`accepted`，时间点的写法）与 `data.identity-values` v1（`accepted`，路由结果里三种身份值的成员与分支）；消费 clauses 以[契约 S-2](v1/contract.md#s-2-依赖与精确承诺) 为准。
@@ -52,6 +52,6 @@
 `v1/` 是候选版本，接受之后整体冻结：之后任何字节变化都发新版本。**不建 Schema、不建形式工件**——形状全在入口契约的 Schema 里，本契约只引用它的 `$id` 与定义名。
 换传输是一份新的传输绑定，不改本版；本版 S-18 那两样只要还在本传输上就永不改。
 
-2026-09-25，[D044](../../../record/decisions/governance-entry-production-protocol/decision.md)接受[v2](v2/contract.md)。实现与消费者另行核对，不自动升级旧绑定。
+2026-09-25，D044接受[v2](v2/contract.md)。实现与消费者另行核对，不自动升级旧绑定。
 
-当前采用：v3已由[D055](../../../record/decisions/governance-online-maintenance-adoption/README.md)接受并冻结；客户端版本2保持，ops版本1新采用，真实适配待实现。
+当前采用：v3已由D055接受并冻结；客户端版本2保持，ops版本1新采用，真实适配待实现。

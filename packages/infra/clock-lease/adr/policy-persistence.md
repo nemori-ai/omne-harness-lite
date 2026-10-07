@@ -6,7 +6,7 @@
 选择、表达和施工分别独立审阅；具体行为承诺由 [SPEC](../SPEC.md) 和其未迁依据拥有。
 
 原 clock 实现将时间/租约判断与三个 SQL 操作放在同一类，策略直接消费 Kysely 事务。
-依据 [D-115](../../../../.meta_harness/design/record/decisions/actual-architecture-and-thin-spec/decision.md)，
+依据 D-115，
 采用私有三操作端口，使策略只依赖事实和具名持久操作。SQL 后端继续借用原 Storage，
 公开 LeaseClock 构造门选择该后端；私有基类承载同一份状态，不增加方法转发层。
 

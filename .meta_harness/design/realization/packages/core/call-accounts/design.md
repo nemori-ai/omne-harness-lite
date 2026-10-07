@@ -1,6 +1,6 @@
 # call-accounts 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 契约：[`data.call-accounts` v2](../../../../spec/data/call-accounts/v2/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
 导出名、类型名一律为**已接受的设计**，源码不存在。
@@ -8,7 +8,7 @@
 ## 实现路径与来源
 
 **自建一个 TypeScript 纯模块**，写法与 [content-blocks](../content-blocks/design.md#实现路径与来源) 相同：`ajv` 8.20.0 的 Draft 2020-12 入口、Schema 原样复制并逐字节核对、拒绝值[按契约次序逐条判](../content-blocks/design.md#拒绝值按契约的次序逐条判不从-schema-错误里反推)。
-金额从 JSON 文本读入一律经 content-blocks 的[严格无损读写](../content-blocks/design.md#严格的无损-json-读写)（[D-060 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)「金额一律无损保留原文」）。**Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
+金额从 JSON 文本读入一律经 content-blocks 的[严格无损读写](../content-blocks/design.md#严格的无损-json-读写)（D-060 §八 M36「金额一律无损保留原文」）。**Cordis 版本**：采用 4.0.4（D-025）；本模块不依赖 Cordis。
 
 ## 公开面
 
@@ -67,9 +67,9 @@
 | `data.content-blocks` v2（`CallId`；严格无损读写） | [content-blocks](../content-blocks/README.md) | 随包版本 | 静态 import |
 | `data.asset-model` v2（能力标识的规范串） | [asset-model](../asset-model/README.md) | 同上 | 同上 |
 | `data.identity-values`、`data.offer-expiry` v1 | 已实现的 core 包 | 同上 | 同上 |
-| 被消费 | messages、arrival-events、model-response、loop-extension、stream-assembly、两个运行时、拓展件 runner、会话资产注册表（可用性报告带 `attempt`，取本包的 `AttemptId`——[D-060 §八 M46](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）、读面 | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
+| 被消费 | messages、arrival-events、model-response、loop-extension、stream-assembly、两个运行时、拓展件 runner、会话资产注册表（可用性报告带 `attempt`，取本包的 `AttemptId`——D-060 §八 M46）、读面 | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
 
-包依赖与 catalog 的契约依赖同构（[D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
+包依赖与 catalog 的契约依赖同构（D-060 §八 M41），无环。**没有配置项**。
 
 ## 状态、并发与失败映射
 

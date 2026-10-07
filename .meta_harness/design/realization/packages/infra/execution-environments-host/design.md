@@ -1,13 +1,13 @@
 # execution-environments-host 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
-**2026-09-26 裁决对账**：[D-064 ⑭](../../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 已允许 hooks 子进程落宿主机，取代此前「产品未允许」的前提。现行未完成项是 EE G-3 的允许读面接线与 HI G-15 的工作目录、变量名单来路；缺席时仍按契约拒绝。本次只更新裁决依据，未登记实现或验证完成。
+**2026-09-26 裁决对账**：D-064 ⑭ 已允许 hooks 子进程落宿主机，取代此前「产品未允许」的前提。现行未完成项是 EE G-3 的允许读面接线与 HI G-15 的工作目录、变量名单来路；缺席时仍按契约拒绝。本次只更新裁决依据，未登记实现或验证完成。
 
 
 ## 实现路径与来源
 
-**自建一个小的 Cordis 插件，没有可复用的上游对象**：落点判断的次序、进程组的起停与有界答复是本项目的契约语义（`capability.execution-environments` v2）。起停进程只用 Node 内置的 `node:child_process`、`node:fs` 与 `process.kill`，**不引第三方进程管理库，也不引执行器类库替本节点调度重试或轮询**（[D-060 §八 N-36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 口径）。
+**自建一个小的 Cordis 插件，没有可复用的上游对象**：落点判断的次序、进程组的起停与有界答复是本项目的契约语义（`capability.execution-environments` v2）。起停进程只用 Node 内置的 `node:child_process`、`node:fs` 与 `process.kill`，**不引第三方进程管理库，也不引执行器类库替本节点调度重试或轮询**（D-060 §八 N-36 口径）。
 
 | 用什么 | 从哪来 | 用来做什么 |
 |---|---|---|
@@ -19,7 +19,7 @@
 | `SessionRef`、`ToolDefinitionRef` 的形状 | [`core/messages`](../../core/messages/README.md)、[`core/loop-extension`](../../core/loop-extension/README.md) | `resolveSessionEnvironment`、`placeExecution` 的输入 |
 | `definePlugin`、`resolveOptional` | [`core/kernel-basis`](../../../../../../packages/core/kernel-basis/README.md) | 插件骨架、config 校验、读面的现取 |
 
-**Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；机制语义引 [basis](../../../../basis/README.md) 条目。
+**Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（D-025）；机制语义引 [basis](../../../../basis/README.md) 条目。
 **进程与信号的上游语义 basis 一条都没有**，下面每一条都是**假设，须按 source-check 取证**（[EEH-7](#实施缺口与消费者影响)）：① POSIX 上 `detached: true` 使子进程调 `setsid`，新会话、新进程组，组号等于子进程号；② `process.kill` 给负数即对整组发信号，组里一个进程都没有时以 `ESRCH` 失败；③ 起的进程已退出而未被回收（僵尸）时仍算组里有进程；Node 在 `exit` 事件前后回收它；④ `spawn` 的 `spawn` 事件表示程序已被执行，执行失败以 `error` 事件带错误码到达；⑤ 给了 `env` 选项时子进程的环境恰是它，不与本进程的环境合并；⑥ `exit` 事件给 `(code, signal)`，二者恰一个非空；⑦ 一个号在还是某个进程的进程号、进程组号或会话号时，操作系统不把它分给新进程（POSIX 的进程组寿命规则）；⑧ 子进程只由 Node 在事件循环上收回，收回与 `exit` 事件之间不跑任何 JS——子进程句柄上退出码与信号都还空 ⇔ 还没收回；本进程里没有别的代码对任意子进程调 `waitpid`。
 **只在 POSIX 上**：插件体在 Windows 上抛出 ⇒ 启动失败（进程组语义不同，本版不做）。
 **配置错误一个政策**（与同批节点、`apps/cli` 同一条）：config 经 `definePlugin` 的 `Config` 在插件体之前校验，不过即 fiber `FAILED`、装配启动失败（basis [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)）；诊断点名那一项、不含值。
@@ -117,7 +117,7 @@
 
 **六、停组：每组一个停止例程，并发的停止请求共享它、各按自己的时限答复（选）。**每次 `stopProcessGroup` 各自发信号、各自轮询也能工作，但两次并发请求会各发一遍宽限与强制，第二次的宽限从它自己的时刻算，整组被强制结束的时刻取决于谁先来。本方：第一次请求起一个例程（`SIGTERM` → 等 `stopGrace` → 组里还有 ⇒ `SIGKILL` → 每 `stopPollInterval` 探一次组空），后来的请求只登记一个等待者；每个等待者的时限是它自己到达时刻加 `stopReplyBound`，到点仍未确认就答 `notConfirmed`，**例程不停**——此后每个节拍先核组长身份（关键选择七）、核得上再发一次 `SIGKILL` 并探组空，直到组空、核不上或本插件撤除（S-15 末段：未确认之后继续停）。置信度：高。
 
-**七、每一次发信号之前核组长身份：问三件事——组长收回没有、组号上另有没有进程、看守见没见过组空（选；契约 [S-15](../../../../spec/capabilities/execution-environments/v2/contract.md#s-15-stopprocessgroup) ④ 与第六节「信号绝不到达组外进程」，主线裁定 [D-060 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ②）。**
+**七、每一次发信号之前核组长身份：问三件事——组长收回没有、组号上另有没有进程、看守见没见过组空（选；契约 [S-15](../../../../spec/capabilities/execution-environments/v2/contract.md#s-15-stopprocessgroup) ④ 与第六节「信号绝不到达组外进程」，主线裁定 D-060 §八 N-42 ②）。**
 
 | | 组号加组长起始时刻（读 `/proc/<组号>/stat`；桥节点 S-28 回收的先例） | pidfd（Linux ≥ 5.3） | **三问（选）** |
 |---|---|---|---|

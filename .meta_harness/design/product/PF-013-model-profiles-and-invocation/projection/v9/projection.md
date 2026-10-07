@@ -1,6 +1,6 @@
 # PF-013 · 模型调用 ACK 与副本释放投影 v9
 
-2026-09-29，post-review candidate；PF013rev17及ACK技术方向已正式采用，四契约及四节点仍待主线精确采用，未实现。局部快照不覆盖其它模型计量、图片或T29全部投影。[精确来源](provenance.json)。
+2026-09-29，post-review candidate；PF013rev17及ACK技术方向已正式采用，四契约及四节点仍待主线精确采用，未实现。局部快照不覆盖其它模型计量、图片或T29全部投影。[精确来源](../../design.md)。
 
 | 产品承诺 | 唯一契约与提供者落点 | 交付边界 |
 | --- | --- | --- |
@@ -11,4 +11,11 @@
 
 四纯数据/运行时节点见[MS8](../../../../realization/packages/core/messages/v8-acknowledgement-design.md)、[MR11](../../../../realization/packages/core/model-response/v11-acknowledgement-design.md)、[CA4](../../../../realization/packages/core/call-accounts/v4-acknowledgement-design.md)、[runtime v22](../../../../realization/packages/model/model-request-runtime/v22-acknowledgement-design.md)。前三者纯数据/验证，既有Cordis runtime service承接实际所有权、权限与释放；不引入通用GC、资产删除或Session/Run状态机。
 
-独立[架构](../../../../record/proposals/model-runtime-reference-lifecycle/ack-architecture-review.md)和[表达](../../../../record/proposals/model-runtime-reference-lifecycle/ack-spec-review.md)评审无阻断。两正八负有限模型、Schema及摘要向量见[原始证据](../../../../record/evidence/2026-09-29-model-call-ack-candidate/README.md)，不代替真实Storage/日志/权限/缓存/外引用验收。现有noGC只在被本增量取代范围失效，旧冻结规格作为历史保留，不新增运行时双轨或默认永久保留开关。
+独立架构和表达评审无阻断。两正八负有限模型、Schema及摘要向量见原始证据，不代替真实Storage/日志/权限/缓存/外引用验收。现有noGC只在被本增量取代范围失效，旧冻结规格作为历史保留，不新增运行时双轨或默认永久保留开关。
+
+## 当前采用范围
+
+RT12/MS8/MR11/CA4 的 ACK 增量与原值/原账性质；messages 唯一拥有 ACK 记录和无损语义摘要，response 保持完整 Pending/final，accounts 只做原纯值费用计算。投影仅承接该窄增量。
+
+技术采用不表示实现或实际验证已完成。验证义务：各 owner 的 M8/R11/A4 验证义务；ACK 不授予写权、不等于处分；final > ACK witness > ready 按同 ResponseId 唯一原账；不能以 shape/brand 成功证明真实权限/来源/释放。
+范围之外：通用 GC/内容/账务服务；完整 Session/Run/Agent；独立 invokeModel 的 ACK 义务。

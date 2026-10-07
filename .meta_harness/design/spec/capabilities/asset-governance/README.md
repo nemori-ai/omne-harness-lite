@@ -12,7 +12,7 @@
 **它不拥有数据形状**（`data.asset-model` v2）、复制与分享（`capability.asset-transfer` v2）、工作区那一级的持有（由承载目录读入）。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-governance, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **需求 rev**：PF-001 rev 19、PF-002 rev 20、PF-003 rev 5（2026-09-24 按 changelog 逐条复核到当前，结论在[契约页首](v2/contract.md)）
 - **提供者/装配映射**：[packages/assets/asset-governance](../../../realization/packages/assets/asset-governance/README.md)；当前节点设计已由 D-062 接受，源码／实际验证按各节点四层状态分别读取。
 
@@ -69,4 +69,4 @@
 
 ## 2026-09-26 版本接受
 
-本次接受 `capability.asset-governance` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `capability.asset-governance` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

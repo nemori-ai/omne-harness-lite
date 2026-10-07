@@ -1,7 +1,3 @@
-# 条款到证据的绑定表。
-# 空：capability.execution-environments v2 本版不建形式工件（契约 S-18：落点判断的次序被建模方式吸收，
-# 起停的性质落在真实的操作系统进程上），registry 里没有它的 formal task；本节点尚未建包，没有测试。
-# 证据形式（规范场景 S-19～S-24、examples §3 与 §4、本节点的上游语义取证与故障注入）逐条记在 verification.md，全部未开始。
 version: 1
 node: "execution-environments-host"
 kind: "provider"

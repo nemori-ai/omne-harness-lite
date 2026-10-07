@@ -1,20 +1,20 @@
 # center-connection-probe 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 ## 实现路径与来源
 
-**自建一个小包、两个 Cordis 插件，没有可复用的上游对象**：三态可达性、计数规则与「在场不随可达性变」是本项目的契约语义（`capability.center-connection` v2）。探测用 Node 内置的 `node:https`，**不引第三方 HTTP 客户端，也不引执行器类库替本节点调度重试**（[D-060 §八 N-36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 口径：探测不是重试，是契约 S-6 的节拍）。
+**自建一个小包、两个 Cordis 插件，没有可复用的上游对象**：三态可达性、计数规则与「在场不随可达性变」是本项目的契约语义（`capability.center-connection` v2）。探测用 Node 内置的 `node:https`，**不引第三方 HTTP 客户端，也不引执行器类库替本节点调度重试**（D-060 §八 N-36 口径：探测不是重试，是契约 S-6 的节拍）。
 
 | 用什么 | 从哪来 | 用来做什么 |
 |---|---|---|
 | `https.request`（`agent: false`，`minVersion: 'TLSv1.3'`，`ca` 交入信任材料，按地址里的主机名核证书） | `node:https`／`node:tls` | 一次公开体检往来：一条连接恰一个请求—答复（传输绑定 [S-5](../../../../spec/compositions/governance-center-entry-https-json/v1/contract.md#s-5-一条连接恰承载一个请求答复)），只有 TLS 1.3（[S-4](../../../../spec/compositions/governance-center-entry-https-json/v1/contract.md#s-4-客户端一面的连接只有-tls服务端认证)） |
-| 严格无损 JSON 读取（候选 `readJsonStrict`） | [`core/content-blocks`](../../core/content-blocks/README.md)（[D-060 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | 答复体读成 JSON；读不成即「不是一份答复」 |
+| 严格无损 JSON 读取（候选 `readJsonStrict`） | [`core/content-blocks`](../../core/content-blocks/README.md)（D-060 §八 M36） | 答复体读成 JSON；读不成即「不是一份答复」 |
 | 入口契约 Schema 的 `PublicHealthReply`、`PublicHealthRequest`、`EntryAnswer` 定义 | 规范工件的**逐字节副本**随包（漂移由测试核对），ajv 校验——与 [`tenancy/governance-center-entry`](../../tenancy/governance-center-entry/README.md) 包的做法同形；**据点不 import 中心的包** | 判「读成的值属于这次请求应得的那一类」（传输绑定 [S-17](../../../../spec/compositions/governance-center-entry-https-json/v1/contract.md#s-17-客户端怎样读答复) 第 3、4 步） |
 | 时间源 `clock` | [`infra/clock`](../clock/README.md) | `since` 与这一次在场的起始时刻；**插件体里不读**（[关键选择五](#关键选择)）。探测节拍用本地定时器（单调计时）量，不读墙钟 |
 | `definePlugin` | [`core/kernel-basis`](../../../../../../packages/core/kernel-basis/README.md) | 插件骨架、config 校验 |
 
-**Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；机制语义引 [basis](../../../../basis/README.md) 条目。
+**Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（D-025）；机制语义引 [basis](../../../../basis/README.md) 条目。
 **Node TLS 与 HTTP 客户端的语义 basis 没有条目**，下面每一条都是**假设，须按 source-check 取证**（[CNP-8](#实施缺口与消费者影响)）：① `minVersion: 'TLSv1.3'` 使更低版本握不了手；② 给了 `ca` 时证书链不由它签发、或主机名对不上，请求以错误结束、交不出任何答复字节；③ `agent: false` 每次新开一条连接、答完即关；④ 销毁请求会关掉套接字、以错误事件收场；⑤ 答复体按 `Content-Length` 读满之前连接关闭时以错误或 `aborted` 到达，不交一个截短的体。
 **配置错误一个政策**（与同批节点、`apps/cli` 同一条）：config 经 `definePlugin` 的 `Config` 在插件体之前校验，不过即 fiber `FAILED`、装配启动失败（basis [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)）；诊断点名那一项、不含值。
 
@@ -100,7 +100,7 @@
 | 为什么选它 | **与契约相抵**：S-5 定义 `unreachable` 为「最近一次有结果的往来落在问不到」、S-6 第 1 条「到点没有读成一份答复即问不到（`unreachable`）」——阈值大于 1 时，最近一次问不到而状态仍是 `reachable`，违反 S-5 与第四节「绝不能把问不到答成 `reachable`」一行 | 照契约兑现；要去抖须出契约新版本（CNP-1），**不在节点里写「实际按 X 做」** |
 | 置信度 | 高（这是契约的字面） | |
 
-**五、插件体不读钟、不因钟启动失败；起始时刻由 effect 在第一次读得到钟时记下，此前 `since` 缺席（选；主线裁定 [D-060 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ③ D-3，CNP-12 裁 ①）。**
+**五、插件体不读钟、不因钟启动失败；起始时刻由 effect 在第一次读得到钟时记下，此前 `since` 缺席（选；主线裁定 D-060 §八 N-42 ③ D-3，CNP-12 裁 ①）。**
 
 | | 插件体里读一次，`'unavailable'` 即抛出、装配启动失败（前一稿） | 服务延到读得到钟才 `provide` | **插件体只 `provide` 与登记 effect；effect 登记时读一次钟，读不到就在节拍的本地定时器点（循环开始、每一次探落定）再读（选）** |
 |---|---|---|---|

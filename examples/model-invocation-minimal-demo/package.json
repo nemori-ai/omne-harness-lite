@@ -93,6 +93,7 @@
     "typescript": "catalog:",
     "vitest": "catalog:",
     "@omne-harness-lite/model-request-runtime": "workspace:*",
-    "ajv": "catalog:"
+    "ajv": "catalog:",
+    "kysely": "catalog:"
   }
 }

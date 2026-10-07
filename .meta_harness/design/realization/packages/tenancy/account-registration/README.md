@@ -1,26 +1,29 @@
 # account-registration
 
+- 源码位置：本旧映射坐标为 `packages/tenancy/account-registration`；当前实现归[实际成员](../../../../../../packages/tenancy/account-registration-sequential/README.md)。本坐标不声明旧路径仍是源码位置。
 - kind：`provider`
-- 对象与设计修订：状态 `implemented`（源码修订 HUB `c9b5850`），2026-09-22 首稿，设计同日由 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/README.md) 接受为实现路径；兑现 `omne-harness-lite-design-2026-09-15 · composition.account-registration · v1`（[契约](../../../../spec/compositions/account-registration/v1/contract.md)，状态 `accepted`、已冻结，设计依据 PF-001 rev 19）
-- 源码位置：`packages/tenancy/account-registration`——**已实现（HUB `c9b5850`）**：`src/plugin.ts`（`registrationPlugin`、`AccountRegistrationConfigSchema`、代标志与缺陷日志）、`src/types.ts`（`RegistrationService`、`REGISTRATION_SERVICE`、S-5 四值 `TERMINAL_OUTCOMES`、S-34 三分类 `PURGE_FAILURE_CLASSES` 与原样带出的清除链失败 `PurgeExpiredResult`、`RegistrationDefectRecord`、config 类型）、`src/registration.ts`（两条动作链的方法体、`RegistrationStopped`）。第二层 `tenancy` 是租户领域这个限界上下文的名字，产品负责人已拍板（[D-024](../../../../record/decisions/tenancy-domain-name/README.md)）；布局规则见[实现映射入口](../../../README.md#packages-的两层布局)
-- 契约采用与边界依据：一个 Cordis 插件、一条 fiber、一个服务面（服务名 `registration`），提供**两条动作链**——注册主链（[S-8](../../../../spec/compositions/account-registration/v1/contract.md#s-8-三步次序与责任交接)）与未激活到期清除链（[S-34](../../../../spec/compositions/account-registration/v1/contract.md#s-34-第二条动作链未激活到期清除)）。**它不拥有任何事实、没有存储**（[S-22](../../../../spec/compositions/account-registration/v1/contract.md#s-22-编排本链的提供者被卸载或换代)）；它拥有的是次序、失败映射与两份[交接凭证](../../../../spec/data/identity-values/v1/contract.md#s-35-交接凭证-handoff-warrant)里**激活依据的产出**。C 装配草图的「薄组合」
+- 当前定义：[公共注册包](../../../../../../packages/core/account-registration/README_ZH.md)拥有公开操作与结果。[公共 SPEC](../../../../../../packages/core/account-registration/SPEC.md)拥有分步提交、停止和依赖代际承诺。
+- 当前实现：[顺序注册提供者](../../../../../../packages/tenancy/account-registration-sequential/README_ZH.md)拥有独立工厂、签名与分步编排。实现边界归其 [SPEC](../../../../../../packages/tenancy/account-registration-sequential/SPEC.md)。
+- 未迁业务：采用 AR2。精确条款、失败集合、Schema 与模型见[有效语义与保持边界](../../../../architecture/identity-integration/preservation.md)，本节点 [实现设计](design.md)在未迁范围内接续。
+
+## 能力与边界
+
+注册服务提供注册主链和未激活到期清除链。主链按产生账号、建立个人组织、激活依次执行三次独立提交，不能合并成全链事务。清除按原两步次序携带依据，保持原三类失败和未知提交的收场。
+
+本节点不拥有持久事实或存储。它拥有次序、失败映射、重试上限与激活依据的产出。幂等边界、插件重跑和并发交错沿原契约。清除的候选记录枚举没有读面，后台发起者与节奏仍是 [G-6 缺口](design.md#实施缺口与消费者影响)，不因服务公开而产生自动清扫能力。
+
+每代捕获账号、组织及组织清除服务，不能把新依赖换入旧调用。停止后不交出下一步，已交出的步骤等待实际返回。中断不推断未发生，也不伪造回滚、补偿或成功。借入依赖直到真实完成才能释放。
 
 ## 分层状态
 
-- 语义接受范围：`composition.account-registration` v1 **全部条款**（含其已知缺口作为显式缺口），依据 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/decision.md)（产品负责人，2026-09-22）；本节点的设计随同一决定被接受为实现路径。D-023 点名的 [S-34](../../../../spec/compositions/account-registration/v1/contract.md#s-34-第二条动作链未激活到期清除)／[S-25](../../../../spec/compositions/account-registration/v1/contract.md#s-25-装配给的保证-vs-协议须给的保证) 两处措辞待 v2，实施按本节点设计。接受不提升下面三层
-- 可实施范围：本节点声称兑现 S-8 三步与全部分支、S-34 两步与三分类、激活依据的产出与携带、S-9 三个幂等边界在「插件体重跑」下的安全、S-12 重试规则、S-21 四种交错的收场、S-22、S-23、S-25 表左列，逐条见 [design.md](design.md#能力到-cordis-的投影)，以上**已实现（HUB `c9b5850`）**。**不兑现**：清扫提供者本身（[G-6](../../../../spec/compositions/account-registration/v1/contract.md#九已知缺口)：发起者与节奏归装配，且**候选记录的枚举没有任何读面**，见 [design.md 缺口](design.md#实施缺口与消费者影响)）、S-25 右列协议给保证、注册入口的表示层校验（归入口）
-- 绑定与证据：[`bindings.yaml`](bindings.yaml) **六条**，绑到两个已登记 formal task（`account-registration-v1-{crash,progress}`；`basic` 的 `TypeOK` 自指，S-5 改由 lint 承担），前提照 [evidence run-2](../../../../record/evidence/2026-09-22-formal-tenant-domain-2/README.md) 的配置写。五条规范场景 S-27～S-31 已有包内测试（见下一项），逐条状态待 [verification.md](verification.md) 回填
-- 实际验证：包内测试（`tests/{scenarios,purge,faults,integration,interleavings}.spec.ts`、`tests/types.spec-d.ts`；`interleavings` 用真实 AI／OG／AR 插件与真实 storage-sql（sqlite）让两条调用链交叠，演 AI S-43 第 2 支的两条交错、OG S-54 ⑥⑦ 与本契约 S-34 的并发格；做不到的一支写成带理由的 `it.skip`）在运行 `2026-09-23-tests-tenancy-leg-2` 里随十三个 TS 成员 build／typecheck／test 在 sqlite 下全过，证据登记在 [`record/evidence/2026-09-23-tests-tenancy-leg-2/`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)（HUB）；逐条覆盖待 verification 回填。形式任务检查的是契约的模型，不是本节点
+公共类型与集成承诺已归模块旁现行源，未迁业务仍由精确 AR2 约束。旧 v1 S-34/S-25 的措辞不能越过现行采用版本成为新规则。两链的表示层校验归入口，原“协议给”与“装配给”分别由对应拥有者承接。
 
-## 按当前问题展开
+形式资源与 [绑定表](bindings.yaml)保持原条款范围和前提，不因类型迁移或提供者换代升级适用版本。自指的 TypeOK 不作为独立保证，形式任务只检查契约模型，不证明提供者源码。
 
-| 当前问题                                                                                             | 阅读入口                      |
-| ---------------------------------------------------------------------------------------------------- | ----------------------------- |
-| 服务面、两条链在 Cordis 上怎么走、依据在单机怎么产出与核实、插件体重跑为什么安全、清扫为什么建不起来 | [实现设计](design.md)         |
-| 哪条承诺由哪份证据支持、前提是什么                                                                   | [绑定表](bindings.yaml)       |
-| 实际跑过什么、五条场景各缺什么                                                                       | [验证与证据](verification.md) |
+## 验证与阅读入口
 
-状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
-契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+[验证义务](verification.md)保留注册、清除、故障、插件重跑与并发交错的检查方法。真实组合须使用账号、组织和注册提供者及 SQLite 文件库，覆盖 AI S-43 第二支、OG S-54 ⑥⑦、清除并发及 AR2 的停止/迟到结果。未覆盖分支必须说明，跳过不计通过。
 
-2026-09-25增量：D042/D043范围内的新版本局部实现及测试见[证据](../../../../record/evidence/2026-09-25-tests-governance-participation/README.md)。旧bindings不整批升级；新entry/host组合未验，不声明生产开闸。
+[实现设计](design.md)解释单机交接依据与清扫缺口。现行生命周期与公开 API 从公共包、提供者 SPEC 定位，宿主整装义务从 [治理宿主](../../../../../../apps/tenancy-host/SPEC.md)接续。局部服务测试不能替代完整装配。
+
+当前契约由实际拥有者维护。候选比较、接受过程和每次执行结果留本工作树 `tmp/`，不在本页维护运行台账。

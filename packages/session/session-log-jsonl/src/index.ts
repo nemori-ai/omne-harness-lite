@@ -5,6 +5,7 @@ export { commitFormatVersion, indexFoldVersion, encodeCommitLine, decodeLogBytes
 export { openJsonlSessionLog } from './open.ts'
 export {
   defaultSessionLogPolicy,
+  isProcessOwnership,
   type SessionLogPolicy,
   type SessionLogOptions,
   type SessionLogDiagnostic,

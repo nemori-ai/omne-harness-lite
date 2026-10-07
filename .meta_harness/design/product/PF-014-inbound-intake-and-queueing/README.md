@@ -73,17 +73,17 @@ relations:
 | 这块产品是什么：概念、模型、规则、取舍 | [产品设计](design.md) |
 | 用户插队怎么走、一条消息从到达到被取走经过什么 | [流程与状态](flows.md) |
 | 做成什么样算做对了 | [验收标准](acceptance.md) |
-| 哪些是拍板定的，哪些是推导的，还有什么没定 | [决策与来源](decisions.md) |
-| 这块设计是怎么演变到今天的 | [变更历史](changelog.md) |
+| 哪些是拍板定的，哪些是推导的，还有什么没定 | [决策与来源](design.md) |
+| 这块设计是怎么演变到今天的 | [变更历史](design.md) |
 
 ## 状态
 
 明确 reload 在当前 Run 内的交接与新尝试不改变命令受理的去处；命令留痕不代替实际生效与恢复事实。本次为产品设计增量，直接裁决与 PM 推导见 decisions；不扩大此前整包接受、规格或实现状态。
 
-- 产品设计：**rev 13**，rev 8 工作区 reload 增量已正式接受（[登记](decisions.md#2026-09-27-工作区增量正式状态登记)），原接受及未决范围不扩张。此前状态：**rev 7**。rev 5 **已定稿**（2026-09-22 由产品负责人定）；**rev 6 的 D-1 已由持久边界限定采用取代，其余 rev 6／rev 7 事项保持原待确认状态** · [演进过程见变更历史](changelog.md)
-- 待裁决：**0**，去向见 [decisions.md 第三节](decisions.md#三待裁决)
+- 产品设计：**rev 13**，rev 8 工作区 reload 增量已正式接受（登记），原接受及未决范围不扩张。此前状态：**rev 7**。rev 5 **已定稿**（2026-09-22 由产品负责人定）；**rev 6 的 D-1 已由持久边界限定采用取代，其余 rev 6／rev 7 事项保持原待确认状态** · [当前规则与范围](design.md)
+- 待裁决：**0**，去向见 decisions.md 第三节
 - **连接件的事件可以经受理开出一个新会话**（[§5.7](design.md#57-穷举一什么会让队列从空变成非空) 第四行）：本 topic **只登记这一路存在**；
-  新会话以哪个 agent definition、哪个租户身份建归会话那一块，去重、合并与这一路的验收下次升 rev 时做（[decisions §四](decisions.md#四已知的来源问题)）
+  新会话以哪个 agent definition、哪个租户身份建归会话那一块，去重、合并与这一路的验收下次升 rev 时做（[decisions §四](design.md)）
 - **本 topic 引入的三个概念已经落进词表**：
   [入站到达](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) ·
   [控制指令](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-control-command--控制指令--control-command) ·
@@ -102,10 +102,8 @@ PF-014-inbound-intake-and-queueing/
 ├── flows.md          到达与取走的旅程、插队的四种走法
 ├── acceptance.md     产品视角的验收标准
 ├── stories.md        第一期消息受理与停止的交付切片
-├── decisions.md      拍板记录 / PM 推导 / 待裁决       ← 必须
-└── changelog.md      产品设计本身的演进                ← 必须
 ```
 
 本次产品裁决：归档取消待处理任务且保留历史，拒收新任务但接收迟到执行事实；连接件路径搁置。新增裁决的依据与范围见 decisions；不扩大既有整包接受、规格或实现状态。
 
-本次受理与消费边界的采用范围见 [限定采用](decisions.md#2026-10-06--持久受理与消费边界的限定采用)；共同保管及清除规则由 [PF-015 §6.26](../PF-015-session-lifecycle-and-ownership/design.md#626-待消费数据先持久保管再交接) 拥有，具体提交与恢复机制仍待技术设计。
+本次受理与消费边界的采用范围见 限定采用；共同保管及清除规则由 [PF-015 §6.26](../PF-015-session-lifecycle-and-ownership/design.md#626-待消费数据先持久保管再交接) 拥有，具体提交与恢复机制仍待技术设计。

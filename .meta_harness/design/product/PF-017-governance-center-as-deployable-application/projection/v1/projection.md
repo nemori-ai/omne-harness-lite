@@ -2,7 +2,7 @@
 
 - 对应需求：[PF-017](../../README.md) 全部条款——治理中心作为一个可部署、可被客户端接入的应用：只认登录状态、判定次序与两种拒绝、要么整个起来、重启与停机、升级整体性、时间不倒退、部署密钥与参数、中心标识、运维面与两种体检。**不含**据点一侧的呈现与凭据保存（PF-016）、领域语义本身（PF-001，见 [PF-001 投影 v2](../../../PF-001-identity-scope-and-agent-constraints/projection/v2/projection.md)）。
 - 本版依据的需求修订：**PF-017 rev 2**（`README.md` front-matter；rev 2 于 2026-09-23 落三条裁决 INT-016～INT-018），PF-016 rev 3（对端），PF-001 rev 16（登录状态语义）。
-- 状态：**当前，已接受为实施入口**——[D-028](../../../../record/decisions/governance-center-design-acceptance/README.md)（产品负责人，2026-09-23）。两份契约来源 `accepted`、已冻结（[provenance.json](provenance.json) 里契约的 sha256 即 `frozen.json` 登记值）；需求与节点来源不在冻结集合，实施前先核那些坐标。
+- 状态：**当前，已接受为实施入口**——D-028（产品负责人，2026-09-23）。两份契约来源 `accepted`、已冻结（[provenance.json](../../design.md) 里契约的 sha256 即 `frozen.json` 登记值）；需求与节点来源不在冻结集合，实施前先核那些坐标。
 - 未决 gap 数：**11**（见[第 7 节](#7-未决项)），其中 **G-10、G-11 在入口层建包之前必须闭合**。
 
 **读法**：第 1～4 节回答「必须为真的是什么」，来源是契约；第 5～6 节回答「用哪些原语兑现、有什么证据」，来源是节点。
@@ -201,7 +201,7 @@ dispose()：逆序撤除（总超时常量），入口层先于运维面
 
 | 契约条款 | 证据 | 前提 | 状态 |
 |---|---|---|---|
-| `gce#S-10`、`#S-11`、`#S-13`、`#S-14`、`#S-32`、`#S-33` | `formal:governance-center-entry-v1-decision`（TLC 正配置）+ 八个否定配置 | 参与方动作抽象为原子、判定为布尔；模型证「同一个答复值」，不证逐字节相同、不证跨请求缓存 | 已跑无反例（契约稿定后重跑）；原始输出**尚未登进 `record/evidence/`** |
+| `gce#S-10`、`#S-11`、`#S-13`、`#S-14`、`#S-32`、`#S-33` | `formal:governance-center-entry-v1-decision`（TLC 正配置）+ 八个否定配置 | 参与方动作抽象为原子、判定为布尔；模型证「同一个答复值」，不证逐字节相同、不证跨请求缓存 | 正配置与八个否定配置须分别核验；执行结果留本工作树 `tmp/`，不以此表声明本次验证完成 |
 | 入口层节点 bindings 六条 | 绑到上述模型的具名不变式与变异配置 | 同上 | 已登记；节点无任何运行 |
 | `gce#S-38`～`#S-46` 规范场景、SC-1～SC-3、节点 T-1～T-18、tenancy-host `assembly.*`、storage-sql `upgrade.*`／`lifecycle.upgrade-config-policy`、clock `clock.*`、AI R-8 检查与 `no-presentation-in-diagnostics` | 各节点 verification.md | — | **全部未开始**；bindings 只绑已存在的证据 |
 
@@ -233,6 +233,6 @@ dispose()：逆序撤除（总超时常量），入口层先于运维面
 | E-5 | 入口层包：路由表、判定次序、Schema 取名、`governance_center` 片段与三态读或铸、`governanceCenterPreflight`、四个通知、两张面 | E-0～E-4 | T-1～T-13 全过（pg 支除外）；SC-1～SC-3 有「故意违反就失败」自测 |
 | E-6 | tenancy-host：迁移合成加入口层片段、`upgrade.checks` 三项、两步开闸、有界等 `serving`、运维约定、启动失败具名阶段 | E-5 | `assembly.*` 全部义务过（含 U-3 反向支、交错 guard 支、显式 upgrade 支） |
 | E-7 | 结构检查器补齐：SC-2 事件订阅、只碰一张表、入口层不 import `parseLoginStateId`、AI R-8、`no-presentation-in-diagnostics` | 与 L2-7 同批 | 每条规则自测 |
-| E-8 | 把 TLC 原始输出与 E-1～E-6 的运行登进 `record/evidence/`，回填各节点 bindings（`test:`） | E-1～E-7 | bindings 不再只有 formal；README「实际验证」不再是「尚无」 |
+| E-8 | 把 TLC 原始输出与 E-1～E-6 的运行结果保存在本工作树 `tmp/`，将可复跑资源和适用前提写回各节点并回填 bindings（`test:`） | E-1～E-7 | bindings 不再只有 formal；README「实际验证」不再是「尚无」 |
 
 CLI 据点侧代理（PF-016 实施）不在本版顺序内；它从入口契约的 Schema 取名，等 E-0 的传输绑定冻结。

@@ -4,7 +4,7 @@ revision 1，**candidate，未接受、未实施、未验证**。本页只候选
 
 ## 依据、边界与可实施判断
 
-需求沿 [PF-013 rev 13](../../../product/PF-013-model-profiles-and-invocation/README.md) 的技术验收范围；本页不新增产品入口。精确契约均在 [catalog](../../../registry/catalog.json) 登记为 accepted：account-identity/v3（AI3）、organization-governance/v2（OG2）、account-registration/v2（AR2）、model-profile-directory/v3（MD3）、credential-custodian/v2（CC2）、model-profile/v3、identity-values/v1、offer-expiry/v1。provider 来源为 [D-075](../../../record/decisions/model-credential-source-projection/decision.md) 的目录 v3／CCL v2 窄组件；应用原 revision 2 已由 [D-076](../../../record/decisions/model-runtime-delivery-adoption/decision.md) 采用。Cordis 仍是 [D-025](../../../record/decisions/cordis-adoption-version/decision.md) 的 4.0.4；存储、时钟与配置错误政策沿原 A-2：复用已选提供者，非法静态配置启动失败，领域操作的具名拒绝保持原值。
+需求沿 [PF-013 rev 13](../../../product/PF-013-model-profiles-and-invocation/README.md) 的技术验收范围；本页不新增产品入口。精确契约均在 [catalog](../../../registry/catalog.json) 登记为 accepted：account-identity/v3（AI3）、organization-governance/v2（OG2）、account-registration/v2（AR2）、model-profile-directory/v3（MD3）、credential-custodian/v2（CC2）、model-profile/v3、identity-values/v1、offer-expiry/v1。provider 来源为 D-075 的目录 v3／CCL v2 窄组件；应用原 revision 2 已由 D-076 采用。Cordis 仍是 D-025 的 4.0.4；存储、时钟与配置错误政策沿原 A-2：复用已选提供者，非法静态配置启动失败，领域操作的具名拒绝保持原值。
 
 本增量只装真实 storage、clock、credential-verification、account-identity、organization-governance、account-registration、目录管理／本机取值和唯一 model-only CCL 组件。无 runtime、transport、session seed、资产源、中心、OAuth 或完整 CCL；不发布它们的假服务，也不取得模型网络能力。范围内仍是一个据点账号、同一真实 AtomicStorage、同一 clock；本页不是通用启动框架。
 
@@ -85,7 +85,7 @@ revision 1，**candidate，未接受、未实施、未验证**。本页只候选
 
 记录同一 runId 的阶段开始／结束、基础必需状态、confirm started／succeeded／failed、confirmation 三布尔、场景门开关、清单采用／认回／拒绝、已核租户关联、来源匹配布尔与关闭结果。只用固定错误类别和允许的安全字段，不转储异常 cause／原始配置。业务锚点仍归真实存储，诊断不是恢复账本；sink 故障独立计数、权限／限额／保留沿原 A-11 和本机 owner 政策。命名空间／日志无网络凭据，零模型 HTTP 是本阶段结构事实。
 
-Cordis 的依据仍是 [inject-has-no-optional-form](../../../basis/cordis/inject-has-no-optional-form.md)、[plugin-body-reruns-on-provider-change](../../../basis/cordis/plugin-body-reruns-on-provider-change.md)、[plugin-throw-fails-fiber](../../../basis/cordis/plugin-throw-fails-fiber.md)、[effect-disposal-concurrent-not-ordered](../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)，均有 4.0.4 probe。provide 纳管与 fiber 状态读沿 [kernel-basis 已有验证](../../packages/core/kernel-basis/verification.md)，未由它们推导出本组合关闭保证。本阶段没有新事件协议或异步 bail 授权门。
+Cordis 的依据仍是 [inject-has-no-optional-form](../../../basis/cordis/inject-has-no-optional-form.md)、[plugin-body-reruns-on-provider-change](../../../basis/cordis/plugin-body-reruns-on-provider-change.md)、[plugin-throw-fails-fiber](../../../basis/cordis/plugin-throw-fails-fiber.md)、[effect-disposal-concurrent-not-ordered](../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)，均有 4.0.4 probe。provide 纳管与 fiber 状态读沿 [kernel-basis 已有验证](../../../../../packages/core/kernel-basis/verification/README.md)，未由它们推导出本组合关闭保证。本阶段没有新事件协议或异步 bail 授权门。
 
 ## 缺口与受阻消费者
 

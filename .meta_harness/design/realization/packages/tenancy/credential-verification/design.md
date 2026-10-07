@@ -7,7 +7,7 @@
 
 **为什么是插件而不是模块**：它要被 account-identity 在**运行期解析**并可能被**整体换掉**（密码 → OIDC）。换掉一个模块要重新构建消费者；换掉一个服务实例只要装配换 provide。这是 #8 里「独立变化原因」最强的一处，C 给的证据强度是「强」。
 
-**Cordis 版本**：采用 `@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）。
+**Cordis 版本**：采用 `@deepseek-ai/cordis` 4.0.4（D-025）。
 
 ## 能力到 Cordis 的投影
 

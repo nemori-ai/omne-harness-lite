@@ -4,8 +4,8 @@
 
 ## 输入与责任
 
-- [D-088](../../../../record/decisions/model-runtime-log-codec-adoption/decision.md) 与 [v4-log-codec-design](v4-log-codec-design.md) 继续拥有共同键、捕获、关联、完整批和 G29-P 前提。
-- [D-090](../../../../record/decisions/model-headers-v5-adoption/decision.md) 接受 [MR5](../../../../spec/data/model-response/v5/contract.md) / [RT5](../../../../spec/capabilities/model-request-runtime/v5/contract.md)。本次仅将 MR5 的完整表示接收接到 codec；尤其 rawHeaders 保留字符串或有序字符串数组，缺席与空 map 不合并。
+- D-088 与 [v4-log-codec-design](v4-log-codec-design.md) 继续拥有共同键、捕获、关联、完整批和 G29-P 前提。
+- D-090 接受 [MR5](../../../../spec/data/model-response/v5/contract.md) / [RT5](../../../../spec/capabilities/model-request-runtime/v5/contract.md)。本次仅将 MR5 的完整表示接收接到 codec；尤其 rawHeaders 保留字符串或有序字符串数组，缺席与空 map 不合并。
 - MS4、CA2、SL3 和 D-087 结算投影没有因此换版。codec 不获得日志权限，不决定调用收场、不发送 HTTP、不判 Run 终结、不校验凭据来源。
 - core/model-response/v5 已提供明确公开接收器；codec 消费该公开入口，不私导 core 源码。布尔 judge 不制造 owned value，仍先捕获自有 JSON，再完整接收。
 

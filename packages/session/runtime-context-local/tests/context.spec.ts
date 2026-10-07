@@ -18,7 +18,7 @@ import type {
   ContextSource,
   ContextSessionSeed,
 } from '@omne-harness-lite/runtime-context'
-import { createRuntimeContext, createContextSessionInitializer } from '../src/index.ts'
+import { createRuntimeContext } from '../src/index.ts'
 import { scope, at, identityRegistration, seed, source, host, init, reader } from './fixture.ts'
 
 test('independent registration/content revisions, immutable data, required identities and persistent removal', async () => {
@@ -61,7 +61,12 @@ test('independent registration/content revisions, immutable data, required ident
     expect(await read.read(['identity'])).toMatchObject({ reason: 'sourceUnavailable' })
     const removed = await api.remove(h.access, scope, 'public', added.revision)
     expect(removed.kind).toBe('applied')
-    const restored = createRuntimeContext({ log: h.log, access: h.auth.operations, now: () => at })
+    const restored = createRuntimeContext({
+      storage: h.storage,
+      log: h.log,
+      access: h.auth.operations,
+      now: () => at,
+    })
     restored.sources.registerSource(source())
     const entries = await restored.operations.registrations(h.access, scope)
     expect(entries).toMatchObject({ entries: [{ key: 'identity' }] })
@@ -155,7 +160,7 @@ test('concurrent incompatible initialization writes only one policy; unknown ver
   const h = await host()
   try {
     const alternative: ContextSessionSeed = { required: [], initial: [], fixed: [] }
-    const other = createContextSessionInitializer(h.log)
+    const other = h.initializer
     const values = await Promise.all([
       h.initializer.initializeContextSession(scope, seed),
       other.initializeContextSession(scope, alternative),
@@ -174,9 +179,9 @@ test('concurrent incompatible initialization writes only one policy; unknown ver
     expect(await h.owner.operations.registrations(h.access, scope)).toMatchObject({
       reason: 'unavailable',
     })
-    expect(
-      await createContextSessionInitializer(h.log).initializeContextSession(scope, seed),
-    ).toMatchObject({ reason: 'unavailable' })
+    expect(await h.initializer.initializeContextSession(scope, seed)).toMatchObject({
+      reason: 'unavailable',
+    })
     await other.drain()
   } finally {
     await h.close()
@@ -191,7 +196,13 @@ test('unknown receipt retains the original initialization and blocks a second de
     physical = gate.promise.then(() => h.log.append(...args))
     return { failure: 'unavailable' }
   })
-  const initializer = createContextSessionInitializer({ ...h.log, append })
+  const testOwner = createRuntimeContext({
+    log: { ...h.log, append },
+    storage: h.storage,
+    access: h.auth.operations,
+    now: () => at,
+  })
+  const initializer = { ...testOwner.initializer, drain: testOwner.drain }
   try {
     expect(await initializer.initializeContextSession(scope, seed)).toMatchObject({
       reason: 'unavailable',
@@ -491,6 +502,7 @@ for (const recovery of ['persisted', 'reread_source', 'recompute'] as const)
       })
       recoveredOwner = createRuntimeContext({
         log: recoveredLog,
+        storage: h.storage,
         access: h.auth.operations,
         now: () => at,
       })

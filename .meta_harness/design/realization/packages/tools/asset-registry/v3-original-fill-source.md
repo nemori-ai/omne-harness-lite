@@ -4,14 +4,14 @@
 
 | 分层状态 | 本稿事实 |
 | --- | --- |
-| 语义接受 | AR3、MF3、AE4 已由 [当前输入契约采用决定](../../../../record/decisions/model-current-input-contracts-adoption/decision.md) 接受；本补充未采用。MS2、SLog2 采用既有 v2；不改它们 |
+| 语义接受 | AR3、MF3、AE4 已由 当前输入契约采用决定 接受；本补充未采用。MS2、SLog2 采用既有 v2；不改它们 |
 | 可实施范围 | 已定位完整 fill 记录的纯字段提取、已有公开读面的有限认回可供独立审查；通用恢复、完整重新 fill 后的可靠接续及其并发消费受 OF-G1/2 阻断 |
 | 绑定与证据 | 0 新 bindings；下述 OF-V 场景是尚未执行的义务。反例是可重放的契约走查，不是产品运行证据 |
 | 实际验证 | 无本稿产品验证；独立技术闭包实现或原节点测试不能关闭本稿及 EIS SI-G1 |
 
 ## 精确输入与“原 fill”的时间范围
 
-baseline 均为 `omne-harness-lite-design-2026-09-15`。AR3 指 [`capability.asset-registry/v3`](../../../../spec/capabilities/asset-registry/v3/contract.md)，MF3 指 [`capability.assembly-manifest/v3`](../../../../spec/capabilities/assembly-manifest/v3/contract.md)，AE4 指 [`capability.asset-evaluation/v4`](../../../../spec/capabilities/asset-evaluation/v4/contract.md)，MS2 指 [`data.messages/v2`](../../../../spec/data/messages/v2/contract.md)，SLog2 指 [`capability.session-log/v2`](../../../../spec/capabilities/session-log/v2/contract.md)。本稿消费 [D-077](../../../../record/decisions/model-source-interfaces-adoption/decision.md) 已采用的 [EIS source interfaces revision 1](../../assets/evaluation-input-store/v3-source-interfaces.md)，SHA-256 `1d0be74b524b6609c2a1d61e5ce49ebdcf3247026b710458a951823ee83640b6`；其 SI-G1 是本稿的输入缺口，不是已满足前提。
+baseline 均为 `omne-harness-lite-design-2026-09-15`。AR3 指 [`capability.asset-registry/v3`](../../../../spec/capabilities/asset-registry/v3/contract.md)，MF3 指 [`capability.assembly-manifest/v3`](../../../../spec/capabilities/assembly-manifest/v3/contract.md)，AE4 指 [`capability.asset-evaluation/v4`](../../../../spec/capabilities/asset-evaluation/v4/contract.md)，MS2 指 [`data.messages/v2`](../../../../spec/data/messages/v2/contract.md)，SLog2 指 [`capability.session-log/v2`](../../../../spec/capabilities/session-log/v2/contract.md)。本稿消费 D-077 已采用的 [EIS source interfaces revision 1](../../assets/evaluation-input-store/v3-source-interfaces.md)，SHA-256 `1d0be74b524b6609c2a1d61e5ce49ebdcf3247026b710458a951823ee83640b6`；其 SI-G1 是本稿的输入缺口，不是已满足前提。
 
 AR3 S-22④规定：已有表时完整 fill 是完整重新装配，六张整批顶替。S-23④的 reload 保留该会话装配所依的定义版本与根；S-24②沿用该根，最近 reload 影响其中规定的工作区读入配方，不产生新的完整装配。故本稿的“原 fill”指**所消费当前完整装配对应的、最近成功提交的完整 fill**，不是会话出生时第一次 fill，也不是最近一条 mint。旧报告所依表的历史恢复另沿 S-25/S-33，不把本稿的当前原 fill 强加给旧报告。
 
@@ -90,7 +90,7 @@ OF-1 的公开函数不依赖 Cordis、会话日志、EIS 或存储。请求者�
 
 ## 装卸、观测与取舍
 
-沿 [D-025 Cordis 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)，本稿无新 fiber/service/effect。纯提取无 IO 资源；服务只借 manifest 与 EIS 读闭包，取得配置/依赖并满足来源前置后才调用。缺少真实来源是对应调用 unavailable，不新增“缺来源时默认创建”的启动政策。未来配置若非法仍沿原节点启动失败。
+沿 D-025 Cordis 4.0.4，本稿无新 fiber/service/effect。纯提取无 IO 资源；服务只借 manifest 与 EIS 读闭包，取得配置/依赖并满足来源前置后才调用。缺少真实来源是对应调用 unavailable，不新增“缺来源时默认创建”的启动政策。未来配置若非法仍沿原节点启动失败。
 
 | 装载贡献／所有者 | 何时可用、部分失败 | 撤除与仍为真的事实 |
 | --- | --- | --- |

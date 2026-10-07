@@ -1,6 +1,6 @@
 # pi-ai-transport 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 契约：[`capability.model-request-runtime` v2](../../../../spec/capabilities/model-request-runtime/v2/contract.md)（下文「契约 S-n」「契约 G-n」都指它；引别的契约写全坐标）。
 本页的导出名、服务键、插件名、日志事件名、配置项名一律是**候选**；源码不存在。契约的九件事不复述，只写本节点上的兑现点与缺口。
@@ -9,10 +9,10 @@
 
 **定向 fork pi 的传输一层，放进本 monorepo 一个包；HTTP 用 Node 内置 `node:https` 直发，不带 pi 的 SDK 依赖。**
 
-- **方向与基线已接受**：[D-019](../../../../record/decisions/model-provider-pi-ai-fork/decision.md#选择与范围)（以 pi-ai 的 OpenRouter 协议请求与流／工具解析为基线，定向 fork；目录估价不得冒充实际费用；拒绝整包服务层）；[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-5 与 [D-019 追加 2026-09-25](../../../../record/decisions/model-provider-pi-ai-fork/gate-status-2026-09-25.md)（基线 `earendil-works/pi` 提交 `3390bd93630965a12a0a1a5c36ce890ec22f7e1d`，即 `@earendil-works/pi-ai@0.86.1`；**只取传输一层**：请求发出、流片段接收、供应商错误映射；其余 pi 代码不进来）。2026-10-02 按 R-5「按需同步」改锚到 1.0.0 发布提交 `a13d35a`，代码未改（[D-019 追加 2026-10-02](../../../../record/decisions/model-provider-pi-ai-fork/rebase-1.0.0-2026-10-02.md)）。R-5 比 D-019 原文窄：**pi 的模型目录不进来**——本系统的档案归 `capability.model-profile-directory`，目录费率本来就不许用。
-- **流片段语法**：[D-035](../../../../record/decisions/message-and-stream-baseline/decision.md#选择与范围)——pi 只在传输适配处被翻译进来；[保留前提](../../../../record/decisions/message-and-stream-baseline/decision.md#理由与保留前提) 1（fork 禁止中间解析、唯一解析点在装配器）与 2（custom grammar 分支会构造 JSON 增量）由本节点的 [fork 边界](#fork-边界)兑现：普通 function 分支去掉 `parseStreamingJson`，custom grammar 分支整个不取。
+- **方向与基线已接受**：D-019（以 pi-ai 的 OpenRouter 协议请求与流／工具解析为基线，定向 fork；目录估价不得冒充实际费用；拒绝整包服务层）；D-063 R-5 与 D-019 追加 2026-09-25（基线 `earendil-works/pi` 提交 `3390bd93630965a12a0a1a5c36ce890ec22f7e1d`，即 `@earendil-works/pi-ai@0.86.1`；**只取传输一层**：请求发出、流片段接收、供应商错误映射；其余 pi 代码不进来）。2026-10-02 按 R-5「按需同步」改锚到 1.0.0 发布提交 `a13d35a`，代码未改（D-019 追加 2026-10-02）。R-5 比 D-019 原文窄：**pi 的模型目录不进来**——本系统的档案归 `capability.model-profile-directory`，目录费率本来就不许用。
+- **流片段语法**：D-035——pi 只在传输适配处被翻译进来；保留前提 1（fork 禁止中间解析、唯一解析点在装配器）与 2（custom grammar 分支会构造 JSON 增量）由本节点的 [fork 边界](#fork-边界)兑现：普通 function 分支去掉 `parseStreamingJson`，custom grammar 分支整个不取。
 - **上游语义的来源**：pi 0.86.1 的行为读数全部来自研究 `model-request-transport-sources`（`.meta_harness/research/` 下，证据记录 E2、E3；OpenRouter 用量文档 E11）——**离线读数，未升 basis，一律是待核对主张**。fork 之后这些行为变成本包自己的代码，证据改为本包的符合性测试（[verification](verification.md#证据义务)），不再需要以「上游缺省行为」立 basis；契约 [G-10](../../../../spec/capabilities/model-request-runtime/v2/contract.md#十二已知缺口) 已按 D-060 §八 N-40 ④ 采用本包 T-1～T-11 为验证路径；测试尚未执行，不能据此称 G-10 已兑现。**Node `node:https` 的三条行为**（不跟随重定向、请求没有缺省总超时、`signal` 中止在途请求）是**假设，须按 source-check 取证**；本包的符合性测试恰好会在它们变了时失败（[verification](verification.md#证据义务) T-9、T-1、T-10）。
-- **Cordis 采用版本** `@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/decision.md)），只在插件子入口里用；插件层共用件取 [kernel-basis](../../../../../../packages/core/kernel-basis/README.md)（`definePlugin`）。
+- **Cordis 采用版本** `@deepseek-ai/cordis` 4.0.4（D-025），只在插件子入口里用；插件层共用件取 [kernel-basis](../../../../../../packages/core/kernel-basis/README.md)（`definePlugin`）。
 - **同批 core 纯模块**（接口由那边定，本页只写用法）：[arrival-events](../../core/arrival-events/README.md)（事件类型）、[content-blocks](../../core/content-blocks/README.md)（块类型、`readJsonStrict` 严格无损 JSON 读）、[call-accounts](../../core/call-accounts/README.md)（`Usage`、`Cost`、`ExactDecimal`）、[messages](../../core/messages/README.md)、[model-profile](../../core/model-profile/README.md)、[model-response](../../core/model-response/README.md)、[tool-definition](../../core/tool-definition/README.md)（`ModelToolEntry`）、[loop-extension](../../core/loop-extension/README.md)（`FailureCause`，只供候选状态码表的类型）。传输接口的类型 `TransportAdapter` 由 [model-request-runtime](../model-request-runtime/design.md#公开面) 的函数面导出，本包**只作类型依赖**（消费方定端口；它不 import 本包）。
 
 | 选择 | 落选方的最强论证 | 本方弱点 | 置信度 |
@@ -21,7 +21,7 @@
 
 ## fork 边界
 
-**来源**：`earendil-works/pi` 1.0.0 发布提交 `a13d35a`，`packages/ai/src/`（下表路径都相对它）。下表初稿按 0.86.1 之后的 `3390bd9` 写成，那份来源归档的 SHA-256 记在研究 `model-request-transport-sources` 证据记录的「取证条件总览」里（`29b35ae6…`）；两版之间下表所涉两个文件的改动逐处处置与新归档的哈希见 [D-019 追加 2026-10-02](../../../../record/decisions/model-provider-pi-ai-fork/rebase-1.0.0-2026-10-02.md)。**取的是函数与片段，不是整文件照搬**；每个取来的片段在本包里保留原作者的 MIT 许可声明与「来自哪个文件、哪个提交、改了什么」的头注。
+**来源**：`earendil-works/pi` 1.0.0 发布提交 `a13d35a`，`packages/ai/src/`（下表路径都相对它）。下表初稿按 0.86.1 之后的 `3390bd9` 写成，那份来源归档的 SHA-256 记在研究 `model-request-transport-sources` 证据记录的「取证条件总览」里（`29b35ae6…`）；两版之间下表所涉两个文件的改动逐处处置与新归档的哈希见 D-019 追加 2026-10-02。**取的是函数与片段，不是整文件照搬**；每个取来的片段在本包里保留原作者的 MIT 许可声明与「来自哪个文件、哪个提交、改了什么」的头注。
 
 | 上游位置 | 取不取 | 在本包里改了什么／为什么不取 |
 | --- | --- | --- |
@@ -103,7 +103,7 @@
 
 ### 规划拒绝的三种值与收场
 
-`planRequest` 在「已出门」之前运行，只交拒绝值、不开连接；**收场在 P-2**，按契约 [S-28](../../../../spec/capabilities/model-request-runtime/v2/contract.md#s-28-opencall) 末条与 [S-29](../../../../spec/capabilities/model-request-runtime/v2/contract.md#s-29-dispatch) ④（[D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-40 ④、N-41 ①）。这次发出**不算已出门**，没有响应体。
+`planRequest` 在「已出门」之前运行，只交拒绝值、不开连接；**收场在 P-2**，按契约 [S-28](../../../../spec/capabilities/model-request-runtime/v2/contract.md#s-28-opencall) 末条与 [S-29](../../../../spec/capabilities/model-request-runtime/v2/contract.md#s-29-dispatch) ④（D-060 §八 N-40 ④、N-41 ①）。这次发出**不算已出门**，没有响应体。
 
 | 拒绝值（候选名） | 与出门前检查的哪一行是同一判定 | P-2 的收场（契约 S-29 ④） |
 | --- | --- | --- |
@@ -299,9 +299,9 @@
 | # | 缺口 | owner | 受阻的消费者 | 闭合条件 |
 | --- | --- | --- | --- | --- |
 | PAT-N1 | **尚未建包**，没有任何实现与测试 | 实施程 | 全部真实发出 | 包按本页建起，[verification](verification.md#证据义务) 的 T 系列跑通 |
-| PAT-N2 | **D-019 比较门一项都没有在真实 OpenRouter 上过**：十五项（请求路由、原始工具参数与结果回传 ID、流终态与无尾随事件、实际执行方与响应 ID、`usage.cost` 质量、私有 replay、重定向、错误、断流、abort、无隐藏重试……）与四项请求差异（最大生成长度字段、`store`、`reasoning`、`strict`），外加本页新增的几项（`transforms` 缺省、`require_parameters`、`anthropic/*` 走 chat-completions、我们自己那两种消息的落点、中途 system）。2026-09-23 的现状表（D-019 追加）是另一条实施线的样本，**不是本节点的证据** | 主线 → 实施程；[D-064 ⑲](../../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 已授权用本机 `.env` 密钥做少量真实小请求，密钥不进入会话、日志或证据；尚未实测 | 产品装配的每一次真实发出 | 每一项有测试或实测记录，结果登在 record/evidence 并回填 verification；任何费用或身份丢失先报反例 |
+| PAT-N2 | **D-019 比较门一项都没有在真实 OpenRouter 上过**：十五项（请求路由、原始工具参数与结果回传 ID、流终态与无尾随事件、实际执行方与响应 ID、`usage.cost` 质量、私有 replay、重定向、错误、断流、abort、无隐藏重试……）与四项请求差异（最大生成长度字段、`store`、`reasoning`、`strict`），外加本页新增的几项（`transforms` 缺省、`require_parameters`、`anthropic/*` 走 chat-completions、我们自己那两种消息的落点、中途 system）。2026-09-23 的现状表（D-019 追加）是另一条实施线的样本，**不是本节点的证据** | 主线 → 实施程；D-064 ⑲ 已授权用本机 `.env` 密钥做少量真实小请求，密钥不进入会话、日志或证据；尚未实测 | 产品装配的每一次真实发出 | 每一项有测试或实测记录，执行结果留本工作树 tmp，可复跑资源及范围回填 verification；任何费用或身份丢失先报反例 |
 | PAT-N3 | **候选状态码表的每一行未取证**。`402`（余额不足）⇒ `credential_unavailable`、`403`（输入被审核拦下）⇒ `request_rejected` 两行的归属**已由契约定下**（S-18 末条，D-060 §八 N-41 ③），前提——两个码的含义如此——同样待取证；带内 `code` 与 HTTP 状态是同一套码也待取证（契约 G-5） | 本节点（取证） | P-2 的 `statusCauseTable`（契约 G-5）；场景 S-46 | OpenRouter 错误页入研究并逐行对上；带内 `code` 的码空间核实 |
-| PAT-N4 | **已由契约闭合**：契约 [S-38](../../../../spec/capabilities/model-request-runtime/v2/contract.md#s-38-装配给的保证-vs-协议须给的保证) 传输适配第 2 条改为「HTTP 层失败取 HTTP 状态；流开始之后的带内错误取带内 `code` 并标 `inBand`」，`data.model-response/v2` [S-15](../../../../spec/data/model-response/v2/contract.md#s-15-故障的成因与原样状态码) 加 `inBand`，场景 S-46 第 6 支同步（[D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-40 ④、N-41 ②）。本节点的落点：`in_band` 失败事实 = `statusCode` 取带内 `code` ＋ `inBand: true` ＋ `httpStatus` 另带，由 P-2 原样落（[流翻译表](#上游的流怎样译成到达事件)）；T-19 带内一支改为断言 | — | — | — |
+| PAT-N4 | **已由契约闭合**：契约 [S-38](../../../../spec/capabilities/model-request-runtime/v2/contract.md#s-38-装配给的保证-vs-协议须给的保证) 传输适配第 2 条改为「HTTP 层失败取 HTTP 状态；流开始之后的带内错误取带内 `code` 并标 `inBand`」，`data.model-response/v2` [S-15](../../../../spec/data/model-response/v2/contract.md#s-15-故障的成因与原样状态码) 加 `inBand`，场景 S-46 第 6 支同步（D-060 §八 N-40 ④、N-41 ②）。本节点的落点：`in_band` 失败事实 = `statusCode` 取带内 `code` ＋ `inBand: true` ＋ `httpStatus` 另带，由 P-2 原样落（[流翻译表](#上游的流怎样译成到达事件)）；T-19 带内一支改为断言 | — | — | — |
 | PAT-N5 | **`cost` 的单位是 credits**（研究 E11）；本包按 1 credit = 1 USD 记进 `cost_usd`，未核实 | 本节点（取证） | 成本明细（`data.call-accounts` S-8） | 官方文档或按 generation id 查账对上；不成立时改记 `"unknown"` 或给出换算来源 |
 | PAT-N6 | **三项输入 token 的换算**依赖「`prompt_tokens` 含缓存读与缓存写」这一待核对主张 | 本节点 ＋ `data.call-accounts` [G-6](../../../../spec/data/call-accounts/v2/contract.md#十已知缺口) | 用量明细、`total_tokens` 派生 | 实测对上，映射写进模型调用一侧的契约 |
 | PAT-N7 | **`is_byok` 无处可放、语义未核实**（`cost` 在它为真时指什么） | `data.call-accounts` G-6 的 owner | 成本口径 | 核实后决定要不要一个成员 |
@@ -322,6 +322,14 @@
 
 ## D-070：铸号接缝与仍未闭合的入口
 
-普通生产者统一随机生成的旧概括不适用于本节点；BlockId 的 b 加连续索引保留，从 0 起属于本提供者选择，AE 只要求非负严格递增。CallId 的三元组哈希输入精确采用 [R2 铸号及数字表示](../../../../record/proposals/content-blocks-implementation-seams/design.md#铸号责任协调)；三个元素是字符串，ECMAScript JSON.stringify 无 replacer/space 后 UTF8，数字成功域为原无上界 JsonNumber 整数，以去尾零系数 e 非负指数规范化，不经有损 Number。
+普通生产者统一随机生成的旧概括不适用于本节点；BlockId 的 b 加连续索引保留，从 0 起属于本提供者选择，AE 只要求非负严格递增。CallId 的三元组哈希输入精确采用 R2 铸号及数字表示；三个元素是字符串，ECMAScript JSON.stringify 无 replacer/space 后 UTF8，数字成功域为原无上界 JsonNumber 整数，以去尾零系数 e 非负指数规范化，不经有损 Number。
 
-此精化由 [D-070 I-B](../../../../record/decisions/core11-integration-coordination/decision.md#生产者铸号)采用，但**非法 target 的 planRequest 收口仍阻断完整入口实施**；CallId 登记判重／恢复与 D-019 比较门仍未闭合。上游 core 已交付通用数值桥及其消费者，本支旧“其他 core 数值映射一概缺失”的阻断概括已由 D-070 取代；这不自动迁移本节点的 v2 依赖，也不代表正式 pi 调用链的每跳无损已经验证。确定性哈希不提供会话唯一性保证，不以 session-log opaque dedupeKey 代替载荷判重。
+此精化由 D-070 I-B采用，但**非法 target 的 planRequest 收口仍阻断完整入口实施**；CallId 登记判重／恢复与 D-019 比较门仍未闭合。上游 core 已交付通用数值桥及其消费者，本支旧“其他 core 数值映射一概缺失”的阻断概括已由 D-070 取代；这不自动迁移本节点的 v2 依赖，也不代表正式 pi 调用链的每跳无损已经验证。确定性哈希不提供会话唯一性保证，不以 session-log opaque dedupeKey 代替载荷判重。
+
+## 共享 reader 与承载边界
+
+本期线上交付范围为 text/image。其他已声明模态的定义不缩减；音视频仍返回 modality_not_carried。
+
+无 id 的相邻 reasoning.text 只有 type、format、index 及其余未知成员逐值相等时才合并。签名允许从缺席/null 到一次非空值，此后仅允许重复同值。签名到达后再来的无签名片段是新条目。同一响应内相邻同 index 属于同一内容块是此规则的前提，不推广到任意事件流。
+
+换路由的 opaque 思考块规划返回 unavailable，不剥离或降级为明文。reasoning.encrypted.data 为 [REDACTED] 时不可解释，下一轮 unavailable 且零 HTTP。上下文组装的外来 opaque 处理、截断 completeness 和 encrypted 工具身份投影仍须各自拥有者闭合；不能凭本页规则声称实际认证已完成。

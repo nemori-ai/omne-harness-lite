@@ -89,7 +89,7 @@ confirmed_on: 2026-09-17
 | 活体的业务能力用 `ctx.inject` 获得 | `inject` 的真实含义是「提供者换代或不可用，**我就卸载重跑**」。判断该不该 inject，要问消费者「**能承受被重启吗**」 | 按实际消费者捕获其自身绑定，不把每项业务能力的实现都做成 Agent Loop 的必需注入。长时工作承受不起被重启——这正是 C3、C4 的由来 |
 | 撤除时各 disposer 会按序完成，失败会被报告 | effect 之间由并发驱动，**逆序只约束取出**；异常**只写日志不上抛** | 需要次序与结算的撤除，**合并进一个撤除过程**；失败要被感知，就在该过程内部自行上报（C5） |
 | 用 `isolate` 给作用域做隔离 | `isolate` 隔离的是**服务实例的可见性**，不隔离数据 | 作用域隔离不靠 `isolate`；身份校验属数据访问层，归 [SYS-TENANT](../cross-system-constraints/requirements.md#sys-tenant) |
-| 用 `bail` 做准入判定 | `bail` 不 await，异步判定被**静默跳过**，不抛错不告警 | 需要 I/O 的准入走顺序 await 的派发方式 |
+| 用 `bail` 做准入判定 | `bail` 不 await，Promise 本身是 bail 值；同步派发在它处停止并原样返回，异步判定尚未取得 | 需要 I/O 的准入走顺序 await 的派发方式 |
 
 四条读数分别登记在 [basis 的 cordis 条目](../../basis/README.md) 的对应条目：
 [必需服务换提供者会使插件体重跑](../../basis/cordis/plugin-body-reruns-on-provider-change.md)、
@@ -97,13 +97,7 @@ confirmed_on: 2026-09-17
 [`isolate` 隔离服务实例的可见性](../../basis/cordis/isolate-hides-instances-not-data.md)、
 [`bail` 不能承载异步控制判定](../../basis/cordis/async-control-not-bail.md)。
 
-> **四条的 probe 目前都是 `null`。**按 [basis 的规矩](../../basis/README.md)，
-> 它们属于**待核对主张，不得单独作为设计依据**。
-> 因此本节右列的做法在 probe 补齐之前是**有条件的结论**，不是已验证的机制事实。
->
-> 另有一项实现侧印证：现有 agent 活体提供者已采用「在装配时捕获、执行中不逐次解析」
-> 与「把必要顺序置于一个复合清理过程」。**那是设计选择的印证，不是语义的 probe**，
-> 不能替代补齐义务。
+机制读数与可复跑 probe 以相应 basis 条目的当前正文为准。probe 只验证明确条件下的内核行为，不代替本系统的领域语义或完整组合保证。
 
 **本条与上表的关系要分清**：C1–C4 是**建模决定**，即使四条读数全被推翻，
 「定义是数据、活体是装配产物」依然成立——它的理由在上一节的前两条，与内核无关。
@@ -122,7 +116,7 @@ confirmed_on: 2026-09-17
 
 ## 待澄清
 
-- **四条 basis 的 probe 未落地。**机制边界一节的结论在补齐之前是有条件的；
+- **basis 覆盖有边界。**超出相应 probe 的机制前提必须补足，不能按一次运行推广；
   补齐 owner 见各条目自身（两条已写明「kernel 侧首个集成包」）。
 - **作用域怎样成为装配的输入。**产品侧已有四层作用域
   （[PF-001](../../product/PF-001-identity-scope-and-agent-constraints/design.md#61-层次)），

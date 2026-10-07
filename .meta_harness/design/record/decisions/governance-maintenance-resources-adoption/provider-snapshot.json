@@ -1,6 +1,0 @@
-{
-  "record/proposals/governance-production-mechanisms/maintenance-resource-lifetime.md": "0e5dd670ec902f470842d90eaeb9cdaf68914780c90c23ab39101d880c894b83",
-  "realization/packages/core/storage/maintenance.md": "eb0b83ee4a03cae8fca288a8dac43bf3896cb9012b49aa853a354e826150a15f",
-  "realization/packages/infra/storage-sql/maintenance.md": "abfe9d6857ddea2d632db31d6f58d6e06a207be812d2ba482817a9ade2fd370a",
-  "realization/packages/tenancy/governance-center-entry/maintenance.md": "f6c651e8343588920c14791acf268c6a8cc310341be8cd5080e3bc57ba3ebed4"
-}

@@ -1,9 +1,0 @@
-{
-  "base_commit": "cc01c8322e71d48d784bcb66e27cb81814fd4b6f",
-  "branch": "pandazki/add-tui-developer",
-  "source_files": 378,
-  "node": "24.21.0",
-  "macos": "arm64",
-  "linux": "arm64",
-  "linux_image": "node@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6"
-}

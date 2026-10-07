@@ -9,7 +9,7 @@ import {
 } from '../src/index.ts'
 import { IoFailure } from '../src/file-io.ts'
 import { openWithIo } from '../src/open.ts'
-import { sessionLogJsonl } from '../src/plugin.ts'
+import { createSessionLogJsonl } from '../src/cordis.ts'
 import {
   deferred,
   entry,
@@ -316,11 +316,10 @@ describe('borrowed synchronous diagnostic boundary', () => {
     const dir = await root()
     const events: SessionLogDiagnostic[] = []
     const ctx = new Context()
-    const fiber = await ctx.plugin(sessionLogJsonl, {
-      dir,
-      processOwnership,
-      diagnostic: failingSink(events),
-    })
+    const fiber = await ctx.plugin(
+      createSessionLogJsonl({ processOwnership, diagnostic: failingSink(events) }),
+      { dir },
+    )
     disposers.push(() => fiber.dispose())
     const service = ctx.get('sessionLog')
     if (service === undefined) throw new Error('service missing')

@@ -79,13 +79,12 @@ relations:
 | 两个维度的等待态、决策池与卡片是什么 | [产品设计](design.md) |
 | 人怎么走、run 怎么流转、谁能答什么 | [流程与状态](flows.md) |
 | 做成什么样算做对了 | [验收标准](acceptance.md) |
-| 哪些是拍板定的，哪些是推导的 | [决策与来源](decisions.md) |
-| 这块设计怎么演变到今天 | [变更历史](changelog.md) |
-| 当时是怎么谈的 | [设计交流笔记](interviews/README.md) |
+| 哪些是拍板定的，哪些是推导的 | [当前规则与范围](design.md) |
+| 这块设计怎么演变到今天 | [当前规则与范围](design.md) |
 
 ## 状态
 
-- 产品设计：**rev 7**（2026-09-24）。rev 5 **已正式接受**（rev 1 于 2026-09-17）；**rev 6 待产品负责人确认**；rev 7 落产品负责人当场裁定的两条——[它等的那次执行已终局的卡片关成「已作废」](design.md#61-永远等着系统不替人作答)、[放行判断不可用时顶上的是全拒件](design.md#放行判断)（各 rev 改了什么见[变更历史](changelog.md)）
+- 产品设计：**rev 7**（2026-09-24）。rev 5 **已正式接受**（rev 1 于 2026-09-17）；**rev 6 待产品负责人确认**；rev 7 落产品负责人当场裁定的两条——[它等的那次执行已终局的卡片关成「已作废」](design.md#61-永远等着系统不替人作答)、[放行判断不可用时顶上的是全拒件](design.md#放行判断)（各 rev 改了什么见[当前规则与范围](design.md)）
 - 未决项：**无**
 - 待裁决：**无**
 - **两个只引用、不拥有的对象现在各有其家**：**Run** 归
@@ -93,7 +92,7 @@ relations:
   [PF-015](../PF-015-session-lifecycle-and-ownership/README.md)。
   本 topic 按 [PF-004 的先例](../PF-004-agent-definition-and-assembly/design.md#三个只引用不拥有的对象)
   只引用、不拥有，用到哪几件事写在 [design.md §4](design.md#只引用不拥有的两个对象)
-- 上游欠账：**已闭合**——[PF-007 rev 3](../PF-007-meta-capabilities/changelog.md) 已补上
+- 上游欠账：**已闭合**——[当前规则与范围](../PF-007-meta-capabilities/design.md) 已补上
   「**禁的是系统替人解释，不是禁止人给长期授权**」这句交叉引用
 - 技术投影：**尚未开始**
 
@@ -108,9 +107,6 @@ PF-008-human-in-the-loop/
 ├── design.md         两个维度、判断函数、决策池、卡片、产品规则
 ├── flows.md          旅程、异常分支、状态流转、决定权矩阵
 ├── acceptance.md     可观察场景、绝不能发生的事、判据
-├── decisions.md      拍板记录 / PM 推导 / 待裁决 / 来源问题
-├── changelog.md      产品设计本身的演进
-└── interviews/       设计交流笔记（原始材料）
 ```
 
 用户可见交付切片见[故事卡](stories.md)。

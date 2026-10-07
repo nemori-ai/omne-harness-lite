@@ -1,6 +1,6 @@
 # 模型档案目录
 
-当前目录按 [D100](../../../.meta_harness/design/record/decisions/model-runtime-current-generation-adoption/decision.md) 消费已采用的 `capability.model-profile-directory/v5`、`data.model-profile/v5`，沿[当前提供者投影](../../../.meta_harness/design/realization/packages/model/model-profile-directory/v5-current-design.md)实施。包拥有耐久目录、只追加的配置修订事实、官方清单状态和租户凭据绑定。
+当前目录按 D100 消费已采用的 `capability.model-profile-directory/v5`、`data.model-profile/v5`，沿[当前提供者投影](../../../.meta_harness/design/realization/packages/model/model-profile-directory/v5-current-design.md)实施。包拥有耐久目录、只追加的配置修订事实、官方清单状态和租户凭据绑定。
 
 定义包 `@omne-harness-lite/model-profile-directory` 拥有纯判断和服务协议。本提供者根入口导出配置类型；`./cordis` 导出两个 Cordis 插件及配置 Schema；`./migrations` 导出 `modelProfileDirectoryMigrations`；受限 `./tx-reads` 导出 `createCredentialBindingReader`。权威目录以服务面存在。
 

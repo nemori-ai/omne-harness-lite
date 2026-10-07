@@ -375,8 +375,7 @@
 ## 采用与后续核对
 
 本包**不接受任何方案**：上面每一条都写到「这让什么不可能、什么要额外付出代价」为止，
-角色该怎么设计、权限怎么配、取证手段怎么选，归 [record/proposals](../../design/record/proposals/README.md)
-与 [record/decisions](../../design/record/decisions/README.md)。
+角色该怎么设计、权限怎么配、取证手段怎么选，方案比较和采用过程归本工作树 tmp，获准终态写回实际角色、技能或能力拥有者。
 
 当前实际消费本研究的是 `tmp/omne-harness-lite-tui-design/06-debugger-subagent.md`（任务材料，未入库），
 以及将来的 `.meta_harness/agents/roles/frontend-debugger/`。

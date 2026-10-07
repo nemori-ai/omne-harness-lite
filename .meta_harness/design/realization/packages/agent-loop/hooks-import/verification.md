@@ -24,28 +24,15 @@
 | 配置错误同一政策 | 单元测试：`hookEnvAllowlist` 缺席或不是名字列表 ⇒ 装配启动失败；形状按 execution-environments S-13 的 `EnvAllowlist`（可空、每个名非空），与桥 `stdioEnvAllowlist` 同一校验 | 未开始 | 本节点 |
 | D-033 区分实验 | 在钉住副本上做完提案列的四处改动后量改动行数 | 未开始（HI-N4） | 本节点；实施第一步 |
 
-## 实际执行
-
-没有。本契约不选用形式工件，本节点没有源码。
-
 ## 覆盖缺口
 
 - **没有任何证据**：全部义务未开始。导入那一半、映射表与互译是纯函数，有实现即可测；兼容件被调到的全部场景**本版 fail-closed**（HI-N1 ①，产品问题，账本 ⑭），另挡在工作目录来路（HI-N7）与解释器取证（HI-N8）之后；「起不来」各支、中止即停、未确认不挂起可经 `runHostHook` 与本机进程组 launcher 先跑。
 - `bindings.yaml` 为空，与本页一致。
 - **经执行环境最小提供者的停与确认退出**（超时、撤除、取消三种来源）要等那个节点（`execution-environments-host`，已立）建包，且在验收装配里由种子件给出宿主机允许（产品装配里 G-3 未闭合）；本机进程组 launcher 只证执行器这一侧的次序。「停进程组的请求有界答复」由 `capability.execution-environments` v2 S-15 ④ 承诺，本节点没有证据覆盖它（归那份契约的场景 S-22）。
 
-## 独立评审
-
-2026-09-25 本节点（修复波 3 对齐之后）随 N4 批经一次独立的架构评审（只读结构核对，无运行）：建议 1，总判可进 G5；主线据此裁定 [D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M64。**处置不等于评审闭合**——是否闭合由复审判断。
-
-| 编号 | 发现 | 处置 | 落点 |
-| --- | --- | --- | --- |
-| H-1（建议） | 请执行环境停进程组而它缺席或不答时，「等确认退出才算停下」与「确认不了只记日志」合起来没说执行器是挂着不返回还是返回报错 | 按 M64：当场按报错交回（`error`：「已请求停止、未确认退出」）、不挂起；子进程留给执行环境（C-7）按进程组善后；「停进程组请求有界答复」写进 HI-N1 闭合条件 | design.md「起、限时、停」的「停」一条；inject 表 `executionEnvironments` 行；装配给表第 2 行；装卸表在途子进程集合行；HI-N1；本页证据义务新增一行 |
-| 反证清单 1～3 | 区分实验或许可翻向全自写；PF-005 把起子进程收归执行环境宿主；`data.loop-extension` 给 `command` 一条 runner 自驱的执行路径 | 照录为改选条件，本版都未触发（前一条即 HI-N3、HI-N4） | 本表 |
-
 ## 修订波（2026-09-25 公开面）
 
-依据：[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1、R-2，[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)，[D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-37 ⑧⑩。本波只改节点；契约侧（S-18 改指执行环境接口）由规格侧并行落，本节点只引条款号。**处置不等于接受或评审闭合。**
+依据：D-063 R-1、R-2，[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)，D-060 §八 N-37 ⑧⑩。本波只改节点；契约侧（S-18 改指执行环境接口）由规格侧并行落，本节点只引条款号。**处置不等于接受或评审闭合。**
 
 | 事项 | 依据 | 处置 | 落点 |
 | --- | --- | --- | --- |
@@ -63,4 +50,4 @@
 | 最小提供者节点互指（主线 2026-09-25） | `packages/infra/execution-environments-host`、`packages/session/session-tenancy-table`（candidate） | 起子进程四件事落在 `execution-environments-host` 的 S-13～S-15 上；拓展件子进程的宿主机允许来自它的可选读面 `executionPlacementReadings`，缺席即 `noLanding{hostNotAllowed}`、验收由种子件给；HI-N1 ③ 删去、改为「真承接者未到，最小提供者节点已立」；依赖表、装配给表同步 | design.md 起限时停段首、起、依赖表、装配给表、HI-N1；README |
 
 
-**2026-09-26 裁决对账**：[D-064 ⑭](../../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 已允许 hooks 子进程落宿主机，取代此前「产品未允许」的前提。现行未完成项是 EE G-3 的允许读面接线与 HI G-15 的工作目录、变量名单来路；缺席时仍按契约拒绝。以下历史评审记录按当日事实保留；本次不登记实现或验证完成。
+**2026-09-26 裁决对账**：D-064 ⑭ 已允许 hooks 子进程落宿主机，取代此前「产品未允许」的前提。现行未完成项是 EE G-3 的允许读面接线与 HI G-15 的工作目录、变量名单来路；缺席时仍按契约拒绝。以下历史评审记录按当日事实保留；本次不登记实现或验证完成。

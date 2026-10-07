@@ -7,7 +7,7 @@ import {
   type SessionLog,
 } from '@omne-harness-lite/session-log'
 import { openJsonlSessionLog, type JsonlSessionLog, type SessionRef } from '../src/index.ts'
-import '../src/plugin.ts'
+import '../src/cordis.ts'
 
 expectTypeOf(openJsonlSessionLog).returns.toEqualTypeOf<Promise<JsonlSessionLog>>()
 expectTypeOf(checkAppendInput).parameter(3).toEqualTypeOf<unknown>()

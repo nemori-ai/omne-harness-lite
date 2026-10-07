@@ -1,10 +1,10 @@
 # run-attempt-facts-derived 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 ## 实现路径与来源
 
-**自建一个薄插件：读会话日志、折叠、作答，没有自己的存储。**两件事实的权威是会话日志（契约 [S-5](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#s-5-两件事实) 第 4 条；PF-012「用它不引入日志之外的第二份状态」），主线已裁本版**不另存表**（[D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-37 ④）——那一裁定不是本节点的选择，本节点只写它怎样兑现。
+**自建一个薄插件：读会话日志、折叠、作答，没有自己的存储。**两件事实的权威是会话日志（契约 [S-5](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#s-5-两件事实) 第 4 条；PF-012「用它不引入日志之外的第二份状态」），主线已裁本版**不另存表**（D-060 §八 N-37 ④）——那一裁定不是本节点的选择，本节点只写它怎样兑现。
 
 | 用什么 | 从哪来 | 用来做什么 |
 |---|---|---|
@@ -12,7 +12,7 @@
 | `SessionRef`、`RunId`、`AttemptId` | [`core/messages`](../../core/messages/README.md)、[`core/call-accounts`](../../core/call-accounts/README.md) | 输入的表示层校验 |
 | `definePlugin` | [`core/kernel-basis`](../../../../../../packages/core/kernel-basis/README.md) | 插件骨架与配置校验 |
 
-**Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）。
+**Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（D-025）。
 **配置**：`runEndRecognizer`（可选，运行时对象，只有验收装配给）与[策略配置项](#策略配置项) `factsCacheLimit`。**配置错误政策：启动失败**（`definePlugin` 的 Config 校验，basis [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)）；`runEndRecognizer` 在 Config 里以 `z.custom` 描述、同引用交到插件体（与 storage-sql 守卫对象同一前提，那边 2026-09-23 已在 4.0.4 取证）。**缺 `runEndRecognizer` 不是配置错误**：产品装配本来就不给。
 
 ## 公开面

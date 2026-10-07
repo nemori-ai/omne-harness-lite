@@ -1,6 +1,6 @@
 # 模型档案目录
 
-2026-09-28：[D-100](../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 接受当前后继 v5 全部规范资源；旧格式运行兼容承诺被取代，未表示实现完成。
+2026-09-28：D-100 接受当前后继 v5 全部规范资源；旧格式运行兼容承诺被取代，未表示实现完成。
 
 **当前候选 `capability.model-profile-directory/v5`**：[契约](v5/contract.md)与[变化及证据](verification.md#v5-发布前破坏性演进)。由已接受 v4 机械演进，只更新精确消费链并删除旧格式兼容过渡义务；当前代际在途与历史责任保持。未接受、未冻结；中央登记由本批唯一 owner 集成，旧冻结版本不改。下文既有进展按原版本和当时事件读取。
 
@@ -15,7 +15,7 @@
 模型请求运行时消费本契约，本契约不消费它。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.model-profile-directory, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 accepted。`family=capabilities`、`topic=model-profile-directory`、
   `contract_path=spec/capabilities/model-profile-directory/v2/contract.md`，`resources` 另含 `v2/examples.md`；
   依赖五项，消费 clauses 取自[契约 S-4 的被消费面表](v2/contract.md#s-4-依赖方向与被消费的面)：
@@ -24,7 +24,7 @@
 - **提供者/装配映射**：[packages/model/model-profile-directory](../../../realization/packages/model/model-profile-directory/README.md)；当前节点设计已由 D-062 接受，源码／实际验证按各节点四层状态分别读取。
 - **v3 适配绑定版本**：[契约](v3/contract.md)与[实例](v3/examples.md)，已接受并冻结；它不因 v4 候选出现自动支持新增输入限制表示。
 
-- **当前已接受版本**：目录 v3，精确状态按 catalog 及 [D-078](../../../record/decisions/model-main-integration-coordination/decision.md)；上文 v2 接受记录保留历史范围。
+- **当前已接受版本**：目录 v3，精确状态按 catalog 及 D-078；上文 v2 接受记录保留历史范围。
 - **新候选**：`capability.model-profile-directory` v4；[契约](v4/contract.md)、[实例](v4/examples.md)。PF-013 rev 14 / D-096，精确消费 data.model-profile v4 的完整 caps/facts，保留十操作及八失败值。状态 candidate，不自动升级任何消费者。
 
 ## 准入核对
@@ -48,6 +48,6 @@
 
 ## 2026-09-26 版本接受
 
-本次接受 `capability.model-profile-directory` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `capability.model-profile-directory` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
 
-2026-09-28：[D-099](../../../record/decisions/model-input-limit-consumer-contract-adoption/decision.md)在独立复评闭合后技术接受 v4；规范资源冻结。实现采用和验证另行交付，原文 candidate 是起草状态。
+2026-09-28：D-099在独立复评闭合后技术接受 v4；规范资源冻结。实现采用和验证另行交付，原文 candidate 是起草状态。

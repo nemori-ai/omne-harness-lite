@@ -2,7 +2,7 @@
 
 本薄规格约束 N2 的视图行为。公开形状由 [view.ts](view.ts) 的类型拥有。
 输入承诺仍归 [actual.ts](actual.ts)。系统级依据为已接受的
-[D-115](../../../../.meta_harness/design/record/decisions/actual-architecture-and-thin-spec/decision.md)
+D-115
 及负责人确认的 N2 实施范围。视图不是架构预期或行为证明。
 
 ## 投影与证据

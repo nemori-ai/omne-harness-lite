@@ -3,7 +3,7 @@
 核对官方 registry 的服务门面、身份解析、factory 委托及生命周期边界。调查由产品负责人明确提出；本包记录固定上游事实，不接受本项目架构，也不授权复用 DSH Agent。
 
 - 调查对象：deepseek-ai/deepseek-harness `639ed015397290b3745d163aafe02ffee4aa3f84`；限定 agent 包的 index.ts、README、agent.spec.ts。
-- 消费者：[模型调用引用与生命周期提案](../../design/record/proposals/model-runtime-reference-lifecycle/README.md)。
+- 消费者：模型调用引用与生命周期提案。
 - 最近核对：2026-09-29；来源在 [source-manifest.json](source-manifest.json)。
 
 ## 准入核对

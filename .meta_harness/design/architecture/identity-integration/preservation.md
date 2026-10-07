@@ -8,12 +8,12 @@
 
 | 简称 | 有效输入及接受依据 | 本批关系 |
 |---|---|---|
-| AI3 | [account-identity v3](../../spec/capabilities/account-identity/v3/contract.md)，[身份与 offer 采用](../../record/decisions/governance-identity-offer-contracts/acceptance.json) | 账号、登录及凭据接缝 |
-| OG2 | [organization-governance v2](../../spec/capabilities/organization-governance/v2/contract.md)，[事务参与采用](../../record/decisions/governance-participation-provider/acceptance.json) | 已实现四服务面；OG3 的资产读取和新增承诺不伪报通过 |
-| AR2 | [account-registration v2](../../spec/compositions/account-registration/v2/contract.md)，[有界注册采用](../../record/decisions/registration-bounded-provider/acceptance.json) | 注册及过期清除编排 |
-| EC3/HT3 | [入口 v3](../../spec/compositions/governance-center-entry/v3/contract.md)、[HTTPS JSON v3](../../spec/compositions/governance-center-entry-https-json/v3/contract.md)，[在线维护采用](../../record/decisions/governance-online-maintenance-adoption/acceptance.json) | 服务端与运维面；客户端普通操作继续使用 EC2/HT2 已冻结线协议 |
-| CG2 | [客户端操作 v2](../../spec/compositions/governance-client-operations/v2/contract.md)，[预备输入采用](../../record/decisions/governance-prepared-input-adoption/acceptance.json) | 全部 action、use、预备输入及报告 |
-| CLS1 | [本地状态 v1](../../spec/capabilities/client-local-state/v1/contract.md)，[本地状态采用](../../record/decisions/client-local-state-adoption/acceptance.json) | 必要公共形状、CAS、资源生命周期；不裁定新的客户端产品政策 |
+| AI3 | [account-identity v3](../../spec/capabilities/account-identity/v3/contract.md)，身份与 offer 采用 | 账号、登录及凭据接缝 |
+| OG2 | [organization-governance v2](../../spec/capabilities/organization-governance/v2/contract.md)，事务参与采用 | 已实现四服务面；OG3 的资产读取和新增承诺不伪报通过 |
+| AR2 | [account-registration v2](../../spec/compositions/account-registration/v2/contract.md)，有界注册采用 | 注册及过期清除编排 |
+| EC3/HT3 | [入口 v3](../../spec/compositions/governance-center-entry/v3/contract.md)、[HTTPS JSON v3](../../spec/compositions/governance-center-entry-https-json/v3/contract.md)，在线维护采用 | 服务端与运维面；客户端普通操作继续使用 EC2/HT2 已冻结线协议 |
+| CG2 | [客户端操作 v2](../../spec/compositions/governance-client-operations/v2/contract.md)，预备输入采用 | 全部 action、use、预备输入及报告 |
+| CLS1 | [本地状态 v1](../../spec/capabilities/client-local-state/v1/contract.md)，本地状态采用 | 必要公共形状、CAS、资源生命周期；不裁定新的客户端产品政策 |
 
 IV1/OE2 的身份、warrant、时间形状与失败字面继续由原拥有者维护。
 CG2 明确消费的 EC2/HT2 不因服务端采用 EC3/HT3而自动升版。
@@ -70,7 +70,7 @@ AR2 的三步不能改成全链同一个事务。本条校正任务计划早期�
 BASE AST 盘点覆盖 11 个成员的 273 个源码/测试文件、194 条相关 import/export/require，另有 34 个元数据消费者。
 静态入口包括根、`./cordis`、Schema 子入口和生成器。源码扫描不是动态可达性证明。
 计算路径的 Schema require 要按各 schema-inputs 的有限清单核对；Docker 测试的客户端路径要在包改名后执行。
-历史 record 与角色评估夹具保留当时输入，不做全仓替换。
+过程记录及某次运行输入、输出归各自工作树 `tmp/<task>/`。角色评估只保留实际消费者所需的最小夹具；有效终态回到明确拥有者，不以历史 record 作为永久输入。
 
 实际跨域消费者包括 model-invocation-minimal-demo、evaluation-input-store、loop-extension-runner、
 model-request-runtime-local 和 model-profile-directory。它们只做必要公共导入与组合改接。

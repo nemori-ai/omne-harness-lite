@@ -1,6 +1,0 @@
-{"platform":"darwin","architecture":"arm64","node":"v24.21.0"}
-PASS concurrent initialization: four product processes, one identity
-PASS multiprocess CAS: one complete winner
-PASS real directory and main/WAL/SHM permissions
-PASS late-result rejection and reopening persistent identity
-PASS broad main-file permissions rejected without repair

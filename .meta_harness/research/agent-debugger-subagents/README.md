@@ -37,8 +37,7 @@ DeepSeek Harness**——各自把「调试」这件事放进了子代理体系�
 
 本家族不拥有方案选择：结论只写到「这条事实让什么变得不可能、什么要额外付出代价」为止。
 角色该怎么设计、权限怎么配、取证手段怎么选，归
-[record/proposals](../../design/record/proposals/README.md) 与
-[record/decisions](../../design/record/decisions/README.md)。
+本工作树 tmp；获准的终态写回角色、技能或实际能力拥有者。
 
 ## 按当前问题展开
 

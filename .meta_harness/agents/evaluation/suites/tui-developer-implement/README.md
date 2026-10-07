@@ -4,15 +4,14 @@
 针对它的原有测试被拿走，按一份完整的施工简报让它把模块补完——补完之后原有测试与类型检查是否全过，
 它是否守住写入范围、没有动原有测试。判定由程序在收录运行时做，没有判官。
 
-状态：**第 1 版，两次签字已齐（2026-10-02），还没有基线。**基线何时跑由 [#72](https://github.com/nemori-ai/omne-harness-lite/issues/72) 跟踪。
+状态：用例与判定方法已采用；完整基线尚未运行。基线何时跑由 [#72](https://github.com/nemori-ai/omne-harness-lite/issues/72) 跟踪。
 
 这个流与 [developer-implement](../developer-implement/README.md) 同属 `implement` 一类，副本、判定、指标与运行器代码完全相同，
 只有角色、材料与目标测试不同；下文只写不同之处，相同的部分以那份说明为准。
 
 ## 材料
 
-三项都取自[角色模型对照（Sonnet 5.5）](../../role-model-sonnet55/README.md)留出集里属于 tui-developer 的任务
-（[留出集](../../role-model-sonnet55/suites/role-tasks-heldout-v1.json)的 `TD-1`～`TD-3`），钉在提交 `003561900`，成员 `apps/cli`。
+三项的基底、任务和目标测试由 [flow.json](flow.json) 定义，成员是 `apps/cli`。
 
 | 材料 | 被换成桩的模块 | 隐藏的原有测试 | 写入范围 | 目标测试 |
 |---|---|---|---|---|
@@ -33,32 +32,9 @@ TD-2 的目标测试里有 `tui-application.spec.ts`、`tui-dialog.spec.ts` 的�
 
 ## 运行设置
 
-Claude Sonnet 5.5，high，放行 Read、Glob、Grep、Edit、Write、Bash，每份材料 2 次。出处：
-
-- 模型：原对照里 tui-developer 跑过 Opus 5.5 与 Sonnet 5.5 两组，结论是换成 Sonnet 5.5，并已落到角色源
-  （[对照的采用表](../../role-model-sonnet55/README.md#采用)；[角色源](../../../roles/tui-developer/claude.yaml)现钉 `claude-sonnet-5-5`）。这里取 Sonnet 5.5 那一组。
-- 档位：原对照「档位取角色默认（application-developer 为 medium，其余 high）」，tui-developer 两组都是 high（同一份 README 的「方法」）。
-- 工具：原运行脚本 `tooling/evalrun.py` 的 `run` 放行 `Bash`、`Read`、`Edit`、`Write`、`Glob`、`Grep`，禁 `WebFetch`、`WebSearch`、`Agent`。
-  角色定义里另有 WebFetch、WebSearch；registered 派发拿不走它们，用了就体现在 `only_allowed` 上。
-
-## 复制时改了什么
-
-用例的内容（简报框架、三份任务简报、桩、隐藏测试清单、写入范围、目标测试清单）逐字取自原对照，只有：
-
-- 清单字段按 `flow.json` 的形状改写：`stub`、`hidden_tests`、`allowed_write` 放进每份材料的 `task`，目标测试放进独立文件由 `oracle.target_tests` 指过去
-  （[target-tests.json](target-tests.json) 是原文件里 `TD-1`～`TD-3` 三项，条目与顺序不变）。
-- 简报框架 `briefs/_implement.md` 与原对照的同名文件、与 developer-implement 的那份逐字相同；`{ROLE}` 填的是 `tui-developer`，与原对照相同。
-- `target`、`tags` 是新写的说明，不进简报。
-
-判定标准没有改。
-
-## 基线数字与噪声范围
-
-还没有基线。
-
-原对照里这三项的结果（`claude -p` 无界面运行、角色定义作为主会话、每任务每模型 2 次，是旧的结果，**不是这个用例集的基线**）：
-TD-1、TD-2 两个模型都全过 ×2；TD-3 Opus 5.5 为 15/16、14/16，Sonnet 5.5 为 14/16、15/16——两条目标测试（OSC 内的 BEL 是否作取消键；
-单独 ESC 被 Ctrl+G 终止时是否另报 invalid）四组八次无人全过，原对照判为规格未定。见[原对照的逐任务表](../../role-model-sonnet55/README.md#sonnet-55-对-opus-55)。
+模型、档位、工具清单、次数和判定阈值以 [flow.json](flow.json) 为准。
+角色的默认配置归[角色源](../../../roles/tui-developer/claude.yaml)。
+每次执行的输出与比较结果放本工作树 tmp，不在用例说明中追加运行流水。
 
 ## 量不出什么
 

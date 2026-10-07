@@ -1,7 +1,0 @@
-[Unit]
-Description=Owned lifecycle probe only
-[Service]
-Type=simple
-ExecStart=/bin/sh /opt/omne-probe/center.sh
-Restart=on-failure
-TimeoutStopSec=infinity

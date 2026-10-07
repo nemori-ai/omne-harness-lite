@@ -1,6 +1,6 @@
 # pi-ai-transport：完整共享政策与RT5单次头交接
 
-2026-09-28，rev 3，candidate，未接受/未实施/新增bindings0。接续已接受D090 RT5/MR5、D091不透明网络资源与D093纯政策，精确承接[v5-headers-design](v5-headers-design.md)的同次H事实；不消费未接受的RT6模态批次，不新增网络引擎、服务或fiber。
+当前技术采用范围与排除见本页“当前采用范围”；不据此宣称实现或验证完成。
 
 ## 公共配置与来源
 
@@ -29,3 +29,10 @@ transport现有对runtime的workspace依赖改为实际调用这个纯构造器�
 沿PH-V义务，额外把原minimum-only配置改成完整policy的正反验收：静态/插件缺配置拒、共享policy跨error JSON scalar/keys/敏感头/模式一致、直接send配置准入与排队期间源配置变化负控、H采得后处理defect/rejected保持来源/头及实际停止、真实HTTP与带内code同值保真、actualsend公共可达图无原始秘密、所有取消/错误H保留和socket/reader/callback停止；实际公包制品、根/插件公开面以及README/README_ZH示例在完成时一起迁移。没有旧field兼容fallback。
 
 这两份接线稿必须独立有限核对并精确采用后才允许源实施。传输局部pass不关闭业务内容回显、raw.body附件、全部响应写方、G29-P/H、十三操作或37认证；现有纯构件/opaque句柄有限证据仍只支持原范围。
+
+## 当前采用范围
+
+RT5/MR5 的按来源定界凭据政策与两节点 revision 3 接线；同一次完整配置显式校验/冻结，共享 text/headers/json；直接 send 的零连接非法配置门；单一 rawHeaders 的固定交接与处理故障出口。
+
+技术采用不表示实现或实际验证已完成。验证义务：CP-V1..CP-V5；PH-V；完整内容秘密边界和 G29-P/H；实际 TLS/socket/reader/回调收口；各既有操作及模型认证按实际当前实现范围验证。
+范围之外：RT6 模态候选；给所有业务 reply/tool 内容追加未声明保密保证；冻结规范变更。

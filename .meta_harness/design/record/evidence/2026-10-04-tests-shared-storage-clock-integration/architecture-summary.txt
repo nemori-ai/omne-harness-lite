@@ -1,9 +1,0 @@
-实际架构 a18ed435bcc244b50ffd4070e805a560e0912044 · revision · inputDirty false
-产品成员 45；具体未知 7。
-符合性对照 baseline；预期变更 0。运行绑定未观测。
-结构度量 a18ed435b · 分支 固定版本快照 · 基线 精确提交 e22311713b1a94d2e54e9976483d2f94f9a12ea6
-范围：变更 14 个成员、40 个函数
-结构：方向违规 0，环 0，已登记例外 1，变更触及的跨成员导入 51 条；成员风险 红 19、黄 9、绿 17
-圈复杂度（warn 10／alert 12）：变更函数超 alert 0、超 warn 0；存量超 alert 221、超 warn 266
-覆盖率：未开启，只报圈复杂度
-审讯页：/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t1b/architecture-final/report.html

@@ -9,10 +9,10 @@
 当前观察支持：服务端身份一律靠 TLS 证书加「客户端主动核对」，核对方式只有两条路（CA 链加主机名，或记住指纹）；
 持有型令牌是终端用户 API 的通行做法，风险由「必须走 TLS、客户端必须核证书链、短寿命」三条缓解；
 把令牌绑到客户端密钥是金融级 API 的加固，有两份 RFC；机器对机器才普遍用双向 TLS。
-**不支持**：任何「该选什么」的结论——那归 [D-029](../../design/record/decisions/governance-center-transport-binding-acceptance/README.md)。
+**不支持**：任何「该选什么」的结论——那归 D-029。
 
 - 调查对象与基线：RFC 6750、RFC 8705、RFC 9449（rfc-editor 正式版，2026-09-23 抓取）；Kubernetes kubeconfig v1 API 参考页、HashiCorp Vault CLI 环境变量页、OpenBSD `ssh_config(5)`、Syncthing 设备 ID 文档、PostgreSQL 16 libpq SSL 页（均 2026-09-23 抓取）
-- 消费者：[D-029](../../design/record/decisions/governance-center-transport-binding-acceptance/README.md)；[`realization/apps/cli`](../../design/realization/apps/cli/README.md)（客户端核证书的规则）；[`realization/apps/tenancy-host`](../../design/realization/apps/tenancy-host/README.md)（部署边界的运维约定）；账号能力「到期与刷新」议题的将来提案
+- 消费者：D-029；[`realization/apps/cli`](../../design/realization/apps/cli/README.md)（客户端核证书的规则）；[`realization/apps/tenancy-host`](../../design/realization/apps/tenancy-host/README.md)（部署边界的运维约定）；账号能力「到期与刷新」议题的将来提案
 - 最近核对：2026-09-23（首轮）
 
 ## 准入核对

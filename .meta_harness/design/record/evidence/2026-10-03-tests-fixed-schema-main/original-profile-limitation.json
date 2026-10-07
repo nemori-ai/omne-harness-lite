@@ -1,5 +1,0 @@
-{
-  "status": "partial instrumentation only",
-  "reason": "Module._load hook observes candidate explicit require, but native ESM imports in baseline bypass it. Baseline zeros are not absence of compilation. Native CPU profiles remain raw observations; compile count comparison requires prototype instrumentation r2.",
-  "wall_time_benchmark_affected": false
-}

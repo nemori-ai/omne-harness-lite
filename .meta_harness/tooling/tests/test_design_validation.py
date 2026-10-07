@@ -44,7 +44,8 @@ def contract_entry(contract_id: str, family: str, topic: str, resources: list[st
         "status": "accepted",
         "contract_path": f"spec/{family}/{topic}/v1/contract.md",
         "resources": resources,
-        "acceptance": "decisions/accept-current/acceptance.json",
+        "acceptance": {"scope_path": f"spec/{family}/{topic}/v1/contract.md",
+                       "scope_clauses": ["sample-full-contract"]},
         "dependencies": dependencies or [],
     }
 
@@ -118,21 +119,9 @@ def build_tree(root: Path) -> None:
         "# Pending input control\n\n"
         "**PF-SAMPLE-01:** After a user submits a valid control, the system must expose whether "
         "the target run accepted or rejected it without reviving an exited queue owner.\n\n"
-        "The adopted responsibility mapping is recorded by "
-        "[the decision](../../../decisions/accept-current/decision.md).\n",
+        "Current responsibility: [Run contract](../../../spec/capabilities/run/v1/contract.md).\n",
         encoding="utf-8",
     )
-    decision = root / "decisions" / "accept-current" / "decision.md"
-    decision.parent.mkdir(parents=True)
-    decision.write_text(
-        "# Accept current design\n\n"
-        "The decision assigns pending input control to `capability.run@1` and accepts the sample "
-        "data and driver contracts for the exact design baseline. It does not claim that the "
-        "legacy product consumer has upgraded.\n\n"
-        "Source: [requirement](../../requirements/product/sample/requirements.md).\n",
-        encoding="utf-8",
-    )
-
     def selected(topic: str) -> list[str]:
         marker = f"/{topic}/"
         return [path for path in resources if marker in f"/{path}"]
@@ -159,26 +148,7 @@ def build_tree(root: Path) -> None:
                            "rebase_relation": None,
                        }]),
     ]
-    write_json(decision.parent / "acceptance.json", {
-        "format": 1,
-        "decision_path": "decisions/accept-current/decision.md",
-        "accepts": [{
-            "coordinate": entry["coordinate"],
-            "scope_clauses": ["sample-full-contract"],
-        } for entry in entries],
-    })
     write_json(root / "catalog.json", {"format": 1, "baseline_id": BASELINE, "contracts": entries})
-    legacy_snapshot = root / "evidence/legacy-consumers/core-work.schema.json"
-    write_json(legacy_snapshot, {
-        "$id": "https://omne-harness-lite.invalid/spec/data/core-work/v1/schema.json",
-        "description": "Observed legacy product schema fixture",
-    })
-    relation_evidence = root / "evidence/rebase/command-input-IN-02.md"
-    relation_evidence.parent.mkdir(parents=True)
-    relation_evidence.write_text(
-        "# IN-02 mapping evidence\n\nThe sample maps legacy SR-10 to current RUN-03.\n",
-        encoding="utf-8",
-    )
     write_json(root / "lineage.json", {
         "format": 1,
         "target_baseline_id": BASELINE,
@@ -196,34 +166,21 @@ def build_tree(root: Path) -> None:
             "target_clauses": ["RUN-03"],
             "clause_mappings": [{"source": "SR-10", "target": "RUN-03"}],
             "consumers": ["capability.command-input:IN-02"],
-            "release_evidence": [{
-                "path": "evidence/rebase/command-input-IN-02.md",
-                "sha256": sha(relation_evidence),
-            }],
+            "current_bindings": [{"owner_path": "spec/capabilities/run/v1/contract.md"}],
             "freeze_gate": {"blocked": False, "reason": "IN-02 maps to current RUN-03"},
         }],
         "consumer_observations": [
             {
                 "consumer": "capability.command-input:IN-02",
                 "consumes": coordinate("capability.run"),
-                "status": "verified-current",
-                "evidence": {
-                    "source_commit": "e3573ca72d18bfe7ddd002df5025551b51eede46",
-                    "source_path": "spec/capabilities/command-input/v1/contract.md",
-                    "sha256": sha(relation_evidence),
-                    "snapshot_path": "evidence/rebase/command-input-IN-02.md",
-                },
+                "status": "current",
+                "current_binding": {"owner_path": "spec/capabilities/run/v1/contract.md"},
             },
             {
                 "consumer": "packages/core/work-data/src/schemas/core-work.schema.json",
                 "consumes": coordinate("data.core-work", baseline=LEGACY),
                 "status": "observed-legacy",
-                "evidence": {
-                    "source_commit": "e3573ca72d18bfe7ddd002df5025551b51eede46",
-                    "source_path": "packages/core/work-data/src/schemas/core-work.schema.json",
-                    "sha256": sha(legacy_snapshot),
-                    "snapshot_path": "evidence/legacy-consumers/core-work.schema.json",
-                },
+                "current_binding": {"owner_path": "spec/capabilities/run/v1/contract.md"},
             },
         ],
     })
@@ -361,7 +318,7 @@ def test_unblocked_rebase_relation_requires_its_exact_catalog_target(tmp_path: P
 def test_accepted_legacy_dependency_requires_clause_coverage_and_accepted_target(tmp_path: Path) -> None:
     build_tree(tmp_path)
     rebase = json.loads((tmp_path / "lineage.json").read_text())
-    evidence = rebase["relations"][0]["release_evidence"]
+    evidence = rebase["relations"][0]["current_bindings"]
     rebase["relations"].append({
         "id": "legacy-core-work-owner",
         "source": coordinate("data.core-work", baseline=LEGACY),
@@ -371,7 +328,7 @@ def test_accepted_legacy_dependency_requires_clause_coverage_and_accepted_target
         "target_clauses": ["CD-NEW-01"],
         "clause_mappings": [{"source": "CD-01", "target": "CD-NEW-01"}],
         "consumers": ["packages/core/work-data/src/schemas/core-work.schema.json"],
-        "release_evidence": evidence,
+        "current_bindings": evidence,
         "freeze_gate": {"blocked": False, "reason": "exact clause checked"},
     })
     write_json(tmp_path / "lineage.json", rebase)
@@ -497,22 +454,20 @@ def test_evolving_baseline_allows_new_version_without_overwriting_v1(tmp_path: P
     target.write_text("# Run v2 contract\n")
     catalog["contracts"].append(new)
     write_json(tmp_path / "catalog.json", catalog)
-    acceptance_path = tmp_path / "decisions/accept-current/acceptance.json"
-    acceptance = json.loads(acceptance_path.read_text())
-    acceptance["accepts"].append({"coordinate": new["coordinate"], "scope_clauses": ["RUN2-01"]})
-    write_json(acceptance_path, acceptance)
+    new["acceptance"] = {"scope_path": new["contract_path"], "scope_clauses": ["RUN2-01"]}
+    write_json(tmp_path / "catalog.json", catalog)
     frozen = json.loads((tmp_path / "frozen.json").read_text())
     frozen["files"][new["contract_path"]] = sha(target)
     write_json(tmp_path / "frozen.json", frozen)
     assert validate(tmp_path, gate="release")[0] == []
 
 
-def test_broken_requirement_decision_link_and_acceptance_are_locatable(tmp_path: Path) -> None:
+def test_broken_current_scope_is_locatable(tmp_path: Path) -> None:
     build_tree(tmp_path)
-    (tmp_path / "decisions/accept-current/decision.md").unlink()
+    (tmp_path / "spec/capabilities/run/v1/contract.md").unlink()
     errors, _ = validate(tmp_path)
-    assert any("decision_path must identify a decision file" in error for error in errors)
-    assert any("requirements/product/sample/requirements.md: broken local link" in error for error in errors)
+    assert any("contract_path does not exist" in error for error in errors)
+    assert any("broken local link" in error for error in errors)
 
 
 def test_copied_meta_harness_resolves_agent_and_workspace_navigation(tmp_path: Path) -> None:
@@ -581,45 +536,60 @@ def test_explicit_anchor_preserves_a_renamed_section_coordinate(tmp_path: Path) 
     assert "missing Markdown anchor: renamed.md#absent" in errors[0]
 
 
-def test_decision_acceptance_must_name_exact_coordinate_and_scope(tmp_path: Path) -> None:
+def test_explicit_anchor_rejects_code_examples(tmp_path: Path) -> None:
     build_tree(tmp_path)
-    path = tmp_path / "decisions/accept-current/acceptance.json"
-    acceptance = json.loads(path.read_text())
-    acceptance["accepts"] = acceptance["accepts"][1:]
-    write_json(path, acceptance)
+    source = tmp_path / "requirements/product/sample/requirements.md"
+    target = source.parent / "anchors.md"
+    target.write_text("# Target\n"
+                      '`<a id="inline-code"></a>`\n\n'
+                      '```html\n<a id="fenced-code"></a>\n```\n\n'
+                      '~~~html\n<a id="tilde-code"></a>\n~~~\n\n'
+                      '    <a id="indented-code"></a>\n\n'
+                      '``multi-line\n<a id="multi-line-code"></a>\nspan``\n\n'
+                      '\\<a id="escaped-code"></a>\n\n'
+                      "<a class='coordinate' id='Exact-ID'></a>\n"
+                      "<a name='named-coordinate'></a>\n", encoding="utf-8")
+    with source.open("a", encoding="utf-8") as handle:
+        for name in ("inline-code", "fenced-code", "tilde-code", "indented-code",
+                     "multi-line-code", "escaped-code", "Exact-ID", "named-coordinate"):
+            handle.write(f"[anchor](anchors.md#{name})\n")
     errors, _ = validate(tmp_path)
-    assert any("must declare this exact coordinate exactly once" in error for error in errors)
+    assert len(errors) == 6
+    for name in ("inline-code", "fenced-code", "tilde-code", "indented-code",
+                 "multi-line-code", "escaped-code"):
+        assert any(f"missing Markdown anchor: anchors.md#{name}" in error
+                   for error in errors)
 
 
-def test_acceptance_declaration_may_live_under_record_decisions(tmp_path: Path) -> None:
-    # 工作区布局把决定放在 record/decisions/；acceptance.json 与 decision.md 一起搬过去仍应通过。
+@pytest.mark.parametrize("change, expected", [
+    ({"scope_path": "spec/data/core-work/v1/contract.md"}, "exact contract_path"),
+    ({"scope_clauses": []}, "must contain"),
+    ({"scope_clauses": [""]}, "non-empty"),
+    ({"scope_clauses": [True]}, "non-empty"),
+    ({"source_commit": "1" * 40}, "process/provenance"),
+])
+def test_current_acceptance_keeps_exact_owner_and_scope(tmp_path: Path, change, expected) -> None:
     build_tree(tmp_path)
-    old_home = tmp_path / "decisions/accept-current"
-    new_home = tmp_path / "record/decisions/accept-current"
-    new_home.parent.mkdir(parents=True)
-    shutil.move(str(old_home), str(new_home))
-    acceptance = json.loads((new_home / "acceptance.json").read_text())
-    acceptance["decision_path"] = "record/decisions/accept-current/decision.md"
-    write_json(new_home / "acceptance.json", acceptance)
-    catalog = json.loads((tmp_path / "catalog.json").read_text())
-    for item in catalog["contracts"]:
-        if item["acceptance"]:
-            item["acceptance"] = "record/decisions/accept-current/acceptance.json"
-    write_json(tmp_path / "catalog.json", catalog)
-    requirements = tmp_path / "requirements/product/sample/requirements.md"
-    requirements.write_text(requirements.read_text().replace("../../../decisions/", "../../../record/decisions/"))
+    path = tmp_path / "catalog.json"
+    catalog = json.loads(path.read_text())
+    catalog["contracts"][0]["acceptance"].update(change)
+    write_json(path, catalog)
     errors, _ = validate(tmp_path)
-    assert not [error for error in errors if "acceptance" in error], errors
+    assert any(expected in error for error in errors), errors
 
-    stray = tmp_path / "elsewhere/acceptance.json"
-    stray.parent.mkdir()
-    shutil.copy(new_home / "acceptance.json", stray)
-    for item in catalog["contracts"]:
-        if item["acceptance"]:
-            item["acceptance"] = "elsewhere/acceptance.json"
-    write_json(tmp_path / "catalog.json", catalog)
+
+def test_current_acceptance_does_not_load_past_decisions(tmp_path: Path) -> None:
+    build_tree(tmp_path)
+    assert not (tmp_path / "decisions").exists()
+    assert not (tmp_path / "record").exists()
     errors, _ = validate(tmp_path)
-    assert any("record/decisions/ or decisions/" in error for error in errors)
+    assert not errors, errors
+    path = tmp_path / "catalog.json"
+    catalog = json.loads(path.read_text())
+    catalog["contracts"][0]["acceptance"] = "record/decisions/past/acceptance.json"
+    write_json(path, catalog)
+    errors, _ = validate(tmp_path)
+    assert any("must be an object" in error for error in errors), errors
 
 
 def test_cli_runs_after_tooling_and_design_are_copied_outside_repository(tmp_path: Path) -> None:
@@ -648,3 +618,12 @@ def test_cli_propagates_failure_as_nonzero_with_path(tmp_path: Path) -> None:
     assert result.returncode == 1
     assert "spec/data/core-work/v1/schema.json" in result.stderr
     assert "FAIL:" in result.stderr
+
+@pytest.mark.parametrize("owner", ["record/decisions/x/decision.md", "tmp/run.md", "../outside.md", "spec/missing.md"])
+def test_lineage_binding_requires_current_owner(tmp_path: Path, owner: str) -> None:
+    build_tree(tmp_path)
+    data = json.loads((tmp_path / "lineage.json").read_text())
+    data["relations"][0]["current_bindings"] = [{"owner_path": owner}]
+    write_json(tmp_path / "lineage.json", data)
+    errors, _ = validate(tmp_path)
+    assert errors

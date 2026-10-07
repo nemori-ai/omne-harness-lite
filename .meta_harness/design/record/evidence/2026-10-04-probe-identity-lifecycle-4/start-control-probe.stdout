@@ -1,2 +1,0 @@
-{"case":"startup-and-close-failure","readyRejectedBeforeClose":true,"handleBeforeEffects":true,"events":["a-ready","b-close","a-close-start"],"report":{"complete":false,"assemblyErrors":[],"rows":[{"id":"b","kind":"failed","errors":["setup"]},{"id":"a","kind":"failed","errors":["close"]}]}}
-{"case":"cancel-during-setup","readyRejectedBeforeClose":true,"waitedForActualSetup":true,"report":{"complete":true,"assemblyErrors":[],"rows":[{"id":"only","kind":"closed","errors":[]}]}}

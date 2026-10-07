@@ -2,7 +2,7 @@
 
 - 对应需求：[PF-001](../../README.md) 全部条款里**租户相关领域**这一片——账号、登录状态、组织与隶属、成员关系与角色、两种邀约、租户身份与隔离义务、作用域层里组织级与租户级的身份。**不含**设置／权限／资产的求值与持有（PF-002）、资产流转（PF-003）、会话（PF-015）、成本计量（无 topic）。另取 [PF-003 §6.14](../../../PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期) 一句作邀约过期的第二消费者依据
 - 本版依据的需求修订：**PF-001 rev 15**（`README.md` front-matter），PF-003 rev 4
-- 状态：**当前，已接受为实施入口**——[D-023](../../../../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）。五份契约来源 `accepted`、已冻结（[provenance.json](provenance.json) 里契约的 sha256 即 `frozen.json` 登记值）；需求与节点来源不在冻结集合，实施前先核那些坐标
+- 状态：**当前，已接受为实施入口**——D-023（产品负责人，2026-09-22）。五份契约来源 `accepted`、已冻结（[provenance.json](../../design.md) 里契约的 sha256 即 `frozen.json` 登记值）；需求与节点来源不在冻结集合，实施前先核那些坐标
 - 未决 gap 数：**18**（见[第 7 节](#7-未决项)）
 
 **读法**：第 1～4 节回答「必须为真的是什么」，来源是契约；第 5～6 节回答「用哪些原语兑现、有什么证据」，来源是六个 provider 节点。
@@ -10,7 +10,7 @@
 
 ## 1. 本版覆盖的需求条款
 
-确认状态取自 PF-001 [decisions](../../decisions.md)：rev 10 把此前九条「正文转述」全部补上来路（[changelog rev 10 §三](../../changelog.md#rev-10--并发移除超管有了收场当前租户身份在创建那一刻被捕获--2026-09-22)），本表因此**没有「继承待核对」**。
+确认状态取自 PF-001 [decisions](../../design.md)：rev 10 把此前九条「正文转述」全部补上来路（[changelog rev 10 §三](../../design.md)），本表因此**没有「继承待核对」**。
 
 ### 1.1 账号那一侧
 
@@ -299,9 +299,9 @@ ctx（apps 装配，本批未建节点）
 | Q-11 | 当前租户身份残留清扫的触发与节奏（`og#G-13`） | 装配 | 提供 `sweepStaleSelections` 方法，不建定时器 |
 | Q-12 | 资产 owner 那一半隔离义务、S-49 的「不销毁」、PF-003 两类邀约的消费者（`oe#G-2`／`G-6`） | 资产领域规格（下一战役） | 本域只给判定与谓词 |
 | Q-13 | 三条待核对 Cordis 主张：可选 inject 语义、`ctx.provide` 是否自动纳管、插件体抛出后 fiber 状态；AR 读本 fiber 状态的 API | 按 source-check 对采用版本取证，回填 basis | 实施前先核；核不到按各节点写的退路 |
-| Q-14 | Cordis 采用版本无决定；basis 四条 probe null（`ar#G-5`） | record/decisions；kernel 侧首个集成包 | 按 4.0.2 手册基线，决定落地后重核 bindings |
+| Q-14 | Cordis 采用版本无决定；basis 四条 probe null（`ar#G-5`） | kernel 侧实际集成拥有者；候选与采用过程留本工作树 tmp | 按 4.0.2 手册基线，决定落地后重核 bindings |
 | Q-15 | 领域名 `tenancy`、包族布局 | 产品负责人 | 按 [realization 两层布局](../../../../realization/README.md#packages-的两层布局)，改名是搬目录不改契约 |
-| Q-16 | 入口层身份核实（客户端与据点进程之间的契约尚未起草）。`storage`、`clock` 与密钥三半已由 [D-026](../../../../record/decisions/infrastructure-persistence-choices/README.md) 裁定并落到候选节点 `packages/infra/{storage-sql,clock}`、`apps/tenancy-host`（2026-09-22，存储与时钟包已建并通过一致性套件） | 装配设计（apps） | 入口层先核实身份再调治理面；那一半阻断第 3 步的入口层部分，不阻断存储与时钟 |
+| Q-16 | 入口层身份核实（客户端与据点进程之间的契约尚未起草）。`storage`、`clock` 与密钥三半已由 D-026 裁定并落到候选节点 `packages/infra/{storage-sql,clock}`、`apps/tenancy-host`（2026-09-22，存储与时钟包已建并通过一致性套件） | 装配设计（apps） | 入口层先核实身份再调治理面；那一半阻断第 3 步的入口层部分，不阻断存储与时钟 |
 | Q-17 | 认证换代时旧凭据材料的迁移策略（CV：换方案 ⇒ 旧材料 `mismatch`） | 产品负责人 | 本版一种方案，不预埋迁移 |
 | Q-18 | 契约文本四处与现行设计对不上（不改语义，待 spec owner 修订）：`ar#S-34`「两步之间崩溃后发起者回来 ⇒ ① 认回、② 重建个人组织」与 `ai#S-13`「认回须未过期」矛盾——清除链只在已过期时跑，回来的人撞上的是 `identifier-held-by-expired-record`，走就地清除后全新注册；`ar#S-25` 第 1 行仍写「③ 读到 ② 提交后的事实」而修订后 `ai#S-14` 不读组织；`ai#S-30` 第 7 行左列「同一时间源 + 同一参数源」是旧兑现描述，现行用右列的「单点判定并携带的事实」；`ai#S-4`「AccountId 由存储生成」读作「在存储提交内生成、主键约束保证唯一」；`iv` 第六节 S-35 左格写 nonce 登记而正文把机制归 realization | spec owner | 按现行节点设计实施；四处都是措辞，不改任何失败集合或次序 |
 
@@ -317,6 +317,6 @@ ctx（apps 装配，本批未建节点）
 | 6 | `packages/tenancy/organization-governance` 25 个操作 | 1–5 | `og#S-46`～`#S-48`、`#S-51`、`#S-52`、`#S-54`（八支）全过；`#S-48` 真并发；创建键五支；时长两路 |
 | 7 | `packages/tenancy/account-registration` 两条链 | 5、6 | `ar#S-27`～`#S-31` 全过；`ai#S-43` 第 2 支**含两条交错**与 `og#S-54` ⑥⑦ 同一批真并发演练过，孤儿组织与「已激活无个人组织」两个状态都不可达；缺陷记录可区分 |
 | 8 | 静态检查器（SC-1／SC-2／SC-9、SC-OE-1～3、失败集合闭合、`TerminalOutcome` 四值、**方法级**：`accounts.produce` 调用点与 `organization-purge` 解析点（含 `ctx.get`）只在 AR） | 1–7 | 每条规则有「故意违反就失败」自测 |
-| 9 | 把 5–8 的运行结果登进 `record/evidence/`，回填各节点 bindings（`test:` 证据） | 5–8 | bindings 不再只有 formal；README「实际验证」不再是「尚无」 |
+| 9 | 把 5–8 的运行结果保存在本工作树 `tmp/`，将可复跑测试资源及适用前提写入对应拥有者并回填 bindings（`test:`） | 5–8 | bindings 不再只有 formal；README「实际验证」不再是「尚无」 |
 
 跨契约场景（`og#S-49`、`#S-50`）与资产／会话契约相关，**不在本版顺序内**。

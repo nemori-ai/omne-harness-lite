@@ -3,7 +3,7 @@
 公开形状归 [src/index.ts](src/index.ts)。纯根拥有两层数据合成和安全描述；
 `./cordis` 拥有准备、加载及实际 fiber 检查。采用依据为
 [已接受的插件树设计](../../../.meta_harness/design/architecture/identity-integration/plugin-tree.md)
-与[宿主接口补充](../../../.meta_harness/design/record/decisions/identity-t4-host-coordinates/README.md)。
+与宿主接口补充。
 本包的实现与验证状态不表示宿主或两域整改已经完成。
 
 ## 数据与来源
@@ -72,4 +72,4 @@ npm 的 validate-npm-package-name 与 Babel 的 helper-validator-identifier 校�
 有限 JSON 捕获使用属性描述符检查，避免调用访问器；其他领域允许无损数字的 JSON 表示不适用此协议。
 资源完成复用 assembly-lifecycle，Cordis 状态取自已验证的 kernel-basis 绑定，不另建关闭协调器。
 
-六字段声明和固定 host 的动态贡献范围由[共享机制投影采用](../../../.meta_harness/design/record/decisions/identity-shared-mechanism-projection/decision.md)接续。行端口的 retainClose 仍交付原行控制；整体 closeControl 只归实际装配拥有者，行为归 assembly-lifecycle 的模块 SPEC。
+六字段声明和固定 host 的动态贡献范围由共享机制投影采用接续。行端口的 retainClose 仍交付原行控制；整体 closeControl 只归实际装配拥有者，行为归 assembly-lifecycle 的模块 SPEC。

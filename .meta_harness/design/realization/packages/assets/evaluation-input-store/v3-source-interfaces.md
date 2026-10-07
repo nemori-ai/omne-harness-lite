@@ -4,7 +4,7 @@
 
 ## 输入与已核实现
 
-采用基线是 [D-074](../../../../record/decisions/model-read-provider-adoption/decision.md) 的 EIS design SHA-256 `01e0d2a1ff4fbdaab11321a1126bec8e0e3c01d91a18e8c1f6e3cd162a134bd4`、registry3 design `30b4be1f04cc13a8ed98294f422109e98dbbd4df24889d08a6edb20082a81438`；两份实际字节已核相同。精确契约为 AM3 `data.asset-model/v3` S-18/S-20、AE4 `capability.asset-evaluation/v4` S-6/S-7/C16/S-15/PRE-1/PRE-3/PRE-9、AD1 S-1～S-10、AR3 `capability.asset-registry/v3` S-16/S-22～S-24/S-31/S-48/S-50、manifest3 S-6/S-16/S-18/S-32/S-33，以及 runtime3 S-66；接受状态以 [catalog](../../../../registry/catalog.json) 与相应决定为准，本稿不重开这些语义。
+采用基线是 D-074 的 EIS design SHA-256 `01e0d2a1ff4fbdaab11321a1126bec8e0e3c01d91a18e8c1f6e3cd162a134bd4`、registry3 design `30b4be1f04cc13a8ed98294f422109e98dbbd4df24889d08a6edb20082a81438`；两份实际字节已核相同。精确契约为 AM3 `data.asset-model/v3` S-18/S-20、AE4 `capability.asset-evaluation/v4` S-6/S-7/C16/S-15/PRE-1/PRE-3/PRE-9、AD1 S-1～S-10、AR3 `capability.asset-registry/v3` S-16/S-22～S-24/S-31/S-48/S-50、manifest3 S-6/S-16/S-18/S-32/S-33，以及 runtime3 S-66；接受状态以 [catalog](../../../../registry/catalog.json) 与相应决定为准，本稿不重开这些语义。
 
 已核源码公开面：
 

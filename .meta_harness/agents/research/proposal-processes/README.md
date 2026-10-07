@@ -6,9 +6,10 @@ scope: 15 个成熟开源流程、ADR 家族与 AI agent 生态项目怎样要�
 
 # 提案、备选方案与决策：15 个上游流程的模板、门与实际兑现
 
-[研究索引](../README.md) · [知识流转](../../maintenance/knowledge-flow.md) · [持久化准入](../../maintenance/organization.md#持久化知识的准入) · [来源与固定版本](sources.md)
+[研究索引](../README.md) · [来源与固定版本](sources.md)
 
-本文回答一个具体问题：**别人是怎么把"有哪些可选形状、为什么选了这个、为什么没选那些"写进流程的，以及写进去之后有没有被兑现。** 它是[提案框架](../../proposals/README.md)重做前的事实依据，不批准本项目的任何政策——[有效决定在没有新观测时仍具最终权威](../../maintenance/knowledge-flow.md)，本文只提供观测。
+本文比较上游如何表达候选、选择和理由，以及规则实际兑现的范围。
+它不批准本项目的任何政策；当前方法由 canonical handbook 拥有。
 
 带「推断」标记的判断只从跨来源比较或结构得出，未经上游文字直述；带「未覆盖」的是本轮没有读到的部分。逐来源的原文引用、commit 与统计细节在 [notes/](notes/) 的 15 份笔记里，正文只保留支持判断所需的事实。
 
@@ -183,83 +184,6 @@ TBD
 
 这一节的覆盖缺口见 §5。
 
-### 3.4 对「由 AI agent 撰写与维护提案」的适用性（**本节全部为推断**）
-
-**可被机器核对的（有上游实现为证）：**
-
-| 可核对的性质 | 上游实现 |
-|---|---|
-| 字段齐全 | K8s `validate:"required"`（title/kep-number/authors/owning-sig/approvers/status） |
-| 状态取值合法 | K8s `ValidStages`/`ValidStatuses` 封闭枚举；DSH 三条 Status 正则 |
-| 状态与位置一致 | DSH lifecycle 文件夹 ↔ Status 行交叉校验；K8s `status:implemented ⇒ stage:stable` |
-| 必需小节存在 | DSH 按 lifecycle 分别要求 `## Problem` + 骨架标题 |
-| 禁用小节不存在 | DSH `implemented/` 里禁 `## Proposal` / `## Plan` / `## Migration plan` / `## Acceptance criteria` |
-| 备选小节存在（或有精确的豁免记号） | DSH `## Alternatives considered` 或 grandfather 注释，二者必居其一且不可并存 |
-| 候选数量 | **无上游实现**；但 W3C TAG 的 `###` 子标题结构使它可数 |
-| 每候选是否有代价与否决理由 | **无上游实现**；W3C TAG 的 `#### Pros`/`#### Cons`/`#### Reason for rejection` 使它可数；MADR 的 `Good/Neutral/Bad, because` 前缀使它可粗筛 |
-| 规范条款 ↔ 证据的映射 | MCP `sep-NNNN.yaml`：每条 MUST/SHOULD → check ID 或**记录在案的豁免 + 跟踪 issue** |
-| 引用可定位 | DSH 要求跨引用必须是相对 markdown 链接（`so they are mechanically checkable`）；EIP 要求外链锚定到具体 commit；本项目 `make docs-check` 已校验链接与锚点 |
-| 结构与模板一致 | K8s `verify-toc-vs-template.sh` |
-
-**依赖人类隐性共识、机器核对不了的：**
-
-- **候选是不是"真"的**（形状不同 vs 同一形状调参）。DSH 用规则回避而非解决：`Alternatives are recorded, never invented`——把判断推给"是否有记录",而不是"是否合理"。
-- **否决理由是否成立**。Rust 用 `disingenuous`（不诚实）一词把它交给 sub-team 的主观判断。
-- **尺是不是同一把**（骨架第 3 条）。MADR 的 `Decision Drivers` → `Decision Outcome` 引用只能查"有没有援引",查不了"援引得对不对"。
-- **"足够的 tradeoff 已被讨论"**——Rust/Nix 进入 FCP 的条件，原文即为判断句。
-- **证据与主张是否匹配**。MCP 的 traceability 只能查"每条 MUST 有没有对应物",查不了那个检查是否真的覆盖该条款。
-
-**最可机器核对的三种模板形状**（推断，按可核对强度排序）：
-
-1. **W3C TAG 的嵌套候选**：`### <候选名>` + `#### Pros` + `#### Cons` + `#### Reason for rejection`。候选数 = `###` 计数；每候选完整性 = 三个 `####` 是否齐；"未决候选"有合法位置（`Reason for rejection` 下写成 open question）。**加一条本项目需要的格（成本 / 触及的消费者 / 证据义务）即可直接用。**
-2. **DSH 的 lifecycle 路径编码 + Status 交叉校验 + 必需/禁用标题骨架**。它把"新头旧身"这类失败变成 gate 失败而不是人工提醒；`rejected` 状态强制带一行理由（`Status: rejected — <why>`）是本轮唯一"否决理由被机器强制"的实例。
-3. **MCP 的 traceability 文件**（`sep-NNNN.yaml`：条款 → check ID | 记录在案的豁免 + 跟踪 issue）。它是"证据两级"第二级的可机器化形态，且**把豁免也变成一等记录**——这正是本项目"缺口、失败、未执行分别保留"想要的东西。
-
-**必须正视的一条（观察，不是推断）**：TC39 的 `AI_POLICY.md` **禁止**用 LLM 代写散文贡献；Letta 把 AI 披露做成自动关闭门；AG2 要求"被追问时用自己的话回答"；MCP 要求披露并写明目的是决定审查强度。**"由 AI agent 撰写与维护提案"在上游没有先例支持**——本项目要走这条路，"谁为论证负责、被追问时由谁解释"必须由本项目自己的裁决分层承担，不能引用上游惯例作依据。
-
-### 3.5 与本项目骨架的对照（**本节全部为推断**）
-
-骨架六条来自主检出的 `tmp/next-design-prep/proposal-framework-sketch.md`（前台草案，不是政策）。
-
-| # | 骨架条 | 上游先例 | 判断 |
-|---|---|---|---|
-| 1 | 提案 = 一组决定点，每个决定点是一条轴；第一个决定点是"对能力基是哪种关系" | **部分有**：Nix RFC 的 `For each design decision made, discuss possible alternatives…` 是唯一按决定点组织备选的模板。"第一个决定点是关系类型"**本项目独有**，无先例 | 前半有先例可引；后半是本项目在能力基模型上的自创，需要自证 |
-| 2 | 每个决定点 ≥ 3 真候选，含一个基线候选（最小改动/不做/延后） | **全无先例**。15 个来源无一规定数量下限或强制基线；MADR 明确允许 `only option`；更宽松的 MADR `Considered Options` 在 4316 份样本上已是"最成问题的一节" | **最危险的一条**。要么配一个会失败的门，要么改成"必须说明为何只有 N 个"这类可核对的弱形式 |
-| 3 | 比较用同一把尺，尺先于矩阵 | **有先例**：MADR 的 `Decision Drivers` → `Decision Outcome` 引用（`which meets k.o. criterion decision driver`）。但该节在 MADR 里是 optional，实证研究里"经常错位、缺乏实质内容" | 形状可用，但它是实证里第二差的一节；本项目若采用应把尺**绑到已确认需求条款与不变量的具体编号**，使"援引了什么"可机器核对 |
-| 4 | 决定 = 选择 + 否决理由 + 复议条件；作者裁决 / 用户裁决分层 | **分别有**：否决理由 → DSH `Status: rejected — <why>`（机器强制）、Swift "fair but not neutral"、W3C TAG `Reason for rejection`；复议条件 → Nix"注明什么情况变了可重提"、MCP `dormant ≠ rejected`、PEP `Rejected Ideas` 的防重提目的；裁决分层 → MCP"状态只能由 sponsor 改"、Nix"作者不得进评审团" | 三个组成部分各有先例，**组合起来是本项目独有**。"用户裁决"这一层无对应物（上游都是委员会） |
-| 5 | 证据两级：候选阶段证"能否成立"（只对前一两名做），决定后证"实现是否符合" | **只有第二级有先例**：MADR `Confirmation`、MCP 的一致性测试 + traceability、K8s PRR、TC39/IETF 的两实现门。**第一级（候选阶段的可行性证据）无先例**——上游要么不要求（ADR 家族），要么要求所有候选都不用证、只证最终方案（MCP 原型门在 accept 时才生效） | 第二级可直接借 MCP 的 traceability 形状。第一级"只对前一两名做"是本项目独有，也是它最有价值的一条：上游的证据门都在"已经选定之后"，因此都无法阻止选错 |
-| 6 | 评审清单（≥3 真候选？有基线？矩阵同尺？否决方公平？证据与主张匹配？Cordis 投影？） | **无先例**：15 个来源无一提供成文评审 checklist。最接近的是 Rust 的四条隐含判据与 K8s 的 PRR 问卷（但后者问的是上生产准备度） | 本项目独有。可行性来自本项目已有的独立 reviewer 角色；但清单里的六问只有前两问可机器核对，后四问仍是人工判断——**应把清单显式分成"机器筛"与"人工判"两段**，不要让它看起来比实际更硬 |
-
-**值得引入的（各一句理由）：**
-
-- **W3C TAG 的候选三格结构**（`Pros` / `Cons` / `Reason for rejection`）：把"否决方是否被公平陈述"从判断题变成结构题。
-- **DSH 的 lifecycle 路径 ↔ Status ↔ 必需标题三重交叉校验**：把"新头旧身"从人工提醒变成 gate 失败，正对本项目已经踩过的坑。
-- **DSH 的 `Alternatives are recorded, never invented` + 精确豁免注释**：唯一一条同时管住"缺失"与"编造"的规则，且两端都可核对——这对 AI 撰写场景尤其重要，因为机器编造候选比人省力得多。
-- **MCP 的 `sep-NNNN.yaml` traceability**：把"证据齐不齐"变成"每条条款有没有对应物或一条记录在案的豁免",且豁免必须带跟踪项。
-- **Nix 的"关闭时注明什么情况变了可以重提"**：本项目"复议条件"的现成措辞。
-- **Swift 的 `Review` 封闭词表 + `Previous Revision` 指向被评审过的确切 commit**：使"这次决定的对象是哪一版正文"可定位，与本项目"已发布规格不可原地覆盖"同构。
-- **Swift 的项目级 `commonly_proposed.md`**：比每份提案各记一遍 `Rejected Ideas` 更省，且正对"防止同一候选被反复提出"。
-- **PEP 把 `Rejected Ideas` 独立成节**（而不是塞进 rationale）：它记录的是**讨论中实际出现过并被否决**的想法，与"作者构造的候选集"是两类东西，分开更诚实。
-- **K8s 把 `status` 与 `stage` 分离并做跨字段校验**：本项目"接受 ≠ 实现 ≠ 验证"的三段区分正需要这种双轴表达。
-- **Rust / Nix 把 `Drawbacks` 与 `Alternatives` 分成两节**：前者是"为什么不该做这件事"，后者是"为什么不是别的形状"，本项目骨架目前把它们合在"失败模式"里。
-
-**不适合引入的（各一句理由）：**
-
-- **一切日历门**（FCP 十天、Last Call 14 天、评审覆盖两个周末、6 个月自动 Stagnant/Dormant）：它们服务于"让分散的利益相关者有时间发声"，本项目是单作者 + 用户裁决，时间窗对应不到任何真实约束。
-- **"无实现不得评审"（Swift）与"接受前须有可运行原型"（MCP）**：本项目在设计与规格建模阶段，这条门会把候选阶段压死，与骨架第 5 条"三个候选 ≠ 三个原型"直接冲突。
-- **K8s 的 `Merge early and iterate` + Alternatives 放文末三句话**：它的重心是"已经决定要做、只是要保证能上生产"，与本项目"还要选形状"的重心相反。
-- **MADR 的开放 status 取值域**（`{proposed | rejected | accepted | deprecated | … }`）：Semantic Kernel 用它长出了 `approved`、`experimental`、`{ accepted }`；本项目需要封闭词表才能做跨文档校验。
-- **把决定理由留在讨论线程**（Rust、Nix、IETF）：本项目的裁决发生在会话里，会话不是可长期检索的档案；理由必须落进文件。
-- **Semantic Kernel"把批准绑定到 PR approval"**：它使"是否接受"不可从文件本身读出，与本项目"从 catalog 查当前可采用的契约与精确版本"的做法冲突。
-
-## 4. 跨来源的规律（推断）
-
-1. **强制力的唯一有效形式是"会失败的动作"。** 三处填充率统计 + EIP 的 `TBD` 占位 + 4316 份 ADR 的实证指向同一条：模板措辞（必需 / 可选 / 明文要求）对兑现率的影响远小于"有没有一个 CI 或评审动作会因此失败"。DSH 是唯一有 CI 门的来源，也是唯一接近 100% 兑现的来源。
-2. **成熟流程把严格性投在可外部验证的终局事实上**（两个实现、一致性测试、生产就绪问卷），因此能容忍论证质量的参差。**没有终局事实可用的阶段（架构设计、规格建模），必须自己承担筛选——这正是本项目所处的位置。**
-3. **机器守身份，人守论证。** 所有来源的机器检查都落在身份、状态、所有权、结构骨架、链接可达性上；论证质量一律交给人。本项目要在 AI 撰写的前提下提高论证质量，**唯一可机器化的抓手是把论证的结构切细到可计数**（候选数、每候选的格数、每条条款的证据对应物），而不是试图检查论证本身。
-4. **"备选方案"承载了两件被混在一起的事**：作者构造的候选集（Rust、Nix、TAG、MADR）与讨论中实际出现并被否决的想法（PEP `Rejected Ideas`、Swift 的"pitch 阶段更新此节"、MCP `Rationale` 的 `Document important objections`）。前者是设计动作，后者是过程留痕；对 AI 撰写而言，前者容易编造、后者不可能编造。**本项目若要防"形式化占位",应当把后者做成独立且必需的记录。**
-5. **备选与反对是两回事。** 只有 W3C TAG 把 `Stakeholder Feedback / Opposition` 独立成节。本项目的裁决表里"另一边"一列其实同时承担了这两件事（见[工具执行提案](../../proposals/tool-execution/README.md)），值得考虑拆开。
-
 ## 5. 未覆盖与局限
 
 - **实践填充率只统计了三个项目**（Semantic Kernel 77、MCP 42、DSH 抽样 45）。Rust、Nix、Swift、K8s、EIP、PEP 的实际填充率**全部未覆盖**——因此"模板要求 vs 实际兑现"的对比只在 ADR 家族与 AI 生态内成立，不能外推到语言演进流程。
@@ -269,7 +193,6 @@ TBD
 - **机器检查的覆盖不均**：K8s 与 DSH 读了校验源码；Rust、Swift、TC39、EIP、PEP、MCP 的 CI 实现**未读**，因此它们"机器检查什么"一列多为未覆盖或推断。
 - **页面类来源多为定向提取**：RFC 2026 与 RFC 7322 未通读（且 RFC 2026 已被后续 BCP 部分更新，如标准轨三级压到两级，本轮**未核对**）；Nygard 原文、adr.github.io、tc39.es/process-document 均为抓取摘要。tc39.es 的流程页**没有版本或日期标记**，只能用源仓库 HEAD 定位。
 - **两家公司的内部惯例无法核对**：Anthropic 与 OpenAI 的内部设计文档流程不公开；本文只能观察它们主导的公开产物（MCP SEP、`PLANS.md`）。
-- **§3.4、§3.5、§4 全部是本文作者的归纳**，不是上游声明。它们用于帮助后续提案定位问题，**不构成接受依据**；本项目要采用其中任何一条，都需要经[提案 → 决定](../../maintenance/knowledge-flow.md)的正常路径。
 
 ## 6. 来源
 
@@ -277,5 +200,3 @@ TBD
 [Rust RFC](notes/rust-rfc.md) · [Python PEP](notes/python-pep.md) · [Kubernetes KEP](notes/kubernetes-kep.md) · [Swift Evolution](notes/swift-evolution.md) · [TC39](notes/tc39-stages.md) · [Nix RFC](notes/nix-rfc.md) · [Ethereum EIP](notes/ethereum-eip.md) · [IETF](notes/ietf-rfc.md) · [ADR：Nygard 与 MADR](notes/adr-nygard-madr.md) · [W3C TAG Explainer](notes/w3c-tag-explainer.md) · [MCP SEP](notes/mcp-sep.md) · [Semantic Kernel ADR](notes/semantic-kernel-adr.md) · [DeepSeek Harness Agent Notes](notes/deepseek-harness-agent-notes.md) · [八个 AI 框架横扫](notes/agent-frameworks-survey.md) · [ADR 实证研究](notes/adr-empirical-study.md)
 
 URL、固定 commit / 版本、读取方式与核对日期：[sources.md](sources.md)。
-
-本项目内部对照：[知识流转](../../maintenance/knowledge-flow.md)、[持久化与提案准入](../../maintenance/organization.md#提案的持久化准入)、[版本规范](../../maintenance/versioning.md)、[提案入口](../../proposals/README.md)、[工具执行提案的裁决表](../../proposals/tool-execution/README.md)、[决定权 D-002](../../decisions/D-002-decision-authority.md)、[Agent Loop、事件与 hooks 研究](../agent-loop-events-and-hooks/README.md)。

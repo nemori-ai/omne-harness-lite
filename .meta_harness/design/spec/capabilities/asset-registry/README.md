@@ -15,7 +15,7 @@ v2 S-23 已是校验与记录追加成功后换目标表，失败不替换；S-2
 **候选 v3（2026-09-27）**：[契约](v3/contract.md)、[实例](v3/examples.md)补齐 `fill`／`reload` 的显式 `compositionOrder`、真实求值结果与表构成的同次追加、`reuse` 保留原求值与排列。共 50 条，七个操作的九项约束保留；未接受、未冻结。依赖 `capability.asset-evaluation` v4 与 `capability.assembly-manifest` v3 候选，以及已接受的资产形状、工具、拓展件 v3；其余精确依赖见候选 S-4。registry 集成由本批唯一写入者负责，本入口不把候选当作已登记或已采用。验证范围与传播见 [v3 验证义务](verification.md#v3-候选求值快照与显式顺序)。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-registry, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 `accepted`；`family=capabilities`、`topic=asset-registry`、
   `contract_path=spec/capabilities/asset-registry/v2/contract.md`；`resources` 含契约与 `examples.md`；
   依赖十七项：`data.asset-model`、`data.tool-definition`、`data.loop-extension`、`data.messages`、`data.offer-expiry`、`data.identity-values`、`data.call-accounts`、`capability.asset-evaluation`、`capability.asset-governance`、`data.skill-package`、`data.slash-command`、`data.mcp-endpoint`、`capability.mcp-bridge`、`capability.tool-admission`、`capability.modality-projection`、`data.model-profile`、`capability.assembly-manifest`（均 v1；最后一项 2026-09-25 修订波登记），clauses 取自[契约 S-4](v2/contract.md#s-4-依赖方向与被消费的面)（2026-09-24 整批对齐补齐，同日第一轮评审修订再补）
@@ -61,10 +61,10 @@ v2 S-23 已是校验与记录追加成功后换目标表，失败不替换；S-2
 
 ## 2026-09-26 版本接受
 
-本次接受 `capability.asset-registry` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `capability.asset-registry` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
 
 ## 2026-09-27 v4 候选：原完整填表来源认回
 
-[完整契约](v4/contract.md)与[规范实例](v4/examples.md)形成 candidate，未接受。继承 v3 七操作，仅升级 manifest 依赖到 v4；同 H 表/原 given，reload 同 H CAS，refresh 报告保留 H 时的表，后续追加不强制重做。 v3 已由 [D-073](../../../record/decisions/model-current-input-contracts-adoption/README.md) 接受且保持冻结；上文早期 v3 候选文字为历史记录，现行接受状态以 [registry](../../../registry/README.md) 为准，新增候选不替代 v3。无新 Schema/身份/状态转移；S-51/S-52 的实际证据与未开始项见 [verification](verification.md#v4-候选原完整填表来源2026-09-27)。
+[完整契约](v4/contract.md)与[规范实例](v4/examples.md)形成 candidate，未接受。继承 v3 七操作，仅升级 manifest 依赖到 v4；同 H 表/原 given，reload 同 H CAS，refresh 报告保留 H 时的表，后续追加不强制重做。 v3 已由 D-073 接受且保持冻结；上文早期 v3 候选文字为历史记录，现行接受状态以 [registry](../../../registry/README.md) 为准，新增候选不替代 v3。无新 Schema/身份/状态转移；S-51/S-52 的实际证据与未开始项见 [verification](verification.md#v4-候选原完整填表来源2026-09-27)。
 
-[D-079](../../../record/decisions/model-original-fill-adoption/decision.md)接受v4，同H原fill来源与七操作；实现映射另采用，不自动升级runtime/runner依赖。
+D-079接受v4，同H原fill来源与七操作；实现映射另采用，不自动升级runtime/runner依赖。

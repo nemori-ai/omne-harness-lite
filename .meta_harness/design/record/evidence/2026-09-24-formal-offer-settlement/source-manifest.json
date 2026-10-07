@@ -1,9 +1,0 @@
-{
-  "spec/data/offer-expiry/v2/contract.md": "c53f6661e19ccc5fa817f2f61a1b40632fd06114b4f62bcff1e123ccfe0af0b7",
-  "spec/data/offer-expiry/v2/formal/OfferSettlement.tla": "e8fcf0ade9105375fb19fd2b9f99d0f8b3062bec0ae8f548c329086addd32c7d",
-  "spec/data/offer-expiry/v2/formal/README.md": "f9a51533eb097eb96566ec9b274f094fcc6c8d12f454cfebd0443bb4551da12e",
-  "spec/data/offer-expiry/v2/formal/bad-late.cfg": "1c9a9003534bd53d3a431b762c02e511f0de2fbaeddf622e9bd01ec249667301",
-  "spec/data/offer-expiry/v2/formal/bad-overwrite.cfg": "a5d92da3f03f7b4c5f700b9a1d8e99bff97495230ec539871927e0e8121246a3",
-  "spec/data/offer-expiry/v2/formal/valid.cfg": "2c9074d59e94ed0b0e87f5160f305c5b843ac3b7639d7c09a6faa82714eda61c",
-  "spec/data/offer-expiry/v2/offer-expiry.schema.json": "2fa7b9bcd5ba528ef4dafc6812cc087c839c0a45a5e0f465747ad44a7230d05b"
-}

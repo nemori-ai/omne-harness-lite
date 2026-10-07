@@ -4,11 +4,11 @@
 它能不能把种入的问题报出来——写入范围外的改动、被改弱的测试、违背契约的行为、依赖方向、超线又没测试的新函数、与事实不符的交付说明——
 同时不动受版本管理的文件。判官逐条判「报出了没有」，与设计评审的三个流是同一个判官、同一套规则，只多一条「越出本次判断」。
 
-状态：**第 1 版，两次签字已齐（2026-10-02；判定方法签的是下面校准过的那个判官），还没有基线。**基线何时跑由 [#72](https://github.com/nemori-ai/omne-harness-lite/issues/72) 跟踪。
+状态：用例与判定方法已采用；完整基线尚未运行。当前配置和采用范围见 `flow.json`。基线何时跑由 [#72](https://github.com/nemori-ai/omne-harness-lite/issues/72) 跟踪。
 
 ## 材料
 
-一份，取自[实现评审与独立验收](../../implementation-review-and-qa-2026-10-01/README.md)那次试派，钉在提交 `6694e2d6b`（原试派用的 `f1db2fa25` 随 squash 合并不在主线上了，见下面「复制时改了什么」），
+一份，取自[实现评审与独立验收](../../implementation-review-and-qa-2026-10-01/README.md)那次试派，钉在（原试派用的 `f1db2fa25` 随 squash 合并不在主线上了，见下面「复制时改了什么」），
 成员 `packages/session/session-tenancy-table`，契约 `capability.session-tenancy/v2`，接受级别写 L3。
 
 | 种入 | 位置 | 应当被报出的问题 |
@@ -47,32 +47,10 @@ briefs/implementation-delivery-note.md   实施者的交付说明；运行时整
 
 ### 判官校准
 
-[calibration/cases.json](calibration/cases.json) 是 7 份报告的人工判定：当时试派的那份真实报告，加 6 份反例
-（删掉两条阻断、把一条发现挪进「未覆盖」、只删掉对交付说明的指认、加一条品味意见、结论是没有问题的报告、另一份材料的报告）。
-
-判官是派成 subagent 的 Claude Sonnet 5.5（宿主记录的档位是 medium）。2026-10-01 校准：42 处判定与人工全部一致
-（26 处报出、16 处没报出），运行级的 13 项计数也都一致；7 次派发，没有答复被驳回。
-[比对记录](calibration/results/judge-subagent-claude-sonnet-5-5-rules-e65bb670c43e.md)。
-
-真实报告只有一份，反例都由它删改而来；别的评审者写法不同的报告上判得怎样，没有校准过。
-
-`verify` 在真的副本上核对：每处改动恰好施加一次；副本里恰好两个提交；成员在种入后构建成功、成员自己的测试退出 0；
-`pnpm run lint:rules` 非零退出并报 `group-direction`（I4 的已知坏）；简报的占位符都填得上；跑完这些检查受版本管理的文件仍没变。
-
-## 运行设置
-
-Claude Fable 5.1，high，放行 Read、Glob、Grep、Bash，每份材料 2 次；与角色源的钉值和工具清单一致。
-
-## 复制时改了什么
-
-种入的原文、改后、追加的文字、真值，简报与交付说明逐字取自原试派，只有：
-
-- 清单字段按 `flow.json` 的形状改写：一条种入的 `edits` 与 `append` 改成有序的 `ops`（`replace`、`append`），I6 的 `in` 保留。
-- 每条种入新写了 `kind`（`seeded`）与 `where`（位置说明，判官看得到）；`target`、`tags` 是新写的说明。
-- 原试派从 `HEAD` 导出（当时就是 `f1db2fa25`），并删掉检出里指向宿主生成物的 `.claude`、`.agents`、`.codex` 链接。
-  `f1db2fa25` 是分支上的提交，那条分支以 squash 合入后它不再是主线的祖先，所以改钉到合并提交 `6694e2d6b`。
-  两者之间 `packages/`、`apps/`、`tools/`、`scripts/` 与依赖清单逐字相同——被评审的成员、契约与种入落点都没变；
-  不同的只在检出里的角色源、手册、根 `AGENTS.md` 与开发文档（评审者读得到），以及多出的设计评审报告工具。`verify` 在新钉的提交上重跑过。
+[calibration/cases.json](calibration/cases.json) 与 `calibration/reports/` 是判官的已知好/坏输入，
+保留人工期望值、逐字引用和运行级判定规则。判官由主会话派 subagent；
+每次校准的输入、输出与比对结果放本工作树 tmp，不持久保存运行流水。
+已知问题与表外发现分别计数，判据改变后须复核适用范围；未校准材料不能冒充已验证。
 
 ## 量不出什么
 

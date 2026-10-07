@@ -123,7 +123,6 @@
       "tools/spec-tools/**",
       ".meta_harness/tooling/**",
       ".meta_harness/agents/**",
-      ".meta_harness/research/governance-recovery-providers/reports/2026-09-26-snapshot-check-worker/maintenance-probe/node24-worker-threads.md",
       "AGENTS.md",
       "CLAUDE.md",
       ".meta_harness/README.md",

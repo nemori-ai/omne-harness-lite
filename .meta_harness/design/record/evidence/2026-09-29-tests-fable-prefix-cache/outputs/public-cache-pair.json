@@ -1,7 +1,0 @@
-{
-  "coldEntryId": "8a1d7a0b-e89b-4003-acf7-25080caf8650",
-  "warmEntryId": "1d740f0c-4c7d-41d2-bff5-32be82b36c99",
-  "coldWriteTokens": 8256,
-  "warmReadTokens": 8256,
-  "wireSha256": "90f6ebf8e478e1b4060be083ae71b3d767d217b7b5eb744635c8c961d750d8c6"
-}

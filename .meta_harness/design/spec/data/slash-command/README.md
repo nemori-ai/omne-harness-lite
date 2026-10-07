@@ -6,12 +6,12 @@
 识别与解析是**纯函数**：交付面的两种呈现形式与受理面各跑一遍，必须得出同一个答案，所以写成一份共用的数据契约与一张判定用例集，**不各自实现一套同义规则**。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.slash-command, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 `accepted`（`acceptance` 指向 D-061 的 `acceptance.json`）。`family=data`、`topic=slash-command`、
   `contract_path=spec/data/slash-command/v2/contract.md`，`resources` 另含 `v2/slash-command.schema.json` 与 `v2/examples.md`；
   依赖四项：`data.asset-model` v2（`S-2`、`S-3`、`S-5`、`S-10`、`S-12`、`S-15`、`S-27`、`S-36`）、`data.content-blocks` v2（`S-8`）、`data.identity-values` v1（`S-31`）、`data.skill-package` v2（`S-8`）。
   **登记在 [registry](../../../registry/README.md)，本行只作索引**
-- **起点方向**：[D-036](../../../record/decisions/slash-command-parsing-baseline/decision.md)（自研统一解析器，从 Codex 借识别边界、从 omne-next 借失败纪律与声明优先、从 Claude Code 借占位符与留痕形状）
+- **起点方向**：D-036（自研统一解析器，从 Codex 借识别边界、从 omne-next 借失败纪律与声明优先、从 Claude Code 借占位符与留痕形状）
 - **提供者/装配映射**：[packages/core/slash-command](../../../realization/packages/core/slash-command/README.md)；当前节点设计已由 D-062 接受，源码／实际验证按各节点四层状态分别读取。
 
 ## 准入核对
@@ -52,4 +52,4 @@
 
 ## 2026-09-26 版本接受
 
-本次接受 `data.slash-command` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `data.slash-command` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

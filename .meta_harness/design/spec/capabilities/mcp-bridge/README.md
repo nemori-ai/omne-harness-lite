@@ -8,7 +8,7 @@
 本契约与它们之间的分工写在[契约 S-2](v2/contract.md#s-2-本契约不拥有什么)。它读写的全部形状归 [`data.mcp-endpoint`](../../data/mcp-endpoint/README.md)。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.mcp-bridge, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 `accepted`（`acceptance` 指向 D-061 的 `acceptance.json`）。`family=capabilities`、`topic=mcp-bridge`、
   `contract_path=spec/capabilities/mcp-bridge/v2/contract.md`，`resources` 另含 `v2/examples.md`；
   依赖七项：`data.mcp-endpoint` v2、`data.tool-definition` v2、`data.content-blocks` v2、`data.asset-model` v2、`capability.asset-evaluation` v2、`capability.execution-environments` v2（只取 `EnvAllowlist` 的形状，2026-09-25 修订波；六者都是候选）、`data.identity-values` v1——
@@ -52,4 +52,4 @@
 
 ## 2026-09-26 版本接受
 
-本次接受 `capability.mcp-bridge` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `capability.mcp-bridge` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

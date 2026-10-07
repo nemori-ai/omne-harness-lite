@@ -5,7 +5,7 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.mcp-bridge, 2)`——
   `family = capabilities`、`topic = mcp-bridge`、规范路径 `spec/capabilities/mcp-bridge/v2/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：已由 [D-061](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
+- **状态**：已由 D-061 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**（PF-002 rev 20、PF-006 rev 19 为主责；PF-012 rev 14、PF-016 rev 8、PF-005 rev 5、PF-001 rev 19、PF-008 rev 7 只引；2026-09-24 逐版复核到当前 rev，变化与落点记在[验证入口](../verification.md#变化的影响)）：
   [PF-002 §4 MCP](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp)、
   [§4 MCP 凭据](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)、
@@ -20,16 +20,16 @@
   [PF-012 §5.7 每一次尝试开始都要做四件事](../../../../product/PF-012-agent-loop-and-run/design.md#每一次尝试开始都要做四件事)；
   [PF-016 §5.6](../../../../product/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧)、[§6.11](../../../../product/PF-016-cli-tui-delivery-surface/design.md#611-秘密不进任何一份呈现)（据点一侧、秘密不呈现，只引）；
   [PF-005 §6.2](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#62-宿主机不提供租户隔离因此必须被显式允许)（只引）；
-  [D-037](../../../../record/decisions/mcp-client-adoption/decision.md)（官方 SDK 上自写薄桥、本版桥接范围的复选卡片、stdio 一律在据点机拉起）
+  D-037（官方 SDK 上自写薄桥、本版桥接范围的复选卡片、stdio 一律在据点机拉起）
 - **产品正文已写的**：动作集在每一次执行尝试开始前重算、一次尝试之内不变（[PF-002 §4 MCP](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp)，rev 17 起；PF-006 §6.13 rev 18）
-- **主线裁定**（长期落点 [D-060](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md)，产品负责人尚未逐条追认）：桥被替换或卸载时经它在途的调用各自落「失败 · 异常中断」、不迁移不重发，桥的换代时机由装配给——[D-060 §块 B](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-b-拆分提案报回的推荐-c按拥有者分领域) PB-4；以及下一行的 S19-a～g——[D-060 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的)；
-  `fetchedAt` 取列举开始时刻（K34）、逐动作执行权限与执行时的接入点持有取自会话资产注册表钉住的报告（K30）——[D-060 §五](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)
-- **主线裁定**（见 [D-060 §六 N-10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)，原 G-14 闭合）：`ConnectionHandle` 不上签名、`invoke` 按持有寻址、连接的收口次序是义务；OAuth 流程本版落在据点一侧、只写义务与状态、交互归 PF-016；由桥做最小规范化（下文）。机制读数的连接归属（桥下每条连接各自收口）作「装配给」一列的输入
+- **主线裁定**（长期落点 D-060，产品负责人尚未逐条追认）：桥被替换或卸载时经它在途的调用各自落「失败 · 异常中断」、不迁移不重发，桥的换代时机由装配给——D-060 §块 B PB-4；以及下一行的 S19-a～g——D-060 §S19；
+  `fetchedAt` 取列举开始时刻（K34）、逐动作执行权限与执行时的接入点持有取自会话资产注册表钉住的报告（K30）——D-060 §五
+- **主线裁定**（见 D-060 §六 N-10，原 G-14 闭合）：`ConnectionHandle` 不上签名、`invoke` 按持有寻址、连接的收口次序是义务；OAuth 流程本版落在据点一侧、只写义务与状态、交互归 PF-016；由桥做最小规范化（下文）。机制读数的连接归属（桥下每条连接各自收口）作「装配给」一列的输入
 - **S19-a～g**：副本、OAuth 绑定、凭据都按持有存放（S19-a，原 G-1 闭合）；四个新失败值与 `oauthDenied` 四来由合一采纳（S19-b）；工作区提供的 stdio 接入点默认禁用、租户层显式启用（S19-c，原 G-2 闭合）；桥换代时在途调用落 `failed{abnormal_interruption}`（S19-d，原 G-16 闭合）；两端模态由桥投影、投不出即「任意」（S19-e，原 G-3 闭合）；凭据保管方作装配给、求值交出 `provenance`（S19-f，原 G-9 闭合、G-7 收窄）；多据点下 OAuth 凭据跟机器（S19-g，原 G-8 闭合，后果见 G-17）
-- **主线裁定（修复波 2）**——[D-060 §七 M8、M10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)：报告里逐动作执行权限以动作条目的模型面名字为键；报告里查不到条目的调用（含失去生效持有的接入点的动作）不进放行判断、由执行运行时收场 `unavailable{no_such_entry}`，`not_in_composition` 不适用于 MCP 动作（[CS-4](#cs-4-放行判断需要知道本契约做什么)）
-- **主线裁定（修复波 3）**——[D-060 §八 M37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)：参数 schema 过了 `data.tool-definition` 表示层前十二行、只是这个实现编不出（或 `pattern` 超出实现上限）的动作，**不排除**，标「只能以替换件出现」、原因 `schema_unsupported`（[S-17](#s-17-projectactions)）
-- **主线裁定 2026-09-24**（原 [G-18](#十已知缺口) 关闭；见 [D-060 §六 N-10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）：**由桥做最小规范化**——缺说明的动作与参数补占位说明「对端未提供说明」、在动作条目上标 `normalized: true`；剥掉 `$schema`／`title`；`{"type": "object"}` 视为无参数；规范化之后仍不合的才排除（[S-17](#s-17-projectactions)）。
-  缘起是 [PF-006 decisions §四](../../../../product/PF-006-tools-and-skills/decisions.md#四已知的来源问题)「MCP 对端给的动作若不带说明……正文未述它算什么」——那一行记为交产品负责人、规格侧留缺口；**主线自定：不当它不可用**
+- **主线裁定（修复波 2）**——D-060 §七 M8、M10：报告里逐动作执行权限以动作条目的模型面名字为键；报告里查不到条目的调用（含失去生效持有的接入点的动作）不进放行判断、由执行运行时收场 `unavailable{no_such_entry}`，`not_in_composition` 不适用于 MCP 动作（[CS-4](#cs-4-放行判断需要知道本契约做什么)）
+- **主线裁定（修复波 3）**——D-060 §八 M37：参数 schema 过了 `data.tool-definition` 表示层前十二行、只是这个实现编不出（或 `pattern` 超出实现上限）的动作，**不排除**，标「只能以替换件出现」、原因 `schema_unsupported`（[S-17](#s-17-projectactions)）
+- **主线裁定 2026-09-24**（原 [G-18](#十已知缺口) 关闭；见 D-060 §六 N-10）：**由桥做最小规范化**——缺说明的动作与参数补占位说明「对端未提供说明」、在动作条目上标 `normalized: true`；剥掉 `$schema`／`title`；`{"type": "object"}` 视为无参数；规范化之后仍不合的才排除（[S-17](#s-17-projectactions)）。
+  缘起是 [PF-006 decisions §四](../../../../product/PF-006-tools-and-skills/design.md)「MCP 对端给的动作若不带说明……正文未述它算什么」——那一行记为交产品负责人、规格侧留缺口；**主线自定：不当它不可用**
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)）：
   - `omne-harness-lite-design-2026-09-15 · data.mcp-endpoint · v2`（**candidate**）
   - `omne-harness-lite-design-2026-09-15 · data.tool-definition · v2`（**candidate**）
@@ -65,7 +65,7 @@
 | **一次尝试里 agent 面前有哪些条目、按尝试钉住、装替换件；这一次尝试用哪份接入点持有、逐动作执行权限是什么** | [会话资产注册表](../../../../ubiquitous_language/terms/reach-and-availability.md#ul-session-asset-registry--会话资产注册表--session-asset-registry)（`capability.asset-registry` v2，[S-12](../../asset-registry/v2/contract.md#s-12-mcp-动作条目在一次尝试内钉住)） |
 | **工具执行**的派发、收场判定、前后台、账、送达 | 工具执行运行时（`capability.tool-execution-runtime` v2）。本契约只是它的一个自带实现（[S-19](#s-19-invoke)） |
 | **凭据配值的写入**（含 OAuth 取得之后把引用配上去） | 资产治理的写面（`capability.asset-governance` v2 的 `assign`／`clearAssignment`）——**取值就是配值**，那一次写由有配值资格的人在配值处经它完成（[S-23](#s-23-completeoauth)） |
-| **凭据本体的存储、加密与解引用** | 凭据保管方（`data.asset-model/v2#S-23` 第 7 条）——**装配给**（[D-060 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-f）。**据点上那一份的面**：窄口接口契约 `capability.credential-custodian` v2（收下 OAuth 凭据 S-16、按持有交出 S-17、清扫 S-18；2026-09-25 修订波）——那份契约以坐标依赖本契约，本契约作定义引用、**不反向登记**；本契约只写对它的要求（[S-9](#s-9-凭据的出示与取用)、[S-30](#s-30-装配给与协议给)、[G-7](#十已知缺口)） |
+| **凭据本体的存储、加密与解引用** | 凭据保管方（`data.asset-model/v2#S-23` 第 7 条）——**装配给**（D-060 §S19 S19-f）。**据点上那一份的面**：窄口接口契约 `capability.credential-custodian` v2（收下 OAuth 凭据 S-16、按持有交出 S-17、清扫 S-18；2026-09-25 修订波）——那份契约以坐标依赖本契约，本契约作定义引用、**不反向登记**；本契约只写对它的要求（[S-9](#s-9-凭据的出示与取用)、[S-30](#s-30-装配给与协议给)、[G-7](#十已知缺口)） |
 | **OAuth 的人机交互**（在哪里给人看同意地址、怎样接住回来的应答） | 交付面（PF-016） |
 | **MCP 协议本身**（握手、JSON-RPC、分页、通知的线上形状） | 官方 SDK（D-037）；本契约不复述协议，只在需要时引协议版本（[G-6](#十已知缺口)） |
 | **本操作面在进程之间的线上形状** | 把它送过进程边界的那份组合契约（本版无：桥与它的调用方都在据点进程里） |
@@ -111,7 +111,7 @@
 
 ### S-5 接入点持有的寻址
 
-**本契约的操作按「接入点持有」寻址，不按任何活的对象寻址。**一个 `endpointHolding` 是下面这组值，**由求值的一方交来**：会话资产注册表在执行尝试开始时求值（配方同装配、持有与配值取此刻）得出、钉进那一次报告的那一份（[`capability.asset-registry/v2#S-11`](../../asset-registry/v2/contract.md#s-11-一次执行尝试的可用性报告) 的 `endpointHoldings`；求值本身归 `capability.asset-evaluation`；读法见 [D-060 §六 L8、N-10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）——**不是装配那一次的结果**：
+**本契约的操作按「接入点持有」寻址，不按任何活的对象寻址。**一个 `endpointHolding` 是下面这组值，**由求值的一方交来**：会话资产注册表在执行尝试开始时求值（配方同装配、持有与配值取此刻）得出、钉进那一次报告的那一份（[`capability.asset-registry/v2#S-11`](../../asset-registry/v2/contract.md#s-11-一次执行尝试的可用性报告) 的 `endpointHoldings`；求值本身归 `capability.asset-evaluation`；读法见 D-060 §六 L8、N-10）——**不是装配那一次的结果**：
 
 | 成员 | 含义 | 是不是身份参数 |
 |---|---|---|
@@ -125,7 +125,7 @@
 - **身份参数没有默认值**（`data.identity-values/v1#S-17`）：`tenant`、`endpoint`、`scope` 缺一即 `invalidInput`，**不从环境、进程上下文或「当前会话」补齐**。`provenance` 不合上表（缺 `connectionTarget`，或 `credential` 与 `settings.credential` 一在一缺）同样是 `invalidInput`——**不当它是「来处未知、照常出示」**。
 - **本契约不求值**：它不读各格的配值、不判谁覆盖谁；拿到的 `settings` 就是它用的值。**求值错了是求值的错**，本契约照着用——但下面两条它自己守：
   凭据只出示给来处不更具体的连接目标（[S-9](#s-9-凭据的出示与取用) 第 3 条）；工作区格上凭据恒缺席（`data.mcp-endpoint/v2#S-17`）、组织格不持有凭据（`data.mcp-endpoint/v2#S-12`）——`scope` 是工作区格、或 `provenance.credential` 不是租户那一格，而交来了一个凭据引用，**不出示，`credentialUnavailable`**。
-- **`provenance` 由求值交出**（`capability.asset-evaluation/v2#S-40`；[D-060 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-f；原 G-9 闭合）。`scope` 由求值结果里这份生效资产的 `from` 与 `tenant`（工作区格另加工作区键）得出。
+- **`provenance` 由求值交出**（`capability.asset-evaluation/v2#S-40`；D-060 §S19 S19-f；原 G-9 闭合）。`scope` 由求值结果里这份生效资产的 `from` 与 `tenant`（工作区格另加工作区键）得出。
 
 ### S-6 连接：归桥，不上签名，不跨租户
 
@@ -134,8 +134,8 @@
 1. **一条连接只为一组 (`tenant`, `endpoint`, `scope`, 连接目标的值, 凭据配值) 服务**——凭据配值指 `settings.credential` 那个 `CredentialRef` **引用本身**（或它的缺席），**不是**解引用出来的秘密：续期不换引用（[S-24](#s-24-续期清值与作废) 第 1 条），不因此换连接；换值、清值换了引用，旧连接不再用于新调用（同条第 3 条）。这五样里任何一样不同，**不复用**这条连接。**不跨租户身份共用连接**，也不跨持有共用（[PF-002 §4 MCP 凭据](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)「不跨租户身份共用」）。
    同一个租户、同一份持有下的几个会话共用一条连接是允许的——**它们各自的动作集按尝试钉住**（[S-12](#s-12-每次执行尝试重新列举尝试内不变)），共用连接不破坏这一条。
 2. **惰性建立**：某个操作需要、而对应的连接不在时才建；**建立到拿齐第一份清单为止以连接超时封顶**（`settings.connectTimeout`，[S-16](#s-16-refreshactions)）。
-3. **stdio 连接目标**：由据点进程在据点机上拉起那个程序（[D-037](../../../../record/decisions/mcp-client-adoption/decision.md)；`data.mcp-endpoint/v2#S-4`）。
-   据点机是宿主机，[PF-005 §6.2](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#62-宿主机不提供租户隔离因此必须被显式允许) 要求它**必须被显式允许**；本契约把「这份持有被求值判为这个租户能用、且没有被禁用」读作那一次允许。**工作区提供的 stdio 接入点在求值第一步就被禁用**（`capability.asset-evaluation/v2#S-17` 第三条；`data.mcp-endpoint/v2#S-17`；[D-060 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-c：权力不从项目来），不会交到本契约——克隆一个仓库、开一次尝试，不会在宿主机上跑仓库写的命令；租户层怎样显式启用它，那份契约尚无表示（它的 G-19）。本契约不再判一次（[S-5](#s-5-接入点持有的寻址)：求值错了是求值的错）。它的完整环境**恰是**三部分的并：
+3. **stdio 连接目标**：由据点进程在据点机上拉起那个程序（D-037；`data.mcp-endpoint/v2#S-4`）。
+   据点机是宿主机，[PF-005 §6.2](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#62-宿主机不提供租户隔离因此必须被显式允许) 要求它**必须被显式允许**；本契约把「这份持有被求值判为这个租户能用、且没有被禁用」读作那一次允许。**工作区提供的 stdio 接入点在求值第一步就被禁用**（`capability.asset-evaluation/v2#S-17` 第三条；`data.mcp-endpoint/v2#S-17`；D-060 §S19 S19-c：权力不从项目来），不会交到本契约——克隆一个仓库、开一次尝试，不会在宿主机上跑仓库写的命令；租户层怎样显式启用它，那份契约尚无表示（它的 G-19）。本契约不再判一次（[S-5](#s-5-接入点持有的寻址)：求值错了是求值的错）。它的完整环境**恰是**三部分的并：
    据点进程环境里**名字在白名单上**的那几个变量（具名参数 `stdioEnvAllowlist`，值未定，[G-12](#十已知缺口)；它是一份 `EnvAllowlist`，形状与取法定在 `capability.execution-environments/v2#S-13`，与兼容件的 `hookEnvAllowlist` 是两个策略点、同一个形状）；正文 `transport.env`；凭据作为环境变量出示的那一部分（[S-9](#s-9-凭据的出示与取用)）。
    **同名时后者压前者**。**据点进程环境里的其余变量一个也不传下去**——那里可能有别的租户、别的接入点的秘密。
    程序**不经 shell 启动、不做变量插值**（`data.mcp-endpoint/v2#S-4`）。
@@ -151,12 +151,12 @@
 1. **键是 (`tenant`, `endpoint`, `scope`)**。不跨租户身份共用：同一个人的两个租户身份用两份凭据，对端给的清单不必相同（[PF-002 acceptance §一](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md#一可观察场景)）。
 2. **初值是 `not_fetched`**：一个键上从没完整列举成功过，副本就是「还没取过」——**不是空清单**。
 3. **只有本契约写它，只由 [S-16](#s-16-refreshactions) 的一次完整列举写它**：分页全部拿完、每一项都合 `McpToolDescriptor`、对端动作名不重复，才写；**拿到一半的、有一项不合的，一律不写**，原来那份原样留着。
-4. **整份替换，单调**：新的一份整份换掉旧的；**`fetchedAt` 取这一次列举开始的那一刻**——发出第一页列举请求之前，从部署的同一时间源取（[D-060 §五](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) K34）。**一次写入若它的 `fetchedAt` 不晚于已存那份的，丢弃**——两次并发的刷新，先开始、后完成的那一次拿到的是更早那一刻起的清单，它的 `fetchedAt` 更早，**不会盖掉后开始那一次已写下的新清单**。
-5. **持久**：据点重启之后它还在（[D-026](../../../../record/decisions/infrastructure-persistence-choices/README.md) 不设内存实现）；**它是替换件同形的唯一依据**（[PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#接入点连不上它的动作就是不可用)）。
+4. **整份替换，单调**：新的一份整份换掉旧的；**`fetchedAt` 取这一次列举开始的那一刻**——发出第一页列举请求之前，从部署的同一时间源取（D-060 §五 K34）。**一次写入若它的 `fetchedAt` 不晚于已存那份的，丢弃**——两次并发的刷新，先开始、后完成的那一次拿到的是更早那一刻起的清单，它的 `fetchedAt` 更早，**不会盖掉后开始那一次已写下的新清单**。
+5. **持久**：据点重启之后它还在（D-026 不设内存实现）；**它是替换件同形的唯一依据**（[PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#接入点连不上它的动作就是不可用)）。
 6. **随持有生灭**：那份持有被移除之后，求值不再交出这个键，这份副本**不再被任何操作读到**；删掉它是整理，**不担正确性**。
 7. **在据点一侧**：写它的桥在据点进程里；它不回写到治理中心（装配给，[S-30](#s-30-装配给与协议给)）。
 
-**为什么副本在这里、不在正文里**：见 `data.mcp-endpoint/v2` 的 [S-9](../../../data/mcp-endpoint/v2/contract.md#s-9-动作清单副本) 末段——**[D-060 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-a 采纳**（A-M11「读正文里的动作快照」改判为「读持有上的副本」；原 G-1 闭合）。
+**为什么副本在这里、不在正文里**：见 `data.mcp-endpoint/v2` 的 [S-9](../../../data/mcp-endpoint/v2/contract.md#s-9-动作清单副本) 末段——**D-060 §S19 S19-a 采纳**（A-M11「读正文里的动作快照」改判为「读持有上的副本」；原 G-1 闭合）。
 
 ### S-8 OAuth 绑定：状态与迁移
 
@@ -166,13 +166,13 @@
 |---|---|---|
 | （无） | `pending` | [S-22 beginOAuth](#s-22-beginoauth) |
 | `pending` | `granted` | [S-23 completeOAuth](#s-23-completeoauth) 成功 |
-| `pending` | `revoked` | 人拒绝了或授权服务器报错（S-23）；同一份持有上又发起了一次（S-22，旧的在同一提交内作废）；**过期**：`since` 起过了具名参数 `oauthPendingTtl` 还没完成（读时判定，不靠定时器）——**过期 ⇔ `now > since + oauthPendingTtl`**，严格大于、恰等于不算；`now` 取完成那一次锁到绑定之后读的时刻（主线裁定，[D-060 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)；与 `capability.credential-custodian/v2#S-18` 第 2 条的清扫**同一个谓词**，两边共用同一份实现是装配给的保证，那份契约 S-19 第 2 行） |
+| `pending` | `revoked` | 人拒绝了或授权服务器报错（S-23）；同一份持有上又发起了一次（S-22，旧的在同一提交内作废）；**过期**：`since` 起过了具名参数 `oauthPendingTtl` 还没完成（读时判定，不靠定时器）——**过期 ⇔ `now > since + oauthPendingTtl`**，严格大于、恰等于不算；`now` 取完成那一次锁到绑定之后读的时刻（主线裁定，D-060 §八 N-42；与 `capability.credential-custodian/v2#S-18` 第 2 条的清扫**同一个谓词**，两边共用同一份实现是装配给的保证，那份契约 S-19 第 2 行） |
 | `granted` | `revoked` | 续期被授权服务器明确拒绝（[S-24](#s-24-续期清值与作废)）；它取得的那个引用**不再被配在那份持有上**——被清掉、被换成别的值、持有被移除；取得之后过了具名参数 `unassignedCredentialRetention` 仍没被配上 |
 
 - **`revoked` 是终态**；要再取，是一次新的发起、一个新的绑定号。
 - **续期不迁移状态、不改 `since`**（`data.mcp-endpoint/v2#S-12`；PF-002「续期不算换值」）。
 - **同一份持有上至多一个 `pending`**：新的一次发起作废旧的——回来的应答只认最新那一次流程。
-- **绑定存在据点一侧**（主线裁定，见 [D-060 §六 N-10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)：OAuth 流程本版落在据点侧）。**OAuth 取得的凭据跟机器**（[D-060 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-g，同 [PF-016 §6.20](../../../../product/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据) 的「每台机器只有自己那一把」；原 G-8 闭合）：一个租户换一台机器，那台机器上没有这个绑定，引用解引用不出（`credentialUnavailable`），要在那台机器上再取一次——**再取的那一次配上之后，原先那台机器上的绑定按上表作废**（[G-17](#十已知缺口)）。
+- **绑定存在据点一侧**（主线裁定，见 D-060 §六 N-10：OAuth 流程本版落在据点侧）。**OAuth 取得的凭据跟机器**（D-060 §S19 S19-g，同 [PF-016 §6.20](../../../../product/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据) 的「每台机器只有自己那一把」；原 G-8 闭合）：一个租户换一台机器，那台机器上没有这个绑定，引用解引用不出（`credentialUnavailable`），要在那台机器上再取一次——**再取的那一次配上之后，原先那台机器上的绑定按上表作废**（[G-17](#十已知缺口)）。
 
 ### S-9 凭据的出示与取用
 
@@ -236,7 +236,7 @@
 ### S-14 桥不做放行判断
 
 **本契约不判断一次调用该不该执行、要不要问人。**动作随接入点持有与授权（[PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)）；
-逐动作执行权限是那个条目的执行权限，由放行判断在调用之前判；它的值是会话资产注册表在尝试开始时钉进报告的那一项（`capability.asset-registry/v2#S-11` 的 `effectivePermissions`，[D-060 §五](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) K30）。**到达 [S-19](#s-19-invoke) 的调用已经被放行**——那是调用方（工具执行运行时）的前置，不是本契约再判一次。
+逐动作执行权限是那个条目的执行权限，由放行判断在调用之前判；它的值是会话资产注册表在尝试开始时钉进报告的那一项（`capability.asset-registry/v2#S-11` 的 `effectivePermissions`，D-060 §五 K30）。**到达 [S-19](#s-19-invoke) 的调用已经被放行**——那是调用方（工具执行运行时）的前置，不是本契约再判一次。
 
 **「能不能用」同样不由本契约判**：求值与会话资产注册表只为能用的租户交出 `endpointHolding`、装出条目；本契约拿到的就是判过的结果（[S-5](#s-5-接入点持有的寻址)）。
 
@@ -277,7 +277,7 @@
 **与起草时名字清单的差别**：清单给的是前七个；**`callTimedOut`、`oauthNotApplicable`、`dependencyUnavailable`、`bridgeWithdrawn` 四个是本契约加的**——
 `callTimedOut` 是「单次调用超时」这一项设置到点之后必须有的名字（不能说成连不上）；`oauthNotApplicable` 是 OAuth 那一路的结构性禁止（不是权限判定）；
 `dependencyUnavailable` 是「判不出来与判为拒绝永远是两个值」的那一半；`bridgeWithdrawn` 是主线追加的「桥换代时在途调用落异常中断」要一个能与普通失败分开的结局（它对到的收场带原因码，别的失败不带）。
-**`oauthDenied` 收了四种来由**，理由同 `capability.asset-transfer` 的「不再有效」口径：对调用方它们只有一个后果——重新发起。**[D-060 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-b 采纳。**
+**`oauthDenied` 收了四种来由**，理由同 `capability.asset-transfer` 的「不再有效」口径：对调用方它们只有一个后果——重新发起。**D-060 §S19 S19-b 采纳。**
 
 ### S-16 refreshActions
 
@@ -330,7 +330,7 @@
 
 - **不带 `settings`**：两项超时是接入点持有上的设置（`data.mcp-endpoint/v2#S-14`），不是每个条目自己的；条目在定义里声明设置项，就会凭空多出一批无处可配的项（对端动作没有持有）。**单次调用超时由本契约在 [S-19](#s-19-invoke) 按 `settings.callTimeout` 执行。**
 - **不带 `allowBackground`**：后台许可是作者对自己代码时序的担保，对端无从声明、接入点作者也担保不了对端（[`data.tool-definition/v2#S-12`](../../../data/tool-definition/v2/contract.md#s-12-后台许可与转后台阈值)「不声明就是不能后台」）。**MCP 条目本版不转后台。**
-- **不带 `needs`**：对端描述没有声明依赖与模态的途径。**两端模态由本条投影**（[D-060 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-e）：
+- **不带 `needs`**：对端描述没有声明依赖与模态的途径。**两端模态由本条投影**（D-060 §S19 S19-e）：
   入参那一端，对端要的是一个 JSON 对象，有效模型只需给出文本——不带 `inputModalities`（「只要文本」）就是它的投影；
   结果那一端，对端描述里没有可投的东西，**投不出，读作「任意」**（`data.tool-definition/v2#S-24` 第 3 条）：本版每一个 MCP 条目的结果端都是「任意」，结果里的图块、语音块不判违反。**不把「任意」写成 `outputModalities` 的一组取值**——那会成为「只有这几种」的声明。
 - **不带 `composes`**：MCP 不组合任何资产（`data.tool-definition/v2#S-16`）。
@@ -352,7 +352,7 @@
 **只能以替换件出现**：一个动作照样投影成一份工具定义（形状照常、`normalized` 照常），但**标记为只能以替换件出现**并带原因——**原因恰两种，闭合**：
 
 1. **执行方式本版不支持**：对端声明这个动作**必须以任务方式执行**（MCP 协议 2025-11-25 版的 `execution.taskSupport` 为 `required`，从副本里原样保留的那一项读），本版不桥这类动作（D-037）；原因是「本版不支持这个动作的执行方式」。**能否在列举结果里可靠地识别它，D-037 记为未核**（[G-6](#十已知缺口)）；识别不出的，按普通动作投影，调用时对端报错落 `protocolError`。
-2. **`schema_unsupported`：参数 schema 这个实现判不了**（主线裁定，见 [D-060 §八 M37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：名字拼得出，以**规范化之后**的 `d.inputSchema` 作 `input` 的那份定义过了 `data.tool-definition/v2` 的 [S-26](../../../data/tool-definition/v2/contract.md#s-26-表示层拒绝值与判定次序) 前十二行，只在第 13 行被拒——这个实现编不出它，或其中某个 `pattern` 超出实现登记的上限。**形状合法，所以不进 `excluded`**（[`data.tool-definition/v2#S-27`](../../../data/tool-definition/v2/contract.md#s-27-表示层拒绝不是判定) 末段给 MCP 来源开的那个口子；[`data.mcp-endpoint/v2#S-10`](../../../data/mcp-endpoint/v2/contract.md#s-10-对端动作描述) 同句）：原因写 `schema_unsupported`，会话资产注册表据此装 `stand_in{for: schema_unsupported}`（`capability.asset-registry/v2#S-12`「原因取桥给的」）——**看得见、说得出原因、调了一定落「不可用」**，不会把一次判不了参数的调用送到对端。同形照的仍是这一次投影出的定义，规范化一字不差（最小规范化里「替换件同形照样成立」那一条）。
+2. **`schema_unsupported`：参数 schema 这个实现判不了**（主线裁定，见 D-060 §八 M37）：名字拼得出，以**规范化之后**的 `d.inputSchema` 作 `input` 的那份定义过了 `data.tool-definition/v2` 的 [S-26](../../../data/tool-definition/v2/contract.md#s-26-表示层拒绝值与判定次序) 前十二行，只在第 13 行被拒——这个实现编不出它，或其中某个 `pattern` 超出实现登记的上限。**形状合法，所以不进 `excluded`**（[`data.tool-definition/v2#S-27`](../../../data/tool-definition/v2/contract.md#s-27-表示层拒绝不是判定) 末段给 MCP 来源开的那个口子；[`data.mcp-endpoint/v2#S-10`](../../../data/mcp-endpoint/v2/contract.md#s-10-对端动作描述) 同句）：原因写 `schema_unsupported`，会话资产注册表据此装 `stand_in{for: schema_unsupported}`（`capability.asset-registry/v2#S-12`「原因取桥给的」）——**看得见、说得出原因、调了一定落「不可用」**，不会把一次判不了参数的调用送到对端。同形照的仍是这一次投影出的定义，规范化一字不差（最小规范化里「替换件同形照样成立」那一条）。
 
 **两种同时成立时报 `schema_unsupported`**（本契约推导，已报主线）：先判定义、后判执行方式，与「先判名字、再判参数 schema」同一个方向；两个实现（上限相同）对同一个对端动作因此给出同一个原因。
 
@@ -665,24 +665,24 @@
 
 | # | 缺口 | 影响 | owner |
 |---|---|---|---|
-| **G-1** | **已闭合（2026-09-24 整批对齐）**：副本、凭据、OAuth 绑定按持有存放，[D-060 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-a 采纳 | — | — |
-| **G-2** | **已闭合（2026-09-24 整批对齐）**：工作区提供的 stdio 接入点在求值第一步被禁用（[D-060 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-c；[S-6](#s-6-连接归桥不上签名不跨租户) 第 3 条）；租户层怎样显式启用它归 `capability.asset-evaluation` 的 G-19 | — | — |
-| **G-3** | **已闭合（2026-09-24 整批对齐）**：两端模态由本契约投影、结果端投不出即「任意」（[D-060 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-e；[S-17](#s-17-projectactions)、`data.tool-definition/v2#S-24` 第 3 条） | — | — |
+| **G-1** | **已闭合（2026-09-24 整批对齐）**：副本、凭据、OAuth 绑定按持有存放，D-060 §S19 S19-a 采纳 | — | — |
+| **G-2** | **已闭合（2026-09-24 整批对齐）**：工作区提供的 stdio 接入点在求值第一步被禁用（D-060 §S19 S19-c；[S-6](#s-6-连接归桥不上签名不跨租户) 第 3 条）；租户层怎样显式启用它归 `capability.asset-evaluation` 的 G-19 | — | — |
+| **G-3** | **已闭合（2026-09-24 整批对齐）**：两端模态由本契约投影、结果端投不出即「任意」（D-060 §S19 S19-e；[S-17](#s-17-projectactions)、`data.tool-definition/v2#S-24` 第 3 条） | — | — |
 | **G-4** | **非图片、非音频的内嵌二进制资源无处存放**：附件存储未定义 | 这类资源本版只留一行说明，没有带回（[S-20](#s-20-对端结果怎样成为-toolresult)） | **PF-006 的 owner**（存储）；`data.content-blocks` 的 G-1 同一件事 |
 | **G-5** | **elicitation**：工具等待态与决策卡片的契约未就位，本版不向对端声明 | 需要中途问人的 MCP 服务端用不了那一段 | **工具执行运行时与 PF-008 的契约**；就位后本契约出新版 |
 | **G-6** | **SDK 与协议的来源核对**：官方 SDK 精确钉版未定（研究已核 1.29.0／1.30.0 最新协议 2025-11-25、v2 是新包名）；任务式动作能否在列举结果里识别、SDK 的鉴权提供者与自定义传输能力**未取证** | [S-17](#s-17-projectactions) 的「只能以替换件出现」第 1 种原因（执行方式）可能识别不出；OAuth 一格的实现路径未定 | **提供者设计**（basis 条目：每项给 probe） |
-| **G-7** | **再收窄——接口已定，三项本版不收**（2026-09-25 修订波，[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1）：保管方对本契约交出的面已由窄口接口契约 `capability.credential-custodian` v2 给出——收下 OAuth 凭据并发引用（S-16）、按持有交出（S-17）、丢弃未被配上的与被撤下的（S-18 清扫三种）。**本版不收**（那份契约 G-2～G-4，与桥节点 C-4～C-6 同口径，[D-060 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑩）：**静态凭据按持有交出**（C-4：静态凭据的引用一律 `notResolvable`，要静态凭据的接入点以 `credentialUnavailable` 连不上）；**续期写回**（C-5：令牌到期续不上，[S-24](#s-24-续期清值与作废) 第 1 条本版兑现不了，人要重新取）；**静态凭据本体里的名字**（C-6：哪个环境变量、哪个请求头的形状） | [S-9](#s-9-凭据的出示与取用) 第 2、4 条的静态凭据一支；[S-24](#s-24-续期清值与作废) 第 1 条 | 主线 → `infra/secrets` 那一程（保管方的真承接者）；出示名的形状归本契约新版本 |
-| **G-8** | **已闭合（2026-09-24 整批对齐）**：OAuth 取得的凭据跟机器（[D-060 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-g；[S-8](#s-8-oauth-绑定状态与迁移)）；它与「一份持有一个凭据值」合起来的后果另记 G-17 | — | — |
-| **G-9** | **已闭合（2026-09-24 整批对齐）**：`provenance` 由 `capability.asset-evaluation/v2#S-40` 交出（[D-060 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-f） | — | — |
+| **G-7** | **再收窄——接口已定，三项本版不收**（2026-09-25 修订波，D-063 R-1）：保管方对本契约交出的面已由窄口接口契约 `capability.credential-custodian` v2 给出——收下 OAuth 凭据并发引用（S-16）、按持有交出（S-17）、丢弃未被配上的与被撤下的（S-18 清扫三种）。**本版不收**（那份契约 G-2～G-4，与桥节点 C-4～C-6 同口径，D-060 §八 N-37 ⑩）：**静态凭据按持有交出**（C-4：静态凭据的引用一律 `notResolvable`，要静态凭据的接入点以 `credentialUnavailable` 连不上）；**续期写回**（C-5：令牌到期续不上，[S-24](#s-24-续期清值与作废) 第 1 条本版兑现不了，人要重新取）；**静态凭据本体里的名字**（C-6：哪个环境变量、哪个请求头的形状） | [S-9](#s-9-凭据的出示与取用) 第 2、4 条的静态凭据一支；[S-24](#s-24-续期清值与作废) 第 1 条 | 主线 → `infra/secrets` 那一程（保管方的真承接者）；出示名的形状归本契约新版本 |
+| **G-8** | **已闭合（2026-09-24 整批对齐）**：OAuth 取得的凭据跟机器（D-060 §S19 S19-g；[S-8](#s-8-oauth-绑定状态与迁移)）；它与「一份持有一个凭据值」合起来的后果另记 G-17 | — | — |
+| **G-9** | **已闭合（2026-09-24 整批对齐）**：`provenance` 由 `capability.asset-evaluation/v2#S-40` 交出（D-060 §S19 S19-f） | — | — |
 | **G-10** | **条目名撞名与供应商呈现**：同 `data.mcp-endpoint/v2` 的 G-2 | 同那边 | **会话资产注册表**；**模型请求运行时的传输适配** |
 | **G-11** | **从没连上过的接入点没有条目**：副本是 `not_fetched` 又连不上时没有形状可装替换件 | agent 面前这个接入点「什么都没有」，它不知道有过这回事 | **PF-006 / PF-002 的 owner**（产品面：接入时是否必须先连通一次；PF-006 decisions 已记「记下不填」） |
 | **G-12** | **具名参数的取值未定**：`stdioEnvAllowlist`、`maxListPages`、`oauthPendingTtl`、`unassignedCredentialRetention`、`stdioTerminateGrace`、`stderrBound`，以及续期重试的间隔 | 部署前必须给值；**本契约不填** | **主线／提供者设计**（部署配置，配错即启动失败） |
 | **G-13** | **已关闭（PF-002 rev 18，主线 2026-09-24 落）**：组织那一层不持有 MCP 凭据；[S-9](#s-9-凭据的出示与取用) 第 2 条只按租户格解引用，[S-22](#s-22-beginoauth) ③ 对组织格给 `oauthNotApplicable` | — | — |
-| **G-14** | **已闭合（修复波 1b）**：按尝试重算在产品正文（PF-002 rev 17）；S19-a～g、PB-4 在 D-060 §S19、§块 B；K30、K34 在 §五；其余五条——`ConnectionHandle` 不上签名、`invoke` 按持有寻址、连接的收口次序是义务、OAuth 落点在据点一侧、由桥做最小规范化（原 G-18 的裁定）——已登进 [D-060 §六 N-10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)，设计依据与 S-8 已回链 | — | — | — |
+| **G-14** | **已闭合（修复波 1b）**：按尝试重算在产品正文（PF-002 rev 17）；S19-a～g、PB-4 在 D-060 §S19、§块 B；K30、K34 在 §五；其余五条——`ConnectionHandle` 不上签名、`invoke` 按持有寻址、连接的收口次序是义务、OAuth 落点在据点一侧、由桥做最小规范化（原 G-18 的裁定）——已登进 D-060 §六 N-10，设计依据与 S-8 已回链 | — | — | — |
 | **G-15** | **被排除与只能以替换件出现的动作要不要告诉 agent**：本契约交出了它们，告不告诉、怎样告诉归会话资产注册表 | agent 不知道对端还有一个它看不见的动作 | **会话资产注册表**（D-060 S22-d：可用性变化不出提醒；被排除的动作是否另告 agent 仍未定，同 `capability.asset-registry` 的 G-13） |
 | **G-16** | **已闭合（2026-09-24 整批对齐）**：`data.content-blocks/v2#S-18` 那一行已加桥换代的来路；`capability.tool-execution-runtime/v2` 已为 MCP 条目开例外（它的 S-37） | — | — |
 | **G-17** | **OAuth 凭据跟机器，而一份持有上的 `credential` 只有一个值**：同一个租户在第二台机器上再取一次、配上之后，第一台机器上那个引用不再被配着，它的绑定按 [S-8](#s-8-oauth-绑定状态与迁移) 作废——**同一时刻只有一台机器连得上这个接入点** | 一个人在两台机器上交替用同一个要 OAuth 的接入点，每换一次机器取一次 | **PF-016 / PF-002 的 owner**（产品面：接受这个后果，还是凭据值按机器区分——后者改 `data.asset-model` 的配值形状） |
-| **G-18** | **已关闭（主线裁定 2026-09-24）**：由桥做最小规范化——缺说明补占位「对端未提供说明」并标 `normalized: true`、剥 `$schema`／`title`、`{"type": "object"}` 视为无参数，仍不合的才排除；替换件同形与「不替对端编说明」怎样成立写在 [S-17](#s-17-projectactions)。产品侧 [PF-006 decisions §四](../../../../product/PF-006-tools-and-skills/decisions.md#四已知的来源问题)那一行仍记「交产品负责人」 | — | — |
+| **G-18** | **已关闭（主线裁定 2026-09-24）**：由桥做最小规范化——缺说明补占位「对端未提供说明」并标 `normalized: true`、剥 `$schema`／`title`、`{"type": "object"}` 视为无参数，仍不合的才排除；替换件同形与「不替对端编说明」怎样成立写在 [S-17](#s-17-projectactions)。产品侧 [PF-006 decisions §四](../../../../product/PF-006-tools-and-skills/design.md)那一行仍记「交产品负责人」 | — | — |
 
 **它们都不是默认值**：消费者碰上时停在缺口，不挑一个看起来合理的答案。
 
@@ -706,11 +706,11 @@
 
 #### CS-4 放行判断需要知道本契约做什么
 
-放行判断**不需要**调本契约的任何操作：逐动作执行权限是会话资产注册表钉住动作集之后再求一次值、钉进这次尝试报告的那一项（`capability.asset-registry/v2#S-11` 的 `effectivePermissions`，K30；以动作条目的模型面名字 `ModelToolName` 为键，调用块的 `tool` 原样去查，[D-060 §七 M8](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。放行判断那一侧对一个 MCP 调用会遇到这几种情形，收场归它与 runner，本契约只指路：
+放行判断**不需要**调本契约的任何操作：逐动作执行权限是会话资产注册表钉住动作集之后再求一次值、钉进这次尝试报告的那一项（`capability.asset-registry/v2#S-11` 的 `effectivePermissions`，K30；以动作条目的模型面名字 `ModelToolName` 为键，调用块的 `tool` 原样去查，D-060 §七 M8）。放行判断那一侧对一个 MCP 调用会遇到这几种情形，收场归它与 runner，本契约只指路：
 
 - 报告里那一项是一个值 ⇒ 照常判；
 - 报告里那一项是 **`unavailable`**（第二次求值拿不到）⇒ 放行判断同批全拒，不补档；
-- 报告里**查不到**那个名字——接入点在这次尝试没有生效的持有（被移除、被禁用、这个租户用不了），它就没有钉住的动作条目（`capability.asset-registry/v2#S-12` 末行），或钉住的动作集里没有这个动作 ⇒ 那个调用**不进放行判断**，那一次经过记 `observed{reason: no_such_entry}`，执行运行时收场 `unavailable{no_such_entry}`（[D-060 §七 M10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)；`capability.loop-extension-runner/v2#S-29` 第 5 条、`capability.tool-execution-runtime` v2 的 S-23 ④），同批别的调用照常判；
+- 报告里**查不到**那个名字——接入点在这次尝试没有生效的持有（被移除、被禁用、这个租户用不了），它就没有钉住的动作条目（`capability.asset-registry/v2#S-12` 末行），或钉住的动作集里没有这个动作 ⇒ 那个调用**不进放行判断**，那一次经过记 `observed{reason: no_such_entry}`，执行运行时收场 `unavailable{no_such_entry}`（D-060 §七 M10；`capability.loop-extension-runner/v2#S-29` 第 5 条、`capability.tool-execution-runtime` v2 的 S-23 ④），同批别的调用照常判；
 - **`not_in_composition` 对 MCP 动作不会出现**：它只指「条目仍在快照、能力标识不在此刻组合里」，而没有生效持有的接入点根本没有动作条目（同上）。
 
 它需要知道的只有一句——**到达 [S-19](#s-19-invoke) 的调用本契约不再判一次**（[S-14](#s-14-桥不做放行判断)），所以放行必须在调用之前完成。

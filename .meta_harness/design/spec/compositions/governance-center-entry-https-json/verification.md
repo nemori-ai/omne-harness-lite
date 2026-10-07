@@ -38,7 +38,7 @@ HT1/HT2旧运维“任意成帧报文都回体检”证据不能复用于本版�
 
 ## 既有版本的证据
 
-> **当前状态：已接受并冻结（D-029，2026-09-23）。**实现测试的一次运行已入库：[`2026-09-23-tests-tenancy-leg-2`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)（源码提交 `c9b5850`；入口层提供者是[实现映射节点](../../../realization/packages/tenancy/governance-center-entry/README.md)）。
+> **当前状态：已接受并冻结（D-029，2026-09-23）。**实现测试的一次运行已入库：`2026-09-23-tests-tenancy-leg-2`（源码提交 `c9b5850`；入口层提供者是[实现映射节点](../../../realization/packages/tenancy/governance-center-entry/README.md)）。
 > V-1～V-9 与 V-11 都有通过的承担者；**V-10 无证据**（`apps/cli` 的客户端代理不存在）。承担者写成「文件 › describe › it」，文件都在入口层包 `packages/tenancy/governance-center-entry/tests/` 下；逐条状态在该 run 的 `cases.tsv`。
 > 「实际执行」一节另留起草者对 examples 的自检，它不是任何一条证据义务。**通过不提升或改变任何接受状态。**
 
@@ -46,7 +46,7 @@ HT1/HT2旧运维“任意成帧报文都回体检”证据不能复用于本版�
 
 | 规范条款与性质 | 证据形式 | 实际证据入口、输入与范围 | 未完成义务、责任与受阻消费者 |
 |---|---|---|---|
-| **V-1** [S-11](v1/contract.md#s-11-答复的外形)、[S-13](v1/contract.md#s-13-四种入口答复的固定字节) 四种入口答复逐字节等于 examples；[S-15](v1/contract.md#s-15-公开体检答复) 公开体检答复的形状 | 入口层 T-2 的固定字节快照：四份答复的完整字节与 [examples §1、§3](v1/examples.md#1-version-mismatch) 逐字节相等（含 SHA-256）；公开体检答复把标识与版本代成 examples §2 的值后逐字节相等；每份答复在连接上**一次写出**（S-11：比较的是 HTTP 报文层的字节，另核写出次数）；规范场景 [S-26](v1/contract.md#s-26-规范场景固定字节只看请求体) | **已通过**（run `2026-09-23-tests-tenancy-leg-2`）：`bytes.spec.ts` › `T-2：四种入口答复与 examples §1、§3 逐字节相同`（5 条）、`T-2：公开体检（examples §2）`（2 条），快照直接读本页所指的 `examples.md`（该 run 核对的哈希 `0efcc32c…` 与冻结登记相同）；一次写出 `transport.spec.ts` › `V-1：每一份答复在连接上一次写出`；真实组合 `center.spec.ts` › `T-2 线上逐字节相同（真实组合）`（2 条）；场景 S-26 `transport.spec.ts` › `V-5 只看请求体（规范场景 S-26）`（15 条）。另有该 run 的[独立字节核对](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md#一入口层产出的答复字节-vs-传输绑定-examplesmd-15)（函数级，§1～§5 七份答复逐字节相同） | 责任：入口层。**T-2 的快照必须取自本页所指的 examples，不另抄一份**；本契约接受前 T-2 对的是候选 |
+| **V-1** [S-11](v1/contract.md#s-11-答复的外形)、[S-13](v1/contract.md#s-13-四种入口答复的固定字节) 四种入口答复逐字节等于 examples；[S-15](v1/contract.md#s-15-公开体检答复) 公开体检答复的形状 | 入口层 T-2 的固定字节快照：四份答复的完整字节与 [examples §1、§3](v1/examples.md#1-version-mismatch) 逐字节相等（含 SHA-256）；公开体检答复把标识与版本代成 examples §2 的值后逐字节相等；每份答复在连接上**一次写出**（S-11：比较的是 HTTP 报文层的字节，另核写出次数）；规范场景 [S-26](v1/contract.md#s-26-规范场景固定字节只看请求体) | **已通过**（run `2026-09-23-tests-tenancy-leg-2`）：`bytes.spec.ts` › `T-2：四种入口答复与 examples §1、§3 逐字节相同`（5 条）、`T-2：公开体检（examples §2）`（2 条），快照直接读本页所指的 `examples.md`（该 run 核对的哈希 `0efcc32c…` 与冻结登记相同）；一次写出 `transport.spec.ts` › `V-1：每一份答复在连接上一次写出`；真实组合 `center.spec.ts` › `T-2 线上逐字节相同（真实组合）`（2 条）；场景 S-26 `transport.spec.ts` › `V-5 只看请求体（规范场景 S-26）`（15 条）。另有该 run 的独立字节核对（函数级，§1～§5 七份答复逐字节相同） | 责任：入口层。**T-2 的快照必须取自本页所指的 examples，不另抄一份**；本契约接受前 T-2 对的是候选 |
 | **V-2** [S-18](v1/contract.md#s-18-跨协议版本不改的两样在本传输上)、[S-19](v1/contract.md#s-19-随协议版本演化的部分换传输) 跨协议版本不改的两样 | 回归测试：把 `version-mismatch` 的 133 个字节、公开体检请求与答复的形状、S-7 的读法（解析器层：同一请求体读不读得下来、读成什么值，不经过 ①）、TLS 最低版本与服务端认证方式、四项接收上界与接收时限的下限钉在测试里；改 `accepted_protocol_versions`、加一条路由，这组测试都不许动也都须通过（加一个协议版本时，字节、形状、S-7 读法、TLS 参数与下限的断言不许动；判定次序与 ① 触发条件的断言——含端到端发公开体检请求拿到公开体检答复这一件，它依赖「第 0 步先于 ①」——只钉本版承载的协议版本，见 G-4）；规范场景 [S-27](v1/contract.md#s-27-规范场景跨协议版本) | **已通过**（钉住的各项，同 run）：`bytes.spec.ts` › `V-2：任何别的答复的体都不等于 "version-mismatch" 那 18 个字节`；133 个字节 `bytes.spec.ts` › `T-2：…` › `version-mismatch`；S-7 读法 `json.spec.ts` › `S-7 四级读法（examples §6）`（8 条）；下限 `framing.spec.ts` › `接收上界与时限的取值不低于契约下限（S-10 下限表；V-2 钉住的那几项）`；TLS 最低版本 `transport.spec.ts` › `V-7 与 T-19：…` › `只提供 TLS 1.2 的客户端握不了手`。「改 `accepted_protocol_versions`、加一条路由时这组测试都不许动」是对今后改动的约束，本 run 核不了；场景 S-27 只在本版承载的协议版本上断言 | 责任：入口层。另核「任何别的答复的体都不等于那 18 个字节」：对每条路由的每个具名失败与入口答复断言一次。「第 0 步先于 ①」与 ① 的触发条件是否跨协议版本冻结归 EC（[G-4](v1/contract.md#十一已知缺口)）：这两件的断言只钉本版承载的协议版本上的行为 |
 | **V-3** [S-7](v1/contract.md#s-7-请求体怎样读成信封) 请求体的读法 | 解析器逐例测试：[examples §6](v1/examples.md#6-请求体的读法与重复成员) 第 1～8、15、16、18 行，含 BOM、非法 UTF-8、原始字节里的代理码点编码、转义写出的孤立代理码点、非对象顶层、尾随字符、`9007199254740990.5` 不是整数 | **已通过**（同 run）：`json.spec.ts` › `S-7 四级读法（examples §6）`（8 条）、`S-7 JSON 值的读法`（6 条），逐行对应看用例名里的 `#` 号；第 15、16 行 `decide.spec.ts` › `T-15 …` › `examples §6 #15、#16：offerTtl 9007199254740990.5 不是整数 ⇒ invalid-input；1e3 合形状、交给领域的是 1000` | 责任：入口层（严格 JSON 解析器）。第 15 行专门挡「先舍入到双精度」这一种改坏 |
 | **V-4** [S-8](v1/contract.md#s-8-重复成员) 重复成员 | 解析器报告测试 ＋ 真实组合：[examples §6](v1/examples.md#6-请求体的读法与重复成员) 第 9～14、17、19 行；四个顶层成员各重复一次，答复落在 EC S-4 那张表写的那一步；载荷里面的重复落在载荷那一步；名字经转义还原后才比较 | **已通过**（同 run）：`json.spec.ts` › `S-8 重复成员：报告每一处，不取其一（examples §6 #9～#14、#17、#19）`（7 条）；`decide.spec.ts` › `T-15 重复成员落在它那一步（S-4；https-json/1 S-8）`（9 条，含出示物重复其一有效、`operation` 重复以转义写出） | 责任：入口层（节点 T-15）。「取其一」是最容易的改坏：必须有一例是两份出示物其一有效（第 11 行） |
@@ -57,35 +57,6 @@ HT1/HT2旧运维“任意成帧报文都回体检”证据不能复用于本版�
 | **V-9** [S-12](v1/contract.md#s-12-体的写出规则) 体的写出规则 | 写出器逐例测试：[examples §7](v1/examples.md#7-体的写出规则逐例) 每一行；27 条路由的成功返回各取一例，按这次请求的 `operation` 对应的 `Result_<路由>` 的书写次序写出后再按 EC Schema 的 `Exchange` 校验；含 IV 的 `TenantId`、`MembershipStanding` 两支、`ScopeLayerIdentity` 两支各一例 | **已通过**（同 run）：`bytes.spec.ts` › `V-9：体的写出规则逐例（examples §7）`（11 条）；`decide.spec.ts` › `V-9 与 T-10 的成功那一支：27 条路由的成功返回`（28 条） | 责任：入口层。时间点那几行专门挡「照搬一个总写三位小数的时间格式化」 |
 | **V-10** [S-17](v1/contract.md#s-17-客户端怎样读答复) 客户端怎样读答复 | 客户端代理的测试：只看体认出 `version-mismatch`；截断、超时、非 200、体读不成 JSON 都归问不到；客户端一律以 `POST`、`Content-Length` 发请求 | **无证据**，受阻：`apps/cli` 的客户端代理不存在（run `2026-09-23-tests-tenancy-leg-2` 的对应清单同写「无」） | 责任：`apps/cli` |
 | **V-11** [S-10](v1/contract.md#s-10-只答完整收到能成帧的请求报文)、[S-7](v1/contract.md#s-7-请求体怎样读成信封) 接收下限与各上界判的先后 | 真实组合：规范场景 [S-28](v1/contract.md#s-28-规范场景请求体的读法与重复成员) 的「恰在下限上」四例与接近 30 秒才发完的一例，都得公开体检答复；接收时限到了仍没收齐的，关闭不写；逐例测试：`Content-Length` 大于请求体上界时不读请求体即关闭；请求体里先有非法 UTF-8、后有超深嵌套 ⇒ `version-mismatch`（第 1 级对整个请求体先判）；第 3 级里语法错在前 ⇒ `version-mismatch`、超界在前 ⇒ 关闭不写 | **已通过**（同 run）：`framing.spec.ts` › `接收上界：恰在下限上照收，上界 + 1 即判（V-11；S-10）`（3 条）；`json.spec.ts` › `嵌套深度与成员数两个上界（S-7 表下、S-10；V-11）`（6 条）；接近 30 秒才发完 `slow.spec.ts` › `接收时限：下限 30 秒之内不被切，到了时限还没收齐就关闭不写`（3 条，按真实时长） | 责任：入口层（严格 JSON 解析器与成帧器）。「下限之内不被切」是本条最要紧的一支：只测超界关闭而不测下限之内照答，挡不住把上界取得过低 |
-
-## 实际执行
-
-**已入库的运行（2026-09-23）：**
-
-| 运行 | 输入与配置范围 | 结果 | 证据位置 |
-|---|---|---|---|
-| [`2026-09-23-tests-tenancy-leg-2`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)（V-1～V-9、V-11） | 源码提交 `c9b5850`；入口层包 `tests/` 十三个文件：真 TLS 连接与 HTTP 报文层字节（测试根证书）、真 Unix 套接字、`slow.spec.ts` 按真实时长（接收时限 30 秒）；真实组合为真实 CV／AI v2／OG／AR 与入口层插件同装一个 Cordis Context、`storage-sql` sqlite 临时文件库、钟是包内替身；T-2 快照直接读 `v1/examples.md`（哈希 `0efcc32c…`，= 冻结登记）；Node v24.18.0（OpenSSL 3.5.7）、vitest 4.1.11；另有该 run 用 `byte-checks/` 对入口层构建产物做的函数级独立字节核对 | 入口层包 424 条 **422 通过、2 跳过**、0 失败（两条跳过是装配一侧承担的占位，不涉本契约）；独立核对：§1～§5 七份答复与入口层产出逐字节相同，§2 请求页面自洽；测量自检两次故意改坏都被检出 | 该 run 的 [`output/governance-center-entry.log`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/output/governance-center-entry.log)、`json/governance-center-entry.json`、`byte-checks/`；义务对应 [`coverage.md`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/coverage.md#compositiongovernance-center-entry-https-jsonv-1v-11) |
-
-**有限检查不写成无条件证明**：单主机、单次运行；TLS 用测试根证书与 Node 自带的 OpenSSL 3.5.7，不说明别的 TLS 栈；独立字节核对是函数级的字节，连接上一次写出由 `transport.spec.ts` › `V-1` 另证；V-2 钉住的是本版承载的协议版本上的取值，跨版本那一半要等第二个协议版本；**V-10 与 V-7 的客户端一侧没有承担者**（`apps/cli` 不存在）。
-
-**下面是起草者此前对 examples 的自检。**每一次执行都绑定它核对的那份 `v1/examples.md` 所在的提交。**这些都是起草者对 examples 的自检，不是任何一条证据义务。**
-
-| 日期 | 执行者 | 核对的 examples.md | 结果 |
-|---|---|---|---|
-| 2026-09-23 | 首稿起草者 | 当时的工作树，随后以提交 `02ae8ee` 入库；**首稿当时未记提交号** | 下表四项全部一致或通过（首稿记录） |
-| 2026-09-23 | 评审第一轮修订的起草者 | 提交 `02ae8ee` 的 `v1/examples.md`（为补上首稿缺的提交号而重跑） | 8 份字节串（7 份答复、1 份请求）下表四项全部通过；jsonschema 4.26.0，注册表同下 |
-| 2026-09-23 | 评审第一轮修订的起草者 | 提交 `2c03302` 的 `v1/examples.md`（本轮修订后；该文件 SHA-256 `0efcc32c45b447b1a0f9fda89a4a34ddcc058418f3c53167fbaceb3a8c302246`） | 同上，8 份全部通过；§1～§5 的字节与 `02ae8ee` 相同 |
-
-四项核对的做法：
-
-| 核对 | 做法 | 结果（首稿记录） |
-|---|---|---|
-| 两种写法是同一串字节 | 脚本把 [examples.md](v1/examples.md) §1～§5 每一份的转义文本（去掉排版换行、`\r\n` 还原为 CR LF）与十六进制（去掉空白）分别还原成字节，逐字节比较；再与页上写明的总字节数、头部与体的字节数、SHA-256 比较 | 8 份（7 份答复、1 份请求）全部一致 |
-| 外形合 S-11 | 每一份答复：状态行是 `HTTP/1.1 200 OK`；头恰为四个、次序与写法如 S-11；`Content-Length` 等于体的字节数；请求的 `Content-Length` 等于请求体的字节数 | 全部合 |
-| 体合入口契约的 Schema | jsonschema 4.26.0 ＋ referencing（Draft 2020-12），注册表含入口契约、`data.identity-values` v1 与 `data.offer-expiry` v1 的 Schema：§1、§3 的体过 `EntryAnswer` 与 `ClientFaceReply`；§2 答复的体过 `PublicHealthReply`、请求体过 `PublicHealthRequest`；§4 的体过 `RouteSuccess`，并以 `operation` = `capability.account-identity/v2#S-37` 过 `Exchange`；§5 的体过 `FullHealthReply` | 全部通过 |
-| 体合 S-12 | 每一份体按 JSON 读回再以「无空白、非 ASCII 不转义」重新写出，与原字节逐字节比较；逐层核对象成员的次序等于所合定义的 `properties` 书写次序；每个时间点合「UTC、`Z`、秒小数只在非零时写且取最少位数」 | 全部合。另做了三个反例确认核对会失败：成员次序对调、`.000Z`、公开体检成员次序对调，各被检出 |
-
-脚本与它的反例只在起草者的临时目录里，没有入库；它们不替代 V-1、V-9。评审第一轮修订时重写了一份同样四项的脚本，另以三个反例（完整体检成员次序对调、时间点写成 `.250Z`、十六进制改一个字节）确认它会失败，三个都被检出。
 
 ## 变化的影响
 

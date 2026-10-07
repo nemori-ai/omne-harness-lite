@@ -1,6 +1,6 @@
 # data.offer-expiry v2
 
-- 坐标：`(omne-harness-lite-design-2026-09-15, data.offer-expiry, 2)`；accepted，按 [D-040](../../../../record/decisions/governance-identity-offer-contracts/decision.md) 采用并冻结，v1 不改。
+- 坐标：`(omne-harness-lite-design-2026-09-15, data.offer-expiry, 2)`；accepted，按 D-040 采用并冻结，v1 不改。
 - 来源：[PF-001 rev18](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#接收方可以明确拒绝待处理邀约) 的邀请/隶属接收方拒绝，及既有两种邀约过期规则；与 [v1](../v1/contract.md) 的差异为拒绝终结值和相应判定，时限相等处的严格性不变。
 - 精确依赖：data.identity-values v1 S-1/S-3，仅取 AccountId/OrganizationId，不复制身份定义。时间的线上形状由本 Schema 的 Instant 复用，不改变 v1 的表示。
 - 本版不消费能力/组合契约；由治理下一版采用后兑现操作授权与共同提交。资产消费者不自动升级，未为复制/分享新增拒绝动作。

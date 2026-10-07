@@ -2,7 +2,7 @@
 
 核对既有治理中心部署要消费的Docker/Compose行为。对象是Engine29.1.3、Compose2.40.3-desktop.1；取得于2026-09-26，主机macOS arm64、Docker Desktop4.55.0的Linux/arm64引擎。
 
-消费者：[Docker部署候选](../../design/record/proposals/governance-docker-deployment/README.md)。变化信号：Engine/Compose版本、停止/重启策略或宿主运行环境改变。
+消费者：Docker部署候选。变化信号：Engine/Compose版本、停止/重启策略或宿主运行环境改变。
 
 [研究结论](research.md) · [来源与实验](evidence.md)。本轮只提供有限机制事实，不做采用选择，不是产品制品或真实公司部署验收。
 

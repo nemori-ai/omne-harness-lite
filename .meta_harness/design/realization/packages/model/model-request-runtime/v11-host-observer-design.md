@@ -1,8 +1,8 @@
 # 显式宿主与有界观察端口的共享实现投影
 
-2026-09-28，revision 1，**candidate，未接受、未实现验收**。本增补精化已采用的 [v3 R3-P8/P9](v3-design.md)，承接 [RT8 S-51/S-61/S-62](../../../../spec/capabilities/model-request-runtime/v8/contract.md)。RT8、data.arrival-events/v2、capability.stream-assembly/v3 均在 [catalog](../../../../registry/catalog.json) 为 accepted；RT8 采用沿 [D-101](../../../../record/decisions/model-token-estimate-adoption/decision.md)。不新增插件、服务或第十四操作，不修改业务结果集合。需求沿 RT8 所列 PF-010/PF-013 来源；本次无产品政策选择。
+2026-09-28，revision 1，**candidate，未接受、未实现验收**。本增补精化已采用的 [v3 R3-P8/P9](v3-design.md)，承接 [RT8 S-51/S-61/S-62](../../../../spec/capabilities/model-request-runtime/v8/contract.md)。RT8、data.arrival-events/v2、capability.stream-assembly/v3 均在 [catalog](../../../../registry/catalog.json) 为 accepted；RT8 采用沿 D-101。不新增插件、服务或第十四操作，不修改业务结果集合。需求沿 RT8 所列 PF-010/PF-013 来源；本次无产品政策选择。
 
-下文类型、方法和文件分工均为**候选施工接口**，不是已有公开 API。现有源码只有独立 invoke 的 `onAccepted(event, snapshot)`、会话数据绑定和调用容器；`OpenCallInput.host: SessionRuntimeBinding` 尚不能兑现 S-61。共享 owner 的统一 store／组合 close 已由 D-102 采用（2026-09-28，承载提交 `8a48caf0`，决定正文 `record/decisions/model-runtime-owner-close-adoption/decision.md`）；L1/L2 交接不在其采用范围。本页仅给已采用统一收口必须纳管的新增资源，不替代恢复与耐久结算设计。
+下文类型、方法和文件分工均为**候选施工接口**，不是已有公开 API。现有源码只有独立 invoke 的 `onAccepted(event, snapshot)`、会话数据绑定和调用容器；`OpenCallInput.host: SessionRuntimeBinding` 尚不能兑现 S-61。共享 owner 的统一 store／组合 close 已技术采用，精确范围见 [统一收口](v10-owner-assembly-design.md#当前采用的收口范围)；L1/L2 交接不在其采用范围。本页仅给已采用统一收口必须纳管的新增资源，不替代恢复与耐久结算设计。
 
 ## 契约责任到实现
 
@@ -126,7 +126,7 @@ invoke 原 handle 建立后，B 在同一个同步段读取其**可见 snapshot*
 
 ## Cordis、装卸与存储
 
-仍为原 P-2 及原 call 资源，不为每次 dispatch 建 fiber。Cordis 4.0.4 采用依据 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md)。依赖替换触发卸载重跑引用 basis [plugin-body-reruns-on-provider-change](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)；不同 effect 的异步清理无完成顺序引用 [effect-disposal-concurrent-not-ordered](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)，两者已有 probe。宿主登记、取消、排空均是本项目机制，不冒充 Cordis 保证。公开 host/观察构件可单用，不调用 ctx.emit 或注入“当前会话”。
+仍为原 P-2 及原 call 资源，不为每次 dispatch 建 fiber。Cordis 4.0.4 采用依据 D-025。依赖替换触发卸载重跑引用 basis [plugin-body-reruns-on-provider-change](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)；不同 effect 的异步清理无完成顺序引用 [effect-disposal-concurrent-not-ordered](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)，两者已有 probe。宿主登记、取消、排空均是本项目机制，不冒充 Cordis 保证。公开 host/观察构件可单用，不调用 ctx.emit 或注入“当前会话”。
 
 | 装载取得 | owner／可用时点 | 部分失败与撤除 |
 |---|---|---|
@@ -157,4 +157,4 @@ C 类型落地后 B/C 可并行；装配可先实现真实生命周期与 endpoi
 
 ## 缺口与受阻消费者
 
-H-G1：本候选未独立评审、未采用；B/C 不以 candidate 擅自改变公开面。H-G2：尚无该端口的真实宿主/接收装配与可失败证据，S-61/S-62 完整服务验收受阻；主线装配实施者承接。H-G3：现有持久结算恢复及统一 owner 的未决事项由原主线处理，本稿不能将“观察任务停止”替代“原调用全部 released”。没有发现必须改变 RT8 的新语义缺口。本次新增 bindings **0**，所有验收场景归 [验证义务](verification.md#v11-宿主与观察端口候选义务)。
+H-G1：本候选未独立评审、未采用；B/C 不以 candidate 擅自改变公开面。H-G2：尚无该端口的真实宿主/接收装配与可失败证据，S-61/S-62 完整服务验收受阻；主线装配实施者承接。H-G3：现有持久结算恢复及统一 owner 的未决事项由原主线处理，本稿不能将“观察任务停止”替代“原调用全部 released”。没有发现必须改变 RT8 的新语义缺口。本次新增 bindings **0**，所有验收场景归 [验证义务](verification.md#v11-宿主与观察端口义务)。

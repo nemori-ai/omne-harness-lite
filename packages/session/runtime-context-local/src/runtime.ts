@@ -5,7 +5,10 @@ import type {
   ContextMutation,
   ContextRegistration,
   RuntimeContextOperations,
+  ContextSnapshotReader,
 } from '@omne-harness-lite/runtime-context'
+import type { Storage } from '@omne-harness-lite/storage'
+import { createContextInitializer } from './initialize.ts'
 import type { SessionLog } from '@omne-harness-lite/session-log'
 import type {
   AccessIdentity,
@@ -20,8 +23,10 @@ import { identity, own, object } from './values.ts'
 import { checkedScope } from './scope.ts'
 import { compatible, createContextReader } from './observation.ts'
 import { createContextSources } from './sources.ts'
+import { createContextWork } from './work.ts'
 
 export interface RuntimeContextDependencies {
+  readonly storage: Storage
   readonly log: SessionLog
   readonly access: SessionAccessOperations
   readonly now: () => string | { readonly unavailable: true }
@@ -33,9 +38,22 @@ export interface RuntimeContextDependencies {
 }
 type Reason = Extract<ContextMutation, { kind: 'rejected' }>['reason']
 const rejected = <R extends string>(reason: R) => ({ kind: 'rejected', reason }) as const
+function preparedEvent(
+  prepare: () =>
+    | import('./journal-types.ts').ContextEvent
+    | { readonly kind: 'rejected'; readonly reason: Reason },
+) {
+  try {
+    const candidate = prepare()
+    if (candidate.kind === 'rejected') return candidate
+    return decodeEvent(candidate) ?? rejected('invalidInput')
+  } catch {
+    return rejected('invalidInput')
+  }
+}
 export function createRuntimeContext(deps: RuntimeContextDependencies) {
-  const journal = createContextJournal(deps.log)
-  let active = true
+  const journal = createContextJournal(deps.log, deps.storage)
+  const work = createContextWork()
   function diagnostic(
     stage: Parameters<NonNullable<RuntimeContextDependencies['diagnostic']>>[0],
     error: unknown,
@@ -47,19 +65,19 @@ export function createRuntimeContext(deps: RuntimeContextDependencies) {
     }
   }
   async function authorize(access: SessionAccess, scope: SessionScope, operation: AccessOperation) {
-    if (!active) return rejected('ownerStopped')
+    if (!work.active()) return rejected('ownerStopped')
     try {
       const result = await deps.access.authorize(access, scope, operation)
-      return active ? result : rejected('ownerStopped')
+      return work.active() ? result : rejected('ownerStopped')
     } catch (error) {
       diagnostic('authority', error)
       return rejected('unavailable')
     }
   }
-  async function state(scope: SessionScope) {
-    if (!active) return rejected('ownerStopped')
-    const read = await journal.read(scope)
-    if (!active) return rejected('ownerStopped')
+  async function state(scope: SessionScope, keys?: readonly string[]) {
+    if (!work.active()) return rejected('ownerStopped')
+    const read = await journal.read(scope, keys)
+    if (!work.active()) return rejected('ownerStopped')
     return 'state' in read && read.state.seed ? read : rejected('unavailable')
   }
   function notify() {
@@ -69,7 +87,15 @@ export function createRuntimeContext(deps: RuntimeContextDependencies) {
       diagnostic('notification', error)
     }
   }
-  const sources = createContextSources({ active: () => active, state, notify })
+  const sources = createContextSources({ active: work.active, state, notify })
+  const stopped = () => rejected('ownerStopped')
+  function trackedReader(reader: ContextSnapshotReader): ContextSnapshotReader {
+    return Object.freeze({
+      read: keys => work.run(() => reader.read(keys), stopped),
+      snapshot: () => work.run(() => reader.snapshot(), stopped),
+      changes: cursor => work.run(() => reader.changes(cursor), stopped),
+    } satisfies ContextSnapshotReader)
+  }
   async function mutate(
     access: SessionAccess,
     inputScope: SessionScope,
@@ -90,18 +116,12 @@ export function createRuntimeContext(deps: RuntimeContextDependencies) {
     if (!checked.identity.contextKeys.includes(key)) return rejected('notAuthorized')
     const current = await state(scope)
     if ('kind' in current) return current
-    let candidate
-    try {
-      candidate = prepare(current.state, checked.identity, scope)
-    } catch {
-      return rejected('invalidInput')
-    }
-    if (candidate.kind === 'rejected') return candidate
-    const event = decodeEvent(candidate)
-    if (!event) return rejected('invalidInput')
+    const event = preparedEvent(() => prepare(current.state, checked.identity, scope))
+    if ('reason' in event) return event
     const latest = await authorize(access, scope, operation)
     if (latest.kind === 'rejected') return latest
     if (!latest.identity.contextKeys.includes(key)) return rejected('notAuthorized')
+    if (!work.active()) return rejected('ownerStopped')
     // A possibly committed write invalidates relevant reads before waiting for its receipt.
     sources.changed(scope, [key], event.kind !== 'updated')
     const result = await journal.commit(scope, current.state, event)
@@ -119,14 +139,16 @@ export function createRuntimeContext(deps: RuntimeContextDependencies) {
       if (result.identity.consumer !== consumer) return rejected('notAuthorized')
       return {
         kind: 'bound',
-        reader: createContextReader({
-          scope,
-          consumer,
-          sources,
-          authorize: () => authorize(access, scope, 'context.read'),
-          state: () => state(scope),
-          diagnostic: error => diagnostic('source', error),
-        }),
+        reader: trackedReader(
+          createContextReader({
+            scope,
+            consumer,
+            sources,
+            authorize: () => authorize(access, scope, 'context.read'),
+            state: keys => state(scope, keys),
+            diagnostic: error => diagnostic('source', error),
+          }),
+        ),
       }
     },
     async registrations(access, inputScope) {
@@ -256,13 +278,31 @@ export function createRuntimeContext(deps: RuntimeContextDependencies) {
       })
     },
   }
+  const initializer = createContextInitializer(journal, work.active, notify)
   return {
-    operations: Object.freeze(operations),
+    operations: Object.freeze({
+      bind: (...args: Parameters<RuntimeContextOperations['bind']>) =>
+        work.run(() => operations.bind(...args), stopped),
+      registrations: (...args: Parameters<RuntimeContextOperations['registrations']>) =>
+        work.run(() => operations.registrations(...args), stopped),
+      register: (...args: Parameters<RuntimeContextOperations['register']>) =>
+        work.run(() => operations.register(...args), stopped),
+      update: (...args: Parameters<RuntimeContextOperations['update']>) =>
+        work.run(() => operations.update(...args), stopped),
+      remove: (...args: Parameters<RuntimeContextOperations['remove']>) =>
+        work.run(() => operations.remove(...args), stopped),
+    } satisfies RuntimeContextOperations),
+    initializer: Object.freeze({
+      initializeContextSession: (
+        ...args: Parameters<typeof initializer.initializeContextSession>
+      ) => work.run(() => initializer.initializeContextSession(...args), stopped),
+    }),
     sources: Object.freeze(sources.registrations),
     closeAdmission() {
-      active = false
+      work.closeAdmission()
     },
     async drain() {
+      await work.drain()
       await sources.drain()
       await journal.drain()
     },

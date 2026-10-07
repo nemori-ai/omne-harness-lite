@@ -24,7 +24,7 @@ rev 1–2 同属 2026-09-23 的第二轮核对：提案「Skill 规格采用」�
 - 新结论：见上列各条；盘点表 42 行在报告第三节
 - 证据差异：新增 [E19](evidence.md#e19-omne-next-的扩展复读与补读)–[E25](evidence.md#e25-claude-code-文档的-frontmatter-全表照引同程钉存字节)；Codex 所读源码钉存为 `sources/codex-5c5308f-skills.tar.gz`
 - 对象版本：omne-next 未变（`6263fed5`）；新增 Codex `5c5308f`、本机 Codex CLI `0.156.1` 实例；Claude Code 文档照引同程钉存字节（v2.1.280）
-- 下游要复核：[proposal「Skill 规格采用」](../../design/record/proposals/skill-spec-adoption/design.md)的「剩余责任」表与 alternatives 的键分类表（外部属性类清单未含 Claude Code 文档里的 `arguments`、`disallowed-tools`、`effort`、`context`、`agent`、`background`、`hooks`、`paths`、`shell` 与 Codex 侧车键）
+- 下游要复核：proposal「Skill 规格采用」的「剩余责任」表与 alternatives 的键分类表（外部属性类清单未含 Claude Code 文档里的 `arguments`、`disallowed-tools`、`effort`、`context`、`agent`、`background`、`hooks`、`paths`、`shell` 与 Codex 侧车键）
 - 依据报告：[reports/2026-09-23-round2-open-format-and-extensions.md](reports/2026-09-23-round2-open-format-and-extensions.md)
 
 ## rev 1 — 2026-09-23 · 补充
@@ -42,5 +42,5 @@ rev 1–2 同属 2026-09-23 的第二轮核对：提案「Skill 规格采用」�
 - 新结论：见上列各条
 - 证据差异：新增 [E15](evidence.md#e15-开放格式规格原文六个字段name-规则metadataallowed-tools)–[E18](evidence.md#e18-规格仓库的-issue-与-pr-状态)；原文与参考库字节、探针脚本与输出、issue #474 原样 JSON 钉存于 [sources/](sources/provenance.json)
 - 对象版本：新增 agentskills/agentskills `69ef37e`（规格无版本号）
-- 下游要复核：[proposal「Skill 规格采用」](../../design/record/proposals/skill-spec-adoption/design.md)的「证据义务与受阻消费」第一行与 alternatives「会改变选择的证据」表——逐条对照见[报告第五节](reports/2026-09-23-round2-open-format-and-extensions.md#五这一轮对提案会改变选择的证据表的逐条对照只报事实)
+- 下游要复核：proposal「Skill 规格采用」的「证据义务与受阻消费」第一行与 alternatives「会改变选择的证据」表——逐条对照见[报告第五节](reports/2026-09-23-round2-open-format-and-extensions.md#五这一轮对提案会改变选择的证据表的逐条对照只报事实)
 - 依据报告：[reports/2026-09-23-round2-open-format-and-extensions.md](reports/2026-09-23-round2-open-format-and-extensions.md)

@@ -1,23 +1,12 @@
 # tool-execution-runtime 验证与证据
 
-## 2026-09-26 租户工具实现版本的受阻消费
-
-Core交付期间根据产品负责人对租户自定义工具实现的询问，核对了[PF002](../../../../product/PF-002-assets-settings-and-permissions/design.md)、[TD3 S30](../../../../spec/data/tool-definition/v3/contract.md)、[AM3](../../../../spec/data/asset-model/v3/contract.md)、[AE3](../../../../spec/capabilities/asset-evaluation/v3/contract.md)、[Registry2](../../../../spec/capabilities/asset-registry/v2/contract.md)与[TER2 S21／S37／S38](../../../../spec/capabilities/tool-execution-runtime/v2/contract.md)。产品允许同category/name的不同资产实现携带完整实现package；求值与注册表可以选择资产记录／版本并按尝试固定定义，发布本身不换既有快照，须reload或重新装配。
-
-现行TER的执行者只按定义名登记，本节点[设计](design.md)对同键重复登记拒绝；它不按租户／会话开实例。因此租户A选择 `tool/read → 资产A v2`、租户B选择 `tool/read → 资产B v7`，以及同一会话旧／新尝试并存时，**现行执行者表尚不能承载对应实现版本绑定**。这是已确定产品要求与尚未实施机制之间的缺口，不是运行漏洞实测。本程core只提供定义和纯值求值，没有交付该执行运行时。
-
-本节点后续实施前，主线与本节点owner须补齐“选中的资产记录／版本及尝试快照 → 对应实现工件／执行者”的契约与提供者映射，以及装载／撤除和失败责任，接续既有T14等缺口；本记录不自行选择新的索引键、加载器、Tool基类、路径约定或隔离机制。执行落点权限门也不能冒充模块初始化副作用的装载隔离保证。完整装载、租户版本正确执行与在途版本保持的独立验收，留给该未来交付增量。
-
-契约侧的证据义务权威在 [`spec/capabilities/tool-execution-runtime/verification.md`](../../../../spec/capabilities/tool-execution-runtime/verification.md)：一个 TLA+ 模型（两个登记任务、六个去保护配置、三份补充否定配置、七个可达性探针）、十八条规范场景、两个方向的故障注入、K-1～K-11 两源反例。
-本页按本节点的兑现点登记，再加**本节点自己的选择**带来的义务（会话哨兵、发件箱、活体表由一个 effect 持有、先 provide 后扫描）。**本节点尚未建包，除契约模型的两次运行外一切未开始。**
-
 ## 证据义务
 
 ### 契约模型（已执行，只证模型）
 
 | 来源条款 | 需要什么证据 | 当前状态 | owner 与闭合条件 |
 |---|---|---|---|
-| [S-7](../../../../spec/capabilities/tool-execution-runtime/v2/contract.md#s-7-活体与找得到)、[S-13](../../../../spec/capabilities/tool-execution-runtime/v2/contract.md#s-13-账)、[S-16](../../../../spec/capabilities/tool-execution-runtime/v2/contract.md#s-16-首胜收场只写一次)～[S-20](../../../../spec/capabilities/tool-execution-runtime/v2/contract.md#s-20-恢复扫描与停机不重来)、[S-29](../../../../spec/capabilities/tool-execution-runtime/v2/contract.md#s-29-会话归档)、[S-30](../../../../spec/capabilities/tool-execution-runtime/v2/contract.md#s-30-答复等待) 的安全性质 | formal task `tool-execution-runtime-v2-execution` ＋ 成对的去保护配置 | **已执行（模型层）**：见[实际执行](#实际执行)；九条进 [bindings](bindings.yaml)。**证的是交错语义，不证本节点的存储真的兑现了 R-T1／R-T3**——那一半是下面 N-2、N-3 的真并发演练 | 契约 owner（模型）；本节点（N-2、N-3） |
+| [S-7](../../../../spec/capabilities/tool-execution-runtime/v2/contract.md#s-7-活体与找得到)、[S-13](../../../../spec/capabilities/tool-execution-runtime/v2/contract.md#s-13-账)、[S-16](../../../../spec/capabilities/tool-execution-runtime/v2/contract.md#s-16-首胜收场只写一次)～[S-20](../../../../spec/capabilities/tool-execution-runtime/v2/contract.md#s-20-恢复扫描与停机不重来)、[S-29](../../../../spec/capabilities/tool-execution-runtime/v2/contract.md#s-29-会话归档)、[S-30](../../../../spec/capabilities/tool-execution-runtime/v2/contract.md#s-30-答复等待) 的安全性质 | formal task `tool-execution-runtime-v2-execution` ＋ 成对的去保护配置 | **已执行（模型层）**：见[实际执行](verification.md)；九条进 [bindings](bindings.yaml)。**证的是交错语义，不证本节点的存储真的兑现了 R-T1／R-T3**——那一半是下面 N-2、N-3 的真并发演练 | 契约 owner（模型）；本节点（N-2、N-3） |
 | S-18、S-19、S-20 的进展性质 | formal task `…-execution-progress` | **已执行（模型层）**，**不绑**：三条公平性前提（恢复终会发生、追加终会成功、强制停止终会生效）与三条结论一一对应、没有否定配置；本节点里「追加终会成功」依赖会话日志提供者（接口 `capability.session-log` v2 已定，最小提供者节点 `session-log-jsonl` 已立），「强制停止终会生效」依赖 X-5（未核） | 前提的实际兑现：N-5（X-5）、会话日志提供者 |
 | 按构造成立的性质（`ReminderAfterPlaceholder`、`ArchiveSettlesAll`、`SequentialBatch`、`ConcurrencyCap` 等十条）与 `TypeOK` | **不绑**——模型里没有会失败的断言 | 证据形式改为场景：`ReminderAfterPlaceholder` → S-52 与本节点 N-1；`ArchiveSettlesAll` → S-56；`SequentialBatch`、`ConcurrencyCap` → S-58 与本节点 N-4；`WaitOnlyForeground`、`RunCancelSparesBackground` → S-57 | 本节点 |
 
@@ -53,7 +42,7 @@ Core交付期间根据产品负责人对租户自定义工具实现的询问，�
 | N-2 | **追加成功、置 `appended` 之前停机**：重启后再追加撞键「已在」、日志不重复；**会话日志提供者也一起重启**的那一支同样只有一条（L-1「按耐久状态判」，M70 的 TER-5） | 故障注入（两支：只重启本能力；两者都重启） | 未开始；后一支受阻于 T-7（真会话日志） | 本节点 ＋ 会话日志提供者（互指 L-1） |
 | N-3 | **会话哨兵（R-T3）真的排出次序**：并发的同一批两次 `submit`（两个存储连接）；`submit` 与 `archiveSession` 交错；`submit` 与 `cancelForRun` 交错；交回与中断交错。断言：首胜、判重、标记重判各只有一个结果，没有「写了记录又被归档漏掉」的行 | **真并发**，sqlite 与 pg 各一遍（pg 上哨兵是咨询锁，行为与 sqlite 的库级串行不同） | 未开始 | 本节点 |
 | N-4 | **并发上限与批内次序跨两个起执行者决定成立**：同一工具两项同时可起时只起上限个；换代后的新任从存储读出同一答案 | 真并发 ＋ 换代演练 | 未开始 | 本节点 |
-| N-5 | **X-5**：据点进程被强杀后，执行者起的子进程树是否仍在；按登记的回收句柄（进程组）能否整棵回收；`running` 已写、回收句柄未写的窗口里被强杀会留下什么 | 实验（提案 [X-5](../../../../record/proposals/tool-execution-runtime-baseline/alternatives.md#仍待区分的实验)） | 未开始 | 实现者；结果进 basis 或登待核对主张 |
+| N-5 | **X-5**：据点进程被强杀后，执行者起的子进程树是否仍在；按登记的回收句柄（进程组）能否整棵回收；`running` 已写、回收句柄未写的窗口里被强杀会留下什么 | 实验（提案 X-5） | 未开始 | 实现者；结果进 basis 或登待核对主张 |
 | N-6 | **两条内核假设**（T-13 同一行）：① **A-1**——Cordis 4.0.4 在必需服务换提供者时，等旧插件体的 async effect disposer 结算完才重跑插件体；② **下游重跑**——同一个提供者 fiber 因它自己的依赖换代而重跑插件体时，inject 它的下游消费者也卸载重跑（M71 的 TER-4：本服务换代后执行者贡献者重登记的前提） | probe（`core/kernel-basis`），通过后升格 basis 条目 | 未开始 | `core/kernel-basis` owner。① 不成立时本节点的 S-48 要改成「新任扫描前先等旧任的撤下标记」；② 不成立时新任的执行者表为空，要改成贡献者按本服务的状态变化自行重登；届时回来改设计 |
 | N-7 | `ctx.provide` 由 effect 纳管（kernel-basis probe `provide-is-effect-managed`）升格为 basis 条目 | basis 升格 | 未开始（**待核对主张**） | `core/kernel-basis` owner |
 | N-8 | 服务状态闸：扫描提交前一切方法 `runtimeNotReady`；上交之后一切方法 `runtimeStopped`、挂着的 `awaitForeground` 同答；存储恢复后不补写。**反面**（M71）：扫描很慢时贡献者插件体跑到 `registerExecutor`——照常收下、不抛、不静默，扫描完成后第一次起 MCP 条目就找得到执行者；同键第二次登记仍抛出 | 演练（与 S-68 同一套装配） | 未开始 | 本节点 |
@@ -69,18 +58,6 @@ Core交付期间根据产品负责人对租户自定义工具实现的询问，�
 | N-18 | **函数层 `invokeTool`**（[design 的公开面](design.md#公开面)）：不装 Cordis、不给存储与会话，只给定义、调用块、判定对象与一个脚本化执行者即跑通一次；判不了 ⇒ `schema_unsupported`、判不合 ⇒ `arguments_invalid` 带用法、`start` 抛出 ⇒ `start_failed`（不是被中断）、交回不合 ⇒ `result_rejected`、中止 ⇒ `interrupted` 且外部效果「不可确定」；不提供等待回调时等待原语答「不进入等待」；**反证**：同一调用两次 `invokeTool` 就是两次执行（函数层不判重、不承诺首胜） | 单元测试 | 未开始 | 本节点；有实现即可跑（纯函数面，不受阻） |
 | N-19 | **服务面复用同一个 `invokeTool`**（关键选择表）：结构检查——核心起执行者只经 `invokeTool`，不另持一套执行者协议；演练——收场首胜写下之后才调句柄 `stop`（S-18），有序撤下 `abandon` → 写收场 → `stop`（S-48） | 结构检查（`tools/ts-checks` 候选规则）＋ 与 S-59、S-68 同一套演练 | 未开始 | 本节点 |
 | N-20 | **判定时限来自配置、改配置即改行为**（[design 的判定时限是策略配置](design.md#判定时限是策略配置)）：一只固定耗时 200 ms 的判定器（测试件）判同一调用与同一实参：`judgeTimeoutMs = 50` 的装配里那一项 `failed{schema_unsupported}`（判定超时），`judgeTimeoutMs = 500` 的装配里判得出结论——**只改配置，代码与输入不变，结论跟着变**；S-30 答复值校验同一对比；**反证**：`core/tool-definition` 的判定对象被传入时不带任何时限参数、源码里没有 500 这个常量（结构检查） | 单元测试（可前推的计时替身，不靠真墙钟）＋ 结构检查 | 未开始；有实现即可跑 | 本节点 |
-
-## 实际执行
-
-| 运行 | 输入与配置范围 | 结果 | 证据位置 |
-|---|---|---|---|
-| `2026-09-25-formal-assets-runtimes` · `tool-execution-runtime-v2-execution` | `Execution.tla` ＋ `Execution.cfg`：六个开关全 `TRUE`、`MaxWaits = 2`；一个会话、两批四次调用、至多一次停机；无公平性；死锁检查关闭 | **退出 0，无反例**：2,656,347 generated · 741,344 distinct · 0 left · 深度 22 · 1 min 09 s，完整穷尽 | [run README](../../../../record/evidence/2026-09-25-formal-assets-runtimes/README.md) |
-| 同 run · `tool-execution-runtime-v2-execution-progress` | `ExecutionProgress.cfg`：`FairSpec`、`MaxWaits = 1` | **退出 0，无反例**：524,448 distinct · 深度 20 · 15 min 55 s | 同上 |
-| 2026-09-24 契约修复者本机运行（**非 formal task**、未落进 `record/evidence/`） | 六个去保护配置、三份补充否定配置、七个可达性探针；`Execution.tla` 与上一行同一份 | 全部**按预期**违反或被反驳 | 契约 verification [实际执行](../../../../spec/capabilities/tool-execution-runtime/verification.md#实际执行)、[结果与反例](../../../../spec/capabilities/tool-execution-runtime/verification.md#结果与反例) |
-
-**这三行都不是本节点的符合性证据**：它们检查的是契约的模型。去保护那一行证明「首胜、耐久交付、先写后停、全量恢复、不重起、等待序号」这六处保护是 load-bearing 的——正是本节点要求 R-T1、R-T3 与发件箱存在的理由。
-那一行的原始输出不在 `record/evidence/` 里，是本页每条绑定共同的弱点（[bindings](bindings.yaml) 文件头）；按 [D-060 §八 M54](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)**待下一次证据 run 入库**，入库后这一行改指那个 run。
-**有限检查不写成无条件证明**：结论只在模型的固定规模内、且在「存储真的兑现同一行条件写与不只成一半」这个前提下成立。**通过不提升契约或本节点的任何接受状态。**
 
 ## 覆盖缺口
 
@@ -102,26 +79,9 @@ Core交付期间根据产品负责人对租户自定义工具实现的询问，�
 - **断电边界**：sqlite `synchronous = NORMAL` 下 S-17 对断电不成立（R-T6）；没有证据形式，报主线。
 - **L-3a（日志一侧的持久不晚于 SQL 一侧的「已送达」）契约不兑现**：`capability.session-log` v2 S-13 只到进程崩溃、断电边界 G-3 留给提供者；本页没有能让它失败的证据形式（断电任何演练都测不出），只能对提供者设计核「追加返回成功在确认落盘之后」——最小提供者 `session-log-jsonl` 的关键选择二如此写。受阻消费者：会话日志的真承接者（换刷盘政策时无契约条款会响）。
 
-## 独立评审
-
-2026-09-25 本节点随 N3 批（`tools` 三节点）经一次独立的架构评审（只读结构核对，无运行）：本节点应修 2、建议 3、观察 1、范围外 3，无阻断；主线据此裁定 [D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M54、M70、M71、M74、M75（批的结论见同节 N-28）。下表逐条写处置与落点。**处置不等于评审闭合**——是否闭合由复审判断。
-
-| 编号 | 发现 | 处置 | 落点 |
-| --- | --- | --- | --- |
-| TER-1（应修） | `entry` 类出站项按 `(会话, CallId, 段, kind)` 唯一，一次执行的第二条记录条目就撞约束、按缺陷失败；放宽后 L-1 按段去重又会把收场条目当「已在」丢掉 | 按 M70：`entry` 的唯一键与 L-1 幂等键带出站项自己的 `seq`，`messages`／`card_close` 仍按段唯一；反证扩为「同一段内条目与消息保持 `seq` 次序」 | design.md 持久记录「出站项」行（`dedupe_slot`）、R-T2、S-19 与 S-22 行、跨 owner 的同一提交第 2 处与反证第二条、L-1；本页 N-1、N-16 |
-| TER-2（应修） | `registerExecutor` 是否受服务状态闸没写；受闸则扫描期间贡献者登记失败、MCP 那一格永远没有执行者 | 按 M71：登记与撤下不经闸，只改进程内执行者表，`recovering` 期间照常受理、不抛不静默 | design.md S-7、S-37 行，关键选择四弱点栏，服务状态段，装卸表「执行者登记」行；本页 N-8 |
-| TER-3（建议） | 「先撤本插件再撤存储」在依赖驱动的卸载路径上结构上不可得 | 按 M71：改写为「装配须**显式**先撤本插件与桥，再撤存储与时钟；依赖驱动的卸载不满足此次序」，`apps/cli` 已按 M48 A-1 承接 | design.md「归装配的事项」 |
-| TER-4（建议） | 「同一提供者 fiber 因自身依赖重跑 ⇒ 下游消费者重跑」没有 probe，S-37 以它为前提 | 按 M71：登 kernel-basis 待补 probe，列进 T-13 与 A-1 同一行 | design.md 提供者换代段、装卸表「执行者登记」行、T-13；本页 N-6 |
-| TER-5（建议） | 会话日志是 JSONL，没有数据库唯一约束；L-1 若不按耐久状态判「已在」，日志提供者也重启的交错会出两条 `ToolMessage` | 按 M70：L-1 明写「按耐久状态判已在」，并写明判与追加对同一会话是一步 | design.md L-1、跨 owner 的同一提交末段；bindings 文件头与 S-19 条；本页 N-2 |
-| TER-6（观察） | 发件箱在会话日志缺席时无界增长；帧入口不限额 | 不作发现（需求未给政策）；帧入口已登 T-15 | —— |
-| 范围外 1 | G-18 让本批没有一个收场事务能被如实提交，README 的可实施范围与之相抵 | 按 M74：落账前经据点读面 `runAttemptFacts` 现读，不给过渡值、不改 `data.call-accounts`；可实施范围对 S-16、S-19、S-25～S-29、S-41 标「有前提：该读面」。**起草时另见**：读在事务外，与「落下时」之间有漏标窗口、本批没有共同存储对象——登 T-4 与 N-17，报主线 | design.md S-13 行、新节「跨 owner 的现读」、依赖表、消费者表、失败映射、对其余 owner 的要求、T-4、报给主线；README；bindings S-13 条；本页 N-17 |
-| 范围外 2 | N-25 把答复形状校验超时收成 `invalidInput`，人会被要求反复重答 | 按 M75（覆盖 N-25 后半，契约 S-30 已小修）：这次执行 `failed{schema_unsupported}`、`answerWait` 答 `{ resumed }` | design.md S-30 行、失败映射、T-16、报给主线；README；本页 N-15 ⑥ |
-| 范围外 3 | `apps/cli` 是否承接显式撤除次序 | N5 批已核：`apps/cli` 按 M48 A-1 显式驱动（P-2 → 本插件 → 桥本体 → hooks-compat → 派发器；2026-09-25 独立评审 N7 F-6 之后加入兼容件，验收装配再接执行环境与保管方） | 同 TER-3 |
-| 自报（M54） | 否定配置的原始输出不在 `record/evidence/` | 按 M54：待下一次证据 run 一并跑并入库 | bindings 文件头；README；本页「实际执行」 |
-
 ## 修订波（2026-09-25 公开面）
 
-依据：[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1、R-2，[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)，[D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-37。本波只改节点；契约侧的对应修订（TER G-1、G-12、G-18、T-4、T-8 改指接口契约）由规格侧并行落，本节点只引条款号。**处置不等于接受或评审闭合。**
+依据：D-063 R-1、R-2，[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)，D-060 §八 N-37。本波只改节点；契约侧的对应修订（TER G-1、G-12、G-18、T-4、T-8 改指接口契约）由规格侧并行落，本节点只引条款号。**处置不等于接受或评审闭合。**
 
 | 事项 | 依据 | 处置 | 落点 |
 | --- | --- | --- | --- |
@@ -135,4 +95,4 @@ Core交付期间根据产品负责人对租户自定义工具实现的询问，�
 | 判定时限由常量改为本节点的策略配置（主线追加裁定，2026-09-25） | 研发品味「策略类的东西不写死」；`core/tool-definition` U-8 同日改为指回本节点 | 计时的 owner 是本节点的判定工作线程；时限是配置项 `judgeTimeoutMs`（初值 500 ms，测试配置自带、产品装配由据点给，缺席或非正 ⇒ 启动失败）；函数层 `invokeTool` 的判定经 `parts.judge`，不给时没有时限（列入「函数层不承诺」）；T-16 与互指表改写 | design.md 依赖表的 config 行与「判定时限是策略配置」、公开面、S-23 行、T-16、对其余 owner 的要求；本页 N-9、N-15、N-20 |
 | 对齐契约第二轮（`47e36d14`）：`{sessionTenancy}` | 契约 S-15 失败值那一行、S-21、S-23 ⑧、S-47 | 会话持有租户读不到（`sessionNotFound`、`unavailable`、缺席）改为 `dependencyUnavailable{sessionTenancy}`，不再借 `{storage}`；「报给主线」撤掉这一项 | design.md S-21 行、依赖表、消费者表、失败映射、T-8、报给主线；本页会话持有租户一行 |
 | 最小提供者节点互指（主线 2026-09-25） | `packages/session/{session-log-jsonl, session-tenancy-table, run-attempt-facts-derived}`、`packages/infra/execution-environments-host` 四个 candidate 节点 | L-1～L-5 引导段、T-4、T-6、T-7、T-8、依赖表与消费者表、S-38 行改为「真承接者未到，最小提供者节点 X 已立（candidate）」并链到那边的承接或缺口表；落点读数来自 `execution-environments-host` 的可选读面 `executionPlacementReadings`；T-4 ③ 随契约开出 `{runAttemptFacts}` 闭合 | design.md 各处；README 可实施范围；本页场景表、N-17、覆盖缺口 |
-| 独立评审 N6 B-1：跨存储持久次序只活在会话日志节点 | [D-060 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ①（登执行宿主 L-3 子项） | L-3 下加 L-3a「日志一侧的持久不晚于依它写下的 SQL 一侧（出站项『已送达』）」，写成对任何会话日志提供者的要求，引 `session-log-jsonl` 关键选择二；契约不兑现这一项，T-7 与覆盖缺口各记一笔 | design.md 对会话日志提供者的要求（引导段、L-3a）、T-7；本页覆盖缺口 |
+| 独立评审 N6 B-1：跨存储持久次序只活在会话日志节点 | D-060 §八 N-42 ①（登执行宿主 L-3 子项） | L-3 下加 L-3a「日志一侧的持久不晚于依它写下的 SQL 一侧（出站项『已送达』）」，写成对任何会话日志提供者的要求，引 `session-log-jsonl` 关键选择二；契约不兑现这一项，T-7 与覆盖缺口各记一笔 | design.md 对会话日志提供者的要求（引导段、L-3a）、T-7；本页覆盖缺口 |

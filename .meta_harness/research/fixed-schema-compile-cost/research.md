@@ -1,7 +1,7 @@
 # 固定 JSON Schema 的编译开销与可用的预编译、缓存手段
 
 - 调查对象与日期：本仓库 `ff57fc8e3` 的 core 包固定 Schema 编译路径；Ajv `8.20.0`；Node `v24.21.0`；五个替代库（版本见 [evidence.md 页首](evidence.md)）；同行 DSH `639ed015`、pi `a13d35a7`（1.0.0）；2026-10-02。
-- 消费者：#65 的提案与决定（待出现于 [record/proposals](../../design/record/proposals/README.md)、[record/decisions](../../design/record/decisions/README.md)）。
+- 消费者：固定 Schema 构造与发布的实际拥有者；采用范围见对应模块正文，比较与采用过程留本工作树 tmp。
 - 最近核对：2026-10-02 / 上述版本。
 - 当前结论：导入耗时的大头是各包在模块顶层用 Ajv 编译定义，每个进程、每个运行时各付一遍；只推迟到首用，在测过的包上 CPU 省 43%；
   Ajv standalone 能把 messages 的导入从六百到一千毫秒降到几十毫秒，但前提是把 16 个 exact 关键字改写成 `code` 型，代价是每包几百 KB 到 1 MB 的生成代码、与 Ajv 版本绑定、

@@ -4,12 +4,12 @@
 各自带什么，一条流里能以什么次序出现，以及一个事件不合形状时的拒绝值叫什么。
 
 **一份语法，两个生产者**：模型的回复（长成 `AssistantMessage`）与工具的执行帧（长成 `ToolInternalMessage`）走同一套；
-它是 core 三层（[D-035](../../../record/decisions/message-and-stream-baseline/README.md)）里的第二层——
+它是 core 三层（D-035）里的第二层——
 语法借 `StreamChunk` 的骨架并条款化。**按它把一条流装配起来的是 `capability.stream-assembly`**，那是本语法唯一的消费方式；
 装配状态由宿主（模型请求运行时、工具执行运行时）持有，包成哪种消息也归宿主。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.arrival-events, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 `accepted`（`acceptance` 指向 D-061 的 `acceptance.json`）。`family=data`、`topic=arrival-events`、
   `contract_path=spec/data/arrival-events/v2/contract.md`，`resources` 另含 `v2/arrival-events.schema.json` 与 `v2/examples.md`；
   依赖四项：`data.content-blocks` v2、`data.call-accounts` v2（含 `ModelCallId`，S-37）、`data.loop-extension` v2（`FailureCause`，S-17）与 `data.identity-values` v1（S-33），消费 clauses 见[契约头部](v2/contract.md)。
@@ -20,7 +20,7 @@
 
 | 准入问题 | 答 |
 |---|---|
-| 语义拥有者 | 本契约。语法被装配器、传输适配、发帧原语与会话出站流共享，写两遍必然分叉；[D-035](../../../record/decisions/message-and-stream-baseline/decision.md) 定了「语法借骨架并条款化」且三层落 core、先于两个运行时的契约 |
+| 语义拥有者 | 本契约。语法被装配器、传输适配、发帧原语与会话出站流共享，写两遍必然分叉；D-035 定了「语法借骨架并条款化」且三层落 core、先于两个运行时的契约 |
 | 稳定身份 | `data.arrival-events`，版本 1 |
 | 适用范围 | 一个部署之内的一条条到达流；跨进程后要由协议重新兑现的，逐行列在[契约 S-25](v2/contract.md#s-25-装配给与协议给) |
 | 为什么是 data 而不是 capability | 它定义值与值序列的合法性，**没有操作、没有自己的状态、不做判定**；持有在途状态、收尾交出消息的是 `capability.stream-assembly` |
@@ -51,4 +51,4 @@
 
 ## 2026-09-26 版本接受
 
-本次接受 `data.arrival-events` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `data.arrival-events` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

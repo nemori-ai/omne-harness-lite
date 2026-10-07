@@ -414,7 +414,7 @@ npm 上 `2.1.112` 是最后一个 JS 版（`bin: cli.js`，47 MB），`2.1.113` 
 ## 采用与后续核对
 
 本轮**尚无消费者**（见页首）。研究只给约束不给方案：该怎么设计归
-[record/proposals](../../design/record/proposals/README.md) 与 [record/decisions](../../design/record/decisions/README.md)。
+本工作树 tmp；获准的终态写回实际承诺拥有者。
 
 后续核对时，先 `grep` [evidence.md](evidence.md) 里的版本 token
 （`0.154.0` / `2.1.278` / `2026.08.04-aaa8809` / `0.31.0` / `c291e796` / `890f9208`）定位需要重测的记录；

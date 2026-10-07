@@ -1,18 +1,13 @@
-# 条款到证据的绑定表。
-# v4 候选增量：新增绑定 0 条，尚无生产实现证据；规格脚本不冒充实现绑定。
-# 下方保留既有 v3 的 1 条真实测试绑定及其原范围；证据义务见 verification.md。
 version: 1
 node: "model-response"
 kind: "provider"
 
 bindings:
 
-# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
 
   - clause: "data.model-response/v3#S-27"
     evidence: "test:tools/core-verification/src/w6-stream-consumer.ts#w6.stream.lost-failure-delivered-and-in-band"
     assumptions:
       - "只核实际纯值failed／reply／delivered／inBand的给定优先级样本；不证实际模型请求或late所属记录真实存在。"
-      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
-      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
-    alignment_checked: "2026-09-26"
+      - "本条仅绑定上述具名用例的有限输入；执行输入、输出及接受过程归本工作树 tmp/。"
+      - "有限实现测试，不是任意输入证明；测试通过不提升整体接受状态。"

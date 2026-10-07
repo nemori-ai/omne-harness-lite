@@ -2,7 +2,7 @@
 
 本地 JSONL 会话日志提供者，实现 session-log v3 的三项操作：带条件整批追加、按不透明键读取、从位置之后读取。一次提交占一行。载荷通过 core 的严格无损 JSON 边界；提供者不解释 Run 记录、模型响应或业务键。
 
-包根入口公开 `checkAppendInput`、`judgeAppend`、`emptyLogState`、`foldCommit`、`encodeCommitLine`、`decodeLogBytes`、`commitFormatVersion`、`indexFoldVersion`、`openJsonlSessionLog`、`defaultSessionLogPolicy`，以及政策、选项、诊断与进程归属类型。这些函数及独立属主闭包不解析 Cordis。`./plugin` 公开 `Config`、`sessionLogJsonl` 和默认插件。`sessionLog` 服务恰有 `append`、`readByKey`、`readSince`；`close` 归物理属主。
+包根入口公开 `checkAppendInput`、`judgeAppend`、`emptyLogState`、`foldCommit`、`encodeCommitLine`、`decodeLogBytes`、`commitFormatVersion`、`indexFoldVersion`、`openJsonlSessionLog`、`defaultSessionLogPolicy`，以及政策、选项、诊断与进程归属类型。这些函数及独立属主闭包不解析 Cordis。`./cordis` 公开纯数据 `Config` 和可信工厂 `createSessionLogJsonl`。工厂捕获进程归属及可选诊断回调；这些活体依赖不进入插件配置。`sessionLog` 服务恰有 `append`、`readByKey`、`readSince`；`close` 归物理属主。
 
 ## 纯构件
 
@@ -130,7 +130,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { checkAppendInput } from '@omne-harness-lite/session-log-jsonl'
-import { sessionLogJsonl } from '@omne-harness-lite/session-log-jsonl/plugin'
+import { createSessionLogJsonl } from '@omne-harness-lite/session-log-jsonl/cordis'
 
 // Create once at physical process startup; reuse across every open and fiber.
 const processOwnership = {
@@ -139,7 +139,7 @@ const processOwnership = {
 }
 const dir = await mkdtemp(join(tmpdir(), 'omne-session-log-plugin-'))
 const ctx = new Context()
-const fiber = await ctx.plugin(sessionLogJsonl, { dir, processOwnership })
+const fiber = await ctx.plugin(createSessionLogJsonl({processOwnership}), {dir})
 try {
   const service = ctx.get('sessionLog')
   if (service === undefined) throw new Error('service unavailable')
@@ -171,6 +171,8 @@ try {
 
 旧 writer 的目录没有正式标记，只有可选 `observeLegacyExit(dir)` 能给出全部旧物理写进程退出证据时才迁移；缺席则拒绝。先停旧准入、排空所有写方并确认实际进程退出，再迁移四参数追加调用者、提供新宿主端口、打开旧数据。损坏正式标记保持不可用，不转成 legacy；遗留 `recovery.json.next` 永不作为权威。旧写器不能安全回开新布局。`@omne-harness-lite/model-request-runtime` 经公开根入口消费本提供者的 SL3 操作；本包不解释这些记录。
 
-源码采用关系：[SL3](../../../.meta_harness/design/spec/capabilities/session-log/v3/contract.md)、[D083](../../../.meta_harness/design/record/decisions/session-log-tail-condition-adoption/decision.md)、[D084 投影](../../../.meta_harness/design/realization/packages/session/session-log-jsonl/v3-design.md)、[D085 恢复投影](../../../.meta_harness/design/realization/packages/session/session-log-jsonl/v3-recovery-design.md)。Run 解释、共同业务键 codec、合法读取权限、消费者重试策略和所有旧业务写方的实际停止，仍归各自 owner。
+源码采用关系：[SL3](../../../.meta_harness/design/spec/capabilities/session-log/v3/contract.md)、D083、[D084 投影](../../../.meta_harness/design/realization/packages/session/session-log-jsonl/v3-design.md)、[D085 恢复投影](../../../.meta_harness/design/realization/packages/session/session-log-jsonl/v3-recovery-design.md)。Run 解释、共同业务键 codec、合法读取权限、消费者重试策略和所有旧业务写方的实际停止，仍归各自 owner。
 
 model-data 回归（`tests/model-data.spec.ts`）以当前 `messages` 与 `model-response` 判定仍接受的 MS6 回复和 MR9 响应夹具验证追加和重开，包括响应自身的输入计量依据。日志只保存 JSON 值，不解释校准或修补业务非法载荷；这些判断归模型消费者。
+
+类型之外的提供者承诺归 [SPEC.md](SPEC.md)。resident 已就绪且读取位置等于当前尾时，不扫描历史索引条目。非空后缀用二分定位；冷恢复和按 key 读取的成本单独计算。

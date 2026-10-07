@@ -12,7 +12,7 @@
   那是[本契约清除链](#s-34-第二条动作链未激活到期清除)两步合起来要兑现的那一条**，
   也是[它为什么不能只清账号记录](#次序先清组织再清账号)；
   [acceptance §三「注册的提交点在激活」](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#三判据)、
-  [decisions §二「注册以激活为单一提交点」](../../../../product/PF-001-identity-scope-and-agent-constraints/decisions.md#二pm-推导)（PF-001 **rev 15**）；
+  [decisions §二「注册以激活为单一提交点」](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md)（PF-001 **rev 15**）；
   [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy)
 - **参与方契约**：`capability.account-identity` v1 与 `capability.organization-governance` v1，坐标与消费 clauses 见 [S-2](#s-2-参与方与精确承诺)；
   两者**已成稿**，条款号已填，依赖项已于 2026-09-22 登记进 catalog（状态 `candidate`；[G-4](#九已知缺口) 已闭合）
@@ -26,15 +26,15 @@
   **第三条是 [`#S-35`（交接凭证）](../../../data/identity-values/v1/contract.md#s-35-交接凭证-handoff-warrant)**：
   两份依据都是它的实例，而本契约是它们的**产出方与携带方**
   （[S-8](#s-8-三步次序与责任交接)、[S-34](#s-34-第二条动作链未激活到期清除)）。
-  **第四条是 [`#S-33`（表示层校验与判定分开）](../../../data/identity-values/v1/contract.md#s-33-表示层校验与判定分开)**：[S-8](#s-8-三步次序与责任交接) 的 `invalid-input` 分支据它区分「表示层校验」与「政策判定」（评审轮四按「实质消费」补登）。
+  **第四条是 [`#S-33`（表示层校验与判定分开）](../../../data/identity-values/v1/contract.md#s-33-表示层校验与判定分开)**：[S-8](#s-8-三步次序与责任交接) 的 `invalid-input` 分支据它区分「表示层校验」与「政策判定」。
   **这是一条消费，不是「间接消费」**——本契约据它的「只绑定一个对象标识、不可伪造、本版不作废」
   写出了[激活依据的产出与绑定规则](#激活依据由谁产出绑定什么)，也据它把
   [S-35 的第一个前提](#s-35-个人组织不会变成孤儿)挂在「依据不可伪造」上；依据可伪造，那条不变量当场失效。
-  **三条都已登记进 catalog**（`clauses: S-1, S-2, S-35`），[G-7](#九已知缺口) 就此闭合
+  **四条都已登记进 catalog**（`clauses: S-1, S-2, S-33, S-35`），[G-7](#九已知缺口) 就此闭合
 - **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用须写全坐标，如 `composition.account-registration/v1#S-10`。
   **编号在本版本内只追加，不重排**：后补的条款取下一个未用的号并放进它语义所属的那一节，
   因此节内的号**不一定连续递增**。
-  **评审轮一、轮二与轮三的修订都没有新增条款号**：改的是既有条款的内容与本页对外部条款号的引用形式
+
 
 ## 一、含义与使用范围
 
@@ -63,7 +63,7 @@
 
 | 参与方 | coordinate、clauses 与 rebase_relation | 向本组合提供的保证 | 对本组合提出的前提 |
 |---|---|---|---|
-| `capability.account-identity` | `omne-harness-lite-design-2026-09-15 · capability.account-identity · v1`；消费 clauses **[`#S-13`（① 产生账号，未激活）](../../../capabilities/account-identity/v1/contract.md#s-13-产生账号未激活)、[`#S-14`（③ 激活账号）](../../../capabilities/account-identity/v1/contract.md#s-14-激活账号)、[`#S-18`（读账号，取激活状态与「是否已过留存期限」）](../../../capabilities/account-identity/v1/contract.md#s-18-读账号)、[`#S-19`（登录标识部署内唯一，含「释放之后可被新账号取得」）](../../../capabilities/account-identity/v1/contract.md#s-19-登录标识部署内唯一)、[`#S-38`（清除链的 ②，清除到期的未激活账号记录）](../../../capabilities/account-identity/v1/contract.md#s-38-清除到期的未激活账号记录)、[`#S-39`（`unactivated_retention`，① 的幂等窗口与清除链的触发判据）](../../../capabilities/account-identity/v1/contract.md#s-39-unactivated_retention)、[`#S-41`（场景：未激活记录到期释放标识，本契约引其 ④⑤ 作清除依据绑定的证据）](../../../capabilities/account-identity/v1/contract.md#s-41-未激活记录到期释放标识)、[`#S-42`（场景：伪造的依据两侧都被拒，本契约引其第 1 支作清除依据不可伪造的证据）](../../../capabilities/account-identity/v1/contract.md#s-42-伪造的依据两侧都被拒)、[`#S-43`（场景：依据产出之后记录才过期，与本契约 [S-13](#s-13-一个可用账号有且仅有一个个人组织) 第三个保护点的演练是同一次的两面）](../../../capabilities/account-identity/v1/contract.md#s-43-依据产出之后记录才过期)、[`#S-30`（跨边界须重新验证：[S-25](#s-25-装配给的保证-vs-协议须给的保证)「三个读取点读到同一答案」的兑现落点，评审轮四按「实质消费」补登）](../../../capabilities/account-identity/v1/contract.md#s-30-跨边界须重新验证)**；`rebase_relation` **不适用**（首版，无前身，见 [S-32](#s-32-本版是首版)）。**`#S-19` 与 `#S-39` 是评审轮二补上的**：本表的保证列与 [S-9](#s-9-幂等边界)／[S-12](#s-12-重试规则)／[S-34](#s-34-第二条动作链未激活到期清除) 早就在引它们，clauses 却漏了。**`#S-41`／`#S-42`／`#S-43` 是评审轮三按「引用即消费」补上的**：[formal/README](formal/README.md#本版本选用什么) 与[验证入口](../verification.md#证据义务)以坐标引用这三条场景作本契约证据的落点，**正文以坐标引用即登记为消费，只有否定式提及不登**；catalog 由主线同步 | ① 以**登录标识 ＋ 留存期限**为幂等边界产生未激活账号，同一标识上**至多一个账号**（[`#S-13`](../../../capabilities/account-identity/v1/contract.md#s-13-产生账号未激活) 的幂等边界＋[`#S-19`](../../../capabilities/account-identity/v1/contract.md#s-19-登录标识部署内唯一)）；**① 撞上一条已过期的未激活记录时，给 `identifier-held-by-expired-record` 并交出那条记录的 AccountId**（[`#S-13`](../../../capabilities/account-identity/v1/contract.md#s-13-产生账号未激活)）；③ 激活，且激活对「已激活」是无二次效果的（[`#S-14`](../../../capabilities/account-identity/v1/contract.md#s-14-激活账号) 的幂等边界），**并在自己那一次提交里现读「是否已过留存期限」，读到「是」就以 `account-record-expired` 拒绝**（[`#S-14`](../../../capabilities/account-identity/v1/contract.md#s-14-激活账号) 的前置③）；账号的激活状态与「是否已过留存期限」可读，且后者**单调**（[`#S-18`](../../../capabilities/account-identity/v1/contract.md#s-18-读账号) 的性质 2）；**清除链的 ②：在单次提交内删除一条已过期的未激活记录并释放它占的登录标识，且对「记录已不存在」幂等返回 `ok`；并把「持有与该 AccountId 绑定、且由产出方签发的清除依据」写成自己的前置**（[`#S-38`](../../../capabilities/account-identity/v1/contract.md#s-38-清除到期的未激活账号记录)） | **两处前置事实都由本组合在调用前取得并传入**：激活的前置事实（该账号的个人组织已存在）＝ [`#S-14`](../../../capabilities/account-identity/v1/contract.md#s-14-激活账号) 的**激活依据**；清除链 ② 的前置事实（该账号的个人组织已不存在）＝ [`#S-38`](../../../capabilities/account-identity/v1/contract.md#s-38-清除到期的未激活账号记录) 的**清除依据**，由清除链 ① 产出。**两份都是[交接凭证](../../../data/identity-values/v1/contract.md#s-35-交接凭证-handoff-warrant)的实例，只绑定 AccountId**（本版不绑定尝试、不作废，[`#S-35` 性质 4](../../../data/identity-values/v1/contract.md#s-35-交接凭证-handoff-warrant)）；**「同一次尝试内产出即用」是本契约对自己动作链的流程规则**（[S-8 ②](#激活依据由谁产出绑定什么)），不由凭证承载。本能力**不 inject 组织治理**，不自行去查——**两份依据都是这条单向依赖边的直接后果**，[次序因此由本组合承担，而依据使它在运行期有对应物](#s-34-第二条动作链未激活到期清除)。**新鲜度由本组合保证**：[`#S-14`](../../../capabilities/account-identity/v1/contract.md#s-14-激活账号) 明写它不核实依据的新鲜度（[`#S-14`](../../../capabilities/account-identity/v1/contract.md#s-14-激活账号)），本契约的 [S-8](#s-8-三步次序与责任交接) ② 因此承诺「同一次尝试内产出即用」 |
+| `capability.account-identity` | `omne-harness-lite-design-2026-09-15 · capability.account-identity · v1`；消费 clauses **[`#S-13`（① 产生账号，未激活）](../../../capabilities/account-identity/v1/contract.md#s-13-产生账号未激活)、[`#S-14`（③ 激活账号）](../../../capabilities/account-identity/v1/contract.md#s-14-激活账号)、[`#S-18`（读账号，取激活状态与「是否已过留存期限」）](../../../capabilities/account-identity/v1/contract.md#s-18-读账号)、[`#S-19`（登录标识部署内唯一，含「释放之后可被新账号取得」）](../../../capabilities/account-identity/v1/contract.md#s-19-登录标识部署内唯一)、[`#S-38`（清除链的 ②，清除到期的未激活账号记录）](../../../capabilities/account-identity/v1/contract.md#s-38-清除到期的未激活账号记录)、[`#S-39`（`unactivated_retention`，① 的幂等窗口与清除链的触发判据）](../../../capabilities/account-identity/v1/contract.md#s-39-unactivated_retention)、[`#S-41`（场景：未激活记录到期释放标识，本契约引其 ④⑤ 作清除依据绑定的证据）](../../../capabilities/account-identity/v1/contract.md#s-41-未激活记录到期释放标识)、[`#S-42`（场景：伪造的依据两侧都被拒，本契约引其第 1 支作清除依据不可伪造的证据）](../../../capabilities/account-identity/v1/contract.md#s-42-伪造的依据两侧都被拒)、[`#S-43`（场景：依据产出之后记录才过期，与本契约 [S-13](#s-13-一个可用账号有且仅有一个个人组织) 第三个保护点的演练是同一次的两面）](../../../capabilities/account-identity/v1/contract.md#s-43-依据产出之后记录才过期)、[`#S-30`（跨边界须重新验证：[S-25](#s-25-装配给的保证-vs-协议须给的保证)「三个读取点读到同一答案」的兑现落点）](../../../capabilities/account-identity/v1/contract.md#s-30-跨边界须重新验证)**；`rebase_relation` **不适用**（首版，无前身，见 [S-32](#s-32-本版是首版)）。**`#S-19` 与 `#S-39` 属于本表的保证列与 [S-9](#s-9-幂等边界)／[S-12](#s-12-重试规则)／[S-34](#s-34-第二条动作链未激活到期清除) 的消费面**。**`#S-41`／`#S-42`／`#S-43` 属于本契约的消费面**：[formal/README](formal/README.md#本版本选用什么) 与[验证入口](../verification.md#证据义务)以坐标引用这三条场景作本契约证据的落点，**正文以坐标引用即登记为消费，只有否定式提及不登**；catalog 的 clauses 应与消费面一致 | ① 以**登录标识 ＋ 留存期限**为幂等边界产生未激活账号，同一标识上**至多一个账号**（[`#S-13`](../../../capabilities/account-identity/v1/contract.md#s-13-产生账号未激活) 的幂等边界＋[`#S-19`](../../../capabilities/account-identity/v1/contract.md#s-19-登录标识部署内唯一)）；**① 撞上一条已过期的未激活记录时，给 `identifier-held-by-expired-record` 并交出那条记录的 AccountId**（[`#S-13`](../../../capabilities/account-identity/v1/contract.md#s-13-产生账号未激活)）；③ 激活，且激活对「已激活」是无二次效果的（[`#S-14`](../../../capabilities/account-identity/v1/contract.md#s-14-激活账号) 的幂等边界），**并在自己那一次提交里现读「是否已过留存期限」，读到「是」就以 `account-record-expired` 拒绝**（[`#S-14`](../../../capabilities/account-identity/v1/contract.md#s-14-激活账号) 的前置③）；账号的激活状态与「是否已过留存期限」可读，且后者**单调**（[`#S-18`](../../../capabilities/account-identity/v1/contract.md#s-18-读账号) 的性质 2）；**清除链的 ②：在单次提交内删除一条已过期的未激活记录并释放它占的登录标识，且对「记录已不存在」幂等返回 `ok`；并把「持有与该 AccountId 绑定、且由产出方签发的清除依据」写成自己的前置**（[`#S-38`](../../../capabilities/account-identity/v1/contract.md#s-38-清除到期的未激活账号记录)） | **两处前置事实都由本组合在调用前取得并传入**：激活的前置事实（该账号的个人组织已存在）＝ [`#S-14`](../../../capabilities/account-identity/v1/contract.md#s-14-激活账号) 的**激活依据**；清除链 ② 的前置事实（该账号的个人组织已不存在）＝ [`#S-38`](../../../capabilities/account-identity/v1/contract.md#s-38-清除到期的未激活账号记录) 的**清除依据**，由清除链 ① 产出。**两份都是[交接凭证](../../../data/identity-values/v1/contract.md#s-35-交接凭证-handoff-warrant)的实例，只绑定 AccountId**（本版不绑定尝试、不作废，[`#S-35` 性质 4](../../../data/identity-values/v1/contract.md#s-35-交接凭证-handoff-warrant)）；**「同一次尝试内产出即用」是本契约对自己动作链的流程规则**（[S-8 ②](#激活依据由谁产出绑定什么)），不由凭证承载。本能力**不 inject 组织治理**，不自行去查——**两份依据都是这条单向依赖边的直接后果**，[次序因此由本组合承担，而依据使它在运行期有对应物](#s-34-第二条动作链未激活到期清除)。**新鲜度由本组合保证**：[`#S-14`](../../../capabilities/account-identity/v1/contract.md#s-14-激活账号) 明写它不核实依据的新鲜度（[`#S-14`](../../../capabilities/account-identity/v1/contract.md#s-14-激活账号)），本契约的 [S-8](#s-8-三步次序与责任交接) ② 因此承诺「同一次尝试内产出即用」 |
 | `capability.organization-governance` | `omne-harness-lite-design-2026-09-15 · capability.organization-governance · v1`；消费 clauses **[`#S-20`（② 创建个人组织）](../../../capabilities/organization-governance/v1/contract.md#s-20-创建个人组织)、[`#S-53`（清除链的 ①，清除未激活账号的个人组织）](../../../capabilities/organization-governance/v1/contract.md#s-53-清除未激活账号的个人组织)**；`rebase_relation` **不适用** | ② 在**单次提交**内创建个人组织，并使该账号在其中的[成员资格效力](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-membership-standing--成员资格效力--membership-standing)为**有效**、[租户角色](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-tenant-role--租户角色--tenant-role)为[超级管理员](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-super-administrator--超级管理员--super-administrator)（第一个租户随之成立，[`#S-20`](../../../capabilities/organization-governance/v1/contract.md#s-20-创建个人组织) 的④）；以 AccountId 为幂等边界，同一账号**至多一个个人组织**——**该账号已有个人组织时幂等返回既有的那一个，不报错**（[`#S-20`](../../../capabilities/organization-governance/v1/contract.md#s-20-创建个人组织) 的⑦）；**在自己那一次提交里现读「是否已过留存期限」，读到「是」就以 `accountRecordExpired` 拒绝**（[`#S-20`](../../../capabilities/organization-governance/v1/contract.md#s-20-创建个人组织) 的前置②）；**清除链的 ①：只收 AccountId，在单次提交内删除个人组织与其唯一成员关系记录，且在同一次提交里现读账号的激活状态与过期状态——读到已激活就以 `accountIsActivated` 拒绝，读到未过期就以 `accountNotExpired` 拒绝；成功（含幂等成功）返回一份与该 AccountId 绑定的清除依据**（[`#S-53`](../../../capabilities/organization-governance/v1/contract.md#s-53-清除未激活账号的个人组织)） | 传入的 AccountId 指向一个已存在的账号；本能力**不要求该账号已激活**——[`#S-20`](../../../capabilities/organization-governance/v1/contract.md#s-20-创建个人组织) 的②明写这一条，并给了理由：**激活的前置正是个人组织已存在**，要求已激活会让注册无法完成。**清除链那一步反过来要求账号记录仍然存在**：[`#S-53`](../../../capabilities/organization-governance/v1/contract.md#s-53-清除未激活账号的个人组织) 要现读它才判得出「未激活」与「已过期」。**[`#S-53`](../../../capabilities/organization-governance/v1/contract.md#s-53-清除未激活账号的个人组织) 只由本组合调用**（[S-25](#s-25-装配给的保证-vs-协议须给的保证)）：它自己没有授权前置 |
 | 清扫提供者（消费者，不是参与方） | 不是契约参与方，是[清除链](#s-34-第二条动作链未激活到期清除)的**第二个发起者** | 无。它只是按 [`capability.account-identity/v1#S-39`](../../../capabilities/account-identity/v1/contract.md#s-39-unactivated_retention) 的期限扫描并发起清除链，输入只有 **AccountId**；**不带任何租户身份**——账号记录是账号级对象，一条未激活的账号记录没有任何租户效力 | 按 [S-34](#s-34-第二条动作链未激活到期清除) 的次序走两步，**不得跳过 ①**；按[终止型／抖动型](#s-34-第二条动作链未激活到期清除)处置失败。**它不承担任何正确性**（[G-6](#九已知缺口)）：到期之后那个名字能不能重新注册，由[注册主链自己兑现](#s-8-三步次序与责任交接)，不等它 |
 | 注册入口（消费者） | 不是契约参与方，是**注册主链**的唯一消费者 | 把发起者提供的登录标识与凭据交给本组合，并把[终结结果](#s-5-终结结果集合)原样呈现给发起者 | 不得自行拆开三步、不得跳过 ③ 直接宣告成功、不得把 `interrupted` 改写成成功或改写成 `identifier-taken`。**表示层校验归它**：登录标识与凭据的形状不合格时应当在此拒绝，不要交进来（交进来的收场是 `interrupted`，见[失败值映射](#参与方失败值到终结结果的映射)）。**也不得把 [`#S-13`](../../../capabilities/account-identity/v1/contract.md#s-13-产生账号未激活) 的 `identifier-held-by-expired-record` 透出给发起者**——那个值到不了它手上，本组合[就地消化掉了](#撞上一条已过期的记录时为什么由本组合接手) |
@@ -98,7 +98,7 @@
 > 收益在上表**反方向**那一行，不在这一句上。
 >
 > **上表里的坐标是拆分理由的依据，不是本契约据以写出承诺、判定、映射或证据落点的条款**，
-> 按[登记口径](../../../README.md#当前状态)**不登记为消费**——本契约的消费面仍以
+> 按[登记口径](../../../README.md#当前采用)**不登记为消费**——本契约的消费面仍以
 > [S-2](#s-2-参与方与精确承诺) 的表为准。这与治理契约把
 > `data.identity-values/v1#S-13` 排除在消费清单之外**是同一条规矩**。
 
@@ -415,10 +415,10 @@ registered  |  identifier-taken  |  credential-rejected  |  interrupted
 | **缺陷型**——调用方传错了东西，或次序坏了 | ① 的 `organizationIsNotPersonal`、`invalidInput`、`accountDoesNotExist`（[`#S-53`](../../../capabilities/organization-governance/v1/contract.md#s-53-清除未激活账号的个人组织)）；② 的 `purge-warrant-invalid`、`invalid-input`（[`#S-38`](../../../capabilities/account-identity/v1/contract.md#s-38-清除到期的未激活账号记录)） | 重扫**不会**自己好转：传错的那个值下一轮还是那个值；而 `purge-warrant-invalid` 与 `accountDoesNotExist` 各自指向一处坏掉的次序 | **停在当前步**，**并记录为一次可观测的缺陷**。清扫提供者应当**把这个目标从本轮候选里去掉并报出来**，按抖动型无限重试只会把同一个错误刷满日志 |
 | **抖动型**——没有结论 | ① 的 `unavailable`（[`#S-53`](../../../capabilities/organization-governance/v1/contract.md#s-53-清除未激活账号的个人组织)）；② 的 `storage-unavailable`（[`#S-38`](../../../capabilities/account-identity/v1/contract.md#s-38-清除到期的未激活账号记录)） | 判定根本没做出来 | **停在当前步**，下一轮扫描按幂等续做。按当时实际状态重试**是有意义的** |
 
-> **`purge-warrant-invalid` 与 `organizationIsNotPersonal` 是评审轮二挪过来的。**
-> 前者原列在抖动型，而[失败值映射表](#参与方失败值到终结结果的映射)一直把它记作**组合缺陷**——
-> 两处对不上。它的含义是「① 没做成、或有人绕过 ① 直接调了 ②」，**重扫不会让它好转**。
-> 后者原列在终止型，而正文自己写着「清扫提供者传错了目标」——那正是缺陷型的定义。
+> **`purge-warrant-invalid` 与 `organizationIsNotPersonal` 都属于缺陷型。**
+> [失败值映射表](#参与方失败值到终结结果的映射)把前者记作**组合缺陷**：
+> 它的含义是「① 没做成、或有人绕过 ① 直接调了 ②」，**重扫不会让它好转**。
+> 后者表示「清扫提供者传错了目标」——这符合缺陷型的定义。
 
 **`not-expired` 出现在 ② 这个位置时，只可能来自「已激活」，不可能来自「未过期」。**
 推理是三步：① 能跑完，说明它当时现读到「已过期」
@@ -534,13 +534,13 @@ registered  |  identifier-taken  |  credential-rejected  |  interrupted
 [`capability.account-identity/v1#S-14` 的前置③](../../../capabilities/account-identity/v1/contract.md#s-14-激活账号)，
 **在激活自己那一次提交里现读「是否已过留存期限」**，读到「是」就以 `account-record-expired` 拒绝。
 
-> **这一条是评审轮一从组合层查出来的，不是产品正文写的。**
+
 > 它在产品语言上的后果与 ② 那条同形：一次[早已过期、注定走不完的注册尝试](#s-12-重试规则)
 > 得到 `interrupted` 而不是最后一步才留下一个残废的账号。
 > **三个读取点缺一不可**：② 堵「① 之后又建组织」，③ 堵「② 之前就建好、① 之后才激活」，
 > ① 自己堵「记录已经激活了还去清它的组织」。
 
-> **这条前置是本轮从交错分析里推出来的，不是产品正文写的。**
+
 > 产品只说「到期清除记录、释放标识」；「一条已过期的记录不能再被建个人组织」
 > 是**规格层为了不留孤儿而加的一条**。它在产品语言上的后果很小：
 > 一次[早已过期、注定走不完的注册尝试](#s-12-重试规则)得到 `interrupted` 而不是继续往下走一步再失败。
@@ -635,7 +635,7 @@ registered  |  identifier-taken  |  credential-rejected  |  interrupted
 后者标识已释放、记录已不在。**本契约[不承诺任何记录一定会被清掉](#s-3-本契约明确不承诺什么)**，
 所以这两个状态都真实存在，不能合成一格。
 
-**但两行的结果是同一个**，这是评审轮一的裁决落在这里：
+**两行的结果是同一个**：
 第五行不再以 `identifier-taken` 终结，而是由本组合[就地跑一遍清除链再重跑 ①](#撞上一条已过期的记录时为什么由本组合接手)，
 于是它**落回第六行**。**产品可观察面上因此只有一句话**：
 [「过了留存期限之后另一个人用那个标识注册 ⇒ 注册得成」](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#三判据)，
@@ -785,8 +785,8 @@ S-13 说「可用账号必有个人组织」，本条说「个人组织必有账
 ② 给 `accountRecordExpired`、③ 给 `account-record-expired`、① 给 `identifier-held-by-expired-record`
 并由[本组合就地接手](#撞上一条已过期的记录时为什么由本组合接手)——
 **它们都通向某个终结结果**，因此不会让这条性质失效。
-**这一条是评审轮一补上 [S-8](#s-8-三步次序与责任交接) 的过期分支之后才成立的**：
-在那之前，一条走到 `claimed` 的尝试碰上过期会卡住，那时「记录不过期」确实得算一条前提。
+**本进展性质以 [S-8](#s-8-三步次序与责任交接) 的过期分支为前提**：
+过期分支若没有具名收场，走到 `claimed` 的尝试会因过期而停滞；因此本性质必须沿 [S-8](#s-8-三步次序与责任交接) 的过期分支解释。
 
 **这条性质没有上界，本契约也不给一个。**给不出上界的原因是 (a)(b) 两条前提在系统侧不可观察，
 任何上界都会变成一句无法被反例否定的话。它的可检查形式是
@@ -988,12 +988,12 @@ S-13 说「可用账号必有个人组织」，本条说「个人组织必有账
 | G-3 | **跨进程的读数新鲜度界未定义**（[S-25](#s-25-装配给的保证-vs-协议须给的保证) 右列第一行），标识与个人组织两个幂等边界的跨节点兑现方式同样未定义。**清除链把它再推进一格**：[S-35](#s-35-个人组织不会变成孤儿) 依赖「已过期」这个事实被两边**各自现读**到同一个答案，跨节点之后须定义它的传播界 | 架构设计（本版单机不阻断） | 分布式演化启动时给出新鲜度界与跨节点唯一性协议，并作为本契约的**新版本**发布 |
 | G-4 | **已闭合（2026-09-22）**：本契约与两个参与方契约均已登记进 catalog（状态 `candidate`），两条依赖项带 [S-2](#s-2-参与方与精确承诺) 列出的 `clauses`。编号保留不重排，与条款编号同一规矩 | — | — |
 | G-5 | [S-9](#s-9-幂等边界) 对提供者的后果引用了 [`basis/cordis/plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)，而**该条目的 probe 为 null，是待核对主张** | kernel 侧首个集成包 | 补上会失败的 probe，或改写该条依赖。**本契约的正确性不依赖它**——幂等边界的依据来自产品正文的提交点，那条 basis 只是说明这个形状对重跑是安全的 |
-| G-6 | **清扫提供者的发起者与节奏未定。**[S-34](#s-34-第二条动作链未激活到期清除) 拥有清除链的次序与幂等，但**谁来跑、多久扫一遍、扫描本身失败了怎么办**归装配，而架构与提供者设计尚未开始。后果是[那条进展性质没有上界](#s-19-有前提的进展)：**本契约不承诺任何一条到期记录一定会被清掉**。**评审轮一之后这条缺口降级为卫生义务**：清扫**不再承担任何验收判据**——[「到期即可重新注册」由注册主链自己兑现](#撞上一条已过期的记录时为什么由本组合接手)。它剩下的作用只有一个：把没人再来碰的过期记录收掉，让存储不要一直长 | 架构与提供者设计 | 装配给出清扫的发起方式与节奏，并说明它自身的失败与重入。**本契约的条款不因此改变**——两步各自幂等，重扫就够了。**这条缺口开着不阻断任何验收** |
-| G-7 | **已闭合（2026-09-22）**：catalog 已给本契约补上第三条依赖项（坐标 `data.identity-values` v1，`clauses: S-1, S-2, S-35`），与抬头的「精确语义依赖」逐条一致。编号保留不重排，与条款编号同一规矩。**`covers.json` 不在本条的闭合条件里**——`acceptance.md#三判据` 那一行曾缺 [S-12](#s-12-重试规则) 与 [S-34](#s-34-第二条动作链未激活到期清除)，评审轮二后已由主线补登记（2026-09-22） | — | — |
+| G-6 | **清扫提供者的发起者与节奏未定。**[S-34](#s-34-第二条动作链未激活到期清除) 拥有清除链的次序与幂等，但**谁来跑、多久扫一遍、扫描本身失败了怎么办**归装配，而架构与提供者设计尚未开始。后果是[那条进展性质没有上界](#s-19-有前提的进展)：**本契约不承诺任何一条到期记录一定会被清掉**。**这条缺口属于卫生义务**：清扫**不再承担任何验收判据**——[「到期即可重新注册」由注册主链自己兑现](#撞上一条已过期的记录时为什么由本组合接手)。它剩下的作用只有一个：把没人再来碰的过期记录收掉，让存储不要一直长 | 架构与提供者设计 | 装配给出清扫的发起方式与节奏，并说明它自身的失败与重入。**本契约的条款不因此改变**——两步各自幂等，重扫就够了。**这条缺口开着不阻断任何验收** |
+| G-7 | **已闭合**：catalog 包含本契约的身份值依赖项（坐标 `data.identity-values` v1，`clauses: S-1, S-2, S-33, S-35`），与抬头的「精确语义依赖」逐条一致。编号保留不重排，与条款编号同一规矩。**`covers.json` 不在本条的闭合条件里**——[S-12](#s-12-重试规则) 与 [S-34](#s-34-第二条动作链未激活到期清除) 的覆盖义务须另行核对 | — | — |
 
 **本版关掉了一条缺口，它不再出现在上表**（关掉它的是 PF-001 **rev 12**；
 **本契约当前的设计依据是 rev 15**，见抬头与
-[该 topic 的 changelog](../../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)）：
+[该 topic 的 changelog](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）：
 
 | 原编号 | 原来是什么 | 现在怎么了 |
 |---|---|---|
@@ -1005,37 +1005,8 @@ S-13 说「可用账号必有个人组织」，本条说「个人组织必有账
 
 没有被采用的旧版本，因此没有语义或表示差异可记。
 
-**2026-09-22 评审轮一的修订同样直接落在 v1 上，不发布第二个版本**——
-本契约仍是 `candidate`，未接受、未冻结，[不可原地覆盖的是已发布规格](../../../README.md)。
-本轮改的是：[S-8](#s-8-三步次序与责任交接) 的分支表（过期那一路、失败值映射、激活依据的产出端）、
-[S-12](#s-12-重试规则) 第五行、[S-34](#s-34-第二条动作链未激活到期清除) 的两个发起者与交错表、
-[S-35](#s-35-个人组织不会变成孤儿) 的前提由两条改为三条、[S-19](#s-19-有前提的进展) 的前提、
-[S-25](#s-25-装配给的保证-vs-协议须给的保证) 新增两行，以及**行为模型与 `progress.cfg`**。
-**模型改了，[上一次 TLC 运行的结论不再适用](../verification.md#实际执行)。**
 
-**2026-09-22 评审轮二的修订同样直接落在 v1 上。**本轮改的是：
-抬头的依据 rev（12 → 13）与「精确语义依赖」、[S-2](#s-2-参与方与精确承诺) 的消费 clauses（补 `#S-19`／`#S-39`）、
-[S-8](#s-8-三步次序与责任交接) 的[失败值映射表](#参与方失败值到终结结果的映射)（末行按发起者拆两列、同名值分辨表）、
-[S-12](#s-12-重试规则) 第五行的凭据合规条件、
-[S-34](#s-34-第二条动作链未激活到期清除)（清除链的返回面、① 的两支「账号记录不存在」、失败分类由两类改三类）、
-[S-19](#s-19-有前提的进展)（① 过期支不在 `EventualOutcome` 前件内）、
-[S-35](#s-35-个人组织不会变成孤儿)（写明唯一的运行期观测点），以及 `formal/README.md` 的对应几处。
-**[`Registration.tla`](formal/Registration.tla) 与三个 `.cfg` 一个字节没改**，
-因此 [run `-2` 的三行结论全部仍然适用](../verification.md#实际执行)。
-
-**2026-09-22 评审轮三的修订同样直接落在 v1 上。**本轮改的是：
-[失败值映射表](#参与方失败值到终结结果的映射)的清除链行（十个失败值按本名带坐标；
-**「主链就地发起 × 终止型」改为「主链路径上不可达，出现 ⇒ 缺陷型」**）、
-[S-8](#s-8-三步次序与责任交接) 的过期分支与「重跑 ① 只在两步都 `ok` 走完那一路」、
-[S-12](#s-12-重试规则) 表抬头的凭据合规条件、[S-34](#s-34-第二条动作链未激活到期清除)（返回面补成功侧、两张表的失败值本名）、
-[S-19](#s-19-有前提的进展) 那句边界、[S-2](#s-2-参与方与精确承诺) 的 account-identity clauses 补 `#S-41`／`#S-42`／`#S-43`（引用即消费），
-以及 `formal/README.md` 的一句说明；**跨包同改**：撤销「清除依据一次性」，凭证只绑定 AccountId、不再绑定本次尝试，「同一次尝试内产出即用」降为本组合 [S-8](#s-8-三步次序与责任交接) ② 的流程规则（[S-2](#s-2-参与方与精确承诺) 保证列、[激活依据由谁产出](#激活依据由谁产出绑定什么)）。**模型与三个 `.cfg` 仍然一个字节没改**，run `-2` 的结论照旧；`Registration.tla:224` 注释仍写「与本次尝试绑定」，**有意留置**以保住 run `-2` 输入快照逐字节相同，下次模型语义改动时一并修。
-**「不可达」不改模型**：模型里两步清除本来就不区分发起者，主链就地发起那一列的处置从来不在模型的语义里。
-
-2026-09-17 曾在 PF-001 rev 1 上建过一批候选契约（含一份同名的注册组合与一份 `Registration.tla`），
-**已于 2026-09-22 由产品负责人整体废弃**；它们从未被接受或冻结，
-**不构成本契约的前身，本契约不继承其任何条款，形式模型也从条款重新建立**，
-不与之建立 lineage 关系。见[规格容器的当前状态](../../../README.md#当前状态)。
+此前已退役且未接受的候选不构成本契约的前身；本版不继承其条款，也不产生 lineage 关系。本版形式模型由现行条款定义。
 
 ### S-33 本版的规范工件
 

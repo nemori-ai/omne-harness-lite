@@ -1,9 +1,0 @@
-task	log	exit	started_utc	finished_utc
-asset-transfer-v1-transfer	tlc-asset-transfer-v1-transfer.log	0	2026-09-24T12:53:59Z	2026-09-24T12:54:10Z
-asset-transfer-v1-share	tlc-asset-transfer-v1-share.log	0	2026-09-24T12:54:10Z	2026-09-24T12:55:59Z
-asset-transfer-v1-revival	tlc-asset-transfer-v1-revival.log	0	2026-09-24T12:55:59Z	2026-09-24T12:59:06Z
-stream-assembly-v1-assembly	tlc-stream-assembly-v1-assembly.log	0	2026-09-24T12:59:06Z	2026-09-24T13:00:12Z
-model-request-runtime-v1-invocation	tlc-model-request-runtime-v1-invocation.log	0	2026-09-24T13:00:12Z	2026-09-24T13:00:15Z
-model-request-runtime-v1-invocation-no-fallback	tlc-model-request-runtime-v1-invocation-no-fallback.log	0	2026-09-24T13:00:15Z	2026-09-24T13:00:18Z
-tool-execution-runtime-v1-execution	tlc-tool-execution-runtime-v1-execution.log	0	2026-09-24T13:00:18Z	2026-09-24T13:01:28Z
-tool-execution-runtime-v1-execution-progress	tlc-tool-execution-runtime-v1-execution-progress.log	0	2026-09-24T13:01:28Z	2026-09-24T13:17:23Z

@@ -1,2 +1,0 @@
-{"case":"managed-close-positive","remote":"success","local":"installed","defect":null,"order":["stopping","client-drain","client-closed","state-closed"],"durableLoginInstalled":true}
-{"case":"direct-close-negative","remote":"success","local":"defect","defect":"settlement","order":["stopping","client-drain","direct-state-close","client-closed","state-closed"],"durableLoginInstalled":false}

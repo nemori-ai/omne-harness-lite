@@ -65,20 +65,3 @@ FCP 进入条件是一个判断而非清单：
 仓库没有成文的评审 checklist。README 里可提取的隐含判据只有四条：动机是否有说服力、是否理解设计影响、drawbacks 与 alternatives 是否**诚实**（`disingenuous` 一词是原文）、tradeoffs 是否已经充分讨论到可以做决定。
 
 **推断**：Rust 把「备选方案的质量」交给社区对抗式讨论，而不是交给模板字段——模板只提供问句，是否被认真回答由 sub-team 在 FCP 前的全员 sign-off 里判断。这是一套依赖人类隐性共识的机制，没有任何自动检查。
-
-## 5. 与本项目骨架的对照（推断）
-
-| 本项目骨架条 | Rust 的对应 | 差异 |
-|---|---|---|
-| 每个决定点 ≥ 3 真候选 | 无数量要求，一个 `Rationale and alternatives` 小节覆盖整份 RFC | Rust 不把 RFC 分解为「决定点」，备选是整体层面的 |
-| 必须含基线候选（不做 / 最小改动） | `What is the impact of not doing this?` 是问句，非必填候选 | 弱一档 |
-| 决定 = 选择 + 否决理由 + 复议条件 | 否决理由在线程评论里；复议条件只有 `postponed` 标签，无成文条件 | 本项目要求更强 |
-| 评审清单 | 无成文 checklist | 本项目独有 |
-| 阶段门 | FCP（十天 + 全员 sign-off）是唯一的门 | Rust 的门是**时间 + 人**，不是证据 |
-
-## 6. 局限与未覆盖
-
-- 只读了 `README.md` 与 `0000-template.md` 两份文件，未统计已合入 RFC 中 `Rationale and alternatives` 的实际填充率（与本轮对 Semantic Kernel / MCP 做的统计不同，这里没有量化证据）。
-- 未读 sub-team 各自的补充指南（`Sub-team specific guidelines` 指向 rust-lang 各团队页），其中可能有更具体的要求。
-- 未核对 `rfcbot` 的实现（FCP 的 sign-off 计票机器人），因此「全员 sign-off 是否有自动检查」未覆盖。
-- 未覆盖 Rust 的 AI 撰写政策（本轮未在该仓库找到 `AI_POLICY.md`，但未穷举 `.github/` 与 rust-lang 的其他治理仓库）。

@@ -1,9 +1,0 @@
-归档说明：以下为ROOT对独立共享机制revision1评审的摘要，非评审原始逐字输出；精确未覆盖范围不得由此扩大。
-
-# 共享机制 revision1 独立选择评审
-
-本次仅判选择，判据harness-design-handbook/references/review/choice.md。对象为所附完整共享机制正文revision1，SHA256 84439504863fc9f788a5785b7167d5ef1eeb5f8d502ef6c4b4a49b6e92c3174e，基线25c0b5e86612eb20979da9909ef5bdfdefdd76fe。未运行工具，未重审AM/AE或计划。
-
-C-B1阻断：新增固定包装调用方与生成函数仍须绑定同一个原生code-runtime实例。源包装经ESM/Vitest取validateExact，而generated CJS经native require取keywords，即使解析到同一dist文件也可属不同加载器实例；接收侧重建LosslessNumber不受关键字私有品牌认可，旧integer/integer-null反例会重现。须明确共同原生实例绑定，不能只靠包名、路径或源码相同。是候选允许的反例，不是确认实现缺陷。
-
-无其他机制发现：build/runtime分离、作者owner及即时资源检查、整份源码/脚本事务分责、普通unknown保留、原getSchema/compile及errors保留、新鲜性完整。ROOT闭合加载绑定、正式节点与逐图表达。窄probe仅支持当时装载方式，不证明实际发布消费、构建失败、全图新鲜性或性能；没有产生接受。

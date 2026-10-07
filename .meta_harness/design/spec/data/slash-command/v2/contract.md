@@ -5,8 +5,8 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.slash-command, 2)`——
   `family = data`、`topic = slash-command`、规范路径 `spec/data/slash-command/v2/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：已由 [D-061](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-002 rev 20、PF-014 rev 7、PF-016 rev 8** 为准；起点方向是 [D-036](../../../../record/decisions/slash-command-parsing-baseline/decision.md)
+- **状态**：已由 D-061 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-002 rev 20、PF-014 rev 7、PF-016 rev 8** 为准；起点方向是 D-036
 - **精确语义依赖**：
 
   | 坐标 | 消费的条款 | 取它的什么 | 本契约怎么用 |
@@ -25,17 +25,17 @@
 |---|---|---|
 | 斜杠命令是人发起的入口、命令是指路牌；绑定目标恰三种；① 的正文与 ③ 的流程不是资产；不含键盘控制与 shell 命令 | [PF-002 §4 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command) · [UL-slash-command](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command) | S-1、S-6、S-21～S-23 |
 | 身份是命令名；绑定目标、参数都不是身份；① ② 同名即同一身份、按替换规则 | [PF-002 §4 身份是「类别 ＋ name」](../../../../product/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现) · [§5.5](../../../../product/PF-002-assets-settings-and-permissions/design.md#55-资产替换的层级) | S-1、S-2 |
-| 交付面动作名与 ③ 型名是系统保留名、一律在 `omne-official` 前缀下；① ② 型（含官方提供的）不得使用；保留名只认前缀不认清单；分隔符与拼法归规格 | [PF-002 §4 Slash Command「名字与撞名」](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command) · [PF-016 §5.7「名字撞了」](../../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族) · [PF-002 decisions 2026-09-23 原话「未决三」](../../../../product/PF-002-assets-settings-and-permissions/decisions.md#2026-09-23--斜杠命令参数无权限即不存在会话认得哪些命令③-型不开放保留名前缀) | S-3、S-4、S-5 |
+| 交付面动作名与 ③ 型名是系统保留名、一律在 `omne-official` 前缀下；① ② 型（含官方提供的）不得使用；保留名只认前缀不认清单；分隔符与拼法归规格 | [PF-002 §4 Slash Command「名字与撞名」](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command) · [PF-016 §5.7「名字撞了」](../../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族) · [PF-002 decisions 2026-09-23 原话「未决三」](../../../../product/PF-002-assets-settings-and-permissions/design.md) | S-3、S-4、S-5 |
 | ③ 型本版只由系统提供，不开放组织或租户创作 | [PF-002 §2 非目标](../../../../product/PF-002-assets-settings-and-permissions/design.md#非目标) | S-4 |
-| 「交付面动作与斜杠命令撞名听谁的」由保留名规则闭合 | [PF-016 decisions「rev 4 新推的」](../../../../product/PF-016-cli-tui-delivery-surface/decisions.md#rev-4-新推的) · [PF-016 §5.4 第二类](../../../../product/PF-016-cli-tui-delivery-surface/design.md#第二类具名的那几条会话动作它们不经入站到达) | S-5 |
-| 参数声明可选；声明了的像命令行程序那样按声明解析，解析不通过当场明说、不发送，三种绑定一条规则；没声明的，命令名之后的整段文字作一个自由参数 | [PF-002 §4 Slash Command「自带的属性」](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command) · [PF-016 §5.7](../../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族) · [PF-002 decisions 2026-09-23 原话（一）问题二、（二）第 2 条](../../../../product/PF-002-assets-settings-and-permissions/decisions.md#2026-09-23--斜杠命令参数无权限即不存在会话认得哪些命令③-型不开放保留名前缀) | S-8、S-9、S-17～S-19、S-24 |
+| 「交付面动作与斜杠命令撞名听谁的」由保留名规则闭合 | [PF-016 decisions「rev 4 新推的」](../../../../product/PF-016-cli-tui-delivery-surface/design.md) · [PF-016 §5.4 第二类](../../../../product/PF-016-cli-tui-delivery-surface/design.md#第二类具名的那几条会话动作它们不经入站到达) | S-5 |
+| 参数声明可选；声明了的像命令行程序那样按声明解析，解析不通过当场明说、不发送，三种绑定一条规则；没声明的，命令名之后的整段文字作一个自由参数 | [PF-002 §4 Slash Command「自带的属性」](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command) · [PF-016 §5.7](../../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族) · [PF-002 decisions 2026-09-23 原话（一）问题二、（二）第 2 条](../../../../product/PF-002-assets-settings-and-permissions/design.md) | S-8、S-9、S-17～S-19、S-24 |
 | 只有经交付面送进来的输入才被识别，人读、机读两种呈现形式一样；连接件等不经交付面的来源送来的 `/xxx` 原样是内容；模型不调用 | [PF-002 §4「只有人用它」](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command) · [PF-014 §5.10](../../../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走) · [PF-016 §5.7](../../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族) · [§5.5](../../../../product/PF-016-cli-tui-delivery-surface/design.md#55-两种呈现形式同一份事实) · [§6.5](../../../../product/PF-016-cli-tui-delivery-surface/design.md#65-人能做的脚本能做脚本能做的人能做) | S-12 |
 | 只认输入开头的一条，一条输入至多一条命令；想发 `/` 开头的普通话必须有办法原样发出去 | [PF-016 §5.7](../../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族) · [PF-014 §5.10](../../../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走) | S-13、S-15 |
-| 名字按会话斜杠命令集认；不在里面的（含没权限的）当场明说「没有这个命令」、不发送，没有「你不能用」这第二种失败，也不当普通文本送进会话；受理时以此刻为准 | [PF-002 §4「会话认得哪些命令，什么时候变」](../../../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变) · [UL-session-slash-command-set](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set) · [PF-014 §5.10](../../../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走) · [PF-002 decisions 2026-09-23 原话（二）第 1 条](../../../../product/PF-002-assets-settings-and-permissions/decisions.md#2026-09-23--斜杠命令参数无权限即不存在会话认得哪些命令③-型不开放保留名前缀) | S-16 |
+| 名字按会话斜杠命令集认；不在里面的（含没权限的）当场明说「没有这个命令」、不发送，没有「你不能用」这第二种失败，也不当普通文本送进会话；受理时以此刻为准 | [PF-002 §4「会话认得哪些命令，什么时候变」](../../../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变) · [UL-session-slash-command-set](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set) · [PF-014 §5.10](../../../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走) · [PF-002 decisions 2026-09-23 原话（二）第 1 条](../../../../product/PF-002-assets-settings-and-permissions/design.md) | S-16 |
 | ① 展开成消息内容（带上参数）；② 的 skill 正文逐字成一块、人附带的参数另成一块；③ 不进队列不成为消息，只留一条条目 | [PF-002 §4 Slash Command 三行表](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command) · [PF-014 §5.10 分两路表](../../../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走) | S-21～S-23、S-25 |
 | ② 型展开的 skill 照样过它自己的「谁可以使用它」；入口权限只对人 | [PF-002 §4 Slash Command 表后一段](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command) | S-11、S-22 |
 | 原命令与展开后的全文都留；「消息落盘之前」看到的是展开后的消息外加原命令的标注 | [PF-014 §5.10](../../../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走) · [§5.6](../../../../product/PF-014-inbound-intake-and-queueing/design.md#56-消息落盘之前那一刻看得到什么) | S-25 |
-| 自研统一解析器：从 Codex 借识别边界、从 omne-next 借失败纪律与声明优先、从 Claude Code 借占位符与留痕形状 | [D-036](../../../../record/decisions/slash-command-parsing-baseline/decision.md) · [提案「D 的组成」](../../../../record/proposals/slash-command-parsing-baseline/alternatives.md#d-的组成借什么从哪借为什么只借这些) | S-13、S-10、S-17、S-19、S-25 |
+| 自研统一解析器：从 Codex 借识别边界、从 omne-next 借失败纪律与声明优先、从 Claude Code 借占位符与留痕形状 | D-036 · 提案「D 的组成」 | S-13、S-10、S-17、S-19、S-25 |
 | Codex `5c5308f` 的识别边界：只认整段第 0 个码点的 `/`，名字到第一个空白为止，名字里再有 `/` 即普通文本 | [调研 CX-2](../../../../../research/slash-command-parsing-sources/notes/codex.md#cx-2) | S-13 |
 | Claude Code `2.1.280` 的占位符：`$ARGUMENTS` 是整段参数原文；`$N` 从 0 起；声明过的参数没给时展开为空串；`\` 只对紧跟的占位符起转义；没有占位符收到参数时在正文末尾追加 `ARGUMENTS:` 一行 | [调研 CC-6](../../../../../research/slash-command-parsing-sources/notes/claude-code.md#cc-6) | S-10、S-21 |
 | 统一语言正式名 | [能力与构成](../../../../ubiquitous_language/terms/capabilities-and-composition.md) · [作用域与求值](../../../../ubiquitous_language/terms/scope-and-resolution.md) · [交互与分派](../../../../ubiquitous_language/terms/interaction-and-dispatch.md) | 全部英文名 |
@@ -45,9 +45,9 @@
 >
 > | 条款 | 依据来自哪 |
 > |---|---|
-> | [S-2](#s-2-命令名的词法) 名字许冒号、禁斜杠 | **主线裁定**，见 [D-060 §S20 S20-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的)；词法的家在 `data.asset-model` v2 的 [S-2](../../asset-model/v2/contract.md#s-2-能力标识名的词法) |
-> | [S-3](#s-3-保留区与它唯一的拼法) 保留区按 ASCII 不区分大小写判定、`omne-official:` 以冒号作分隔符 | 分隔符为冒号是主线起草时给定的（与 [D-060 §块 A A9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-a-形状shapes-draft-assets-v0md-a1a10) 的 `omne-official:reload-<category>` 同一拼法）；**按 ASCII 不区分大小写判保留区是本契约的推导**，理由在条款正文 |
-> | [S-11](#s-11-属性项的推出规则) 「谁可以用」是 `data.asset-model` 的 `usableBy`；[S-1](#s-1-斜杠命令定义是资产的正文) 正文不带名字；[S-8](#s-8-参数声明) 的参数提示 `hint`；[S-17](#s-17-参数文字的切分) 的 `unterminated_quote`；[S-13](#s-13-识别的三种结果)、[S-14](#s-14-commandinvocation-与位置) 的 `Recognition`、`Span`；[S-25](#s-25-留痕) 留痕是一种来路标记 | **主线裁定**，见 [D-060 §S20 S20-b～S20-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的)、[§S18 S18-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的)；「参数声明、参数提示、绑定目标是正文、不是设置」已落进产品正文 [PF-002 §4 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 17） |
+> | [S-2](#s-2-命令名的词法) 名字许冒号、禁斜杠 | **主线裁定**，见 D-060 §S20 S20-e；词法的家在 `data.asset-model` v2 的 [S-2](../../asset-model/v2/contract.md#s-2-能力标识名的词法) |
+> | [S-3](#s-3-保留区与它唯一的拼法) 保留区按 ASCII 不区分大小写判定、`omne-official:` 以冒号作分隔符 | 分隔符为冒号是主线起草时给定的（与 D-060 §块 A A9 的 `omne-official:reload-<category>` 同一拼法）；**按 ASCII 不区分大小写判保留区是本契约的推导**，理由在条款正文 |
+> | [S-11](#s-11-属性项的推出规则) 「谁可以用」是 `data.asset-model` 的 `usableBy`；[S-1](#s-1-斜杠命令定义是资产的正文) 正文不带名字；[S-8](#s-8-参数声明) 的参数提示 `hint`；[S-17](#s-17-参数文字的切分) 的 `unterminated_quote`；[S-13](#s-13-识别的三种结果)、[S-14](#s-14-commandinvocation-与位置) 的 `Recognition`、`Span`；[S-25](#s-25-留痕) 留痕是一种来路标记 | **主线裁定**，见 D-060 §S20 S20-b～S20-e、§S18 S18-c；「参数声明、参数提示、绑定目标是正文、不是设置」已落进产品正文 [PF-002 §4 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 17） |
 > | [S-8](#s-8-参数声明)～[S-10](#s-10-提示词模板与占位符)、[S-17](#s-17-参数文字的切分)～[S-19](#s-19-解析失败取第一处) 的具体文法 | 产品只说「像命令行程序那样按声明解析」、「语法长什么样归规格」；**切分、绑定、取值与判定次序是本契约的推导**，借用来源逐条写在正文 |
 > | [S-26](#s-26-规范表示)～[S-29](#s-29-表示层拒绝与解析失败分开都不修补) | **SYS-SPEC**：规范表示、闭合枚举、表示层拒绝值与「表示层不等于判定」是规格形式的要求 |
 > | [第六节](#六装配给与协议给) | **SYS-DEPLOY** |
@@ -79,7 +79,7 @@
 | 交付面怎样呈现失败、菜单与补全、交付面自己的动作表 | 交付面呈现与受理契约（**未立**） |
 | 任何一条系统业务流程的语义、时机与结果摘要 | 定义那条流程的一侧；登记处见 [G-7](#十已知缺口) |
 | 留痕块与展开物的标注 | 写下它们的受理一方（`data.content-blocks` v2 的 [S-4](../../content-blocks/v2/contract.md#s-4-两个标注)） |
-| 外部格式（Claude Code 命令文件与 skill、pi 提示词模板、omne-next 绑定表）的导入映射 | 导入器（[D-036](../../../../record/decisions/slash-command-parsing-baseline/decision.md) 起点；未立） |
+| 外部格式（Claude Code 命令文件与 skill、pi 提示词模板、omne-next 绑定表）的导入映射 | 导入器（D-036 起点；未立） |
 
 ### 消费者
 
@@ -152,7 +152,7 @@
 | `binding` | 是 | 恰一个绑定目标（[S-6](#s-6-三种绑定目标)） |
 | `parameters` | 否 | 参数声明的数组（[S-8](#s-8-参数声明)）。**缺席与空数组是两个不同的意思**：缺席 = 没有声明，命令名之后的整段文字作一个自由参数；`[]` = 声明了「不收任何参数」，给了就是 `unexpected_argument` |
 
-- **正文里没有名字**（主线裁定，见 [D-060 §S20](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的)）：**命令名就是所在资产记录 `capability` 的 name 分量**（`data.asset-model` v2 的 [S-10](../../asset-model/v2/contract.md#s-10-八类正文的外壳)），不在正文里另存一份——两份就会分叉。
+- **正文里没有名字**（主线裁定，见 D-060 §S20）：**命令名就是所在资产记录 `capability` 的 name 分量**（`data.asset-model` v2 的 [S-10](../../asset-model/v2/contract.md#s-10-八类正文的外壳)），不在正文里另存一份——两份就会分叉。
   会话斜杠命令集按名字认命令（[S-16](#s-16-名字只按会话斜杠命令集认)），它的元素因此是「命令名 ＋ 这份正文」一对，由提供它的一方从记录里一起取（`capability.asset-registry`）。
 - **一条命令恰绑一个目标**（规格层推导：产品正文的三行表每行一个目标，没有「一条命令同时绑两种」的读法）。
 - **参数提示在参数声明上**（`ParameterDeclaration.hint`，[S-8](#s-8-参数声明)；[PF-002 §4 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)「每个参数带一句给人看的提示」）。
@@ -161,7 +161,7 @@
 ### S-2 命令名的词法
 
 **`CommandName` 是命令名——所在资产记录能力标识的 name 分量。它的词法就是 `data.asset-model` v2 的 [`CapabilityName`](../../asset-model/v2/contract.md#s-2-能力标识名的词法)**：
-非空、任何位置都不含空白、不含斜杠 `/`、允许冒号 `:`、区分大小写（主线裁定，见 [D-060 §S20 S20-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的)）。
+非空、任何位置都不含空白、不含斜杠 `/`、允许冒号 `:`、区分大小写（主线裁定，见 D-060 §S20 S20-e）。
 本契约对它**不再收窄字符集**，只加 [S-3](#s-3-保留区与它唯一的拼法) 的保留区一条。
 **它恰好保证每一个合法的命令名都敲得出、认得回**：对任何合法命令名 `n`，输入 `"/" + n` 在[识别文法](#s-13-识别的三种结果)下必定得出一次名字为 `n` 的命令尝试——
 名字里没有空白，所以不会被截断；没有 `/`，所以不会落进「名字里有斜杠即普通文字」那一支，也不会以 `//` 开头。
@@ -207,7 +207,7 @@
 ① ② 型已由 [S-4](#s-4-保留区只归系统提供的命令型) 挡在保留区外，保留区里只剩系统自己发的两类名字，它们之间也只能有一种解释。
 
 - **因此本契约不定义、也不需要「交付面动作优先」或「命令优先」**：
-  「交付面自己的动作与斜杠命令撞名听谁的」[已由保留名规则闭合](../../../../product/PF-016-cli-tui-delivery-surface/decisions.md#rev-4-新推的)，产品正文里没有一条优先级。
+  「交付面自己的动作与斜杠命令撞名听谁的」[已由保留名规则闭合](../../../../product/PF-016-cli-tui-delivery-surface/design.md)，产品正文里没有一条优先级。
   **实现不得靠先查哪张表来消歧**——撞了就是系统自己的缺陷，不是一条要在运行时裁决的规则。
 - **谁核对这一条**：交付面动作表归交付面，③ 型命令归系统提供的官方件；两者合在一起的不相交，是一项静态检查（[验证入口 SC-2](../verification.md#静态检查义务)），不是本契约能在一份数据里判的。
 - 换模型、归档这些[具名会话动作](../../../../product/PF-016-cli-tui-delivery-surface/design.md#第二类具名的那几条会话动作它们不经入站到达)拼成 `/` 开头时，**它们仍不是斜杠命令**：它们不经入站到达，不进会话斜杠命令集，本契约的解析不认它们。
@@ -250,7 +250,7 @@
 | `hint` | 否 | 参数提示：给人看的一句话，非空，交付面据以提示这个参数怎样填。**不进任何给模型的内容，不参与解析**（[PF-002 §4 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)：参数提示是给人看的一句话、是命令本身的一部分）。缺席即作者没给提示 |
 
 - **没有 `default`**：没给的参数在解析结果里**缺席**，不补一个值（[S-18](#s-18-参数的绑定与取值)）。它缺席时意味着什么，归拿到它的那一方。
-- **没有可变数量的位置参数、没有短选项（`-x`）、没有「重复同一个具名参数得到多个值」**（借 omne-next 的「禁可变数量位置参数」，[提案「D 的组成」](../../../../record/proposals/slash-command-parsing-baseline/alternatives.md#d-的组成借什么从哪借为什么只借这些)）。
+- **没有可变数量的位置参数、没有短选项（`-x`）、没有「重复同一个具名参数得到多个值」**（借 omne-next 的「禁可变数量位置参数」，提案「D 的组成」）。
 - **参数名为什么这样窄**（本契约的推导）：它要能在 `--name` 与 `--name=value` 里原样敲出、不含 `=` 与空白，还要做结果里的键；
   取小写 ASCII 让两个语言的实现不在大小写与规范化上分歧。不合即 `malformed`。
 
@@ -295,14 +295,14 @@ Claude Code 按 `arguments` 前置声明的具名 `$name` 不借；`${CLAUDE_*}`
 
 **第 2 条的理由**（本契约的推导）：参数按声明解析通过之后，人给的每一个参数都要进展开后的文字——产品正文说 ① 的正文「带上参数」成为消息内容。
 一个声明了具名参数、模板里却只有 `$0` 的命令，会把人给的 `--target` 验过一遍之后**悄悄丢掉**；这一条让作者在发布时就知道，而不是让敲的人事后才发现。
-**这也回答了「声明与占位符谁为准」**（[提案 Q2](../../../../record/proposals/slash-command-parsing-baseline/alternatives.md#推荐与仍待区分的事项)）：声明为准，占位符对不上声明的，发布即拒。
+**这也回答了「声明与占位符谁为准」**（提案 Q2）：声明为准，占位符对不上声明的，发布即拒。
 
 ### S-11 属性项的推出规则
 
 **`声明(SlashCommandDefinition) → AttributeDeclaration[]` 恒为空。**
 这是 `data.asset-model` v2 [S-12](../../asset-model/v2/contract.md#s-12-属性声明由正文推出) 要每份正文契约交出的那条确定函数；它对任何一份合法的命令定义都产出同一个结果，与持有方、所在格、时间、环境无关。
 
-- **「谁可以用这个入口」不由本规则产出**：它是 `data.asset-model` v2 保留的 [`usableBy`](../../asset-model/v2/contract.md#s-36-usableby-是保留项名)——取值域是租户角色两值加 `self`、默认 `self`，**八类资产共用一份声明**（`data.asset-model/v2#S-36`；主线裁定，见 [D-060 §S18 S18-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的)、[§S20 S20-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的)）。
+- **「谁可以用这个入口」不由本规则产出**：它是 `data.asset-model` v2 保留的 [`usableBy`](../../asset-model/v2/contract.md#s-36-usableby-是保留项名)——取值域是租户角色两值加 `self`、默认 `self`，**八类资产共用一份声明**（`data.asset-model/v2#S-36`；主线裁定，见 D-060 §S18 S18-c、§S20 S20-b）。
   一条斜杠命令的全部属性项因此恰是 `disabled` 与 `usableBy` 两项。
 - **只对人**：`usableBy` 在这里管「哪个人能敲这个命令」。模型不调用斜杠命令（[PF-002 §4「只有人用它」](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)）。
 - **它不替 skill 放权**：skill 型命令展开的那个技能，还要过**技能自己的** `usableBy`（[S-22](#s-22-技能型的引用与两块展开物)）。
@@ -341,10 +341,10 @@ recognize(T) ≝
 - **名字里再有 `/` 即普通文字**：`/usr/bin/python3`、`/Users/x/src` 这类路径开头的话自然放行（同一处借用）。
 - **字面发送是 `//`**：想发一句以 `/` 开头的普通话，写成 `//` 开头，送出的内容**恰去掉第一个 `/`**——`//review 是个命令名` 送出 `/review 是个命令名`，`///x` 送出 `//x`。
   **它是文法上一条独立的出路**，不是「解析失败之后改当普通话发出去」（借 omne-next 的失败纪律）；两种呈现形式用同一个写法，所以对称。
-  **不借** Codex「前导空格即字面、提交时再裁掉」那条出口：它看不见、易误触，而且机读形式里没有对应物（[提案「D 的组成」](../../../../record/proposals/slash-command-parsing-baseline/alternatives.md#d-的组成借什么从哪借为什么只借这些)）。
+  **不借** Codex「前导空格即字面、提交时再裁掉」那条出口：它看不见、易误触，而且机读形式里没有对应物（提案「D 的组成」）。
 - **识别不查任何命令集**：结果只由 `T` 决定。一个不存在的名字照样是「一次命令尝试」——判它不存在是解析的事（[S-16](#s-16-名字只按会话斜杠命令集认)），
   而那一步的结果是**明说失败、不发送**，**不是**退回普通文字。所以 `/tmp 满了` 得到的是「没有这个命令」；要把它当话发出去，写 `//tmp 满了`。
-- **三种结果的形状是 `Recognition`**（主线裁定，见 [D-060 §S20 S20-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的)）：`{ kind: "text", text }`（普通文字，`text` 是 `T` 原样）、`{ kind: "literal", text }`（字面发送，`text` 是 `T` 去掉第一个码点）、`{ kind: "invocation", invocation }`（一次命令尝试，[S-14](#s-14-commandinvocation-与位置)）。
+- **三种结果的形状是 `Recognition`**（主线裁定，见 D-060 §S20 S20-b）：`{ kind: "text", text }`（普通文字，`text` 是 `T` 原样）、`{ kind: "literal", text }`（字面发送，`text` 是 `T` 去掉第一个码点）、`{ kind: "invocation", invocation }`（一次命令尝试，[S-14](#s-14-commandinvocation-与位置)）。
   前两种交出去的是一段文字，落成什么块归受理。**交出去的就是上面写的那段，一个码点不改**：不裁剪、不规范化、不改换行。
 
 ### S-14 CommandInvocation 与位置
@@ -385,7 +385,7 @@ recognize(T) ≝
   而解析**只读 `S`**，所以一个名字「根本不存在」「存在但这个人没权限」「被 reload 下架了」「刚被收回权限」，对同一个 `S` 得出**逐成员相同**的结果——
   **没有「你不能用」这第二种失败**（[PF-002 §4](../../../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变)）。
   `explanation` 同样只许由 `invocation` 与 `S` 决定：它可以说「这个会话没有这个命令」、可以从 `S` 里提示相近的名字；**不得**提到权限、别的层、别的会话或别的租户。
-- **不认得即失败，不退回普通文字**：`unknown_command` 不是「那就当一句话发出去」——产品负责人的补裁原话是「无权限 = 不存在 = 当场明说不发送」（[PF-002 decisions](../../../../product/PF-002-assets-settings-and-permissions/decisions.md#2026-09-23--斜杠命令参数无权限即不存在会话认得哪些命令③-型不开放保留名前缀)）。
+- **不认得即失败，不退回普通文字**：`unknown_command` 不是「那就当一句话发出去」——产品负责人的补裁原话是「无权限 = 不存在 = 当场明说不发送」（[PF-002 decisions](../../../../product/PF-002-assets-settings-and-permissions/design.md)）。
 - **大小写不同即不同名**：`S` 里有 `review` 时，`/Review` 是 `unknown_command`。
 - **交付面自己的动作不在 `S` 里**：交付面在调用本契约之前先认它自己的动作；两者的名字不相交（[S-5](#s-5-保留名在系统内唯一没有优先级)），所以先后不改变结果。
 - **两次解析各用各的 `S`**：交付面的预判用它手上的那一份，受理面以受理那一刻的那一份再判（[PF-014 §5.10](../../../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走)）；
@@ -404,11 +404,11 @@ recognize(T) ≝
 5. 相邻的段拼成同一个记号：`a"b c"d` 是一个记号，文字为 `ab cd`。`""` 与 `''` 是一个文字为空串的记号——**它与「没有这个记号」不同**。
 6. 一个记号的位置从它的第一个码点（含开引号）到它的最后一个码点（含闭引号）之后。
 
-**引号没有闭合**——`"` 或 `'` 开了、到整段末尾也没等到对应的闭引号——**解析失败、什么都不发**，`reason` 为 **`unterminated_quote`**（主线裁定，见 [D-060 §S20 S20-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的)），`at` 从那个开引号到 `raw` 的末尾。
+**引号没有闭合**——`"` 或 `'` 开了、到整段末尾也没等到对应的闭引号——**解析失败、什么都不发**，`reason` 为 **`unterminated_quote`**（主线裁定，见 D-060 §S20 S20-b），`at` 从那个开引号到 `raw` 的末尾。
 **不**把没闭合的引号当成字面照收。
 
 切分规则借 Claude Code 的 shell 式引号（[CC-6](../../../../../research/slash-command-parsing-sources/notes/claude-code.md#cc-6)），但在这里**钉死成上面六条**：
-「用现成的 shell 词法库」会把参数文法交给库去定义，不同库在转义与引号上各不相同（[提案「D 的组成」](../../../../record/proposals/slash-command-parsing-baseline/alternatives.md#d-的组成借什么从哪借为什么只借这些)）。
+「用现成的 shell 词法库」会把参数文法交给库去定义，不同库在转义与引号上各不相同（提案「D 的组成」）。
 
 ### S-18 参数的绑定与取值
 
@@ -489,7 +489,7 @@ recognize(T) ≝
 | 1 | 文本块 | 那个技能此刻生效的那份实现的**正文，逐字**——`data.skill-package` v2 [S-8](../../skill-package/v2/contract.md#s-8-正文逐字不展开不执行) 的 `body` | `{ kind: "skill_body", command: <命令名>, skill: <技能名> }` |
 | 2 | 文本块，**仅当 `argumentText` 非空** | `argumentText`，原样 | `{ kind: "slash_command_args", command: <命令名> }` |
 
-- **参数不拼进正文**（[PF-002 decisions 原话（一）问题一「另成一个内容块」](../../../../product/PF-002-assets-settings-and-permissions/decisions.md#2026-09-23--斜杠命令参数无权限即不存在会话认得哪些命令③-型不开放保留名前缀)）。
+- **参数不拼进正文**（[PF-002 decisions 原话（一）问题一「另成一个内容块」](../../../../product/PF-002-assets-settings-and-permissions/design.md)）。
   有参数声明的 skill 型命令，参数先按声明验过（不通过即 `failed`），通过之后第二块的文字**仍是 `argumentText` 原样**，不是解析出的那张表。
 - 两块的次序是本契约的推导：先方法、后人给的话，与人敲下去的次序一致。
 - **技能自己的「谁可以使用它」（`usableBy`）不在解析里判**：解析看不到技能的权限。受理面展开时以**敲命令的那个人**的身份判它；不通过由受理面具名拒绝，**不是**本契约的失败值（[PF-002 §4 表后一段](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)）。
@@ -517,7 +517,7 @@ recognize(T) ≝
 ### S-25 留痕
 
 **① ② 型：受理面产出的那条用户消息里，除展开物之外另有一块留痕块——一个来路标记为 `{ kind: "slash_command_record", command: <命令名> }` 的文本块，`text` 是这次的 `raw`，逐字**
-（`data.content-blocks` v2 [S-8](../../content-blocks/v2/contract.md#s-8-文本块与来路标记)；主线裁定，见 [D-060 §S20 S20-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的)：**留痕不是第八类块，是一种来路标记**）。
+（`data.content-blocks` v2 [S-8](../../content-blocks/v2/contract.md#s-8-文本块与来路标记)；主线裁定，见 D-060 §S20 S20-c：**留痕不是第八类块，是一种来路标记**）。
 它与同一条消息里 `command` 相同、来路标记为 `slash_command_expansion`、`skill_body`、`slash_command_args` 的那几块一起，
 兑现「原命令与展开后的全文都留」「消息落盘之前看得到原命令的标注」（[PF-014 §5.10](../../../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走)、[§5.6](../../../../product/PF-014-inbound-intake-and-queueing/design.md#56-消息落盘之前那一刻看得到什么)）。留痕的形状借 Claude Code 「原命令一份、展开全文一份」（[CC-7](../../../../../research/slash-command-parsing-sources/notes/claude-code.md#cc-7)）。
 
@@ -716,14 +716,14 @@ binding_unknown  >  name_invalid  >  name_reserved  >  parameter_duplicate  >  p
 |---|---|---|---|
 | **G-1** | **已闭合（2026-09-24 整批对齐）**：`data.asset-model` v2 已改为禁斜杠、许冒号；`CommandName` 改为 `$ref` 那边的 `CapabilityName` 再加保留区（[S-2](#s-2-命令名的词法)） | — | — |
 | **G-2** | **已闭合（2026-09-24 整批对齐）**：对 `data.skill-package` v2 的依赖已登（它的 S-8），[S-22](#s-22-技能型的引用与两块展开物) 的第一块指它的 `body` | — | — |
-| **G-3** | **已闭合（2026-09-24 整批对齐）**：引号没闭合的 `reason` 是 `unterminated_quote`——主线裁定，见 [D-060 §S20 S20-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的)；见 [S-17](#s-17-参数文字的切分)、[S-19](#s-19-解析失败取第一处)、[S-20](#s-20-parseresult-四支) | — | — |
-| **G-4** | **已闭合（2026-09-24 整批对齐）**：留痕不是第八类块，是 `data.content-blocks` v2 S-8 的来路标记 `slash_command_record`（① 型展开物另用 `slash_command_expansion`）——主线裁定，见 [D-060 §S20 S20-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的)；见 [S-25](#s-25-留痕) | — | — |
-| **G-5** | **已闭合（2026-09-24 整批对齐）**：「谁可以用」是 `data.asset-model` v2 保留的 `usableBy`（项名、取值域、默认 `self`，八类共用）——主线裁定，见 [D-060 §S18 S18-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的)；见 [S-11](#s-11-属性项的推出规则) | — | — |
+| **G-3** | **已闭合（2026-09-24 整批对齐）**：引号没闭合的 `reason` 是 `unterminated_quote`——主线裁定，见 D-060 §S20 S20-b；见 [S-17](#s-17-参数文字的切分)、[S-19](#s-19-解析失败取第一处)、[S-20](#s-20-parseresult-四支) | — | — |
+| **G-4** | **已闭合（2026-09-24 整批对齐）**：留痕不是第八类块，是 `data.content-blocks` v2 S-8 的来路标记 `slash_command_record`（① 型展开物另用 `slash_command_expansion`）——主线裁定，见 D-060 §S20 S20-c；见 [S-25](#s-25-留痕) | — | — |
+| **G-5** | **已闭合（2026-09-24 整批对齐）**：「谁可以用」是 `data.asset-model` v2 保留的 `usableBy`（项名、取值域、默认 `self`，八类共用）——主线裁定，见 D-060 §S18 S18-c；见 [S-11](#s-11-属性项的推出规则) | — | — |
 | **G-6** | **已闭合**：参数声明、参数提示、绑定目标是正文成员，不随持有配值；参数提示是 `ParameterDeclaration.hint`——产品正文 [PF-002 §4 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 17）已改为「这是这份命令本身，不是设置」「设置：本版没有」 | — | — |
 | **G-7** | **系统业务流程的登记处**：`ServiceName` 解到哪个服务的哪个动作、此刻办不办得了、结果摘要什么形状，没有契约 | [S-7](#s-7-servicename)、[S-23](#s-23-命令型的参数) 交出去之后的那一段；③ 型条目里的「结果摘要」 | **主线**（登记处落在哪份契约）；每条流程的语义归定义它的 topic |
 | **G-8** | **③ 型那条「记它发生过的条目」与受理面具名拒绝条目的形状** | [S-24](#s-24-解析失败即什么都不发)、[S-25](#s-25-留痕)：条目要装 `CommandInvocation` 与 `ParseResult`，装在哪、叫什么没有定 | **受理契约**（PF-014 的规格化，未立）与 PF-000 记录条目 |
 | **G-9** | **同一次提交里人还带了附件时，命令与附件怎样一起走**：① ② 型展开出的那条用户消息带不带那些附件，③ 型遇到附件怎么办 | 交付面允许在一次提交里带附件时的受理 | **受理契约**（PF-014 的规格化，未立） |
-| **G-10** | **已闭合（2026-09-24 第一轮评审处置）**：原先无处可链的几条主线裁定（能力标识名禁 `/` 许 `:`；「谁可以用」= `usableBy`；`unterminated_quote`、`Span`、`Recognition`；留痕是来路标记；正文不带名字）已记进 [D-060 §S20](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的) 与 [§S18 S18-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的)；参数提示在正文已落进 PF-002 rev 17 | — | — |
+| **G-10** | **已闭合（2026-09-24 第一轮评审处置）**：原先无处可链的几条主线裁定（能力标识名禁 `/` 许 `:`；「谁可以用」= `usableBy`；`unterminated_quote`、`Span`、`Recognition`；留痕是来路标记；正文不带名字）已记进 D-060 §S20 与 §S18 S18-c；参数提示在正文已落进 PF-002 rev 17 | — | — |
 
 **一件曾经像缺口、现已不是的事**：「交付面自己的动作与斜杠命令撞名听谁的」——产品正文已由保留名规则闭合，**没有优先级要定**（[S-5](#s-5-保留名在系统内唯一没有优先级)）。
 

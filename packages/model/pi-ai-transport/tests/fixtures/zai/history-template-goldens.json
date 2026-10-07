@@ -25,7 +25,7 @@
     }
   ],
   "visible": {
-    "fragmentsSha256": "724428eb964a67622f4bce6becf6e6fc0cb5162ba45fb49216d7ed64d6c49a0e",
+    "fragmentsSha256": "97bf94ae1239eea35b5d268ba248c00763d6cf50d88180319ffa1cd38fd41c34",
     "templateSha256": {
       "glm-5.2": "172dc74a35e1752df75ecfb2b2cf9326d2852bb1379868ebeec9571654489679",
       "glm-5.3": "3740abcea51c45830cb3ca562084ad5fb2ef53589376f73332e9886f93ade41c",

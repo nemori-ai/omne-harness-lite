@@ -32,3 +32,10 @@
 | MP6-R4 | README/README_ZH 说明 root MP5 与精确MP6资源用途及可运行导入示例；无新增旧运行判断或隐式版本选择 |
 
 本节点不改变 accepted 契约或目录，不增加产品参数，不要求完整 Session/Run。缺口为本候选技术采用、原字节资源发布与上述制品/消费证据；联合评审与主线接受之前不释放实现。
+
+## 当前采用范围
+
+仅新增 MP6 精确 Schema 资源供 MS7 created Snapshot 可达子图；model-profile root 继续 MP5，不改纯值判断/完整副本，不把 MP6 Schema 接收冒充 directory 已迁 MP6；发前 token 语义归 runtime。
+
+技术采用不表示实现或实际验证已完成。验证义务：各节点当前关联验证义务；runtime R20-V1..R20-V23；SQL/JSONL 分域、unknown 留责、真实停止与来源当前性；正式包制品与全部受影响消费者。
+范围之外：ACK 之后永久保管/noGC：已被 ACK 后继取代；完整 Session/Run/Agent/通用 registry 或内容平台。

@@ -1,6 +1,6 @@
 # Package adoption review
 
-This record covers the first template PR. It records manual decisions, not business or system acceptance.
+This record covers versioned package-template adoption. It records manual decisions, not business or system acceptance.
 The current marker remains in each package.json. Re-scan after any source or template change.
 
 Every marked package received a complete tree check and a review of its public responsibility, applicable integration rules and existing behavior owner.
@@ -54,6 +54,8 @@ Accepted legacy behavior and verification sources remain effective until their c
 | [packages/tenancy/organization-governance-sql](../../../../packages/tenancy/organization-governance-sql/README.md) | service-provider | 四公共 Service 共用数据实例；参与、通知和真实关闭沿 R1 接受，不制造独立事务。 |
 | [packages/util/unix-format](../../../../packages/util/unix-format/README.md) | module | 只返回字符串的输出格式化；无运行时依赖或隐含 Service，provenance 保留实际来源。 |
 | [packages/util/xml-format](../../../../packages/util/xml-format/README.md) | module | 显式字段规则驱动 XML 字符串；无运行时依赖或 Service，provenance 保留实际来源。 |
+| [packages/session/runtime-context-local](../../../../packages/session/runtime-context-local/README.md) | service-provider | RuntimeContextService 消费 core ABC，纯根与 ./cordis 分面；Storage/log/access/clock/lifetime 显式注入，可信 initializer 与 mutation 共享原 owner，来源归 caller effect。真实 setup/排空/原借用保留与同控制 retry 已核验；持久模型归 verification/models。完整业务交付仍有独立 F 验收义务。 |
+| [packages/session/session-log-jsonl](../../../../packages/session/session-log-jsonl/README.md) | service-provider | SessionLogService 消费 core ABC，删除旧 ./plugin 后同步全部消费者；纯数据 Config，活体 process ownership/diagnostic 由可信工厂捕获。原文件任务/锁转移及失败关闭责任经真实 IO/Cordis 回归核验，物理完成门仍由应用保存原 owner；薄 SPEC 明示边界。 |
 
 | [packages/core/assembly-manifest](../../../../packages/core/assembly-manifest/README.md) | service-contract | H3 全树核对；纯端口单一拥有者与正式资源 Service，六操作及未迁 MF4/模型来源保留。新增真实公共判定测试，不造业务 Service 包装。 |
 | [packages/assets/assembly-manifest-store](../../../../packages/assets/assembly-manifest-store/README.md) | service-provider | H3 全树及实际工厂核对；纯根/绑定分离、正式六操作 Service、必需资源注入与稳定真实排空观察。实际 SQLite、旧引用和换代测试；全模型业务接受仍沿原限定。 |
@@ -79,8 +81,6 @@ Do not add a marker until the specific missing resource or integration qualifica
 | [packages/model/model-profile-directory-local](../../../../packages/model/model-profile-directory-local/README.md) | 缺少本包薄 SPEC；实际可换代档案服务与历史/注册面待 H4 核验。 |
 | [packages/model/model-request-runtime-local](../../../../packages/model/model-request-runtime-local/README.md) | IC-2 普通对象 modelRuntime 发布仍在；仅补公开已有 SPEC 的打包清单，H4 处理完整生命周期。 |
 | [packages/model/pi-ai-transport](../../../../packages/model/pi-ai-transport/README.md) | 缺少本包薄 SPEC；tokenizer 资源归 resources 并保持字节，transport/档案/策略全量集成待 H4，归位不等于请求整改。 |
-| [packages/session/runtime-context-local](../../../../packages/session/runtime-context-local/README.md) | 来源/日志/Session 的生命周期组合需提供者完整核对；此处不能用定义包或部分验收提升 local 状态。 |
-| [packages/session/session-log-jsonl](../../../../packages/session/session-log-jsonl/README.md) | 物理 JSONL owner 与 source/backing 的发布/撤除组合尚需核验；独立工厂不是完整 Cordis 提供者整改。 |
 | [packages/session/session-tenancy-table](../../../../packages/session/session-tenancy-table/README.md) | SPEC 仅接续 maintenance/seed 增量；holdingTenant 和模型恢复消费仍须 H4 核对完整公共依赖。 |
 | [packages/tools/asset-registry-local](../../../../packages/tools/asset-registry-local/README.md) | 缺少真实 tests，README 明确 scaffold/component checks 未通过；不伪称已完整交付。 |
 | [packages/tools/tool-admission-local](../../../../packages/tools/tool-admission-local/README.md) | 动态 host、真实日志借用及恢复责任仍需提供者完整核验；三个动态绑定抽取 unknown 不被静态无偏离替代。 |

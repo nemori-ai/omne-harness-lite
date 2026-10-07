@@ -1,8 +1,8 @@
-# v21 请求图片准备的 runtime 接入（候选）
+# v21 请求图片准备的 runtime 接入（）
 
-2026-09-29 revision 3，candidate。已接受语义仍[RT10](../../../../spec/capabilities/model-request-runtime/v10/contract.md)/[MR9](../../../../spec/data/model-response/v9/contract.md)/MS6/CA2，未接受T29后继不作为本页前置；与v20 registry/ref并行组合。可实施未批准，新增bindings 0，实际验证未执行。无新Session/Run实现、业务操作、持久消息或注册表。
+当前技术采用范围与排除见本页“当前采用范围”；不据此宣称实现或验证完成。
 
-依据[提案](../../../../record/proposals/model-request-image-preparation/README.md)及[transport v15](../pi-ai-transport/v15-image-preparation-design.md)。本页拥有通用runtime公开类型接缝；图片policy/结果账本唯一在transport v15，不重复定义。
+依据提案及[transport v15](../pi-ai-transport/v15-image-preparation-design.md)。本页拥有通用runtime公开类型接缝；图片policy/结果账本唯一在transport v15，不重复定义。
 
 ## 公共接口和消费点
 
@@ -58,3 +58,10 @@ MR9已有transformRevision用于共享basis合成；本页不新增字段/新真
 ## revision 3 资源接入细目
 
 preparer准入满额立即busy/unavailable，不增排队/重试平台；service不把其改为模型上游失败。构造非法policy TypeError在装配暴露、缺codec显式unavailable，空或无图请求按原路径且不能被配置缺失静默放行。maxScopes显式正有限值，具名候选preset为64。scope淘汰/关闭调用preparer明确cache释放，不能仅删runtime键期待WeakMap及时GC；进程内scope不出现在原持久PlanInput。preparer借用codec，runtime若是codec owner必须按“关准入→await所有preparer.close→dispose codec”在同一受控卸载函数中组合，不依赖Cordis多个effect有序完成。close重复/并发共用终结Promise，真实任务未停时仍不报告完成。
+
+## 当前采用范围
+
+选中图片的请求期缩放/重编码与有限搜索；统一异步 plan/context、真实准备任务生命周期、受信作用域隔离及 full/φ/δ 的共享计量依据。既有 RT10/MR9 精确语义不改变，无新持久对象或服务键。
+
+技术采用不表示实现或实际验证已完成。验证义务：IP-V1..IP-V10；取消等待 native 实际停止后释放；缓存冷热同结果与资源上限/native 峰值；实际 HTTPS、包制品和双语消费者；计量与实际 wire 同一依据。
+范围之外：完整 Session/Run/Agent；媒体平台/外部下载/持久派生；仅由图片采用提升 T29 引用生命周期范围。

@@ -7,10 +7,10 @@
 因为消费者相同（租户领域的装配设计）且失效事件相同（同行换方案、库换版本）。
 
 当前观察支持：五家 CLI 无一用查询构建器、TS 同行用内置 `node:sqlite`、Drizzle 按方言分裂类型而 Kysely 不分裂。
-**不支持**：任何「该选什么」的结论——那归 [D-026](../../design/record/decisions/infrastructure-persistence-choices/README.md)。
+**不支持**：任何「该选什么」的结论——那归 D-026。
 
 - 调查对象与基线：opencode `dev`（2026-09-22 抓取）、Codex CLI 0.154.0 与 `codex-rs` main、LangGraph checkpoint 包 3.1.x、pi-coding-agent 0.87.0、Claude Code 2.1.280、Cursor agent 2026.08.04、Kimi Code（2026-07-30 SEA）、DeepSeek Harness 0.1.5-rc.2、Goose main、Mastra 文档、Kysely 0.29.6、Drizzle 1.0.0-rc.2、`kysely-node-native-sqlite` 1.1.0；身份部分见 [research.md 第二部分](research.md#第二部分身份基础设施)
-- 消费者：[D-026](../../design/record/decisions/infrastructure-persistence-choices/README.md)（已消费）；`packages/core/storage`、`packages/infra/storage-sql`、`packages/infra/clock`、`apps/tenancy-host` 四个 realization 节点；`packages/core/identity-values` 节点的交接凭证签名方案
+- 消费者：D-026（已消费）；`packages/core/storage`、`packages/infra/storage-sql`、`packages/infra/clock`、`apps/tenancy-host` 四个 realization 节点；`packages/core/identity-values` 节点的交接凭证签名方案
 - 最近核对：2026-09-22 / 上列版本（首轮）
 
 ## 准入核对

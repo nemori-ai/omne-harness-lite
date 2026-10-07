@@ -1,1 +1,0 @@
-usage: tenancy-host keygen <directory> | serve [--plugins <file>] [--print-plugins] | ops --socket-dir <absolute> full-health|backup [--only-if-due]|backup-status | verify --source <absolute> --work-dir <absolute> | restore-isolated --source <absolute> --target <new-absolute-directory> --work-dir <absolute>

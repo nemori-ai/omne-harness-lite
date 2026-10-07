@@ -1,10 +1,10 @@
 # model-response MR9 输入校准值映射
 
-2026-09-29，revision 1，**candidate，未接受、未实施验证**。节点及源码路径均为 `packages/core/model-response`，kind 为 provider。本增量接续 [v8](v8-design.md) 及 [D104](../../../../record/decisions/model-recovery-timing-adoption/decision.md)，保留已实现的纯值包边界；不新建 plugin、fiber、service、计量器或存储。前身基线为 `0fb8cefd`；本版公开签名、文件落点均为候选，不是现有 API 声明。
+2026-09-29，revision 1，**candidate，未接受、未实施验证**。节点及源码路径均为 `packages/core/model-response`，kind 为 provider。本增量接续 [v8](v8-design.md) 及 D104，保留已实现的纯值包边界；不新建 plugin、fiber、service、计量器或存储。前身基线为 `0fb8cefd`；本版公开签名、文件落点均为候选，不是现有 API 声明。
 
 ## 输入与采用门
 
-已核 [catalog](../../../../registry/catalog.json)：baseline `omne-harness-lite-design-2026-09-15` 的 `data.model-response/9`（MR9）和 `capability.model-request-runtime/10`（RT10）均为 candidate、acceptance 为 null。本节点只拥有 MR9 的表示及单响应关系判定，RT10 只定位消费者责任，不反向成为 core 的运行依赖。施工方向为 [U0 C](../../../../record/proposals/model-input-usage-calibration/design.md) 与[施工简报（已外置）](../../../../record/evidence/2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件)。下列 SHA 识别本次读入快照，不表示接受或冻结发布。
+已核 [catalog](../../../../registry/catalog.json)：baseline `omne-harness-lite-design-2026-09-15` 的 `data.model-response/9`（MR9）和 `capability.model-request-runtime/10`（RT10）均为 candidate、acceptance 为 null。本节点只拥有 MR9 的表示及单响应关系判定，RT10 只定位消费者责任，不反向成为 core 的运行依赖。施工方向为 U0 C 与施工简报（已外置）。下列 SHA 识别本次读入快照，不表示接受或冻结发布。
 
 | 输入 | SHA-256 |
 |---|---|
@@ -12,7 +12,7 @@
 | [MR9 Schema](../../../../spec/data/model-response/v9/model-response.schema.json) | `f282244688fa9442787b94f11c02444923843c8d8ae471d323e42792c8ee457c` |
 | [RT10 contract](../../../../spec/capabilities/model-request-runtime/v10/contract.md) | `add7ff23a73a6ad5a749f40f6707f408f60d33b6032080ad6ba4751f10d5695c` |
 
-需求 rev 沿 MR9：PF-013/15、PF-009/8、PF-004/13、PF-012/15、PF-001/23、PF-011/4、PF-010/6；不重开产品选择。MR9 精确依赖仍为 CA2/CB3/MS6/MP5/LC6/OE1/IV1；MP6 的估算政策由 runtime 消费，本包不私换 Schema 引用为 MP6，也不新增 MP7。Cordis 采用版本沿 [D025](../../../../record/decisions/cordis-adoption-version/decision.md) 的 4.0.4；本包不使用 Cordis API，新增 basis 主张为 0。
+需求 rev 沿 MR9：PF-013/15、PF-009/8、PF-004/13、PF-012/15、PF-001/23、PF-011/4、PF-010/6；不重开产品选择。MR9 精确依赖仍为 CA2/CB3/MS6/MP5/LC6/OE1/IV1；MP6 的估算政策由 runtime 消费，本包不私换 Schema 引用为 MP6，也不新增 MP7。Cordis 采用版本沿 D025 的 4.0.4；本包不使用 Cordis API，新增 basis 主张为 0。
 
 四层状态：**语义接受无**；**可实施路径候选**，接受后才能实施；**新增绑定 0**，旧绑定不换标签；**本增量实际产品验证尚无**。既有规格/TLC 结果不是本包生产校验、持久性或真实 token 来源证明。
 

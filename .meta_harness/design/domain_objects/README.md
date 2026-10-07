@@ -60,8 +60,8 @@ ubiquitous_language/（每个词指什么）┘    （跨 topic 收成一份：�
 | **统一语言新增了一个形态为「对象」的词条** | 在 objects.md 加一条。检查器会因为缺这一条而失败 |
 | **某个 topic 升了 rev** | 检查器列出「依据」指向该 topic 的条目——**逐条复核**，成立就把 rev 改到当前值，不成立就改条目 |
 | **一个词条的形态变了**（对象 ⇄ 视图 / 属性 / 未定） | 条目跟着增删；降为「未定」的移进 pending.md |
-| **发现一个像对象、却哪儿都没定义的东西** | 进 pending.md，写清谁来裁；**同时**按[产品区的规矩](../product/AGENTS.md#红线)记进所属 topic 的 `decisions.md`「已知的来源问题」 |
-| **pending 里的一项被裁了** | 成了对象 → 立词条、立条目，从 pending 删掉；不是对象 → 从 pending 删掉，去向写进所属 topic 的 changelog |
+| **发现一个像对象、却哪儿都没定义的东西** | 进 pending.md，写清谁来裁；**同时**按[产品区的规矩](../product/AGENTS.md#红线)记进所属 topic 的 现行正文的未决项 |
+| **pending 里的一项被裁了** | 成了对象 → 立词条、立条目，从 pending 删掉；不是对象 → 从 pending 删掉，仍有效的含义归所属 topic 现行正文 |
 | **怀疑整体漂了**（大改版之后、架构开工之前） | 做一次全量重提，与现有条目逐条对账；流程在 `domain-objects` skill 的 `references/full-reextraction.md` |
 
 **对账分两层。**能机械查的——条目与词条形态一一对应、依据的链接与锚点还在、依据的 rev 是不是当前值、

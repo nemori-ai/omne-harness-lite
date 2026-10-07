@@ -1,12 +1,15 @@
 import { Context } from '@deepseek-ai/cordis'
 import { expect, test } from 'vitest'
-import { SessionLogService } from '@omne-harness-lite/session-log/cordis'
+import { SessionLogBackingService } from '@omne-harness-lite/session-log/cordis'
+import { StorageService } from '@omne-harness-lite/storage/cordis'
+import { createAssemblyLifetime } from '@omne-harness-lite/assembly-lifecycle'
+import { AssemblyLifetimeService } from '@omne-harness-lite/assembly-lifecycle/cordis'
 import { SessionAccessService } from '@omne-harness-lite/session-tenancy/cordis'
 import { ClockService } from '@omne-harness-lite/offer-expiry/cordis'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import type { ContextSourceHandle, ContextSource } from '@omne-harness-lite/runtime-context'
-import { runtimeContextLocal } from '../src/cordis.ts'
-import { host, init, scope, at } from './fixture.ts'
+import { createRuntimeContextLocal } from '../src/cordis.ts'
+import { host, seed, scope, at } from './fixture.ts'
 
 test('Cordis source contribution withdraws immediately and drains its original pending callback', async () => {
   const h = await host(),
@@ -16,10 +19,30 @@ test('Cordis source contribution withdraws immediately and drains its original p
   const parsed = instantFromRfc3339(at)
   if (!('ok' in parsed)) throw new Error('clock fixture invalid')
   const instant = parsed.ok
-  class Log extends SessionLogService {
-    append = h.log.append
-    readByKey = h.log.readByKey
-    readSince = h.log.readSince
+  h.owner.closeAdmission()
+  await h.owner.drain()
+  const binding = createRuntimeContextLocal()
+  const lifetime = createAssemblyLifetime(['runtime-context'], binding.closeAdmission)
+  expect(lifetime.tryClaim()).toBe(true)
+  const port = lifetime.port('runtime-context')
+  let releases = 0
+  class Log extends SessionLogBackingService {
+    ownerGeneration = 'original-log'
+    borrow = () => ({
+      log: h.log,
+      release: async () => {
+        releases++
+      },
+    })
+  }
+  class Sql extends StorageService {
+    read = h.storage.read.bind(h.storage)
+    write = h.storage.write.bind(h.storage)
+  }
+  class Lifetime extends AssemblyLifetimeService {
+    isCurrent = port.isCurrent
+    register = port.register
+    retainClose = port.retainClose
   }
   class Access extends SessionAccessService {
     authorize = h.auth.operations.authorize
@@ -31,11 +54,14 @@ test('Cordis source contribution withdraws immediately and drains its original p
     name: 'context-test-dependencies',
     apply(inner: Context) {
       new Log(inner)
+      new Sql(inner)
+      new Lifetime(inner)
       new Access(inner)
       new Time(inner)
     },
   })
-  const runtime = await ctx.plugin(runtimeContextLocal, {})
+  const runtime = await ctx.plugin(binding.plugin, {})
+  await binding.ready
   let handle: ContextSourceHandle | undefined
   const contribution = await ctx.plugin({
     name: 'context-test-source',
@@ -54,7 +80,10 @@ test('Cordis source contribution withdraws immediately and drains its original p
     },
   })
   try {
-    await init(h)
+    expect(await binding.initializer.initializeContextSession(scope, seed)).toHaveProperty(
+      'kind',
+      'applied',
+    )
     const current = await ctx.runtimeContext.registrations(h.access, scope)
     if (current.kind !== 'registrations') throw new Error('registration fixture missing')
     const registered = await ctx.runtimeContext.register(
@@ -95,6 +124,8 @@ test('Cordis source contribution withdraws immediately and drains its original p
     response.resolve({ kind: 'values', values: [] })
     await contribution.dispose()
     await runtime.dispose()
+    expect((await lifetime.close()).complete).toBe(true)
+    expect(releases).toBe(1)
     await dependencies.dispose()
     await ctx.fiber.dispose()
     await h.close()

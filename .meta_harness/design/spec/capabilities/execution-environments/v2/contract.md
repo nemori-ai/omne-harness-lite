@@ -5,7 +5,7 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.execution-environments, 2)`——
   `family = capabilities`、`topic = execution-environments`、规范路径 `spec/capabilities/execution-environments/v2/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：已由 [D-061](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
+- **状态**：已由 D-061 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-005 rev 6**、**PF-006 rev 19**、**PF-016 rev 8** 为准
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记）：
   - `omne-harness-lite-design-2026-09-15 · data.identity-values · v1`（accepted）
@@ -34,12 +34,12 @@
 >
 > | 条款 | 依据 |
 > |---|---|
-> | 本契约作为一份**窄口**能力存在：只收「宿主机是否允许、按进程组起停、引用」，PF-005 其余不收 | 产品负责人裁定 [D-063 R-1](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)（替身改为「接口契约 ＋ 最小提供者」，接口按消费者的需要定窄口）；真承接者见 [D-060 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) |
-> | [S-6](#s-6-落点判断本版只有宿主机) 第 2 条：`auto_place` 在本版落宿主机 | **规格层推导**：它不是 `never-allow`，所以这个工具有用宿主机的资格（PF-005 §4）；本版没有任何沙箱实现在场（[S-2](#s-2-本契约不拥有什么)），宿主机是唯一的候选。**产品没有明说「没有沙箱时 `auto_place` 落哪」**；主线已接受这一读法（[D-060 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑥） |
+> | 本契约作为一份**窄口**能力存在：只收「宿主机是否允许、按进程组起停、引用」，PF-005 其余不收 | 产品负责人裁定 D-063 R-1（替身改为「接口契约 ＋ 最小提供者」，接口按消费者的需要定窄口）；真承接者见 D-060 §八 M43 |
+> | [S-6](#s-6-落点判断本版只有宿主机) 第 2 条：`auto_place` 在本版落宿主机 | **规格层推导**：它不是 `never-allow`，所以这个工具有用宿主机的资格（PF-005 §4）；本版没有任何沙箱实现在场（[S-2](#s-2-本契约不拥有什么)），宿主机是唯一的候选。**产品没有明说「没有沙箱时 `auto_place` 落哪」**；主线已接受这一读法（D-060 §八 N-37 ⑥） |
 > | [S-6](#s-6-落点判断本版只有宿主机) 第 3 条：声明了目标环境的工具本版判为 `requirementNotJudged` | **规格层推导**：匹配规则未定（`data.tool-definition/v2` 的 G-5），判不出「满足」就不能落；「判不出来」与「判为不许」分成两个值 |
 > | [S-6](#s-6-落点判断本版只有宿主机) 第 4 条：拓展件子进程要落宿主机，须另有一项显式允许，否则不落 | **产品依据已补**：PF-005 §6.10 允许 hooks 兼容件使用宿主机，装配须交入显式允许；工具权限只管工具（[G-3](#十已知缺口)）；缺席即不许 |
-> | 进程组、[S-13](#s-13-startprocess)～[S-15](#s-15-stopprocessgroup) 的起停语义 | 消费者的要求（`capability.hooks-import` v2 的 S-18 起子进程四件事：新进程组、按进程组停、有界答复「确认退出／未确认」、未确认的留执行环境善后，[D-060 §八 M64](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）落成性质；**有界答复与善后是本契约承接的义务** |
-> | 操作名、失败值名、`why` 的取值名、具名参数名 | 起草时的候选名（账本只给了服务键 `executionEnvironments`），**主线已接受**（[D-060 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ①） |
+> | 进程组、[S-13](#s-13-startprocess)～[S-15](#s-15-stopprocessgroup) 的起停语义 | 消费者的要求（`capability.hooks-import` v2 的 S-18 起子进程四件事：新进程组、按进程组停、有界答复「确认退出／未确认」、未确认的留执行环境善后，D-060 §八 M64）落成性质；**有界答复与善后是本契约承接的义务** |
+> | 操作名、失败值名、`why` 的取值名、具名参数名 | 起草时的候选名（账本只给了服务键 `executionEnvironments`），**主线已接受**（D-060 §八 N-37 ①） |
 
 ---
 
@@ -122,9 +122,9 @@
 1. **两样之一读不到** ⇒ `unavailable`。**不当成允许，也不当成不许。**读取的来路本版没有契约（[G-2](#十已知缺口)）。
 2. **执行环境权限是 `never-allow`，或这个工具在这个租户下没有执行环境权限的值** ⇒ `noLanding{ why: hostNotAllowed }`。宿主机不是缺省可用的（[PF-005 §6.2](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#62-宿主机不提供租户隔离因此必须被显式允许)）；`never-allow` 在别处也去不了隔离环境（本版没有沙箱），**没有第三条路**（[PF-005 §6.9](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#69-落点不可用就是拒绝不降级)）。
 3. **目标环境声明了**（求值后的那一份在） ⇒ `noLanding{ why: requirementNotJudged }`。本版判不了宿主机满不满足它（`data.tool-definition/v2#S-11` 的匹配未定）；**满足不了不降级满足**（[PF-006 §6.8](../../../../product/PF-006-tools-and-skills/design.md#68-工具怎么提执行环境的要求)），判不出满足就不落。
-4. **执行环境权限是 `always-allow` 或 `auto_place`** ⇒ **落宿主机**。`auto_place` 在本版落宿主机：它不是 `never-allow`，这个工具就有用宿主机的资格（[PF-005 §4](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境权限)），而本版没有别的候选（规格层推导，主线已接受：[D-060 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑥）。
+4. **执行环境权限是 `always-allow` 或 `auto_place`** ⇒ **落宿主机**。`auto_place` 在本版落宿主机：它不是 `never-allow`，这个工具就有用宿主机的资格（[PF-005 §4](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境权限)），而本版没有别的候选（规格层推导，主线已接受：D-060 §八 N-37 ⑥）。
 
-**判一个拓展件子进程**（[`startProcess`](#s-13-startprocess)）：它不是工具，执行环境权限管不到它。**只有「拓展件子进程的宿主机允许」（无词条）这一项显式允许在场时才落宿主机**；那一项读不到 ⇒ `unavailable`；没有 ⇒ `noLanding{ why: hostNotAllowed }`。[PF-005 §6.10](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#610-hooks-子进程与环境变量传递) 已允许 hooks 兼容件落宿主机（[D-064 ⑭](../../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md)）；将该允许交给本能力的读面接线仍待落实（[G-3](#十已知缺口)），未交入时沿上述缺席规则拒绝。
+**判一个拓展件子进程**（[`startProcess`](#s-13-startprocess)）：它不是工具，执行环境权限管不到它。**只有「拓展件子进程的宿主机允许」（无词条）这一项显式允许在场时才落宿主机**；那一项读不到 ⇒ `unavailable`；没有 ⇒ `noLanding{ why: hostNotAllowed }`。[PF-005 §6.10](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#610-hooks-子进程与环境变量传递) 已允许 hooks 兼容件落宿主机（D-064 ⑭）；将该允许交给本能力的读面接线仍待落实（[G-3](#十已知缺口)），未交入时沿上述缺席规则拒绝。
 
 - **没有第二处允许**：对工具，允许只来自执行环境权限（[PF-005 §6.2](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#62-宿主机不提供租户隔离因此必须被显式允许)「没有第二处」）；本能力不另持一份「哪些工具可以落宿主机」的名单。
 - **每次现判**：权限改了，下一次判按新值（[PF-005 §6.1](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)）；不缓存上一次的答案。
@@ -223,7 +223,7 @@
 | ⑧ | 拓展件子进程的宿主机允许没有 ⇒ `noLanding{ hostNotAllowed }`；读不到 ⇒ `unavailable`。**不回退、不换落点** |
 | ⑨ | 不发 |
 
-- **`EnvAllowlist`（候选名，主线给，无词条）——从据点进程环境里挑变量只许按它挑**：一个有限的环境变量**名**集合（可空，每个名非空）。按它从据点进程环境取出的**恰是**：名字在集合里、且据点进程环境里此刻有的那几个，原名原值；集合外的一个都不取；集合里有、环境里没有的名字**不取、不补空值**。本能力不持有、不读任何一份——`launch.environment` 由调用方交全（③），调用方要带据点进程环境里的变量时，就按它自己的那一份 `EnvAllowlist` 取出再并进去。**形状只定在这里一次**：兼容件的 `hookEnvAllowlist`（`capability.hooks-import/v2#S-18`）与 MCP 桥的 `stdioEnvAllowlist`（`capability.mcp-bridge/v2#S-6`）是两个策略点、同一个形状，各自配值（主线裁定 [D-060 §八 N-39](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
+- **`EnvAllowlist`（候选名，主线给，无词条）——从据点进程环境里挑变量只许按它挑**：一个有限的环境变量**名**集合（可空，每个名非空）。按它从据点进程环境取出的**恰是**：名字在集合里、且据点进程环境里此刻有的那几个，原名原值；集合外的一个都不取；集合里有、环境里没有的名字**不取、不补空值**。本能力不持有、不读任何一份——`launch.environment` 由调用方交全（③），调用方要带据点进程环境里的变量时，就按它自己的那一份 `EnvAllowlist` 取出再并进去。**形状只定在这里一次**：兼容件的 `hookEnvAllowlist`（`capability.hooks-import/v2#S-18`）与 MCP 桥的 `stdioEnvAllowlist`（`capability.mcp-bridge/v2#S-6`）是两个策略点、同一个形状，各自配值（主线裁定 D-060 §八 N-39）。
 - **`startFailed` 的进程从没跑过**：那是「开始之前」的失败（`capability.loop-extension-runner/v2#S-12` 的分界，兼容件据此报「起不来」）。**起来之后才因找不到某个子程序退出的，是那个进程自己的退出**，归 [`processOutcome`](#s-14-processoutcome)。
 
 ### S-14 processOutcome
@@ -256,14 +256,14 @@
 | ① | `tenant: TenantId`、`ref`、`processGroup`；都必带 |
 | ② | `processGroup` 须是经这个 `ref` 起的、仍有效的 |
 | ③ | 无 |
-| ④ | 先请组里每个进程退出；过具名参数 `stopGrace` 仍有在的，强制结束；然后确认组里一个都不剩。**答复在具名参数 `stopReplyBound` 之内给出**，不论停没停完。**每一次发信号之前核对这个组仍是本能力起的那一个**（组长身份，主线裁定 [D-060 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：核不上就不发——组号只在原来那个组一个不剩之后才会被再分配，所以核不上即原组已不在，按一个都不剩答；**判不出是不是同一个组时也不发**，这一次按 `notConfirmed` 答、之后再核 |
+| ④ | 先请组里每个进程退出；过具名参数 `stopGrace` 仍有在的，强制结束；然后确认组里一个都不剩。**答复在具名参数 `stopReplyBound` 之内给出**，不论停没停完。**每一次发信号之前核对这个组仍是本能力起的那一个**（组长身份，主线裁定 D-060 §八 N-42）：核不上就不发——组号只在原来那个组一个不剩之后才会被再分配，所以核不上即原组已不在，按一个都不剩答；**判不出是不是同一个组时也不发**，这一次按 `notConfirmed` 答、之后再核 |
 | ⑤ | 恰一种：`confirmedGone`——组里一个都不剩，此后这个进程组引用失效；`notConfirmed`——到 `stopReplyBound` 还没能确认 |
 | ⑥ | `invalidInput` · `environmentsWithdrawn` · `referenceNotValid` |
 | ⑦ | **幂等**：再停一次同一个组，照样有界答复；已经 `confirmedGone` 的组，引用已失效，再停得 `referenceNotValid`。**组里的进程已经全部自己结束的，立即 `confirmedGone`** |
 | ⑧ | 身份参数缺席 ⇒ `invalidInput` |
 | ⑨ | 不发 |
 
-- **`notConfirmed` 之后本能力继续停这个组**，直到确认一个不剩、或本能力撤除（撤除时的收法见 [S-17](#s-17-撤除重启与在途)）——这就是「子进程留给执行环境善后」（[D-060 §八 M64](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。其间引用仍有效，调用方可以再停、再等结果。
+- **`notConfirmed` 之后本能力继续停这个组**，直到确认一个不剩、或本能力撤除（撤除时的收法见 [S-17](#s-17-撤除重启与在途)）——这就是「子进程留给执行环境善后」（D-060 §八 M64）。其间引用仍有效，调用方可以再停、再等结果。
 - **「没确认就不算停下」**：`notConfirmed` 不是 `confirmedGone` 的一种，调用方不得把它当成停下了（兼容件据此在它那一次收场的说明里写「已请求停止、未确认退出」，`capability.hooks-import/v2#S-18`）。
 
 ---
@@ -293,8 +293,8 @@
 | **「不落」被换成宿主机或别的落点** | [S-6](#s-6-落点判断本版只有宿主机) 末条 | —— | [PF-005 §6.9](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#69-落点不可用就是拒绝不降级) |
 | **一个租户拿到或用上另一个租户的引用** | [S-5](#s-5-执行环境引用)、各操作 ② | 调用方交来的租户属实（[S-16](#s-16-装配给的保证-vs-协议须给的保证) 第 2 行） | [SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant) |
 | **子进程继承本能力所在进程的环境变量**（其中的秘密因此进了第三方脚本） | [S-13](#s-13-startprocess) ③ | —— | [PF-005 §6.10](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#610-hooks-子进程与环境变量传递) |
-| **`notConfirmed` 被当成停下** | [S-15](#s-15-stopprocessgroup) 末条 | —— | [D-060 §八 M64](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) |
-| **本能力发出的信号到达组外的进程**：信号只许到达本能力起的进程及其子孙；`notConfirmed` 之后继续停的那几轮同样不许 | [S-15](#s-15-stopprocessgroup) ④、[S-7](#s-7-进程组) | **组长身份在每一次发信号之前核对**（S-15 ④）；子孙没有离开这个组（离开的不在本能力够得着的范围里，[S-3](#s-3-本契约明确不承诺什么)） | 主线裁定 [D-060 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)：组号被操作系统再分配给无关进程时，按组号重复强制结束会停掉它 |
+| **`notConfirmed` 被当成停下** | [S-15](#s-15-stopprocessgroup) 末条 | —— | D-060 §八 M64 |
+| **本能力发出的信号到达组外的进程**：信号只许到达本能力起的进程及其子孙；`notConfirmed` 之后继续停的那几轮同样不许 | [S-15](#s-15-stopprocessgroup) ④、[S-7](#s-7-进程组) | **组长身份在每一次发信号之前核对**（S-15 ④）；子孙没有离开这个组（离开的不在本能力够得着的范围里，[S-3](#s-3-本契约明确不承诺什么)） | 主线裁定 D-060 §八 N-42：组号被操作系统再分配给无关进程时，按组号重复强制结束会停掉它 |
 
 ### 进展性质（全部有界）
 
@@ -394,9 +394,9 @@
 
 | # | 缺口 | owner | 闭合条件 |
 |---|---|---|---|
-| G-1 | **与真承接者那一程的关系**：本契约是执行环境的**窄口**，真承接者是 PF-005 那一程（[D-060 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)：本程不补、留给下一程）。**本版不收**：沙箱与沙箱实现、设施匹配、落点变化的提醒、会话执行环境的存活（[S-2](#s-2-本契约不拥有什么)）。那一程出本契约的新版本；本版的三条——没有显式允许不落宿主机、判不出与不许分开、按组停有界答复——在新版本里保留 | 主线 → PF-005 那一程 | PF-005 那一程立契约；本契约新版本把沙箱并进来或指向它 |
+| G-1 | **与真承接者那一程的关系**：本契约是执行环境的**窄口**，真承接者是 PF-005 那一程（D-060 §八 M43：本程不补、留给下一程）。**本版不收**：沙箱与沙箱实现、设施匹配、落点变化的提醒、会话执行环境的存活（[S-2](#s-2-本契约不拥有什么)）。那一程出本契约的新版本；本版的三条——没有显式允许不落宿主机、判不出与不许分开、按组停有界答复——在新版本里保留 | 主线 → PF-005 那一程 | PF-005 那一程立契约；本契约新版本把沙箱并进来或指向它 |
 | G-2 | **执行环境权限与目标环境的求值从哪读**：组织级、租户级怎样授予、按工具怎样求值，本契约只收「读得到的值」。`capability.tool-execution-runtime` v2 的 G-4（落点求值归谁判）在「宿主机那一半」由本契约接住，「到不了位由谁判」的沙箱那一半仍开着 | PF-005 的 owner ＋ 资产设置求值那一侧（`capability.asset-evaluation`、注册表） | 有一个读面给出「这个租户下这个工具此刻的执行环境权限与目标环境」 |
-| G-3 | **产品允许已裁，读面接线未完成**：[D-064 ⑭](../../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md)、PF-005 §6.10 允许 hooks 子进程落宿主机。S-6 的显式允许仍须由装配交入；没有允许仍 `noLanding{hostNotAllowed}`，读不到仍 `unavailable`。工具权限不因此改变 | 执行环境与据点装配 owner | 实施计划 W-0j 核对允许读面；HI G-15 的工作目录与名单另行闭合 |
+| G-3 | **产品允许已裁，读面接线未完成**：D-064 ⑭、PF-005 §6.10 允许 hooks 子进程落宿主机。S-6 的显式允许仍须由装配交入；没有允许仍 `noLanding{hostNotAllowed}`，读不到仍 `unavailable`。工具权限不因此改变 | 执行环境与据点装配 owner | 实施计划 W-0j 核对允许读面；HI G-15 的工作目录与名单另行闭合 |
 | G-4 | **「没声明要用执行环境的工具，这一维不适用」本版不区分**（[PF-005 §6.8](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#68-执行环境权限每个工具各配各的)）：工具定义里没有这一项声明，本契约对每个交来的工具都按「适用」判 | PF-005 与 `data.tool-definition` 的 owner | 工具定义有了这一项，本契约新版本对「不适用」的工具给出答案 |
 | G-5 | **目标环境与宿主机怎样匹配**：本版声明了目标环境即 `requirementNotJudged` | `data.tool-definition` v2 的 G-5 ＋ PF-005 那一程 | 匹配规则定下 |
 | G-6 | **具名参数的取值**：`stopGrace`、`stopReplyBound`、`outputBound` | 主线／装配（部署配置，缺值即启动失败） | 装配给值 |
@@ -412,9 +412,9 @@
 | 消费者 | 它要什么 | 本契约给什么 | 够不够 |
 |---|---|---|---|
 | **执行宿主**（`capability.tool-execution-runtime` v2 的 S-38 第 2 步、`AdmittedCall.environment`） | 这一次执行的执行环境到不到位；到不了位即 `failed{environment_unavailable}`、不降级 | [S-12](#s-12-placeexecution)：`host` 即到位；`noLanding`、`unavailable`、`referenceNotValid`、`environmentsWithdrawn` 都是到不了位 | **够**（宿主机那一半）。**`AdmittedCall.environment` 由调用方交来**——就是 [S-11](#s-11-resolvesessionenvironment) 发的引用，谁去取归 agent loop（C-8）。它的 S-38 第 2 步、G-4 已改指本契约；沙箱那一半仍在它的 G-4 |
-| **派发器**（`capability.loop-extension-runner` v2 的 S-50：执行环境句柄解析出「这一会话的执行环境」） | 按会话解析，只及这个会话；取不到即失败、不回退宿主机 | [S-11](#s-11-resolvesessionenvironment)：(租户, 会话) → 引用 | **够，但多要一样**：取引用要带租户——派发器解析执行环境时也要先经会话持有租户的读面（`capability.session-tenancy/v2#S-8`；节点原写「两样分开解析」，那一分法不变，只是执行环境那一样也要先有租户）。主线已接受（[D-060 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑩），派发器契约 S-50 第 1 条已改指本契约与那份读面 |
-| **兼容件**（`capability.hooks-import` v2 的 S-18、S-19、S-26、S-27） | 在这一会话的执行环境里起子进程、新进程组；程序不存在在开始之前判出；按组停、有界答「确认退出／未确认」；未确认的由执行环境善后；撤除时停下起过的 | [S-13](#s-13-startprocess)～[S-15](#s-15-stopprocessgroup)、[S-17](#s-17-撤除重启与在途) | **起停够**。三处要兼容件补：**起子进程要带租户**（节点原写「执行器从不调 `resolveTenant`」）；**来源产品的 hook 命令是给命令解释器的一行**，本契约不经解释器，由兼容件自己把解释器写成 `program`；**环境变量不继承**，兼容件要交全它要的变量——另加一处：**拿到结果之后停组**。四处主线已接受（[D-060 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑩），`capability.hooks-import` v2 的 S-18 已写进。**落点那一半**：本版没有会话级沙箱，兼容件子进程只能落宿主机、产品已允许、但允许读面尚未接线（[G-3](#十已知缺口)，闭合前 fail-closed） |
-| **MCP 桥**（`capability.mcp-bridge` v2 的 S-6 第 3 条：stdio 服务端的环境里白名单那一部分） | 从据点进程环境里按名挑变量的规则 | [S-13](#s-13-startprocess) 表下 `EnvAllowlist` 一条 | **够**：桥只借形状与取法、配自己的 `stdioEnvAllowlist`；它**不经本能力起进程**，本契约的其余操作与它无关（主线裁定 [D-060 §八 N-39](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） |
+| **派发器**（`capability.loop-extension-runner` v2 的 S-50：执行环境句柄解析出「这一会话的执行环境」） | 按会话解析，只及这个会话；取不到即失败、不回退宿主机 | [S-11](#s-11-resolvesessionenvironment)：(租户, 会话) → 引用 | **够，但多要一样**：取引用要带租户——派发器解析执行环境时也要先经会话持有租户的读面（`capability.session-tenancy/v2#S-8`；节点原写「两样分开解析」，那一分法不变，只是执行环境那一样也要先有租户）。主线已接受（D-060 §八 N-37 ⑩），派发器契约 S-50 第 1 条已改指本契约与那份读面 |
+| **兼容件**（`capability.hooks-import` v2 的 S-18、S-19、S-26、S-27） | 在这一会话的执行环境里起子进程、新进程组；程序不存在在开始之前判出；按组停、有界答「确认退出／未确认」；未确认的由执行环境善后；撤除时停下起过的 | [S-13](#s-13-startprocess)～[S-15](#s-15-stopprocessgroup)、[S-17](#s-17-撤除重启与在途) | **起停够**。三处要兼容件补：**起子进程要带租户**（节点原写「执行器从不调 `resolveTenant`」）；**来源产品的 hook 命令是给命令解释器的一行**，本契约不经解释器，由兼容件自己把解释器写成 `program`；**环境变量不继承**，兼容件要交全它要的变量——另加一处：**拿到结果之后停组**。四处主线已接受（D-060 §八 N-37 ⑩），`capability.hooks-import` v2 的 S-18 已写进。**落点那一半**：本版没有会话级沙箱，兼容件子进程只能落宿主机、产品已允许、但允许读面尚未接线（[G-3](#十已知缺口)，闭合前 fail-closed） |
+| **MCP 桥**（`capability.mcp-bridge` v2 的 S-6 第 3 条：stdio 服务端的环境里白名单那一部分） | 从据点进程环境里按名挑变量的规则 | [S-13](#s-13-startprocess) 表下 `EnvAllowlist` 一条 | **够**：桥只借形状与取法、配自己的 `stdioEnvAllowlist`；它**不经本能力起进程**，本契约的其余操作与它无关（主线裁定 D-060 §八 N-39） |
 | **据点验收装配的替身**（「只答宿主机、已被显式允许；按进程组起停并确认退出；不判租户、不选落点」） | 回放契约允许的答复 | [S-6](#s-6-落点判断本版只有宿主机) 的 `host` 分支、[S-13](#s-13-startprocess)～[S-15](#s-15-stopprocessgroup) | **够**：替身的「已被显式允许」就是测试种子给出的权限值与拓展件子进程的允许；它答 `host` 走的是 S-6 第 4 条与末段，**没有做契约未定义的判断**。「不判租户」与本契约不冲突：引用跨租户即 `referenceNotValid` 是本契约的判定，替身照做即可 |
 
 ---
@@ -425,4 +425,4 @@
 
 **本版的规范工件**：本文件与 [`examples.md`](examples.md)。接受状态、冻结记录与执行结果都在本版本目录之外维护，本文件不填进度、通过状态或哈希。
 
-**发布后**：本目录下的规范正文与实例不可原地覆盖；修改发布新版本。冻结之前在本候选里原地改，每次改在[验证入口「变化的影响」](../verification.md#变化的影响)记一笔。
+**发布后**：本目录下的规范正文与实例不可原地覆盖；修改发布新版本。冻结之前在本候选里原地改。 本次修改影响与验证运行放执行工作树 `tmp/<task>/`，不在验证正文追加流水。

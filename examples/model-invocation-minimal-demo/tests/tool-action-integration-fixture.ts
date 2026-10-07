@@ -46,7 +46,7 @@ import {
   type FixtureTool,
 } from './tool-driver-history-fixture.ts'
 import { actionManifest } from './tool-action-manifest-fixture.ts'
-import { runtimeContextLocal } from '@omne-harness-lite/runtime-context-local/cordis'
+import { startRuntimeContextAssembly } from '../src/runtime-context-assembly.ts'
 import { environmentRegistry } from '@omne-harness-lite/execution-environments-host/cordis'
 import { toolResultFiles } from '@omne-harness-lite/tool-result-files/cordis'
 import {
@@ -199,6 +199,10 @@ export async function actionIntegrationFixture(
     const assembly = await bootAssembly({
       services: [
         { name: 'sessionLog', value: log },
+        {
+          name: 'storage',
+          value: { read: f.storage.read.bind(f.storage), write: f.storage.write.bind(f.storage) },
+        },
         { name: 'runnerHost', value: host },
         { name: 'sessionAccess', value: authorization.operations },
         { name: 'sessionLogBacking', value: backing.operations },
@@ -228,7 +232,20 @@ export async function actionIntegrationFixture(
           ? [
               { plugin: runtimeRegistry, config: {} },
               { plugin: implementationRegistry, config: {} },
-              { plugin: runtimeContextLocal, config: {} },
+              {
+                plugin: {
+                  name: 'fixture-managed-context',
+                  async apply(ctx: Context) {
+                    const tree = await startRuntimeContextAssembly(ctx)
+                    await tree.ready
+                    ctx.effect(() => async () => {
+                      if ((await tree.close()) === 'retained')
+                        throw new Error('fixture context retained')
+                    })
+                  },
+                },
+                config: {},
+              },
               { plugin: environmentRegistry, config: {} },
               ...(options.environment
                 ? [

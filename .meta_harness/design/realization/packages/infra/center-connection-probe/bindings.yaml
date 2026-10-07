@@ -1,7 +1,3 @@
-# 条款到证据的绑定表。
-# 空：capability.center-connection v2 本版不建形式工件（契约 S-12：三态与计数在模型里被原子更新吸收，
-# 分界落在真实的传输读法上），registry 里没有它的 formal task；本节点尚未建包，没有测试。
-# 证据形式（规范场景 S-13～S-15、examples、本节点的节拍与装法检查）逐条记在 verification.md，全部未开始。
 version: 1
 node: "center-connection-probe"
 kind: "provider"

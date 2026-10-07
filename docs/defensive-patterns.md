@@ -20,8 +20,7 @@
 
 ## 这些条目从哪来
 
-来自[迁移前的防御文档](../.meta_harness/agents/research/project-baseline/defensive-patterns-before-migration.md.txt)
-及其参考资料，并结合[框架治理研究](../.meta_harness/agents/research/framework-governance/README.md)重新限定了语义。
+本页结合[框架治理研究](../.meta_harness/agents/research/framework-governance/README.md)和本项目的有效契约限定适用范围。
 **它们是设计经验，不伪装成本项目的生产事故或实测模型弱点。**
 
 当前使用方式都是**按需设计提醒**：风险出现时读相关条目，不要求每次任务加载全部十条。

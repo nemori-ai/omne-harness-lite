@@ -4,7 +4,7 @@
 
 ## 输入与问题
 
-LC6 的接受及 [v6 提供者迁移](v6-design.md) 的采用见 [D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md)。[D-106](../../../../record/decisions/runner-current-pure-provider-adoption/decision.md) 已采用 runner 的 `composeEffect(initial: PositionedSubject, conclusions)`：它只组合显式主体与结论，不需要、也不得伪造一次执行。
+LC6 的接受及 [v6 提供者迁移](v6-design.md) 的采用见 D-100。D-106 已采用 runner 的 `composeEffect(initial: PositionedSubject, conclusions)`：它只组合显式主体与结论，不需要、也不得伪造一次执行。
 
 源码基线 `19bb829ab0c97ddf00d5032676b16e45152bcbad`。实查 runner 候选提交 `885ac84f` 的 `src/effect.ts`：其 `admittedInput` 为调用现有 `judgeConclusion(value, {input, extensionName})`，补入固定 log/environment/run/attempt。这个壳不能证明真实执行；直接删壳又缺少公开的主体／结论关联判断。所需修复是暴露现有纯判断的必要输入边界，复用同一内核，不建立新运行抽象。
 

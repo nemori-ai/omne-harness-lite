@@ -83,7 +83,7 @@ description: >
 不要把整条设计链通读一遍。作者给出的路径优先作为入口，随后追到实际权威正文。
 
 - **为什么有这些目标和边界**：查 `design/foundation/`、相关 `design/product/` 正文。
-- **当时比较和决定了什么**：查 `design/record/` 中的提案、决定、评审与运行证据。
+- **当时比较和决定了什么**：查本次任务提供的临时材料；没有输入就访谈作者，不恢复或新建永久开发记录。
   区分作者回忆、当时记录和你现在作出的推断。
 - **概念与准确承诺是什么**：查 `design/ubiquitous_language/`，需要对象身份时查
   `design/domain_objects/`；契约的精确版本及接受状态从 `design/registry/` 定位到 `design/spec/`。

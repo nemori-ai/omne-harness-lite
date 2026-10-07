@@ -4,7 +4,7 @@
 
 ## 基线与四层状态
 
-产品输入为 [PF-013 rev 14 / D-096](../../../../record/decisions/model-profile-input-limits-product-adoption/decision.md)。技术基线继承 [D-082 完整定义](../../../../record/decisions/model-definition-projection-adoption/decision.md)采用的 [v4 投影](v4-definition-design.md)、[D-095](../../../../record/decisions/model-credential-path-adoption/decision.md)采用的 [v6 来源与头交接](v6-credential-path-design.md)；这些冻结文件不改。本页只替代新代际里“未知输入上限一律阻断完整声明”的旧前提，未关闭模态、缓存或计量的实际验证义务。
+产品输入为 PF-013 rev 14 / D-096。技术基线继承 D-082 完整定义采用的 [v4 投影](v4-definition-design.md)、D-095采用的 [v6 来源与头交接](v6-credential-path-design.md)；这些冻结文件不改。本页只替代新代际里“未知输入上限一律阻断完整声明”的旧前提，未关闭模态、缓存或计量的实际验证义务。
 
 | 层 | 本增量状态 |
 | --- | --- |
@@ -90,7 +90,7 @@ token 算法的精确证据缺项是：所用 tokenizer/词表/特殊 token 版�
 
 ## 依赖、存储及装卸
 
-Cordis 采用 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)。本次数据与纯函数没有独立生命周期，继续复用稳定 modelTransport 及可信贡献插件，必需注入边不变。依据为 basis [`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)、[`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)、[`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)，这些条目已有 probe；本稿未重跑，不增加上游语义主张。
+Cordis 采用 D-025 的 4.0.4。本次数据与纯函数没有独立生命周期，继续复用稳定 modelTransport 及可信贡献插件，必需注入边不变。依据为 basis [`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)、[`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)、[`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)，这些条目已有 probe；本稿未重跑，不增加上游语义主张。
 
 | 装载所得 | owner / 对外可用时点 | 部分失败 | 撤除与保留 |
 | --- | --- | --- | --- |
@@ -118,7 +118,7 @@ Cordis 采用 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-ver
 
 ## 实施清单与缺口
 
-按独立依赖推进：① 分段 A 在 core MP4 已采用实现就绪后，交 `./definitions/v4` 的定义/读取/建档、八家声明、根执行隔离与对应包双语 README，执行 IL-V9 及 IL-V1～3 的纯声明部分；② 并行准备确定性字节计量、阶段化拒绝、固定计划与 public/Cordis 负控；③ 逐精确模型/供应商补计量算法证据，RT6 消费链就绪且全部新执行义务通过后按分段 B 显式切根代际，补 IL-V1～3 的新注册/lease 部分及 IL-V4～8。① 不等③，①完成不得把③标为完成。详细 oracle 与缺口见 [验证入口](verification.md#v7-完整输入限制候选验证)。
+按独立依赖推进：① 分段 A 在 core MP4 已采用实现就绪后，交 `./definitions/v4` 的定义/读取/建档、八家声明、根执行隔离与对应包双语 README，执行 IL-V9 及 IL-V1～3 的纯声明部分；② 并行准备确定性字节计量、阶段化拒绝、固定计划与 public/Cordis 负控；③ 逐精确模型/供应商补计量算法证据，RT6 消费链就绪且全部新执行义务通过后按分段 B 显式切根代际，补 IL-V1～3 的新注册/lease 部分及 IL-V4～8。① 不等③，①完成不得把③标为完成。详细 oracle 与缺口见 [验证入口](verification.md#v7-完整输入限制验证)。
 
 | 缺口 | 条款 / 受阻消费者 / 闭合 owner |
 | --- | --- |

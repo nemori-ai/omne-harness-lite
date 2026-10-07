@@ -5,7 +5,7 @@
 - 执行者与日期：assets-runtimes 一程的调研执行者（只读），2026-09-23。远程源由五个只读取证子任务分头取得，笔记由本轮执行者逐条回读后落盘；
   每条观察的 `路径:行号` 在 [证据记录](../evidence.md) E-17～E-28。
 - 调查范围：产品负责人 2026-09-23 裁定 MCP 客户端走「官方 SDK 上自写薄桥」（提案
-  [mcp-client-adoption](../../../design/record/proposals/mcp-client-adoption/README.md)，候选 C），并要求
+  mcp-client-adoption，候选 C），并要求
   「看 dsh、pi、langchain 等它们自己额外封装的东西里面，有没有哪些是我们可以借鉴的（同样是以避免踩坑、少走弯路为目的，以及它们用的额外的技术栈或者依赖）」。
   本轮回答：**同行在 SDK 之上加了哪些层；每一层他们自己记下了什么坑；带进来什么依赖**。
   **不在范围**：推荐采用哪一种做法（归提案与决定）；`design_legacy/`；官方 SDK 发布包本身的能力取证（提案「最小区分调查」第 1 项，另轮做）。
@@ -220,7 +220,7 @@
 ## 三、按主题的横向对照
 
 每个主题只写「同行怎么做、他们记下了什么坑、撞上会怎样」。「撞上会怎样」对照的是
-[提案必要性质](../../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) N-1～N-11，只说明哪条性质受影响，不说该怎么选。
+提案必要性质 N-1～N-11，只说明哪条性质受影响，不说该怎么选。
 
 ### 3.1 协议层来源与 SDK 大版本
 
@@ -262,7 +262,7 @@ TS SDK 1.x 是否支持该协议，本轮仍未取证（没有读 SDK 发布包�
 Codex 把上限从 64 提到 128 后撞上 Bedrock 的 64 字符上限（#46188）；Claude Code 的按前缀匹配把 `foo` 与 `foo__bar` 混在一起（TS SDK 0.3.257）、
 hook matcher 对带连字符的服务端名做子串误匹配（2.1.195）、名为 `constructor` 的工具导致崩溃（2.1.221）。
 
-撞上会怎样：[N-7](../../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 要求稳定的逐动作身份。
+撞上会怎样：N-7 要求稳定的逐动作身份。
 名字的长度上限取决于最终接收函数名的模型提供方；本系统经 OpenRouter 转发，**OpenRouter 及其后端对函数名的字符集与长度限制本轮未取证**。
 「以名字前缀判断归属」在服务端名本身含 `__` 或互为前缀时会误判（Claude Code 已踩）。
 
@@ -280,7 +280,7 @@ hook matcher 对带连字符的服务端名做子串误匹配（2.1.195）、名
 pi-mcp-adapter 围绕 `ttlMs` 连出三条 issue（#561 零 TTL 时直接工具永不注册、#569 不回 `ttlMs` 的服务端缓存被永远判失效、#641 零 TTL 让延迟启动整体失效），
 且多进程读合并写**无锁**，按服务端粒度后写者胜。其余五家（DSH、LangChain 两份、OpenAI、Vercel）没有跨连接的持久清单。
 
-撞上会怎样：[N-3](../../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 的持久副本有先例可对照，但**三家的键都不含租户或持有维度**；
+撞上会怎样：N-3 的持久副本有先例可对照，但**三家的键都不含租户或持有维度**；
 Codex 把「凭据类配置」直接排除出缓存，等于这类服务端没有替换件可装；pi-mcp-adapter 的键只有服务端名，同名不同配置靠值里的指纹判失效而不是并存。
 
 ### 3.4 `tools/list_changed`
@@ -290,7 +290,7 @@ Codex 把「凭据类配置」直接排除出缓存，等于这类服务端没�
 
 同行记下的坑：Claude Code 2.1.271 服务端紧循环发 `list_changed` 导致持续高 CPU 与重复列举；2.1.214 刷新遇瞬时错误把命令与资源清空。
 
-撞上会怎样：[N-2](../../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 要求 run 内不变——支持者都是**收到即换**，没有一家按 run 边界延后生效。
+撞上会怎样：N-2 要求 run 内不变——支持者都是**收到即换**，没有一家按 run 边界延后生效。
 
 ### 3.5 分页
 
@@ -314,7 +314,7 @@ Codex（现代模式）100 页 / 2048 项 / 游标 64 KiB / 30 秒；OpenAI `max
 Claude Code 2.1.142（工具超时没抬高远程每请求 fetch 超时，封顶 60 秒）、2.1.162（小于 1000 ms 的超时被当成 1 秒看门狗）、2.1.113（看门狗被并发调用解除）；
 Codex #22072 与 pi-mcp-adapter 2.33.0：**OAuth 引导与令牌请求不在启动超时里**，卡住整个 agent。
 
-撞上会怎样：[N-6](../../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 的两项超时之外，同行还分出了「空闲超时」与「OAuth 请求超时」两个量；
+撞上会怎样：N-6 的两项超时之外，同行还分出了「空闲超时」与「OAuth 请求超时」两个量；
 「0 的含义」「单位下限」两处是同行真实出过错的边界值。
 
 ### 3.7 挂起请求的收尾
@@ -325,7 +325,7 @@ Codex #39149（`is_closed()` 看不到自行终止的 task，死连接显示为�
 LangChain Python #258（并发调用同一工具请求 ID 相同，其余挂起）与「SDK 在断连时可能吞异常」；OpenAI #1404（initialize 失败后流式输出挂住）；
 Claude Agent SDK 2.1.251 前 SDK MCP 握手 ack 丢失导致会话无限挂起（改为 70 秒超时，只把该服务端标失败）。
 
-撞上会怎样：[N-4](../../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 把断连与超时都归「失败」，前提是**每一个在途请求都会收场**；
+撞上会怎样：N-4 把断连与超时都归「失败」，前提是**每一个在途请求都会收场**；
 上面每一条都是「既不失败也不成功」的第七种状态，agent 会一直等。
 
 ### 3.8 重连与会话过期
@@ -340,7 +340,7 @@ Claude Agent SDK 2.1.251 前 SDK MCP 握手 ack 丢失导致会话无限挂起�
 | OpenAI Python | 无 | 无 | **Streamable HTTP 的调用在断连、超时、5xx 时开隔离会话重试** |
 | Vercel | 无 | 旧协议 GET SSE 最多 2 次 | `maxRetries`（默认 0）只对 `tools/call`，文档警告非幂等工具会重复副作用 |
 
-撞上会怎样：[N-8](../../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 要求**不重放**已发出的调用。
+撞上会怎样：N-8 要求**不重放**已发出的调用。
 OpenAI Python 的隔离重试与 Vercel 的 `maxRetries` 都是重放；pi-mcp-adapter 的会话过期重试依赖「服务端拒绝时未执行」这一规范保证，它自己把适用面收得很窄。
 自己写恢复逻辑、两种传输都覆盖的只有 LangChain JS（HTTP 一半交给 SDK 的重连选项）与 pi-mcp-adapter；Codex 与 Claude Code 都把「stdio 服务端崩了」留给下一次显式动作。
 
@@ -355,8 +355,8 @@ OpenAI Python 的隔离重试与 Vercel 的 `maxRetries` 都是重放；pi-mcp-a
   LangChain Python #298 曾把 `env=None` 转成 `{}` 导致子进程拿不到环境。DSH 的代理变量坑见第二节。
 - Windows：`npx` / `.cmd` 需要解析（Codex `program_resolver`、Vercel #19157、pi-mcp-adapter 的 npx 解析与 24 小时缓存、LangChain JS 靠 `cross-spawn`）。
 
-撞上会怎样：[N-11](../../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质)（候选假设）把拉起位置交给执行环境时，上述终止、stderr、帧上限与环境过滤随拉起方一起换主；
-[N-5](../../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 的「不跨租户身份共用凭据」在黑名单做法下取决于名字模式覆盖面，在白名单做法下取决于显式传入的那份。
+撞上会怎样：N-11（候选假设）把拉起位置交给执行环境时，上述终止、stderr、帧上限与环境过滤随拉起方一起换主；
+N-5 的「不跨租户身份共用凭据」在黑名单做法下取决于名字模式覆盖面，在白名单做法下取决于显式传入的那份。
 
 ### 3.10 结果投影
 
@@ -384,7 +384,7 @@ OpenAI Python 的隔离重试与 Vercel 的 `maxRetries` 都是重放；pi-mcp-a
 | pi-mcp-adapter | `tool_error` 码 | `call_failed`、`server_backoff`、`auth_required`… | 能；只有三种码算失败 |
 | Claude Code | —— | 状态五值；瞬时错误重试、4xx 与认证不重试 | 能 |
 
-撞上会怎样：[N-4](../../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 要区分「失败」「被中断」「等待态」，并且都以正常工具返回到达 agent；
+撞上会怎样：N-4 要区分「失败」「被中断」「等待态」，并且都以正常工具返回到达 agent；
 LangChain JS 与 Vercel 的做法到了桥这一层已经无法区分可重试的传输错误与参数错误，这是他们自己在 issue 里记下的。
 
 ### 3.12 取消
@@ -405,7 +405,7 @@ Vercel 取消只作用于本地、**不发 `notifications/cancelled`**，迟到�
 | LangChain Python | 回调；继任版用 LangGraph `interrupt()` 交给人 | 无封装 | 无封装 |
 | LangChain JS / OpenAI / DSH | 不声明 | 不声明 | 不声明 |
 
-撞上会怎样：[N-9](../../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 要人作答；同行里把 elicitation 交给人的都另建了确认界面，
+撞上会怎样：N-9 要人作答；同行里把 elicitation 交给人的都另建了确认界面，
 且在「无界面时」一律拒绝（decline 或错误码），没有一家代填。
 
 ### 3.14 鉴权与凭据
@@ -418,14 +418,14 @@ Vercel 取消只作用于本地、**不发 `notifications/cancelled`**，迟到�
 - 存储：Codex 与 pi-mcp-adapter 用 OS 凭据库（后者按 URL 绑定、Windows 分块、不可用即失败）；Codex 不可用时退到 `CODEX_HOME` 文件（首轮 E-10）。
 
 撞上会怎样：提案本版不桥 OAuth；静态头与环境变量这一格同样受重定向与脱敏两处影响。
-[N-5](../../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 按持有分凭据时，所有同行的存储键都是本机用户 + 服务端名/URL，**没有租户维度**（与首轮结论一致）。
+N-5 按持有分凭据时，所有同行的存储键都是本机用户 + 服务端名/URL，**没有租户维度**（与首轮结论一致）。
 
 ### 3.15 暴露面与 token 预算
 
 pi-mcp-adapter 默认一个代理工具；Claude Code 默认 Tool Search（只加载名字与服务端说明）；Codex 开了工具搜索时 `Deferred`（首轮 E-13；是否默认开启本轮未核）；DSH、LangChain、OpenAI、Vercel 逐动作直接给。
 两家（pi 本体、pi-mcp-adapter）明确记录了「工具描述或工具集变化会让缓存的 prompt 前缀失效」并为此做了字节稳定或增量追加。
 
-撞上会怎样：[N-1](../../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 已定「不常驻、经 `Tools()` 发现」，与 Claude Code、pi-mcp-adapter 的默认及 Codex 开工具搜索时的做法同类；
+撞上会怎样：N-1 已定「不常驻、经 `Tools()` 发现」，与 Claude Code、pi-mcp-adapter 的默认及 Codex 开工具搜索时的做法同类；
 直接工具从缓存注册（pi-mcp-adapter）是 N-3 持久清单的另一个消费者。
 
 ### 3.16 审批与对端自报信息的信任
@@ -434,7 +434,7 @@ Vercel 文档：注解不可信，「rug pull」（定义被偷换）要应用�
 pi-mcp-adapter 的会话级放行以**定义哈希 + 参数哈希**为键，定义一变就重新询问；Claude Code 提供 `requiresUserInteraction` 强制每次确认，`McpServerStatus.source` 注释「Key trust on this, not on the name」；
 OpenAI 逐工具 `require_approval`，拿不到上下文时默认要审批。
 
-撞上会怎样：[N-7](../../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 把放行留给接入点的持有；「对端漂移不是故障」（首轮对照表第 6 行）与「定义漂移要重新询问」在同行里是两种都存在的处理。
+撞上会怎样：N-7 把放行留给接入点的持有；「对端漂移不是故障」（首轮对照表第 6 行）与「定义漂移要重新询问」在同行里是两种都存在的处理。
 
 ### 3.17 多服务端的启动与部分失败
 

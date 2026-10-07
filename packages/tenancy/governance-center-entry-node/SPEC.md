@@ -41,7 +41,7 @@ ops 只订阅 SERVING_EVENT/STOPPED_EVENT/DEFECT_EVENT，只派发 LISTENING_EVE
 31 条路由、判定次序、租户拒绝、同提交、中心身份、wire/Schema 身份、SQL/迁移及维护算法保持。
 上述未迁业务和验证义务继续归[精确旧节点](../../../.meta_harness/design/realization/packages/tenancy/governance-center-entry/README.md)及[保持表](../../../.meta_harness/design/architecture/identity-integration/preservation.md)。
 本页只接续服务端工厂、绑定、资源和事件的公开集成承诺，不退役其余旧源。
-采用依据为[身份整体设计](../../../.meta_harness/design/record/decisions/identity-integration-design/decision.md)及[T4 接缝](../../../.meta_harness/design/record/decisions/identity-t4-host-coordinates/decision.md)。
+采用依据为身份整体设计及T4 接缝。
 源码、声明、运行闭包和制品消费须分别验证；类型及静态图不能证明启动、隔离、事务或关闭。
 
 ## 请求判定与协议装配

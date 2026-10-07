@@ -1,4 +1,0 @@
-
-> @omne-harness-lite/ts-checks@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tools/ts-checks
-> tsc -p tsconfig.test.json
-

@@ -14,10 +14,10 @@
   候选的下一版是 `(omne-harness-lite-design-2026-09-15, capability.account-identity, 2)`，见下一条
 - **v2（`accepted`，已冻结）**：[v2 契约](v2/contract.md)——**出示物与登录状态标识分离**：登录时交出一个高熵的[出示物](v2/contract.md#s-45-登录状态出示物)，
   存储里只存它的不可逆形式（即 LoginStateId），跨进程认人凭出示物走新操作 [S-44](v2/contract.md#s-44-按出示物换取身份)。
-  [D-028](../../../record/decisions/governance-center-design-acceptance/README.md)（产品负责人，2026-09-23）接受 v2 全部条款并冻结 `v2/contract.md`；catalog `acceptance` 指向该包的 `acceptance.json`。主责产品依据 PF-017 rev 2、PF-001 rev 16。**v1 的消费者（注册组合、治理契约）不自动升到 v2**，入口契约钉 v2。
+  D-028（产品负责人，2026-09-23）接受 v2 全部条款并冻结 `v2/contract.md`；catalog `acceptance` 指向该包的 `acceptance.json`。主责产品依据 PF-017 rev 2、PF-001 rev 16。**v1 的消费者（注册组合、治理契约）不自动升到 v2**，入口契约钉 v2。
   与 v1 的逐条差异与消费者影响在 [v2 §十](v2/contract.md#十版本差异与规范工件)。**v1 的状态与下面各条不因它改变**
-- **状态**：`accepted`，资源已冻结——[D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）接受 v1 全部条款，含[已知缺口](v1/contract.md#九已知缺口)作为显式缺口；**此后语义改动发布 v2，不原地改 v1**（D-023 已点名的措辞张力：[S-39](v1/contract.md#s-39-unactivated_retention)「此后的判定」、[S-4](v1/contract.md#s-4-账号记录)「由存储生成」、[S-30](v1/contract.md#s-30-装配给的保证-vs-协议须给的保证) 第 7 行左列——**v2 没有收口它们**，见 [v2 §十](v2/contract.md#本版的规范工件)）。接受不表示已实现或已验证
-- **catalog 映射**：**已登记并接受**（2026-09-22，状态 `accepted`，`acceptance` 指向 D-023 的 [`acceptance.json`](../../../record/decisions/tenant-domain-design-acceptance/acceptance.json)）。`family=capabilities`、`topic=account-identity`、
+- **状态**：`accepted`，资源已冻结——D-023（产品负责人，2026-09-22）接受 v1 全部条款，含[已知缺口](v1/contract.md#九已知缺口)作为显式缺口；**此后语义改动发布 v2，不原地改 v1**（D-023 已点名的措辞张力：[S-39](v1/contract.md#s-39-unactivated_retention)「此后的判定」、[S-4](v1/contract.md#s-4-账号记录)「由存储生成」、[S-30](v1/contract.md#s-30-装配给的保证-vs-协议须给的保证) 第 7 行左列——**v2 没有收口它们**，见 [v2 §十](v2/contract.md#本版的规范工件)）。接受不表示已实现或已验证
+- **catalog 映射**：**已登记并接受**（2026-09-22，状态 `accepted`，`acceptance` 指向 D-023 的 `acceptance.json`）。`family=capabilities`、`topic=account-identity`、
   `contract_path=spec/capabilities/account-identity/v1/contract.md`；本版**没有其他规范资源**（不建 `formal/`、不发布 Schema，理由见下）；
   依赖一项：`omne-harness-lite-design-2026-09-15 · data.identity-values · v1`，
   消费 clauses **七条**：`S-1`、`S-2`、`S-9`、`S-30`（跨边界须重新验证）、`S-31`（不透明标识的交换表示）、
@@ -57,7 +57,7 @@
 | 为什么是 capability 而不是 data | 它拥有**状态转移**（未激活→已激活、有效→已失效）与**授权判定**（撤销的发起方资格），两者都有失败模式。[data 只拥有共享含义与结构](../../README.md#准入门槛与停止条件) |
 | 为什么凭据校验不单独立一份契约 | 它是[S-15](v1/contract.md#s-15-验证凭据并签发登录状态)一条操作的内部，**对消费者不构成独立的责任面**——没有任何消费者需要「只校验不签发」。把它拆成第二份契约，消费者要同时依赖两份才能完成一次登录，而两份之间又没有可独立演化的语义 |
 | 精确依赖 | `data.identity-values` v1，取 AccountId、LoginStateId 与「登录标识不是引用键」这一区分 |
-| 接受状态 | 已接受：[D-023](../../../record/decisions/tenant-domain-design-acceptance/decision.md)，2026-09-22；catalog `acceptance` 指向该包的 `acceptance.json` |
+| 接受状态 | 已接受：D-023，2026-09-22；catalog `acceptance` 指向该包的 `acceptance.json` |
 
 ## 按当前问题展开
 

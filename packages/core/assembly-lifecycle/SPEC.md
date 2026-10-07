@@ -117,10 +117,10 @@ closed 仅表示原关闭成功，retained 不能作为静止依据。没有定�
 ## 采用依据
 
 精确协议由 [身份领域集成设计](../../../.meta_harness/design/architecture/identity-integration/retirement.md)
-及其 [限定采用](../../../.meta_harness/design/record/decisions/identity-integration-design/decision.md)确定。
+及其 限定采用确定。
 本页接续模块的执行承诺；跨模块装配顺序及采用范围仍归该设计。
-新增绑定坐标由 [T2 补充采用](../../../.meta_harness/design/record/decisions/identity-t2-binding-coordinates/decision.md)确定。
-同步 apply 与双重就绪由[启动期投影采用](../../../.meta_harness/design/record/decisions/identity-startup-lifecycle/decision.md)补足。
+新增绑定坐标由 T2 补充采用确定。
+同步 apply 与双重就绪由启动期投影采用补足。
 本包出现不表示相关提供者或真实宿主已完成迁移。
 
-保有控制扩展与 retained-work 的精确职责由[共享机制投影采用](../../../.meta_harness/design/record/decisions/identity-shared-mechanism-projection/decision.md)接续；普通关闭失败和本代依赖保有义务不被取代。
+保有控制扩展与 retained-work 的精确职责由共享机制投影采用接续；普通关闭失败和本代依赖保有义务不被取代。

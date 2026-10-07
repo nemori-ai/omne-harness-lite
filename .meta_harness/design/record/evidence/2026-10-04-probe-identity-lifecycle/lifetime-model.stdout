@@ -1,4 +1,0 @@
-{"mutation": "valid", "states": 127, "edges": 208, "violation": null}
-{"mutation": "parallel-close", "states": 163, "edges": 319, "violation": "dependency-released-before-consumer", "trace": ["register-0", "register-1", "register-2", "setup-ready-0", "setup-ready-1", "setup-ready-2", "confirm-open", "admit-1", "stop", "close-ok-0"], "state": [3, 7, 2, true, true, false, 2, 1, 0, 0]}
-{"mutation": "stale-gate", "states": 70, "edges": 112, "violation": "opening-not-current", "trace": ["register-0", "register-1", "register-2", "setup-ready-0", "setup-ready-1", "setup-ready-2", "confirm-open", "stop"], "state": [3, 7, 0, true, true, true, 2, 0, 0, 0]}
-{"mutation": "hide-errors", "states": 40, "edges": 65, "violation": "false-completion", "trace": ["register-0", "setup-ready-0", "stop", "close-failed-0", "report"], "state": [1, 1, 0, true, false, false, -1, 1, 1, 2]}

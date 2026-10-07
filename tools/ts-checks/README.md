@@ -91,7 +91,7 @@ assert(violations.some(v => v.rule === 'model-credential-boundary'))
 
 ## Model credential boundary
 
-`model-credential-boundary` implements the static portion of [D-075](../../.meta_harness/design/record/decisions/model-credential-source-projection/decision.md), directory v3 V3-10 and CCL revision 2 MCR-V7, with [D-092](../../.meta_harness/design/record/decisions/model-auth-bootstrap-adoption/decision.md)'s app ownership. It is in `REPOSITORY_RULES`, not a package-wide permission list.
+`model-credential-boundary` implements the static portion of D-075, directory v3 V3-10 and CCL revision 2 MCR-V7, with D-092's app ownership. It is in `REPOSITORY_RULES`, not a package-wide permission list.
 
 | Value or operation | Permitted use |
 | --- | --- |

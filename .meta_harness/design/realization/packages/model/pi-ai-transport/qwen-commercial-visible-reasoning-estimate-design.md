@@ -1,12 +1,12 @@
 # Qwen 商业六叶可见推理详情的参考计量
 
-2026-09-30，revision 1，candidate，**已过独立架构评审（无阻断，M1～M3 与 N1、N2、N4、N5 已按[评审记录](../../../../record/proposals/model-input-usage-calibration/qwen-commercial-visible-reasoning-review.md)闭合）**；起草基线 HUB SHA `63980767`。尚未评审、未技术采用、未实施、未实际验证，新增 bindings 0。方向来自用户 2026-09-30「按开源页同法给商业六叶补一条候选并实现」（尚未入档，见 QG9）。方法沿已采用的 [Qwen 开源两叶可见推理计量 revision 2](qwen-open-visible-reasoning-estimate-design.md)（[采用决定](../../../../record/decisions/model-input-usage-calibration-adoption/qwen-visible-reasoning-decision.md)，下称「开源页」）；**本页只写差异**，共同部分按节引用、不复制，不改开源页、[v10](v10-token-estimate-design.md)、[v12](v12-usage-calibration-design.md) 的受审字节。持续消费者为六款商业叶官方定义、`createQwenInputMeter` 的商业分支与模型调用规划器；阿里 `preserve_thinking` 默认名单、固定公开模板、OpenRouter 推理详情协议或六叶上游快照变化时复核本页（触发条件见 QG7）。
+2026-09-30，revision 1，candidate，**已过独立架构评审（无阻断，M1～M3 与 N1、N2、N4、N5 已按评审记录闭合）**；起草基线 HUB SHA `63980767`。尚未评审、未技术采用、未实施、未实际验证，新增 bindings 0。方向来自用户 2026-09-30「按开源页同法给商业六叶补一条候选并实现」（尚未入档，见 QG9）。方法沿已采用的 [Qwen 开源两叶可见推理计量 revision 2](qwen-open-visible-reasoning-estimate-design.md)（采用决定，下称「开源页」）；**本页只写差异**，共同部分按节引用、不复制，不改开源页、[v10](v10-token-estimate-design.md)、[v12](v12-usage-calibration-design.md) 的受审字节。持续消费者为六款商业叶官方定义、`createQwenInputMeter` 的商业分支与模型调用规划器；阿里 `preserve_thinking` 默认名单、固定公开模板、OpenRouter 推理详情协议或六叶上游快照变化时复核本页（触发条件见 QG7）。
 
 六叶以执行仓库 `official-models/qwen.ts` 的 `qwenVisibleBindings` 为准：`qwen/qwen3.8-max-0902`、`qwen/qwen3.8-max-prime`、`qwen/qwen3.8-flash`、`qwen/qwen3.7-max`、`qwen/qwen3.7-plus`、`qwen/qwen3.7-flash`。定义表里没有 `qwen/qwen3.8-max` 这一叶。开源两叶 `qwen/qwen3.8-2.4t-a95b`、`qwen/qwen3.8-27b` 只作回归对象。
 
 ## 基准、性质与证据
 
-基准为已接受 [RT12](../../../../spec/capabilities/model-request-runtime/v12/contract.md)／[MR11](../../../../spec/data/model-response/v11/contract.md) 的计量语义（接受依据沿 [D107](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md)）与当前实现：六叶 definition `3`、`pi-ai:qwen@mp4-17`，algorithm `<叶名>-final-visible-json-proxy-1`，即把整份最终请求 JSON 当文本、用固定公开 tokenizer 全量编码的可见 JSON 替身（[研究](../../../../../research/model-request-adaptation/vendor-continuation/qwen/2026-09-29-visible-full-surrogate.md)）。它已按 JSON 字节放行可见 `reasoning.text`／`reasoning.summary` details 与 `reasoning` 串，图片一律 unavailable，full-only；八叶 factory 方法已接共同包装（[本机覆盖](verification.md#2026-09-30-qwen-可见推理本机覆盖)）。[D-111](../../../../record/decisions/model-request-runtime-rulings-2026-09-30/README.md) 的 R-A（full-only）适用；R-B 原只点名 2.4T／27B，0902 是否同形见 QG8。封存性质、相关对象与「不声明新双盲」同[开源页](qwen-open-visible-reasoning-estimate-design.md#基准性质与证据)。
+基准为已接受 [RT12](../../../../spec/capabilities/model-request-runtime/v12/contract.md)／[MR11](../../../../spec/data/model-response/v11/contract.md) 的计量语义（接受依据沿 D107）与当前实现：六叶 definition `3`、`pi-ai:qwen@mp4-17`，algorithm `<叶名>-final-visible-json-proxy-1`，即把整份最终请求 JSON 当文本、用固定公开 tokenizer 全量编码的可见 JSON 替身（[研究](../../../../../research/model-request-adaptation/vendor-continuation/qwen/2026-09-29-visible-full-surrogate.md)）。它已按 JSON 字节放行可见 `reasoning.text`／`reasoning.summary` details 与 `reasoning` 串，图片一律 unavailable，full-only；八叶 factory 方法已接共同包装（[本机覆盖](verification.md)）。D-111 的 R-A（full-only）适用；R-B 原只点名 2.4T／27B，0902 是否同形见 QG8。封存性质、相关对象与「不声明新双盲」同[开源页](qwen-open-visible-reasoning-estimate-design.md#基准性质与证据)。
 
 **与开源页的根本差别**：开源页在已有公开模板路径上**加**一种表示；本页把六叶的**整个计数口径**从 JSON 替身换成公开模板渲染，并逐叶设定两个模板量。同一 body 即使不带推理，数值也会变，因此 basis 换代（见[计量映射](#计量映射与-fullφδ-同源差异)）。
 
@@ -27,7 +27,7 @@
 - `preserve_thinking` 缺省或为真：全部历史 assistant 渲 `<think>\n…\n</think>\n\n`，即开源两叶现行路径。为假：只有下标大于 `last_query_index` 的 assistant 渲 think 块，其余只渲 `content` 与工具调用，**连空 think 块也不留**。`last_query_index` 是倒序扫描遇到的第一条内容（trim 后）不被 `<tool_response>…</tool_response>` 包裹的 `user` 消息的下标，下标按整份 `messages`（含 system 与 tool）计。
 - effort 说明：缺省 `xhigh` 在 system 前加一句说明，即现行路径。「无说明」在公开模板里等同 `reasoning_effort` 取 `medium` 的渲染（该档没有说明句）；这只是渲染等价，不主张 3.7 以 `medium` 运行。无 system 且无工具时不渲 system 块。
 
-OpenRouter 侧同[开源页](qwen-open-visible-reasoning-estimate-design.md#上游与固定模板)：details 到阿里原生字段的转换未文档化。本页多一项未知：OpenRouter 是否转发或自行设置 `preserve_thinking`，一手文档未写。开源两叶的 P2 对照（[采用决定](../../../../record/decisions/model-input-usage-calibration-adoption/qwen-visible-reasoning-decision.md#2026-09-30-qv4-真实路线与-p2-同路由对照结果)）只证明那两叶在 `alibaba` 路由上 details 与 `reasoning` 串同槽位，本页**不**外推：3.8 三叶只由 batch8 增量间接支持，3.7 三叶无从判定（QC-V6）。两项都是**待核对主张**（`design/basis/` 无条目）。
+OpenRouter 侧同[开源页](qwen-open-visible-reasoning-estimate-design.md#上游与固定模板)：details 到阿里原生字段的转换未文档化。本页多一项未知：OpenRouter 是否转发或自行设置 `preserve_thinking`，一手文档未写。开源两叶的 P2 对照（采用决定）只证明那两叶在 `alibaba` 路由上 details 与 `reasoning` 串同槽位，本页**不**外推：3.8 三叶只由 batch8 增量间接支持，3.7 三叶无从判定（QC-V6）。两项都是**待核对主张**（`design/basis/` 无条目）。
 
 ## 逐叶设定
 
@@ -63,7 +63,7 @@ OpenRouter 侧同[开源页](qwen-open-visible-reasoning-estimate-design.md#上�
 | 非 ASCII | 估算，**未覆盖**（多轮与工具）；单 user 文本已有中文样本 | — |
 | 其余字段 | 渲染器可渲染：工具调用参数解析为 JSON 对象、存在非 `<tool_response>` 包裹的 user、system 只在首位、工具定义与参数中的 JSON 数为规范安全整数 | unavailable |
 
-两类「未覆盖」估算而不拒，理由有三：拒绝会让六叶的回合内工具循环（不带新 user 的工具结果续轮）与全部中文会话停在第二轮，而现行 JSON 替身对这两类都给估算，拒绝是可用性倒退；对 3.7，回合内几何下两种上游可能（OpenRouter 转发且阿里按模板保留本回合推理，或整条推理被丢弃）只差本回合推理，本页按前者计，所以这处分叉只会高估；非 ASCII 的用户文本不经转义，单 user 中文样本与英文同常数，只有工具 schema 与参数经模板 `tojson` 转义，私有模板若不转义本页高估。[D-111](../../../../record/decisions/model-request-runtime-rulings-2026-09-30/README.md) 的 R-K 管的是换路由时带 opaque 的思考块，不管同路由可见形状的估算与拒绝，本页不引它作依据（派发任务的引用对不上，见 QG9）。
+两类「未覆盖」估算而不拒，理由有三：拒绝会让六叶的回合内工具循环（不带新 user 的工具结果续轮）与全部中文会话停在第二轮，而现行 JSON 替身对这两类都给估算，拒绝是可用性倒退；对 3.7，回合内几何下两种上游可能（OpenRouter 转发且阿里按模板保留本回合推理，或整条推理被丢弃）只差本回合推理，本页按前者计，所以这处分叉只会高估；非 ASCII 的用户文本不经转义，单 user 中文样本与英文同常数，只有工具 schema 与参数经模板 `tojson` 转义，私有模板若不转义本页高估。D-111 的 R-K 管的是换路由时带 opaque 的思考块，不管同路由可见形状的估算与拒绝，本页不引它作依据（派发任务的引用对不上，见 QG9）。
 
 ### 与现行商业路径相比的域变化
 
@@ -85,7 +85,7 @@ OpenRouter 侧同[开源页](qwen-open-visible-reasoning-estimate-design.md#上�
 
 φ/δ 同[开源页](qwen-open-visible-reasoning-estimate-design.md#计量映射与-fullφδ-同源)：保持 `unsupported-marginal/1`，不开增量。
 
-修订：六叶 definition、implementation 与 algorithm 各升新唯一值（候选形如 `<叶名>-public-template-1`，数值与名称由主线账本分配）。`tokenizerRevision` **显式设为新值**，不钉现值。统一规则（本页是先例的例外，规则只写这一处）：`tokenizerRevision` 标识 tokenizer 文件**加渲染基**；渲染基换类（JSON 替身→公开模板）即换值，只扩投影域（开源页情形）不换值。六叶现值由 `defineInputMeter` 默认派生、命名的正是即将删除的 JSON 替身，钉住它才是错的（评审 N2）。与开源页相反：同一 body 的计数函数整体改变，属 [S-77](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-77-计量依据身份与两类失效) 所列 `basis_changed`（模板与隐式变换语义改变），旧 basis 上的观察不能被判兼容；显式而非默认派生沿[独立评审](../../../../record/proposals/model-input-usage-calibration/moonshot-qwen-visible-reasoning-review.md)第 4 项。`transformRevision` 保持 `openrouter-wire/2`，`replayRevision` 保持 `unsupported-marginal/1`。`evidence` 逐叶写明：分支与依据（参数参考默认值，或 max-prime 仅观察推断）、batch8 计数、已知常数 +1／−9／0 与「误差方向未知、无 holdout、无误差界」、OpenRouter 转换与 `preserve_thinking` 转发未知；0902 另写显式 effort 的 R-B 同形条件（待主线确认）。
+修订：六叶 definition、implementation 与 algorithm 各升新唯一值（候选形如 `<叶名>-public-template-1`，数值与名称由主线账本分配）。`tokenizerRevision` **显式设为新值**，不钉现值。统一规则（本页是先例的例外，规则只写这一处）：`tokenizerRevision` 标识 tokenizer 文件**加渲染基**；渲染基换类（JSON 替身→公开模板）即换值，只扩投影域（开源页情形）不换值。六叶现值由 `defineInputMeter` 默认派生、命名的正是即将删除的 JSON 替身，钉住它才是错的（评审 N2）。与开源页相反：同一 body 的计数函数整体改变，属 [S-77](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-77-计量依据身份与两类失效) 所列 `basis_changed`（模板与隐式变换语义改变），旧 basis 上的观察不能被判兼容；显式而非默认派生沿独立评审第 4 项。`transformRevision` 保持 `openrouter-wire/2`，`replayRevision` 保持 `unsupported-marginal/1`。`evidence` 逐叶写明：分支与依据（参数参考默认值，或 max-prime 仅观察推断）、batch8 计数、已知常数 +1／−9／0 与「误差方向未知、无 holdout、无误差界」、OpenRouter 转换与 `preserve_thinking` 转发未知；0902 另写显式 effort 的 R-B 同形条件（待主线确认）。
 
 ## 与共享机制的接缝（差异）
 
@@ -112,7 +112,7 @@ OpenRouter 侧同[开源页](qwen-open-visible-reasoning-estimate-design.md#上�
 
 ## 失败层、版本与装卸
 
-三层失败、固定旧 lease 不热替换、Cordis 不新增 service／fiber／inject／effect／事件、采用版本沿 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md)、新增 Storage 要求 0、装配节点 0、bindings 0、无跨 owner 提交，均同[开源页](qwen-open-visible-reasoning-estimate-design.md#失败层版本与装卸)。差异三条：
+三层失败、固定旧 lease 不热替换、Cordis 不新增 service／fiber／inject／effect／事件、采用版本沿 D-025、新增 Storage 要求 0、装配节点 0、bindings 0、无跨 owner 提交，均同[开源页](qwen-open-visible-reasoning-estimate-design.md#失败层版本与装卸)。差异三条：
 
 1. 逐叶设定随 definition／implementation 修订发布，是绑定常量，不是宿主配置，也不经 `intercept` 下发：改它就是改计数函数，必须换 basis。配置错误沿同一政策：未知或滞后的修订在 factory 构造期抛错，贡献不发布半份。
 2. 六叶同批发布。发布前已借出的 JSON 替身 meter 跑完各自规划；发布后不保留旧 factory、替身分支或双路径。
@@ -174,7 +174,7 @@ OpenRouter 侧同[开源页](qwen-open-visible-reasoning-estimate-design.md#上�
 | QC-V4 | 开源页反例 1–10 在六叶上复跑；新增反例 11–16、18；夹具经真实 reader 合成，不手写合并后的条目 | 本机 | 同上 |
 | QC-V5 | 直接调用 `createQwenInputMeter` 为六叶返回的 full／φ／δ：非法显式 history 由共同包装拒绝，body-only 合法 full 为 `estimated` 且等于新口径，包装无递归；不以规划器或独立包装函数的测试代证。闭合开源页 G7 的六叶测试欠账 | 本机 | 同上；直接调用公开函数的消费者 |
 | QC-V6 | root 沿唯一预算账本：每叶有、无工具各至少一组当前绑定三轮真实流，第 2 轮起回放 details，记录上游接受、`prompt_tokens` 残差、cache、cost 与逐帧形状。**必做**同路由对照：同一第 2 轮历史（推理 assistant 在末个 query 之前）以 (A) details、(B) `reasoning` 串、(C) 无推理发送。3.8 三叶期望 A＝B＞C 且 A−C 等于 trim 后推理文字的 token 数；3.7 三叶期望 A＝B＝C。3.7 另发回合内几何（assistant 带工具调用在末个 query 之后，续轮只加工具结果）的 A 与 C：A＞C 与本页一致，A＝C 表明该几何高估，记录并由后继改口径。**对照体必须由真实规划器生成（评审 M2）**：主线核实（HUB `0f1d9efa`）运行时不在工具结果之后常规插入 `system_reminder`——`loop-extension-runner` 只在扩展失败且策略为 record 时造一条提醒，模型请求运行时自身不造——故回合内几何在产品路径真实出现；读数记录须写明提醒是否在场，并各发一组「工具结果后带一条 `[system_reminder …]` 前缀 user」的 A／C，以覆盖提醒把 `last_query_index` 推到工具结果之后的情形。**明列的补充场景（评审 M1）**：非 ASCII（中文）多轮带工具至少一组（期望与英文同带 ±个位数）；0902 的缺省 effort 与 `max` 各一组三轮（期望 A＝B＞C，`max` 的 xhigh 说明映射由此首次观察）。max-prime 得 A＝B＝C 即假设被证伪，由后继改为 false 分支；任一叶 A≠B 即 details 映射证伪，认证前由后继撤回。残差只作记录，不引入常数 | 认证门，付费 | root 唯一账本；六叶 D7 逐模型真实多轮 |
-| QC-V7 | service 路径：两 flash 叶（自动档）可按认证工具现有 service 配置档执行；0902、max-prime、3.7-max、3.7-plus（显式 5m `system`）须等认证工具 R8 按路由取缓存档——开源两叶已因同一原因在 prepare 被拒（[逐叶证据](verification.md#2026-09-30-真实认证逐叶证据r6r7-认证工具唯一预算账本)） | 认证门，付费 | root 认证工具 owner；四叶 service 认证 |
+| QC-V7 | service 路径：两 flash 叶（自动档）可按认证工具现有 service 配置档执行；0902、max-prime、3.7-max、3.7-plus（显式 5m `system`）须等认证工具 R8 按路由取缓存档——开源两叶已因同一原因在 prepare 被拒（[逐叶证据](verification.md)） | 认证门，付费 | root 认证工具 owner；四叶 service 认证 |
 | QC-V8 | 六叶 definition／implementation／algorithm 唯一修订与显式新 tokenizerRevision、逐叶 `evidence` 字串、包 README／README_ZH 双语段与制品消费；删除 `qwen-visible.ts` 与 `qwenVisibleBindings` 并迁移结构前置；`qwen-input-meter`、`official-qwen-definitions`、`official-reader-bindings` 跟随新发布；未知与失败原件保留。研究页的 `reevaluate.mjs` 对新绑定拒绝属预期，不改写 | 交付 | 实施者＋主线；包文档读者 |
 
 无新代数或并发性质，不扩 TLA 范围，以既有共享形式边界和上述正反例承接。候选须经 QC-V0、独立 architecture-reviewer 与主线技术采用后才释放 QC-V1–V5 与 QC-V8 的实施；QC-V6、QC-V7 的付费观测不因本页登记而获授权。
@@ -189,7 +189,7 @@ OpenRouter 侧同[开源页](qwen-open-visible-reasoning-estimate-design.md#上�
 - QG6 证据归档：batch8 原始 SSE 与汇总在 HUB 私有目录；研究页复算无入库脚本、无独立复核。归主线／研究 owner（QC-V0）；受阻：本页采用。
 - QG7 修订触发：阿里参数参考的 `preserve_thinking` 默认名单或 effort 映射变化（含 max-prime 入表、3.7 改默认）；OpenRouter 文档写明 Alibaba 推理字段转换或 `preserve_thinking` 转发；固定公开模板换版；六叶上游快照（生成查询所见的带日期规范名）变化；QC-V6 任一期望被证伪；共享 `stream.ts` 推理分组／合并规则变化（域收窄的前提是 reader 合并后只出四键单项，评审 N4）。触发即出后继修订，不原地改本页。
 - QG8 主线待裁：域收窄（`summary`、带 `id`、多项 details 与并行串不同文由估算变拒绝）是否接受；R-B 的无 holdout 显式 effort 扩展是否及于 0902（`max` 未观察）；max-prime 归 3.8 设定；两类未覆盖形状取估算而非拒绝。
-- QG9 入档：用户 2026-09-30 的方向尚无记录；派发引用的「按 R-K 列为未覆盖」与 D-111 中 R-K 的内容（换路由 opaque 规划拒绝）对不上，引用的 R-V 在本基线的 record 中不存在。已随[采用决定](../../../../record/decisions/model-input-usage-calibration-adoption/qwen-commercial-visible-reasoning-decision.md)入档并更正（R-K 引用系派发笔误，本页未用；R-V 为主调度临时裁决簿条目，不在 record）。
+- QG9 入档：用户 2026-09-30 的方向尚无记录；派发引用的「按 R-K 列为未覆盖」与 D-111 中 R-K 的内容（换路由 opaque 规划拒绝）对不上，引用的 R-V 在本基线的 record 中不存在。已随采用决定入档并更正（R-K 引用系派发笔误，本页未用；R-V 为主调度临时裁决簿条目，不在 record）。
 - QG10 P2 外推：开源两叶在 `alibaba` 路由上的同槽位结论不外推到商业六叶，由 QC-V6 逐叶取得。
 
 ## QC-V0 结果（2026-09-30，主线附注）

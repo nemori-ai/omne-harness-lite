@@ -12,7 +12,7 @@
   消费它们的是组合契约 `composition.governance-center-entry` v1（候选）与装配节点
   `.meta_harness/design/realization/apps/tenancy-host/`。
 - **依据**：产品设计 PF-017 rev 1（草稿，尚未接受）；上游语义 `.meta_harness/design/basis/cordis/`；
-  已定的决定 D-025（Cordis 版本）、D-026（持久化选型）、D-027（sqlite 的落盘方式），在 `.meta_harness/design/record/decisions/`。
+  已定的决定 D-025（Cordis 版本）、D-026（持久化选型）、D-027（sqlite 的落盘方式），技术前提由本案例所附 basis 与规格表达，不恢复历史接受事件。
 - **范围**：每个节点的绑定与契约语义是否重合，装载与撤除是否成对，装配给与协议给的拆分是否与契约一致；
   三个节点一并送审，也看它们放在一起是否自洽。不审契约文本的表达，不判实现源码。
 - **状态**：三个节点都是草稿，尚未接受。

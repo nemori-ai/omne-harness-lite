@@ -1,9 +1,0 @@
-{
-  "date": "2026-09-24",
-  "node": "24.21.0",
-  "linux_image": "node@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6",
-  "helper_sha256": {
-    "apps/tenancy-host/tests/e2e/deploy.ts": "e0a612f51f28a77a9ef86469b60a7b9cefba8a0d382140d2b5560af6b911d5b9",
-    "apps/tenancy-host/tests/e2e/client.ts": "1e8d8c93304b20877611dba8dd7d864ee87c5d3d87558dd412cdbc3a01e2cdcb"
-  }
-}

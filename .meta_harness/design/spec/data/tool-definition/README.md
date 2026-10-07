@@ -8,7 +8,7 @@
 执行、派发、落点匹配、收场判定都归工具执行运行时；本契约只给它们据以工作的那份数据。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.tool-definition, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 `accepted`，`family=data`、`topic=tool-definition`、`contract_path=spec/data/tool-definition/v2/contract.md`，
   `resources` 另含 `v2/tool-definition.schema.json` 与 `v2/examples.md`；`acceptance` 指向 D-061 的 `acceptance.json`；
   `dependencies` 两项：`data.content-blocks` v2 与 `data.asset-model` v2（都是候选），消费 clauses 见[契约抬头](v2/contract.md)
@@ -23,7 +23,7 @@
 | 适用范围 | 一个部署之内；跨进程之后哪些结论须由协议重新兑现，列在[契约第七节](v2/contract.md#七装配给与协议给) |
 | 为什么是 data 而不是 capability | 它**没有操作**。模型面 input 的生成与裸字符串的等价是两条纯派生，不是操作 |
 | 精确依赖 | `data.content-blocks` v2：块、附件引用、能力标识、模态、媒体类型、内联字节与执行收场的定义，外加两条规则；`data.asset-model` v2：能力标识名的词法、正文 `name` 与能力标识相等、属性声明与设置项类别、两个保留项名。**不依赖** `data.offer-expiry` 与 `data.identity-values` |
-| 起点 | [D-031](../../../record/decisions/tool-definition-baseline/README.md)：按 PF-006 §5.3 自研，三个参考源只作参考、可照抄命名 |
+| 起点 | D-031：按 PF-006 §5.3 自研，三个参考源只作参考、可照抄命名 |
 | 接受状态 | 已接受（D-061，2026-09-26） |
 
 ## 按当前问题展开
@@ -52,8 +52,8 @@
 
 ## 2026-09-26 版本接受
 
-本次接受 `data.tool-definition` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `data.tool-definition` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
 
 ## 2026-09-26 D-068 当前 v3
 
-`data.tool-definition · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，以上旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。
+`data.tool-definition · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 D-068。本段为当前导航，以上旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。

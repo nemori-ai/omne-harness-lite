@@ -1,4 +1,0 @@
-node v24.18.0 (linux x64)
-openssl 3.5.7 (Node 内置)；证书由系统 openssl 生成，见 commands/commands.txt
-cli /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-e2e-verdict/apps/tenancy-host/dist/cli.js
-protocolVersion 1

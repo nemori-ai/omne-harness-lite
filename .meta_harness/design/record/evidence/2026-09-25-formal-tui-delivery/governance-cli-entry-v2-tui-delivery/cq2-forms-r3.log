@@ -1,1 +1,0 @@
-{"status": "PASS", "forms": 34, "schemaExamples": 39, "checks": ["closed metadata Schema", "exact frozen command/action/operation/secret slots", "exact EC2 payload fields and optional/conditional requiredness"], "scope": "mapping and metadata only; interactive decoder/CG Intent/result execution still needs tests"}

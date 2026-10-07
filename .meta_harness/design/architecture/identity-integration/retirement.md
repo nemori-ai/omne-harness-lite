@@ -1,10 +1,10 @@
 # 装配代际的有序收尾
 
 本机制补齐首轮 Choice 的 C1～C3，以及第二轮的双面准入和注册续步缺口。
-本页的 r5 结构修订已由 [限定设计采用](../../record/decisions/identity-integration-design/decision.md) 接续，产品尚未实现。
+本页的 r5 结构修订已由 限定设计采用 接续，产品尚未实现。
 Cordis 不提供跨消费者排空屏障，也不向 dispose 调用者传播 effect 清理失败。
 不能以 plugin 注入图或逆序调用 dispose 代替下面的资源责任。
-已运行的[探针与有限枚举](../../record/evidence/2026-10-04-probe-identity-lifecycle/README.md)
+已运行的探针与有限枚举
 只支持所述机制前提，不代替实际业务组合。
 
 ## 责任与采用范围
@@ -35,7 +35,7 @@ Cordis 不提供跨消费者排空屏障，也不向 dispose 调用者传播 eff
 两者是不同的生命周期入口，不是旧包兼容别名。纯根不导出插件。
 
 下表包路径均加 `@omne-harness-lite/` 前缀。插件的 `name` 取表中限定名称。
-本表已由[限定补充采用](../../record/decisions/identity-t2-binding-coordinates/decision.md)接受，
+本表已由限定补充采用接受，
 作为 QA 和实际手写宿主的加载坐标；T4 复用，不再改名。
 
 | 包入口 | 独立导出／name | 管理导出／name |
@@ -59,7 +59,7 @@ Cordis 不提供跨消费者排空屏障，也不向 dispose 调用者传播 eff
 
 公开形状由 [assembly-lifecycle 的纯类型](../../../../packages/core/assembly-lifecycle/src/types.ts)维护，
 类型之外的关闭及保有承诺归[模块 SPEC](../../../../packages/core/assembly-lifecycle/SPEC.md)。
-本页只维护跨模块装配责任；共享保有扩展见[限定采用](../../record/decisions/identity-shared-mechanism-projection/decision.md)。
+本页只维护跨模块装配责任；共享保有扩展见限定采用。
 
 每行一个 AssemblyLifetimePort。唯一 Service `AssemblyLifetimeService` 的键为 `assemblyLifetime`，
 标 `@owner packages/core/assembly-lifecycle`，精确 implements AssemblyLifetimePort。
@@ -127,7 +127,7 @@ setup 若失去响应，报告保持 pending；停止资格仍应先失效。
 独立版绑定没有自动获得此组合保证，其调用方排空前提不变。
 
 
-本补差由[启动期投影采用](../../record/decisions/identity-startup-lifecycle/decision.md)接续。
+本补差由启动期投影采用接续。
 async apply 的原反例保留，不能作为管理绑定实现。
 
 ## 注册、部分启动与关闭算法

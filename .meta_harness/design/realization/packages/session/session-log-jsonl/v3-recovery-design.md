@@ -6,8 +6,8 @@
 
 | 输入／层 | 精确依据与本次状态 |
 | --- | --- |
-| 语义接受 | catalog 中 baseline `omne-harness-lite-design-2026-09-15`、`capability.session-log/v3` 为 accepted；[D-083](../../../../record/decisions/session-log-tail-condition-adoption/decision.md) 接受 24 项资源、5 项精确依赖。其 [contract](../../../../spec/capabilities/session-log/v3/contract.md) SHA256 为 `f327f1289e1d6c539dd959e8862b382869e3d303cf984b6a773fdd6a00e4bd26`。五项依赖仍为 identity-values1、messages2、call-accounts2、content-blocks2、session-tenancy2 |
-| 已采用提供者 | [D-084](../../../../record/decisions/session-log-jsonl-v3-projection-adoption/decision.md) 采用 [v3-design](v3-design.md) rev 2，SHA256 `f8561eed58597fbb972d474b14648f74f74cafae3d1125f7813a45a4c241b351`；沿原 [design](design.md) 的属主锁、JSONL、索引、每本日志队列、datasync、单 effect 关闭及 F-1～F-8 前提 |
+| 语义接受 | catalog 中 baseline `omne-harness-lite-design-2026-09-15`、`capability.session-log/v3` 为 accepted；D-083 接受 24 项资源、5 项精确依赖。其 [contract](../../../../spec/capabilities/session-log/v3/contract.md) SHA256 为 `f327f1289e1d6c539dd959e8862b382869e3d303cf984b6a773fdd6a00e4bd26`。五项依赖仍为 identity-values1、messages2、call-accounts2、content-blocks2、session-tenancy2 |
+| 已采用提供者 | D-084 采用 [v3-design](v3-design.md) rev 2，SHA256 `f8561eed58597fbb972d474b14648f74f74cafae3d1125f7813a45a4c241b351`；沿原 [design](design.md) 的属主锁、JSONL、索引、每本日志队列、datasync、单 effect 关闭及 F-1～F-8 前提 |
 | 可实施 | 本页提出必要元数据与装配输入，需独立复核、主线采用后才作为施工输入。真实进程退出观察器尚无本页可引用的正式实现，RG-G1 保持装配阻断；纯判定和其他独立 SL3 实施不受此候选自动阻断 |
 | 绑定证据 | 0 条；下文 RG-V 是待执行 oracle，未登记虚构测试，不借 SL3 有限模型证明真实进程停止、文件系统或同步次序 |
 | 实际验证 | 本增补没有源码和运行结果。结构检查不证明恢复安全。未重新展开产品／架构全量推导，不声称双盲新设计 |
@@ -126,7 +126,7 @@ clean 替换失败也不反向撤销已经确认的业务批。close 报明确�
 
 新增抽象存储要求是：在允许业务改写前可耐久建立恢复前置状态；同目录原子替换与目录持久确认；失败可识别；状态不能被另一写者并发覆盖。分别服务 SL3 S-13/S-21/S-22/S-23/S-35，沿 F-2/F-3/F-4/F-6/F-7/F-8 实现。无法提供目录同步或同目录原子替换的存储部署不可声称支持本恢复路径。没有另选数据库。
 
-Cordis 采用版本仍为 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md) 的 4.0.4；关闭序列继续在一个 effect 内，依据 [`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)，配置失败沿 [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)。原 `provide-is-effect-managed` 待核对主张、Node 文件锁／实际停止／目录同步的取证义务保留；未增新的已核对上游保证。宿主物理身份及退出观察是**装配假设，须 source-check 与真实进程演练闭合**，不是 Cordis 行为。
+Cordis 采用版本仍为 D-025 的 4.0.4；关闭序列继续在一个 effect 内，依据 [`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)，配置失败沿 [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)。原 `provide-is-effect-managed` 待核对主张、Node 文件锁／实际停止／目录同步的取证义务保留；未增新的已核对上游保证。宿主物理身份及退出观察是**装配假设，须 source-check 与真实进程演练闭合**，不是 Cordis 行为。
 
 观测增加恢复来源（clean／active／legacy）、阶段、受限相关标识、owner 观察状态、全扫／修复计数及 close 失败因果；不得输出条目 payload、业务键正文、裸路径或原始错误中的秘密。元数据失败与业务 unknown 分开解释，既不假成功，也不据诊断记录代替权威日志。
 

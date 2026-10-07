@@ -1,16 +1,16 @@
 # Moonshot 可见推理详情的参考计量
 
-2026-09-30，revision 2，candidate；独立架构评审无阻断，按主调度 2026-09-30 裁决（R-P）可「机制接线先行、MV4 真实回放作门」采用；尚未技术采用、未实施、未实际验证，新增 bindings 0。本页按已采用的 [DeepSeek 可见推理计量](deepseek-visible-reasoning-estimate-design.md)（[采用决定](../../../../record/decisions/model-input-usage-calibration-adoption/deepseek-visible-reasoning-decision.md)）的结构，补充已采用的 [v10](v10-token-estimate-design.md)、[v12](v12-usage-calibration-design.md)，不改这些页及 DeepSeek 页的受审字节。持续消费者为两款 Moonshot 官方定义、`createMoonshotInputMeter` 与模型调用规划器；固定上游模板、OpenRouter 推理详情协议或共享分组规则变化时复核本页。
+2026-09-30，revision 2，candidate；独立架构评审无阻断，按主调度 2026-09-30 裁决（R-P）可「机制接线先行、MV4 真实回放作门」采用；尚未技术采用、未实施、未实际验证，新增 bindings 0。本页按已采用的 [DeepSeek 可见推理计量](deepseek-visible-reasoning-estimate-design.md)（采用决定）的结构，补充已采用的 [v10](v10-token-estimate-design.md)、[v12](v12-usage-calibration-design.md)，不改这些页及 DeepSeek 页的受审字节。持续消费者为两款 Moonshot 官方定义、`createMoonshotInputMeter` 与模型调用规划器；固定上游模板、OpenRouter 推理详情协议或共享分组规则变化时复核本页。
 
 ## 基准、性质与证据
 
-基准为已接受 [RT12](../../../../spec/capabilities/model-request-runtime/v12/contract.md)／[MR11](../../../../spec/data/model-response/v11/contract.md) 的计量语义（接受依据沿 [D107](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md)）与当前 Moonshot 实现（两叶定义 `2`、`pi-ai:moonshot@mp4-17`）。主调度 2026-09-30 裁定本轮 Moonshot 以 full-only 交付、φ/δ 不作交付门（R-A，已登记于 D-111，见 G6）。本页不新增公开操作、输出组语义、对象或存储；相关对象仍为 ModelDefinition、ModelProfile、ModelInvocationInput、PendingModelResponse，未经尚不存在的装配反查索引核实。
+基准为已接受 [RT12](../../../../spec/capabilities/model-request-runtime/v12/contract.md)／[MR11](../../../../spec/data/model-response/v11/contract.md) 的计量语义（接受依据沿 D107）与当前 Moonshot 实现（两叶定义 `2`、`pi-ai:moonshot@mp4-17`）。主调度 2026-09-30 裁定本轮 Moonshot 以 full-only 交付、φ/δ 不作交付门（R-A，已登记于 D-111，见 G6）。本页不新增公开操作、输出组语义、对象或存储；相关对象仍为 ModelDefinition、ModelProfile、ModelInvocationInput、PendingModelResponse，未经尚不存在的装配反查索引核实。
 
 沿用已封存性质，不声明新的双盲封存：全部实际输入有据计量或发前拒绝，估算须有适用依据、不以私有模板为普遍前置（[S-74](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-74-每次发送之前的完整输入限制与固定计划)③⑤）；来源真实性先于计量，可判矛盾不得借 full 绕过（[S-77](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-77-计量依据身份与两类失效)）；reasoning 不双加、不无条件用 I+O、margin 只应用一次（[S-78](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-78-递推关系精度与重新校准)）；独立公开计量无隐藏读取、来源不可核即 unavailable（[S-79](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-79-现有公开函数的九项增量)④⑥⑧）；下一请求的输入贡献由实际回放的 role/template/内容决定，原响应、实际 wire 与上游 usage 保留（[MR11 S-43](../../../../spec/data/model-response/v11/contract.md#s-43-outputgroup-与回放)）。
 
 ### 真实原件核实
 
-原件为 [2026-09-27 probe 证据 run](../../../../record/evidence/2026-09-27-probe-model-request-runtime/README.md) 归档 `openrouter-research.tar.gz` 的成员，SHA-256 与该 run 的[成员清单](../../../../record/evidence/2026-09-27-probe-model-request-runtime/input-and-output-hashes-v2.json)逐项一致。十份都是固定路由（`provider.order` 单值、`allow_fallbacks:false`、`require_parameters:true`）、`stream:true`、单轮 system+user+user、无 tools，HTTP 200、`finish_reason:"stop"`，服务方展示名 `Moonshot AI`、上游 model 等于路由模型。起草者只读复算，未发请求；复算是独立 Python 读数，不是执行 TS reader。
+原件为 2026-09-27 probe 证据 run 归档 `openrouter-research.tar.gz` 的成员，SHA-256 与该 run 的成员清单逐项一致。十份都是固定路由（`provider.order` 单值、`allow_fallbacks:false`、`require_parameters:true`）、`stream:true`、单轮 system+user+user、无 tools，HTTP 200、`finish_reason:"stop"`，服务方展示名 `Moonshot AI`、上游 model 等于路由模型。起草者只读复算，未发请求；复算是独立 Python 读数，不是执行 TS reader。
 
 | 叶 | 成员（`openrouter-research/…`） | SHA-256 | 请求 effort | 带 details 的帧 |
 |---|---|---|---|---:|
@@ -70,7 +70,7 @@ full 先按原件核：原 body 的 `model` 等于定义、原 body 与原 seria
 | `input-meter.ts` 共同包装 `measureFull`／`measureReplay`／`measureNew` | 来源、basis、history 校验的唯一所在 | 不复制；见下「直接入口守门」 |
 | 形状识别 | 共享四键谓词从 `projectDeepSeekMeterBody`（`deepseek-boundary.ts:47-57`）抽出，语义逐项相同（assistant、恰一项、own keys 恰四个、`reasoning.text`、字符串 text、字面 `unknown`、精确数值 0），DeepSeek、本家族与 Qwen 开源两叶共用；`[REDACTED]` 排除、并行键政策与目标槽位留在各家族 | DeepSeek 已采用页不回溯修改，其行为不因抽出而变。并行键政策三家不同：DeepSeek 任何并行键即拒，本家族 `reasoning`／`reasoning_content` 同文只计一次，Qwen `reasoning` 同文只计一次、`reasoning_content` 拒。按主调度 2026-09-30 裁决（P1）登记为已知差异：产品路径只发二者之一、永不同时发两键，差异只对直接调用者可见，待有真实带并行键回放证据时统一再议 |
 
-直接入口守门：当前 `createMoonshotInputMeter` 返回 `defineInputMeter` 的冻结对象，其直接 `measureFull` 不经共同包装；规划器路径经 `plan.ts`／`input-limits.ts` 调共同包装。本页让带 details 的历史首次可计量，不接线则直接调用 factory 方法可携非法显式 history 得到估算——[DeepSeek 评审](../../../../record/proposals/model-input-usage-calibration/deepseek-visible-reasoning-review.md) N1 的同构。须把两叶 factory 的公开 full／φ／δ 方法接到共同包装，包装再调私有原始对象、避免递归；复用唯一的通用接线函数（现名 `guardDeepSeekMeter`，内容与家族无关），不复制第二份。这是 S-77、S-79⑥ 与 [H13](verification.md#h13-多个历史输出组候选) 的落实，不新增契约承诺。
+直接入口守门：当前 `createMoonshotInputMeter` 返回 `defineInputMeter` 的冻结对象，其直接 `measureFull` 不经共同包装；规划器路径经 `plan.ts`／`input-limits.ts` 调共同包装。本页让带 details 的历史首次可计量，不接线则直接调用 factory 方法可携非法显式 history 得到估算——DeepSeek 评审 N1 的同构。须把两叶 factory 的公开 full／φ／δ 方法接到共同包装，包装再调私有原始对象、避免递归；复用唯一的通用接线函数（现名 `guardDeepSeekMeter`，内容与家族无关），不复制第二份。这是 S-77、S-79⑥ 与 [H13](verification.md#h13-多个历史输出组) 的落实，不新增契约承诺。
 
 ## 失败层、版本与装卸
 
@@ -78,7 +78,7 @@ full 先按原件核：原 body 的 `model` 等于定义、原 body 与原 seria
 
 发布时两叶 definition、`pi-ai:moonshot` implementation 与 algorithm 提升到新的唯一修订；固定旧 lease 不热替换，已借出的旧 meter 跑完各自规划；不保留旧 factory 或兼容重载，旧到新 basis 未证兼容即 full。factory 的绑定核验对照当前导出定义，不再写死 `'2'`／`'mp4-17'` 这类会滞后的修订字符串。历史事实保留原坐标。
 
-Cordis 继续由原官方模型贡献插件与 transport service 固定整份 meter，采用版本沿 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md)；不新增 service、fiber、inject、effect 或事件，不新增上游内核主张。装载时 meter 取得既有 tokenizer 与模板常量，初始化失败按既有 factory 抛错收场、不发布半份；一次调用的派生副本随规划结束释放；插件卸载、lease 引用与实停责任不变。meter 是纯函数，没有在途调用可取消；跨进程无新状态可继承；已发请求与上游费用不因纯函数结束而改变。新增 Storage 要求 0、装配节点 0、bindings 0；无跨 owner 提交。
+Cordis 继续由原官方模型贡献插件与 transport service 固定整份 meter，采用版本沿 D-025；不新增 service、fiber、inject、effect 或事件，不新增上游内核主张。装载时 meter 取得既有 tokenizer 与模板常量，初始化失败按既有 factory 抛错收场、不发布半份；一次调用的派生副本随规划结束释放；插件卸载、lease 引用与实停责任不变。meter 是纯函数，没有在途调用可取消；跨进程无新状态可继承；已发请求与上游费用不因纯函数结束而改变。新增 Storage 要求 0、装配节点 0、bindings 0；无跨 owner 提交。
 
 ## 对账
 
@@ -140,4 +140,4 @@ MV5：两叶 definition／implementation／algorithm 唯一修订、`evidence` �
 - G3 解释点（反例 10）：按 R-N 闭合。同文只在 wire 层强制，流级同文性由归档原件支撑，不另开共享层候选；反例 10 固定为可计（estimated）。
 - G4 观察覆盖：K3 high/max、带 tools 的 details 形状未观察，列为 MV4 的前提假设。
 - G5 证据归档：本页真实形状表是起草者对归档原件的复算，长期家应在 research；09-28 三条 K3 同形流原件尚未入档。归主线。
-- G6 裁决入档：R-A、R-F＋R-L、R-K、R-M 已登记于 D-111（[D-111](../../../../record/decisions/model-request-runtime-rulings-2026-09-30/README.md)；HUB 已有，本 spoke 基线尚无该文件，合入后改为链接）。R-N 与 R-P（P1–P4）已裁未入档，随采用决定入档。R-L 的共享 reader 改动尚未进入本 spoke 基线，MV1 须在含 R-L 的 reader 上复跑。
+- G6 裁决入档：R-A、R-F＋R-L、R-K、R-M 已登记于 D-111（D-111；HUB 已有，本 spoke 基线尚无该文件，合入后改为链接）。R-N 与 R-P（P1–P4）已裁未入档，随采用决定入档。R-L 的共享 reader 改动尚未进入本 spoke 基线，MV1 须在含 R-L 的 reader 上复跑。

@@ -1,1 +1,0 @@
-{"ts":1791185407237,"level":"error","name":"tenancy-host","event":"startup-failed","stage":"plugin","item":"clock-lease","errorType":"PluginTreePreparationError","message":"tenancy-host startup failed at plugin: plugin tree rejected","code":"invalid-config","rowId":"clock-lease"}

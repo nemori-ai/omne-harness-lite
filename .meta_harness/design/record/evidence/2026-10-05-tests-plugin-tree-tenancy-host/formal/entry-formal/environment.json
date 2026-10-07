@@ -1,7 +1,0 @@
-{
-  "base": "4123ccd32b8c4b2e8578e8ebe5529f48f0ca25d9",
-  "java": "openjdk version \"21.0.12.1\" 2026-08-18 LTS\nOpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)\n",
-  "jar": "/opt/tlaplus/tla2tools.jar",
-  "jar_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
-  "scope": "Original finite models only; no product implementation or SQL refinement claim"
-}

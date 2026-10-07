@@ -75,7 +75,7 @@ agent 在这里的位置是评审与反驳——派 design-reviewer 判「选择
 规格与实现映射 drafter 只服务于具名未迁旧任务；派发必须给出精确旧源与未迁范围。
 新/已迁任务从[现行维护入口](../../design/architecture/README.md)定位公开类型、模块旁薄规格与验证资源，不预建四件套。
 未迁任务中哪几段归主线、哪几段派角色，
-权威表在手册的[工作区上下文](../skills/harness-design-handbook/canonical/references/legacy-workspace-context.md#实现设计与交付)，
+权威表在手册的[工作区上下文](../skills/harness-design-handbook/canonical/references/legacy-workspace-context.md)，
 这里只写派发时要给什么。两者都不做对账、不选产品政策、不接受，也都不派评审。
 
 **这两个角色不合并**（2026-10-01 定）：一个写「契约承诺什么性质」，一个写「用 Cordis 怎么兑现」，这条分界正是领域建模独立于 Cordis 的落点；
@@ -150,7 +150,7 @@ tui-developer 消费应用契约并实现终端交互；派发时给齐共同开
 
 tui-debugger 服务于**终端界面（TUI）应用**的运行现象，与评审判文档、developer 改代码都不同：
 它**运行被测程序、往指定目录写证据**，但**不改产品源码、不接受结果**。
-设计依据与调研在 [`design/record/proposals/cli-tui`](../../design/record/proposals/cli-tui/README.md)
+现行职责与适用条件由各角色正文维护；候选讨论和调研过程留工作树 tmp
 与 [`research/agent-debugger-subagents`](../../research/agent-debugger-subagents/README.md)。
 
 | 角色 | 问的问题 | 可写 | 交给谁 |
@@ -202,7 +202,7 @@ design-reviewer、product-design-reviewer 与 product-design-drafter 固定档�
 （原 spec-reviewer 钉的就是 Opus 5.5，合并对照里「表达」那一种也是在它上面跑的）；判「选择」与「计划」用钉值。
 Codex 一端钉 GPT-6 Astra，三种判断都用它。
 
-**developer 的模型按本次任务选**，不由角色固定。选法写在它的 description 里，依据是[角色合一记录](../evaluation/role-merge-2026-10-01.md)：
+**developer 的模型按本次任务选**，不由角色固定。选法写在它的 description 里，依据是角色合一记录：
 
 | 任务 | Claude Code | Codex | 档位 |
 |---|---|---|---|
@@ -233,6 +233,4 @@ agent 试用，并说明未经应用的原生沙箱与权限不能算生效；�
 **改了角色正文、它内联的共享正文、它读的判据页，或换了模型与档位之后**，有常设用例集的角色拿[用例集](../evaluation/suites/README.md)重跑一遍、
 与基线逐用例比；哪些角色已有用例集、各自量得出多大的变化，见那一页。还没有用例集的角色，改动的验证范围照实写进评估记录。
 
-采用记录和迁移验证见[本轮记录](../evaluation/role-migration.md)，旧试用归
-[历史记录](../evaluation/legacy-roles/README.md)，只支持原修订。
-当前 worktree 根宿主入口的切换与原件留档见[退役记录](../evaluation/host-entry-retirement/README.md)。
+当前采用范围、必要理由和复核条件归角色源；本次试用与验证放工作树 tmp，不要求恢复迁移过程。

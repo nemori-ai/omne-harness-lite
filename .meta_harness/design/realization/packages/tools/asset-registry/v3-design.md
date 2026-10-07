@@ -1,10 +1,10 @@
 # asset-registry v3 增量实现设计
 
-本稿为 **candidate，未接受**。节点与源码路径均为 `packages/tools/asset-registry`，沿 [D-059](../../../../record/decisions/assets-runtimes-split-and-rulings/README.md) 的领域划分；**尚未建包**。原 [design.md](design.md) 保留已接受 v2 的范围。本页服务、函数、配置和存储对象名均为候选，不表示现成 API。
+本稿为 **candidate，未接受**。节点与源码路径均为 `packages/tools/asset-registry`，沿 D-059 的领域划分；**尚未建包**。原 [design.md](design.md) 保留已接受 v2 的范围。本页服务、函数、配置和存储对象名均为候选，不表示现成 API。
 
 ## 输入与实现路径
 
-兑现 `(omne-harness-lite-design-2026-09-15, capability.asset-registry, 3)`，catalog 当前为 candidate。本页 S-n 指 [registry v3](../../../../spec/capabilities/asset-registry/v3/contract.md)，保留其七操作及 S-1～S-50；增量依据是[已提交求值读取链提案](../../../../record/proposals/model-request-adaptation/read-projection.md)。产品坐标沿契约的 PF-002 rev 20、PF-006 rev 19、PF-004 rev 12；本页不扩张完整 Agent Loop、中心同步或命令产品交付。
+兑现 `(omne-harness-lite-design-2026-09-15, capability.asset-registry, 3)`，catalog 当前为 candidate。本页 S-n 指 [registry v3](../../../../spec/capabilities/asset-registry/v3/contract.md)，保留其七操作及 S-1～S-50；增量依据是已提交求值读取链提案。产品坐标沿契约的 PF-002 rev 20、PF-006 rev 19、PF-004 rev 12；本页不扩张完整 Agent Loop、中心同步或命令产品交付。
 
 | 精确依赖 | 本节点消费范围 |
 | --- | --- |
@@ -15,7 +15,7 @@
 | `capability.model-request-runtime/v3` S-66（candidate） | 消费者及边界核对：runtime 的当前设置求值不是 manifest 的历史读取；不把它列成 registry 的规范依赖 |
 | 其余十二项依赖 | 精确沿 registry v3 S-4/catalog，含 messages v2 的严格 JSON、profile v2 S-7、identity-values v1、offer-expiry v1、call-accounts v2，以及 MCP、工具放行等窄口；不随相邻包 root 自动漂移 |
 
-继续自建一个薄 Cordis 插件，以本仓库公开纯模块实现本项目语义。求值不复制、不修正结果；正文判定使用 AE4 owner 交付的同一 `defaultBodyContracts` 组合根。Cordis 采用 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)。清单仍由 `assembly-manifest-store` 经存储抽象兑现；本节点不选择数据库，不建立注册表副本库。
+继续自建一个薄 Cordis 插件，以本仓库公开纯模块实现本项目语义。求值不复制、不修正结果；正文判定使用 AE4 owner 交付的同一 `defaultBodyContracts` 组合根。Cordis 采用 D-025 的 4.0.4。清单仍由 `assembly-manifest-store` 经存储抽象兑现；本节点不选择数据库，不建立注册表副本库。
 
 ## 契约责任到 Cordis 的投影
 
@@ -95,7 +95,7 @@ fill 接收调用方真实 evaluate 的成功结果；本节点核形状和排�
 | R-AR3-2：S-17、S-22⑦ | 期望头判定与追加同事务；同会话竞争可识别 | 新旧 registry 实例经同一 manifest 约束域写同一 `(session,seq)` 主键；事务内会话哨兵排序，主键兜底。进程队列不承担正确性 |
 | R-AR3-3：S-13、S-22⑦、S-48.4/6 | given 全局引用唯一且可认回，reuse 源属于同会话，mint 在提交时铸号 | record 的 `owned_ref` 唯一约束与事务内源查询；跨会话竞争在同一索引相遇；不以不同会话的内存 map 去重 |
 | R-AR3-4：S-6/S-25/S-33/S-50.4 | 一致读取 head 与各表、按表时刻读历史、既存源不可变且可重建 | 同一 ReadTx；`assembly_manifest_table(session,category,filled_at)` 唯一性及记录外键；readEvaluation 最近 given/mint 的规则独立于表历史 |
-| R-AR3-5：S-18/S-19/S-32/S-33 | 追加成功后的既定持久边界、严格无损内容、未知结果/不可用可识别 | 沿 manifest 存储要求与既有 [D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md)；不把正常进程重开结果扩成断电无损 |
+| R-AR3-5：S-18/S-19/S-32/S-33 | 追加成功后的既定持久边界、严格无损内容、未知结果/不可用可识别 | 沿 manifest 存储要求与既有 D-027；不把正常进程重开结果扩成断电无损 |
 
 **清单 SQL 与会话 JSONL 没有共同提交。**S-27 的命令失败先由派发调用方耐久写会话日志，确认后才调 markFailed；后者只在自己的 manifest 追加点删表项。日志失败则不调用；日志成功后进程中断或 SQL 失败，失败事实保留、命令可能仍在，按 S-27 下一次失败再调用，不自动制造跨存储回滚或未知重放。runtime 的调用锚点、attempt 栅栏及回复/响应同批写入也只归 sessionLog，不把其日志位置当 manifest seq。
 
