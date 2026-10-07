@@ -240,3 +240,92 @@ test.each(['nonzero', 'rejected', 'stopped'] as const)(
     }
   },
 )
+
+test(
+  'original runtime retains terminal transfer through provider retirement and reopen without replay',
+  { tags: ['slow'] },
+  async () => {
+    const commandTool: FixtureTool = {
+      ...tool,
+      capability: capabilityCanonicalString({ category: 'tool', name: tool.name }),
+      definition: {
+        ...tool.definition,
+        settings: {
+          targetEnvironment: {
+            category: 'placement_identity',
+            default: { bindingLayer: 'host_machine', facilities: ['command'] },
+          },
+        },
+      },
+    }
+    const executor = vi.fn<ToolExecutor>(async (_arguments, ports) => {
+      const created = await ports.environment!.command!.createTerminal({ cwd: '/tmp', env: {} })
+      if (created.kind !== 'created') throw new Error(created.reason)
+      return JSON.stringify(created.terminal)
+    })
+    const fixture = await actionIntegrationFixture({
+      executor,
+      environment: { tool: commandTool, host: { provider: 'real-host' } },
+    })
+    try {
+      const dispatch = await fixture.dispatch()
+      if (dispatch.kind !== 'complete') throw new Error('Original admission incomplete')
+      const submission = {
+        access: fixture.current.toolAccess,
+        scope,
+        origin,
+        adoption: fixture.f.adoption,
+        call: fixture.f.calls[0]!,
+        admissionToken: dispatch.admissions[0]!.token,
+      }
+      const runtime = fixture.current.assembly.ctx.toolRuntimeRegistry
+      const result = await runtime.submit(submission)
+      if (result.kind !== 'recorded') throw new Error(result.reason)
+      const observed = await runtime.acquire(submission.access, result.execution)
+      if (observed.kind !== 'acquired') throw new Error('Original observer missing')
+      try {
+        expect(await observed.observer.waitForEnd()).toMatchObject({
+          snapshot: {
+            state: { terminal: { outcome: 'completed' } },
+            resources: [{ permission: 'permitted', ownership: 'environment' }],
+          },
+        })
+      } finally {
+        observed.observer.release()
+      }
+      let history = projectToolJournal(scope, (await fixture.f.prefix()).entries)
+      if ('invalid' in history) throw new Error('Invalid original history')
+      const original = history.executions
+        .get(submission.call.callId)!
+        .resources.values()
+        .next().value!
+      expect(original.adopted?.value).toMatchObject({
+        kind: 'resource_adopted',
+        key: original.planned.value.resource.key,
+      })
+      expect(original.observations).toHaveLength(0)
+      await fixture.reopen()
+      history = projectToolJournal(scope, (await fixture.f.prefix()).entries)
+      if ('invalid' in history) throw new Error('Invalid reopened history')
+      const recovered = history.executions
+        .get(submission.call.callId)!
+        .resources.get(original.planned.value.resource.key)!
+      expect(recovered.adopted?.value).toEqual(original.adopted!.value)
+      // Graceful retirement completed the environment owner, so no outstanding
+      // resource is enumerated into the creator call's log on startup.
+      const confirmation = await fixture.current.assembly.ctx.executionEnvironments.recover(
+        scope,
+        fixture.current.owner.recovery,
+        [original.planned.value.resource],
+      )
+      expect(confirmation).toMatchObject({
+        kind: 'recovered',
+        values: [{ status: 'confirmedStopped', resource: original.planned.value.resource }],
+        failures: [],
+      })
+      expect(executor).toHaveBeenCalledOnce()
+    } finally {
+      await fixture.close()
+    }
+  },
+)
