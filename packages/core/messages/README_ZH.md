@@ -181,11 +181,11 @@ pnpm --filter @omne-harness-lite/messages run test
 
 先构建 workspace 依赖。这些检查覆盖本包；组合行为需针对实际消费者与提供者验证。
 
-默认入口与 Schema 采用 `data.messages/v8`。「已出门」记录须带完整的 `profileSnapshot.inputConstraints` 和 `profileSnapshot.upstreamInputLimits`。`brandRecord` 与 `validate` 只检查形状；`judgeModelInvocationRecord` 还检查完整绑定、实际参数处置，以及 ACK 见证的响应与目标一致。快照接收者不重新运行档案写入方的跨字段上限比较。旧形状在当前入口明确拒绝，不改写数据。`./schema/v2`、`./schema/v3` 和 `./schema/v6` 仅供当前规范传递依赖引用，不提供旧执行 codec。
+默认入口与 Schema 采用 `data.messages/v9`。[SPEC.md](SPEC.md)限定已采用的 F0 差异：Attempt 事件由 Session fact 拥有，作为 Message 来源时明确拒绝。其余 MS8 行为继续有效。「已出门」记录须带完整的 `profileSnapshot.inputConstraints` 和 `profileSnapshot.upstreamInputLimits`。`brandRecord` 与 `validate` 只检查形状；`judgeModelInvocationRecord` 还检查完整绑定、实际参数处置，以及 ACK 见证的响应与目标一致。快照接收者不重新运行档案写入方的跨字段上限比较。旧形状在当前入口明确拒绝，不改写数据。`./schema/v2`、`./schema/v3` 和 `./schema/v6` 仅供当前规范传递依赖引用，不提供旧执行 codec。
 
 ## MS8 创建内容、回复与 ACK 值
 
-当前根入口用九份精确资源编译全部54个公开定义：MS8、CB3、CB2、OE1、CA4、IV1、MP5、MP6、TD3。图沿实际引用的定义递归；依赖文件里未触达的定义不会扩大本包图。创建值（`CallKey`、`CreationKey`、`ModelCallPayloadRef`、`ModelCallCreationInput`、`ModelCallCreatedPayload`）及 ACK 摘要、见证与记录由本包拥有。`model_call_created`、`model_call_reply_ready`、`model_call_acknowledged` 是技术记录，不属于 Message 或 OutboundMessage。ACK 释放清单只列可释放的模型自有副本；形状准入不证明来源、权限或实际删除。`./schema/v6` 保留精确消费者所需的原 MS6 资源，不提供旧执行入口。采用与验证依据见 ACK 决定、[MS8 契约](../../../.meta_harness/design/spec/data/messages/v8/contract.md)及[提供者映射](../../../.meta_harness/design/realization/packages/core/messages/v8-acknowledgement-design.md)。
+当前根入口用九份资源编译全部53个公开定义：MS9、CB3、CB2、OE1、CA4、IV1、MP5、MP6、TD3。图沿实际引用的定义递归；依赖文件里未触达的定义不会扩大本包图。创建值（`CallKey`、`CreationKey`、`ModelCallPayloadRef`、`ModelCallCreationInput`、`ModelCallCreatedPayload`）及 ACK 摘要、见证与记录由本包拥有。`model_call_created`、`model_call_reply_ready`、`model_call_acknowledged` 是技术记录，不属于 Message 或 OutboundMessage。ACK 释放清单只列可释放的模型自有副本；形状准入不证明来源、权限或实际删除。`./schema/v6` 保留精确消费者所需的原 MS6 资源，不提供旧执行入口。采用与验证依据见 ACK 决定、[MS8 契约](../../../.meta_harness/design/spec/data/messages/v8/contract.md)及[提供者映射](../../../.meta_harness/design/realization/packages/core/messages/v8-acknowledgement-design.md)。
 
 ### 核对自行保存的完整值
 

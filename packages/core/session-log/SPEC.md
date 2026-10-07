@@ -27,7 +27,7 @@ SourceToken、固定前缀读取、事务参加与事实判别已有 F0 实现�
 
 ## 消息与事实
 
-SLP-1：显式日志封装的闭合字段为 owner、version、kind、value。kind=message 只接受 messages 拥有者的当前版本 8，并由 Message 公开校验器验证正文。kind=fact 的正文由具名拥有者按其版本验证。未知普通 JSON 保留为 other，不自动成为消息。已声明拥有者但封装非法时明确拒绝，不降级为 other。
+SLP-1：显式日志封装的闭合字段为 owner、version、kind、value。kind=message 只接受 messages 拥有者的当前版本 9，并由 Message 公开校验器验证正文。messages 拥有者不接受 kind=fact，不得以该分支绕过 Message 校验。其他 kind=fact 的正文由具名拥有者按其版本验证。未知普通 JSON 保留为 other，不自动成为消息。已声明拥有者但封装非法时明确拒绝，不降级为 other。
 
 SLP-2：事件属于事实。Session attempt 开始事实不属于 Message，不包装成 SystemReminderMessage。业务提醒由其消息拥有者明确创建；日志或投影不能凭事件类型自行创建提醒。持久事实的保留与待消费工作副本的移除分别由各能力承诺约束。
 

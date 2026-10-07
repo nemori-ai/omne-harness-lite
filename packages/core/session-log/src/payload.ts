@@ -5,7 +5,7 @@ import type { InvalidInput } from './types.ts'
 
 export interface MessageLogPayload {
   readonly owner: 'messages'
-  readonly version: '8'
+  readonly version: '9'
   readonly kind: 'message'
   readonly value: Message
 }
@@ -40,26 +40,32 @@ function checkOwnedPayload(
     owned.value === undefined
   )
     return invalidInput
-  if (owned.kind === 'fact') return { kind: 'fact', payload: owned as unknown as FactLogPayload }
-  if (owned.kind !== 'message' || owned.owner !== 'messages' || owned.version !== '8')
+  if (owned.kind === 'fact') return checkFactPayload(owned)
+  if (owned.kind !== 'message' || owned.owner !== 'messages' || owned.version !== '9')
     return invalidInput
   const checked = judgeMessage(owned.value)
   if ('rejected' in checked) return invalidInput
   return {
     kind: 'message',
-    payload: Object.freeze({ owner: 'messages', version: '8', kind: 'message', value: checked.ok }),
+    payload: Object.freeze({ owner: 'messages', version: '9', kind: 'message', value: checked.ok }),
   }
 }
 export function messageLogPayload(message: Message): MessageLogPayload {
   const checked = checkLogPayload({
     owner: 'messages',
-    version: '8',
+    version: '9',
     kind: 'message',
     value: message,
   })
   if ('failure' in checked || checked.kind !== 'message')
     throw new TypeError('invalid message log payload')
   return checked.payload
+}
+function checkFactPayload(
+  owned: import('@omne-harness-lite/content-blocks').JsonObject,
+): CheckedLogPayload {
+  if (owned.owner === 'messages') return invalidInput
+  return { kind: 'fact', payload: owned as unknown as FactLogPayload }
 }
 export function factLogPayload(owner: string, version: string, value: unknown): FactLogPayload {
   const checked = checkLogPayload({ owner, version, kind: 'fact', value })

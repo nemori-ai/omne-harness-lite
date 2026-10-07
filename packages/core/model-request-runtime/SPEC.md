@@ -34,7 +34,7 @@ u = 0 取下界。上界在非退化区间不被取到，退化区间返回唯�
 
 ## 日志拥有者与原件
 
-模型事实使用 Session Log 的显式 fact 封装：owner=model-request-runtime，version=mrr/3，value 为 category 与原 value。category 仅 record 或 response。Message 使用 messages 拥有者的 version=8 消息封装，不复制一个模型专用 Message 正文格式。
+模型事实使用 Session Log 的显式 fact 封装：owner=model-request-runtime，version=mrr/3，value 为 category 与原 value。category 仅 record 或 response。Message 使用 messages 拥有者的 version=9 消息封装，不复制一个模型专用 Message 正文格式。
 
 codec 接受合法的其他拥有者消息键；消息身份、日志 shell 和原回复关联仍须验证。任一 dedupeKey 或 readKey 声明 mrr 命名空间时，必须符合模型拥有的完整键约束，不能借通用消息形状绕过模型事实校验。旧匿名 model wrapper 不再作为当前有效封装读取。
 

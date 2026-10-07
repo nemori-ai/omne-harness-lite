@@ -725,7 +725,7 @@ The first command also builds the workspace dependencies. The companion transpor
 
 ## Current model log codec
 
-The public `model-request-runtime` core root owns the current codec. It uses the current `messages` and `model-response` judges. Its business-key format is `mrr/3`. Records and responses use the Session Log fact envelope owned by `model-request-runtime`, version `mrr/3`. Messages use the message envelope owned by `messages`, version `8`. It preserves ordered string-array `raw.headers`, exact numbers, and the difference between absent and empty values. Previous `mrr/1` and `mrr/2` records are rejected as unknown format; there is no versioned runtime codec export or compatibility reader.
+The public `model-request-runtime` core root owns the current codec. It uses the current `messages` and `model-response` judges. Its business-key format is `mrr/3`. Records and responses use the Session Log fact envelope owned by `model-request-runtime`, version `mrr/3`. Messages use the message envelope owned by `messages`, version `9`. It preserves ordered string-array `raw.headers`, exact numbers, and the difference between absent and empty values. Previous `mrr/1` and `mrr/2` records are rejected as unknown format; there is no versioned runtime codec export or compatibility reader.
 
 The following standalone example prepares a complete persisted `[M,R]` batch or one nonpersisted response. Supply the complete actual response and legal message prefix; the example performs no IO and grants no log permission. Declare the imported packages as direct dependencies.
 

@@ -155,6 +155,12 @@ describe('fixed log projection and prefix reuse', () => {
       reason: 'shape',
     })
   })
+  it.each(['8', '9', 'unknown'])('rejects a claimed messages fact at version %s', version => {
+    expect(
+      projectMessages(input([row(1, { owner: 'messages', version, kind: 'fact', value: {} })])),
+    ).toEqual({ invalidInput: true, reason: 'claimedPayload' })
+    expect(() => factLogPayload('messages', version, {})).toThrow(TypeError)
+  })
   it.each(Object.keys(rules.external))('invalidates the cache when %s changes', name => {
     const first = createProjectionCache(input([user(1)]))
     if (!('ready' in first)) throw new Error('not ready')
