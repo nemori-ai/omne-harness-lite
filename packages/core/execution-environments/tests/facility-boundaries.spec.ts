@@ -12,6 +12,33 @@ import {
 
 const reference = { id: 'original', generation: 'generation' }
 const bytes = () => new Uint8Array([1, 2, 3])
+
+test('malformed process accessors return false without leaking exceptions', () => {
+  const input = Object.defineProperty({}, 'outputMode', {
+    get() {
+      throw new Error('Malformed provider accessor')
+    },
+  })
+  expect(isCommandProcess(input)).toBe(false)
+  const brokenOutput = Object.defineProperty({}, Symbol.asyncIterator, {
+    get() {
+      throw new Error('Malformed output accessor')
+    },
+  })
+  expect(isCommandProcess({ outputMode: 'terminal', output: brokenOutput })).toBe(false)
+})
+
+test.each([NaN, Infinity, -Infinity, '1', {}])(
+  'file observations reject a non-finite or non-number timestamp: %s',
+  modifiedMs => {
+    expect(
+      captureFileResult('stat', {
+        kind: 'stat',
+        value: { name: 'a', path: '/a', kind: 'file', sizeBytes: 3, modifiedMs, version: 'v1' },
+      }),
+    ).toBeUndefined()
+  },
+)
 const info = { path: '/a', type: 'file', sizeBytes: 3, modifiedMs: 1, version: 'v1' }
 type Case<M> = { method: M; value: Record<string, unknown> | string; required: readonly string[] }
 const fileInputs: Case<keyof FileFacility>[] = [

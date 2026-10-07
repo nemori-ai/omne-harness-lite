@@ -42,3 +42,15 @@ The standard mutation run selects the fast layer. Native slow tests need a separ
 Stage disposal tests replace an original stage before ownership inspection, including a replacement with the same bytes. They verify pending and preservation in those cases. They do not prove conditional unlink under concurrent external stage or parent rebinding. HOST-6 requires noninterference during the final check-to-unlink interval. FileBatch does not model that pathname interval or establish filesystem CAS.
 
 The terminal-receipt suite checks each byte split around a receipt, ordinary ANSI and binary bytes, malformed exit fields, duplicates, oversized frames, and trailing data. It does not prove same-UID isolation or unconditional PTY draining. node-pty can destroy its socket after a finite exit drain window. A paused private transport at exit must remain unknown; unread user output is continuously drained into the bounded parent buffer. Child-worker execution and ordinary in-process member coverage have different scopes. Report missing child coverage explicitly or collect it with a named external verification adapter; do not count a mock as native execution.
+
+## PTY completion faults
+
+Build the host member and its native dependency first. Then run the bounded probes from the repository root:
+
+```sh
+./scripts/with-test-slot.sh node packages/infra/execution-environments-host/verification/pty-boundaries.mjs /absolute/task/tmp/pty-boundaries
+```
+
+The verifier uses real PTYs, Bash, and original user scopes. It copies compiled workers to disposable directories. Only these copies receive controlled cutpoints. One probe inserts output during asynchronous terminal disposal. Another holds the private stdout transport under actual backpressure until the target terminates itself. Both must reject completion. Each probe also removes its completion guard as a negative control. The same observable oracle must identify the resulting false completion.
+
+The verifier stops and disposes only its original scopes and identity-marked directories. Its output belongs to the supplied task directory. These probes do not fill standard Stryker or member V8 coverage. They do not test manager outage, arbitrary OS races, or same-UID isolation.
