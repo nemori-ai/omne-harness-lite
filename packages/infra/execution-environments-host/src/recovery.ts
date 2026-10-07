@@ -16,7 +16,8 @@ function captureResult(input: unknown): ResourceRecoveryResult | undefined {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return undefined
   if (
     !('status' in value) ||
-    !['confirmedStopped', 'pending', 'unsupported'].includes(String(value.status))
+    typeof value.status !== 'string' ||
+    !['confirmedStopped', 'pending', 'unsupported'].includes(value.status)
   )
     return undefined
   if (Object.keys(value).some(key => key !== 'status' && key !== 'evidence')) return undefined

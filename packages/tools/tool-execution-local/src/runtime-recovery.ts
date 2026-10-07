@@ -15,7 +15,10 @@ import { jsonObject, sameJson } from './json-values.ts'
 import type { createRuntimeJournal } from './runtime-journal.ts'
 
 type Input = {
-  readonly dependencies: ToolRuntimeDependencies
+  readonly dependencies: Pick<
+    ToolRuntimeDependencies,
+    'backing' | 'owner' | 'recovery' | 'clock' | 'environments'
+  >
   readonly journal: ReturnType<typeof createRuntimeJournal>
   readonly attempts: number
   readonly retry: (attempt: number) => Promise<void>
