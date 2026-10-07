@@ -33,6 +33,9 @@ export abstract class ExecutionEnvironmentsService
   abstract registerPlacementSource(
     ...args: Parameters<EnvironmentPlacementRegistrations['registerPlacementSource']>
   ): ReturnType<EnvironmentPlacementRegistrations['registerPlacementSource']>
+  abstract recoverOwned(
+    ...args: Parameters<EnvironmentProviderRegistrations['recoverOwned']>
+  ): ReturnType<EnvironmentProviderRegistrations['recoverOwned']>
   abstract recover(
     ...args: Parameters<EnvironmentProviderRegistrations['recover']>
   ): ReturnType<EnvironmentProviderRegistrations['recover']>

@@ -331,6 +331,10 @@ async function runtimeOn(w: World, options: RuntimeOptions = {}) {
       run: () => ({ unavailable: true }),
     },
     recovery: {
+      async authorize() {
+        return { authorized: true as const }
+      },
+
       enter: async () => ({
         scope: {
           binding: { log: selected.input.binding },

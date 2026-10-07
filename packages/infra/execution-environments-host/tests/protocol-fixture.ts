@@ -1,3 +1,4 @@
+import { commandFixture, fileFixture } from './facility-fixture.ts'
 import { vi } from 'vitest'
 import {
   parseTenantId,
@@ -73,6 +74,7 @@ export function fixture() {
   const stop = vi.fn<ProcessHandle['stop']>(async () => 'unconfirmed')
   const process: ProcessHandle = {
     output: output.output,
+    outputMode: 'separate' as const,
     outputPolicy: policy,
     result: terminal.promise,
     stop,
@@ -86,12 +88,20 @@ export function fixture() {
     NonNullable<
       import('@omne-harness-lite/execution-environments').EnvironmentFacilities['files']
     >['read']
-  >(async () => ({ kind: 'read', data: new Uint8Array([1, 2]) }))
+  >(async () => ({
+    kind: 'read',
+    path: '/original',
+    data: new Uint8Array([1, 2]),
+    offsetBytes: 0,
+    nextOffsetBytes: 2,
+    eof: true,
+    version: 'original',
+  }))
   const write = vi.fn<
     NonNullable<
       import('@omne-harness-lite/execution-environments').EnvironmentFacilities['files']
     >['write']
-  >(async () => ({ kind: 'written' }))
+  >(async () => ({ kind: 'written', path: '/original', version: 'updated' }))
   const invalidated = Promise.withResolvers<{ readonly reason: string }>()
   const release = vi.fn(async () => ({ kind: 'released' as const }))
   const provider: EnvironmentProvider = {
@@ -104,7 +114,11 @@ export function fixture() {
     acquire: vi.fn<EnvironmentProvider['acquire']>(async () => ({
       kind: 'acquired',
       lease: {
-        facilities: { description, command: { start }, files: { read, write } },
+        facilities: {
+          description,
+          command: commandFixture({ start }),
+          files: fileFixture({ read, write }),
+        },
         invalidated: invalidated.promise,
         release,
       },
@@ -114,7 +128,8 @@ export function fixture() {
       invalidated.resolve({ reason: 'ownerStopped' })
       return { kind: 'drained' }
     }),
-    recover: async () => 'unsupported',
+    listRecoveryResources: async () => ({ kind: 'resources', values: [] }),
+    recover: async () => ({ status: 'unsupported' }),
   }
   const source: EnvironmentPlacementSource = {
     name: 'policy',
@@ -152,6 +167,7 @@ export function fixture() {
     closed: close.signal,
     plan: async () => 'recorded',
     permit: async () => 'confirmed',
+    adopt: async () => 'confirmed',
     stopped: async () => 'recorded',
   }
   return {

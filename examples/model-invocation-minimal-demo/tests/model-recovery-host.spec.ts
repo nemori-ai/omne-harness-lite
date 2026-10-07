@@ -241,6 +241,15 @@ describe('demo real recovery host', () => {
       ).toEqual({
         runtimeStopped: true,
       })
+      expect(await bound.service.dispatch({ session: prepared.session, callId: '' })).toEqual({
+        invalidInput: { reason: 'malformed' },
+      })
+      expect(
+        await bound.service.dispatch(
+          { session: prepared.session, callId: 'blocked-call' },
+          { consumeFailure: true },
+        ),
+      ).toEqual({ result: { runtimeStopped: true }, consumption: { kind: 'notApplicable' } })
       let closeSettled = false
       let businessClose: Awaited<ReturnType<typeof app.close>> | undefined
       const closing = diagnostics.closeAfterBusiness(async () => {

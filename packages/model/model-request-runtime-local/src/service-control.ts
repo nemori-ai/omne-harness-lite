@@ -1,3 +1,6 @@
+import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
+import type { CurrentHistoryReaders } from '@omne-harness-lite/model-request-runtime'
+import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import type {
   DispatchGuardPhase,
   InterruptInput,
@@ -381,6 +384,7 @@ export async function appendControlRecord(
 }
 
 interface UnknownControlWrite {
+  readonly call: CurrentHistoryReaders['call']
   readonly key: CallKey
   readonly binding: SettlementLogBinding
   readonly registration: SettlementRegistration
@@ -563,29 +567,40 @@ export function createOriginalSystemStop<P extends PlannedSemantics, R>(
  * needed even after actual stop; completion alone cannot decide whether the record committed. */
 export function createServiceControl<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
-): ServiceControl {
-  const unknown = new Map<string, UnknownControlWrite[]>()
-  const reads = new OwnedReadTracker()
-  const reconcileReads = new OwnedReadTracker()
-  const appends = new OwnedAppendTracker()
-  const backgroundEnds = new Map<string, Promise<void>>()
-  const recoveries = new Set<Promise<void>>()
-  const backgroundFailed = new Map<
+): ProjectedComponent<ServiceControl, RuntimeConstruction<P, R>> {
+  return buildServiceControl(runtime)
+}
+
+class ServiceControlState {
+  readonly unknown = new Map<string, UnknownControlWrite[]>()
+  readonly reads = new OwnedReadTracker()
+  readonly reconcileReads = new OwnedReadTracker()
+  readonly appends = new OwnedAppendTracker()
+  readonly backgroundEnds = new Map<string, Promise<void>>()
+  readonly recoveries = new Set<Promise<void>>()
+  readonly backgroundFailed = new Map<
     string,
     {
       readonly key: CallKey
       readonly binding: SettlementLogBinding
       readonly owner: SettlementOwner
+      readonly call: CurrentHistoryReaders['call']
     }
   >()
-  let closing = false
+  closing = false
+}
+
+function buildServiceControl<P extends PlannedSemantics, R>(
+  runtime: RuntimeConstruction<P, R>,
+  physical: ServiceControlState = new ServiceControlState(),
+): ProjectedComponent<ServiceControl, RuntimeConstruction<P, R>> {
   const keyOf = (key: CallKey) => JSON.stringify([key.session, key.callId])
   const markEndUnavailable = (
     key: CallKey,
     binding: SettlementLogBinding,
     owner: SettlementOwner,
   ) => {
-    backgroundFailed.set(keyOf(key), { key, binding, owner })
+    physical.backgroundFailed.set(keyOf(key), { key, binding, owner, call: runtime.history.call })
   }
 
   function retain(
@@ -595,12 +610,13 @@ export function createServiceControl<P extends PlannedSemantics, R>(
     task: SettlementTask<AppendResult>,
   ): void {
     const token = keyOf(key)
-    let writes = unknown.get(token)
+    let writes = physical.unknown.get(token)
     if (writes === undefined) {
       writes = []
-      unknown.set(token, writes)
+      physical.unknown.set(token, writes)
     }
     const write: UnknownControlWrite = {
+      call: runtime.history.call,
       key,
       binding,
       registration,
@@ -660,7 +676,13 @@ export function createServiceControl<P extends PlannedSemantics, R>(
       // derive a control phase from the returned history (an ACK is its terminal state).
       let history: CallHistoryResult
       try {
-        history = runtime.history.call(received.prefix, first.key.callId)
+        history = first.call(received.prefix, first.key.callId)
+        for (const write of writes) {
+          if (write.released || write === first) continue
+          const original = write.call(received.prefix, write.key.callId)
+          if ('unavailable' in original) return original
+          if (!modelLogJsonEqual(original, history)) return { unavailable: true, reason: 'history' }
+        }
       } catch {
         return { unavailable: true, reason: 'history' }
       }
@@ -675,9 +697,9 @@ export function createServiceControl<P extends PlannedSemantics, R>(
         return { unavailable: true, reason: 'history' }
       }
       const token = keyOf(first.key)
-      const remaining = unknown.get(token)?.filter(write => !write.released)
-      if (remaining?.length) unknown.set(token, remaining)
-      else unknown.delete(token)
+      const remaining = physical.unknown.get(token)?.filter(write => !write.released)
+      if (remaining?.length) physical.unknown.set(token, remaining)
+      else physical.unknown.delete(token)
       // RT12 S-100: an acknowledged call is its real terminal state for control decisions.
       return acknowledgedAsTerminal(history)
     })()
@@ -694,12 +716,12 @@ export function createServiceControl<P extends PlannedSemantics, R>(
     owner: SettlementOwner,
     key: CallKey,
   ): Promise<UnacknowledgedCallHistory> {
-    const waiting = unknown.get(keyOf(key))
+    const waiting = physical.unknown.get(keyOf(key))
     if (waiting !== undefined) return await recognizeUnknown([...waiting])
     const received = await withOwnedReads(
       owner,
       runtime.settlementContention.limits.concurrent,
-      reads,
+      physical.reads,
       async registration => await readSettlementPrefix({ binding: session.log, registration }),
     )
     if ('unavailable' in received) return { unavailable: true, reason: 'prefix' }
@@ -717,7 +739,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
   }
 
   const releaseCall = async (key: CallKey): Promise<ReleaseCallResult> => {
-    if (closing) return { unavailable: true }
+    if (physical.closing) return { unavailable: true }
     if (
       key === null ||
       typeof key !== 'object' ||
@@ -764,7 +786,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
         return { unavailable: true }
       }
       if ('wrongPhase' in admission) return { wrongPhase: { phase: admission.wrongPhase } }
-      if (closing) return { unavailable: true }
+      if (physical.closing) return { unavailable: true }
       if ('unknown' in owner.opened() || owner.unresolvedWrites().length !== 0)
         return { unavailable: true }
       const account = controlAccount(
@@ -775,7 +797,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
       )
       if ('unavailable' in account) return account
       const appended = await appendControlRecord({
-        trackTask: task => appends.track(task),
+        trackTask: task => physical.appends.track(task),
         binding: session.log,
         owner,
         concurrent: runtime.settlementContention.limits.concurrent,
@@ -798,7 +820,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
     }
   }
   const interrupt = async (input: InterruptInput): Promise<InterruptResult> => {
-    if (closing) return { unavailable: true }
+    if (physical.closing) return { unavailable: true }
     if (
       input === null ||
       typeof input !== 'object' ||
@@ -865,7 +887,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
         local?.operation.phase === 'dispatching' ? local.operation.interrupt : undefined
       if (admission.stage !== 'before_dispatch' && signalInterrupt === undefined)
         return { unavailable: true }
-      if (closing) return { unavailable: true }
+      if (physical.closing) return { unavailable: true }
       const account = controlAccount(
         history,
         local?.request.run,
@@ -875,7 +897,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
       if ('unavailable' in account) return account
       if (!admission.intentExists) {
         const appended = await appendControlRecord({
-          trackTask: task => appends.track(task),
+          trackTask: task => physical.appends.track(task),
           binding: session.log,
           owner: controlOwner,
           concurrent: runtime.settlementContention.limits.concurrent,
@@ -888,7 +910,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
           retainUnknown: (registration, task) => retain(key, session.log, registration, task),
         })
         if ('unavailable' in appended) {
-          const pending = unknown.get(keyOf(key))
+          const pending = physical.unknown.get(keyOf(key))
           if (borrowed !== undefined && pending !== undefined) {
             // The failed receipt cannot authorize a stop. Once the actual writer stops,
             // reconcile its effect from a complete prefix without requiring a retry call.
@@ -910,11 +932,11 @@ export function createServiceControl<P extends PlannedSemantics, R>(
                 next.reservation.release()
               }
             })()
-            recoveries.add(recovery)
+            physical.recoveries.add(recovery)
             void recovery.then(
-              () => recoveries.delete(recovery),
+              () => physical.recoveries.delete(recovery),
               () => {
-                recoveries.delete(recovery)
+                physical.recoveries.delete(recovery)
                 try {
                   runtime.policy.diagnostic({ kind: 'model_control.unknown_recovery_failed' })
                 } catch {
@@ -935,10 +957,10 @@ export function createServiceControl<P extends PlannedSemantics, R>(
               ? history.known.intent.initiator
               : input.initiator,
           )
-        if (!backgroundEnds.has(keyOf(key))) {
+        if (!physical.backgroundEnds.has(keyOf(key))) {
           let committed = false
           const ending = appendControlRecord({
-            trackTask: task => appends.track(task),
+            trackTask: task => physical.appends.track(task),
             binding: session.log,
             owner: controlOwner,
             concurrent: runtime.settlementContention.limits.concurrent,
@@ -996,7 +1018,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
               markEndUnavailable(key, session.log, owner)
             })
             .finally(() => {
-              backgroundEnds.delete(keyOf(key))
+              physical.backgroundEnds.delete(keyOf(key))
             })
           if (borrowed !== undefined) {
             const controlBorrow = borrowed
@@ -1006,7 +1028,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
               () => controlBorrow.release(),
             )
           }
-          backgroundEnds.set(keyOf(key), cleanup)
+          physical.backgroundEnds.set(keyOf(key), cleanup)
           if (local !== undefined) runtime.calls.find(key)?.retainStopped(ending)
         }
       } else {
@@ -1028,15 +1050,18 @@ export function createServiceControl<P extends PlannedSemantics, R>(
     }
   }
   const close = async (): Promise<{ readonly released: true } | { readonly unavailable: true }> => {
-    closing = true
-    const [readResult, appendResult] = await Promise.all([reads.close(), appends.close()])
-    await Promise.allSettled(recoveries)
+    physical.closing = true
+    const [readResult, appendResult] = await Promise.all([
+      physical.reads.close(),
+      physical.appends.close(),
+    ])
+    await Promise.allSettled(physical.recoveries)
     try {
-      await Promise.all(backgroundEnds.values())
+      await Promise.all(physical.backgroundEnds.values())
     } catch {
       return { unavailable: true }
     }
-    const writes = [...unknown.values()].flat()
+    const writes = [...physical.unknown.values()].flat()
     for (const write of writes) {
       try {
         write.task.requestStop()
@@ -1052,20 +1077,20 @@ export function createServiceControl<P extends PlannedSemantics, R>(
       }
     }
     await Promise.allSettled(writes.map(write => write.task.stopped))
-    for (const group of [...unknown.values()]) await recognizeUnknown([...group])
-    const recoveryReads = await reconcileReads.drain()
-    for (const [token, failed] of backgroundFailed) {
-      if (unknown.has(token)) continue
+    for (const group of [...physical.unknown.values()]) await recognizeUnknown([...group])
+    const recoveryReads = await physical.reconcileReads.drain()
+    for (const [token, failed] of physical.backgroundFailed) {
+      if (physical.unknown.has(token)) continue
       const received = await withOwnedReads(
         failed.owner,
         runtime.settlementContention.limits.concurrent,
-        reconcileReads,
+        physical.reconcileReads,
         async registration => {
           const result = await readSettlementPrefix({ binding: failed.binding, registration })
           return 'unavailable' in result
             ? ({ unavailable: true } as const)
             : // Recognizes the durable interrupt of an already stopped local owner only.
-              runtime.history.call(result.prefix, failed.key.callId)
+              failed.call(result.prefix, failed.key.callId)
         },
       )
       if (
@@ -1077,19 +1102,22 @@ export function createServiceControl<P extends PlannedSemantics, R>(
         continue
       const container = runtime.calls.find(failed.key)
       if (container !== undefined && 'unavailable' in (await container.close())) continue
-      backgroundFailed.delete(token)
+      physical.backgroundFailed.delete(token)
     }
-    const finalRecoveryReads = await reconcileReads.drain()
+    const finalRecoveryReads = await physical.reconcileReads.drain()
     if (
-      unknown.size !== 0 ||
+      physical.unknown.size !== 0 ||
       'unavailable' in readResult ||
       'unavailable' in appendResult ||
       'unavailable' in recoveryReads ||
       'unavailable' in finalRecoveryReads ||
-      backgroundFailed.size !== 0
+      physical.backgroundFailed.size !== 0
     )
       return { unavailable: true }
     return { released: true }
   }
-  return Object.freeze({ releaseCall, interrupt, close })
+  return retainRuntimeProjection(
+    Object.freeze({ releaseCall, interrupt, close }),
+    (next: RuntimeConstruction<P, R>) => buildServiceControl(next, physical),
+  )
 }

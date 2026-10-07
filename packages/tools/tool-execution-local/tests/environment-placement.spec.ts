@@ -76,6 +76,7 @@ test('a terminal original execution grants no current placement', async () => {
       origin: { run: 'run', attempt: 1, assistantMessage: 'reply' },
       selected: h.selected,
       adoptedContext: [],
+      resources: [],
       state: {
         phase: 'ended',
         terminal: { outcome: 'unavailable', reason: 'closed' },

@@ -408,7 +408,12 @@ test('service dispatch writes both anchors before handing out a complete pending
           known: { run, originalAttempt, latestAttempt: latestRunAttempt, terminal: 'open' },
         }),
       },
-      recovery: { enter: async () => ({ unavailable: true }) },
+      recovery: {
+        async authorize() {
+          return { authorized: true as const }
+        },
+        enter: async () => ({ unavailable: true }),
+      },
       diagnostic() {},
       diagnosticCollector,
     }

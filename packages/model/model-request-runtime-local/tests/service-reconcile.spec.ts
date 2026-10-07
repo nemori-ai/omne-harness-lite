@@ -9,6 +9,7 @@ import {
   type PendingModelResponse,
 } from '@omne-harness-lite/model-response'
 import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
+import { projectRuntimeComponent } from '../src/runtime-projection.ts'
 import {
   captureModelLogValue,
   modelLogJsonEqual,
@@ -181,10 +182,41 @@ describe('S-49 reply disposition through the real SQL journal settlement coordin
           opening.reservation.attachInvocation(owned)
           opening.reservation.publish({ phase: 'reply_pending', pending: pending() })
           opening.reservation.release()
+          let allowed = false
+          const source = { generation: binding.generation, progress: 0 }
+          const reference = unavailableReferencePorts<PlannedSemantics, never>()
           const settlementService = createRuntimeSettleReply({
             custody: storeUnavailableCustody(),
             instance: 'settle-test-runtime',
-            ...unavailableReferencePorts<PlannedSemantics, never>(),
+            ...reference,
+            callFacts: {
+              ...reference.callFacts,
+              async lookup() {
+                return {
+                  view: {
+                    ref: { session, callId: 'call' },
+                    origin: { tenant: binding.tenant, session },
+                    state: 'reply_pending',
+                    source,
+                    result: { disposition: 'disposition_pending', pending: pending() },
+                  } as never,
+                }
+              },
+            },
+            callAccess: {
+              async check(checked, admitted) {
+                const evidence = {
+                  action: checked.action,
+                  ref: checked.ref,
+                  source,
+                  sourceVersion: 'service-reconcile-v1',
+                  revoked: new AbortController().signal,
+                }
+                return allowed
+                  ? { allowed: await admitted(evidence), evidence }
+                  : { denied: true, evidence }
+              },
+            },
             calls,
             contention: policy(),
             scheduler: noWaitScheduler,
@@ -199,6 +231,13 @@ describe('S-49 reply disposition through the real SQL journal settlement coordin
             },
           })
           const settleReply = settlementService.settleReply
+          // A current denial cannot reach the original pending invocation or release its owner.
+          expect(await settleReply(vetoed)).toEqual({ unavailable: true })
+          expect(invocations).toBe(0)
+          expect(released).toBe(0)
+          expect(container.view().operation.phase).toBe('reply_pending')
+          allowed = true
+
           expect(await settleReply(vetoed)).toEqual({ unavailable: true })
           expect(container.view().operation.phase).toBe('reply_pending')
           expect(released).toBe(0)
@@ -212,7 +251,7 @@ describe('S-49 reply disposition through the real SQL journal settlement coordin
             await settleReply({ ...vetoed, disposition: { consumed: { by: 'side_query' } } }),
           ).toEqual({ alreadyEnded: true })
           expect(invocations).toBe(2)
-          expect(sessionReads).toBe(2)
+          expect(sessionReads).toBe(5)
           expect(submissions.map(item => item.count)).toEqual([2, 1])
           expect(await settlementService.close()).toEqual({ released: true })
         },
@@ -553,6 +592,10 @@ describe('v17 conditional Run cold recovery', () => {
         },
         diagnostic() {},
         recovery: {
+          async authorize() {
+            return { authorized: true as const }
+          },
+
           async enter() {
             return {
               scope: {
@@ -617,6 +660,10 @@ describe('S-33 retained recovery ownership', () => {
         now: () => '2026-09-27T00:00:03Z',
         diagnostic() {},
         recovery: {
+          async authorize() {
+            return { authorized: true as const }
+          },
+
           enter() {
             enters++
             return gate.promise
@@ -645,6 +692,80 @@ describe('S-33 retained recovery ownership', () => {
     })
   })
 
+  it('checks the fixed current subject before retrying a retained original scope', async () => {
+    await controlled(
+      'service-reconcile-fixed-retained-scope',
+      async ({ binding, owner, submissions }) => {
+        let scopeCloses = 0,
+          enters = 0,
+          originalChecks = 0,
+          deniedChecks = 0
+        let scopeCanClose = false
+        const input: Parameters<typeof createRuntimeReconcile>[0] = {
+          custody: storeUnavailableCustody(),
+          contention: policy(),
+          scheduler: noWaitScheduler,
+          now: () => '2026-09-27T00:00:03Z',
+          diagnostic() {},
+          recovery: {
+            async authorize() {
+              originalChecks++
+              return { authorized: true }
+            },
+            async enter() {
+              enters++
+              return {
+                scope: {
+                  binding: { log: binding } as SessionRuntimeBinding,
+                  owner,
+                  originalInvocation: () => ({ absent: true }) as const,
+                  async close() {
+                    scopeCloses++
+                    if (!scopeCanClose) throw new Error('original scope exit remains unavailable')
+                  },
+                },
+              }
+            },
+          },
+        }
+        const original = createRuntimeReconcile(input)
+        const denied = projectRuntimeComponent(original, {
+          ...input,
+          recovery: {
+            async authorize() {
+              deniedChecks++
+              return { unavailable: true }
+            },
+            async enter() {
+              throw new Error('denied subject must not enter a scope')
+            },
+          },
+        })
+        expect(await original.reconcile({ session })).toEqual({ unavailable: true })
+        expect(scopeCloses).toBe(1)
+        expect(enters).toBe(1)
+        const actualBatches = submissions.map(item => item.count)
+        const starts = [...owner.starts]
+        expect(await denied.reconcile({ session })).toEqual({ unavailable: true })
+        expect(deniedChecks).toBe(1)
+        expect(scopeCloses).toBe(1)
+        expect(enters).toBe(1)
+        expect(owner.starts).toEqual(starts)
+        expect(submissions.map(item => item.count)).toEqual(actualBatches)
+        scopeCanClose = true
+        expect(await original.reconcile({ session })).toEqual({
+          calls: [{ callId: 'call', state: 'interrupted' }],
+        })
+        expect(originalChecks).toBe(2)
+        expect(enters).toBe(2)
+        expect(scopeCloses).toBe(3)
+        expect(submissions.map(item => item.count)).toEqual(actualBatches)
+        expect(await original.close()).toEqual({ released: true })
+        expect(owner.active).toBe(0)
+      },
+    )
+  })
+
   it('retains the original scope while a read task has not actually stopped', async () => {
     await controlled('service-reconcile-held-read', async ({ binding, owner }) => {
       const barrier = deferred<void>()
@@ -659,6 +780,10 @@ describe('S-33 retained recovery ownership', () => {
         now: () => '2026-09-27T00:00:03Z',
         diagnostic() {},
         recovery: {
+          async authorize() {
+            return { authorized: true as const }
+          },
+
           async enter(asked) {
             if (asked.session === otherSession)
               return {
@@ -749,6 +874,10 @@ describe('S-33 retained recovery ownership', () => {
           now: () => '2026-09-27T00:00:03Z',
           diagnostic() {},
           recovery: {
+            async authorize() {
+              return { authorized: true as const }
+            },
+
             async enter() {
               enters++
               return {
@@ -822,6 +951,10 @@ describe('S-33 retained recovery ownership', () => {
           now: () => '2026-09-27T00:00:03Z',
           diagnostic() {},
           recovery: {
+            async authorize() {
+              return { authorized: true as const }
+            },
+
             async enter() {
               enters++
               return {
@@ -881,6 +1014,10 @@ describe('S-33 retained recovery ownership', () => {
           now: () => '2026-09-27T00:00:03Z',
           diagnostic() {},
           recovery: {
+            async authorize() {
+              return { authorized: true as const }
+            },
+
             async enter(asked) {
               enters++
               if (asked.session === otherSession)
@@ -967,6 +1104,10 @@ describe('S-33 retained recovery ownership', () => {
           now: () => `2026-09-27T00:00:0${++clock}Z`,
           diagnostic() {},
           recovery: {
+            async authorize() {
+              return { authorized: true as const }
+            },
+
             async enter() {
               return {
                 scope: {
@@ -1022,6 +1163,10 @@ describe('S-33 retained recovery ownership', () => {
           now: () => '2026-09-27T00:00:03Z',
           diagnostic() {},
           recovery: {
+            async authorize() {
+              return { authorized: true as const }
+            },
+
             async enter() {
               return {
                 scope: {
@@ -1085,6 +1230,10 @@ describe('S-33 noRun recovered full-prefix read', () => {
           diagnostic() {},
           diagnosticCollector,
           recovery: {
+            async authorize() {
+              return { authorized: true as const }
+            },
+
             async enter() {
               entered++
               return {
@@ -1196,6 +1345,10 @@ describe('S-33 noRun recovered full-prefix read', () => {
           now: () => '2026-09-27T00:00:03Z',
           diagnostic() {},
           recovery: {
+            async authorize() {
+              return { authorized: true as const }
+            },
+
             async enter() {
               return {
                 scope: {
@@ -1250,6 +1403,10 @@ describe('S-33 noRun recovered full-prefix read', () => {
         now: () => '2026-09-27T00:00:03Z',
         diagnostic() {},
         recovery: {
+          async authorize() {
+            return { authorized: true as const }
+          },
+
           async enter() {
             enters++
             return {
@@ -1336,6 +1493,10 @@ describe('S-33 noRun recovered full-prefix read', () => {
           now: () => '2026-09-27T00:00:03Z',
           diagnostic() {},
           recovery: {
+            async authorize() {
+              return { authorized: true as const }
+            },
+
             async enter() {
               return {
                 scope: {

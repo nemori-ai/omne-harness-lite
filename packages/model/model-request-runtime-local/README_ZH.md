@@ -10,6 +10,10 @@
 
 下文 API 表中的公共操作类型和选择、重试、历史、响应构造函数从 `@omne-harness-lite/model-request-runtime` 导入；具体调用、协调、存储等工厂从本包导入。见[公共拥有者](../../core/model-request-runtime/README_ZH.md)。唯一 `MODEL_RUNTIME_SERVICE` 键从公共 `./cordis` 导入。
 
+`ownOpenCallInput(input)` 在宿主准入前检查并复制请求自有 JSON，保留原 host 与 observer endpoint 引用。它不核验权限，不登记资源。行为见 [SPEC.md](SPEC.md)。
+
+`validDispatchInput(input)` 复用 dispatch 入口的身份表示检查，不校验重试计划，不授予调用权限。行为见 [SPEC.md](SPEC.md)。
+
 ## 公开接口
 
 | 导出                                                                                      | 用途                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -35,6 +39,8 @@
 | `createSettlementWork(input)`                                                             | 基于结算协调器的一份 ACK 后写责任：每次追加前完整批已耐久在写责任行中，行经 ACK custody 退役；外部 persisted 写方同样可用                                                                                                                                                                                                                                                                                                                                                                         |
 | `createServiceAcknowledge(construction, custody?)`、`createAcknowledgementCustody(input)` | 第十五操作，以及每个 runtime 一份的 custody：按显式 `acknowledgementCleanup` 政策与调度器先释放内存副本、再释放保留内容                                                                                                                                                                                                                                                                                                                                                                           |
 | `createModelRuntime(construction)`                                                        | 十五方法共用一份调用 store、一份 ACK custody 与可重试收口 owner；无需 Cordis Context                                                                                                                                                                                                                                                                                                                                                                                                              |
+
+`createModelRuntime` 还返回 `project(inputs, facts)`。受信装配交入固定主体的 `ModelRuntimeHostInputs` 和同一内容拥有者的借用 facts 视图。用 `createModelCallFacts(...).project(presence)` 固定视图的 presence reader。全部投影共用原执行与可重试整体 close；投影自身没有 `close`。端口保持稳定，各操作仍重核当前资格。行为见[固定主体与共享执行](SPEC.md#固定主体与共享执行)。纯工厂投影不表示正式 Service 已完成整改。 |
 
 `createRuntimeReconcile(input)` 返回 `{ reconcile, close }`。事实或写入未决而返回 `unavailable` 时，组件保留原恢复作用域；下一次对账会先沿同一作用域认回，不为同会话另开一个恢复入口。`close()` 关闭新对账准入，停止有归属的任务，从原绑定读取完整前缀；仅在物理工作有确定结果后释放各作用域。收口不追加业务记录。若返回 `unavailable`，宿主须继续持有同一组件，在原任务或读取来源恢复后重试；`createModelRuntime` 已将此收口纳入自身的可重试收口。
 

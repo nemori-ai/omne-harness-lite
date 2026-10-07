@@ -133,6 +133,7 @@ export function placementFixture(
       origin: { run: 'run', attempt: 1, assistantMessage: 'reply' },
       selected,
       adoptedContext: [],
+      resources: [],
       state: { phase: 'running', startedAt: at },
     },
   }))

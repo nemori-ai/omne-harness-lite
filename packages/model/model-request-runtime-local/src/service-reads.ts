@@ -7,6 +7,7 @@ import type {
   ReadAttemptsResult,
   RuntimeCloseResult,
 } from '@omne-harness-lite/model-request-runtime'
+import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { validate as validateLoop } from '@omne-harness-lite/loop-extension'
 import { createSessionModelSelection } from './session-selection.ts'
@@ -253,21 +254,38 @@ function guardResult(
 export function createRuntimeReads<P extends PlannedSemantics, R>(
   construction: RuntimeConstruction<P, R>,
   sharedCustody?: AcknowledgementCustody,
-): { readonly methods: ReadMethods; readonly close: () => Promise<RuntimeCloseResult> } {
-  const ownCustody = sharedCustody === undefined ? runtimeCustody(construction) : undefined
-  const custody = sharedCustody ?? ownCustody
-  const selections = new Map<string, ReadOwner>()
-  const selectionLocks = new Map<string, Promise<void>>()
-  const active = new Set<{
+): ProjectedComponent<
+  { readonly methods: ReadMethods; readonly close: () => Promise<RuntimeCloseResult> },
+  RuntimeConstruction<P, R>
+> {
+  return buildRuntimeReads(construction, sharedCustody)
+}
+
+class RuntimeReadsState {
+  readonly selections = new Map<string, ReadOwner>()
+  readonly selectionLocks = new Map<string, Promise<void>>()
+  readonly active = new Set<{
     readonly tasks: Set<SettlementTask<unknown>>
     readonly done: Promise<void>
     readonly stop: () => void
   }>()
-  const sources = new Set<ModelFailureSource>()
-  const admissions = new Set<Promise<void>>()
-  let closed = false
-  let readCleanupFailed = false
-  let closing: Promise<RuntimeCloseResult> | undefined
+  readonly sources = new Set<ModelFailureSource>()
+  readonly admissions = new Set<Promise<void>>()
+  closed = false
+  readCleanupFailed = false
+  closing: Promise<RuntimeCloseResult> | undefined
+}
+
+function buildRuntimeReads<P extends PlannedSemantics, R>(
+  construction: RuntimeConstruction<P, R>,
+  sharedCustody?: AcknowledgementCustody,
+  physical: RuntimeReadsState = new RuntimeReadsState(),
+): ProjectedComponent<
+  { readonly methods: ReadMethods; readonly close: () => Promise<RuntimeCloseResult> },
+  RuntimeConstruction<P, R>
+> {
+  const ownCustody = sharedCustody === undefined ? runtimeCustody(construction) : undefined
+  const custody = sharedCustody ?? ownCustody
 
   async function bind(
     session: unknown,
@@ -303,34 +321,34 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
     | { readonly invalidInput: { readonly reason: 'malformed' } }
     | { readonly unavailable: true }
   > {
-    if (closed) return unavailable()
+    if (physical.closed) return unavailable()
     const bound = await bind(session)
     if (!('binding' in bound)) return bound
     const next = bound.binding.selection
     const key = next.binding.session
-    const preceding = selectionLocks.get(key)
+    const preceding = physical.selectionLocks.get(key)
     let release = () => {}
     const locked = new Promise<void>(resolve => {
       release = resolve
     })
-    selectionLocks.set(key, locked)
+    physical.selectionLocks.set(key, locked)
     if (preceding !== undefined) await preceding
     try {
-      if (closed) return unavailable()
-      const previous = selections.get(key)
+      if (physical.closed) return unavailable()
+      const previous = physical.selections.get(key)
       if (previous !== undefined) {
         if (sameSelection(previous.input, next)) return { selection: previous.selection }
         const ended = await previous.selection.close()
         if (!('released' in ended)) return unavailable()
-        selections.delete(key)
+        physical.selections.delete(key)
       }
       const created = createSessionModelSelection(next)
-      selections.set(key, { input: next, selection: created })
+      physical.selections.set(key, { input: next, selection: created })
       return { selection: created }
     } catch {
       return unavailable()
     } finally {
-      if (selectionLocks.get(key) === locked) selectionLocks.delete(key)
+      if (physical.selectionLocks.get(key) === locked) physical.selectionLocks.delete(key)
       release()
     }
   }
@@ -344,17 +362,17 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
     ) => Promise<T>,
   ): Promise<T | ReturnType<typeof unavailable> | ReturnType<typeof malformed>> {
     if (!validCall(input)) return malformed()
-    if (closed) return unavailable()
+    if (physical.closed) return unavailable()
     const ref = Object.freeze({ session: input.session, callId: input.callId })
     let finish = () => {}
     const done = new Promise<void>(resolve => {
       finish = resolve
     })
-    admissions.add(done)
+    physical.admissions.add(done)
     try {
       const bound = await bind(ref.session)
       if (!('binding' in bound)) return bound
-      if (closed) return unavailable()
+      if (physical.closed) return unavailable()
       const { binding } = bound
       let current = () => false
       let admittedEvidence: CallAccessEvidence | undefined
@@ -362,7 +380,7 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
         { binding: binding.log, ref, action: 'read' },
         async evidence => {
           admittedEvidence = evidence
-          current = () => !closed && currentReadEvidence(evidence, ref, binding.log)
+          current = () => !physical.closed && currentReadEvidence(evidence, ref, binding.log)
           if (!current()) return unavailable()
           return await work(binding, current, evidence)
         },
@@ -376,7 +394,7 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
     } catch {
       return unavailable()
     } finally {
-      admissions.delete(done)
+      physical.admissions.delete(done)
       finish()
     }
   }
@@ -421,12 +439,12 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
           try {
             task.requestStop()
           } catch {
-            readCleanupFailed = true
+            physical.readCleanupFailed = true
           }
         }
       },
     }
-    active.add(operation)
+    physical.active.add(operation)
     let result: T | ReturnType<typeof unavailable> = unavailable()
     try {
       if (current()) {
@@ -447,13 +465,13 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
       if (stopped.every(Boolean)) {
         try {
           registration.release()
-          active.delete(operation)
+          physical.active.delete(operation)
         } catch {
-          readCleanupFailed = true
+          physical.readCleanupFailed = true
           result = unavailable()
         }
       } else {
-        readCleanupFailed = true
+        physical.readCleanupFailed = true
         result = unavailable()
       }
       finish()
@@ -549,11 +567,11 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
             !localView?.request.host.signal.aborted,
           retain: value => {
             createdSource = value
-            sources.add(value)
+            physical.sources.add(value)
             evidence.revoked.addEventListener('abort', revoke, { once: true })
           },
           forget: value => {
-            sources.delete(value)
+            physical.sources.delete(value)
             evidence.revoked.removeEventListener('abort', revoke)
           },
         })
@@ -678,34 +696,39 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
     },
   }
 
-  return {
-    methods: Object.freeze(methods),
-    close() {
-      if (closing !== undefined) return closing
-      closed = true
-      for (const source of sources) source.release()
-      for (const operation of active) operation.stop()
-      closing = (async () => {
-        try {
-          await Promise.all([...admissions])
-          await Promise.all([...active].map(item => item.done))
-          await Promise.all([...selectionLocks.values()])
-          const ended = await Promise.all([
-            ...[...selections.values()].map(item => item.selection.close()),
-            ...(ownCustody === undefined ? [] : [ownCustody.close()]),
-          ])
-          const result =
-            ended.every(item => 'released' in item) && active.size === 0 && !readCleanupFailed
-              ? ({ released: true } as const)
-              : unavailable()
-          if ('unavailable' in result) closing = undefined
-          return result
-        } catch {
-          closing = undefined
-          return unavailable()
-        }
-      })()
-      return closing
+  return retainRuntimeProjection(
+    {
+      methods: Object.freeze(methods),
+      close() {
+        if (physical.closing !== undefined) return physical.closing
+        physical.closed = true
+        for (const source of physical.sources) source.release()
+        for (const operation of physical.active) operation.stop()
+        physical.closing = (async () => {
+          try {
+            await Promise.all([...physical.admissions])
+            await Promise.all([...physical.active].map(item => item.done))
+            await Promise.all([...physical.selectionLocks.values()])
+            const ended = await Promise.all([
+              ...[...physical.selections.values()].map(item => item.selection.close()),
+              ...(ownCustody === undefined ? [] : [ownCustody.close()]),
+            ])
+            const result =
+              ended.every(item => 'released' in item) &&
+              physical.active.size === 0 &&
+              !physical.readCleanupFailed
+                ? ({ released: true } as const)
+                : unavailable()
+            if ('unavailable' in result) physical.closing = undefined
+            return result
+          } catch {
+            physical.closing = undefined
+            return unavailable()
+          }
+        })()
+        return physical.closing
+      },
     },
-  }
+    (next: RuntimeConstruction<P, R>) => buildRuntimeReads(next, sharedCustody, physical),
+  )
 }

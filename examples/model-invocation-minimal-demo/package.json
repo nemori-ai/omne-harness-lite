@@ -73,6 +73,7 @@
     "@omne-harness-lite/asset-registry-local": "workspace:*",
     "@omne-harness-lite/assembly-manifest": "workspace:*",
     "zod": "catalog:",
+    "ajv": "catalog:",
     "@omne-harness-lite/organization-governance-sql": "workspace:*",
     "@omne-harness-lite/execution-environments": "workspace:*",
     "@omne-harness-lite/runtime-context": "workspace:*",

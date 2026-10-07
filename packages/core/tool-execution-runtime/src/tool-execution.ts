@@ -9,6 +9,7 @@ import type { ContextReader, ContextScope, ContextValue } from '@omne-harness-li
 import type {
   EnvironmentFacilities,
   EnvironmentAdoption,
+  ManagedResource,
 } from '@omne-harness-lite/execution-environments'
 import type { ToolReturn } from '@omne-harness-lite/tool-definition'
 import type { AdmissionToken } from '@omne-harness-lite/tool-admission'
@@ -157,6 +158,16 @@ export type ExecutionState =
       readonly terminal: ExecutionTerminal
       readonly account: ToolCallAccount
     }
+export interface ExecutionResourceSnapshot {
+  readonly resource: ManagedResource
+  readonly permission: 'planned' | 'permitted'
+  readonly ownership: 'call' | 'environment'
+  readonly observation?: {
+    readonly status: 'confirmed' | 'unconfirmed'
+    readonly at: string
+    readonly evidence?: JsonValue
+  }
+}
 export interface ExecutionSnapshot {
   readonly ref: ExecutionRef
   readonly origin: ExecutionOrigin
@@ -164,6 +175,7 @@ export interface ExecutionSnapshot {
   readonly selected?: SelectedTool
   readonly adoptedEnvironment?: EnvironmentAdoption
   readonly adoptedContext: readonly ContextValue[]
+  readonly resources: readonly ExecutionResourceSnapshot[]
   readonly state: ExecutionState
 }
 export type ExecutionRead =

@@ -116,8 +116,9 @@ test(
               async acquire() {
                 return { kind: 'rejected', reason: 'noMatchingEnvironment' }
               },
+              listRecoveryResources: async () => ({ kind: 'resources', values: [] }),
               async recover() {
-                return 'pending'
+                return { status: 'pending' }
               },
             })
           },

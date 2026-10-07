@@ -6,6 +6,21 @@ import {
   type ExecutionEnvironmentOperations,
 } from '@omne-harness-lite/execution-environments'
 
+const ownReference = (
+  value: Parameters<ExecutionEnvironmentOperations['acquire']>[0]['reference'],
+) => (value === undefined ? undefined : captureEnvironmentReference(value))
+const invalidReference = (supplied: unknown, captured: unknown) =>
+  supplied !== undefined && !captured
+function lifecycleCallbacks(
+  lifecycle: Parameters<ExecutionEnvironmentOperations['acquire']>[0]['resources'],
+) {
+  return (
+    lifecycle?.closed instanceof AbortSignal &&
+    [lifecycle.plan, lifecycle.permit, lifecycle.adopt, lifecycle.stopped].every(
+      value => typeof value === 'function',
+    )
+  )
+}
 /** Capture data and original lifecycle callbacks before any authorization wait. */
 export function captureAcquisition(
   request: Parameters<ExecutionEnvironmentOperations['acquire']>[0],
@@ -15,24 +30,16 @@ export function captureAcquisition(
     const scope = captureEnvironmentScope(request.scope),
       requirement = captureEnvironmentRequirement(request.requirement),
       call = captureEnvironmentCall(request.call),
-      reference =
-        request.reference === undefined ? undefined : captureEnvironmentReference(request.reference)
+      reference = ownReference(request.reference)
     const lifecycle = request.resources
-    if (
-      !scope ||
-      !requirement ||
-      !call ||
-      (request.reference !== undefined && !reference) ||
-      !(lifecycle?.closed instanceof AbortSignal) ||
-      ![lifecycle.plan, lifecycle.permit, lifecycle.stopped].every(
-        value => typeof value === 'function',
-      )
-    )
+    if (!scope || !requirement || !call) return undefined
+    if (invalidReference(request.reference, reference) || !lifecycleCallbacks(lifecycle))
       return undefined
     const resources = Object.freeze({
       closed: lifecycle.closed,
       plan: lifecycle.plan.bind(lifecycle),
       permit: lifecycle.permit.bind(lifecycle),
+      adopt: lifecycle.adopt.bind(lifecycle),
       stopped: lifecycle.stopped.bind(lifecycle),
     })
     return Object.freeze({

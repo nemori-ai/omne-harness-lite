@@ -4,6 +4,7 @@ import type {
   AcknowledgeCallResult,
   RuntimeCloseResult,
 } from '@omne-harness-lite/model-request-runtime'
+import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import { LosslessNumber, type JsonNumber } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
@@ -249,17 +250,39 @@ interface RetainedAck {
 export function createServiceAcknowledge<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
   sharedCustody?: AcknowledgementCustody,
-): {
-  readonly acknowledgeCall: (input: AcknowledgeCallInput) => Promise<AcknowledgeCallResult>
-  readonly close: () => Promise<RuntimeCloseResult>
-} {
+): ProjectedComponent<
+  {
+    readonly acknowledgeCall: (input: AcknowledgeCallInput) => Promise<AcknowledgeCallResult>
+    readonly close: () => Promise<RuntimeCloseResult>
+  },
+  RuntimeConstruction<P, R>
+> {
+  return buildServiceAcknowledge(runtime, sharedCustody)
+}
+
+class ServiceAcknowledgeState {
+  readonly reads = new OwnedReadTracker()
+  readonly retained = new Map<string, RetainedAck>()
+  readonly busy = new Map<string, Promise<unknown>>()
+  closed = false
+}
+
+function buildServiceAcknowledge<P extends PlannedSemantics, R>(
+  runtime: RuntimeConstruction<P, R>,
+  sharedCustody?: AcknowledgementCustody,
+  physical: ServiceAcknowledgeState = new ServiceAcknowledgeState(),
+): ProjectedComponent<
+  {
+    readonly acknowledgeCall: (input: AcknowledgeCallInput) => Promise<AcknowledgeCallResult>
+    readonly close: () => Promise<RuntimeCloseResult>
+  },
+  RuntimeConstruction<P, R>
+> {
   const ownCustody = sharedCustody === undefined ? runtimeCustody(runtime) : undefined
   const custody = sharedCustody ?? ownCustody
-  const reads = new OwnedReadTracker()
+
   /** Unknown ACK appends keep their original writer until it actually stops. */
-  const retained = new Map<string, RetainedAck>()
-  const busy = new Map<string, Promise<unknown>>()
-  let closed = false
+
   const keyOf = (ref: CallKey): string => JSON.stringify([ref.session, ref.callId])
 
   function report(stage: string, ref: CallKey, detail: Record<string, string>): void {
@@ -279,7 +302,7 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
     const read = await withOwnedReads(
       session.selection.owner,
       runtime.settlementContention.limits.concurrent,
-      reads,
+      physical.reads,
       async registration => await readSettlementPrefix({ binding: session.log, registration }),
     )
     return 'ok' in read && 'prefix' in read.ok ? read.ok.prefix : undefined
@@ -287,7 +310,7 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
 
   /** Stop a retained unknown writer for real before any recognition or resend. */
   async function settleRetained(key: string): Promise<boolean> {
-    const prior = retained.get(key)
+    const prior = physical.retained.get(key)
     if (prior === undefined) return true
     try {
       prior.task.requestStop()
@@ -300,7 +323,7 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
     } catch {
       return false
     }
-    retained.delete(key)
+    physical.retained.delete(key)
     return true
   }
 
@@ -321,7 +344,7 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
     let previousWaitMs: JsonNumber = 0
     const started = runtime.settlementScheduler.nowMonotonicMs()
     for (;;) {
-      if (appendUnavailable(closed, owner, binding)) return 'unavailable'
+      if (appendUnavailable(physical.closed, owner, binding)) return 'unavailable'
       const found = recognizeAcknowledgement(current, ref.callId, record)
       if (found !== undefined) return found
       const grant = owner.acquire(runtime.settlementContention.limits.concurrent)
@@ -332,7 +355,8 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
       let task: SettlementTask<AppendResult>
       try {
         task = registration.start('controlAppend', async () => {
-          if (appendUnavailable(closed, owner, binding)) return { failure: 'unavailable' } as const
+          if (appendUnavailable(physical.closed, owner, binding))
+            return { failure: 'unavailable' } as const
           attempted = true
           // RT12 S-96④: unfenced, conditioned on the same full prefix just checked.
           return await binding.log.append(
@@ -355,14 +379,14 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
       }
       if (unknownAcknowledgement(attempted, receipt)) {
         // The original batch may land later: keep its writer, never rebuild the batch.
-        retained.set(keyOf(ref), { registration, task })
+        physical.retained.set(keyOf(ref), { registration, task })
         report('append', ref, { receipt: 'unknown' })
         return 'unavailable'
       }
       try {
         await requestStopAndWait(task)
       } catch {
-        retained.set(keyOf(ref), { registration, task })
+        physical.retained.set(keyOf(ref), { registration, task })
         return 'unavailable'
       }
       registration.release()
@@ -457,7 +481,7 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
             ? { acknowledged: acknowledgementSummary(ref, record, cleanup) }
             : unavailable
         }
-        if (closed) {
+        if (physical.closed) {
           // RT12 S-96⑧/S-100: a stopped host still recognizes a readable durable ACK and its
           // cleanup progress, but starts no new ACK work.
           const durable = await runtime.callFacts.lookup({ binding, ref })
@@ -582,30 +606,34 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
       typeof input.ref === 'object'
         ? JSON.stringify([input.ref.session, input.ref.callId])
         : undefined
-    const prior = key === undefined ? undefined : busy.get(key)
+    const prior = key === undefined ? undefined : physical.busy.get(key)
     if (prior !== undefined) await prior.catch(() => undefined)
     const task = acknowledge(input).catch((): AcknowledgeCallResult => unavailable)
-    if (key !== undefined) busy.set(key, task)
+    if (key !== undefined) physical.busy.set(key, task)
     try {
       return await task
     } finally {
-      if (key !== undefined && busy.get(key) === task) busy.delete(key)
+      if (key !== undefined && physical.busy.get(key) === task) physical.busy.delete(key)
     }
   }
 
-  return Object.freeze({
-    acknowledgeCall,
-    async close(): Promise<RuntimeCloseResult> {
-      closed = true
-      await Promise.allSettled([...busy.values()])
-      const stops = await Promise.all([...retained.keys()].map(settleRetained))
-      const readResult = await reads.close()
-      const custodyResult = ownCustody === undefined ? { released: true } : await ownCustody.close()
-      return stops.every(Boolean) && 'released' in readResult && 'released' in custodyResult
-        ? { released: true }
-        : unavailable
-    },
-  })
+  return retainRuntimeProjection(
+    Object.freeze({
+      acknowledgeCall,
+      async close(): Promise<RuntimeCloseResult> {
+        physical.closed = true
+        await Promise.allSettled([...physical.busy.values()])
+        const stops = await Promise.all([...physical.retained.keys()].map(settleRetained))
+        const readResult = await physical.reads.close()
+        const custodyResult =
+          ownCustody === undefined ? { released: true } : await ownCustody.close()
+        return stops.every(Boolean) && 'released' in readResult && 'released' in custodyResult
+          ? { released: true }
+          : unavailable
+      },
+    }),
+    (next: RuntimeConstruction<P, R>) => buildServiceAcknowledge(next, sharedCustody, physical),
+  )
 }
 
 /** The model log shell of an entry, in the same conditional form the writer builds. */

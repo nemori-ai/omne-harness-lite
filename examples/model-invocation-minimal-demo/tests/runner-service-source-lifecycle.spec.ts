@@ -127,7 +127,7 @@ async function fixture(
   const host = createDemoRunnerServiceHost({
     runnerHost,
     // A counting double for the two methods this adapter consumes.
-    model: model as unknown as ModelRuntimeOperations,
+    model: () => model as unknown as ModelRuntimeOperations,
     manifest: {} as never,
     history: { read: async () => ({ unavailable: true }) } as never,
     sessionTenancy: {} as never,
