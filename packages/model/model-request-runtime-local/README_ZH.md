@@ -10,29 +10,29 @@
 
 ## 公开接口
 
-| 导出                                                                             | 用途                                                                                                                                                                 |
-| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `invokeModel(input)`                                                             | 返回包含 `outcome`、`snapshot()`、`observedFacts()` 与 `abort()` 的句柄                                                                                              |
-| `classifyCause(facts, hasContent, table)`                                        | 按显式状态码表分类来源，保留原始状态码                                                                                                                               |
-| `dispatchGuard(input)`                                                           | 按显式调用、发出与档案事实同步判定一次重试计划                                                                                                                       |
-| `DispatchGuardInput`、`DispatchGuardResult`、`DispatchGuardFact<T>`              | 只读守卫输入、闭合答案与明确的已知／未知事实                                                                                                                         |
-| `TransportAdapter`、`PlanInput`                                                  | 调用者持有的 plan/send/read 端口与显式请求输入                                                                                                                       |
-| `InvocationPolicy`、`ModelInvocationResult`                                      | 调度、脱敏、诊断政策与携带实际字符串发送时刻的未结算结果投影                                                                                                         |
-| `createSessionModelSelection(input)`                                             | 借用提供者的消费者：`legalTargets`、`selectModel`、`displayList`、`effectiveModel` 与操作收口                                                                        |
-| `interpretCallHistory({ prefix, callId })`                                       | 从完整自有 SL3 前缀经当前 `mrr/3` codec 解释不属于 Run 或属于 Run 的原始调用记录；Run 终结事实另由授权来源提供                                                       |
-| `projectCallState({ session, callId, history, local? })`                         | 仅在耐久响应尚未覆盖时叠加进程自有 `open` 或 `reply_pending` 责任                                                                                                    |
-| `ModelRuntimeService`、`RuntimeConstruction` 及各操作输入／结果类型              | 十五操作的显式服务契约与必需宿主端口（含必需的 `acknowledgementCleanup` 重试政策）；类型契约本身不安装可运行服务                                                     |
-| `createCallContainerStore()`                                                     | 按会话和调用持有进程资源，以及有界、可取消的短 reservation                                                                                                           |
-| `ModelCallHost`、`ModelObserverRequest`、`SessionObserverAccess`                 | 原调用的显式生命周期，以及按 dispatch 授权的观察端口                                                                                                                 |
-| `createCallPreparationOwner(host)`                                               | 异步准备前同步登记原调用；迟到资源直到实际收口仍有 owner                                                                                                             |
-| `createModelObserverQueue(input)`                                                | 每次 dispatch 快照优先的观察队列；按真实 UTF-8 字节和事件数双限，接纳不等于接收者完成                                                                                |
-| `createRuntimeReads(construction)`                                               | 六项选择与历史读取方法，以及负责借用提供者收口的 `close()`                                                                                                           |
-| `createServiceCalls(construction)`、`createServiceControl(construction)`         | 面向共享 runtime 装配的独立调用与控制方法组合件                                                                                                                      |
-| `createServiceDispatch(construction)`                                            | 使用固定档案、精确 transport lease、当前会话事实、耐久锚点及原调用句柄实现 dispatch／dispatchAgain                                                                   |
-| `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)`               | 非持久化处分从 `callFacts` 读取不可变 ready 内容，经当前 `callAccess` 的 `settle` 准入，再由既有结算算法写最终响应；final 已提交后的重复处分只由该 final 判定：同处分以原状态认回，异处分答 `alreadyEnded`，不查阅任何值，也不写入。ACK 后经核验的调用方自持值通过暂存写责任结算；处分组件必需 ACK `custody` 与 `instance` 标识。对账保留原 scope，直到实际停止并从完整前缀认回；对账必需 runtime 的 ACK `custody`，已确认调用逐调用作答，给出 `settlementWork` 时收口本 runtime 不持有的写责任行 |
-| `createSettlementWork(input)`                                                    | 基于结算协调器的一份 ACK 后写责任：每次追加前完整批已耐久在写责任行中，行经 ACK custody 退役；外部 persisted 写方同样可用 |
-| `createServiceAcknowledge(construction, custody?)`、`createAcknowledgementCustody(input)` | 第十五操作，以及每个 runtime 一份的 custody：按显式 `acknowledgementCleanup` 政策与调度器先释放内存副本、再释放保留内容 |
-| `createModelRuntime(construction)`                                               | 十五方法共用一份调用 store、一份 ACK custody 与可重试收口 owner；无需 Cordis Context                                                                                 |
+| 导出                                                                                      | 用途                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `invokeModel(input)`                                                                      | 返回包含 `outcome`、`snapshot()`、`observedFacts()` 与 `abort()` 的句柄                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `classifyCause(facts, hasContent, table)`                                                 | 按显式状态码表分类来源，保留原始状态码                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `dispatchGuard(input)`                                                                    | 按显式调用、发出与档案事实同步判定一次重试计划                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `DispatchGuardInput`、`DispatchGuardResult`、`DispatchGuardFact<T>`                       | 只读守卫输入、闭合答案与明确的已知／未知事实                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `TransportAdapter`、`PlanInput`                                                           | 调用者持有的 plan/send/read 端口与显式请求输入                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `InvocationPolicy`、`ModelInvocationResult`                                               | 调度、脱敏、诊断政策与携带实际字符串发送时刻的未结算结果投影                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `createSessionModelSelection(input)`                                                      | 借用提供者的消费者：`legalTargets`、`selectModel`、`displayList`、`effectiveModel` 与操作收口                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `interpretCallHistory({ prefix, callId })`                                                | 从完整自有 SL3 前缀经当前 `mrr/3` codec 解释不属于 Run 或属于 Run 的原始调用记录；Run 终结事实另由授权来源提供                                                                                                                                                                                                                                                                                                                                                                                    |
+| `projectCallState({ session, callId, history, local? })`                                  | 仅在耐久响应尚未覆盖时叠加进程自有 `open` 或 `reply_pending` 责任                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `ModelRuntimeService`、`RuntimeConstruction` 及各操作输入／结果类型                       | 十五操作的显式服务契约与必需宿主端口（含必需的 `acknowledgementCleanup` 重试政策）；类型契约本身不安装可运行服务                                                                                                                                                                                                                                                                                                                                                                                  |
+| `createCallContainerStore()`                                                              | 按会话和调用持有进程资源，以及有界、可取消的短 reservation                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `ModelCallHost`、`ModelObserverRequest`、`SessionObserverAccess`                          | 原调用的显式生命周期，以及按 dispatch 授权的观察端口                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `createCallPreparationOwner(host)`                                                        | 异步准备前同步登记原调用；迟到资源直到实际收口仍有 owner                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `createModelObserverQueue(input)`                                                         | 每次 dispatch 快照优先的观察队列；按真实 UTF-8 字节和事件数双限，接纳不等于接收者完成                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `createRuntimeReads(construction)`                                                        | 六项选择与历史读取方法，以及负责借用提供者收口的 `close()`                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `createServiceCalls(construction)`、`createServiceControl(construction)`                  | 面向共享 runtime 装配的独立调用与控制方法组合件                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `createServiceDispatch(construction)`                                                     | 使用固定档案、精确 transport lease、当前会话事实、耐久锚点及原调用句柄实现 dispatch／dispatchAgain                                                                                                                                                                                                                                                                                                                                                                                                |
+| `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)`                        | 非持久化处分从 `callFacts` 读取不可变 ready 内容，经当前 `callAccess` 的 `settle` 准入，再由既有结算算法写最终响应；final 已提交后的重复处分只由该 final 判定：同处分以原状态认回，异处分答 `alreadyEnded`，不查阅任何值，也不写入。ACK 后经核验的调用方自持值通过暂存写责任结算；处分组件必需 ACK `custody` 与 `instance` 标识。对账保留原 scope，直到实际停止并从完整前缀认回；对账必需 runtime 的 ACK `custody`，已确认调用逐调用作答，给出 `settlementWork` 时收口本 runtime 不持有的写责任行 |
+| `createSettlementWork(input)`                                                             | 基于结算协调器的一份 ACK 后写责任：每次追加前完整批已耐久在写责任行中，行经 ACK custody 退役；外部 persisted 写方同样可用                                                                                                                                                                                                                                                                                                                                                                         |
+| `createServiceAcknowledge(construction, custody?)`、`createAcknowledgementCustody(input)` | 第十五操作，以及每个 runtime 一份的 custody：按显式 `acknowledgementCleanup` 政策与调度器先释放内存副本、再释放保留内容                                                                                                                                                                                                                                                                                                                                                                           |
+| `createModelRuntime(construction)`                                                        | 十五方法共用一份调用 store、一份 ACK custody 与可重试收口 owner；无需 Cordis Context                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 `createRuntimeReconcile(input)` 返回 `{ reconcile, close }`。事实或写入未决而返回 `unavailable` 时，组件保留原恢复作用域；下一次对账会先沿同一作用域认回，不为同会话另开一个恢复入口。`close()` 关闭新对账准入，停止有归属的任务，从原绑定读取完整前缀；仅在物理工作有确定结果后释放各作用域。收口不追加业务记录。若返回 `unavailable`，宿主须继续持有同一组件，在原任务或读取来源恢复后重试；`createModelRuntime` 已将此收口纳入自身的可重试收口。
 
@@ -121,7 +121,11 @@ export async function inspectWithRuntime(
 `readAttempts`、`dispatch` 和 `dispatchAgain` 为需要运行失败扩展的调用方提供显式 `{ consumeFailure: true }` 重载，返回 `{ result, consumption }`。普通单参数调用仍只返回业务结果，不持有失败作用域。`consumption.kind === 'failure'` 给出不可序列化的 `ModelFailureSource`，来源就是产出失败结果的同一次授权完整前缀读取。来源会核对该前缀中的原 dispatched 条目壳和失败响应。交给 runner 前，须同时核验精确主体与**该次 runner 的实际 execution**，并始终释放借用。核验只检查自有快照、当前准入和代际，不另读更新的日志尾；无关追加不会使其失效，释放、撤权、宿主停止或代际替换则会。
 
 ```ts
-import type {CallKey, ModelFailureExecution, ModelRuntimeService} from '@omne-harness-lite/model-request-runtime-local'
+import type {
+  CallKey,
+  ModelFailureExecution,
+  ModelRuntimeService,
+} from '@omne-harness-lite/model-request-runtime-local'
 
 export async function inspectFailure(
   service: ModelRuntimeService,
@@ -361,7 +365,10 @@ export async function invokeOnce<P extends PlannedSemantics, R>(
 下面的教学示例无需服务或凭据即可执行。使用精确 JSON 数时，把 `content-blocks` 与本包一起声明为直接依赖。
 
 ```ts
-import { dispatchGuard, type DispatchGuardInput } from '@omne-harness-lite/model-request-runtime-local'
+import {
+  dispatchGuard,
+  type DispatchGuardInput,
+} from '@omne-harness-lite/model-request-runtime-local'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 
 const input: DispatchGuardInput = {
@@ -561,6 +568,8 @@ console.log(legal.ok[0], list.ok[0].annotations, effective.ok.selectedBy)
 
 成功为 `{ ok: value }`；非法或缺必需数据返回 `{ invalidInput: { reason } }`，必需事实明确未知或兼容回调意外抛错返回 `{ unavailable: true }`，不交出原异常或部分集合。选中／有效名字在链上查无行时返回 `{ profileNotFound: true }`。凭据有无按完整胜出 ref 与来源匹配：缺必需事实是 malformed，显式未知有无是 unavailable。结果自持且深度不可变；借用回调寿命仍归调用者。十五方法已组合；持久投影缓存不由本选择构件提供，当前读取的限定消费者见下文「会话模型的耐久选择」。
 
+目标集成边界与责任选择见 [ADR](adr/service-lifetime.md)。
+
 ## 开发与验证
 
 ```sh
@@ -658,7 +667,10 @@ if (!writeJsonLossless(recognized.original.value).includes('1.00'))
 成员检查不证明一次物理 append、合法历史、读权限、Run 生命周期或旧任务实际停止。H1 一次 `[M,R]` 与 H2 分次 `[M]`/`[R]` 可有相同 SL3 读面；G29-P/H 仍由宿主和全部写方关闭。已提交的完整 withRun 原批按原耐久值认回，不重新计算 late。新候选必须同时取得同前缀 MS6 尝试与宿主 G28 终结来源；未知为不可用，归账 attempt 不替换响应里的原发出 attempt。十五方法已组合；生产宿主接线、真实 runner/app 采用、G30/G31 与模型认证仍须各自证据。
 
 ```ts
-import { captureModelLogValue, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime-local'
+import {
+  captureModelLogValue,
+  modelLogJsonEqual,
+} from '@omne-harness-lite/model-request-runtime-local'
 import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
 
 const sent = '2026-09-27T00:00:00.0004Z'
@@ -957,7 +969,10 @@ export async function recordSend(config: DiagnosticCollectorConfig, httpStatus: 
 
 ```ts
 // calibration-diagnostics-query
-import type { DiagnosticCollector, DiagnosticScope } from '@omne-harness-lite/model-request-runtime-local'
+import type {
+  DiagnosticCollector,
+  DiagnosticScope,
+} from '@omne-harness-lite/model-request-runtime-local'
 
 export async function readPlanningDiagnostics(
   collector: DiagnosticCollector,
@@ -1009,7 +1024,10 @@ export function invokeWithLocalDiagnostics<P extends PlannedSemantics, R>(
 `createDefaultRetryImplementation` 是独立的 LC6 贡献函数。调用方显式提供完整退避政策和采样来源。它只读取本次失败主体，包括有序保留的全部重试结论；它不等待、不发送请求，也不写结论。决策开始前取不到采样返回 `notStartedUnavailable`；被调用后的非法输入返回 `errored`。runner 仍须核验定位主体并调用 `canDispatchAgain`，获准后才接受 retry。
 
 ```ts
-import {createDefaultRetryImplementation, DEFAULT_RETRY_BUILTIN} from '@omne-harness-lite/model-request-runtime-local'
+import {
+  createDefaultRetryImplementation,
+  DEFAULT_RETRY_BUILTIN,
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { RunnerImplementations } from '@omne-harness-lite/loop-extension-runner'
 
 export function registerDefaultRetry(registry: RunnerImplementations) {
