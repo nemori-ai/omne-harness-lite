@@ -60,7 +60,7 @@ CoordinationAuthority是会话协调者的受信资格／代际，不是AttemptP
 
 custodyWitness绑定原call/result身份、原ResponseId或工具原结果标识、原origin/dispatch、原值语义摘要、Session持久事实位置及SourceToken。原完整Pending及其必要引用在ACK前已由Session可靠保存，摘要不能替代全文。
 adopted首次保存、alreadyAdopted认回同一原完整值、storedLate终态迟到保存，均返回保管凭证；迟到没有待推进资格。unknownCommit没有ACK，原执行方继续保管并查原resultKey。
-保管承接不等于模型replyDisposition的consumed／vetoed／persisted；实际消息采用仍按原能力规则。模型适配将已核实保管事实映到RT12／MS8的acknowledgeCall输入与原接受条件，工具适配沿工具原ACK；不把custodyWitness当通用伪ACK。原能力接受ACK后才按自己的清理清单释放副本。
+保管承接不等于模型replyDisposition的consumed／vetoed／persisted；实际消息采用仍按原能力规则。模型适配将已核实保管事实映到[当前模型公开类型](../model-request-runtime/src/service-types.ts)的AcknowledgeCallInput，并遵循[当前模型ACK行为](../model-request-runtime/SPEC.md)；工具适配沿工具原ACK。不把custodyWitness当通用伪ACK。原能力接受ACK后才按自己的清理清单释放副本。
 
 ## 类型之外的行为
 
