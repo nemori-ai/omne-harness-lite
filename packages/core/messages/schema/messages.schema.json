@@ -714,7 +714,7 @@
     },
     "ReminderSource": {
       "title": "提醒的来源（contract.md S-18）",
-      "description": "封闭的判别联合，按 kind 判别，恰十一种：十种系统自己的来源，外加拓展件追加的 extension 一种兜底。系统自己的来源不许绕过这张表私加（加一种＝改本契约版本）；每一种带自己的结构化成员，成员集合闭合。未知的 kind 是 malformed，不当作 extension。",
+      "description": "封闭的判别联合，按 kind 判别，恰十种：九种系统自己的来源，外加拓展件追加的 extension 一种兜底。系统自己的来源不许绕过这张表私加（加一种＝改本契约版本）；每一种带自己的结构化成员，成员集合闭合。未知的 kind 是 malformed，不当作 extension。",
       "oneOf": [
         {
           "$ref": "#/$defs/BackgroundExecutionFinishedSource"

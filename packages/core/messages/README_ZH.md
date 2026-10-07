@@ -20,7 +20,7 @@
 | `isReadable`、`judgePairing`、`judgeCompactionList`                       | 依赖前缀的判定，外部输入显式传入         |
 | `brandMessage`、`brandRecord`、`isWireMessage`、`isWireRecord`、`Wire<T>` | 只检查形状的传输恢复与交换类型           |
 | 消息／记录类型、`LogPrefixView`                                           | 七类消息与调用方拥有的有序前缀           |
-| `validate`、`schemaId`；`./schema`                                        | 当前 MS8 的形状校验                      |
+| `validate`、`schemaId`；`./schema`                                        | 当前 MS9 的形状校验                      |
 | `./schema/v2`、`./schema/v3`、`./schema/v6`                               | 当前规范传递引用所需的精确资源           |
 
 ## 使用示例

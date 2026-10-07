@@ -18,6 +18,11 @@ export function assertMessagesSchemaTransition(
   assert.ok(defs.AttemptStartedSource)
   delete defs.AttemptStartedSource
   const source = object(defs.ReminderSource)
+  assert.equal(typeof source.description, 'string')
+  source.description = String(source.description).replace(
+    '恰十一种：十种系统自己的来源',
+    '恰十种：九种系统自己的来源',
+  )
   assert.ok(Array.isArray(source.oneOf))
   const retained = source.oneOf.filter(item => object(item).$ref !== '#/$defs/AttemptStartedSource')
   assert.equal(retained.length, source.oneOf.length - 1)

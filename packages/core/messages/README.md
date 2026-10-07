@@ -20,7 +20,7 @@ This is an experimental, private workspace package, currently not published on n
 | `isReadable`, `judgePairing`, `judgeCompactionList`                       | Prefix-dependent checks with explicit external inputs                        |
 | `brandMessage`, `brandRecord`, `isWireMessage`, `isWireRecord`, `Wire<T>` | Shape-only transport restoration and wire typing                             |
 | Message/record types, `LogPrefixView`                                     | Seven message types and caller-owned ordered prefixes                        |
-| `validate`, `schemaId`; `./schema`                                        | Current MS8 shape validation                                                 |
+| `validate`, `schemaId`; `./schema`                                        | Current MS9 shape validation                                                 |
 | `./schema/v2`, `./schema/v3`, `./schema/v6`                                              | Exact resources for current transitive specification references              |
 
 ## Examples
