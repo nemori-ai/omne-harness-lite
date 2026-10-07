@@ -59,6 +59,7 @@ describe('physical execution source', () => {
     expect(original.execution.executionGeneration).toBe(oldGeneration)
     expect(original.execution.released).toBe(true)
     expect(original.execution.registered).toBe(false)
+    expect(original.execution.key).toEqual(first.key)
     expect(Object.isFrozen(original.execution.key)).toBe(true)
     expect(await second.close()).toEqual({ released: true })
     expect(calls.remove(held)).toBe(true)
@@ -217,6 +218,9 @@ describe('physical execution source', () => {
       'writer_in_flight',
     ])
     expect(await first.close()).toEqual({ released: true })
+    expect(runtimeCopies.releaseCopies(first.view().session.log, first.key)).toEqual([
+      'writer_in_flight',
+    ])
     expect(calls.remove(held)).toBe(true)
     held.release()
     expect(runtimeCopies.releaseCopies(first.view().session.log, first.key)).toEqual([
@@ -241,6 +245,41 @@ describe('physical execution source', () => {
     afterSeal.capture.release()
     expect(source.release()).toEqual({ released: true })
     expect(source.capture(session)).toEqual({ unavailable: true })
+  })
+
+  it('seals only the acknowledged call and keeps other calls and Sessions borrowed', async () => {
+    const physical = createCallContainerStore<PlannedSemantics, never>()
+    const { calls, source, runtimeCopies } = retainRuntimeExecutions(physical, () => false)
+    const first = container('call')
+    const sameSession = container('other-call')
+    const secondSession = container('call', otherSession)
+    const entries = [first, sameSession, secondSession].map(original => {
+      const result = calls.reserve(original.key)
+      if (!('reservation' in result)) throw new Error('reservation absent')
+      expect(calls.insert(result.reservation, original)).toBe(true)
+      return { original, held: result.reservation }
+    })
+    runtimeCopies.stopCapture(first.key)
+    const captured = [source.capture(session), source.capture(otherSession)].map(result => {
+      if (!('capture' in result)) throw new Error('capture missing')
+      return result.capture
+    })
+    for (const { original, held } of entries) {
+      expect(await original.close()).toEqual({ released: true })
+      expect(calls.remove(held)).toBe(true)
+      held.release()
+      expect(runtimeCopies.releaseCopies(original.view().session.log, original.key)).toEqual(
+        original === first ? [] : ['external_retention'],
+      )
+    }
+    for (const frame of captured) frame.release()
+    for (const { original } of entries) {
+      expect(runtimeCopies.releaseCopies(original.view().session.log, original.key)).toEqual([])
+      expect(source.lookup(original.key)).toMatchObject({
+        execution: { key: original.key, copyReleased: true },
+      })
+    }
+    expect(await calls.close()).toEqual({ released: true })
   })
 
   it('refuses a different original log binding and preserves a stopped non-ACK generation', async () => {
