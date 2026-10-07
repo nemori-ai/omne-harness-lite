@@ -297,6 +297,7 @@ test('started process ports retain original controls with a bounded discard outp
         throw new Error('Do not read during capture')
       },
     },
+    outputMode: 'separate' as const,
     outputPolicy: { overflow: 'discard' as const, maxBufferedBytes: 10, maxChunkBytes: 10 },
     result: Promise.resolve({
       kind: 'completed' as const,
@@ -309,9 +310,11 @@ test('started process ports retain original controls with a bounded discard outp
     },
   }
   const started = { kind: 'started', process }
+  expect(isCommandProcess({ ...process, outputMode: 'terminal' })).toBe(true)
+  expect(isCommandProcess({ ...process, outputMode: 'mixed' })).toBe(false)
   for (const method of ['start', 'executeTerminal'] as const) {
     expect(captureCommandResult(method, started)).toBe(started)
-    for (const field of ['output', 'outputPolicy', 'result', 'stop']) {
+    for (const field of ['outputMode', 'output', 'outputPolicy', 'result', 'stop']) {
       expect(
         captureCommandResult(method, {
           kind: 'started',
@@ -439,6 +442,7 @@ test('discriminators, nested required fields and live-process validation cannot 
     ).toBeUndefined()
   const process = {
     output: { async *[Symbol.asyncIterator]() {} },
+    outputMode: 'separate' as const,
     outputPolicy: Object.assign(Object.create(null) as object, {
       overflow: 'discard',
       maxBufferedBytes: 1,

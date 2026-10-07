@@ -17,6 +17,7 @@ catalog:
   js-tiktoken: 1.0.21
   image-size: 2.0.4
   sharp: 0.35.3
+  node-pty: 1.1.0
   '@types/node': 24.13.6
   ajv: 8.20.0
   kysely: 0.29.6
@@ -37,3 +38,7 @@ catalog:
 
 patchedDependencies:
   '@earendil-works/pi-tui@1.0.0': apps/cli/patches/pi-tui-1.0.0.patch
+
+# 安装仍使用 --ignore-scripts；只允许显式构建这个已核对的原生依赖。
+onlyBuiltDependencies:
+  - node-pty@1.1.0

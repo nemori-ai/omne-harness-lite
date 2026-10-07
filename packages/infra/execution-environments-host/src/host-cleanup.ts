@@ -1,6 +1,6 @@
 import { clearHostBatchStages, recognizeHostFileBatch } from './file-batch.ts'
 import { clearHostGateEntry } from './native-evidence.ts'
-import { clearHostTerminalDirectory } from './terminal-directory.ts'
+import { clearHostResourceDirectory } from './resource-directory.ts'
 import type { NativeRecord, createNativeStore } from './native-store.ts'
 import type { HostNativePolicy } from './native-policy.ts'
 import type { ResourceRecoveryResult } from '@omne-harness-lite/execution-environments'
@@ -10,9 +10,7 @@ async function cleanupProcess(record: NativeRecord) {
   if (!reference.unit || !reference.boot || record.kind === 'leg') return true
   const coordinate = { unit: reference.unit, boot: reference.boot }
   const cleared = await clearHostGateEntry(coordinate)
-  return record.kind === 'terminal'
-    ? (await clearHostTerminalDirectory(coordinate)) && cleared
-    : cleared
+  return (await clearHostResourceDirectory(coordinate)) && cleared
 }
 /** Physical stop and disposal are separate durable obligations. The manifest survives both. */
 export async function finishHostCleanup(

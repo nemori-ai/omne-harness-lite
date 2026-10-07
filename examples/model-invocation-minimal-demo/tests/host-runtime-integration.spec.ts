@@ -38,12 +38,15 @@ test(
         env: { TOKEN: nonce },
       })
       if (started?.kind !== 'started') throw new Error(`Original native command ${started?.kind}`)
-      const text = { stdout: '', stderr: '' }
-      for await (const chunk of started.process.output)
-        text[chunk.stream] += Buffer.from(chunk.data).toString('utf8')
+      const text = { terminal: '' }
+      for await (const chunk of started.process.output) {
+        if (chunk.stream !== 'terminal') throw new Error('Wrong native output mode')
+        text.terminal += Buffer.from(chunk.data).toString('utf8')
+      }
       expect(await started.process.result).toMatchObject({ kind: 'completed', exit: { code: 0 } })
-      expect(text.stderr).toBe('stderr')
-      return text.stdout
+      expect(started.process.outputMode).toBe('terminal')
+      expect(text.terminal).toBe(`${nonce}|/tmpstderr`)
+      return text.terminal
     })
     const fixture = await actionIntegrationFixture({
       executor,
@@ -97,7 +100,7 @@ test(
         expect(ended, JSON.stringify(ended)).toMatchObject({
           snapshot: {
             adoptedContext: [{ key: 'workspace', value: '/tmp' }],
-            state: { terminal: { outcome: 'completed', result: `${nonce}|/tmp` } },
+            state: { terminal: { outcome: 'completed', result: `${nonce}|/tmpstderr` } },
             resources: [
               { permission: 'permitted', ownership: 'call', observation: { status: 'confirmed' } },
             ],
@@ -122,7 +125,7 @@ test(
         ),
       ).toMatchObject({
         kind: 'found',
-        value: { result: { content: [{ text: `${nonce}|/tmp` }] } },
+        value: { result: { content: [{ text: `${nonce}|/tmpstderr` }] } },
       })
       expect(await runtime.submit(submission)).toEqual(result)
       await fixture.reopen()
@@ -133,7 +136,7 @@ test(
       if (replayed.kind !== 'acquired') throw new Error('Reopened observer missing')
       try {
         expect(await replayed.observer.waitForEnd()).toMatchObject({
-          snapshot: { state: { terminal: { result: `${nonce}|/tmp` } } },
+          snapshot: { state: { terminal: { result: `${nonce}|/tmpstderr` } } },
         })
       } finally {
         replayed.observer.release()

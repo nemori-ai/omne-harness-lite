@@ -67,6 +67,7 @@ export function environmentPorts() {
               await result.promise
             },
           },
+          outputMode: 'separate' as const,
           outputPolicy: { maxBufferedBytes: 128, maxChunkBytes: 64, overflow: 'discard' as const },
           result: result.promise,
           stop,
@@ -128,6 +129,7 @@ export const completed: CommandOutcome = {
   exit: { code: 0 },
   durationMs: 1,
   output: {
+    mode: 'separate',
     stdout: { observedBytes: 12, discardedBytes: 0 },
     stderr: { observedBytes: 0, discardedBytes: 0 },
   },

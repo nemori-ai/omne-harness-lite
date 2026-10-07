@@ -36,6 +36,8 @@ const hostPolicy = z
     stopDeadlineMs: z.number().int().positive(),
     maxInputBytes: z.number().int().positive(),
     maxTerminalsPerScope: z.number().int().positive(),
+    terminalColumns: z.number().int().positive().max(4096),
+    terminalRows: z.number().int().positive().max(4096),
     fileReadBytes: z.number().int().positive(),
     fileWriteBytes: z.number().int().positive(),
     maxBatchEntries: z.number().int().positive(),

@@ -8,7 +8,9 @@ The provider uses a systemd user scope for each original command or persistent t
 
 The durable adapter stores the original boot, unit, creator identity, and resource key before native preparation. The gate records entry in the user runtime directory. Creator death alone cannot exclude a late original launcher. An absent unit requires original entry evidence or a changed boot before recovery confirms stop.
 
-Persistent terminals use one real Bash process and separate output sinks for each leg. A completion marker, both output EOFs, and absence of residual command processes are necessary for leg completion. The next leg also requires the durable completion and original call stop receipts. The terminal belongs to the adopted environment, not to its creator call.
+Official node-pty 1.1.0 supplies the PTY mechanism. One-off targets use a trusted Node spawn launcher with inherited PTY descriptors. This preserves literal argv and executable lookup without a shell intermediary or a second user pipe backend. Optional stdin is an owned byte file with EOF. The target close receipt and inactive original scope establish completion; the launcher exit alone does not.
+
+Persistent terminals use one real Bash process in the PTY. A quiet controller sources each owned script and emits a private receipt for that leg. User stdout and stderr remain merged. The narrow parser handles only the current receipt, not general ANSI. Actual shell state persists. Waiting for Bash jobs, checking residual scope processes, and observing the receipt boundary are necessary for leg completion. The next leg also requires the durable completion and original call stop receipts. The terminal belongs to the adopted environment, not to its creator call.
 
 ## Filesystem publication
 
@@ -20,7 +22,7 @@ Cleanup requires the original stage device, inode, and birth time. Matching byte
 
 ## Reconsideration signals
 
-Reconsider this mechanism when a supported platform lacks systemd user scopes, a manager change invalidates entry or stop evidence, or the workload needs stronger external filesystem isolation. Reconsider the single mutation queue only when measured contention warrants another mechanism that preserves the same ownership and failure commitments. A sandbox provider must implement the same public facilities with its own isolation boundary.
+Reconsider this mechanism when a workload requires separate stdout/stderr, live input or resize, when PTY transport faults exceed its bounded exit-drain assumptions, when a supported platform lacks systemd user scopes, a manager change invalidates entry or stop evidence, or the workload needs stronger external filesystem isolation. Reconsider the single mutation queue only when measured contention warrants another mechanism that preserves the same ownership and failure commitments. A sandbox provider must implement the same public facilities with its own isolation boundary.
 
 ## Stage disposal assurance
 

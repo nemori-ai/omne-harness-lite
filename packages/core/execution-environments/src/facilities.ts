@@ -12,7 +12,7 @@ export interface CommandRequest {
 }
 
 export interface CommandOutput {
-  readonly stream: 'stdout' | 'stderr'
+  readonly stream: 'stdout' | 'stderr' | 'terminal'
   readonly data: Uint8Array
 }
 
@@ -23,10 +23,18 @@ export interface CommandOutputPolicy {
   readonly overflow: 'discard'
 }
 
-export interface CommandOutputSummary {
-  readonly stdout: { readonly observedBytes: number; readonly discardedBytes: number }
-  readonly stderr: { readonly observedBytes: number; readonly discardedBytes: number }
+export type CommandOutputMode = 'separate' | 'terminal'
+export interface CommandOutputCount {
+  readonly observedBytes: number
+  readonly discardedBytes: number
 }
+export type CommandOutputSummary =
+  | {
+      readonly mode: 'separate'
+      readonly stdout: CommandOutputCount
+      readonly stderr: CommandOutputCount
+    }
+  | { readonly mode: 'terminal'; readonly terminal: CommandOutputCount }
 
 export interface CommandResult {
   readonly kind: 'completed'
@@ -66,6 +74,8 @@ export type FacilityFailure = {
 }
 
 export interface ProcessHandle {
+  /** Terminal output combines channels. It cannot identify original stdout/stderr. */
+  readonly outputMode: CommandOutputMode
   /** One reader. Closing its iterator does not stop the original execution. */
   readonly output: AsyncIterable<CommandOutput>
   readonly outputPolicy: CommandOutputPolicy

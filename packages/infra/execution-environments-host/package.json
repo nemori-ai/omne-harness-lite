@@ -40,7 +40,8 @@
     "@omne-harness-lite/session-tenancy": "workspace:*",
     "@omne-harness-lite/kernel-basis": "workspace:*",
     "@omne-harness-lite/identity-values": "workspace:*",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "node-pty": "catalog:"
   },
   "devDependencies": {
     "@omne-harness-lite/storage-sql": "workspace:*",

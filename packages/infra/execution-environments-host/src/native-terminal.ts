@@ -22,7 +22,7 @@ import {
 } from './native-control.ts'
 import { captureTerminalFrame, type TerminalFrame } from './native-frames.ts'
 import { createOutputBuffer } from './output-buffer.ts'
-import { clearHostTerminalDirectory } from './terminal-directory.ts'
+import { clearHostResourceDirectory } from './resource-directory.ts'
 import type { HostPreparedProcess } from './native-command.ts'
 
 export interface HostTerminalControl extends HostRecoveryControl {
@@ -94,7 +94,8 @@ export async function prepareHostTerminal(
       coordinate.unit,
       coordinate.boot,
       String(policy.output.maxChunkBytes),
-      String(policy.preparationDeadlineMs),
+      String(policy.terminalColumns),
+      String(policy.terminalRows),
     ],
     { env: nativeManagerEnvironment(), stdio: ['pipe', 'pipe', 'pipe'] },
   )
@@ -138,7 +139,7 @@ export async function prepareHostTerminal(
     const result = await stopHostResource(coordinate, policy, async () => entered || drained, mode)
     if (result === 'confirmed') {
       state = 'closed'
-      if (!(await clearHostTerminalDirectory(coordinate))) return 'unconfirmed'
+      if (!(await clearHostResourceDirectory(coordinate))) return 'unconfirmed'
     }
     return result
   }
@@ -189,7 +190,7 @@ export async function prepareHostTerminal(
       return
     }
     if (frame.kind === 'output') {
-      original.output.append(frame.stream, frame.data)
+      original.output.append(frame.data)
       return
     }
     original.completed = true
@@ -281,6 +282,7 @@ export async function prepareHostTerminal(
         },
         stop,
         process: {
+          outputMode: 'terminal',
           output: original.output.output,
           outputPolicy: legPolicy.output,
           result: original.result.promise,

@@ -74,6 +74,7 @@ export function fixture() {
   const stop = vi.fn<ProcessHandle['stop']>(async () => 'unconfirmed')
   const process: ProcessHandle = {
     output: output.output,
+    outputMode: 'separate' as const,
     outputPolicy: policy,
     result: terminal.promise,
     stop,

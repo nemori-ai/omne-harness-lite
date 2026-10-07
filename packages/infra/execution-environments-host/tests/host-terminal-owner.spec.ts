@@ -8,7 +8,7 @@ import { defaultHostNativePolicy } from '../dist/native-policy.js'
 async function text(process: import('@omne-harness-lite/execution-environments').ProcessHandle) {
   let stdout = ''
   for await (const part of process.output)
-    if (part.stream === 'stdout') stdout += Buffer.from(part.data).toString()
+    if (part.stream === 'terminal') stdout += Buffer.from(part.data).toString()
   expect((await process.result).kind).toBe('completed')
   return stdout
 }

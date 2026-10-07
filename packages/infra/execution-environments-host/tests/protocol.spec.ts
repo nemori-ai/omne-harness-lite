@@ -226,6 +226,7 @@ test('unread output stays bounded, reports exact overflow and cannot block comma
     expect(await started.process.result).toMatchObject({
       kind: 'completed',
       output: {
+        mode: 'separate',
         stdout: { observedBytes: 20, discardedBytes: 12 },
         stderr: { observedBytes: 12, discardedBytes: 12 },
       },
@@ -261,6 +262,7 @@ test('a failed command retains known loss counts without inventing a completion 
       reason: 'effectUnknown',
       observedDurationMs: 1,
       output: {
+        mode: 'separate',
         stdout: { observedBytes: 20, discardedBytes: 12 },
         stderr: { observedBytes: 0, discardedBytes: 0 },
       },

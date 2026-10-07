@@ -7,6 +7,8 @@ export interface HostNativePolicy {
   readonly stopDeadlineMs: number
   readonly maxInputBytes: number
   readonly maxTerminalsPerScope: number
+  readonly terminalColumns: number
+  readonly terminalRows: number
   readonly fileReadBytes: number
   readonly fileWriteBytes: number
   readonly maxBatchEntries: number
@@ -24,6 +26,8 @@ export const defaultHostNativePolicy: HostNativePolicy = Object.freeze({
   stopDeadlineMs: 5000,
   maxInputBytes: 1048576,
   maxTerminalsPerScope: 16,
+  terminalColumns: 80,
+  terminalRows: 24,
   fileReadBytes: 8388608,
   fileWriteBytes: 8388608,
   maxBatchEntries: 64,
@@ -40,6 +44,8 @@ const limits = {
   stopDeadlineMs: 3600000,
   maxInputBytes: 16777216,
   maxTerminalsPerScope: 1024,
+  terminalColumns: 4096,
+  terminalRows: 4096,
   fileReadBytes: 67108864,
   fileWriteBytes: 67108864,
   maxBatchEntries: 1024,

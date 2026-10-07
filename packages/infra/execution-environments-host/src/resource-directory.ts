@@ -1,20 +1,29 @@
-import { rm, lstat } from 'node:fs/promises'
+import { rm, lstat, mkdir, writeFile } from 'node:fs/promises'
 import type { HostProcessCoordinate } from './native-control.ts'
 import { constants } from 'node:fs'
 import { open } from 'node:fs/promises'
 import { validHostCoordinate } from './native-control.ts'
 
-export function hostTerminalDirectory(coordinate: HostProcessCoordinate): string {
+export function hostResourceDirectory(coordinate: HostProcessCoordinate): string {
   if (!validHostCoordinate(coordinate) || !process.getuid)
-    throw new Error('Invalid terminal coordinate')
+    throw new Error('Invalid resource coordinate')
   return `/run/user/${process.getuid()}/ot-${coordinate.unit.slice(10, -6)}`
+}
+export async function createHostResourceDirectory(coordinate: HostProcessCoordinate) {
+  const directory = hostResourceDirectory(coordinate)
+  await mkdir(directory, { mode: 0o700 })
+  await writeFile(directory + '/identity', `${coordinate.boot}:${coordinate.unit}`, {
+    flag: 'wx',
+    mode: 0o600,
+  })
+  return directory
 }
 function absent(error: unknown) {
   return Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')
 }
 async function directoryAbsent(coordinate: HostProcessCoordinate) {
   try {
-    await lstat(hostTerminalDirectory(coordinate))
+    await lstat(hostResourceDirectory(coordinate))
     return false
   } catch (error) {
     return absent(error)
@@ -30,11 +39,11 @@ async function originalMarker(path: string, coordinate: HostProcessCoordinate) {
     await handle.close()
   }
 }
-export async function clearHostTerminalDirectory(
+export async function clearHostResourceDirectory(
   coordinate: HostProcessCoordinate,
 ): Promise<boolean> {
   try {
-    const directory = hostTerminalDirectory(coordinate)
+    const directory = hostResourceDirectory(coordinate)
     if (!(await originalMarker(`${directory}/identity`, coordinate))) return false
     await rm(directory, { recursive: true, force: false })
     return true

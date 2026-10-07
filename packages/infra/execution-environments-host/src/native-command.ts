@@ -9,6 +9,7 @@ import {
 } from '@omne-harness-lite/execution-environments'
 import { captureHostNativePolicy, type HostNativePolicy } from './native-policy.ts'
 import { clearHostGateEntry } from './native-evidence.ts'
+import { clearHostResourceDirectory } from './resource-directory.ts'
 import { captureCommandFrame } from './native-frames.ts'
 import { createOutputBuffer } from './output-buffer.ts'
 import {
@@ -69,6 +70,8 @@ export async function prepareHostProcess(
       fileURLToPath(new URL('./process-gate.js', import.meta.url)),
       original.unit,
       String(policy.output.maxChunkBytes),
+      String(policy.terminalColumns),
+      String(policy.terminalRows),
     ],
     { env: nativeManagerEnvironment(), stdio: ['pipe', 'pipe', 'pipe'] },
   )
@@ -112,7 +115,7 @@ export async function prepareHostProcess(
       failFrame()
       return
     }
-    if (frame.kind === 'output') output.append(frame.stream, frame.data)
+    if (frame.kind === 'output') output.append(frame.data)
     else completion = { code: frame.code, signal: frame.signal }
   }
   launcher.stdout.on('data', (data: Buffer) => {
@@ -181,9 +184,13 @@ export async function prepareHostProcess(
       closePermission()
       // An entered gate cannot initiate a late scope creation; an unentered launch must drain.
       if (!entered && !drained) await observeWithin(done.promise, policy.stopDeadlineMs)
-      return stopHostResource(original, policy, async () => entered || drained, mode)
+      const stopped = await stopHostResource(original, policy, async () => entered || drained, mode)
+      return stopped === 'confirmed' && !(await clearHostResourceDirectory(original))
+        ? 'unconfirmed'
+        : stopped
     },
     process: Object.freeze({
+      outputMode: 'terminal',
       output: output.output,
       outputPolicy: policy.output,
       result: result.promise,

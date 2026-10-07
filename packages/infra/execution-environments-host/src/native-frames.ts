@@ -1,7 +1,7 @@
 /** Private wire frames. Command output is encoded, never interpreted as control bytes. */
 export type OutputFrame = {
   readonly kind: 'output'
-  readonly stream: 'stdout' | 'stderr'
+  readonly stream: 'terminal'
   readonly data: Buffer
 }
 export type CommandFrame =
@@ -18,7 +18,7 @@ function object(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 function output(value: Record<string, unknown>, maximum: number): OutputFrame | undefined {
-  if (value.stream !== 'stdout' && value.stream !== 'stderr') return undefined
+  if (value.stream !== 'terminal') return undefined
   if (typeof value.data !== 'string') return undefined
   const data = Buffer.from(value.data, 'base64')
   if (data.length > maximum || data.toString('base64') !== value.data) return undefined

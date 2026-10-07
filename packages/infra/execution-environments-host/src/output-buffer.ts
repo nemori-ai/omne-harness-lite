@@ -7,10 +7,7 @@ import type {
 /** Drains without a reader; bounds bytes retained and reports exact discarded counts. */
 export function createOutputBuffer(policy: CommandOutputPolicy) {
   const queue: CommandOutput[] = []
-  const counts = {
-    stdout: { observedBytes: 0, discardedBytes: 0 },
-    stderr: { observedBytes: 0, discardedBytes: 0 },
-  }
+  const counts = { observedBytes: 0, discardedBytes: 0 }
   let bytes = 0,
     ended = false,
     consumed = false
@@ -19,13 +16,13 @@ export function createOutputBuffer(policy: CommandOutputPolicy) {
     wake.resolve()
     wake = Promise.withResolvers<void>()
   }
-  function append(stream: CommandOutput['stream'], data: Uint8Array) {
-    counts[stream].observedBytes += data.byteLength
+  function append(data: Uint8Array) {
+    counts.observedBytes += data.byteLength
     const keep = Math.min(data.byteLength, policy.maxBufferedBytes - bytes)
-    counts[stream].discardedBytes += data.byteLength - keep
+    counts.discardedBytes += data.byteLength - keep
     for (let offset = 0; offset < keep; offset += policy.maxChunkBytes) {
       const owned = data.slice(offset, Math.min(keep, offset + policy.maxChunkBytes))
-      queue.push({ stream, data: owned })
+      queue.push({ stream: 'terminal', data: owned })
       bytes += owned.byteLength
     }
     notify()
@@ -47,7 +44,7 @@ export function createOutputBuffer(policy: CommandOutputPolicy) {
         }
       } finally {
         // Abandoning the reader does not stop the command; discard all subsequent bytes.
-        for (const item of queue) counts[item.stream].discardedBytes += item.data.length
+        for (const item of queue) counts.discardedBytes += item.data.length
         queue.length = 0
         bytes = policy.maxBufferedBytes
       }
@@ -61,7 +58,7 @@ export function createOutputBuffer(policy: CommandOutputPolicy) {
       notify()
     },
     summary(): CommandOutputSummary {
-      return structuredClone(counts)
+      return { mode: 'terminal', terminal: { ...counts } }
     },
   }
 }

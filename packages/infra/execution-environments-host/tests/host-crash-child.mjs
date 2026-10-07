@@ -108,6 +108,6 @@ if (mode === 'terminal') {
     env: { PATH: '/usr/bin:/bin' },
   })
 if (result.kind !== 'started') throw new Error('Crash fixture command failed')
-for await (const chunk of result.process.output) if (chunk.stream === 'stdout') break
+for await (const chunk of result.process.output) if (chunk.stream === 'terminal') break
 process.send({ scope, resources })
 setInterval(() => {}, 1000)

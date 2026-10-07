@@ -17,6 +17,7 @@ const policy: Check = value =>
   object(value) &&
   Number(value.maxChunkBytes) <= Number(value.maxBufferedBytes)
 const fields: Record<string, Check> = {
+  outputMode: value => value === 'separate' || value === 'terminal',
   output,
   outputPolicy: policy,
   result: value => value instanceof Promise,

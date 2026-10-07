@@ -20,6 +20,7 @@ const failure = (reason: FacilityFailure['reason']): FacilityFailure => ({
   reason,
 })
 function processView(process: ProcessHandle): ProcessHandle {
+  const outputMode = process.outputMode
   let readerClaimed = false
   const iterator = process.output[Symbol.asyncIterator].bind(process.output)
   const output: AsyncIterable<CommandOutput> = {
@@ -34,7 +35,9 @@ function processView(process: ProcessHandle): ProcessHandle {
             if (next.done) return
             const chunk = next.value
             if (
-              (chunk.stream !== 'stdout' && chunk.stream !== 'stderr') ||
+              !(outputMode === 'terminal'
+                ? chunk.stream === 'terminal'
+                : chunk.stream === 'stdout' || chunk.stream === 'stderr') ||
               !(chunk.data instanceof Uint8Array)
             )
               throw new TypeError('invalid command output')
@@ -47,6 +50,7 @@ function processView(process: ProcessHandle): ProcessHandle {
     },
   }
   return Object.freeze({
+    outputMode,
     output: Object.freeze(output),
     outputPolicy: Object.freeze({ ...process.outputPolicy }),
     result: process.result,

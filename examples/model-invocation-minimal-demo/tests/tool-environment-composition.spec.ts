@@ -34,6 +34,7 @@ const completed: CommandOutcome = {
   exit: { code: 0 },
   durationMs: 1,
   output: {
+    mode: 'separate',
     stdout: { observedBytes: 13, discardedBytes: 0 },
     stderr: { observedBytes: 0, discardedBytes: 0 },
   },
@@ -94,6 +95,7 @@ function controlledProvider() {
                       },
                     },
                     result: result.promise,
+                    outputMode: 'separate' as const,
                     outputPolicy: { maxBufferedBytes: 128, maxChunkBytes: 64, overflow: 'discard' },
                     stop: async () => {
                       result.resolve(completed)

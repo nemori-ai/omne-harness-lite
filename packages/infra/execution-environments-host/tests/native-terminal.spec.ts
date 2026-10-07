@@ -23,7 +23,7 @@ async function create() {
 async function execute(
   terminal: HostTerminalControl,
   script: string,
-  overrides: { cwd?: string; env?: Record<string, string> } = {},
+  overrides: { cwd?: string; env?: Record<string, string>; stdin?: Uint8Array } = {},
 ) {
   const prepared = await prepareHostTerminalCommand(
     terminal,
@@ -32,9 +32,11 @@ async function execute(
   )
   if (prepared.kind !== 'ready') throw new Error(prepared.kind)
   expect(await prepared.control.go()).toBe('started')
-  const outputs = { stdout: '', stderr: '' }
-  for await (const part of prepared.control.process.output)
-    outputs[part.stream] += Buffer.from(part.data).toString()
+  const outputs = { terminal: '' }
+  for await (const part of prepared.control.process.output) {
+    if (part.stream !== 'terminal') throw new Error('Wrong native output mode')
+    outputs.terminal += Buffer.from(part.data).toString()
+  }
   return { outputs, result: await prepared.control.process.result, control: prepared.control }
 }
 test(
@@ -52,26 +54,64 @@ test(
           )
         ).result.kind,
       ).toBe('completed')
-      expect((await execute(first, 'show; printf "|%s|%s" "$PWD" "$ONLY"')).outputs.stdout).toBe(
+      expect((await execute(first, 'show; printf "|%s|%s" "$PWD" "$ONLY"')).outputs.terminal).toBe(
         'one|/|baseline',
       )
-      expect((await execute(second, 'printf "%s|%s" "${VALUE-unset}" "$PWD"')).outputs.stdout).toBe(
-        'unset|/tmp',
-      )
+      expect(
+        (await execute(second, 'printf "%s|%s" "${VALUE-unset}" "$PWD"')).outputs.terminal,
+      ).toBe('unset|/tmp')
       expect(
         (
           await execute(first, 'printf "%s|%s" "$PWD" "$ONLY"; cd /', {
             cwd: '/tmp',
             env: { ONLY: 'temporary' },
           })
-        ).outputs.stdout,
+        ).outputs.terminal,
       ).toBe('/tmp|temporary')
-      expect((await execute(first, 'printf "%s|%s" "$PWD" "$ONLY"')).outputs.stdout).toBe(
+      expect((await execute(first, 'printf "%s|%s" "$PWD" "$ONLY"')).outputs.terminal).toBe(
         '/|baseline',
       )
     } finally {
       expect(await first.stop('forced')).toBe('confirmed')
       expect(await second.stop('forced')).toBe('confirmed')
+    }
+  },
+)
+
+test(
+  'real PTY state retains x/v and traps; optional stdin is an exact file with EOF',
+  { tags: ['slow'] },
+  async () => {
+    const terminal = await create()
+    try {
+      expect(
+        (await execute(terminal, 'test -t 0 && test -t 1 && test -t 2; printf tty')).outputs
+          .terminal,
+      ).toBe('tty')
+      await execute(terminal, 'set -x; printf traced')
+      expect(
+        (await execute(terminal, 'case $- in *x*) printf kept-x;; *) exit 20;; esac')).outputs
+          .terminal,
+      ).toContain('kept-x')
+      await execute(terminal, 'set +x; set -v; printf verbose')
+      expect(
+        (await execute(terminal, 'case $- in *v*) printf kept-v;; *) exit 21;; esac')).outputs
+          .terminal,
+      ).toContain('kept-v')
+      await execute(terminal, 'set +v; trap "printf debug" DEBUG; printf trapped')
+      expect((await execute(terminal, 'printf next')).outputs.terminal).toContain('next')
+      await execute(terminal, 'trap - DEBUG; trap "printf returned" RETURN; printf r')
+      expect((await execute(terminal, 'printf next-r')).outputs.terminal).toContain('returned')
+      await execute(terminal, 'trap - RETURN')
+      const input = await execute(
+        terminal,
+        '/usr/bin/python3 -c "import sys; print(sys.stdin.buffer.read().hex())"',
+        { stdin: new Uint8Array([0, 10, 255, 13, 4]) },
+      )
+      expect(input.outputs.terminal).toBe('000aff0d04\r\n')
+      expect(input.result).toMatchObject({ kind: 'completed', exit: { code: 0 } })
+    } finally {
+      expect(await terminal.stop('forced')).toBe('confirmed')
     }
   },
 )
@@ -86,7 +126,7 @@ test(
         '(sleep 0.05; printf late) & printf front; printf err >&2',
       )
       expect(first.result.kind).toBe('completed')
-      expect(first.outputs).toEqual({ stdout: 'frontlate', stderr: 'err' })
+      expect(first.outputs).toEqual({ terminal: 'fronterrlate' })
       const pending = prepareHostTerminalCommand(
         terminal,
         { script: 'printf next' },
@@ -105,7 +145,7 @@ test(
 test.each([
   `/usr/bin/python3 -c 'import os,time
 if os.fork()==0: os.closerange(0,65536); time.sleep(30)'`,
-  'builtin printf damage >&3',
+  `builtin printf '\\033]777;omne;%s;999\\007' "$(basename -- "$__omne_path")" >&3`,
   'exec /bin/true',
 ] as const)(
   'residual/control damage/process replacement invalidates terminal: %s',
@@ -129,13 +169,13 @@ if os.fork()==0: os.closerange(0,65536); time.sleep(30)'`,
 )
 
 test(
-  'both output streams can end before the control marker without losing completion',
+  'ordinary PTY output can precede a delayed control receipt without losing completion',
   { tags: ['slow'] },
   async () => {
     const terminal = await create()
     const policy = { ...defaultHostNativePolicy, commandDeadlineMs: 2000 }
     try {
-      // Delay only the generated control printf. The two output sinks can finish first.
+      // Delay only the control printf; ordinary output must remain on this leg.
       const prepared = await prepareHostTerminalCommand(
         terminal,
         {
@@ -146,14 +186,16 @@ test(
       )
       if (prepared.kind !== 'ready') throw new Error(prepared.kind)
       expect(await prepared.control.go()).toBe('started')
-      const outputs = { stdout: '', stderr: '' }
-      for await (const part of prepared.control.process.output)
-        outputs[part.stream] += Buffer.from(part.data).toString()
+      const outputs = { terminal: '' }
+      for await (const part of prepared.control.process.output) {
+        if (part.stream !== 'terminal') throw new Error('Wrong native output mode')
+        outputs.terminal += Buffer.from(part.data).toString()
+      }
       expect(await prepared.control.process.result).toMatchObject({
         kind: 'completed',
         exit: { code: 0 },
       })
-      expect(outputs).toEqual({ stdout: 'before', stderr: 'error' })
+      expect(outputs).toEqual({ terminal: 'beforeerror' })
       expect(terminal.information().state).toBe('idle')
     } finally {
       expect(await terminal.stop('forced')).toBe('confirmed')
