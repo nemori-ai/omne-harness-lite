@@ -76,3 +76,18 @@ it('does not evaluate an inherited setter and copies shared input independently'
     Reflect.deleteProperty(Object.prototype, key)
   }
 })
+
+it('accepts a null-prototype object and rejects extra array members', () => {
+  const input = Object.create(null)
+  Object.defineProperty(input, 'value', { value: { nested: 1 }, enumerable: true })
+  const result = copyJsonValue(input)
+  if ('failed' in result) throw new Error('null-prototype JSON required')
+  expect(result.ok).toEqual({ value: { nested: 1 } })
+  expect(Object.getPrototypeOf(result.ok)).toBe(Object.prototype)
+  expect(Object.isFrozen(result.ok)).toBe(true)
+  const array = Object.assign([1, 2], { extra: 3 })
+  expect(copyJsonValue(array)).toEqual({ failed: 'not_json' })
+  expect(copyJsonValue(Object.defineProperty([], 'extra', { value: 1 }))).toEqual({
+    failed: 'not_json',
+  })
+})

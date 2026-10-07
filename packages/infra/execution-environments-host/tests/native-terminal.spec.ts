@@ -127,3 +127,36 @@ if os.fork()==0: os.closerange(0,65536); time.sleep(30)'`,
     }
   },
 )
+
+test(
+  'both output streams can end before the control marker without losing completion',
+  { tags: ['slow'] },
+  async () => {
+    const terminal = await create()
+    const policy = { ...defaultHostNativePolicy, commandDeadlineMs: 2000 }
+    try {
+      // Delay only the generated control printf. The two output sinks can finish first.
+      const prepared = await prepareHostTerminalCommand(
+        terminal,
+        {
+          script:
+            'function builtin(){ if [ "$1" = printf ]; then /bin/sleep 0.2; fi; command builtin "$@"; }; printf before; printf error >&2',
+        },
+        policy,
+      )
+      if (prepared.kind !== 'ready') throw new Error(prepared.kind)
+      expect(await prepared.control.go()).toBe('started')
+      const outputs = { stdout: '', stderr: '' }
+      for await (const part of prepared.control.process.output)
+        outputs[part.stream] += Buffer.from(part.data).toString()
+      expect(await prepared.control.process.result).toMatchObject({
+        kind: 'completed',
+        exit: { code: 0 },
+      })
+      expect(outputs).toEqual({ stdout: 'before', stderr: 'error' })
+      expect(terminal.information().state).toBe('idle')
+    } finally {
+      expect(await terminal.stop('forced')).toBe('confirmed')
+    }
+  },
+)

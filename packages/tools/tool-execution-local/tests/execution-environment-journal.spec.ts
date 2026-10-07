@@ -607,3 +607,52 @@ test.each(['adoption', 'resource'] as const)(
     }
   },
 )
+
+test('resource adoption requires its original permit and remains idempotent after creator closure', async () => {
+  const f = await journalFixture()
+  try {
+    expect(await f.environment.prepare()).toHaveProperty('kind', 'ready')
+    const resources = f.ports.resources()!
+    expect(await resources.adopt('not-planned')).toBe('unavailable')
+    expect(await resources.plan(resource)).toBe('recorded')
+    expect(await resources.adopt(resource.key)).toBe('unavailable')
+    expect(await resources.permit(resource.key)).toBe('confirmed')
+    expect(await resources.adopt(resource.key)).toBe('confirmed')
+    const original = await history(f)
+    expect(original.resources.get(resource.key)?.adopted).toBeDefined()
+    const committed = f.controlledJournal.commit.mock.calls.length
+    f.closed.abort()
+    expect(await resources.adopt(resource.key)).toBe('confirmed')
+    expect(f.controlledJournal.commit).toHaveBeenCalledTimes(committed)
+    expect(await resources.permit(resource.key)).toBe('closed')
+    expect(await resources.stopped(resource.key, 'confirmed')).toBe('recorded')
+    expect((await history(f)).resources.get(resource.key)?.observations).toHaveLength(1)
+  } finally {
+    await f.cleanup()
+  }
+})
+
+test('an unknown adoption receipt is recognized before a second adoption is appended', async () => {
+  const f = await journalFixture()
+  try {
+    await f.environment.prepare()
+    const resources = f.ports.resources()!
+    await resources.plan(resource)
+    await resources.permit(resource.key)
+    f.controlledJournal.commit.mockImplementationOnce(async input => {
+      expect(await f.journal.commit(input)).toHaveProperty('kind', 'view')
+      return { kind: 'rejected', reason: 'unavailable' }
+    })
+    expect(await resources.adopt(resource.key)).toBe('unavailable')
+    const original = await history(f)
+    expect(original.resources.get(resource.key)?.adopted).toBeDefined()
+    const committed = f.controlledJournal.commit.mock.calls.length
+    expect(await resources.adopt(resource.key)).toBe('confirmed')
+    expect(f.controlledJournal.commit).toHaveBeenCalledTimes(committed)
+    expect((await history(f)).resources.get(resource.key)?.adopted).toEqual(
+      original.resources.get(resource.key)?.adopted,
+    )
+  } finally {
+    await f.cleanup()
+  }
+})

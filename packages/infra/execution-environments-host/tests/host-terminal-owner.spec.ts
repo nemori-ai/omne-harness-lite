@@ -142,3 +142,31 @@ test(
     }
   },
 )
+
+test.each(['plan', 'permit', 'adopt'] as const)(
+  'terminal birth cannot outlive an unconfirmed original %s receipt',
+  { tags: ['slow'] },
+  async boundary => {
+    const host = await hostProviderFixture()
+    try {
+      const { lease } = await host.acquire('terminal-receipt-' + boundary, true, host.scope, {
+        ...(boundary === 'plan' ? { plan: async () => 'unavailable' as const } : {}),
+        ...(boundary === 'permit' ? { permit: async () => 'closed' as const } : {}),
+        ...(boundary === 'adopt' ? { adopt: async () => 'unavailable' as const } : {}),
+      })
+      const commands = lease.facilities.command!
+      expect(await commands.createTerminal({ cwd: '/tmp', env: {} })).toEqual({
+        kind: 'rejected',
+        reason: boundary === 'adopt' ? 'effectUnknown' : 'closed',
+      })
+      expect(await commands.terminals()).toEqual({ kind: 'terminals', values: [] })
+      expect(await lease.release()).toEqual({ kind: 'released' })
+      expect(await host.provider.listRecoveryResources(host.scope)).toEqual({
+        kind: 'resources',
+        values: [],
+      })
+    } finally {
+      await host.close()
+    }
+  },
+)
