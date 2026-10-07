@@ -2924,7 +2924,7 @@ export function createAcceptanceApplication(
     }
     function scopedFailure<I extends { readonly session: SessionRef }, R>(
       operation: FailureConsumableOperation<I, R>,
-      blocked?: (value: I) => R | undefined,
+      blocked?: (value: I) => Promise<R | undefined>,
     ): FailureConsumableOperation<I, R> {
       function call(input: I): Promise<R>
       function call(
@@ -2935,19 +2935,20 @@ export function createAcceptanceApplication(
         input: I,
         options?: { readonly consumeFailure: true },
       ): Promise<R | FailureConsumption<R>> {
-        const result = blocked?.(input)
-        if (result !== undefined)
-          return Promise.resolve(
-            options === undefined
+        return invoke(input, async value => {
+          const validOptions =
+            options === undefined ||
+            (options?.consumeFailure === true && Object.keys(options).length === 1)
+          const result = validOptions ? await blocked?.(value) : undefined
+          if (result !== undefined)
+            return options === undefined
               ? result
               : {
                   result,
                   consumption: { kind: 'notApplicable' as const },
-                },
-          )
-        return options === undefined
-          ? invoke(input, value => operation(value))
-          : invoke(input, value => operation(value, options))
+                }
+          return options === undefined ? operation(value) : operation(value, options)
+        })
       }
       return call
     }
@@ -2964,10 +2965,11 @@ export function createAcceptanceApplication(
         if ('invalidInput' in owned) return Promise.resolve(owned)
         return invoke(owned.request, async value => {
           if (value.session !== session) return { unavailable: true } as const
-          if (closing || recoveryAdmission.has(session)) return { runtimeStopped: true } as const
           const access = await sessionAccess(actor, session)
-          if (!('borrow' in access) || recoveryAdmission.has(session))
+          if (!('borrow' in access) && !('failure' in access && access.failure === 'stageClosed'))
             return { unavailable: true } as const
+          if (closing || recoveryAdmission.has(session)) return { runtimeStopped: true } as const
+          if (!('borrow' in access)) return { unavailable: true } as const
           if (![...(callHosts.get(session) ?? [])].some(owner => owner.host === value.host))
             return { runtimeStopped: true } as const
           const result = await service.openCall(value)
@@ -2975,21 +2977,31 @@ export function createAcceptanceApplication(
           return result
         })
       },
-      dispatch: scopedFailure(service.dispatch, value =>
-        validDispatchInput(value) &&
-        value.session === session &&
-        (closing || recoveryAdmission.has(session))
+      dispatch: scopedFailure(service.dispatch, async value => {
+        if (
+          !validDispatchInput(value) ||
+          value.session !== session ||
+          !(closing || recoveryAdmission.has(session))
+        )
+          return undefined
+        const access = await sessionAccess(actor, session)
+        return 'borrow' in access || ('failure' in access && access.failure === 'stageClosed')
           ? { runtimeStopped: true }
-          : undefined,
-      ),
-      dispatchAgain: scopedFailure(service.dispatchAgain, value =>
-        validDispatchInput(value) &&
-        'plan' in value &&
-        value.session === session &&
-        (closing || recoveryAdmission.has(session))
+          : { unavailable: true }
+      }),
+      dispatchAgain: scopedFailure(service.dispatchAgain, async value => {
+        if (
+          !validDispatchInput(value) ||
+          !('plan' in value) ||
+          value.session !== session ||
+          !(closing || recoveryAdmission.has(session))
+        )
+          return undefined
+        const access = await sessionAccess(actor, session)
+        return 'borrow' in access || ('failure' in access && access.failure === 'stageClosed')
           ? { runtimeStopped: true }
-          : undefined,
-      ),
+          : { unavailable: true }
+      }),
       interrupt: input => invoke(input, value => service.interrupt(value)),
       releaseCall: input => invoke(input, value => service.releaseCall(value)),
       reconcile: async input => {
