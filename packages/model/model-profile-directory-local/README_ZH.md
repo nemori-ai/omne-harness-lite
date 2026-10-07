@@ -8,7 +8,7 @@
 
 纯判断可独立使用，不需要 Cordis：
 
-```ts
+```typescript
 import assert from 'node:assert/strict'
 import {
   scopeChain,
@@ -43,7 +43,7 @@ export function choose(rows: readonly ProfileRow[], tenant: TenantId) {
 
 storage、clock、memberships ACTIVE 后装目录管理插件。模式必填：management 仅提供 modelCatalog；singleProcessCatalog 还提供 modelCatalogRead；developmentBaseFaces 保留开发形状，因中心解值未交付，取值明确答 unavailable。
 
-```ts
+```typescript
 import type { Context } from '@deepseek-ai/cordis'
 import { modelProfileDirectoryPlugin } from '@omne-harness-lite/model-profile-directory-local/cordis'
 import type { OfficialManifest } from '@omne-harness-lite/model-profile-directory'
@@ -58,7 +58,7 @@ export async function mountDirectory(ctx: Context, officialManifest: OfficialMan
 
 通过真实服务管理自建档案和租户绑定。patch 整项替换；remove: ['parameters'] 只去掉该可缺席成员。adaptation 不可删除或嵌套局部修改。撤回保留身份与历史，提交后通知一次；恢复在册保留原行。
 
-```ts
+```typescript
 import assert from 'node:assert/strict'
 import type { ModelCatalog } from '@omne-harness-lite/model-profile-directory'
 import type { TenantId } from '@omne-harness-lite/identity-values'
@@ -135,7 +135,7 @@ export async function manageModels(catalog: ModelCatalog, tenant: TenantId) {
 
 可信装配在提供服务前合成存储迁移，插件不私建表，目录也不执行旧档案转换。reader 闭包在有效单元里锁实际租户绑定，仅由 CCL 或 P-1r 执行。
 
-```ts
+```typescript
 import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads'
 import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory-local/migrations'
 import { composeMigrations } from '@omne-harness-lite/storage'
@@ -157,7 +157,7 @@ export function trustedAssemblyInputs(
 
 P-1r 只借用实际 CCL 读取闭包，使用同一个 AtomicStorage，只提供 credentialLookup，不持有 CCL 或 close 权限。必需的 boundCredentialReplicaReader 服务承载实际 CCL 读口。可选 factoryModelCredential 服务在每次请求时查询，仅供无绑定的官方档案使用。插件配置只含数据；已有租户绑定从不回落。value 是自有非空字节，本包不假设 UTF-8。
 
-```ts
+```typescript
 import type { Context } from '@deepseek-ai/cordis'
 import { localCredentialLookupPlugin } from '@omne-harness-lite/model-profile-directory-local/cordis'
 // Trusted assembly has already installed BoundCredentialReplicaReaderService.
