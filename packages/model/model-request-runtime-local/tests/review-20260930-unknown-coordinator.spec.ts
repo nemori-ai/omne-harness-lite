@@ -530,7 +530,9 @@ describe('review 2026-09-30 Q3/S2 fail-closed granularity: reconcile per call (R
           now: () => '2026-09-30T00:00:03Z',
           diagnostic() {},
           recovery: {
-async authorize() { return { authorized: true as const } },
+            async authorize() {
+              return { authorized: true as const }
+            },
 
             async enter() {
               return {
