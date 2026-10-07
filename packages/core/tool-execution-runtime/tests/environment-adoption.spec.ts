@@ -324,6 +324,7 @@ test('environment ownership transfer requires the original permit and precedes t
   )
   if ('invalid' in legal) throw new Error('Original ownership transfer rejected')
   expect(legal.executions.get(ref.callId)?.resources.get('terminal-birth')).toMatchObject({
+    permitted: { value: permitted },
     adopted: { value: transferred },
     observations: [{ value: stopped }],
   })

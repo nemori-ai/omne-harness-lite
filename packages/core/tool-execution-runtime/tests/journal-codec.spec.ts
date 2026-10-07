@@ -341,3 +341,67 @@ test.each([
     }),
   ).toEqual({ invalid: true })
 })
+
+test('resource and wait records retain independent deduplication identities', () => {
+  const variants = [
+    { kind: 'resource_planned', resource: { key: 'one', provider: 'host', reference: null } },
+    { kind: 'resource_planned', resource: { key: 'two', provider: 'host', reference: null } },
+    { kind: 'resource_permitted', key: 'one' },
+    { kind: 'resource_permitted', key: 'two' },
+    { kind: 'resource_adopted', key: 'one' },
+    { kind: 'resource_adopted', key: 'two' },
+    { kind: 'physical_stop_observed', key: 'one', status: 'confirmed', at },
+    { kind: 'physical_stop_observed', key: 'two', status: 'confirmed', at },
+    { kind: 'physical_stop_observed', key: 'one', status: 'unconfirmed', at },
+    { kind: 'physical_stop_observed', key: 'one', status: 'confirmed', at: '2026-10-04T00:00:01Z' },
+    { ...values[4], waitIndex: 1 },
+    { ...values[4], waitIndex: 2 },
+    { ...values[5], waitIndex: 1 },
+    { ...values[5], waitIndex: 2 },
+  ].map(value => ({ revision: 1, ref, ...value }))
+  const keys = variants.map(value => toolJournalKey(value))
+  expect(keys.every(key => typeof key === 'string')).toBe(true)
+  expect(new Set(keys).size).toBe(variants.length)
+  for (const value of variants) expect(prepared(value).dedupeKey).toBe(toolJournalKey(value))
+})
+
+test('resource identities and physical observations reject invalid semantic data', () => {
+  for (const key of [' leading', 'trailing\n']) {
+    for (const kind of ['resource_permitted', 'resource_adopted', 'physical_stop_observed']) {
+      const value = {
+        revision: 1,
+        ref,
+        kind,
+        key,
+        ...(kind === 'physical_stop_observed' ? { status: 'confirmed', at } : {}),
+      }
+      expect(captureToolJournalValue(value)).toEqual({ invalid: true })
+    }
+    expect(
+      captureToolJournalValue({
+        revision: 1,
+        ref,
+        kind: 'resource_planned',
+        resource: { key, provider: 'host', reference: null },
+      }),
+    ).toEqual({ invalid: true })
+    expect(
+      captureToolJournalValue({
+        revision: 1,
+        ref,
+        kind: 'resource_planned',
+        resource: { key: 'one', provider: key, reference: null },
+      }),
+    ).toEqual({ invalid: true })
+  }
+  expect(
+    captureToolJournalValue({
+      revision: 1,
+      ref,
+      kind: 'physical_stop_observed',
+      key: 'one',
+      status: 'confirmed',
+      at: '2026-10-04T99:99:99Z',
+    }),
+  ).toEqual({ invalid: true })
+})
