@@ -299,7 +299,7 @@ test(
       }
       const starting = lease.facilities.command!.start(commandRequest)
       commandRequest.executable = '/bin/false'
-      commandRequest.args[4] = changed
+      commandRequest.args[3] = changed
       commandRequest.cwd = '/missing-directory'
       commandRequest.env.CAPTURED = 'after'
       const started = await starting

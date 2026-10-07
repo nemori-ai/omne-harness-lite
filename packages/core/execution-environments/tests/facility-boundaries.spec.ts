@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest'
 import {
   captureFileArguments,
+  captureCommandRequest,
   captureCommandArguments,
   captureFileResult,
   captureCommandResult,
@@ -350,4 +351,65 @@ test('started process ports retain original controls with a bounded discard outp
       }),
     ).toBeUndefined()
   }
+})
+
+test('all public failure reasons remain valid while malformed nested facts reject', () => {
+  const reasons = [
+    'invalidInput',
+    'notAuthorized',
+    'closed',
+    'notFound',
+    'unavailable',
+    'effectUnknown',
+    'conflict',
+    'busy',
+    'capacity',
+    'unsupported',
+  ]
+  for (const reason of reasons) {
+    const rejected = { kind: 'rejected', reason }
+    for (const fixture of fileOutputs)
+      expect(captureFileResult(fixture.method, rejected)).toEqual(rejected)
+    for (const method of [
+      'start',
+      'createTerminal',
+      'executeTerminal',
+      'closeTerminal',
+      'terminals',
+    ] as const)
+      expect(captureCommandResult(method, rejected)).toEqual(rejected)
+  }
+  for (const type of ['file', 'directory', 'symlink'])
+    expect(captureFileResult('stat', { kind: 'stat', value: { ...info, type } })).toBeDefined()
+  for (const field of ['path', 'type', 'sizeBytes', 'modifiedMs', 'version']) {
+    expect(captureFileResult('stat', { kind: 'stat', value: omitted(info, field) })).toBeUndefined()
+    expect(
+      captureFileResult('stat', { kind: 'stat', value: { ...info, [field]: null } }),
+    ).toBeUndefined()
+  }
+  expect(captureFileArguments('stat', [{ length: 1 }])).toBeUndefined()
+  expect(captureFileArguments('read', [{ path: { length: 1 } }])).toBeUndefined()
+  for (const entry of [
+    { path: '/a', data: bytes(), expectedVersion: null },
+    { path: '/a', data: bytes(), expectedVersion: 'v1' },
+  ])
+    for (const field of ['path', 'data', 'expectedVersion'])
+      expect(
+        captureFileArguments('commitBatch', [{ entries: [omitted(entry, field)] }]),
+      ).toBeUndefined()
+  for (const field of ['id', 'generation']) {
+    const bad = omitted(reference, field)
+    expect(
+      captureCommandResult('createTerminal', { kind: 'created', terminal: bad }),
+    ).toBeUndefined()
+    expect(
+      captureCommandResult('terminals', {
+        kind: 'terminals',
+        values: [{ terminal: bad, state: 'idle', observedCwd: '/tmp' }],
+      }),
+    ).toBeUndefined()
+  }
+  expect(
+    captureCommandRequest({ executable: '/bin/sh', args: [], cwd: '/tmp', env: {}, extra() {} }),
+  ).toBeUndefined()
 })
