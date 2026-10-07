@@ -318,11 +318,9 @@ test(
         fixture.current.owner.recovery,
         [original.planned.value.resource],
       )
-      expect(confirmation).toMatchObject({
-        kind: 'recovered',
-        values: [{ status: 'confirmedStopped', resource: original.planned.value.resource }],
-        failures: [],
-      })
+      expect(confirmation).toMatchObject([
+        { status: 'confirmedStopped', resource: original.planned.value.resource },
+      ])
       expect(executor).toHaveBeenCalledOnce()
     } finally {
       await fixture.close()
