@@ -50,6 +50,7 @@ skills 的共享正文与资源放在 `canonical/`。即使两端直接复制，
 | `product-design` | 以 product manager 视角起草或修订产品设计正文；该区维护规矩归 [design/product](../design/product/AGENTS.md) |
 | `write-blog` | 为人代笔技术博客：访谈作者、核对设计资料，按方向撰写个人工程复盘或开发者技术专题，以说人话和准确表达为准则 |
 | [`asd-ste100`](skills/asd-ste100/README.md) | 全工作区文档写作与修订的表达规范：英文采用 STE，中文采用清晰性原则；保留语义与要求强度，含结构检查器，由本仓库维护 |
+| [`prepare-pr`](skills/prepare-pr/README.md) | 开工时识别报告采集点，交付时选择执行仓库模板、组织摘要/图表和具体审阅问题；语言引用 asd-ste100 |
 | `write-agents-md` | AGENTS.md 的心智、边界、继承与阅读地图 |
 | `design-subagents` | 角色契约、宿主与模型适配、模板、成对渲染及验证 |
 | `worktree-discipline` | 明确执行仓库中的隔离、并行集成与证据保留 |

@@ -54,6 +54,13 @@ make check
 设计链登记、工具测试与格式检查，**不调用真实模型**。
 已有环境时，日常修改按受影响范围选择单项检查即可。
 
+### 开工时确定交付报告
+
+固定任务 BASE 与影响范围后，按[提交与 PR 表达](../CONTRIBUTING.md#提交与-pr-表达)判断报告触发条件。
+需要帮助时加载 `prepare-pr`。修改产品源码时，从首个可运行候选及正常复查点保存适用结构快照到本任务 tmp；
+等到开 PR 才采集，无法恢复中途引入后解决的数量。报告实际工具的 BASE/merge-base、范围与规则版本，
+没有快照的数据保留未知。最终候选再核对，不要求每个 commit 全量测量。
+
 ### 形式工具链
 
 TLA+/TLC 与 Alloy **已装在系统全局路径**，不需要在仓库里准备任何东西：
@@ -244,6 +251,42 @@ Claude Code 通过同级 `CLAUDE.md` 的 `@AGENTS.md` 读取同一份约定。
 | `No projects matched the filters` | 核对 `pnpm-workspace.yaml` 和成员 `package.json` 的实际包名；应用包括 `@omne-harness-lite/cli`、`@omne-harness-lite/tenancy-host` |
 | `storage conformance · postgres` 显示 skipped | 未设 `OMNE_TEST_PG_URL`；跳过不是通过（[验证与证据](verification.md)） |
 | 不知道如何启动产品 | 先构建，再按 [CLI](../apps/cli/README.md) 或 [治理中心](../apps/tenancy-host/README.md) 的命令启动；制品打包不自动安装或发布服务 |
+
+## 准备提交与 PR
+
+标题、报告要求与 squash 规则归[CONTRIBUTING](../CONTRIBUTING.md#提交与-pr-表达)。
+用 `prepare-pr` 按主要结果选模板、读取对应成品示例和必要版式参考；语言引用 `asd-ste100`。
+源码和数据不足以支持的结论写未知，不从教学示例抄数字或接受状态。
+
+浏览器使用 `.github/PULL_REQUEST_TEMPLATE/` 下的
+[feature](../.github/PULL_REQUEST_TEMPLATE/feature.md)、[docs](../.github/PULL_REQUEST_TEMPLATE/docs.md)、
+[fix](../.github/PULL_REQUEST_TEMPLATE/fix.md)、[refactor](../.github/PULL_REQUEST_TEMPLATE/refactor.md)。
+比较页面的查询参数可选 `template=feature.md` 等；未选择时使用[短默认入口](../.github/pull_request_template.md)。
+模板要合入默认分支后才在正常创建入口生效，候选分支上的文件不能证明已生效。
+机制依据见 [GitHub 文档](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/creating-a-pull-request-template-for-your-repository)。
+
+从执行仓库根将所选模板复制到自己的任务 tmp，填写并移除提示后，再通过 body file 创建：
+
+```sh
+mkdir -p tmp/pr-delivery
+cp .github/PULL_REQUEST_TEMPLATE/docs.md tmp/pr-delivery/pr-body.md
+# 编辑 pr-body.md，使其对应最终 diff 与真实报告。
+gh pr create --base main --head <自己的工作分支> \
+  --title 'docs(pr): 提供分类模板与交付写作 skill' \
+  --body-file tmp/pr-delivery/pr-body.md
+```
+
+`gh pr create --template <文件>` 可作为交互填写入口；agent 使用完成的 body file，避免把未填模板提交出去。
+已有 PR 改用 `gh pr edit <PR号> --body-file tmp/pr-delivery/pr-body.md`，按最终结果更新而非追加流水。
+`--fill/--fill-verbose` 产生的 commit 汇总仍需整理；`--dry-run` 可能推送，不能当无副作用预览。
+参数依据见 [GitHub CLI](https://cli.github.com/manual/gh_pr_create)。
+
+提交信息也可先写任务文件，再用 `git commit -F <文件>`，保留适用来源/删卡 trailer。
+获准 squash 时用最终标题与简短正文，保留这些 trailer；正文文件不能直接复制 PR 长表。
+开 PR 与合入各按已有授权，不因模板而扩大权限。
+
+先看可用的编写预览，再核对唯一真实 PR 的表、图、折叠、链接和体验步骤；不创建试验 PR。
+实际 diff 或报告改变时同步正文，短 docs 可以几句话，重大缺口保持可见。
 
 ## 保持本页可用
 

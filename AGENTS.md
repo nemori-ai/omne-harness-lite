@@ -87,6 +87,9 @@ skills 的源归 `.meta_harness/agents/skills/`，roles 的源归 `.meta_harness
 语义准确优先于压缩：保留事实、条件、例外、范围、正式术语与要求强度。
 具体适用范围与语言边界见[写作要求](.meta_harness/agents/skills/asd-ste100/canonical/references/documentation.md)。
 
+开工时按[交付表达](CONTRIBUTING.md#提交与-pr-表达)确定报告及采集节点；准备或改写 commit/PR 时加载 `prepare-pr`，按执行仓库模板组织正文。
+语言沿 `asd-ste100`，实际操作见[开发指南](docs/development.md#准备提交与-pr)。
+
 派发 subagent 时，每个 subagent 都应明确职责、行动边界、必要输入与停止条件；精确任务限定可写路径，关键歧义或必需规格/计划缺失时暂停依赖工作并澄清，持续区分已知、假设与未知。编写方法见 `design-subagents` skill。
 
 这些判断在设计中按需展开为 `harness-design-handbook` skill 的 Taste 与 `references/architecture/assurance/judgment.md`，在实现中展开为[防御指导](docs/defensive-patterns.md)；知识该落在哪一区，归 [design/AGENTS.md](.meta_harness/design/AGENTS.md) 的准入。
