@@ -143,7 +143,7 @@ describe('D100 actual SQL current codec and old-data isolation', () => {
         prefix.entries
           .filter(entry => jsonObject(entry.payload).kind === 'message')
           .map(entry => jsonObject(entry.payload).version),
-      ).toEqual(['8'])
+      ).toEqual(['9'])
       db.close()
     })
   })
