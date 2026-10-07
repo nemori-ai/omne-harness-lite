@@ -7,7 +7,7 @@ import {
   readSettlementPrefix,
   settlementGenerationCurrent,
   type SettlementPrefix,
-} from './settlement-prefix.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import { settlementAppendReceipt } from './settlement-receipt.ts'
 import { requestStopAndWait } from './settlement-stop.ts'
 import type {
@@ -15,7 +15,7 @@ import type {
   SettlementOwner,
   SettlementRegistration,
   SettlementTask,
-} from './settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 
 const unavailable = { unavailable: true } as const
 type Outcome = { readonly published: true } | { readonly released: true } | typeof unavailable

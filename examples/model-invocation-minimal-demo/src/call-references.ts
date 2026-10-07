@@ -9,15 +9,17 @@ import {
 import {
   type CallAccess,
   type CallAccessEvidence,
-  type CallContainer,
-  type CallContainerStore,
-  type CallFacts,
   type CallOrigin,
   type CallPresence,
   type CallPresenceFact,
   type CallPresenceInput,
   type CallSource,
   type SettlementLogBinding,
+} from '@omne-harness-lite/model-request-runtime'
+import {
+  type CallContainer,
+  type CallContainerStore,
+  type CallFacts,
 } from '@omne-harness-lite/model-request-runtime-local'
 import type { PlannedRequest, RawResponse } from '@omne-harness-lite/model-request-runtime'
 

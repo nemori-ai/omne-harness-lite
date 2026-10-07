@@ -11,7 +11,7 @@ import {
 } from '@omne-harness-lite/model-response'
 import type { LogEntry } from '@omne-harness-lite/session-log'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
+import { modelLogJsonEqual } from './log-codec-key.ts'
 import type { CallHistoryKnown } from './call-history.ts'
 import type {
   AcknowledgedAttempt,

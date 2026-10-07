@@ -3,12 +3,12 @@ import { LosslessNumber, writeJsonLossless, type Modality } from '@omne-harness-
 import { parseTenantId, type TenantId } from '@omne-harness-lite/identity-values'
 import type { ModelProfile, ModelProfileRef } from '@omne-harness-lite/model-profile'
 import type { ProfileRow } from '@omne-harness-lite/model-profile-directory'
-import { legalTargets, displayList, effectiveModel } from '../src/selection.ts'
+import { legalTargets, displayList, effectiveModel } from '../src/index.ts'
 import {
   type RowCredentialFact,
   type SelectionCompatibility,
   type SelectionFact,
-} from '../src/selection-types.ts'
+} from '../src/index.ts'
 
 function tenant(organization = 'org', account = 'account'): TenantId {
   const parsed = parseTenantId({ organization, account })

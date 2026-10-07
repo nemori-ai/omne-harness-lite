@@ -11,7 +11,7 @@ import {
   LOOP_EXTENSION_IMPLEMENTATIONS,
   LOOP_EXTENSION_RUNNER,
 } from '@omne-harness-lite/loop-extension-runner/cordis'
-import type { ModelRuntimeService } from '@omne-harness-lite/model-request-runtime-local'
+import type { ModelRuntimeOperations } from '@omne-harness-lite/model-request-runtime'
 import type {
   AccessIdentity,
   SessionAccess,
@@ -170,7 +170,7 @@ export async function actionIntegrationFixture(
     const maintenance = new AsyncLocalStorage<SessionScope>()
     const host = createDemoRunnerServiceHost({
       runnerHost,
-      model: {} as ModelRuntimeService,
+      model: {} as ModelRuntimeOperations,
       manifest: manifest.manifest,
       history: manifest.history,
       sessionTenancy: manifest.sessionTenancy,

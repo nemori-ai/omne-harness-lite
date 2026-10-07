@@ -53,7 +53,7 @@ import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profil
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { createSessionModelSelection } from '../src/session-selection.ts'
-import { type SessionModelSelectionInput } from '../src/session-selection-types.ts'
+import { type SessionModelSelectionInput } from '@omne-harness-lite/model-request-runtime'
 import { ControlledSettlementOwner } from './settlement-fixture.ts'
 
 export const ROOT = { category: 'agent_definition', name: 'example:selection-root' } as const

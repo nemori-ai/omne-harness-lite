@@ -10,7 +10,7 @@ import type {
   CallConsumer,
   CallReadView,
   RetainedCallReadView,
-} from '../src/reference-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type {
   AcknowledgeCallInput,
   AcknowledgeCallOperation,
@@ -19,7 +19,7 @@ import type {
   ReadAttemptsResult,
   ReconciledCall,
   SettleReplyInput,
-} from '../src/service-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 
 declare const ref: CallKey
 declare const response: ResponseId

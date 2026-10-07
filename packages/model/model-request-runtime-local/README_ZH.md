@@ -8,6 +8,8 @@
 
 当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及纯调用历史解释器。`createModelRuntime` 已把 RT12 的十五个类型化方法组合在同一个进程内调用 owner 下。第十五操作 `acknowledgeCall`（S-96）为每次调用固定一条耐久确认，再经保留门释放该调用的模型副本；此后各读取入口、同键 `openCall` 认回与 `reconcile` 都回 S-97 已确认小视图，控制与新工作到达其终态拒绝（S-100）。ACK 后自带 `retainedResult` 的 `settleReply` 按 S-99 核验后，经一份暂存的写责任完成结算（S-99⑧，见下文「ACK 后的结算」）。属于 Run 的结算消费宿主显式提供的已授权 Run 历史读源；生产 Run 终结与恢复 owner 仍由宿主负责。`./cordis` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的原完整批；有 Run 的条件恢复保留响应原 attempt，并在较新 attempt 中归账。对于已耐久记录「已出门」但缺响应的调用，不属于 Run 的对账可读取实际停止的原执行事实，或经宿主确认的冷恢复缺席，追补一条中断响应且不再发模型请求。只有中断意图、没有发出记录的调用由耐久终结记录收口。显式调用宿主和有界观察接线遵循 D103；共享端口和队列自身不能证明真实会话接收端已接入，须由宿主提供（[最小示例](../../../examples/model-invocation-minimal-demo/README_ZH.md)为其单进程装配提供了一个）。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)、[D105 恢复映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-timing-design.md)及[恢复 owner 补充](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-owner-supplement.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的生产成功路径仍依赖宿主真实的 Run 终结来源与 owner。
 
+下文 API 表中的公共操作类型和选择、重试、历史、响应构造函数从 `@omne-harness-lite/model-request-runtime` 导入；具体调用、协调、存储等工厂从本包导入。见[公共拥有者](../../core/model-request-runtime/README_ZH.md)。唯一 `MODEL_RUNTIME_SERVICE` 键从公共 `./cordis` 导入。
+
 ## 公开接口
 
 | 导出                                                                                      | 用途                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -21,7 +23,7 @@
 | `createSessionModelSelection(input)`                                                      | 借用提供者的消费者：`legalTargets`、`selectModel`、`displayList`、`effectiveModel` 与操作收口                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `interpretCallHistory({ prefix, callId })`                                                | 从完整自有 SL3 前缀经当前 `mrr/3` codec 解释不属于 Run 或属于 Run 的原始调用记录；Run 终结事实另由授权来源提供                                                                                                                                                                                                                                                                                                                                                                                    |
 | `projectCallState({ session, callId, history, local? })`                                  | 仅在耐久响应尚未覆盖时叠加进程自有 `open` 或 `reply_pending` 责任                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `ModelRuntimeService`、`RuntimeConstruction` 及各操作输入／结果类型                       | 十五操作的显式服务契约与必需宿主端口（含必需的 `acknowledgementCleanup` 重试政策）；类型契约本身不安装可运行服务                                                                                                                                                                                                                                                                                                                                                                                  |
+| `ModelRuntimeOperations`、`RuntimeConstruction` 及各操作输入／结果类型                    | 十五操作的显式服务契约与必需宿主端口（含必需的 `acknowledgementCleanup` 重试政策）；类型契约本身不安装可运行服务                                                                                                                                                                                                                                                                                                                                                                                  |
 | `createCallContainerStore()`                                                              | 按会话和调用持有进程资源，以及有界、可取消的短 reservation                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `ModelCallHost`、`ModelObserverRequest`、`SessionObserverAccess`                          | 原调用的显式生命周期，以及按 dispatch 授权的观察端口                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `createCallPreparationOwner(host)`                                                        | 异步准备前同步登记原调用；迟到资源直到实际收口仍有 owner                                                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -42,7 +44,7 @@
 
 ## Cordis 服务装配
 
-`@omne-harness-lite/model-request-runtime-local/cordis` 导出 `createModelRuntimePlugin` 与 `modelRuntime` 服务键。应用通过 `construct` 交入完整的 `ModelRuntimeAssembly`；插件不会替缺失操作填占位实现。Cordis 等声明的必需提供者齐备才构造。宿主在 `construct` 返回前保留 `assembly.owner`。单个收口 effect 先关闭 `openCall`、`dispatch`、`dispatchAgain` 的新准入，再调用该 owner 的 `close()`；只有真实收口返回 `released` 才恰一次调用 `owner.release()`。若收口不可用，宿主在 fiber 卸载后继续持有同一个 owner，负责之后的实际停止／恢复及再次收口；诊断日志不能替代释放。已有服务引用在撤除期间仍可执行允许的结算和读取。
+`@omne-harness-lite/model-request-runtime-local/cordis` 导出 `createModelRuntimePlugin`；`MODEL_RUNTIME_SERVICE` 唯一键归公共定义包的 `./cordis`。应用通过 `construct` 交入完整的 `ModelRuntimeAssembly`；插件不会替缺失操作填占位实现。Cordis 等声明的必需提供者齐备才构造。宿主在 `construct` 返回前保留 `assembly.owner`。单个收口 effect 先关闭 `openCall`、`dispatch`、`dispatchAgain` 的新准入，再调用该 owner 的 `close()`；只有真实收口返回 `released` 才恰一次调用 `owner.release()`。若收口不可用，宿主在 fiber 卸载后继续持有同一个 owner，负责之后的实际停止／恢复及再次收口；诊断日志不能替代释放。已有服务引用在撤除期间仍可执行允许的结算和读取。
 
 ```ts
 import type { Context } from '@deepseek-ai/cordis'
@@ -124,11 +126,11 @@ export async function inspectWithRuntime(
 import type {
   CallKey,
   ModelFailureExecution,
-  ModelRuntimeService,
-} from '@omne-harness-lite/model-request-runtime-local'
+  ModelRuntimeOperations,
+} from '@omne-harness-lite/model-request-runtime'
 
 export async function inspectFailure(
-  service: ModelRuntimeService,
+  service: ModelRuntimeOperations,
   key: CallKey,
   execution: ModelFailureExecution,
 ) {
@@ -177,7 +179,7 @@ import {
   interpretCallHistory,
   projectCallState,
   type SettlementPrefix,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import type { SessionRef } from '@omne-harness-lite/messages'
 
 export function readNoRunCall(prefix: SettlementPrefix, session: SessionRef, callId: string) {
@@ -233,7 +235,7 @@ MS8 `model_call_acknowledged` 记录使用独立的按调用稳定日志键；�
 第一次请求没有前序观察时，明确声明这一事实，不编造历史 usage：
 
 ```ts
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime-local'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 
 export function firstRequest(input: Omit<PlanInput, 'calibration' | 'outputHistory'>): PlanInput {
   return { ...input, calibration: { kind: 'none', reason: 'no_observation' }, outputHistory: [] }
@@ -245,7 +247,7 @@ export function firstRequest(input: Omit<PlanInput, 'calibration' | 'outputHisto
 ```ts
 import type { ContentBlock } from '@omne-harness-lite/content-blocks'
 import type { ModelResponse } from '@omne-harness-lite/model-response'
-import type { PlanInput, ReplaySelection } from '@omne-harness-lite/model-request-runtime-local'
+import type { PlanInput, ReplaySelection } from '@omne-harness-lite/model-request-runtime'
 
 export function nextRequest(
   input: Omit<PlanInput, 'calibration' | 'outputHistory'>,
@@ -295,14 +297,14 @@ export function nextRequest(
 `TransportAdapter.read` 的每种终态，包括取消与失败，均须返回 `readFacts`。`invokeModel` 在实际停止后保留最终读取事实，不用输入估算覆盖真实 usage 或费用。固定的 `projectOutput` 适配器把实际保留的回复或已交付块映成输出组。相同的 `inputCalibration` 贯穿 Pending、原耐久响应与认回；冷恢复读取原事实，不再请求模型或重新分词。目前 runtime 可核验选入的 no-Run 回复与同一调用的前序 dispatch。跨调用且无关联选入消息的响应，以及缺少授权 Run owner 的 Run 历史，保持来源不可用，不从日志物理位置猜测。
 
 ```ts
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import {
-  invokeModel,
   openRouterCredentialRedactionConfig,
   type PlanInput,
   type PlannedSemantics,
   type TransportAdapter,
   type InvocationPolicy,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 
 export const callerPolicy: InvocationPolicy = {
   now: () => new Date().toISOString(),
@@ -365,10 +367,7 @@ export async function invokeOnce<P extends PlannedSemantics, R>(
 下面的教学示例无需服务或凭据即可执行。使用精确 JSON 数时，把 `content-blocks` 与本包一起声明为直接依赖。
 
 ```ts
-import {
-  dispatchGuard,
-  type DispatchGuardInput,
-} from '@omne-harness-lite/model-request-runtime-local'
+import { dispatchGuard, type DispatchGuardInput } from '@omne-harness-lite/model-request-runtime'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 
 const input: DispatchGuardInput = {
@@ -462,7 +461,7 @@ import {
   createCredentialRedactionPolicy,
   openRouterCredentialRedactionConfig,
   redact,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
 const policy = createCredentialRedactionPolicy(openRouterCredentialRedactionConfig)
@@ -510,7 +509,7 @@ import {
   displayList,
   effectiveModel,
   type SelectionCompatibility,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import type { ProfileRow } from '@omne-harness-lite/model-profile-directory'
 
 const rows: readonly ProfileRow[] = [
@@ -589,7 +588,7 @@ pnpm --filter @omne-harness-lite/model-request-runtime-local run test
 文本与值接收是两个显式模式。任意层重复成员、getter、`toJSON`、非 JSON 对象及伪数字品牌均拒绝。捕获返回自有不可变原 JSON，保留数字词法；响应 judge 的 `{ ok: true }` 不会替调用方制造 owned ModelResponse。
 
 ```ts
-import { captureModelLogValue } from '@omne-harness-lite/model-request-runtime-local'
+import { captureModelLogValue } from '@omne-harness-lite/model-request-runtime'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
 const captured = captureModelLogValue({
@@ -611,7 +610,7 @@ import {
   captureModelLogValue,
   prepareModelLogEntry,
   encodeModelLogKey,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
 
 const tenant = parseTenantId({ organization: 'example-organization', account: 'example-account' })
@@ -645,7 +644,7 @@ if ('position' in prepared.ok) throw new Error('A candidate has no durable posit
 全值相等按精确数学数字、对象成员无序、数组有序和原字符串判断；缺席不等于 null。消息认回保留原捕获值，不用本次候选覆盖原值；仅比 id、正文或 source 不够。
 
 ```ts
-import { recognizeMessageValue } from '@omne-harness-lite/model-request-runtime-local'
+import { recognizeMessageValue } from '@omne-harness-lite/model-request-runtime'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
 const original =
@@ -667,10 +666,7 @@ if (!writeJsonLossless(recognized.original.value).includes('1.00'))
 成员检查不证明一次物理 append、合法历史、读权限、Run 生命周期或旧任务实际停止。H1 一次 `[M,R]` 与 H2 分次 `[M]`/`[R]` 可有相同 SL3 读面；G29-P/H 仍由宿主和全部写方关闭。已提交的完整 withRun 原批按原耐久值认回，不重新计算 late。新候选必须同时取得同前缀 MS6 尝试与宿主 G28 终结来源；未知为不可用，归账 attempt 不替换响应里的原发出 attempt。十五方法已组合；生产宿主接线、真实 runner/app 采用、G30/G31 与模型认证仍须各自证据。
 
 ```ts
-import {
-  captureModelLogValue,
-  modelLogJsonEqual,
-} from '@omne-harness-lite/model-request-runtime-local'
+import { captureModelLogValue, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
 
 const sent = '2026-09-27T00:00:00.0004Z'
@@ -717,7 +713,7 @@ import {
   prepareModelLogEntry,
   inspectSettlementMembers,
   type InspectSettlementMembersInput,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { LogPrefixView } from '@omne-harness-lite/messages'
 import type { OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
@@ -779,7 +775,7 @@ export function inspectReplyBatch(input: InspectSettlementMembersInput) {
 
 由宿主提供实际 session/tenant/log 代际绑定与已登记 owner。`SettlementRegistration.start` 必须先登记、再执行；`stopped` 表示资源实际停止。owner 负责同一所有者的并发准入，并提供实际 opened 回执及全部尚未确认的旧写方。这些接口形状不授予权限或认证历史物理同批。具名争用预算和精确单调调度器须显式提供，不安装默认次数、计时器或等待政策。
 
-```typescript
+```ts
 import {
   createSettlementCoordinator,
   type SettlementCoordinatorInput,
@@ -834,8 +830,8 @@ unavailable。之后的其他处置或 close 都不能替换保留的原请求�
 import {
   createAnchoredModelInvocation,
   type AnchoredInvocationInput,
-  type PlannedSemantics,
 } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { ReplyDisposition } from '@omne-harness-lite/model-response'
 
 /** Supply actual host preparation and an explicit caller disposition. */
@@ -861,10 +857,8 @@ export async function runPreparedInvocation<P extends PlannedSemantics, R>(
 `legalTargets` 和 `selectModel` 每次都独立读取当前 EvaluationInput，并调用采用的 AE4 evaluator 后再计算合法目标。根可选 `model` 缺席仍合法；模型锁不筛选合法目标集合。`displayList()` 读取本次合法目标和权威最后选中，再按每条展示胜出行的来源调用目录 `credentialPresent(tenant, origin)`，返回每个路由一条的当前来源、被覆盖行、注记和选中标记。选中名字全被撤回时仍展示；目录没有该选中名字的任何一行时返回 `profileNotFound`；输入读不到返回 `unavailable`。presence 读不暴露凭据本体或引用，也不保证后续取值成功。兑现范围为 [RT5 S9–S14/S24–S27/S66](../../../.meta_harness/design/spec/capabilities/model-request-runtime/v5/contract.md#s-24-legaltargets)，沿采用的 [R3-P2 投影](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v3-design.md#契约到-cordis-的投影)。
 
 ```ts
-import {
-  createSessionModelSelection,
-  type SessionModelSelectionInput,
-} from '@omne-harness-lite/model-request-runtime-local'
+import { type SessionModelSelectionInput } from '@omne-harness-lite/model-request-runtime'
+import { createSessionModelSelection } from '@omne-harness-lite/model-request-runtime-local'
 
 // ports come from the authenticated host's actual scoped providers.
 export async function initializeExplicitSelection(
@@ -889,7 +883,7 @@ export async function initializeExplicitSelection(
 `decideRetry` 消费完整 LC6 失败主体（包括按调用归属的 `retryConclusions`）和显式退避输入，返回 LC6 的 `retry`／`observed` 或拒绝值。它不等待、不发送；实际再发仍须经过 `dispatchGuard` 和耐久调用服务。下面的政策值由调用者明确选择，不是 runtime 默认值。
 
 ```ts
-import { decideRetry } from '@omne-harness-lite/model-request-runtime-local'
+import { decideRetry } from '@omne-harness-lite/model-request-runtime'
 import type { AfterModelCallFailureSubject } from '@omne-harness-lite/loop-extension'
 
 export function chooseRetry(subject: AfterModelCallFailureSubject) {
@@ -911,8 +905,8 @@ export function chooseRetry(subject: AfterModelCallFailureSubject) {
 import {
   createAnchoredModelInvocation,
   type AnchoredInvocationInput,
-  type PlannedSemantics,
 } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { modelEntry, type ToolDefinition } from '@omne-harness-lite/tool-definition'
 
 export function invokeWithTools<P extends PlannedSemantics, R>(
@@ -969,10 +963,8 @@ export async function recordSend(config: DiagnosticCollectorConfig, httpStatus: 
 
 ```ts
 // calibration-diagnostics-query
-import type {
-  DiagnosticCollector,
-  DiagnosticScope,
-} from '@omne-harness-lite/model-request-runtime-local'
+import type { DiagnosticScope } from '@omne-harness-lite/model-request-runtime'
+import type { DiagnosticCollector } from '@omne-harness-lite/model-request-runtime-local'
 
 export async function readPlanningDiagnostics(
   collector: DiagnosticCollector,
@@ -998,9 +990,11 @@ export async function readPlanningDiagnostics(
 import {
   invokeModel,
   type DiagnosticCollector,
+} from '@omne-harness-lite/model-request-runtime-local'
+import {
   type InvocationInput,
   type PlannedSemantics,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 
 export function invokeWithLocalDiagnostics<P extends PlannedSemantics, R>(
   input: InvocationInput<P, R>,
@@ -1048,7 +1042,7 @@ import type {
   PlanInput,
   PlannedSemantics,
   TransportAdapter,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 
 export async function prepare<P extends PlannedSemantics, R>(
   transport: TransportAdapter<P, R>,
@@ -1066,10 +1060,8 @@ export async function prepare<P extends PlannedSemantics, R>(
 服务构造必须显式提供正安全整数 `maxScopes`，以及同步的 `ExactTransportAcquirer.clearReuseScope(scope)`。固定 transport 实例的装配须保留其清理闭包，直到 runtime close 成功：
 
 ```ts
-import type {
-  ExactTransportAcquirer,
-  PlannedSemantics,
-} from '@omne-harness-lite/model-request-runtime-local'
+import type { ExactTransportAcquirer } from '@omne-harness-lite/model-request-runtime-local'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 
 export function fixedAcquirer<P extends PlannedSemantics, R>(
   acquire: ExactTransportAcquirer<P, R>['acquire'],
@@ -1088,10 +1080,10 @@ D110 已采用 [RT11 引用生命周期映射](../../../.meta_harness/design/rea
 内容存储（`createModelCallContentStore`）先通过既有 Storage 确认不可变 UTF-8 字节，再返回 payload 引用。读取先核 SHA-256，再严格无损解析；同键不同字节拒绝覆盖，提交回执丢失后认回原行，close 等真实写任务停止。外部 attachment/raw-body 引用缺可信保留提供者时返回 `unavailable`。其定向测试（`tests/reference-content.spec.ts`）使用真实 SQLite 和 SessionLog；服务创建、acquire 与 marker 发布由下述服务测试覆盖。RT12 S-98 保留与内容共用同一 Storage：`put` 持发布许可，调用进入 retiring 后拒绝；读取在复制的同一快照内核阶段；`prepareAcknowledgement`/`confirmAcknowledgement` 固定 ACK 记录；`releaseAcknowledged` 在同一事务中删除精确行并标记 released，否则报告 `writer_in_flight`、`storage_unavailable` 或 `receipt_unknown`。发布先从完整前缀准入 marker 再 `put`，被拒的 marker 不留行。许可不跨进程恢复；中断的未发布 `put` 留下的孤行不删除。
 
 ```ts
+import { type SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
 import {
   createModelCallContentStore,
   type ModelCallContentValue,
-  type SettlementLogBinding,
 } from '@omne-harness-lite/model-request-runtime-local'
 import type { Storage } from '@omne-harness-lite/storage'
 

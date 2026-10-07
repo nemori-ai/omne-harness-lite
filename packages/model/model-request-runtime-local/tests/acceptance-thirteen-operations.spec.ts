@@ -4,14 +4,11 @@ import { createServer } from 'node:http'
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-import type {
-  ModelCallHost,
-  RuntimeConstruction,
-  SessionRuntimeBinding,
-} from '../src/service-types.ts'
+import type { ModelCallHost, SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
+import type { RuntimeConstruction } from '../src/service-types.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
-import { interpretCallHistory } from '../src/call-history.ts'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import {
   ControlledSettlementOwner,

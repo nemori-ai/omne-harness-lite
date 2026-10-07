@@ -5,7 +5,7 @@ import type {
   RetryOutput,
 } from '@omne-harness-lite/loop-extension'
 import type { Duration } from '@omne-harness-lite/tool-definition'
-import type { RetryBackoffPolicy } from '@omne-harness-lite/model-request-runtime'
+import type { RetryBackoffPolicy } from './retry-delay-types.ts'
 
 /** S-60/S-76: the caller supplies the complete LC6 failure subject or explicit unavailability. */
 export type RetryFailureFact =

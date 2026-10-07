@@ -1,6 +1,6 @@
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
-import type { DispatchGuardInput } from '../src/dispatch-guard.ts'
+import type { DispatchGuardInput } from '../src/index.ts'
 
 export const profile: ModelProfileSnapshot = {
   adaptation: {

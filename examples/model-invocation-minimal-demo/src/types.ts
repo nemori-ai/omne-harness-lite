@@ -18,10 +18,12 @@ import type {
   AcknowledgementCleanupPolicy,
   SettlementContention,
   SettlementScheduler,
-  ReservationWaitPolicy,
-  ModelCallContentPolicy,
   ObserverDiagnostic,
   SettlementDiagnostic,
+} from '@omne-harness-lite/model-request-runtime'
+import type {
+  ReservationWaitPolicy,
+  ModelCallContentPolicy,
   DefaultRetryConfiguration,
 } from '@omne-harness-lite/model-request-runtime-local'
 import type { InvocationPolicy } from '@omne-harness-lite/model-request-runtime'

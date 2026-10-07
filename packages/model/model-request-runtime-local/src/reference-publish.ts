@@ -16,7 +16,7 @@ import {
   readSettlementPrefix,
   settlementGenerationCurrent,
   type SettlementPrefix,
-} from './settlement-prefix.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import { settlementAppendReceipt } from './settlement-receipt.ts'
 import { OwnedReadTracker, withOwnedReads } from './service-control.ts'
 import type {
@@ -29,7 +29,7 @@ import type {
   SettlementOwner,
   SettlementRegistration,
   SettlementTask,
-} from './settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import { requestStopAndWait } from './settlement-stop.ts'
 
 /** S-85/S-86: confirm original content before an unfenced, same-prefix publication marker.

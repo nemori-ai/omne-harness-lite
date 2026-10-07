@@ -1,5 +1,6 @@
 import { createDiagnosticCollector } from '@omne-harness-lite/model-request-runtime-local'
 import { resolve } from 'node:path'
+import type { DiagnosticScope } from '@omne-harness-lite/model-request-runtime'
 import type {
   DiagnosticCloseResult,
   DiagnosticCollector,
@@ -9,7 +10,6 @@ import type {
   DiagnosticHealth,
   DiagnosticQuery,
   DiagnosticQueryResult,
-  DiagnosticScope,
 } from '@omne-harness-lite/model-request-runtime-local'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type {

@@ -1,7 +1,4 @@
-import type {
-  ModelCallHost,
-  RuntimeCloseResult,
-} from '@omne-harness-lite/model-request-runtime-local'
+import type { ModelCallHost, RuntimeCloseResult } from '@omne-harness-lite/model-request-runtime'
 
 /** One explicit lifetime for calls opened by this CLI session. */
 export interface DemoCallHost {

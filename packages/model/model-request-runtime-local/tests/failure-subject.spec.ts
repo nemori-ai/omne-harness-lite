@@ -4,9 +4,9 @@ import type {
   ModelRetryConclusion,
 } from '@omne-harness-lite/loop-extension'
 import { readFailureSubject } from '../src/failure-subject.ts'
-import { readSettlementPrefix } from '../src/settlement-prefix.ts'
-import type { SettlementTask, SettlementTaskKind } from '../src/settlement-types.ts'
-import { interpretCallHistory } from '../src/call-history.ts'
+import { readSettlementPrefix } from '@omne-harness-lite/model-request-runtime'
+import type { SettlementTask, SettlementTaskKind } from '@omne-harness-lite/model-request-runtime'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { controlled } from './settlement-fixture.ts'
 import { prepareV2, responseV5 } from './log-codec-v2-fixture.ts'
 import { jsonObject } from './log-codec-fixture.ts'

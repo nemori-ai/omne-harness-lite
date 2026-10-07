@@ -4,7 +4,7 @@ import {
   type DispatchGuardFact,
   type DispatchGuardInput,
   type DispatchGuardResult,
-} from '../src/dispatch-guard.ts'
+} from '../src/index.ts'
 import type { RetryPlan } from '@omne-harness-lite/loop-extension'
 import { guardInput } from './dispatch-guard-fixture.ts'
 

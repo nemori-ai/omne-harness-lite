@@ -6,8 +6,11 @@ import {
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
 import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
-import { interpretRunAtPrefix, readSettlementPrefix } from '../src/settlement-prefix.ts'
-import type { RunHistoryReader } from '../src/settlement-types.ts'
+import {
+  interpretRunAtPrefix,
+  readSettlementPrefix,
+} from '@omne-harness-lite/model-request-runtime'
+import type { RunHistoryReader } from '@omne-harness-lite/model-request-runtime'
 import { anchors, jsonObject } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 import { controlled, noWaitScheduler, policy, request } from './settlement-fixture.ts'

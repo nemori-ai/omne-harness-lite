@@ -1,18 +1,18 @@
 import { expectTypeOf } from 'vitest'
 import type { SessionRef } from '@omne-harness-lite/messages'
 import type {
-  ModelRuntimeService,
+  ModelRuntimeOperations,
   OpenCallInput,
   SettleReplyInput,
   DispatchSuccess,
-  RuntimeConstruction,
   ServiceInvalidInput,
   ModelIdentitySource,
-} from '../src/service-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { RuntimeConstruction } from '../src/service-types.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { TokenMargin } from '@omne-harness-lite/model-request-runtime'
 
-declare const service: ModelRuntimeService
+declare const service: ModelRuntimeOperations
 declare const session: SessionRef
 declare const call: OpenCallInput
 declare const construction: RuntimeConstruction<PlannedSemantics, never>
@@ -65,7 +65,7 @@ void estimatedExcess
 void missingExcessMetadata
 void mixedEstimate
 
-expectTypeOf<keyof ModelRuntimeService>().toEqualTypeOf<
+expectTypeOf<keyof ModelRuntimeOperations>().toEqualTypeOf<
   | 'legalTargets'
   | 'displayList'
   | 'effectiveModel'

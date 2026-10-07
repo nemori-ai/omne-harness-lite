@@ -7,8 +7,8 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import type { ModelProfile } from '@omne-harness-lite/model-profile'
 import type { ProfileRow } from '@omne-harness-lite/model-profile-directory'
-import { legalTargets, displayList, effectiveModel } from '../src/selection.ts'
-import { type SelectionCompatibility } from '../src/selection-types.ts'
+import { legalTargets, displayList, effectiveModel } from '../src/index.ts'
+import { type SelectionCompatibility } from '../src/index.ts'
 
 const name = 'capture/model'
 const allowed = { known: [name] }

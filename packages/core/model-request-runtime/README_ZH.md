@@ -2,20 +2,19 @@
 
 [English](README.md)
 
-模型请求数据、transport 与构造类型、codec，以及纯 retryDelay 计算。SPEC.md 仅拥有已迁的纯退避行为。完整十五操作与耐久生命周期继续沿精确现行源读取。
+模型请求的公共定义、十五操作协议、显式宿主端口、codec，以及可独立消费的选择、重试、历史和响应构造函数。根入口不依赖 Cordis 或具体提供者；`readSettlementPrefix` 通过调用方显式提供的日志与登记执行读取，因此无框架依赖不等于没有 IO。
 
-## 公开入口
+## 公开入口与归属
 
-根入口导出公共类型与独立函数，`./cordis` 承载集成绑定。跨包消费使用对应公开导出。
+| 入口                               | 用途                                                                                        |
+| ---------------------------------- | ------------------------------------------------------------------------------------------- |
+| [根入口](src/index.ts)             | `ModelRuntimeOperations`、完整操作输入/结果/失败消费/ACK/引用、宿主输入与支持端口、独立函数 |
+| [./cordis](src/cordis.ts)          | `ModelRuntimeService`、宿主输入与执行支持的正式定义、唯一键与 Context 增补                  |
+| [SPEC.md](SPEC.md)                 | 类型之外的业务行为与失败、并发、取消、恢复及独立函数边界                                    |
+| [ADR](adr/runtime-integration.md)  | 公共面、提供者和宿主资源的责任选择                                                          |
+| [验证资源](verification/README.md) | 可复跑的机制探针、有效模型来源与成立前提                                                    |
 
-- [根入口](src/index.ts)
-- [Cordis](src/cordis.ts)
-
-类型之外的已迁行为归 [SPEC.md](SPEC.md)。
-
-模板标识记录结构采用，不代表完整业务或生命周期验收通过。
-
-目标集成边界与责任选择见 [ADR](adr/runtime-integration.md)。
+定义不安装服务，也不证明来源已经授权或真实写者停止。具体调用、存储、队列、调度、协调与物理关闭工厂由 [local 提供者](../../model/model-request-runtime-local/README_ZH.md)公开。五类相关公共定义各有唯一拥有者，不整体搬入本包。
 
 ## 开发
 
@@ -26,3 +25,5 @@ pnpm --filter @omne-harness-lite/model-request-runtime run build
 pnpm --filter @omne-harness-lite/model-request-runtime run typecheck
 pnpm --filter @omne-harness-lite/model-request-runtime run test
 ```
+
+源码、声明、运行装载和实际打包后的外部消费分别核验。有限静态检查与测试不代替全领域生命周期验收。

@@ -10,9 +10,12 @@ import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { type LogEntry } from '@omne-harness-lite/session-log'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
-import { readSettlementPrefix, type SettlementPrefix } from '../src/settlement-prefix.ts'
+import {
+  readSettlementPrefix,
+  type SettlementPrefix,
+} from '@omne-harness-lite/model-request-runtime'
 import { authorizedCalibration } from '../src/service-calibration.ts'
-import type { CurrentHistoryReaders } from '../src/service-types.ts'
+import type { CurrentHistoryReaders } from '@omne-harness-lite/model-request-runtime'
 import {
   anchors,
   batch,

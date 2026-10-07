@@ -10,7 +10,7 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
   'cordis-plugin-tree': ['assembly-lifecycle'],
   'offer-expiry': ['identity-values'],
   'organization-governance': ['storage', 'identity-values', 'offer-expiry', 'kernel-basis'],
-  // Tool runtime stage 2: m1/b1 accepted signature closure, plus N4 retry ownership.
+  // Public model runtime signature closure; concrete providers remain forbidden.
   'model-request-runtime': [
     'content-blocks',
     'call-accounts',
@@ -23,6 +23,11 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
     'arrival-events',
     'model-profile',
     'stream-assembly',
+    'asset-registry',
+    'asset-evaluation',
+    'model-profile-directory',
+    'session-tenancy',
+    'loop-extension',
   ],
   'session-log': [
     'call-accounts',

@@ -6,15 +6,18 @@ import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import type { AppendResult, OwnedLogEntry, SessionLog } from '@omne-harness-lite/session-log'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
-import { interpretCallHistory } from '../src/call-history.ts'
-import { projectCallState } from '../src/call-state.ts'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
+import { projectCallState } from '@omne-harness-lite/model-request-runtime'
 import {
   readSettlementPrefix,
   type SettlementPrefix,
   type SettlementPrefixResult,
-} from '../src/settlement-prefix.ts'
-import { type SettlementTaskKind } from '../src/settlement-types.ts'
-import { acknowledgedAsTerminal, rejectAcknowledgedHistory } from '../src/call-history.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import { type SettlementTaskKind } from '@omne-harness-lite/model-request-runtime'
+import {
+  acknowledgedAsTerminal,
+  rejectAcknowledgedHistory,
+} from '@omne-harness-lite/model-request-runtime'
 import { dispatched, opened, prepare, reply, session, tenant } from './log-codec-fixture.ts'
 import { batchV2, prepareV2, responseV5 } from './log-codec-v2-fixture.ts'
 import { ControlledSettlementOwner } from './settlement-fixture.ts'

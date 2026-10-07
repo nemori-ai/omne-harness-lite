@@ -13,15 +13,15 @@ import {
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { judgeMessage, type LoggedMessage } from '@omne-harness-lite/messages'
 import { checkAppendInput, type LogEntry } from '@omne-harness-lite/session-log'
+import { encodeModelLogKey } from './log-codec-key.ts'
+import { inspectModelLogEntry } from './log-codec-entry.ts'
 import {
-  encodeModelLogKey,
-  inspectModelLogEntry,
   inspectSettlementMembers,
   type ModelLogSettlementTarget,
   type ModelLogSettlementCurrent,
   type ModelLogSettlementAnchors,
   type SettlementMembersResult,
-} from '@omne-harness-lite/model-request-runtime'
+} from './log-codec-settlement.ts'
 import type {
   SettlementLogBinding,
   SettlementRegistration,

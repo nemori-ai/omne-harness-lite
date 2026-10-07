@@ -7,14 +7,14 @@
 
 ## 组织治理
 
-| 承诺/资源 | 当前拥有者 | 本批处置 |
-|---|---|---|
-| 四操作面、词汇、闭合失败类型、配置/事件形状 | `packages/core/organization-governance/src/index.ts` | 从旧提供者 types.ts 移入，旧实现源删除，不保留类型转导出 |
-| 四 Service、键、Context/Events 增补 | `packages/core/organization-governance/src/cordis.ts` | 采用 IC-1～4，清除键依 IC-7 变为 organizationPurge，无旧运行时别名 |
-| 共同参与/通知的集成责任 | `packages/core/organization-governance/SPEC.md` | 接续 OG2 S-63；与操作细则不同范围，不创建第二份操作表 |
-| SQL fiber、配置加载、工厂依赖/回滚绑定 | `packages/tenancy/organization-governance-sql/SPEC.md`、`packages/tenancy/organization-governance-sql/adr/service-faces.md` | 接替旧节点当前实现投影；迁移及真实测试随提供者 |
-| 身份、不变量、操作授权/次序/幂等/副作用及模型 | capability.organization-governance 的精确未迁协议 | OG1 的旧消费者与 OG2 的拒绝/参与消费者继续按 registry 钉选，不删冻结版本 |
-| OG3 时刻、资产依赖与未实现事务读面 | 同一未迁 OG3 协议及旧节点“v3 修订” | 已接受、未实现保持，不归 N4 已实现范围 |
+| 承诺/资源                                     | 当前拥有者                                                                                                                  | 本批处置                                                                 |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| 四操作面、词汇、闭合失败类型、配置/事件形状   | `packages/core/organization-governance/src/index.ts`                                                                        | 从旧提供者 types.ts 移入，旧实现源删除，不保留类型转导出                 |
+| 四 Service、键、Context/Events 增补           | `packages/core/organization-governance/src/cordis.ts`                                                                       | 采用 IC-1～4，清除键依 IC-7 变为 organizationPurge，无旧运行时别名       |
+| 共同参与/通知的集成责任                       | `packages/core/organization-governance/SPEC.md`                                                                             | 接续 OG2 S-63；与操作细则不同范围，不创建第二份操作表                    |
+| SQL fiber、配置加载、工厂依赖/回滚绑定        | `packages/tenancy/organization-governance-sql/SPEC.md`、`packages/tenancy/organization-governance-sql/adr/service-faces.md` | 接替旧节点当前实现投影；迁移及真实测试随提供者                           |
+| 身份、不变量、操作授权/次序/幂等/副作用及模型 | capability.organization-governance 的精确未迁协议                                                                           | OG1 的旧消费者与 OG2 的拒绝/参与消费者继续按 registry 钉选，不删冻结版本 |
+| OG3 时刻、资产依赖与未实现事务读面            | 同一未迁 OG3 协议及旧节点“v3 修订”                                                                                          | 已接受、未实现保持，不归 N4 已实现范围                                   |
 
 旧 realization 的当前四面实现投影不再是新/已迁任务的承诺源。
 原节点仍为历史接受、证据、OG3 与其他未迁义务的可达入口，不将混合文件整个删除。
@@ -28,29 +28,30 @@ N4 运行装载试验确认纯根不会加载 Cordis，但当时不能据此声�
 
 ## 模型请求运行时
 
-| 承诺/资源 | 当前拥有者 | 本批处置 |
-|---|---|---|
-| retryDelay 类型、S-60 函数行为、精确实现与向量 | `packages/core/model-request-runtime/SPEC.md` | 迁入唯一公开源，原实现/类型/向量路径删除，默认策略改为公共消费者 |
-| Cordis 插件入口与 local 后端限定名 | `packages/model/model-request-runtime-local/SPEC.md` | 根与 ./cordis 分面，旧两个子入口取消，真实消费者同步 |
-| 十五操作及耐久生命周期/失败/控制/恢复/凭据/引用/保留 | 精确未迁 runtime 协议与相关模型 | 保持 registry 采用版本及冻结资源；公共类型闭包另列 N5，不借 current 实现改承诺 |
-| 提供者日志 codec、策略与耐久验证 | local 提供者现有公开类型、测试及未迁精确投影 | 源位置迁移，原运行证据保留原输入坐标，不声称重新运行 |
-| 完整生产 Session/Run 外部终结与恢复来源 | 相应会话/运行拥有者 | 保持未闭合责任，不归本批实现 |
+公共形状、十五操作、独立计算/传输端口及公开辅助投影由 [core 公开根](../../../../packages/core/model-request-runtime/src/index.ts)、[薄规格](../../../../packages/core/model-request-runtime/SPEC.md)唯一维护。绑定类、键及宿主输入/执行支持定义归该包 `./cordis`。local 已删除被替代公共定义及算法入口，不保留兼容转导出；具体调用、工厂、存储、队列及物理生命周期仍由 local 拥有。
 
-冻结 runtime v12 S-60 保留原字节供历史输入和未迁模型导航。
-已迁函数的现行行为源为模块 SPEC；其他条款及相关冻结义务继续有效。
-纯函数向量原内容保持，移动不自动提升全 runtime 验证状态。
+五类相关公共定义分别归 core/session-log、core/model-profile-directory、core/asset-evaluation、core/asset-registry、core/session-tenancy。evaluation-input-store 是实现，不另建同义公共拥有者。Schema/账/响应/消息身份及精确采用链不因迁移自动升级。
 
-完整定义后续须收齐 session-log、model-profile-directory、evaluation-input-store、asset-registry、
-session-tenancy 的公共类型责任。不能把五个提供者整体移进 core。
+默认重试历史的当前算法资源归 core 的 `verification/models/RetryHistory.*`，原实际 v9 retry-history 执行登记已由模块命令接续。旧冻结 RetryHistory 副本不再作为本次算法维护源；旧目录字节保持，供尚未迁的版本消费者及冻结导航。
+
+| 旧条款与资源保留范围                                       | 实际消费者及未迁责任                                                                                                               |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| RT12 S-36/S-39/S-53/S-61/S-64                              | realization/packages/model/model-request-runtime/ 的旧具体关闭/依赖寿命/实现注册采用撤旧投影；local 真实生命周期尚未全部改接正式类 |
+| S-66 与 G-9/G-28、S-69/S-87/S-90                           | 实际 currentEvaluationInputs 生产授权、Run 终结/唯一恢复、presence 与当前授权来源；公共形状不替代来源实现                          |
+| S-68～S-73/S-81/S-85/S-86/S-88/S-96～S-103 的组合投影/模型 | 实际 JSONL/Storage/原写方、ACK retention/cleanup/stage 及外部 persisted 写方；综合模型仍由这些消费者共同采用                       |
+| S-38/S-51～S-59/S-62/S-63/S-74/S-77～S-83 的具体投影       | 实际 transport/计量/codec/观察/诊断提供者的符合性与跨进程前提                                                                      |
+
+这些保留范围不构成第二份公共操作或函数定义。旧 RT12 冻结目录、catalog 的未迁精确依赖和综合形式义务暂留；不得原地放宽冻结或将公共承诺重新标为全归旧源。综合模型逐项归属及复验要求由 [core 验证入口](../../../../packages/core/model-request-runtime/verification/README.md)维护。
+未迁提供者的精确入口是 `realization/packages/model/model-request-runtime/README.md` 与 `v22-acknowledgement-design.md`，并非源码包名对应的新目录。完整生产 Session/Run 终结、恢复和无 Agent 进展仍由真实拥有者承担。
 
 ## 租户治理宿主
 
-| 范围 | 当前拥有者 | 本批处置 |
-|---|---|---|
-| 整体启动、共享事务域、确认/开闸与撤除性质 | `apps/tenancy-host/SPEC.md` | 接替当前实现的旧整体投影，既有未来增量仍未实现 |
-| 当前装配/配置/迁移/守卫形状 | 应用源码与公开类型 | 实际关系从源码抽取，不手写新 realization 图 |
-| 升级/预检/维护与存量验证资源 | 原精确协议、D-055/056、测试及历史运行 | 继续有效，N4 执行范围另记，不把历史绿测算本次运行 |
-| 插件树 IC-15/16、资产治理与目录中心增量、PG 整体恢复 | 系统 IC 和未迁源 | 目标仍有效；实现差距和受阻部署保持 |
+| 范围                                                 | 当前拥有者                            | 本批处置                                          |
+| ---------------------------------------------------- | ------------------------------------- | ------------------------------------------------- |
+| 整体启动、共享事务域、确认/开闸与撤除性质            | `apps/tenancy-host/SPEC.md`           | 接替当前实现的旧整体投影，既有未来增量仍未实现    |
+| 当前装配/配置/迁移/守卫形状                          | 应用源码与公开类型                    | 实际关系从源码抽取，不手写新 realization 图       |
+| 升级/预检/维护与存量验证资源                         | 原精确协议、D-055/056、测试及历史运行 | 继续有效，N4 执行范围另记，不把历史绿测算本次运行 |
+| 插件树 IC-15/16、资产治理与目录中心增量、PG 整体恢复 | 系统 IC 和未迁源                      | 目标仍有效；实现差距和受阻部署保持                |
 
 ## 消费与退役标准
 

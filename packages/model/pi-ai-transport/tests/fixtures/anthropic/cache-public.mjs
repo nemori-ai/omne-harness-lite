@@ -8,11 +8,11 @@ import {
   readJsonStrict,
   isNonNegativeJsonInteger,
 } from '@omne-harness-lite/content-blocks'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import {
-  invokeModel,
   openRouterCredentialRedactionConfig,
   createCredentialRedactionPolicy,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { createPiAiTransport, createAnthropicInputMeter, planRequest } from '../../../dist/index.js'
 import {
   openProductionLedger,

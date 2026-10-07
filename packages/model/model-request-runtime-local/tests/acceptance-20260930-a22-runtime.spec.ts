@@ -32,8 +32,8 @@ import { createModelCallContentStore } from '../src/reference-content.ts'
 import { createModelCallFacts } from '../src/reference-facts.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
-import { interpretCallHistory } from '../src/call-history.ts'
-import { acknowledgedAttempts, attemptFromWitness } from '../src/acknowledged-view.ts'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
+import { acknowledgedAttempts, attemptFromWitness } from '@omne-harness-lite/model-request-runtime'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
@@ -42,21 +42,21 @@ import type {
   CallAccess,
   CallAccessAction,
   CallPresence,
-  ModelCallContentStore,
-} from '../src/reference-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { ModelCallContentStore } from '../src/reference-types.ts'
 import type {
   AcknowledgementCleanupPolicy,
   ModelCallHost,
   OpenCallInput,
-  RuntimeConstruction,
   SessionRuntimeBinding,
-} from '../src/service-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { RuntimeConstruction } from '../src/service-types.ts'
 import type {
   SettlementOwner,
   SettlementRegistration,
   SettlementTask,
   SettlementTaskKind,
-} from '../src/settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import {
   ControlledSettlementOwner,

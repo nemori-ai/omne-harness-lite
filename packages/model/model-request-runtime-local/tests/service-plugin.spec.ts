@@ -1,18 +1,15 @@
+import { MODEL_RUNTIME_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 import { Context } from '@deepseek-ai/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { z } from 'zod'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { describe, expect, it } from 'vitest'
-import {
-  createModelRuntimePlugin,
-  MODEL_RUNTIME_SERVICE,
-  type ModelRuntimeAssemblyOwner,
-} from '../src/service-plugin.ts'
+import { createModelRuntimePlugin, type ModelRuntimeAssemblyOwner } from '../src/service-plugin.ts'
 import type {
   FailureConsumableOperation,
   FailureConsumption,
-  ModelRuntimeService,
-} from '../src/service-types.ts'
+  ModelRuntimeOperations,
+} from '@omne-harness-lite/model-request-runtime'
 
 const unavailable = async () => ({ unavailable: true }) as const
 function failureUnavailable<I>(
@@ -34,7 +31,7 @@ function failureUnavailable<I>(
   }
   return invoke
 }
-function service(): ModelRuntimeService {
+function service(): ModelRuntimeOperations {
   return {
     acquireCall: unavailable,
     legalTargets: unavailable,
@@ -72,7 +69,7 @@ async function dependencies(ctx: Context) {
   )
 }
 
-function isRuntimeService(value: unknown): value is ModelRuntimeService {
+function isRuntimeService(value: unknown): value is ModelRuntimeOperations {
   return (
     value !== null &&
     typeof value === 'object' &&
@@ -165,25 +162,25 @@ describe('Cordis P-2 runtime assembly', () => {
       const actual = ctx.get(MODEL_RUNTIME_SERVICE)
       if (actual === undefined || typeof actual !== 'object' || !('dispatch' in actual))
         throw new Error('Cordis runtime service missing')
-      const methods = actual as ModelRuntimeService
+      const methods = actual as ModelRuntimeOperations
       expect(
-        await methods.dispatch({} as Parameters<ModelRuntimeService['dispatch']>[0], {
+        await methods.dispatch({} as Parameters<ModelRuntimeOperations['dispatch']>[0], {
           consumeFailure: true,
         }),
       ).toEqual({ result: { unavailable: true }, consumption: { kind: 'notApplicable' } })
       expect(
-        await methods.dispatchAgain({} as Parameters<ModelRuntimeService['dispatchAgain']>[0], {
+        await methods.dispatchAgain({} as Parameters<ModelRuntimeOperations['dispatchAgain']>[0], {
           consumeFailure: true,
         }),
       ).toEqual({ result: { unavailable: true }, consumption: { kind: 'notApplicable' } })
       expect(
-        await methods.readAttempts({} as Parameters<ModelRuntimeService['readAttempts']>[0], {
+        await methods.readAttempts({} as Parameters<ModelRuntimeOperations['readAttempts']>[0], {
           consumeFailure: true,
         }),
       ).toEqual({ result: { unavailable: true }, consumption: { kind: 'notApplicable' } })
       expect(seen).toEqual(['dispatch:true', 'dispatchAgain:true', 'readAttempts:true'])
       expect(
-        await methods.readAttempts({} as Parameters<ModelRuntimeService['readAttempts']>[0]),
+        await methods.readAttempts({} as Parameters<ModelRuntimeOperations['readAttempts']>[0]),
       ).toEqual({
         unavailable: true,
       })
@@ -232,15 +229,15 @@ describe('Cordis P-2 runtime assembly', () => {
     const offered = ctx.get(MODEL_RUNTIME_SERVICE)
     if (offered === undefined || typeof offered !== 'object' || !('openCall' in offered))
       throw new Error('runtime service absent')
-    const actual = offered as ModelRuntimeService
+    const actual = offered as ModelRuntimeOperations
     const disposing = provider.dispose()
     await Promise.resolve()
     expect(closeStarted).toBe(true)
-    expect(await actual.openCall({} as Parameters<ModelRuntimeService['openCall']>[0])).toEqual({
+    expect(await actual.openCall({} as Parameters<ModelRuntimeOperations['openCall']>[0])).toEqual({
       runtimeStopped: true,
     })
     expect(
-      await actual.readAttempts({} as Parameters<ModelRuntimeService['readAttempts']>[0]),
+      await actual.readAttempts({} as Parameters<ModelRuntimeOperations['readAttempts']>[0]),
     ).toEqual({
       unavailable: true,
     })

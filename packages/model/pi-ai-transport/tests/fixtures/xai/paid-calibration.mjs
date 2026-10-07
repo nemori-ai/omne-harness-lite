@@ -10,7 +10,7 @@ import { join } from 'node:path'
 import {
   createCredentialRedactionPolicy,
   openRouterCredentialRedactionConfig,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import {
   paidInvocation,
   writePrivateEvidence,

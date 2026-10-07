@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Model runtime pure contract vocabulary: exact retry delay",
+  "description": "Public model-request operations, host ports, standalone algorithms and Cordis definitions",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -41,7 +41,12 @@
     "@omne-harness-lite/offer-expiry": "workspace:*",
     "@omne-harness-lite/arrival-events": "workspace:*",
     "@omne-harness-lite/model-profile": "workspace:*",
-    "@omne-harness-lite/stream-assembly": "workspace:*"
+    "@omne-harness-lite/stream-assembly": "workspace:*",
+    "@omne-harness-lite/asset-registry": "workspace:*",
+    "@omne-harness-lite/asset-evaluation": "workspace:*",
+    "@omne-harness-lite/model-profile-directory": "workspace:*",
+    "@omne-harness-lite/session-tenancy": "workspace:*",
+    "@omne-harness-lite/loop-extension": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
@@ -55,6 +60,13 @@
   "peerDependenciesMeta": {
     "@deepseek-ai/cordis": {
       "optional": true
+    }
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "service-contract"
     }
   }
 }

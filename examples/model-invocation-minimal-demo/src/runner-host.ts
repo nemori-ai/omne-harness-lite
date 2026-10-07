@@ -18,7 +18,7 @@ import {
   readSettlementPrefix,
   type SettlementLogBinding,
   type SettlementRegistration,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import {
   openJsonlSessionLog,
   type JsonlSessionLog,
