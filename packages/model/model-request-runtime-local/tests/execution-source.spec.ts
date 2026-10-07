@@ -88,9 +88,21 @@ describe('physical execution source', () => {
     expect(calls.insert(held, rejected)).toBe(false)
     expect(calls.insert(held, first)).toBe(false)
     expect(source.snapshot(session)).toHaveLength(1)
-    expect(source.lookup(first.key)).toHaveProperty('execution')
+    expect(source.lookup(first.key)).toMatchObject({
+      execution: {
+        executionGeneration: first.view().executionGeneration,
+        session: first.view().session,
+        owner: first.view().owner,
+      },
+    })
+    expect(await first.close()).toEqual({ released: true })
+    expect(calls.remove(held)).toBe(true)
+    expect(calls.insert(held, rejected)).toBe(true)
+    expect(source.snapshot(session)).toHaveLength(2)
+    expect(source.lookup(rejected.key)).toMatchObject({
+      execution: { executionGeneration: rejected.view().executionGeneration },
+    })
     held.release()
-    expect(await rejected.close()).toEqual({ released: true })
     expect(await calls.close()).toEqual({ released: true })
   })
 
