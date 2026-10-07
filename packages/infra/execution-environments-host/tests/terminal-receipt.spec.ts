@@ -10,6 +10,51 @@ const ordinary = Buffer.concat([
 ])
 const bytes = Buffer.concat([ordinary, marker])
 
+test('ordinary output reaches its reader before any completion receipt', () => {
+  const output: Buffer[] = [],
+    codes: number[] = []
+  const parser = createTerminalReceipt(
+    id,
+    data => output.push(data),
+    code => codes.push(code),
+  )
+  const chunk = Buffer.alloc(262144, 120)
+  parser.feed(chunk)
+  expect(Buffer.concat(output)).toEqual(chunk)
+  expect(codes).toEqual([])
+  // Only the suffix of this partial private prefix may remain pending.
+  parser.feed(Buffer.concat([Buffer.from('ready:'), prefix.subarray(0, 12)]))
+  expect(Buffer.concat(output).subarray(chunk.length).toString()).toBe('ready:')
+  parser.feed(Buffer.concat([prefix.subarray(12), Buffer.from('0\x07')]))
+  expect(codes).toEqual([0])
+  expect(Buffer.concat(output)).toEqual(Buffer.concat([chunk, Buffer.from('ready:')]))
+})
+
+test('an unterminated private receipt stays bounded at the exact byte limit', () => {
+  const parser = createTerminalReceipt(
+    id,
+    () => {},
+    () => {
+      throw new Error('Unexpected completion')
+    },
+  )
+  expect(() =>
+    parser.feed(Buffer.concat([prefix, Buffer.alloc(16384 - prefix.length, 57)])),
+  ).not.toThrow()
+  expect(() => parser.feed(Buffer.from('9'))).toThrow('Terminal receipt too large')
+})
+
+test.each([0, 255])('both valid exit boundaries complete: %s', code => {
+  const completed: number[] = []
+  const parser = createTerminalReceipt(
+    id,
+    () => {},
+    value => completed.push(value),
+  )
+  parser.feed(Buffer.concat([prefix, Buffer.from(`${code}\x07`)]))
+  expect(completed).toEqual([code])
+})
+
 test('all fragmentation positions preserve raw ordinary bytes and exclude private metadata', () => {
   for (let split = 0; split <= bytes.length; split++) {
     const output: Buffer[] = [],
