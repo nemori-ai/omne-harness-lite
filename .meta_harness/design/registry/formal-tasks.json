@@ -2614,30 +2614,6 @@
       "timeout_seconds": 180
     },
     {
-      "id": "model-request-runtime-v9-retry-history",
-      "kind": "tla",
-      "artifacts": [
-        "spec/capabilities/model-request-runtime/v9/formal/RetryHistory.tla",
-        "spec/capabilities/model-request-runtime/v9/formal/RetryHistory.cfg"
-      ],
-      "command": [
-        "${JAVA_BIN}",
-        "-cp",
-        "${TLA2TOOLS_JAR}",
-        "tlc2.TLC",
-        "-metadir",
-        "tmp/tlc/model-request-runtime-v9-retry-history",
-        "-cleanup",
-        "-noGenerateSpecTE",
-        "-workers",
-        "1",
-        "-config",
-        "spec/capabilities/model-request-runtime/v9/formal/RetryHistory.cfg",
-        "spec/capabilities/model-request-runtime/v9/formal/RetryHistory.tla"
-      ],
-      "timeout_seconds": 180
-    },
-    {
       "id": "model-request-runtime-v9-recovery-timing",
       "kind": "tla",
       "artifacts": [

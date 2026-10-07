@@ -1,46 +1,54 @@
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { validate as validateLoop } from '@omne-harness-lite/loop-extension'
 import { createSessionModelSelection } from './session-selection.ts'
-import { acknowledgedAsTerminal, rejectAcknowledgedHistory } from './call-history.ts'
-import { acknowledgedFactsFromHistory } from './acknowledged-view.ts'
+import {
+  acknowledgedAsTerminal,
+  rejectAcknowledgedHistory,
+} from '@omne-harness-lite/model-request-runtime'
+import { acknowledgedFactsFromHistory } from '@omne-harness-lite/model-request-runtime'
 import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-custody.ts'
-import { projectCallState, type LocalCallResponsibility } from './call-state.ts'
-import { dispatchGuard, type DispatchGuardFact } from './dispatch-guard.ts'
+import {
+  projectCallState,
+  type LocalCallResponsibility,
+} from '@omne-harness-lite/model-request-runtime'
+import { dispatchGuard, type DispatchGuardFact } from '@omne-harness-lite/model-request-runtime'
 import { createModelFailureSource, readFailureSubject } from './failure-subject.ts'
 import {
   readSettlementPrefix,
   settlementGenerationCurrent,
   type SettlementPrefix,
-} from './settlement-prefix.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { SessionModelSelectionInput } from '@omne-harness-lite/model-request-runtime'
+import type { SessionModelSelection } from './session-selection-types.ts'
 import type {
-  SessionModelSelection,
-  SessionModelSelectionInput,
-} from './session-selection-types.ts'
-import type {
-  CallKey,
-  ModelRuntimeService,
+  ModelRuntimeOperations,
   RuntimeCloseResult,
-  RuntimeConstruction,
   SessionRuntimeBinding,
   ReadAttemptsResult,
   ReadAttemptDispatch,
   FailureConsumption,
   ModelFailureSource,
-  CallContainerView,
-} from './service-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { CallKey } from '@omne-harness-lite/messages'
+import type { RuntimeConstruction, CallContainerView } from './service-types.ts'
 import type {
   SettlementLogBinding,
   SettlementRegistration,
   SettlementTask,
-} from './settlement-types.ts'
-import type { CallHistoryDispatch, CallHistoryKnown, CallHistoryResult } from './call-history.ts'
-import type { CallAccessEvidence, CallFacts } from './reference-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type {
+  CallHistoryDispatch,
+  CallHistoryKnown,
+  CallHistoryResult,
+} from '@omne-harness-lite/model-request-runtime'
+import type { CallAccessEvidence } from '@omne-harness-lite/model-request-runtime'
+import type { CallFacts } from './reference-types.ts'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { requestStopAndWait } from './settlement-stop.ts'
 
 type ReadMethods = Pick<
-  ModelRuntimeService,
+  ModelRuntimeOperations,
   | 'legalTargets'
   | 'displayList'
   | 'effectiveModel'

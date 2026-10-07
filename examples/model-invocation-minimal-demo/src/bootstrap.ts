@@ -23,48 +23,50 @@ import {
   type ModelRequestParameters,
 } from '@omne-harness-lite/model-profile'
 import {
-  createSessionModelSelection,
-  createCallContainerStore,
-  createModelCallContentStore,
-  createModelCallFacts,
-  createModelRuntime,
-  modelCallContentMigrations,
   interpretCallHistory,
   readSettlementPrefix,
-  type ModelRuntimeService,
+  type ModelRuntimeOperations,
   type ModelCallHost,
   type ModelObserverRequest,
   type DispatchResult,
   type OpenCallResult,
   type OpenCallRun,
-  type RuntimeConstruction,
   type SessionRuntimeBinding,
   type ModelObserverEndpoint,
   type RuntimeCloseResult,
   type SessionObserverAccess,
   type SettlementResult,
   type SettlementOwner,
-  type SettlementCoordinator,
-  type SessionModelSelection,
   type SessionModelSelectionInput,
   type SettlementLogBinding,
   type RunHistoryReader,
   type CurrentHistoryReaders,
   type SessionSelectModelResult,
   type LegalTargetsResult,
-  type SessionEffectiveModelResult,
   type ServiceEffectiveModelResult,
   type ServiceLegalTargetsResult,
   type ServiceSelectModelResult,
   type DisplayListResult,
   type ServiceDisplayListResult,
   type ReconcileResult,
-  type CallContainer,
   type AnchoredInvocationHandle,
   type ObserverDiagnostic,
   type SettlementDiagnostic,
   type FailureConsumableOperation,
   type FailureConsumption,
+} from '@omne-harness-lite/model-request-runtime'
+import {
+  createSessionModelSelection,
+  createCallContainerStore,
+  createModelCallContentStore,
+  createModelCallFacts,
+  createModelRuntime,
+  modelCallContentMigrations,
+  type RuntimeConstruction,
+  type SettlementCoordinator,
+  type SessionModelSelection,
+  type SessionEffectiveModelResult,
+  type CallContainer,
 } from '@omne-harness-lite/model-request-runtime-local'
 import {
   type ModelLogSettlementTarget,
@@ -515,7 +517,7 @@ export interface AcceptanceApplication {
   bindModelRuntime(
     actor: AuthenticatedActor,
     session: unknown,
-  ): Promise<ScenarioResult<{ readonly service: ModelRuntimeService }>>
+  ): Promise<ScenarioResult<{ readonly service: ModelRuntimeOperations }>>
   startServiceCall(
     actor: AuthenticatedActor,
     session: unknown,
@@ -657,7 +659,10 @@ export function createAcceptanceApplication(
   let transportService: ModelTransportService | undefined
   const modelContributions: Fiber[] = []
   let modelRuntime:
-    | { readonly service: ModelRuntimeService; readonly close: () => Promise<RuntimeCloseResult> }
+    | {
+        readonly service: ModelRuntimeOperations
+        readonly close: () => Promise<RuntimeCloseResult>
+      }
     | undefined
   let currentInputs: CurrentEvaluationInputs | undefined
   let inputSource: InputSourceDependencies | undefined
@@ -2822,7 +2827,7 @@ export function createAcceptanceApplication(
   function bindModelRuntime(
     actor: AuthenticatedActor,
     session: unknown,
-  ): Promise<ScenarioResult<{ readonly service: ModelRuntimeService }>> {
+  ): Promise<ScenarioResult<{ readonly service: ModelRuntimeOperations }>> {
     if (stage !== 'modelRequest' || !admit()) return Promise.resolve({ failure: 'stageClosed' })
     return trackSessionInput(session, async () => {
       const access = await sessionAccess(actor, session)
@@ -2833,7 +2838,10 @@ export function createAcceptanceApplication(
       return { service: boundModelService(access.checked, access.borrow.binding.session) }
     })
   }
-  function boundModelService(actor: AuthenticatedActor, session: SessionRef): ModelRuntimeService {
+  function boundModelService(
+    actor: AuthenticatedActor,
+    session: SessionRef,
+  ): ModelRuntimeOperations {
     if (modelRuntime === undefined) throw new AcceptanceOperationDefect('modelRuntime')
     const service = modelRuntime.service
     function invoke<I extends { readonly session: SessionRef }, R>(
@@ -3175,7 +3183,7 @@ export function createAcceptanceApplication(
   async function modelSelectionOperation<T>(
     actor: AuthenticatedActor,
     session: unknown,
-    work: (service: ModelRuntimeService, session: SessionRef) => Promise<T>,
+    work: (service: ModelRuntimeOperations, session: SessionRef) => Promise<T>,
   ): Promise<ScenarioResult<T>> {
     const bound = await bindModelRuntime(actor, session)
     if (!('service' in bound)) return bound

@@ -20,19 +20,18 @@ import {
 } from '../src/service-reconcile.ts'
 import { createCallContainer, createCallContainerStore } from '../src/service-container.ts'
 import type {
-  CreateCallContainerInput,
   SessionRuntimeBinding,
   SettleReplyInput,
-  SystemStopControl,
   RuntimeRecoveryScope,
-} from '../src/service-types.ts'
-import type { AnchoredInvocationHandle } from '../src/anchored-invocation-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { CreateCallContainerInput, SystemStopControl } from '../src/service-types.ts'
+import type { AnchoredInvocationHandle } from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type {
   DiagnosticAssociation,
-  DiagnosticCollector,
   DiagnosticScope,
-} from '../src/diagnostics-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { DiagnosticCollector } from '../src/diagnostics-types.ts'
 import type { DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'

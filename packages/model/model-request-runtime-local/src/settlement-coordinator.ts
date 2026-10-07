@@ -25,21 +25,23 @@ import {
   type SettlementPrefix,
   type SettlementPrefixResult,
   type SettlementInterpretation,
-} from './settlement-prefix.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementContention,
-  SettlementCoordinator,
-  SettlementCoordinatorInput,
-  SettlementHandle,
   SettlementRegistration,
-  SettlementRequest,
   SettlementResult,
   SettlementScheduler,
   SettlementTask,
   SettlementTaskKind,
   SettlementComplete,
-  SettlementStaging,
   SettlementUnavailableReason,
+} from '@omne-harness-lite/model-request-runtime'
+import type {
+  SettlementCoordinator,
+  SettlementCoordinatorInput,
+  SettlementHandle,
+  SettlementRequest,
+  SettlementStaging,
 } from './settlement-types.ts'
 
 import { settlementAppendReceipt } from './settlement-receipt.ts'

@@ -16,7 +16,7 @@ import type { DemoConversation, DemoTotals } from './demo.ts'
 import type {
   ModelDisplayAnnotation,
   ModelDisplayEntry,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 
 /** Untrusted model and catalog text may not control the terminal. */
 function safeText(value: string, multiline = false): string {

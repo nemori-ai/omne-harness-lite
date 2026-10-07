@@ -4,7 +4,7 @@ import {
   captureModelLogValue,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
-import type { SettlementLogBinding, SettlementTask } from '../src/settlement-types.ts'
+import type { SettlementLogBinding, SettlementTask } from '@omne-harness-lite/model-request-runtime'
 import type { AppendResult, LogEntry, ReadResult } from '@omne-harness-lite/session-log'
 import { session, tenant } from './log-codec-fixture.ts'
 import { ControlledSettlementOwner, deferred } from './settlement-fixture.ts'

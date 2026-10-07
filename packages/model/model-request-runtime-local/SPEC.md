@@ -1,13 +1,13 @@
 # 本地模型请求运行时提供者
 
 本包提供既有模型调用、默认策略、日志 codec 与耐久运行时。
-纯退避计算从[公共定义](../../core/model-request-runtime/SPEC.md)消费，不在此复制算法。
+公共操作协议、形状和独立算法从[公共定义](../../core/model-request-runtime/SPEC.md)消费，不在此复制算法。
 根入口公开独立函数/工厂，Cordis 插件从 `./cordis` 导出。旧插件子入口已移除。
 
 ## 保持的运行责任
 
-十五操作的业务形状、失败、凭据、恢复、保留、引用与 acknowledge 行为仍采用精确旧源，
-见[迁移范围](../../../.meta_harness/design/architecture/pilots/n4-ownership.md#模型请求运行时)。
+十五操作的形状归公共 `ModelRuntimeOperations`；类型之外的共享行为归公共 SPEC。
+尚未迁移的具体生命周期投影与跨拥有者组合义务继续按精确旧源，见[迁移范围](../../../.meta_harness/design/architecture/pilots/n4-ownership.md#模型请求运行时)。
 接口迁移不得把当前 local 实现限制写成通用模型能力政策。
 
 运行时负责提交后的观测、取消、退出和恢复。在途工作未实际停止前不得释放其责任。
@@ -21,10 +21,11 @@
 
 ## 保留差距
 
-完整十五方法公共定义仍在本提供者，消费者还存在对具体提供者的依赖。
-迁到 core 之前须先分离五个相关拥有者的公共类型，不能把提供者抬进 core 或新增方向豁免。
+公共十五方法及独立选择/重试/历史/响应算法已由 core 拥有；本包只导出其具体独立调用与工厂。
+`RuntimeConstruction` 是显式工厂输入，不能作为 JSON 插件配置。五个相关公共拥有者保持各自边界。
 生产 Session/Run 历史、终结与恢复来源仍由其各自拥有者承担，本批不宣称完整 Agent Runtime 已实现。
-实际 runtime 的普通对象提供及键归属仍有 IC 偏差，N4 不以源码包装成符合规范。
+实际 runtime 仍以普通对象提供，正式 Service 的实现与运行资源注入尚未完成。
+唯一 `MODEL_RUNTIME_SERVICE` 键已归公共 `./cordis`；键唯一不表示普通对象已满足正式 Service 集成。
 
 ## 验证
 

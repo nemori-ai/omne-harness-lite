@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
-import type { DiagnosticScope } from '@omne-harness-lite/model-request-runtime-local'
+import type { DiagnosticScope } from '@omne-harness-lite/model-request-runtime'
 import {
   createDeepSeekV41FlashInputMeter,
   createModelTransportService,

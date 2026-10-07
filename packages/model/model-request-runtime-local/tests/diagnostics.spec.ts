@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { createDiagnosticCollector } from '../src/diagnostics.ts'
+import type { DiagnosticScope } from '@omne-harness-lite/model-request-runtime'
 import type {
   DiagnosticCollectorConfig,
   DiagnosticJournalStore,
   DiagnosticOutputSink,
   DiagnosticRecord,
-  DiagnosticScope,
 } from '../src/diagnostics-types.ts'
 import type { DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
 

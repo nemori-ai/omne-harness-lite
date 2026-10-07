@@ -9,8 +9,11 @@ import {
   modelLogJsonEqual,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
-import { readSettlementPrefix, type SettlementPrefix } from '../src/settlement-prefix.ts'
-import type { CurrentHistoryReaders } from '../src/service-types.ts'
+import {
+  readSettlementPrefix,
+  type SettlementPrefix,
+} from '@omne-harness-lite/model-request-runtime'
+import type { CurrentHistoryReaders } from '@omne-harness-lite/model-request-runtime'
 import {
   batch,
   binding,
@@ -22,7 +25,7 @@ import {
   session,
 } from './log-codec-fixture.ts'
 import { controlled, type ControlledSettlementOwner } from './settlement-fixture.ts'
-import type { SettlementLogBinding } from '../src/settlement-types.ts'
+import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
 
 const digest = (character: string) => character.repeat(64)
 

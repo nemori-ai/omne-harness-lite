@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
-import { readSettlementPrefix, interpretSettlementPrefix } from '../src/settlement-prefix.ts'
+import {
+  readSettlementPrefix,
+  interpretSettlementPrefix,
+} from '@omne-harness-lite/model-request-runtime'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { type SessionLog, type AppendResult } from '@omne-harness-lite/session-log'
 import { join } from 'node:path'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import { response, anchors, session } from './log-codec-fixture.ts'
-import type { SettlementOwner, SettlementTask } from '../src/settlement-types.ts'
+import type { SettlementOwner, SettlementTask } from '@omne-harness-lite/model-request-runtime'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import { batchV2, responseV5 } from './log-codec-v2-fixture.ts'
 import {

@@ -1,3 +1,4 @@
+import { classifyCause } from '@omne-harness-lite/model-request-runtime'
 import {
   start,
   snapshot,
@@ -50,22 +51,6 @@ const noReadFacts = Object.freeze({
   cost: Object.freeze({ cost_usd: 'unknown', source: 'none' }),
   observedInput: Object.freeze({ kind: 'unavailable', reason: 'send_unknown' }),
 } as const)
-
-export function classifyCause(
-  fact: TransportFailure,
-  hasContent: boolean,
-  table: InvocationPolicy['statusCauseTable'],
-): Failure['cause'] {
-  if (hasContent) return 'interrupted_mid_reply'
-  if (fact.source === 'connect' || fact.source === 'stream_broken') return 'upstream_unavailable'
-  if (fact.source === 'http_status' || fact.source === 'in_band') {
-    if (fact.statusCode === undefined) return 'unrecognized'
-    const status = ExactDecimal.from(fact.statusCode)
-    for (const [key, cause] of Object.entries(table))
-      if (status.compare(ExactDecimal.from(new LosslessNumber(key))) === 0) return cause
-  }
-  return 'unrecognized'
-}
 function hasTrims(value: TrimSummary): boolean {
   return (
     ExactDecimal.from(value.merged).compare(ExactDecimal.from(0)) !== 0 ||

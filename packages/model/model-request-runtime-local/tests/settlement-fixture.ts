@@ -16,8 +16,8 @@ import {
   type SettlementContention,
   type SettlementScheduler,
   type SettlementLogBinding,
-  type SettlementRequest,
-} from '../src/settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import { type SettlementRequest } from '../src/settlement-types.ts'
 import { anchors, session, tenant } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 

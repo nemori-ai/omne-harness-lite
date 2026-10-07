@@ -6,7 +6,7 @@ import {
   constructAnchoredInterruption,
   constructAssistantReply,
   constructModelResponse,
-} from '../src/response-construction.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import { request, policy, adapter } from './invoke-policy-fixture.ts'
 import type { ModelInvocationResult } from '@omne-harness-lite/model-request-runtime'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'

@@ -6,8 +6,8 @@ import type {
 } from '@omne-harness-lite/loop-extension'
 import type { ModelCallDispatchedRecord } from '@omne-harness-lite/messages'
 import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
-import { decideRetry } from '../src/decide-retry.ts'
-import type { DecideRetryInput } from '../src/decide-retry-types.ts'
+import { decideRetry } from '../src/index.ts'
+import type { DecideRetryInput } from '../src/index.ts'
 
 const adaptation = {
   implementation: { name: 'test-transport', revision: 'one' },

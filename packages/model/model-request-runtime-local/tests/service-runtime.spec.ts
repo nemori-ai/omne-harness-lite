@@ -1,21 +1,19 @@
+import { MODEL_RUNTIME_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 // @module-tag slow
 // 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 JSONL 会话日志。
 import { Context } from '@deepseek-ai/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { z } from 'zod'
-import { createModelRuntimePlugin, MODEL_RUNTIME_SERVICE } from '../src/service-plugin.ts'
+import { createModelRuntimePlugin } from '../src/service-plugin.ts'
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import type { ModelCallHost, SessionRuntimeBinding } from '../src/service-types.ts'
+import type { ModelCallHost, SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
-import type {
-  CallContainerStore,
-  RuntimeConstruction,
-  ModelRuntimeService,
-} from '../src/service-types.ts'
+import type { ModelRuntimeOperations } from '@omne-harness-lite/model-request-runtime'
+import type { CallContainerStore, RuntimeConstruction } from '../src/service-types.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
-import { interpretCallHistory } from '../src/call-history.ts'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import { noWaitScheduler, policy as settlementPolicy } from './settlement-fixture.ts'
 import { payload, transport, type TestPlan } from './anchored-invocation-fixture.ts'
@@ -633,7 +631,7 @@ it.each(['open', 'dispatch'] as const)(
   },
 )
 
-function isRuntimeService(value: unknown): value is ModelRuntimeService {
+function isRuntimeService(value: unknown): value is ModelRuntimeOperations {
   if (value === null || typeof value !== 'object') return false
   return [
     'legalTargets',

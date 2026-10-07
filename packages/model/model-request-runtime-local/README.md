@@ -8,6 +8,8 @@ Invoke one explicit model transport and assemble its stream into a final result,
 
 The current implementation contains standalone invocation, pure policy functions, bounded durable consumers, four session selection/query operations, and pure call-history interpretation. `createModelRuntime` composes the fifteen typed RT12 methods under one process-local call owner. The fifteenth, `acknowledgeCall` (S-96), fixes one durable acknowledgement per call and then releases the call's model copies through the retention gate; afterwards every read, same-key `openCall` recognition and `reconcile` answers the S-97 acknowledged small view, and control or new work reaches its terminal refusal (S-100). A post-ACK `settleReply` that brings its own `retainedResult` is validated (S-99) and then settled through one staged write responsibility (S-99⑧, see “Settlement after ACK” below). Run-backed settlement consumes an explicitly supplied authorized Run-history reader; the production Run terminal and recovery owner remain host responsibilities. The `./cordis` entry exposes an application-retained assembly through Cordis. Reply disposition uses the original anchored invocation handle and recognizes a completed original batch through the authorized session log and its owner after the local container is gone. Conditional Run recovery preserves the original response attempt while accounting a late batch in the later attempt; no-Run reconciliation can also settle a durable dispatched call without another model request using the stopped original invocation's facts or a host-confirmed cold-recovery absence. An interrupt intent with no dispatch is closed with its durable end record. Response-usage calibration follows D107 and the [runtime v16 mapping](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v16-usage-calibration-design.md). Explicit call-host and bounded observer wiring follows D103; the shared ports and queue alone do not prove a real session endpoint, which the host must supply (the [minimal demo](../../../examples/model-invocation-minimal-demo/README.md) supplies one for its single-process assembly). See the [current service design](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md), [D105 recovery mapping](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-timing-design.md), [recovery owner supplement](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-owner-supplement.md) and [realization status](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md); Run-backed production success still needs the host’s actual Run terminal source and owner.
 
+Public operation types and portable policy/history/response functions in the API tables below come from `@omne-harness-lite/model-request-runtime`. Concrete invocation, coordination and storage factories come from this package. See the [public owner](../../core/model-request-runtime/README.md). The unique `MODEL_RUNTIME_SERVICE` key comes from the public `./cordis` entry.
+
 ## Public API
 
 | Export                                                                                    | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -25,7 +27,7 @@ The current implementation contains standalone invocation, pure policy functions
 | `createSessionModelSelection(input)`                                                      | Borrowed-provider consumer with `legalTargets`, `selectModel`, `displayList`, `effectiveModel` and owned operation cleanup                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `interpretCallHistory({ prefix, callId })`                                                | Interpret original no-Run or Run-owned call entries from a complete, owned SL3 prefix; terminal Run facts remain a separate authorized input                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `projectCallState({ session, callId, history, local? })`                                  | Overlay a process-owned `open` or `reply_pending` responsibility only while no durable response overrides it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `ModelRuntimeService`, `RuntimeConstruction` and operation input/result types             | Explicit fifteen-operation service contract and required host ports, including the required `acknowledgementCleanup` retry policy; the type contract does not itself install a running service                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `ModelRuntimeOperations`, `RuntimeConstruction` and operation input/result types          | Explicit fifteen-operation service contract and required host ports, including the required `acknowledgementCleanup` retry policy; the type contract does not itself install a running service                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `createCallContainerStore()`                                                              | Process-owned per-session/call resources and bounded, cancellable short reservations                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `ModelCallHost`, `ModelObserverRequest`, `SessionObserverAccess`                          | Explicit original-call lifetime and authorized, per-dispatch observer ports                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `createCallPreparationOwner(host)`                                                        | Synchronously register one original call before asynchronous preparation and retain late resources until actual close                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
@@ -128,11 +130,11 @@ export async function inspectWithRuntime(
 import type {
   CallKey,
   ModelFailureExecution,
-  ModelRuntimeService,
-} from '@omne-harness-lite/model-request-runtime-local'
+  ModelRuntimeOperations,
+} from '@omne-harness-lite/model-request-runtime'
 
 export async function inspectFailure(
-  service: ModelRuntimeService,
+  service: ModelRuntimeOperations,
   key: CallKey,
   execution: ModelFailureExecution,
 ) {
@@ -181,7 +183,7 @@ import {
   interpretCallHistory,
   projectCallState,
   type SettlementPrefix,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import type { SessionRef } from '@omne-harness-lite/messages'
 
 export function readNoRunCall(prefix: SettlementPrefix, session: SessionRef, callId: string) {
@@ -235,7 +237,7 @@ Supply a complete `PlanInput`, including an explicit calibration source, an expl
 For a first request with no predecessor, construct the input without inventing an old usage value:
 
 ```ts
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime-local'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 
 export function firstRequest(input: Omit<PlanInput, 'calibration' | 'outputHistory'>): PlanInput {
   return { ...input, calibration: { kind: 'none', reason: 'no_observation' }, outputHistory: [] }
@@ -247,7 +249,7 @@ An independent caller that owns an authorized original response and knows which 
 ```ts
 import type { ContentBlock } from '@omne-harness-lite/content-blocks'
 import type { ModelResponse } from '@omne-harness-lite/model-response'
-import type { PlanInput, ReplaySelection } from '@omne-harness-lite/model-request-runtime-local'
+import type { PlanInput, ReplaySelection } from '@omne-harness-lite/model-request-runtime'
 
 export function nextRequest(
   input: Omit<PlanInput, 'calibration' | 'outputHistory'>,
@@ -297,14 +299,14 @@ On a later request, the authorized same-session history reader supplies `calibra
 `TransportAdapter.read` must return `readFacts` on every terminal branch, including abort and failure. `invokeModel` retains the last facts read after actual stop; it does not replace real usage or cost with an input estimate. The fixed `projectOutput` adapter maps the actually retained reply or delivered blocks into an output-group fact. The same `inputCalibration` value is carried through a pending response, the original durable response and its readback; cold recovery reads those facts without another model request or tokenizer pass. The runtime currently verifies selected no-Run replies and same-call prior dispatches. A cross-call response without an associated selected message, and Run-backed history without its authorized Run owner, remain source-unavailable rather than guessed from log position.
 
 ```ts
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import {
-  invokeModel,
   openRouterCredentialRedactionConfig,
   type PlanInput,
   type PlannedSemantics,
   type TransportAdapter,
   type InvocationPolicy,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 
 export const callerPolicy: InvocationPolicy = {
   now: () => new Date().toISOString(),
@@ -367,10 +369,7 @@ The function checks call existence, terminal or `reply_pending` phase, any prior
 This synthetic example runs without a service or credentials. Declare `content-blocks` as a direct dependency alongside this package for exact JSON numbers.
 
 ```ts
-import {
-  dispatchGuard,
-  type DispatchGuardInput,
-} from '@omne-harness-lite/model-request-runtime-local'
+import { dispatchGuard, type DispatchGuardInput } from '@omne-harness-lite/model-request-runtime'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 
 const input: DispatchGuardInput = {
@@ -456,7 +455,7 @@ The function copies and validates JSON data without reading getters, leaves call
 `decideRetry` consumes the complete LC6 failure subject, including its per-call `retryConclusions`, and explicit backoff inputs. It returns the LC6 `retry` or `observed` result, or a rejection. It performs no waiting or sending; an actual retry still needs `dispatchGuard` and the durable call service. The policy values below are caller choices, not runtime defaults.
 
 ```ts
-import { decideRetry } from '@omne-harness-lite/model-request-runtime-local'
+import { decideRetry } from '@omne-harness-lite/model-request-runtime'
 import type { AfterModelCallFailureSubject } from '@omne-harness-lite/loop-extension'
 
 export function chooseRetry(subject: AfterModelCallFailureSubject) {
@@ -477,7 +476,7 @@ These pure functions implement the D088 adopted format. Static root imports and 
 Text reception and value reception are different modes. Nested duplicate object members, getters, `toJSON`, unsupported objects and fake number brands are rejected. The returned capture retains the original immutable JSON and number spellings. The response judge checks the capture; it does not manufacture an owned `ModelResponse` from `{ ok: true }`.
 
 ```ts
-import { captureModelLogValue } from '@omne-harness-lite/model-request-runtime-local'
+import { captureModelLogValue } from '@omne-harness-lite/model-request-runtime'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
 const captured = captureModelLogValue({
@@ -499,7 +498,7 @@ import {
   captureModelLogValue,
   prepareModelLogEntry,
   encodeModelLogKey,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
 
 const tenant = parseTenantId({ organization: 'example-organization', account: 'example-account' })
@@ -533,7 +532,7 @@ if ('position' in prepared.ok) throw new Error('A candidate has no durable posit
 Full-value recognition compares numeric mathematical values, unordered object members, ordered arrays and exact strings. Absence differs from `null`. It returns the original capture rather than rewriting its number spelling. An id-only or same-source check cannot substitute for full equality.
 
 ```ts
-import { recognizeMessageValue } from '@omne-harness-lite/model-request-runtime-local'
+import { recognizeMessageValue } from '@omne-harness-lite/model-request-runtime'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
 const original =
@@ -557,10 +556,7 @@ Member checking does **not** prove one physical append, lawful history, read per
 The member checker consumes the D089 adopted `offer-expiry` root comparator on the captured original timing strings. It checks `sentAt <= firstTokenAt <= endedAt`, or `sentAt <= endedAt` when no first token exists, when the actual `sentAt` is known. Under D105, only an anchored `interrupted` response may carry `sentAt: null`; the first-token/ended comparison and opened-record equality still apply. Null means the actual send time is unavailable, not proof of zero send or zero cost. Ordinary invocation results and pending replies still require an actual string time. Static invalid dates and reversed known times cannot return complete members. Arbitrary fractional digits and offset-equivalent instants keep their precision; the original opened string must still match exactly.
 
 ```ts
-import {
-  captureModelLogValue,
-  modelLogJsonEqual,
-} from '@omne-harness-lite/model-request-runtime-local'
+import { captureModelLogValue, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
 
 const sent = '2026-09-27T00:00:00.0004Z'
@@ -608,7 +604,7 @@ import {
   createCredentialRedactionPolicy,
   openRouterCredentialRedactionConfig,
   redact,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
 const policy = createCredentialRedactionPolicy(openRouterCredentialRedactionConfig)
@@ -656,7 +652,7 @@ import {
   displayList,
   effectiveModel,
   type SelectionCompatibility,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import type { ProfileRow } from '@omne-harness-lite/model-profile-directory'
 
 const rows: readonly ProfileRow[] = [
@@ -738,7 +734,7 @@ import {
   prepareModelLogEntry,
   inspectSettlementMembers,
   type InspectSettlementMembersInput,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { LogPrefixView } from '@omne-harness-lite/messages'
 import type { OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
@@ -800,7 +796,7 @@ Business reply/tool fragments retain their original assembler semantics. This im
 
 Supply the host's actual session/tenant/log-generation binding and registered owner. `SettlementRegistration.start` must register before invoking the operation; `stopped` means actual resource cessation. The owner enforces shared concurrency admission and supplies the actual opened receipt plus all unresolved old writers. These structural ports grant no authorization or historical batch certification. Required named contention limits and the exact monotonic scheduler are explicit; no default attempts, timer or waiting policy is installed.
 
-```typescript
+```ts
 import {
   createSettlementCoordinator,
   type SettlementCoordinatorInput,
@@ -866,8 +862,8 @@ After actual host preparation, pass its input and an explicit reply disposition 
 import {
   createAnchoredModelInvocation,
   type AnchoredInvocationInput,
-  type PlannedSemantics,
 } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { ReplyDisposition } from '@omne-harness-lite/model-response'
 
 /** Supply actual host preparation and an explicit caller disposition. */
@@ -893,10 +889,8 @@ export async function runPreparedInvocation<P extends PlannedSemantics, R>(
 Every `legalTargets` and `selectModel` operation independently reads current EvaluationInput and calls the adopted AE4 evaluator before computing legality. Missing optional root `model` is valid; model locks never filter the legal target set. `displayList()` reads that current legality and the authoritative last selection, then calls the directory's `credentialPresent(tenant, origin)` for each displayed winning row. It returns one entry per route with current source, covered rows, annotations and a selected flag. A selected withdrawn route remains visible; a selected name with no directory row returns `profileNotFound`. Unreadable inputs return `unavailable`. Presence reads expose no credential body or reference and do not certify that a later value lookup will succeed. These operations implement [RT5 S9–S14/S24–S27/S66](../../../.meta_harness/design/spec/capabilities/model-request-runtime/v5/contract.md#s-24-legaltargets) through the adopted [R3-P2 projection](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v3-design.md#契约到-cordis-的投影).
 
 ```ts
-import {
-  createSessionModelSelection,
-  type SessionModelSelectionInput,
-} from '@omne-harness-lite/model-request-runtime-local'
+import { type SessionModelSelectionInput } from '@omne-harness-lite/model-request-runtime'
+import { createSessionModelSelection } from '@omne-harness-lite/model-request-runtime-local'
 
 // ports come from the authenticated host's actual scoped providers.
 export async function initializeExplicitSelection(
@@ -924,8 +918,8 @@ Pass resolved `ModelToolEntry` values through `planInput.tools`. `modelEntry` co
 import {
   createAnchoredModelInvocation,
   type AnchoredInvocationInput,
-  type PlannedSemantics,
 } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { modelEntry, type ToolDefinition } from '@omne-harness-lite/tool-definition'
 
 export function invokeWithTools<P extends PlannedSemantics, R>(
@@ -982,10 +976,8 @@ The following public query reads already-written records; the host retains the c
 
 ```ts
 // calibration-diagnostics-query
-import type {
-  DiagnosticCollector,
-  DiagnosticScope,
-} from '@omne-harness-lite/model-request-runtime-local'
+import type { DiagnosticScope } from '@omne-harness-lite/model-request-runtime'
+import type { DiagnosticCollector } from '@omne-harness-lite/model-request-runtime-local'
 
 export async function readPlanningDiagnostics(
   collector: DiagnosticCollector,
@@ -1011,9 +1003,11 @@ export async function readPlanningDiagnostics(
 import {
   invokeModel,
   type DiagnosticCollector,
+} from '@omne-harness-lite/model-request-runtime-local'
+import {
   type InvocationInput,
   type PlannedSemantics,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 
 export function invokeWithLocalDiagnostics<P extends PlannedSemantics, R>(
   input: InvocationInput<P, R>,
@@ -1052,7 +1046,7 @@ export function registerDefaultRetry(registry: RunnerImplementations) {
 }
 ```
 
-Call the returned disposer when this registration generation ends. The corresponding Cordis fiber is exported from `@omne-harness-lite/model-request-runtime-local/cordis` as `createModelDefaultRetryPlugin({policy,sample})`. It requires `loopExtensionImplementations` and registers only `omne-official:default-retry` within its effect. The host must still provide a declaration with that exact builtin name, `after_model_call`, and `{ending:'failure'}`; the plugin does not create a declaration or give itself rewrite power. An official Run failure path also needs the host's authorized Run history and failure source; a no-Run call cannot enter the runner's `after_model_call` position.
+Call the returned disposer when this registration generation ends. The corresponding Cordis fiber is exported from `@omne-harness-lite/model-request-runtime-local/cordis` as `modelDefaultRetry` with a serializable policy configuration; its sample source is injected. It requires `loopExtensionImplementations` and registers only `omne-official:default-retry` within its effect. The host must still provide a declaration with that exact builtin name, `after_model_call`, and `{ending:'failure'}`; the plugin does not create a declaration or give itself rewrite power. An official Run failure path also needs the host's authorized Run history and failure source; a no-Run call cannot enter the runner's `after_model_call` position.
 
 Planning now consumes the asynchronous [D109 runtime mapping](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v21-image-preparation-design.md). Every adapter implements `plan(input, execution): Promise<PlanResult<P>>`; it must finish its owned native work before resolving, including cancellation. `invokeModel` passes its actual owner signal and an optional caller-owned opaque `reuseScope`. The scope grants no authorization and is never persisted. A fixed anchored plan is reused by the inner invocation without preparing images again. The service tracks preparation with its exact transport lease; cancellation and close wait for actual completion before releasing references. This runtime does not load a codec or supply image-policy defaults; those are explicit transport factory inputs.
 
@@ -1061,7 +1055,7 @@ import type {
   PlanInput,
   PlannedSemantics,
   TransportAdapter,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 
 export async function prepare<P extends PlannedSemantics, R>(
   transport: TransportAdapter<P, R>,
@@ -1079,10 +1073,8 @@ export async function prepare<P extends PlannedSemantics, R>(
 The service constructor requires an explicit positive safe integer `maxScopes` and a synchronous `ExactTransportAcquirer.clearReuseScope(scope)` capability. For a fixed transport instance, retain its cleanup closure until runtime close succeeds:
 
 ```ts
-import type {
-  ExactTransportAcquirer,
-  PlannedSemantics,
-} from '@omne-harness-lite/model-request-runtime-local'
+import type { ExactTransportAcquirer } from '@omne-harness-lite/model-request-runtime-local'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 
 export function fixedAcquirer<P extends PlannedSemantics, R>(
   acquire: ExactTransportAcquirer<P, R>['acquire'],
@@ -1101,10 +1093,10 @@ D110 adopts the [RT11 reference lifecycle mapping](../../../.meta_harness/design
 The content store (`createModelCallContentStore`) confirms immutable UTF-8 bytes in the existing Storage provider before returning a payload reference. It verifies SHA-256 before strict lossless parsing, rejects same-key different-byte writes, recognizes a committed row after a lost receipt, and drains actual writes on close. External attachment/raw-body references return `unavailable` unless a trusted retention provider is supplied. Its directed test (`tests/reference-content.spec.ts`) uses real SQLite and SessionLog; service creation, acquisition and marker publication are exercised by the service tests described below. RT12 S-98 retention sits in the same Storage: `put` holds a publish permit and refuses once the call is retiring, reads check the phase in the same snapshot as the copy, `prepareAcknowledgement`/`confirmAcknowledgement` fix the ACK record, and `releaseAcknowledged` deletes the exact rows and marks the call released in one transaction, or reports `writer_in_flight`, `storage_unavailable` or `receipt_unknown`. Publication admits its marker from the complete prefix before `put`, so a refused marker leaves no row. Permits are not recovered across processes, and orphan rows from an interrupted unpublished `put` are not deleted.
 
 ```ts
+import { type SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
 import {
   createModelCallContentStore,
   type ModelCallContentValue,
-  type SettlementLogBinding,
 } from '@omne-harness-lite/model-request-runtime-local'
 import type { Storage } from '@omne-harness-lite/storage'
 

@@ -1421,6 +1421,12 @@ importers:
       '@omne-harness-lite/arrival-events':
         specifier: workspace:*
         version: link:../arrival-events
+      '@omne-harness-lite/asset-evaluation':
+        specifier: workspace:*
+        version: link:../asset-evaluation
+      '@omne-harness-lite/asset-registry':
+        specifier: workspace:*
+        version: link:../asset-registry
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../call-accounts
@@ -1430,12 +1436,18 @@ importers:
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../identity-values
+      '@omne-harness-lite/loop-extension':
+        specifier: workspace:*
+        version: link:../loop-extension
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../messages
       '@omne-harness-lite/model-profile':
         specifier: workspace:*
         version: link:../model-profile
+      '@omne-harness-lite/model-profile-directory':
+        specifier: workspace:*
+        version: link:../model-profile-directory
       '@omne-harness-lite/model-response':
         specifier: workspace:*
         version: link:../model-response
@@ -1445,6 +1457,9 @@ importers:
       '@omne-harness-lite/session-log':
         specifier: workspace:*
         version: link:../session-log
+      '@omne-harness-lite/session-tenancy':
+        specifier: workspace:*
+        version: link:../session-tenancy
       '@omne-harness-lite/stream-assembly':
         specifier: workspace:*
         version: link:../stream-assembly

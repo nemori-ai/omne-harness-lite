@@ -19,10 +19,8 @@ import { type ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import { type InputMeter, type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import type { ModelProfileContent } from '@omne-harness-lite/model-profile'
 import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
-import {
-  type AcknowledgementCleanupPolicy,
-  type DefaultRetryConfiguration,
-} from '@omne-harness-lite/model-request-runtime-local'
+import { type AcknowledgementCleanupPolicy } from '@omne-harness-lite/model-request-runtime'
+import { type DefaultRetryConfiguration } from '@omne-harness-lite/model-request-runtime-local'
 import { type TokenMargin } from '@omne-harness-lite/model-request-runtime'
 import type { AcceptanceConfig, AuthenticatedActor, ModelInputSource } from './types.ts'
 import type { ProcessOwnership } from '@omne-harness-lite/session-log-jsonl'

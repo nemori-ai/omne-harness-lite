@@ -1,4 +1,4 @@
-import type { RunHistoryReader } from '@omne-harness-lite/model-request-runtime-local'
+import type { RunHistoryReader } from '@omne-harness-lite/model-request-runtime'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { attemptIdentity } from './tool-driver-run-history.ts'
 import { readToolDriverHistory } from './tool-driver-history.ts'

@@ -3,13 +3,13 @@ import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { z } from 'zod'
 import type {
-  ModelRuntimeService,
+  ModelRuntimeOperations,
   RuntimeCloseResult,
   FailureConsumableOperation,
   FailureConsumption,
-} from './service-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 
-export const MODEL_RUNTIME_SERVICE = 'modelRuntime'
+import { MODEL_RUNTIME_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 
 /** The host retains this owner before construction resolves; release only removes that retention. */
 export interface ModelRuntimeAssemblyOwner {
@@ -17,7 +17,7 @@ export interface ModelRuntimeAssemblyOwner {
   readonly release: () => void
 }
 export interface ModelRuntimeAssembly {
-  readonly service: ModelRuntimeService
+  readonly service: ModelRuntimeOperations
   readonly owner: ModelRuntimeAssemblyOwner
 }
 const methodNames = [
@@ -36,7 +36,7 @@ const methodNames = [
   'settleReply',
   'canDispatchAgain',
   'acknowledgeCall',
-] as const satisfies readonly (keyof ModelRuntimeService)[]
+] as const satisfies readonly (keyof ModelRuntimeOperations)[]
 
 function validAssembly(assembled: ModelRuntimeAssembly): boolean {
   return !(
@@ -116,7 +116,7 @@ export function createModelRuntimePlugin(input: {
         }
         return invoke
       }
-      const service: ModelRuntimeService = {
+      const service: ModelRuntimeOperations = {
         acquireCall: input => original.acquireCall(input),
         legalTargets: input => original.legalTargets(input),
         displayList: input => original.displayList(input),

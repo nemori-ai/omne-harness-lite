@@ -9,11 +9,13 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import type { AssemblySnapshot } from '@omne-harness-lite/stream-assembly'
 import type {
+  ObserverDiagnostic,
+  ObserverReceiveTask,
+} from '@omne-harness-lite/model-request-runtime'
+import type {
   ModelObserverQueue,
   ModelObserverQueueInput,
-  ObserverDiagnostic,
   ObserverOfferResult,
-  ObserverReceiveTask,
 } from './service-types.ts'
 
 interface Buffered {

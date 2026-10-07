@@ -9,6 +9,9 @@ import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import { parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type {
   DiagnosticAssociation,
+  DiagnosticScope,
+} from '@omne-harness-lite/model-request-runtime'
+import type {
   DiagnosticCloseResult,
   DiagnosticCollector,
   DiagnosticCollectorConfig,
@@ -21,7 +24,6 @@ import type {
   DiagnosticQueryResult,
   DiagnosticRecord,
   DiagnosticReportCategory,
-  DiagnosticScope,
   DiagnosticStage,
 } from './diagnostics-types.ts'
 import type {

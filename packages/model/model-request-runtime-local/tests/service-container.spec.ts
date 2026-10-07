@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import type { AppendResult } from '@omne-harness-lite/session-log'
-import type { SettlementTask } from '../src/settlement-types.ts'
+import type { SettlementTask } from '@omne-harness-lite/model-request-runtime'
 import type {
-  CreateCallContainerInput,
   OpenCallInput,
   ModelCallHost,
+  SessionRuntimeBinding,
+} from '@omne-harness-lite/model-request-runtime'
+import type {
+  CreateCallContainerInput,
   CallObserverBinding,
   ModelObserverQueue,
-  SessionRuntimeBinding,
 } from '../src/service-types.ts'
 import {
   createCallContainer,
@@ -16,7 +18,7 @@ import {
   createCallPreparationOwner,
 } from '../src/service-container.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
-import type { AnchoredInvocationHandle } from '../src/anchored-invocation-types.ts'
+import type { AnchoredInvocationHandle } from '@omne-harness-lite/model-request-runtime'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 
 function deferred() {
