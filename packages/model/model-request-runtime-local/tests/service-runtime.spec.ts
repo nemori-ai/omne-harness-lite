@@ -395,7 +395,13 @@ describe('D102 unified model runtime owner', () => {
         expect(dispatched).toHaveProperty('replyPending')
         const dispatchedObservation = runtime.executionSource.lookup(actualContainer.key)
         if (!('execution' in dispatchedObservation)) throw new Error('dispatch source absent')
-        expect(dispatchedObservation.execution.invocation).toBe(actualContainer.view().invocation)
+        expect(dispatchedObservation.execution).not.toHaveProperty('invocation')
+        const capturedExecution = runtime.executionSource.capture(host.session)
+        if (!('capture' in capturedExecution)) throw new Error('capture absent')
+        expect(capturedExecution.capture.executions[0]?.invocation).toBe(
+          actualContainer.view().invocation,
+        )
+        capturedExecution.capture.release()
         expect(wire.sends()).toBe(1)
         // S-86/S-34⑤: the confirmed ready is complete with disposition_pending on every read
         // face; readAttempts carries the complete original result, never reply_pending.

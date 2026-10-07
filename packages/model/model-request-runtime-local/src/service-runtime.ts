@@ -42,6 +42,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   const construction = Object.freeze({ ...provided, calls: executions.calls })
   // RT12 S-98: one custody per runtime owns ACK cleanup; its explicit retry policy is required.
   const custody = createAcknowledgementCustody({
+    runtimeCopies: executions.runtimeCopies,
     calls: construction.calls,
     content: construction.callFacts.content,
     scheduler: construction.settlementScheduler,

@@ -202,4 +202,68 @@ describe('physical execution source', () => {
     held.release()
     expect(await calls.close()).toEqual({ released: true })
   })
+
+  it('seals original capture, preserves pins, and replaces only stopped originals with metadata', async () => {
+    const physical = createCallContainerStore<PlannedSemantics, never>()
+    let closed = false
+    const { calls, source, runtimeCopies } = retainRuntimeExecutions(physical, () => closed)
+    const first = container('call')
+    const held = reservation(calls, 'call')
+    expect(calls.insert(held, first)).toBe(true)
+    const captured = source.capture(session)
+    if (!('capture' in captured)) throw new Error('capture missing')
+    runtimeCopies.stopCapture(first.key)
+    expect(runtimeCopies.releaseCopies(first.view().session.log, first.key)).toEqual([
+      'writer_in_flight',
+    ])
+    expect(await first.close()).toEqual({ released: true })
+    expect(calls.remove(held)).toBe(true)
+    held.release()
+    expect(runtimeCopies.releaseCopies(first.view().session.log, first.key)).toEqual([
+      'external_retention',
+    ])
+    const afterSeal = source.capture(session)
+    if (!('capture' in afterSeal)) throw new Error('metadata capture missing')
+    expect(afterSeal.capture.executions[0]).not.toHaveProperty('invocation')
+    captured.capture.release()
+    captured.capture.release()
+    expect(captured.capture.executions).toEqual([])
+    expect(runtimeCopies.releaseCopies(first.view().session.log, first.key)).toEqual([])
+    expect(source.lookup(first.key)).toMatchObject({
+      execution: {
+        registered: false,
+        released: true,
+        copyReleased: true,
+      },
+    })
+    closed = true
+    expect(source.release()).toEqual({ unavailable: true })
+    afterSeal.capture.release()
+    expect(source.release()).toEqual({ released: true })
+    expect(source.capture(session)).toEqual({ unavailable: true })
+  })
+
+  it('refuses a different original log binding and preserves a stopped non-ACK generation', async () => {
+    const physical = createCallContainerStore<PlannedSemantics, never>()
+    const { calls, source, runtimeCopies } = retainRuntimeExecutions(physical, () => false)
+    const first = container('call'),
+      other = container('other')
+    const held = reservation(calls, 'call')
+    expect(calls.insert(held, first)).toBe(true)
+    expect(await first.close()).toEqual({ released: true })
+    expect(calls.remove(held)).toBe(true)
+    held.release()
+    expect(runtimeCopies.releaseCopies(other.view().session.log, first.key)).toEqual([
+      'receipt_unknown',
+    ])
+    expect(source.lookup(first.key)).toMatchObject({ execution: { copyReleased: false } })
+    const captured = source.capture(session)
+    if (!('capture' in captured)) throw new Error('non-ACK original missing')
+    expect(captured.capture.executions).toHaveLength(1)
+    expect(captured.capture.executions[0]?.executionGeneration).toBe(
+      first.view().executionGeneration,
+    )
+    captured.capture.release()
+    expect(await other.close()).toEqual({ released: true })
+  })
 })

@@ -9,9 +9,20 @@ export interface ModelRuntimeExecutionObservation {
   readonly session: SessionRuntimeBinding
   readonly owner: SettlementOwner
   readonly executionGeneration: object
-  readonly invocation?: AnchoredInvocationHandle
   readonly registered: boolean
   readonly released: boolean
+  readonly copyReleased: boolean
+}
+
+/** Original capabilities borrowed by the trusted recovery owner, never a business caller. */
+export interface ModelRuntimeCapturedExecution extends ModelRuntimeExecutionObservation {
+  readonly invocation?: AnchoredInvocationHandle
+}
+
+export interface ModelRuntimeExecutionCapture {
+  readonly executions: readonly ModelRuntimeCapturedExecution[]
+  /** Drop the owner's escaped handles first. Repeated release has no effect. */
+  readonly release: () => void
 }
 
 /**
@@ -24,6 +35,9 @@ export interface ModelRuntimeExecutionSource {
     executionGeneration?: object,
   ) => { readonly execution: ModelRuntimeExecutionObservation } | { readonly unknown: true }
   readonly snapshot: (session: SessionRef) => readonly ModelRuntimeExecutionObservation[]
-  /** Requires confirmed overall close and the assembly owner's completed recovery work. */
+  readonly capture: (
+    session: SessionRef,
+  ) => { readonly capture: ModelRuntimeExecutionCapture } | { readonly unavailable: true }
+  /** Requires confirmed overall close and every capture's release. */
   readonly release: () => RuntimeCloseResult
 }

@@ -3,12 +3,13 @@ import type {
   AnchoredInvocationHandle,
   ModelLogSettlementTarget,
   ModelRuntimeExecutionObservation,
+  ModelRuntimeCapturedExecution,
   SessionRuntimeBinding,
   SettlementOwner,
 } from '@omne-harness-lite/model-request-runtime'
 
 export function captureExecutionInvocations(
-  executions: readonly ModelRuntimeExecutionObservation[],
+  executions: readonly ModelRuntimeCapturedExecution[],
 ): Map<string, Set<AnchoredInvocationHandle>> {
   const captured = new Map<string, Set<AnchoredInvocationHandle>>()
   for (const execution of executions) {

@@ -4,6 +4,7 @@ import type {
   AnchoredInvocationHandle,
   ModelCallHost,
   ModelRuntimeExecutionObservation,
+  ModelRuntimeCapturedExecution,
   ModelRuntimeExecutionSource,
   ModelRuntimeOperations,
   RuntimeCloseResult,
@@ -14,9 +15,19 @@ declare const key: CallKey
 declare const session: SessionRef
 expectTypeOf(source.snapshot(session)).toEqualTypeOf<readonly ModelRuntimeExecutionObservation[]>()
 expectTypeOf(source.release()).toEqualTypeOf<RuntimeCloseResult>()
-expectTypeOf<ModelRuntimeExecutionObservation['invocation']>().toEqualTypeOf<
+expectTypeOf<ModelRuntimeCapturedExecution['invocation']>().toEqualTypeOf<
   AnchoredInvocationHandle | undefined
 >()
+declare const observation: ModelRuntimeExecutionObservation
+// @ts-expect-error Metadata cannot hand out an original invocation.
+observation.invocation
+const captured = source.capture(session)
+if ('capture' in captured) {
+  expectTypeOf(captured.capture.executions).toEqualTypeOf<
+    readonly ModelRuntimeCapturedExecution[]
+  >()
+  expectTypeOf(captured.capture.release()).toEqualTypeOf<void>()
+}
 const lookup = source.lookup(key, {})
 if ('execution' in lookup)
   expectTypeOf(lookup.execution).toEqualTypeOf<ModelRuntimeExecutionObservation>()

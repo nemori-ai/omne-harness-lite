@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { unwrap, parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import type {
   AnchoredInvocationHandle,
-  ModelRuntimeExecutionObservation,
+  ModelRuntimeCapturedExecution,
   ModelLogSettlementTarget,
   SessionRuntimeBinding,
   SettlementOwner,
@@ -25,8 +25,8 @@ function handle(matches: boolean): AnchoredInvocationHandle {
   } as unknown as AnchoredInvocationHandle
 }
 function record(
-  overrides: Partial<ModelRuntimeExecutionObservation> = {},
-): ModelRuntimeExecutionObservation {
+  overrides: Partial<ModelRuntimeCapturedExecution> = {},
+): ModelRuntimeCapturedExecution {
   return {
     key: { session, callId: 'call' },
     session: binding,
@@ -34,6 +34,7 @@ function record(
     executionGeneration: {},
     registered: false,
     released: true,
+    copyReleased: false,
     ...overrides,
   }
 }

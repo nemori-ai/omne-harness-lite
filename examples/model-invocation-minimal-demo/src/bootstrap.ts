@@ -56,6 +56,8 @@ import {
   type ServiceDisplayListResult,
   type ReconcileResult,
   type AnchoredInvocationHandle,
+  type ModelRuntimeExecutionCapture,
+  type RuntimeRecoveryScope,
   type ObserverDiagnostic,
   type SettlementDiagnostic,
   type FailureConsumableOperation,
@@ -710,7 +712,8 @@ export function createAcceptanceApplication(
     {
       readonly binding: Pick<SessionRuntimeBinding, 'log'>
       readonly owner: ReturnType<typeof createRequestOwner>
-      readonly originals: ReadonlyMap<
+      readonly captures: readonly ModelRuntimeExecutionCapture[]
+      readonly originals: Map<
         string,
         {
           readonly target: ModelLogSettlementTarget
@@ -956,6 +959,12 @@ export function createAcceptanceApplication(
   async function drainModelConsumers() {
     // Recovery may still need this runtime's service, binding and JSONL owner.
     await Promise.allSettled([...recoveryTasks])
+    for (const [session, ready] of recoveryReady) {
+      if (ready.scopeIssued) continue
+      ready.originals.clear()
+      for (const capture of ready.captures) capture.release()
+      recoveryReady.delete(session)
+    }
     const stoppedRuntime = await modelRuntime?.close()
     const stoppedSelections = await Promise.allSettled(
       [...sessionBorrows.values()].flatMap(borrow =>
@@ -1992,14 +2001,14 @@ export function createAcceptanceApplication(
                   ready.owner.owner.unresolvedWrites().length !== 0
                 )
                   return { unavailable: true }
-                ready.scopeIssued = true
                 record({ event: 'operation', phase: 'recovery', outcome: 'entered' })
                 let closed = false
-                return {
+                const entered: { readonly scope: RuntimeRecoveryScope } = {
                   scope: {
                     binding: ready.binding,
                     owner: ready.owner.owner,
                     originalInvocation(key, target) {
+                      if (closed) return { unavailable: true } as const
                       if (key.session !== input.session || key.callId !== target.call)
                         return { unavailable: true }
                       const original = ready.originals.get(key.callId)
@@ -2034,6 +2043,8 @@ export function createAcceptanceApplication(
                       )
                         throw new Error('recovery owner retained')
                       closed = true
+                      ready.originals.clear()
+                      for (const capture of ready.captures) capture.release()
                       recoveryReady.delete(input.session)
                       recoveryAdmission.delete(input.session)
                       // Every unresolved dispatch of the covered cold worker is now settled.
@@ -2042,6 +2053,9 @@ export function createAcceptanceApplication(
                     },
                   },
                 }
+                // No external callback or await after the actual scope ownership transfer.
+                ready.scopeIssued = true
+                return entered
               },
             },
             diagnosticCollector: tenant.collector,
@@ -3051,6 +3065,8 @@ export function createAcceptanceApplication(
         return { unavailable: true }
       recoveryBusy.add(key)
       recoveryAdmission.add(key)
+      const captures: ModelRuntimeExecutionCapture[] = []
+      const captured = new Map<string, Set<AnchoredInvocationHandle>>()
       try {
         let ready = recoveryReady.get(key)
         if (ready === undefined) {
@@ -3063,7 +3079,13 @@ export function createAcceptanceApplication(
             return { unavailable: true }
           for (const previous of owners ?? []) if (previous.released?.()) owners?.delete(previous)
           // Capture the original handle before stop may remove the container from the store.
-          const captured = captureExecutionInvocations(modelRuntime.executionSource.snapshot(key))
+          const beforeStop = modelRuntime.executionSource.capture(key)
+          if ('unavailable' in beforeStop) return { unavailable: true }
+          captures.push(beforeStop.capture)
+          for (const [callId, handles] of captureExecutionInvocations(
+            beforeStop.capture.executions,
+          ))
+            captured.set(callId, handles)
           // Stop active HTTP dispatch before draining admitted work: that work can be
           // waiting for the very abort which the host owns.
           const stopping = Promise.allSettled(
@@ -3073,7 +3095,10 @@ export function createAcceptanceApplication(
           const stopped = await stopping
           await access.borrow.owner.drain()
           const warmBinding = runtimeBindings.get(key)
-          const executions = modelRuntime.executionSource.snapshot(key)
+          const afterStop = modelRuntime.executionSource.capture(key)
+          if ('unavailable' in afterStop) return { unavailable: true }
+          captures.push(afterStop.capture)
+          const executions = afterStop.capture.executions
           if (
             (!cold && warmBinding === undefined) ||
             (warmBinding !== undefined && warmBinding.log !== access.borrow.binding) ||
@@ -3159,6 +3184,7 @@ export function createAcceptanceApplication(
           ready = {
             binding: { log: access.borrow.binding },
             owner: access.borrow.owner,
+            captures: [...captures],
             originals,
             coldTargets,
             coldAbsent: cold && options.coldRecovery?.covered === true,
@@ -3197,6 +3223,16 @@ export function createAcceptanceApplication(
       } catch {
         return { unavailable: true }
       } finally {
+        captured.clear()
+        const prepared = recoveryReady.get(key)
+        if (prepared !== undefined && !prepared.scopeIssued) {
+          prepared.originals.clear()
+          for (const capture of prepared.captures) capture.release()
+          recoveryReady.delete(key)
+        }
+        // A successful enter hands these frames to the registered runtime scope.
+        if (prepared?.scopeIssued !== true) for (const capture of captures) capture.release()
+        captures.length = 0
         recoveryBusy.delete(key)
       }
     })

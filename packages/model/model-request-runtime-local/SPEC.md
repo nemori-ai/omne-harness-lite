@@ -78,8 +78,22 @@
 其余 store 方法保持原 receiver、reservation 身份和结果。
 物理 store 的唯一拥有者检查仍用原 store 身份。
 
-索引只保有原容器，不新增实际 store、事实、Schema、writer 或任务。
-每次观察只读取一次原 view，以原 find 和 canRemove 取得登记/释放事实。
-所有同 key 原代际保有到显式 source.release；查询选择沿公共协议。
-整体 close 不隐式删除索引；仅其实际 released 结果允许来源释放。
-来源不能关闭别人已取得的原句柄，也不更改业务取消、费用或 ACK 责任。
+索引保有全原容器或 ACK 后的小见证，不新增实际 store、事实、Schema、writer 或任务。
+metadata 查询仅对 full record 读取一次原 view，以原 find/canRemove 取得登记/释放事实。
+ACK 后小见证直接投影先前确认的原停止/释放事实，不再读原容器或为此保有闭包。
+lookup 仅查该 key 的原代际；选择和借用规则沿公共协议。
+capture 分配全部原投影及 frame 后，才同步发布逐原记录 pin 和全局 frame 计数。
+释放后 frame 清自己的数组和记录引用，不依赖 GC，不撤销外部逃逸能力。
+
+整体 factory 的唯一 ACK custody 取得私有 stopCapture/releaseCopies 配对；独立 custody 可以不取得该资源。
+content.confirmAcknowledgement 真正确认后先封该 key，再原 releaseInMemory 完成实际关闭/移除。
+releaseCopies 对全部原代核同 log binding、真实 released/未 registered 和旧 capture 计数。
+不一致为 receipt_unknown，未实际停为 writer_in_flight，旧 pin 为 external_retention。
+失败保有原副本，沿既有显式 cleanup 政策/scheduler 重试，不新增定时器或立即完成承诺。
+全部小见证先准备完成，再同步清全原容器/句柄及每调用大引用，之后才允许原 Storage cleanup=released。
+已耐久 released 不倒退，但不能跳过本进程副本检查。非 ACK stop/remove 保有原恢复及费用责任。
+整体 close 不隐式清来源；source.release 还须全部 frame 已释放。
+
+原 A22-V10 GC 两例、六轮收集和 90000ms 保持。
+另验 metadata 外持、request/pending/invocation 的大引用、idle frame、活动 capture 对 ACK 的阻挡与释放后重试。
+有限机制模型核同步 pin/seal/erase/released 和整体释放次序，不证明 GC 或 IO。

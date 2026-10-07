@@ -56,11 +56,18 @@ stopped 需要该原容器 released，且原 settlement owner 没有未知 write
 来源含糊为 unknown，读取异常沿原业务入口报告 unavailable。
 冷 worker 退出仍由原冷恢复来源证明，空 snapshot 不构成退出证据。
 
-暖恢复关 Session 准入后捕获全部原 invocation，再停止原 host 并排空原任务与 writer。
-重新 snapshot 对照每份原 binding/owner/代际，所有原容器须实际 released。
-完整前缀保有调用身份。单一原句柄沿既有恢复路径；多个句柄只接受唯一
-observedFacts(target) 匹配，零或多匹配返回 unavailable。
+暖恢复关 Session 准入后 capture 全部原 invocation，停止原 host 并排空原任务与 writer，再 capture 认回晚附加。
+核每份原 binding/owner/代际，全部原执行须实际 released，完整前缀保有调用身份。
+单一原句柄沿既有恢复路径；多句柄只接受唯一 observedFacts(target) 匹配，零或多匹配 unavailable。
 仍须逐使用点重核当前资格，不以执行标签代替租户授权。
 
-只有恢复任务、观察者、原 runtime 和 settlement 消费者收场均确认后，装配才显式释放来源。
-来源清空不解除外部原引用的责任。原 45000ms 冷恢复阈值保持。
+recoveryReady 登记仍归宿主准备，不是 scope 移交。
+只有 enter 已构造 scope，且在最后同步步骤设置 scopeIssued 并返回后，原 runtime entry 才拥有 scope close/retry。
+此后不执行可抛的外部回调。authorize/enter 拒绝或抛错、其他前置失败，宿主 finally 清临时 Map、未 issued ready.originals 和两份 capture。
+失败保持原恢复准入关闭，直到重试成功或应用撤除，不假报恢复完成。
+已 issued scope 关闭失败保留原责任；原 drain/资格真正满足后清 originals/frames，删除 ready 并重开准入。
+已关闭 scope.originalInvocation 返回 unavailable，不能重新取得原句柄。
+
+应用 drain 先等 recoveryTasks 并清未 issued ready，再由 runtime.close 关闭已移交 scope。
+全部实际消费者停止后才 source.release；活动 frame 或未知保有不能变成关闭成功。
+frame 释放不撤销逃逸引用。原 45000ms 冷恢复阈值保持；实际 worker 退出仍是冷恢复前提。

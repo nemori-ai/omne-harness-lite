@@ -181,32 +181,33 @@ Duration 与 JsonNumber 使用公开精确值语义，不能先转成毫秒浮�
 
 ## 物理拥有者的执行来源
 
-`ModelRuntimeExecutionSource` 供物理运行时的受信装配拥有者使用。
-它携带原 binding、settlement owner 和 invocation 的内部能力引用。
-`readonly` 和冻结投影不撤销这些引用的原权限。
-业务 host、十五操作及其结果、普通调用方 Context 和 JSON 配置不得取得这个新增来源。
-原 `ModelCallHost.register(close)` 的能力保持。
+`ModelRuntimeExecutionSource` 只交给物理运行时的受信装配拥有者。
+业务 host、十五操作及其结果、普通调用方 Context 和 JSON 配置不得取得它。
+原 `ModelCallHost.register(close)` 保持。readonly/freeze 不撤销能力权限。
+
+metadata 固定原 key、Session binding、settlement owner、executionGeneration 和当次 registered/released/copyReleased。
+它不携 container、invocation、request、pending、parameters 或 result。
+共享 binding/owner 仍是内部能力，但不得保有每次调用的私有大副本。
+`registered` 表示原 store 仍认该容器，`released` 表示实际停止并释放，`copyReleased` 表示 ACK 后模型侧私有副本已解除。
+消费者另核 tenant/Session/log/owner、未知 writer 和逐使用点当前资格。
+空观察、含糊来源、release 请求都不能证明停止。
 
 生产者在实际容器接受的同步边界保有原引用，覆盖正常创建和恢复重建。
-最终业务结果失败不能删除已经产生的执行责任。
-同一逻辑调用可以有不同物理代际；来源须保有每份原代际，不覆盖或推测最新一份。
+业务最终返回失败不能删除已经产生的执行责任。各物理代际不得相互覆盖。
+非 ACK stop/remove 仍保有原执行能力；真实 ACK 确认后封闭该 key 的新原句柄捕获。
+已借用 frame 是实际外持责任。原停止、原 binding 对照及全部旧借用释放后才解除大副本，留下原代际的小见证。
+Storage cleanup=released 不能先于模型侧副本解除。耐久 released 认回仍须检查本进程的私有引用。
 
-`lookup(ref, executionGeneration?)` 返回唯一原执行或 `unknown`。
-先拒绝同 key 的代际碰撞或多份仍登记容器，再按查询分支选择。
-显式代际仅匹配唯一原代际，即使另有已撤的不同代际也可返回。
-未指定代际时，优先唯一仍登记的容器；没有仍登记容器时，仅返回唯一保有记录。
-未指定代际且保有多份已撤记录时返回 `unknown`。
-`snapshot(session)` 返回该 Session 所有保有原容器的当次观察。
-查询不读耐久数据、不关闭句柄、不授予租户权限；原资源读取异常向受信调用方传播。
-空观察、缺失或含糊来源不能证明停止。
+| 操作            | 输入与前提                                   | 成功                                                 | 状态/效应                        | 失败                                                                                           | 并发/取消                                               | 身份/授权                                                           | 生命周期                                              | 验证                                |
+| --------------- | -------------------------------------------- | ---------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------- | ----------------------------------- |
+| lookup          | 原 CallKey、可选原代际；可信 source          | 唯一代 metadata                                      | 不读耐久源、不关闭句柄           | 缺失、代际碰撞、多 registered，或无 registered/无指定代且多 retired 为 unknown；原读取异常传播 | 同步，不保证未来状态                                    | 显式代选唯一；否则优先唯一 registered，再唯一记录；不授予业务访问权 | source release 后 unknown                             | 两代、碰撞、错误代、小见证          |
+| snapshot        | 原 SessionRef；可信 source                   | 全部原代 metadata                                    | 不形成借用 pin                   | 原读取异常传播；空不是停止证据                                                                 | 同步；full record 一次原 view，小见证直接投影已确认事实 | Session 筛选；另核资格                                              | runtime close 不清；source release 后空               | 双 Session、大引用 GC               |
+| capture         | 原 SessionRef；source 未释放                 | capture.executions 当次不可变数组，可含原 invocation | 完整分配后登记 frame/原记录 pin  | source 已释放为 unavailable；读取/分配异常传播且不留 pin                                       | 同步；ACK seal 后仅 metadata，不新 pin 私有副本         | 仅可信拥有者；非 ACK 移除后仍可借用原句柄                           | frame 不含之后新代际/晚附加，另借用认回               | 暖恢复、晚附加、ACK 同时借用        |
+| capture.release | 拥有者已清自己逃逸的原数组/句柄/Map          | void，幂等                                           | 清 frame 自身数组/记录引用和 pin | 不新增业务错误                                                                                 | 同步，不等停止/GC；原政策负责后续 ACK 进展              | 不撤销外部原能力或已发生效果                                        | 之后 executions=[]                                    | idle frame GC、前置失败             |
+| source.release  | 整体 close 已真实确认，所有 frame 已 release | released，清来源索引                                 | 不取消/写 ACK                    | 任一前提未满足为 unavailable，记录保持                                                         | 同步幂等                                                | 只有工厂拥有者；不是外部释放证明                                    | 之后 capture unavailable、lookup unknown、snapshot 空 | pending close、活动或空 frame、重试 |
 
-观察固定原 key、binding、owner、executionGeneration 与当次可选 invocation。
-`registered` 表示原物理 store 仍认该容器；`released` 表示该容器已实际释放。
-外部消费者须另核当前资格、原 tenant/Session/log/owner 及未知 writer。
-同步观察不形成未来状态的保证或资源租约。
-
-整体 `close` 成功后仍保有观察，供原收场和恢复消费者认回责任。
-`source.release()` 在整体 `close` 尚未确认时返回 `unavailable` 并保有全部记录。
-装配拥有者须先完成自己的观察和恢复责任，再显式释放来源。
-释放幂等，之后 lookup 为 `unknown`、snapshot 为空。
-它不写 ACK、不关闭外部已保有的原引用，也不证明那些引用已经释放。
+capture 中的借用登记不要求物理 registered=true。ACK 封捕获但尚未擦除时，新 capture 只含 metadata，不取得原 invocation。
+ACK 擦除后小见证仍是原 binding/owner/代际，registered=false、released=true、copyReleased=true。
+释放 frame 不能撤销已逃逸值；受信消费者必须配对其自身所有引用。
+验证须保持原 GC 门，并检查 request/pending/invocation 和 shared binding/owner 的真实 holder。
+有限模型不替代 GC、真实 IO、授权或事务验收。
