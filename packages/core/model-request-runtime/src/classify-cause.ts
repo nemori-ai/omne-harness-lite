@@ -2,7 +2,7 @@ import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import type { Failure } from '@omne-harness-lite/model-response'
-import type { TransportFailure, InvocationPolicy } from '@omne-harness-lite/model-request-runtime'
+import type { TransportFailure, InvocationPolicy } from './invocation-types.ts'
 
 export function classifyCause(
   fact: TransportFailure,

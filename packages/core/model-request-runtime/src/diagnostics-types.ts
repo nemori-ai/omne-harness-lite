@@ -1,4 +1,4 @@
-import { type DiagnosticReference } from '@omne-harness-lite/model-request-runtime'
+import { type DiagnosticReference } from './diagnostic-events.ts'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 

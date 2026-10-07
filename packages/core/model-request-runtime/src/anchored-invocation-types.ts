@@ -3,10 +3,10 @@ import type {
   ModelResponse,
   PendingModelResponse,
 } from '@omne-harness-lite/model-response'
-import type { CapturedModelLogValue } from '@omne-harness-lite/model-request-runtime'
-import type { PlanFailure, ModelInvocationHandle } from '@omne-harness-lite/model-request-runtime'
+import type { CapturedModelLogValue } from './log-codec-value.ts'
+import type { PlanFailure, ModelInvocationHandle } from './invocation-types.ts'
 import type { SettlementOwner, SettlementResult } from './settlement-types.ts'
-import type { ModelLogSettlementTarget } from '@omne-harness-lite/model-request-runtime'
+import type { ModelLogSettlementTarget } from './log-codec-settlement.ts'
 
 export type ResponseConstructionResult =
   | { readonly response: ModelResponse; readonly captured: CapturedModelLogValue }

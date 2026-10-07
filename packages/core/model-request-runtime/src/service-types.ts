@@ -42,7 +42,7 @@ import type {
 import type { ModelToolName } from '@omne-harness-lite/tool-definition'
 import type { LogEntry } from '@omne-harness-lite/session-log'
 import type { CallHistoryDispatch, CallHistoryResult } from './call-history.ts'
-import type { ModelLogSettlementTarget } from '@omne-harness-lite/model-request-runtime'
+import type { ModelLogSettlementTarget } from './log-codec-settlement.ts'
 import type { DispatchGuardPhase } from './dispatch-guard.ts'
 import type {
   SessionModelSelectionInput,
@@ -51,8 +51,8 @@ import type {
 import type { EffectiveModel, ModelDisplayEntry } from './selection-types.ts'
 import type { SettlementPrefix } from './settlement-prefix.ts'
 import type { SettlementLogBinding, SettlementOwner, RunHistoryReader } from './settlement-types.ts'
-import type { InputLimitRejection } from '@omne-harness-lite/model-request-runtime'
-import type { ReplaySelection } from '@omne-harness-lite/model-request-runtime'
+import type { InputLimitRejection } from './invocation-types.ts'
+import type { ReplaySelection } from './planning-types.ts'
 import type { AnchoredInvocationHandle } from './anchored-invocation-types.ts'
 
 export type ServiceInvalidReason =

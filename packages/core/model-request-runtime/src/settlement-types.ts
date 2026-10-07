@@ -3,7 +3,7 @@ import type { AttemptId, RunId } from '@omne-harness-lite/call-accounts'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { SessionRef } from '@omne-harness-lite/messages'
 import type { AppendResult, SessionLog } from '@omne-harness-lite/session-log'
-import type { SettlementMembersResult } from '@omne-harness-lite/model-request-runtime'
+import type { SettlementMembersResult } from './log-codec-settlement.ts'
 import type { SettlementPrefix } from './settlement-prefix.ts'
 
 /** G28's owner interprets both axes from the exact owned prefix supplied by this coordinator. */

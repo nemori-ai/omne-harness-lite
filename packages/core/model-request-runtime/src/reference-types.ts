@@ -15,7 +15,7 @@ import type {
   Timing,
 } from '@omne-harness-lite/model-response'
 import type { SettlementLogBinding } from './settlement-types.ts'
-import type { ModelLogSettlementTarget } from '@omne-harness-lite/model-request-runtime'
+import type { ModelLogSettlementTarget } from './log-codec-settlement.ts'
 import type {
   ModelObserverRequest,
   ServiceCallNotFound,
