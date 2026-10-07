@@ -48,6 +48,12 @@ import {
 import { actionManifest } from './tool-action-manifest-fixture.ts'
 import { startRuntimeContextAssembly } from '../src/runtime-context-assembly.ts'
 import { environmentRegistry } from '@omne-harness-lite/execution-environments-host/cordis'
+import {
+  createHostEnvironment,
+  type HostNativePolicy,
+} from '@omne-harness-lite/execution-environments-host'
+import { hostEnvironmentMigrations } from '@omne-harness-lite/execution-environments-host/migrations'
+import type { ContextSessionSeed, ContextSource } from '@omne-harness-lite/runtime-context'
 import { toolResultFiles } from '@omne-harness-lite/tool-result-files/cordis'
 import {
   runtimeRegistry,
@@ -78,14 +84,24 @@ export async function actionIntegrationFixture(
     readonly installRuntime?: boolean
     readonly ownedScopes?: readonly SessionScope[]
     readonly adoptedTool?: FixtureTool
+    readonly contextKeys?: readonly string[]
+    readonly contextSeed?: ContextSessionSeed
+    readonly contextSources?: readonly ContextSource[]
     readonly environment?: {
       readonly tool: FixtureTool
-      readonly providers: readonly EnvironmentProvider[]
+      readonly providers?: readonly EnvironmentProvider[]
+      readonly host?: { readonly provider: string; readonly policy?: HostNativePolicy }
     }
   } = {},
 ) {
   const selectedTool = options.environment?.tool ?? options.adoptedTool ?? tool
-  const f = await historyFixture(options.calls, options.permission, selectedTool),
+  const f = await historyFixture(
+      options.calls,
+      options.permission,
+      selectedTool,
+      options.environment?.host ? hostEnvironmentMigrations : [],
+      options.contextSeed,
+    ),
     directory = await mkdtemp(join(tmpdir(), 'omne-action-manifest-'))
   const manifest = await actionManifest(
     directory,
@@ -127,7 +143,7 @@ export async function actionIntegrationFixture(
         consumer,
         principal: 'history-user',
         principalKind: 'human',
-        contextKeys: [],
+        contextKeys: options.contextKeys ?? [],
       }
       const issued = await authorization.issuerFor(identity).issue({ ...identity, operations })
       if (issued.kind !== 'issued') throw new Error('action access issue')
@@ -260,10 +276,27 @@ export async function actionIntegrationFixture(
                     {
                       plugin: {
                         name: 'fixture-environment-contributions',
-                        inject: ['executionEnvironments'],
+                        inject: [
+                          'executionEnvironments',
+                          'storage',
+                          'sessionAccess',
+                          'runtimeContext',
+                        ],
                         apply(ctx: Context) {
-                          for (const provider of options.environment!.providers)
+                          for (const source of options.contextSources ?? [])
+                            ctx.runtimeContext.registerSource(source)
+                          for (const provider of options.environment!.providers ?? [])
                             ctx.executionEnvironments.registerProvider(provider)
+                          const host = options.environment?.host
+                          if (host)
+                            ctx.executionEnvironments.registerProvider(
+                              createHostEnvironment({
+                                name: host.provider,
+                                storage: ctx.storage,
+                                access: ctx.sessionAccess,
+                                ...(host.policy ? { policy: host.policy } : {}),
+                              }),
+                            )
                         },
                       },
                       config: {},

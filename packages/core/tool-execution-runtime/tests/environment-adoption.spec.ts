@@ -298,3 +298,47 @@ test('a no-answer terminal refers to the original wait while cleanup cannot add 
     invalid: true,
   })
 })
+
+test('environment ownership transfer requires the original permit and precedes terminal or stop observation', () => {
+  const planned = {
+    kind: 'resource_planned',
+    revision: 1,
+    ref,
+    resource: { key: 'terminal-birth', provider: 'host', reference: { unit: 'original-unit' } },
+  }
+  const permitted = { kind: 'resource_permitted', revision: 1, ref, key: 'terminal-birth' }
+  const transferred = { kind: 'resource_adopted', revision: 1, ref, key: 'terminal-birth' }
+  const stopped = {
+    kind: 'physical_stop_observed',
+    revision: 1,
+    ref,
+    key: 'terminal-birth',
+    status: 'confirmed',
+    at,
+    evidence: { native: 'original-unit' },
+  }
+  const prefix = [intent, started, adopted, planned]
+  const legal = projectToolJournal(
+    scope,
+    entries([...prefix, permitted, transferred, ended(), stopped]),
+  )
+  if ('invalid' in legal) throw new Error('Original ownership transfer rejected')
+  expect(legal.executions.get(ref.callId)?.resources.get('terminal-birth')).toMatchObject({
+    permitted: { value: permitted },
+    adopted: { value: transferred },
+    observations: [{ value: stopped }],
+  })
+  for (const tail of [
+    [transferred],
+    [permitted, ended(), transferred],
+    [permitted, stopped, transferred],
+    [permitted, transferred, transferred],
+    [permitted, transferred, permitted],
+  ]) {
+    expect(projectToolJournal(scope, entries([...prefix, ...tail]))).toEqual({ invalid: true })
+  }
+  expect(
+    projectToolJournal(scope, entries([intent, started, planned, permitted, transferred])),
+  ).toEqual({ invalid: true })
+  expect(captureToolJournalValue(transferred)).toMatchObject(transferred)
+})

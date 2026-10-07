@@ -198,7 +198,7 @@
 > environment**, so when it goes, **all of them go with it**.
 
 - **形态**：对象
-- **出处**：[PF-007 §6.4 `Shell()`](../../product/PF-007-meta-capabilities/design.md#64-shell通向命令行)（rev 23） · [PF-005 §6.3](../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
+- **出处**：[PF-007 §6.4 `Shell()`](../../product/PF-007-meta-capabilities/design.md#64-shell通向命令行)（rev 24） · [PF-005 §6.3](../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
 - **⚠️ 别混**：**不是[会话](agent-runtime-loop.md#ul-session--会话--session)。**
   两者**毫无关系**——一个是协作的归属边界，一个是执行环境里的一条命令行。
   **`Shell()` 的命令名 `create_session` / `close_session` 不改**（那是接口），

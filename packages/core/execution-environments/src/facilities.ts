@@ -1,3 +1,7 @@
+import type { CommandFacility } from './terminal.ts'
+import type { FileFacility } from './file-facility.ts'
+export type { CommandFacility } from './terminal.ts'
+export type { FileFacility } from './file-facility.ts'
 /** A process receives literal arguments and an explicit environment, never ambient env. */
 export interface CommandRequest {
   readonly executable: string
@@ -8,7 +12,7 @@ export interface CommandRequest {
 }
 
 export interface CommandOutput {
-  readonly stream: 'stdout' | 'stderr'
+  readonly stream: 'stdout' | 'stderr' | 'terminal'
   readonly data: Uint8Array
 }
 
@@ -19,10 +23,18 @@ export interface CommandOutputPolicy {
   readonly overflow: 'discard'
 }
 
-export interface CommandOutputSummary {
-  readonly stdout: { readonly observedBytes: number; readonly discardedBytes: number }
-  readonly stderr: { readonly observedBytes: number; readonly discardedBytes: number }
+export type CommandOutputMode = 'separate' | 'terminal'
+export interface CommandOutputCount {
+  readonly observedBytes: number
+  readonly discardedBytes: number
 }
+export type CommandOutputSummary =
+  | {
+      readonly mode: 'separate'
+      readonly stdout: CommandOutputCount
+      readonly stderr: CommandOutputCount
+    }
+  | { readonly mode: 'terminal'; readonly terminal: CommandOutputCount }
 
 export interface CommandResult {
   readonly kind: 'completed'
@@ -49,31 +61,26 @@ export type CommandOutcome = CommandResult | CommandFailure
 export type FacilityFailure = {
   readonly kind: 'rejected'
   readonly reason:
-    'invalidInput' | 'notAuthorized' | 'closed' | 'notFound' | 'unavailable' | 'effectUnknown'
+    | 'invalidInput'
+    | 'notAuthorized'
+    | 'closed'
+    | 'notFound'
+    | 'unavailable'
+    | 'effectUnknown'
+    | 'conflict'
+    | 'busy'
+    | 'capacity'
+    | 'unsupported'
 }
 
 export interface ProcessHandle {
+  /** Terminal output combines channels. It cannot identify original stdout/stderr. */
+  readonly outputMode: CommandOutputMode
   /** One reader. Closing its iterator does not stop the original execution. */
   readonly output: AsyncIterable<CommandOutput>
   readonly outputPolicy: CommandOutputPolicy
   readonly result: Promise<CommandOutcome>
   readonly stop: (mode: 'graceful' | 'forced') => Promise<'confirmed' | 'unconfirmed'>
-}
-
-export interface CommandFacility {
-  readonly start: (
-    request: CommandRequest,
-  ) => Promise<{ readonly kind: 'started'; readonly process: ProcessHandle } | FacilityFailure>
-}
-
-export interface FileFacility {
-  readonly read: (
-    path: string,
-  ) => Promise<{ readonly kind: 'read'; readonly data: Uint8Array } | FacilityFailure>
-  readonly write: (
-    path: string,
-    data: Uint8Array,
-  ) => Promise<{ readonly kind: 'written' } | FacilityFailure>
 }
 
 /** Type augmentation declares vocabulary. It installs neither providers nor call authority. */

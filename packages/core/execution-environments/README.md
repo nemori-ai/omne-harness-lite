@@ -15,6 +15,8 @@ Behavior beyond types belongs to [SPEC.md](SPEC.md).
 
 The template marker reports structural adoption. It does not establish complete business or lifecycle acceptance.
 
+The command facility includes one-shot execution, persistent terminal creation, later terminal execution, close, and information. The files facility includes byte reads, conditional writes, metadata, queries, mutations, and batch recognition. Resource adoption and maintenance recovery are separate from business authorization. Public operation types own these shapes. EE-21–25 in SPEC.md own the behavior beyond types.
+
 ## Development
 
 Run from the repository root:

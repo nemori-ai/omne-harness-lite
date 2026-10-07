@@ -29,7 +29,7 @@ test.each(['pending', 'throws'] as const)(
       expect(release).toHaveBeenCalledOnce()
       await expect(h.registry.close()).rejects.toThrow('unfinished cleanup')
       expect(release).toHaveBeenCalledTimes(2)
-      expect(h.provider.retire).not.toHaveBeenCalled()
+      expect(h.provider.retire).toHaveBeenCalledOnce()
       expect(await h.registry.operations.acquire(h.request())).toEqual({
         kind: 'rejected',
         reason: 'ownerStopped',
@@ -39,7 +39,7 @@ test.each(['pending', 'throws'] as const)(
       expect(release).toHaveBeenCalledTimes(3)
       expect(h.provider.acquire).toHaveBeenCalledOnce()
       expect(h.provider.retire).toHaveBeenCalledOnce()
-      expect(release.mock.invocationCallOrder[2]).toBeLessThan(
+      expect(release.mock.invocationCallOrder[2]).toBeGreaterThan(
         vi.mocked(h.provider.retire).mock.invocationCallOrder[0] ?? 0,
       )
       await h.registry.close()
@@ -80,7 +80,7 @@ test('partial provisional cleanup retries only the still-pending original lease'
     await expect(h.registry.close()).rejects.toThrow('unfinished cleanup')
     expect(first).toHaveBeenCalledOnce()
     expect(second).toHaveBeenCalledTimes(2)
-    expect(h.provider.retire).not.toHaveBeenCalled()
+    expect(h.provider.retire).toHaveBeenCalledOnce()
     confirmed = true
     await h.registry.close()
     expect(first).toHaveBeenCalledOnce()

@@ -25,7 +25,9 @@ import { sameJson } from './json-values.ts'
 
 type ResourceRecord = Extract<
   ToolJournalPayload,
-  { kind: 'resource_planned' | 'resource_permitted' | 'physical_stop_observed' }
+  {
+    kind: 'resource_planned' | 'resource_permitted' | 'resource_adopted' | 'physical_stop_observed'
+  }
 >
 type Preparation =
   | { readonly kind: 'ready'; readonly facilities: EnvironmentFacilities }
@@ -50,6 +52,8 @@ function resourceState(
   closed: boolean,
 ) {
   if (!history) return 'unavailable'
+  if (value.kind === 'resource_adopted' && history.resources.get(value.key)?.adopted)
+    return 'recorded'
   if (value.kind !== 'physical_stop_observed') {
     if (closed || history.terminal) return 'closed'
     if (!history.started) return 'unavailable'
@@ -69,30 +73,53 @@ function requestedFacilities(
   })
 }
 
+function planRelation(
+  history: ToolJournalHistory,
+  value: Extract<ResourceRecord, { kind: 'resource_planned' }>,
+) {
+  const previous = history.resources.get(value.resource.key)
+  if (!previous) return 'append'
+  return sameJson(
+    previous.planned.value.resource as unknown as JsonValue,
+    value.resource as unknown as JsonValue,
+  )
+    ? 'recorded'
+    : 'conflict'
+}
+function permissionRelation(
+  history: ToolJournalHistory,
+  value: Extract<ResourceRecord, { kind: 'resource_permitted' | 'resource_adopted' }>,
+) {
+  const previous = history.resources.get(value.key)
+  if (!history.environment || !previous || previous.observations.length) return 'unavailable'
+  if (value.kind === 'resource_adopted') {
+    if (!previous.permitted) return 'unavailable'
+    return previous.adopted ? 'recorded' : 'append'
+  }
+  if (previous.adopted) return 'unavailable'
+  return previous.permitted ? 'recorded' : 'append'
+}
 /** Original resource relations; cleanup is independent of current user authority. */
 function resourceGuard(
   history: ToolJournalHistory,
   value: ResourceRecord,
 ): 'append' | 'recorded' | 'conflict' | 'unavailable' {
   switch (value.kind) {
-    case 'resource_planned': {
-      const previous = history.resources.get(value.resource.key)
-      if (!previous) return 'append'
-      return sameJson(
-        previous.planned.value.resource as unknown as JsonValue,
-        value.resource as unknown as JsonValue,
-      )
-        ? 'recorded'
-        : 'conflict'
-    }
-    case 'resource_permitted': {
-      const previous = history.resources.get(value.key)
-      if (!history.environment || !previous) return 'unavailable'
-      return previous.permitted ? 'recorded' : 'append'
-    }
+    case 'resource_planned':
+      return planRelation(history, value)
+    case 'resource_permitted':
+    case 'resource_adopted':
+      return permissionRelation(history, value)
     case 'physical_stop_observed':
       return history.resources.has(value.key) ? 'append' : 'unavailable'
   }
+}
+function initialResourceClosed(value: ResourceRecord, closed: boolean) {
+  return closed && value.kind !== 'physical_stop_observed' && value.kind !== 'resource_adopted'
+}
+
+function recordedResourceStatus(newEffect: boolean, closed: boolean) {
+  return newEffect && closed ? ('closed' as const) : ('recorded' as const)
 }
 
 /** Holds one acquired lease across unknown journal receipts. No successor is acquired. */
@@ -120,7 +147,7 @@ export function createExecutionEnvironment(input: {
     const value = captured as ResourceRecord
     const newEffect = value.kind !== 'physical_stop_observed'
     for (let attempt = 0; attempt < input.attempts; attempt++) {
-      if (newEffect && input.closed.aborted) return 'closed' as const
+      if (initialResourceClosed(value, input.closed.aborted)) return 'closed' as const
       const view = await input.journal.read(scope, input.ref.callId)
       if (view.kind !== 'view') return 'unavailable' as const
       const decision = resourceState(
@@ -135,8 +162,7 @@ export function createExecutionEnvironment(input: {
         expected: view.prefix,
         values: [value],
       })
-      if (committed.kind === 'view')
-        return newEffect && input.closed.aborted ? ('closed' as const) : ('recorded' as const)
+      if (committed.kind === 'view') return recordedResourceStatus(newEffect, input.closed.aborted)
       if (committed.reason !== 'tailChanged') return 'unavailable' as const
       await input.retry?.(attempt)
     }
@@ -151,6 +177,15 @@ export function createExecutionEnvironment(input: {
     async permit(key) {
       const result = await resourceRecord({
         kind: 'resource_permitted',
+        revision: 1,
+        ref: input.ref,
+        key,
+      })
+      return result === 'recorded' ? 'confirmed' : result === 'closed' ? 'closed' : 'unavailable'
+    },
+    async adopt(key) {
+      const result = await resourceRecord({
+        kind: 'resource_adopted',
         revision: 1,
         ref: input.ref,
         key,

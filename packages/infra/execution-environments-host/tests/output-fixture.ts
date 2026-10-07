@@ -10,7 +10,7 @@ export function outputFixture(policy: CommandOutputPolicy) {
     abandoned = false,
     claimed = false,
     buffered = 0
-  const queue: CommandOutput[] = []
+  const queue: (CommandOutput & { stream: 'stdout' | 'stderr' })[] = []
   let waiting: ((value: IteratorResult<CommandOutput>) => void) | undefined
   const counts = {
     stdout: { observedBytes: 0, discardedBytes: 0 },
@@ -22,7 +22,7 @@ export function outputFixture(policy: CommandOutputPolicy) {
     buffered = 0
   }
   return {
-    emit(stream: CommandOutput['stream'], bytes: Uint8Array) {
+    emit(stream: 'stdout' | 'stderr', bytes: Uint8Array) {
       if (closed) throw new Error('producer already closed')
       counts[stream].observedBytes += bytes.length
       for (let at = 0; at < bytes.length; at += policy.maxChunkBytes) {
@@ -53,7 +53,7 @@ export function outputFixture(policy: CommandOutputPolicy) {
       }
     },
     summary(): CommandOutputSummary {
-      return { stdout: { ...counts.stdout }, stderr: { ...counts.stderr } }
+      return { mode: 'separate', stdout: { ...counts.stdout }, stderr: { ...counts.stderr } }
     },
     output: {
       [Symbol.asyncIterator](): AsyncIterator<CommandOutput> {
