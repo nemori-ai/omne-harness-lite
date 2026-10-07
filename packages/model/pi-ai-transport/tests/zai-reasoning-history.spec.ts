@@ -70,7 +70,7 @@ function input(model: ModelDefinition, opaque: boolean): PlanInput {
     id: 'reminder',
     createdAt: at,
     nature: 'event',
-    source: { kind: 'attempt_started', attempt: 1, reason: 'first', at },
+    source: { kind: 'extension', extension: 'transport-business-reminder' },
     blocks: [
       {
         id: 'reminder-text',

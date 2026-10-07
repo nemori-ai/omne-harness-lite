@@ -1,3 +1,4 @@
+import { fixturePayload } from './log-payload-fixture.ts'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -7,7 +8,7 @@ import { REGISTERED_CATEGORIES } from '@omne-harness-lite/asset-registry'
 import { copyJsonValue, LosslessNumber } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import type { LogEntry } from '@omne-harness-lite/session-log'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import {
   captureDriverValue,
   driverKey,
@@ -47,7 +48,7 @@ function adoption(attempt: number | LosslessNumber = 1) {
     run: 'run',
     attempt,
     adoption: key(['attempt', 'run', attemptText]),
-    startedMessageKey: 'started',
+    startedFactKey: 'started',
     context: [
       {
         key: 'session',
@@ -325,7 +326,12 @@ test('a bare driver namespace cannot disguise an undecodable owned record', () =
       ...row,
       dedupeKey: 'foreign',
       readKeys: ['foreign'],
-      payload: { format: 'tool-driver' },
+      payload: {
+        kind: 'fact',
+        owner: 'demo-tool-driver',
+        version: '1',
+        value: { format: 'tool-driver' },
+      },
     }),
   ).toEqual({ invalid: true })
 })
@@ -355,13 +361,13 @@ test('fixed validator loads on first use and retains the native module cache', (
   expect(result.trim()).toBe('lazy-cache-ok')
 })
 
-test('round trips all driver records through actual JSONL and reopening', async () => {
+test('round trips all driver records through actual SQL and reopening', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'omne-driver-codec-'))
   const options = {
     dir,
     processOwnership: { current: 'codec-test', observeExit: async () => 'exited' as const },
   }
-  let log = await openJsonlSessionLog(options)
+  let log = await openSqlLogFixture({ dir: options.dir })
   try {
     for (const value of values()) {
       const prepared = prepareDriverEntry(scope, value)
@@ -376,12 +382,17 @@ test('round trips all driver records through actual JSONL and reopening', async 
       ).toHaveProperty('tail')
     }
     await log.close()
-    log = await openJsonlSessionLog(options)
+    log = await openSqlLogFixture({ dir: options.dir })
     const prefix = await log.readSince(scope.session, 0)
     if ('failure' in prefix) throw new Error('unreadable prefix')
     expect(prefix.entries).toHaveLength(6)
     for (const row of prefix.entries) expect(inspectDriverEntry(scope, row)).toHaveProperty('value')
-    const exact = copyJsonValue(prefix.entries[2]?.payload)
+    expect(prefix.entries[2]?.payload).toMatchObject({
+      kind: 'fact',
+      owner: 'demo-tool-driver',
+      version: '1',
+    })
+    const exact = copyJsonValue(fixturePayload(prefix.entries[2]?.payload))
     expect(exact).toMatchObject({
       ok: {
         value: {

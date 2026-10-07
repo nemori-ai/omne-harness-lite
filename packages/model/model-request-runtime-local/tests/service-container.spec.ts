@@ -4,12 +4,11 @@ import type { AppendResult } from '@omne-harness-lite/session-log'
 import type { SettlementTask } from '../src/settlement-types.ts'
 import type {
   CreateCallContainerInput,
-  OpenCallInput,
-  ModelCallHost,
   CallObserverBinding,
   ModelObserverQueue,
   SessionRuntimeBinding,
 } from '../src/service-types.ts'
+import type { OpenCallInput, ModelCallHost } from '@omne-harness-lite/model-request-runtime'
 import {
   createCallContainer,
   createCallContainerStore,
@@ -112,6 +111,49 @@ function fixture(
 }
 
 describe('call container admission and retention', () => {
+  it('retains verified semantic stop while retrying an unfinished observer close', async () => {
+    let stopped = false,
+      observerStopped = false,
+      stops = 0
+    const observer: Omit<CallObserverBinding, 'queue'> = {
+      request: {
+        session: sessionRef('session'),
+        endpoint: {
+          open: () => ({
+            receive: () => ({ completion: Promise.resolve(), stopped: Promise.resolve() }),
+            stop() {},
+            stopped: Promise.resolve(),
+          }),
+        },
+        observer_max_buffered_events: 1,
+        observer_max_buffered_bytes: 100,
+      },
+      authorization: {
+        check: () => ({ valid: true }),
+        open: () => ({ unavailable: true }),
+        close: async () => (observerStopped ? { released: true } : { unavailable: true }),
+      },
+    }
+    const f = fixture(
+      'session',
+      'call',
+      async () => {
+        stops++
+        if (stopped) return { unavailable: true }
+        stopped = true
+        return { released: true }
+      },
+      observer,
+    )
+    expect(await f.container.close()).toEqual({ unavailable: true })
+    expect(f.leaseReleases).toBe(0)
+    expect(f.coordinatorCloses).toBe(1)
+    observerStopped = true
+    expect(await f.container.close()).toEqual({ released: true })
+    expect(stops).toBe(1)
+    expect(f.leaseReleases).toBe(1)
+  })
+
   it('requests other owners even when semantic stop throws, and retries without releasing early', async () => {
     let fail = true
     const f = fixture('session', 'call', async () => {

@@ -20,6 +20,8 @@ import {
 import { judgeMessage, type SystemReminderMessage } from '@omne-harness-lite/messages'
 import { encodeModelLogKey, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import {
+  checkLogPayload,
+  factLogPayload,
   checkAppendInput,
   type AppendFence,
   type LogEntry,
@@ -229,7 +231,7 @@ export function prepareRunnerConclusion(
     ...(exec.kind === 'withRun' ? { run: exec.run, attempt: exec.attempt } : {}),
     dedupeKey,
     readKeys: Object.freeze(readKeys),
-    payload,
+    payload: factLogPayload('loop-extension-runner', '1', payload),
   })
   const checked = checkAppendInput(
     source.session,
@@ -284,10 +286,7 @@ function claimsConclusion(entry: Record<string, unknown>, payload: unknown): boo
   const keyClaims =
     claimsRunnerKey(entry.dedupeKey) ||
     (Array.isArray(entry.readKeys) && entry.readKeys.some(claimsRunnerKey))
-  const payloadClaims =
-    object(payload) &&
-    ((typeof payload.format === 'string' && payload.format.startsWith('runner/')) ||
-      payload.category === 'conclusion')
+  const payloadClaims = object(payload) && payload.owner === 'loop-extension-runner'
   return keyClaims || payloadClaims
 }
 
@@ -311,8 +310,9 @@ export function inspectRunnerConclusion(input: {
   const source = copied.ok
   const entry = source.entry
   if (!object(entry)) return invalid
-  const payload = entry.payload
-  if (!claimsConclusion(entry, payload)) return unrelated
+  const root = entry.payload
+  if (!claimsConclusion(entry, root)) return unrelated
+  const payload = ownedConclusionPayload(root)
   if (!identity(source.session) || !conclusionPayload(payload)) return invalid
   const owned = inspectShell(entry, source.session, source.tenant)
   if (owned === undefined) return invalid
@@ -373,4 +373,14 @@ export function executionFence(execution: RunnerExecution): AppendFence {
   return execution.kind === 'withRun'
     ? { kind: 'fenced', run: execution.run, attempt: execution.attempt }
     : { kind: 'unfenced' }
+}
+
+function ownedConclusionPayload(
+  value: unknown,
+): import('@omne-harness-lite/content-blocks').JsonValue | null {
+  const outer = checkLogPayload(value)
+  if (!('kind' in outer) || outer.kind !== 'fact') return null
+  return outer.payload.owner === 'loop-extension-runner' && outer.payload.version === '1'
+    ? outer.payload.value
+    : null
 }

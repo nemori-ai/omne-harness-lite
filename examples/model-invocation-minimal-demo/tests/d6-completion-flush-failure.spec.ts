@@ -8,7 +8,7 @@ import { createDemoDiagnosticConfig } from '../src/demo.ts'
 import { createDiagnosticJournal } from '../src/diagnostic-journal.ts'
 import { demoRetirement } from './model-request-support.ts'
 
-describe('D6 actual JSONL flush failure', () => {
+describe('D6 actual SQL journal flush failure', () => {
   it('keeps the accepted and written watermarks separate from a failed fsync and reports incomplete close', async () => {
     const parent = resolve('tmp/d6-completion')
     await fs.mkdir(parent, { recursive: true, mode: 0o700 })

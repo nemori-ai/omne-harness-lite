@@ -5,7 +5,7 @@ import { expect, test, vi } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { compareInteger, type AppendRequest, type SessionLog } from '@omne-harness-lite/session-log'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import type { ToolActionHistoryOperations } from '@omne-harness-lite/tool-admission'
 import {
   captureToolJournalValue,
@@ -49,13 +49,10 @@ const intent = value({
 })
 const started = value({ kind: 'execution_started', revision: 1, ref, at })
 
-/** Real atomic JSONL; the application history port is controlled. These tests do not establish D1 admission. */
+/** Real atomic SQL journal; the application history port is controlled. These tests do not establish D1 admission. */
 async function fixture() {
   const dir = await mkdtemp(join(tmpdir(), 'omne-runtime-journal-'))
-  const log = await openJsonlSessionLog({
-    dir,
-    processOwnership: { current: 'journal-test', observeExit: async () => 'exited' },
-  })
+  const log = await openSqlLogFixture({ dir: dir })
   let generation = 'first-owner'
   const append = vi.fn<SessionLog['append']>(log.append),
     readSince = vi.fn(log.readSince),

@@ -5,7 +5,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
 import { writeJsonLossless, type JsonNumber } from '@omne-harness-lite/content-blocks'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { type SessionLog, type AppendResult } from '@omne-harness-lite/session-log'
 import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
 import {
@@ -133,15 +133,7 @@ export async function controlled(
     .get(session)
   const parsed = parseTenantId(row)
   if (!('ok' in parsed)) throw new Error('actual SQL tenant mapping')
-  let log = await openJsonlSessionLog({
-    dir: join(dir, 'log'),
-    processOwnership: {
-      current: `settlement-controlled:${process.pid}`,
-      async observeExit() {
-        return 'unknown'
-      },
-    },
-  })
+  let log = await openSqlLogFixture({ dir: join(dir, 'log') })
   const submissions: { fence: unknown; condition: unknown; count: number }[] = []
   const port: SessionLog = {
     readSince: async (...args) => await log.readSince(...args),
@@ -156,21 +148,17 @@ export async function controlled(
     session,
     tenant: parsed.ok,
     log: source,
+    readPrefix(this: import('../src/settlement-types.ts').SettlementLogBinding) {
+      return log.fixturePrefix({ session: this.session, tenant: this.tenant }, this.log)
+    },
+    originalIssue: log.fixtureOriginalIssue,
     generation,
     currentGeneration: () => generation,
   })
   const reopen = async () => {
     await log.close()
     generation = Object.freeze({})
-    log = await openJsonlSessionLog({
-      dir: join(dir, 'log'),
-      processOwnership: {
-        current: `settlement-reopened:${process.pid}`,
-        async observeExit() {
-          return 'unknown'
-        },
-      },
-    })
+    log = await openSqlLogFixture({ dir: join(dir, 'log') })
     return wrap(port)
   }
   const binding = wrap(port),

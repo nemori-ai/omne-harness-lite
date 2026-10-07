@@ -28,7 +28,7 @@ import {
   type AdmissionResult,
   type AuthorizationContext,
 } from '@omne-harness-lite/tool-admission'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { vi } from 'vitest'
 import { captureActionRequest } from '../src/action-request.ts'
 import { createRunnerTaskOwner } from '../src/task-owner.ts'
@@ -130,7 +130,7 @@ export function piece(
   }
 }
 
-/** Uses real runner, contribution custody and JSONL. Run/model origin and judgment are controlled ports. */
+/** Uses real runner, contribution custody and SQL journal. Run/model origin and judgment are controlled ports. */
 export async function batchHost(
   calls?: readonly ToolCallBlock[],
   permissions?: unknown,
@@ -143,8 +143,8 @@ export async function batchHost(
     dir,
     processOwnership: { current: 'action-test', observeExit: async () => 'exited' as const },
   }
-  let log = await openJsonlSessionLog(options)
-  // Mutable test probes delegate to the actual frozen JSONL API, including after reopen.
+  let log = await openSqlLogFixture({ dir: options.dir })
+  // Mutable test probes delegate to the actual frozen SQL journal API, including after reopen.
   const operations: Pick<typeof log, 'append' | 'readByKey' | 'readSince'> = {
     append: (...args) => log.append(...args),
     readByKey: (...args) => log.readByKey(...args),
@@ -264,7 +264,7 @@ export async function batchHost(
     async reopen() {
       await owner.drain()
       await log.close()
-      log = await openJsonlSessionLog(options)
+      log = await openSqlLogFixture({ dir: options.dir })
     },
     async close() {
       active = false

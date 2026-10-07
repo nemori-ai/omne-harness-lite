@@ -1,19 +1,18 @@
 // @module-tag slow
-// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 JSONL 会话日志。
+// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 import { Context } from '@deepseek-ai/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { z } from 'zod'
-import { createModelRuntimePlugin, MODEL_RUNTIME_SERVICE } from '../src/service-plugin.ts'
+import { createModelRuntimePlugin } from '../src/service-plugin.ts'
+import { MODEL_RUNTIME_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import type { ModelCallHost, SessionRuntimeBinding } from '../src/service-types.ts'
+import type { SessionRuntimeBinding } from '../src/service-types.ts'
+import type { ModelCallHost } from '@omne-harness-lite/model-request-runtime'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
-import type {
-  CallContainerStore,
-  RuntimeConstruction,
-  ModelRuntimeService,
-} from '../src/service-types.ts'
+import type { CallContainerStore, RuntimeConstruction } from '../src/service-types.ts'
+import type { ModelRuntimeService } from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
@@ -107,7 +106,7 @@ function construction(
 
 describe('D102 unified model runtime owner', () => {
   it.each([false, true])(
-    'runs the real SQLite/JSONL runtime through close (scope cleanup initially fails: %s)',
+    'runs the real SQLite/SQL journal runtime through close (scope cleanup initially fails: %s)',
     async initiallyFails => {
       const host = await selectionHost(true, true)
       try {

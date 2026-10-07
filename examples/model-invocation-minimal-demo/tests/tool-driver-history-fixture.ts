@@ -1,3 +1,6 @@
+import { attemptStartedPayload } from '@omne-harness-lite/session-runtime'
+import { sessionLogMigrations } from '@omne-harness-lite/session-log-sql'
+import type { LogAuthorityOperations } from '@omne-harness-lite/session-log'
 import { mkdtemp, mkdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -27,7 +30,7 @@ import {
 import { openStorage } from '@omne-harness-lite/storage-sql'
 import { composeMigrations } from '@omne-harness-lite/storage'
 import type { CheckedPrefix, LogEntryInput, OwnedLogEntry } from '@omne-harness-lite/session-log'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { OFFICIAL_ADMISSION_NAME } from '@omne-harness-lite/tool-admission'
 import {
   readSettlementPrefix,
@@ -95,11 +98,12 @@ export function officialPiece(
 }
 export const dk = (parts: string[]) => `tool-driver/1/${JSON.stringify(parts)}`
 
-/** Controlled data provenance through real public codecs and the physical JSONL owner. No network model is claimed here. */
+/** Controlled data provenance through real public codecs and the physical SQL owner. No network model is claimed here. */
 export async function historyFixture(
   calls: readonly ToolCallBlock[] = [toolCall()],
   permission: 'auto' | 'forbid' = 'auto',
   adoptedTool: FixtureTool = tool,
+  authorize?: LogAuthorityOperations['authorize'],
 ) {
   const dir = await mkdtemp(join(tmpdir(), 'omne-driver-history-'))
   const logDir = join(dir, 'logs')
@@ -108,12 +112,16 @@ export async function historyFixture(
     dir: logDir,
     processOwnership: { current: 'history-test', observeExit: async () => 'exited' as const },
   }
-  let log = await openJsonlSessionLog(options)
   const storage = await openStorage({
     dialect: 'sqlite',
     file: join(dir, 'context.sqlite'),
-    migrations: composeMigrations(runtimeContextMigrations),
+    migrations: composeMigrations([...runtimeContextMigrations, ...sessionLogMigrations]),
     upgrade: false,
+  })
+  let log = await openSqlLogFixture({
+    dir: options.dir,
+    storage,
+    ...(authorize === undefined ? {} : { authorize }),
   })
   const messages: Exclude<Message, { type: 'system' }>[] = []
   let currentAttempt = 1
@@ -159,25 +167,26 @@ export async function historyFixture(
   }
   async function attempt(n: number) {
     currentAttempt = n
-    const started = model('message', {
-      id: `started-${n}`,
-      type: 'system_reminder',
-      createdAt: at,
-      nature: 'event',
-      source: {
+    const started = {
+      tenant: scope.tenant,
+      run: 'run',
+      attempt: n,
+      dedupeKey: `session-runtime/attempt/${n}`,
+      readKeys: ['session-runtime/attempts'],
+      payload: attemptStartedPayload({
         kind: 'attempt_started',
+        run: 'run',
         attempt: n,
         reason: n === 1 ? 'first' : 'resumed_after_wait',
         at,
-      },
-      blocks: [],
-    })
+      }),
+    }
     const value = {
       kind: 'attempt_adopted',
       run: 'run',
       attempt: n,
       adoption: dk(['attempt', 'run', `${n}e0`]),
-      startedMessageKey: started.dedupeKey,
+      startedFactKey: started.dedupeKey,
       context: [],
       tools: [adoptedTool],
       report: {
@@ -330,7 +339,7 @@ export async function historyFixture(
   async function prefix(): Promise<CheckedPrefix> {
     const result = await log.readSince(scope.session, 0)
     if ('failure' in result) throw new Error('prefix fixture')
-    return { scope, ownerGeneration: 'owner-one', ...result }
+    return { scope, ownerGeneration: log.backing.ownerGeneration, ...result }
   }
   const context = createRuntimeContext({
     log,
@@ -394,6 +403,7 @@ export async function historyFixture(
         binding: {
           ...scope,
           log,
+          readPrefix: () => log.fixturePrefix(scope),
           generation,
           currentGeneration: () => (active ? generation : null),
         },
@@ -407,11 +417,15 @@ export async function historyFixture(
     },
     async reopen() {
       await log.close()
-      log = await openJsonlSessionLog(options)
+      log = await openSqlLogFixture({
+        dir: options.dir,
+        storage,
+        ...(authorize === undefined ? {} : { authorize }),
+      })
     },
     async close() {
-      await storage.close()
       await log.close()
+      await storage.close()
       await rm(dir, { recursive: true, force: true })
     },
   }

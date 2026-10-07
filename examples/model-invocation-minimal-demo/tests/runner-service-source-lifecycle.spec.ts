@@ -7,12 +7,12 @@ import type {
   RunnerDispatchRequest,
   RunnerDispatchScope,
 } from '@omne-harness-lite/loop-extension-runner'
+import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime-local'
 import type {
   ModelFailureSource,
   ModelRuntimeService,
-  SettlementLogBinding,
-} from '@omne-harness-lite/model-request-runtime-local'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+} from '@omne-harness-lite/model-request-runtime'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { createDemoRunnerHost } from '../src/runner-host.ts'
 import {
   createDemoRunnerServiceHost,
@@ -96,7 +96,7 @@ async function fixture(
     dir,
     processOwnership: { current: label, observeExit: async () => 'exited' as const },
   }
-  const log = await openJsonlSessionLog(options)
+  const log = await openSqlLogFixture({ dir: options.dir })
   const generation = Object.freeze({})
   const binding: SettlementLogBinding = {
     session,
@@ -105,7 +105,7 @@ async function fixture(
     generation,
     currentGeneration: () => generation,
   }
-  const runnerHost = createDemoRunnerHost(log, options)
+  const runnerHost = createDemoRunnerHost(log, log.backing.ownerGeneration)
   const released = { source: 0, verify: 0, external: 0 }
   const source: ModelFailureSource = {
     subject,

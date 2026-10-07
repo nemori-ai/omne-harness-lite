@@ -451,7 +451,6 @@
                     "enum": [
                       "background_execution_finished",
                       "background_execution_interrupted",
-                      "attempt_started",
                       "interrupted",
                       "system_wait_answered",
                       "loop_guard",
@@ -724,9 +723,6 @@
           "$ref": "#/$defs/BackgroundExecutionInterruptedSource"
         },
         {
-          "$ref": "#/$defs/AttemptStartedSource"
-        },
-        {
           "$ref": "#/$defs/InterruptedSource"
         },
         {
@@ -801,37 +797,6 @@
       "required": [
         "kind",
         "callId"
-      ],
-      "additionalProperties": false
-    },
-    "AttemptStartedSource": {
-      "title": "一次尝试开始了（contract.md S-20）",
-      "description": "这条提醒同时就是日志里的「尝试开始」记录。attempt 是尝试序号（data.call-accounts v2 的 AttemptId，≥ 1），显式写出、不靠数；at 是这次尝试起的时刻；reason 是为什么起，恰三值：first——这个 Run 的第一次尝试；resumed_after_interruption——从一次中断接上来；resumed_after_wait——等到的东西回来了。哪个 Run 由承载它的记录条目给出（G-2）。说事的。",
-      "type": "object",
-      "properties": {
-        "kind": {
-          "const": "attempt_started"
-        },
-        "attempt": {
-          "$ref": "../../call-accounts/v4/call-accounts.schema.json#/$defs/AttemptId"
-        },
-        "reason": {
-          "type": "string",
-          "enum": [
-            "first",
-            "resumed_after_interruption",
-            "resumed_after_wait"
-          ]
-        },
-        "at": {
-          "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
-        }
-      },
-      "required": [
-        "kind",
-        "attempt",
-        "reason",
-        "at"
       ],
       "additionalProperties": false
     },

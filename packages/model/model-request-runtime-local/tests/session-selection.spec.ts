@@ -1,5 +1,5 @@
 // @module-tag slow
-// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 JSONL 会话日志。
+// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 import { describe, expect, it } from 'vitest'
 import { selectionHost, AT, ROOT, profile } from './session-selection-fixture.ts'
 import { jsonObject } from './log-codec-fixture.ts'
@@ -820,7 +820,7 @@ describe('RT5 real session model selection and current evaluation', () => {
       const oldEntry = {
         ...entry.ok,
         readKeys: entry.ok.readKeys.map(old),
-        payload: { ...jsonObject(entry.ok.payload), format: 'mrr/1' },
+        payload: { ...jsonObject(entry.ok.payload), version: 'mrr/1' },
       }
       const appended = await host.log.append(
         host.session,

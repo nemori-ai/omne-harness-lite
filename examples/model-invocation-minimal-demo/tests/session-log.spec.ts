@@ -1,12 +1,13 @@
+import { DatabaseSync } from 'node:sqlite'
 import fs from 'node:fs/promises'
 import type { Fiber } from '@deepseek-ai/cordis'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { join, dirname } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { LOGINS_SERVICE } from '@omne-harness-lite/account-identity/cordis'
 import type { LoginsService } from '@omne-harness-lite/account-identity'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { type SessionLog } from '@omne-harness-lite/session-log'
 import { SessionLogService } from '@omne-harness-lite/session-log/cordis'
 import { createSessionTenancyReader } from '@omne-harness-lite/session-tenancy-table'
@@ -46,16 +47,7 @@ async function logDeployment(
   await fs.mkdir(dir, { mode: 0o700 })
   return {
     ...base,
-    sessionLog: {
-      dir,
-      policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
-      processOwnership: {
-        current: label,
-        async observeExit() {
-          return 'unknown' as const
-        },
-      },
-    },
+    sessionLog: { operationLimit: 32 },
   }
 }
 function logFace(value: unknown): value is SessionLog {
@@ -90,7 +82,7 @@ function start(
   })
 }
 
-describe('A2a real JSONL owner and authorization', () => {
+describe('A2a real SQL owner and authorization', () => {
   it('opens the declared log and access gate and reads complete committed rows after actual close/reopen', async () => {
     const config = await logDeployment('log-reopen'),
       events: AcceptanceEvent[] = []
@@ -160,7 +152,9 @@ describe('A2a real JSONL owner and authorization', () => {
         ],
         tail: 1,
       })
-      await expect(openJsonlSessionLog(config.sessionLog)).rejects.toThrow()
+      const competing = start(config)
+      await expect(competing.ready).rejects.toThrow()
+      expect((await competing.close()).complete).toBe(true)
       expect((await app.close()).complete).toBe(true)
       expect(await app.readSessionLog(who, 's1')).toEqual({ failure: 'stageClosed' })
       const ownerClosed = events.findIndex(
@@ -180,7 +174,7 @@ describe('A2a real JSONL owner and authorization', () => {
       } finally {
         expect((await next.close()).complete).toBe(true)
       }
-      const owner = await openJsonlSessionLog(config.sessionLog)
+      const owner = await openSqlLogFixture({ file: config.databaseFile })
       try {
         expect(await owner.readSince(session('s1'), 0)).toEqual(before)
       } finally {
@@ -237,6 +231,51 @@ describe('A2a real JSONL owner and authorization', () => {
       })
     } finally {
       await reader?.close()
+      expect((await app.close()).complete).toBe(true)
+    }
+  })
+
+  it('rechecks login in the read transaction after preliminary authorization and borrowing', async () => {
+    const config = await logDeployment('log-revoked-between-check-and-read')
+    const entered = latch(),
+      proceed = latch()
+    let block = false,
+      login: Pick<LoginsService, 'revoke'> | undefined
+    const app = start(config, {
+      storageOpened(storage) {
+        const atomic = storage.atomic.bind(storage)
+        storage.atomic = async callback => {
+          const result = await atomic(callback)
+          if (block && result === undefined) {
+            block = false
+            entered.resolve()
+            await proceed.promise
+          }
+          return result
+        }
+      },
+      async fiberCreated(name, fiber) {
+        if (name !== 'accountIdentity') return
+        await fiber
+        const value: unknown = fiber.ctx.get(LOGINS_SERVICE)
+        if (!loginFace(value)) throw new Error('Actual login revocation missing')
+        login = value
+      },
+    })
+    try {
+      await app.ready
+      const who = await actor(app)
+      await app.prepareSession(who, 'private-history')
+      block = true
+      const reading = app.readSessionLog(who, 'private-history')
+      await entered.promise
+      if (!login) throw new Error('Actual login revocation missing')
+      await login.revoke(who.loginState, who.loginState)
+      proceed.resolve()
+      expect(await reading).toEqual({ failure: 'unavailable' })
+    } finally {
+      block = false
+      proceed.resolve()
       expect((await app.close()).complete).toBe(true)
     }
   })
@@ -402,7 +441,7 @@ describe('A2a real JSONL owner and authorization', () => {
       await expect(app.ready).rejects.toMatchObject({ phase: 'sessionLog', category: state })
       expect(app.status().serving).toBe(false)
       expect((await app.close()).complete).toBe(true)
-      const reopened = await openJsonlSessionLog(config.sessionLog)
+      const reopened = await openSqlLogFixture({ file: config.databaseFile })
       await reopened.close()
     })
 
@@ -432,14 +471,16 @@ describe('A2a real JSONL owner and authorization', () => {
   })
 
   it('refuses competing physical ownership without discarding committed SQL state', async () => {
-    const config = await logDeployment('log-exclusive'),
-      owner = await openJsonlSessionLog(config.sessionLog)
+    const config = await logDeployment('log-exclusive')
+    const owner = start(config)
+    await owner.ready
     try {
       const app = start(config)
-      await expect(app.ready).rejects.toMatchObject({ phase: 'sessionLog', category: 'failed' })
+      await expect(app.ready).rejects.toThrow()
       expect((await app.close()).complete).toBe(true)
+      expect(owner.status().serving).toBe(true)
     } finally {
-      await owner.close()
+      expect((await owner.close()).complete).toBe(true)
     }
     const next = start(config)
     try {
@@ -450,7 +491,7 @@ describe('A2a real JSONL owner and authorization', () => {
     }
   })
 
-  it('reports unavailable rather than empty when the real root disappears; failing diagnostics remain independent', async () => {
+  it('reports unavailable rather than empty when the actual SQL read fails; failing diagnostics remain independent', async () => {
     const config = await logDeployment('log-unavailable'),
       seen: AcceptanceEvent[] = []
     let failures = 0
@@ -469,19 +510,31 @@ describe('A2a real JSONL owner and authorization', () => {
       const who = await actor(app)
       await app.prepareSession(who, 's1')
       expect(await app.readSessionLog(who, 's1')).toEqual({ entries: [], tail: 0 })
-      await fs.rename(config.sessionLog.dir, `${config.sessionLog.dir}-moved`)
+      const originalPrepare = DatabaseSync.prototype.prepare
+      const fault = vi.spyOn(DatabaseSync.prototype, 'prepare').mockImplementation(function (
+        this: DatabaseSync,
+        sql,
+      ) {
+        if (this.location('main') === config.databaseFile && sql.includes('sl_journal'))
+          throw Object.assign(new Error('controlled SQL read unavailable'), {
+            code: 'ERR_SQLITE_ERROR',
+            errcode: 10,
+            errstr: 'disk I/O error',
+          })
+        return originalPrepare.call(this, sql)
+      })
       expect(await app.readSessionLog(who, 's1')).toEqual({ failure: 'unavailable' })
-      await fs.rename(`${config.sessionLog.dir}-moved`, config.sessionLog.dir)
+      fault.mockRestore()
       expect((await app.close()).complete).toBe(true)
       expect(app.status().diagnosticFailures).toBe(failures)
-      expect(seen.some(e => e.event === 'sessionLog' && e.phase === 'root')).toBe(true)
+      expect(seen.some(e => e.event === 'sessionLog' && e.phase === 'read')).toBe(true)
       expect(JSON.stringify(seen)).not.toContain('secret-cause-sentinel')
     } finally {
       await app.close()
     }
   })
 
-  it('keeps the actual owner and all dependencies when filesystem cleanup fails, then recovers after that owner exits', async () => {
+  it('keeps the actual owner and all dependencies when the original SQL commit cannot be recognized, then recovers after that owner exits', async () => {
     const config = await logDeployment('log-close-failure')
     const input = join(dirname(config.databaseFile), 'log-close-input.json')
     await fs.writeFile(
@@ -512,7 +565,8 @@ describe('A2a real JSONL owner and authorization', () => {
     expect(exit, stderr).toBe(0)
     const result = JSON.parse(stdout)
     expect(result.closed.complete).toBe(false)
-    expect(result.closed.unfinished.slice(0, 3)).toEqual([
+    expect(result.closed.unfinished.slice(0, 4)).toEqual([
+      'sessionLogBorrows',
       'sessionLogOwner',
       'sessionLog',
       'sessionTenancy',
@@ -529,15 +583,7 @@ describe('A2a real JSONL owner and authorization', () => {
     // The child close event is evidence of its actual exit, not a fabricated PID assertion.
     const reopened = start({
       ...config,
-      sessionLog: {
-        ...config.sessionLog,
-        processOwnership: {
-          current: 'log-close-parent',
-          async observeExit(owner: string) {
-            return owner === 'log-close-child' ? ('exited' as const) : ('unknown' as const)
-          },
-        },
-      },
+      sessionLog: { operationLimit: 32 },
     })
     try {
       await reopened.ready

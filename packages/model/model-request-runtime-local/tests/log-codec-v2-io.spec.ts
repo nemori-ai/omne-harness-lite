@@ -1,10 +1,12 @@
-import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
+import { DatabaseSync } from 'node:sqlite'
+import { modelFormat, modelValue } from './log-codec-fixture.ts'
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import * as codec from '@omne-harness-lite/model-request-runtime'
-import { openJsonlSessionLog, type JsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture, type SqlLogFixture } from './sql-log-fixture.ts'
 import { type LogEntry, type OwnedLogEntry, type ReadResult } from '@omne-harness-lite/session-log'
 import { anchors, batch, jsonObject, response, session, tenant } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
@@ -38,13 +40,10 @@ function inspect(prefix: ReturnType<typeof readable>) {
     current: null,
   })
 }
-async function controlled(
-  name: string,
-  work: (log: JsonlSessionLog, dir: string) => Promise<void>,
-) {
+async function controlled(name: string, work: (log: SqlLogFixture, dir: string) => Promise<void>) {
   await mkdir(evidenceRoot, { recursive: true })
   const dir = await mkdtemp(join(evidenceRoot, `${name}-`))
-  const log = await openJsonlSessionLog({ dir: join(dir, 'log'), processOwnership: ownership })
+  const log = await openSqlLogFixture({ dir: join(dir, 'log') })
   try {
     await work(log, dir)
   } finally {
@@ -55,16 +54,17 @@ function initialEntries(): readonly OwnedLogEntry[] {
   return anchors().entries.map(({ session: _session, position: _position, ...entry }) => entry)
 }
 function priorGeneration(entry: OwnedLogEntry): OwnedLogEntry {
+  if (jsonObject(entry.payload).kind === 'message') return entry
   const old = (value: string) => value.replace(/^mrr\/3\//u, 'mrr/1/')
   return {
     ...entry,
     ...(entry.dedupeKey === undefined ? {} : { dedupeKey: old(entry.dedupeKey) }),
     readKeys: entry.readKeys.map(old),
-    payload: { ...jsonObject(entry.payload), format: 'mrr/1' },
+    payload: { ...jsonObject(entry.payload), version: 'mrr/1' },
   }
 }
 
-describe('D100 actual JSONL current codec and old-data isolation', () => {
+describe('D100 actual SQL current codec and old-data isolation', () => {
   it('one complete current batch wins; another whole batch cannot add response or cost', async () => {
     await controlled('first-wins', async log => {
       expect(await log.append(session, initialEntries(), fence, condition)).toHaveProperty(
@@ -78,7 +78,7 @@ describe('D100 actual JSONL current codec and old-data isolation', () => {
       })
       const prefix = readable(await log.readSince(session, 0))
       expect(prefix.tail).toBe(4)
-      expect(prefix.entries.map(entry => jsonObject(entry.payload).format)).toEqual([
+      expect(prefix.entries.map(entry => modelFormat(entry.payload))).toEqual([
         'mrr/3',
         'mrr/3',
         'mrr/3',
@@ -101,10 +101,7 @@ describe('D100 actual JSONL current codec and old-data isolation', () => {
       )
       const before = readable(await log.readSince(session, 0))
       await log.close()
-      const reopened = await openJsonlSessionLog({
-        dir: join(dir, 'log'),
-        processOwnership: ownership,
-      })
+      const reopened = await openSqlLogFixture({ dir: join(dir, 'log') })
       try {
         const prefix = readable(await reopened.readSince(session, 0))
         expect(codec.modelLogJsonEqual(prefix, before)).toBe(true)
@@ -116,7 +113,7 @@ describe('D100 actual JSONL current codec and old-data isolation', () => {
         const opened = prefix.entries[1]
         if (opened === undefined) throw new Error('opened')
         expect(jsonObject(full.timing).firstTokenAt).toBe(
-          jsonObject(jsonObject(opened.payload).value).firstTokenAt,
+          jsonObject(modelValue(opened.payload)).firstTokenAt,
         )
         await writeFile(join(dir, 'readback.json'), writeJsonLossless(prefix))
       } finally {
@@ -125,19 +122,29 @@ describe('D100 actual JSONL current codec and old-data isolation', () => {
     })
   })
 
-  it('leaves old JSONL bytes untouched and reports old model rows as unavailable', async () => {
+  it('leaves old SQL row bytes untouched and reports old model rows as unavailable', async () => {
     await controlled('old-unchanged', async (log, dir) => {
       const entries = [...initialEntries(), ...batch(response)].map(priorGeneration)
       expect(await log.append(session, entries, fence, condition)).toHaveProperty('positions')
-      const files = (await readdir(join(dir, 'log'))).filter(name => name.endsWith('.jsonl'))
-      const before = await Promise.all(files.map(name => readFile(join(dir, 'log', name))))
+      const db = new DatabaseSync(join(dir, 'log', 'journal.sqlite'))
+      const raw = () =>
+        db.prepare('select value from sl_entry order by position_length, position').all()
+      const before = raw()
+      expect(before).toHaveLength(4)
       const prefix = readable(await log.readSince(session, 0))
       expect(inspect(prefix)).toEqual({ undetermined: true, reason: 'unknown_format' })
-      const after = await Promise.all(files.map(name => readFile(join(dir, 'log', name))))
-      expect(after).toEqual(before)
+      expect(raw()).toEqual(before)
       expect(
-        prefix.entries.every((entry: LogEntry) => jsonObject(entry.payload).format === 'mrr/1'),
+        prefix.entries
+          .filter(entry => jsonObject(entry.payload).kind === 'fact')
+          .every((entry: LogEntry) => modelFormat(entry.payload) === 'mrr/1'),
       ).toBe(true)
+      expect(
+        prefix.entries
+          .filter(entry => jsonObject(entry.payload).kind === 'message')
+          .map(entry => jsonObject(entry.payload).version),
+      ).toEqual(['8'])
+      db.close()
     })
   })
 })

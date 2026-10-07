@@ -25,11 +25,13 @@ import {
   readSettlementPrefix,
   type CurrentHistoryReaders,
   type SettlementPrefix,
-  type ModelRuntimeService,
-  type CanDispatchAgainResult,
   type SettlementLogBinding,
   type SettlementRegistration,
 } from '@omne-harness-lite/model-request-runtime-local'
+import type {
+  ModelRuntimeService,
+  CanDispatchAgainResult,
+} from '@omne-harness-lite/model-request-runtime'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import type { AssemblyManifestStore } from '@omne-harness-lite/assembly-manifest-store'
 import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy'

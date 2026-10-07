@@ -3,12 +3,15 @@ import type { AttemptId, RunId } from '@omne-harness-lite/call-accounts'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { SessionRef } from '@omne-harness-lite/messages'
 import type {
+  SourceToken,
+  LogEntry,
   AppendCondition,
   AppendResult,
   OwnedLogEntry,
   SessionLog,
 } from '@omne-harness-lite/session-log'
 import type {
+  OriginalIssueAdmission,
   ModelLogSettlementTarget,
   ModelLogSettlementCurrent,
   SettlementMembersResult,
@@ -36,6 +39,16 @@ export interface SettlementLogBinding {
   readonly session: SessionRef
   readonly tenant: TenantId
   readonly log: SessionLog
+  /** Bound current-authorized complete prefix, with its persisted journal identity. */
+  readonly readPrefix?: () => Promise<
+    | {
+        readonly entries: readonly LogEntry[]
+        readonly tail: JsonNumber
+        readonly source: SourceToken
+      }
+    | { readonly failure: 'unavailable' }
+  >
+  readonly originalIssue?: OriginalIssueAdmission
   readonly generation: object
   /** Same generation object while usable; null after revocation/replacement. No authorization flag. */
   readonly currentGeneration: () => object | null

@@ -1,3 +1,7 @@
+import type {
+  CallHistoryDispatch,
+  DispatchGuardPhase,
+} from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal, type ModelCallId } from '@omne-harness-lite/call-accounts'
 import type { JsonNumber, JsonValue } from '@omne-harness-lite/content-blocks'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
@@ -24,29 +28,7 @@ import {
   settlementGenerationCurrent,
   type SettlementPrefix,
 } from './settlement-prefix.ts'
-import type { DispatchGuardPhase } from './dispatch-guard.ts'
 import { inspectCurrentModelLogPrefix } from '@omne-harness-lite/model-request-runtime'
-
-export interface CallHistoryDispatch {
-  readonly ordinal: JsonNumber
-  readonly dispatched: LogEntry
-  readonly record: ModelCallDispatchedRecord
-  readonly opened: LogEntry | null
-  readonly response: {
-    /** Original complete validated response, including raw usage and billing facts. */
-    readonly value: JsonValue
-    readonly projection: ModelLogResponseProjection
-    readonly entry: LogEntry
-  } | null
-  /**
-   * RT11/RT12 S-86: the confirmed ready marker of this dispatch. Its complete original result
-   * lives in the immutable content row; this prefix alone proves only that it is durable.
-   */
-  readonly ready: {
-    readonly record: ModelCallReplyReadyRecord
-    readonly entry: LogEntry
-  } | null
-}
 
 /**
  * `acknowledged` names a consumer that met a durable RT12 S-97 acknowledgement it does not yet

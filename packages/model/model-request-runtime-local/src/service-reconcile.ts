@@ -1,3 +1,10 @@
+import type {
+  DispatchGuardPhase,
+  ReconcileInput,
+  ReconcileResult,
+  SettleReplyInput,
+  SettleReplyResult,
+} from '@omne-harness-lite/model-request-runtime'
 import { randomUUID } from 'node:crypto'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { RunHistoryReader } from './settlement-types.ts'
@@ -12,14 +19,10 @@ import type { AppendResult } from '@omne-harness-lite/session-log'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type {
   CallContainerStore,
-  ReconcileInput,
-  ReconcileResult,
   RuntimeRecoveryAccess,
   RuntimeRecoveryScope,
   RuntimeSessionAccess,
   SessionRuntimeBinding,
-  SettleReplyInput,
-  SettleReplyResult,
   ReservationWaitPolicy,
   CallKey,
 } from './service-types.ts'
@@ -45,7 +48,6 @@ import { UnknownAppendTracker } from './service-calls.ts'
 import { operationDiagnostics } from './service-diagnostics.ts'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import type { DiagnosticCollector } from './diagnostics-types.ts'
-import type { DispatchGuardPhase } from './dispatch-guard.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementContention,

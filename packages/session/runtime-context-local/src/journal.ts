@@ -1,5 +1,5 @@
 import type { SessionLog } from '@omne-harness-lite/session-log'
-import { compareInteger, type JsonNumber } from '@omne-harness-lite/session-log'
+import { factLogPayload, compareInteger, type JsonNumber } from '@omne-harness-lite/session-log'
 import { StorageDefect, StorageUnavailable, type Storage } from '@omne-harness-lite/storage'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import { inspectContextLogEntry } from './history.ts'
@@ -165,7 +165,7 @@ export function createContextJournal(log: SessionLog, storage: Storage) {
           tenant: scope.tenant,
           dedupeKey: `context:${event.revision}`,
           readKeys: ['runtime-context'],
-          payload: event,
+          payload: factLogPayload('runtime-context', '1', event),
         },
       ],
       { kind: 'unfenced' },

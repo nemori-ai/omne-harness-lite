@@ -55,7 +55,6 @@ Accepted legacy behavior and verification sources remain effective until their c
 | [packages/util/unix-format](../../../../packages/util/unix-format/README.md) | module | 只返回字符串的输出格式化；无运行时依赖或隐含 Service，provenance 保留实际来源。 |
 | [packages/util/xml-format](../../../../packages/util/xml-format/README.md) | module | 显式字段规则驱动 XML 字符串；无运行时依赖或 Service，provenance 保留实际来源。 |
 | [packages/session/runtime-context-local](../../../../packages/session/runtime-context-local/README.md) | service-provider | RuntimeContextService 消费 core ABC，纯根与 ./cordis 分面；Storage/log/access/clock/lifetime 显式注入，可信 initializer 与 mutation 共享原 owner，来源归 caller effect。真实 setup/排空/原借用保留与同控制 retry 已核验；持久模型归 verification/models。完整业务交付仍有独立 F 验收义务。 |
-| [packages/session/session-log-jsonl](../../../../packages/session/session-log-jsonl/README.md) | service-provider | SessionLogService 消费 core ABC，删除旧 ./plugin 后同步全部消费者；纯数据 Config，活体 process ownership/diagnostic 由可信工厂捕获。原文件任务/锁转移及失败关闭责任经真实 IO/Cordis 回归核验，物理完成门仍由应用保存原 owner；薄 SPEC 明示边界。 |
 
 | [packages/core/assembly-manifest](../../../../packages/core/assembly-manifest/README.md) | service-contract | H3 全树核对；纯端口单一拥有者与正式资源 Service，六操作及未迁 MF4/模型来源保留。新增真实公共判定测试，不造业务 Service 包装。 |
 | [packages/assets/assembly-manifest-store](../../../../packages/assets/assembly-manifest-store/README.md) | service-provider | H3 全树及实际工厂核对；纯根/绑定分离、正式六操作 Service、必需资源注入与稳定真实排空观察。实际 SQLite、旧引用和换代测试；全模型业务接受仍沿原限定。 |
@@ -86,3 +85,16 @@ Do not add a marker until the specific missing resource or integration qualifica
 | [packages/tools/tool-admission-local](../../../../packages/tools/tool-admission-local/README.md) | 动态 host、真实日志借用及恢复责任仍需提供者完整核验；三个动态绑定抽取 unknown 不被静态无偏离替代。 |
 | [packages/tools/tool-execution-local](../../../../packages/tools/tool-execution-local/README.md) | 动态作者/日志/资源恢复与保有关闭仍需全量提供者核验；静态 unknown 与完整业务接受分别保留。 |
 | [packages/tools/tool-result-files](../../../../packages/tools/tool-result-files/README.md) | 文件发布、实际 IO 排空和 scope 服务共同责任尚需独立完整核验；泛型 Service unknown 不是符合证据。 |
+
+## Session 与 Agent Runtime 地基成员
+
+本表记录当前模板责任核对，不表示产品卡已验收。各成员采用 `typescript-package@1.0.0`。
+
+| 成员 | 变体 | 人工责任核对及验证边界 |
+|---|---|---|
+| [packages/core/session-runtime](../../../../packages/core/session-runtime/README.md) | service-contract | 纯根公开Session事实、操作与参加协议；三个抽象Service与类型化通知仅在./cordis。F0没有完整Session状态提供者，完整协调装配留后续卡。 |
+| [packages/core/model-message-projection](../../../../packages/core/model-message-projection/README.md) | module | 固定日志前缀、显式规则与来源键决定消息视图；有界cache由调用方持有。不发请求、不持有Cordis Context。实际生产投影与序列化验证不覆盖整个调用校准成本。 |
+| [packages/core/agent-loop](../../../../packages/core/agent-loop/README.md) | module | 确定性nextStep及显式能力端口；无隐含调度器或全局服务。缺能力返回blocked，完整Session驱动留后续卡。 |
+| [packages/session/session-log-sql](../../../../packages/session/session-log-sql/README.md) | service-provider | 消费公共SessionLog四个Service定义；可信工厂捕获生命周期，Config只含操作上限。显式注入同Storage与authority，先核迁移和实际实例身份再发布。真实SQLite同提交、未知回执及Cordis启动中撤除/借用排空测试保护原义务。它替代JSONL，消费者同时迁移，无格式兼容入口。 |
+
+静态unknown仍需按实际范围核对：纯成员的外部依赖责任未全部登记，不等于生命周期或业务保证已验证。SQL工厂返回的泛型plugin对象不能由静态抽取完整解析；实际声明来自公共服务常量，四个提供键、storage/authority依赖及assembly lifetime由真实Cordis组合检查。迁移由装配方完成，提供者不静默初始化私表。定义包不创建工作、公开projection/cache不获取权限，SQL当前授权与固定前缀读取由真实authority/StorageUnit保护。

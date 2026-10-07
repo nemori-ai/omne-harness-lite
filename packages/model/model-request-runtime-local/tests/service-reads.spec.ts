@@ -1,3 +1,4 @@
+import { modelCategory } from './log-codec-fixture.ts'
 import { describe, expect, it } from 'vitest'
 import { isJsonNumber, type JsonNumber } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
@@ -122,23 +123,14 @@ function currentSelection(
     ...input,
     async projection(prefix) {
       for (const entry of prefix.entries) {
-        const payload = entry.payload
-        if (
-          payload === null ||
-          typeof payload !== 'object' ||
-          Array.isArray(payload) ||
-          isJsonNumber(payload) ||
-          !('category' in payload) ||
-          payload.category !== 'record'
-        )
-          return { unknown: true }
+        if (modelCategory(entry.payload) !== 'record') return { unknown: true }
       }
       return { known: [] }
     },
   }
 }
 
-describe('RT7 service selection and reads on real SQLite/JSONL session', () => {
+describe('RT7 service selection and reads on real SQLite/SQL journal session', () => {
   it('does not cache unavailable close while an actual-stop receipt remains unresolved', async () => {
     const host = await selectionHost()
     const held = host.create()
@@ -586,10 +578,10 @@ describe('RT7 service selection and reads on real SQLite/JSONL session', () => {
         typeof payload !== 'object' ||
         Array.isArray(payload) ||
         isJsonNumber(payload) ||
-        !('format' in payload)
+        !('version' in payload)
       )
         throw new Error('current codec entry payload missing')
-      const stale = { ...current, payload: { ...payload, format: 'mrr/2' } }
+      const stale = { ...current, payload: { ...payload, version: 'mrr/2' } }
       const submitted = await host.log.append(
         host.session,
         [stale],

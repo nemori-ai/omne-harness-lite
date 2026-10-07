@@ -1,3 +1,4 @@
+import { modelBatchText } from './sql-batches-fixture.ts'
 import { mkdir, mkdtemp, readFile, readdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { Readable, Writable, PassThrough } from 'node:stream'
@@ -33,20 +34,12 @@ function output() {
   }
 }
 async function batches(directory: string): Promise<unknown[]> {
-  const result: unknown[] = []
-  for (const file of await readdir(directory, { withFileTypes: true })) {
-    if (file.isDirectory()) result.push(...(await batches(join(directory, file.name))))
-    else if (file.name === 'entries.jsonl')
-      result.push(
-        ...(await readFile(join(directory, file.name), 'utf8'))
-          .trim()
-          .split('\n')
-          .filter(Boolean)
-          .map(line => JSON.parse(line)),
-      )
-  }
-  return result
+  return modelBatchText(join(directory, 'db.sqlite'))
+    .split('\n')
+    .filter(Boolean)
+    .map(line => JSON.parse(line))
 }
+
 describe('real interactive durable conversation', () => {
   it('HTTP 503 records a failed response but exits nonzero with a safe generic message', async () => {
     const root = await setup('http503-'),
@@ -85,7 +78,7 @@ describe('real interactive durable conversation', () => {
       expect(out.text()).not.toContain(credential.toString())
       expect(tls.requests).toHaveLength(1)
       expect(tls.failures).toEqual([])
-      const commits = await batches(join(data, 'session-logs'))
+      const commits = await batches(data)
       const durable = JSON.stringify(commits)
       expect(durable.match(/"outcome":"failed"/gu)).toHaveLength(1)
       expect(durable).not.toContain('"type":"assistant"')
@@ -141,7 +134,7 @@ describe('real interactive durable conversation', () => {
           { role: 'user', content: [{ type: 'text', text: 'second prompt' }] },
         ],
       })
-      const before = await batches(join(data, 'session-logs'))
+      const before = await batches(data)
       const paired = before.filter(batch => JSON.stringify(batch).includes('"type":"assistant"'))
       expect(paired).toHaveLength(2)
       expect(JSON.stringify(paired)).toContain('"kind":"thinking"')
@@ -177,7 +170,7 @@ describe('real interactive durable conversation', () => {
       )
       expect(resumed.session).toBe(session)
       expect(await resumed.history()).toHaveLength(4)
-      expect(await batches(join(data, 'session-logs'))).toEqual(before)
+      expect(await batches(data)).toEqual(before)
       expect(await readFile(join(data, 'model-key'))).toEqual(key)
       const resumedOutput = output()
       expect(
@@ -192,7 +185,7 @@ describe('real interactive durable conversation', () => {
         'Cumulative: input 15, output 9, cache read 12, cache write 0 tokens; actual USD 351e-7',
       )
       expect(resumedOutput.text().match(/Cumulative:/gu)).toHaveLength(1)
-      expect((await batches(join(data, 'session-logs'))).slice(0, before.length)).toEqual(before)
+      expect((await batches(data)).slice(0, before.length)).toEqual(before)
       expect(tls.requests[2]?.body).toMatchObject({
         messages: [
           { role: 'user', content: [{ type: 'text', text: 'first prompt' }] },
@@ -241,7 +234,7 @@ describe('real interactive durable conversation', () => {
         expect(tls.closedSockets()).toBeGreaterThan(0)
         expect(out.text()).toContain('Call settled without a conversation reply')
         expect(out.text()).not.toContain('Saved.')
-        const closed = await batches(join(root, 'data/session-logs'))
+        const closed = await batches(join(root, 'data'))
         expect(JSON.stringify(closed)).toContain('"initiator":"run_cancelled"')
         expect(JSON.stringify(closed)).not.toContain('"type":"assistant"')
         if (mode === 'usage_hold') {
@@ -291,7 +284,7 @@ describe('real interactive durable conversation', () => {
       expect(await run).toEqual({ complete: true, interrupted: true })
       expect(out.text()).toContain('Closed.')
       expect(out.text()).not.toContain('Saved.')
-      const commits = await batches(join(root, 'data/session-logs'))
+      const commits = await batches(join(root, 'data'))
       expect(JSON.stringify(commits)).not.toContain('"type":"assistant"')
     } finally {
       resume.release()

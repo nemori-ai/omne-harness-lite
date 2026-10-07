@@ -1,5 +1,5 @@
 // @module-tag slow
-// Real SQL manifest, version history, JSONL and service dispatch. Model origin and access use explicit fixtures.
+// Real SQL manifest, version history, SQL journal and service dispatch. Model origin and access use explicit fixtures.
 import { expect, test, vi } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import {

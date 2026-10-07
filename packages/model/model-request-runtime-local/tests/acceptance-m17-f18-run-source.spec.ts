@@ -1,3 +1,5 @@
+import { modelCategory, modelValue } from './log-codec-fixture.ts'
+import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
@@ -26,7 +28,7 @@ import {
   type ControlledSettlementOwner,
 } from './settlement-fixture.ts'
 
-// Evidence for v17 M17-V1/V2/V3 and v18 F18-V1/V3/V5 over the real JSONL provider.
+// Evidence for v17 M17-V1/V2/V3 and v18 F18-V1/V3/V5 over the real SQL journal provider.
 // Terminal recognition is a controlled test reader; it is not the production G28 owner.
 
 const AT = '2026-09-29T00:00:00Z'
@@ -58,22 +60,6 @@ function entry(
   })
   if (!('ok' in prepared)) throw new Error(`prepare ${category}: ${prepared.reason}`)
   return prepared.ok
-}
-
-function attemptStarted(id: string, attempt: number) {
-  return {
-    id,
-    type: 'system_reminder',
-    nature: 'event',
-    source: {
-      kind: 'attempt_started',
-      attempt,
-      reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
-      at: AT,
-    },
-    blocks: [],
-    createdAt: AT,
-  }
 }
 
 async function appendOk(
@@ -114,7 +100,15 @@ async function runAnchors(
   await appendOk(
     binding,
     session,
-    [entry(session, binding, 'message', attemptStarted(`${run}-start-1`, 1), { run, attempt: 1 })],
+    [
+      prepareAttemptFact({
+        session: session,
+        shell: { tenant: binding.tenant, ...{ run, attempt: 1 } },
+        key: `${run}-start-1`,
+        reason: 'first',
+        at: AT,
+      }).ok,
+    ],
     { run, attempt: 1 },
   )
   await appendOk(
@@ -131,10 +125,19 @@ async function runAnchors(
       binding,
       session,
       [
-        entry(session, binding, 'message', attemptStarted(`${run}-start-${attempt}`, attempt), {
-          run,
-          attempt,
-        }),
+        prepareAttemptFact({
+          session: session,
+          shell: {
+            tenant: binding.tenant,
+            ...{
+              run,
+              attempt,
+            },
+          },
+          key: `${run}-start-${attempt}`,
+          reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
+          at: AT,
+        }).ok,
       ],
       { run, attempt },
     )
@@ -168,7 +171,8 @@ describe('M17-V1 Run interpretation is bound to one authorized owned prefix', ()
         registration: acquired.registration,
       })
       acquired.registration.release()
-      expect(read).toEqual({ unavailable: true, reason: 'prefix' })
+      // The SQL authority refuses the foreign journal scope before returning its bytes.
+      expect(read).toEqual({ unavailable: true, reason: 'log' })
       const { reader, calls } = countingReader(1)
       const coordinator = createSettlementCoordinator({
         binding: { ...own, tenant: foreign.ok },
@@ -356,7 +360,15 @@ describe('M17-V3 interleaving B: a committed response keeps its original late va
       await appendOk(
         own,
         session,
-        [entry(session, own, 'message', attemptStarted(`${run}-start-2`, 2), { run, attempt: 2 })],
+        [
+          prepareAttemptFact({
+            session: session,
+            shell: { tenant: own.tenant, ...{ run, attempt: 2 } },
+            key: `${run}-start-2`,
+            reason: 'resumed_after_interruption',
+            at: AT,
+          }).ok,
+        ],
         { run, attempt: 2 },
       )
       const committed = submissions.length
@@ -379,11 +391,9 @@ describe('M17-V3 interleaving B: a committed response keeps its original late va
       expect(submissions).toHaveLength(committed)
       const durable = await own.log.readSince(session, 0)
       if ('failure' in durable) throw new Error('durable read')
-      const responses = durable.entries.filter(
-        item => jsonObject(item.payload).category === 'response',
-      )
+      const responses = durable.entries.filter(item => modelCategory(item.payload) === 'response')
       expect(responses).toHaveLength(1)
-      expect(jsonObject(jsonObject(responses[0]?.payload).value).late).toBeUndefined()
+      expect(jsonObject(modelValue(responses[0]?.payload)).late).toBeUndefined()
     })
   })
 })
@@ -398,7 +408,15 @@ async function failedRunCall(
   await appendOk(
     binding,
     session,
-    [entry(session, binding, 'message', attemptStarted(`${run}-f-start`, 1), { run, attempt: 1 })],
+    [
+      prepareAttemptFact({
+        session: session,
+        shell: { tenant: binding.tenant, ...{ run, attempt: 1 } },
+        key: `${run}-f-start`,
+        reason: 'first',
+        at: AT,
+      }).ok,
+    ],
     { run, attempt: 1 },
   )
   await appendOk(
@@ -498,10 +516,19 @@ describe('F18-V1 the source Run comes from the original dispatched shells of one
           own,
           session,
           [
-            entry(session, own, 'message', attemptStarted(`${secondRun}-2`, 2), {
-              run: secondRun,
-              attempt: 2,
-            }),
+            prepareAttemptFact({
+              session: session,
+              shell: {
+                tenant: own.tenant,
+                ...{
+                  run: secondRun,
+                  attempt: 2,
+                },
+              },
+              key: `${secondRun}-2`,
+              reason: 'resumed_after_interruption',
+              at: AT,
+            }).ok,
           ],
           { run: secondRun, attempt: 2 },
         )
@@ -631,10 +658,8 @@ describe('F18-V3/V5 current attempt shape, scope validity and error priority', (
       expect(JSON.stringify(created.subject)).toBe(before)
       const durable = await own.log.readSince(session, 0)
       if ('failure' in durable) throw new Error('durable read')
-      const response = durable.entries.find(
-        item => jsonObject(item.payload).category === 'response',
-      )
-      expect(jsonObject(jsonObject(response?.payload).value).attemptId).toBe(1)
+      const response = durable.entries.find(item => modelCategory(item.payload) === 'response')
+      expect(jsonObject(modelValue(response?.payload)).attemptId).toBe(1)
       created.release()
     })
   })

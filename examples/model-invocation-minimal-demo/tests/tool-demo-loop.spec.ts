@@ -1,3 +1,4 @@
+import { fixturePayload } from './log-payload-fixture.ts'
 // @module-tag slow
 // Actual TLS model turns and a supervised child process require the slow tier.
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
@@ -81,10 +82,7 @@ it('closes a failed model Run using its actual durable failed response', async (
     expect('entries' in read).toBe(true)
     if (!('entries' in read)) throw new Error('actual history unavailable')
     const endings = read.entries.flatMap(entry => {
-      const value =
-        entry.payload && typeof entry.payload === 'object' && 'value' in entry.payload
-          ? entry.payload.value
-          : null
+      const value = fixturePayload(entry.payload).value
       return value && typeof value === 'object' && 'kind' in value && value.kind === 'run_ended'
         ? [value]
         : []
@@ -182,10 +180,7 @@ it('returns an actual missing-contribution denial to the model and resumes witho
     const read = await demo.application.readSessionLog(demo.actor, demo.session)
     if (!('entries' in read)) throw new Error('actual history unavailable')
     const kinds = read.entries.flatMap(entry => {
-      const value =
-        entry.payload && typeof entry.payload === 'object' && 'value' in entry.payload
-          ? entry.payload.value
-          : undefined
+      const value = fixturePayload(entry.payload).value
       return value && typeof value === 'object' && 'kind' in value ? [value.kind] : []
     })
     expect(kinds.filter(kind => kind === 'action_denied')).toHaveLength(1)

@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { expect, it, vi } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { instantFromEpochMs, instantFromRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { openStorage } from '@omne-harness-lite/storage-sql'
 import { composeMigrations } from '@omne-harness-lite/storage'
 import {
@@ -25,10 +25,7 @@ const at = unwrap(instantFromRfc3339('2026-10-04T00:00:00Z'))
 
 async function fixture() {
   const dir = await mkdtemp(join(tmpdir(), 'omne-context-creator-'))
-  const log = await openJsonlSessionLog({
-    dir,
-    processOwnership: { current: 'context-creator', observeExit: async () => 'unknown' },
-  })
+  const log = await openSqlLogFixture({ dir: dir })
   const append = vi.fn<SessionLog['append']>(log.append)
   const observed = { ...log, append }
   const backing = createSessionLogBacking(observed)
@@ -97,10 +94,14 @@ it('coalesces first creation and preserves the initial value on repeated prepara
     if ('failure' in read) throw new Error('prefix missing')
     expect(read.entries).toHaveLength(1)
     expect(read.entries[0]?.payload).toMatchObject({
-      kind: 'session_initialized',
-      seed: {
-        fixed: [{ key: 'session', value: scope }],
-        initial: [{ observedAt: '2026-10-04T00:00:00.000Z' }],
+      kind: 'fact',
+      owner: 'runtime-context',
+      value: {
+        kind: 'session_initialized',
+        seed: {
+          fixed: [{ key: 'session', value: scope }],
+          initial: [{ observedAt: '2026-10-04T00:00:00.000Z' }],
+        },
       },
     })
     await f.owner.drain()

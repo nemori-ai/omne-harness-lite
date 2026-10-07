@@ -106,10 +106,18 @@ export class SqlStorage implements StorageInstance, AtomicStorage {
 
   async atomic<T>(fn: (unit: StorageUnit) => Promise<T>): Promise<T> {
     let unit: SqlStorageUnit | undefined
-    const result = await this.write(tx => {
-      unit = new SqlStorageUnit(this, tx)
-      return unit.execute(fn)
-    })
+    let result: T
+    try {
+      result = await this.write(tx => {
+        unit = new SqlStorageUnit(this, tx)
+        return unit.execute(fn)
+      })
+    } catch (error) {
+      // An escaped callback failure is rolled back by write. A commit failure remains unknown.
+      unit?.complete(unit.completionAfterError(error))
+      throw error
+    }
+    unit!.complete('committed')
     // write 已提交并退出其上下文；通知不得在事务回调内部派发。
     unit!.publish(() => {
       if (this.logger !== undefined) this.logger.error('after-commit notification failed')

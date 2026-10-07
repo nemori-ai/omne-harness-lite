@@ -15,7 +15,11 @@ import {
   type UsageSummary,
 } from '@omne-harness-lite/call-accounts'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-import { decodeModelLogKey, type TokenMargin } from '@omne-harness-lite/model-request-runtime'
+import {
+  decodeModelLogKey,
+  readModelLogEnvelope,
+  type TokenMargin,
+} from '@omne-harness-lite/model-request-runtime'
 import { createAcceptanceApplication, type AcceptanceApplication } from './bootstrap.ts'
 import {
   DemoDiagnosticStartupFailure,
@@ -27,7 +31,6 @@ import { createDemoCallHost } from './model-call-host.ts'
 import type { AuthenticatedActor } from './types.ts'
 import { createDemoConfig, MODEL } from './deployment.ts'
 import type { RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
-import type { ProcessOwnership } from '@omne-harness-lite/session-log-jsonl'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import { systemTimeSources } from '@omne-harness-lite/clock-lease'
 
@@ -263,7 +266,6 @@ export async function openDemo(
   testOptions?: Partial<Parameters<typeof createAcceptanceApplication>[1]>,
   observerBounds: DemoObserverBounds = defaultObserverBounds,
   host?: {
-    readonly processOwnership: ProcessOwnership
     readonly covered: boolean
     /** A worker-local provider read only after old durable work is reconciled. */
     readonly readCredential?: () => Promise<Uint8Array | undefined>
@@ -303,7 +305,6 @@ export async function openDemo(
     now,
     tokenMargin,
     retirement,
-    host?.processOwnership,
     enableTools,
   )
   app = createAcceptanceApplication(config, {
@@ -540,13 +541,16 @@ export async function openDemo(
           })
           if (!responseKeys.length) continue
           if (responseKeys.length !== 1) throw new Error('response identity ambiguous')
-          const payload: unknown = entry.payload
-          if (typeof payload !== 'object' || payload === null || !('value' in payload))
+          const decoded = readModelLogEnvelope(entry.payload)
+          if (
+            !('kind' in decoded) ||
+            decoded.kind !== 'model' ||
+            decoded.envelope.category !== 'response'
+          )
             throw new Error('durable response value unavailable')
-          if (!('ok' in judgeModelResponse(payload.value)))
-            throw new Error('durable response invalid')
-          // The public judge validated the complete MR5 value before narrowing.
-          const response = payload.value as ModelResponse
+          const judged = judgeModelResponse(decoded.envelope.value)
+          if (!('ok' in judged)) throw new Error('durable response invalid')
+          const response = decoded.envelope.value as unknown as ModelResponse
           if (response.id !== responseKeys[0]) throw new Error('durable response key mismatch')
           responses.push(response)
         }

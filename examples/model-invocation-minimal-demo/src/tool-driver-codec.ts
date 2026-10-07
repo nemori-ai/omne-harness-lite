@@ -1,3 +1,4 @@
+import { checkLogPayload, factLogPayload } from '@omne-harness-lite/session-log'
 import { createRequire } from 'node:module'
 import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import {
@@ -35,6 +36,9 @@ const require = createRequire(new URL('../package.json', import.meta.url))
 const invalid = Object.freeze({ invalid: true } as const)
 const unrelated = Object.freeze({ unrelated: true } as const)
 
+function object(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
 function identity(value: unknown): value is string {
   return 'ok' in parseOpaqueIdentifier(value, 'ToolDriverIdentity')
 }
@@ -165,7 +169,7 @@ function valueValid(value: DriverValue): boolean {
       return (
         positiveInteger(value.attempt) &&
         identity(value.adoption) &&
-        identity(value.startedMessageKey) &&
+        identity(value.startedFactKey) &&
         adoptionValid(value)
       )
     case 'actions_completed':
@@ -276,7 +280,7 @@ export function prepareDriverEntry(
         ...(exec === undefined ? {} : { run: exec.run, attempt: exec.attempt }),
         dedupeKey: key,
         readKeys: [key, toolDriverAll],
-        payload,
+        payload: factLogPayload('demo-tool-driver', '1', payload),
       },
     ],
     exec === undefined
@@ -314,15 +318,11 @@ export function inspectDriverEntry(
     return invalid
   // The common shell is checked below through the log owner's input boundary.
   const shell = copied.ok as unknown as LogEntry
-  const payload = shell.payload
+  const payload = ownedDriverPayload(shell.payload)
   const claimed =
     claimsKey(shell.dedupeKey) ||
     (Array.isArray(shell.readKeys) && shell.readKeys.some(claimsKey)) ||
-    (payload !== null &&
-      typeof payload === 'object' &&
-      !Array.isArray(payload) &&
-      'format' in payload &&
-      claimsKey(payload.format))
+    (object(shell.payload) && shell.payload.owner === 'demo-tool-driver')
   if (!claimed) return unrelated
   if (
     shell.session !== scope.session ||
@@ -366,4 +366,14 @@ export function inspectDriverEntry(
   )
     return invalid
   return { value, key, entry: shell }
+}
+
+function ownedDriverPayload(
+  value: unknown,
+): import('@omne-harness-lite/content-blocks').JsonValue | null {
+  const outer = checkLogPayload(value)
+  if (!('kind' in outer) || outer.kind !== 'fact') return null
+  return outer.payload.owner === 'demo-tool-driver' && outer.payload.version === '1'
+    ? outer.payload.value
+    : null
 }

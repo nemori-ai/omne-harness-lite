@@ -1,3 +1,10 @@
+import type {
+  AcknowledgedAttempt,
+  AcknowledgedCallView,
+  CallAcknowledgement,
+  CallOrigin,
+  CallSource,
+} from '@omne-harness-lite/model-request-runtime'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type {
   CallKey,
@@ -13,15 +20,7 @@ import type { LogEntry } from '@omne-harness-lite/session-log'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import type { CallHistoryKnown } from './call-history.ts'
-import type {
-  AcknowledgedAttempt,
-  AcknowledgedCallFacts,
-  AcknowledgedCallView,
-  CallAcknowledgement,
-  CallOrigin,
-  CallSource,
-  ModelCallCleanupResult,
-} from './reference-types.ts'
+import type { AcknowledgedCallFacts, ModelCallCleanupResult } from './reference-types.ts'
 
 function isModelResponse(value: unknown): value is ModelResponse {
   return 'ok' in judgeModelResponse(value)

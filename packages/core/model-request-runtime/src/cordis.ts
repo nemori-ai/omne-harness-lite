@@ -5,7 +5,34 @@ import type {
   ModelInputMeters as Operations2,
   ModelRetrySample as Operations3,
   DevelopmentTransportTls as Operations4,
+  ModelRuntimeService as RuntimeOperations,
 } from './index.ts'
+
+/** The unique public Service definition for all fifteen model runtime operations.
+ * @owner packages/core/model-request-runtime
+ */
+export abstract class ModelRuntimeService extends Service implements RuntimeOperations {
+  static readonly provide = 'modelRuntime'
+  constructor(ctx: Context) {
+    super(ctx, ModelRuntimeService.provide)
+  }
+  abstract readonly acquireCall: RuntimeOperations['acquireCall']
+  abstract readonly legalTargets: RuntimeOperations['legalTargets']
+  abstract readonly displayList: RuntimeOperations['displayList']
+  abstract readonly effectiveModel: RuntimeOperations['effectiveModel']
+  abstract readonly selectModel: RuntimeOperations['selectModel']
+  abstract readonly openCall: RuntimeOperations['openCall']
+  abstract readonly dispatch: RuntimeOperations['dispatch']
+  abstract readonly dispatchAgain: RuntimeOperations['dispatchAgain']
+  abstract readonly interrupt: RuntimeOperations['interrupt']
+  abstract readonly releaseCall: RuntimeOperations['releaseCall']
+  abstract readonly reconcile: RuntimeOperations['reconcile']
+  abstract readonly readAttempts: RuntimeOperations['readAttempts']
+  abstract readonly settleReply: RuntimeOperations['settleReply']
+  abstract readonly canDispatchAgain: RuntimeOperations['canDispatchAgain']
+  abstract readonly acknowledgeCall: RuntimeOperations['acknowledgeCall']
+}
+export const MODEL_RUNTIME_SERVICE = ModelRuntimeService.provide
 
 /** @contract capability.model-request-runtime */
 export abstract class ModelTransportService extends Service implements Operations0 {
@@ -75,6 +102,7 @@ export const DEVELOPMENT_TRANSPORT_TLS = DevelopmentTransportTlsService.provide
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
+    modelRuntime: ModelRuntimeService
     modelTransport: ModelTransportService
     modelTransportSupport: ModelTransportSupportService
     modelInputMeters: ModelInputMetersService

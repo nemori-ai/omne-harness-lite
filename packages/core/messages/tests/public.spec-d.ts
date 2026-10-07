@@ -13,7 +13,6 @@ import type {
   ModelCallAccountingWitness,
   AssistantMessage,
   ToolMessage,
-  AttemptStartedSource,
   InterruptedSource,
   MessageId,
   LogPrefixView,
@@ -37,7 +36,6 @@ it('public unions are complete, branded, immutable and keep owned numeric identi
     | 'model_selection_changed'
     | 'model_call_acknowledged'
   >()
-  expectTypeOf<AttemptStartedSource['attempt']>().toEqualTypeOf<AttemptId>()
   expectTypeOf<Extract<InterruptedSource, { what: 'model_call' }>['about']>().toEqualTypeOf<
     | { readonly kind: 'model'; readonly call: ModelCallId; readonly dispatch: JsonNumber }
     | undefined

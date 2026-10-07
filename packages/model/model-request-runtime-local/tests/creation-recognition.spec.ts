@@ -1,5 +1,7 @@
+import { modelCategory, modelValue } from './log-codec-fixture.ts'
+import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 // @module-tag slow
-// Real Cordis, SQLite and JSONL verify creation identity and durable publication.
+// Real Cordis, SQLite and SQL journal verify creation identity and durable publication.
 import { expect, test, vi } from 'vitest'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import type { LogEntryInput } from '@omne-harness-lite/session-log'
@@ -16,9 +18,8 @@ import { instantFromEpochMs } from '@omne-harness-lite/offer-expiry'
 
 function isCreation(entries: readonly LogEntryInput[]): boolean {
   return entries.some(entry => {
-    const wrapper = entry.payload
-    if (wrapper === null || typeof wrapper !== 'object' || !('value' in wrapper)) return false
-    const record = wrapper.value
+    if (modelCategory(entry.payload) !== 'record') return false
+    const record = modelValue(entry.payload)
     return (
       record !== null &&
       typeof record === 'object' &&
@@ -302,32 +303,13 @@ test('S-85: Run and exact attempt belong to the original creation association', 
   const h = await acknowledgementHost()
   try {
     const run = 'recognition-run'
-    const captured = captureModelLogValue({
-      category: 'message',
-      input: {
-        kind: 'value',
-        value: {
-          id: 'recognition-start',
-          type: 'system_reminder',
-          nature: 'event',
-          source: {
-            kind: 'attempt_started',
-            attempt: 1,
-            reason: 'first',
-            at: '2026-10-04T00:00:00Z',
-          },
-          blocks: [],
-          createdAt: '2026-10-04T00:00:00Z',
-        },
-      },
-    })
-    if (!('ok' in captured)) throw new Error('attempt capture')
-    const prepared = prepareModelLogEntry({
+
+    const prepared = prepareAttemptFact({
       session: h.host.session,
       shell: { tenant: h.host.tenant, run, attempt: 1 },
-      captured: captured.ok,
-      purpose: { kind: 'message' },
-      messagePrefix: [],
+      key: 'recognition-start',
+      reason: 'first',
+      at: '2026-10-04T00:00:00Z',
     })
     if (!('ok' in prepared)) throw new Error('attempt entry')
     expect(

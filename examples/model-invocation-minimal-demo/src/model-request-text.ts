@@ -1,3 +1,11 @@
+import {
+  projectMessages,
+  materializeMessages,
+  type ProjectionOptions,
+} from '@omne-harness-lite/model-message-projection'
+import { inspectContextLogEntry } from '@omne-harness-lite/runtime-context-local'
+import { inspectToolJournalEntry } from '@omne-harness-lite/tool-execution-runtime'
+import { readAttemptStarted } from '@omne-harness-lite/session-runtime'
 import { modalityOf, type ContentBlock, type Modality } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { judgeMessage, type LoggedMessage, type Message } from '@omne-harness-lite/messages'
@@ -19,7 +27,7 @@ import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime-l
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import type { LogEntry } from '@omne-harness-lite/session-log'
 import { inspectRunnerConclusion } from '@omne-harness-lite/loop-extension-runner'
-import { toolDriverAll } from './tool-driver-codec.ts'
+import { inspectDriverEntry, toolDriverAll } from './tool-driver-codec.ts'
 import { readToolDriverHistory } from './tool-driver-history.ts'
 
 /** This deliberately limited local fixture selects one actual fenced Run/attempt. */
@@ -42,153 +50,93 @@ export function messagePrefixWithSources(
       }[]
     }
   | { readonly unavailable: true } {
-  if (
-    ownerGeneration !== undefined &&
-    (selectedRun === undefined ||
-      prefix.entries.some(entry => entry.readKeys.includes(toolDriverAll)))
-  ) {
-    const history = readToolDriverHistory({
-      scope: { tenant: prefix.binding.tenant, session: prefix.binding.session },
-      ownerGeneration,
-      entries: prefix.entries,
-      tail: prefix.tail,
-    })
-    if ('unavailable' in history) return { unavailable: true }
-    const selected = history.models.entries.flatMap(record =>
-      record.captured.message && record.captured.message.type !== 'system'
-        ? [{ message: record.captured.message, entry: record.entry }]
-        : [],
-    )
-    return {
-      messages: selected.map(record => record.message),
-      selectedMessageSources: selected.map((record, messageIndex) => ({
-        messageIndex,
-        entry: record.entry,
-      })),
-    }
-  }
-  const messages: LoggedMessage[] = []
-  const selectedMessageSources: { readonly messageIndex: number; readonly entry: LogEntry }[] = []
-  let started = false
-  for (const entry of prefix.entries) {
-    const runner = inspectRunnerConclusion({
-      session: prefix.binding.session,
-      tenant: prefix.binding.tenant,
-      entry,
-    })
-    if ('invalid' in runner) return { unavailable: true }
-    if ('conclusion' in runner) {
+  const scope = { tenant: prefix.binding.tenant, session: prefix.binding.session }
+  if (selectedRun !== undefined) {
+    let started = false
+    for (const entry of prefix.entries) {
+      const fact = readAttemptStarted(entry)
+      if ('failure' in fact) return { unavailable: true }
       if (
-        (selectedRun === undefined && (entry.run !== undefined || entry.attempt !== undefined)) ||
-        (selectedRun !== undefined &&
-          (entry.run !== selectedRun.run ||
-            entry.attempt === undefined ||
-            ExactDecimal.from(entry.attempt).compare(ExactDecimal.from(selectedRun.attempt)) !==
-              0 ||
-            !started))
-      )
-        return { unavailable: true }
-      continue
-    }
-    if (
-      (entry.run === undefined) !== (entry.attempt === undefined) ||
-      (entry.run !== undefined &&
-        (selectedRun === undefined ||
-          entry.attempt === undefined ||
-          entry.run !== selectedRun.run ||
-          ExactDecimal.from(entry.attempt).compare(ExactDecimal.from(selectedRun.attempt)) !== 0))
-    )
-      return { unavailable: true }
-    const keys = entry.readKeys.map(decodeModelLogKey)
-    const message = keys.some(key => 'ok' in key && key.ok.kind === 'messages')
-    const response = keys.some(key => 'ok' in key && key.ok.kind === 'response')
-    const checked = inspectModelLogEntry({
-      session: prefix.binding.session,
-      tenant: prefix.binding.tenant,
-      entry,
-      purpose: { kind: message ? 'message' : response ? 'response' : 'record' },
-      messagePrefix: messages,
-    })
-    // Assistant messages require persisted-response pairing: validate the complete value and its original response.
-    if ('invalidValue' in checked && message) {
-      const captured = captureModelLogValue({
-        category: 'message',
-        input: {
-          kind: 'value',
-          value:
-            entry.payload !== null &&
-            typeof entry.payload === 'object' &&
-            !Array.isArray(entry.payload) &&
-            'value' in entry.payload
-              ? entry.payload.value
-              : null,
-        },
-      })
-      if ('invalidValue' in captured || captured.ok.message?.type !== 'assistant')
-        return { unavailable: true }
-      const assistant = captured.ok.message
-      const originals = prefix.entries.filter(candidate =>
-        candidate.readKeys.some(key => {
-          const decoded = decodeModelLogKey(key)
-          return (
-            'ok' in decoded &&
-            decoded.ok.kind === 'response' &&
-            decoded.ok.response === assistant.response
-          )
-        }),
-      )
-      if (originals.length !== 1 || originals[0] === undefined) return { unavailable: true }
-      const original = originals[0]
-      const responseCapture = inspectModelLogEntry({
-        session: prefix.binding.session,
-        tenant: prefix.binding.tenant,
-        entry: original,
-        purpose: { kind: 'response' },
-        messagePrefix: messages,
-      })
-      if ('invalidValue' in responseCapture) return { unavailable: true }
-      const paired = inspectModelLogEntry({
-        session: prefix.binding.session,
-        tenant: prefix.binding.tenant,
-        entry,
-        purpose: { kind: 'persistedMessage', response: responseCapture.ok.captured },
-        messagePrefix: messages,
-      })
-      if (
-        'invalidValue' in paired ||
-        paired.ok.captured.message === null ||
-        paired.ok.captured.message.type === 'system'
-      )
-        return { unavailable: true }
-      if (entry.run !== undefined && !started) return { unavailable: true }
-      selectedMessageSources.push({ messageIndex: messages.length, entry })
-      messages.push(paired.ok.captured.message)
-    } else {
-      if ('invalidValue' in checked) return { unavailable: true }
-      const value = checked.ok.captured.message
-      if (value === null && entry.run !== undefined && !started) return { unavailable: true }
-      if (value === null && entry.run === undefined && started) return { unavailable: true }
-      if (value !== null) {
-        if (value.type === 'system' || !('ok' in judgeMessage(value))) return { unavailable: true }
-        if (value.type === 'system_reminder' && value.source.kind === 'attempt_started') {
-          if (
-            selectedRun === undefined ||
-            started ||
-            entry.run !== selectedRun.run ||
-            entry.attempt === undefined ||
-            ExactDecimal.from(value.source.attempt).compare(ExactDecimal.from(entry.attempt)) !==
-              0 ||
-            value.source.reason !== 'first'
-          )
-            return { unavailable: true }
-          started = true
-        } else if (entry.run !== undefined && !started) return { unavailable: true }
-        selectedMessageSources.push({ messageIndex: messages.length, entry })
-        messages.push(value)
+        fact.kind === 'fact' &&
+        fact.fact.run === selectedRun.run &&
+        ExactDecimal.from(fact.fact.attempt).compare(ExactDecimal.from(selectedRun.attempt)) === 0
+      ) {
+        if (started) return { unavailable: true }
+        started = true
       }
+      if (
+        entry.run !== undefined &&
+        (entry.run !== selectedRun.run ||
+          entry.attempt === undefined ||
+          ExactDecimal.from(entry.attempt).compare(ExactDecimal.from(selectedRun.attempt)) !== 0 ||
+          !started)
+      )
+        return { unavailable: true }
     }
+    if (!started) return { unavailable: true }
   }
-  if (selectedRun !== undefined && !started) return { unavailable: true }
+  const readers: NonNullable<ProjectionOptions['entryReaders']> = [
+    entry => {
+      const value = inspectContextLogEntry(scope, entry)
+      return 'invalid' in value ? 'invalid' : 'unrelated' in value ? 'unrelated' : 'valid'
+    },
+    entry => {
+      const value = inspectToolJournalEntry(scope, entry)
+      return 'invalid' in value ? 'invalid' : 'unrelated' in value ? 'unrelated' : 'valid'
+    },
+    entry => {
+      const value = inspectDriverEntry(scope, entry)
+      return 'invalid' in value ? 'invalid' : 'unrelated' in value ? 'unrelated' : 'valid'
+    },
+    entry => {
+      const value = inspectRunnerConclusion({ ...scope, entry })
+      return 'invalid' in value ? 'invalid' : 'unrelated' in value ? 'unrelated' : 'valid'
+    },
+  ]
+  const factReaders = new Map(
+    ['runtime-context', 'tool-execution-runtime', 'demo-tool-driver', 'loop-extension-runner'].map(
+      owner => [
+        owner,
+        (_value: unknown, entry: LogEntry) => {
+          for (const reader of readers) if (reader(entry) === 'invalid') return 'invalid' as const
+          return 'valid' as const
+        },
+      ],
+    ),
+  )
+  // This stage projects durable history only. Request-side configuration is composed later;
+  // external:null explicitly prevents this view from becoming a request cache.
+  const computed = projectMessages(
+    {
+      source: prefix.source,
+      entries: prefix.entries,
+      rules: {
+        version: 'demo-durable-history/1',
+        external: null,
+        system: [],
+        pendingCardBlocks: null,
+        lastModelRequestPrefixLength: null,
+      },
+    },
+    { entryReaders: readers, factReaders },
+  )
+  if (!('projected' in computed)) return { unavailable: true }
+  const materialized = materializeMessages(computed.projected)
+  if (!('materialized' in materialized)) return { unavailable: true }
+  const byPosition = new Map(
+    prefix.entries.map(entry => [ExactDecimal.from(entry.position).toCanonicalString(), entry]),
+  )
+  const messages: LoggedMessage[] = [],
+    selectedMessageSources: { messageIndex: number; entry: LogEntry }[] = []
+  for (const [index, message] of materialized.materialized.entries()) {
+    const source = materialized.sources[index]
+    if (message.type === 'system' || source === undefined || source.position === null)
+      return { unavailable: true }
+    const entry = byPosition.get(ExactDecimal.from(source.position).toCanonicalString())
+    if (entry === undefined) return { unavailable: true }
+    selectedMessageSources.push({ messageIndex: messages.length, entry })
+    messages.push(message)
+  }
   return { messages, selectedMessageSources }
 }
 

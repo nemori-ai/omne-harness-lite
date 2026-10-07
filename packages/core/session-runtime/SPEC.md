@@ -1,15 +1,15 @@
-# Session Runtime 候选薄规格
+# Session Runtime 薄规格
 
-状态：第一期目标设计，尚未切换现行消费者或获得本次新增接口的限定采用。物理迁移不改变接受状态。
+状态：负责人已授权F0限定地基实施。公开形状、操作身份校验、Session事实及共同事务参加协议属于本次施工输入；事实与校验函数已有实现。完整Session状态提供者、持久协调、调度与恢复装配仍为后续阶段目标，不能据本包定义推断已经实现。F0交付评审与负责人review尚未完成。
 
-来源：PF-015生命周期／创建／恢复、PF-014受理／待处理、PF-012 Run／attempt／取消，以及SYS-TENANT／COMPOSITION。新操作名为候选，尚非已发布API。
+来源：PF-015生命周期／创建／恢复、PF-014受理／待处理、PF-012 Run／attempt／取消，以及SYS-TENANT／COMPOSITION。本包操作形状用于F0共同边界及后续提供者施工；它们尚非已发布产品API。
 
 ## 公开形状
 
 沿既有TenantId、SessionRef、RunId、AttemptId、Message及合法AgentDefinition引用。`Access`由可信登录／系统／agent主体端口签发，显式含tenant、principal、权限观测代际；调用body自称主体不合法。
 `OperationKey`是提交者稳定身份，不规定字符串生成格式；同key不同semanticDigest拒绝。
 `OperationRef`闭合字段为tenant、可信principal、operation、operationKey、session。operation只取createSession／submitInput／cancelRun／setArchived；创建的session显式为null，其余必须为SessionRef。OperationKey是此ref内的键值，不暗含操作名。回执与未知公共提交均携带完整OperationRef；创建回执另携已分配SessionRef。查询按完整ref定位，不凭同键值猜操作。
-`SourceToken`引用[Session Log定义](../session-log/adr/phase1-log-facts.md#公开形状的改变)，不另定义。progress输出额外携带projectionRuleVersion；它是派生规则版本，不属于日志坐标。
+`SourceToken`引用[Session Log定义](../session-log/SPEC.md#固定日志坐标)，不另定义。progress输出额外携带projectionRuleVersion；它是派生规则版本，不属于日志坐标。
 `AttemptPermit`不是裸ID，绑定tenant/session/run/attempt、执行者代际及已验证准入事实，只由协调者签发。
 `Receipt`包括OperationRef、受理／创建事实位置及SourceToken。全操作结果为下表成功联合或限定失败；未知公共提交按OperationRef查。内部step使用稳定stepKey／原消费位置认回，未知后重读该Session原事实，不另起新step；原调用仍按原call/result身份认回。
 内部StepReceipt含tenant/session、Run/attempt或显式null、stepKey、step变体、事实位置及SourceToken，不冒充公共OperationRef。ResultReceipt含tenant/session、原call/resultKey、事实位置及SourceToken。三个receipt各按其原身份认回；公共readReceipt不查询内部step或原结果。

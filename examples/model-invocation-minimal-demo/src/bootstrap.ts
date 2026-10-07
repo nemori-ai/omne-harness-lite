@@ -1,3 +1,4 @@
+import { attemptStartedPayload } from '@omne-harness-lite/session-runtime'
 import type { UpgradeConfirmation } from '@omne-harness-lite/storage'
 import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance-sql/cordis'
@@ -31,16 +32,8 @@ import {
   modelCallContentMigrations,
   interpretCallHistory,
   readSettlementPrefix,
-  type ModelRuntimeService,
-  type ModelCallHost,
-  type ModelObserverRequest,
-  type DispatchResult,
-  type OpenCallResult,
-  type OpenCallRun,
   type RuntimeConstruction,
   type SessionRuntimeBinding,
-  type ModelObserverEndpoint,
-  type RuntimeCloseResult,
   type SessionObserverAccess,
   type SettlementResult,
   type SettlementOwner,
@@ -50,22 +43,32 @@ import {
   type SettlementLogBinding,
   type RunHistoryReader,
   type CurrentHistoryReaders,
-  type SessionSelectModelResult,
   type LegalTargetsResult,
   type SessionEffectiveModelResult,
-  type ServiceEffectiveModelResult,
-  type ServiceLegalTargetsResult,
-  type ServiceSelectModelResult,
   type DisplayListResult,
-  type ServiceDisplayListResult,
-  type ReconcileResult,
   type CallContainer,
   type AnchoredInvocationHandle,
   type ObserverDiagnostic,
   type SettlementDiagnostic,
-  type FailureConsumableOperation,
-  type FailureConsumption,
 } from '@omne-harness-lite/model-request-runtime-local'
+import type {
+  ModelRuntimeService,
+  ModelCallHost,
+  ModelObserverRequest,
+  DispatchResult,
+  OpenCallResult,
+  OpenCallRun,
+  ModelObserverEndpoint,
+  RuntimeCloseResult,
+  SessionSelectModelResult,
+  ServiceEffectiveModelResult,
+  ServiceLegalTargetsResult,
+  ServiceSelectModelResult,
+  ServiceDisplayListResult,
+  ReconcileResult,
+  FailureConsumableOperation,
+  FailureConsumption,
+} from '@omne-harness-lite/model-request-runtime'
 import {
   type ModelLogSettlementTarget,
   type DiagnosticEvent,
@@ -225,7 +228,22 @@ import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-
 import { sessionTenancyTablePlugin } from '@omne-harness-lite/session-tenancy-table/cordis'
 import { SESSION_TENANCY } from '@omne-harness-lite/session-tenancy/cordis'
 import { type SessionTenancyService } from '@omne-harness-lite/session-tenancy'
-import { openJsonlSessionLog, type JsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import {
+  openSqlSessionLog,
+  sessionLogMigrations,
+  type SqlSessionLog,
+} from '@omne-harness-lite/session-log-sql'
+import {
+  createOriginalIssueOwner,
+  originalIssueMigrations,
+} from '@omne-harness-lite/model-request-runtime-local'
+import { createSessionTenancyReader } from '@omne-harness-lite/session-tenancy-table'
+import {
+  createSqlLogAuthority,
+  checkSqlActor,
+  type SqlLogAuthoritySources,
+} from './sql-log-authority.ts'
+import type { RecoveryAccess } from '@omne-harness-lite/execution-environments'
 import { type ReadResult } from '@omne-harness-lite/session-log'
 import {
   borrowedSessionLog,
@@ -290,8 +308,8 @@ import {
   type StartupPhase,
 } from './types.ts'
 
-type LoginFace = Pick<LoginsService, 'issue' | 'exchange' | 'verify'>
-type MembershipFace = Pick<MembershipsService, 'currentTenant' | 'standing'>
+type LoginFace = Pick<LoginsService, 'participate' | 'issue' | 'exchange' | 'verify'>
+type MembershipFace = Pick<MembershipsService, 'participate' | 'currentTenant' | 'standing'>
 type CatalogFace = Pick<
   ModelCatalog,
   'bindCredential' | 'credentialPresent' | 'listProfiles' | 'readProfile'
@@ -304,14 +322,16 @@ function loginFace(value: unknown): value is LoginFace {
     object(value) &&
     typeof value.issue === 'function' &&
     typeof value.exchange === 'function' &&
-    typeof value.verify === 'function'
+    typeof value.verify === 'function' &&
+    typeof value.participate === 'function'
   )
 }
 function membershipFace(value: unknown): value is MembershipFace {
   return (
     object(value) &&
     typeof value.currentTenant === 'function' &&
-    typeof value.standing === 'function'
+    typeof value.standing === 'function' &&
+    typeof value.participate === 'function'
   )
 }
 function catalogFace(value: unknown): value is CatalogFace {
@@ -620,7 +640,11 @@ export function createAcceptanceApplication(
   const hooks = options.hooks
   let storage: SqlStorage | undefined
   let replica: ModelReplicaCustodian | undefined
-  let sessionLogOwner: JsonlSessionLog | undefined
+  let sessionLogOwner: SqlSessionLog | undefined
+  let journalTenancy: ReturnType<typeof createSessionTenancyReader> | undefined
+  let originalIssue: ReturnType<typeof createOriginalIssueOwner> | undefined
+  let journalAuthoritySource: SqlLogAuthoritySources | undefined
+  const journalRecovery = Object.freeze(Object.create(null)) as RecoveryAccess
   let sessionLogBacking: ReturnType<typeof createSessionLogBacking> | undefined
   let authorizedLogOwner: Awaited<ReturnType<typeof createAuthorizedLogOwner>> | undefined
   let sessionIngress: ReturnType<typeof createSessionIngress> | undefined
@@ -683,6 +707,7 @@ export function createAcceptanceApplication(
   // Sessions whose cold recovery scope was built under host-witnessed exit of the old worker.
   // Settlement coordinators that still own an unresolved original write; closed again on shutdown.
   const retainedSettlements = new Set<Pick<SettlementCoordinator, 'close'>>()
+  const retainedSettlementSessions = new WeakMap<Pick<SettlementCoordinator, 'close'>, SessionRef>()
   const coldStopped = new Map<SessionRef, ReadonlyMap<string, ModelLogSettlementTarget>>()
   const runtimeBindings = new Map<SessionRef, SessionRuntimeBinding>()
   const controlledRuns = new Map<SessionRef, ControlledSingleRunSelection>()
@@ -951,8 +976,22 @@ export function createAcceptanceApplication(
       [...sessionBorrows.values()].some(borrow => borrow.owner.retained())
     )
   }
+  async function closeRetainedSettlements(session?: SessionRef): Promise<boolean> {
+    const owned = [...retainedSettlements].filter(
+      coordinator =>
+        session === undefined || retainedSettlementSessions.get(coordinator) === session,
+    )
+    const results = await Promise.allSettled(
+      owned.map(async coordinator => {
+        await coordinator.close()
+        retainedSettlements.delete(coordinator)
+        retainedSettlementSessions.delete(coordinator)
+      }),
+    )
+    return results.every(result => result.status === 'fulfilled')
+  }
   async function drainModelConsumers() {
-    // Recovery may still need this runtime's service, binding and JSONL owner.
+    // Recovery still uses the original runtime, binding and SQL journal owner.
     await Promise.allSettled([...recoveryTasks])
     const stoppedRuntime = await modelRuntime?.close()
     const stoppedSelections = await Promise.allSettled(
@@ -963,12 +1002,7 @@ export function createAcceptanceApplication(
     await Promise.allSettled([...admitted])
     const lateObservers = await Promise.allSettled([...observerGrants].map(grant => grant.revoke()))
     // An unresolved original settlement write is resolved on its own coordinator, or it stays owned.
-    await Promise.allSettled(
-      [...retainedSettlements].map(async coordinator => {
-        await coordinator.close()
-        retainedSettlements.delete(coordinator)
-      }),
-    )
+    await closeRetainedSettlements()
     const consumerUnavailable = [...stoppedSelections, ...lateObservers].some(
       result => result.status === 'rejected' || 'unavailable' in result.value,
     )
@@ -1029,12 +1063,15 @@ export function createAcceptanceApplication(
     authorizedLogOwner: async () => authorizedLogOwner?.drain(),
     sessionLogBorrows: async () => sessionLogBacking?.drain(),
     async sessionLogOwner() {
+      if (originalIssue !== undefined && (await originalIssue.close()).kind !== 'released')
+        throw new Error('original model claim retained')
       if (!runnerHost) {
         await sessionLogOwner?.close()
         return
       }
       const result = await runnerHost.close()
       if (!result.complete) throw new Error('runner task recovery unfinished')
+      await journalTenancy?.close()
       for (const item of result.recovered)
         record({ event: 'close', phase: 'runnerRecovery', outcome: item.kind })
     },
@@ -1148,7 +1185,9 @@ export function createAcceptanceApplication(
       ...(stage === 'modelRequest' ? evaluationInputMigrations : []),
       ...(stage === 'modelRequest' ? assemblyManifestMigrations : []),
       ...(stage === 'modelRequest' ? modelCallContentMigrations('sqlite') : []),
-      ...(logStage ? runtimeContextMigrations : []),
+      ...(logStage
+        ? [...runtimeContextMigrations, ...sessionLogMigrations, ...originalIssueMigrations]
+        : []),
       ...(hooks?.extraMigrations ?? []).filter(
         extra => !assemblyManifestMigrations.some(builtin => builtin === extra),
       ),
@@ -1308,24 +1347,45 @@ export function createAcceptanceApplication(
     category = 'failed'
     assertNotClosing()
     if (logDeployment === undefined) throw new Error('acceptance log deployment absent')
-    const ownedLogOptions: Parameters<typeof openJsonlSessionLog>[0] = {
-      ...logDeployment,
-      diagnostic: event =>
-        record({
-          event: 'sessionLog',
-          phase: event.stage,
-          outcome: event.outcome ?? event.level,
-        }),
+    if (storage === undefined) throw new Error('session journal storage absent')
+    journalTenancy = createSessionTenancyReader(storage)
+    journalAuthoritySource = {
+      storage,
+      recovery: journalRecovery,
+      tenancy: journalTenancy,
+      logins: () => logins,
+      memberships: () => memberships,
+      access: trustedAccess,
+      ingress: () => sessionIngress,
     }
-    sessionLogOwner = await openJsonlSessionLog(ownedLogOptions)
+    const authority = createSqlLogAuthority(journalAuthoritySource)
+    sessionLogOwner = openSqlSessionLog({
+      storage,
+      authority,
+      operationLimit: logDeployment.operationLimit,
+    })
+    originalIssue = createOriginalIssueOwner({
+      storage,
+      log: sessionLogOwner.participant,
+      access: journalRecovery,
+      limit: logDeployment.operationLimit,
+      authority: {
+        async authorizeIn(unit, identity) {
+          const actor = runtimeActors.get(identity.session)
+          if (actor === undefined || closing || journalAuthoritySource === undefined)
+            return { kind: 'unavailable' }
+          const result = await checkSqlActor(unit, journalAuthoritySource, actor, identity)
+          return { kind: result === 'notAuthorized' ? 'denied' : result }
+        },
+      },
+    })
     const consumerLog = (await hooks?.sessionLogOpened?.(sessionLogOwner)) ?? sessionLogOwner
-    sessionLogBacking = createSessionLogBacking(consumerLog)
-    new SessionLogBacking(context, sessionLogBacking.operations)
-    runnerHost = createDemoRunnerHost(
-      sessionLogOwner,
-      ownedLogOptions,
-      sessionLogBacking.operations.ownerGeneration,
+    sessionLogBacking = createSessionLogBacking(
+      consumerLog,
+      sessionLogOwner.backing.ownerGeneration,
     )
+    new SessionLogBacking(context, sessionLogBacking.operations)
+    runnerHost = createDemoRunnerHost(sessionLogOwner, sessionLogOwner.backing.ownerGeneration)
     await load('sessionLog', borrowedSessionLog, {})
   }
   function captureBusinessServices() {
@@ -1352,7 +1412,9 @@ export function createAcceptanceApplication(
     actor,
     scope,
   ) => {
-    if (closing || sessionTenancy === undefined) return 'unavailable'
+    // Application admission rejects new work during close. Existing tracked work
+    // keeps its live ingress until the domain drains, with current identity checks.
+    if (sessionTenancy === undefined) return 'unavailable'
     const checked = await checkActor(actor)
     if (!('account' in checked)) return 'notAuthorized'
     if (!tenantIdEquals(checked.tenant, scope.tenant)) return 'notAuthorized'
@@ -1371,11 +1433,12 @@ export function createAcceptanceApplication(
     if (!sessionLogBacking || !sessionTenancy || !logDeployment)
       throw new Error('session log owner dependencies absent')
     const catalogStorage = storage
+    if (sessionLogOwner === undefined) throw new Error('SQL journal owner absent')
     const owner = await createAuthorizedLogOwner({
-      dir: logDeployment.dir,
-      backing: sessionLogBacking.operations,
-      access: context.sessionAccess,
-      tenancy: sessionTenancy,
+      owner: sessionLogOwner.owner,
+      ...(hooks?.sessionLogOpened === undefined ? {} : { decorateLog: hooks.sessionLogOpened }),
+      generation: sessionLogOwner.backing.ownerGeneration,
+      recovery: journalRecovery,
       catalog: () => catalogStorage.read(tx => readSessionCatalogIn(tx)),
     })
     authorizedLogOwner = owner
@@ -2232,6 +2295,7 @@ export function createAcceptanceApplication(
           runnerService = runnerValue
           if (config.tools) {
             if (!authorizedLogOwner) throw new Error('tool maintenance owner absent')
+            await verifyToolRecoveryOwnership()
             toolAssembly = await installDemoTools({
               ctx: context,
               recovery: authorizedLogOwner.recovery,
@@ -2460,6 +2524,40 @@ export function createAcceptanceApplication(
       }
     })
   }
+  function observeLogRead(result: ReadResult): ReadResult {
+    if ('failure' in result) record({ event: 'sessionLog', phase: 'read', outcome: result.failure })
+    return result
+  }
+  async function readAuthorizedLog(
+    actor: AuthenticatedActor,
+    scope: SessionScope,
+  ): Promise<ReadResult> {
+    const ingressOwner = sessionIngress,
+      logOwner = sessionLogOwner
+    if (ingressOwner === undefined || logOwner === undefined) return { failure: 'unavailable' }
+    const operations = ['session.log.coordinate'] satisfies AccessOperation[]
+    const ingress = await ingressOwner.enter(actor, scope, 'coordinator', [], operations)
+    if (ingress.kind !== 'entered') return { failure: 'unavailable' }
+    try {
+      const issuer = trustedAccess.currentIssuer(ingress.identity)
+      if ('unavailable' in issuer) return { failure: 'unavailable' }
+      const issued = await issuer.issue({ ...ingress.identity, operations })
+      if (issued.kind !== 'issued') return { failure: 'unavailable' }
+      try {
+        const held = await logOwner.owner.borrow(issued.access, scope)
+        if (held.kind !== 'borrowed') return { failure: 'unavailable' }
+        try {
+          return await held.log.readSince(scope.session, 0)
+        } finally {
+          await held.release()
+        }
+      } finally {
+        issuer.revoke(issued.access)
+      }
+    } finally {
+      ingressOwner.revoke(ingress.identity.binding)
+    }
+  }
   function readSessionLog(
     actor: AuthenticatedActor,
     session: unknown,
@@ -2478,7 +2576,9 @@ export function createAcceptanceApplication(
         const held = await sessionTenancy.holdingTenant(parsed.ok)
         if ('failure' in held) return { step: 'holdingTenant', result: held }
         if (!tenantIdEquals(held.tenant, checked.tenant)) return { failure: 'identityMismatch' }
-        return await sessionLogOwner.readSince(parsed.ok, 0)
+        return observeLogRead(
+          await readAuthorizedLog(checked, { session: parsed.ok, tenant: held.tenant }),
+        )
       } catch (error) {
         throw operationError(error, 'readSessionLog')
       }
@@ -2540,6 +2640,26 @@ export function createAcceptanceApplication(
       }
     })
   }
+  async function fixedJournalPrefix(
+    log: NonNullable<typeof sessionLogOwner>,
+    session: SessionRef,
+    tenant: TenantId,
+  ) {
+    const current = await log.participant.source(journalRecovery, { session, tenant })
+    if ('failure' in current) return { failure: 'unavailable' } as const
+    const fixed = await log.participant.readPrefix(journalRecovery, current.source)
+    return 'failure' in fixed
+      ? ({ failure: 'unavailable' } as const)
+      : { entries: fixed.entries, tail: fixed.source.tail, source: fixed.source }
+  }
+  async function ensureCallJournal(session: SessionRef, tenant: TenantId) {
+    const issue = originalIssue
+    if (closing || authorizedLogOwner === undefined || issue === undefined) return
+    const held = await authorizedLogOwner.operations.borrow(journalRecovery, { session, tenant })
+    if (held.kind !== 'borrowed') return
+    await held.release()
+    return issue
+  }
   async function sessionAccess(actor: AuthenticatedActor, session: unknown) {
     const checked = await checkActor(actor)
     if (!('account' in checked)) return checked
@@ -2552,7 +2672,9 @@ export function createAcceptanceApplication(
     if ('failure' in held) return { step: 'holdingTenant' as const, result: held }
     if (!tenantIdEquals(held.tenant, checked.tenant))
       return { failure: 'identityMismatch' as const }
-    if (closing) return { failure: 'stageClosed' as const }
+    const issue = await ensureCallJournal(parsed.ok, held.tenant)
+    if (issue === undefined) return { failure: 'stageClosed' as const }
+    runtimeActors.set(parsed.ok, checked)
     let borrow = sessionBorrows.get(parsed.ok)
     if (borrow === undefined) {
       const generation = Object.freeze({})
@@ -2561,6 +2683,8 @@ export function createAcceptanceApplication(
         session: parsed.ok,
         tenant: held.tenant,
         log,
+        readPrefix: () => fixedJournalPrefix(log, parsed.ok, held.tenant),
+        originalIssue: issue,
         generation,
         currentGeneration: () =>
           sessionLogOwner === log && allActive(requiredFibers) ? generation : null,
@@ -2613,35 +2737,22 @@ export function createAcceptanceApplication(
           if (!('report' in available)) return { unavailable: true } as const
           const now = activeClock?.now()
           if (now === undefined || now === 'unavailable') return { unavailable: true } as const
-          const messageId = parseOpaqueIdentifier(`attempt-${randomUUID()}`, 'MessageId')
-          if (!isOk(messageId)) return { unavailable: true } as const
-          const value: SystemReminderMessage = {
-            id: messageId.ok,
-            type: 'system_reminder',
-            nature: 'event',
-            source: {
-              kind: 'attempt_started',
+          const entry = {
+            ok: {
+              tenant: access.checked.tenant,
+              run,
               attempt,
-              reason: 'first',
-              at: new Date(now).toISOString(),
+              dedupeKey: `session-attempt:${randomUUID()}`,
+              readKeys: ['session-runtime/attempts'],
+              payload: attemptStartedPayload({
+                kind: 'attempt_started',
+                run,
+                attempt,
+                reason: 'first',
+                at: new Date(now).toISOString(),
+              }),
             },
-            blocks: [],
-            createdAt: new Date(now).toISOString(),
           }
-          if (!('ok' in judgeMessage(value))) return { unavailable: true } as const
-          const captured = captureModelLogValue({
-            category: 'message',
-            input: { kind: 'value', value },
-          })
-          if ('invalidValue' in captured) return { unavailable: true } as const
-          const entry = prepareModelLogEntry({
-            session: binding.session,
-            shell: { tenant: access.checked.tenant, run, attempt },
-            captured: captured.ok,
-            purpose: { kind: 'message' },
-            messagePrefix: decoded.messages,
-          })
-          if ('invalidValue' in entry) return { unavailable: true } as const
           const task = acquired.registration.start('append', async () =>
             binding.log.append(
               binding.session,
@@ -2957,6 +3068,27 @@ export function createAcceptanceApplication(
       return { attached: true }
     })
   }
+  function captureOriginalHandles(
+    session: SessionRef,
+    calls: ReturnType<typeof trackedCalls.get>,
+    binding: ReturnType<typeof runtimeBindings.get>,
+    owner: SettlementOwner,
+    captured: Map<string, AnchoredInvocationHandle>,
+  ): boolean {
+    for (const [callId, container] of calls ?? []) {
+      const view = container.view()
+      if (
+        view.key.session !== session ||
+        view.key.callId !== callId ||
+        view.session !== binding ||
+        view.owner !== owner
+      )
+        return false
+      if (!captured.has(callId) && view.invocation !== undefined)
+        captured.set(callId, view.invocation)
+    }
+    return true
+  }
   function reconcileModelRuntime(
     actor: AuthenticatedActor,
     session: unknown,
@@ -2972,6 +3104,8 @@ export function createAcceptanceApplication(
       recoveryBusy.add(key)
       recoveryAdmission.add(key)
       try {
+        // Resolve only this Session's original message writer before stopping its calls.
+        if (!(await closeRetainedSettlements(key))) return { unavailable: true }
         let ready = recoveryReady.get(key)
         if (ready === undefined) {
           const owners = callHosts.get(key)
@@ -3001,18 +3135,16 @@ export function createAcceptanceApplication(
             access.borrow.binding.currentGeneration() !== access.borrow.binding.generation
           )
             return { unavailable: true }
-          for (const [callId, container] of ownedCalls ?? []) {
-            const view = container.view()
-            if (
-              view.key.session !== key ||
-              view.key.callId !== callId ||
-              view.session !== warmBinding ||
-              view.owner !== access.borrow.owner.owner
+          if (
+            !captureOriginalHandles(
+              key,
+              ownedCalls,
+              warmBinding,
+              access.borrow.owner.owner,
+              captured,
             )
-              return { unavailable: true }
-            if (!captured.has(callId) && view.invocation !== undefined)
-              captured.set(callId, view.invocation)
-          }
+          )
+            return { unavailable: true }
           if (
             stopped.some(result => result.status === 'rejected' || 'unavailable' in result.value) ||
             [...(ownedCalls?.values() ?? [])].some(container => !container.canRemove())
@@ -3167,7 +3299,10 @@ export function createAcceptanceApplication(
           options.runHistory ??
           createToolDriverRunReader(sessionLogBacking!.operations.ownerGeneration),
         diagnostic: recordSettlement,
-        retain: coordinator => retainedSettlements.add(coordinator),
+        retain: coordinator => {
+          retainedSettlements.add(coordinator)
+          retainedSettlementSessions.set(coordinator, access.borrow.binding.session)
+        },
       })
     }
     return isOk(parsed) ? trackSession(parsed.ok, work) : track(work)
@@ -3331,6 +3466,24 @@ export function createAcceptanceApplication(
     })
     toolDeliveries.set(scope.session, delivery)
     return delivery
+  }
+
+  async function verifyToolRecoveryOwnership() {
+    if (options.coldRecovery?.covered === true) return
+    if (!authorizedLogOwner) throw new Error('tool recovery owner absent')
+    const owned = await authorizedLogOwner.operations.enumerate(authorizedLogOwner.recovery)
+    if (owned.kind !== 'sessions') throw new Error('tool recovery catalog unavailable')
+    for (const { scope } of owned.sessions) {
+      const prefix = await authorizedLogOwner.operations.readPrefix(
+        authorizedLogOwner.recovery,
+        scope,
+      )
+      if (prefix.kind !== 'prefix') throw new Error('tool recovery prefix unavailable')
+      const tools = projectToolJournal(scope, prefix.prefix.entries)
+      if ('invalid' in tools) throw new Error('tool recovery journal invalid')
+      if ([...tools.executions.values()].some(execution => !execution.confirmed))
+        throw new Error('original tool execution stop unverified')
+    }
   }
 
   async function recoverToolDeliveries() {

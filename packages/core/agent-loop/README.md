@@ -1,7 +1,17 @@
-# Agent Loop：第一期设计准备
+# @omne-harness-lite/agent-loop
 
-本目录按用户要求先接收对应责任的设计与验证资源。当前没有package.json、src或构建制品，不是已建立或已规范化的workspace成员。F0／C01按阶段责任建立真实成员，补齐模板、接口、实现与测试后才可交付。
+[中文](README_ZH.md)
 
-[目标薄规格](SPEC.md)。纯逻辑决定与实际执行分开；原模型／工具仍由原能力拥有。
+Deterministic decisions over fixed Session observations, with explicit attempt execution and release ports.
 
-状态：目标设计，限定采用与真实兑现待后续。目录搬动不改变既有模型／工具／runtime context的承诺。原始输出、评审过程、迁移清单和实施进度在本工作树tmp维护，不进入本目录或.meta_harness。
+Use `nextStep` for pure decisions. Use `createAttemptOwner`, `driveStep`, and `releaseAttempt` with capabilities supplied by their real owners. Missing capabilities return blocked; they do not complete an operation.
+
+Public types and functions belong to this package. [SPEC.md](SPEC.md) states behavior that types cannot express. [Public entry tests](tests/loop.spec.ts) provide executable examples. Delivery review and acceptance are separate from implementation.
+
+Follow the [development guide](../../../docs/development.md). Build dependencies first.
+
+```sh
+pnpm --filter @omne-harness-lite/agent-loop run build
+pnpm --filter @omne-harness-lite/agent-loop run typecheck
+pnpm --filter @omne-harness-lite/agent-loop run test
+```

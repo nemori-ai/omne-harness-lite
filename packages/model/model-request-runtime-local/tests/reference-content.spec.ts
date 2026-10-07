@@ -15,7 +15,7 @@ import {
 } from '@omne-harness-lite/model-response'
 import { composeMigrations, narrow, type Storage } from '@omne-harness-lite/storage'
 import { openStorage } from '@omne-harness-lite/storage-sql'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { publishModelCallContent } from '../src/reference-publish.ts'
 import { createModelCallFacts } from '../src/reference-facts.ts'
 import { OwnedReadTracker } from '../src/service-control.ts'
@@ -90,18 +90,16 @@ async function host(
       migrations: composeMigrations(modelCallContentMigrations('sqlite')),
     })
   let storage = await open()
-  const log = await openJsonlSessionLog({
-    dir: join(dir, 'log'),
-    processOwnership: {
-      current: `content-test:${process.pid}`,
-      observeExit: async () => 'unknown',
-    },
-  })
+  const log = await openSqlLogFixture({ dir: join(dir, 'log') })
   const generation = Object.freeze({})
   const binding: SettlementLogBinding = {
     tenant: content.value.origin.tenant,
     session: content.value.origin.session,
     log,
+    readPrefix(this: import('../src/settlement-types.ts').SettlementLogBinding) {
+      return log.fixturePrefix({ session: this.session, tenant: this.tenant }, this.log)
+    },
+    originalIssue: log.fixtureOriginalIssue,
     generation,
     currentGeneration: () => generation,
   }
@@ -177,7 +175,7 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
           version: 'v1',
           at: '2026-09-20T08:00:00Z',
           retainUnknown() {
-            throw new Error('known real JSONL receipt')
+            throw new Error('known real SQL journal receipt')
           },
         })
       expect(await invoke()).toEqual({ published: true })
@@ -185,7 +183,12 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
       const log = await h.binding.log.readSince(h.binding.session, 0)
       if ('failure' in log) throw new Error('real log unavailable')
       expect(log.entries).toHaveLength(1)
-      expect(log.entries[0]?.payload).toMatchObject({ value: { kind: 'model_call_created' } })
+      expect(log.entries[0]?.payload).toMatchObject({
+        kind: 'fact',
+        owner: 'model-request-runtime',
+        version: 'mrr/3',
+        value: { category: 'record', value: { kind: 'model_call_created' } },
+      })
       expect(active()).toBe(0)
       const changed = {
         kind: 'created' as const,
@@ -276,7 +279,7 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
         version: 'v1',
         at: '2026-09-20T08:00:00Z',
         retainUnknown() {
-          throw new Error('known real JSONL receipt')
+          throw new Error('known real SQL journal receipt')
         },
       })
       expect(written).toEqual({ published: true })

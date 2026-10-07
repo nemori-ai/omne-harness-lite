@@ -1,3 +1,4 @@
+import { checkSourceToken } from '@omne-harness-lite/session-log'
 import { expect, test } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import {
@@ -35,6 +36,18 @@ test('the default no-Run calibration reader refuses an unproved Run source', asy
       session,
       tenant,
       generation,
+      async readPrefix() {
+        const read = await this.log.readSince(session, 0)
+        if ('failure' in read) return { failure: 'unavailable' }
+        const checked = checkSourceToken({
+          tenant,
+          session,
+          journalGeneration: 'synthetic-history-fixture',
+          tail: read.tail,
+        })
+        if ('failure' in checked) throw new Error('fixture source')
+        return { ...read, source: checked.ok }
+      },
       currentGeneration: () => generation,
       log: {
         readSince: async () => ({ entries: [], tail: 0 }),

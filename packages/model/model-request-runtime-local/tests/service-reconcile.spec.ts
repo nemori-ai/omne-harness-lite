@@ -1,5 +1,6 @@
+import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 // @module-tag slow
-// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 JSONL 会话日志。
+// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 import { describe, expect, it, vi } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import {
@@ -22,10 +23,10 @@ import { createCallContainer, createCallContainerStore } from '../src/service-co
 import type {
   CreateCallContainerInput,
   SessionRuntimeBinding,
-  SettleReplyInput,
   SystemStopControl,
   RuntimeRecoveryScope,
 } from '../src/service-types.ts'
+import type { SettleReplyInput } from '@omne-harness-lite/model-request-runtime'
 import type { AnchoredInvocationHandle } from '../src/anchored-invocation-types.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type {
@@ -85,7 +86,7 @@ const vetoed: SettleReplyInput = {
   disposition: { vetoed: { by: 'input-gate', reason: 'not publishable' } },
 }
 
-describe('S-49 reply disposition through the real JSONL settlement coordinator', () => {
+describe('S-49 reply disposition through the real SQL journal settlement coordinator', () => {
   it('uses the stored original handle and recognizes the settled disposition after container removal', async () => {
     const host = await selectionHost()
     try {
@@ -517,23 +518,13 @@ describe('v17 conditional Run cold recovery', () => {
         return prepared.ok
       }
       const start = (attempt: number) =>
-        entry(
-          'message',
-          {
-            id: `reconcile-attempt-${attempt}`,
-            type: 'system_reminder',
-            nature: 'event',
-            source: {
-              kind: 'attempt_started',
-              attempt,
-              reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
-              at: '2026-09-29T00:00:00Z',
-            },
-            blocks: [],
-            createdAt: '2026-09-29T00:00:00Z',
-          },
-          attempt,
-        )
+        prepareAttemptFact({
+          session: runSession,
+          shell: shell(attempt),
+          key: `reconcile-attempt-${attempt}`,
+          reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
+          at: '2026-09-29T00:00:00Z',
+        }).ok
       const first = await binding.log.append(
         runSession,
         [start(1), entry('record', dispatchedFixture, 1), entry('record', openedFixture, 1)],

@@ -12,13 +12,15 @@ import {
   type CallContainer,
   type CallContainerStore,
   type CallFacts,
-  type CallOrigin,
   type CallPresence,
-  type CallPresenceFact,
   type CallPresenceInput,
-  type CallSource,
   type SettlementLogBinding,
 } from '@omne-harness-lite/model-request-runtime-local'
+import type {
+  CallOrigin,
+  CallPresenceFact,
+  CallSource,
+} from '@omne-harness-lite/model-request-runtime'
 import type { PlannedRequest, RawResponse } from '@omne-harness-lite/model-request-runtime'
 
 type DemoContainer = CallContainer<PlannedRequest, RawResponse>

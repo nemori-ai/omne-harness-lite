@@ -1,3 +1,13 @@
+import type {
+  DispatchAgainInput,
+  DispatchAgainResult,
+  DispatchGuardPhase,
+  DispatchInput,
+  DispatchResult,
+  FailureConsumableOperation,
+  FailureConsumption,
+  ModelFailureSource,
+} from '@omne-harness-lite/model-request-runtime'
 import { offerReferenceConsumers } from './reference-consumer.ts'
 import { publishModelCallContent } from './reference-publish.ts'
 import {
@@ -19,7 +29,7 @@ import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import { operationDiagnostics } from './service-diagnostics.ts'
 import { createModelObserverQueue } from './service-observer-queue.ts'
 import { resolveCallTools } from './call-tools.ts'
-import { dispatchGuard, type DispatchGuardPhase } from './dispatch-guard.ts'
+import { dispatchGuard } from './dispatch-guard.ts'
 import { UnknownAppendTracker } from './service-calls.ts'
 import {
   appendControlRecord,
@@ -40,17 +50,10 @@ import type {
   CallOperationState,
   CallKey,
   CallReservation,
-  DispatchAgainInput,
-  DispatchInput,
-  DispatchResult,
-  DispatchAgainResult,
   RuntimeConstruction,
   SessionRuntimeBinding,
   ModelObserverQueue,
   ObserverDiagnostic,
-  FailureConsumableOperation,
-  FailureConsumption,
-  ModelFailureSource,
 } from './service-types.ts'
 import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
 import type { CredentialScope } from '@omne-harness-lite/model-response'

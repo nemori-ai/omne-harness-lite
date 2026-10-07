@@ -67,6 +67,15 @@ export function isNonNegativeJsonInteger(value: unknown): value is JsonNumber {
   return BigInt(exponent) >= BigInt(fractionLength - trailingZeros)
 }
 
+function copyNumber(input: unknown): JsonNumber | undefined {
+  if (LosslessNumber.is(input)) {
+    if (Object.getPrototypeOf(input) !== LosslessNumber.prototype)
+      throw new TypeError('not an owned JSON number')
+    return input
+  }
+  return typeof input === 'number' && Number.isFinite(input) ? input : undefined
+}
+
 /** Accept only actual JSON data, then copy/freeze without invoking getters or toJSON. */
 export function copyJsonValue(
   value: unknown,
@@ -74,7 +83,8 @@ export function copyJsonValue(
   const active = new Set<object>()
   function copy(input: unknown): JsonValue {
     if (input === null || typeof input === 'boolean' || typeof input === 'string') return input
-    if (isJsonNumber(input)) return input
+    const numeric = copyNumber(input)
+    if (numeric !== undefined) return numeric
     if (input instanceof OpaqueJsonValue) return copy(input.value)
     if (typeof input !== 'object' || active.has(input)) throw new TypeError('not JSON data')
     const prototype: unknown = Object.getPrototypeOf(input)

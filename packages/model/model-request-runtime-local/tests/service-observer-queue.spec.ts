@@ -2,12 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { createModelObserverQueue } from '../src/service-observer-queue.ts'
-import type {
-  ModelObserverQueueInput,
-  ObserverDiagnostic,
-  ObserverReceiveTask,
-  ObserverScope,
-} from '../src/service-types.ts'
+import type { ModelObserverQueueInput, ObserverDiagnostic } from '../src/service-types.ts'
+import type { ObserverReceiveTask, ObserverScope } from '@omne-harness-lite/model-request-runtime'
 
 function identifier<K extends 'SessionRef' | 'OrganizationId' | 'AccountId'>(
   value: string,

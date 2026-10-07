@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import { judgePositionedSubject, type Conclusion } from '@omne-harness-lite/loop-extension'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { createRunnerTaskOwner } from '../src/task-owner.ts'
 import {
   prepareRunnerConclusion,
@@ -51,7 +51,7 @@ function candidate(at: string) {
   return prepared.entry
 }
 
-describe('runner task owner and actual stopped JSONL recovery', () => {
+describe('runner task owner and actual stopped SQL journal recovery', () => {
   it('retains an append whose receipt classifier fails and consumes a later rejection', async () => {
     const owner = createRunnerTaskOwner(binding)
     const proposed = candidate('2026-09-29T00:00:00Z')
@@ -96,7 +96,7 @@ describe('runner task owner and actual stopped JSONL recovery', () => {
         await mkdir(root, { recursive: true })
         const dir = await mkdtemp(join(root, 'unknown-'))
         const ownership = { current: 'owner-test', observeExit: async () => 'exited' as const }
-        const log = await openJsonlSessionLog({ dir, processOwnership: ownership })
+        const log = await openSqlLogFixture({ dir: dir })
         const owner = createRunnerTaskOwner(binding)
         const proposed = candidate('2026-09-29T00:00:00Z')
         const actual = winner ? candidate('2026-09-29T00:00:01Z') : proposed
@@ -132,7 +132,7 @@ describe('runner task owner and actual stopped JSONL recovery', () => {
           const refused = owner.start({ kind: 'read', execute: async () => 1 })
           expect(refused).toEqual({ unavailable: true })
           await log.close()
-          const reopened = await openJsonlSessionLog({ dir, processOwnership: ownership })
+          const reopened = await openSqlLogFixture({ dir: dir })
           try {
             const wrongGeneration = await owner.reconcileStoppedLog({
               binding: { ...binding, logGeneration: 'wrong-generation' },

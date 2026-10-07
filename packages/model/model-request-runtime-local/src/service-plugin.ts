@@ -1,15 +1,19 @@
+import type {
+  FailureConsumableOperation,
+  FailureConsumption,
+  ModelRuntimeService,
+  RuntimeCloseResult,
+} from '@omne-harness-lite/model-request-runtime'
 import { STORAGE_SERVICE } from '@omne-harness-lite/storage/cordis'
 import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { z } from 'zod'
-import type {
-  ModelRuntimeService,
-  RuntimeCloseResult,
-  FailureConsumableOperation,
-  FailureConsumption,
-} from './service-types.ts'
 
-export const MODEL_RUNTIME_SERVICE = 'modelRuntime'
+import {
+  ModelRuntimeService as RuntimeDefinition,
+  MODEL_RUNTIME_SERVICE,
+} from '@omne-harness-lite/model-request-runtime/cordis'
+import type { Context } from '@deepseek-ai/cordis'
 
 /** The host retains this owner before construction resolves; release only removes that retention. */
 export interface ModelRuntimeAssemblyOwner {
@@ -148,11 +152,47 @@ export function createModelRuntimePlugin(input: {
           },
           'model-request-runtime.close',
         )
-        ctx.provide(MODEL_RUNTIME_SERVICE, service)
+        new ModelRuntimeProvider(ctx, service)
       } catch (error) {
         await close()
         throw error
       }
     },
   })
+}
+
+class ModelRuntimeProvider extends RuntimeDefinition {
+  readonly acquireCall: ModelRuntimeService['acquireCall']
+  readonly legalTargets: ModelRuntimeService['legalTargets']
+  readonly displayList: ModelRuntimeService['displayList']
+  readonly effectiveModel: ModelRuntimeService['effectiveModel']
+  readonly selectModel: ModelRuntimeService['selectModel']
+  readonly openCall: ModelRuntimeService['openCall']
+  readonly dispatch: ModelRuntimeService['dispatch']
+  readonly dispatchAgain: ModelRuntimeService['dispatchAgain']
+  readonly interrupt: ModelRuntimeService['interrupt']
+  readonly releaseCall: ModelRuntimeService['releaseCall']
+  readonly reconcile: ModelRuntimeService['reconcile']
+  readonly readAttempts: ModelRuntimeService['readAttempts']
+  readonly settleReply: ModelRuntimeService['settleReply']
+  readonly canDispatchAgain: ModelRuntimeService['canDispatchAgain']
+  readonly acknowledgeCall: ModelRuntimeService['acknowledgeCall']
+  constructor(ctx: Context, service: ModelRuntimeService) {
+    super(ctx)
+    this.acquireCall = service.acquireCall
+    this.legalTargets = service.legalTargets
+    this.displayList = service.displayList
+    this.effectiveModel = service.effectiveModel
+    this.selectModel = service.selectModel
+    this.openCall = service.openCall
+    this.dispatch = service.dispatch
+    this.dispatchAgain = service.dispatchAgain
+    this.interrupt = service.interrupt
+    this.releaseCall = service.releaseCall
+    this.reconcile = service.reconcile
+    this.readAttempts = service.readAttempts
+    this.settleReply = service.settleReply
+    this.canDispatchAgain = service.canDispatchAgain
+    this.acknowledgeCall = service.acknowledgeCall
+  }
 }

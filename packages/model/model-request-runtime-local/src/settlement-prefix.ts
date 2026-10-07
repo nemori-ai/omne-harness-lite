@@ -1,3 +1,4 @@
+import { readAttemptStarted } from '@omne-harness-lite/session-runtime'
 import {
   copyJsonValue,
   isJsonNumber,
@@ -11,8 +12,14 @@ import {
   type RunId,
 } from '@omne-harness-lite/call-accounts'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
-import { judgeMessage, type LoggedMessage } from '@omne-harness-lite/messages'
-import { checkAppendInput, type LogEntry } from '@omne-harness-lite/session-log'
+import { type LoggedMessage } from '@omne-harness-lite/messages'
+import {
+  checkSourceToken,
+  checkLogPayload,
+  checkAppendInput,
+  type SourceToken,
+  type LogEntry,
+} from '@omne-harness-lite/session-log'
 import {
   encodeModelLogKey,
   inspectModelLogEntry,
@@ -42,6 +49,7 @@ class OwnedPrefix {
     readonly binding: SettlementLogBinding,
     readonly entries: readonly LogEntry[],
     readonly tail: JsonNumber,
+    readonly source: SourceToken,
   ) {
     if (token !== prefixToken) throw new TypeError('Use readSettlementPrefix')
     Object.freeze(this)
@@ -72,12 +80,10 @@ export async function readSettlementPrefix(input: {
 }): Promise<SettlementPrefixResult> {
   const { binding, registration } = input
   if (!settlementGenerationCurrent(binding)) return { unavailable: true, reason: 'generation' }
+  if (binding.readPrefix === undefined) return { unavailable: true, reason: 'dependency' }
   let received: unknown
   try {
-    const task = registration.start(
-      'read',
-      async () => await binding.log.readSince(binding.session, 0),
-    )
+    const task = registration.start('read', async () => await binding.readPrefix!())
     received = await task.completion
   } catch {
     return { unavailable: true, reason: 'log' }
@@ -108,11 +114,13 @@ function prefixEntry(
   if (owned === undefined || !tenantIdEquals(owned.tenant, binding.tenant)) return null
   return Object.freeze({ ...owned, session: binding.session, position })
 }
-function isPrefixEnvelope(value: {
-  readonly [key: string]: unknown
-}): value is { readonly entries: readonly unknown[]; readonly tail: JsonNumber } {
+function isPrefixEnvelope(value: { readonly [key: string]: unknown }): value is {
+  readonly entries: readonly unknown[]
+  readonly tail: JsonNumber
+  readonly source: SourceToken
+} {
   return !(
-    Object.keys(value).length !== 2 ||
+    Object.keys(value).length !== 3 ||
     !Array.isArray(value.entries) ||
     !isNonNegativeJsonInteger(value.tail) ||
     ExactDecimal.from(value.tail).compare(ExactDecimal.from(value.entries.length)) !== 0
@@ -124,13 +132,18 @@ function ownPrefix(received: unknown, binding: SettlementLogBinding): Settlement
   const value = copied.ok
   if ('failure' in value) return { unavailable: true, reason: 'log' }
   if (!isPrefixEnvelope(value)) return { unavailable: true, reason: 'prefix' }
+  const source = checkSourceToken(value.source)
+  if ('failure' in source || !sourceMatchesBinding(source.ok, binding, value.tail))
+    return { unavailable: true, reason: 'prefix' }
   const entries: LogEntry[] = []
   for (const [index, entry] of value.entries.entries()) {
     const owned = prefixEntry(entry, index, binding)
     if (owned === null) return { unavailable: true, reason: 'prefix' }
     entries.push(owned)
   }
-  return { prefix: new OwnedPrefix(prefixToken, binding, Object.freeze(entries), value.tail) }
+  return {
+    prefix: new OwnedPrefix(prefixToken, binding, Object.freeze(entries), value.tail, source.ok),
+  }
 }
 export type SettlementInterpretation =
   | {
@@ -143,40 +156,19 @@ export type SettlementInterpretation =
     }
   | { readonly unavailable: true; readonly reason: SettlementUnavailableReason }
 
-function startedAttempt(entry: LogEntry) {
-  const payload = entry.payload
-  if (!object(payload) || payload.category !== 'message') return null
-  const judged = judgeMessage(payload.value)
-  if (
-    'rejected' in judged ||
-    judged.ok.type !== 'system_reminder' ||
-    judged.ok.nature !== 'event' ||
-    judged.ok.source.kind !== 'attempt_started'
-  )
-    return null
-  return judged.ok.source
-}
 function startedAttempts(prefix: SettlementPrefix, run: RunId): readonly AttemptId[] | null {
   const starts: AttemptId[] = []
+  const seen = new Set<string>()
   for (const entry of prefix.entries) {
-    if (entry.run !== run || entry.attempt === undefined) continue
-    const started = startedAttempt(entry)
-    if (started === null) continue
-    if (ExactDecimal.from(started.attempt).compare(ExactDecimal.from(entry.attempt)) !== 0)
-      return null
-    starts.push(started.attempt)
+    const started = readAttemptStarted(entry)
+    if ('failure' in started) return null
+    if (started.kind === 'other' || started.fact.run !== run) continue
+    const key = ExactDecimal.from(started.fact.attempt).toCanonicalString()
+    if (seen.has(key)) return null
+    seen.add(key)
+    starts.push(started.fact.attempt)
   }
-  if (
-    starts.length === 0 ||
-    starts.some(
-      (value, index) =>
-        starts.findIndex(
-          other => ExactDecimal.from(other).compare(ExactDecimal.from(value)) === 0,
-        ) !== index,
-    )
-  )
-    return null
-  return starts
+  return starts.length === 0 ? null : starts
 }
 type KnownRunResult = Extract<ReturnType<RunHistoryReader>, { readonly known: unknown }>
 function hasKnownRun(result: ReturnType<RunHistoryReader>): result is KnownRunResult {
@@ -316,9 +308,10 @@ export function interpretSettlementPrefix(input: {
   // The codec already checked every declared model entry in this full prefix.
   const messages: LoggedMessage[] = []
   for (const entry of prefix.entries) {
-    if (!object(entry.payload) || entry.payload.category !== 'message') continue
-    const recognized = judgeMessage(entry.payload.value)
-    if ('ok' in recognized && recognized.ok.type !== 'system') messages.push(recognized.ok)
+    const recognized = checkLogPayload(entry.payload)
+    if ('failure' in recognized) return { unavailable: true, reason: 'members' }
+    if (recognized.kind === 'message' && recognized.payload.value.type !== 'system')
+      messages.push(recognized.payload.value)
   }
   return {
     facts: {
@@ -328,4 +321,16 @@ export function interpretSettlementPrefix(input: {
       members,
     },
   }
+}
+
+function sourceMatchesBinding(
+  source: SourceToken,
+  binding: SettlementLogBinding,
+  tail: JsonNumber,
+): boolean {
+  return (
+    source.session === binding.session &&
+    tenantIdEquals(source.tenant, binding.tenant) &&
+    ExactDecimal.from(source.tail).compare(ExactDecimal.from(tail)) === 0
+  )
 }

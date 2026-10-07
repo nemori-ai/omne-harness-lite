@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-This example is a runnable **Cordis model-call loop**, not a formal business application. One host process wires the public surface of `@omne-harness-lite/model-request-runtime-local` around one Cordis context, composing real local storage (SQLite), a JSONL session log, an encrypted credential replica, account and membership checks, and the OpenRouter transport. The default mode sends independent model requests. Tool mode adds a durable Run driver to demonstrate model continuation after tool execution. It does not provide a complete Agent Runtime or production governance. Where a trusted provider is needed, this demo supplies only single-process, single-host evidence and says so; it is not a template for cross-process authority. Reusable capabilities stay in `packages/`; this example only assembles them.
+This example is a runnable **Cordis model-call loop**, not a formal business application. One host process wires the public surface of `@omne-harness-lite/model-request-runtime-local` around one Cordis context, composing real local storage (SQLite), a SQL journal session log, an encrypted credential replica, account and membership checks, and the OpenRouter transport. The default mode sends independent model requests. Tool mode adds a durable Run driver to demonstrate model continuation after tool execution. It does not provide a complete Agent Runtime or production governance. Where a trusted provider is needed, this demo supplies only single-process, single-host evidence and says so; it is not a template for cross-process authority. Reusable capabilities stay in `packages/`; this example only assembles them.
 
 It offers two faces:
 
@@ -89,7 +89,7 @@ A protocol failure or broken stream keeps already delivered text in the model re
 
 ### Data directory
 
-The data directory holds SQLite state, JSONL session history (`session-logs/`), engineering journals (`diagnostics/`), generated signing keys, the replica encryption key, and `demo-state.json` with a local demo account password. Keep the whole directory private and back it up together. The OpenRouter key lives only in the encrypted replica. Interrupted initial setup stays marked incomplete and is not silently replayed. Data written by an older incompatible development format is not guessed, rewritten or converted; use a new `--data` directory and keep the old one unchanged.
+The data directory holds SQLite state, SQL journal session history (`session-logs/`), engineering journals (`diagnostics/`), generated signing keys, the replica encryption key, and `demo-state.json` with a local demo account password. Keep the whole directory private and back it up together. The OpenRouter key lives only in the encrypted replica. Interrupted initial setup stays marked incomplete and is not silently replayed. Data written by an older incompatible development format is not guessed, rewritten or converted; use a new `--data` directory and keep the old one unchanged.
 
 ### Models
 
@@ -151,7 +151,7 @@ const acknowledged = await service.acknowledgeCall({
 
 `acknowledgeCall({ ref, expectedResult })` hands the model-side copy over for release. It is a separate action from reading: the demo's `callAccess` checks `ack` afresh, and holding a reference or releasing a consumer never acknowledges. The runtime writes one durable acknowledgement, then deletes the call's stored copies under the explicit cleanup policy. Afterwards the old reference answers only a small accounting view without the route, reply or input calibration, and the reply text can no longer be re-read: keep your own copy of the original result before you acknowledge.
 
-To settle a vetoed or consumed disposition after acknowledging a ready call, pass the original pending result back as `retainedResult`. Without it `settleReply` answers `wrongPhase`. The runtime validates the returned value, durably stages the complete batch and appends one final response; a repeat of the same disposition is then recognized without the value, and a different one answers `alreadyEnded` without changing the log. `tests/call-reference-service.spec.ts` runs these paths through the real SQLite, JSONL and local TLS service, and also checks acknowledgement of a ready-only call and access withdrawal at close.
+To settle a vetoed or consumed disposition after acknowledging a ready call, pass the original pending result back as `retainedResult`. Without it `settleReply` answers `wrongPhase`. The runtime validates the returned value, durably stages the complete batch and appends one final response; a repeat of the same disposition is then recognized without the value, and a different one answers `alreadyEnded` without changing the log. `tests/call-reference-service.spec.ts` runs these paths through the real SQLite, SQL journal and local TLS service, and also checks acknowledgement of a ready-only call and access withdrawal at close.
 
 ### Settlement evidence and diagnostics
 
@@ -242,7 +242,7 @@ A send result's `released` describes that stop attempt. If a terminal callback i
 
 ## Local engineering journal
 
-The demo authenticates first, opens separate owner-only local and verified-tenant JSONL collectors, then activates its model-request fibers in the same Cordis context. For programmatic assembly, `createAcceptanceApplication(...).ready` prepares identity and session-log access; call `activateModelRequest(actor, diagnostics, diagnostics.transports)` only after authenticating and opening both diagnostic owners. A failed activation does not open model admission.
+The demo authenticates first, opens separate owner-only local and verified-tenant SQL journal collectors, then activates its model-request fibers in the same Cordis context. For programmatic assembly, `createAcceptanceApplication(...).ready` prepares identity and session-log access; call `activateModelRequest(actor, diagnostics, diagnostics.transports)` only after authenticating and opening both diagnostic owners. A failed activation does not open model admission.
 
 Each transport construction reserves a generation before creating the service. Its registry borrows a record-only port bound to the local collector and the fixed `transport:<generation>` execution ID; registration and retirement events come from the actual registry and do not enter the tenant journal. A confirmed resource-free abort leaves a generation gap; an unknown construction keeps its reservation. The service's `inspect()` reports registry delivery failures and drops separately from network diagnostics and collector health. Current, constructing, old live and terminal transport generations share one retention bound (four in `createDemoDiagnosticConfig`); if live owners fill it, a new construction is refused.
 
@@ -287,7 +287,7 @@ Queries and `exportPage(query, { maxRecords, maxBytes })` require the exact boun
 
 The application returned by `createAcceptanceApplication()` also offers `runExtensionPass(actor, session, request)` for explicitly supplied development extensions. `DemoRunnerRequest` uses the runner package's existing pass, chain and non-storage ports; supply real execution and waiting sources for the ports you use, since an `isActive()` result does not prove a Run or a waiting-card fact. This entry registers no production chain and adds no model command.
 
-The application authorizes the actor and session and supplies the shared JSONL binding, conclusion writes, reminder reads/writes and physical task owner; callers cannot replace these storage ports or claim that the writer has stopped. `subjectForCandidate` identifies the original positioned subject for each conclusion, including nested passes, and the runner adapter checks their relation. The runner service adapter borrows only the history reader's `read` capability; the application keeps ownership of the reader and its `close()`.
+The application authorizes the actor and session and supplies the shared SQL journal binding, conclusion writes, reminder reads/writes and physical task owner; callers cannot replace these storage ports or claim that the writer has stopped. `subjectForCandidate` identifies the original positioned subject for each conclusion, including nested passes, and the runner adapter checks their relation. The runner service adapter borrows only the history reader's `read` capability; the application keeps ownership of the reader and its `close()`.
 
 Always await `app.close()`. It closes runner admission and cancels passes, keeps still-running contributions, stops other shared-log consumers and then closes the actual log. An uncertain append is resolved only by reopening the same log through SL3 recovery admission and reading its original key. A writer whose exit is still unknown stays unfinished; do not report `complete: false` as a clean shutdown.
 

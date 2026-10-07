@@ -1,3 +1,4 @@
+import type { DispatchGuardPhase } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallId } from '@omne-harness-lite/call-accounts'
 import type { SessionRef } from '@omne-harness-lite/messages'
 import {
@@ -5,7 +6,6 @@ import {
   type CallHistoryResult,
   type CallHistoryKnown,
 } from './call-history.ts'
-import type { DispatchGuardPhase } from './dispatch-guard.ts'
 
 /** Process-owned responsibility, never a replacement for a durable log fact. */
 export type LocalCallResponsibility =

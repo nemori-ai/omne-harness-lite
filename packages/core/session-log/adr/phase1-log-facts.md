@@ -1,6 +1,6 @@
 # Session Log 迁移候选
 
-状态：第一期目标设计，尚未切换现行消费者或获得本次新增接口的限定采用。物理迁移不改变接受状态。
+状态：SourceToken表示边界已按负责人F0实施指令落入公开类型及唯一SPEC；其余日志增量仍是待实施目标，尚未切换现行消费者。物理迁移不改变接受状态。
 
 保持精确[SL3](../../../../.meta_harness/design/spec/capabilities/session-log/v3/contract.md)当前有效承诺，不从SL2或未迁consumer误推最新接受。新增行为只在新采用时切换，不改冻结原件。
 
@@ -9,7 +9,7 @@
 沿现有LogEntry外壳、SessionRef、tenant、seq、run／attempt、dedupeKey、readKeys。payload改为明确拥有者＋版本＋判别值；message payload只容纳现行Message，Session事实由Session定义校验，model/tool/context payload由各原拥有者校验。
 非消息的attempt_started属于Session事实，并保留Run、序号、时间与开始原因。Unknown-other保留原JsonValue且不可送模型；claimed-known非法导致unavailable／invalidInput，不能降为unknown。
 
-`SourceToken`由本日志接口唯一拥有，闭合字段为tenant、session、journalGeneration、tail；分别使用既有TenantId、SessionRef及存储拥有者的代际和日志序号。projectionRuleVersion不是日志坐标，投影消费者单独携带。
+`SourceToken`的公开形状由[根入口](../src/index.ts)唯一维护，类型之外的已实施规则见[SPEC的固定日志坐标](../SPEC.md#固定日志坐标)。本页不再维护其字段或校验定义。
 append/readByKey/readSince现行shape与尾条件／栅栏行为逐项保持到消费者切换。新增`readPrefix(sourceToken)`读取一个固定已提交范围。无可信权限不读全journal。
 新增内部`appendIn(unit,request)`：StorageUnit、已校验访问资格及AppendRequest；返回staged(条目、nextTail)、invalidInput／staleAttempt／conditionFailed／dedupeConflict。只暂存不承诺提交；unit过期拒绝，provider核验同AtomicStorage实例。
 事务未知由外层协调返回unknownCommit，不把staged当成功回执。readPrefix遇generation不同／非法tail返回invalidInput，来源暂不可用返回unavailable。普通append独立提交，禁止隐式Ambient transaction。
@@ -37,4 +37,4 @@ SLN5：读取固定prefix对普通append/afterCommit失败可复现；未知无�
 
 本阶段操作的身份、授权、幂等、提交、通知与在途共用规则见[共用规则](../../session-runtime/adr/shared-operation-rules.md)。本文与该表一起读取；不从目录存在推断实现完成。
 
-本页是尚未切换的目标增量。现行[可信装配借用规格](../SPEC.md)及SL3仍约束当前消费者。F0同步切换公开类型和消费者后，将本页的行为并入唯一SPEC，再删除本增量页。不得长期并行维护两份现行规格。
+除已迁SourceToken边界外，本页是尚未切换的目标增量。现行[可信装配借用规格](../SPEC.md)及SL3仍约束当前消费者。F0同步切换公开类型和消费者后，将本页的行为并入唯一SPEC，再删除本增量页。不得长期并行维护两份现行规格。

@@ -125,7 +125,11 @@ export async function inspectWithRuntime(
 `readAttempts`, `dispatch` and `dispatchAgain` have an explicit `{ consumeFailure: true }` overload for a caller that will run the failure extension. It returns `{ result, consumption }`; a normal one-argument call still returns only the business result and holds no failure scope. `consumption.kind === 'failure'` provides a non-serializable `ModelFailureSource` from the same authorized full-prefix read that supplied the failed result. The source checks the original dispatched entry shells and failed response in that prefix. Verify the exact subject **and the actual runner execution** before passing it to the runner, and always release the borrow. Verification reads the owned snapshot and current admission/generation, without reading a later log tail. A later unrelated append does not invalidate it; release, owner revocation, host stop or generation replacement does.
 
 ```ts
-import type {CallKey, ModelFailureExecution, ModelRuntimeService} from '@omne-harness-lite/model-request-runtime-local'
+import type { CallKey } from '@omne-harness-lite/model-request-runtime-local'
+import type {
+  ModelFailureExecution,
+  ModelRuntimeService,
+} from '@omne-harness-lite/model-request-runtime'
 
 export async function inspectFailure(
   service: ModelRuntimeService,
@@ -470,7 +474,7 @@ These pure functions implement the D088 adopted format. Static root imports and 
 Text reception and value reception are different modes. Nested duplicate object members, getters, `toJSON`, unsupported objects and fake number brands are rejected. The returned capture retains the original immutable JSON and number spellings. The response judge checks the capture; it does not manufacture an owned `ModelResponse` from `{ ok: true }`.
 
 ```ts
-import { captureModelLogValue } from '@omne-harness-lite/model-request-runtime-local'
+import { captureModelLogValue } from '@omne-harness-lite/model-request-runtime'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
 const captured = captureModelLogValue({
@@ -492,7 +496,7 @@ import {
   captureModelLogValue,
   prepareModelLogEntry,
   encodeModelLogKey,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
 
 const tenant = parseTenantId({ organization: 'example-organization', account: 'example-account' })
@@ -550,7 +554,7 @@ Member checking does **not** prove one physical append, lawful history, read per
 The member checker consumes the D089 adopted `offer-expiry` root comparator on the captured original timing strings. It checks `sentAt <= firstTokenAt <= endedAt`, or `sentAt <= endedAt` when no first token exists, when the actual `sentAt` is known. Under D105, only an anchored `interrupted` response may carry `sentAt: null`; the first-token/ended comparison and opened-record equality still apply. Null means the actual send time is unavailable, not proof of zero send or zero cost. Ordinary invocation results and pending replies still require an actual string time. Static invalid dates and reversed known times cannot return complete members. Arbitrary fractional digits and offset-equivalent instants keep their precision; the original opened string must still match exactly.
 
 ```ts
-import { captureModelLogValue, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime-local'
+import { captureModelLogValue, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
 
 const sent = '2026-09-27T00:00:00.0004Z'
@@ -712,11 +716,11 @@ pnpm --filter @omne-harness-lite/model-request-runtime-local run typecheck
 pnpm --filter @omne-harness-lite/model-request-runtime-local run test
 ```
 
-The first command also builds the workspace dependencies. The companion transport tests exercise `invokeModel` against actual local HTTPS and the public core assembler; this package's `tests/acceptance-*.spec.ts` files and the [minimal demo](../../../examples/model-invocation-minimal-demo/README.md) service tests exercise the composed service over real SQLite and JSONL. None of these local tests certifies a live model route; recorded real-route evidence lives in the [realization verification](../../../.meta_harness/design/realization/packages/model/model-request-runtime/verification.md).
+The first command also builds the workspace dependencies. The companion transport tests exercise `invokeModel` against actual local HTTPS and the public core assembler; this package's `tests/acceptance-*.spec.ts` files and the [minimal demo](../../../examples/model-invocation-minimal-demo/README.md) service tests exercise the composed service over real SQLite journal transactions. None of these local tests certifies a live model route; recorded real-route evidence lives in the [realization verification](../../../.meta_harness/design/realization/packages/model/model-request-runtime/verification.md).
 
 ## Current model log codec
 
-The package root exports one current codec for records and messages judged by the current `messages` entry (MS8) and responses judged by the current `model-response` entry (MR11). Its payload and business-key format is `mrr/3`. It preserves ordered string-array `raw.headers`, exact numbers, and the difference between absent and empty values. Previous `mrr/1` and `mrr/2` records are rejected as unknown format; there is no versioned runtime codec export or compatibility reader.
+The public `model-request-runtime` core root owns the current codec. It uses the current `messages` and `model-response` judges. Its business-key format is `mrr/3`. Records and responses use the Session Log fact envelope owned by `model-request-runtime`, version `mrr/3`. Messages use the message envelope owned by `messages`, version `8`. It preserves ordered string-array `raw.headers`, exact numbers, and the difference between absent and empty values. Previous `mrr/1` and `mrr/2` records are rejected as unknown format; there is no versioned runtime codec export or compatibility reader.
 
 The following standalone example prepares a complete persisted `[M,R]` batch or one nonpersisted response. Supply the complete actual response and legal message prefix; the example performs no IO and grants no log permission. Declare the imported packages as direct dependencies.
 
@@ -726,10 +730,10 @@ import {
   prepareModelLogEntry,
   inspectSettlementMembers,
   type InspectSettlementMembersInput,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { LogPrefixView } from '@omne-harness-lite/messages'
-import type { OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type { OwnedLogEntry } from '@omne-harness-lite/session-log'
 
 export function prepareReplyBatch(
   session: string,
@@ -1022,7 +1026,10 @@ For the service path, supply `RuntimeConstruction.diagnosticCollector`, which co
 `createDefaultRetryImplementation` is a standalone LC6 contribution. The caller supplies a complete backoff policy and an explicit sample source. It reads only the current failure subject, including every ordered retry conclusion; it never schedules a wait, sends a request or writes a conclusion. A missing sample before decision yields `notStartedUnavailable`; invalid input after invocation yields `errored`. The runner still verifies the positioned subject and calls `canDispatchAgain` before accepting a retry.
 
 ```ts
-import {createDefaultRetryImplementation, DEFAULT_RETRY_BUILTIN} from '@omne-harness-lite/model-request-runtime-local'
+import {
+  createDefaultRetryImplementation,
+  DEFAULT_RETRY_BUILTIN,
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { RunnerImplementations } from '@omne-harness-lite/loop-extension-runner'
 
 export function registerDefaultRetry(registry: RunnerImplementations) {

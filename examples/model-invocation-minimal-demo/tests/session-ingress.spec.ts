@@ -110,11 +110,7 @@ it('binds through real login, membership and session rows; old tokens cannot sur
   const app = createAcceptanceApplication(
     {
       ...config,
-      sessionLog: {
-        dir,
-        policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
-        processOwnership: { current: 'tool-session-ingress', observeExit: async () => 'unknown' },
-      },
+      sessionLog: { operationLimit: 32 },
     },
     {
       stage: 'sessionLog',

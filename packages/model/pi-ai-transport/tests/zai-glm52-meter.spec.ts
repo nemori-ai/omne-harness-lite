@@ -34,7 +34,7 @@ function text(type: 'system' | 'user' | 'system_reminder', id: string, value: st
       { id: `${id}-text`, kind: 'text', text: value, visibility: { toHuman: true, toModel: true } },
     ],
     ...(type === 'system_reminder'
-      ? { nature: 'event', source: { kind: 'attempt_started', attempt: 1, reason: 'first', at } }
+      ? { nature: 'event', source: { kind: 'extension', extension: 'transport-business-reminder' } }
       : {}),
   })
 }

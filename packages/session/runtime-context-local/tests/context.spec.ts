@@ -1,10 +1,11 @@
+import { factLogPayload } from '@omne-harness-lite/session-log'
 import { expect, test, vi } from 'vitest'
 import {
   parseTenantId,
   parseOpaqueIdentifier,
   tenantIdEquals,
 } from '@omne-harness-lite/identity-values'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import type { SessionLog } from '@omne-harness-lite/session-log'
 import type {
   AccessIdentity,
@@ -172,7 +173,13 @@ test('concurrent incompatible initialization writes only one policy; unknown ver
     ).toMatchObject({ reason: 'revisionConflict' })
     await h.log.append(
       scope.session,
-      [{ tenant: scope.tenant, readKeys: [], payload: { codec: 'runtime-context/2' } }],
+      [
+        {
+          tenant: scope.tenant,
+          readKeys: [],
+          payload: factLogPayload('runtime-context', '2', { codec: 'runtime-context/2' }),
+        },
+      ],
       { kind: 'unfenced' },
       { kind: 'unconditional' },
     )
@@ -459,7 +466,7 @@ test('a required downgrade and a live function value cannot change the durable r
 for (const recovery of ['persisted', 'reread_source', 'recompute'] as const)
   test(`${recovery} uses its declared recovery rule after physical log close and reopen`, async () => {
     const h = await host()
-    let recoveredLog: Awaited<ReturnType<typeof openJsonlSessionLog>> | undefined
+    let recoveredLog: Awaited<ReturnType<typeof openSqlLogFixture>> | undefined
     let recoveredOwner: ReturnType<typeof createRuntimeContext> | undefined
     try {
       const initial = await init(h)
@@ -496,10 +503,7 @@ for (const recovery of ['persisted', 'reread_source', 'recompute'] as const)
       await h.owner.drain()
       await h.initializer.drain()
       await h.log.close()
-      recoveredLog = await openJsonlSessionLog({
-        dir: h.dir,
-        processOwnership: { current: 'context-reopened', observeExit: async () => 'exited' },
-      })
+      recoveredLog = await openSqlLogFixture({ dir: h.dir })
       recoveredOwner = createRuntimeContext({
         log: recoveredLog,
         storage: h.storage,

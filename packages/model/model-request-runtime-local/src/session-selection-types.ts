@@ -1,3 +1,8 @@
+import type {
+  EffectiveModel,
+  SelectionFailure,
+  SessionSelectModelResult,
+} from '@omne-harness-lite/model-request-runtime'
 import type { EffectiveAssembly } from '@omne-harness-lite/asset-evaluation'
 import type { CurrentEvaluationInputs } from '@omne-harness-lite/asset-evaluation'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
@@ -7,11 +12,9 @@ import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 import type { SettlementPrefix } from './settlement-prefix.ts'
 import type { SettlementLogBinding, SettlementOwner } from './settlement-types.ts'
 import type {
-  EffectiveModel,
   DisplayListResult,
   LegalTargetsResult,
   SelectionCompatibility,
-  SelectionFailure,
   SelectionProjection,
 } from './selection-types.ts'
 
@@ -37,15 +40,6 @@ export interface SessionSelectionDiagnostic {
   readonly stage: 'legalTargets' | 'selectModel' | 'displayList' | 'effectiveModel' | 'close'
   readonly outcome: 'success' | 'unavailable' | 'rejected'
 }
-export type SessionSelectModelResult =
-  | { readonly selected: RouteName }
-  | SelectionFailure
-  | { readonly profileNotFound: true }
-  | {
-      readonly notLegalTarget: {
-        readonly because: readonly ['withdrawn' | 'scope_disallowed' | 'modality_mismatch']
-      }
-    }
 /** Evaluation is the actual current AE4 result, including root limits; no dispatch defaults. */
 export type SessionEffectiveModelResult =
   | { readonly ok: EffectiveModel; readonly evaluation: EffectiveAssembly }

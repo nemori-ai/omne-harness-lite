@@ -1,3 +1,14 @@
+import type {
+  AcknowledgedCallView,
+  AcquireCallInput,
+  AcquireCallResult,
+  CallConsumer,
+  CallOrigin,
+  ModelObserverRequest,
+  ObserverReceiver,
+  RetainedCallReadView,
+  RuntimeCloseResult,
+} from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { isNonNegativeJsonInteger } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
@@ -6,22 +17,11 @@ import { createModelObserverQueue } from './service-observer-queue.ts'
 import { settlementGenerationCurrent } from './settlement-prefix.ts'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-custody.ts'
-import type {
-  AcknowledgedCallView,
-  AcquireCallInput,
-  AcquireCallResult,
-  CallOrigin,
-  RetainedCallReadView,
-  CallConsumer,
-} from './reference-types.ts'
 import type { SettlementLogBinding } from './settlement-types.ts'
 import type {
   RuntimeConstruction,
-  RuntimeCloseResult,
-  ModelObserverRequest,
   ModelObserverQueue,
   AuthorizedCallObserver,
-  ObserverReceiver,
 } from './service-types.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 

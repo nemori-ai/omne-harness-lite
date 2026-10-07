@@ -1,23 +1,30 @@
-# 模型消息投影候选薄规格
+# 模型消息投影薄规格
 
-状态：第一期目标设计，尚未切换现行消费者或获得本次新增接口的限定采用。物理迁移不改变接受状态。
+状态：F0 实施候选。公开函数已有实现，交付验收与负责人 review 尚未完成。Session 提供者的缓存发布、逐出及在途 pin 属于后续装配。
 
 来源PF-009消息／标注、PF-010压缩／组装，PF-012原reply、PF-013模态，用户日志投影及复杂度要求。非消息判别由session-log拥有，函数不自造日志权威。
 
 ## 形状
 
-`ProjectionInput`含固定的[Session Log SourceToken](../session-log/adr/phase1-log-facts.md#公开形状的改变)、readonly合法日志条目、原响应索引输入、组装规则版本、完整外部输入键；外部键包括采用AgentDefinition／assembly、system prompt、context generation、model profile／模态、tools／参数来源版本。
+`ProjectionInput`含固定的[Session Log SourceToken](../session-log/SPEC.md#固定日志坐标)、readonly合法日志条目、组装规则版本与外部输入键。原响应索引从同一固定日志范围建立，不另读其他尾部。缓存必须带完整外部输入键；外部键包括采用AgentDefinition／assembly、system prompt、context generation、model profile／模态、tools／参数来源版本。
 缺必要来源、版本不可核实或已宣称本owner的无效数据是失败，不当缓存命中。键取自明确版本或对实际规范化输入作摘要；只有键必须比较时可用摘要，摘要相同且源变化不构成无条件证明，必要时校验实际输入。
 `Projection`返回sourceToken、inputKey、分段消息／原来源对应、可读块索引、处理进度及可观测workCounters。`Materialized`为readonly Message列表和来源映射；原Message类型从公开messages入口取用。
-`CacheOwner`由公开factory创建，是单Session独占的可变派生资源；其状态变化显式，不把增量更新称为纯函数。索引由owner私有维护，避免每次复制全部索引。`Cache`是该owner返回的可校验派生状态，不接受调用者伪造的可变对象；有版本/校验／source进度。缓存包含必要历史摘要索引，不含凭据。固定Segment不可变，共享前缀不复写。
+`CacheOwner`由公开factory创建，是单Session独占的可变派生资源；其状态变化显式，不把增量更新称为纯函数。索引由owner私有维护，避免每次复制全部索引。`Projection`是该owner返回的不可变派生视图；materialize仅接受本模块创建的视图，不接受调用者伪造的可变对象。视图携带固定source与完整inputKey。缓存包含必要历史摘要索引，不含凭据。固定Segment不可变，共享前缀不复写。
 
 | 函数 | 输入 | 成功／失败 | 效果 |
 |---|---|---|---|
-| `projectMessages` | 完整ProjectionInput | projected(Projection,Cache)；invalidInput(reason:shape/source/pairing/claimedPayload)、unavailable(reason:requiredSource) | 纯冷建，不写log/存储，不请求模型 |
-| `createProjectionCache` | 完整ProjectionInput | ready(CacheOwner,Projection)；与冷建相同的invalidInput／unavailable | 冷建后创建独占派生状态，O(N+B)；不IO、不发布缓存 |
-| `extendProjection` | 独占CacheOwner、当前inputKey、新prefix token及严格连续增量 | projected(Projection,Cache,reusedSegments)；rebuildRequired(reason:generation/gap/rule/external/corrupt/impactUnknown)、invalidInput | 追加索引和段，旧段不可变；影响旧prefix时重建受影响后缀或返回冷建要求 |
-| `materializeMessages` | 已校验Projection | materialized(Messages,sources)或invalidInput | 只枚举有效消息/块，输出O(K+B)；不扫描所有非消息历史 |
-| `projectionKey` | 完整键输入、规范化规则版本 | key或invalidInput | O(输入键字节)，调用者不能声称任意长配置hash为O(1) |
+| `projectMessages` | 完整ProjectionInput、可选可信owner codecs | projected(Projection)；invalidInput(reason:shape/source/pairing/claimedPayload/compaction)、unavailable(reason:requiredSource) | 纯冷建，不写log/存储，不请求模型 |
+| `createProjectionCache` | 完整ProjectionInput、CacheOptions | ready(CacheOwner,Projection)；invalidInput；unavailable(reason:requiredSource/capacity) | 创建独占派生状态，O(N+B)；不IO |
+| `extendProjection` | 独占CacheOwner、新固定source、规则及严格连续增量 | projected(Projection,reusedSegments)；rebuildRequired(reason:generation/gap/rule/external/corrupt/impactUnknown/capacity)；invalidInput或unavailable | 追加索引和段；旧prefix受影响时要求冷建 |
+| `materializeMessages` | 本模块返回的Projection | materialized(Messages,sources,outputMessages,outputBlocks)或invalidInput | 枚举有效消息/块，输出O(K+B) |
+| `projectionKey` | ProjectionRules | key或invalidInput/unavailable | 成本与输入键字节数成正比 |
+| `releaseProjectionCache` | 本模块创建且未逐出的CacheOwner | released或invalidInput | 删除可变索引的owner关联；旧视图仍可读取 |
+
+`CacheOptions.limits` 必须显式给出 entries、blocks、bytes 三个正安全整数。本模块不提供默认容量。bytes 计量规范化输入 JSON 的 UTF-8 字节，不等同于 JavaScript 堆大小。entries、blocks 限制索引规模。超界不得发布半更新的新视图。
+
+`external: null` 只允许一次无缓存的耐久历史投影。此模式的 system 必须为空，且不声称已采用模型配置、工具或其他请求侧输入。createProjectionCache 对此模式返回 unavailable(requiredSource)。真正请求缓存仍须带八项当前来源键。缺压缩所需 pendingCardBlocks 或 lastModelRequestPrefixLength 时，有 silenced 引用的消息返回 unavailable(requiredSource)，不补假空集合。
+
+可信 owner codec 必须是无 IO 的校验函数。声明为本 owner 的错误 payload 返回 invalidInput(claimedPayload)；需要但不可用的 codec 返回 unavailable(requiredSource)。其他 owner 的合法事实不成为模型消息。
 
 冷projectMessages与materialize是纯计算。createProjectionCache创建显式CacheOwner；extendProjection只在owner独占准入内修改私有派生索引，返回不可变分段视图，新视图不改旧视图。任意旧引用失效点可整体线性重建，不强制引入持久数据结构库。缓存获取／发布／逐出属于Session provider端口，不偷偷IO。API边界可用异常表示内部未知缺陷，不能返回一份少了消息的“成功”。
 

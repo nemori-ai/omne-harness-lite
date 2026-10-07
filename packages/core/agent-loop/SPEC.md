@@ -1,6 +1,6 @@
-# Agent Loop 候选薄规格
+# Agent Loop 薄规格
 
-状态：第一期目标设计，尚未切换现行消费者或获得本次新增接口的限定采用。物理迁移不改变接受状态。
+状态：负责人已授权F0限定地基实施。nextStep、显式能力端口与attempt本地资源释放已有实现；完整Session驱动及逐卡装配留后续阶段。F0交付评审与负责人review尚未完成。
 
 定义来自PF-012，现有拓展runner、模型／工具行为继续由其原拥有者维护。module模板、纯root，无新Service／Context类型。
 

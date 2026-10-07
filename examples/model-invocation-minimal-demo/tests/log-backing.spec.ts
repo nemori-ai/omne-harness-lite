@@ -1,10 +1,11 @@
+import { openSqlSessionLog } from '@omne-harness-lite/session-log-sql'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { expect, it, vi } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
-import { openJsonlSessionLog, type JsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture, type SqlLogFixture } from './sql-log-fixture.ts'
 import type { LogEntryInput, SessionLog } from '@omne-harness-lite/session-log'
 import { createSessionLogBacking } from '../src/log-backing.ts'
 import { borrowedSessionLog, SessionLogBacking } from '../src/session-log-owner.ts'
@@ -26,14 +27,14 @@ function latch() {
   return { resolve, promise }
 }
 async function fixture(
-  test: (log: JsonlSessionLog, options: Parameters<typeof openJsonlSessionLog>[0]) => Promise<void>,
+  test: (log: SqlLogFixture, options: { readonly dir: string }) => Promise<void>,
 ) {
   const dir = await mkdtemp(join(tmpdir(), 'omne-log-backing-'))
   const options = {
     dir,
     processOwnership: { current: 'backing-tests', observeExit: async () => 'unknown' as const },
   }
-  const log = await openJsonlSessionLog(options)
+  const log = await openSqlLogFixture({ dir: options.dir })
   try {
     await test(log, options)
   } finally {
@@ -96,7 +97,7 @@ it('keeps the physical generation through service replacement and changes it on 
     await backing.drain()
     await nextContext.fiber.dispose()
     await log.close()
-    const successor = await openJsonlSessionLog(options)
+    const successor = await openSqlLogFixture({ dir: options.dir })
     try {
       const fresh = createSessionLogBacking(successor)
       expect(fresh.operations.ownerGeneration).not.toBe(generation)
@@ -148,7 +149,13 @@ it('retains the real lock while an unknown old write is absent, then recognizes 
     try {
       await expect(borrow.release()).rejects.toThrow('unresolved')
       expect(backing.retained).toBe(1)
-      await expect(openJsonlSessionLog(options)).rejects.toThrow()
+      expect(() =>
+        openSqlSessionLog({
+          storage: log.fixtureStorage,
+          authority: log.fixtureAuthority,
+          operationLimit: 32,
+        }),
+      ).toThrow()
       expect(await borrow.log.readSince(session, 0)).toEqual(unavailable)
     } finally {
       gate.resolve()
@@ -239,7 +246,13 @@ it('uses the declared Cordis dependency and keeps failed disposal responsibility
     expect(ctx.get('sessionLog')).toBeUndefined()
     expect(backing.retained).toBe(1)
     await expect(backing.drain()).rejects.toThrow('unresolved')
-    await expect(openJsonlSessionLog(options)).rejects.toThrow()
+    expect(() =>
+      openSqlSessionLog({
+        storage: log.fixtureStorage,
+        authority: log.fixtureAuthority,
+        operationLimit: 32,
+      }),
+    ).toThrow()
     expect(await old.readSince(session, 0)).toEqual(unavailable)
     await log.append(session, rows(), unfenced, unconditional)
     await backing.drain()

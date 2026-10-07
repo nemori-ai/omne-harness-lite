@@ -1,3 +1,9 @@
+import type {
+  FailureConsumableOperation,
+  FailureConsumption,
+  ModelRuntimeService,
+  RuntimeCloseResult,
+} from '@omne-harness-lite/model-request-runtime'
 import { randomUUID } from 'node:crypto'
 import { createPlanReuseScopes } from './plan-reuse-scopes.ts'
 import { createRuntimeAcquire } from './service-acquire.ts'
@@ -9,13 +15,7 @@ import { createServiceDispatch } from './service-dispatch.ts'
 import { createServiceControl } from './service-control.ts'
 import { createRuntimeReconcile, createRuntimeSettleReply } from './service-reconcile.ts'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
-import type {
-  ModelRuntimeService,
-  RuntimeCloseResult,
-  RuntimeConstruction,
-  FailureConsumableOperation,
-  FailureConsumption,
-} from './service-types.ts'
+import type { RuntimeConstruction } from './service-types.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 
 const ownedStores = new WeakSet<object>()

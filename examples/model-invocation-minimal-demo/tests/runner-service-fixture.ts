@@ -1,3 +1,4 @@
+import { readAttemptStarted } from '@omne-harness-lite/session-runtime'
 import { dirname, join } from 'node:path'
 import { expect } from 'vitest'
 import {
@@ -147,9 +148,15 @@ export async function ready(label: string) {
       if (run !== RUN || attempt !== 1) return { unavailable: true }
       const selected = messagePrefixWithSources(prefix, { run: RUN, attempt: 1 })
       if ('unavailable' in selected) return { unavailable: true }
-      const started = selected.messages.filter(
-        message => message.type === 'system_reminder' && message.source.kind === 'attempt_started',
-      )
+      const started = prefix.entries.filter(entry => {
+        const parsed = readAttemptStarted(entry)
+        return (
+          'kind' in parsed &&
+          parsed.kind === 'fact' &&
+          parsed.fact.run === run &&
+          parsed.fact.attempt === attempt
+        )
+      })
       return started.length === 1
         ? { known: { run, originalAttempt: attempt, latestAttempt: 1, terminal: 'open' } }
         : { unavailable: true }

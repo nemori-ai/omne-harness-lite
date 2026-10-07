@@ -1,3 +1,5 @@
+import { historyFixture, toolCall } from './tool-driver-history-fixture.ts'
+import { checkSourceToken } from '@omne-harness-lite/session-log'
 import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
@@ -82,6 +84,18 @@ async function prefix(values: readonly unknown[]) {
       session,
       tenant,
       generation,
+      async readPrefix() {
+        const read = await this.log.readSince(session, 0)
+        if ('failure' in read) return { failure: 'unavailable' }
+        const checked = checkSourceToken({
+          tenant,
+          session,
+          journalGeneration: 'synthetic-history-fixture',
+          tail: read.tail,
+        })
+        if ('failure' in checked) throw new Error('fixture source')
+        return { ...read, source: checked.ok }
+      },
       currentGeneration: () => generation,
       log: {
         readSince: async () => ({ entries, tail: entries.length }),
@@ -240,45 +254,55 @@ describe('complete demo history without a text-only whitelist', () => {
       ]),
     ]
     const log = await prefix(originals)
-    expect(messagePrefix(log)).toEqual({ messages: originals })
+    expect(log.entries[0]?.payload).toMatchObject({ kind: 'message', value: originals[0] })
+    expect(messagePrefix(log)).toEqual({
+      messages: [{ ...originals[0], blocks: originals[0]!.blocks.slice(1) }],
+    })
+    expect(log.entries[0]?.payload).toMatchObject({ value: originals[0] })
     expect(await historyProjection(log)).toEqual({ known: [] })
   })
   it('counts original media by declared modality, including nested tool-result blocks', async () => {
-    const log = await prefix([
-      {
-        id: 'reminder',
-        type: 'system_reminder',
-        createdAt: at,
-        nature: 'event',
-        source: { kind: 'background_execution_finished', callId: 'old-tool', outcome: 'completed' },
-        blocks: [
-          {
-            id: 'result',
-            kind: 'tool_result',
-            callId: 'old-tool',
-            outcome: 'completed',
-            visibility,
-            blocks: [
-              image,
-              {
-                id: 'voice',
-                kind: 'voice',
-                mediaType: 'audio/wav',
-                data: { inline: 'YXVkaW8=' },
-                visibility,
-              },
-              {
-                id: 'video',
-                kind: 'file',
-                attachment: { storage: 'fixture', key: 'video', mediaType: 'video/mp4' },
-                visibility,
-              },
-            ],
-          },
-        ],
-      },
-    ])
-    expect(messagePrefix(log)).toHaveProperty('messages')
-    expect(await historyProjection(log)).toEqual({ known: ['image', 'audio', 'video'] })
+    // A real codec-produced response establishes the tool call before its return.
+    const f = await historyFixture([toolCall()])
+    try {
+      await f.append([
+        f.model('message', {
+          id: 'returned-media',
+          type: 'tool',
+          callId: 'call',
+          createdAt: at,
+          blocks: [
+            {
+              id: 'result',
+              kind: 'tool_result',
+              callId: 'call',
+              outcome: 'completed',
+              visibility,
+              blocks: [
+                image,
+                {
+                  id: 'voice',
+                  kind: 'voice',
+                  mediaType: 'audio/wav',
+                  data: { inline: 'YXVkaW8=' },
+                  visibility,
+                },
+                {
+                  id: 'video',
+                  kind: 'file',
+                  attachment: { storage: 'fixture', key: 'video', mediaType: 'video/mp4' },
+                  visibility,
+                },
+              ],
+            },
+          ],
+        }),
+      ])
+      const log = await f.modelPrefix()
+      expect(messagePrefix(log)).toHaveProperty('messages')
+      expect(await historyProjection(log)).toEqual({ known: ['text', 'image', 'audio', 'video'] })
+    } finally {
+      await f.close()
+    }
   })
 })

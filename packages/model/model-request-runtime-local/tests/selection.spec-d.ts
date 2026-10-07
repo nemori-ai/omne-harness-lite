@@ -8,8 +8,8 @@ import {
   type LegalTargetsResult,
   type DisplayListResult,
   type EffectiveModelResult,
-  type ModelDisplayEntry,
 } from '../src/selection-types.ts'
+import type { ModelDisplayEntry } from '@omne-harness-lite/model-request-runtime'
 
 const rows: SelectionFact<readonly ProfileRow[]> = { known: [] }
 const compatible: SelectionCompatibility = () => ({ ok: true })

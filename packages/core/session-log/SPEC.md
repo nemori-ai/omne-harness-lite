@@ -1,7 +1,47 @@
 # Session Log：可信装配借用
 
-本页拥有 SessionLogBackingOperations 和受权 SessionLogOwnerOperations 的行为。
-现有日志存储的其他承诺不因本页而迁移。
+本页拥有 SessionLogBackingOperations、受权 SessionLogOwnerOperations、SourceToken、typed payload 与 SessionLogParticipant 的行为。
+普通日志追加沿原 SL3 行为；新增参加端口不使普通 append 自动加入调用者事务。
+
+## 固定日志坐标
+
+SourceToken 是日志接口拥有的已提交范围坐标，闭合字段为 tenant、session、journalGeneration、tail。
+其公开类型及表示校验由根入口维护。取得坐标或通过表示校验不授予读取、写入或提交权限。
+
+SLT-1：tenant 和 session 沿现行 TenantId 和 SessionRef 身份规则。
+journalGeneration 是存储拥有者给日志事实源分配的不透明身份，不是物理 ownerGeneration。
+读取适配器的重载或缓存失效不能自行改变日志代际，也不能用当前物理 owner 代号替代日志代际。
+projectionRuleVersion 由投影消费者单独携带，不属于日志坐标。
+
+SLT-2：tail 是非负精确 JSON 整数，0 表示该代日志的空范围。
+校验保留既有 JsonNumber 表示，不经 Number 转换。外部 JSON 文本须先经严格无损读取，
+已在调用者处丢失的数字精度不能由本校验恢复。相等按精确整数值判断，不按数字的文本写法判断。
+
+SLT-3：校验只接受闭合字段及合法 JSON 数据，返回独立不可变坐标。
+拒绝缺字段、多余字段、访问器及非法嵌套值，不执行访问器或 toJSON。
+tail 的无损数值只接受既有 LosslessNumber 自身，不接受能覆写 source 读取的自定义子类。
+坐标相等须同时满足 tenant、session、journalGeneration 和 tail 相等。
+同尾号、不同租户、会话或日志代际不能命中同一来源；坐标相等不证明该来源目前可用。
+
+SourceToken、固定前缀读取、事务参加与事实判别已有 F0 实现；完整交付验收尚未完成。
+
+## 消息与事实
+
+SLP-1：显式日志封装的闭合字段为 owner、version、kind、value。kind=message 只接受 messages 拥有者的当前版本 8，并由 Message 公开校验器验证正文。kind=fact 的正文由具名拥有者按其版本验证。未知普通 JSON 保留为 other，不自动成为消息。已声明拥有者但封装非法时明确拒绝，不降级为 other。
+
+SLP-2：事件属于事实。Session attempt 开始事实不属于 Message，不包装成 SystemReminderMessage。业务提醒由其消息拥有者明确创建；日志或投影不能凭事件类型自行创建提醒。持久事实的保留与待消费工作副本的移除分别由各能力承诺约束。
+
+## 共同事务与固定前缀
+
+SLP-3：SessionLogParticipant 绑定具体 AtomicStorage。appendIn 只接受该实例尚可用的 StorageUnit；在同一单元内核当前授权、Session 顺序、尝试栅栏与提交条件后暂存。staged 不是已受理或已提交，成功回执必须等外层提交。实例不符、失效 unit 或未取得必需来源时不得假成功。
+
+SLP-4：可选 expectedSource 对比完整 tenant、session、journalGeneration、tail。坐标不匹配拒绝暂存，不能只比较尾号。普通去重命中不证明同键异正文相等；业务认回必须自行核原完整值。
+
+SLP-5：source 返回当前受权日志的持久代际及已提交尾号。participant.readPrefix 返回所指定代际的固定完整范围 1..tail；后来追加不使该旧固定范围失效。缺位置、跨归属、代际不符或无法取得完整范围均不得返回部分成功。读取每次仍须核当前授权，固定坐标不是历史访问许可证。
+
+SLP-6：外层提交未知时，参与者和业务调用者各保留自己的原批次与责任。观测到本地提交操作结束不证明远端事务停止。一次缺席不是未写证明；未知责任的释放沿 SLB-2/3，不能自行重新生成身份重发。
+
+## 可信装配借用
 
 SLB-1：backing 属于可信应用装配面。借用不携带物理关闭权，不授予用户或工具访问权。
 受租户约束的入口必须另行完成当前授权；取得 Cordis Context 的可信插件处于此装配边界内。

@@ -1,3 +1,4 @@
+import type { ObserverReceiveTask } from '@omne-harness-lite/model-request-runtime'
 import { validate as validateArrival } from '@omne-harness-lite/arrival-events'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import {
@@ -13,7 +14,6 @@ import type {
   ModelObserverQueueInput,
   ObserverDiagnostic,
   ObserverOfferResult,
-  ObserverReceiveTask,
 } from './service-types.ts'
 
 interface Buffered {

@@ -1,3 +1,6 @@
+import { modelCategory } from './log-codec-fixture.ts'
+import { modelValue } from './log-codec-fixture.ts'
+import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import type { SessionRef } from '@omne-harness-lite/messages'
@@ -30,32 +33,12 @@ async function withRunPrefix(
     if (!('ok' in parsed)) throw new Error('Run session id')
     const session = parsed.ok
     for (let attempt = 1; attempt <= latest; attempt++) {
-      const captured = captureModelLogValue({
-        category: 'message',
-        input: {
-          kind: 'value',
-          value: {
-            id: `t08-start-${attempt}`,
-            type: 'system_reminder',
-            nature: 'event',
-            source: {
-              kind: 'attempt_started',
-              attempt,
-              reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
-              at: '2026-09-29T00:00:00Z',
-            },
-            blocks: [],
-            createdAt: '2026-09-29T00:00:00Z',
-          },
-        },
-      })
-      if (!('ok' in captured)) throw new Error('attempt capture')
-      const prepared = prepareModelLogEntry({
-        session,
+      const prepared = prepareAttemptFact({
+        session: session,
         shell: { tenant: binding.tenant, run: RUN, attempt },
-        captured: captured.ok,
-        purpose: { kind: 'message' },
-        messagePrefix: [],
+        key: `t08-start-${attempt}`,
+        reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
+        at: '2026-09-29T00:00:00Z',
       })
       if (!('ok' in prepared)) throw new Error('attempt prepare')
       const appended = await binding.log.append(
@@ -69,7 +52,7 @@ async function withRunPrefix(
         const original = anchors().entries.map(entry => {
           const value = captureModelLogValue({
             category: 'record',
-            input: { kind: 'value', value: jsonObject(entry.payload).value },
+            input: { kind: 'value', value: modelValue(entry.payload) },
           })
           if (!('ok' in value)) throw new Error('original anchor capture')
           const encoded = prepareModelLogEntry({
@@ -129,15 +112,9 @@ describe('M17-V1 original/latest and terminal are independent owned-prefix axes'
       expect(completed.settled.response.response?.attemptId).toBe(ATTEMPT)
       expect(submissions.length).toBe(before + 1)
       const read = await binding.log.readSince(session, 0)
-      if ('failure' in read) throw new Error('actual JSONL read')
+      if ('failure' in read) throw new Error('actual SQL journal read')
       expect(
-        read.entries.filter(
-          entry =>
-            entry.payload &&
-            typeof entry.payload === 'object' &&
-            'category' in entry.payload &&
-            entry.payload.category === 'response',
-        ),
+        read.entries.filter(entry => modelCategory(entry.payload) === 'response'),
       ).toHaveLength(1)
       await coordinator.close()
     })
@@ -170,7 +147,7 @@ describe('M17-V1 original/latest and terminal are independent owned-prefix axes'
           })
           const before = submissions.length
           const pre = await binding.log.readSince(session, 0)
-          if ('failure' in pre) throw new Error('actual JSONL read before')
+          if ('failure' in pre) throw new Error('actual SQL journal read before')
           const result = coordinator.settle(withRunResponse())
           expect(await result.completion).toMatchObject({ reason: 'run_history_unavailable' })
           await result.stopped

@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-模型请求数据、transport 与构造类型、codec，以及纯 retryDelay 计算。SPEC.md 仅拥有已迁的纯退避行为。完整十五操作与耐久生命周期继续沿精确现行源读取。
+根入口拥有十五操作 runtime 接口、transport 与构造类型、日志 codec、OriginalIssue 参与协议及纯退避计算。`SPEC.md` 拥有已迁的行为承诺；完整耐久操作仍沿精确未迁旧源。local 提供者消费这些公共定义。
 
 ## 公开入口
 

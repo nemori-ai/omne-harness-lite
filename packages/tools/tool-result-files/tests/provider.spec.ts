@@ -12,7 +12,7 @@ import { implementationRegistry } from '@omne-harness-lite/tool-execution-local/
 import { judgeContentBlock, type ToolResultBlock } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { compareInteger, type SessionLog } from '@omne-harness-lite/session-log'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import type { SessionAccess, SessionAccessOperations } from '@omne-harness-lite/session-tenancy'
 import type { RecoveryAccess } from '@omne-harness-lite/execution-environments'
 import { toolResultOf } from '@omne-harness-lite/tool-definition'
@@ -70,14 +70,11 @@ function installPorts(ctx: Context, dependencies: ToolResultStorageDependencies)
   new Recovery(ctx)
 }
 
-/** Real JSONL, codecs, projection and immutable files. Authority and cross-domain history are controlled ports. */
+/** Real SQL journal, codecs, projection and immutable files. Authority and cross-domain history are controlled ports. */
 async function fixture() {
   const parent = await mkdtemp(join(tmpdir(), 'omne-result-provider-')),
     directory = join(parent, 'results'),
-    log = await openJsonlSessionLog({
-      dir: join(parent, 'logs'),
-      processOwnership: { current: 'result-test', observeExit: async () => 'exited' },
-    })
+    log = await openSqlLogFixture({ dir: join(parent, 'logs') })
   let authorized = true,
     recoveryAllowed = true,
     generation = 'first-owner'

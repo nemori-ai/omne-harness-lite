@@ -1,3 +1,4 @@
+import { fixturePayload, replaceFixtureValue } from './log-payload-fixture.ts'
 import { expect, test, vi } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import {
@@ -35,8 +36,7 @@ function changed(
     entries: prefix.entries.map(row => (predicate(row) ? (change(row) as LogEntry) : row)),
   }
 }
-const payload = (row: LogEntry) =>
-  row.payload as unknown as { format?: string; value: { kind?: string; [key: string]: unknown } }
+const payload = (row: LogEntry) => fixturePayload(row.payload)
 
 test('reads actual model provenance as pending, then completed, and survives physical reopen', async () => {
   const f = await historyFixture([toolCall(), toolCall('broken', true)])
@@ -125,15 +125,13 @@ test.each([
   ['creation', (row: LogEntry) => payload(row).value?.kind === 'model_call_created'],
   [
     'response',
-    (row: LogEntry) =>
-      payload(row).format === 'mrr/3' &&
-      (row.payload as { category?: string }).category === 'response',
+    (row: LogEntry) => payload(row).format === 'mrr/3' && payload(row).category === 'response',
   ],
   ['attempt marker', (row: LogEntry) => payload(row).value?.kind === 'attempt_adopted'],
   ['Run', (row: LogEntry) => payload(row).value?.kind === 'run_started'],
   [
     'context declaration',
-    (row: LogEntry) => (row.payload as { codec?: string }).codec === 'runtime-context/1',
+    (row: LogEntry) => (row.payload as { owner?: string }).owner === 'runtime-context',
   ],
 ] as const)('rejects missing actual %s provenance', async (_name, remove) => {
   const f = await historyFixture()
@@ -169,7 +167,10 @@ test.each([
         const shell = row.payload as unknown as {
           value: Extract<DriverValue, { kind: 'actions_completed' }>
         }
-        const value = shell.value,
+        const value = payload(row).value as unknown as Extract<
+            DriverValue,
+            { kind: 'actions_completed' }
+          >,
           completion = value.completion,
           items = completion.items
         let altered: unknown = value
@@ -218,7 +219,7 @@ test.each([
         return {
           ...row,
           ...(scenario === 'wrong-shell' ? { run: 'another' } : {}),
-          payload: { ...shell, value: altered },
+          payload: replaceFixtureValue(row, altered).payload,
         }
       },
     )
@@ -521,25 +522,25 @@ test.each(['held', 'not_in_composition', 'absent'] as const)(
           prefix,
           row => payload(row).value?.kind === 'attempt_adopted',
           row => {
-            const shell = row.payload as unknown as {
-              value: Extract<DriverValue, { kind: 'attempt_adopted' }>
+            const shell = {
+              value: payload(row).value as unknown as Extract<
+                DriverValue,
+                { kind: 'attempt_adopted' }
+              >,
             }
             return {
               ...row,
-              payload: {
-                ...shell,
-                value: {
-                  ...shell.value,
-                  ...(holding === 'absent'
-                    ? { tools: [], report: { ...shell.value.report, effectivePermissions: {} } }
-                    : {
-                        report: {
-                          ...shell.value.report,
-                          effectivePermissions: { echo: 'not_in_composition' },
-                        },
-                      }),
-                },
-              },
+              payload: replaceFixtureValue(row, {
+                ...shell.value,
+                ...(holding === 'absent'
+                  ? { tools: [], report: { ...shell.value.report, effectivePermissions: {} } }
+                  : {
+                      report: {
+                        ...shell.value.report,
+                        effectivePermissions: { echo: 'not_in_composition' },
+                      },
+                    }),
+              }).payload,
             }
           },
         )
@@ -548,23 +549,20 @@ test.each(['held', 'not_in_composition', 'absent'] as const)(
         row => payload(row).value?.kind === 'actions_completed',
         row => ({
           ...row,
-          payload: {
-            ...(row.payload as object),
-            value: {
-              ...value,
-              completion: {
-                ...value.completion,
-                items: value.completion.items.map(item => ({
-                  ...item,
-                  decision: {
-                    kind: 'notExecutable',
-                    reason: 'no_such_entry',
-                    conclusion: item.decision.conclusion,
-                  },
-                })),
-              },
+          payload: replaceFixtureValue(row, {
+            ...value,
+            completion: {
+              ...value.completion,
+              items: value.completion.items.map(item => ({
+                ...item,
+                decision: {
+                  kind: 'notExecutable',
+                  reason: 'no_such_entry',
+                  conclusion: item.decision.conclusion,
+                },
+              })),
             },
-          },
+          }).payload,
         }),
       )
       expect(inspect(disposition)).toMatchObject({

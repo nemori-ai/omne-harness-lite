@@ -1,3 +1,4 @@
+import { modelValue, modelCategory } from './log-codec-fixture.ts'
 import { describe, expect, it } from 'vitest'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
 import {
@@ -23,6 +24,7 @@ import {
   located,
   opened,
   prepare,
+  replaceModelValue,
   reply,
   response,
   session,
@@ -50,9 +52,14 @@ function changeResponse(
     prefix: {
       ...input.prefix,
       entries: input.prefix.entries.map(entry => {
-        const wrapper = jsonObject(entry.payload)
-        return wrapper.category === 'response'
-          ? { ...entry, payload: { ...wrapper, value: change(jsonObject(wrapper.value)) } }
+        return modelCategory(entry.payload) === 'response'
+          ? {
+              ...entry,
+              payload: replaceModelValue(
+                entry.payload,
+                change(jsonObject(modelValue(entry.payload))),
+              ),
+            }
           : entry
       }),
     },
@@ -155,7 +162,7 @@ describe('D088 complete association prior to production gates', () => {
     expect(
       winner.completeMembers.entries.map(entry => ('position' in entry ? entry.position : null)),
     ).toEqual([3, 4])
-    expect(writeJsonLossless(jsonObject(input.prefix.entries[3]?.payload).value)).toContain(
+    expect(writeJsonLossless(modelValue(input.prefix.entries[3]?.payload))).toContain(
       '0.0000000000000000000000000310',
     )
   })
@@ -393,7 +400,7 @@ describe('D088 complete association prior to production gates', () => {
         ...input.prefix,
         entries: input.prefix.entries.map((entry, index) =>
           index === 3
-            ? { ...entry, payload: { ...jsonObject(entry.payload), format: 'mrr/2' } }
+            ? { ...entry, payload: { ...jsonObject(entry.payload), version: 'mrr/2' } }
             : entry,
         ),
       },

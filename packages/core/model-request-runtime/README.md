@@ -2,7 +2,7 @@
 
 [中文说明](README_ZH.md)
 
-Model request data, transport and construction types, codecs and pure retryDelay calculation. SPEC.md owns the migrated pure retry behavior only. The full fifteen-operation runtime and durable lifecycle retain their precise existing sources.
+The root owns the fifteen-operation runtime interfaces, transport and construction types, log codecs, the OriginalIssue participant protocol, and pure retry calculation. `SPEC.md` owns the migrated behavior. Full durable operation rules retain their precise unmigrated sources. The local provider implements these public contracts.
 
 ## Public entries
 

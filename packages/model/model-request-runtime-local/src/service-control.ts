@@ -1,4 +1,11 @@
 import type {
+  DispatchGuardPhase,
+  InterruptInput,
+  InterruptResult,
+  ReleaseCallResult,
+  RuntimeCloseResult,
+} from '@omne-harness-lite/model-request-runtime'
+import type {
   ModelCallEndedRecord,
   ModelCallInterruptIntentRecord,
 } from '@omne-harness-lite/messages'
@@ -23,14 +30,9 @@ import type {
   CallKey,
   CallOperationState,
   SystemStopControl,
-  RuntimeCloseResult,
-  InterruptInput,
-  InterruptResult,
-  ReleaseCallResult,
   RuntimeConstruction,
   SessionRuntimeBinding,
 } from './service-types.ts'
-import type { DispatchGuardPhase } from './dispatch-guard.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementLogBinding,

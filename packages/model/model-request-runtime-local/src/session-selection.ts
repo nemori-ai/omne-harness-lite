@@ -1,3 +1,5 @@
+import { readModelLogEnvelope } from '@omne-harness-lite/model-request-runtime'
+import type { SessionSelectModelResult } from '@omne-harness-lite/model-request-runtime'
 import { evaluate, type EffectiveAssembly } from '@omne-harness-lite/asset-evaluation'
 import { capabilityCanonicalString } from '@omne-harness-lite/asset-model'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
@@ -25,7 +27,6 @@ import type {
   SessionEffectiveModelResult,
   SessionModelSelection,
   SessionModelSelectionInput,
-  SessionSelectModelResult,
   SessionSelectionDiagnostic,
 } from './session-selection-types.ts'
 
@@ -69,22 +70,18 @@ function operationOutcome(result: object): SessionSelectionDiagnostic['outcome']
 }
 
 type PrefixEntry = SettlementPrefix['entries'][number]
+function currentModelEnvelope(payload: PrefixEntry['payload']) {
+  const decoded = readModelLogEnvelope(payload)
+  if ('failure' in decoded || decoded.kind !== 'model') return undefined
+  return decoded.envelope.format === 'mrr/3' ? decoded.envelope : undefined
+}
 function declaresModelLog(entry: PrefixEntry): boolean {
+  const decoded = readModelLogEnvelope(entry.payload)
   return (
     entry.readKeys.some(key => 'ok' in decodeModelLogKey(key) || key.startsWith('mrr/')) ||
     entry.dedupeKey?.startsWith('mrr/') === true ||
-    (object(entry.payload) &&
-      typeof entry.payload.format === 'string' &&
-      entry.payload.format.startsWith('mrr/'))
-  )
-}
-function currentModelLog(entry: PrefixEntry): entry is PrefixEntry & {
-  readonly payload: Readonly<Record<string, unknown>>
-} {
-  return !(
-    !object(entry.payload) ||
-    entry.payload.format !== 'mrr/3' ||
-    !['record', 'message', 'response'].includes(String(entry.payload.category))
+    'failure' in decoded ||
+    decoded.kind === 'model'
   )
 }
 
@@ -313,8 +310,9 @@ export function createSessionModelSelection(
     for (const entry of received.prefix.entries) {
       const declared = declaresModelLog(entry)
       if (!declared) continue
-      if (!currentModelLog(entry)) return unavailable()
-      if (entry.payload.category !== 'record') continue
+      const envelope = currentModelEnvelope(entry.payload)
+      if (envelope === undefined) return unavailable()
+      if (envelope.category !== 'record') continue
       const recognized = inspectModelLogEntry({
         session: binding.session,
         tenant: binding.tenant,

@@ -3,16 +3,13 @@ import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { z } from 'zod'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { describe, expect, it } from 'vitest'
-import {
-  createModelRuntimePlugin,
-  MODEL_RUNTIME_SERVICE,
-  type ModelRuntimeAssemblyOwner,
-} from '../src/service-plugin.ts'
+import { createModelRuntimePlugin, type ModelRuntimeAssemblyOwner } from '../src/service-plugin.ts'
+import { MODEL_RUNTIME_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 import type {
   FailureConsumableOperation,
   FailureConsumption,
   ModelRuntimeService,
-} from '../src/service-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 
 const unavailable = async () => ({ unavailable: true }) as const
 function failureUnavailable<I>(

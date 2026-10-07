@@ -1,3 +1,4 @@
+import type { DispatchGuardPhase } from '@omne-harness-lite/model-request-runtime'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import {
@@ -13,18 +14,6 @@ import type { ModelCallId } from '@omne-harness-lite/call-accounts'
 
 /** Explicit availability of caller-owned facts, never a default or a durable record. */
 export type DispatchGuardFact<T> = { readonly known: T } | { readonly unknown: true }
-
-/** RT4 S-6. This is a projection of the caller's current authoritative facts. */
-export type DispatchGuardPhase =
-  | 'open'
-  | 'in_flight'
-  | 'speaking'
-  | 'reply_pending'
-  | 'awaiting_decision'
-  | 'resumable'
-  | 'complete'
-  | 'handed_up'
-  | 'interrupted'
 
 export interface DispatchGuardCallFacts {
   readonly session: string

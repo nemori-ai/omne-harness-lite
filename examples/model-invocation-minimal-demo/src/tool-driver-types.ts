@@ -31,8 +31,8 @@ export type DriverValue =
       readonly report: AvailabilityReport
       readonly tools: readonly AdoptedTool[]
       readonly context: readonly ContextValue[]
-      /** Key of the attempt_started system reminder in this same append. */
-      readonly startedMessageKey: string
+      /** Key of the attempt_started Session fact in this same append. */
+      readonly startedFactKey: string
     }
   | {
       readonly kind: 'actions_completed'

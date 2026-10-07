@@ -1,8 +1,14 @@
-import { LosslessNumber, type JsonObject, type JsonValue } from '@omne-harness-lite/content-blocks'
+import {
+  copyJsonValue,
+  LosslessNumber,
+  type JsonObject,
+  type JsonValue,
+} from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
+  readModelLogEnvelope,
   type CapturedModelLogValue,
   type ModelLogCategory,
   type ModelLogPurpose,
@@ -170,6 +176,29 @@ export function durable(value: JsonObject = response) {
 export function jsonObject(value: JsonValue | undefined): JsonObject {
   if (!objectValue(value)) throw new Error('fixture object')
   return value
+}
+export function modelCategory(payload: unknown): ModelLogCategory | null {
+  const result = readModelLogEnvelope(payload)
+  return 'kind' in result && result.kind === 'model' ? result.envelope.category : null
+}
+export function modelValue(payload: unknown): JsonValue {
+  const result = readModelLogEnvelope(payload)
+  if (!('kind' in result) || result.kind !== 'model') throw new Error('fixture model envelope')
+  return result.envelope.value
+}
+export function modelFormat(payload: unknown): string {
+  const result = readModelLogEnvelope(payload)
+  if (!('kind' in result) || result.kind !== 'model') throw new Error('fixture model envelope')
+  return result.envelope.format
+}
+/** Change the actual owned body without validating it: negative tests must reach the codec. */
+export function replaceModelValue(payload: unknown, value: JsonValue): JsonObject {
+  const copied = copyJsonValue(payload)
+  if ('failed' in copied) throw new Error('fixture JSON payload')
+  const root = jsonObject(copied.ok)
+  return root.kind === 'message'
+    ? { ...root, value }
+    : { ...root, value: { ...jsonObject(root.value), value } }
 }
 function objectValue(value: JsonValue | undefined): value is JsonObject {
   return (

@@ -11,7 +11,7 @@ import {
   type TenantId,
 } from '@omne-harness-lite/identity-values'
 import { judgeMessageInLog, type LogPrefixView, type SessionRef } from '@omne-harness-lite/messages'
-import type { LogEntry, OwnedLogEntry } from '@omne-harness-lite/session-log'
+import { checkAppendInput, type LogEntry, type OwnedLogEntry } from '@omne-harness-lite/session-log'
 import {
   encodeModelLogKey,
   identity,
@@ -25,6 +25,7 @@ import {
 import { capturedFormat, createValueCodec, type CapturedModelLogValue } from './log-codec-value.ts'
 
 import { currentCodecDomain, type ModelLogCodecDomain } from './log-codec-domain.ts'
+import { encodeModelLogEnvelope, readModelLogEnvelope } from './log-envelope.ts'
 
 export interface ModelLogShell {
   readonly tenant: TenantId
@@ -59,6 +60,13 @@ export interface InspectModelLogEntryInput {
   readonly entry: unknown
   readonly purpose: ModelLogPurpose
   readonly messagePrefix: LogPrefixView | null
+}
+export interface InspectModelMessageEntryInput extends Omit<
+  InspectModelLogEntryInput,
+  'purpose' | 'messagePrefix'
+> {
+  readonly purpose:
+    { readonly kind: 'message' } | Extract<ModelLogPurpose, { readonly kind: 'persistedMessage' }>
 }
 export interface InspectedModelLogEntry {
   readonly entry: LogEntry
@@ -182,7 +190,7 @@ function encodeEntryKeys(
 }
 function inspectEntryShell(
   value: JsonObject,
-  input: InspectModelLogEntryInput,
+  input: Pick<InspectModelLogEntryInput, 'session' | 'tenant'>,
 ):
   | { readonly session: string; readonly ownedShell: ModelLogShell; readonly position: JsonNumber }
   | ModelLogInvalidValue {
@@ -287,6 +295,7 @@ export function createEntryCodec(domain: ModelLogCodecDomain) {
   function prepareEntry(
     input: PrepareModelLogEntryInput,
     historical: boolean,
+    associationRequired = true,
   ): { readonly ok: OwnedLogEntry } | ModelLogInvalidValue {
     if (!identity(input.session) || !values.owns(input.captured, !historical))
       return invalidValue('identity')
@@ -299,18 +308,16 @@ export function createEntryCodec(domain: ModelLogCodecDomain) {
       return invalidValue('purpose')
     const projected = keys(input.captured, input.purpose)
     if ('invalidValue' in projected) return projected
-    if (input.captured.message !== null) {
-      if (input.messagePrefix === null) return invalidValue('message_prefix')
-      const judged = judgeMessageInLog(input.captured.value, input.messagePrefix)
-      if ('rejected' in judged) return invalidValue('message_in_log')
-    }
+    const association = validateAssociation(input, associationRequired)
+    if (association !== undefined) return association
     const encoded = encodeEntryKeys(projected, ownedShell)
     if ('invalidValue' in encoded) return encoded
-    const payload: JsonValue = Object.freeze({
-      format: capturedFormat(input.captured),
-      category: input.captured.category,
-      value: input.captured.value,
-    })
+    const payload = encodeModelLogEnvelope(
+      capturedFormat(input.captured),
+      input.captured.category,
+      input.captured.value,
+      input.captured.message,
+    )
     return Object.freeze({
       ok: Object.freeze({
         ...ownedShell,
@@ -320,34 +327,54 @@ export function createEntryCodec(domain: ModelLogCodecDomain) {
       }),
     })
   }
+  function validateAssociation(
+    input: PrepareModelLogEntryInput,
+    required: boolean,
+  ): ModelLogInvalidValue | undefined {
+    if (input.captured.message === null || !required) return undefined
+    if (input.messagePrefix === null) return invalidValue('message_prefix')
+    return 'rejected' in judgeMessageInLog(input.captured.value, input.messagePrefix)
+      ? invalidValue('message_in_log')
+      : undefined
+  }
 
   function captureWrapper(
     value: JsonValue,
     writable = false,
   ): { readonly ok: CapturedModelLogValue } | ModelLogInvalidValue {
+    const decoded = readModelLogEnvelope(value)
+    if ('failure' in decoded || decoded.kind !== 'model') return invalidValue('wrapper')
+    const envelope = decoded.envelope
     if (
-      !object(value) ||
-      Object.keys(value).length !== 3 ||
-      typeof value.format !== 'string' ||
-      !domain.readFormats.includes(value.format) ||
-      (writable && value.format !== domain.writeFormat) ||
-      (value.category !== 'record' &&
-        value.category !== 'message' &&
-        value.category !== 'response') ||
-      value.value === undefined
+      !domain.readFormats.includes(envelope.format) ||
+      (writable && envelope.format !== domain.writeFormat)
     )
       return invalidValue('wrapper')
     return values.captureValue(
       {
-        category: value.category,
-        input: { kind: 'value', value: value.value },
+        category: envelope.category,
+        input: { kind: 'value', value: envelope.value },
       },
-      value.format,
+      envelope.format,
       true,
     )
   }
+  /** Checks this message's owned body, shell and keys only. The caller must validate history associations. */
+  function inspectModelMessageEntry(
+    input: InspectModelMessageEntryInput,
+  ): { readonly ok: InspectedModelLogEntry } | ModelLogInvalidValue {
+    if (input.purpose.kind !== 'message' && input.purpose.kind !== 'persistedMessage')
+      return invalidValue('purpose')
+    return inspectEntry({ ...input, messagePrefix: null }, false)
+  }
   function inspectModelLogEntry(
     input: InspectModelLogEntryInput,
+  ): { readonly ok: InspectedModelLogEntry } | ModelLogInvalidValue {
+    return inspectEntry(input, true)
+  }
+  function inspectEntry(
+    input: InspectModelLogEntryInput,
+    associationRequired: boolean,
   ): { readonly ok: InspectedModelLogEntry } | ModelLogInvalidValue {
     const copied = copyJsonValue(input.entry)
     if ('failed' in copied || !object(copied.ok)) return invalidValue('not_json')
@@ -358,6 +385,7 @@ export function createEntryCodec(domain: ModelLogCodecDomain) {
     if (value.payload === undefined) return invalidValue('wrapper')
     const captured = captureWrapper(value.payload)
     if ('invalidValue' in captured) return captured
+    if (!messageInspectionAllowed(captured.ok, associationRequired)) return invalidValue('purpose')
     const prepared = prepareEntry(
       {
         session,
@@ -367,17 +395,17 @@ export function createEntryCodec(domain: ModelLogCodecDomain) {
         messagePrefix: input.messagePrefix,
       },
       true,
+      associationRequired,
     )
     if ('invalidValue' in prepared) return prepared
-    const readKeys = value.readKeys
-    if (!entryKeysMatch(value, prepared.ok, readKeys)) return invalidValue('key_set')
+    const owned = inspectKeys(value, prepared.ok, session, captured.ok.message !== null)
+    if ('invalidValue' in owned) return owned
     const parsedSession = parseSession(session)
     if (parsedSession === null) return invalidValue('identity')
     return Object.freeze({
       ok: Object.freeze({
         entry: Object.freeze({
-          ...prepared.ok,
-          readKeys: Object.freeze([...readKeys]),
+          ...owned,
           session: parsedSession,
           position,
         }),
@@ -385,12 +413,59 @@ export function createEntryCodec(domain: ModelLogCodecDomain) {
       }),
     })
   }
+  function messageInspectionAllowed(
+    value: CapturedModelLogValue,
+    associationRequired: boolean,
+  ): boolean {
+    return associationRequired || value.message !== null
+  }
+  function inspectKeys(
+    value: JsonObject,
+    prepared: OwnedLogEntry,
+    session: string,
+    message: boolean,
+  ): OwnedLogEntry | ModelLogInvalidValue {
+    const readKeys = value.readKeys
+    const keys = [value.dedupeKey, ...(Array.isArray(readKeys) ? readKeys : [])]
+    const claimed = keys.some(key => typeof key === 'string' && /^mrr(?:\/|$)/u.test(key))
+    if (!message || claimed) {
+      if (!entryKeysMatch(value, prepared, readKeys)) return invalidValue('key_set')
+      return Object.freeze({ ...prepared, readKeys: Object.freeze([...readKeys]) })
+    }
+    const { payload, tenant, run, attempt } = prepared
+    const original = checkAppendInput(
+      session,
+      [
+        {
+          tenant,
+          ...(run === undefined ? {} : { run, attempt }),
+          ...(value.dedupeKey === undefined ? {} : { dedupeKey: value.dedupeKey }),
+          readKeys,
+          payload,
+        },
+      ],
+      { kind: 'unfenced' },
+      { kind: 'unconditional' },
+    )
+    if ('failure' in original || original.ok.entries[0] === undefined)
+      return invalidValue('key_set')
+    return original.ok.entries[0]
+  }
   function parseSession(value: string): SessionRef | null {
     const parsed = parseOpaqueIdentifier(value, 'SessionRef')
     return 'ok' in parsed ? parsed.ok : null
   }
 
-  return Object.freeze({ prepareModelLogEntry, inspectModelLogEntry, captureWrapper })
+  return Object.freeze({
+    prepareModelLogEntry,
+    inspectModelLogEntry,
+    inspectModelMessageEntry,
+    captureWrapper,
+  })
 }
-export const { prepareModelLogEntry, inspectModelLogEntry, captureWrapper } =
-  createEntryCodec(currentCodecDomain)
+export const {
+  prepareModelLogEntry,
+  inspectModelLogEntry,
+  inspectModelMessageEntry,
+  captureWrapper,
+} = createEntryCodec(currentCodecDomain)

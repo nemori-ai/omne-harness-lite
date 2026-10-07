@@ -1,5 +1,6 @@
+import { modelCategory } from './log-codec-fixture.ts'
 // @module-tag slow
-// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 JSONL 会话日志。
+// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 import { createServer } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
@@ -12,11 +13,8 @@ import {
 import { interpretCallHistory } from '../src/call-history.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
-import type {
-  ModelCallHost,
-  RuntimeConstruction,
-  SessionRuntimeBinding,
-} from '../src/service-types.ts'
+import type { RuntimeConstruction, SessionRuntimeBinding } from '../src/service-types.ts'
+import type { ModelCallHost } from '@omne-harness-lite/model-request-runtime'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import {
   ControlledSettlementOwner,
@@ -37,13 +35,7 @@ function message(value: unknown): Message {
 }
 
 function isResponseEntry(entry: LogEntry): boolean {
-  const value = entry.payload
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    'category' in value &&
-    value.category === 'response'
-  )
+  return modelCategory(entry.payload) === 'response'
 }
 
 const image = message({
@@ -276,7 +268,7 @@ async function ready() {
   })
   async function entries() {
     const read = await source.log.readSince(source.session, 0)
-    if ('failure' in read) throw new Error('actual JSONL unavailable')
+    if ('failure' in read) throw new Error('actual SQL journal unavailable')
     return read.entries
   }
   function resume(messages: readonly Message[]) {

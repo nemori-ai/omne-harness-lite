@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import {
-  dispatchGuard,
-  type DispatchGuardPhase,
-  type DispatchGuardInput,
-} from '../src/dispatch-guard.ts'
+import { dispatchGuard, type DispatchGuardInput } from '../src/dispatch-guard.ts'
+import type { DispatchGuardPhase } from '@omne-harness-lite/model-request-runtime'
 import { guardInput, profile } from './dispatch-guard-fixture.ts'
 
 function callAt(phase: DispatchGuardPhase): DispatchGuardInput['call'] {

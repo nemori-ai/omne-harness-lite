@@ -1,5 +1,5 @@
 // @module-tag slow
-// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 JSONL 会话日志。
+// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 /**
  * Independent acceptance 2026-09-30, T29 round 3 residue: what `runtime.close` may and may not
  * do with an in-flight original invocation (verification A22-V16′ B-2, A22-V6; RT12 S-86).
@@ -16,7 +16,7 @@
  *   known, the stream was stopped by this process), so S-86 closes it with the no-reply final;
  *   it must not be isolated forever with a close that can never answer (demo gap E).
  *
- * Real assembly: SQLite Storage, JSONL SessionLog and the Cordis host of
+ * Real assembly: SQLite Storage, SQL journal SessionLog and the Cordis host of
  * tests/session-selection-fixture.ts. Only what the runtime *sees* is disturbed (one append
  * receipt, the moment of a host stop); every verdict is read back from the durable log or a
  * cold process, never from the runtime's own report alone.

@@ -1,5 +1,5 @@
 // @module-tag slow
-// Three history sizes use actual synced JSONL batches and SQLite queries.
+// Three history sizes use actual synced SQL journal batches and SQLite queries.
 import { performance } from 'node:perf_hooks'
 import { appendFile } from 'node:fs/promises'
 import { expect, test } from 'vitest'

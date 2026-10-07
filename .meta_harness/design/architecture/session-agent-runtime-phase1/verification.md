@@ -1,6 +1,6 @@
 # 验证责任、范围与实施门
 
-形式模型、负控配置和小型机制／算法探针由包内verification唯一维护。协调、投影与提供者执行方法的仓库坐标依次为`packages/core/session-runtime/verification/README.md`、`packages/core/model-message-projection/verification/README.md`、`packages/session/session-runtime-local/verification/README.md`；这些目录尚为设计准备槽，不是已建立的workspace成员。具体运行结果及独立评审留本工作树tmp，不复制历史日志。
+形式模型、负控配置和小型机制／算法探针由包内verification唯一维护。协调、投影与提供者执行方法的仓库坐标依次为`packages/core/session-runtime/verification/README.md`、`packages/core/model-message-projection/verification/README.md`、`packages/core/session-runtime/verification/README.md`；core/session-runtime 与 core/model-message-projection 已建立实际成员；完整 Session 提供者装配仍留 C01。提供者机制探针暂由契约拥有者保存，不创建缺 manifest 的空提供者目录。具体运行结果及独立评审留本工作树tmp，不复制历史日志。
 
 | 义务 | 唯一责任拥有者 | 本阶段证据／实施后必须补 |
 |---|---|---|
@@ -34,6 +34,6 @@
 有限模型和配置在`packages/core/session-runtime/verification/models/`共同维护。正配置检查有限不变量及 WorkEventuallyClaimed，公平性仅在 StartOrAdopt 上；三份去保护配置分别验证上述负控目标。
 模型、探针资源搬迁不表示本轮已执行或当前产品通过。探针从标准输出返回结果，由调用方写入自己的 tmp。
 
-- `node --experimental-strip-types packages/session/session-runtime-local/verification/models/probe_cordis.ts` 只验证 Cordis 4.0.4 的独立 Context、换代与替身原调用句柄。
+- `node --experimental-strip-types packages/core/session-runtime/verification/models/probe_cordis.ts` 只验证 Cordis 4.0.4 的独立 Context、换代与替身原调用句柄。
 - 两份 Python 探针分别验证简化投影算法和 SQLite 同事务回滚，使用本工作树工具链执行。
 - 正式 Session、真实提供者、持久化接口、SQL 公平调度和网络协议须按上表另行验收。

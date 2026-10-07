@@ -13,6 +13,10 @@ The root exports public types and standalone functions. `./cordis` contains the 
 
 Behavior beyond types belongs to [SPEC.md](SPEC.md).
 
+`checkSourceToken` copies and validates a fixed journal coordinate. `sourceTokenEquals`
+compares its tenant, session, journal generation and exact tail. Neither function grants access
+or proves that the journal is available. Journal generation differs from physical owner generation.
+
 The template marker reports structural adoption. It does not establish complete business or lifecycle acceptance.
 
 ## Development

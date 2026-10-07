@@ -1,14 +1,13 @@
 import { expectTypeOf } from 'vitest'
 import type { SessionRef } from '@omne-harness-lite/messages'
+import type { RuntimeConstruction, ModelIdentitySource } from '../src/service-types.ts'
 import type {
   ModelRuntimeService,
   OpenCallInput,
   SettleReplyInput,
   DispatchSuccess,
-  RuntimeConstruction,
   ServiceInvalidInput,
-  ModelIdentitySource,
-} from '../src/service-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { TokenMargin } from '@omne-harness-lite/model-request-runtime'
 

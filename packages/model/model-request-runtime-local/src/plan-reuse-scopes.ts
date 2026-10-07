@@ -1,7 +1,8 @@
+import type { RuntimeCloseResult } from '@omne-harness-lite/model-request-runtime'
 import { tenantIdEquals, type TenantId } from '@omne-harness-lite/identity-values'
 import type { SessionRef } from '@omne-harness-lite/messages'
 import type { SettlementLogBinding } from './settlement-types.ts'
-import type { RuntimeCloseResult, RuntimeConstruction } from './service-types.ts'
+import type { RuntimeConstruction } from './service-types.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 

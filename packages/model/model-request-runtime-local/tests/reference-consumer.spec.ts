@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { readJsonStrict } from '@omne-harness-lite/content-blocks'
 import { judgeModelCallCreatedPayload } from '@omne-harness-lite/messages'
-import type { CallReadView, RetainedCallReadView } from '../src/reference-types.ts'
+import type { CallReadView, RetainedCallReadView } from '@omne-harness-lite/model-request-runtime'
 import {
   createIndependentCallConsumer,
   notifyReferenceConsumers,

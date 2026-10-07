@@ -1,3 +1,12 @@
+import type {
+  CallHistoryDispatch,
+  FailureConsumption,
+  ModelFailureSource,
+  ModelRuntimeService,
+  ReadAttemptDispatch,
+  ReadAttemptsResult,
+  RuntimeCloseResult,
+} from '@omne-harness-lite/model-request-runtime'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { validate as validateLoop } from '@omne-harness-lite/loop-extension'
 import { createSessionModelSelection } from './session-selection.ts'
@@ -18,14 +27,8 @@ import type {
 } from './session-selection-types.ts'
 import type {
   CallKey,
-  ModelRuntimeService,
-  RuntimeCloseResult,
   RuntimeConstruction,
   SessionRuntimeBinding,
-  ReadAttemptsResult,
-  ReadAttemptDispatch,
-  FailureConsumption,
-  ModelFailureSource,
   CallContainerView,
 } from './service-types.ts'
 import type {
@@ -33,7 +36,7 @@ import type {
   SettlementRegistration,
   SettlementTask,
 } from './settlement-types.ts'
-import type { CallHistoryDispatch, CallHistoryKnown, CallHistoryResult } from './call-history.ts'
+import type { CallHistoryKnown, CallHistoryResult } from './call-history.ts'
 import type { CallAccessEvidence, CallFacts } from './reference-types.ts'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'

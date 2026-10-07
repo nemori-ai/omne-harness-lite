@@ -1,3 +1,4 @@
+import { modelCategory } from './log-codec-fixture.ts'
 import { mkdtemp, readdir, readlink, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -7,7 +8,7 @@ import {
   inspectSettlementMembers,
 } from '@omne-harness-lite/model-request-runtime'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { openJsonlSessionLog, type JsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture, type SqlLogFixture } from './sql-log-fixture.ts'
 import { type LogEntry, type ReadResult } from '@omne-harness-lite/session-log'
 import { anchors, batch, response, session, tenant, reply } from './log-codec-fixture.ts'
 
@@ -26,10 +27,10 @@ function readable(result: ReadResult): {
   if ('failure' in result) throw new Error(`controlled provider read: ${result.failure}`)
   return result
 }
-async function withLog<T>(work: (log: JsonlSessionLog, dir: string) => Promise<T>): Promise<T> {
+async function withLog<T>(work: (log: SqlLogFixture, dir: string) => Promise<T>): Promise<T> {
   const dir = await mkdtemp(join(tmpdir(), 'omne-codec-controlled-'))
   try {
-    const log = await openJsonlSessionLog({ dir, processOwnership: ownership })
+    const log = await openSqlLogFixture({ dir: dir })
     try {
       return await work(log, dir)
     } finally {
@@ -72,7 +73,7 @@ function inspected(prefix: ReturnType<typeof readable>) {
     current: { messageId: 'losing-message', disposition: { consumed: { by: 'side_query' } } },
   })
 }
-describe('D088 controlled real public JSONL provider; no production provenance claim', () => {
+describe('D088 controlled real public SQL journal provider; no production provenance claim', () => {
   for (const first of ['external', 'runtime'])
     it(`C-V3 ${first} whole batch wins and loser THIS has no writes`, async () => {
       await withLog(async log => {
@@ -105,19 +106,9 @@ describe('D088 controlled real public JSONL provider; no production provenance c
         const prefix = readable(await log.readSince(session, 0))
         expect(prefix.entries).toHaveLength(first === 'external' ? 4 : 3)
         const responses = prefix.entries.filter(
-          entry =>
-            typeof entry.payload === 'object' &&
-            entry.payload !== null &&
-            'category' in entry.payload &&
-            entry.payload.category === 'response',
+          entry => modelCategory(entry.payload) === 'response',
         )
-        const messages = prefix.entries.filter(
-          entry =>
-            typeof entry.payload === 'object' &&
-            entry.payload !== null &&
-            'category' in entry.payload &&
-            entry.payload.category === 'message',
-        )
+        const messages = prefix.entries.filter(entry => modelCategory(entry.payload) === 'message')
         expect(responses).toHaveLength(1)
         expect(messages).toHaveLength(first === 'external' ? 1 : 0)
         const result = inspected(prefix)
