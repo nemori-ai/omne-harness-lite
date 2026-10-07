@@ -405,3 +405,24 @@ test('resource identities and physical observations reject invalid semantic data
     }),
   ).toEqual({ invalid: true })
 })
+
+test('the current codec reads original persisted version-one resource and execution keys', () => {
+  const records = [
+    {
+      value: { revision: 1, ref, kind: 'resource_adopted', key: 'process' },
+      persistedKey: 'tool-runtime/1/["resource_adopted","call","process"]',
+    },
+    {
+      value: { revision: 1, ref, kind: 'execution_started', at },
+      persistedKey: 'tool-runtime/1/["execution_started","call"]',
+    },
+  ]
+  for (const { value, persistedKey } of records) {
+    const row = {
+      ...prepared(value),
+      dedupeKey: persistedKey,
+      readKeys: [persistedKey, 'tool-runtime/1/call/"call"', 'tool-runtime/1/all'],
+    }
+    expect(inspectToolJournalEntry(scope, row)).toHaveProperty('value', value)
+  }
+})
