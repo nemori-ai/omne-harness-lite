@@ -3166,6 +3166,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness-lite/model-request-runtime':
+        specifier: workspace:*
+        version: link:../../core/model-request-runtime
       '@omne-harness-lite/session-log-sql':
         specifier: workspace:*
         version: link:../../session/session-log-sql

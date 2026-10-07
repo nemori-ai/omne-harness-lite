@@ -185,7 +185,10 @@ export async function createLocalTls(
     },
     closedSockets: () => closedSockets,
     finishHeld() {
-      held?.end('data: [DONE]\n\n')
+      const response = held
+      held = undefined
+      if (response && !response.destroyed && !response.writableEnded)
+        response.end('data: [DONE]\n\n')
     },
     async close() {
       server.closeAllConnections()
