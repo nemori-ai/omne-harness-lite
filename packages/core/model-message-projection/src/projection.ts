@@ -1,5 +1,6 @@
 import {
   checkAppendInput,
+  checkLogPayload,
   checkSourceToken,
   compareInteger,
   type LogEntry,
@@ -28,6 +29,12 @@ import type {
 } from './types.ts'
 const invalid = { invalidInput: true, reason: 'shape' } as const
 const sourceInvalid = { invalidInput: true, reason: 'source' } as const
+function rejectedBody(payload: unknown): ProjectionFailure {
+  if (payload === null || typeof payload !== 'object' || !('owner' in payload)) return sourceInvalid
+  return 'failure' in checkLogPayload(payload)
+    ? { invalidInput: true, reason: 'claimedPayload' }
+    : sourceInvalid
+}
 export function ownedEntries(
   input: unknown,
   source: SourceToken,
@@ -80,7 +87,8 @@ function ownedEntry(
     { kind: 'unfenced' },
     { kind: 'unconditional' },
   )
-  if ('failure' in owned || !tenantIdEquals(row.tenant, source.tenant)) return sourceInvalid
+  if ('failure' in owned) return rejectedBody(row.payload)
+  if (!tenantIdEquals(row.tenant, source.tenant)) return sourceInvalid
   return Object.freeze({ ...owned.ok.entries[0]!, session: source.session, position: row.position })
 }
 function segment(

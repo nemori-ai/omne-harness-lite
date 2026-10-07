@@ -156,9 +156,20 @@ describe('fixed log projection and prefix reuse', () => {
     })
   })
   it.each(['8', '9', 'unknown'])('rejects a claimed messages fact at version %s', version => {
+    const payload = { owner: 'messages', version, kind: 'fact', value: {} }
+    const forged = { ...row(1, factLogPayload('unrelated-owner', '1', {})), payload }
     expect(
-      projectMessages(input([row(1, { owner: 'messages', version, kind: 'fact', value: {} })])),
-    ).toEqual({ invalidInput: true, reason: 'claimedPayload' })
+      checkAppendInput(
+        'session-a',
+        [{ tenant, readKeys: [], payload }],
+        { kind: 'unfenced' },
+        { kind: 'unconditional' },
+      ),
+    ).toEqual({ failure: 'invalidInput' })
+    expect(projectMessages(input([forged]))).toEqual({
+      invalidInput: true,
+      reason: 'claimedPayload',
+    })
     expect(() => factLogPayload('messages', version, {})).toThrow(TypeError)
   })
   it.each(Object.keys(rules.external))('invalidates the cache when %s changes', name => {
