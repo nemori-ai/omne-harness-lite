@@ -2,6 +2,8 @@
 
 模型门面固定认证主体和绑定 Session。Session 限制由投影的资格端口在各操作表示校验后核对，门面不统一前置认证来改写公共错误次序。openCall 的 host 装配检查先使用提供者同一表示检查器，再核当前资格与已登记 host。reconcile 在进入实际宿主恢复前先检查 Session 表示。门面继续登记 Session 在途操作、保有实际调用及宿主恢复责任。
 
+恢复停止期间，绑定 Session 的合法 openCall、dispatch 和 dispatchAgain 返回 runtimeStopped；非法表示仍返回 invalidInput，其他 Session 不取得此绑定的权限。失败消费重载返回同一结果及 notApplicable，不制造失败来源。已准入的恢复在应用关闭期间继续由原任务完成；它逐使用点重核原主体、租户及原借用代，不通过重新开放准入或借用替代来源完成。
+
 采用依据：2026-10-04 已采用的 Tool Runtime r10 与动作接缝 ar3。应用拥有 tool-driver/1 数据及其投影；共享消费类型归 core/tool-admission。实现进度与验证另记，本页不声明全部兑现。
 
 TD-1：tool-driver/1 的形状归 schema/tool-driver.schema.json 和公开源码类型。固定校验图在构建时生成，首次使用时加载并由模块缓存。普通 JSON 先复制再检查；工具定义、调用块、消息、报告仍由各自公开判定器检查。未知成员、所属版本、键或 shell 冲突不能被当成其他领域记录跳过。

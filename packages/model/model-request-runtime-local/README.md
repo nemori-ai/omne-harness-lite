@@ -12,6 +12,8 @@ Public operation types and portable policy/history/response functions in the API
 
 `ownOpenCallInput(input)` checks and copies request-owned JSON before host admission. It preserves the original host and observer endpoint references. It does not check permission or acquire resources. See [SPEC.md](SPEC.md).
 
+`validDispatchInput(input)` shares the dispatch entry's identifier checks. It does not validate a retry plan or authorize a call. See [SPEC.md](SPEC.md).
+
 ## Public API
 
 | Export                                                                                    | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |

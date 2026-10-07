@@ -63,6 +63,7 @@ import {
   createModelCallFacts,
   createModelRuntime,
   ownOpenCallInput,
+  validDispatchInput,
   modelCallContentMigrations,
   type RuntimeConstruction,
   type SettlementCoordinator,
@@ -662,7 +663,12 @@ export function createAcceptanceApplication(
   const modelContributions: Fiber[] = []
   let modelRuntime: ReturnType<typeof createModelRuntime<PlannedRequest, RawResponse>> | undefined
   let projectModel:
-    ((actor: AuthenticatedActor, boundSession?: SessionRef) => ModelRuntimeOperations) | undefined
+    | ((
+        actor: AuthenticatedActor,
+        boundSession?: SessionRef,
+        recoveryAuthorization?: ModelRuntimeHostInputs['recovery']['authorize'],
+      ) => ModelRuntimeOperations)
+    | undefined
   let currentInputs: CurrentEvaluationInputs | undefined
   let inputSource: InputSourceDependencies | undefined
   let requestDeployment: ModelRequestDeployment | undefined
@@ -2047,7 +2053,7 @@ export function createAcceptanceApplication(
           }
           try {
             modelRuntime = createModelRuntime(construction)
-            projectModel = (original, boundSession) => {
+            projectModel = (original, boundSession, recoveryAuthorization) => {
               // Capture identity values, then recheck the same subject at every admission point.
               const actor: AuthenticatedActor = Object.freeze({
                 ...original,
@@ -2139,6 +2145,7 @@ export function createAcceptanceApplication(
                   async authorize(
                     input: Parameters<ModelRuntimeHostInputs['recovery']['authorize']>[0],
                   ) {
+                    if (recoveryAuthorization !== undefined) return recoveryAuthorization(input)
                     const current = await qualify(input.session)
                     return !revoked.aborted && 'borrow' in current
                       ? { authorized: true as const }
@@ -2900,9 +2907,10 @@ export function createAcceptanceApplication(
   function actorModel(
     actor: AuthenticatedActor,
     boundSession?: SessionRef,
+    recoveryAuthorization?: ModelRuntimeHostInputs['recovery']['authorize'],
   ): ModelRuntimeOperations {
     if (projectModel === undefined) throw new AcceptanceOperationDefect('modelRuntime')
-    return projectModel(actor, boundSession)
+    return projectModel(actor, boundSession, recoveryAuthorization)
   }
   function boundModelService(
     actor: AuthenticatedActor,
@@ -2916,6 +2924,7 @@ export function createAcceptanceApplication(
     }
     function scopedFailure<I extends { readonly session: SessionRef }, R>(
       operation: FailureConsumableOperation<I, R>,
+      blocked?: (value: I) => R | undefined,
     ): FailureConsumableOperation<I, R> {
       function call(input: I): Promise<R>
       function call(
@@ -2926,6 +2935,16 @@ export function createAcceptanceApplication(
         input: I,
         options?: { readonly consumeFailure: true },
       ): Promise<R | FailureConsumption<R>> {
+        const result = blocked?.(input)
+        if (result !== undefined)
+          return Promise.resolve(
+            options === undefined
+              ? result
+              : {
+                  result,
+                  consumption: { kind: 'notApplicable' as const },
+                },
+          )
         return options === undefined
           ? invoke(input, value => operation(value))
           : invoke(input, value => operation(value, options))
@@ -2945,6 +2964,7 @@ export function createAcceptanceApplication(
         if ('invalidInput' in owned) return Promise.resolve(owned)
         return invoke(owned.request, async value => {
           if (value.session !== session) return { unavailable: true } as const
+          if (closing || recoveryAdmission.has(session)) return { runtimeStopped: true } as const
           const access = await sessionAccess(actor, session)
           if (!('borrow' in access) || recoveryAdmission.has(session))
             return { unavailable: true } as const
@@ -2955,8 +2975,21 @@ export function createAcceptanceApplication(
           return result
         })
       },
-      dispatch: scopedFailure(service.dispatch),
-      dispatchAgain: scopedFailure(service.dispatchAgain),
+      dispatch: scopedFailure(service.dispatch, value =>
+        validDispatchInput(value) &&
+        value.session === session &&
+        (closing || recoveryAdmission.has(session))
+          ? { runtimeStopped: true }
+          : undefined,
+      ),
+      dispatchAgain: scopedFailure(service.dispatchAgain, value =>
+        validDispatchInput(value) &&
+        'plan' in value &&
+        value.session === session &&
+        (closing || recoveryAdmission.has(session))
+          ? { runtimeStopped: true }
+          : undefined,
+      ),
       interrupt: input => invoke(input, value => service.interrupt(value)),
       releaseCall: input => invoke(input, value => service.releaseCall(value)),
       reconcile: async input => {
@@ -3132,7 +3165,30 @@ export function createAcceptanceApplication(
           await Promise.allSettled([...(sessionTasks.get(key) ?? [])])
           await access.borrow.owner.drain()
         }
-        return await actorModel(access.checked).reconcile({ session: key })
+        // This task was admitted before closing. Recheck its subject and original
+        // borrow without admitting new work or borrowing a replacement source.
+        const authorizeRecovery: ModelRuntimeHostInputs['recovery']['authorize'] = async input => {
+          if (
+            input.session !== key ||
+            !recoveryBusy.has(key) ||
+            sessionBorrows.get(key) !== access.borrow ||
+            access.borrow.binding.currentGeneration() !== access.borrow.binding.generation
+          )
+            return { unavailable: true }
+          const checked = await checkActor(access.checked)
+          if (!('account' in checked) || !tenantIdEquals(checked.tenant, access.checked.tenant))
+            return { unavailable: true }
+          const held = await sessionTenancy?.holdingTenant(key)
+          return held !== undefined &&
+            'tenant' in held &&
+            tenantIdEquals(held.tenant, checked.tenant) &&
+            recoveryBusy.has(key) &&
+            sessionBorrows.get(key) === access.borrow &&
+            access.borrow.binding.currentGeneration() === access.borrow.binding.generation
+            ? { authorized: true }
+            : { unavailable: true }
+        }
+        return await actorModel(access.checked, key, authorizeRecovery).reconcile({ session: key })
       } catch {
         return { unavailable: true }
       } finally {

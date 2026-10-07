@@ -12,6 +12,8 @@
 
 `ownOpenCallInput(input)` 在宿主准入前检查并复制请求自有 JSON，保留原 host 与 observer endpoint 引用。它不核验权限，不登记资源。行为见 [SPEC.md](SPEC.md)。
 
+`validDispatchInput(input)` 复用 dispatch 入口的身份表示检查，不校验重试计划，不授予调用权限。行为见 [SPEC.md](SPEC.md)。
+
 ## 公开接口
 
 | 导出                                                                                      | 用途                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
