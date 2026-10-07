@@ -150,3 +150,51 @@ it('consumption stays pending while the actual outer transaction is uncommitted'
   expect(await consumption).toEqual({ kind: 'launch' })
   expect(await h.log.readSince(scope.session, 0)).toHaveProperty('entries.length', 1)
 })
+
+it('close retains the original execution owner while a same-unit stage is awaiting current authorization', async () => {
+  const { h, owner, input } = await setup()
+  const entered = Promise.withResolvers<void>()
+  const proceed = Promise.withResolvers<void>()
+  const authorize = h.authority.authorize.bind(h.authority)
+  vi.spyOn(h.authority, 'authorize').mockImplementation(async (...args) => {
+    entered.resolve()
+    await proceed.promise
+    return authorize(...args)
+  })
+  const ticket = owner.prepareOriginal(input)
+  if (!('ticket' in ticket)) throw Error('ticket')
+  const transaction = h.storage.atomic(unit =>
+    owner.participant.stageOriginalIn(unit, ticket.ticket),
+  )
+  await entered.promise
+  let released = false
+  const closing = owner.close().then(result => {
+    released = true
+    return result
+  })
+  try {
+    // Yield to close's original empty-active-set continuation. No wall-clock wait is needed.
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(released).toBe(false)
+    expect(() =>
+      createOriginalIssueOwner({
+        storage: h.storage,
+        log: h.log.participant,
+        access: h.access,
+        limit: 8,
+        authority: {
+          async authorizeIn() {
+            return { kind: 'authorized' }
+          },
+        },
+      }),
+    ).toThrow('duplicate original model execution owner')
+  } finally {
+    proceed.resolve()
+    await transaction
+    await closing
+  }
+  expect(await closing).toEqual({ kind: 'released' })
+  expect(await h.log.readSince(scope.session, 0)).toHaveProperty('entries.length', 1)
+})

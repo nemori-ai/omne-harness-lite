@@ -115,7 +115,7 @@ export async function ensureJournal(
   await narrow<LogDatabase>(tx).insertInto('sl_journal').values(row).execute()
   return row
 }
-export function decodeEntry(row: EntryRow): LogEntry {
+export function decodeEntry(row: EntryRow, scope: SessionScope): LogEntry {
   const parsed = readJsonStrict(row.value)
   if ('failed' in parsed) throw new StorageDefect('corrupt journal entry')
   const checked = checkAppendInput(
@@ -126,6 +126,8 @@ export function decodeEntry(row: EntryRow): LogEntry {
   )
   if ('failure' in checked || checked.ok.entries[0] === undefined)
     throw new StorageDefect('corrupt journal entry')
+  if (row.session !== scope.session || !tenantIdEquals(checked.ok.entries[0].tenant, scope.tenant))
+    throw new StorageDefect('journal entry belongs to another scope')
   return Object.freeze({
     ...checked.ok.entries[0],
     session: checked.ok.session,
@@ -134,7 +136,7 @@ export function decodeEntry(row: EntryRow): LogEntry {
 }
 export async function entriesBetween(
   tx: ReadTx,
-  session: string,
+  scope: SessionScope,
   after: JsonNumber,
   through: JsonNumber,
 ): Promise<readonly LogEntry[]> {
@@ -144,7 +146,7 @@ export async function entriesBetween(
   const rows = await narrow<LogDatabase>(tx)
     .selectFrom('sl_entry')
     .selectAll()
-    .where('session', '=', session)
+    .where('session', '=', scope.session)
     .where(eb =>
       eb.or([
         eb('position_length', '>', low.length),
@@ -160,7 +162,7 @@ export async function entriesBetween(
     .orderBy('position_length')
     .orderBy('position')
     .execute()
-  const entries = rows.map(decodeEntry)
+  const entries = rows.map(row => decodeEntry(row, scope))
   let expected = after
   for (const entry of entries) {
     expected = addInteger(expected, 1)

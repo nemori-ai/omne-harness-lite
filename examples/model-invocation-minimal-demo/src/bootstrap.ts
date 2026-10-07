@@ -671,7 +671,18 @@ export function createAcceptanceApplication(
     }
   >()
 
-  const runnerActors = new AsyncLocalStorage<AuthenticatedActor>()
+  const invocationActors = new AsyncLocalStorage<AuthenticatedActor | undefined>()
+  function withInvocationActor<T>(actor: AuthenticatedActor, work: () => Promise<T>): Promise<T> {
+    const captured = copyJsonValue(actor)
+    const identity =
+      'failed' in captured ||
+      captured.ok === null ||
+      typeof captured.ok !== 'object' ||
+      Array.isArray(captured.ok)
+        ? undefined
+        : (captured.ok as unknown as AuthenticatedActor)
+    return invocationActors.run(identity, work)
+  }
   const toolMaintenance = new AsyncLocalStorage<SessionScope>()
   const toolDeliveries = new Map<string, ReturnType<typeof createToolDelivery>>()
   let manifest: AssemblyManifestStore | undefined
@@ -1374,7 +1385,7 @@ export function createAcceptanceApplication(
       limit: logDeployment.operationLimit,
       authority: {
         async authorizeIn(unit, identity) {
-          const actor = runtimeActors.get(identity.session)
+          const actor = invocationActors.getStore()
           if (actor === undefined || closing || journalAuthoritySource === undefined)
             return { kind: 'unavailable' }
           const result = await checkSqlActor(unit, journalAuthoritySource, actor, identity)
@@ -2217,7 +2228,7 @@ export function createAcceptanceApplication(
                   },
                 }
               }
-              const actor = runnerActors.getStore()
+              const actor = invocationActors.getStore()
               if (actor === undefined) return { unavailable: true }
               const access = await sessionAccess(actor, session)
               if (!('borrow' in access) || recoveryAdmission.has(access.borrow.binding.session))
@@ -2964,7 +2975,7 @@ export function createAcceptanceApplication(
         const access = await sessionAccess(actor, session)
         if (!('borrow' in access) || recoveryAdmission.has(session)) return denied
         runtimeActors.set(session, access.checked)
-        return operation(input)
+        return withInvocationActor(access.checked, () => operation(input))
       })
     }
     function scopedFailure<I extends { readonly session: SessionRef }, R>(
@@ -2997,7 +3008,7 @@ export function createAcceptanceApplication(
           const access = await sessionAccess(actor, session)
           if (!('borrow' in access) || recoveryAdmission.has(session)) return { unavailable: true }
           runtimeActors.set(session, access.checked)
-          return service.acquireCall(input)
+          return withInvocationActor(access.checked, () => service.acquireCall(input))
         })
       },
       acknowledgeCall: input => {
@@ -3009,7 +3020,7 @@ export function createAcceptanceApplication(
           const access = await sessionAccess(actor, session)
           if (!('borrow' in access) || recoveryAdmission.has(session)) return { unavailable: true }
           runtimeActors.set(session, access.checked)
-          return service.acknowledgeCall(input)
+          return withInvocationActor(access.checked, () => service.acknowledgeCall(input))
         })
       },
       legalTargets: input =>
@@ -3376,72 +3387,74 @@ export function createAcceptanceApplication(
           >,
         ) => trackSession(parsedSession.ok, work)
       : track
-    return run(async () => {
-      const access = await sessionAccess(actor, session)
-      if (!('borrow' in access)) return access
-      const { borrow, checked } = access
-      if (recoveryAdmission.has(borrow.binding.session)) return { failure: 'stageClosed' }
-      const controlledRun = controlledRuns.get(borrow.binding.session)
-      if (
-        controlledRun !== undefined &&
-        (request.run !== controlledRun.run ||
-          request.attempt === undefined ||
-          ExactDecimal.from(request.attempt).compare(ExactDecimal.from(controlledRun.attempt)) !==
-            0)
-      )
-        return { invalidInput: { reason: 'malformed' } }
-      if (
-        ![...(callHosts.get(borrow.binding.session) ?? [])].some(
-          owner => owner.host === request.host,
+    return withInvocationActor(actor, () =>
+      run(async () => {
+        const access = await sessionAccess(actor, session)
+        if (!('borrow' in access)) return access
+        const { borrow, checked } = access
+        if (recoveryAdmission.has(borrow.binding.session)) return { failure: 'stageClosed' }
+        const controlledRun = controlledRuns.get(borrow.binding.session)
+        if (
+          controlledRun !== undefined &&
+          (request.run !== controlledRun.run ||
+            request.attempt === undefined ||
+            ExactDecimal.from(request.attempt).compare(ExactDecimal.from(controlledRun.attempt)) !==
+              0)
         )
-      )
-        return { failure: 'stageClosed' }
-      if (modelRuntime === undefined) return { unavailable: true }
-      if (tools.length !== 0 && requestDeployment?.assetRegistry === undefined)
-        return { unavailable: true }
-      runtimeActors.set(borrow.binding.session, checked)
-      const effective = await modelRuntime.service.effectiveModel({
-        session: borrow.binding.session,
-      })
-      if (!('effectiveModel' in effective)) return effective
-      if (requestDeployment === undefined) return { unavailable: true }
-      const appended = await appendServiceMessage(
-        borrow.binding,
-        borrow.owner.owner,
-        checked.tenant,
-        copiedUser,
-      )
-      if (!('messages' in appended)) return appended
-      const opened = await modelRuntime.service.openCall({
-        creationKey: deriveCreationKey({
+          return { invalidInput: { reason: 'malformed' } }
+        if (
+          ![...(callHosts.get(borrow.binding.session) ?? [])].some(
+            owner => owner.host === request.host,
+          )
+        )
+          return { failure: 'stageClosed' }
+        if (modelRuntime === undefined) return { unavailable: true }
+        if (tools.length !== 0 && requestDeployment?.assetRegistry === undefined)
+          return { unavailable: true }
+        runtimeActors.set(borrow.binding.session, checked)
+        const effective = await modelRuntime.service.effectiveModel({
           session: borrow.binding.session,
-          userMessage: copiedUser.id,
+        })
+        if (!('effectiveModel' in effective)) return effective
+        if (requestDeployment === undefined) return { unavailable: true }
+        const appended = await appendServiceMessage(
+          borrow.binding,
+          borrow.owner.owner,
+          checked.tenant,
+          copiedUser,
+        )
+        if (!('messages' in appended)) return appended
+        const opened = await modelRuntime.service.openCall({
+          creationKey: deriveCreationKey({
+            session: borrow.binding.session,
+            userMessage: copiedUser.id,
+            ...(callId === undefined ? {} : { callId: callId.ok }),
+            ...(request.run === undefined ? {} : { run: request.run, attempt: request.attempt }),
+          }),
+          session: borrow.binding.session,
           ...(callId === undefined ? {} : { callId: callId.ok }),
-          ...(request.run === undefined ? {} : { run: request.run, attempt: request.attempt }),
-        }),
-        session: borrow.binding.session,
-        ...(callId === undefined ? {} : { callId: callId.ok }),
-        target: effective.effectiveModel.routeName,
-        basis: effective.effectiveModel,
-        messages: appended.messages,
-        parameters,
-        tools,
-        host: request.host,
-        ...(request.observer === undefined ? {} : { observer: request.observer }),
-        ...(request.run === undefined
-          ? {}
-          : { run: request.run, attempt: request.attempt, report: request.report }),
-      })
-      if ('callId' in opened) retainCall(borrow.binding.session, opened.callId)
-      if (!('state' in opened) || (opened.state !== 'open' && opened.state !== 'resumable'))
-        return opened
-      const result = await modelRuntime.service.dispatch({
-        session: borrow.binding.session,
-        callId: opened.callId,
-        ...(request.run === undefined ? {} : { attempt: request.attempt }),
-      })
-      return { callId: opened.callId, result }
-    })
+          target: effective.effectiveModel.routeName,
+          basis: effective.effectiveModel,
+          messages: appended.messages,
+          parameters,
+          tools,
+          host: request.host,
+          ...(request.observer === undefined ? {} : { observer: request.observer }),
+          ...(request.run === undefined
+            ? {}
+            : { run: request.run, attempt: request.attempt, report: request.report }),
+        })
+        if ('callId' in opened) retainCall(borrow.binding.session, opened.callId)
+        if (!('state' in opened) || (opened.state !== 'open' && opened.state !== 'resumable'))
+          return opened
+        const result = await modelRuntime.service.dispatch({
+          session: borrow.binding.session,
+          callId: opened.callId,
+          ...(request.run === undefined ? {} : { attempt: request.attempt }),
+        })
+        return { callId: opened.callId, result }
+      }),
+    )
   }
   async function toolDeliveryFor(scope: SessionScope) {
     if (!config.tools || !authorizedLogOwner || !runnerService) return
@@ -3543,7 +3556,7 @@ export function createAcceptanceApplication(
       !admit()
     )
       return reject('stageClosed')
-    return runnerActors.run(actor, () =>
+    return withInvocationActor(actor, () =>
       trackSessionInput(session, async () => {
         const access = await sessionAccess(actor, session)
         if (!('borrow' in access)) return reject('notAuthorized')
@@ -3776,7 +3789,7 @@ export function createAcceptanceApplication(
       if (stage !== 'modelRequest' || !admit() || service === undefined)
         return Promise.resolve({ failure: 'stageClosed' })
       if (request.manifest !== session) return Promise.resolve({ failure: 'identityMismatch' })
-      return runnerActors.run(actor, () =>
+      return withInvocationActor(actor, () =>
         trackSessionInput(session, () => service.dispatch(request, signal)),
       )
     },
@@ -3785,7 +3798,7 @@ export function createAcceptanceApplication(
       if (stage !== 'modelRequest' || !admit() || service === undefined)
         return Promise.resolve({ failure: 'stageClosed' })
       if (request.manifest !== session) return Promise.resolve({ failure: 'identityMismatch' })
-      return runnerActors.run(actor, () =>
+      return withInvocationActor(actor, () =>
         trackSessionInput(session, () => service.replay(request)),
       )
     },

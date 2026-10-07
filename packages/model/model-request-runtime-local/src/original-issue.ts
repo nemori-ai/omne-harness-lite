@@ -186,7 +186,7 @@ export function createOriginalIssueOwner(options: OriginalIssueOwnerOptions): Or
     if (!sameUnit(unit)) return invalid
     reserved += 1
     try {
-      return await unit.run(() => stageOwned(unit, input))
+      return await watch(() => unit.run(() => stageOwned(unit, input)))
     } finally {
       reserved -= 1
     }
@@ -371,7 +371,8 @@ export function createOriginalIssueOwner(options: OriginalIssueOwnerOptions): Or
     async close() {
       if (closed) return { kind: 'released' as const }
       admitting = false
-      await Promise.all([...active])
+      // Staging can register a completion observer while close waits for that stage.
+      while (active.size !== 0) await Promise.all([...active])
       for (const held of pending) {
         if (!(await recognizes(held))) return { kind: 'pending' as const }
         pending.delete(held)

@@ -33,6 +33,8 @@ import {
   journal,
   matchesScope,
   numberFrom,
+  tenantFrom,
+  type JournalRow,
   type LogDatabase,
 } from './database.ts'
 
@@ -127,10 +129,7 @@ export function createHandle(options: HandleOptions): HeldLog {
   }
   async function read(
     session: string,
-    select: (
-      tx: ReadTx,
-      tail: import('@omne-harness-lite/content-blocks').JsonNumber,
-    ) => Promise<readonly LogEntry[]>,
+    select: (tx: ReadTx, row: JournalRow) => Promise<readonly LogEntry[]>,
   ): Promise<ReadResult> {
     try {
       return await options.storage.atomic(unit =>
@@ -140,7 +139,7 @@ export function createHandle(options: HandleOptions): HeldLog {
           const row = await unit.query(tx => journal(tx, session))
           if (row === undefined) return { entries: Object.freeze([]), tail: 0 }
           const tail = numberFrom(row.tail)
-          return { entries: await unit.query(tx => select(tx, tail)), tail }
+          return { entries: await unit.query(tx => select(tx, row)), tail }
         }),
       )
     } catch (error) {
@@ -161,7 +160,18 @@ export function createHandle(options: HandleOptions): HeldLog {
         return Promise.resolve(invalidInput)
       const cursor = copied.ok
       return run(
-        () => read(checked.ok, (tx, tail) => entriesBetween(tx, checked.ok, cursor, tail)),
+        () =>
+          read(checked.ok, (tx, row) =>
+            entriesBetween(
+              tx,
+              {
+                session: checked.ok,
+                tenant: tenantFrom(row.tenant),
+              },
+              cursor,
+              numberFrom(row.tail),
+            ),
+          ),
         unavailable,
       )
     },
@@ -170,7 +180,7 @@ export function createHandle(options: HandleOptions): HeldLog {
       if ('failure' in checked || !checkKey(key)) return Promise.resolve(invalidInput)
       return run(
         () =>
-          read(checked.ok, async tx => {
+          read(checked.ok, async (tx, row) => {
             const rows = await narrow<LogDatabase>(tx)
               .selectFrom('sl_entry')
               .innerJoin('sl_read_key', join =>
@@ -184,7 +194,8 @@ export function createHandle(options: HandleOptions): HeldLog {
               .orderBy('sl_entry.position_length')
               .orderBy('sl_entry.position')
               .execute()
-            return Object.freeze(rows.map(decodeEntry))
+            const scope = { session: checked.ok, tenant: tenantFrom(row.tenant) }
+            return Object.freeze(rows.map(entry => decodeEntry(entry, scope)))
           }),
         unavailable,
       )

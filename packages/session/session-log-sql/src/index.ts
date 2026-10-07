@@ -159,9 +159,7 @@ export function openSqlSessionLog(options: SessionLogSqlOptions): SqlSessionLog 
                   scope: Object.freeze({ tenant: source.tenant, session: source.session }),
                   ownerGeneration,
                   tail: source.tail,
-                  entries: await unit.query(tx =>
-                    entriesBetween(tx, source.session, 0, source.tail),
-                  ),
+                  entries: await unit.query(tx => entriesBetween(tx, source, 0, source.tail)),
                 }),
               }
             }),

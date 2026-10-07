@@ -48,6 +48,8 @@ OriginalIssueParticipant 暂存原 dispatched 事实和唯一执行 claim，必�
 
 stageOriginalIn 核同存储实例、完整固定 source、原消费位置、call／dispatch 身份、Session shell、当前授权和栅栏。原 dispatched 与唯一 claim 全提交或全回滚。重复只认回原完整等值证明，不授予第二次发起权；异原位置或正文冲突明确拒绝。
 
+当前授权必须核本次原调用捕获的主体及其当前资格。另一并发调用的主体不能替代它；同账户、同租户的另一登录也不能替代已撤销的原登录。缺少原主体来源时拒绝发起，不从会话的可变当前主体取得替代资格。
+
 consumeOriginal 必须等待外层提交完成，并在同一存储范围重新核当前授权。只准原执行代际消费一次；并发消费不能启动两次。回滚、unknown、撤权或原批次未确认均不返回 launch。提交未知时保留原身份与完整批次，认回也不能将只读证明转成第二个启动权。
 
 dispatched 表示原发起锚点，不表示收到模型内容。opened 继续由模型实际执行拥有者在首个内容到达后、发布 FirstContent 之前记录，并携 firstTokenAt。参加协议不得提前伪造 opened、首 token 或实际发送完成。

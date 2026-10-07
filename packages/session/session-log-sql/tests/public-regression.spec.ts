@@ -149,3 +149,30 @@ test('adjacent large SQL positions stay distinct; a missing earlier prefix is ne
     StorageDefect,
   )
 })
+
+test('a persisted entry belonging to another valid tenant cannot escape through any read face', async () => {
+  const h = await harness()
+  const r = request('foreign-corruption')
+  await h.log.append(r.session, r.entries, r.fence, r.condition)
+  const source = await h.log.participant.source(h.access, scope)
+  if ('failure' in source) throw new Error('source failed')
+  await h.storage.write(tx =>
+    tx.db
+      .updateTable('sl_entry')
+      .set({
+        value: writeJsonLossless({
+          ...r.entries[0],
+          tenant: { organization: 'other', account: 'other' },
+        }),
+      })
+      .where('session', '=', scope.session)
+      .execute(),
+  )
+  const reads = [
+    () => h.log.readSince(scope.session, 0),
+    () => h.log.readByKey(scope.session, 'all'),
+    () => h.log.owner.readPrefix(h.access, scope),
+    () => h.log.participant.readPrefix(h.access, source.source),
+  ]
+  for (const read of reads) await expect(read()).rejects.toBeInstanceOf(StorageDefect)
+})

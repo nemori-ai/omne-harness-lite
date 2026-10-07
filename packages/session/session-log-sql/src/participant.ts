@@ -151,7 +151,7 @@ export function createParticipant(
               const requested = { ...current, tail: checked.ok.tail }
               if (!sourceTokenEquals(requested, checked.ok)) return unavailable
               const entries = await unit.query(tx =>
-                entriesBetween(tx, checked.ok.session, 0, checked.ok.tail),
+                entriesBetween(tx, checked.ok, 0, checked.ok.tail),
               )
               const last = entries.at(-1)?.position ?? 0
               if (!sourceTokenEquals({ ...checked.ok, tail: last }, checked.ok)) return unavailable
