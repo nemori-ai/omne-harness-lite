@@ -6,9 +6,9 @@ import { createHostProcessCoordinate } from '../dist/native-control.js'
 import { defaultHostNativePolicy } from '../dist/native-policy.js'
 import type { HostTerminalControl } from '../src/native-terminal.ts'
 
-async function create() {
+async function create(env: Record<string, string> = {}) {
   const prepared = await prepareHostTerminal(
-    { cwd: '/tmp', env: { PATH: '/usr/bin:/bin', ONLY: 'baseline' } },
+    { cwd: '/tmp', env: { PATH: '/usr/bin:/bin', ONLY: 'baseline', ...env } },
     defaultHostNativePolicy,
     await createHostProcessCoordinate(),
   )
@@ -20,6 +20,20 @@ async function create() {
   }
   return created.terminal
 }
+test.each<[Record<string, string>, string]>([
+  [{}, 'xterm'],
+  [{ TERM: '' }, ''],
+  [{ TERM: 'literal term;$(false)' }, 'literal term;$(false)'],
+])('persistent Bash preserves TERM exactly: %j', { tags: ['slow'] }, async (env, expected) => {
+  const terminal = await create(env)
+  try {
+    const value = await execute(terminal, 'printf "<%s>" "$TERM"')
+    expect(value.result).toMatchObject({ kind: 'completed', exit: { code: 0 } })
+    expect(value.outputs.terminal).toBe(`<${expected}>`)
+  } finally {
+    expect(await terminal.stop('forced')).toBe('confirmed')
+  }
+})
 async function execute(
   terminal: HostTerminalControl,
   script: string,

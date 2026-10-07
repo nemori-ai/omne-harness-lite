@@ -111,13 +111,27 @@ function controller(id: string) {
 async function initialize(message: { cwd: string; env: Record<string, string> }) {
   await createHostResourceDirectory(coordinate)
   const id = randomUUID()
-  shell = spawn('/bin/bash', ['--noprofile', '--norc', '-c', controller(id)], {
-    cwd: message.cwd,
-    env: message.env,
-    cols,
-    rows,
-    encoding: null,
-  })
+  // node-pty substitutes xterm for an empty TERM. GNU env restores the literal
+  // target value before Bash startup, then execs Bash without a separate process.
+  shell = spawn(
+    '/usr/bin/env',
+    [
+      '--',
+      `TERM=${message.env.TERM ?? 'xterm'}`,
+      '/bin/bash',
+      '--noprofile',
+      '--norc',
+      '-c',
+      controller(id),
+    ],
+    {
+      cwd: message.cwd,
+      env: message.env,
+      cols,
+      rows,
+      encoding: null,
+    },
+  )
   transport = forwardPtyOutput(shell, chunkBytes, send, () => current?.message.id)
   parser = createTerminalReceipt(
     id,

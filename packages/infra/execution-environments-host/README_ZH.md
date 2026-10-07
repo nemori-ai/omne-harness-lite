@@ -26,7 +26,7 @@ Files提供有界read/write、stat/list/search、move/copy/remove/mkdir、条件
 
 独立原生函数不依赖Storage或Runtime。调用者须保留原control/manifest。确认process stop后，才能用clearHostGateEntry清原准备证据；executeHostCommand返回的process.stop组合这两步。批次清理须携带prepare返回的物理stage身份。copy未知结果保留同原manifest、stage身份和发布收据，不自动重发。
 
-平台前提是Linux、可用的systemd user manager/scope、Node及/bin/bash。用户命令取得显式环境；PTY将PWD设为cwd，TERM取显式值或xterm，不继承宿主变量。manager使用独立受控技术环境。输出、输入、时间、终端、文件及遍历有可配置预算。
+平台前提是Linux、可用的systemd user manager/scope、Node、/usr/bin/env、/usr/bin/stty及/bin/bash。用户命令取得显式环境；PTY将PWD设为cwd，TERM取显式值或xterm，不继承宿主变量。manager使用独立受控技术环境。输出、输入、时间、终端、文件及遍历有可配置预算。
 
 ## 开发
 
