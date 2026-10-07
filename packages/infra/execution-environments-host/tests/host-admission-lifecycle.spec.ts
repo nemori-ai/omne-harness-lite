@@ -273,3 +273,90 @@ test(
     }
   },
 )
+
+test(
+  'facility requests own path, bytes and command arguments before the first wait',
+  { tags: ['slow'] },
+  async () => {
+    const host = await hostProviderFixture()
+    try {
+      const { lease } = await host.acquire('capture-at-admission')
+      const original = join(host.directory, 'original'),
+        changed = join(host.directory, 'changed')
+      const fileRequest = { path: original, mode: 'create' as const, data: Buffer.from('before') }
+      const writing = lease.facilities.files!.write(fileRequest)
+      fileRequest.path = changed
+      fileRequest.data.fill(88)
+      expect(await writing).toMatchObject({ kind: 'written', path: original })
+      expect(await readFile(original, 'utf8')).toBe('before')
+      await expect(readFile(changed)).rejects.toMatchObject({ code: 'ENOENT' })
+      const marker = join(host.directory, 'command-original')
+      const commandRequest = {
+        executable: '/bin/sh',
+        args: ['-c', 'printf %s "$CAPTURED" > "$1"', 'sh', marker],
+        cwd: host.directory,
+        env: { CAPTURED: 'before' },
+      }
+      const starting = lease.facilities.command!.start(commandRequest)
+      commandRequest.executable = '/bin/false'
+      commandRequest.args[4] = changed
+      commandRequest.cwd = '/missing-directory'
+      commandRequest.env.CAPTURED = 'after'
+      const started = await starting
+      if (started.kind !== 'started') throw new Error(started.reason)
+      expect(await started.process.result).toMatchObject({
+        kind: 'completed',
+        exit: { code: 0 },
+      })
+      expect(await readFile(marker, 'utf8')).toBe('before')
+      await expect(readFile(changed)).rejects.toMatchObject({ code: 'ENOENT' })
+      expect(await lease.release()).toEqual({ kind: 'released' })
+    } finally {
+      await host.close()
+    }
+  },
+)
+
+test.each(['retire', 'call-close'] as const)(
+  'acquisition retains readiness work and rejects a lease after %s',
+  { tags: ['slow'] },
+  async kind => {
+    const host = await hostProviderFixture(),
+      entered = Promise.withResolvers<void>(),
+      finish = Promise.withResolvers<void>()
+    let blockNext = true
+    const storage = new Proxy(host.storage, {
+      get(target, key) {
+        if (key === 'read')
+          return async (work: Parameters<typeof target.read>[0]) => {
+            if (blockNext) {
+              blockNext = false
+              entered.resolve()
+              await finish.promise
+            }
+            return target.read(work)
+          }
+        const value: unknown = Reflect.get(target, key)
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+    const provider = createHostEnvironment({ name: 'readiness-gap', access: host.access, storage })
+    const controller = new AbortController()
+    try {
+      const acquiring = provider.acquire(
+        request(host, 'readiness-pending', resources({ closed: controller.signal })),
+      )
+      await entered.promise
+      if (kind === 'retire')
+        expect(await provider.retire()).toEqual({ kind: 'pending', resources: [] })
+      else controller.abort()
+      finish.resolve()
+      expect(await acquiring).toEqual({ kind: 'rejected', reason: 'ownerStopped' })
+      expect(await provider.retire()).toEqual({ kind: 'drained' })
+    } finally {
+      finish.resolve()
+      await provider.retire()
+      await host.close()
+    }
+  },
+)

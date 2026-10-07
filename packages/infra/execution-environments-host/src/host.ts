@@ -104,13 +104,13 @@ export function createHostEnvironment(options: {
       return Object.fromEntries(
         Object.entries(port).map(([key, operation]) => [
           key,
-          (...args: unknown[]) =>
-            owner.retainOperation(request.call.execution, async () => {
-              const captured =
-                kind === 'command'
-                  ? captureCommandArguments(key as keyof CommandFacility, args)
-                  : captureFileArguments(key as keyof FileFacility, args)
-              if (!captured) return { kind: 'rejected', reason: 'invalidInput' }
+          async (...args: unknown[]) => {
+            const captured =
+              kind === 'command'
+                ? captureCommandArguments(key as keyof CommandFacility, args)
+                : captureFileArguments(key as keyof FileFacility, args)
+            if (!captured) return { kind: 'rejected', reason: 'invalidInput' }
+            return owner.retainOperation(request.call.execution, async () => {
               if (!open()) return { kind: 'rejected', reason: 'closed' }
               const checked = await authorize(
                 request.authorization,
@@ -124,7 +124,8 @@ export function createHostEnvironment(options: {
                 }
               if (!open()) return { kind: 'rejected', reason: 'closed' }
               return Reflect.apply(operation, port, captured)
-            }),
+            })
+          },
         ]),
       ) as T
     }
@@ -171,24 +172,32 @@ export function createHostEnvironment(options: {
     async acquire(request) {
       const checked = validateRequest(request)
       if ('kind' in checked) return checked
-      const decision = await authorize(request.authorization, checked.scope, 'environment.acquire')
-      if (decision.kind === 'rejected') return decision
-      if (request.resources.closed.aborted) return reject('ownerStopped')
-      try {
-        await owner.verify()
-      } catch {
-        return reject('unavailable')
-      }
-      return {
-        kind: 'acquired',
-        lease: lease({ ...request, ...checked }),
-        evidence: {
-          provider: options.name,
-          generation,
-          reference: reference.reference,
-          facilities: description.facilities,
-        },
-      }
+      const captured = { ...request, ...checked }
+      return owner.retainOperation(checked.call.execution, async () => {
+        const decision = await authorize(
+          checked.authorization,
+          checked.scope,
+          'environment.acquire',
+        )
+        if (decision.kind === 'rejected') return decision
+        if (checked.resources.closed.aborted) return reject('ownerStopped')
+        try {
+          await owner.verify()
+        } catch {
+          return reject('unavailable')
+        }
+        if (!owner.isActive() || checked.resources.closed.aborted) return reject('ownerStopped')
+        return {
+          kind: 'acquired',
+          lease: lease(captured),
+          evidence: {
+            provider: options.name,
+            generation,
+            reference: reference.reference,
+            facilities: description.facilities,
+          },
+        } as const
+      })
     },
     async listRecoveryResources(scope) {
       const captured = ownScope(scope)
