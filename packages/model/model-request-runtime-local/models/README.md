@@ -13,5 +13,7 @@ The three separate negative configurations must produce invariant violations:
 | `ExecutionSource-release-pinned.cfg` | Release the source with an active capture           |
 
 This is a finite safety model. It does not prove GC, IO, tenant authorization, scheduler fairness, crash atomicity, or progress.
+All four configurations disable TLC's deadlock check because the model permits normal termination.
+The declared safety invariants remain enabled. This model does not check deadlock freedom.
 Use the original ACK/recovery models and actual SQLite/JSONL tests for those declared obligations.
 Single-run output belongs in the worktree's `tmp/`.
