@@ -2,6 +2,7 @@ import { expect, test } from 'vitest'
 import {
   captureFileArguments,
   captureCommandRequest,
+  isCommandProcess,
   captureCommandArguments,
   captureFileResult,
   captureCommandResult,
@@ -412,4 +413,59 @@ test('all public failure reasons remain valid while malformed nested facts rejec
   expect(
     captureCommandRequest({ executable: '/bin/sh', args: [], cwd: '/tmp', env: {}, extra() {} }),
   ).toBeUndefined()
+})
+
+test('discriminators, nested required fields and live-process validation cannot be bypassed', () => {
+  for (const fixture of fileOutputs)
+    for (const rejected of [
+      {},
+      { kind: 'rejected' },
+      { reason: 'closed' },
+      { kind: 'pretend', reason: 'closed' },
+    ])
+      expect(captureFileResult(fixture.method, rejected)).toBeUndefined()
+  expect(
+    captureFileArguments('commitBatch', [
+      { entries: [{ path: '/a', data: bytes(), expectedVersion: 3 }] },
+    ]),
+  ).toBeUndefined()
+  expect(
+    captureFileResult('search', { kind: 'found', values: [{ offsetBytes: 0 }], truncated: false }),
+  ).toBeUndefined()
+  const terminal = { terminal: reference, state: 'idle', observedCwd: '/tmp' }
+  for (const field of Object.keys(terminal))
+    expect(
+      captureCommandResult('terminals', { kind: 'terminals', values: [omitted(terminal, field)] }),
+    ).toBeUndefined()
+  const process = {
+    output: { async *[Symbol.asyncIterator]() {} },
+    outputPolicy: Object.assign(Object.create(null) as object, {
+      overflow: 'discard',
+      maxBufferedBytes: 1,
+      maxChunkBytes: 1,
+    }),
+    result: Promise.resolve(),
+    stop: async () => 'confirmed',
+  }
+  expect(isCommandProcess(process)).toBe(true)
+  expect(isCommandProcess(Object.assign(() => {}, process))).toBe(false)
+  expect(isCommandProcess({ ...process, output: Object.assign(() => {}, process.output) })).toBe(
+    false,
+  )
+  expect(
+    isCommandProcess({
+      get output() {
+        throw new Error('unreadable')
+      },
+    }),
+  ).toBe(false)
+  for (const method of ['start', 'executeTerminal'] as const) {
+    for (const invalid of [
+      { kind: 'started' },
+      { process },
+      { kind: 'pretend', process },
+      { reason: 'closed' },
+    ])
+      expect(captureCommandResult(method, invalid)).toBeUndefined()
+  }
 })
