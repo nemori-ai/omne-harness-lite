@@ -158,6 +158,37 @@ describe('fixed-subject projections of a single physical runtime', () => {
     expect(await other.calls.close()).toEqual({ released: true })
   })
 
+  it('does not reopen recovery after authorization returns following overall close', async () => {
+    const original = construction()
+    const authorization = deferred<{ readonly authorized: true }>()
+    const enteredAuthorization = deferred<void>()
+    let entered = 0
+    const runtime = createModelRuntime(original)
+    const projected = runtime.project(
+      {
+        ...original,
+        recovery: {
+          authorize() {
+            enteredAuthorization.finish()
+            return authorization.promise
+          },
+          async enter() {
+            entered++
+            return { unavailable: true }
+          },
+        },
+      },
+      original.callFacts,
+    )
+    const pending = projected.reconcile({ session })
+    await enteredAuthorization.promise
+    const closing = runtime.close()
+    authorization.finish({ authorized: true })
+    expect(await pending).toEqual({ unavailable: true })
+    expect(await closing).toEqual({ released: true })
+    expect(entered).toBe(0)
+  })
+
   it('authorizes every recovery call and treats a thrown source as unavailable without entering', async () => {
     const original = construction()
     let entered = 0,

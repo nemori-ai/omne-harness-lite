@@ -7,6 +7,7 @@ import {
   type PendingModelResponse,
 } from '@omne-harness-lite/model-response'
 import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
+import { projectRuntimeComponent } from '../src/runtime-projection.ts'
 import {
   captureModelLogValue,
   modelLogJsonEqual,
@@ -697,6 +698,80 @@ describe('S-33 retained recovery ownership', () => {
       expect(enters).toBe(1)
       expect(submissions.map(item => item.count)).toEqual([2])
     })
+  })
+
+  it('checks the fixed current subject before retrying a retained original scope', async () => {
+    await controlled(
+      'service-reconcile-fixed-retained-scope',
+      async ({ binding, owner, submissions }) => {
+        let scopeCloses = 0,
+          enters = 0,
+          originalChecks = 0,
+          deniedChecks = 0
+        let scopeCanClose = false
+        const input: Parameters<typeof createRuntimeReconcile>[0] = {
+          custody: storeUnavailableCustody(),
+          contention: policy(),
+          scheduler: noWaitScheduler,
+          now: () => '2026-09-27T00:00:03Z',
+          diagnostic() {},
+          recovery: {
+            async authorize() {
+              originalChecks++
+              return { authorized: true }
+            },
+            async enter() {
+              enters++
+              return {
+                scope: {
+                  binding: { log: binding } as SessionRuntimeBinding,
+                  owner,
+                  originalInvocation: () => ({ absent: true }) as const,
+                  async close() {
+                    scopeCloses++
+                    if (!scopeCanClose) throw new Error('original scope exit remains unavailable')
+                  },
+                },
+              }
+            },
+          },
+        }
+        const original = createRuntimeReconcile(input)
+        const denied = projectRuntimeComponent(original, {
+          ...input,
+          recovery: {
+            async authorize() {
+              deniedChecks++
+              return { unavailable: true }
+            },
+            async enter() {
+              throw new Error('denied subject must not enter a scope')
+            },
+          },
+        })
+        expect(await original.reconcile({ session })).toEqual({ unavailable: true })
+        expect(scopeCloses).toBe(1)
+        expect(enters).toBe(1)
+        const actualBatches = submissions.map(item => item.count)
+        const starts = [...owner.starts]
+        expect(await denied.reconcile({ session })).toEqual({ unavailable: true })
+        expect(deniedChecks).toBe(1)
+        expect(scopeCloses).toBe(1)
+        expect(enters).toBe(1)
+        expect(owner.starts).toEqual(starts)
+        expect(submissions.map(item => item.count)).toEqual(actualBatches)
+        scopeCanClose = true
+        expect(await original.reconcile({ session })).toEqual({
+          calls: [{ callId: 'call', state: 'interrupted' }],
+        })
+        expect(originalChecks).toBe(2)
+        expect(enters).toBe(2)
+        expect(scopeCloses).toBe(3)
+        expect(submissions.map(item => item.count)).toEqual(actualBatches)
+        expect(await original.close()).toEqual({ released: true })
+        expect(owner.active).toBe(0)
+      },
+    )
   })
 
   it('retains the original scope while a read task has not actually stopped', async () => {

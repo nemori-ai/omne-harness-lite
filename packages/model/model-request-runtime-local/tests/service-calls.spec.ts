@@ -47,6 +47,74 @@ const host: ModelCallHost = {
   register: () => ({ registration: { unregister() {} } }),
 }
 
+test('unknown writes retain their own original readers on the real JSONL source', async () => {
+  const { controlled, policy } = await import('./settlement-fixture.ts')
+  const { prepare, dispatched, session: actualSession } = await import('./log-codec-fixture.ts')
+  await controlled('unknown-original-history-readers', async ({ binding, owner }) => {
+    const tracker = new UnknownAppendTracker()
+    let originalReadable = false,
+      originalReads = 0,
+      successorReads = 0
+    const original: CurrentHistoryReaders['call'] = (prefix, callId) => {
+      originalReads++
+      return originalReadable
+        ? interpretCallHistory({ prefix, callId })
+        : { unavailable: true, reason: 'history' }
+    }
+    const successor: CurrentHistoryReaders['call'] = (prefix, callId) => {
+      successorReads++
+      return interpretCallHistory({ prefix, callId })
+    }
+    for (const [index, reader] of [original, successor].entries()) {
+      const acquired = owner.acquire(policy().limits.concurrent)
+      if (!('registration' in acquired)) throw new Error('actual original writer admission')
+      const registration = acquired.registration
+      const task = registration.start('append', async signal => {
+        await binding.log.append(
+          actualSession,
+          [
+            prepare(
+              'record',
+              {
+                ...(index === 0
+                  ? { kind: 'model_call_interrupt_intent', call: 'call', initiator: 'user' }
+                  : { ...dispatched, call: 'successor-call', response: 'successor-response' }),
+              },
+              { kind: 'record' },
+            ),
+          ],
+          { kind: 'unfenced' },
+          { kind: 'unconditional' },
+          signal,
+        )
+        return { failure: 'unavailable' } as const
+      })
+      await task.completion
+      await task.stopped
+      tracker.keep(
+        { session: actualSession, callId: index === 0 ? 'call' : 'successor-call' },
+        binding,
+        owner,
+        registration,
+        task,
+        reader,
+      )
+    }
+    expect(owner.active).toBe(2)
+    expect(await tracker.close()).toEqual({ unavailable: true })
+    expect(originalReads).toBe(1)
+    expect(successorReads).toBe(1)
+    expect(owner.active).toBe(1)
+    expect(owner.releases).toBe(1)
+    originalReadable = true
+    expect(await tracker.close()).toEqual({ released: true })
+    expect(originalReads).toBe(2)
+    expect(successorReads).toBe(1)
+    expect(owner.active).toBe(0)
+    expect(owner.releases).toBe(2)
+  })
+})
+
 test('unknown append recognition reuses its only registration before release', async () => {
   const generation = Object.freeze({})
   const tenant = unwrap(parseTenantId({ organization: 'open-org', account: 'open-account' }))
