@@ -40,10 +40,13 @@ test.each([NaN, Infinity, -Infinity, '1', {}])(
     ).toBeUndefined()
   },
 )
-test.each([0, -1, 1, Number.MAX_VALUE])('file observations accept finite timestamps: %s', modifiedMs => {
-  const result = { kind: 'stat', value: { ...info, modifiedMs } }
-  expect(captureFileResult('stat', result)).toEqual(result)
-})
+test.each([0, -1, 1, Number.MAX_VALUE])(
+  'file observations accept finite timestamps: %s',
+  modifiedMs => {
+    const result = { kind: 'stat', value: { ...info, modifiedMs } }
+    expect(captureFileResult('stat', result)).toEqual(result)
+  },
+)
 type Case<M> = { method: M; value: Record<string, unknown> | string; required: readonly string[] }
 const fileInputs: Case<keyof FileFacility>[] = [
   { method: 'read', value: { path: '/a', offsetBytes: 0, limitBytes: 3 }, required: ['path'] },
