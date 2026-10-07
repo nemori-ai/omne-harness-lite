@@ -71,7 +71,9 @@ describe('V-1 frozen normative rows', () => {
   it('collects exactly the declared 142 rows (57 shape passes and 85 shape failures)', () => {
     expect(rows).toHaveLength(142)
     expect(rows.filter(row => row.schema)).toHaveLength(57)
-    expect(rows.filter(row => row.def === 'Message' && attemptReminder(row.value))).toHaveLength(3)
+    const attempts = rows.filter(row => row.def === 'Message' && attemptReminder(row.value))
+    expect(attempts).toHaveLength(5)
+    expect(attempts.filter(row => row.schema)).toHaveLength(3)
   })
   for (const row of rows)
     it(`V1 line ${row.line} ${row.def}`, () => {
