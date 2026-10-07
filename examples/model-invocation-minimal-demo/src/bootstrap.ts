@@ -3098,7 +3098,7 @@ export function createAcceptanceApplication(
           const afterStop = modelRuntime.executionSource.capture(key)
           if ('unavailable' in afterStop) return { unavailable: true }
           captures.push(afterStop.capture)
-          const executions = afterStop.capture.executions
+          let executions = afterStop.capture.executions
           if (
             (!cold && warmBinding === undefined) ||
             (warmBinding !== undefined && warmBinding.log !== access.borrow.binding) ||
@@ -3191,6 +3191,11 @@ export function createAcceptanceApplication(
             scopeIssued: false,
           }
           recoveryReady.set(key, ready)
+          // The ready row is now the sole prepared holder. No raw preparation array
+          // or handle Map may cross the asynchronous scope handoff.
+          captured.clear()
+          executions = []
+          captures.length = 0
           if (ready.coldAbsent) coldStopped.set(key, coldTargets)
         } else {
           await Promise.allSettled([...(sessionTasks.get(key) ?? [])])
