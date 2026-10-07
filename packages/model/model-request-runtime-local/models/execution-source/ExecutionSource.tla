@@ -7,7 +7,8 @@ vars == <<accepted, registered, stopped, copies, active, borrowed, ack,
           sealed, durableReleased, sourceReleased, publicFailed>>
 Init == /\ accepted = {} /\ registered = {} /\ stopped = {} /\ copies = {}
         /\ active = {} /\ borrowed = [f \in Frames |-> {}]
-        /\ ~ack /\ ~sealed /\ ~durableReleased /\ ~sourceReleased /\ ~publicFailed
+        /\ ack = FALSE /\ sealed = FALSE /\ durableReleased = FALSE
+        /\ sourceReleased = FALSE /\ publicFailed = FALSE
 Insert(g) == /\ ~sourceReleased /\ ~ack /\ g \notin accepted
              /\ accepted' = accepted \cup {g}
              /\ registered' = registered \cup {g}

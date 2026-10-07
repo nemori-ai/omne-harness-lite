@@ -36,7 +36,10 @@ async function fixture() {
     catalog: host.catalog,
     currentEvaluationInputs: host.reader,
     credentials: {
-      value: async () => ({ scope: { layer: 'factory' }, value: new Uint8Array([1]) }),
+      value: async () => ({
+        scope: { layer: 'factory' },
+        value: new TextEncoder().encode('test-only-retention-credential'),
+      }),
     },
     tools: {
       lookup: async () => {
@@ -113,7 +116,7 @@ async function fixture() {
     const opened = await runtime.service.openCall(request)
     if (!('ref' in opened)) throw new Error('open')
     const result = await runtime.service.dispatch(opened.ref)
-    if (!('replyPending' in result)) throw new Error('dispatch')
+    if (!('replyPending' in result)) throw new Error('dispatch ' + JSON.stringify(result))
     return { ref: opened.ref, pending: result.replyPending }
   }
   return { host, runtime, calls, ready }
