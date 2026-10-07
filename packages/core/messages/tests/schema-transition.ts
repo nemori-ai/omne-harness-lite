@@ -18,10 +18,10 @@ export function assertMessagesSchemaTransition(
   assert.ok(defs.AttemptStartedSource)
   delete defs.AttemptStartedSource
   const source = object(defs.ReminderSource)
-  assert.ok(Array.isArray(source.anyOf))
-  const retained = source.anyOf.filter(item => object(item).$ref !== '#/$defs/AttemptStartedSource')
-  assert.equal(retained.length, source.anyOf.length - 1)
-  source.anyOf = retained
+  assert.ok(Array.isArray(source.oneOf))
+  const retained = source.oneOf.filter(item => object(item).$ref !== '#/$defs/AttemptStartedSource')
+  assert.equal(retained.length, source.oneOf.length - 1)
+  source.oneOf = retained
   const reminder = object(defs.SystemReminderMessage)
   assert.ok(Array.isArray(reminder.allOf))
   let changed = 0
