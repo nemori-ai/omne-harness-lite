@@ -1,3 +1,4 @@
+import { commandFixture, fileFixture } from './facility-fixture.ts'
 import { vi } from 'vitest'
 import { environmentToolOf } from '@omne-harness-lite/tool-execution-runtime'
 import type { ToolDefinition } from '@omne-harness-lite/tool-definition'
@@ -66,6 +67,7 @@ export function environmentPorts() {
               await result.promise
             },
           },
+          outputMode: 'separate' as const,
           outputPolicy: { maxBufferedBytes: 128, maxChunkBytes: 64, overflow: 'discard' as const },
           result: result.promise,
           stop,
@@ -90,11 +92,11 @@ export function environmentPorts() {
     lease: {
       facilities: {
         description,
-        command,
-        files: {
+        command: commandFixture(command),
+        files: fileFixture({
           read: async () => ({ kind: 'rejected', reason: 'unavailable' }),
           write: async () => ({ kind: 'rejected', reason: 'unavailable' }),
-        },
+        }),
       },
       invalidated: invalidated.promise,
       release,
@@ -127,6 +129,7 @@ export const completed: CommandOutcome = {
   exit: { code: 0 },
   durationMs: 1,
   output: {
+    mode: 'separate',
     stdout: { observedBytes: 12, discardedBytes: 0 },
     stderr: { observedBytes: 0, discardedBytes: 0 },
   },

@@ -122,7 +122,9 @@ test('new command/files check current permission; original output, completion an
     await Promise.resolve()
     expect(settled).toBe(false)
     h.setPermission('never-allow')
-    expect(await files.write('/original', new Uint8Array([3]))).toEqual({
+    expect(
+      await files.write({ path: '/original', data: new Uint8Array([3]), mode: 'replace' }),
+    ).toEqual({
       kind: 'rejected',
       reason: 'notAuthorized',
     })
@@ -159,7 +161,7 @@ test('an access revoke during policy authorization cannot start a new file effec
       await finish.promise
       return { kind: 'authorized' }
     })
-    const pending = files.write('/original', new Uint8Array([1]))
+    const pending = files.write({ path: '/original', data: new Uint8Array([1]), mode: 'replace' })
     await entered.promise
     h.revoke()
     finish.resolve()
@@ -224,6 +226,7 @@ test('unread output stays bounded, reports exact overflow and cannot block comma
     expect(await started.process.result).toMatchObject({
       kind: 'completed',
       output: {
+        mode: 'separate',
         stdout: { observedBytes: 20, discardedBytes: 12 },
         stderr: { observedBytes: 12, discardedBytes: 12 },
       },
@@ -259,6 +262,7 @@ test('a failed command retains known loss counts without inventing a completion 
       reason: 'effectUnknown',
       observedDurationMs: 1,
       output: {
+        mode: 'separate',
         stdout: { observedBytes: 20, discardedBytes: 12 },
         stderr: { observedBytes: 0, discardedBytes: 0 },
       },
@@ -372,7 +376,7 @@ test('describe never exposes a foreign tenant or session binding, even if the pr
   }
 })
 
-test('provider retirement waits through provisional lease adoption and original release', async () => {
+test('provider withdrawal closes permission before waiting for provisional adoption and original release', async () => {
   const h = fixture(),
     entered = Promise.withResolvers<void>(),
     resume = Promise.withResolvers<void>()
@@ -390,12 +394,12 @@ test('provider retirement waits through provisional lease adoption and original 
     const acquiring = h.registry.operations.acquire(h.request())
     await entered.promise
     const removing = h.removeProvider()
-    expect(h.provider.retire).not.toHaveBeenCalled()
+    expect(h.provider.retire).toHaveBeenCalledOnce()
     resume.resolve()
     expect(await acquiring).toMatchObject({ reason: 'providerUnavailable' })
     await removing
     expect(h.release).toHaveBeenCalledTimes(1)
-    expect(vi.mocked(h.release).mock.invocationCallOrder[0]).toBeLessThan(
+    expect(vi.mocked(h.release).mock.invocationCallOrder[0]).toBeGreaterThan(
       vi.mocked(h.provider.retire).mock.invocationCallOrder[0] ?? 0,
     )
   } finally {

@@ -279,6 +279,9 @@ export async function fixture(
     return acquired.observer
   }
   return {
+    dir,
+    backing,
+    history,
     owner,
     journal,
     log,

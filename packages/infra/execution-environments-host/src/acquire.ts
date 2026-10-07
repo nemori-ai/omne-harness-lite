@@ -156,6 +156,11 @@ async function prepareAcquisition(
   return { input, ticket }
 }
 
+function withdrawnResult(deps: Dependencies, entry: ProviderEntry, result: EnvironmentRejection) {
+  if (!deps.active()) return reject('ownerStopped')
+  return entry.active ? result : reject('providerUnavailable')
+}
+
 /** Once selected, one original entry retains the permission, acquisition and adoption work. */
 async function acquireSelected(
   deps: Dependencies,
@@ -185,7 +190,7 @@ async function acquireSelected(
         }),
       ),
     )
-    if (result.kind !== 'acquired') return result
+    if (result.kind !== 'acquired') return withdrawnResult(deps, entry, result)
     const adopted = await adoptLease(
       deps,
       entry,

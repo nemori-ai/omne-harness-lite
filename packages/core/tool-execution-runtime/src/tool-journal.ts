@@ -46,6 +46,7 @@ export type ToolJournalPayload = {
     }
   | { readonly kind: 'resource_planned'; readonly resource: ManagedResource }
   | { readonly kind: 'resource_permitted'; readonly key: string }
+  | { readonly kind: 'resource_adopted'; readonly key: string }
   | {
       readonly kind: 'execution_waiting'
       readonly waitIndex: number
@@ -76,5 +77,6 @@ export type ToolJournalPayload = {
       readonly key: string
       readonly status: 'confirmed' | 'unconfirmed'
       readonly at: string
+      readonly evidence?: JsonValue
     }
 )

@@ -90,8 +90,11 @@ test.each(['pending', 'rejected'] as const)(
       async acquire() {
         return { kind: 'rejected', reason: 'noMatchingEnvironment' }
       },
+      async listRecoveryResources() {
+        return { kind: 'resources', values: [] }
+      },
       async recover() {
-        return 'pending'
+        return { status: 'pending' }
       },
       async retire() {
         calls++

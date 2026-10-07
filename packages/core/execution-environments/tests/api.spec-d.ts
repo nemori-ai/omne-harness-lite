@@ -36,3 +36,21 @@ test('facility ports compose and the binding layer statically agrees with the ow
     Extract<EnvironmentDescription, { bindingLayer: 'stateless_sandbox' }>['binding']['kind']
   >().toEqualTypeOf<'stateless_sandbox'>()
 })
+
+test('owned recovery ABC and complete facilities use the same public protocol types', () => {
+  expectTypeOf<ExecutionEnvironmentsService['recoverOwned']>().toEqualTypeOf<
+    EnvironmentProviderRegistrations['recoverOwned']
+  >()
+  expectTypeOf<Parameters<CommandFacility['createTerminal']>[0]>().toEqualTypeOf<
+    import('../src/index.ts').TerminalCreateRequest
+  >()
+  expectTypeOf<Parameters<CommandFacility['executeTerminal']>[0]>().toEqualTypeOf<
+    import('../src/index.ts').TerminalExecuteRequest
+  >()
+  expectTypeOf<Parameters<FileFacility['read']>[0]>().toEqualTypeOf<
+    import('../src/index.ts').FileReadRequest
+  >()
+  expectTypeOf<Awaited<ReturnType<FileFacility['commitBatch']>>>().toEqualTypeOf<
+    import('../src/index.ts').FileBatchResult | import('../src/index.ts').FacilityFailure
+  >()
+})

@@ -43,11 +43,17 @@ test.each([{ facilities: ['files'] }, { facilities: ['command', 'files'] }])(
         expect(environment.description.facilities).toEqual(['command', 'files'])
         expect(Boolean(environment.command)).toBe(facilities.includes('command'))
         if (!environment.files) throw new Error('Required file facility not injected')
-        expect(await environment.files.read('/original')).toEqual({
+        expect(await environment.files.read({ path: '/original' })).toEqual({
           kind: 'rejected',
           reason: 'unavailable',
         })
-        expect(await environment.files.write('/original', new Uint8Array([1]))).toEqual({
+        expect(
+          await environment.files.write({
+            path: '/original',
+            data: new Uint8Array([1]),
+            mode: 'replace',
+          }),
+        ).toEqual({
           kind: 'rejected',
           reason: 'unavailable',
         })

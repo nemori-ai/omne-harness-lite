@@ -1,7 +1,13 @@
 import {
-  captureCommandRequest,
+  captureCommandArguments,
+  captureFileArguments,
+  captureFileResult,
+  captureCommandResult,
+  commandFacilityMethods,
+  fileFacilityMethods,
+  type CommandFacility,
+  type FileFacility,
   captureEnvironmentFacilities,
-  isCommandProcess,
   type EnvironmentFacilities,
   type EnvironmentLease,
   type FacilityFailure,
@@ -14,6 +20,7 @@ const failure = (reason: FacilityFailure['reason']): FacilityFailure => ({
   reason,
 })
 function processView(process: ProcessHandle): ProcessHandle {
+  const outputMode = process.outputMode
   let readerClaimed = false
   const iterator = process.output[Symbol.asyncIterator].bind(process.output)
   const output: AsyncIterable<CommandOutput> = {
@@ -28,7 +35,9 @@ function processView(process: ProcessHandle): ProcessHandle {
             if (next.done) return
             const chunk = next.value
             if (
-              (chunk.stream !== 'stdout' && chunk.stream !== 'stderr') ||
+              !(outputMode === 'terminal'
+                ? chunk.stream === 'terminal'
+                : chunk.stream === 'stdout' || chunk.stream === 'stderr') ||
               !(chunk.data instanceof Uint8Array)
             )
               throw new TypeError('invalid command output')
@@ -41,6 +50,7 @@ function processView(process: ProcessHandle): ProcessHandle {
     },
   }
   return Object.freeze({
+    outputMode,
     output: Object.freeze(output),
     outputPolicy: Object.freeze({ ...process.outputPolicy }),
     result: process.result,
@@ -82,71 +92,56 @@ export function createLeaseView(input: {
   }
   const command = facilities.command,
     files = facilities.files
+  function commandPort<M extends keyof CommandFacility>(method: M): CommandFacility[M] {
+    return (async (...args: Parameters<CommandFacility[M]>) => {
+      const copied = captureCommandArguments(method, args)
+      if (!copied) return failure('invalidInput')
+      return input.observe(async () => {
+        const granted = await gate('command')
+        if (granted.kind === 'rejected') return granted
+        try {
+          const raw: unknown = await Reflect.apply(command![method], command, copied)
+          const result = captureCommandResult(method, raw)
+          if (!result) return failure('effectUnknown')
+          return result.kind === 'started'
+            ? { kind: 'started', process: processView(result.process) }
+            : result
+        } catch {
+          return failure('effectUnknown')
+        }
+      })
+    }) as CommandFacility[M]
+  }
+  function filePort<M extends keyof FileFacility>(method: M): FileFacility[M] {
+    return (async (...args: Parameters<FileFacility[M]>) => {
+      const copied = captureFileArguments(method, args)
+      if (!copied) return failure('invalidInput')
+      return input.observe(async () => {
+        const granted = await gate('files')
+        if (granted.kind === 'rejected') return granted
+        try {
+          const raw: unknown = await Reflect.apply(files![method], files, copied)
+          return captureFileResult(method, raw) ?? failure('effectUnknown')
+        } catch {
+          return failure('effectUnknown')
+        }
+      })
+    }) as FileFacility[M]
+  }
   const exposed: EnvironmentFacilities = Object.freeze({
     description: facilities.description,
     ...(command
       ? {
-          command: Object.freeze({
-            async start(request: Parameters<typeof command.start>[0]) {
-              const copied = captureCommandRequest(request)
-              if (!copied) return failure('invalidInput')
-              return input.observe(async () => {
-                const granted = await gate('command')
-                if (granted.kind === 'rejected') return granted
-                try {
-                  const result = await command.start(copied)
-                  if (result.kind !== 'started') return result
-                  return isCommandProcess(result.process)
-                    ? ({ kind: 'started', process: processView(result.process) } as const)
-                    : failure('effectUnknown')
-                } catch {
-                  return failure('effectUnknown')
-                }
-              })
-            },
-          }),
+          command: Object.freeze(
+            Object.fromEntries(commandFacilityMethods.map(method => [method, commandPort(method)])),
+          ) as unknown as CommandFacility,
         }
       : {}),
     ...(files
       ? {
-          files: Object.freeze({
-            async read(path: string) {
-              if (typeof path !== 'string' || !path) return failure('invalidInput')
-              return input.observe(async () => {
-                const granted = await gate('files')
-                if (granted.kind === 'rejected') return granted
-                try {
-                  const result = await files.read(path)
-                  return result.kind === 'read'
-                    ? result.data instanceof Uint8Array
-                      ? ({ kind: 'read', data: new Uint8Array(result.data) } as const)
-                      : failure('effectUnknown')
-                    : result
-                } catch {
-                  return failure('effectUnknown')
-                }
-              })
-            },
-            async write(path: string, data: Uint8Array) {
-              if (typeof path !== 'string' || !path || !(data instanceof Uint8Array))
-                return failure('invalidInput')
-              let copied: Uint8Array
-              try {
-                copied = new Uint8Array(data)
-              } catch {
-                return failure('invalidInput')
-              }
-              return input.observe(async () => {
-                const granted = await gate('files')
-                if (granted.kind === 'rejected') return granted
-                try {
-                  return await files.write(path, copied)
-                } catch {
-                  return failure('effectUnknown')
-                }
-              })
-            },
-          }),
+          files: Object.freeze(
+            Object.fromEntries(fileFacilityMethods.map(method => [method, filePort(method)])),
+          ) as unknown as FileFacility,
         }
       : {}),
   })
