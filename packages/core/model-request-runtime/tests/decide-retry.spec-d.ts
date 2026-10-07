@@ -1,6 +1,6 @@
 import { expectTypeOf, test } from 'vitest'
-import { decideRetry } from '../src/decide-retry.ts'
-import type { DecideRetryInput, DecideRetryResult } from '../src/decide-retry-types.ts'
+import { decideRetry } from '../src/index.ts'
+import type { DecideRetryInput, DecideRetryResult } from '../src/index.ts'
 
 const subject = { unknown: true } as const
 const policy = { kind: 'constant', base: 'PT1S', factor: 1, max: 'PT2S', jitter: 'none' } as const

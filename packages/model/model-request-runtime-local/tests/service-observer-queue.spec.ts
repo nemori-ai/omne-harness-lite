@@ -3,11 +3,11 @@ import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { createModelObserverQueue } from '../src/service-observer-queue.ts'
 import type {
-  ModelObserverQueueInput,
   ObserverDiagnostic,
   ObserverReceiveTask,
   ObserverScope,
-} from '../src/service-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { ModelObserverQueueInput } from '../src/service-types.ts'
 
 function identifier<K extends 'SessionRef' | 'OrganizationId' | 'AccountId'>(
   value: string,

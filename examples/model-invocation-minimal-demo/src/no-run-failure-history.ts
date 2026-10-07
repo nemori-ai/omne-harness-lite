@@ -5,7 +5,7 @@ import {
   interpretCallHistory,
   type CurrentHistoryReaders,
   type SettlementPrefix,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 
 /** This app owns only noRun model-log writes. Foreign or undecodable history is unknown. */
 export function readDemoNoRunFailure(

@@ -1,18 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import { isJsonNumber, type JsonNumber } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
-import { interpretCallHistory } from '../src/call-history.ts'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { createRuntimeReads } from '../src/service-reads.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
-import type { SessionModelSelectionInput } from '../src/session-selection-types.ts'
+import type { SessionModelSelectionInput } from '@omne-harness-lite/model-request-runtime'
 import type { SessionLog } from '@omne-harness-lite/session-log'
-import type { RuntimeConstruction, SessionRuntimeBinding } from '../src/service-types.ts'
+import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
+import type { RuntimeConstruction } from '../src/service-types.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
-import type { SettlementRegistration, SettlementTaskKind } from '../src/settlement-types.ts'
+import type {
+  SettlementRegistration,
+  SettlementTaskKind,
+} from '@omne-harness-lite/model-request-runtime'
 import { selectionHost, AT } from './session-selection-fixture.ts'
 import { dispatched, opened } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'

@@ -9,26 +9,28 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type {
+  ModelCallHost,
+  AuthorizedCallObserver,
+  ModelArrivalTarget,
+  OpenCallInput,
+  RuntimeCloseResult,
+} from '@omne-harness-lite/model-request-runtime'
+import type { CallKey } from '@omne-harness-lite/messages'
+import type {
   CallContainer,
   CallContainerStore,
   CallContainerView,
-  CallKey,
   CallOperationState,
   CallReservation,
   CallPreparationOwner,
   CallPreparationResult,
   CreateCallContainerInput,
-  ModelCallHost,
   CallObserverBinding,
   ModelObserverQueue,
-  AuthorizedCallObserver,
-  ModelArrivalTarget,
-  OpenCallInput,
-  RuntimeCloseResult,
   ReservationWaitPolicy,
 } from './service-types.ts'
-import type { SettlementScheduler } from './settlement-types.ts'
-import type { AnchoredInvocationHandle } from './anchored-invocation-types.ts'
+import type { SettlementScheduler } from '@omne-harness-lite/model-request-runtime'
+import type { AnchoredInvocationHandle } from '@omne-harness-lite/model-request-runtime'
 
 const invocationSlots = new WeakMap<object, (handle: AnchoredInvocationHandle) => void>()
 const replacementSlots = new WeakMap<

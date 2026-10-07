@@ -1,11 +1,11 @@
 import type {
-  CallKey,
   ModelFailureExecution,
-  ModelRuntimeService,
-} from '@omne-harness-lite/model-request-runtime-local'
+  ModelRuntimeOperations,
+} from '@omne-harness-lite/model-request-runtime'
+import type { CallKey } from '@omne-harness-lite/messages'
 
 export async function inspectFailure(
-  service: ModelRuntimeService,
+  service: ModelRuntimeOperations,
   key: CallKey,
   execution: ModelFailureExecution,
 ) {

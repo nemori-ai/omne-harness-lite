@@ -8,21 +8,21 @@ Every caller supplies complete model definitions explicitly. There are no defaul
 
 ## Public API
 
-| Export                                                                    | Purpose                                                                                                                |
-| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `ModelDefinition`, `ModelRoute`, `ParameterRule`, `ParameterRules`        | Complete capabilities and explicit per-route reminder, eight parameter rules, recognized private keys and cache values |
-| `readModelDefinition(definitions, coordinates)`                           | Immutable exact-version observation; does not acquire usage rights                                                     |
-| `configurationSchema(definition, provider)`                               | Closed Draft 2020-12 Schema, generated from route data without defaults                                                |
-| `interpretConfiguration(definition, values, provider)`                    | The same route's strict, lossless configuration interpretation                                                         |
-| `createOfficialProfileContent(definition, options)`                       | Construct and judge core content; no directory write, registration or timestamp                                        |
-| `planRequest(input, definitions, meter, execution, preparer?)`                                  | Asynchronous fixed-byte plan and final input admission with a trusted, versioned model/provider meter                          |
-| `createPiAiTransport(options)`                                            | Explicit definitions, bound input meters and owned pool with plan/send/read/close                                      |
-| `sendRequest`, `readStream`                                               | Independent functions borrowing explicit network resources                                                             |
-| `createModelTransportService`, `AdaptationLease`, `RetirementPolicy`      | Process-local precise registration, fixed leases and explicit draining                                                 |
-| `parseSSE`, `canonicalInteger`, `generatedCallId`                         | Framing and exact deterministic identity helpers                                                                       |
-| `officialModelIds`, eight `<family>Definitions` and `<family>ModelRoutes` | Complete MP4 declarations, exact route policies and derived target IDs                                                 |
+| Export                                                                                        | Purpose                                                                                                                                                             |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ModelDefinition`, `ModelRoute`, `ParameterRule`, `ParameterRules`                            | Complete capabilities and explicit per-route reminder, eight parameter rules, recognized private keys and cache values                                              |
+| `readModelDefinition(definitions, coordinates)`                                               | Immutable exact-version observation; does not acquire usage rights                                                                                                  |
+| `configurationSchema(definition, provider)`                                                   | Closed Draft 2020-12 Schema, generated from route data without defaults                                                                                             |
+| `interpretConfiguration(definition, values, provider)`                                        | The same route's strict, lossless configuration interpretation                                                                                                      |
+| `createOfficialProfileContent(definition, options)`                                           | Construct and judge core content; no directory write, registration or timestamp                                                                                     |
+| `planRequest(input, definitions, meter, execution, preparer?)`                                | Asynchronous fixed-byte plan and final input admission with a trusted, versioned model/provider meter                                                               |
+| `createPiAiTransport(options)`                                                                | Explicit definitions, bound input meters and owned pool with plan/send/read/close                                                                                   |
+| `sendRequest`, `readStream`                                                                   | Independent functions borrowing explicit network resources                                                                                                          |
+| `createModelTransportService`, `AdaptationLease`, `RetirementPolicy`                          | Process-local precise registration, fixed leases and explicit draining                                                                                              |
+| `parseSSE`, `canonicalInteger`, `generatedCallId`                                             | Framing and exact deterministic identity helpers                                                                                                                    |
+| `officialModelIds`, eight `<family>Definitions` and `<family>ModelRoutes`                     | Complete MP4 declarations, exact route policies and derived target IDs                                                                                              |
 | `officialCatalog`, `officialCatalogRevision`, `createOfficialCatalogProfile(entry, revision)` | Every official leaf with its only route, bound input-meter factory and derived initial cache setting; the catalog's publication revision; profile content per entry |
-| `OPENROUTER_BASE_URL`, `PI_AI_CARRIABLE_MODALITIES`                       | Product endpoint and currently carried text/image input                                                                |
+| `OPENROUTER_BASE_URL`, `PI_AI_CARRIABLE_MODALITIES`                                           | Product endpoint and currently carried text/image input                                                                                                             |
 
 Pure reads return `{ ok }`, `invalidInput` or `unavailable`. The content builder preserves core representation rejection names such as `parameter_out_of_range` and `max_output_exceeds_profile`; definition/route/configuration consistency failures are provider `invalidInput`. Unknown exact versions/routes are unavailable; illegal declarations/configurations are invalid input. Errors contain finite rejection categories, not configuration contents. The root entry does not load Cordis. `./plugin` is the explicit Cordis 4.0.4 entry.
 
@@ -48,7 +48,7 @@ import type {
 import {
   openRouterCredentialRedactionConfig,
   type PlanInput,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 
@@ -320,7 +320,7 @@ This path adopts D095 and the [transport credential projection, revision 3](../.
 
 ```ts
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
-import type { PlanInput, ReadFacts } from '@omne-harness-lite/model-request-runtime-local'
+import type { PlanInput, ReadFacts } from '@omne-harness-lite/model-request-runtime'
 import type { PiAiTransport } from '@omne-harness-lite/pi-ai-transport'
 
 // Only completes an unfinished reader early; it is never reported as a read fact.
@@ -623,16 +623,25 @@ const scope = {}
 try {
   const bytes = await sharp({
     create: { width: 64, height: 64, channels: 3, background: 'blue' },
-  }).png().toBuffer()
-  const result = await instance.ready.prepareRequestImages({
-    images: [{ position: 'user/0/image/0', bytes, mediaType: 'image/png', targetMaxBytes: 1_000_000 }],
-    maxRequestBytes: null,
-    nonImageWireBytes: 0,
-    signal: new AbortController().signal,
-  }, scope)
+  })
+    .png()
+    .toBuffer()
+  const result = await instance.ready.prepareRequestImages(
+    {
+      images: [
+        { position: 'user/0/image/0', bytes, mediaType: 'image/png', targetMaxBytes: 1_000_000 },
+      ],
+      maxRequestBytes: null,
+      nonImageWireBytes: 0,
+      signal: new AbortController().signal,
+    },
+    scope,
+  )
   // Handle the closed prepared/rejected result before using its owned bytes.
   if ('rejected' in result) throw new Error(result.rejected.reason)
-  console.log(result.prepared.images.map(({ width, height, changed }) => ({ width, height, changed })))
+  console.log(
+    result.prepared.images.map(({ width, height, changed }) => ({ width, height, changed })),
+  )
 } finally {
   instance.ready.clearScope(scope)
   await instance.ready.close()
@@ -660,7 +669,11 @@ Full measurement verifies the actual body against its cache-neutral projection. 
 For a custom finite family, compose the public core with a pure visible counter and your versioned rules:
 
 ```ts
-import { fullOutputHistory, newOutputHistory, replayOutputHistory } from '@omne-harness-lite/pi-ai-transport'
+import {
+  fullOutputHistory,
+  newOutputHistory,
+  replayOutputHistory,
+} from '@omne-harness-lite/pi-ai-transport'
 import { meter, finiteFamilyPolicy, visibleBodyCounter } from './my-finite-model.js'
 
 const full = fullOutputHistory(fullInput, meter, visibleBodyCounter, finiteFamilyPolicy)
@@ -669,6 +682,5 @@ const replay = replayOutputHistory(replayInput, meter, visibleBodyCounter, finit
 ```
 
 The three inputs carry actual original groups and selection spans; supply an explicitly empty history only when there are no selected original observations. `fullInput` also carries the actual serialized body and its projection. A malformed standalone full input yields unavailable; malformed new/replay input yields invalidInput. A valid source with missing necessary interpretation or signed-prefix evidence yields unavailable. The planner first falls back from marginal to full; if full is also unmeasurable, its existing `invalidInput/input_size_unavailable` result describes admission failure rather than an illegal signature or parameter value.
-
 
 For the two current official Moonshot bindings only, planning omits text parts whose value is exactly the empty string when another part remains in the final user, system, reminder or compaction array. Markers are added first. All-empty arrays, empty arrays and whitespace remain unchanged, as do caller blocks, assistant/tool rules and other routes. The new implementation is `mp4-19`; definition revision 3 and input projection `/3` stay unchanged. Metering and sending use the same fixed final body. See D-115.

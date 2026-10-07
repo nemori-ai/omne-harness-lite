@@ -9,9 +9,9 @@ import type {
 } from '@omne-harness-lite/loop-extension-runner'
 import type {
   ModelFailureSource,
-  ModelRuntimeService,
+  ModelRuntimeOperations,
   SettlementLogBinding,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { createDemoRunnerHost } from '../src/runner-host.ts'
 import {
@@ -127,7 +127,7 @@ async function fixture(
   const host = createDemoRunnerServiceHost({
     runnerHost,
     // A counting double for the two methods this adapter consumes.
-    model: model as unknown as ModelRuntimeService,
+    model: model as unknown as ModelRuntimeOperations,
     manifest: {} as never,
     history: { read: async () => ({ unavailable: true }) } as never,
     sessionTenancy: {} as never,

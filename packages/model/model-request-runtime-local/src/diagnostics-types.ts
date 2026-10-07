@@ -1,3 +1,7 @@
+import type {
+  DiagnosticScope,
+  DiagnosticAssociation,
+} from '@omne-harness-lite/model-request-runtime'
 import {
   type DiagnosticEmitter,
   type DiagnosticEvent,
@@ -7,9 +11,6 @@ import {
   type DiagnosticSource,
   type DiagnosticOutcome,
 } from '@omne-harness-lite/model-request-runtime'
-/** Engineering observations are neither session-log records nor recovery evidence. */
-import type { JsonNumber } from '@omne-harness-lite/content-blocks'
-import type { TenantId } from '@omne-harness-lite/identity-values'
 
 export type DiagnosticStage =
   | 'admission'
@@ -31,21 +32,6 @@ export type DiagnosticStage =
   | 'diagnostics'
   | 'assembly'
 
-export type DiagnosticScope =
-  { readonly kind: 'local' } | { readonly kind: 'tenant'; readonly tenant: TenantId }
-
-/** A call-local engineering marker. It never becomes a Run, session or request field. */
-export interface DiagnosticAssociation {
-  readonly executionId: string
-  readonly causedBy?: DiagnosticReference
-  readonly session?: string
-  readonly run?: string
-  readonly attempt?: JsonNumber
-  readonly call?: string
-  readonly dispatch?: JsonNumber
-  readonly response?: string
-}
-
 export type DiagnosticRecord = DiagnosticEvent & {
   readonly format: 'model-diagnostics/1'
   readonly collectorId: string
@@ -57,6 +43,7 @@ export type DiagnosticRecord = DiagnosticEvent & {
 }
 
 export type DiagnosticCoverage = 'complete' | 'degraded' | 'unknown'
+
 export type DiagnosticReadRejection =
   'invalidInput' | 'forbidden' | 'busy' | 'timeout' | 'cursor_expired' | 'unavailable' | 'corrupt'
 

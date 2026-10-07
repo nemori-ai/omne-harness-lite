@@ -26,7 +26,7 @@ import type {
   SettlementRegistration,
   SettlementScheduler,
   SettlementTask,
-} from '../src/settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 
 /** Another writer moves the tail before the first ACK batch: that batch writes nothing. */
 function racingFirstAck(race: { raced: boolean }): NonNullable<HostOptions['append']> {

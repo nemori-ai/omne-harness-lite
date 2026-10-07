@@ -10,7 +10,7 @@ import type {
   SettlementRegistration,
   SettlementTask,
   SettlementTaskKind,
-} from '../src/settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import { createAnchoredModelInvocation } from '../src/anchored-invocation.ts'
 import { harness, payload } from './anchored-invocation-fixture.ts'
 import type { ControlledSettlementOwner } from './settlement-fixture.ts'

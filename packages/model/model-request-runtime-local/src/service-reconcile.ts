@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import type { RunHistoryReader } from './settlement-types.ts'
+import type { RunHistoryReader } from '@omne-harness-lite/model-request-runtime'
 import { copyJsonValue, type JsonNumber } from '@omne-harness-lite/content-blocks'
 import {
   judgePendingModelResponse,
@@ -11,7 +11,6 @@ import type { PendingModelResponse, ReplyDisposition } from '@omne-harness-lite/
 import type { AppendResult } from '@omne-harness-lite/session-log'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type {
-  CallContainerStore,
   ReconcileInput,
   ReconcileResult,
   RuntimeRecoveryAccess,
@@ -20,32 +19,39 @@ import type {
   SessionRuntimeBinding,
   SettleReplyInput,
   SettleReplyResult,
-  ReservationWaitPolicy,
-  CallKey,
-} from './service-types.ts'
-import type { CallAccess, CallFacts } from './reference-types.ts'
-import type { AnchoredInvocationHandle } from './anchored-invocation-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { CallKey } from '@omne-harness-lite/messages'
+import type { CallContainerStore, ReservationWaitPolicy } from './service-types.ts'
+import type { CallAccess } from '@omne-harness-lite/model-request-runtime'
+import type { CallFacts } from './reference-types.ts'
+import type { AnchoredInvocationHandle } from '@omne-harness-lite/model-request-runtime'
 import {
   inspectCurrentModelLogPrefix,
   type ModelLogSettlementTarget,
 } from '@omne-harness-lite/model-request-runtime'
-import { interpretCallHistory, rejectAcknowledgedHistory } from './call-history.ts'
-import { acknowledgedFactsFromHistory } from './acknowledged-view.ts'
+import {
+  interpretCallHistory,
+  rejectAcknowledgedHistory,
+} from '@omne-harness-lite/model-request-runtime'
+import { acknowledgedFactsFromHistory } from '@omne-harness-lite/model-request-runtime'
 import { judgeAcknowledgedSettlement } from './acknowledged-settlement.ts'
 import type { AcknowledgementCustody } from './acknowledgement-custody.ts'
 import { createSettlementWork, type SettlementWork } from './settlement-work.ts'
 import type { ModelCallSettlementWorkStore } from './reference-types.ts'
-import { interpretSettlementPrefix, readSettlementPrefix } from './settlement-prefix.ts'
-import type { SettlementPrefix } from './settlement-prefix.ts'
+import {
+  interpretSettlementPrefix,
+  readSettlementPrefix,
+} from '@omne-harness-lite/model-request-runtime'
+import type { SettlementPrefix } from '@omne-harness-lite/model-request-runtime'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import { createSettlementCoordinator } from './settlement-coordinator.ts'
-import { constructAnchoredInterruption } from './response-construction.ts'
+import { constructAnchoredInterruption } from '@omne-harness-lite/model-request-runtime'
 import { appendControlRecord } from './service-control.ts'
 import { UnknownAppendTracker } from './service-calls.ts'
 import { operationDiagnostics } from './service-diagnostics.ts'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import type { DiagnosticCollector } from './diagnostics-types.ts'
-import type { DispatchGuardPhase } from './dispatch-guard.ts'
+import type { DispatchGuardPhase } from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementContention,
@@ -55,8 +61,8 @@ import type {
   SettlementTask,
   SettlementLogBinding,
   SettlementOwner,
-  SettlementRequest,
-} from './settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { SettlementRequest } from './settlement-types.ts'
 import { requestStopAndWait } from './settlement-stop.ts'
 
 interface RecoveryRead {

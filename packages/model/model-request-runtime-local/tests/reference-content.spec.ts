@@ -19,13 +19,13 @@ import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { publishModelCallContent } from '../src/reference-publish.ts'
 import { createModelCallFacts } from '../src/reference-facts.ts'
 import { OwnedReadTracker } from '../src/service-control.ts'
-import type { SettlementOwner, SettlementTask } from '../src/settlement-types.ts'
+import type { SettlementOwner, SettlementTask } from '@omne-harness-lite/model-request-runtime'
 import type { AppendResult } from '@omne-harness-lite/session-log'
 import {
   createModelCallContentStore,
   modelCallContentMigrations,
 } from '../src/reference-content.ts'
-import type { SettlementLogBinding } from '../src/settlement-types.ts'
+import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallContentValue } from '../src/reference-types.ts'
 
 async function normative(path: string, name: string): Promise<unknown> {

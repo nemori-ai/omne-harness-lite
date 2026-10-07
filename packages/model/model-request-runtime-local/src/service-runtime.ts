@@ -10,12 +10,12 @@ import { createServiceControl } from './service-control.ts'
 import { createRuntimeReconcile, createRuntimeSettleReply } from './service-reconcile.ts'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import type {
-  ModelRuntimeService,
+  ModelRuntimeOperations,
   RuntimeCloseResult,
-  RuntimeConstruction,
   FailureConsumableOperation,
   FailureConsumption,
-} from './service-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { RuntimeConstruction } from './service-types.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 
 const ownedStores = new WeakSet<object>()
@@ -26,7 +26,7 @@ const runtimeStopped = Object.freeze({ runtimeStopped: true } as const)
 export function createModelRuntime<P extends PlannedSemantics, R>(
   construction: RuntimeConstruction<P, R>,
 ): {
-  readonly service: ModelRuntimeService
+  readonly service: ModelRuntimeOperations
   readonly close: () => Promise<RuntimeCloseResult>
 } {
   if (ownedStores.has(construction.calls)) throw new TypeError('call store already owned')
@@ -145,7 +145,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
     return invoke
   }
 
-  const service: ModelRuntimeService = Object.freeze({
+  const service: ModelRuntimeOperations = Object.freeze({
     acquireCall: guarded(acquire.acquireCall, unavailable, true),
     legalTargets: guarded(reads.methods.legalTargets, unavailable),
     displayList: guarded(reads.methods.displayList, unavailable),

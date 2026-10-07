@@ -7,7 +7,7 @@ import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
 import {
   type AcquireCallResult,
   type RetainedCallReadView,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { DEMO_REFERENCE_SOURCE_VERSION, deriveCreationKey } from '../src/call-references.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'

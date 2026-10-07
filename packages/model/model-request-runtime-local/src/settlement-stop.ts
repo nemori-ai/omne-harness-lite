@@ -1,4 +1,4 @@
-import type { SettlementTask } from './settlement-types.ts'
+import type { SettlementTask } from '@omne-harness-lite/model-request-runtime'
 
 /**
  * Settlement completion and actual stop are independent (settlement-types SettlementTask); some

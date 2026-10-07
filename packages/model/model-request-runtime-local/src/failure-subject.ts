@@ -16,14 +16,17 @@ import {
   rejectAcknowledgedHistory,
   type CallHistoryDispatch,
   type UnacknowledgedCallHistory,
-} from './call-history.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type {
   CurrentHistoryReaders,
   ModelFailureExecution,
   ModelFailureSource,
-} from './service-types.ts'
-import { settlementGenerationCurrent, type SettlementPrefix } from './settlement-prefix.ts'
-import type { SettlementOwner } from './settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import {
+  settlementGenerationCurrent,
+  type SettlementPrefix,
+} from '@omne-harness-lite/model-request-runtime'
+import type { SettlementOwner } from '@omne-harness-lite/model-request-runtime'
 
 function object(value: unknown): value is Readonly<Record<string, unknown>> {
   return (

@@ -8,23 +8,42 @@
 
 纯判断可独立使用，不需要 Cordis：
 
-```typescript
+```ts
 import assert from 'node:assert/strict'
-import { scopeChain, winningRow, configEligibility, credentialSlot } from '@omne-harness-lite/model-profile-directory'
+import {
+  scopeChain,
+  winningRow,
+  configEligibility,
+  credentialSlot,
+} from '@omne-harness-lite/model-profile-directory'
 import type { ProfileRow } from '@omne-harness-lite/model-profile-directory'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 
 export function choose(rows: readonly ProfileRow[], tenant: TenantId) {
-  assert.deepEqual(scopeChain(tenant).map(scope => scope.layer), ['tenant', 'organization', 'factory'])
-  assert.equal(configEligibility(tenant, { layer: 'tenant', tenant }, { standing: 'effective', role: 'member' }), 'eligible')
+  assert.deepEqual(
+    scopeChain(tenant).map(scope => scope.layer),
+    ['tenant', 'organization', 'factory'],
+  )
+  assert.equal(
+    configEligibility(
+      tenant,
+      { layer: 'tenant', tenant },
+      { standing: 'effective', role: 'member' },
+    ),
+    'eligible',
+  )
   assert.deepEqual(credentialSlot(undefined, 'custom', true), { present: false })
-  return winningRow(rows, 'demo/model', rows.map(row => row.profile.routeName))
+  return winningRow(
+    rows,
+    'demo/model',
+    rows.map(row => row.profile.routeName),
+  )
 }
 ```
 
 storage、clock、memberships ACTIVE 后装目录管理插件。模式必填：management 仅提供 modelCatalog；singleProcessCatalog 还提供 modelCatalogRead；developmentBaseFaces 保留开发形状，因中心解值未交付，取值明确答 unavailable。
 
-```typescript
+```ts
 import type { Context } from '@deepseek-ai/cordis'
 import { modelProfileDirectoryPlugin } from '@omne-harness-lite/model-profile-directory-local/cordis'
 import type { OfficialManifest } from '@omne-harness-lite/model-profile-directory'
@@ -39,7 +58,7 @@ export async function mountDirectory(ctx: Context, officialManifest: OfficialMan
 
 通过真实服务管理自建档案和租户绑定。patch 整项替换；remove: ['parameters'] 只去掉该可缺席成员。adaptation 不可删除或嵌套局部修改。撤回保留身份与历史，提交后通知一次；恢复在册保留原行。
 
-```typescript
+```ts
 import assert from 'node:assert/strict'
 import type { ModelCatalog } from '@omne-harness-lite/model-profile-directory'
 import type { TenantId } from '@omne-harness-lite/identity-values'
@@ -47,11 +66,18 @@ import type { TenantId } from '@omne-harness-lite/identity-values'
 export async function manageModels(catalog: ModelCatalog, tenant: TenantId) {
   const scope = { layer: 'tenant', tenant } as const
   const created = await catalog.registerProfile(tenant, scope, {
-    routeName: 'demo/model', origin: 'custom', providers: ['provider-a'], allowFallback: false,
-    inputModalities: ['text'], outputModalities: ['text'],
-    maxInputTokens: 8192, maxOutputTokens: 2048, inputConstraints: {},
+    routeName: 'demo/model',
+    origin: 'custom',
+    providers: ['provider-a'],
+    allowFallback: false,
+    inputModalities: ['text'],
+    outputModalities: ['text'],
+    maxInputTokens: 8192,
+    maxOutputTokens: 2048,
+    inputConstraints: {},
     upstreamInputLimits: {
-      maxInputTokens: { status: 'unknown' }, maxRequestBytes: { status: 'unknown' },
+      maxInputTokens: { status: 'unknown' },
+      maxRequestBytes: { status: 'unknown' },
     },
     adaptation: {
       implementation: { name: 'publisher-implementation', revision: 'impl-1' },
@@ -60,19 +86,34 @@ export async function manageModels(catalog: ModelCatalog, tenant: TenantId) {
     },
   })
   assert.ok('profile' in created)
-  const revised = await catalog.updateProfile(tenant, created.ref, { replace: { allowFallback: true } })
+  const revised = await catalog.updateProfile(tenant, created.ref, {
+    replace: { allowFallback: true },
+  })
   assert.ok('profile' in revised)
   assert.equal(revised.profile.updatedAt, created.profile.updatedAt)
-  const changed = await catalog.updateProfile(tenant, created.ref, { replace: {
-    maxInputTokens: 4096,
-    upstreamInputLimits: { maxInputTokens: { status: 'limited', value: 4096 }, maxRequestBytes: { status: 'unknown' } },
-  } })
+  const changed = await catalog.updateProfile(tenant, created.ref, {
+    replace: {
+      maxInputTokens: 4096,
+      upstreamInputLimits: {
+        maxInputTokens: { status: 'limited', value: 4096 },
+        maxRequestBytes: { status: 'unknown' },
+      },
+    },
+  })
   assert.ok('profile' in changed)
   assert.equal(changed.profile.maxInputTokens, 4096)
-  assert.deepEqual(changed.profile.upstreamInputLimits.maxInputTokens, { status: 'limited', value: 4096 })
-  assert.deepEqual(await catalog.updateProfile(tenant, created.ref, { replace: {
-    upstreamInputLimits: { maxInputTokens: { status: 'limited', value: 3000 } },
-  } }), { failure: 'invalidInput', reason: 'malformed' })
+  assert.deepEqual(changed.profile.upstreamInputLimits.maxInputTokens, {
+    status: 'limited',
+    value: 4096,
+  })
+  assert.deepEqual(
+    await catalog.updateProfile(tenant, created.ref, {
+      replace: {
+        upstreamInputLimits: { maxInputTokens: { status: 'limited', value: 3000 } },
+      },
+    }),
+    { failure: 'invalidInput', reason: 'malformed' },
+  )
   assert.deepEqual(await catalog.readProfile(tenant, created.ref), changed)
   const rows = await catalog.listProfiles(tenant)
   assert.ok(Array.isArray(rows))
@@ -81,7 +122,9 @@ export async function manageModels(catalog: ModelCatalog, tenant: TenantId) {
   const bound = await catalog.bindCredential(tenant, tenant, 'trusted-source-reference')
   assert.ok('boundAt' in bound)
   assert.deepEqual(await catalog.credentialPresent(tenant, 'custom'), {
-    present: true, scope: { layer: 'tenant', tenant }, boundAt: bound.boundAt,
+    present: true,
+    scope: { layer: 'tenant', tenant },
+    boundAt: bound.boundAt,
   })
   assert.deepEqual(await catalog.unbindCredential(tenant, tenant), { tenant, present: false })
   return rows
@@ -92,14 +135,20 @@ export async function manageModels(catalog: ModelCatalog, tenant: TenantId) {
 
 可信装配在提供服务前合成存储迁移，插件不私建表，目录也不执行旧档案转换。reader 闭包在有效单元里锁实际租户绑定，仅由 CCL 或 P-1r 执行。
 
-```typescript
+```ts
 import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads'
 import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory-local/migrations'
 import { composeMigrations } from '@omne-harness-lite/storage'
 import type { AtomicStorage, MigrationFragment } from '@omne-harness-lite/storage'
 
-export function trustedAssemblyInputs(storage: AtomicStorage, otherOwnerMigrations: readonly MigrationFragment[]) {
-  const migrations = composeMigrations([...otherOwnerMigrations, ...modelProfileDirectoryMigrations])
+export function trustedAssemblyInputs(
+  storage: AtomicStorage,
+  otherOwnerMigrations: readonly MigrationFragment[],
+) {
+  const migrations = composeMigrations([
+    ...otherOwnerMigrations,
+    ...modelProfileDirectoryMigrations,
+  ])
   const readCredentialBindingIn = createCredentialBindingReader(storage)
   // Pass this real closure to the unique CCL component. Bootstrap never executes it.
   return { migrations, readCredentialBindingIn }
@@ -108,7 +157,7 @@ export function trustedAssemblyInputs(storage: AtomicStorage, otherOwnerMigratio
 
 P-1r 只借用实际 CCL 读取闭包，使用同一个 AtomicStorage，只提供 credentialLookup，不持有 CCL 或 close 权限。必需的 boundCredentialReplicaReader 服务承载实际 CCL 读口。可选 factoryModelCredential 服务在每次请求时查询，仅供无绑定的官方档案使用。插件配置只含数据；已有租户绑定从不回落。value 是自有非空字节，本包不假设 UTF-8。
 
-```typescript
+```ts
 import type { Context } from '@deepseek-ai/cordis'
 import { localCredentialLookupPlugin } from '@omne-harness-lite/model-profile-directory-local/cordis'
 // Trusted assembly has already installed BoundCredentialReplicaReaderService.

@@ -11,22 +11,30 @@ import {
   inspectModelLogEntry,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
-import { displayList, effectiveModel, legalTargets } from './selection.ts'
-import { captureSelectionJson } from './selection-capture.ts'
+import { displayList, effectiveModel, legalTargets } from '@omne-harness-lite/model-request-runtime'
+import { captureSelectionJson } from '@omne-harness-lite/model-request-runtime'
 import {
   readSettlementPrefix,
   settlementGenerationCurrent,
   type SettlementPrefix,
-} from './settlement-prefix.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import { settlementAppendReceipt } from './settlement-receipt.ts'
-import type { RowCredentialFact, SelectionProjection } from './selection-types.ts'
-import type { SettlementRegistration, SettlementTask } from './settlement-types.ts'
 import type {
-  SessionEffectiveModelResult,
-  SessionModelSelection,
+  RowCredentialFact,
+  SelectionProjection,
+} from '@omne-harness-lite/model-request-runtime'
+import type {
+  SettlementRegistration,
+  SettlementTask,
+} from '@omne-harness-lite/model-request-runtime'
+import type {
   SessionModelSelectionInput,
   SessionSelectModelResult,
   SessionSelectionDiagnostic,
+} from '@omne-harness-lite/model-request-runtime'
+import type {
+  SessionEffectiveModelResult,
+  SessionModelSelection,
 } from './session-selection-types.ts'
 
 const unavailable = () => Object.freeze({ unavailable: true } as const)

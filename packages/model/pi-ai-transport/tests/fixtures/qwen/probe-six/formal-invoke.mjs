@@ -7,10 +7,8 @@ import { pathToFileURL } from 'node:url'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { jsonNumberSource, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import {
-  invokeModel,
-  openRouterCredentialRedactionConfig,
-} from '@omne-harness-lite/model-request-runtime-local'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
 import {
   createOfficialProfileContent,
   createPiAiTransport,

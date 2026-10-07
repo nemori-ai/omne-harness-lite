@@ -19,7 +19,7 @@ import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import { operationDiagnostics } from './service-diagnostics.ts'
 import { createModelObserverQueue } from './service-observer-queue.ts'
 import { resolveCallTools } from './call-tools.ts'
-import { dispatchGuard, type DispatchGuardPhase } from './dispatch-guard.ts'
+import { dispatchGuard, type DispatchGuardPhase } from '@omne-harness-lite/model-request-runtime'
 import { UnknownAppendTracker } from './service-calls.ts'
 import {
   appendControlRecord,
@@ -27,7 +27,10 @@ import {
   OwnedReadTracker,
   withOwnedReads,
 } from './service-control.ts'
-import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
+import {
+  readSettlementPrefix,
+  settlementGenerationCurrent,
+} from '@omne-harness-lite/model-request-runtime'
 import { authorizedCalibration } from './service-calibration.ts'
 import { createModelFailureSource, readFailureSubject } from './failure-subject.ts'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
@@ -35,29 +38,31 @@ import {
   acknowledgedAsTerminal,
   rejectAcknowledgedHistory,
   type UnacknowledgedCallHistory,
-} from './call-history.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type {
-  CallOperationState,
-  CallKey,
-  CallReservation,
   DispatchAgainInput,
   DispatchInput,
   DispatchResult,
   DispatchAgainResult,
-  RuntimeConstruction,
   SessionRuntimeBinding,
-  ModelObserverQueue,
   ObserverDiagnostic,
   FailureConsumableOperation,
   FailureConsumption,
   ModelFailureSource,
+} from '@omne-harness-lite/model-request-runtime'
+import type { CallKey } from '@omne-harness-lite/messages'
+import type {
+  CallOperationState,
+  CallReservation,
+  RuntimeConstruction,
+  ModelObserverQueue,
 } from './service-types.ts'
 import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
 import type { CredentialScope } from '@omne-harness-lite/model-response'
 import type { PlanInput, InvocationPolicy } from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
-import type { SettlementDiagnostic } from './settlement-types.ts'
-import type { DiagnosticAssociation } from './diagnostics-types.ts'
+import type { SettlementDiagnostic } from '@omne-harness-lite/model-request-runtime'
+import type { DiagnosticAssociation } from '@omne-harness-lite/model-request-runtime'
 import type { DiagnosticEvent, DiagnosticReference } from '@omne-harness-lite/model-request-runtime'
 
 const settlementUnavailableKinds = new Set<string>([

@@ -3,7 +3,7 @@ import { isOk, parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/i
 import type {
   ModelObserverEndpoint,
   RuntimeCloseResult,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import {
   createDemoObserverAccess,
   createDemoObserverEndpoint,
