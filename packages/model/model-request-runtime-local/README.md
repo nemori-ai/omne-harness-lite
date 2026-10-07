@@ -10,6 +10,8 @@ The current implementation contains standalone invocation, pure policy functions
 
 Public operation types and portable policy/history/response functions in the API tables below come from `@omne-harness-lite/model-request-runtime`. Concrete invocation, coordination and storage factories come from this package. See the [public owner](../../core/model-request-runtime/README.md). The unique `MODEL_RUNTIME_SERVICE` key comes from the public `./cordis` entry.
 
+`ownOpenCallInput(input)` checks and copies request-owned JSON before host admission. It preserves the original host and observer endpoint references. It does not check permission or acquire resources. See [SPEC.md](SPEC.md).
+
 ## Public API
 
 | Export                                                                                    | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |

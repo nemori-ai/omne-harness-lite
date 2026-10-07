@@ -10,6 +10,8 @@
 
 下文 API 表中的公共操作类型和选择、重试、历史、响应构造函数从 `@omne-harness-lite/model-request-runtime` 导入；具体调用、协调、存储等工厂从本包导入。见[公共拥有者](../../core/model-request-runtime/README_ZH.md)。唯一 `MODEL_RUNTIME_SERVICE` 键从公共 `./cordis` 导入。
 
+`ownOpenCallInput(input)` 在宿主准入前检查并复制请求自有 JSON，保留原 host 与 observer endpoint 引用。它不核验权限，不登记资源。行为见 [SPEC.md](SPEC.md)。
+
 ## 公开接口
 
 | 导出                                                                                      | 用途                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |

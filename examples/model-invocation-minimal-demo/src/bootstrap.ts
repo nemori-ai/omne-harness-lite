@@ -62,6 +62,7 @@ import {
   createModelCallContentStore,
   createModelCallFacts,
   createModelRuntime,
+  ownOpenCallInput,
   modelCallContentMigrations,
   type RuntimeConstruction,
   type SettlementCoordinator,
@@ -660,7 +661,8 @@ export function createAcceptanceApplication(
   let transportService: ModelTransportService | undefined
   const modelContributions: Fiber[] = []
   let modelRuntime: ReturnType<typeof createModelRuntime<PlannedRequest, RawResponse>> | undefined
-  let projectModel: ((actor: AuthenticatedActor) => ModelRuntimeOperations) | undefined
+  let projectModel:
+    ((actor: AuthenticatedActor, boundSession?: SessionRef) => ModelRuntimeOperations) | undefined
   let currentInputs: CurrentEvaluationInputs | undefined
   let inputSource: InputSourceDependencies | undefined
   let requestDeployment: ModelRequestDeployment | undefined
@@ -2045,7 +2047,7 @@ export function createAcceptanceApplication(
           }
           try {
             modelRuntime = createModelRuntime(construction)
-            projectModel = original => {
+            projectModel = (original, boundSession) => {
               // Capture identity values, then recheck the same subject at every admission point.
               const actor: AuthenticatedActor = Object.freeze({
                 ...original,
@@ -2054,6 +2056,8 @@ export function createAcceptanceApplication(
               const qualification = new AbortController()
               const revoked = AbortSignal.any([accessRevocation.signal, qualification.signal])
               const qualify = async (session: SessionRef) => {
+                if (boundSession !== undefined && session !== boundSession)
+                  return { failure: 'stageClosed' as const }
                 const current = await sessionAccess(actor, session)
                 if (
                   'step' in current &&
@@ -2091,6 +2095,8 @@ export function createAcceptanceApplication(
                   async bind(
                     session: SessionRef,
                   ): ReturnType<ModelRuntimeHostInputs['sessions']['bind']> {
+                    if (boundSession !== undefined && recoveryAdmission.has(session))
+                      return { failure: 'unavailable' }
                     const access = await qualify(session)
                     if (revoked.aborted || !('borrow' in access)) return { failure: 'unavailable' }
                     if (
@@ -2891,33 +2897,25 @@ export function createAcceptanceApplication(
       return { service: boundModelService(access.checked, access.borrow.binding.session) }
     })
   }
-  function actorModel(actor: AuthenticatedActor): ModelRuntimeOperations {
+  function actorModel(
+    actor: AuthenticatedActor,
+    boundSession?: SessionRef,
+  ): ModelRuntimeOperations {
     if (projectModel === undefined) throw new AcceptanceOperationDefect('modelRuntime')
-    return projectModel(actor)
+    return projectModel(actor, boundSession)
   }
   function boundModelService(
     actor: AuthenticatedActor,
     session: SessionRef,
   ): ModelRuntimeOperations {
     if (modelRuntime === undefined) throw new AcceptanceOperationDefect('modelRuntime')
-    const service = actorModel(actor)
-    function invoke<I extends { readonly session: SessionRef }, R>(
-      input: I,
-      operation: (value: I) => Promise<R>,
-      denied: R,
-    ): Promise<R> {
-      if (input?.session !== session || closing || recoveryAdmission.has(session))
-        return Promise.resolve(denied)
-      return trackSession(session, async () => {
-        const access = await sessionAccess(actor, session)
-        if (!('borrow' in access) || recoveryAdmission.has(session)) return denied
-
-        return operation(input)
-      })
+    const service = actorModel(actor, session)
+    function invoke<I, R>(input: I, operation: (value: I) => Promise<R>): Promise<R> {
+      // The projected ports enforce this Session after each operation's own representation check.
+      return trackSession(session, () => operation(input))
     }
     function scopedFailure<I extends { readonly session: SessionRef }, R>(
       operation: FailureConsumableOperation<I, R>,
-      denied: R,
     ): FailureConsumableOperation<I, R> {
       function call(input: I): Promise<R>
       function call(
@@ -2929,72 +2927,49 @@ export function createAcceptanceApplication(
         options?: { readonly consumeFailure: true },
       ): Promise<R | FailureConsumption<R>> {
         return options === undefined
-          ? invoke(input, value => operation(value), denied)
-          : invoke(input, value => operation(value, options), {
-              result: denied,
-              consumption: { kind: 'notApplicable' },
-            } as const)
+          ? invoke(input, value => operation(value))
+          : invoke(input, value => operation(value, options))
       }
       return call
     }
     return {
-      acquireCall: input => {
-        if (input?.ref?.session !== session || closing || recoveryAdmission.has(session))
-          return Promise.resolve({ unavailable: true })
-        return trackSession(session, async () => {
+      acquireCall: input => invoke(input, value => service.acquireCall(value)),
+      // ACK still obtains its own fresh access; a held reference never confirms permission.
+      acknowledgeCall: input => invoke(input, value => service.acknowledgeCall(value)),
+      legalTargets: input => invoke(input, value => service.legalTargets(value)),
+      displayList: input => invoke(input, value => service.displayList(value)),
+      effectiveModel: input => invoke(input, value => service.effectiveModel(value)),
+      selectModel: input => invoke(input, value => service.selectModel(value)),
+      openCall: input => {
+        const owned = ownOpenCallInput(input)
+        if ('invalidInput' in owned) return Promise.resolve(owned)
+        return invoke(owned.request, async value => {
+          if (value.session !== session) return { unavailable: true } as const
           const access = await sessionAccess(actor, session)
-          if (!('borrow' in access) || recoveryAdmission.has(session)) return { unavailable: true }
-
-          return service.acquireCall(input)
+          if (!('borrow' in access) || recoveryAdmission.has(session))
+            return { unavailable: true } as const
+          if (![...(callHosts.get(session) ?? [])].some(owner => owner.host === value.host))
+            return { runtimeStopped: true } as const
+          const result = await service.openCall(value)
+          if ('callId' in result) retainCall(session, result.callId)
+          return result
         })
       },
-      acknowledgeCall: input => {
-        if (input?.ref?.session !== session || closing || recoveryAdmission.has(session))
-          return Promise.resolve({ unavailable: true })
-        // Only the runtime's own fresh, awaited `ack` access check can confirm; a held reference
-        // or an unreleased consumer never does.
-        return trackSession(session, async () => {
-          const access = await sessionAccess(actor, session)
-          if (!('borrow' in access) || recoveryAdmission.has(session)) return { unavailable: true }
-
-          return service.acknowledgeCall(input)
-        })
-      },
-      legalTargets: input =>
-        invoke(input, value => service.legalTargets(value), { unavailable: true }),
-      displayList: input =>
-        invoke(input, value => service.displayList(value), { unavailable: true }),
-      effectiveModel: input =>
-        invoke(input, value => service.effectiveModel(value), { unavailable: true }),
-      selectModel: input =>
-        invoke(input, value => service.selectModel(value), { unavailable: true }),
-      openCall: input =>
-        invoke(
-          input,
-          async value => {
-            if (![...(callHosts.get(session) ?? [])].some(owner => owner.host === value.host))
-              return { runtimeStopped: true } as const
-            const result = await service.openCall(value)
-            if ('callId' in result) retainCall(session, result.callId)
-            return result
-          },
-          { runtimeStopped: true },
-        ),
-      dispatch: scopedFailure(service.dispatch, { runtimeStopped: true }),
-      dispatchAgain: scopedFailure(service.dispatchAgain, { runtimeStopped: true }),
-      interrupt: input => invoke(input, value => service.interrupt(value), { unavailable: true }),
-      releaseCall: input =>
-        invoke(input, value => service.releaseCall(value), { unavailable: true }),
+      dispatch: scopedFailure(service.dispatch),
+      dispatchAgain: scopedFailure(service.dispatchAgain),
+      interrupt: input => invoke(input, value => service.interrupt(value)),
+      releaseCall: input => invoke(input, value => service.releaseCall(value)),
       reconcile: async input => {
+        const represented = parseOpaqueIdentifier(input?.session, 'SessionRef')
+        if (!isOk(represented) || !validateMessage('SessionRef', represented.ok).valid)
+          return { invalidInput: { reason: 'malformed' } }
         if (input.session !== session) return { unavailable: true }
         const result = await reconcileModelRuntime(actor, session)
         return 'calls' in result || 'invalidInput' in result ? result : { unavailable: true }
       },
-      readAttempts: scopedFailure(service.readAttempts, { unavailable: true }),
-      settleReply: input =>
-        invoke(input, value => service.settleReply(value), { unavailable: true }),
-      canDispatchAgain: input =>
-        invoke(input, value => service.canDispatchAgain(value), { unavailable: true }),
+      readAttempts: scopedFailure(service.readAttempts),
+      settleReply: input => invoke(input, value => service.settleReply(value)),
+      canDispatchAgain: input => invoke(input, value => service.canDispatchAgain(value)),
     }
   }
   function attachModelCallHost(

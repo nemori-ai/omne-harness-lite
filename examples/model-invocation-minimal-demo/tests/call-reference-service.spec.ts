@@ -158,6 +158,11 @@ describe('durable call references through the actual demo model service', () => 
       expect(await f.logins.verify(f.who.loginState)).toEqual({ ok: f.who.account })
       expect(await f.service.acquireCall({ ref: reference, mode: 'read' })).toHaveProperty('view')
       expect(await waiting.consumer.wait({})).toEqual({ unavailable: true })
+      for (const disposition of ['persisted', { consumed: { by: 'bogus' } }]) {
+        expect(
+          await Reflect.apply(b.settleReply, undefined, [{ ...reference, disposition }]),
+        ).toEqual({ invalidInput: { reason: 'malformed' } })
+      }
       waiting.consumer.release()
       await waiting.consumer.stopped
       expect(await b.effectiveModel({ session: f.session })).toEqual({ unavailable: true })
