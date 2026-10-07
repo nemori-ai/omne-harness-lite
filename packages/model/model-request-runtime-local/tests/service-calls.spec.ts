@@ -69,7 +69,7 @@ test('unknown writes retain their own original readers on the real JSONL source'
       const acquired = owner.acquire(policy().limits.concurrent)
       if (!('registration' in acquired)) throw new Error('actual original writer admission')
       const registration = acquired.registration
-      const task = registration.start('append', async signal => {
+      const task = registration.start('append', async () => {
         await binding.log.append(
           actualSession,
           [
@@ -85,7 +85,6 @@ test('unknown writes retain their own original readers on the real JSONL source'
           ],
           { kind: 'unfenced' },
           { kind: 'unconditional' },
-          signal,
         )
         return { failure: 'unavailable' } as const
       })
