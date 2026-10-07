@@ -4,7 +4,7 @@ import type { CallKey as SharedCallKey, CreationKey } from '@omne-harness-lite/m
 import type { CallKey } from '../src/reference-types.ts'
 import type { CallConsumer, AcquireCallInput } from '@omne-harness-lite/model-request-runtime'
 import type {
-  ModelRuntimeService,
+  ModelRuntimeOperations,
   OpenCallInput,
   SettleReplyInput,
 } from '@omne-harness-lite/model-request-runtime'
@@ -13,7 +13,9 @@ test('D110 keeps one shared identity and independent consumer controls', () => {
   expectTypeOf<CallKey>().toEqualTypeOf<SharedCallKey>()
   expectTypeOf<OpenCallInput['creationKey']>().toEqualTypeOf<CreationKey>()
   expectTypeOf<keyof CallConsumer>().toEqualTypeOf<'wait' | 'release' | 'stopped'>()
-  expectTypeOf<Parameters<ModelRuntimeService['acquireCall']>>().toEqualTypeOf<[AcquireCallInput]>()
+  expectTypeOf<Parameters<ModelRuntimeOperations['acquireCall']>>().toEqualTypeOf<
+    [AcquireCallInput]
+  >()
   expectTypeOf<SettleReplyInput['disposition']>().toEqualTypeOf<
     Exclude<ReplyDisposition, 'persisted'>
   >()

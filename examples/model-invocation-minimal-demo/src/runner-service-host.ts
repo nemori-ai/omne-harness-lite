@@ -29,7 +29,7 @@ import {
   type SettlementRegistration,
 } from '@omne-harness-lite/model-request-runtime-local'
 import type {
-  ModelRuntimeService,
+  ModelRuntimeOperations,
   CanDispatchAgainResult,
 } from '@omne-harness-lite/model-request-runtime'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
@@ -76,7 +76,7 @@ export type AuthorizedRunnerScope = { readonly binding: SettlementLogBinding } &
 /** This port is supplied only by an actual external Run/environment owner. */
 export interface DemoRunnerServiceHostDependencies {
   readonly runnerHost: ReturnType<typeof createDemoRunnerHost>
-  readonly model: ModelRuntimeService
+  readonly model: ModelRuntimeOperations
   readonly manifest: AssemblyManifestStore
   readonly history: RunnerReadScope['sources']['history']
   readonly sessionTenancy: SessionTenancyService

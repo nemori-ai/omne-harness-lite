@@ -2,7 +2,7 @@ import type {
   CallHistoryDispatch,
   FailureConsumption,
   ModelFailureSource,
-  ModelRuntimeService,
+  ModelRuntimeOperations,
   ReadAttemptDispatch,
   ReadAttemptsResult,
   RuntimeCloseResult,
@@ -43,7 +43,7 @@ import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { requestStopAndWait } from './settlement-stop.ts'
 
 type ReadMethods = Pick<
-  ModelRuntimeService,
+  ModelRuntimeOperations,
   | 'legalTargets'
   | 'displayList'
   | 'effectiveModel'

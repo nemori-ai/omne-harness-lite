@@ -781,13 +781,13 @@ export type AcknowledgeCallResult =
   | ServiceCallNotFound
   | ServiceWrongPhase
 
-/** RT12 S-96: the fifteenth operation of ModelRuntimeService. */
+/** RT12 S-96: the fifteenth operation of ModelRuntimeOperations. */
 export type AcknowledgeCallOperation = (
   input: AcknowledgeCallInput,
 ) => Promise<AcknowledgeCallResult>
 
 /** One service, with each operation's own closed result rather than a catch-all failure. */
-export interface ModelRuntimeService {
+export interface ModelRuntimeOperations {
   readonly acquireCall: (input: AcquireCallInput) => Promise<AcquireCallResult>
   readonly legalTargets: (input: {
     readonly session: SessionRef

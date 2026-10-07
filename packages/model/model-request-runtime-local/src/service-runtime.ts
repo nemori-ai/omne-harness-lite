@@ -1,7 +1,7 @@
 import type {
   FailureConsumableOperation,
   FailureConsumption,
-  ModelRuntimeService,
+  ModelRuntimeOperations,
   RuntimeCloseResult,
 } from '@omne-harness-lite/model-request-runtime'
 import { randomUUID } from 'node:crypto'
@@ -26,7 +26,7 @@ const runtimeStopped = Object.freeze({ runtimeStopped: true } as const)
 export function createModelRuntime<P extends PlannedSemantics, R>(
   construction: RuntimeConstruction<P, R>,
 ): {
-  readonly service: ModelRuntimeService
+  readonly service: ModelRuntimeOperations
   readonly close: () => Promise<RuntimeCloseResult>
 } {
   if (ownedStores.has(construction.calls)) throw new TypeError('call store already owned')
@@ -145,7 +145,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
     return invoke
   }
 
-  const service: ModelRuntimeService = Object.freeze({
+  const service: ModelRuntimeOperations = Object.freeze({
     acquireCall: guarded(acquire.acquireCall, unavailable, true),
     legalTargets: guarded(reads.methods.legalTargets, unavailable),
     displayList: guarded(reads.methods.displayList, unavailable),

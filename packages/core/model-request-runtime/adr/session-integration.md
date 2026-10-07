@@ -1,9 +1,9 @@
 # 模型Runtime的限定整改输入
 
-状态：第一期目标设计，尚未切换现行消费者或获得本次新增接口的限定采用。物理迁移不改变接受状态。
+状态：负责人已授权F0地基实施。十五操作公共定义、拥有者事实codec、Session attempt事实及原发起participant已有实现和消费者迁移；完整Session准入、生产历史、G28与保管／ACK装配仍属后续增量。F0整体验收与负责人review尚未完成。
 
-当前接受精确源为[RT12](../../../../.meta_harness/design/spec/capabilities/model-request-runtime/v12/contract.md)、MS8／MR11／CA4／SL3及registry接受条目；SPEC目前只迁入纯retryDelay，不能据此声称全部十五操作已转薄规格。
-提供者现有`ModelRuntimeService`／`RuntimeConstruction`及十五操作已组合，生产G28来源、全部写方、当前主体和真实OpenRouter认证仍需宿主证据；类型不认证来源。
+当前接受精确源为[RT12](../../../../.meta_harness/design/spec/capabilities/model-request-runtime/v12/contract.md)、MS8／MR11／CA4／SL3及registry接受条目；SPEC拥有已迁的纯策略、日志及原发起增量，十五操作未迁的业务行为仍由精确旧源约束。
+`ModelRuntimeOperations`归本包纯根；`ModelRuntimeService`定义类归`./cordis`。提供者的`RuntimeConstruction`及实际执行保持独立；生产G28来源、全部写方、当前主体和真实OpenRouter认证仍需宿主证据，类型不认证来源。具名宿主接缝与生命周期目标见[集成边界](runtime-integration.md)。
 
 ## 必须切换的责任
 

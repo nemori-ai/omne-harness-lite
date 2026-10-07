@@ -52,7 +52,7 @@ import {
   type SettlementDiagnostic,
 } from '@omne-harness-lite/model-request-runtime-local'
 import type {
-  ModelRuntimeService,
+  ModelRuntimeOperations,
   ModelCallHost,
   ModelObserverRequest,
   DispatchResult,
@@ -535,7 +535,7 @@ export interface AcceptanceApplication {
   bindModelRuntime(
     actor: AuthenticatedActor,
     session: unknown,
-  ): Promise<ScenarioResult<{ readonly service: ModelRuntimeService }>>
+  ): Promise<ScenarioResult<{ readonly service: ModelRuntimeOperations }>>
   startServiceCall(
     actor: AuthenticatedActor,
     session: unknown,
@@ -681,7 +681,10 @@ export function createAcceptanceApplication(
   let transportService: ModelTransportService | undefined
   const modelContributions: Fiber[] = []
   let modelRuntime:
-    | { readonly service: ModelRuntimeService; readonly close: () => Promise<RuntimeCloseResult> }
+    | {
+        readonly service: ModelRuntimeOperations
+        readonly close: () => Promise<RuntimeCloseResult>
+      }
     | undefined
   let currentInputs: CurrentEvaluationInputs | undefined
   let inputSource: InputSourceDependencies | undefined
@@ -2933,7 +2936,7 @@ export function createAcceptanceApplication(
   function bindModelRuntime(
     actor: AuthenticatedActor,
     session: unknown,
-  ): Promise<ScenarioResult<{ readonly service: ModelRuntimeService }>> {
+  ): Promise<ScenarioResult<{ readonly service: ModelRuntimeOperations }>> {
     if (stage !== 'modelRequest' || !admit()) return Promise.resolve({ failure: 'stageClosed' })
     return trackSessionInput(session, async () => {
       const access = await sessionAccess(actor, session)
@@ -2944,7 +2947,10 @@ export function createAcceptanceApplication(
       return { service: boundModelService(access.checked, access.borrow.binding.session) }
     })
   }
-  function boundModelService(actor: AuthenticatedActor, session: SessionRef): ModelRuntimeService {
+  function boundModelService(
+    actor: AuthenticatedActor,
+    session: SessionRef,
+  ): ModelRuntimeOperations {
     if (modelRuntime === undefined) throw new AcceptanceOperationDefect('modelRuntime')
     const service = modelRuntime.service
     function invoke<I extends { readonly session: SessionRef }, R>(
@@ -3310,7 +3316,7 @@ export function createAcceptanceApplication(
   async function modelSelectionOperation<T>(
     actor: AuthenticatedActor,
     session: unknown,
-    work: (service: ModelRuntimeService, session: SessionRef) => Promise<T>,
+    work: (service: ModelRuntimeOperations, session: SessionRef) => Promise<T>,
   ): Promise<ScenarioResult<T>> {
     const bound = await bindModelRuntime(actor, session)
     if (!('service' in bound)) return bound

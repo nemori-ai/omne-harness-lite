@@ -12,7 +12,7 @@ import type { ModelCallHost } from '@omne-harness-lite/model-request-runtime'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
 import type { CallContainerStore, RuntimeConstruction } from '../src/service-types.ts'
-import type { ModelRuntimeService } from '@omne-harness-lite/model-request-runtime'
+import type { ModelRuntimeOperations } from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
@@ -632,7 +632,7 @@ it.each(['open', 'dispatch'] as const)(
   },
 )
 
-function isRuntimeService(value: unknown): value is ModelRuntimeService {
+function isRuntimeService(value: unknown): value is ModelRuntimeOperations {
   if (value === null || typeof value !== 'object') return false
   return [
     'legalTargets',

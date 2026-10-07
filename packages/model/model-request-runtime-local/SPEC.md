@@ -25,7 +25,7 @@
 
 十五操作的公共定义与 Cordis Service 定义已迁至 core/model-request-runtime；本包维护实际提供者和私有 construction。跨包调用者使用 core 公共类型，不依赖本包私有实现类型。完整迁移验收尚未完成。
 生产 Session/Run 历史、终结与恢复来源仍由其各自拥有者承担，本批不宣称完整 Agent Runtime 已实现。
-实际 runtime 的普通对象提供及键归属仍有 IC 偏差，N4 不以源码包装成符合规范。
+实际 runtime 以公共定义的本地Service子类提供，唯一键归core。具名宿主输入、执行支持及调用方Context主体投影仍按[集成目标](adr/service-lifetime.md)接续；当前construction工厂和本次类转发不证明这些后续IC义务已兑现。
 
 ## 验证
 

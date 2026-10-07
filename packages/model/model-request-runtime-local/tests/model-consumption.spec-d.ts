@@ -7,11 +7,11 @@ import type {
   FailureConsumption,
   ModelFailureExecution,
   ModelFailureSource,
-  ModelRuntimeService,
+  ModelRuntimeOperations,
   ReadAttemptsResult,
 } from '@omne-harness-lite/model-request-runtime'
 
-declare const service: ModelRuntimeService
+declare const service: ModelRuntimeOperations
 declare const key: CallKey
 declare const dispatchInput: DispatchInput
 declare const againInput: DispatchAgainInput

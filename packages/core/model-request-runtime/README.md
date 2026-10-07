@@ -15,6 +15,8 @@ Behavior beyond types belongs to [SPEC.md](SPEC.md).
 
 The template marker reports structural adoption. It does not establish complete business or lifecycle acceptance.
 
+Target integration and ownership choices are in [ADR](adr/runtime-integration.md).
+
 ## Development
 
 Run from the repository root:

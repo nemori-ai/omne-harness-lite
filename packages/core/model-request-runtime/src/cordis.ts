@@ -5,7 +5,7 @@ import type {
   ModelInputMeters as Operations2,
   ModelRetrySample as Operations3,
   DevelopmentTransportTls as Operations4,
-  ModelRuntimeService as RuntimeOperations,
+  ModelRuntimeOperations as RuntimeOperations,
 } from './index.ts'
 
 /** The unique public Service definition for all fifteen model runtime operations.
