@@ -4,7 +4,6 @@
 
 ## 新建或接续主题
 
-[Session／Agent Runtime第一期](session-agent-runtime-phase1/README.md)：持久协调、独立会话作用域及前缀投影三组候选；作者推荐与独立选择／表达／计划评审已记录，技术采用尚待确认。
 
 - 新主题从本地 [topic 模板包](.templates/topic/README.md) 开始，复制为 `<topic>/`；包内为入口和 `design.md + alternatives.md + review.md`。
 - 接续已有主题先读该主题入口，保留有效正文、精确来源和实际状态，只补本次缺口。

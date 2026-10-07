@@ -1,6 +1,6 @@
 # 验证责任、范围与实施门
 
-当前设计探针是小型机制／算法取证，代码放任务tmp，不成为产品实现。正式有限模型由[Session协调候选](../../record/proposals/session-agent-runtime-phase1/contracts/session-runtime/SPEC.md)拥有，未来移动到其成员verification槽。具体运行结果及独立评审留record证据；本页不复制运行日志。
+形式模型、负控配置及可复跑探针已归对应包verification。具体命令与有限前提分别见仓库坐标`packages/core/session-runtime/verification/README.md`、`packages/core/model-message-projection/verification/README.md`、`packages/session/session-runtime-local/verification/README.md`（均为设计准备槽，尚非workspace成员）。运行日志和评审过程只留工作树tmp；本页不引用record历史目录。
 
 | 义务 | 唯一责任拥有者 | 本阶段证据／实施后必须补 |
 |---|---|---|
@@ -20,8 +20,8 @@
 
 ## 实施前与接受前
 
-技术选择／表达／施工计划分别独立评审，评审不是接受。需获得本次新边界与改变承诺的限定采用后，才将候选移入真实成员并实施。
-未迁冻结规范不就地改字；逐条源／消费者／验证义务切换、删后核验、正式接受记录齐备才退役旧源。实现仅按已接受承诺长出。
+技术选择／表达／施工计划分别独立评审，评审不是接受。需获得本次新边界与改变承诺的限定采用后，才实施该范围；本轮物理迁移不替代采用。
+未迁冻结规范不就地改字；逐条源／消费者／验证义务切换、删后核验、精确采用范围可在当前拥有者定位才退役旧源。实现仅按已接受承诺长出。
 实际交付按风险入口定级，跨owner同提交、租户／凭据和在途执行是高风险热点；实施交付需独立实现评审与真实组合验收，不能以本轮设计检查接受15卡。
 
 ## 诊断与配置

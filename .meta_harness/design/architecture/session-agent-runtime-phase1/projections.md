@@ -1,6 +1,6 @@
 # 投影组合与模型请求边界
 
-模块算法及成本承诺唯一正文在[候选model-message-projection](../../record/proposals/session-agent-runtime-phase1/contracts/model-message-projection/SPEC.md)；本页仅说明跨模块输入与发布责任。
+模块算法及成本承诺唯一正文在`packages/core/model-message-projection/SPEC.md`（候选设计槽，尚非workspace成员）；本页仅说明跨模块输入与发布责任。
 
 ## 完整模型请求输入
 
