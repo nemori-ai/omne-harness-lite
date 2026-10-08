@@ -33,7 +33,9 @@ export const match = z
       ),
     occurrence: positive
       .optional()
-      .describe('One-based occurrence. Required when the text has multiple matches.'),
+      .describe(
+        'One-based occurrence, ordered by start position. Overlapping candidates count. An absent occurrence fails when multiple matches exist. An unavailable occurrence fails.',
+      ),
   })
   .strict()
   .describe('One original-text match selector.')

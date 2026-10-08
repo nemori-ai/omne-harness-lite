@@ -40,5 +40,12 @@
     "sharp": {
       "optional": true
     }
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "module"
+    }
   }
 }

@@ -42,3 +42,41 @@ test('descriptor guards reject proxies, getters and shared buffers without invok
   expect(bytesSchema.safeParse(new Uint8Array(new SharedArrayBuffer(4))).success).toBe(false)
   expect(bytesSchema.safeParse(new Proxy(new Uint8Array(4), {})).success).toBe(false)
 })
+
+test.each([
+  'name',
+  'revision',
+  'inputMediaTypes',
+  'outputFormats',
+  'available',
+  'inspect',
+  'decode',
+])('codec admission rejects invalid %s descriptors without invoking them', key => {
+  let called = 0
+  const codec = createSharpImageCodec(sharp)
+  const getter = Object.defineProperty({ ...codec }, key, {
+    get() {
+      called++
+      return null
+    },
+  })
+  expect(() => validateCodec(getter)).toThrow('Invalid loaded codec')
+  expect(called).toBe(0)
+  const value = key === 'inputMediaTypes' || key === 'outputFormats' ? [] : ''
+  expect(() => validateCodec(Object.defineProperty({ ...codec }, key, { value }))).toThrow(
+    'Invalid loaded codec',
+  )
+})
+test('nested byte-view shadowing and cyclic data cannot spoof safe input', () => {
+  const shadowed = Object.defineProperty(new Uint8Array(4), 'byteLength', {
+    get() {
+      throw Error('getter invoked')
+    },
+  })
+  expect(bytesSchema.safeParse(shadowed).success).toBe(false)
+  const cyclic: { child?: unknown } = {}
+  cyclic.child = cyclic
+  expect(dataOnly(cyclic)).toBe(false)
+  expect(dataOnly(new Date())).toBe(false)
+  expect(dataOnly({ first: { limit: 1 }, second: [null, true] })).toBe(true)
+})

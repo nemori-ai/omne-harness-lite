@@ -105,7 +105,11 @@ async function submitPatch(targets: readonly PatchFile[], call: FileCall) {
 export async function writeFile(input: unknown, call: FileCall) {
   const args = argumentSchemas.write.parse(input)
   // Reject oversized strings before allocating decoded bytes.
-  if (args.content.length > call.options.maxWriteBytes * 2) return rejected('capacity:writeBytes')
+  const encodedLimit =
+    args.encoding === 'base64'
+      ? 4 * Math.ceil(call.options.maxWriteBytes / 3)
+      : call.options.maxWriteBytes * 2
+  if (args.content.length > encodedLimit) return rejected('capacity:writeBytes')
   const data = contentBytes(args.content, args.encoding)
   if (!data) return rejected('encoding:invalidContent')
   if (data.byteLength > call.options.maxWriteBytes) return rejected('capacity:writeBytes')
