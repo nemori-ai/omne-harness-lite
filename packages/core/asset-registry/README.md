@@ -24,3 +24,5 @@ pnpm --filter @omne-harness-lite/asset-registry run build
 pnpm --filter @omne-harness-lite/asset-registry run typecheck
 pnpm --filter @omne-harness-lite/asset-registry run test
 ```
+
+Behavior belongs to [SPEC](SPEC.md). Check methods and limits belong to [verification](verification/README.md).

@@ -1,6 +1,6 @@
 // 迁移前的只读核对：装配把几条核对交给存储提供者，提供者在跑迁移与任何写之前、
 // 一次只读事务里逐条执行；任一不过 ⇒ 不写任何东西、具名启动失败。
-// 设计：.meta_harness/design/realization/packages/infra/storage-sql/design.md「迁移前只读核对」，
+// 设计：packages/infra/storage-sql/SPEC.md，
 // 判据各归其主：数据格式归 tenancy-host，时钟回拨归 infra/clock，中心标识表归 tenancy/governance-center-entry。
 import type { ReadTx } from './protocol.ts'
 

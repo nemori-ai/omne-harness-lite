@@ -88,7 +88,7 @@
 | 词条索引 `index.md` 的每一行，与分卷里的标题在 ID、中文名、英文名、锚点上一致 | 索引是手写的，会漂 |
 | 形态为「对象」的词条 ⇔ objects.md 有同名条目；形态为「未定」的词条 ⇒ pending.md 与 conflicts.md 都提到它 | 两边不各说各话 |
 | 条目四个必填字段齐全；「依据」的每条链接都指向某个 topic 的 `design.md` 或 `flows.md`，且带着 rev；待裁四个必填字段齐全 | 依据指到历史与推导上，等于没有依据 |
-| 链接与锚点都还在——这一项由 `check_design.py` 对设计根下全部 Markdown 统一查 | 标题一改，锚点就断 |
+| 链接与锚点都还在——这一项由 `check_sources.py` 调用 `source_links.py` 对设计根下全部 Markdown 统一查 | 标题一改，锚点就断 |
 | **每条「依据」、每条词条「出处」、每项待裁「牵涉」标的 rev，等于该 topic 当前的 rev** | **这是全部对账里最要紧的一道**：rev 是词表、对象条目与产品正文对齐的唯一凭据，凭据自己不被检查，整套对账就是自证 |
 | 每个 topic 的 rev 只有一个说法：`README.md` front-matter 的 `revision` 为准，`design.md` 抬头、`changelog.md` 最新一节与产品区两张手写 rev 表若写了 rev，必须与它相等 | rev 自己有两个说法的话，上一道检查无从比对 |
 | `views/domain-object-map.md` 与现在算出来的一致 | 派生物入库，靠这个守住不漂 |

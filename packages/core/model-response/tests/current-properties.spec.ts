@@ -19,13 +19,7 @@ import loopSchema from '@omne-harness-lite/loop-extension/schema' with { type: '
 import responseSchema from '@omne-harness-lite/model-response/schema' with { type: 'json' }
 import { isObject } from '../src/json.ts'
 
-const source = readFileSync(
-  new URL(
-    '../../../../.meta_harness/design/spec/data/model-response/v11/examples.md',
-    import.meta.url,
-  ),
-  'utf8',
-)
+const source = readFileSync(new URL('fixtures/response-examples.md', import.meta.url), 'utf8')
 function parse(text: string): JsonValue {
   const result = readJsonStrict(text)
   if ('failed' in result) throw new Error(`bad accepted example: ${result.failed}`)

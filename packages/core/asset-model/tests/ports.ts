@@ -1,3 +1,4 @@
+import { adoptedSchemaBytes } from './adopted-schema-input.ts'
 import { readFileSync } from 'node:fs'
 import {
   readJsonStrict,
@@ -23,15 +24,7 @@ function object(value: unknown): value is JsonObject {
 }
 function resource(topic: string): JsonObject {
   const version = topic === 'tool-definition' || topic === 'loop-extension' ? 3 : 2
-  const parsed = readJsonStrict(
-    readFileSync(
-      new URL(
-        `../../../../.meta_harness/design/spec/data/${topic}/v${version}/${topic}.schema.json`,
-        import.meta.url,
-      ),
-      'utf8',
-    ),
-  )
+  const parsed = readJsonStrict(adoptedSchemaBytes(topic, version).toString())
   if ('failed' in parsed || !object(parsed.ok)) throw new Error('test Schema must be JSON object')
   return parsed.ok
 }

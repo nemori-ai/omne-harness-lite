@@ -42,12 +42,7 @@ describe('frozen v2 normative examples', () => {
       fileURLToPath(new URL('../schema/tool-definition.schema.json', import.meta.url)),
     )
     const normative = readFileSync(
-      fileURLToPath(
-        new URL(
-          '../../../../.meta_harness/design/spec/data/tool-definition/v3/tool-definition.schema.json',
-          import.meta.url,
-        ),
-      ),
+      fileURLToPath(new URL('fixtures/tool-before-is-error.schema.json', import.meta.url)),
     )
     assertToolSchemaTransition(packaged, normative)
     const assertionFields = (definition: object) =>

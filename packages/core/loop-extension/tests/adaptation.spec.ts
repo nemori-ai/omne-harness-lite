@@ -37,10 +37,7 @@ function retry(modelCallId = 'mc_01') {
 }
 it('LC6 public Schema changes only AR-2; all 43 definitions compile; retained resources keep own ids', () => {
   const source = readFileSync(
-    new URL(
-      '../../../../.meta_harness/design/spec/data/loop-extension/v6/loop-extension.schema.json',
-      import.meta.url,
-    ),
+    new URL('./fixtures/action-subject-baseline.schema.json', import.meta.url),
   )
   assertLoopSchemaTransition(
     readFileSync(new URL('../schema/loop-extension.schema.json', import.meta.url)),

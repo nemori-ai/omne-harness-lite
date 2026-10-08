@@ -27,13 +27,14 @@ describe('回路配置', () => {
     })
     expect(config.sensors.assertions.assertionPattern.test('expectTypeOf')).toBe(true)
     expect(config.sensors.assertions.helperPattern).toBeUndefined()
-    expect(config.sensors.reflexion).toEqual({
-      enabled: true,
-      nodeRoot: '.meta_harness/design/realization',
-    })
-    expect(config.indicators.newDeviations).toEqual({ lines: null, baseline: false })
-    expect(config.indicators.assemblyChanges).toEqual({ lines: null, baseline: false })
-    expect(config.indicators.missingAssembly).toEqual({ lines: null, baseline: true })
+    expect(config.sensors.architecture).toEqual({ enabled: true })
+    for (const id of [
+      'addedAssemblyFacts',
+      'removedAssemblyFacts',
+      'changedAssemblyFacts',
+      'architectureChanges',
+    ] as const)
+      expect(config.indicators[id]).toEqual({ lines: null, baseline: false })
     expect(config.indicators.unresolvedServiceNames).toEqual({ lines: null, baseline: true })
     expect(config.health).toEqual({ weeks: 8, commits: 50, runs: 10 })
     expect(config.hook).toEqual({
@@ -99,21 +100,46 @@ describe('回路配置', () => {
     ).toThrow('不是合法的正则表达式')
     expect(
       without(value => {
-        delete (value['sensors'] as Record<string, unknown>)['reflexion']
+        delete (value['sensors'] as Record<string, unknown>)['architecture']
       }),
-    ).toThrow('sensors.reflexion')
+    ).toThrow('sensors.architecture')
     expect(
       without(value => {
         const sensors = value['sensors'] as Record<string, Record<string, unknown>>
-        if (sensors['reflexion'] !== undefined) delete sensors['reflexion']['nodeRoot']
+        if (sensors['architecture'] !== undefined) sensors['architecture']['nodeRoot'] = 'old'
       }),
-    ).toThrow('sensors.reflexion.nodeRoot')
+    ).toThrow('sensors.architecture 里有认不出的项：nodeRoot')
     expect(
       without(value => {
         const sensors = value['sensors'] as Record<string, Record<string, unknown>>
-        if (sensors['reflexion'] !== undefined) sensors['reflexion']['typo'] = true
+        if (sensors['architecture'] !== undefined) sensors['architecture']['typo'] = true
       }),
-    ).toThrow('sensors.reflexion 里有认不出的项')
+    ).toThrow('sensors.architecture 里有认不出的项')
+    for (const id of [
+      'addedAssemblyFacts',
+      'removedAssemblyFacts',
+      'changedAssemblyFacts',
+      'architectureChanges',
+    ]) {
+      expect(
+        without(value => {
+          ;(value['indicators'] as Record<string, unknown>)[id] = { lines: null, baseline: true }
+        }),
+      ).toThrow('中性事实计数')
+      expect(
+        without(value => {
+          ;(value['indicators'] as Record<string, unknown>)[id] = {
+            lines: { warn: 1, act: 2, release: 0 },
+            baseline: false,
+          }
+        }),
+      ).toThrow('中性事实计数')
+    }
+    expect(
+      without(value => {
+        ;(value['sensors'] as Record<string, unknown>)['reflexion'] = { enabled: true }
+      }),
+    ).toThrow('sensors.reflexion 已移除')
     expect(without(value => delete value['health'])).toThrow('health 须为对象')
     expect(
       without(value => {

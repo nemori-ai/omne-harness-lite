@@ -4,10 +4,6 @@ import { describe, expect, it } from 'vitest'
 import { readJsonStrict } from '@omne-harness-lite/content-blocks'
 import { judgeAccountValue, validate } from '../src/index.ts'
 import { examples } from './fixtures.ts'
-const spec = new URL(
-  '../../../../.meta_harness/design/spec/data/call-accounts/v4/',
-  import.meta.url,
-)
 describe('V1/V2 frozen normative examples', () => {
   it('extracts all 116 rows rather than accepting an empty suite', () =>
     expect(examples).toHaveLength(116))
@@ -27,9 +23,7 @@ describe('V1/V2 frozen normative examples', () => {
     })
   }
   it('copies the frozen Schema byte-for-byte', () => {
-    const authoritative = readFileSync(new URL('call-accounts.schema.json', spec))
     const packaged = readFileSync(new URL('../schema/call-accounts.schema.json', import.meta.url))
-    expect(packaged.equals(authoritative)).toBe(true)
     expect(createHash('sha256').update(packaged).digest('hex')).toBe(
       '710a589f5692edfd4d5d474ff9fd5df6320dd98ffba7f4c711b50c8fb1dab368',
     )

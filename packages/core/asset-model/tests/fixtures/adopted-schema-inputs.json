@@ -1,0 +1,47 @@
+{
+  "asset-model/v3": {
+    "path": "../../asset-model/schema/asset-model.schema.json",
+    "sha256": "f674f438dfee8fc1d6ad6106113fe72699232092c84699e5b216ca2792137131",
+    "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v3/asset-model.schema.json"
+  },
+  "asset-model/v2": {
+    "path": "../../asset-model/schema/asset-model.v2.schema.json",
+    "sha256": "3b4a9302a51f902f89f6bb567f2b91b0533f323d8f315853e35ac15a679f5890",
+    "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v2/asset-model.schema.json"
+  },
+  "tool-definition/v2": {
+    "path": "../../tool-definition/schema/tool-definition.v2.schema.json",
+    "sha256": "21f6ff19640da3905b4697404b8d7c527a4f0a6ec4c870b3f0affdc558c469ae",
+    "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v2/tool-definition.schema.json"
+  },
+  "tool-definition/v3": {
+    "path": "../../tool-definition/tests/fixtures/tool-before-is-error.schema.json",
+    "sha256": "116e05d91003574cb2f8a50d51e82428c25d24552ad39e2eeb480edb94ec43a9",
+    "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v3/tool-definition.schema.json"
+  },
+  "loop-extension/v3": {
+    "path": "../../loop-extension/schema/loop-extension.v3.schema.json",
+    "sha256": "cc6c0bee411e7044166be429cd0e7701b92f0938b42d1a2f0ec86da4b8411b9f",
+    "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v3/loop-extension.schema.json"
+  },
+  "skill-package/v2": {
+    "path": "../../skill-package/schema/skill-package.v2.schema.json",
+    "sha256": "eb2b30c03023e02584d0bfec54f1905751c4049b41e16ae3744c8b9606cbd4e5",
+    "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/skill-package/v2/skill-package.schema.json"
+  },
+  "mcp-endpoint/v2": {
+    "path": "../../mcp-endpoint/schema/mcp-endpoint.schema.json",
+    "sha256": "4fcddf8b9e2a870be8d47ac0abf3fc835ad330f4bd0afd2d6cfe866796df2c13",
+    "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/mcp-endpoint/v2/mcp-endpoint.schema.json"
+  },
+  "slash-command/v2": {
+    "path": "../../slash-command/schema/slash-command.schema.json",
+    "sha256": "595e5662cf7ebd5d84c5ba3edee7b4dd8a6e817a4738343bfa86c318cc1ac40e",
+    "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/slash-command/v2/slash-command.schema.json"
+  },
+  "connector/v2": {
+    "path": "../../asset-model/schema/resources/connector.schema.json",
+    "sha256": "d02af56071f37786229142a73e93194529b7e3dad3b5a70c1a69e0fe44196d5d",
+    "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/connector/v2/connector.schema.json"
+  }
+}

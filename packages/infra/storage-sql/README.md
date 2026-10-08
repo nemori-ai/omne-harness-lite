@@ -281,3 +281,5 @@ restored application. These APIs do not perform disaster recovery.
 For package development, run this member's `build`, `typecheck`, and `test`
 scripts. PostgreSQL tests require a dedicated `OMNE_TEST_PG_URL`; skipping them
 does not verify PostgreSQL behavior.
+
+Behavior belongs to [SPEC](SPEC.md). Check methods and limits belong to [verification](verification/README.md).

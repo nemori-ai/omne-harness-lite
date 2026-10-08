@@ -172,4 +172,4 @@ assert.ok(created.$id.includes('/model-profile/v6/'))
 assert.deepEqual(current.$defs, created.$defs)
 ```
 
-Adoption and mapping: D110, [MP6 resource provider](../../../.meta_harness/design/realization/packages/core/model-profile/v6-schema-resource-design.md). [Resource and pure-value tests](tests/v6-resource.spec.ts) check original bytes, both exact snapshot definitions and lossless copying; actual runtime freezing, created-record round trips and sending guarantees require composition verification.
+Adoption and mapping: D110, [verification duties](verification/README.md). [Resource and pure-value tests](tests/v6-resource.spec.ts) check original bytes, both exact snapshot definitions and lossless copying; actual runtime freezing, created-record round trips and sending guarantees require composition verification.

@@ -78,6 +78,5 @@ adopted 表示本批采用的检查定位；candidate 是推断；unknown 是待
 SOLID 用于边界审阅，不生成总分。SRP 查变化责任，OCP 查真实替换与消费者差分，
 ISP 查实际消费，LSP 查失败、生命周期、租户等行为承诺，DIP 在明确责任上查源码依赖。
 类型相同和静态图都不证明行为可替换；缺测试或运行证据显示未验证。
-参考 [Martin 研究](../../research/clean-code-doctrine-current/research.md) C-9/C-10。
 插件树加载器与真实治理宿主已交付；
 静态检查尚不证明最终配置，须消费真实组合证据。IC-17 的新 Session 作用域机制及全库 IC 迁移仍待完成。

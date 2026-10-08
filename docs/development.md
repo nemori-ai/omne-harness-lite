@@ -15,9 +15,6 @@ Git 保存当前终态，不保存开发流水或决策形成史。实现侧的�
 > 的权威正文都不在这里，也不在 `docs/` ——它们归 [`.meta_harness/`](../.meta_harness/AGENTS.md)。
 > 需要做那些事时从那里进入，加载 `harness-design-handbook` skill，**不要在这边落字**。
 
-个人技术博客通过 `docs/blogs/` 子模块接入；归属见[源码布局](workspace.md#目录与内容归属)，
-操作见下文[博客子模块](#博客子模块)。
-
 ## 运行入口
 
 **先构建，再按所属应用的 README 启动。**治理中心的命令与配置见
@@ -26,7 +23,7 @@ Git 保存当前终态，不保存开发流水或决策形成史。实现侧的�
 
 产品包的构建、类型检查与测试分别为 `pnpm run build`、`pnpm run typecheck`、`pnpm run test`；
 结构检查为 `pnpm run lint:rules`。开发工具、agent 产物与形式模型的检查入口见下文。
-成员的实现及验证状态归[实现映射](../.meta_harness/design/realization/README.md)，本页不维护另一份进度清单。
+成员的公开承诺、实现及验证义务归实际包/应用；[架构维护入口](../.meta_harness/design/architecture/README.md)导航其归属。本页不维护另一份进度清单。
 
 ## 准备可用的检出
 
@@ -115,33 +112,6 @@ pnpm package:template scan --member packages/core/storage --check
 逐包核对全部目录、文件和资源归属，完成模板全量适配及适用集成责任的人工核验后，才能添加 omneHarness.packageTemplate 的 id/version/variant。保留原公开能力、源码、Schema 身份及模型义务，不批量抬升标识。不完整、未核对和仍有适用偏离的包保持无标识。[逐包核对记录](../tools/ts-checks/templates/package/adoption-review.md)列明本批采用与剩余范围。标识表示完整模板采用，不表示全系统或业务验收。
 
 扫描遍历全部源码节点，按精确版本与变体实例化模板树，未声明路径、错位资源、空目录和软链接均报失败；不沿 Git ignore 隐藏源码。只排除模板声明的根构建/依赖/临时目录并报告清单。标识状态、完整结构及静态集成结果分别显示。普通盘点退出 0 不表示合规；--check 的 0/1/2 分别表示当前完整结构通过且无已知集成偏离、采用/结构/偏离失败、规则未覆盖或输入错误。集成 unknown 仍须人工核对，0 不表示生命周期或业务验收。创建不覆盖已有目标，扫描不改文件。
-
-## 博客子模块
-
-`docs/blogs/` 是独立的个人博客仓库，地址由根 `.gitmodules` 记录。
-本项目的开发和构建不要求初始化它；博客仓库私有时，读取权限需要单独授予，
-拥有本项目权限不会自动获得博客权限。只做产品开发时可保留普通的非递归克隆方式。
-
-需要阅读或编辑博客时，在项目根执行：
-
-```sh
-git submodule update --init -- docs/blogs
-```
-
-这会检出本项目记录的博客 commit。开始编辑前，在博客仓库切到写作分支；
-若直接维护其主分支，执行 `git -C docs/blogs switch main`。
-文章的修改、提交和推送都在博客仓库中完成，推送父仓库不会代替这一步。
-
-博客提交已经推送到远程后，在父仓库更新采用版本：
-
-```sh
-git add docs/blogs
-git commit -m "chore(docs): update blog submodule"
-```
-
-该提交只记录子模块的新 commit；博客内容和历史仍由博客仓库管理。
-父仓库更新后，其他已有检出重复执行上述初始化命令即可切到相同版本。
-博客仓库改为公开后，只要仓库地址不变，无需重新添加子模块。
 
 ## 定位修改位置
 

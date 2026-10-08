@@ -1,4 +1,0 @@
-{"name":"publish-after-recovery","observations":{"entries":1,"provider":2,"consumer":2}}
-{"name":"unload-gap","observations":{"sequence":["sync-unloading","effect-dispose"],"consequence":"effect disposer alone is too late for a synchronous admission fence"}}
-{"name":"dependency-replacement","observations":{"attached":["a","b"],"detached":1,"oldReference":"a"}}
-{"checks":3,"node":"v24.18.0","scope":"Cordis mechanisms only; product lifecycle and security remain untested"}

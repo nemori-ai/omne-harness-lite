@@ -1,3 +1,4 @@
+import { adoptedSchemaBytes } from './adopted-schema-input.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
@@ -70,12 +71,7 @@ describe('accepted five-port provider scope', () => {
       ['connector', '../schema/resources/connector.schema.json'],
       ['asset-model', '../schema/asset-model.schema.json'],
     ] as const) {
-      const frozen = readFileSync(
-        new URL(
-          `../../../../.meta_harness/design/spec/data/${topic}/v${topic === 'asset-model' ? 3 : 2}/${topic}.schema.json`,
-          import.meta.url,
-        ),
-      )
+      const frozen = adoptedSchemaBytes(topic, topic === 'asset-model' ? 3 : 2)
       const copy = readFileSync(new URL(packaged, import.meta.url))
       expect(copy.equals(frozen)).toBe(true)
       const expected =

@@ -62,7 +62,7 @@ export function parsed(text: string): JsonValue {
 }
 const normative = readFileSync(
   new URL(
-    '../../../../.meta_harness/design/spec/data/agent-definition/v1/examples.md',
+    '../../../core/agent-definition/tests/fixtures/agent-definition-examples.md',
     import.meta.url,
   ),
   'utf8',

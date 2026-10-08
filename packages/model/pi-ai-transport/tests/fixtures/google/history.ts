@@ -1,7 +1,7 @@
 // Fixtures for the Google revision 4 E-only reasoning history mechanism (GS-V1..V6).
 //
 // Streams follow the frame order and members of the 2026-09-30 raw SSE originals
-// (research/model-request-adaptation/vendor-continuation/google/2026-09-30-complete-reply-originals.md):
+// observed with the selected routes:
 // frame 0 carries exactly one `reasoning.encrypted` detail (E) whose id equals the tool-call id of
 // the same stream, then the tool-call fragments, a `tool_calls`/`STOP` frame, and a usage frame
 // repeating the finish reason. Text and signature fragments follow the 2026-09-28 fragment

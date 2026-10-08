@@ -82,7 +82,7 @@ function catalog(value: unknown): value is ModelCatalog {
 export function rootBody(model = true): JsonObject {
   const normative = readFileSync(
     new URL(
-      '../../../../.meta_harness/design/spec/data/agent-definition/v1/examples.md',
+      '../../../core/agent-definition/tests/fixtures/agent-definition-examples.md',
       import.meta.url,
     ),
     'utf8',

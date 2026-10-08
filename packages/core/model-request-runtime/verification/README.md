@@ -26,13 +26,13 @@ Service 的接收者 Context 可以是追踪派生对象；探针按真实调用
 
 ## 现有业务模型与真实组合
 
-完整请求、OpenedOrder、Publication、ReferenceLifecycle、RecoveryTiming、AckLifecycle/AckProgress 继续归精确 RT12 的验证资源。尚未迁移的性质和公平性前提仍有效，不在这里复制另一份模型。
+完整请求、OpenedOrder、Publication、ReferenceLifecycle、RecoveryTiming及ACK模型归本包models；性质和公平性前提保持。
 
 正式提供者与 Session 组合还须验证真实主体、共享池、来源逆序保有、迟到结果/费用、ACK 与无 Agent 进展。模型或本探针通过不能关闭这些实际实现义务。
 
 ## 默认重试历史
 
-当前算法模型唯一维护于 `models/RetryHistory.tla`，配正配置与 DispatchCount 负控。模型只有有限的失败历史/结论、发出次数、阶段及 h/n；验证本件结论计数与续接不占重试数。它不证明原失败主体真实性、授权、物理停止、HTTP、费用或任意自定义重试的终止性。此资源接续原实际执行登记，旧冻结版本只供未迁契约导航，不维护为第二算法源。
+当前算法模型唯一维护于 `models/RetryHistory.tla`，配正配置与 DispatchCount 负控。模型只有有限的失败历史/结论、发出次数、阶段及 h/n；验证本件结论计数与续接不占重试数。它不证明原失败主体真实性、授权、物理停止、HTTP、费用或任意自定义重试的终止性。此资源接续原实际执行登记，不维护第二算法源。
 
 从仓库根执行（JAVA_BIN、TLA2TOOLS_JAR 指向已安装工具）：
 
@@ -52,4 +52,25 @@ Service 的接收者 Context 可以是追踪派生对象；探针按真实调用
 | Settlement、Publication、ReferenceLifecycle、OpenedOrder、AckLifecycle | 完整原批、未知写、执行/消费者双寿命、开口栅栏与 ACK 提交/清理；真实日志/Storage/写方组合仍有效 |
 | ContentGate、Adaptation、AdaptationBinding、RecoveryTiming             | 首内容准入、精确版本保有及恢复时序；实现与实际在途来源尚未全部改接正式 Service                 |
 
-这些综合资源继续只保留原位置，[精确入口](../../../../.meta_harness/design/spec/capabilities/model-request-runtime/v12/formal/README.md)给出规模和配置。公开性质不能统一称为 provider 私有，也不复制整套模型。本次接口迁移须复验受影响正/负配置及实际旧提供者；最终正式提供者/协调验收另验证真实来源、双 Session 和无 Agent 进展。
+这些综合资源继续只保留原位置，[协议模型](models/README.md)给出规模和配置。公开性质不能统一称为 provider 私有，也不复制整套模型。本次接口迁移须复验受影响正/负配置及实际旧提供者；最终正式提供者/协调验收另验证真实来源、双 Session 和无 Agent 进展。
+
+## ACK 组合验证义务
+
+当前承诺归 [SPEC](../SPEC.md)，账算法归 call-accounts。以下须实际组合验证，Schema／TLC 不能代替；某次执行状态与输出只写工作树 tmp。
+
+| 场景 | 必须观察到 |
+|---|---|
+| 保存完整原值、ACK、无完整 Session 的重复小查询 | 独立确认；运行时继续清理；released 后旧 ref／同键小视图成功，无重发或全文重取 |
+| 同调用两 consumer，仅一个有当前 ACK 权 | 当前权核验；旧 handle／read 不授 ACK 权，跨租户／撤权不泄存在，不等另一个 consumer 或处分 |
+| 实际读取、闲置 handle、observer 队列并存 | 在读工作完成或明确结束；关闭未开始的全文交付，解除 idle／队列／缓存的大引用，consumer 自存副本保留 |
+| 原 persisted writer 先／后赢及未知回执迟到 | ACK 键与 final 键独立；旧 writer 未实际停不释放；原账一致，final 优先且计一次，不造处分 |
+| retiring／ACK 提交／确认／删除各界崩溃重开 | 未确认不删；unknown 认回完整原批；内容和删除状态原子恢复，不把 timeout／fence／Map 空当停止 |
+| released 后合法处分及独立 persisted | settleReply 不授持久消息写权；核完整 retainedResult 身份／语义摘要／账；缺值 wrongPhase、改值 malformed、权限不可核 unavailable |
+| final 首写及 unknown 后崩溃 | 完整原批先耐久；unknown 保留恢复责任；满足原确认／停止／无批／政策条件才清除，无第二 ACK 或 ready 复活 |
+| 同键对象重排、等值数字、大整数、sourceVersions 变化 | 等值认回原采用事实与摘要；异值 creationConflict；不重读最新 profile，不以 binary64 合并大数 |
+| 未知、已知零、失败 dispatch 和迟到补账 | 未知不补零；ACK 是原账非有效汇总；每个失败 ResponseId 单列，补账算法与归属不改 |
+| 两调用共享外部内容 | 仅解除本调用清单／保留权；另一调用、consumer 副本不受损，真实外部 owner 配对，inline 不虚构 provider |
+
+## 综合规范输入
+
+[models](models/README.md)保存本能力的规范TLA及全部配对配置。模型是有限协议输入，不是执行记录；RetryHistory唯一源仍在本验证目录原算法位置。

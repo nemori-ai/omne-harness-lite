@@ -1,3 +1,4 @@
+import { assertAdoptedSchemaBytes } from './schema-identity.ts'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
@@ -12,13 +13,7 @@ import {
 import retainedSchema from '@omne-harness-lite/model-profile/schema/v2' with { type: 'json' }
 
 const examples = JSON.parse(
-  readFileSync(
-    new URL(
-      '../../../../.meta_harness/design/spec/data/model-profile/v5/examples.json',
-      import.meta.url,
-    ),
-    'utf8',
-  ),
+  readFileSync(new URL('fixtures/profile-examples.json', import.meta.url), 'utf8'),
 ) as {
   readonly contract: string
   readonly cases: readonly {
@@ -46,9 +41,11 @@ describe('data.model-profile/v5 public artifact', () => {
         version === 'v5'
           ? '../schema/model-profile.schema.json'
           : `../schema/${version}/model-profile.schema.json`
-      const normativePath = `../../../../.meta_harness/design/spec/data/model-profile/${version}/model-profile.schema.json`
-      expect(readFileSync(new URL(publicPath, import.meta.url))).toEqual(
-        readFileSync(new URL(normativePath, import.meta.url)),
+      assertAdoptedSchemaBytes(
+        version === 'v5'
+          ? '@omne-harness-lite/model-profile/schema'
+          : '@omne-harness-lite/model-profile/schema/v2',
+        readFileSync(new URL(publicPath, import.meta.url)),
       )
     }
     expect(new Set([schemaId, retainedSchema.$id]).size).toBe(2)

@@ -113,13 +113,7 @@ describe('CA4 A4-V1..2: pure explicit inputs, without source selection', () => {
 
   it('checks both normative ACK examples with original cost shape', () => {
     const rows: unknown = JSON.parse(
-      readFileSync(
-        new URL(
-          '../../../../.meta_harness/design/spec/data/call-accounts/v4/ack-examples.json',
-          import.meta.url,
-        ),
-        'utf8',
-      ),
+      readFileSync(new URL('./fixtures/ack-examples.json', import.meta.url), 'utf8'),
     )
     if (!Array.isArray(rows)) throw new Error('missing ACK examples')
     expect(rows).toHaveLength(2)
@@ -155,26 +149,14 @@ describe('CA4 A4-V1..2: pure explicit inputs, without source selection', () => {
       ],
     ] as const) {
       const bytes = readFileSync(new URL(path, import.meta.url))
-      const original = readFileSync(
-        new URL(
-          `../../../../.meta_harness/design/spec/data/call-accounts/${version}/call-accounts.schema.json`,
-          import.meta.url,
-        ),
-      )
-      expect(bytes).toEqual(original)
       expect(createHash('sha256').update(bytes).digest('hex')).toBe(hash)
+      expect(JSON.parse(bytes.toString()).$id).toContain('/call-accounts/' + version + '/')
     }
   })
 
   it('checks the normative ready examples through concrete definitions with lossless input', () => {
     const values = strict(
-      readFileSync(
-        new URL(
-          '../../../../.meta_harness/design/spec/data/call-accounts/v4/ready-examples.json',
-          import.meta.url,
-        ),
-        'utf8',
-      ),
+      readFileSync(new URL('./fixtures/ready-examples.json', import.meta.url), 'utf8'),
     )
     if (!Array.isArray(values)) throw new Error('expected normative rows')
     expect(values).toHaveLength(3)

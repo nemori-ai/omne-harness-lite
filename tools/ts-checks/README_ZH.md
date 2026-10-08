@@ -10,7 +10,7 @@
 注释与字符串、模板、正则字面量的内容不算代码，括号按代码配对。`no-bail-control` 与
 `restricted-call-sites` 的前两项仍逐行扫原文。新增 core 与身份规则使用已锁定 TypeScript 的语法树，
 不构造类型检查 Program。按路径写死的位置集中在 `src/layout.ts`，入口层包的路径以
-[governance-center-entry verification「包布局常量」](../../.meta_harness/design/realization/packages/tenancy/governance-center-entry/verification.md#静态检查)为准。
+[governance-center-entry verification「包布局常量」](../../packages/tenancy/governance-center-entry-node/SPEC.md)为准。
 **被查的包不存在时规则无事可查、静默通过**；包存在而规则依赖的布局锚点（入口层包的
 `src/events.ts` 与 `src/ops/`、账号能力包的 `src/plugin.ts`、注册组合包的 `TERMINAL_OUTCOMES`）缺席时报出，不静默失效。
 
@@ -101,7 +101,7 @@ stream 解析是否仅在已接受 close 路径可达、snapshot/closeOut/partia
 `asset-model` 的 S-17 字面目录规范化明确采用 `path.normalize` 一类纯运算，允许 `node:path`（及同义的 `path`）导入。
 检查器不因此证明代码没有调用 `resolve()` 隐式取得 cwd；绝对输入、相对输入拒绝、无文件系统访问仍由节点实现测试核对。
 直接采用严格 JSON 工具的 asset-model、call-accounts、messages、arrival-events、model-response、stream-assembly、asset-evaluation
-均可导入 content-blocks 的公开入口。mcp-endpoint 经已接受的 [中性技术依赖](../../.meta_harness/design/realization/packages/core/mcp-endpoint/design.md#依赖作用域与绑定)
+均可导入 content-blocks 的公开入口。mcp-endpoint 经已接受的 [中性技术依赖](../../packages/core/mcp-endpoint/SPEC.md)
 另行批准 content-blocks 根与精确 Schema/runtime 入口；不因此新增块语义的契约边、不允许任意子路径。
 MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留，不因工具依赖采用而获得编译/筛选远端 Schema 的责任。
 
@@ -121,7 +121,7 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 
 | 规则 | 来源 | 查什么 | 不覆盖 |
 |---|---|---|---|
-| `group-direction` | [realization「packages 的两层布局」](../../.meta_harness/design/realization/README.md#packages-的两层布局)；[workspace 规范](../../docs/workspace.md)「装配负责选择提供者」 | 成员产品源码（不含测试）经 `@omne-harness-lite/*` 字面导入形成的成员间边：只能指向同层或更内层；`packages/infra` 只由最外层与它自己依赖；成员之间、组之间不成环；出现没登记层位的新组即报出 | 测试里的导入；非字面说明符；相对路径越出包边界（由包公开入口约定承担）；**层位本身对不对**——那是设计正文定的，这里只核对方向 |
+| `group-direction` | [realization「packages 的两层布局」](../../.meta_harness/design/architecture/README.md)；[workspace 规范](../../docs/workspace.md)「装配负责选择提供者」 | 成员产品源码（不含测试）经 `@omne-harness-lite/*` 字面导入形成的成员间边：只能指向同层或更内层；`packages/infra` 只由最外层与它自己依赖；成员之间、组之间不成环；出现没登记层位的新组即报出 | 测试里的导入；非字面说明符；相对路径越出包边界（由包公开入口约定承担）；**层位本身对不对**——那是设计正文定的，这里只核对方向 |
 
 层位与例外在 `src/rules/group-direction.ts` 的 `GROUP_DIRECTION_POLICY`，每条带 `source` 指回设计正文；它是机检投影，不是第二份权威：
 改层位先改 realization 的布局正文，再改这张表。现存例外只有一条（`frontend/client-local-state-sqlite` 直接打开本机 SQLite），登记了理由。
@@ -361,7 +361,7 @@ make metrics BASE=<基线> COVERAGE=1    # 再对变更成员逐个跑测试，�
 
 ### 出处与有意的差异
 
-这些算法按 Robert C. Martin 的工具的逻辑用 TypeScript 重写——他的仓库没有许可证，所以不搬原文，只照做法；每处在源码注释里标了仓库、提交与文件。逐条事实与他提交历史里改过的主意见研究主题的[工具算法报告](../../.meta_harness/research/clean-code-doctrine-current/reports/2026-10-01-tooling-algorithms/report.md)；其中只有色带评分与判定点集合是对着原文字节核过的，其余是子代理转述。
+这些算法按 Robert C. Martin 的工具的逻辑用 TypeScript 重写——他的仓库没有许可证，所以不搬原文，只照做法；每处在源码注释里标了仓库、提交与文件。源码注释保留具体上游仓库、提交与文件；来源核对的限制不因工具输出通过而消失。
 
 | 做法 | 出处 | 与原实现的差异及理由 |
 |---|---|---|
@@ -435,56 +435,60 @@ make loop-status BASE=<基线> STRICT=1 OUT=<目录>   # 严格模式，make che
 | 稳定依赖不稳定的边数 | 成员边 `from → to` 里 `I(to) − I(from) > margin` 的条数，I 是度量报告的不稳定度 |
 | 一起改却分属两组的成员对数 | HEAD 上最近 `window` 个非合并提交各碰过哪些 `packages/`、`apps/` 成员；一次碰了超过 `maxMembersPerCommit` 个的不计；分属不同组、同改次数 ≥ `minTogether` 且同改次数 ÷ 两者各自被改次数的较小者 ≥ `minRatio` 的成员对 |
 | 新增跨成员依赖数 | 给了 `BASE` 才有：HEAD 的边减去基线的边。基线边集 = HEAD 的边去掉导入处全在改动文件里的，再并上改动过的产品源码在合并点的文本解析出的边（含已删除的文件）；同时列出消失的边作参考 |
-| 新增装配偏离数、装配声明改动数 | 当前源码对 merge-base 声明的偏离，减去基线源码对基线声明的偏离；HEAD 的 assembly/composition 语义改动另列。两项无绝对线、不与趋势基线比，每条进入红项 |
-| 装配缺失数、未解析服务标识符数 | 意图有而静态实现无的关系、服务标识符未解析次数；未知不能证明缺失。两项无绝对线，只报告相对趋势基线的增长 |
+| 新增、移除与元数据变化的静态装配事实数 | 完整当前源码与 BASE 源码的语义事实差分；位置移动与重复相同事实不计变化。三项都是中性计数，无绝对线、不与趋势比，不将增减解释成质量高低 |
+| 全局架构预期改动数 | 全局 constraints 的语义改动，独立于实际事实及新增偏离；中性计数 |
+| 未解析服务标识符数 | 服务标识符解析尝试中的未知次数；无绝对线，只报告相对趋势基线的增长 |
 | 没有断言的测试数 | 成员测试文件里的 `it`／`test` 用例（含 `.each`、`.concurrent`、`.only`；`.todo`、`.skip` 不算，外层 `describe.skip`／`describe.todo` 里的也不算），回调体里没有一次调用的最左标识符匹配 `assertionPattern` 或 `helperPattern`，也没有调用同一文件里声明的、函数体内含这种调用的函数（只解一层）。路径匹配 `typeTestPattern` 的类型测试文件里编译器就是断言者，`@ts-expect-error` 指令与「应当编译得过」的调用、带类型注解的声明、`satisfies` 也算断言。按语法树判 |
 | 全仓重复行占比（%） | 见下「重复代码」 |
 | 单个 topic 窗口内 rev 翻动次数 | `productRoot` 下每个 `PF-*/README.md` 最近 `windowDays` 天里改动过 `revision:` 那一行的提交数，取最大；达到提醒线的 topic 全部列出 |
 | 并行工作树数、被多棵工作树同时改的成员数 | `git worktree list` 里主检出以外、带分支的工作树；各自相对 `primaryBranch` 合并点改过的成员（含未提交） |
 | 验收总耗时（秒）、最慢一份验收的耗时（秒） | 见下「验收耗时」；份数跟在行尾 |
 
-### 装配意图对照
+### 实际装配与全局架构约束
 
-`src/arch/` 提供独立静态抽取、版本快照和对照函数。回路经 `sensors.reflexion` 调用它们。
-声明语义沿 [realization 的装配声明](../../.meta_harness/design/realization/README.md)，
-集成约定沿 [IC-1、IC-2、IC-5、IC-8、IC-9](../../.meta_harness/design/realization/cordis-integration-conventions.md)。工具不反写声明。
+`src/arch/` 按完整版本源码抽取实际关系，回路经 `sensors.architecture` 读取。
+全局预期归 `.meta_harness/design/architecture/constraints.json`。
+集成约定归 [Cordis 集成约定](../../.meta_harness/design/architecture/cordis-integration-conventions.md)。
+工具不反写预期，也不从目录存在性或手写绑定推断实现状态。
 
-| 配置                                                   | 含义                                                             |
-| ------------------------------------------------------ | ---------------------------------------------------------------- |
-| `sensors.reflexion.enabled`                            | 关闭后不读取源码或节点，读数写「配置里关了」                     |
-| `sensors.reflexion.nodeRoot`                           | 相对于被量仓库根的节点区路径；缺项、绝对路径或向父目录越界报错   |
-| `indicators.newDeviations`、`assemblyChanges`          | `lines: null`、`baseline: false`；新增偏离和声明改动各条进入红项 |
-| `indicators.missingAssembly`、`unresolvedServiceNames` | `lines: null`、`baseline: true`；只报告增长                      |
+| 配置／输出 | 含义 |
+| --- | --- |
+| `sensors.architecture.enabled` | 关闭后不读取架构源，明确报告 no-data |
+| `indicators.addedAssemblyFacts`、`removedAssemblyFacts`、`changedAssemblyFacts` | 固定 `lines:null`、`baseline:false`。事实变化不等于偏离，不授予质量带位 |
+| `indicators.architectureChanges` | 全局预期语义改动的中性计数，同样固定无阈值、不与趋势比 |
+| `sensors.architecture.data` | 实际抽取、完整未知、按身份／元数据去重的事实及差分 |
+| `sensors.assemblyDelta` | 独立实际事实差分；缺 BASE 时 no-data，不能用零冒充已比较 |
+| `sensors.conformance` | 全局静态符合性子集；偏离、unknown、有限静态符合分开报告 |
 
-原生插件对象需要 Context 首参、Cordis Plugin 类型或已确认 Context 的 plugin 注册出处；definePlugin 也提供出处。
-模块形式的原生插件按实际公开导出的 name/apply/inject 识别，私有同名变量不构成插件。
-只有 name/apply 形状的候选逐项记未知，显式普通参数类型不会升级为 Context。
-抽取使用 TypeScript AST、词法符号和官方模块解析。公开入口与常量按对应版本的源码和 package exports 还原。
-基线源集包含已删除或搬迁的文件。事实身份不含源码路径或行号，多个插件和内嵌 inject 作用域分别保留。
-服务定义保留 Context 增补或 Service 类来源；提供调用另存。事件保留声明的 `@mode` 与实际派发模式。
-导入保留目标导出名、本地别名及 type/runtime。输出位于 `status.json` 的 `sensors.reflexion.data`。
-声明差分独立写入 `sensors.assemblyChanges`，指标与 explain 使用这个读数；两通道由同一个 reflexion 开关控制。
+原生插件对象需要 Context 首参、Cordis Plugin 类型或已确认 Context 的注册出处。
+definePlugin 也提供出处。模块形式按公开导出的 name/apply/inject 识别，私有同名变量不构成插件。
+只有 name/apply 形状的候选逐项记未知，普通参数类型不升级为 Context。
+抽取使用 TypeScript AST、词法符号和官方模块解析，公开入口与常量按对应版本还原。
+完整 BASE 包含已删除或移动的文件，不借当前源码补齐旧文件。
 
-逐项状态是 `converged`、`deviation`、`missing`、`unknown`。包存在但无 assembly/composition 是 `undeclared`，
-包无节点是 `no-design`，节点无包是 `not-built`。明确空声明的纯数据包有声明。README 的「源码位置」明确当前已建或未建、而包存在性相反时，
-另报 `source-location-mismatch`；历史引语和只有坐标的行保持未知。节点区缺失或完全无声明是 no-data；一个有效声明即可提供数据，其他未声明节点继续报告。
-严格模式下开启却 no-data 会失败并点名。
+事实身份不含路径／行号，名称使用 JSON 元组编码，不以字符分隔符拼接。
+事实差分使用全部 occurrences，避免提前去重丢掉不同名称。
+contract、owner、layer、定义形式、提供形式和表达形状独立参与元数据比较。
+同一服务改 contract 会留下 before/after。重复相同事实不增计数，冲突元数据不会被吞掉。
+服务定义、提供调用、事件模式、导入导出名及 type/runtime 分别保留。
 
-新增偏离始终对照 merge-base 声明。修改当前声明不能消除它，声明语义改动另列。
-删除最后一份有效声明后，关系通道是 no-data，独立声明差分仍保留删除红项；严格模式仍因关系通道无数据失败。
-YAML 注释、格式和映射键顺序不产生声明改动。未提交与未跟踪源码也参与分析。
-IC-5 例外只放行基线声明点名的导出符号；混合导入的其他符号仍报偏离，namespace 通配符不能放行。
-输出记录例外的 `sharedStorage` 和设计出处，不据此证明共同提交。原有方向与环硬线保持独立。
+不可解析表达式保留 path/line/kind/expression/reason。服务未知率仅统计服务标识符解析尝试。
+静态 inject 换成动态表达式时，报告“不再静态可见”及当前 unknown，不能推断实际依赖已释放。
+实际增减与全局预期改动分别进入 explain／钩子，均不称“新增偏离”。
+新增架构偏离仍对完整 BASE 预期比较，修改 HEAD 预期不能抹掉它。
+IC-5 例外仅放行 BASE 点名的精确导出符号，namespace 通配符和新增符号仍不放行。
+例外记录共同存储与出处，不据此证明同提交；方向和环硬线保持独立。
 
-不能静态还原的表达式逐项保留 path/line/kind/expression/reason。
-服务失败率仅计算服务标识符解析尝试，事件名与配置未知不进入分母。
-静态分析不执行配置工厂，不证明动态装配、事件隔离、运行时可用性或共享提交。
-动态插件名、循环中的动态服务键仍可能未知；调用关联仅覆盖可追踪的 Context 交接，不解释任意 JavaScript。
-本阶段最终候选在 43 个成员、52 个节点上读取到 113 次服务标识符尝试，其中 5 次未知。
-基线完整读取和第二次抽取另有成本，耗时随输入规模和机器负载变化。
+当前全局预期缺失时，architecture 是 no-data，严格模式点名失败；已有 BASE 的预期删除差分仍可见。
+有效预期与完整实际源码都已读取时，空事实集是真实空结果，不能和 no-data 混淆。
+当前或 BASE 缺 workspace 配置时，架构通道报告具名 no-data，其他结构读数仍可运行；不借 HEAD 补 BASE。
+存在却非法的配置仍报错，不统一吞解析错误。
+静态分析不执行配置工厂，不证明动态撤除、隔离、运行可用性、授权或共享提交。
+生命周期和事务义务由实际公共 Service、模块薄 SPEC 及行为验证负责。
 
-自测：`tests/arch-extract.spec.ts`、`tests/loop-reflexion*.spec.ts`，加现有 config、strict 和金丝雀测试。
-这些自测支持已种下的正反例；独立 QA 与真实坏提交演示由接受者另行完成。
+自测包括 `arch-extract.spec.ts`、`loop-assembly.spec.ts`、`architecture-conformance.spec.ts`，
+以及配置、严格模式、金丝雀和实际架构测试。它们保留静态新增依赖、元数据变化、名称碰撞、
+未知、关闭与无基线反例，不替代行为验收。
 
 ### 验收耗时
 
@@ -718,7 +722,7 @@ make acceptance                            # 构建有 acceptance 脚本的成�
 含未提交与未跟踪的文件，改名拆成删与增两侧，文件名原样（不受 git 的引号转义影响）。成员清单读 `pnpm-workspace.yaml`，去掉 `affected.excludeRoots` 下的（现为 `examples`）。
 每个改动文件按顺序归到第一类命中的：
 
-1. **全局**（`globalPaths`：根清单、锁文件、共享 tsconfig、分层定义 `vitest.tiers.mts`、`scripts/check.sh`、`.meta_harness/design/spec/**`、本配置文件、
+1. **全局**（`globalPaths`：根清单、锁文件、共享 tsconfig、分层定义 `vitest.tiers.mts`、`scripts/check.sh`、本配置文件、
    测试运行器与影响面引擎自身的 `cli.ts`／`config.ts`／`run.ts`／`steps.ts`／`support.ts`／`timing-reporter.ts`／`affected.ts`／`members.ts` 与取改动的 `src/metrics/git.ts`）：整份计划判全量——
    引擎改了，这次的计划就是用改过的引擎算的，不能拿它来给自己划范围；
 2. **读者**（`readers`：`{ paths, members, why }`）：这些路径被这些成员的测试读——改了只把这些成员带进来，**不沿反向依赖传播**；

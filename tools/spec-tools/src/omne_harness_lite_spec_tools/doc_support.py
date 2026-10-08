@@ -2,20 +2,15 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import re
-from datetime import date
 from functools import lru_cache
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
-import yaml
-from jsonschema import Draft202012Validator, FormatChecker
 from markdown_it import MarkdownIt
 
 PARSER = MarkdownIt().enable("table")
-FORMATS = Path(__file__).resolve().parent / "formats"
 
 
 def repository_root(start: Path | None = None) -> Path:
@@ -27,23 +22,8 @@ def repository_root(start: Path | None = None) -> Path:
     raise ValueError("cannot locate repository: run inside the checkout or pass --root")
 
 
-def load_json(path: Path):
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
 def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def frontmatter(path: Path) -> dict:
-    text = path.read_text(encoding="utf-8")
-    match = re.match(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|$)", text, re.S)
-    data = yaml.safe_load(match[1]) if match else {}
-    if not isinstance(data, dict):
-        raise ValueError(f"front matter must be a mapping: {path}")
-    if isinstance(data.get("date"), date):
-        data["date"] = data["date"].isoformat()
-    return data
 
 
 def tokens(path: Path):
@@ -127,19 +107,3 @@ def validate_link(source: Path, value: str, root: Path, *, local_required=False)
     if fragment and target.suffix == ".md" and fragment not in headings(target):
         raise ValueError(f"broken anchor: {value}")
     return target
-
-
-def checked_path(root: Path, relative: str) -> Path:
-    if Path(relative).is_absolute():
-        raise ValueError(f"repository-relative path required: {relative}")
-    target = (root / relative).resolve()
-    if not target.is_relative_to(root.resolve()):
-        raise ValueError(f"path escapes checkout: {relative}")
-    return target
-
-
-def format_errors(name: str, value) -> list[str]:
-    schema = load_json(FORMATS / name)
-    Draft202012Validator.check_schema(schema)
-    return [f"{name} {error.json_path}: {error.message}"
-            for error in Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(value)]

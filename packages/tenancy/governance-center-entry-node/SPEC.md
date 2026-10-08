@@ -39,8 +39,7 @@ ops 只订阅 SERVING_EVENT/STOPPED_EVENT/DEFECT_EVENT，只派发 LISTENING_EVE
 ## 保持与依据
 
 31 条路由、判定次序、租户拒绝、同提交、中心身份、wire/Schema 身份、SQL/迁移及维护算法保持。
-上述未迁业务和验证义务继续归[精确旧节点](../../../.meta_harness/design/realization/packages/tenancy/governance-center-entry/README.md)及[保持表](../../../.meta_harness/design/architecture/identity-integration/preservation.md)。
-本页只接续服务端工厂、绑定、资源和事件的公开集成承诺，不退役其余旧源。
+共享判定、授权、结果及同提交承诺归[公共入口](../../core/governance-center-entry/SPEC.md)，客户端读取归[传输定义](../../core/governance-center-entry-https-json/SPEC.md)。本包拥有实际持久身份、服务端字节和维护资源行为。
 采用依据为身份整体设计及T4 接缝。
 源码、声明、运行闭包和制品消费须分别验证；类型及静态图不能证明启动、隔离、事务或关闭。
 
@@ -71,3 +70,57 @@ input、catalog、publication、online、offline 只消费 maintenance-ports.ts 
 ops/health-probe.ts 拥有原只读SQL探针及两秒竞速。超时只结束本次观察，实际读取继续；迟到StorageDefect仍走原诊断出口。health.ts 通过具名probe读取结果，保持原公开字段和字节顺序。health-sources.ts 延迟读取原字段，不在构造时探测、读取时钟或缓存值。
 
 ops/face.ts 拥有原完整连接控制；entry.ts 选择实际维护与探针提供者。三秒只限制网络排空；停止准入后仍等待已登记业务和维护真实关闭，才删除本实例socket并通知完成。订阅、未取得socket的启动前缀清理、原fullHealthBody故障注入坐标和公共工厂保持。
+
+## 稳定中心身份
+
+启动只读本人center slot。合法既有值复用；NULL表示尚未铸造，可首次取128bit随机值。missing row、坏值或读写失败使启动失败，不能当未铸造默认。非空数据库缺center表由preflight拒绝，不重建后mint；仅剩迁移残留但slot不可读也失败。
+
+同数据库/备份恢复保留centerId，地址、key、配置和迁移不改变；载入后数据库断开，health仍为同ID。随机不同中心的概率界不检测碰撞，ID不证明身份认证。
+
+## 服务端成帧与字节
+
+- TLS≥1.3，仅配置匹配chain/private key，不用内置/plaintext fallback，不用client certificate授权，SNI不换chain、不接受0-RTT。握手完成后计请求，每连接一个请求/答复，无1xx、100Continue或第二pipeline处理。
+- 仅body决定业务。method/path/query及Host/Authorization/Cookie/Expect/Upgrade/Content-Encoding、peer/TLS属性不改变答案；HEAD仍有body，header不提供presentation，不另增4xx或错误页。
+- HTTP严格ABNF/CRLF，拒bare LF/obs-fold/冒号前空白，不修补裸CR/LF/NUL或忽略前空行。任何Transfer-Encoding拒绝；每个Content-Length去OWS后均为digits，重复值逐字相等，05和5不同，comma-list拒绝，允许leading zero；无CL为零，空body按version出口。
+- head限额先判；head齐后由CL先判body限额，不读超限body。body齐后才decode JSON，截止前读尽已到数据再判。未齐、framing/limit/timeout均无HTTP答复，不映射invalid或400。最小head8192/body65536、JSON depth64/members1024、receive/handshake30秒不因版本缩小。receive从TLS握手完成或ops accept起计，合法Schema也可能超限。
+- 整体strict UTF-8、拒BOM、左到右恰一个JSON且顶层object。raw surrogate编码拒绝；escaped lone surrogate保留给所属步骤。exact JSON数不能先IEEE舍入，1.0/1e3可为整数，超2^53−1由其payload拒。depth/members只量合法最长prefix，prefix超限先于后续syntax错误给无答复，否则syntax按version出口。
+- decode成员名不normalize，报告所有duplicates，不first/last-wins。version重复按version出口；operation/extra按envelopeinvalid；payload任意层在auth后inputinvalid；presentation重复认证拒绝，免auth忽略。唯一public-health operation识别后其他duplicates忽略但仍核限额。
+- HTTP/1.1 200 OK，四header依次Content-Type application/json、Cache-Control no-store、Content-Length无leading zero、Connection close，无Date/Server/其他header，完整字符串一次write。JSON依实际Result_及嵌套Schema properties顺序，array原序、不sort/dedup；optional缺席不写也不填null。compact UTF-8、RFC8785字符串、非ASCII及U+2028/29不escape，整数十进制、UTCInstant大T/Z和最短非零fraction。
+- 四种入口完整字节133/137/128/130，六种认证拒绝含迟到均137，不带requestId/time/reason。TLS record或网络chunk分割不属于逐字承诺。固定独立输入见tests/fixtures，不从当前encoder生成期望。
+- 答复write后close_notify/half-close，再read-discard最多65536字节或5秒，然后full close；超界直接close，答复可能被吞仍为问不到。无答复时，握手已完成则先close_notify再close，不drain。
+- 未serving、启动/换代、停止时新不完整请求、framing/limits/receive/handshake失败均无HTTP字节。admitted在途是完整head+body而非socket accept；socket结束不释放业务/prepare/维护依赖，丢reply不证明未commit。
+
+## 运维网络面
+
+固定Unix governance-center-ops.sock，TLS不接ops、Unix不接治理。目录必须已存在、current uid且group/other无权限；不合则失败，不mkdir/chmod另开。已有active socket不抢，stale可替换，非socket不删。两面同准入与framing/limits，offline verify/restore不上网络、不接任意file location调用任意service。
+
+opsVersion=1、operation与payload三成员严格必给，无默认/extra；任意层duplicates/BOM/encoding/shape错误为对象status invalid-input，零服务调用，不使用客户端string invalid/version-mismatch。framing或合法prefix限额先行无答复。full-health十字段，backup-status重新确认；固定字段顺序及sourceBuildId/latest/targetLocation的明确null保持。
+
+合法admitted后独立defect无result则无答复，记录安全ops-internal-defect，不500、不造status或unavailable。write失败不能保证已发送零字节，也不补第二答复；原工作/资源owner继续保有。未得完整reply不能确认结果，不重试backup，可另显式status核实。
+
+## 维护准入、目录与封装
+
+- 两面serving、升级confirmed、实际唯一deployment源owner才准入。backup/status/onlyIfDue共一个slot，busy立即返回不排队；各owner从同一完整snapshot核原源，业务可继续写，不改安全/login/clock。
+- `onlyIfDue:false`每次新output，target-exists不改名重试。true先完整validate并reconfirm latest：age<20h not-due，整20h due，无latest才备份。只扫描直接32hex.omne-backup名字，先数全部匹配含坏/foreign；超过256先capacity，不递归/nonmatching不计。
+- 每个匹配名的symlink/nonregular、format/hash/owner不合格或完整foreign-center候选，invalidCount恰加一后排除，继续其余候选；symlink不follow，非匹配名不计。因IO无法判定时返回unavailable，容量故障为capacity，二者及持久确认故障不计invalidCount并终止。foreign center排除先于时间评价；本中心future startedAt为unavailable。latest取最大startedAt，同刻ASCII文件名最小。每个本中心候选固定fd/parent重新fsync；unknown不退回旧件或继续备份。24h整为current，超过为overdue；full-health不做reconfirm。
+- 封装为ASCII OMNE-CENTER-BACKUP/1换行、uint32BE头长、compact strict JSON metadata、原SQLite bytes，无tail/压缩/加密。header1–16384、content1–1GiB；sourceBuildId按BUILD_ID或dev null，迁移完整有序列表与副本实际登记相等，startedAt≤finishedAt，且该闭区间必须包含实际固定观察时刻。输入可合法字段排序但拒duplicate/extra/BOM/bad UTF-8，输出固定顺序；SHA只数据库段，不认证metadata或源。
+- O_NOFOLLOW普通文件、current uid、group/other无权限。固定同fd读head及全部body，核exact length/full SHA，64KiB流inspection针对同复制字节；前后fstat比较dev/ino/size/mtime/ctime，变化为unavailable。恶意改后恢复不在此防篡改保证内。
+- same-FS exclusive hardlink发布：file fsync→link→parent fsync，EXDEV为unavailable。visible但未durable是outcome-unknown，保原output、不retry，不凭存在性推success。unknown优先cleanup failure；durable后cleanup失败为unavailable，保output/protected residual及安全位置，不称cancelled或no-effect。只有未发布且实际工作清理完成才cancelled，durable后迟cancel仍completed。
+
+## 离线验证、恢复与永久隔离
+
+- 显式路径及机器运维权限，无account/tenant授权，不需中心active。每call slot及同workroot跨进程mutex，不同workroot可以只读同input并行，不锁全机input。verify固定fd全检查，不reconfirm发布耐久、不mint/migrate/reset login或clock；verified仍businessOpen=false，不改原completed/unknown。
+- restore先verify再exclusive mkdir0700，已有空目录也target-exists。固定data.omne-backup保存原envelope bytes，不写临时SQLite作为恢复输出。file/target dir/parent均fsync才restored；已mkdir而发布前失败可保residual/unavailable，不能假target-exists。发布unknown时fileName:null且保原请求target，不overwrite/merge/force/retry/delete。再次verify只证明完整性，不reopen或消解旧unknown。
+- plaintext之前写durable隔离保护。cleanup不得删拒开依据，因为删除crash后可恢复旧状态；所有支持生产打开路径拒envelope/isolated restore/protected plaintext，无法确认也拒。恶意物理owner及不支持实验产物不属无条件保证；不提供extract/serve/reset/remove-marker旁路。
+- 同一原snapshot核physical integrity/FK、完整迁移登记、table/column/unique/FK/extra trigger及center恰slot一行合法非空；仅物理integrity或重hash不证明结构，缺login_state也拒。不新读第二snapshot。
+- open成功立即在同维护run登记原fd的close/isClosed，await异步open，取消后才取得的fd也登记。显式close与fallback保持原锁，callback只关原fd，不重读服务、wait run、publish或删除output。
+- 5分钟预算到期必须请求取消。cancel、断连、该取消请求或stop均不等实际终结，不另开第二owner。close等export/inspection/handles及隔离residual真实稳定，30秒只诊断。媒介/clock已声明失败与程序缺陷分开。
+- hourly onlyIfDue不启动stopped/stopping中心。daily依赖timer延迟+slot等待+validate/export/publish不超过余4h，及clock/source/space/throughput/≤256可用；不承诺自动删备份、整机RPO/RTO或dead IO有限close。
+
+## 固定Schema构建与验证
+
+schema-inputs只有资源、定义、options、keywords与sourceFiles，不做校验。构建先清dist/generated，再tsc及全部有限graph与新鲜metadata；任一资源/metadata/后续定义/写出失败非零且清两目录，不保半产物。运行首次实际消费才load，缺generated/helper原抛，不valid:false或旧产物fallback；发布含generated/dist。
+
+native CJS helper保持receiver/instance，text function不得拆取；src/dist用同owner，原unknown、copy projection、公共错误和exact postcheck保持。显式作者运行构造独立保有/释放，不新增module增长cache、Service或fiber。SC2仅允许现schema-inputs/routing只读形状及generated/ordinary.cjs例外。
+
+全部定义、原oracle布尔/errors、原始输入摘要、新鲜性失效、missing helper/graph/代表性五共同失败、确定性及无half fallback须验证。共享CB/messages图的扩散性质由实际共享owner承担，本包不能单独宣称全部exact/meta/ref/dynamicRef证明。规范资源、四个有限模型及适用前提见[验证入口](verification/README.md)。

@@ -20,7 +20,7 @@
 负责人 2026-10-01 定：各流的完整基线不随用例集一起跑，统一放到研发方案的最后。在那之前，这些用例集可以用来对单次改动做有针对性的试派，
 但没有基线可比。
 
-`tui-debugger`、`spec-drafter`、`realization-drafter`、`product-design-drafter`、`product-design-reviewer` 的流还没有迁入或建立，
+`tui-debugger`、`product-design-drafter`、`product-design-reviewer` 的流还没有迁入或建立，
 各自的一次性评估见[评估索引](../README.md)。
 
 ## 一个用例集里有什么
@@ -71,7 +71,6 @@ README.md        这个流量什么、量不出什么、当前方法、采用范
 |---|---|
 | `design-reviewer` 的正文 | 三个 `design-review-*` |
 | 手册 `references/review/` 的某一页 | 那一种判断的流（`expression.md` → `design-review-expression`，另两页同理） |
-| 设计评审报告（`make design-review`）的核对项或输出格式 | `design-review-expression`——只有它把报告附进简报 |
 | `developer` 的正文、`developer-contract.md` | `developer-implement` |
 | `qa` 的正文 | `qa-acceptance` |
 | `implementation-reviewer` 的正文、`implementation-review-checklist.md` | `implementation-review` |
@@ -82,7 +81,7 @@ README.md        这个流量什么、量不出什么、当前方法、采用范
 | 宿主（Claude Code）升了版本 | 每个角色至少一个流 |
 | 判官的规则文本，或换判官模型 | 不是跑流：先重新校准（`calibrate-*`），判定方法重新签字，之后的结果才可比 |
 
-**其余角色还没有常设用例集**：`tui-debugger`、`spec-drafter`、`realization-drafter`、
+**其余角色还没有常设用例集**：`tui-debugger`、
 `product-design-drafter`、`product-design-reviewer`。改了它们，按[角色说明](../../roles/README.md)里的办法做一次试派，
 并对照它们各自的一次性评估记录（见[评估索引](../README.md)）；别拿上表里的流代替。
 

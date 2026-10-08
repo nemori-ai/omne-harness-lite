@@ -402,21 +402,55 @@ declare module '@deepseek-ai/cordis' { interface Context { data: ${type} } }
       ).toBe(true)
     },
   )
+  it('rejects invalid or ambiguous precise import exceptions before reporting', () => {
+    const { intent } = setup()
+    const exception = {
+      id: 'e',
+      member: ui,
+      target: sql,
+      symbols: ['value'],
+      sharedStorage: 'accepted-row',
+      source: 'accepted.md#same-commit',
+    }
+    for (const rows of [
+      null,
+      [{ ...exception, member: `${ui}/**` }],
+      [{ ...exception, target: `${sql}/src/index.ts` }],
+      [{ ...exception, symbols: [] }],
+      [{ ...exception, symbols: ['*'] }],
+      [{ ...exception, symbols: ['value', 'value'] }],
+      [{ ...exception, source: '' }],
+      [{ ...exception, sharedStorage: '' }],
+      [{ ...exception, policy: 'allow-all' }],
+      [exception, { ...exception, id: 'different-id', source: 'different.md#claim' }],
+    ])
+      expect(() =>
+        parseConstraints(JSON.stringify({ ...intent, importExceptions: rows })),
+      ).toThrow()
+    expect(
+      parseConstraints(JSON.stringify({ ...intent, importExceptions: [exception] }))
+        .importExceptions,
+    ).toEqual([exception])
+  })
   it('BASE exact-symbol IC-5 exceptions remain scoped and a layer conflict stays pending', () => {
-    const { root } = setup()
-    const declaration = `.meta_harness/design/realization/${ui}/bindings.yaml`
-    write(root, `.meta_harness/design/realization/${sql}/bindings.yaml`, '{}')
+    const { root, intent } = setup()
+    const declaration = CONSTRAINT_PATH
     write(
       root,
       declaration,
-      `assembly:
-  plugins: []
-  importExceptions:
-    - target: ${sql}
-      symbols: [value]
-      sharedStorage: accepted-row
-      source: design.md#same-commit
-`,
+      JSON.stringify({
+        ...intent,
+        importExceptions: [
+          {
+            id: 'same-commit',
+            member: ui,
+            target: sql,
+            symbols: ['value'],
+            sharedStorage: 'accepted-row',
+            source: 'design.md#same-commit',
+          },
+        ],
+      }),
     )
     const base = commit(root, 'accepted exact-symbol exception')
     write(
@@ -428,14 +462,19 @@ declare module '@deepseek-ai/cordis' { interface Context { data: ${type} } }
     write(
       root,
       declaration,
-      `assembly:
-  plugins: []
-  importExceptions:
-    - target: ${sql}
-      symbols: [value, unsafe]
-      sharedStorage: accepted-row
-      source: design.md#same-commit
-`,
+      JSON.stringify({
+        ...intent,
+        importExceptions: [
+          {
+            id: 'same-commit',
+            member: ui,
+            target: sql,
+            symbols: ['value', 'unsafe'],
+            sharedStorage: 'accepted-row',
+            source: 'design.md#same-commit',
+          },
+        ],
+      }),
     )
     const result = readConformance({ root, base })
     expect(result.rows).toEqual(
@@ -486,14 +525,10 @@ declare module '@deepseek-ai/cordis' { interface Context { data: ${type} } }
     expect(unknown.rows).toEqual([])
     expect(unknown.baseline).toEqual(incoming.baseline)
   })
-  it('the global owner does not silence the original node declaration hook sensor', () => {
+  it('the global owner preserves actual injection additions in hook output', () => {
     const { root } = setup()
-    write(
-      root,
-      `.meta_harness/design/realization/${policy}/bindings.yaml`,
-      'assembly: {plugins: [{name: p, source: "design.md#p"}]}',
-    )
-    const base = commit(root, 'original node declaration remains active')
+    write(root, `${policy}/src/plugin.ts`, `export const p = { name:'p', apply() {} }`)
+    const base = commit(root, 'actual plugin before dependency addition')
     write(
       root,
       `${policy}/src/plugin.ts`,
@@ -502,11 +537,13 @@ export const p = { name: 'p', inject: ['newDependency'], apply(ctx:Context) { ct
 `,
     )
     const readings = measureForHook(root, base, readLoopConfig(), readMetricsConfig())
-    expect(readings.explain.newDeviations).toMatchObject({
+    expect(readings.explain.assemblyDelta).toMatchObject({
       status: 'data',
-      data: expect.arrayContaining([
-        expect.objectContaining({ key: 'newDependency', state: 'deviation' }),
-      ]),
+      data: {
+        added: expect.arrayContaining([
+          expect.objectContaining({ key: 'newDependency', kind: 'injects' }),
+        ]),
+      },
     })
     expect(findingsOf(readings).some(finding => finding.text.includes('newDependency'))).toBe(true)
   })

@@ -1,3 +1,0 @@
-set=meta rounds=3 node=v24.21.0 load1 per round: 6.75 6.75 6.75 6.75
-createExactMetaValidator() (runtime)           {"readyMs":78.7,"readyCpuMs":89.3}
-meta standalone import                         {"readyMs":5.2,"readyCpuMs":6.9}

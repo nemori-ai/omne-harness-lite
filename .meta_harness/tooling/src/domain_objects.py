@@ -15,7 +15,7 @@ from datetime import date
 from pathlib import Path
 from urllib.parse import unquote, urldefrag
 
-from design_validation import HEADING_RE, github_anchor
+from markdown_support import HEADING_RE, github_anchor
 
 MORPHS = ("对象", "变体", "属性", "规则", "过程", "视图", "状态", "位置", "总称", "未定")
 OBJECT_FIELDS = ("宿主", "身份", "生灭", "依据")

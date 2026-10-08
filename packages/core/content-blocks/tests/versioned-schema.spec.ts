@@ -13,23 +13,43 @@ it('D068 current default3 has only the adopted delta; retained2 stays byte-exact
     const bytes = readFileSync(
       new URL(`../schema/content-blocks${suffix}.schema.json`, import.meta.url),
     )
-    const original = readFileSync(
-      new URL(
-        `../../../../.meta_harness/design/spec/data/content-blocks/v${version}/content-blocks.schema.json`,
-        import.meta.url,
-      ),
-    )
-    if (version === 3) assertContentSchemaTransition(bytes, original)
-    else {
-      expect(bytes.equals(original)).toBe(true)
+    if (version === 3) {
+      assertContentSchemaTransition(
+        bytes,
+        readFileSync(new URL('./fixtures/content-before-admission.schema.json', import.meta.url)),
+      )
+    } else {
       expect(createHash('sha256').update(bytes).digest('hex')).toBe(
-        createHash('sha256').update(original).digest('hex'),
+        'ed9c7d15f35edfd1b24cef510367449a3a8ed5eefd5305464709220304ee6b21',
       )
     }
     expect(resource.$id).toContain(`/v${version}/content-blocks.schema.json`)
     expect(Object.keys(resource.$defs).sort()).toEqual(
       [
-        ...Object.keys(JSON.parse(original.toString()).$defs),
+        ...[
+          'BlockId',
+          'CallId',
+          'ModelToolName',
+          'Visibility',
+          'MediaType',
+          'Modality',
+          'CapabilityId',
+          'AttachmentRef',
+          'InlineBytes',
+          'DerivedRendering',
+          'BlockBase',
+          'TextBlock',
+          'ThinkingBlock',
+          'VoiceBlock',
+          'ImageBlock',
+          'FileBlock',
+          'ToolCallBlock',
+          'IncompleteToolCallBlock',
+          'ExecutionOutcome',
+          'PlaceholderReason',
+          'ToolResultBlock',
+          'ContentBlock',
+        ],
         ...(version === 3 ? ['AdmissionDenialCode', 'ActionDenialReason', 'ToolCallOutcome'] : []),
       ].sort(),
     )

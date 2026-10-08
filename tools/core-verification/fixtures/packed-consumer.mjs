@@ -8,6 +8,9 @@ import { judgeContentBlock } from '@omne-harness-lite/content-blocks'
 import { judgeArrivalEnvelope } from '@omne-harness-lite/arrival-events'
 
 const input = JSON.parse(await readFile(new URL('./input.json', import.meta.url), 'utf8'))
+const expected = input.resourceOracle.resources
+assert.equal(input.resourceOracle.schemaVersion, 1)
+assert.equal(input.resourceOracle.distinctResources, 29)
 const negativeControl = process.argv.includes('--negative-control=content-epoch')
 const records = []
 const schemas = []
@@ -15,12 +18,24 @@ const resources = new Map()
 const results = []
 const hash = bytes => createHash('sha256').update(bytes).digest('hex')
 async function resource(path, specifier) {
+  const loaded = schemas.find(schema => schema.file === path)
+  if (loaded) {
+    if (specifier.startsWith('@omne-harness-lite/')) loaded.specifier = specifier
+    return
+  }
   const bytes = await readFile(path)
   const schema = JSON.parse(bytes)
   const match = new URL(schema.$id).pathname.match(/[/]spec[/](.+)$/)
   assert.ok(match, 'schema fixed coordinate')
   const relative = 'spec/' + match[1]
   schemas.push({ specifier, file: path, sha256: hash(bytes), coordinate: relative })
+  const existing = resources.get(schema.$id)
+  if (existing)
+    assert.equal(
+      hash(JSON.stringify(existing)),
+      hash(JSON.stringify(schema)),
+      'duplicate Schema identity must have identical content',
+    )
   resources.set(schema.$id, schema)
 }
 async function scenario(id, run) {
@@ -55,52 +70,52 @@ await scenario('w6.pack.actual-runtime-exports', async () => {
       }
     }
   }
+  // The independent oracle includes retained dependency resources, even without a public subpath.
+  for (const entry of expected) {
+    const packageRoot = join(
+      dirname(fileURLToPath(import.meta.resolve('@omne-harness-lite/' + entry.member))),
+      '..',
+    )
+    const path = await realpath(join(packageRoot, entry.file))
+    assert.ok(
+      path.startsWith(dirname(fileURLToPath(import.meta.url)) + '/node_modules/'),
+      'Schema resource comes from an actual installed archive',
+    )
+    if (!schemas.some(schema => schema.file === path))
+      await resource(path, entry.publicEntry ?? 'packaged-dependency-resource')
+  }
 })
 await scenario('w6.schema.current-and-retained-coordinates', async () => {
-  const current3 = new Set([
-    'content-blocks',
-    'messages',
-    'model-response',
-    'loop-extension',
-    'tool-definition',
-    'asset-model',
-    'skill-package',
-  ])
   for (const member of input.members) {
     for (const subpath of member.subpaths.filter(
       path => path === './schema' || path.startsWith('./schema/'),
     )) {
       const specifier = member.specifier + subpath.slice(1)
-      const version =
-        subpath === './schema/v2'
-          ? 2
-          : subpath === './schema/v1'
-            ? 1
-            : current3.has(member.name)
-              ? 3
-              : member.name === 'identity-values'
-                ? 1
-                : 2
-      const expectedVersion =
-        negativeControl && specifier === '@omne-harness-lite/content-blocks/schema' ? 2 : version
+      const adopted = expected.find(entry => entry.publicEntry === specifier)
+      assert.ok(adopted, specifier + ': independently declared resource')
+      const coordinate =
+        negativeControl && specifier === '@omne-harness-lite/content-blocks/schema'
+          ? adopted.id.replace('/v3/', '/v2/')
+          : adopted.id
       const actual = schemas.find(schema => schema.specifier === specifier)
       assert.ok(actual, specifier + ': resource was actually loaded')
       assert.equal(
         actual.coordinate,
-        `spec/data/${member.name}/v${expectedVersion}/${member.name}.schema.json`,
+        'spec/' + new URL(coordinate).pathname.split('/spec/')[1],
         specifier,
       )
     }
   }
 })
-await scenario('w6.schema.exact-frozen-bytes', async () => {
-  for (const schema of schemas) {
-    assert.equal(
-      schema.sha256,
-      input.frozen[schema.coordinate],
-      schema.coordinate + ': frozen bytes',
+await scenario('w6.schema.exact-adopted-bytes', async () => {
+  assert.equal(schemas.length, expected.length, 'every declared packaged resource is loaded')
+  for (const entry of expected) {
+    const candidates = schemas.filter(
+      schema => schema.coordinate === 'spec/' + new URL(entry.id).pathname.split('/spec/')[1],
     )
-    assert.equal(hash(await readFile(join(input.designRoot, schema.coordinate))), schema.sha256)
+    assert.ok(candidates.length > 0, entry.id + ': actual resource present')
+    for (const schema of candidates)
+      assert.equal(schema.sha256, entry.sha256, entry.id + ': independent adopted bytes')
   }
 })
 let compiled = 0
@@ -113,11 +128,7 @@ await scenario('w6.schema.fixed-resource-closure', () => {
       compiled++
     }
   assert.ok(compiled > 100)
-  assert.equal(
-    resources.size,
-    23,
-    'seven current3, seven retained2, other fixed2 + identity1/OE1/OE2/Connector2',
-  )
+  assert.equal(resources.size, 29, 'independently declared current and retained resource graph')
 })
 await scenario('w6.schema.current3-raw-name-versus-retained2-arrival', () => {
   const raw = {

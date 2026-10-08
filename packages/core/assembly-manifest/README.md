@@ -26,3 +26,5 @@ pnpm --filter @omne-harness-lite/assembly-manifest run test
 ```
 
 [Integration behavior](SPEC.md) keeps the six-operation business authority separate from borrowed runtime ports. PresenceSource, ManifestOptions and ManifestDiagnostic belong to the pure root; the resource Service belongs to ./cordis.
+
+Behavior belongs to [SPEC](SPEC.md). Check methods and limits belong to [verification](verification/README.md).

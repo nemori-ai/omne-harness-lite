@@ -1,8 +1,4 @@
-import { assertContentSchemaTransition } from '../../content-blocks/tests/schema-transition.ts'
-import { assertLoopSchemaTransition } from '../../loop-extension/tests/schema-transition.ts'
-import { assertMessagesSchemaTransition } from '../../messages/tests/schema-transition.ts'
-import { assertResponseSchemaTransition } from './schema-transition.ts'
-import { createHash } from 'node:crypto'
+import { assertAdoptedSchemaBytes } from './schema-identity.ts'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { SCHEMA_DEF_NAMES, validate } from '@omne-harness-lite/model-response'
@@ -58,25 +54,7 @@ describe('RC1–RC5 / MR11 exact public and private resource closure', () => {
       const specifier = paths[index]
       if (specifier === undefined) throw new Error('public resource path required')
       const bytes = readFileSync(new URL(import.meta.resolve(`@omne-harness-lite/${specifier}`)))
-      const relative = new URL(resource.$id).pathname.split('/spec/data/')[1]
-      if (relative === undefined) throw new Error('canonical resource id required')
-      const canonical = readFileSync(
-        new URL(
-          `../../../../.meta_harness/design/spec/data/${specifier === 'messages/schema' ? relative.replace('/v9/', '/v8/') : specifier === 'model-response/schema' ? relative.replace('/v12/', '/v11/') : relative}`,
-          import.meta.url,
-        ),
-      )
-      if (specifier === 'content-blocks/schema') assertContentSchemaTransition(bytes, canonical)
-      else if (specifier === 'loop-extension/schema') assertLoopSchemaTransition(bytes, canonical)
-      else if (specifier === 'messages/schema') assertMessagesSchemaTransition(bytes, canonical)
-      else if (specifier === 'model-response/schema')
-        assertResponseSchemaTransition(bytes, canonical)
-      else {
-        expect(bytes.equals(canonical)).toBe(true)
-        expect(createHash('sha256').update(bytes).digest('hex')).toBe(
-          createHash('sha256').update(canonical).digest('hex'),
-        )
-      }
+      assertAdoptedSchemaBytes(`@omne-harness-lite/${specifier}`, bytes)
     })
     it(`removing ${resource.$id} fails with that exact missing URI`, () => {
       let failure: unknown

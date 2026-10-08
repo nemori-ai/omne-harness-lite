@@ -17,9 +17,10 @@ export const INDICATORS = [
   'worktreeSharedMembers',
   'acceptanceSeconds',
   'acceptanceSlowestSeconds',
-  'newDeviations',
-  'assemblyChanges',
-  'missingAssembly',
+  'addedAssemblyFacts',
+  'removedAssemblyFacts',
+  'changedAssemblyFacts',
+  'architectureChanges',
   'unresolvedServiceNames',
 ] as const
 export type IndicatorId = (typeof INDICATORS)[number]
@@ -34,7 +35,7 @@ export const SWITCHED_SENSORS = [
   'topicChurn',
   'worktrees',
   'acceptance',
-  'reflexion',
+  'architecture',
 ] as const
 export type SwitchedSensor = (typeof SWITCHED_SENSORS)[number]
 
@@ -97,7 +98,7 @@ export interface LoopConfig {
     readonly worktrees: { readonly enabled: boolean }
     /** 验收耗时：读 `make acceptance` 写下的账本。 */
     readonly acceptance: { readonly enabled: boolean }
-    readonly reflexion: { readonly enabled: boolean; readonly nodeRoot: string }
+    readonly architecture: { readonly enabled: boolean }
     readonly catalogue: { readonly path: string; readonly doctrinePath: string }
   }
   /** 流程体检页的窗口与条数。 */
@@ -237,12 +238,20 @@ export function parseLoopConfig(parsed: unknown): LoopConfig {
   const topicChurn = object(sensors['topicChurn'], 'sensors.topicChurn')
   const worktrees = object(sensors['worktrees'], 'sensors.worktrees')
   const acceptance = object(sensors['acceptance'], 'sensors.acceptance')
-  const reflexion = object(sensors['reflexion'], 'sensors.reflexion')
-  const extraReflexion = Object.keys(reflexion).filter(
-    key => !['enabled', 'nodeRoot'].includes(key),
-  )
-  if (extraReflexion.length > 0)
-    throw new Error(`sensors.reflexion 里有认不出的项：${extraReflexion.join('、')}`)
+  if ('reflexion' in sensors) throw new Error('sensors.reflexion 已移除；使用 sensors.architecture')
+  const architecture = object(sensors['architecture'], 'sensors.architecture')
+  const extra = Object.keys(architecture).filter(key => key !== 'enabled')
+  if (extra.length > 0) throw new Error(`sensors.architecture 里有认不出的项：${extra.join('、')}`)
+  const indicators = exactly(raw['indicators'], INDICATORS, 'indicators', indicator)
+  for (const id of [
+    'addedAssemblyFacts',
+    'removedAssemblyFacts',
+    'changedAssemblyFacts',
+    'architectureChanges',
+  ] as const) {
+    if (indicators[id].lines !== null || indicators[id].baseline)
+      throw new Error(`indicators.${id} 是中性事实计数，必须 lines:null、baseline:false`)
+  }
   const catalogue = object(sensors['catalogue'], 'sensors.catalogue')
   const minRatio = number(cochange['minRatio'], 'sensors.cochange.minRatio')
   if (minRatio > 1) throw new Error('sensors.cochange.minRatio 须在 0 到 1 之间')
@@ -250,7 +259,7 @@ export function parseLoopConfig(parsed: unknown): LoopConfig {
     primaryBranch: text(raw['primaryBranch'], 'primaryBranch'),
     relapseLimit: integer(raw['relapseLimit'], 'relapseLimit'),
     explainTop: integer(raw['explainTop'], 'explainTop'),
-    indicators: exactly(raw['indicators'], INDICATORS, 'indicators', indicator),
+    indicators,
     memberBudget: exactly(budgetLines, BUDGET_ITEMS, 'memberBudget', lines),
     budgetExcludeGroups: groups(excludeGroups, 'memberBudget.excludeGroups'),
     budgetBaseline: bool(baseline, 'memberBudget.baseline'),
@@ -297,10 +306,7 @@ export function parseLoopConfig(parsed: unknown): LoopConfig {
       },
       worktrees: { enabled: bool(worktrees['enabled'], 'sensors.worktrees.enabled') },
       acceptance: { enabled: bool(acceptance['enabled'], 'sensors.acceptance.enabled') },
-      reflexion: {
-        enabled: bool(reflexion['enabled'], 'sensors.reflexion.enabled'),
-        nodeRoot: text(reflexion['nodeRoot'], 'sensors.reflexion.nodeRoot'),
-      },
+      architecture: { enabled: bool(architecture['enabled'], 'sensors.architecture.enabled') },
       catalogue: {
         path: text(catalogue['path'], 'sensors.catalogue.path'),
         doctrinePath: text(catalogue['doctrinePath'], 'sensors.catalogue.doctrinePath'),

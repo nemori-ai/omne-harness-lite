@@ -36,7 +36,6 @@ class Seed:
     where: str
     truth: str
     op: dict[str, Any] | None = None
-    check: str | None = None
     quote: str | None = None
     files: tuple[str, ...] = ()
     severity: str | None = None
@@ -91,7 +90,6 @@ class Flow:
     workspace: dict[str, Any]
     metrics: tuple[dict[str, Any], ...]
     materials: tuple[Material, ...]
-    attach_design_review: bool = False
     signoffs: dict[str, dict[str, Any]] = field(default_factory=dict)
     brief_frame: Path | None = None
     oracle: dict[str, Any] = field(default_factory=dict)
@@ -161,6 +159,8 @@ def load(root: Path) -> Flow:
         raw = json.loads((root / "flow.json").read_text(encoding="utf-8"))
     except FileNotFoundError as error:
         raise SuiteError(f"{root} has no flow.json") from error
+    if "attach_design_review" in raw:
+        raise SuiteError(f"{root}: retired attach_design_review configuration")
     try:
         if raw["format"] != FORMAT:
             raise SuiteError(f"{root}: flow.json format {raw['format']} is not {FORMAT}")
@@ -174,7 +174,7 @@ def load(root: Path) -> Flow:
             criteria_page=raw["criteria_page"] if judged else raw.get("criteria_page", ""),
             host=raw["host"], reps=raw["reps"], workspace=raw["workspace"], metrics=tuple(raw["metrics"]),
             materials=tuple(_material(root, item, judged=judged, targets=targets) for item in raw["materials"]),
-            attach_design_review=raw.get("attach_design_review", False), signoffs=raw.get("signoffs", {}),
+            signoffs=raw.get("signoffs", {}),
             brief_frame=root / raw["brief_frame"] if raw.get("brief_frame") else None, oracle=oracle,
             criteria=tuple(raw.get("criteria", ())), checks=raw.get("checks", {}))
     except KeyError as error:
@@ -199,7 +199,7 @@ def _material(root: Path, raw: dict[str, Any], *, judged: bool, targets: dict[st
         raise SuiteError(f"{root.name}/{raw['id']}: required_inputs must be a list of non-empty paths")
     # A judged material says what should be reported, even when that is nothing; the others have no seeds.
     seeds = tuple(Seed(id=seed["id"], kind=seed["kind"], where=seed["where"], truth=seed["truth"],
-                       op=seed.get("op"), check=seed.get("check"), quote=seed.get("quote"),
+                       op=seed.get("op"), quote=seed.get("quote"),
                        files=tuple(seed.get("files", ())), severity=seed.get("severity"),
                        edits=tuple(seed.get("ops", ())), inside=seed.get("in"))
                   for seed in (raw["seeds"] if judged else raw.get("seeds", ())))
@@ -256,9 +256,7 @@ def _check(flow: Flow) -> None:
         for seed in material.seeds:
             if seed.quote and not seed.files:
                 raise SuiteError(f"{flow.id}/{material.id}.{seed.id}: a quoted finding names the files the quote is in")
-        if flow.attach_design_review and not material.contract:
-            raise SuiteError(f"{flow.id}/{material.id}: a flow that attaches the design review report "
-                             f"needs the contract coordinate of each material")
+
 
 
 def _check_family(flow: Flow) -> None:
@@ -267,7 +265,9 @@ def _check_family(flow: Flow) -> None:
     if flow.kind == "checkout":
         if flow.workspace["commit"] not in COMMIT_MODES:
             raise SuiteError(f"{where}: workspace commit must be one of {COMMIT_MODES}")
-        if not any(".meta_harness/agents/evaluation" == path for path in flow.workspace["excludes"]):
+        if not any(".meta_harness/agents/evaluation" == path or
+                   ".meta_harness/agents/evaluation".startswith(path.rstrip("/") + "/")
+                   for path in flow.workspace["excludes"]):
             raise SuiteError(f"{where}: a checkout excludes the evaluation directory, where the truth is")
         if flow.family == "review" and flow.workspace["commit"] != "delivery":
             raise SuiteError(f"{where}: a review on a checkout reviews a delivery commit")

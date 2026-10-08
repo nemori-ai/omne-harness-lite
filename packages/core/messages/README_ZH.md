@@ -185,7 +185,7 @@ pnpm --filter @omne-harness-lite/messages run test
 
 ## MS8 创建内容、回复与 ACK 值
 
-当前根入口用九份资源编译全部53个公开定义：MS9、CB3、CB2、OE1、CA4、IV1、MP5、MP6、TD3。图沿实际引用的定义递归；依赖文件里未触达的定义不会扩大本包图。创建值（`CallKey`、`CreationKey`、`ModelCallPayloadRef`、`ModelCallCreationInput`、`ModelCallCreatedPayload`）及 ACK 摘要、见证与记录由本包拥有。`model_call_created`、`model_call_reply_ready`、`model_call_acknowledged` 是技术记录，不属于 Message 或 OutboundMessage。ACK 释放清单只列可释放的模型自有副本；形状准入不证明来源、权限或实际删除。`./schema/v6` 保留精确消费者所需的原 MS6 资源，不提供旧执行入口。采用与验证依据见 ACK 决定、[MS8 契约](../../../.meta_harness/design/spec/data/messages/v8/contract.md)及[提供者映射](../../../.meta_harness/design/realization/packages/core/messages/v8-acknowledgement-design.md)。
+当前根入口用九份资源编译全部53个公开定义：MS9、CB3、CB2、OE1、CA4、IV1、MP5、MP6、TD3。图沿实际引用的定义递归；依赖文件里未触达的定义不会扩大本包图。创建值（`CallKey`、`CreationKey`、`ModelCallPayloadRef`、`ModelCallCreationInput`、`ModelCallCreatedPayload`）及 ACK 摘要、见证与记录由本包拥有。`model_call_created`、`model_call_reply_ready`、`model_call_acknowledged` 是技术记录，不属于 Message 或 OutboundMessage。ACK 释放清单只列可释放的模型自有副本；形状准入不证明来源、权限或实际删除。`./schema/v6` 保留精确消费者所需的原 MS6 资源，不提供旧执行入口。采用与验证依据见 ACK 决定、[本包行为承诺](SPEC.md)及[验证职责](verification/README.md)。
 
 ### 核对自行保存的完整值
 
@@ -260,4 +260,4 @@ console.log(judgeModelReplyMessage(original, { ...persisted, response: 'other' }
 
 `judgeModelReplyMessage` 先判原回复，再判持久消息，最后判两值关系。成功返回拥有自己的持久消息副本。每个原成员与原块位置都须保持相等，包括已有派生及 opaque。只有原本同时缺少两个派生成员的合格媒体块可新增合法 renderings/transcript 对。本函数不执行转换，也不授予写权：最终写方仍须核真实可信转换来源、当前资格和消息/final原子原批。自报 `producedBy: 'system'` 只证明表示。
 
-当前资源注册与验证根按已接受的[公开定义闭包revision 2](../../../.meta_harness/design/realization/packages/core/messages/public-definition-resource-closure-followup.md)和D110闭包决定执行。MS2/MS3/MS6资源继续供真正的外部消费者使用，不提供旧执行codec；LC/AE后继迁移与runtime耐久行为由各自owner承担。
+当前资源注册与验证根按已接受的[验证职责](verification/README.md)和D110闭包决定执行。MS2/MS3/MS6资源继续供真正的外部消费者使用，不提供旧执行codec；LC/AE后继迁移与runtime耐久行为由各自owner承担。

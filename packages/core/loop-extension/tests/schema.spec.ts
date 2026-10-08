@@ -11,10 +11,7 @@ describe('frozen normative instances', () => {
   it('LE-FROZEN: original LC6 bytes, adopted AR-2 delta and all 43 definitions', () => {
     const local = readFileSync(new URL('../schema/loop-extension.schema.json', import.meta.url))
     const original = readFileSync(
-      new URL(
-        '../../../../.meta_harness/design/spec/data/loop-extension/v6/loop-extension.schema.json',
-        import.meta.url,
-      ),
+      new URL('./fixtures/action-subject-baseline.schema.json', import.meta.url),
     )
     assertLoopSchemaTransition(local, original)
     expect(createHash('sha256').update(original).digest('hex')).toBe(

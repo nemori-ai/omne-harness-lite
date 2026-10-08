@@ -87,15 +87,21 @@ def test_real_heading_tokens_unicode_duplicates_and_reference_links(tmp_path):
     assert "broken anchor" in run(tmp_path).stdout
 
 
-@pytest.mark.parametrize("area", [
-    ".meta_harness/design_legacy",
-    ".meta_harness/research/legacy_backup",
-])
-def test_retained_originals_keep_their_original_links(tmp_path, area):
-    """Retained originals are excluded: rewriting their links would falsify the record."""
+def test_design_sources_have_no_originals_link_exemption(tmp_path):
     base(tmp_path)
-    write(tmp_path / area / "topic/README.md", "[as it was written](../../old/place.md)")
-    assert run(tmp_path).returncode == 0
+    write(tmp_path / ".meta_harness/design/architecture/topic/README.md", "[missing](../../old/place.md)")
+    result = run(tmp_path)
+    assert result.returncode == 1
+    assert "broken link" in result.stdout
+
+
+def test_research_has_no_retained_originals_link_exemption(tmp_path):
+    base(tmp_path)
+    write(tmp_path / ".meta_harness/research/legacy_backup/topic/README.md",
+          "[missing](../../old/place.md)")
+    result = run(tmp_path)
+    assert result.returncode == 1
+    assert "broken link" in result.stdout
 
 
 def test_research_resource_and_neighbors_use_normal_link_checks(tmp_path):

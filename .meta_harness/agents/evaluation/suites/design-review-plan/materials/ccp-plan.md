@@ -1,12 +1,14 @@
+# 模拟评审输入（非开发过程记录）
+
 # 施工计划：center-connection-probe 节点落地（候选）
 
 - **计划修订**：r1（候选，未获准执行）
-- **目标**：把实现映射节点 `realization/packages/infra/center-connection-probe` 落成产品包（一个包、两个插件：
+- **目标**：把模拟组件 `模拟组件/infra/center-connection-probe` 落成产品包（一个包、两个插件：
   `center-connection-probe` 与 `center-connection-replay`），取代验收装配里「中心连接」那个替身。
 - **采用的设计**：`capability.center-connection/v2`（已接受）；节点设计 `design.md`（已接受）；
   传输绑定 `composition.governance-center-entry-https-json/v1` 的 S-4、S-5、S-17。
 - **验收边界**：契约规范场景 S-13～S-15 与 examples §1～§3；节点 `verification.md` 的 N-1～N-10。
-- **基线**：执行仓库 `main` 的提交 `1b05cdc0e`。
+- **基线**：执行仓库 `main` 的提交 `模拟baseline-A`。
 
 ## 前提
 

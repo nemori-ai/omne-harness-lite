@@ -172,3 +172,5 @@ console.log(judgeV2(withV3Reference)) // { rejected: 'malformed', malformed: 'M1
 v3 接收的值不自动被 v2 接收。交给 v2 消费者前，须交给保留的 v2 判定器；作者定义的 v3 Schema 引用在那里可能产生 `malformed` `M12`。Asset Model、Asset Evaluation 与 Slash Command 保持显式的 v2 正文集成；使用新的默认入口不会升级这些消费者。
 
 参见[源码导出](src/index.ts)、[测试](tests/)、[资产模型](../asset-model/README_ZH.md)与[斜杠命令](../slash-command/README_ZH.md)。
+
+行为与验证职责见[薄 SPEC](SPEC.md)和[验证入口](verification/README.md)。

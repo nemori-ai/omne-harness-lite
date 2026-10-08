@@ -30,13 +30,6 @@ test('AD1 resolves its exact frozen MP3 resource through the public package expo
   const exportedBytes = readFileSync(
     new URL(import.meta.resolve('@omne-harness-lite/model-profile/schema/v3')),
   )
-  const frozenBytes = readFileSync(
-    new URL(
-      '../../../../.meta_harness/design/spec/data/model-profile/v3/model-profile.schema.json',
-      import.meta.url,
-    ),
-  )
-  expect(exportedBytes).toEqual(frozenBytes)
   expect(createHash('sha256').update(exportedBytes).digest('hex')).toBe(
     'fe5ef98ebd0902d0353dbc2ea8885d0bba24eff18912d8db9f8e9d6291790b8d',
   )

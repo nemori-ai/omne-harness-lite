@@ -1,5 +1,5 @@
 // 迁移片段：各 owner 包导出自己表的迁移，装配按次序合成。
-// 设计：.meta_harness/design/realization/apps/tenancy-host/design.md「存储装配：迁移由 owner 导出片段、本节点合成」。
+// 设计：apps/tenancy-host/SPEC.md owner 导出片段、本节点合成」。
 import type { Migration, MigrationProvider } from 'kysely/migration'
 
 /**

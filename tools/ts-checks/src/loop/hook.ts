@@ -1,3 +1,5 @@
+import { actualFactIdentity } from '../arch/actual-model.ts'
+import { assemblyMetadata } from './sensors/assembly.ts'
 // 收工钩子的判断：宿主在 agent 收工时喂进一个 JSON，决定要不要把「这次变更里要解释的红项」作为事实反馈回去。
 // 这里只有纯函数与一个以依赖注入编排的 `stopHook`；读标准输入、跑 git、起 worker、写文件都在 stop-hook.ts。
 import { createHash } from 'node:crypto'
@@ -61,10 +63,37 @@ function baseNote(row: ExplainedFunction): string {
     : describeAgainstBase(row)
 }
 
+/** Neutral assembly changes retain their own identity and order. */
+function assemblyFindings(reading: Explain['assemblyDelta']): Finding[] {
+  if (reading?.status !== 'data') return []
+  let out: Finding[] = []
+  const delta = reading.data
+  for (const [kind, rows] of [
+    ['added', delta.added],
+    ['removed', delta.removed],
+  ] as const)
+    for (const row of rows)
+      out.push({
+        key: JSON.stringify(['assembly', kind, actualFactIdentity(row), assemblyMetadata(row)]),
+        text: `${kind === 'added' ? '新增静态装配事实' : '不再静态可见（不证明运行时释放）'}：${row.member} ${row.kind} ${row.key}${site(row)}；中性变化，符合性另看全局约束与行为`,
+      })
+  for (const row of delta.changed)
+    out.push({
+      key: JSON.stringify([
+        'assembly-metadata',
+        row.before.map(assemblyMetadata),
+        row.after.map(assemblyMetadata),
+        row.after.map(actualFactIdentity),
+      ]),
+      text: `静态装配元数据变化：${row.after[0]?.member} ${row.after[0]?.kind} ${row.after[0]?.key}；contract/owner 等前后值见完整输出`,
+    })
+  return out
+}
+
 /** 硬线排最前：条目多了被截断时，截掉的是报告项而不是硬线。 */
 export function findingsOf(readings: HookReadings): Finding[] {
   const { explain, hardLines, alert } = readings
-  const out: Finding[] = [
+  let out: Finding[] = [
     ...hardLines.direction.map(finding => hardLineFinding('方向违规', finding)),
     ...hardLines.cycles.map(finding => hardLineFinding('环', finding)),
   ]
@@ -80,18 +109,7 @@ export function findingsOf(readings: HookReadings): Finding[] {
         text: `新增架构偏离 · ${row.rule}：${row.member} ${row.key}${site(row.sites[0])}；${row.reason}`,
       })
   }
-  if (explain.assemblyChanges?.status === 'data')
-    for (const row of explain.assemblyChanges.data)
-      out.push({
-        key: `legacy-intent\u0000${row.member}\u0000${row.before}\u0000${row.after}`,
-        text: `原节点装配预期改动：${row.member}（${row.path}）`,
-      })
-  if (explain.newDeviations?.status === 'data')
-    for (const row of explain.newDeviations.data)
-      out.push({
-        key: `legacy-conformance\u0000${row.id}`,
-        text: `新增原节点装配偏离：${row.member} ${row.kind} ${row.key}${site(row.implementation)}`,
-      })
+  out = out.concat(assemblyFindings(explain.assemblyDelta))
   for (const row of explain.functions)
     if (row.level === 'alert')
       out.push({

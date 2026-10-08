@@ -12,10 +12,7 @@ import { parseInvocation } from '../src/parser.ts'
 import { validate, type SchemaDefName } from '../src/schema.ts'
 import type { SessionCommandSet, ParseResult } from '../src/types.ts'
 
-const spec = new URL(
-  '../../../../.meta_harness/design/spec/data/slash-command/v2/examples.md',
-  import.meta.url,
-)
+const spec = new URL('fixtures/command-examples.md', import.meta.url)
 const text = readFileSync(spec, 'utf8')
 function json(source: string): JsonValue {
   const value = readJsonStrict(source)

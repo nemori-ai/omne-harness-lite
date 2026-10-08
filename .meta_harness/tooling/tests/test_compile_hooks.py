@@ -137,7 +137,7 @@ def _stop(cwd: Path) -> subprocess.CompletedProcess:
                           check=False)
 
 
-def test_the_declared_stop_command_runs_a_copy_of_the_tool_that_has_its_dependencies(tmp_path):
+def test_the_declared_stop_command_runs_a_copy_of_the_tool_that_has_its_dependencies(tmp_path, monkeypatch):
     """刚建的工作树没装依赖：跑主检出里的那一份；装了就跑自己的。不在仓库里：退出 0，什么都不做。"""
     main = tmp_path / "main"
     script = Path(TOOL) / "src/loop/stop-hook.ts"
@@ -167,5 +167,7 @@ def test_the_declared_stop_command_runs_a_copy_of_the_tool_that_has_its_dependen
 
     outside = tmp_path / "outside"
     outside.mkdir()
+    # basetemp can be inside the execution checkout; make this negative genuinely outside Git.
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
     ran = _stop(outside)
     assert (ran.returncode, ran.stdout) == (0, "")

@@ -51,10 +51,7 @@ it('keeps JSON limits above representation failure in the decision order', () =>
 })
 
 const normative = readFileSync(
-  join(
-    import.meta.dirname,
-    '../../../../.meta_harness/design/spec/compositions/governance-center-entry-https-json/v3/examples.md',
-  ),
+  join(import.meta.dirname, 'fixtures/maintenance-wire-examples.md'),
   'utf8',
 )
 const maintenanceSection = normative.slice(normative.indexOf('## 8.'))

@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-实验性会话资产表实现。本包是未发布的 ESM workspace 骨架：已有声明和构建，但组件检查尚未通过，完整服务没有交付通过。model-runtime 纵线会先补齐所需投影。状态见[实现映射](../../../.meta_harness/design/realization/packages/tools/asset-registry/README.md)。
+独立七操作登记表闭包；完整 MCP 和外部依赖事实仍未接全，本包尚无正式提供者插件。见[提供者行为](SPEC.md)与[验证入口](verification/README.md)。
 
 扩展声明使用 `@omne-harness-lite/loop-extension` 当前公开类型。
 
@@ -38,3 +38,5 @@ pnpm --filter @omne-harness-lite/asset-registry-local... run build
 pnpm --filter @omne-harness-lite/asset-registry-local run typecheck
 pnpm --filter @omne-harness-lite/asset-registry-local run test
 ```
+
+[行为承诺](SPEC.md)拥有类型之外的规则；[验证入口](verification/README.md)说明方法与限制。
