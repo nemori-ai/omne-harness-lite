@@ -1,3 +1,14 @@
+import type { CallFacts, CallFactsView } from './reference-types.ts'
+import type {
+  CallLifecycleState,
+  CallOrigin,
+  CallPresenceFact,
+  CallResultFact,
+  CallSource,
+  RetainedCallReadView,
+  ServiceInvalidInput,
+  ServiceUnavailable,
+} from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { isNonNegativeJsonInteger, type JsonNumber } from '@omne-harness-lite/content-blocks'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
@@ -16,6 +27,7 @@ import type {
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import type { LogEntry, ReadResult } from '@omne-harness-lite/session-log'
 import {
+  readModelLogEnvelope,
   encodeModelLogKey,
   inspectModelLogEntry,
   type CapturedModelLogValue,
@@ -27,27 +39,9 @@ import {
   originOfEntry,
   type AcknowledgedDispatch,
 } from '@omne-harness-lite/model-request-runtime'
-import type {
-  AcknowledgedCallFacts,
-  CallPresence,
-  RetainedCallReadView,
-  CallOrigin,
-  CallResultFact,
-  CallLifecycleState,
-  CallPresenceFact,
-  CallSource,
-} from '@omne-harness-lite/model-request-runtime'
-import type {
-  CallFacts,
-  CallFactsView,
-  ModelCallContentStore,
-  ModelCallContentValue,
-} from './reference-types.ts'
+import type { ModelCallContentStore, ModelCallContentValue } from './reference-types.ts'
+import type { AcknowledgedCallFacts, CallPresence } from '@omne-harness-lite/model-request-runtime'
 import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
-import type {
-  ServiceInvalidInput,
-  ServiceUnavailable,
-} from '@omne-harness-lite/model-request-runtime'
 
 type RelevantRecord =
   | ModelCallAcknowledgedRecord
@@ -134,8 +128,11 @@ type Projection =
   | typeof unavailable
 
 function project(entry: LogEntry, existing: ProjectedCall | undefined): Projection {
-  if (!object(entry.payload) || entry.payload.format !== 'mrr/3') return undefined
-  const category = entry.payload.category
+  const decoded = readModelLogEnvelope(entry.payload)
+  if ('failure' in decoded) return unavailable
+  if (decoded.kind === 'other') return undefined
+  if (decoded.envelope.format !== 'mrr/3') return unavailable
+  const category = decoded.envelope.category
   if (category !== 'record' && category !== 'response') return undefined
   const inspected = inspectModelLogEntry({
     session: entry.session,
@@ -260,7 +257,11 @@ function projectReady(
 }
 
 function entryCall(entry: LogEntry): string | undefined {
-  const raw = object(entry.payload) && object(entry.payload.value) ? entry.payload.value : undefined
+  const decoded = readModelLogEnvelope(entry.payload)
+  const raw =
+    'kind' in decoded && decoded.kind === 'model' && object(decoded.envelope.value)
+      ? decoded.envelope.value
+      : undefined
   return raw !== undefined && typeof raw.call === 'string'
     ? raw.call
     : raw !== undefined && object(raw.call) && typeof raw.call.callId === 'string'

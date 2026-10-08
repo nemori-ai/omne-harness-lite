@@ -322,7 +322,7 @@
                 "$ref": "#/$defs/ContextValue"
               }
             },
-            "startedMessageKey": {
+            "startedFactKey": {
               "type": "string",
               "minLength": 1
             }
@@ -335,7 +335,7 @@
             "report",
             "tools",
             "context",
-            "startedMessageKey"
+            "startedFactKey"
           ],
           "additionalProperties": false
         },

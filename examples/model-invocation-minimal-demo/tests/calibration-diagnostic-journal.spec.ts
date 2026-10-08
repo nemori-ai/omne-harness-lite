@@ -162,7 +162,7 @@ function record(facts: DiagnosticMeasurementFact, sequence = '1'): DiagnosticRec
     facts,
   }
 }
-describe('calibration engineering facts through the real JSONL journal', () => {
+describe('calibration engineering facts through the real SQL journal journal', () => {
   it('actual invoke preserves outcomes and HTTP effects; planning facts and explicit-clock durations remain queryable after reopen', async () => {
     const { cfg, collector } = await collectorFixture({
       mode: 'sync',

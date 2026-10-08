@@ -1,3 +1,4 @@
+import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 import { describe, expect, it } from 'vitest'
 import { copyJsonValue, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { judgeMessage } from '@omne-harness-lite/messages'
@@ -294,24 +295,13 @@ describe('U16/V17 conditional withRun calibration over real SL3', () => {
         return entry.ok
       }
       const start = (attempt: number) =>
-        make(
-          'message',
-          {
-            id: `calibration-attempt-${attempt}`,
-            type: 'system_reminder',
-            nature: 'event',
-            source: {
-              kind: 'attempt_started',
-              attempt,
-              reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
-              at: '2026-09-29T00:00:00Z',
-            },
-            blocks: [],
-            createdAt: '2026-09-29T00:00:00Z',
-          },
-          attempt,
-          { kind: 'message' },
-        )
+        prepareAttemptFact({
+          session: runSession,
+          shell: { tenant: original.tenant, run, attempt: attempt },
+          key: `calibration-attempt-${attempt}`,
+          reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
+          at: '2026-09-29T00:00:00Z',
+        }).ok
       const first = await original.log.append(
         runSession,
         [
@@ -445,23 +435,13 @@ describe('U16/V17 conditional withRun calibration over real SL3', () => {
         return entry.ok
       }
       const start = (attempt: number) =>
-        make(
-          'message',
-          {
-            id: `retry-attempt-${attempt}`,
-            type: 'system_reminder',
-            nature: 'event',
-            source: {
-              kind: 'attempt_started',
-              attempt,
-              reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
-              at: '2026-09-29T00:00:00Z',
-            },
-            blocks: [],
-            createdAt: '2026-09-29T00:00:00Z',
-          },
-          attempt,
-        )
+        prepareAttemptFact({
+          session: runSession,
+          shell: { tenant: original.tenant, run, attempt: attempt },
+          key: `retry-attempt-${attempt}`,
+          reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
+          at: '2026-09-29T00:00:00Z',
+        }).ok
       const initial = await original.log.append(
         runSession,
         [start(1), make('record', dispatched, 1), make('record', opened, 1)],

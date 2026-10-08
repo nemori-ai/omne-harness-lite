@@ -1,3 +1,4 @@
+import { readModelLogEnvelope } from '@omne-harness-lite/model-request-runtime'
 import { readFileSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -50,7 +51,7 @@ import type {
 import type { ModelCatalog, ProfileRow } from '@omne-harness-lite/model-profile-directory'
 import { modelProfileDirectoryPlugin } from '@omne-harness-lite/model-profile-directory-local/cordis'
 import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory-local/migrations'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { createSessionModelSelection } from '../src/session-selection.ts'
 import { type SessionModelSelectionInput } from '@omne-harness-lite/model-request-runtime'
@@ -285,21 +286,12 @@ export async function selectionHost(model = true, factoryCredential = false) {
   await publish()
   const recipe = await captureSessionRecipe(deps, { session, tenant, rootDefinition: ROOT })
   if (!('captured' in recipe)) throw new Error(`Real recipe failed: ${recipe.failure}`)
-  let log = await openJsonlSessionLog({
-    dir: join(dir, 'log'),
-    processOwnership: {
-      current: `selection:${process.pid}`,
-      async observeExit() {
-        return 'unknown'
-      },
-    },
-  })
+  let log = await openSqlLogFixture({ dir: join(dir, 'log') })
   let generation = Object.freeze({})
   let owned: ReturnType<typeof createSessionModelSelection>[] = []
   function create(overrides: Partial<SessionModelSelectionInput> = {}) {
     const owner = new ControlledSettlementOwner()
     const input: SessionModelSelectionInput = {
-      binding: { session, tenant, log, generation, currentGeneration: () => generation },
       owner,
       concurrent: 2,
       sessionTenancy: tenancy,
@@ -308,7 +300,12 @@ export async function selectionHost(model = true, factoryCredential = false) {
       async projection(prefix) {
         // Actual full prefix: only records or known text UserMessages are covered in this M1 host.
         for (const entry of prefix.entries) {
-          if (!object(entry.payload) || entry.payload.category !== 'record')
+          const decoded = readModelLogEnvelope(entry.payload)
+          if (
+            'failure' in decoded ||
+            decoded.kind !== 'model' ||
+            decoded.envelope.category !== 'record'
+          )
             return { unknown: true }
         }
         return { known: [] }
@@ -321,6 +318,18 @@ export async function selectionHost(model = true, factoryCredential = false) {
       diagnostic() {},
       onDiagnosticFailure() {},
       ...overrides,
+      binding: {
+        session,
+        tenant,
+        log,
+        generation,
+        currentGeneration: () => generation,
+        readPrefix(this: import('@omne-harness-lite/model-request-runtime').SettlementLogBinding) {
+          return log.fixturePrefix({ session: this.session, tenant: this.tenant }, this.log)
+        },
+        originalIssue: log.fixtureOriginalIssue,
+        ...overrides.binding,
+      },
     }
     const component = createSessionModelSelection(input)
     owned.push(component)
@@ -347,15 +356,7 @@ export async function selectionHost(model = true, factoryCredential = false) {
       owned = []
       await log.close()
       generation = Object.freeze({})
-      log = await openJsonlSessionLog({
-        dir: join(dir, 'log'),
-        processOwnership: {
-          current: `selection-reopen:${process.pid}`,
-          async observeExit() {
-            return 'unknown'
-          },
-        },
-      })
+      log = await openSqlLogFixture({ dir: join(dir, 'log') })
     },
     async close() {
       for (const value of owned) await value.close()

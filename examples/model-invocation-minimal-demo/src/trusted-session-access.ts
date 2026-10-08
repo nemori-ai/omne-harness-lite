@@ -5,6 +5,11 @@ import {
   SESSION_ACCESS_AUTHORITY,
 } from '@omne-harness-lite/session-tenancy/cordis'
 import type { AccessIdentity, SessionAccessOperations } from '@omne-harness-lite/session-tenancy'
+import type {
+  SessionAccess,
+  SessionScope,
+  AccessOperation,
+} from '@omne-harness-lite/session-tenancy'
 import { z } from 'zod'
 import { createSessionAccessOwner } from './session-access.ts'
 
@@ -43,6 +48,9 @@ export function createTrustedSessionAccessPlugin() {
     plugin,
     currentIssuer(ingress: AccessIdentity) {
       return current ? current.issuerFor(ingress) : { unavailable: true as const }
+    },
+    captureIdentity(access: SessionAccess, scope: SessionScope, operation: AccessOperation) {
+      return current?.captureIdentity(access, scope, operation)
     },
   })
 }

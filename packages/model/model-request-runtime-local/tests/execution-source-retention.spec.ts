@@ -1,5 +1,5 @@
 // @module-tag slow
-// Real SQLite/JSONL factory, actual invocation/container, and six-round GC attribution.
+// Real SQLite/SQL journal factory, actual invocation/container, and six-round GC attribution.
 import { describe, expect, it } from 'vitest'
 import { setFlagsFromString } from 'node:v8'
 import { runInNewContext } from 'node:vm'

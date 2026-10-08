@@ -12,7 +12,7 @@ import { inspectFailure } from './readme-literals/inspect-failure.ts'
 import { registerDefaultRetry } from './readme-literals/register-default-retry.ts'
 
 // v17 M17-V8/V11/V12 and v18 F18-V5/V7 against the built runtime/runner packages, the real
-// Cordis runner service, SQLite, JSONL and local TLS. The controlled Run reader is a
+// Cordis runner service, SQLite, SQL journal and local TLS. The controlled Run reader is a
 // test source; it does not certify the production G28 Run terminal owner.
 
 const root = new URL('../../../', import.meta.url)

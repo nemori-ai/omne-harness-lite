@@ -1,6 +1,6 @@
 /**
  * Real-assembly runtime over the Cordis host of tests/session-selection-fixture.ts (SQLite
- * Storage, JSONL SessionLog), shared by the 2026-09-30 close-responsibility acceptance and the
+ * Storage, SQL journal SessionLog), shared by the 2026-09-30 close-responsibility acceptance and the
  * R-X close-receipt regression. Only what the runtime *sees* may be disturbed here (one append
  * receipt, the moment of a host stop); verdicts are read back from the durable log.
  */
@@ -13,8 +13,9 @@ import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { createModelCallContentStore } from '../src/reference-content.ts'
 import { createModelCallFacts } from '../src/reference-facts.ts'
 import type { CallAccess, CallPresence } from '@omne-harness-lite/model-request-runtime'
-import type { ModelCallHost, SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
+import type { ModelCallHost } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementOwner,
   SettlementRegistration,

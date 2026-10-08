@@ -2,6 +2,13 @@ import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import type { CurrentHistoryReaders } from '@omne-harness-lite/model-request-runtime'
 import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import type {
+  DispatchGuardPhase,
+  InterruptInput,
+  InterruptResult,
+  ReleaseCallResult,
+  RuntimeCloseResult,
+} from '@omne-harness-lite/model-request-runtime'
+import type {
   ModelCallEndedRecord,
   ModelCallInterruptIntentRecord,
 } from '@omne-harness-lite/messages'
@@ -22,16 +29,8 @@ import {
   type CallHistoryResult,
   type UnacknowledgedCallHistory,
 } from '@omne-harness-lite/model-request-runtime'
-import type {
-  RuntimeCloseResult,
-  InterruptInput,
-  InterruptResult,
-  ReleaseCallResult,
-  SessionRuntimeBinding,
-} from '@omne-harness-lite/model-request-runtime'
-import type { CallKey } from '@omne-harness-lite/messages'
 import type { CallOperationState, SystemStopControl, RuntimeConstruction } from './service-types.ts'
-import type { DispatchGuardPhase } from '@omne-harness-lite/model-request-runtime'
+import type { CallKey, SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementLogBinding,

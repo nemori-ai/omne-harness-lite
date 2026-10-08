@@ -11,6 +11,7 @@ import type {
 
 import type { AppendCondition, OwnedLogEntry } from '@omne-harness-lite/session-log'
 import type {
+  OriginalIssueAdmission,
   ModelLogSettlementTarget,
   ModelLogSettlementCurrent,
 } from '@omne-harness-lite/model-request-runtime'

@@ -3,11 +3,13 @@ import type { ModelCallId } from '@omne-harness-lite/call-accounts'
 import type { SessionRef } from '@omne-harness-lite/messages'
 import type {
   AuthorizedCallObserver,
+  SessionObserverAccess,
+} from '@omne-harness-lite/model-request-runtime'
+import type {
   ModelArrivalTarget,
   ModelObserverEndpoint,
   ObserverReceiver,
   RuntimeCloseResult,
-  SessionObserverAccess,
 } from '@omne-harness-lite/model-request-runtime'
 
 interface EndpointGrant {

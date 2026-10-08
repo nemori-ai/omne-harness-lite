@@ -1,12 +1,14 @@
+import { fixturePayload } from './log-payload-fixture.ts'
 // @module-tag slow
-// Actual TLS, SQL and JSONL owners remain live across failed close and its retry.
+// Actual TLS and SQL owners remain live across failed close and its retry.
 import { mkdir, mkdtemp } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { expect, test, vi } from 'vitest'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { projectToolJournal } from '@omne-harness-lite/tool-execution-runtime'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { openDemo } from '../src/demo.ts'
+import { createAcceptanceApplication, createDemoConfig } from '../src/index.ts'
 import { DEMO_TOOL_IMPLEMENTATIONS } from '../src/demo-tools.ts'
 import { createLocalTls } from './local-tls.ts'
 import { demoRetirement } from './model-request-support.ts'
@@ -39,14 +41,7 @@ test('actual complete C with an unknown receipt retains its physical owner until
             ...log,
             async append(...args) {
               const C = args[1].some(
-                entry =>
-                  entry.payload &&
-                  typeof entry.payload === 'object' &&
-                  'value' in entry.payload &&
-                  entry.payload.value &&
-                  typeof entry.payload.value === 'object' &&
-                  'kind' in entry.payload.value &&
-                  entry.payload.value.kind === 'delivery_confirmed',
+                entry => fixturePayload(entry.payload).value.kind === 'delivery_confirmed',
               )
               const result = await log.append(...args)
               if (C && !lost && !('failure' in result)) {
@@ -72,15 +67,23 @@ test('actual complete C with an unknown receipt retains its physical owner until
     expect(lost).toBe(true)
     expect(executor).toHaveBeenCalledTimes(1)
     expect(await demo.close()).toMatchObject({ complete: false })
-    await expect(
-      openJsonlSessionLog({
-        dir: join(data, 'session-logs'),
-        processOwnership: {
-          current: 'unconfirmed-C-competitor',
-          observeExit: async () => 'unknown',
-        },
-      }),
-    ).rejects.toThrow()
+    const competing = createAcceptanceApplication(
+      createDemoConfig(
+        data,
+        'competing-close',
+        () => new Date().toISOString(),
+        { multiplier: 1.1, reserveTokens: 256 },
+        demoRetirement(),
+        true,
+      ),
+      {
+        stage: 'modelRequest',
+        developmentTransport: tls.developmentTransport,
+        diagnostics: { record() {} },
+      },
+    )
+    await expect(competing.ready).rejects.toThrow()
+    expect((await competing.close()).complete).toBe(true)
     expect(
       (await demo.application.createToolSession(demo.actor, 'after-unconfirmed-close')).kind,
     ).toBe('rejected')
@@ -88,13 +91,7 @@ test('actual complete C with an unknown receipt retains its physical owner until
     expect(await demo.close()).toMatchObject({ complete: true })
     expect(executor).toHaveBeenCalledTimes(1)
     expect(tls.requests).toHaveLength(1)
-    const physical = await openJsonlSessionLog({
-      dir: join(data, 'session-logs'),
-      processOwnership: {
-        current: 'confirmed-C-successor',
-        observeExit: async () => 'unknown',
-      },
-    })
+    const physical = await openSqlLogFixture({ file: join(data, 'db.sqlite') })
     try {
       const session = unwrap(parseOpaqueIdentifier(demo.session, 'SessionRef'))
       const history = await physical.readSince(session, 0)

@@ -210,7 +210,18 @@ describe('selection: owned exact numeric capture before business decisions', () 
       })
       expect('ok' in result).toBe(true)
       if (seen === undefined) throw new Error('Missing callback profile')
-      expect(writeJsonLossless(seen)).toBe(writeJsonLossless(p))
+      const expected = {
+        ...p,
+        maxInputTokens: new LosslessNumber('1e4000'),
+        adaptation: {
+          ...p.adaptation,
+          configuration: {
+            revision: 'one',
+            values: { nested: [{ amount: new LosslessNumber('-1.2300e-4000'), plain: -0 }] },
+          },
+        },
+      }
+      expect(writeJsonLossless(seen)).toBe(writeJsonLossless(expected))
       expect(jsonNumberSource(seen.maxInputTokens)).toBe('1e4000')
       expect(seen.maxInputTokens).not.toBe(p.maxInputTokens)
       expect(seen.maxOutputTokens).not.toBe(p.maxOutputTokens)

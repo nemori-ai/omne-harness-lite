@@ -1,6 +1,6 @@
 # 验证责任、范围与实施门
 
-当前设计探针是小型机制／算法检查，代码归 [verification/probes](verification/probes/README.md)，不成为产品实现。正式有限模型由[Session协调候选](contracts/session-runtime/SPEC.md)拥有，未来移动到其成员verification槽。具体运行结果及独立评审留执行工作树 tmp；本页不复制运行日志。
+形式模型、负控配置和小型机制／算法探针由包内verification唯一维护。协调、投影与提供者执行方法的仓库坐标依次为`packages/core/session-runtime/verification/README.md`、`packages/core/model-message-projection/verification/README.md`、`packages/core/session-runtime/verification/README.md`；core/session-runtime 与 core/model-message-projection 已建立实际成员；完整 Session 提供者装配仍留 C01。提供者机制探针暂由契约拥有者保存，不创建缺 manifest 的空提供者目录。具体运行结果及独立评审留本工作树tmp，不复制历史日志。
 
 | 义务 | 唯一责任拥有者 | 本阶段证据／实施后必须补 |
 |---|---|---|
@@ -20,8 +20,8 @@
 
 ## 实施前与接受前
 
-技术选择／表达／施工计划分别独立评审，评审不是接受。需获得本次新边界与改变承诺的限定采用后，才将候选移入真实成员并实施。
-未迁冻结规范不就地改字；逐条源／消费者／验证义务切换、删后核验、正式接受记录齐备才退役旧源。实现仅按已接受承诺长出。
+技术选择／表达／施工计划分别独立评审，评审不是接受。需获得本次新边界与改变承诺的限定采用后，才建立真实成员并实施该范围；此前按负责人要求归位的设计槽不代表采用。
+未迁冻结规范不就地改字；逐条源／消费者／验证义务切换、删后核验、当前拥有者能说明精确采用范围后才退役旧源。实现仅按已接受承诺长出。
 实际交付按风险入口定级，跨owner同提交、租户／凭据和在途执行是高风险热点；实施交付需独立实现评审与真实组合验收，不能以本轮设计检查接受15卡。
 
 ## 诊断与配置
@@ -31,9 +31,9 @@
 
 ## 执行入口与判读
 
-[有限模型和配置](verification/models/README.md)共同维护。正配置检查有限不变量及 WorkEventuallyClaimed，公平性仅在 StartOrAdopt 上；三份去保护配置分别验证上述负控目标。
+有限模型和配置在`packages/core/session-runtime/verification/models/`共同维护。正配置检查有限不变量及 WorkEventuallyClaimed，公平性仅在 StartOrAdopt 上；三份去保护配置分别验证上述负控目标。
 模型、探针资源搬迁不表示本轮已执行或当前产品通过。探针从标准输出返回结果，由调用方写入自己的 tmp。
 
-- `node .meta_harness/design/architecture/session-agent-runtime-phase1/verification/probes/probe_cordis.mjs` 只验证 Cordis 4.0.4 的独立 Context、换代与替身原调用句柄。
+- `node --experimental-strip-types packages/core/session-runtime/verification/models/probe_cordis.ts` 只验证 Cordis 4.0.4 的独立 Context、换代与替身原调用句柄。
 - 两份 Python 探针分别验证简化投影算法和 SQLite 同事务回滚，使用本工作树工具链执行。
 - 正式 Session、真实提供者、持久化接口、SQL 公平调度和网络协议须按上表另行验收。

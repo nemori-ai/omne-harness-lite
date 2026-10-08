@@ -3,13 +3,13 @@ import { resolve, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import type { Conclusion } from '@omne-harness-lite/loop-extension'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import {
   inspectRunnerConclusion,
   prepareRunnerConclusion,
 } from '@omne-harness-lite/loop-extension-runner'
 
-describe('actual JSONL provider boundary', () => {
+describe('actual SQL journal provider boundary', () => {
   it('persists and reopens the exact runner wrapper and keys', async () => {
     const session = parseOpaqueIdentifier('runner-pure-session', 'SessionRef')
     const tenant = parseTenantId({ organization: 'runner-org', account: 'runner-account' })
@@ -35,7 +35,7 @@ describe('actual JSONL provider boundary', () => {
     const dir = await mkdtemp(join(taskDir, 'jsonl-'))
     const ownership = { current: 'runner-pure-test', observeExit: async () => 'exited' as const }
     try {
-      const first = await openJsonlSessionLog({ dir, processOwnership: ownership })
+      const first = await openSqlLogFixture({ dir: dir })
       try {
         const appended = await first.append(
           session.ok,
@@ -47,7 +47,7 @@ describe('actual JSONL provider boundary', () => {
       } finally {
         await first.close()
       }
-      const reopened = await openJsonlSessionLog({ dir, processOwnership: ownership })
+      const reopened = await openSqlLogFixture({ dir: dir })
       try {
         const read = await reopened.readSince(session.ok, 0)
         if (!('entries' in read)) throw new Error('full read failed')

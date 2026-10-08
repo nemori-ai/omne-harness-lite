@@ -92,7 +92,7 @@ function publicInput(
       id: 'reminder',
       createdAt: at,
       nature: 'event',
-      source: { kind: 'attempt_started', attempt: 1, reason: 'first', at },
+      source: { kind: 'extension', extension: 'transport-business-reminder' },
       blocks: [
         { id: 'r-text', kind: 'text', text: 'Preserve the lookup result.', visibility: visible },
       ],

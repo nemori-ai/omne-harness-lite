@@ -1,5 +1,6 @@
 import { expectTypeOf, test } from 'vitest'
 import type { AfterModelCallFailureSubject } from '@omne-harness-lite/loop-extension'
+import type { CallKey } from '@omne-harness-lite/model-request-runtime'
 import type {
   DispatchAgainInput,
   DispatchInput,
@@ -9,7 +10,6 @@ import type {
   ModelRuntimeOperations,
   ReadAttemptsResult,
 } from '@omne-harness-lite/model-request-runtime'
-import type { CallKey } from '@omne-harness-lite/messages'
 
 declare const service: ModelRuntimeOperations
 declare const key: CallKey

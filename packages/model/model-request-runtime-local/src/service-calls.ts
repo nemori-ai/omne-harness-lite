@@ -1,3 +1,10 @@
+import type {
+  EffectiveModel,
+  ModelObserverRequest,
+  OpenCallInput,
+  OpenCallResult,
+  ServiceInvalidInput,
+} from '@omne-harness-lite/model-request-runtime'
 import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import { createPlanReuseScopes, type PlanReuseScopes } from './plan-reuse-scopes.ts'
 import { randomUUID } from 'node:crypto'
@@ -49,20 +56,13 @@ import {
   acknowledgedAsTerminal,
   type UnacknowledgedCallHistory,
 } from '@omne-harness-lite/model-request-runtime'
-import type {
-  ModelObserverRequest,
-  OpenCallInput,
-  OpenCallResult,
-  ServiceInvalidInput,
-  SessionRuntimeBinding,
-} from '@omne-harness-lite/model-request-runtime'
+import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type {
   CallPreparationOwner,
   CallObserverBinding,
   RuntimeConstruction,
   ExactTransportLease,
 } from './service-types.ts'
-import type { EffectiveModel } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementOwner,
   SettlementRegistration,

@@ -131,8 +131,8 @@ export async function inspectWithRuntime(
 `readAttempts`、`dispatch` 和 `dispatchAgain` 为需要运行失败扩展的调用方提供显式 `{ consumeFailure: true }` 重载，返回 `{ result, consumption }`。普通单参数调用仍只返回业务结果，不持有失败作用域。`consumption.kind === 'failure'` 给出不可序列化的 `ModelFailureSource`，来源就是产出失败结果的同一次授权完整前缀读取。来源会核对该前缀中的原 dispatched 条目壳和失败响应。交给 runner 前，须同时核验精确主体与**该次 runner 的实际 execution**，并始终释放借用。核验只检查自有快照、当前准入和代际，不另读更新的日志尾；无关追加不会使其失效，释放、撤权、宿主停止或代际替换则会。
 
 ```ts
+import type { CallKey } from '@omne-harness-lite/model-request-runtime'
 import type {
-  CallKey,
   ModelFailureExecution,
   ModelRuntimeOperations,
 } from '@omne-harness-lite/model-request-runtime'
@@ -585,13 +585,13 @@ pnpm --filter @omne-harness-lite/model-request-runtime-local run typecheck
 pnpm --filter @omne-harness-lite/model-request-runtime-local run test
 ```
 
-第一条命令同时构建 workspace 依赖。配套传输测试用真实本地 HTTPS 和公开 core 装配器验证 `invokeModel`；本包 `tests/acceptance-*.spec.ts` 与[最小示例](../../../examples/model-invocation-minimal-demo/README_ZH.md)的服务测试在真实 SQLite 与 JSONL 上验证组合后的服务。这些本地测试都不认证真实模型路由；已记录的真实路由证据见 [realization 验证](../../../.meta_harness/design/realization/packages/model/model-request-runtime/verification.md)。
+第一条命令同时构建 workspace 依赖。配套传输测试用真实本地 HTTPS 和公开 core 装配器验证 `invokeModel`；本包 `tests/acceptance-*.spec.ts` 与[最小示例](../../../examples/model-invocation-minimal-demo/README_ZH.md)的服务测试在真实 SQLite 内容存储与 SQL Session Log 上验证组合后的服务。这些本地测试都不认证真实模型路由；已记录的真实路由证据见 [realization 验证](../../../.meta_harness/design/realization/packages/model/model-request-runtime/verification.md)。
 
 ## 日志值的捕获、构造与认回
 
 成员检查消费 D089 已采用 的 offer-expiry 公共根比较器：实际 `sentAt` 已知时核 `sentAt <= firstTokenAt <= endedAt`，首 token 缺席时核 `sentAt <= endedAt`。D105 下仅已锚定的 `interrupted` 响应允许 `sentAt: null`；首 token 与 ended 的比较、opened 原值相等仍须核对。null 表示实际发送时刻不可用，不证明零次发送或零费用。普通调用结果和待处分响应仍须有实际字符串时刻。静态非法日期与已知时刻逆序不能返回成员完整；任意小数、时区同点与 opened 原字符串均照原样保留。
 
-本包根入口公开 `modelLogFormat`、`encodeModelLogKey`、`decodeModelLogKey`、`captureModelLogValue`、`prepareModelLogEntry`、`inspectModelLogEntry`、`inspectSettlementMembers`、`modelLogJsonEqual`、`recognizeMessageValue` 及其类型，消费 D088 的精确采用。所有这些构件均为纯函数；静态导入和调用不打开日志、不装 Cordis、不读取环境凭据或时钟、不发号。日志类型只从 session-log-jsonl 根入口借用。
+公共定义包 `model-request-runtime` 根入口公开 `modelLogFormat`、`encodeModelLogKey`、`decodeModelLogKey`、`captureModelLogValue`、`prepareModelLogEntry`、`inspectModelLogEntry`、`inspectSettlementMembers`、`modelLogJsonEqual`、`recognizeMessageValue` 及其类型，消费 D088 的精确采用。所有这些构件均为纯函数；静态导入和调用不打开日志、不装 Cordis、不读取环境凭据或时钟、不发号。日志类型只从 session-log 根入口消费。
 
 文本与值接收是两个显式模式。任意层重复成员、getter、`toJSON`、非 JSON 对象及伪数字品牌均拒绝。捕获返回自有不可变原 JSON，保留数字词法；响应 judge 的 `{ ok: true }` 不会替调用方制造 owned ModelResponse。
 
@@ -724,7 +724,7 @@ import {
 } from '@omne-harness-lite/model-request-runtime'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { LogPrefixView } from '@omne-harness-lite/messages'
-import type { OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type { OwnedLogEntry } from '@omne-harness-lite/session-log'
 
 export function prepareReplyBatch(
   session: string,
@@ -1116,6 +1116,6 @@ export async function confirmContent(
 // 已确认行只是内容；采用的 SessionLog marker 需单独发布。
 ```
 
-内部 `publishModelCallContent` 先写入 accepted 创建或 ready 内容、读取权威 JSONL 前缀，再以 `tailEquals` 追加 marker。真实 SQLite/JSONL 场景验证 created marker 单次提交、同原件认回及不同字节拒绝。公开 `openCall` 和有回复 `dispatch` 在返回 ref 或终态前调用该发布件。`createIndependentCallConsumer` 独立拥有 wait/release 资源：单次 wait 取消不结束 consumer，release 等待接收任务真实停止。`createRuntimeAcquire` 经受信资格与存在性提供者及共同 facts 投影回答 `acquireCall`。
+内部 `publishModelCallContent` 先写入 accepted 创建或 ready 内容、读取权威 Session Log 前缀，再以 `tailEquals` 追加 marker。真实 SQLite/SQL Session Log 场景验证 created marker 单次提交、同原件认回及不同字节拒绝。公开 `openCall` 和有回复 `dispatch` 在返回 ref 或终态前调用该发布件。`createIndependentCallConsumer` 独立拥有 wait/release 资源：单次 wait 取消不结束 consumer，release 等待接收任务真实停止。`createRuntimeAcquire` 经受信资格与存在性提供者及共同 facts 投影回答 `acquireCall`。
 
-`createModelCallFacts` 从实际会话前缀投影 created/ready marker，并按摘要读取已确认内容。首个 owner 关闭后，另一个 facts 实例能从 JSONL 和 SQLite 还原同一引用。在 Cordis/Storage 服务场景中，`openCall` 返回创建引用，`dispatch` 发布 ready 而不捏造最终响应，新建 `acquireCall({ mode: 'read' })` 消费者看到 `complete` 与 `disposition_pending`。释放消费者不取消执行 owner。ready 工作真实排空后，runtime 释放精确 transport lease。之后的处分、ACK 回收（RT12 S-98，见上文确认一节）与 creation key 认回由 `tests/acceptance-a22-acknowledgement.spec.ts`、`tests/acceptance-a22-settlement-work.spec.ts`、`tests/acceptance-20260930-a22-runtime.spec.ts` 覆盖，经 demo 服务的路径由其 `tests/call-reference-service.spec.ts` 覆盖。
+`createModelCallFacts` 从实际会话前缀投影 created/ready marker，并按摘要读取已确认内容。首个 owner 关闭后，另一个 facts 实例能从 SQL Session Log 和 SQLite 内容存储还原同一引用。在 Cordis/Storage 服务场景中，`openCall` 返回创建引用，`dispatch` 发布 ready 而不捏造最终响应，新建 `acquireCall({ mode: 'read' })` 消费者看到 `complete` 与 `disposition_pending`。释放消费者不取消执行 owner。ready 工作真实排空后，runtime 释放精确 transport lease。之后的处分、ACK 回收（RT12 S-98，见上文确认一节）与 creation key 认回由 `tests/acceptance-a22-acknowledgement.spec.ts`、`tests/acceptance-a22-settlement-work.spec.ts`、`tests/acceptance-20260930-a22-runtime.spec.ts` 覆盖，经 demo 服务的路径由其 `tests/call-reference-service.spec.ts` 覆盖。

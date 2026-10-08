@@ -1,6 +1,8 @@
+import { attemptStartedPayload } from '@omne-harness-lite/session-runtime'
+import { checkAppendInput } from '@omne-harness-lite/session-log'
 import { describe, expect, it } from 'vitest'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { join } from 'node:path'
 import type { PlanFailure } from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
@@ -21,7 +23,7 @@ import {
   type TestPlan,
 } from './anchored-invocation-fixture.ts'
 
-describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel', () => {
+describe('A1b noRun actual SQL journal + SQL identity mapping + production invokeModel', () => {
   it('projects only confirmed exact durable positions when reply handoff is reached', async () => {
     await harness(async h => {
       const events: DiagnosticEvent[] = []
@@ -138,7 +140,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
               initiator: 'user',
             },
             retainUnknown() {
-              throw new Error('actual JSONL intent receipt became unknown')
+              throw new Error('actual SQL journal intent receipt became unknown')
             },
           }),
         ).toEqual({ appended: true })
@@ -234,7 +236,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
         ...h.log,
         async append(...args) {
           const result = await h.log.append(...args)
-          return ++appends === 3 ? { failure: 'unavailable' } : result
+          return h.writes.length === 3 ? { failure: 'unavailable' } : result
         },
       })
       const handle = createAnchoredModelInvocation({ ...h.input, transport: wire.adapter })
@@ -397,10 +399,10 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
   })
   it('generation revoked while confirmed dispatched returns closes HTTP admission and retains unsettled responsibility', async () => {
     await harness(async h => {
-      h.wrap({
-        ...h.log,
-        async append(...args) {
-          const result = await h.log.append(...args)
+      h.wrapOriginal({
+        ...h.log.fixtureOriginalIssue,
+        async admitOriginal(value) {
+          const result = await h.log.fixtureOriginalIssue.admitOriginal(value)
           h.revoke()
           return result
         },
@@ -448,15 +450,15 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
     for (const stage of ['dispatched', 'opened'] as const)
       it(`JS ${stage} receipt ${name} stays unknown with no candidate/release`, async () => {
         await harness(async h => {
-          const port = { ...h.log }
-          let count = 0
-          expect(
-            Reflect.set(port, 'append', async (...args: Parameters<typeof h.log.append>) => {
-              if (++count === (stage === 'dispatched' ? 1 : 2)) return raw
-              return h.log.append(...args)
-            }),
-          ).toBe(true)
-          h.wrap(port)
+          if (stage === 'dispatched') {
+            const port = { ...h.log.fixtureOriginalIssue }
+            expect(Reflect.set(port, 'admitOriginal', async () => raw)).toBe(true)
+            h.wrapOriginal(port)
+          } else {
+            const port = { ...h.log }
+            expect(Reflect.set(port, 'append', async () => raw)).toBe(true)
+            h.wrap(port)
+          }
           const t = transport()
           const handle = createAnchoredModelInvocation({ ...h.input, transport: t.adapter })
           expect(await handle.outcome).toEqual({ unavailable: true })
@@ -548,7 +550,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       h.wrap({
         ...h.log,
         async append(...args) {
-          if (++number === 3) return { failure: 'unavailable' }
+          if (h.writes.length === 3) return { failure: 'unavailable' }
           return h.log.append(...args)
         },
       })
@@ -576,11 +578,12 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
     await harness(async h => {
       const entered = deferred<void>(),
         resume = deferred<void>()
-      let reads = 0
+      let reads = 0,
+        armed = false
       h.wrap({
         ...h.log,
         async readSince(...args) {
-          if (++reads === 1) {
+          if (armed && ++reads === 1) {
             entered.resolve()
             await resume.promise
             return { failure: 'unavailable' }
@@ -591,6 +594,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       const t = transport()
       const handle = createAnchoredModelInvocation({ ...h.input, transport: t.adapter })
       expect(await handle.outcome).toHaveProperty('replyPending')
+      armed = true
       const first = handle.close()
       const concurrent = handle.close()
       expect(concurrent).toBe(first)
@@ -625,40 +629,56 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       expect(response).not.toHaveProperty('reply')
     })
   })
-  it('malformed successful anchor receipt is unknown and never authorizes HTTP/release', async () => {
-    await harness(async h => {
-      const t = transport()
-      const events: DiagnosticEvent[] = []
-      let closed = 0
-      h.wrap({
-        ...h.log,
-        async append() {
-          return { positions: [], tail: 0 }
-        },
+  it.each(['empty', 'getter'] as const)(
+    'malformed successful anchor receipt (%s) is unknown and never authorizes HTTP/release',
+    async kind => {
+      await harness(async h => {
+        const t = transport()
+        const events: DiagnosticEvent[] = []
+        let closed = 0
+        const malformed = { ...h.log.fixtureOriginalIssue }
+        let getterCalls = 0
+        const positions =
+          kind === 'empty'
+            ? []
+            : Object.defineProperty([], '0', {
+                enumerable: true,
+                get() {
+                  getterCalls++
+                  return 1
+                },
+              })
+        Reflect.set(malformed, 'admitOriginal', async () => ({
+          confirmed: true,
+          positions,
+          claim: {},
+        }))
+        h.wrapOriginal(malformed)
+        const handle = createAnchoredModelInvocation({
+          ...h.input,
+          transport: t.adapter,
+          diagnosticEmitterFactory: () => ({
+            record(event) {
+              events.push(event)
+              return { recorded: { collectorId: 'test', sequence: String(events.length) } }
+            },
+            close() {
+              closed++
+            },
+          }),
+        })
+        expect(await handle.outcome).toEqual({ unavailable: true })
+        expect(
+          events.some(event => event.facts.kind === 'progress' && 'anchor' in event.facts),
+        ).toBe(false)
+        expect(closed).toBe(1)
+        expect(t.sends()).toBe(0)
+        expect(getterCalls).toBe(0)
+        expect(await handle.close()).toEqual({ unavailable: true })
+        expect(h.released()).toBe(0)
       })
-      const handle = createAnchoredModelInvocation({
-        ...h.input,
-        transport: t.adapter,
-        diagnosticEmitterFactory: () => ({
-          record(event) {
-            events.push(event)
-            return { recorded: { collectorId: 'test', sequence: String(events.length) } }
-          },
-          close() {
-            closed++
-          },
-        }),
-      })
-      expect(await handle.outcome).toEqual({ unavailable: true })
-      expect(events.some(event => event.facts.kind === 'progress' && 'anchor' in event.facts)).toBe(
-        false,
-      )
-      expect(closed).toBe(1)
-      expect(t.sends()).toBe(0)
-      expect(await handle.close()).toEqual({ unavailable: true })
-      expect(h.released()).toBe(0)
-    })
-  })
+    },
+  )
   it('owns credential/config/IDs/callbacks before a delayed dispatched append', async () => {
     await harness(async h => {
       const entered = deferred<void>(),
@@ -667,14 +687,12 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
         usedCredential = '',
         originalObservations = 0,
         replacementReleases = 0
-      h.wrap({
-        ...h.log,
-        async append(...args) {
-          if (++number === 1) {
-            entered.resolve()
-            await continuation.promise
-          }
-          return h.log.append(...args)
+      h.wrapOriginal({
+        ...h.log.fixtureOriginalIssue,
+        async admitOriginal(value) {
+          entered.resolve()
+          await continuation.promise
+          return h.log.fixtureOriginalIssue.admitOriginal(value)
         },
       })
       const t = transport()
@@ -815,10 +833,10 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
         })
         expect(t.sends()).toBe(0)
         const read = await h.log.readSince(h.input.settlement.binding.session, 0)
-        if (!('entries' in read)) throw new Error('actual JSONL read')
+        if (!('entries' in read)) throw new Error('actual SQL journal read')
         expect(read.entries).toHaveLength(2)
         const [dispatch, response] = read.entries
-        if (!dispatch || !response) throw new Error('missing JSONL records')
+        if (!dispatch || !response) throw new Error('missing SQL journal records')
         expect(payload(dispatch)).toHaveProperty('kind', 'model_call_dispatched')
         expect(payload(response)).toMatchObject({
           outcome: 'interrupted',
@@ -911,7 +929,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       h.wrap({
         ...h.log,
         async append(...args) {
-          const number = ++appendNumber
+          const number = h.writes.length
           const result = await h.log.append(...args)
           if (number === 2 && 'positions' in result) confirmedOpened = true
           return result
@@ -960,23 +978,18 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       expect(h.writes.map(x => x.count)).toEqual([1, 1, 2])
       expect(
         h.writes.every(
-          x =>
+          (x, index) =>
             JSON.stringify(x.fence) === '{"kind":"unfenced"}' &&
-            JSON.stringify(x.condition) === '{"kind":"unconditional"}',
+            JSON.stringify(x.condition) ===
+              JSON.stringify(
+                index === 0 ? { kind: 'tailEquals', tail: 0 } : { kind: 'unconditional' },
+              ),
         ),
       ).toBe(true)
       expect(await handle.close()).toEqual({ released: true })
       expect(h.released()).toBe(1)
       await h.log.close()
-      const reopened = await openJsonlSessionLog({
-        dir: join(h.dir, 'log'),
-        processOwnership: {
-          current: `anchored-reopen:${process.pid}`,
-          async observeExit() {
-            return 'unknown'
-          },
-        },
-      })
+      const reopened = await openSqlLogFixture({ dir: join(h.dir, 'log') })
       try {
         const read = await reopened.readSince(h.input.settlement.binding.session, 0)
         if (!('entries' in read)) throw new Error('actual reopen')
@@ -1018,12 +1031,12 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       await harness(async h => {
         const t = transport()
         if (result !== 'reject')
-          h.wrap({
-            ...h.log,
-            async append() {
-              if (result === 'dispatchedNotCommitted') return { failure: 'invalidInput' }
-              if (result === 'dispatchedUnknown') return { failure: 'unavailable' }
-              return { failure: 'alreadyRecorded', keys: ['collision'] }
+          h.wrapOriginal({
+            ...h.log.fixtureOriginalIssue,
+            async admitOriginal() {
+              if (result === 'dispatchedNotCommitted') return { kind: 'invalidInput' }
+              if (result === 'dispatchedUnknown') return { kind: 'unavailable' }
+              return { kind: 'conflict' }
             },
           })
         const handle = createAnchoredModelInvocation({
@@ -1053,7 +1066,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
         ...h.log,
         async append(...args) {
           const result = await h.log.append(...args)
-          return ++number === 2 ? { failure: 'unavailable' } : result
+          return h.writes.length === 2 ? { failure: 'unavailable' } : result
         },
       })
       const t = transport()
@@ -1087,7 +1100,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       h.wrap({
         ...h.log,
         async append(...args) {
-          if (++number === 2) {
+          if (h.writes.length === 2) {
             entered.resolve()
             await late.promise
           }
@@ -1136,7 +1149,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       h.wrap({
         ...h.log,
         async append(...args) {
-          if (++number === 2) {
+          if (h.writes.length === 2) {
             entered.resolve()
             await late.promise
             await h.log.append(...args)
@@ -1179,7 +1192,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       h.wrap({
         ...h.log,
         async append(session, ...rest) {
-          if (++number === 2) {
+          if (h.writes.length === 2) {
             entered.resolve()
             await late.promise
             const read = await h.log.readSince(session, 0)
@@ -1218,7 +1231,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       h.wrap({
         ...h.log,
         async append(...args) {
-          return ++number === 2 ? { failure: 'invalidInput' } : h.log.append(...args)
+          return h.writes.length === 2 ? { failure: 'invalidInput' } : h.log.append(...args)
         },
       })
       const headers = Object.freeze({ 'x-many': Object.freeze(['second', '', 'second', 'first']) })
@@ -1373,37 +1386,31 @@ describe('v17 conditional Run anchored invocation', () => {
   const attempt = 1
   async function appendStarted(h: Parameters<Parameters<typeof harness>[0]>[0]) {
     const binding = h.input.settlement.binding
-    const event = captureModelLogValue({
-      category: 'message',
-      input: {
-        kind: 'value',
-        value: {
-          id: 'anchored-attempt-start',
-          type: 'system_reminder',
-          nature: 'event',
-          source: {
+    const started = checkAppendInput(
+      binding.session,
+      [
+        {
+          tenant: binding.tenant,
+          run,
+          attempt,
+          dedupeKey: 'anchored-attempt-start',
+          readKeys: ['session-runtime/attempts'],
+          payload: attemptStartedPayload({
             kind: 'attempt_started',
+            run,
             attempt,
             reason: 'first',
             at: '2026-09-29T00:00:00Z',
-          },
-          blocks: [],
-          createdAt: '2026-09-29T00:00:00Z',
+          }),
         },
-      },
-    })
-    if (!('ok' in event)) throw new Error('Run attempt message')
-    const started = prepareModelLogEntry({
-      session: binding.session,
-      shell: { tenant: binding.tenant, run, attempt },
-      captured: event.ok,
-      purpose: { kind: 'message' },
-      messagePrefix: [],
-    })
-    if (!('ok' in started)) throw new Error('Run attempt entry')
+      ],
+      { kind: 'fenced', run, attempt },
+      { kind: 'unconditional' },
+    )
+    if ('failure' in started) throw new Error('Run attempt fact')
     const initial = await h.log.append(
       binding.session,
-      [started.ok],
+      started.ok.entries,
       { kind: 'fenced', run, attempt },
       { kind: 'unconditional' },
     )
@@ -1444,7 +1451,10 @@ describe('v17 conditional Run anchored invocation', () => {
       const settled = await handle.settleReply({ consumed: { by: 'compaction' } })
       expect(settled).toHaveProperty('settled')
       expect(h.writes.map(item => [item.fence, item.condition])).toEqual([
-        [{ kind: 'fenced', run, attempt }, { kind: 'unconditional' }],
+        [
+          { kind: 'fenced', run, attempt },
+          { kind: 'tailEquals', tail: 1 },
+        ],
         [{ kind: 'fenced', run, attempt }, { kind: 'unconditional' }],
         [{ kind: 'unfenced' }, { kind: 'tailEquals', tail: 3 }],
       ])
@@ -1464,7 +1474,7 @@ describe('v17 conditional Run anchored invocation', () => {
         ...h.log,
         async append(...args) {
           const receipt = await h.log.append(...args)
-          return ++appendCount === 2 ? { failure: 'unavailable' } : receipt
+          return h.writes.length === 2 ? { failure: 'unavailable' } : receipt
         },
       })
       const wire = transport()
@@ -1486,7 +1496,7 @@ describe('v17 conditional Run anchored invocation', () => {
       const read = await h.log.readSince(h.input.settlement.binding.session, 0)
       if (!('entries' in read)) throw new Error('Run prefix unreadable')
       expect(read.entries.map(payload).map(value => value.kind)).toEqual([
-        undefined,
+        'attempt_started',
         'model_call_dispatched',
         'model_call_opened',
       ])
@@ -1502,7 +1512,7 @@ describe('v17 conditional Run anchored invocation', () => {
       h.wrap({
         ...h.log,
         async append(...args) {
-          if (++appendCount === 2) {
+          if (h.writes.length === 2) {
             entered.resolve()
             await finish.promise
           }
@@ -1547,7 +1557,7 @@ describe('v17 conditional Run anchored invocation', () => {
       if (!('entries' in read)) throw new Error('Run prefix unreadable')
       expect(read.entries).toHaveLength(4)
       expect(read.entries.map(payload).map(value => value.kind)).toEqual([
-        undefined,
+        'attempt_started',
         'model_call_dispatched',
         'model_call_opened',
         undefined,

@@ -1,5 +1,5 @@
 /**
- * Review 2026-09-30 Q4 (a)-(h) at the settlement coordinator, over an actual JSONL SessionLog and an
+ * Review 2026-09-30 Q4 (a)-(h) at the settlement coordinator, over an actual SQL journal SessionLog and an
  * actual SQL session-tenant mapping (tests/settlement-fixture.ts `controlled`). The wrappers only
  * change what the caller of the log sees (receipt lost / prefix unreadable); commit or absence
  * is decided by the real log.

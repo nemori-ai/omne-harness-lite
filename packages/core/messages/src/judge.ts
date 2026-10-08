@@ -43,7 +43,6 @@ const STATE_SOURCES = ['runtime_context_changed', 'runtime_context_snapshot']
 const EVENT_SOURCES = [
   'background_execution_finished',
   'background_execution_interrupted',
-  'attempt_started',
   'interrupted',
   'system_wait_answered',
   'loop_guard',

@@ -6,6 +6,8 @@ import {
   tenantIdEquals,
 } from '@omne-harness-lite/identity-values'
 import {
+  checkLogPayload,
+  factLogPayload,
   checkAppendInput,
   compareInteger,
   positiveInteger,
@@ -111,11 +113,11 @@ export function prepareToolJournalEntry(input: {
         attempt: origin.attempt,
         dedupeKey: key,
         readKeys: [key, callKey(value.ref.callId), toolJournalAll],
-        payload: {
+        payload: factLogPayload('tool-execution-runtime', '1', {
           format: toolJournalFormat,
           category: 'execution',
           value,
-        } satisfies ToolJournalEnvelope,
+        } satisfies ToolJournalEnvelope),
       },
     ],
     { kind: 'unfenced' },
@@ -143,17 +145,18 @@ export function inspectToolJournalEntry(
     copy = copyJsonValue(input)
   if (scope === undefined || 'failed' in copy || !journalObject(copy.ok)) return invalidJournal
   const row = copy.ok
+  const payload = ownedToolPayload(row.payload)
   if (!(
     claims(row.dedupeKey) ||
     (Array.isArray(row.readKeys) && row.readKeys.some(claims)) ||
-    (journalObject(row.payload) && claims(row.payload.format))
+    (journalObject(row.payload) && row.payload.owner === 'tool-execution-runtime')
   ))
     return { unrelated: true }
   if (
     row.session !== scope.session ||
     !positiveInteger(row.position) ||
-    !journalShape('Payload', row.payload!) ||
-    !journalObject(row.payload) ||
+    !journalShape('Payload', payload!) ||
+    !journalObject(payload) ||
     !journalIdentity(row.run) ||
     !positiveInteger(row.attempt) ||
     Object.keys(row).some(
@@ -172,7 +175,7 @@ export function inspectToolJournalEntry(
   )
     return invalidJournal
   const tenant = parseTenantId(row.tenant),
-    value = captureToolJournalValue(row.payload.value)
+    value = captureToolJournalValue(payload.value)
   if (
     !('ok' in tenant) ||
     !tenantIdEquals(tenant.ok, scope.tenant) ||
@@ -194,4 +197,14 @@ export function inspectToolJournalEntry(
   )
     return invalidJournal
   return { value, key, entry: row as unknown as LogEntry }
+}
+
+function ownedToolPayload(
+  value: unknown,
+): import('@omne-harness-lite/content-blocks').JsonValue | null {
+  const outer = checkLogPayload(value)
+  if (!('kind' in outer) || outer.kind !== 'fact') return null
+  return outer.payload.owner === 'tool-execution-runtime' && outer.payload.version === '1'
+    ? outer.payload.value
+    : null
 }

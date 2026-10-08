@@ -200,7 +200,7 @@ describe('V13 strict text and exact arbitrary JSON numbers', () => {
         ),
       ).toEqual({ rejected: 'malformed' })
   })
-  it('attempt counters and embedded original attachment bytes receive exact integer checks', () => {
+  it('attempt events cannot be messages; attachment bytes remain exact integers', () => {
     expect(
       'ok' in
         judgeMessageText(
@@ -210,7 +210,7 @@ describe('V13 strict text and exact arbitrary JSON numbers', () => {
             at +
             '","reason":"first"}}',
         ),
-    ).toBe(true)
+    ).toBe(false)
     const message = {
       id: 'm',
       type: 'user',

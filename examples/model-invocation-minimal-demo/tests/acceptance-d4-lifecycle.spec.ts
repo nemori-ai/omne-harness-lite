@@ -115,16 +115,7 @@ async function callConfig(
   let publicationOrdinal = 0
   return {
     ...base,
-    sessionLog: {
-      dir,
-      processOwnership: {
-        current: label,
-        async observeExit() {
-          return 'unknown'
-        },
-      },
-      policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
-    },
+    sessionLog: { operationLimit: 32 },
     modelRequest: {
       maxScopes: 64,
       acknowledgementCleanup: { next: () => ({ stop: true }) },
@@ -417,14 +408,6 @@ describe('D4 independent runtime retained leases and historical reacquisition', 
         },
         { multiplier: 1.1, reserveTokens: 256 },
         demoRetirement(),
-        {
-          current: 'd4-recovered-process',
-          async observeExit(identity) {
-            return identity === first.workerIdentity && exit.exited && exit.closed
-              ? 'exited'
-              : 'unknown'
-          },
-        },
       )
       if (!config.modelRequest) throw Error('model config missing')
       const originalMeter = config.modelRequest.transport.inputMeters.find(

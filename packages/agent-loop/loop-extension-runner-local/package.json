@@ -58,12 +58,13 @@
     "vitest": "catalog:",
     "@omne-harness-lite/organization-governance-sql": "workspace:*",
     "@omne-harness-lite/organization-governance": "workspace:*",
-    "@omne-harness-lite/session-log-jsonl": "workspace:*",
     "@omne-harness-lite/assembly-manifest-store": "workspace:*",
     "@omne-harness-lite/session-tenancy-table": "workspace:*",
     "@omne-harness-lite/asset-registry-local": "workspace:*",
     "@omne-harness-lite/credential-verification-scrypt": "workspace:*",
     "@omne-harness-lite/account-identity-sql": "workspace:*",
-    "@omne-harness-lite/account-registration-sequential": "workspace:*"
+    "@omne-harness-lite/account-registration-sequential": "workspace:*",
+    "@omne-harness-lite/session-log-sql": "workspace:*",
+    "@omne-harness-lite/session-log": "workspace:*"
   }
 }

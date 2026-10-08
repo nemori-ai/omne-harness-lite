@@ -132,16 +132,7 @@ export async function callDeployment(
   return {
     ...base,
     officialManifest: { ordinal: 1, entries: model === 'flash' ? [flashProfile.ok] : [profile.ok] },
-    sessionLog: {
-      dir,
-      processOwnership: {
-        current: label,
-        async observeExit() {
-          return 'unknown'
-        },
-      },
-      policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
-    },
+    sessionLog: { operationLimit: 32 },
     modelRequest: {
       maxScopes: 64,
       acknowledgementCleanup: { next: () => ({ stop: true }) },

@@ -30,7 +30,6 @@ export const SCHEMA_DEF_NAMES = Object.freeze([
   'ReminderSource',
   'BackgroundExecutionFinishedSource',
   'BackgroundExecutionInterruptedSource',
-  'AttemptStartedSource',
   'InterruptedSource',
   'CardAnswer',
   'SystemWaitAnsweredSource',

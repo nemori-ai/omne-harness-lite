@@ -9,7 +9,7 @@ import { createDiagnosticJournal } from '../src/diagnostic-journal.ts'
 import { demoRetirement } from './model-request-support.ts'
 import { latch } from './support.ts'
 
-describe('D6 bounded JSONL read after a real late FileHandle.read', () => {
+describe('D6 bounded SQL journal read after a real late FileHandle.read', () => {
   it('returns only timeout, holds the shared query/export permit, then releases the real handle', async () => {
     const parent = resolve('tmp/d6-completion')
     await fs.mkdir(parent, { recursive: true, mode: 0o700 })

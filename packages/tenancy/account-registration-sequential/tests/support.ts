@@ -323,6 +323,7 @@ export class InstrumentedStorage implements AtomicStorage {
               lockSentinel: name => tx.lockSentinel(name),
             }),
           ),
+        observeCompletion: () => unit.observeCompletion(),
         afterCommit: callback => unit.afterCommit(callback),
       }
       const value = await fn(wrapped)

@@ -1,9 +1,11 @@
+import { mockPrefixReader } from './mock-prefix-fixture.ts'
+import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 import { expect, test, vi } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { composeMigrations } from '@omne-harness-lite/storage'
 import { openStorage } from '@omne-harness-lite/storage-sql'
 import {
@@ -19,13 +21,12 @@ import {
 import { createCallContainerStore } from '../src/service-container.ts'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { createModelCallFacts } from '../src/reference-facts.ts'
+import type { RuntimeConstruction } from '../src/service-types.ts'
 import type {
   CurrentHistoryReaders,
-  OpenCallInput,
-  ModelCallHost,
   SessionRuntimeBinding,
 } from '@omne-harness-lite/model-request-runtime'
-import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { OpenCallInput, ModelCallHost } from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type {
   DiagnosticAssociation,
@@ -131,6 +132,7 @@ test('unknown append recognition reuses its only registration before release', a
     generation,
     currentGeneration: () => generation,
     log: { readSince },
+    readPrefix: mockPrefixReader('unknown-append-unit-journal'),
   } as unknown as SettlementLogBinding
   let released = 0
   const start: SettlementRegistration['start'] = (_kind, operation) => {
@@ -418,18 +420,10 @@ test('observer association rejects a wrong call before catalog reads or transpor
 })
 
 test.each(['lease', 'invalidInput', 'unavailable'] as const)(
-  'preserves transport acquisition %s against the actual empty JSONL prefix',
+  'preserves transport acquisition %s against the actual empty SQL prefix',
   async acquisition => {
     const dir = await mkdtemp(join(tmpdir(), 'mrr-open-call-'))
-    const log = await openJsonlSessionLog({
-      dir,
-      processOwnership: {
-        current: `open-call:${process.pid}`,
-        async observeExit() {
-          return 'unknown'
-        },
-      },
-    })
+    const log = await openSqlLogFixture({ dir: dir })
     const storage = await openStorage({
       dialect: 'sqlite',
       file: join(dir, 'content.sqlite'),
@@ -467,7 +461,14 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       opened: () => ({ confirmed: true }),
       unresolvedWrites: () => [],
     }
-    const logBinding = { session, tenant, log, generation, currentGeneration: () => generation }
+    const logBinding = {
+      session,
+      tenant,
+      log,
+      readPrefix: () => log.fixturePrefix({ session, tenant }),
+      generation,
+      currentGeneration: () => generation,
+    }
     const profile = {
       routeName: 'model_a',
       origin: 'official',
@@ -709,36 +710,17 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       const read = await log.readSince(session, 0)
       if ('failure' in read) throw new Error(read.failure)
       expect(read.entries.map(entry => entry.payload)).toMatchObject([
-        { value: { kind: 'model_call_created', call: 'call_1' } },
-        { value: { kind: 'model_call_created', call: 'call_2' } },
+        { value: { category: 'record', value: { kind: 'model_call_created', call: 'call_1' } } },
+        { value: { category: 'record', value: { kind: 'model_call_created', call: 'call_2' } } },
       ])
       const run = 'open-calibration-run'
-      const started = captureModelLogValue({
-        category: 'message',
-        input: {
-          kind: 'value',
-          value: {
-            id: 'open-calibration-attempt-start',
-            type: 'system_reminder',
-            nature: 'event',
-            source: {
-              kind: 'attempt_started',
-              attempt: 1,
-              reason: 'first',
-              at: '2026-09-29T00:00:00Z',
-            },
-            blocks: [],
-            createdAt: '2026-09-29T00:00:00Z',
-          },
-        },
-      })
-      if (!('ok' in started)) throw new Error('Run attempt value')
-      const startEntry = prepareModelLogEntry({
-        session,
+
+      const startEntry = prepareAttemptFact({
+        session: session,
         shell: { tenant, run, attempt: 1 },
-        captured: started.ok,
-        purpose: { kind: 'message' },
-        messagePrefix: [],
+        key: 'open-calibration-attempt-start',
+        reason: 'first',
+        at: '2026-09-29T00:00:00Z',
       })
       if (!('ok' in startEntry)) throw new Error('Run attempt entry')
       const appended = await log.append(
@@ -783,10 +765,13 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
         )
         expect(entry?.payload).toMatchObject({
           value: {
-            kind: 'model_call_ended',
-            call: callId,
-            ending: 'interrupted',
-            initiator: 'run_cancelled',
+            category: 'record',
+            value: {
+              kind: 'model_call_ended',
+              call: callId,
+              ending: 'interrupted',
+              initiator: 'run_cancelled',
+            },
           },
         })
       }

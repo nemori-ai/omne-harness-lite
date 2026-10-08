@@ -1,3 +1,5 @@
+import type { SettlementRequest } from './settlement-types.ts'
+import { originalIssueReceipt } from './original-issue-receipt.ts'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
@@ -19,7 +21,10 @@ import {
 } from '@omne-harness-lite/model-request-runtime'
 import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import { settlementAppendReceipt } from './settlement-receipt.ts'
-import { settlementGenerationCurrent } from '@omne-harness-lite/model-request-runtime'
+import {
+  readSettlementPrefix,
+  settlementGenerationCurrent,
+} from '@omne-harness-lite/model-request-runtime'
 import {
   constructPendingModelResponse,
   constructModelResponse,
@@ -39,8 +44,8 @@ import type {
   SettlementResult,
   SettlementOwner,
   SettlementTaskKind,
+  SettlementLogBinding,
 } from '@omne-harness-lite/model-request-runtime'
-import type { SettlementRequest } from './settlement-types.ts'
 import type {
   AnchoredInvocationHandle,
   AnchoredInvocationOutcome,
@@ -293,8 +298,9 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
   const contention = input.settlement.settlementContention
   if (contention === undefined || input.settlement.settlementScheduler === undefined)
     return terminal(unavailable)
-  if (!settlementGenerationCurrent(binding) || originalOwner.admission() !== 'open')
-    return terminal(unavailable)
+  const availableIssue = availableOriginalIssue(binding, originalOwner)
+  if (availableIssue === undefined) return terminal(unavailable)
+  const originalIssue = availableIssue
   const transport = Object.freeze({
     plan: input.transport.plan.bind(input.transport),
     projectOutput: input.transport.projectOutput.bind(input.transport),
@@ -385,6 +391,7 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
     messagePrefix: null,
   })
   if ('invalidValue' in prepared) return terminal({ rejected: 'invalidInput', reason: 'malformed' })
+  const preparedEntry = prepared.ok
   const acquired = originalOwner.acquire(contention.limits.concurrent)
   if ('unavailable' in acquired) return terminal(unavailable)
   const registration: SettlementRegistration = acquired.registration
@@ -463,7 +470,7 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
     originalOwner.admission() === 'open' &&
     settlementGenerationCurrent(binding)
   function start<T>(
-    kind: 'append' | 'wait',
+    kind: SettlementTaskKind,
     operation: (signal: AbortSignal) => Promise<T>,
   ): SettlementTask<T> {
     const task = registration.start(kind, operation)
@@ -678,14 +685,45 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
       return false
     }
   }
+  async function admitDispatched() {
+    const fixed = await readSettlementPrefix({
+      binding,
+      registration: { start, release: registration.release },
+    })
+    if (!('prefix' in fixed) || preparedEntry.dedupeKey === undefined) return undefined
+    const received = await start('controlAppend', () =>
+      originalIssue.admitOriginal({
+        source: fixed.prefix.source,
+        originalPosition: preparedEntry.dedupeKey!,
+        entry: preparedEntry,
+      }),
+    ).completion
+    const admission = originalIssueReceipt(received, fixed.prefix.source)
+    if (admission === undefined || !('confirmed' in admission)) {
+      if (
+        admission === undefined ||
+        admission.kind === 'unavailable' ||
+        admission.kind === 'conflict'
+      )
+        quarantined = true
+      return undefined
+    }
+    return admission
+  }
+  async function launchAuthorized(
+    claim: import('@omne-harness-lite/model-request-runtime').OriginalIssueClaim,
+  ): Promise<boolean> {
+    if (!usable()) return false
+    const permission = await originalIssue.consumeOriginal(claim)
+    return permission.kind === 'launch' && usable()
+  }
   const run = async (): Promise<AnchoredInvocationOutcome> => {
     try {
       if (!usable()) return { cancelledBeforeDispatch: true }
-      const dispatchTask = append(prepared.ok)
-      const dispatchReceipt = await receipt(dispatchTask)
-      if (dispatchReceipt === undefined) return unavailable
+      const admission = await admitDispatched()
+      if (admission === undefined) return unavailable
       dispatchConfirmed = true
-      dispatchedPosition = dispatchReceipt.positions[0]
+      dispatchedPosition = admission.positions[0]
       if (!usable()) {
         const candidate = constructAnchoredInterruption({
           dispatched,
@@ -707,7 +745,8 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
         signal.addEventListener('abort', cancel, { once: true })
         if (signal.aborted) cancel()
         try {
-          if (!usable()) return { cancelledBeforeSend: true } as const
+          if (!(await launchAuthorized(admission.claim)))
+            return { cancelledBeforeSend: true } as const
           const invocationEmitter = engineering.invocationEmitter
           invocation = invokeModel({
             ...requested,
@@ -1028,4 +1067,10 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
       return closing
     },
   })
+}
+
+function availableOriginalIssue(binding: SettlementLogBinding, owner: SettlementOwner) {
+  return settlementGenerationCurrent(binding) && owner.admission() === 'open'
+    ? binding.originalIssue
+    : undefined
 }

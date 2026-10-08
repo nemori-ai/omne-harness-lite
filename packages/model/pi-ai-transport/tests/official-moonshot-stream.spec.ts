@@ -77,7 +77,7 @@ function syntheticInput(provider: string, route: ModelDefinition['routes'][strin
         type: 'system_reminder',
         createdAt: at,
         nature: 'event',
-        source: { kind: 'attempt_started', attempt: 1, reason: 'first', at },
+        source: { kind: 'extension', extension: 'transport-business-reminder' },
         blocks: [
           {
             id: 'moonshot-reminder-text',

@@ -1,3 +1,5 @@
+import { copyJsonValue } from '@omne-harness-lite/content-blocks'
+import { attemptStartedPayload } from '@omne-harness-lite/session-runtime'
 import { expect, test, vi } from 'vitest'
 import type {
   AppendRequest,
@@ -33,7 +35,12 @@ async function fixture() {
       return { kind: 'prefix', prefix: await f.prefix() }
     },
     async borrow() {
-      return { kind: 'borrowed', ownerGeneration: 'owner-one', log: { ...f.log, append }, release }
+      return {
+        kind: 'borrowed',
+        ownerGeneration: f.log.backing.ownerGeneration,
+        log: { ...f.log, append },
+        release,
+      }
     },
   }
   const opened = await createToolDriverJournal({
@@ -81,45 +88,35 @@ async function nextAttempt(f: Awaited<ReturnType<typeof fixture>>) {
   const history = projectToolDriverHistory(await f.f.prefix())
   const previous = history.runs.get('run')?.latest?.value
   if (previous === undefined) throw new Error('missing adoption fixture')
-  const message = captureModelLogValue({
-    category: 'message',
-    input: {
-      kind: 'value',
-      value: {
-        id: 'started-2',
-        type: 'system_reminder',
-        createdAt: at,
-        nature: 'event',
-        blocks: [],
-        source: { kind: 'attempt_started', attempt: 2, reason: 'resumed_after_wait', at },
-      },
-    },
-  })
-  if (!('ok' in message)) throw new Error('bad attempt message')
-  const prepared = prepareModelLogEntry({
-    ...scope,
-    shell: { tenant: scope.tenant, run: 'run', attempt: 2 },
-    captured: message.ok,
-    purpose: { kind: 'message' },
-    messagePrefix: history.models.entries.flatMap(item => {
-      const message = item.captured.message
-      return message === null || message.type === 'system' ? [] : [message]
+  const prepared = {
+    tenant: scope.tenant,
+    run: 'run',
+    attempt: 2,
+    dedupeKey: 'session-runtime/attempt/2',
+    readKeys: ['session-runtime/attempts'],
+    payload: attemptStartedPayload({
+      kind: 'attempt_started',
+      run: 'run',
+      attempt: 2,
+      reason: 'resumed_after_wait',
+      at,
     }),
-  })
-  if (!('ok' in prepared)) throw new Error('bad attempt entry')
+  }
+  const copied = copyJsonValue(prepared.payload)
+  if ('failed' in copied) throw Error('fixture fact payload')
   return {
     value: {
       ...previous,
       attempt: 2,
       adoption: dk(['attempt', 'run', '2e0']),
       report: { ...previous.report, attempt: 2 },
-      startedMessageKey: prepared.ok.dedupeKey,
+      startedFactKey: prepared.dedupeKey,
     },
-    entry: prepared.ok,
+    entry: { ...prepared, payload: copied.ok },
   }
 }
 
-test('publishes adoption and its protocol-checked start message in one physical append', async () => {
+test('publishes adoption and its checked attempt fact in one physical append', async () => {
   const f = await fixture()
   try {
     const next = await nextAttempt(f)
@@ -141,7 +138,7 @@ test('never recognizes a partially visible unknown two-member batch as complete'
   const f = await fixture()
   const next = await nextAttempt(f)
   try {
-    // Deliberately violate physical atomicity to test recognition, not to claim JSONL writes partially.
+    // Deliberately violate physical atomicity to test recognition, not to claim SQL commits partially.
     f.append.mockImplementationOnce(async (session, entries, fence, condition) => {
       const first = entries[0]
       if (!first) throw new Error('missing first member')

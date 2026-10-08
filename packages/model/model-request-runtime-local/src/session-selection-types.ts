@@ -1,8 +1,8 @@
+import type { EffectiveModel } from '@omne-harness-lite/model-request-runtime'
 import type { SessionSelectModelResult } from '@omne-harness-lite/model-request-runtime'
 import type { EffectiveAssembly } from '@omne-harness-lite/asset-evaluation'
 
 import type {
-  EffectiveModel,
   DisplayListResult,
   LegalTargetsResult,
   SelectionFailure,

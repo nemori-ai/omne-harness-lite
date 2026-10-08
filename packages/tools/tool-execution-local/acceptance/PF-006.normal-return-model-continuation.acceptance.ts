@@ -3,15 +3,23 @@
 // Build first: pnpm --filter @omne-harness-lite/model-invocation-minimal-demo... run build
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:https'
 import { join, resolve } from 'node:path'
 import { parseEnv } from 'node:util'
+import { DatabaseSync } from 'node:sqlite'
 import { test } from 'vitest'
+import { checkLogPayload, type LogEntry } from '@omne-harness-lite/session-log'
+import {
+  readModelLogEnvelope,
+  inspectModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
+import { inspectToolJournalEntry } from '@omne-harness-lite/tool-execution-runtime'
 import {
   MODEL,
   openDemo,
+  inspectDriverEntry,
   type DemoConversation,
 } from '../../../../examples/model-invocation-minimal-demo/dist/index.js'
 
@@ -43,9 +51,31 @@ function one<T>(values: readonly T[], criterion: string): T {
   assert.ok(value !== undefined, criterion)
   return value
 }
-function value(entry: unknown) {
-  const payload = object(object(entry).payload)
-  return isObject(payload.value) ? payload.value : {}
+function value(entry: LogEntry) {
+  const scope = { tenant: entry.tenant, session: entry.session }
+  const execution = inspectToolJournalEntry(scope, entry)
+  if ('value' in execution) return object(execution.value)
+  assert.ok('unrelated' in execution, 'claimed tool execution fact must decode')
+  const driver = inspectDriverEntry(scope, entry)
+  if ('value' in driver) return object(driver.value)
+  assert.ok('unrelated' in driver, 'claimed driver fact must decode')
+  const payload = checkLogPayload(entry.payload)
+  assert.ok('kind' in payload, 'claimed log payload must decode')
+  if (payload.kind === 'message') return object(payload.payload.value)
+  const model = readModelLogEnvelope(entry.payload)
+  if ('kind' in model && model.kind === 'model') {
+    const inspected = inspectModelLogEntry({
+      ...scope,
+      entry,
+      purpose: { kind: model.envelope.category },
+      messagePrefix: null,
+    })
+    assert.ok('ok' in inspected, 'claimed model fact must validate format, body, shell and keys')
+    return object(inspected.ok.captured.value)
+  }
+  assert.ok('kind' in model, 'claimed model fact must decode')
+  assert.ok(payload.kind === 'fact', 'remaining entry is an owned fact')
+  return object(payload.payload.value)
 }
 async function bounded<T>(operation: Promise<T>, label: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -64,6 +94,21 @@ async function save(directory: string, name: string, supplied: unknown) {
   await writeFile(join(directory, `${name}.json`), JSON.stringify(supplied, null, 2) + '\n', {
     mode: 0o600,
   })
+}
+
+/** Preserve only this Session's exact SQL journal bytes, without identity or credential tables. */
+async function preserveSqlJournal(directory: string, data: string, session: string) {
+  const db = new DatabaseSync(join(data, 'db.sqlite'), { readOnly: true })
+  try {
+    await save(directory, 'actual-session-log-sql', {
+      journal: db.prepare('select * from sl_journal where session = ?').all(session),
+      entries: db
+        .prepare('select * from sl_entry where session = ? order by position_length, position')
+        .all(session),
+    })
+  } finally {
+    db.close()
+  }
 }
 
 /** Only the external model endpoint is controlled. No runtime/executor boundary is replaced. */
@@ -366,15 +411,7 @@ async function verifyTurn(mode: 'controlled-https' | 'real-openrouter') {
       assert.ok(string(remoteTool.content).includes(returned))
       assert.equal(peer.failures.length, 0)
     }
-    const log = join(
-      data,
-      'session-logs',
-      createHash('sha256').update(demo.session).digest('hex'),
-      'entries.jsonl',
-    )
-    await writeFile(join(directory, 'actual-session-log.jsonl'), await readFile(log), {
-      mode: 0o600,
-    })
+    await preserveSqlJournal(directory, data, demo.session)
     const closed = await bounded(demo.close(), 'close')
     await save(directory, 'close-result', closed)
     assert.equal(closed.complete, true, 'actual owners release')
@@ -401,15 +438,11 @@ async function verifyTurn(mode: 'controlled-https' | 'real-openrouter') {
     credential?.fill(0)
     if (demo) {
       // Preserve original application bytes on failure as well as success.
-      const log = join(
-        data,
-        'session-logs',
-        createHash('sha256').update(demo.session).digest('hex'),
-        'entries.jsonl',
-      )
-      const bytes = await readFile(log).catch(() => undefined)
-      if (bytes)
-        await writeFile(join(directory, 'actual-session-log.jsonl'), bytes, { mode: 0o600 })
+      await preserveSqlJournal(directory, data, demo.session).catch(async error => {
+        await save(directory, 'physical-log-capture-failure', {
+          message: error instanceof Error ? error.message : 'unknown capture failure',
+        })
+      })
       demo.stopActive()
       await bounded(demo.close(), 'cleanup close')
     }

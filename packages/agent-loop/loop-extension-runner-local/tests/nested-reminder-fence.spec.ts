@@ -14,7 +14,7 @@ import {
   type LoggedMessage,
   type SystemReminderMessage,
 } from '@omne-harness-lite/messages'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { type AppendFence, type SessionLog } from '@omne-harness-lite/session-log'
 import { createRunnerLogAdapter } from '../src/run-log.ts'
 import { createRunnerReminderLogAdapter } from '../src/reminder-log.ts'
@@ -85,10 +85,7 @@ async function fixture() {
   const root = resolve(process.cwd(), '../../../tmp/runner-inject-fix/files')
   await mkdir(root, { recursive: true })
   const dir = await mkdtemp(join(root, 'nested-'))
-  const log = await openJsonlSessionLog({
-    dir,
-    processOwnership: { current: 'nested-test-process', observeExit: async () => 'exited' },
-  })
+  const log = await openSqlLogFixture({ dir: dir })
   const binding = { session: sessionId, tenant: tenantId, logGeneration: 'nested-generation' }
   const owner = createRunnerTaskOwner(binding)
   const fences: AppendFence[] = []

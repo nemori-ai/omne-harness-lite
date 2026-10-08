@@ -1,15 +1,16 @@
+import { sqlJournalFault } from './sql-fault-fixture.ts'
 import { RunnerHostService } from '@omne-harness-lite/loop-extension-runner/cordis'
 // @module-tag slow
-// 归慢层：整套装配＋真库：用例在 SQLite 文件库上起租户与资产注册的整套装配，并开真实 JSONL 会话日志。
+// 归慢层：整套装配＋真库：用例在 SQLite 文件库上起租户与资产注册的整套装配，并开真实 SQL journal 会话日志。
 import { Context } from '@deepseek-ai/cordis'
-import { mkdtemp, rm, open, type FileHandle } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { expect, test, vi } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import { judgePositionedSubject } from '@omne-harness-lite/loop-extension'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { loadDefaultRetry } from '../../../model/model-request-runtime-local/tests/retry-assembly.ts'
 import { createRunnerTaskOwner } from '../src/task-owner.ts'
 import { loopExtensionRunnerPlugin } from '../src/cordis.ts'
@@ -58,7 +59,7 @@ async function serviceHost() {
       observeExit: async () => 'exited' as const,
     },
   }
-  const log = await openJsonlSessionLog(logOptions)
+  const log = await openSqlLogFixture({ dir: logOptions.dir })
   const operations = {
     append: vi.fn(log.append),
     readByKey: vi.fn(log.readByKey),
@@ -158,7 +159,7 @@ async function serviceHost() {
   }
 }
 
-test('Cordis service dispatches a real manifest chain into JSONL; replay reads without invoking, guarding, handles, time or writes', async () => {
+test('Cordis service dispatches a real manifest chain into SQL journal; replay reads without invoking, guarding, handles, time or writes', async () => {
   const h = await serviceHost()
   try {
     const invoke = vi.fn(async () => ({ kind: 'output' as const, value: { kind: 'observed' } }))
@@ -497,29 +498,7 @@ for (const repairFails of [false, true])
   test(`service unknown survives fiber removal until physical stop/reopen (${repairFails ? 'durable original' : 'authoritative absence'})`, async () => {
     const h = await serviceHost()
     const identity = unwrap(parseOpaqueIdentifier(session, 'SessionRef'))
-    const probe = await open(join(h.dir, 'probe'), 'w')
-    const prototype = Object.getPrototypeOf(probe) as Pick<FileHandle, 'datasync' | 'truncate'>
-    const originalSync = prototype.datasync,
-      originalTruncate = prototype.truncate
-    let armed = false,
-      failures = 0
-    const sync = vi.spyOn(prototype, 'datasync').mockImplementation(async function (
-      this: FileHandle,
-    ) {
-      if (armed && (repairFails || failures === 0)) {
-        failures++
-        throw Object.assign(new Error('actual runner service datasync fault'), { code: 'EIO' })
-      }
-      return originalSync.call(this)
-    })
-    const truncate = vi.spyOn(prototype, 'truncate').mockImplementation(async function (
-      this: FileHandle,
-      size?: number,
-    ) {
-      if (armed && repairFails)
-        throw Object.assign(new Error('actual runner service truncate fault'), { code: 'EIO' })
-      return originalTruncate.call(this, size)
-    })
+    const fault = sqlJournalFault(join(h.dir, 'journal.sqlite'), repairFails)
     try {
       await h.log.append(
         identity,
@@ -529,24 +508,26 @@ for (const repairFails of [false, true])
       )
       const invoked = vi.fn(async () => ({ kind: 'output' as const, value: { kind: 'observed' } }))
       h.implementations.registerBuiltin('example:b', invoked)
-      armed = true
+      fault.arm()
       expect(await h.runner.dispatch(request, new AbortController().signal)).toEqual({
         failure: 'unavailable',
       })
-      expect(failures).toBeGreaterThan(0)
+      expect(fault.failures()).toBeGreaterThan(0)
       expect(h.owner.hasUnknown(h.facts.binding)).toBe(true)
-      armed = false
+      fault.clear()
       await h.runnerFiber.dispose()
       expect(h.owner.hasUnknown(h.facts.binding)).toBe(true)
       // Trusted physical stop precedes recovery admission; the service never does this itself.
       h.owner.closeAdmission()
       await h.log.close()
-      const recovered = await openJsonlSessionLog({
-        ...h.logOptions,
-        processOwnership: {
-          current: 'runner-service-recovery-test',
-          observeExit: async () => 'exited',
-        },
+      const recovered = await openSqlLogFixture({
+        dir: {
+          ...h.logOptions,
+          processOwnership: {
+            current: 'runner-service-recovery-test',
+            observeExit: async () => 'exited',
+          },
+        }.dir,
       })
       try {
         const readByKey = async (key: string) => {
@@ -570,10 +551,8 @@ for (const repairFails of [false, true])
         await recovered.close()
       }
     } finally {
-      armed = false
-      sync.mockRestore()
-      truncate.mockRestore()
-      await probe.close()
+      fault.clear()
+      fault.close()
       await h.close()
     }
   })

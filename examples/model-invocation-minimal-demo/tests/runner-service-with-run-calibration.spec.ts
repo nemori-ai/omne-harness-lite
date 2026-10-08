@@ -1,3 +1,6 @@
+import { fixturePayload } from './log-payload-fixture.ts'
+import { physicalBatches } from './sql-batches-fixture.ts'
+import { readAttemptStarted } from '@omne-harness-lite/session-runtime'
 import { readFile, readdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -110,10 +113,15 @@ describe('actual withRun input calibration through the demo service', () => {
         if (run !== selected?.run || attempt !== selected.attempt) return { unavailable: true }
         const history = messagePrefixWithSources(prefix, selected)
         if ('unavailable' in history) return { unavailable: true }
-        const starts = history.messages.filter(
-          message =>
-            message.type === 'system_reminder' && message.source.kind === 'attempt_started',
-        )
+        const starts = prefix.entries.filter(entry => {
+          const parsed = readAttemptStarted(entry)
+          return (
+            'kind' in parsed &&
+            parsed.kind === 'fact' &&
+            parsed.fact.run === run &&
+            parsed.fact.attempt === attempt
+          )
+        })
         if (starts.length !== 1) return { unavailable: true }
         // The fixture admits exactly one attempt and never writes a terminal Run fact.
         return {
@@ -201,36 +209,14 @@ describe('actual withRun input calibration through the demo service', () => {
       expect(tls.requests).toHaveLength(3)
       const read = await app.readSessionLog(who, session)
       if (!('entries' in read)) throw Error('controlled response log unavailable')
-      const responses = read.entries.filter(entry =>
-        typeof entry.payload === 'object' &&
-        entry.payload !== null &&
-        !Array.isArray(entry.payload) &&
-        'category' in entry.payload
-          ? entry.payload.category === 'response'
-          : false,
+      const responses = read.entries.filter(
+        entry => fixturePayload(entry.payload).category === 'response',
       )
       expect(responses).toHaveLength(3)
       expect(responses.every(entry => entry.run === RUN && entry.attempt === 1)).toBe(true)
       const sessionLog = config.sessionLog
       if (sessionLog === undefined) throw Error('physical session log unavailable')
-      const logFiles = (await readdir(sessionLog.dir, { recursive: true })).filter(name =>
-        name.endsWith('entries.jsonl'),
-      )
-      const batches = (
-        await Promise.all(
-          logFiles.map(async name =>
-            (await readFile(join(sessionLog.dir, name), 'utf8'))
-              .split('\n')
-              .filter(Boolean)
-              .map(
-                line =>
-                  JSON.parse(line) as {
-                    entries: { payload: { category: string; value: ModelResponse } }[]
-                  },
-              ),
-          ),
-        )
-      ).flat()
+      const batches = physicalBatches<ModelResponse>(config.databaseFile)
       const responseBatches = batches.filter(batch =>
         batch.entries.some(entry => entry.payload.category === 'response'),
       )

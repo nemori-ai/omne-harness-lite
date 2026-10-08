@@ -26,6 +26,7 @@ import {
 } from './log-codec-key.ts'
 import type { CapturedModelLogValue } from './log-codec-value.ts'
 
+import { readModelLogEnvelope } from './log-envelope.ts'
 import { currentCodecDomain, type ModelLogCodecDomain } from './log-codec-domain.ts'
 
 export interface ModelLogSettlementTarget {
@@ -228,7 +229,7 @@ export function foreignReserved(value: {
   readonly readKeys?: unknown
 }): boolean {
   return [value.dedupeKey, ...(Array.isArray(value.readKeys) ? value.readKeys : [])].some(
-    key => typeof key === 'string' && key.startsWith('mrr/'),
+    key => typeof key === 'string' && /^mrr(?:\/|$)/u.test(key),
   )
 }
 function prefixLocationMatches(
@@ -259,14 +260,6 @@ function prefixRunKeysValid(value: JsonObject): boolean {
     !Array.isArray(value.readKeys) ||
     !value.readKeys.every(identity) ||
     new Set(value.readKeys).size !== value.readKeys.length
-  )
-}
-function modelShapedPayload(payload: JsonValue): boolean {
-  return (
-    object(payload) &&
-    ((typeof payload.format === 'string' && payload.format.startsWith('mrr/')) ||
-      payload.type !== undefined ||
-      (typeof payload.kind === 'string' && payload.kind.startsWith('model_')))
   )
 }
 
@@ -565,15 +558,12 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
   ): { readonly ok: CapturedModelLogValue | null } | SettlementMembersResult {
     const payload = value.payload
     if (payload === undefined) return undetermined('entry')
-    if (
-      !object(payload) ||
-      typeof payload.format !== 'string' ||
-      !domain.readFormats.includes(payload.format)
-    ) {
-      if (foreignReserved(value) || modelShapedPayload(payload))
-        return undetermined('unknown_format')
-      return { ok: null }
+    const decoded = readModelLogEnvelope(payload)
+    if ('failure' in decoded) return undetermined('entry')
+    if (decoded.kind === 'other') {
+      return foreignReserved(value) ? undetermined('unknown_format') : { ok: null }
     }
+    if (!domain.readFormats.includes(decoded.envelope.format)) return undetermined('unknown_format')
     const captured = captureWrapper(payload)
     return 'invalidValue' in captured ? undetermined('entry') : captured
   }

@@ -1,6 +1,6 @@
 import { copyJsonValue, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'
-import { positiveInteger, type LogEntry } from '@omne-harness-lite/session-log'
+import { checkLogPayload, positiveInteger, type LogEntry } from '@omne-harness-lite/session-log'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import { decodeEvent } from './codec.ts'
 import type { ContextEvent } from './journal-types.ts'
@@ -12,9 +12,7 @@ function claimsContext(row: JsonObject): boolean {
   return (
     (typeof row.dedupeKey === 'string' && row.dedupeKey.startsWith('context:')) ||
     (Array.isArray(row.readKeys) && row.readKeys.includes('runtime-context')) ||
-    (object(payload) &&
-      typeof payload.codec === 'string' &&
-      (payload.codec === 'runtime-context' || payload.codec.startsWith('runtime-context/')))
+    (object(payload) && payload.owner === 'runtime-context')
   )
 }
 function validEnvelope(row: JsonObject, revision: string): boolean {
@@ -41,7 +39,8 @@ export function inspectContextLogEntry(
   if (!scope || 'failed' in copied || !object(copied.ok)) return { invalid: true }
   const row = copied.ok
   if (!claimsContext(row)) return { unrelated: true }
-  const event = decodeEvent(row.payload),
+  const payload = ownedContextPayload(row.payload)
+  const event = decodeEvent(payload),
     tenant = parseTenantId(row.tenant)
   if (
     !event ||
@@ -53,4 +52,14 @@ export function inspectContextLogEntry(
   )
     return { invalid: true }
   return { event }
+}
+
+function ownedContextPayload(
+  value: unknown,
+): import('@omne-harness-lite/content-blocks').JsonValue | null {
+  const outer = checkLogPayload(value)
+  if (!('kind' in outer) || outer.kind !== 'fact') return null
+  return outer.payload.owner === 'runtime-context' && outer.payload.version === '1'
+    ? outer.payload.value
+    : null
 }

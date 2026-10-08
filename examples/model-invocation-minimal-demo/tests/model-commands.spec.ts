@@ -1,3 +1,4 @@
+import { modelBatchText } from './sql-batches-fixture.ts'
 import { mkdir, mkdtemp, readFile, readdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
@@ -25,13 +26,7 @@ function capture() {
 }
 
 async function durableLog(directory: string): Promise<string> {
-  let contents = ''
-  for (const file of await readdir(directory, { withFileTypes: true })) {
-    const path = join(directory, file.name)
-    if (file.isDirectory()) contents += await durableLog(path)
-    else if (file.name === 'entries.jsonl') contents += await readFile(path, 'utf8')
-  }
-  return contents
+  return modelBatchText(join(directory, 'db.sqlite'))
 }
 
 describe('interactive model commands on the real demo assembly', () => {
@@ -143,7 +138,7 @@ describe('interactive model commands on the real demo assembly', () => {
           ],
         },
       ])
-      const log = await durableLog(join(data, 'session-logs'))
+      const log = await durableLog(data)
       expect(log).toContain('model_selection_changed')
       expect(log).toContain(FLASH)
       expect(log.match(/model_selection_changed/gu)).toHaveLength(2)

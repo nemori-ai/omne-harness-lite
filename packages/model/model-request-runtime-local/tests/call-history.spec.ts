@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import type { AppendResult, OwnedLogEntry, SessionLog } from '@omne-harness-lite/session-log'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { projectCallState } from '@omne-harness-lite/model-request-runtime'
@@ -38,21 +38,17 @@ async function withLog(
   )
   await mkdir(root, { recursive: true })
   const dir = await mkdtemp(join(root, `${name}-`))
-  const log = await openJsonlSessionLog({
-    dir,
-    processOwnership: {
-      current: `b1-history:${process.pid}`,
-      async observeExit() {
-        return 'unknown'
-      },
-    },
-  })
+  const log = await openSqlLogFixture({ dir: dir })
   const generation = Object.freeze({})
   let currentGeneration: object | null = generation
   const binding = {
     session,
     tenant,
     log,
+    readPrefix(this: import('@omne-harness-lite/model-request-runtime').SettlementLogBinding) {
+      return log.fixturePrefix({ session: this.session, tenant: this.tenant }, this.log)
+    },
+    originalIssue: log.fixtureOriginalIssue,
     generation,
     currentGeneration: () => currentGeneration,
   }
@@ -109,7 +105,7 @@ async function withLog(
   }
 }
 
-describe('RT5 S-6/S-8/S-34 one no-Run history interpretation over actual JSONL', () => {
+describe('RT5 S-6/S-8/S-34 one no-Run history interpretation over actual SQL journal', () => {
   it('separates volatile open/reply_pending from durable anchors and complete MR5 batch', async () => {
     await withLog('frontier', async ({ append, submit, read }) => {
       const empty = interpretCallHistory({ prefix: await read(), callId: 'call' })
@@ -347,7 +343,7 @@ describe('RT5 S-6/S-8/S-34 one no-Run history interpretation over actual JSONL',
         Array.isArray(known.payload)
       )
         throw new Error('fixture wrapper')
-      await append({ ...known, payload: { ...known.payload, format: 'mrr/4' } })
+      await append({ ...known, payload: { ...known.payload, version: 'mrr/4' } })
       expect(interpretCallHistory({ prefix: await read(), callId: 'call' })).toEqual({
         unavailable: true,
         reason: 'unknown_format',
@@ -370,7 +366,7 @@ describe('RT5 S-6/S-8/S-34 one no-Run history interpretation over actual JSONL',
       await append({
         ...withoutDedupe,
         readKeys: [allKey.ok],
-        payload: { ...known.payload, format: 'alien/1' },
+        payload: { ...known.payload, version: 'alien/1' },
       })
       expect(interpretCallHistory({ prefix: await read(), callId: 'call' })).toEqual({
         unavailable: true,
@@ -394,7 +390,7 @@ describe('RT5 S-6/S-8/S-34 one no-Run history interpretation over actual JSONL',
       await append({
         ...withoutDedupe,
         readKeys: [allKey.ok],
-        payload: { ...known.payload, format: 'mrr/2', category: 'future' },
+        payload: { ...known.payload, version: 'mrr/3', value: { category: 'future', value: {} } },
       })
       expect(interpretCallHistory({ prefix: await read(), callId: 'never-opened' })).toMatchObject({
         unavailable: true,

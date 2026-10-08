@@ -1,3 +1,4 @@
+import { assertResponseSchemaTransition } from './schema-transition.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
@@ -65,7 +66,7 @@ function object(value: JsonValue): JsonObject {
   return value
 }
 
-describe('MR11 exact public resource', () => {
+describe('MR12 exact current dependency transition', () => {
   it('matches the accepted Schema bytes and compiles all 25 public definitions', () => {
     const actual = readFileSync(new URL('../schema/model-response.schema.json', import.meta.url))
     const accepted = readFileSync(
@@ -74,8 +75,8 @@ describe('MR11 exact public resource', () => {
         import.meta.url,
       ),
     )
-    expect(actual.equals(accepted)).toBe(true)
-    expect(createHash('sha256').update(actual).digest('hex')).toBe(
+    assertResponseSchemaTransition(actual, accepted)
+    expect(createHash('sha256').update(accepted).digest('hex')).toBe(
       '9e58f395b07169a7fe6a2095b59cf60c1fbeb040fe18bc8e847e44bf2c154b2b',
     )
     expect(schemaId).toBe(schema.$id)

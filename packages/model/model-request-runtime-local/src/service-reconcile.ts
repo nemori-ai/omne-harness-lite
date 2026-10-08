@@ -1,3 +1,10 @@
+import type {
+  DispatchGuardPhase,
+  ReconcileInput,
+  ReconcileResult,
+  SettleReplyInput,
+  SettleReplyResult,
+} from '@omne-harness-lite/model-request-runtime'
 import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import { randomUUID } from 'node:crypto'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
@@ -11,20 +18,16 @@ import {
 import type { PendingModelResponse, ReplyDisposition } from '@omne-harness-lite/model-response'
 import type { AppendResult } from '@omne-harness-lite/session-log'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
+import type { CallContainerStore, ReservationWaitPolicy } from './service-types.ts'
 import type {
-  ReconcileInput,
-  ReconcileResult,
   RuntimeRecoveryAccess,
   RuntimeRecoveryScope,
   RuntimeSessionAccess,
   SessionRuntimeBinding,
-  SettleReplyInput,
-  SettleReplyResult,
+  CallKey,
 } from '@omne-harness-lite/model-request-runtime'
-import type { CallKey } from '@omne-harness-lite/messages'
-import type { CallContainerStore, ReservationWaitPolicy } from './service-types.ts'
-import type { CallAccess } from '@omne-harness-lite/model-request-runtime'
 import type { CallFacts } from './reference-types.ts'
+import type { CallAccess } from '@omne-harness-lite/model-request-runtime'
 import type { AnchoredInvocationHandle } from '@omne-harness-lite/model-request-runtime'
 import {
   inspectCurrentModelLogPrefix,
@@ -52,7 +55,6 @@ import { UnknownAppendTracker } from './service-calls.ts'
 import { operationDiagnostics } from './service-diagnostics.ts'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import type { DiagnosticCollector } from './diagnostics-types.ts'
-import type { DispatchGuardPhase } from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementContention,

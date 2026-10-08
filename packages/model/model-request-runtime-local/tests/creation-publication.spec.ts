@@ -1,3 +1,4 @@
+import { mockPrefixReader } from './mock-prefix-fixture.ts'
 import { expect, test, vi } from 'vitest'
 import { CreationPublication } from '../src/creation-publication.ts'
 import {
@@ -49,6 +50,7 @@ function fixture() {
     generation,
     currentGeneration: () => generation,
     log: { readSince: read, readByKey: read, append },
+    readPrefix: mockPrefixReader('creation-publication-unit-journal'),
   }
   const owner = new ControlledSettlementOwner()
   const grant = owner.acquire(1)

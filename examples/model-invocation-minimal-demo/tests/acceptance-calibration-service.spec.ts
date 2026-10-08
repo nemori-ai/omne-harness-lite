@@ -1,3 +1,5 @@
+import { installSqlControlFault } from './sql-control-fault.ts'
+import { physicalBatches } from './sql-batches-fixture.ts'
 import sharp from 'sharp'
 import { createServer } from 'node:https'
 import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
@@ -7,15 +9,7 @@ import { type InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { ModelResponse } from '@omne-harness-lite/model-response'
 import { randomBytes } from 'node:crypto'
-import {
-  mkdir,
-  mkdtemp,
-  writeFile,
-  readFile,
-  readdir,
-  open,
-  type FileHandle,
-} from 'node:fs/promises'
+import { mkdir, mkdtemp, writeFile, readFile, readdir } from 'node:fs/promises'
 import { resolve, join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { generateHandoffKeyPair } from '@omne-harness-lite/identity-values'
@@ -112,16 +106,7 @@ async function callConfig(
   let publicationOrdinal = 0
   return {
     ...base,
-    sessionLog: {
-      dir,
-      processOwnership: {
-        current: label,
-        async observeExit() {
-          return 'unknown'
-        },
-      },
-      policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
-    },
+    sessionLog: { operationLimit: 32 },
     modelRequest: {
       maxScopes: 64,
       acknowledgementCleanup: { next: () => ({ stop: true }) },
@@ -414,31 +399,6 @@ async function ready(
     },
   }
 }
-async function physicalBatches(dir: string) {
-  const names = (await readdir(dir, { recursive: true })).filter(name =>
-    name.endsWith('entries.jsonl'),
-  )
-  return (
-    await Promise.all(
-      names.map(async name =>
-        (await readFile(join(dir, name), 'utf8'))
-          .split('\n')
-          .filter(Boolean)
-          .map(
-            line =>
-              JSON.parse(line) as {
-                entries: {
-                  payload: {
-                    category: string
-                    value: ModelResponse | { type?: string; response?: string }
-                  }
-                }[]
-              },
-          ),
-      ),
-    )
-  ).flat()
-}
 
 describe('independent U4 actual service and physical SL3 batches', () => {
   for (const [index, definition] of anthropicDefinitions.entries())
@@ -461,13 +421,15 @@ describe('independent U4 actual service and physical SL3 batches', () => {
           expect(f.calls.fresh.length - before.fresh).toBe(turn === 0 ? 0 : 2)
           if (turn > 0) expect(f.calls.fresh.at(-1)).not.toContain(`stable-${index}-0`)
         }
-        const batches = await physicalBatches(f.config.sessionLog!.dir)
+        const batches = await physicalBatches<ModelResponse | { type?: string; response?: string }>(
+          f.config.databaseFile,
+        )
         const responseBatches = batches.filter(batch =>
           batch.entries.some(entry => entry.payload.category === 'response'),
         )
         expect(responseBatches).toHaveLength(3)
         for (const [index, batch] of responseBatches.entries()) {
-          // One physical JSONL line is one production append batch; adjacency of decoded entries
+          // One physical SQL batch id is one production append batch; adjacency of decoded entries
           // alone is deliberately insufficient for this oracle.
           expect(batch.entries.map(entry => entry.payload.category)).toEqual([
             'message',
@@ -577,7 +539,9 @@ describe('independent U4 actual service and physical SL3 batches', () => {
       expect(f.calls.full).toHaveLength(full)
       expect(f.tls.requests).toHaveLength(3)
       expect(f.tls.requests[1]!.body).toEqual(f.tls.requests[2]!.body)
-      const batches = await physicalBatches(f.config.sessionLog!.dir)
+      const batches = await physicalBatches<ModelResponse | { type?: string; response?: string }>(
+        f.config.databaseFile,
+      )
       const failureBatch = batches.find(batch =>
         batch.entries.some(
           entry =>
@@ -597,45 +561,12 @@ describe('independent U4 actual service and physical SL3 batches', () => {
 
   it('unknown physical response commit cannot become a new source or release the live call lease', async () => {
     const f = await ready('unknown-calibration')
-    const probe = await open(resolve(f.config.databaseFile, '../probe'), 'w')
-    const methods = Object.getPrototypeOf(probe) as Pick<
-      FileHandle,
-      'write' | 'datasync' | 'truncate'
-    >
-    await probe.close()
-    const originalWrite = methods.write,
-      originalSync = methods.datasync,
-      originalTruncate = methods.truncate
-    const affected = new WeakSet<object>()
-    const write = vi.spyOn(methods, 'write').mockImplementation(async function (
-      this: FileHandle,
-      ...args: Parameters<FileHandle['write']>
-    ) {
-      const value: unknown = args[0]
-      if (
-        ArrayBuffer.isView(value) &&
-        Buffer.from(value.buffer, value.byteOffset, value.byteLength).includes(
-          Buffer.from('"category":"response"'),
-        )
-      )
-        affected.add(this)
-      return await Reflect.apply(originalWrite, this, args)
-    })
-    const sync = vi.spyOn(methods, 'datasync').mockImplementation(async function (
-      this: FileHandle,
-    ) {
-      if (affected.has(this))
-        throw Object.assign(Error('independent response datasync EIO'), { code: 'EIO' })
-      return await originalSync.call(this)
-    })
-    const truncate = vi.spyOn(methods, 'truncate').mockImplementation(async function (
-      this: FileHandle,
-      ...args: Parameters<FileHandle['truncate']>
-    ) {
-      if (affected.has(this))
-        throw Object.assign(Error('independent response repair EIO'), { code: 'EIO' })
-      return await originalTruncate.apply(this, args)
-    })
+    const fault = installSqlControlFault(
+      f.config.databaseFile,
+      'lostReceipt',
+      '"category":"response"',
+    )
+    fault.arm()
     try {
       const target = await f.session('unknown-calibration-session')
       const sent = await f.app.startServiceCall(f.who, target.session, {
@@ -668,14 +599,17 @@ describe('independent U4 actual service and physical SL3 batches', () => {
         fresh: f.calls.fresh.length,
       }).toEqual(counts)
       expect(f.registry().inspect()).toMatchObject({ references: 0 })
-      write.mockRestore()
-      sync.mockRestore()
-      truncate.mockRestore()
-      // SLJ-9: failed truncation leaves this resident write-untrusted until restart.
+      expect(fault.counts().receiptFailures).toBeGreaterThan(0)
+      expect(fault.counts().recognitionFailures).toBeGreaterThan(0)
       expect(await f.app.reconcileModelRuntime(f.who, target.session)).toEqual({
         unavailable: true,
       })
-      const batches = await physicalBatches(f.config.sessionLog!.dir)
+      // Restore the SQL read path. Only full original-batch recognition can resolve this commit.
+      fault.clear()
+      expect(await f.app.reconcileModelRuntime(f.who, target.session)).toHaveProperty('calls')
+      const batches = await physicalBatches<ModelResponse | { type?: string; response?: string }>(
+        f.config.databaseFile,
+      )
       const responses = batches.flatMap(batch =>
         batch.entries.filter(entry => entry.payload.category === 'response'),
       )
@@ -686,9 +620,7 @@ describe('independent U4 actual service and physical SL3 batches', () => {
       expect(f.registry().inspect()).toMatchObject({ references: 0, executions: 0 })
       expect(f.tls.requests).toHaveLength(1)
     } finally {
-      write.mockRestore()
-      sync.mockRestore()
-      truncate.mockRestore()
+      fault.close()
       await f.close()
     }
   })

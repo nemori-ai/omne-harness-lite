@@ -1,15 +1,16 @@
+import { modelCategory, modelValue, replaceModelValue } from './log-codec-fixture.ts'
 // @module-tag slow
-// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 JSONL 会话日志。
+// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 /**
  * Review 2026-09-30 (independent verification of T29 tasks A and B), production runtime over a real
- * Cordis assembly, SQLite Storage and JSONL SessionLog.
+ * Cordis assembly, SQLite Storage and SQL journal SessionLog.
  *
  * Part 0  shared harness: the same ports tests/service-runtime.spec.ts wires (no product behavior).
  * Part 1  Q3: after a durable ACK every runtime entry fails closed (RT12 S-97/S-100).
  * Part 2  Q4/Q5: unknown final-batch ownership, close, and the durable-ready projection (RT11 S-86).
  *
  * Only the receipt/readability of the log as the runtime sees it is disturbed by the wrappers; commit
- * or absence is always decided by the actual JSONL log. Tests assert the contract; a red test is a
+ * or absence is always decided by the actual SQL journal log. Tests assert the contract; a red test is a
  * counterexample against the product, not a fixture problem.
  */
 import { afterAll, describe, expect, it } from 'vitest'
@@ -21,8 +22,9 @@ import type {
   SettlementTaskKind,
 } from '@omne-harness-lite/model-request-runtime'
 import type { AppendResult, LogEntry, SessionLog } from '@omne-harness-lite/session-log'
-import type { ModelCallHost, SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
+import type { ModelCallHost } from '@omne-harness-lite/model-request-runtime'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
@@ -554,8 +556,7 @@ function kinds(entries: readonly LogEntry[]): (string | undefined)[] {
   }
   function isFinalBatch(entries: readonly unknown[]): boolean {
     return entries.some(entry => {
-      const p = (entry as { payload?: { category?: string } }).payload
-      return p?.category === 'response'
+      return modelCategory((entry as { payload?: unknown }).payload) === 'response'
     })
   }
   function lossyBind(mode: Mode, seen: string[]) {
@@ -606,7 +607,7 @@ function kinds(entries: readonly LogEntry[]): (string | undefined)[] {
   const finals = (entries: readonly LogEntry[]) =>
     entries.filter(entry => {
       try {
-        return (entry.payload as { category?: string }).category === 'response'
+        return modelCategory(entry.payload) === 'response'
       } catch {
         return false
       }

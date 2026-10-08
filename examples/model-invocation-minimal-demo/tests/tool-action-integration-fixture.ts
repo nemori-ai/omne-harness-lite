@@ -95,10 +95,19 @@ export async function actionIntegrationFixture(
   } = {},
 ) {
   const selectedTool = options.environment?.tool ?? options.adoptedTool ?? tool
+  let logAuthorization: ReturnType<typeof createSessionAccessOwner> | undefined
   const f = await historyFixture(
       options.calls,
       options.permission,
       selectedTool,
+      async (_unit, access, candidate) => {
+        const checked = await logAuthorization?.operations.authorize(
+          access as SessionAccess,
+          candidate,
+          'session.log.coordinate',
+        )
+        return { kind: checked?.kind === 'authorized' ? 'authorized' : 'denied' }
+      },
       options.environment?.host ? hostEnvironmentMigrations : [],
       options.contextSeed,
     ),
@@ -123,9 +132,14 @@ export async function actionIntegrationFixture(
   let current: Awaited<ReturnType<typeof start>>
   async function start() {
     let authorized = true
-    const append = vi.fn(f.log.append),
+    const borrowedLogs = new AsyncLocalStorage<
+      import('@omne-harness-lite/session-log').SessionLog
+    >()
+    const append = vi.fn<import('@omne-harness-lite/session-log').SessionLog['append']>((...args) =>
+        (borrowedLogs.getStore() ?? f.log).append(...args),
+      ),
       log = { ...f.log, append }
-    const backing = createSessionLogBacking(log)
+    const backing = createSessionLogBacking(log, f.log.backing.ownerGeneration)
     const authorization = createSessionAccessOwner({
       async check(identity) {
         return authorized
@@ -133,6 +147,7 @@ export async function actionIntegrationFixture(
           : { kind: 'rejected', reason: 'notAuthorized' }
       },
     })
+    logAuthorization = authorization
     async function issue(
       consumer: AccessIdentity['consumer'],
       operations: Parameters<ReturnType<typeof authorization.issuerFor>['issue']>[0]['operations'],
@@ -160,16 +175,36 @@ export async function actionIntegrationFixture(
     ])
     const authority = { scope, coordinator, access: coordinator, policy }
     const owner = await createAuthorizedLogOwner({
-      dir: f.dir,
-      backing: backing.operations,
-      access: authorization.operations,
-      tenancy: manifest.sessionTenancy,
+      owner: {
+        ...f.log.owner,
+        async borrow(...args) {
+          const held = await f.log.owner.borrow(...args)
+          return held.kind === 'borrowed'
+            ? {
+                ...held,
+                log: {
+                  ...held.log,
+                  append: (...params) => borrowedLogs.run(held.log, () => append(...params)),
+                },
+              }
+            : held
+        },
+      },
+      generation: f.log.backing.ownerGeneration,
+      recovery: f.log
+        .fixtureAccess as import('@omne-harness-lite/execution-environments').RecoveryAccess,
       catalog: async () => options.ownedScopes ?? [scope],
     })
     await options.beforeRuntime?.(f)
-    const runnerHost = createDemoRunnerHost(log, f.options, backing.operations.ownerGeneration),
+    const runnerHost = createDemoRunnerHost(log, f.log.backing.ownerGeneration),
       generation = {}
-    const binding = { ...scope, log, generation, currentGeneration: () => generation }
+    const binding = {
+      ...scope,
+      log,
+      readPrefix: () => f.log.fixturePrefix(scope, log),
+      generation,
+      currentGeneration: () => generation,
+    }
     // These controlled endpoints cannot run OS commands or claim interactive answers.
     const external: DemoRunnerExternalExecution = {
       readAskState: async () => ({ kind: 'unavailable' }),

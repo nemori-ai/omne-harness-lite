@@ -8,8 +8,8 @@ import {
   type LegalTargetsResult,
   type DisplayListResult,
   type EffectiveModelResult,
-  type ModelDisplayEntry,
 } from '../src/index.ts'
+import type { ModelDisplayEntry } from '../src/index.ts'
 
 const rows: SelectionFact<readonly ProfileRow[]> = { known: [] }
 const compatible: SelectionCompatibility = () => ({ ok: true })

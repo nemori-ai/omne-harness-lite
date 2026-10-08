@@ -12,14 +12,13 @@ import { createModelRuntime } from '../src/service-runtime.ts'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import type { CallAccess, CallAccessAction } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallContentStore } from '../src/reference-types.ts'
+import type { RuntimeConstruction } from '../src/service-types.ts'
 import type {
   AcknowledgementCleanupPolicy,
-  ModelCallHost,
-  OpenCallInput,
   RuntimeRecoveryScope,
   SessionRuntimeBinding,
 } from '@omne-harness-lite/model-request-runtime'
-import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { ModelCallHost, OpenCallInput } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementContention,
   SettlementOwner,
@@ -46,7 +45,7 @@ interface Grant {
 }
 
 /**
- * A22 acceptance on real SQLite and JSONL: one runtime, inline noRun calls, and a trusted
+ * A22 acceptance on real SQLite and SQL journal: one runtime, inline noRun calls, and a trusted
  * access provider whose current principal the test switches between independent consumers.
  */
 export interface HostOptions {
@@ -79,7 +78,7 @@ export async function acknowledgementHost(options: HostOptions = {}) {
   let nextGrant = 0
 
   /**
-   * One runtime instance over the shared real SQLite Storage and JSONL log: its own selection
+   * One runtime instance over the shared real SQLite Storage and SQL journal log: its own selection
    * owner, call store, content-store instance and access provider. A second instance stands for
    * a restarted process after the first one stopped responding.
    */

@@ -62,7 +62,7 @@ effectiveModel 到 openCall 保留既有选择窗口，openCall 使用显式 bas
 
 openCall 按 creationKey 固定创建输入；对象成员次序不影响语义相等，数组次序及精确数值有意义。非值输入由稳定 sourceVersions 关联，不用对象地址或凭据值。相同 key 的相同输入认回原 CallKey；不同输入返回 creationConflict 且不泄漏原内容，不重新选模型或生成 ID。
 
-完整创建内容先持久、created marker 后发布；初次创建拒绝按既有整批发布输入和终结。内容存储与 JSONL 不冒称同一事务。创建回执或内容写入未知，保留原稳定身份、完整输入及旧写任务责任；须实际停旧写方并权威认回，不能仅凭缺席或取消信号重交。
+完整创建内容先持久、created marker 后发布；初次创建拒绝按既有整批发布输入和终结。内容存储提交与 Session Log 的 created marker 追加是两次拥有者提交，不冒称同一事务。创建回执或内容写入未知，保留原稳定身份、完整输入及旧写任务责任；须实际停旧写方并权威认回，不能仅凭缺席或取消信号重交。
 
 每次发出依次：读当前求值输入取得正时限、现取凭据、按精确实现规划并计量、固定最终请求及调整/丢项、耐久写 dispatched、至多一次请求出网。发出的就是该锚点可还原的参数；出网后不再改。完整 Run/report 取同一已授权快照；无 Run 时才用实际当前工具来源，缺事实不冒称 unknownTool。
 
@@ -106,9 +106,9 @@ reconcile 只读依次认回 final、ready、调用终结及 live 原状态；li
 
 每次 acquireCall 都须当前 action=read；取得等待或观察资源另须 action=wait。read 不创建等待消费者；wait 创建独立可释放消费者。它只等已确认 ready/final，并复制合法可见值；待机句柄不持有大内容读取 pin。consumer.release 幂等地结束该消费者及其监听、缓冲；单次 wait 的 abort 只终止该次等待，consumer 仍可再次等待。两者不取消模型、不处分回复、不自动 ACK。引用数零不关闭原执行、不抹已发生费用。normal keyed lookup 不扫描全部历史；索引仅是同来源、generation、progress 校验的派生物，重建未追尾时 unavailable，不能用索引替代完整前缀结算。readAttempts 的成本允许随所返回历史增长。
 
-acknowledgeCall 只针对实际终态及精确最终 ResponseId 或 ended 目标，由当前 ACK 权限的消费者表示已处理或自行保存。读、等待、旧引用或取消权限不授予 ACK；不是每次失败发出的 ACK。准备不可变原批并在同一持久 retention 控制对象停止新的模型侧大内容读取，JSONL ACK 耐久后才确认。cleanup 失败是已确认 ACK 的 pending，不抹 ACK。重复相同目标重验权限，返回原确认时刻及当前清理进展；不同目标 wrongPhase。
+acknowledgeCall 只针对实际终态及精确最终 ResponseId 或 ended 目标，由当前 ACK 权限的消费者表示已处理或自行保存。读、等待、旧引用或取消权限不授予 ACK；不是每次失败发出的 ACK。准备不可变原批并在同一持久 retention 控制对象停止新的模型侧大内容读取，Session Log 中的 ACK 事实耐久后才确认。cleanup 失败是已确认 ACK 的 pending，不抹 ACK。重复相同目标重验权限，返回原确认时刻及当前清理进展；不同目标 wrongPhase。
 
-ACK 后所有公共读取返回小视图：原创建关联、真实终态、原发出账壳、完整小账序列及当前处分。完整档案/参数、输入/回复/delivered、原始响应与校准大对象不能经缓存或 consumer 重泄露；已进入的实际授权复制可完成。成功释放须在同一 Storage 提交内确认 ACK、真实 writer/read 已排空、外部持有已释放，并删除精确内容及记录 released；JSONL 与 Storage 不是一个提交。当前障碍列真实非空无重复 pendingReasons，未知控制需认回；清缓存/监听/队列与物理释放不是靠 GC 时间推断。公平机会、存储恢复和真实引用排空后自动推进，不要求调用者回来、Run 终结或第二次 ACK。
+ACK 后所有公共读取返回小视图：原创建关联、真实终态、原发出账壳、完整小账序列及当前处分。完整档案/参数、输入/回复/delivered、原始响应与校准大对象不能经缓存或 consumer 重泄露；已进入的实际授权复制可完成。成功释放须在同一 Storage 提交内确认 ACK、真实 writer/read 已排空、外部持有已释放，并删除精确内容及记录 released；ACK 日志追加与内容保留/清理分别提交，即使共用同一 SQL 存储也不构成同一提交。当前障碍列真实非空无重复 pendingReasons，未知控制需认回；清缓存/监听/队列与物理释放不是靠 GC 时间推断。公平机会、存储恢复和真实引用排空后自动推进，不要求调用者回来、Run 终结或第二次 ACK。
 
 ACK 后未 final 的 settleReply 必须取得调用者保留的完整原 PendingModelResponse；当前 settle 资格及来源先核验；已 ACK、无 final 且缺 retainedResult 返回 wrongPhase。已给值的表示、身份或摘要可判矛盾返回 invalidInput{malformed}，资格或来源不可核返回 unavailable。已有 final 先沿原相同处分认回/不同合法处分 alreadyEnded，不要求 retainedResult。验证原身份、ResponseId、dispatch、来源、完整语义摘要及小账 witness，不重新读取已删除输入/适配。首次可能写入前持久 stage 完整整批及稳定键；未知保留 stage/写责任。只有 final 确认且全部旧写方实际停止，或已证明零写且显式策略终止，才删除 stage。不得复活 ready 或改 cleanup 阶段，不要求第二次 ACK；已有 final 按原重复规则，不要求大内容。persisted 外部写方承担相同义务。
 
@@ -211,3 +211,29 @@ ACK 擦除后小见证仍是原 binding/owner/代际，registered=false、releas
 释放 frame 不能撤销已逃逸值；受信消费者必须配对其自身所有引用。
 验证须保持原 GC 门，并检查 request/pending/invocation 和 shared binding/owner 的真实 holder。
 有限模型不替代 GC、真实 IO、授权或事务验收。
+
+## 日志拥有者与原件
+
+模型事实使用 Session Log 的显式 fact 封装：owner=model-request-runtime，version=mrr/3，value 为 category 与原 value。category 仅 record 或 response。Message 使用 messages 拥有者的 version=9 消息封装，不复制一个模型专用 Message 正文格式。
+
+codec 接受合法的其他拥有者消息键；消息身份、日志 shell 和原回复关联仍须验证。任一 dedupeKey 或 readKey 声明 mrr 命名空间时，必须符合模型拥有的完整键约束，不能借通用消息形状绕过模型事实校验。旧匿名 model wrapper 不再作为当前有效封装读取。
+
+attempt 开始由 Session 事实拥有者记录，不是模型消息。事件不得转换为 SystemReminderMessage。响应原件与持久回复按原完整关联校验；投影只能生成派生视图，不能改原 ModelResponse 或用可读子集冒充原完整回复。
+
+`inspectModelMessageEntry` 只校验单条消息的正文、shell 与拥有者键，成本与该条目的大小成正比。它不读取或认证历史，不证明 tool return、compaction 或 assistant 的原关联成立。调用者必须另核完整历史关联；生产投影用其一次线性索引履行该义务。`inspectModelLogEntry` 与准备写入入口仍要求完整合法的 messagePrefix，不能用此窄入口放行写入。
+
+完整结算前缀通过显式 `SettlementLogBinding.readPrefix` 取得，并核对其 SourceToken 的租户、会话、journal、generation 和尾。缺少该读取端口时返回 dependency unavailable，不降级到不含持久来源坐标的 `readSince`。品牌只表示通过完整前缀校验，不授予当前权限或恢复资格。
+
+## 原发起窄协议
+
+OriginalIssueParticipant 暂存原 dispatched 事实和唯一执行 claim，必须参加调用者的同一 StorageUnit，不独立提交、不先发送模型请求。ticket 与 claim 仅由实际原拥有者签发；复制形状或取得 ticket 都不授予当前权限。
+
+stageOriginalIn 核同存储实例、完整固定 source、原消费位置、call／dispatch 身份、Session shell、当前授权和栅栏。原 dispatched 与唯一 claim 全提交或全回滚。重复只认回原完整等值证明，不授予第二次发起权；异原位置或正文冲突明确拒绝。
+
+当前授权必须核本次原调用捕获的主体及其当前资格。另一并发调用的主体不能替代它；同账户、同租户的另一登录也不能替代已撤销的原登录。缺少原主体来源时拒绝发起，不从会话的可变当前主体取得替代资格。
+
+consumeOriginal 必须等待外层提交完成，并在同一存储范围重新核当前授权。只准原执行代际消费一次；并发消费不能启动两次。回滚、unknown、撤权或原批次未确认均不返回 launch。提交未知时保留原身份与完整批次，认回也不能将只读证明转成第二个启动权。
+
+dispatched 表示原发起锚点，不表示收到模型内容。opened 继续由模型实际执行拥有者在首个内容到达后、发布 FirstContent 之前记录，并携 firstTokenAt。参加协议不得提前伪造 opened、首 token 或实际发送完成。
+
+本协议不负责 Session 的完整 Run 调度，也不替代原模型恢复续发守卫、实际 HTTP drain、完整结果保管与 acknowledge。原 claim 的本地操作结束不证明外部模型执行或远端事务已经停止。

@@ -1,3 +1,8 @@
+import type {
+  AckPendingReason,
+  ServiceInvalidInput,
+  ServiceUnavailable,
+} from '@omne-harness-lite/model-request-runtime'
 import { createHash, randomUUID } from 'node:crypto'
 import {
   narrow,
@@ -30,7 +35,7 @@ import {
   type PendingModelResponse,
 } from '@omne-harness-lite/model-response'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
-import type { AckPendingReason } from '@omne-harness-lite/model-request-runtime'
+
 import type { ModelCallCleanupResult } from '@omne-harness-lite/model-request-runtime'
 import type {
   ModelCallContentStore,
@@ -38,10 +43,6 @@ import type {
   ModelCallRetentionKey,
   ModelCallRetentionPhase,
 } from './reference-types.ts'
-import type {
-  ServiceInvalidInput,
-  ServiceUnavailable,
-} from '@omne-harness-lite/model-request-runtime'
 import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
 import { settlementGenerationCurrent } from '@omne-harness-lite/model-request-runtime'
 import { createSettlementWorkStore, settlementWorkMigration } from './settlement-work-store.ts'

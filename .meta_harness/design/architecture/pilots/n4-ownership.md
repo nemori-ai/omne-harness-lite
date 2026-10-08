@@ -38,11 +38,13 @@ N4 运行装载试验确认纯根不会加载 Cordis，但当时不能据此声�
 | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | RT12 S-36/S-39/S-53/S-61/S-64                              | realization/packages/model/model-request-runtime/ 的旧具体关闭/依赖寿命/实现注册采用撤旧投影；local 真实生命周期尚未全部改接正式类 |
 | S-66 与 G-9/G-28、S-69/S-87/S-90                           | 实际 currentEvaluationInputs 生产授权、Run 终结/唯一恢复、presence 与当前授权来源；公共形状不替代来源实现                          |
-| S-68～S-73/S-81/S-85/S-86/S-88/S-96～S-103 的组合投影/模型 | 实际 JSONL/Storage/原写方、ACK retention/cleanup/stage 及外部 persisted 写方；综合模型仍由这些消费者共同采用                       |
+| S-68～S-73/S-81/S-85/S-86/S-88/S-96～S-103 的组合投影/模型 | 实际 Session Log/Storage/原写方、ACK retention/cleanup/stage 及外部 persisted 写方；综合模型仍由这些消费者共同采用                       |
 | S-38/S-51～S-59/S-62/S-63/S-74/S-77～S-83 的具体投影       | 实际 transport/计量/codec/观察/诊断提供者的符合性与跨进程前提                                                                      |
 
 这些保留范围不构成第二份公共操作或函数定义。旧 RT12 冻结目录、catalog 的未迁精确依赖和综合形式义务暂留；不得原地放宽冻结或将公共承诺重新标为全归旧源。综合模型逐项归属及复验要求由 [core 验证入口](../../../../packages/core/model-request-runtime/verification/README.md)维护。
 未迁提供者的精确入口是 `realization/packages/model/model-request-runtime/README.md` 与 `v22-acknowledgement-design.md`，并非源码包名对应的新目录。完整生产 Session/Run 终结、恢复和无 Agent 进展仍由真实拥有者承担。
+
+F0 的实际 local 提供者已按唯一公共类实现十五操作，保留原独立执行寿命。具名宿主输入/执行支持及调用方主体投影仍待后续装配，不能据类转发认定全部集成义务完成。真实消费者已迁至 Session Log SQL；旧 JSONL 提供者退役，综合义务由实际同存储实例、原写方与保管责任继续接续。
 
 ## 租户治理宿主
 

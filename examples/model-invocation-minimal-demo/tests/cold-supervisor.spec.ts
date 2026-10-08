@@ -1,3 +1,4 @@
+import { modelBatchText } from './sql-batches-fixture.ts'
 import { mkdtemp, readFile, readdir, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -9,11 +10,7 @@ import { createLocalTls, deferred } from './local-tls.ts'
 import { demoRetirement } from './model-request-support.ts'
 
 async function durableEntries(dataDirectory: string): Promise<string> {
-  const logRoot = join(dataDirectory, 'session-logs')
-  const files = (await readdir(logRoot, { recursive: true })).filter(path =>
-    path.endsWith('entries.jsonl'),
-  )
-  return (await Promise.all(files.map(path => readFile(join(logRoot, path), 'utf8')))).join('\n')
+  return modelBatchText(join(dataDirectory, 'db.sqlite'))
 }
 
 describe('C14 actual supervised worker', () => {
@@ -322,7 +319,8 @@ describe('C14 actual supervised worker', () => {
       expect(usage.cost.knownSum.toString()).toBe('0.000000000000000123456789')
       expect(server.requests).toHaveLength(1)
       expect((await conversation.totals()).responses).toBe(1)
-      expect((await conversation.close()).complete).toBe(true)
+      const closed = await conversation.close()
+      expect(closed.complete, JSON.stringify(closed)).toBe(true)
       expect(await supervisor.waitWorkerExit()).toEqual({ exited: true, closed: true })
       const successor = await supervisor.open()
       expect(successor.workerIdentity).not.toBe(conversation.workerIdentity)
@@ -369,7 +367,8 @@ describe('C14 actual supervised worker', () => {
       expect(failed.kind).toBe('failed')
       if (failed.kind === 'failed') expect(failed.response).toBeDefined()
       expect((await conversation.totals()).responses).toBe(2)
-      expect((await conversation.close()).complete).toBe(true)
+      const closed = await conversation.close()
+      expect(closed.complete, JSON.stringify(closed)).toBe(true)
       expect(await supervisor.waitWorkerExit()).toEqual({ exited: true, closed: true })
       const successor = await supervisor.open()
       expect(successor.workerIdentity).not.toBe(conversation.workerIdentity)

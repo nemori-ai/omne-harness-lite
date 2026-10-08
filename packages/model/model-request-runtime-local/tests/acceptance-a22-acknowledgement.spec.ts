@@ -1,5 +1,6 @@
+import { modelCategory, modelValue, replaceModelValue } from './log-codec-fixture.ts'
 // @module-tag slow
-// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 JSONL 会话日志。
+// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
@@ -32,15 +33,12 @@ import type {
 function racingFirstAck(race: { raced: boolean }): NonNullable<HostOptions['append']> {
   return real => async (session, entries, fence, condition) => {
     const [entry] = entries
-    const wrapper = entry?.payload
+    const value = modelCategory(entry?.payload) === 'record' ? modelValue(entry?.payload) : null
     const isAck =
-      typeof wrapper === 'object' &&
-      wrapper !== null &&
-      'value' in wrapper &&
-      typeof wrapper.value === 'object' &&
-      wrapper.value !== null &&
-      'kind' in wrapper.value &&
-      wrapper.value.kind === 'model_call_acknowledged'
+      typeof value === 'object' &&
+      value !== null &&
+      'kind' in value &&
+      value.kind === 'model_call_acknowledged'
     if (isAck && !race.raced && entry !== undefined) {
       // Another writer moves the tail first: THIS ACK batch writes nothing (tailChanged).
       race.raced = true
@@ -77,7 +75,7 @@ function racingFirstAck(race: { raced: boolean }): NonNullable<HostOptions['appe
   }
 }
 
-describe('A22 acknowledgement acceptance on real SQLite/JSONL (inline, noRun)', () => {
+describe('A22 acknowledgement acceptance on real SQLite/SQL journal (inline, noRun)', () => {
   it('A22-V1/V2/V8: only current ack authority confirms; all fifteen entries then answer small', async () => {
     const h = await acknowledgementHost()
     try {
@@ -388,16 +386,11 @@ describe('A22 acknowledgement acceptance on real SQLite/JSONL (inline, noRun)', 
       const h = await acknowledgementHost({
         append: real => async (session, entries, fence, condition) => {
           const [entry] = entries
-          const wrapper = entry?.payload
           const value =
-            typeof wrapper === 'object' && wrapper !== null && 'value' in wrapper
-              ? wrapper.value
-              : undefined
+            modelCategory(entry?.payload) === 'record' ? modelValue(entry?.payload) : null
           if (
             !injected &&
             entry !== undefined &&
-            typeof wrapper === 'object' &&
-            wrapper !== null &&
             typeof value === 'object' &&
             value !== null &&
             'kind' in value &&
@@ -408,10 +401,10 @@ describe('A22 acknowledgement acceptance on real SQLite/JSONL (inline, noRun)', 
             const other = differ
               ? {
                   ...entry,
-                  payload: {
-                    ...wrapper,
-                    value: { ...value, acknowledgedAt: '2026-09-29T00:00:00Z' },
-                  },
+                  payload: replaceModelValue(entry.payload, {
+                    ...value,
+                    acknowledgedAt: '2026-09-29T00:00:00Z',
+                  }),
                 }
               : entry
             const landed = await real(

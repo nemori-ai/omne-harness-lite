@@ -1,3 +1,4 @@
+import type { ObserverReceiveTask } from '@omne-harness-lite/model-request-runtime'
 import { validate as validateArrival } from '@omne-harness-lite/arrival-events'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import {
@@ -8,10 +9,7 @@ import {
   type JsonNumber,
 } from '@omne-harness-lite/content-blocks'
 import type { AssemblySnapshot } from '@omne-harness-lite/stream-assembly'
-import type {
-  ObserverDiagnostic,
-  ObserverReceiveTask,
-} from '@omne-harness-lite/model-request-runtime'
+import type { ObserverDiagnostic } from '@omne-harness-lite/model-request-runtime'
 import type {
   ModelObserverQueue,
   ModelObserverQueueInput,

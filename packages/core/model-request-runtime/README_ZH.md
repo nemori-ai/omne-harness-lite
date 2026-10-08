@@ -29,3 +29,5 @@ pnpm --filter @omne-harness-lite/model-request-runtime run test
 ```
 
 源码、声明、运行装载和实际打包后的外部消费分别核验。有限静态检查与测试不代替全领域生命周期验收。
+
+本包同时拥有显式 Session 日志封装、OriginalIssue 参与协议和原消息关联校验；具体兑现与范围见 [SPEC](SPEC.md)。

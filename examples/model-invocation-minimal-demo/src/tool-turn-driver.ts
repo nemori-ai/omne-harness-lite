@@ -1,3 +1,5 @@
+import { checkAppendInput } from '@omne-harness-lite/session-log'
+import { attemptStartedPayload } from '@omne-harness-lite/session-runtime'
 import { createHash } from 'node:crypto'
 import { capabilityCanonicalString } from '@omne-harness-lite/asset-model'
 import { readRegistryRecord, type AssetRegistryService } from '@omne-harness-lite/asset-registry'
@@ -129,33 +131,31 @@ export function createToolTurnDriver(input: {
     const at = input.now()
     if (adopted.kind !== 'values' || at === 'unavailable')
       return { ...unavailable, step: 'contextRead' }
-    const message = judgeMessage({
-      type: 'system_reminder',
-      id: `tool-attempt-${identity([scope, run, attempt])}`,
-      createdAt: at,
-      nature: 'event',
-      source: { kind: 'attempt_started', attempt, reason: 'first', at },
-      blocks: [],
-    })
-    if (!('ok' in message)) return { ...unavailable, step: 'attemptMessage' }
-    const captured = captureModelLogValue({
-      category: 'message',
-      input: { kind: 'value', value: message.ok },
-    })
-    if (!('ok' in captured)) return { ...unavailable, step: 'captureMessage' }
-    const prepared = prepareModelLogEntry({
-      ...scope,
-      shell: { tenant: scope.tenant, run, attempt },
-      captured: captured.ok,
-      purpose: { kind: 'message' },
-      messagePrefix: history.models.entries.flatMap(record =>
-        record.captured.message && record.captured.message.type !== 'system'
-          ? [record.captured.message]
-          : [],
-      ),
-    })
-    if (!('ok' in prepared) || !prepared.ok.dedupeKey)
-      return { ...unavailable, step: 'prepareMessage' }
+    const startedFactKey = `session-attempt:${identity([scope, run, attempt])}`
+    const started = checkAppendInput(
+      scope.session,
+      [
+        {
+          tenant: scope.tenant,
+          run,
+          attempt,
+          dedupeKey: startedFactKey,
+          readKeys: ['session-runtime/attempts'],
+          payload: attemptStartedPayload({
+            kind: 'attempt_started',
+            run,
+            attempt,
+            reason: 'first',
+            at,
+          }),
+        },
+      ],
+      { kind: 'fenced', run, attempt },
+      { kind: 'unconditional' },
+    )
+    if ('failure' in started) return { ...unavailable, step: 'attemptFact' }
+    const startedFact = started.ok.entries[0]
+    if (startedFact === undefined) return { ...unavailable, step: 'attemptFact' }
     const adoption = driverKey({
       kind: 'attempt_adopted',
       run,
@@ -164,7 +164,7 @@ export function createToolTurnDriver(input: {
       report: refreshed.report,
       tools,
       context: adopted.values,
-      startedMessageKey: prepared.ok.dedupeKey,
+      startedFactKey,
     })
     if (typeof adoption !== 'string') return { ...unavailable, step: 'adoptionKey' }
     const value = {
@@ -175,9 +175,9 @@ export function createToolTurnDriver(input: {
       report: refreshed.report,
       tools,
       context: adopted.values,
-      startedMessageKey: prepared.ok.dedupeKey,
+      startedFactKey,
     }
-    const committed = await input.journal.commit(value, prepared.ok)
+    const committed = await input.journal.commit(value, startedFact)
     return committed.kind === 'committed'
       ? ({
           kind: 'started',

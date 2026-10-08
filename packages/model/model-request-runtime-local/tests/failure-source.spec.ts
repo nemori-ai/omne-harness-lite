@@ -1,3 +1,4 @@
+import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import type { SessionLog } from '@omne-harness-lite/session-log'
@@ -14,19 +15,6 @@ describe('v17 failure source lifetime', () => {
     await controlled('failure-source-run-bound', async ({ binding, owner }) => {
       const run = 'source-owned-run'
       const shell = { tenant, run, attempt: 1 }
-      const start = {
-        id: 'source-owned-attempt-start',
-        type: 'system_reminder',
-        nature: 'event',
-        source: {
-          kind: 'attempt_started',
-          attempt: 1,
-          reason: 'first',
-          at: '2026-09-29T00:00:00Z',
-        },
-        blocks: [],
-        createdAt: '2026-09-29T00:00:00Z',
-      }
       const anchor = { ...dispatched, call: 'run-call', response: 'run-response' }
       const { reply: _reply, replyDisposition: _disposition, ...rest } = responseV5
       const failed = {
@@ -41,7 +29,15 @@ describe('v17 failure source lifetime', () => {
       expect(
         await binding.log.append(
           session,
-          [prepare('message', start, { kind: 'message' }, shell)],
+          [
+            prepareAttemptFact({
+              session,
+              shell,
+              key: 'source-owned-attempt-start',
+              reason: 'first',
+              at: '2026-09-29T00:00:00Z',
+            }).ok,
+          ],
           { kind: 'fenced', run, attempt: 1 },
           { kind: 'unconditional' },
         ),
@@ -119,14 +115,18 @@ describe('v17 failure source lifetime', () => {
       ).toBeNull()
       const otherRun = 'other-source-run'
       const otherShell = { tenant, run: otherRun, attempt: 1 }
-      const otherStart = {
-        ...start,
-        id: 'other-source-attempt-start',
-      }
       expect(
         await binding.log.append(
           session,
-          [prepare('message', otherStart, { kind: 'message' }, otherShell)],
+          [
+            prepareAttemptFact({
+              session,
+              shell: otherShell,
+              key: 'other-source-attempt-start',
+              reason: 'first',
+              at: '2026-09-29T00:00:00Z',
+            }).ok,
+          ],
           { kind: 'fenced', run: otherRun, attempt: 1 },
           { kind: 'unconditional' },
         ),

@@ -53,7 +53,8 @@
     "@omne-harness-lite/model-request-runtime": "workspace:*",
     "@omne-harness-lite/session-log": "workspace:*",
     "@omne-harness-lite/session-tenancy": "workspace:*",
-    "@omne-harness-lite/loop-extension-runner": "workspace:*"
+    "@omne-harness-lite/loop-extension-runner": "workspace:*",
+    "@omne-harness-lite/session-runtime": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness-lite/account-identity": "workspace:*",
@@ -65,13 +66,16 @@
     "vitest": "catalog:",
     "@omne-harness-lite/organization-governance-sql": "workspace:*",
     "@omne-harness-lite/organization-governance": "workspace:*",
-    "@omne-harness-lite/session-log-jsonl": "workspace:*",
     "@omne-harness-lite/session-tenancy-table": "workspace:*",
     "@omne-harness-lite/evaluation-input-store": "workspace:*",
     "@omne-harness-lite/model-profile-directory-local": "workspace:*",
     "@omne-harness-lite/asset-registry-local": "workspace:*",
     "@omne-harness-lite/credential-verification-scrypt": "workspace:*",
     "@omne-harness-lite/account-identity-sql": "workspace:*",
-    "@omne-harness-lite/account-registration-sequential": "workspace:*"
+    "@omne-harness-lite/account-registration-sequential": "workspace:*",
+    "@omne-harness-lite/session-log-sql": "workspace:*",
+    "@omne-harness-lite/execution-environments": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*",
+    "@omne-harness-lite/session-log": "workspace:*"
   }
 }

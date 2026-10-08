@@ -19,11 +19,7 @@ async function configuration(label: string): Promise<AcceptanceConfig> {
   await mkdir(dir, { mode: 0o700 })
   return {
     ...config,
-    sessionLog: {
-      dir,
-      policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
-      processOwnership: { current: label, observeExit: async () => 'unknown' },
-    },
+    sessionLog: { operationLimit: 32 },
   }
 }
 function open(config: AcceptanceConfig, extraHooks: AcceptanceHooks = {}) {
