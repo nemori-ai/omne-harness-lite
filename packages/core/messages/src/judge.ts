@@ -1,8 +1,10 @@
 import {
   judgeContentBlock,
   readJsonStrict,
+  type ContentBlockJudgment,
   type ContentBlockRejection,
   type JsonObject,
+  type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { isObject, snapshot } from './json.ts'
 import { rawBlockTree } from './blocks.ts'
@@ -13,10 +15,13 @@ import {
   isWireRecord,
   isWireCreatedPayload,
   brandCreatedPayload,
+  type Wire,
 } from './values.ts'
 import { dispatchedParametersValid, jsonEqual } from './parameters.ts'
 import type {
   MessageJudgment,
+  Message,
+  MessageRejection,
   LogPrefixView,
   ModelInvocationJudgment,
   ModelCallCreatedPayloadJudgment,
@@ -50,83 +55,115 @@ const EVENT_SOURCES = [
   'scheduled_trigger',
 ]
 
-/** S-39 first stage: all named predicates precede the remaining shape check. */
-export function judgeMessage(value: unknown): MessageJudgment {
-  const copied = snapshot(value)
-  if (copied === undefined || !isObject(copied))
-    return Object.freeze({ rejected: 'malformed' } as const)
-  if (
-    Object.hasOwn(copied, 'type') &&
-    (typeof copied.type !== 'string' || !MESSAGE_TYPES.includes(copied.type))
+function unknownMessageType(value: JsonObject): boolean {
+  return (
+    Object.hasOwn(value, 'type') &&
+    (typeof value.type !== 'string' || !MESSAGE_TYPES.includes(value.type))
   )
-    return Object.freeze({ rejected: 'type_unknown' } as const)
-  const roots = Array.isArray(copied.blocks) ? copied.blocks : []
-  const checked = roots.map(judgeContentBlock)
+}
+function namedBlockRejection(
+  checked: readonly ContentBlockJudgment[],
+): MessageRejection | undefined {
   for (const reason of BLOCK_REJECTIONS) {
-    if (checked.some(result => 'rejected' in result && result.rejected === reason))
-      return Object.freeze({ rejected: reason })
+    if (checked.some(result => 'rejected' in result && result.rejected === reason)) return reason
   }
+  return undefined
+}
+function duplicateBlockIds(roots: readonly JsonValue[]): boolean {
   const ids = new Set<string>()
   for (const block of rawBlockTree(roots)) {
     if (typeof block.id === 'string') {
-      if (ids.has(block.id)) return Object.freeze({ rejected: 'block_id_duplicate' } as const)
+      if (ids.has(block.id)) return true
       ids.add(block.id)
     }
   }
-  if (copied.type === 'tool' && Array.isArray(copied.blocks)) {
-    const block = copied.blocks[0]
-    if (
-      copied.blocks.length !== 1 ||
-      !isObject(block) ||
-      block.kind !== 'tool_result' ||
-      (Object.hasOwn(copied, 'callId') &&
-        Object.hasOwn(block, 'callId') &&
-        copied.callId !== block.callId)
-    )
-      return Object.freeze({ rejected: 'tool_message_block_count' } as const)
-  }
-  if (
+  return false
+}
+function toolMessageBlockCountValid(value: JsonObject): boolean {
+  if (value.type !== 'tool' || !Array.isArray(value.blocks)) return true
+  const block = value.blocks[0]
+  return !(
+    value.blocks.length !== 1 ||
+    !isObject(block) ||
+    block.kind !== 'tool_result' ||
+    (Object.hasOwn(value, 'callId') &&
+      Object.hasOwn(block, 'callId') &&
+      value.callId !== block.callId)
+  )
+}
+function internalBlockVisible(copied: JsonObject, roots: readonly JsonValue[]): boolean {
+  return (
     copied.type === 'tool_internal' &&
     roots.some(
       block => isObject(block) && isObject(block.visibility) && block.visibility.toModel === true,
     )
   )
-    return Object.freeze({ rejected: 'tool_internal_block_visible_to_model' } as const)
+}
+function reminderNatureMismatch(copied: JsonObject, source: JsonObject): boolean {
+  return (
+    (copied.nature === 'event' || copied.nature === 'state') &&
+    typeof source.kind === 'string' &&
+    ((STATE_SOURCES.includes(source.kind) && copied.nature !== 'state') ||
+      (EVENT_SOURCES.includes(source.kind) && copied.nature !== 'event'))
+  )
+}
+function reminderRejection(copied: JsonObject): MessageRejection | undefined {
   const source = isObject(copied.source) ? copied.source : undefined
-  if (copied.type === 'system_reminder' && source !== undefined) {
-    if (
-      (copied.nature === 'event' || copied.nature === 'state') &&
-      typeof source.kind === 'string' &&
-      ((STATE_SOURCES.includes(source.kind) && copied.nature !== 'state') ||
-        (EVENT_SOURCES.includes(source.kind) && copied.nature !== 'event'))
-    )
-      return Object.freeze({ rejected: 'reminder_nature_mismatch' } as const)
-    if (source.kind === 'runtime_context_changed' && !Object.hasOwn(source, 'previous'))
-      return Object.freeze({ rejected: 'reminder_state_without_previous' } as const)
-  }
-  if (
+  if (copied.type !== 'system_reminder' || source === undefined) return undefined
+  if (reminderNatureMismatch(copied, source)) return 'reminder_nature_mismatch'
+  if (source.kind === 'runtime_context_changed' && !Object.hasOwn(source, 'previous'))
+    return 'reminder_state_without_previous'
+  return undefined
+}
+function compactionSelfReferences(copied: JsonObject): boolean {
+  return (
     copied.type === 'compaction' &&
     Array.isArray(copied.silenced) &&
     typeof copied.id === 'string' &&
     copied.silenced.some(ref => isObject(ref) && ref.messageId === copied.id)
   )
-    return Object.freeze({ rejected: 'compaction_self_reference' } as const)
+}
+function messageRelationsRejection(
+  copied: JsonObject,
+  roots: readonly JsonValue[],
+): MessageRejection | undefined {
+  if (duplicateBlockIds(roots)) return 'block_id_duplicate'
+  if (!toolMessageBlockCountValid(copied)) return 'tool_message_block_count'
+  if (internalBlockVisible(copied, roots)) return 'tool_internal_block_visible_to_model'
+  const reminder = reminderRejection(copied)
+  if (reminder !== undefined) return reminder
+  if (compactionSelfReferences(copied)) return 'compaction_self_reference'
+  return undefined
+}
+function backgroundResultMatches(copied: Wire<Message>): boolean {
+  if (
+    copied.type !== 'system_reminder' ||
+    (copied.source.kind !== 'background_execution_finished' &&
+      copied.source.kind !== 'background_execution_interrupted')
+  )
+    return true
+  const result = copied.blocks.find(block => block.kind === 'tool_result')
+  return (
+    result?.kind === 'tool_result' &&
+    result.callId === copied.source.callId &&
+    (copied.source.kind !== 'background_execution_finished' ||
+      result.outcome === copied.source.outcome)
+  )
+}
+
+/** S-39 first stage: all named predicates precede the remaining shape check. */
+export function judgeMessage(value: unknown): MessageJudgment {
+  const copied = snapshot(value)
+  if (copied === undefined || !isObject(copied))
+    return Object.freeze({ rejected: 'malformed' } as const)
+  if (unknownMessageType(copied)) return Object.freeze({ rejected: 'type_unknown' } as const)
+  const roots = Array.isArray(copied.blocks) ? copied.blocks : []
+  const checked = roots.map(judgeContentBlock)
+  const named = namedBlockRejection(checked) ?? messageRelationsRejection(copied, roots)
+  if (named !== undefined) return Object.freeze({ rejected: named })
   if (checked.some(result => 'rejected' in result) || !isWireMessage(copied))
     return Object.freeze({ rejected: 'malformed' } as const)
-  if (
-    copied.type === 'system_reminder' &&
-    (copied.source.kind === 'background_execution_finished' ||
-      copied.source.kind === 'background_execution_interrupted')
-  ) {
-    const result = copied.blocks.find(block => block.kind === 'tool_result')
-    if (
-      result?.kind !== 'tool_result' ||
-      result.callId !== copied.source.callId ||
-      (copied.source.kind === 'background_execution_finished' &&
-        result.outcome !== copied.source.outcome)
-    )
-      return Object.freeze({ rejected: 'malformed' } as const)
-  }
+  if (!backgroundResultMatches(copied)) return Object.freeze({ rejected: 'malformed' } as const)
   return Object.freeze({ ok: brandMessage(copied) })
 }
 
@@ -221,6 +258,10 @@ export function judgeModelReplyMessage(
   if (persisted.ok.type !== 'assistant') return Object.freeze({ rejected: 'malformed' } as const)
   const a = snapshot(original.ok),
     b = snapshot(persisted.ok)
+  if (!replyRepresentationsEqual(a, b)) return Object.freeze({ rejected: 'malformed' } as const)
+  return Object.freeze({ ok: persisted.ok })
+}
+function replyRepresentationsEqual(a: JsonValue | undefined, b: JsonValue | undefined): boolean {
   if (
     a === undefined ||
     b === undefined ||
@@ -229,28 +270,26 @@ export function judgeModelReplyMessage(
     !Array.isArray(a.blocks) ||
     !Array.isArray(b.blocks)
   )
-    return Object.freeze({ rejected: 'malformed' } as const)
+    return false
   const originalBlocks = a.blocks,
     persistedBlocks = b.blocks
-  if (
-    !membersEqual(a, b, ['blocks']) ||
-    originalBlocks.length !== persistedBlocks.length ||
-    !originalBlocks.every((block, index) => {
-      const other = persistedBlocks[index]
-      if (!isObject(block) || !isObject(other)) return false
-      if (
-        (block.kind === 'voice' || block.kind === 'image' || block.kind === 'file') &&
-        !Object.hasOwn(block, 'renderings') &&
-        !Object.hasOwn(block, 'transcript') &&
-        Object.hasOwn(other, 'renderings') &&
-        Object.hasOwn(other, 'transcript')
-      )
-        return membersEqual(block, other, ['renderings', 'transcript'])
-      return jsonEqual(block, other)
-    })
+  return (
+    membersEqual(a, b, ['blocks']) &&
+    originalBlocks.length === persistedBlocks.length &&
+    originalBlocks.every((block, index) => persistedBlockMatches(block, persistedBlocks[index]))
   )
-    return Object.freeze({ rejected: 'malformed' } as const)
-  return Object.freeze({ ok: persisted.ok })
+}
+function persistedBlockMatches(block: JsonValue, other: JsonValue | undefined): boolean {
+  if (!isObject(block) || !isObject(other)) return false
+  if (
+    (block.kind === 'voice' || block.kind === 'image' || block.kind === 'file') &&
+    !Object.hasOwn(block, 'renderings') &&
+    !Object.hasOwn(block, 'transcript') &&
+    Object.hasOwn(other, 'renderings') &&
+    Object.hasOwn(other, 'transcript')
+  )
+    return membersEqual(block, other, ['renderings', 'transcript'])
+  return jsonEqual(block, other)
 }
 /** All original members are retained; only the named top-level additions are permitted. */
 function membersEqual(

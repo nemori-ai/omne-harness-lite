@@ -6,6 +6,10 @@ import type {
   CompactionInputs,
   CompactionListJudgment,
   PairingJudgment,
+  ToolMessage,
+  ToolInternalMessage,
+  SystemReminderMessage,
+  AssistantMessage,
 } from './types.ts'
 import { locateBlock } from './blocks.ts'
 
@@ -34,11 +38,31 @@ export function judgeCompactionList(
 ): CompactionListJudgment {
   // Empty lists satisfy all item predicates without external inputs.
   if (c.silenced.length === 0) return Object.freeze({ valid: true })
+  if (!namedBlocksExist(c, prefix)) return Object.freeze({ valid: false, rule: 3 })
+  if (namesPendingBlocks(c, prefix, inputs)) return Object.freeze({ valid: false, rule: 5 })
+  const last = inputs.lastModelRequestPrefixLength
+  if (namesAfterLastRequest(c, prefix, last)) return Object.freeze({ valid: false, rule: 6 })
+  const missing: ('pending_card_blocks' | 'last_model_request')[] = []
+  if (inputs.pendingCardBlocks === undefined) missing.push('pending_card_blocks')
+  if (last === undefined || (last !== null && !validRequestPrefixLength(last, prefix.length)))
+    missing.push('last_model_request')
+  return missing.length === 0
+    ? Object.freeze({ valid: true })
+    : Object.freeze({ undetermined: Object.freeze(missing) })
+}
+function namedBlocksExist(c: CompactionMessage, prefix: LogPrefixView): boolean {
   for (const ref of c.silenced) {
     const message = prefix.find(item => item.id === ref.messageId)
     if (message === undefined || locateBlock(ref.blockId, message.blocks) === undefined)
-      return Object.freeze({ valid: false, rule: 3 })
+      return false
   }
+  return true
+}
+function namesPendingBlocks(
+  c: CompactionMessage,
+  prefix: LogPrefixView,
+  inputs: CompactionInputs,
+): boolean {
   for (const ref of c.silenced) {
     const message = prefix.find(item => item.id === ref.messageId)
     if (
@@ -46,7 +70,7 @@ export function judgeCompactionList(
       message.blocks[0].outcome === 'backgrounded' &&
       !prefix.some(item => isBackgroundEnding(item, message.callId))
     )
-      return Object.freeze({ valid: false, rule: 5 })
+      return true
     const located = message === undefined ? undefined : locateBlock(ref.blockId, message.blocks)
     if (
       located !== undefined &&
@@ -56,28 +80,24 @@ export function judgeCompactionList(
           located.path.some(block => block.id === pending.blockId),
       )
     )
-      return Object.freeze({ valid: false, rule: 5 })
+      return true
   }
-  const last = inputs.lastModelRequestPrefixLength
-  if (
+  return false
+}
+function validRequestPrefixLength(last: number, length: number): boolean {
+  return Number.isSafeInteger(last) && last >= 0 && last <= length
+}
+function namesAfterLastRequest(
+  c: CompactionMessage,
+  prefix: LogPrefixView,
+  last: number | null | undefined,
+): boolean {
+  return (
     last === null ||
     (last !== undefined &&
-      Number.isSafeInteger(last) &&
-      last >= 0 &&
-      last <= prefix.length &&
+      validRequestPrefixLength(last, prefix.length) &&
       c.silenced.some(ref => prefix.findIndex(item => item.id === ref.messageId) >= last))
   )
-    return Object.freeze({ valid: false, rule: 6 })
-  const missing: ('pending_card_blocks' | 'last_model_request')[] = []
-  if (inputs.pendingCardBlocks === undefined) missing.push('pending_card_blocks')
-  if (
-    last === undefined ||
-    (last !== null && (!Number.isSafeInteger(last) || last < 0 || last > prefix.length))
-  )
-    missing.push('last_model_request')
-  return missing.length === 0
-    ? Object.freeze({ valid: true })
-    : Object.freeze({ undetermined: Object.freeze(missing) })
 }
 
 /** S-32. This checks a candidate against a consistent prefix; it never appends. */
@@ -87,45 +107,12 @@ export function judgePairing(message: Message, prefix: LogPrefixView): PairingJu
     case 'system':
       return Object.freeze({ valid: false, rule: 7 })
     case 'tool':
-    case 'tool_internal': {
-      const rule = message.type === 'tool' ? 2 : 3
-      const hasCompleteCall = prefix.some(
-        item =>
-          item.type === 'assistant' &&
-          item.blocks.some(
-            block =>
-              block.kind === 'tool_call' && block.complete && block.callId === message.callId,
-          ),
-      )
-      if (
-        !hasCompleteCall ||
-        prefix.some(item => item.type === message.type && item.callId === message.callId)
-      )
-        return Object.freeze({ valid: false, rule })
-      return Object.freeze({ valid: true })
-    }
+    case 'tool_internal':
+      return toolPairing(message, prefix)
     case 'assistant':
-      return prefix.some(item => item.type === 'assistant' && item.response === message.response)
-        ? Object.freeze({ valid: false, rule: 5 })
-        : Object.freeze({ valid: true })
+      return assistantPairing(message, prefix)
     case 'system_reminder':
-      if (
-        message.source.kind === 'background_execution_finished' ||
-        message.source.kind === 'background_execution_interrupted'
-      ) {
-        const callId = message.source.callId
-        if (
-          !prefix.some(
-            item =>
-              item.type === 'tool' &&
-              item.callId === callId &&
-              item.blocks[0].outcome === 'backgrounded',
-          ) ||
-          prefix.some(item => isBackgroundEnding(item, callId))
-        )
-          return Object.freeze({ valid: false, rule: 4 })
-      }
-      return Object.freeze({ valid: true })
+      return backgroundPairing(message, prefix)
     case 'compaction':
       return message.silenced.length === 0
         ? Object.freeze({ valid: true })
@@ -133,6 +120,49 @@ export function judgePairing(message: Message, prefix: LogPrefixView): PairingJu
     case 'user':
       return Object.freeze({ valid: true })
   }
+}
+function assistantPairing(message: AssistantMessage, prefix: LogPrefixView): PairingJudgment {
+  return prefix.some(item => item.type === 'assistant' && item.response === message.response)
+    ? Object.freeze({ valid: false, rule: 5 })
+    : Object.freeze({ valid: true })
+}
+function toolPairing(
+  message: ToolMessage | ToolInternalMessage,
+  prefix: LogPrefixView,
+): PairingJudgment {
+  const rule = message.type === 'tool' ? 2 : 3
+  const hasCompleteCall = prefix.some(
+    item =>
+      item.type === 'assistant' &&
+      item.blocks.some(
+        block => block.kind === 'tool_call' && block.complete && block.callId === message.callId,
+      ),
+  )
+  if (
+    !hasCompleteCall ||
+    prefix.some(item => item.type === message.type && item.callId === message.callId)
+  )
+    return Object.freeze({ valid: false, rule })
+  return Object.freeze({ valid: true })
+}
+function backgroundPairing(message: SystemReminderMessage, prefix: LogPrefixView): PairingJudgment {
+  if (
+    message.source.kind === 'background_execution_finished' ||
+    message.source.kind === 'background_execution_interrupted'
+  ) {
+    const callId = message.source.callId
+    if (
+      !prefix.some(
+        item =>
+          item.type === 'tool' &&
+          item.callId === callId &&
+          item.blocks[0].outcome === 'backgrounded',
+      ) ||
+      prefix.some(item => isBackgroundEnding(item, callId))
+    )
+      return Object.freeze({ valid: false, rule: 4 })
+  }
+  return Object.freeze({ valid: true })
 }
 function isBackgroundEnding(message: Message, callId: string): boolean {
   return (
