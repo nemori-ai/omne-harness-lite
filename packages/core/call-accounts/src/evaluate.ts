@@ -1,4 +1,4 @@
-import { isJsonNumber, type JsonObject } from '@omne-harness-lite/content-blocks'
+import { isJsonNumber, type JsonObject, type JsonValue } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from './decimal.ts'
 import { judgeAccountValue, amountSum, compareAccountInstants } from './judge.ts'
 import { isObject, snapshotJson, validate } from './schema.ts'
@@ -92,84 +92,9 @@ export class AccountGroup {
     if (invalid !== undefined) return rejected(invalid)
     const targets: Target[] = []
     const corrections: Correction[] = []
-    for (const model of value.models) {
-      if (!isObject(model)) throw new Error('admitted model lost structure')
-      if (
-        typeof model.responseId !== 'string' ||
-        !isObject(model.cost) ||
-        !isObject(model.usage) ||
-        (model.cost.cost_usd !== 'unknown' && !isJsonNumber(model.cost.cost_usd))
-      )
-        throw new Error('admitted model lost fields')
-      targets.push(
-        Object.freeze({
-          key: modelKey(model.responseId),
-          amount: decimal(model.cost.cost_usd),
-        }),
-      )
-    }
-    for (const tool of value.tools) {
-      if (
-        !isObject(tool) ||
-        !keys(tool, ['sessionLog', 'account']) ||
-        typeof tool.sessionLog !== 'string'
-      ) {
-        throw new Error('admitted tool lost structure')
-      }
-      if (
-        !isObject(tool.account) ||
-        typeof tool.account.callId !== 'string' ||
-        !isObject(tool.account.cost) ||
-        !Array.isArray(tool.account.cost.items)
-      )
-        throw new Error('admission failed to narrow a tool account')
-      const own = tool.account.cost.items.flatMap<Amount>(item => {
-        if (
-          !isObject(item) ||
-          typeof item.service !== 'string' ||
-          (item.cost_usd !== 'unknown' && !isJsonNumber(item.cost_usd))
-        )
-          throw new Error('admitted cost item lost fields')
-        return item.service === 'model_call' ? [] : [item.cost_usd]
-      })
-      targets.push(
-        Object.freeze({
-          key: toolKey(tool.sessionLog, tool.account.callId),
-          amount: amountSum(own),
-        }),
-      )
-    }
-    for (const row of value.corrections) {
-      if (
-        !isObject(row) ||
-        !keys(row, ['sessionLog', 'correction']) ||
-        typeof row.sessionLog !== 'string'
-      ) {
-        throw new Error('admitted correction lost structure')
-      }
-      if (
-        !isObject(row.correction) ||
-        !isObject(row.correction.target) ||
-        !isJsonNumber(row.correction.cost_usd) ||
-        typeof row.correction.at !== 'string'
-      )
-        throw new Error('admission failed to narrow a correction')
-      const target = row.correction.target
-      const key =
-        target.kind === 'model_response' && typeof target.responseId === 'string'
-          ? modelKey(target.responseId)
-          : target.kind === 'tool_execution' && typeof target.callId === 'string'
-            ? toolKey(row.sessionLog, target.callId)
-            : undefined
-      if (key === undefined) throw new Error('admission failed to narrow a correction target')
-      corrections.push(
-        Object.freeze({
-          key,
-          amount: ExactDecimal.from(row.correction.cost_usd),
-          at: row.correction.at,
-        }),
-      )
-    }
+    for (const model of value.models) targets.push(modelTarget(model))
+    for (const tool of value.tools) targets.push(toolTarget(tool))
+    for (const row of value.corrections) corrections.push(correctionFrom(row))
     return Object.freeze({ ok: new AccountGroup(admissionToken, targets, corrections) })
   }
 
@@ -179,6 +104,87 @@ export class AccountGroup {
     return sum(prepared.amounts)
   }
 }
+function modelTarget(model: JsonValue): Target {
+  if (!isObject(model)) throw new Error('admitted model lost structure')
+  if (
+    typeof model.responseId !== 'string' ||
+    !isObject(model.cost) ||
+    !isObject(model.usage) ||
+    (model.cost.cost_usd !== 'unknown' && !isJsonNumber(model.cost.cost_usd))
+  )
+    throw new Error('admitted model lost fields')
+  return Object.freeze({
+    key: modelKey(model.responseId),
+    amount: decimal(model.cost.cost_usd),
+  })
+}
+
+function ownToolAmounts(item: JsonValue): readonly Amount[] {
+  if (
+    !isObject(item) ||
+    typeof item.service !== 'string' ||
+    (item.cost_usd !== 'unknown' && !isJsonNumber(item.cost_usd))
+  )
+    throw new Error('admitted cost item lost fields')
+  return item.service === 'model_call' ? [] : [item.cost_usd]
+}
+
+function toolTarget(tool: JsonValue): Target {
+  if (
+    !isObject(tool) ||
+    !keys(tool, ['sessionLog', 'account']) ||
+    typeof tool.sessionLog !== 'string'
+  ) {
+    throw new Error('admitted tool lost structure')
+  }
+  if (
+    !isObject(tool.account) ||
+    typeof tool.account.callId !== 'string' ||
+    !isObject(tool.account.cost) ||
+    !Array.isArray(tool.account.cost.items)
+  )
+    throw new Error('admission failed to narrow a tool account')
+  const own = tool.account.cost.items.flatMap(ownToolAmounts)
+  return Object.freeze({
+    key: toolKey(tool.sessionLog, tool.account.callId),
+    amount: amountSum(own),
+  })
+}
+
+function correctionKey(target: JsonObject, sessionLog: string): string {
+  const key =
+    target.kind === 'model_response' && typeof target.responseId === 'string'
+      ? modelKey(target.responseId)
+      : target.kind === 'tool_execution' && typeof target.callId === 'string'
+        ? toolKey(sessionLog, target.callId)
+        : undefined
+  if (key === undefined) throw new Error('admission failed to narrow a correction target')
+  return key
+}
+
+function correctionFrom(row: JsonValue): Correction {
+  if (
+    !isObject(row) ||
+    !keys(row, ['sessionLog', 'correction']) ||
+    typeof row.sessionLog !== 'string'
+  ) {
+    throw new Error('admitted correction lost structure')
+  }
+  if (
+    !isObject(row.correction) ||
+    !isObject(row.correction.target) ||
+    !isJsonNumber(row.correction.cost_usd) ||
+    typeof row.correction.at !== 'string'
+  )
+    throw new Error('admission failed to narrow a correction')
+  const key = correctionKey(row.correction.target, row.sessionLog)
+  return Object.freeze({
+    key,
+    amount: ExactDecimal.from(row.correction.cost_usd),
+    at: row.correction.at,
+  })
+}
+
 export function prepareAccountGroup(
   input: unknown,
 ): { readonly ok: AccountGroup } | { readonly rejected: AccountRejection } {
@@ -243,51 +249,47 @@ function preflight(value: JsonObject): AccountRejection | undefined {
   )
     return 'malformed'
   const reasons: AccountRejection[] = []
-  for (const model of value.models) {
-    if (
-      !isObject(model) ||
-      !keys(model, ['responseId', 'cost', 'usage']) ||
-      !validate('ResponseId', model.responseId).valid
-    ) {
-      reasons.push('malformed')
-      continue
-    }
-    for (const [kind, item] of [
-      ['Cost', model.cost],
-      ['Usage', model.usage],
-    ] as const) {
-      const result = judgeAccountValue(kind, item)
-      if ('rejected' in result) reasons.push(result.rejected)
-    }
-    // This input is a recorded original Cost, not a previously derived effective Cost.
-    if (isObject(model.cost) && model.cost.source === 'later_correction') reasons.push('malformed')
-  }
+  for (const model of value.models) reasons.push(...modelRejections(model))
   for (const tool of value.tools) {
-    if (
-      !isObject(tool) ||
-      !keys(tool, ['sessionLog', 'account']) ||
-      typeof tool.sessionLog !== 'string'
-    ) {
-      reasons.push('malformed')
-      continue
-    }
-    const result = judgeAccountValue('ToolCallAccount', tool.account)
-    if ('rejected' in result) reasons.push(result.rejected)
+    const invalid = rowRejection(tool, 'ToolCallAccount')
+    if (invalid !== undefined) reasons.push(invalid)
   }
   for (const row of value.corrections) {
-    if (
-      !isObject(row) ||
-      !keys(row, ['sessionLog', 'correction']) ||
-      typeof row.sessionLog !== 'string'
-    ) {
-      reasons.push('malformed')
-      continue
-    }
-    const result = judgeAccountValue('CostCorrection', row.correction)
-    if ('rejected' in result) reasons.push(result.rejected)
+    const invalid = rowRejection(row, 'CostCorrection')
+    if (invalid !== undefined) reasons.push(invalid)
   }
   return firstRejection(reasons)
 }
+function modelRejections(model: JsonValue): readonly AccountRejection[] {
+  if (
+    !isObject(model) ||
+    !keys(model, ['responseId', 'cost', 'usage']) ||
+    !validate('ResponseId', model.responseId).valid
+  )
+    return ['malformed']
+  const reasons: AccountRejection[] = []
+  for (const [kind, item] of [
+    ['Cost', model.cost],
+    ['Usage', model.usage],
+  ] as const) {
+    const result = judgeAccountValue(kind, item)
+    if ('rejected' in result) reasons.push(result.rejected)
+  }
+  // This input is a recorded original Cost, not a previously derived effective Cost.
+  if (isObject(model.cost) && model.cost.source === 'later_correction') reasons.push('malformed')
+  return reasons
+}
+function rowRejection(
+  row: JsonValue,
+  kind: 'ToolCallAccount' | 'CostCorrection',
+): AccountRejection | undefined {
+  const field = kind === 'ToolCallAccount' ? 'account' : 'correction'
+  if (!isObject(row) || !keys(row, ['sessionLog', field]) || typeof row.sessionLog !== 'string')
+    return 'malformed'
+  const result = judgeAccountValue(kind, row[field])
+  return 'rejected' in result ? result.rejected : undefined
+}
+
 function firstRejection(reasons: readonly AccountRejection[]): AccountRejection | undefined {
   // S27 orders faults within one value. This local order only stabilizes multi-value admission.
   const order: readonly AccountRejection[] = [
@@ -298,6 +300,22 @@ function firstRejection(reasons: readonly AccountRejection[]): AccountRejection 
     'total_not_unknown',
   ]
   return order.find(reason => reasons.includes(reason))
+}
+
+function correctionTie(matching: readonly Correction[]): boolean {
+  for (let first = 0; first < matching.length; first++)
+    for (let second = first + 1; second < matching.length; second++) {
+      const left = matching[first]
+      const right = matching[second]
+      if (
+        left !== undefined &&
+        right !== undefined &&
+        compareAccountInstants(left.at, right.at) === 0 &&
+        left.amount.compare(right.amount) !== 0
+      )
+        return true
+    }
+  return false
 }
 
 function effectiveTargets(
@@ -316,18 +334,7 @@ function effectiveTargets(
   for (const target of targets) {
     const matching = corrections.filter(correction => correction.key === target.key)
     // A conflicting equal-at pair is ambiguous even when a later correction exists (S-23 #4).
-    for (let first = 0; first < matching.length; first++)
-      for (let second = first + 1; second < matching.length; second++) {
-        const left = matching[first]
-        const right = matching[second]
-        if (
-          left !== undefined &&
-          right !== undefined &&
-          compareAccountInstants(left.at, right.at) === 0 &&
-          left.amount.compare(right.amount) !== 0
-        )
-          return failed('correction_tie')
-      }
+    if (correctionTie(matching)) return failed('correction_tie')
     let latest: Correction | undefined
     for (const correction of matching)
       if (latest === undefined || compareAccountInstants(correction.at, latest.at) > 0)
@@ -378,6 +385,51 @@ export type ToolCostTarget = {
 }
 export type EffectiveCostFailure =
   { readonly rejected: AccountRejection } | { readonly failed: EvaluationFailure }
+
+function singleTargetGroup(ownedTarget: JsonObject, ownedCorrections: readonly JsonValue[]) {
+  const emptyUsage: Usage = {
+    input_tokens: 'unknown',
+    output_tokens: 'unknown',
+    cache_read_tokens: 'unknown',
+    cache_write_tokens: 'unknown',
+    source: 'none',
+  }
+  return {
+    models:
+      ownedTarget.kind === 'model_response'
+        ? [{ responseId: ownedTarget.responseId, cost: ownedTarget.cost, usage: emptyUsage }]
+        : [],
+    tools:
+      ownedTarget.kind === 'tool_execution'
+        ? [{ sessionLog: ownedTarget.sessionLog, account: ownedTarget.account }]
+        : [],
+    corrections: ownedCorrections,
+  }
+}
+
+function modelEffectiveCost(
+  original: JsonValue | undefined,
+  ownedCorrections: readonly JsonValue[],
+  amount: Amount,
+): { readonly ok: Cost } {
+  if (!isObject(original)) throw new Error('admitted model cost lost structure')
+  const upstream = original.upstream_inference_cost_usd
+  const originalSource = original.source
+  if (
+    originalSource !== 'none' &&
+    originalSource !== 'upstream_usage' &&
+    originalSource !== 'later_correction'
+  )
+    throw new Error('admitted model cost lost source')
+  const source = ownedCorrections.length > 0 ? 'later_correction' : originalSource
+  const cost: Cost = Object.freeze({
+    cost_usd: amount,
+    source,
+    ...(isJsonNumber(upstream) ? { upstream_inference_cost_usd: upstream } : {}),
+  })
+  return Object.freeze({ ok: cost })
+}
+
 export function effectiveCost(
   target: ModelCostTarget,
   corrections: readonly CorrectionInput[],
@@ -397,44 +449,11 @@ export function effectiveCost(
   const ownedCorrections = input.corrections
   if (ownedTarget.kind !== 'model_response' && ownedTarget.kind !== 'tool_execution')
     return rejected('malformed')
-  const emptyUsage: Usage = {
-    input_tokens: 'unknown',
-    output_tokens: 'unknown',
-    cache_read_tokens: 'unknown',
-    cache_write_tokens: 'unknown',
-    source: 'none',
-  }
-  const prepared = prepareAccountGroup({
-    models:
-      ownedTarget.kind === 'model_response'
-        ? [{ responseId: ownedTarget.responseId, cost: ownedTarget.cost, usage: emptyUsage }]
-        : [],
-    tools:
-      ownedTarget.kind === 'tool_execution'
-        ? [{ sessionLog: ownedTarget.sessionLog, account: ownedTarget.account }]
-        : [],
-    corrections: ownedCorrections,
-  })
+  const prepared = prepareAccountGroup(singleTargetGroup(ownedTarget, ownedCorrections))
   if ('rejected' in prepared) return prepared
   const result = summarize(prepared.ok)
   if ('failed' in result) return result
   const amount: Amount = result.unknownCount === 0 ? result.knownSum.toJsonNumber() : 'unknown'
   if (ownedTarget.kind === 'tool_execution') return Object.freeze({ ok: amount })
-  const original = ownedTarget.cost
-  if (!isObject(original)) throw new Error('admitted model cost lost structure')
-  const upstream = original.upstream_inference_cost_usd
-  const originalSource = original.source
-  if (
-    originalSource !== 'none' &&
-    originalSource !== 'upstream_usage' &&
-    originalSource !== 'later_correction'
-  )
-    throw new Error('admitted model cost lost source')
-  const source = ownedCorrections.length > 0 ? 'later_correction' : originalSource
-  const cost: Cost = Object.freeze({
-    cost_usd: amount,
-    source,
-    ...(isJsonNumber(upstream) ? { upstream_inference_cost_usd: upstream } : {}),
-  })
-  return Object.freeze({ ok: cost })
+  return modelEffectiveCost(ownedTarget.cost, ownedCorrections, amount)
 }
