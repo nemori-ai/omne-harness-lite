@@ -275,7 +275,9 @@ export function createExecutionOwner(input: {
   function unsupportedDependencies(selected: SelectedTool): boolean {
     const definition = selected.definition
     return (
-      Object.keys(definition.settings ?? {}).some(name => name !== 'targetEnvironment') ||
+      Object.keys(definition.settings ?? {}).some(
+        name => name !== 'targetEnvironment' && name !== 'backgroundThreshold',
+      ) ||
       (definition.settings?.targetEnvironment !== undefined && !input.environments) ||
       (definition.needs?.attachmentStorage !== undefined && !input.bindWriter) ||
       (definition.needs?.externalServices?.length ?? 0) > 0
