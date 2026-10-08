@@ -14,25 +14,38 @@ function schemaDocument(value: unknown): SchemaDocument {
 }
 
 const entrySchema = schemaDocument(require('../schema/governance-center-entry.schema.json'))
+const maintenanceSchema = schemaDocument(require('../schema/governance-maintenance.schema.json'))
 const identityValuesSchema = schemaDocument(require('@omne-harness-lite/identity-values/schema'))
 const offerExpirySchema = schemaDocument(require('@omne-harness-lite/offer-expiry/schema'))
 
-const definitions: unknown =
-  '$defs' in entrySchema.document ? entrySchema.document.$defs : undefined
-if (definitions === null || typeof definitions !== 'object' || Array.isArray(definitions))
-  throw new Error('governance-center-entry: bundled JSON Schema has no definitions')
-export const entryDefinitions = definitions as Readonly<Record<string, unknown>>
+function definitionsOf(document: object): Readonly<Record<string, unknown>> {
+  const definitions: unknown = '$defs' in document ? document.$defs : undefined
+  if (definitions === null || typeof definitions !== 'object' || Array.isArray(definitions))
+    throw new Error('governance-center-entry: bundled JSON Schema has no definitions')
+  return definitions as Readonly<Record<string, unknown>>
+}
+const maintenanceDefinitions = definitionsOf(maintenanceSchema.document)
+export const entryDefinitions = {
+  ...definitionsOf(entrySchema.document),
+  ...maintenanceDefinitions,
+}
 export const ENTRY_SCHEMA_ID: string = entrySchema.id
 export const schemaGraphs = [
   {
     name: 'ordinary',
     kind: 'ordinary',
     includeSchema: true,
-    resources: [identityValuesSchema.document, offerExpirySchema.document, entrySchema.document],
+    resources: [
+      identityValuesSchema.document,
+      offerExpirySchema.document,
+      entrySchema.document,
+      maintenanceSchema.document,
+    ],
     resourceSpecifiers: [
       '@omne-harness-lite/identity-values/schema',
       '@omne-harness-lite/offer-expiry/schema',
       './schema/governance-center-entry.schema.json',
+      './schema/governance-maintenance.schema.json',
     ],
     sourceFiles: ['src/schema-inputs.ts'],
     options: {
@@ -46,7 +59,7 @@ export const schemaGraphs = [
     definitions: Object.keys(entryDefinitions).map(name => ({
       name,
       method: 'getSchema',
-      schema: `${ENTRY_SCHEMA_ID}#/$defs/${name}`,
+      schema: `${Object.hasOwn(maintenanceDefinitions, name) ? maintenanceSchema.id : ENTRY_SCHEMA_ID}#/$defs/${name}`,
     })),
   },
 ] as const

@@ -14,8 +14,8 @@ import { createUpgradeGuard, openSnapshotInspection, openStorage } from '../src/
 const cases = [
   { mode: 'online', resource: 'coordination-release', behavior: 'throw-open' },
   { mode: 'offline', resource: 'coordination-release', behavior: 'return-open' },
-  { mode: 'online', resource: 'coordination-begin', behavior: 'throw-open' },
-  { mode: 'online', resource: 'coordination-pragma', behavior: 'throw-open' },
+  { mode: 'online', resource: 'coordination-acquired', behavior: 'throw-open' },
+  { mode: 'online', resource: 'coordination-spawn', behavior: 'throw-open' },
   { mode: 'online', resource: 'marker', behavior: 'throw-open' },
   { mode: 'online', resource: 'root', behavior: 'throw-open' },
   { mode: 'online', resource: 'parent', behavior: 'throw-open' },
@@ -74,7 +74,7 @@ it.each(cases)(
     const workspaceProbe = async () => {
       if (resource.startsWith('coordination')) {
         try {
-          const lock = acquireSqliteLock(join(root, '.owner-lock'))
+          const lock = await acquireSqliteLock(join(root, '.owner-lock'))
           await lock.release()
           return 'opened'
         } catch (error) {
@@ -95,7 +95,7 @@ it.each(cases)(
       if (mode === 'online')
         expect(await sourceProbe()).toBe(behavior === 'throw-closed' ? 'opened' : 'occupied')
       expect(await workspaceProbe()).toBe(
-        behavior === 'throw-closed' || resource === 'coordination-pragma' ? 'opened' : 'busy',
+        behavior === 'throw-closed' || resource === 'coordination-spawn' ? 'opened' : 'busy',
       )
       expect(report, stderr).toMatchObject({ resourceOpen: behavior !== 'throw-closed' })
       child.stdin.write('exit\n')

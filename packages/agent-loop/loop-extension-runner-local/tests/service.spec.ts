@@ -94,7 +94,7 @@ async function serviceHost() {
     judgeCapabilities: vi.fn(async (_input, output) =>
       output.kind === 'observed' ? { kind: 'accepted' as const } : { kind: 'unavailable' as const },
     ),
-    now: vi.fn(() => '2026-09-29T00:00:00Z'),
+    now: vi.fn(async () => '2026-09-29T00:00:00Z'),
     mintReminder: vi.fn(() => 'reminder'),
     fallbackNeedsProjection: vi.fn(async () => false),
     commandPresence: vi.fn(async () => 'unavailable' as const),
@@ -498,7 +498,7 @@ for (const repairFails of [false, true])
   test(`service unknown survives fiber removal until physical stop/reopen (${repairFails ? 'durable original' : 'authoritative absence'})`, async () => {
     const h = await serviceHost()
     const identity = unwrap(parseOpaqueIdentifier(session, 'SessionRef'))
-    const fault = sqlJournalFault(join(h.dir, 'journal.sqlite'), repairFails)
+    const fault = sqlJournalFault(repairFails)
     try {
       await h.log.append(
         identity,
@@ -563,7 +563,7 @@ test('two actual service dispatchers adopt the legal durable winner rather than 
   let firstCount = 0,
     time = 0
   try {
-    vi.mocked(h.execution.now).mockImplementation(() => `2026-09-29T00:00:0${time++}Z`)
+    vi.mocked(h.execution.now).mockImplementation(async () => `2026-09-29T00:00:0${time++}Z`)
     h.implementations.registerBuiltin('example:b', async () => {
       if (++firstCount === 2) entered.resolve()
       await entered.promise

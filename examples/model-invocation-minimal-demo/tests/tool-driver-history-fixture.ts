@@ -357,7 +357,7 @@ export async function historyFixture(
     log,
     storage,
     access: { authorize: async () => ({ kind: 'rejected', reason: 'notAuthorized' }) },
-    now: () => at,
+    now: async () => at,
   })
   const initialized = await context.initializer.initializeContextSession(scope, contextSeed)
   if (initialized.kind !== 'applied') throw new Error('context fixture')

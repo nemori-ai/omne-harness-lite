@@ -147,7 +147,7 @@ test.each(['enumerate', 'owner-generation', 'clock', 'receipt-unknown', 'tail-ch
           kind: 'prefix',
           prefix: { scope, ownerGeneration: 'foreign', tail: 0, entries: [] },
         })
-      if (mode === 'clock') f.now.mockReturnValueOnce('unavailable')
+      if (mode === 'clock') f.now.mockResolvedValueOnce('unavailable')
       if (mode === 'receipt-unknown')
         f.controlledJournal.commit.mockResolvedValueOnce({
           kind: 'rejected',

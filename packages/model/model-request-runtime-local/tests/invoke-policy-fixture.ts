@@ -93,7 +93,7 @@ export function fixtureReadFacts(events: readonly ArrivalEvent[] = content()): R
 }
 export function policy(diagnostic: InvocationPolicy['diagnostic'] = () => {}): InvocationPolicy {
   return {
-    now: () => '2026-09-28T00:00:00Z',
+    now: async () => '2026-09-28T00:00:00Z',
     schedule: (milliseconds, callback) => {
       const timer = setTimeout(callback, milliseconds)
       return () => clearTimeout(timer)

@@ -71,7 +71,7 @@ test('actual complete C with an unknown receipt retains its physical owner until
       createDemoConfig(
         data,
         'competing-close',
-        () => new Date().toISOString(),
+        async () => new Date().toISOString(),
         { multiplier: 1.1, reserveTokens: 256 },
         demoRetirement(),
         true,

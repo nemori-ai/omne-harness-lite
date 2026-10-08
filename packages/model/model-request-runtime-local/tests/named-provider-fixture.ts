@@ -157,7 +157,7 @@ export async function namedProviderFixture(
           new Support(inner)
           new Lifetime(inner)
           inner.provide('storage', storage)
-          inner.provide('clock', { now: () => 'unavailable' })
+          inner.provide('clock', { now: async () => 'unavailable' })
           inner.provide(
             'modelTransport',
             options.transport ?? {

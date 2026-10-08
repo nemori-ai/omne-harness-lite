@@ -346,3 +346,9 @@ python3 examples/model-invocation-minimal-demo/tests/pty-check.py
 | `tests/runner-host.spec.ts`                                                                                                                                   | 已认证 runner pass、提醒持久化、重放、关闭后重开与文件系统故障注入                                                                                                        |
 
 服务、选择、观察端、恢复、确认与校准的映射遵循已接受的 [RT12](../../packages/core/model-request-runtime/SPEC.md) 与 [MR11](../../packages/core/model-response/SPEC.md)，校准由 D107 采用，图片准备由 D-109 采用；提供者状态见 [runtime provider](../../packages/model/model-request-runtime-local/README.md)。统一服务装配的真实 OpenRouter PTY 有界证据见 2026-09-28 示例服务证据，经本示例服务入口的真实逐叶三轮运行列在 [transport 验证](../../packages/model/pi-ai-transport/SPEC.md)。命令行的模型切换本身只在受控本机 TLS 与 PTY 检查下验证。
+
+### 独立 Clock 迁移
+
+新建 demo 目录会显式创建独立 Clock 资源。旧版使用业务数据库内的 Clock：先停止全部旧进程，再在原 CLI 命令中加一次 `--initialize-clock`。该操作导入旧的耐久时间底线。迁移成功后去掉该参数。普通启动遇到 Clock 状态缺失会拒绝，不从可能过时的业务备份自动重建。搬动部署时，一起保留 Clock SQLite 文件、对应 `.clock.json` manifest 和业务数据库。
+
+`close()` 的有界观察到期时可以返回未完成，但原业务关闭继续执行。业务关闭完成后，同一个持有任务继续关闭 transport 和诊断写端，不再依赖下一次 close 调用来触发这段收尾。超时不表示取消或干净关闭；明确失败和资源未完成仍需后续观察或显式重试。

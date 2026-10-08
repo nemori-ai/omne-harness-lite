@@ -223,7 +223,7 @@ import {
   type RegistrationService,
   type TerminalOutcome,
 } from '@omne-harness-lite/account-registration'
-import { clockPreflight } from '@omne-harness-lite/clock-lease'
+import { clockResourcePreflight } from '@omne-harness-lite/clock-lease'
 import {
   createModelReplicaCustodian,
   type ModelReplicaCustodian,
@@ -484,7 +484,7 @@ export interface AcceptanceApplication {
     transportRetention: DemoTransportRetention,
   ): Promise<ScenarioResult<{ readonly activated: true }>>
   /** Read the already-owned lease Clock; no second wall-clock authority. */
-  currentTime(): string | 'unavailable'
+  currentTime(): Promise<string | 'unavailable'>
   register(
     identifier: unknown,
     password: unknown,
@@ -1319,7 +1319,16 @@ export function createAcceptanceApplication(
         dialect: 'sqlite',
         file: config.databaseFile,
         migrations: composeMigrations(fragments),
-        upgrade: { guard, checks: [migrationPrefixCheck(fragments), clockPreflight()] },
+        upgrade: {
+          guard,
+          checks: [
+            migrationPrefixCheck(fragments),
+            clockResourcePreflight({
+              file: `${config.databaseFile}.clock.sqlite`,
+              initialize: config.initializeClock ?? false,
+            }),
+          ],
+        },
       },
       {
         logger: {
@@ -1345,7 +1354,7 @@ export function createAcceptanceApplication(
     activeClock = clock
     const deadline = config.wait.monotonicNow() + config.wait.clockTimeoutMs
     let waiting = false
-    while (clock.now() === 'unavailable') {
+    while ((await clock.now()) === 'unavailable') {
       if (!waiting) {
         waiting = true
         record({ event: 'stage', phase: 'clockReady', outcome: 'waiting' })
@@ -1367,7 +1376,7 @@ export function createAcceptanceApplication(
     category = 'confirmation'
     await hooks?.beforeConfirm?.(guard)
     assertNotClosing()
-    if (!allActive(BASE_FIBERS) || clock.now() === 'unavailable')
+    if (!allActive(BASE_FIBERS) || (await clock.now()) === 'unavailable')
       throw new Error('acceptance base no longer ready')
     record({ event: 'confirm', phase: 'upgrade', outcome: 'started' })
     const confirmation = await guard.confirm()
@@ -1582,7 +1591,10 @@ export function createAcceptanceApplication(
     try {
       const { prepared, logDeployment } = await prepareDeploymentStage()
       const storage = await openStorageStage(prepared)
-      await load('clock', clockPlugin, {})
+      await load('clock', clockPlugin, {
+        file: `${config.databaseFile}.clock.sqlite`,
+        ...(config.initializeClock ? { initialize: true } : {}),
+      })
       await load('credentials', credentialsPlugin, prepared.credentials)
       await load('accountIdentity', accountIdentityPlugin, prepared.identity)
       await load('governance', organizationGovernancePlugin, prepared.governance)
@@ -2375,9 +2387,9 @@ export function createAcceptanceApplication(
                 ? selected
                 : undefined
             },
-            now: () => {
+            now: async () => {
               if (activeClock === undefined) return { unavailable: true }
-              const now = activeClock.now()
+              const now = await activeClock.now()
               return now === 'unavailable' ? { unavailable: true } : new Date(now).toISOString()
             },
           })
@@ -2832,7 +2844,7 @@ export function createAcceptanceApplication(
             attempt,
           )
           if (!('report' in available)) return { unavailable: true } as const
-          const now = activeClock?.now()
+          const now = await activeClock?.now()
           if (now === undefined || now === 'unavailable') return { unavailable: true } as const
           const entry = {
             ok: {
@@ -3756,8 +3768,8 @@ export function createAcceptanceApplication(
             actions,
             delivery,
             runner: runnerService!,
-            now: () => {
-              const value = activeClock?.now()
+            now: async () => {
+              const value = await activeClock?.now()
               return value === undefined || value === 'unavailable'
                 ? 'unavailable'
                 : new Date(value).toISOString()
@@ -3961,11 +3973,11 @@ export function createAcceptanceApplication(
       })
     },
     activateModelRequest,
-    currentTime() {
+    async currentTime() {
       // Admitted model work may still need its terminal timestamp after the
       // application closes admission but before the clock fiber is disposed.
       if (activeClock === undefined) return 'unavailable'
-      const now = activeClock.now()
+      const now = await activeClock.now()
       return now === 'unavailable' ? now : new Date(now).toISOString()
     },
     register(identifier, password) {

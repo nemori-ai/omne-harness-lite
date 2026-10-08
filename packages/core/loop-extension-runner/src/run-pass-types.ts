@@ -162,7 +162,7 @@ export interface RunnerPorts {
     output: ExtensionOutput,
   ) => Promise<RunnerCapabilityResult>
   readonly record: (entry: LogEntryInput, execution: RunnerExecution) => Promise<RunnerRecordResult>
-  readonly now: () => string | { readonly unavailable: true }
+  readonly now: () => Promise<string | { readonly unavailable: true }>
   readonly mintReminder: () => string | { readonly unavailable: true }
   readonly isActive: () => boolean
   readonly fallbackNeedsProjection: (

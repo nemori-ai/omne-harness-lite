@@ -99,7 +99,7 @@ for (const history of [16, 128, 1024])
             write: fn => h.storage.write(tx => fn({ ...tx, db: tx.db.withPlugin(probe) })),
           },
           access: h.auth.operations,
-          now: () => at,
+          now: async () => at,
         })
         next.sources.registerSource({
           name: 'session',

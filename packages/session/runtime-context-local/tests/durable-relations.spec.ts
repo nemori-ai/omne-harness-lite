@@ -128,7 +128,7 @@ test.each([
       log: h.log,
       storage: h.storage,
       access: h.auth.operations,
-      now: () => at,
+      now: async () => at,
     })
     next.sources.registerSource(source())
     expect(await next.operations.registrations(h.access, scope)).toMatchObject({

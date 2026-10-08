@@ -3,6 +3,7 @@ export {
   type Instant,
   type Duration,
   type Clock,
+  type ClockCheckpoint,
   instantFromEpochMs,
   instantFromRfc3339,
   instantToRfc3339,

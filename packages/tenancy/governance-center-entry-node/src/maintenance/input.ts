@@ -1,3 +1,4 @@
+import { checkpointDigestBytes } from './metadata-policy.ts'
 import {
   SnapshotFailure,
   type SnapshotInspectionSession,
@@ -43,6 +44,7 @@ export class BackupInputFile {
       hash.update(chunk)
       yield chunk
     }
+    hash.update(checkpointDigestBytes(this.metadata.clockCheckpoint))
     if (hash.hex() !== this.metadata.sha256) throw new SnapshotFailure('invalid-data')
     await this.stable()
   }

@@ -153,7 +153,7 @@ export async function selectionHost(model = true, factoryCredential = false) {
   const assembly = await bootAssembly({
     services: [{ name: 'storage', value: storage }],
     plugins: [
-      { plugin: clockPlugin, config: {} },
+      { plugin: clockPlugin, config: { file: join(dir, 'clock.sqlite'), initialize: true } },
       {
         plugin: credentialsPlugin,
         config: { cost: 1024, blockSize: 8, parallelization: 1, saltBytes: 16, keyBytes: 32 },
@@ -314,7 +314,7 @@ export async function selectionHost(model = true, factoryCredential = false) {
         const blocked = projection.filter(item => !profile.inputModalities.includes(item))
         return blocked.length === 0 ? { ok: true } : { blocked }
       },
-      now: () => AT,
+      now: async () => AT,
       diagnostic() {},
       onDiagnosticFailure() {},
       ...overrides,

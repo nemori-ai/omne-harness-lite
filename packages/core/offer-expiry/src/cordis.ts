@@ -10,6 +10,7 @@ export abstract class ClockService extends Service implements Clock {
   }
 
   abstract now: Clock['now']
+  readonly checkpoint?: NonNullable<Clock['checkpoint']>
 }
 
 export const CLOCK_SERVICE = ClockService.provide

@@ -51,11 +51,11 @@ export function createToolTurnDriver(input: {
   readonly actions: ReturnType<typeof createToolActionDriver>
   readonly delivery: ReturnType<typeof createToolDelivery>
   readonly runner: LoopExtensionRunnerService
-  readonly now: () => string | 'unavailable'
+  readonly now: () => Promise<string | 'unavailable'>
 }) {
   async function beginRun(inboundKey: string) {
     const history = await input.journal.read(),
-      at = input.now()
+      at = await input.now()
     if ('unavailable' in history || at === 'unavailable') return unavailable
     const run = `tool-run-${identity([input.authority.scope, inboundKey])}`
     const existing = history.runs.get(run)
@@ -134,7 +134,7 @@ export function createToolTurnDriver(input: {
         .filter(entry => entry.consumers.includes('model'))
         .map(entry => entry.key),
     )
-    const at = input.now()
+    const at = await input.now()
     if (adopted.kind !== 'values' || at === 'unavailable')
       return { ...unavailable, step: 'contextRead' }
     const startedFactKey = `session-attempt:${identity([scope, run, attempt])}`
@@ -256,7 +256,7 @@ export function createToolTurnDriver(input: {
     basis: readonly string[],
     reason: 'completed' | 'failed' = 'completed',
   ) {
-    const at = input.now()
+    const at = await input.now()
     if (at === 'unavailable') return unavailable
     const committed = await input.journal.commit({ kind: 'run_ended', run, reason, basis, at })
     return committed.kind === 'committed' ? ({ kind: 'ended' } as const) : unavailable

@@ -207,13 +207,18 @@ export function describeAtomicStorageConformance(
 
     it('P13-9: observed unawaited failure cannot become a commit', async () => {
       const failure = new Error('unawaited participant')
+      const observed = deferred()
       await expect(
         storage.atomic(async unit => {
-          void unit.run(async () => {
-            await insert(unit, 'a')
-            throw failure
-          })
-          await new Promise<void>(resolve => setImmediate(resolve))
+          // Observe without joining through await. One event-loop turn does not
+          // prove that an asynchronous database operation has finished.
+          void unit
+            .run(async () => {
+              await insert(unit, 'a')
+              throw failure
+            })
+            .catch(() => observed.resolve())
+          await observed.promise
         }),
       ).rejects.toBe(failure)
       expect(await rows()).toEqual([])

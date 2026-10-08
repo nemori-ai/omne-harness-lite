@@ -21,6 +21,8 @@ export const clockSnapshotCheck: SnapshotCheck = async view => {
     substr(cast(written_at as text),1,32) AS written FROM clock_lease LIMIT 2`.execute(
     view.inspection.tx.db,
   )
+  // This is the legacy business table. The independent clock floor is in backup metadata.
+  if (rows.length === 0) return { ok: true }
   const row = rows[0]
   const until = Number(row?.until)
   const written = Number(row?.written)

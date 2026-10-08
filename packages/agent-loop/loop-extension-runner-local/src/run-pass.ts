@@ -606,7 +606,8 @@ async function runPassInternal(
             handles.release()
           }
         }
-        const at = ports.now()
+        const at = await ports.now()
+        checkControl(signal, ports)
         if (typeof at !== 'string') throw new RunnerFailureSignal(unavailable)
         const base = {
           extension: piece.definition.name,

@@ -54,9 +54,12 @@ function contextSeedValues(initial: ContextValue, tools: DemoToolDefaults | unde
   return Object.freeze([initial, ...(tools ? toolInitialValues(tools, initial.observedAt) : [])])
 }
 
-export function sessionIdentityValue(scope: SessionScope, clock: Clock): ContextValue | undefined {
+export async function sessionIdentityValue(
+  scope: SessionScope,
+  clock: Clock,
+): Promise<ContextValue | undefined> {
   try {
-    const instant = clock.now()
+    const instant = await clock.now()
     if (instant === 'unavailable') return undefined
     const parsed = instantFromEpochMs(instant)
     if (!('ok' in parsed)) return undefined
@@ -107,7 +110,7 @@ export function createSessionContextCreator(deps: {
           ? prepared
           : { kind: 'rejected', reason: 'notAuthorized' }
       if (held.failure !== 'sessionNotFound') return unavailable
-      const initial = sessionIdentityValue(scope, deps.clock)
+      const initial = await sessionIdentityValue(scope, deps.clock)
       if (!initial) return unavailable
       record = {
         status: 'uncertain',

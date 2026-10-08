@@ -1,4 +1,4 @@
-import { DatabaseSync } from 'node:sqlite'
+import { AsyncSqliteDatabase } from '../../src/sqlite/async-database.ts'
 import { open } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createUpgradeGuard, openStorage } from '../../src/index.ts'
@@ -25,17 +25,15 @@ const storage = await openStorage({
 await guard.confirm()
 const maintenance = storage.maintenance
 if (maintenance === undefined) throw new Error('missing maintenance')
-const close = DatabaseSync.prototype.close
-let failedHandle: DatabaseSync | undefined
-DatabaseSync.prototype.close = function (this: DatabaseSync): void {
-  const path = this.prepare('PRAGMA database_list')
-    .all()
-    .find(row => row.name === 'main')?.file
+const close = AsyncSqliteDatabase.prototype.close
+let failedHandle: AsyncSqliteDatabase | undefined
+AsyncSqliteDatabase.prototype.close = async function (this: AsyncSqliteDatabase): Promise<void> {
+  const path = (await this.all('PRAGMA database_list')).find(row => row.name === 'main')?.file
   if (!external && typeof path === 'string' && path.endsWith('/snapshot.sqlite')) {
     failedHandle = this
     throw new Error('injected snapshot handle close failure')
   }
-  close.call(this)
+  await close.call(this)
 }
 let externalFile: Awaited<ReturnType<typeof open>> | undefined
 let operationFailed = false

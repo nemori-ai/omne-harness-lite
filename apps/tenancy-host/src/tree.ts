@@ -40,7 +40,10 @@ export function buildDistributionTree(
     {
       id: 'clock-lease',
       plugin: { package: '@omne-harness-lite/clock-lease', export: 'managedClockPlugin' },
-      config: {},
+      config: {
+        file: `${config.storage.file}.clock.sqlite`,
+        ...(config.initializeClock ? { initialize: true } : {}),
+      },
     },
     {
       id: 'credential-verification',

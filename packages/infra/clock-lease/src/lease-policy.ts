@@ -1,10 +1,9 @@
 // 租约/时间策略；持久操作通过私有端口执行，算法依据见 SPEC.md。
-import type { Clock, Instant } from '@omne-harness-lite/offer-expiry'
+import type { Clock, ClockCheckpoint, Instant } from '@omne-harness-lite/offer-expiry'
 import { StorageDefect } from '@omne-harness-lite/storage'
 import type { LeasePersistence } from './lease-persistence.ts'
 
 export const LEASE_WIDTH_MS = 10_000
-export const RENEW_PERIOD_MS = Math.floor(LEASE_WIDTH_MS / 3)
 
 /** 启动时检出确定回拨：环境错误，让装配启动失败而不是半开。 */
 export class ClockRollbackDetected extends Error {
@@ -57,11 +56,7 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-/**
- * `now()` 的判定次序（同步、不抛异常）：① 闩住或停止准入 ⇒ 'unavailable'；② 现读墙钟 w；③ w < hw ⇒ 'unavailable'
- * （启动时的旧租约窗口，或运行中回拨）；④ w > leaseUntil ⇒ 'unavailable'（租约没续上）；⑤ hw = w，返回 w。
- * 不变量：任何返回值 ≥ 此前任何返回值（③⑤）；任何返回值 ≤ 当时已持久化的 lease_until（④）。
- */
+/** A returned wall time is covered by a confirmed durable reservation. */
 export class LeaseClockPolicy implements Clock {
   readonly #persistence: LeasePersistence
   readonly #sources: TimeSources
@@ -77,9 +72,9 @@ export class LeaseClockPolicy implements Clock {
   #stopping = false
   /** 当前一段「墙钟落后于 hw」开始时的 hw 与墙钟；只用于成对记日志。 */
   #behind: { readonly hw: number; readonly since: number } | undefined
-  #timer: NodeJS.Timeout | undefined
-  #inflight: Promise<void> = Promise.resolve()
-  #renewing = false
+  #inflight: Promise<void> | undefined
+  #closing: Promise<void> | undefined
+  #starting: Promise<void> | undefined
 
   constructor(options: LeaseClockPolicyOptions) {
     this.#persistence = options.persistence
@@ -88,66 +83,93 @@ export class LeaseClockPolicy implements Clock {
     this.#logger = options.logger
   }
 
-  now(): Instant | 'unavailable' {
-    if (this.#latched || this.#stopping) return 'unavailable'
-    const w = this.#sources.wall()
-    if (w < this.#hw) {
+  async now(): Promise<Instant | 'unavailable'> {
+    // A slow reservation can expire before its receipt arrives. Bound retries and resample.
+    for (let attempt = 0; attempt <= 2; attempt += 1) {
+      if (this.#latched || this.#stopping) return 'unavailable'
+      const wall = this.#sources.wall()
+      if (!this.#wallAvailable(wall)) return 'unavailable'
+      if (wall <= this.#leaseUntil) {
+        this.#hw = wall
+        return wall as Instant
+      }
+      if (attempt === 2) return 'unavailable'
+      try {
+        await this.renew()
+      } catch {
+        return 'unavailable' // renew records the actual failure, and latches defects.
+      }
+    }
+    return 'unavailable'
+  }
+
+  #wallAvailable(wall: number): boolean {
+    if (!Number.isSafeInteger(wall) || wall < 0) return false
+    if (wall < this.#hw) {
       if (this.#behind === undefined) {
-        this.#behind = { hw: this.#hw, since: w }
+        this.#behind = { hw: this.#hw, since: wall }
         this.#logger?.warn(
           'clock: wall clock %d is behind the latest time used %d; answering unavailable until it catches up',
-          w,
+          wall,
           this.#hw,
         )
       }
-      return 'unavailable'
+      return false
     }
     if (this.#behind !== undefined) {
       this.#logger?.info(
         'clock: wall clock caught up with %d after %d ms behind',
         this.#behind.hw,
-        w - this.#behind.since,
+        wall - this.#behind.since,
       )
       this.#behind = undefined
     }
-    if (w > this.#leaseUntil) return 'unavailable'
-    this.#hw = w
-    return w as Instant
+    return true
   }
 
   /** 启动判定 + 首次续约；写失败或确定回拨即抛出（启动失败）。 */
-  async start(): Promise<void> {
+  start(): Promise<void> {
+    if (this.#stopping) return Promise.reject(new Error('clock is stopping'))
+    return (this.#starting ??= this.#start())
+  }
+
+  async #start(): Promise<void> {
     const w = this.#sources.wall()
     const { row, fresh } = await this.#persistence.initialize(w, w + LEASE_WIDTH_MS)
-    if (isRolledBack(w, row)) {
+    const current = this.#sources.wall()
+    if (isRolledBack(current, row)) {
       this.#latched = true
-      throw new ClockRollbackDetected(w, row.written_at)
+      throw new ClockRollbackDetected(current, row.written_at)
     }
     // 接手既有行 ⇒ hw 起始为旧 lease_until：前一个实例可能已返回到那里（崩溃后快速重启时等至多 L）
     this.#hw = fresh ? w : row.lease_until
     this.#leaseUntil = row.lease_until
     this.#lastWritten = fresh ? row.lease_until : 0
+    if (this.#stopping) return
     this.#latched = false
-    this.#stopping = false
     try {
       await this.renew()
     } catch (error) {
       this.#latched = true // 启动失败的实例不再答任何时刻
       throw error
     }
-    this.#timer = setInterval(() => this.#tick(), RENEW_PERIOD_MS)
-    this.#timer.unref()
   }
 
-  /** 定时续约一轮：在途续约未回来则跳过本轮，不排队（续约周期 L/3 + 锁等待上限 5 s < L）。 */
-  #tick(): void {
-    if (this.#renewing) return
-    this.#renewing = true
-    this.#inflight = this.renew()
+  async checkpoint(): Promise<ClockCheckpoint | 'unavailable'> {
+    if ((await this.now()) === 'unavailable') return 'unavailable'
+    await this.#inflight?.catch(() => undefined)
+    if (this.#latched || this.#stopping) return 'unavailable'
+    return { writtenAt: this.#hw as Instant, upperBound: this.#leaseUntil as Instant }
+  }
+
+  /** Coalesce concurrent reservation requests. Only confirmed writes extend the local bound. */
+  renew(): Promise<void> {
+    if (this.#latched || this.#stopping) return Promise.resolve()
+    if (this.#inflight !== undefined) return this.#inflight
+    const pending = this.#reserve()
       .catch((error: unknown) => {
         if (error instanceof StorageDefect) {
-          // 表不在、列不对：重试也不会变；定时器没有调用方可上抛，闩住是唯一不吞错的做法
-          this.#latch()
+          this.#latched = true
           this.#logger?.error(
             'clock: lease renewal hit a storage defect; the clock is latched unavailable: %s',
             describe(error),
@@ -156,42 +178,38 @@ export class LeaseClockPolicy implements Clock {
           this.#logger?.warn('clock: lease renewal failed: %s', describe(error))
         }
         this.#onRenewFailure(error)
+        throw error
       })
       .finally(() => {
-        this.#renewing = false
+        this.#inflight = undefined
       })
+    this.#inflight = pending
+    return pending
   }
 
-  #latch(): void {
-    this.#latched = true
-    if (this.#timer !== undefined) clearInterval(this.#timer)
-    this.#timer = undefined
-  }
-
-  /** 续约：现读墙钟 w，把 lease_until 推到 w + L（只增不减）；失败抛出，由调用方决定收场。 */
-  async renew(): Promise<void> {
-    if (this.#latched || this.#stopping) return
-    const w = this.#sources.wall()
-    const target = w + LEASE_WIDTH_MS
-    const pushed = await this.#persistence.advance(w, target)
-    if (pushed) {
-      this.#leaseUntil = target
-      this.#lastWritten = target
-    } else if (target > this.#leaseUntil) {
-      // 行上的界已 ≥ target（另一个写者推得更远）：本实例只认到 target 为止，不冒领对方的租约
-      this.#leaseUntil = target
-    }
+  async #reserve(): Promise<void> {
+    const wall = this.#sources.wall()
+    if (wall < this.#hw) return
+    const target = wall + LEASE_WIDTH_MS
+    if (!Number.isSafeInteger(target)) throw new StorageDefect('clock reservation overflow')
+    if (target <= this.#leaseUntil) return
+    const pushed = await this.#persistence.advance(wall, target)
+    this.#leaseUntil = target
+    if (pushed) this.#lastWritten = target
   }
 
   /**
-   * 撤除：清定时器并停止准入 → 等定时在途 → 闩住并比较收回自己的租约到 max(hw, w)。收回写失败只报告不上抛。
+   * 撤除：停止准入，等待所有申请终结，再回收本实例的租约。收回失败保留旧上界并报告。
    * 取 max(hw, w)：撤除时墙钟若正落后于 hw，写 w 会把「用过的最晚时刻」往回改，下一次启动就查不出这次回拨。
    */
-  async close(): Promise<void> {
-    if (this.#timer !== undefined) clearInterval(this.#timer)
-    this.#timer = undefined
+  close(): Promise<void> {
     this.#stopping = true
-    await this.#inflight
+    return (this.#closing ??= this.#close())
+  }
+
+  async #close(): Promise<void> {
+    await this.#starting?.catch(() => undefined)
+    await this.#inflight?.catch(() => undefined)
     if (this.#latched) return
     this.#latched = true
     const mine = this.#lastWritten

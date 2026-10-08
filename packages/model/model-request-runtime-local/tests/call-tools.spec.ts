@@ -309,7 +309,7 @@ test('real registry preserves report snapshot and refuses an unreadable report i
   }
   const registry = createAssetRegistry({
     manifest,
-    clock: { now: () => instant },
+    clock: { now: async () => instant },
     sessionTenancy: { holdingTenant: async () => ({ tenant }) },
     historicalBody: {
       read: async () => ({ version: definitions[1].versions[0] }),

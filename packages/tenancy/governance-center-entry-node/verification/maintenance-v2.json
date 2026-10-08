@@ -1,0 +1,22 @@
+{
+  "status": "completed",
+  "backup": {
+    "fileName": "00000000000000000000000000000000.omne-backup",
+    "metadata": {
+      "format": "omne-center-backup/2",
+      "centerId": "0123456789abcdef0123456789abcdef",
+      "sourceBuildId": null,
+      "migrationNames": [
+        "0001_governance_center"
+      ],
+      "startedAt": "2026-09-25T22:00:00Z",
+      "finishedAt": "2026-09-25T22:00:01Z",
+      "byteLength": 4096,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "clockCheckpoint": {
+        "writtenAt": 1790373601000,
+        "upperBound": 1790373611000
+      }
+    }
+  }
+}

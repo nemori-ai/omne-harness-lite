@@ -99,7 +99,7 @@ export function testClock(start: Instant = START): TestClock {
     get current() {
       return current
     },
-    now: () => (unavailable ? 'unavailable' : current),
+    now: async () => (unavailable ? 'unavailable' : current),
     advance(ms) {
       current = (current + ms) as Instant
     },

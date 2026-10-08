@@ -10,7 +10,7 @@ describe('编译期挡住的条款', () => {
     expectTypeOf<OfferState>().not.toMatchTypeOf<SettledState>()
   })
   it('S-16：Clock.now 的返回带 unavailable 支，消费者无法不接', () => {
-    expectTypeOf<ReturnType<Clock['now']>>().toEqualTypeOf<Instant | 'unavailable'>()
+    expectTypeOf<ReturnType<Clock['now']>>().toEqualTypeOf<Promise<Instant | 'unavailable'>>()
   })
   it('Instant 是品牌化数值，普通 number 不能直接当时间点', () => {
     expectTypeOf<number>().not.toMatchTypeOf<Instant>()

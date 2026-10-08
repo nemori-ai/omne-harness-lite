@@ -385,7 +385,8 @@ export function invokeModel<P extends PlannedSemantics, R>(
       }
       if (controller.signal.aborted) return { cancelledBeforeSend: true }
       deadline(input.policy.firstContentTimeoutMs)
-      const actualAt = input.policy.now()
+      const actualAt = await input.policy.now()
+      if (controller.signal.aborted) return { cancelledBeforeSend: true }
       let admitted: unknown = true
       try {
         if (input.beforeSend !== undefined) admitted = input.beforeSend()
@@ -465,7 +466,9 @@ export function invokeModel<P extends PlannedSemantics, R>(
                 controller.abort()
                 continue
               }
-              firstTokenAt = input.policy.now()
+              const at = await input.policy.now()
+              if (controller.signal.aborted) continue
+              firstTokenAt = at
               deadline(input.policy.idleContentTimeoutMs)
             } else if (firstTokenAt !== undefined && event.t === 'fill')
               deadline(input.policy.idleContentTimeoutMs)
@@ -639,6 +642,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
         outputGroup,
       })
       retainedCalibration = inputCalibration
+      terminal = true // The assembler result is fixed before asynchronous timestamp acquisition.
       const value: ModelInvocationResult = {
         inputCalibration,
         outcome,
@@ -655,7 +659,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
         timing: {
           sentAt,
           ...(firstTokenAt === undefined ? {} : { firstTokenAt }),
-          endedAt: input.policy.now(),
+          endedAt: await input.policy.now(),
         },
         usage: end.readFacts.usage,
         cost: end.readFacts.cost,

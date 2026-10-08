@@ -268,6 +268,8 @@ export async function openDemo(
   observerBounds: DemoObserverBounds = defaultObserverBounds,
   host?: {
     readonly covered: boolean
+    /** Explicit migration of a legacy directory to an independent Clock resource. */
+    readonly initializeClock?: boolean
     /** A worker-local provider read only after old durable work is reconciled. */
     readonly readCredential?: () => Promise<Uint8Array | undefined>
   },
@@ -295,8 +297,8 @@ export async function openDemo(
     initialized = await initialize(directory)
   let app: AcceptanceApplication | undefined
   let diagnosticAssembly: DemoDiagnosticAssembly | undefined
-  function now(): string {
-    const value = app?.currentTime()
+  async function now(): Promise<string> {
+    const value = await app?.currentTime()
     if (value === undefined || value === 'unavailable') throw new Error('lease clock unavailable')
     return value
   }
@@ -307,6 +309,7 @@ export async function openDemo(
     tokenMargin,
     retirement,
     enableTools,
+    initialized.fresh || host?.initializeClock === true,
   )
   app = createAcceptanceApplication(config, {
     ...testOptions,
@@ -440,7 +443,7 @@ export async function openDemo(
           const user = judgeMessage({
             type: 'user',
             id: `user-${id}`,
-            createdAt: now(),
+            createdAt: await now(),
             blocks: [
               {
                 id: `text-${id}`,

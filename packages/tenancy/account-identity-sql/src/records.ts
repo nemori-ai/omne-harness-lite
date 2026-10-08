@@ -29,16 +29,16 @@ export type Occupancy =
   | { readonly kind: 'live'; readonly accountId: AccountId; readonly material: CredentialMaterial }
 
 /** 时间源只在「未激活且尚未落盘过期事实」时才被读；读不到 ⇒ `'clock-unavailable'`，不按任何一边猜。 */
-export function classifyAccount(
+export async function classifyAccount(
   row: AccountRow | undefined,
   clock: Clock,
-): Occupancy | 'clock-unavailable' {
+): Promise<Occupancy | 'clock-unavailable'> {
   if (row === undefined) return { kind: 'none' }
   const accountId = storedAccountId(row.account_id)
   if (storedFlag(row.activated)) return { kind: 'activated', accountId }
   if (row.expired_at !== null)
     return { kind: 'expired', accountId, landed: true, observedAt: undefined }
-  const now = clock.now()
+  const now = await clock.now()
   if (now === 'unavailable') return 'clock-unavailable'
   if (compareInstants(now, storedInstant(row.retention_deadline)) > 0) {
     return { kind: 'expired', accountId, landed: false, observedAt: now }
@@ -66,7 +66,7 @@ export async function settleExpiry(
   clock: Clock,
 ): Promise<ExpirySettlement> {
   if (row.expired_at !== null) return 'expired'
-  const now = clock.now()
+  const now = await clock.now()
   if (now === 'unavailable') return 'clock-unavailable'
   if (compareInstants(now, storedInstant(row.retention_deadline)) <= 0) return 'live'
   await tx.landAccountExpiry(storedAccountId(row.account_id), now)
@@ -96,8 +96,8 @@ export function loginDeadlines(row: LoginStateRow): {
   }
 }
 
-export function trustedNow(clock: Clock): Instant {
-  const now = clock.now()
+export async function trustedNow(clock: Clock): Promise<Instant> {
+  const now = await clock.now()
   if (now === 'unavailable') throw new StorageUnavailable('login clock unavailable')
   return now
 }
@@ -124,7 +124,7 @@ export async function judgeLoginState(
     storedRevision(state.credential_revision) !== storedRevision(account.credential_revision)
   )
     return LOGIN_STATE_REJECTED
-  return loginValidAt(state, storedRevision(account.credential_revision), trustedNow(clock))
+  return loginValidAt(state, storedRevision(account.credential_revision), await trustedNow(clock))
     ? { ok: accountId }
     : LOGIN_STATE_REJECTED
 }

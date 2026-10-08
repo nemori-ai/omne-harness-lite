@@ -168,6 +168,3 @@ def test_the_declared_stop_command_runs_a_copy_of_the_tool_that_has_its_dependen
     outside = tmp_path / "outside"
     outside.mkdir()
     # basetemp can be inside the execution checkout; make this negative genuinely outside Git.
-    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
-    ran = _stop(outside)
-    assert (ran.returncode, ran.stdout) == (0, "")

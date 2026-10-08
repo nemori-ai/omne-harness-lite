@@ -423,12 +423,12 @@ export function createSessionModelSelection(
     )
     return { catalog, history, projected, result }
   }
-  function selectionEntry(name: string, operation: Operation) {
+  async function selectionEntry(name: string, operation: Operation) {
     const captured = captureModelLogValue({
       category: 'record',
       input: {
         kind: 'value',
-        value: { kind: 'model_selection_changed', routeName: name, at: now() },
+        value: { kind: 'model_selection_changed', routeName: name, at: await now() },
       },
     })
     if ('invalidValue' in captured || !current(operation)) return undefined
@@ -469,7 +469,7 @@ export function createSessionModelSelection(
         )
         if (rejection !== undefined) return rejection
         if (facts.history.selected === name) return { selected: name }
-        const entry = selectionEntry(name, operation)
+        const entry = await selectionEntry(name, operation)
         if (entry === undefined) return unavailable()
         let raw: unknown
         let started = false

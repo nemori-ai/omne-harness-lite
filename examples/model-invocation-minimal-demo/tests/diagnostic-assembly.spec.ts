@@ -359,6 +359,27 @@ describe('demo diagnostic assembly', () => {
     expect(tracker.health().transportTerminalSnapshots).toBe(1)
   })
 
+  it('continues diagnostic shutdown when business completes after the observation timeout', async () => {
+    const assembly = await openDemoDiagnosticAssembly(config())
+    let release!: (value: { complete: boolean }) => void
+    const pending = new Promise<{ complete: boolean }>(resolve => {
+      release = resolve
+    })
+    let calls = 0
+    const observed = await assembly.closeAfterBusiness(() => {
+      calls++
+      return pending
+    })
+    expect(observed).toMatchObject({ complete: false, businessComplete: false })
+    expect(assembly.local.health().writeState).toBe('open')
+    release({ complete: true })
+    // No second close call drives progress.
+    await expect.poll(() => assembly.local.health().writeState).toBe('closed')
+    await expect.poll(() => assembly.tenant.health().writeState).toBe('closed')
+    expect(calls).toBe(1)
+    expect(observed.complete).toBe(false)
+  })
+
   it('keeps a partial-construction owner and business-incomplete writer visible', async () => {
     const assembly = await openDemoDiagnosticAssembly(config())
     const reservation = assembly.transports.reserveReplacement()

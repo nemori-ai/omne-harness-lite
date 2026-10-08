@@ -178,7 +178,7 @@ export interface TransportAdapter<P extends PlannedSemantics, R> {
   ) => AsyncGenerator<ArrivalEvent, StreamEnd>
 }
 export interface InvocationPolicy {
-  readonly now: () => string
+  readonly now: () => Promise<string>
   /** Own and dispose scheduling explicitly. No internal timeout defaults. */
   readonly schedule: (milliseconds: number, callback: () => void) => () => void
   readonly firstContentTimeoutMs: number

@@ -54,69 +54,19 @@ export class SnapshotWorkspace {
   }
 
   private static async acquire(path: string): Promise<SnapshotWorkspace> {
-    if (!isAbsolute(path)) throw new SnapshotFailure('unavailable')
-    const parent = await realpath(dirname(resolve(path)))
-    await privateDirectory(parent)
-    const root = join(parent, basename(resolve(path)))
-    if (root === parent) throw new SnapshotFailure('unavailable')
-    let created = false
-    try {
-      await mkdir(root, { mode: 0o700 })
-      created = true
-    } catch (error) {
-      if (!hasCode(error, 'EEXIST')) throw error
-    }
-    await privateDirectory(root)
+    const { root, parent, created } = await prepareWorkspaceRoot(path)
     let lock: SqliteOwnerLock
     try {
-      lock = acquireSqliteLock(join(root, '.owner-lock'))
+      lock = await acquireSqliteLock(join(root, '.owner-lock'))
     } catch (error) {
       if (error instanceof SqliteLockIncomplete) throw new WorkspaceAcquisitionIncomplete(error)
       if (error instanceof SqliteLockBusy) throw new SnapshotFailure('busy')
       throw error
     }
     const resources = new SnapshotResources()
-    const syncDirectory = async (directory: string) => {
-      const handle = await open(
-        directory,
-        constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
-      )
-      const close = resources.own(
-        () => handle.close(),
-        () => handle.fd < 0,
-      )
-      await withCleanup(() => handle.sync(), close)
-    }
     try {
       await withCleanup(
-        async () => {
-          const marker = await open(
-            join(root, ISOLATION_MARKER),
-            constants.O_NOFOLLOW |
-              (created
-                ? constants.O_RDWR | constants.O_CREAT | constants.O_EXCL
-                : constants.O_RDWR),
-            0o600,
-          )
-          const close = resources.own(
-            () => marker.close(),
-            () => marker.fd < 0,
-          )
-          await withCleanup(async () => {
-            const info = await marker.stat()
-            if (!info.isFile() || (info.mode & 0o077) !== 0 || info.uid !== process.getuid?.())
-              throw new SnapshotFailure('unavailable')
-            if (created) await marker.writeFile(ISOLATION_CONTENT)
-            else if (
-              info.size !== Buffer.byteLength(ISOLATION_CONTENT) ||
-              (await marker.readFile('utf8')) !== ISOLATION_CONTENT
-            )
-              throw new SnapshotFailure('unavailable')
-            await marker.sync()
-          }, close)
-          await syncDirectory(root)
-          await syncDirectory(parent)
-        },
+        () => initializeWorkspace(root, parent, created, resources),
         async () => {
           try {
             await resources.close()
@@ -165,4 +115,64 @@ export class SnapshotWorkspace {
     this.#closed = true
     await this.lock.release()
   }
+}
+
+async function prepareWorkspaceRoot(path: string) {
+  if (!isAbsolute(path)) throw new SnapshotFailure('unavailable')
+  const parent = await realpath(dirname(resolve(path)))
+  await privateDirectory(parent)
+  const root = join(parent, basename(resolve(path)))
+  if (root === parent) throw new SnapshotFailure('unavailable')
+  let created = false
+  try {
+    await mkdir(root, { mode: 0o700 })
+    created = true
+  } catch (error) {
+    if (!hasCode(error, 'EEXIST')) throw error
+  }
+  await privateDirectory(root)
+  return { root, parent, created }
+}
+
+async function initializeWorkspace(
+  root: string,
+  parent: string,
+  created: boolean,
+  resources: SnapshotResources,
+) {
+  const syncDirectory = async (directory: string) => {
+    const handle = await open(
+      directory,
+      constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
+    )
+    const close = resources.own(
+      () => handle.close(),
+      () => handle.fd < 0,
+    )
+    await withCleanup(() => handle.sync(), close)
+  }
+  const marker = await open(
+    join(root, ISOLATION_MARKER),
+    constants.O_NOFOLLOW |
+      (created ? constants.O_RDWR | constants.O_CREAT | constants.O_EXCL : constants.O_RDWR),
+    0o600,
+  )
+  const close = resources.own(
+    () => marker.close(),
+    () => marker.fd < 0,
+  )
+  await withCleanup(async () => {
+    const info = await marker.stat()
+    if (!info.isFile() || (info.mode & 0o077) !== 0 || info.uid !== process.getuid?.())
+      throw new SnapshotFailure('unavailable')
+    if (created) await marker.writeFile(ISOLATION_CONTENT)
+    else if (
+      info.size !== Buffer.byteLength(ISOLATION_CONTENT) ||
+      (await marker.readFile('utf8')) !== ISOLATION_CONTENT
+    )
+      throw new SnapshotFailure('unavailable')
+    await marker.sync()
+  }, close)
+  await syncDirectory(root)
+  await syncDirectory(parent)
 }

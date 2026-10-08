@@ -54,6 +54,7 @@ function metadataWire(value: Metadata) {
     finishedAt: formatInstant(metadataTime(value.finishedAt)),
     byteLength: value.byteLength,
     sha256: value.sha256,
+    clockCheckpoint: value.clockCheckpoint,
   }
 }
 function descriptorWire(value: BackupDescriptor) {

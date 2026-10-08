@@ -30,7 +30,7 @@ if (phase === 'upserted') {
 const c = await createModelReplicaCustodian({
   storage,
   keyFile,
-  clock: { now: () => instant },
+  clock: { now: async () => instant },
   readCredentialBindingIn: fixtureReader(storage),
   diagnostics: { record() {}, sinkFailure() {} },
 })

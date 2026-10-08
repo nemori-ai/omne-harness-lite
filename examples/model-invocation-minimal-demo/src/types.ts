@@ -134,6 +134,7 @@ export interface AcceptanceConfig {
   readonly sessionLog?: SessionLogDeployment
   readonly runId: string
   readonly databaseFile: string
+  readonly initializeClock?: boolean
   readonly keys: {
     readonly activationSigning: string
     readonly activationVerification: string

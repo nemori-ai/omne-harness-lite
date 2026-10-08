@@ -518,7 +518,9 @@ function buildServiceAcknowledge<P extends PlannedSemantics, R>(
           sources.creationPayload,
           ...sources.ready.map(item => item.record.payload),
         ]
-        const acknowledgedAt = runtime.policy.now()
+        const acknowledgedAt = await runtime.policy.now()
+        if (!current() || appendUnavailable(physical.closed, session.selection.owner, binding))
+          return unavailable
         const prepared = await runtime.callFacts.content.prepareAcknowledgement({
           binding,
           call: ref.callId,

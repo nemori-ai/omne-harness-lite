@@ -99,9 +99,15 @@ it.each(['sqlite', 'file'] as const)(
   20_000,
 )
 
-it.each(['preflight', 'initialize'] as const)(
-  'retains source ownership after %s startup cleanup failure and GC',
-  async stage => {
+it.each([
+  ['preflight', 'maintenance'],
+  ['initialize', 'maintenance'],
+  ['preflight', 'plain'],
+  ['initialize', 'plain'],
+  ['snapshot', 'plain'],
+] as const)(
+  'retains source ownership after %s startup cleanup failure and GC (%s)',
+  async (stage, mode) => {
     const root = await realpath(await mkdtemp(join(tmpdir(), 'omne-startup-close-fault-')))
     const file = join(root, 'center.sqlite')
     const work = join(root, '.quarantine')
@@ -115,6 +121,7 @@ it.each(['preflight', 'initialize'] as const)(
         file,
         work,
         stage,
+        mode,
       ],
       { stdio: ['pipe', 'pipe', 'pipe'] },
     )

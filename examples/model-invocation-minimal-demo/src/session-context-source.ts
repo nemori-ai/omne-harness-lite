@@ -32,7 +32,7 @@ export const sessionIdentitySource = definePlugin({
         requiredKeys: ['shell.initial', 'files.initial'],
         recovery: 'persisted',
         async read(scope) {
-          const identity = sessionIdentityValue(scope, clock as Clock)
+          const identity = await sessionIdentityValue(scope, clock as Clock)
           return identity
             ? { kind: 'values', values: toolInitialValues(defaults, identity.observedAt) }
             : { kind: 'rejected', reason: 'sourceUnavailable' }
@@ -45,7 +45,7 @@ export const sessionIdentitySource = definePlugin({
       requiredKeys: ['session'],
       recovery: 'persisted',
       async read(scope) {
-        const value = sessionIdentityValue(scope, clock as Clock)
+        const value = await sessionIdentityValue(scope, clock as Clock)
         return value
           ? { kind: 'values', values: [value] }
           : { kind: 'rejected', reason: 'sourceUnavailable' }

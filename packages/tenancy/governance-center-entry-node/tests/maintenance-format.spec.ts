@@ -1,3 +1,4 @@
+import { instantFromEpochMs } from '@omne-harness-lite/offer-expiry'
 import { createHash } from 'node:crypto'
 import { chmod, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -15,6 +16,7 @@ import { withBackupInput } from '../src/maintenance/assembly.ts'
 import type { SnapshotFormat } from '../src/maintenance/maintenance-options.ts'
 import { maintenanceFailure } from '../src/maintenance/failure.ts'
 import { MAGIC, metadataBytes, parseMetadata } from '../src/maintenance/metadata.ts'
+import { checkpointDigestBytes } from '../src/maintenance/metadata-policy.ts'
 import type { Metadata } from '../src/maintenance/backup-data.ts'
 
 const roots: string[] = []
@@ -56,15 +58,22 @@ async function fixture() {
   } finally {
     await storage.close()
   }
+  const end = instantFromEpochMs(Date.parse('2026-09-26T00:00:01.000Z'))
+  if (!('ok' in end)) throw new Error('fixture time invalid')
+  const clockCheckpoint = { writtenAt: end.ok, upperBound: end.ok }
   const metadata: Metadata = {
-    format: 'omne-center-backup/1',
+    format: 'omne-center-backup/2',
     centerId: '0123456789abcdef0123456789abcdef',
     sourceBuildId: null,
     migrationNames: format.migrationNames,
     startedAt: '2026-09-26T00:00:00.000Z',
     finishedAt: '2026-09-26T00:00:01.000Z',
     byteLength: data.length,
-    sha256: createHash('sha256').update(data).digest('hex'),
+    sha256: createHash('sha256')
+      .update(data)
+      .update(checkpointDigestBytes(clockCheckpoint))
+      .digest('hex'),
+    clockCheckpoint,
   }
   const path = join(root, 'source.omne-backup')
   await writeFile(path, Buffer.concat([metadataBytes(metadata), data]), { mode: 0o600 })
@@ -88,11 +97,15 @@ it('checks real snapshot bytes and owner identity without modifying the source f
   const before = await readFile(path)
   expect(await inspect()).toEqual(metadata)
   expect(await readFile(path)).toEqual(before)
-  expect(before.subarray(0, MAGIC.length).toString()).toBe('OMNE-CENTER-BACKUP/1\n')
+  expect(before.subarray(0, MAGIC.length).toString()).toBe('OMNE-CENTER-BACKUP/2\n')
 })
 
 it.each([
   'digest',
+  'clock-digest',
+  'clock-missing',
+  'clock-behind',
+  'clock-inverted',
   'identity',
   'migration',
   'trailing',
@@ -105,13 +118,37 @@ it.each([
   let header = metadataBytes(metadata)
   let body = data
   if (fault === 'digest') header = metadataBytes({ ...metadata, sha256: '0'.repeat(64) })
+  if (fault === 'clock-digest')
+    header = metadataBytes({
+      ...metadata,
+      clockCheckpoint: {
+        ...metadata.clockCheckpoint,
+        upperBound: (metadata.clockCheckpoint.upperBound +
+          1) as typeof metadata.clockCheckpoint.upperBound,
+      },
+    })
   if (fault === 'identity') header = metadataBytes({ ...metadata, centerId: 'f'.repeat(32) })
   if (fault === 'migration') header = metadataBytes({ ...metadata, migrationNames: ['wrong'] })
   if (fault === 'trailing') body = Buffer.concat([data, Buffer.from([1])])
   if (fault === 'short') body = data.subarray(0, data.length - 1)
-  if (['duplicate', 'bad-date', 'reversed'].includes(fault)) {
-    let text = JSON.stringify(metadata)
-    if (fault === 'duplicate') text = text.replace('{', '{"format":"omne-center-backup/1",')
+  if (
+    [
+      'duplicate',
+      'bad-date',
+      'reversed',
+      'clock-missing',
+      'clock-behind',
+      'clock-inverted',
+    ].includes(fault)
+  ) {
+    const changed: Record<string, unknown> = { ...metadata }
+    if (fault === 'clock-missing') delete changed.clockCheckpoint
+    if (fault === 'clock-behind')
+      changed.clockCheckpoint = { writtenAt: 0, upperBound: metadata.clockCheckpoint.upperBound }
+    if (fault === 'clock-inverted')
+      changed.clockCheckpoint = { writtenAt: metadata.clockCheckpoint.writtenAt, upperBound: 0 }
+    let text = JSON.stringify(changed)
+    if (fault === 'duplicate') text = text.replace('{', '{"format":"omne-center-backup/2",')
     if (fault === 'bad-date')
       text = text.replace('2026-09-26T00:00:00.000Z', '2026-02-30T00:00:00.000Z')
     if (fault === 'reversed')

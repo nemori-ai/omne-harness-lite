@@ -34,7 +34,7 @@ node apps/tenancy-host/dist/cli.js serve --plugins <file> --print-plugins  # 只
 `--plugins <file>` 读取 JSON 运维编辑数组，缺省为 `[]`；与 `--print-plugins` 顺序可交换且各至多一次。
 未知/重复选项或缺文件参数返回 64，读文件、JSON 或静态准备失败返回 1并记录安全启动错误。
 运维编辑采用正式[插件树接口](../../packages/core/cordis-plugin-tree/SPEC.md)：replace、disable 或按稳定 id 插入；宿主仍要求原八职责恰各一份，依赖/声明/配置不能绕过准备。
-例如 `[{"op":"replace","id":"clock-lease","config":{}}]` 保持原时钟提供者，来源标为 operator。
+例如 `[{"op":"replace","id":"clock-lease","config":{"file":"/private/clock.sqlite"}}]` 选择原时钟提供者及其独立资源，来源标为 operator。
 
 **本版不轮换密钥。**重生密钥等于换钥：两步之间的注册与清除会以契约已定义的方式收场（重来即可），但换钥必须在中心停着的时候做。
 
@@ -76,7 +76,7 @@ scrypt 派生参数取 credential-verification 的缺省（N = 2^17、r = 8、p 
 
 1. **生产库不得被非守卫实例打开。**一致性夹具、命令行工具、误配的第二个部署都算：它们不取独占、不看快照，可能在一次尚未确认的升级脚下写库
    （那些写随后被恢复撤掉），或在属主恢复快照时握着被替换掉的文件。两个 `serve` 进程之间的排他由存储的属主锁保证（后起的那个于 `occupied` 启动失败）。
-2. **库文件与其中 `clock_lease` 一行不得手工改动，租约表不得删。**删了它，「时间不往回走」就失去依据。
+2. **独立 Clock 数据库及其 `.clock.json` manifest 必须一起保留，不得手工删除或重建。**默认位置是业务库路径加 `.clock.sqlite`。旧业务库的 `clock_lease` 只用于明确迁移，不能代替当前时间依据。
 3. **不要直接打开升级快照文件**（`<库文件>.upgrade-snapshot`）：以 sqlite 打开它会在旁边生出 `-wal`／`-shm`，恢复时不处理它们。
    要看快照里有什么，先复制一份再打开副本。快照在「一次升级尚未确认」时才存在；中心停着时看到它，下一次启动会先把库恢复成它。
 4. **磁盘要多容纳一份库的大小**：有待跑迁移时，迁移之前先建一份完整快照；确认之后删除。
@@ -127,3 +127,11 @@ scrypt 派生参数取 credential-verification 的缺省（N = 2^17、r = 8、p 
 行为依据归[已采用的维护装配](SPEC.md)和D055，这里维护安装与运行命令。
 
 Maintenance commands use named effects. The assembly selects the existing Unix client and offline inspection provider. Parsing does not acquire resources; the command retains close responsibility for its acquired inspection.
+
+## 异步 Clock 的首次启用
+
+首次创建部署，或停止旧版进程后从旧业务库迁移时，明确设置 `OMNE_TENANCY_CLOCK_INITIALIZE=1`。Clock 会读取旧租约底线，在独立 SQLite 资源中确认持久化后才提供时间。启动成功后删除此变量；后续启动普通打开原资源。对已存在的 ready 资源再次初始化会拒绝，不会重置。
+
+普通启动遇到缺失 manifest、缺失数据库或资源身份不一致会失败。不能通过重新启用初始化来绕过丢失状态。当前 SQLite 提供者需要 Linux 与 PATH 中的 util-linux `flock`。升级前必须停止所有旧进程；旧版 SQLite 协调锁与新版 flock 不共同排他。
+
+备份格式现为 `omne-center-backup/2`，同时保存业务快照与 Clock checkpoint。离线恢复只复制完整封套，不开启业务。激活该副本前必须把 checkpoint 底线持久交给 Clock；不得仅提取业务 SQLite 文件便开启服务。

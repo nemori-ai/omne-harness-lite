@@ -193,7 +193,7 @@ export function createExecutionEnvironment(input: {
       return result === 'recorded' ? 'confirmed' : result === 'closed' ? 'closed' : 'unavailable'
     },
     async stopped(key, status) {
-      const at = input.clock.now()
+      const at = await input.clock.now()
       if (at === 'unavailable') return 'unavailable'
       const result = await resourceRecord({
         kind: 'physical_stop_observed',

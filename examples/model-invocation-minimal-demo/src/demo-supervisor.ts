@@ -15,6 +15,8 @@ export interface DemoSupervisorOptions {
   readonly multiplier: string
   readonly reserveTokens: string
   readonly tools?: boolean
+  /** Explicit first creation or legacy migration. Applied to the first worker only. */
+  readonly initializeClock?: boolean
   readonly maxOutputTokens: number
   readonly retirementWaitMilliseconds: number
   readonly maxPacketBytes: number
@@ -156,6 +158,7 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
   let rootIdentity: { readonly dev: bigint; readonly ino: bigint } | undefined
   let shuttingDown = false
   let opening = false
+  let initializeClock = options.initializeClock ?? false
   let dropNextSendResult: ((dropped: boolean) => void) | undefined
   let droppedSendResult: DemoPacket | undefined
 
@@ -318,6 +321,7 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
       reserveTokens: options.reserveTokens,
       maxOutputTokens: options.maxOutputTokens,
       tools: options.tools ?? false,
+      initializeClock,
       retirementWaitMilliseconds: options.retirementWaitMilliseconds,
       covered: covered === true,
       ...(options.keyFile === undefined ? {} : { keyFile: options.keyFile }),
@@ -355,6 +359,7 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
         OMNE_DEMO_IPC_MAX_PENDING_REQUESTS: String(options.maxCommands),
       },
     })
+    initializeClock = false
     let exitDone: () => void = () => undefined
     let closeDone: () => void = () => undefined
     const exit = new Promise<void>(resolve => {

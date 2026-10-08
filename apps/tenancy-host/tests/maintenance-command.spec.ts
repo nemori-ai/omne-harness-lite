@@ -64,7 +64,7 @@ it(
     const verified = await command(['verify', '--source', source, '--work-dir', offline])
     expect(verified.code, verified.stderr).toBe(0)
     const envelope = await readFile(source)
-    const magicLength = Buffer.byteLength('OMNE-CENTER-BACKUP/1\n')
+    const magicLength = Buffer.byteLength('OMNE-CENTER-BACKUP/2\n')
     const metadata = JSON.parse(
       envelope
         .subarray(magicLength + 4, magicLength + 4 + envelope.readUInt32BE(magicLength))
