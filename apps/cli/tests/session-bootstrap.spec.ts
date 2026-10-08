@@ -28,6 +28,7 @@ import { runtimeContextMigrations } from '@omne-harness-lite/runtime-context-loc
 import { evaluationInputMigrations } from '@omne-harness-lite/evaluation-input-store'
 import { publishLocalInputs } from '@omne-harness-lite/evaluation-input-store/publication'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
+import { contextSeedFromDefinition } from '../src/session-seed.ts'
 import { createSessionAdmissionProbe } from '../src/session-admission-probe.ts'
 import type { AccessIdentity } from '@omne-harness-lite/session-tenancy'
 import { createSessionBootstrap, type SessionBootstrapOptions } from '../src/session-bootstrap.ts'
@@ -48,7 +49,7 @@ const source: AdmissionSource = {
 const tenant = unwrap(parseTenantId({ organization: 'team', account: source.accountId }))
 const definition = { category: 'agent_definition' as const, name: 'bootstrap:actual-root' }
 const now = '2026-10-08T00:00:00Z'
-async function setup(maxBindings = 16) {
+async function setup(maxBindings = 16, declareSeed: boolean | 'invalid' = true) {
   const directory = await mkdtemp(join(tmpdir(), 'omne-formal-bootstrap-'))
   cleanup.push(() => rm(directory, { recursive: true, force: true }))
   const root = await openStorage({
@@ -148,9 +149,7 @@ async function setup(maxBindings = 16) {
     workSettledIn: async () => 'settled',
   })
   cleanup.push(() => runtime.close())
-  const seed = vi.fn<SessionBootstrapOptions['contextSeed']>(async () => ({
-    seed: { required: [], initial: [], fixed: [] },
-  }))
+  const seed = vi.fn<SessionBootstrapOptions['contextSeed']>(contextSeedFromDefinition)
   const base = {
     storage,
     storeKey: 'actual-tenant-inputs',
@@ -170,7 +169,21 @@ async function setup(maxBindings = 16) {
         versions: [
           {
             number: 1,
-            content: { category: 'agent_definition', body: { references: [], attributes: [] } },
+            content: {
+              category: 'agent_definition',
+              body: {
+                references: [],
+                attributes: [],
+                ...(declareSeed
+                  ? {
+                      contextSessionSeed:
+                        declareSeed === 'invalid'
+                          ? { required: [], initial: [] }
+                          : { required: [], initial: [], fixed: [] },
+                    }
+                  : {}),
+              },
+            },
             publishedAt: now,
           },
         ],
@@ -579,4 +592,63 @@ it('propagates the original authority defect without issuing a token or replacin
   const original = new Error('controlled original authority defect')
   f.faultAuthority(original)
   await expect(f.access.issuer.issue(request)).rejects.toBe(original)
+})
+
+it('does not publish or initialize a Session when its actual definition has no explicit Context declaration', async () => {
+  const f = await setup(16, false)
+  expect(await f.runtime.operations.createSession(f.runtime.access, input)).toEqual({
+    failure: 'unavailable',
+  })
+  const entries = await f.storage.read(async tx =>
+    narrow<{ sr_session_creation: { session: string; published: number } }>(tx)
+      .selectFrom('sr_session_creation')
+      .selectAll()
+      .execute(),
+  )
+  expect(entries).toHaveLength(1)
+  expect(entries[0]?.published).toBe(0)
+})
+it('uses the selected immutable source version and never substitutes a later version or another tenant', async () => {
+  const f = await setup()
+  const { scope } = await issuedContext(f)
+  const reading = await f.assembly.inputs(scope)!.read(scope.session, tenant)
+  if (!('input' in reading)) throw new Error('actual source unreadable')
+  const original = await contextSeedFromDefinition(scope, reading.input)
+  expect(original).toEqual({ seed: { required: [], initial: [], fixed: [] } })
+  const absentSource = {
+    ...reading.input,
+    root: { ...reading.input.root, source: { ...reading.input.root.source, version: 2 } },
+  }
+  expect(await contextSeedFromDefinition(scope, absentSource)).toEqual({ unavailable: true })
+  const foreign = {
+    ...scope,
+    tenant: unwrap(parseTenantId({ organization: 'other', account: source.accountId })),
+  }
+  expect(await contextSeedFromDefinition(foreign, reading.input)).toEqual({ unavailable: true })
+})
+
+it('rejects an invalid declaration in a legal deployed root instead of initializing an empty Context', async () => {
+  const f = await setup(16, 'invalid')
+  expect(await f.runtime.operations.createSession(f.runtime.access, input)).toEqual({
+    failure: 'unavailable',
+  })
+  expect(f.seed).toHaveBeenCalledTimes(1)
+  const entries = await f.storage.read(async tx =>
+    narrow<{ sr_session_creation: { session: string; published: number } }>(tx)
+      .selectFrom('sr_session_creation')
+      .selectAll()
+      .execute(),
+  )
+  expect(entries[0]?.published).toBe(0)
+})
+it('requires the actual trusted factory holding before treating root data as the Context declaration source', async () => {
+  const f = await setup()
+  const { scope } = await issuedContext(f)
+  const reading = await f.assembly.inputs(scope)!.read(scope.session, tenant)
+  if (!('input' in reading)) throw new Error('actual source unreadable')
+  const missingFactory = {
+    ...reading.input,
+    holdings: reading.input.holdings.filter(holding => holding.holder.layer !== 'factory'),
+  }
+  expect(await contextSeedFromDefinition(scope, missingFactory)).toEqual({ unavailable: true })
 })

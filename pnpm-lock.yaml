@@ -121,12 +121,18 @@ importers:
       '@omne-harness-lite/asset-evaluation':
         specifier: workspace:*
         version: link:../../packages/core/asset-evaluation
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../../packages/core/call-accounts
       '@omne-harness-lite/client-local-state':
         specifier: workspace:*
         version: link:../../packages/core/client-local-state
       '@omne-harness-lite/client-local-state-sqlite':
         specifier: workspace:*
         version: link:../../packages/frontend/client-local-state-sqlite
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../../packages/core/content-blocks
       '@omne-harness-lite/evaluation-input-store':
         specifier: workspace:*
         version: link:../../packages/assets/evaluation-input-store
