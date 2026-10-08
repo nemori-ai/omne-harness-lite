@@ -51,6 +51,9 @@ catalogs:
     ajv:
       specifier: 8.20.0
       version: 8.20.0
+    diff:
+      specifier: 9.0.0
+      version: 9.0.0
     elkjs:
       specifier: 0.12.0
       version: 0.12.0
@@ -1507,6 +1510,9 @@ importers:
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../identity-values
+      '@omne-harness-lite/image-codec':
+        specifier: workspace:*
+        version: link:../../util/image-codec
       '@omne-harness-lite/loop-extension':
         specifier: workspace:*
         version: link:../loop-extension
@@ -2509,6 +2515,9 @@ importers:
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values
+      '@omne-harness-lite/image-codec':
+        specifier: workspace:*
+        version: link:../../util/image-codec
       '@omne-harness-lite/kernel-basis':
         specifier: workspace:*
         version: link:../../core/kernel-basis
@@ -3480,6 +3489,91 @@ importers:
       yaml:
         specifier: 'catalog:'
         version: 2.9.1
+  packages/tools/meta-files:
+    dependencies:
+      '@omne-harness-lite/asset-model':
+        specifier: workspace:*
+        version: link:../../core/asset-model
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../../core/content-blocks
+      '@omne-harness-lite/execution-environments':
+        specifier: workspace:*
+        version: link:../../core/execution-environments
+      '@omne-harness-lite/image-codec':
+        specifier: workspace:*
+        version: link:../../util/image-codec
+      '@omne-harness-lite/kernel-basis':
+        specifier: workspace:*
+        version: link:../../core/kernel-basis
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../../core/tool-definition
+      '@omne-harness-lite/tool-execution-runtime':
+        specifier: workspace:*
+        version: link:../../core/tool-execution-runtime
+      '@omne-harness-lite/unix-format':
+        specifier: workspace:*
+        version: link:../../util/unix-format
+      diff:
+        specifier: 'catalog:'
+        version: 9.0.0
+      sharp:
+        specifier: 'catalog:'
+        version: 0.35.3(@types/node@24.13.6)
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness-lite/execution-environments-host':
+        specifier: workspace:*
+        version: link:../../infra/execution-environments-host
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../../core/identity-values
+      '@omne-harness-lite/session-tenancy':
+        specifier: workspace:*
+        version: link:../../core/session-tenancy
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../core/storage
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../../infra/storage-sql
+      '@omne-harness-lite/tool-execution-local':
+        specifier: workspace:*
+        version: link:../tool-execution-local
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/util/image-codec:
+    dependencies:
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      sharp:
+        specifier: 'catalog:'
+        version: 0.35.3(@types/node@24.13.6)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
 packages:
 
@@ -4293,6 +4387,10 @@ packages:
 
   diff-match-patch@1.0.5:
     resolution: {integrity: sha512-IayShXAgj/QMXgB0IWmKx+rOPuGMhqm5w6jvFxmVenXKIzRqTAAsbBPT3kWQeGANj3jGgvcvv4yK6SxqYmikgw==}
+
+  diff@9.0.0:
+    resolution: {integrity: sha512-svtcdpS8CgJyqAjEQIXdb3OjhFVVYjzGAPO8WGCmRbrml64SPw/jJD4GoE98aR7r25A0XcgrK3F02yw9R/vhQw==}
+    engines: {node: '>=0.3.1'}
 
   dunder-proto@1.0.1:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
@@ -5790,6 +5888,8 @@ snapshots:
   detect-libc@2.1.2: {}
 
   diff-match-patch@1.0.5: {}
+
+  diff@9.0.0: {}
 
   dunder-proto@1.0.1:
     dependencies:

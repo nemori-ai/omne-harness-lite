@@ -1,6 +1,6 @@
 # PF-007：Meta Capabilities
 
-- 修订：rev 24
+- 修订：rev 25
 - 状态：现行产品规则及接受范围见 [README](README.md#状态)。产品规则接受不表示实现或验证已完成。
 
 ## 一、背景与问题
@@ -112,7 +112,7 @@ agent 按类似 Unix CLI 的方式选命令、给参数、取结果。
 这是 [PF-002 已定的形状](../PF-002-assets-settings-and-permissions/design.md#八类资产)，
 本 topic 直接适用。它的要紧之处在于：
 
-> **整套命令在组装时只占一个槽位。**`Files()` 有十一个命令，占一个位置，不是十一个。
+> **整套命令在组装时只占一个槽位。**`Files()` 有十二个业务命令，占一个位置，不是十二个。
 
 **没有这一条，meta 这件事在预算上就不成立**——十三扇门后面上百个动作，
 逐个占位的话，常驻预算当场爆掉。
@@ -226,7 +226,7 @@ agent 的记忆里——而记忆会错、会丢、会在上下文被裁剪时�
 |---|---|---|---|
 | `Tools()` | 任意非常驻工具 | search · inspect · execute · **read_result** | 随被执行的那个工具；`read_result` **不落地** |
 | `Skills()` | 任意技能 | search · read · **exec_script** | search/read **不落地**；exec_script 落在[这次执行算出来的落点](../PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)上 |
-| `Files()` | 文件系统 | read · write · edit · **patch** · list · find · info · move · copy · delete · mkdir | [这次执行算出来的落点](../PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配) |
+| `Files()` | 文件系统 | read · **open** · write · edit · **patch** · list · find · info · move · copy · delete · mkdir | [这次执行算出来的落点](../PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配) |
 | `Shell()` | 命令行 | create_session · execute · close_session · info | [这次执行算出来的落点](../PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配) |
 | `Web()` | 网上的内容 | search · fetch | 需要有**网络**设施 |
 | `Browser()` | 网页的操作 | open · act · read · shot · tabs | 需要有**浏览器**设施 |
@@ -499,6 +499,7 @@ agent 的记忆里——而记忆会错、会丢、会在上下文被裁剪时�
 | 命令 | 回答什么问题 |
 |---|---|
 | `read` | 这个文件里是什么 |
+| `open` | 打开多媒体文件；当前只接受图片，以附件返回 |
 | `write` | 把内容写进去（整份） |
 | `edit` | **改其中一处** |
 | `patch` | **一次改多处、甚至多个文件；全部预检通过才提交，中断明确报未知** |
@@ -519,7 +520,9 @@ agent 的记忆里——而记忆会错、会丢、会在上下文被裁剪时�
 
 **`patch` 不是多次 `edit` 的简单串联。**它要求[全部预检、明确结果及恢复责任](#55-patch-的原子性是产品性质不是实现细节)。连续 `edit` 中途失败不会撤销此前成功的修改；`patch` 在发现原文不匹配时还没有开始修改。
 
-**差异写成什么格式，产品不定。**标准 diff、简化格式，都是技术设计。产品要求能一次表达多处改动，遵守 §5.5 的预检、提交和中断边界。
+**文本返回采用 Unix CLI 风格。**结果清楚区分成功、拒绝和未知，保留路径、版本、分页及截断信息。`edit`、`patch` 等局部编辑返回包含 diff，让 agent 能看到改动位置和前后内容。预检失败不能把计划差异说成已修改；未知提交须标明计划差异及已确认范围。
+
+**`open` 以附件返回图片。**工具文本只说明图片及附件，不包含 base64 图片正文。系统以图片内容块呈现已确认附件，使后续消费者能够给人展示并送给支持图片的模型。当前只支持静态 PNG、JPEG 和 WebP，动画和超限图片明确拒绝，不默取第一帧。`Files()` 不发送进度流，结果自身承载内容。图片能被工具打开，不等于当前模型一定能接收它；模型模态及附件读取仍按各自的当前资格判定。
 
 **必须成立的性质：**
 

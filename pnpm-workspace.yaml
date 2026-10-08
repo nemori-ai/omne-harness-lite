@@ -17,6 +17,7 @@ catalog:
   js-tiktoken: 1.0.21
   image-size: 2.0.4
   sharp: 0.35.3
+  diff: 9.0.0
   node-pty: 1.1.0
   '@types/node': 24.13.6
   ajv: 8.20.0

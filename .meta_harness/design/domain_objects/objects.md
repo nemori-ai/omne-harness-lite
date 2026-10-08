@@ -110,7 +110,7 @@
 - **宿主**：正文未述。只说每个 agent 装配起来之后，十三个各恒定占一个常驻槽位
 - **身份**：按名字，全系统固定十三个；有哪十三个由产品决定，装配方不能增删
 - **生灭**：装配 → 在位，没有别的状态；不可禁用、不可替换、不可移除。门自身无状态，「门后的东西有状态」
-- **依据**：[PF-007 §4 meta](../product/PF-007-meta-capabilities/design.md#meta)（rev 24）；[PF-007 flows §3.1](../product/PF-007-meta-capabilities/flows.md#31-十三扇门本身)（rev 24）
+- **依据**：[PF-007 §4 meta](../product/PF-007-meta-capabilities/design.md#meta)（rev 25）；[PF-007 flows §3.1](../product/PF-007-meta-capabilities/flows.md#31-十三扇门本身)（rev 25）
 - **未裁**：它与「工具」是什么关系——用的是多命令范式、别处直接叫它 meta tool，却不满足资产的判据、不是工具的变体。归 PF-007 与 PF-006
 
 ## 流转与授权
@@ -222,7 +222,7 @@
 - **宿主**：[执行环境](#ul-execution-environment--执行环境)（环境销毁，里面的终端会话全没）
 - **身份**：各自有标识，`create_session` 时返回；给一个不存在的标识必须明确失败
 - **生灭**：`create_session` → 开着 → 关闭（agent `close_session`）· 随环境消失（agent 必须被告知）
-- **依据**：[PF-007 §6.4](../product/PF-007-meta-capabilities/design.md#64-shell通向命令行)（rev 24）；[PF-007 flows §3.2](../product/PF-007-meta-capabilities/flows.md#32-终端会话可以有多个各自独立)（rev 24）
+- **依据**：[PF-007 §6.4](../product/PF-007-meta-capabilities/design.md#64-shell通向命令行)（rev 25）；[PF-007 flows §3.2](../product/PF-007-meta-capabilities/flows.md#32-终端会话可以有多个各自独立)（rev 25）
 
 ### UL-session-base · 会话据点
 
@@ -308,7 +308,7 @@
 - **宿主**：它所属的那次派发
 - **身份**：每次派发至多一份
 - **生灭**：子干完时交出 → 派发者的等待结束，这次派发随之终结。此后留存多久正文未述
-- **依据**：[PF-007 §6.8 报告与消息是两样东西](../product/PF-007-meta-capabilities/design.md#报告与消息是两样东西)（rev 24）；[PF-007 §6.8 报告终结的是这次派发，不是那个会话](../product/PF-007-meta-capabilities/design.md#报告终结的是这次派发不是那个会话)（rev 24）
+- **依据**：[PF-007 §6.8 报告与消息是两样东西](../product/PF-007-meta-capabilities/design.md#报告与消息是两样东西)（rev 25）；[PF-007 §6.8 报告终结的是这次派发，不是那个会话](../product/PF-007-meta-capabilities/design.md#报告终结的是这次派发不是那个会话)（rev 25）
 - **未裁**：`handoff` 有没有报告，正文未述。归 PF-007
 
 ### UL-decision-card · 决策卡片
@@ -323,14 +323,14 @@
 - **宿主**：[会话](#ul-session--会话)（与会话同寿，归档不丢，撤销归档后原样还在）
 - **身份**：每个会话一份
 - **生灭**：空 → 攒着几笔 → 里面有撤回；只追加，不回头改，不归零
-- **依据**：[PF-007 §4 会话授权上下文](../product/PF-007-meta-capabilities/design.md#会话授权上下文)（rev 24）；[PF-007 flows §3.5](../product/PF-007-meta-capabilities/flows.md#35-会话授权上下文)（rev 24）；[PF-015 §5.7](../product/PF-015-session-lifecycle-and-ownership/design.md#57-三个作用域在同一份数据里)（rev 21）
+- **依据**：[PF-007 §4 会话授权上下文](../product/PF-007-meta-capabilities/design.md#会话授权上下文)（rev 25）；[PF-007 flows §3.5](../product/PF-007-meta-capabilities/flows.md#35-会话授权上下文)（rev 25）；[PF-015 §5.7](../product/PF-015-session-lifecycle-and-ownership/design.md#57-三个作用域在同一份数据里)（rev 21）
 
 ### UL-authorization-expression · 授权表达
 
 - **宿主**：[会话授权上下文](#ul-session-authorization-context--会话授权上下文)——作用域为「这一次」「本会话」的那些落在它里面；**作用域为「全局」的那一笔不落在这里**，它[落成租户层的权限设置值](../product/PF-007-meta-capabilities/design.md#一笔授权表达有三个维度)
 - **身份**：正文未述；只要求**有先后**、**分得出是哪一笔**
 - **生灭**：用户表达出来即追加一笔 → 此后不改、不删；**撤回是往后再追加一笔**，不是擦掉先前那笔
-- **依据**：[PF-007 §4 一笔授权表达有三个维度](../product/PF-007-meta-capabilities/design.md#一笔授权表达有三个维度)（rev 24）；[PF-007 §5.6](../product/PF-007-meta-capabilities/design.md#56-一次放行判断走四步)（rev 24）
+- **依据**：[PF-007 §4 一笔授权表达有三个维度](../product/PF-007-meta-capabilities/design.md#一笔授权表达有三个维度)（rev 25）；[PF-007 §5.6](../product/PF-007-meta-capabilities/design.md#56-一次放行判断走四步)（rev 25）
 - **并入**：「决策记录」——[产品负责人 2026-09-22 裁为一物两名](../ubiquitous_language/conflicts.md)，正文当同一物用
 
 ### UL-inbound-arrival · 入站到达
@@ -377,7 +377,7 @@
 - **宿主**：[会话](#ul-session--会话)——它活在一次会话里，不跨会话继承
 - **身份**：正文只要求「每条待办有自己的身份」，在一次会话内分得出这一条与那一条，否则去掉与标成做完都指不准；靠什么标识，正文未述
 - **生灭**：加一条 → 未完成 → 标成做完（做完了还留着）；或被去掉（不做了才去掉）。两者必须分得出。加一条不会让系统去做它。会话被归档时它怎么办，正文未述
-- **依据**：[PF-007 §6.9](../product/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)（rev 24）；[PF-015 §5.6](../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
+- **依据**：[PF-007 §6.9](../product/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)（rev 25）；[PF-015 §5.6](../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
 
 ### UL-business-calendar · 业务日历
 
