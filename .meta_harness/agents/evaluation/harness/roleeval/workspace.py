@@ -21,6 +21,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -176,17 +177,17 @@ def commit(dest: Path) -> None:
 # --- checkout copies -----------------------------------------------------------------------------------------
 
 def template_name(flow_id: str, base: str, excludes: list[str], setup: list[list[str]],
-                  relocations: list[dict[str, Any]] | None = None) -> str:
+                  inputs: list[dict[str, Any]] | None = None) -> str:
     """One template per (base, excludes, setup): change any of them and another template is built."""
-    inputs = [base, excludes, setup]
-    if relocations:
-        inputs.append(relocations)
-    key = hashlib.sha256(json.dumps(inputs).encode()).hexdigest()[:8]
+    configuration = [base, excludes, setup]
+    if inputs:
+        configuration.append(inputs)
+    key = hashlib.sha256(json.dumps(configuration).encode()).hexdigest()[:8]
     return f"{flow_id}-{base[:12]}-{key}"
 
 
-def relocate_inputs(dest: Path, relocations: list[dict[str, Any]]) -> None:
-    """Move fixed case inputs and redirect their exact readers before removing excluded sources."""
+def load_case_inputs(repo: Path, dest: Path, base: str, inputs: list[dict[str, Any]]) -> None:
+    """Load fixed Git blobs and redirect unique string literals identified by SHA-256."""
     def path(relative: str) -> Path:
         item = Path(relative)
         if item.is_absolute() or not item.parts or any(p in (".", "..") for p in item.parts):
@@ -196,31 +197,55 @@ def relocate_inputs(dest: Path, relocations: list[dict[str, Any]]) -> None:
             raise WorkspaceError(f"input path is a symbolic link: {relative}")
         return target
 
-    for entry in relocations:
-        source, target = path(entry["from"]), path(entry["to"])
-        if source.is_relative_to(dest / ".meta_harness/agents/evaluation"):
+    if not inputs:
+        return
+    origins: dict[str, list[str]] = {}
+    for line in git(repo, "ls-tree", "-r", "-z", base).split("\0"):
+        if not line:
+            continue
+        metadata, relative = line.split("\t", 1)
+        _mode, kind, identifier = metadata.split()
+        if kind == "blob":
+            origins.setdefault(identifier, []).append(relative)
+    for entry in inputs:
+        identifier = entry["blob"]
+        if not re.fullmatch(r"[0-9a-f]{40}", identifier) or identifier not in origins:
+            raise WorkspaceError("case input must be a blob in the fixed base")
+        if any(p.startswith(".meta_harness/agents/evaluation/") for p in origins[identifier]):
             raise WorkspaceError("evaluation ground truth cannot become a case input")
-        if not source.is_file() or target.exists():
-            raise WorkspaceError(f"cannot relocate input {entry['from']} to {entry['to']}")
+        target = path(entry["to"])
+        if target.exists():
+            raise WorkspaceError(f"case input target already exists: {entry['to']}")
+        payload = subprocess.run(["git", "-C", str(repo), "cat-file", "blob", identifier],
+                                 capture_output=True, check=True).stdout
         for reader in entry["consumers"]:
             file = path(reader["file"])
             text = file.read_text(encoding="utf-8")
-            if not reader["find"] or text.count(reader["find"]) != 1:
+            expected = reader["literal_sha256"]
+            if not re.fullmatch(r"[0-9a-f]{64}", expected):
+                raise WorkspaceError("input reader requires a SHA-256 string literal identity")
+            literals = re.finditer(r'''(['"])((?:\\.|(?!\1).)*?)\1''', text)
+            matches = [m for m in literals if hashlib.sha256(m[2].encode()).hexdigest() == expected]
+            if len(matches) != 1:
                 raise WorkspaceError(f"{reader['file']}: input reader must match exactly once")
-            file.write_text(text.replace(reader["find"], reader["replace"]), encoding="utf-8")
+            match = matches[0]
+            replacement = reader["replace"]
+            if match[1] in replacement or "\\" in replacement or "\n" in replacement or "\r" in replacement:
+                raise WorkspaceError("input reader replacement must be a plain quoted path")
+            file.write_text(text[:match.start(2)] + replacement + text[match.end(2):], encoding="utf-8")
         target.parent.mkdir(parents=True, exist_ok=True)
-        source.rename(target)
+        target.write_bytes(payload)
 
 
 def template(repo: Path, work: Path, *, flow_id: str, base: str, excludes: list[str],
-             setup: list[list[str]], relocations: list[dict[str, Any]] | None = None) -> Path:
+             setup: list[list[str]], inputs: list[dict[str, Any]] | None = None) -> Path:
     """The installed and built checkout of ``base`` that run copies are taken from; built once, then reused.
 
     It is built in a sibling directory and renamed into place only after every setup command
     succeeded, so a template that exists is a finished one.
     """
     root = work / TEMPLATES
-    final = root / template_name(flow_id, base, excludes, setup, relocations)
+    final = root / template_name(flow_id, base, excludes, setup, inputs)
     if (final / READY).is_file():
         return final
     if final.exists():
@@ -231,7 +256,7 @@ def template(repo: Path, work: Path, *, flow_id: str, base: str, excludes: list[
     building.mkdir()
     try:
         _extract(repo, base, building)
-        relocate_inputs(building, relocations or [])
+        load_case_inputs(repo, building, base, inputs or [])
         for relative in excludes:
             target = building / relative
             if target.is_dir() and not target.is_symlink():
@@ -243,7 +268,7 @@ def template(repo: Path, work: Path, *, flow_id: str, base: str, excludes: list[
             if not ran.ok:
                 raise WorkspaceError(f"template setup `{' '.join(command)}` exited {ran.code}:\n{ran.output[-4000:]}")
         (building / READY).write_text(json.dumps({"base": base, "excludes": excludes, "setup": setup,
-                                                "relocations": relocations or []}) + "\n",
+                                                "inputs": inputs or []}) + "\n",
                                       encoding="utf-8")
         os.rename(building, final)
     except BaseException:

@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -221,36 +222,54 @@ def test_fixed_inputs_move_before_old_sources_are_excluded(tiny: dict[str, Any])
     git(root, "add", "-A")
     git(root, "commit", "-qm", "fixed input fixture")
     base = git(root, "rev-parse", "HEAD")
-    relocations = [{"from": "old-design/input.json", "to": "member/tests/fixtures/input.json",
-                    "consumers": [{"file": "member/tests/reader.ts", "find": "old-design/input.json",
+    inputs = [{"blob": git(root, "rev-parse", base + ":old-design/input.json"), "to": "member/tests/fixtures/input.json",
+                    "consumers": [{"file": "member/tests/reader.ts", "literal_sha256": hashlib.sha256(b"old-design/input.json").hexdigest(),
                                    "replace": "member/tests/fixtures/input.json"}]}]
     copied = workspace.template(root, tiny["work"], flow_id="relocated", base=base,
-                                excludes=["old-design", "AGENTS.md"], setup=[], relocations=relocations)
+                                excludes=["old-design", "AGENTS.md"], setup=[], inputs=inputs)
     assert not (copied / "old-design").exists() and not (copied / "AGENTS.md").exists()
     assert (copied / "member/tests/fixtures/input.json").read_text() == payload
     assert (copied / "member/tests/reader.ts").read_text() == "read('member/tests/fixtures/input.json')\n"
-    altered = [{**relocations[0], "to": "member/tests/fixtures/other.json"}]
-    assert workspace.template_name("relocated", base, [], [], relocations) != workspace.template_name(
+    altered = [{**inputs[0], "to": "member/tests/fixtures/other.json"}]
+    assert workspace.template_name("relocated", base, [], [], inputs) != workspace.template_name(
         "relocated", base, [], [], altered)
 
 
-@pytest.mark.parametrize("case", ["outside", "link", "ground-truth", "reader"])
-def test_input_relocation_rejects_unsafe_or_inexact_sources(tmp_path: Path, case: str) -> None:
-    write(tmp_path, {"input.json": "{}\n", "reader.ts": "original\n",
-                     ".meta_harness/agents/evaluation/truth.json": "answer\n"})
+@pytest.mark.parametrize("case", ["outside", "link", "ground-truth", "ground-truth-unicode", "ground-truth-newline", "reader", "not-in-base", "duplicate-reader", "unsafe-replacement"])
+def test_case_input_rejects_unsafe_or_inexact_sources(tmp_path: Path, case: str) -> None:
+    write(tmp_path, {"input.json": "{}\n", "reader.ts": "read('original')\n",
+                     ".meta_harness/agents/evaluation/truth.json": "answer\n",
+                     ".meta_harness/agents/evaluation/真值.json": "answer-unicode\n",
+                     ".meta_harness/agents/evaluation/truth\nline.json": "answer-newline\n"})
+    git(tmp_path, "init", "-q")
+    git(tmp_path, "add", "-A")
+    git(tmp_path, "-c", "user.name=fixture", "-c", "user.email=fixture@invalid", "commit", "-qm", "fixed inputs")
+    base = git(tmp_path, "rev-parse", "HEAD")
     source = "input.json"
+    target = "fixtures/input.json"
     if case == "outside":
-        source = "../input.json"
+        target = "../input.json"
     elif case == "link":
-        (tmp_path / "link.json").symlink_to("input.json")
-        source = "link.json"
+        (tmp_path / "fixtures").symlink_to(tmp_path, target_is_directory=True)
     elif case == "ground-truth":
         source = ".meta_harness/agents/evaluation/truth.json"
-    consumers = [{"file": "reader.ts", "find": "absent", "replace": "new"}] if case == "reader" else []
+    elif case == "ground-truth-unicode":
+        source = ".meta_harness/agents/evaluation/真值.json"
+    elif case == "ground-truth-newline":
+        source = ".meta_harness/agents/evaluation/truth\nline.json"
+    identifier = git(tmp_path, "rev-parse", base + ":" + source)
+    if case == "not-in-base":
+        identifier = "f" * 40
+    if case == "duplicate-reader":
+        (tmp_path / "reader.ts").write_text("read('original'); read('original')\n")
+    expected = b"absent" if case == "reader" else b"original"
+    replacement = "unsafe'path" if case == "unsafe-replacement" else "new"
+    consumers = [{"file": "reader.ts", "literal_sha256": hashlib.sha256(expected).hexdigest(), "replace": replacement}]
     with pytest.raises(workspace.WorkspaceError):
-        workspace.relocate_inputs(tmp_path, [{"from": source, "to": "fixtures/input.json",
-                                             "consumers": consumers}])
-    assert not (tmp_path / "fixtures/input.json").exists()
+        workspace.load_case_inputs(tmp_path, tmp_path, base, [{"blob": identifier, "to": target,
+                                                              "consumers": consumers}])
+    if case != "link":
+        assert not (tmp_path / "fixtures/input.json").exists()
 
 
 def test_a_copy_has_no_truth_hard_links_its_dependencies_and_drops_host_links(tiny: dict[str, Any]) -> None:

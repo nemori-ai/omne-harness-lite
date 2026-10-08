@@ -68,47 +68,47 @@
       "run",
       "build"
     ],
-    "relocations": [
+    "inputs": [
       {
-        "from": ".meta_harness/design/spec/compositions/governance-cli-entry/v1/commands.json",
+        "blob": "418b7656cf009e0f86a599a561ac4980a131f643",
         "to": "apps/cli/tests/fixtures/evaluation-inputs/commands.json",
         "consumers": [
           {
             "file": "apps/cli/tests/input.spec.ts",
-            "find": "../../../.meta_harness/design/spec/compositions/governance-cli-entry/v1/commands.json",
+            "literal_sha256": "39f2bc61473056312d05083c1707bae1cea4b8c186c12f93b06493b41bc5407a",
             "replace": "./fixtures/evaluation-inputs/commands.json"
           }
         ]
       },
       {
-        "from": ".meta_harness/design/spec/compositions/governance-client-operations/v1/examples.json",
+        "blob": "416b572fba61f48ce5462c30eccfc03cac082b11",
         "to": "apps/cli/tests/fixtures/evaluation-inputs/client-examples.json",
         "consumers": [
           {
             "file": "apps/cli/tests/input.spec.ts",
-            "find": "../../../.meta_harness/design/spec/compositions/governance-client-operations/v1/examples.json",
+            "literal_sha256": "1a7e888caf73b93e6946555952f8b257257fa6bc85dbb59fa8c4d27a90452621",
             "replace": "./fixtures/evaluation-inputs/client-examples.json"
           },
           {
             "file": "apps/cli/tests/tui-forms.spec.ts",
-            "find": "../../../.meta_harness/design/spec/compositions/governance-client-operations/v1/examples.json",
+            "literal_sha256": "1a7e888caf73b93e6946555952f8b257257fa6bc85dbb59fa8c4d27a90452621",
             "replace": "./fixtures/evaluation-inputs/client-examples.json"
           }
         ]
       },
       {
-        "from": ".meta_harness/design/spec/compositions/governance-cli-entry/v2/forms.json",
+        "blob": "5711e6f9c72c81487a99d0f74a42495adb220d49",
         "to": "apps/cli/tests/fixtures/evaluation-inputs/forms.json",
         "consumers": [
           {
             "file": "apps/cli/tests/tui-forms.spec.ts",
-            "find": "../../../.meta_harness/design/spec/compositions/governance-cli-entry/v2/",
+            "literal_sha256": "d97857b6405d3334e24014a6e2f159ddf2b723c908912327cda3424fdef18373",
             "replace": "./fixtures/evaluation-inputs/"
           }
         ]
       },
       {
-        "from": ".meta_harness/design/spec/compositions/governance-cli-entry/v2/tui-forms.schema.json",
+        "blob": "f0ae80bb827a892a81b9c61bc85b006456fde17d",
         "to": "apps/cli/tests/fixtures/evaluation-inputs/tui-forms.schema.json",
         "consumers": []
       }

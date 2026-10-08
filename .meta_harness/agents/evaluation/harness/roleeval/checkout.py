@@ -77,7 +77,7 @@ def answers_left(flow: Flow, material: Material, dest: Path) -> list[str]:
 def template(flow: Flow, material: Material, *, repo: Path, work: Path) -> Path:
     settings = flow.workspace
     return workspace.template(repo, work, flow_id=flow.id, base=flow.base(material), excludes=settings["excludes"],
-                              setup=settings["setup"], relocations=settings.get("relocations", []))
+                              setup=settings["setup"], inputs=settings.get("inputs", []))
 
 
 def rebuild(flow: Flow, dest: Path) -> None:

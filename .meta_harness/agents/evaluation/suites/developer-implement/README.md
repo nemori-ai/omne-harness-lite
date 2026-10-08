@@ -28,7 +28,7 @@ target-tests.json      每份材料的目标测试清单
 
 ## 副本与判定
 
-副本是钉住提交的整仓检出（见[运行器](../../harness/README.md#整仓检出一类)）。固定代码副本排除中央设计工作区、旧AGENTS/CLAUDE和子模块登记。四份原CLI验证输入先原字节移到tests/fixtures/evaluation-inputs，历史测试只改这些精确读取路径，断言和题种不变。
+副本是钉住提交的整仓检出（见[运行器](../../harness/README.md#整仓检出一类)）。固定代码副本排除中央设计工作区、旧AGENTS/CLAUDE和子模块登记。四份原CLI验证输入按固定Git数据对象读取到tests/fixtures/evaluation-inputs；测试中的路径由字符串摘要唯一定位并改接，断言和题种不变。
 然后删掉成员的 `dist/`（里面是目标模块的构建产物，等于答案）、删掉隐藏测试、盖上桩，提交成唯一的基线提交。
 
 `record` 在删副本之前按以下规则判定：
