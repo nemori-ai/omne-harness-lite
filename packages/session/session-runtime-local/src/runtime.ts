@@ -248,7 +248,7 @@ class SessionIngress implements LocalSessionIngress {
       this.creationReceipt(unit, operation, semantic, session),
     )
     if (previous) return { kind: 'created' as const, session, receipt: previous }
-    const initialized = await this.options.bootstrap.initialize(scope, input)
+    const initialized = await this.options.bootstrap.initialize(scope, input, reserved.ticket)
     if (initialized === 'definitionUnavailable')
       return { failure: 'definitionUnavailable' as const }
     if (initialized === 'unavailable') return { failure: 'unavailable' as const }
@@ -300,7 +300,7 @@ class SessionIngress implements LocalSessionIngress {
           return reserved.session
         }),
     )
-    return reserved
+    return { ...reserved, ticket: ticket.ticket }
   }
   async creationReceipt(
     unit: StorageUnit,

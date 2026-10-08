@@ -11,7 +11,7 @@ import type {
 } from '@omne-harness-lite/session-runtime'
 import type { SourceToken } from '@omne-harness-lite/session-log'
 import type { LogAuthorityOperations, SessionLogParticipant } from '@omne-harness-lite/session-log'
-import type { AdmissionSource, LocalAdmission } from './admission-types.ts'
+import type { AdmissionSource, AdmissionTicket, LocalAdmission } from './admission-types.ts'
 import type { StateOptions, StatePolicy } from './state-types.ts'
 import type { ReceiptPolicy } from './receipt-types.ts'
 
@@ -20,6 +20,7 @@ export interface SessionBootstrap {
   readonly initialize: (
     scope: SessionScope,
     input: CreateSessionInput,
+    originalTicket: AdmissionTicket,
   ) => Promise<'ready' | 'definitionUnavailable' | 'unavailable'>
 }
 export interface RuntimePolicy {

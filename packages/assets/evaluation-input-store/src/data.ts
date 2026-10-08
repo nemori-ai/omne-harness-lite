@@ -40,7 +40,7 @@ import {
   type TenantId,
 } from '@omne-harness-lite/identity-values'
 import { narrow, type ReadTx } from '@omne-harness-lite/storage'
-import type { DeployedOfficialEntry, InputSourceDependencies, SourceDb } from './types.ts'
+import type { DeployedOfficialEntry, EvaluationStorageDependencies, SourceDb } from './types.ts'
 
 let assetJudge: AssetModelJudge | undefined
 export function getAssetJudge(): AssetModelJudge {
@@ -159,7 +159,7 @@ export function decodeHoldings(value: unknown, holder: HoldingScope): readonly A
   }
   return value as readonly AssetHolding[]
 }
-export function emit(deps: InputSourceDependencies, event: unknown): void {
+export function emit(deps: EvaluationStorageDependencies, event: unknown): void {
   const value = json(event)
   if (!object(value)) throw new TypeError('source diagnostic is not a JSON object')
   try {
@@ -173,7 +173,7 @@ export function emit(deps: InputSourceDependencies, event: unknown): void {
     }
   }
 }
-export function checkDependencies(deps: InputSourceDependencies): void {
+export function checkDependencies(deps: EvaluationStorageDependencies): void {
   if (
     typeof deps.storage.atomic !== 'function' ||
     typeof deps.storeKey !== 'string' ||
@@ -207,7 +207,7 @@ export function checkDependencies(deps: InputSourceDependencies): void {
   )
     throw new TypeError('input source requires explicit diagnostics and measurement ports')
 }
-export function ownDependencies(deps: InputSourceDependencies): InputSourceDependencies {
+export function ownDependencies<T extends EvaluationStorageDependencies>(deps: T): T {
   checkDependencies(deps)
   const deployedOfficial = json(deps.deployedOfficial)
   if (!Array.isArray(deployedOfficial)) throw new TypeError('invalid deployed official manifest')
@@ -306,7 +306,7 @@ export interface SourceSnapshot {
 }
 export async function readSourceSnapshot(
   tx: ReadTx,
-  deps: InputSourceDependencies,
+  deps: EvaluationStorageDependencies,
   recipe: Recipe,
   fixedSource?: EvaluationRootSource,
 ): Promise<SourceSnapshot> {
@@ -471,7 +471,7 @@ export function buildInputWithRoot(
 /** No IO: selection, extraction and admission run only on this operation's owned snapshot. */
 export function inputFromSnapshot(
   snapshot: SourceSnapshot,
-  deps: InputSourceDependencies,
+  deps: EvaluationStorageDependencies,
 ): {
   input: NonConnectorEvaluationInput
   revision: string

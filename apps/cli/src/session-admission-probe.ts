@@ -71,7 +71,7 @@ function sessionDecision(
     !tenantIdEquals(target.tenant, result.identity.tenant)
   )
     return unavailable
-  return { kind: 'memberValid' }
+  return { kind: 'memberValid', role: result.identity.role }
 }
 function matchesSource(expected: AdmissionSource, candidate: Origin): boolean {
   return (

@@ -99,7 +99,7 @@ function controlled(
 }
 it('uses fresh online login and membership observations for a new Session and closes only its own use', async () => {
   const f = controlled()
-  expect(await f.probe.verify(source, target)).toEqual({ kind: 'memberValid' })
+  expect(await f.probe.verify(source, target)).toEqual({ kind: 'memberValid', role: 'member' })
   expect(f.run.mock.calls).toEqual([
     [{ action: 'invoke', operation: current, payload: {}, readMode: 'refresh' }],
     [{ action: 'invoke', operation: membership, payload: { tenant }, readMode: 'refresh' }],
@@ -209,7 +209,7 @@ it('does not return a valid observation before the original use close really fin
   await started
   expect(settled).toBe(false)
   finish()
-  expect(await pending).toEqual({ kind: 'memberValid' })
+  expect(await pending).toEqual({ kind: 'memberValid', role: 'member' })
 })
 it.each(['copy', 'unknown', 'unavailable'] as const)(
   'does not approve a %s observation',

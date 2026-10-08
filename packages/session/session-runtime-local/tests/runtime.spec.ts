@@ -113,10 +113,12 @@ async function fixture(
   ])
     await storage.write(tx => fragment.migration.up(tx.db))
   let decision: 'memberValid' | 'memberRejected' | 'rejected' = 'memberValid'
-  const probe = vi.fn(async (_source: AdmissionSource, target: AdmissionTarget) => ({
-    kind:
-      decision === 'memberValid' && target.purpose === 'startRun' ? ('valid' as const) : decision,
-  }))
+  const probe = vi.fn(async (_source: AdmissionSource, target: AdmissionTarget) => {
+    if (decision !== 'memberValid') return { kind: decision }
+    return target.purpose === 'startRun'
+      ? { kind: 'valid' as const }
+      : { kind: 'memberValid' as const, role: 'member' as const }
+  })
   const admission = await createLocalAdmission(
     rootStorage,
     { verify: probe },
@@ -180,7 +182,20 @@ async function create(f: Awaited<ReturnType<typeof fixture>>) {
 it('publishes a single initialized empty Session without Run, attempt, pending input or model IO', async () => {
   const f = await fixture(),
     result = await create(f)
-  expect(f.initialize).toHaveBeenCalledWith({ tenant, session: result.session }, input)
+  const original = await f.admission.reserve(source, {
+    purpose: 'createSession',
+    tenant,
+    session: null,
+    inputPosition: null,
+    operationKey: input.operationKey,
+  })
+  expect(original.state).toBe('consumed')
+  expect(original.memberStanding).toEqual({ standing: 'effective', role: 'member' })
+  expect(f.initialize).toHaveBeenCalledWith(
+    { tenant, session: result.session },
+    input,
+    original.ticket,
+  )
   expect(await f.runtime.operations.readSession(f.runtime.access, result.session)).toMatchObject({
     kind: 'session',
     session: { lifecycle: 'active', definition: input.definition, workspace: null },

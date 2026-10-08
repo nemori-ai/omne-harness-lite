@@ -118,12 +118,18 @@ importers:
       '@omne-harness-lite/assembly-lifecycle':
         specifier: workspace:*
         version: link:../../packages/core/assembly-lifecycle
+      '@omne-harness-lite/asset-evaluation':
+        specifier: workspace:*
+        version: link:../../packages/core/asset-evaluation
       '@omne-harness-lite/client-local-state':
         specifier: workspace:*
         version: link:../../packages/core/client-local-state
       '@omne-harness-lite/client-local-state-sqlite':
         specifier: workspace:*
         version: link:../../packages/frontend/client-local-state-sqlite
+      '@omne-harness-lite/evaluation-input-store':
+        specifier: workspace:*
+        version: link:../../packages/assets/evaluation-input-store
       '@omne-harness-lite/governance-center-client-https':
         specifier: workspace:*
         version: link:../../packages/frontend/governance-center-client-https
@@ -151,12 +157,21 @@ importers:
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
         version: link:../../packages/core/organization-governance
+      '@omne-harness-lite/runtime-context':
+        specifier: workspace:*
+        version: link:../../packages/core/runtime-context
       '@omne-harness-lite/runtime-context-local':
         specifier: workspace:*
         version: link:../../packages/session/runtime-context-local
+      '@omne-harness-lite/session-log':
+        specifier: workspace:*
+        version: link:../../packages/core/session-log
       '@omne-harness-lite/session-runtime-local':
         specifier: workspace:*
         version: link:../../packages/session/session-runtime-local
+      '@omne-harness-lite/session-tenancy':
+        specifier: workspace:*
+        version: link:../../packages/core/session-tenancy
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../packages/core/storage
@@ -170,6 +185,9 @@ importers:
       '@omne-harness-lite/artifact-builder':
         specifier: workspace:*
         version: link:../../tools/artifact-builder
+      '@omne-harness-lite/session-log-sql':
+        specifier: workspace:*
+        version: link:../../packages/session/session-log-sql
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

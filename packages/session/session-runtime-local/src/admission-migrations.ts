@@ -56,6 +56,15 @@ export const admissionMigrations: readonly MigrationFragment[] = [
       },
     },
   },
+  {
+    name: 'local_session_admission_member_observation',
+    migration: {
+      async up(db) {
+        await db.schema.alterTable('sr_admission_ticket').addColumn('member_role', 'text').execute()
+        await db.updateTable('sr_admission_meta').set({ format: 2 }).where('slot', '=', 1).execute()
+      },
+    },
+  },
 ]
 /** Compose in each actual tenant runtime storage with log and state migrations. */
 export const admissionUseMigrations: readonly MigrationFragment[] = [

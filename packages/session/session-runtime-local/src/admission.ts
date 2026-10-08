@@ -9,6 +9,7 @@ import {
   isOk,
   parseTenantId,
   tenantIdEquals,
+  parseTenantRole,
   type TenantId,
 } from '@omne-harness-lite/identity-values'
 import {
@@ -160,6 +161,7 @@ class AdmissionOwner implements LocalAdmission {
                 sequence_length: sequence.length,
                 target: JSON.stringify(originalTarget),
                 state: 'waiting',
+                member_role: null,
               })
               .execute()
             return { ticket, state: 'waiting' }
@@ -213,7 +215,11 @@ class AdmissionOwner implements LocalAdmission {
       this.#lost.add(original.id)
       const decision = await this.probe.verify(original.source, original.target)
       this.#checkDecision(original, decision)
-      const copy: Decision = Object.freeze({ kind: decision.kind })
+      const copy: Decision = Object.freeze(
+        decision.kind === 'memberValid'
+          ? { kind: decision.kind, role: decision.role }
+          : { kind: decision.kind },
+      )
       this.#results.set(original.id, { ticket: original, decision: copy })
       this.#lost.delete(original.id)
       await this.#settle(original, copy)
@@ -225,6 +231,14 @@ class AdmissionOwner implements LocalAdmission {
         ? ['memberValid', 'memberRejected', 'rejected', 'unavailable']
         : ['valid', 'rejected', 'unavailable']
     if (!decision || !allowed.includes(decision.kind)) throw new AdmissionFailure('invalid-input')
+    const expected = decision.kind === 'memberValid' ? ['kind', 'role'] : ['kind']
+    if (
+      Object.keys(decision).length !== expected.length ||
+      !expected.every(key => Object.hasOwn(decision, key))
+    )
+      throw new AdmissionFailure('invalid-input')
+    if (decision.kind === 'memberValid' && !isOk(parseTenantRole(decision.role)))
+      throw new AdmissionFailure('invalid-input')
   }
   async #claim(ticket: AdmissionTicket) {
     return this.storage.atomic(unit =>
@@ -284,7 +298,10 @@ class AdmissionOwner implements LocalAdmission {
           const rejected = decision.kind === 'rejected' || owner?.state === 'rejected'
           await db
             .updateTable('sr_admission_ticket')
-            .set({ state: rejected ? 'rejected' : expected })
+            .set({
+              state: rejected ? 'rejected' : expected,
+              member_role: decision.kind === 'memberValid' ? decision.role : null,
+            })
             .where('id', '=', ticket.id)
             .execute()
           await settleLogin(tx, ticket, decision, rejected)

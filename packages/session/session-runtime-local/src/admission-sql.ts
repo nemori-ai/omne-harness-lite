@@ -1,4 +1,5 @@
 import { narrow, type ReadTx, type StorageUnit } from '@omne-harness-lite/storage'
+import { parseTenantRole, isOk } from '@omne-harness-lite/identity-values'
 import {
   AdmissionFailure,
   type AdmissionPolicy,
@@ -31,6 +32,7 @@ export interface AdmissionDb {
     sequence_length: number
     target: string
     state: AdmissionState
+    member_role: string | null
   }
 }
 export interface UseDb {
@@ -42,7 +44,7 @@ export async function meta(tx: ReadTx) {
   if (
     rows.length !== 1 ||
     value?.slot !== 1 ||
-    value.format !== 1 ||
+    value.format !== 2 ||
     typeof value.root !== 'string' ||
     value.root.length === 0 ||
     typeof value.sequence !== 'string' ||
@@ -115,7 +117,21 @@ export async function reading(
   parseTarget(row.target, ticket.source, policy)
   const owner = await login(tx, ticket.source)
   if (!owner) throw new AdmissionFailure('invalid-record')
-  return { ticket, state: row.state }
+  return { ticket, state: row.state, ...memberObservation(row, ticket) }
+}
+function memberObservation(
+  row: AdmissionDb['sr_admission_ticket'],
+  ticket: AdmissionTicket,
+): Pick<AdmissionReading, 'memberStanding'> {
+  if (row.member_role === null) return {}
+  const role = parseTenantRole(row.member_role)
+  if (
+    !isOk(role) ||
+    ticket.target.purpose !== 'createSession' ||
+    ['waiting', 'querying', 'memberRejected', 'unavailable'].includes(row.state)
+  )
+    throw new AdmissionFailure('invalid-record')
+  return { memberStanding: Object.freeze({ standing: 'effective', role: role.ok }) }
 }
 function matchesTicket(row: AdmissionDb['sr_admission_ticket'], ticket: AdmissionTicket): boolean {
   return (

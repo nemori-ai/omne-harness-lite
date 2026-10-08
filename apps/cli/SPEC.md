@@ -294,7 +294,7 @@ JSON模式不读取交互候选、不打开终端、不补交互答案。非TTY�
 
 可信宿主以固定center／account／login handle／tenant构造session-admission-probe，并借入原GovernanceClientOperations。原G28拥有持久排队、核验唯一性和票据消费；本适配器只提供一次已实际结束的治理观察，不签发Access、guard或Run，不写Session事实。它不从CLI body建立身份，不能把目录或登录副本当作当前资格。完整宿主消费者仍在施工。
 
-每次核验先核原固定来源和目标租户，再打开实际client use；打开来源不同则关闭原use并返回unavailable，不发送核验。新Session沿线上refresh读取原登录和当前租户成员，固定租户及原来源均匹配且成员effective时返回memberValid；明确成员无效返回memberRejected，不记作登录拒绝。新Run只现读原登录，不附加成员线上查询，也不按登录的当前租户重新解释既有Session归属。
+每次核验先核原固定来源和目标租户，再打开实际client use；打开来源不同则关闭原use并返回unavailable，不发送核验。新Session沿线上refresh读取原登录和当前租户成员，固定租户及原来源均匹配且成员effective时返回携带实际role的memberValid；明确成员无效返回memberRejected，不记作登录拒绝。新Run只现读原登录，不附加成员线上查询，也不按登录的当前租户重新解释既有Session归属。
 
 明确原登录拒绝返回rejected；copy、未知、来源不符及当前无法判定返回unavailable。适配器不自动重试。只有原use实际关闭后才返回核验结果；工作或关闭抛错传播，双失败保留两项原错误，不能据已读到有效结果先释放G28屏障。G28在无法取得实际已结束的结果时保留原querying，后继不得越过。借入CG及其CLS的关闭仍归真实宿主，不归一次核验。
 
@@ -304,3 +304,13 @@ JSON模式不读取交互候选、不打开终端、不补交互答案。非TTY�
 ## Session Context提供者选择
 
 应用的session-context构造入口选择正式runtime-context-local提供者，每个Session使用新工厂，并通过session-runtime-local公开./cordis传入原plugin、ready、initializer及closeAdmission。Context隔离、固定Scope桥接及原关闭责任仍归Session构造器；应用不复制其实现。运行引用不进入JSON配置。该入口是实际装配构件，完整运行宿主尚须消费它并闭合合法资产／根配方及执行接线；入口存在不表示宿主进程已经交付。
+
+## 原创建配方与Session初始化装配
+
+session-bootstrap固定原center／account／login handle／tenant，借入真实G28、租户Storage、归属、日志、SessionAccess和Clock。普通CLI请求不能提供这些引用。它使用原创建票据的实际消费回执核Session身份，并从原根记录读取角色。每次资产读取另经G28当前成员顺序和活体guard授权实际租户单元。原角色是配方，不是治理中心当前真相或当前权限。
+
+应用选择evaluation-input-store的公开./admitted来源。合法实际定义与原根配方确认后，可信部署／定义拥有者须从原求值输入提供完整ContextSessionSeed；没有默认seed、默认配值或合成秘密。应用随后选择每Session新的正式Runtime Context提供者，等待其实际ready和原Scope初始化完成，才向Session创建入口返回ready。不可用保持原预留未发布，接续认回原身份；已发布重放不重新查询或初始化。
+
+装配只向可信宿主提供已初始化Context和只读输入面，不把运行引用放入JSON或向普通客户端暴露捕获／关闭能力。关闭先停止新初始化、来源读取与Context准入，再等待原工作和实际Context释放。原释放失败保留责任，retryClose只重试原关闭，不恢复准入。借入G28、日志、CG和Storage仍由宿主关闭。
+
+此装配构件的组合测试必须区分实际持久资格、资产和Context与受控运输／seed／访问端口。独立宿主、动态Agent贡献、真实SessionAccess发行、模型和工具消费者及默认产品路径仍须完整B01验收；构件通过不能作为三张故事卡完成的依据。

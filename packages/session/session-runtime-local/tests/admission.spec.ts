@@ -68,7 +68,7 @@ async function fixture(
   const ownedProbe: AdmissionProbe = {
     verify: async (candidate, requested) =>
       requested.operationKey === 'fixture-member'
-        ? { kind: 'memberValid' }
+        ? { kind: 'memberValid', role: 'member' }
         : probe.verify(candidate, requested),
   }
   const owner = await createLocalAdmission(storage, ownedProbe, policy)
@@ -434,7 +434,7 @@ const sessionTarget: AdmissionTarget = {
 it('keeps member visibility separate from a later login rejection', async () => {
   const verify = vi
     .fn<AdmissionProbe['verify']>()
-    .mockResolvedValueOnce({ kind: 'memberValid' })
+    .mockResolvedValueOnce({ kind: 'memberValid', role: 'member' })
     .mockResolvedValueOnce({ kind: 'rejected' })
   const f = await fixture({ verify })
   const created = await f.owner.reserve(source, sessionTarget)
@@ -473,7 +473,7 @@ it('serializes member observations across handles and allows a later genuine eff
   const verify = vi
     .fn<AdmissionProbe['verify']>()
     .mockImplementationOnce(async () => pending.promise)
-    .mockResolvedValue({ kind: 'memberValid' })
+    .mockResolvedValue({ kind: 'memberValid', role: 'member' })
   const f = await fixture({ verify })
   const a = await f.owner.reserve(source, sessionTarget)
   const freshSource = { ...source, loginStateHandle: unwrap(parseLoginStateId('fresh-login')) }
@@ -499,7 +499,7 @@ it('terminates every waiting relation of a rejected login instead of permanently
   const verify = vi
     .fn<AdmissionProbe['verify']>()
     .mockImplementationOnce(async () => pending.promise)
-    .mockResolvedValue({ kind: 'memberValid' })
+    .mockResolvedValue({ kind: 'memberValid', role: 'member' })
   const f = await fixture({ verify })
   const active = await f.owner.reserve(source, target)
   const wait = await f.owner.reserve(source, sessionTarget)
@@ -591,4 +591,93 @@ it('does not abandon an unfinished owned query by assuming that its tenant use i
     pending.resolve({ kind: 'valid' })
     await querying
   }
+})
+
+it('retains the exact creation-time member role on the original ticket across reopening and later member observations', async () => {
+  const roleProbe = vi
+    .fn()
+    .mockResolvedValueOnce({ kind: 'memberValid', role: 'superAdministrator' })
+    .mockResolvedValueOnce({ kind: 'memberValid', role: 'member' })
+  const f = await fixture({ verify: roleProbe })
+  const creation = {
+    ...target,
+    session: null,
+    purpose: 'createSession' as const,
+    operationKey: 'create-role',
+    inputPosition: null,
+  }
+  const first = await f.owner.reserve(source, creation)
+  expect((await f.owner.query(first.ticket)).memberStanding).toEqual({
+    standing: 'effective',
+    role: 'superAdministrator',
+  })
+  await f.owner.consume(first.ticket, f.tenantStorage, async () => 'original-role')
+  const second = await f.owner.reserve(source, { ...creation, operationKey: 'create-next-role' })
+  expect((await f.owner.query(second.ticket)).memberStanding).toEqual({
+    standing: 'effective',
+    role: 'member',
+  })
+  const reopenedStorage = await openStorage({
+    dialect: 'sqlite',
+    file: f.file,
+    synchronous: 'full',
+  })
+  stores.push(reopenedStorage)
+  const reopened = await createLocalAdmission(reopenedStorage, { verify: vi.fn() }, policy)
+  owners.push(reopened)
+  expect((await reopened.read(first.ticket)).memberStanding).toEqual({
+    standing: 'effective',
+    role: 'superAdministrator',
+  })
+  expect((await reopened.read(second.ticket)).memberStanding).toEqual({
+    standing: 'effective',
+    role: 'member',
+  })
+  expect(roleProbe).toHaveBeenCalledTimes(2)
+})
+it('rejects a roleless effective observation and leaves its original query unsettled', async () => {
+  const f = await fixture({
+    verify: vi.fn(async () => ({ kind: 'memberValid' as const }) as never),
+  })
+  const ticket = (
+    await f.owner.reserve(source, {
+      ...target,
+      session: null,
+      purpose: 'createSession',
+      operationKey: 'missing-role',
+      inputPosition: null,
+    })
+  ).ticket
+  await expect(f.owner.query(ticket)).rejects.toMatchObject({ reason: 'invalid-input' })
+  expect((await f.owner.read(ticket)).state).toBe('querying')
+  await expect(f.owner.close()).rejects.toMatchObject({ reason: 'pending-result' })
+})
+it('does not grant current member access from a retained creation role after a newer rejection', async () => {
+  const probe = vi
+    .fn()
+    .mockResolvedValueOnce({ kind: 'memberValid', role: 'superAdministrator' })
+    .mockResolvedValueOnce({ kind: 'memberRejected' })
+  const f = await fixture({ verify: probe })
+  const creation = {
+    ...target,
+    session: null,
+    purpose: 'createSession' as const,
+    operationKey: 'first-role',
+    inputPosition: null,
+  }
+  const first = (await f.owner.reserve(source, creation)).ticket
+  await f.owner.query(first)
+  await f.owner.consume(first, f.tenantStorage, async () => 'created')
+  const denied = (await f.owner.reserve(source, { ...creation, operationKey: 'later-denied' }))
+    .ticket
+  expect((await f.owner.query(denied)).state).toBe('memberRejected')
+  expect((await f.owner.read(first)).memberStanding).toEqual({
+    standing: 'effective',
+    role: 'superAdministrator',
+  })
+  const stage = vi.fn(async () => 'should-not-run')
+  await expect(f.owner.withMember(source, tenant, f.tenantStorage, stage)).rejects.toMatchObject({
+    reason: 'denied',
+  })
+  expect(stage).not.toHaveBeenCalled()
 })

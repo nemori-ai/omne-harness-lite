@@ -10,6 +10,7 @@ Read owned evaluation input from immutable local publications, actual session te
 | --- | --- |
 | `.` | `createEvaluationInputReader`, `evaluationInputMigrations`, `createEvaluationInputStorePlugin`, `CURRENT_EVALUATION_INPUTS_SERVICE`, dependency/result types |
 | `./publication` | Trusted `publishLocalInputs`, `captureSessionRecipe`, `readPublicationRevision` and publication types |
+| `./admitted` | Fixed-Session source with trusted current authorization and original recipe capture. See [SPEC](SPEC.md). |
 | `./registry-inputs` | Restricted fixed-root reader for an admitted registry caller |
 | `./registry-history` | `createRegistryHistoryReader` and history types for authorized exact historical body reads |
 
@@ -60,3 +61,7 @@ pnpm --filter @omne-harness-lite/evaluation-input-store... run build
 pnpm --filter @omne-harness-lite/evaluation-input-store run typecheck
 pnpm --filter @omne-harness-lite/evaluation-input-store run test
 ```
+
+## Admitted Session source
+
+The Session host supplies current G28 member and internal-call authorization through `./admitted`. It also supplies the original creation ticket’s durable role. The role is recipe data. Each read checks current authorization separately. This source uses the same publication and recipe storage. It does not act as an organization-governance service. The original shared-governance reader retains its existing scope. Read and capture share one close operation. The host closes borrowed resources after the source drains.

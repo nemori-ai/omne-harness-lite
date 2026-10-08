@@ -41,3 +41,5 @@ The trusted `lifecycle` port also coordinates Run creation, the first attempt, i
 See [SPEC.md](SPEC.md) for shared-unit behavior and construction requirements.
 
 The trusted `tenancy` reader returns ownership from the actual persistent Session reservation. It does not use a development seed. The `./cordis` entry exports `createLocalSessionContext`. This constructor creates a separate Context and explicit shared bridges. The application supplies a fresh Runtime Context provider through `runtimeContext`. The constructor uses its original plugin, readiness, initializer, and admission control. Its private initializer is bound to one Session. Stop waits for the original work and log borrow. A failed release remains pending and can be retried. The caller must supply the actual legal recipe and seed before publishing the Session.
+
+The original creation ticket stores the actual member role. This snapshot is only recipe input. It does not grant current access. SessionBootstrap receives the original ticket to recognize the original Session. Missing roles have no default.

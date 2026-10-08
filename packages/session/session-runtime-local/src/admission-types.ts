@@ -1,4 +1,9 @@
-import type { AccountId, LoginStateId, TenantId } from '@omne-harness-lite/identity-values'
+import type {
+  AccountId,
+  LoginStateId,
+  TenantId,
+  TenantRole,
+} from '@omne-harness-lite/identity-values'
 import type { GovernanceCenterId } from '@omne-harness-lite/governance-center-entry'
 import type { AtomicStorage, StorageUnit } from '@omne-harness-lite/storage'
 
@@ -34,6 +39,8 @@ export type AdmissionState =
 export interface AdmissionReading {
   readonly ticket: AdmissionTicket
   readonly state: AdmissionState
+  /** Original effective S-26 observation for a creation recipe. This snapshot grants no current access. */
+  readonly memberStanding?: { readonly standing: 'effective'; readonly role: TenantRole }
 }
 export interface AdmissionPolicy {
   readonly maxLogins: number
@@ -42,13 +49,11 @@ export interface AdmissionPolicy {
 }
 /** Trusted construction port. A returned decision proves this owned query has actually ended. */
 export interface AdmissionProbe {
-  readonly verify: (
-    source: AdmissionSource,
-    target: AdmissionTarget,
-  ) => Promise<{
-    readonly kind: 'valid' | 'memberValid' | 'memberRejected' | 'rejected' | 'unavailable'
-  }>
+  readonly verify: (source: AdmissionSource, target: AdmissionTarget) => Promise<AdmissionDecision>
 }
+export type AdmissionDecision =
+  | { readonly kind: 'memberValid'; readonly role: TenantRole }
+  | { readonly kind: 'valid' | 'memberRejected' | 'rejected' | 'unavailable' }
 declare const guardBrand: unique symbol
 /** Private live callback reference. Never serialize this reference. */
 export interface AdmissionGuard {
