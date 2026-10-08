@@ -269,6 +269,27 @@ describe('caller contribution responsibility', () => {
     await context.fiber.dispose()
   })
 
+  it('finishes an empty acquisition after the active caller has started disposing', async () => {
+    const context = new Context()
+    const caller = context.plugin(
+      definePlugin({ name: 'empty-acquisition-caller', Config: z.object({}).strict(), apply() {} }),
+      {},
+    )
+    await caller
+    const contributions = createProviderContributions()
+    let returned = 0
+    const borrow = contributions.borrow(
+      lease(() => returned++),
+      caller.ctx,
+    )
+    const disposing = caller.dispose()
+    await expect(borrow.complete()).resolves.toBeUndefined()
+    await disposing
+    expect(returned).toBe(1)
+    await contributions.close()
+    await context.fiber.dispose()
+  })
+
   it('returns a naturally stopped consumer without requiring an explicit release request', async () => {
     const stopped = Promise.withResolvers<void>(),
       contributions = createProviderContributions()

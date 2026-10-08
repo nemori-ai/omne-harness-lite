@@ -31,6 +31,7 @@ unavailable/异常转为 retained 的未确认关闭观察；共享 control 重�
 
 acquireCall 返回消费句柄时，其 release 通过本次调用方 effect 配对撤除；观察者和监听也落在该贡献的 fiber。调用方在异步取得句柄前已撤除时，立即交还该原句柄，不向已失效 fiber 补登记。没有消费句柄的只读结果不添加等待资源。贡献撤除只结束消费等待/观察，不能代写 durable ACK 或关闭原模型执行。
 consumer.release 只请求停止，实际 stopped 后才归还 host lease；FailureSource.release 同步完成才归还，抛错保有。提供者登记每项贡献并主动关闭，不能等调用 fiber dispose 才启动收场；effect 是同一关闭的幂等入口。Session 桥撤除只交还消费句柄；真正模型提供者撤除才执行 S-36 停止及原结算。
+Cordis 4.0.4 的 effect 撤除函数在重复调用时可以返回 void。归还原借用后，以独立 Promise 任务撤下 effect，并收束同步或异步结果；不等待正在完成的同一个 close，不以撤除函数返回值代替 consumer.stopped。撤除异常仍进入原诊断。
 物理等待超时只产生诊断。已形成完整结果、ready 回执未知、旧 unfenced 写者未停、ACK 清理 pending 均不能被包装成完成。
 旧句柄仍能按原权限/来源认回耐久结果或 ACK；能调用一项 JavaScript 方法不等于已通过授权、真实存储或当前读取权。
 

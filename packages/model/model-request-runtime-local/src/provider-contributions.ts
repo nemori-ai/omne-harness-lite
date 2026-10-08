@@ -24,7 +24,14 @@ export function createProviderContributions() {
       lease.release()
       returned = true
       pending.delete(entry)
-      if (detach) void detach().catch(() => ctx?.logger.error('model_runtime.caller_effect_failed'))
+      const dispose = detach
+      detach = undefined
+      // Cordis returns void when this effect is already being disposed by its caller.
+      // Schedule the unlink without re-entering that same close promise.
+      if (dispose)
+        void Promise.resolve()
+          .then(() => dispose())
+          .catch(() => ctx?.logger.error('model_runtime.caller_effect_failed'))
     }
     function releaseSource() {
       if (returned) return
