@@ -28,7 +28,15 @@ import {
   sessionRuntimeMigrations,
   type AdmissionSource,
   type SessionLifecycleStep,
+  type ModelResultSource,
 } from '@omne-harness-lite/session-runtime-local'
+import {
+  createSessionModelResultSource,
+  type SessionModelResultSource,
+} from '../src/session-model-results.ts'
+import { originalPending } from './model-result-fixture.ts'
+import type { AtomicStorage } from '@omne-harness-lite/storage'
+import { StorageUnavailable } from '@omne-harness-lite/storage'
 import { createSessionOriginalModelOwner } from '../src/session-model-owner.ts'
 import {
   createSessionRunModelBinding,
@@ -52,6 +60,8 @@ import {
   type OriginalIssueAuthority,
   type OriginalIssueInput,
   type PlannedSemantics,
+  type ModelRuntimeExecutionSource,
+  type ModelRuntimeCapturedExecution,
 } from '@omne-harness-lite/model-request-runtime'
 import { sessionLogMigrations, openSqlSessionLog } from '@omne-harness-lite/session-log-sql'
 import { runtimeContextMigrations } from '@omne-harness-lite/runtime-context-local'
@@ -85,7 +95,12 @@ const source: AdmissionSource = {
 const tenant = unwrap(parseTenantId({ organization: 'team', account: source.accountId }))
 const definition = { category: 'agent_definition' as const, name: 'bootstrap:actual-root' }
 const now = '2026-10-08T00:00:00Z'
-async function setup(maxBindings = 16, declareSeed: boolean | 'invalid' = true, withModel = false) {
+async function setup(
+  maxBindings = 16,
+  declareSeed: boolean | 'invalid' = true,
+  withModel = false,
+  resultSource?: (storage: AtomicStorage) => ModelResultSource,
+) {
   const directory = await mkdtemp(join(tmpdir(), 'omne-formal-bootstrap-'))
   cleanup.push(() => rm(directory, { recursive: true, force: true }))
   const root = await openStorage({
@@ -196,6 +211,7 @@ async function setup(maxBindings = 16, declareSeed: boolean | 'invalid' = true, 
     now: () => now,
     workSettledIn: async () => 'settled',
     ...(modelOwner ? { modelIssue: modelOwner.modelIssue } : {}),
+    ...(resultSource ? { modelResults: { maxRecords: 16, source: resultSource(storage) } } : {}),
   })
   cleanup.push(() => runtime.close())
   const seed = vi.fn<SessionBootstrapOptions['contextSeed']>(contextSeedFromDefinition)
@@ -915,8 +931,8 @@ it('dispatches strict data through the original ingress and actual Context and r
   expect(f.exchanges).toHaveBeenCalledTimes(before)
 })
 
-async function originalModelBinding() {
-  const f = await setup(16, true, true)
+async function originalModelBinding(resultSource?: (storage: AtomicStorage) => ModelResultSource) {
+  const f = await setup(16, true, true, resultSource)
   const created = await f.runtime.operations.createSession(f.runtime.access, input)
   if (!('kind' in created) || created.kind !== 'created') throw new Error('Session not created')
   const scope = { tenant, session: created.session }
@@ -1423,4 +1439,139 @@ it('propagates an unknown-responsibility owner defect without silently returning
   })
   await expect(issue.admitOriginal(original)).rejects.toBe(defect)
   expect(await f.modelOwner!.close()).toEqual({ kind: 'released' })
+})
+
+it('recognizes actual original Session custody after lost commit before returning a controlled execution frame', async () => {
+  // Native execution metadata is controlled here. Issue, custody, original read and Unit completion are real.
+  let bridge!: SessionModelResultSource
+  let source: ModelRuntimeExecutionSource | undefined
+  const original = await originalModelBinding(storage => {
+    bridge = createSessionModelResultSource({
+      storage,
+      tenant,
+      executionSource: () => source,
+      maxCaptures: 2,
+      retainReferencesIn: async unit => {
+        unit.assertStorage(storage)
+        return 'retained'
+      },
+    })
+    return bridge.source
+  })
+  const options = nativeBindingOptions(original)
+  const linked = await createSessionRunModelBinding(options)
+  if ('failure' in linked) throw new Error('Run binding missing')
+  cleanup.push(linked.returnJournal)
+  const admitted = await original.issue.admitOriginal(original.original)
+  if (!('confirmed' in admitted)) throw new Error('actual original issue missing')
+  expect(await original.issue.consumeOriginal(admitted.claim)).toEqual({ kind: 'launch' })
+  const base = originalPending()
+  if (base.outcome !== 'complete') throw new Error('fixture requires a complete reply')
+  const pending = {
+    ...base,
+    id: 'root-response',
+    call: { callId: original.preparation.call, runId: original.preparation.run },
+    attemptId: original.preparation.attempt,
+    reply: { ...base.reply, response: 'root-response' },
+  }
+  const unused = async (): Promise<never> => {
+    throw new Error('must not ACK controlled execution')
+  }
+  const execution: ModelRuntimeCapturedExecution = {
+    key: { session: original.scope.session, callId: pending.call.callId },
+    session: linked.binding,
+    owner: linked.binding.selection.owner,
+    executionGeneration: Object.freeze({}),
+    registered: true,
+    released: false,
+    copyReleased: false,
+    invocation: {
+      outcome: Promise.resolve({ replyPending: pending }),
+      snapshot() {
+        throw new Error('unused')
+      },
+      observedFacts: () => ({ unavailable: true }),
+      abort() {},
+      interrupt() {},
+      borrowControl: () => ({ unavailable: true }),
+      settleReply: unused,
+      finishReady: unused,
+      close: unused,
+    },
+  }
+  const returned = vi.fn()
+  source = {
+    capture: () => ({ capture: { executions: [execution], release: returned } }),
+    lookup: () => ({ execution }),
+    snapshot: () => [execution],
+    release: () => ({ unavailable: true }),
+  }
+  const captured = await bridge.capture(original.scope, pending.call.callId)
+  if ('failure' in captured) throw new Error('actual bridge rejected controlled source')
+  const prefix = await original.f.runtime.journal.readPrefix(
+    original.f.runtime.access,
+    original.scope.session,
+  )
+  if (!('kind' in prefix) || prefix.kind !== 'prefix') throw new Error('actual source missing')
+  const write = original.f.storage.write.bind(original.f.storage)
+  const fault = vi.spyOn(original.f.storage, 'write').mockImplementationOnce(async callback => {
+    await write(callback)
+    throw new StorageUnavailable('custody commit return lost')
+  })
+  expect(
+    await original.f.runtime.modelResults.store(
+      original.f.runtime.coordinationAuthority,
+      original.scope,
+      {
+        resultKey: 'source-bridge-original-result',
+        source: prefix.source,
+        pending,
+      },
+    ),
+  ).toMatchObject({
+    kind: 'unknownCommit',
+    call: pending.call.callId,
+    resultKey: 'source-bridge-original-result',
+  })
+  fault.mockRestore()
+  expect(await bridge.release(captured.captured)).toEqual({ pending: true })
+  expect(returned).not.toHaveBeenCalled()
+  expect(await bridge.confirmCustody(captured.captured, original.f.runtime, 'absent-key')).toEqual({
+    failure: 'unavailable',
+  })
+  expect(await bridge.release(captured.captured)).toEqual({ pending: true })
+  const misboundRead = vi
+    .fn(original.f.runtime.modelResults.read)
+    .mockImplementationOnce(async (...args) => {
+      const saved = await original.f.runtime.modelResults.read(...args)
+      if (!('pending' in saved)) throw new Error('actual custody missing')
+      return {
+        ...saved,
+        witness: {
+          ...saved.witness,
+          receipt: { ...saved.witness.receipt, resultKey: 'foreign-key' },
+        },
+      }
+    })
+  expect(
+    await bridge.confirmCustody(
+      captured.captured,
+      {
+        coordinationAuthority: original.f.runtime.coordinationAuthority,
+        modelResults: { ...original.f.runtime.modelResults, read: misboundRead },
+      },
+      'source-bridge-original-result',
+    ),
+  ).toEqual({ failure: 'invalidSource' })
+  expect(await bridge.release(captured.captured)).toEqual({ pending: true })
+  expect(
+    await bridge.confirmCustody(
+      captured.captured,
+      original.f.runtime,
+      'source-bridge-original-result',
+    ),
+  ).toEqual({ confirmed: true })
+  expect(await bridge.release(captured.captured)).toEqual({ released: true })
+  expect(returned).toHaveBeenCalledTimes(1)
+  expect(bridge.close()).toEqual({ released: true })
 })
