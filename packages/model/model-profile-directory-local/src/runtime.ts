@@ -54,6 +54,7 @@ import {
   readBinding,
   readRow,
   rowKey,
+  type DirectoryDb,
 } from './records.ts'
 import type {
   DiagnosticSink,
@@ -68,6 +69,44 @@ import type {
   Result,
 } from '@omne-harness-lite/model-profile-directory'
 import type { MembershipsRead } from './types.ts'
+
+function recognizedRegistration(
+  row: ProfileRow,
+  content: ModelProfileContent,
+): ProfileRow | { readonly failure: 'routeNameTaken' } {
+  return row.profile.registration === 'listed' && contentEqual(row.profile, content)
+    ? row
+    : { failure: 'routeNameTaken' }
+}
+
+function storedManifestDisposition(entry: unknown): ManifestEntryDisposition {
+  if (
+    !object(entry) ||
+    !isRef(entry.ref) ||
+    (entry.disposition !== 'added' &&
+      entry.disposition !== 'updated' &&
+      entry.disposition !== 'unchanged' &&
+      entry.disposition !== 'withdrawn' &&
+      entry.disposition !== 'relisted')
+  )
+    throw new StorageDefect('manifest disposition malformed')
+  return { ref: entry.ref, disposition: entry.disposition }
+}
+
+function storedManifestState(state: DirectoryDb['model_manifest_state'] | undefined): {
+  ordinal: OfficialManifest['ordinal']
+  dispositions: ManifestEntryDisposition[]
+} {
+  if (state === undefined) throw new StorageDefect('manifest state missing')
+  const ordinal = readJsonStrict(state.ordinal_json),
+    dispositions = readJsonStrict(state.dispositions_json)
+  if ('failed' in ordinal || 'failed' in dispositions || !Array.isArray(dispositions.ok))
+    throw new StorageDefect('manifest state malformed')
+  const storedDispositions: ManifestEntryDisposition[] = []
+  for (const entry of dispositions.ok) storedDispositions.push(storedManifestDisposition(entry))
+  if (!importOrdinal(ordinal.ok)) throw new StorageDefect('manifest ordinal malformed')
+  return { ordinal: ordinal.ok, dispositions: storedDispositions }
+}
 
 /** Rollback a multi-row content write on a named business refusal. */
 class Rejected extends Error {
@@ -298,10 +337,7 @@ export class CatalogImplementation {
       }
       await this.history(tx, candidate, false)
       const old = await readRow(tx, ref)
-      if (old !== undefined)
-        return old.profile.registration === 'listed' && contentEqual(old.profile, content)
-          ? old
-          : { failure: 'routeNameTaken' }
+      if (old !== undefined) return recognizedRegistration(old, content)
       const row: ProfileRow = {
         ref,
         profile: { ...content, registration: 'listed', updatedAt: this.now() },
@@ -317,9 +353,7 @@ export class CatalogImplementation {
         const raced = await readRow(tx, ref)
         if (raced === undefined) throw new StorageDefect('profile conflict has no row')
         await this.history(tx, candidate, false)
-        return raced.profile.registration === 'listed' && contentEqual(raced.profile, content)
-          ? raced
-          : { failure: 'routeNameTaken' }
+        return recognizedRegistration(raced, content)
       }
       await this.history(tx, row, true)
       return row
@@ -512,26 +546,7 @@ export class CatalogImplementation {
         .selectAll()
         .where('id', '=', 1)
         .executeTakeFirst()
-      if (state === undefined) throw new StorageDefect('manifest state missing')
-      const ordinal = readJsonStrict(state.ordinal_json),
-        dispositions = readJsonStrict(state.dispositions_json)
-      if ('failed' in ordinal || 'failed' in dispositions || !Array.isArray(dispositions.ok))
-        throw new StorageDefect('manifest state malformed')
-      const storedDispositions: ManifestEntryDisposition[] = []
-      for (const entry of dispositions.ok) {
-        if (
-          !object(entry) ||
-          !isRef(entry.ref) ||
-          (entry.disposition !== 'added' &&
-            entry.disposition !== 'updated' &&
-            entry.disposition !== 'unchanged' &&
-            entry.disposition !== 'withdrawn' &&
-            entry.disposition !== 'relisted')
-        )
-          throw new StorageDefect('manifest disposition malformed')
-        storedDispositions.push({ ref: entry.ref, disposition: entry.disposition })
-      }
-      if (!importOrdinal(ordinal.ok)) throw new StorageDefect('manifest ordinal malformed')
+      const stored = storedManifestState(state)
       const rows = (
         await db(tx)
           .selectFrom('model_profile')
@@ -540,12 +555,13 @@ export class CatalogImplementation {
           .execute()
       ).map(decodeProfile)
       const disposition = manifestDisposition(
-        { ordinal: ordinal.ok, dispositions: storedDispositions, rows },
+        { ordinal: stored.ordinal, dispositions: stored.dispositions, rows },
         manifest,
       )
       if ('failure' in disposition) return { result: disposition, notifications: [] }
-      if (jsonEqual(ordinal.ok, manifest.ordinal)) return { result: disposition, notifications: [] }
-      for (const content of manifest.entries) {
+      if (jsonEqual(stored.ordinal, manifest.ordinal))
+        return { result: disposition, notifications: [] }
+      const adoptEntry = async (content: ModelProfileContent): Promise<void> => {
         const ref: ModelProfileRef = { origin: 'official', routeName: content.routeName }
         const old = rows.find(row => row.ref.routeName === content.routeName)
         const row: ProfileRow = {
@@ -566,6 +582,7 @@ export class CatalogImplementation {
           await putRow(tx, row)
         await this.history(tx, row, true)
       }
+      for (const content of manifest.entries) await adoptEntry(content)
       for (const entry of disposition.dispositions)
         if (entry.disposition === 'withdrawn') {
           const old = rows.find(row => row.ref.routeName === entry.ref.routeName)

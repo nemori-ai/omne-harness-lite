@@ -21,6 +21,7 @@ import type {
   MembershipsRead,
   ModelProfileDirectoryConfig,
   LocalCredentialLookupConfig,
+  ProfileOrigin,
 } from './types.ts'
 
 import {
@@ -97,6 +98,21 @@ function ownerFor(ctx: Context): OperationOwner {
 function unique(ctx: Context, keys: readonly string[]): void {
   for (const key of keys)
     if (ctx.get(key) !== undefined) throw new Error('duplicate directory service provider')
+}
+
+async function factoryValue(
+  ctx: Context,
+  origin: ProfileOrigin,
+): ReturnType<CredentialLookup['value']> {
+  const factoryReader = ctx.get(FACTORY_MODEL_CREDENTIAL)
+  if (origin === 'custom' || factoryReader === undefined)
+    return { failure: 'credentialUnavailable' }
+  const factory = await factoryReader.read()
+  if ('failure' in factory) return factory
+  if ('absent' in factory) return { failure: 'credentialUnavailable' }
+  if (!(factory.body instanceof Uint8Array) || factory.body.byteLength === 0)
+    throw new StorageDefect('factory credential provider returned malformed body')
+  return { scope: { layer: 'factory' }, value: factory.body }
 }
 
 export const modelProfileDirectoryPlugin = definePlugin<ModelProfileDirectoryConfig>({
@@ -209,15 +225,7 @@ export const localCredentialLookupPlugin = definePlugin<LocalCredentialLookupCon
             return 'body' in selected.replica
               ? { scope: { layer: 'tenant', tenant: tenant.ok }, value: selected.replica.body }
               : { failure: 'credentialUnavailable' }
-          const factoryReader = ctx.get(FACTORY_MODEL_CREDENTIAL)
-          if (origin === 'custom' || factoryReader === undefined)
-            return { failure: 'credentialUnavailable' }
-          const factory = await factoryReader.read()
-          if ('failure' in factory) return factory
-          if ('absent' in factory) return { failure: 'credentialUnavailable' }
-          if (!(factory.body instanceof Uint8Array) || factory.body.byteLength === 0)
-            throw new StorageDefect('factory credential provider returned malformed body')
-          return { scope: { layer: 'factory' }, value: factory.body }
+          return factoryValue(ctx, origin)
         }),
     }
     new CredentialProvider(ctx, lookup)
