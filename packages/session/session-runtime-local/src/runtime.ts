@@ -71,6 +71,7 @@ export function createLocalSessionIngress(options: RuntimeOptions): LocalSession
   return Object.freeze({
     access: owner.access,
     operations: owner.operations,
+    tenancy: owner.tenancy,
     coordinationAuthority: owner.coordinationAuthority,
     lifecycle: owner.lifecycle,
     close: owner.close,
@@ -83,6 +84,14 @@ class SessionIngress implements LocalSessionIngress {
   readonly state: ReturnType<typeof createLocalSessionState>
   readonly receipts: ReturnType<typeof createLocalOperationReceipts>
   readonly operations: SessionIngressOperations
+  readonly tenancy: LocalSessionIngress['tenancy'] = Object.freeze<LocalSessionIngress['tenancy']>({
+    holdingTenant: async session => {
+      const result = await this.run(this.access, () => this.ownership(session), [] as const)
+      if ('failure' in result)
+        return { failure: result.failure === 'denied' ? 'invalidInput' : result.failure }
+      return result
+    },
+  })
   get coordinationAuthority() {
     return this.authority.coordination
   }
@@ -480,6 +489,17 @@ class SessionIngress implements LocalSessionIngress {
     const state = await this.state.participant.headIn(unit, this.authority.coordination, scope)
     if ('failure' in state) throw new RuntimeRejection(state.failure)
     return state.head
+  }
+  async ownership(requested: unknown) {
+    const session = sessionRef(requested, this.options)
+    return this.options.storage.atomic(unit =>
+      unit.run(async () => {
+        const row = await creationBySession(unit, session)
+        if (!row) return { failure: 'sessionNotFound' as const }
+        decodeCreation(row, this.options)
+        return { tenant: this.options.tenant }
+      }),
+    )
   }
   async describe(unit: StorageUnit, session: SessionRef) {
     const row = await creationBySession(unit, session)

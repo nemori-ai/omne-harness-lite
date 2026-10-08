@@ -2701,6 +2701,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness-lite/assembly-lifecycle':
+        specifier: workspace:*
+        version: link:../../core/assembly-lifecycle
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../../core/call-accounts
@@ -2713,9 +2716,21 @@ importers:
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values
+      '@omne-harness-lite/kernel-basis':
+        specifier: workspace:*
+        version: link:../../core/kernel-basis
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../../core/messages
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../../core/offer-expiry
+      '@omne-harness-lite/runtime-context':
+        specifier: workspace:*
+        version: link:../../core/runtime-context
+      '@omne-harness-lite/runtime-context-local':
+        specifier: workspace:*
+        version: link:../runtime-context-local
       '@omne-harness-lite/session-log':
         specifier: workspace:*
         version: link:../../core/session-log
@@ -2728,10 +2743,10 @@ importers:
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
-      '@omne-harness-lite/runtime-context-local':
-        specifier: workspace:*
-        version: link:../runtime-context-local
       '@omne-harness-lite/session-log-sql':
         specifier: workspace:*
         version: link:../session-log-sql

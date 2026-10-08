@@ -1,6 +1,6 @@
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import type { TenantId } from '@omne-harness-lite/identity-values'
-import type { SessionScope } from '@omne-harness-lite/session-tenancy'
+import type { SessionScope, SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 import type {
   Access,
   CreateSessionInput,
@@ -51,6 +51,8 @@ export type SessionIngressOperations = Pick<
 export interface LocalSessionIngress {
   readonly access: Access
   readonly operations: SessionIngressOperations
+  /** Trusted assembly reader over this owner's immutable persisted Session reservations. */
+  readonly tenancy: SessionTenancyService
   /** Trusted host port. Do not send its live authority or permits over a wire protocol. */
   readonly coordinationAuthority: CoordinationAuthority
   readonly lifecycle: {

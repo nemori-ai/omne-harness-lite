@@ -17,6 +17,8 @@ import {
   type SqlSessionLog,
 } from '@omne-harness-lite/session-log-sql'
 import { compareInteger } from '@omne-harness-lite/session-log'
+import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
+import { createLocalSessionContext } from '../src/cordis.ts'
 import {
   readSessionFact,
   type Access,
@@ -1113,4 +1115,259 @@ it('requires the actual committed original G28 ticket usage before any original 
     ),
   ).rejects.toThrow('missing original Run ticket usage')
   expect(await f.log().readSince(started.created.session, 0)).toHaveProperty('tail', 5)
+})
+it('reads real immutable Session ownership during initialization without a development seed or publication', async () => {
+  let f!: Awaited<ReturnType<typeof fixture>>
+  const initialize = vi.fn(async (scope: SessionScope) => {
+    expect(await f.runtime.tenancy.holdingTenant(scope.session)).toEqual({ tenant })
+    expect(await f.count('sr_session_state')).toEqual({ n: 0 })
+    expect(await f.count('sr_operation_receipt')).toEqual({ n: 0 })
+    return 'ready' as const
+  })
+  f = await fixture(initialize)
+  const created = await create(f),
+    before = f.probe.mock.calls.length
+  expect(await f.runtime.tenancy.holdingTenant(created.session)).toEqual({ tenant })
+  expect(await f.runtime.tenancy.holdingTenant('missing-session')).toEqual({
+    failure: 'sessionNotFound',
+  })
+  expect(await f.runtime.tenancy.holdingTenant({ session: created.session })).toEqual({
+    failure: 'invalidInput',
+  })
+  expect(f.probe).toHaveBeenCalledTimes(before)
+  expect(await f.count('sr_run_seen')).toEqual({ n: 0 })
+  expect(await f.log().readSince(created.session, 0)).toHaveProperty('tail', 2)
+  await f.runtime.close()
+  expect(await f.runtime.tenancy.holdingTenant(created.session)).toEqual({ failure: 'unavailable' })
+})
+it('reports damaged ownership as a storage defect and preserves original read failures', async () => {
+  const f = await fixture(),
+    created = await create(f)
+  vi.spyOn(f.storage, 'atomic').mockRejectedValueOnce(new StorageUnavailable('owner read failed'))
+  expect(await f.runtime.tenancy.holdingTenant(created.session)).toEqual({ failure: 'unavailable' })
+  await f.storage.write(tx =>
+    tx.db.updateTable('sr_session_creation').set({ input: '{}' }).execute(),
+  )
+  await expect(f.runtime.tenancy.holdingTenant(created.session)).rejects.toThrow(
+    'corrupt Session initialization',
+  )
+})
+
+it('initializes the actual Runtime Context in separate Session hosts and withdraws A without stopping B', async () => {
+  const f = await fixture(),
+    a = await create(f)
+  const b = await f.runtime.operations.createSession(f.runtime.access, {
+    ...input,
+    operationKey: 'create-b',
+  })
+  if (!('kind' in b) || b.kind !== 'created') throw new Error('create B failed')
+  for (const fragment of runtimeContextMigrations)
+    await f.storage.write(tx => fragment.migration.up(tx.db))
+  const before = f.probe.mock.calls.length
+  const options = {
+    storage: f.storage,
+    logBacking: f.log().backing,
+    access: {
+      authorize: vi.fn(async () => ({
+        kind: 'rejected' as const,
+        reason: 'notAuthorized' as const,
+      })),
+    },
+    clock: { now: () => unwrap(instantFromRfc3339(at)) },
+  }
+  const hostA = createLocalSessionContext({ ...options, scope: { tenant, session: a.session } })
+  const hostB = createLocalSessionContext({ ...options, scope: { tenant, session: b.session } })
+  try {
+    const [contextA, contextB] = await Promise.all([hostA.ready, hostB.ready])
+    expect(contextA).not.toBe(contextB)
+    const registration = {
+      name: 'same-local-source',
+      recovery: 'reread_source' as const,
+      consumers: ['model' as const],
+      requiredKeys: [],
+      read: async () => ({ kind: 'values' as const, values: [] }),
+    }
+    const sourceA = contextA.registerSource(registration),
+      sourceB = contextB.registerSource(registration)
+    expect(sourceA.generation).not.toBe(sourceB.generation)
+
+    const seed = { required: [], initial: [], fixed: [] }
+    expect(await hostA.initializer.initializeContextSession(hostA.scope, seed)).toMatchObject({
+      kind: 'applied',
+    })
+    expect(await hostB.initializer.initializeContextSession(hostB.scope, seed)).toMatchObject({
+      kind: 'applied',
+    })
+    expect(await hostA.initializer.initializeContextSession(hostB.scope, seed)).toEqual({
+      kind: 'rejected',
+      reason: 'notAuthorized',
+    })
+    const readA = await f.log().readSince(a.session, 0),
+      readB = await f.log().readSince(b.session, 0)
+    if ('failure' in readA || 'failure' in readB) throw new Error('read failed')
+    expect(readA.entries.at(-1)!.payload).toMatchObject({
+      owner: 'runtime-context',
+      value: { kind: 'session_initialized', scope: hostA.scope },
+    })
+    expect(readB.entries.at(-1)!.payload).toMatchObject({
+      owner: 'runtime-context',
+      value: { kind: 'session_initialized', scope: hostB.scope },
+    })
+    expect(await sourceA.invalidate(hostB.scope, [])).toMatchObject({ kind: 'rejected' })
+    hostA.requestStop()
+    expect(await hostA.closed).toMatchObject({ complete: true })
+    expect(await sourceA.invalidate(hostA.scope, [])).toMatchObject({ kind: 'rejected' })
+    expect(await sourceB.invalidate(hostB.scope, [])).toEqual({ kind: 'invalidated' })
+    expect(await hostA.initializer.initializeContextSession(hostA.scope, seed)).toEqual({
+      kind: 'rejected',
+      reason: 'ownerStopped',
+    })
+    expect(await hostB.initializer.initializeContextSession(hostB.scope, seed)).toMatchObject({
+      kind: 'applied',
+    })
+    expect(f.probe).toHaveBeenCalledTimes(before)
+  } finally {
+    hostA.requestStop()
+    hostB.requestStop()
+    await Promise.all([hostA.closed, hostB.closed])
+  }
+  expect(
+    await f.storage.read(tx =>
+      tx.db
+        .selectFrom('sr_session_creation')
+        .select(eb => eb.fn.countAll<number>().as('n'))
+        .executeTakeFirstOrThrow(),
+    ),
+  ).toEqual({ n: 2 })
+})
+it('publishes a Session only after its actual isolated Runtime Context initializer has confirmed the original seed', async () => {
+  let f!: Awaited<ReturnType<typeof fixture>>,
+    host: ReturnType<typeof createLocalSessionContext> | undefined
+  const initialize = vi.fn(async (scope: SessionScope) => {
+    expect(await f.runtime.tenancy.holdingTenant(scope.session)).toEqual({ tenant })
+    host ??= createLocalSessionContext({
+      scope,
+      storage: f.storage,
+      logBacking: f.log().backing,
+      access: { authorize: async () => ({ kind: 'rejected', reason: 'notAuthorized' }) },
+      clock: { now: () => unwrap(instantFromRfc3339(at)) },
+    })
+    await host.ready
+    const applied = await host.initializer.initializeContextSession(scope, {
+      required: [],
+      initial: [],
+      fixed: [],
+    })
+    return applied.kind === 'applied' ? ('ready' as const) : ('unavailable' as const)
+  })
+  f = await fixture(initialize)
+  for (const fragment of runtimeContextMigrations)
+    await f.storage.write(tx => fragment.migration.up(tx.db))
+  try {
+    const created = await create(f),
+      read = await f.log().readSince(created.session, 0)
+    if ('failure' in read) throw new Error('read failed')
+    expect(read.entries.map(entry => entry.payload)).toMatchObject([
+      { owner: 'session-runtime-local', value: { kind: 'session_initializing' } },
+      { owner: 'runtime-context', value: { kind: 'session_initialized' } },
+      { owner: 'session-runtime', value: { kind: 'session_created' } },
+    ])
+    expect(created.receipt.source.tail).toBe(3)
+    expect(await create(f)).toEqual(created)
+    expect(initialize).toHaveBeenCalledTimes(1)
+  } finally {
+    await f.runtime.close()
+    host?.requestStop()
+    await host?.closed
+  }
+})
+it('retains the original Session Context borrow after release failure and permits only retry of that close', async () => {
+  const f = await fixture(),
+    created = await create(f)
+  for (const fragment of runtimeContextMigrations)
+    await f.storage.write(tx => fragment.migration.up(tx.db))
+  let release: (() => Promise<void>) | undefined
+  const attempts = vi.fn(async (): Promise<void> => {
+    throw new Error('original release unavailable')
+  })
+  const backing = {
+    ownerGeneration: f.log().backing.ownerGeneration,
+    borrow() {
+      const original = f.log().backing.borrow()
+      release = original.release
+      return { log: original.log, release: attempts }
+    },
+  }
+  const host = createLocalSessionContext({
+    scope: { tenant, session: created.session },
+    storage: f.storage,
+    logBacking: backing,
+    access: { authorize: async () => ({ kind: 'rejected', reason: 'notAuthorized' }) },
+    clock: { now: () => unwrap(instantFromRfc3339(at)) },
+  })
+  try {
+    await host.ready
+    expect(await host.retryClose()).toBe('notStopping')
+    host.requestStop()
+    expect(await host.closeAttempt()).toBe('retained')
+    let closed = false
+    void host.closed.then(() => {
+      closed = true
+    })
+    await new Promise<void>(resolve => setImmediate(resolve))
+    expect(closed).toBe(false)
+    expect(
+      await host.initializer.initializeContextSession(host.scope, {
+        required: [],
+        initial: [],
+        fixed: [],
+      }),
+    ).toEqual({ kind: 'rejected', reason: 'ownerStopped' })
+    attempts.mockImplementation(async () => {
+      await release!()
+    })
+    expect(await host.retryClose()).toBe('closed')
+    expect(await host.closed).toMatchObject({ complete: true })
+    expect(attempts).toHaveBeenCalledTimes(2)
+    expect(await f.count('sr_session_creation')).toEqual({ n: 1 })
+  } finally {
+    attempts.mockImplementation(async () => {
+      await release?.()
+    })
+    host.requestStop()
+    await host.retryClose()
+    await host.closed
+  }
+})
+it('reports actual Session Context setup failure and releases the original log borrow', async () => {
+  const f = await fixture(),
+    created = await create(f)
+  const original = f.log().backing.borrow.bind(f.log().backing),
+    released = vi.fn()
+  const host = createLocalSessionContext({
+    scope: { tenant, session: created.session },
+    storage: f.storage,
+    logBacking: {
+      ownerGeneration: f.log().backing.ownerGeneration,
+      borrow() {
+        const borrowed = original()
+        return {
+          log: borrowed.log,
+          release: async () => {
+            await borrowed.release()
+            released()
+          },
+        }
+      },
+    },
+    access: { authorize: async () => ({ kind: 'rejected', reason: 'notAuthorized' }) },
+    clock: { now: () => unwrap(instantFromRfc3339(at)) },
+  })
+  await expect(host.ready).rejects.toThrow()
+  host.requestStop()
+  expect(await host.closed).toMatchObject({
+    complete: false,
+    rows: [{ id: 'runtimeContext', result: { kind: 'failed', codes: ['setup'] } }],
+  })
+  expect(released).toHaveBeenCalledTimes(1)
 })
