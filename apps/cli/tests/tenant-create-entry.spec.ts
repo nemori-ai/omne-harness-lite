@@ -1,6 +1,7 @@
 // @module-tag slow
 // Real Cordis assembly, private SQLite and HTTPS transport. The peer controls responses.
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { createServer, type Server } from 'node:https'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -15,6 +16,8 @@ import { checkedTenantBinding } from '../src/state-layout-values.ts'
 import { openCliCatalog } from '../src/catalog-open.ts'
 import { runTenantCreateEntry } from '../src/tenant-create-entry.ts'
 import { parseEntryCommand } from '../src/entry-command.ts'
+import type { EntryReport } from '../src/entry-application.ts'
+import { tenantReference } from '../src/tenant-reference.ts'
 
 const centerId = 'a'.repeat(32),
   account = 'owner',
@@ -85,6 +88,38 @@ beforeAll(async () => {
         switch (body.operation) {
           case 'composition.governance-center-entry/v1#S-18':
             answer = { reachable: true, centerId, version: '3' }
+            break
+          case 'capability.account-identity/v3#S-15':
+            answer = {
+              result: {
+                loginState: 'new-private-presentation',
+                loginStateHandle: 'new-login-handle',
+              },
+            }
+            break
+          case 'composition.account-registration/v2#S-8':
+            answer = { result: 'registered' }
+            break
+          case 'capability.account-identity/v3#S-37':
+            answer = {
+              result: [
+                {
+                  loginStateHandle: handle,
+                  issuedAt: '2026-10-08T12:00:00.000Z',
+                  lastActivityAt: '2026-10-08T12:00:00.000Z',
+                  absoluteExpiresAt: '2026-10-08T20:00:00.000Z',
+                  idleExpiresAt: '2026-10-08T13:00:00.000Z',
+                },
+              ],
+            }
+            break
+          case 'capability.account-identity/v3#S-16':
+          case 'capability.account-identity/v3#S-50':
+          case 'capability.organization-governance/v2#S-37':
+            answer = { result: 'ok' }
+            break
+          case 'capability.organization-governance/v2#S-25':
+            answer = { result: created }
             break
           case 'capability.organization-governance/v2#S-36':
             answer = rejected ? 'login-state-rejected' : { result: personal }
@@ -197,6 +232,26 @@ async function fixture(selected = true, sourceAccount = account) {
   }
 }
 const signal = () => new AbortController().signal
+async function processCommand(home: string, args: readonly string[]) {
+  const child = spawn(
+    process.execPath,
+    [fileURLToPath(new URL('../dist/main.js', import.meta.url)), '--home', home, ...args, '--json'],
+    { stdio: ['ignore', 'pipe', 'pipe'] },
+  )
+  let stdout = '',
+    stderr = ''
+  child.stdout.setEncoding('utf8').on('data', chunk => {
+    stdout += String(chunk)
+  })
+  child.stderr.setEncoding('utf8').on('data', chunk => {
+    stderr += String(chunk)
+  })
+  const code = await new Promise<number | null>((resolve, reject) => {
+    child.once('error', reject)
+    child.once('close', resolve)
+  })
+  return { code, stdout, stderr }
+}
 it('consumes parsed tenant create using production assembly, HTTPS and SQLite and preserves the selected tenant', async () => {
   const f = await fixture(),
     before = await f.catalog.readSelection()
@@ -379,3 +434,198 @@ it('retains both an original work defect and a failed close observation', async 
   expect(await fault.pending()).toBe(true)
   expect(sends.filter(row => row.operation === createOperation)).toHaveLength(0)
 })
+
+it('executes the installed process entry with the formal command and persists its original request', async () => {
+  const f = await fixture()
+  const child = spawn(
+    process.execPath,
+    [
+      fileURLToPath(new URL('../dist/main.js', import.meta.url)),
+      '--home',
+      f.home,
+      'tenant',
+      'create',
+      '--name',
+      '研发组',
+      '--json',
+    ],
+    { stdio: ['ignore', 'pipe', 'pipe'] },
+  )
+  let stdout = '',
+    stderr = ''
+  child.stdout.setEncoding('utf8').on('data', chunk => {
+    stdout += String(chunk)
+  })
+  child.stderr.setEncoding('utf8').on('data', chunk => {
+    stderr += String(chunk)
+  })
+  const code = await new Promise<number | null>((resolve, reject) => {
+    child.once('error', reject)
+    child.once('close', resolve)
+  })
+  expect(code, stderr).toBe(0)
+  expect(stderr).toBe('')
+  expect(stdout).not.toContain(secret)
+  const report = JSON.parse(stdout) as EntryReport
+  expect(report).toMatchObject({
+    format: 'omne-cli/1',
+    action: 'tenant.create',
+    outcome: { kind: 'created', result: { tenant: created } },
+    diagnostics: [],
+  })
+  if (report.outcome.kind !== 'created') throw new Error('not created')
+  expect(await f.catalog.readCreation(report.outcome.request)).toMatchObject({
+    status: 'settled',
+    result: { kind: 'created' },
+  })
+  expect(sends.filter(row => row.operation === createOperation)).toHaveLength(1)
+  expect(await f.catalog.readSelection()).toMatchObject({ selected: binding })
+})
+
+it.each(['login', 'register'] as const)(
+  'executes formal %s through production HTTPS and keeps secrets out of the result',
+  async action => {
+    const f = await fixture(false)
+    await f.catalog.registerCenter({
+      name: 'work',
+      center: { centerId, endpoint, trust: { mode: 'ca', certificateAuthorities: certificate } },
+    })
+    const credentialFile = join(f.home, 'credential')
+    const credential = ' protected full credential\n'
+    await writeFile(credentialFile, credential, { mode: 0o600 })
+    const child = spawn(
+      process.execPath,
+      [
+        fileURLToPath(new URL('../dist/main.js', import.meta.url)),
+        '--home',
+        f.home,
+        action,
+        '--center',
+        'work',
+        '--login-identifier',
+        'owner',
+        '--credential-file',
+        credentialFile,
+        '--json',
+      ],
+      { stdio: ['ignore', 'pipe', 'pipe'] },
+    )
+    let stdout = '',
+      stderr = ''
+    child.stdout.setEncoding('utf8').on('data', chunk => {
+      stdout += String(chunk)
+    })
+    child.stderr.setEncoding('utf8').on('data', chunk => {
+      stderr += String(chunk)
+    })
+    const code = await new Promise<number | null>((resolve, reject) => {
+      child.once('error', reject)
+      child.once('close', resolve)
+    })
+    expect(code, stderr).toBe(0)
+    expect(stderr).toBe('')
+    expect(stdout).not.toContain(credential)
+    expect(stdout).not.toContain('new-private-presentation')
+    expect(JSON.parse(stdout)).toMatchObject({
+      format: 'omne-cli/1',
+      action,
+      outcome: { kind: action === 'login' ? 'logged-in' : 'governance-result' },
+      diagnostics: [],
+    })
+    const operation =
+      action === 'login'
+        ? 'capability.account-identity/v3#S-15'
+        : 'composition.account-registration/v2#S-8'
+    const operations = sends.filter(row => row.operation === operation)
+    expect(operations).toHaveLength(1)
+    expect(operations[0]?.payload).toMatchObject({ credential })
+    expect((await f.catalog.readSelection()).selected).toEqual(action === 'login' ? binding : null)
+  },
+)
+
+it.each(['add', 'switch'] as const)(
+  'executes tenant %s with actual auth and persists only its declared local effects',
+  async action => {
+    const f = await fixture(),
+      target = checkedTenantBinding({ ...binding, tenant: created })
+    const args =
+      action === 'add'
+        ? ['tenant', 'add', '--invitation', 'actual-invitation']
+        : ['tenant', 'switch', tenantReference(target)]
+    const result = await processCommand(f.home, args)
+    expect(result.code, result.stderr).toBe(0)
+    expect(result.stderr).toBe('')
+    expect(result.stdout).not.toContain(secret)
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      action: `tenant.${action}`,
+      outcome: {
+        kind: 'tenant-prepared',
+        binding: target,
+        selection: action === 'add' ? 'unchanged' : 'selected',
+      },
+      diagnostics: [],
+    })
+    expect((await f.catalog.readSelection()).selected).toEqual(action === 'add' ? binding : target)
+    expect(
+      sends.filter(
+        row =>
+          row.operation === `capability.organization-governance/v2#S-${action === 'add' ? 25 : 37}`,
+      ),
+    ).toHaveLength(1)
+  },
+)
+
+it.each(['logout', 'list', 'revoke', 'credential'] as const)(
+  'executes account %s through a fixed selected use with safe output',
+  async action => {
+    const f = await fixture()
+    const oldFile = join(f.home, 'old-credential'),
+      newFile = join(f.home, 'new-credential')
+    await writeFile(oldFile, 'old-secret\n', { mode: 0o600 })
+    await writeFile(newFile, 'new-secret\n', { mode: 0o600 })
+    const args =
+      action === 'logout'
+        ? ['logout']
+        : action === 'list'
+          ? ['logins', 'list']
+          : action === 'revoke'
+            ? ['logins', 'revoke', '--handle', 'different-login']
+            : [
+                'credential',
+                'change',
+                '--current-credential-file',
+                oldFile,
+                '--new-credential-file',
+                newFile,
+              ]
+    const result = await processCommand(f.home, args)
+    expect(result.code, result.stderr).toBe(0)
+    expect(result.stderr).toBe('')
+    for (const value of [secret, 'old-secret', 'new-secret'])
+      expect(result.stdout).not.toContain(value)
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      outcome: { kind: 'governance-result', report: { remote: { status: 'success' } } },
+      diagnostics: [],
+    })
+    if (action === 'credential') {
+      expect(
+        sends.find(row => row.operation === 'capability.account-identity/v3#S-50')?.payload,
+      ).toMatchObject({ currentCredential: 'old-secret\n', newCredential: 'new-secret\n' })
+    }
+    if (action === 'logout' || action === 'credential') {
+      const state = await openClientLocalState(
+        { directory: f.paths.auth },
+        {
+          storage: { open: file => openStorage({ dialect: 'sqlite', file, synchronous: 'full' }) },
+        },
+      )
+      try {
+        const read = await state.read()
+        expect(read).toMatchObject({ snapshot: { value: { cache: [] } } })
+        if (read.kind === 'read') expect(read.snapshot.value?.login).toBeUndefined()
+      } finally {
+        await state.close()
+      }
+    }
+  },
+)

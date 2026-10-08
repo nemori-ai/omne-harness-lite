@@ -12,7 +12,8 @@ export type GovernanceAction =
   | 'logins.revoke'
   | 'credential.change'
 export type EntryCommand =
-  | { readonly kind: 'help' | 'version' }
+  | { readonly kind: 'help' }
+  | { readonly kind: 'version' }
   | { readonly kind: 'session'; readonly home: string | null; readonly session: string | null }
   | {
       readonly kind: 'message'
