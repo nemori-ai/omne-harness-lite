@@ -56,3 +56,19 @@ Session 桥撤除只交还消费句柄；真正模型提供者撤除才执行 S-
 
 有限模型与前提仍归精确 RT12 验证资源；Session 协调模型只覆盖其声明的有限域，不替代原模型首 token、响应或 ACK 义务。
 本页不保存一次运行结果，不将模型绿测等同于生产提供者接受。
+
+## 原执行来源的交接
+
+工厂创建方已拥有 construction 的物理资源，executionSource 只交给这个拥有者。
+业务输入 host 不承担可信恢复来源；向它传 invocation 会扩大其关闭权限，故保持 register(close)。
+来源定义归 core，生产归 local；原容器、store 和持久事实各保持原拥有者。
+同步 insert 转接消除“已接受执行但最终返回失败”时的来源漏记窗口。
+元数据观察不携调用私有大引用。非 ACK 停止保有原执行；已 issued 的暖恢复借用由实际 scope 收场配对释放；未 issued 准备由宿主 finally 释放。
+ACK 确认后封新原句柄捕获与私有副本 pin，仍允许 metadata-only capture。原执行停止且旧借用释放后解除全部模型侧副本，再发布 cleanup=released。
+因此不能把全容器保有到整体 source.release，也不能只换成持有原 invocation 来避开容器 GC。
+共享 binding/owner 不保有每调用大副本是必须用真实 holder 验证的前提。
+查询含糊时拒绝，不能凭顺序猜测原执行。
+
+正式 Cordis 提供者的来源交接另需受信装配边界及生命周期设计。
+不得把这个内部能力 source 直接作为普通模型调用方都能取得的服务或 capture 结果。
+本接缝不表示该正式提供者或完整 Session/Run 协调已经完成。

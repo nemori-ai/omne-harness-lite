@@ -1,4 +1,14 @@
 import {
+  createDemoRecoveryScope,
+  discardUnissuedRecovery,
+  type DemoRecoveryReady,
+} from './recovery-lifetime.ts'
+import {
+  captureExecutionInvocations,
+  releasedExecutionCalls,
+  originalExecutionInvocation,
+} from './recovery-executions.ts'
+import {
   createSessionModelSelection,
   createCallContainerStore,
   createModelCallContentStore,
@@ -38,7 +48,6 @@ import {
 import {
   type RuntimeConstruction,
   type SessionEffectiveModelResult,
-  type CallContainer,
 } from '@omne-harness-lite/model-request-runtime-local'
 import {
   interpretCallHistory,
@@ -54,6 +63,7 @@ import {
   type LegalTargetsResult,
   type DisplayListResult,
   type AnchoredInvocationHandle,
+  type ModelRuntimeExecutionCapture,
   type ObserverDiagnostic,
   type SettlementDiagnostic,
 } from '@omne-harness-lite/model-request-runtime'
@@ -734,32 +744,12 @@ export function createAcceptanceApplication(
   const runtimeBindings = new Map<SessionRef, SessionRuntimeBinding>()
   const controlledRuns = new Map<SessionRef, ControlledSingleRunSelection>()
   const calls = createCallContainerStore<PlannedRequest, RawResponse>()
-  const trackedCalls = new Map<
-    SessionRef,
-    Map<string, CallContainer<PlannedRequest, RawResponse>>
-  >()
   const callHosts = new Map<SessionRef, Set<DemoCallHost>>()
   const sessionTasks = new Map<SessionRef, Set<Promise<unknown>>>()
   const recoveryTasks = new Set<Promise<unknown>>()
   const recoveryAdmission = new Set<SessionRef>()
   const recoveryBusy = new Set<SessionRef>()
-  const recoveryReady = new Map<
-    SessionRef,
-    {
-      readonly binding: Pick<SessionRuntimeBinding, 'log'>
-      readonly owner: ReturnType<typeof createRequestOwner>
-      readonly originals: ReadonlyMap<
-        string,
-        {
-          readonly target: ModelLogSettlementTarget
-          readonly handle: AnchoredInvocationHandle
-        }
-      >
-      readonly coldTargets: ReadonlyMap<string, ModelLogSettlementTarget>
-      readonly coldAbsent: boolean
-      scopeIssued: boolean
-    }
-  >()
+  const recoveryReady = new Map<SessionRef, DemoRecoveryReady>()
   const observerAccess = createDemoObserverAccess()
   const observerGrants = new Set<{ readonly revoke: () => Promise<RuntimeCloseResult> }>()
   let gateOpen = false,
@@ -929,13 +919,6 @@ export function createAcceptanceApplication(
     job.then(finish, finish)
     return job
   }
-  function retainCall(session: SessionRef, callId: string): void {
-    const container = calls.find({ session, callId })
-    if (container === undefined) return
-    const sessionCalls = trackedCalls.get(session) ?? new Map()
-    sessionCalls.set(callId, container)
-    trackedCalls.set(session, sessionCalls)
-  }
   async function load<C>(
     name: StageFiber,
     plugin: Plugin.Object<C>,
@@ -1015,6 +998,7 @@ export function createAcceptanceApplication(
   async function drainModelConsumers() {
     // Recovery still uses the original runtime, binding and SQL journal owner.
     await Promise.allSettled([...recoveryTasks])
+    for (const session of recoveryReady.keys()) discardUnissuedRecovery(session, recoveryReady)
     const stoppedRuntime = await modelRuntime?.close()
     const stoppedSelections = await Promise.allSettled(
       [...sessionBorrows.values()].flatMap(borrow =>
@@ -1029,6 +1013,8 @@ export function createAcceptanceApplication(
       result => result.status === 'rejected' || 'unavailable' in result.value,
     )
     if (consumerUnavailable || modelResourcesRetained(stoppedRuntime)) return false
+    if (modelRuntime !== undefined && !('released' in modelRuntime.executionSource.release()))
+      return false
     for (const borrow of sessionBorrows.values()) borrow.owner.release()
     return true
   }
@@ -1960,8 +1946,7 @@ export function createAcceptanceApplication(
           }
           if (storage === undefined) throw new Error('acceptance storage absent')
           const callPresence = createDemoCallPresence({
-            calls,
-            retained: ref => trackedCalls.get(ref.session)?.get(ref.callId),
+            executions: () => modelRuntime?.executionSource,
             settled: session => {
               const owner = sessionBorrows.get(session)?.owner.owner
               return (
@@ -2074,54 +2059,15 @@ export function createAcceptanceApplication(
                   ready.owner.owner.unresolvedWrites().length !== 0
                 )
                   return { unavailable: true }
-                ready.scopeIssued = true
                 record({ event: 'operation', phase: 'recovery', outcome: 'entered' })
-                let closed = false
-                return {
-                  scope: {
-                    binding: ready.binding,
-                    owner: ready.owner.owner,
-                    originalInvocation(key, target) {
-                      if (key.session !== input.session || key.callId !== target.call)
-                        return { unavailable: true }
-                      const original = ready.originals.get(key.callId)
-                      if (original !== undefined) {
-                        if (
-                          original.target.response !== target.response ||
-                          !modelLogJsonEqual(original.target.dispatch, target.dispatch)
-                        )
-                          return { unavailable: true }
-                        return { original: original.handle }
-                      }
-                      const cold = ready.coldTargets.get(key.callId)
-                      if (
-                        !ready.coldAbsent ||
-                        cold === undefined ||
-                        cold.response !== target.response ||
-                        !modelLogJsonEqual(cold.dispatch, target.dispatch) ||
-                        trackedCalls.get(key.session)?.has(key.callId)
-                      )
-                        return { unavailable: true }
-                      return { absent: true }
-                    },
-                    async close() {
-                      if (closed) return
-                      await ready.owner.drain()
-                      if (
-                        ready.owner.retained() ||
-                        ready.owner.owner.unresolvedWrites().length !== 0 ||
-                        ready.binding.log.currentGeneration() !== ready.binding.log.generation
-                      )
-                        throw new Error('recovery owner retained')
-                      closed = true
-                      recoveryReady.delete(input.session)
-                      recoveryAdmission.delete(input.session)
-                      // Every unresolved dispatch of the covered cold worker is now settled.
-                      if (coldStopped.has(input.session)) coldStopped.set(input.session, new Map())
-                      record({ event: 'operation', phase: 'recovery', outcome: 'closed' })
-                    },
-                  },
-                }
+                return createDemoRecoveryScope(input.session, ready, {
+                  executions: () => modelRuntime?.executionSource,
+                  readyRows: recoveryReady,
+                  admission: recoveryAdmission,
+                  coldStopped,
+                  onClosed: () =>
+                    record({ event: 'operation', phase: 'recovery', outcome: 'closed' }),
+                })
               },
             },
             diagnosticCollector: tenant.collector,
@@ -3096,7 +3042,6 @@ export function createAcceptanceApplication(
           if (![...(callHosts.get(session) ?? [])].some(owner => owner.host === value.host))
             return { runtimeStopped: true } as const
           const result = await service.openCall(value)
-          if ('callId' in result) retainCall(session, result.callId)
           return result
         })
       },
@@ -3165,27 +3110,6 @@ export function createAcceptanceApplication(
       return { attached: true }
     })
   }
-  function captureOriginalHandles(
-    session: SessionRef,
-    calls: ReturnType<typeof trackedCalls.get>,
-    binding: ReturnType<typeof runtimeBindings.get>,
-    owner: SettlementOwner,
-    captured: Map<string, AnchoredInvocationHandle>,
-  ): boolean {
-    for (const [callId, container] of calls ?? []) {
-      const view = container.view()
-      if (
-        view.key.session !== session ||
-        view.key.callId !== callId ||
-        view.session !== binding ||
-        view.owner !== owner
-      )
-        return false
-      if (!captured.has(callId) && view.invocation !== undefined)
-        captured.set(callId, view.invocation)
-    }
-    return true
-  }
   function reconcileModelRuntime(
     actor: AuthenticatedActor,
     session: unknown,
@@ -3200,6 +3124,8 @@ export function createAcceptanceApplication(
         return { unavailable: true }
       recoveryBusy.add(key)
       recoveryAdmission.add(key)
+      const captures: ModelRuntimeExecutionCapture[] = []
+      const captured = new Map<string, Set<AnchoredInvocationHandle>>()
       try {
         // Resolve only this Session's original message writer before stopping its calls.
         if (!(await closeRetainedSettlements(key))) return { unavailable: true }
@@ -3207,15 +3133,20 @@ export function createAcceptanceApplication(
         if (ready === undefined) {
           const owners = callHosts.get(key)
           const cold = owners === undefined
-          if (cold && (runtimeBindings.has(key) || trackedCalls.has(key)))
+          if (
+            cold &&
+            (runtimeBindings.has(key) || modelRuntime.executionSource.snapshot(key).length !== 0)
+          )
             return { unavailable: true }
           for (const previous of owners ?? []) if (previous.released?.()) owners?.delete(previous)
           // Capture the original handle before stop may remove the container from the store.
-          const captured = new Map<string, AnchoredInvocationHandle>()
-          for (const [callId, container] of trackedCalls.get(key) ?? []) {
-            const handle = container.view().invocation
-            if (handle !== undefined) captured.set(callId, handle)
-          }
+          const beforeStop = modelRuntime.executionSource.capture(key)
+          if ('unavailable' in beforeStop) return { unavailable: true }
+          captures.push(beforeStop.capture)
+          for (const [callId, handles] of captureExecutionInvocations(
+            beforeStop.capture.executions,
+          ))
+            captured.set(callId, handles)
           // Stop active HTTP dispatch before draining admitted work: that work can be
           // waiting for the very abort which the host owns.
           const stopping = Promise.allSettled(
@@ -3225,28 +3156,32 @@ export function createAcceptanceApplication(
           const stopped = await stopping
           await access.borrow.owner.drain()
           const warmBinding = runtimeBindings.get(key)
-          const ownedCalls = trackedCalls.get(key)
+          const afterStop = modelRuntime.executionSource.capture(key)
+          if ('unavailable' in afterStop) return { unavailable: true }
+          captures.push(afterStop.capture)
+          let executions = afterStop.capture.executions
           if (
             (!cold && warmBinding === undefined) ||
             (warmBinding !== undefined && warmBinding.log !== access.borrow.binding) ||
             access.borrow.binding.currentGeneration() !== access.borrow.binding.generation
           )
             return { unavailable: true }
+          const ownedCalls = releasedExecutionCalls(
+            executions,
+            key,
+            warmBinding,
+            access.borrow.owner.owner,
+          )
           if (
-            !captureOriginalHandles(
-              key,
-              ownedCalls,
-              warmBinding,
-              access.borrow.owner.owner,
-              captured,
-            )
+            ownedCalls === undefined ||
+            stopped.some(result => result.status === 'rejected' || 'unavailable' in result.value)
           )
             return { unavailable: true }
-          if (
-            stopped.some(result => result.status === 'rejected' || 'unavailable' in result.value) ||
-            [...(ownedCalls?.values() ?? [])].some(container => !container.canRemove())
-          )
-            return { unavailable: true }
+          for (const [callId, handles] of captureExecutionInvocations(executions)) {
+            const originals = captured.get(callId) ?? new Set<AnchoredInvocationHandle>()
+            for (const handle of handles) originals.add(handle)
+            captured.set(callId, originals)
+          }
           if (
             access.borrow.owner.retained() ||
             access.borrow.owner.owner.admission() !== 'open' ||
@@ -3293,29 +3228,35 @@ export function createAcceptanceApplication(
             string,
             { readonly target: ModelLogSettlementTarget; readonly handle: AnchoredInvocationHandle }
           >()
-          for (const [callId, handle] of captured) {
+          for (const [callId, handles] of captured) {
             const history = interpretCallHistory({ prefix: prefix.prefix, callId })
             if (!('known' in history)) return { unavailable: true }
             const last = history.known.dispatches.at(-1)
             if (last === undefined || last.response !== null) continue
-            originals.set(callId, {
-              target: {
-                call: callId,
-                dispatch: last.record.dispatch,
-                response: last.record.response,
-              },
-              handle,
-            })
+            const target: ModelLogSettlementTarget = {
+              call: callId,
+              dispatch: last.record.dispatch,
+              response: last.record.response,
+            }
+            const handle = originalExecutionInvocation(handles, target)
+            if (handle === undefined) return { unavailable: true }
+            originals.set(callId, { target, handle })
           }
           ready = {
             binding: { log: access.borrow.binding },
             owner: access.borrow.owner,
+            captures: [...captures],
             originals,
             coldTargets,
             coldAbsent: cold && options.coldRecovery?.covered === true,
             scopeIssued: false,
           }
           recoveryReady.set(key, ready)
+          // The ready row is now the sole prepared holder. No raw preparation array
+          // or handle Map may cross the asynchronous scope handoff.
+          captured.clear()
+          executions = []
+          captures.length = 0
           if (ready.coldAbsent) coldStopped.set(key, coldTargets)
         } else {
           await Promise.allSettled([...(sessionTasks.get(key) ?? [])])
@@ -3348,6 +3289,12 @@ export function createAcceptanceApplication(
       } catch {
         return { unavailable: true }
       } finally {
+        captured.clear()
+        const prepared = recoveryReady.get(key)
+        discardUnissuedRecovery(key, recoveryReady)
+        // A successful enter hands these frames to the registered runtime scope.
+        if (prepared?.scopeIssued !== true) for (const capture of captures) capture.release()
+        captures.length = 0
         recoveryBusy.delete(key)
       }
     })
@@ -3548,7 +3495,6 @@ export function createAcceptanceApplication(
             ? {}
             : { run: request.run, attempt: request.attempt, report: request.report }),
         })
-        if ('callId' in opened) retainCall(borrow.binding.session, opened.callId)
         if (!('state' in opened) || (opened.state !== 'open' && opened.state !== 'resumable'))
           return opened
         const result = await service.dispatch({
@@ -3816,7 +3762,6 @@ export function createAcceptanceApplication(
             attempt: adopted.attempt,
             report: adopted.report,
           })
-          if ('callId' in opened) retainCall(borrow.binding.session, opened.callId)
           if (!('state' in opened) || (opened.state !== 'open' && opened.state !== 'resumable')) {
             await grant?.revoke()
             return reject(

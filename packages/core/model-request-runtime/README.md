@@ -4,6 +4,8 @@
 
 Public model-request definitions, the complete fifteen-operation protocol, explicit host ports, codecs, and standalone selection, retry, history, and response functions. The root has no Cordis or concrete-provider dependency. `readSettlementPrefix` performs IO through the caller's explicit log and registration ports; framework independence does not mean absence of IO.
 
+The root also defines `ModelRuntimeExecutionSource` for trusted physical assembly owners. It carries original internal execution capabilities, so business operations and caller-supplied hosts must not receive it. See [the source boundary](SPEC.md#物理拥有者的执行来源).
+
 ## Public entries and owners
 
 | Entry                                  | Purpose                                                                                                                             |

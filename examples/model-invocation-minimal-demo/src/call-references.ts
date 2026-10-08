@@ -9,23 +9,16 @@ import {
 import {
   type CallAccess,
   type CallAccessEvidence,
+  type CallOrigin,
+  type CallPresenceFact,
+  type CallSource,
   type CallPresence,
   type CallPresenceInput,
   type SettlementLogBinding,
+  type ModelRuntimeExecutionSource,
+  type ModelRuntimeExecutionObservation,
 } from '@omne-harness-lite/model-request-runtime'
-import {
-  type CallContainer,
-  type CallContainerStore,
-  type CallFactsView,
-} from '@omne-harness-lite/model-request-runtime-local'
-import type {
-  CallOrigin,
-  CallPresenceFact,
-  CallSource,
-} from '@omne-harness-lite/model-request-runtime'
-import type { PlannedRequest, RawResponse } from '@omne-harness-lite/model-request-runtime'
-
-type DemoContainer = CallContainer<PlannedRequest, RawResponse>
+import { type CallFactsView } from '@omne-harness-lite/model-request-runtime-local'
 
 /**
  * The single-process demo host is the only trusted source for both access and presence
@@ -66,9 +59,8 @@ export function deriveCreationKey(input: {
 }
 
 export interface DemoCallPresenceHost {
-  readonly calls: CallContainerStore<PlannedRequest, RawResponse>
-  /** The container this process actually opened, even after the store released it. */
-  readonly retained: (ref: CallKey) => DemoContainer | undefined
+  /** The fixed physical owner's source, installed before this application opens admission. */
+  readonly executions: () => ModelRuntimeExecutionSource | undefined
   /** True only when this session's settlement owner has no unknown opened or response writer. */
   readonly settled: (session: SessionRef) => boolean
   /**
@@ -80,43 +72,59 @@ export interface DemoCallPresenceHost {
   ) => { readonly target: ModelLogSettlementTarget | null } | undefined
 }
 
+function executionFact(
+  view: ModelRuntimeExecutionObservation,
+  host: DemoCallPresenceHost,
+  input: CallPresenceInput,
+): CallPresenceFact | undefined {
+  const sourceVersion = DEMO_REFERENCE_SOURCE_VERSION
+  if (
+    view.session.log.generation !== input.source.generation ||
+    view.session.log.session !== input.ref.session ||
+    !tenantIdEquals(view.session.log.tenant, input.origin.tenant)
+  )
+    return undefined
+  if (view.registered && !view.released)
+    return {
+      kind: 'live',
+      source: input.source,
+      executionGeneration: view.executionGeneration,
+      sourceVersion,
+    }
+  // Only a container that released its exact lease, with no unknown writer left on the
+  // session owner, is an actual stop.
+  if (
+    !view.released ||
+    !host.settled(input.ref.session) ||
+    !('confirmed' in view.owner.opened()) ||
+    view.owner.unresolvedWrites().length !== 0
+  )
+    return { kind: 'unknown', source: input.source, executionGeneration: null, sourceVersion }
+  return {
+    kind: 'stopped',
+    source: input.source,
+    executionGeneration: view.executionGeneration,
+    sourceVersion,
+    target: null,
+    unknownBatches: [],
+  }
+}
+
 function presenceFact(
   host: DemoCallPresenceHost,
   input: CallPresenceInput,
 ): CallPresenceFact | undefined {
   const sourceVersion = DEMO_REFERENCE_SOURCE_VERSION
-  const stored = host.calls.find(input.ref)
-  // A closed container can remain findable until the store drops it, so the container itself,
-  // not its presence in the store, says whether the original execution still holds resources.
-  const container = stored ?? host.retained(input.ref)
-  if (container !== undefined) {
-    const view = container.view()
-    if (
-      view.session.log.generation !== input.source.generation ||
-      view.session.log.session !== input.ref.session ||
-      !tenantIdEquals(view.session.log.tenant, input.origin.tenant)
-    )
-      return undefined
-    if (stored !== undefined && !container.canRemove())
-      return {
-        kind: 'live',
-        source: input.source,
-        executionGeneration: view.executionGeneration,
-        sourceVersion,
-      }
-    // Only a container that released its exact lease, with no unknown writer left on the
-    // session owner, is an actual stop.
-    if (!container.canRemove() || !host.settled(input.ref.session))
-      return { kind: 'unknown', source: input.source, executionGeneration: null, sourceVersion }
-    return {
-      kind: 'stopped',
-      source: input.source,
-      executionGeneration: view.executionGeneration,
-      sourceVersion,
-      target: null,
-      unknownBatches: [],
-    }
+  const source = host.executions()
+  if (source === undefined)
+    return { kind: 'unknown', source: input.source, executionGeneration: null, sourceVersion }
+  const found = source.lookup(input.ref)
+  if ('execution' in found) {
+    return executionFact(found.execution, host, input)
   }
+  // An ambiguous retained execution cannot borrow a cold worker's absence witness.
+  if (source.snapshot(input.ref.session).some(record => record.key.callId === input.ref.callId))
+    return { kind: 'unknown', source: input.source, executionGeneration: null, sourceVersion }
   const cold = host.coldRecovered(input.ref)
   if (cold !== undefined && host.settled(input.ref.session))
     return {
@@ -130,11 +138,16 @@ function presenceFact(
   return { kind: 'unknown', source: input.source, executionGeneration: null, sourceVersion }
 }
 
-/** Presence is read from the demo's real execution registry; an empty Map never means stopped. */
+/** Presence reads the original physical owner's source; absence never proves a stop. */
 export function createDemoCallPresence(host: DemoCallPresenceHost): CallPresence {
   return {
     async read(input, observed) {
-      const fact = presenceFact(host, input)
+      let fact: CallPresenceFact | undefined
+      try {
+        fact = presenceFact(host, input)
+      } catch {
+        return { unavailable: true }
+      }
       if (fact === undefined) return { unavailable: true }
       return { read: await observed(fact) }
     },

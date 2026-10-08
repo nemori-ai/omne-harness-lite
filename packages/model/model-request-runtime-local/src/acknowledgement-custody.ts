@@ -104,6 +104,13 @@ export function createAcknowledgementCustody<P extends PlannedSemantics, R>(inpu
   readonly scheduler: SettlementScheduler
   readonly policy: AcknowledgementCleanupPolicy
   readonly diagnostic: (event: { readonly kind: string; readonly detail?: JsonValue }) => void
+  readonly runtimeCopies?: {
+    readonly stopCapture: (ref: CallKey) => void
+    readonly releaseCopies: (
+      binding: SettlementLogBinding,
+      ref: CallKey,
+    ) => readonly AckPendingReason[]
+  }
 }): AcknowledgementCustody {
   if (
     typeof input.policy?.next !== 'function' ||
@@ -185,14 +192,18 @@ export function createAcknowledgementCustody<P extends PlannedSemantics, R>(inpu
       report('confirm', ref, { result: 'unavailable' })
       return { cleanup: 'pending', pendingReasons: ['storage_unavailable'] }
     }
-    if (confirmed.phase === 'released') return { cleanup: 'released' }
+    if (confirmed.phase === 'released' && input.runtimeCopies === undefined)
+      return { cleanup: 'released' }
     let inMemory: readonly AckPendingReason[]
     try {
+      input.runtimeCopies?.stopCapture(ref)
       inMemory = await releaseInMemory(ref)
+      if (inMemory.length === 0) inMemory = input.runtimeCopies?.releaseCopies(binding, ref) ?? []
     } catch {
       inMemory = ['writer_in_flight']
     }
     if (inMemory.length !== 0) return { cleanup: 'pending', pendingReasons: inMemory }
+    if (confirmed.phase === 'released') return { cleanup: 'released' }
     return await input.content.releaseAcknowledged({ binding, call: ref.callId })
   }
 

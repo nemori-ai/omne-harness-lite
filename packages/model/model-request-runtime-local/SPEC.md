@@ -17,7 +17,7 @@
 
 ## 固定主体与共享执行
 
-`createModelRuntime(construction)` 返回默认完整 `service`、`project(inputs, facts)` 与唯一整体 `close`。
+`createModelRuntime(construction)` 返回默认完整 `service`、`project(inputs, facts)`、唯一整体 `close` 与物理拥有者的 `executionSource`。
 `inputs` 是受信装配提供的 `ModelRuntimeHostInputs`，每个端口固定本次真实主体和来源。
 资格在原操作使用点重核。端口是当前资格的事实来源，不能捕获一次允许后永久放行。
 装配须提供稳定端口对象，不能在投影建立后将其中的方法替换为另一主体。
@@ -67,3 +67,33 @@
 
 既有耐久、恢复、保留、默认策略和 codec 用例保持。纯 retryDelay 向量随其唯一拥有者迁移。
 真实消费者用新公开入口，独立验证须对本批精确版本核对隔离、同提交、撤除与恢复热点。
+
+## 实际执行来源的生产
+
+工厂物理拥有者另外取得公共 `ModelRuntimeExecutionSource`；service/project 不携带它。
+所有投影共用原 calls store 的私有转接，正常与 resumable 创建都在 insert 的同步边界登记。
+原 insert 前先保有 prepared 原引用，不读取 view、不 await 或调用外部登记回调。
+预保有分配失败时原 insert 尚未发生，准备责任沿原失败收场。
+原 insert 返回 false 只撤本次新增引用；true 后不再分配登记；抛错时保有原候选并传播原失败。
+其余 store 方法保持原 receiver、reservation 身份和结果。
+物理 store 的唯一拥有者检查仍用原 store 身份。
+
+索引保有全原容器或 ACK 后的小见证，不新增实际 store、事实、Schema、writer 或任务。
+metadata 查询仅对 full record 读取一次原 view，以原 find/canRemove 取得登记/释放事实。
+ACK 后小见证直接投影先前确认的原停止/释放事实，不再读原容器或为此保有闭包。
+lookup 仅查该 key 的原代际；选择和借用规则沿公共协议。
+capture 分配全部原投影及 frame 后，才同步发布逐原记录 pin 和全局 frame 计数。
+释放后 frame 清自己的数组和记录引用，不依赖 GC，不撤销外部逃逸能力。
+
+整体 factory 的唯一 ACK custody 取得私有 stopCapture/releaseCopies 配对；独立 custody 可以不取得该资源。
+content.confirmAcknowledgement 真正确认后先封该 key，再原 releaseInMemory 完成实际关闭/移除。
+releaseCopies 对全部原代核同 log binding、真实 released/未 registered 和旧 capture 计数。
+不一致为 receipt_unknown，未实际停为 writer_in_flight，旧 pin 为 external_retention。
+失败保有原副本，沿既有显式 cleanup 政策/scheduler 重试，不新增定时器或立即完成承诺。
+全部小见证先准备完成，再同步清全原容器/句柄及每调用大引用，之后才允许原 Storage cleanup=released。
+已耐久 released 不倒退，但不能跳过本进程副本检查。非 ACK stop/remove 保有原恢复及费用责任。
+整体 close 不隐式清来源；source.release 还须全部 frame 已释放。
+
+原 A22-V10 GC 两例、六轮收集和 90000ms 保持。
+另验 metadata 外持、request/pending/invocation 的大引用、idle frame、活动 capture 对 ACK 的阻挡与释放后重试。
+有限机制模型核同步 pin/seal/erase/released 和整体释放次序，不证明 GC 或 IO。

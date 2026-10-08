@@ -351,6 +351,9 @@ describe('D102 unified model runtime owner', () => {
         const successor = runtime.project(construction, construction.callFacts)
         expect(Object.keys(service).sort()).toEqual(Object.keys(runtime.service).sort())
         expect(service).not.toHaveProperty('close')
+        expect(service).not.toHaveProperty('executionSource')
+        expect(successor).not.toHaveProperty('executionSource')
+        expect(runtime.executionSource.release()).toEqual({ unavailable: true })
 
         expect(
           await service.selectModel({
@@ -374,11 +377,32 @@ describe('D102 unified model runtime owner', () => {
           callId: 'runtime-call-1',
           state: 'open',
         })
+        const actualContainer = calls.find({ session: host.session, callId: 'runtime-call-1' })
+        if (actualContainer === undefined) throw new Error('physical container absent')
+        const observed = runtime.executionSource.lookup(actualContainer.key)
+        expect(observed).toHaveProperty('execution')
+        if (!('execution' in observed)) throw new Error('original source absent')
+        expect(observed.execution.session).toBe(binding)
+        expect(observed.execution.owner).toBe(actualContainer.view().owner)
+        expect(observed.execution.executionGeneration).toBe(
+          actualContainer.view().executionGeneration,
+        )
+        expect(observed.execution.registered).toBe(true)
+        expect(observed.execution.released).toBe(false)
         const dispatched = await service.dispatch({
           session: host.session,
           callId: 'runtime-call-1',
         })
         expect(dispatched).toHaveProperty('replyPending')
+        const dispatchedObservation = runtime.executionSource.lookup(actualContainer.key)
+        if (!('execution' in dispatchedObservation)) throw new Error('dispatch source absent')
+        expect(dispatchedObservation.execution).not.toHaveProperty('invocation')
+        const capturedExecution = runtime.executionSource.capture(host.session)
+        if (!('capture' in capturedExecution)) throw new Error('capture absent')
+        expect(capturedExecution.capture.executions[0]?.invocation).toBe(
+          actualContainer.view().invocation,
+        )
+        capturedExecution.capture.release()
         expect(wire.sends()).toBe(1)
         // S-86/S-34⑤: the confirmed ready is complete with disposition_pending on every read
         // face; readAttempts carries the complete original result, never reply_pending.
@@ -514,11 +538,20 @@ describe('D102 unified model runtime owner', () => {
         expect(await closing).toEqual(initiallyFails ? { unavailable: true } : { released: true })
         expect(cleanupAttempts).toBe(1)
         if (initiallyFails) {
+          expect(runtime.executionSource.release()).toEqual({ unavailable: true })
+          expect(runtime.executionSource.lookup(actualContainer.key)).toHaveProperty('execution')
           cleanupFailed = false
           expect(await runtime.close()).toEqual({ released: true })
           expect(cleanupAttempts).toBe(2)
         }
         expect(await runtime.close()).toEqual({ released: true })
+        const afterClose = runtime.executionSource.lookup(actualContainer.key)
+        if (!('execution' in afterClose)) throw new Error('close erased original execution')
+        expect(afterClose.execution.released).toBe(true)
+        expect(runtime.executionSource.release()).toEqual({ released: true })
+        expect(runtime.executionSource.release()).toEqual({ released: true })
+        expect(runtime.executionSource.lookup(actualContainer.key)).toEqual({ unknown: true })
+        expect(runtime.executionSource.snapshot(host.session)).toEqual([])
         expect(cleanupAttempts).toBe(initiallyFails ? 2 : 1)
         expect(released).toBe(2)
         expect(registrations.size).toBe(0)

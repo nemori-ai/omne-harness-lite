@@ -11,12 +11,14 @@ import { createServiceDispatch } from './service-dispatch.ts'
 import { createServiceControl } from './service-control.ts'
 import { createRuntimeReconcile, createRuntimeSettleReply } from './service-reconcile.ts'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
+import { retainRuntimeExecutions } from './execution-source.ts'
 import type {
   ModelRuntimeOperations,
   ModelRuntimeHostInputs,
   RuntimeCloseResult,
   FailureConsumableOperation,
   FailureConsumption,
+  ModelRuntimeExecutionSource,
 } from '@omne-harness-lite/model-request-runtime'
 import type { RuntimeConstruction } from './service-types.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
@@ -27,15 +29,20 @@ const runtimeStopped = Object.freeze({ runtimeStopped: true } as const)
 
 /** One process owner for all reference lifecycle operations and their shared call store. */
 export function createModelRuntime<P extends PlannedSemantics, R>(
-  construction: RuntimeConstruction<P, R>,
+  provided: RuntimeConstruction<P, R>,
 ): {
   readonly service: ModelRuntimeOperations
   readonly project: (inputs: ModelRuntimeHostInputs, facts: CallFactsView) => ModelRuntimeOperations
   readonly close: () => Promise<RuntimeCloseResult>
+  readonly executionSource: ModelRuntimeExecutionSource
 } {
-  if (ownedStores.has(construction.calls)) throw new TypeError('call store already owned')
+  if (ownedStores.has(provided.calls)) throw new TypeError('call store already owned')
+  let released = false
+  const executions = retainRuntimeExecutions(provided.calls, () => released)
+  const construction = Object.freeze({ ...provided, calls: executions.calls })
   // RT12 S-98: one custody per runtime owns ACK cleanup; its explicit retry policy is required.
   const custody = createAcknowledgementCustody({
+    runtimeCopies: executions.runtimeCopies,
     calls: construction.calls,
     content: construction.callFacts.content,
     scheduler: construction.settlementScheduler,
@@ -92,11 +99,10 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
     settlementWork: { store: source.callFacts.content.work, owns: settleReply.ownsWork },
   })
   const reconcile = createRuntimeReconcile(recoveryInputs(construction))
-  ownedStores.add(construction.calls)
+  ownedStores.add(provided.calls)
 
   const inFlight = new Set<Promise<void>>()
   let admissionClosed = false
-  let released = false
   let closing: Promise<RuntimeCloseResult> | undefined
 
   function guarded<I, O>(
@@ -324,5 +330,5 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
     return closing
   }
 
-  return Object.freeze({ service, project, close })
+  return Object.freeze({ service, project, close, executionSource: executions.source })
 }

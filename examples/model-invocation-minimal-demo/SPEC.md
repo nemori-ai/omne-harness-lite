@@ -46,3 +46,38 @@ runner 在实际 authorize 返回后取得并保有该主体的模型投影，�
 没有主体的 maintenance 不能取得模型重试资格。
 原 calls、facts、warm/cold 恢复及在途收场拥有者继续提供真实来源。
 该接线不声明正式 ModelRuntime Service、完整 Session/Run 或无 Agent 恢复驱动已完成。
+
+## 受信执行来源与恢复
+
+装配拥有者只在私有 presence 和暖恢复组合中消费 runtime.executionSource。
+业务 host 仍只接收原 close；十五操作、业务结果与普通 runner 不取得来源。
+来源在开闸前固定，缺失来源不能当作停止。
+
+presence 核原 tenant、Session 和日志代际；live 需要原 registered 且未 released。
+stopped 需要该原容器 released，且原 settlement owner 没有未知 writer。
+来源含糊为 unknown，读取异常沿原业务入口报告 unavailable。
+冷 worker 退出仍由原冷恢复来源证明，空 snapshot 不构成退出证据。
+
+暖恢复关 Session 准入后 capture 全部原 invocation，停止原 host 并排空原任务与 writer，再 capture 认回晚附加。
+核每份原 binding/owner/代际，全部原执行须实际 released，完整前缀保有调用身份。
+单一原句柄沿既有恢复路径；多句柄只接受唯一 observedFacts(target) 匹配，零或多匹配 unavailable。
+仍须逐使用点重核当前资格，不以执行标签代替租户授权。
+
+recoveryReady 登记仍归宿主准备，不是 scope 移交。
+只有 enter 已构造 scope，且在最后同步步骤设置 scopeIssued 并返回后，原 runtime entry 才拥有 scope close/retry。
+此后不执行可抛的外部回调。authorize/enter 拒绝或抛错、其他前置失败，宿主 finally 清临时 Map、未 issued ready.originals 和两份 capture。
+失败保持原恢复准入关闭，直到重试成功或应用撤除，不假报恢复完成。
+已 issued scope 关闭失败保留原责任；原 drain/资格真正满足后清 originals/frames，删除 ready 并重开准入。
+已关闭 scope.originalInvocation 返回 unavailable，不能重新取得原句柄。
+
+应用 drain 先等 recoveryTasks 并清未 issued ready，再由 runtime.close 关闭已移交 scope。
+全部实际消费者停止后才 source.release；活动 frame 或未知保有不能变成关闭成功。
+frame 释放不撤销逃逸引用。原 45000ms 冷恢复阈值保持；实际 worker 退出仍是冷恢复前提。
+
+## 内部恢复生命周期
+
+`src/recovery-lifetime.ts` 使用同一 ready 行、实际 RequestOwner 和原 capture，负责 scope 移交、关闭及未移交准备的释放。它不是新的公开业务入口。当前主体授权、实际 SQL 前缀、来源匹配及停止前后的 capture 仍由 bootstrap 准备和核对。
+
+scope 完整创建后才标记 issued。关闭须先等待实际 owner 排空并核其保有、写者及原日志代际。失败保留原句柄、frames 和准入责任，同一 scope 可以重试。成功先拒绝旧 scope 的句柄读取，再清原句柄并释放 frames，最后撤除原准备和准入登记。未 issued 清理只作用于宿主仍拥有的准备，不能释放已经移交的责任。
+
+实际生产 helper 与 owner 的组合验证 scope 行为。真实应用故障和接线验证共同检查 bootstrap 的 finally／shutdown 调用，不能以 helper 测试替代真实应用行为。
