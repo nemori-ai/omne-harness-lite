@@ -23,6 +23,7 @@ import type { LogAuthorityOperations, SessionLogParticipant } from '@omne-harnes
 import type { AdmissionSource, AdmissionTicket, LocalAdmission } from './admission-types.ts'
 import type { StateOptions, StatePolicy } from './state-types.ts'
 import type { ReceiptPolicy } from './receipt-types.ts'
+import type { OriginalRunJournal } from './run-journal-types.ts'
 import type { ModelResultSource, LocalModelResultCustody } from './model-result-types.ts'
 
 /** The host must durably bind the original recipe and initialize its real Session Context before ready. */
@@ -117,6 +118,7 @@ export interface LocalSessionIngress {
     >
   }
   readonly modelResults: LocalModelResultCustody
+  readonly runJournal: OriginalRunJournal
   readonly lifecycle: {
     readonly commitStep: (
       authority: CoordinationAuthority,

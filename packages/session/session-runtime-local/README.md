@@ -55,3 +55,9 @@ createLocalSessionAccess borrows actual current authority and a fixed authentica
 Supply an actual original execution source and explicit limits through `modelResults`. The trusted custody port stores the complete Pending value, its required references, the original issue identity, and the receipt in the same storage unit as the custody fact. It uses the original Run grant, including for late results. Replay checks the original fact and issue proof and returns the original value and receipt. A different value or an alias result key is rejected.
 
 An unavailable reference source rolls back the unit. An unknown commit preserves the original result identity for lookup. Neither outcome permits ACK. Custody does not advance a Run, set a reply disposition, or send ACK. The root must connect the actual model source and the model owner's ACK rules. Close drains registered work and retains borrowed dependencies. See [provider behavior](SPEC.md#原完整模型结果保管).
+
+## Original Run log borrow
+
+The trusted root can borrow `runJournal` with the original coordination authority, Scope and Run. Each read or write checks the durable grant in its actual storage unit. The borrow supplies the complete prefix and native `SessionLog` operations for model settlement. It does not replace current execution permission or the unique issue claim.
+
+The root must retain the borrow until the original model work and ACK responsibility end. Ingress close waits for each accepted borrow to be returned. Borrow close revokes admission and drains its units without closing physical dependencies. Its process-local generation becomes unavailable at close. See [provider behavior](SPEC.md#原run日志借用).

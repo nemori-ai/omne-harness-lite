@@ -28,6 +28,7 @@ import { runtimeAuthority } from './runtime-authority.ts'
 import { createSessionLifecycle } from './coordination.ts'
 import { createSessionModelAdmission } from './model-invocation.ts'
 import { createModelResultCustody } from './model-result-custody.ts'
+import { createOriginalRunJournal } from './run-journal.ts'
 import { createLocalSessionState } from './state-participant.ts'
 import { createLocalOperationReceipts } from './receipt-participant.ts'
 import { creationInput, runtimeSemantic, RuntimeRejection } from './runtime-values.ts'
@@ -81,6 +82,7 @@ export function createLocalSessionIngress(options: RuntimeOptions): LocalSession
     lifecycle: owner.lifecycle,
     modelInvocation: owner.modelInvocation,
     modelResults: owner.modelResults,
+    runJournal: owner.runJournal,
     close: owner.close,
   })
 }
@@ -115,6 +117,8 @@ class SessionIngress implements LocalSessionIngress {
     return this.authority.coordination
   }
   readonly modelInvocation: LocalSessionIngress['modelInvocation']
+  readonly runJournal: LocalSessionIngress['runJournal']
+  private readonly originalJournals: ReturnType<typeof createOriginalRunJournal>
   readonly modelResults: LocalSessionIngress['modelResults']
   readonly lifecycle: LocalSessionIngress['lifecycle']
   readonly pending = new Set<Promise<unknown>>()
@@ -123,6 +127,19 @@ class SessionIngress implements LocalSessionIngress {
     this.authority = runtimeAuthority(options)
     this.access = this.authority.access
     this.log = options.log(this.authority.log)
+    this.originalJournals = createOriginalRunJournal({
+      options,
+      authority: this.authority,
+      log: this.log,
+    })
+    this.runJournal = Object.freeze<LocalSessionIngress['runJournal']>({
+      borrow: (authority, scope, run) =>
+        this.run(
+          this.access,
+          () => this.originalJournals.operations.borrow(authority, scope, run),
+          [] as const,
+        ),
+    })
     this.state = createLocalSessionState({
       ...options,
       authority: this.authority.state,
@@ -251,6 +268,7 @@ class SessionIngress implements LocalSessionIngress {
     const settled = await Promise.allSettled([...this.pending])
     const errors = settled.filter(r => r.status === 'rejected').map(r => r.reason)
     if (errors.length) throw new AggregateError(errors, 'Session ingress drain failed')
+    await this.originalJournals.close()
   }
   member<T>(action: (unit: StorageUnit) => Promise<T>): Promise<T> {
     return this.options.admission.withMember(

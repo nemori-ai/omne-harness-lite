@@ -55,3 +55,9 @@ createLocalSessionAccess借入真实当前authority、固定的已鉴权主体�
 根通过modelResults提供实际原执行来源和显式容量。可信保管分面沿原Run grant，将完整Pending、必要引用、原发起身份和回执与保管事实同提交；终态迟到不重新取得推进资格。重放核原事实及发起证明，返回原全文与回执；异值或别名结果键拒绝。
 
 引用保管不可用回滚整个单元；未知提交保留原结果身份，只认回、不ACK。保管不推进Run、不设置replyDisposition、不发送ACK。根仍须连接实际模型来源及原模型拥有者的ACK规则。关闭等待已登记工作，不关闭借入依赖。行为归[提供者规格](SPEC.md#原完整模型结果保管)。
+
+## 原Run日志借用
+
+可信根以原协调权限、Scope和Run借用runJournal；每次实际Unit重新核原持久grant。借用提供完整前缀和SessionLog操作，供模型结算使用，不代替当前执行资格或唯一发起claim。
+
+根须等原模型工作及ACK责任结束再归还借用；Ingress关闭等待已接受借用归还。借用close撤新入口并排空实际单元，不关闭物理依赖；进程内generation在关闭时失效。行为归[提供者规格](SPEC.md#原run日志借用)。

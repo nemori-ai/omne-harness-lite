@@ -18,6 +18,7 @@ import { openStorage, type SqlStorage } from '@omne-harness-lite/storage-sql'
 import { StorageUnavailable, type AtomicStorage } from '@omne-harness-lite/storage'
 import {
   parseAccountId,
+  parseOpaqueIdentifier,
   parseLoginStateId,
   parseTenantId,
   unwrap,
@@ -2253,5 +2254,264 @@ describe('original model result custody', () => {
     await close
     expect(await f.count('sr_model_result')).toEqual({ n: 1 })
     expect(await f.log().readSince(p.scope.session, 8)).toHaveProperty('tail', 9)
+  })
+})
+
+describe('original Run journal borrow for model settlement', () => {
+  async function borrowed() {
+    const f = await fixture(),
+      p = await preparedAttempt(f)
+    const result = await f.runtime.runJournal.borrow(
+      f.runtime.coordinationAuthority,
+      p.scope,
+      p.step.run,
+    )
+    if (!('journal' in result)) throw new Error('original Run journal unavailable')
+    return { f, p, journal: result.journal }
+  }
+  it('provides one actual prefix and same-Unit write under the original grant after member refusal', async () => {
+    const { f, p, journal } = await borrowed()
+    try {
+      f.setDecision('memberRejected')
+      const denied = await f.admission.reserve(source, {
+        tenant,
+        session: null,
+        purpose: 'createSession',
+        operationKey: 'probe-rejected',
+        inputPosition: null,
+      })
+      await f.admission.query(denied.ticket)
+      const count = f.probe.mock.calls.length
+      expect(await f.runtime.journal.readPrefix(f.runtime.access, p.scope.session)).toEqual({
+        failure: 'denied',
+      })
+      const prefix = await journal.readPrefix()
+      if ('failure' in prefix) throw new Error('original prefix unavailable')
+      expect(prefix.entries.length).toBe(6)
+      expect(prefix.source.tail).toEqual(prefix.tail)
+      const result = await journal.log.append(
+        p.scope.session,
+        [
+          {
+            tenant,
+            run: p.step.run,
+            attempt: p.step.attempt,
+            dedupeKey: 'original-settlement',
+            readKeys: ['original-settlement'],
+            payload: { settlement: 'actual original Run' },
+          },
+        ],
+        { kind: 'unfenced' },
+        { kind: 'tailEquals', tail: prefix.tail },
+      )
+      expect(result).toMatchObject({ positions: [7], tail: 7 })
+      expect(await journal.log.readByKey(p.scope.session, 'original-settlement')).toMatchObject({
+        entries: [{ position: 7 }],
+        tail: 7,
+      })
+      expect(await journal.log.readSince(p.scope.session, 6)).toMatchObject({
+        entries: [{ position: 7 }],
+        tail: 7,
+      })
+      expect(f.probe.mock.calls.length).toBe(count)
+    } finally {
+      await journal.close()
+    }
+  })
+  it('rejects copied authority, unknown Run and foreign tenant without granting a writer', async () => {
+    const f = await fixture(),
+      p = await preparedAttempt(f)
+    expect(
+      await f.runtime.runJournal.borrow(
+        {} as typeof f.runtime.coordinationAuthority,
+        p.scope,
+        p.step.run,
+      ),
+    ).toEqual({ failure: 'denied' })
+    expect(
+      await f.runtime.runJournal.borrow(f.runtime.coordinationAuthority, p.scope, 'missing-run'),
+    ).toEqual({ failure: 'denied' })
+    expect(
+      await f.runtime.runJournal.borrow(
+        f.runtime.coordinationAuthority,
+        {
+          tenant: unwrap(parseTenantId({ ...tenant, organization: 'foreign' })),
+          session: p.scope.session,
+        },
+        p.step.run,
+      ),
+    ).toEqual({ failure: 'denied' })
+    expect(await f.runtime.runJournal.borrow(f.runtime.coordinationAuthority, p.scope, '')).toEqual(
+      { failure: 'invalidInput' },
+    )
+  })
+  it('refuses a borrowed writer used for another Session or Run before touching storage', async () => {
+    const { f, p, journal } = await borrowed()
+    try {
+      const write = vi.spyOn(f.storage, 'atomic')
+      expect(
+        await journal.log.append(
+          unwrap(parseOpaqueIdentifier('other-session', 'SessionRef')),
+          [{ tenant, readKeys: [], payload: { x: 1 } }],
+          { kind: 'unfenced' },
+          { kind: 'unconditional' },
+        ),
+      ).toEqual({ failure: 'invalidInput' })
+      expect(
+        await journal.log.append(
+          p.scope.session,
+          [{ tenant, run: 'other-run', attempt: 1, readKeys: [], payload: { x: 1 } }],
+          { kind: 'unfenced' },
+          { kind: 'unconditional' },
+        ),
+      ).toEqual({ failure: 'invalidInput' })
+      expect(
+        await journal.log.readSince(
+          unwrap(parseOpaqueIdentifier('other-session', 'SessionRef')),
+          0,
+        ),
+      ).toEqual({ failure: 'invalidInput' })
+      expect(write).not.toHaveBeenCalled()
+    } finally {
+      await journal.close()
+    }
+  })
+  it('retains the accepted borrow while ingress closes and returns it only after actual release', async () => {
+    const { f, p, journal } = await borrowed()
+    let closed = false
+    const close = f.runtime.close().then(() => {
+      closed = true
+    })
+    await new Promise(resolve => setImmediate(resolve))
+    expect(closed).toBe(false)
+    expect(
+      await f.runtime.runJournal.borrow(f.runtime.coordinationAuthority, p.scope, p.step.run),
+    ).toEqual({ failure: 'unavailable' })
+    expect(await journal.readPrefix()).toHaveProperty('entries')
+    await journal.close()
+    await close
+    expect(await journal.readPrefix()).toEqual({ failure: 'unavailable' })
+    await journal.close()
+    expect(
+      await f.storage.read(tx => tx.db.selectFrom('sr_run_grant').selectAll().execute()),
+    ).toHaveLength(1)
+  })
+  it('rechecks the original persisted grant on use and exposes a corrupted grant as a defect', async () => {
+    const { f, p, journal } = await borrowed()
+    try {
+      await f.storage.write(tx =>
+        tx.db
+          .updateTable('sr_run_grant')
+          .set({ grant: '{}' })
+          .where('session', '=', p.scope.session)
+          .execute(),
+      )
+      await expect(journal.readPrefix()).rejects.toThrow('corrupt original Run admission grant')
+    } finally {
+      await journal.close()
+    }
+  })
+  it('drains an actual original read before returning the borrow and keeps physical dependencies open', async () => {
+    const { f, p, journal } = await borrowed()
+    expect(journal.currentGeneration()).toBe(journal.generation)
+    let entered!: () => void, release!: () => void
+    const inside = new Promise<void>(resolve => {
+        entered = resolve
+      }),
+      gate = new Promise<void>(resolve => {
+        release = resolve
+      })
+    const original = f.storage.atomic
+    vi.spyOn(f.storage, 'atomic').mockImplementation(action =>
+      original.call(f.storage, async unit => {
+        entered()
+        await gate
+        return action(unit)
+      }),
+    )
+    const reading = journal.readPrefix()
+    await inside
+    let returned = false
+    const closing = journal.close().then(() => {
+      returned = true
+    })
+    expect(journal.currentGeneration()).toBeNull()
+    expect(await journal.log.readSince(p.scope.session, 0)).toEqual({ failure: 'unavailable' })
+    expect(returned).toBe(false)
+    release()
+    expect(await reading).toHaveProperty('entries')
+    await closing
+    expect(returned).toBe(true)
+    expect(await f.log().readSince(p.scope.session, 0)).toHaveProperty('tail', 6)
+  })
+  it('reports a lost commit as native unavailable and recognizes the one original append without reissuing', async () => {
+    const { f, p, journal } = await borrowed()
+    try {
+      const write = f.storage.write
+      let lost = true
+      vi.spyOn(f.storage, 'write').mockImplementation(async action => {
+        const result = await write.call(f.storage, action)
+        if (lost) {
+          lost = false
+          throw new StorageUnavailable('actual original append return lost')
+        }
+        return result
+      })
+      expect(
+        await journal.log.append(
+          p.scope.session,
+          [
+            {
+              tenant,
+              run: p.step.run,
+              attempt: p.step.attempt,
+              dedupeKey: 'lost-original',
+              readKeys: ['lost-original'],
+              payload: { original: 'retained' },
+            },
+          ],
+          { kind: 'unfenced' },
+          { kind: 'unconditional' },
+        ),
+      ).toEqual({ failure: 'unavailable' })
+      const recognized = await journal.log.readByKey(p.scope.session, 'lost-original')
+      expect(recognized).toMatchObject({
+        entries: [{ position: 7, payload: { original: 'retained' } }],
+        tail: 7,
+      })
+      if ('failure' in recognized) throw new Error('recognition unavailable')
+      expect(recognized.entries).toHaveLength(1)
+    } finally {
+      await journal.close()
+    }
+  })
+  it('bounds live borrows by the explicit budget and reuses a slot only after returning its actual borrow', async () => {
+    const f = await fixture(),
+      p = await preparedAttempt(f)
+    const borrows = []
+    try {
+      for (let index = 0; index < f.options.policy.maxInFlight; index++) {
+        const result = await f.runtime.runJournal.borrow(
+          f.runtime.coordinationAuthority,
+          p.scope,
+          p.step.run,
+        )
+        if (!('journal' in result)) throw new Error('borrow before actual limit refused')
+        borrows.push(result.journal)
+      }
+      expect(
+        await f.runtime.runJournal.borrow(f.runtime.coordinationAuthority, p.scope, p.step.run),
+      ).toEqual({ failure: 'unavailable' })
+      await borrows[0]!.close()
+      const next = await f.runtime.runJournal.borrow(
+        f.runtime.coordinationAuthority,
+        p.scope,
+        p.step.run,
+      )
+      expect(next).toHaveProperty('journal')
+      if ('journal' in next) borrows.push(next.journal)
+    } finally {
+      await Promise.all(borrows.map(b => b.close()))
+    }
   })
 })
