@@ -57,29 +57,32 @@ export function dispatchedParametersValid(record: JsonObject): boolean {
   }
   return validate('ModelRequestParameters', sent).valid
 }
+function arraysEqual(a: readonly JsonValue[], b: readonly JsonValue[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((item, i) => {
+      const other = b[i]
+      return other !== undefined && jsonEqual(item, other)
+    })
+  )
+}
+
+function objectsEqual(a: JsonObject, b: JsonObject): boolean {
+  const keys = Object.keys(a)
+  return (
+    keys.length === Object.keys(b).length &&
+    keys.every(key => {
+      const one = a[key],
+        two = b[key]
+      return one !== undefined && two !== undefined && Object.hasOwn(b, key) && jsonEqual(one, two)
+    })
+  )
+}
+
 export function jsonEqual(a: JsonValue, b: JsonValue): boolean {
   if (isJsonNumber(a) && isJsonNumber(b))
     return ExactDecimal.from(a).compare(ExactDecimal.from(b)) === 0
-  if (Array.isArray(a) && Array.isArray(b))
-    return (
-      a.length === b.length &&
-      a.every((item, i) => {
-        const other = b[i]
-        return other !== undefined && jsonEqual(item, other)
-      })
-    )
-  if (isObject(a) && isObject(b)) {
-    const keys = Object.keys(a)
-    return (
-      keys.length === Object.keys(b).length &&
-      keys.every(key => {
-        const one = a[key],
-          two = b[key]
-        return (
-          one !== undefined && two !== undefined && Object.hasOwn(b, key) && jsonEqual(one, two)
-        )
-      })
-    )
-  }
+  if (Array.isArray(a) && Array.isArray(b)) return arraysEqual(a, b)
+  if (isObject(a) && isObject(b)) return objectsEqual(a, b)
   return a === b
 }

@@ -20,6 +20,33 @@ export function instantFromEpochMs(value: unknown): Parsed<Instant> {
   return ok(value as Instant)
 }
 
+function calendarMatches(
+  check: Date,
+  year: string,
+  month: string,
+  day: string,
+  hour: string,
+  minute: string,
+  second: string,
+): boolean {
+  return (
+    check.getUTCFullYear() === Number(year) &&
+    check.getUTCMonth() === Number(month) - 1 &&
+    check.getUTCDate() === Number(day) &&
+    check.getUTCHours() === Number(hour) &&
+    check.getUTCMinutes() === Number(minute) &&
+    check.getUTCSeconds() === Number(second)
+  )
+}
+
+function offsetMilliseconds(offset: string): number | undefined {
+  if (offset === 'Z' || offset === 'z') return 0
+  const sign = offset.startsWith('-') ? -1 : 1
+  const [oh, om] = offset.slice(1).split(':') as [string, string]
+  if (Number(oh) > 23 || Number(om) > 59) return undefined
+  return sign * (Number(oh) * 60 + Number(om)) * 60_000
+}
+
 /** 解析 RFC 3339 时间点；日期（无时刻）与无偏移的串一律拒绝，与 Schema 的 pattern 一致。 */
 export function instantFromRfc3339(value: unknown): Parsed<Instant> {
   if (typeof value !== 'string') return invalidInput('Instant: not a string')
@@ -45,23 +72,11 @@ export function instantFromRfc3339(value: unknown): Parsed<Instant> {
   const base = check.getTime()
   if (Number.isNaN(base)) return invalidInput('Instant: invalid calendar value')
   // 拒绝 Date setters 会静默进位的值（如 2026-02-30）。
-  if (
-    check.getUTCFullYear() !== Number(y) ||
-    check.getUTCMonth() !== Number(mo) - 1 ||
-    check.getUTCDate() !== Number(d) ||
-    check.getUTCHours() !== Number(h) ||
-    check.getUTCMinutes() !== Number(mi) ||
-    check.getUTCSeconds() !== Number(s)
-  ) {
+  if (!calendarMatches(check, y, mo, d, h, mi, s)) {
     return invalidInput('Instant: invalid calendar value')
   }
-  let offsetMs = 0
-  if (offset !== 'Z' && offset !== 'z') {
-    const sign = offset.startsWith('-') ? -1 : 1
-    const [oh, om] = offset.slice(1).split(':') as [string, string]
-    if (Number(oh) > 23 || Number(om) > 59) return invalidInput('Instant: invalid offset')
-    offsetMs = sign * (Number(oh) * 60 + Number(om)) * 60_000
-  }
+  const offsetMs = offsetMilliseconds(offset)
+  if (offsetMs === undefined) return invalidInput('Instant: invalid offset')
   return ok(Math.round(base + millis - offsetMs) as Instant)
 }
 
