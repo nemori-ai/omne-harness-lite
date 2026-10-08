@@ -2713,6 +2713,9 @@ importers:
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values
+      '@omne-harness-lite/messages':
+        specifier: workspace:*
+        version: link:../../core/messages
       '@omne-harness-lite/session-log':
         specifier: workspace:*
         version: link:../../core/session-log
@@ -2726,6 +2729,9 @@ importers:
         specifier: workspace:*
         version: link:../../core/storage
     devDependencies:
+      '@omne-harness-lite/runtime-context-local':
+        specifier: workspace:*
+        version: link:../runtime-context-local
       '@omne-harness-lite/session-log-sql':
         specifier: workspace:*
         version: link:../session-log-sql

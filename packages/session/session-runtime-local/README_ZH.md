@@ -22,6 +22,12 @@
 
 在租户运行库组合operationReceiptMigrations，以固定租户、可信当前授权和实际日志参加者构造createLocalOperationReceipts。完整OperationRef定位原回执，创建认回不要求预先知道Session。相同语义保留原快照，异语义拒绝。新回执核本单元日志坐标；协调者负责配对实际业务事实、状态及待处理资格，再统一提交。
 
+## 创建和受理入口
+
+根入口导出createLocalSessionIngress及sessionRuntimeMigrations。可信宿主固定原中心／来源／租户，并借入G28、实际日志及SessionBootstrap。创建先持久固定唯一身份，再在事务外初始化原Context，最后同提交发布事实、空状态和原回执。受理将原消息、事实、pending和回执共同提交；失败不留下半批，重放不重复追加。
+
+这个入口只提供创建、输入及只读查询。完整协调、取消／归档、真实资产与B2装配由各自施工和验收承担；不得从这五项入口推定它们已完成。
+
 ## 开发
 
 按[开发指南](../../../docs/development.md)准备本树环境并先构建依赖。

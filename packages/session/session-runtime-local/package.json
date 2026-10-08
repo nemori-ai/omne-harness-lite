@@ -37,13 +37,15 @@
     "@omne-harness-lite/session-tenancy": "workspace:*",
     "@omne-harness-lite/session-log": "workspace:*",
     "@omne-harness-lite/content-blocks": "workspace:*",
-    "@omne-harness-lite/call-accounts": "workspace:*"
+    "@omne-harness-lite/call-accounts": "workspace:*",
+    "@omne-harness-lite/messages": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "@omne-harness-lite/storage-sql": "workspace:*",
-    "@omne-harness-lite/session-log-sql": "workspace:*"
+    "@omne-harness-lite/session-log-sql": "workspace:*",
+    "@omne-harness-lite/runtime-context-local": "workspace:*"
   }
 }

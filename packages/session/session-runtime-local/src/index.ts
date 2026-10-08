@@ -12,3 +12,12 @@ export type {
   ReceiptFailure,
   LocalOperationReceipts,
 } from './receipt-types.ts'
+export { createLocalSessionIngress } from './runtime.ts'
+export { sessionRuntimeMigrations } from './runtime-migrations.ts'
+export type {
+  SessionBootstrap,
+  RuntimePolicy,
+  RuntimeOptions,
+  SessionIngressOperations,
+  LocalSessionIngress,
+} from './runtime-types.ts'

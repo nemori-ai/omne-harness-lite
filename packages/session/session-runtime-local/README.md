@@ -33,3 +33,9 @@ pnpm --filter @omne-harness-lite/session-runtime-local test
 ```
 
 The tests use real SQLite transactions and an actual process crash. They do not replace CLI, OpenRouter, tool, or complete recovery acceptance. The Cordis binding is under construction; the package does not yet carry a template adoption marker.
+
+The root also exports `createLocalSessionIngress` and `sessionRuntimeMigrations`.
+This function composes persistent creation, input admission, receipts, and reads.
+Its trusted bootstrap port must initialize the actual Session before publication.
+It does not expose cancellation, archival, or coordination as completed capabilities.
+See [SPEC.md](SPEC.md) for shared-unit behavior and construction requirements.
