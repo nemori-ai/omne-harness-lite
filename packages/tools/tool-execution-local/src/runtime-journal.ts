@@ -1,4 +1,4 @@
-import { setImmediate } from 'node:timers/promises'
+import { setImmediate, setTimeout as yieldToTimers } from 'node:timers/promises'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import {
@@ -134,7 +134,10 @@ export function createRuntimeJournal(input: {
     const copy = copyJsonValue({ scope, ownerGeneration: generation, ...result })
     if ('failed' in copy) return reject('unavailable')
     // The adopted history provider validates the complete shell and every known owner.
-    return project(copy.ok as unknown as CheckedPrefix, call)
+    const projected = project(copy.ok as unknown as CheckedPrefix, call)
+    // Complete validation may span lease maintenance. Hand off before the caller's next effect.
+    await yieldToTimers(0)
+    return active() ? projected : reject('unavailable')
   }
   function resolvePending(view: RuntimeJournalView): boolean {
     const previous = pending.get(view.prefix.scope.session)
@@ -226,6 +229,8 @@ export function createRuntimeJournal(input: {
           value.ref.callId,
         )
         if (projected.kind !== 'view') return reject('conflict')
+        // Candidate validation is synchronous. Append still checks the original current authority.
+        await yieldToTimers(0)
         if (!active()) return reject('unavailable')
         pending.set(scope.session, { request, scope, call: value.ref.callId })
         let result

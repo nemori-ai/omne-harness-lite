@@ -103,6 +103,83 @@ async function fixture() {
   }
 }
 
+test('validated reads allow due maintenance before handing the source view to the caller', async () => {
+  const f = await fixture()
+  let due = false
+  const inspect = f.history.inspect.getMockImplementation()!
+  f.history.inspect.mockImplementation((...args) => {
+    const result = inspect(...args)
+    setTimeout(() => {
+      due = true
+    }, 0)
+    return result
+  })
+  try {
+    expect(await f.journal.read(scope, ref.callId)).toHaveProperty('kind', 'view')
+    expect(due).toBe(true)
+    expect(f.append).not.toHaveBeenCalled()
+  } finally {
+    await f.close()
+  }
+})
+test('replacement during the validated-read handoff rejects the old physical generation', async () => {
+  const f = await fixture()
+  const inspect = f.history.inspect.getMockImplementation()!
+  f.history.inspect.mockImplementation((...args) => {
+    const result = inspect(...args)
+    setTimeout(f.replaceOwner, 0)
+    return result
+  })
+  try {
+    expect(await f.journal.read(scope, ref.callId)).toEqual({
+      kind: 'rejected',
+      reason: 'unavailable',
+    })
+    expect(f.append).not.toHaveBeenCalled()
+  } finally {
+    await f.close()
+  }
+})
+test('candidate validation allows due maintenance before the actual durable append', async () => {
+  const f = await fixture()
+  let due = false
+  const inspect = f.history.inspect.getMockImplementation()!
+  f.history.inspect.mockImplementation((...args) => {
+    const result = inspect(...args)
+    if (compareInteger(args[0].tail, 1) === 0)
+      setTimeout(() => {
+        due = true
+      }, 0)
+    return result
+  })
+  f.append.mockImplementation(async (...args) => {
+    expect(due).toBe(true)
+    return f.log.append(...args)
+  })
+  try {
+    expect(await f.submit([intent])).toHaveProperty('kind', 'view')
+    expect(f.append).toHaveBeenCalledOnce()
+    expect((await f.read()).executions.get(ref.callId)?.intent.value).toEqual(intent)
+  } finally {
+    await f.close()
+  }
+})
+test('replacement during candidate-validation handoff cannot append through the old owner', async () => {
+  const f = await fixture()
+  const inspect = f.history.inspect.getMockImplementation()!
+  f.history.inspect.mockImplementation((...args) => {
+    const result = inspect(...args)
+    if (compareInteger(args[0].tail, 1) === 0) setTimeout(f.replaceOwner, 0)
+    return result
+  })
+  try {
+    expect(await f.submit([intent])).toEqual({ kind: 'rejected', reason: 'unavailable' })
+    expect(f.append).not.toHaveBeenCalled()
+    expect(await f.log.readSince(scope.session, 0)).toMatchObject({ tail: 0, entries: [] })
+  } finally {
+    await f.close()
+  }
+})
 test('uses one whole original same-tail batch and recognizes equivalent numerical input without duplicating facts', async () => {
   const f = await fixture()
   try {
@@ -297,6 +374,133 @@ test('context values are not exposed before the actual durable adoption commit f
   }
 })
 
+test.each([
+  { label: 'missing kind', result: { values: [] } },
+  { label: 'extra field', result: { kind: 'values', values: [], extra: true } },
+  { label: 'unknown kind', result: { kind: 'other', values: [] } },
+  { label: 'non-array values', result: { kind: 'values', values: {} } },
+  { label: 'missing requested value', result: { kind: 'values', values: [] } },
+  { label: 'non-object value', result: { kind: 'values', values: [null] } },
+  {
+    label: 'unrequested key',
+    result: {
+      kind: 'values',
+      values: [{ key: 'other', revision: '1', value: 'source', observedAt: at }],
+    },
+  },
+  { label: 'unknown refusal', result: { kind: 'rejected', reason: 'other' } },
+  { label: 'non-string refusal', result: { kind: 'rejected', reason: 1 } },
+  {
+    label: 'uncapturable value',
+    result: { kind: 'values', values: [{ key: 'workspace', value: () => undefined }] },
+  },
+  {
+    label: 'invalid adoption record',
+    result: {
+      kind: 'values',
+      values: [{ key: 'workspace', revision: '1', value: 'source', observedAt: 'invalid' }],
+    },
+  },
+])('a malformed source $label cannot produce a durable context adoption', async ({ result }) => {
+  const f = await fixture()
+  try {
+    await f.submit([intent, started])
+    const writes = f.append.mock.calls.length
+    const context = createExecutionContextReader({
+      ref,
+      origin,
+      journal: f.journal,
+      attempts: 2,
+      isOpen: () => true,
+      reader: {
+        read: async () =>
+          result as unknown as import('@omne-harness-lite/runtime-context').ContextRead,
+      },
+    })
+    expect(await context.read(['workspace'])).toEqual({
+      kind: 'rejected',
+      reason: 'sourceUnavailable',
+    })
+    expect(f.append).toHaveBeenCalledTimes(writes)
+    expect((await f.read()).executions.get(ref.callId)?.contextReads).toHaveLength(0)
+  } finally {
+    await f.close()
+  }
+})
+test.each([
+  'invalidInput',
+  'notAuthorized',
+  'missingRegistration',
+  'viewChanged',
+  'sourceUnavailable',
+  'ownerStopped',
+  'unavailable',
+] as const)('the original source refusal %s stays a refusal without adoption', async reason => {
+  const f = await fixture()
+  try {
+    await f.submit([intent, started])
+    const writes = f.append.mock.calls.length
+    const context = createExecutionContextReader({
+      ref,
+      origin,
+      journal: f.journal,
+      attempts: 2,
+      isOpen: () => true,
+      reader: { read: async () => ({ kind: 'rejected', reason }) },
+    })
+    expect(await context.read(['workspace'])).toEqual({ kind: 'rejected', reason })
+    expect(f.append).toHaveBeenCalledTimes(writes)
+    expect((await f.read()).executions.get(ref.callId)?.contextReads).toHaveLength(0)
+  } finally {
+    await f.close()
+  }
+})
+test('an empty context request confirms the actual empty value set', async () => {
+  const f = await fixture()
+  try {
+    await f.submit([intent, started])
+    const context = createExecutionContextReader({
+      ref,
+      origin,
+      journal: f.journal,
+      attempts: 2,
+      isOpen: () => true,
+      reader: { read: async () => ({ kind: 'values', values: [] }) },
+    })
+    expect(await context.read([])).toEqual({ kind: 'values', values: [] })
+    expect((await f.read()).executions.get(ref.callId)?.contextReads[0]?.value.values).toEqual([])
+  } finally {
+    await f.close()
+  }
+})
+test('an asynchronous adoption failure is caught without exposing unconfirmed values', async () => {
+  const f = await fixture()
+  try {
+    await f.submit([intent, started])
+    const context = createExecutionContextReader({
+      ref,
+      origin,
+      journal: {
+        ...f.journal,
+        commit: async () => {
+          throw new Error('original adoption failed')
+        },
+      },
+      attempts: 2,
+      isOpen: () => true,
+      reader: {
+        read: async () => ({
+          kind: 'values',
+          values: [{ key: 'workspace', revision: '1', value: 'source', observedAt: at }],
+        }),
+      },
+    })
+    expect(await context.read(['workspace'])).toEqual({ kind: 'rejected', reason: 'unavailable' })
+    expect((await f.read()).executions.get(ref.callId)?.contextReads).toHaveLength(0)
+  } finally {
+    await f.close()
+  }
+})
 test('serialized context reads retain both actual revisions instead of replaying the first adopted value', async () => {
   const f = await fixture()
   try {
