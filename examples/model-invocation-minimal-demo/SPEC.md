@@ -73,3 +73,11 @@ recoveryReady 登记仍归宿主准备，不是 scope 移交。
 应用 drain 先等 recoveryTasks 并清未 issued ready，再由 runtime.close 关闭已移交 scope。
 全部实际消费者停止后才 source.release；活动 frame 或未知保有不能变成关闭成功。
 frame 释放不撤销逃逸引用。原 45000ms 冷恢复阈值保持；实际 worker 退出仍是冷恢复前提。
+
+## 内部恢复生命周期
+
+`src/recovery-lifetime.ts` 使用同一 ready 行、实际 RequestOwner 和原 capture，负责 scope 移交、关闭及未移交准备的释放。它不是新的公开业务入口。当前主体授权、实际 SQL 前缀、来源匹配及停止前后的 capture 仍由 bootstrap 准备和核对。
+
+scope 完整创建后才标记 issued。关闭须先等待实际 owner 排空并核其保有、写者及原日志代际。失败保留原句柄、frames 和准入责任，同一 scope 可以重试。成功先拒绝旧 scope 的句柄读取，再清原句柄并释放 frames，最后撤除原准备和准入登记。未 issued 清理只作用于宿主仍拥有的准备，不能释放已经移交的责任。
+
+实际生产 helper 与 owner 的组合验证 scope 行为。真实应用故障和接线验证共同检查 bootstrap 的 finally／shutdown 调用，不能以 helper 测试替代真实应用行为。

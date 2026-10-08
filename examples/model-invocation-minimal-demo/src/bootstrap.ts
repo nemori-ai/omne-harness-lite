@@ -1,4 +1,9 @@
 import {
+  createDemoRecoveryScope,
+  discardUnissuedRecovery,
+  type DemoRecoveryReady,
+} from './recovery-lifetime.ts'
+import {
   captureExecutionInvocations,
   releasedExecutionCalls,
   originalExecutionInvocation,
@@ -59,7 +64,6 @@ import {
   type DisplayListResult,
   type AnchoredInvocationHandle,
   type ModelRuntimeExecutionCapture,
-  type RuntimeRecoveryScope,
   type ObserverDiagnostic,
   type SettlementDiagnostic,
 } from '@omne-harness-lite/model-request-runtime'
@@ -745,24 +749,7 @@ export function createAcceptanceApplication(
   const recoveryTasks = new Set<Promise<unknown>>()
   const recoveryAdmission = new Set<SessionRef>()
   const recoveryBusy = new Set<SessionRef>()
-  const recoveryReady = new Map<
-    SessionRef,
-    {
-      readonly binding: Pick<SessionRuntimeBinding, 'log'>
-      readonly owner: ReturnType<typeof createRequestOwner>
-      readonly captures: readonly ModelRuntimeExecutionCapture[]
-      readonly originals: Map<
-        string,
-        {
-          readonly target: ModelLogSettlementTarget
-          readonly handle: AnchoredInvocationHandle
-        }
-      >
-      readonly coldTargets: ReadonlyMap<string, ModelLogSettlementTarget>
-      readonly coldAbsent: boolean
-      scopeIssued: boolean
-    }
-  >()
+  const recoveryReady = new Map<SessionRef, DemoRecoveryReady>()
   const observerAccess = createDemoObserverAccess()
   const observerGrants = new Set<{ readonly revoke: () => Promise<RuntimeCloseResult> }>()
   let gateOpen = false,
@@ -1011,12 +998,7 @@ export function createAcceptanceApplication(
   async function drainModelConsumers() {
     // Recovery still uses the original runtime, binding and SQL journal owner.
     await Promise.allSettled([...recoveryTasks])
-    for (const [session, ready] of recoveryReady) {
-      if (ready.scopeIssued) continue
-      ready.originals.clear()
-      for (const capture of ready.captures) capture.release()
-      recoveryReady.delete(session)
-    }
+    for (const session of recoveryReady.keys()) discardUnissuedRecovery(session, recoveryReady)
     const stoppedRuntime = await modelRuntime?.close()
     const stoppedSelections = await Promise.allSettled(
       [...sessionBorrows.values()].flatMap(borrow =>
@@ -2078,60 +2060,14 @@ export function createAcceptanceApplication(
                 )
                   return { unavailable: true }
                 record({ event: 'operation', phase: 'recovery', outcome: 'entered' })
-                let closed = false
-                const entered: { readonly scope: RuntimeRecoveryScope } = {
-                  scope: {
-                    binding: ready.binding,
-                    owner: ready.owner.owner,
-                    originalInvocation(key, target) {
-                      if (closed) return { unavailable: true } as const
-                      if (key.session !== input.session || key.callId !== target.call)
-                        return { unavailable: true }
-                      const original = ready.originals.get(key.callId)
-                      if (original !== undefined) {
-                        if (
-                          original.target.response !== target.response ||
-                          !modelLogJsonEqual(original.target.dispatch, target.dispatch)
-                        )
-                          return { unavailable: true }
-                        return { original: original.handle }
-                      }
-                      const cold = ready.coldTargets.get(key.callId)
-                      if (
-                        !ready.coldAbsent ||
-                        cold === undefined ||
-                        cold.response !== target.response ||
-                        !modelLogJsonEqual(cold.dispatch, target.dispatch) ||
-                        modelRuntime?.executionSource
-                          .snapshot(key.session)
-                          .some(record => record.key.callId === key.callId)
-                      )
-                        return { unavailable: true }
-                      return { absent: true }
-                    },
-                    async close() {
-                      if (closed) return
-                      await ready.owner.drain()
-                      if (
-                        ready.owner.retained() ||
-                        ready.owner.owner.unresolvedWrites().length !== 0 ||
-                        ready.binding.log.currentGeneration() !== ready.binding.log.generation
-                      )
-                        throw new Error('recovery owner retained')
-                      closed = true
-                      ready.originals.clear()
-                      for (const capture of ready.captures) capture.release()
-                      recoveryReady.delete(input.session)
-                      recoveryAdmission.delete(input.session)
-                      // Every unresolved dispatch of the covered cold worker is now settled.
-                      if (coldStopped.has(input.session)) coldStopped.set(input.session, new Map())
-                      record({ event: 'operation', phase: 'recovery', outcome: 'closed' })
-                    },
-                  },
-                }
-                // No external callback or await after the actual scope ownership transfer.
-                ready.scopeIssued = true
-                return entered
+                return createDemoRecoveryScope(input.session, ready, {
+                  executions: () => modelRuntime?.executionSource,
+                  readyRows: recoveryReady,
+                  admission: recoveryAdmission,
+                  coldStopped,
+                  onClosed: () =>
+                    record({ event: 'operation', phase: 'recovery', outcome: 'closed' }),
+                })
               },
             },
             diagnosticCollector: tenant.collector,
@@ -3355,11 +3291,7 @@ export function createAcceptanceApplication(
       } finally {
         captured.clear()
         const prepared = recoveryReady.get(key)
-        if (prepared !== undefined && !prepared.scopeIssued) {
-          prepared.originals.clear()
-          for (const capture of prepared.captures) capture.release()
-          recoveryReady.delete(key)
-        }
+        discardUnissuedRecovery(key, recoveryReady)
         // A successful enter hands these frames to the registered runtime scope.
         if (prepared?.scopeIssued !== true) for (const capture of captures) capture.release()
         captures.length = 0
