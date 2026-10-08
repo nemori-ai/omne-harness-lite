@@ -9,25 +9,31 @@ import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type { StorageUnit } from '@omne-harness-lite/storage'
 import type { AdmissionGuard } from './admission-types.ts'
 import type { RuntimeOptions } from './runtime-types.ts'
+import { originalGrant } from './coordination-store.ts'
 
 /** Tokens are issued here; only active original G28 callbacks grant participant access. */
 export function runtimeAuthority(options: RuntimeOptions) {
   const access = Object.freeze({}) as Access,
     coordination = Object.freeze({}) as CoordinationAuthority,
     logAccess = Object.freeze({}) as LogAuthority,
-    guards = new WeakMap<StorageUnit, AdmissionGuard>()
-  function allowed(unit: StorageUnit, tenant: SessionScope['tenant']) {
+    guards = new WeakMap<StorageUnit, AdmissionGuard>(),
+    runs = new WeakMap<StorageUnit, SessionScope>()
+  function allowed(unit: StorageUnit, scope: SessionScope) {
     const guard = guards.get(unit)
+    const run = runs.get(unit)
     return (
-      guard !== undefined &&
-      tenantIdEquals(tenant, options.tenant) &&
-      options.admission.authorizeIn(unit, guard, options.source, tenant)
+      tenantIdEquals(scope.tenant, options.tenant) &&
+      ((guard !== undefined &&
+        options.admission.authorizeIn(unit, guard, options.source, scope.tenant)) ||
+        (run !== undefined &&
+          run.session === scope.session &&
+          tenantIdEquals(run.tenant, scope.tenant)))
     )
   }
   const log: LogAuthorityOperations = {
     storage: options.storage,
     authorize: async (unit, candidate, scope) => ({
-      kind: candidate === logAccess && allowed(unit, scope.tenant) ? 'authorized' : 'denied',
+      kind: candidate === logAccess && allowed(unit, scope) ? 'authorized' : 'denied',
     }),
     authorizeEnumeration: async () => ({ kind: 'denied' }),
   }
@@ -42,7 +48,7 @@ export function runtimeAuthority(options: RuntimeOptions) {
         candidate: CoordinationAuthority,
         scope: SessionScope,
       ) =>
-        candidate === coordination && allowed(unit, scope.tenant)
+        candidate === coordination && allowed(unit, scope)
           ? { kind: 'authorized' as const }
           : { failure: 'denied' as const },
     },
@@ -54,9 +60,30 @@ export function runtimeAuthority(options: RuntimeOptions) {
       ) =>
         candidate === coordination &&
         operation.principal === options.principal &&
-        allowed(unit, operation.tenant)
+        tenantIdEquals(operation.tenant, options.tenant) &&
+        guards.has(unit) &&
+        options.admission.authorizeIn(unit, guards.get(unit)!, options.source, operation.tenant)
           ? { kind: 'authorized' as const }
           : { failure: 'denied' as const },
+    },
+    async withinRun<T>(
+      unit: StorageUnit,
+      scope: SessionScope,
+      run: string,
+      action: () => Promise<T>,
+    ): Promise<T> {
+      unit.assertStorage(options.storage)
+      if (!tenantIdEquals(scope.tenant, options.tenant))
+        throw new Error('foreign original Run scope')
+      if (guards.has(unit) || runs.has(unit))
+        throw new Error('Session authority callback already active')
+      await originalGrant(unit, scope, run, options)
+      runs.set(unit, scope)
+      try {
+        return await unit.run(action)
+      } finally {
+        runs.delete(unit)
+      }
     },
     async within<T>(
       unit: StorageUnit,

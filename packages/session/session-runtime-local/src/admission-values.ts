@@ -79,7 +79,7 @@ function checkedPurpose(value: Record<string, unknown>): AdmissionTarget['purpos
     throw new AdmissionFailure('invalid-input')
   return value.purpose
 }
-export function bounded(value: string, policy: AdmissionPolicy): string {
+export function bounded(value: string, policy: Pick<AdmissionPolicy, 'maxRecordBytes'>): string {
   if (Buffer.byteLength(value, 'utf8') > policy.maxRecordBytes)
     throw new AdmissionFailure('capacity')
   return value
@@ -99,7 +99,10 @@ export function requestKey(source: AdmissionSource, target: AdmissionTarget): st
 function digest(value: string): string {
   return createHash('sha256').update(value).digest('hex')
 }
-export function checkedTicket(value: unknown, policy: AdmissionPolicy): AdmissionTicket {
+export function checkedTicket(
+  value: unknown,
+  policy: Pick<AdmissionPolicy, 'maxRecordBytes'>,
+): AdmissionTicket {
   if (
     !object(value) ||
     !exact(value, ['root', 'id', 'sequence', 'source', 'target']) ||

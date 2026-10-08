@@ -26,7 +26,7 @@
 
 根入口导出createLocalSessionIngress及sessionRuntimeMigrations。可信宿主固定原中心／来源／租户，并借入G28、实际日志及SessionBootstrap。创建先持久固定唯一身份，再在事务外初始化原Context，最后同提交发布事实、空状态和原回执。受理将原消息、事实、pending和回执共同提交；失败不留下半批，重放不重复追加。
 
-这个入口只提供创建、输入及只读查询。完整协调、取消／归档、真实资产与B2装配由各自施工和验收承担；不得从这五项入口推定它们已完成。
+operations提供创建、输入及只读查询。可信lifecycle分面另接新Run、首次attempt、输入承接和收尾；原grant、日志／状态／pending与StepReceipt共同提交。新Run验证登录，原Run沿持久授权继续。重放返回原回执，不重新签发permit。完整调用协调、恢复接管、取消／归档、真实资产与B2装配仍由各自施工和验收承担，不能从这个子集推定已经完成。
 
 ## 开发
 

@@ -37,5 +37,5 @@ The tests use real SQLite transactions and an actual process crash. They do not 
 The root also exports `createLocalSessionIngress` and `sessionRuntimeMigrations`.
 This function composes persistent creation, input admission, receipts, and reads.
 Its trusted bootstrap port must initialize the actual Session before publication.
-It does not expose cancellation, archival, or coordination as completed capabilities.
+The trusted `lifecycle` port also coordinates Run creation, the first attempt, input adoption, and completion. It persists the original Run grant and step receipt with the state and log facts. A new Run requires its own login check. An existing Run uses its original grant. Step replay returns the original receipt and does not issue another permit. Cancellation, archival, execution recovery, and complete call coordination remain under construction.
 See [SPEC.md](SPEC.md) for shared-unit behavior and construction requirements.

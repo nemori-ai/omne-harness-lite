@@ -3,10 +3,13 @@ import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type {
   AttemptPermit,
+  CoordinationAuthority,
+  SessionStateStage,
   SessionStateParticipant,
   SessionStateAuthorityOperations,
 } from '@omne-harness-lite/session-runtime'
 import type { AttemptId, RunId } from '@omne-harness-lite/call-accounts'
+import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 
 export interface StatePolicy {
   readonly maxPendingPerSession: number
@@ -28,6 +31,14 @@ export interface StateOptions {
 }
 export interface LocalSessionState {
   readonly participant: SessionStateParticipant
+  /** Provider-owned initial adoption. Pair with startRun and its fact in the same unit. */
+  readonly adoptInitialIn: (
+    unit: StorageUnit,
+    authority: CoordinationAuthority,
+    scope: SessionScope,
+    run: RunId,
+    position: JsonNumber,
+  ) => Promise<SessionStateStage>
   readonly checkPermitIn: (
     unit: StorageUnit,
     permit: AttemptPermit,

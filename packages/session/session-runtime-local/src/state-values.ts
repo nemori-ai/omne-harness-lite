@@ -62,7 +62,7 @@ const fields: Record<SessionStateChange['kind'], readonly string[]> = {
   finish: ['kind', 'stepKey', 'run', 'attempt', 'terminal', 'permit'],
 }
 export function stateChange(value: SessionStateChange, policy: StatePolicy): SessionStateChange {
-  const { serializable, permit } = changeData(value)
+  const { serializable, permit } = separatePermit(value)
   const copied = copyJsonValue(serializable)
   if ('failed' in copied || Buffer.byteLength(writeJsonLossless(copied.ok)) > policy.maxRecordBytes)
     throw new InvalidStateInput()
@@ -79,7 +79,7 @@ export function stateChange(value: SessionStateChange, policy: StatePolicy): Ses
   checkChangeFields(owned, policy)
   return Object.freeze(complete) as unknown as SessionStateChange
 }
-function changeData(value: SessionStateChange): {
+export function separatePermit(value: unknown): {
   serializable: object
   permit: PropertyDescriptor | undefined
 } {

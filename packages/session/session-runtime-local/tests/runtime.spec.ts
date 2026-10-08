@@ -16,6 +16,7 @@ import {
   sessionLogMigrations,
   type SqlSessionLog,
 } from '@omne-harness-lite/session-log-sql'
+import { compareInteger } from '@omne-harness-lite/session-log'
 import {
   readSessionFact,
   type Access,
@@ -33,7 +34,7 @@ import { admissionMigrations, admissionUseMigrations } from '../src/admission-mi
 import { sessionStateMigrations } from '../src/state-migrations.ts'
 import { operationReceiptMigrations } from '../src/receipt-migrations.ts'
 import { createLocalAdmission } from '../src/admission.ts'
-import type { AdmissionSource, LocalAdmission } from '../src/admission-types.ts'
+import type { AdmissionSource, AdmissionTarget, LocalAdmission } from '../src/admission-types.ts'
 import type { RuntimeOptions } from '../src/runtime-types.ts'
 
 const roots: string[] = [],
@@ -103,7 +104,10 @@ async function fixture(
   ])
     await storage.write(tx => fragment.migration.up(tx.db))
   let decision: 'memberValid' | 'memberRejected' | 'rejected' = 'memberValid'
-  const probe = vi.fn(async () => ({ kind: decision }))
+  const probe = vi.fn(async (_source: AdmissionSource, target: AdmissionTarget) => ({
+    kind:
+      decision === 'memberValid' && target.purpose === 'startRun' ? ('valid' as const) : decision,
+  }))
   const admission = await createLocalAdmission(
     rootStorage,
     { verify: probe },
@@ -121,6 +125,7 @@ async function fixture(
       maxSessions: 16,
       maxRecordBytes: 8192,
       maxInFlight: 16,
+      maxSteps: 32,
       state: { maxPendingPerSession: 8, maxBatchSize: 8, maxRecordBytes: 8192 },
       receipts: { maxRecords: 32, maxRecordBytes: 8192 },
     },
@@ -565,4 +570,547 @@ it('reports a corrupt persisted initialization identity instead of returning a n
   await expect(f.runtime.operations.readSession(f.runtime.access, created.session)).rejects.toThrow(
     'corrupt Session initialization',
   )
+})
+
+async function startReadyRun(f: Awaited<ReturnType<typeof fixture>>) {
+  const created = await create(f)
+  const admitted = await f.runtime.operations.submitInput(
+    f.runtime.access,
+    created.session,
+    'input-1',
+    user(),
+  )
+  if (!('kind' in admitted) || admitted.kind !== 'accepted') throw new Error('input failed')
+  const scope = { tenant, session: created.session }
+  const step = { kind: 'startRun' as const, stepKey: 'run-1', inputPosition: 3 }
+  const result = await f.runtime.lifecycle.commitStep(
+    f.runtime.coordinationAuthority,
+    scope,
+    admitted.receipt.source,
+    step,
+  )
+  if (!('kind' in result) || result.kind !== 'committed') throw new Error('start Run failed')
+  return { created, admitted, scope, step, result }
+}
+it('starts a Run with original G28 grant and initial input adoption in one commit, without an attempt', async () => {
+  const f = await fixture(),
+    started = await startReadyRun(f)
+  expect(started.result.permit).toBeNull()
+  expect(started.result.receipt).toMatchObject({ step: 'startRun', attempt: null, position: 5 })
+  expect(await f.count('sr_pending_input')).toEqual({ n: 0 })
+  expect(await f.count('sr_run_grant')).toEqual({ n: 1 })
+  expect(await f.count('sr_coordination_step')).toEqual({ n: 1 })
+  expect(
+    await f.runtime.operations.readProgress(f.runtime.access, started.created.session),
+  ).toMatchObject({
+    progress: { run: started.result.receipt.run, attempt: null, state: 'runnable' },
+  })
+  const read = await f.log().readSince(started.created.session, 4)
+  if ('failure' in read) throw new Error('read failed')
+  expect(read.entries.map(readSessionFact)).toMatchObject([
+    { fact: { kind: 'run_started', inputPosition: 3 } },
+  ])
+  expect(f.probe).toHaveBeenLastCalledWith(
+    source,
+    expect.objectContaining({
+      purpose: 'startRun',
+      session: started.created.session,
+      inputPosition: '3',
+    }),
+  )
+})
+it('does not consume durable pending input or create a Run when the new Run login check fails', async () => {
+  const f = await fixture(),
+    created = await create(f)
+  const admitted = await f.runtime.operations.submitInput(
+    f.runtime.access,
+    created.session,
+    'input-1',
+    user(),
+  )
+  if (!('kind' in admitted) || admitted.kind !== 'accepted') throw new Error('input failed')
+  f.setDecision('rejected')
+  expect(
+    await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      { tenant, session: created.session },
+      admitted.receipt.source,
+      { kind: 'startRun', stepKey: 'run-1', inputPosition: 3 },
+    ),
+  ).toEqual({ failure: 'denied' })
+  expect(await f.count('sr_pending_input')).toEqual({ n: 1 })
+  expect(await f.count('sr_run_seen')).toEqual({ n: 0 })
+  expect(await f.log().readSince(created.session, 0)).toHaveProperty('tail', 4)
+})
+it('recognizes the original Run step after later input without a second G28 check or adoption', async () => {
+  const f = await fixture(),
+    started = await startReadyRun(f)
+  await f.runtime.operations.submitInput(
+    f.runtime.access,
+    started.created.session,
+    'input-2',
+    user('later', 'message-2'),
+  )
+  const before = f.probe.mock.calls.length
+  expect(
+    await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      started.scope,
+      started.admitted.receipt.source,
+      started.step,
+    ),
+  ).toEqual(started.result)
+  expect(f.probe).toHaveBeenCalledTimes(before)
+  expect(await f.count('sr_pending_input')).toEqual({ n: 1 })
+  expect(
+    await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      started.scope,
+      started.result.source,
+      { ...started.step, inputPosition: 6 },
+    ),
+  ).toEqual({ failure: 'retryFromFacts' })
+})
+it('starts a real fenced attempt separately and continues its original Run after login expiry', async () => {
+  const f = await fixture(),
+    started = await startReadyRun(f)
+  f.setDecision('rejected')
+  const ticket = await f.admission.reserve(source, {
+    tenant,
+    session: started.created.session,
+    purpose: 'startRun',
+    operationKey: 'expiry-check',
+    inputPosition: '3',
+  })
+  await f.admission.query(ticket.ticket)
+  const before = f.probe.mock.calls.length
+  const result = await f.runtime.lifecycle.commitStep(
+    f.runtime.coordinationAuthority,
+    started.scope,
+    started.result.source,
+    {
+      kind: 'startAttempt',
+      stepKey: 'attempt-1',
+      run: started.result.receipt.run!,
+      reason: 'first',
+    },
+  )
+  expect(result).toMatchObject({
+    kind: 'committed',
+    receipt: { attempt: 1, position: 6 },
+    permit: {},
+  })
+  expect(f.probe).toHaveBeenCalledTimes(before)
+  expect(
+    await f.runtime.operations.readProgress(f.runtime.access, started.created.session),
+  ).toMatchObject({ progress: { attempt: 1 } })
+})
+it('rolls back the whole attempt and its fact when step receipt capacity is exhausted', async () => {
+  const f = await fixture()
+  await f.runtime.close()
+  await f.log().close()
+  logs.pop()
+  const limited = createLocalSessionIngress({
+    ...f.options,
+    policy: { ...f.options.policy, maxSteps: 1 },
+  })
+  const started = await startReadyRun({ ...f, runtime: limited })
+  expect(
+    await limited.lifecycle.commitStep(
+      limited.coordinationAuthority,
+      started.scope,
+      started.result.source,
+      {
+        kind: 'startAttempt',
+        stepKey: 'attempt-1',
+        run: started.result.receipt.run!,
+        reason: 'first',
+      },
+    ),
+  ).toEqual({ failure: 'unavailable' })
+  expect(
+    await limited.operations.readProgress(limited.access, started.created.session),
+  ).toMatchObject({ progress: { attempt: null } })
+  expect(await f.log().readSince(started.created.session, 0)).toHaveProperty('tail', 5)
+  expect(await f.count('sr_coordination_step')).toEqual({ n: 1 })
+  await limited.close()
+})
+it('refuses copied coordination authority and future or foreign journal coordinates', async () => {
+  const f = await fixture(),
+    created = await create(f),
+    scope = { tenant, session: created.session }
+  const step = { kind: 'startRun' as const, stepKey: 'run-1', inputPosition: 3 }
+  expect(
+    await f.runtime.lifecycle.commitStep(
+      {} as typeof f.runtime.coordinationAuthority,
+      scope,
+      created.receipt.source,
+      step,
+    ),
+  ).toEqual({ failure: 'denied' })
+  expect(
+    await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      scope,
+      { ...created.receipt.source, tail: 999 },
+      step,
+    ),
+  ).toEqual({ failure: 'retryFromFacts' })
+  expect(
+    await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      scope,
+      { ...created.receipt.source, journalGeneration: 'foreign' },
+      step,
+    ),
+  ).toEqual({ failure: 'retryFromFacts' })
+  expect(f.probe).toHaveBeenCalledTimes(1)
+})
+it('recognizes a lost actual Run commit without re-querying login or consuming a second input', async () => {
+  const f = await fixture(),
+    created = await create(f)
+  const admitted = await f.runtime.operations.submitInput(
+    f.runtime.access,
+    created.session,
+    'input-1',
+    user(),
+  )
+  if (!('kind' in admitted) || admitted.kind !== 'accepted') throw new Error('input failed')
+  const actual = f.storage.atomic.bind(f.storage)
+  let lose = true
+  vi.spyOn(f.storage, 'atomic').mockImplementation(async action => {
+    const result = await actual(action)
+    if (lose && (await f.count('sr_run_grant')).n === 1) {
+      lose = false
+      throw new StorageUnavailable('original Run commit return lost')
+    }
+    return result
+  })
+  const scope = { tenant, session: created.session },
+    step = { kind: 'startRun' as const, stepKey: 'run-1', inputPosition: 3 }
+  expect(
+    await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      scope,
+      admitted.receipt.source,
+      step,
+    ),
+  ).toEqual({ kind: 'unknownCommit', scope, stepKey: 'run-1' })
+  const before = f.probe.mock.calls.length
+  const recognized = await f.runtime.lifecycle.commitStep(
+    f.runtime.coordinationAuthority,
+    scope,
+    admitted.receipt.source,
+    step,
+  )
+  expect(recognized).toMatchObject({ kind: 'committed', receipt: { position: 5 } })
+  expect(f.probe).toHaveBeenCalledTimes(before)
+  expect(await f.count('sr_pending_input')).toEqual({ n: 0 })
+  expect(await f.count('sr_run_grant')).toEqual({ n: 1 })
+})
+it('keeps attempt, step receipt and journal fence atomic through a lost result and does not reissue a replay permit', async () => {
+  const f = await fixture(),
+    started = await startReadyRun(f),
+    actual = f.storage.atomic.bind(f.storage)
+  let lose = true
+  vi.spyOn(f.storage, 'atomic').mockImplementation(async action => {
+    const result = await actual(action)
+    if (lose && (await f.count('sr_coordination_step')).n === 2) {
+      lose = false
+      throw new StorageUnavailable('original attempt return lost')
+    }
+    return result
+  })
+  const step = {
+    kind: 'startAttempt' as const,
+    stepKey: 'attempt-1',
+    run: started.result.receipt.run!,
+    reason: 'first' as const,
+  }
+  expect(
+    await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      started.scope,
+      started.result.source,
+      step,
+    ),
+  ).toEqual({ kind: 'unknownCommit', scope: started.scope, stepKey: step.stepKey })
+  const recognized = await f.runtime.lifecycle.commitStep(
+    f.runtime.coordinationAuthority,
+    started.scope,
+    started.result.source,
+    step,
+  )
+  expect(recognized).toMatchObject({
+    kind: 'committed',
+    receipt: { attempt: 1, position: 6 },
+    permit: null,
+  })
+  expect(await f.count('sl_attempt')).toEqual({ n: 1 })
+  expect(await f.count('sr_coordination_step')).toEqual({ n: 2 })
+  expect(await f.log().readSince(started.created.session, 0)).toHaveProperty('tail', 6)
+})
+it('adopts later input under the real attempt and refuses an old empty-queue finish decision', async () => {
+  const f = await fixture(),
+    started = await startReadyRun(f),
+    run = started.result.receipt.run!
+  const attempt = await f.runtime.lifecycle.commitStep(
+    f.runtime.coordinationAuthority,
+    started.scope,
+    started.result.source,
+    { kind: 'startAttempt', stepKey: 'attempt-1', run, reason: 'first' },
+  )
+  if (!('kind' in attempt) || attempt.kind !== 'committed' || !attempt.permit)
+    throw new Error('attempt failed')
+  const later = await f.runtime.operations.submitInput(
+    f.runtime.access,
+    started.created.session,
+    'later',
+    user('later', 'message-2'),
+  )
+  if (!('kind' in later) || later.kind !== 'accepted') throw new Error('later input failed')
+  const finish = {
+    kind: 'finish' as const,
+    stepKey: 'finish-1',
+    run,
+    attempt: 1,
+    terminal: 'completed' as const,
+    reason: 'done',
+    permit: attempt.permit,
+  }
+  expect(
+    await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      started.scope,
+      attempt.source,
+      finish,
+    ),
+  ).toEqual({ failure: 'retryFromFacts' })
+  expect(
+    await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      started.scope,
+      later.receipt.source,
+      {
+        kind: 'adoptInput',
+        stepKey: 'adopt-later',
+        run,
+        attempt: 1,
+        inputPosition: 7,
+        permit: {} as typeof attempt.permit,
+      },
+    ),
+  ).toEqual({ failure: 'staleAttempt' })
+  const adopted = await f.runtime.lifecycle.commitStep(
+    f.runtime.coordinationAuthority,
+    started.scope,
+    later.receipt.source,
+    {
+      kind: 'adoptInput',
+      stepKey: 'adopt-later',
+      run,
+      attempt: 1,
+      inputPosition: 7,
+      permit: attempt.permit,
+    },
+  )
+  expect(adopted).toMatchObject({ kind: 'committed', receipt: { step: 'adoptInput', position: 9 } })
+  expect(await f.count('sr_pending_input')).toEqual({ n: 0 })
+  const finished = await f.runtime.lifecycle.commitStep(
+    f.runtime.coordinationAuthority,
+    started.scope,
+    attempt.source,
+    finish,
+  )
+  expect(finished).toMatchObject({ kind: 'committed', receipt: { step: 'finish' } })
+  if (!('kind' in finished) || finished.kind !== 'committed') throw new Error('finish failed')
+  expect(compareInteger(finished.receipt.position, 10)).toBe(0)
+  expect(
+    await f.runtime.operations.readProgress(f.runtime.access, started.created.session),
+  ).toMatchObject({ progress: { state: 'completed' } })
+  expect(
+    await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      started.scope,
+      attempt.source,
+      { ...finish, stepKey: 'second-finish' },
+    ),
+  ).toEqual({ failure: 'terminal' })
+})
+it('does not report read failure as unknownCommit before any coordination write', async () => {
+  const f = await fixture(),
+    created = await create(f)
+  vi.spyOn(f.storage, 'atomic').mockRejectedValueOnce(new StorageUnavailable('read unavailable'))
+  expect(
+    await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      { tenant, session: created.session },
+      created.receipt.source,
+      { kind: 'startRun', stepKey: 'run-1', inputPosition: 1 },
+    ),
+  ).toEqual({ failure: 'unavailable' })
+})
+it('rejects malformed steps without executing their getters or making admission IO', async () => {
+  const f = await fixture(),
+    created = await create(f)
+  let reads = 0
+  const step = {
+    kind: 'startRun' as const,
+    stepKey: 'run-1',
+    get inputPosition() {
+      reads++
+      return 1
+    },
+  }
+  expect(
+    await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      { tenant, session: created.session },
+      created.receipt.source,
+      step,
+    ),
+  ).toEqual({ failure: 'invalidInput' })
+  expect(reads).toBe(0)
+  expect(f.probe).toHaveBeenCalledTimes(1)
+})
+it('rejects a corrupt persisted original Run grant rather than continuing with a new login', async () => {
+  const f = await fixture(),
+    started = await startReadyRun(f)
+  await f.storage.write(tx => tx.db.updateTable('sr_run_grant').set({ grant: '{}' }).execute())
+  await expect(
+    f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      started.scope,
+      started.result.source,
+      {
+        kind: 'startAttempt',
+        stepKey: 'attempt-1',
+        run: started.result.receipt.run!,
+        reason: 'first',
+      },
+    ),
+  ).rejects.toThrow('corrupt original Run admission grant')
+  expect(await f.log().readSince(started.created.session, 0)).toHaveProperty('tail', 5)
+})
+it('abandons a reliably rolled back Run ticket and preserves its pending input when step capacity is full', async () => {
+  const f = await fixture()
+  await f.runtime.close()
+  await f.log().close()
+  logs.pop()
+  const limited = createLocalSessionIngress({
+    ...f.options,
+    policy: { ...f.options.policy, maxSteps: 1 },
+  })
+  await startReadyRun({ ...f, runtime: limited })
+  const created = await limited.operations.createSession(limited.access, {
+    ...input,
+    operationKey: 'create-2',
+  })
+  if (!('kind' in created) || created.kind !== 'created') throw new Error('create failed')
+  const admitted = await limited.operations.submitInput(
+    limited.access,
+    created.session,
+    'input-2',
+    user('second', 'message-2'),
+  )
+  if (!('kind' in admitted) || admitted.kind !== 'accepted') throw new Error('input failed')
+  expect(
+    await limited.lifecycle.commitStep(
+      limited.coordinationAuthority,
+      { tenant, session: created.session },
+      admitted.receipt.source,
+      { kind: 'startRun', stepKey: 'run-2', inputPosition: 3 },
+    ),
+  ).toEqual({ failure: 'unavailable' })
+  expect(await f.count('sr_run_grant')).toEqual({ n: 1 })
+  expect(await f.count('sr_run_seen')).toEqual({ n: 1 })
+  expect(await f.count('sr_pending_input')).toEqual({ n: 1 })
+  expect(await f.log().readSince(created.session, 0)).toHaveProperty('tail', 4)
+  const ticket = await f.admission.reserve(source, {
+    tenant,
+    session: created.session,
+    purpose: 'startRun',
+    operationKey: 'run-2',
+    inputPosition: '3',
+  })
+  expect((await f.admission.read(ticket.ticket)).state).toBe('notUsed')
+  await limited.close()
+})
+it('rejects unknown step variants as invalid input and waits for an already admitted new Run during drain', async () => {
+  const f = await fixture(),
+    created = await create(f)
+  expect(
+    await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      { tenant, session: created.session },
+      created.receipt.source,
+      { kind: 'toString' } as unknown as import('../src/runtime-types.ts').SessionLifecycleStep,
+    ),
+  ).toEqual({ failure: 'invalidInput' })
+  const admitted = await f.runtime.operations.submitInput(
+    f.runtime.access,
+    created.session,
+    'input-1',
+    user(),
+  )
+  if (!('kind' in admitted) || admitted.kind !== 'accepted') throw new Error('input failed')
+  const ready = Promise.withResolvers<{ kind: 'valid' }>(),
+    entered = Promise.withResolvers<void>()
+  f.probe.mockImplementationOnce(async () => {
+    entered.resolve()
+    return ready.promise
+  })
+  const starting = f.runtime.lifecycle.commitStep(
+    f.runtime.coordinationAuthority,
+    { tenant, session: created.session },
+    admitted.receipt.source,
+    { kind: 'startRun', stepKey: 'run-1', inputPosition: 3 },
+  )
+  await entered.promise
+  let closed = false
+  const closing = f.runtime.close().then(() => {
+    closed = true
+  })
+  expect(closed).toBe(false)
+  expect(
+    await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      { tenant, session: created.session },
+      admitted.receipt.source,
+      { kind: 'startRun', stepKey: 'run-2', inputPosition: 3 },
+    ),
+  ).toEqual({ failure: 'unavailable' })
+  ready.resolve({ kind: 'valid' })
+  expect(await starting).toHaveProperty('kind', 'committed')
+  await closing
+  expect(closed).toBe(true)
+})
+it('requires the actual committed original G28 ticket usage before any original Run continuation', async () => {
+  const f = await fixture(),
+    started = await startReadyRun(f)
+  const raw = await f.storage.read(tx =>
+    tx.db.selectFrom('sr_run_grant').select('grant').executeTakeFirstOrThrow(),
+  )
+  const grant = JSON.parse(String(raw.grant))
+  await f.storage.write(tx =>
+    tx.db
+      .deleteFrom('sr_admission_use')
+      .where('root', '=', grant.ticket.root)
+      .where('ticket', '=', grant.ticket.id)
+      .execute(),
+  )
+  await expect(
+    f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      started.scope,
+      started.result.source,
+      {
+        kind: 'startAttempt',
+        stepKey: 'attempt-1',
+        run: started.result.receipt.run!,
+        reason: 'first',
+      },
+    ),
+  ).rejects.toThrow('missing original Run ticket usage')
+  expect(await f.log().readSince(started.created.session, 0)).toHaveProperty('tail', 5)
 })

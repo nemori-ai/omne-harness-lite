@@ -19,5 +19,6 @@ export type {
   RuntimePolicy,
   RuntimeOptions,
   SessionIngressOperations,
+  SessionLifecycleStep,
   LocalSessionIngress,
 } from './runtime-types.ts'

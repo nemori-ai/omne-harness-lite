@@ -1,7 +1,15 @@
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
-import type { Access, CreateSessionInput, SessionRuntime } from '@omne-harness-lite/session-runtime'
+import type {
+  Access,
+  CreateSessionInput,
+  SessionRuntime,
+  CoordinationAuthority,
+  CoordinationStep,
+  StepCommit,
+} from '@omne-harness-lite/session-runtime'
+import type { SourceToken } from '@omne-harness-lite/session-log'
 import type { LogAuthorityOperations, SessionLogParticipant } from '@omne-harness-lite/session-log'
 import type { AdmissionSource, LocalAdmission } from './admission-types.ts'
 import type { StateOptions, StatePolicy } from './state-types.ts'
@@ -18,6 +26,7 @@ export interface RuntimePolicy {
   readonly maxSessions: number
   readonly maxRecordBytes: number
   readonly maxInFlight: number
+  readonly maxSteps: number
   readonly state: StatePolicy
   readonly receipts: ReceiptPolicy
 }
@@ -42,9 +51,23 @@ export type SessionIngressOperations = Pick<
 export interface LocalSessionIngress {
   readonly access: Access
   readonly operations: SessionIngressOperations
+  /** Trusted host port. Do not send its live authority or permits over a wire protocol. */
+  readonly coordinationAuthority: CoordinationAuthority
+  readonly lifecycle: {
+    readonly commitStep: (
+      authority: CoordinationAuthority,
+      scope: SessionScope,
+      expectedSource: SourceToken,
+      step: SessionLifecycleStep,
+    ) => Promise<StepCommit>
+  }
   /** Stops new public operations and waits for admitted work. Borrowed providers stay open. */
   readonly close: () => Promise<void>
 }
+export type SessionLifecycleStep = Extract<
+  CoordinationStep,
+  { kind: 'startRun' | 'startAttempt' | 'adoptInput' | 'finish' }
+>
 export interface CreationRow {
   operation: string
   session: string

@@ -1,6 +1,6 @@
 import { narrow, type StorageUnit } from '@omne-harness-lite/storage'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
-import { compareInteger } from '@omne-harness-lite/session-log'
+import { compareInteger, checkKey } from '@omne-harness-lite/session-log'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type { AttemptId, RunId } from '@omne-harness-lite/call-accounts'
 import type {
@@ -52,6 +52,38 @@ export function createLocalSessionState(options: StateOptions): LocalSessionStat
 class StateParticipant implements LocalSessionState {
   readonly #permits = new WeakMap<AttemptPermit, PermitBinding>()
   constructor(readonly options: StateOptions) {}
+  adoptInitialIn: LocalSessionState['adoptInitialIn'] = async (
+    unit,
+    authority,
+    requested,
+    run,
+    value,
+  ) => {
+    const scope = stateScope(requested),
+      position = positionText(value, this.options.policy.maxRecordBytes)
+    if (!checkKey(run)) return { failure: 'invalidInput' }
+    const denied = await this.#authorize(unit, authority, scope)
+    if (denied) return denied
+    const row = await stateRow(unit, scope),
+      input = await pendingPosition(unit, scope, position)
+    if (
+      !row ||
+      row.run !== run ||
+      row.run_state !== 'runnable' ||
+      row.attempt !== null ||
+      input?.reserved_run !== run
+    )
+      return { failure: 'conflict' }
+    await unit.mutate(tx =>
+      narrow<StateDb>(tx)
+        .deleteFrom('sr_pending_input')
+        .where('session', '=', scope.session)
+        .where('position', '=', position)
+        .execute(),
+    )
+    const next = await saveHead(unit, scope, row, {})
+    return { kind: 'staged', head: stateHead(next, scope), permit: null }
+  }
   readonly participant: SessionStateParticipant = {
     headIn: async (unit, authority, requested) => {
       try {

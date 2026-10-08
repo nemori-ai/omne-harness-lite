@@ -180,7 +180,7 @@ export async function count(
 export async function recordedUse(
   unit: StorageUnit,
   ticket: AdmissionTicket,
-  policy: AdmissionPolicy,
+  policy: Pick<AdmissionPolicy, 'maxRecordBytes'>,
 ): Promise<string | undefined> {
   return unit.query(async tx => {
     const value = await narrow<UseDb>(tx)

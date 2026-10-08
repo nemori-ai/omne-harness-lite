@@ -25,6 +25,7 @@ import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import { AdmissionFailure } from './admission-types.ts'
 import { InvalidStateInput } from './state-values.ts'
 import { runtimeAuthority } from './runtime-authority.ts'
+import { createSessionLifecycle } from './coordination.ts'
 import { createLocalSessionState } from './state-participant.ts'
 import { createLocalOperationReceipts } from './receipt-participant.ts'
 import { creationInput, runtimeSemantic, RuntimeRejection } from './runtime-values.ts'
@@ -55,6 +56,7 @@ export function createLocalSessionIngress(options: RuntimeOptions): LocalSession
     options.policy.maxSessions,
     options.policy.maxRecordBytes,
     options.policy.maxInFlight,
+    options.policy.maxSteps,
   ])
     if (!Number.isSafeInteger(bound) || bound < 1 || bound >= Number.MAX_SAFE_INTEGER)
       throw new InvalidStateInput()
@@ -66,7 +68,13 @@ export function createLocalSessionIngress(options: RuntimeOptions): LocalSession
       policy: Object.freeze({ ...options.policy }),
     }),
   )
-  return Object.freeze({ access: owner.access, operations: owner.operations, close: owner.close })
+  return Object.freeze({
+    access: owner.access,
+    operations: owner.operations,
+    coordinationAuthority: owner.coordinationAuthority,
+    lifecycle: owner.lifecycle,
+    close: owner.close,
+  })
 }
 class SessionIngress implements LocalSessionIngress {
   readonly authority: ReturnType<typeof runtimeAuthority>
@@ -75,6 +83,10 @@ class SessionIngress implements LocalSessionIngress {
   readonly state: ReturnType<typeof createLocalSessionState>
   readonly receipts: ReturnType<typeof createLocalOperationReceipts>
   readonly operations: SessionIngressOperations
+  get coordinationAuthority() {
+    return this.authority.coordination
+  }
+  readonly lifecycle: LocalSessionIngress['lifecycle']
   readonly pending = new Set<Promise<unknown>>()
   accepting = true
   constructor(readonly options: RuntimeOptions) {
@@ -94,6 +106,24 @@ class SessionIngress implements LocalSessionIngress {
       log: this.log,
       logAuthority: this.authority.logAccess,
       isOpen: () => true,
+    })
+    const lifecycle = createSessionLifecycle({
+      options,
+      authority: this.authority,
+      state: this.state,
+      log: this.log,
+      member: work => this.member(work),
+      head: (unit, scope) => this.head(unit, scope),
+      append: (unit, scope, entries) => this.append(unit, scope, entries),
+      instant: () => this.instant(),
+    })
+    this.lifecycle = Object.freeze({
+      commitStep: (authority, scope, source, step) =>
+        this.run(
+          this.access,
+          () => lifecycle.commitStep(authority, scope, source, step),
+          [] as const,
+        ),
     })
     this.operations = Object.freeze({
       createSession: (access, input) =>
