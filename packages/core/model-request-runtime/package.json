@@ -48,7 +48,8 @@
     "@omne-harness-lite/asset-registry": "workspace:*",
     "@omne-harness-lite/storage": "workspace:*",
     "@omne-harness-lite/session-tenancy": "workspace:*",
-    "@omne-harness-lite/session-runtime": "workspace:*"
+    "@omne-harness-lite/session-runtime": "workspace:*",
+    "@omne-harness-lite/image-codec": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

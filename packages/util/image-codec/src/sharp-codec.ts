@@ -1,5 +1,5 @@
 import type sharp from 'sharp'
-import type { Metadata, OutputInfo } from 'sharp'
+import type { Metadata, OutputInfo, Sharp } from 'sharp'
 import { crc32 } from 'node:zlib'
 import { bytesSchema, dataOnly, encodeSchema, limitsSchema, metadataSchema } from './validation.ts'
 import type {
@@ -10,7 +10,7 @@ import type {
   ImageMetadata,
   ImageOutputFormat,
   LoadedImageCodec,
-} from '@omne-harness-lite/model-request-runtime'
+} from './types.ts'
 
 function failure(error: unknown): { failure: 'bad_input' | 'unsupported' | 'internal' } {
   if (!(error instanceof Error)) return { failure: 'internal' }
@@ -60,21 +60,34 @@ function mediaType(format: string | undefined): string | undefined {
       return undefined
   }
 }
+const orientations = [1, 2, 3, 4, 5, 6, 7, 8] as const
 function orientation(value: number | undefined): ImageMetadata['orientation'] | undefined {
-  if (value === undefined) return 1
-  switch (value) {
-    case 1:
-    case 2:
-    case 3:
-    case 4:
-    case 5:
-    case 6:
-    case 7:
-    case 8:
-      return value
-    default:
-      return undefined
+  return value === undefined ? 1 : orientations[value - 1]
+}
+function validInspectInput(bytes: Uint8Array, limits: DecodeLimits): boolean {
+  return (
+    bytesSchema.safeParse(bytes).success &&
+    dataOnly(limits) &&
+    limitsSchema.safeParse(limits).success
+  )
+}
+
+function selectEncoding(
+  image: Sharp,
+  spec: ImageEncodeSpec,
+  hasAlpha: boolean,
+): CodecResult<Sharp> {
+  if (spec.alphaBackground) image = image.flatten({ background: spec.alphaBackground })
+  if (spec.format === 'jpeg') {
+    if (hasAlpha && !spec.alphaBackground) return { failure: 'unsupported' }
+    if (spec.quality === null) return { failure: 'internal' }
+    return { ok: image.jpeg({ quality: spec.quality }) }
   }
+  if (spec.format === 'webp') {
+    if (spec.quality === null) return { failure: 'internal' }
+    return { ok: image.webp({ quality: spec.quality, effort: spec.webpEffort }) }
+  }
+  return { ok: image.png({ compressionLevel: spec.pngCompressionLevel }) }
 }
 
 /** Explicit assembly boundary: never imports the native implementation itself. */
@@ -101,12 +114,7 @@ export function createSharpImageCodec(loadedSharp: typeof sharp): LoadedImageCod
     outputFormats,
     available: () => true,
     async inspect(bytes, limits) {
-      if (
-        !bytesSchema.safeParse(bytes).success ||
-        !dataOnly(limits) ||
-        !limitsSchema.safeParse(limits).success
-      )
-        return { failure: 'bad_input' }
+      if (!validInspectInput(bytes, limits)) return { failure: 'bad_input' }
       try {
         // Header inspection must expose over-limit dimensions for the helper's
         // resource classification. No raster is decoded here; decode below
@@ -158,12 +166,10 @@ export function createSharpImageCodec(loadedSharp: typeof sharp): LoadedImageCod
         let pixels: Buffer | undefined = data
         let closed = false
         let closing: Promise<void> | undefined
-        const active = new Set<
-          Promise<CodecResult<import('@omne-harness-lite/model-request-runtime').EncodedImage>>
-        >()
+        const active = new Set<Promise<CodecResult<import('./types.ts').EncodedImage>>>()
         async function encode(
           spec: ImageEncodeSpec,
-        ): Promise<CodecResult<import('@omne-harness-lite/model-request-runtime').EncodedImage>> {
+        ): Promise<CodecResult<import('./types.ts').EncodedImage>> {
           const source = pixels
           if (closed || !source) return { failure: 'unavailable' }
           if (!dataOnly(spec)) return { failure: 'bad_input' }
@@ -182,11 +188,9 @@ export function createSharpImageCodec(loadedSharp: typeof sharp): LoadedImageCod
             active.delete(task)
           }
 
-          async function encodePixels(): Promise<
-            CodecResult<import('@omne-harness-lite/model-request-runtime').EncodedImage>
-          > {
+          async function encodePixels(): Promise<CodecResult<import('./types.ts').EncodedImage>> {
             try {
-              let image = loadedSharp(source, {
+              const image = loadedSharp(source, {
                 raw: { width: info.width, height: info.height, channels: 4 },
               }).resize({
                 width: spec.width,
@@ -194,19 +198,9 @@ export function createSharpImageCodec(loadedSharp: typeof sharp): LoadedImageCod
                 fit: 'inside',
                 withoutEnlargement: true,
               })
-              if (spec.alphaBackground) image = image.flatten({ background: spec.alphaBackground })
-              if (spec.format === 'jpeg') {
-                if (metadata.hasAlpha && !spec.alphaBackground)
-                  return { failure: 'unsupported' } satisfies CodecResult<never>
-                if (spec.quality === null)
-                  return { failure: 'internal' } satisfies CodecResult<never>
-                image = image.jpeg({ quality: spec.quality })
-              } else if (spec.format === 'webp') {
-                if (spec.quality === null)
-                  return { failure: 'internal' } satisfies CodecResult<never>
-                image = image.webp({ quality: spec.quality, effort: spec.webpEffort })
-              } else image = image.png({ compressionLevel: spec.pngCompressionLevel })
-              const output = await image.toBuffer({ resolveWithObject: true })
+              const selected = selectEncoding(image, spec, metadata.hasAlpha)
+              if ('failure' in selected) return selected
+              const output = await selected.ok.toBuffer({ resolveWithObject: true })
               if (output.info.format !== spec.format)
                 return { failure: 'internal' } satisfies CodecResult<never>
               return {

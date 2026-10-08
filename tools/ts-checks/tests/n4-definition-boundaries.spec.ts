@@ -4,6 +4,18 @@ import { corePureImports, ogS42DynamicResolve, restrictedCallSites } from '../sr
 const file = (path: string, text: string) => ({ path, text })
 
 describe('N4 migrated public boundaries', () => {
+  it('allows the shared generic codec facade while retaining provider and private-path bans', () => {
+    const path = 'core/model-request-runtime/src/image-codec.ts'
+    expect(
+      corePureImports.check([file(path, "export type * from '@omne-harness-lite/image-codec'")]),
+    ).toEqual([])
+    for (const code of [
+      "export * from '@omne-harness-lite/image-codec/src/sharp-codec'",
+      "import '@omne-harness-lite/pi-ai-transport'",
+      "import '@omne-harness-lite/execution-environments-host'",
+    ])
+      expect(corePureImports.check([file(path, code)])).toHaveLength(1)
+  })
   it('allows the existing expiry error type without opening a runtime compiler dependency', () => {
     const path = 'core/offer-expiry/src/validate.ts'
     expect(corePureImports.check([file(path, "import type { ErrorObject } from 'ajv'")])).toEqual(

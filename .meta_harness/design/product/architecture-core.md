@@ -41,7 +41,7 @@
 | [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | **定义、装配、装配清单**三者的关系、**两类 agent**，以及注入进来的是什么 | rev 20 |
 | [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | 动作**实际落到哪里**，隔离边界在哪，**作用准不准落在宿主机上** | rev 9 |
 | [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | agent **能做什么**——工具与技能的常驻、装载与占位 | rev 24 |
-| [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | 系统**自带、关不掉的那几扇门**：agent 怎么问人、怎么看见自己、**一次放行怎么算** | rev 24 |
+| [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | 系统**自带、关不掉的那几扇门**：agent 怎么问人、怎么看见自己、**一次放行怎么算** | rev 25 |
 | [PF-008 Human in the Loop](PF-008-human-in-the-loop/README.md) | 人**在哪里看到这些问题、怎么答、答完怎么回去** | rev 7 |
 | [PF-009 上下文消息类型](PF-009-context-message-types/README.md) | **一共有哪几种消息** | rev 9 |
 | [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | 消息**怎么组装**成给模型看的那一份，装不下时怎么办 | rev 8 |

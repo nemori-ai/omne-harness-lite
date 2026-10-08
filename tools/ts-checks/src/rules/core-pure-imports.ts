@@ -42,6 +42,8 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
   // F0 public model operations and OriginalIssueParticipant own their exact signature dependencies.
   // See core/model-request-runtime/SPEC.md; no concrete provider imports are allowed.
   'model-request-runtime': [
+    // Public codec types have one generic owner; the model facade only re-exports types.
+    'image-codec',
     'content-blocks',
     'call-accounts',
     'tool-definition',
