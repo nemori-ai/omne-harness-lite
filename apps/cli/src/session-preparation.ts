@@ -36,6 +36,46 @@ export type SessionPreparationOutcome =
         | 'defect'
     }
 
+/** The login chosen for this Run. It does not change the Session's owner. */
+export type RunLoginBinding = Pick<
+  SessionIdentityObservation,
+  'centerId' | 'accountId' | 'loginStateHandle'
+>
+export type RunLoginObservationOutcome =
+  | { readonly kind: 'observed'; readonly login: RunLoginBinding }
+  | Extract<SessionPreparationOutcome, { kind: 'blocked' }>
+
+/** Borrow a fixed use to observe login validity before one new Run. */
+export async function readNewRunLogin(
+  use: GovernanceUse,
+  expected: RunLoginBinding,
+): Promise<RunLoginObservationOutcome> {
+  if (
+    !isGovernanceCenterId(expected.centerId) ||
+    !isOk(parseAccountId(expected.accountId)) ||
+    !isOk(parseLoginStateId(expected.loginStateHandle))
+  )
+    return blocked('identity-mismatch')
+  const current = await use.run({
+    action: 'invoke',
+    operation: currentOperation,
+    payload: {},
+    readMode: 'refresh',
+  })
+  const failure = reportBlock(current)
+  if (failure !== undefined) return failure
+  const identity = observedIdentity(current)
+  if (identity === undefined || !sameOrigin(expected, current)) return blocked('identity-mismatch')
+  return {
+    kind: 'observed',
+    login: {
+      centerId: identity.centerId,
+      accountId: identity.accountId,
+      loginStateHandle: identity.loginStateHandle,
+    },
+  }
+}
+
 type Blocked = Extract<SessionPreparationOutcome, { kind: 'blocked' }>
 const blocked = (reason: Blocked['reason']): Blocked => ({ kind: 'blocked', reason })
 const currentOperation = 'capability.organization-governance/v2#S-36'
@@ -70,10 +110,7 @@ function observedIdentity(
   return { centerId, accountId: account.ok, loginStateHandle: login.ok, tenant: tenant.ok }
 }
 
-function sameOrigin(
-  identity: Omit<SessionIdentityObservation, 'role'>,
-  report: ActionReport,
-): boolean {
+function sameOrigin(identity: RunLoginBinding, report: ActionReport): boolean {
   return (
     identity.centerId === report.origin.centerId &&
     identity.accountId === report.origin.accountId &&
