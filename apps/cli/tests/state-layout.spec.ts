@@ -16,6 +16,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import {
   prepareTenantDirectory,
+  checkExistingTenantAuth,
   resolveStateHome,
   tenantPaths,
   type TenantBinding,
@@ -40,6 +41,55 @@ async function home(): Promise<string> {
 }
 afterEach(async () => {
   await Promise.all(roots.splice(0).map(path => rm(path, { recursive: true, force: true })))
+})
+
+describe('opening an existing selected tenant', () => {
+  async function existing() {
+    const root = await home()
+    const identity = binding()
+    const paths = await prepareTenantDirectory(root, identity)
+    await mkdir(paths.auth, { mode: 0o700 })
+    await writeFile(paths.clientState, 'existing SQLite placeholder', { mode: 0o600 })
+    return { root, identity, paths }
+  }
+  it('checks existing binding and auth without changing their contents', async () => {
+    const f = await existing()
+    const before = await Promise.all([readFile(f.paths.binding), readFile(f.paths.clientState)])
+    expect(await checkExistingTenantAuth(f.root, f.identity)).toEqual(f.paths)
+    expect(await Promise.all([readFile(f.paths.binding), readFile(f.paths.clientState)])).toEqual(
+      before,
+    )
+  })
+  it('does not recreate a selected directory that is missing', async () => {
+    const root = await home()
+    await expect(checkExistingTenantAuth(root, binding())).rejects.toThrow('unavailable')
+    await expect(lstat(root)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+  it('does not create a missing auth file or repair a missing binding', async () => {
+    const f = await existing()
+    await rm(f.paths.clientState)
+    await expect(checkExistingTenantAuth(f.root, f.identity)).rejects.toThrow('unavailable')
+    await expect(lstat(f.paths.clientState)).rejects.toMatchObject({ code: 'ENOENT' })
+    await rm(f.paths.binding)
+    await expect(checkExistingTenantAuth(f.root, f.identity)).rejects.toThrow('unavailable')
+    await expect(lstat(f.paths.binding)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+  it('rejects a different canonical binding at the selected address', async () => {
+    const f = await existing()
+    await writeFile(f.paths.binding, JSON.stringify(binding('b'.repeat(32))) + '\n')
+    await expect(checkExistingTenantAuth(f.root, f.identity)).rejects.toThrow('binding-mismatch')
+  })
+  it('rejects a symlink auth file without following it', async () => {
+    const f = await existing()
+    await rm(f.paths.clientState)
+    await symlink(f.paths.binding, f.paths.clientState)
+    await expect(checkExistingTenantAuth(f.root, f.identity)).rejects.toThrow('unsafe-path')
+  })
+  it('rejects unsafe auth permissions', async () => {
+    const f = await existing()
+    await chmod(f.paths.clientState, 0o644)
+    await expect(checkExistingTenantAuth(f.root, f.identity)).rejects.toThrow('unsafe-path')
+  })
 })
 
 describe('one explicit application root', () => {

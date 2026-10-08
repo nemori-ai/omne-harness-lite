@@ -13,7 +13,12 @@ export {
   type TenantBinding,
   type TenantPaths,
 } from './state-layout-values.ts'
-import { preparePrivateDirectory, installTenantBinding } from './state-layout-files.ts'
+import {
+  preparePrivateDirectory,
+  installTenantBinding,
+  checkTenantBinding,
+  checkExistingPrivateFile,
+} from './state-layout-files.ts'
 
 export function resolveStateHome(input: HomeInput): string {
   const selected = input.explicitHome ?? input.environmentHome ?? join(input.osHome, '.omne')
@@ -57,6 +62,27 @@ export const defaultStateLayoutPolicy: StateLayoutPolicy = Object.freeze({
   maxBindingBytes: 64 * 1024,
 })
 
+/** A saved selection must already have its binding and actual auth file. */
+export async function checkExistingTenantAuth(
+  home: string,
+  binding: TenantBinding,
+  policy: StateLayoutPolicy = defaultStateLayoutPolicy,
+): Promise<TenantPaths> {
+  const identity = checkedTenantBinding(binding)
+  const paths = tenantPaths(home, identity)
+  const bytes = Buffer.from(JSON.stringify(identity) + '\n')
+  if (
+    !Number.isSafeInteger(policy.maxBindingBytes) ||
+    policy.maxBindingBytes < 1 ||
+    bytes.length > policy.maxBindingBytes
+  )
+    throw new StateLayoutFailure('invalid-binding')
+  await walkStateDirectory(paths.home, paths.auth, false)
+  await checkTenantBinding(paths.binding, bytes, policy.maxBindingBytes)
+  await checkExistingPrivateFile(paths.clientState)
+  return paths
+}
+
 export async function prepareTenantDirectory(
   home: string,
   binding: TenantBinding,
@@ -78,6 +104,10 @@ export async function prepareTenantDirectory(
 
 /** Create a private namespace inside the checked application home. */
 export async function prepareStateDirectory(home: string, directory: string = home): Promise<void> {
+  await walkStateDirectory(home, directory, true)
+}
+
+async function walkStateDirectory(home: string, directory: string, create: boolean): Promise<void> {
   const root = resolveStateHome({ explicitHome: home, osHome: home })
   const target = resolve(directory)
   if (target !== root && !target.startsWith(root + '/')) throw new StateLayoutFailure('unsafe-path')
@@ -86,6 +116,6 @@ export async function prepareStateDirectory(home: string, directory: string = ho
   for (const part of target.slice(at.length).split('/')) {
     at = join(at, part)
     const privateRequired = at === root || at.startsWith(root + '/')
-    await preparePrivateDirectory(at, true, privateRequired)
+    await preparePrivateDirectory(at, create, privateRequired)
   }
 }

@@ -1,5 +1,6 @@
 import type { AssemblyCloseReport } from '@omne-harness-lite/assembly-lifecycle'
 import type { ReadFailure } from '@omne-harness-lite/client-local-state'
+import type { ClientLocalState } from '@omne-harness-lite/client-local-state'
 import type { GovernanceClientOperations } from '@omne-harness-lite/governance-client-operations'
 import type { Diagnostic } from './diagnostic.ts'
 
@@ -13,6 +14,10 @@ export interface ClientAssembly {
   readonly clientStopped: Promise<void>
   releasePresentation(): void
   readonly closed: Promise<AssemblyCloseReport>
+}
+/** Application preparation borrows the same CLS that its governance client uses. */
+export interface PreparedClientAssembly extends ClientAssembly {
+  borrowState(): Promise<ClientLocalState>
 }
 export type ClientAssemblyFactory = (options: ClientAssemblyOptions) => ClientAssembly
 

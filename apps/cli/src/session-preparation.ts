@@ -67,6 +67,19 @@ export async function readNewRunLogin(
   expected: RunLoginBinding,
 ): Promise<RunLoginObservationOutcome> {
   if (!validRunLoginBinding(expected)) return blocked('identity-mismatch')
+  const observed = await readCurrentLogin(use)
+  if (observed.kind === 'blocked') return observed
+  if (
+    observed.login.centerId !== expected.centerId ||
+    observed.login.accountId !== expected.accountId ||
+    observed.login.loginStateHandle !== expected.loginStateHandle
+  )
+    return blocked('identity-mismatch')
+  return observed
+}
+
+/** A fresh login observation for preparation. This does not grant Session or Run authority. */
+export async function readCurrentLogin(use: GovernanceUse): Promise<RunLoginObservationOutcome> {
   const current = await use.run({
     action: 'invoke',
     operation: currentOperation,
@@ -76,7 +89,7 @@ export async function readNewRunLogin(
   const failure = reportBlock(current)
   if (failure !== undefined) return failure
   const identity = observedIdentity(current)
-  if (identity === undefined || !sameOrigin(expected, current)) return blocked('identity-mismatch')
+  if (identity === undefined) return blocked('identity-mismatch')
   return {
     kind: 'observed',
     login: {

@@ -124,6 +124,36 @@ function checkExistingBinding(bytes: Buffer, expected: Buffer): void {
   if (!bytes.equals(expected)) throw new StateLayoutFailure('binding-mismatch')
 }
 
+/** Check an existing binding without creating or replacing any file. */
+export async function checkTenantBinding(
+  path: string,
+  expected: Buffer,
+  maxBytes: number,
+): Promise<void> {
+  let file: FileHandle | undefined
+  try {
+    file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
+    await checkPrivateFile(file)
+    checkExistingBinding(await readBinding(file, maxBytes), expected)
+  } catch (error) {
+    rethrowIo(error)
+  } finally {
+    await file?.close()
+  }
+}
+
+export async function checkExistingPrivateFile(path: string): Promise<void> {
+  let file: FileHandle | undefined
+  try {
+    file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
+    await checkPrivateFile(file)
+  } catch (error) {
+    rethrowIo(error)
+  } finally {
+    await file?.close()
+  }
+}
+
 export async function installTenantBinding(
   path: string,
   expected: Buffer,
