@@ -166,6 +166,61 @@ function refused(
   return Object.freeze({ refused: Object.freeze({ why }) })
 }
 
+function callPhase(
+  call: DispatchGuardInput['call'],
+  session: string,
+  callId: ModelCallId,
+): DispatchGuardPhase | DispatchGuardResult {
+  if ('unknown' in call) return rejected('unavailable')
+  const current = call.known
+  if (current === null || current.session !== session || current.callId !== callId)
+    return rejected('callNotFound')
+  if ('unknown' in current.phase) return rejected('unavailable')
+  const currentPhase = current.phase.known
+  if (
+    currentPhase === 'complete' ||
+    currentPhase === 'handed_up' ||
+    currentPhase === 'interrupted' ||
+    currentPhase === 'reply_pending'
+  )
+    return rejected('alreadyEnded')
+  return currentPhase
+}
+
+function historyRejection(
+  dispatches: DispatchGuardInput['dispatches'],
+  currentPhase: DispatchGuardPhase,
+): DispatchGuardResult | undefined {
+  if ('unknown' in dispatches) return rejected('unavailable')
+  const history = dispatches.known.opened
+  if (history.some(item => 'known' in item && item.known)) return refused('already_spoke')
+  if (history.some(item => 'unknown' in item)) return rejected('unavailable')
+  if (currentPhase !== 'awaiting_decision')
+    return Object.freeze({ rejected: 'wrongPhase', phase: currentPhase })
+  return undefined
+}
+
+function retryDecision(
+  latestFailure: DispatchGuardInput['latestFailure'],
+  snapshot: DispatchGuardInput['snapshot'],
+  plan: RetryPlan,
+): DispatchGuardResult {
+  if ('unknown' in latestFailure) return rejected('unavailable')
+  if (
+    latestFailure.known === 'credential_unavailable' ||
+    latestFailure.known === 'request_rejected'
+  )
+    return refused('fact_class')
+  if ('unknown' in snapshot) return rejected('unavailable')
+  const profile = snapshot.known
+  if (
+    !profile.providers.includes(plan.provider) ||
+    (!profile.allowFallback && plan.provider !== profile.providers[0])
+  )
+    return refused('provider_not_allowed')
+  return Object.freeze({ allowed: true })
+}
+
 /**
  * RT4 S-60: the synchronous S-30/S-50 table over explicit, legally obtained facts.
  * Checks unknown input at the owned JSON boundary. Never reads authority or sends.
@@ -181,37 +236,9 @@ export function dispatchGuard(value: unknown): DispatchGuardResult {
       owned.dispatches.known.callId !== owned.callId)
   )
     return rejected('invalidInput')
-  if ('unknown' in owned.call) return rejected('unavailable')
-  const current = owned.call.known
-  if (current === null || current.session !== owned.session || current.callId !== owned.callId)
-    return rejected('callNotFound')
-  if ('unknown' in current.phase) return rejected('unavailable')
-  const currentPhase = current.phase.known
-  if (
-    currentPhase === 'complete' ||
-    currentPhase === 'handed_up' ||
-    currentPhase === 'interrupted' ||
-    currentPhase === 'reply_pending'
-  )
-    return rejected('alreadyEnded')
-  if ('unknown' in owned.dispatches) return rejected('unavailable')
-  const history = owned.dispatches.known.opened
-  if (history.some(item => 'known' in item && item.known)) return refused('already_spoke')
-  if (history.some(item => 'unknown' in item)) return rejected('unavailable')
-  if (currentPhase !== 'awaiting_decision')
-    return Object.freeze({ rejected: 'wrongPhase', phase: currentPhase })
-  if ('unknown' in owned.latestFailure) return rejected('unavailable')
-  if (
-    owned.latestFailure.known === 'credential_unavailable' ||
-    owned.latestFailure.known === 'request_rejected'
-  )
-    return refused('fact_class')
-  if ('unknown' in owned.snapshot) return rejected('unavailable')
-  const profile = owned.snapshot.known
-  if (
-    !profile.providers.includes(owned.plan.provider) ||
-    (!profile.allowFallback && owned.plan.provider !== profile.providers[0])
-  )
-    return refused('provider_not_allowed')
-  return Object.freeze({ allowed: true })
+  const currentPhase = callPhase(owned.call, owned.session, owned.callId)
+  if (typeof currentPhase !== 'string') return currentPhase
+  const history = historyRejection(owned.dispatches, currentPhase)
+  if (history !== undefined) return history
+  return retryDecision(owned.latestFailure, owned.snapshot, owned.plan)
 }
