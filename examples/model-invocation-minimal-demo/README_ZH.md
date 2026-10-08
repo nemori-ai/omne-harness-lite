@@ -9,6 +9,9 @@
 - 交互式命令行，进行耐久、流式、多轮的文本对话（`dist/cli.js`）；
 - 程序装配（`createAcceptanceApplication`、`openDemo`、`createDemoSupervisor`），测试与受信本机宿主经它以图片、工具、Run 坐标、确认和诊断触达同一个 runtime。
 
+独立工具的唯一选中实现验收见 [acceptance/README.md](acceptance/README.md)。
+该验收执行真实工具，模型记录为受控输入，不发送模型请求。
+
 ## 运行命令行
 
 采用仓库根目录声明的 Node 与 pnpm 版本，在仓库根目录执行：

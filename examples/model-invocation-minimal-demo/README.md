@@ -9,6 +9,9 @@ It offers two faces:
 - an interactive CLI for a durable, streaming, multi-turn text conversation (`dist/cli.js`);
 - a programmatic assembly (`createAcceptanceApplication`, `openDemo`, `createDemoSupervisor`) that tests and trusted local hosts use to reach the same runtime with images, tools, Run coordinates, acknowledgement and diagnostics.
 
+The independent selected-tool acceptance is described in [acceptance/README.md](acceptance/README.md).
+It uses real tool execution with controlled model records and does not send a model request.
+
 ## Run the CLI
 
 Use the Node and pnpm versions declared at the repository root. From the repository root:
