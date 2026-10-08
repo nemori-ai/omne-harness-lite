@@ -55,6 +55,12 @@ export interface SessionLogParticipant {
       }
     | LogParticipationFailure
   >
+  /** Reads a fixed complete prefix in the caller's unit. It never starts or commits a transaction. */
+  readonly readPrefixIn: (
+    unit: StorageUnit,
+    authority: LogAuthority,
+    source: SourceToken,
+  ) => ReturnType<SessionLogParticipant['readPrefix']>
   readonly readPrefix: (
     authority: LogAuthority,
     source: SourceToken,

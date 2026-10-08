@@ -1,8 +1,11 @@
+import type { SessionRef } from '@omne-harness-lite/messages'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { SessionScope, SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 import type {
   Access,
+  PublicFailure,
+  Failure,
   CreateSessionInput,
   SessionRuntime,
   CoordinationAuthority,
@@ -52,6 +55,15 @@ export type SessionIngressOperations = Pick<
 export interface LocalSessionIngress {
   readonly access: Access
   readonly operations: SessionIngressOperations
+  /** Trusted host read only. Full journal data must never be sent as ordinary client output. */
+  readonly journal: {
+    readonly readPrefix: (
+      access: Access,
+      session: SessionRef,
+    ) => Promise<
+      Awaited<ReturnType<SessionLogParticipant['readPrefix']>> | PublicFailure | Failure<'notFound'>
+    >
+  }
   /** Trusted assembly reader over this owner's immutable persisted Session reservations. */
   readonly tenancy: SessionTenancyService
   /** Trusted host port. Do not send its live authority or permits over a wire protocol. */

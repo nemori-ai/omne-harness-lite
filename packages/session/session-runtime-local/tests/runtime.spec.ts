@@ -1393,3 +1393,22 @@ it('reports actual Session Context setup failure and releases the original log b
   })
   expect(released).toHaveBeenCalledTimes(1)
 })
+
+it('requires original live ingress Access for trusted journal reads and drains that read surface on close', async () => {
+  const f = await fixture()
+  const created = await create(f)
+  const before = await f.runtime.operations.readProgress(f.runtime.access, created.session)
+  expect(await f.runtime.journal.readPrefix({} as Access, created.session)).toEqual({
+    failure: 'denied',
+  })
+  const prefix = await f.runtime.journal.readPrefix(f.runtime.access, created.session)
+  expect(prefix).toHaveProperty('kind', 'prefix')
+  expect(await f.runtime.operations.readProgress(f.runtime.access, created.session)).toEqual(before)
+  expect(
+    await f.runtime.journal.readPrefix(f.runtime.access, 'absent' as typeof created.session),
+  ).toEqual({ failure: 'notFound' })
+  await f.runtime.close()
+  expect(await f.runtime.journal.readPrefix(f.runtime.access, created.session)).toEqual({
+    failure: 'unavailable',
+  })
+})

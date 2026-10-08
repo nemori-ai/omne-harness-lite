@@ -1,8 +1,9 @@
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 import { StorageDefect } from '@omne-harness-lite/storage'
 import { boot, request, scope } from './support.ts'
 const opened: Awaited<ReturnType<typeof boot>>[] = []
 afterEach(async () => {
+  vi.restoreAllMocks()
   for (const value of opened.splice(0)) await value.close()
 })
 async function fixture() {
@@ -83,4 +84,87 @@ test('rejects a foreign storage unit and leaves that failed unit unable to commi
       })
     }),
   ).rejects.toBeInstanceOf(StorageDefect)
+})
+
+test('reads the actual staged complete prefix without opening a nested transaction', async () => {
+  const f = await fixture()
+  await f.storage.atomic(async unit => {
+    await f.log.participant.appendIn(unit, f.access, request())
+    const selected = await f.log.participant.sourceIn(unit, f.access, scope)
+    if ('failure' in selected) throw new Error('actual source unavailable')
+    const snapshot = await f.log.participant.readPrefixIn(unit, f.access, selected.source)
+    expect(snapshot).toMatchObject({
+      kind: 'prefix',
+      source: selected.source,
+      entries: [{ position: 1 }],
+    })
+    if ('failure' in snapshot) throw new Error('actual prefix unavailable')
+    expect(snapshot.entries).toHaveLength(1)
+    await f.log.participant.appendIn(unit, f.access, request('later'))
+    expect(await f.log.participant.readPrefixIn(unit, f.access, selected.source)).toEqual(snapshot)
+  })
+})
+test('same-unit prefix reads cannot grant copied, foreign, or stopped access', async () => {
+  const f = await fixture()
+  await f.log.append(scope.session, request().entries, request().fence, request().condition)
+  const selected = await f.log.participant.source(f.access, scope)
+  if ('failure' in selected) throw new Error('actual source unavailable')
+  await f.storage.atomic(async unit => {
+    expect(
+      await f.log.participant.readPrefixIn(unit, {} as typeof f.access, selected.source),
+    ).toEqual({ failure: 'denied' })
+    expect(
+      await f.log.participant.readPrefixIn(unit, f.access, {
+        ...selected.source,
+        session: 'other' as typeof scope.session,
+      }),
+    ).toEqual({ failure: 'denied' })
+    expect(
+      await f.log.participant.readPrefixIn(unit, f.access, {
+        ...selected.source,
+        journalGeneration: 'wrong',
+      }),
+    ).toEqual({ failure: 'unavailable' })
+  })
+  await f.log.close()
+  await f.storage.atomic(async unit =>
+    expect(await f.log.participant.readPrefixIn(unit, f.access, selected.source)).toEqual({
+      failure: 'unavailable',
+    }),
+  )
+})
+
+test('drains an accepted same-unit prefix read before closing its journal owner', async () => {
+  const f = await fixture()
+  await f.log.append(scope.session, request().entries, request().fence, request().condition)
+  const selected = await f.log.participant.source(f.access, scope)
+  if ('failure' in selected) throw new Error('actual source unavailable')
+  const entered = Promise.withResolvers<void>(),
+    gate = Promise.withResolvers<void>()
+  const authorize = f.authority.authorize.bind(f.authority)
+  vi.spyOn(f.authority, 'authorize').mockImplementation(async (...args) => {
+    entered.resolve()
+    await gate.promise
+    return authorize(...args)
+  })
+  const read = f.storage.atomic(unit =>
+    f.log.participant.readPrefixIn(unit, f.access, selected.source),
+  )
+  await entered.promise
+  let closed = false
+  const close = f.log.close().then(() => {
+    closed = true
+  })
+  try {
+    await new Promise<void>(resolve => setImmediate(resolve))
+    expect(closed).toBe(false)
+    expect(await f.log.participant.readPrefix(f.access, selected.source)).toEqual({
+      failure: 'unavailable',
+    })
+  } finally {
+    gate.resolve()
+  }
+  expect(await read).toHaveProperty('kind', 'prefix')
+  await close
+  expect(closed).toBe(true)
 })

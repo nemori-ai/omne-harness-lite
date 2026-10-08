@@ -48,7 +48,8 @@
     "@omne-harness-lite/session-log": "workspace:*",
     "@omne-harness-lite/asset-evaluation": "workspace:*",
     "@omne-harness-lite/content-blocks": "workspace:*",
-    "@omne-harness-lite/call-accounts": "workspace:*"
+    "@omne-harness-lite/call-accounts": "workspace:*",
+    "@omne-harness-lite/messages": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

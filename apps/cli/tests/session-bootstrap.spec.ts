@@ -1,3 +1,6 @@
+import { messageLogPayload } from '@omne-harness-lite/session-log'
+import { createSessionTextReader } from '../src/session-reading.ts'
+import { judgeMessage } from '@omne-harness-lite/messages'
 import { afterEach, expect, it, vi } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -651,4 +654,174 @@ it('requires the actual trusted factory holding before treating root data as the
     holdings: reading.input.holdings.filter(holding => holding.holder.layer !== 'factory'),
   }
   expect(await contextSeedFromDefinition(scope, missingFactory)).toEqual({ unavailable: true })
+})
+
+it('reads human text from the actual authorized journal without starting work or exposing internal facts', async () => {
+  const f = await setup()
+  const created = await f.runtime.operations.createSession(f.runtime.access, input)
+  if (!('kind' in created) || created.kind !== 'created') throw new Error('actual creation failed')
+  const scope = { tenant, session: created.session }
+  const message = judgeMessage({
+    id: 'human-1',
+    type: 'user',
+    createdAt: now,
+    blocks: [
+      {
+        id: 'visible-1',
+        kind: 'text',
+        text: 'visible input',
+        visibility: { toHuman: true, toModel: true },
+      },
+      {
+        id: 'model-1',
+        kind: 'text',
+        text: 'model secret',
+        visibility: { toHuman: false, toModel: true },
+      },
+    ],
+  })
+  if ('rejected' in message || message.ok.type !== 'user') throw new Error('bad message fixture')
+  expect(
+    await f.runtime.operations.submitInput(
+      f.runtime.access,
+      scope.session,
+      'submit-human-1',
+      message.ok,
+    ),
+  ).toHaveProperty('kind', 'accepted')
+  const before = await f.runtime.operations.readProgress(f.runtime.access, scope.session)
+  const reader = createSessionTextReader({ tenant, ingress: f.runtime })
+  const reading = await reader.read(scope)
+  expect(reading).toMatchObject({
+    kind: 'messages',
+    messages: [
+      {
+        id: 'human-1',
+        type: 'user',
+        blocks: [{ id: 'visible-1', kind: 'text', text: 'visible input' }],
+      },
+    ],
+  })
+  if ('failure' in reading) throw new Error('actual reading failed')
+  expect(reading.messages).toHaveLength(1)
+  expect(reading.messages[0]?.blocks).toHaveLength(1)
+  expect(JSON.stringify(reading)).not.toContain('model secret')
+  expect(JSON.stringify(reading)).not.toContain('session_initialized')
+  expect(await reader.read(scope)).toEqual(reading)
+  expect(await f.runtime.operations.readProgress(f.runtime.access, scope.session)).toEqual(before)
+  expect(f.seed).toHaveBeenCalledTimes(1)
+  expect(f.exchanges).toHaveBeenCalledTimes(2)
+})
+it('denies foreign tenant before journal work and rechecks the actual member before each text read', async () => {
+  const f = await setup()
+  const created = await f.runtime.operations.createSession(f.runtime.access, input)
+  if (!('kind' in created) || created.kind !== 'created') throw new Error('actual creation failed')
+  const read = vi.fn(f.runtime.journal.readPrefix)
+  const reader = createSessionTextReader({
+    tenant,
+    ingress: { ...f.runtime, journal: { readPrefix: read } },
+  })
+  const scope = { tenant, session: created.session }
+  expect(
+    await reader.read({
+      ...scope,
+      tenant: unwrap(parseTenantId({ organization: 'foreign', account: source.accountId })),
+    }),
+  ).toEqual({ failure: 'denied' })
+  expect(read).not.toHaveBeenCalled()
+  f.exchanges.mockImplementation(async (_options, request) => ({
+    kind: 'reply',
+    sendAttempted: true,
+    reply: {
+      result: (request as { operation: string }).operation.endsWith('#S-36')
+        ? tenant
+        : { standing: 'ineffective' },
+    },
+  }))
+  expect(
+    await f.admission.query(
+      (
+        await f.admission.reserve(source, {
+          tenant,
+          session: null,
+          purpose: 'createSession',
+          operationKey: 'deny-read',
+          inputPosition: null,
+        })
+      ).ticket,
+    ),
+  ).toHaveProperty('state', 'memberRejected')
+  expect(await reader.read(scope)).toEqual({ failure: 'denied' })
+})
+
+it('hides descendants of a non-human parent and omits non-text content from the human text facade', async () => {
+  const f = await setup()
+  const created = await f.runtime.operations.createSession(f.runtime.access, input)
+  if (!('kind' in created) || created.kind !== 'created') throw new Error('actual creation failed')
+  const text = (id: string, toHuman: boolean) => ({
+    id,
+    kind: 'text',
+    text: id,
+    visibility: { toHuman, toModel: true },
+  })
+  const result = (id: string, toHuman: boolean, blocks: unknown[]) => ({
+    id,
+    kind: 'tool_result',
+    callId: 'view-call',
+    outcome: 'completed',
+    visibility: { toHuman, toModel: true },
+    blocks,
+  })
+  const message = judgeMessage({
+    id: 'tool-view',
+    type: 'tool',
+    callId: 'view-call',
+    createdAt: now,
+    blocks: [
+      result('parent', true, [
+        result('hidden-parent', false, [text('hidden-descendant', true)]),
+        text('visible', true),
+        text('hidden-leaf', false),
+      ]),
+    ],
+  })
+  if ('rejected' in message) throw new Error('bad nested tool message')
+  expect(
+    await f.log.append(
+      created.session,
+      [{ tenant, readKeys: [], payload: messageLogPayload(message.ok) }],
+      { kind: 'unfenced' },
+      { kind: 'unconditional' },
+    ),
+  ).toHaveProperty('tail')
+  const read = await createSessionTextReader({ tenant, ingress: f.runtime }).read({
+    tenant,
+    session: created.session,
+  })
+  expect(read).toMatchObject({
+    kind: 'messages',
+    messages: [{ type: 'tool', blocks: [{ id: 'visible', kind: 'text', text: 'visible' }] }],
+  })
+  expect(JSON.stringify(read)).not.toContain('hidden')
+  if ('failure' in read) throw new Error('actual reading failed')
+  expect(read.messages[0]?.blocks).toHaveLength(1)
+})
+it('rejects non-data scopes without running accessors or touching the actual journal', async () => {
+  const f = await setup()
+  const read = vi.fn(f.runtime.journal.readPrefix)
+  const reader = createSessionTextReader({
+    tenant,
+    ingress: { ...f.runtime, journal: { readPrefix: read } },
+  })
+  const getter = vi.fn(() => tenant)
+  const scope = Object.create(null, {
+    tenant: { enumerable: true, get: getter },
+    session: { enumerable: true, value: 'invalid' },
+  }) as SessionScope
+  expect(await reader.read(scope)).toEqual({ failure: 'invalidInput' })
+  expect(
+    await reader.read({ tenant, session: 'invalid', extra: true } as unknown as SessionScope),
+  ).toEqual({ failure: 'invalidInput' })
+  expect(getter).not.toHaveBeenCalled()
+  expect(read).not.toHaveBeenCalled()
 })

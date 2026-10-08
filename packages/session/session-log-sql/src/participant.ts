@@ -145,6 +145,14 @@ export function createParticipant(
         ),
       )
     },
+    async readPrefixIn(unit, access, source) {
+      const checked = checkSourceToken(source)
+      if ('failure' in checked || !validUnit(unit, storage)) return invalidInput
+      if (!admission()) return unavailable
+      return available(() =>
+        supervise(() => unit.run(() => readFixedPrefixIn(unit, access, checked.ok, authority))),
+      )
+    },
     async readPrefix(access: LogAuthority, source) {
       const checked = checkSourceToken(source)
       if ('failure' in checked) return invalidInput
@@ -152,31 +160,33 @@ export function createParticipant(
       return available(() =>
         supervise(() =>
           storage.atomic(unit =>
-            unit.run(async () => {
-              await unit.mutate(tx => tx.lockSentinel(`session-log:${checked.ok.session}`))
-              const decision = await authority.authorize(unit, access, checked.ok, 'read')
-              if (decision.kind !== 'authorized')
-                return decision.kind === 'denied' ? denied : unavailable
-              const row = await unit.query(tx => journal(tx, checked.ok.session))
-              if (row === undefined) return unavailable
-              if (!matchesScope(row, checked.ok)) return denied
-              // Compare the requested generation and verify that its entire prefix is still present.
-              const current = token(row)
-              if (compareInteger(checked.ok.tail, current.tail) > 0) return unavailable
-              const requested = { ...current, tail: checked.ok.tail }
-              if (!sourceTokenEquals(requested, checked.ok)) return unavailable
-              const entries = await unit.query(tx =>
-                entriesBetween(tx, checked.ok, 0, checked.ok.tail),
-              )
-              const last = entries.at(-1)?.position ?? 0
-              if (!sourceTokenEquals({ ...checked.ok, tail: last }, checked.ok)) return unavailable
-              return { kind: 'prefix' as const, entries, source: checked.ok }
-            }),
+            unit.run(() => readFixedPrefixIn(unit, access, checked.ok, authority)),
           ),
         ),
       )
     },
   })
+}
+
+async function readFixedPrefixIn(
+  unit: StorageUnit,
+  access: LogAuthority,
+  source: SourceToken,
+  authority: LogAuthorityOperations,
+): ReturnType<SessionLogParticipant['readPrefix']> {
+  await unit.mutate(tx => tx.lockSentinel(`session-log:${source.session}`))
+  const decision = await authority.authorize(unit, access, source, 'read')
+  if (decision.kind !== 'authorized') return decision.kind === 'denied' ? denied : unavailable
+  const row = await unit.query(tx => journal(tx, source.session))
+  if (row === undefined) return unavailable
+  if (!matchesScope(row, source)) return denied
+  const current = token(row)
+  if (compareInteger(source.tail, current.tail) > 0) return unavailable
+  if (!sourceTokenEquals({ ...current, tail: source.tail }, source)) return unavailable
+  const entries = await unit.query(tx => entriesBetween(tx, source, 0, source.tail))
+  const last = entries.at(-1)?.position ?? 0
+  if (!sourceTokenEquals({ ...source, tail: last }, source)) return unavailable
+  return { kind: 'prefix', entries, source }
 }
 
 function expected(

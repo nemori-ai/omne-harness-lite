@@ -157,6 +157,9 @@ importers:
       '@omne-harness-lite/kernel-basis':
         specifier: workspace:*
         version: link:../../packages/core/kernel-basis
+      '@omne-harness-lite/messages':
+        specifier: workspace:*
+        version: link:../../packages/core/messages
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../packages/core/offer-expiry

@@ -328,3 +328,11 @@ contextSeedFromDefinition是本应用对其官方部署根的解释器。它只�
 解释器核固定Scope的租户，并按本次合法读数的root.source精确定位唯一asset／version及同根能力。它不换用最新版本、其他定义或其他租户。正文通过公开readOpaqueJson解释，contextSessionSeed通过公开decodeContextData的Seed固定Schema捕获；字段缺失、非法或原版本缺失返回unavailable，不补空required／initial／fixed、身份、配值或秘密。语义及原子初始化仍由实际Runtime Context初始化拥有者核验。
 
 此字段表达显式声明；空列表只有在实际官方声明明确给出时有效。初始化数据本身不授权，issuer／原G28／当前读权保持各自责任。组合测试须以真实持久官方发布取得声明，并覆盖缺失／非法、精确来源及factory持有缺失；受控运输仍不作为正式中心部署验收。
+
+## 宿主的纯用户文本读取
+
+createSessionTextReader消费实际Ingress可信journal面，固定真实租户；请求只接受闭合SessionScope数据。非数据／访问器拒绝且不执行访问器，跨租户在日志读取前拒绝。日志坐标和当前成员资格由原Ingress在同单元核验；固定历史坐标不授当前权。
+
+该读面输出固定source及原日志位置顺序中的用户可见文本。显式Message封装才参与，事实／事件与其他JSON不转成消息。文本及thinking文本须toHuman=true，ToolResult后代同时受所有父块的toHuman约束。输出只含位置、消息ID／类型／时间及块ID／类型／文本，不携带原能力记录、OpaqueJson、模型专用块、工具参数或文件凭据。无可见文本的消息不输出；媒体／附件／工具结构不是本读面的文本，后续完整历史读面仍须沿所属阶段提供。模型消息投影与本读面分别由各自承诺拥有者维护。
+
+重复读取不写日志、创建Run、初始化Context或发起模型／工具。损坏的已拥有消息明确StorageDefect，不跳过成部分成功。此函数只提供可信宿主消费者，连接关闭、实际进程协议与独立执行排空另由宿主装配承担；本函数不证明宿主已启动。

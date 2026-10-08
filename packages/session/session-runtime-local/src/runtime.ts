@@ -71,6 +71,7 @@ export function createLocalSessionIngress(options: RuntimeOptions): LocalSession
   return Object.freeze({
     access: owner.access,
     operations: owner.operations,
+    journal: owner.journal,
     tenancy: owner.tenancy,
     coordinationAuthority: owner.coordinationAuthority,
     lifecycle: owner.lifecycle,
@@ -84,6 +85,18 @@ class SessionIngress implements LocalSessionIngress {
   readonly state: ReturnType<typeof createLocalSessionState>
   readonly receipts: ReturnType<typeof createLocalOperationReceipts>
   readonly operations: SessionIngressOperations
+  readonly journal: LocalSessionIngress['journal'] = Object.freeze({
+    readPrefix: (access: Access, session: SessionRef) =>
+      this.run(
+        access,
+        () =>
+          this.member(async unit => {
+            const description = await this.describe(unit, sessionRef(session, this.options))
+            return this.log.readPrefixIn(unit, this.authority.logAccess, description.session.source)
+          }),
+        ['notFound'] as const,
+      ),
+  })
   readonly tenancy: LocalSessionIngress['tenancy'] = Object.freeze<LocalSessionIngress['tenancy']>({
     holdingTenant: async session => {
       const result = await this.run(this.access, () => this.ownership(session), [] as const)
