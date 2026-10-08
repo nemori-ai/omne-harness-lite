@@ -151,6 +151,9 @@ importers:
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
         version: link:../../packages/core/organization-governance
+      '@omne-harness-lite/session-runtime-local':
+        specifier: workspace:*
+        version: link:../../packages/session/session-runtime-local
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../packages/core/storage

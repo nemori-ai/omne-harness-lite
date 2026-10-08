@@ -26,6 +26,7 @@
     "@earendil-works/pi-tui": "catalog:",
     "@omne-harness-lite/client-local-state": "workspace:*",
     "@omne-harness-lite/governance-client-operations": "workspace:*",
+    "@omne-harness-lite/session-runtime-local": "workspace:*",
     "ajv": "catalog:",
     "@omne-harness-lite/identity-values": "workspace:*",
     "@omne-harness-lite/organization-governance": "workspace:*",

@@ -288,3 +288,14 @@ JSON模式不读取交互候选、不打开终端、不补交互答案。非TTY�
 缺少或不支持的配置拒绝进入交互，不回落到未验证的原始输入模式。
 这些配置声明不是版本检测或真实终端验收证据。真实GUI、IME、宽字符、resize和恢复验收另行执行。
 此治理输入接线不表示默认会话准备、Session终端或完整B01已交付。
+
+
+## 会话准入的治理来源
+
+可信宿主以固定center／account／login handle／tenant构造session-admission-probe，并借入原GovernanceClientOperations。原G28拥有持久排队、核验唯一性和票据消费；本适配器只提供一次已实际结束的治理观察，不签发Access、guard或Run，不写Session事实。它不从CLI body建立身份，不能把目录或登录副本当作当前资格。完整宿主消费者仍在施工。
+
+每次核验先核原固定来源和目标租户，再打开实际client use；打开来源不同则关闭原use并返回unavailable，不发送核验。新Session沿线上refresh读取原登录和当前租户成员，固定租户及原来源均匹配且成员effective时返回memberValid；明确成员无效返回memberRejected，不记作登录拒绝。新Run只现读原登录，不附加成员线上查询，也不按登录的当前租户重新解释既有Session归属。
+
+明确原登录拒绝返回rejected；copy、未知、来源不符及当前无法判定返回unavailable。适配器不自动重试。只有原use实际关闭后才返回核验结果；工作或关闭抛错传播，双失败保留两项原错误，不能据已读到有效结果先释放G28屏障。G28在无法取得实际已结束的结果时保留原querying，后继不得越过。借入CG及其CLS的关闭仍归真实宿主，不归一次核验。
+
+实际CG／CLS／根G28组合须验证：新Session成员与新Run登录的不同查询面、较新登录拒绝和重开屏障、成员拒绝后恢复、原use关闭失败后零重发，以及错误绑定零治理IO。此组合测试的运输输入是受控的；正式HTTPS／宿主／模型与工具闭环仍须完整B01验收。
