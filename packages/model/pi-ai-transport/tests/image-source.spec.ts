@@ -152,6 +152,19 @@ it.each([{ reuseScope: null }, { reuseScope: 'invalid' }, { imageBytes: {} }])(
     ).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
   },
 )
+it('accepts an actual object reuse scope through the public planner', async () => {
+  const request = input()
+  const result = await planRequest(
+    request,
+    testDefinitions,
+    syntheticInputMeter(testDefinitions[0]!, request.provider),
+    { signal: new AbortController().signal, reuseScope: {} },
+    testImagePreparerFor(planRequest),
+  )
+  expect(result).toHaveProperty('planned')
+  if (!('planned' in result)) throw new Error(result.rejected)
+  expect(modelLogJsonEqual(result.planned.input, request)).toBe(true)
+})
 it('fails closed when the referenced image has no retained bytes', async () => {
   const request = { ...input(), messages: messages() }
   expect(
