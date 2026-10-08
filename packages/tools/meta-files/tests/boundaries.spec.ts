@@ -90,3 +90,83 @@ test('bounded info sample distinguishes binary, unavailable content and incomple
   vi.mocked(h.files.read).mockResolvedValue({ kind: 'rejected', reason: 'notAuthorized' })
   expect(text(await h.run('info', { path: 'a' }))).toContain('unavailable:notAuthorized')
 })
+
+test('unsorted adjacent original edits apply from the end and count overlapping candidate starts', async () => {
+  const h = fixture()
+  h.seed('a', 'aaaabbcc')
+  const result = await h.run('patch', {
+    files: [
+      {
+        path: 'a',
+        expectedVersion: 'v1',
+        edits: [
+          { match: { text: 'cc' }, replacement: 'longer' },
+          { match: { text: 'bb' }, replacement: 'B' },
+          { match: { text: 'aa', occurrence: 2 }, replacement: 'X' },
+        ],
+      },
+    ],
+  })
+  expect(result).not.toHaveProperty('isError', true)
+  expect(Buffer.from(h.data.get('/work/a')!.bytes).toString()).toBe('aXaBlonger')
+  expect(text(result)).toContain('CONFIRMED DIFF')
+})
+test.each([null, [], { cwd: 'relative' }, { cwd: '/a\0b' }, { cwd: 3 }])(
+  'invalid current context (%j) fails before any file call',
+  async value => {
+    const h = fixture()
+    vi.mocked(h.deps.context.read).mockResolvedValue({
+      kind: 'values',
+      values: [{ key: 'files.initial', revision: 'r', observedAt: '2026-10-08T00:00:00Z', value }],
+    })
+    expect(text(await h.run('read', { path: '/absolute' }))).toContain('context:invalidValue')
+    expect(h.files.read).not.toHaveBeenCalled()
+  },
+)
+test('whole-file edit rejects capacity and version failures without target effects', async () => {
+  const h = fixture({ maxReadBytes: 3 })
+  h.seed('a', 'longer')
+  expect(
+    text(
+      await h.run('edit', {
+        path: 'a',
+        expectedVersion: 'v1',
+        match: { text: 'long' },
+        replacement: 'x',
+      }),
+    ),
+  ).toContain('capacity:wholeFileBytes')
+  const conflict = fixture()
+  conflict.seed('a', 'old')
+  expect(
+    text(
+      await conflict.run('edit', {
+        path: 'a',
+        expectedVersion: 'different',
+        match: { text: 'old' },
+        replacement: 'new',
+      }),
+    ),
+  ).toContain('facility:conflict')
+  expect(h.files.write).not.toHaveBeenCalled()
+  expect(conflict.files.write).not.toHaveBeenCalled()
+})
+test('original complete recognition is success and separates every observation without effects', async () => {
+  const h = fixture()
+  vi.mocked(h.files.recoverBatch).mockResolvedValue({
+    kind: 'recognized',
+    batch: { id: 'original', generation: 'g' },
+    state: 'complete',
+    published: ['/a'],
+    matchingPrepared: ['/b'],
+    conflicting: ['/c'],
+  })
+  const result = await h.run('patch', { recovery: { id: 'original', generation: 'g' } })
+  expect(result).not.toHaveProperty('isError', true)
+  expect(text(result)).toContain('recognition complete')
+  expect(text(result)).toContain('/a')
+  expect(text(result)).toContain('/b')
+  expect(text(result)).toContain('/c')
+  expect(h.files.commitBatch).not.toHaveBeenCalled()
+  expect(h.files.write).not.toHaveBeenCalled()
+})

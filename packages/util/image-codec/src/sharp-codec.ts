@@ -1,5 +1,5 @@
 import type sharp from 'sharp'
-import type { Metadata, OutputInfo } from 'sharp'
+import type { Metadata, OutputInfo, Sharp } from 'sharp'
 import { crc32 } from 'node:zlib'
 import { bytesSchema, dataOnly, encodeSchema, limitsSchema, metadataSchema } from './validation.ts'
 import type {
@@ -70,6 +70,24 @@ function validInspectInput(bytes: Uint8Array, limits: DecodeLimits): boolean {
     dataOnly(limits) &&
     limitsSchema.safeParse(limits).success
   )
+}
+
+function selectEncoding(
+  image: Sharp,
+  spec: ImageEncodeSpec,
+  hasAlpha: boolean,
+): CodecResult<Sharp> {
+  if (spec.alphaBackground) image = image.flatten({ background: spec.alphaBackground })
+  if (spec.format === 'jpeg') {
+    if (hasAlpha && !spec.alphaBackground) return { failure: 'unsupported' }
+    if (spec.quality === null) return { failure: 'internal' }
+    return { ok: image.jpeg({ quality: spec.quality }) }
+  }
+  if (spec.format === 'webp') {
+    if (spec.quality === null) return { failure: 'internal' }
+    return { ok: image.webp({ quality: spec.quality, effort: spec.webpEffort }) }
+  }
+  return { ok: image.png({ compressionLevel: spec.pngCompressionLevel }) }
 }
 
 /** Explicit assembly boundary: never imports the native implementation itself. */
@@ -172,7 +190,7 @@ export function createSharpImageCodec(loadedSharp: typeof sharp): LoadedImageCod
 
           async function encodePixels(): Promise<CodecResult<import('./types.ts').EncodedImage>> {
             try {
-              let image = loadedSharp(source, {
+              const image = loadedSharp(source, {
                 raw: { width: info.width, height: info.height, channels: 4 },
               }).resize({
                 width: spec.width,
@@ -180,19 +198,9 @@ export function createSharpImageCodec(loadedSharp: typeof sharp): LoadedImageCod
                 fit: 'inside',
                 withoutEnlargement: true,
               })
-              if (spec.alphaBackground) image = image.flatten({ background: spec.alphaBackground })
-              if (spec.format === 'jpeg') {
-                if (metadata.hasAlpha && !spec.alphaBackground)
-                  return { failure: 'unsupported' } satisfies CodecResult<never>
-                if (spec.quality === null)
-                  return { failure: 'internal' } satisfies CodecResult<never>
-                image = image.jpeg({ quality: spec.quality })
-              } else if (spec.format === 'webp') {
-                if (spec.quality === null)
-                  return { failure: 'internal' } satisfies CodecResult<never>
-                image = image.webp({ quality: spec.quality, effort: spec.webpEffort })
-              } else image = image.png({ compressionLevel: spec.pngCompressionLevel })
-              const output = await image.toBuffer({ resolveWithObject: true })
+              const selected = selectEncoding(image, spec, metadata.hasAlpha)
+              if ('failure' in selected) return selected
+              const output = await selected.ok.toBuffer({ resolveWithObject: true })
               if (output.info.format !== spec.format)
                 return { failure: 'internal' } satisfies CodecResult<never>
               return {
