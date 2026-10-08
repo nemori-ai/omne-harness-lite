@@ -1,7 +1,7 @@
 # tenancy-host 应用节点
 
 - 源码位置：本旧映射坐标为 `apps/tenancy-host`；当前实现归[实际成员](../../../../../apps/tenancy-host/README.md)。本坐标不声明旧路径仍是源码位置。
-- 交付面：[PF-017](../../../product/PF-017-governance-center-as-deployable-application/README.md)（rev 7）；[PF-001](../../../product/PF-001-identity-scope-and-agent-constraints/README.md)（rev 25）。已采用范围和未接续增量分别见下文。
+- 交付面：[PF-017](../../../product/PF-017-governance-center-as-deployable-application/README.md)（rev 7）；[PF-001](../../../product/PF-001-identity-scope-and-agent-constraints/README.md)（rev 26）。已采用范围和未接续增量分别见下文。
 - kind：`assembly`
 - 当前实现：[治理宿主](../../../../../apps/tenancy-host/README.md)维护公开使用、配置、部署与运维入口。[应用 SPEC](../../../../../apps/tenancy-host/SPEC.md)拥有整体启动、共享事务域、确认、开闸与撤除性质。
 - 范围：[已迁与未迁范围](../../../architecture/pilots/n4-ownership.md)区分已迁集成与未迁业务，[有效语义与保持边界](../../../architecture/identity-integration/preservation.md)列明 AI3/OG2/AR2/OE2/EC3/HT3/IV1 的精确采用。客户端普通业务线协议不因服务端维护版本而自动升级。
@@ -61,3 +61,7 @@ PostgreSQL 当前在宿主启动前拒绝。连接锁断开时的收场 U-2 与�
 首次工作根创建须串行，原位源变动的精确 hash/fstat 分支须独立验证。恢复只保持隔离，不授予安全重新开放。TUI 限于采用的终端 profile，不能推出任意终端支持。Docker 有限验证不覆盖实际公司部署、原生 amd64、专门 TUI 到 Docker 操作或独立整机灾备。模拟 amd64、Mac 内的 Linux Engine 与同机备份均不能代替对应真实环境。Agent 工作会话、Web/desktop 不属于此治理部署范围。
 
 当前契约由实际拥有者维护。候选比较、接受过程和每次执行结果留本工作树 `tmp/`，不在本页维护运行台账。
+
+## 当前产品输入与未兑现增量
+
+现行身份产品输入为 PF-001 rev26。组织名称是中心保存的组织属性；创建／读取契约、实际存储、入口协议及注册个人组织的消费者仍须完成相应扩展。既有身份治理验收不证明名称增量已实现；这里仅核对产品输入与缺口，不升级未迁契约、装配或验证状态。

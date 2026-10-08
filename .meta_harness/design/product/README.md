@@ -20,7 +20,7 @@
 | Topic | 状态 | rev |
 |---|---|---|
 | [PF-000 发生的事与记录条目](PF-000-occurrences-and-record-entries/README.md) | active | 1 |
-| [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 25 |
+| [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 26 |
 | [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | active | 32 |
 | [PF-003 资产的复制与分享](PF-003-asset-transfer-and-sharing/README.md) | active | 6 |
 | [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | active | 20 |
@@ -31,11 +31,11 @@
 | [PF-009 上下文消息类型](PF-009-context-message-types/README.md) | active | 9 |
 | [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | active | 8 |
 | [PF-011 非常态的分层处置](PF-011-off-nominal-handling/README.md) | active | 5 |
-| [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | active | 24 |
+| [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | active | 25 |
 | [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | active | 17 |
-| [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | active | 13 |
+| [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | active | 14 |
 | [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | active | 21 |
-| [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 11 |
+| [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 12 |
 | [PF-017 治理中心作为一个可部署应用](PF-017-governance-center-as-deployable-application/README.md) | active | 7 |
 | [PF-020 工作区](PF-020-workspace/README.md) | active | 22 |
 | [PF-021 日程与日历](PF-021-schedule-and-calendar/README.md) | active | 8 |

@@ -157,7 +157,7 @@
 - **出处**：[PF-013 flows §3.2 一次模型调用](../../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 17） ·
   [PF-013 §5.13](../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 17） ·
   [PF-011 §5.3](../../product/PF-011-off-nominal-handling/design.md#53-层的顺序不是排出来的是推出来的)（rev 5） ·
-  [PF-012 §5.4](../../product/PF-012-agent-loop-and-run/design.md#54-一步的骨架)（rev 24）
+  [PF-012 §5.4](../../product/PF-012-agent-loop-and-run/design.md#54-一步的骨架)（rev 25）
 - **别混**：**不是那次请求的内容**——请求体怎么攒出来归 [PF-010](../../product/PF-010-context-management-and-assembly/README.md)；
   **也不是回复怎么流式拼起来**，那归 [PF-009](../../product/PF-009-context-message-types/README.md)
 - **注意**：**这一层归 [PF-013](../../product/PF-013-model-profiles-and-invocation/README.md)**——
@@ -375,9 +375,9 @@
 - **形态**：属性
 - **出处**：[PF-006 §5.4 每一次执行都留一份账](../../product/PF-006-tools-and-skills/design.md#每一次执行都留一份账)（rev 24） ·
   [PF-009 §5.5](../../product/PF-009-context-message-types/design.md#到达的过程有它自己的语法)（rev 9） ·
-  [PF-012 成本两层](../../product/PF-012-agent-loop-and-run/design.md#成本两层缺哪一层都会算错)（rev 24） ·
+  [PF-012 成本两层](../../product/PF-012-agent-loop-and-run/design.md#成本两层缺哪一层都会算错)（rev 25） ·
   [PF-013 §5.13](../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 17） ·
-  [PF-001 §6.4](../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 25）
+  [PF-001 §6.4](../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 26）
 - **别混**：**不是[工具产出](#ul-tool-output--工具产出--tool-output)**——产出是给读者的东西，账是关于这次的事实
 - **注意**：工具内部调外部服务产生的费用也记在这里，一次执行可以有多笔
 - **注意 ②**：**一次模型调用「已经开口」也是它账目里的一笔**——第一份内容交到任何人眼前之前落进日志，
@@ -440,7 +440,7 @@
 - **形态**：对象
 - **出处**：[PF-006 §4 卸载](../../product/PF-006-tools-and-skills/design.md#卸载)（rev 24） ·
   [§6.10](../../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 24） ·
-  [PF-012 §5.10](../../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 24）
+  [PF-012 §5.10](../../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 25）
 - **别混 ①**：**不是那条占位**——占位进了消息，带着够用的那部分、有多大、怎么取；
   **这一条是被留在外面的那份全的**
 - **别混 ②**：**不是[附件](#ul-attachment--附件--attachment)**——
@@ -497,7 +497,7 @@
 > cause pointing at the vetoing extension.
 
 - **形态**：属性
-- **出处**：[PF-012 §5.8 消息落盘之前的否决，按消息是谁产生的分三路](../../product/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)（rev 24） ·
+- **出处**：[PF-012 §5.8 消息落盘之前的否决，按消息是谁产生的分三路](../../product/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)（rev 25） ·
   [PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件) ·
   [§5.4](../../product/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类)（rev 17）
 - **别混**：**不是[试尽](#ul-retry-exhaustion--试尽--retry-exhaustion)**——试尽只管故障；被否决的回复不是故障，不交给重试挂件，也不算试过一家

@@ -123,7 +123,7 @@
 - **形态**：视图
 - **出处**：[PF-002 §4 会话认得哪些命令，什么时候变](../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变) ·
   [§4「谁可以使用它」是各类资产共用的一项权限](../../product/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)（rev 32） ·
-  [PF-016 §5.7 人要做的事分三族](../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 11）
+  [PF-016 §5.7 人要做的事分三族](../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 12）
 - **别混**：不是历史装配清单，不是资产所有权目录；保留历史可见身份不授予继续使用的权利。
 
 ### UL-governance-center-health-check · 治理中心体检 · Governance Center Health Check
@@ -159,7 +159,7 @@
 > 最近一次与中心的往来拿到了中心的一份答复，就是可达；落在「问不到」——没有拿到中心的答复——就是不可达。
 > **答复说了什么不影响它**：中心答「不认你这个登录状态」「这件事此刻答不了」，照样是可达。
 > **它只是一个观察，不作任何准入依据**：可达不说明成员资格有效、登录状态作数，不可达也不说明它们无效；
-> 中心不可达时，已经开着的会话照常干活。
+> 中心不可达时，已经执行的 Run 继续；新 Run 开始前仍须确认登录有效。
 >
 > **EN**: A session base's observation of **whether the governance center it belongs to is answering
 > right now**: reachable when the latest exchange with the center brought back an answer from it,
@@ -167,11 +167,11 @@
 > **What the answer said does not matter**: a center replying "that login state is not accepted" or
 > "this cannot be answered now" is reachable. **It is an observation only and admits nothing**: being
 > reachable does not mean a membership is valid or a login state still counts, and being unreachable does
-> not mean they are invalid; sessions already open keep working while the center is unreachable.
+> not mean they are invalid; a run already under way can continue while the center is unreachable. A new run still requires confirmation of a valid login before it starts.
 
 - **形态**：属性
 - **出处**：[PF-016 §6.17](../../product/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活) ·
-  [§5.6 哪几件事必须现读](../../product/PF-016-cli-tui-delivery-surface/design.md#哪几件事必须现读)（rev 11） ·
+  [§5.6 哪几件事必须现读](../../product/PF-016-cli-tui-delivery-surface/design.md#哪几件事必须现读)（rev 12） ·
   [PF-017 §4 中心体检](../../product/PF-017-governance-center-as-deployable-application/design.md#中心体检)（rev 7）
 - **⚠️ 别混 ①**：**不是[治理中心体检](#ul-governance-center-health-check--治理中心体检--governance-center-health-check)**——
   体检是中心自述「我在不在、能不能答」；这一条是据点这一头的观察。体检答「数据所在够不着」，中心照样在应答，照样可达

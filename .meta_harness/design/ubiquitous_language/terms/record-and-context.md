@@ -97,7 +97,7 @@
 
 - **形态**：对象
 - **出处**：[PF-012 §4 会话日志](../../product/PF-012-agent-loop-and-run/design.md#会话日志) ·
-  [§5.11 外面进来的事，怎么到 agent 眼前](../../product/PF-012-agent-loop-and-run/design.md#511-外面进来的事怎么到-agent-眼前)（rev 24）
+  [§5.11 外面进来的事，怎么到 agent 眼前](../../product/PF-012-agent-loop-and-run/design.md#511-外面进来的事怎么到-agent-眼前)（rev 25）
 - **别混**：**日志不等于「拿去用的那一份」**——**日志是一份，拿去用的有两份**
 - **⚠️ 注意 ①**：**只增不改没有例外。**[压缩](#ul-context-compaction--上下文压缩--context-compaction)不是例外
   （**它只往后追加一条[压缩记录](#ul-compaction-record--压缩记录--compaction-record)**——摘要是内容，
@@ -184,7 +184,7 @@
 - **出处**：[PF-009 §5.6 中断这件事本身，要让 agent 知道](../../product/PF-009-context-message-types/design.md#中断这件事本身要让-agent-知道) ·
   [§6.13](../../product/PF-009-context-message-types/design.md#613-只要发生了中断就补一条提醒)（rev 9） ·
   [PF-013 §5.5](../../product/PF-013-model-profiles-and-invocation/design.md#55-上交交给谁看模型说没说出话)（rev 17）
-- **注意 ①**：系统为已经发生的中断追补的提醒[本身不取得待处理资格](../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（PF-014 rev 13），不因此重开工作；Trigger 是推进通知，不能把这条提醒变成新输入。
+- **注意 ①**：系统为已经发生的中断追补的提醒[本身不取得待处理资格](../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（PF-014 rev 14），不因此重开工作；Trigger 是推进通知，不能把这条提醒变成新输入。
 - **注意 ②**：**它管的是模型回复那一路。**工具执行没走完就收场的，交代原因的是那次调用位置上的[占位消息](#ul-placeholder-message--占位消息--placeholder-message)，不是它
 
 ### UL-placeholder-message · 占位消息 · Placeholder Message
@@ -247,7 +247,7 @@
 - **形态**：属性
 - **出处**：[PF-009 §6.5 来源是一个属性，不是另一种消息](../../product/PF-009-context-message-types/design.md#65-来源是一个属性不是另一种消息) ·
   [§4 SystemReminderMessage](../../product/PF-009-context-message-types/design.md#systemremindermessage)（rev 9） ·
-  [PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 13）
+  [PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 14）
 - **别混 ①**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official / customized）——那个词条已写明裸写「来源」不作数；**这里的正式名是「来源标记」**
 - **⚠️ 别混 ②**：**不是[来路标记](#ul-origin-tag--来路标记--origin-tag)**——那是**一块文本**身上「这段字从哪条路来」（斜杠命令的留痕、展开物、附带的参数），挂在块上；来源标记挂在到达与消息那一层，答的是「谁捎来的」。人敲一条斜杠命令，**来源仍是用户，来路才是命令**——同一条消息上两者可以都有
 - **弃用**：~~「来源属性」~~（正文的叙述说法，指的就是它）
@@ -268,7 +268,7 @@
 
 - **形态**：属性
 - **出处**：[PF-014 §5.10 斜杠命令在受理时分两路走](../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走) ·
-  [§5.6「消息落盘之前」那一刻，看得到什么](../../product/PF-014-inbound-intake-and-queueing/design.md#56-消息落盘之前那一刻看得到什么)（rev 13）
+  [§5.6「消息落盘之前」那一刻，看得到什么](../../product/PF-014-inbound-intake-and-queueing/design.md#56-消息落盘之前那一刻看得到什么)（rev 14）
 - **⚠️ 别混 ①**：**不是[来源标记](#ul-source-tag--来源标记--source-tag)**——那是入站到达与提醒上的「谁捎来的」，挂在到达与消息那一层；来路标记挂在一块文本上，说的是这段字怎么来的
 - **别混 ②**：**不是[块标注](#ul-block-annotation--块标注--block-annotation)**——标注答「给人看吗、给模型看吗」；来路标记不改变标注，留痕块与展开物各给不给模型读，由受理那一方定
 - **别混 ③**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official / customized）
