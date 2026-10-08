@@ -61,6 +61,18 @@ function hasTrims(value: TrimSummary): boolean {
     )
   )
 }
+function validStatusCauseTable(policy: InvocationPolicy): boolean {
+  return (
+    policy.statusCauseTable !== undefined &&
+    policy.statusCauseTable !== null &&
+    typeof policy.statusCauseTable === 'object' &&
+    Object.entries(policy.statusCauseTable).every(
+      ([key, value]) =>
+        /^[1-5][0-9]{2}$/.test(key) &&
+        ['credential_unavailable', 'request_rejected', 'upstream_unavailable'].includes(value),
+    )
+  )
+}
 function policyValid(policy: InvocationPolicy): boolean {
   return (
     policy !== undefined &&
@@ -69,14 +81,7 @@ function policyValid(policy: InvocationPolicy): boolean {
     typeof policy.now === 'function' &&
     typeof policy.schedule === 'function' &&
     typeof policy.diagnostic === 'function' &&
-    policy.statusCauseTable !== undefined &&
-    policy.statusCauseTable !== null &&
-    typeof policy.statusCauseTable === 'object' &&
-    Object.entries(policy.statusCauseTable).every(
-      ([key, value]) =>
-        /^[1-5][0-9]{2}$/.test(key) &&
-        ['credential_unavailable', 'request_rejected', 'upstream_unavailable'].includes(value),
-    ) &&
+    validStatusCauseTable(policy) &&
     [policy.firstContentTimeoutMs, policy.idleContentTimeoutMs].every(
       v => Number.isFinite(v) && v > 0,
     )
