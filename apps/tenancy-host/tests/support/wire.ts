@@ -40,7 +40,7 @@ export function httpRequest(body: string): Buffer {
 }
 
 export function envelope(operation: string, payload: Record<string, unknown>): string {
-  return JSON.stringify({ protocolVersion: '2', operation, payload })
+  return JSON.stringify({ protocolVersion: '3', operation, payload })
 }
 
 export const PUBLIC_HEALTH_BODY = JSON.stringify({ operation: HEALTH })

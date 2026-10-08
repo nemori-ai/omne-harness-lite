@@ -1,17 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-client-operations/v2/governance-client-operations.schema.json",
+  "$id": "https://omne-harness-lite.invalid/packages/core/governance-client-operations/schema/governance-client-intents.schema.json",
   "title": "治理客户端交互输入候选",
   "description": "完整Input/Output线形表示继续复用v1，新增Intent/Preview/PromptResult只定义交互参与面的值，不含函数或运行时对象。",
   "$defs": {
     "Input": {
-      "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-client-operations/v1/governance-client-operations.schema.json#/$defs/Input"
+      "$ref": "https://omne-harness-lite.invalid/packages/core/governance-client-operations/schema/governance-client-operations.schema.json#/$defs/Input"
     },
     "Output": {
-      "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-client-operations/v1/governance-client-operations.schema.json#/$defs/Output"
+      "$ref": "https://omne-harness-lite.invalid/packages/core/governance-client-operations/schema/governance-client-operations.schema.json#/$defs/Output"
     },
     "PublicExchange": {
-      "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-client-operations/v1/governance-client-operations.schema.json#/$defs/PublicExchange"
+      "$ref": "https://omne-harness-lite.invalid/packages/core/governance-client-operations/schema/governance-client-operations.schema.json#/$defs/PublicExchange"
     },
     "Intent": {
       "oneOf": [
@@ -38,9 +38,7 @@
                       "minLength": 1
                     }
                   },
-                  "required": [
-                    "mode"
-                  ],
+                  "required": ["mode"],
                   "additionalProperties": false
                 },
                 {
@@ -54,20 +52,13 @@
                       "pattern": "^[0-9a-fA-F]{64}$"
                     }
                   },
-                  "required": [
-                    "mode",
-                    "sha256"
-                  ],
+                  "required": ["mode", "sha256"],
                   "additionalProperties": false
                 }
               ]
             }
           },
-          "required": [
-            "action",
-            "endpoint",
-            "trust"
-          ],
+          "required": ["action", "endpoint", "trust"],
           "additionalProperties": false
         },
         {
@@ -77,9 +68,7 @@
               "const": "health"
             }
           },
-          "required": [
-            "action"
-          ],
+          "required": ["action"],
           "additionalProperties": false
         },
         {
@@ -89,9 +78,7 @@
               "const": "logout"
             }
           },
-          "required": [
-            "action"
-          ],
+          "required": ["action"],
           "additionalProperties": false
         },
         {
@@ -137,17 +124,10 @@
               "type": "object"
             },
             "readMode": {
-              "enum": [
-                "prefer-copy",
-                "refresh"
-              ]
+              "enum": ["prefer-copy", "refresh"]
             }
           },
-          "required": [
-            "action",
-            "operation",
-            "payload"
-          ],
+          "required": ["action", "operation", "payload"],
           "additionalProperties": false,
           "allOf": [
             {
@@ -157,14 +137,12 @@
                     "const": "capability.account-identity/v3#S-16"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_AI_S16"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_AI_S16"
                   }
                 }
               }
@@ -176,14 +154,12 @@
                     "const": "capability.account-identity/v3#S-37"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_AI_S37"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_AI_S37"
                   }
                 }
               }
@@ -195,14 +171,12 @@
                     "const": "capability.organization-governance/v2#S-21"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S21"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S21"
                   }
                 }
               }
@@ -214,14 +188,12 @@
                     "const": "capability.organization-governance/v2#S-22"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S22"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S22"
                   }
                 }
               }
@@ -233,14 +205,12 @@
                     "const": "capability.organization-governance/v2#S-23"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S23"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S23"
                   }
                 }
               }
@@ -252,14 +222,12 @@
                     "const": "capability.organization-governance/v2#S-24"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S24"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S24"
                   }
                 }
               }
@@ -271,14 +239,12 @@
                     "const": "capability.organization-governance/v2#S-25"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S25"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S25"
                   }
                 }
               }
@@ -290,14 +256,12 @@
                     "const": "capability.organization-governance/v2#S-26"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S26"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S26"
                   }
                 }
               }
@@ -309,14 +273,12 @@
                     "const": "capability.organization-governance/v2#S-27"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S27"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S27"
                   }
                 }
               }
@@ -328,14 +290,12 @@
                     "const": "capability.organization-governance/v2#S-28"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S28"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S28"
                   }
                 }
               }
@@ -347,14 +307,12 @@
                     "const": "capability.organization-governance/v2#S-29"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S29"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S29"
                   }
                 }
               }
@@ -366,14 +324,12 @@
                     "const": "capability.organization-governance/v2#S-30"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S30"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S30"
                   }
                 }
               }
@@ -385,14 +341,12 @@
                     "const": "capability.organization-governance/v2#S-31"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S31"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S31"
                   }
                 }
               }
@@ -404,14 +358,12 @@
                     "const": "capability.organization-governance/v2#S-32"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S32"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S32"
                   }
                 }
               }
@@ -423,14 +375,12 @@
                     "const": "capability.organization-governance/v2#S-33"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S33"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S33"
                   }
                 }
               }
@@ -442,14 +392,12 @@
                     "const": "capability.organization-governance/v2#S-34"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S34"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S34"
                   }
                 }
               }
@@ -461,14 +409,12 @@
                     "const": "capability.organization-governance/v2#S-35"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S35"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S35"
                   }
                 }
               }
@@ -480,14 +426,12 @@
                     "const": "capability.organization-governance/v2#S-36"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S36"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S36"
                   }
                 }
               }
@@ -499,14 +443,12 @@
                     "const": "capability.organization-governance/v2#S-37"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S37"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S37"
                   }
                 }
               }
@@ -518,14 +460,12 @@
                     "const": "capability.organization-governance/v2#S-55"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S55"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S55"
                   }
                 }
               }
@@ -537,14 +477,12 @@
                     "const": "capability.organization-governance/v2#S-56"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S56"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S56"
                   }
                 }
               }
@@ -556,14 +494,12 @@
                     "const": "capability.organization-governance/v2#S-57"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S57"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S57"
                   }
                 }
               }
@@ -575,14 +511,12 @@
                     "const": "capability.organization-governance/v2#S-58"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S58"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S58"
                   }
                 }
               }
@@ -594,14 +528,12 @@
                     "const": "capability.organization-governance/v2#S-59"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S59"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S59"
                   }
                 }
               }
@@ -613,14 +545,12 @@
                     "const": "capability.organization-governance/v2#S-60"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S60"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S60"
                   }
                 }
               }
@@ -632,9 +562,7 @@
                     "const": "capability.account-identity/v3#S-50"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
@@ -652,14 +580,12 @@
                     "const": "capability.organization-governance/v2#S-61"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S61"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S61"
                   }
                 }
               }
@@ -671,14 +597,12 @@
                     "const": "capability.organization-governance/v2#S-62"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S62"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S62"
                   }
                 }
               }
@@ -690,14 +614,12 @@
                     "const": "composition.governance-center-entry/v2#S-50"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_ENTRY_S50"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_ENTRY_S50"
                   }
                 }
               }
@@ -725,15 +647,11 @@
                     }
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "not": {
-                  "required": [
-                    "readMode"
-                  ]
+                  "required": ["readMode"]
                 }
               }
             }
@@ -749,19 +667,14 @@
               "type": "object",
               "properties": {
                 "loginIdentifier": {
-                  "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_AI_S15/properties/loginIdentifier"
+                  "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_AI_S15/properties/loginIdentifier"
                 }
               },
-              "required": [
-                "loginIdentifier"
-              ],
+              "required": ["loginIdentifier"],
               "additionalProperties": false
             }
           },
-          "required": [
-            "action",
-            "payload"
-          ],
+          "required": ["action", "payload"],
           "additionalProperties": false
         },
         {
@@ -774,19 +687,14 @@
               "type": "object",
               "properties": {
                 "loginIdentifier": {
-                  "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_AI_S15/properties/loginIdentifier"
+                  "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_AI_S15/properties/loginIdentifier"
                 }
               },
-              "required": [
-                "loginIdentifier"
-              ],
+              "required": ["loginIdentifier"],
               "additionalProperties": false
             }
           },
-          "required": [
-            "action",
-            "payload"
-          ],
+          "required": ["action", "payload"],
           "additionalProperties": false
         }
       ]
@@ -798,25 +706,17 @@
           "$ref": "#/$defs/PreviewIntent"
         },
         "origin": {
-          "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-client-operations/v1/governance-client-operations.schema.json#/$defs/Output/properties/origin"
+          "$ref": "https://omne-harness-lite.invalid/packages/core/governance-client-operations/schema/governance-client-operations.schema.json#/$defs/Output/properties/origin"
         },
         "endpoint": {
           "type": "string",
           "minLength": 1
         },
         "source": {
-          "enum": [
-            "local-selection",
-            "verified-center"
-          ]
+          "enum": ["local-selection", "verified-center"]
         }
       },
-      "required": [
-        "intent",
-        "origin",
-        "endpoint",
-        "source"
-      ],
+      "required": ["intent", "origin", "endpoint", "source"],
       "additionalProperties": false
     },
     "PromptResult": {
@@ -828,9 +728,7 @@
               "const": "cancelled"
             }
           },
-          "required": [
-            "kind"
-          ],
+          "required": ["kind"],
           "additionalProperties": false
         },
         {
@@ -851,37 +749,29 @@
                   "type": "object",
                   "properties": {
                     "credential": {
-                      "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/CredentialMaterial"
+                      "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/CredentialMaterial"
                     }
                   },
-                  "required": [
-                    "credential"
-                  ],
+                  "required": ["credential"],
                   "additionalProperties": false
                 },
                 {
                   "type": "object",
                   "properties": {
                     "currentCredential": {
-                      "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/CredentialMaterial"
+                      "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/CredentialMaterial"
                     },
                     "newCredential": {
-                      "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/CredentialMaterial"
+                      "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/CredentialMaterial"
                     }
                   },
-                  "required": [
-                    "currentCredential",
-                    "newCredential"
-                  ],
+                  "required": ["currentCredential", "newCredential"],
                   "additionalProperties": false
                 }
               ]
             }
           },
-          "required": [
-            "kind",
-            "secrets"
-          ],
+          "required": ["kind", "secrets"],
           "additionalProperties": false
         }
       ]
@@ -896,10 +786,7 @@
           "$ref": "#/$defs/PromptResult"
         }
       },
-      "required": [
-        "intent",
-        "result"
-      ],
+      "required": ["intent", "result"],
       "additionalProperties": false,
       "allOf": [
         {
@@ -908,15 +795,10 @@
               "intent": {
                 "properties": {
                   "action": {
-                    "enum": [
-                      "register",
-                      "login"
-                    ]
+                    "enum": ["register", "login"]
                   }
                 },
-                "required": [
-                  "action"
-                ]
+                "required": ["action"]
               },
               "result": {
                 "properties": {
@@ -924,24 +806,17 @@
                     "const": "continue"
                   }
                 },
-                "required": [
-                  "kind"
-                ]
+                "required": ["kind"]
               }
             },
-            "required": [
-              "intent",
-              "result"
-            ]
+            "required": ["intent", "result"]
           },
           "then": {
             "properties": {
               "result": {
                 "properties": {
                   "secrets": {
-                    "required": [
-                      "credential"
-                    ]
+                    "required": ["credential"]
                   }
                 }
               }
@@ -954,18 +829,13 @@
               "intent": {
                 "properties": {
                   "action": {
-                    "enum": [
-                      "invoke"
-                    ]
+                    "enum": ["invoke"]
                   },
                   "operation": {
                     "const": "capability.account-identity/v3#S-50"
                   }
                 },
-                "required": [
-                  "action",
-                  "operation"
-                ]
+                "required": ["action", "operation"]
               },
               "result": {
                 "properties": {
@@ -973,25 +843,17 @@
                     "const": "continue"
                   }
                 },
-                "required": [
-                  "kind"
-                ]
+                "required": ["kind"]
               }
             },
-            "required": [
-              "intent",
-              "result"
-            ]
+            "required": ["intent", "result"]
           },
           "then": {
             "properties": {
               "result": {
                 "properties": {
                   "secrets": {
-                    "required": [
-                      "currentCredential",
-                      "newCredential"
-                    ]
+                    "required": ["currentCredential", "newCredential"]
                   }
                 }
               }
@@ -1007,15 +869,10 @@
                     {
                       "properties": {
                         "action": {
-                          "enum": [
-                            "register",
-                            "login"
-                          ]
+                          "enum": ["register", "login"]
                         }
                       },
-                      "required": [
-                        "action"
-                      ]
+                      "required": ["action"]
                     },
                     {
                       "properties": {
@@ -1026,10 +883,7 @@
                           "const": "capability.account-identity/v3#S-50"
                         }
                       },
-                      "required": [
-                        "action",
-                        "operation"
-                      ]
+                      "required": ["action", "operation"]
                     }
                   ]
                 }
@@ -1040,15 +894,10 @@
                     "const": "continue"
                   }
                 },
-                "required": [
-                  "kind"
-                ]
+                "required": ["kind"]
               }
             },
-            "required": [
-              "intent",
-              "result"
-            ]
+            "required": ["intent", "result"]
           },
           "then": {
             "properties": {
@@ -1088,10 +937,7 @@
                       "const": "system"
                     }
                   },
-                  "required": [
-                    "mode",
-                    "source"
-                  ],
+                  "required": ["mode", "source"],
                   "additionalProperties": false
                 },
                 {
@@ -1108,11 +954,7 @@
                       "pattern": "^[0-9a-f]{64}$"
                     }
                   },
-                  "required": [
-                    "mode",
-                    "source",
-                    "sha256"
-                  ],
+                  "required": ["mode", "source", "sha256"],
                   "additionalProperties": false
                 },
                 {
@@ -1126,20 +968,13 @@
                       "pattern": "^[0-9a-fA-F]{64}$"
                     }
                   },
-                  "required": [
-                    "mode",
-                    "sha256"
-                  ],
+                  "required": ["mode", "sha256"],
                   "additionalProperties": false
                 }
               ]
             }
           },
-          "required": [
-            "action",
-            "endpoint",
-            "trust"
-          ],
+          "required": ["action", "endpoint", "trust"],
           "additionalProperties": false
         },
         {
@@ -1149,9 +984,7 @@
               "const": "health"
             }
           },
-          "required": [
-            "action"
-          ],
+          "required": ["action"],
           "additionalProperties": false
         },
         {
@@ -1161,9 +994,7 @@
               "const": "logout"
             }
           },
-          "required": [
-            "action"
-          ],
+          "required": ["action"],
           "additionalProperties": false
         },
         {
@@ -1209,17 +1040,10 @@
               "type": "object"
             },
             "readMode": {
-              "enum": [
-                "prefer-copy",
-                "refresh"
-              ]
+              "enum": ["prefer-copy", "refresh"]
             }
           },
-          "required": [
-            "action",
-            "operation",
-            "payload"
-          ],
+          "required": ["action", "operation", "payload"],
           "additionalProperties": false,
           "allOf": [
             {
@@ -1229,14 +1053,12 @@
                     "const": "capability.account-identity/v3#S-16"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_AI_S16"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_AI_S16"
                   }
                 }
               }
@@ -1248,14 +1070,12 @@
                     "const": "capability.account-identity/v3#S-37"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_AI_S37"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_AI_S37"
                   }
                 }
               }
@@ -1267,14 +1087,12 @@
                     "const": "capability.organization-governance/v2#S-21"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S21"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S21"
                   }
                 }
               }
@@ -1286,14 +1104,12 @@
                     "const": "capability.organization-governance/v2#S-22"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S22"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S22"
                   }
                 }
               }
@@ -1305,14 +1121,12 @@
                     "const": "capability.organization-governance/v2#S-23"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S23"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S23"
                   }
                 }
               }
@@ -1324,14 +1138,12 @@
                     "const": "capability.organization-governance/v2#S-24"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S24"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S24"
                   }
                 }
               }
@@ -1343,14 +1155,12 @@
                     "const": "capability.organization-governance/v2#S-25"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S25"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S25"
                   }
                 }
               }
@@ -1362,14 +1172,12 @@
                     "const": "capability.organization-governance/v2#S-26"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S26"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S26"
                   }
                 }
               }
@@ -1381,14 +1189,12 @@
                     "const": "capability.organization-governance/v2#S-27"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S27"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S27"
                   }
                 }
               }
@@ -1400,14 +1206,12 @@
                     "const": "capability.organization-governance/v2#S-28"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S28"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S28"
                   }
                 }
               }
@@ -1419,14 +1223,12 @@
                     "const": "capability.organization-governance/v2#S-29"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S29"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S29"
                   }
                 }
               }
@@ -1438,14 +1240,12 @@
                     "const": "capability.organization-governance/v2#S-30"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S30"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S30"
                   }
                 }
               }
@@ -1457,14 +1257,12 @@
                     "const": "capability.organization-governance/v2#S-31"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S31"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S31"
                   }
                 }
               }
@@ -1476,14 +1274,12 @@
                     "const": "capability.organization-governance/v2#S-32"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S32"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S32"
                   }
                 }
               }
@@ -1495,14 +1291,12 @@
                     "const": "capability.organization-governance/v2#S-33"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S33"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S33"
                   }
                 }
               }
@@ -1514,14 +1308,12 @@
                     "const": "capability.organization-governance/v2#S-34"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S34"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S34"
                   }
                 }
               }
@@ -1533,14 +1325,12 @@
                     "const": "capability.organization-governance/v2#S-35"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S35"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S35"
                   }
                 }
               }
@@ -1552,14 +1342,12 @@
                     "const": "capability.organization-governance/v2#S-36"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S36"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S36"
                   }
                 }
               }
@@ -1571,14 +1359,12 @@
                     "const": "capability.organization-governance/v2#S-37"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S37"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S37"
                   }
                 }
               }
@@ -1590,14 +1376,12 @@
                     "const": "capability.organization-governance/v2#S-55"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S55"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S55"
                   }
                 }
               }
@@ -1609,14 +1393,12 @@
                     "const": "capability.organization-governance/v2#S-56"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S56"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S56"
                   }
                 }
               }
@@ -1628,14 +1410,12 @@
                     "const": "capability.organization-governance/v2#S-57"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S57"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S57"
                   }
                 }
               }
@@ -1647,14 +1427,12 @@
                     "const": "capability.organization-governance/v2#S-58"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S58"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S58"
                   }
                 }
               }
@@ -1666,14 +1444,12 @@
                     "const": "capability.organization-governance/v2#S-59"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S59"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S59"
                   }
                 }
               }
@@ -1685,14 +1461,12 @@
                     "const": "capability.organization-governance/v2#S-60"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S60"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S60"
                   }
                 }
               }
@@ -1704,9 +1478,7 @@
                     "const": "capability.account-identity/v3#S-50"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
@@ -1724,14 +1496,12 @@
                     "const": "capability.organization-governance/v2#S-61"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S61"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S61"
                   }
                 }
               }
@@ -1743,14 +1513,12 @@
                     "const": "capability.organization-governance/v2#S-62"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S62"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S62"
                   }
                 }
               }
@@ -1762,14 +1530,12 @@
                     "const": "composition.governance-center-entry/v2#S-50"
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "properties": {
                   "payload": {
-                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_ENTRY_S50"
+                    "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_ENTRY_S50"
                   }
                 }
               }
@@ -1797,15 +1563,11 @@
                     }
                   }
                 },
-                "required": [
-                  "operation"
-                ]
+                "required": ["operation"]
               },
               "then": {
                 "not": {
-                  "required": [
-                    "readMode"
-                  ]
+                  "required": ["readMode"]
                 }
               }
             }
@@ -1821,19 +1583,14 @@
               "type": "object",
               "properties": {
                 "loginIdentifier": {
-                  "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_AI_S15/properties/loginIdentifier"
+                  "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_AI_S15/properties/loginIdentifier"
                 }
               },
-              "required": [
-                "loginIdentifier"
-              ],
+              "required": ["loginIdentifier"],
               "additionalProperties": false
             }
           },
-          "required": [
-            "action",
-            "payload"
-          ],
+          "required": ["action", "payload"],
           "additionalProperties": false
         },
         {
@@ -1846,19 +1603,14 @@
               "type": "object",
               "properties": {
                 "loginIdentifier": {
-                  "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_AI_S15/properties/loginIdentifier"
+                  "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_AI_S15/properties/loginIdentifier"
                 }
               },
-              "required": [
-                "loginIdentifier"
-              ],
+              "required": ["loginIdentifier"],
               "additionalProperties": false
             }
           },
-          "required": [
-            "action",
-            "payload"
-          ],
+          "required": ["action", "payload"],
           "additionalProperties": false
         }
       ]

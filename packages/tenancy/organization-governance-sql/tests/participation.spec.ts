@@ -136,7 +136,9 @@ describe('OG2 explicit participation', () => {
     await expect(
       h.storage.atomic(async unit => {
         const team = okOf(
-          await h.organizations.participate(unit).createTeam(user.account, 'rollback-key'),
+          await h.organizations
+            .participate(unit)
+            .createTeam(user.account, 'test organization', 'rollback-key'),
         )
         h.storage.failTables('invitation')
         await h.offers.participate(unit).issueInvitation(team.tenant, target.account)
@@ -153,7 +155,9 @@ describe('OG2 explicit participation', () => {
     const before = await countRows(h, 'organization')
     await expect(
       h.storage.atomic(async unit => {
-        await h.organizations.participate(unit).createTeam(user.account, 'poison-key')
+        await h.organizations
+          .participate(unit)
+          .createTeam(user.account, 'test organization', 'poison-key')
         h.storage.failTables('organization')
         try {
           await h.organizations.participate(unit).read('missing')

@@ -57,7 +57,93 @@ async function freshStorage(): Promise<{ file: string; storage: Storage }> {
 }
 
 describe('organizationGovernanceMigrations 工厂', () => {
-  it('六个片段，名字 = 表名、次序稳定；合成名按全局位置编号，AI 同形片段在前', async () => {
+  async function legacyDatabase() {
+    const file = tempSqliteFile('unnamed-legacy')
+    const db = new Kysely<Record<string, Record<string, unknown>>>({
+      dialect: new NodeSqliteDialect({ file, role: 'write' }),
+    })
+    closers.push(() => db.destroy())
+    for (const fragment of [...accountTestMigrations, ...ogFragments.slice(0, 6)]) {
+      await fragment.migration.up(db)
+    }
+    return db
+  }
+
+  it('名称升级为旧个人组织补固定名称，不改变身份或成员关系', async () => {
+    const db = await legacyDatabase()
+    await db
+      .insertInto('account')
+      .values({
+        account_id: 'a1',
+        login_identifier: 'login-a1',
+        credential_material: 'fixture',
+        activated: 1,
+        produced_at: 1,
+        retention_deadline: 2,
+        expired_at: null,
+      })
+      .execute()
+    await db
+      .insertInto('organization')
+      .values({
+        organization_id: 'personal-1',
+        kind: 'personal',
+        parent: null,
+        owner_account: 'a1',
+        created_at: 1,
+      })
+      .execute()
+    await db
+      .insertInto('membership')
+      .values({
+        organization_id: 'personal-1',
+        account_id: 'a1',
+        effective: 1,
+        role: 'superAdministrator',
+      })
+      .execute()
+    const migration = ogFragments[6]
+    if (migration === undefined) throw new Error('name migration is missing')
+    await migration.migration.up(db)
+    expect(await db.selectFrom('organization').selectAll().execute()).toEqual([
+      {
+        organization_id: 'personal-1',
+        kind: 'personal',
+        parent: null,
+        owner_account: 'a1',
+        created_at: 1,
+        name: '个人组织',
+      },
+    ])
+    expect(await db.selectFrom('membership').selectAll().execute()).toEqual([
+      {
+        organization_id: 'personal-1',
+        account_id: 'a1',
+        effective: 1,
+        role: 'superAdministrator',
+      },
+    ])
+  })
+
+  it('旧团队没有明确名称时拒绝升级，原结构与原记录均保留', async () => {
+    const db = await legacyDatabase()
+    const row = {
+      organization_id: 'legacy-team',
+      kind: 'team',
+      parent: null,
+      owner_account: null,
+      created_at: 1,
+    }
+    await db.insertInto('organization').values(row).execute()
+    const migration = ogFragments[6]
+    if (migration === undefined) throw new Error('name migration is missing')
+    await expect(migration.migration.up(db)).rejects.toThrow('explicit names for existing teams')
+    const table = (await db.introspection.getTables()).find(t => t.name === 'organization')
+    expect(table?.columns.some(column => column.name === 'name')).toBe(false)
+    expect(await db.selectFrom('organization').selectAll().execute()).toEqual([row])
+  })
+
+  it('原六个表片段次序稳定，名称迁移只追加；合成名按全局位置编号，AI 同形片段在前', async () => {
     expect(ogFragments.map(f => f.name)).toEqual([
       'organization',
       'membership',
@@ -65,8 +151,9 @@ describe('organizationGovernanceMigrations 工厂', () => {
       'affiliation_request',
       'current_tenant_selection',
       'team_creation_key',
+      'organization_name',
     ])
-    expect(Object.values(OG_TABLES)).toEqual(ogFragments.map(f => f.name))
+    expect(Object.values(OG_TABLES)).toEqual(ogFragments.slice(0, 6).map(f => f.name))
     const names = Object.keys(await composedMigrations().getMigrations())
     expect(names).toEqual(
       [...accountTestMigrations, ...ogFragments].map((f, i) => composedMigrationName(i + 1, f)),
@@ -188,7 +275,14 @@ describe('organizationGovernanceMigrations 工厂', () => {
       [
         // owner 为空，冲突只落在主键上
         'organization',
-        { organization_id: 'o0', kind: 'team', parent: null, owner_account: null, created_at: now },
+        {
+          organization_id: 'o0',
+          kind: 'team',
+          name: 'test organization',
+          parent: null,
+          owner_account: null,
+          created_at: now,
+        },
         'organization_pkey',
       ],
       [
@@ -196,6 +290,7 @@ describe('organizationGovernanceMigrations 工厂', () => {
         {
           organization_id: 'o1',
           kind: 'personal',
+          name: '个人组织',
           parent: null,
           owner_account: 'a1',
           created_at: now,
@@ -258,6 +353,7 @@ describe('organizationGovernanceMigrations 工厂', () => {
           .values({
             organization_id: 'o9',
             kind: 'personal',
+            name: '个人组织',
             parent: null,
             owner_account: 'a1',
             created_at: now,
@@ -275,6 +371,7 @@ describe('organizationGovernanceMigrations 工厂', () => {
           .values({
             organization_id: id,
             kind: 'team',
+            name: 'test organization',
             parent: null,
             owner_account: null,
             created_at: now,
@@ -293,6 +390,7 @@ describe('organizationGovernanceMigrations 工厂', () => {
           .values({
             organization_id: 'o1',
             kind: 'personal',
+            name: '个人组织',
             parent: null,
             owner_account: 'ghost',
             created_at: 1,
@@ -321,6 +419,7 @@ describe('organizationGovernanceMigrations 工厂', () => {
         .values({
           organization_id: 'o1',
           kind: 'personal',
+          name: '个人组织',
           parent: null,
           owner_account: 'a1',
           created_at: 1,

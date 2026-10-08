@@ -31,6 +31,7 @@ export interface OrganizationReading {
   readonly id: OrganizationId
   readonly kind: OrganizationKind
   readonly parent: OrganizationId | null
+  readonly name: string
 }
 
 /** S-55 ⑤：邀请的读面形状，派生状态按本次读取时点求出。 */
@@ -90,9 +91,10 @@ export interface OrganizationsService {
   participate(unit: StorageUnit): OrganizationsParticipation
   /** 幂等边界 AccountId；幂等那一路仍过 ② 两条判定。 */
   createPersonal(accountId: unknown): Promise<Outcome<CreatedOrganization, CreatePersonalFailure>>
-  /** 幂等边界 (创建者, 创建键)；不带键不幂等。 */
+  /** 幂等边界 (创建者, 创建键)；同键名称冲突拒绝，不带键不幂等。 */
   createTeam(
     creatorAccountId: unknown,
+    name: unknown,
     creationKey?: unknown,
   ): Promise<Outcome<CreatedOrganization, CreateTeamFailure>>
   read(organizationId: unknown): Promise<Outcome<OrganizationReading, ReadOrganizationFailure>>

@@ -3,12 +3,14 @@ const require = createRequire(import.meta.url)
 const resourceSpecifiers = [
   '@omne-harness-lite/identity-values/schema',
   '@omne-harness-lite/offer-expiry/schema',
-  '@omne-harness-lite/governance-center-entry/schema/v2',
+  '@omne-harness-lite/governance-center-entry/schema',
   '@omne-harness-lite/governance-client-operations/schema',
-  '@omne-harness-lite/governance-client-operations/schema/v2',
+  '@omne-harness-lite/governance-client-operations/schema/intents',
 ]
 const resources = resourceSpecifiers.map(name => require(name))
-const schema: { $id: string } = require('@omne-harness-lite/governance-client-operations/schema/v2')
+const schema: {
+  $id: string
+} = require('@omne-harness-lite/governance-client-operations/schema/intents')
 const formsSchema = require('../forms/tui-forms.schema.json')
 export const schemaGraphs = [
   {
@@ -18,9 +20,9 @@ export const schemaGraphs = [
     resourceSpecifiers: [
       '@omne-harness-lite/identity-values/schema',
       '@omne-harness-lite/offer-expiry/schema',
-      '@omne-harness-lite/governance-center-entry/schema/v2',
+      '@omne-harness-lite/governance-center-entry/schema',
       '@omne-harness-lite/governance-client-operations/schema',
-      '@omne-harness-lite/governance-client-operations/schema/v2',
+      '@omne-harness-lite/governance-client-operations/schema/intents',
     ],
     sourceFiles: ['src/schema-inputs.ts'],
     options: { strict: true, strictTypes: false, strictRequired: false, validateFormats: false },

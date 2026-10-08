@@ -6,7 +6,7 @@ export const snapshotTables: readonly SnapshotTable[] = [
   {
     name: 'organization',
     definition:
-      'CREATE TABLE "organization" ("organization_id" text not null, "kind" text not null, "parent" text, "owner_account" text, "created_at" bigint not null, constraint "organization_pkey" primary key ("organization_id"), constraint "organization_owner_account_fk" foreign key ("owner_account") references "account" ("account_id") on delete restrict)',
+      'CREATE TABLE "organization" ("organization_id" text not null, "kind" text not null, "parent" text, "owner_account" text, "created_at" bigint not null, constraint "organization_pkey" primary key ("organization_id"), constraint "organization_owner_account_fk" foreign key ("owner_account") references "account" ("account_id") on delete restrict, "name" text)',
     columns: [
       {
         name: 'organization_id',
@@ -36,6 +36,12 @@ export const snapshotTables: readonly SnapshotTable[] = [
         name: 'created_at',
         type: 'bigint',
         notNull: true,
+        primaryKeyPosition: 0,
+      },
+      {
+        name: 'name',
+        type: 'TEXT',
+        notNull: false,
         primaryKeyPosition: 0,
       },
     ],

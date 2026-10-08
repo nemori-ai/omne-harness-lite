@@ -44,4 +44,4 @@ export type RouteId = (typeof ROUTE_IDS)[number]
  * `accepted_protocol_versions`（S-8）：包内常量，不是 config——对得上哪些协议版本由本包的路由表实现了哪些版本决定；
  * 做成 config 就让装配能宣称接受一个代码没实现的版本。随本包版本定下，运行期间不变，非空。
  */
-export const ACCEPTED_PROTOCOL_VERSIONS: readonly string[] = Object.freeze(['2'])
+export const ACCEPTED_PROTOCOL_VERSIONS: readonly string[] = Object.freeze(['3'])

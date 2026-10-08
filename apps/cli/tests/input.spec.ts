@@ -100,6 +100,9 @@ describe('exact command and nonsecret syntax', () => {
       )
       expect(sample).toBeDefined()
       const payload = { ...((sample!.value['payload'] as Record<string, unknown>) ?? {}) }
+      if (command.operation === 'capability.organization-governance/v2#S-21') {
+        payload['name'] = 'test organization'
+      }
       for (const field of command.secretFields) delete payload[field]
       const input = await file(JSON.stringify(payload))
       const args = [

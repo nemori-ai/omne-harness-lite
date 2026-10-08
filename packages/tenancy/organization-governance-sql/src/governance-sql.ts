@@ -29,13 +29,13 @@ function readData(tx: ReadTx): OrgRead {
     organization: id =>
       db(tx)
         .selectFrom('organization')
-        .select(['organization_id', 'kind', 'parent', 'owner_account'])
+        .select(['organization_id', 'kind', 'parent', 'owner_account', 'name'])
         .where('organization_id', '=', id)
         .executeTakeFirst(),
     ownedOrganization: account =>
       db(tx)
         .selectFrom('organization')
-        .select(['organization_id', 'kind', 'parent', 'owner_account'])
+        .select(['organization_id', 'kind', 'parent', 'owner_account', 'name'])
         .where('owner_account', '=', account)
         .executeTakeFirst(),
     membership: tenant =>

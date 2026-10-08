@@ -126,7 +126,9 @@ export async function walk(
 
   await step('建团队组织（§1.4）')
   const organization = asString(
-    resultOf(await call(c, 'createOrganization', {}, inviterLogin.presentation)),
+    resultOf(
+      await call(c, 'createOrganization', { name: 'test organization' }, inviterLogin.presentation),
+    ),
     'organization',
   )
 

@@ -23,7 +23,7 @@ import {
  * 本客户端声明的协议版本。哪些版本算对得上是中心的具名参数 `accepted_protocol_versions`（EC S-8），
  * 取值归入口层的实现映射（入口层包 README）；客户端只是照着那份映射发。
  */
-export const PROTOCOL_VERSION = '2'
+export const PROTOCOL_VERSION = '3'
 
 /** EC S-18：公开体检的路由标识；它不是信封路由。 */
 export const PUBLIC_HEALTH_ROUTE = 'composition.governance-center-entry/v1#S-18'

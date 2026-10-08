@@ -155,14 +155,14 @@ describe('T-2 线上逐字节相同（真实组合）', () => {
     replies.push(
       await askRaw(
         c,
-        `{"protocolVersion":"2","presentedLoginState":"${ada.presentation}","presentedLoginState":"${ada.presentation}x","operation":"${mine}","payload":{}}`,
+        `{"protocolVersion":"3","presentedLoginState":"${ada.presentation}","presentedLoginState":"${ada.presentation}x","operation":"${mine}","payload":{}}`,
       ),
     )
     for (const malformed of [` ${ada.presentation}`, 'lsp_\\uD800x', 'x'.repeat(1025)]) {
       replies.push(
         await askRaw(
           c,
-          `{"protocolVersion":"2","presentedLoginState":"${malformed}","operation":"${mine}","payload":{}}`,
+          `{"protocolVersion":"3","presentedLoginState":"${malformed}","operation":"${mine}","payload":{}}`,
         ),
       )
     }
@@ -423,7 +423,11 @@ describe('T-6 身份推导与补授权（真实组合）', () => {
     const c = await boot()
     const ada = await session(c, 'ada@example.invalid')
     const bob = await session(c, 'bob@example.invalid')
-    const team = String(result(bodyOf(await ask(c, envelopeOf(OG(21), {}, ada.presentation)))))
+    const team = String(
+      result(
+        bodyOf(await ask(c, envelopeOf(OG(21), { name: 'test organization' }, ada.presentation))),
+      ),
+    )
     organizationIds.add(team)
     expect(
       bodyOf(
@@ -561,7 +565,11 @@ describe('T-7 δ = 0：每个请求现读（真实组合）', () => {
     ).toEqual({ result: 'ok' })
     expect(await ask(c, envelopeOf(OG(27), {}, throwaway.presentation))).toEqual(REJECTED)
 
-    const team = String(result(bodyOf(await ask(c, envelopeOf(OG(21), {}, ada.presentation)))))
+    const team = String(
+      result(
+        bodyOf(await ask(c, envelopeOf(OG(21), { name: 'test organization' }, ada.presentation))),
+      ),
+    )
     organizationIds.add(team)
     expect(
       bodyOf(
@@ -611,7 +619,9 @@ describe('T-7 δ = 0：每个请求现读（真实组合）', () => {
     })
     expect(
       bodyOf(await ask(c, envelopeOf(OG(22), { organization: team }, bob.presentation))),
-    ).toEqual({ result: { organization: team, organizationKind: 'team' } })
+    ).toEqual({
+      result: { organization: team, organizationKind: 'team', name: 'test organization' },
+    })
     expect(
       bodyOf(
         await ask(

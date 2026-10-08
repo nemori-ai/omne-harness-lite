@@ -155,7 +155,9 @@ describe('时间源不可用 ⇒ unavailable', () => {
     ).toEqual({
       failure: 'unavailable',
     })
-    expect(await h.organizations.createTeam(w.user.account)).toEqual({ failure: 'unavailable' })
+    expect(await h.organizations.createTeam(w.user.account, 'test organization')).toEqual({
+      failure: 'unavailable',
+    })
     h.clock.unavailable = false
     expect(await countRows(h, 'invitation')).toBe(invitations)
     expect(await rowsOf(h, 'invitation', { invitation_id: w.invitation })).toMatchObject([

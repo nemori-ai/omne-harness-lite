@@ -70,8 +70,8 @@ function envelope(operation: string, payload: unknown, presentation: unknown = P
   }
   return JSON.stringify(
     presentation === ABSENT
-      ? { protocolVersion: '2', operation, payload }
-      : { protocolVersion: '2', presentedLoginState: presentation, operation, payload },
+      ? { protocolVersion: '3', operation, payload }
+      : { protocolVersion: '3', presentedLoginState: presentation, operation, payload },
   )
 }
 
@@ -96,7 +96,7 @@ const PAYLOADS: Record<string, Record<string, unknown>> = {
   [AI15]: CREDENTIALS,
   [AI16]: { loginStateHandle: LOGIN_STATE },
   [AI37]: {},
-  [og(21)]: {},
+  [og(21)]: { name: 'test organization' },
   [og(22)]: { organization: ORGANIZATION },
   [og(23)]: { invitedAccount: OTHER_ACCOUNT },
   [og(24)]: { invitation: 'inv_1' },
@@ -172,7 +172,8 @@ const SUCCESS_BODIES: Record<string, string> = {
   [AI16]: '{"result":"ok"}',
   [AI37]: `{"result":[{"loginStateHandle":"${LOGIN_STATE}","issuedAt":"${at}","lastActivityAt":"${at}","absoluteExpiresAt":"2026-09-23T16:00:00Z","idleExpiresAt":"2026-09-23T09:00:00Z"}]}`,
   [og(21)]: '{"result":"org_new"}',
-  [og(22)]: `{"result":{"organization":"${ORGANIZATION}","organizationKind":"team"}}`,
+  [og(22)]:
+    `{"result":{"organization":"${ORGANIZATION}","organizationKind":"team","name":"test organization"}}`,
   [og(23)]: '{"result":"inv_1"}',
   [og(24)]: '{"result":"ok"}',
   [og(25)]: `{"result":${tenant}}`,
@@ -283,10 +284,10 @@ describe('V-9 与 T-10 的成功那一支：27 条路由的成功返回', () => 
     )
     const withParent = new StubParticipants()
     withParent.on('organizations.read', async () => ({
-      ok: { id: ORGANIZATION, kind: 'team', parent: OTHER_ORGANIZATION },
+      ok: { id: ORGANIZATION, kind: 'team', parent: OTHER_ORGANIZATION, name: 'test organization' },
     }))
     expect(JSON.stringify(body(await run(withParent, envelope(og(22), PAYLOADS[og(22)]))))).toBe(
-      `{"result":{"organization":"${ORGANIZATION}","organizationKind":"team","parentOrganization":"${OTHER_ORGANIZATION}"}}`,
+      `{"result":{"organization":"${ORGANIZATION}","organizationKind":"team","name":"test organization","parentOrganization":"${OTHER_ORGANIZATION}"}}`,
     )
   })
 })
@@ -353,7 +354,7 @@ const FAILURES: Record<string, Record<string, Expected>> = {
     accountNotActivated: 'defect',
     accountDoesNotExist: 'defect',
     unavailable: 'unavailable',
-    invalidInput: 'defect',
+    invalidInput: 'invalid-input',
   },
   [og(22)]: {
     organizationDoesNotExist: 'pass',
@@ -603,8 +604,10 @@ describe('T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写�
   it('OG 的 invalidInput 在交进去的输入含载荷项时是 invalid-input，全是入口层产出的值时是缺陷（同一条路由两种载荷）', async () => {
     const stub = new StubParticipants()
     stub.on('organizations.createTeam', async () => ({ failure: 'invalidInput' }))
-    expect((await run(stub, envelope(og(21), {}))).record.defect).toBe(true)
-    expect((await run(stub, envelope(og(21), { creationKey: 'k1' }))).bytes).toBe(INVALID)
+    expect((await run(stub, envelope(og(21), {}))).bytes).toBe(INVALID)
+    expect(
+      (await run(stub, envelope(og(21), { name: 'test organization', creationKey: 'k1' }))).bytes,
+    ).toBe(INVALID)
   })
 })
 
@@ -620,13 +623,13 @@ describe('T-2 桩那一半：六种不认与其间撤销逐字节相同；表示
         (
           await run(
             stub,
-            `{"protocolVersion":"2","presentedLoginState":"${P}","presentedLoginState":"${Q}","operation":"${og(27)}","payload":{}}`,
+            `{"protocolVersion":"3","presentedLoginState":"${P}","presentedLoginState":"${Q}","operation":"${og(27)}","payload":{}}`,
           )
         ).bytes,
       ].filter(b => b !== undefined),
     )
     for (const malformed of [` ${P}`, `${P} `, `lsp_\\uD800x`, 'x'.repeat(1025)]) {
-      const text = `{"protocolVersion":"2","presentedLoginState":"${malformed}","operation":"${og(27)}","payload":{}}`
+      const text = `{"protocolVersion":"3","presentedLoginState":"${malformed}","operation":"${og(27)}","payload":{}}`
       const decision = await run(stub, text)
       if (decision.bytes !== undefined) answers.push(decision.bytes)
     }
@@ -658,7 +661,7 @@ describe('T-2 桩那一半：六种不认与其间撤销逐字节相同；表示
       (
         await run(
           stub,
-          `{"protocolVersion":"2","presentedLoginState":"${P}","presentedLoginState":"${P}","operation":"${og(27)}","payload":{}}`,
+          `{"protocolVersion":"3","presentedLoginState":"${P}","presentedLoginState":"${P}","operation":"${og(27)}","payload":{}}`,
         )
       ).record.rejection,
     ).toBe('multiple')
@@ -703,7 +706,7 @@ describe('T-3 判定次序（桩那一半）', () => {
     for (const text of [
       `{"operation":"${og(27)}","payload":{}}`,
       `{"protocolVersion":1,"operation":"${og(27)}","payload":{}}`,
-      `{"protocolVersion":"2","protocolVersion":"2","presentedLoginState":"${P}","operation":"${og(27)}","payload":{}}`,
+      `{"protocolVersion":"3","protocolVersion":"3","presentedLoginState":"${P}","operation":"${og(27)}","payload":{}}`,
       '',
       '[]',
       'null',
@@ -714,7 +717,7 @@ describe('T-3 判定次序（桩那一半）', () => {
 
   it('①′：有表外成员 ⇒ invalid-input，认人没有发生', async () => {
     const stub = new StubParticipants()
-    const text = `{"protocolVersion":"2","presentedLoginState":"${P}","operation":"${og(27)}","payload":{},"asOrganization":"${OTHER_ORGANIZATION}"}`
+    const text = `{"protocolVersion":"3","presentedLoginState":"${P}","operation":"${og(27)}","payload":{},"asOrganization":"${OTHER_ORGANIZATION}"}`
     expect((await run(stub, text)).bytes).toBe(INVALID)
     expect(stub.count('logins.exchange')).toBe(0)
   })
@@ -756,7 +759,7 @@ describe('T-3 判定次序（桩那一半）', () => {
   it('免认人的路由不看出示物，也不看它的重复（examples §6 #12）', async () => {
     const stub = new StubParticipants()
     const without = await run(stub, envelope(AI15, CREDENTIALS, ABSENT))
-    const text = `{"protocolVersion":"2","presentedLoginState":"${P}","presentedLoginState":"${Q}","operation":"${AI15}","payload":${JSON.stringify(CREDENTIALS)}}`
+    const text = `{"protocolVersion":"3","presentedLoginState":"${P}","presentedLoginState":"${Q}","operation":"${AI15}","payload":${JSON.stringify(CREDENTIALS)}}`
     expect((await run(stub, text)).bytes).toEqual(without.bytes)
     expect(stub.count('logins.exchange')).toBe(0)
   })
@@ -930,7 +933,7 @@ describe('T-6 身份推导与补授权（桩那一半）', () => {
 
 describe('T-15 重复成员落在它那一步（S-4；https-json/1 S-8）', () => {
   const raw = (members: string) => `{${members}}`
-  const PV = '"protocolVersion":"2"'
+  const PV = '"protocolVersion":"3"'
   const PS = `"presentedLoginState":"${P}"`
   const OP = `"operation":"${og(23)}"`
   const PL = `"payload":{"invitedAccount":"${OTHER_ACCOUNT}"}`

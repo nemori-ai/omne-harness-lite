@@ -570,8 +570,8 @@ export function envelopeOf(
   presentation?: string,
 ): Record<string, unknown> {
   return presentation === undefined
-    ? { protocolVersion: '2', operation, payload }
-    : { protocolVersion: '2', presentedLoginState: presentation, operation, payload }
+    ? { protocolVersion: '3', operation, payload }
+    : { protocolVersion: '3', presentedLoginState: presentation, operation, payload }
 }
 
 /** 答复的体（按 JSON 读）。 */

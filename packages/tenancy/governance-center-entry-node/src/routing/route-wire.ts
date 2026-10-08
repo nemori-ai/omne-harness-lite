@@ -43,10 +43,15 @@ function organizationWire(value: unknown): unknown {
   const parent = organization['parent']
   if (parent === undefined) throw new TypeError('expected parent or null')
   return parent === null
-    ? { organization: organization['id'], organizationKind: organization['kind'] }
+    ? {
+        organization: organization['id'],
+        organizationKind: organization['kind'],
+        name: organization['name'],
+      }
     : {
         organization: organization['id'],
         organizationKind: organization['kind'],
+        name: organization['name'],
         parentOrganization: parent,
       }
 }

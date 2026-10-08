@@ -76,7 +76,7 @@ export async function exchangeGovernance(
   }
   if (
     !record(envelope) ||
-    envelope['protocolVersion'] !== '2' ||
+    envelope['protocolVersion'] !== '3' ||
     !fixedSchemas().Envelope(envelope)
   ) {
     throw new GovernanceClientConfigurationError('governance envelope does not conform to EC2')

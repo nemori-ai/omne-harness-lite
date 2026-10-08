@@ -39,7 +39,7 @@ describe('每个操作的 invalidInput（25 个操作，26 个方法）', () => 
     const cases: [string, (bad: unknown) => Promise<unknown> | unknown][] = [
       // organizations
       ['S-20 createPersonal', bad => h.organizations.createPersonal(bad)],
-      ['S-21 createTeam', bad => h.organizations.createTeam(bad, 'key')],
+      ['S-21 createTeam', bad => h.organizations.createTeam(bad, 'test organization', 'key')],
       ['S-22 read', bad => h.organizations.read(bad)],
       ['S-33 dissolveAffiliation(initiator)', bad => h.organizations.dissolveAffiliation(bad, O)],
       ['S-33 dissolveAffiliation(child)', bad => h.organizations.dissolveAffiliation(T, bad)],
@@ -163,7 +163,7 @@ describe('判别式集合封闭：集合外取值一律 invalidInput，不走 el
       expect(await h.memberships.list(team.owner, flag)).toEqual({ failure: 'invalidInput' })
     }
     for (const key of ['', ' k', 5]) {
-      expect(await h.organizations.createTeam(user.account, key)).toEqual({
+      expect(await h.organizations.createTeam(user.account, 'test organization', key)).toEqual({
         failure: 'invalidInput',
       })
     }

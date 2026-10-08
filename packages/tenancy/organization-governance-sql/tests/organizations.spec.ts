@@ -49,7 +49,7 @@ describe('S-20 创建个人组织', () => {
       },
     ])
     expect(await h.organizations.read(first.ok.organization)).toEqual({
-      ok: { id: first.ok.organization, kind: 'personal', parent: null },
+      ok: { id: first.ok.organization, kind: 'personal', name: '个人组织', parent: null },
     })
   })
 
@@ -124,30 +124,30 @@ describe('S-21 创建团队组织：创建键的幂等边界', () => {
     const teams = async () => countRows(h, 'organization', { kind: 'team' })
 
     // ① 带键创建 ⇒ OrganizationId
-    const first = await h.organizations.createTeam(alice.account, 'key-1')
+    const first = await h.organizations.createTeam(alice.account, 'test organization', 'key-1')
     if (!('ok' in first)) throw new Error('① failed')
     const membershipAfterFirst = await rowsOf(h, 'membership', {
       organization_id: first.ok.organization,
     })
     // ② 同创建者同键重放 ⇒ 同一个 OrganizationId、组织数不增、成员关系不重写
-    const replay = await h.organizations.createTeam(alice.account, 'key-1')
+    const replay = await h.organizations.createTeam(alice.account, 'test organization', 'key-1')
     expect(replay).toEqual(first)
     expect(await teams()).toBe(1)
     expect(await rowsOf(h, 'membership', { organization_id: first.ok.organization })).toEqual(
       membershipAfterFirst,
     )
     // ③ 同创建者不同键 ⇒ 另一个组织
-    const otherKey = await h.organizations.createTeam(alice.account, 'key-2')
+    const otherKey = await h.organizations.createTeam(alice.account, 'test organization', 'key-2')
     if (!('ok' in otherKey)) throw new Error('③ failed')
     expect(otherKey.ok.organization).not.toBe(first.ok.organization)
     // ④ 另一账号用同一个键 ⇒ 另一个组织（键绑定创建者）
-    const bobs = await h.organizations.createTeam(bob.account, 'key-1')
+    const bobs = await h.organizations.createTeam(bob.account, 'test organization', 'key-1')
     if (!('ok' in bobs)) throw new Error('④ failed')
     expect(bobs.ok.organization).not.toBe(first.ok.organization)
     expect(bobs.ok.tenant).toEqual({ organization: bobs.ok.organization, account: bob.account })
     // ⑤ 不带键连调两次 ⇒ 两个组织
-    const n1 = await h.organizations.createTeam(alice.account)
-    const n2 = await h.organizations.createTeam(alice.account)
+    const n1 = await h.organizations.createTeam(alice.account, 'test organization')
+    const n2 = await h.organizations.createTeam(alice.account, 'test organization')
     if (!('ok' in n1 && 'ok' in n2)) throw new Error('⑤ failed')
     expect(n1.ok.organization).not.toBe(n2.ok.organization)
     expect(await teams()).toBe(5)
@@ -163,15 +163,17 @@ describe('S-21 创建团队组织：创建键的幂等边界', () => {
   it('故障注入：键登记读不到 ⇒ unavailable，不得创建（不当作没见过这个键）', async () => {
     const h = await boot()
     const alice = await registeredUser(h)
-    const first = await h.organizations.createTeam(alice.account, 'key-1')
+    const first = await h.organizations.createTeam(alice.account, 'test organization', 'key-1')
     if (!('ok' in first)) throw new Error('first failed')
     h.storage.failTables('team_creation_key')
-    expect(await h.organizations.createTeam(alice.account, 'key-1')).toEqual({
+    expect(await h.organizations.createTeam(alice.account, 'test organization', 'key-1')).toEqual({
       failure: 'unavailable',
     })
-    expect(await h.organizations.createTeam(alice.account, 'key-new')).toEqual({
-      failure: 'unavailable',
-    })
+    expect(await h.organizations.createTeam(alice.account, 'test organization', 'key-new')).toEqual(
+      {
+        failure: 'unavailable',
+      },
+    )
     h.storage.heal()
     expect(await countRows(h, 'organization', { kind: 'team' })).toBe(1)
   })
@@ -179,30 +181,36 @@ describe('S-21 创建团队组织：创建键的幂等边界', () => {
   it('保留期：期内（含边界）同键 ⇒ 同一个；推过保留期之后同键 ⇒ 新组织', async () => {
     const h = await boot()
     const alice = await registeredUser(h)
-    const first = await h.organizations.createTeam(alice.account, 'key-1')
+    const first = await h.organizations.createTeam(alice.account, 'test organization', 'key-1')
     if (!('ok' in first)) throw new Error('first failed')
     h.clock.advance(CREATION_KEY_RETENTION)
-    expect(await h.organizations.createTeam(alice.account, 'key-1')).toEqual(first)
+    expect(await h.organizations.createTeam(alice.account, 'test organization', 'key-1')).toEqual(
+      first,
+    )
     h.clock.advance(1)
-    const later = await h.organizations.createTeam(alice.account, 'key-1')
+    const later = await h.organizations.createTeam(alice.account, 'test organization', 'key-1')
     if (!('ok' in later)) throw new Error('later failed')
     expect(later.ok.organization).not.toBe(first.ok.organization)
     // 登记改指新组织：此后同键认回的是新的那一个
-    expect(await h.organizations.createTeam(alice.account, 'key-1')).toEqual(later)
+    expect(await h.organizations.createTeam(alice.account, 'test organization', 'key-1')).toEqual(
+      later,
+    )
   })
 
   it('发起者未激活 ⇒ accountNotActivated；不存在 ⇒ accountDoesNotExist；读面不可用 ⇒ unavailable；都不建组织', async () => {
     const h = await boot()
     const pending = await addAccount(h, { activated: false })
-    expect(await h.organizations.createTeam(pending, 'k')).toEqual({
+    expect(await h.organizations.createTeam(pending, 'test organization', 'k')).toEqual({
       failure: 'accountNotActivated',
     })
-    expect(await h.organizations.createTeam('ghost', 'k')).toEqual({
+    expect(await h.organizations.createTeam('ghost', 'test organization', 'k')).toEqual({
       failure: 'accountDoesNotExist',
     })
     const active = await addAccount(h, { activated: true })
     h.accounts.unavailable = true
-    expect(await h.organizations.createTeam(active, 'k')).toEqual({ failure: 'unavailable' })
+    expect(await h.organizations.createTeam(active, 'test organization', 'k')).toEqual({
+      failure: 'unavailable',
+    })
     h.accounts.unavailable = false
     expect(await countRows(h, 'organization')).toBe(0)
     expect(await countRows(h, 'team_creation_key')).toBe(0)
@@ -265,7 +273,7 @@ describe('S-32／S-33／S-34 隶属与上级链', () => {
       failure: 'alreadyHasAParentOrganization',
     })
     expect(await h.organizations.read(c.organization)).toEqual({
-      ok: { id: c.organization, kind: 'team', parent: null },
+      ok: { id: c.organization, kind: 'team', name: 'test organization', parent: null },
     })
   })
 
@@ -291,7 +299,7 @@ describe('S-32／S-33／S-34 隶属与上级链', () => {
       failure: 'wouldFormACycle',
     })
     expect(await h.organizations.read(a.organization)).toEqual({
-      ok: { id: a.organization, kind: 'team', parent: null },
+      ok: { id: a.organization, kind: 'team', name: 'test organization', parent: null },
     })
   })
 
@@ -317,7 +325,7 @@ describe('S-32／S-33／S-34 隶属与上级链', () => {
     })
     expect(await h.organizations.ancestorChain(b.organization)).toEqual({ failure: 'unavailable' })
     expect(await h.organizations.read(a.organization)).toEqual({
-      ok: { id: a.organization, kind: 'team', parent: null },
+      ok: { id: a.organization, kind: 'team', name: 'test organization', parent: null },
     })
   })
 
@@ -460,8 +468,9 @@ describe('S-7 至多一个上级：静态检查', () => {
         .filter(s => /updateTable\(/.test(s.text))
         .map(s => s.file)
         .sort(),
-    ).toEqual(['governance-sql.ts'])
+    ).toEqual(['governance-sql.ts', 'migrations.ts'])
     const migration = sources.find(s => s.file === 'migrations.ts')?.text ?? ''
+    expect(migration).not.toMatch(/\.set\(\{\s*parent\b/)
     expect([...migration.matchAll(/addColumn\('parent'/g)]).toHaveLength(1)
   })
 

@@ -161,9 +161,7 @@ export const ROUTES: readonly Route[] = [
     exempt: false,
     derivesTenant: never,
     invoke: (services, { payload, caller }) =>
-      'creationKey' in payload
-        ? services.organizations.createTeam(caller.accountId, payload['creationKey'])
-        : services.organizations.createTeam(caller.accountId),
+      services.organizations.createTeam(caller.accountId, payload['name'], payload['creationKey']),
     reply: 'outcome',
     // 调用方本人的「未激活」「不存在」结构上到不了：认人所得 AccountId 必属一个已激活账号
     failures: {

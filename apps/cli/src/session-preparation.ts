@@ -45,17 +45,20 @@ export type RunLoginObservationOutcome =
   | { readonly kind: 'observed'; readonly login: RunLoginBinding }
   | Extract<SessionPreparationOutcome, { kind: 'blocked' }>
 
+export function validRunLoginBinding(expected: RunLoginBinding): boolean {
+  return (
+    isGovernanceCenterId(expected.centerId) &&
+    isOk(parseAccountId(expected.accountId)) &&
+    isOk(parseLoginStateId(expected.loginStateHandle))
+  )
+}
+
 /** Borrow a fixed use to observe login validity before one new Run. */
 export async function readNewRunLogin(
   use: GovernanceUse,
   expected: RunLoginBinding,
 ): Promise<RunLoginObservationOutcome> {
-  if (
-    !isGovernanceCenterId(expected.centerId) ||
-    !isOk(parseAccountId(expected.accountId)) ||
-    !isOk(parseLoginStateId(expected.loginStateHandle))
-  )
-    return blocked('identity-mismatch')
+  if (!validRunLoginBinding(expected)) return blocked('identity-mismatch')
   const current = await use.run({
     action: 'invoke',
     operation: currentOperation,
@@ -81,7 +84,7 @@ const blocked = (reason: Blocked['reason']): Blocked => ({ kind: 'blocked', reas
 const currentOperation = 'capability.organization-governance/v2#S-36'
 const membershipOperation = 'capability.organization-governance/v2#S-26'
 
-function reportBlock(report: ActionReport): Blocked | undefined {
+export function reportBlock(report: ActionReport): Blocked | undefined {
   if (report.defect !== undefined) return blocked('defect')
   if (report.remote.answer === 'login-state-rejected') return blocked('login-rejected')
   if (report.use !== 'active') return blocked('reenter-required')
@@ -91,7 +94,7 @@ function reportBlock(report: ActionReport): Blocked | undefined {
   return undefined
 }
 
-function resultOf(report: ActionReport, operation: string): unknown {
+export function resultOf(report: ActionReport, operation: string): unknown {
   const data = report.remote.reply
   if (report.operation !== operation || data?.operation !== operation) return undefined
   return 'result' in data.reply ? data.reply.result : undefined
@@ -110,7 +113,7 @@ function observedIdentity(
   return { centerId, accountId: account.ok, loginStateHandle: login.ok, tenant: tenant.ok }
 }
 
-function sameOrigin(identity: RunLoginBinding, report: ActionReport): boolean {
+export function sameOrigin(identity: RunLoginBinding, report: ActionReport): boolean {
   return (
     identity.centerId === report.origin.centerId &&
     identity.accountId === report.origin.accountId &&

@@ -14,6 +14,7 @@ type EpochColumn = number | string | bigint
 export interface OrganizationTable {
   organization_id: string
   kind: string
+  name: string | null
   parent: string | null
   owner_account: string | null
   created_at: EpochColumn
@@ -65,7 +66,7 @@ export const OG_TABLES = {
 
 type OrganizationRow = Pick<
   OrganizationTable,
-  'organization_id' | 'kind' | 'parent' | 'owner_account'
+  'organization_id' | 'kind' | 'parent' | 'owner_account' | 'name'
 >
 export interface OrgRead {
   organization(id: OrganizationId): Promise<OrganizationRow | undefined>

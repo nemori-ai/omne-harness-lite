@@ -1,7 +1,7 @@
 # 组织治理公共承诺
 
 本包拥有公开操作类型及四个 Cordis 服务定义。形状以 `src/index.ts` 的导出为准，
-本文件拥有本批迁入的集成行为。[迁移范围与接受依据](../../../.meta_harness/design/architecture/pilots/n4-ownership.md)
+本文件拥有集成行为及下述组织名称增量。[迁移范围与接受依据](../../../.meta_harness/design/architecture/pilots/n4-ownership.md)
 区分已迁接口、未迁业务协议和未实现的 OG3。不得从某个提供者的现状推导承诺。
 
 ## 接缝与消费者
@@ -10,11 +10,11 @@
 提供者继承服务定义，消费者引用公共定义。提供者的工厂、迁移及后端对象不进入本包。
 四个服务由同一能力拥有，不因分成四个类就变成四份数据或独立事务。
 
-| 定义 | 唯一键 | 操作形状 |
-|---|---|---|
-| Organizations | organizations | OrganizationsService |
-| Offers | offers | OffersService |
-| Memberships | memberships | MembershipsService |
+| 定义              | 唯一键            | 操作形状                 |
+| ----------------- | ----------------- | ------------------------ |
+| Organizations     | organizations     | OrganizationsService     |
+| Offers            | offers            | OffersService            |
+| Memberships       | memberships       | MembershipsService       |
 | OrganizationPurge | organizationPurge | OrganizationPurgeService |
 
 清除面只供注册/清除链消费。公开类型可见不等于获得调用权限。
@@ -24,7 +24,7 @@
 ## 保持的行为与共同提交
 
 操作的业务判定、闭合失败集合、次序、幂等边界及租户身份采用精确的未迁业务协议，
-不在这里重写操作表。见[条款去向](../../../.meta_harness/design/architecture/pilots/n4-ownership.md#组织治理)。
+组织创建与读取的名称增量按下节采用，其余业务保持。见[条款去向](../../../.meta_harness/design/architecture/pilots/n4-ownership.md#组织治理)。
 公开形状只表达结果集合，不能证明授权或事务性质。
 
 普通操作在自身事务结束后返回最终结果。`participate` 加入调用方拥有的 StorageUnit，
@@ -39,6 +39,29 @@
 事件是提交后的通知，不是权限更新或效果已经被消费者接收的证明。
 同步监听者失败只记诊断，不改已提交事实及业务结果。异步工作由监听者自己收场。
 五个事件采用 organization-governance 命名空间，载荷和派发时点保持，不双发旧名。
+
+## 组织名称、创建与读取
+
+本增量依据 PF-001 rev26 的组织名称规则及负责人对中心保存名称的实施授权。
+公开接口采用 `createTeam(creatorAccountId, name, creationKey?)`，组织读面新增必有的 `name`。
+它取代当前提供者中旧 OG2 S-21 的无名称输入，以及 S-20/S-22 的无名称效果与读面。
+账号判定、个人组织唯一性、首位超管、父链和原失败集合保持。
+冻结旧源不原地修改，不约束这一已明确取代的名称形状。
+
+- 名称必须是非空白字符串。校验以 JavaScript `trim()` 判空，存储和读取保留原字符串，不静默裁剪或改名。
+- 团队组织必须显式提供名称。名称、组织、创建者的有效超管成员关系及可选创建键在同一提交中成立。
+- 名称不参与身份、授权或去重，同名可以创建不同组织。本增量没有改名操作。
+- 自动创建个人组织时名称为“个人组织”。同账号重复创建仍返回原身份，仍现读账号存在及未过期事实。
+- 组织读取返回持久名称及原身份、种类、父组织。读失败不能以默认名称填充，损坏记录按缺陷处理。
+
+团队创建仍以 `(creatorAccountId, creationKey)` 为去重边界。没有键时每次创建独立组织。
+保留期内同键、同名称返回原身份，不重写名称或成员关系。同键、不同名称以 `invalidInput` 拒绝，
+不创建另一组织、不改原名称。过保留期后同键允许新创建，按本次名称产生新组织。
+名称及创建键的表示校验先于账号读取，账号读取先于存储创建。失败不得留下部分效果。
+创建两类组织均不增加通知事件，现行共同参与、回滚及提交后通知义务保持。
+
+验证须覆盖名称落盘与重开读取、另一个有权客户端读取、同名不同身份、个人默认名称、
+无效名称零效果、同键参数冲突、保留期及首位管理员插入失败的整笔回滚。
 
 ## 验证义务
 

@@ -69,7 +69,9 @@ function defaults(stub: StubParticipants): Record<string, Handler> {
     'credentials.parse': raw =>
       typeof raw === 'string' && raw.length > 0 ? { ok: raw } : { invalidInput: 'credential' },
     'organizations.createTeam': async () => ({ ok: { organization: 'org_new', tenant: TENANT } }),
-    'organizations.read': async () => ({ ok: { id: ORGANIZATION, kind: 'team', parent: null } }),
+    'organizations.read': async () => ({
+      ok: { id: ORGANIZATION, kind: 'team', parent: null, name: 'test organization' },
+    }),
     'organizations.dissolveAffiliation': async () => 'ok',
     'organizations.ancestorChain': async () => ({ ok: [OTHER_ORGANIZATION] }),
     'organizations.shareAncestor': async () => ({ ok: true }),

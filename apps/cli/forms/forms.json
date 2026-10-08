@@ -18,7 +18,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_AR_S8",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_AR_S8",
     "phase": "setup"
   },
   {
@@ -40,7 +40,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_AI_S15",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_AI_S15",
     "phase": "setup"
   },
   {
@@ -68,11 +68,7 @@
         "label": "Certificate verification",
         "kind": "enum",
         "required": true,
-        "options": [
-          "system-ca",
-          "ca-file",
-          "spki"
-        ]
+        "options": ["system-ca", "ca-file", "spki"]
       },
       {
         "name": "caFile",
@@ -111,7 +107,7 @@
     "action": "invoke",
     "operation": "capability.account-identity/v3#S-37",
     "fields": [],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_AI_S37",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_AI_S37",
     "phase": "governance"
   },
   {
@@ -127,7 +123,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_AI_S16",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_AI_S16",
     "phase": "governance"
   },
   {
@@ -149,7 +145,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_AI_S50",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_AI_S50",
     "phase": "governance"
   },
   {
@@ -159,13 +155,19 @@
     "operation": "capability.organization-governance/v2#S-21",
     "fields": [
       {
+        "name": "name",
+        "label": "Organization name",
+        "kind": "text",
+        "required": true
+      },
+      {
         "name": "creationKey",
         "label": "Creation reference",
         "kind": "text",
         "required": false
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S21",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S21",
     "phase": "governance"
   },
   {
@@ -181,7 +183,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S22",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S22",
     "phase": "governance"
   },
   {
@@ -201,10 +203,7 @@
         "label": "Role",
         "kind": "enum",
         "required": false,
-        "options": [
-          "superAdministrator",
-          "member"
-        ]
+        "options": ["superAdministrator", "member"]
       },
       {
         "name": "offerTtl",
@@ -219,7 +218,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S23",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S23",
     "phase": "governance"
   },
   {
@@ -241,7 +240,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S24",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S24",
     "phase": "governance"
   },
   {
@@ -257,7 +256,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S25",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S25",
     "phase": "governance"
   },
   {
@@ -273,7 +272,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S26",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S26",
     "phase": "governance"
   },
   {
@@ -282,7 +281,7 @@
     "action": "invoke",
     "operation": "capability.organization-governance/v2#S-27",
     "fields": [],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S27",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S27",
     "phase": "governance"
   },
   {
@@ -302,10 +301,7 @@
         "label": "Role",
         "kind": "enum",
         "required": true,
-        "options": [
-          "superAdministrator",
-          "member"
-        ]
+        "options": ["superAdministrator", "member"]
       },
       {
         "name": "expectedTenant",
@@ -314,7 +310,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S28",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S28",
     "phase": "governance"
   },
   {
@@ -336,7 +332,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S29",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S29",
     "phase": "governance"
   },
   {
@@ -356,10 +352,7 @@
         "label": "Relationship direction",
         "kind": "enum",
         "required": true,
-        "options": [
-          "recipientAsParent",
-          "recipientAsChild"
-        ]
+        "options": ["recipientAsParent", "recipientAsChild"]
       },
       {
         "name": "offerTtl",
@@ -374,7 +367,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S30",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S30",
     "phase": "governance"
   },
   {
@@ -396,7 +389,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S31",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S31",
     "phase": "governance"
   },
   {
@@ -418,7 +411,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S32",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S32",
     "phase": "governance"
   },
   {
@@ -440,7 +433,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S33",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S33",
     "phase": "governance"
   },
   {
@@ -456,7 +449,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S34",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S34",
     "phase": "governance"
   },
   {
@@ -472,7 +465,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S35",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S35",
     "phase": "governance"
   },
   {
@@ -481,7 +474,7 @@
     "action": "invoke",
     "operation": "capability.organization-governance/v2#S-36",
     "fields": [],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S36",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S36",
     "phase": "governance"
   },
   {
@@ -503,7 +496,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S37",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S37",
     "phase": "governance"
   },
   {
@@ -523,10 +516,7 @@
         "label": "Inspect as account or tenant",
         "kind": "enum",
         "required": true,
-        "options": [
-          "account",
-          "tenant"
-        ]
+        "options": ["account", "tenant"]
       },
       {
         "name": "expectedTenant",
@@ -539,7 +529,7 @@
         }
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S55",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S55",
     "phase": "governance"
   },
   {
@@ -561,7 +551,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S56",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S56",
     "phase": "governance"
   },
   {
@@ -577,7 +567,7 @@
         "required": false
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S57",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S57",
     "phase": "governance"
   },
   {
@@ -599,7 +589,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S58",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S58",
     "phase": "governance"
   },
   {
@@ -621,7 +611,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S59",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S59",
     "phase": "governance"
   },
   {
@@ -643,7 +633,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S60",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S60",
     "phase": "governance"
   },
   {
@@ -659,7 +649,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S61",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S61",
     "phase": "governance"
   },
   {
@@ -681,7 +671,7 @@
         "required": true
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S62",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_OG_S62",
     "phase": "governance"
   },
   {
@@ -707,10 +697,7 @@
         "label": "Role",
         "kind": "enum",
         "required": false,
-        "options": [
-          "superAdministrator",
-          "member"
-        ]
+        "options": ["superAdministrator", "member"]
       },
       {
         "name": "offerTtl",
@@ -719,7 +706,7 @@
         "required": false
       }
     ],
-    "payloadSchema": "../../governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_ENTRY_S50",
+    "payloadSchema": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/Payload_ENTRY_S50",
     "phase": "governance"
   }
 ]

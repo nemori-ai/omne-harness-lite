@@ -283,7 +283,11 @@ test('current membership is real and revocation rejects despite a durable same-s
   withHost(async h => {
     const owner = await h.identity('owner'),
       member = await h.identity('member')
-    const team = await h.organizations.createTeam(owner.tenant.account, 'history-team')
+    const team = await h.organizations.createTeam(
+      owner.tenant.account,
+      'test organization',
+      'history-team',
+    )
     if (!('ok' in team)) throw new Error('team failed')
     const invitation = await h.offers.issueInvitation(
       team.ok.tenant,
@@ -471,7 +475,11 @@ test('actual qualification and immutable body share the SQLite atomic boundary a
   withHost(async h => {
     const owner = await h.identity('owner'),
       member = await h.identity('member')
-    const team = await h.organizations.createTeam(owner.tenant.account, 'history-race')
+    const team = await h.organizations.createTeam(
+      owner.tenant.account,
+      'test organization',
+      'history-race',
+    )
     if (!('ok' in team)) throw new Error('team failed')
     const invitation = await h.offers.issueInvitation(
       team.ok.tenant,

@@ -16,7 +16,7 @@
       "types": "./dist/cordis.d.ts",
       "import": "./dist/cordis.js"
     },
-    "./schema/v2": "./schema/governance-center-entry-v2.schema.json"
+    "./schema": "./schema/governance-center-entry.schema.json"
   },
   "files": [
     "dist",

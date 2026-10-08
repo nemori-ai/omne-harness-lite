@@ -133,12 +133,16 @@ describe('D055 maintenance import boundary', () => {
     )
     const inputs = file(
       `${E}src/schema-inputs.ts`,
-      "import { createRequire } from 'node:module'; const a = require('../schema/governance-center-entry.schema.json'); const b = require('@omne-harness-lite/identity-values/schema'); const c = require('@omne-harness-lite/offer-expiry/schema')",
+      "import { createRequire } from 'node:module'; const a = require('@omne-harness-lite/governance-center-entry/schema'); const b = require('@omne-harness-lite/identity-values/schema'); const c = require('@omne-harness-lite/offer-expiry/schema')",
     )
     expect(opsImportWhitelist.check([events, ops, schema, inputs])).toEqual([])
     for (const specifier of [
       './center-id/read-or-mint.ts',
       '@omne-harness-lite/account-identity',
+      '@omne-harness-lite/governance-center-entry',
+      '@omne-harness-lite/governance-center-entry/cordis',
+      '@omne-harness-lite/governance-center-entry/schema/private',
+      '../schema/governance-center-entry.schema.json',
       './generated/ordinary.cjs',
     ]) {
       const unsafe = file(`${E}src/schema-inputs.ts`, `import '${specifier}'`)
@@ -203,7 +207,7 @@ describe('D055 maintenance import boundary', () => {
     }
     const schema = file(
       `${E}src/routing/schema.ts`,
-      "import { createRequire } from 'node:module'; import { Ajv2020 } from 'ajv/dist/2020.js'; const a = require('../../schema/governance-center-entry.schema.json'); const b = require('@omne-harness-lite/identity-values/schema'); const c = require('@omne-harness-lite/offer-expiry/schema')",
+      "import { createRequire } from 'node:module'; import { Ajv2020 } from 'ajv/dist/2020.js'; const a = require('@omne-harness-lite/governance-center-entry/schema'); const b = require('@omne-harness-lite/identity-values/schema'); const c = require('@omne-harness-lite/offer-expiry/schema')",
     )
     expect(opsImportWhitelist.check([events, ops, schema])).toEqual([])
   })

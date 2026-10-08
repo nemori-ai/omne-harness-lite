@@ -25,6 +25,6 @@ describe('公开入口', () => {
       'governance-center-entry/ops-listening-started',
     ])
     expect(entry.OPS_SOCKET_NAME).toBe('governance-center-ops.sock')
-    expect(ACCEPTED_PROTOCOL_VERSIONS).toEqual(['2'])
+    expect(ACCEPTED_PROTOCOL_VERSIONS).toEqual(['3'])
   })
 })

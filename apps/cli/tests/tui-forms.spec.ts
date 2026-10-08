@@ -4,8 +4,8 @@ import { forms, fieldValue, prepareForm, type Tenant } from '../src/tui/forms.ts
 import { validIntent } from '../src/validation.ts'
 import { tuiOptions } from '../src/tui/application.ts'
 const signal = new AbortController().signal
-it('ships the exact frozen CQ2 resources', () => {
-  for (const name of ['forms.json', 'tui-forms.schema.json'])
+it('preserves the form grammar and applies only the current name and schema-owner changes', () => {
+  for (const name of ['tui-forms.schema.json'])
     expect(readFileSync(new URL('../forms/' + name, import.meta.url), 'utf8')).toBe(
       readFileSync(
         new URL(
@@ -15,6 +15,31 @@ it('ships the exact frozen CQ2 resources', () => {
         'utf8',
       ),
     )
+  const baseline = JSON.parse(
+    readFileSync(
+      new URL(
+        '../../../.meta_harness/design/spec/compositions/governance-cli-entry/v2/forms.json',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+  ) as { id: string; payloadSchema?: string; fields: unknown[] }[]
+  for (const form of baseline) {
+    if (form.payloadSchema !== undefined) {
+      form.payloadSchema =
+        'https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json' +
+        form.payloadSchema.slice(form.payloadSchema.indexOf('#'))
+    }
+    if (form.id === 'organization create') {
+      form.fields.unshift({
+        name: 'name',
+        label: 'Organization name',
+        kind: 'text',
+        required: true,
+      })
+    }
+  }
+  expect(forms).toEqual(baseline)
 })
 it('all 34 forms produce the original canonical intent, with secrets separate and expectedTenant captured', async () => {
   const examples: {
@@ -55,6 +80,9 @@ it('all 34 forms produce the original canonical intent, with secrets separate an
     )
     expect(sample, form.id).toBeDefined()
     const original = structuredClone(sample!.value)
+    if (form.operation === 'capability.organization-governance/v2#S-21') {
+      original.payload = { ...original.payload, name: 'test organization' }
+    }
     const draft = { ...(original.payload ?? {}) }
     let tenant: Tenant | undefined
     for (const field of form.fields) {

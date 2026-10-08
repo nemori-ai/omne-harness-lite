@@ -30,7 +30,7 @@ const PAYLOADS: Record<string, Record<string, unknown>> = {
   [AI15]: CREDENTIALS,
   [AI16]: { loginStateHandle: LOGIN_STATE },
   [AI37]: {},
-  [og(21)]: {},
+  [og(21)]: { name: 'test organization' },
   [og(22)]: { organization: ORGANIZATION },
   [og(23)]: { invitedAccount: OTHER_ACCOUNT },
   [og(24)]: { invitation: 'inv_1' },
@@ -71,7 +71,8 @@ const SUCCESS_BODIES: Record<string, string> = {
   [AI16]: '{"result":"ok"}',
   [AI37]: `{"result":[{"loginStateHandle":"${LOGIN_STATE}","issuedAt":"${at}","lastActivityAt":"${at}","absoluteExpiresAt":"2026-09-23T16:00:00Z","idleExpiresAt":"2026-09-23T09:00:00Z"}]}`,
   [og(21)]: '{"result":"org_new"}',
-  [og(22)]: `{"result":{"organization":"${ORGANIZATION}","organizationKind":"team"}}`,
+  [og(22)]:
+    `{"result":{"organization":"${ORGANIZATION}","organizationKind":"team","name":"test organization"}}`,
   [og(23)]: '{"result":"inv_1"}',
   [og(24)]: '{"result":"ok"}',
   [og(25)]: `{"result":${tenant}}`,
@@ -102,7 +103,7 @@ const SUCCESS_BODIES: Record<string, string> = {
 export const governanceCases = Object.entries(PAYLOADS).map(([operation, payload]) => ({
   operation,
   envelope: {
-    protocolVersion: '2',
+    protocolVersion: '3',
     operation,
     ...(operation === AR8 || operation === AI15 ? {} : { presentedLoginState: P }),
     payload:

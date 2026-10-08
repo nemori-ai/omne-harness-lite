@@ -128,16 +128,14 @@ function pin(cert: string): string {
 }
 
 describe('D045 EC2 governance transport', () => {
-  it('bundles the exact frozen schema and covers every accepted business route', () => {
+  it('consumes the current shared schema and covers every accepted business route', () => {
     const bundled = readFileSync(
-      createRequire(import.meta.url).resolve(
-        '@omne-harness-lite/governance-center-entry/schema/v2',
-      ),
+      createRequire(import.meta.url).resolve('@omne-harness-lite/governance-center-entry/schema'),
     )
     const frozen = readFileSync(
       join(
         import.meta.dirname,
-        '../../../../.meta_harness/design/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json',
+        '../../../core/governance-center-entry/schema/governance-center-entry.schema.json',
       ),
     )
     expect(bundled.equals(frozen)).toBe(true)

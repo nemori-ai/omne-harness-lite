@@ -3,7 +3,7 @@ import { expect, it } from 'vitest'
 import { entryValidator } from '../src/routing/schema.ts'
 
 const require = createRequire(import.meta.url)
-const schema = require('../schema/governance-center-entry.schema.json') as {
+const schema = require('@omne-harness-lite/governance-center-entry/schema') as {
   $defs: Record<string, unknown>
 }
 it('keeps the resolved target metadata of an aliased definition', () => {

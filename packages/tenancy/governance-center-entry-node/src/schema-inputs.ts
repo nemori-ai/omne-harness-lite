@@ -13,7 +13,7 @@ function schemaDocument(value: unknown): SchemaDocument {
   throw new Error('governance-center-entry: a bundled JSON Schema has no $id')
 }
 
-const entrySchema = schemaDocument(require('../schema/governance-center-entry.schema.json'))
+const entrySchema = schemaDocument(require('@omne-harness-lite/governance-center-entry/schema'))
 const identityValuesSchema = schemaDocument(require('@omne-harness-lite/identity-values/schema'))
 const offerExpirySchema = schemaDocument(require('@omne-harness-lite/offer-expiry/schema'))
 
@@ -32,7 +32,7 @@ export const schemaGraphs = [
     resourceSpecifiers: [
       '@omne-harness-lite/identity-values/schema',
       '@omne-harness-lite/offer-expiry/schema',
-      './schema/governance-center-entry.schema.json',
+      '@omne-harness-lite/governance-center-entry/schema',
     ],
     sourceFiles: ['src/schema-inputs.ts'],
     options: {

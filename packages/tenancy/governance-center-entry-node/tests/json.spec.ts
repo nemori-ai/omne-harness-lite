@@ -14,7 +14,7 @@ const bytes = (...parts: (string | number[])[]) =>
 
 const P = '"lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW"'
 const R27 = '"capability.organization-governance/v2#S-27"'
-const ENVELOPE = `{"protocolVersion":"2","presentedLoginState":${P},"operation":${R27},"payload":{}}`
+const ENVELOPE = `{"protocolVersion":"3","presentedLoginState":${P},"operation":${R27},"payload":{}}`
 
 describe('S-7 四级读法（examples §6）', () => {
   it('#1 空请求体、只有空白 ⇒ 第 3 级读不下来', () => {
@@ -38,7 +38,7 @@ describe('S-7 四级读法（examples §6）', () => {
     expect(
       read(
         bytes(
-          '{"protocolVersion":"2","presentedLoginState":"lsp_',
+          '{"protocolVersion":"3","presentedLoginState":"lsp_',
           [0xed, 0xa0, 0x80],
           `x","operation":${R27},"payload":{}}`,
         ),
@@ -53,7 +53,7 @@ describe('S-7 四级读法（examples §6）', () => {
 
   it('#5 转义写出的孤立代理码点照常读成字符串的一部分', () => {
     const reading = read(
-      `{"protocolVersion":"2","presentedLoginState":"lsp_\\uD800x","operation":${R27},"payload":{}}`,
+      `{"protocolVersion":"3","presentedLoginState":"lsp_\\uD800x","operation":${R27},"payload":{}}`,
     )
     expect(reading.kind).toBe('value')
     if (reading.kind !== 'value') return
@@ -61,9 +61,9 @@ describe('S-7 四级读法（examples §6）', () => {
   })
 
   it('#6、#7 顶层是数组或字符串：读下来了（第 4 级由调用方判）', () => {
-    expect(read('[{"protocolVersion":"2"}]')).toMatchObject({
+    expect(read('[{"protocolVersion":"3"}]')).toMatchObject({
       kind: 'value',
-      value: [{ protocolVersion: '2' }],
+      value: [{ protocolVersion: '3' }],
     })
     expect(read('"version-mismatch"')).toMatchObject({ kind: 'value', value: 'version-mismatch' })
   })
@@ -132,7 +132,7 @@ describe('S-7 JSON 值的读法', () => {
 describe('S-8 重复成员：报告每一处，不取其一（examples §6 #9～#14、#17、#19）', () => {
   it('#9 顶层 protocolVersion 重复（值相同也报）', () => {
     expect(
-      read(`{"protocolVersion":"2","protocolVersion":"2","operation":${R27},"payload":{}}`),
+      read(`{"protocolVersion":"3","protocolVersion":"3","operation":${R27},"payload":{}}`),
     ).toMatchObject({
       duplicates: [{ path: [], name: 'protocolVersion' }],
     })

@@ -28,6 +28,7 @@
     "@omne-harness-lite/governance-client-operations": "workspace:*",
     "ajv": "catalog:",
     "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/organization-governance": "workspace:*",
     "@omne-harness-lite/offer-expiry": "workspace:*",
     "@omne-harness-lite/governance-center-entry": "workspace:*",
     "@omne-harness-lite/client-local-state-sqlite": "workspace:*",

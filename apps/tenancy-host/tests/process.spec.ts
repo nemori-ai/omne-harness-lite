@@ -261,7 +261,7 @@ describe('AI S-32 的完整进程重启（另起一个 Node 进程打开同一�
     const revoked = await tlsExchange(
       d.port,
       JSON.stringify({
-        protocolVersion: '2',
+        protocolVersion: '3',
         presentedLoginState: session.loginState,
         operation: 'capability.account-identity/v3#S-16',
         payload: { loginStateHandle: session.loginStateHandle },

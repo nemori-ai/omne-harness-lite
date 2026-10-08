@@ -167,5 +167,33 @@ export function organizationGovernanceMigrations(
         },
       },
     },
+    {
+      name: 'organization_name',
+      migration: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async up(db: Kysely<any>) {
+          const tables = await db.introspection.getTables()
+          const organization = tables.find(table => table.name === OG_TABLES.organization)
+          if (organization?.columns.some(column => column.name === 'name')) return
+          // Do not invent names for experimental teams or delete their persisted facts.
+          const unnamedTeam = await db
+            .selectFrom(OG_TABLES.organization)
+            .select('organization_id')
+            .where('kind', '!=', 'personal')
+            .executeTakeFirst()
+          if (unnamedTeam !== undefined) {
+            throw new Error(
+              'organization name migration requires explicit names for existing teams',
+            )
+          }
+          await db.schema.alterTable(OG_TABLES.organization).addColumn('name', 'text').execute()
+          await db
+            .updateTable(OG_TABLES.organization)
+            .set({ name: '个人组织' })
+            .where('kind', '=', 'personal')
+            .execute()
+        },
+      },
+    },
   ]
 }
