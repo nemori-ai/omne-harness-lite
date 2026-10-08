@@ -2,12 +2,38 @@ import {
   createSchemaRuntime,
   type SchemaValidator,
 } from '@omne-harness-lite/content-blocks/schema-runtime'
-import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import { writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { copyJson, object } from './json.ts'
 import { patternFlags, unsupportedPattern } from './pattern.ts'
 import { schemaPositions } from './schema-positions.ts'
 import { judgeToolDefinition } from './judge.ts'
 import type { ArgumentJudgment, JsonSchema, ParameterJudge, ToolDefinition } from './types.ts'
+
+interface CallSelection {
+  readonly schema: JsonSchema
+  readonly command?: string
+  readonly args: JsonObject
+}
+function selectCallArguments(
+  definition: ToolDefinition,
+  copied: JsonObject,
+): CallSelection | { readonly invalid: string } {
+  if (definition.paradigm === 'single') return { schema: definition.input, args: copied }
+  if (Object.keys(copied).some(key => key !== 'command' && key !== 'args'))
+    return Object.freeze({ invalid: 'multi call has unknown members' })
+  if (typeof copied.command !== 'string' || !Object.hasOwn(definition.commands, copied.command))
+    return Object.freeze({ invalid: 'unknown or absent command' })
+  const command = copied.command
+  const selected = definition.commands[command]
+  if (selected === undefined) throw new Error('own command missing from definition')
+  const schema = selected.input
+  let args: JsonObject
+  if (Object.hasOwn(copied, 'args')) {
+    if (!object(copied.args)) return Object.freeze({ invalid: 'args must be a JSON object' })
+    args = copied.args
+  } else args = Object.freeze({})
+  return { schema, command, args }
+}
 
 /** Compilation and every author-driven cache belong to this caller-owned object. */
 export function createParameterJudge(): ParameterJudge {
@@ -66,27 +92,9 @@ export function createParameterJudge(): ParameterJudge {
       }
       const copied = copyJson(call)
       if (!object(copied)) return Object.freeze({ invalid: 'arguments must be a JSON object' })
-      let schema: JsonSchema
-      let command: string | undefined
-      let args = copied
-      if (definition.paradigm === 'single') schema = definition.input
-      else {
-        if (Object.keys(copied).some(key => key !== 'command' && key !== 'args'))
-          return Object.freeze({ invalid: 'multi call has unknown members' })
-        if (
-          typeof copied.command !== 'string' ||
-          !Object.hasOwn(definition.commands, copied.command)
-        )
-          return Object.freeze({ invalid: 'unknown or absent command' })
-        command = copied.command
-        const selected = definition.commands[command]
-        if (selected === undefined) throw new Error('own command missing from definition')
-        schema = selected.input
-        if (Object.hasOwn(copied, 'args')) {
-          if (!object(copied.args)) return Object.freeze({ invalid: 'args must be a JSON object' })
-          args = copied.args
-        } else args = Object.freeze({})
-      }
+      const selection = selectCallArguments(definition, copied)
+      if ('invalid' in selection) return selection
+      const { schema, command, args } = selection
       const checker = compiled(schema)
       if ('unsupported' in checker) return checker
       if (!checker.validate(args))
