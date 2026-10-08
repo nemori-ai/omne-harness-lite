@@ -116,6 +116,19 @@ export function issue(
 
 export type WarrantVerification = 'ok' | 'invalid'
 
+function payloadMatches(
+  payload: unknown,
+  purpose: WarrantPurpose,
+  expectedAccountId: AccountId,
+): boolean {
+  if (typeof payload !== 'object' || payload === null) return false
+  const record = payload as Record<string, unknown>
+  if (record['v'] !== VERSION) return false
+  if (record['purpose'] !== purpose) return false
+  const account = parseAccountId(record['account'])
+  return isOk(account) && account.ok === expectedAccountId
+}
+
 /**
  * 核实三件事：存在（形状合法）、绑定该 AccountId 与 purpose、由持有配对私钥的一方签发。
  * 任一不满足一律 `'invalid'`，不区分原因——区分原因会诱使核实方按原因分支。
@@ -146,12 +159,7 @@ export function verifyWarrant(
   } catch {
     return 'invalid'
   }
-  if (typeof payload !== 'object' || payload === null) return 'invalid'
-  const record = payload as Record<string, unknown>
-  if (record['v'] !== VERSION) return 'invalid'
-  if (record['purpose'] !== purpose) return 'invalid'
-  const account = parseAccountId(record['account'])
-  if (!isOk(account) || account.ok !== expectedAccountId) return 'invalid'
+  if (!payloadMatches(payload, purpose, expectedAccountId)) return 'invalid'
   let signatureValid = false
   try {
     signatureValid = verify(null, payloadBytes, verificationKey, signature)
