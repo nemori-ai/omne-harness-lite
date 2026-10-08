@@ -71,6 +71,8 @@ Cordis 4.0.4 的 effect 撤除函数在重复调用时可以返回 void。归还
 ACK 确认后封新原句柄捕获与私有副本 pin，仍允许 metadata-only capture。原执行停止且旧借用释放后解除全部模型侧副本，再发布 cleanup=released。
 因此不能把全容器保有到整体 source.release，也不能只换成持有原 invocation 来避开容器 GC。
 共享 binding/owner 不保有每调用大副本是必须用真实 holder 验证的前提。
+调用诊断的 emitter 关闭尝试和失败报告完成后，诊断 facade 解除 emitter 与报告回调引用。
+传输层可能继续持有该 facade；关闭后它不再调用已撤除的出口，也不经报告回调保有原 invocation。
 查询含糊时拒绝，不能凭顺序猜测原执行。
 
 正式 Cordis 工厂的 owner() 仅供受信装配取得原 source 和事实借用；普通服务与 capture 不携这些能力。

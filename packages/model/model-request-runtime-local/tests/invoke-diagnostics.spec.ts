@@ -8,6 +8,49 @@ import type {
 import { adapter, content, policy, request } from './invoke-policy-fixture.ts'
 
 describe('per-invocation engineering diagnostics', () => {
+  it('disconnects retained transport diagnostics from the emitter after physical stop', async () => {
+    const base = adapter()
+    let retained: TransportExecutionDiagnostics | undefined
+    let closed = false
+    let lateRecords = 0
+    const reports: string[] = []
+    const handle = invokeModel({
+      ...request(),
+      transport: {
+        ...base.transport,
+        async send(planned, credential, signal, diagnostics) {
+          retained = diagnostics
+          return base.transport.send(planned, credential, signal)
+        },
+      },
+      credential: 'controlled-key',
+      signal: new AbortController().signal,
+      policy: policy(event => reports.push(event.kind)),
+      diagnosticEmitterFactory() {
+        return {
+          record() {
+            if (closed) {
+              lateRecords++
+              throw new Error('disposed emitter reached')
+            }
+            return { recorded: { collectorId: 'collector', sequence: '1' } }
+          },
+          close() {
+            closed = true
+          },
+        }
+      },
+    })
+    expect(await handle.outcome).toHaveProperty('outcome', 'complete')
+    expect(base.stopped()).toBe(1)
+    expect(closed).toBe(true)
+    expect(retained).toBeDefined()
+    const before = [...reports]
+    retained!.record({ stage: 'send', outcome: 'failed', facts: { kind: 'transport' } })
+    expect(lateRecords).toBe(0)
+    expect(reports).toEqual(before)
+  })
+
   it('passes one call-local emitter to send and read without mixing interleaved calls', async () => {
     const seen: { call: string; event: DiagnosticEvent }[] = []
     const associations: (PublicDiagnosticAssociation | undefined)[] = []
