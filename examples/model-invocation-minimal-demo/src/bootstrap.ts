@@ -1,5 +1,9 @@
 import { createDemoModelInputs } from './model-runtime-inputs.ts'
 import { startModelRuntimeAssembly } from './model-runtime-assembly.ts'
+import type { ContentBlock } from '@omne-harness-lite/content-blocks'
+import type { DemoAttachmentRead } from './demo-result-reader.ts'
+import { createDemoAttachments } from './demo-attachments.ts'
+import { hostEnvironmentMigrations } from '@omne-harness-lite/execution-environments-host/migrations'
 import {
   createDemoRecoveryScope,
   discardUnissuedRecovery,
@@ -206,6 +210,7 @@ import type {
 } from './diagnostic-assembly.ts'
 import { randomUUID, timingSafeEqual } from 'node:crypto'
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { setTimeout as yieldToTimers } from 'node:timers/promises'
 import { constants } from 'node:fs'
 import { open } from 'node:fs/promises'
 import { Context, type Fiber, type Plugin } from '@deepseek-ai/cordis'
@@ -688,6 +693,32 @@ export function createAcceptanceApplication(
     }
   >()
 
+  const toolContextKeys = config.tools ? ['session', 'shell.initial', 'files.initial'] : ['session']
+  function sameToolActor(original: AuthenticatedActor, current: AuthenticatedActor): boolean {
+    return (
+      original.account === current.account &&
+      original.loginState === current.loginState &&
+      tenantIdEquals(original.tenant, current.tenant)
+    )
+  }
+  function attachmentReader(
+    binding: Extract<ToolSessionBinding, { kind: 'bound' }>,
+  ): DemoAttachmentRead {
+    const { scope, tool } = binding
+    return async (requested, reference) => {
+      if (requested.session !== scope.session || !tenantIdEquals(requested.tenant, scope.tenant))
+        return
+      const result = await context.toolResults.readBytes(tool, scope, reference)
+      return result.kind === 'read' ? result.bytes : undefined
+    }
+  }
+  const readToolAttachment: DemoAttachmentRead = async (scope, reference) => {
+    const driver = toolDrivers.get(scope.session),
+      actor = invocationActors.getStore()
+    if (!driver || !actor || !sameToolActor(driver.actor, actor)) return
+    return attachmentReader(driver.binding)(scope, reference)
+  }
+  const attachments = createDemoAttachments(readToolAttachment)
   const invocationActors = new AsyncLocalStorage<AuthenticatedActor | undefined>()
   function withInvocationActor<T>(actor: AuthenticatedActor, work: () => Promise<T>): Promise<T> {
     const captured = copyJsonValue(actor)
@@ -890,7 +921,11 @@ export function createAcceptanceApplication(
     )
   }
   function track<T>(work: () => Promise<T>): Promise<T> {
-    const job = Promise.resolve().then(work)
+    const job = Promise.resolve().then(async () => {
+      // Register ownership first, then let due maintenance run before the next operation.
+      await yieldToTimers(0)
+      return work()
+    })
     admitted.add(job)
     job.then(
       () => admitted.delete(job),
@@ -1213,6 +1248,7 @@ export function createAcceptanceApplication(
       ...(hooks?.extraMigrations ?? []).filter(
         extra => !assemblyManifestMigrations.some(builtin => builtin === extra),
       ),
+      ...(logStage ? hostEnvironmentMigrations : []),
     ]
   }
   async function prepareDeploymentStage() {
@@ -1430,6 +1466,17 @@ export function createAcceptanceApplication(
     lookup = lookupValue
     registration = registrationValue
   }
+  function actorFailure(
+    checked: Awaited<ReturnType<typeof checkActor>>,
+  ): 'unavailable' | 'notAuthorized' {
+    if (
+      'step' in checked &&
+      'failure' in checked.result &&
+      (checked.result.failure === 'storage-unavailable' || checked.result.failure === 'unavailable')
+    )
+      return 'unavailable'
+    return 'notAuthorized'
+  }
   const authorizeSessionIngress: Parameters<typeof createSessionIngress>[0] = async (
     actor,
     scope,
@@ -1438,7 +1485,7 @@ export function createAcceptanceApplication(
     // keeps its live ingress until the domain drains, with current identity checks.
     if (sessionTenancy === undefined) return 'unavailable'
     const checked = await checkActor(actor)
-    if (!('account' in checked)) return 'notAuthorized'
+    if (!('account' in checked)) return actorFailure(checked)
     if (!tenantIdEquals(checked.tenant, scope.tenant)) return 'notAuthorized'
     const held = await sessionTenancy.holdingTenant(scope.session)
     if ('failure' in held) return held.failure === 'unavailable' ? 'unavailable' : 'notAuthorized'
@@ -1500,9 +1547,13 @@ export function createAcceptanceApplication(
       state: contextFiber.state,
     })
     assertNotClosing()
-    await load('sessionContextSource', sessionIdentitySource, {})
+    const tools = config.tools
+      ? { cwd: process.cwd(), envs: { PATH: '/usr/local/bin:/usr/bin:/bin', LANG: 'C.UTF-8' } }
+      : undefined
+    await load('sessionContextSource', sessionIdentitySource, tools ? { tools } : {})
     const creator = createSessionContextCreator({
       initializer: contextAssembly.initializer,
+      ...(tools ? { tools } : {}),
       tenancy: sessionTenancy,
       clock,
       createRow: scope =>
@@ -1630,6 +1681,7 @@ export function createAcceptanceApplication(
     const grants = [
       {
         consumer: 'coordinator' as const,
+        contextKeys: ['session'],
         operations: [
           'run.advance',
           'session.log.coordinate',
@@ -1638,9 +1690,14 @@ export function createAcceptanceApplication(
           'context.publish',
         ] satisfies AccessOperation[],
       },
-      { consumer: 'model' as const, operations: ['context.read'] satisfies AccessOperation[] },
+      {
+        consumer: 'model' as const,
+        contextKeys: ['session'],
+        operations: ['context.read'] satisfies AccessOperation[],
+      },
       {
         consumer: 'tool' as const,
+        contextKeys: toolContextKeys,
         operations: [
           'tool.submit',
           'tool.read',
@@ -1661,7 +1718,7 @@ export function createAcceptanceApplication(
           actor,
           scope,
           grant.consumer,
-          ['session'],
+          grant.contextKeys,
           grant.operations,
         )
         if (ingress.kind !== 'entered') return ingress
@@ -1676,10 +1733,10 @@ export function createAcceptanceApplication(
       if (!control || !model || !tool) return { kind: 'rejected', reason: 'unavailable' }
       const reader = await context.runtimeContext.bind(tool, scope, 'tool')
       if (reader.kind !== 'bound') return { kind: 'rejected', reason: 'unavailable' }
-      const content = await reader.reader.read(['session'])
-      if (content.kind !== 'values' || content.values.length !== 1)
+      const content = await reader.reader.read(toolContextKeys)
+      if (content.kind !== 'values' || content.values.length !== toolContextKeys.length)
         return { kind: 'rejected', reason: 'unavailable' }
-      const value = content.values[0]?.value
+      const value = content.values.find(item => item.key === 'session')?.value
       if (!object(value) || value.session !== scope.session)
         return { kind: 'rejected', reason: 'unavailable' }
       const actualTenant = parseTenantId(value.tenant)
@@ -2058,20 +2115,27 @@ export function createAcceptanceApplication(
             diagnosticCollector: tenant.collector,
             diagnostic: recordSettlement,
           })
-          modelAssembly = await startModelRuntimeAssembly(context, {
-            maxScopes: deployment.maxScopes,
-            callReferences: deployment.callReferences,
-            reservationWaitPolicy: {
-              maxWaitersPerCall: jsonNumberSource(
-                deployment.reservationWaitPolicy.maxWaitersPerCall,
-              ),
-              timeoutMs: jsonNumberSource(deployment.reservationWaitPolicy.timeoutMs),
+          modelAssembly = await startModelRuntimeAssembly(
+            context,
+            {
+              maxScopes: deployment.maxScopes,
+              callReferences: deployment.callReferences,
+              reservationWaitPolicy: {
+                maxWaitersPerCall: jsonNumberSource(
+                  deployment.reservationWaitPolicy.maxWaitersPerCall,
+                ),
+                timeoutMs: jsonNumberSource(deployment.reservationWaitPolicy.timeoutMs),
+              },
+              tokenMargin: {
+                multiplier: jsonNumberSource(deployment.tokenMargin.multiplier),
+                reserveTokens: jsonNumberSource(deployment.tokenMargin.reserveTokens),
+              },
             },
-            tokenMargin: {
-              multiplier: jsonNumberSource(deployment.tokenMargin.multiplier),
-              reserveTokens: jsonNumberSource(deployment.tokenMargin.reserveTokens),
+            {
+              externalContent: attachments.custody,
+              decorateTransport: attachments.transport,
             },
-          })
+          )
           await modelAssembly.ready
           modelRuntime = modelAssembly.owner()
           projectModel = (original, boundSession, recoveryAuthorization) => {
@@ -2333,6 +2397,7 @@ export function createAcceptanceApplication(
               recovery: authorizedLogOwner.recovery,
               directory: config.tools.directory,
               config: config.tools.runtime,
+              readAttachment: readToolAttachment,
               onStopping: () => {
                 gateOpen = false
                 runnerHost?.closeAdmission()
@@ -3583,6 +3648,33 @@ export function createAcceptanceApplication(
     }
   }
 
+  function toolObserver(
+    request: ModelObserverRequest | undefined,
+    binding: SettlementLogBinding,
+    tenant: TenantId,
+  ): {
+    observer: ModelObserverRequest | undefined
+    grant: { readonly revoke: () => Promise<RuntimeCloseResult> } | undefined
+  } {
+    if (!request) return { observer: undefined, grant: undefined }
+    const endpoint: ModelObserverEndpoint = { open: input => request.endpoint.open(input) }
+    const original = observerAccess.grant({
+      endpoint,
+      session: binding.session,
+      tenant,
+      current: () => !closing && binding.currentGeneration() === binding.generation,
+    })
+    const grant = {
+      async revoke() {
+        const result = await original.revoke()
+        if ('released' in result) observerGrants.delete(grant)
+        return result
+      },
+    }
+    observerGrants.add(grant)
+    return { observer: { ...request, endpoint }, grant }
+  }
+
   async function runToolTurn(
     actor: AuthenticatedActor,
     session: unknown,
@@ -3623,7 +3715,7 @@ export function createAcceptanceApplication(
         )
           return reject('hostUnavailable')
         let owned = toolDrivers.get(borrow.binding.session)
-        if (owned && owned.actor.account !== checked.account) return reject('notAuthorized')
+        if (owned && !sameToolActor(owned.actor, checked)) return reject('notAuthorized')
         if (!owned) {
           const binding = await bindToolSession(checked, session)
           if (binding.kind !== 'bound') return reject(binding.reason)
@@ -3682,6 +3774,7 @@ export function createAcceptanceApplication(
           toolDrivers.set(borrow.binding.session, owned)
         }
 
+        const imageReader = attachmentReader(owned.binding)
         const model = actorModel(checked)
         const appended = await appendServiceMessage(
           borrow.binding,
@@ -3728,43 +3821,38 @@ export function createAcceptanceApplication(
             session: borrow.binding.session,
           })
           if (!('effectiveModel' in effective)) return reject('modelUnavailable')
-          let observer: ModelObserverRequest | undefined
-          let grant: { readonly revoke: () => Promise<RuntimeCloseResult> } | undefined
-          if (request.observer) {
-            const endpoint: ModelObserverEndpoint = {
-              open: input => request.observer!.endpoint.open(input),
-            }
-            const original = observerAccess.grant({
-              endpoint,
-              session: borrow.binding.session,
-              tenant: checked.tenant,
-              current: () =>
-                !closing && borrow.binding.currentGeneration() === borrow.binding.generation,
-            })
-            grant = {
-              async revoke() {
-                const result = await original.revoke()
-                if ('released' in result) observerGrants.delete(grant!)
-                return result
-              },
-            }
-            observerGrants.add(grant)
-            observer = { ...request.observer, endpoint }
+          let imageBytes: import('@omne-harness-lite/model-request-runtime').PlanExecutionContext['imageBytes']
+          try {
+            imageBytes = await attachments.snapshot(
+              projected.messages.flatMap<ContentBlock>(message => message.blocks),
+              owned.binding.scope,
+              imageReader,
+              signal,
+            )
+          } catch {
+            return reject('imageUnavailable')
           }
-          const opened = await model.openCall({
-            creationKey,
-            session: borrow.binding.session,
-            target: effective.effectiveModel.routeName,
-            basis: effective.effectiveModel,
-            messages: projected.messages,
-            parameters: request.parameters,
-            tools: adopted.tools,
-            host: request.host,
-            ...(observer ? { observer } : {}),
-            run: adopted.run,
-            attempt: adopted.attempt,
-            report: adopted.report,
-          })
+          const { observer, grant } = toolObserver(request.observer, borrow.binding, checked.tenant)
+          const opened = await attachments.within(
+            owned.binding.scope,
+            () =>
+              model.openCall({
+                creationKey,
+                session: borrow.binding.session,
+                target: effective.effectiveModel.routeName,
+                basis: effective.effectiveModel,
+                messages: projected.messages,
+                parameters: request.parameters,
+                tools: adopted.tools,
+                host: request.host,
+                ...(observer ? { observer } : {}),
+                run: adopted.run,
+                attempt: adopted.attempt,
+                report: adopted.report,
+              }),
+            imageReader,
+            imageBytes,
+          )
           if (!('state' in opened) || (opened.state !== 'open' && opened.state !== 'resumable')) {
             await grant?.revoke()
             return reject(
@@ -3774,11 +3862,17 @@ export function createAcceptanceApplication(
                   : Object.keys(opened).join(',')),
             )
           }
-          const dispatched = await model.dispatch({
-            session: borrow.binding.session,
-            callId: opened.callId,
-            attempt: adopted.attempt,
-          })
+          const dispatched = await attachments.within(
+            owned.binding.scope,
+            () =>
+              model.dispatch({
+                session: borrow.binding.session,
+                callId: opened.callId,
+                attempt: adopted.attempt,
+              }),
+            imageReader,
+            imageBytes,
+          )
           await grant?.revoke()
           if (!('replyPending' in dispatched)) {
             if ('settled' in dispatched && dispatched.settled.outcome === 'failed') {

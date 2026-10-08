@@ -5,7 +5,12 @@ import type {
   InputMeasurement,
 } from './planning-types.ts'
 import type { ArrivalEvent, ArrivalTarget } from '@omne-harness-lite/arrival-events'
-import type { ContentBlock, JsonNumber, JsonValue } from '@omne-harness-lite/content-blocks'
+import type {
+  ContentBlock,
+  ImageBlock,
+  JsonNumber,
+  JsonValue,
+} from '@omne-harness-lite/content-blocks'
 import type { Cost, Usage, TrimSummary } from '@omne-harness-lite/call-accounts'
 import type {
   ModelProfileSnapshot,
@@ -150,6 +155,11 @@ export interface PublicDiagnosticAssociation {
 export interface PlanExecutionContext {
   readonly signal: AbortSignal
   readonly reuseScope?: object
+  /** Fixed, already-authorized original image bytes. Planning performs no source IO. */
+  readonly imageBytes?: readonly {
+    readonly reference: Exclude<ImageBlock['data'], { inline: string }>
+    readonly bytes: Uint8Array
+  }[]
 }
 export interface TransportAdapter<P extends PlannedSemantics, R> {
   readonly plan: (input: PlanInput, execution: PlanExecutionContext) => Promise<PlanResult<P>>

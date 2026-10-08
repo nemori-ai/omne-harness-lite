@@ -9,6 +9,7 @@ import {
 import type {
   ModelRuntimeHostInputs,
   ModelRuntimeExecutionSupport,
+  ModelTransportService,
 } from '@omne-harness-lite/model-request-runtime'
 import { openStorage } from '@omne-harness-lite/storage-sql'
 import { composeMigrations } from '@omne-harness-lite/storage'
@@ -16,7 +17,11 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod'
-import { createModelRuntimeLocal, type ModelRuntimeLocalConfig } from '../src/service-plugin.ts'
+import {
+  createModelRuntimeLocal,
+  type ModelRuntimeLocalConfig,
+  type ModelRuntimeLocalConstruction,
+} from '../src/service-plugin.ts'
 import { modelCallContentMigrations } from '../src/reference-content.ts'
 import { policy } from './invoke-policy-fixture.ts'
 import { noWaitScheduler, policy as settlementPolicy } from './settlement-fixture.ts'
@@ -78,6 +83,8 @@ export async function namedProviderFixture(
     readonly support?: ModelRuntimeExecutionSupport
     readonly deferDependencies?: boolean
     readonly config?: ModelRuntimeLocalConfig
+    readonly construction?: ModelRuntimeLocalConstruction
+    readonly transport?: Pick<ModelTransportService, 'clearReuseScope' | 'acquire'>
   } = {},
 ) {
   const directory = await mkdtemp(join(tmpdir(), 'model-named-provider-'))
@@ -88,7 +95,7 @@ export async function namedProviderFixture(
     migrations: composeMigrations(modelCallContentMigrations('sqlite')),
   })
   const ctx = new Context(),
-    binding = createModelRuntimeLocal()
+    binding = createModelRuntimeLocal(options.construction)
   const lifetime = createAssemblyLifetime(['model'], binding.closeAdmission)
   if (!lifetime.tryClaim()) throw new Error('fixture lifetime claim')
   const captures: Fiber[] = []
@@ -151,10 +158,13 @@ export async function namedProviderFixture(
           new Lifetime(inner)
           inner.provide('storage', storage)
           inner.provide('clock', { now: () => 'unavailable' })
-          inner.provide('modelTransport', {
-            clearReuseScope() {},
-            acquire: () => ({ rejected: 'unavailable' }),
-          })
+          inner.provide(
+            'modelTransport',
+            options.transport ?? {
+              clearReuseScope() {},
+              acquire: () => ({ rejected: 'unavailable' }),
+            },
+          )
         },
       }),
       {},

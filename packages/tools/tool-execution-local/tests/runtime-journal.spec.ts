@@ -457,3 +457,22 @@ test('context key errors and source refusal never create successful adoption fac
     await f.close()
   }
 })
+
+test('queued reads let already scheduled maintenance run before prefix work', async () => {
+  const f = await fixture()
+  try {
+    f.readSince.mockResolvedValue({ entries: [], tail: 0 })
+    let callbackRan = false
+    const callback = new Promise<void>(resolve =>
+      setImmediate(() => {
+        callbackRan = true
+        resolve()
+      }),
+    )
+    expect((await f.journal.read(scope, ref.callId)).kind).toBe('view')
+    expect(callbackRan).toBe(true)
+    await callback
+  } finally {
+    await f.close()
+  }
+})

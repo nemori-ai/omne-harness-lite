@@ -55,7 +55,8 @@ export async function checkSqlActor(
   const logins = source.logins()
   if (logins === undefined) return 'unavailable'
   const verified = await logins.participate(unit).verify(actor.loginState)
-  if ('failure' in verified) return 'notAuthorized'
+  if ('failure' in verified)
+    return verified.failure === 'storage-unavailable' ? 'unavailable' : 'notAuthorized'
   if (verified.ok !== actor.account) return 'notAuthorized'
   const member = await memberIn(unit, source, actor, scope)
   return member === 'authorized' ? sameTenantIn(unit, source, scope) : member

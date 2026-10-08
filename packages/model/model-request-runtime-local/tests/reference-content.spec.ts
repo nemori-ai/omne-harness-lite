@@ -712,3 +712,133 @@ describe('RT12 S-98 retention gate on real SQLite', () => {
     })
   })
 })
+
+it('malformed created content is rejected before any publisher can be retained', async () => {
+  await host(async h => {
+    const store = createModelCallContentStore({ storage: h.storage, policy })
+    expect(
+      await store.put({
+        binding: h.binding,
+        locator: 'invalid-created',
+        version: '1',
+        content: { kind: 'created', value: {} } as unknown as ModelCallContentValue,
+      }),
+    ).toHaveProperty('invalidInput')
+    expect(await store.retention({ binding: h.binding, call: h.content.value.ref.callId })).toEqual(
+      { phase: null, publishers: 0 },
+    )
+    await store.close()
+  })
+})
+describe('external content custody before publication', () => {
+  for (const mode of ['unavailable', 'throw', 'syncThrow', 'falseRetention'] as const)
+    it(`refuses external content when custody returns ${mode}`, async () => {
+      await host(async h => {
+        const store = createModelCallContentStore({
+          storage: h.storage,
+          policy,
+          externalContent: {
+            confirm() {
+              if (mode === 'syncThrow') throw new Error('custody invocation failed')
+              return Promise.resolve().then(() => {
+                if (mode === 'throw') throw new Error('custody IO failed')
+                if (mode === 'falseRetention')
+                  return { retained: false } as unknown as { retained: true }
+                return { unavailable: true as const }
+              })
+            },
+          },
+        })
+        expect(
+          await store.put({
+            binding: h.binding,
+            locator: 'external-failed',
+            version: '1',
+            content: await pending(),
+          }),
+        ).toEqual({ unavailable: true })
+        expect(
+          await store.retention({ binding: h.binding, call: h.content.value.ref.callId }),
+        ).toEqual({ phase: null, publishers: 0 })
+        await store.close()
+      })
+    })
+  it('keeps exact original locators under confirmed durable custody across reopen', async () => {
+    await host(async h => {
+      const original = await pending()
+      const seen: ModelCallContentValue[] = []
+      const store = createModelCallContentStore({
+        storage: h.storage,
+        policy,
+        externalContent: {
+          async confirm(request) {
+            expect(request.binding.tenant).toEqual(h.binding.tenant)
+            expect(request.binding.session).toBe(h.binding.session)
+            seen.push(request.content)
+            return { retained: true }
+          },
+        },
+      })
+      const written = await store.put({
+        binding: h.binding,
+        locator: 'external-held',
+        version: '1',
+        content: original,
+      })
+      expect(seen).toHaveLength(1)
+      if (!('ref' in written)) throw new Error('Confirmed custody publication refused')
+      await written.permit.release()
+      await store.close()
+      const recovered = createModelCallContentStore({ storage: await h.reopen(), policy })
+      const read = await recovered.read({
+        binding: h.binding,
+        call: original.value.call.callId,
+        ref: written.ref,
+      })
+      expect('content' in read && writeJsonLossless(read.content.value)).toBe(
+        writeJsonLossless(original.value),
+      )
+      await recovered.close()
+    })
+  })
+  it('close drains actual custody IO and an expired generation cannot publish afterwards', async () => {
+    await host(async h => {
+      const entered = deferred(),
+        stopped = deferred()
+      let current = true
+      const binding = {
+        ...h.binding,
+        currentGeneration: () => (current ? h.binding.generation : {}),
+      }
+      const store = createModelCallContentStore({
+        storage: h.storage,
+        policy,
+        externalContent: {
+          async confirm() {
+            entered.resolve()
+            await stopped.promise
+            return { retained: true }
+          },
+        },
+      })
+      const publication = store.put({
+        binding,
+        locator: 'external-wait',
+        version: '1',
+        content: await pending(),
+      })
+      await entered.promise
+      let closed = false
+      const closing = store.close().then(() => {
+        closed = true
+      })
+      await Promise.resolve()
+      expect(closed).toBe(false)
+      current = false
+      stopped.resolve()
+      expect(await publication).toEqual({ unavailable: true })
+      await closing
+      expect(closed).toBe(true)
+    })
+  })
+})

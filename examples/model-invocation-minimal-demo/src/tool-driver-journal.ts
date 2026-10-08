@@ -1,4 +1,5 @@
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
+import { setTimeout as yieldToTimers } from 'node:timers/promises'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import {
   addInteger,
@@ -114,7 +115,14 @@ async function createJournal(input: {
       return { unavailable: true }
     }
     if ('failure' in result) return { unavailable: true }
-    return readToolDriverHistory({ scope, ownerGeneration: held.ownerGeneration, ...result })
+    const history = readToolDriverHistory({
+      scope,
+      ownerGeneration: held.ownerGeneration,
+      ...result,
+    })
+    // A complete history check can span lease maintenance. The next operation rechecks authority.
+    await yieldToTimers(0)
+    return history
   }
   async function resolvePending(history: DriverHistory): Promise<boolean> {
     if (pending === undefined) return true
@@ -167,6 +175,7 @@ async function createJournal(input: {
       pending = request
       let result
       try {
+        await yieldToTimers(0)
         result = await held.log.append(
           request.session,
           request.entries,

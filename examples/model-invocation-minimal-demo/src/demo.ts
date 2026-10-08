@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
 import { mkdir, open, lstat, rename, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
+import { setTimeout as yieldToTimers } from 'node:timers/promises'
 import {
   generateHandoffKeyPair,
   isOk,
@@ -374,6 +375,8 @@ export async function openDemo(
       if (suppliedCredential !== undefined) {
         const ref = parseOpaqueIdentifier(`demo-credential-${randomUUID()}`, 'CredentialRef')
         if (!isOk(ref)) throw new Error('credential reference invalid')
+        // Let due lease maintenance run after synchronous input preparation.
+        await yieldToTimers(0)
         const published = await app.publishCredential(actor, async checked => ({
           account: checked.account,
           tenant: checked.tenant,
@@ -407,6 +410,7 @@ export async function openDemo(
       currentModel: () => app.effectiveModel(actor, session),
       selectModel: routeName => app.selectModel(actor, session, routeName),
       async send(text, onDelivery) {
+        await yieldToTimers(0)
         if (stopped) return { kind: 'refused', reason: 'runtimeStopped', released: true }
         const id = randomUUID()
         const host = createDemoCallHost()

@@ -17,6 +17,7 @@ import {
   mkdir,
 } from './queries.ts'
 import { argumentSchemas } from './arguments.ts'
+import { formatSection } from '@omne-harness-lite/unix-format'
 /** Only schema-validated safe integers cross the native facility boundary. */
 function nativeNumbers(value: JsonValue): unknown {
   if (LosslessNumber.is(value)) return Number(value.source)
@@ -34,6 +35,18 @@ function shapeArguments(command: string | undefined, value: unknown) {
   return checked.success
     ? { command: command as keyof typeof argumentSchemas, data: checked.data }
     : undefined
+}
+function commandHelp(definition: MultiCommandTool, args: unknown): string {
+  const name = argumentSchemas.help.parse(args).command
+  if (!name) return definition.help!
+  const selected = definition.commands[name]!
+  return [
+    selected.help!,
+    formatSection('ARGUMENTS', JSON.stringify(nativeNumbers(selected.input), null, 2), {
+      markdownCompatible: false,
+      maxWidth: 0,
+    }),
+  ].join('\n\n')
 }
 export function filesExecutor(
   definition: MultiCommandTool,
@@ -64,10 +77,7 @@ export function filesExecutor(
     const shaped = shapeArguments(judgment.ok.command, nativeNumbers(judgment.ok.args))
     if (shaped === undefined) return rejected('arguments:invalid')
     const { command, data: args } = shaped
-    if (command === 'help') {
-      const help = argumentSchemas.help.parse(args)
-      return help.command ? definition.commands[help.command]!.help! : definition.help!
-    }
+    if (command === 'help') return commandHelp(definition, args)
     if (deps.signal.aborted) return rejected('interrupted')
     const selected = await currentFiles(deps, options)
     if ('error' in selected) return selected.error

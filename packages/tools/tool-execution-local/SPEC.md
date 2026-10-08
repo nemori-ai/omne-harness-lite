@@ -27,3 +27,5 @@ LP-10 The Cordis placement plugins are static exports. Their configuration conta
 LP-11 原环境 lease 失效触发原终局路径，旧执行不获取替代环境。只有原 lease.release 确认 released 才放弃活体租约；pending 或异常仍由原执行 owner 持有并承担原释放责任。后续 close 只重试原 lease，失败不假报关闭完成。冷恢复仅维护原资源引用并异常收场，不重建作者栈或租约。单个工具 runtime 关闭不销毁共享环境 registry。
 
 LP-12 Original resource plan, permission, adoption, and terminal decisions share the ToolJournal prefix. Adoption transfers an existing permitted resource only to the original adopted environment. Call release does not destroy that resource. Each later action needs its own plan and permission. Startup maintenance uses recoverOwned for original environment resources, records only matching original keys, and preserves partial failures as pending readiness. It does not replay actions or create substitute resource keys.
+
+Journal 每会话队列开始下一项前，先让 Node 的维护计时器与 IO 运行。恢复后仍执行原准入、拥有者代际及提交检查。让出事件循环不授予资格，不重置超时，不承诺特定调度延迟。关闭仍须排空原已登记任务。

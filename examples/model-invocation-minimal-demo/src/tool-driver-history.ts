@@ -1,3 +1,4 @@
+import { createParameterJudge } from '@omne-harness-lite/tool-definition'
 import { readAttemptStarted } from '@omne-harness-lite/session-runtime'
 import { copyJsonValue, type ToolCallBlock } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
@@ -96,15 +97,21 @@ function checkAdoptedContexts(prefix: CheckedPrefix, drivers: readonly DriverRec
     const context = projectContext(prefix.scope, prior, record.entry.position)
     requireHistory(
       context.seed !== undefined &&
-        record.value.context.every(value => equal(context.contents.get(value.key), value)),
+        record.value.context.every(
+          value =>
+            context.registrations.get(value.key)?.consumers.includes('model') === true &&
+            equal(context.contents.get(value.key), value),
+        ),
       'attempt context has no actual declared source',
     )
     requireHistory(
-      context.seed.required.every(
-        value =>
-          record.value.kind === 'attempt_adopted' &&
-          record.value.context.some(content => content.key === value.key),
-      ),
+      context.seed.required
+        .filter(entry => entry.consumers.includes('model'))
+        .every(
+          value =>
+            record.value.kind === 'attempt_adopted' &&
+            record.value.context.some(content => content.key === value.key),
+        ),
       'attempt omits required context',
     )
   }
@@ -332,12 +339,14 @@ function routes(
 export function projectToolDriverHistory(input: CheckedPrefix): DriverHistory {
   const prefix = capturePrefix(input),
     models = readDriverModelHistory(prefix)
+  // One projection owns compiled schemas; every original record is still judged.
+  const parameters = createParameterJudge()
   const drivers: DriverRecord[] = [],
     runners: DriverRunnerRecord[] = [],
     tools: InspectedToolJournalEntry[] = []
   const modelPositions = new Set(models.entries.map(item => attemptIdentity(item.entry.position)))
   for (const entry of prefix.entries) {
-    const driver = inspectDriverEntry(prefix.scope, entry)
+    const driver = inspectDriverEntry(prefix.scope, entry, parameters)
     const runner = inspectRunnerConclusion({ ...prefix.scope, entry })
     const context = inspectContextLogEntry(prefix.scope, entry)
     const tool = inspectToolJournalEntry(prefix.scope, entry)

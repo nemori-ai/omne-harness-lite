@@ -633,3 +633,74 @@ test('model settlement reads the identical Run projection at its supplied tail a
     await f.close()
   }
 })
+
+test('a model attempt requires model-visible context and does not adopt tool-only environment defaults', async () => {
+  const f = await historyFixture(undefined, undefined, undefined, undefined, [], {
+    required: [
+      {
+        key: 'shell.initial',
+        source: 'tool-defaults',
+        config: null,
+        consumers: ['tool'],
+        required: true,
+        recovery: 'persisted',
+      },
+    ],
+    initial: [
+      { key: 'shell.initial', revision: 'initial', observedAt: at, value: { cwd: '/workspace' } },
+    ],
+    fixed: [],
+  })
+  try {
+    expect(readToolDriverHistory(await f.prefix())).not.toHaveProperty('unavailable')
+    const history = readToolDriverHistory(await f.prefix())
+    if ('unavailable' in history) throw new Error('Valid model attempt unavailable')
+    expect(history.runs.get('run')?.latest?.value.context).toEqual([])
+  } finally {
+    await f.close()
+  }
+})
+
+test('rejects tool-only context even when the model has adopted all required model values', async () => {
+  const modelValue = { key: 'instructions', revision: 'initial', observedAt: at, value: 'model' }
+  const toolValue = {
+    key: 'shell.initial',
+    revision: 'initial',
+    observedAt: at,
+    value: { cwd: '/private' },
+  }
+  const f = await historyFixture(undefined, undefined, undefined, undefined, [], {
+    required: [
+      {
+        key: modelValue.key,
+        source: 'model-source',
+        config: null,
+        consumers: ['model'],
+        required: true,
+        recovery: 'persisted',
+      },
+      {
+        key: toolValue.key,
+        source: 'tool-source',
+        config: null,
+        consumers: ['tool'],
+        required: true,
+        recovery: 'persisted',
+      },
+    ],
+    initial: [modelValue, toolValue],
+    fixed: [],
+  })
+  try {
+    const prefix = await f.prefix()
+    expect(readToolDriverHistory(prefix)).not.toHaveProperty('unavailable')
+    const leaked = changed(
+      prefix,
+      row => payload(row).value.kind === 'attempt_adopted',
+      row => replaceFixtureValue(row, { ...payload(row).value, context: [modelValue, toolValue] }),
+    )
+    expect(readToolDriverHistory(leaked)).toHaveProperty('unavailable')
+  } finally {
+    await f.close()
+  }
+})
