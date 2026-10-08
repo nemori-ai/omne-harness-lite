@@ -55,28 +55,32 @@ function compare(a: Decimal, b: Decimal): number {
   }
   return a.negative ? -result : result
 }
+function arraysEqual(left: JsonValue, right: JsonValue): boolean {
+  return (
+    Array.isArray(left) &&
+    Array.isArray(right) &&
+    left.length === right.length &&
+    left.every((item, index) => right[index] !== undefined && equal(item, right[index]))
+  )
+}
+function objectsEqual(left: JsonValue, right: JsonValue): boolean {
+  return (
+    object(left) &&
+    object(right) &&
+    Object.keys(left).length === Object.keys(right).length &&
+    Object.entries(left).every(
+      ([key, value]) =>
+        Object.hasOwn(right, key) && right[key] !== undefined && equal(value, right[key]),
+    )
+  )
+}
 function equal(left: JsonValue, right: JsonValue): boolean {
   const first = decimal(left)
   const second = decimal(right)
   if (first !== undefined || second !== undefined)
     return first !== undefined && second !== undefined && compare(first, second) === 0
-  if (Array.isArray(left) || Array.isArray(right))
-    return (
-      Array.isArray(left) &&
-      Array.isArray(right) &&
-      left.length === right.length &&
-      left.every((item, index) => right[index] !== undefined && equal(item, right[index]))
-    )
-  if (object(left) || object(right))
-    return (
-      object(left) &&
-      object(right) &&
-      Object.keys(left).length === Object.keys(right).length &&
-      Object.entries(left).every(
-        ([key, value]) =>
-          Object.hasOwn(right, key) && right[key] !== undefined && equal(value, right[key]),
-      )
-    )
+  if (Array.isArray(left) || Array.isArray(right)) return arraysEqual(left, right)
+  if (object(left) || object(right)) return objectsEqual(left, right)
   return left === right
 }
 function containsNumber(value: JsonValue): boolean {

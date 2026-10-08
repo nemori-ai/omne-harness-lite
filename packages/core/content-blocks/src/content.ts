@@ -113,28 +113,30 @@ function blockModality(block: Record<string, JsonValue>): Modality | undefined {
       return undefined
   }
 }
-function crossMembersValid(blocks: readonly LocatedBlock[]): boolean {
-  for (const { value: block } of blocks) {
+function mediaTypesAgree(block: Record<string, JsonValue>): boolean {
+  return !(
+    (block.kind === 'voice' || block.kind === 'image') &&
+    isObject(block.data) &&
+    Object.hasOwn(block.data, 'mediaType') &&
+    block.mediaType !== block.data.mediaType
+  )
+}
+function renderingModalitiesDiffer(block: Record<string, JsonValue>): boolean {
+  if (!Array.isArray(block.renderings)) return true
+  const originalModality = blockModality(block)
+  if (originalModality === undefined) return true
+  for (const rendering of block.renderings) {
+    if (!isObject(rendering) || !Array.isArray(rendering.blocks)) continue
     if (
-      (block.kind === 'voice' || block.kind === 'image') &&
-      isObject(block.data) &&
-      Object.hasOwn(block.data, 'mediaType') &&
-      block.mediaType !== block.data.mediaType
+      rendering.blocks.some(child => isObject(child) && blockModality(child) === originalModality)
     )
       return false
-    if (Array.isArray(block.renderings)) {
-      const originalModality = blockModality(block)
-      if (originalModality === undefined) continue
-      for (const rendering of block.renderings) {
-        if (!isObject(rendering) || !Array.isArray(rendering.blocks)) continue
-        if (
-          rendering.blocks.some(
-            child => isObject(child) && blockModality(child) === originalModality,
-          )
-        )
-          return false
-      }
-    }
+  }
+  return true
+}
+function crossMembersValid(blocks: readonly LocatedBlock[]): boolean {
+  for (const { value: block } of blocks) {
+    if (!mediaTypesAgree(block) || !renderingModalitiesDiffer(block)) return false
   }
   return true
 }

@@ -1,7 +1,6 @@
 import { createRequire } from 'node:module'
 import type { Ajv2020, ValidateFunction } from 'ajv/dist/2020.js'
 import type { SchemaDocument } from './schema-runtime.ts'
-import { type JsonValue } from './json.ts'
 import { exactSchema } from './exact-transform.ts'
 import { createBuildCompiler } from './schema-compiler.ts'
 import { copySchema, object, projection } from './schema-values.ts'
@@ -39,40 +38,46 @@ function standaloneBound(ajv: Ajv2020, definitions: Readonly<Record<string, stri
   )
 }
 
+function registerResource(ajv: Ajv2020, meta: ValidateFunction, resource: SchemaDocument): void {
+  const original = copySchema(resource)
+  if (!object(original) || typeof original.$id !== 'string')
+    throw new TypeError('Schema resource needs a fixed $id')
+  if (meta.call({ root: original }, projection(original)) !== true)
+    throw new TypeError('invalid Schema resource')
+  const transformed = projection(exactSchema(original))
+  if (!object(transformed)) throw new Error('Schema resource projection is not an object')
+  ajv.addSchema(transformed)
+}
+function compileDefinition(
+  ajv: Ajv2020,
+  meta: ValidateFunction,
+  definition: FixedDefinition,
+): string {
+  const original = copySchema(definition.schema)
+  if (meta.call({ root: original }, projection(original)) !== true)
+    throw new TypeError('Schema fails Draft 2020-12 meta-validation')
+  const transformed = projection(exactSchema(original))
+  if (typeof transformed !== 'boolean' && !object(transformed))
+    throw new Error('Schema projection is invalid')
+  const compiled = ajv.compile(transformed)
+  if ('$async' in compiled && compiled.$async === true)
+    throw new TypeError('asynchronous Schemas are outside this runtime')
+  // Compile first to retain the original anonymous base/error paths. The key only
+  // lets standalone retrieve the already compiled object; it changes no $id.
+  const key = `urn:omne:fixed-definition:${encodeURIComponent(definition.name)}`
+  ajv.addSchema(transformed, key)
+  return key
+}
 /** Compile every definition before returning any output; no filesystem effects. */
 export function generateSchemaModule(input: FixedSchemaModuleInput): string {
   const meta = metaCompiler().validate
   const ajv = createBuildCompiler()
-  function checked(schema: SchemaDocument): JsonValue {
-    const original = copySchema(schema)
-    if (meta.call({ root: original }, projection(original)) !== true)
-      throw new TypeError('Schema fails Draft 2020-12 meta-validation')
-    return original
-  }
-  for (const resource of input.resources) {
-    const original = copySchema(resource)
-    if (!object(original) || typeof original.$id !== 'string')
-      throw new TypeError('Schema resource needs a fixed $id')
-    if (meta.call({ root: original }, projection(original)) !== true)
-      throw new TypeError('invalid Schema resource')
-    const transformed = projection(exactSchema(original))
-    if (!object(transformed)) throw new Error('Schema resource projection is not an object')
-    ajv.addSchema(transformed)
-  }
+  for (const resource of input.resources) registerResource(ajv, meta, resource)
   const names: Record<string, string> = Object.create(null) as Record<string, string>
   for (const definition of input.definitions) {
     if (definition.name.length === 0 || Object.hasOwn(names, definition.name))
       throw new TypeError('fixed Schema export names must be non-empty and unique')
-    const transformed = projection(exactSchema(checked(definition.schema)))
-    if (typeof transformed !== 'boolean' && !object(transformed))
-      throw new Error('Schema projection is invalid')
-    const compiled = ajv.compile(transformed)
-    if ('$async' in compiled && compiled.$async === true)
-      throw new TypeError('asynchronous Schemas are outside this runtime')
-    // Compile first to retain the original anonymous base/error paths. The key only
-    // lets standalone retrieve the already compiled object; it changes no $id.
-    const key = `urn:omne:fixed-definition:${encodeURIComponent(definition.name)}`
-    ajv.addSchema(transformed, key)
+    const key = compileDefinition(ajv, meta, definition)
     names[definition.name] = key
   }
   return standaloneBound(ajv, names)
