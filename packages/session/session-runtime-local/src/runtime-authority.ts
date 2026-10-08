@@ -17,7 +17,8 @@ export function runtimeAuthority(options: RuntimeOptions) {
     coordination = Object.freeze({}) as CoordinationAuthority,
     logAccess = Object.freeze({}) as LogAuthority,
     guards = new WeakMap<StorageUnit, AdmissionGuard>(),
-    runs = new WeakMap<StorageUnit, SessionScope>()
+    runs = new WeakMap<StorageUnit, SessionScope>(),
+    originalReads = new WeakMap<StorageUnit, SessionScope>()
   function allowed(unit: StorageUnit, scope: SessionScope) {
     const guard = guards.get(unit)
     const run = runs.get(unit)
@@ -32,9 +33,17 @@ export function runtimeAuthority(options: RuntimeOptions) {
   }
   const log: LogAuthorityOperations = {
     storage: options.storage,
-    authorize: async (unit, candidate, scope) => ({
-      kind: candidate === logAccess && allowed(unit, scope) ? 'authorized' : 'denied',
-    }),
+    authorize: async (unit, candidate, scope, operation) => {
+      const read = originalReads.get(unit)
+      const heldRead =
+        operation === 'read' &&
+        read?.session === scope.session &&
+        tenantIdEquals(read.tenant, scope.tenant)
+      return {
+        kind:
+          candidate === logAccess && (allowed(unit, scope) || heldRead) ? 'authorized' : 'denied',
+      }
+    },
     authorizeEnumeration: async () => ({ kind: 'denied' }),
   }
   return Object.freeze({
@@ -65,6 +74,22 @@ export function runtimeAuthority(options: RuntimeOptions) {
         options.admission.authorizeIn(unit, guards.get(unit)!, options.source, operation.tenant)
           ? { kind: 'authorized' as const }
           : { failure: 'denied' as const },
+    },
+    /** Only the bound original-owner reader uses this after checking its persisted issued source. */
+    async withinOriginalRead<T>(
+      unit: StorageUnit,
+      scope: SessionScope,
+      read: () => Promise<T>,
+    ): Promise<T> {
+      unit.assertStorage(options.storage)
+      if (!tenantIdEquals(scope.tenant, options.tenant) || originalReads.has(unit))
+        throw new Error('invalid original log read scope')
+      originalReads.set(unit, scope)
+      try {
+        return await unit.run(read)
+      } finally {
+        originalReads.delete(unit)
+      }
     },
     async withinRun<T>(
       unit: StorageUnit,

@@ -2761,6 +2761,9 @@ importers:
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../../core/messages
+      '@omne-harness-lite/model-request-runtime':
+        specifier: workspace:*
+        version: link:../../core/model-request-runtime
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../core/offer-expiry
@@ -2783,6 +2786,9 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
+      '@omne-harness-lite/model-request-runtime-local':
+        specifier: workspace:*
+        version: link:../../model/model-request-runtime-local
       '@omne-harness-lite/runtime-context-local':
         specifier: workspace:*
         version: link:../runtime-context-local

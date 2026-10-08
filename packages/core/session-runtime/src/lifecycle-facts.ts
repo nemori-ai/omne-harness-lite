@@ -50,6 +50,15 @@ export type SessionFact =
       readonly at: string
     }
   | {
+      readonly kind: 'call_prepared'
+      readonly run: RunId
+      readonly attempt: AttemptId
+      readonly call: string
+      readonly originalPosition: string
+      readonly stepKey: string
+      readonly at: string
+    }
+  | {
       readonly kind: 'run_finished'
       readonly run: RunId
       readonly attempt: AttemptId
@@ -75,6 +84,7 @@ const fields = {
   input_accepted: ['kind', 'operation', 'semanticDigest', 'messagePosition', 'at'],
   run_started: ['kind', 'run', 'inputPosition', 'stepKey', 'at'],
   input_adopted: ['kind', 'run', 'attempt', 'inputPosition', 'stepKey', 'at'],
+  call_prepared: ['kind', 'run', 'attempt', 'call', 'originalPosition', 'stepKey', 'at'],
   run_finished: ['kind', 'run', 'attempt', 'terminal', 'reason', 'stepKey', 'at'],
 } as const
 export function checkSessionFact(value: unknown): SessionFactCheck {
@@ -109,12 +119,25 @@ function variantValid(fact: JsonObject): boolean {
     case 'run_started':
       return runValid(fact) && positiveInteger(fact.inputPosition)
     case 'input_adopted':
-      return runValid(fact) && positiveInteger(fact.attempt) && positiveInteger(fact.inputPosition)
+      return adoptedInputValid(fact)
+    case 'call_prepared':
+      return preparedCallValid(fact)
     case 'run_finished':
       return finishedValid(fact)
     default:
       return false
   }
+}
+function preparedCallValid(fact: JsonObject): boolean {
+  return (
+    runValid(fact) &&
+    positiveInteger(fact.attempt) &&
+    checkKey(fact.call) &&
+    checkKey(fact.originalPosition)
+  )
+}
+function adoptedInputValid(fact: JsonObject): boolean {
+  return runValid(fact) && positiveInteger(fact.attempt) && positiveInteger(fact.inputPosition)
 }
 function acceptedInputValid(fact: JsonObject): boolean {
   return (

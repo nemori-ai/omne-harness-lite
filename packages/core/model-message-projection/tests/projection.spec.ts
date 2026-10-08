@@ -181,6 +181,22 @@ describe('fixed log projection and prefix reuse', () => {
         ...row(
           7,
           sessionFactPayload({
+            kind: 'call_prepared',
+            run: 'run-a' as never,
+            attempt: 1,
+            call: 'call-a',
+            originalPosition: 'loop-position',
+            stepKey: 'prepare',
+            at,
+          }),
+        ),
+        run: 'run-a',
+        attempt: 1,
+      },
+      {
+        ...row(
+          8,
+          sessionFactPayload({
             kind: 'run_finished',
             run: 'run-a' as never,
             attempt: 1,

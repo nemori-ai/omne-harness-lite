@@ -1,3 +1,9 @@
+import type {
+  OriginalIssueAuthority,
+  OriginalIssueParticipant,
+  OriginalIssueTicket,
+  OriginalIssueStage,
+} from '@omne-harness-lite/model-request-runtime'
 import type { SessionRef } from '@omne-harness-lite/messages'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import type { TenantId } from '@omne-harness-lite/identity-values'
@@ -47,6 +53,16 @@ export interface RuntimeOptions {
   readonly bootstrap: SessionBootstrap
   readonly now: () => string | 'unavailable'
   readonly workSettledIn: StateOptions['workSettledIn']
+  /** Root-selected original model owner. Omission means model admission is unavailable. */
+  readonly modelIssue?: {
+    readonly maxRecords: number
+    readonly current: OriginalIssueAuthority
+    readonly create: (binding: {
+      readonly log: SessionLogParticipant
+      readonly access: import('@omne-harness-lite/session-log').LogAuthority
+      readonly authority: OriginalIssueAuthority
+    }) => OriginalIssueParticipant
+  }
 }
 export type SessionIngressOperations = Pick<
   SessionRuntime,
@@ -68,6 +84,32 @@ export interface LocalSessionIngress {
   readonly tenancy: SessionTenancyService
   /** Trusted host port. Do not send its live authority or permits over a wire protocol. */
   readonly coordinationAuthority: CoordinationAuthority
+  readonly modelInvocation: {
+    readonly admit: (
+      authority: CoordinationAuthority,
+      scope: SessionScope,
+      source: SourceToken,
+      preparation: Extract<SessionLifecycleStep, { kind: 'prepareCall' }>,
+      ticket: OriginalIssueTicket,
+    ) => Promise<
+      | Exclude<OriginalIssueStage, { kind: 'staged' }>
+      | {
+          readonly kind: 'issued'
+          readonly claim: Extract<OriginalIssueStage, { kind: 'staged' }>['claim']
+          readonly identity: Extract<OriginalIssueStage, { kind: 'staged' }>['identity']
+          readonly positions: readonly import('@omne-harness-lite/content-blocks').JsonNumber[]
+        }
+      | {
+          readonly kind: 'unknownCommit'
+          readonly scope: SessionScope
+          readonly call: string
+          readonly originalPosition: string
+        }
+      | Failure<
+          'invalidInput' | 'denied' | 'unavailable' | 'retryFromFacts' | 'staleAttempt' | 'terminal'
+        >
+    >
+  }
   readonly lifecycle: {
     readonly commitStep: (
       authority: CoordinationAuthority,
@@ -81,7 +123,7 @@ export interface LocalSessionIngress {
 }
 export type SessionLifecycleStep = Extract<
   CoordinationStep,
-  { kind: 'startRun' | 'startAttempt' | 'adoptInput' | 'finish' }
+  { kind: 'startRun' | 'startAttempt' | 'adoptInput' | 'prepareCall' | 'finish' }
 >
 export interface CreationRow {
   operation: string

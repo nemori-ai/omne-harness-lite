@@ -26,6 +26,7 @@ import { AdmissionFailure } from './admission-types.ts'
 import { InvalidStateInput } from './state-values.ts'
 import { runtimeAuthority } from './runtime-authority.ts'
 import { createSessionLifecycle } from './coordination.ts'
+import { createSessionModelAdmission } from './model-invocation.ts'
 import { createLocalSessionState } from './state-participant.ts'
 import { createLocalOperationReceipts } from './receipt-participant.ts'
 import { creationInput, runtimeSemantic, RuntimeRejection } from './runtime-values.ts'
@@ -57,6 +58,7 @@ export function createLocalSessionIngress(options: RuntimeOptions): LocalSession
     options.policy.maxRecordBytes,
     options.policy.maxInFlight,
     options.policy.maxSteps,
+    ...(options.modelIssue ? [options.modelIssue.maxRecords] : []),
   ])
     if (!Number.isSafeInteger(bound) || bound < 1 || bound >= Number.MAX_SAFE_INTEGER)
       throw new InvalidStateInput()
@@ -75,6 +77,7 @@ export function createLocalSessionIngress(options: RuntimeOptions): LocalSession
     tenancy: owner.tenancy,
     coordinationAuthority: owner.coordinationAuthority,
     lifecycle: owner.lifecycle,
+    modelInvocation: owner.modelInvocation,
     close: owner.close,
   })
 }
@@ -108,6 +111,7 @@ class SessionIngress implements LocalSessionIngress {
   get coordinationAuthority() {
     return this.authority.coordination
   }
+  readonly modelInvocation: LocalSessionIngress['modelInvocation']
   readonly lifecycle: LocalSessionIngress['lifecycle']
   readonly pending = new Set<Promise<unknown>>()
   accepting = true
@@ -128,6 +132,16 @@ class SessionIngress implements LocalSessionIngress {
       log: this.log,
       logAuthority: this.authority.logAccess,
       isOpen: () => true,
+    })
+    const model = createSessionModelAdmission({
+      options: this.options,
+      authority: this.authority,
+      state: this.state,
+      log: this.log,
+      isOpen: () => this.accepting,
+    })
+    this.modelInvocation = Object.freeze({
+      admit: (...args) => this.run(this.access, () => model.admit(...args), [] as const),
     })
     const lifecycle = createSessionLifecycle({
       options,

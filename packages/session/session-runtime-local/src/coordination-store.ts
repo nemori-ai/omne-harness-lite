@@ -10,13 +10,14 @@ import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type { StepReceipt } from '@omne-harness-lite/session-runtime'
 import { AdmissionFailure, type AdmissionTicket } from './admission-types.ts'
-import type { RuntimeOptions } from './runtime-types.ts'
+import type { RuntimeOptions, SessionLifecycleStep } from './runtime-types.ts'
 import { checkedTicket } from './admission-values.ts'
 import { recordedUse } from './admission-sql.ts'
 import { CoordinationRejection, boundedText } from './coordination-values.ts'
 import { positionText, positionNumber } from './state-values.ts'
 
 interface CoordinationDb {
+  sr_call_preparation: { session: string; call: string; preparation: string }
   sr_run_grant: { session: string; run: string; grant: string }
   sr_coordination_step: { session: string; step_key: string; semantic: string; receipt: string }
 }
@@ -172,7 +173,7 @@ function checkReceiptIdentity(receipt: StepReceipt, scope: SessionScope, key: st
     receipt.session !== scope.session ||
     receipt.stepKey !== key ||
     !checkKey(receipt.run) ||
-    !['startRun', 'startAttempt', 'adoptInput', 'finish'].includes(receipt.step) ||
+    !['startRun', 'startAttempt', 'adoptInput', 'prepareCall', 'finish'].includes(receipt.step) ||
     Object.keys(receipt).length !== keys.length ||
     !keys.every(k => Object.hasOwn(receipt, k))
   )
@@ -211,6 +212,32 @@ export async function saveStep(
         semantic,
         receipt: boundedText(receipt, options.policy.maxRecordBytes),
       })
+      .execute(),
+  )
+}
+
+export async function saveCallPreparation(
+  unit: StorageUnit,
+  scope: SessionScope,
+  step: Extract<SessionLifecycleStep, { kind: 'prepareCall' }>,
+  position: StepReceipt['position'],
+  options: RuntimeOptions,
+) {
+  const existing = await unit.query(tx =>
+    narrow<CoordinationDb>(tx)
+      .selectFrom('sr_call_preparation')
+      .select('call')
+      .where('session', '=', scope.session)
+      .where('call', '=', step.call)
+      .executeTakeFirst(),
+  )
+  if (existing) throw new CoordinationRejection('retryFromFacts')
+  const { permit: _permit, ...data } = step
+  const preparation = boundedText({ ...scope, ...data, position }, options.policy.maxRecordBytes)
+  await unit.mutate(tx =>
+    narrow<CoordinationDb>(tx)
+      .insertInto('sr_call_preparation')
+      .values({ session: scope.session, call: step.call, preparation })
       .execute(),
   )
 }

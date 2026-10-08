@@ -43,7 +43,8 @@
     "@omne-harness-lite/assembly-lifecycle": "workspace:*",
     "@omne-harness-lite/offer-expiry": "workspace:*",
     "@omne-harness-lite/kernel-basis": "workspace:*",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@omne-harness-lite/model-request-runtime": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
@@ -51,6 +52,7 @@
     "vitest": "catalog:",
     "@omne-harness-lite/storage-sql": "workspace:*",
     "@omne-harness-lite/session-log-sql": "workspace:*",
-    "@omne-harness-lite/runtime-context-local": "workspace:*"
+    "@omne-harness-lite/runtime-context-local": "workspace:*",
+    "@omne-harness-lite/model-request-runtime-local": "workspace:*"
   }
 }

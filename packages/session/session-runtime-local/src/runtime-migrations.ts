@@ -37,4 +37,40 @@ export const sessionRuntimeMigrations: readonly MigrationFragment[] = [
       },
     },
   },
+  {
+    name: 'local_session_call_preparation',
+    migration: {
+      async up(db) {
+        await db.schema
+          .createTable('sr_call_preparation')
+          .addColumn('session', 'text', c => c.notNull())
+          .addColumn('call', 'text', c => c.notNull())
+          .addColumn('preparation', 'text', c => c.notNull())
+          .addPrimaryKeyConstraint('sr_call_preparation_pk', ['session', 'call'])
+          .execute()
+      },
+    },
+  },
+  {
+    name: 'local_session_model_issue',
+    migration: {
+      async up(db) {
+        await db.schema
+          .createTable('sr_model_issue')
+          .addColumn('session', 'text', c => c.notNull())
+          .addColumn('call', 'text', c => c.notNull())
+          .addColumn('dispatch', 'text', c => c.notNull())
+          .addColumn('source_generation', 'text', c => c.notNull())
+          .addColumn('source_tail', 'text', c => c.notNull())
+          .addColumn('issue', 'text', c => c.notNull())
+          .addPrimaryKeyConstraint('sr_model_issue_pk', ['session', 'call', 'dispatch'])
+          .execute()
+        await db.schema
+          .createIndex('sr_model_issue_source')
+          .on('sr_model_issue')
+          .columns(['session', 'source_generation', 'source_tail'])
+          .execute()
+      },
+    },
+  },
 ]

@@ -25,7 +25,7 @@ import { InvalidStateInput, positionText } from './state-values.ts'
 import { pendingPosition } from './state-store.ts'
 import { RuntimeRejection } from './runtime-values.ts'
 import { lifecycleInput, CoordinationRejection, usableSource } from './coordination-values.ts'
-import { grantRun, readStep, saveStep } from './coordination-store.ts'
+import { grantRun, readStep, saveStep, saveCallPreparation } from './coordination-store.ts'
 
 interface Host {
   readonly options: RuntimeOptions
@@ -263,6 +263,7 @@ class Lifecycle {
     step: Exclude<SessionLifecycleStep, { kind: 'startRun' }>,
     semantic: string,
   ): Promise<StepCommit> {
+    if (step.kind === 'prepareCall') return this.prepareCall(unit, scope, head, step, semantic)
     const change = this.change(step),
       staged = this.requireStage(
         await this.host.state.participant.stageIn(
@@ -286,8 +287,48 @@ class Lifecycle {
     await saveStep(unit, receipt, semantic, this.host.options)
     return this.committed(receipt, staged.permit)
   }
+  async prepareCall(
+    unit: StorageUnit,
+    scope: SessionScope,
+    head: SessionHead,
+    step: Extract<SessionLifecycleStep, { kind: 'prepareCall' }>,
+    semantic: string,
+  ): Promise<StepCommit> {
+    if (!(await this.host.state.checkPermitIn(unit, step.permit, scope, step.run, step.attempt)))
+      throw new CoordinationRejection('staleAttempt')
+    const appended = await this.host.append(unit, scope, [
+      {
+        tenant: scope.tenant,
+        run: step.run,
+        attempt: step.attempt,
+        readKeys: [],
+        payload: sessionFactPayload({
+          kind: 'call_prepared',
+          run: step.run,
+          attempt: step.attempt,
+          call: step.call,
+          originalPosition: step.originalPosition,
+          stepKey: step.stepKey,
+          at: this.host.instant(),
+        }),
+      },
+    ])
+    const receipt: StepReceipt = {
+      ...scope,
+      run: head.run!.id,
+      attempt: head.run!.attempt,
+      stepKey: step.stepKey,
+      step: step.kind,
+      position: appended.entries[0]!.position,
+      source: await this.source(unit, scope),
+    }
+    await saveCallPreparation(unit, scope, step, receipt.position, this.host.options)
+    await saveStep(unit, receipt, semantic, this.host.options)
+    return this.committed(receipt, null)
+  }
+
   change(
-    step: Exclude<SessionLifecycleStep, { kind: 'startRun' }>,
+    step: Exclude<SessionLifecycleStep, { kind: 'startRun' | 'prepareCall' }>,
   ): Exclude<SessionStateChange, { kind: 'initialize' | 'acceptInput' | 'startRun' }> {
     if (step.kind === 'startAttempt') {
       if (step.reason !== 'first') throw new CoordinationRejection('retryFromFacts')
@@ -313,7 +354,7 @@ class Lifecycle {
   }
   entry(
     scope: SessionScope,
-    step: Exclude<SessionLifecycleStep, { kind: 'startRun' }>,
+    step: Exclude<SessionLifecycleStep, { kind: 'startRun' | 'prepareCall' }>,
     change: ReturnType<Lifecycle['change']>,
   ): LogEntryInput {
     const attempt = change.attempt,

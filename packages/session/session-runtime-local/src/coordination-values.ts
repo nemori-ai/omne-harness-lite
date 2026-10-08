@@ -26,6 +26,7 @@ const fields = {
   startRun: ['kind', 'stepKey', 'inputPosition'],
   startAttempt: ['kind', 'stepKey', 'run', 'reason'],
   adoptInput: ['kind', 'stepKey', 'run', 'attempt', 'inputPosition', 'permit'],
+  prepareCall: ['kind', 'stepKey', 'run', 'attempt', 'call', 'originalPosition', 'permit'],
   finish: ['kind', 'stepKey', 'run', 'attempt', 'terminal', 'reason', 'permit'],
 }
 export function lifecycleInput(
@@ -87,6 +88,8 @@ function checkStepFields(data: Record<string, unknown>, limit: number) {
   if ('run' in data && !checkKey(data.run)) throw new InvalidStateInput()
   if ('inputPosition' in data) positionText(data.inputPosition, limit)
   if ('attempt' in data) positionText(data.attempt, limit)
+  if (data.kind === 'prepareCall' && (!checkKey(data.call) || !checkKey(data.originalPosition)))
+    throw new InvalidStateInput()
   checkReason(data)
 }
 function checkReason(data: Record<string, unknown>) {
