@@ -24,6 +24,7 @@ test('definition declares only files and original attachment storage; help needs
   expect(editHelp).toMatch(/USAGE:[^\n]*\n[^\n]*Files[^\n]*\n/u)
   expect(editHelp).toContain('args:')
   expect(editHelp).not.toContain('params=')
+  expect(editHelp).toContain('unified diff.\nmatch.text is literal.')
   const argumentsSection = editHelp.split('ARGUMENTS:')[1]
   expect(argumentsSection).toBeDefined()
   const schema = JSON.parse(argumentsSection!)

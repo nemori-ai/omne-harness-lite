@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import {
   createModelCallSemanticDigest,
   judgeModelCallCreatedPayload,
@@ -730,6 +731,66 @@ it('malformed created content is rejected before any publisher can be retained',
     await store.close()
   })
 })
+it('refuses content belonging to another session before publication', async () => {
+  await host(async h => {
+    const store = createModelCallContentStore({ storage: h.storage, policy })
+    try {
+      expect(
+        await store.put({
+          binding: {
+            ...h.binding,
+            session: unwrap(parseOpaqueIdentifier('other-session', 'SessionRef')),
+          },
+          locator: 'other-session-content',
+          version: '1',
+          content: h.content,
+        }),
+      ).toHaveProperty('invalidInput')
+      expect(
+        await store.retention({ binding: h.binding, call: h.content.value.ref.callId }),
+      ).toEqual({ phase: null, publishers: 0 })
+    } finally {
+      await store.close()
+    }
+  })
+})
+for (const allowance of [-1, 0, 1] as const)
+  it(`enforces the serialized byte limit with allowance ${allowance}`, async () => {
+    await host(async h => {
+      const byteLength = new TextEncoder().encode(writeJsonLossless(h.content.value)).byteLength
+      const store = createModelCallContentStore({
+        storage: h.storage,
+        policy: { ...policy, maxContentBytes: byteLength + allowance },
+      })
+      try {
+        const result = await store.put({
+          binding: h.binding,
+          locator: 'byte-limit',
+          version: '1',
+          content: h.content,
+        })
+        if (allowance < 0) {
+          expect(result).toEqual({ unavailable: true })
+          expect(
+            await store.retention({ binding: h.binding, call: h.content.value.ref.callId }),
+          ).toEqual({ phase: null, publishers: 0 })
+        } else {
+          expect(result).toHaveProperty('ref')
+          if (!('ref' in result)) throw new Error('Exact byte boundary refused')
+          await result.permit.release()
+          expect(
+            await store.read({
+              binding: h.binding,
+              call: h.content.value.ref.callId,
+              ref: result.ref,
+            }),
+          ).toHaveProperty('content')
+        }
+      } finally {
+        await store.close()
+      }
+    })
+  })
 describe('external content custody before publication', () => {
   for (const mode of ['unavailable', 'throw', 'syncThrow', 'falseRetention'] as const)
     it(`refuses external content when custody returns ${mode}`, async () => {

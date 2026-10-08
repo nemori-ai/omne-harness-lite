@@ -7,7 +7,10 @@ import { testDefinitions } from './definitions.ts'
 import { syntheticInputMeter } from './synthetic-input-meter.ts'
 import { testImagePreparerFor } from './image-transport-support.ts'
 import { planRequest } from '@omne-harness-lite/pi-ai-transport'
-import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
+import {
+  modelLogJsonEqual,
+  type PlanExecutionContext,
+} from '@omne-harness-lite/model-request-runtime'
 
 const image = {
   id: 'external-image',
@@ -75,6 +78,93 @@ it('keeps inline images independent of the external byte snapshots', () => {
   expect(
     resolveImageMessages([inline], { signal: new AbortController().signal, imageBytes: [] }),
   ).toEqual([inline])
+})
+it('resolves a visible nested tool result while retaining text blocks', () => {
+  const nested = judgedMessage({
+    type: 'tool',
+    id: 'visible-message',
+    createdAt: at,
+    callId: 'visible-call',
+    blocks: [
+      {
+        id: 'visible-result',
+        kind: 'tool_result',
+        callId: 'visible-call',
+        outcome: 'completed',
+        visibility: { toHuman: true, toModel: true },
+        blocks: [
+          {
+            id: 'caption',
+            kind: 'text',
+            text: 'Original caption',
+            visibility: { toHuman: true, toModel: true },
+          },
+          image,
+        ],
+      },
+    ],
+  })
+  const before = writeJsonLossless(nested)
+  const result = resolveImageMessages([nested], {
+    signal: new AbortController().signal,
+    imageBytes: [{ reference: image.data, bytes: new Uint8Array([1, 2, 3]) }],
+  })
+  expect(writeJsonLossless(result)).toContain('Original caption')
+  expect(writeJsonLossless(result)).toContain('"inline":"AQID"')
+  expect(writeJsonLossless(result)).not.toContain('image-source-test')
+  expect(writeJsonLossless(nested)).toBe(before)
+})
+it('does not substitute bytes retained for a different reference', () => {
+  expect(() =>
+    resolveImageMessages(messages(), {
+      signal: new AbortController().signal,
+      imageBytes: [
+        { reference: { ...image.data, key: 'unrelated-image' }, bytes: new Uint8Array([9]) },
+      ],
+    }),
+  ).toThrow()
+})
+it('selects the exact reference from multiple retained images', () => {
+  const result = resolveImageMessages(messages(), {
+    signal: new AbortController().signal,
+    imageBytes: [
+      { reference: { ...image.data, key: 'unrelated-image' }, bytes: new Uint8Array([9]) },
+      { reference: image.data, bytes: new Uint8Array([1, 2, 3]) },
+    ],
+  })
+  expect((result[0]!.blocks[0] as ImageBlock).data).toEqual({ inline: 'AQID' })
+})
+it.each([{ reuseScope: null }, { reuseScope: 'invalid' }, { imageBytes: {} }])(
+  'rejects malformed execution metadata %j before planning',
+  async invalid => {
+    const request = input()
+    const execution = {
+      signal: new AbortController().signal,
+      ...invalid,
+    } as unknown as PlanExecutionContext
+    expect(
+      await planRequest(
+        request,
+        testDefinitions,
+        syntheticInputMeter(testDefinitions[0]!, request.provider),
+        execution,
+      ),
+    ).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
+  },
+)
+it('fails closed when the referenced image has no retained bytes', async () => {
+  const request = { ...input(), messages: messages() }
+  expect(
+    await planRequest(
+      request,
+      testDefinitions,
+      syntheticInputMeter(testDefinitions[0]!, request.provider),
+      {
+        signal: new AbortController().signal,
+        imageBytes: [],
+      },
+    ),
+  ).toEqual({ rejected: 'unavailable' })
 })
 // Real native codec and complete branded plan. No network or upstream counting claim.
 it(
