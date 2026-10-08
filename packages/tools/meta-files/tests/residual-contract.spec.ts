@@ -1,6 +1,16 @@
 import { expect, test, vi } from 'vitest'
 import { fixture, text } from './fixture.ts'
 
+test.each(['\0a', 'a\0', 'a\0b'])(
+  'a NUL at any path position is rejected before context or facilities (%j)',
+  async path => {
+    const h = fixture()
+    expect(text(await h.run('read', { path }))).toContain('arguments:invalid')
+    expect(h.deps.context.read).not.toHaveBeenCalled()
+    expect(h.files.read).not.toHaveBeenCalled()
+  },
+)
+
 test('every command has callable help and an unknown help command has no effects', async () => {
   const h = fixture()
   for (const [command, definition] of Object.entries(h.tool.definition.commands)) {

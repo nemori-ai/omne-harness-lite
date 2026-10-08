@@ -48,3 +48,48 @@ test.each(['ask', 'auto', 'forbid'] as const)(
     }
   },
 )
+
+test('Cordis preserves a configured context key in discovery and execution', async () => {
+  const ctx = new Context(),
+    owner = ctx.plugin(implementationRegistry, {})
+  await owner
+  const config = {
+    ...options,
+    asset: 'custom-files',
+    version: 'v1',
+    contextKey: 'workspace.files',
+  }
+  const binding = ctx.plugin(files, config)
+  try {
+    await binding
+    const selected = ctx.toolImplementations.acquire({
+      capability: capabilityCanonicalString({ category: 'tool', name: 'Files' }),
+      asset: config.asset,
+      version: config.version,
+      definition: createFilesTool(config, { imageCodec: createSharpImageCodec(sharp) }).definition,
+      adoption: 'original',
+    })
+    if (!('implementation' in selected)) throw new Error('Configured tool not acquired')
+    try {
+      const h = fixture()
+      h.seed('a', 'custom context')
+      expect(
+        text(
+          await selected.implementation.executor(
+            {
+              command: 'read',
+              args: { path: 'a' },
+            },
+            h.deps,
+          ),
+        ),
+      ).toContain('custom context')
+      expect(h.deps.context.read).toHaveBeenCalledWith(['workspace.files'])
+    } finally {
+      selected.release()
+    }
+  } finally {
+    await binding.dispose()
+    await owner.dispose()
+  }
+})
