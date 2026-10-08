@@ -86,7 +86,7 @@ async function fixture() {
   }
 }
 
-test('verifies actual JSONL conclusions only after the whole original batch is complete with ordinary tool authority', async () => {
+test('verifies actual SQL journal conclusions only after the whole original batch is complete with ordinary tool authority', async () => {
   const f = await fixture()
   try {
     expect(await f.owner.operations.authorize(f.access, scope, 'session.log.coordinate')).toEqual({

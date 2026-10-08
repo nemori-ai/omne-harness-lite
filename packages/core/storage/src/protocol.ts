@@ -42,6 +42,8 @@ export interface StorageUnit {
   mutate<T>(fn: (tx: WriteTx) => Promise<T>): Promise<T>
   /** 真正提交后尽力通知；不等待，不提供可靠投递。不得携带秘密。 */
   afterCommit(notify: () => void): void
+  /** Observe the local commit owner's operation end. Unknown proves neither outcome nor remote quiescence. */
+  observeCompletion(): Promise<'committed' | 'rolledBack' | 'unknown'>
 }
 
 /** 显式扩展，不改变普通 read/write 的独立提交或嵌套拒绝。 */

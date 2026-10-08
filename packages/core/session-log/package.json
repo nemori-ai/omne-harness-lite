@@ -33,7 +33,8 @@
     "@omne-harness-lite/identity-values": "workspace:*",
     "@omne-harness-lite/messages": "workspace:*",
     "@omne-harness-lite/session-tenancy": "workspace:*",
-    "@omne-harness-lite/execution-environments": "workspace:*"
+    "@omne-harness-lite/execution-environments": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

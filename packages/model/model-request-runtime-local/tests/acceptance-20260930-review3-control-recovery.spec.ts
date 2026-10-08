@@ -1,5 +1,5 @@
 // @module-tag slow
-// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 JSONL 会话日志。
+// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 /**
  * Independent acceptance 2026-09-30, T29 round 3: the one remaining N-5 waiting point
  * (verification A22-V16′, "all waits on a finished task first request the stop").
@@ -11,9 +11,9 @@
  * never ends: the durable intent stays unrecognized, every later control answers
  * `unavailable`, and `runtime.close` waits on the recovery forever.
  *
- * Real assembly: SQLite Storage, JSONL SessionLog and the Cordis host of
+ * Real assembly: SQLite Storage, SQL journal SessionLog and the Cordis host of
  * tests/session-selection-fixture.ts. The only wrappers are (a) one lost receipt of an intent
- * that really lands in the JSONL log and (b) a transport that holds the stream after its first
+ * that really lands in the SQL journal log and (b) a transport that holds the stream after its first
  * content until the test opens it. Every verdict is read back from the durable log or from the
  * owner's own registration count, never from the runtime's report alone.
  */
@@ -26,8 +26,9 @@ import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { createModelCallContentStore } from '../src/reference-content.ts'
 import { createModelCallFacts } from '../src/reference-facts.ts'
 import type { CallAccess, CallPresence } from '@omne-harness-lite/model-request-runtime'
-import type { ModelCallHost, SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
+import type { ModelCallHost } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementOwner,
   SettlementRegistration,
@@ -291,7 +292,7 @@ describe('A22-V16′ N-5: the control recovery after an unknown intent receipt (
           await stream
         },
       }),
-      // The first interrupt intent really lands in JSONL; only its receipt is lost.
+      // The first interrupt intent really lands in SQL journal; only its receipt is lost.
       append: real => async (session, entries, fence, condition) => {
         const first = entries[0] as unknown as LogEntry | undefined
         const landed = await real(session, entries, fence, condition)

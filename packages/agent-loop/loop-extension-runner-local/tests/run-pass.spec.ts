@@ -9,7 +9,7 @@ import {
 } from '@omne-harness-lite/loop-extension'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { type SessionLog } from '@omne-harness-lite/session-log'
 import { createRunnerLogAdapter } from '../src/run-log.ts'
 import { createRunnerReminderLogAdapter } from '../src/reminder-log.ts'
@@ -118,7 +118,7 @@ describe('public runner pass and actual SL3 log', () => {
       execution: { kind: 'noRun' } as const,
     }
     try {
-      const log = await openJsonlSessionLog({ dir, processOwnership: ownership })
+      const log = await openSqlLogFixture({ dir: dir })
       const owner = createRunnerTaskOwner(binding)
       let invoked = 0
       const actual = ports(log, owner, binding, {
@@ -146,7 +146,7 @@ describe('public runner pass and actual SL3 log', () => {
         await owner.drain()
         await log.close()
       }
-      const reopened = await openJsonlSessionLog({ dir, processOwnership: ownership })
+      const reopened = await openSqlLogFixture({ dir: dir })
       const secondBinding = { ...binding, logGeneration: 'generation-2' }
       const secondOwner = createRunnerTaskOwner(secondBinding)
       const resumed = ports(reopened, secondOwner, secondBinding, {
@@ -319,10 +319,7 @@ describe('public runner pass and actual SL3 log', () => {
     const root = resolve(process.cwd(), '../../../tmp/runner-public')
     await mkdir(root, { recursive: true })
     const dir = await mkdtemp(join(root, 'policy-'))
-    const log = await openJsonlSessionLog({
-      dir,
-      processOwnership: { current: 'runner-policy-test', observeExit: async () => 'exited' },
-    })
+    const log = await openSqlLogFixture({ dir: dir })
     const owner = createRunnerTaskOwner(binding)
     let invoked = 0
     let minted = 0
@@ -374,10 +371,7 @@ describe('public runner pass and actual SL3 log', () => {
     const root = resolve(process.cwd(), '../../../tmp/runner-public')
     await mkdir(root, { recursive: true })
     const dir = await mkdtemp(join(root, 'late-append-'))
-    const log = await openJsonlSessionLog({
-      dir,
-      processOwnership: { current: 'runner-late-test', observeExit: async () => 'exited' },
-    })
+    const log = await openSqlLogFixture({ dir: dir })
     const owner = createRunnerTaskOwner(binding)
     const controller = new AbortController()
     let enter: (() => void) | undefined
@@ -439,10 +433,7 @@ describe('public runner pass and actual SL3 log', () => {
     const root = resolve(process.cwd(), '../../../tmp/runner-public')
     await mkdir(root, { recursive: true })
     const dir = await mkdtemp(join(root, 'inject-'))
-    const log = await openJsonlSessionLog({
-      dir,
-      processOwnership: { current: 'runner-inject-test', observeExit: async () => 'exited' },
-    })
+    const log = await openSqlLogFixture({ dir: dir })
     const owner = createRunnerTaskOwner(binding)
     const message = judgeMessage({
       id: 'injected-reminder',
@@ -512,7 +503,7 @@ describe('public runner pass and actual SL3 log', () => {
       execution: { kind: 'noRun' } as const,
     }
     const chain = [piece('runner-racer', 'before_persist_message')]
-    const log = await openJsonlSessionLog({ dir, processOwnership: ownership })
+    const log = await openSqlLogFixture({ dir: dir })
     const leftOwner = createRunnerTaskOwner(binding)
     const rightOwner = createRunnerTaskOwner(binding)
     let arrived = 0

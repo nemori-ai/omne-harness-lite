@@ -129,8 +129,8 @@ export async function inspectWithRuntime(
 `readAttempts`、`dispatch` 和 `dispatchAgain` 为需要运行失败扩展的调用方提供显式 `{ consumeFailure: true }` 重载，返回 `{ result, consumption }`。普通单参数调用仍只返回业务结果，不持有失败作用域。`consumption.kind === 'failure'` 给出不可序列化的 `ModelFailureSource`，来源就是产出失败结果的同一次授权完整前缀读取。来源会核对该前缀中的原 dispatched 条目壳和失败响应。交给 runner 前，须同时核验精确主体与**该次 runner 的实际 execution**，并始终释放借用。核验只检查自有快照、当前准入和代际，不另读更新的日志尾；无关追加不会使其失效，释放、撤权、宿主停止或代际替换则会。
 
 ```ts
+import type { CallKey } from '@omne-harness-lite/model-request-runtime'
 import type {
-  CallKey,
   ModelFailureExecution,
   ModelRuntimeOperations,
 } from '@omne-harness-lite/model-request-runtime'
@@ -589,7 +589,7 @@ pnpm --filter @omne-harness-lite/model-request-runtime-local run test
 
 成员检查消费 D089 已采用 的 offer-expiry 公共根比较器：实际 `sentAt` 已知时核 `sentAt <= firstTokenAt <= endedAt`，首 token 缺席时核 `sentAt <= endedAt`。D105 下仅已锚定的 `interrupted` 响应允许 `sentAt: null`；首 token 与 ended 的比较、opened 原值相等仍须核对。null 表示实际发送时刻不可用，不证明零次发送或零费用。普通调用结果和待处分响应仍须有实际字符串时刻。静态非法日期与已知时刻逆序不能返回成员完整；任意小数、时区同点与 opened 原字符串均照原样保留。
 
-本包根入口公开 `modelLogFormat`、`encodeModelLogKey`、`decodeModelLogKey`、`captureModelLogValue`、`prepareModelLogEntry`、`inspectModelLogEntry`、`inspectSettlementMembers`、`modelLogJsonEqual`、`recognizeMessageValue` 及其类型，消费 D088 的精确采用。所有这些构件均为纯函数；静态导入和调用不打开日志、不装 Cordis、不读取环境凭据或时钟、不发号。日志类型只从 session-log-jsonl 根入口借用。
+公共定义包 `model-request-runtime` 根入口公开 `modelLogFormat`、`encodeModelLogKey`、`decodeModelLogKey`、`captureModelLogValue`、`prepareModelLogEntry`、`inspectModelLogEntry`、`inspectSettlementMembers`、`modelLogJsonEqual`、`recognizeMessageValue` 及其类型，消费 D088 的精确采用。所有这些构件均为纯函数；静态导入和调用不打开日志、不装 Cordis、不读取环境凭据或时钟、不发号。日志类型只从 session-log 根入口消费。
 
 文本与值接收是两个显式模式。任意层重复成员、getter、`toJSON`、非 JSON 对象及伪数字品牌均拒绝。捕获返回自有不可变原 JSON，保留数字词法；响应 judge 的 `{ ok: true }` 不会替调用方制造 owned ModelResponse。
 
@@ -722,7 +722,7 @@ import {
 } from '@omne-harness-lite/model-request-runtime'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { LogPrefixView } from '@omne-harness-lite/messages'
-import type { OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type { OwnedLogEntry } from '@omne-harness-lite/session-log'
 
 export function prepareReplyBatch(
   session: string,

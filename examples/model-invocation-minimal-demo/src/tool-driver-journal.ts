@@ -66,7 +66,7 @@ function batch(
   if ('invalid' in prepared) return
   const needsMessage = value.kind === 'attempt_adopted' || value.kind === 'action_denied'
   if (needsMessage !== (companion !== undefined)) return
-  if (value.kind === 'attempt_adopted' && companion?.dedupeKey !== value.startedMessageKey) return
+  if (value.kind === 'attempt_adopted' && companion?.dedupeKey !== value.startedFactKey) return
   // Message identity, protocol and origin are checked by the common candidate projection below.
   return companion === undefined ? [prepared.entry] : [companion, prepared.entry]
 }

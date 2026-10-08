@@ -1,3 +1,14 @@
+import type {
+  AcknowledgedCallView,
+  AcquireCallInput,
+  AcquireCallResult,
+  CallConsumer,
+  CallOrigin,
+  ModelObserverRequest,
+  ObserverReceiver,
+  RetainedCallReadView,
+  RuntimeCloseResult,
+} from '@omne-harness-lite/model-request-runtime'
 import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { isNonNegativeJsonInteger } from '@omne-harness-lite/content-blocks'
@@ -7,22 +18,9 @@ import { createModelObserverQueue } from './service-observer-queue.ts'
 import { settlementGenerationCurrent } from '@omne-harness-lite/model-request-runtime'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-custody.ts'
-import type {
-  AcknowledgedCallView,
-  AcquireCallInput,
-  AcquireCallResult,
-  CallOrigin,
-  RetainedCallReadView,
-  CallConsumer,
-} from '@omne-harness-lite/model-request-runtime'
 import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
-import type {
-  RuntimeCloseResult,
-  ModelObserverRequest,
-  AuthorizedCallObserver,
-  ObserverReceiver,
-} from '@omne-harness-lite/model-request-runtime'
 import type { RuntimeConstruction, ModelObserverQueue } from './service-types.ts'
+import type { AuthorizedCallObserver } from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 
 const unavailable = Object.freeze({ unavailable: true } as const)

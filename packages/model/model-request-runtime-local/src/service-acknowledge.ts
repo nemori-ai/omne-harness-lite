@@ -1,3 +1,9 @@
+import type {
+  AckTarget,
+  AcknowledgeCallInput,
+  AcknowledgeCallResult,
+  RuntimeCloseResult,
+} from '@omne-harness-lite/model-request-runtime'
 import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import { LosslessNumber, type JsonNumber } from '@omne-harness-lite/content-blocks'
@@ -33,15 +39,10 @@ import {
 } from '@omne-harness-lite/model-request-runtime'
 import type { SettlementPrefix } from '@omne-harness-lite/model-request-runtime'
 import { settlementAppendReceipt } from './settlement-receipt.ts'
-import type { AckTarget, CallAccessEvidence } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallContentValue } from './reference-types.ts'
-import type {
-  AcknowledgeCallInput,
-  AcknowledgeCallResult,
-  RuntimeCloseResult,
-  SessionRuntimeBinding,
-} from '@omne-harness-lite/model-request-runtime'
+import type { CallAccessEvidence } from '@omne-harness-lite/model-request-runtime'
 import type { RuntimeConstruction } from './service-types.ts'
+import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementLogBinding,
   SettlementRegistration,

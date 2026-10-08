@@ -1,5 +1,5 @@
 // @module-tag slow
-// 归慢层：真实文件日志：公开函数矩阵逐格在临时目录开真实 JSONL 会话日志，落盘后读回判定。
+// 归慢层：真实文件日志：公开函数矩阵逐格在临时目录开真实 SQL journal 会话日志，落盘后读回判定。
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
@@ -18,7 +18,7 @@ import {
   EffectImplementations,
   loadDefaultRetry,
 } from '../../../model/model-request-runtime-local/tests/retry-assembly.ts'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { type SessionLog } from '@omne-harness-lite/session-log'
 import { runPass } from '../src/run-pass.ts'
 import { createRunnerLogAdapter } from '../src/run-log.ts'
@@ -274,7 +274,7 @@ async function fixture(v: Variant) {
     current: `acceptance-${process.pid}`,
     observeExit: async () => 'unknown' as const,
   }
-  const log = await openJsonlSessionLog({ dir, processOwnership: ownership })
+  const log = await openSqlLogFixture({ dir: dir })
   const owner = createRunnerTaskOwner(binding)
   const pass = makePass(v)
   let currentSubject = pass.initial
@@ -364,7 +364,7 @@ async function fixture(v: Variant) {
       // Cleanup must retain a semantic assertion failure even for a deliberately bad mutant.
       // Recovery reads are admitted only after the actual physical log close above.
       if (owner.hasUnknown(binding)) {
-        const recovered = await openJsonlSessionLog({ dir, processOwnership: ownership })
+        const recovered = await openSqlLogFixture({ dir: dir })
         try {
           await owner.reconcileStoppedLog({
             binding,
@@ -389,7 +389,7 @@ const powers: { power: Power; mask: string }[] = [
   { power: 'veto', mask: '11111111' },
 ]
 
-describe('independent LC6 S20/S21 matrix through built public runPass and real JSONL', () => {
+describe('independent LC6 S20/S21 matrix through built public runPass and real SQL journal', () => {
   for (const [vi, v] of variants.entries())
     for (const { power, mask } of powers)
       for (const [oi, output] of outputs(v).entries()) {
@@ -1054,7 +1054,7 @@ describe('independent ownership and physical recovery', () => {
       await f.close()
     }
   })
-  it('R8 captures execution before the verifier yields and uses it for input and actual JSONL fence', async () => {
+  it('R8 captures execution before the verifier yields and uses it for input and actual SQL journal fence', async () => {
     const v = variants[7]!,
       f = await fixture(v)
     const entered = Promise.withResolvers<void>()
@@ -1259,7 +1259,9 @@ describe('independent ownership and physical recovery', () => {
       const read = await f.log.readByKey(session, keys.pass)
       expect('entries' in read && read.entries).toHaveLength(1)
       expect('entries' in read && read.entries[0]?.payload).toMatchObject({
-        value: { skipped: 'errored', output: { kind: 'observed' } },
+        kind: 'fact',
+        owner: 'loop-extension-runner',
+        value: { value: { skipped: 'errored', output: { kind: 'observed' } } },
       })
     } finally {
       finish.resolve()
@@ -1401,7 +1403,7 @@ describe('independent ownership and physical recovery', () => {
         await f.close()
       }
     })
-  it('V6-5 cancellation retains an admitted real JSONL append until completion and suppresses next piece', async () => {
+  it('V6-5 cancellation retains an admitted real SQL journal append until completion and suppresses next piece', async () => {
     const v = variants[1]!,
       f = await fixture(v),
       controller = new AbortController()
@@ -1522,7 +1524,7 @@ describe('independent ownership and physical recovery', () => {
         expect(drained).toBe(false)
         f.owner.closeAdmission()
         await f.log.close()
-        const reopened = await openJsonlSessionLog({ dir: f.dir, processOwnership: f.ownership })
+        const reopened = await openSqlLogFixture({ dir: f.dir })
         try {
           expect(
             await f.owner.reconcileStoppedLog({
@@ -1566,7 +1568,7 @@ describe('independent ownership and physical recovery', () => {
     })
 })
 
-describe('independent controlled waiting source with durable JSONL asks', () => {
+describe('independent controlled waiting source with durable SQL journal asks', () => {
   function replay(
     association: RunnerAskAssociation,
     control: () => 'valid' | 'replayInconsistent' | 'unavailable' = () => 'valid',

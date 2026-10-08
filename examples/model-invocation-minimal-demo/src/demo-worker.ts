@@ -130,14 +130,6 @@ async function start(message: DemoPacket, body: Readonly<Record<string, unknown>
             ? Buffer.from(process.env.OPENROUTER_API_KEY)
             : undefined
         },
-        processOwnership: {
-          current: identity,
-          async observeExit(owner) {
-            if (owner === identity) return 'alive'
-            const fact = await request('observeExit', { owner })
-            return fact === 'exited' || fact === 'alive' ? fact : 'unknown'
-          },
-        },
       },
       body.tools === true,
     )

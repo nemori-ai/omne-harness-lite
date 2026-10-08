@@ -1,9 +1,15 @@
+import { readAttemptStarted } from '@omne-harness-lite/session-runtime'
+import { copyJsonValue } from '@omne-harness-lite/content-blocks'
+import {
+  type OriginalIssueAdmission,
+  readModelLogEnvelope,
+} from '@omne-harness-lite/model-request-runtime'
 import { mkdir, mkdtemp } from 'node:fs/promises'
 import { DatabaseSync } from 'node:sqlite'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { type SessionLog, type AppendResult, type LogEntry } from '@omne-harness-lite/session-log'
 import { isJsonNumber, type JsonObject, type JsonValue } from '@omne-harness-lite/content-blocks'
 import type { AnchoredInvocationInput } from '../src/anchored-invocation-types.ts'
@@ -96,12 +102,16 @@ export function transport(
   }
 }
 export function payload(entry: LogEntry): JsonObject {
-  const value = entry.payload
-  if (value === null || typeof value !== 'object' || Array.isArray(value) || !('value' in value))
-    throw new Error('wrapper')
-  const actual = value.value
-  if (!jsonObject(actual)) throw new Error('payload')
-  return actual
+  const attempt = readAttemptStarted(entry)
+  if ('kind' in attempt && attempt.kind === 'fact') {
+    const copied = copyJsonValue(attempt.fact)
+    if ('failed' in copied || !jsonObject(copied.ok)) throw new Error('attempt fixture')
+    return copied.ok
+  }
+  const decoded = readModelLogEnvelope(entry.payload)
+  if ('failure' in decoded || decoded.kind !== 'model' || !jsonObject(decoded.envelope.value))
+    throw new Error('model payload')
+  return decoded.envelope.value
 }
 function jsonObject(value: JsonValue): value is JsonObject {
   return (
@@ -111,7 +121,7 @@ function jsonObject(value: JsonValue): value is JsonObject {
 export async function harness(
   work: (value: {
     input: AnchoredInvocationInput<TestPlan, object>
-    log: Awaited<ReturnType<typeof openJsonlSessionLog>>
+    log: Awaited<ReturnType<typeof openSqlLogFixture>>
     owner: ControlledSettlementOwner
     controller: AbortController
     writes: {
@@ -120,6 +130,7 @@ export async function harness(
       readonly fence: unknown
       readonly condition: unknown
     }[]
+    wrapOriginal: (replacement: OriginalIssueAdmission) => void
     wrap: (log: SessionLog) => void
     revoke: () => void
     released: () => number
@@ -147,15 +158,7 @@ export async function harness(
   const message = parseOpaqueIdentifier('anchored-message', 'MessageId')
   if (!('ok' in tenant) || !('ok' in session) || !('ok' in message))
     throw new Error('actual identity source')
-  const log = await openJsonlSessionLog({
-    dir: join(dir, 'log'),
-    processOwnership: {
-      current: `anchored-test:${process.pid}`,
-      async observeExit() {
-        return 'unknown'
-      },
-    },
-  })
+  const log = await openSqlLogFixture({ dir: join(dir, 'log') })
   const writes: {
     count: number
     entries: readonly unknown[]
@@ -172,6 +175,22 @@ export async function harness(
       writes.push({ count: entries.length, entries, fence, condition })
       return port.append(s, entries, fence, condition)
     },
+  }
+  let issuePort: OriginalIssueAdmission = log.fixtureOriginalIssue
+  const originalIssue: OriginalIssueAdmission = {
+    async admitOriginal(value) {
+      writes.push({
+        count: 1,
+        entries: [value.entry],
+        fence:
+          value.entry.run === undefined
+            ? { kind: 'unfenced' }
+            : { kind: 'fenced', run: value.entry.run, attempt: value.entry.attempt },
+        condition: { kind: 'tailEquals', tail: value.source.tail },
+      })
+      return issuePort.admitOriginal(value)
+    },
+    consumeOriginal: claim => issuePort.consumeOriginal(claim),
   }
   const owner = new ControlledSettlementOwner()
   const controller = new AbortController()
@@ -192,6 +211,10 @@ export async function harness(
         session: session.ok,
         tenant: tenant.ok,
         log: recording,
+        readPrefix(this: import('@omne-harness-lite/model-request-runtime').SettlementLogBinding) {
+          return log.fixturePrefix({ session: this.session, tenant: this.tenant }, this.log)
+        },
+        originalIssue,
         generation: originalGeneration,
         currentGeneration: () => generation,
       },
@@ -211,6 +234,9 @@ export async function harness(
       owner,
       controller,
       writes,
+      wrapOriginal: replacement => {
+        issuePort = replacement
+      },
       wrap: replacement => {
         port = replacement
       },

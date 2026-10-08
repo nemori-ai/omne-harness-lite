@@ -5,7 +5,7 @@ import { expect, test, vi } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import type { SessionLog } from '@omne-harness-lite/session-log'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import type { SessionAccess, SessionAccessOperations } from '@omne-harness-lite/session-tenancy'
 import {
   createParameterJudge,

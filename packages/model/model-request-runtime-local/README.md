@@ -133,8 +133,8 @@ export async function inspectWithRuntime(
 `readAttempts`, `dispatch` and `dispatchAgain` have an explicit `{ consumeFailure: true }` overload for a caller that will run the failure extension. It returns `{ result, consumption }`; a normal one-argument call still returns only the business result and holds no failure scope. `consumption.kind === 'failure'` provides a non-serializable `ModelFailureSource` from the same authorized full-prefix read that supplied the failed result. The source checks the original dispatched entry shells and failed response in that prefix. Verify the exact subject **and the actual runner execution** before passing it to the runner, and always release the borrow. Verification reads the owned snapshot and current admission/generation, without reading a later log tail. A later unrelated append does not invalidate it; release, owner revocation, host stop or generation replacement does.
 
 ```ts
+import type { CallKey } from '@omne-harness-lite/model-request-runtime'
 import type {
-  CallKey,
   ModelFailureExecution,
   ModelRuntimeOperations,
 } from '@omne-harness-lite/model-request-runtime'
@@ -726,11 +726,11 @@ pnpm --filter @omne-harness-lite/model-request-runtime-local run typecheck
 pnpm --filter @omne-harness-lite/model-request-runtime-local run test
 ```
 
-The first command also builds the workspace dependencies. The companion transport tests exercise `invokeModel` against actual local HTTPS and the public core assembler; this package's `tests/acceptance-*.spec.ts` files and the [minimal demo](../../../examples/model-invocation-minimal-demo/README.md) service tests exercise the composed service over real SQLite and JSONL. None of these local tests certifies a live model route; recorded real-route evidence lives in the [realization verification](../../../.meta_harness/design/realization/packages/model/model-request-runtime/verification.md).
+The first command also builds the workspace dependencies. The companion transport tests exercise `invokeModel` against actual local HTTPS and the public core assembler; this package's `tests/acceptance-*.spec.ts` files and the [minimal demo](../../../examples/model-invocation-minimal-demo/README.md) service tests exercise the composed service over real SQLite journal transactions. None of these local tests certifies a live model route; recorded real-route evidence lives in the [realization verification](../../../.meta_harness/design/realization/packages/model/model-request-runtime/verification.md).
 
 ## Current model log codec
 
-The package root exports one current codec for records and messages judged by the current `messages` entry (MS8) and responses judged by the current `model-response` entry (MR11). Its payload and business-key format is `mrr/3`. It preserves ordered string-array `raw.headers`, exact numbers, and the difference between absent and empty values. Previous `mrr/1` and `mrr/2` records are rejected as unknown format; there is no versioned runtime codec export or compatibility reader.
+The public `model-request-runtime` core root owns the current codec. It uses the current `messages` and `model-response` judges. Its business-key format is `mrr/3`. Records and responses use the Session Log fact envelope owned by `model-request-runtime`, version `mrr/3`. Messages use the message envelope owned by `messages`, version `9`. It preserves ordered string-array `raw.headers`, exact numbers, and the difference between absent and empty values. Previous `mrr/1` and `mrr/2` records are rejected as unknown format; there is no versioned runtime codec export or compatibility reader.
 
 The following standalone example prepares a complete persisted `[M,R]` batch or one nonpersisted response. Supply the complete actual response and legal message prefix; the example performs no IO and grants no log permission. Declare the imported packages as direct dependencies.
 
@@ -743,7 +743,7 @@ import {
 } from '@omne-harness-lite/model-request-runtime'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { LogPrefixView } from '@omne-harness-lite/messages'
-import type { OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type { OwnedLogEntry } from '@omne-harness-lite/session-log'
 
 export function prepareReplyBatch(
   session: string,

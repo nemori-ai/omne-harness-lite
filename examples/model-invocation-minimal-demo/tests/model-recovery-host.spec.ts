@@ -98,7 +98,7 @@ describe('demo real recovery host', () => {
     }
   })
 
-  it('authenticates, stops the real call host, and recognizes the original JSONL batch twice without another HTTP request', async () => {
+  it('authenticates, stops the real call host, and recognizes the original SQL journal batch twice without another HTTP request', async () => {
     const config = await callDeployment('demo-recovery-complete')
     const tls = await createLocalTls(join(dirname(config.databaseFile), 'tls'))
     const recoveryEvents: string[] = []

@@ -9,7 +9,7 @@ import {
 } from '@omne-harness-lite/identity-values'
 import { openStorage } from '@omne-harness-lite/storage-sql'
 import { composeMigrations, type Storage } from '@omne-harness-lite/storage'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import type { SessionLog } from '@omne-harness-lite/session-log'
 import type {
   AccessIdentity,
@@ -103,10 +103,7 @@ export async function host(
   wrapStorage: (storage: Storage) => Storage = storage => storage,
 ) {
   const dir = await mkdtemp(join(tmpdir(), 'omne-context-')),
-    log = await openJsonlSessionLog({
-      dir,
-      processOwnership: { current: 'context-tests', observeExit: async () => 'exited' },
-    })
+    log = await openSqlLogFixture({ dir: dir })
   const storage = await openStorage({
     dialect: 'sqlite',
     file: join(dir, 'context.sqlite'),

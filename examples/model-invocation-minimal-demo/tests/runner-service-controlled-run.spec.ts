@@ -67,16 +67,10 @@ describe('trusted controlled Run fixture', () => {
       expect(entry?.run).toBe('controlled-run-1')
       expect(entry?.attempt).toBe(1)
       expect(entry?.payload).toMatchObject({
-        category: 'message',
-        value: {
-          type: 'system_reminder',
-          nature: 'event',
-          source: {
-            kind: 'attempt_started',
-            attempt: 1,
-            reason: 'first',
-          },
-        },
+        kind: 'fact',
+        owner: 'session-runtime',
+        version: '1',
+        value: { kind: 'attempt_started', run: 'controlled-run-1', attempt: 1, reason: 'first' },
       })
       expect(tls.requests).toHaveLength(0)
     } finally {

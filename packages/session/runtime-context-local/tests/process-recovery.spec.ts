@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vitest'
 import { openStorage } from '@omne-harness-lite/storage-sql'
 import { composeMigrations, narrow } from '@omne-harness-lite/storage'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { createRuntimeContext, runtimeContextMigrations } from '../src/index.ts'
 import type { ProjectionTables } from '../src/projection-codec.ts'
@@ -36,10 +36,7 @@ for (const cut of ['after-log', 'inside-sql'] as const)
           upgrade: false,
         })
       const firstSql = await openSql()
-      const firstLog = await openJsonlSessionLog({
-        dir: join(dir, 'logs'),
-        processOwnership: { current: 'initial-parent', observeExit: async () => 'unknown' },
-      })
+      const firstLog = await openSqlLogFixture({ dir: join(dir, 'logs') })
       const first = createRuntimeContext({
         storage: firstSql,
         log: firstLog,
@@ -78,16 +75,7 @@ for (const cut of ['after-log', 'inside-sql'] as const)
         expect(child.kill('SIGKILL')).toBe(true)
         expect(await exit).toEqual([null, 'SIGKILL'])
         const sql = await openSql()
-        const log = await openJsonlSessionLog({
-          dir: join(dir, 'logs'),
-          processOwnership: {
-            current: 'recovery-parent',
-            observeExit: async identity =>
-              identity === `crash:${child.pid}` && child.signalCode === 'SIGKILL'
-                ? 'exited'
-                : 'unknown',
-          },
-        })
+        const log = await openSqlLogFixture({ dir: join(dir, 'logs') })
         const owner = createRuntimeContext({
           storage: sql,
           log,

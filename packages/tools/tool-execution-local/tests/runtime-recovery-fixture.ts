@@ -1,5 +1,5 @@
 import { vi } from 'vitest'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import { unwrap } from '@omne-harness-lite/identity-values'
 import type { RecoveryAccess } from '@omne-harness-lite/execution-environments'
@@ -18,7 +18,7 @@ export const resource = {
   reference: { unit: 'unit', generation: 'one' },
 }
 
-/** Reopens actual JSONL and rebuilds its journal. Recovery authority and OS observations are controlled ports. */
+/** Reopens the actual SQL log and rebuilds its journal. Recovery authority and OS observations are controlled ports. */
 export async function recoveryFixture(options: { adopted?: boolean; started?: boolean } = {}) {
   const f = await fixture(undefined, undefined, environmentDefinition)
   const ports = environmentPorts()
@@ -67,9 +67,8 @@ export async function recoveryFixture(options: { adopted?: boolean; started?: bo
   if (seeded.kind !== 'view') throw new Error(`Original seed rejected: ${seeded.reason}`)
   await f.journal.close()
   await f.log.close()
-  const log = await openJsonlSessionLog({
+  const log = await openSqlLogFixture({
     dir: f.dir,
-    processOwnership: { current: 'cold-owner', observeExit: async () => 'exited' },
   })
   const backing = {
     ownerGeneration: 'owner-generation',

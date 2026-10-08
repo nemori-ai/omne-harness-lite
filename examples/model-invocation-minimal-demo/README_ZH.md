@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-本示例是一个可运行的 **Cordis 模型调用 loop**，不是正式业务应用。单个宿主进程在同一个 Cordis context 里接线 `@omne-harness-lite/model-request-runtime-local` 的公开面，组合真实本地存储（SQLite）、JSONL 会话日志、加密凭据副本、账号与成员资格检查以及 OpenRouter 传输。默认模式发送独立模型请求；工具模式增加一个持久 Run 驱动，展示模型调用工具后的续答。它不是完整 Agent Runtime 或生产治理。凡需要受信提供者之处，本示例只提供单进程、单宿主的证据并如实说明，不能当作跨进程权威的模板。可复用能力留在 `packages/`；本示例只做装配。
+本示例是一个可运行的 **Cordis 模型调用 loop**，不是正式业务应用。单个宿主进程在同一个 Cordis context 里接线 `@omne-harness-lite/model-request-runtime-local` 的公开面，组合真实本地存储（SQLite）、SQL journal 会话日志、加密凭据副本、账号与成员资格检查以及 OpenRouter 传输。默认模式发送独立模型请求；工具模式增加一个持久 Run 驱动，展示模型调用工具后的续答。它不是完整 Agent Runtime 或生产治理。凡需要受信提供者之处，本示例只提供单进程、单宿主的证据并如实说明，不能当作跨进程权威的模板。可复用能力留在 `packages/`；本示例只做装配。
 
 它有两个入口：
 
@@ -98,7 +98,7 @@ node examples/model-invocation-minimal-demo/dist/cli.js --data "$PWD/tmp/my-tool
 
 ### 数据目录
 
-数据目录含 SQLite 状态、JSONL 会话历史（`session-logs/`）、工程日志（`diagnostics/`）、生成的签名密钥、副本加密密钥，以及保存本地示例账号密码的 `demo-state.json`。整个目录保持私有，需要时一起备份。OpenRouter 密钥只存于加密副本。首次准备中断会保持「未完成」标记，不静默重放。旧的不兼容开发格式写下的数据不会被猜测、改写或转换；请使用新的 `--data` 目录，原目录保持不动。
+数据目录含 SQLite 状态、SQL journal 会话历史（`session-logs/`）、工程日志（`diagnostics/`）、生成的签名密钥、副本加密密钥，以及保存本地示例账号密码的 `demo-state.json`。整个目录保持私有，需要时一起备份。OpenRouter 密钥只存于加密副本。首次准备中断会保持「未完成」标记，不静默重放。旧的不兼容开发格式写下的数据不会被猜测、改写或转换；请使用新的 `--data` 目录，原目录保持不动。
 
 ### 模型
 
@@ -160,7 +160,7 @@ const acknowledged = await service.acknowledgeCall({
 
 `acknowledgeCall({ ref, expectedResult })` 把模型侧副本交出去释放。它与读取是不同的动作：示例的 `callAccess` 重新核验 `ack`，持有引用或释放 consumer 都不会确认。runtime 先写一条耐久确认，再按显式清理政策删除该调用存下的副本。此后旧引用只回答一个不含路由、回复与输入校准的小型账务视图，回复正文不能再读回：确认前请自己保存原始结果。
 
-对已确认的 ready 调用再作否决或消费处分时，须把原始待处分结果作为 `retainedResult` 交回；缺少时 `settleReply` 返回 `wrongPhase`。runtime 校验交回值、耐久暂存完整批，并追加一条最终响应；之后同一处分无需再交全文即可认回，不同处分返回 `alreadyEnded`，日志不变。`tests/call-reference-service.spec.ts` 通过真实 SQLite、JSONL 与本机 TLS 服务运行这些路径，并检查只有 ready 的调用的确认，以及关闭时撤回访问资格。
+对已确认的 ready 调用再作否决或消费处分时，须把原始待处分结果作为 `retainedResult` 交回；缺少时 `settleReply` 返回 `wrongPhase`。runtime 校验交回值、耐久暂存完整批，并追加一条最终响应；之后同一处分无需再交全文即可认回，不同处分返回 `alreadyEnded`，日志不变。`tests/call-reference-service.spec.ts` 通过真实 SQLite、SQL journal 与本机 TLS 服务运行这些路径，并检查只有 ready 的调用的确认，以及关闭时撤回访问资格。
 
 ### 结算证据与诊断
 
@@ -251,7 +251,7 @@ const app = createAcceptanceApplication(imageConfig, {
 
 ## 本机工程日志
 
-示例先认证，再分别打开仅所有者可访问的本机与已核租户 JSONL collector，然后在同一 Cordis context 中激活模型请求 fibers。程序装配时，`createAcceptanceApplication(...).ready` 准备身份与会话日志访问；认证并打开两个诊断 owner 之后，才调用 `activateModelRequest(actor, diagnostics, diagnostics.transports)`。激活失败不会开放模型准入。
+示例先认证，再分别打开仅所有者可访问的本机与已核租户 SQL journal collector，然后在同一 Cordis context 中激活模型请求 fibers。程序装配时，`createAcceptanceApplication(...).ready` 准备身份与会话日志访问；认证并打开两个诊断 owner 之后，才调用 `activateModelRequest(actor, diagnostics, diagnostics.transports)`。激活失败不会开放模型准入。
 
 每次构造 transport 前先预留一个代际。其注册表只借用绑定本机 collector 与固定 `transport:<generation>` 执行标识的 record 端口；注册与退役事件来自真实注册表，不进入租户日志。确认未取得资源的构造中止会留下代际缺口；状态未知的构造保留其预留。service 的 `inspect()` 把注册表投递失败与丢弃同网络诊断、collector 健康分开报告。当前、构造中、仍存活的旧代际与终态 transport 代际共用一个保留上限（`createDemoDiagnosticConfig` 中为四）；活跃 owner 占满时拒绝新构造。
 
@@ -296,7 +296,7 @@ export async function readEngineeringPage(config: DiagnosticJournalConfig) {
 
 `createAcceptanceApplication()` 返回的应用另提供 `runExtensionPass(actor, session, request)`，用于显式给入的开发扩展。`DemoRunnerRequest` 复用 runner 包已有的 pass、chain 与非存储端口；用到哪些端口就给入对应的真实执行与等待来源，`isActive()` 的结果不证明 Run 或等待卡片事实。该入口不注册产品链，也不增加模型命令。
 
-应用验证参与者与会话，并提供共享 JSONL 绑定、结论写入、提醒读写与物理任务 owner；调用者不能替换这些存储端口，也不能自行宣称写入者已停止。`subjectForCandidate` 为每条结论（包括嵌套 pass）给出原始的定位 subject，runner adapter 核验二者的关系。runner 服务 adapter 只借用历史 reader 的 `read` 能力；reader 及其 `close()` 仍归应用持有。
+应用验证参与者与会话，并提供共享 SQL journal 绑定、结论写入、提醒读写与物理任务 owner；调用者不能替换这些存储端口，也不能自行宣称写入者已停止。`subjectForCandidate` 为每条结论（包括嵌套 pass）给出原始的定位 subject，runner adapter 核验二者的关系。runner 服务 adapter 只借用历史 reader 的 `read` 能力；reader 及其 `close()` 仍归应用持有。
 
 始终等待 `app.close()`。它先关闭 runner 准入并取消 pass，保留仍在执行的贡献，停止其他共享日志消费者，再关闭真实日志。未知追加只能在对同一日志经 SL3 恢复准入重开、读取原键之后解决。退出情况仍未知的写入者保持未完成；不要把 `complete: false` 报成正常关闭。
 

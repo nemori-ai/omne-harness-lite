@@ -2,9 +2,15 @@ import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { AttemptId, RunId } from '@omne-harness-lite/call-accounts'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { SessionRef } from '@omne-harness-lite/messages'
-import type { AppendResult, SessionLog } from '@omne-harness-lite/session-log'
+import type { OriginalIssueAdmission } from './original-issue.ts'
+import type {
+  SourceToken,
+  LogEntry,
+  AppendResult,
+  SessionLog,
+} from '@omne-harness-lite/session-log'
 import type { SettlementMembersResult } from './log-codec-settlement.ts'
-import type { SettlementPrefix } from './settlement-prefix.ts'
+import type { SettlementPrefix } from './index.ts'
 
 /** G28's owner interprets both axes from the exact owned prefix supplied by this coordinator. */
 export type RunHistoryReader = (
@@ -27,6 +33,16 @@ export interface SettlementLogBinding {
   readonly session: SessionRef
   readonly tenant: TenantId
   readonly log: SessionLog
+  /** Bound current-authorized complete prefix, with its persisted journal identity. */
+  readonly readPrefix?: () => Promise<
+    | {
+        readonly entries: readonly LogEntry[]
+        readonly tail: JsonNumber
+        readonly source: SourceToken
+      }
+    | { readonly failure: 'unavailable' }
+  >
+  readonly originalIssue?: OriginalIssueAdmission
   readonly generation: object
   /** Same generation object while usable; null after revocation/replacement. No authorization flag. */
   readonly currentGeneration: () => object | null

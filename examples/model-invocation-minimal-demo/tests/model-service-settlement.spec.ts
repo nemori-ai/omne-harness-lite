@@ -1,5 +1,5 @@
+import { installSqlControlFault } from './sql-control-fault.ts'
 import { deriveCreationKey } from '../src/call-references.ts'
-import { open, type FileHandle } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
@@ -104,17 +104,6 @@ async function scenario(
     await tls.close()
     throw error
   }
-}
-
-function fileMethods(value: unknown): value is Pick<FileHandle, 'datasync' | 'truncate'> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'datasync' in value &&
-    typeof value.datasync === 'function' &&
-    'truncate' in value &&
-    typeof value.truncate === 'function'
-  )
 }
 
 function responseEntries<T extends { readonly readKeys: readonly string[] }>(
@@ -534,35 +523,13 @@ describe('S-49 settlement through the actual demo model service', () => {
     }
   })
 
-  it('keeps a vetoed settlement unknown when actual JSONL datasync and truncate both fail', async () => {
+  it('keeps a vetoed settlement unknown when actual SQL commit receipt and recognition fail', async () => {
     const s = await scenario('service-settlement-unknown-receipt')
-    const probe = await open(join(dirname(s.config.databaseFile), 'fault-probe'), 'w')
-    const prototype: unknown = Object.getPrototypeOf(probe)
-    if (!fileMethods(prototype)) throw new Error('actual FileHandle methods unavailable')
-    const sync = prototype.datasync,
-      truncate = prototype.truncate
-    let faulting = false,
-      syncFailures = 0,
-      truncateFailures = 0
-    const syncSpy = vi.spyOn(prototype, 'datasync').mockImplementation(async function (
-      this: Pick<FileHandle, 'datasync' | 'truncate'>,
-    ) {
-      if (faulting) {
-        syncFailures++
-        throw Object.assign(new Error('controlled datasync failure'), { code: 'EIO' })
-      }
-      await sync.call(this)
-    })
-    const truncateSpy = vi.spyOn(prototype, 'truncate').mockImplementation(async function (
-      this: Pick<FileHandle, 'datasync' | 'truncate'>,
-      size,
-    ) {
-      if (faulting) {
-        truncateFailures++
-        throw Object.assign(new Error('controlled truncate failure'), { code: 'EIO' })
-      }
-      await truncate.call(this, size)
-    })
+    const fault = installSqlControlFault(
+      s.config.databaseFile,
+      'lostReceipt',
+      '"category":"response"',
+    )
     try {
       const sent = await s.app.startServiceCall(s.who, s.session, {
         user: user(),
@@ -571,7 +538,7 @@ describe('S-49 settlement through the actual demo model service', () => {
       })
       if (!('result' in sent) || !('callId' in sent) || !('replyPending' in sent.result))
         throw new Error('real request did not hand off a reply')
-      faulting = true
+      fault.arm()
       expect(
         await s.service.settleReply({
           session: s.session,
@@ -579,8 +546,8 @@ describe('S-49 settlement through the actual demo model service', () => {
           disposition: { vetoed: { by: 'input-gate' } },
         }),
       ).toEqual({ unavailable: true })
-      expect(syncFailures).toBeGreaterThan(0)
-      expect(truncateFailures).toBeGreaterThan(0)
+      expect(fault.counts().receiptFailures).toBeGreaterThan(0)
+      expect(fault.counts().recognitionFailures).toBeGreaterThan(0)
       expect(s.tls.requests).toHaveLength(1)
       let businessClose: Awaited<ReturnType<typeof s.app.close>> | undefined
       const closed = await s.diagnostics.closeAfterBusiness(async () => {
@@ -590,10 +557,7 @@ describe('S-49 settlement through the actual demo model service', () => {
       expect(businessClose?.complete).toBe(false)
       expect(closed.complete).toBe(false)
     } finally {
-      faulting = false
-      syncSpy.mockRestore()
-      truncateSpy.mockRestore()
-      await probe.close()
+      fault.close()
       await s.close()
     }
   })

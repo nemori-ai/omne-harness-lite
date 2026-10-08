@@ -1,3 +1,8 @@
+import { LosslessNumber } from '@omne-harness-lite/content-blocks'
+import { sqlRowBytes } from './sql-control-fault.ts'
+import { physicalBatches } from './sql-batches-fixture.ts'
+import { readJsonStrict } from '@omne-harness-lite/content-blocks'
+import { readModelLogEnvelope } from '@omne-harness-lite/model-request-runtime'
 import { createHash } from 'node:crypto'
 import { mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -8,40 +13,31 @@ import { createDemoSupervisor, type DemoSupervisorOptions } from '../src/demo-su
 import { createLocalTls } from './local-tls.ts'
 
 async function logBytes(dataDirectory: string): Promise<string> {
-  const root = join(dataDirectory, 'session-logs')
-  const files = (await readdir(root, { recursive: true })).filter(path =>
-    path.endsWith('entries.jsonl'),
-  )
-  return (await Promise.all(files.map(path => readFile(join(root, path), 'utf8')))).join('')
+  return sqlRowBytes(join(dataDirectory, 'db.sqlite'))
 }
-
+function modelValues(serialized: string): readonly { category: string; value: unknown }[] {
+  const rows: unknown = JSON.parse(serialized)
+  if (!Array.isArray(rows)) throw Error('invalid physical SQL rows')
+  return rows.flatMap(row => {
+    if (!record(row) || typeof row.value !== 'string') throw Error('invalid SQL row')
+    const parsed = readJsonStrict(row.value)
+    if ('failed' in parsed || !record(parsed.ok)) throw Error('invalid physical entry')
+    const decoded = readModelLogEnvelope(parsed.ok.payload)
+    return 'kind' in decoded && decoded.kind === 'model' ? [decoded.envelope] : []
+  })
+}
 function responseValues(serialized: string): readonly unknown[] {
-  const responses: unknown[] = []
-  for (const line of serialized.split('\n').filter(Boolean)) {
-    const batch: unknown = JSON.parse(line)
-    if (!record(batch) || !Array.isArray(batch.entries)) throw new Error('invalid test log batch')
-    for (const entry of batch.entries) {
-      if (!record(entry) || !record(entry.payload)) throw new Error('invalid test log entry')
-      if (entry.payload.category === 'response') responses.push(entry.payload.value)
-    }
-  }
-  return responses
+  return modelValues(serialized)
+    .filter(value => value.category === 'response')
+    .map(value => value.value)
 }
-
 function openedTime(serialized: string): string {
-  for (const line of serialized.split('\n').filter(Boolean)) {
-    const batch: unknown = JSON.parse(line)
-    if (!record(batch) || !Array.isArray(batch.entries)) throw new Error('invalid test log batch')
-    for (const entry of batch.entries) {
-      if (!record(entry) || !record(entry.payload) || !record(entry.payload.value)) continue
-      if (
-        entry.payload.value.kind === 'model_call_opened' &&
-        typeof entry.payload.value.firstTokenAt === 'string'
-      )
-        return entry.payload.value.firstTokenAt
-    }
-  }
-  throw new Error('durable opened anchor absent')
+  const value = modelValues(serialized).find(
+    value => record(value.value) && value.value.kind === 'model_call_opened',
+  )?.value
+  if (!record(value) || typeof value.firstTokenAt !== 'string')
+    throw Error('durable opened anchor absent')
+  return value.firstTokenAt
 }
 
 function digest(value: string): string {
@@ -104,15 +100,15 @@ describe('response writer cold recovery with an actual stopped worker', () => {
           async () =>
             expect(await readFile(marker, 'utf8')).toBe(
               mode === 'after-write'
-                ? 'after-response-write-before-datasync'
-                : 'before-response-write',
+                ? 'after-response-commit-before-receipt'
+                : 'before-response-insert',
             ),
           { timeout: 10_000 },
         )
         await vi.waitFor(
           async () =>
-            expect(await readFile(`${marker}.repair-failed`, 'utf8')).toBe(
-              'response-repair-failed',
+            expect(await readFile(`${marker}.recognition-unavailable`, 'utf8')).toBe(
+              'response-recognition-unavailable',
             ),
           { timeout: 10_000 },
         )
@@ -139,7 +135,7 @@ describe('response writer cold recovery with an actual stopped worker', () => {
             outcome: 'complete',
             timing: { firstTokenAt, sentAt: expect.any(String) },
             usage: { cache_write_tokens: 0, source: 'upstream' },
-            cost: { cost_usd: 0.0000117, source: 'upstream_usage' },
+            cost: { cost_usd: new LosslessNumber('0.0000117'), source: 'upstream_usage' },
           })
           const totals = await recovered.totals()
           expect(totals.responses).toBe(1)

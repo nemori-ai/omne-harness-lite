@@ -1,3 +1,4 @@
+import { readAttemptStarted } from '@omne-harness-lite/session-runtime'
 import { copyJsonValue, type ToolCallBlock } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import {
@@ -347,7 +348,10 @@ export function projectToolDriverHistory(input: CheckedPrefix): DriverHistory {
         !('invalid' in tool),
       'claimed record cannot be decoded',
     )
+    const sessionFact = readAttemptStarted(entry)
+    requireHistory(!('failure' in sessionFact), 'invalid Session fact')
     const owners =
+      Number(sessionFact.kind === 'fact') +
       Number('value' in driver) +
       Number('conclusion' in runner) +
       Number('event' in context) +
@@ -363,7 +367,7 @@ export function projectToolDriverHistory(input: CheckedPrefix): DriverHistory {
     'tool journal state transitions conflict',
   )
   checkAdoptedContexts(prefix, drivers)
-  const runs = projectDriverRuns(drivers, models, runners),
+  const runs = projectDriverRuns(drivers, models, runners, prefix.entries),
     { batches, byCall } = actionBatches(models, runs)
   completeBatches(prefix, drivers, runners, batches)
   const routeByCall = routes(drivers, tools, byCall, models, runs),

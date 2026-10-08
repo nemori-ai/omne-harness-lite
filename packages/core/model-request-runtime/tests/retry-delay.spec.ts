@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { validate } from '@omne-harness-lite/tool-definition'
-import { retryDelay, type RetryDelayInput } from '@omne-harness-lite/model-request-runtime'
+import { retryDelay, type RetryDelayInput } from '../src/index.ts'
 import { retryDelayVectors } from './retry-delay-vectors.ts'
 
 const policy = {

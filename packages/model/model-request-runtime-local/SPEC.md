@@ -57,11 +57,11 @@
 
 ## 保留差距
 
-公共十五方法及独立选择/重试/历史/响应算法已由 core 拥有；本包只导出其具体独立调用与工厂。
-`RuntimeConstruction` 是显式工厂输入，不能作为 JSON 插件配置。五个相关公共拥有者保持各自边界。
+同一调用容器已确认的业务停止结果，在该容器后续close中保持有效。观察者或其他资源未排空时，继续返回unavailable并保留原引用；重试继续收尾未完成责任，不要求已经关闭的结算源重新提供停止证明。未确认的停止仍须重试，不能凭关闭请求、超时或取消信号缓存成功。
+
+十五操作的公共定义与 Cordis Service 定义已迁至 core/model-request-runtime；本包维护实际提供者和私有 construction。跨包调用者使用 core 公共类型，不依赖本包私有实现类型。完整迁移验收尚未完成。
 生产 Session/Run 历史、终结与恢复来源仍由其各自拥有者承担，本批不宣称完整 Agent Runtime 已实现。
-实际 runtime 仍以普通对象提供，正式 Service 的实现与运行资源注入尚未完成。
-唯一 `MODEL_RUNTIME_SERVICE` 键已归公共 `./cordis`；键唯一不表示普通对象已满足正式 Service 集成。
+实际 runtime 以公共定义的本地Service子类提供，唯一键归core。具名宿主输入、执行支持及调用方Context主体投影仍按[集成目标](adr/service-lifetime.md)接续；当前construction工厂和本次类转发不证明这些后续IC义务已兑现。
 
 ## 验证
 

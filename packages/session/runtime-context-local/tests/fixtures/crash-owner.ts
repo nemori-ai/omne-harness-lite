@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { openStorage } from '@omne-harness-lite/storage-sql'
 import { composeMigrations, type Storage } from '@omne-harness-lite/storage'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from '../sql-log-fixture.ts'
 import { parseTenantId, parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { SessionAccess } from '@omne-harness-lite/session-tenancy'
 import { createRuntimeContext, runtimeContextMigrations } from '../../dist/index.js'
@@ -13,10 +13,7 @@ const scope = {
   tenant: unwrap(parseTenantId({ organization: 'org', account: 'alice' })),
   session: unwrap(parseOpaqueIdentifier('crash-session', 'SessionRef')),
 }
-const log = await openJsonlSessionLog({
-  dir: join(dir, 'logs'),
-  processOwnership: { current: `crash:${process.pid}`, observeExit: async () => 'unknown' },
-})
+const log = await openSqlLogFixture({ dir: join(dir, 'logs') })
 const physical = await openStorage({
   dialect: 'sqlite',
   file: join(dir, 'context.sqlite'),

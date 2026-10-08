@@ -142,6 +142,7 @@ export function describeAtomicStorageConformance(
       })
       expect(() => saved.run(async () => {})).toThrow(StorageDefect)
       expect(() => saved.afterCommit(() => {})).toThrow(StorageDefect)
+      expect(() => saved.observeCompletion()).toThrow(StorageDefect)
       expect(await rows()).toEqual([{ id: 'a' }])
     })
 

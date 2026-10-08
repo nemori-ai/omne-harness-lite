@@ -117,12 +117,6 @@ export interface BackgroundExecutionInterruptedSource {
   readonly kind: 'background_execution_interrupted'
   readonly callId: CallId
 }
-export interface AttemptStartedSource {
-  readonly kind: 'attempt_started'
-  readonly attempt: AttemptId
-  readonly reason: 'first' | 'resumed_after_interruption' | 'resumed_after_wait'
-  readonly at: string
-}
 export type InterruptedSource = {
   readonly kind: 'interrupted'
   readonly by: 'user' | 'system'
@@ -182,7 +176,6 @@ export interface ExtensionSource {
 export type EventReminderSource =
   | BackgroundExecutionFinishedSource
   | BackgroundExecutionInterruptedSource
-  | AttemptStartedSource
   | InterruptedSource
   | SystemWaitAnsweredSource
   | LoopGuardSource

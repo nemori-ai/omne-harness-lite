@@ -36,7 +36,7 @@ async function actualPlan(modelId: string, effort?: 'low' | 'high' | 'max') {
     id: 'reminder',
     createdAt: at,
     nature: 'event',
-    source: { kind: 'attempt_started', attempt: 1, reason: 'first', at },
+    source: { kind: 'extension', extension: 'transport-business-reminder' },
     blocks: [
       {
         id: 'reminder-text',

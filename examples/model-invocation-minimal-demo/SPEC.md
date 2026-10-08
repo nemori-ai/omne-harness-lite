@@ -10,7 +10,7 @@ TD-1：tool-driver/1 的形状归 schema/tool-driver.schema.json 和公开源码
 
 TD-2：稳定键是 tool-driver/1/ 加规范 JSON 字符串数组。attempt 使用 ExactDecimal.toCanonicalString()，不经浮点转换。run_started 和 run_ended 不带 shell.run/attempt；其他记录的 shell 与值同源。readKeys 恰含 dedupeKey 和 tool-driver/1/all。原键同值认回，异值不能覆盖。
 
-TD-3：同一入站只启动一个 Run，同一会话只有一个未终结 Run。采用引用原 Run，尝试序号严格增加；采用和真实 attempt_started 消息同批追加。工具表、权限键集与报告一致，context 来自实际读取。真实模型回复须与原模型响应和调用记录相连，同一 callId 不能属于不同批次。
+TD-3：同一入站只启动一个 Run，同一会话只有一个未终结 Run。采用引用原 Run，尝试序号严格增加；采用和真实 attempt_started Session 事实同批追加。工具表、权限键集与报告一致，context 来自实际读取。真实模型回复须与原模型响应和调用记录相连，同一 callId 不能属于不同批次。
 
 TD-4：整批完成逐项覆盖原模型调用顺序，包括不可解析项。有效 gate 下解析项必须有真实正式链；缺件 gate 只保留已确认前缀，其他项形成正式缺席拒绝。任一 asked 未结束，不写完成事实或交部分 token。no_such_entry 必须由原工具表缺项支持。后续可解释改参不倒写旧完成；核验返回 arguments_changed。
 
@@ -35,6 +35,8 @@ TD-13：每次模型请求使用各自的 observer grant，固定实际 call/dis
 TD-14：启动枚举实际持有的全部会话，恢复每个已有终局且未确认的交付义务，不能只扫描当前 demo 会话或有观察者的执行。A 的原结果资源、原后置链与结论，以及 B/C 的完整批次均须可核验；任一义务不能完成时不开业务入口。维护权限由应用私有闭包持有，只用于原执行的 after_action(each) 和工具 before_persist_message。撤权或尝试换代不取消已有结果义务；维护路径不能准入新动作、执行批次续答、推进 Run 或模型重试。结论提交保留原 tenant/session/Run/attempt 与实际物理 owner 代，不能以新尝试替换元数据。冷恢复不重跑工具作者或丢失连续性的后置贡献。完成 C 不等于模型已续答。
 
 TD-15：管理装配关闭先停止实际工具作者，再等待 driver、delivery 和设施排空，最后放行工具依赖关闭。消费者排空前，工具子树不能释放其结果、环境及日志借用。原 close 未确认时保留原控制和依赖，单次应用 close 可以报告未完成；之后显式 close 只重试同实例。实际 close 持续 pending 时仍等待，不以超时报告静止。受信关闭控制在等待恢复前交给应用私有闭包，不依赖卸载后重新查询 Service。独立撤除官方贡献或动态准入能力不能停止稳定承载行及已准入作者。
+
+未知的消息结算协调器按原 Session 保留。恢复入口先关闭新业务准入，再只认回该 Session 的原完整批次并排空原协调器，然后停止模型容器。其他 Session 的协调器不受此次恢复影响；读失败、异源或原批次未决定时仍保留责任，不重发 HTTP。
 
 ## 模型调用主体
 

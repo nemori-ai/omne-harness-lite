@@ -1,5 +1,6 @@
+import { fixturePayload } from './log-payload-fixture.ts'
+import { installSqlControlFault } from './sql-control-fault.ts'
 import { deriveCreationKey } from '../src/call-references.ts'
-import { open, type FileHandle } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { judgeMessage } from '@omne-harness-lite/messages'
@@ -112,15 +113,6 @@ function kinds(keys: Awaited<ReturnType<typeof logKeys>>, callId: string) {
   )
 }
 
-function syncMethod(value: unknown): value is Pick<FileHandle, 'datasync'> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'datasync' in value &&
-    typeof value.datasync === 'function'
-  )
-}
-
 describe('real model service retry and control', () => {
   it('reads a durable 503 failure and retries once with the same call id', async () => {
     const fixture = await ready('retry-503-success')
@@ -230,7 +222,7 @@ describe('real model service retry and control', () => {
           return 'ok' in parsed && parsed.ok.kind === 'ended' && parsed.ok.call === callId
         }),
       )
-      expect(ended?.payload).toEqual({
+      expect(fixturePayload(ended?.payload)).toEqual({
         format: 'mrr/3',
         category: 'record',
         value: { kind: 'model_call_ended', call: callId, ending: 'released' },
@@ -490,44 +482,33 @@ describe('real model service retry and control', () => {
       await release.promise
     })
     const { app, tls, who, session, service } = fixture
-    const probe = await open(join(dirname(fixture.databaseFile), 'probe'), 'w')
-    const methods: unknown = Object.getPrototypeOf(probe)
-    if (!syncMethod(methods)) throw new Error('actual file sync method unavailable')
-    const original = methods.datasync
-    let failNextSync = false,
-      attempted = 0
-    const spy = vi.spyOn(methods, 'datasync').mockImplementation(async function (
-      this: Pick<FileHandle, 'datasync'>,
-    ) {
-      if (failNextSync) {
-        failNextSync = false
-        attempted++
-        throw Object.assign(new Error('controlled append failure'), { code: 'EIO' })
-      }
-      await original.call(this)
-    })
+    const fault = installSqlControlFault(
+      fixture.databaseFile,
+      'beforeInsert',
+      'model_call_interrupt_intent',
+    )
     try {
       const callId = await openCall(fixture, 'append-fault')
       const dispatch = service.dispatch({ session, callId })
       await entered.promise
-      failNextSync = true
+      fault.arm()
       expect(await service.interrupt({ session, callId, initiator: 'user' })).toEqual({
         unavailable: true,
       })
-      expect(attempted).toBeGreaterThan(0)
+      expect(fault.counts().writeFailures).toBeGreaterThan(0)
       expect(
         kinds(await logKeys(app, who, session), callId).filter(kind => kind === 'intent'),
       ).toHaveLength(0)
       expect(tls.closedSockets()).toBe(0)
+      fault.clear()
       release.resolve()
       await tls.contentSent.promise
       expect(tls.requests).toHaveLength(1)
       expect(await dispatch).toMatchObject({ replyPending: { outcome: 'complete' } })
     } finally {
-      failNextSync = false
+      fault.clear()
       release.resolve()
-      spy.mockRestore()
-      await probe.close()
+      fault.close()
       await fixture.close()
     }
   })

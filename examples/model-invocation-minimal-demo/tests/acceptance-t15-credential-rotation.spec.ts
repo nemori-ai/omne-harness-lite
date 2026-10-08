@@ -1,3 +1,4 @@
+import { fixturePayload } from './log-payload-fixture.ts'
 import { deriveCreationKey } from '../src/call-references.ts'
 import { createHash } from 'node:crypto'
 import { dirname, join } from 'node:path'
@@ -125,7 +126,7 @@ describe('RT10 T15 real credential custodian rotation on one call', () => {
           }),
         )
         .map(entry => {
-          const wrapper = entry.payload
+          const wrapper = fixturePayload(entry.payload)
           if (
             wrapper === null ||
             typeof wrapper !== 'object' ||

@@ -21,6 +21,16 @@ interface Row {
   readonly label: string
 }
 const rows: Row[] = []
+function attemptReminder(value: unknown): boolean {
+  if (value === null || typeof value !== 'object' || !('source' in value)) return false
+  const source = value.source
+  return (
+    source !== null &&
+    typeof source === 'object' &&
+    'kind' in source &&
+    source.kind === 'attempt_started'
+  )
+}
 function legacyDispatch(value: unknown): boolean {
   return (
     value !== null &&
@@ -61,21 +71,27 @@ describe('V-1 frozen normative rows', () => {
   it('collects exactly the declared 142 rows (57 shape passes and 85 shape failures)', () => {
     expect(rows).toHaveLength(142)
     expect(rows.filter(row => row.schema)).toHaveLength(57)
+    const attempts = rows.filter(row => row.def === 'Message' && attemptReminder(row.value))
+    expect(attempts).toHaveLength(5)
+    expect(attempts.filter(row => row.schema)).toHaveLength(3)
   })
   for (const row of rows)
     it(`V1 line ${row.line} ${row.def}`, () => {
       expect(validate(row.def, row.value).valid).toBe(
-        row.def === 'ModelInvocationRecord' && legacyDispatch(row.value) ? false : row.schema,
+        (row.def === 'ModelInvocationRecord' && legacyDispatch(row.value)) ||
+          (row.def === 'Message' && attemptReminder(row.value))
+          ? false
+          : row.schema,
       )
     })
-  it('has exactly 54 current public definitions and the retained Schema is frozen-byte identical', () => {
+  it('has exactly 53 current public definitions and the retained Schema is frozen-byte identical', () => {
     const original = readFileSync(new URL('spec/data/messages/v3/messages.schema.json', design))
     const copied = readFileSync(new URL('../schema/v3/messages.schema.json', import.meta.url))
     expect(copied.equals(original)).toBe(true)
     expect(createHash('sha256').update(copied).digest('hex')).toBe(
       '5e832dccf0b5a88387d1b71c064331f81fe9251b5ff87bd1c6ab4151b5862005',
     )
-    expect(SCHEMA_DEF_NAMES).toHaveLength(54)
+    expect(SCHEMA_DEF_NAMES).toHaveLength(53)
   })
 })
 describe('V-2/V-3 first-stage rejection and full record constraints', () => {
@@ -87,7 +103,8 @@ describe('V-2/V-3 first-stage rejection and full record constraints', () => {
         row.def === 'Message' ? judgeMessage(row.value) : judgeModelInvocationRecord(row.value)
       // S-49's shape-valid requested mismatch is explicitly a writer violation in this row.
       const expected =
-        row.def === 'ModelInvocationRecord' && legacyDispatch(row.value)
+        (row.def === 'ModelInvocationRecord' && legacyDispatch(row.value)) ||
+        (row.def === 'Message' && attemptReminder(row.value))
           ? 'malformed'
           : row.rejection
       expect('rejected' in actual ? actual.rejected : undefined).toBe(expected)

@@ -57,7 +57,6 @@
     "@omne-harness-lite/model-response": "workspace:*",
     "@omne-harness-lite/offer-expiry": "workspace:*",
     "@omne-harness-lite/pi-ai-transport": "workspace:*",
-    "@omne-harness-lite/session-log-jsonl": "workspace:*",
     "@omne-harness-lite/session-tenancy-table": "workspace:*",
     "@omne-harness-lite/storage": "workspace:*",
     "@omne-harness-lite/storage-sql": "workspace:*",
@@ -87,12 +86,20 @@
     "@omne-harness-lite/execution-environments-host": "workspace:*",
     "@omne-harness-lite/credential-verification-scrypt": "workspace:*",
     "@omne-harness-lite/account-identity-sql": "workspace:*",
-    "@omne-harness-lite/account-registration-sequential": "workspace:*"
+    "@omne-harness-lite/account-registration-sequential": "workspace:*",
+    "@omne-harness-lite/session-runtime": "workspace:*",
+    "@omne-harness-lite/session-log-sql": "workspace:*",
+    "@omne-harness-lite/model-message-projection": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
-    "kysely": "catalog:"
+    "ajv": "catalog:",
+    "kysely": "catalog:",
+    "@omne-harness-lite/session-log-sql": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*",
+    "@omne-harness-lite/storage-sql": "workspace:*",
+    "@omne-harness-lite/session-log": "workspace:*"
   }
 }

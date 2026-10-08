@@ -1,5 +1,7 @@
 import { assertContentSchemaTransition } from '../../content-blocks/tests/schema-transition.ts'
 import { assertLoopSchemaTransition } from '../../loop-extension/tests/schema-transition.ts'
+import { assertMessagesSchemaTransition } from '../../messages/tests/schema-transition.ts'
+import { assertResponseSchemaTransition } from './schema-transition.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
@@ -59,10 +61,16 @@ describe('RC1–RC5 / MR11 exact public and private resource closure', () => {
       const relative = new URL(resource.$id).pathname.split('/spec/data/')[1]
       if (relative === undefined) throw new Error('canonical resource id required')
       const canonical = readFileSync(
-        new URL(`../../../../.meta_harness/design/spec/data/${relative}`, import.meta.url),
+        new URL(
+          `../../../../.meta_harness/design/spec/data/${specifier === 'messages/schema' ? relative.replace('/v9/', '/v8/') : specifier === 'model-response/schema' ? relative.replace('/v12/', '/v11/') : relative}`,
+          import.meta.url,
+        ),
       )
       if (specifier === 'content-blocks/schema') assertContentSchemaTransition(bytes, canonical)
       else if (specifier === 'loop-extension/schema') assertLoopSchemaTransition(bytes, canonical)
+      else if (specifier === 'messages/schema') assertMessagesSchemaTransition(bytes, canonical)
+      else if (specifier === 'model-response/schema')
+        assertResponseSchemaTransition(bytes, canonical)
       else {
         expect(bytes.equals(canonical)).toBe(true)
         expect(createHash('sha256').update(bytes).digest('hex')).toBe(

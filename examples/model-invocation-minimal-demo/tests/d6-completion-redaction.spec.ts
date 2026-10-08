@@ -8,7 +8,7 @@ import { createDiagnosticJournal } from '../src/diagnostic-journal.ts'
 import { demoRetirement } from './model-request-support.ts'
 
 describe('D6 source-bounded engineering journal content', () => {
-  it('preserves a trusted 503 while rejecting raw, tool, reasoning, header, configuration and getter content before JSONL/export/stderr', async () => {
+  it('preserves a trusted 503 while rejecting raw, tool, reasoning, header, configuration and getter content before SQL journal/export/stderr', async () => {
     const parent = resolve('tmp/d6-completion')
     await fs.mkdir(parent, { recursive: true, mode: 0o700 })
     const directory = await fs.mkdtemp(join(parent, 'redaction-'))

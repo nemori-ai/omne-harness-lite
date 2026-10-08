@@ -1,5 +1,5 @@
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
-import type { RetryDelayInput } from '@omne-harness-lite/model-request-runtime'
+import type { RetryDelayInput } from '../src/index.ts'
 
 /** Expected constants are hand-calculated S60 vectors, not calls into implementation helpers. */
 export const retryDelayVectors = [

@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import {
   createRunnerTaskOwner,
   createRunnerLogAdapter,
@@ -19,11 +18,8 @@ import {
   type SettlementLogBinding,
   type SettlementRegistration,
 } from '@omne-harness-lite/model-request-runtime'
-import {
-  openJsonlSessionLog,
-  type JsonlSessionLog,
-  type SessionLogOptions,
-} from '@omne-harness-lite/session-log-jsonl'
+import type { SqlSessionLog } from '@omne-harness-lite/session-log-sql'
+import type { SessionLogBackingOperations } from '@omne-harness-lite/session-log'
 import { tenantIdEquals, parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { messagePrefix } from './model-request-text.ts'
 
@@ -43,27 +39,11 @@ export interface DemoRunnerCloseResult {
   readonly recovered: readonly RunnerRecoveryResult[]
 }
 
-/** One physical JSONL host retains every runner task, including lost append receipts. */
+/** One physical SQL journal host retains every runner task, including lost append receipts. */
 export function createDemoRunnerHost(
-  log: JsonlSessionLog,
-  deployment: SessionLogOptions,
-  physicalOwnerGeneration: string = randomUUID(),
+  log: SqlSessionLog,
+  physicalOwnerGeneration: string = log.backing.ownerGeneration,
 ) {
-  const recoveryDeployment: SessionLogOptions = {
-    ...deployment,
-    processOwnership: {
-      current: deployment.processOwnership.current,
-      observeExit: deployment.processOwnership.observeExit.bind(deployment.processOwnership),
-      ...(deployment.processOwnership.observeLegacyExit === undefined
-        ? {}
-        : {
-            observeLegacyExit: deployment.processOwnership.observeLegacyExit.bind(
-              deployment.processOwnership,
-            ),
-          }),
-    },
-    ...(deployment.policy === undefined ? {} : { policy: { ...deployment.policy } }),
-  }
   const generation = physicalOwnerGeneration
   const sessions = new Map<string, { binding: RunnerLogBinding; owner: RunnerTaskOwner }>()
   const controller = new AbortController()
@@ -72,7 +52,7 @@ export function createDemoRunnerHost(
   let admitting = true
   let closing: Promise<DemoRunnerCloseResult> | undefined
   let finished: DemoRunnerCloseResult | undefined
-  let recoveryReader: JsonlSessionLog | undefined
+  let recoveryReader: ReturnType<SessionLogBackingOperations['borrow']> | undefined
   const recovered: RunnerRecoveryResult[] = []
 
   function closeAdmission() {
@@ -196,7 +176,7 @@ export function createDemoRunnerHost(
     const task = (async (): Promise<DemoRunnerCloseResult> => {
       if (recoveryReader !== undefined) {
         try {
-          await recoveryReader.close()
+          await recoveryReader.release()
           recoveryReader = undefined
         } catch {
           return { complete: false, recovered: [...recovered] }
@@ -206,21 +186,21 @@ export function createDemoRunnerHost(
       await Promise.allSettled([...invocations])
       // Physical stop precedes unknown drain. Waiting for drain first deadlocks recovery.
       try {
-        await log.close()
+        await log.drainRaw()
       } catch {
         return { complete: false, recovered: [...recovered] }
       }
-      let reader: JsonlSessionLog | undefined
+      let reader: ReturnType<SessionLogBackingOperations['borrow']> | undefined
       try {
         if ([...sessions.values()].some(item => item.owner.hasUnknown(item.binding))) {
-          // SL3/D085 admission validates the actual marker and old process ownership.
-          reader = await openJsonlSessionLog(recoveryDeployment)
+          // Raw drain proves local journal operations have stopped; recovery keeps the same physical owner.
+          reader = log.backing.borrow()
           recoveryReader = reader
           for (const { owner, binding } of sessions.values()) {
             if (!owner.hasUnknown(binding)) continue
             const parsed = parseOpaqueIdentifier(binding.session, 'SessionRef')
             if (!('ok' in parsed)) return { complete: false, recovered: [...recovered] }
-            const source = reader
+            const source = reader.log
             const result = await owner.reconcileStoppedLog({
               binding,
               async readByKey(key) {
@@ -240,7 +220,7 @@ export function createDemoRunnerHost(
       } finally {
         if (reader !== undefined) {
           try {
-            await reader.close()
+            await reader.release()
             recoveryReader = undefined
           } catch {
             // Retain the actual recovery reader; a failed close cannot release its ownership.
@@ -248,6 +228,7 @@ export function createDemoRunnerHost(
           }
         }
       }
+      await log.close()
       finished = { complete: true, recovered: Object.freeze([...recovered]) }
       return finished
     })()

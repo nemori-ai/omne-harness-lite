@@ -1,10 +1,10 @@
-import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
-import type { AssemblySnapshot } from '@omne-harness-lite/stream-assembly'
 import type {
   CallConsumer,
   CallReadView,
   CallWaitResult,
 } from '@omne-harness-lite/model-request-runtime'
+import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
+import type { AssemblySnapshot } from '@omne-harness-lite/stream-assembly'
 import type { ModelObserverQueue } from './service-types.ts'
 
 interface Listener {

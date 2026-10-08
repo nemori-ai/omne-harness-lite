@@ -112,6 +112,18 @@ export function createSessionAccessOwner(authority: SessionAccessAuthorityOperat
   return Object.freeze({
     operations,
     issuerFor,
+    /** Private grant provenance only. The caller must recheck current authority in its unit. */
+    captureIdentity(access: SessionAccess, scope: SessionScope, operation: AccessOperation) {
+      const bound = bindings.get(access)
+      if (
+        !active ||
+        !bound ||
+        !sameScope(bound.adopted.scope, scope) ||
+        !bound.operations.has(operation)
+      )
+        return undefined
+      return bound.ingress
+    },
     stop() {
       active = false
     },

@@ -5,7 +5,7 @@ import {
   readSettlementPrefix,
   interpretSettlementPrefix,
 } from '@omne-harness-lite/model-request-runtime'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { type SessionLog, type AppendResult } from '@omne-harness-lite/session-log'
 import { join } from 'node:path'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'

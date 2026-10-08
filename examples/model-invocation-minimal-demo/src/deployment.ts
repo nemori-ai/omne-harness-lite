@@ -23,7 +23,6 @@ import { type AcknowledgementCleanupPolicy } from '@omne-harness-lite/model-requ
 import { type DefaultRetryConfiguration } from '@omne-harness-lite/model-request-runtime-local'
 import { type TokenMargin } from '@omne-harness-lite/model-request-runtime'
 import type { AcceptanceConfig, AuthenticatedActor, ModelInputSource } from './types.ts'
-import type { ProcessOwnership } from '@omne-harness-lite/session-log-jsonl'
 import { DEMO_TOOL_ASSETS, DEMO_TOOL_HOLDINGS } from './demo-tools.ts'
 import { OFFICIAL_ADMISSION_NAME } from '@omne-harness-lite/tool-admission'
 
@@ -272,7 +271,6 @@ export function createDemoConfig(
   now: () => string,
   tokenMargin: TokenMargin,
   retirement: RetirementPolicy,
-  processOwnership?: ProcessOwnership,
   enableTools = false,
 ): AcceptanceConfig {
   const keys = {
@@ -315,14 +313,7 @@ export function createDemoConfig(
       monotonicNow: () => Number(process.hrtime.bigint() / 1000000n),
       sleep,
     },
-    sessionLog: {
-      dir: join(directory, 'session-logs'),
-      processOwnership: {
-        current: processOwnership?.current ?? runId,
-        observeExit: processOwnership?.observeExit ?? (async () => 'unknown'),
-      },
-      policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
-    },
+    sessionLog: { operationLimit: 32 },
     modelRequest: {
       maxScopes: 64,
       acknowledgementCleanup: createExplicitCleanupSchedule([200, 1_000, 5_000, 30_000]),

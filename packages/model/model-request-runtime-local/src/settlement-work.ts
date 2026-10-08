@@ -1,7 +1,7 @@
+import type { AckPendingReason } from '@omne-harness-lite/model-request-runtime'
 import { randomUUID } from 'node:crypto'
 import type { CallKey } from '@omne-harness-lite/messages'
 import type { AcknowledgementCustody } from './acknowledgement-custody.ts'
-import type { AckPendingReason } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallSettlementWorkStore } from './reference-types.ts'
 import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import {

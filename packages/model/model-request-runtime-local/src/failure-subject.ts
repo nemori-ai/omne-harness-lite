@@ -1,3 +1,8 @@
+import type {
+  CallHistoryDispatch,
+  ModelFailureExecution,
+  ModelFailureSource,
+} from '@omne-harness-lite/model-request-runtime'
 import {
   validate as validateLoop,
   type AfterModelCallFailureSubject,
@@ -14,14 +19,9 @@ import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import {
   interpretCallHistory,
   rejectAcknowledgedHistory,
-  type CallHistoryDispatch,
   type UnacknowledgedCallHistory,
 } from '@omne-harness-lite/model-request-runtime'
-import type {
-  CurrentHistoryReaders,
-  ModelFailureExecution,
-  ModelFailureSource,
-} from '@omne-harness-lite/model-request-runtime'
+import type { CurrentHistoryReaders } from '@omne-harness-lite/model-request-runtime'
 import {
   settlementGenerationCurrent,
   type SettlementPrefix,

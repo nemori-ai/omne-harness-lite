@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-response/v11/model-response.schema.json",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-response/v12/model-response.schema.json",
   "title": "data.model-response v11",
   "description": "已确认请求责任的完整响应记录：回复（若有）、已交付部分、用量与费用、路由留痕、收场、故障成因与原样状态码、时序及上游原始响应的引用。每份已确认责任恰好留一条，含锚点后发送前取消；记录存在不证明实际发送。根模式约束一条 ModelResponse。条款编号 S-n 指同目录的 contract.md，仅在 data.model-response/v11 内有效。",
   "$comment": "MR10 candidate：根为最终ModelResponse；PendingModelResponse仅可在指定ready不可变内容角色保存，禁止disposition/late。形状保留MR9；来源、真实字节和发布责任由写方验证。 ACK后继candidate：完整值结构保持；ACK后留存及最小原账来源例外见同版contract末节。",
@@ -505,7 +505,7 @@
           "description": "上游原样的 finish / stop reason，不翻译；上游没给时缺席。消费者不得据它推断收场，收场只看 outcome（S-12）。"
         },
         "reply": {
-          "$ref": "../../messages/v8/messages.schema.json#/$defs/AssistantMessage",
+          "$ref": "../../messages/v9/messages.schema.json#/$defs/AssistantMessage",
           "description": "这一次拿回来的那份回复（S-14）。它成没成为消息看 replyDisposition。它的 response 成员必须等于本响应体的 id（跨字段，Schema 不管）。"
         },
         "replyDisposition": {
@@ -1286,7 +1286,7 @@
           "description": "上游原样的 finish / stop reason，不翻译；上游没给时缺席。消费者不得据它推断收场，收场只看 outcome（S-12）。"
         },
         "reply": {
-          "$ref": "../../messages/v8/messages.schema.json#/$defs/AssistantMessage",
+          "$ref": "../../messages/v9/messages.schema.json#/$defs/AssistantMessage",
           "description": "这一次拿回来的那份回复（S-14）。它成没成为消息看 replyDisposition。它的 response 成员必须等于本响应体的 id（跨字段，Schema 不管）。"
         },
         "delivered": {

@@ -1,3 +1,14 @@
+import type { ModelObserverQueue } from './service-types.ts'
+import type {
+  DispatchAgainInput,
+  DispatchAgainResult,
+  DispatchGuardPhase,
+  DispatchInput,
+  DispatchResult,
+  FailureConsumableOperation,
+  FailureConsumption,
+  ModelFailureSource,
+} from '@omne-harness-lite/model-request-runtime'
 import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import { offerReferenceConsumers } from './reference-consumer.ts'
 import { publishModelCallContent } from './reference-publish.ts'
@@ -20,7 +31,7 @@ import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import { operationDiagnostics } from './service-diagnostics.ts'
 import { createModelObserverQueue } from './service-observer-queue.ts'
 import { resolveCallTools } from './call-tools.ts'
-import { dispatchGuard, type DispatchGuardPhase } from '@omne-harness-lite/model-request-runtime'
+import { dispatchGuard } from '@omne-harness-lite/model-request-runtime'
 import { UnknownAppendTracker } from './service-calls.ts'
 import {
   appendControlRecord,
@@ -40,24 +51,12 @@ import {
   rejectAcknowledgedHistory,
   type UnacknowledgedCallHistory,
 } from '@omne-harness-lite/model-request-runtime'
+import type { CallOperationState, CallReservation, RuntimeConstruction } from './service-types.ts'
 import type {
-  DispatchAgainInput,
-  DispatchInput,
-  DispatchResult,
-  DispatchAgainResult,
+  CallKey,
   SessionRuntimeBinding,
   ObserverDiagnostic,
-  FailureConsumableOperation,
-  FailureConsumption,
-  ModelFailureSource,
 } from '@omne-harness-lite/model-request-runtime'
-import type { CallKey } from '@omne-harness-lite/messages'
-import type {
-  CallOperationState,
-  CallReservation,
-  RuntimeConstruction,
-  ModelObserverQueue,
-} from './service-types.ts'
 import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
 import type { CredentialScope } from '@omne-harness-lite/model-response'
 import type { PlanInput, InvocationPolicy } from '@omne-harness-lite/model-request-runtime'

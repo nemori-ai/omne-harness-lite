@@ -2,19 +2,30 @@ import { Context } from '@deepseek-ai/cordis'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlSessionLog, sessionLogMigrations } from '@omne-harness-lite/session-log-sql'
+import { openStorage } from '@omne-harness-lite/storage-sql'
+import { composeMigrations } from '@omne-harness-lite/storage'
 import { loopExtensionRunnerPlugin } from '@omne-harness-lite/loop-extension-runner-local/cordis'
 import { RunnerHostService } from '@omne-harness-lite/loop-extension-runner/cordis'
 import { SessionLogService } from '@omne-harness-lite/session-log/cordis'
 import { SessionAccessService } from '@omne-harness-lite/session-tenancy/cordis'
 
 const dir = await mkdtemp(join(tmpdir(), 'omne-runner-example-'))
-const log = await openJsonlSessionLog({
-  dir,
-  processOwnership: {
-    current: `example-${process.pid}`,
-    observeExit: async () => 'unknown',
+const storage = await openStorage({
+  dialect: 'sqlite',
+  file: join(dir, 'journal.sqlite'),
+  synchronous: 'full',
+  upgrade: false,
+  migrations: composeMigrations(sessionLogMigrations),
+})
+const log = openSqlSessionLog({
+  storage,
+  authority: {
+    storage,
+    authorize: async () => ({ kind: 'denied' }),
+    authorizeEnumeration: async () => ({ kind: 'denied' }),
   },
+  operationLimit: 8,
 })
 const ctx = new Context()
 class Log extends SessionLogService {
@@ -70,5 +81,6 @@ try {
   await runner.dispose()
   await provider.dispose()
   await log.close()
+  await storage.close()
   await rm(dir, { recursive: true, force: true })
 }

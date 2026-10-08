@@ -27,3 +27,5 @@ pnpm --filter @omne-harness-lite/model-request-runtime run test
 ```
 
 Check source, declarations, runtime loading and external consumption of actual archives separately. Static checks and bounded tests do not establish complete lifecycle acceptance.
+
+This package also owns explicit Session log envelopes, the OriginalIssue participant protocol, and original message relationship checks; see [SPEC](SPEC.md).

@@ -17,7 +17,7 @@
  * with no final ("final before opened" was the contradiction being avoided; waiting for the
  * receipt removes it instead).
  *
- * Real assembly: SQLite Storage, JSONL SessionLog and the Cordis host of
+ * Real assembly: SQLite Storage, SQL journal SessionLog and the Cordis host of
  * tests/session-selection-fixture.ts. Only the one opened append receipt and the moment of the
  * host stop are disturbed; every verdict is read back from the durable log or a cold process.
  */

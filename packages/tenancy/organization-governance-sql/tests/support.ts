@@ -212,6 +212,7 @@ export class FaultableStorage implements AtomicStorage {
               lockSentinel: name => tx.lockSentinel(name),
             }),
           ),
+        observeCompletion: () => unit.observeCompletion(),
         afterCommit: notify => unit.afterCommit(notify),
       }),
     )

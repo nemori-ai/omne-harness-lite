@@ -1,3 +1,4 @@
+import { fixturePayload } from './log-payload-fixture.ts'
 import { deriveCreationKey } from '../src/call-references.ts'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -460,7 +461,7 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
           id: 'delivery-reminder',
           createdAt: AT,
           nature: 'event',
-          source: { kind: 'attempt_started', attempt: 1, reason: 'first', at: AT },
+          source: { kind: 'extension', extension: 'delivery-business-reminder' },
           blocks: [
             {
               id: 'reminder-text',
@@ -602,7 +603,11 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
         expect(responses).toHaveLength(3)
         for (const index of [0, 2]) {
           const response = writeJsonLossless(responses[index]?.payload)
-          expect(JSON.parse(response)).toMatchObject({ value: { usage: { input_tokens: 5000 } } })
+          expect(
+            JSON.parse(writeJsonLossless(fixturePayload(responses[index]?.payload))),
+          ).toMatchObject({
+            value: { usage: { input_tokens: 5000 } },
+          })
           expect(response).toContain('"cache_read_tokens":3000')
           expect(response).toContain('"cache_write_tokens":2000')
           expect(response).toContain('"output_tokens":3')

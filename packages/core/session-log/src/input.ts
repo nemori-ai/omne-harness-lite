@@ -20,22 +20,11 @@ import type {
   SessionRef,
 } from './types.ts'
 
-export const invalidInput: InvalidInput = Object.freeze({ failure: 'invalidInput' })
-
-export function object(value: JsonValue): value is { readonly [key: string]: JsonValue } {
-  return (
-    typeof value === 'object' && value !== null && !Array.isArray(value) && !isJsonNumber(value)
-  )
-}
+import { checkKey, checkSession, invalidInput, object } from './values.ts'
+import { checkLogPayload } from './payload.ts'
+export { checkKey, checkSession, invalidInput, object } from './values.ts'
 function only(value: { readonly [key: string]: JsonValue }, keys: readonly string[]): boolean {
   return Object.keys(value).every(key => keys.includes(key))
-}
-export function checkSession(value: unknown): { readonly ok: SessionRef } | InvalidInput {
-  const parsed = parseOpaqueIdentifier(value, 'SessionRef')
-  return isOk(parsed) ? Object.freeze({ ok: parsed.ok }) : invalidInput
-}
-export function checkKey(value: unknown): value is string {
-  return isOk(parseOpaqueIdentifier(value, 'LogKey'))
 }
 function fenceFrom(value: JsonValue): AppendFence | InvalidInput {
   if (!object(value)) return invalidInput
@@ -56,6 +45,9 @@ function conditionFrom(value: JsonValue): AppendCondition | InvalidInput {
     return invalidInput
   return Object.freeze({ kind: 'tailEquals', tail: value.tail })
 }
+function validPayload(value: JsonValue | undefined): value is JsonValue {
+  return value !== undefined && !('failure' in checkLogPayload(value))
+}
 function entryFrom(value: JsonValue): OwnedLogEntry | InvalidInput {
   if (
     !object(value) ||
@@ -66,8 +58,10 @@ function entryFrom(value: JsonValue): OwnedLogEntry | InvalidInput {
   if (!isOk(tenant) || !Object.hasOwn(value, 'payload') || !Array.isArray(value.readKeys))
     return invalidInput
   const readKeys: string[] = []
+  const seen = new Set<string>()
   for (const key of value.readKeys) {
-    if (!checkKey(key) || readKeys.includes(key)) return invalidInput
+    if (!checkKey(key) || seen.has(key)) return invalidInput
+    seen.add(key)
     readKeys.push(key)
   }
   if (Object.hasOwn(value, 'run') !== Object.hasOwn(value, 'attempt')) return invalidInput
@@ -77,7 +71,7 @@ function entryFrom(value: JsonValue): OwnedLogEntry | InvalidInput {
   const dedupeKey = value.dedupeKey
   if (dedupeKey !== undefined && !checkKey(dedupeKey)) return invalidInput
   const payload = value.payload
-  if (payload === undefined) return invalidInput
+  if (!validPayload(payload)) return invalidInput
   return Object.freeze({
     tenant: Object.freeze(tenant.ok),
     ...(typeof run === 'string' && positiveInteger(attempt) ? { run, attempt } : {}),
@@ -139,4 +133,21 @@ export function checkAppendInput(
       condition: parsedCondition,
     }),
   })
+}
+
+/** Closed participant request boundary; no property is read before the strict data copy. */
+export function checkAppendRequest(value: unknown): { readonly ok: AppendRequest } | InvalidInput {
+  const copied = copyJsonValue(value)
+  if (
+    'failed' in copied ||
+    !object(copied.ok) ||
+    !only(copied.ok, ['session', 'entries', 'fence', 'condition'])
+  )
+    return invalidInput
+  return checkAppendInput(
+    copied.ok.session,
+    copied.ok.entries,
+    copied.ok.fence,
+    copied.ok.condition,
+  )
 }

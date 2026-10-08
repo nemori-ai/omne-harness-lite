@@ -91,7 +91,9 @@ try {
           return {
             ...log,
             async append(...args) {
-              const kinds = args[1].map(entry => entry.payload?.value?.kind)
+              const kinds = args[1].map(
+                entry => entry.payload?.value?.value?.kind ?? entry.payload?.value?.kind,
+              )
               // Leave the first session's real A durable and B unresolved, without closing.
               if (
                 input.mode === 'two-crash' &&
@@ -135,20 +137,18 @@ try {
     },
     undefined,
     {
-      covered: true,
-      processOwnership: {
-        current: input.owner,
-        async observeExit(owner) {
-          if (owner === input.owner) return 'alive'
-          const observed = input.confirmedExited.includes(owner)
-            ? 'exited'
-            : input.observedAlive?.includes(owner)
-              ? 'alive'
-              : 'unknown'
-          observations.push({ owner, observed })
-          return observed
-        },
-      },
+      covered: (() => {
+        if (input.mode !== 'recover') return true
+        const owner = input.previousOwner
+        if (typeof owner !== 'string') throw new Error('original owner evidence absent')
+        const observed = input.confirmedExited.includes(owner)
+          ? 'exited'
+          : input.observedAlive?.includes(owner)
+            ? 'alive'
+            : 'unknown'
+        observations.push({ owner, observed })
+        return observed === 'exited'
+      })(),
     },
     true,
   )

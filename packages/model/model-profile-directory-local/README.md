@@ -8,7 +8,7 @@ The examples below consume authenticated tenant identities and already assembled
 
 Use the pure judgments without Cordis:
 
-```ts
+```typescript
 import assert from 'node:assert/strict'
 import {
   scopeChain,
@@ -43,7 +43,7 @@ export function choose(rows: readonly ProfileRow[], tenant: TenantId) {
 
 Mount the manager after `storage`, `clock` and `memberships` are ACTIVE. Mode is required. `management` provides `modelCatalog`; `singleProcessCatalog` also provides `modelCatalogRead`. `developmentBaseFaces` preserves a development shape whose credential value service explicitly returns `unavailable` because center resolution is outside this delivery.
 
-```ts
+```typescript
 import type { Context } from '@deepseek-ai/cordis'
 import { modelProfileDirectoryPlugin } from '@omne-harness-lite/model-profile-directory-local/cordis'
 import type { OfficialManifest } from '@omne-harness-lite/model-profile-directory'
@@ -58,7 +58,7 @@ export async function mountDirectory(ctx: Context, officialManifest: OfficialMan
 
 Manage custom profiles and tenant bindings through the real service. Patches replace whole members; `remove: ['parameters']` removes only that optional member. `adaptation` is never removed or patched partially. Withdrawal keeps identity and configuration history, and emits once after commit; relist preserves the row.
 
-```ts
+```typescript
 import assert from 'node:assert/strict'
 import type { ModelCatalog } from '@omne-harness-lite/model-profile-directory'
 import type { TenantId } from '@omne-harness-lite/identity-values'
@@ -135,7 +135,7 @@ An old stored row missing either required upstream fact is unreadable as the cur
 
 Trusted assembly composes storage migrations before service activation. No table is created by the plugins, and the directory performs no legacy profile conversion. The reader closure locks the actual tenant binding in a live unit and is executed only by CCL or P-1r.
 
-```ts
+```typescript
 import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads'
 import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory-local/migrations'
 import { composeMigrations } from '@omne-harness-lite/storage'
@@ -157,7 +157,7 @@ export function trustedAssemblyInputs(
 
 P-1r borrows only the actual CCL reader. It requires the same `AtomicStorage`, provides only `credentialLookup`, and owns neither CCL nor its close capability. The required `boundCredentialReplicaReader` service exposes the actual CCL reader. The optional `factoryModelCredential` service is looked up on each request and used only for an unbound official profile. Plugin configuration contains data only. An existing tenant binding never falls back. `value` contains owned nonempty bytes; this package does not assume UTF-8.
 
-```ts
+```typescript
 import type { Context } from '@deepseek-ai/cordis'
 import { localCredentialLookupPlugin } from '@omne-harness-lite/model-profile-directory-local/cordis'
 // Trusted assembly has already installed BoundCredentialReplicaReaderService.

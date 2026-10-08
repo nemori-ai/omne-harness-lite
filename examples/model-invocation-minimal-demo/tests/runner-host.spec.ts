@@ -1,15 +1,14 @@
-import { mkdir, mkdtemp, open, type FileHandle } from 'node:fs/promises'
+import { installSqlControlFault } from './sql-control-fault.ts'
+import type { AtomicStorage, WriteTx } from '@omne-harness-lite/storage'
+import { factLogPayload } from '@omne-harness-lite/session-log'
+import { mkdir, mkdtemp } from 'node:fs/promises'
 import { basename, dirname, join, resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import { judgeDefinition, judgePositionedSubject } from '@omne-harness-lite/loop-extension'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { prepareRunnerConclusion } from '@omne-harness-lite/loop-extension-runner'
-import {
-  openJsonlSessionLog,
-  type JsonlSessionLog,
-  type SessionLogOptions,
-} from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture, type SqlLogFixture } from './sql-log-fixture.ts'
 import {
   readSettlementPrefix,
   interpretCallHistory,
@@ -70,15 +69,15 @@ function request(id = 'message'): DemoRunnerRequest {
     },
   }
 }
-async function fixture(label: string, wrap?: (log: JsonlSessionLog) => JsonlSessionLog) {
+async function fixture(label: string, wrap?: (log: SqlLogFixture) => SqlLogFixture) {
   const root = resolve(process.cwd(), '../../tmp/runner-host-completion/files')
   await mkdir(root, { recursive: true, mode: 0o700 })
   const dir = await mkdtemp(join(root, `${label}-`))
-  const options: SessionLogOptions = {
+  const options = {
     dir,
     processOwnership: { current: label, observeExit: async () => 'unknown' },
   }
-  const original = await openJsonlSessionLog(options)
+  const original = await openSqlLogFixture({ dir: options.dir })
   const log = wrap?.(original) ?? original
   const generation = Object.freeze({})
   const binding: SettlementLogBinding = {
@@ -87,63 +86,58 @@ async function fixture(label: string, wrap?: (log: JsonlSessionLog) => JsonlSess
     log,
     generation,
     currentGeneration: () => generation,
+    readPrefix: () => original.fixturePrefix({ session, tenant }, log),
   }
-  return { dir, options, original, log, binding, host: createDemoRunnerHost(log, options) }
+  return { dir, options, original, log, binding, host: createDemoRunnerHost(log) }
 }
 
-async function fault(dir: string, repairFails: boolean, delayed = false) {
-  const probe = await open(join(dirname(dir), `${basename(dir)}.probe`), 'w')
-  const prototype = Object.getPrototypeOf(probe) as Pick<FileHandle, 'datasync' | 'truncate'>
-  const sync = prototype.datasync,
-    truncate = prototype.truncate
+async function fault(file: string, recognitionFails: boolean, delayedStorage?: AtomicStorage) {
   const reached = latch(),
     release = latch()
-  let armed = false,
-    failures = 0,
-    repaired = 0
-  const error = () => Object.assign(new Error('runner host injected I/O fault'), { code: 'EIO' })
-  const syncSpy = vi.spyOn(prototype, 'datasync').mockImplementation(async function (
-    this: FileHandle,
-  ) {
-    if (armed && delayed) {
-      reached.resolve()
-      await release.promise
-    }
-    if (armed && !delayed && (repairFails || failures === 0)) {
-      failures++
-      throw error()
-    }
-    return sync.call(this)
-  })
-  const truncateSpy = vi.spyOn(prototype, 'truncate').mockImplementation(async function (
-    this: FileHandle,
-    size?: number,
-  ) {
-    if (armed && repairFails) throw error()
-    await truncate.call(this, size)
-    if (armed) repaired++
-  })
+  let armed = false
+  const sql = installSqlControlFault(
+    file,
+    recognitionFails ? 'lostReceipt' : 'beforeInsert',
+    '"category":"conclusion"',
+  )
+  const write = delayedStorage?.write.bind(delayedStorage)
+  const spy =
+    delayedStorage === undefined || write === undefined
+      ? undefined
+      : vi
+          .spyOn(delayedStorage, 'write')
+          .mockImplementation(async <T>(fn: (tx: WriteTx) => Promise<T>): Promise<T> =>
+            write(async tx => {
+              const result = await fn(tx)
+              if (armed) {
+                reached.resolve()
+                await release.promise
+              }
+              return result
+            }),
+          )
   return {
     reached,
     release,
     arm() {
       armed = true
+      if (delayedStorage === undefined) sql.arm()
     },
     clear() {
       armed = false
+      sql.clear()
     },
-    stats: () => ({ failures, repaired }),
+    stats: sql.counts,
     async dispose() {
       armed = false
       release.resolve()
-      syncSpy.mockRestore()
-      truncateSpy.mockRestore()
-      await probe.close()
+      spy?.mockRestore()
+      sql.close()
     },
   }
 }
 
-describe('actual shared runner JSONL host', () => {
+describe('actual shared runner SQL host', () => {
   for (const outcome of ['same', 'winner', 'absent'] as const)
     it(`closes the actual writer before recovering ${outcome} and draining`, async () => {
       let appended = 0,
@@ -215,11 +209,11 @@ describe('actual shared runner JSONL host', () => {
     }
   })
 
-  it('waits for a real delayed datasync and resolves the retained receipt after physical stop', async () => {
+  it('waits for a real delayed SQL transaction and resolves the retained receipt after physical stop', async () => {
     const f = await fixture('delay'),
-      io = await fault(f.dir, false, true)
+      io = await fault(join(f.dir, 'journal.sqlite'), false, f.log.fixtureStorage)
     try {
-      // Load the resident before arming; the fault controls the actual commit datasync.
+      // Arm after initialization. The gate holds the actual storage write before COMMIT.
       await f.log.append(
         session,
         [{ tenant, payload: 'warmup', readKeys: [] }],
@@ -246,9 +240,9 @@ describe('actual shared runner JSONL host', () => {
     }
   })
 
-  it('recovers authoritative absence only after real datasync failure and successful repair', async () => {
+  it('recovers authoritative absence only after the real SQL insert fails and the local writer stops', async () => {
     const f = await fixture('rollback'),
-      io = await fault(f.dir, false)
+      io = await fault(join(f.dir, 'journal.sqlite'), false)
     try {
       await f.log.append(
         session,
@@ -258,7 +252,7 @@ describe('actual shared runner JSONL host', () => {
       )
       io.arm()
       expect(await f.host.run(f.binding, request())).toEqual({ failure: 'unavailable' })
-      expect(io.stats()).toEqual({ failures: 1, repaired: 1 })
+      expect(io.stats().writeFailures).toBe(1)
       io.clear()
       expect(await f.host.close()).toMatchObject({
         complete: true,
@@ -270,32 +264,31 @@ describe('actual shared runner JSONL host', () => {
     }
   })
 
-  for (const exit of ['alive', 'unknown'] as const)
-    it(`keeps unknown responsibility when the old process is ${exit}`, async () => {
-      const f = await fixture(`untrusted-${exit}`),
-        io = await fault(f.dir, true)
-      const host = createDemoRunnerHost(f.log, {
-        ...f.options,
-        processOwnership: { current: `recovery-${exit}`, observeExit: async () => exit },
-      })
-      try {
-        await f.log.append(
-          session,
-          [{ tenant, payload: 'warmup', readKeys: [] }],
-          { kind: 'unfenced' },
-          { kind: 'unconditional' },
-        )
-        io.arm()
-        expect(await host.run(f.binding, request())).toEqual({ failure: 'unavailable' })
-        io.clear()
-        expect(await host.close()).toEqual({ complete: false, recovered: [] })
-        expect(await host.close()).toEqual({ complete: false, recovered: [] })
-        expect(await host.run(f.binding, request())).toEqual({ failure: 'unavailable' })
-      } finally {
-        await io.dispose()
-        await f.original.close()
-      }
-    })
+  it('keeps unknown responsibility until the actual committed batch can be recognized', async () => {
+    const f = await fixture('unresolved-original'),
+      io = await fault(join(f.dir, 'journal.sqlite'), true)
+    const host = createDemoRunnerHost(f.log, f.log.backing.ownerGeneration)
+    try {
+      await f.log.append(
+        session,
+        [{ tenant, payload: 'warmup', readKeys: [] }],
+        { kind: 'unfenced' },
+        { kind: 'unconditional' },
+      )
+      io.arm()
+      expect(await host.run(f.binding, request())).toEqual({ failure: 'unavailable' })
+      expect(io.stats().receiptFailures).toBe(1)
+      expect(io.stats().recognitionFailures).toBeGreaterThan(0)
+      expect(await host.close()).toEqual({ complete: false, recovered: [] })
+      expect(await host.close()).toEqual({ complete: false, recovered: [] })
+      expect(await host.run(f.binding, request())).toEqual({ failure: 'unavailable' })
+      io.clear()
+      expect(await host.close()).toMatchObject({ complete: true, recovered: [{ kind: 'same' }] })
+    } finally {
+      await io.dispose()
+      await f.original.close()
+    }
+  })
 
   it('holds an actual invocation until it stops, even after the pass reports cancellation', async () => {
     const f = await fixture('invocation'),
@@ -332,11 +325,7 @@ describe('actual shared runner JSONL host', () => {
     await mkdir(dir, { mode: 0o700 })
     const config = {
       ...base,
-      sessionLog: {
-        dir,
-        policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
-        processOwnership: { current: 'runner-app', observeExit: async () => 'unknown' as const },
-      },
+      sessionLog: { operationLimit: 32 },
     }
     const app = createAcceptanceApplication(config, {
       stage: 'sessionLog',
@@ -352,7 +341,14 @@ describe('actual shared runner JSONL host', () => {
       const reminder = judgeMessage({
         id: 'reminder',
         type: 'system_reminder',
-        blocks: [],
+        blocks: [
+          {
+            id: 'notice',
+            kind: 'text',
+            text: 'Business reminder',
+            visibility: { toHuman: true, toModel: true },
+          },
+        ],
         createdAt: at,
         nature: 'event',
         source: { kind: 'extension', extension: 'extension' },
@@ -373,7 +369,7 @@ describe('actual shared runner JSONL host', () => {
       expect(invoke).toHaveBeenCalledTimes(1)
       expect(await app.readSessionLog(who, session)).toMatchObject({ tail: 3 })
       expect(await app.close()).toMatchObject({ complete: true })
-      const reopened = await openJsonlSessionLog(config.sessionLog)
+      const reopened = await openSqlLogFixture({ file: config.databaseFile })
       const generation = {},
         owner = createRequestOwner('read-reopened'),
         acquired = owner.owner.acquire(1)
@@ -386,6 +382,7 @@ describe('actual shared runner JSONL host', () => {
             log: reopened,
             generation,
             currentGeneration: () => generation,
+            readPrefix: () => reopened.fixturePrefix({ session, tenant: who.tenant }),
           },
           registration: acquired.registration,
         })
@@ -413,20 +410,13 @@ describe('actual shared runner JSONL host', () => {
     await mkdir(dir, { mode: 0o700 })
     const config = {
       ...base,
-      sessionLog: {
-        dir,
-        policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
-        processOwnership: {
-          current: 'runner-app-unknown',
-          observeExit: async () => 'unknown' as const,
-        },
-      },
+      sessionLog: { operationLimit: 32 },
     }
     const app = createAcceptanceApplication(config, {
       stage: 'sessionLog',
       diagnostics: { record() {} },
     })
-    const io = await fault(dir, false)
+    const io = await fault(config.databaseFile, false)
     try {
       await app.ready
       const who = await actor(app)
@@ -439,12 +429,12 @@ describe('actual shared runner JSONL host', () => {
         failure: 'unavailable',
       })
       io.clear()
-      expect(io.stats()).toEqual({ failures: 1, repaired: 1 })
+      expect(io.stats().writeFailures).toBe(1)
       expect(await app.close()).toMatchObject({ complete: true })
       expect(await app.runExtensionPass(who, session, request())).toEqual({
         failure: 'stageClosed',
       })
-      const reopened = await openJsonlSessionLog(config.sessionLog)
+      const reopened = await openSqlLogFixture({ file: config.databaseFile })
       try {
         expect(await reopened.readSince(session, 0)).toMatchObject({ tail: 1 })
       } finally {
@@ -464,7 +454,16 @@ describe('actual shared runner JSONL host', () => {
     try {
       await f.log.append(
         session,
-        [{ tenant, payload: { format: 'runner/1', category: 'conclusion' }, readKeys: [] }],
+        [
+          {
+            tenant,
+            payload: factLogPayload('loop-extension-runner', '1', {
+              format: 'runner/1',
+              category: 'conclusion',
+            }),
+            readKeys: [],
+          },
+        ],
         { kind: 'unfenced' },
         { kind: 'unconditional' },
       )

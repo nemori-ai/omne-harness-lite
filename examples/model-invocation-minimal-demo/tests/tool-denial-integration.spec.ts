@@ -1,5 +1,5 @@
 // @module-tag slow
-// Actual Cordis and durable SQL/JSONL fixture setup exceeds the fast-tier budget.
+// Actual Cordis and durable SQL/SQL journal fixture setup exceeds the fast-tier budget.
 import { expect, test, vi } from 'vitest'
 import { projectToolJournal } from '@omne-harness-lite/tool-execution-runtime'
 import { deliverDeniedAction } from '../src/tool-denial.ts'

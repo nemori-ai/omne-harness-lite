@@ -2,6 +2,8 @@
 
 [English](README.md)
 
+当前 Schema 身份为 MR12。[SPEC.md](SPEC.md)限定 F0 迁移只改变 MS9 AssistantMessage 依赖与资源身份；MR11 业务行为继续有效。
+
 本包实现 MR11 的纯响应体表示与有序判定。一条 `ModelResponse` 记录一次已确认耐久「已出门」责任的路由和档案快照、收场、时序、回复或已交付的部分、实际用量与费用，以及可选的原始响应引用。持久 `interrupted` 响应在无法取得实际发送时刻时可以明确记录 `timing.sentAt: null`；这不表示确知没有发送。`PendingModelResponse` 是交给消息写入者的完整待提交回复事实，始终要求实际发送时刻；写入者完成自己的提交决定后，才给持久响应填 `replyDisposition`，并在适用时判断 `late`。本包不发起模型请求，也不持久化记录。
 
 本包是工作区内的私有 ESM 包。当前公开入口只有包根和 `./schema`。旧响应版本没有可执行子入口。不兼容的历史值会明确拒绝，不会从当前模型目录补齐缺失字段。
@@ -183,7 +185,7 @@ assert.deepEqual(
 
 `validate(defName, value)` 校验 MR11 的 25 个 JSON Schema 定义之一，返回 `{ valid: boolean }`。`judgeModelResponse(value)` 与 `judgePendingModelResponse(value)` 按 MR11 S-27 的顺序返回 `{ ok: true }` 或 `{ rejected: reason }`。它们保留精确 JSON 数值，不修改输入。表示合法不证明耐久锚点、时刻来源、实际用量、回复提交或响应体耐久；这些保证由运行时和写入者承担。
 
-MR11 的全部25个公开定义与既有两个私有成员校验入口，经各 owner 的公开 Schema 入口使用九份规范资源：MR11、CA4、IV1、MP5、CB2、OE1、LC6、CB3、MS8。私有成员视图单独生成，不算第十份规范资源。LC6只提供被引用的FailureCause定义；本包图不注册MS6、CA2、MP6、TD3或旧资产链。每份必要资源保留原字节与 `$id`，不做 URI 重定向；资源缺失或错版会明确导致初始化失败。接受的[MR11 契约](../../../.meta_harness/design/spec/data/model-response/v11/contract.md)和[本包 v11 实现映射](../../../.meta_harness/design/realization/packages/core/model-response/v11-acknowledgement-design.md)是语义依据。
+MR12 的全部25个公开定义与既有两个私有成员校验入口，经各 owner 的公开 Schema 入口使用九份规范资源：MR12、CA4、IV1、MP5、CB2、OE1、LC6、CB3、MS9。私有成员视图单独生成，不算第十份规范资源。LC6只提供被引用的FailureCause定义；本包图不注册MS6、CA2、MP6、TD3或旧资产链。当前 Message／Response 资源分别遵循精确 F0 转换，其他必要资源保持采用的字节与 `$id`，不做 URI 重定向；资源缺失或错版会明确导致初始化失败。接受的[MR11 契约](../../../.meta_harness/design/spec/data/model-response/v11/contract.md)和[本包 v11 实现映射](../../../.meta_harness/design/realization/packages/core/model-response/v11-acknowledgement-design.md)是语义依据。
 
 ACK 不给响应体新增成员或处分。ACK 前消费方可自行保存上例中的完整 `PendingModelResponse`；合法 ACK 释放清单内的模型自有副本后，运行时只有核对 MS8 按角色隔离的语义摘要、原来源及当前资格，才能接收这份自持值用于后继真实处分。仍由同一组 `judgePendingModelResponse` 和 `judgeResponseFinalization` 核完整形状与原事实关系；摘要或原账见证都不能重造缺失的 route、raw 或 inputCalibration。ACK 本身不写 final 或 assistant 消息。
 

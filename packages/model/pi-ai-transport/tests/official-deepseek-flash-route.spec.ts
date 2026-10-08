@@ -94,7 +94,7 @@ describe('DeepSeek V4.1 Flash route policy through public planner (synthetic pro
       id: 'reminder',
       createdAt: at,
       nature: 'event',
-      source: { kind: 'attempt_started', attempt: 1, reason: 'first', at },
+      source: { kind: 'extension', extension: 'transport-business-reminder' },
       blocks: [{ id: 'reminder-text', kind: 'text', text: 'continue', visibility: visible }],
     })
     const assistant = message({

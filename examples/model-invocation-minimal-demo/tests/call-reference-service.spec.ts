@@ -6,9 +6,9 @@ import { describe, expect, it } from 'vitest'
 import { isOk, parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
-import {
-  type AcquireCallResult,
-  type RetainedCallReadView,
+import type {
+  AcquireCallResult,
+  RetainedCallReadView,
 } from '@omne-harness-lite/model-request-runtime'
 import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { DEMO_REFERENCE_SOURCE_VERSION, deriveCreationKey } from '../src/call-references.ts'

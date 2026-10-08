@@ -1,3 +1,5 @@
+import { installSqlControlFault, sqlRowBytes } from './sql-control-fault.ts'
+import { readModelLogEnvelope } from '@omne-harness-lite/model-request-runtime'
 import { deriveCreationKey } from '../src/call-references.ts'
 import { createHash } from 'node:crypto'
 import { fork, type ChildProcess } from 'node:child_process'
@@ -37,7 +39,7 @@ function user(label: string) {
 
 async function ready(label: string, onReceive?: () => Promise<void>) {
   const config = await callDeployment(label)
-  if (config.sessionLog === undefined) throw new Error('actual JSONL deployment missing')
+  if (config.sessionLog === undefined) throw new Error('actual SQL journal deployment missing')
   const tls = await createLocalTls(join(dirname(config.databaseFile), 'tls'), onReceive)
   const app = createAcceptanceApplication(config, {
     stage: 'modelRequest',
@@ -75,8 +77,8 @@ async function ready(label: string, onReceive?: () => Promise<void>) {
     session,
     service: bound.service,
     basis: effective.effectiveModel,
-    logRoot: config.sessionLog.dir,
-    probePath: join(dirname(config.databaseFile), 'control-writer-probe'),
+    logRoot: config.databaseFile,
+    probePath: config.databaseFile,
     async openCall(label: string) {
       const opened = await bound.service.openCall({
         creationKey: deriveCreationKey({ session, userMessage: label }),
@@ -95,45 +97,19 @@ async function ready(label: string, onReceive?: () => Promise<void>) {
   }
 }
 
-async function logBytes(root: string): Promise<string> {
-  const files = (await readdir(root, { recursive: true })).filter(path =>
-    path.endsWith('entries.jsonl'),
-  )
-  return (await Promise.all(files.map(path => readFile(join(root, path), 'utf8')))).join('')
+async function logBytes(file: string): Promise<string> {
+  return sqlRowBytes(file)
 }
-
-async function recoveryMarker(root: string): Promise<unknown> {
-  const files = (await readdir(root, { recursive: true })).filter(path =>
-    path.endsWith('recovery.json'),
-  )
-  if (files.length !== 1 || files[0] === undefined)
-    throw new Error('expected one actual session recovery marker')
-  return JSON.parse(await readFile(join(root, files[0]), 'utf8')) as unknown
-}
-
 function controlRows(serialized: string, callId: string, kind: string): readonly unknown[] {
-  const rows: unknown[] = []
-  for (const line of serialized.split('\n').filter(Boolean)) {
-    const batch: unknown = JSON.parse(line)
-    if (
-      typeof batch !== 'object' ||
-      batch === null ||
-      !('entries' in batch) ||
-      !Array.isArray(batch.entries)
-    )
-      throw new Error('invalid actual JSONL batch')
-    for (const entry of batch.entries) {
-      if (typeof entry !== 'object' || entry === null || !('payload' in entry))
-        throw new Error('invalid actual JSONL entry')
-      const payload: unknown = entry.payload
-      if (typeof payload !== 'object' || payload === null || !('value' in payload)) continue
-      const value: unknown = payload.value
-      if (typeof value !== 'object' || value === null || !('kind' in value) || !('call' in value))
-        continue
-      if (value.kind === kind && value.call === callId) rows.push(value)
-    }
-  }
-  return rows
+  const rows: { value: string }[] = JSON.parse(serialized)
+  return rows.flatMap(row => {
+    const entry = JSON.parse(row.value) as { payload: unknown }
+    const decoded = readModelLogEnvelope(entry.payload)
+    if (!('kind' in decoded) || decoded.kind !== 'model' || decoded.envelope.category !== 'record')
+      return []
+    const value = decoded.envelope.value as { kind?: string; call?: string }
+    return value.kind === kind && value.call === callId ? [value] : []
+  })
 }
 
 function fileMethods(value: unknown): value is Pick<FileHandle, 'datasync' | 'truncate'> {
@@ -183,62 +159,16 @@ function childMessage(
   return undefined
 }
 
-/** Real JSONL write succeeds; the commit receipt and repair are controlled independently. */
-async function controlSyncFault(probePath: string, repairFails: boolean) {
-  const probe = await open(probePath, 'w')
-  const prototype: unknown = Object.getPrototypeOf(probe)
-  if (!fileMethods(prototype)) throw new Error('actual file methods unavailable')
-  const datasync = prototype.datasync
-  const truncate = prototype.truncate
-  let armed = false
-  let syncFailures = 0
-  let repairFailures = 0
-  let repairSyncs = 0
-  let successfulTruncates = 0
-  const fault = () =>
-    Object.assign(new Error('controlled control append I/O fault'), { code: 'EIO' })
-  const syncSpy = vi.spyOn(prototype, 'datasync').mockImplementation(async function (
-    this: FileHandle,
-  ) {
-    if (armed && (repairFails || syncFailures === 0)) {
-      syncFailures++
-      throw fault()
-    }
-    await datasync.call(this)
-    if (armed && !repairFails && syncFailures > 0) repairSyncs++
-  })
-  const truncateSpy = vi.spyOn(prototype, 'truncate').mockImplementation(async function (
-    this: FileHandle,
-    size?: number,
-  ) {
-    if (armed && repairFails) {
-      repairFailures++
-      throw fault()
-    }
-    await truncate.call(this, size)
-    if (armed) successfulTruncates++
-  })
-  return {
-    arm() {
-      armed = true
-    },
-    clear() {
-      armed = false
-    },
-    counts() {
-      return { syncFailures, repairFailures, repairSyncs, successfulTruncates }
-    },
-    async close() {
-      armed = false
-      syncSpy.mockRestore()
-      truncateSpy.mockRestore()
-      await probe.close()
-    },
-  }
+async function controlSyncFault(file: string, lostReceipt: boolean) {
+  return installSqlControlFault(
+    file,
+    lostReceipt ? 'lostReceipt' : 'beforeInsert',
+    lostReceipt ? 'model_call_ended' : 'model_call_interrupt_intent',
+  )
 }
 
-describe('unknown control writer on actual demo JSONL', () => {
-  it('retains a committed release record and its original owner through persistent repair EIO', async () => {
+describe('unknown control writer on actual demo SQL', () => {
+  it('retains a committed release record and its original owner while original recognition is unavailable', async () => {
     const fixture = await ready('control-release-unknown')
     const fault = await controlSyncFault(fixture.probePath, true)
     const { app, tls, host, diagnostics, who, session, service, logRoot } = fixture
@@ -252,8 +182,8 @@ describe('unknown control writer on actual demo JSONL', () => {
       const before = await logBytes(logRoot)
       fault.arm()
       expect(await service.releaseCall({ session, callId })).toEqual({ unavailable: true })
-      expect(fault.counts().syncFailures).toBeGreaterThan(0)
-      expect(fault.counts().repairFailures).toBeGreaterThan(0)
+      expect(fault.counts().receiptFailures).toBeGreaterThan(0)
+      expect(fault.counts().recognitionFailures).toBeGreaterThan(0)
       const written = await logBytes(logRoot)
       expect(controlRows(written, callId, 'model_call_ended')).toEqual([
         { kind: 'model_call_ended', call: callId, ending: 'released' },
@@ -268,8 +198,8 @@ describe('unknown control writer on actual demo JSONL', () => {
 
       fault.clear()
       const recovered = await diagnostics.closeAfterBusiness(() => app.close())
-      // D085: clearing EIO does not restore a resident whose repair failed.
-      expect(recovered.complete).toBe(false)
+      // A positive complete SQL readback resolves this original. No second append is authorized.
+      expect(recovered.complete).toBe(true)
       expect(
         createHash('sha256')
           .update(await logBytes(logRoot))
@@ -312,14 +242,9 @@ describe('unknown control writer on actual demo JSONL', () => {
         })
         const unknown = childMessage(original.messages, 'unknown')
         if (typeof unknown?.callId !== 'string') throw new Error('original call identity absent')
-        expect(unknown).toMatchObject({ writes: 1, syncFailures: 1, truncateFailures: 1 })
+        expect(unknown).toMatchObject({ commits: 1, receiptFailures: 1, recognitionFailures: 1 })
         expect(tls.requests).toHaveLength(1)
-        const before = await logBytes(join(dataDirectory, 'session-logs'))
-        expect(await recoveryMarker(join(dataDirectory, 'session-logs'))).toEqual({
-          v: 1,
-          state: 'active',
-          owner: originalIdentity,
-        })
+        const before = await logBytes(join(dataDirectory, 'db.sqlite'))
         expect(controlRows(before, unknown.callId, 'model_call_ended')).toEqual([
           { kind: 'model_call_ended', call: unknown.callId, ending: 'released' },
         ])
@@ -350,11 +275,7 @@ describe('unknown control writer on actual demo JSONL', () => {
         })
         expect((await successor.exited).code).toBe(0)
         await successor.closed
-        expect(await logBytes(join(dataDirectory, 'session-logs'))).toBe(before)
-        expect(await recoveryMarker(join(dataDirectory, 'session-logs'))).toEqual({
-          v: 1,
-          state: 'clean',
-        })
+        expect(await logBytes(join(dataDirectory, 'db.sqlite'))).toBe(before)
         expect(tls.requests).toHaveLength(1)
       } finally {
         if (original.child.exitCode === null && original.child.signalCode === null) {
@@ -402,10 +323,10 @@ describe('unknown control writer on actual demo JSONL', () => {
       expect(await service.interrupt({ session, callId, initiator: 'user' })).toEqual({
         unavailable: true,
       })
-      expect(fault.counts().syncFailures).toBeGreaterThan(0)
-      expect(fault.counts().repairFailures).toBe(0)
-      expect(fault.counts().successfulTruncates).toBe(1)
-      expect(fault.counts().repairSyncs).toBeGreaterThan(0)
+      expect(fault.counts().receiptFailures).toBe(0)
+      expect(fault.counts().recognitionFailures).toBe(0)
+      expect(fault.counts().writeFailures).toBe(1)
+      expect(fault.counts().commits).toBe(0)
       expect(
         controlRows(await logBytes(logRoot), callId, 'model_call_interrupt_intent'),
       ).toHaveLength(0)

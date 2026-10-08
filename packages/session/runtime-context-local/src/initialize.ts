@@ -1,3 +1,4 @@
+import { factLogPayload } from '@omne-harness-lite/session-log'
 import { decodeContextData } from '@omne-harness-lite/runtime-context'
 import type { ContextMutation } from '@omne-harness-lite/runtime-context'
 import { checkedScope } from './scope.ts'
@@ -40,7 +41,7 @@ function prepareInitialization(
           position: 1,
           readKeys: ['runtime-context'],
           dedupeKey: `context:${event.revision}`,
-          payload: own(event),
+          payload: own(factLogPayload('runtime-context', '1', own(event))),
         },
       ],
       1,

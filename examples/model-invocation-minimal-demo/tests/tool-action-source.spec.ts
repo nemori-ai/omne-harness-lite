@@ -72,7 +72,7 @@ async function fixture(calls = [toolCall()]) {
   }
 }
 
-test('derives the complete batch and stable anchors from actual JSONL provenance, retaining opaque authority', async () => {
+test('derives the complete batch and stable anchors from actual SQL journal provenance, retaining opaque authority', async () => {
   const f = await fixture([toolCall('a'), toolCall('b', true)])
   try {
     const first = await f.read()

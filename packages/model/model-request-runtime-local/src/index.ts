@@ -32,3 +32,9 @@ export type { SettlementWork, SettlementWorkOutcome } from './settlement-work.ts
 export type { SettlementWorkRecovery } from './service-reconcile.ts'
 export type { AcknowledgementCustody } from './acknowledgement-custody.ts'
 export { createIndependentCallConsumer } from './reference-consumer.ts'
+export {
+  createOriginalIssueOwner,
+  type OriginalIssueOwner,
+  type OriginalIssueOwnerOptions,
+} from './original-issue.ts'
+export { originalIssueMigrations } from './original-issue-migrations.ts'
