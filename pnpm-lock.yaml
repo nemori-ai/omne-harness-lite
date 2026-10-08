@@ -160,6 +160,9 @@ importers:
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../../packages/core/messages
+      '@omne-harness-lite/model-message-projection':
+        specifier: workspace:*
+        version: link:../../packages/core/model-message-projection
       '@omne-harness-lite/model-request-runtime':
         specifier: workspace:*
         version: link:../../packages/core/model-request-runtime

@@ -1,3 +1,8 @@
+import {
+  runSessionModelTurn,
+  type SessionModelTurnOptions,
+  type RetainedSessionModelTurn,
+} from '../src/session-model-turn.ts'
 import { createSessionHostEndpoint, parseSessionHostRequest } from '../src/session-host-protocol.ts'
 import { messageLogPayload, compareInteger } from '@omne-harness-lite/session-log'
 import { createSessionTextReader } from '../src/session-reading.ts'
@@ -56,7 +61,6 @@ import {
   createCallContainerStore,
   createModelCallContentStore,
   createModelCallFacts,
-  createSettlementCoordinator,
   modelCallContentMigrations,
   type RuntimeConstruction,
 } from '@omne-harness-lite/model-request-runtime-local'
@@ -73,7 +77,10 @@ import {
   type ModelRuntimeCapturedExecution,
 } from '@omne-harness-lite/model-request-runtime'
 import { sessionLogMigrations, openSqlSessionLog } from '@omne-harness-lite/session-log-sql'
-import { runtimeContextMigrations } from '@omne-harness-lite/runtime-context-local'
+import {
+  runtimeContextMigrations,
+  inspectContextLogEntry,
+} from '@omne-harness-lite/runtime-context-local'
 import { evaluationInputMigrations } from '@omne-harness-lite/evaluation-input-store'
 import { publishLocalInputs } from '@omne-harness-lite/evaluation-input-store/publication'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
@@ -1597,7 +1604,16 @@ it('recognizes actual original Session custody after lost commit before returnin
   expect(bridge.close()).toEqual({ released: true })
 })
 
-it('captures a nonempty actual native invocation and transfers its complete result into the original Session', async () => {
+it.each([
+  'normal',
+  'missingCodec',
+  'custodyUnknown',
+  'stalePermit',
+  'settlementClosed',
+  'ackUnavailable',
+  'prefixDefect',
+  'retentionDefect',
+] as const)('runs the host-owned model turn with original responsibility: %s', async fault => {
   // Governance/current qualification, model catalog and transport are controlled. Runtime execution and SQL are real.
   let bridge!: SessionModelResultSource
   let native: ReturnType<typeof createModelRuntime> | undefined
@@ -1686,114 +1702,176 @@ it('captures a nonempty actual native invocation and transfers its complete resu
   )
   if (!('report' in refreshed))
     throw new Error('actual availability report failed: ' + JSON.stringify(refreshed))
-  const opened = await linked.operations.openCall({
-    session: original.scope.session,
-    creationKey: unwrap(parseOpaqueIdentifier('native-session-create-call', 'CreationKey')),
-    run: original.preparation.run,
-    attempt: original.preparation.attempt,
-    report: refreshed.report,
-    target: model.effectiveModel.routeName,
-    basis: model.effectiveModel,
-    messages: [],
-    tools: [],
-    host: {
-      signal: new AbortController().signal,
-      stopping: () => false,
-      register: () => ({ registration: { unregister() {} } }),
-    },
+  const prefixError = new Error('actual host prefix defect')
+  const retentionError = new Error('actual host retention defect')
+  const retained = vi.fn(async (_record: RetainedSessionModelTurn) => {
+    if (fault === 'retentionDefect') throw retentionError
   })
-  if (!('ref' in opened)) throw new Error('actual native open failed: ' + JSON.stringify(opened))
-  const dispatched = await linked.operations.dispatch({
-    ...opened.ref,
-    attempt: original.preparation.attempt,
-  })
-  if (!('replyPending' in dispatched))
-    throw new Error(
-      'actual native dispatch failed: ' +
-        JSON.stringify({
-          result: dispatched,
-          trace: ports.trace,
-          currentChecks: original.f.modelCurrent.mock.calls.length,
-          sent: ports.sends(),
-        }),
-    )
-  expect(ports.sends()).toBe(1)
-  const captured = await bridge.capture(original.scope, opened.ref.callId)
-  if ('failure' in captured)
-    throw new Error('actual nonempty source failed: ' + JSON.stringify(captured))
-  expect(captured.captured.pending).toEqual(dispatched.replyPending)
-  const prefix = await original.f.runtime.journal.readPrefix(
-    original.f.runtime.access,
-    original.scope.session,
+  const ack = vi.fn(
+    fault === 'ackUnavailable'
+      ? async () => ({ unavailable: true as const })
+      : linked.operations.acknowledgeCall,
   )
-  if (!('kind' in prefix) || prefix.kind !== 'prefix')
-    throw new Error('original result source missing')
-  const saved = await original.f.runtime.modelResults.store(
-    original.f.runtime.coordinationAuthority,
-    original.scope,
-    {
-      resultKey: 'native-session-original-result',
-      source: prefix.source,
-      pending: captured.captured.pending,
+  const turn: SessionModelTurnOptions = {
+    ingress: original.f.runtime,
+    scope: original.scope,
+    preparation: original.preparation,
+    linked,
+    source: bridge,
+    call: {
+      creationKey: unwrap(parseOpaqueIdentifier('native-session-create-call', 'CreationKey')),
+      report: refreshed.report,
+      target: model.effectiveModel.routeName,
+      basis: model.effectiveModel,
+      tools: [],
+      host: {
+        signal: new AbortController().signal,
+        stopping: () => false,
+        register: () => ({ registration: { unregister() {} } }),
+      },
     },
-  )
-  expect(saved).toMatchObject({ kind: 'custodied', pending: dispatched.replyPending })
-  if (!('kind' in saved) || saved.kind !== 'custodied') throw new Error('actual custody missing')
-  const adoption = {
-    kind: 'adoptResult' as const,
-    stepKey: 'adopt-native-original-result',
-    run: original.preparation.run,
-    attempt: original.preparation.attempt,
-    permit: original.preparation.permit,
-    result: saved.witness.receipt,
+    projection: {
+      options: {
+        factReaders: new Map([
+          [
+            'runtime-context',
+            (_value, entry) =>
+              'event' in inspectContextLogEntry(original.scope, entry) ? 'valid' : 'invalid',
+          ],
+        ]),
+      },
+      rules: {
+        version: 'controlled-projection-one',
+        external: null,
+        system: [],
+        pendingCardBlocks: null,
+        lastModelRequestPrefixLength: null,
+      },
+    },
+    settlement: {
+      owner: ports.owner,
+      settlementContention: options.construction.settlementContention,
+      settlementScheduler: options.construction.settlementScheduler,
+      diagnostic() {},
+    },
+    resultKey: 'native-session-original-result',
+    adoptionKey: 'adopt-native-original-result',
+    retain: retained,
   }
-  const adopted = await original.f.runtime.lifecycle.commitStep(
-    original.f.runtime.coordinationAuthority,
-    original.scope,
-    saved.witness.receipt.source,
-    adoption,
-  )
-  expect(adopted).toMatchObject({ kind: 'committed', receipt: { step: 'adoptResult' } })
-  expect(
-    await original.f.runtime.lifecycle.commitStep(
-      original.f.runtime.coordinationAuthority,
-      original.scope,
-      saved.witness.receipt.source,
-      adoption,
-    ),
-  ).toEqual(adopted)
-  // dispatch has actually closed its ready invocation; root settlement uses the public SDK coordinator.
-  const coordinator = createSettlementCoordinator({
-    binding: linked.binding.log,
-    owner: ports.owner,
-    run: createSessionRunHistory(original.scope),
-    settlementContention: options.construction.settlementContention,
-    settlementScheduler: options.construction.settlementScheduler,
-    diagnostic() {},
-  })
-  cleanup.push(() => coordinator.close())
-  const finalizing = coordinator.settle({
-    target: {
-      call: opened.ref.callId,
-      dispatch: captured.captured.pending.dispatch,
-      response: captured.captured.pending.id,
+  const log =
+    fault === 'prefixDefect' || fault === 'retentionDefect'
+      ? {
+          ...linked.binding.log,
+          readPrefix: async () => {
+            throw prefixError
+          },
+        }
+      : linked.binding.log
+  const ingress =
+    fault === 'custodyUnknown'
+      ? {
+          ...original.f.runtime,
+          modelResults: {
+            ...original.f.runtime.modelResults,
+            store: async (...args: Parameters<typeof original.f.runtime.modelResults.store>) => {
+              const saved = await original.f.runtime.modelResults.store(...args)
+              if (!('pending' in saved))
+                throw new Error('actual custody missing before lost result')
+              return {
+                kind: 'unknownCommit' as const,
+                scope: original.scope,
+                call: original.preparation.call,
+                resultKey: turn.resultKey,
+              }
+            },
+          },
+        }
+      : original.f.runtime
+  const actual: SessionModelTurnOptions = {
+    ...turn,
+    ingress,
+    linked: {
+      ...linked,
+      binding: { ...linked.binding, log },
+      operations: { ...linked.operations, acknowledgeCall: ack },
     },
-    current: { messageId: captured.captured.pending.reply.id, disposition: 'persisted' },
-    response: { ...captured.captured.pending, replyDisposition: 'persisted' },
-  })
-  const settled = await finalizing.completion
-  await finalizing.stopped
-  if (!('settled' in settled))
-    throw new Error('original SDK settlement failed: ' + JSON.stringify(settled))
-  expect(settled).toHaveProperty('settled')
-  await coordinator.close()
-  expect(await bridge.release(captured.captured)).toEqual({ released: true })
-  const ack = await linked.operations.acknowledgeCall({
-    ref: opened.ref,
-    expectedResult: { kind: 'response', response: dispatched.replyPending.id },
-  })
-  expect(ack).toHaveProperty('acknowledged')
+    projection: fault === 'missingCodec' ? { rules: turn.projection.rules } : turn.projection,
+    settlement:
+      fault === 'settlementClosed'
+        ? { ...turn.settlement, owner: { ...ports.owner, admission: () => 'closed' } }
+        : turn.settlement,
+    preparation:
+      fault === 'stalePermit'
+        ? { ...turn.preparation, permit: { ...turn.preparation.permit } }
+        : turn.preparation,
+  }
+  if (fault === 'prefixDefect' || fault === 'retentionDefect') {
+    if (fault === 'prefixDefect')
+      await expect(runSessionModelTurn(actual)).rejects.toBe(prefixError)
+    else {
+      try {
+        await runSessionModelTurn(actual)
+        throw new Error('unexpected success')
+      } catch (error) {
+        expect(error).toBeInstanceOf(AggregateError)
+        expect((error as AggregateError).errors).toEqual([prefixError, retentionError])
+      }
+    }
+    expect(retained).toHaveBeenCalledTimes(1)
+    expect(ack).not.toHaveBeenCalled()
+    expect(ports.sends()).toBe(0)
+    expect(bridge.close()).toEqual({ released: true })
+    return
+  }
+  const result = await runSessionModelTurn(actual)
+  if (fault !== 'normal') {
+    const stage =
+      fault === 'missingCodec'
+        ? 'projection'
+        : fault === 'custodyUnknown'
+          ? 'custody'
+          : fault === 'stalePermit'
+            ? 'adoption'
+            : fault === 'settlementClosed'
+              ? 'settlement'
+              : 'ack'
+    expect(result).toEqual({ retained: true, stage })
+    expect(retained).toHaveBeenCalledTimes(1)
+    expect(ack).toHaveBeenCalledTimes(fault === 'ackUnavailable' ? 1 : 0)
+    expect(ports.sends()).toBe(fault === 'missingCodec' ? 0 : 1)
+    const held = retained.mock.calls[0]![0]
+    if (held.coordinator) await held.coordinator.close()
+    if (held.captured) {
+      expect(held.captured).not.toHaveProperty('invocation')
+      expect(bridge.close()).toEqual({ pending: true })
+      expect(
+        await bridge.confirmCustody(held.captured, original.f.runtime, turn.resultKey),
+      ).toEqual({ confirmed: true })
+      expect(await bridge.release(held.captured)).toEqual({ released: true })
+    } else if (fault === 'missingCodec')
+      expect(held.reason).toMatchObject({ unavailable: true, reason: 'requiredSource' })
+    else {
+      expect(fault).toBe('ackUnavailable')
+      // Test cleanup recognizes the original already-settled response; the consumer did not retry ACK.
+      expect(
+        await linked.operations.acknowledgeCall({
+          ref: { session: original.scope.session, callId: original.preparation.call },
+          expectedResult: { kind: 'response', response: 'actual-native-response' },
+        }),
+      ).toHaveProperty('acknowledged')
+    }
+    expect(bridge.close()).toEqual({ released: true })
+    return
+  }
+  expect(retained.mock.calls).toEqual([])
+  expect(result).toMatchObject({ acknowledged: true, adoption: { step: 'adoptResult' } })
   expect(ports.sends()).toBe(1)
+  expect(ports.requests.length).toBeGreaterThan(0)
+  for (const request of ports.requests)
+    expect(request.messages).toMatchObject([
+      { type: 'user', blocks: [{ kind: 'text', text: 'one request' }] },
+    ])
+  expect(retained).not.toHaveBeenCalled()
   expect(bridge.close()).toEqual({ released: true })
 })
 

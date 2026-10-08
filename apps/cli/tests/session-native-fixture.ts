@@ -96,6 +96,7 @@ export function nativeCallFixturePorts(
   }
   let sends = 0
   const trace: string[] = []
+  const requests: Array<{ readonly messages: unknown }> = []
   function configure(base: Construction): Construction {
     const presence: Construction['callPresence'] = {
       async read(input, observed) {
@@ -194,6 +195,7 @@ export function nativeCallFixturePorts(
               transport: {
                 async plan(input) {
                   trace.push('transport.plan')
+                  requests.push({ messages: input.messages })
                   return {
                     planned: {
                       input,
@@ -280,6 +282,7 @@ export function nativeCallFixturePorts(
     configure,
     sends: () => sends,
     trace,
+    requests,
     credentials: {
       value: async () => ({
         scope: { layer: 'factory' as const },

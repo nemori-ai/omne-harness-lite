@@ -54,7 +54,8 @@
     "@omne-harness-lite/session-runtime": "workspace:*",
     "@omne-harness-lite/model-request-runtime": "workspace:*",
     "@omne-harness-lite/model-request-runtime-local": "workspace:*",
-    "@omne-harness-lite/model-response": "workspace:*"
+    "@omne-harness-lite/model-response": "workspace:*",
+    "@omne-harness-lite/model-message-projection": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

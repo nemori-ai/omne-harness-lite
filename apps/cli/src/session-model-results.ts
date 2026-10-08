@@ -30,8 +30,6 @@ export interface CapturedSessionModelReply {
   readonly [captureBrand]: true
   readonly scope: SessionScope
   readonly pending: Pending
-  /** Privileged original handle. The trusted root must discard escaped handles before release. */
-  readonly invocation: AnchoredInvocationHandle
 }
 export interface SessionModelResultSourceOptions {
   readonly storage: AtomicStorage
@@ -155,7 +153,6 @@ class ResultSourceOwner {
       const handle = Object.freeze({
         scope,
         pending: selected.pending,
-        invocation: selected.invocation,
       }) as CapturedSessionModelReply
       record.handle = handle
       this.handles.set(handle, record)
