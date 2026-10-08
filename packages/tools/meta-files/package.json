@@ -1,0 +1,64 @@
+{
+  "name": "@omne-harness-lite/meta-files",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Independent Files meta tool over the selected file facility",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README_ZH.md",
+    "SPEC.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@omne-harness-lite/asset-model": "workspace:*",
+    "@omne-harness-lite/content-blocks": "workspace:*",
+    "@omne-harness-lite/execution-environments": "workspace:*",
+    "@omne-harness-lite/kernel-basis": "workspace:*",
+    "@omne-harness-lite/tool-definition": "workspace:*",
+    "@omne-harness-lite/tool-execution-runtime": "workspace:*",
+    "@omne-harness-lite/unix-format": "workspace:*",
+    "@omne-harness-lite/image-codec": "workspace:*",
+    "diff": "catalog:",
+    "zod": "catalog:",
+    "sharp": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness-lite/execution-environments-host": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*",
+    "@omne-harness-lite/storage-sql": "workspace:*",
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/session-tenancy": "workspace:*",
+    "@omne-harness-lite/tool-execution-local": "workspace:*"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    }
+  }
+}
