@@ -53,7 +53,8 @@
     "@omne-harness-lite/kernel-basis": "workspace:*",
     "zod": "catalog:",
     "sharp": "catalog:",
-    "@omne-harness-lite/model-request-runtime": "workspace:*"
+    "@omne-harness-lite/model-request-runtime": "workspace:*",
+    "@omne-harness-lite/image-codec": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "catalog:"
