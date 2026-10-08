@@ -13,6 +13,7 @@ import {
   parseTenantId,
   parseAccountId,
   parseLoginStateId,
+  parseOpaqueIdentifier,
   unwrap,
 } from '@omne-harness-lite/identity-values'
 import { isGovernanceCenterId } from '@omne-harness-lite/governance-center-entry'
@@ -29,12 +30,28 @@ import {
   type SessionLifecycleStep,
 } from '@omne-harness-lite/session-runtime-local'
 import { createSessionOriginalModelOwner } from '../src/session-model-owner.ts'
-import { originalIssueMigrations } from '@omne-harness-lite/model-request-runtime-local'
+import {
+  createSessionRunModelBinding,
+  type SessionRunModelBindingOptions,
+} from '../src/session-model-binding.ts'
+import {
+  originalIssueMigrations,
+  createModelRuntime,
+  createCallContainerStore,
+  createModelCallContentStore,
+  createModelCallFacts,
+  modelCallContentMigrations,
+  type RuntimeConstruction,
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
+  readSettlementPrefix,
+  type SettlementLogBinding,
+  type SettlementRegistration,
   type OriginalIssueAuthority,
   type OriginalIssueInput,
+  type PlannedSemantics,
 } from '@omne-harness-lite/model-request-runtime'
 import { sessionLogMigrations, openSqlSessionLog } from '@omne-harness-lite/session-log-sql'
 import { runtimeContextMigrations } from '@omne-harness-lite/runtime-context-local'
@@ -50,7 +67,12 @@ import { readSessionFact } from '@omne-harness-lite/session-runtime'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 
 const cleanup: Array<() => Promise<void>> = []
+const nativeModels: Array<ReturnType<typeof createModelRuntime>> = []
 afterEach(async () => {
+  for (const model of nativeModels.splice(0).reverse()) {
+    expect(await model.close()).toEqual({ released: true })
+    expect(model.executionSource.release()).toEqual({ released: true })
+  }
   for (const close of cleanup.splice(0).reverse()) await close()
 })
 const centerId = 'a'.repeat(32)
@@ -87,7 +109,7 @@ async function setup(maxBindings = 16, declareSeed: boolean | 'invalid' = true, 
     ...sessionRuntimeMigrations,
     ...runtimeContextMigrations,
     ...evaluationInputMigrations,
-    ...(withModel ? originalIssueMigrations : []),
+    ...(withModel ? [...originalIssueMigrations, ...modelCallContentMigrations('sqlite')] : []),
   ])
     await storage.write(tx => item.migration.up(tx.db))
   const local = await openClientLocalState(
@@ -1029,6 +1051,288 @@ async function originalModelBinding() {
   const issue = f.modelOwner!.bind(f.runtime, scope, preparation, unknown)
   return { f, scope, preparation, original, issue, unknown }
 }
+function nativeBindingOptions(
+  original: Awaited<ReturnType<typeof originalModelBinding>>,
+): SessionRunModelBindingOptions & { readonly nativeModel: ReturnType<typeof createModelRuntime> } {
+  const { f, scope, preparation, unknown } = original
+  const inputs = f.assembly.inputs(scope)
+  if (!inputs || !f.modelOwner) throw new Error('actual Session providers missing')
+  const unused = async (): Promise<never> => {
+    throw new Error('this journal/admission test must not use catalog or model IO')
+  }
+  const catalog = {
+    readProfile: unused,
+    listProfiles: unused,
+    credentialPresent: unused,
+  }
+  const construction = nativeModelConstruction(f.storage)
+  const model = createModelRuntime(construction)
+  nativeModels.push(model)
+  return {
+    nativeModel: model,
+    model,
+    facts: construction.callFacts,
+    host: construction,
+    ingress: f.runtime,
+    issueOwner: f.modelOwner,
+    scope,
+    preparation,
+    retainUnknown: unknown,
+    selection: {
+      owner: {
+        name: 'controlled-selection-owner',
+        admission: () => 'open',
+        acquire: () => ({ unavailable: true }),
+        opened: () => ({ confirmed: true }),
+        unresolvedWrites: () => [],
+      },
+      concurrent: 1,
+      sessionTenancy: f.runtime.tenancy,
+      catalog,
+      currentEvaluationInputs: inputs,
+      projection: unused,
+      compatible: () => ({ ok: true }),
+      now: () => now,
+      diagnostic() {},
+      onDiagnosticFailure() {},
+    },
+    providers: {
+      catalog,
+      credentials: { value: unused },
+      tools: { lookup: unused },
+      sourceVersions: { fixture: 'explicit-controlled-deployment' },
+      currentEvaluationInputs: inputs,
+    },
+  }
+}
+function nativeModelConstruction(
+  storage: Awaited<ReturnType<typeof openStorage>>,
+): RuntimeConstruction<PlannedSemantics, never> {
+  const unavailable = { unavailable: true } as const
+  const callPresence: RuntimeConstruction<PlannedSemantics, never>['callPresence'] = {
+    read: async () => unavailable,
+  }
+  const content = createModelCallContentStore({
+    storage,
+    policy: { maxConcurrentWrites: 2, maxContentBytes: 65536 },
+  })
+  return {
+    callAccess: { check: async () => unavailable },
+    callPresence,
+    callFacts: createModelCallFacts({ content, presence: callPresence, maxScopes: 8 }),
+    calls: createCallContainerStore(),
+    maxScopes: 8,
+    sessions: { bind: async () => ({ failure: 'unavailable' }) },
+    transport: { clearReuseScope() {}, acquire: () => unavailable },
+    settlementContention: {
+      name: 'explicit-binding-test',
+      limits: { submissions: 1, elapsedMs: 1, retainedBytes: 65536, concurrent: 1 },
+      decide: () => ({ stop: true }),
+    },
+    settlementScheduler: {
+      nowMonotonicMs: () => 0,
+      wait: () => {
+        throw new Error('this test must not retry or wait')
+      },
+    },
+    policy: {
+      now: () => now,
+      schedule: () => {
+        throw new Error('this test must not invoke model IO')
+      },
+      firstContentTimeoutMs: 1,
+      idleContentTimeoutMs: 1,
+      statusCauseTable: {},
+      credentialRedaction: {
+        credential_fragment_min_length: 8,
+        credential_header_names: [],
+        credential_patterns: [],
+      },
+      diagnostic() {},
+    },
+    tokenMargin: { multiplier: 1, reserveTokens: 0 },
+    identities: {
+      call: () => 'unused-call',
+      response: () => 'unused-response',
+      message: () => unwrap(parseOpaqueIdentifier('unused-native-message', 'MessageId')),
+    },
+    history: {
+      call: () => ({ unavailable: true, reason: 'history' }),
+      calibration: () => ({ sourceUnavailable: true }),
+      failure: () => unavailable,
+      run: () => unavailable,
+    },
+    recovery: {
+      authorize: async () => unavailable,
+      enter: async () => unavailable,
+    },
+    reservationWaitPolicy: { maxWaitersPerCall: 1, timeoutMs: 1 },
+    acknowledgementCleanup: { next: () => ({ stop: true }) },
+    diagnostic() {},
+  }
+}
+async function readNativePrefix(binding: SettlementLogBinding) {
+  const registration: SettlementRegistration = {
+    start(_kind, operation) {
+      const controller = new AbortController()
+      const completion = operation(controller.signal)
+      return {
+        completion,
+        requestStop: () => controller.abort(),
+        stopped: completion.then(
+          () => {},
+          () => {},
+        ),
+      }
+    },
+    release() {},
+  }
+  return readSettlementPrefix({ binding, registration })
+}
+it('assembles native prefix and unique issue consumers over the same actual original Run journal', async () => {
+  const original = await originalModelBinding()
+  const linked = await createSessionRunModelBinding(nativeBindingOptions(original))
+  if ('failure' in linked) throw new Error('native model binding unavailable')
+  cleanup.push(linked.returnJournal)
+  expect(linked.binding.log).toBe(linked.binding.selection.binding)
+  expect(linked.binding.log.currentGeneration()).toBe(linked.binding.log.generation)
+  const prefix = await readNativePrefix(linked.binding.log)
+  expect(prefix).toHaveProperty('prefix.source', original.original.source)
+  const issue = linked.binding.log.originalIssue!
+  const admitted = await issue.admitOriginal(original.original)
+  if (!('confirmed' in admitted)) throw new Error('original model not admitted')
+  expect(await issue.consumeOriginal(admitted.claim)).toEqual({ kind: 'launch' })
+  expect(await issue.consumeOriginal(admitted.claim)).toEqual({ kind: 'unavailable' })
+  expect(await issue.admitOriginal(original.original)).toEqual({ kind: 'conflict' })
+  expect(original.unknown).not.toHaveBeenCalled()
+})
+it('keeps actual Session closure pending until the native binding returns its original journal', async () => {
+  const original = await originalModelBinding()
+  const options = nativeBindingOptions(original)
+  const linked = await createSessionRunModelBinding(options)
+  if ('failure' in linked) throw new Error('native model binding unavailable')
+  cleanup.push(linked.returnJournal)
+  let stopped = false
+  const closing = original.f.runtime.close().then(() => {
+    stopped = true
+  })
+  await new Promise(resolve => setImmediate(resolve))
+  expect(stopped).toBe(false)
+  expect(await readNativePrefix(linked.binding.log)).toHaveProperty('prefix')
+  expect(await options.nativeModel.close()).toEqual({ released: true })
+  expect(await original.f.modelOwner!.close()).toEqual({ kind: 'released' })
+  await linked.returnJournal()
+  await closing
+  expect(linked.binding.log.currentGeneration()).toBeNull()
+  expect(await readNativePrefix(linked.binding.log)).toHaveProperty('unavailable', true)
+  expect(await original.f.log.readSince(original.scope.session, 0)).toHaveProperty('entries')
+})
+it('projects an actual physical ModelRuntime without exporting its private execution source', async () => {
+  const original = await originalModelBinding()
+  const options = nativeBindingOptions(original)
+  const linked = await createSessionRunModelBinding(options)
+  if ('failure' in linked) throw new Error('native model binding unavailable')
+  cleanup.push(linked.returnJournal)
+  expect(linked.operations).not.toHaveProperty('executionSource')
+  expect(linked.operations).not.toHaveProperty('close')
+  expect(Object.keys(linked.operations).sort()).toEqual(
+    Object.keys(options.nativeModel.service).sort(),
+  )
+  expect(
+    await linked.operations.effectiveModel({
+      session: unwrap(parseOpaqueIdentifier('foreign-native-session', 'SessionRef')),
+    }),
+  ).toEqual({ invalidInput: { reason: 'malformed' } })
+  expect(options.nativeModel.executionSource.snapshot(original.scope.session)).toEqual([])
+  const capture = options.nativeModel.executionSource.capture(original.scope.session)
+  if (!('capture' in capture)) throw new Error('actual execution source unavailable')
+  expect(capture.capture.executions).toEqual([])
+  expect(options.nativeModel.executionSource.release()).toEqual({ unavailable: true })
+  await options.nativeModel.close()
+  expect(options.nativeModel.executionSource.release()).toEqual({ unavailable: true })
+  capture.capture.release()
+  expect(options.nativeModel.executionSource.release()).toEqual({ released: true })
+})
+it('shares one physical native runtime across two original bindings and keeps current sources explicit', async () => {
+  const original = await originalModelBinding()
+  const options = nativeBindingOptions(original)
+  const first = await createSessionRunModelBinding(options)
+  const second = await createSessionRunModelBinding(options)
+  if ('failure' in first || 'failure' in second)
+    throw new Error('original native binding unavailable')
+  cleanup.push(first.returnJournal, second.returnJournal)
+  expect(first.binding.log.generation).not.toBe(second.binding.log.generation)
+  expect(first.binding.currentEvaluationInputs).toBe(options.providers.currentEvaluationInputs)
+  expect(second.binding.selection.currentEvaluationInputs).toBe(
+    options.selection.currentEvaluationInputs,
+  )
+  expect(first.binding.catalog).toBe(options.providers.catalog)
+  expect(await first.operations.effectiveModel({ session: original.scope.session })).toEqual({
+    unavailable: true,
+  })
+  expect(await second.operations.effectiveModel({ session: original.scope.session })).toEqual({
+    unavailable: true,
+  })
+  expect(await options.nativeModel.close()).toEqual({ released: true })
+  expect(await first.operations.effectiveModel({ session: original.scope.session })).toEqual({
+    unavailable: true,
+  })
+  expect(await second.operations.effectiveModel({ session: original.scope.session })).toEqual({
+    unavailable: true,
+  })
+})
+it('rejects a foreign Session before attaching a native original issue binding', async () => {
+  const original = await originalModelBinding()
+  const options = nativeBindingOptions(original)
+  const bind = vi.fn(options.issueOwner.bind)
+  expect(
+    await createSessionRunModelBinding({
+      ...options,
+      scope: {
+        ...options.scope,
+        tenant: unwrap(parseTenantId({ ...tenant, organization: 'other' })),
+      },
+      issueOwner: { ...options.issueOwner, bind },
+    }),
+  ).toEqual({ failure: 'denied' })
+  expect(bind).not.toHaveBeenCalled()
+})
+it('returns an allocated original journal when the trusted native owner construction fails', async () => {
+  const original = await originalModelBinding()
+  const options = nativeBindingOptions(original)
+  const defect = new Error('actual native binding construction defect')
+  await expect(
+    createSessionRunModelBinding({
+      ...options,
+      issueOwner: {
+        ...options.issueOwner,
+        bind() {
+          throw defect
+        },
+      },
+    }),
+  ).rejects.toBe(defect)
+  await original.f.runtime.close()
+  expect(await original.f.log.readSince(original.scope.session, 0)).toHaveProperty('entries')
+})
+it('returns the original journal if native projection detects a different physical content owner', async () => {
+  const original = await originalModelBinding()
+  const options = nativeBindingOptions(original)
+  const foreignContent = createModelCallContentStore({
+    storage: original.f.storage,
+    policy: { maxConcurrentWrites: 1, maxContentBytes: 65536 },
+  })
+  cleanup.push(async () => {
+    expect(await foreignContent.close()).toEqual({ released: true })
+  })
+  await expect(
+    createSessionRunModelBinding({
+      ...options,
+      facts: { ...options.facts, content: foreignContent },
+    }),
+  ).rejects.toThrow('runtime projection must borrow the original content owner')
+  await original.f.runtime.close()
+})
 it('binds the actual original model owner through Session admission and permits one native launch', async () => {
   const { f, original, issue, unknown } = await originalModelBinding()
   const issued = await issue.admitOriginal(original)
