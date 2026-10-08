@@ -226,6 +226,10 @@ attempt 开始由 Session 事实拥有者记录，不是模型消息。事件不
 
 完整结算前缀通过显式 `SettlementLogBinding.readPrefix` 取得，并核对其 SourceToken 的租户、会话、journal、generation 和尾。缺少该读取端口时返回 dependency unavailable，不降级到不含持久来源坐标的 `readSince`。品牌只表示通过完整前缀校验，不授予当前权限或恢复资格。
 
+`createModelLogReadInspector` 是纯只读辅助函数。它拥有并校验一次完整固定前缀，返回不可变条目和同一快照上的结算检查闭包。调用者后来替换输入、追加日志或改变当前权限，不改变这份快照。闭包保持原响应、锚点、身份、正文和结算冲突检查；它不接收写入候选，不取得新日志尾部，不缓存授权或持有资源租约。原单次 `inspectSettlementMembers` 入口保持完整前缀检查。快照不证明物理提交、来源资格或当前可访问性，调用者仍在各使用点核验这些条件。
+
+一次完整读取中检查多个模型结算，应复用这份校验结果。原响应关联使用唯一性索引；重复响应仍拒绝，不以最后一个值覆盖冲突。该辅助函数不提供跨回合缓存，也不替代 Session 拥有的模型消息投影缓存。构造、各结算关联和输出字节的成本分别计量，不能把复用一次前缀校验表述为全部路径已达到线性复杂度。
+
 ## 原发起窄协议
 
 OriginalIssueParticipant 暂存原 dispatched 事实和唯一执行 claim，必须参加调用者的同一 StorageUnit，不独立提交、不先发送模型请求。ticket 与 claim 仅由实际原拥有者签发；复制形状或取得 ticket 都不授予当前权限。

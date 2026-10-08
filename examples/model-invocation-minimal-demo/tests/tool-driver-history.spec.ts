@@ -121,6 +121,40 @@ test('strictly classifies every record and accepts lossless position representat
     await f.close()
   }
 })
+test('joins equivalent dispatch spellings without accepting another dispatch', async () => {
+  const f = await historyFixture()
+  try {
+    const prefix = await f.prefix()
+    const equivalent = changed(
+      prefix,
+      row => {
+        const body = payload(row)
+        return (
+          body.value.kind === 'model_call_dispatched' ||
+          body.value.kind === 'model_call_opened' ||
+          body.category === 'response'
+        )
+      },
+      row => {
+        const body = payload(row)
+        return replaceFixtureValue(row, {
+          ...body.value,
+          dispatch: new LosslessNumber(body.category === 'response' ? '1.00' : '1e0'),
+        })
+      },
+    )
+    expect(inspect(equivalent)).toEqual(inspect(prefix))
+    expect(inspect(equivalent)).toMatchObject({ kind: 'known' })
+    const different = changed(
+      equivalent,
+      row => payload(row).category === 'response',
+      row => replaceFixtureValue(row, { ...payload(row).value, dispatch: 2 }),
+    )
+    expect(inspect(different)).toEqual({ kind: 'unavailable' })
+  } finally {
+    await f.close()
+  }
+})
 test.each([
   ['creation', (row: LogEntry) => payload(row).value?.kind === 'model_call_created'],
   [
