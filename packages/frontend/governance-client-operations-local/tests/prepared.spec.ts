@@ -460,7 +460,7 @@ describe('CG2 fixed capture and interactive input', () => {
     expect(result.remote.status).toBe('success')
     expect((await read(state)).value!.cache.filter(c => c.operation === OG36)).toEqual([])
   })
-  it('schema resources match both frozen authorities without overwriting v1', () => {
+  it('schema resources match both independent original inputs without overwriting v1', () => {
     for (const version of [1, 2]) {
       const published = readFileSync(
         createRequire(import.meta.url).resolve(
@@ -470,7 +470,7 @@ describe('CG2 fixed capture and interactive input', () => {
       )
       const authority = readFileSync(
         new URL(
-          `../../../../.meta_harness/design/spec/compositions/governance-client-operations/v${version}/governance-client-operations.schema.json`,
+          `../../../core/governance-client-operations/tests/fixtures/operation-v${version}.schema.json`,
           import.meta.url,
         ),
         'utf8',

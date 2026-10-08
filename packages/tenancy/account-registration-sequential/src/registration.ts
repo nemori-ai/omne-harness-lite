@@ -1,7 +1,7 @@
 import { RegistrationStopped } from '@omne-harness-lite/account-registration'
 // 两条动作链的方法体：注册主链（契约 S-8）与未激活到期清除链（S-34）。
-// 契约：.meta_harness/design/spec/compositions/account-registration/v2/contract.md；
-// 节点设计：.meta_harness/design/realization/packages/tenancy/account-registration/design.md「能力到 Cordis 的投影」。
+// 契约：packages/core/account-registration/SPEC.md；
+// 节点设计：packages/tenancy/account-registration-sequential/SPEC.md Cordis 的投影」。
 //
 // 无状态、无存储、无锁、无事务：三步是三次跨 owner 的提交，正确性来自提交点位置（S-10）与三个幂等边界（S-9），
 // 不来自「写在同一个函数里」。方法局部变量只活在一次调用内；每步之前问一次「本插件这一代是否仍在」（S-22），

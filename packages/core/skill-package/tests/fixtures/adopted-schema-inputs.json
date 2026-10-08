@@ -1,0 +1,12 @@
+{
+  "skill-package/v3": {
+    "path": "../../skill-package/schema/skill-package.schema.json",
+    "sha256": "8c4a5352cccb695d94072828c5881486e8cdd5474a2213a3a621b17e3fbc836b",
+    "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/skill-package/v3/skill-package.schema.json"
+  },
+  "skill-package/v2": {
+    "path": "../../skill-package/schema/skill-package.v2.schema.json",
+    "sha256": "eb2b30c03023e02584d0bfec54f1905751c4049b41e16ae3744c8b9606cbd4e5",
+    "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/skill-package/v2/skill-package.schema.json"
+  }
+}

@@ -239,3 +239,9 @@ consumeOriginal 必须等待外层提交完成，并在同一存储范围重新�
 dispatched 表示原发起锚点，不表示收到模型内容。opened 继续由模型实际执行拥有者在首个内容到达后、发布 FirstContent 之前记录，并携 firstTokenAt。参加协议不得提前伪造 opened、首 token 或实际发送完成。
 
 本协议不负责 Session 的完整 Run 调度，也不替代原模型恢复续发守卫、实际 HTTP drain、完整结果保管与 acknowledge。原 claim 的本地操作结束不证明外部模型执行或远端事务已经停止。
+
+## 账来源与独立内容保留
+
+同一 ResponseId 的所选原账按 final > ACK 原账 witness > ready 唯一选择；先核所有存在来源的身份、关联和原值一致性，再应用优先级。合法 ACK 后不强求已释放全文，仍核小锚点与原账；来源不可读或当前权／真实性无法核验为 unavailable。后到 final 只替代阶段，不新增费用，原失败 dispatch 仍各自结算。
+
+内容释放只解除本调用自有清单或保留权，不删除其他调用、外部拥有者仍保留的内容，不改变 consumer 已自行保存的副本。共享同一外部内容不授予跨调用释放权限。

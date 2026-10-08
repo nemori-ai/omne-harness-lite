@@ -1,1 +1,0 @@
-{"status":"PASS","platform":"linux","node":"v24.21.0","observations":[2,1],"scope":"actual emulator query/set/restore and PTY termios only; no paste source or TUI adoption","termiosRestored":true}

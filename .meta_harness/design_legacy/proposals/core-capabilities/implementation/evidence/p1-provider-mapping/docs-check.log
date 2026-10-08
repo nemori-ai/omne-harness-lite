@@ -1,8 +1,0 @@
-uv run --locked omne-docs-check --baseline "7af250e"
-Using CPython 3.12.13
-Creating virtual environment at: .venv
-   Building omne-harness-lite-spec-tools @ file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-provider-mapping/tools/spec-tools
-      Built omne-harness-lite-spec-tools @ file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-provider-mapping/tools/spec-tools
-Installed 27 packages in 20ms
-PASS: 455 Markdown files; requirement identities/dimensions, decision provenance, skill mirrors, frozen versions and archive hashes.
-NOTE: structural evidence checks do not establish the sufficiency of causal reasoning.

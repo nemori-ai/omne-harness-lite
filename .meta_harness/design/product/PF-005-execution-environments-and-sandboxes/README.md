@@ -102,10 +102,8 @@ Agent Definition 对 agent runtime、会话历史对 agent runtime。三次形�
   （**均为实质照办、仅名称不同**）；**rev 3 那两条要产品负责人拍板的已于 rev 4 闭合**；
   新记一条**下游待对齐**——[当前规则与范围](design.md)，
   修订归那个 topic 的 owner
-- 技术投影：**尚未开始**
 
 技术投影按 `harness-design-handbook` skill 展开，
-产物按其步骤 G 落回本包的 `projection/v1/`。
 
 ## 本包的文件
 

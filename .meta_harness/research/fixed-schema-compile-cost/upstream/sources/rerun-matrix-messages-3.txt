@@ -1,8 +1,0 @@
-set=messages rounds=3 node=v24.21.0 load1 per round: 8.68 8.41 8.30 7.94
-repo (Ajv compile at import)                   {"importMs":621.5,"importCpuMs":908,"firstMs":14.9,"oneKMs":670.4}
-repo + NODE_COMPILE_CACHE                      {"importMs":674.2,"importCpuMs":927.7,"firstMs":18.9,"oneKMs":691.2}
-standalone                                     {"importMs":39.5,"importCpuMs":41.5,"firstMs":26.1,"oneKMs":720}
-standalone + NODE_COMPILE_CACHE                {"importMs":11.6,"importCpuMs":13.3,"firstMs":21.4,"oneKMs":650.2}
-standalone cold (no content-blocks warm-up)    {"importMs":37.9,"importCpuMs":40.8,"firstMs":20.7,"oneKMs":754.1}
-standalone inlineRefs:false                    {"importMs":33.7,"importCpuMs":35.8,"firstMs":16.6,"oneKMs":709.9}
-standalone, only ModelInvocationRecord closure {"importMs":10,"importCpuMs":11.5,"firstMs":14.6,"oneKMs":579}

@@ -14,6 +14,6 @@ TA-5：forPass 固定经过记录及全部输入。返回的 Judgment 只接受�
 
 TA-6：关闭先拒新绑定、判断和核验并使旧绑定失效，再排空已接纳的真实判断、日志 IO 及授权读取，最后释放所持物理日志借用。贡献者不响应停止时，不承诺有界关闭。正式 token 仍须确认持久结论及整批完成，forPass 本身不写结论或启动执行。
 
-TA-7：ToolActionHistory.inspect 只投影传入的完整 CheckedPrefix，不执行 IO 或另取尾。scope、物理代与连续位置须一致。合法缺少调用为 notFound；已有调用但未整批完成为 pending；无首次路由为 none。必要来源缺失、未知所属版本、重复身份或关系冲突为 unavailable。投影不是授权，准入与 runtime 各自作最后判定。
+TA-7：ToolActionHistory.inspect 只投影传入的完整 CheckedPrefix，不执行 IO 或另取尾。scope、物理代与连续位置须一致。合法缺少调用为 notFound；已有调用但未整批完成为 pending；无首次路由为 none。必要来源缺失、未知所属版本、重复身份或关系冲突为 unavailable。投影不是授权，准入与 runtime 各自作最后判定。 Run事实沿[Session事实拥有者](../session-runtime/SPEC.md#run事实的投影依据)：latestAttempt与日志尝试栅栏同条件，runState由明确开始／终结事实判定。缺原attempt或认不出终态不能合成“当前且未结束”；不可用与明确不存在分开。
 
 TA-8：正式核验在日志 IO 前后检查当前 tool.submit；普通调用者不取得 session.log.coordinate。畸形输入或非正式 token 为 invalidInput。合法输入按 call_mismatch、arguments_changed、not_admitted、run_ended 次序判断。尝试换代不等于 Run 结束，不自行使原准入定位失效；新执行仍由 runtime 核当前尝试。核验依赖实际官方最终结论、原采用、完整模型批次及完成事实，不能只相信 observed 或摘要。

@@ -30,10 +30,7 @@ import type { ModelCallContentValue } from '../src/reference-types.ts'
 
 async function normative(path: string, name: string): Promise<unknown> {
   const result = readJsonStrict(
-    await readFile(
-      new URL(`../../../../.meta_harness/design/spec/data/${path}`, import.meta.url),
-      'utf8',
-    ),
+    await readFile(new URL(`../../../core/${path}`, import.meta.url), 'utf8'),
   )
   if ('failed' in result || !Array.isArray(result.ok)) throw new Error('normative rows')
   const row = result.ok.find(
@@ -45,7 +42,7 @@ async function normative(path: string, name: string): Promise<unknown> {
 }
 async function created(): Promise<Extract<ModelCallContentValue, { kind: 'created' }>> {
   const result = judgeModelCallCreatedPayload(
-    await normative('messages/v7/reference-examples.json', 'created-original-input'),
+    await normative('messages/tests/fixtures/reference-examples.json', 'created-original-input'),
   )
   if ('rejected' in result) throw new Error('accepted created fixture')
   return { kind: 'created', value: result.ok }
@@ -55,7 +52,7 @@ function isPending(value: unknown): value is PendingModelResponse {
 }
 async function pending(): Promise<Extract<ModelCallContentValue, { kind: 'reply_ready' }>> {
   const value = await normative(
-    'model-response/v10/ready-examples.json',
+    'model-response/tests/fixtures/ready-examples.json',
     'ready-complete-original-facts',
   )
   if (!isPending(value)) throw new Error('accepted pending fixture')

@@ -172,4 +172,4 @@ assert.ok(created.$id.includes('/model-profile/v6/'))
 assert.deepEqual(current.$defs, created.$defs)
 ```
 
-采用依据与映射：D110, [MP6 resource provider](../../../.meta_harness/design/realization/packages/core/model-profile/v6-schema-resource-design.md). [资源与纯值测试](tests/v6-resource.spec.ts)验证原字节、两个精确快照定义及无损复制；运行时冻结、created 记录往返和发送保证另由真实组合验证。
+采用依据与映射：D110, [验证职责](verification/README.md). [资源与纯值测试](tests/v6-resource.spec.ts)验证原字节、两个精确快照定义及无损复制；运行时冻结、created 记录往返和发送保证另由真实组合验证。

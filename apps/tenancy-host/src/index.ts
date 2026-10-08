@@ -1,4 +1,4 @@
-// 治理中心装配 apps/tenancy-host 的公开入口。设计：.meta_harness/design/realization/apps/tenancy-host/。
+// 治理中心装配 apps/tenancy-host 的公开入口。设计：apps/tenancy-host/SPEC.md。
 export {
   boot,
   type BootOptions,

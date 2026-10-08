@@ -1,4 +1,4 @@
-// Storage 协议的 Kysely 提供者。设计：.meta_harness/design/realization/packages/infra/storage-sql/。
+// Storage 协议的 Kysely 提供者。方言、升级与维护责任归包旁 SPEC.md。
 export { StorageSqlConfig } from './config.ts'
 export { openStorage, type OpenStorageOptions } from './open.ts'
 export { SqlStorage } from './provider.ts'

@@ -1,7 +1,7 @@
 {
   "format": 1,
   "id": "design-review-choice",
-  "version": 1,
+  "version": 2,
   "family": "review",
   "role": "design-reviewer",
   "judgment": "选择",
@@ -67,23 +67,11 @@
       "scale": 10
     }
   ],
-  "signoffs": {
-    "cases": {
-      "by": "panqiwei",
-      "date": "2026-10-01",
-      "version": 1
-    },
-    "grading": {
-      "by": "panqiwei",
-      "date": "2026-10-01",
-      "version": 1,
-      "judge": "judge:subagent:claude-sonnet-5-5 rules 70fdea287e52"
-    }
-  },
+  "signoffs": {},
   "materials": [
     {
       "id": "raf-derived-node",
-      "target": "realization 节点 session/run-attempt-facts-derived 的 design.md，种入后当作一轮候选修订",
+      "target": "Scoped raf-derived-node evaluation material",
       "brief": "briefs/raf-derived-node.md",
       "tags": [
         "种入的",
@@ -97,7 +85,7 @@
           "truth": "内核不取消在途调用，这句话没有机制；而且 attemptNotFound 是一个结论，撤除时应是 unavailable（契约 S-12、S-8）",
           "op": {
             "op": "replace",
-            "file": ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/design.md",
+            "file": "case/raf-derived-node/1-design.md",
             "find": "置撤除标记、清空缓存。**在途的调用跑完**（内核不取消在途调用），按它自己读到的那一份作答。",
             "replace": "置撤除标记、清空缓存。**在途的调用立即以 `attemptNotFound` 返回**，不再等日志。"
           }
@@ -109,7 +97,7 @@
           "truth": "读不到却作答：违反契约 S-7 第 2 条（看得见调用开始前已提交的）与 S-8（判不出即 unavailable），会漏判已被取代",
           "op": {
             "op": "replace",
-            "file": ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/design.md",
+            "file": "case/raf-derived-node/1-design.md",
             "find": "| `sessionLog.readSince` 答 `unavailable` | `unavailable`，缓存不动 |",
             "replace": "| `sessionLog.readSince` 答 `unavailable` | 以缓存里已折叠到的状态作答（缓存是精确的，不必失败），缓存不动 |"
           }
@@ -121,7 +109,7 @@
           "truth": "以 false 顶替判不出的事实：违反契约 S-8「绝不以 false 顶替」",
           "op": {
             "op": "replace",
-            "file": ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/design.md",
+            "file": "case/raf-derived-node/1-design.md",
             "find": "| 认法抛出、折叠抛出 | 缺陷：原样上抛、error 日志——**不折成 `unavailable`**，也**绝不以 `false` 顶替** |",
             "replace": "| 认法抛出、折叠抛出 | 记 error 日志；这个运行按未终结作答（`runEnded: false`），`superseded` 照常给出 |"
           }
@@ -133,7 +121,7 @@
           "truth": "进程内锁不是共同存储对象：随实例生灭，重启或换代后互不相知；契约 G-2 明写本版不闭合",
           "op": {
             "op": "replace",
-            "file": ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/design.md",
+            "file": "case/raf-derived-node/1-design.md",
             "find": "**与调用方的写之间的共同存储对象：没有**（契约 G-2）。",
             "replace": "**与调用方的写之间的共同存储对象：一把进程内的会话级互斥锁**（本节点导出，执行宿主落账前取、提交后放，loop 写尝试开始时取同一把）——读与落账由它排成同一次提交，契约 G-2 的漏标窗口在本节点闭合。下面是没有这把锁时的情形。"
           }
@@ -145,7 +133,7 @@
           "truth": "契约 S-11 写明本面不得直接暴露成终端 API；装配给的身份核实被取消而协议侧没有补",
           "op": {
             "op": "replace",
-            "file": ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/design.md",
+            "file": "case/raf-derived-node/1-design.md",
             "find": "| 调用方身份已核实 | 进程内能力间面 | **装配**：不把本服务接到任何入口 |",
             "replace": "| 调用方身份已核实 | 不需要核实：服务经 `ctx.provide` 在整棵树可见，据点的 HTTP 入口也直接转发 `attemptFacts`，方便外部工具查询运行进度 | —— |"
           }
@@ -157,7 +145,7 @@
           "truth": "依赖有序异步清理：内核不保证，也没有引 basis 条目",
           "op": {
             "op": "replace",
-            "file": ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/design.md",
+            "file": "case/raf-derived-node/1-design.md",
             "find": "**`sessionLog` 换代时收掉什么**：缓存（这正是要的，关键选择三）；",
             "replace": "**`sessionLog` 换代时收掉什么**：缓存（这正是要的，关键选择三）；内核按登记的逆序逐个 `await` 每个 effect 的异步清理，所以服务一定先撤回、缓存后清空，在途调用不会读到清到一半的缓存；"
           }
@@ -168,11 +156,6 @@
           "id": "K1",
           "verdict": "real",
           "what": "「缓存精确」的论证有一条没写出的前提。对照里四份报告都以非阻断报出"
-        },
-        {
-          "id": "K2",
-          "verdict": "real",
-          "what": "缺 Cordis 符合性核对表：判据页新增的核对项，节点早于它。对照里新角色两次都以非阻断报出"
         },
         {
           "id": "K3",
@@ -187,13 +170,14 @@
       ],
       "fixture": "fixtures/raf-derived-node.json",
       "required_inputs": [
-        ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/README.md",
-        ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/verification.md"
+        "case/raf-derived-node/1-design.md",
+        "case/raf-derived-node/promises.md",
+        "case/raf-derived-node/kernel-facts.md"
       ]
     },
     {
       "id": "raf-derived-node-clean",
-      "target": "同一个节点的 design.md，不种入，对照材料（已接受的设计当作一轮候选修订送审）",
+      "target": "Scoped raf-derived-node-clean evaluation material",
       "brief": "briefs/raf-derived-node.md",
       "tags": [
         "对照"
@@ -223,13 +207,14 @@
       ],
       "fixture": "fixtures/raf-derived-node.json",
       "required_inputs": [
-        ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/README.md",
-        ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/verification.md"
+        "case/raf-derived-node/1-design.md",
+        "case/raf-derived-node/promises.md",
+        "case/raf-derived-node/kernel-facts.md"
       ]
     },
     {
       "id": "entry-landing-r1",
-      "target": "治理中心入口层与运维面的落点选择（提案）、建立在它上面的组合契约 v1 候选稿与三个实现映射节点，第一次架构评审之前的快照",
+      "target": "Scoped entry-landing-r1 evaluation material",
       "brief": "briefs/entry-landing-r1.md",
       "tags": [
         "真实的"
@@ -243,7 +228,7 @@
           "truth": "契约 S-28 规定首铸的条件是「没有标识且治理事实为空」，并要求「有治理事实却没有标识 ⇒ 启动失败」。兑现它的入口层却只碰 governance_center 一张表，读或铸里没有这一支；在落点 A 的边界下入口层读不了治理事实所在的表，这条判定在结构上无人能兑现。结果是恢复不全的数据（库还在、标识行丢了）会静默铸出另一个中心，「中心标识一生不变」失去保护点",
           "quote": "**有治理事实却没有标识 ⇒ 启动失败**——这份数据不是一个中心从零立起来之后的样子（搬错了、截断了或恢复不全），铸一个新的只会给一份已有账号与组织的数据换一个身份",
           "files": [
-            ".meta_harness/design/spec/compositions/governance-center-entry/v1/contract.md"
+            "case/entry-landing-r1/6-contract.md"
           ]
         },
         {
@@ -254,7 +239,7 @@
           "truth": "装配节点仍按 account-identity v1 承接账号能力，而入口契约与入口层已经钉 v2。v2 S-30 新增的几条装配给保证（只有 S-44 认出示物、存储与备份里没有出示物、出示物只交到调用方手里、LoginStateId 部署内唯一）在装配一侧没有承接者，整条链上落空。只说「版本坐标写错了」而不指出装配给的保证无人承接，不算",
           "quote": "| `capability.account-identity/v1`（`accepted`）——八个操作、两个服务面 `accounts`／`logins` |",
           "files": [
-            ".meta_harness/design/realization/apps/tenancy-host/design.md"
+            "case/entry-landing-r1/4-design.md"
           ]
         },
         {
@@ -265,7 +250,7 @@
           "truth": "契约把存储、时钟提供者的换代算作合法的面缺席，并要求换代之后两张面同起同停、恢复应答。但入口层与运维面都注入存储与时钟，换代时各自重跑，先后由内核决定；运维面靠入口层的通知拿中心标识，入口层若先重跑完，运维面就再也收不到通知，可能永不应答。同起同停在这一交错下没有保护点，节点只把它记成实现限制",
           "quote": "- **「面缺席」只有三种时候**：启动（还没起来）、停机、某个参与方的提供者**换代**。",
           "files": [
-            ".meta_harness/design/spec/compositions/governance-center-entry/v1/contract.md"
+            "case/entry-landing-r1/6-contract.md"
           ]
         },
         {
@@ -276,7 +261,7 @@
           "truth": "「运维者没有任何一扇门」靠运维面目录的导入白名单来守。但 Cordis 事件可以按字符串名订阅，不经任何 import；导入白名单挡不住运维面通过事件触达治理事实，这条检查在性质被违反时不会失败",
           "quote": "| 5 | 运维面目录只按白名单导入（`kernel-basis`、`storage` 协议、`offer-expiry`、Node 内置、本包的事件声明模块），事件声明模块本身不导入任何 `tenancy/*` 包 | S-25、契约 SC-2 |",
           "files": [
-            ".meta_harness/design/realization/packages/tenancy/governance-center-entry/design.md"
+            "case/entry-landing-r1/5-design.md"
           ]
         },
         {
@@ -287,7 +272,7 @@
           "truth": "两步开门靠 config 里的 openSignal（一个运行时对象）：内核要把它原样交给插件体，重跑时还得是同一个对象。这是对 Cordis 怎样传递 config 的推导，没有 basis 条目，也没有列为待取证的假设；内核若拷贝或重建 config，兑现就到不了入口层，门永远不开",
           "quote": "`openSignal` 是运行时对象，不是配置文件里的数据：它只能由装配在装载时构造并传入；config 校验只核「在场且是 thenable」。",
           "files": [
-            ".meta_harness/design/realization/packages/tenancy/governance-center-entry/design.md"
+            "case/entry-landing-r1/5-design.md"
           ]
         },
         {
@@ -298,18 +283,7 @@
           "truth": "提案的代价按入口层 6 条注入边计价，节点落成了 8 条（多了 credentials 与 clock），代价没有回写，而每条注入边都意味着「任一换代就关门再开」。第 8 条还把「换代或不可用」都写成会让入口层卸载重跑，夸大了注入的机制语义：服务答不可用只是返回值，不会让插件体重跑、门不会关。指出其中任一半即算",
           "quote": "运行中任一被消费的服务换代或不可用，入口层卸载重跑，门随之关上",
           "files": [
-            ".meta_harness/design/case-inputs/governance-center-entry/design.md"
-          ]
-        },
-        {
-          "id": "N6",
-          "kind": "real",
-          "severity": "非阻断",
-          "where": "契约 §九 S-34 与已知缺口（当时没有对应条款）；入口节点 design.md「归装配的事项」；tenancy-host design.md「升级的整体性」",
-          "truth": "PF-017 §6.9「升级要么整体成、要么整体不成」与 §6.10「启动前只读核对」没有任何契约条款承载，只活在装配节点的设计里；它们的残余（例如迁移之后不可撤回）在契约层与 registry 上都看不见。性质只活在流程产物里，没有契约条款，也没有登记成缺口",
-          "quote": "的实现要求；本节点的片段只保证幂等",
-          "files": [
-            ".meta_harness/design/realization/packages/tenancy/governance-center-entry/design.md"
+            "case/entry-landing-r1/2-design.md"
           ]
         },
         {
@@ -320,7 +294,7 @@
           "truth": "开门的续延在等钟时按间隔轮询，没有写每一拍都重核入口层是否仍在、闸是否已退役：等待中入口层若已被撤除，续延仍可能开门并发出通知，撤除之后的在途工作无人收拾。另外，给运维者的提示「钟读不到，重启即可」在钟回拨时不成立——照原样重启会在只读核对上再次失败。指出其中任一半即算",
           "quote": "| **入口** `openSignal` 兑现 ⇒ 读钟（读不到按同一间隔轮询，上界 `clockReadyTimeoutMs`）→ `emit(",
           "files": [
-            ".meta_harness/design/realization/packages/tenancy/governance-center-entry/design.md"
+            "case/entry-landing-r1/5-design.md"
           ]
         }
       ],
@@ -353,24 +327,18 @@
       ],
       "fixture": "fixtures/entry-landing-r1.json",
       "required_inputs": [
-        ".meta_harness/design/case-inputs/governance-center-entry/design.md",
-        ".meta_harness/design/realization/apps/cli/README.md",
-        ".meta_harness/design/realization/apps/cli/verification.md",
-        ".meta_harness/design/realization/apps/tenancy-host/README.md",
-        ".meta_harness/design/realization/apps/tenancy-host/design.md",
-        ".meta_harness/design/realization/apps/tenancy-host/verification.md",
-        ".meta_harness/design/realization/packages/tenancy/governance-center-entry/README.md",
-        ".meta_harness/design/realization/packages/tenancy/governance-center-entry/design.md",
-        ".meta_harness/design/realization/packages/tenancy/governance-center-entry/verification.md",
-        ".meta_harness/design/spec/compositions/governance-center-entry/v1/contract.md",
-        ".meta_harness/research/agent-harness-persistence-and-identity-infra/research.md",
-        ".meta_harness/design/case-inputs/sqlite-checkpoint-facts.md",
-        ".meta_harness/design/case-inputs/adopted-integration-facts.md"
+        "case/entry-landing-r1/6-contract.md",
+        "case/entry-landing-r1/4-design.md",
+        "case/entry-landing-r1/5-design.md",
+        "case/entry-landing-r1/2-design.md",
+        "case/entry-landing-r1/3-sqlite-checkpoint-facts.md",
+        "case/entry-landing-r1/1-adopted-integration-facts.md",
+        "case/entry-landing-r1/account-assembly-promises.md"
       ]
     },
     {
       "id": "entry-providers-r1",
-      "target": "入口落点选定后牵连改动的三个提供者节点（account-identity 按 v2 修订、storage-sql 的升级守卫、clock 的现读墙钟），第二次架构评审之前的快照",
+      "target": "Scoped entry-providers-r1 evaluation material",
       "brief": "briefs/entry-providers-r1.md",
       "tags": [
         "真实的"
@@ -384,7 +352,7 @@
           "truth": "account-identity 节点把 CPU 密集的凭据计算（scrypt 的校验与派生）放进了一次 storage.write 的写事务里。sqlite 下库级写锁在整个凭据计算期间一直持有，这让另两个节点写明的前提失真：storage-sql 的「写事务里不等外部工作、持锁以毫秒计」，clock 的「续约间隔加写锁等待上限小于租约」。登录负载会拖住时钟续约，认证压力于是耦合到时钟可用性，进而影响整个中心的应答",
           "quote": "**一次 `storage.write`** 内：按标识读记录 → 不存在／`credentials.verify` 为 `mismatch`／未激活 ⇒ **同一个** `identifier-or-credential-rejected`",
           "files": [
-            ".meta_harness/design/realization/packages/tenancy/account-identity/design.md"
+            "case/entry-providers-r1/5-design.md"
           ]
         },
         {
@@ -395,7 +363,7 @@
           "truth": "account-identity v2 S-30 要求「只有 S-44 认出示物」，LoginStateId 只能来自本契约的结果。但 organization-governance 的两个操作把登录状态参数收成任意值、自己解析后再交给 logins.verify；入口层可以把线上收到的串直接交进来，account-identity 的品牌参数就被合法地满足了。这条装配给的保证没有任何一处会失败的检查",
           "quote": "`memberships.currentTenant(loginStateId)`／`switchCurrentTenant(loginStateId, tenantId)`。先表示层；",
           "files": [
-            ".meta_harness/design/realization/packages/tenancy/organization-governance/design.md"
+            "case/entry-providers-r1/6-design.md"
           ]
         },
         {
@@ -406,7 +374,7 @@
           "truth": "设计把「不导出出示物的生成与派生函数」写成挡住绕开 S-44 的机制。但派生式在契约 S-45 里公开，任何人都能自己算，不导出算不上防线。另外「出示物不进诊断输出」只有运行时翻查一支证据，源码层没有会失败的检查。指出其中任一半即算",
           "quote": "生成与派生出包就能绕开 S-44；实现类只给测试装配构造（随机源注入）",
           "files": [
-            ".meta_harness/design/realization/packages/tenancy/account-identity/design.md"
+            "case/entry-providers-r1/5-design.md"
           ]
         },
         {
@@ -417,7 +385,7 @@
           "truth": "确认升级与查询待确认升级这两个入口以 config 派生出的快照位置为键，没有绑定到实际取得排他、建了快照的那个实例。实例交错时（例如重跑时新旧实例并存），确认可能删错快照或什么都没删却照样返回成功；随后的撤除会恢复快照，已经答复过的写静默丢失",
           "quote": "`confirmUpgrade(config)`（候选）：删快照或标记，**目录落盘之后才返回**",
           "files": [
-            ".meta_harness/design/realization/packages/infra/storage-sql/design.md"
+            "case/entry-providers-r1/4-design.md"
           ]
         },
         {
@@ -428,7 +396,7 @@
           "truth": "带迁移却没有给 upgrade 配置时，守卫静默不开，升级退回「只有幂等」，PF-017 §6.9 不成立而没有任何信号。设计自己承认了这个弱点，却把唯一的防线放在装配自己的测试上：性质的保护点在缺省配置下无声消失",
           "quote": "部署可能忘了开——那时升级退回「只有幂等」，§6.9 不成立而无声",
           "files": [
-            ".meta_harness/design/realization/packages/infra/storage-sql/design.md"
+            "case/entry-providers-r1/4-design.md"
           ]
         },
         {
@@ -439,7 +407,7 @@
           "truth": "排他只在开了守卫的属主实例之间成立；不开守卫的实例不看锁，也不看快照。这样的实例若打开生产库，属主未确认时它写进去的一切会随恢复消失，它带迁移时还会在属主脚下迁移。「单属主」的前提落在谁身上没有写，这条边界没有任何一方认领",
           "quote": "它只在属主之间成立——不开守卫的实例不看锁（装配只装一个开了守卫的实例，tenancy-host `assembly.manifest-shape`）。",
           "files": [
-            ".meta_harness/design/realization/packages/infra/storage-sql/design.md"
+            "case/entry-providers-r1/4-design.md"
           ]
         },
         {
@@ -450,7 +418,7 @@
           "truth": "R-C2 把 sqlite 当前落盘方式下 OS 崩溃的丢失窗口写成「最近一次续约」。实际丢的是自上一次检查点以来、尚未回写的整段已提交事务：窗口被低估，「不后退」跨 OS 崩溃的真实后果没有标价",
           "quote": "OS 崩溃／断电可丢最后一段已提交事务（含最近一次续约）",
           "files": [
-            ".meta_harness/design/realization/packages/infra/clock/design.md"
+            "case/entry-providers-r1/3-design.md"
           ]
         },
         {
@@ -461,7 +429,7 @@
           "truth": "选中的做法（每次现读墙钟、与用过的最晚时刻比对）在「墙钟先往前跳、后被校正回来」时会停摆，时长等于跳幅，重启也绕不过，没有运维出口。这是选中方相对落选方多付的一项代价，代价表里没有",
           "quote": "| 运行中墙钟向前跳过租约界 ⇒ 答不可用，直到下一次续约 | ≤ L/3（候选 ≈ 3.3 s） |",
           "files": [
-            ".meta_harness/design/realization/packages/infra/clock/design.md"
+            "case/entry-providers-r1/3-design.md"
           ]
         },
         {
@@ -472,7 +440,7 @@
           "truth": "快照先写到临时名再改名。进程若在改名之前崩溃，临时名上的半成品没有任何一步去清理：下一次启动只看快照位置、不看临时名。资源在崩溃路径上没有释放者",
           "quote": "写到临时名 → 文件落盘 → 原子改名成快照名 → 目录落盘；**改名之后才算有快照**",
           "files": [
-            ".meta_harness/design/realization/packages/infra/storage-sql/design.md"
+            "case/entry-providers-r1/4-design.md"
           ]
         }
       ],
@@ -500,29 +468,22 @@
       ],
       "fixture": "fixtures/entry-providers-r1.json",
       "required_inputs": [
-        ".meta_harness/design/realization/packages/infra/clock/README.md",
-        ".meta_harness/design/realization/packages/infra/clock/design.md",
-        ".meta_harness/design/realization/packages/infra/clock/verification.md",
-        ".meta_harness/design/realization/packages/infra/storage-sql/README.md",
-        ".meta_harness/design/realization/packages/infra/storage-sql/design.md",
-        ".meta_harness/design/realization/packages/infra/storage-sql/verification.md",
-        ".meta_harness/design/realization/packages/tenancy/account-identity/README.md",
-        ".meta_harness/design/realization/packages/tenancy/account-identity/design.md",
-        ".meta_harness/design/realization/packages/tenancy/account-identity/verification.md",
-        ".meta_harness/design/realization/packages/tenancy/organization-governance/design.md",
-        ".meta_harness/design/spec/capabilities/account-identity/v2/contract.md",
-        ".meta_harness/design/spec/capabilities/organization-governance/v1/contract.md",
-        ".meta_harness/design/spec/compositions/governance-center-entry/v1/contract.md",
-        ".meta_harness/design/spec/data/identity-values/v1/contract.md",
-        ".meta_harness/design/spec/data/offer-expiry/v1/contract.md",
-        ".meta_harness/research/agent-harness-persistence-and-identity-infra/research.md",
-        ".meta_harness/design/case-inputs/sqlite-checkpoint-facts.md",
-        ".meta_harness/design/case-inputs/adopted-integration-facts.md"
+        "case/entry-providers-r1/5-design.md",
+        "case/entry-providers-r1/6-design.md",
+        "case/entry-providers-r1/4-design.md",
+        "case/entry-providers-r1/3-design.md",
+        "case/entry-providers-r1/7-contract.md",
+        "case/entry-providers-r1/8-contract.md",
+        "case/entry-providers-r1/9-contract.md",
+        "case/entry-providers-r1/10-contract.md",
+        "case/entry-providers-r1/11-contract.md",
+        "case/entry-providers-r1/2-sqlite-checkpoint-facts.md",
+        "case/entry-providers-r1/1-adopted-integration-facts.md"
       ]
     },
     {
       "id": "message-stream-baseline",
-      "target": "提案 message-and-stream-baseline 首稿：消息的数据契约、到达语法与流装配器三层各以谁为起点（四个候选，推荐 D 逐层混合），独立架构评审之前的快照",
+      "target": "Scoped message-stream-baseline evaluation material",
       "brief": "briefs/message-stream-baseline.md",
       "tags": [
         "真实的",
@@ -537,7 +498,7 @@
           "truth": "推荐方把「参数收齐才解析、只解析一次」（PF-009 §6.10）的兑现放在传输适配上：从增量拼回原串、丢弃 partial 快照，并写下不必改动 pi。但 pi 在给出每个参数增量之后自己就做一次中间解析，封口时再解析一次（研究笔记记有「每一次 delta 都解析」）；外层丢弃解析结果消除不了这次中间解析。这条性质在选定路径上没有保护点，禁止中间解析的责任必须由 fork 承担",
           "quote": "要做：原始参数串从增量拼（或 fork 保留原串）、丢弃 `partial` 快照",
           "files": [
-            ".meta_harness/design/case-inputs/message-and-stream-baseline/design.md"
+            "case/message-stream-baseline/2-design.md"
           ]
         },
         {
@@ -548,7 +509,7 @@
           "truth": "推荐方把 DSH 的不变量伴件当成可以逐条升格为语法条款的检查集。它不是完整的、也不是可以照抄的检查集：例如用量只查「至多一次」而不查必须出现；带着未关的块结束只允许出错或中止，与截断收场要保留半截调用的要求不合。照抄升格，「终结、一次记账、装配一致」这组性质就缺保护点；须逐项筛选补全。指出伴件检查集与要兑现的性质不重合、因而不能照抄，即算",
           "quote": "伴件的检查**逐条升格为语法条款**",
           "files": [
-            ".meta_harness/design/case-inputs/message-and-stream-baseline/alternatives.md"
+            "case/message-stream-baseline/1-alternatives.md"
           ]
         },
         {
@@ -559,7 +520,7 @@
           "truth": "持久化与崩溃恢复这一项命中了，却没有写由谁兑现。提案只要求「已开口」能作为一条事实被识别；但内容已经送到用户眼前、成品尚未提交时崩溃，用户看到过的前缀照样会丢（PF-009 §6.9）。由谁、在何时持久保存已交付的内容，没有落到任何契约或负责方身上",
           "quote": "两者相容的前提是「已开口」是**一条事实**而不是增量本身",
           "files": [
-            ".meta_harness/design/case-inputs/message-and-stream-baseline/design.md"
+            "case/message-stream-baseline/2-design.md"
           ]
         },
         {
@@ -570,7 +531,7 @@
           "truth": "「合并不变，因此节流只能放在装配之后」不能从前件推出：只要保住语法检查与首 token 的观察，装配之前做等价合并同样可行。提案把投递位置写成性质的推论，等于在共用基线里钉死了一个需求没有要求的拓扑",
           "quote": "**因此节流只能发生在装配之后的实时投递那一路，装配器要见到每一个增量**",
           "files": [
-            ".meta_harness/design/case-inputs/message-and-stream-baseline/design.md"
+            "case/message-stream-baseline/2-design.md"
           ]
         },
         {
@@ -581,7 +542,7 @@
           "truth": "跨进程身份与租户边界这一项命中了，却没有写由谁兑现。流内的索引只是单条流里的关联键，不能独自把一条流绑定到租户、会话、尝试或工具执行；迟到的旧一代增量与跨进程校验的责任在提案里没有归属（PF-000 §5.5、SYS-TENANT）。提案里只有「块身份与嵌套块寻址」这一条缺口，没有覆盖这件事",
           "quote": "| **块身份与嵌套块寻址** | 数据契约起草 | PF-010 压缩名单能否落地 |",
           "files": [
-            ".meta_harness/design/case-inputs/message-and-stream-baseline/design.md"
+            "case/message-stream-baseline/2-design.md"
           ]
         }
       ],
@@ -624,14 +585,13 @@
       ],
       "fixture": "fixtures/message-stream-baseline.json",
       "required_inputs": [
-        ".meta_harness/design/case-inputs/message-and-stream-baseline/README.md",
-        ".meta_harness/design/case-inputs/message-and-stream-baseline/alternatives.md",
-        ".meta_harness/design/case-inputs/message-and-stream-baseline/design.md",
-        ".meta_harness/design/foundation/cross-system-constraints/requirements.md",
-        ".meta_harness/research/message-model-and-stream-sources/notes/dsh-llm.md",
-        ".meta_harness/research/message-model-and-stream-sources/notes/pi-ai.md",
-        ".meta_harness/research/message-model-and-stream-sources/reports/2026-09-23-message-and-stream-mapping.md",
-        ".meta_harness/research/model-request-transport-sources/reports/2026-09-23-model-request-transport.md"
+        "case/message-stream-baseline/2-design.md",
+        "case/message-stream-baseline/1-alternatives.md",
+        "case/message-stream-baseline/3-dsh-llm.md",
+        "case/message-stream-baseline/4-pi-ai.md",
+        "case/message-stream-baseline/5-2026-09-23-message-and-stream-mapping.md",
+        "case/message-stream-baseline/6-2026-09-23-model-request-transport.md",
+        "case/message-stream-baseline/public-premises.md"
       ]
     }
   ]

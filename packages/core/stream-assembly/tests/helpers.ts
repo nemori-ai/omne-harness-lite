@@ -55,7 +55,10 @@ export function source(
     artifact =>
       artifact.section.startsWith(section) &&
       artifact.kind === kind &&
-      artifact.path.includes(arrival ? '/data/arrival-events/' : '/capabilities/stream-assembly/'),
+      artifact.path ===
+        (arrival
+          ? 'packages/core/arrival-events/tests/fixtures/arrival-examples.md'
+          : 'packages/core/stream-assembly/tests/fixtures/assembly-examples.md'),
   )
 }
 export function eventSources(section: string, arrival = false): readonly SourceArtifact[] {
@@ -76,7 +79,7 @@ export function expectedAt(line: number): JsonValue {
     artifact =>
       artifact.line === line &&
       artifact.kind === 'json-block' &&
-      artifact.path.includes('/capabilities/stream-assembly/'),
+      artifact.path === 'packages/core/stream-assembly/tests/fixtures/assembly-examples.md',
   )
   if (fixture === undefined) throw new Error(`missing expected source ${line}`)
   return json(fixture.json)

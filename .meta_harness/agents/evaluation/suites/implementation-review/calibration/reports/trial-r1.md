@@ -1,3 +1,7 @@
+# 固定校准输入
+
+以下为静态模拟报告，供已知语义oracle及派生反例使用。工具与差异段仅为案例事实，不是当前实现的运行结果或开发记录。
+
 # 实现评审：`session-tenancy-table` 交付 `cb67a8e`
 
 **评审对象**：检出 `/data/qiwei/eval-implementation-reviewer/checkout`，基线 `e05d97f`，交付 `cb67a8e`（单提交），接受级别 L3。

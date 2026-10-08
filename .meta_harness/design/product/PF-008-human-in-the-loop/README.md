@@ -94,10 +94,8 @@ relations:
   只引用、不拥有，用到哪几件事写在 [design.md §4](design.md#只引用不拥有的两个对象)
 - 上游欠账：**已闭合**——[当前规则与范围](../PF-007-meta-capabilities/design.md) 已补上
   「**禁的是系统替人解释，不是禁止人给长期授权**」这句交叉引用
-- 技术投影：**尚未开始**
 
 技术投影按 `harness-design-handbook` skill 展开，
-产物按其步骤 G 落回本包的 `projection/v1/`。
 
 ## 本包的文件
 

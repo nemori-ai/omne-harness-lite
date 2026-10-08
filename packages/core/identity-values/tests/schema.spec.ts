@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
@@ -17,13 +18,16 @@ import {
   parseTenantRole,
   validate,
 } from '../src/index.ts'
-import { SPEC_DIR, loadExampleRows } from './spec-fixtures.ts'
+import { loadExampleRows } from './spec-fixtures.ts'
 
-describe('Schema 副本', () => {
-  it('与 spec 目录的规范工件逐字节相同', () => {
-    const original = readFileSync(resolve(SPEC_DIR, 'identity-values.schema.json'))
-    const copy = readFileSync(resolve(import.meta.dirname, '../schema/identity-values.schema.json'))
-    expect(copy.equals(original)).toBe(true)
+describe('规范 Schema 身份', () => {
+  it('保留已采用的规范字节', () => {
+    const bytes = readFileSync(
+      resolve(import.meta.dirname, '../schema/identity-values.schema.json'),
+    )
+    expect(createHash('sha256').update(bytes).digest('hex')).toBe(
+      '1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855',
+    )
   })
 
   it('十二个定义项都能取到校验器', () => {

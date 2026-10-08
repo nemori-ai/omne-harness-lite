@@ -12,11 +12,8 @@ import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-ru
 import schema from '@omne-harness-lite/agent-definition/schema' with { type: 'json' }
 import { extractAgentDefinitionInputs, judgeAgentDefinitionBody } from '../src/index.ts'
 
-const normative = new URL(
-  '../../../../.meta_harness/design/spec/data/agent-definition/v1/',
-  import.meta.url,
-)
-const examples = readFileSync(new URL('examples.md', normative), 'utf8')
+const normative = new URL('./fixtures/', import.meta.url)
+const examples = readFileSync(new URL('agent-definition-examples.md', normative), 'utf8')
 function parsed(text: string): JsonValue {
   const result = readJsonStrict(text)
   if ('failed' in result) throw new Error(`fixture failed: ${result.failed}`)
@@ -138,8 +135,6 @@ describe('normative body and immutable extraction', () => {
 
   test('published schema is the exact accepted resource and its root is unconstrained', () => {
     const bytes = readFileSync(new URL('../schema/agent-definition.schema.json', import.meta.url))
-    const frozen = readFileSync(new URL('agent-definition.schema.json', normative))
-    expect(bytes).toEqual(frozen)
     expect(createHash('sha256').update(bytes).digest('hex')).toBe(
       'e115d2b7d47a3121c3706eeeae91a67c06c1363550d7f1e46f714f5e29a0cff9',
     )

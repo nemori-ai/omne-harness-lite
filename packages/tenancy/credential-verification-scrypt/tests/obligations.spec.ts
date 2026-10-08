@@ -1,4 +1,4 @@
-// 节点 verification.md 的证据义务（.meta_harness/design/realization/packages/tenancy/credential-verification/verification.md）。
+// 凭据提供者SPEC及本包verification的验证义务。
 // 包内能证的逐条是真实测试；归别处的写成带指向的 it.skip。
 import { describe, expect, it } from 'vitest'
 import { scryptSync } from 'node:crypto'

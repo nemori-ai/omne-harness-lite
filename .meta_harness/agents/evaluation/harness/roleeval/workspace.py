@@ -161,10 +161,6 @@ def apply(dest: Path, ops: list[dict[str, Any]], *, suite: Path) -> None:
             target = dest / op["to"]
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(suite / op["from"], target)
-        elif kind == "catalog-candidate":
-            _candidate(dest / op["registry"], op["contract_id"], op["version"])
-        elif kind == "catalog-add-clause":
-            _add_clause(dest / op["registry"], op["contract_id"], op["version"], op["dependency"], op["clause"])
         else:
             raise WorkspaceError(f"unknown workspace op {kind!r}")
 
@@ -179,21 +175,52 @@ def commit(dest: Path) -> None:
 
 # --- checkout copies -----------------------------------------------------------------------------------------
 
-def template_name(flow_id: str, base: str, excludes: list[str], setup: list[list[str]]) -> str:
+def template_name(flow_id: str, base: str, excludes: list[str], setup: list[list[str]],
+                  relocations: list[dict[str, Any]] | None = None) -> str:
     """One template per (base, excludes, setup): change any of them and another template is built."""
-    key = hashlib.sha256(json.dumps([base, excludes, setup]).encode()).hexdigest()[:8]
+    inputs = [base, excludes, setup]
+    if relocations:
+        inputs.append(relocations)
+    key = hashlib.sha256(json.dumps(inputs).encode()).hexdigest()[:8]
     return f"{flow_id}-{base[:12]}-{key}"
 
 
+def relocate_inputs(dest: Path, relocations: list[dict[str, Any]]) -> None:
+    """Move fixed case inputs and redirect their exact readers before removing excluded sources."""
+    def path(relative: str) -> Path:
+        item = Path(relative)
+        if item.is_absolute() or not item.parts or any(p in (".", "..") for p in item.parts):
+            raise WorkspaceError(f"invalid input path: {relative}")
+        target = dest / item
+        if any(p.is_symlink() for p in [target, *target.parents] if p.is_relative_to(dest)):
+            raise WorkspaceError(f"input path is a symbolic link: {relative}")
+        return target
+
+    for entry in relocations:
+        source, target = path(entry["from"]), path(entry["to"])
+        if source.is_relative_to(dest / ".meta_harness/agents/evaluation"):
+            raise WorkspaceError("evaluation ground truth cannot become a case input")
+        if not source.is_file() or target.exists():
+            raise WorkspaceError(f"cannot relocate input {entry['from']} to {entry['to']}")
+        for reader in entry["consumers"]:
+            file = path(reader["file"])
+            text = file.read_text(encoding="utf-8")
+            if not reader["find"] or text.count(reader["find"]) != 1:
+                raise WorkspaceError(f"{reader['file']}: input reader must match exactly once")
+            file.write_text(text.replace(reader["find"], reader["replace"]), encoding="utf-8")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        source.rename(target)
+
+
 def template(repo: Path, work: Path, *, flow_id: str, base: str, excludes: list[str],
-             setup: list[list[str]]) -> Path:
+             setup: list[list[str]], relocations: list[dict[str, Any]] | None = None) -> Path:
     """The installed and built checkout of ``base`` that run copies are taken from; built once, then reused.
 
     It is built in a sibling directory and renamed into place only after every setup command
     succeeded, so a template that exists is a finished one.
     """
     root = work / TEMPLATES
-    final = root / template_name(flow_id, base, excludes, setup)
+    final = root / template_name(flow_id, base, excludes, setup, relocations)
     if (final / READY).is_file():
         return final
     if final.exists():
@@ -204,6 +231,7 @@ def template(repo: Path, work: Path, *, flow_id: str, base: str, excludes: list[
     building.mkdir()
     try:
         _extract(repo, base, building)
+        relocate_inputs(building, relocations or [])
         for relative in excludes:
             target = building / relative
             if target.is_dir() and not target.is_symlink():
@@ -214,7 +242,8 @@ def template(repo: Path, work: Path, *, flow_id: str, base: str, excludes: list[
             ran = run(command, building)
             if not ran.ok:
                 raise WorkspaceError(f"template setup `{' '.join(command)}` exited {ran.code}:\n{ran.output[-4000:]}")
-        (building / READY).write_text(json.dumps({"base": base, "excludes": excludes, "setup": setup}) + "\n",
+        (building / READY).write_text(json.dumps({"base": base, "excludes": excludes, "setup": setup,
+                                                "relocations": relocations or []}) + "\n",
                                       encoding="utf-8")
         os.rename(building, final)
     except BaseException:
@@ -287,39 +316,3 @@ def patch(dest: Path) -> bytes:
         return subprocess.run(["git", "-C", str(dest), "diff"], capture_output=True, check=True).stdout
     finally:
         git(dest, "reset", "-q")
-
-
-def _entry(catalog: dict[str, Any], contract_id: str, version: int) -> dict[str, Any]:
-    for item in catalog["contracts"]:
-        coordinate = item["coordinate"]
-        if coordinate["contract_id"] == contract_id and coordinate["version"] == version:
-            return item
-    raise WorkspaceError(f"coordinate {contract_id} v{version} is not in the catalog")
-
-
-def _candidate(registry: Path, contract_id: str, version: int) -> None:
-    """Present an accepted contract as an unfrozen candidate, so the edit itself is not the finding."""
-    catalog = json.loads((registry / "catalog.json").read_text(encoding="utf-8"))
-    item = _entry(catalog, contract_id, version)
-    item["status"] = "candidate"
-    item.pop("acceptance", None)
-    _write(registry / "catalog.json", catalog)
-    frozen = json.loads((registry / "frozen.json").read_text(encoding="utf-8"))
-    frozen["files"] = {path: digest for path, digest in frozen["files"].items() if path not in item["resources"]}
-    _write(registry / "frozen.json", frozen)
-
-
-def _add_clause(registry: Path, contract_id: str, version: int, dependency: dict[str, Any], clause: str) -> None:
-    catalog = json.loads((registry / "catalog.json").read_text(encoding="utf-8"))
-    item = _entry(catalog, contract_id, version)
-    for declared in item["dependencies"]:
-        coordinate = declared["coordinate"]
-        if coordinate["contract_id"] == dependency["contract_id"] and coordinate["version"] == dependency["version"]:
-            declared["clauses"].append(clause)
-            _write(registry / "catalog.json", catalog)
-            return
-    raise WorkspaceError(f"{contract_id} v{version} declares no dependency on {dependency}")
-
-
-def _write(path: Path, value: dict[str, Any]) -> None:
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

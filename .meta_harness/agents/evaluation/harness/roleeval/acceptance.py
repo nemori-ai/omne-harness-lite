@@ -3,7 +3,7 @@
 The copy has the implementer's tests removed and the seeded defects built into the artefact. The role
 writes a ``report.json`` with a verdict and a result for each criterion; when the run is recorded the
 program compares it with what the defects are known to break. This is the judgment of the earlier
-role-model comparison (``role-model-sonnet55/tooling/evalrun.py``: ``prepare``, ``oracle_acceptance``)
+role-model comparison (``the scoped program-judged suite``: ``prepare``, ``oracle_acceptance``)
 with its third revision (``evalrun_r3.py``): a criterion listed under ``either`` may be judged pass or fail.
 """
 from __future__ import annotations

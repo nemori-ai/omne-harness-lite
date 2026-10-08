@@ -12,13 +12,7 @@ import {
 } from '@omne-harness-lite/model-response'
 import { isObject } from '../src/json.ts'
 
-const examples = readFileSync(
-  new URL(
-    '../../../../.meta_harness/design/spec/data/model-response/v11/examples.md',
-    import.meta.url,
-  ),
-  'utf8',
-)
+const examples = readFileSync(new URL('fixtures/response-examples.md', import.meta.url), 'utf8')
 function example(heading: string): JsonObject {
   const start = examples.indexOf(`### ${heading}\n`)
   if (start < 0) throw new Error(`missing MR11 example: ${heading}`)

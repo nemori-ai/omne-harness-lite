@@ -16,12 +16,59 @@
 | A6 | 成员检查 | `apps/cli` 下 `pnpm test` 与 `pnpm typecheck` 通过 |
 
 @@SPEC
-- 节点设计：`.meta_harness/design/realization/apps/cli/iterm.md`「R2：控制答复先分帧的修订候选」全节。接受依据：`.meta_harness/design/record/decisions/governance-iterm-provider-adoption/`（D054）。
-- 契约：`.meta_harness/design/spec/compositions/governance-cli-entry/v2/contract.md`（CQ2）关于输入拥有与关闭的条款；接受依据 `.meta_harness/design/record/decisions/governance-tui-entry-adoption/`（D051）。
 - 相邻接口：下游是 `apps/cli/src/tui/framer.ts` 的 `InputFramer`；消费者是 `apps/cli/src/tui/terminal.ts`。
-- 研究依据：`.meta_harness/research/agent-harness-cli-tui/reports/2026-09-25-iterm-input/`。
 - 本次采用值：识别集合是 `ESC [ ? 2004 ; <0-4> $ y` 这五个精确序列。
 
+
+本评估使用固定基底的接口／命令表与以下局部规则，CQ编号仅为本案例条款标签。它们不是当前项目的产品交付承诺或历史接受记录；不得据此恢复中央设计目录。
+
+## S-7 非秘密终端输入
+
+1. 输入：受支持来源的普通按键、粘贴、EOF、取消；严格增量UTF-8，不以替换字符修正字节。
+2. 前置：终端支持/profile与独占控制成立；应用不宣称凭字节认证粘贴或模式答复。
+3. 次序：先按拥有者的有界帧规则组合，再交普通键组件；粘贴是单个文本事件，内部换行或控制字节不成为Enter/业务确认。未完成字段、帧前缀与组件历史分别有明确上界。每字段最多64KiB UTF-8；保留最近256个撤销快照，只有一个活动输入实例；不提供kill/yank或鼠标输入，清空字段建立新实例。
+4. 状态：只处理非秘密字段；危险控制文本在进入显示布局前被拒绝或转为明确数据，不成为终端指令。
+5. 成功：普通可支持字符保持原值；完成键只在当前可见交互状态内有效。
+6. 失败：非法编码/控制/超限拒绝，已开始粘贴继续丢弃至实际帧结束或真实EOF；不保留超限正文，不将定时无输入当结束。
+7. 重复：批量粘贴/迟到事件不自动触发下一动作；忙碌/关闭阶段不为以后排队业务键。
+8. 效果：只有语义事件，不能自行调用治理服务或写本地选择。
+9. 收场：停止新输入准入后，已拥有帧仍有收场者；恢复终端前必须实际结束。永不完成的外部输入不承诺有界退出，强杀不保证恢复。
+
+
+## S-10 退出与依赖释放
+
+1. 输入：退出键、EOF、信号、CG要求重进、呈现/内部失败。
+2. 前置：可调度；终端物理消失、SIGKILL不承诺可恢复。
+3. 次序：幂等关闭新动作/重绘准入，请求CG关闭；等本次输入帧、CG实际工作及已经提交的普通输出全部结束；同一输出拥有者恢复本次改动的模拟器模式并核实，再恢复OS属性并撤输入监听；最后关闭CLS并给稳定结束说明。没有活动use的setup同样关闭CG根及其已受理任务，不凭use缺席跳过根工作。
+4. 状态：关闭不改变已发出的业务事实，不把停止说成撤销；待画帧可以丢弃，已发帧不可撤回。
+5. 成功：没有遗留输入消费者、重绘、模式改动或仍被使用的CLS；不自动再开use。
+6. 失败：CG关闭拒绝不得宣称静止或撤CLS；输入/输出/恢复无法结束不靠超时假释放；已知恢复/关闭缺陷按S11报告。
+7. 重复：重复信号/关闭只作用同一收场任务，不创建新调用或重复最终输出。
+8. 效果：已知业务结果原样保留；不强制退出以伪造完成。
+9. 收场：资源按实际拥有关系配对；退出后迟到事件不能再写或发请求。
+
+
+拟增加名称`iterm-3.7.1beta1`，只在macOS准入。用户选择表示明确采用该版本、UTF8、直接独占同一TTY、普通键和普通GUI CmdV、无会话广播/tmux/自定义字节注入/特殊粘贴；用户不在粘贴中启用keystroke passthrough或取消终端自身粘贴，不在IME未提交组合时发起粘贴、不在粘贴过程中提交IME。中文输入法只覆盖已观察的WeType Pinyin普通可打印文本提交，不能把Apple Pinyin或其他模拟器登记成实测通过。
+
+额外前提是NoSyncTurnOffBracketedPasteOnHostChange不为true；未设置时出现提示不得选Yes/Always，不能在使用中手动关闭2004。false或明确不接受提示关闭均保持已观察的输入模式。应用不读写用户iTerm全局偏好，不假装从TERM或DECRQM推导这些前提。这些支持前提不能藏在allowlist中或从TERM名称推断。
+
+来源绑定：iTermPasteHelper普通清理后加括号、完整buffer分块、末块write后才dequeue普通键；PTYTextView shouldHandleKeyDown在isPasting且未passthrough时排队；PTYSession bracketedPastePending初块与后续普通写同dataQueue。源路径对不支持来源没有承诺。现有分帧器/严格UTF8/64KiB上界/原生Input256历史、修订和真实write屏障全部复用；新增profile不启额外终端模式，不借新插件改变CG/CLS拥有关系。
+
+对账四表：①已有CQ2输入/输出/关闭性质归同一DirectTerminal，源前提由profile声明，不是协议认证；②跨进程终端字节顺序与OS恢复仍由外部终端/适配器兑现，Cordis不提供；③原xterm profile、原CG固定Use和写提交边界保持；④不增加服务/owner/状态模型，只增加一个有条件提供路径，运行环境约束是实际代价。撤除仍等inputDone、CG静止、输出真实完成，随后2004答复与termios恢复，不按模拟器名字跳过握手。断开/错误处理保持失败，不清空未完帧。
+
+本案例只检查所述输入隔离、终端恢复与固定Use边界。实际GUI支持须另有真实模拟器证据；字节注入单元测试不能证明GUI、IME或其他输入来源。
+
+## R2：控制答复先分帧的修订候选
+
+模式答复与普通键队列不同，可能插入begin/end甚至UTF-8字节之间。本案例要求先隔离控制答复，不假定它服从完整粘贴顺序。
+
+DirectTerminal字节入口提供仅iTerm profile启用的有界控制答复拆分器：五个精确2004 DECRQM答复是唯一识别集合，候选最多11字节；完整匹配直接交当前查询等待者，其他字节按原顺序回送既有InputFramer。新ESC使旧非匹配候选按序回送并开始新候选，因此答复可从普通帧前缀/尾/UTF8中移除，原内容的字节序保持。源普通纯文本粘贴先过滤ESC是前提，不宣称鉴别恶意脚本注入。文件URL、auto-composer和其他粘贴形态明确不支持。
+
+拆分器在本次终端拥有期间始终生效，不随query计时器关闭；完整无等待者答复只丢弃其控制意义，不产生业务键。这样query超时不等于撤掉迟到答复的收场者。xterm继续原路径；原InputFramer的paste正文控制码拒绝不改。Terminal查询仍只接受实际pending查询的结果。
+
+停止顺序：DirectTerminal立即关闭非控制语义事件交付，先等待拆分器当前已拥有候选变成完整答复或按原序交回普通分帧器，再调用InputFramer.stop等待原paste/首前缀。期间原InputFramer仍有界解析但不能把事件交给已关闭界面；完整mode继续用于控制握手。真实EOF让拆分器把未匹配候选交回原分帧器再触发eof；error不清候选、不充当EOF。调用stop之后才开始的新按键不排队到未来界面。恢复2004仍经过同一拆分器，实际输出和模式答复结束后才撤监听/关闭拆分器。
+
+必须反例驱动验证：在START每个切口、END每个切口、UTF8每个字节切口插入所有5种精确答复并按每字节投递；取消时已持有半答复/半begin/半end，query超时后迟到答复，真实EOF与input error区别，64KiB丢弃仍能结束。普通模式下paste内控制答复继续invalid。真实模拟器的支持验证不由合成字节测试替代。此规则只细化CQ2 S7/S11拥有者，不修改固定Use、字段、业务确认/关闭后置条件。
 @@PROPERTIES
 - 不丢字节、不改顺序、不产生业务键。
 - 超时不是释放：候选的收场只来自后继字节或真实 EOF。

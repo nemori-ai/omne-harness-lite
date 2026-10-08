@@ -165,13 +165,6 @@ def verify(flow: Flow, work: Path, only: list[str] | None = None, notes: list[st
                 for fragment in seed.fragments():
                     if not any(fragment in text for text in texts):
                         problems.append(f"{material.id}.{seed.id}: the material does not contain {fragment[:50]!r}")
-            if flow.attach_design_review:
-                report = review.design_review_report(REPO, dest, material.contract)
-                found = report.split("## 未能判定")[0]
-                for seed in material.seeds:
-                    if seed.check and f"[{seed.check}]" not in found:
-                        problems.append(f"{material.id}.{seed.id}: the design review report does not raise "
-                                        f"[{seed.check}] on the seeded copy")
         except (workspace.WorkspaceError, RuntimeError) as error:
             problems.append(f"{material.id}: {error}")
         finally:
@@ -235,8 +228,6 @@ def inputs(flow: Flow) -> str:
         if material.source:
             lines += ["", f"来源：{material.source}"]
         lines += ["", "### 简报（逐字）", "", fenced(material.brief.read_text(encoding="utf-8"))]
-        if flow.attach_design_review:
-            lines += ["", "运行时在简报末尾另附设计评审报告在该副本上的原始输出。"]
         if material.delivery_note:
             lines += ["", "运行时 `{BASE}` 换成副本里基线提交的哈希、`{HEAD}` 换成交付提交的哈希，"
                           "`{DELIVERY_NOTE}` 换成下面这份交付说明的全文。", "",

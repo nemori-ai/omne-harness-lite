@@ -212,6 +212,47 @@ def test_a_failed_setup_leaves_no_template_behind(tiny: dict[str, Any]) -> None:
     assert (good / workspace.READY).is_file()
 
 
+def test_fixed_inputs_move_before_old_sources_are_excluded(tiny: dict[str, Any]) -> None:
+    root = tiny["repo"]
+    payload = '{"accepted": [1, 2]}\n'
+    write(root, {"old-design/input.json": payload,
+                 "member/tests/reader.ts": "read('old-design/input.json')\n",
+                 "old-design/contract.md": "retired guidance\n", "AGENTS.md": "old authority\n"})
+    git(root, "add", "-A")
+    git(root, "commit", "-qm", "fixed input fixture")
+    base = git(root, "rev-parse", "HEAD")
+    relocations = [{"from": "old-design/input.json", "to": "member/tests/fixtures/input.json",
+                    "consumers": [{"file": "member/tests/reader.ts", "find": "old-design/input.json",
+                                   "replace": "member/tests/fixtures/input.json"}]}]
+    copied = workspace.template(root, tiny["work"], flow_id="relocated", base=base,
+                                excludes=["old-design", "AGENTS.md"], setup=[], relocations=relocations)
+    assert not (copied / "old-design").exists() and not (copied / "AGENTS.md").exists()
+    assert (copied / "member/tests/fixtures/input.json").read_text() == payload
+    assert (copied / "member/tests/reader.ts").read_text() == "read('member/tests/fixtures/input.json')\n"
+    altered = [{**relocations[0], "to": "member/tests/fixtures/other.json"}]
+    assert workspace.template_name("relocated", base, [], [], relocations) != workspace.template_name(
+        "relocated", base, [], [], altered)
+
+
+@pytest.mark.parametrize("case", ["outside", "link", "ground-truth", "reader"])
+def test_input_relocation_rejects_unsafe_or_inexact_sources(tmp_path: Path, case: str) -> None:
+    write(tmp_path, {"input.json": "{}\n", "reader.ts": "original\n",
+                     ".meta_harness/agents/evaluation/truth.json": "answer\n"})
+    source = "input.json"
+    if case == "outside":
+        source = "../input.json"
+    elif case == "link":
+        (tmp_path / "link.json").symlink_to("input.json")
+        source = "link.json"
+    elif case == "ground-truth":
+        source = ".meta_harness/agents/evaluation/truth.json"
+    consumers = [{"file": "reader.ts", "find": "absent", "replace": "new"}] if case == "reader" else []
+    with pytest.raises(workspace.WorkspaceError):
+        workspace.relocate_inputs(tmp_path, [{"from": source, "to": "fixtures/input.json",
+                                             "consumers": consumers}])
+    assert not (tmp_path / "fixtures/input.json").exists()
+
+
 def test_a_copy_has_no_truth_hard_links_its_dependencies_and_drops_host_links(tiny: dict[str, Any]) -> None:
     source = source_of(tiny, "tiny-implement")
     assert not (source / ".meta_harness" / "agents" / "evaluation").exists(), "excludes 不进模板"
@@ -651,7 +692,10 @@ def test_the_signed_judge_keeps_its_name_and_implementation_review_has_its_own()
     assert sorted(judge.OUT_OF_KIND) == sorted(["表达", "选择", "计划"]), "已签字的三条规则原样不动"
     for root in sorted((EVALUATION / "suites").glob("design-review-*")):
         flow = suite.load(root)
-        assert flow.signoffs["grading"]["judge"] == SIGNED_JUDGE == judge.identity("claude-sonnet-5-5", flow.judgment)
+        if flow.version == 2:
+            assert flow.signoffs == {}, "修订样本不能继承旧版签字"
+        else:
+            assert flow.signoffs["grading"]["judge"] == SIGNED_JUDGE == judge.identity("claude-sonnet-5-5", flow.judgment)
 
 
 def test_the_implementation_rule_reaches_the_judge_brief(tiny: dict[str, Any]) -> None:
@@ -725,6 +769,10 @@ def test_the_checkout_suites_are_standing_and_signed_at_their_version() -> None:
                                                        "tui-developer-implement", "verification-write-tests"]
     for root in CHECKOUT_SUITES:
         flow = suite.load(root)
+        # Revised dispatch inputs do not inherit earlier signatures.
+        if flow.version == 2:
+            assert flow.signoffs == {} and flow.unsigned() == ["cases", "grading"], root.name
+            continue
         assert flow.unsigned() == [] and flow.version == 1, root.name
         # 判官判定的流，签的是那一个判官；程序判定的流没有判官可签。
         signed_judge = flow.signoffs["grading"].get("judge")

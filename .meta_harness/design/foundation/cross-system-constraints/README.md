@@ -11,9 +11,9 @@
 |---|---|---|
 | SYS-IDENTITY、SYS-TENANT | [身份与租户产品入口](../../product/README.md)、[架构维护入口](../../architecture/README.md) | 自然人身份与租户成员关系分开；跨能力消费及真实组合须逐条核对。 |
 | SYS-KERNEL | [架构维护入口](../../architecture/README.md) | 仅采用 Cordis；集成装配约束不替代领域语义。 |
-| SYS-SPEC | [架构维护入口](../../architecture/README.md)、[未迁规格入口](../../spec/README.md) | 公开接口、薄规格、相称模型与测试；未迁承诺继续按精确旧源消费。 |
-| SYS-DEPLOY | [应用映射入口](../../realization/README.md) | 单机交付与未来独立部署能力分开；多机器、远程协议和接管不由单机测试证明。 |
-| SYS-LLM | [模型契约入口](../../spec/capabilities/model-request-runtime/README.md) | OpenRouter 出口、attempt 状态权威与真实调用分别验证。 |
+| SYS-SPEC | [架构维护入口](../../architecture/README.md) | 公开接口、薄规格、相称模型与测试；行为由实际接口拥有者维护。 |
+| SYS-DEPLOY | [当前宿主边界](../../../../apps/tenancy-host/SPEC.md) | 单机交付与未来独立部署能力分开；多机器、远程协议和接管不由单机测试证明。 |
+| SYS-LLM | [模型公共承诺](../../../../packages/core/model-request-runtime/SPEC.md) | OpenRouter 出口、attempt 状态权威与真实调用分别验证。 |
 | SYS-EXPERIMENT | [需求正文](requirements.md#sys-experiment) | 设计、规格建模与实验性演进是当前阶段约束，不是待实现的产品能力。 |
 | SYS-OPEN | [架构维护入口](../../architecture/README.md) | 独立函数与 runtime 消费分开；公开组件内部构件可替换、可单独使用。 |
 

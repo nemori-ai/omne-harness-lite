@@ -1,0 +1,59 @@
+{
+  "@omne-harness-lite/model-profile/schema": {
+    "sha256": "1c0d0073f9671eb163250f322ee62f003a7f007bf28eb15a69f9f34880d20156",
+    "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v5/model-profile.schema.json",
+    "definitions": [
+      "ModelProfile",
+      "ModelProfileContent",
+      "ModelProfileRef",
+      "ModelProfileSnapshot",
+      "RouteName",
+      "ProfileOrigin",
+      "ProviderName",
+      "InputConstraints",
+      "Registration",
+      "ModelRequestParameters",
+      "ModelAdaptationBinding",
+      "ReasoningEffort",
+      "InputLimitFact",
+      "UpstreamInputLimits"
+    ]
+  },
+  "@omne-harness-lite/model-profile/schema/v2": {
+    "sha256": "3a2088c59777b9520af8355bb3b4e794637f4642fdbf8a93b268366717de8b3b",
+    "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v2/model-profile.schema.json",
+    "definitions": [
+      "ModelProfile",
+      "ModelProfileContent",
+      "ModelProfileRef",
+      "ModelProfileSnapshot",
+      "RouteName",
+      "ProfileOrigin",
+      "ProviderName",
+      "InputConstraints",
+      "Registration",
+      "ModelRequestParameters",
+      "ReasoningEffort"
+    ]
+  },
+  "@omne-harness-lite/model-profile/schema/v6": {
+    "sha256": "11cb1b458b97b86e82003ee1cafe2f7b83db8cb65b2c00cd18a5ab1a9d5fe60f",
+    "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v6/model-profile.schema.json",
+    "definitions": [
+      "ModelProfile",
+      "ModelProfileContent",
+      "ModelProfileRef",
+      "ModelProfileSnapshot",
+      "RouteName",
+      "ProfileOrigin",
+      "ProviderName",
+      "InputConstraints",
+      "Registration",
+      "ModelRequestParameters",
+      "ModelAdaptationBinding",
+      "ReasoningEffort",
+      "InputLimitFact",
+      "UpstreamInputLimits"
+    ]
+  }
+}

@@ -121,8 +121,7 @@ export const qwenModelRoutes = {
   'qwen/qwen3.7-flash': { alibaba: qwenAlibabaRoutes['qwen/qwen3.7-flash'] },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, ModelRoute>>>>
 
-// Selected Alibaba endpoint facts are recorded per model in
-// research/model-request-adaptation/first-party-and-joint-2026-09-27.tar.gz.
+// Selected Alibaba endpoint metadata observed on 2026-09-27.
 // Project input caps reserve the endpoint's full reported output capacity from
 // the shared 1,000,000-token window. A numeric max_prompt_tokens remains an
 // independent upstream fact even when the project cap is smaller.

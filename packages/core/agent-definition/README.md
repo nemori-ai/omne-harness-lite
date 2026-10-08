@@ -24,8 +24,7 @@ graph loads the byte-exact `@omne-harness-lite/model-profile/schema/v3` resource
 MP3 `RouteName`; the current MP5 Schema does not substitute for that resource. The two functions
 also check capability and item uniqueness, which schema shape alone cannot establish.
 
-The [adopted provider design](../../../.meta_harness/design/realization/packages/core/agent-definition/README.md)
-tracks the contract and verification scope. These functions do not read assets or authorize use.
+The [behavior specification](SPEC.md) states the adopted scope and verification duties. These functions do not read assets or authorize use.
 
 ## Development
 

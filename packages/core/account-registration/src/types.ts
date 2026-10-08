@@ -1,5 +1,5 @@
-// composition.account-registration v2 的服务面类型。契约：.meta_harness/design/spec/compositions/account-registration/v2/contract.md；
-// 节点设计：.meta_harness/design/realization/packages/tenancy/account-registration/design.md。
+// composition.account-registration v2 的服务面类型。契约：packages/core/account-registration/SPEC.md；
+// 节点设计：packages/tenancy/account-registration-sequential/SPEC.md。
 import type { PurgeFailure as AccountPurgeFailure } from '@omne-harness-lite/account-identity'
 import type { AccountId } from '@omne-harness-lite/identity-values'
 import type { PurgePersonalOrganizationFailure } from '@omne-harness-lite/organization-governance'

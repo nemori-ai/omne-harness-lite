@@ -62,6 +62,20 @@ fi
 "$sandbox/scripts/format.sh" write >/dev/null
 "$sandbox/scripts/format.sh" check >/dev/null
 "$sandbox/scripts/format.sh" check examples/demo/src/index.ts >/dev/null
+# Default collection must ignore tracked paths already deleted from the worktree.
+printf '%s\n' 'export const deleted = true' >"$sandbox/packages/demo/src/deleted.ts"
+git -C "$sandbox" add packages/demo/src/deleted.ts
+rm -- "$sandbox/packages/demo/src/deleted.ts"
+"$sandbox/scripts/format.sh" check >/dev/null || fail "a deleted tracked file was passed to Prettier"
+git -C "$sandbox" rm --cached -q -- packages/demo/src/deleted.ts
+# A dangling link still exists and must reach Prettier's rejection path.
+ln -s missing-target.ts "$sandbox/packages/demo/src/dangling.ts"
+git -C "$sandbox" add packages/demo/src/dangling.ts
+if "$sandbox/scripts/format.sh" check >/dev/null 2>&1; then
+    fail "a dangling tracked symlink disappeared from the default formatting scope"
+fi
+git -C "$sandbox" rm --cached -q -- packages/demo/src/dangling.ts
+rm -- "$sandbox/packages/demo/src/dangling.ts"
 first_write="$(sha256sum "$sandbox/packages/demo/src/space name.ts")"
 "$sandbox/scripts/format.sh" write >/dev/null
 second_write="$(sha256sum "$sandbox/packages/demo/src/space name.ts")"

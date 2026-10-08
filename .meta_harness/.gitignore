@@ -6,7 +6,3 @@
 
 # Runtime traces and migration discussions belong in the execution worktree tmp/.
 /design/record/
-/design/spec/**/formal/*_TTrace_*
-/design/spec/**/formal/*_TE.*
-/design/spec/**/formal/states/
-/design/spec/**/formal/MC.out

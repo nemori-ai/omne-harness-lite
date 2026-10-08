@@ -4,7 +4,7 @@
 
 本包同时公开独立函数与 Cordis 服务插件。宿主通过类型化端口提供已授权作用域、必要时的真实 Run、完整日志前缀、有序定义、拓展件执行、等待与卡片事实，以及能力判定。`runPass` 不创建 Run，也不决定模型能否重试发送。`readRunnerRetryConclusions` 检查条目和稠密位置，但单凭数组不能证明读取权限。
 
-采用范围见 D-106，依据 [Runner5](../../../.meta_harness/design/spec/capabilities/loop-extension-runner/v5/contract.md)、[LC6](../../../.meta_harness/design/spec/data/loop-extension/v6/contract.md) 和继承 [v5](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v5-current-design.md) 的 [v6 实现映射](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v6-run-pass-design.md)，服务接线沿已采用的 [v7](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v7-model-service-design.md)。[验证义务](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/verification.md)区分公共函数层与尚待接线的正式宿主。
+[公共行为](../../core/loop-extension-runner/SPEC.md)、[本地提供者边界](SPEC.md)及[验证义务](verification/README.md)定义独立函数层与宿主责任。[有限模型](verification/models/README.md)在明确前提下检查回放和失败历史。
 
 提供者根入口拥有独立执行函数；共用类型、纯 codec 和投影归 `@omne-harness-lite/loop-extension-runner`。插件从 `@omne-harness-lite/loop-extension-runner-local/cordis` 导出。
 

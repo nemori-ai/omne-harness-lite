@@ -1,7 +1,7 @@
 {
   "format": 1,
   "id": "tui-developer-implement",
-  "version": 1,
+  "version": 2,
   "family": "implement",
   "role": "tui-developer",
   "reps": 2,
@@ -23,10 +23,20 @@
     "kind": "checkout",
     "base": "003561900adb27de6ebe776fa1cf1b228304c873",
     "excludes": [
-      ".meta_harness/agents/evaluation",
-      ".meta_harness/design/record/evidence",
-      ".meta_harness/design_legacy",
-      ".gitmodules"
+      ".gitmodules",
+      ".meta_harness",
+      "AGENTS.md",
+      "CLAUDE.md",
+      "apps/AGENTS.md",
+      "apps/CLAUDE.md",
+      "docs/AGENTS.md",
+      "docs/CLAUDE.md",
+      "packages/AGENTS.md",
+      "packages/CLAUDE.md",
+      "scripts/AGENTS.md",
+      "scripts/CLAUDE.md",
+      "tools/AGENTS.md",
+      "tools/CLAUDE.md"
     ],
     "setup": [
       [
@@ -50,7 +60,52 @@
       ".agents",
       ".codex"
     ],
-    "commit": "single"
+    "commit": "single",
+    "relocations": [
+      {
+        "from": ".meta_harness/design/spec/compositions/governance-cli-entry/v1/commands.json",
+        "to": "apps/cli/tests/fixtures/evaluation-inputs/commands.json",
+        "consumers": [
+          {
+            "file": "apps/cli/tests/input.spec.ts",
+            "find": "../../../.meta_harness/design/spec/compositions/governance-cli-entry/v1/commands.json",
+            "replace": "./fixtures/evaluation-inputs/commands.json"
+          }
+        ]
+      },
+      {
+        "from": ".meta_harness/design/spec/compositions/governance-client-operations/v1/examples.json",
+        "to": "apps/cli/tests/fixtures/evaluation-inputs/client-examples.json",
+        "consumers": [
+          {
+            "file": "apps/cli/tests/input.spec.ts",
+            "find": "../../../.meta_harness/design/spec/compositions/governance-client-operations/v1/examples.json",
+            "replace": "./fixtures/evaluation-inputs/client-examples.json"
+          },
+          {
+            "file": "apps/cli/tests/tui-forms.spec.ts",
+            "find": "../../../.meta_harness/design/spec/compositions/governance-client-operations/v1/examples.json",
+            "replace": "./fixtures/evaluation-inputs/client-examples.json"
+          }
+        ]
+      },
+      {
+        "from": ".meta_harness/design/spec/compositions/governance-cli-entry/v2/forms.json",
+        "to": "apps/cli/tests/fixtures/evaluation-inputs/forms.json",
+        "consumers": [
+          {
+            "file": "apps/cli/tests/tui-forms.spec.ts",
+            "find": "../../../.meta_harness/design/spec/compositions/governance-cli-entry/v2/",
+            "replace": "./fixtures/evaluation-inputs/"
+          }
+        ]
+      },
+      {
+        "from": ".meta_harness/design/spec/compositions/governance-cli-entry/v2/tui-forms.schema.json",
+        "to": "apps/cli/tests/fixtures/evaluation-inputs/tui-forms.schema.json",
+        "consumers": []
+      }
+    ]
   },
   "brief_frame": "briefs/_implement.md",
   "oracle": {
@@ -110,10 +165,7 @@
       "label": "只用放行工具"
     }
   ],
-  "signoffs": {
-    "cases": { "by": "panqiwei", "date": "2026-10-02", "version": 1 },
-    "grading": { "by": "panqiwei", "date": "2026-10-02", "version": 1 }
-  },
+  "signoffs": {},
   "materials": [
     {
       "id": "TD-1",

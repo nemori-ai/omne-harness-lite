@@ -1,10 +1,6 @@
-你被派来评审一份施工计划。
+你被派来评审局部模拟材料。
 
-- **设计工作区**：`{WORKDIR}/.meta_harness`（当前目录 `{WORKDIR}` 是承载它的仓库根）。
-- **待审对象**：`tmp/plan-under-review/plan.md`，修订 r1，候选。精确快照：本检出的 HEAD。
-- **目标与验收边界**：见计划开头。
-- **它采用的设计**：契约 `.meta_harness/design/spec/capabilities/run-attempt-facts/v2/contract.md`（已接受），
-  节点 `.meta_harness/design/realization/packages/session/run-attempt-facts-derived/` 的 `design.md` 与 `verification.md`（已接受）。
-- **范围**：这一份计划。
-- **只读**：不写任何文件，结果在返回消息里交付。
-- **本次判断：计划。**
+- 工作副本：`{WORKDIR}`。输入在`case/`；计划对象若有在`tmp/plan-under-review/plan.md`。
+- **本次判断：计划。** 只做该种判断，不重审其它种类。
+- 只读，只用提供的局部事实；缺必要外部事实须具名为未覆盖，不读取本仓库现行实现补答案。
+- 本材料不是项目当前契约或执行记录；采用状态与版本词仅表示模拟前提。报告在返回消息中交付。

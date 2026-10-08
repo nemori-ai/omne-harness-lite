@@ -12,7 +12,7 @@
 
 | 子命令 | 做什么 |
 |---|---|
-| `verify` | 给每份材料建副本、落种入，核对种入各恰好落一次、工具核得出的那几处在设计评审报告里确实报了；整仓检出一类另在真的副本上证明判定器判得出已知好与已知坏，并印出看到了什么 |
+| `verify` | 给每份材料建副本、落种入，核对种入各恰好落一次、必要引用输入及局部前提齐备；整仓检出一类另在真的副本上证明判定器判得出已知好与已知坏，并印出看到了什么 |
 | `inputs` | 把全部用例逐字印成一份 markdown，供用例签字时看 |
 | `prepare --variant V --material M [--rep K]` | 为一次运行建副本、写简报，印出该怎样派发 |
 | `record … --transcript T --dispatch registered\|inline [--tokens N]` | 收录那次运行的记录：核对简报、模型、副本有没有被动过、有没有够到不该看的地方；由程序判定的流在这一步、删副本之前判定并落行 |
@@ -89,7 +89,7 @@ subagent 还会带着主会话检出的约定文件（`AGENTS.md` 等）启动�
 
 除了评审类（`family: review`，判官判），还有三类流在 `record` 时由程序判定，**判定发生在删副本之前**，没有判官，`judge-brief`、`judge-record`、`grade`、校准对它们都拒绝：
 
-- `implement`（developer、tui-developer 补完一个模块）：判定照搬早先[角色模型对照](../role-model-sonnet55/README.md)的 `oracle_implement`——
+- `implement`（developer、tui-developer 补完一个模块）：判定照搬早先固定程序判定任务的 `oracle_implement`——
   存一份 `changes.patch`，查写入范围与原有测试有没有被动过，把角色写的测试挪开、放回模板里的原测试，跑测试与类型检查。一次运行落一行（`meta.unit = "run"`）。
 - `acceptance`（qa 按标准验收）：判定照搬同一对照的 `oracle_acceptance` 与它的第 3 次修订——找报告、判判决与逐条结果、漏报与误报、制品哈希、写入范围。
   每条标准一行（`meta.unit = "criterion"`）加一行运行级。

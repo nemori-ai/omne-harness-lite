@@ -4,7 +4,7 @@
 
 Persist immutable session assembly records through public Storage. The standalone MF4 factory and Cordis binding share the same six-operation implementation.
 This experimental ESM workspace package is not published on npm. Component acceptance is separate from complete model-runtime acceptance.
-[Binding behavior](SPEC.md), [verification](verification/README.md) and the retained [MF4 sources](../../../.meta_harness/design/realization/packages/assets/assembly-manifest-store/README.md) define their respective scopes.
+[Provider behavior](SPEC.md), [common manifest behavior](../../core/assembly-manifest/SPEC.md), and [verification](verification/README.md) define their respective scopes.
 
 ## Public entries
 

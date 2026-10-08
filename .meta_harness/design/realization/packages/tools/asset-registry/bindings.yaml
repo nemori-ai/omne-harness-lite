@@ -1,5 +1,0 @@
-version: 1
-node: "asset-registry"
-kind: "provider"
-
-bindings: []

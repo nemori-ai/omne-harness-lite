@@ -1,5 +1,5 @@
 // 密码方案 `password-scrypt`：材料的派生、自描述编码与比对。
-// 节点设计：.meta_harness/design/realization/packages/tenancy/credential-verification/design.md「能力到 Cordis 的投影」。
+// 节点设计：packages/tenancy/credential-verification-scrypt/SPEC.md Cordis 的投影」。
 // 材料只含方案、参数、盐与哈希，不含明文（S-8 第 1 条）；参数写进材料，比对按材料里的参数做，
 // 所以换 config 不影响已存材料的比对。
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto'

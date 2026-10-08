@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "治理中心入口层：客户端面（TLS + JSON 信封的判定次序与路由）与运维面（Unix 套接字体检）；兑现 composition.governance-center-entry v2。设计：.meta_harness/design/realization/packages/tenancy/governance-center-entry/",
+  "description": "治理中心TLS/JSON入口与Unix运维面；共享业务承诺由公开接口拥有者维护",
   "engines": {
     "node": ">=24 <25"
   },
@@ -23,7 +23,9 @@
     "generated",
     "README.md",
     "README_ZH.md",
-    "SPEC.md"
+    "SPEC.md",
+    "models",
+    "verification"
   ],
   "scripts": {
     "build": "node ../../../scripts/build-fixed-schemas.mjs",

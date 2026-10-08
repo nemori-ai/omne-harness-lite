@@ -30,7 +30,7 @@ function restricted(file: SourceFile, specifier: string): boolean {
 }
 export const registryInputBoundary: Rule = {
   id: 'registry-input-boundary',
-  source: 'EIS source-interfaces SI-2/SI-5; D-077',
+  source: 'packages/assets/evaluation-input-store/SPEC.md: 固定根读取',
   description: 'fixed-root reading stays with its trusted registry and acceptance consumers',
   check(files) {
     const violations: Violation[] = []

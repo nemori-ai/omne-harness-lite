@@ -1,6 +1,0 @@
-[00:00] Warning! The design pattern's book will destroy you as a programmer.
-[00:08] Oh, it will ruin your career. It will corrupt your brain. Your neurons will melt into
-[00:15] a puddle of little bubbles of chicken fat. Oh, if you even read a single word of it,
-[00:22] oh, oh, it's true. You will find it useful and you will discover as you read it that it presents a more refined view
-[00:33] of all the crappy solutions you were trying to discover by yourself, but it will destroy you.
-[00:41] You just can't make this shit up, man.

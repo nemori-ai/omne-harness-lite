@@ -1,7 +1,7 @@
 {
   "format": 1,
   "id": "design-review-plan",
-  "version": 1,
+  "version": 2,
   "family": "review",
   "role": "design-reviewer",
   "judgment": "计划",
@@ -67,23 +67,11 @@
       "scale": 10
     }
   ],
-  "signoffs": {
-    "cases": {
-      "by": "panqiwei",
-      "date": "2026-10-01",
-      "version": 1
-    },
-    "grading": {
-      "by": "panqiwei",
-      "date": "2026-10-01",
-      "version": 1,
-      "judge": "judge:subagent:claude-sonnet-5-5 rules 70fdea287e52"
-    }
-  },
+  "signoffs": {},
   "materials": [
     {
       "id": "raf-plan",
-      "target": "一份为评估写的施工计划（materials/raf-plan.md），放在副本的 tmp/plan-under-review/plan.md",
+      "target": "Scoped raf-plan evaluation material",
       "brief": "briefs/raf-plan.md",
       "tags": [
         "种入的",
@@ -158,17 +146,15 @@
       ],
       "fixture": "fixtures/raf-plan.json",
       "required_inputs": [
-        ".meta_harness/design/realization/README.md",
-        ".meta_harness/design/realization/apps/cli/README.md",
-        ".meta_harness/design/realization/apps/cli/design.md",
-        ".meta_harness/design/realization/apps/cli/verification.md",
-        ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/README.md",
-        ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/verification.md"
+        "case/raf-plan/1-design.md",
+        "case/raf-plan/2-verification.md",
+        "case/raf-plan/3-verification.md",
+        "case/raf-plan/availability.md"
       ]
     },
     {
       "id": "raf-plan-clean",
-      "target": "同一份施工计划改掉六处种入与原有问题之后的版本（materials/raf-plan-clean.md），对照材料",
+      "target": "Scoped raf-plan-clean evaluation material",
       "brief": "briefs/raf-plan.md",
       "tags": [
         "对照",
@@ -184,17 +170,15 @@
       "seeds": [],
       "fixture": "fixtures/raf-plan.json",
       "required_inputs": [
-        ".meta_harness/design/realization/README.md",
-        ".meta_harness/design/realization/apps/cli/README.md",
-        ".meta_harness/design/realization/apps/cli/design.md",
-        ".meta_harness/design/realization/apps/cli/verification.md",
-        ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/README.md",
-        ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/verification.md"
+        "case/raf-plan/1-design.md",
+        "case/raf-plan/2-verification.md",
+        "case/raf-plan/3-verification.md",
+        "case/raf-plan/availability.md"
       ]
     },
     {
       "id": "ccp-plan",
-      "target": "一份为评估写的施工计划（materials/ccp-plan.md），对象是节点 infra/center-connection-probe，放在副本的 tmp/plan-under-review/plan.md",
+      "target": "Scoped ccp-plan evaluation material",
       "brief": "briefs/ccp-plan.md",
       "tags": [
         "种入的",
@@ -259,11 +243,10 @@
       ],
       "fixture": "fixtures/ccp-plan.json",
       "required_inputs": [
-        ".meta_harness/design/realization/apps/cli/README.md",
-        ".meta_harness/design/realization/apps/cli/design.md",
-        ".meta_harness/design/realization/apps/cli/verification.md",
-        ".meta_harness/design/realization/packages/infra/center-connection-probe/README.md",
-        ".meta_harness/design/realization/packages/infra/center-connection-probe/verification.md"
+        "case/ccp-plan/1-design.md",
+        "case/ccp-plan/2-verification.md",
+        "case/ccp-plan/3-verification.md",
+        "case/ccp-plan/availability.md"
       ]
     }
   ]

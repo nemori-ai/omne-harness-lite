@@ -27,8 +27,17 @@ export interface ArchitectureRole {
   readonly status: 'adopted' | 'candidate' | 'unknown'
   readonly source: string
 }
+export interface ArchitectureImportException {
+  readonly id: string
+  readonly member: string
+  readonly target: string
+  readonly symbols: readonly string[]
+  readonly sharedStorage: string
+  readonly source: string
+}
 export interface ArchitectureConstraints {
   readonly schemaVersion: 1
+  readonly importExceptions?: readonly ArchitectureImportException[]
   readonly domains: readonly {
     readonly id: string
     readonly label: string

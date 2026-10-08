@@ -17,7 +17,7 @@
 
 ## 验收标准
 
-契约坐标均指 `.meta_harness/design/spec/compositions/governance-cli-entry/` 下的 `v1/contract.md`（CQ1）与 `v2/contract.md`（CQ2）。机读报告的形状见 CQ1 S-6 与 `.meta_harness/design/spec/compositions/governance-client-operations/`。
+CQ1／CQ2仅指本固定CLI案例中的条款标签；下表是本次验收的完整范围。报告形状由该基底治理客户端公开类型／校验拥有，不读取中央设计源。
 
 | ID | 来源 | 触发 | 可观察结果 |
 |---|---|---|---|

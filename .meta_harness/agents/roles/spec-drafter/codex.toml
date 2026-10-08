@@ -1,8 +1,0 @@
-name = "spec-drafter"
-description = "Draft one language-neutral candidate contract package (contract with the nine items per operation, JSON Schema, examples, verification obligations, triggered TLA+/Alloy artifacts) from the mainline's construction brief, including its registry entries; or run the single batch-alignment pass over a set of drafted contracts before independent review. Follows the brief's naming ledger, never fills defaults for open gaps, writes properties not mechanisms. Does not choose product policy, write provider designs, review or accept. Default reasoning effort: xhigh; the dispatcher may adjust it to medium, high or xhigh for the actual task size and complexity. Use the role dispatch settings to apply the chosen effort."
-model = "gpt-6-astra"
-sandbox_mode = "workspace-write"
-approval_policy = "never"
-
-[agents]
-enabled = false

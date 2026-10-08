@@ -116,3 +116,5 @@ Representation judgments return `{ ok: true }` or `{ rejected }`. Parsing return
 `expandSkill` takes the already selected SkillPackage and one caller-supplied block annotation per output block. It does not fetch, choose or authorize skills. Auxiliary inputs that violate helper preconditions throw `TypeError`, distinct from parse failure. The package does not log, send content, execute commands or resolve service names; those effects belong to the caller.
 
 The JSON Schema is available through `@omne-harness-lite/slash-command/schema`. See [source exports](src/index.ts), [tests](tests/) and [skill package](../skill-package/README.md).
+
+See [behavior](SPEC.md) and [verification duties](verification/README.md).
