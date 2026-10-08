@@ -2,8 +2,10 @@ import { type ReadRunnerChainInput } from './runner-chain-types.ts'
 import {
   checkManifestAppendInput,
   readEvaluationProjection,
+  type AssemblyManifestService,
   type ManifestRecord,
 } from '@omne-harness-lite/assembly-manifest'
+import type { HoldingTenantResult } from '@omne-harness-lite/session-tenancy'
 import type {
   EffectiveAssembly,
   EffectiveAsset,
@@ -270,6 +272,29 @@ function validChainBinding(session: string, binding: RunnerLogBinding): boolean 
   )
 }
 
+function holdingRejection(
+  holding: HoldingTenantResult,
+  binding: RunnerLogBinding,
+): RunnerReplayFailure | undefined {
+  if ('failure' in holding)
+    return holding.failure === 'sessionNotFound' ? manifestMissing : unavailable
+  if (!tenantIdEquals(holding.tenant, binding.tenant)) return unavailable
+  return undefined
+}
+
+function headProjection(
+  head: Awaited<ReturnType<AssemblyManifestService['readHead']>>,
+  session: string,
+): ProjectedChain | RunnerReplayFailure {
+  if ('failure' in head || !Number.isSafeInteger(head.head) || head.head < 0) return unavailable
+  if (head.head === 0) return manifestMissing
+  const record = head.latest.loop_extension
+  if (!record) return unavailable
+  const projected = project(record, head.head, session)
+  if (!projected) return unavailable
+  return projected
+}
+
 /** Read one current category record and its exact immutable versions, without re-evaluation. */
 export async function readRunnerChain(
   input: ReadRunnerChainInput,
@@ -285,17 +310,12 @@ export async function readRunnerChain(
   if (!active()) return unavailable
   const holding = await holdingTenant(session)
   if (!active()) return unavailable
-  if ('failure' in holding)
-    return holding.failure === 'sessionNotFound' ? manifestMissing : unavailable
-  if (!tenantIdEquals(holding.tenant, binding.tenant)) return unavailable
+  const rejection = holdingRejection(holding, binding)
+  if (rejection !== undefined) return rejection
   const head = await readHead(session)
   if (!active()) return unavailable
-  if ('failure' in head || !Number.isSafeInteger(head.head) || head.head < 0) return unavailable
-  if (head.head === 0) return manifestMissing
-  const record = head.latest.loop_extension
-  if (!record) return unavailable
-  const projected = project(record, head.head, session)
-  if (!projected) return unavailable
+  const projected = headProjection(head, session)
+  if ('failure' in projected) return projected
   const chain: RunnerPiece[] = []
   for (const asset of projected.assets) {
     const version = await readVersion({

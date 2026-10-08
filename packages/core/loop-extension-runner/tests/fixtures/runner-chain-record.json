@@ -1,0 +1,191 @@
+{
+  "session": "runner_chain_session",
+  "seq": 1,
+  "evaluation": {
+    "kind": "given",
+    "ref": "evaluation_one"
+  },
+  "evaluationRef": "evaluation_one",
+  "tables": {
+    "loop_extension": {
+      "filledAt": 1791487231754,
+      "composition": [
+        {
+          "capability": {
+            "category": "loop_extension",
+            "name": "example:b"
+          },
+          "asset": "ast_b",
+          "version": 1,
+          "from": "factory"
+        },
+        {
+          "capability": {
+            "category": "loop_extension",
+            "name": "example:a"
+          },
+          "asset": "ast_a",
+          "version": 1,
+          "from": "factory"
+        }
+      ]
+    },
+    "mcp": {
+      "filledAt": 1791487231754,
+      "composition": []
+    },
+    "plugin": {
+      "filledAt": 1791487231754,
+      "composition": []
+    },
+    "skill": {
+      "filledAt": 1791487231754,
+      "composition": []
+    },
+    "slash_command": {
+      "filledAt": 1791487231754,
+      "composition": []
+    },
+    "tool": {
+      "filledAt": 1791487231754,
+      "composition": []
+    }
+  },
+  "content": {
+    "evaluation": {
+      "root": {
+        "category": "agent_definition",
+        "name": "example:root"
+      },
+      "assets": [
+        {
+          "capability": {
+            "category": "agent_definition",
+            "name": "example:root"
+          },
+          "asset": "ast_root",
+          "version": 1,
+          "from": "factory",
+          "replaced": []
+        },
+        {
+          "capability": {
+            "category": "loop_extension",
+            "name": "example:a"
+          },
+          "asset": "ast_a",
+          "version": 1,
+          "from": "factory",
+          "replaced": []
+        },
+        {
+          "capability": {
+            "category": "loop_extension",
+            "name": "example:b"
+          },
+          "asset": "ast_b",
+          "version": 1,
+          "from": "factory",
+          "replaced": []
+        }
+      ],
+      "composition": [
+        {
+          "category": "loop_extension",
+          "name": "example:a"
+        },
+        {
+          "category": "loop_extension",
+          "name": "example:b"
+        }
+      ],
+      "values": [
+        {
+          "capability": {
+            "category": "loop_extension",
+            "name": "example:a"
+          },
+          "item": "position",
+          "value": "before_model_call",
+          "from": "factory"
+        },
+        {
+          "capability": {
+            "category": "loop_extension",
+            "name": "example:a"
+          },
+          "item": "power",
+          "value": {
+            "allowed": [
+              "observe"
+            ]
+          },
+          "from": "factory"
+        },
+        {
+          "capability": {
+            "category": "loop_extension",
+            "name": "example:a"
+          },
+          "item": "usableBy",
+          "value": {
+            "allowed": [
+              "self"
+            ]
+          },
+          "from": "factory"
+        },
+        {
+          "capability": {
+            "category": "loop_extension",
+            "name": "example:b"
+          },
+          "item": "position",
+          "value": "before_model_call",
+          "from": "factory"
+        },
+        {
+          "capability": {
+            "category": "loop_extension",
+            "name": "example:b"
+          },
+          "item": "power",
+          "value": {
+            "allowed": [
+              "observe"
+            ]
+          },
+          "from": "factory"
+        },
+        {
+          "capability": {
+            "category": "loop_extension",
+            "name": "example:b"
+          },
+          "item": "usableBy",
+          "value": {
+            "allowed": [
+              "self"
+            ]
+          },
+          "from": "factory"
+        }
+      ],
+      "filteredOut": [],
+      "unresolved": []
+    },
+    "compositionOrder": [
+      {
+        "category": "loop_extension",
+        "name": "example:b"
+      },
+      {
+        "category": "loop_extension",
+        "name": "example:a"
+      }
+    ],
+    "filledBy": {
+      "kind": "assembly"
+    }
+  }
+}
