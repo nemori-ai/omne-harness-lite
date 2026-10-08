@@ -2770,6 +2770,9 @@ importers:
       '@omne-harness-lite/model-request-runtime':
         specifier: workspace:*
         version: link:../../core/model-request-runtime
+      '@omne-harness-lite/model-response':
+        specifier: workspace:*
+        version: link:../../core/model-response
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../core/offer-expiry

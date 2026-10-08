@@ -50,11 +50,12 @@ interface Host {
   readonly log: SessionLogParticipant
   readonly isOpen: () => boolean
 }
-interface Issue {
+export interface StoredModelIssue {
   readonly identity: OriginalIssueIdentity
   readonly source: SourceToken
   readonly preparation: string
 }
+type Issue = StoredModelIssue
 interface Database {
   sr_call_preparation: { session: string; call: string; preparation: string }
   sr_model_issue: {
@@ -297,16 +298,7 @@ class ModelAdmission {
     return row ? this.decode(row.issue) : undefined
   }
   decode(text: string): Issue {
-    const value = issueEnvelope(text, this.host.options.policy.maxRecordBytes)
-    const identity = checkedIdentity(value.identity)
-    const source = checkSourceToken(value.source)
-    if (
-      'failure' in source ||
-      !tenantIdEquals(identity.tenant, source.ok.tenant) ||
-      identity.session !== source.ok.session
-    )
-      throw new StorageDefect('corrupt original model issue source')
-    return { identity, source: source.ok, preparation: value.preparation as string }
+    return decodeStoredModelIssue(text, this.host.options.policy.maxRecordBytes)
   }
   number(value: OriginalIssueIdentity['dispatch']) {
     return positionText(value, this.host.options.policy.maxRecordBytes)
@@ -319,6 +311,18 @@ class ModelAdmission {
       identity.executionGeneration,
     ])
   }
+}
+export function decodeStoredModelIssue(text: string, limit: number): StoredModelIssue {
+  const value = issueEnvelope(text, limit)
+  const identity = checkedIdentity(value.identity)
+  const source = checkSourceToken(value.source)
+  if (
+    'failure' in source ||
+    !tenantIdEquals(identity.tenant, source.ok.tenant) ||
+    identity.session !== source.ok.session
+  )
+    throw new StorageDefect('corrupt original model issue source')
+  return { identity, source: source.ok, preparation: value.preparation as string }
 }
 function matches(scope: SessionScope, step: Preparation, identity: OriginalIssueIdentity): boolean {
   return (

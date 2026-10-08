@@ -68,6 +68,15 @@ const facts: readonly SessionFact[] = [
     stepKey: 'prepare',
     at,
   },
+  {
+    kind: 'result_custodied',
+    run: 'run',
+    attempt: 1,
+    call: 'call',
+    resultKey: 'original-result',
+    semanticDigest: 'a'.repeat(64),
+    at,
+  },
 ]
 for (const fact of facts)
   test('encodes and reads the owned ' + fact.kind + ' as a fact, never a model message', () => {
@@ -109,6 +118,9 @@ test.each([
   { ...facts[5], call: '' },
   { ...facts[5], originalPosition: '' },
   { ...facts[5], attempt: 0 },
+  { ...facts[6], semanticDigest: 'invalid' },
+  { ...facts[6], resultKey: '' },
+  { ...facts[6], attempt: 0 },
 ])('refuses malformed or inconsistent lifecycle facts: %j', value => {
   expect(checkSessionFact(value)).toEqual({ failure: 'invalidInput' })
 })

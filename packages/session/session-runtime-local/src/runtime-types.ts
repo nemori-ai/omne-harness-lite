@@ -23,6 +23,7 @@ import type { LogAuthorityOperations, SessionLogParticipant } from '@omne-harnes
 import type { AdmissionSource, AdmissionTicket, LocalAdmission } from './admission-types.ts'
 import type { StateOptions, StatePolicy } from './state-types.ts'
 import type { ReceiptPolicy } from './receipt-types.ts'
+import type { ModelResultSource, LocalModelResultCustody } from './model-result-types.ts'
 
 /** The host must durably bind the original recipe and initialize its real Session Context before ready. */
 export interface SessionBootstrap {
@@ -53,6 +54,11 @@ export interface RuntimeOptions {
   readonly bootstrap: SessionBootstrap
   readonly now: () => string | 'unavailable'
   readonly workSettledIn: StateOptions['workSettledIn']
+  /** Explicit original result source and custody capacity. Absence grants no result custody. */
+  readonly modelResults?: {
+    readonly maxRecords: number
+    readonly source: ModelResultSource
+  }
   /** Root-selected original model owner. Omission means model admission is unavailable. */
   readonly modelIssue?: {
     readonly maxRecords: number
@@ -110,6 +116,7 @@ export interface LocalSessionIngress {
         >
     >
   }
+  readonly modelResults: LocalModelResultCustody
   readonly lifecycle: {
     readonly commitStep: (
       authority: CoordinationAuthority,

@@ -25,3 +25,5 @@ export type {
 
 export { createLocalSessionAccess } from './session-access.ts'
 export type { LocalSessionAccess, LocalSessionAccessOptions } from './session-access-types.ts'
+
+export type * from './model-result-types.ts'

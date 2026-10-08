@@ -59,6 +59,15 @@ export type SessionFact =
       readonly at: string
     }
   | {
+      readonly kind: 'result_custodied'
+      readonly run: RunId
+      readonly attempt: AttemptId
+      readonly call: string
+      readonly resultKey: string
+      readonly semanticDigest: string
+      readonly at: string
+    }
+  | {
       readonly kind: 'run_finished'
       readonly run: RunId
       readonly attempt: AttemptId
@@ -85,6 +94,7 @@ const fields = {
   run_started: ['kind', 'run', 'inputPosition', 'stepKey', 'at'],
   input_adopted: ['kind', 'run', 'attempt', 'inputPosition', 'stepKey', 'at'],
   call_prepared: ['kind', 'run', 'attempt', 'call', 'originalPosition', 'stepKey', 'at'],
+  result_custodied: ['kind', 'run', 'attempt', 'call', 'resultKey', 'semanticDigest', 'at'],
   run_finished: ['kind', 'run', 'attempt', 'terminal', 'reason', 'stepKey', 'at'],
 } as const
 export function checkSessionFact(value: unknown): SessionFactCheck {
@@ -124,9 +134,21 @@ function variantValid(fact: JsonObject): boolean {
       return preparedCallValid(fact)
     case 'run_finished':
       return finishedValid(fact)
+    case 'result_custodied':
+      return custodiedResultValid(fact)
     default:
       return false
   }
+}
+function custodiedResultValid(fact: JsonObject): boolean {
+  return (
+    checkKey(fact.run) &&
+    positiveInteger(fact.attempt) &&
+    checkKey(fact.call) &&
+    checkKey(fact.resultKey) &&
+    typeof fact.semanticDigest === 'string' &&
+    /^[0-9a-f]{64}$/.test(fact.semanticDigest)
+  )
 }
 function preparedCallValid(fact: JsonObject): boolean {
   return (

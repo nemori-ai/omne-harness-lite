@@ -44,7 +44,8 @@
     "@omne-harness-lite/offer-expiry": "workspace:*",
     "@omne-harness-lite/kernel-basis": "workspace:*",
     "zod": "catalog:",
-    "@omne-harness-lite/model-request-runtime": "workspace:*"
+    "@omne-harness-lite/model-request-runtime": "workspace:*",
+    "@omne-harness-lite/model-response": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

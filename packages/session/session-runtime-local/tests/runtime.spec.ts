@@ -5,11 +5,12 @@ import {
 } from '@omne-harness-lite/model-request-runtime-local'
 import {
   captureModelLogValue,
+  readModelLogEnvelope,
   prepareModelLogEntry,
   type OriginalIssueInput,
   type OriginalIssueAuthority,
 } from '@omne-harness-lite/model-request-runtime'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -28,6 +29,15 @@ import {
   type SqlSessionLog,
 } from '@omne-harness-lite/session-log-sql'
 import { compareInteger } from '@omne-harness-lite/session-log'
+import {
+  judgePendingModelResponse,
+  type PendingModelResponse,
+} from '@omne-harness-lite/model-response'
+import {
+  LosslessNumber,
+  readJsonStrict,
+  writeJsonLossless,
+} from '@omne-harness-lite/content-blocks'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import {
   createLocalSessionContext as assembleSessionContext,
@@ -103,7 +113,7 @@ afterEach(async () => {
 async function fixture(
   initialize: RuntimeOptions['bootstrap']['initialize'] = vi.fn(async () => 'ready' as const),
   maxSteps = 32,
-  configure?: (storage: SqlStorage) => Pick<RuntimeOptions, 'modelIssue'>,
+  configure?: (storage: SqlStorage) => Pick<RuntimeOptions, 'modelIssue' | 'modelResults'>,
 ) {
   const root = await mkdtemp(join(tmpdir(), 'omne-session-runtime-'))
   roots.push(root)
@@ -1540,6 +1550,7 @@ async function modelFixture(maxRecords = 8) {
   let owner!: OriginalIssueOwner
   const current = vi.fn<OriginalIssueAuthority['authorizeIn']>(async () => ({ kind: 'authorized' }))
   const f = await fixture(undefined, 32, storage => ({
+    modelResults: { maxRecords, source: { verifyIn: async () => 'verified' } },
     modelIssue: {
       maxRecords,
       current: { authorizeIn: current },
@@ -1869,4 +1880,378 @@ it('rejects a damaged stored preparation position before staging a real original
   ).rejects.toThrow('call preparation receipt')
   expect(current).not.toHaveBeenCalled()
   expect(await f.count('mr_original_issue')).toEqual({ n: 0 })
+})
+
+describe('original model result custody', () => {
+  async function resultFixture() {
+    const m = await modelFixture()
+    const issued = await m.f.runtime.modelInvocation.admit(
+      m.f.runtime.coordinationAuthority,
+      m.p.scope,
+      m.prepared.source,
+      m.p.step,
+      m.ticket,
+    )
+    if (!('kind' in issued) || issued.kind !== 'issued')
+      throw new Error('actual original issue missing')
+    expect(await m.owner.consumeOriginal(issued.claim)).toEqual({ kind: 'launch' })
+    const captured = captureModelLogValue({
+      category: 'record',
+      input: { kind: 'value', value: readOriginalDispatch(m.original.entry.payload) },
+    })
+    if ('invalidValue' in captured || captured.ok.record?.kind !== 'model_call_dispatched')
+      throw new Error('actual dispatch fixture unavailable')
+    const {
+      kind: _kind,
+      call: _call,
+      dispatch: _dispatch,
+      response: _response,
+      ...route
+    } = captured.ok.record
+    const reply = judgeMessage({
+      id: 'original-reply',
+      type: 'assistant',
+      response: 'original-response',
+      ending: 'complete',
+      createdAt: '2026-10-08T00:00:02Z',
+      blocks: [
+        {
+          id: 'answer-text',
+          kind: 'text',
+          text: 'original complete answer',
+          visibility: { toHuman: true, toModel: true },
+        },
+      ],
+    })
+    if ('rejected' in reply || reply.ok.type !== 'assistant' || reply.ok.ending !== 'complete')
+      throw new Error('invalid actual assistant fixture')
+    const pending: Extract<PendingModelResponse, { outcome: 'complete' }> = {
+      id: 'original-response',
+      call: { callId: m.p.step.call, runId: m.p.step.run },
+      attemptId: m.p.step.attempt,
+      dispatch: 1,
+      route: {
+        adaptation: route.adaptation,
+        profile: route.profile,
+        profileSnapshot: route.profileSnapshot,
+        provider: route.provider,
+        selectedBy: route.selectedBy,
+        credentialScope: route.credentialScope,
+        parameters: route.parameters,
+      },
+      outcome: 'complete',
+      reply: reply.ok,
+      timing: { sentAt: at, firstTokenAt: '2026-10-08T00:00:01Z', endedAt: '2026-10-08T00:00:02Z' },
+      usage: {
+        input_tokens: 11,
+        output_tokens: 5,
+        cache_read_tokens: 'unknown',
+        cache_write_tokens: 0,
+        source: 'upstream',
+      },
+      cost: {
+        cost_usd: new LosslessNumber('0.0000000000000000000000000310'),
+        source: 'upstream_usage',
+      },
+      inputCalibration: {
+        requestInput: { kind: 'unavailable', reason: 'not_retained' },
+        observedInput: { kind: 'unavailable', reason: 'missing_usage' },
+        outputGroup: { kind: 'unavailable', reason: 'not_retained' },
+      },
+    }
+    if (!('ok' in judgePendingModelResponse(pending)))
+      throw new Error('invalid complete Pending fixture')
+    const read = await m.f.runtime.journal.readPrefix(m.f.runtime.access, m.p.scope.session)
+    if (!('kind' in read) || read.kind !== 'prefix') throw new Error('actual source unavailable')
+    const verify = vi.spyOn(m.f.options.modelResults!.source, 'verifyIn')
+    const data = { resultKey: 'original-result', source: read.source, pending }
+    const store = (value: typeof data = data) =>
+      m.f.runtime.modelResults.store(
+        m.f.runtime.coordinationAuthority,
+        m.p.scope,
+        value as import('../src/model-result-types.ts').ModelResultInput,
+      )
+    return { ...m, verify, data, store }
+  }
+  function readOriginalDispatch(payload: unknown) {
+    const read = readModelLogEnvelope(payload)
+    if (!('kind' in read) || read.kind !== 'model')
+      throw new Error('original dispatch envelope missing')
+    return read.envelope.value
+  }
+  it('saves the complete original Pending and fixed receipt, without a disposition or model ACK', async () => {
+    const { f, p, data, store, verify } = await resultFixture()
+    const saved = await store()
+    expect(saved).toMatchObject({
+      kind: 'custodied',
+      pending: data.pending,
+      witness: {
+        response: data.pending.id,
+        original: { ...p.scope, call: p.step.call, run: p.step.run, attempt: p.step.attempt },
+        receipt: { ...p.scope, call: p.step.call, resultKey: data.resultKey, position: 9 },
+      },
+    })
+    if (!('kind' in saved) || saved.kind !== 'custodied') throw new Error('actual custody missing')
+    expect(writeJsonLossless(saved.pending)).toEqual(writeJsonLossless(data.pending))
+    expect(verify).toHaveBeenCalledTimes(1)
+    expect(await f.count('sr_model_result')).toEqual({ n: 1 })
+    expect(await f.count('mr_original_issue')).toEqual({ n: 1 })
+    const read = await f.runtime.modelResults.read(
+      f.runtime.coordinationAuthority,
+      p.scope,
+      p.step.call,
+      data.resultKey,
+    )
+    expect(read).toMatchObject({ kind: 'alreadyCustodied', pending: data.pending })
+    expect(read).not.toHaveProperty('pending.replyDisposition')
+    if (!('kind' in read) || read.kind !== 'alreadyCustodied')
+      throw new Error('actual original custody missing')
+    expect(writeJsonLossless(read.pending)).toEqual(writeJsonLossless(data.pending))
+    const prefix = await f.log().readSince(p.scope.session, 8)
+    if ('failure' in prefix) throw new Error('actual custody log unavailable')
+    expect(prefix.entries.map(readSessionFact)).toMatchObject([
+      { kind: 'fact', fact: { kind: 'result_custodied', resultKey: data.resultKey } },
+    ])
+  })
+  it('recognizes reordered data by its original semantic value and refuses an altered reply or another key', async () => {
+    const { f, p, data, store, verify } = await resultFixture()
+    const first = await store()
+    const reordered = {
+      ...data,
+      pending: Object.fromEntries(Object.entries(data.pending).reverse()) as typeof data.pending,
+    }
+    expect(await store(reordered)).toEqual({ ...first, kind: 'alreadyCustodied' })
+    expect(verify).toHaveBeenCalledTimes(1)
+    const block = data.pending.reply.blocks[0]
+    if (!block || block.kind !== 'text') throw new Error('expected actual text block')
+    expect(
+      await store({
+        ...data,
+        pending: {
+          ...data.pending,
+          reply: { ...data.pending.reply, blocks: [{ ...block, text: 'different answer' }] },
+        },
+      }),
+    ).toEqual({ failure: 'identityConflict' })
+    expect(await store({ ...data, resultKey: 'another-key' })).toEqual({
+      failure: 'identityConflict',
+    })
+    expect(await f.count('sr_model_result')).toEqual({ n: 1 })
+    expect(await f.log().readSince(p.scope.session, 8)).toHaveProperty('tail', 9)
+  })
+  it('refuses copied coordination authority and another tenant before consulting the original source', async () => {
+    const { f, p, data, verify } = await resultFixture()
+    expect(
+      await f.runtime.modelResults.store(
+        { ...f.runtime.coordinationAuthority },
+        p.scope,
+        data as import('../src/model-result-types.ts').ModelResultInput,
+      ),
+    ).toEqual({ failure: 'denied' })
+    expect(
+      await f.runtime.modelResults.store(
+        f.runtime.coordinationAuthority,
+        {
+          ...p.scope,
+          tenant: unwrap(parseTenantId({ organization: 'foreign', account: 'owner' })),
+        },
+        data as import('../src/model-result-types.ts').ModelResultInput,
+      ),
+    ).toEqual({ failure: 'denied' })
+    expect(verify).not.toHaveBeenCalled()
+    expect(await f.count('sr_model_result')).toEqual({ n: 0 })
+  })
+  it('refuses a response that is not the original dispatched identity without publishing custody', async () => {
+    const { f, data, store, verify } = await resultFixture()
+    expect(
+      await store({
+        ...data,
+        pending: {
+          ...data.pending,
+          id: 'another-response',
+          reply: { ...data.pending.reply, response: 'another-response' },
+        },
+      }),
+    ).toEqual({ failure: 'invalidSource' })
+    expect(verify).not.toHaveBeenCalled()
+    expect(await f.count('sr_model_result')).toEqual({ n: 0 })
+  })
+  it('keeps the original source responsible when complete value or reference custody is unavailable', async () => {
+    const { f, p, store, verify } = await resultFixture()
+    verify.mockResolvedValue('unavailable')
+    expect(await store()).toEqual({ failure: 'unavailable' })
+    expect(await f.count('sr_model_result')).toEqual({ n: 0 })
+    expect(await f.log().readSince(p.scope.session, 8)).toHaveProperty('tail', 8)
+    expect(await f.count('mr_original_issue')).toEqual({ n: 1 })
+  })
+  it('recognizes a real committed full value after the caller loses the custody return', async () => {
+    const { f, p, data, store } = await resultFixture()
+    const write = f.storage.write.bind(f.storage)
+    vi.spyOn(f.storage, 'write').mockImplementationOnce(async (...args) => {
+      await write(...args)
+      throw new StorageUnavailable('custody committed but return lost')
+    })
+    expect(await store()).toEqual({
+      kind: 'unknownCommit',
+      scope: p.scope,
+      call: p.step.call,
+      resultKey: data.resultKey,
+    })
+    expect(await f.count('sr_model_result')).toEqual({ n: 1 })
+    expect(await store()).toMatchObject({ kind: 'alreadyCustodied', pending: data.pending })
+    expect(await f.count('sr_model_result')).toEqual({ n: 1 })
+    expect(await f.log().readSince(p.scope.session, 8)).toHaveProperty('tail', 9)
+  })
+  it('stores a late complete result under the original Run grant without reopening its terminal state', async () => {
+    const { f, p, store } = await resultFixture()
+    const journal = await f.runtime.journal.readPrefix(f.runtime.access, p.scope.session)
+    if (!('kind' in journal) || journal.kind !== 'prefix')
+      throw new Error('actual journal unavailable')
+    const finished = await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      p.scope,
+      journal.source,
+      {
+        kind: 'finish',
+        run: p.step.run,
+        attempt: p.step.attempt,
+        permit: p.step.permit,
+        stepKey: 'finish-before-result',
+        terminal: 'completed',
+        reason: 'no-more-work',
+      },
+    )
+    expect(finished).toHaveProperty('kind', 'committed')
+    const before = await f.runtime.operations.readProgress(f.runtime.access, p.scope.session)
+    f.setDecision('memberRejected')
+    expect(await store()).toHaveProperty('kind', 'custodied')
+    f.setDecision('memberValid')
+    const after = await f.runtime.operations.readProgress(f.runtime.access, p.scope.session)
+    if (
+      !('kind' in before) ||
+      before.kind !== 'progress' ||
+      !('kind' in after) ||
+      after.kind !== 'progress'
+    )
+      throw new Error('actual progress unavailable')
+    expect(after.progress.run).toEqual(before.progress.run)
+    expect(after.progress.state).toBe(before.progress.state)
+    expect(after.progress.attempt).toEqual(before.progress.attempt)
+  })
+  it('rolls back original reference staging when the source cannot transfer the complete required custody', async () => {
+    const { f, p, data, store, verify } = await resultFixture()
+    await f.storage.write(tx =>
+      tx.db.schema
+        .createTable('test_result_reference')
+        .addColumn('key', 'text', c => c.primaryKey())
+        .addColumn('held', 'text')
+        .execute(),
+    )
+    const pending = {
+      ...data.pending,
+      raw: {
+        body: { storage: 'controlled-attachments', key: 'raw-body', mediaType: 'application/json' },
+      },
+    }
+    expect(judgePendingModelResponse(pending)).toEqual({ ok: true })
+    verify.mockImplementation(async unit => {
+      unit.assertStorage(f.storage)
+      await unit.mutate(tx =>
+        tx.db
+          .insertInto('test_result_reference')
+          .values({ key: 'raw-body', held: 'session' })
+          .execute(),
+      )
+      return 'unavailable'
+    })
+    expect(await store({ ...data, pending })).toEqual({ failure: 'unavailable' })
+    expect(await f.count('test_result_reference')).toEqual({ n: 0 })
+    expect(await f.count('sr_model_result')).toEqual({ n: 0 })
+    expect(await f.log().readSince(p.scope.session, 8)).toHaveProperty('tail', 8)
+  })
+  it('reports a pre-staging storage failure without inventing an unknown result commit', async () => {
+    const { f, store, verify } = await resultFixture()
+    vi.spyOn(f.storage, 'write').mockRejectedValueOnce(
+      new StorageUnavailable('before original result staging'),
+    )
+    expect(await store()).toEqual({ failure: 'unavailable' })
+    expect(verify).not.toHaveBeenCalled()
+    expect(await f.count('sr_model_result')).toEqual({ n: 0 })
+  })
+  it('rejects a stored custody receipt that points at the original dispatch instead of its result fact', async () => {
+    const { f, p, data, store } = await resultFixture()
+    expect(await store()).toHaveProperty('kind', 'custodied')
+    const row = await f.storage.read(tx =>
+      tx.db.selectFrom('sr_model_result').select('record').executeTakeFirstOrThrow(),
+    )
+    if (typeof row.record !== 'string') throw new Error('actual stored record missing')
+    const decoded = readJsonStrict(row.record)
+    if ('failed' in decoded) throw new Error('actual stored result malformed')
+    const original =
+      decoded.ok as unknown as import('../src/model-result-types.ts').ModelResultStored
+    const changed = {
+      ...original,
+      witness: { ...original.witness, receipt: { ...original.witness.receipt, position: 8 } },
+    }
+    await f.storage.write(tx =>
+      tx.db
+        .updateTable('sr_model_result')
+        .set({ record: writeJsonLossless(changed) })
+        .execute(),
+    )
+    await expect(
+      f.runtime.modelResults.read(
+        f.runtime.coordinationAuthority,
+        p.scope,
+        p.step.call,
+        data.resultKey,
+      ),
+    ).rejects.toThrow('custody fact')
+  })
+  it('propagates a defective original source instead of returning a success or authorization decision', async () => {
+    const { f, store, verify } = await resultFixture()
+    const error = new Error('defective original result source')
+    verify.mockRejectedValue(error)
+    await expect(store()).rejects.toBe(error)
+    expect(await f.count('sr_model_result')).toEqual({ n: 0 })
+  })
+  it('withdraws new work and drains an original in-flight result without closing borrowed owners', async () => {
+    const { f, p, data, store, verify } = await resultFixture()
+    let unblock!: () => void, entered!: () => void
+    const inside = new Promise<void>(resolve => {
+      entered = resolve
+    })
+    const held = new Promise<void>(resolve => {
+      unblock = resolve
+    })
+    verify.mockImplementation(async unit => {
+      unit.assertStorage(f.storage)
+      entered()
+      await held
+      return 'verified'
+    })
+    const saving = store()
+    await inside
+    let closed = false
+    const close = f.runtime.close().then(() => {
+      closed = true
+    })
+    try {
+      expect(
+        await f.runtime.modelResults.read(
+          f.runtime.coordinationAuthority,
+          p.scope,
+          p.step.call,
+          data.resultKey,
+        ),
+      ).toEqual({ failure: 'unavailable' })
+      expect(closed).toBe(false)
+    } finally {
+      unblock()
+    }
+    expect(await saving).toHaveProperty('kind', 'custodied')
+    await close
+    expect(await f.count('sr_model_result')).toEqual({ n: 1 })
+    expect(await f.log().readSince(p.scope.session, 8)).toHaveProperty('tail', 9)
+  })
 })

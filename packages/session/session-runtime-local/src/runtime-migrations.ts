@@ -73,4 +73,21 @@ export const sessionRuntimeMigrations: readonly MigrationFragment[] = [
       },
     },
   },
+  {
+    name: 'local_session_model_result_custody',
+    migration: {
+      async up(db) {
+        await db.schema
+          .createTable('sr_model_result')
+          .addColumn('session', 'text', c => c.notNull())
+          .addColumn('call', 'text', c => c.notNull())
+          .addColumn('result_key', 'text', c => c.notNull())
+          .addColumn('response', 'text', c => c.notNull())
+          .addColumn('record', 'text', c => c.notNull())
+          .addPrimaryKeyConstraint('sr_model_result_pk', ['session', 'call', 'result_key'])
+          .addUniqueConstraint('sr_model_result_response', ['session', 'call', 'response'])
+          .execute()
+      },
+    },
+  },
 ]

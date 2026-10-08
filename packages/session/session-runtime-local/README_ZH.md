@@ -28,7 +28,7 @@
 
 operations提供创建、输入及只读查询。可信lifecycle分面另接新Run、首次attempt、输入承接、调用准备和收尾；原grant、日志／状态／pending与StepReceipt共同提交。新Run验证登录，原Run沿持久授权继续。重放返回原回执，不重新签发permit。完整调用协调、恢复接管、取消／归档及正式宿主接线仍由各自施工和验收承担，不能从这个子集推定已经完成。
 
-根通过modelIssue选择原模型参加者，并提供实际当前模型资格和显式容量。可信modelInvocation.admit在原Unit核持久准备及当前permit，将原模型锚点、唯一claim和Session发起证明同提交。只有原模型拥有者可consume该claim；重放不授第二启动权。Run终态或Ingress关闭后，该拥有者仍可只读原精确证明。根须保留借入日志和Storage直至原模型拥有者释放。结果保管、ACK、工具及完整生产宿主仍未完成。
+根通过modelIssue选择原模型参加者，并提供实际当前模型资格和显式容量。可信modelInvocation.admit在原Unit核持久准备及当前permit，将原模型锚点、唯一claim和Session发起证明同提交。只有原模型拥有者可consume该claim；重放不授第二启动权。Run终态或Ingress关闭后，该拥有者仍可只读原精确证明。根须保留借入日志和Storage直至原模型拥有者释放。实际模型来源适配、ACK、工具及完整生产宿主仍未完成。
 
 ## 开发
 
@@ -49,3 +49,9 @@ pnpm --filter @omne-harness-lite/session-runtime-local test
 ## 活体访问绑定
 
 createLocalSessionAccess借入真实当前authority、固定的已鉴权主体和租户，并接显式许可及容量策略。工厂独立返回读取服务和私有issuer；issuer不注册为普通服务。使用点重新核当前资格，复制／撤销／关闭的引用不放行；关闭排空原核验而不关闭借入拥有者。行为见[SPEC](SPEC.md#活体sessionaccess发行)。
+
+## 原完整模型结果保管
+
+根通过modelResults提供实际原执行来源和显式容量。可信保管分面沿原Run grant，将完整Pending、必要引用、原发起身份和回执与保管事实同提交；终态迟到不重新取得推进资格。重放核原事实及发起证明，返回原全文与回执；异值或别名结果键拒绝。
+
+引用保管不可用回滚整个单元；未知提交保留原结果身份，只认回、不ACK。保管不推进Run、不设置replyDisposition、不发送ACK。根仍须连接实际模型来源及原模型拥有者的ACK规则。关闭等待已登记工作，不关闭借入依赖。行为归[提供者规格](SPEC.md#原完整模型结果保管)。
