@@ -111,6 +111,14 @@ function persistedSubject(
     case 'after_persist_message':
       if ('message' in restored) return Object.freeze({ ...value, subject: restored })
       break
+  }
+  return undefined
+}
+function compactionSubject(
+  value: Wire<PositionedSubject>,
+  restored: Subject,
+): PositionedSubject | undefined {
+  switch (value.position) {
     case 'before_compaction':
       if ('plan' in restored) return Object.freeze({ ...value, subject: restored })
       break
@@ -175,9 +183,6 @@ function terminalSubject(
   restored: Subject,
 ): PositionedSubject | undefined {
   switch (value.position) {
-    case 'attempt_started':
-      if ('attempt' in restored) return Object.freeze({ ...value, subject: restored })
-      break
     case 'before_terminal':
       if ('proposed' in restored) return Object.freeze({ ...value, subject: restored })
       break
@@ -187,13 +192,26 @@ function terminalSubject(
   }
   return undefined
 }
+function attemptSubject(
+  value: Wire<PositionedSubject>,
+  restored: Subject,
+): PositionedSubject | undefined {
+  switch (value.position) {
+    case 'attempt_started':
+      if ('attempt' in restored) return Object.freeze({ ...value, subject: restored })
+      break
+  }
+  return undefined
+}
 function positioned(value: Wire<PositionedSubject>): PositionedSubject {
   const restored = subject(value.subject)
   const result =
     persistedSubject(value, restored) ??
+    compactionSubject(value, restored) ??
     modelCallSubject(value, restored) ??
     actionSubject(value, restored) ??
-    terminalSubject(value, restored)
+    terminalSubject(value, restored) ??
+    attemptSubject(value, restored)
   if (result === undefined) throw new Error('admitted loop subject does not match its position')
   return result
 }
