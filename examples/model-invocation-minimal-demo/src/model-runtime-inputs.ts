@@ -58,8 +58,10 @@ export async function createDemoModelInputs(
             released = true
             borrows--
             if (subject && --subject.borrows === 0 && subject.finished)
-              void thisFiber
-                .dispose()
+              // Cordis effect disposers can return void on reentry. Do not await
+              // the disposal whose own effect is returning this borrow.
+              void Promise.resolve()
+                .then(() => thisFiber.dispose())
                 .catch(() => ctx.logger.error('demo_model.caller_dispose_failed'))
           },
         }),
