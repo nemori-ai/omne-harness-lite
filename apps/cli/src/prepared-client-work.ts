@@ -5,8 +5,11 @@ import {
   type PreparedClientAssembly,
 } from './client-assembly.ts'
 import type { Diagnostic } from './diagnostic.ts'
+import type { PreparedPresentation } from './prepared-presentation.ts'
 
-export type PreparedFactory = (options: ClientAssemblyOptions) => PreparedClientAssembly
+export type PreparedFactory = ((options: ClientAssemblyOptions) => PreparedClientAssembly) & {
+  readonly presentation?: PreparedPresentation
+}
 
 /** Own the assembly. Keep its state alive until the original client is quiescent. */
 export async function usingPreparedClient<T>(
@@ -16,6 +19,7 @@ export async function usingPreparedClient<T>(
   factory: PreparedFactory = createClientAssembly,
 ): Promise<{ outcome: T; diagnostics: readonly Diagnostic[] }> {
   const assembly = factory(options)
+  factory.presentation?.own(assembly)
   const stop = () => assembly.requestStop()
   signal.addEventListener('abort', stop)
   if (signal.aborted) stop()
@@ -29,7 +33,7 @@ export async function usingPreparedClient<T>(
     failed = true
     failure = error
   } finally {
-    cleanup = await stopPreparedClient(assembly)
+    cleanup = await stopPreparedClient(assembly, factory.presentation)
     signal.removeEventListener('abort', stop)
   }
   if (failed) {
@@ -42,12 +46,17 @@ export async function usingPreparedClient<T>(
 
 async function stopPreparedClient(
   assembly: PreparedClientAssembly,
+  presentation?: PreparedPresentation,
 ): Promise<{ diagnostics: Diagnostic[]; failures: unknown[] }> {
   assembly.requestStop()
   try {
     await assembly.clientStopped
   } catch (error) {
     return { diagnostics: ['client-close-failed'], failures: [error] }
+  }
+  if (presentation) {
+    presentation.quiescent(assembly)
+    return { diagnostics: [], failures: [] }
   }
   assembly.releasePresentation()
   try {

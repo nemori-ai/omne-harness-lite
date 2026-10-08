@@ -11,6 +11,11 @@ import type { EntryExecution, ExecutableEntry } from './entry-application.ts'
 import type { EntryCommand } from './entry-command.ts'
 import { runLoginEntry } from './login-entry.ts'
 import { runSelectedGovernanceEntry } from './selected-governance-entry.ts'
+import type { PreparedFactory } from './prepared-client-work.ts'
+import {
+  executeInteractiveGovernance,
+  type GovernanceInteraction,
+} from './governance-entry-interactive.ts'
 
 type GovernanceEntry = Extract<EntryCommand, { kind: 'governance' }>
 export interface EntryExecutionOptions {
@@ -19,6 +24,8 @@ export interface EntryExecutionOptions {
   readonly catalogPolicy: CatalogPolicy
   readonly originalId: () => string
   readonly confirmCenter: (profile: CenterProfile) => Promise<boolean>
+  readonly interactive?: GovernanceInteraction
+  readonly preparedFactory?: PreparedFactory
   readonly session?: (command: Exclude<ExecutableEntry, GovernanceEntry>) => Promise<EntryExecution>
 }
 /** The application fixes construction. Parsed command values never supply a provider. */
@@ -36,7 +43,25 @@ export async function executeEntry(
     ...(command.home === null ? {} : { explicitHome: command.home }),
   })
   const owned = await openCliCatalog(home, options.catalogPolicy)
-  return usingCatalog(owned, () => executeGovernance(command, home, owned, options))
+  return usingCatalog(owned, () =>
+    command.interactive
+      ? executeInteractiveGovernance(
+          command,
+          home,
+          owned.catalog,
+          options.signal,
+          options.interactive,
+          (completed, signal, confirmCenter, preparedFactory) =>
+            executeGovernance(completed, home, owned, {
+              ...options,
+              signal,
+              confirmCenter,
+              preparedFactory,
+            }),
+          options.preparedFactory,
+        )
+      : executeGovernance(command, home, owned, options),
+  )
 }
 async function executeGovernance(
   command: GovernanceEntry,
@@ -56,6 +81,7 @@ async function executeGovernance(
       },
       owned.catalog,
       options.signal,
+      options.preparedFactory,
     )
   if (command.action === 'tenant.create')
     return runTenantCreateEntry(
@@ -66,6 +92,7 @@ async function executeGovernance(
       },
       owned.catalog,
       options.signal,
+      options.preparedFactory,
     )
   if (command.action !== 'center.add')
     return runSelectedGovernanceEntry(
@@ -74,6 +101,7 @@ async function executeGovernance(
       owned.catalog,
       options.signal,
       options.originalId(),
+      options.preparedFactory,
     )
   const trust = await centerTrust(command, options.signal)
   const outcome = await addCenter(

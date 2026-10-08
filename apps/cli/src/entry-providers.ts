@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { versionText } from './version.ts'
 import { executeEntry } from './entry-execution.ts'
 import type { EntryRuntime } from './entry-application.ts'
+import { openTerminal } from './tui/terminal.ts'
 
 /** Initial local limits. Callers of the assembly may supply another bounded policy. */
 export const entryCatalogPolicy = Object.freeze({
@@ -11,6 +12,7 @@ export const entryCatalogPolicy = Object.freeze({
   maxRecordBytes: 1024 * 1024,
 })
 export function entryProviders(signal: AbortSignal): Pick<EntryRuntime, 'version' | 'execute'> {
+  const terminalProfile = process.env.OMNE_TERMINAL_PROFILE ?? ''
   const home = {
     osHome: homedir(),
     ...(process.env.OMNE_HOME === undefined ? {} : { environmentHome: process.env.OMNE_HOME }),
@@ -23,8 +25,11 @@ export function entryProviders(signal: AbortSignal): Pick<EntryRuntime, 'version
         signal,
         catalogPolicy: entryCatalogPolicy,
         originalId: randomUUID,
-        // The interactive preparation surface must install its actual confirmation.
         confirmCenter: async () => false,
+        interactive: {
+          terminal: () => openTerminal(terminalProfile),
+          choicePolicy: { maxChoices: 256 },
+        },
       }),
   }
 }

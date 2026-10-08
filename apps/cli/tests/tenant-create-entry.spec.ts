@@ -18,6 +18,9 @@ import { runTenantCreateEntry } from '../src/tenant-create-entry.ts'
 import { parseEntryCommand } from '../src/entry-command.ts'
 import type { EntryReport } from '../src/entry-application.ts'
 import { tenantReference } from '../src/tenant-reference.ts'
+import { createGovernanceChoices } from '../src/governance-choices.ts'
+import { executeEntry } from '../src/entry-execution.ts'
+import { FakeTerminal, tick } from './support/tui.ts'
 
 const centerId = 'a'.repeat(32),
   account = 'owner',
@@ -33,6 +36,7 @@ let parent: string, server: Server, endpoint: string, certificate: string
 let unknown = false,
   rejected = false,
   hold = false
+let wrongCandidate = false
 let creationSeen = Promise.withResolvers<void>()
 beforeAll(async () => {
   parent = await mkdtemp(join(tmpdir(), 'omne-tenant-entry-tls-'))
@@ -121,6 +125,28 @@ beforeAll(async () => {
           case 'capability.organization-governance/v2#S-25':
             answer = { result: created }
             break
+          case 'capability.organization-governance/v2#S-27':
+            answer = {
+              result: [personal, wrongCandidate ? { ...created, account: 'other' } : created],
+            }
+            break
+          case 'capability.organization-governance/v2#S-57':
+            answer = {
+              result: [
+                {
+                  invitation: 'invitation',
+                  issuerOrganization: created.organization,
+                  invitedAccount: account,
+                  role: 'member',
+                  offerTiming: {
+                    issuedAt: '2026-10-08T12:00:00Z',
+                    expiresAt: '2026-10-08T20:00:00Z',
+                  },
+                  offerState: 'pending',
+                },
+              ],
+            }
+            break
           case 'capability.organization-governance/v2#S-36':
             answer = rejected ? 'login-state-rejected' : { result: personal }
             break
@@ -130,9 +156,10 @@ beforeAll(async () => {
           case 'capability.organization-governance/v2#S-22':
             answer = {
               result: {
-                organization: created.organization,
-                organizationKind: 'team',
-                name: '研发组',
+                organization: body.payload?.organization,
+                organizationKind:
+                  body.payload?.organization === personal.organization ? 'personal' : 'team',
+                name: body.payload?.organization === personal.organization ? '个人组织' : '研发组',
               },
             }
             break
@@ -164,6 +191,7 @@ afterEach(async () => {
   unknown = false
   rejected = false
   hold = false
+  wrongCandidate = false
   creationSeen = Promise.withResolvers<void>()
 })
 afterAll(async () => {
@@ -627,5 +655,322 @@ it.each(['logout', 'list', 'revoke', 'credential'] as const)(
         await state.close()
       }
     }
+  },
+)
+
+it('loads actual tenant candidates with names, roles and complete fixed identities', async () => {
+  const f = await fixture()
+  const choices = createGovernanceChoices(f.home, f.catalog, signal(), { maxChoices: 8 })
+  const candidates = await choices.tenants()
+  expect(candidates).toHaveLength(2)
+  expect(candidates[1]).toMatchObject({
+    binding: { ...binding, tenant: created },
+    reference: tenantReference(checkedTenantBinding({ ...binding, tenant: created })),
+    label: expect.stringContaining('研发组'),
+  })
+  expect(candidates[1]?.label).toContain('superAdministrator')
+  expect(candidates[0]?.label).toContain('Current local selection')
+  expect(JSON.stringify(candidates)).not.toContain(secret)
+  expect((await f.catalog.readSelection()).selected).toEqual(binding)
+  expect(sends.some(row => row.operation === 'capability.organization-governance/v2#S-37')).toBe(
+    false,
+  )
+})
+it('loads actual received invitation candidates and their issuer and expiry', async () => {
+  const f = await fixture()
+  const candidates = await createGovernanceChoices(f.home, f.catalog, signal(), {
+    maxChoices: 8,
+  }).invitations()
+  expect(candidates).toEqual([
+    { id: 'invitation', label: expect.stringContaining('2026-10-08T20:00:00Z') },
+  ])
+  expect(candidates[0]?.label).toContain(created.organization)
+  expect(sends.some(row => row.operation === 'capability.organization-governance/v2#S-25')).toBe(
+    false,
+  )
+})
+it('does not expose cross-account tenant candidates or silently truncate a capacity overflow', async () => {
+  const f = await fixture()
+  wrongCandidate = true
+  await expect(
+    createGovernanceChoices(f.home, f.catalog, signal(), { maxChoices: 8 }).tenants(),
+  ).rejects.toThrow('input-unavailable')
+  wrongCandidate = false
+  await expect(
+    createGovernanceChoices(f.home, f.catalog, signal(), { maxChoices: 1 }).tenants(),
+  ).rejects.toThrow('input-too-large')
+})
+it('does not treat rejected or cancelled candidate readings as a successful empty list', async () => {
+  const f = await fixture()
+  rejected = true
+  await expect(
+    createGovernanceChoices(f.home, f.catalog, signal(), { maxChoices: 8 }).tenants(),
+  ).rejects.toThrow('input-unavailable')
+  const controller = new AbortController()
+  controller.abort()
+  await expect(
+    createGovernanceChoices(f.home, f.catalog, controller.signal, { maxChoices: 8 }).invitations(),
+  ).rejects.toThrow('input-unavailable')
+})
+
+function interactiveOptions(home: string, terminal: FakeTerminal) {
+  return {
+    home: { osHome: parent, explicitHome: home },
+    signal: signal(),
+    catalogPolicy: { maxCenters: 8, maxCreations: 32, maxRecordBytes: 1024 * 1024 },
+    originalId: () => 'interactive-operation',
+    confirmCenter: async () => false,
+    interactive: { terminal: async () => terminal, choicePolicy: { maxChoices: 8 } },
+  }
+}
+it('formal interactive entry fills missing organization input and confirms before the single actual create', async () => {
+  const f = await fixture(),
+    terminal = new FakeTerminal()
+  let entered = false,
+    confirmed = false
+  terminal.onFrame = bytes => {
+    if (bytes.includes('Organization name') && !entered) {
+      entered = true
+      terminal.paste('研发组')
+      void tick().then(() => terminal.key('\r'))
+    } else if (bytes.includes('Confirm action') && !confirmed) {
+      confirmed = true
+      expect(sends.some(s => s.operation === createOperation)).toBe(false)
+      terminal.key('\r')
+    }
+  }
+  const command = parseEntryCommand(['tenant', 'create'], true)
+  if (command.kind !== 'governance') throw new Error('invalid fixture')
+  expect(await executeEntry(command, interactiveOptions(f.home, terminal))).toMatchObject({
+    outcome: { kind: 'created', result: { tenant: created } },
+    diagnostics: [],
+  })
+  expect(entered && confirmed).toBe(true)
+  expect(sends.filter(s => s.operation === createOperation)).toHaveLength(1)
+  expect(terminal.restored).toBe(true)
+})
+it('formal interactive entry cancels missing input without sending a governance action', async () => {
+  const f = await fixture(),
+    terminal = new FakeTerminal()
+  terminal.onFrame = () => terminal.key('\x03')
+  const command = parseEntryCommand(['tenant', 'create'], true)
+  if (command.kind !== 'governance') throw new Error('invalid fixture')
+  expect(await executeEntry(command, interactiveOptions(f.home, terminal))).toMatchObject({
+    outcome: { kind: 'blocked', reason: 'input-cancelled' },
+    diagnostics: [],
+  })
+  expect(sends).toEqual([])
+  expect(terminal.restored).toBe(true)
+})
+it('formal interactive center confirmation shows actual health identity and trust fingerprint before saving', async () => {
+  const f = await fixture(),
+    terminal = new FakeTerminal()
+  let confirmed = false
+  terminal.onFrame = bytes => {
+    if (!bytes.includes('Confirm center') || confirmed) return
+    confirmed = true
+    expect(bytes).toContain(centerId)
+    expect(bytes).toContain('CA SHA-256:')
+    expect(bytes).not.toContain('BEGIN CERTIFICATE')
+    terminal.key('\r')
+  }
+  const certPath = join(parent, 'cert.pem')
+  const command = parseEntryCommand(
+    ['center', 'add', endpoint, '--name', 'new-center', '--ca-file', certPath],
+    true,
+  )
+  if (command.kind !== 'governance') throw new Error('invalid fixture')
+  expect(await executeEntry(command, interactiveOptions(f.home, terminal))).toMatchObject({
+    outcome: { kind: 'saved', profile: { center: { centerId } } },
+    diagnostics: [],
+  })
+  expect(confirmed).toBe(true)
+  expect((await f.catalog.listCenters()).some(c => c.name === 'new-center')).toBe(true)
+  expect(terminal.restored).toBe(true)
+})
+it('formal JSON entry does not acquire a terminal even in a terminal-capable application', async () => {
+  const f = await fixture(),
+    terminal = new FakeTerminal()
+  const options = interactiveOptions(f.home, terminal),
+    open = vi.fn(options.interactive.terminal)
+  const command = parseEntryCommand(['tenant', 'create', '--name', '研发组', '--json'], true)
+  if (command.kind !== 'governance') throw new Error('invalid fixture')
+  expect(
+    await executeEntry(command, {
+      ...options,
+      interactive: { ...options.interactive, terminal: open },
+    }),
+  ).toMatchObject({ outcome: { kind: 'created' } })
+  expect(open).not.toHaveBeenCalled()
+  expect(terminal.frames).toEqual([])
+})
+it('formal interactive entry keeps the original CLS alive through terminal restoration and releases it afterward', async () => {
+  const f = await fixture(),
+    terminal = new FakeTerminal()
+  let source: Awaited<ReturnType<PreparedClientAssembly['borrowState']>> | undefined
+  const factory = (options: ClientAssemblyOptions) => {
+    const assembly = createClientAssembly(options)
+    void assembly.borrowState().then(value => {
+      source = value
+    })
+    return assembly
+  }
+  terminal.onFrame = bytes => {
+    if (bytes.includes('Confirm action')) terminal.key('\r')
+  }
+  const restored = vi.spyOn(terminal, 'restore').mockImplementation(async () => {
+    expect(source).toBeDefined()
+    expect(await source!.read()).toMatchObject({ kind: 'read' })
+    terminal.restored = true
+  })
+  const command = parseEntryCommand(['tenant', 'create', '--name', '研发组'], true)
+  if (command.kind !== 'governance') throw new Error('invalid fixture')
+  expect(
+    await executeEntry(command, {
+      ...interactiveOptions(f.home, terminal),
+      preparedFactory: factory,
+    }),
+  ).toMatchObject({
+    outcome: { kind: 'created' },
+    diagnostics: [],
+  })
+  expect(restored).toHaveBeenCalledOnce()
+  expect(terminal.restored).toBe(true)
+  await expect(source!.read()).rejects.toThrow('closed')
+})
+it.each(['add', 'switch'])(
+  'formal interactive tenant %s uses actual candidates and revalidates at execution',
+  async action => {
+    const f = await fixture(),
+      terminal = new FakeTerminal()
+    let picked = false,
+      confirmed = false
+    terminal.onFrame = bytes => {
+      if (bytes.includes(action === 'add' ? 'Select invitation' : 'Select tenant') && !picked) {
+        picked = true
+        expect(sends.some(s => s.operation.endsWith(action === 'add' ? '#S-25' : '#S-37'))).toBe(
+          false,
+        )
+        terminal.paste(action === 'add' ? '1' : '2')
+        void tick().then(() => terminal.key('\r'))
+      } else if (bytes.includes('Confirm action') && !confirmed) {
+        confirmed = true
+        terminal.key('\r')
+      }
+    }
+    const command = parseEntryCommand(['tenant', action], true)
+    if (command.kind !== 'governance') throw new Error('invalid fixture')
+    expect(await executeEntry(command, interactiveOptions(f.home, terminal))).toMatchObject({
+      outcome: { kind: 'tenant-prepared', binding: { tenant: created } },
+      diagnostics: [],
+    })
+    expect(picked && confirmed).toBe(true)
+    expect(
+      sends.filter(s => s.operation.endsWith(action === 'add' ? '#S-25' : '#S-37')),
+    ).toHaveLength(1)
+    expect(terminal.restored).toBe(true)
+  },
+)
+it('formal interactive entry keeps terminal and CLS gates when original client close proof fails', async () => {
+  const f = await fixture(),
+    terminal = new FakeTerminal(),
+    fault = closeFailureFactory()
+  terminal.onFrame = bytes => {
+    if (bytes.includes('Confirm action')) terminal.key('\r')
+  }
+  const command = parseEntryCommand(['tenant', 'create', '--name', '研发组'], true)
+  if (command.kind !== 'governance') throw new Error('invalid fixture')
+  const result = await executeEntry(command, {
+    ...interactiveOptions(f.home, terminal),
+    preparedFactory: fault.factory,
+  })
+  expect(result).toMatchObject({ outcome: { kind: 'created' } })
+  expect(result.diagnostics).toContain('client-close-failed')
+  expect(terminal.restored).toBe(false)
+  expect(await fault.pending()).toBe(true)
+})
+it('formal interactive entry preserves original creation and releases CLS after a failed restoration attempt', async () => {
+  const f = await fixture(),
+    terminal = new FakeTerminal()
+  let source: Awaited<ReturnType<PreparedClientAssembly['borrowState']>> | undefined
+  const factory = (options: ClientAssemblyOptions) => {
+    const assembly = createClientAssembly(options)
+    void assembly.borrowState().then(value => {
+      source = value
+    })
+    return assembly
+  }
+  terminal.onFrame = bytes => {
+    if (bytes.includes('Confirm action')) terminal.key('\r')
+  }
+  vi.spyOn(terminal, 'restore').mockImplementation(async () => {
+    expect(await source!.read()).toMatchObject({ kind: 'read' })
+    throw new Error('original restoration failure')
+  })
+  const command = parseEntryCommand(['tenant', 'create', '--name', '研发组'], true)
+  if (command.kind !== 'governance') throw new Error('invalid fixture')
+  expect(
+    await executeEntry(command, {
+      ...interactiveOptions(f.home, terminal),
+      preparedFactory: factory,
+    }),
+  ).toMatchObject({
+    outcome: { kind: 'created' },
+    diagnostics: ['input-restore-failed'],
+  })
+  await expect(source!.read()).rejects.toThrow('closed')
+  expect(sends.filter(s => s.operation === createOperation)).toHaveLength(1)
+})
+it.each(['login', 'register'] as const)(
+  'formal interactive %s uses a saved center and only a credential file path',
+  async action => {
+    const f = await fixture(false),
+      terminal = new FakeTerminal()
+    await f.catalog.registerCenter({
+      name: 'work',
+      center: { centerId, endpoint, trust: { mode: 'ca', certificateAuthorities: certificate } },
+    })
+    const credentialFile = join(f.home, 'interactive-credential'),
+      credential = ' whole credential\n'
+    await writeFile(credentialFile, credential, { mode: 0o600 })
+    const steps = [
+      ['Select center', '1'],
+      ['Login identifier', 'owner'],
+      ['Credential file path', credentialFile],
+      ['Confirm action', null],
+    ] as const
+    let stage = 0
+    terminal.onFrame = bytes => {
+      const step = steps[stage]
+      if (!step || !bytes.includes(step[0])) return
+      ++stage
+      if (step[1] === null) {
+        terminal.key('\r')
+        return
+      }
+      terminal.paste(step[1])
+      void tick().then(() => terminal.key('\r'))
+    }
+    const command = parseEntryCommand([action], true)
+    if (command.kind !== 'governance') throw new Error('invalid fixture')
+    const result = await executeEntry(command, interactiveOptions(f.home, terminal))
+    expect(result).toMatchObject(
+      action === 'login'
+        ? { outcome: { kind: 'logged-in', selection: 'selected' }, diagnostics: [] }
+        : {
+            outcome: { kind: 'governance-result', report: { remote: { status: 'success' } } },
+            diagnostics: [],
+          },
+    )
+    expect(stage).toBe(steps.length)
+    expect(terminal.frames.join('')).not.toContain(credential)
+    expect(JSON.stringify(result)).not.toContain('new-private-presentation')
+    expect(terminal.restored).toBe(true)
+    expect(sends.filter(s => s.operation.endsWith('#S-15'))).toHaveLength(
+      action === 'login' ? 1 : 0,
+    )
+    expect(await f.catalog.readSelection()).toMatchObject({
+      selected: action === 'login' ? binding : null,
+    })
   },
 )

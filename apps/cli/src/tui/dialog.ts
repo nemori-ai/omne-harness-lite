@@ -249,8 +249,14 @@ export class Dialog {
     this.#eligible = false
     const input = this.#terminal.stopInput()
     const output = this.#writer.close()
-    this.#stop = Promise.all([input, output]).then(() => {
+    this.#stop = Promise.allSettled([input, output]).then(results => {
       this.#resolve(undefined)
+      const failures = results.flatMap(result =>
+        result.status === 'rejected' ? [result.reason] : [],
+      )
+      if (failures.length === 1) throw failures[0]
+      if (failures.length)
+        throw new AggregateError(failures, 'dialog input and output close failed')
     })
     return this.#stop
   }
