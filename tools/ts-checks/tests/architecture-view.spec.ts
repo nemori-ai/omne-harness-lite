@@ -430,6 +430,9 @@ describe('architecture view projection', () => {
     expect(html).toContain('architecture-pane')
     expect(html).toContain('metrics-pane')
     expect(html).toContain('确认配置选择与实际运行绑定：未观测')
-    expect(html.match(/<\/script>/gu)).toHaveLength(5)
+    // elkjs, the React Flow island, the embedded data, the metrics script and the page script.
+    expect(html.match(/<\/script>/gu)).toHaveLength(6)
+    expect(html).toContain('window.ArchitectureFlow')
+    expect(html).toContain('.react-flow')
   })
 })

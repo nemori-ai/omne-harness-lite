@@ -1,11 +1,12 @@
 /// <reference lib="dom" />
 import type { ArchitectureView, RelationKind, ViewEdge, ViewNode, ViewSelection } from './view.ts'
 import type { selectArchitectureView } from './view.ts'
-import type { ELK, ElkNode, ElkExtendedEdge } from 'elkjs'
+import type { ELK, ElkNode } from 'elkjs'
 import type { architectureLayoutInput } from './layout.ts'
 import type { architectureViewport } from './viewport.ts'
 import type { architectureMatrix } from './matrix.ts'
 import type { conformanceBrowser } from './conformance-browser.ts'
+import type { ArchitectureFlowApi, FlowHandle, FlowProps } from './flow/api.ts'
 
 /** Embedded after TypeScript erasure. Only the supplied projection function crosses this boundary. */
 export function architectureBrowser(
@@ -15,6 +16,7 @@ export function architectureBrowser(
   drawMatrix: typeof architectureMatrix,
   engine: Pick<ELK, 'layout'>,
   attachConformance: typeof conformanceBrowser,
+  flow: ArchitectureFlowApi,
 ): void {
   const required = (id: string): HTMLElement => {
     const element = document.getElementById(id)
@@ -50,6 +52,7 @@ export function architectureBrowser(
   })
   let request = 0
   let viewport: ReturnType<typeof architectureViewport> | undefined
+  let flowHandle: FlowHandle | undefined
   let geometry: { width: number; height: number } | undefined
   let overviewMode: 'matrix' | 'graph' = 'matrix'
   const relations = new Map<RelationKind, HTMLInputElement>()
@@ -70,12 +73,6 @@ export function architectureBrowser(
     const el = document.createElement('option')
     el.value = value
     el.textContent = text
-    return el
-  }
-  const svgElement = (tag: string, attrs: Record<string, string>, text?: string): SVGElement => {
-    const el = document.createElementNS('http://www.w3.org/2000/svg', tag)
-    for (const [key, value] of Object.entries(attrs)) el.setAttribute(key, value)
-    if (text !== undefined) el.textContent = text
     return el
   }
   const kindLabel = {
@@ -175,6 +172,11 @@ export function architectureBrowser(
     required('conformance-pane').hidden = true
   }
   function focusNode(node: ViewNode): void {
+    if (node.kind === 'external') {
+      // No group to expand into: show the declaration without changing the selection.
+      showNode(node)
+      return
+    }
     if (node.kind === 'group') {
       group.value = node.group ?? ''
       focus.value = ''
@@ -294,8 +296,6 @@ export function architectureBrowser(
       detail.append(ul)
     }
   }
-  const nodeWidth = 270,
-    nodeHeight = 100
   function violationsFor(node: ViewNode): number {
     const members = new Set(
       (graph.groups.find(group => group.id === node.id)?.members ?? []).map(
@@ -310,232 +310,92 @@ export function architectureBrowser(
         : intent.forMember(node.member)
     return rows.filter(row => row.state === 'deviation').length
   }
-  function edgeShape(edge: ViewEdge, routed: ElkExtendedEdge): SVGElement {
-    if (routed.sections === undefined || routed.sections.length === 0)
-      throw new Error('Missing edge route')
-    const d = routed.sections
-      .map(section =>
-        [section.startPoint, ...(section.bendPoints ?? []), section.endPoint]
-          .map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x},${point.y}`)
-          .join(' '),
-      )
-      .join(' ')
-    const container = svgElement('g', {})
-    const path = svgElement('path', {
-      'data-edge-id': edge.id,
-      d,
-      fill: 'none',
-      stroke:
-        edge.change === 'added' ? '#1f6feb' : edge.change === 'removed' ? '#b7473d' : '#9aa0a6',
-      'stroke-width': '1.5',
-      'stroke-opacity': '0.8',
-      'stroke-dasharray':
-        edge.kind === 'type-import' || edge.kind === 'optional' || edge.change === 'removed'
-          ? '5 4'
-          : '',
-      'marker-end': 'url(#arch-arrow)',
-    })
-    path.append(svgElement('title', {}, `${graph.relations[edge.kind]} ${edge.label}`))
-    path.setAttribute('role', 'button')
-    path.setAttribute('tabindex', '0')
-    path.setAttribute('aria-label', `${graph.relations[edge.kind]} ${edge.label}`)
-    path.addEventListener('click', () => showEdge(edge))
-    path.addEventListener('keydown', event => {
-      if (event instanceof KeyboardEvent && ['Enter', ' '].includes(event.key)) {
-        event.preventDefault()
-        showEdge(edge)
-      }
-    })
-    container.append(path)
-    for (const label of routed.labels ?? []) {
-      if (label.x === undefined || label.y === undefined) throw new Error('Missing edge label')
-      const text = svgElement(
-        'text',
-        {
-          x: String(label.x),
-          y: String(label.y + 13),
-          fill: '#475569',
-          'font-size': '12',
-          'paint-order': 'stroke',
-          stroke: '#fafbf9',
-          'stroke-width': '5',
-          'stroke-linejoin': 'round',
-        },
-        label.text,
-      )
-      text.addEventListener('click', () => showEdge(edge))
-      container.append(text)
+  function flowProps(selected: typeof shown, layout: ElkNode): FlowProps {
+    return {
+      selected,
+      layout,
+      relations: graph.relations,
+      focus: focus.value,
+      overlays: {
+        complexity: complexity.checked,
+        coupling: coupling.checked,
+        conformance: conformance.checked,
+      },
+      violations: Object.fromEntries(selected.nodes.map(node => [node.id, violationsFor(node)])),
+      kindOf: nodeKind,
+      onNode: id => {
+        const node = nodeById.get(id)
+        if (node !== undefined) focusNode(node)
+      },
+      onEdge: id => {
+        const edge = selected.edges.find(item => item.id === id)
+        if (edge !== undefined) showEdge(edge)
+      },
     }
-    return container
   }
-  function nodeShape(
-    node: ViewNode,
-    positions: ReadonlyMap<string, { x: number; y: number }>,
-  ): SVGElement {
-    const at = positions.get(node.id)
-    if (at === undefined) throw new Error('Missing node geometry')
-    const g = svgElement('g', {
-      role: 'button',
-      tabindex: '0',
-      'aria-label': node.member ?? node.label,
-      'data-node-id': node.id,
-      transform: `translate(${at.x},${at.y})`,
-    })
-    const fills = { green: '#dcefdc', yellow: '#fbeebf', red: '#f8d2cf' }
-    const fill =
-      complexity.checked && node.complexity !== undefined && node.complexity.functions > 0
-        ? fills[node.complexity.band]
-        : node.kind === 'service'
-          ? '#e6eefb'
-          : node.kind === 'event'
-            ? '#f2e8fb'
-            : '#f5f5f1'
-    g.append(
-      svgElement('rect', {
-        width: String(nodeWidth),
-        height: String(nodeHeight),
-        rx: '4',
-        fill,
-        stroke:
-          node.change === 'added'
-            ? '#1f6feb'
-            : node.change === 'removed'
-              ? '#b7473d'
-              : node.id === focus.value
-                ? '#1f6feb'
-                : '#6b7280',
-        'stroke-width': node.change === 'present' ? '1' : '3',
-        'stroke-dasharray': node.change === 'removed' ? '5 4' : '',
-      }),
+  /** The panel takes the background of what will replace it: paper for the matrix, canvas for the graph. */
+  function statusPanel(
+    kind: 'loading' | 'failed',
+    selected: typeof shown,
+    title: string,
+    detail: string,
+  ): HTMLElement {
+    const paper = selected.overview && overviewMode === 'matrix'
+    const panel = element(
+      'div',
+      '',
+      `${kind === 'loading' ? 'arch-loading' : 'arch-error'}${paper ? ' arch-paper' : ''}`,
     )
-    const title = node.member?.split('/').pop() ?? node.label
-    g.append(
-      svgElement(
-        'text',
-        { x: '10', y: '18', fill: '#4b5563', 'font-size': '11' },
-        `«${nodeKind(node)}» ${changeLabel[node.change]}`,
-      ),
-      svgElement(
-        'text',
-        { x: '10', y: '40', fill: '#1d1f21', 'font-size': '13' },
-        title.length > 34 ? title.slice(0, 31) + '…' : title,
-      ),
+    const box = element('div', '', 'arch-status-box')
+    if (kind === 'loading') box.append(element('div', '', 'arch-loading-ring'))
+    box.append(
+      element('p', title, 'arch-status-title'),
+      element('p', detail, 'arch-status-detail mono'),
     )
-    const violations = violationsFor(node)
-    if (conformance.checked && violations > 0)
-      g.append(
-        svgElement('circle', {
-          cx: String(nodeWidth - 12),
-          cy: '12',
-          r: '6',
-          fill: '#ad6100',
-          'data-conformance': 'deviation',
-        }),
-      )
-    const annotations = [
-      conformance.checked && violations > 0 ? `偏离 ${violations}` : '',
-      node.kind === 'group' ? `${node.count ?? 0} 个当前成员` : '',
-      complexity.checked && node.complexity !== undefined
-        ? node.complexity.functions === 0
-          ? '无函数'
-          : `CC 最大 ${node.complexity.max} / 风险 ${node.complexity.risk.toFixed(1)}`
-        : '',
-      coupling.checked ? `入 ${node.fanIn ?? 0} / 出 ${node.fanOut ?? 0}` : '',
-    ].filter(Boolean)
-    g.append(
-      svgElement(
-        'text',
-        { x: '10', y: '82', fill: '#4b5563', 'font-size': '11' },
-        annotations.join(' · '),
-      ),
-      svgElement('title', {}, node.member ?? node.label),
-    )
-    g.addEventListener('click', () => focusNode(node))
-    g.addEventListener('keydown', event => {
-      if (event instanceof KeyboardEvent && ['Enter', ' '].includes(event.key)) {
-        event.preventDefault()
-        focusNode(node)
-      }
-    })
-    return g
+    panel.append(box)
+    return panel
   }
-  function diagramOf(layout: ElkNode, selected: typeof shown): SVGSVGElement {
-    const width = Math.max(540, layout.width ?? 0),
-      height = Math.max(160, layout.height ?? 0) + 100
-    const svg = svgElement('svg', {
-      xmlns: 'http://www.w3.org/2000/svg',
-      viewBox: `0 0 ${width} ${height}`,
-      role: 'img',
-      'aria-label': selected.overview ? '系统总览图' : '当前架构子图',
-      width: String(width),
-      height: String(height),
-    })
-    if (!(svg instanceof SVGSVGElement)) throw new Error('Expected SVG diagram')
-    svg.append(
-      svgElement(
-        'text',
-        { x: '24', y: '24', fill: '#1d1f21', 'font-size': '16' },
-        selected.overview
-          ? '系统总览 · 跨目录组的直接源码关系'
-          : `实际架构 · ${focus.value || group.value}`,
-      ),
-      svgElement(
-        'text',
-        { x: '24', y: String(height - 18), fill: '#475569', 'font-size': '11' },
-        '蓝＝新增 · 红虚线＝BASE 删除 · 虚线＝类型 / 可选 · 目录不表示运行边界 · 静态同名不表示绑定',
-      ),
-    )
-    const defs = svgElement('defs', {})
-    const marker = svgElement('marker', {
-      id: 'arch-arrow',
-      viewBox: '0 0 8 8',
-      refX: '7',
-      refY: '4',
-      markerWidth: '7',
-      markerHeight: '7',
-      orient: 'auto',
-    })
-    marker.append(svgElement('path', { d: 'M0,0 L8,4 L0,8 z', fill: 'context-stroke' }))
-    defs.append(marker)
-    svg.append(defs)
-    const scene = svgElement('g', { transform: 'translate(0,40)' })
-    const routes = new Map(layout.edges?.map(edge => [edge.id, edge]))
-    for (const edge of selected.edges) {
-      const route = routes.get(edge.id)
-      if (route === undefined) throw new Error('Missing edge geometry')
-      scene.append(edgeShape(edge, route))
-    }
-    const positions = new Map<string, { x: number; y: number }>()
-    for (const node of layout.children ?? []) {
-      if (node.x === undefined || node.y === undefined) throw new Error('Missing node position')
-      positions.set(node.id, { x: node.x, y: node.y })
-    }
-    for (const node of selected.nodes) scene.append(nodeShape(node, positions))
-    svg.append(scene)
-    return svg
+  function describe(selected: typeof shown): string {
+    const engineName = selected.overview && overviewMode === 'matrix' ? '依赖矩阵' : 'ELK layered'
+    return `${engineName} · ${selected.nodes.length} 个节点 · ${selected.edges.length} 条聚合关系`
   }
   async function drawDiagram(selected: typeof shown, generation: number): Promise<void> {
     try {
-      const svg =
-        selected.overview && overviewMode === 'matrix'
-          ? drawMatrix(selected, graph.relations, focusNode, showEdge)
-          : diagramOf(await engine.layout(layoutInput(selected, graph.relations)), selected)
-      if (generation !== request) return
-      geometry = {
-        width: Number(svg.getAttribute('width')),
-        height: Number(svg.getAttribute('height')),
+      if (selected.overview && overviewMode === 'matrix') {
+        const svg = drawMatrix(selected, graph.relations, focusNode, showEdge)
+        if (generation !== request) return
+        geometry = {
+          width: Number(svg.getAttribute('width')),
+          height: Number(svg.getAttribute('height')),
+        }
+        diagram.replaceChildren(svg)
+        viewport = attachViewport(svg, diagram, geometry)
+      } else {
+        const layout = await engine.layout(layoutInput(selected, graph.relations))
+        if (generation !== request) return
+        const host = element('div')
+        diagram.replaceChildren(host)
+        flowHandle = flow.mount(host, flowProps(selected, layout))
       }
-      diagram.replaceChildren(svg)
-      if (geometry === undefined) throw new Error('Missing diagram size')
-      viewport = attachViewport(svg, diagram, geometry)
       diagram.setAttribute('data-layout-state', 'ready')
       required('arch-layout-status').textContent =
         `布局完成 · ${selected.nodes.length} 个节点 · ${selected.edges.length} 条聚合关系`
+      required('arch-canvas-hint').textContent =
+        selected.overview && overviewMode === 'matrix'
+          ? '拖动空白处平移 · 右上角按钮缩放 · 点单元格看出处'
+          : '⌘ + 滚轮缩放（Windows 用 Ctrl） · 按住滚轮中键拖动平移，空白处左键拖动也可以 · 滚轮滚动的是页面 · 点节点或关系看详情'
       for (const el of exportButtons) el.disabled = false
     } catch (error) {
       if (generation !== request) return
       const message = `布局失败：${error instanceof Error ? error.message : String(error)}`
-      diagram.replaceChildren(element('p', message, 'arch-error'))
+      diagram.replaceChildren(
+        statusPanel(
+          'failed',
+          selected,
+          '布局失败',
+          `${error instanceof Error ? error.message : String(error)} · ${describe(selected)}`,
+        ),
+      )
       diagram.setAttribute('data-layout-state', 'failed')
       required('arch-layout-status').textContent = message
     } finally {
@@ -562,6 +422,7 @@ export function architectureBrowser(
         focusNode(node),
       )
       row.className = 'arch-item'
+      row.setAttribute('aria-current', String(node.id === focus.value))
       members.append(row)
     }
     const breadcrumb = required('arch-breadcrumb')
@@ -624,12 +485,15 @@ export function architectureBrowser(
     }
     viewport?.dispose()
     viewport = undefined
+    const mounted = flowHandle
+    flowHandle = undefined
+    mounted?.unmount()
     geometry = undefined
     for (const el of exportButtons) el.disabled = true
-    diagram.replaceChildren(element('p', '正在布局…', 'arch-loading'))
+    diagram.replaceChildren(statusPanel('loading', shown, '正在计算布局', describe(shown)))
     diagram.setAttribute('aria-busy', 'true')
     diagram.setAttribute('data-layout-state', 'loading')
-    required('arch-layout-status').textContent = '正在布局…'
+    required('arch-layout-status').textContent = `正在计算布局 · ${describe(shown)}`
     void drawDiagram(shown, ++request)
     renderOverview()
     renderRelations()
@@ -688,9 +552,15 @@ export function architectureBrowser(
   })
   required('arch-tab').addEventListener('click', showArchitecture)
   required('metrics-tab').addEventListener('click', () => showMetrics())
-  required('arch-zoom-in').addEventListener('click', () => viewport?.zoom(1.3))
-  required('arch-zoom-out').addEventListener('click', () => viewport?.zoom(1 / 1.3))
-  required('arch-fit').addEventListener('click', () => viewport?.fit())
+  required('arch-zoom-in').addEventListener('click', () =>
+    flowHandle === undefined ? viewport?.zoom(1.3) : flowHandle.zoomIn(),
+  )
+  required('arch-zoom-out').addEventListener('click', () =>
+    flowHandle === undefined ? viewport?.zoom(1 / 1.3) : flowHandle.zoomOut(),
+  )
+  required('arch-fit').addEventListener('click', () =>
+    flowHandle === undefined ? viewport?.fit() : flowHandle.fitView(),
+  )
   required('arch-matrix').addEventListener('click', () => {
     overviewMode = 'matrix'
     render()
@@ -707,6 +577,10 @@ export function architectureBrowser(
     ),
   )
   required('arch-export-svg').addEventListener('click', () => {
+    if (flowHandle !== undefined) {
+      download('architecture-selection.svg', flowHandle.svg(), 'image/svg+xml')
+      return
+    }
     const svg = diagram.querySelector('svg')
     if (svg === null || geometry === undefined) throw new Error('No diagram to export')
     const exported = svg.cloneNode(true)

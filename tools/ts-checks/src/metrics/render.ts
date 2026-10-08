@@ -40,6 +40,14 @@ export const STYLE = `
   --bad:rgb(224,122,74); --mid:rgb(212,192,90); --good:rgb(95,181,138);
   --nodata:#2a2d31; --edge:#6b7076; --changed:#58a6ff; --except:#e09a2d; } }
 * { box-sizing: border-box; }
+/* 细滚动条：轨道透明、滑块圆头；半径 = 宽度的一半，跟着 --sb-size 走，不是组件圆角标度的一员。 */
+:root { --sb-track-color:transparent; --sb-thumb-color:rgb(180,180,180); --sb-size:5px; }
+@media (prefers-color-scheme: dark) { :root { --sb-thumb-color:rgb(96,100,106); } }
+::-webkit-scrollbar { width:var(--sb-size); height:var(--sb-size); }
+::-webkit-scrollbar-track { background:var(--sb-track-color); border-radius:calc(var(--sb-size) / 2); }
+::-webkit-scrollbar-thumb { background:var(--sb-thumb-color); border-radius:calc(var(--sb-size) / 2); }
+::-webkit-scrollbar-thumb:hover { background:color-mix(in srgb, var(--sb-thumb-color) 70%, var(--fg)); }
+@supports not selector(::-webkit-scrollbar) { * { scrollbar-width:thin; scrollbar-color:var(--sb-thumb-color) var(--sb-track-color); } }
 body { margin:0; padding:16px 20px 60px; background:var(--bg); color:var(--fg);
   font:14px/1.5 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; }
 h1 { font-size:18px; margin:0 0 4px; } h2 { font-size:15px; margin:22px 0 8px; }

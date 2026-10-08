@@ -6,6 +6,8 @@ import { architectureViewport } from './viewport.ts'
 import { architectureMatrix } from './matrix.ts'
 import { conformanceBrowser } from './conformance-browser.ts'
 import { selectArchitectureView, type ArchitectureView } from './view.ts'
+import { architectureFlowBundle } from './flow/bundle.ts'
+import { FLOW_STYLE } from './flow/style.ts'
 
 export function architectureMarkup(graph: ArchitectureView): string {
   const data = JSON.stringify(graph)
@@ -16,13 +18,17 @@ export function architectureMarkup(graph: ArchitectureView): string {
     createRequire(import.meta.url).resolve('elkjs/lib/elk.bundled.js'),
     'utf8',
   )
-  return `<style>
+  const flow = architectureFlowBundle()
+  const inline = (script: string): string => script.replaceAll('</script', '<\\/script')
+  return `<style>${flow.style}${FLOW_STYLE}</style>
+<style>
 button,select { font:inherit; color:inherit; background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:6px 9px; }
 button { cursor:pointer; } button:disabled { cursor:wait; opacity:.45; }
 button:focus-visible,select:focus-visible { outline:3px solid var(--changed); outline-offset:2px; }
 [hidden] { display:none !important; }
 .arch-nav { display:flex; gap:8px; margin-bottom:14px; }
 #architecture-pane { --canvas:#fafbf9; }
+@media (prefers-color-scheme: dark) { #architecture-pane { --canvas:#15171a; } }
 .arch-heading { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
 .arch-heading h1 { margin:0; font-size:22px; }
 #arch-counts { font-size:12px; color:var(--muted); margin:0; }
@@ -40,19 +46,34 @@ button:focus-visible,select:focus-visible { outline:3px solid var(--changed); ou
 .arch-sidebar p,.arch-sidebar li { font-size:12px; line-height:1.6; }
 .arch-navigation { border-right:1px solid var(--line); }
 .arch-card,.arch-item,.arch-edge { display:block; text-align:left; width:100%; margin:4px 0; padding:8px; overflow-wrap:anywhere; font-size:11px; }
-.arch-card[aria-current=true] { border-color:var(--changed); background:#eaf1fa; }
+.arch-card,.arch-item { transition:border-color .12s ease, background-color .12s ease, box-shadow .12s ease; }
+.arch-card:hover,.arch-item:hover { border-color:color-mix(in srgb, var(--fg) 35%, var(--line)); }
+.arch-card[aria-current=true],.arch-item[aria-current=true] { border-color:var(--changed); box-shadow:inset 3px 0 0 var(--changed); background:color-mix(in srgb, var(--changed) 12%, var(--panel)); color:var(--fg); font-weight:600; }
+.arch-card[aria-current=true]:hover,.arch-item[aria-current=true]:hover { background:color-mix(in srgb, var(--changed) 18%, var(--panel)); }
 .arch-canvas { display:flex; flex-direction:column; min-width:0; overflow:hidden; background:var(--canvas); }
 .arch-canvas-bar { display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:10px 12px; border-bottom:1px solid var(--line); font-size:11px; background:var(--panel); }
 #arch-breadcrumb { flex:1; overflow-wrap:anywhere; }
 #arch-breadcrumb button { border:0; padding:3px; background:none; font-size:11px; }
 #arch-diagram { flex:1; min-height:0; overflow:hidden; position:relative; }
-#arch-diagram svg { display:block; width:100%; height:100%; touch-action:none; cursor:grab; }
-#arch-diagram svg:active { cursor:grabbing; }
-#arch-diagram [data-node-id],#arch-diagram [data-edge-id] { cursor:pointer; }
+#arch-diagram > svg { display:block; width:100%; height:100%; touch-action:none; cursor:grab; background:#fafbf9; }
+#arch-diagram > svg:active { cursor:grabbing; }
+#arch-diagram > svg [data-node-id],#arch-diagram > svg [data-edge-id] { cursor:pointer; }
 #arch-diagram g[role=button]:hover rect { stroke:#1f6feb; stroke-width:2; }
 #arch-diagram path[role=button]:hover { stroke:#1f6feb; stroke-width:4; }
 .arch-canvas-footer { padding:8px 12px; border-top:1px solid var(--line); background:var(--panel); font-size:11px; color:var(--muted); }
-.arch-loading,.arch-error { padding:24px; } .arch-error { color:#a83228; }
+.arch-loading,.arch-error { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:24px;
+  background-image:radial-gradient(circle, rgba(120,128,140,.35) 1px, transparent 1.6px); background-size:22px 22px; }
+.arch-loading { opacity:0; animation:arch-fade-in .25s ease .15s forwards; }
+.arch-paper { background-color:#fafbf9; }
+.arch-status-box { display:flex; flex-direction:column; align-items:center; gap:4px; min-width:260px; max-width:560px; padding:18px 24px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--fg); box-shadow:0 10px 30px -18px rgba(0,0,0,.4); }
+.arch-error .arch-status-box { align-items:flex-start; border-color:var(--bad); border-left-width:4px; }
+.arch-loading-ring { width:26px; height:26px; margin-bottom:6px; border-radius:50%; border:2.5px solid color-mix(in srgb, var(--line) 85%, transparent); border-top-color:var(--changed); animation:arch-spin .9s linear infinite; }
+.arch-status-title { margin:0; font-size:13px; font-weight:600; }
+.arch-status-detail { margin:0; font-size:11px; color:var(--muted); overflow-wrap:anywhere; }
+.arch-error .arch-status-title { color:var(--bad); }
+@keyframes arch-spin { to { transform:rotate(360deg); } }
+@keyframes arch-fade-in { to { opacity:1; } }
+@media (prefers-reduced-motion: reduce) { .arch-loading { animation:none; opacity:1; } .arch-loading-ring { animation:none; } }
 .arch-inspector { border-left:1px solid var(--line); }
 #arch-detail { overflow-wrap:anywhere; } #arch-detail h2 { font-size:15px; color:var(--ink); }
 #arch-detail code { display:block; font-size:10px; overflow-wrap:anywhere; }
@@ -94,7 +115,7 @@ button:focus-visible,select:focus-visible { outline:3px solid var(--changed); ou
 <div class="arch-canvas">
 <div class="arch-canvas-bar"><nav id="arch-breadcrumb" aria-label="当前架构路径"></nav><button id="arch-matrix">依赖矩阵</button><button id="arch-graph">关系图</button><button id="arch-zoom-in">放大</button><button id="arch-zoom-out">缩小</button><button id="arch-fit">适应全图</button></div>
 <div id="arch-diagram" role="region" aria-label="架构画布" aria-busy="true" data-layout-state="loading"></div>
-<div class="arch-canvas-footer"><span id="arch-layout-status" role="status" aria-live="polite">正在布局…</span> · 拖动画布空白区域平移</div>
+<div class="arch-canvas-footer"><span id="arch-layout-status" role="status" aria-live="polite">正在布局…</span> · <span id="arch-canvas-hint">拖动画布空白区域平移</span></div>
 </div>
 <aside class="arch-sidebar arch-inspector" aria-label="架构详情"><h2>所选节点或关系</h2><div id="arch-detail"></div><h2>关系清单</h2><div id="arch-relations"></div></aside>
 </div>
@@ -116,9 +137,10 @@ button:focus-visible,select:focus-visible { outline:3px solid var(--changed); ou
 <details class="arch-notice"><summary>机械、人工与行为证据边界</summary><div id="conformance-coverage"></div></details>
 </section>
 <script type="application/json" id="architecture-data">${data}</script>
-<script>${bundle.replaceAll('</script', '<\\/script')}</script>`
+<script>${inline(bundle)}</script>
+<script>${inline(flow.script)}</script>`
 }
 
 export function architectureScript(): string {
-  return `(${architectureBrowser.toString()})(${selectArchitectureView.toString()},${architectureLayoutInput.toString()},${architectureViewport.toString()},${architectureMatrix.toString()},new ELK(),${conformanceBrowser.toString()});`
+  return `(${architectureBrowser.toString()})(${selectArchitectureView.toString()},${architectureLayoutInput.toString()},${architectureViewport.toString()},${architectureMatrix.toString()},new ELK(),${conformanceBrowser.toString()},window.ArchitectureFlow);`
 }
