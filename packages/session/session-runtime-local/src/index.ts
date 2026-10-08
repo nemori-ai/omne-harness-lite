@@ -22,3 +22,6 @@ export type {
   SessionLifecycleStep,
   LocalSessionIngress,
 } from './runtime-types.ts'
+
+export { createLocalSessionAccess } from './session-access.ts'
+export type { LocalSessionAccess, LocalSessionAccessOptions } from './session-access-types.ts'

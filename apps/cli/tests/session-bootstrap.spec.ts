@@ -13,6 +13,7 @@ import {
 } from '@omne-harness-lite/identity-values'
 import { isGovernanceCenterId } from '@omne-harness-lite/governance-center-entry'
 import {
+  createLocalSessionAccess,
   createLocalAdmission,
   createLocalSessionIngress,
   admissionMigrations,
@@ -28,6 +29,7 @@ import { evaluationInputMigrations } from '@omne-harness-lite/evaluation-input-s
 import { publishLocalInputs } from '@omne-harness-lite/evaluation-input-store/publication'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import { createSessionAdmissionProbe } from '../src/session-admission-probe.ts'
+import type { AccessIdentity } from '@omne-harness-lite/session-tenancy'
 import { createSessionBootstrap, type SessionBootstrapOptions } from '../src/session-bootstrap.ts'
 import { narrow } from '@omne-harness-lite/storage'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
@@ -46,7 +48,7 @@ const source: AdmissionSource = {
 const tenant = unwrap(parseTenantId({ organization: 'team', account: source.accountId }))
 const definition = { category: 'agent_definition' as const, name: 'bootstrap:actual-root' }
 const now = '2026-10-08T00:00:00Z'
-async function setup() {
+async function setup(maxBindings = 16) {
   const directory = await mkdtemp(join(tmpdir(), 'omne-formal-bootstrap-'))
   cleanup.push(() => rm(directory, { recursive: true, force: true }))
   const root = await openStorage({
@@ -93,7 +95,9 @@ async function setup() {
     'fixture-auth',
   )
   if (installed.kind !== 'installed') throw new Error('auth not installed')
-  const exchanges = vi.fn(async (_options: unknown, request: unknown) => ({
+  const exchanges = vi.fn<
+    Parameters<typeof createGovernanceClient>[0]['transport']['exchangeGovernance']
+  >(async (_options, request) => ({
     kind: 'reply' as const,
     sendAttempted: true,
     reply: {
@@ -194,6 +198,59 @@ async function setup() {
   })
   if (!('revision' in publication)) throw new Error('actual asset publication failed')
   cleanup.push(() => log.close())
+  const checks = vi.fn()
+  let corruptIdentity: ((identity: AccessIdentity) => AccessIdentity) | undefined
+  let authorityDefect: Error | undefined
+  let gate: { entered: () => void; wait: Promise<void> } | undefined
+  function pauseChecks() {
+    let entered!: () => void, release!: () => void
+    const ready = new Promise<void>(resolve => {
+      entered = resolve
+    })
+    const wait = new Promise<void>(resolve => {
+      release = resolve
+    })
+    gate = { entered, wait }
+    return {
+      entered: ready,
+      release() {
+        gate = undefined
+        release()
+      },
+    }
+  }
+  const access = createLocalSessionAccess({
+    tenant,
+    principal: { principal: source.accountId, principalKind: 'human' },
+    consumers: ['model'],
+    operations: ['context.read'],
+    policy: { maxBindings, maxContextKeys: 16 },
+    authority: {
+      async check(identity, operation) {
+        checks()
+        if (gate) {
+          const currentGate = gate
+          currentGate.entered()
+          await currentGate.wait
+        }
+        if (operation !== 'context.read') return { kind: 'rejected', reason: 'notAuthorized' }
+        const view = await runtime.operations.readSession(runtime.access, identity.scope.session)
+        if ('kind' in view && view.kind === 'session' && view.session.lifecycle === 'active') {
+          if (authorityDefect) throw authorityDefect
+          return {
+            kind: 'authorized',
+            identity: corruptIdentity ? corruptIdentity(identity) : identity,
+          }
+        }
+        return {
+          kind: 'rejected',
+          reason:
+            'failure' in view && view.failure === 'unavailable' ? 'unavailable' : 'notAuthorized',
+        }
+      },
+    },
+  })
+  cleanup.push(() => access.close())
   assembly = createSessionBootstrap({
     storage,
     admission,
@@ -202,12 +259,30 @@ async function setup() {
     inputSource: base,
     tenancy: runtime.tenancy,
     logBacking: log.backing,
-    access: { authorize: async () => ({ kind: 'rejected', reason: 'notAuthorized' }) },
+    access: access.operations,
     clock: { now: () => unwrap(instantFromRfc3339(now)) },
     contextSeed: seed,
   })
   cleanup.push(() => assembly.close())
-  return { directory, runtime, assembly, storage, admission, log, exchanges, seed }
+  return {
+    directory,
+    runtime,
+    assembly,
+    storage,
+    admission,
+    log,
+    exchanges,
+    seed,
+    access,
+    checks,
+    pauseChecks,
+    corruptIdentity(transform: (identity: AccessIdentity) => AccessIdentity) {
+      corruptIdentity = transform
+    },
+    faultAuthority(error: Error) {
+      authorityDefect = error
+    },
+  }
 }
 const input = {
   operationKey: 'create-actual',
@@ -324,4 +399,184 @@ it('stops publication while an original seed call is pending and drains it befor
   expect(entries).toHaveLength(1)
   expect(entries[0]?.published).toBe(0)
   await expect(f.storage.read(async () => 'borrowed-open')).resolves.toBe('borrowed-open')
+})
+
+async function issuedContext(f: Awaited<ReturnType<typeof setup>>) {
+  const created = await f.runtime.operations.createSession(f.runtime.access, input)
+  if (!('kind' in created) || created.kind !== 'created') throw new Error('actual creation failed')
+  const scope = { tenant, session: created.session }
+  const request = {
+    principal: source.accountId,
+    principalKind: 'human' as const,
+    scope,
+    consumer: 'model' as const,
+    contextKeys: [],
+    operations: ['context.read' as const],
+  }
+  const issued = await f.access.issuer.issue(request)
+  if (issued.kind !== 'issued') throw new Error('actual live binding unavailable')
+  const context = await f.assembly.context(scope)!.ready
+  return { scope, request, issued, context }
+}
+it('reads the actual isolated Context through an issued live binding and rejects copied and revoked bindings', async () => {
+  const f = await setup()
+  const { scope, issued, context } = await issuedContext(f)
+  const binding = await context.bind(issued.access, scope, 'model')
+  expect(binding).toHaveProperty('kind', 'bound')
+  if (binding.kind !== 'bound') throw new Error('actual Context binding failed')
+  expect(await binding.reader.read([])).toEqual({ kind: 'values', values: [] })
+  expect(await context.bind({ ...issued.access }, scope, 'model')).toEqual({
+    kind: 'rejected',
+    reason: 'notAuthorized',
+  })
+  f.access.issuer.revoke(issued.access)
+  expect(await binding.reader.read([])).toEqual({ kind: 'rejected', reason: 'notAuthorized' })
+})
+it('rejects claimed identity, scope and operation outside the trusted grant before authority IO', async () => {
+  const f = await setup()
+  const { scope, request, issued } = await issuedContext(f)
+  const calls = f.checks.mock.calls.length
+  expect(await f.access.issuer.issue({ ...request, principalKind: 'agent' })).toEqual({
+    kind: 'rejected',
+    reason: 'notAuthorized',
+  })
+  expect(
+    await f.access.issuer.issue({ ...request, operations: ['session.log.coordinate'] }),
+  ).toEqual({ kind: 'rejected', reason: 'notAuthorized' })
+  const foreign = {
+    tenant: unwrap(parseTenantId({ organization: 'foreign', account: source.accountId })),
+    session: scope.session,
+  }
+  expect(await f.access.operations.authorize(issued.access, foreign, 'context.read')).toEqual({
+    kind: 'rejected',
+    reason: 'notAuthorized',
+  })
+  expect(await f.access.operations.authorize(issued.access, scope, 'tool.submit')).toEqual({
+    kind: 'rejected',
+    reason: 'notAuthorized',
+  })
+  expect(f.checks).toHaveBeenCalledTimes(calls)
+})
+it('refuses an old Context reader after actual G28 observes current member refusal', async () => {
+  const f = await setup()
+  const { scope, issued, context } = await issuedContext(f)
+  const bound = await context.bind(issued.access, scope, 'model')
+  if (bound.kind !== 'bound') throw new Error('actual Context binding failed')
+  f.exchanges.mockImplementation(async (_options, request) => ({
+    kind: 'reply',
+    sendAttempted: true,
+    reply: {
+      result: (request as { operation: string }).operation.endsWith('#S-36')
+        ? tenant
+        : { standing: 'ineffective' },
+    },
+  }))
+  const next = await f.admission.reserve(source, {
+    purpose: 'createSession',
+    tenant,
+    session: null,
+    inputPosition: null,
+    operationKey: 'member-refusal',
+  })
+  expect(await f.admission.query(next.ticket)).toHaveProperty('state', 'memberRejected')
+  expect(await bound.reader.read([])).toEqual({ kind: 'rejected', reason: 'notAuthorized' })
+  expect(await f.access.operations.authorize(issued.access, scope, 'context.read')).toEqual({
+    kind: 'rejected',
+    reason: 'notAuthorized',
+  })
+})
+
+it('checks revocation again after an original authority read finishes', async () => {
+  const f = await setup()
+  const { scope, issued } = await issuedContext(f)
+  const gate = f.pauseChecks()
+  const reading = f.access.operations.authorize(issued.access, scope, 'context.read')
+  try {
+    await gate.entered
+    f.access.issuer.revoke(issued.access)
+  } finally {
+    gate.release()
+  }
+  expect(await reading).toEqual({ kind: 'rejected', reason: 'notAuthorized' })
+})
+it('close drains the original issue check and prevents a late token without closing borrowed runtime', async () => {
+  const f = await setup()
+  const { request, scope } = await issuedContext(f)
+  const gate = f.pauseChecks()
+  const issuing = f.access.issuer.issue(request)
+  await gate.entered
+  let closed = false
+  const closing = f.access.close().then(() => {
+    closed = true
+  })
+  try {
+    await Promise.resolve()
+    expect(closed).toBe(false)
+    expect(await f.access.issuer.issue(request)).toEqual({
+      kind: 'rejected',
+      reason: 'ownerStopped',
+    })
+  } finally {
+    gate.release()
+  }
+  expect(await issuing).toEqual({ kind: 'rejected', reason: 'ownerStopped' })
+  await closing
+  expect(await f.runtime.operations.readSession(f.runtime.access, scope.session)).toHaveProperty(
+    'kind',
+    'session',
+  )
+})
+it('reserves capacity before concurrent issue checks and only releases an original live slot on revoke', async () => {
+  const f = await setup(1)
+  const { request, issued } = await issuedContext(f)
+  f.access.issuer.revoke(issued.access)
+  const gate = f.pauseChecks()
+  const first = f.access.issuer.issue(request)
+  await gate.entered
+  const calls = f.checks.mock.calls.length
+  try {
+    expect(await f.access.issuer.issue(request)).toEqual({
+      kind: 'rejected',
+      reason: 'unavailable',
+    })
+    expect(f.checks).toHaveBeenCalledTimes(calls)
+  } finally {
+    gate.release()
+  }
+  const accepted = await first
+  expect(accepted).toHaveProperty('kind', 'issued')
+  if (accepted.kind !== 'issued') throw new Error('original issue failed')
+  expect(await f.access.issuer.issue(request)).toEqual({ kind: 'rejected', reason: 'unavailable' })
+  f.access.issuer.revoke(accepted.access)
+  expect(await f.access.issuer.issue(request)).toHaveProperty('kind', 'issued')
+})
+
+it('rejects malformed or duplicate grants before checking authority', async () => {
+  const f = await setup()
+  const { request } = await issuedContext(f)
+  const calls = f.checks.mock.calls.length
+  expect(await f.access.issuer.issue({ ...request, contextKeys: ['same', 'same'] })).toEqual({
+    kind: 'rejected',
+    reason: 'invalidInput',
+  })
+  expect(
+    await f.access.issuer.issue({ ...request, operations: ['context.read', 'context.read'] }),
+  ).toEqual({ kind: 'rejected', reason: 'invalidInput' })
+  expect(
+    await f.access.issuer.issue({ ...request, scope: { ...request.scope, session: '' as never } }),
+  ).toEqual({ kind: 'rejected', reason: 'invalidInput' })
+  expect(f.checks).toHaveBeenCalledTimes(calls)
+})
+it('retains a substituted authority identity as a defect instead of issuing its changed principal kind', async () => {
+  const f = await setup()
+  const { request } = await issuedContext(f)
+  f.corruptIdentity(identity => ({ ...identity, principalKind: 'agent' }))
+  await expect(f.access.issuer.issue(request)).rejects.toThrow('substituted the original identity')
+})
+it('propagates the original authority defect without issuing a token or replacing it with an authorization decision', async () => {
+  const f = await setup()
+  const { request } = await issuedContext(f)
+  const original = new Error('controlled original authority defect')
+  f.faultAuthority(original)
+  await expect(f.access.issuer.issue(request)).rejects.toBe(original)
 })

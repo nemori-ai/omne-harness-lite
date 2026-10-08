@@ -43,3 +43,7 @@ pnpm --filter @omne-harness-lite/session-runtime-local test
 可信tenancy读面从实际持久预留读取固定Session归属，不使用开发seed。./cordis导出createLocalSessionContext，建立独立Context及显式共享桥。应用以runtimeContext参数提供尚未挂载的新Runtime Context提供者，构造器使用其原plugin、ready、initializer及closeAdmission，不选择具体实现。私有initializer只接原Session，停止等待实际工作及日志borrow释放；释放失败保留责任，可重试原close。正式宿主仍须取得实际合法配方及seed，再确认初始化后发布Session。
 
 原创建票据持久保留实际成员角色。该快照只供原配方捕获，不能替代当前授权。SessionBootstrap接收原票据以认回实际原Session；缺失角色不设默认值。
+
+## 活体访问绑定
+
+createLocalSessionAccess借入真实当前authority、固定的已鉴权主体和租户，并接显式许可及容量策略。工厂独立返回读取服务和私有issuer；issuer不注册为普通服务。使用点重新核当前资格，复制／撤销／关闭的引用不放行；关闭排空原核验而不关闭借入拥有者。行为见[SPEC](SPEC.md#活体sessionaccess发行)。

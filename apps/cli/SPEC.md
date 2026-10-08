@@ -314,3 +314,9 @@ session-bootstrap固定原center／account／login handle／tenant，借入真�
 装配只向可信宿主提供已初始化Context和只读输入面，不把运行引用放入JSON或向普通客户端暴露捕获／关闭能力。关闭先停止新初始化、来源读取与Context准入，再等待原工作和实际Context释放。原释放失败保留责任，retryClose只重试原关闭，不恢复准入。借入G28、日志、CG和Storage仍由宿主关闭。
 
 此装配构件的组合测试必须区分实际持久资格、资产和Context与受控运输／seed／访问端口。独立宿主、动态Agent贡献、真实SessionAccess发行、模型和工具消费者及默认产品路径仍须完整B01验收；构件通过不能作为三张故事卡完成的依据。
+
+## Session访问发行的装配义务
+
+可信宿主从实际登录来源或原Agent／系统装配核实主体种类后，构造固定租户的createLocalSessionAccess。Session Context仅借入其operations；issuer保持在可信宿主，不经命令body或普通服务暴露。当前只读组合使用原SessionRuntime公开readSession核实际G28成员及Session持有，绑定明确的已鉴权自然人主体，只允许context.read；不能据此声称Agent／系统主体或模型／工具执行权限已核实。后续消费者须按各自原权限核实，不能从consumer名称推断主体种类或增授session.log.coordinate。
+
+组合测试中的访问绑定已经由实际提供者发行，当前拒绝来自真实G28持久观察和原SessionRuntime读取。运输、seed仍受控，正式宿主尚须消费这些构件。
