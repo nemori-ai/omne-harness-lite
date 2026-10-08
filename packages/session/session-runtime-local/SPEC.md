@@ -1,0 +1,65 @@
+# 本机会话提供者
+
+本包提供本机持久准入、Session状态和共同事务的具体承载。Session公开操作形状及业务不变量归[定义拥有者](../../core/session-runtime/SPEC.md)；日志参加协议归[Session Log](../../core/session-log/SPEC.md)。本文只拥有此提供者的存储、可信构造、顺序和资源行为。当前可调用的具体接口由src/index.ts导出；未导出的服务不能从目录推定已经实现。
+
+## 准入来源与存储
+
+createLocalAdmission是可信装配入口。调用者借入全根AtomicStorage、实际治理核验端口和有界AdmissionPolicy；不得向普通客户端暴露核验结果登记或guard签发。核验端口必须固定原中心、账号、登录handle及精确目标。valid只证明本次新Run登录有效；memberValid另证明目标成员当前effective；memberRejected证明登录有效但目标成员无效；rejected只用于可信登录拒绝。网络不可达、来源不明和未知不能伪装成拒绝或有效。核验返回的声明同时要求其实际owned查询已经结束；意外异常保留源丢失的责任。
+
+admissionMigrations归全根非秘密准入库，例如宿主的runtime/admission.sqlite，不归配置库或可清理缓存。记录完整center/account/login来源、严格递增序号、本机成员准入及原目标，不保存登录出示物、口令或消息。admissionUseMigrations归各租户真实运行库；它记录原ticket的精确使用与原回执，不成为另一份Session状态或日志。
+
+根库与租户库是不同实际数据库，不共同提交。可信装配必须把每个租户端口固定到其完整中心／租户归属，禁止将任意请求传来的Storage当作该租户。根写顺序覆盖租户真实事务结束，借入的事务端口必须在返回或拒绝时已结束本机旧SQL工作。StorageUnit.observeCompletion的unknown不证明这一点；没有真实结束证据的后端不得接上此配方。当前真实SQLite验证使用storage-sql的同步node:sqlite语句及其实际事务／连接释放。
+
+## 预登记、核验及成员范围
+
+reserve在根事务中认回完整原来源／目标，分配严格序号并持久登记waiting；提交未知不发网络。query只有在根事务实际提交唯一active许可后才核验。相同登录最多一个active，创建Session还须同时取得跨handle的完整成员队列active。每个请求一次登记所需关系，采用同一sequence全序；waiting不占active，不在网络期间占数据库锁。
+
+旧active未结算时，后到请求不能覆盖或越过它。有效结果进入ready，仍保持active，直至原租户消费或明确未用终结。可信登录拒绝对旧handle永久吸收；它同时终结该handle全部waiting关系，不能让已拒绝等待者占据成员队首。真正新handle可以重新核验登录，却不能抹除成员范围的未知。
+
+成员与登录分开保存。成员查询在途时，该成员的新准入和外部会话读取不可用；成员拒绝不使其他组织的登录失效。已结算成员拒绝可由后续按序的memberValid恢复；新Run的valid不修改成员状态。原结果丢失的成员active不能靠重新登录、容量或超时删除。这里不提供无条件进展或恢复时限。
+
+withCurrent核本机登录及成员准入；withMember只核成员，用于进入、呈现和读取原会话。它们均在真实根写顺序下进入实际租户StorageUnit。原Run内部执行使用其同租户单元持久grant及当前attempt／取消栅栏，不调用新Run核验或用checking／登录到期取消原工作。
+
+## Guard和一次消费
+
+guard只由本次活体拥有者在回调内签发，绑定实际StorageUnit、来源和完整租户。复制对象、别的issuer、别的单元、其他来源／租户及回调结束后的引用无效。数据ticket、body或缓存不授予权限。
+
+consume在根写顺序下核原ticket和当前资格，保持根排他直至租户真实AtomicStorage结束。回调只能暂存本次原业务变化，不能发模型、工具或治理IO。原ticket使用、业务事实和回执在同租户单元提交。已有使用返回原回执，不再次执行回调。根最后的空事务或结算成功不是租户提交证明。
+
+租户或外层根结果不明时，返回unknownCommit和完整原ticket；active保持，后续只在原租户单元认回使用。根结算错误不能重新暂存原业务或重发IO。abandon只接受已可靠结束核验的ready／consumed；在同根写顺序证明旧消费已真实结束，并在原租户单元核原使用。已有使用认回consumed；可靠无使用才登记notUsed并释放全部排队关系。waiting／querying不以缺席推断可放弃。
+
+## 容量、关闭与失败
+
+maxLogins、maxTickets和maxRecordBytes均为显式正安全整数，容量按持久全库记录计；本实现不自动回收未完、拒绝或已完成记录。达界在核验IO前明确拒绝，不通过清理恢复旧handle。格式、来源或已存关系损坏明确失败；非法输入、容量、拒绝、关闭及pending-result不输出秘密。StorageDefect等意外缺陷原样上抛。
+
+close同步撤新准入，等待全部已登记查询、guard和租户消费结束。已得到但未可靠结算的原结果只重试存储，不重复核验。源丢失或未结算时拒绝关闭并保留责任和借入依赖；成功不关闭借入Storage或probe。关闭不取消原Run或归档Session。
+
+## 同单元状态参加者
+
+本机状态参加者由可信协调者构造并持有，不向普通客户端暴露。它借入固定租户的真实AtomicStorage、当前协调资格端口、显式容量策略及原工作结算读取端口。所有读写都参加调用者的StorageUnit；不独立提交，不发模型、工具或治理IO。资格校验、Session写顺序和预期revision判断在同单元内完成。日志事实及原回执由协调者在同单元配对；单独暂存状态不构成公共操作成功。
+
+状态表保存当前revision、生命周期和Run／attempt栅栏。待处理表只保存原日志位置、操作身份、语义摘要和临时Run保留关系；消息全文由Session Log保存。位置以规范十进制整数保存，按位数及字面排序，不转为JavaScript Number。Run身份占用表与首次建立Run同提交，终态身份不得复用。
+
+initialize只建立无Run的空状态。acceptInput保留有界待处理资格；同一原操作、位置及语义可认回，异语义或异位置拒绝。startRun先为唯一Run保留原资格；adoptInput与真实承接事实同单元后才删除工作行。协调者必须在对外报告承接前完成两者，不能把保留当作已消费。历史消息和受理事实不删除。首次attempt返回活体permit，绑定Scope、Run、attempt及执行代际；同原单元可用于继续暂存，其他单元只在原提交可靠完成后可用。回滚permit、复制对象及终态permit无效。
+
+finish重新读取当前资格及原工作结算状态。有待处理输入、原调用未结算或结算来源不可用时，不登记完成。输入受理和收尾共用同一写顺序及revision比较；旧空队列判断不能越过新受理。当前参加者不提供中断恢复时的执行者接管，也不证明原模型／工具工作已经停止；这两项由完整协调装配取得实际证据后实现。
+
+## 同单元公共操作回执
+
+operationReceiptMigrations归租户运行库。createLocalOperationReceipts借入同一真实Storage、固定Tenant、可信当前授权端口及实际Session Log参加者；它不拥有独立事务或借入依赖的关闭。授权端口须在调用者Unit核实可信主体及完整OperationRef，不能从ref中的principal自称授予资格。创建操作的session为null，认回无需先知道分配的Session；回执source中的Session保存原分配结果。
+
+readIn和stageIn均先核当前资格，再查询原身份。持久键闭合包含tenant、principal、operation、operationKey及session。相同身份与语义返回原回执，不能用后来日志坐标改写它；异语义为identityConflict。Session公共操作须在追加或变更状态前先认回，避免重放制造额外事实。回执保存原完整SourceToken和精确位置，不保存活体权限引用。
+
+新回执的SourceToken必须与本单元实际sourceIn相同，位置必须为正且不超过tail。协调者另保证它指向本次已校验的原操作事实，并将该事实、状态和待处理资格放在同单元；仅有相同坐标不能证明事实内容。stageIn只是暂存，不是成功公共回执。外层提交未知时只按原OperationRef认回，absent不能证明旧在途事务不会再提交。
+
+容量按租户全库已保存回执计，不自动删除历史身份。maxRecords和maxRecordBytes必须显式给出；字节界包括回执全文及语义摘要。容量不足不新增回执，但仍可认回已有身份。非法外部输入为invalidInput；已存数据损坏为StorageDefect，不能伪装成absent。关闭后拒绝新调用，实际外层单元排空仍由协调者负责。
+
+## 验证义务
+
+真实两个根连接与租户数据库验证：原请求认回、全队列有序、跨租户登录拒绝、跨handle成员屏障、成员恢复、当前读取、guard有效期、同租户使用／回执原子性、半提交回滚、内外层unknown、可靠notUsed、容量及关闭。真实子进程须在收到拒绝且未结算时SIGKILL，重开仍保留原pending，后继零核验IO。
+
+状态参加者验证：同调用者单元回滚、输入保留／实际采用、原语义冲突、大整数位置、容量、唯一Run竞争、终态身份拒绝复用、复制及回滚permit拒绝、收尾与新输入竞争、结算未完及来源不可用、当前资格和跨租户／跨Storage拒绝。
+
+回执参加者验证：日志／状态／资格／回执联合提交及回滚、完整原身份认回、实际提交结果丢失、权限撤销与重放、原快照保持、跨租户／实例、坏源坐标、精确整数、容量及存储损坏。可信授权的具体登录／成员接线仍由正式装配验收。
+
+这些义务不等于完整CLI、真实OpenRouter、工具闭环或后续宿主恢复验收；它们由正式装配分别承担。

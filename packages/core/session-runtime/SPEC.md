@@ -1,6 +1,6 @@
 # Session Runtime 薄规格
 
-状态：负责人已授权F0限定地基实施。公开形状、操作身份校验、Session事实及共同事务参加协议属于本次施工输入；事实与校验函数已有实现。完整Session状态提供者、持久协调、调度与恢复装配仍为后续阶段目标，不能据本包定义推断已经实现。F0交付评审与负责人review尚未完成。
+状态：F0限定地基已集成，负责人已授权B01实施。公开形状、操作身份校验、Session事实及共同事务参加协议属于施工输入；事实与校验函数已有实现。完整Session服务、持久协调、调度与恢复装配仍须各自兑现，不能据本包定义推断已经实现。B01交付评审及真实产品验收尚未完成。
 
 来源：PF-015生命周期／创建／恢复、PF-014受理／待处理、PF-012 Run／attempt／取消，以及SYS-TENANT／COMPOSITION。本包操作形状用于F0共同边界及后续提供者施工；它们尚非已发布产品API。
 
@@ -13,6 +13,14 @@
 `AttemptPermit`不是裸ID，绑定tenant/session/run/attempt、执行者代际及已验证准入事实，只由协调者签发。
 `Receipt`包括OperationRef、受理／创建事实位置及SourceToken。全操作结果为下表成功联合或限定失败；未知公共提交按OperationRef查。内部step使用稳定stepKey／原消费位置认回，未知后重读该Session原事实，不另起新step；原调用仍按原call/result身份认回。
 内部StepReceipt含tenant/session、Run/attempt或显式null、stepKey、step变体、事实位置及SourceToken，不冒充公共OperationRef。ResultReceipt含tenant/session、原call/resultKey、事实位置及SourceToken。三个receipt各按其原身份认回；公共readReceipt不查询内部step或原结果。
+
+### Session日志事实
+
+SessionFact及其运行时校验由本包拥有。事实使用Session Log的fact分类，owner为session-runtime，version为1；不得封装成模型消息或SystemReminderMessage。闭合变体为session_created、input_accepted、run_started、attempt_started、input_adopted及run_finished。创建事实保存已发布的定义引用和执行选项；它不是初始化准备成功的替代。受理事实保存完整OperationRef、原业务语义摘要和原消息位置；消息全文另归messages子类型。
+
+Session Log的顶层run／attempt必须同时存在。尚无attempt的run_started因此不设置这两个顶层字段；其body的run指认原Run。attempt_started、input_adopted和run_finished必须与条目顶层run／attempt精确相符。创建及受理事实不得借顶层Run归因。受理／承接位置指向此前的原日志位置，不能引用自身或未来。readSessionFact核对应字段、原租户及Session关系，未知版本或坏的自称事实拒绝；它不证明引用的全文已存在，完整前缀及协调者另核来源。
+
+模型消息投影验证本包所有现行事实变体后跳过其非消息内容。验证通过不产生消息，也不改变已有消息的可见性或工具配对规则。
 
 | 操作 | 输入 | 成功／明确失败 | 可观察效果／并发点 |
 |---|---|---|---|

@@ -1,0 +1,49 @@
+{
+  "name": "@omne-harness-lite/session-runtime-local",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Persistent local Session admission and shared-unit runtime provider",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README_ZH.md",
+    "SPEC.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness-lite/storage": "workspace:*",
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/governance-center-entry": "workspace:*",
+    "@omne-harness-lite/session-runtime": "workspace:*",
+    "@omne-harness-lite/session-tenancy": "workspace:*",
+    "@omne-harness-lite/session-log": "workspace:*",
+    "@omne-harness-lite/content-blocks": "workspace:*",
+    "@omne-harness-lite/call-accounts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "@omne-harness-lite/storage-sql": "workspace:*",
+    "@omne-harness-lite/session-log-sql": "workspace:*"
+  }
+}

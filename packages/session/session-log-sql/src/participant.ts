@@ -69,6 +69,21 @@ export function createParticipant(
   if (authority.storage !== storage)
     throw new TypeError('log authorization must use the same storage')
   return Object.freeze<SessionLogParticipant>({
+    async sourceIn(unit, access, scope) {
+      const captured = sourceScope(scope)
+      if (captured === undefined || !validUnit(unit, storage)) return invalidInput
+      if (!admission()) return unavailable
+      const requested = { tenant: captured.tenant, session: captured.session }
+      return unit.run(async () => {
+        await unit.mutate(tx => tx.lockSentinel(`session-log:${requested.session}`))
+        const decision = await authority.authorize(unit, access, requested, 'read')
+        if (decision.kind !== 'authorized') return decision.kind === 'denied' ? denied : unavailable
+        const row = await unit.query(tx => journal(tx, requested.session))
+        if (row === undefined) return unavailable
+        if (!matchesScope(row, requested)) return denied
+        return { kind: 'source' as const, source: token(row) }
+      })
+    },
     async appendIn(unit, access, request, expectedSource) {
       const checked = checkAppendRequest(request)
       if ('failure' in checked || !validUnit(unit, storage)) return invalidInput

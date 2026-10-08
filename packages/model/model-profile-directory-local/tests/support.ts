@@ -101,6 +101,7 @@ export async function seedMemberships(storage: SqlStorage): Promise<void> {
         .values({
           organization_id: organization,
           kind: 'team',
+          name: 'Fixture team',
           parent: null,
           owner_account: null,
           created_at: 1,
