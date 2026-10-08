@@ -33,6 +33,16 @@ function toolResult(value: unknown): ToolResultBlock {
   if (block.kind !== 'tool_result') throw new Error('admitted action has no result')
   return block
 }
+function actionEachSubject(value: Extract<Wire<Subject>, { readonly callId: string }>): Subject {
+  if (value.outcome === 'denied')
+    return Object.freeze({ callId: identifier(value.callId, 'CallId'), outcome: 'denied' })
+  const { result, ...rest } = value
+  return Object.freeze({
+    ...rest,
+    callId: identifier(value.callId, 'CallId'),
+    ...(result === undefined ? {} : { result: toolResult(result) }),
+  })
+}
 function subject(value: Wire<Subject>): Subject {
   if ('message' in value) return Object.freeze({ ...value, message: brandMessage(value.message) })
   if ('compaction' in value) {
@@ -77,16 +87,7 @@ function subject(value: Wire<Subject>): Subject {
         ...value.batch.slice(1).map(item => identifier(item, 'CallId')),
       ] as const),
     })
-  if ('callId' in value) {
-    if (value.outcome === 'denied')
-      return Object.freeze({ callId: identifier(value.callId, 'CallId'), outcome: 'denied' })
-    const { result, ...rest } = value
-    return Object.freeze({
-      ...rest,
-      callId: identifier(value.callId, 'CallId'),
-      ...(result === undefined ? {} : { result: toolResult(result) }),
-    })
-  }
+  if ('callId' in value) return actionEachSubject(value)
   if ('outcomes' in value) {
     const restore = (item: (typeof value.outcomes)[number]) =>
       Object.freeze({ ...item, callId: identifier(item.callId, 'CallId') })
@@ -99,14 +100,11 @@ function subject(value: Wire<Subject>): Subject {
   }
   return value
 }
-function positioned(value: Wire<PositionedSubject>): PositionedSubject {
-  const restored = subject(value.subject)
-  // The frozen selectors already establish the correspondence. These structural
-  // checks narrow the constructed domain union without asserting a raw value.
+function persistedSubject(
+  value: Wire<PositionedSubject>,
+  restored: Subject,
+): PositionedSubject | undefined {
   switch (value.position) {
-    case 'attempt_started':
-      if ('attempt' in restored) return Object.freeze({ ...value, subject: restored })
-      break
     case 'before_persist_message':
       if ('producer' in restored) return Object.freeze({ ...value, subject: restored })
       break
@@ -119,6 +117,14 @@ function positioned(value: Wire<PositionedSubject>): PositionedSubject {
     case 'after_compaction':
       if ('compaction' in restored) return Object.freeze({ ...value, subject: restored })
       break
+  }
+  return undefined
+}
+function modelCallSubject(
+  value: Wire<PositionedSubject>,
+  restored: Subject,
+): PositionedSubject | undefined {
+  switch (value.position) {
     case 'before_model_call':
       if ('request' in restored) return Object.freeze({ ...value, subject: restored })
       break
@@ -136,6 +142,14 @@ function positioned(value: Wire<PositionedSubject>): PositionedSubject {
           subject: restored,
         })
       break
+  }
+  return undefined
+}
+function actionSubject(
+  value: Wire<PositionedSubject>,
+  restored: Subject,
+): PositionedSubject | undefined {
+  switch (value.position) {
     case 'before_action':
       if ('call' in restored) return Object.freeze({ ...value, subject: restored })
       break
@@ -153,6 +167,17 @@ function positioned(value: Wire<PositionedSubject>): PositionedSubject {
           subject: restored,
         })
       break
+  }
+  return undefined
+}
+function terminalSubject(
+  value: Wire<PositionedSubject>,
+  restored: Subject,
+): PositionedSubject | undefined {
+  switch (value.position) {
+    case 'attempt_started':
+      if ('attempt' in restored) return Object.freeze({ ...value, subject: restored })
+      break
     case 'before_terminal':
       if ('proposed' in restored) return Object.freeze({ ...value, subject: restored })
       break
@@ -160,7 +185,17 @@ function positioned(value: Wire<PositionedSubject>): PositionedSubject {
       if ('terminal' in restored) return Object.freeze({ ...value, subject: restored })
       break
   }
-  throw new Error('admitted loop subject does not match its position')
+  return undefined
+}
+function positioned(value: Wire<PositionedSubject>): PositionedSubject {
+  const restored = subject(value.subject)
+  const result =
+    persistedSubject(value, restored) ??
+    modelCallSubject(value, restored) ??
+    actionSubject(value, restored) ??
+    terminalSubject(value, restored)
+  if (result === undefined) throw new Error('admitted loop subject does not match its position')
+  return result
 }
 /** This conversion follows judgment of the position, dimension, and selected subject. */
 export function positionedFromRepresentation(value: JsonValue): PositionedSubject {
@@ -170,33 +205,34 @@ export function positionedFromRepresentation(value: JsonValue): PositionedSubjec
     throw new Error('admitted positioned subject failed position narrowing')
   return positioned(value)
 }
+function modelCallDimension(dimension: JsonValue | undefined): boolean {
+  return (
+    object(dimension) && (dimension.ending === 'failure' || dimension.ending === 'complete_reply')
+  )
+}
+function actionDimension(dimension: JsonValue | undefined): boolean {
+  return object(dimension) && (dimension.scope === 'each' || dimension.scope === 'batch')
+}
 function isWirePositioned(value: JsonValue): value is JsonValue & Wire<PositionedSubject> {
   if (!object(value) || !object(value.subject) || !validate('Subject', value.subject).valid)
     return false
-  switch (value.position) {
-    case 'after_model_call':
-      return (
-        object(value.dimension) &&
-        (value.dimension.ending === 'failure' || value.dimension.ending === 'complete_reply')
-      )
-    case 'after_action':
-      return (
-        object(value.dimension) &&
-        (value.dimension.scope === 'each' || value.dimension.scope === 'batch')
-      )
-    case 'attempt_started':
-    case 'before_persist_message':
-    case 'after_persist_message':
-    case 'before_compaction':
-    case 'after_compaction':
-    case 'before_model_call':
-    case 'before_action':
-    case 'before_terminal':
-    case 'after_terminal':
-      return !Object.hasOwn(value, 'dimension')
-    default:
-      return false
-  }
+  if (value.position === 'after_model_call') return modelCallDimension(value.dimension)
+  if (value.position === 'after_action') return actionDimension(value.dimension)
+  return (
+    typeof value.position === 'string' &&
+    [
+      'attempt_started',
+      'before_persist_message',
+      'after_persist_message',
+      'before_compaction',
+      'after_compaction',
+      'before_model_call',
+      'before_action',
+      'before_terminal',
+      'after_terminal',
+    ].includes(value.position) &&
+    !Object.hasOwn(value, 'dimension')
+  )
 }
 function output(value: Wire<ExtensionOutput>): ExtensionOutput {
   switch (value.kind) {

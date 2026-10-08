@@ -88,6 +88,16 @@ function kindsAt(frame: JsonObject): readonly OutputKind[] {
 function knownKind(value: unknown): value is OutputKind {
   return POWER_CONCLUSIONS.veto.some(kind => kind === value)
 }
+function modelCallSubjectDefinition(dimension?: JsonValue): SchemaDefName {
+  return object(dimension) && dimension.ending === 'failure'
+    ? 'AfterModelCallFailureSubject'
+    : 'AfterModelCallCompleteReplySubject'
+}
+function actionSubjectDefinition(dimension?: JsonValue): SchemaDefName {
+  return object(dimension) && dimension.scope === 'batch'
+    ? 'AfterActionBatchSubject'
+    : 'AfterActionEachSubject'
+}
 export function subjectDefinition(position: Position, dimension?: JsonValue): SchemaDefName {
   switch (position) {
     case 'attempt_started':
@@ -103,15 +113,11 @@ export function subjectDefinition(position: Position, dimension?: JsonValue): Sc
     case 'before_model_call':
       return 'BeforeModelCallSubject'
     case 'after_model_call':
-      return object(dimension) && dimension.ending === 'failure'
-        ? 'AfterModelCallFailureSubject'
-        : 'AfterModelCallCompleteReplySubject'
+      return modelCallSubjectDefinition(dimension)
     case 'before_action':
       return 'BeforeActionSubject'
     case 'after_action':
-      return object(dimension) && dimension.scope === 'batch'
-        ? 'AfterActionBatchSubject'
-        : 'AfterActionEachSubject'
+      return actionSubjectDefinition(dimension)
     case 'before_terminal':
       return 'BeforeTerminalSubject'
     case 'after_terminal':
@@ -125,6 +131,15 @@ function injectSourceMismatch(output: JsonObject, name?: JsonValue): boolean {
   return source.kind !== 'extension' || (name !== undefined && source.extension !== name)
 }
 
+function appendInputSubjects(
+  value: JsonObject,
+  result: JsonObject[],
+  rewrittenSubject: (frame: JsonObject) => void,
+): void {
+  if (object(value.subject)) result.push(value.subject)
+  for (const earlier of Array.isArray(value.earlier) ? value.earlier : [])
+    if (object(earlier)) rewrittenSubject(earlier)
+}
 /** Visit only protocol subject slots, leaving arbitrary configuration and opaque JSON untouched. */
 function dispatchedSubjects(definition: SchemaDefName, value: JsonValue): readonly JsonObject[] {
   if (!object(value)) return []
@@ -134,11 +149,7 @@ function dispatchedSubjects(definition: SchemaDefName, value: JsonValue): readon
     const output = outputOf(frame)
     if (output?.kind === 'rewrite' && object(output.subject)) result.push(output.subject)
   }
-  if (definition === 'ExtensionInput') {
-    if (object(value.subject)) result.push(value.subject)
-    for (const earlier of Array.isArray(value.earlier) ? value.earlier : [])
-      if (object(earlier)) rewrittenSubject(earlier)
-  }
+  if (definition === 'ExtensionInput') appendInputSubjects(value, result, rewrittenSubject)
   if (definition === 'Conclusion') rewrittenSubject(value)
   if (
     (definition === 'RewriteOutput' || definition === 'ExtensionOutput') &&
@@ -157,8 +168,7 @@ function failureCallAssociation(subject: JsonObject): boolean {
   return subject.retryConclusions.every(item => object(item) && item.modelCallId === first.call)
 }
 
-/** Representation judgment. Input-dependent immutable comparisons are added by judgeConclusion. */
-export function judgeValue(definition: SchemaDefName, value: unknown): Judgment<JsonValue> {
+function admitRepresentation(definition: SchemaDefName, value: unknown): Judgment<JsonValue> {
   const copied = snapshot(value)
   if (copied === undefined || !ordinaryShape(definition, copied)) return rejected('malformed')
   for (const subject of dispatchedSubjects(definition, copied))
@@ -170,29 +180,48 @@ export function judgeValue(definition: SchemaDefName, value: unknown): Judgment<
           return rejected('malformed')
       }
     }
-  const contexts = frames(definition, copied)
+  return Object.freeze({ ok: copied })
+}
+function mismatchedFrameAbout(contexts: readonly JsonObject[]): boolean {
   for (const frame of contexts) {
     const about = aboutOf(frame)
     if (about !== undefined && (about.position !== frame.position || about.callId !== frame.callId))
-      return rejected('malformed')
+      return true
   }
-  if (definition === 'LoopPosition' && !isPosition(copied)) return rejected('position_unknown')
+  return false
+}
+function positionPowerRejection(
+  definition: SchemaDefName,
+  copied: JsonValue,
+  contexts: readonly JsonObject[],
+): Rejection | undefined {
+  if (definition === 'LoopPosition' && !isPosition(copied)) return 'position_unknown'
   const allAbouts = abouts(definition, copied, contexts)
   if (
     contexts.some(frame => !isPosition(frame.position)) ||
     allAbouts.some(about => !isPosition(about.position))
   )
-    return rejected('position_unknown')
-  if (definition === 'Power' && !isPower(copied)) return rejected('power_unknown')
+    return 'position_unknown'
+  if (definition === 'Power' && !isPower(copied)) return 'power_unknown'
   if (contexts.some(frame => Object.hasOwn(frame, 'power') && !isPower(frame.power)))
-    return rejected('power_unknown')
+    return 'power_unknown'
+  return undefined
+}
+function dimensionValueRejection(
+  definition: SchemaDefName,
+  copied: JsonValue,
+  contexts: readonly JsonObject[],
+): Rejection | undefined {
   if (contexts.some(frame => dimensionRejection(frame) === 'dimension_missing'))
-    return rejected('dimension_missing')
+    return 'dimension_missing'
   if (
     (definition === 'Dimension' && !validate('Dimension', copied).valid) ||
     contexts.some(frame => dimensionRejection(frame) === 'dimension_not_allowed')
   )
-    return rejected('dimension_not_allowed')
+    return 'dimension_not_allowed'
+  return undefined
+}
+function outputPowerRejection(contexts: readonly JsonObject[]): Rejection | undefined {
   for (const frame of contexts) {
     const output = outputOf(frame)
     if (
@@ -201,8 +230,11 @@ export function judgeValue(definition: SchemaDefName, value: unknown): Judgment<
       isPower(frame.power) &&
       !POWER_CONCLUSIONS[frame.power].includes(output.kind)
     )
-      return rejected('output_not_allowed_for_power')
+      return 'output_not_allowed_for_power'
   }
+  return undefined
+}
+function outputPositionRejection(contexts: readonly JsonObject[]): Rejection | undefined {
   if (
     contexts.some(
       frame =>
@@ -210,12 +242,15 @@ export function judgeValue(definition: SchemaDefName, value: unknown): Judgment<
         ['before_persist_message', 'after_terminal'].includes(String(frame.position)),
     )
   )
-    return rejected('ask_at_forbidden_position')
+    return 'ask_at_forbidden_position'
   for (const frame of contexts) {
     const output = outputOf(frame)
     if (output !== undefined && knownKind(output.kind) && !kindsAt(frame).includes(output.kind))
-      return rejected('output_not_allowed_at_position')
+      return 'output_not_allowed_at_position'
   }
+  return undefined
+}
+function rewriteShapeRejection(contexts: readonly JsonObject[]): Rejection | undefined {
   for (const frame of contexts) {
     const output = outputOf(frame)
     if (
@@ -223,21 +258,49 @@ export function judgeValue(definition: SchemaDefName, value: unknown): Judgment<
       isPosition(frame.position) &&
       !validate(subjectDefinition(frame.position, frame.dimension), output.subject).valid
     )
-      return rejected('rewrite_touches_immutable')
+      return 'rewrite_touches_immutable'
   }
+  return undefined
+}
+function injectOutputRejection(
+  definition: SchemaDefName,
+  copied: JsonValue,
+  contexts: readonly JsonObject[],
+): Rejection | undefined {
   if (
     contexts.some(frame => {
       const output = outputOf(frame)
       return output !== undefined && injectSourceMismatch(output, frame.extension)
     })
   )
-    return rejected('inject_source_mismatch')
+    return 'inject_source_mismatch'
   if (
     object(copied) &&
     ['ExtensionOutput', 'InjectOutput'].includes(definition) &&
     injectSourceMismatch(copied)
   )
-    return rejected('inject_source_mismatch')
+    return 'inject_source_mismatch'
+  return undefined
+}
+/** Representation judgment. Input-dependent immutable comparisons are added by judgeConclusion. */
+export function judgeValue(definition: SchemaDefName, value: unknown): Judgment<JsonValue> {
+  const admitted = admitRepresentation(definition, value)
+  if ('rejected' in admitted) return admitted
+  const copied = admitted.ok
+  const contexts = frames(definition, copied)
+  if (mismatchedFrameAbout(contexts)) return rejected('malformed')
+  const positionPower = positionPowerRejection(definition, copied, contexts)
+  if (positionPower !== undefined) return rejected(positionPower)
+  const dimensionValue = dimensionValueRejection(definition, copied, contexts)
+  if (dimensionValue !== undefined) return rejected(dimensionValue)
+  const outputPower = outputPowerRejection(contexts)
+  if (outputPower !== undefined) return rejected(outputPower)
+  const outputPosition = outputPositionRejection(contexts)
+  if (outputPosition !== undefined) return rejected(outputPosition)
+  const rewriteShape = rewriteShapeRejection(contexts)
+  if (rewriteShape !== undefined) return rejected(rewriteShape)
+  const injectOutput = injectOutputRejection(definition, copied, contexts)
+  if (injectOutput !== undefined) return rejected(injectOutput)
   if (!validate(definition, copied).valid) return rejected('malformed')
   return Object.freeze({ ok: copied })
 }
@@ -291,6 +354,15 @@ export function judgeOutput(value: unknown): Judgment<ExtensionOutput> {
   return Object.freeze({ ok: outputFromRepresentation(result.ok) })
 }
 
+function actualNameMismatch(record: JsonObject, inputs: unknown): boolean {
+  const nameDescriptor = object(inputs)
+    ? Object.getOwnPropertyDescriptor(inputs, 'extensionName')
+    : undefined
+  const actualName: unknown =
+    nameDescriptor !== undefined && 'value' in nameDescriptor ? nameDescriptor.value : undefined
+  if (isCapabilityName(actualName) && record.extension !== actualName) return true
+  return false
+}
 /**
  * S-37 domain refusals precede auxiliary-configuration checks. TypeError means
  * caller-admitted inputs/pairing are missing or invalid, never an eleventh refusal.
@@ -303,52 +375,61 @@ function conclusionRecord(value: unknown, inputs: unknown): Judgment<JsonObject>
   const about = aboutOf(record)
   if (about !== undefined && (about.position !== record.position || about.callId !== record.callId))
     return rejected('malformed')
-  const nameDescriptor = object(inputs)
-    ? Object.getOwnPropertyDescriptor(inputs, 'extensionName')
-    : undefined
-  const actualName: unknown =
-    nameDescriptor !== undefined && 'value' in nameDescriptor ? nameDescriptor.value : undefined
-  if (isCapabilityName(actualName) && record.extension !== actualName) return rejected('malformed')
+  if (actualNameMismatch(record, inputs)) return rejected('malformed')
   const representation = judgeValue('Conclusion', record)
   if ('rejected' in representation) return representation
   return Object.freeze({ ok: record })
 }
-function pairConclusion(record: JsonObject, subject: PositionedSubject): Judgment<Conclusion> {
-  const input = snapshot(subject)
-  if (!object(input) || !object(input.subject)) throw new Error('admitted subject has no value')
+function failurePairMismatch(
+  record: JsonObject,
+  input: JsonObject,
+  inputSubject: JsonObject,
+): boolean {
   if (
     input.position === 'after_model_call' &&
     object(input.dimension) &&
     input.dimension.ending === 'failure'
   ) {
-    if (!failureCallAssociation(input.subject)) return rejected('malformed')
-    const dispatches = input.subject.dispatches
-    if (!Array.isArray(dispatches)) return rejected('malformed')
+    if (!failureCallAssociation(inputSubject)) return true
+    const dispatches = inputSubject.dispatches
+    if (!Array.isArray(dispatches)) return true
     const firstDispatch = dispatches[0]
-    if (!object(firstDispatch) || record.modelCallId !== firstDispatch.call)
-      return rejected('malformed')
+    if (!object(firstDispatch) || record.modelCallId !== firstDispatch.call) return true
   }
-  const callId =
-    input.position === 'before_action' && object(input.subject.call)
-      ? input.subject.call.callId
-      : input.position === 'after_action' &&
-          object(input.dimension) &&
-          input.dimension.scope === 'each'
-        ? input.subject.callId
-        : undefined
+  return false
+}
+function pairedCallId(input: JsonObject, inputSubject: JsonObject): JsonValue | undefined {
+  return input.position === 'before_action' && object(inputSubject.call)
+    ? inputSubject.call.callId
+    : input.position === 'after_action' &&
+        object(input.dimension) &&
+        input.dimension.scope === 'each'
+      ? inputSubject.callId
+      : undefined
+}
+function pairedRewriteChangesImmutable(record: JsonObject, inputSubject: JsonObject): boolean {
+  const output = outputOf(record)
+  if (
+    output?.kind === 'rewrite' &&
+    object(output.subject) &&
+    isPosition(record.position) &&
+    rewriteChangesImmutable(record.position, inputSubject, output.subject)
+  )
+    return true
+  return false
+}
+function pairConclusion(record: JsonObject, subject: PositionedSubject): Judgment<Conclusion> {
+  const input = snapshot(subject)
+  if (!object(input) || !object(input.subject)) throw new Error('admitted subject has no value')
+  if (failurePairMismatch(record, input, input.subject)) return rejected('malformed')
+  const callId = pairedCallId(input, input.subject)
   if (
     record.position !== input.position ||
     !equal(record.dimension, input.dimension) ||
     !equal(record.callId, callId)
   )
     throw new TypeError('ConclusionInputs must pair with this invocation')
-  const output = outputOf(record)
-  if (
-    output?.kind === 'rewrite' &&
-    object(output.subject) &&
-    isPosition(record.position) &&
-    rewriteChangesImmutable(record.position, input.subject, output.subject)
-  )
+  if (pairedRewriteChangesImmutable(record, input.subject))
     return rejected('rewrite_touches_immutable')
   return Object.freeze({ ok: conclusionFromRepresentation(record) })
 }
