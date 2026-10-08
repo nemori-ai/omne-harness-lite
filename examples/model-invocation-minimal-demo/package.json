@@ -30,7 +30,8 @@
     "build": "node ../../scripts/build-fixed-schemas.mjs",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
-    "start": "node dist/cli.js"
+    "start": "node dist/cli.js",
+    "acceptance": "vitest run --config vitest.acceptance.config.ts"
   },
   "dependencies": {
     "@omne-harness-lite/assembly-lifecycle": "workspace:*",
