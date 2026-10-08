@@ -51,7 +51,9 @@
     "@omne-harness-lite/call-accounts": "workspace:*",
     "@omne-harness-lite/messages": "workspace:*",
     "zod": "catalog:",
-    "@omne-harness-lite/session-runtime": "workspace:*"
+    "@omne-harness-lite/session-runtime": "workspace:*",
+    "@omne-harness-lite/model-request-runtime": "workspace:*",
+    "@omne-harness-lite/model-request-runtime-local": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

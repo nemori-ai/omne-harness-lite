@@ -160,6 +160,12 @@ importers:
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../../packages/core/messages
+      '@omne-harness-lite/model-request-runtime':
+        specifier: workspace:*
+        version: link:../../packages/core/model-request-runtime
+      '@omne-harness-lite/model-request-runtime-local':
+        specifier: workspace:*
+        version: link:../../packages/model/model-request-runtime-local
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../packages/core/offer-expiry

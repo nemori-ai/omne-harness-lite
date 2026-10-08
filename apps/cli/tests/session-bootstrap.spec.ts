@@ -1,5 +1,5 @@
 import { createSessionHostEndpoint, parseSessionHostRequest } from '../src/session-host-protocol.ts'
-import { messageLogPayload } from '@omne-harness-lite/session-log'
+import { messageLogPayload, compareInteger } from '@omne-harness-lite/session-log'
 import { createSessionTextReader } from '../src/session-reading.ts'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -26,7 +26,16 @@ import {
   operationReceiptMigrations,
   sessionRuntimeMigrations,
   type AdmissionSource,
+  type SessionLifecycleStep,
 } from '@omne-harness-lite/session-runtime-local'
+import { createSessionOriginalModelOwner } from '../src/session-model-owner.ts'
+import { originalIssueMigrations } from '@omne-harness-lite/model-request-runtime-local'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+  type OriginalIssueAuthority,
+  type OriginalIssueInput,
+} from '@omne-harness-lite/model-request-runtime'
 import { sessionLogMigrations, openSqlSessionLog } from '@omne-harness-lite/session-log-sql'
 import { runtimeContextMigrations } from '@omne-harness-lite/runtime-context-local'
 import { evaluationInputMigrations } from '@omne-harness-lite/evaluation-input-store'
@@ -37,6 +46,7 @@ import { createSessionAdmissionProbe } from '../src/session-admission-probe.ts'
 import type { AccessIdentity } from '@omne-harness-lite/session-tenancy'
 import { createSessionBootstrap, type SessionBootstrapOptions } from '../src/session-bootstrap.ts'
 import { narrow } from '@omne-harness-lite/storage'
+import { readSessionFact } from '@omne-harness-lite/session-runtime'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 
 const cleanup: Array<() => Promise<void>> = []
@@ -53,7 +63,7 @@ const source: AdmissionSource = {
 const tenant = unwrap(parseTenantId({ organization: 'team', account: source.accountId }))
 const definition = { category: 'agent_definition' as const, name: 'bootstrap:actual-root' }
 const now = '2026-10-08T00:00:00Z'
-async function setup(maxBindings = 16, declareSeed: boolean | 'invalid' = true) {
+async function setup(maxBindings = 16, declareSeed: boolean | 'invalid' = true, withModel = false) {
   const directory = await mkdtemp(join(tmpdir(), 'omne-formal-bootstrap-'))
   cleanup.push(() => rm(directory, { recursive: true, force: true }))
   const root = await openStorage({
@@ -77,6 +87,7 @@ async function setup(maxBindings = 16, declareSeed: boolean | 'invalid' = true) 
     ...sessionRuntimeMigrations,
     ...runtimeContextMigrations,
     ...evaluationInputMigrations,
+    ...(withModel ? originalIssueMigrations : []),
   ])
     await storage.write(tx => item.migration.up(tx.db))
   const local = await openClientLocalState(
@@ -130,6 +141,17 @@ async function setup(maxBindings = 16, declareSeed: boolean | 'invalid' = true) 
   cleanup.push(() => admission.close())
   let log!: Awaited<ReturnType<typeof openSqlSessionLog>>
   let assembly!: ReturnType<typeof createSessionBootstrap>
+  const modelCurrent = vi.fn<OriginalIssueAuthority['authorizeIn']>(async () => ({
+    kind: 'authorized',
+  }))
+  const modelOwner = withModel
+    ? createSessionOriginalModelOwner({
+        storage,
+        current: { authorizeIn: modelCurrent },
+        maxRecords: 16,
+        maxInFlight: 8,
+      })
+    : undefined
   const runtime = createLocalSessionIngress({
     storage,
     admission,
@@ -151,6 +173,7 @@ async function setup(maxBindings = 16, declareSeed: boolean | 'invalid' = true) 
     bootstrap: { initialize: (...args) => assembly.initialize(...args) },
     now: () => now,
     workSettledIn: async () => 'settled',
+    ...(modelOwner ? { modelIssue: modelOwner.modelIssue } : {}),
   })
   cleanup.push(() => runtime.close())
   const seed = vi.fn<SessionBootstrapOptions['contextSeed']>(contextSeedFromDefinition)
@@ -281,6 +304,10 @@ async function setup(maxBindings = 16, declareSeed: boolean | 'invalid' = true) 
     contextSeed: seed,
   })
   cleanup.push(() => assembly.close())
+  if (modelOwner)
+    cleanup.push(async () => {
+      expect(await modelOwner.close()).toEqual({ kind: 'released' })
+    })
   return {
     directory,
     runtime,
@@ -292,6 +319,8 @@ async function setup(maxBindings = 16, declareSeed: boolean | 'invalid' = true) 
     seed,
     access,
     checks,
+    modelOwner,
+    modelCurrent,
     pauseChecks,
     corruptIdentity(transform: (identity: AccessIdentity) => AccessIdentity) {
       corruptIdentity = transform
@@ -862,4 +891,232 @@ it('dispatches strict data through the original ingress and actual Context and r
   if (!foreign) throw new Error('valid foreign identity rejected at parser')
   expect(await endpoint.execute(foreign)).toEqual({ failure: 'denied' })
   expect(f.exchanges).toHaveBeenCalledTimes(before)
+})
+
+async function originalModelBinding() {
+  const f = await setup(16, true, true)
+  const created = await f.runtime.operations.createSession(f.runtime.access, input)
+  if (!('kind' in created) || created.kind !== 'created') throw new Error('Session not created')
+  const scope = { tenant, session: created.session }
+  const message = judgeMessage({
+    id: 'model-root-message',
+    type: 'user',
+    createdAt: now,
+    blocks: [
+      {
+        kind: 'text',
+        id: 'model-root-block',
+        text: 'one request',
+        visibility: { toHuman: true, toModel: true },
+      },
+    ],
+  })
+  if ('rejected' in message || message.ok.type !== 'user')
+    throw new Error('invalid original user message')
+  const accepted = await f.runtime.operations.submitInput(
+    f.runtime.access,
+    scope.session,
+    'model-root-input',
+    message.ok,
+  )
+  if (!('kind' in accepted) || accepted.kind !== 'accepted') throw new Error('input not accepted')
+  const prefix = await f.log.readSince(scope.session, 0)
+  if ('failure' in prefix) throw new Error('original input unavailable')
+  const acceptedFact = readSessionFact(
+    prefix.entries.find(entry => compareInteger(entry.position, accepted.receipt.position) === 0)!,
+  )
+  if (!('fact' in acceptedFact) || acceptedFact.fact.kind !== 'input_accepted')
+    throw new Error('original acceptance fact unavailable')
+  const started = await f.runtime.lifecycle.commitStep(
+    f.runtime.coordinationAuthority,
+    scope,
+    accepted.receipt.source,
+    {
+      kind: 'startRun',
+      stepKey: 'model-root-run',
+      inputPosition: acceptedFact.fact.messagePosition,
+    },
+  )
+  if (!('kind' in started) || started.kind !== 'committed' || !started.receipt.run)
+    throw new Error('Run not started')
+  const attempt = await f.runtime.lifecycle.commitStep(
+    f.runtime.coordinationAuthority,
+    scope,
+    started.source,
+    {
+      kind: 'startAttempt',
+      stepKey: 'model-root-attempt',
+      run: started.receipt.run,
+      reason: 'first',
+    },
+  )
+  if (
+    !('kind' in attempt) ||
+    attempt.kind !== 'committed' ||
+    !attempt.permit ||
+    attempt.receipt.attempt === null
+  )
+    throw new Error('attempt not started')
+  const preparation: Extract<SessionLifecycleStep, { kind: 'prepareCall' }> = {
+    kind: 'prepareCall',
+    stepKey: 'model-root-prepare',
+    run: started.receipt.run,
+    attempt: attempt.receipt.attempt,
+    call: 'model-root-call',
+    originalPosition: 'model-root-loop-position',
+    permit: attempt.permit,
+  }
+  const prepared = await f.runtime.lifecycle.commitStep(
+    f.runtime.coordinationAuthority,
+    scope,
+    attempt.source,
+    preparation,
+  )
+  if (!('kind' in prepared) || prepared.kind !== 'committed') throw new Error('call not prepared')
+  const adaptation = {
+    implementation: { name: 'controlled-adapter', revision: 'one' },
+    definition: { modelId: 'controlled/model', revision: 'one' },
+    configuration: { revision: 'one', values: {} },
+  }
+  const captured = captureModelLogValue({
+    category: 'record',
+    input: {
+      kind: 'value',
+      value: {
+        kind: 'model_call_dispatched',
+        call: preparation.call,
+        dispatch: 1,
+        response: 'root-response',
+        adaptation,
+        profile: { origin: 'official', routeName: 'controlled/model' },
+        profileSnapshot: {
+          adaptation,
+          providers: ['controlled'],
+          allowFallback: false,
+          inputModalities: ['text'],
+          outputModalities: ['text'],
+          maxInputTokens: 100,
+          maxOutputTokens: 20,
+          inputConstraints: {},
+          upstreamInputLimits: {
+            maxInputTokens: { status: 'unknown' },
+            maxRequestBytes: { status: 'unknown' },
+          },
+          updatedAt: now,
+        },
+        provider: 'controlled',
+        selectedBy: 'session',
+        credentialScope: { layer: 'factory' },
+        parameters: {},
+      },
+    },
+  })
+  if ('invalidValue' in captured) throw new Error('invalid actual dispatched fixture')
+  const entry = prepareModelLogEntry({
+    session: scope.session,
+    shell: { tenant, run: preparation.run, attempt: preparation.attempt },
+    captured: captured.ok,
+    purpose: { kind: 'record' },
+    messagePrefix: null,
+  })
+  if ('invalidValue' in entry || !entry.ok.dedupeKey) throw new Error('invalid original entry')
+  const original: OriginalIssueInput = {
+    source: prepared.source,
+    entry: entry.ok,
+    originalPosition: entry.ok.dedupeKey,
+  }
+  const unknown = vi.fn(async () => {})
+  const issue = f.modelOwner!.bind(f.runtime, scope, preparation, unknown)
+  return { f, scope, preparation, original, issue, unknown }
+}
+it('binds the actual original model owner through Session admission and permits one native launch', async () => {
+  const { f, original, issue, unknown } = await originalModelBinding()
+  const issued = await issue.admitOriginal(original)
+  if (!('confirmed' in issued)) throw new Error('original claim not issued')
+  expect(await issue.consumeOriginal({ ...issued.claim })).toEqual({ kind: 'invalidInput' })
+  expect(
+    await Promise.all([issue.consumeOriginal(issued.claim), issue.consumeOriginal(issued.claim)]),
+  ).toEqual([{ kind: 'launch' }, { kind: 'unavailable' }])
+  expect(await issue.admitOriginal(original)).toEqual({ kind: 'conflict' })
+  expect(unknown).not.toHaveBeenCalled()
+  expect(
+    await f.storage.read(tx =>
+      tx.db
+        .selectFrom('mr_original_issue')
+        .select(eb => eb.fn.countAll<number>().as('n'))
+        .executeTakeFirstOrThrow(),
+    ),
+  ).toEqual({ n: 1 })
+  expect(
+    await f.storage.read(tx =>
+      tx.db
+        .selectFrom('sr_model_issue')
+        .select(eb => eb.fn.countAll<number>().as('n'))
+        .executeTakeFirstOrThrow(),
+    ),
+  ).toEqual({ n: 1 })
+})
+it('propagates the current model authority denial before the original anchor and claim commit', async () => {
+  const { f, original, issue } = await originalModelBinding()
+  f.modelCurrent.mockResolvedValue({ kind: 'denied' })
+  expect(await issue.admitOriginal(original)).toEqual({ kind: 'denied' })
+  expect(
+    await f.storage.read(tx =>
+      tx.db
+        .selectFrom('mr_original_issue')
+        .select(eb => eb.fn.countAll<number>().as('n'))
+        .executeTakeFirstOrThrow(),
+    ),
+  ).toEqual({ n: 0 })
+})
+it('retains the original unknown model issue before returning unavailable and never grants a replacement claim', async () => {
+  const { f, scope, preparation, original, issue, unknown } = await originalModelBinding()
+  const write = f.storage.write.bind(f.storage)
+  vi.spyOn(f.storage, 'write').mockImplementationOnce(async operation => {
+    await write(operation)
+    const { StorageUnavailable } = await import('@omne-harness-lite/storage')
+    throw new StorageUnavailable('actual original model commit return lost')
+  })
+  expect(await issue.admitOriginal(original)).toEqual({ kind: 'unavailable' })
+  expect(unknown).toHaveBeenCalledExactlyOnceWith({
+    kind: 'unknownCommit',
+    scope,
+    call: preparation.call,
+    originalPosition: preparation.originalPosition,
+  })
+  expect(await issue.admitOriginal(original)).toEqual({ kind: 'conflict' })
+  expect(await f.modelOwner!.close()).toEqual({ kind: 'released' })
+})
+it('stops new original model admission through the actual model owner without closing the Session or Context', async () => {
+  const { f, scope, original, issue } = await originalModelBinding()
+  expect(await f.modelOwner!.close()).toEqual({ kind: 'released' })
+  expect(await issue.admitOriginal(original)).toEqual({ kind: 'unavailable' })
+  expect(await f.runtime.operations.readSession(f.runtime.access, scope.session)).toHaveProperty(
+    'kind',
+    'session',
+  )
+  expect(f.assembly.context(scope)).toBeDefined()
+})
+it('rechecks actual current model authority at launch after a committed Session issue', async () => {
+  const { f, original, issue } = await originalModelBinding()
+  const issued = await issue.admitOriginal(original)
+  if (!('confirmed' in issued)) throw new Error('original claim not issued')
+  f.modelCurrent.mockResolvedValue({ kind: 'denied' })
+  expect(await issue.consumeOriginal(issued.claim)).toEqual({ kind: 'denied' })
+  expect(await f.modelOwner!.close()).toEqual({ kind: 'released' })
+})
+it('propagates an unknown-responsibility owner defect without silently returning a model launch', async () => {
+  const { f, scope, preparation, original } = await originalModelBinding()
+  const defect = new Error('original unknown responsibility recording failed')
+  const issue = f.modelOwner!.bind(f.runtime, scope, preparation, async () => {
+    throw defect
+  })
+  const write = f.storage.write.bind(f.storage)
+  vi.spyOn(f.storage, 'write').mockImplementationOnce(async operation => {
+    await write(operation)
+    const { StorageUnavailable } = await import('@omne-harness-lite/storage')
+    throw new StorageUnavailable('actual original model commit return lost')
+  })
+  await expect(issue.admitOriginal(original)).rejects.toBe(defect)
+  expect(await f.modelOwner!.close()).toEqual({ kind: 'released' })
 })
