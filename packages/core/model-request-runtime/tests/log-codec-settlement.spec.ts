@@ -107,6 +107,53 @@ function expectRefused(input: InspectSettlementMembersInput) {
   expect(reused).not.toHaveProperty('completeMembers')
   expect(reused).not.toHaveProperty('absent')
 }
+it('rejects invalid settlement identities before looking up anchors', () => {
+  const input = originalInput()
+  const reader = createModelLogReadInspector(input)
+  if (!('ok' in reader)) throw new Error('complete prefix expected')
+  for (const target of [
+    { ...input.target, call: '' },
+    { ...input.target, response: '' },
+    { ...input.target, dispatch: 0 },
+  ]) {
+    const selected = { ...input, target }
+    expect(inspectSettlementMembers(selected)).toEqual({ inconsistent: true, reason: 'prefix' })
+    expect(reader.ok.inspectSettlementMembers(selected)).toEqual({
+      inconsistent: true,
+      reason: 'prefix',
+    })
+  }
+})
+it('rejects an invalid tenant before constructing a read inspector', () => {
+  const input = originalInput()
+  expect(
+    createModelLogReadInspector({ ...input, tenant: {} as unknown as typeof input.tenant }),
+  ).toEqual({ inconsistent: true, reason: 'input' })
+})
+it('rejects an invalid current message identity on every snapshot use', () => {
+  const input = originalInput()
+  const reader = createModelLogReadInspector(input)
+  if (!('ok' in reader)) throw new Error('complete prefix expected')
+  expect(
+    reader.ok.inspectSettlementMembers({
+      ...input,
+      current: { messageId: '', disposition: 'persisted' },
+    }),
+  ).toEqual({ inconsistent: true, reason: 'input' })
+})
+it('rejects two response captures for one persisted message', () => {
+  const input = originalInput()
+  const original = input.prefix.entries.find(entry => modelCategory(entry.payload) === 'response')!
+  const entries = [
+    ...input.prefix.entries,
+    { ...original, position: input.prefix.entries.length + 1, dedupeKey: 'duplicate-response' },
+  ]
+  const duplicate = { ...input, prefix: { entries, tail: entries.length } }
+  expect(createModelLogReadInspector(duplicate)).toEqual({
+    inconsistent: true,
+    reason: 'message',
+  })
+})
 it('reuses one owned prefix for independent settlement targets without changing the single-read results', () => {
   const input = originalInput()
   const reader = createModelLogReadInspector(input)

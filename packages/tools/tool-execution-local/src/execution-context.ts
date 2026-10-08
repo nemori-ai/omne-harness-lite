@@ -1,3 +1,4 @@
+import { setTimeout as yieldToTimers } from 'node:timers/promises'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import type { ContextRead, ContextReader } from '@omne-harness-lite/runtime-context'
@@ -38,6 +39,8 @@ export function createExecutionContextReader(input: {
       const keys = copy.ok as readonly string[]
       const task = queue.then(async (): Promise<ContextRead> => {
         try {
+          // Give due maintenance a turn before the reader checks current access.
+          await yieldToTimers(0)
           if (!input.isOpen()) return rejected('ownerStopped')
           const result = await input.reader.read(keys)
           if (!input.isOpen()) return rejected('ownerStopped')
