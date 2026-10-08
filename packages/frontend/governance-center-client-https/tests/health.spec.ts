@@ -134,12 +134,7 @@ describe('D045 EC2 governance transport', () => {
         '@omne-harness-lite/governance-center-entry/schema/v2',
       ),
     )
-    const frozen = readFileSync(
-      join(
-        import.meta.dirname,
-        '../../../../.meta_harness/design/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json',
-      ),
-    )
+    const frozen = readFileSync(join(import.meta.dirname, './fixtures/wire.schema.json'))
     expect(bundled.equals(frozen)).toBe(true)
     const schema = JSON.parse(frozen.toString()) as {
       $defs: { EnvelopeRouteId: { enum: string[] } }

@@ -1,8 +1,8 @@
 # credential-custodian-local
 
-Local, encrypted model credential replicas for a single account's machine instance. This package implements the D075 model-only projection of `capability.credential-custodian/v2`: two restricted technical actions and one owned lifetime. It has no Cordis service, OAuth/MCP setup, sweep loop or generic six-operation provider.
+Local, encrypted model credential replicas for a single account's machine instance. This package implements the D075 model-only projection described by its public owner: two restricted technical actions and one owned lifetime. It has no Cordis service, OAuth/MCP setup, sweep loop or generic six-operation provider.
 
-The adopted implementation mapping is [CCL rev2](../../../.meta_harness/design/realization/packages/infra/credential-custodian-local/v2-design.md), under D075. Verification obligations are [MCR-V1–V8](../../../.meta_harness/design/realization/packages/infra/credential-custodian-local/verification.md). The local tests use real SQLite files and key files with an explicitly identified binding-reader fixture. Real directory/auth/bootstrap/runtime integration and symbol guards belong to the assembly's verification. Complete generic/OAuth operation coverage remains pending.
+The current behavior and future limits are in [SPEC](SPEC.md). Verification duties are in [verification](verification/README.md). Local tests use real SQLite and key files with a named binding-reader fixture. Real directory, identity, bootstrap and runtime integration belongs to assembly verification. Generic and OAuth operations remain unimplemented.
 
 The public root exports `sealBody`, `openBody` and their context/result types. `./migrations` exports `replicaMigrations`: the base replica table/index, followed by a nullable `source_ref` addition. Existing rows keep their original ciphertext, login and timestamp; the migration assigns no source. Compose these owner fragments using `core/storage`'s `composeMigrations`, with the real directory's migration fragments in the same storage instance. Production migration confirmation belongs to the storage owner.
 

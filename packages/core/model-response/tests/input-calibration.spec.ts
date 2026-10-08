@@ -20,13 +20,7 @@ function object(value: unknown): JsonObject {
   return value
 }
 const decoded = readJsonStrict(
-  readFileSync(
-    new URL(
-      '../../../../.meta_harness/design/spec/data/model-response/v11/examples.json',
-      import.meta.url,
-    ),
-    'utf8',
-  ),
+  readFileSync(new URL('fixtures/examples.json', import.meta.url), 'utf8'),
 )
 if ('failed' in decoded || !Array.isArray(decoded.ok)) throw new Error('invalid normative fixtures')
 const examples = decoded.ok.map(object)

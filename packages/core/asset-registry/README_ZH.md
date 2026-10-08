@@ -24,3 +24,5 @@ pnpm --filter @omne-harness-lite/asset-registry run build
 pnpm --filter @omne-harness-lite/asset-registry run typecheck
 pnpm --filter @omne-harness-lite/asset-registry run test
 ```
+
+[行为承诺](SPEC.md)拥有类型之外的规则；[验证入口](verification/README.md)说明方法与限制。

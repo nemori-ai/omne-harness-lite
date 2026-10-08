@@ -1,5 +1,0 @@
-version: 1
-node: "credential-custodian-local"
-kind: "provider"
-
-bindings: []

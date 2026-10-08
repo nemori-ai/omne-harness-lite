@@ -26,3 +26,5 @@ pnpm --filter @omne-harness-lite/assembly-manifest run test
 ```
 
 [集成行为](SPEC.md)区分六操作业务承诺与借用端口责任。PresenceSource、ManifestOptions、ManifestDiagnostic 归纯根入口；资源 Service 归 ./cordis。
+
+[行为承诺](SPEC.md)拥有类型之外的规则；[验证入口](verification/README.md)说明方法与限制。

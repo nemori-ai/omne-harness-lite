@@ -1,11 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-/** 规范工件的家在设计工作区；本包只放副本，测试对着原件核。 */
-export const SPEC_DIR = resolve(
-  import.meta.dirname,
-  '../../../../.meta_harness/design/spec/data/identity-values/v1',
-)
+/** Module-owned normative inputs; expectations are independent of the parser. */
+export const FIXTURE_DIR = resolve(import.meta.dirname, './fixtures')
 
 export interface ExampleRow {
   readonly section: string
@@ -22,7 +19,7 @@ export interface ExampleRow {
  * 没有「校验对象」的节（12、13）与不带「预期」列的表（第 7 节的相等用例）不参与。
  */
 export function loadExampleRows(): ExampleRow[] {
-  const text = readFileSync(resolve(SPEC_DIR, 'examples.md'), 'utf8')
+  const text = readFileSync(resolve(FIXTURE_DIR, 'identity-values-examples.md'), 'utf8')
   const lines = text.split('\n')
   const rows: ExampleRow[] = []
   let section = ''

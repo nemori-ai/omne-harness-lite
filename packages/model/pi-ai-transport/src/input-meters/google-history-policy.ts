@@ -65,8 +65,7 @@ const retiredImplementations: readonly string[] = ['mp4-2', 'mp4-3', V3.implemen
 
 /**
  * Literal OpenRouter serving identity per leaf, taken from the 2026-09-30 real raw SSE
- * originals (research/model-request-adaptation/vendor-continuation/google/
- * 2026-09-30-complete-reply-originals.md): every frame carried `provider: "Google AI Studio"`
+ * originals: every frame carried `provider: "Google AI Studio"`
  * and `model` equal to the exact route id. Matching is byte-exact.
  */
 interface GoogleRow {

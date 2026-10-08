@@ -107,18 +107,27 @@ async function consume(negativeControl: boolean) {
   expect(report.resolution).toHaveLength(5)
   assert.ok(Array.isArray(report.schemas))
   expect(report.schemas).toHaveLength(3)
-  const frozen: unknown = JSON.parse(
-    await readFile(join(member, '../../.meta_harness/design/registry/frozen.json'), 'utf8'),
-  )
-  const frozenFiles = record(record(frozen).files)
+  // Independent adopted expectations. Do not derive these digests from tested resources.
+  const schemaDigests: Readonly<Record<string, string>> = {
+    'identity-values': '1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855',
+    'offer-expiry': '2fa7b9bcd5ba528ef4dafc6812cc087c839c0a45a5e0f465747ad44a7230d05b',
+    'content-blocks': '809d2a5db29db6a91096535017cc9bf4e7f75a3b93469520173e82916fff1bb5',
+  }
   for (const [index, name] of ['identity-values', 'offer-expiry', 'content-blocks'].entries()) {
     const schema = record(report.schemas[index])
-    const version = name === 'identity-values' ? 'v1' : name === 'content-blocks' ? 'v3' : 'v2'
-    const specPath = `spec/data/${name}/${version}/${name}.schema.json`
-    const bytes = await readFile(join(member, '../../.meta_harness/design', specPath))
+    const bytes = await readFile(
+      join(
+        member,
+        '../../packages/core',
+        name,
+        name === 'content-blocks'
+          ? 'tests/fixtures/content-before-admission.schema.json'
+          : `schema/${name}.schema.json`,
+      ),
+    )
     const sha256 = createHash('sha256').update(bytes).digest('hex')
     expect(schema.specifier).toBe(`@omne-harness-lite/${name}/schema`)
-    expect(sha256).toBe(frozenFiles[specPath])
+    expect(sha256).toBe(schemaDigests[name])
     if (name === 'content-blocks') {
       const current = await readFile(
         join(member, '../../packages/core/content-blocks/schema/content-blocks.schema.json'),

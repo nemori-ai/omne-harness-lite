@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
+import expectations from './fixtures/retained-schema-expectations.json' with { type: 'json' }
 import current from '@omne-harness-lite/loop-extension/schema/v3' with { type: 'json' }
 import retained from '@omne-harness-lite/loop-extension/schema/v2' with { type: 'json' }
 
@@ -12,17 +13,9 @@ it('D068 public default3 and retained2 are complete exact frozen resources', () 
     const bytes = readFileSync(
       new URL(`../schema/loop-extension${suffix}.schema.json`, import.meta.url),
     )
-    const original = readFileSync(
-      new URL(
-        `../../../../.meta_harness/design/spec/data/loop-extension/v${version}/loop-extension.schema.json`,
-        import.meta.url,
-      ),
-    )
-    expect(bytes.equals(original)).toBe(true)
-    expect(createHash('sha256').update(bytes).digest('hex')).toBe(
-      createHash('sha256').update(original).digest('hex'),
-    )
+    const expected = expectations[String(version) as '2' | '3']
+    expect(createHash('sha256').update(bytes).digest('hex')).toBe(expected.sha256)
     expect(resource.$id).toContain(`/v${version}/loop-extension.schema.json`)
-    expect(Object.keys(resource.$defs)).toEqual(Object.keys(JSON.parse(original.toString()).$defs))
+    expect(Object.keys(resource.$defs)).toEqual(expected.definitions)
   }
 })

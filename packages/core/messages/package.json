@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.messages v9 的当前消息、ACK 记录与无损语义摘要判定",
+  "description": "data.messages v9 \u7684\u5f53\u524d\u6d88\u606f\u3001ACK \u8bb0\u5f55\u4e0e\u65e0\u635f\u8bed\u4e49\u6458\u8981\u5224\u5b9a",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -23,7 +23,8 @@
     "README.md",
     "README_ZH.md",
     "SPEC.md",
-    "generated"
+    "generated",
+    "models"
   ],
   "scripts": {
     "build": "node ../../../scripts/build-fixed-schemas.mjs",

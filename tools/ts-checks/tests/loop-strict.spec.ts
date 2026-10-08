@@ -32,6 +32,7 @@ const run = (root: string, home: string, ...args: string[]) =>
  */
 function complete(): { root: string; home: string; out: string; base: string } {
   const root = repository()
+  write(root, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*/*'\n  - 'apps/*'\n")
   write(root, 'packages/core/a/src/index.ts', 'export const a = 1\n')
   write(root, 'packages/infra/b/src/index.ts', 'export const b = 2\n')
   write(root, 'packages/core/a/tests/a.spec.ts', "it('断言', () => { expect(1).toBe(1) })\n")
@@ -39,8 +40,8 @@ function complete(): { root: string; home: string; out: string; base: string } {
   write(root, 'packages/core/a/package.json', '{"name":"@omne-harness-lite/a"}\n')
   write(
     root,
-    '.meta_harness/design/realization/packages/core/a/bindings.yaml',
-    'assembly: {plugins: [], defines: []}\n',
+    '.meta_harness/design/architecture/constraints.json',
+    '{"schemaVersion": 1, "domains": [], "roles": [], "rules": []}',
   )
   const base = commit(root, 'members')
   return {
@@ -119,49 +120,41 @@ describe('严格模式', { timeout: 60_000 }, () => {
     )
   })
 
-  it('装配声明全部删除：reflexion 点名 no-data，严格模式失败', () => {
+  it('当前全局预期删除：architecture 点名 no-data，严格模式失败；差分独立可见', () => {
     const { root, home, out, base } = complete()
-    rmSync(join(root, '.meta_harness/design/realization'), { recursive: true })
+    rmSync(join(root, '.meta_harness/design/architecture/constraints.json'))
     const result = run(root, home, '--strict', '--base', base, '--out', out)
     expect(result.status).toBe(1)
-    expect(result.stdout).toContain(
-      'sensors.reflexion（.meta_harness/design/realization 缺失或没有 realization 节点）',
-    )
-    const status: unknown = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8'))
+    expect(result.stdout).toContain('sensors.architecture（全局架构预期不可用：')
+    const status = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8'))
     expect(status).toMatchObject({
+      hardLines: { sensors: { status: 'judged', silent: [{ sensor: 'architecture' }] } },
       sensors: {
-        reflexion: { status: 'no-data' },
-        assemblyChanges: {
+        architecture: { status: 'no-data' },
+        architectureChanges: { status: 'data', data: [{ id: 'global-architecture', after: null }] },
+      },
+      indicators: expect.arrayContaining([
+        expect.objectContaining({
+          id: 'architectureChanges',
+          reading: { status: 'data', data: 1 },
+        }),
+      ]),
+      explain: {
+        conformance: {
           status: 'data',
-          data: [{ member: 'packages/core/a', after: null }],
+          data: { changes: [{ id: 'global-architecture', after: null }] },
         },
       },
-      indicators: expect.arrayContaining([
-        expect.objectContaining({ id: 'assemblyChanges', reading: { status: 'data', data: 1 } }),
-      ]),
-      explain: { assemblyChanges: { status: 'data', data: [{ member: 'packages/core/a' }] } },
     })
   })
-
-  it('最后一份 assembly 移除：strict 仍失败，声明改动在指标与解释中独立可见', () => {
+  it('有效全局预期无装配事实：真实空结果，不依赖已删除的手写声明', () => {
     const { root, home, out, base } = complete()
-    write(root, '.meta_harness/design/realization/packages/core/a/bindings.yaml', '{}')
     const result = run(root, home, '--strict', '--base', base, '--out', out)
-    expect(result.status).toBe(1)
-    expect(result.stdout).toContain(
-      'sensors.reflexion（.meta_harness/design/realization 完全没有 assembly/composition 声明）',
-    )
-    const status: unknown = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8'))
-    expect(status).toMatchObject({
-      hardLines: { sensors: { status: 'judged', silent: [{ sensor: 'reflexion' }] } },
-      sensors: {
-        reflexion: { status: 'no-data' },
-        assemblyChanges: { status: 'data', data: [{ after: null }] },
-      },
-      indicators: expect.arrayContaining([
-        expect.objectContaining({ id: 'assemblyChanges', reading: { status: 'data', data: 1 } }),
-      ]),
-      explain: { assemblyChanges: { status: 'data', data: [{ member: 'packages/core/a' }] } },
+    expect(result.status).toBe(0)
+    const status = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8'))
+    expect(status.sensors.architecture).toMatchObject({
+      status: 'data',
+      data: { facts: [], delta: { status: 'data', data: { added: [], removed: [], changed: [] } } },
     })
     expect(readdirSync(home)).toEqual([])
   })

@@ -1,7 +1,7 @@
 {
   "format": 1,
   "id": "verification-write-tests",
-  "version": 1,
+  "version": 2,
   "family": "write-tests",
   "role": "verification-developer",
   "reps": 2,
@@ -23,10 +23,20 @@
     "kind": "checkout",
     "base": "003561900adb27de6ebe776fa1cf1b228304c873",
     "excludes": [
-      ".meta_harness/agents/evaluation",
-      ".meta_harness/design/record/evidence",
-      ".meta_harness/design_legacy",
-      ".gitmodules"
+      ".gitmodules",
+      ".meta_harness",
+      "AGENTS.md",
+      "CLAUDE.md",
+      "apps/AGENTS.md",
+      "apps/CLAUDE.md",
+      "docs/AGENTS.md",
+      "docs/CLAUDE.md",
+      "packages/AGENTS.md",
+      "packages/CLAUDE.md",
+      "scripts/AGENTS.md",
+      "scripts/CLAUDE.md",
+      "tools/AGENTS.md",
+      "tools/CLAUDE.md"
     ],
     "setup": [
       [
@@ -50,7 +60,52 @@
       ".agents",
       ".codex"
     ],
-    "commit": "single"
+    "commit": "single",
+    "inputs": [
+      {
+        "blob": "418b7656cf009e0f86a599a561ac4980a131f643",
+        "to": "apps/cli/tests/fixtures/evaluation-inputs/commands.json",
+        "consumers": [
+          {
+            "file": "apps/cli/tests/input.spec.ts",
+            "literal_sha256": "39f2bc61473056312d05083c1707bae1cea4b8c186c12f93b06493b41bc5407a",
+            "replace": "./fixtures/evaluation-inputs/commands.json"
+          }
+        ]
+      },
+      {
+        "blob": "416b572fba61f48ce5462c30eccfc03cac082b11",
+        "to": "apps/cli/tests/fixtures/evaluation-inputs/client-examples.json",
+        "consumers": [
+          {
+            "file": "apps/cli/tests/input.spec.ts",
+            "literal_sha256": "1a7e888caf73b93e6946555952f8b257257fa6bc85dbb59fa8c4d27a90452621",
+            "replace": "./fixtures/evaluation-inputs/client-examples.json"
+          },
+          {
+            "file": "apps/cli/tests/tui-forms.spec.ts",
+            "literal_sha256": "1a7e888caf73b93e6946555952f8b257257fa6bc85dbb59fa8c4d27a90452621",
+            "replace": "./fixtures/evaluation-inputs/client-examples.json"
+          }
+        ]
+      },
+      {
+        "blob": "5711e6f9c72c81487a99d0f74a42495adb220d49",
+        "to": "apps/cli/tests/fixtures/evaluation-inputs/forms.json",
+        "consumers": [
+          {
+            "file": "apps/cli/tests/tui-forms.spec.ts",
+            "literal_sha256": "d97857b6405d3334e24014a6e2f159ddf2b723c908912327cda3424fdef18373",
+            "replace": "./fixtures/evaluation-inputs/"
+          }
+        ]
+      },
+      {
+        "blob": "f0ae80bb827a892a81b9c61bc85b006456fde17d",
+        "to": "apps/cli/tests/fixtures/evaluation-inputs/tui-forms.schema.json",
+        "consumers": []
+      }
+    ]
   },
   "brief_frame": "briefs/_write-tests.md",
   "oracle": {
@@ -108,10 +163,7 @@
       "label": "只用放行工具"
     }
   ],
-  "signoffs": {
-    "cases": { "by": "panqiwei", "date": "2026-10-02", "version": 1 },
-    "grading": { "by": "panqiwei", "date": "2026-10-02", "version": 1 }
-  },
+  "signoffs": {},
   "materials": [
     {
       "id": "VD-1",

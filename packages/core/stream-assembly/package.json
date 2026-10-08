@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "capability.stream-assembly v3 的不可变到达装配与纯结算",
+  "description": "capability.stream-assembly v3 \u7684\u4e0d\u53ef\u53d8\u5230\u8fbe\u88c5\u914d\u4e0e\u7eaf\u7ed3\u7b97",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -16,7 +16,8 @@
   "files": [
     "dist",
     "README.md",
-    "README_ZH.md"
+    "README_ZH.md",
+    "SPEC.md"
   ],
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",

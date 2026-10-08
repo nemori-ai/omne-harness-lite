@@ -1,4 +1,4 @@
-// 存储协议：一次读/写事务、显式锁、四型失败。设计：.meta_harness/design/realization/packages/core/storage/。
+// 存储协议：一次读/写事务、显式锁、四型失败。设计：packages/core/storage/SPEC.md。
 export {
   StorageUnavailable,
   UniqueViolation,

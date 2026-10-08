@@ -94,3 +94,5 @@ MCP descriptor extension fields stay JSON data. `inputSchema` is not compiled or
 The package does not start stdio processes, connect HTTP, discover or call tools, perform OAuth, resolve credentials, or refresh snapshots. OAuth bindings describe data, not authorized state transitions. URL checks validate syntax rather than endpoint trust or secrecy; credentials belong outside the endpoint body. Runtime transport, authorization and lifecycle belong to consumers.
 
 The JSON Schema is available through `@omne-harness-lite/mcp-endpoint/schema`. See [source exports](src/index.ts), [tests](tests/) and [asset evaluation](../asset-evaluation/README.md).
+
+See [behavior](SPEC.md) and [verification duties](verification/README.md).

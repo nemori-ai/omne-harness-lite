@@ -1,9 +1,0 @@
-{
-  "source_url": "https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/c291e7961a515f6d7af9304e7fd1d257929aef26/vendor/cordis/src/registry.ts",
-  "fixed_revision": "c291e7961a515f6d7af9304e7fd1d257929aef26",
-  "official_source_sha256": "34bbd60ae502b4f85201c204afb52a9acabde6878d9278493478c1b2183debd3",
-  "installed_source_sha256": "34bbd60ae502b4f85201c204afb52a9acabde6878d9278493478c1b2183debd3",
-  "bytes_identical": true,
-  "observed_common_mechanism": "plugin creates a Fiber and returns an Object.create(fiber) PromiseLike shell; package-wide equivalence is not claimed",
-  "provider_evidence_commit": "5ffba4bb55aa9514ebd7f3c2b48f0d26fc9a8e18"
-}

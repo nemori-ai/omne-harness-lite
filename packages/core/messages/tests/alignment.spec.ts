@@ -7,7 +7,6 @@ import {
   LosslessNumber,
 } from '@omne-harness-lite/content-blocks'
 
-const base = new URL('../../../../.meta_harness/design/spec/data/', import.meta.url)
 function isObject(value: unknown): value is JsonObject {
   return (
     value !== null &&
@@ -21,7 +20,7 @@ function object(value: JsonValue | undefined): JsonObject {
   return value
 }
 function schema(path: string): JsonObject {
-  const read = readJsonStrict(readFileSync(new URL(path, base), 'utf8'))
+  const read = readJsonStrict(readFileSync(new URL(path, import.meta.url), 'utf8'))
   if ('failed' in read) throw new Error('Schema is invalid JSON')
   return object(read.ok)
 }
@@ -42,9 +41,9 @@ function assertions(value: JsonValue | undefined): unknown {
     )
   return value
 }
-const messages = schema('messages/v2/messages.schema.json')
-const response = schema('model-response/v2/model-response.schema.json')
-const loop = schema('loop-extension/v2/loop-extension.schema.json')
+const messages = schema('../schema/messages.v2.schema.json')
+const response = schema('fixtures/response-alignment.schema.json')
+const loop = schema('../../loop-extension/schema/loop-extension.v2.schema.json')
 describe('V12 six literal frozen definition alignments without reverse product dependencies', () => {
   for (const name of ['ResponseId', 'SelectedBy', 'CredentialScope', 'ParameterAdjustment'])
     it(name, () => {
@@ -68,8 +67,8 @@ describe('V12 six literal frozen definition alignments without reverse product d
   })
 })
 
-const currentMessages = schema('messages/v8/messages.schema.json')
-const currentResponse = schema('model-response/v11/model-response.schema.json')
+const currentMessages = schema('../schema/messages.schema.json')
+const currentResponse = schema('../../model-response/schema/model-response.schema.json')
 describe('M8-V5 MR11 owns the aligned no-cycle representations', () => {
   for (const name of ['ResponseId', 'SelectedBy', 'CredentialScope', 'ParameterAdjustment'])
     it(name, () => {

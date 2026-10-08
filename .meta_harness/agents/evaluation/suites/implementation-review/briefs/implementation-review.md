@@ -2,7 +2,7 @@
 
 ## 交付坐标
 
-- **执行仓库与检出**：`{WORKDIR}`（一份独立检出，当前分支只有两个提交）。设计工作区是其中的 `.meta_harness`。
+- **执行仓库与检出**：`{WORKDIR}`（一份独立检出，当前分支只有两个提交）。领域输入由下方局部任务规则提供，副本不携带中央设计工作区。
 - **任务基线提交**：`{BASE}`。**交付提交**：`{HEAD}`（`git log --oneline` 可见）。
 - **接受级别**：L3（改动触及会话持有的租户身份）。
 
@@ -10,8 +10,7 @@
 
 - **目标**：会话归属读面（服务 `sessionTenancy`）给运维补一条人读的结果描述，并让只有数据库文件的调用方能直接拿到读者。
 - **写入范围**：只有 `packages/session/session-tenancy-table/src/` 与 `packages/session/session-tenancy-table/tests/`。
-- **实施规格**：契约 `.meta_harness/design/spec/capabilities/session-tenancy/v2/contract.md`（已接受）；
-  节点设计 `.meta_harness/design/realization/packages/session/session-tenancy-table/`。读面的既有行为不得改变。
+- **本案例实施规则**：会话归属从同一存储的Session事实读取；确认不存在才答absent，存储读失败必须答unavailable，不能伪造不存在。实例关闭／失效必须拒绝后续使用，租户身份不能从调用方猜测。现有公开签名和原独立测试保持；运维描述不提权，文件路径不是授权。此为固定局部评估前提，不是当前新发布API。
 - **验收清单**：既有测试全部保持并通过；新增行为有测试；仓库规则检查通过。
 
 ## 实施者的交付说明（待验证的主张）

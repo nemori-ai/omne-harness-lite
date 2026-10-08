@@ -3,13 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { SCHEMA_DEF_NAMES, validate, judgeContentBlock } from '@omne-harness-lite/content-blocks'
 
-const examples = readFileSync(
-  new URL(
-    '../../../../.meta_harness/design/spec/data/content-blocks/v3/examples.md',
-    import.meta.url,
-  ),
-  'utf8',
-)
+const examples = readFileSync(new URL('./fixtures/admission-examples.md', import.meta.url), 'utf8')
 const appendix = examples.slice(examples.indexOf('## v3 窄修订'))
 const rows = [
   ...appendix.matchAll(

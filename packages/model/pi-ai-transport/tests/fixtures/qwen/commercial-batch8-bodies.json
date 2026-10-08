@@ -1,5 +1,5 @@
 {
- "source": ".meta_harness/research/model-request-adaptation/vendor-continuation/qwen/batch8-20260930/ (QC-V0 independent recompute, recompute-output.json)",
+ "source": "QC-V0 independent recompute of batch8 (run f8e55130, 2026-09-30)",
  "note": "The 18 batch8 request bodies (run f8e55130, six commercial leaves x three rounds, one tool) rebuilt with recompute.py's first_request/next_request from the approved scenarios and the rounds' raw SSE (read-only, not copied); every `wire` string's SHA-256 equals the run's plannedWireSha256. upstreamPromptTokens is the SSE usage.prompt_tokens; predictedWireOrder and predictedSortedKeys are the recompute's real Jinja2 + HF tokenizers counts under the two tojson semantics. No request was sent to obtain this file.",
  "rows": [
   {

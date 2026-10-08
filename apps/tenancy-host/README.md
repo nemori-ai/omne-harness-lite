@@ -5,7 +5,7 @@
 → governance-center-ops → governance-center-entry），迁移合成与升级守卫，两步开闸，逆序撤除。
 这些是发行树的稳定行 id；公共插件引用见 [tree.ts](src/tree.ts)。
 现行集成行为见 [SPEC.md](SPEC.md)，设计依据见[宿主接缝](../../.meta_harness/design/architecture/identity-integration/host-integration.md)；
-未迁业务和验证义务继续从[原实现映射](../../.meta_harness/design/realization/apps/tenancy-host/README.md)定位。
+未迁业务和验证义务继续从[原实现映射](SPEC.md)定位。
 本页只写**怎么起、怎么停、怎么配、运维要守什么**，以及源码取了哪些常量。
 
 应用合并发行与运维树并准备全部公共插件，核验角色后才创建运行资源。
@@ -110,7 +110,7 @@ scrypt 派生参数取 credential-verification 的缺省（N = 2^17、r = 8、p 
 有界治理装配当前仅支持 SQLite；PostgreSQL 配置在打开提供者前被拒绝。`tests/pg.spec.ts` 的旧整装义务延期，设置 `OMNE_TEST_PG_URL` 也不会执行；共享存储的 PG 符合性仍在 storage-sql 包。**跳过不是通过**。
 各测试与节点 verification 义务的对应写在每个测试文件的开头注释里。
 
-当前已接入 AI3/OG2/AR2/OE2 与 EC3/HT3。维护命令、可搬运制品及Linux systemd模板已通过限定环境的真实进程验证；精确版本与独立验收范围见[节点验证](../../.meta_harness/design/realization/apps/tenancy-host/verification.md)。实际公司环境部署仍需按下述模板配置。安全重新开放不属于隔离恢复命令。
+当前已接入 AI3/OG2/AR2/OE2 与 EC3/HT3。维护命令、可搬运制品及Linux systemd模板已通过限定环境的真实进程验证；精确版本与独立验收范围见[节点验证](SPEC.md)。实际公司环境部署仍需按下述模板配置。安全重新开放不属于隔离恢复命令。
 
 ## 本地可搬运归档
 
@@ -118,12 +118,12 @@ scrypt 派生参数取 credential-verification 的缺省（N = 2^17、r = 8、p 
 
 从可信渠道核对摘要，解压到新的空目录，再执行 `node app/dist/cli.js --version` 查看构建标识；缺失标识的开发构建明确显示development。该分支不读取部署配置、不启动插件或访问数据库。随后按原keygen/serve配置启动；附带README给出相同环境入口。构建中保持源、锁和共享dist稳定；开发工具从公开src入口由Node去类型执行，首次打包不依赖工具dist，完整类型检查仍先执行workspace build。
 
-实际平台和交付限制归[节点验证](../../.meta_harness/design/realization/apps/tenancy-host/verification.md)；生成归档不表示已完成内网部署、服务管理、备份或恢复验收。
+实际平台和交付限制归[节点验证](SPEC.md)；生成归档不表示已完成内网部署、服务管理、备份或恢复验收。
 
 ## 本机维护与Linux服务
 
 [服务模板与操作步骤](deploy/README.md)包含原socket上的full-health/backup/backup-status，以及不依赖serve配置的verify/restore-isolated。命令输出只报告元信息和结果，等待实际输出完成；退出码见该操作说明。CLI/TUI业务协议仍为2，不随本次opsVersion1要求员工升级。
 
-行为依据归[已采用的维护装配](../../.meta_harness/design/realization/apps/tenancy-host/maintenance-binding.md)和D055，这里维护安装与运行命令。
+行为依据归[已采用的维护装配](SPEC.md)和D055，这里维护安装与运行命令。
 
 Maintenance commands use named effects. The assembly selects the existing Unix client and offline inspection provider. Parsing does not acquire resources; the command retains close responsibility for its acquired inspection.

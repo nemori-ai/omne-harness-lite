@@ -40,7 +40,7 @@ export const xaiModelRoutes = {
 // window and a 450000-token maximum completion. Reserve that full completion
 // capacity for the project input cap; the endpoint does not report an
 // independent input-token limit. Native xAI image limits are not route facts.
-// Source: research/model-request-adaptation/reports/2026-09-28-xai-grok-routes.md
+// Selected OpenRouter xai endpoint metadata observed on 2026-09-28.
 const grokCapabilities = {
   inputModalities: ['image', 'text'],
   outputModalities: ['text'],

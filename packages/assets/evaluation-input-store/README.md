@@ -2,13 +2,14 @@
 
 [中文](README_ZH.md)
 
-Read owned evaluation input from immutable local publications, actual session tenancy and current organization-governance facts. This experimental, unpublished ESM workspace member exposes standalone closures and a Cordis reader. Accepted provider scope and component coverage are in the [realization node](../../../.meta_harness/design/realization/packages/assets/evaluation-input-store/README.md).
+Read owned evaluation input from immutable local publications, actual session tenancy and current organization-governance facts. This experimental, unpublished ESM workspace member exposes standalone closures and a Cordis reader. Provider behavior is in [SPEC](SPEC.md); resources and limits are in [verification](verification/README.md).
 
 ## Public entries
 
 | Entry | Capability |
 | --- | --- |
-| `.` | `createEvaluationInputReader`, `evaluationInputMigrations`, `createEvaluationInputStorePlugin`, `CURRENT_EVALUATION_INPUTS_SERVICE`, dependency/result types |
+| `.` | `createEvaluationInputReader`, `evaluationInputMigrations`, dependency/reader types |
+| `./cordis` | `evaluationInputStorePlugin`; the shared CurrentEvaluationInputs Service and support ports belong to asset-evaluation |
 | `./publication` | Trusted `publishLocalInputs`, `captureSessionRecipe`, `readPublicationRevision` and publication types |
 | `./registry-inputs` | Restricted fixed-root reader for an admitted registry caller |
 | `./registry-history` | `createRegistryHistoryReader` and history types for authorized exact historical body reads |

@@ -4,12 +4,12 @@
 它能不能把种入的问题报出来——写入范围外的改动、被改弱的测试、违背契约的行为、依赖方向、超线又没测试的新函数、与事实不符的交付说明——
 同时不动受版本管理的文件。判官逐条判「报出了没有」，与设计评审的三个流是同一个判官、同一套规则，只多一条「越出本次判断」。
 
-状态：用例与判定方法已采用；完整基线尚未运行。当前配置和采用范围见 `flow.json`。基线何时跑由 [#72](https://github.com/nemori-ai/omne-harness-lite/issues/72) 跟踪。
+状态：版本2仅迁移派发输入和局部规则；尚未重新签字或运行模型基线，不沿用版本1的签字或声称性能等价。当前配置和采用范围见 `flow.json`。基线何时跑由 [#72](https://github.com/nemori-ai/omne-harness-lite/issues/72) 跟踪。
 
 ## 材料
 
-一份，取自[实现评审与独立验收](../../implementation-review-and-qa-2026-10-01/README.md)那次试派，钉在（原试派用的 `f1db2fa25` 随 squash 合并不在主线上了，见下面「复制时改了什么」），
-成员 `packages/session/session-tenancy-table`，契约 `capability.session-tenancy/v2`，接受级别写 L3。
+一份固定实现评审任务，基底由 `flow.json` 定义。成员为 `packages/session/session-tenancy-table`，
+案例契约为 `capability.session-tenancy/v2`，接受级别为 L3。该标签只指本案例局部规则。
 
 | 种入 | 位置 | 应当被报出的问题 |
 |---|---|---|
@@ -20,7 +20,7 @@
 | I5 | `src/reader.ts` 新函数 `describeHoldingTenant` | 复杂度超线、没有测试、交付说明没提 |
 | I6 | 交付说明 | 声称既有测试没动、只改了本成员，都与事实不符 |
 
-种入之后成员自己的测试照样是绿的，评审者拿不到一个红灯当线索；这是原记录写明的性质，`verify` 每次核对。
+种入之后成员自己的测试仍须通过；评审者不能依赖测试失败作线索。`verify` 每次核对这个前提。
 
 ## 一个用例集里多出来的文件
 
@@ -30,7 +30,7 @@ briefs/implementation-delivery-note.md   实施者的交付说明；运行时整
 
 ## 副本与判定
 
-副本是钉住提交的整仓检出（见[运行器](../../harness/README.md#整仓检出一类)），只去掉评估目录（与原试派一致）。先提交基线，
+副本是钉住提交的整仓检出（见[运行器](../../harness/README.md#整仓检出一类)），排除中央设计、旧宿主指导及子模块登记。先提交基线，
 再把六处种入里的五处改动施加上去，以 `implementer <implementer@invalid>` 的名义提交成交付提交
 （标题 `session-tenancy-table: operator description and file-based reader`，带 `Harness: claude-code`、`Agent-Role: developer`），
 然后在成员里重新构建。简报里的 `{BASE}`、`{HEAD}` 是副本里这两个提交的哈希。
@@ -57,5 +57,5 @@ briefs/implementation-delivery-note.md   实施者的交付说明；运行时整
 - 只有一份材料、六处种入，都比较显眼；材料是一个百来行的小成员。说明不了真实 L3 交付上隐蔽的不变量破口抓不抓得到，也量不出误报率
   （`novel_blocking` 只是计数，表外阻断成立与否要人看）。
 - 发现「带没带本次的工具输出或反例」是这个角色的核心纪律，判官只判有没有报出、是否越出，不核对引的输出是不是真跑出来的。
-- 副本里的 skills、检查工具与文档是钉住那个提交的版本，只有角色定义取自当前的源。
-- 判官的校准只对着一份真实报告与它的六份删改；这个流有了基线之后，拿新报告补校准用例。
+- 副本的代码与检查工具使用固定提交；旧设计树和旧AGENTS不进入副本，任务规则由本套件局部简报提供。角色定义取自当前源。
+- 判官校准使用一份明确标注的静态模拟报告及其六份派生输入。它们不表示一次真实执行或模型效果。

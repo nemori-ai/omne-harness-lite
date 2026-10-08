@@ -1,7 +1,7 @@
 [project]
 name = "omne-harness-lite-spec-tools"
 version = "0.1.0"
-description = "Development-time documentation, specification and evidence checks"
+description = "Development-time navigation, tool environment and model evaluation checks"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

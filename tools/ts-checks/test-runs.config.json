@@ -4,7 +4,9 @@
     "vitestMaxWorkers": 4
   },
   "affected": {
-    "excludeRoots": ["examples"],
+    "excludeRoots": [
+      "examples"
+    ],
     "globalPaths": [
       "package.json",
       "pnpm-lock.yaml",
@@ -12,7 +14,6 @@
       "tsconfig*.json",
       "vitest.tiers.mts",
       "scripts/check.sh",
-      ".meta_harness/design/spec/**",
       "tools/ts-checks/test-runs.config.json",
       "tools/ts-checks/src/metrics/git.ts",
       "tools/ts-checks/src/testing/affected.ts",
@@ -26,23 +27,30 @@
     ],
     "readers": [
       {
-        "paths": [".meta_harness/design/registry/**"],
-        "members": ["packages/core/stream-assembly", "tools/core-verification"],
-        "why": "stream-assembly tests/fixtures.spec.ts 读 frozen.json、catalog.json 及其列出的资源；core-verification w1-public-consumer.spec.ts 读登记"
-      },
-      {
-        "paths": ["packages/core/*/schema/**"],
-        "members": ["packages/core/stream-assembly"],
+        "paths": [
+          "packages/core/*/schema/**"
+        ],
+        "members": [
+          "packages/core/stream-assembly"
+        ],
         "why": "stream-assembly tests/fixtures.spec.ts 的 INPUT-02／INPUT-04 读十几个核心成员的 schema/，其中多数没有声明依赖"
       },
       {
-        "paths": ["packages/core/*/src/**"],
-        "members": ["tools/core-verification"],
+        "paths": [
+          "packages/core/*/src/**"
+        ],
+        "members": [
+          "tools/core-verification"
+        ],
         "why": "core-verification 的 dependency-surface、public-type-surface 读核心成员的 src 与 dist"
       },
       {
-        "paths": ["packages/tenancy/governance-center-entry-node/tests/fixtures/tls/**"],
-        "members": ["packages/frontend/governance-client-operations-local"],
+        "paths": [
+          "packages/tenancy/governance-center-entry-node/tests/fixtures/tls/**"
+        ],
+        "members": [
+          "packages/frontend/governance-client-operations-local"
+        ],
         "why": "governance-client-operations tests/prepared.spec.ts 读 governance-center-entry 的 TLS 夹具，没有声明依赖"
       },
       {
@@ -60,7 +68,9 @@
           "examples/**/*.mts",
           "examples/**/*.cts"
         ],
-        "members": ["tools/ts-checks"],
+        "members": [
+          "tools/ts-checks"
+        ],
         "why": "ts-checks 的规则测试读真实产品源码，慢层 group-direction.spec.ts 经 collectMemberSources 读 packages、apps、examples 下全部 TS"
       },
       {
@@ -70,17 +80,21 @@
           "tools/*/package.json",
           "examples/*/package.json"
         ],
-        "members": ["tools/ts-checks"],
+        "members": [
+          "tools/ts-checks"
+        ],
         "why": "ts-checks tests/test-runs.spec.ts 读全部成员的 package.json"
       },
       {
         "paths": [
           "docs/clean-loop.md",
-          ".meta_harness/research/clean-code-doctrine-current/doctrine-catalogue.md",
+          "tools/ts-checks/resources/clean-loop-entries.md",
           ".meta_harness/tooling/src/stories.py",
           "scripts/with-test-slot.sh"
         ],
-        "members": ["tools/ts-checks"],
+        "members": [
+          "tools/ts-checks"
+        ],
         "why": "ts-checks 的 loop-catalogue.spec.ts 读 clean-loop 与整洁之道对照表，product-scenarios.spec.ts 读 stories.py，test-slot.spec.ts 执行 with-test-slot.sh"
       },
       {
@@ -88,7 +102,9 @@
           "packages/infra/credential-custodian-local/README.md",
           "packages/infra/credential-custodian-local/README_ZH.md"
         ],
-        "members": ["packages/infra/credential-custodian-local"],
+        "members": [
+          "packages/infra/credential-custodian-local"
+        ],
         "why": "tests/literal.spec.ts 运行两份 README 里的代码块"
       },
       {
@@ -96,7 +112,9 @@
           "packages/model/model-profile-directory-local/README.md",
           "packages/model/model-profile-directory-local/README_ZH.md"
         ],
-        "members": ["packages/model/model-profile-directory-local"],
+        "members": [
+          "packages/model/model-profile-directory-local"
+        ],
         "why": "tests/readme.spec.ts 运行两份 README 里的代码块"
       },
       {
@@ -106,8 +124,20 @@
           "examples/model-invocation-minimal-demo/generated/**",
           "examples/model-invocation-minimal-demo/package.json"
         ],
-        "members": ["packages/tools/tool-execution-local"],
+        "members": [
+          "packages/tools/tool-execution-local"
+        ],
         "why": "tool-execution-local 的 PF-006 S24/S69 独立验收从 model-invocation-minimal-demo 公开 dist 入口驱动模型工具续答；先显式构建 demo 及依赖，再运行 acceptance。examples 仍不加入默认成员扫描。"
+      },
+      {
+        "paths": [
+          "packages/core/*/schema/**",
+          "packages/core/*/tests/fixtures/**"
+        ],
+        "members": [
+          "tools/core-verification"
+        ],
+        "why": "w1/w6以成员拥有的Schema及独立规范输入作外部消费，测试不会读取退役中央清单"
       }
     ],
     "memberDocuments": [
@@ -137,9 +167,7 @@
       ".codex",
       "docs/**",
       ".meta_harness/design/**",
-      ".meta_harness/design_legacy/**",
       ".meta_harness/research/**",
-      ".meta_harness/publication/**",
       "examples/**",
       ".github/**",
       ".vscode/**",

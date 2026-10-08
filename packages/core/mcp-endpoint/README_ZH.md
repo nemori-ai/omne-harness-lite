@@ -94,3 +94,5 @@ MCP 描述的拓展字段保留为 JSON 数据。这里不编译或修补 `input
 本包不启动 stdio 进程，不连接 HTTP，不发现或调用工具，不执行 OAuth，不解析凭据，不刷新副本。OAuth 绑定描述数据，不授权状态转移。URL 检查只验证语法，不判定端点可信性或秘密；凭据应放在接入点正文之外。运行时传输、授权与生命周期归消费者负责。
 
 JSON Schema 通过 `@omne-harness-lite/mcp-endpoint/schema` 公开。参见[源码导出](src/index.ts)、[测试](tests/)与[资产求值](../asset-evaluation/README_ZH.md)。
+
+行为与验证职责见[薄 SPEC](SPEC.md)和[验证入口](verification/README.md)。

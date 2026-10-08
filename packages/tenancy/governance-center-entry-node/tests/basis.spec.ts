@@ -3,7 +3,7 @@
 // 2. ajv 8 的 `unicodeRegExp` 缺省开启：`pattern` 以 `u` 标志编译、按码点求值；`maxLength` 按码点计（源码：lib/core.ts 的选项缺省、
 //    lib/vocabularies/code.ts 的 usePattern、lib/runtime/ucs2length.ts）。
 // 3. Node 24.18：把预先建好的 `secureContext` 交给 `tls.createServer`，ECDSA 证书握不了手（client-face.ts 因此直接传材料）。
-// 4. 规范 Schema 的包内副本与 spec 目录那一份逐字节相同（漂移即红）；副本连同所引的两份 Schema 在 ajv 里编得出每条路由的定义。
+// 4. 规范 Schema 的包内副本与独立基线夹具那一份逐字节相同（漂移即红）；副本连同所引的两份 Schema 在 ajv 里编得出每条路由的定义。
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { connect, createSecureContext, createServer } from 'node:tls'
@@ -18,10 +18,7 @@ import { entryValidator } from '../src/routing/schema.ts'
 import { TLS_FIXTURES } from './support/wire.ts'
 
 const PACKAGE = join(import.meta.dirname, '..')
-const SPEC_SCHEMA = join(
-  PACKAGE,
-  '../../../.meta_harness/design/spec/compositions/governance-center-entry/v3/governance-center-entry.schema.json',
-)
+const SPEC_SCHEMA = join(PACKAGE, 'tests/fixtures/entry-baseline.schema.json')
 
 describe('basis：ctx.on 经 effect 纳管', () => {
   it('插件里 ctx.on 挂的监听，在该 fiber 撤除后不再被调用；未撤除时照常被调用', async () => {
@@ -100,7 +97,7 @@ describe('basis：Node 24 的 TLS 服务器与预建的 secureContext', () => {
 })
 
 describe('规范 Schema 的包内副本', () => {
-  it('与 spec 目录的那一份逐字节相同', () => {
+  it('与独立基线夹具的那一份逐字节相同', () => {
     expect(readFileSync(join(PACKAGE, 'schema/governance-center-entry.schema.json'))).toEqual(
       readFileSync(SPEC_SCHEMA),
     )

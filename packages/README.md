@@ -34,7 +34,7 @@
 
 - 基础设施**不提供 in-memory 实现**：存储开发期用 sqlite 文件库，只改配置切 pg；测试用临时文件。
 - 失败值字面以契约为准，两套拼法并存（`account-identity` kebab-case，其余 camelCase），不自造统一层。
-- 契约目录（`.meta_harness/design/spec/**/v1/`）不可改；实现发现契约措辞问题报 spec owner。
+- 公开定义及薄SPEC由接口拥有者维护；有效承诺变化须明确依据、影响和采用范围，同步当前消费者。
 - `packages/` 与 `apps/` 内不得出现墙钟（`infra/`、测试及D047的具名副本显示取时文件除外）、`ctx.bail(`；`accounts.produce(`、`organization-purge` 等受限调用只有注册组合够得着——由 [tools/ts-checks](../tools/ts-checks/README.md) 在 `pnpm run check` 里守，规则全集见其 README。
 
 ## 历史

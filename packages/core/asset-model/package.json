@@ -20,7 +20,8 @@
     "dist",
     "schema",
     "README.md",
-    "README_ZH.md"
+    "README_ZH.md",
+    "SPEC.md"
   ],
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",

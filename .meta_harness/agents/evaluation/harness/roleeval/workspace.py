@@ -21,6 +21,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -161,10 +162,6 @@ def apply(dest: Path, ops: list[dict[str, Any]], *, suite: Path) -> None:
             target = dest / op["to"]
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(suite / op["from"], target)
-        elif kind == "catalog-candidate":
-            _candidate(dest / op["registry"], op["contract_id"], op["version"])
-        elif kind == "catalog-add-clause":
-            _add_clause(dest / op["registry"], op["contract_id"], op["version"], op["dependency"], op["clause"])
         else:
             raise WorkspaceError(f"unknown workspace op {kind!r}")
 
@@ -179,21 +176,76 @@ def commit(dest: Path) -> None:
 
 # --- checkout copies -----------------------------------------------------------------------------------------
 
-def template_name(flow_id: str, base: str, excludes: list[str], setup: list[list[str]]) -> str:
+def template_name(flow_id: str, base: str, excludes: list[str], setup: list[list[str]],
+                  inputs: list[dict[str, Any]] | None = None) -> str:
     """One template per (base, excludes, setup): change any of them and another template is built."""
-    key = hashlib.sha256(json.dumps([base, excludes, setup]).encode()).hexdigest()[:8]
+    configuration = [base, excludes, setup]
+    if inputs:
+        configuration.append(inputs)
+    key = hashlib.sha256(json.dumps(configuration).encode()).hexdigest()[:8]
     return f"{flow_id}-{base[:12]}-{key}"
 
 
+def load_case_inputs(repo: Path, dest: Path, base: str, inputs: list[dict[str, Any]]) -> None:
+    """Load fixed Git blobs and redirect unique string literals identified by SHA-256."""
+    def path(relative: str) -> Path:
+        item = Path(relative)
+        if item.is_absolute() or not item.parts or any(p in (".", "..") for p in item.parts):
+            raise WorkspaceError(f"invalid input path: {relative}")
+        target = dest / item
+        if any(p.is_symlink() for p in [target, *target.parents] if p.is_relative_to(dest)):
+            raise WorkspaceError(f"input path is a symbolic link: {relative}")
+        return target
+
+    if not inputs:
+        return
+    origins: dict[str, list[str]] = {}
+    for line in git(repo, "ls-tree", "-r", "-z", base).split("\0"):
+        if not line:
+            continue
+        metadata, relative = line.split("\t", 1)
+        _mode, kind, identifier = metadata.split()
+        if kind == "blob":
+            origins.setdefault(identifier, []).append(relative)
+    for entry in inputs:
+        identifier = entry["blob"]
+        if not re.fullmatch(r"[0-9a-f]{40}", identifier) or identifier not in origins:
+            raise WorkspaceError("case input must be a blob in the fixed base")
+        if any(p.startswith(".meta_harness/agents/evaluation/") for p in origins[identifier]):
+            raise WorkspaceError("evaluation ground truth cannot become a case input")
+        target = path(entry["to"])
+        if target.exists():
+            raise WorkspaceError(f"case input target already exists: {entry['to']}")
+        payload = subprocess.run(["git", "-C", str(repo), "cat-file", "blob", identifier],
+                                 capture_output=True, check=True).stdout
+        for reader in entry["consumers"]:
+            file = path(reader["file"])
+            text = file.read_text(encoding="utf-8")
+            expected = reader["literal_sha256"]
+            if not re.fullmatch(r"[0-9a-f]{64}", expected):
+                raise WorkspaceError("input reader requires a SHA-256 string literal identity")
+            literals = re.finditer(r'''(['"])((?:\\.|(?!\1).)*?)\1''', text)
+            matches = [m for m in literals if hashlib.sha256(m[2].encode()).hexdigest() == expected]
+            if len(matches) != 1:
+                raise WorkspaceError(f"{reader['file']}: input reader must match exactly once")
+            match = matches[0]
+            replacement = reader["replace"]
+            if match[1] in replacement or "\\" in replacement or "\n" in replacement or "\r" in replacement:
+                raise WorkspaceError("input reader replacement must be a plain quoted path")
+            file.write_text(text[:match.start(2)] + replacement + text[match.end(2):], encoding="utf-8")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(payload)
+
+
 def template(repo: Path, work: Path, *, flow_id: str, base: str, excludes: list[str],
-             setup: list[list[str]]) -> Path:
+             setup: list[list[str]], inputs: list[dict[str, Any]] | None = None) -> Path:
     """The installed and built checkout of ``base`` that run copies are taken from; built once, then reused.
 
     It is built in a sibling directory and renamed into place only after every setup command
     succeeded, so a template that exists is a finished one.
     """
     root = work / TEMPLATES
-    final = root / template_name(flow_id, base, excludes, setup)
+    final = root / template_name(flow_id, base, excludes, setup, inputs)
     if (final / READY).is_file():
         return final
     if final.exists():
@@ -204,6 +256,7 @@ def template(repo: Path, work: Path, *, flow_id: str, base: str, excludes: list[
     building.mkdir()
     try:
         _extract(repo, base, building)
+        load_case_inputs(repo, building, base, inputs or [])
         for relative in excludes:
             target = building / relative
             if target.is_dir() and not target.is_symlink():
@@ -214,7 +267,8 @@ def template(repo: Path, work: Path, *, flow_id: str, base: str, excludes: list[
             ran = run(command, building)
             if not ran.ok:
                 raise WorkspaceError(f"template setup `{' '.join(command)}` exited {ran.code}:\n{ran.output[-4000:]}")
-        (building / READY).write_text(json.dumps({"base": base, "excludes": excludes, "setup": setup}) + "\n",
+        (building / READY).write_text(json.dumps({"base": base, "excludes": excludes, "setup": setup,
+                                                "inputs": inputs or []}) + "\n",
                                       encoding="utf-8")
         os.rename(building, final)
     except BaseException:
@@ -287,39 +341,3 @@ def patch(dest: Path) -> bytes:
         return subprocess.run(["git", "-C", str(dest), "diff"], capture_output=True, check=True).stdout
     finally:
         git(dest, "reset", "-q")
-
-
-def _entry(catalog: dict[str, Any], contract_id: str, version: int) -> dict[str, Any]:
-    for item in catalog["contracts"]:
-        coordinate = item["coordinate"]
-        if coordinate["contract_id"] == contract_id and coordinate["version"] == version:
-            return item
-    raise WorkspaceError(f"coordinate {contract_id} v{version} is not in the catalog")
-
-
-def _candidate(registry: Path, contract_id: str, version: int) -> None:
-    """Present an accepted contract as an unfrozen candidate, so the edit itself is not the finding."""
-    catalog = json.loads((registry / "catalog.json").read_text(encoding="utf-8"))
-    item = _entry(catalog, contract_id, version)
-    item["status"] = "candidate"
-    item.pop("acceptance", None)
-    _write(registry / "catalog.json", catalog)
-    frozen = json.loads((registry / "frozen.json").read_text(encoding="utf-8"))
-    frozen["files"] = {path: digest for path, digest in frozen["files"].items() if path not in item["resources"]}
-    _write(registry / "frozen.json", frozen)
-
-
-def _add_clause(registry: Path, contract_id: str, version: int, dependency: dict[str, Any], clause: str) -> None:
-    catalog = json.loads((registry / "catalog.json").read_text(encoding="utf-8"))
-    item = _entry(catalog, contract_id, version)
-    for declared in item["dependencies"]:
-        coordinate = declared["coordinate"]
-        if coordinate["contract_id"] == dependency["contract_id"] and coordinate["version"] == dependency["version"]:
-            declared["clauses"].append(clause)
-            _write(registry / "catalog.json", catalog)
-            return
-    raise WorkspaceError(f"{contract_id} v{version} declares no dependency on {dependency}")
-
-
-def _write(path: Path, value: dict[str, Any]) -> None:
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

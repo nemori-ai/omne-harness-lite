@@ -37,17 +37,14 @@ relations:
 | 做成什么样算做对了                         | [验收标准](acceptance.md)                                                                                                              |
 | 哪些是拍板定的，哪些是推导的，还有什么没定 | [当前规则与范围](design.md)                                                                                                             |
 | 这块设计怎么演变到今天                     | [当前规则与范围](design.md)                                                                                                               |
-| 要实施它，当前该怎么做                     | [设计投影 v3](projection/v3/projection.md)（租户相关领域那一片；派生快照，不是权威；版本与接受依据见[投影目录](projection/README.md)） |
 
 ## 状态
 
 - 产品设计：**rev 25**，按本轮直接裁决补齐 official Agent Definition 的不可替换例外；工作区概念对齐增量已正式接受（[当前规则与范围](design.md)）；rev 19 的治理产品基线及其评审、确认范围保留，见 [当前规则与范围](design.md)。本次整合不扩大原接受范围。
 - 未决项：成功业务访问与跨到期访问的规格映射，以及 PF-017 的恢复核对依赖，见 [design §九](design.md#九未决项)
 - 待裁决：本 topic 无新增独立登录政策选择；恢复材料、核对资格与开放等真实依赖由 PF-017 接续
-- 技术投影：**v3**（2026-09-23，依据 rev 16，记录实现与验收对账；覆盖租户相关领域；由 D-023 与 D-028 接受为实施入口；版本表在[投影目录](projection/README.md)）
 
 技术投影按 `harness-design-handbook` skill 展开，
-产物按其步骤 G 落回本包的 `projection/` 下对应版本。
 
 ## 本包的文件
 
@@ -57,7 +54,6 @@ PF-001-identity-scope-and-agent-constraints/
 ├── design.md         概念、模型、规则、取舍、边界、未决
 ├── flows.md          旅程、异常分支、状态流转、角色矩阵
 ├── acceptance.md     可观察场景、绝不能发生的事、判据
-└── projection/       技术设计的投影，按版本固化（派生快照，不是权威）
 ```
 
 本次并行修订的来源、编号协调与消费者复核见 [当前规则与范围](design.md)。

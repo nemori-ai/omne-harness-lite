@@ -21,13 +21,7 @@ import {
 } from '@omne-harness-lite/model-response'
 import schema from '@omne-harness-lite/model-response/schema' with { type: 'json' }
 
-const source = readFileSync(
-  new URL(
-    '../../../../.meta_harness/design/spec/data/model-response/v11/examples.md',
-    import.meta.url,
-  ),
-  'utf8',
-)
+const source = readFileSync(new URL('fixtures/response-examples.md', import.meta.url), 'utf8')
 
 function parseJson(text: string): JsonValue {
   const result = readJsonStrict(text)
@@ -70,10 +64,7 @@ describe('MR12 exact current dependency transition', () => {
   it('matches the accepted Schema bytes and compiles all 25 public definitions', () => {
     const actual = readFileSync(new URL('../schema/model-response.schema.json', import.meta.url))
     const accepted = readFileSync(
-      new URL(
-        '../../../../.meta_harness/design/spec/data/model-response/v11/model-response.schema.json',
-        import.meta.url,
-      ),
+      new URL('fixtures/response-before-attempt-facts.schema.json', import.meta.url),
     )
     assertResponseSchemaTransition(actual, accepted)
     expect(createHash('sha256').update(accepted).digest('hex')).toBe(

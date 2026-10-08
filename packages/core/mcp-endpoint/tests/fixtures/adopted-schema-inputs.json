@@ -1,0 +1,7 @@
+{
+  "mcp-endpoint/v2": {
+    "path": "../../mcp-endpoint/schema/mcp-endpoint.schema.json",
+    "sha256": "4fcddf8b9e2a870be8d47ac0abf3fc835ad330f4bd0afd2d6cfe866796df2c13",
+    "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/mcp-endpoint/v2/mcp-endpoint.schema.json"
+  }
+}

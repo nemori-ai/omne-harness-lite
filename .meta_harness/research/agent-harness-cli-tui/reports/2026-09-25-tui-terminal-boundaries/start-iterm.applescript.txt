@@ -1,5 +1,0 @@
-tell application "iTerm"
-  set probeCommand to "/Users/pandazki/.local/share/fnm/node-versions/v24.21.0/installation/bin/node /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/tmp/production-cli-onboarding/tui-probe/emulator-query.mjs /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/tmp/production-cli-onboarding/tui-probe/iterm-query-r1.json"
-  set probeWindow to (create window with default profile command probeCommand)
-  return id of probeWindow
-end tell

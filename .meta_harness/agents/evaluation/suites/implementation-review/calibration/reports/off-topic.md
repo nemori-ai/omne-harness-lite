@@ -1,3 +1,7 @@
+# 固定校准输入
+
+以下为静态模拟报告，供已知语义oracle及派生反例使用。工具与差异段仅为案例事实，不是当前实现的运行结果或开发记录。
+
 **本次判断：计划；读的判据页是 `harness-design-handbook/canonical/references/review/plan.md`。**
 
 ## 评审对象、范围与完成程度
@@ -163,7 +167,7 @@
 - **前提 3 未核对**：两名实施者可同时投入属团队资源，我不假设其成立。
 - **时限可行性未判断**：计划只有「第 1 天」，没有可评估的排期。
 - **执行宿主节点 design 未通读**：只读了与 `runAttemptFacts` 相关的行。
-- **转交「表达」**：`spec/capabilities/run-attempt-facts/verification.md` 顶部仍写「candidate、未接受、尚无提供者节点」；该 topic 的 README 写依赖「均 v1」，与契约首部的 v2 不一致。未展开。
+- **转交「表达」**：案例中的验证义务页 顶部仍写「candidate、未接受、尚无提供者节点」；该 topic 的 README 写依赖「均 v1」，与契约首部的 v2 不一致。未展开。
 - **转交「选择」**：未重判契约与节点设计本身是否合理。
 
 ## 未决政策与证据缺口的 owner

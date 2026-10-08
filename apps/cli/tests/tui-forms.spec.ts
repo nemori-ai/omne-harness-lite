@@ -7,13 +7,7 @@ const signal = new AbortController().signal
 it('ships the exact frozen CQ2 resources', () => {
   for (const name of ['forms.json', 'tui-forms.schema.json'])
     expect(readFileSync(new URL('../forms/' + name, import.meta.url), 'utf8')).toBe(
-      readFileSync(
-        new URL(
-          '../../../.meta_harness/design/spec/compositions/governance-cli-entry/v2/' + name,
-          import.meta.url,
-        ),
-        'utf8',
-      ),
+      readFileSync(new URL('./fixtures/' + name, import.meta.url), 'utf8'),
     )
 })
 it('all 34 forms produce the original canonical intent, with secrets separate and expectedTenant captured', async () => {
@@ -24,7 +18,7 @@ it('all 34 forms produce the original canonical intent, with secrets separate an
   }[] = JSON.parse(
     readFileSync(
       new URL(
-        '../../../.meta_harness/design/spec/compositions/governance-client-operations/v1/examples.json',
+        '../../../packages/core/governance-client-operations/tests/fixtures/action-examples.json',
         import.meta.url,
       ),
       'utf8',

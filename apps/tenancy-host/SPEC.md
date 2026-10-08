@@ -45,7 +45,17 @@ PG 迁移后装配失败的整体回滚尚未闭合，不能开放成已支持�
 
 数据库身份、表、迁移前缀、Schema URI、两张网络面的 wire 版本、授权和同提交行为保持原承诺。接口变化同步迁移消费者，旧 manifest、资源 Config 回调及兼容别名不继续提供。
 
-未实现的资产治理/模型档案中心增量、时钟条件与发布清单义务继续保留精确旧源。
+资产治理与流转的未实现承诺分别归[资产治理](../../.meta_harness/design/architecture/asset-governance/README.md)与[资产流转](../../.meta_harness/design/architecture/asset-transfer/README.md)；模型档案目录承诺归[公共拥有者](../../packages/core/model-profile-directory/README_ZH.md)。中心新增跨进程投影仍未实现，不因包内类型或本次搬迁宣称兑现。时钟来源与部署发布由各实际拥有者约束。
+
+## 迁移合成、崩溃恢复与分发
+
+各owner拥有自身表迁移，宿主唯一合成顺序及跨owner外键的目标与名称；OG工厂通过参数接受目标，不从AI私有实现取得。所需升级检查使用同一实际快照和同一guard，未确认快照必须先恢复再启动，不能绕过确认路径重新开放。
+
+SQLite采用WAL、synchronous=FULL及foreign_keys=ON。SIGKILL后重启保留最后完整提交，时钟残留lease最多延迟一个lease宽度；该前提不是历史45秒冷恢复失败的原因证明。ready与terminate原45秒测试观察阈值保持，不能用放宽阈值关闭旧问题。
+
+开发分发只搬同一稳定源码/锁/dist的生产闭包，运行时密钥、库、套接字及备份不进制品。离仓库离线运行不install。唯一共享发布算法归tools/artifact-builder；宿主薄适配不复制算法。只向新的绝对目标作同文件系统独占发布，只清本次暂存；发布后stdout失败不得删除已有效的制品。平台仅声称实际验证的范围，不从Node大版本范围推整个平台验证。
+
+BUILD_ID为排序后文件清单SHA-256，不含inventory本身及BUILD_ID，不充当HOST_VERSION或wire版本。纯--version不读配置、密钥、数据库或套接字，不建Context，验证BUILD_ID，开发检出缺失时标development；内容损坏安全失败，等待真实stdout完成。归档成功不表示安装或生产接受，不保证强杀清理或归档掉电耐久。
 
 应用测试保留真实 SQLite、TLS、Unix、确认前关闸、失败回滚、逆序关闭、在途及重启观察。插件树替换、准备零副作用、失败前缀、服务换代、纯入口与部署制品由 T4 冻结验收接续；切片测试不能关闭完整 T4 或身份领域验收。
 
@@ -58,3 +68,7 @@ PG 迁移后装配失败的整体回滚尚未闭合，不能开放成已支持�
 command-data.ts 唯一拥有命令与输出端口形状。maintenance-command.ts 只解析、运行及决定退出码，消费具名校验、ops调用、离线lease和失败转换。maintenance-assembly.ts 选择原提供者，main 只在原维护分支选择它；构造不打开inspection、不读取迁移检查结果。
 
 离线路径保持原open→create→操作→finally close顺序；create失败仍关闭已取得的同一inspection，open失败不虚构关闭。ops-client.ts 的socket名称和原回复解码函数由maintenance-assembly.ts通过必需私有OpsClientProtocol注入；createOpsClient仅绑定，不连接或提前解码。ops-client.ts 保持一次Unix请求及原HTTP校验、字节上限、取消和socket清理；取消仅结束本地等待，不能撤销或重投远端。诊断、输出失败、未知结果及退出码不变。原信号、读取门和dispose故障注入保持实际路径。
+
+## Docker健康探针
+
+Docker exec探针在同一进程调用原main的ops full-health，不创建CLI后代。5秒期限包含动态加载，发送前及成功返回前核单调截止；64KiB上限按实际字节累计。超限/失败不报告ready，shutdownSignal沿原AbortController结束socket，finally清理自身计时器。成功形状与业务体检语义归公共入口，不以Docker Engine受理或探针进程退出代替原应用责任完成。

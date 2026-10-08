@@ -480,31 +480,10 @@ def test_a_seed_has_to_land_exactly_once(repo: Path, tmp_path: Path) -> None:
         workspace.apply(dest, [{"op": "delete"}], suite=repo)
 
 
-def test_catalog_ops_present_a_contract_as_an_unfrozen_candidate(tmp_path: Path) -> None:
-    registry = tmp_path / "registry"
-    registry.mkdir()
-    coordinate = {"baseline_id": "b", "contract_id": "capability.x", "version": 2}
-    catalog = {"contracts": [{"coordinate": coordinate, "status": "accepted", "acceptance": {"by": "d"},
-                              "resources": ["spec/x/v2/contract.md"],
-                              "dependencies": [{"coordinate": {"contract_id": "data.y", "version": 1}, "clauses": ["S-1"]}]}]}
-    (registry / "catalog.json").write_text(json.dumps(catalog), encoding="utf-8")
-    (registry / "frozen.json").write_text(json.dumps({"format": 1, "files": {
-        "spec/x/v2/contract.md": "a" * 64, "spec/y/v1/contract.md": "b" * 64}}), encoding="utf-8")
-    workspace.apply(tmp_path, [
-        {"op": "catalog-candidate", "registry": "registry", "contract_id": "capability.x", "version": 2},
-        {"op": "catalog-add-clause", "registry": "registry", "contract_id": "capability.x", "version": 2,
-         "dependency": {"contract_id": "data.y", "version": 1}, "clause": "S-97"}], suite=tmp_path)
-    item = json.loads((registry / "catalog.json").read_text(encoding="utf-8"))["contracts"][0]
-    assert item["status"] == "candidate" and "acceptance" not in item
-    assert item["dependencies"][0]["clauses"] == ["S-1", "S-97"]
-    assert list(json.loads((registry / "frozen.json").read_text(encoding="utf-8"))["files"]) == ["spec/y/v1/contract.md"]
-    with pytest.raises(workspace.WorkspaceError, match="not in the catalog"):
-        workspace.apply(tmp_path, [{"op": "catalog-candidate", "registry": "registry", "contract_id": "capability.z",
-                                    "version": 1}], suite=tmp_path)
-    with pytest.raises(workspace.WorkspaceError, match="declares no dependency"):
-        workspace.apply(tmp_path, [{"op": "catalog-add-clause", "registry": "registry", "contract_id": "capability.x",
-                                    "version": 2, "dependency": {"contract_id": "data.q", "version": 1},
-                                    "clause": "S-1"}], suite=tmp_path)
+@pytest.mark.parametrize("op", ["catalog-candidate", "catalog-add-clause"])
+def test_retired_workspace_ops_are_rejected(tmp_path: Path, op: str) -> None:
+    with pytest.raises(workspace.WorkspaceError, match="unknown workspace op"):
+        workspace.apply(tmp_path, [{"op": op}], suite=tmp_path)
 
 
 def test_the_tree_hash_sees_content_and_ignores_git(repo: Path, tmp_path: Path) -> None:
@@ -556,7 +535,7 @@ def test_a_suite_loads_into_materials_and_seeds(repo: Path) -> None:
     ({"metrics": [{"id": "caught", "kind": "binary", "label": "一个长得放不进图例的指标标签名"}]}, "longer than"),
     ({"metrics": [{"id": "caught", "kind": "ordinal"}]}, "unknown kind"),
     ({"metrics": [{"id": "caught", "kind": "binary"}, {"id": "caught", "kind": "float"}]}, "duplicate metric"),
-    ({"attach_design_review": True}, "contract coordinate"),
+    ({"attach_design_review": True}, "retired attach_design_review"),
     ({"workspace": {}}, "workspace lacks"),
     ({"host": {"codex": {}}}, "claude-code"),
 ])

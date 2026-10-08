@@ -28,10 +28,7 @@ import { RECEIVE_LIMITS } from '../src/index.ts'
 import { isGovernanceCenterId } from '@omne-harness-lite/governance-center-entry'
 import { StubParticipants } from './support/stubs.ts'
 
-const EXAMPLES = join(
-  import.meta.dirname,
-  '../../../../.meta_harness/design/spec/compositions/governance-center-entry-https-json/v2/examples.md',
-)
+const EXAMPLES = join(import.meta.dirname, 'fixtures/client-wire-examples.md')
 
 interface Example {
   readonly heading: string

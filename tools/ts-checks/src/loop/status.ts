@@ -1,9 +1,7 @@
 // 回路状态的判定与文字：各指标的带位、要解释的红项、超预算的成员，渲染成终端与 status.md 共用的几十行。
 // 这里只有纯函数；读 git、跑传感器、写文件都在 cli.ts。
 import { basename } from 'node:path'
-import type { Comparison as ArchComparison } from '../arch/model.ts'
-import type { IntentChange } from '../arch/compare.ts'
-import type { Reflexion } from './sensors/reflexion.ts'
+import type { AssemblyDelta, AssemblyObservations } from './sensors/assembly.ts'
 import type { DirectionFinding } from '../metrics/graph.ts'
 import { describeFunction } from '../metrics/report.ts'
 import { BAND_WORDS, judgeIndicator, type Band, type Comparison } from './bands.ts'
@@ -28,9 +26,10 @@ import type { StabilityEdge } from './sensors/stability.ts'
 import type { BaselineSnapshot, IndicatorSnapshot, Snapshot } from './trend.ts'
 
 export const INDICATOR_LABELS: Readonly<Record<IndicatorId, string>> = {
-  newDeviations: '新增装配偏离数',
-  assemblyChanges: '装配声明改动数',
-  missingAssembly: '装配缺失数',
+  addedAssemblyFacts: '新增静态装配事实数',
+  removedAssemblyFacts: '不再静态可见的装配事实数',
+  changedAssemblyFacts: '静态装配元数据变化数',
+  architectureChanges: '全局架构预期改动数',
   unresolvedServiceNames: '未解析服务标识符数',
   redMembers: '红色成员数',
   functionsOverAlert: '超 alert 的函数数',
@@ -183,8 +182,7 @@ export interface Explain {
   readonly newStableOnUnstable: Reading<readonly StabilityEdge[]>
   readonly casesWithoutAssertions: Reading<readonly CaseWithoutAssertion[]>
   readonly clones: Reading<readonly Clone[]>
-  readonly newDeviations?: Reading<readonly ArchComparison[]>
-  readonly assemblyChanges?: Reading<readonly IntentChange[]>
+  readonly assemblyDelta?: Reading<AssemblyDelta>
 }
 
 export interface OverBudget {
@@ -215,7 +213,7 @@ export interface StatusView {
   readonly proposalDir: string
   readonly catalogue: CatalogueStatus
   readonly cataloguePath: string
-  readonly reflexion?: Reading<Reflexion>
+  readonly architecture?: Reading<AssemblyObservations>
 }
 
 const COMPARISON_WORD: Record<Comparison, string> = {
@@ -324,15 +322,26 @@ function explainLines(view: StatusView): string[] {
     found => `${found.path}:${found.line} ${found.name}`,
   )
   section('有一端落在改动文件里的克隆', explain.clones, describeClone)
-  if (explain.newDeviations !== undefined)
+  if (explain.assemblyDelta !== undefined) {
+    const delta = explain.assemblyDelta
+    const facts = <T>(select: (value: AssemblyDelta) => readonly T[]): Reading<readonly T[]> =>
+      delta.status === 'data' ? { status: 'data', data: select(delta.data) } : delta
     section(
-      '新增装配偏离',
-      explain.newDeviations,
-      item =>
-        `${item.member} ${item.plugin ?? ''} ${item.kind} ${item.key}${at(item.implementation)}`,
+      '新增静态装配事实（不判质量）',
+      facts(value => value.added),
+      item => `${item.member} ${item.kind} ${item.key}${at(item)}`,
     )
-  if (explain.assemblyChanges !== undefined)
-    section('装配声明改动', explain.assemblyChanges, item => `${item.member}（${item.path}）`)
+    section(
+      '不再静态可见（不证明运行时释放）',
+      facts(value => value.removed),
+      item => `${item.member} ${item.kind} ${item.key}${at(item)}`,
+    )
+    section(
+      '静态装配元数据变化',
+      facts(value => value.changed),
+      item => `${item.after[0]?.member} ${item.after[0]?.kind} ${item.after[0]?.key}`,
+    )
+  }
   if (explain.conformance?.status === 'data') {
     section(
       '新增全局架构偏离',
@@ -340,7 +349,7 @@ function explainLines(view: StatusView): string[] {
       row => `${row.rule} ${row.member} ${row.key}${at(row.sites[0])}`,
     )
     section(
-      '全局及原节点预期改动',
+      '全局架构预期改动',
       { status: 'data', data: explain.conformance.data.changes },
       row => `${row.id}（${row.path}）`,
     )
@@ -467,21 +476,14 @@ export function catalogueLine(path: string, catalogue: CatalogueStatus): string 
   return `对照表（${path}）：${counts}；不合约定 ${categories.data.invalid.length} 行；${check}`
 }
 
-function reflexionLines(reading: Reading<Reflexion> | undefined): string[] {
+function architectureLines(reading: Reading<AssemblyObservations> | undefined): string[] {
   if (reading === undefined) return []
-  if (reading.status === 'no-data') return [`装配对照：没数据，${reading.reason}`]
-  const result = reading.data,
-    counts = ['converged', 'deviation', 'missing', 'unknown'].map(
-      state =>
-        `${state} ${result.comparison.comparisons.filter(item => item.state === state).length}`,
-    )
-  const lifecycle = ['undeclared', 'no-design', 'not-built', 'source-location-mismatch'].map(
-    kind => `${kind} ${result.comparison.lifecycle.filter(item => item.kind === kind).length}`,
-  )
+  if (reading.status === 'no-data') return [`实际装配：没数据，${reading.reason}`]
+  const result = reading.data
   return [
-    `装配对照（${result.nodeRoot}）：${counts.join('、')}；${lifecycle.join('、')}`,
-    `  服务标识符 ${result.current.serviceIdentifiers.attempted} 次解析，未知 ${result.current.serviceIdentifiers.unresolved}；源码与声明逐项出处见 status.json`,
-    `  范围：${result.staticScope}`,
+    `实际装配：${result.facts.length} 个静态事实，${result.current.unknown.length} 个未知关系`,
+    `  服务标识符 ${result.current.serviceIdentifiers.attempted} 次解析，未知 ${result.current.serviceIdentifiers.unresolved}；完整事实、元数据及出处见 status.json`,
+    '  范围：静态 AST，不证明动态释放、隔离、同提交或整体符合；新增／移除均为中性变化。',
   ]
 }
 
@@ -492,7 +494,7 @@ export function renderStatus(view: StatusView): string[] {
     '## 各项指标的带位',
     ...view.indicators.map(indicatorLine),
     ...explainLines(view),
-    ...reflexionLines(view.reflexion),
+    ...architectureLines(view.architecture),
     ...budgetLines(view),
   ]
 }

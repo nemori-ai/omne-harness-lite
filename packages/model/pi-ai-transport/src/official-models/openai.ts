@@ -52,8 +52,7 @@ export const openaiModelRoutes = Object.fromEntries(
   Object.entries(openaiRoutes).map(([modelId, route]) => [modelId, { openai: route }]),
 )
 
-// Source: .meta_harness/research/model-request-adaptation/reports/
-// 2026-09-28-openai-twelve-route-facts.md and its archived endpoint bodies.
+// Selected OpenRouter endpoint metadata observed on 2026-09-28.
 // All 12 selected OpenAI endpoints report the same 1,050,000-token shared
 // window, 922,000-token max prompt, and 128,000-token max completion. Reserve
 // the complete output capacity when setting the project's input-only cap.

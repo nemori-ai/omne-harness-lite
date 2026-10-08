@@ -78,7 +78,7 @@ const content = {
 } satisfies AssetContent
 const judge = createAssetModelJudge(bodies)
 console.log(judge.judgeAssetValue('AssetContent', content)) // { ok: true }
-const declarations = attributeDeclarationsOf(content, bodies)
+const declarations = attributeDeclarationsOf(content, judge)
 if ('underivable' in declarations) throw new Error('Tool declarations required')
 console.log(declarations.declarations.map(item => item.item))
 // ['execute', 'disabled', 'usableBy']
@@ -114,3 +114,5 @@ import connectorSchema from '@omne-harness-lite/asset-model/schema/connector/v2'
 
 console.log(connectorSchema.$id)
 ```
+
+行为与验证职责见[薄 SPEC](SPEC.md)和[验证入口](verification/README.md)。

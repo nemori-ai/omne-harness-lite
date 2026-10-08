@@ -23,7 +23,7 @@ console.log(extractAgentDefinitionInputs(body)) // { ok: { references: [], attri
 
 保留完整原始正文用于持久化；提取结果只有两个槽位，不补属性或默认值。Schema 根未约束，校验时选 `#/$defs/AgentDefinitionBody` 或 `#/$defs/AssetReference`；固定引用图读取逐字一致的 `@omne-harness-lite/model-profile/schema/v3` 资源，以兑现 AD1 的 MP3 `RouteName`，不能用当前 MP5 Schema 代替。函数还检查 Schema 形状不足以表达的能力和 item 唯一性。它们不读取资产或授权使用。
 
-采用与覆盖见[实现映射](../../../.meta_harness/design/realization/packages/core/agent-definition/README.md)。
+采用范围与验证义务见[行为规格](SPEC.md)。
 
 ## 开发与验证
 

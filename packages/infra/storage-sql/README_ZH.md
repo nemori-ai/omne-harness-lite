@@ -208,3 +208,5 @@ Node 24.18 的 `node:sqlite` 存在已知限界：已打开的连接跨结构变
 拥有插件只在配置中给出 maintenance.workDirectory，完成目标从 `StorageCompletion.closed` 取得；独立 openStorage 仍在原输入中接收 onClosed。
 
 开发本包时运行该成员的 `build`、`typecheck` 和 `test` 脚本。PostgreSQL 测试需要专用 `OMNE_TEST_PG_URL`；跳过不能验证 PostgreSQL 行为。
+
+[行为承诺](SPEC.md)拥有类型之外的规则；[验证入口](verification/README.md)说明方法与限制。

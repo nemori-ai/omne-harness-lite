@@ -1,3 +1,4 @@
+import { adoptedSchemaBytes } from './adopted-schema-input.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
@@ -313,11 +314,6 @@ describe('S-24/S-28 strict text and lossless untouched values', () => {
   })
   it('exports frozen bytes without modifying the accepted Schema', () =>
     expect(readFileSync(new URL('../schema/asset-model.schema.json', import.meta.url))).toEqual(
-      readFileSync(
-        new URL(
-          '../../../../.meta_harness/design/spec/data/asset-model/v3/asset-model.schema.json',
-          import.meta.url,
-        ),
-      ),
+      adoptedSchemaBytes('asset-model', 3),
     ))
 })

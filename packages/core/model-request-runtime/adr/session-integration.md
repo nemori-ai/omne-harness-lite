@@ -1,24 +1,20 @@
-# 模型Runtime的限定整改输入
+# 模型请求与Session事实的集成边界
 
-状态：负责人已授权F0地基实施。十五操作公共定义、拥有者事实codec、Session attempt事实及原发起participant已有实现和消费者迁移；完整Session准入、生产历史、G28与保管／ACK装配仍属后续增量。F0整体验收与负责人review尚未完成。
+模型请求的十五操作、失败和费用责任归[公共SPEC](../SPEC.md)。`ModelRuntimeOperations`归本包纯根，`ModelRuntimeService`归`./cordis`；提供者实现同一公开接口。`createModelRuntime`保留独立调用能力，不要求调用方使用Cordis。
 
-当前接受精确源为[RT12](../../../../.meta_harness/design/spec/capabilities/model-request-runtime/v12/contract.md)、MS8／MR11／CA4／SL3及registry接受条目；SPEC拥有已迁的纯策略、日志及原发起增量，十五操作未迁的业务行为仍由精确旧源约束。
-`ModelRuntimeOperations`归本包纯根；`ModelRuntimeService`定义类归`./cordis`。提供者的`RuntimeConstruction`及实际执行保持独立；生产G28来源、全部写方、当前主体和真实OpenRouter认证仍需宿主证据，类型不认证来源。具名宿主接缝与生命周期目标见[集成边界](runtime-integration.md)。
+Session事实用于证明原准入、归因和终结，不接管模型发送、重试、首token、凭据、响应或结算。具名接缝与生命周期归[运行时集成](runtime-integration.md)。完整Session准入、生产历史、G28与保管/ACK装配的兑现由对应拥有者负责；接口存在不认证生产来源。
 
-## 必须切换的责任
+## 事实与副作用的拥有者
 
-1. 十五操作公开类型从model-request-runtime-local迁到core/model-request-runtime纯根；providers实现同一接口。定义./cordis增`ModelRuntimeService`静态唯一键；函数createModelRuntime仍是独立公开能力，其consumer可不经Cordis。
-2. 现有服务操作及失败联合保持其精确语义，不因移动省掉observe／read／close／acknowledge或费用。Session协调不接管模型send/retry/first-token/凭据／响应／结算。
-3. AttemptStartedSource从messages移除；settlement-prefix改为Session事实＋原准入证明端口。原调用归因以历史issued证明与原固定输入核实，不能只认最新attempt作为原账归因，也不能读任意用户提交的start事实认证。
-4. G28终结来源由Session唯一终态事实／同prefix端口提供；原withRun批次保持实际tail条件和原late值，迟到保存不重算成本归属。未知来源仍unavailable而非猜测未终结。
-5. 模型计划只消费Session组装后的固定messages＋完整profile/tools/参数；不得重新扫描日志生成所有Session上下文，不在transport层根据字符串删attempt消息。
-6. prepareCall之后实际open/dispatch的发起准入接入Session原子issued端口，并对齐原已出门锚点及唯一execution owner claim；重复证明仅可查询，不能授权第二发出；当前授权／原位置证明必需。调用的独立执行池和原ACK custody按已采用生命周期接续，不因Agent scope撤除取消。
+- 原调用归因以历史issued证明和原固定输入核实。不能只认最新attempt，也不能用用户提交的start事实认证。模型计划只消费Session已组装的固定messages与完整profile/tools/参数，不重新扫描所有Session上下文，不在transport按字符串删attempt消息。
+- G28终结由Session唯一终态事实/同prefix端口提供。原withRun批次保留真实tail条件和原late值，迟到保存不重算费用归属；来源未知为unavailable，不能猜测未终结。
+- prepareCall后的open/dispatch须使用原子issued端口，对齐原已出门锚点和唯一execution owner claim。重复证明仅供查询，不能授权第二次发送；当前授权和原位置证明都必需。
+- 模型执行池与原ACK custody按其生命周期接续，不因Agent scope撤除而取消。Session保管凭证只有在完整原Pending及必要引用可靠保存后，才可映到acknowledgeCall的接受条件；它不写replyDisposition或最终费用。
 
-原模型提供者实现可信OriginalIssueParticipant：在协调者给出的同实例unit内暂存原已出门及唯一执行claim，不独立commit或IO；统一提交之后由原执行拥有者发出。该窄端口及实际准入桥作为construction明确输入，不让Session读取模型私有表，也不将Session类型反向塞进独立模型核心；未来协议必须提供等价原子准入证据。原RT12的已出门、dispatch序号、first-token和恢复语义保持。
-Session的保管凭证只有在原完整Pending及必要引用已可靠保存后，才可映到原acknowledgeCall接受条件；它不写replyDisposition或最终费用。ACK适配由原模型拥有者定义，不共用一个假布尔ACK。
+## 同提交接缝的理由
 
-旧有效源仍是原操作行为权威；采用切换时建立逐条保留／改变／移交表，把消费者、原验证、Schema身份及正式接受一并移动。没有接受与删后验证不删旧源；没有运行兼容过渡或两份现行承诺。
+模型提供者的`OriginalIssueParticipant`在协调者给出的同实例unit中暂存原已出门及唯一执行claim，不独立commit或IO。统一提交后由原执行拥有者发送。该窄端口及准入桥是明确construction输入：Session不读模型私有表，独立模型核心不反向依赖Session类型。其他提供者须给出等价原子准入证据。
 
-首卡需要真实生产G28／Session起止来源和准入接线；现有demo/reference适配只作已知事实，不能当完整生产宿主。
+已出门、dispatch序号、first-token、恢复和费用语义仍由公共SPEC约束。ACK适配归模型拥有者，不能把不同确认条件压成一个布尔ACK。demo/reference适配只说明已知局部事实，不表示完整生产宿主已兑现。
 
-本阶段操作的身份、授权、幂等、提交、通知与在途共用规则见[共用规则](../../session-runtime/adr/shared-operation-rules.md)。本文与该表一起读取；不从目录存在推断实现完成。
+操作的身份、授权、幂等、提交、通知和在途共用规则归[Session共用规则](../../session-runtime/adr/shared-operation-rules.md)。源码、公开承诺与实际组合证据分别说明自身范围，不从目录存在推断实现完成。

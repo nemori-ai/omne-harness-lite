@@ -1,9 +1,0 @@
-
- RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/packages/dsh-baseline
-
-
- Test Files  1 passed (1)
-      Tests  2 passed | 11 skipped (13)
-   Start at  20:17:36
-   Duration  405ms (transform 189ms, setup 0ms, import 235ms, tests 16ms, environment 0ms)
-

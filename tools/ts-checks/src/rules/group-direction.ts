@@ -1,7 +1,7 @@
 import { evaluateDirection, memberGraph, type GroupDirectionPolicy } from '../metrics/graph.ts'
 import type { Rule, Violation } from '../rule.ts'
 
-const LAYOUT = '.meta_harness/design/realization/README.md「packages 的两层布局」'
+const LAYOUT = 'docs/workspace.md「源码布局与包边界」'
 
 /**
  * 组的依赖方向。层位与判据的权威是 realization 的布局正文，这里只是它的机检投影：

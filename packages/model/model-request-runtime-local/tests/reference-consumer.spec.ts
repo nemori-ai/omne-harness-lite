@@ -18,10 +18,7 @@ function deferred<T>() {
 function view(container: object): RetainedCallReadView {
   const parsed = readJsonStrict(
     readFileSync(
-      new URL(
-        '../../../../.meta_harness/design/spec/data/messages/v7/reference-examples.json',
-        import.meta.url,
-      ),
+      new URL('../../../core/messages/tests/fixtures/reference-examples.json', import.meta.url),
       'utf8',
     ),
   )
