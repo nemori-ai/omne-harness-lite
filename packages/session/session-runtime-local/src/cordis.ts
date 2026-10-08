@@ -5,7 +5,6 @@ import {
   createAssemblyLifetime,
   type AssemblyCloseReport,
 } from '@omne-harness-lite/assembly-lifecycle'
-import { createRuntimeContextLocal } from '@omne-harness-lite/runtime-context-local/cordis'
 import { RUNTIME_CONTEXT } from '@omne-harness-lite/runtime-context/cordis'
 import { InvalidStateInput, stateScope } from './state-values.ts'
 import { installSessionBridges, sameScope } from './session-context-bridges.ts'
@@ -15,7 +14,7 @@ import type { SessionContextOptions, LocalSessionContext } from './session-conte
 export function createLocalSessionContext(requested: SessionContextOptions): LocalSessionContext {
   const options = Object.freeze({ ...requested, scope: stateScope(requested.scope) })
   const context = new Context(),
-    factory = createRuntimeContextLocal()
+    factory = options.runtimeContext
   const lifetime = createAssemblyLifetime(['runtimeContext'], factory.closeAdmission)
   if (!lifetime.tryClaim()) throw new Error('Fresh Session Context could not be claimed')
   let host: Fiber | undefined, hostContext: Context | undefined
@@ -101,4 +100,8 @@ function failedDisposal(report: AssemblyCloseReport): AssemblyCloseReport {
     assemblyErrors: [...report.assemblyErrors, 'assembly-fiber-dispose-failed'],
   }
 }
-export type { SessionContextOptions, LocalSessionContext } from './session-context-types.ts'
+export type {
+  SessionContextOptions,
+  SessionContextProvider,
+  LocalSessionContext,
+} from './session-context-types.ts'

@@ -40,4 +40,4 @@ pnpm --filter @omne-harness-lite/session-runtime-local test
 
 测试使用真实SQLite及真实进程崩溃，不替代完整CLI、OpenRouter、工具或宿主恢复验收。Cordis绑定仍在施工，尚未写模板采用标识。
 
-可信tenancy读面从实际持久预留读取固定Session归属，不使用开发seed。./cordis导出createLocalSessionContext，建立独立Context、显式共享桥及既有Runtime Context提供者。私有initializer只接原Session，停止等待实际工作及日志borrow释放；释放失败保留责任，可重试原close。正式宿主仍须取得实际合法配方及seed，再确认初始化后发布Session。
+可信tenancy读面从实际持久预留读取固定Session归属，不使用开发seed。./cordis导出createLocalSessionContext，建立独立Context及显式共享桥。应用以runtimeContext参数提供尚未挂载的新Runtime Context提供者，构造器使用其原plugin、ready、initializer及closeAdmission，不选择具体实现。私有initializer只接原Session，停止等待实际工作及日志borrow释放；释放失败保留责任，可重试原close。正式宿主仍须取得实际合法配方及seed，再确认初始化后发布Session。

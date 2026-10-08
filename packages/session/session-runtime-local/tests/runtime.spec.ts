@@ -18,7 +18,11 @@ import {
 } from '@omne-harness-lite/session-log-sql'
 import { compareInteger } from '@omne-harness-lite/session-log'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
-import { createLocalSessionContext } from '../src/cordis.ts'
+import {
+  createLocalSessionContext as assembleSessionContext,
+  type SessionContextOptions,
+} from '../src/cordis.ts'
+import { createRuntimeContextLocal } from '@omne-harness-lite/runtime-context-local/cordis'
 import {
   readSessionFact,
   type Access,
@@ -59,6 +63,9 @@ const input: CreateSessionInput = {
   collaboration: 'co-work',
 }
 const at = '2026-10-08T00:00:00Z'
+function createLocalSessionContext(options: Omit<SessionContextOptions, 'runtimeContext'>) {
+  return assembleSessionContext({ ...options, runtimeContext: createRuntimeContextLocal() })
+}
 function user(text = 'Hello', id = 'message-1'): UserMessage {
   const checked = judgeMessage({
     id,

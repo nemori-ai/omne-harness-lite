@@ -1,4 +1,5 @@
 import type { Storage } from '@omne-harness-lite/storage'
+import type { Plugin } from '@deepseek-ai/cordis'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import type { SessionLogBackingOperations } from '@omne-harness-lite/session-log'
 import type { SessionAccessOperations, SessionScope } from '@omne-harness-lite/session-tenancy'
@@ -19,6 +20,14 @@ export interface SessionContextOptions {
   readonly logBacking: SessionLogBackingOperations
   readonly access: SessionAccessOperations
   readonly clock: Clock
+  /** A fresh, unmounted provider selected by the application. It owns its original initializer and close. */
+  readonly runtimeContext: SessionContextProvider
+}
+export interface SessionContextProvider {
+  readonly plugin: Plugin<Record<string, never>> & { readonly assemblyLifecycle: 1 }
+  readonly ready: Promise<void>
+  readonly initializer: ContextSessionInitializer
+  readonly closeAdmission: () => void
 }
 /** A distinct Session Context with owned Runtime Context and explicit borrowed bridges. */
 export interface LocalSessionContext {

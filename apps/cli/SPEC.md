@@ -299,3 +299,8 @@ JSON模式不读取交互候选、不打开终端、不补交互答案。非TTY�
 明确原登录拒绝返回rejected；copy、未知、来源不符及当前无法判定返回unavailable。适配器不自动重试。只有原use实际关闭后才返回核验结果；工作或关闭抛错传播，双失败保留两项原错误，不能据已读到有效结果先释放G28屏障。G28在无法取得实际已结束的结果时保留原querying，后继不得越过。借入CG及其CLS的关闭仍归真实宿主，不归一次核验。
 
 实际CG／CLS／根G28组合须验证：新Session成员与新Run登录的不同查询面、较新登录拒绝和重开屏障、成员拒绝后恢复、原use关闭失败后零重发，以及错误绑定零治理IO。此组合测试的运输输入是受控的；正式HTTPS／宿主／模型与工具闭环仍须完整B01验收。
+
+
+## Session Context提供者选择
+
+应用的session-context构造入口选择正式runtime-context-local提供者，每个Session使用新工厂，并通过session-runtime-local公开./cordis传入原plugin、ready、initializer及closeAdmission。Context隔离、固定Scope桥接及原关闭责任仍归Session构造器；应用不复制其实现。运行引用不进入JSON配置。该入口是实际装配构件，完整运行宿主尚须消费它并闭合合法资产／根配方及执行接线；入口存在不表示宿主进程已经交付。

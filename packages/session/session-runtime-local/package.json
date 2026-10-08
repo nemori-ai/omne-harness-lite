@@ -40,7 +40,6 @@
     "@omne-harness-lite/call-accounts": "workspace:*",
     "@omne-harness-lite/messages": "workspace:*",
     "@omne-harness-lite/runtime-context": "workspace:*",
-    "@omne-harness-lite/runtime-context-local": "workspace:*",
     "@omne-harness-lite/assembly-lifecycle": "workspace:*",
     "@omne-harness-lite/offer-expiry": "workspace:*",
     "@omne-harness-lite/kernel-basis": "workspace:*",
@@ -51,6 +50,7 @@
     "typescript": "catalog:",
     "vitest": "catalog:",
     "@omne-harness-lite/storage-sql": "workspace:*",
-    "@omne-harness-lite/session-log-sql": "workspace:*"
+    "@omne-harness-lite/session-log-sql": "workspace:*",
+    "@omne-harness-lite/runtime-context-local": "workspace:*"
   }
 }
