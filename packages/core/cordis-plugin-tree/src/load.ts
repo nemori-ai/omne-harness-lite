@@ -116,32 +116,32 @@ class TreeRun {
   #watch(): void {
     for (const key of this.state.externalServices) this.#visibility.set(key, this.#visible(key))
     this.#listeners.push(
-      this.ctx.on('internal/status', (fiber, oldState) => {
-        if (this.#failure !== undefined) return
-        const row = this.#owner(fiber)
-        if (row === undefined) return
-        const state = fiber.state as number,
-          previous = oldState as number
-        if (previous === FIBER_STATE.ACTIVE && state !== FIBER_STATE.ACTIVE)
-          this.#stop('dependency-unavailable', row.prepared.row.id)
-        else if (
-          state === FIBER_STATE.FAILED ||
-          (previous === FIBER_STATE.LOADING && state === FIBER_STATE.UNLOADING)
-        ) {
-          const missing = row.prepared.declaration.requires.some(
-            key => key !== ASSEMBLY_LIFETIME_SERVICE && row.scope.get(key) === undefined,
-          )
-          this.#stop(missing ? 'dependency-unavailable' : 'apply-failed', row.prepared.row.id)
-        }
-      }),
+      this.ctx.on('internal/status', (fiber, oldState) => this.#observeStatus(fiber, oldState)),
     )
-    this.#listeners.push(
-      this.ctx.on('internal/service', key => {
-        if (this.#failure !== undefined || !this.#visibility.has(key)) return
-        const visible = this.#visible(key)
-        if (visible !== this.#visibility.get(key)) this.#stop('dependency-unavailable')
-      }),
-    )
+    this.#listeners.push(this.ctx.on('internal/service', key => this.#observeService(key)))
+  }
+  #observeStatus(fiber: Fiber, oldState: number): void {
+    if (this.#failure !== undefined) return
+    const row = this.#owner(fiber)
+    if (row === undefined) return
+    const state = fiber.state as number,
+      previous = oldState as number
+    if (previous === FIBER_STATE.ACTIVE && state !== FIBER_STATE.ACTIVE)
+      this.#stop('dependency-unavailable', row.prepared.row.id)
+    else if (
+      state === FIBER_STATE.FAILED ||
+      (previous === FIBER_STATE.LOADING && state === FIBER_STATE.UNLOADING)
+    ) {
+      const missing = row.prepared.declaration.requires.some(
+        key => key !== ASSEMBLY_LIFETIME_SERVICE && row.scope.get(key) === undefined,
+      )
+      this.#stop(missing ? 'dependency-unavailable' : 'apply-failed', row.prepared.row.id)
+    }
+  }
+  #observeService(key: string): void {
+    if (this.#failure !== undefined || !this.#visibility.has(key)) return
+    const visible = this.#visible(key)
+    if (visible !== this.#visibility.get(key)) this.#stop('dependency-unavailable')
   }
   async #start(): Promise<void> {
     this.#assertCurrent()

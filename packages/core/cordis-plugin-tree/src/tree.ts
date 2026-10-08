@@ -159,6 +159,27 @@ export function composePluginTree(
   })
 }
 
+function sourceFlags(
+  item: Record<string, unknown>,
+  site: Position,
+): Pick<ComposedRow, 'enabled' | 'source'> {
+  if (
+    typeof item.enabled !== 'boolean' ||
+    (item.source !== 'distribution' && item.source !== 'operator')
+  )
+    throw new PluginTreeError('invalid-tree', site)
+  if (item.source === 'distribution' && 'editIndex' in item)
+    throw new PluginTreeError('invalid-tree', site)
+  if (
+    item.source === 'operator' &&
+    (typeof item.editIndex !== 'number' ||
+      !Number.isSafeInteger(item.editIndex) ||
+      item.editIndex < 0)
+  )
+    throw new PluginTreeError('invalid-tree', site)
+  return { enabled: item.enabled, source: item.source }
+}
+
 /** Revalidate public composed values before trusting them at the binding boundary. */
 export function captureComposedTree(tree: unknown): readonly ComposedRow[] {
   return guarded(() => {
@@ -174,24 +195,10 @@ export function captureComposedTree(tree: unknown): readonly ComposedRow[] {
         if (ids.has(captured.id))
           throw new PluginTreeError('duplicate-id', { ...site, rowId: captured.id })
         ids.add(captured.id)
-        if (
-          typeof item.enabled !== 'boolean' ||
-          (item.source !== 'distribution' && item.source !== 'operator')
-        )
-          throw new PluginTreeError('invalid-tree', site)
-        if (item.source === 'distribution' && 'editIndex' in item)
-          throw new PluginTreeError('invalid-tree', site)
-        if (
-          item.source === 'operator' &&
-          (typeof item.editIndex !== 'number' ||
-            !Number.isSafeInteger(item.editIndex) ||
-            item.editIndex < 0)
-        )
-          throw new PluginTreeError('invalid-tree', site)
+        const flags = sourceFlags(item, site)
         return Object.freeze({
           ...captured,
-          enabled: item.enabled,
-          source: item.source,
+          ...flags,
           ...(typeof item.editIndex === 'number' ? { editIndex: item.editIndex } : {}),
         })
       }),
