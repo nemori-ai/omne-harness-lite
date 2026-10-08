@@ -9,6 +9,7 @@ import {
   copyJsonValue,
   isJsonNumber,
   judgeContentBlock,
+  type JsonNumber,
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
@@ -39,6 +40,28 @@ function isSimpleEvent(value: JsonValue): value is JsonValue & SimpleEvent {
   )
 }
 
+function ownFill(event: JsonObject, index: JsonNumber): FillEvent {
+  if (typeof event.payload === 'string')
+    return Object.freeze({ t: 'fill', index, payload: event.payload })
+  const block = judgeContentBlock(event.payload)
+  if (
+    'ok' in block &&
+    (block.ok.kind === 'image' || block.ok.kind === 'file' || block.ok.kind === 'tool_result')
+  ) {
+    return Object.freeze({ t: 'fill', index, payload: block.ok })
+  }
+  throw new Error('accepted fill has no whole-block payload')
+}
+
+function ownClose(event: JsonObject, index: JsonNumber): CloseEvent {
+  if (!Object.hasOwn(event, 'block')) return Object.freeze({ t: 'close', index })
+  const block = judgeContentBlock(event.block)
+  if ('ok' in block && block.ok.kind !== 'tool_call') {
+    return Object.freeze({ t: 'close', index, block: block.ok })
+  }
+  throw new Error('accepted close has no non-call block')
+}
+
 /** Precondition: AR has accepted the original envelope in the current open-block context. */
 export function ownEvent(value: unknown): ArrivalEvent {
   const copied = copyJsonValue(value)
@@ -47,25 +70,7 @@ export function ownEvent(value: unknown): ArrivalEvent {
   const event = copied.ok
   if (isSimpleEvent(event)) return event
   if (!isJsonNumber(event.index)) throw new Error('accepted arrival has no numeric index')
-  if (event.t === 'fill') {
-    if (typeof event.payload === 'string')
-      return Object.freeze({ t: 'fill', index: event.index, payload: event.payload })
-    const block = judgeContentBlock(event.payload)
-    if (
-      'ok' in block &&
-      (block.ok.kind === 'image' || block.ok.kind === 'file' || block.ok.kind === 'tool_result')
-    ) {
-      return Object.freeze({ t: 'fill', index: event.index, payload: block.ok })
-    }
-    throw new Error('accepted fill has no whole-block payload')
-  }
-  if (event.t === 'close') {
-    if (!Object.hasOwn(event, 'block')) return Object.freeze({ t: 'close', index: event.index })
-    const block = judgeContentBlock(event.block)
-    if ('ok' in block && block.ok.kind !== 'tool_call') {
-      return Object.freeze({ t: 'close', index: event.index, block: block.ok })
-    }
-    throw new Error('accepted close has no non-call block')
-  }
+  if (event.t === 'fill') return ownFill(event, event.index)
+  if (event.t === 'close') return ownClose(event, event.index)
   throw new Error('accepted arrival has an unsupported event discriminator')
 }
