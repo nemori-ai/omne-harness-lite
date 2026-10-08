@@ -107,6 +107,11 @@ export async function prepareStateDirectory(home: string, directory: string = ho
   await walkStateDirectory(home, directory, true)
 }
 
+/** Check a previously installed private namespace without creating it. */
+export async function checkStateDirectory(home: string, directory: string = home): Promise<void> {
+  await walkStateDirectory(home, directory, false)
+}
+
 async function walkStateDirectory(home: string, directory: string, create: boolean): Promise<void> {
   const root = resolveStateHome({ explicitHome: home, osHome: home })
   const target = resolve(directory)

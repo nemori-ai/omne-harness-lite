@@ -49,7 +49,9 @@
     "@omne-harness-lite/asset-evaluation": "workspace:*",
     "@omne-harness-lite/content-blocks": "workspace:*",
     "@omne-harness-lite/call-accounts": "workspace:*",
-    "@omne-harness-lite/messages": "workspace:*"
+    "@omne-harness-lite/messages": "workspace:*",
+    "zod": "catalog:",
+    "@omne-harness-lite/session-runtime": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

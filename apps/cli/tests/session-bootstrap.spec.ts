@@ -1,3 +1,4 @@
+import { createSessionHostEndpoint, parseSessionHostRequest } from '../src/session-host-protocol.ts'
 import { messageLogPayload } from '@omne-harness-lite/session-log'
 import { createSessionTextReader } from '../src/session-reading.ts'
 import { judgeMessage } from '@omne-harness-lite/messages'
@@ -824,4 +825,41 @@ it('rejects non-data scopes without running accessors or touching the actual jou
   ).toEqual({ failure: 'invalidInput' })
   expect(getter).not.toHaveBeenCalled()
   expect(read).not.toHaveBeenCalled()
+})
+
+it('dispatches strict data through the original ingress and actual Context and recognizes the original operation', async () => {
+  const f = await setup()
+  const binding = { formatVersion: 1 as const, centerId, tenant }
+  const endpoint = createSessionHostEndpoint({ binding, ingress: f.runtime })
+  const request = parseSessionHostRequest({
+    format: 'omne-session-host/1',
+    binding,
+    command: 'createSession',
+    input,
+  })
+  if (!request) throw new Error('valid actual request rejected')
+  const created = await endpoint.execute(request)
+  if (!('kind' in created) || created.kind !== 'created')
+    throw new Error('actual host creation failed')
+  const scope = { tenant, session: created.session }
+  expect(f.assembly.context(scope)).toBeDefined()
+  expect(f.seed).toHaveBeenCalledTimes(1)
+  expect(await endpoint.execute(request)).toEqual(created)
+  expect(f.seed).toHaveBeenCalledTimes(1)
+  const read = parseSessionHostRequest({
+    format: 'omne-session-host/1',
+    binding,
+    command: 'readMessages',
+    session: created.session,
+  })
+  if (!read) throw new Error('valid journal request rejected')
+  expect(await endpoint.execute(read)).toMatchObject({ kind: 'messages', messages: [] })
+  const before = f.exchanges.mock.calls.length
+  const foreign = parseSessionHostRequest({
+    ...read,
+    binding: { ...binding, centerId: 'b'.repeat(32) },
+  })
+  if (!foreign) throw new Error('valid foreign identity rejected at parser')
+  expect(await endpoint.execute(foreign)).toEqual({ failure: 'denied' })
+  expect(f.exchanges).toHaveBeenCalledTimes(before)
 })
