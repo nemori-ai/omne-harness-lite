@@ -48,6 +48,8 @@ Session Log的顶层run／attempt必须同时存在。尚无attempt的run_starte
 
 实际发起端口由协调者打开一次unit，核当前授权和栅栏，调用原执行能力提供的OriginalIssueParticipant在同unit暂存原已出门／queued锚点及唯一execution claim，再统一提交。participant来自受信construction，不接收用户回调；绑定原call、输入与执行代际并校验同Storage实例，不能任意写表。它不另开事务、不先发IO；失败全体回滚，unknown保原身份查明。只有真正commit后返回issued并由绑定原claim的执行方启动，Session不取得send／tool-execute职责。两个先后独立提交不是此接口的实现。
 
+readAttemptStarted是现行SessionFact联合类型的只读投影：合法attempt_started返回fact；其他合法已知变体返回other。它复用完整条目校验，未知版本、未知自称变体或坏的归因仍返回invalidInput，不能把混合日志中的合法创建、受理、Run或结果事实当成坏的attempt。
+
 ### 启动与推进授权
 
 CoordinationAuthority是会话协调者的受信资格／代际，不是AttemptPermit。锁内校验当前拥有者及准入；身份生成沿既有类型，不预设字符串格式。stepKey及原位置稳定，重复只认回原提交。

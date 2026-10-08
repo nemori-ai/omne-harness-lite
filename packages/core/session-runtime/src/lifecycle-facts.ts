@@ -264,3 +264,17 @@ function attemptEntryMatches(
   if (entry.attempt === undefined || compareInteger(entry.attempt, fact.attempt) !== 0) return false
   return fact.kind !== 'input_adopted' || compareInteger(fact.inputPosition, entry.position) < 0
 }
+
+/** Project attempt starts from the validated, closed Session fact union. */
+export function readAttemptStarted(
+  entry: LogEntry,
+):
+  | { readonly kind: 'fact'; readonly fact: AttemptStartedFact }
+  | { readonly kind: 'other' }
+  | { readonly failure: 'invalidInput' } {
+  const parsed = readSessionFact(entry)
+  if ('failure' in parsed || parsed.kind === 'other') return parsed
+  return parsed.fact.kind === 'attempt_started'
+    ? { kind: 'fact', fact: parsed.fact }
+    : { kind: 'other' }
+}

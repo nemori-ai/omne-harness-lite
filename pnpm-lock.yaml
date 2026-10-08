@@ -209,9 +209,18 @@ importers:
       '@omne-harness-lite/artifact-builder':
         specifier: workspace:*
         version: link:../../tools/artifact-builder
+      '@omne-harness-lite/assembly-manifest-store':
+        specifier: workspace:*
+        version: link:../../packages/assets/assembly-manifest-store
+      '@omne-harness-lite/asset-registry-local':
+        specifier: workspace:*
+        version: link:../../packages/tools/asset-registry-local
       '@omne-harness-lite/session-log-sql':
         specifier: workspace:*
         version: link:../../packages/session/session-log-sql
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../../packages/core/tool-definition
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

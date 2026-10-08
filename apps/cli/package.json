@@ -61,6 +61,9 @@
     "typescript": "catalog:",
     "vitest": "catalog:",
     "@omne-harness-lite/artifact-builder": "workspace:*",
-    "@omne-harness-lite/session-log-sql": "workspace:*"
+    "@omne-harness-lite/session-log-sql": "workspace:*",
+    "@omne-harness-lite/asset-registry-local": "workspace:*",
+    "@omne-harness-lite/assembly-manifest-store": "workspace:*",
+    "@omne-harness-lite/tool-definition": "workspace:*"
   }
 }

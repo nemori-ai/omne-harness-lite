@@ -35,6 +35,14 @@ import {
   type SessionModelResultSource,
 } from '../src/session-model-results.ts'
 import { originalPending } from './model-result-fixture.ts'
+import { nativeCallFixturePorts, controlledTimingDeclarations } from './session-native-fixture.ts'
+import { createAssetRegistry } from '@omne-harness-lite/asset-registry-local'
+import {
+  createAssemblyManifestStore,
+  assemblyManifestMigrations,
+} from '@omne-harness-lite/assembly-manifest-store'
+import { evaluate } from '@omne-harness-lite/asset-evaluation'
+import { createSessionRunHistory } from '../src/session-run-history.ts'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import { StorageUnavailable } from '@omne-harness-lite/storage'
 import { createSessionOriginalModelOwner } from '../src/session-model-owner.ts'
@@ -48,6 +56,7 @@ import {
   createCallContainerStore,
   createModelCallContentStore,
   createModelCallFacts,
+  createSettlementCoordinator,
   modelCallContentMigrations,
   type RuntimeConstruction,
 } from '@omne-harness-lite/model-request-runtime-local'
@@ -100,6 +109,7 @@ async function setup(
   declareSeed: boolean | 'invalid' = true,
   withModel = false,
   resultSource?: (storage: AtomicStorage) => ModelResultSource,
+  nativeTiming = false,
 ) {
   const directory = await mkdtemp(join(tmpdir(), 'omne-formal-bootstrap-'))
   cleanup.push(() => rm(directory, { recursive: true, force: true }))
@@ -238,7 +248,7 @@ async function setup(
               category: 'agent_definition',
               body: {
                 references: [],
-                attributes: [],
+                attributes: nativeTiming ? controlledTimingDeclarations() : [],
                 ...(declareSeed
                   ? {
                       contextSessionSeed:
@@ -931,8 +941,11 @@ it('dispatches strict data through the original ingress and actual Context and r
   expect(f.exchanges).toHaveBeenCalledTimes(before)
 })
 
-async function originalModelBinding(resultSource?: (storage: AtomicStorage) => ModelResultSource) {
-  const f = await setup(16, true, true, resultSource)
+async function originalModelBinding(
+  resultSource?: (storage: AtomicStorage) => ModelResultSource,
+  nativeTiming = false,
+) {
+  const f = await setup(16, true, true, resultSource, nativeTiming)
   const created = await f.runtime.operations.createSession(f.runtime.access, input)
   if (!('kind' in created) || created.kind !== 'created') throw new Error('Session not created')
   const scope = { tenant, session: created.session }
@@ -1069,7 +1082,13 @@ async function originalModelBinding(resultSource?: (storage: AtomicStorage) => M
 }
 function nativeBindingOptions(
   original: Awaited<ReturnType<typeof originalModelBinding>>,
-): SessionRunModelBindingOptions & { readonly nativeModel: ReturnType<typeof createModelRuntime> } {
+  configure?: (
+    construction: RuntimeConstruction<PlannedSemantics, object>,
+  ) => RuntimeConstruction<PlannedSemantics, object>,
+): SessionRunModelBindingOptions & {
+  readonly nativeModel: ReturnType<typeof createModelRuntime>
+  readonly construction: RuntimeConstruction<PlannedSemantics, object>
+} {
   const { f, scope, preparation, unknown } = original
   const inputs = f.assembly.inputs(scope)
   if (!inputs || !f.modelOwner) throw new Error('actual Session providers missing')
@@ -1081,10 +1100,12 @@ function nativeBindingOptions(
     listProfiles: unused,
     credentialPresent: unused,
   }
-  const construction = nativeModelConstruction(f.storage)
+  const base = nativeModelConstruction(f.storage)
+  const construction = configure ? configure(base) : base
   const model = createModelRuntime(construction)
   nativeModels.push(model)
   return {
+    construction,
     nativeModel: model,
     model,
     facts: construction.callFacts,
@@ -1123,9 +1144,9 @@ function nativeBindingOptions(
 }
 function nativeModelConstruction(
   storage: Awaited<ReturnType<typeof openStorage>>,
-): RuntimeConstruction<PlannedSemantics, never> {
+): RuntimeConstruction<PlannedSemantics, object> {
   const unavailable = { unavailable: true } as const
-  const callPresence: RuntimeConstruction<PlannedSemantics, never>['callPresence'] = {
+  const callPresence: RuntimeConstruction<PlannedSemantics, object>['callPresence'] = {
     read: async () => unavailable,
   }
   const content = createModelCallContentStore({
@@ -1574,4 +1595,254 @@ it('recognizes actual original Session custody after lost commit before returnin
   expect(await bridge.release(captured.captured)).toEqual({ released: true })
   expect(returned).toHaveBeenCalledTimes(1)
   expect(bridge.close()).toEqual({ released: true })
+})
+
+it('captures a nonempty actual native invocation and transfers its complete result into the original Session', async () => {
+  // Governance/current qualification, model catalog and transport are controlled. Runtime execution and SQL are real.
+  let bridge!: SessionModelResultSource
+  let native: ReturnType<typeof createModelRuntime> | undefined
+  const original = await originalModelBinding(storage => {
+    bridge = createSessionModelResultSource({
+      storage,
+      tenant,
+      executionSource: () => native?.executionSource,
+      maxCaptures: 2,
+      retainReferencesIn: async unit => {
+        unit.assertStorage(storage)
+        return 'retained'
+      },
+    })
+    return bridge.source
+  }, true)
+  const ports = nativeCallFixturePorts(original.scope, original.f.runtime, original.f.storage)
+  const options = nativeBindingOptions(original, ports.configure)
+  native = options.nativeModel
+  const configured = {
+    ...options,
+    selection: {
+      ...options.selection,
+      owner: ports.owner,
+      catalog: ports.catalog,
+      projection: async () => ({ known: [] }),
+    },
+    providers: { ...options.providers, catalog: ports.catalog, credentials: ports.credentials },
+  }
+  const linked = await createSessionRunModelBinding(configured)
+  if ('failure' in linked) throw new Error('actual native Run binding failed')
+  cleanup.push(linked.returnJournal)
+  expect(
+    await linked.operations.selectModel({
+      session: original.scope.session,
+      routeName: 'controlled/model',
+    }),
+  ).toEqual({ selected: 'controlled/model' })
+  const model = await linked.operations.effectiveModel({ session: original.scope.session })
+  if (!('effectiveModel' in model)) throw new Error('actual model selection failed')
+  for (const migration of assemblyManifestMigrations)
+    await original.f.storage.write(tx => migration.migration.up(tx.db))
+  const manifest = createAssemblyManifestStore(original.f.storage)
+  cleanup.push(() => manifest.close())
+  const inputs = original.f.assembly.inputs(original.scope)
+  if (!inputs) throw new Error('actual current input source missing')
+  const registry = createAssetRegistry({
+    manifest,
+    currentInputs: inputs,
+    sessionTenancy: original.f.runtime.tenancy,
+    // This fixed-root test port only serves the unchanged original source; it cannot read a replaced historical body.
+    fixedRootInput: {
+      read: async request => {
+        const current = await inputs.read(request.session, request.tenant)
+        if (!('input' in current)) return { failure: 'unavailable', stage: 'source' }
+        if (JSON.stringify(current.input.root.source) !== JSON.stringify(request.rootSource))
+          return { failure: 'unavailable', stage: 'fixed_body' }
+        return current
+      },
+    },
+    deployedMeta: [],
+    clock: { now: () => unwrap(instantFromRfc3339(now)) },
+    diagnostic() {},
+    diagnosticFailure() {},
+    monotonicNow: process.hrtime.bigint,
+    conflictPolicy: { maxRetries: 0 },
+    maxInFlight: 4,
+  })
+  cleanup.push(() => registry.close())
+  const input = await inputs.read(original.scope.session, tenant)
+  if (!('input' in input)) throw new Error('actual current input unavailable')
+  const evaluation = evaluate(input.input)
+  if (!('ok' in evaluation)) throw new Error('actual given evaluation failed')
+  const filled = await registry.fill(
+    original.scope.session,
+    evaluation.ok,
+    'native-given-evaluation',
+    evaluation.ok.composition,
+  )
+  if (!('snapshots' in filled))
+    throw new Error('actual manifest fill failed: ' + JSON.stringify(filled))
+  const refreshed = await registry.refreshAvailability(
+    original.scope.session,
+    { kind: 'start', runId: original.preparation.run },
+    original.preparation.attempt,
+  )
+  if (!('report' in refreshed))
+    throw new Error('actual availability report failed: ' + JSON.stringify(refreshed))
+  const opened = await linked.operations.openCall({
+    session: original.scope.session,
+    creationKey: unwrap(parseOpaqueIdentifier('native-session-create-call', 'CreationKey')),
+    run: original.preparation.run,
+    attempt: original.preparation.attempt,
+    report: refreshed.report,
+    target: model.effectiveModel.routeName,
+    basis: model.effectiveModel,
+    messages: [],
+    tools: [],
+    host: {
+      signal: new AbortController().signal,
+      stopping: () => false,
+      register: () => ({ registration: { unregister() {} } }),
+    },
+  })
+  if (!('ref' in opened)) throw new Error('actual native open failed: ' + JSON.stringify(opened))
+  const dispatched = await linked.operations.dispatch({
+    ...opened.ref,
+    attempt: original.preparation.attempt,
+  })
+  if (!('replyPending' in dispatched))
+    throw new Error(
+      'actual native dispatch failed: ' +
+        JSON.stringify({
+          result: dispatched,
+          trace: ports.trace,
+          currentChecks: original.f.modelCurrent.mock.calls.length,
+          sent: ports.sends(),
+        }),
+    )
+  expect(ports.sends()).toBe(1)
+  const captured = await bridge.capture(original.scope, opened.ref.callId)
+  if ('failure' in captured)
+    throw new Error('actual nonempty source failed: ' + JSON.stringify(captured))
+  expect(captured.captured.pending).toEqual(dispatched.replyPending)
+  const prefix = await original.f.runtime.journal.readPrefix(
+    original.f.runtime.access,
+    original.scope.session,
+  )
+  if (!('kind' in prefix) || prefix.kind !== 'prefix')
+    throw new Error('original result source missing')
+  const saved = await original.f.runtime.modelResults.store(
+    original.f.runtime.coordinationAuthority,
+    original.scope,
+    {
+      resultKey: 'native-session-original-result',
+      source: prefix.source,
+      pending: captured.captured.pending,
+    },
+  )
+  expect(saved).toMatchObject({ kind: 'custodied', pending: dispatched.replyPending })
+  // dispatch has actually closed its ready invocation; root settlement uses the public SDK coordinator.
+  const coordinator = createSettlementCoordinator({
+    binding: linked.binding.log,
+    owner: ports.owner,
+    run: createSessionRunHistory(original.scope),
+    settlementContention: options.construction.settlementContention,
+    settlementScheduler: options.construction.settlementScheduler,
+    diagnostic() {},
+  })
+  cleanup.push(() => coordinator.close())
+  const finalizing = coordinator.settle({
+    target: {
+      call: opened.ref.callId,
+      dispatch: captured.captured.pending.dispatch,
+      response: captured.captured.pending.id,
+    },
+    current: { messageId: captured.captured.pending.reply.id, disposition: 'persisted' },
+    response: { ...captured.captured.pending, replyDisposition: 'persisted' },
+  })
+  const settled = await finalizing.completion
+  await finalizing.stopped
+  if (!('settled' in settled))
+    throw new Error('original SDK settlement failed: ' + JSON.stringify(settled))
+  expect(settled).toHaveProperty('settled')
+  await coordinator.close()
+  expect(await bridge.release(captured.captured)).toEqual({ released: true })
+  const ack = await linked.operations.acknowledgeCall({
+    ref: opened.ref,
+    expectedResult: { kind: 'response', response: dispatched.replyPending.id },
+  })
+  expect(ack).toHaveProperty('acknowledged')
+  expect(ports.sends()).toBe(1)
+  expect(bridge.close()).toEqual({ released: true })
+})
+
+it('reads actual Run facts from its owned native prefix and refuses invented or unobserved attempts', async () => {
+  const original = await originalModelBinding()
+  const linked = await createSessionRunModelBinding(nativeBindingOptions(original))
+  if ('failure' in linked) throw new Error('original Run binding missing')
+  cleanup.push(linked.returnJournal)
+  const full = await readNativePrefix(linked.binding.log)
+  if (!('prefix' in full)) throw new Error('actual native prefix unavailable')
+  const reader = createSessionRunHistory(original.scope)
+  expect(reader(full.prefix, original.preparation.run, original.preparation.attempt)).toEqual({
+    known: {
+      run: original.preparation.run,
+      originalAttempt: original.preparation.attempt,
+      latestAttempt: original.preparation.attempt,
+      terminal: 'open',
+    },
+  })
+  expect(reader(full.prefix, 'invented-run', original.preparation.attempt)).toEqual({
+    unavailable: true,
+  })
+  expect(reader(full.prefix, original.preparation.run, 2)).toEqual({ unavailable: true })
+  expect(
+    reader(
+      { ...full.prefix } as unknown as typeof full.prefix,
+      original.preparation.run,
+      original.preparation.attempt,
+    ),
+  ).toEqual({ unavailable: true })
+  await linked.returnJournal()
+  expect(reader(full.prefix, original.preparation.run, original.preparation.attempt)).toEqual({
+    unavailable: true,
+  })
+})
+
+it('reads the actual terminal Run while refusing a prefix of another original Session', async () => {
+  const original = await originalModelBinding()
+  const linked = await createSessionRunModelBinding(nativeBindingOptions(original))
+  if ('failure' in linked) throw new Error('original Run binding missing')
+  cleanup.push(linked.returnJournal)
+  const before = await readNativePrefix(linked.binding.log)
+  if (!('prefix' in before)) throw new Error('actual prefix unavailable')
+  const finished = await original.f.runtime.lifecycle.commitStep(
+    original.f.runtime.coordinationAuthority,
+    original.scope,
+    before.prefix.source,
+    {
+      kind: 'finish',
+      run: original.preparation.run,
+      attempt: original.preparation.attempt,
+      permit: original.preparation.permit,
+      stepKey: 'native-history-finish',
+      terminal: 'completed',
+      reason: 'controlled-work-settled',
+    },
+  )
+  if (!('kind' in finished) || finished.kind !== 'committed')
+    throw new Error('actual finish failed')
+  const full = await readNativePrefix(linked.binding.log)
+  if (!('prefix' in full)) throw new Error('actual terminal prefix unavailable')
+  expect(
+    createSessionRunHistory(original.scope)(
+      full.prefix,
+      original.preparation.run,
+      original.preparation.attempt,
+    ),
+  ).toMatchObject({ known: { terminal: 'ended' } })
+  const foreign = createSessionRunHistory({
+    ...original.scope,
+    session: unwrap(parseOpaqueIdentifier('other-session', 'SessionRef')),
+  })
+  expect(foreign(full.prefix, original.preparation.run, original.preparation.attempt)).toEqual({
+    unavailable: true,
+  })
 })

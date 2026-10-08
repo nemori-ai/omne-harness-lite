@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest'
 import { checkSessionFact, sessionFactPayload, readSessionFact } from '../src/lifecycle-facts.ts'
+import { readAttemptStarted } from '@omne-harness-lite/session-runtime'
 import type { SessionFact } from '../src/lifecycle-facts.ts'
 import { checkOperationRef } from '../src/operation.ts'
 import { checkAppendInput, checkSourceToken } from '@omne-harness-lite/session-log'
@@ -98,6 +99,10 @@ for (const fact of facts)
     if ('failure' in request || !request.ok.entries[0]) throw new Error('bad entry')
     const entry = { ...request.ok.entries[0], session: scope.ok.session, position: 3 }
     expect(readSessionFact(entry)).toEqual({ kind: 'fact', fact })
+    expect(readAttemptStarted(entry)).toEqual({ kind: 'other' })
+    expect(readAttemptStarted({ ...entry, payload: { ...payload, version: 'unknown' } })).toEqual({
+      failure: 'invalidInput',
+    })
     expect(
       readSessionFact({ ...entry, tenant: { organization: 'other', account: 'owner' } as never }),
     ).toEqual('operation' in fact ? { failure: 'invalidInput' } : { kind: 'fact', fact })

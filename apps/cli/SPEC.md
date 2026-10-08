@@ -395,7 +395,7 @@ close同步撤本原拥有者的新准入，等待原模型唯一发起责任核
 
 构造在借用后失败时，先归还已分配的日志。若归还也失败，AggregateError保留两项原错误，不报告成功。作用域及content owner校验不能由复制的配置对象或进程代际替代。进程借用代际、持久日志代际和物理executionGeneration各有原语义，不能互相比较来授权。
 
-当前组合测试覆盖实际物理ModelRuntime及其project、SQLite日志、原Run grant、实际唯一发起owner和私有executionSource的空捕获。权限、选择owner和运输仍受控；该组合尚未覆盖实际模型调用的capture、生产结果来源、ACK或真实OpenRouter首答。
+组合测试使用实际物理ModelRuntime、project、SQLite日志、原Run grant和唯一发起owner。非空原调用经公开openCall／dispatch产生完整Pending；实际executionSource交给Session保管，原SDK保存消息／响应批次后原acknowledgeCall成功。治理运输、当前模型资格、catalog和模型IO仍受控；该组合不覆盖正式宿主、最新permit的结果采用或真实OpenRouter首答。
 
 ## 原模型结果来源与借用结束
 
@@ -408,3 +408,12 @@ capture只选择原Session和call的唯一执行，等待其原invocation.outcom
 release撤销该捕获的新验证，等待已经参加的实际StorageUnit结束。正常提交或确定回滚后才返回原frame；事务回调结束本身不构成可释放条件。完成观察为unknown时保持pending和原借用责任，不能据此确认接管。`confirmCustody`通过根所持原Session协调权限读取原call/resultKey的完整结果，核对原Scope、日志代际、回执键及完整结果后才能解除这项不明义务；absent、不可用或不同结果不能解除。确认结果保管不是回复采用或ACK的授权。
 
 可信根必须在归还frame前清除自己逃逸的原执行数组和invocation句柄，并在归还后停止使用这些能力。close只撤新捕获准入；已分配且正在等待的捕获仍由原拥有者结束。存在未归还捕获时close返回pending。它不停止借入ModelRuntime、不关闭借入Storage、Session或Context，也不代替物理模型拥有者的真实关闭证明。
+
+
+## 原Run历史的模型读取
+
+`createSessionRunHistory`由可信根固定完整SessionScope。它只解释模型SDK给出的原owned prefix；Scope、来源或借用代际失效时返回unavailable，不另开存储事务，不授执行权。
+
+读取从同一完整前缀核原run_started、原attempt及最新attempt、run_finished。无Run、无原attempt、重复开始、倒序attempt或不匹配的终态拒绝；合法其他会话事实和模型消息保留，不改成模型提醒。读取至多O(n)，没有新增缓存算法。
+
+实际ModelRuntime的dispatch发布ready后可关闭原invocation结算入口。可信根不能假定捕获该句柄后仍能settleReply；需要结算时复用公开SDK coordinator及原Run日志、真实owner和Run历史。原完整结果先由Session可靠接管；原SDK仍拥有消息／响应配对及ACK条件。Session结果采用和原能力结算分别核对，不以保管或模型ACK冒充最新permit的推进完成。
