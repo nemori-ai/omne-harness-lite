@@ -33,7 +33,9 @@ describe('named model runtime provider', () => {
     const provider = createModelRuntimeLocal()
     const schema = provider.plugin.Config
     if (!schema) throw new Error('provider schema absent')
-    expect(await schema['~standard'].validate(JSON.parse(JSON.stringify(exact)))).toEqual({ value: exact })
+    expect(await schema['~standard'].validate(JSON.parse(JSON.stringify(exact)))).toEqual({
+      value: exact,
+    })
     for (const value of [1, 'NaN', '01', '+1', '0.99'])
       expect(() =>
         provider.plugin.describeAssembly({
