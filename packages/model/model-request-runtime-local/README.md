@@ -46,7 +46,7 @@ The physical factory owner also receives `executionSource`. Metadata queries omi
 | `createServiceAcknowledge(construction, custody?)`, `createAcknowledgementCustody(input)` | The fifteenth operation and the per-runtime custody that releases in-memory copies, then retained content, under the explicit `acknowledgementCleanup` policy and scheduler                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `createModelRuntime(construction)`                                                        | Compose the fifteen methods under one call store, one ACK custody and one retryable close owner; no Cordis context is required                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
-`createModelRuntime` also returns `project(inputs, facts)`. Trusted assembly supplies fixed-subject `ModelRuntimeHostInputs` and a borrowed facts view from the same content owner. Use `createModelCallFacts(...).project(presence)` to bind the view's presence reader. All projections share the physical execution and retryable close owner. A projection has no `close`. Keep source ports stable and recheck current authority at each operation. See [projection behavior](SPEC.md#固定主体与共享执行). This pure factory does not complete the formal Service migration. |
+`createModelRuntime` also returns `project(inputs, facts)`. Trusted assembly supplies fixed-subject `ModelRuntimeHostInputs` and a borrowed facts view from the same content owner. Use `createModelCallFacts(...).project(presence)` to bind the view's presence reader. All projections share the physical execution and retryable close owner. A projection has no `close`. Keep source ports stable and recheck current authority at each operation. See [projection behavior](SPEC.md#固定主体与共享执行). The named Service binding uses the same pure factory and physical owner. |
 
 `createRuntimeReconcile(input)` returns `{ reconcile, close }`. An unavailable reconciliation keeps its original recovery scope when facts or writes remain unresolved; a later reconciliation uses that same scope before attempting another recovery entry for the session. `close()` seals new reconciliation, stops owned tasks, reads the original complete prefix, and releases each scope only after the physical work is accounted for. It never appends a business record. If `close()` returns `unavailable`, retain this same component and retry after the original task or read source recovers. `createModelRuntime` includes this close in its own retryable close.
 
@@ -56,38 +56,15 @@ The service forwards the existing `SettlementDiagnostic` through `RuntimeConstru
 
 ## Cordis service assembly
 
-`@omne-harness-lite/model-request-runtime-local/cordis` exports `createModelRuntimePlugin`. The `modelRuntime` service key is defined by `@omne-harness-lite/model-request-runtime/cordis`. The application supplies a complete `ModelRuntimeAssembly` through `construct`; this plugin does not fill missing operations. Cordis waits for the declared required providers before construction. The host retains `assembly.owner` before `construct` resolves. One cleanup effect closes admission to `openCall`, `dispatch`, and `dispatchAgain`, then calls that owner's `close()`. It calls `owner.release()` exactly once only after actual close reports `released`. If close is unavailable, the host keeps the same owner after the fiber unloads and must later complete stop/recovery and retry close; a diagnostic alone cannot release it. Existing references can still invoke allowed settlement and read operations during shutdown.
+`createModelRuntimeLocal()` creates one trusted assembly factory. Its plugin constructs the private call store, content store and facts from named host inputs, execution support, Storage, Clock and transport. Configuration contains explicit scope, content, waiter and token-margin limits. It accepts no `construct` callback or default policy. The managed row requires `assemblyLifetime`.
 
-```ts
-import type { Context } from '@deepseek-ai/cordis'
-import {
-  createModelRuntimePlugin,
-  type ModelRuntimeAssembly,
-  type ModelRuntimeAssemblyOwner,
-} from '@omne-harness-lite/model-request-runtime-local/cordis'
+The four exact Config fields (`tokenMargin.multiplier`, `tokenMargin.reserveTokens`, `reservationWaitPolicy.maxWaitersPerCall`, `reservationWaitPolicy.timeoutMs`) use JSON number lexeme strings, for example `"1.10000000000000000001"` and `"256"`. Encode the original `JsonNumber` with `jsonNumberSource`. The provider validates each string and restores its exact value without floating-point conversion. Independent functions keep their existing `JsonNumber` inputs.
 
-const retained = new Set<ModelRuntimeAssemblyOwner>()
-export function retainRuntime(
-  service: ModelRuntimeAssembly['service'],
-  close: ModelRuntimeAssemblyOwner['close'],
-): ModelRuntimeAssembly {
-  const owner: ModelRuntimeAssemblyOwner = {
-    close,
-    release() {
-      if (!retained.delete(owner)) throw new Error('runtime owner was not retained')
-    },
-  }
-  retained.add(owner)
-  return { service, owner }
-}
+The public service key and all fifteen operations belong to `@omne-harness-lite/model-request-runtime/cordis`. Each ordinary method captures its fixed subject through the original host bridge and the actual caller fiber. Projections share the same physical runtime. A caller contribution stops its consumption and returns its borrow after actual stopping; it does not cancel execution or write an ACK.
 
-export async function installRuntime(
-  ctx: Context,
-  construct: () => Promise<ModelRuntimeAssembly>, // must retain before resolving
-) {
-  return ctx.plugin(createModelRuntimePlugin({ construct }), {})
-}
-```
+The factory creator retains `ready`, `closeAdmission`, `close` and `owner()`. Only this trusted creator receives the original execution source and borrowed facts. These capabilities are absent from ordinary service results and host captures. `closeAdmission()` stops openCall, dispatch and dispatchAgain at their original admission points. It preserves validation, authority and failure order, existing work, recovery and consumption. Actual `close()` starts physical stopping and contribution cleanup. `close()` returns `unavailable` or rejects when resources remain owned; retry the same owner. The managed close control keeps the original dependencies until confirmed closure. Do not mount one factory twice or start a successor pool before the prior managed row closes.
+
+See the actual [managed model assembly](../../../examples/model-invocation-minimal-demo/src/model-runtime-assembly.ts) and [caller input bridge](../../../examples/model-invocation-minimal-demo/src/model-runtime-inputs.ts). The pure `createModelRuntime(construction)` remains independently usable.
 
 The exported `createCallContainerStore().waitReserve(...)` takes an explicit positive waiter limit and timeout plus an owned scheduler and abort signal. The explicit `OpenCallInput.host` is a lifecycle owner, not session identity: session, tenant and log generation still come from the authorized session binding. Its `register(close)` must synchronously reject registration after stopping; the preparation owner registers before any asynchronous preparation, keeps the same close responsibility after call publication, and unregisters only after actual release. Once a call container is inserted, the active reservation attaches the original anchored invocation handle. Releasing the reservation leaves that handle, pending reply, observer binding, unknown writers and exact transport lease with the container. A system stop first asks the original call's durable S-36 closure to settle; `container.close()` releases the lease only after that result, the original handle and observer tasks report actual release, and the remaining owner checks pass. The reservation does not create durable authorization. An unavailable anchored close retains its coordinator and borrowed references. Once the original work has actually stopped and settlement facts become available, call `close()` again; concurrent closes share one attempt, and a released close is idempotent.
 

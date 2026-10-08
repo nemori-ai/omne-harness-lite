@@ -1,10 +1,5 @@
-import { MODEL_RUNTIME_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 // @module-tag slow
 // 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
-import { Context } from '@deepseek-ai/cordis'
-import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
-import { z } from 'zod'
-import { createModelRuntimePlugin } from '../src/service-plugin.ts'
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
@@ -12,7 +7,6 @@ import type { ModelCallHost } from '@omne-harness-lite/model-request-runtime'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
 import type { CallContainerStore, RuntimeConstruction } from '../src/service-types.ts'
-import type { ModelRuntimeOperations } from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
@@ -624,10 +618,6 @@ it.each(['open', 'dispatch'] as const)(
     const started = deferred<void>()
     const native = deferred<void>()
     let closing: Promise<unknown> | undefined
-    const ctx = new Context()
-    const closeStarted = deferred<void>()
-    let ownerReleased = 0
-    let cleanup: (() => Promise<void>) | undefined
     try {
       const selected = host.create()
       const wire = transport()
@@ -712,49 +702,9 @@ it.each(['open', 'dispatch'] as const)(
           }),
         },
       })
-      const dependencies = await ctx.plugin(
-        definePlugin({
-          name: 'planning-owner-dependencies',
-          Config: z.object({}).strict(),
-          apply(inner) {
-            for (const name of [
-              'sessionLog',
-              'modelCatalogRead',
-              'credentialLookup',
-              'modelTransport',
-              'storage',
-              'clock',
-            ])
-              inner.provide(name, {})
-          },
-        }),
-        {},
-      )
-      const consumer = await ctx.plugin(
-        createModelRuntimePlugin({
-          construct: async () => ({
-            service: runtime.service,
-            owner: {
-              close: () => {
-                closeStarted.finish()
-                return runtime.close()
-              },
-              release: () => {
-                ownerReleased++
-              },
-            },
-          }),
-        }),
-        {},
-      )
-      await consumer.await()
-      cleanup = async () => {
-        await consumer.dispose()
-        await dependencies.dispose()
-      }
-      const offered: unknown = ctx.get(MODEL_RUNTIME_SERVICE)
-      if (!isRuntimeService(offered)) throw new Error('real Cordis service absent')
-      const service = offered
+      // Standalone exact-lease regression remains independent of Cordis construction.
+      // Actual named-provider shutdown is covered separately in service-plugin.spec.ts.
+      const service = runtime.service
       const callHost: ModelCallHost = {
         signal: new AbortController().signal,
         stopping: () => false,
@@ -783,12 +733,10 @@ it.each(['open', 'dispatch'] as const)(
       await started.promise
       expect(tracked).toBeGreaterThan(0)
       let closed = false
-      closing = consumer.dispose().then(async () => {
-        const result = await runtime.close()
+      closing = runtime.close().then(async result => {
         closed = true
         return result
       })
-      await closeStarted.promise
       expect(planSignal?.aborted).toBe(true)
       expect(closed).toBe(false)
       expect(released).toBe(0)
@@ -799,7 +747,7 @@ it.each(['open', 'dispatch'] as const)(
       await operation
       expect(await closing).toEqual({ released: true })
       expect(released).toBe(1)
-      expect(ownerReleased).toBe(1)
+      expect(runtime.executionSource.release()).toEqual({ released: true })
       expect(clearedScopes).toEqual([seenScopes[0]])
       expect(wire.sends()).toBe(0)
       expect(await runtime.close()).toEqual({ released: true })
@@ -807,28 +755,7 @@ it.each(['open', 'dispatch'] as const)(
     } finally {
       native.finish()
       await closing
-      await cleanup?.()
       await host.close()
     }
   },
 )
-
-function isRuntimeService(value: unknown): value is ModelRuntimeOperations {
-  if (value === null || typeof value !== 'object') return false
-  return [
-    'legalTargets',
-    'displayList',
-    'effectiveModel',
-    'selectModel',
-    'openCall',
-    'acquireCall',
-    'dispatch',
-    'dispatchAgain',
-    'interrupt',
-    'releaseCall',
-    'reconcile',
-    'readAttempts',
-    'settleReply',
-    'canDispatchAgain',
-  ].every(name => name in value && typeof Reflect.get(value, name) === 'function')
-}

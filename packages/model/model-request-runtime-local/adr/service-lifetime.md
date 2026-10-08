@@ -1,7 +1,7 @@
 # 正式模型服务的注册与资源保有
 
 目标定义、宿主端口和当前未迁范围归[公共边界](../../../core/model-request-runtime/adr/runtime-integration.md)。
-本页记录本地提供者的集成目标及验证义务。F0已使用公共Service定义的本地子类转发十五操作；具名宿主桥、执行支持、按调用方Context捕获主体和完整retained装配仍未切换。现有显式construction工厂继续承担其原责任，不能据类包装声明全部IC义务已兑现。
+本页维护本地提供者的集成责任与验证义务。createModelRuntimeLocal 使用具名宿主桥、执行支持和受管装配；独立 createModelRuntime 工厂仍承担纯函数消费者的原责任。服务可见不能代替逐项架构与行为验收。
 
 ## 注册与构造
 
@@ -22,12 +22,15 @@ Service 方法保有本代宿主桥的精确引用，并用本次接收者的 th
 capture 的不可用来源端口、部分借用及原业务失败次序按公共边界处理；旧方法不得因重新服务发现失败而先抛异常。转发不能用丢失调用方接收者的箭头闭包替代这一步。
 主体门面共享原 containers/work/close owner；创建门面不重建完整 runtime，撤除门面不关闭共享执行。当前授权、错误次序及撤权信号按公共边界处理。
 
+停止新工作与物理关闭分开。轻量 closeAdmission 在原完整失败次序的新工作点封 openCall/dispatch/dispatchAgain，不停止已有任务、暖恢复、消费及失败来源；实际 close 才停止贡献并排空资源。不能通过顶层统一短路覆盖原资格、存在或终态结果。
+
 原运行时 close 只有 released 才解除宿主保有。
+assembly-lifecycle 保有单代关闭责任，不自行禁止其他工厂启动。应用装配必须另保有稳定拥有者的后继准入门；原树和原 binding 未确认关闭时不得放行下一代。该门不能用作租户授权。
 unavailable/异常转为 retained 的未确认关闭观察；共享 control 重试同一 owner，不重建身份或换新来源清理旧内容。
 晚 setup 和失败 setup 也必须登记并收尾。原源、Storage、Clock、传输和持久写者依赖留到真实义务停止/交接，不能先 await fiber dispose 再开始实际 close。
 
 acquireCall 返回消费句柄时，其 release 通过本次调用方 effect 配对撤除；观察者和监听也落在该贡献的 fiber。调用方在异步取得句柄前已撤除时，立即交还该原句柄，不向已失效 fiber 补登记。没有消费句柄的只读结果不添加等待资源。贡献撤除只结束消费等待/观察，不能代写 durable ACK 或关闭原模型执行。
-Session 桥撤除只交还消费句柄；真正模型提供者撤除才执行 S-36 停止及原结算。
+consumer.release 只请求停止，实际 stopped 后才归还 host lease；FailureSource.release 同步完成才归还，抛错保有。提供者登记每项贡献并主动关闭，不能等调用 fiber dispose 才启动收场；effect 是同一关闭的幂等入口。Session 桥撤除只交还消费句柄；真正模型提供者撤除才执行 S-36 停止及原结算。
 物理等待超时只产生诊断。已形成完整结果、ready 回执未知、旧 unfenced 写者未停、ACK 清理 pending 均不能被包装成完成。
 旧句柄仍能按原权限/来源认回耐久结果或 ACK；能调用一项 JavaScript 方法不等于已通过授权、真实存储或当前读取权。
 
@@ -59,7 +62,7 @@ Session 桥撤除只交还消费句柄；真正模型提供者撤除才执行 S-
 
 ## 原执行来源的交接
 
-工厂创建方已拥有 construction 的物理资源，executionSource 只交给这个拥有者。
+纯工厂创建者拥有 construction 的物理资源；正式提供者自己创建这些资源。executionSource 只交给相应可信工厂创建者。
 业务输入 host 不承担可信恢复来源；向它传 invocation 会扩大其关闭权限，故保持 register(close)。
 来源定义归 core，生产归 local；原容器、store 和持久事实各保持原拥有者。
 同步 insert 转接消除“已接受执行但最终返回失败”时的来源漏记窗口。
@@ -69,6 +72,8 @@ ACK 确认后封新原句柄捕获与私有副本 pin，仍允许 metadata-only 
 共享 binding/owner 不保有每调用大副本是必须用真实 holder 验证的前提。
 查询含糊时拒绝，不能凭顺序猜测原执行。
 
-正式 Cordis 提供者的来源交接另需受信装配边界及生命周期设计。
+正式 Cordis 工厂的 owner() 仅供受信装配取得原 source 和事实借用；普通服务与 capture 不携这些能力。
 不得把这个内部能力 source 直接作为普通模型调用方都能取得的服务或 capture 结果。
-本接缝不表示该正式提供者或完整 Session/Run 协调已经完成。
+本接缝不表示完整 Session/Run 协调已经完成。
+
+插件树配置是普通 JSON，不能携 LosslessNumber 类实例。四个精确数值字段用数字词法字符串，经严格验证后在提供者构造时恢复原值；复用 jsonNumberSource 保留原精度、指数及 -0。这个编码只属于装配 Config，不改变独立调用的数值类型或时限兑现范围。

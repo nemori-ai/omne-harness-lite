@@ -23,7 +23,7 @@
     "README_ZH.md",
     "SPEC.md",
     "adr",
-    "models"
+    "verification"
   ],
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
@@ -54,7 +54,9 @@
     "@omne-harness-lite/session-log": "workspace:*",
     "@omne-harness-lite/session-tenancy": "workspace:*",
     "@omne-harness-lite/loop-extension-runner": "workspace:*",
-    "@omne-harness-lite/session-runtime": "workspace:*"
+    "@omne-harness-lite/session-runtime": "workspace:*",
+    "@omne-harness-lite/assembly-lifecycle": "workspace:*",
+    "@omne-harness-lite/cordis-plugin-tree": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness-lite/account-identity": "workspace:*",
@@ -77,5 +79,12 @@
     "@omne-harness-lite/execution-environments": "workspace:*",
     "@omne-harness-lite/storage": "workspace:*",
     "@omne-harness-lite/session-log": "workspace:*"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "service-provider"
+    }
   }
 }

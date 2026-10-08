@@ -147,6 +147,8 @@ function buildRuntimeAcquire<P extends PlannedSemantics, R>(
     const inspected = ownInput(input)
     if ('invalidInput' in inspected) return inspected
     const owned = inspected
+    let acquired: CallConsumer | undefined
+    let delivered = false
     try {
       const bound = await runtime.sessions.bind(owned.ref.session)
       if ('failure' in bound) return bound.failure === 'invalidInput' ? malformed : unavailable
@@ -428,6 +430,7 @@ function buildRuntimeAcquire<P extends PlannedSemantics, R>(
                     entry.close()
                   },
                 })
+                acquired = consumer
                 if (!current()) {
                   await entry.close()
                   return unavailable
@@ -455,11 +458,20 @@ function buildRuntimeAcquire<P extends PlannedSemantics, R>(
           admitted.allowed.consumer.release()
           return { runtimeStopped: true }
         }
+        delivered = 'view' in admitted.allowed && admitted.allowed.consumer !== undefined
         return admitted.allowed
       }
       return 'invalidInput' in admitted ? admitted : unavailable
     } catch {
       return unavailable
+    } finally {
+      // A revoked admission can discard the result after a genuine consumer was created.
+      // The provider cannot observe that hidden handle. Keep this acquisition outstanding
+      // until its original read/receiver tasks actually stop, so its host borrow stays held.
+      if (acquired && !delivered) {
+        acquired.release()
+        await acquired.stopped
+      }
     }
   }
   return retainRuntimeProjection(

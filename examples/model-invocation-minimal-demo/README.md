@@ -100,6 +100,11 @@ The demo installs every official definition published by `@omne-harness-lite/pi-
 
 ## Assembling the runtime's public surface
 
+
+The model stage loads the named `createModelRuntimeLocal()` provider through a managed plugin tree. JSON configuration contains explicit limits; host inputs and execution policies come from named services. Each operation uses an actual caller fiber with a fixed subject. Finite calls dispose that fiber after returning its borrow; consumer and failure-source borrows keep it alive until actual release. The trusted assembly keeps the original execution source.
+
+A private reservation blocks another provider on the same stable assembly Context while startup or original closure is pending. It releases only after the original tree and provider both confirm closure. Retained closure retries the original owner. This is a single-host assembly rule, not tenant authorization or a cross-process lock.
+
 `createModelRuntime(construction)` takes the transport, history readers and policies plus trusted ports that only the host can supply. `createAcceptanceApplication` in `src/bootstrap.ts` provides them from real components (no in-memory stand-ins and no ports that always answer `unavailable`):
 
 | Runtime input                          | What this demo provides                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |

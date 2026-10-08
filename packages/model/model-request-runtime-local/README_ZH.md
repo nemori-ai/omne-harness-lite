@@ -52,38 +52,15 @@
 
 ## Cordis 服务装配
 
-`@omne-harness-lite/model-request-runtime-local/cordis` 导出 `createModelRuntimePlugin`；`MODEL_RUNTIME_SERVICE` 唯一键归公共定义包的 `./cordis`。应用通过 `construct` 交入完整的 `ModelRuntimeAssembly`；插件不会替缺失操作填占位实现。Cordis 等声明的必需提供者齐备才构造。宿主在 `construct` 返回前保留 `assembly.owner`。单个收口 effect 先关闭 `openCall`、`dispatch`、`dispatchAgain` 的新准入，再调用该 owner 的 `close()`；只有真实收口返回 `released` 才恰一次调用 `owner.release()`。若收口不可用，宿主在 fiber 卸载后继续持有同一个 owner，负责之后的实际停止／恢复及再次收口；诊断日志不能替代释放。已有服务引用在撤除期间仍可执行允许的结算和读取。
+`createModelRuntimeLocal()` 创建一代可信装配工厂。插件从具名宿主输入、执行支持、Storage、Clock 和 transport 构造私有调用池、内容及事实。配置显式提供作用域、内容、等待和 token margin 界限，不接收 `construct` 回调，不补政策默认值；受管行另需 `assemblyLifetime`。
 
-```ts
-import type { Context } from '@deepseek-ai/cordis'
-import {
-  createModelRuntimePlugin,
-  type ModelRuntimeAssembly,
-  type ModelRuntimeAssemblyOwner,
-} from '@omne-harness-lite/model-request-runtime-local/cordis'
+Config 的四个精确字段（`tokenMargin.multiplier/reserveTokens`、`reservationWaitPolicy.maxWaitersPerCall/timeoutMs`）使用 JSON 数字词法字符串，例如 `"1.10000000000000000001"` 和 `"256"`。装配方用 `jsonNumberSource` 编码原 `JsonNumber`，提供者严检后恢复精确值，不经浮点转换。独立函数仍使用原 `JsonNumber` 输入。
 
-const retained = new Set<ModelRuntimeAssemblyOwner>()
-export function retainRuntime(
-  service: ModelRuntimeAssembly['service'],
-  close: ModelRuntimeAssemblyOwner['close'],
-): ModelRuntimeAssembly {
-  const owner: ModelRuntimeAssemblyOwner = {
-    close,
-    release() {
-      if (!retained.delete(owner)) throw new Error('runtime owner was not retained')
-    },
-  }
-  retained.add(owner)
-  return { service, owner }
-}
+公共服务键和十五操作归 `@omne-harness-lite/model-request-runtime/cordis`。普通方法通过原宿主桥及实际调用 fiber 捕获固定主体；投影共用同一物理运行时。调用贡献只停止其消费，实际停止后归还借用，不取消执行、不写 ACK。
 
-export async function installRuntime(
-  ctx: Context,
-  construct: () => Promise<ModelRuntimeAssembly>, // 返回前须由宿主持有
-) {
-  return ctx.plugin(createModelRuntimePlugin({ construct }), {})
-}
-```
+工厂创建者持有 `ready`、`closeAdmission`、`close` 和 `owner()`。只有可信创建者取得原执行来源及事实借用面，普通服务结果和宿主 capture 不携这些能力。`closeAdmission()` 在原业务判断次序中的停止准入点同步拒绝新建、dispatch 和 dispatchAgain，保留已准入工作、读取、恢复及 ACK；实际 `close()` 才排空并释放资源。资源尚未收场时 `close()` 返回 `unavailable` 或拒绝，须重试同一 owner。受管关闭控制保有原依赖直到确认关闭；同一 factory 不能挂载两次，原行未闭合不能启动后继池。
+
+真实消费者见[受管模型装配](../../../examples/model-invocation-minimal-demo/src/model-runtime-assembly.ts)和[调用方输入桥](../../../examples/model-invocation-minimal-demo/src/model-runtime-inputs.ts)。纯 `createModelRuntime(construction)` 仍可独立使用。
 
 已导出的 `createCallContainerStore().waitReserve(...)` 要求显式的正数等待者上限和超时，以及有归属的调度器与取消信号。显式 `OpenCallInput.host` 是生命周期 owner，不是会话身份；会话、租户与日志代际仍来自已授权会话绑定。它的 `register(close)` 必须在停止后同步拒绝登记；准备 owner 在任何异步准备前登记，调用发布后仍保留同一关闭责任，实际释放后才 unregister。调用容器插入后，活跃 reservation 绑定原锚定调用句柄；释放短 reservation 不丢该句柄、待处分回复、观察绑定、未知写者或精确传输租约。系统停止先请求同一原调用的耐久 S-36 收口；`container.close()` 只有在该结果、原句柄、观察任务均实际释放且其余 owner 核查通过后才释放租约。reservation 本身不产生耐久授权。锚定调用的 `close()` 返回 `unavailable` 时仍保留原协调器与借用引用；原工作实际停止且结算事实可读取后，可再次调用 `close()`。并发关闭共用同一次尝试，已释放后的关闭幂等。
 

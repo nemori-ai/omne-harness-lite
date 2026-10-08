@@ -1,3 +1,5 @@
+import { createDemoModelInputs } from './model-runtime-inputs.ts'
+import { startModelRuntimeAssembly } from './model-runtime-assembly.ts'
 import {
   createDemoRecoveryScope,
   discardUnissuedRecovery,
@@ -10,10 +12,6 @@ import {
 } from './recovery-executions.ts'
 import {
   createSessionModelSelection,
-  createCallContainerStore,
-  createModelCallContentStore,
-  createModelCallFacts,
-  createModelRuntime,
   ownOpenCallInput,
   validDispatchInput,
   modelCallContentMigrations,
@@ -40,15 +38,17 @@ import {
   BorrowedManifest,
   BorrowedAssetRegistry,
 } from './assembly-inputs.ts'
-import { copyJsonValue, isJsonNumber, type JsonValue } from '@omne-harness-lite/content-blocks'
+import {
+  copyJsonValue,
+  isJsonNumber,
+  jsonNumberSource,
+  type JsonValue,
+} from '@omne-harness-lite/content-blocks'
 import {
   judgeModelProfileDocument,
   type ModelRequestParameters,
 } from '@omne-harness-lite/model-profile'
-import {
-  type RuntimeConstruction,
-  type SessionEffectiveModelResult,
-} from '@omne-harness-lite/model-request-runtime-local'
+import { type SessionEffectiveModelResult } from '@omne-harness-lite/model-request-runtime-local'
 import {
   interpretCallHistory,
   readSettlementPrefix,
@@ -708,7 +708,10 @@ export function createAcceptanceApplication(
   let assetRegistry: AssetRegistry | undefined
   let transportService: ModelTransportService | undefined
   const modelContributions: Fiber[] = []
-  let modelRuntime: ReturnType<typeof createModelRuntime<PlannedRequest, RawResponse>> | undefined
+  let modelAssembly: Awaited<ReturnType<typeof startModelRuntimeAssembly>> | undefined
+  let modelInputs: Awaited<ReturnType<typeof createDemoModelInputs>> | undefined
+  let modelRuntime:
+    ReturnType<Awaited<ReturnType<typeof startModelRuntimeAssembly>>['owner']> | undefined
   let projectModel:
     | ((
         actor: AuthenticatedActor,
@@ -743,7 +746,6 @@ export function createAcceptanceApplication(
   const coldStopped = new Map<SessionRef, ReadonlyMap<string, ModelLogSettlementTarget>>()
   const runtimeBindings = new Map<SessionRef, SessionRuntimeBinding>()
   const controlledRuns = new Map<SessionRef, ControlledSingleRunSelection>()
-  const calls = createCallContainerStore<PlannedRequest, RawResponse>()
   const callHosts = new Map<SessionRef, Set<DemoCallHost>>()
   const sessionTasks = new Map<SessionRef, Set<Promise<unknown>>>()
   const recoveryTasks = new Set<Promise<unknown>>()
@@ -951,6 +953,8 @@ export function createAcceptanceApplication(
     | 'authorizedLogOwner'
     | 'contextCreator'
     | 'modelContributions'
+    | 'modelRuntime'
+    | 'modelInputs'
     | 'assetRegistry'
     | 'registryHistory'
     | 'fixedRootInput'
@@ -1022,6 +1026,8 @@ export function createAcceptanceApplication(
     return [
       ...(stage === 'modelRequest'
         ? ([
+            'modelRuntime',
+            'modelInputs',
             'modelContributions',
             'modelTransport',
             'assetRegistry',
@@ -1056,6 +1062,13 @@ export function createAcceptanceApplication(
     ]
   }
   const resourceClosers: Partial<Record<ResourceCloseStep, () => Promise<unknown>>> = {
+    async modelRuntime() {
+      if ((await modelAssembly?.close()) === 'retained')
+        throw new Error('model runtime close retained')
+    },
+    async modelInputs() {
+      await modelInputs?.close()
+    },
     async modelContributions() {
       const retired = await Promise.allSettled(
         [...modelContributions].reverse().map(fiber => fiber.dispose()),
@@ -1117,6 +1130,7 @@ export function createAcceptanceApplication(
     runnerHost?.closeAdmission()
     contextCreator?.closeAdmission()
     contextAssembly?.closeAdmission()
+    modelAssembly?.closeAdmission()
     record({ event: 'gate', phase: 'scenario', outcome: 'closed' })
     const attempt = (async () => {
       // Stop actual consumers before waiting admitted work: setup work cannot start a new call once closing.
@@ -1938,7 +1952,6 @@ export function createAcceptanceApplication(
           if (requestDeployment === undefined || transportService === undefined)
             throw new Error('model runtime construction prerequisites absent')
           const deployment = requestDeployment
-          const transport = transportService
           function newId<B extends string>(label: string, brand: B) {
             const parsed = parseOpaqueIdentifier(`${label}-${randomUUID()}`, brand)
             if (!isOk(parsed)) throw new Error('model identity source invalid')
@@ -1960,22 +1973,6 @@ export function createAcceptanceApplication(
               return targets === undefined ? undefined : { target: targets.get(ref.callId) ?? null }
             },
           })
-          const callFacts = createModelCallFacts({
-            content: createModelCallContentStore({
-              storage,
-              policy: deployment.callReferences.content,
-            }),
-            presence: callPresence,
-            maxScopes: deployment.callReferences.maxScopes,
-          })
-          const callAccess = createDemoCallAccess({
-            async authorize() {
-              return { unavailable: true }
-            },
-            facts: callFacts,
-            revoked: accessRevocation.signal,
-            diagnostic: outcome => record({ event: 'operation', phase: 'callAccess', outcome }),
-          })
           // Immutable deployment identifiers only; the created payload cannot cite a mutable path.
           const sourceVersions = Object.freeze({
             officialManifest: `ordinal:${config.officialManifest.ordinal}`,
@@ -1987,38 +1984,18 @@ export function createAcceptanceApplication(
               .sort()
               .join(','),
           })
-          const construction: RuntimeConstruction<PlannedRequest, RawResponse> = {
-            callAccess,
+          const baseInputs: ModelRuntimeHostInputs = {
+            callAccess: {
+              async check() {
+                return { unavailable: true }
+              },
+            },
             callPresence,
-            callFacts,
-            maxScopes: deployment.maxScopes,
             sessions: {
               async bind() {
                 return { failure: 'unavailable' }
               },
             },
-            calls,
-            transport: {
-              clearReuseScope(scope) {
-                return transport.clearReuseScope(scope)
-              },
-              acquire(binding, routeName) {
-                if (closing) return { unavailable: true }
-                const acquired = transport.acquire(binding, routeName)
-                if ('lease' in acquired) return acquired
-                return acquired.rejected === 'invalidInput'
-                  ? { invalidInput: { reason: 'malformed' } }
-                  : { unavailable: true }
-              },
-            },
-            settlementContention: deployment.settlement.contention,
-            settlementScheduler: deployment.settlement.scheduler,
-            policy: {
-              ...deployment.invocation,
-              diagnostic: event =>
-                'tenant' in event ? recordSettlement(event) : recordInvocationDiagnostic(event),
-            },
-            tokenMargin: deployment.tokenMargin,
             identities: {
               call: () => newId('call', 'ModelCallId'),
               response: () => newId('response', 'ResponseId'),
@@ -2041,8 +2018,6 @@ export function createAcceptanceApplication(
                 options.runHistory ??
                 createToolDriverRunReader(sessionLogBacking!.operations.ownerGeneration),
             },
-            reservationWaitPolicy: deployment.reservationWaitPolicy,
-            acknowledgementCleanup: deployment.acknowledgementCleanup,
             recovery: {
               async authorize() {
                 return { unavailable: true }
@@ -2070,19 +2045,50 @@ export function createAcceptanceApplication(
                 })
               },
             },
+          }
+          modelInputs = await createDemoModelInputs(context, baseInputs, {
+            settlementContention: deployment.settlement.contention,
+            settlementScheduler: deployment.settlement.scheduler,
+            policy: {
+              ...deployment.invocation,
+              diagnostic: event =>
+                'tenant' in event ? recordSettlement(event) : recordInvocationDiagnostic(event),
+            },
+            acknowledgementCleanup: deployment.acknowledgementCleanup,
             diagnosticCollector: tenant.collector,
             diagnostic: recordSettlement,
-          }
-          try {
-            modelRuntime = createModelRuntime(construction)
-            projectModel = (original, boundSession, recoveryAuthorization) => {
-              // Capture identity values, then recheck the same subject at every admission point.
-              const actor: AuthenticatedActor = Object.freeze({
-                ...original,
-                tenant: Object.freeze({ ...original.tenant }),
-              })
+          })
+          modelAssembly = await startModelRuntimeAssembly(context, {
+            maxScopes: deployment.maxScopes,
+            callReferences: deployment.callReferences,
+            reservationWaitPolicy: {
+              maxWaitersPerCall: jsonNumberSource(
+                deployment.reservationWaitPolicy.maxWaitersPerCall,
+              ),
+              timeoutMs: jsonNumberSource(deployment.reservationWaitPolicy.timeoutMs),
+            },
+            tokenMargin: {
+              multiplier: jsonNumberSource(deployment.tokenMargin.multiplier),
+              reserveTokens: jsonNumberSource(deployment.tokenMargin.reserveTokens),
+            },
+          })
+          await modelAssembly.ready
+          modelRuntime = modelAssembly.owner()
+          projectModel = (original, boundSession, recoveryAuthorization) => {
+            // Capture identity values, then recheck the same subject at every admission point.
+            const actor: AuthenticatedActor = Object.freeze({
+              ...original,
+              tenant: Object.freeze({ ...original.tenant }),
+            })
+            const inputsOwner = modelInputs
+            if (!inputsOwner) throw new AcceptanceOperationDefect('modelInputs')
+            return inputsOwner.caller(callerStopped => {
               const qualification = new AbortController()
-              const revoked = AbortSignal.any([accessRevocation.signal, qualification.signal])
+              const revoked = AbortSignal.any([
+                accessRevocation.signal,
+                qualification.signal,
+                callerStopped,
+              ])
               const qualify = async (session: SessionRef) => {
                 if (boundSession !== undefined && session !== boundSession)
                   return { failure: 'stageClosed' as const }
@@ -2097,7 +2103,8 @@ export function createAcceptanceApplication(
                 }
                 return current
               }
-              const facts = callFacts.project(callPresence)
+              const facts = modelRuntime?.facts
+              if (!facts) throw new AcceptanceOperationDefect('modelRuntimeFacts')
               const access = createDemoCallAccess({
                 async authorize(session) {
                   if (revoked.aborted || closing || recoveryAdmission.has(session))
@@ -2117,8 +2124,8 @@ export function createAcceptanceApplication(
               const inputs: ModelRuntimeHostInputs = Object.freeze({
                 callAccess: access,
                 callPresence,
-                identities: construction.identities,
-                history: construction.history,
+                identities: baseInputs.identities,
+                history: baseInputs.history,
                 sessions: Object.freeze({
                   async bind(
                     session: SessionRef,
@@ -2173,16 +2180,11 @@ export function createAcceptanceApplication(
                       ? { authorized: true as const }
                       : { unavailable: true as const }
                   },
-                  enter: construction.recovery.enter,
+                  enter: baseInputs.recovery.enter,
                 }),
               })
-              if (modelRuntime === undefined) throw new AcceptanceOperationDefect('modelRuntime')
-              return modelRuntime.project(inputs, facts)
-            }
-          } catch (error) {
-            // The runtime never took ownership of the facts owner; stop its content writes here.
-            await callFacts.close()
-            throw error
+              return inputs
+            })
           }
           if (
             runnerHost === undefined ||
@@ -2336,6 +2338,7 @@ export function createAcceptanceApplication(
                 runnerHost?.closeAdmission()
                 contextCreator?.closeAdmission()
                 contextAssembly?.closeAdmission()
+                modelAssembly?.closeAdmission()
               },
             })
             await toolAssembly.ready
