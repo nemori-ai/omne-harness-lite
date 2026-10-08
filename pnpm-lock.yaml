@@ -151,6 +151,9 @@ importers:
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
         version: link:../../packages/core/organization-governance
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../packages/core/storage
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../packages/infra/storage-sql

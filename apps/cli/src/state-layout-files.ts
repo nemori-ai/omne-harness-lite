@@ -3,12 +3,12 @@ import { mkdir, open, type FileHandle } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { StateLayoutFailure, checkedTenantBinding } from './state-layout-values.ts'
 
-function ioCode(error: unknown): string | undefined {
+export function ioCode(error: unknown): string | undefined {
   return error instanceof Error && 'code' in error && typeof error.code === 'string'
     ? error.code
     : undefined
 }
-function rethrowIo(error: unknown): never {
+export function rethrowIo(error: unknown): never {
   const code = ioCode(error)
   if (code === 'ELOOP' || code === 'ENOTDIR') throw new StateLayoutFailure('unsafe-path')
   if (
@@ -30,7 +30,10 @@ function rethrowIo(error: unknown): never {
   throw error
 }
 
-async function checkedDirectory(path: string, privateRequired: boolean): Promise<FileHandle> {
+export async function checkedDirectory(
+  path: string,
+  privateRequired: boolean,
+): Promise<FileHandle> {
   const file = await open(path, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW)
   try {
     const stat = await file.stat()
@@ -82,7 +85,7 @@ export async function preparePrivateDirectory(
   }
 }
 
-async function checkBindingFile(file: FileHandle): Promise<void> {
+export async function checkPrivateFile(file: FileHandle): Promise<void> {
   const stat = await file.stat()
   if (
     !stat.isFile() ||
@@ -140,7 +143,7 @@ export async function installTenantBinding(
       if (ioCode(error) !== 'EEXIST') throw error
       file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
     }
-    await checkBindingFile(file)
+    await checkPrivateFile(file)
     if (created) {
       await file.writeFile(expected)
       await file.sync()

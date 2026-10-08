@@ -23,17 +23,19 @@ export interface SessionIdentityObservation {
   readonly tenant: TenantId
   readonly role: TenantRole
 }
+export const SESSION_PREPARATION_BLOCK_REASONS = [
+  'login-rejected',
+  'identity-unavailable',
+  'membership-ineffective',
+  'identity-mismatch',
+  'reenter-required',
+  'defect',
+] as const
 export type SessionPreparationOutcome =
   | { readonly kind: 'observed'; readonly identity: SessionIdentityObservation }
   | {
       readonly kind: 'blocked'
-      readonly reason:
-        | 'login-rejected'
-        | 'identity-unavailable'
-        | 'membership-ineffective'
-        | 'identity-mismatch'
-        | 'reenter-required'
-        | 'defect'
+      readonly reason: (typeof SESSION_PREPARATION_BLOCK_REASONS)[number]
     }
 
 /** The login chosen for this Run. It does not change the Session's owner. */
@@ -46,11 +48,17 @@ export type RunLoginObservationOutcome =
   | Extract<SessionPreparationOutcome, { kind: 'blocked' }>
 
 export function validRunLoginBinding(expected: RunLoginBinding): boolean {
-  return (
-    isGovernanceCenterId(expected.centerId) &&
-    isOk(parseAccountId(expected.accountId)) &&
-    isOk(parseLoginStateId(expected.loginStateHandle))
-  )
+  return parseRunLoginBinding(expected) !== undefined
+}
+
+export function parseRunLoginBinding(value: unknown): RunLoginBinding | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
+  if (!('centerId' in value) || !('accountId' in value) || !('loginStateHandle' in value))
+    return undefined
+  const account = parseAccountId(value.accountId)
+  const handle = parseLoginStateId(value.loginStateHandle)
+  if (!isGovernanceCenterId(value.centerId) || !isOk(account) || !isOk(handle)) return undefined
+  return { centerId: value.centerId, accountId: account.ok, loginStateHandle: handle.ok }
 }
 
 /** Borrow a fixed use to observe login validity before one new Run. */

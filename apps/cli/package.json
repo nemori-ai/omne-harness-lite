@@ -38,6 +38,7 @@
     "@omne-harness-lite/governance-center-entry-https-json": "workspace:*",
     "@omne-harness-lite/governance-center-client-https": "workspace:*",
     "@omne-harness-lite/storage-sql": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*",
     "@omne-harness-lite/kernel-basis": "workspace:*"
   },
   "devDependencies": {

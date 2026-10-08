@@ -71,13 +71,21 @@ export async function prepareTenantDirectory(
     bytes.length > policy.maxBindingBytes
   )
     throw new StateLayoutFailure('invalid-binding')
-  let at = parse(paths.home).root
-  await preparePrivateDirectory(at, false, false)
-  for (const part of paths.directory.slice(at.length).split('/')) {
-    at = join(at, part)
-    const privateRequired = at === paths.home || at.startsWith(paths.home + '/')
-    await preparePrivateDirectory(at, true, privateRequired)
-  }
+  await prepareStateDirectory(paths.home, paths.directory)
   await installTenantBinding(paths.binding, bytes, policy.maxBindingBytes)
   return paths
+}
+
+/** Create a private namespace inside the checked application home. */
+export async function prepareStateDirectory(home: string, directory: string = home): Promise<void> {
+  const root = resolveStateHome({ explicitHome: home, osHome: home })
+  const target = resolve(directory)
+  if (target !== root && !target.startsWith(root + '/')) throw new StateLayoutFailure('unsafe-path')
+  let at = parse(root).root
+  await preparePrivateDirectory(at, false, false)
+  for (const part of target.slice(at.length).split('/')) {
+    at = join(at, part)
+    const privateRequired = at === root || at.startsWith(root + '/')
+    await preparePrivateDirectory(at, true, privateRequired)
+  }
 }
