@@ -29,6 +29,8 @@ import type {
   TransportFailure,
   InvocationPolicy,
   PlanFailure,
+  PlanResult,
+  SendResult,
 } from '@omne-harness-lite/model-request-runtime'
 import { ownPlanInput, preflightMissingInputLimits } from './input.ts'
 import {
@@ -95,36 +97,57 @@ function rejectionHandle(failure: PlanFailure): ModelInvocationHandle {
     abort: () => {},
   })
 }
-/** A single stateless send. No log, registry, credentials factory, retry or global context. */
-export function invokeModel<P extends PlannedSemantics, R>(
-  input: InvocationInput<P, R>,
-): ModelInvocationHandle {
+function prepareInvocationInput<P extends PlannedSemantics, R>(input: InvocationInput<P, R>) {
   const owned = input && ownPlanInput(input)
   const missing = input && !owned ? preflightMissingInputLimits(input) : null
   const requested = owned ?? missing?.input
-  if (
-    !input ||
-    (!requested && !missing) ||
-    typeof input.credential !== 'string' ||
-    !input.credential.trim() ||
-    /[^\x20-\x7e]/.test(input.credential) ||
-    !(input.signal instanceof AbortSignal) ||
-    !policyValid(input.policy) ||
+  return { requested, missing }
+}
+function credentialValid<P extends PlannedSemantics, R>(input: InvocationInput<P, R>): boolean {
+  return (
+    typeof input.credential === 'string' &&
+    !!input.credential.trim() &&
+    !/[^\x20-\x7e]/.test(input.credential)
+  )
+}
+function callbacksValid<P extends PlannedSemantics, R>(input: InvocationInput<P, R>): boolean {
+  return !(
     (input.beforeSend !== undefined && typeof input.beforeSend !== 'function') ||
     (input.beforeFirstContent !== undefined && typeof input.beforeFirstContent !== 'function') ||
     (input.onAccepted !== undefined && typeof input.onAccepted !== 'function')
   )
-    return rejectionHandle({ rejected: 'invalidInput', reason: 'malformed' })
-  let bound: BoundCredentialRedaction
+}
+function invocationInputValid<P extends PlannedSemantics, R>(
+  input: InvocationInput<P, R>,
+): boolean {
+  return (
+    credentialValid(input) &&
+    input.signal instanceof AbortSignal &&
+    policyValid(input.policy) &&
+    callbacksValid(input)
+  )
+}
+function transportAvailable<P extends PlannedSemantics, R>(input: InvocationInput<P, R>): boolean {
+  return !(
+    !input.transport ||
+    typeof input.transport.plan !== 'function' ||
+    typeof input.transport.projectOutput !== 'function' ||
+    typeof input.transport.send !== 'function' ||
+    typeof input.transport.read !== 'function'
+  )
+}
+function bindInvocationCredential<P extends PlannedSemantics, R>(
+  input: InvocationInput<P, R>,
+): { bound: BoundCredentialRedaction } | { failureHandle: ModelInvocationHandle } {
   try {
     const policy = createCredentialRedactionPolicy(input.policy.credentialRedaction)
     const binding = policy.bind(input.credential)
     if ('rejected' in binding)
-      return rejectionHandle({ rejected: 'invalidInput', reason: 'malformed' })
-    bound = binding.ok
+      return { failureHandle: rejectionHandle({ rejected: 'invalidInput', reason: 'malformed' }) }
+    return { bound: binding.ok }
   } catch (error) {
     if (error instanceof CredentialRedactionConfigurationError)
-      return rejectionHandle({ rejected: 'invalidInput', reason: 'malformed' })
+      return { failureHandle: rejectionHandle({ rejected: 'invalidInput', reason: 'malformed' }) }
     try {
       const returned: unknown = input.policy.diagnostic({
         kind: 'model_invocation.policy_bind_defect',
@@ -133,13 +156,26 @@ export function invokeModel<P extends PlannedSemantics, R>(
     } catch {
       /* isolated diagnostic sink */
     }
-    return Object.freeze({
-      outcome: Promise.reject(new Error('model_invocation.policy_bind_defect')),
-      snapshot: () => ({ blocks: [], position: 0 }),
-      observedFacts: () => ({ unavailable: true }) as const,
-      abort: () => {},
-    })
+    return {
+      failureHandle: Object.freeze({
+        outcome: Promise.reject(new Error('model_invocation.policy_bind_defect')),
+        snapshot: () => ({ blocks: [], position: 0 }),
+        observedFacts: () => ({ unavailable: true }) as const,
+        abort: () => {},
+      }),
+    }
   }
+}
+/** A single stateless send. No log, registry, credentials factory, retry or global context. */
+export function invokeModel<P extends PlannedSemantics, R>(
+  input: InvocationInput<P, R>,
+): ModelInvocationHandle {
+  const { requested, missing } = prepareInvocationInput(input)
+  if (!input || (!requested && !missing) || !invocationInputValid(input))
+    return rejectionHandle({ rejected: 'invalidInput', reason: 'malformed' })
+  const binding = bindInvocationCredential(input)
+  if ('failureHandle' in binding) return binding.failureHandle
+  const bound = binding.bound
   let legacyDiagnosticEnabled = true
   const diagnose = (kind: string) => {
     if (!legacyDiagnosticEnabled) return
@@ -163,13 +199,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
     outcome: 'accepted',
     facts: { kind: 'decision', credentialPresent: true },
   })
-  if (
-    !input.transport ||
-    typeof input.transport.plan !== 'function' ||
-    typeof input.transport.projectOutput !== 'function' ||
-    typeof input.transport.send !== 'function' ||
-    typeof input.transport.read !== 'function'
-  ) {
+  if (!transportAvailable(input)) {
     diagnostics.record({
       source: 'invocation',
       stage: 'admission',
@@ -323,19 +353,10 @@ export function invokeModel<P extends PlannedSemantics, R>(
       rawHeaders: RawHeaders | undefined,
       headerFailure: TransportFailure | undefined
     let arrivalFailure = false
-    try {
-      if (controller.signal.aborted) return { cancelledBeforeSend: true }
-      diagnostics.record({
-        source: 'invocation',
-        stage: 'planning',
-        outcome: 'started',
-        facts: { kind: 'decision' },
-      })
-      const plan = await input.transport.plan(missing ? missing.original : input, {
-        signal: controller.signal,
-        ...(input.reuseScope === undefined ? {} : { reuseScope: input.reuseScope }),
-      })
-      if (controller.signal.aborted) return { cancelledBeforeSend: true }
+    function planningDecision(
+      plan: PlanResult<P>,
+    ): { planned: P } | { stopped: Exclude<InvocationOutcome, ModelInvocationResult> } {
+      if (controller.signal.aborted) return { stopped: { cancelledBeforeSend: true } }
       if (missing) {
         if (
           'rejected' in plan &&
@@ -344,8 +365,14 @@ export function invokeModel<P extends PlannedSemantics, R>(
             plan.rejected === 'orphan_tool_call' ||
             plan.rejected === 'tool_internal_in_request')
         )
-          return plan
-        return { rejected: 'invalidInput', reason: 'input_limit_missing', metrics: missing.metrics }
+          return { stopped: plan }
+        return {
+          stopped: {
+            rejected: 'invalidInput',
+            reason: 'input_limit_missing',
+            metrics: missing.metrics,
+          },
+        }
       }
       if ('rejected' in plan) {
         diagnostics.record({
@@ -354,9 +381,23 @@ export function invokeModel<P extends PlannedSemantics, R>(
           outcome: 'rejected',
           facts: { kind: 'decision' },
         })
-        return plan
+        return { stopped: plan }
       }
-      planned = plan.planned
+      return { planned: plan.planned }
+    }
+    function requestPlan(): Promise<PlanResult<P>> {
+      diagnostics.record({
+        source: 'invocation',
+        stage: 'planning',
+        outcome: 'started',
+        facts: { kind: 'decision' },
+      })
+      return input.transport.plan(missing ? missing.original : input, {
+        signal: controller.signal,
+        ...(input.reuseScope === undefined ? {} : { reuseScope: input.reuseScope }),
+      })
+    }
+    function recordPlanned(planned: P): void {
       const measurementDiagnostic = projectCalibrationDiagnostic(planned, bound)
       if (measurementDiagnostic) {
         diagnostics.record({
@@ -388,40 +429,24 @@ export function invokeModel<P extends PlannedSemantics, R>(
       } catch {
         diagnose('model_invocation.diagnostic_projection_failed')
       }
-      if (controller.signal.aborted) return { cancelledBeforeSend: true }
+    }
+    function sendAdmission():
+      { sentAt: string } | { stopped: Exclude<InvocationOutcome, ModelInvocationResult> } {
+      if (controller.signal.aborted) return { stopped: { cancelledBeforeSend: true } }
       deadline(input.policy.firstContentTimeoutMs)
       const actualAt = input.policy.now()
       let admitted: unknown = true
       try {
         if (input.beforeSend !== undefined) admitted = input.beforeSend()
       } catch {
-        return { rejected: 'unavailable' }
+        return { stopped: { rejected: 'unavailable' } }
       }
-      if (admitted !== true && admitted !== false) return { rejected: 'unavailable' }
-      if (!admitted || controller.signal.aborted) return { cancelledBeforeSend: true }
+      if (admitted !== true && admitted !== false) return { stopped: { rejected: 'unavailable' } }
+      if (!admitted || controller.signal.aborted) return { stopped: { cancelledBeforeSend: true } }
       sentAt = actualAt
-      diagnostics.record({
-        source: 'invocation',
-        stage: 'send',
-        outcome: 'started',
-        facts: { kind: 'transport', requestedProvider: input.provider },
-      })
-      const sent = await input.transport.send(
-        planned,
-        input.credential,
-        controller.signal,
-        diagnostics.transport,
-      )
-      diagnostics.record({
-        source: 'invocation',
-        stage: 'send',
-        outcome: 'response' in sent ? 'accepted' : 'failed',
-        facts: { kind: 'transport', requestedProvider: input.provider },
-      })
-      if ('rejected' in sent)
-        return sent.rejected === 'invalidInput'
-          ? { rejected: 'invalidInput', reason: 'malformed' }
-          : { rejected: 'unavailable' }
+      return { sentAt: actualAt }
+    }
+    function retainSendHeaders(sent: Exclude<SendResult<R>, { readonly rejected: unknown }>): void {
       if (sent.rawHeaders !== undefined) {
         if (ownedHeaders(sent.rawHeaders)) {
           rawHeaders = sent.rawHeaders
@@ -435,6 +460,28 @@ export function invokeModel<P extends PlannedSemantics, R>(
           controller.abort()
         }
       }
+    }
+    function receiveSend(
+      sent: SendResult<R>,
+      planned: P,
+    ):
+      | { failure: PlanFailure }
+      | { reader: AsyncGenerator<ArrivalEvent, StreamEnd> }
+      | { terminal: true } {
+      diagnostics.record({
+        source: 'invocation',
+        stage: 'send',
+        outcome: 'response' in sent ? 'accepted' : 'failed',
+        facts: { kind: 'transport', requestedProvider: input.provider },
+      })
+      if ('rejected' in sent)
+        return {
+          failure:
+            sent.rejected === 'invalidInput'
+              ? { rejected: 'invalidInput', reason: 'malformed' }
+              : { rejected: 'unavailable' },
+        }
+      retainSendHeaders(sent)
       if ('response' in sent) {
         const reader = input.transport.read(
           sent.response,
@@ -443,67 +490,72 @@ export function invokeModel<P extends PlannedSemantics, R>(
           diagnostics.transport,
         )
         readerStopped = false
-        try {
-          while (true) {
-            const next = await reader.next()
-            if (next.done) {
-              end = next.value
-              readerStopped = true
-              break
-            }
-            const event = next.value
-            if (controller.signal.aborted || arrivalFailure) continue
-            // Use the real assembler to determine whether the candidate first event has content.
-            const candidate = accept(state, event)
-            if ('rejected' in candidate) {
-              arrivalFailure = true
-              controller.abort()
-              diagnose('model_invocation.arrival_rejected')
-              continue
-            }
-            const becameContent =
-              snapshot(state).firstContentAt === undefined &&
-              snapshot(candidate.ok).firstContentAt !== undefined
-            if (becameContent && firstTokenAt === undefined) {
-              if (!(await firstGate())) {
-                gateFailed = !controller.signal.aborted
-                controller.abort()
-                continue
-              }
-              firstTokenAt = input.policy.now()
-              deadline(input.policy.idleContentTimeoutMs)
-            } else if (firstTokenAt !== undefined && event.t === 'fill')
-              deadline(input.policy.idleContentTimeoutMs)
-            if (controller.signal.aborted) continue
-            try {
-              consume(event)
-            } catch {
-              arrivalFailure = true
-              controller.abort()
-              diagnose('model_invocation.arrival_rejected')
-              continue
-            }
-            if (becameContent && snapshot(state).firstContentAt !== undefined)
-              diagnostics.record({
-                source: 'invocation',
-                stage: 'first_content',
-                outcome: 'accepted',
-                facts: { kind: 'transport', stream: 'first_content' },
-              })
-          }
-        } finally {
-          // Ordinary abort and rejection drive next() to the reader's owned final facts.
-          // This closes only a provider that threw instead of handing those facts over.
-          if (!readerStopped) {
-            controller.abort()
-            await reader.return({ aborted: true, readFacts: noReadFacts })
-          }
-          readerStopped = true
-        }
+        return { reader }
       } else if ('failed' in sent) end = { failed: sent.failed, readFacts: noReadFacts }
       else if ('aborted' in sent)
         end = { aborted: true, ...(sent.queued ? { queued: true } : {}), readFacts: noReadFacts }
-      if (end === undefined) throw new Error('transport omitted terminal facts')
+      return { terminal: true }
+    }
+    function prepareArrival(
+      event: ArrivalEvent,
+    ): { event: ArrivalEvent; becameContent: boolean } | undefined {
+      if (controller.signal.aborted || arrivalFailure) return undefined
+      // Use the real assembler to determine whether the candidate first event has content.
+      const candidate = accept(state, event)
+      if ('rejected' in candidate) {
+        arrivalFailure = true
+        controller.abort()
+        diagnose('model_invocation.arrival_rejected')
+        return undefined
+      }
+      const becameContent =
+        snapshot(state).firstContentAt === undefined &&
+        snapshot(candidate.ok).firstContentAt !== undefined
+      return { event, becameContent }
+    }
+    function prepareStreamArrival(
+      event: ArrivalEvent,
+    ):
+      | { arrival: { event: ArrivalEvent; becameContent: boolean }; gate: Promise<boolean> }
+      | undefined {
+      const arrival = prepareArrival(event)
+      if (arrival === undefined) return undefined
+      if (arrival.becameContent && firstTokenAt === undefined) return { arrival, gate: firstGate() }
+      consumeArrival(arrival, false)
+      return undefined
+    }
+    function rejectArrivalGate(): void {
+      gateFailed = !controller.signal.aborted
+      controller.abort()
+    }
+    function consumeArrival(
+      arrival: { event: ArrivalEvent; becameContent: boolean },
+      gated: boolean,
+    ): void {
+      const { event, becameContent } = arrival
+      if (gated) {
+        firstTokenAt = input.policy.now()
+        deadline(input.policy.idleContentTimeoutMs)
+      } else if (firstTokenAt !== undefined && event.t === 'fill')
+        deadline(input.policy.idleContentTimeoutMs)
+      if (controller.signal.aborted) return
+      try {
+        consume(event)
+      } catch {
+        arrivalFailure = true
+        controller.abort()
+        diagnose('model_invocation.arrival_rejected')
+        return
+      }
+      if (becameContent && snapshot(state).firstContentAt !== undefined)
+        diagnostics.record({
+          source: 'invocation',
+          stage: 'first_content',
+          outcome: 'accepted',
+          facts: { kind: 'transport', stream: 'first_content' },
+        })
+    }
+    function retainStreamEnd(end: StreamEnd): void {
       retainedServing = end
       diagnostics.record({
         source: 'invocation',
@@ -517,9 +569,11 @@ export function invokeModel<P extends PlannedSemantics, R>(
             : {}),
         },
       })
+    }
+    function acceptedStreamEnd(end: StreamEnd): StreamEnd {
       if (headerFailure !== undefined || arrivalFailure) {
         const stopped = end
-        end = {
+        return {
           readFacts: stopped.readFacts,
           ...(stopped.upstreamModel === undefined ? {} : { upstreamModel: stopped.upstreamModel }),
           ...(stopped.servingProvider === undefined
@@ -532,65 +586,80 @@ export function invokeModel<P extends PlannedSemantics, R>(
           failed: headerFailure ?? { source: 'local', localError: 'arrival_rejected' },
         }
       }
-      const visible = snapshot(state).firstContentAt !== undefined
-      let failure: Failure | undefined, reason: 'end' | 'max_tokens' | 'interrupted' | 'lost'
+      return end
+    }
+    function timeoutFailure(end: StreamEnd, visible: boolean): Failure {
+      const queued = 'aborted' in end && end.queued === true
+      return {
+        cause: visible ? 'interrupted_mid_reply' : queued ? 'unrecognized' : 'upstream_unavailable',
+        localError: visible
+          ? 'content_timeout'
+          : queued
+            ? 'local_queue_timeout'
+            : 'first_content_timeout',
+      }
+    }
+    function streamFailure(
+      end: Extract<StreamEnd, { readonly failed: unknown }>,
+      visible: boolean,
+    ): Failure {
+      const { localError: _generatedStage, ...headerFact } = end.failed
+      const processed = processFailure(
+        headerFailure === undefined ? end.failed : headerFact,
+        bound,
+        diagnose,
+      )
+      if (processed.processingFailed) controller.abort()
+      const fact = processed.fact
+      const base = {
+        cause: classifyCause(fact, visible, input.policy.statusCauseTable),
+        ...(fact.upstreamError ? { upstreamError: fact.upstreamError } : {}),
+        ...(headerFailure !== undefined
+          ? { localError: 'response_headers_port' }
+          : fact.localError
+            ? { localError: fact.localError }
+            : {}),
+      }
+      return fact.inBand
+        ? { ...base, inBand: true, statusCode: fact.statusCode }
+        : { ...base, ...(fact.statusCode === undefined ? {} : { statusCode: fact.statusCode }) }
+    }
+    function terminalDecision(
+      end: StreamEnd,
+      visible: boolean,
+    ): { reason: 'end' | 'max_tokens' | 'interrupted' | 'lost'; failure?: Failure } {
       if (gateFailed) {
-        failure = { cause: 'unrecognized', localError: 'before_first_content' }
-        reason = 'lost'
+        return {
+          failure: { cause: 'unrecognized', localError: 'before_first_content' },
+          reason: 'lost',
+        }
       }
       // The transport may already have stopped normally while yielding its final close/account.
       // A later abort from such a callback cannot replace that established terminal fact.
       else if ('ended' in end && visible) {
-        reason = end.ended
+        return { reason: end.ended }
       } else if (explicitlyCancelled) {
-        reason = 'interrupted'
+        return { reason: 'interrupted' }
       } else if (timedOut) {
-        const queued = 'aborted' in end && end.queued === true
-        failure = {
-          cause: visible
-            ? 'interrupted_mid_reply'
-            : queued
-              ? 'unrecognized'
-              : 'upstream_unavailable',
-          localError: visible
-            ? 'content_timeout'
-            : queued
-              ? 'local_queue_timeout'
-              : 'first_content_timeout',
-        }
-        reason = 'lost'
+        return { failure: timeoutFailure(end, visible), reason: 'lost' }
       } else if ('rejected' in end) {
-        failure = { cause: 'unrecognized', localError: `transport_read_${end.rejected}` }
-        reason = 'lost'
-      } else if ('failed' in end) {
-        const { localError: _generatedStage, ...headerFact } = end.failed
-        const processed = processFailure(
-          headerFailure === undefined ? end.failed : headerFact,
-          bound,
-          diagnose,
-        )
-        if (processed.processingFailed) controller.abort()
-        const fact = processed.fact
-        const base = {
-          cause: classifyCause(fact, visible, input.policy.statusCauseTable),
-          ...(fact.upstreamError ? { upstreamError: fact.upstreamError } : {}),
-          ...(headerFailure !== undefined
-            ? { localError: 'response_headers_port' }
-            : fact.localError
-              ? { localError: fact.localError }
-              : {}),
+        return {
+          failure: { cause: 'unrecognized', localError: `transport_read_${end.rejected}` },
+          reason: 'lost',
         }
-        failure = fact.inBand
-          ? { ...base, inBand: true, statusCode: fact.statusCode }
-          : { ...base, ...(fact.statusCode === undefined ? {} : { statusCode: fact.statusCode }) }
-        reason = 'lost'
+      } else if ('failed' in end) {
+        return { failure: streamFailure(end, visible), reason: 'lost' }
       } else if ('aborted' in end) {
-        reason = 'interrupted'
+        return { reason: 'interrupted' }
       } else if (!visible) {
-        failure = { cause: 'upstream_unavailable', localError: 'empty model response' }
-        reason = 'lost'
-      } else reason = end.ended
-      const error: ArrivalError | undefined = failure
+        return {
+          failure: { cause: 'upstream_unavailable', localError: 'empty model response' },
+          reason: 'lost',
+        }
+      } else return { reason: end.ended }
+    }
+    function arrivalError(failure: Failure | undefined): ArrivalError | undefined {
+      return failure
         ? {
             cause: failure.cause,
             ...(failure.inBand
@@ -600,37 +669,42 @@ export function invokeModel<P extends PlannedSemantics, R>(
                 : { statusCode: failure.statusCode }),
           }
         : undefined
-      consume(
-        reason === 'lost'
-          ? { t: 'finish', reason, ...(error ? { error } : {}) }
-          : { t: 'finish', reason },
-      )
-      const settled = closeOut(state)
-      if ('rejected' in settled || !('usage' in settled.ok.account))
-        throw new Error('model assembler did not settle')
-      const account = settled.ok.account
-      retainedAccount = account
-      const outcome =
-        reason === 'end'
-          ? 'complete'
-          : reason === 'max_tokens'
-            ? 'truncated'
-            : reason === 'interrupted'
-              ? 'interrupted'
-              : 'failed'
-      const outputSource =
-        settled.ok.blocks.length === 0
-          ? 'none'
-          : outcome === 'complete' ||
-              outcome === 'truncated' ||
-              (outcome === 'interrupted' && visible)
-            ? 'reply'
-            : 'delivered'
+    }
+    function responseOutcome(
+      reason: 'end' | 'max_tokens' | 'interrupted' | 'lost',
+    ): ModelInvocationResult['outcome'] {
+      return reason === 'end'
+        ? 'complete'
+        : reason === 'max_tokens'
+          ? 'truncated'
+          : reason === 'interrupted'
+            ? 'interrupted'
+            : 'failed'
+    }
+    function outputSource(
+      settled: Extract<ReturnType<typeof closeOut>, { readonly ok: unknown }>,
+      outcome: ModelInvocationResult['outcome'],
+      visible: boolean,
+    ): 'none' | 'reply' | 'delivered' {
+      return settled.ok.blocks.length === 0
+        ? 'none'
+        : outcome === 'complete' ||
+            outcome === 'truncated' ||
+            (outcome === 'interrupted' && visible)
+          ? 'reply'
+          : 'delivered'
+    }
+    function projectOutputGroup(
+      planned: P,
+      settled: Extract<ReturnType<typeof closeOut>, { readonly ok: unknown }>,
+      source: 'none' | 'reply' | 'delivered',
+      end: StreamEnd,
+    ): OutputGroupEvidence {
       let outputGroup: OutputGroupEvidence = { kind: 'unavailable', reason: 'not_retained' }
       try {
         const projected = input.transport.projectOutput(planned, {
           blocks: settled.ok.blocks,
-          source: outputSource,
+          source,
           completeness: 'ended' in end ? 'complete' : 'partial',
         })
         if ('projected' in projected) outputGroup = projected.projected
@@ -638,32 +712,32 @@ export function invokeModel<P extends PlannedSemantics, R>(
       } catch {
         diagnose('model_invocation.output_projection_failed')
       }
-      const inputCalibration: InputCalibration = Object.freeze({
-        requestInput: planned.requestInput,
-        observedInput: end.readFacts.observedInput,
-        outputGroup,
-      })
-      retainedCalibration = inputCalibration
-      const value: ModelInvocationResult = {
-        inputCalibration,
-        outcome,
-        ...(rawHeaders === undefined ? {} : { rawHeaders }),
-        blocks: settled.ok.blocks,
-        ...(outcome === 'complete'
-          ? { ending: 'complete' }
-          : outcome === 'truncated'
-            ? { ending: 'truncated_at_limit' }
-            : outcome === 'interrupted' && visible
-              ? { ending: 'interrupted_by_user' }
-              : {}),
-        ...(failure ? { failure } : {}),
-        timing: {
-          sentAt,
-          ...(firstTokenAt === undefined ? {} : { firstTokenAt }),
-          endedAt: input.policy.now(),
-        },
-        usage: end.readFacts.usage,
-        cost: end.readFacts.cost,
+      return outputGroup
+    }
+    function responseEnding(
+      outcome: ModelInvocationResult['outcome'],
+      visible: boolean,
+    ): Pick<ModelInvocationResult, 'ending'> {
+      return outcome === 'complete'
+        ? { ending: 'complete' }
+        : outcome === 'truncated'
+          ? { ending: 'truncated_at_limit' }
+          : outcome === 'interrupted' && visible
+            ? { ending: 'interrupted_by_user' }
+            : {}
+    }
+    function plannedResultFields(
+      planned: P,
+    ): Pick<
+      ModelInvocationResult,
+      | 'routeName'
+      | 'provider'
+      | 'adaptation'
+      | 'parameters'
+      | 'parameterAdjustments'
+      | 'droppedParameters'
+    > {
+      return {
         routeName: planned.input.routeName,
         provider: planned.input.provider,
         adaptation: planned.input.snapshot.adaptation,
@@ -672,39 +746,44 @@ export function invokeModel<P extends PlannedSemantics, R>(
           ? { parameterAdjustments: planned.parameterAdjustments }
           : {}),
         ...(planned.droppedParameters ? { droppedParameters: planned.droppedParameters } : {}),
+      }
+    }
+    function servingResultFields(
+      end: StreamEnd,
+    ): Pick<
+      ModelInvocationResult,
+      'upstreamModel' | 'servingProvider' | 'upstreamRequestId' | 'stopReason'
+    > {
+      return {
         ...(end.upstreamModel ? { upstreamModel: end.upstreamModel } : {}),
         ...(end.servingProvider ? { servingProvider: end.servingProvider } : {}),
         ...(end.upstreamRequestId ? { upstreamRequestId: end.upstreamRequestId } : {}),
         ...(end.stopReason ? { stopReason: end.stopReason } : {}),
-        ...(hasTrims(account.trims) ? { trims: account.trims } : {}),
       }
-      completed = Object.freeze(value)
-      diagnostics.record({
-        source: 'invocation',
-        stage: 'reply_handoff',
-        outcome: 'completed',
-        facts: {
-          kind: 'progress',
-          responseOutcome: outcome,
-          ...(end.readFacts.usage.input_tokens === 'unknown'
-            ? {}
-            : { inputTokens: end.readFacts.usage.input_tokens }),
-          ...(end.readFacts.usage.output_tokens === 'unknown'
-            ? {}
-            : { outputTokens: end.readFacts.usage.output_tokens }),
-          ...(end.readFacts.usage.cache_read_tokens === 'unknown'
-            ? {}
-            : { cacheReadTokens: end.readFacts.usage.cache_read_tokens }),
-          ...(end.readFacts.usage.cache_write_tokens === 'unknown'
-            ? {}
-            : { cacheWriteTokens: end.readFacts.usage.cache_write_tokens }),
-          ...(end.readFacts.cost.cost_usd === 'unknown'
-            ? {}
-            : { costUsd: end.readFacts.cost.cost_usd }),
-        },
-      })
-      return completed
-    } finally {
+    }
+    function accountTrims(account: ModelAssemblyAccount): Pick<ModelInvocationResult, 'trims'> {
+      return hasTrims(account.trims) ? { trims: account.trims } : {}
+    }
+    function handoffMeasurements(end: StreamEnd) {
+      return {
+        ...(end.readFacts.usage.input_tokens === 'unknown'
+          ? {}
+          : { inputTokens: end.readFacts.usage.input_tokens }),
+        ...(end.readFacts.usage.output_tokens === 'unknown'
+          ? {}
+          : { outputTokens: end.readFacts.usage.output_tokens }),
+        ...(end.readFacts.usage.cache_read_tokens === 'unknown'
+          ? {}
+          : { cacheReadTokens: end.readFacts.usage.cache_read_tokens }),
+        ...(end.readFacts.usage.cache_write_tokens === 'unknown'
+          ? {}
+          : { cacheWriteTokens: end.readFacts.usage.cache_write_tokens }),
+        ...(end.readFacts.cost.cost_usd === 'unknown'
+          ? {}
+          : { costUsd: end.readFacts.cost.cost_usd }),
+      }
+    }
+    function retainStoppedAccount(): void {
       // The original assembler owns accepted account and trim facts. A stopped stream
       // without a finish is abandoned only inside this terminated invocation owner.
       if (readerStopped && retainedAccount === undefined) {
@@ -716,6 +795,8 @@ export function invokeModel<P extends PlannedSemantics, R>(
           // Without an actual assembler settlement, facts remain unavailable.
         }
       }
+    }
+    function retainMissingCalibration(planned: P | undefined): void {
       if (retainedCalibration === undefined) {
         retainedCalibration =
           sentAt === undefined
@@ -733,6 +814,8 @@ export function invokeModel<P extends PlannedSemantics, R>(
                 outputGroup: { kind: 'unavailable', reason: 'not_retained' },
               }
       }
+    }
+    function stopInvocation(): void {
       terminal = true
       disposeTimer()
       input.signal.removeEventListener('abort', cancel)
@@ -746,6 +829,125 @@ export function invokeModel<P extends PlannedSemantics, R>(
           facts: { kind: 'transport' },
         })
       diagnostics.close()
+    }
+    function settleResult(
+      planned: P,
+      receivedEnd: StreamEnd | undefined,
+      startedAt: string,
+    ): ModelInvocationResult {
+      if (receivedEnd === undefined) throw new Error('transport omitted terminal facts')
+      let end = receivedEnd
+      retainStreamEnd(end)
+      end = acceptedStreamEnd(end)
+      const visible = snapshot(state).firstContentAt !== undefined
+      const { failure, reason } = terminalDecision(end, visible)
+      const error = arrivalError(failure)
+      consume(
+        reason === 'lost'
+          ? { t: 'finish', reason, ...(error ? { error } : {}) }
+          : { t: 'finish', reason },
+      )
+      const settled = closeOut(state)
+      if ('rejected' in settled || !('usage' in settled.ok.account))
+        throw new Error('model assembler did not settle')
+      const account = settled.ok.account
+      retainedAccount = account
+      const outcome = responseOutcome(reason)
+      const source = outputSource(settled, outcome, visible)
+      const outputGroup = projectOutputGroup(planned, settled, source, end)
+      const inputCalibration: InputCalibration = Object.freeze({
+        requestInput: planned.requestInput,
+        observedInput: end.readFacts.observedInput,
+        outputGroup,
+      })
+      retainedCalibration = inputCalibration
+      const value: ModelInvocationResult = {
+        inputCalibration,
+        outcome,
+        ...(rawHeaders === undefined ? {} : { rawHeaders }),
+        blocks: settled.ok.blocks,
+        ...responseEnding(outcome, visible),
+        ...(failure ? { failure } : {}),
+        timing: {
+          sentAt: startedAt,
+          ...(firstTokenAt === undefined ? {} : { firstTokenAt }),
+          endedAt: input.policy.now(),
+        },
+        usage: end.readFacts.usage,
+        cost: end.readFacts.cost,
+        ...plannedResultFields(planned),
+        ...servingResultFields(end),
+        ...accountTrims(account),
+      }
+      completed = Object.freeze(value)
+      diagnostics.record({
+        source: 'invocation',
+        stage: 'reply_handoff',
+        outcome: 'completed',
+        facts: {
+          kind: 'progress',
+          responseOutcome: outcome,
+          ...handoffMeasurements(end),
+        },
+      })
+      return completed
+    }
+    try {
+      if (controller.signal.aborted) return { cancelledBeforeSend: true }
+      const plan = await requestPlan()
+      const decision = planningDecision(plan)
+      if ('stopped' in decision) return decision.stopped
+      planned = decision.planned
+      recordPlanned(planned)
+      const sendDecision = sendAdmission()
+      if ('stopped' in sendDecision) return sendDecision.stopped
+      diagnostics.record({
+        source: 'invocation',
+        stage: 'send',
+        outcome: 'started',
+        facts: { kind: 'transport', requestedProvider: input.provider },
+      })
+      const sent = await input.transport.send(
+        planned,
+        input.credential,
+        controller.signal,
+        diagnostics.transport,
+      )
+      const received = receiveSend(sent, planned)
+      if ('failure' in received) return received.failure
+      if ('reader' in received) {
+        const reader = received.reader
+        try {
+          while (true) {
+            const next = await reader.next()
+            if (next.done) {
+              end = next.value
+              readerStopped = true
+              break
+            }
+            const gated = prepareStreamArrival(next.value)
+            if (gated === undefined) continue
+            if (!(await gated.gate)) {
+              rejectArrivalGate()
+              continue
+            }
+            consumeArrival(gated.arrival, true)
+          }
+        } finally {
+          // Ordinary abort and rejection drive next() to the reader's owned final facts.
+          // This closes only a provider that threw instead of handing those facts over.
+          if (!readerStopped) {
+            controller.abort()
+            await reader.return({ aborted: true, readFacts: noReadFacts })
+          }
+          readerStopped = true
+        }
+      }
+      return settleResult(planned, end, sendDecision.sentAt)
+    } finally {
+      retainStoppedAccount()
+      retainMissingCalibration(planned)
+      stopInvocation()
     }
   }
   const outcome = run()
