@@ -20,7 +20,7 @@
 
 **领域与能力独立于 Cordis 建模。**Cordis 是内核，是全系统集成装配时要满足的契约规范——做出来的东西要能以
 fiber、plugin、service、inject 的方式集成装配；它不是建模的视角。契约定下之后才轮到它，
-对不上先换提供者设计，不改契约去迁就机制（[D-112](design/record/decisions/cordis-as-assembly-contract/README.md)）。
+对不上先换提供者设计，不改契约去迁就机制（D-112）。
 
 能力维度按独立责任与变化边界划分，不由通用关注点表预设。先判断现有能力能否承载，
 再辨别组合、扩展、提供者修复或新的独立责任；**缺资料、缺实现和缺语义分别处理**。
@@ -43,7 +43,7 @@ fiber、plugin、service、inject 的方式集成装配；它不是建模的视�
 
 | 拥有者 | 保存什么 |
 |---|---|
-| [design/](design/README.md) | 待设计系统的设计链：统一语言、产品、领域对象、基础前提、机制条目、规格、实现映射、已发生的事、身份清单、派生视图 |
+| [design/](design/README.md) | 待设计系统的设计链：统一语言、产品、领域对象、基础前提、机制条目、规格、实现映射、身份清单、派生视图 |
 | [research/](research/README.md) | 核实事实、版本化观察、推断与局限。**不拥有方案选择** |
 | [agents/](agents/README.md) | skills 与 roles 的 canonical 源、宿主适配与评估证据 |
 | [tooling/](tooling/README.md) | 确定性的生成、检查与项目链接 |
@@ -58,7 +58,7 @@ fiber、plugin、service、inject 的方式集成装配；它不是建模的视�
   **要引入新概念先加词条，定义清楚之后才能在正文里用**——顺序是硬的，反过来做查重和自检都会走过场。
 - **同一含义只有一个权威拥有者。**冲突先定位条款、精确版本、接受依据与消费者；
   不把实现倒写成规格，也不在本文件裁决未定政策。**规格只留最新一版**，修订过接受门、旧版及时删；
-  新维护位置及部分取代见[架构维护入口](design/architecture/README.md)与 [D-115](design/record/decisions/actual-architecture-and-thin-spec/README.md)；
+  新维护位置及部分取代见[架构维护入口](design/architecture/README.md)与 D-115；
   未迁单元的冻结与过渡规矩仍归[规格区入口](design/spec/README.md)。
 - **研究、候选、接受与实际兑现各有依据，不互相冒充。**有效决定在其前提与范围内
   继续约束后续设计；复议要说明新依据和取代范围，不靠重新措辞重开争论。

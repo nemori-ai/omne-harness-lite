@@ -1,5 +1,5 @@
-import schema from '@omne-harness-lite/skill-package/schema' with { type: 'json' }
-import previousSchema from '@omne-harness-lite/skill-package/schema/v2' with { type: 'json' }
+import schemaInput from '@omne-harness-lite/skill-package/schema' with { type: 'json' }
+import previousSchemaInput from '@omne-harness-lite/skill-package/schema/v2' with { type: 'json' }
 import contentSchema from '@omne-harness-lite/content-blocks/schema/v2' with { type: 'json' }
 import assetSchema from '@omne-harness-lite/asset-model/schema/v2' with { type: 'json' }
 import toolSchema from '@omne-harness-lite/tool-definition/schema/v2' with { type: 'json' }
@@ -11,7 +11,9 @@ export const SCHEMA_DEF_NAMES = [
   'SkillPackage',
 ] as const
 
-export { schema, previousSchema }
+// Export values so emitted declarations do not contain attribute-free JSON imports.
+export const schema = schemaInput
+export const previousSchema = previousSchemaInput
 export const previousResources = [contentSchema, assetSchema, toolSchema, previousSchema]
 export const resources = [...previousResources, schema]
 export const schemaGraphs = [

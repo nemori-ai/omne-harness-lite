@@ -48,11 +48,14 @@ function sameEntry(expected: OwnedLogEntry, actual: LogEntry): boolean {
 }
 
 /** Construct once per physical owner. The application retains this controller after service disposal. */
-export function createSessionLogBacking(source: SessionLog) {
+export function createSessionLogBacking(
+  source: SessionLog,
+  ownerGeneration: string = randomUUID(),
+) {
   let admitting = true
   const borrows = new Set<{ readonly release: () => Promise<void> }>()
   const operations: SessionLogBackingOperations = {
-    ownerGeneration: randomUUID(),
+    ownerGeneration,
     borrow() {
       if (!admitting) throw new Error('session log backing stopped')
       let open = true

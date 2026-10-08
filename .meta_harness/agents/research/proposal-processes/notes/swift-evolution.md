@@ -87,17 +87,3 @@
 **观察**：`Review` 字段是本轮见到的、唯一把「决定过程的每一步各留一个可定位链接」做成封闭词表的形态。
 
 另有 `commonly_proposed.md`（LSG 维护的「常被提出且已被否决」清单），作用与 PEP 的 `Rejected Ideas` 同向，但它是**跨提案的**、项目级的。
-
-## 5. 与本项目骨架的对照（推断）
-
-- **值得引入**：`be fair but not neutral` 的措辞——本项目要求「否决方公平陈述」，Swift 的版本更可执行：必须写出备选的优点，但不必假装中立。
-- **值得引入**：`Review` 字段的封闭词表 + `Previous Revision` 指向被评审过的确切版本——这与本项目「引用要能定位」「已发布规格不可原地覆盖」同构。
-- **值得引入**：项目级的 `commonly_proposed.md`——比每份提案各自记 `Rejected Ideas` 更省，且正对本项目「防止同一候选被反复提出」的需要。
-- **不适合**：`The proposal cannot be reviewed until an implementation is available`——Swift 的门是「先有实现」，本项目在设计与规格建模阶段，这条门会把候选阶段压死（与骨架第 5 条「三个候选 ≠ 三个原型」直接冲突）。
-
-## 6. 局限与未覆盖
-
-- 只读 `process.md` 与语言版模板；未读 package manager / testing 两个 evolution area 的补充要求，也未读 `commonly_proposed.md` 正文。
-- 未统计实际 SE 提案中 `Alternatives considered` 的填充率与长度。
-- 未覆盖 workgroup 内部如何形成决定（会议纪要、是否有 sign-off 机制）——`process.md` 只说「workgroup 决定」。
-- 未覆盖 Swift 社区对 AI 撰写提案的政策（本轮未检索）。

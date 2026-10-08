@@ -1,6 +1,0 @@
-
-> omne-harness-lite-workspace@ format:check /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-model-profile
-> ./scripts/format.sh check -- packages/core/model-profile/package.json packages/core/model-profile/src/index.ts packages/core/model-profile/src/json.ts packages/core/model-profile/src/numbers.ts packages/core/model-profile/src/parameters.ts packages/core/model-profile/src/profile.ts packages/core/model-profile/src/schema.ts packages/core/model-profile/src/types.ts packages/core/model-profile/tests/behavior.spec.ts packages/core/model-profile/tests/examples.spec.ts packages/core/model-profile/tests/types.spec-d.ts packages/core/model-profile/tsconfig.build.json packages/core/model-profile/tsconfig.test.json packages/core/model-profile/vitest.config.ts
-
-Checking formatting...
-All matched files use Prettier code style!

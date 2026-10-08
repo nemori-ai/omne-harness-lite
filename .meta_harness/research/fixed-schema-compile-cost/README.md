@@ -11,7 +11,7 @@ CLI 启动或整套测试的收益——那归 #65 的提案与决定。
   源码末次变更 `99d8a08af`）；Ajv `8.20.0`（仓库锁定，`node_modules/.pnpm/ajv@8.20.0`）；Node `v24.21.0`；
   替代库 `typebox@1.3.34`、`@sinclair/typebox@0.34.52`、`@exodus/schemasafe@1.3.0`、`@cfworker/json-schema@4.1.1`、`@hyperjump/json-schema@1.17.8`；
   同行 DSH `639ed015`、pi `a13d35a7`（v1.0.0）；取证 2026-10-02。
-- 消费者：#65 的提案与决定（待出现于 [record/proposals](../../design/record/proposals/README.md)、[record/decisions](../../design/record/decisions/README.md)）。
+- 消费者：固定 Schema 构造与发布的实际拥有者；采用范围见对应模块正文，比较与采用过程留本工作树 tmp。
 - 最近核对：2026-10-02 / 上述版本。
 
 ## 准入核对
@@ -38,6 +38,6 @@ CLI 启动或整套测试的收益——那归 #65 的提案与决定。
 
 ## 2026-10-03 接续
 
-原稿作为前次研究保全，不把当时未出现的决定或未复跑报告改为已接受。新增实际观察见[本轮目录](2026-10-03/README.md)，消费入口为[正式候选提案](../../design/record/proposals/fixed-schema-precompile/README.md)。当前仍没有全导入图／CLI／PI／全成员五轮交替性能结论。
+原稿作为前次研究保全，不把当时未出现的决定或未复跑报告改为已接受。新增实际观察见[本轮目录](2026-10-03/README.md)，消费入口为正式候选提案。当前仍没有全导入图／CLI／PI／全成员五轮交替性能结论。
 
 原上游文档快照与前次输出归upstream；原Markdown按原文文本保留，字节摘要未变。只有本topic的研究正文参与本仓库导航。

@@ -28,4 +28,4 @@
 | 实际跑过什么、覆盖到哪里           | [验证与证据](verification.md)  |
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
-契约语义变化回 [spec](../../../spec/README.md)，采用选择回 [record/decisions](../../../record/decisions/README.md)。
+契约语义变化回 [spec](../../../spec/README.md)，当前选择与必要理由归本节点，接受过程放执行工作树 tmp。

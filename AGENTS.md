@@ -24,6 +24,8 @@ Cordis 直接使用官方发布包。维护边界归 [SYS-KERNEL](.meta_harness/
 
 以上是[系统目标与全局约束](.meta_harness/design/foundation/README.md)的简短投影。系统目标是后续建模、能力定义、设计与产品化的前提和基础；具体采用边界、接受状态和未决事项沿相应入口展开。架构与实现现状不写在这里：从[架构维护入口](.meta_harness/design/architecture/README.md)定位实际数据与承诺拥有者；未迁单元继续查[身份清单](.meta_harness/design/registry/README.md)与[实现映射](.meta_harness/design/realization/README.md)。**产品设计不是架构结论**。
 
+新建或按新结构整改产品包时，使用[版本化包模板入口](docs/development.md#创建和整改产品包)，先核对已接受的职责再创建，不手写另一套骨架。模板标识只记录结构采用，不替代接口、行为或架构验收。
+
 ## `.meta_harness/` 拥有什么，外面做什么
 
 [`.meta_harness/`](.meta_harness/AGENTS.md) 是可独立迁出的私有设计工作区。
@@ -36,7 +38,7 @@ Cordis 直接使用官方发布包。维护边界归 [SYS-KERNEL](.meta_harness/
 | 领域对象            | 跨 topic 收齐的「系统里有哪些有身份的对象」——产品设计与架构、规格之间的那一站 |
 | 系统架构与规格设计  | 系统级预期、跨模块约束与未迁规格/实现映射；模块承诺按架构维护规则归属                                    |
 | Research            | 产品、系统、算法、上游事实的调查与证据                                        |
-| 已发生的事          | 提案、决定、评审、运行证据                                                    |
+| 当前有效知识        | 需求、系统预期和方法；不保存开发过程、决策形成史或运行日志                    |
 | Agent 能力          | skills 与 roles 的 canonical 源、宿主适配、评估                               |
 
 > **在 `.meta_harness/` 以外维护项目开发文档，以及成员拥有的公开类型、薄规格、必要 ADR 和验证资源。**
@@ -46,6 +48,8 @@ Cordis 直接使用官方发布包。维护边界归 [SYS-KERNEL](.meta_harness/
 > **产品设计、系统级架构预期与跨模块约束、以及产品/系统/算法 research 都在 `.meta_harness/`，不在外面留副本。**
 > 模块承诺由公开接口的拥有者维护；只有类型表达不出的行为才写薄规格。
 > **同一承诺一份现行源；未迁旧源在消费者和证据义务切换前继续有效。**
+
+Git 只保存当前终态：实现侧的公开接口、薄规格、必要理由和可复跑验证资源归对应包/应用。提案、决策形成过程、评审和每次执行的证据归本工作树 `tmp/`，不要求永久溯源；不得把它们搬入 `.meta_harness` 或改名继续入库。归属见[终态与过程材料](docs/development.md#终态与过程材料)。
 
 `docs/blogs/` 是个人博客仓库的 Git 子模块，用于工程复盘与面向开发者的技术传播，
 可以据设计资料讲解观点、方案和实验，但不成为第二份设计权威。归属见
@@ -82,6 +86,9 @@ skills 的源归 `.meta_harness/agents/skills/`，roles 的源归 `.meta_harness
 英文按文种选择 Strict 或 STE-flavored；中文至少符合其中可跨语言采用的清晰性原则。
 语义准确优先于压缩：保留事实、条件、例外、范围、正式术语与要求强度。
 具体适用范围与语言边界见[写作要求](.meta_harness/agents/skills/asd-ste100/canonical/references/documentation.md)。
+
+开工时按[交付表达](CONTRIBUTING.md#提交与-pr-表达)确定报告及采集节点；准备或改写 commit/PR 时加载 `prepare-pr`，按执行仓库模板组织正文。
+语言沿 `asd-ste100`，实际操作见[开发指南](docs/development.md#准备提交与-pr)。
 
 派发 subagent 时，每个 subagent 都应明确职责、行动边界、必要输入与停止条件；精确任务限定可写路径，关键歧义或必需规格/计划缺失时暂停依赖工作并澄清，持续区分已知、假设与未知。编写方法见 `design-subagents` skill。
 
@@ -137,7 +144,7 @@ omne-harness-lite/
 │   └── spec-tools/               Python 开发包：跨仓库导航检查与工具环境检查
 ├── scripts/                      开发与 CI/CD 自动化，check.sh 组合现有检查
 ├── .meta_harness/                设计工作区：需求、产品、统一语言、领域对象、规格、研究、
-│                                 已发生的事、skills/roles 源与生成工具
+│                                 skills/roles 源与生成工具；不保存开发流水
 ├── .agents -> .meta_harness/.agents    Codex skills 生成入口
 ├── .claude -> .meta_harness/.claude    Claude Code skills/subagents 生成入口
 ├── .codex -> .meta_harness/.codex      Codex subagents 生成入口
@@ -156,10 +163,10 @@ omne-harness-lite/
 
 ## 信息权威与演进边界
 
-- 用户明确的新要求优先于历史交接文档和旧讨论。研究提供事实，提案组织候选，决定记录已接受选择，规格落实精确承诺；各自引用其依据，不互相冒充或复制同义定义。
-- 在有效需求前提和适用范围内，没有新观测时有效决定是研究、提案、决定三者的最终权威。每份决定至少关联一份提案或研究；推翻必须带有可复现、可验证、可因果解释的强理由，并以新决定明确取代范围。这些规矩归 [record 家族](.meta_harness/design/record/README.md)与各区 README。
+- 用户明确的新要求优先于历史交接文档和旧讨论。当前承诺由实际拥有者维护；候选比较、接受过程及本次验证留工作树 `tmp/`，不要求形成史永久可追溯，也不以过程记录代替当前承诺。
+- 改变有效承诺须明确新依据、影响和采用范围，不能静默选用方便的说法。把获准的终态写回拥有者；评审通过、文件存在或测试通过均不能自行授予接受状态。
 - 未明确接受的提案、Schema、指南示例和历史原件不能当作正式契约。接受不等于实现或验证完成；新或已迁单元从[架构维护入口](.meta_harness/design/architecture/README.md)定位承诺拥有者及接受依据，未迁契约的精确版本从[身份清单](.meta_harness/design/registry/README.md)查找。
-- **规格只留最新一版**：规格仍是权威，但被取代的旧版及时删除，形式化的正版随最新版持续维护；修订要过接受门，不是随手改字。切换到这个终态之前守过渡规矩——现行的版本目录与冻结检查照旧，**不再新增指向旧版的引用**（[D-113](.meta_harness/design/record/decisions/spec-single-revision/README.md)）。归档原件与未接受候选不作为有效契约登记。
+- **规格只留最新一版**：规格仍是权威，但被取代的旧版及时删除，形式化的正版随最新版持续维护；修订要过接受门，不是随手改字。切换到这个终态之前守过渡规矩——现行的版本目录与冻结检查照旧，**不再新增指向旧版的引用**（D-113）。归档原件与未接受候选不作为有效契约登记。
 - **[`design_legacy/`](.meta_harness/design_legacy/README.md) 是留档，不是权威，且已不再维护。**那是重构前那条设计链的原件，其中的契约、决定与提案**都已退役**；它们保留原有的相对链接以便还原当初的说法，**它的入口正文至今仍自称「完整设计链」，那是留在原地的旧说法**。不能作为任何新工作的依据，也不能被外部文档引用成现行规则。
 - 规格、决定、实现或文档冲突时，先定位语义归属、适用版本和接受依据；如实报告反例，不能静默选用更方便的说法，也不靠改写本文件解决未决架构问题。
 - Cordis 特性、生命周期和 API 语义优先查[官方文档](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs)，记录具体页面和采用版本。资料未覆盖的内容标为假设，通过源码、测试或小型验证补足；上游约定不自动成为本项目约定。

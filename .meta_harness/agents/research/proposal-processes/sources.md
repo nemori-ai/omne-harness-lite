@@ -51,14 +51,6 @@
 |---|---|---|---|---|
 | ADR 大样本分析 | `https://arxiv.org/abs/2609.07375` | arXiv 2609.07375 **v1**，2026-09-07 提交；未经同行评审 | 摘要页 + `arxiv.org/html/2609.07375` 定向提取 §4.3 与 Figure 5 的结论；**未通读全文、未读图表数值** | [adr-empirical-study](notes/adr-empirical-study.md) |
 
-## 4. 本项目内部对照物（非外部来源）
-
-- 骨架锚：主检出 `tmp/next-design-prep/proposal-framework-sketch.md`（2026-09-15 前台草案，Git 忽略，不作为持久引用）
-- 方法论草稿：主检出 `tmp/next-design-prep/requirement-to-plugin-way.md` S1–S3（同上）
-- 现有提案样例：[工具执行提案](../../proposals/tool-execution/README.md)（含四轮裁决表与"另一边"列）
-- 现有研究样板：[Agent Loop、事件与 hooks](../agent-loop-events-and-hooks/README.md)
-- 制度正文：[知识流转](../../maintenance/knowledge-flow.md)、[持久化准入](../../maintenance/organization.md)、[版本规范](../../maintenance/versioning.md)
-
 ## 5. 本轮的统计脚本与可复现性
 
 三处量化结论（Semantic Kernel 77 份、MCP 42 份、DSH 抽样 45 份）由本轮临时的 Python 脚本在固定 commit 的 raw 内容上跑出，脚本未入库。复现方法：按上表的 commit 下载对应目录的 `.md`，去掉 fenced 代码块后按标题匹配统计。计数启发式的已知偏差写在各笔记的"局限与未覆盖"里。

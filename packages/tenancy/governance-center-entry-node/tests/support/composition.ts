@@ -242,6 +242,7 @@ export class FaultyStorage implements AtomicStorage {
         run: callback => unit.run(callback),
         query: callback => unit.query(callback),
         mutate: callback => unit.mutate(callback),
+        observeCompletion: () => unit.observeCompletion(),
         afterCommit: callback => unit.afterCommit(callback),
       }
       const value = await fn(wrapped)

@@ -1,3 +1,4 @@
+import { DatabaseSync } from 'node:sqlite'
 // @module-tag slow -- uses an actual child writer and process-exit recovery authority.
 import { fork } from 'node:child_process'
 import { once } from 'node:events'
@@ -5,7 +6,7 @@ import { createHash } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { expect, it } from 'vitest'
 import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import type { AcceptanceConfig, AcceptanceHooks } from '../src/types.ts'
@@ -17,11 +18,7 @@ async function configuration(label: string): Promise<AcceptanceConfig> {
   await mkdir(dir, { mode: 0o700 })
   return {
     ...config,
-    sessionLog: {
-      dir,
-      policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
-      processOwnership: { current: label, observeExit: async () => 'unknown' },
-    },
+    sessionLog: { operationLimit: 32 },
   }
 }
 function app(config: AcceptanceConfig, hooks?: AcceptanceHooks) {
@@ -70,12 +67,26 @@ it('does not open admission if one held prefix cannot be recovered after another
   await initial.ready
   const user = await actor(initial)
   await initial.prepareSession(user, 'a-empty')
-  await initial.prepareSession(user, 'b-corrupt')
+  const corrupted = await initial.prepareSession(user, 'b-corrupt')
+  if (!('session' in corrupted)) throw new Error('Session preparation failed')
   expect((await initial.close()).complete).toBe(true)
   if (!config.sessionLog) throw new Error('log config missing')
-  const bad = join(config.sessionLog.dir, createHash('sha256').update('b-corrupt').digest('hex'))
-  await mkdir(bad, { mode: 0o700 })
-  await writeFile(join(bad, 'recovery.json'), '{malformed', { mode: 0o600 })
+  const log = await openSqlLogFixture({ file: config.databaseFile })
+  expect(
+    await log.append(
+      corrupted.session,
+      [{ tenant: user.tenant, readKeys: [], payload: 'will-corrupt' }],
+      { kind: 'unfenced' },
+      { kind: 'unconditional' },
+    ),
+  ).toHaveProperty('tail', 1)
+  await log.close()
+  const db = new DatabaseSync(config.databaseFile)
+  expect(
+    db.prepare("update sl_entry set value = '{malformed' where session = 'b-corrupt'").run()
+      .changes,
+  ).toBeGreaterThan(0)
+  db.close()
   const resumed = app(config)
   await expect(resumed.ready).rejects.toThrow()
   expect(await resumed.prepareSession(user, 'must-not-open')).toEqual({ failure: 'stageClosed' })
@@ -93,7 +104,7 @@ it('finds a seeded session with an interrupted first commit after actual writer 
     throw new Error('seed missing')
   expect((await initial.close()).complete).toBe(true)
   // Existing session and interrupted new session must both be scanned at the next startup.
-  const original = await openJsonlSessionLog(config.sessionLog)
+  const original = await openSqlLogFixture({ file: config.databaseFile })
   await original.append(
     older.session,
     [{ tenant: user.tenant, readKeys: [], payload: 'older session' }],
@@ -103,7 +114,7 @@ it('finds a seeded session with an interrupted first commit after actual writer 
   await original.close()
   const child = fork(
     fileURLToPath(new URL('./session-catalog-partial-fixture.mjs', import.meta.url)),
-    [config.sessionLog.dir, prepared.session, JSON.stringify(prepared.tenant)],
+    [config.databaseFile, prepared.session, JSON.stringify(prepared.tenant)],
     { stdio: ['ignore', 'ignore', 'pipe', 'ipc'] },
   )
   let errorText = ''
@@ -131,16 +142,7 @@ it('finds a seeded session with an interrupted first commit after actual writer 
     expect(signal).toBe('SIGKILL')
     const resumed = app({
       ...config,
-      sessionLog: {
-        ...config.sessionLog,
-        processOwnership: {
-          current: 'catalog-successor',
-          observeExit: async owner =>
-            owner === 'catalog-partial-child' && child.signalCode === 'SIGKILL'
-              ? 'exited'
-              : 'unknown',
-        },
-      },
+      sessionLog: { operationLimit: 32 },
     })
     try {
       await resumed.ready

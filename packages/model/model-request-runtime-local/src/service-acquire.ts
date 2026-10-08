@@ -1,28 +1,26 @@
+import type {
+  AcknowledgedCallView,
+  AcquireCallInput,
+  AcquireCallResult,
+  CallConsumer,
+  CallOrigin,
+  ModelObserverRequest,
+  ObserverReceiver,
+  RetainedCallReadView,
+  RuntimeCloseResult,
+} from '@omne-harness-lite/model-request-runtime'
+import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { isNonNegativeJsonInteger } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { createIndependentCallConsumer } from './reference-consumer.ts'
 import { createModelObserverQueue } from './service-observer-queue.ts'
-import { settlementGenerationCurrent } from './settlement-prefix.ts'
+import { settlementGenerationCurrent } from '@omne-harness-lite/model-request-runtime'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-custody.ts'
-import type {
-  AcknowledgedCallView,
-  AcquireCallInput,
-  AcquireCallResult,
-  CallOrigin,
-  RetainedCallReadView,
-  CallConsumer,
-} from './reference-types.ts'
-import type { SettlementLogBinding } from './settlement-types.ts'
-import type {
-  RuntimeConstruction,
-  RuntimeCloseResult,
-  ModelObserverRequest,
-  ModelObserverQueue,
-  AuthorizedCallObserver,
-  ObserverReceiver,
-} from './service-types.ts'
+import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
+import type { RuntimeConstruction, ModelObserverQueue } from './service-types.ts'
+import type { AuthorizedCallObserver } from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 
 const unavailable = Object.freeze({ unavailable: true } as const)
@@ -104,10 +102,32 @@ function sameOrigin(first: CallOrigin, next: CallOrigin, binding: SettlementLogB
 export function createRuntimeAcquire<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
   sharedCustody?: AcknowledgementCustody,
-): {
-  readonly acquireCall: (input: AcquireCallInput) => Promise<AcquireCallResult>
-  readonly close: () => Promise<RuntimeCloseResult>
-} {
+): ProjectedComponent<
+  {
+    readonly acquireCall: (input: AcquireCallInput) => Promise<AcquireCallResult>
+    readonly close: () => Promise<RuntimeCloseResult>
+  },
+  RuntimeConstruction<P, R>
+> {
+  return buildRuntimeAcquire(runtime, sharedCustody)
+}
+
+class RuntimeAcquireState {
+  readonly resources = new Set<{ readonly close: () => Promise<RuntimeCloseResult> }>()
+  closed = false
+}
+
+function buildRuntimeAcquire<P extends PlannedSemantics, R>(
+  runtime: RuntimeConstruction<P, R>,
+  sharedCustody?: AcknowledgementCustody,
+  physical: RuntimeAcquireState = new RuntimeAcquireState(),
+): ProjectedComponent<
+  {
+    readonly acquireCall: (input: AcquireCallInput) => Promise<AcquireCallResult>
+    readonly close: () => Promise<RuntimeCloseResult>
+  },
+  RuntimeConstruction<P, R>
+> {
   if (
     typeof runtime.callAccess?.check !== 'function' ||
     typeof runtime.callPresence?.read !== 'function' ||
@@ -122,12 +142,13 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
     throw new TypeError('trusted access, original presence and durable call facts required')
   const ownCustody = sharedCustody === undefined ? runtimeCustody(runtime) : undefined
   const custody = sharedCustody ?? ownCustody
-  const resources = new Set<{ readonly close: () => Promise<RuntimeCloseResult> }>()
-  let closed = false
+
   async function acquireCall(input: AcquireCallInput): Promise<AcquireCallResult> {
     const inspected = ownInput(input)
     if ('invalidInput' in inspected) return inspected
     const owned = inspected
+    let acquired: CallConsumer | undefined
+    let delivered = false
     try {
       const bound = await runtime.sessions.bind(owned.ref.session)
       if ('failure' in bound) return bound.failure === 'invalidInput' ? malformed : unavailable
@@ -220,7 +241,7 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
                 presence.kind !== 'live'
               )
                 return { view: actual }
-              if (closed) return { runtimeStopped: true as const }
+              if (physical.closed) return { runtimeStopped: true as const }
               const container = runtime.calls.find(owned.ref)
               const local = container?.view()
               if (
@@ -262,7 +283,7 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
                       await consumer?.stopped
                       unregister?.()
                       unregister = undefined
-                      resources.delete(entry)
+                      physical.resources.delete(entry)
                       return { released: true as const }
                     })
                     .catch(() => unavailable)
@@ -272,7 +293,7 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
                   return closing
                 },
               }
-              resources.add(entry)
+              physical.resources.add(entry)
               const retained = local.request.host.register(entry.close)
               if (!('registration' in retained)) {
                 await entry.close()
@@ -409,6 +430,7 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
                     entry.close()
                   },
                 })
+                acquired = consumer
                 if (!current()) {
                   await entry.close()
                   return unavailable
@@ -428,29 +450,45 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
           if ('view' in admitted.allowed) admitted.allowed.consumer?.release()
           return unavailable
         }
-        if ('view' in admitted.allowed && admitted.allowed.consumer !== undefined && closed) {
+        if (
+          'view' in admitted.allowed &&
+          admitted.allowed.consumer !== undefined &&
+          physical.closed
+        ) {
           admitted.allowed.consumer.release()
           return { runtimeStopped: true }
         }
+        delivered = 'view' in admitted.allowed && admitted.allowed.consumer !== undefined
         return admitted.allowed
       }
       return 'invalidInput' in admitted ? admitted : unavailable
     } catch {
       return unavailable
+    } finally {
+      // A revoked admission can discard the result after a genuine consumer was created.
+      // The provider cannot observe that hidden handle. Keep this acquisition outstanding
+      // until its original read/receiver tasks actually stop, so its host borrow stays held.
+      if (acquired && !delivered) {
+        acquired.release()
+        await acquired.stopped
+      }
     }
   }
-  return Object.freeze({
-    acquireCall,
-    async close() {
-      closed = true
-      const outcomes = await Promise.allSettled([
-        ...[...resources].map(resource => resource.close()),
-        ...(ownCustody === undefined ? [] : [ownCustody.close()]),
-      ])
-      return resources.size === 0 &&
-        outcomes.every(result => result.status === 'fulfilled' && 'released' in result.value)
-        ? { released: true as const }
-        : unavailable
-    },
-  })
+  return retainRuntimeProjection(
+    Object.freeze({
+      acquireCall,
+      async close() {
+        physical.closed = true
+        const outcomes = await Promise.allSettled([
+          ...[...physical.resources].map(resource => resource.close()),
+          ...(ownCustody === undefined ? [] : [ownCustody.close()]),
+        ])
+        return physical.resources.size === 0 &&
+          outcomes.every(result => result.status === 'fulfilled' && 'released' in result.value)
+          ? { released: true as const }
+          : unavailable
+      },
+    }),
+    (next: RuntimeConstruction<P, R>) => buildRuntimeAcquire(next, sharedCustody, physical),
+  )
 }

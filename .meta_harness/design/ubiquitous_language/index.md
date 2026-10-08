@@ -176,7 +176,7 @@
 | [UL-session-run-mode](terms/agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode) | 会话运行模式 | Session Run Mode | 「本该问人」那一刻怎么办：`never` / `auto_permission` / `bypass-permissions`；**别与执行环境那维的 `auto_place` 混** |
 | [UL-session-collaboration-mode](terms/agent-runtime-loop.md#ul-session-collaboration-mode--会话协作模式--session-collaboration-mode) | 会话协作模式 | Session Collaboration Mode | co-work 协作共创／auto-drive 目标导向自驱；运行期可切换，与权限及执行环境正交 |
 | [UL-run](terms/agent-runtime-loop.md#ul-run--运行--run) | 运行 | Run | 一次逻辑执行请求及其结果；**有没人承接的输入且无未终结运行就开始，落终态才结束**；成本与失败的归属单位。**未终结不等于有协程活着** |
-| [UL-trigger](terms/agent-runtime-loop.md#ul-trigger--触发--trigger) | 触发 | Trigger | **让待处理消息队列从空变非空的那件事**，不必是人说了一句话 |
+| [UL-trigger](terms/agent-runtime-loop.md#ul-trigger--触发--trigger) | 触发 | Trigger | 促使系统检查并推进会话工作的信号；由持久事实及当前条件决定新建 Run、新建 attempt 或继续原 attempt |
 | [UL-pending-message-queue](terms/agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue) | 待处理消息队列 | Pending Message Queue | 日志里还没被 loop 取走的那些消息，**是投影不是另一份存储** |
 | [UL-input-claim](terms/agent-runtime-loop.md#ul-input-claim--承接--input-claim) | 承接 | Input Claim | loop 把队列里一批消息取走交给某次运行，**每一次都落一条记录**；**不是入站到达** |
 | [UL-run-attempt](terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt) | 执行尝试 | Run Attempt | 同一次运行内第几次起协程，**身份 (运行, 序号) 从日志派生、不另存**；**重试不是新的 Run** |
@@ -327,7 +327,7 @@
 | [UL-session-log](terms/record-and-context.md#ul-session-log--会话日志--session-log) | 会话日志 | Session Log | **只增不改的流水账**，消息只是它的一部分 |
 | [UL-session-log-projection](terms/record-and-context.md#ul-session-log-projection--会话日志投影--session-log-projection) | 会话日志投影 | Session Log Projection | 从日志派生的视图，**不是第二份权威**；重算必得同一答案 |
 | [UL-message](terms/record-and-context.md#ul-message--消息--message) | 消息 | Message | 一条对话记录，**七种，按谁在说话分**；除 `SystemMessage` 外都落日志 |
-| [UL-interruption-reminder](terms/record-and-context.md#ul-interruption-reminder--中断提醒--interruption-reminder) | 中断提醒 | Interruption Reminder | 回复流断在半路后**不分情形都补**的那条提醒；**不算触发** |
+| [UL-interruption-reminder](terms/record-and-context.md#ul-interruption-reminder--中断提醒--interruption-reminder) | 中断提醒 | Interruption Reminder | 回复流断在半路后**不分情形都补**的那条提醒；本身不取得待处理资格，不重开工作 |
 | [UL-placeholder-message](terms/record-and-context.md#ul-placeholder-message--占位消息--placeholder-message) | 占位消息 | Placeholder Message | 交不出真实结果时放在调用位置上的 `ToolMessage`，**必须写明原因**；不是失败 |
 | [UL-placeholder-reason](terms/record-and-context.md#ul-placeholder-reason--占位原因--placeholder-reason) | 占位原因 | Placeholder Reason | 占位上写的「为什么此刻没有结果」；**是原因不是收场** |
 | [UL-source-tag](terms/record-and-context.md#ul-source-tag--来源标记--source-tag) | 来源标记 | Source Tag | 入站到达与提醒上的「谁捎来的」，**是属性不是另一类**；**不是资产来源、不是来路标记** |

@@ -1,17 +1,17 @@
 # stream-assembly 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 契约：[`capability.stream-assembly` v2](../../../../spec/capabilities/stream-assembly/v2/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
 导出名、类型名一律是**候选**，源码不存在。
 
 ## 实现路径与来源
 
-**自建一个 TypeScript 纯模块，不依赖任何第三方包。**依据：[D-035](../../../../record/decisions/message-and-stream-baseline/decision.md) 选择表第三行把到达装配定为「三层的第三层，落 core、纯计算、自写」，保留前提 1 定「唯一的解析点在到达装配」。
+**自建一个 TypeScript 纯模块，不依赖任何第三方包。**依据：D-035 选择表第三行把到达装配定为「三层的第三层，落 core、纯计算、自写」，保留前提 1 定「唯一的解析点在到达装配」。
 契约要的是一个**对事件序列的折叠**（[S-4](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-4-装配状态是调用方持有的一个值)、[S-19](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-19-accept接一个事件)），它的判定次序、砍的去重、「一块怎样落」都是本项目的语义，没有可直接采用的实现。
 
-- **包内依赖**：[arrival-events](../arrival-events/README.md)（到达事件的类型、表示层校验与填的归约）、[content-blocks](../content-blocks/README.md)（块的类型与[严格无损 JSON 读入](../content-blocks/design.md#严格的无损-json-读写)）、[call-accounts](../call-accounts/README.md)（账与砍的汇总的类型）——与 catalog 的契约依赖同构（[D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环；运行时另用 Node 内置的 base64 编解码。
-- **Cordis 版本**：采用 `@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）。本模块不依赖 Cordis，此项只为与同批节点对齐。
+- **包内依赖**：[arrival-events](../arrival-events/README.md)（到达事件的类型、表示层校验与填的归约）、[content-blocks](../content-blocks/README.md)（块的类型与[严格无损 JSON 读入](../content-blocks/design.md#严格的无损-json-读写)）、[call-accounts](../call-accounts/README.md)（账与砍的汇总的类型）——与 catalog 的契约依赖同构（D-060 §八 M41），无环；运行时另用 Node 内置的 base64 编解码。
+- **Cordis 版本**：采用 `@deepseek-ai/cordis` 4.0.4（D-025）。本模块不依赖 Cordis，此项只为与同批节点对齐。
 
 ## 公开面
 
@@ -61,7 +61,7 @@
 | [S-4](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-4-装配状态是调用方持有的一个值)、[S-5](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-5-位置) 状态是值、位置只数被接受的 | 不透明类型 `AssemblyState`（内部表示不导出）；`start(target: unknown)` | 未实现。表示见[下节](#状态值用持久结构不用事件日志也不用可变对象) | 规范场景 S-34、S-36；「同一份状态接两个事件得两份分叉」由值语义直接成立 |
 | [S-6](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-6-一块在状态里是什么)、[S-7](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-7-快照交出什么)、[S-20](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-20-snapshot读快照) 块次序与快照 | `snapshot(state) → { blocks, position, firstContentAt? }` | 未实现：快照时把片段物化成新字符串（语音重编成标准 base64），交出的对象整棵冻结 | P-1 由 formal task 作证（**模型**，见 [bindings](bindings.yaml)）；快照是值（P-10）是实现性质，证据形式是 S-36 与 SC-4 |
 | [S-8](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-8-收尾结算交出什么)、[S-9](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-9-一块怎样落)、[S-21](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-21-closeout收尾结算) 收尾结算与落块 | `closeOut(state) → { ok: Settlement } \| { rejected: "stream_not_finished" }` | 未实现：按开块次序对每块取 S-9 那张表的一行；开着的调用块落半截、两位皆假 | S-35、CS-1、CS-2；不铸 `MessageId`、不查 PF-009 §5.6 那张表 |
-| [S-10](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-10-工具调用在封口那一下解析且只解析这一次)、[S-11](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-11-参数收齐却解析不了只标记)、[S-12](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-12-被砍过内容的调用落成半截) 唯一解析点 | 无单独入口：`accept` 接受工具调用块的 `close` 时，模块内**唯一一处**调 content-blocks 的 `readJsonStrict` | 未实现：块记录上带「开着时被改过内容」一位，`close` 时先看它；严格解析（RFC 8259；**重复键即解析失败**；超出 2^53 的整数与小数无损保留原文，[D-060 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），失败落 `unparseable: true` 的那一种 | S-32、S-33；SC-1 的承载形式见[静态检查](#静态检查义务怎么承载)；原缺口 SA-1 已由 M36 关闭 |
+| [S-10](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-10-工具调用在封口那一下解析且只解析这一次)、[S-11](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-11-参数收齐却解析不了只标记)、[S-12](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-12-被砍过内容的调用落成半截) 唯一解析点 | 无单独入口：`accept` 接受工具调用块的 `close` 时，模块内**唯一一处**调 content-blocks 的 `readJsonStrict` | 未实现：块记录上带「开着时被改过内容」一位，`close` 时先看它；严格解析（RFC 8259；**重复键即解析失败**；超出 2^53 的整数与小数无损保留原文，D-060 §八 M36），失败落 `unparseable: true` 的那一种 | S-32、S-33；SC-1 的承载形式见[静态检查](#静态检查义务怎么承载)；原缺口 SA-1 已由 M36 关闭 |
 | [S-13](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-13-账)、[S-14](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-14-砍的汇总)、[S-15](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-15-节流在到达装配之前投递一侧的节流不进账) 账与砍的汇总 | 结算结果的 `account` | 未实现：汇总增量维护；「配对」只凭次序认——状态记着「上一个被接受的事件是不是 `frame_too_long` 的 `trim`」，下一个被接受的是 `rejected` 的 `trim` 时把前者从 `byReason.frame_too_long` 里退掉，`omittedBytes` 两者照计 | S-39、P-12 性质测试（V-3）；缺账记全未知（`source: none`），不记零 |
 | [S-16](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-16-首个内容的位置) 首个内容的位置 | 快照与结算里的 `firstContentAt` | 未实现：第一个载荷非空的 `fill`，或没收到过填、封口块内容非空的 `close`；一经确定不再写 | S-31、examples 第 8 节；本模块不取时刻 |
 | [S-18](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-18-start开一份状态)～[S-22](../../../../spec/capabilities/stream-assembly/v2/contract.md#s-22-abandon放弃) 五个操作 | `start`、`accept(state, event)`、`snapshot`、`closeOut`、`abandon(state, reason?)` | 未实现。`abandon` 实现为「对状态 `accept` 一个 `finish { reason: "lost", error: reason }` 再 `closeOut`」，工具侧带 `reason` 即 `malformed` | 失败一律以返回值 `{ rejected }` 到达，**不抛异常**；抛出只留给模块自身的缺陷 |
@@ -88,7 +88,7 @@
 
 这里 `B` 是块记录数，`F` 是材料化时需要遍历的活片段数，`L` 是相关输出载荷大小。**数组槽位不是领域索引**：索引是任意非负 JSON 整数，按数学值查找／比较，禁止 `Number(index)`、字串相等或将其直接用作数组下标。`1` 与 `1.0`、`-0` 与 `0` 应相等，`9007199254740992` 与 `9007199254740993` 不相等；这是 V-2／V-3 的实际实现验收要求。调用方保留多个旧状态时，记录与片段可共享，但每版数组槽位仍有成本：保留 K 版时，槽位占用可达各版块数之和；不能只报当前状态内存。
 
-[两轮结构探针与原始范围](../../../../record/evidence/2026-09-26-core-stream-array-probes/README.md)中，首轮对 32／256／2048 块、256 个 32 字符片段各运行 7 次，fill 中位约 0.262／1.227／9.551 ms，观察与数组复制随块数增长一致。**这不是完整产品性能证据**：探针按数组槽位定位，未测实际精确索引查找；settlement 从已物化 view 建壳，未测直接 `closeOut`；堆差没有测后 GC，不能称稳定保留量或峰值；没有 AR／CB 校验、语音、参数解析、持久集合对照或长期运行。首次真实实现应测实际 `accept`、直接 `closeOut`、密集快照、语音、参数封口及保留旧状态的负载。
+两轮结构探针与原始范围中，首轮对 32／256／2048 块、256 个 32 字符片段各运行 7 次，fill 中位约 0.262／1.227／9.551 ms，观察与数组复制随块数增长一致。**这不是完整产品性能证据**：探针按数组槽位定位，未测实际精确索引查找；settlement 从已物化 view 建壳，未测直接 `closeOut`；堆差没有测后 GC，不能称稳定保留量或峰值；没有 AR／CB 校验、语音、参数解析、持久集合对照或长期运行。首次真实实现应测实际 `accept`、直接 `closeOut`、密集快照、语音、参数封口及保留旧状态的负载。
 
 需要声称覆盖超过本探针的块数、活片段数或累计字符数时，先补实际对应负载。出现数组复制／扫描主导 CPU、GC，或不能满足宿主登记的时延／内存预算时，重新比较成熟持久集合；当前没有依据代宿主填写预算。成熟持久集合在大块数、高事件率和多历史分叉时可能降低槽位复制，若后续被迫自制索引树／缓存，应优先重新评估复用。**现结论只接受可承载性质的最小结构，不接受目标性能已经达标。**生命周期与撤除责任保持本节其他表的既有归属。
 
@@ -140,13 +140,13 @@
 
 本节点自己的缺口（契约的 G-1～G-7 已全部闭合，不重抄；编号不重排）：
 
-- **SA-1 已关闭**：工具调用参数的解析口径由 [D-060 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 裁定、已落进契约 S-10 第 3 条：RFC 8259 严格解析，**重复键即解析失败**——在本能力里这就是 S-11「参数收齐却解析不了」那一种调用块：封口**被接受**，块落 `unparseable: true`、原样留 `rawArguments`，**不是** `malformed`（`malformed` 只在读 JSON 文本的接收边界，`data.content-blocks/v2#S-24`；这一读法由 [D-060 §八 N-20](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 接受）；超出 2^53 的整数与小数无损保留原文。实现走 content-blocks 的 `readJsonStrict`，它交 `{ failed }` 时本模块落解析不了的那一块。契约 examples 第 7 节 7d 两行是这一条的用例。
+- **SA-1 已关闭**：工具调用参数的解析口径由 D-060 §八 M36 裁定、已落进契约 S-10 第 3 条：RFC 8259 严格解析，**重复键即解析失败**——在本能力里这就是 S-11「参数收齐却解析不了」那一种调用块：封口**被接受**，块落 `unparseable: true`、原样留 `rawArguments`，**不是** `malformed`（`malformed` 只在读 JSON 文本的接收边界，`data.content-blocks/v2#S-24`；这一读法由 D-060 §八 N-20 接受）；超出 2^53 的整数与小数无损保留原文。实现走 content-blocks 的 `readJsonStrict`，它交 `{ failed }` 时本模块落解析不了的那一块。契约 examples 第 7 节 7d 两行是这一条的用例。
 - **SA-2 标准 base64 的严格判定**：`payload_kind_mismatch` 要求「语音的片段不是标准 base64」即拒；Node 的 `Buffer.from(s, "base64")` 对非法字符宽容、不报错。这一判定在 `data.arrival-events` 的表示层里，执行点是 arrival-events 的 `judgeArrivalEnvelope`，本模块只在物化快照时把字节重编成标准 base64。候选：先用正则核标准字母表与填充，再解码；Node 24 是否已带严格的 `Uint8Array.fromBase64`——**假设，须按 source-check 取证**（basis 无此条目；它是 Node 事实，不是 Cordis 语义）。owner：arrival-events 节点落包时（本节点随之）。
 - **SA-3 一致性用例的机读形式**：V-2 要「同一份语言无关用例」，`examples.md` 第 2～8 节是表格与手算，还没有机读的 JSON 用例集。owner：本节点起草用例文件、契约 owner 核对它与 examples 逐项相同；在那之前 V-2 只能按表手抄进测试。
 - **跨节点交接**：S-28 第 1～9 条由两个宿主节点落（模型请求运行时、工具执行运行时）；本节点对它们只有一个要求——**宿主撤除时在途的流调 `abandon`，不交 `finish { interrupted }`**（S-28 第 6 条），写进各自的装卸配对表。
 
 ## D-068：当前3的精确投影
 
-本节点设计采用 `capability.stream-assembly · v3`（[规范](../../../../spec/capabilities/stream-assembly/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 [D-068](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md) 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
+本节点设计采用 `capability.stream-assembly · v3`（[规范](../../../../spec/capabilities/stream-assembly/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 D-068 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
 
 六data默认schema为3并各公开`./schema/v2`原2完整字节/$id；AR/CA/MP/Skill/MCP/Slash仍2，固定Schema图显式取旧资源。SA/AE没有自有Schema，不造空文件或空集通过。Connector只保留被AM规范引用的冻结资源，真实提供者纵线延期。

@@ -67,6 +67,51 @@ export function isNonNegativeJsonInteger(value: unknown): value is JsonNumber {
   return BigInt(exponent) >= BigInt(fractionLength - trailingZeros)
 }
 
+function copyNumber(input: unknown): JsonNumber | undefined {
+  if (LosslessNumber.is(input)) {
+    if (Object.getPrototypeOf(input) !== LosslessNumber.prototype)
+      throw new TypeError('not an owned JSON number')
+    return input
+  }
+  return typeof input === 'number' && Number.isFinite(input) ? input : undefined
+}
+
+function jsonKeys(input: object): readonly string[] {
+  const prototype: unknown = Object.getPrototypeOf(input)
+  if (!Array.isArray(input) && prototype !== Object.prototype && prototype !== null)
+    throw new TypeError('not a JSON object')
+  const keys = Reflect.ownKeys(input)
+  if (keys.some(key => typeof key !== 'string')) throw new TypeError('not JSON data')
+  return keys as string[]
+}
+function jsonMember(input: object, key: string): unknown {
+  const descriptor = Object.getOwnPropertyDescriptor(input, key)
+  if (!descriptor || !('value' in descriptor) || !descriptor.enumerable)
+    throw new TypeError('not JSON data')
+  return descriptor.value
+}
+function copyJsonArray(
+  input: readonly unknown[],
+  keys: readonly string[],
+  copy: (input: unknown) => JsonValue,
+): JsonArray {
+  if (keys.length !== input.length + 1) throw new TypeError('array has extra members')
+  const result: JsonValue[] = []
+  for (let index = 0; index < input.length; index++)
+    result.push(copy(jsonMember(input, String(index))))
+  return Object.freeze(result)
+}
+function copyJsonObject(
+  input: object,
+  keys: readonly string[],
+  copy: (input: unknown) => JsonValue,
+): JsonObject {
+  // Populate without inherited setters, then restore the public prototype before freezing.
+  const result: Record<string, JsonValue> = Object.create(null)
+  for (const key of keys) result[key] = copy(jsonMember(input, key))
+  Object.setPrototypeOf(result, Object.prototype)
+  return Object.freeze(result)
+}
 /** Accept only actual JSON data, then copy/freeze without invoking getters or toJSON. */
 export function copyJsonValue(
   value: unknown,
@@ -74,38 +119,16 @@ export function copyJsonValue(
   const active = new Set<object>()
   function copy(input: unknown): JsonValue {
     if (input === null || typeof input === 'boolean' || typeof input === 'string') return input
-    if (isJsonNumber(input)) return input
+    const numeric = copyNumber(input)
+    if (numeric !== undefined) return numeric
     if (input instanceof OpaqueJsonValue) return copy(input.value)
     if (typeof input !== 'object' || active.has(input)) throw new TypeError('not JSON data')
-    const prototype: unknown = Object.getPrototypeOf(input)
-    if (!Array.isArray(input) && prototype !== Object.prototype && prototype !== null) {
-      throw new TypeError('not a JSON object')
-    }
+    const keys = jsonKeys(input)
     active.add(input)
     try {
-      const descriptors = Object.getOwnPropertyDescriptors(input)
-      if (Object.getOwnPropertySymbols(input).length !== 0) throw new TypeError('not JSON data')
-      if (Array.isArray(input)) {
-        const result: JsonValue[] = []
-        for (let index = 0; index < input.length; index++) {
-          const descriptor = descriptors[String(index)]
-          if (descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable) {
-            throw new TypeError('not a JSON array')
-          }
-          const item: unknown = descriptor.value
-          result.push(copy(item))
-        }
-        if (Object.keys(descriptors).length !== input.length + 1)
-          throw new TypeError('array has extra members')
-        return Object.freeze(result)
-      }
-      const result: Record<string, JsonValue> = {}
-      for (const [key, descriptor] of Object.entries(descriptors)) {
-        if (!('value' in descriptor) || !descriptor.enumerable) throw new TypeError('not JSON data')
-        const item: unknown = descriptor.value
-        Object.defineProperty(result, key, { value: copy(item), enumerable: true })
-      }
-      return Object.freeze(result)
+      return Array.isArray(input)
+        ? copyJsonArray(input, keys, copy)
+        : copyJsonObject(input, keys, copy)
     } finally {
       active.delete(input)
     }

@@ -104,8 +104,7 @@ def flow_json(base: str, **over: Any) -> dict[str, Any]:
         "format": 1, "id": "tiny-review", "version": 1, "family": "review", "role": "tiny-reviewer",
         "judgment": "选择", "criteria_page": "references/review/x.md", "reps": 2,
         "host": {"claude-code": {"model": MODEL, "effort": "high", "allowed": ["Read", "Glob", "Grep"]}},
-        "workspace": {"base": base, "material_paths": ["design"], "material_excludes": ["design/evidence"],
-                      "subject_paths": ["skills", "NOTES.md"]},
+        "workspace": {"subject_paths": ["skills", "NOTES.md"]},
         "metrics": [{"id": "caught", "kind": "binary", "label": "抓到种入"},
                     {"id": "read_only", "kind": "binary", "label": "只读"},
                     {"id": "names_page", "kind": "binary", "label": "写明判据页"},
@@ -115,7 +114,7 @@ def flow_json(base: str, **over: Any) -> dict[str, Any]:
         "signoffs": {"cases": {"by": "t", "date": "2026-10-01", "version": 1},
                      "grading": {"by": "t", "date": "2026-10-01", "version": 1}},
         "materials": [{
-            "id": "doc", "target": "design/doc.md", "brief": "briefs/doc.md", "tags": ["种入的"],
+            "id": "doc", "target": "design/doc.md", "brief": "briefs/doc.md", "fixture": "fixtures/doc.json", "tags": ["种入的"],
             "prepare": [{"op": "copy", "from": "materials/extra.md", "to": "tmp/extra.md"}],
             "seeds": [
                 {"id": "S1", "kind": "judgment", "where": "第一句", "truth": "把必须写成了可以",
@@ -149,6 +148,8 @@ def repo(tmp_path: Path) -> Path:
     (tiny / "materials").mkdir()
     (tiny / "briefs" / "doc.md").write_text("评审 `{WORKDIR}/design/doc.md`。\n- **本次判断：选择。**\n", encoding="utf-8")
     (tiny / "materials" / "extra.md").write_text("附件：既说要又说不要。\n", encoding="utf-8")
+    (tiny / "fixtures").mkdir()
+    (tiny / "fixtures/doc.json").write_text(json.dumps({"format": 1, "files": {"design/doc.md": files["design/doc.md"]}}), encoding="utf-8")
     (tiny / "flow.json").write_text(json.dumps(flow_json(base), ensure_ascii=False, indent=1), encoding="utf-8")
     git(root, "add", "-A")
     git(root, "commit", "-qm", "suite")
@@ -436,12 +437,12 @@ def test_nothing_in_the_runner_starts_a_model() -> None:
 
 # --- 工作副本 -----------------------------------------------------------------------------------------------
 
-def build(repo: Path, dest: Path, base: str | None = None) -> None:
-    workspace.build(repo, dest, base=base or git(repo, "rev-parse", "HEAD~1"), material_paths=["design"],
-                    material_excludes=["design/evidence"], subject_paths=["skills", "NOTES.md"])
+def build(repo: Path, dest: Path, fixture: Path | None = None) -> None:
+    workspace.build(repo, dest, fixture=fixture or repo / "suites/tiny-review/fixtures/doc.json",
+                    subject_paths=["skills", "NOTES.md"])
 
 
-def test_material_comes_from_the_pinned_commit_and_the_subject_from_the_working_tree(repo: Path, tmp_path: Path) -> None:
+def test_material_comes_from_explicit_fixture_and_subject_from_working_tree(repo: Path, tmp_path: Path) -> None:
     (repo / "design" / "doc.md").write_text("后来改过的材料\n", encoding="utf-8")
     (repo / "skills" / "page.md").write_text("判据页 第二版\n", encoding="utf-8")
     dest = tmp_path / "copy"
@@ -459,10 +460,9 @@ def test_a_copy_is_never_reused_and_a_missing_path_is_an_error(repo: Path, tmp_p
     with pytest.raises(workspace.WorkspaceError, match="already exists"):
         build(repo, dest)
     with pytest.raises(workspace.WorkspaceError):
-        build(repo, tmp_path / "other", base="0" * 40)
+        build(repo, tmp_path / "other", fixture=repo / "missing.json")
     with pytest.raises(workspace.WorkspaceError, match="does not exist"):
-        workspace.build(repo, tmp_path / "third", base=git(repo, "rev-parse", "HEAD"), material_paths=["design"],
-                        material_excludes=[], subject_paths=["no-such-dir"])
+        workspace.build(repo, tmp_path / "third", fixture=repo / "suites/tiny-review/fixtures/doc.json", subject_paths=["no-such-dir"])
 
 
 def test_a_seed_has_to_land_exactly_once(repo: Path, tmp_path: Path) -> None:
@@ -557,7 +557,7 @@ def test_a_suite_loads_into_materials_and_seeds(repo: Path) -> None:
     ({"metrics": [{"id": "caught", "kind": "ordinal"}]}, "unknown kind"),
     ({"metrics": [{"id": "caught", "kind": "binary"}, {"id": "caught", "kind": "float"}]}, "duplicate metric"),
     ({"attach_design_review": True}, "contract coordinate"),
-    ({"workspace": {"base": "x"}}, "workspace lacks"),
+    ({"workspace": {}}, "workspace lacks"),
     ({"host": {"codex": {}}}, "claude-code"),
 ])
 def test_a_suite_that_leaves_a_run_guessing_does_not_load(repo: Path, over: dict[str, Any], message: str) -> None:
@@ -579,19 +579,19 @@ def test_a_suite_with_a_missing_brief_or_field_does_not_load(repo: Path, tmp_pat
         suite.load(tmp_path)
 
 
-def test_a_historical_material_is_taken_from_its_own_commit(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_each_material_uses_its_own_explicit_fixture(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     (repo / "design" / "doc.md").write_text("后来的版本：调用方必须先读。\n", encoding="utf-8")
     git(repo, "commit", "-qam", "material moves on")
     later = git(repo, "rev-parse", "HEAD")
     root = repo / "suites" / "tiny-review"
     current = json.loads((root / "flow.json").read_text(encoding="utf-8"))
-    real = {"id": "doc-later", "target": "design/doc.md 的后来版本", "brief": "briefs/doc.md", "base": later,
-            "material_paths": ["harness"], "source": "一次真实评审", "seeds": [{"id": "R1", "kind": "real", "where": "第一句", "truth": "只说先读",
+    real = {"id": "doc-later", "target": "design/doc.md 的后来版本", "brief": "briefs/doc.md", "fixture": "fixtures/later.json", "seeds": [{"id": "R1", "kind": "real", "where": "第一句", "truth": "只说先读",
                                              "quote": "后来的版本", "files": ["design/doc.md"],
                                              "severity": "阻断"}]}
+    (root / "fixtures/later.json").write_text(json.dumps({"format": 1, "files": {"design/doc.md": "后来的版本：调用方必须先读。\n", "harness/keep.txt": "运行器"}}), encoding="utf-8")
     flow = suite.load(rewrite(repo, materials=[*current["materials"], real]))
-    assert flow.base(flow.material("doc")) == flow.workspace["base"]
-    assert flow.base(flow.material("doc-later")) == later
+    assert flow.base(flow.material("doc")) == "fixture:doc"
+    assert flow.base(flow.material("doc-later")) == "fixture:doc-later"
     monkeypatch.setattr(cli, "REPO", repo)
     for name, expected in (("doc", "调用方可以不读，再写。\n"), ("doc-later", "后来的版本：调用方必须先读。\n")):
         dest = tmp_path / name
@@ -600,7 +600,7 @@ def test_a_historical_material_is_taken_from_its_own_commit(repo: Path, tmp_path
         # 只有那份材料当时对着读的路径，才随它进副本
         assert (dest / "harness" / "keep.txt").exists() == (name == "doc-later")
     text = cli.inputs(flow)
-    assert "来源：一次真实评审" in text and "当时定的严重度：阻断" in text and f"`{later[:9]}`" in text
+    assert "当时定的严重度：阻断" in text and "fixture:d" in text
 
 
 def test_sign_offs_are_owed_again_when_the_suite_version_moves(repo: Path) -> None:
@@ -860,13 +860,46 @@ def test_a_run_refuses_a_suite_whose_seeds_no_longer_land(wired: dict[str, Any])
         prepare(wired)
 
 
-def test_verify_flags_a_base_that_history_no_longer_reaches(wired: dict[str, Any]) -> None:
+def test_verify_uses_no_history_and_detects_drifted_fixture(wired: dict[str, Any]) -> None:
     wired["work"].mkdir()
     assert cli.verify(wired["flow"], wired["work"]) == []
     assert cli.verify(wired["flow"], wired["work"], only=["nope"]) == [], "只核点到的材料"
-    flow = suite.load(rewrite(wired["repo"], workspace={**wired["flow"].workspace, "base": "0" * 40}))
-    assert "not an ancestor" in cli.verify(flow, wired["work"])[0]
+    fixture = wired["flow"].fixture(wired["flow"].material("doc"))
+    fixture.write_text(json.dumps({"format": 1, "files": {"design/doc.md": "changed"}}), encoding="utf-8")
+    assert "found it 0 times" in cli.verify(wired["flow"], wired["work"])[0]
     assert list(wired["work"].iterdir()) == [], "verify leaves no copies behind"
+
+
+def test_verify_rejects_missing_prerequisite_and_unquoted_seed_input(wired: dict[str, Any]) -> None:
+    root = wired["repo"] / "suites/tiny-review"
+    current = json.loads((root / "flow.json").read_text(encoding="utf-8"))
+    current["materials"][0]["required_inputs"] = ["case/missing-premise.md"]
+    current["materials"][0]["seeds"][0].update(files=["case/missing-seed.md"], quote=None)
+    (root / "flow.json").write_text(json.dumps(current), encoding="utf-8")
+    wired["work"].mkdir()
+    problems = cli.verify(suite.load(root), wired["work"])
+    assert any("required input is missing" in item for item in problems)
+    assert any("seed input is missing" in item for item in problems)
+    assert list(wired["work"].iterdir()) == []
+
+
+@pytest.mark.parametrize("path", ["../outside.json", "/outside.json", "fixtures/missing.json"])
+def test_material_suite_rejects_missing_or_outside_fixture(repo: Path, path: str) -> None:
+    root = repo / "suites/tiny-review"
+    current = json.loads((root / "flow.json").read_text(encoding="utf-8"))
+    current["materials"][0]["fixture"] = path
+    (root / "flow.json").write_text(json.dumps(current), encoding="utf-8")
+    with pytest.raises(suite.SuiteError, match="fixture"):
+        suite.load(root)
+
+
+def test_material_suite_rejects_retired_history_protocol(repo: Path) -> None:
+    root = repo / "suites/tiny-review"
+    current = json.loads((root / "flow.json").read_text(encoding="utf-8"))
+    current["workspace"]["base"] = "obsolete"
+    (root / "flow.json").write_text(json.dumps(current), encoding="utf-8")
+    with pytest.raises(suite.SuiteError, match="historical material source protocol is retired"):
+        suite.load(root)
 
 
 def test_preparing_leaves_a_copy_a_brief_and_what_to_dispatch(wired: dict[str, Any]) -> None:
@@ -1319,27 +1352,59 @@ STANDING = sorted(path.parent for path in (EVALUATION / "suites").glob("*/flow.j
 
 @pytest.mark.parametrize("root", STANDING, ids=lambda path: path.name)
 def test_a_standing_suite_still_fits_the_repository(root: Path) -> None:
-    """零花费的腐坏探测：钉的提交还够得着，每处种入在那个提交的材料里恰好出现一次。"""
+    """零花费的腐坏探测：案例输入存在，每处种入在输入中恰好出现一次。"""
     flow = suite.load(root)
     repo = META.parent
     for path in flow.workspace["subject_paths"]:
         assert (repo / path).exists(), f"{flow.id}: subject path {path} is gone"
     for material in flow.materials:
-        base = flow.base(material)
-        assert workspace.is_ancestor(repo, base), f"{flow.id}/{material.id}: base {base} is no longer an ancestor of HEAD"
+        files = json.loads(flow.fixture(material).read_text(encoding="utf-8"))["files"]
         assert "{WORKDIR}" in material.brief.read_text(encoding="utf-8")
         assert f"本次判断：{flow.judgment}" in material.brief.read_text(encoding="utf-8")
         for op in material.ops():
             if op["op"] == "replace":
-                text = workspace.git(repo, "show", f"{base}:{op['file']}")
+                text = files[op["file"]]
                 assert text.count(op["find"]) == 1, f"{flow.id}/{material.id}.{op.get('id')}: seed no longer lands once"
             elif op["op"] == "copy":
                 assert (root / op["from"]).is_file()
         for seed in material.seeds:
-            texts = [workspace.git(repo, "show", f"{base}:{path}") for path in seed.files]
+            texts = [files[path] for path in seed.files]
             for fragment in seed.fragments():
                 assert any(fragment in text for text in texts), (
                     f"{flow.id}/{material.id}.{seed.id}: the pinned material does not contain {fragment[:50]!r}")
     if (root / "calibration" / "cases.json").exists():
         # 校准集跟着用例走：种入清单变了而人工判定没跟上，这里会失败
         assert calibration.load(flow)[1], f"{flow.id}: the calibration set is empty"
+
+@pytest.mark.parametrize("target", ["../escape", "/escape", ".git/config", ".meta_harness/design/record/decision.md"])
+def test_case_fixture_rejects_escape_and_record(tmp_path: Path, target: str) -> None:
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(json.dumps({"format": 1, "files": {target: "bad"}}))
+    with pytest.raises(workspace.WorkspaceError, match="invalid fixture target"):
+        workspace.build(tmp_path, tmp_path / "copy", fixture=fixture, subject_paths=[])
+    assert not (tmp_path / "copy").exists()
+
+
+def test_case_fixture_prepares_without_a_git_repository(tmp_path: Path) -> None:
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(json.dumps({"format": 1, "files": {"case/input.md": "stable input"}}))
+    dest = tmp_path / "copy"
+    workspace.build(tmp_path, dest, fixture=fixture, subject_paths=[])
+    assert (dest / "case/input.md").read_text() == "stable input"
+
+
+@pytest.mark.parametrize("subject", ["../outside", "/outside", ".git/config"])
+def test_material_subject_rejects_escape_before_writing(tmp_path: Path, subject: str) -> None:
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(json.dumps({"format": 1, "files": {"case/input.md": "input"}}))
+    dest = tmp_path / "copy"
+    with pytest.raises(workspace.WorkspaceError, match="subject path escapes"):
+        workspace.build(tmp_path, dest, fixture=fixture, subject_paths=[subject])
+    assert not dest.exists()
+
+
+def test_case_fixture_rejects_boolean_format(tmp_path: Path) -> None:
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(json.dumps({"format": True, "files": {"case/input.md": "input"}}))
+    with pytest.raises(workspace.WorkspaceError, match="format=1"):
+        workspace.build(tmp_path, tmp_path / "copy", fixture=fixture, subject_paths=[])

@@ -1,3 +1,0 @@
-{"case": "qualified", "edges": 28, "safe": true, "states": 24}
-{"case": "listener-only", "counterexample": ["remove-listener", "stop", "new-network-admission"], "edges": 10, "safe": false, "states": 10}
-{"case": "late-registration-close", "counterexample": ["stop", "late-step-starts-next"], "edges": 6, "safe": false, "states": 6}

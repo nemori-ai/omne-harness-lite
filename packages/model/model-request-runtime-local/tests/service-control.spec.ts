@@ -3,7 +3,7 @@ import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import {
   appendControlRecord,
   classifyInterrupt,
@@ -18,10 +18,10 @@ import type {
   SettlementOwner,
   SettlementRegistration,
   SettlementTask,
-} from '../src/settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type { AppendResult } from '@omne-harness-lite/session-log'
 import { UnknownAppendTracker } from '../src/service-calls.ts'
-import { interpretCallHistory } from '../src/call-history.ts'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 
 const absent: ControlFacts = { durable: { absent: true }, localCall: false }
 const unavailable: ControlFacts = { durable: { unavailable: true }, localCall: true }
@@ -108,6 +108,7 @@ it('close retains a started append until its backend has actually stopped', asyn
     binding: {
       session,
       tenant: parsedTenant.ok,
+      readPrefix: async () => ({ failure: 'unavailable' as const }),
       log: {
         readSince: async () => ({ failure: 'unavailable' }),
         readByKey: async () => ({ failure: 'unavailable' }),
@@ -211,15 +212,7 @@ describe('RT7 S-31/S-32 control admission from owned facts', () => {
 describe('RT7 S-31/S-68 actual control append', () => {
   it('writes one current-format intent before a caller may signal abort', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'mrr-control-'))
-    const log = await openJsonlSessionLog({
-      dir,
-      processOwnership: {
-        current: `control-test:${process.pid}`,
-        async observeExit() {
-          return 'unknown'
-        },
-      },
-    })
+    const log = await openSqlLogFixture({ dir: dir })
     const parsedTenant = parseTenantId({ organization: 'control-org', account: 'control-account' })
     if (!('ok' in parsedTenant)) throw new Error('invalid fixture tenant')
     let releases = 0
@@ -271,9 +264,13 @@ describe('RT7 S-31/S-68 actual control append', () => {
       if ('failure' in read) throw new Error(read.failure)
       expect(read.entries).toHaveLength(1)
       expect(read.entries[0]?.payload).toEqual({
-        format: 'mrr/3',
-        category: 'record',
-        value: { kind: 'model_call_interrupt_intent', call: 'control-call', initiator: 'user' },
+        kind: 'fact',
+        owner: 'model-request-runtime',
+        version: 'mrr/3',
+        value: {
+          category: 'record',
+          value: { kind: 'model_call_interrupt_intent', call: 'control-call', initiator: 'user' },
+        },
       })
     } finally {
       await log.close()
@@ -283,15 +280,7 @@ describe('RT7 S-31/S-68 actual control append', () => {
 
   it('retains ownership when the log committed but the receipt is unconfirmed', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'mrr-control-unknown-'))
-    const log = await openJsonlSessionLog({
-      dir,
-      processOwnership: {
-        current: `control-unknown:${process.pid}`,
-        async observeExit() {
-          return 'unknown'
-        },
-      },
-    })
+    const log = await openSqlLogFixture({ dir: dir })
     const parsedTenant = parseTenantId({ organization: 'control-org', account: 'control-account' })
     if (!('ok' in parsedTenant)) throw new Error('invalid fixture tenant')
     let releases = 0
@@ -345,6 +334,9 @@ describe('RT7 S-31/S-68 actual control append', () => {
     const binding = {
       session,
       tenant: parsedTenant.ok,
+      readPrefix(this: import('@omne-harness-lite/model-request-runtime').SettlementLogBinding) {
+        return log.fixturePrefix({ session: this.session, tenant: this.tenant }, this.log)
+      },
       log: {
         async readSince(...args: Parameters<typeof log.readSince>) {
           if (!readAvailable) return { failure: 'unavailable' as const }
@@ -370,7 +362,14 @@ describe('RT7 S-31/S-68 actual control append', () => {
         record: { kind: 'model_call_interrupt_intent', call: 'control-call', initiator: 'user' },
         retainUnknown(registration, task) {
           retained = { registration, task }
-          tracker.keep({ session, callId: 'control-call' }, binding, owner, registration, task)
+          tracker.keep(
+            { session, callId: 'control-call' },
+            binding,
+            owner,
+            registration,
+            task,
+            (prefix, callId) => interpretCallHistory({ prefix, callId }),
+          )
         },
       })
       expect(result).toEqual({ unavailable: true })
@@ -383,26 +382,21 @@ describe('RT7 S-31/S-68 actual control append', () => {
       if ('failure' in read) throw new Error(read.failure)
       expect(read.entries).toHaveLength(1)
       expect(read.entries[0]?.payload).toMatchObject({
-        format: 'mrr/3',
-        value: { kind: 'model_call_interrupt_intent', call: 'control-call' },
+        kind: 'fact',
+        owner: 'model-request-runtime',
+        version: 'mrr/3',
+        value: {
+          category: 'record',
+          value: { kind: 'model_call_interrupt_intent', call: 'control-call' },
+        },
       })
       await retained?.task.stopped
-      expect(
-        await tracker.close({
-          concurrent: 1,
-          call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
-        }),
-      ).toEqual({ unavailable: true })
+      expect(await tracker.close()).toEqual({ unavailable: true })
       expect(releases).toBe(0)
       expect(active).toBe(1)
       expect(acquires).toBe(1)
       readAvailable = true
-      expect(
-        await tracker.close({
-          concurrent: 1,
-          call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
-        }),
-      ).toEqual({ released: true })
+      expect(await tracker.close()).toEqual({ released: true })
       expect(completeReads).toBe(1)
       expect(releases).toBe(1)
       expect(active).toBe(0)

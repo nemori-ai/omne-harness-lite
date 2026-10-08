@@ -1,7 +1,7 @@
 # Skill 规格的三个参考来源：现在该信什么
 
 - 调查对象与日期：omne-next `6263fed545e48ad9efb5714f3fe76a7c1a0af1b5`（`omne_skill_spec` 0.1.0、`omne_core_v1` 的 `agentic/skill`、`omne_agent_skills` 0.3.1、`omne_skill_import` 0.1.0）；DSH `c291e7961a515f6d7af9304e7fd1d257929aef26`（`0.1.5-rc.2`）的 `packages/skill/*`；Agent Skills 本机实例（Claude Code `2.1.280` 与本机 `SKILL.md` 文件）。2026-09-23 首轮
-- 消费者：[proposal「Skill 规格采用」](../../design/record/proposals/skill-spec-adoption/design.md)
+- 消费者：proposal「Skill 规格采用」
 - 最近核对：2026-09-23 / 上列版本（首轮）；2026-09-23 第二轮补充开放格式原文与三家扩展，见[第二轮](#第二轮开放格式原文与三家扩展)与 [changelog](changelog.md)
 - 当前结论：三源在「SKILL.md = frontmatter + 正文 + 可选资源目录、name 与 description 必填、三级渐进披露、读正文不跑脚本」上一致，能承载 PF-002 Skill 定义的主体部分；
   产品正文里更靠后的那一层——正文变体、同名替换件、常驻标记挂在引用上、依赖决定可用性、脚本执行权随 skill 走、已发布版本不可变、内容与配置分开——**三源都没有现成承载**。
@@ -290,7 +290,7 @@ registry（`dsh-skill`）只定义 provider 协议 `list / get`，不读文件�
 ## 第二轮：开放格式原文与三家扩展
 
 - 调查对象与日期：Agent Skills 开放格式 agentskills/agentskills `69ef37e9424c0a7ea9dd2293b559e43ec8176379`（规格页最后改动 `217be54873`，2026-08-04；**无版本号**）及参考库 skills-ref 0.1.0；omne-next `6263fed5`（复读与补读 `omne_agent_capabilities`）；Codex `5c5308fc9a9ee789049d646ef11e5400384b9c6f`；本机 Codex CLI `0.156.1` 与 Claude Code `2.1.280` 的实例。2026-09-23
-- 消费者：[proposal「Skill 规格采用」](../../design/record/proposals/skill-spec-adoption/design.md)的「接受前必须补的一项」与「会改变选择的证据」表
+- 消费者：proposal「Skill 规格采用」的「接受前必须补的一项」与「会改变选择的证据」表
 - 本轮问题：(1) 钉存开放格式原文，核对 frontmatter 字段与必填、name 语法与上限、`metadata` 值类型、对未知顶层键的态度、`allowed-tools` 是否宿主必须执行；(2) 盘点 omne-next、Codex、Claude Code 在 `SKILL.md` 之上的扩展，按提案的键分四类归格，逐条写与 P1–P8 的相容或相抵
 - 当前结论：开放格式只定六键、必填 name 与 description；name 须等于父目录名；`metadata` 值只许字符串；对未知顶层键**规格正文未述**；`allowed-tools` 是实验性、宿主可不支持。
   实现与生态在后三项上各行其是。三家扩展里，Codex 把全部专有配置放进包内侧车文件 `agents/openai.yaml`，其中的依赖声明只用于提示安装 MCP server；omne-next 的扩展都在聚合根或不同键名上；Claude Code 在 frontmatter 顶层另加十四个键。
@@ -475,5 +475,5 @@ Codex 文档所述的插件提交流程：MCP server 声明 `io.modelcontextprot
 
 ## 采用与后续核对
 
-消费者：[proposal「Skill 规格采用」](../../design/record/proposals/skill-spec-adoption/design.md)（首轮时尚未出现，第二轮时已在评审）。
+消费者：proposal「Skill 规格采用」（首轮时尚未出现，第二轮时已在评审）。
 升级任何一个来源时，先在 [evidence.md](evidence.md) grep 旧版本 token，再判断是否触及上面的结论；触及时按[演进事件词](../README.md#演进事件词)建 `changelog.md` 记一条。

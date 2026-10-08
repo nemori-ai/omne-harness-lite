@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.model-response v11 current complete response and pending-reply judgments",
+  "description": "data.model-response v12 current complete response and pending-reply judgments",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -19,6 +19,7 @@
     "schema",
     "README.md",
     "README_ZH.md",
+    "SPEC.md",
     "generated"
   ],
   "scripts": {
@@ -40,5 +41,12 @@
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "module"
+    }
   }
 }

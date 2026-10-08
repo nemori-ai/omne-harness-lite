@@ -6,7 +6,7 @@
 
 ## 1. D-019 比较门逐项现状
 
-比较门原文见 [D-019](../../../design/record/decisions/model-provider-pi-ai-fork/decision.md) `:51-53`；保留前提第二条（请求差异按模型实测）见 `:46-48`。
+比较门原文见 D-019 `:51-53`；保留前提第二条（请求差异按模型实测）见 `:46-48`。
 「现状」一栏只陈述在 `MR` 的 pi-ai 传输（`packages/model/execution/src/pi-ai-transport.ts`）上看得到什么。
 
 | 比较门项 | 现状 | 证据位置 | 没做的部分 |

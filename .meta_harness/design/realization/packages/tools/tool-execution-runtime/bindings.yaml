@@ -1,33 +1,3 @@
-# 条款到证据的绑定表。
-# 只绑已登记的 formal task：tool-execution-runtime-v2-execution（Execution.tla + Execution.cfg）。
-# run：record/evidence/2026-09-25-formal-assets-runtimes（退出 0、无反例，741344 distinct、深度 22、完整穷尽）。
-# 每条只绑「有去保护配置或补充否定配置证明它会失败」的性质；那几次否定运行的结果记在契约验证入口
-# spec/capabilities/tool-execution-runtime/verification.md 的「实际执行」（2026-09-24，与本 run 同一份 Execution.tla），
-# 不在上面那个 run 目录里——那一侧的原始输出没有落进 record/evidence/，这是本表每条共同的弱点；
-# 按 D-060 §八 M54 与 stream-assembly 的有效性核对同法，待下一次证据 run 一并跑并入库，入库后本段改指那个 run。
-# evidence 字段按 realization README 写 formal:<task-id>，run id 写在 assumptions（D-060 §八 N-19 的口径）。
-# 契约修复波 3（M33、M42、M46 等）没有改 Execution.tla 与配置（模型里没有报告、送达通知与账的内容），九条绑定照旧成立。
-#
-# 共同前提（除非条目另写）：
-# - 证的是契约模型，不是本节点的代码：本节点尚未建包，没有源码、没有测试。
-# - 固定规模：一个会话、两批四次调用、至多一次停机、MaxWaits = 2；更大的规模没有检查。
-# - 模型把每个动作建成不可分割的一步，即假设本节点的存储要求真的兑现：R-T3（每个写事务开头取会话哨兵、锁下现读再写）
-#   与 R-T1（执行记录、出站项同一次提交）。这两条由存储提供者与本节点代码承担，模型不检查。
-# - 模型里送达是「交付 + 追加」两步，本节点选的发件箱是其中一种形状；按 (会话, CallId, 段) 幂等在模型里由
-#   「追加即清掉交付物」兑现——真实的幂等靠会话日志一侧按耐久状态判「已在」（design.md L-1：消息按段、
-#   记录条目按出站项自己的 seq，M70）；那一侧的接口是 capability.session-log v2 S-8、S-14（2026-09-25 起草，candidate），
-#   最小提供者节点 session-log-jsonl 已立（candidate、尚未建包）——节点已立不等于有实现兑现它。
-# - 模型只覆盖运行时层：本节点的公开函数面 invokeTool（design.md「公开面」）不在模型里，函数层也不承诺这几条性质。
-# - 无公平性、不检查进展；CHECK_DEADLOCK 关闭。
-#
-# 不绑：
-# - 进展任务 tool-execution-runtime-v2-execution-progress（同 run 退出 0）：三条公平性前提（恢复终会发生、追加终会成功、
-#   强制停止终会生效）与它的三条结论一一对应，且没有否定配置——绑上去等于把前提登记成证据。
-# - 按构造成立的性质（ReminderAfterPlaceholder、ArchiveSettlesAll、WaitOnlyForeground、RunCancelSparesBackground、
-#   SequentialBatch、ConcurrencyCap、UnavailableOnlyFromStandIn、NoExecutionBackgrounded、BackgroundSegmentOutcome、
-#   PostureOneWay）与 TypeOK：去掉守卫是改模型，模型里没有会失败的断言。证据形式记在 verification.md。
-# - BackgroundHasPlaceholder（S-27）：VolatileHandoff 那次反例停在 EndedIsLanded，这一条没有单独被反驳过。
-# - CallOutcomeStable、AtMostOneReminder：没有对应的否定配置。
 version: 1
 node: "tool-execution-runtime"
 kind: "provider"
@@ -39,8 +9,7 @@ bindings:
       - "性质 OutcomeStable；去保护配置 Execution_NoFirstWins.cfg（FirstWins = FALSE）按预期反驳：中断落定之后晚到的完成覆盖收场"
       - "「同一行上的条件写」在模型里是一步；本节点靠 R-T3 的会话哨兵加锁定读兑现，不加进程内锁——这条由存储提供者承担"
       - "「换了实例的执行者交回」与「同一个执行者晚到的交回」在模型里是同一个动作 LateReturn；实例身份不在模型里，证据形式是场景 S-59（未开始）"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes，退出 0；否定配置的结果见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.tool-execution-runtime/v2#S-19"
     evidence: "formal:tool-execution-runtime-v2-execution"
@@ -49,8 +18,7 @@ bindings:
       - "性质 AtMostOneToolMessage；补充否定配置 Execution_NoFirstWins_ToolMessage.cfg 按预期反驳：晚到的完成再落一条工具消息"
       - "模型的「交付」对应本节点出站项与执行记录同一次提交（R-T1），「追加」对应排空器；「按 (CallId, 段) 幂等」在模型里由追加即清掉交付物兑现，真实系统里靠会话日志提供者按耐久内容判「已在」（design.md L-1，消息按段、记录条目按 seq；接口 capability.session-log/v2#S-8、#S-14，最小提供者节点尚无）"
       - "Drain 一步追加全部待追加消息：两条消息分两次追加时的先后（占位在提醒之前）不在模型里，证据形式是场景 S-52（未开始）；消息的内容不在模型里"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes，退出 0"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.tool-execution-runtime/v2#S-18"
     evidence: "formal:tool-execution-runtime-v2-execution"
@@ -58,16 +26,14 @@ bindings:
       - "性质 InterruptHonored；去保护配置 Execution_StopBeforeWrite.cfg（WriteBeforeStop = FALSE）按预期反驳：停止先发，另一路收场抢先落定"
       - "宽限与强制两级不在安全模型里；强制停止在各执行环境里做得到什么（X-5）不在模型里"
       - "本节点把停止例程放在收场事务提交之后（design.md S-18 行）；有序撤下（S-48）写收场在前、发停止在后，同一次序，但撤下本身不在模型里"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes，退出 0"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.tool-execution-runtime/v2#S-7"
     evidence: "formal:tool-execution-runtime-v2-execution"
     assumptions:
       - "性质 ServingConsistent；去保护配置 Execution_PartialRecovery.cfg（RecoverAll = FALSE）按预期反驳：只处置前台的，发起即后台的那条恢复后悬着"
       - "模型只有一个会话、一个本能力实例；本节点「找得到」只在同一进程的活体表里成立，前提是同一份库只有一个据点进程、那个进程里只装一份本能力（R-T8，归装配）"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes，退出 0"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.tool-execution-runtime/v2#S-17"
     evidence: "formal:tool-execution-runtime-v2-execution"
@@ -75,8 +41,7 @@ bindings:
       - "性质 AtMostOneStart；去保护配置 Execution_RestartOnRecover.cfg（NoRestart = FALSE）按预期反驳：恢复把在跑的重起一遍"
       - "「记录先落、再起执行者」在模型里是 Submit 与 Start 两步的次序（按构造），不是这条绑定证的；本节点在「写 running」与「写回收句柄」之间的窗口（X-5）不在模型里"
       - "持久：R-T6。sqlite synchronous = NORMAL 下 OS 崩溃或断电可能丢最后一段已提交事务（D-027），模型的 Crash 只代表进程没了"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes，退出 0"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.tool-execution-runtime/v2#S-20"
     evidence: "formal:tool-execution-runtime-v2-execution"
@@ -84,29 +49,25 @@ bindings:
       - "两条性质：ServingConsistent（Execution_PartialRecovery.cfg 反驳）与 AtMostOneStart（Execution_RestartOnRecover.cfg 反驳）"
       - "模型的 Recover 是一步；本节点的恢复扫描按会话分页、每个会话一次事务，扫完才 serving——分页之间的中间态由服务状态闸（runtimeNotReady）挡住，模型里没有"
       - "「不论会话」在模型里无从体现（只有一个会话），证据形式是场景 S-54（未开始）；回收进程组（S-20 第 2 步）不在模型里"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes，退出 0"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.tool-execution-runtime/v2#S-30"
     evidence: "formal:tool-execution-runtime-v2-execution"
     assumptions:
       - "性质 NoStaleAnswer；去保护配置 Execution_NoWaitIndex.cfg（CheckWaitIndex = FALSE）按预期反驳：答给第 1 次的答复解除了第 2 次"
       - "答复值的形状校验、答复者身份不在模型里；本节点在会话哨兵下核对 wait_index（R-T3）"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes，退出 0"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.tool-execution-runtime/v2#S-29"
     evidence: "formal:tool-execution-runtime-v2-execution"
     assumptions:
       - "性质 NoNewDeliveryAfterArchive；补充否定配置 Execution_NoFirstWins_Archive.cfg 按预期反驳：晚到的完成在归档后被再交付一次"
       - "ArchiveSettlesAll 按构造成立，不在此绑；归档之后会话日志是否仍接收归档提交里交付的出站项（design.md L-4）不在模型里——模型的 Drain 不看归档"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes，退出 0"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.tool-execution-runtime/v2#S-13"
     evidence: "formal:tool-execution-runtime-v2-execution"
     assumptions:
       - "只证「一次执行恰一份账、只在收场时落」：性质 OneAccountPerEnded；补充否定配置 Execution_NoFirstWins_Account.cfg 按预期反驳"
       - "账的内容（费用、起止时刻、被拒的一笔、frames 与 reportedCost、late）不在模型里；late 经 runAttemptFacts（接口 capability.run-attempt-facts/v2#S-9）在落账事务之前现读（M74，契约 G-18 仍开着），与「落下时」之间的漏标窗口模型不检查（design.md「跨 owner 的现读」、verification N-17）"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes，退出 0"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"

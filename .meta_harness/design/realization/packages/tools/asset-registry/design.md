@@ -1,6 +1,6 @@
 # asset-registry 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 ## 实现路径与来源
 
@@ -12,14 +12,14 @@
 |---|---|---|
 | 求值 `evaluate(EvaluationInput) → EffectiveAssembly`（纯计算；失败集合 `invalidInput`、`compositionCycle{cycle}`、`categoryUnsupported{category}`，M32、M45） | [`core/asset-evaluation`](../../core/asset-evaluation/README.md)（D-059 assets 候选 B：进 `core` 作纯模块） | `reload` 一次、`refreshAvailability` 两次、读时的「谁可以用」现读——**本节点只调用、不重算**（契约 S-16）；两个判定类失败原样转交 |
 | 资产形状、能力标识、版本线 | [`core/asset-model`](../../core/asset-model/README.md) | 条目的 `capability`／`asset`／`content`、类别取值 |
-| 正文端口的组合根 `defaultBodyContracts`（候选名） | [`core/asset-evaluation`](../../core/asset-evaluation/README.md) 导出的那一份（[D-060 §八 M51](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | 本插件要 asset-model 判定对象之处（按 (资产, 版本) 取回正文建快照、重建）用它构造，插件体里构造一次、不可变；**不自己组 `BodyContracts`**——同一值在每个接收边界得同一个拒绝值由这一个来源保证 |
+| 正文端口的组合根 `defaultBodyContracts`（候选名） | [`core/asset-evaluation`](../../core/asset-evaluation/README.md) 导出的那一份（D-060 §八 M51） | 本插件要 asset-model 判定对象之处（按 (资产, 版本) 取回正文建快照、重建）用它构造，插件体里构造一次、不可变；**不自己组 `BodyContracts`**——同一值在每个接收边界得同一个拒绝值由这一个来源保证 |
 | 工具定义形状、`ModelToolName`、由定义得出的依赖声明 | [`core/tool-definition`](../../core/tool-definition/README.md) | `tool` 表的查找键、名字冲突、依赖解析 |
-| 技能包、斜杠命令、拓展件、MCP 接入点的形状与依赖声明 | [`core/skill-package`](../../core/skill-package/README.md)、[`core/slash-command`](../../core/slash-command/README.md)、[`core/loop-extension`](../../core/loop-extension/README.md)、[`core/mcp-endpoint`](../../core/mcp-endpoint/README.md)（[D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)：一契约一包） | 依赖解析与门控 |
+| 技能包、斜杠命令、拓展件、MCP 接入点的形状与依赖声明 | [`core/skill-package`](../../core/skill-package/README.md)、[`core/slash-command`](../../core/slash-command/README.md)、[`core/loop-extension`](../../core/loop-extension/README.md)、[`core/mcp-endpoint`](../../core/mcp-endpoint/README.md)（D-060 §八 M41：一契约一包） | 依赖解析与门控 |
 | 运行与尝试标识 `RunId`、`AttemptId` | [`core/call-accounts`](../../core/call-accounts/README.md) | 报告带的运行与尝试（M46） |
 | 时间源 `clock`（`now(): Instant \| 'unavailable'`，毫秒整数，不后退） | [`infra/clock`](../../infra/clock/README.md)（形状归 [`core/offer-expiry`](../../core/offer-expiry/README.md)） | `filledAt`、报告的 `computedAt` |
-| `definePlugin`、`resolveOptional` | [`core/kernel-basis`](../../core/kernel-basis/README.md) | 插件骨架、可选依赖的现取 |
+| `definePlugin`、`resolveOptional` | [`core/kernel-basis`](../../../../../../packages/core/kernel-basis/README.md) | 插件骨架、可选依赖的现取 |
 
-**Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）。机制语义引 [basis](../../../../basis/README.md) 条目。
+**Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（D-025）。机制语义引 [basis](../../../../basis/README.md) 条目。
 **配置**：本插件**没有 config**。配置错误政策（启动失败）因此不产生本节点的条目。
 
 ## 公开面
@@ -98,7 +98,7 @@
 
 **反证不了、要真并发演练的**：两个实例同时对同一会话 `fill` 与 `reload(plugin)`（多表一次，S-17 ②）——见 [verification](verification.md#证据义务) N-2。
 
-**四、报告所依的被顶替快照：装配清单是它的留存处，内存只留上一份（选）。**[D-060 §八 M35](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 让 `within = run{report}` 的读只在报告所依的快照里找，由此带来「有报告依它就不得回收」的留存义务（N-21，交提供者设计承接）。
+**四、报告所依的被顶替快照：装配清单是它的留存处，内存只留上一份（选）。**D-060 §八 M35 让 `within = run{report}` 的读只在报告所依的快照里找，由此带来「有报告依它就不得回收」的留存义务（N-21，交提供者设计承接）。
 
 | | 按报告计数：每发出一份报告就给它所依的快照加一，报告不再用了减一 | 被顶替的快照在内存里一直留到会话的缓存被丢 | **装配清单里那条换表记录就是这份快照的留存；内存只留每类上一份被顶替的，更早的按清单记录现建（选）** |
 |---|---|---|---|
@@ -173,7 +173,7 @@
 | R-M4 | 便宜地读一个会话的当前头；在**同一个一致快照**里读头与每一类最后一条换表记录 | S-33 ②、[关键选择二](#关键选择) | 头与记录不一致就会按半截清单重建 | S-16（一致快照）；「便宜」不在契约，归最小提供者节点 |
 | R-M5 | 一条记录能带齐每张被换表的完整构成（条目的 `capability`、`asset`、版本、`from`、`resident` 与次序）连同 `filledBy`、`basedOn`、`filledAt`；记录不可改 | S-18 ① | 任一类的当前快照都能从这一类最后一条单独读出 | S-6、S-11（原样存、原样交回；构成的形状归本节点） |
 | R-M6 | 能答「这个会话没有装配记录」，且与「读不到」可区分 | S-21 `sessionNotFound`、S-19 | —— | S-5 第 3 条（头 `0` 是读得到的事实）、S-14 |
-| R-M7 | 追加答成功即持久。**边界**：sqlite `synchronous = NORMAL` 下操作系统崩溃或断电可能丢最后一段已提交事务（[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/README.md)）——那时重建出来的少了最后一次换表，而调用方已被告知成功（S-43「逐条与重启之前相同」对断电不成立） | S-18、S-33 | —— | S-13；断电边界是那份契约的 G-3 |
+| R-M7 | 追加答成功即持久。**边界**：sqlite `synchronous = NORMAL` 下操作系统崩溃或断电可能丢最后一段已提交事务（D-027）——那时重建出来的少了最后一次换表，而调用方已被告知成功（S-43「逐条与重启之前相同」对断电不成立） | S-18、S-33 | —— | S-13；断电边界是那份契约的 G-3 |
 | R-M8 | 不可用可识别：不返回空、不返回旧快照 | S-19、S-32 | —— | S-14、各读 ⑧ |
 | R-M9 | **历史换表记录可按 (会话, 类别, `filledAt`) 读回，会话存续期内不删** | S-25 ④⑧、S-6 第 2 条（M35） | 报告所依的被顶替快照以它为留存（[关键选择四](#关键选择)）；删了，仍在跑的尝试的读只能答 `unavailable` | S-9、[S-18](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-18-readhistory按表时刻读回一条)、[S-24](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-24-留存本版不删)（本版不删，强于要求） |
 
@@ -224,16 +224,16 @@
 | 调用方身份已核实 | 进程内能力间面；不暴露给终端 | **装配**（`apps/cli` 不把本服务接到任何入口） |
 | 提供者的自报 | 同一进程里的读面，现取 | 各项 owner（契约 G-6） |
 
-**归装配的事项**（点名给 `apps/cli`）：装配清单提供者（接口 `capability.assembly-manifest` v2 已定；验收装配装它的最小提供者 [`assembly-manifest-store`](../../assets/assembly-manifest-store/design.md#实施缺口与消费者影响)，本版只进验收装配、迁移片段只在验收装配合成；[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1）；据点读面（不存在，A-2）；资产变化转发者（不存在，A-3）；不把本服务暴露成入口；撤除次序——本插件先于装配清单与时钟撤（依赖关系保证，不另安排）。
+**归装配的事项**（点名给 `apps/cli`）：装配清单提供者（接口 `capability.assembly-manifest` v2 已定；验收装配装它的最小提供者 [`assembly-manifest-store`](../../assets/assembly-manifest-store/design.md#实施缺口与消费者影响)，本版只进验收装配、迁移片段只在验收装配合成；D-063 R-1）；据点读面（不存在，A-2）；资产变化转发者（不存在，A-3）；不把本服务暴露成入口；撤除次序——本插件先于装配清单与时钟撤（依赖关系保证，不另安排）。
 
 ## 实施缺口与消费者影响
 
-契约第十节的缺口不重抄；下表是**本节点自己的**缺口，编号 A-n 只在本节点内有效。A-1、A-2 所指的装配清单与据点读面的**真承接者**按 [D-060 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)（C-2、C-3）**本程不补、下一程补**，owner 主线；装配清单 2026-09-25 起**接口已定**（[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1）。
+契约第十节的缺口不重抄；下表是**本节点自己的**缺口，编号 A-n 只在本节点内有效。A-1、A-2 所指的装配清单与据点读面的**真承接者**按 D-060 §八 M43（C-2、C-3）**本程不补、下一程补**，owner 主线；装配清单 2026-09-25 起**接口已定**（D-063 R-1）。
 
 | # | 缺口 | 受阻的消费或条款 | owner | 闭合条件 |
 |---|---|---|---|---|
 | A-1 | **装配清单：接口已定、真承接者未到**。R-M1～R-M9 已逐条对到 `capability.assembly-manifest` v2 的条款（[上文](#对装配清单提供者的要求清单)）；**真承接者 PF-004 未到（契约 G-1），最小提供者节点 [`assembly-manifest-store`](../../assets/assembly-manifest-store/design.md#会话资产注册表的要求r-m1r-m9的承接互指) 已立（candidate）**，已逐条接住 R-M1～R-M9、两边互指；它本版不进产品装配（它的 AMS-7） | 产品装配里本插件整批 `PENDING`；执行运行时的 `submit`（它的 `report` 从本节点来）、agent loop 的尝试开始、`Tools()`／`Skills()`、斜杠命令识别 | PF-004 那一程（M43 C-2，真承接者） | PF-004 那一程的契约收下或取代 assembly-manifest v1 |
-| **A-2** | **据点读面没有 provider 节点**：此刻的求值输入（副本 ＋ 工作区读入 ＋ 会话值）、按 (资产, 版本) 取正文、工作区资产正文能否原样取回、会话事实。assets 提案把它归「据点装配、不另立契约」（[MR-3](../../../../record/proposals/capability-split-assets/design.md#本包依赖的主线裁定尚无决定记录)），`apps/cli` 的设计也登记了它没有承接者 | `fill`、`reload`、`refreshAvailability`、门控现读、重建、被顶替快照的现建 | 主线（M43 C-3：随未来资产/据点入口（版本未分配） 一并起草，下一程） | 读面落定；本节点改指它 |
+| **A-2** | **据点读面没有 provider 节点**：此刻的求值输入（副本 ＋ 工作区读入 ＋ 会话值）、按 (资产, 版本) 取正文、工作区资产正文能否原样取回、会话事实。assets 提案把它归「据点装配、不另立契约」（MR-3），`apps/cli` 的设计也登记了它没有承接者 | `fill`、`reload`、`refreshAvailability`、门控现读、重建、被顶替快照的现建 | 主线（M43 C-3：随未来资产/据点入口（版本未分配） 一并起草，下一程） | 读面落定；本节点改指它 |
 | A-3 | **资产变化没有转发者**：资产治理在治理中心进程发通知；据点上谁转、转给哪些会话（本节点不提供会话枚举）未定 | S-28；「再授予要等 reload」（契约 G-3 的边界在本批恒成立） | `apps/cli` | 装配写明转发者与会话扇出 |
 | A-4 | 同一 (会话, 类别) 的 `filledAt` 严格递增靠「上一份 + 1 毫秒」兜底——本节点推导；`Instant` 是毫秒整数（`core/offer-expiry`） | S-6 | 本节点 | 实现时按此；若 `Instant` 刻度改变回来改 |
 | A-5 | **已闭合（修复波 3，M34）**：同一 `EvaluationRef` 再 `fill` 而六张已不是它填出的 ⇒ `invalidInput{evaluationSuperseded}` | —— | —— | —— |

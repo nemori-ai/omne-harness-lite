@@ -1,1 +1,0 @@
-{"ts":1791185407398,"level":"error","name":"tenancy-host","event":"startup-failed","stage":"manifest","item":"storage","errorType":"HostPluginPolicyError","message":"tenancy-host startup failed at manifest: plugin tree rejected","code":"incompatible-role-config","role":"storage"}

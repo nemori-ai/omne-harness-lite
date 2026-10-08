@@ -8,9 +8,9 @@
 在仓库根运行：
 
 ```sh
-tlc -config packages/core/cordis-plugin-tree/verification/DynamicDependencies.cfg packages/core/cordis-plugin-tree/verification/DynamicDependencies.tla
+tlc -config packages/core/cordis-plugin-tree/verification/models/DynamicDependencies.cfg packages/core/cordis-plugin-tree/verification/models/DynamicDependencies.tla
 ```
 
-[负控配置](DynamicDependencies-negative.cfg) 将动态变化错误地升级为整代停止，必须使 NoDynamicStop 失败。
+[负控配置](models/DynamicDependencies-negative.cfg) 将动态变化错误地升级为整代停止，必须使 NoDynamicStop 失败。
 [包行为承诺](../SPEC.md) 与公开类型是权威；此模型仅提供上述有限前提下的验证。
 运行原件放本任务的 tmp 证据目录，不把一次运行状态写成永久兑现结论。

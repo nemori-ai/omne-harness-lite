@@ -1,4 +1,0 @@
-
-> @omne-harness-lite/content-blocks@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-content/packages/core/content-blocks
-> tsc -p tsconfig.test.json
-

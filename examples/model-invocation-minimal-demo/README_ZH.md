@@ -2,12 +2,15 @@
 
 [English](README.md)
 
-本示例是一个可运行的 **Cordis 模型调用 loop**，不是正式业务应用。单个宿主进程在同一个 Cordis context 里接线 `@omne-harness-lite/model-request-runtime-local` 的公开面，组合真实本地存储（SQLite）、JSONL 会话日志、加密凭据副本、账号与成员资格检查以及 OpenRouter 传输。默认模式发送独立模型请求；工具模式增加一个持久 Run 驱动，展示模型调用工具后的续答。它不是完整 Agent Runtime 或生产治理。凡需要受信提供者之处，本示例只提供单进程、单宿主的证据并如实说明，不能当作跨进程权威的模板。可复用能力留在 `packages/`；本示例只做装配。
+本示例是一个可运行的 **Cordis 模型调用 loop**，不是正式业务应用。单个宿主进程在同一个 Cordis context 里接线 `@omne-harness-lite/model-request-runtime-local` 的公开面，组合真实本地存储（SQLite）、SQL journal 会话日志、加密凭据副本、账号与成员资格检查以及 OpenRouter 传输。默认模式发送独立模型请求；工具模式增加一个持久 Run 驱动，展示模型调用工具后的续答。它不是完整 Agent Runtime 或生产治理。凡需要受信提供者之处，本示例只提供单进程、单宿主的证据并如实说明，不能当作跨进程权威的模板。可复用能力留在 `packages/`；本示例只做装配。
 
 它有两个入口：
 
 - 交互式命令行，进行耐久、流式、多轮的文本对话（`dist/cli.js`）；
 - 程序装配（`createAcceptanceApplication`、`openDemo`、`createDemoSupervisor`），测试与受信本机宿主经它以图片、工具、Run 坐标、确认和诊断触达同一个 runtime。
+
+独立工具的唯一选中实现验收见 [acceptance/README.md](acceptance/README.md)。
+该验收执行真实工具，模型记录为受控输入，不发送模型请求。
 
 ## 运行命令行
 
@@ -35,7 +38,7 @@ node dist/cli.js --data ../../tmp/my-model-demo --token-margin-multiplier 1.1 --
 | `--transport-retirement-wait-ms <n>` | `10000`   | 撤除传输贡献时的正整数等待；命令行始终设 `force=false`。等待超时仍保留 owner，不冒称清理完毕。                           |
 | `--ipc-max-message-bytes <n>`        | `1048576` | 每条完整 IPC 消息的字节上限，父子两端都生效。                                                                            |
 | `--ipc-max-commands <n>`             | `1`       | 主管与 worker 之间待处理 IPC 请求的上限。                                                                                |
-| `--tools`                           | 关闭      | 启用纯函数工具 `demo__echo`、`demo__nonce`，以及工具结果后的模型续答。 |
+| `--tools`                            | 关闭      | 启用纯函数工具 `demo__echo`、`demo__nonce`，以及工具结果后的模型续答。                                                   |
 | `--key-file <路径>`                  | 无        | 仅所有者可读（0600）的文件，只含密钥原始字节，不解析 `.env` 格式；末尾一个换行会被忽略。与 `OPENROUTER_API_KEY` 二选一。 |
 
 新对话请使用**尚不存在**的 `--data` 目录；示例以仅所有者可访问的权限创建它。`/exit` 或输入结束后，仍用相同路径继续。既有目录只有在认证会话及耐久日志可读、可对账时才接受；归属未知的未完工作会被拒绝。不要在命令行传密钥值。密钥发布进加密副本之后，正常重启可省略环境变量和 `--key-file`；再次提供密钥会通过真实凭据发布 API 替换。
@@ -49,9 +52,11 @@ You> /models
   anthropic/claude-fable-5.1 [official] legal
   anthropic/claude-opus-5 [official] legal
   ...
-* deepseek/deepseek-v4-pro-0813 [official] legal
+  deepseek/deepseek-v4-pro-0813 [official] legal
   deepseek/deepseek-v4.1-flash [official] legal
   google/gemini-3.7-flash [official] legal
+  ...
+* openai/gpt-6-luna [official] legal
   ...
   z-ai/glm-5.3-prime [official] legal
 You> /model deepseek/deepseek-v4.1-flash
@@ -96,24 +101,29 @@ node examples/model-invocation-minimal-demo/dist/cli.js --data "$PWD/tmp/my-tool
 
 ### 数据目录
 
-数据目录含 SQLite 状态、JSONL 会话历史（`session-logs/`）、工程日志（`diagnostics/`）、生成的签名密钥、副本加密密钥，以及保存本地示例账号密码的 `demo-state.json`。整个目录保持私有，需要时一起备份。OpenRouter 密钥只存于加密副本。首次准备中断会保持「未完成」标记，不静默重放。旧的不兼容开发格式写下的数据不会被猜测、改写或转换；请使用新的 `--data` 目录，原目录保持不动。
+数据目录含 SQLite 状态、SQL journal 会话历史（`session-logs/`）、工程日志（`diagnostics/`）、生成的签名密钥、副本加密密钥，以及保存本地示例账号密码的 `demo-state.json`。整个目录保持私有，需要时一起备份。OpenRouter 密钥只存于加密副本。首次准备中断会保持「未完成」标记，不静默重放。旧的不兼容开发格式写下的数据不会被猜测、改写或转换；请使用新的 `--data` 目录，原目录保持不动。
 
 ### 模型
 
-示例装入 `@omne-harness-lite/pi-ai-transport` 发布的全部官方定义：按包的官方目录 `officialCatalog` 装入八家 37 叶（OpenAI 12、Anthropic 4、Google 2、DeepSeek 2、xAI 2、Qwen 8、Moonshot 2、ZAI 5），每叶一条官方档案、一个输入计量构件，档案固定该叶定义钉住的唯一供应商路由并禁止回退。缓存档由路由的缓存声明推导：自动缓存保持 automatic，显式缓存取声明的首个 TTL 与断点布局（如 Anthropic 为 `1h`／`last_message`）。模型、计量构件与缓存档的对应只在该包目录中维护，示例不另设映射。**`deepseek/deepseek-v4-pro-0813`** 仍只是首次会话的显式初选。**装入不等于认证**：哪些叶已真实认证，以[实现映射验证页](../../.meta_harness/design/realization/packages/model/pi-ai-transport/verification.md)的逐叶证据表为准；Google 两叶、Qwen 八叶、ZAI 五叶的输入校准仍在增量线上。`/models` 读取当前展示列表（按路由名排列这 37 条，上面的示例输出以 `...` 省略），`/model` 显示选中与有效路由，`/model <标识>` 耐久切换后续请求的选中路由，不重建会话，也不清空历史。上层锁可能让有效路由不同于选中路由；重启后读取耐久选择。沿用旧数据目录重启时，更高的官方清单序号把新增档案登记进目录，原两条 DeepSeek 档案按新配置修订更新。
+示例装入 `@omne-harness-lite/pi-ai-transport` 发布的全部官方定义：按包的官方目录 `officialCatalog` 装入八家 37 叶（OpenAI 12、Anthropic 4、Google 2、DeepSeek 2、xAI 2、Qwen 8、Moonshot 2、ZAI 5），每叶一条官方档案、一个输入计量构件，档案固定该叶定义钉住的唯一供应商路由并禁止回退。缓存档由路由的缓存声明推导：自动缓存保持 automatic，显式缓存取声明的首个 TTL 与断点布局（如 Anthropic 为 `1h`／`last_message`）。模型、计量构件与缓存档的对应只在该包目录中维护，示例不另设映射。新会话显式初选 **`openai/gpt-6-luna`**。已有会话保留其耐久选择。**装入不等于认证**：哪些叶已真实认证，以[实现映射验证页](../../.meta_harness/design/realization/packages/model/pi-ai-transport/verification.md)的逐叶证据表为准；Google 两叶、Qwen 八叶、ZAI 五叶的输入校准仍在增量线上。`/models` 读取当前展示列表（按路由名排列这 37 条，上面的示例输出以 `...` 省略），`/model` 显示选中与有效路由，`/model <标识>` 耐久切换后续请求的选中路由，不重建会话，也不清空历史。上层锁可能让有效路由不同于选中路由；重启后读取耐久选择。沿用旧数据目录重启时，更高的官方清单序号把新增档案登记进目录，原两条 DeepSeek 档案按新配置修订更新。
 
 ## 装配 runtime 的公开面
 
+
+模型阶段通过受管插件树装载具名 `createModelRuntimeLocal()` 提供者。JSON 配置给出显式界限，宿主输入与执行政策经具名服务注入。每项操作使用登记固定主体的真实调用方 fiber；有限操作归还借用后撤除，消费或失败来源未实际归还时继续保有。原执行来源只由可信装配持有。
+
+私有占位阻止同一稳定装配 Context 在启动中或原关闭未确认时另建提供者。原树与原提供者均确认关闭后才释放；未确认关闭重试同一 owner。这是单宿主装配规则，不是租户授权或跨进程锁。
+
 `createModelRuntime(construction)` 除传输、历史 reader 与政策外，还需要只有宿主才能提供的受信端口。`src/bootstrap.ts` 的 `createAcceptanceApplication` 用真实组件提供它们（不用内存替身，也不发布恒答 `unavailable` 的端口）：
 
-| runtime 输入                           | 本示例提供                                                                                                                                                                                                                                                                                                            |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `callAccess.check`                     | `createDemoCallAccess`（`src/call-references.ts`）。每次 `read`、`wait`、`settle`、`cancel` 与 `ack` 都重新核验认证入口捕获的登录状态、有效成员资格和 Session 到租户的持有关系，检查借用的日志绑定与调用的原关联，然后才在带撤权信号的证据下运行准入回调。应用开始关闭时该信号被中止。调用者不能传入 `allowed` 标志。 |
-| `callPresence.read`                    | `createDemoCallPresence`。只有原容器仍持有执行资源时才报告 `live`；只有容器已释放其精确租约且该 Session 结算 owner 上没有未知写者时，或受覆盖的冷 worker 依据宿主见证的退出证据建成恢复 scope 之后，才报告 `stopped`。登记表为空绝不是停止证明，其余一律 `unknown`。                                                  |
-| `callFacts`                            | runtime 的 `createModelCallFacts` 与 `createModelCallContentStore`，落在本示例自己的 SQLite 存储上。内容表由 `modelCallContentMigrations('sqlite')` 提供，并入示例的迁移序列。预算来自 `modelRequest.callReferences`（`maxScopes` 与内容的 `maxConcurrentWrites`／`maxContentBytes`）；runtime 不提供默认值。         |
-| `SessionRuntimeBinding.sourceVersions` | 部署期不可变标识：官方清单序号与已部署的官方能力集合。示例没有逐次调用的修订读取器，因此不引用可变路径或档案名。                                                                                                                                                                                                      |
-| `acknowledgementCleanup`               | `modelRequest.acknowledgementCleanup` 中显式、有限的重试计划：`createExplicitCleanupSchedule([200, 1_000, 5_000, 30_000])`。它是必填项、没有默认值，可换成任何政策对象。中止一轮不会丢弃耐久的清理责任。                                                                                                              |
-| `openCall` 的 `creationKey`            | `deriveCreationKey`：对 Session、用户消息身份及显式 call／Run 坐标做纯哈希，跨进程稳定，绝不是随机值。                                                                                                                                                                                                                |
+| runtime 输入                           | 本示例提供                                                                                                                                                                                                                                                                                                                               |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `callAccess.check`                     | `createDemoCallAccess`（`src/call-references.ts`）。每次 `read`、`wait`、`settle`、`cancel` 与 `ack` 都重新核验认证入口捕获的登录状态、有效成员资格和 Session 到租户的持有关系，检查借用的日志绑定与调用的原关联，然后才在带撤权信号的证据下运行准入回调。应用开始关闭时该信号被中止。调用者不能传入 `allowed` 标志。                    |
+| `callPresence.read`                    | `createDemoCallPresence` 消费原物理拥有者的 `executionSource`，包括 store 移除后保有的原代际。只有原容器仍持有执行资源时才报告 `live`；只有容器已释放其精确租约且该 Session 结算 owner 上没有未知写者时，或受覆盖的冷 worker 依据宿主见证的退出证据建成恢复 scope 之后，才报告 `stopped`。登记表为空绝不是停止证明，其余一律 `unknown`。 |
+| `callFacts`                            | runtime 的 `createModelCallFacts` 与 `createModelCallContentStore`，落在本示例自己的 SQLite 存储上。内容表由 `modelCallContentMigrations('sqlite')` 提供，并入示例的迁移序列。预算来自 `modelRequest.callReferences`（`maxScopes` 与内容的 `maxConcurrentWrites`／`maxContentBytes`）；runtime 不提供默认值。                            |
+| `SessionRuntimeBinding.sourceVersions` | 部署期不可变标识：官方清单序号与已部署的官方能力集合。示例没有逐次调用的修订读取器，因此不引用可变路径或档案名。                                                                                                                                                                                                                         |
+| `acknowledgementCleanup`               | `modelRequest.acknowledgementCleanup` 中显式、有限的重试计划：`createExplicitCleanupSchedule([200, 1_000, 5_000, 30_000])`。它是必填项、没有默认值，可换成任何政策对象。中止一轮不会丢弃耐久的清理责任。                                                                                                                                 |
+| `openCall` 的 `creationKey`            | `deriveCreationKey`：对 Session、用户消息身份及显式 call／Run 坐标做纯哈希，跨进程稳定，绝不是随机值。                                                                                                                                                                                                                                   |
 
 ```ts
 // app.bindModelRuntime(actor, session) 返回的 service 限定在该 Session。
@@ -158,7 +168,7 @@ const acknowledged = await service.acknowledgeCall({
 
 `acknowledgeCall({ ref, expectedResult })` 把模型侧副本交出去释放。它与读取是不同的动作：示例的 `callAccess` 重新核验 `ack`，持有引用或释放 consumer 都不会确认。runtime 先写一条耐久确认，再按显式清理政策删除该调用存下的副本。此后旧引用只回答一个不含路由、回复与输入校准的小型账务视图，回复正文不能再读回：确认前请自己保存原始结果。
 
-对已确认的 ready 调用再作否决或消费处分时，须把原始待处分结果作为 `retainedResult` 交回；缺少时 `settleReply` 返回 `wrongPhase`。runtime 校验交回值、耐久暂存完整批，并追加一条最终响应；之后同一处分无需再交全文即可认回，不同处分返回 `alreadyEnded`，日志不变。`tests/call-reference-service.spec.ts` 通过真实 SQLite、JSONL 与本机 TLS 服务运行这些路径，并检查只有 ready 的调用的确认，以及关闭时撤回访问资格。
+对已确认的 ready 调用再作否决或消费处分时，须把原始待处分结果作为 `retainedResult` 交回；缺少时 `settleReply` 返回 `wrongPhase`。runtime 校验交回值、耐久暂存完整批，并追加一条最终响应；之后同一处分无需再交全文即可认回，不同处分返回 `alreadyEnded`，日志不变。`tests/call-reference-service.spec.ts` 通过真实 SQLite、SQL journal 与本机 TLS 服务运行这些路径，并检查只有 ready 的调用的确认，以及关闭时撤回访问资格。
 
 ### 结算证据与诊断
 
@@ -249,7 +259,7 @@ const app = createAcceptanceApplication(imageConfig, {
 
 ## 本机工程日志
 
-示例先认证，再分别打开仅所有者可访问的本机与已核租户 JSONL collector，然后在同一 Cordis context 中激活模型请求 fibers。程序装配时，`createAcceptanceApplication(...).ready` 准备身份与会话日志访问；认证并打开两个诊断 owner 之后，才调用 `activateModelRequest(actor, diagnostics, diagnostics.transports)`。激活失败不会开放模型准入。
+示例先认证，再分别打开仅所有者可访问的本机与已核租户 SQL journal collector，然后在同一 Cordis context 中激活模型请求 fibers。程序装配时，`createAcceptanceApplication(...).ready` 准备身份与会话日志访问；认证并打开两个诊断 owner 之后，才调用 `activateModelRequest(actor, diagnostics, diagnostics.transports)`。激活失败不会开放模型准入。
 
 每次构造 transport 前先预留一个代际。其注册表只借用绑定本机 collector 与固定 `transport:<generation>` 执行标识的 record 端口；注册与退役事件来自真实注册表，不进入租户日志。确认未取得资源的构造中止会留下代际缺口；状态未知的构造保留其预留。service 的 `inspect()` 把注册表投递失败与丢弃同网络诊断、collector 健康分开报告。当前、构造中、仍存活的旧代际与终态 transport 代际共用一个保留上限（`createDemoDiagnosticConfig` 中为四）；活跃 owner 占满时拒绝新构造。
 
@@ -294,7 +304,7 @@ export async function readEngineeringPage(config: DiagnosticJournalConfig) {
 
 `createAcceptanceApplication()` 返回的应用另提供 `runExtensionPass(actor, session, request)`，用于显式给入的开发扩展。`DemoRunnerRequest` 复用 runner 包已有的 pass、chain 与非存储端口；用到哪些端口就给入对应的真实执行与等待来源，`isActive()` 的结果不证明 Run 或等待卡片事实。该入口不注册产品链，也不增加模型命令。
 
-应用验证参与者与会话，并提供共享 JSONL 绑定、结论写入、提醒读写与物理任务 owner；调用者不能替换这些存储端口，也不能自行宣称写入者已停止。`subjectForCandidate` 为每条结论（包括嵌套 pass）给出原始的定位 subject，runner adapter 核验二者的关系。runner 服务 adapter 只借用历史 reader 的 `read` 能力；reader 及其 `close()` 仍归应用持有。
+应用验证参与者与会话，并提供共享 SQL journal 绑定、结论写入、提醒读写与物理任务 owner；调用者不能替换这些存储端口，也不能自行宣称写入者已停止。`subjectForCandidate` 为每条结论（包括嵌套 pass）给出原始的定位 subject，runner adapter 核验二者的关系。runner 服务 adapter 只借用历史 reader 的 `read` 能力；reader 及其 `close()` 仍归应用持有。
 
 始终等待 `app.close()`。它先关闭 runner 准入并取消 pass，保留仍在执行的贡献，停止其他共享日志消费者，再关闭真实日志。未知追加只能在对同一日志经 SL3 恢复准入重开、读取原键之后解决。退出情况仍未知的写入者保持未完成；不要把 `complete: false` 报成正常关闭。
 
@@ -330,4 +340,4 @@ python3 examples/model-invocation-minimal-demo/tests/pty-check.py
 | `tests/cold-supervisor.spec.ts`、`tests/crash-reopen.spec.ts`、`tests/control-writer-uncertainty.spec.ts`、`tests/response-writer-cold-recovery.spec.ts`      | 受管 worker、SIGKILL、崩溃重开、未知控制与响应写者，以及不再发 HTTP 的冷恢复                                                                                              |
 | `tests/runner-host.spec.ts`                                                                                                                                   | 已认证 runner pass、提醒持久化、重放、关闭后重开与文件系统故障注入                                                                                                        |
 
-服务、选择、观察端、恢复、确认与校准的映射遵循已接受的 [RT12](../../.meta_harness/design/spec/capabilities/model-request-runtime/v12/contract.md) 与 [MR11](../../.meta_harness/design/spec/data/model-response/v11/contract.md)，校准由 [D107](../../.meta_harness/design/record/decisions/model-input-usage-calibration-adoption/decision.md) 采用，图片准备由 [D-109](../../.meta_harness/design/record/decisions/model-request-image-preparation-adoption/decision.md) 采用；提供者状态见 [runtime realization](../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)。统一服务装配的真实 OpenRouter PTY 有界证据见 [2026-09-28 示例服务证据](../../.meta_harness/design/record/evidence/2026-09-28-tests-model-invocation-demo-service/README.md)，经本示例服务入口的真实逐叶三轮运行列在 [transport 验证](../../.meta_harness/design/realization/packages/model/pi-ai-transport/verification.md)。命令行的模型切换本身只在受控本机 TLS 与 PTY 检查下验证。
+服务、选择、观察端、恢复、确认与校准的映射遵循已接受的 [RT12](../../.meta_harness/design/spec/capabilities/model-request-runtime/v12/contract.md) 与 [MR11](../../.meta_harness/design/spec/data/model-response/v11/contract.md)，校准由 D107 采用，图片准备由 D-109 采用；提供者状态见 [runtime realization](../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)。统一服务装配的真实 OpenRouter PTY 有界证据见 2026-09-28 示例服务证据，经本示例服务入口的真实逐叶三轮运行列在 [transport 验证](../../.meta_harness/design/realization/packages/model/pi-ai-transport/verification.md)。命令行的模型切换本身只在受控本机 TLS 与 PTY 检查下验证。

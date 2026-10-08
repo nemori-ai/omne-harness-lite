@@ -1,4 +1,4 @@
-import { expect, test, vi } from 'vitest'
+import { beforeEach, afterEach, expect, test, vi } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import type {
   AccessIdentity,
@@ -12,6 +12,14 @@ import type {
   ResourceRecoveryAuthority,
 } from '@omne-harness-lite/execution-environments'
 import { createEnvironmentRegistry, createHostEnvironment } from '../src/index.ts'
+import { hostStorageFixture } from './host-storage-fixture.ts'
+let database: Awaited<ReturnType<typeof hostStorageFixture>>
+beforeEach(async () => {
+  database = await hostStorageFixture()
+})
+afterEach(async () => {
+  await database.close()
+})
 const tenant = parseTenantId({ organization: 'org', account: 'alice' }),
   session = parseOpaqueIdentifier('session', 'SessionRef'),
   execution = parseOpaqueIdentifier('call-1', 'CallId')
@@ -41,6 +49,7 @@ function request() {
     closed: signal.signal,
     plan: async () => 'recorded',
     permit: async () => 'confirmed',
+    adopt: async () => 'confirmed',
     stopped: async () => 'recorded',
   }
   return {
@@ -78,24 +87,27 @@ function registerPlacement(registry: ReturnType<typeof createEnvironmentRegistry
 }
 
 test('host lease is independent of callers, no undeclared facilities, and release does not destroy the shared environment', async () => {
-  const host = createHostEnvironment({ name: 'host', access }),
+  const host = createHostEnvironment({ name: 'host', access, storage: database.storage }),
     registry = createEnvironmentRegistry({ access, recovery })
   registerPlacement(registry)
   const remove = registry.registrations.registerProvider(host)
   expect(
     await registry.operations.acquire({ ...request(), authorization: {} as SessionAccess }),
   ).toMatchObject({ reason: 'notAuthorized' })
-  expect(
-    await registry.operations.acquire({
-      ...request(),
-      call: { tool: { name: 'fixture', definition: 'command-v1' }, execution: execution.ok },
-      requirement: { bindingLayer: 'host_machine', facilities: ['command'] },
-    }),
-  ).toMatchObject({ reason: 'missingFacility' })
+  const commandLease = await registry.operations.acquire({
+    ...request(),
+    call: { tool: { name: 'fixture', definition: 'command-v1' }, execution: execution.ok },
+    requirement: { bindingLayer: 'host_machine', facilities: ['command'] },
+  })
+  expect(commandLease.kind).toBe('acquired')
+  if (commandLease.kind === 'acquired') await commandLease.lease.release()
   const first = await registry.operations.acquire(request())
   if (first.kind !== 'acquired') throw new Error('lease missing')
-  expect(first.lease.facilities).not.toHaveProperty('command')
-  expect(first.lease.facilities).not.toHaveProperty('files')
+  expect(first.lease.facilities.description.facilities).toEqual(['command', 'files'])
+  expect(await first.lease.facilities.files?.read({ path: '/unrequested' })).toEqual({
+    kind: 'rejected',
+    reason: 'notAuthorized',
+  })
   await first.lease.release()
   const second = await registry.operations.acquire(request())
   if (second.kind !== 'acquired') throw new Error('shared host destroyed')
@@ -110,9 +122,11 @@ test('host lease is independent of callers, no undeclared facilities, and releas
 test('reference expiry and multiple owners never fall back to another environment', async () => {
   const registry = createEnvironmentRegistry({ access, recovery })
   registerPlacement(registry)
-  const host = createHostEnvironment({ name: 'one', access })
+  const host = createHostEnvironment({ name: 'one', access, storage: database.storage })
   registry.registrations.registerProvider(host)
-  registry.registrations.registerProvider(createHostEnvironment({ name: 'two', access }))
+  registry.registrations.registerProvider(
+    createHostEnvironment({ name: 'two', access, storage: database.storage }),
+  )
   expect(await registry.operations.acquire(request())).toMatchObject({
     reason: 'ambiguousEnvironment',
   })
@@ -135,7 +149,7 @@ test('reference expiry and multiple owners never fall back to another environmen
 
 test('withdrawal owns a pending acquire and retires the original provider; input mutation cannot change the adopted request', async () => {
   const registry = createEnvironmentRegistry({ access, recovery }),
-    host = createHostEnvironment({ name: 'host', access })
+    host = createHostEnvironment({ name: 'host', access, storage: database.storage })
   registerPlacement(registry)
   const entered = Promise.withResolvers<void>(),
     finish = Promise.withResolvers<void>()

@@ -1,7 +1,7 @@
 # formal：一次调用 × 多次发出 × 停机 × 中断
 
-属于 `capability.model-request-runtime` v2 的规范工件。**这里只写模型表达了什么、每条断言对应哪条条款、成立的前提、模型吸收了什么**；
-执行记录与结果在[验证入口](../../verification.md)，不写在版本目录里。
+属于 `capability.model-request-runtime` v2 的规范工件。**这里只写模型表达了什么、每条断言对应哪条条款、成立的前提、模型吸收了什么**。
+[验证入口](../../verification.md)维护方法、覆盖、前提和限制；每次运行输入与输出放本工作树 `tmp/<task>/`。
 
 ## 模型
 
@@ -46,7 +46,7 @@
 
 **二十条不变量（含 `TypeOK`）分三类**，只有第一类可以说「断言能失败」：
 
-**（一）有否定配置证明它能失败的六条**——每条都有一份恰拧反一个开关的配置，本机实跑出反例（下文「不登记」表）：
+**（一）有否定配置证明它能失败的六条**——每条都有一份恰拧反一个开关的配置，应检查能否得到指定反例（下文「不登记」表）：
 
 | 不变量 | 条款与性质 | 会在什么时候失败 | 证明它能失败的配置 |
 |---|---|---|---|
@@ -78,7 +78,7 @@
 | `AtMostOneTerminal` | [S-6](../contract.md#s-6-调用的状态) | 调用终结记录与一条终态响应体并存 |
 | `InterruptNotMisregistered` | [S-31](../contract.md#s-31-interrupt)：**被叫停的那次发出不被记成失联** | 对账把有中断意图的发出写成 `runtime_lost` |
 
-每份否定配置只检查它那一条（第一类），**这十条没有在任何否定配置里检查过**。`EverySentIsAnchored`、`EverySeenIsAnchored` 与第一类的 `QuiescentSettled`、`NoDispatchAfterSeen` 由同两个开关（`OutFirst`、`SpokeFirst`）控制，把它们也列进那两份配置即可补证，本轮没有做。
+每份否定配置只检查它那一条（第一类），**这十条没有在任何否定配置里检查过**。`EverySentIsAnchored`、`EverySeenIsAnchored` 与第一类的 `QuiescentSettled`、`NoDispatchAfterSeen` 由同两个开关（`OutFirst`、`SpokeFirst`）控制，把它们也列进那两份配置即可补证，现有否定配置没有包含这些断言。
 
 | 进展性质 | 条款 | 前提 |
 |---|---|---|
@@ -113,7 +113,3 @@
 - **对账由谁触发**：模型里 `Reconcile` 一步不区分它由新尝试还是会话重新承载触发（[S-33](../contract.md#s-33-reconcile) ②），也不含不属于任何 Run 的调用。
 - **只读守卫** [S-50](../contract.md#s-50-candispatchagain)：与 `DispatchAgain` 的前置同一张表，模型没有另建它。
 - **常量很小**：至多 3 次发出、2 家、2 次停机。结论只对这个范围成立，**不是无条件证明**。
-
-## 本轮执行
-
-2026-09-24 修复稿的一次全量运行（两份登记配置 ＋ 八份不登记配置），输入副本、哈希、日志与退出码在主检出 `tmp/formal-runs/model-request-runtime-v2-2026-09-24d/`；结果表在[验证入口「实际执行」](../../verification.md#实际执行)。

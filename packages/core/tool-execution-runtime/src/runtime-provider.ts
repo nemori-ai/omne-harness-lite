@@ -60,7 +60,7 @@ export interface ToolRuntimeDependencies extends ToolRuntimeBootstrap {
   readonly admission: () => ToolAdmissionOperations | undefined
   readonly implementations: ToolImplementationOperations
   readonly context: Pick<RuntimeContextOperations, 'bind'>
-  readonly environments: Pick<EnvironmentProviderRegistrations, 'recover'> &
+  readonly environments: Pick<EnvironmentProviderRegistrations, 'recover' | 'recoverOwned'> &
     Pick<ExecutionEnvironmentOperations, 'resolvePlacement' | 'acquire'>
   readonly results: ToolResultStorageOperations
   readonly runnerHost: RunnerServiceHost

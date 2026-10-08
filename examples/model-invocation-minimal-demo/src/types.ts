@@ -8,7 +8,6 @@ import type { CredentialVerificationConfig } from '@omne-harness-lite/credential
 import type { SessionRef } from '@omne-harness-lite/messages'
 import type { ModelCatalog, OfficialManifest } from '@omne-harness-lite/model-profile-directory'
 import type { OrganizationGovernanceConfig } from '@omne-harness-lite/organization-governance'
-import type { ProcessOwnership, SessionLogPolicy } from '@omne-harness-lite/session-log-jsonl'
 import type { DeployedOfficialEntry } from '@omne-harness-lite/evaluation-input-store'
 import type { ModelInputSource, PublishSourceFailure, CaptureRecipeFailure } from './bootstrap.ts'
 import type { TransportOptions } from '@omne-harness-lite/pi-ai-transport'
@@ -18,10 +17,12 @@ import type {
   AcknowledgementCleanupPolicy,
   SettlementContention,
   SettlementScheduler,
-  ReservationWaitPolicy,
-  ModelCallContentPolicy,
   ObserverDiagnostic,
   SettlementDiagnostic,
+} from '@omne-harness-lite/model-request-runtime'
+import type {
+  ReservationWaitPolicy,
+  ModelCallContentPolicy,
   DefaultRetryConfiguration,
 } from '@omne-harness-lite/model-request-runtime-local'
 import type { InvocationPolicy } from '@omne-harness-lite/model-request-runtime'
@@ -73,9 +74,7 @@ export type StartupPhase =
   | 'admission'
 
 export interface SessionLogDeployment {
-  readonly dir: string
-  readonly processOwnership: ProcessOwnership
-  readonly policy: SessionLogPolicy
+  readonly operationLimit: number
 }
 export type { ModelInputSource } from './bootstrap.ts'
 export interface ModelRequestDeployment {
@@ -191,7 +190,7 @@ export interface AcceptanceHooks {
     readonly environments: import('@omne-harness-lite/execution-environments').EnvironmentProviderRegistrations &
       import('@omne-harness-lite/execution-environments').ExecutionEnvironmentOperations
   }) => void | Promise<void>
-  /** Trusted fault control on the actual physical owner, before any consumer borrows it. */
+  /** Trusted fault control on the actual owner and each authorized scoped borrow. */
   readonly sessionLogOpened?: (
     log: import('@omne-harness-lite/session-log').SessionLog,
   ) =>

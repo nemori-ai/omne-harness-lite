@@ -1,10 +1,10 @@
 # 本期治理TUI · 提供路径候选
 
-输入PF016 rev7 §§6.2/6.3/6.11/6.14/6.15，CG2、CLS1、D049文件输入；来源[CLI-TUI §14](../../../record/proposals/cli-tui/governance-client.md)。本页未采用、无产品TUI实现。领域性质为既有范围补读，已见旧机制，第一遍双盲未达成。
+输入PF016 rev7 §§6.2/6.3/6.11/6.14/6.15，CG2、CLS1、D049文件输入；来源CLI-TUI §14。本页未采用、无产品TUI实现。领域性质为既有范围补读，已见旧机制，第一遍双盲未达成。
 
 ## 选择与拥有者
 
-沿A采用`@earendil-works/pi-tui`1.0.0（2026-10-02自0.86.1升级，见[D-051追加](../../../record/decisions/governance-tui-entry-adoption/pi-tui-1.0.0-2026-10-02.md)）的公共Input、宽字符/换行工具与普通按键拆分组件；不是采用ProcessTerminal/TUI完整默认终端控制。应用内部组合固定身份区域、分页内容和单行非秘密表单，输入水平滚动；不fork/patch第三方渲染器，不新增领域服务或Agent后台进程。组件复用不免除应用自己的输入/屏幕生命周期。
+沿A采用`@earendil-works/pi-tui`1.0.0（2026-10-02自0.86.1升级，见D-051追加）的公共Input、宽字符/换行工具与普通按键拆分组件；不是采用ProcessTerminal/TUI完整默认终端控制。应用内部组合固定身份区域、分页内容和单行非秘密表单，输入水平滚动；不fork/patch第三方渲染器，不新增领域服务或Agent后台进程。组件复用不免除应用自己的输入/屏幕生命周期。
 
 B的canonical菜单因长输入在Enter前卷走身份而不成立；C的外层终端拥有方式尚缺宿主证据。A的本次限定进一步避免无关模式责任：只改变OS termios和2004，既不启用Kitty/modifyOtherKeys/2031/鼠标/备用屏，也不改变cursor visibility/title/progress。整帧输出只含应用所有的定位/清屏、纯文本；Input返回的CURSOR_MARKER用于定位IME硬件光标后去除，样式控制序列在输出前剥离。没有把整个应用改造成新的通用渲染引擎。
 
@@ -42,7 +42,7 @@ CG2在途工作同样先请求关闭并等待真实结束；待输入实际结�
 
 StdinBuffer不负责UTF-8流正确性：其Buffer单字节高位转换不是本协议，适配器必须先严格增量解码成完整文本再交普通键拆分。stripTerminalSequences只用于去掉成熟组件自己生成的样式；所有领域/表单纯文本先沿D049处理C0/C1/双向控制，不能等布局后再删除宽度已计算的危险字节。
 
-UndoStack容量路径由[输入历史候选](../../../record/proposals/cli-tui/governance-client.md)比较，倾向精确版本单点patch到256快照；字段最多64KiB，单个活动Input，kill/yank路径不准入。该差异明确为待采用的项目维护补丁，不能将其混称完全直接采用。
+UndoStack容量路径由输入历史候选比较，倾向精确版本单点patch到256快照；字段最多64KiB，单个活动Input，kill/yank路径不准入。该差异明确为待采用的项目维护补丁，不能将其混称完全直接采用。
 
 来源假设进一步限定：受支持模拟器的正常粘贴必须将真实begin、过滤后的正文和end按同一输入顺序排队；仅过滤正文ESC仍不足以排除普通Escape按键在正文两段之间合成假尾标记。XTerm379普通SelectionReceived路径的同步入队已由独立reviewer沿button.c/charproc.c核实，具体source哈希与实测单独记录；不能外推iTerm慢速粘贴或其他来源。模式答复同样需服从该输入队列顺序。
 
@@ -60,7 +60,7 @@ UndoStack容量路径由[输入历史候选](../../../record/proposals/cli-tui/g
 
 CG2 openUse在未配置/无登录时返回blocked；Use只接受invoke/logout。根级configure/register/login不允许与活动use并存，根级health虽可调用却会重新读取本地绑定，不作为固定治理屏的匿名health入口。故连接与登录屏用明确--setup（初次not-configured/not-logged-in可进入），只做一项根级预使用动作后退出；治理屏一个use持续到退出。重新连接/登录需新的TUI调用；不造guest Use，不在健康检查中暗换中心。CQ2/forms的phase将其精确表达。
 
-2026-09-25采用接续：[D051](../../../record/decisions/governance-tui-entry-adoption/README.md)接受上述A及Undo256补丁，首个profile为xterm-379。上文“探针进行中/待采用”是受审时状态；普通粘贴探针与源顺序核对已通过，归[研究记录](../../../../research/agent-harness-cli-tui/reports/2026-09-25-tui-terminal-boundaries/README.md)。Mac真实模拟器仍未通过。源码与实际验证以节点README为准。
+2026-09-25采用接续：D051接受上述A及Undo256补丁，首个profile为xterm-379。上文“探针进行中/待采用”是受审时状态；普通粘贴探针与源顺序核对已通过，归[研究记录](../../../../research/agent-harness-cli-tui/reports/2026-09-25-tui-terminal-boundaries/README.md)。Mac真实模拟器仍未通过。源码与实际验证以节点README为准。
 
 ### D051源码复核后的承接修正
 

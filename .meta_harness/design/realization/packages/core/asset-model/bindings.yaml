@@ -1,18 +1,13 @@
-# 条款到证据的绑定表。
-# 空表：data.asset-model v2 没有登记的 formal task；源码不存在，没有测试可绑。
-# 证据义务与缺口记在 verification.md。
 version: 1
 node: "asset-model"
 kind: "provider"
 
 bindings:
 
-# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
 
   - clause: "data.asset-model/v3#S-10"
     evidence: "test:tools/core-verification/src/w6-asset-consumer.ts#w6.asset.five-real-ports"
     assumptions:
       - "只证实际五正文端口经公开资产judge拼接；冻结Connector资源是结构资源，不冒充真实提供者。"
-      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
-      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
-    alignment_checked: "2026-09-26"
+      - "本条仅绑定上述具名用例的有限输入；执行输入、输出及接受过程归本工作树 tmp/。"
+      - "有限实现测试，不是任意输入证明；测试通过不提升整体接受状态。"

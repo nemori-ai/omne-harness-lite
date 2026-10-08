@@ -1,5 +1,7 @@
+import { fixturePayload } from './log-payload-fixture.ts'
+import { journalBatchText } from './sql-batches-fixture.ts'
 // @module-tag slow
-// Each case kills a real demo process at a physical JSONL boundary and opens a successor.
+// Each case kills a real demo process at a physical SQL journal boundary and opens a successor.
 import assert from 'node:assert/strict'
 import { fork, type ChildProcess } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
@@ -17,8 +19,7 @@ function object(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>
 }
 function value(entry: Record<string, unknown>): Record<string, unknown> {
-  const payload = object(entry.payload)
-  return payload.value !== null && typeof payload.value === 'object' ? object(payload.value) : {}
+  return fixturePayload(entry.payload).value
 }
 function batches(bytes: string) {
   return bytes
@@ -154,8 +155,8 @@ for (const cut of cuts)
           JSON.stringify({ owner, pid: reached.pid, ...exited }),
           { mode: 0o600 },
         )
-        const journal = join(common.data, 'session-logs', digest(reached.session), 'entries.jsonl')
-        const before = await readFile(journal, 'utf8'),
+        const journal = join(common.data, 'db.sqlite')
+        const before = journalBatchText(journal, reached.session),
           originalRows = batches(before).flat()
         expect(
           [
@@ -178,6 +179,7 @@ for (const cut of cuts)
           JSON.stringify({
             ...common,
             mode: 'recover',
+            previousOwner: owner,
             owner: randomUUID(),
             confirmedExited: [owner],
           }),
@@ -196,7 +198,7 @@ for (const cut of cuts)
         expect((await authors(authorEntries)).filter(row => row.phase === 'entered')).toHaveLength(
           cut.author,
         )
-        const after = await readFile(journal, 'utf8'),
+        const after = journalBatchText(journal, reached.session),
           physical = batches(after),
           rows = physical.flat()
         expect(after.startsWith(before)).toBe(true)
@@ -308,10 +310,10 @@ test(
         code: null,
         signal: 'SIGKILL',
       })
-      const files = sessions.map(session =>
-        join(common.data, 'session-logs', digest(session), 'entries.jsonl'),
+      const files = sessions
+      const before = sessions.map(session =>
+        journalBatchText(join(common.data, 'db.sqlite'), session),
       )
-      const before = await Promise.all(files.map(file => readFile(file, 'utf8')))
       expect(before.map(text => records(batches(text).flat(), 'execution_ended').length)).toEqual([
         1, 1,
       ])
@@ -328,6 +330,7 @@ test(
         JSON.stringify({
           ...common,
           mode: 'recover',
+          previousOwner: owner,
           owner: randomUUID(),
           confirmedExited: [owner],
           sessions,
@@ -353,7 +356,7 @@ test(
       expect(tls.requests).toHaveLength(2)
       expect((await authors(authorEntries)).filter(row => row.phase === 'entered')).toHaveLength(2)
       for (const [index, file] of files.entries()) {
-        const after = await readFile(file, 'utf8'),
+        const after = journalBatchText(join(common.data, 'db.sqlite'), file),
           rows = batches(after).flat()
         expect(after.startsWith(before[index]!)).toBe(true)
         const A = only(rows, 'execution_ended')
@@ -407,8 +410,8 @@ test(
     try {
       const reached = await original.notice
       assert.ok(typeof reached.session === 'string')
-      const journal = join(common.data, 'session-logs', digest(reached.session), 'entries.jsonl')
-      const before = await readFile(journal, 'utf8')
+      const journal = join(common.data, 'db.sqlite')
+      const before = journalBatchText(journal, reached.session)
       for (const fact of ['alive', 'unknown'] as const) {
         if (fact === 'unknown') {
           expect(original.process.kill('SIGKILL')).toBe(true)
@@ -428,6 +431,7 @@ test(
           JSON.stringify({
             ...common,
             mode: 'recover',
+            previousOwner: owner,
             owner: contenderOwner,
             confirmedExited: [],
             observedAlive: fact === 'alive' ? [owner] : [],
@@ -445,7 +449,7 @@ test(
           signal: null,
         })
         exitedOwners.push(contenderOwner)
-        expect(await readFile(journal, 'utf8')).toBe(before)
+        expect(journalBatchText(journal, reached.session)).toBe(before)
         expect(await authors(common.authorEntries)).toHaveLength(0)
       }
       const recoveryFile = join(root, 'confirmed-input.json')
@@ -454,6 +458,7 @@ test(
         JSON.stringify({
           ...common,
           mode: 'recover',
+          previousOwner: owner,
           owner: randomUUID(),
           confirmedExited: exitedOwners,
         }),
@@ -467,7 +472,7 @@ test(
         signal: null,
       })
       expect(await authors(common.authorEntries)).toHaveLength(0)
-      const rows = batches(await readFile(journal, 'utf8')).flat()
+      const rows = batches(journalBatchText(journal, reached.session)).flat()
       expect(only(rows, 'execution_ended').terminal).toEqual({
         outcome: 'failed',
         code: 'abnormal_interruption',

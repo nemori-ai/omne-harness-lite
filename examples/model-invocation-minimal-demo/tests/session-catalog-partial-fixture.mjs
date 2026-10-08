@@ -1,39 +1,33 @@
-import { open } from 'node:fs/promises'
-import { join } from 'node:path'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openStorage } from '@omne-harness-lite/storage-sql'
+import { openSqlSessionLog } from '@omne-harness-lite/session-log-sql'
 
-const [dir, session, tenantJson] = process.argv.slice(2)
-if (!dir || !session || !tenantJson || !process.send)
+const [file, session, tenantJson] = process.argv.slice(2)
+if (!file || !session || !tenantJson || !process.send)
   throw new Error('invalid partial write fixture')
-const probe = await open(join(dir, '..', 'partial-write-probe'), 'w')
-const prototype = Object.getPrototypeOf(probe)
-await probe.close()
-const write = prototype.write
-prototype.write = async function (...args) {
-  const bytes = args[0]
-  if (
-    ArrayBuffer.isView(bytes) &&
-    Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).includes(
-      Buffer.from('"oc1FirstCommit":true'),
-    )
-  ) {
-    await write.call(this, bytes.subarray(0, Math.floor(bytes.byteLength / 2)))
-    await this.datasync()
-    process.send('partial-written')
-    await new Promise(() => {})
-  }
-  return write.apply(this, args)
+const storage = await openStorage({ dialect: 'sqlite', file, synchronous: 'full', upgrade: false })
+const access = Object.freeze({})
+const authority = {
+  storage,
+  async authorize(unit, candidate) {
+    unit.assertStorage(storage)
+    return { kind: candidate === access ? 'authorized' : 'denied' }
+  },
+  async authorizeEnumeration() {
+    return { kind: 'denied' }
+  },
 }
-// The parent kills this actual writer and waits for its exit before authorizing recovery.
+const log = openSqlSessionLog({ storage, authority, operationLimit: 8 })
 setInterval(() => {}, 1000)
-const log = await openJsonlSessionLog({
-  dir,
-  processOwnership: { current: 'catalog-partial-child', observeExit: async () => 'unknown' },
+// The parent waits for staging, kills this actual writer, and observes exit before reopening.
+await storage.atomic(async unit => {
+  const result = await log.participant.appendIn(unit, access, {
+    session,
+    entries: [{ tenant: JSON.parse(tenantJson), readKeys: [], payload: { oc1FirstCommit: true } }],
+    fence: { kind: 'unfenced' },
+    condition: { kind: 'unconditional' },
+  })
+  if (result.kind !== 'staged') throw new Error('original SQL batch was not staged')
+  process.send('partial-written')
+  await new Promise(() => {})
 })
-await log.append(
-  session,
-  [{ tenant: JSON.parse(tenantJson), readKeys: [], payload: { oc1FirstCommit: true } }],
-  { kind: 'unfenced' },
-  { kind: 'unconditional' },
-)
-throw new Error('partial writer unexpectedly completed')
+throw new Error('uncommitted writer unexpectedly completed')

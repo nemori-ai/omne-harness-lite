@@ -1,15 +1,3 @@
-# 条款到证据的绑定表。
-# 只绑已登记的 formal task：asset-transfer-v2-transfer（Transfer.cfg）、asset-transfer-v2-share（Transfer_Share.cfg）、
-# asset-transfer-v2-revival（Transfer_Revival.cfg），运行 record/evidence/2026-09-25-formal-assets-runtimes（HUB 1667ea4c，三个任务退出 0、无反例）。
-# 每条只绑到「去掉那一处保护会被反驳」的那个性质所在的任务（契约 formal/README 的映射表），不绑「相关的」任务。
-# 这些证据检查的是契约模型，不是本节点的实现（尚未建包）；共同前提（除非条目另写）：
-#   - 模型把确认、本人型发起、撤回、撤销、移除、删除与提升写成不可分割的动作，即假设本节点的存储锁（design 的 L-1～L-6）真的兑现了序列化——
-#     sqlite 上由写事务库级串行给，pg 上由锁给；这条由本节点与存储提供者承担，模型不检查（verification D-1～D-12）；
-#   - 规模：三个团队组织、两个账号的四个租户身份、两份资产、每类两份同源同落点的待确认件；更大规模是另一次检查；
-#   - 不带公平性假设，不检查进展；死锁检查关闭。
-# 不绑（被建模方式吸收，证据形式在 verification）：TypeOK；EffectsOnlyFromConfirmation；EndedStable；
-# AT S-52 的提升一支（Promote 守卫不看分享，按构造成立）；AT S-9 的两读先后（Use 一步原子读）；
-# 「血缘只在落进的那一层里找」；AT S-20 ⑦ 尝试键认回。capability.asset-governance 不建形式工件，无 formal 绑定。
 version: 1
 node: "asset-governance"
 kind: "provider"
@@ -22,8 +10,7 @@ bindings:
       - "模型里撤回与确认是互斥的原子动作：本节点由 L-1～L-6 兑现这一前提——撤回与确认在同一通知行上 lockRow（L-6），存在性在 L-3、L-4 下读（design「每个写操作的锁集」）；pg 上的实证是 verification D-10"
       - "src[a] 离开 held 之后不回来：即假设 AT G-3（持有实例身份）已兑现；本节点靠 since 严格递增兑现它，依赖 N-1（infra/clock 的 C-15）"
       - "失败值字面（offerNoLongerValid 三路同值）不在模型里，证据形式是场景 AT S-39"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.asset-transfer/v2#S-7"
     evidence: "formal:asset-transfer-v2-share"
@@ -31,32 +18,28 @@ bindings:
       - "性质 NoLateOrDoubleSettle 与 SettledStable（分享邀请，含组织内分享邀请 s3）"
       - "同上：撤回与确认互斥由 L-1～L-6 兑现（邀请行 lockRow，L-6）；pg 上的实证是 verification D-10"
       - "同上：G-3 按已兑现建模；失败值字面归场景 AT S-39"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.asset-transfer/v2#S-18"
     evidence: "formal:asset-transfer-v2-transfer"
     assumptions:
       - "性质 NoLateOrDoubleSettle 与 AtMostOneLineageTarget：确认与本人型发起是一次提交、同一落点序列化；去掉 SameCommit 由 Transfer_NoSameCommit_Settle.cfg、Transfer_NoSameCommit_Lineage.cfg 反驳"
       - "模型里一次提交覆盖的是份数与状态，不是本节点列出的全部存储对象（design「锁次序与插件内的同一提交」）；写集合的完整性由故障注入 F-1 证"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.asset-transfer/v2#S-18"
     evidence: "formal:asset-transfer-v2-share"
     assumptions:
       - "性质 AtMostOneLiveSharingPerPair：同对的两次成立序列化；去掉 SameCommit 由 Transfer_NoSameCommit_Sharing.cfg 反驳"
       - "本节点对应的保护是 L-5 同对哨兵（「至多一份生效」是派生谓词，没有唯一索引可兜底），pg 上的实证是 verification D-5"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.asset-transfer/v2#S-10"
     evidence: "formal:asset-transfer-v2-transfer"
     assumptions:
       - "性质 AtMostOneLineageTarget（linO2 <= 1 /\\ linA2 <= 1）：组织型（t2 组织级）与本人型（A2 租户级）两处各自至多一份带对应血缘的目标记录"
       - "首次与重复的写集合（所有者、作者、版本号、血缘四项）不在模型里，证据形式是场景 AT S-40"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.asset-transfer/v2#S-8"
     evidence: "formal:asset-transfer-v2-share"
@@ -64,56 +47,49 @@ bindings:
       - "性质 AtMostOneLiveSharingPerPair：同一 (资产, 被分享方) 至多一份此刻生效的分享"
       - "模型里确认（含认回）、撤销、移除、删除与提升各是一个原子动作：本节点由 L-1～L-6 兑现——同对确认在 L-5 同对哨兵上排序，确认认回与撤销、移除、删除在那条分享行上 lockRow（L-6），确认的锁集恒含被分享方所在组织的 L-3；pg 上的实证是 verification D-5、D-11、D-12"
       - "「认回那一份」返回的是哪个 SharingId 不在模型里，证据形式是场景 AT S-43"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.asset-transfer/v2#S-12"
     evidence: "formal:asset-transfer-v2-transfer"
     assumptions:
       - "性质 CopyLandsInsideBoundary：复制只在发起者资格有效、且源与落点同树时落地；去掉 ConfirmRecheck 由 Transfer_NoConfirmRecheck.cfg 反驳"
       - "模型把确认时的再判与落地写成一步：本节点对应的是 L-1 隶属哨兵加事务内读上级链（X-1，D-060 §一 PA-4），实证是 verification D-4"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.asset-transfer/v2#S-12"
     evidence: "formal:asset-transfer-v2-share"
     assumptions:
       - "性质 UseInsideBoundary：跨组织的分享只在此刻同树时被使用；去掉 UseTimeCheck 由 Transfer_NoUseTimeCheck.cfg 反驳"
       - "求值那一侧是否真的按 S-9 判——模型假设它判，这条前提归 capability.asset-evaluation 的组输入一方；本节点兑现的是快照面与 listSharings 的判定"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.asset-transfer/v2#S-17"
     evidence: "formal:asset-transfer-v2-transfer"
     assumptions:
       - "性质 CopyLandsInsideBoundary 在 ConfirmRecheck 下成立：确认时再判一遍；发起者降级（不再是超管）没建模，证据形式是场景 AT S-42"
       - "本节点把再判放在确认那一次写事务里（L-1、L-2 下事务内读），不走 OG 服务面"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.asset-transfer/v2#S-22"
     evidence: "formal:asset-transfer-v2-transfer"
     assumptions:
       - "性质 OrgLevelLandingByTargetAdmin：组织型复制只由目标组织的有效超管确认；去掉 ConfirmerCheck 由 Transfer_NoConfirmerCheck.cfg 反驳"
       - "「超管从个人组织复制进本团队选组织级」那一格没建模（模型里没有个人组织），由场景 AT S-51 承担"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.asset-transfer/v2#S-49"
     evidence: "formal:asset-transfer-v2-transfer"
     assumptions:
       - "性质 NoForeignTenantLanding（本人型复制只落发起者自己在 t2 的租户级）与 OrgLevelLandingByTargetAdmin；去掉 LayerCheck 由 Transfer_NoLayerCheck.cfg 反驳"
       - "矩阵其余各格（layerNotAllowed 的每一格、recipientNotMember、个人组织那几行）没建模，证据形式是场景 AT S-51"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.asset-transfer/v2#S-49"
     evidence: "formal:asset-transfer-v2-share"
     assumptions:
       - "性质 NoForeignTenantLanding（本人型分享）；去掉 LayerCheck 由 Transfer_NoLayerCheck_Share.cfg 反驳"
       - "同上：矩阵其余各格由场景 AT S-51 承担"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.asset-transfer/v2#S-9"
     evidence: "formal:asset-transfer-v2-share"
@@ -121,59 +97,51 @@ bindings:
       - "性质 UseInsideBoundary、UseOnlyWhileMembersEffective、NoRevivedUse：使用时的三个合取项；去掉 UseTimeCheck、SinceCheck 各有去保护配置反驳"
       - "两个时刻可读、与确认时刻同源且在串行提交之间严格递增是前提：模型用只在建立隶属与重新加入时前进的逻辑时钟兑现它；本节点靠同一 clock 实例且锁下取时刻，严格递增待 N-1（infra/clock 的 C-15）"
       - "S-9 的两读先后被 Use 一步原子读吸收，不是证据；本节点在一次事务里取齐 ① 与 ②"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.asset-transfer/v2#S-9"
     evidence: "formal:asset-transfer-v2-revival"
     assumptions:
       - "时序性质 NoRevival：一段分享在让它成立的那层关系断开之后永不再生效；去掉 SinceCheck 由 Transfer_NoSinceCheck.cfg 反驳"
       - "同上：时刻严格递增是前提，本节点待 N-1；v1 存量记录没有时刻时本节点判不可用（N-11），模型里没有这种状态"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes（4 workers）；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.asset-transfer/v2#S-31"
     evidence: "formal:asset-transfer-v2-share"
     assumptions:
       - "性质 UseInsideBoundary：隶属解除之后分享在使用时失效，不靠事件——Materialize 是 S-31 禁止的「靠事件记下已解除」，去掉 UseTimeCheck 时它给出反例"
       - "本节点没有任何监听者（design 装卸表），失效只由 sharingEffective 在使用时判"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.asset-transfer/v2#S-31"
     evidence: "formal:asset-transfer-v2-revival"
     assumptions:
       - "时序性质 NoRevival 的隶属那一半：解除隶属再重建，分享不复活"
       - "同上：时刻严格递增是前提（N-1）"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes（4 workers）；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.asset-transfer/v2#S-32"
     evidence: "formal:asset-transfer-v2-transfer"
     assumptions:
       - "性质 CopyLandsInsideBoundary 的成员那一半：发起者退出之后组织型复制不再落地（反例走 Leave 后确认）"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.asset-transfer/v2#S-32"
     evidence: "formal:asset-transfer-v2-share"
     assumptions:
       - "性质 UseOnlyWhileMembersEffective：分享两端里是租户的那一端成员关系解除之后，分享不被使用；去掉 UseTimeCheck 由 Transfer_NoUseTimeCheck_Member.cfg 反驳（反例走 Leave(A1)）"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.asset-transfer/v2#S-32"
     evidence: "formal:asset-transfer-v2-revival"
     assumptions:
       - "时序性质 NoRevival 的成员那一半：退出再加入回来的是同一个租户，但生效时刻是新的，分享不复活"
       - "同上：时刻严格递增是前提（N-1）；本节点在确认事务里锁相关组织行（X-3），确认与再加入同序"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes（4 workers）；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"
 
   - clause: "capability.asset-transfer/v2#S-52"
     evidence: "formal:asset-transfer-v2-share"
     assumptions:
       - "性质 SharingEndsWithSource 与 NoUseAfterSourceGone：分享方删除那份资产之后，以它为资产的分享不再 active、不再被使用；去掉 SourceEndCheck 由 Transfer_NoSourceEnd.cfg、Transfer_NoSourceEnd_Record.cfg 反驳，两个反例都走删除那一支"
       - "只绑删除那一支：提升那一支按构造成立，不作证据，证据形式是场景 AT S-53；结束原因与写下者不在模型里"
-      - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
-    alignment_checked: 2026-09-25
+      - "仅按对应 formal task 的模型、配置及本表列出的前提检查；不证明实现符合性或超出有限范围的性质。"

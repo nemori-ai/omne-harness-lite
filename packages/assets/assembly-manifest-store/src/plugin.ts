@@ -1,54 +1,16 @@
 import { STORAGE_SERVICE } from '@omne-harness-lite/storage/cordis'
+import { ASSEMBLY_MANIFEST_RESOURCES } from '@omne-harness-lite/assembly-manifest/cordis'
 import { z } from 'zod'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
-import type { Storage } from '@omne-harness-lite/storage'
 import { createAssemblyManifestStore } from './store.ts'
-import type { ManifestOptions } from './types.ts'
-import type { AssemblyManifestService } from '@omne-harness-lite/assembly-manifest'
-export const ASSEMBLY_MANIFEST_SERVICE = 'assemblyManifest' as const
+import { AssemblyManifestStoreService } from './service.ts'
+
 export const assemblyManifestStorePlugin = definePlugin({
   name: 'assembly-manifest-store',
-  inject: [STORAGE_SERVICE],
-  Config: z
-    .object({
-      presenceSource: z
-        .custom<NonNullable<ManifestOptions['presenceSource']>>(
-          value =>
-            value !== null &&
-            typeof value === 'object' &&
-            typeof (value as { read?: unknown }).read === 'function',
-        )
-        .optional(),
-      diagnostic: z
-        .custom<NonNullable<ManifestOptions['diagnostic']>>(value => typeof value === 'function')
-        .optional(),
-      diagnosticFailure: z
-        .custom<NonNullable<ManifestOptions['diagnosticFailure']>>(
-          value => typeof value === 'function',
-        )
-        .optional(),
-    })
-    .strict(),
-  apply(ctx, config) {
-    const store = createAssemblyManifestStore(ctx.get(STORAGE_SERVICE) as Storage, {
-      ...(config.presenceSource === undefined ? {} : { presenceSource: config.presenceSource }),
-      ...(config.diagnostic === undefined ? {} : { diagnostic: config.diagnostic }),
-      ...(config.diagnosticFailure === undefined
-        ? {}
-        : { diagnosticFailure: config.diagnosticFailure }),
-    })
-    ctx.effect(() => () => store.close())
-    const { readHead, append, readHistory, dependencyPresence, readEvaluation, readGiven } = store
-    ctx.provide(
-      ASSEMBLY_MANIFEST_SERVICE,
-      Object.freeze({
-        readHead,
-        append,
-        readHistory,
-        dependencyPresence,
-        readEvaluation,
-        readGiven,
-      }) satisfies AssemblyManifestService,
-    )
+  inject: [STORAGE_SERVICE, ASSEMBLY_MANIFEST_RESOURCES],
+  Config: z.object({}).strict(),
+  apply(ctx) {
+    const store = createAssemblyManifestStore(ctx.storage, ctx.assemblyManifestResources.options)
+    new AssemblyManifestStoreService(ctx, store)
   },
 })

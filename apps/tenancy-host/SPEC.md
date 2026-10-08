@@ -24,7 +24,7 @@
 SQLite 的单机耐久前提不扩大为整机/磁盘毁损恢复保证。
 PG 迁移后装配失败的整体回滚尚未闭合，不能开放成已支持生产升级路径。
 
-本文件约束应用公开类型不能表达的集成行为，依据[已采用的 T4 宿主接缝](../../.meta_harness/design/architecture/identity-integration/host-integration.md)及[采用记录](../../.meta_harness/design/record/decisions/identity-t4-host-coordinates/README.md)。它接续旧 HT2 的装配责任；身份、租户、治理、维护、数据格式及网络业务语义仍由各能力的现行契约拥有。设计采用不表示本批实现已验收。
+本文件约束应用公开类型不能表达的集成行为，依据[已采用的 T4 宿主接缝](../../.meta_harness/design/architecture/identity-integration/host-integration.md)及采用记录。它接续旧 HT2 的装配责任；身份、租户、治理、维护、数据格式及网络业务语义仍由各能力的现行契约拥有。设计采用不表示本批实现已验收。
 
 ## 插件树准备与装载
 

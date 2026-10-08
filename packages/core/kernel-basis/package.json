@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Cordis 采用版本的取证 probe、插件层共用件（config 校验、Outcome、存储错误映射、调用时解析）与测试装配工具",
+  "description": "Typed outcomes, Cordis plugin helpers, adopted kernel probes and test assembly",
   "engines": {
     "node": ">=24 <25"
   },
@@ -22,7 +22,11 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "README_ZH.md",
+    "SPEC.md",
+    "verification"
   ],
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
@@ -38,5 +42,12 @@
     "typescript": "catalog:",
     "vitest": "catalog:",
     "zod": "catalog:"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "cordis-module"
+    }
   }
 }

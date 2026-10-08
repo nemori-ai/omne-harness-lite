@@ -7,11 +7,43 @@ import { syntaxImports, syntaxOf } from '../syntax.ts'
 /** 当前已接受节点 design 的依赖表；工具依赖（如 content-blocks 无损写）也明确登记。 */
 export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>> = {
   storage: [],
+  // F0: packages/core/session-runtime/SPEC.md owns this public boundary.
+  'session-runtime': [
+    'content-blocks',
+    'identity-values',
+    'call-accounts',
+    'messages',
+    'session-log',
+    'session-tenancy',
+    'storage',
+    'offer-expiry',
+  ],
+  // F0: packages/core/model-message-projection/SPEC.md owns this public boundary.
+  'model-message-projection': [
+    'content-blocks',
+    'identity-values',
+    'messages',
+    'session-log',
+    'session-runtime',
+    'model-request-runtime',
+  ],
+  // F0: packages/core/agent-loop/SPEC.md owns this public boundary.
+  'agent-loop': [
+    'call-accounts',
+    'content-blocks',
+    'loop-extension',
+    'session-log',
+    'session-runtime',
+    'identity-values',
+  ],
   'cordis-plugin-tree': ['assembly-lifecycle'],
   'offer-expiry': ['identity-values'],
   'organization-governance': ['storage', 'identity-values', 'offer-expiry', 'kernel-basis'],
-  // Tool runtime stage 2: m1/b1 accepted signature closure, plus N4 retry ownership.
+  // F0 public model operations and OriginalIssueParticipant own their exact signature dependencies.
+  // See core/model-request-runtime/SPEC.md; no concrete provider imports are allowed.
   'model-request-runtime': [
+    // Public codec types have one generic owner; the model facade only re-exports types.
+    'image-codec',
     'content-blocks',
     'call-accounts',
     'tool-definition',
@@ -23,6 +55,13 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
     'arrival-events',
     'model-profile',
     'stream-assembly',
+    'model-profile-directory',
+    'asset-registry',
+    'loop-extension',
+    'storage',
+    'session-runtime',
+    'session-tenancy',
+    'asset-evaluation',
   ],
   'session-log': [
     'call-accounts',
@@ -31,6 +70,8 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
     'messages',
     'session-tenancy',
     'execution-environments',
+    // SLP-3 explicitly accepts the public shared StorageUnit.
+    'storage',
   ],
   'session-tenancy': ['identity-values', 'messages'],
   'assembly-manifest': [
@@ -205,6 +246,7 @@ const BUILTINS: Readonly<Record<string, readonly string[]>> = {
 }
 
 const CORDIS_DEFINITION_OWNERS = new Set([
+  'session-runtime',
   'storage',
   'offer-expiry',
   'organization-governance',

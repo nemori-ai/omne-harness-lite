@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "consumer": "proposal「Skill 规格采用」（.meta_harness/design/record/proposals/skill-spec-adoption/）的「接受前必须补的一项」与扩展盘点",
+  "consumer": "Skill 规格的实际拥有者与相关扩展盘点；采用过程留本工作树 tmp，获准终态写回当前技能规范。",
   "capture_date": "2026-09-23",
   "capture_window_utc": "首次抓取在 2026-09-23T10:54:55Z（GitHub raw 抓完时刻）之前数分钟，未单独记时；2026-09-23T11:01:02Z 重抓 specification.md 字节不变",
   "normalization": "none；文本与源码扩展名改为 .txt，只为不让仓库的 Markdown 链接检查与 Python 工具链解析它们",

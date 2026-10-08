@@ -1,16 +1,20 @@
+import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 import { describe, expect, it } from 'vitest'
 import { copyJsonValue, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-import { readSettlementPrefix, type SettlementPrefix } from '../src/settlement-prefix.ts'
+import {
+  readSettlementPrefix,
+  type SettlementPrefix,
+} from '@omne-harness-lite/model-request-runtime'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
 import { authorizedCalibration } from '../src/service-calibration.ts'
 import { copyPlanOutputHistory } from '@omne-harness-lite/model-request-runtime'
-import type { CurrentHistoryReaders } from '../src/service-types.ts'
+import type { CurrentHistoryReaders } from '@omne-harness-lite/model-request-runtime'
 import type { LogEntry } from '@omne-harness-lite/session-log'
 import {
   batch,
@@ -23,7 +27,7 @@ import {
   session,
 } from './log-codec-fixture.ts'
 import { controlled, type ControlledSettlementOwner } from './settlement-fixture.ts'
-import type { SettlementLogBinding } from '../src/settlement-types.ts'
+import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
 
 const digest = (character: string) => character.repeat(64)
 function bodyValue(value: ModelResponse): JsonObject {
@@ -291,24 +295,13 @@ describe('U16/V17 conditional withRun calibration over real SL3', () => {
         return entry.ok
       }
       const start = (attempt: number) =>
-        make(
-          'message',
-          {
-            id: `calibration-attempt-${attempt}`,
-            type: 'system_reminder',
-            nature: 'event',
-            source: {
-              kind: 'attempt_started',
-              attempt,
-              reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
-              at: '2026-09-29T00:00:00Z',
-            },
-            blocks: [],
-            createdAt: '2026-09-29T00:00:00Z',
-          },
-          attempt,
-          { kind: 'message' },
-        )
+        prepareAttemptFact({
+          session: runSession,
+          shell: { tenant: original.tenant, run, attempt: attempt },
+          key: `calibration-attempt-${attempt}`,
+          reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
+          at: '2026-09-29T00:00:00Z',
+        }).ok
       const first = await original.log.append(
         runSession,
         [
@@ -442,23 +435,13 @@ describe('U16/V17 conditional withRun calibration over real SL3', () => {
         return entry.ok
       }
       const start = (attempt: number) =>
-        make(
-          'message',
-          {
-            id: `retry-attempt-${attempt}`,
-            type: 'system_reminder',
-            nature: 'event',
-            source: {
-              kind: 'attempt_started',
-              attempt,
-              reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
-              at: '2026-09-29T00:00:00Z',
-            },
-            blocks: [],
-            createdAt: '2026-09-29T00:00:00Z',
-          },
-          attempt,
-        )
+        prepareAttemptFact({
+          session: runSession,
+          shell: { tenant: original.tenant, run, attempt: attempt },
+          key: `retry-attempt-${attempt}`,
+          reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
+          at: '2026-09-29T00:00:00Z',
+        }).ok
       const initial = await original.log.append(
         runSession,
         [start(1), make('record', dispatched, 1), make('record', opened, 1)],

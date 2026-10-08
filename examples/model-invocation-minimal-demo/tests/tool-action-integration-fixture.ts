@@ -11,7 +11,7 @@ import {
   LOOP_EXTENSION_IMPLEMENTATIONS,
   LOOP_EXTENSION_RUNNER,
 } from '@omne-harness-lite/loop-extension-runner/cordis'
-import type { ModelRuntimeService } from '@omne-harness-lite/model-request-runtime-local'
+import type { ModelRuntimeOperations } from '@omne-harness-lite/model-request-runtime'
 import type {
   AccessIdentity,
   SessionAccess,
@@ -46,8 +46,14 @@ import {
   type FixtureTool,
 } from './tool-driver-history-fixture.ts'
 import { actionManifest } from './tool-action-manifest-fixture.ts'
-import { runtimeContextLocal } from '@omne-harness-lite/runtime-context-local/cordis'
+import { startRuntimeContextAssembly } from '../src/runtime-context-assembly.ts'
 import { environmentRegistry } from '@omne-harness-lite/execution-environments-host/cordis'
+import {
+  createHostEnvironment,
+  type HostNativePolicy,
+} from '@omne-harness-lite/execution-environments-host'
+import { hostEnvironmentMigrations } from '@omne-harness-lite/execution-environments-host/migrations'
+import type { ContextSessionSeed, ContextSource } from '@omne-harness-lite/runtime-context'
 import { toolResultFiles } from '@omne-harness-lite/tool-result-files/cordis'
 import {
   runtimeRegistry,
@@ -78,14 +84,33 @@ export async function actionIntegrationFixture(
     readonly installRuntime?: boolean
     readonly ownedScopes?: readonly SessionScope[]
     readonly adoptedTool?: FixtureTool
+    readonly contextKeys?: readonly string[]
+    readonly contextSeed?: ContextSessionSeed
+    readonly contextSources?: readonly ContextSource[]
     readonly environment?: {
       readonly tool: FixtureTool
-      readonly providers: readonly EnvironmentProvider[]
+      readonly providers?: readonly EnvironmentProvider[]
+      readonly host?: { readonly provider: string; readonly policy?: HostNativePolicy }
     }
   } = {},
 ) {
   const selectedTool = options.environment?.tool ?? options.adoptedTool ?? tool
-  const f = await historyFixture(options.calls, options.permission, selectedTool),
+  let logAuthorization: ReturnType<typeof createSessionAccessOwner> | undefined
+  const f = await historyFixture(
+      options.calls,
+      options.permission,
+      selectedTool,
+      async (_unit, access, candidate) => {
+        const checked = await logAuthorization?.operations.authorize(
+          access as SessionAccess,
+          candidate,
+          'session.log.coordinate',
+        )
+        return { kind: checked?.kind === 'authorized' ? 'authorized' : 'denied' }
+      },
+      options.environment?.host ? hostEnvironmentMigrations : [],
+      options.contextSeed,
+    ),
     directory = await mkdtemp(join(tmpdir(), 'omne-action-manifest-'))
   const manifest = await actionManifest(
     directory,
@@ -107,9 +132,14 @@ export async function actionIntegrationFixture(
   let current: Awaited<ReturnType<typeof start>>
   async function start() {
     let authorized = true
-    const append = vi.fn(f.log.append),
+    const borrowedLogs = new AsyncLocalStorage<
+      import('@omne-harness-lite/session-log').SessionLog
+    >()
+    const append = vi.fn<import('@omne-harness-lite/session-log').SessionLog['append']>((...args) =>
+        (borrowedLogs.getStore() ?? f.log).append(...args),
+      ),
       log = { ...f.log, append }
-    const backing = createSessionLogBacking(log)
+    const backing = createSessionLogBacking(log, f.log.backing.ownerGeneration)
     const authorization = createSessionAccessOwner({
       async check(identity) {
         return authorized
@@ -117,6 +147,7 @@ export async function actionIntegrationFixture(
           : { kind: 'rejected', reason: 'notAuthorized' }
       },
     })
+    logAuthorization = authorization
     async function issue(
       consumer: AccessIdentity['consumer'],
       operations: Parameters<ReturnType<typeof authorization.issuerFor>['issue']>[0]['operations'],
@@ -127,7 +158,7 @@ export async function actionIntegrationFixture(
         consumer,
         principal: 'history-user',
         principalKind: 'human',
-        contextKeys: [],
+        contextKeys: options.contextKeys ?? [],
       }
       const issued = await authorization.issuerFor(identity).issue({ ...identity, operations })
       if (issued.kind !== 'issued') throw new Error('action access issue')
@@ -144,16 +175,36 @@ export async function actionIntegrationFixture(
     ])
     const authority = { scope, coordinator, access: coordinator, policy }
     const owner = await createAuthorizedLogOwner({
-      dir: f.dir,
-      backing: backing.operations,
-      access: authorization.operations,
-      tenancy: manifest.sessionTenancy,
+      owner: {
+        ...f.log.owner,
+        async borrow(...args) {
+          const held = await f.log.owner.borrow(...args)
+          return held.kind === 'borrowed'
+            ? {
+                ...held,
+                log: {
+                  ...held.log,
+                  append: (...params) => borrowedLogs.run(held.log, () => append(...params)),
+                },
+              }
+            : held
+        },
+      },
+      generation: f.log.backing.ownerGeneration,
+      recovery: f.log
+        .fixtureAccess as import('@omne-harness-lite/execution-environments').RecoveryAccess,
       catalog: async () => options.ownedScopes ?? [scope],
     })
     await options.beforeRuntime?.(f)
-    const runnerHost = createDemoRunnerHost(log, f.options, backing.operations.ownerGeneration),
+    const runnerHost = createDemoRunnerHost(log, f.log.backing.ownerGeneration),
       generation = {}
-    const binding = { ...scope, log, generation, currentGeneration: () => generation }
+    const binding = {
+      ...scope,
+      log,
+      readPrefix: () => f.log.fixturePrefix(scope, log),
+      generation,
+      currentGeneration: () => generation,
+    }
     // These controlled endpoints cannot run OS commands or claim interactive answers.
     const external: DemoRunnerExternalExecution = {
       readAskState: async () => ({ kind: 'unavailable' }),
@@ -170,7 +221,7 @@ export async function actionIntegrationFixture(
     const maintenance = new AsyncLocalStorage<SessionScope>()
     const host = createDemoRunnerServiceHost({
       runnerHost,
-      model: {} as ModelRuntimeService,
+      model: () => ({}) as ModelRuntimeOperations,
       manifest: manifest.manifest,
       history: manifest.history,
       sessionTenancy: manifest.sessionTenancy,
@@ -199,6 +250,10 @@ export async function actionIntegrationFixture(
     const assembly = await bootAssembly({
       services: [
         { name: 'sessionLog', value: log },
+        {
+          name: 'storage',
+          value: { read: f.storage.read.bind(f.storage), write: f.storage.write.bind(f.storage) },
+        },
         { name: 'runnerHost', value: host },
         { name: 'sessionAccess', value: authorization.operations },
         { name: 'sessionLogBacking', value: backing.operations },
@@ -228,7 +283,20 @@ export async function actionIntegrationFixture(
           ? [
               { plugin: runtimeRegistry, config: {} },
               { plugin: implementationRegistry, config: {} },
-              { plugin: runtimeContextLocal, config: {} },
+              {
+                plugin: {
+                  name: 'fixture-managed-context',
+                  async apply(ctx: Context) {
+                    const tree = await startRuntimeContextAssembly(ctx)
+                    await tree.ready
+                    ctx.effect(() => async () => {
+                      if ((await tree.close()) === 'retained')
+                        throw new Error('fixture context retained')
+                    })
+                  },
+                },
+                config: {},
+              },
               { plugin: environmentRegistry, config: {} },
               ...(options.environment
                 ? [
@@ -243,10 +311,27 @@ export async function actionIntegrationFixture(
                     {
                       plugin: {
                         name: 'fixture-environment-contributions',
-                        inject: ['executionEnvironments'],
+                        inject: [
+                          'executionEnvironments',
+                          'storage',
+                          'sessionAccess',
+                          'runtimeContext',
+                        ],
                         apply(ctx: Context) {
-                          for (const provider of options.environment!.providers)
+                          for (const source of options.contextSources ?? [])
+                            ctx.runtimeContext.registerSource(source)
+                          for (const provider of options.environment!.providers ?? [])
                             ctx.executionEnvironments.registerProvider(provider)
+                          const host = options.environment?.host
+                          if (host)
+                            ctx.executionEnvironments.registerProvider(
+                              createHostEnvironment({
+                                name: host.provider,
+                                storage: ctx.storage,
+                                access: ctx.sessionAccess,
+                                ...(host.policy ? { policy: host.policy } : {}),
+                              }),
+                            )
                         },
                       },
                       config: {},

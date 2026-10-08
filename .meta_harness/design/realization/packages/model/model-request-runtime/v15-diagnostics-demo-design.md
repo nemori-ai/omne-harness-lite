@@ -8,12 +8,12 @@
 
 | 输入 | 状态、采用范围 | 本次 SHA-256 |
 |---|---|---|
-| [capability.model-request-runtime/v9](../../../../spec/capabilities/model-request-runtime/v9/contract.md) | catalog 为 accepted；[D-104](../../../../record/decisions/model-recovery-timing-adoption/decision.md) 所采用 RT9；本稿只投影 S-20、S-51、S-62、S-63、S-64 | `3ae5ee1843a31cb229a11c77a35c2bdc66e51100953322be0febed1ef37e64fb` |
+| [capability.model-request-runtime/v9](../../../../spec/capabilities/model-request-runtime/v9/contract.md) | catalog 为 accepted；D-104 所采用 RT9；本稿只投影 S-20、S-51、S-62、S-63、S-64 | `3ae5ee1843a31cb229a11c77a35c2bdc66e51100953322be0febed1ef37e64fb` |
 | [v3 诊断与应用接线](v3-design.md#诊断观察与应用接线) | 已有 JSONL、query/export、bounded metrics、独立退化和 OS 权限责任；原应用名按下行迁移事实读取 | `96f00e5b915d7fd477d8973ec4837aeea55cb0442f460f08c32cd5921c32895f` |
 | [realization 当前入口](../../../README.md) | 原验收 app 已退出当前映射，源码移至 examples；本稿点名承接 D6，不由此承接全部旧 app 义务 | 阅读快照随源码修订定位 |
 | [SYS-OBSERVABILITY.C1–C7](../../../../foundation/observability-and-logging/requirements.md) | 工程观测要求；不是会话日志、账本或恢复权威 | `78fa38194e0420db474eaed0f403b4b7d3c5b59b78fccfba41cf6fee3cd88a0d` |
 
-产品来源沿 RT9 的精确消费范围，不增加产品规则。Cordis 采用 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)。共同政策沿 v3：必需静态配置非法或诊断存储初始化不能满足权限要求，装配启动失败；启动后的观测故障隔离、可查，不改变业务收场。凭据未配置的业务失败仍归 S-19，不改成全局启动失败。
+产品来源沿 RT9 的精确消费范围，不增加产品规则。Cordis 采用 D-025 的 4.0.4。共同政策沿 v3：必需静态配置非法或诊断存储初始化不能满足权限要求，装配启动失败；启动后的观测故障隔离、可查，不改变业务收场。凭据未配置的业务失败仍归 S-19，不改成全局启动失败。
 
 | 层 | 当前事实 |
 |---|---|
@@ -71,7 +71,7 @@
 
 ### 来源脱敏与权限
 
-沿 [D-095 的来源定界采用](../../../../record/decisions/model-credential-path-adoption/decision.md)延续既有边界：凭据本身与上游/错误原文中的回显受已采用脱敏政策约束；独立取得的真实状态码、身份、费用即使偶然同值也保真。凭据 `503` 与真实 HTTP 503 同时出现时，状态码来自 HTTP 接口事实而保留，上游 error/raw 的 `503` 不能因字段名为 status 获豁免。字段白名单不是来源证明。
+沿 D-095 的来源定界采用延续既有边界：凭据本身与上游/错误原文中的回显受已采用脱敏政策约束；独立取得的真实状态码、身份、费用即使偶然同值也保真。凭据 `503` 与真实 HTTP 503 同时出现时，状态码来自 HTTP 接口事实而保留，上游 error/raw 的 `503` 不能因字段名为 status 获豁免。字段白名单不是来源证明。
 
 本稿默认不保留任何自由错误原文、请求/响应正文、工具参数/结果、模型推理、完整 headers、配置 values、credential，也不保存这些内容的 hash/截断前缀。已有业务 raw/error 仍按原公开结果/会话日志路径处理。本稿不开启敏感 debug 模式；未来扩展需另有内容权限与采用依据，不可配置一个 debug=true 就旁路。
 

@@ -4,9 +4,9 @@
 
 | 版本 | 承诺与采用者 | 接受依据 |
 | --- | --- | --- |
-| [v1](v1/contract.md) | 原组织治理、成员/隶属及选择规则，消费 AI1/OE1；旧注册与旧入口按各自版本继续消费 | [D-023](../../../record/decisions/tenant-domain-design-acceptance/decision.md) |
-| [v2](v2/contract.md) | draft 的接收方拒绝与显式共同参与，消费 AI3/OE2；当前治理实现、AR2、EC2/EC3 及其运输/客户端保持此坐标 | [D-042](../../../record/decisions/governance-participation-provider/decision.md)；有限登录与邀约依据 [D-040](../../../record/decisions/governance-identity-offer-contracts/decision.md) |
-| [v3](v3/contract.md) | #9 原 v2 的行政迁移：成员关系生效时刻、隶属建立时刻及资产分享不复活，仍消费 AI1/OE1；资产转移 v2 钉它，相关提供者尚未实施 | 原语义 [D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)，新坐标 [D-066](../../../record/decisions/pr9-pr10-coordinate-reconciliation/decision.md) |
+| [v1](v1/contract.md) | 原组织治理、成员/隶属及选择规则，消费 AI1/OE1；旧注册与旧入口按各自版本继续消费 | D-023 |
+| [v2](v2/contract.md) | draft 的接收方拒绝与显式共同参与，消费 AI3/OE2；当前治理实现、AR2、EC2/EC3 及其运输/客户端保持此坐标 | D-042；有限登录与邀约依据 D-040 |
+| [v3](v3/contract.md) | #9 原 v2 的行政迁移：成员关系生效时刻、隶属建立时刻及资产分享不复活，仍消费 AI1/OE1；资产转移 v2 钉它，相关提供者尚未实施 | 原语义 D-061，新坐标 D-066 |
 
 **v3 不是 v2 的功能超集。** 数字后移不升级任何当前治理消费者，不表示当前治理实现已经写入或读取两个时刻。原 #9 v2 的字节及上下文保存在 D-066 的固定 main 快照中，不能用当前 draft v2 解释那份历史接受。
 

@@ -1,9 +1,0 @@
-import type { AttachmentRef, CapabilityId, ContentBlockJudgment, Modality } from './types.ts';
-export declare function isCanonicalMediaType(value: unknown): value is string;
-/** S-6: no modality is represented by undefined, never a fifth modality token. */
-export declare function modalityOf(mediaType: string): Modality | undefined;
-export declare function capabilityIdEquals(a: CapabilityId, b: CapabilityId): boolean;
-export declare function attachmentRefEquals(a: AttachmentRef, b: AttachmentRef): boolean;
-/** S-26: every named predicate runs over the whole block tree before the remaining Schema test. */
-export declare function judgeContentBlock(value: unknown): ContentBlockJudgment;
-//# sourceMappingURL=content.d.ts.map

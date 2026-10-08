@@ -1,3 +1,4 @@
+import { isResourceJournalValue } from './journal-resources.ts'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import { compareInteger, type LogEntry } from '@omne-harness-lite/session-log'
@@ -22,6 +23,7 @@ export interface ToolJournalHistory {
     {
       readonly planned: RecordOf<'resource_planned'>
       permitted?: RecordOf<'resource_permitted'>
+      adopted?: RecordOf<'resource_adopted'>
       readonly observations: RecordOf<'physical_stop_observed'>[]
     }
   >
@@ -45,9 +47,27 @@ function authorTerminal(value: ExecutionTerminal): boolean {
       ['business_failure', 'implementation_error', 'result_rejected'].includes(value.code))
   )
 }
+function applyPermission(
+  state: ToolJournalHistory,
+  record: RecordOf<'resource_permitted' | 'resource_adopted'>,
+): void {
+  const value = record.value,
+    resource = state.resources.get(value.key)
+  check(!state.terminal && state.started && state.environment && resource)
+  check(!resource.adopted && resource.observations.length === 0)
+  if (value.kind === 'resource_permitted') {
+    check(!resource.permitted)
+    resource.permitted = { ...record, value }
+  } else {
+    check(resource.permitted)
+    resource.adopted = { ...record, value }
+  }
+}
 function applyResources(
   state: ToolJournalHistory,
-  record: RecordOf<'resource_planned' | 'resource_permitted' | 'physical_stop_observed'>,
+  record: RecordOf<
+    'resource_planned' | 'resource_permitted' | 'resource_adopted' | 'physical_stop_observed'
+  >,
 ): void {
   const value = record.value
   switch (value.kind) {
@@ -55,14 +75,10 @@ function applyResources(
       check(!state.terminal && !state.resources.has(value.resource.key))
       state.resources.set(value.resource.key, { planned: { ...record, value }, observations: [] })
       break
-    case 'resource_permitted': {
-      const resource = state.resources.get(value.key)
-      check(
-        !state.terminal && state.started && state.environment && resource && !resource.permitted,
-      )
-      resource.permitted = { ...record, value }
+    case 'resource_permitted':
+    case 'resource_adopted':
+      applyPermission(state, { ...record, value })
       break
-    }
     case 'physical_stop_observed': {
       const resource = state.resources.get(value.key)
       check(resource !== undefined)
@@ -171,14 +187,13 @@ function sameOrigin(state: ToolJournalHistory, record: InspectedToolJournalEntry
 function apply(state: ToolJournalHistory, record: InspectedToolJournalEntry): void {
   check(sameOrigin(state, record))
   const value = record.value
+  if (isResourceJournalValue(value)) {
+    applyResources(state, { ...record, value })
+    return
+  }
   switch (value.kind) {
     case 'execution_intended':
       throw new InvalidHistory()
-    case 'resource_planned':
-    case 'resource_permitted':
-    case 'physical_stop_observed':
-      applyResources(state, { ...record, value })
-      break
     case 'execution_waiting':
     case 'execution_answered':
       applyWait(state, { ...record, value })

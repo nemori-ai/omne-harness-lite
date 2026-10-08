@@ -24,11 +24,35 @@ export class SqlStorageUnit implements StorageUnit {
   #closed = false
   // 单独记录存在性：JavaScript 可以 throw undefined / null / false。
   #failure: { readonly error: unknown } | undefined
+  readonly #completion: Promise<'committed' | 'rolledBack' | 'unknown'>
+  readonly #complete: (result: 'committed' | 'rolledBack' | 'unknown') => void
 
   constructor(
     private readonly storage: Storage,
     private readonly tx: WriteTx,
-  ) {}
+  ) {
+    let complete!: (result: 'committed' | 'rolledBack' | 'unknown') => void
+    this.#completion = new Promise(resolve => {
+      complete = resolve
+    })
+    this.#complete = complete
+  }
+
+  observeCompletion(): Promise<'committed' | 'rolledBack' | 'unknown'> {
+    this.#frame()
+    return this.#completion
+  }
+
+  /** Called by the original commit owner after its physical write operation ends. */
+  complete(result: 'committed' | 'rolledBack' | 'unknown'): void {
+    this.#complete(result)
+  }
+
+  completionAfterError(error: unknown): 'rolledBack' | 'unknown' {
+    return this.#failure !== undefined && Object.is(error, this.#failure.error)
+      ? 'rolledBack'
+      : 'unknown'
+  }
 
   #fail(message: string): never {
     const error = new StorageDefect(message)

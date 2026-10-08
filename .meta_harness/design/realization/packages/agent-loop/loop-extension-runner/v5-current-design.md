@@ -8,18 +8,18 @@
 
 | 输入 | 接受依据 | contract SHA256 |
 |---|---|---|
-| capability.loop-extension-runner/5，S-1～S-54 | [D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) | `e571e01d8e4d86fec3904d9decb37beb38615940125f320a72c250fd63ca4c43` |
+| capability.loop-extension-runner/5，S-1～S-54 | D-100 | `e571e01d8e4d86fec3904d9decb37beb38615940125f320a72c250fd63ca4c43` |
 | data.loop-extension/6，S-1～S-43（LC6） | D-100 | `d5cf4e24abc0a72ffe27072b8239489812382e3b94f2ee891ca9264338a1954a` |
 | data.messages/6，S-1～S-50（MS6） | D-100 | `73736fb36e63961b88b88918c641608204863831f40c503dc96b5cecf9e84c1c` |
-| capability.session-log/3，S-1～S-37（SL3） | [D-083](../../../../record/decisions/session-log-tail-condition-adoption/decision.md) | `f327f1289e1d6c539dd959e8862b382869e3d303cf984b6a773fdd6a00e4bd26` |
-| capability.model-request-runtime/9，S-1～S-76（RT9） | [D-104](../../../../record/decisions/model-recovery-timing-adoption/decision.md) | `3ae5ee1843a31cb229a11c77a35c2bdc66e51100953322be0febed1ef37e64fb` |
+| capability.session-log/3，S-1～S-37（SL3） | D-083 | `f327f1289e1d6c539dd959e8862b382869e3d303cf984b6a773fdd6a00e4bd26` |
+| capability.model-request-runtime/9，S-1～S-76（RT9） | D-104 | `3ae5ee1843a31cb229a11c77a35c2bdc66e51100953322be0febed1ef37e64fb` |
 | data.model-response/8，S-1～S-40（MR8） | D-104 | `34b78e9c55df99fa8ea3756c98010914fae92a56375a429316e7fdafb966fe13` |
 
-规范正文入口：[Runner5](../../../../spec/capabilities/loop-extension-runner/v5/contract.md)、[LC6](../../../../spec/data/loop-extension/v6/contract.md)、[MS6](../../../../spec/data/messages/v6/contract.md)、[SL3](../../../../spec/capabilities/session-log/v3/contract.md)、[RT9](../../../../spec/capabilities/model-request-runtime/v9/contract.md)、[MR8](../../../../spec/data/model-response/v8/contract.md)。Runner5 冻结的需求来源 topic/rev 为：PF-012 rev15、PF-008 rev7、PF-002 rev26、PF-013 rev14、PF-014 rev8、PF-004 rev13、PF-000 rev1、PF-005 rev7、PF-015 rev13；当前 PF-013 已为 rev15；新增 token 估算与可配置余量由 RT9 发送门及档案提供者承担，runner 不计量、不填实际用量、不绕过该门。这个增量复核不把 Runner5 的冻结来源 rev14 改成 rev15；本稿不重裁产品要求。[D-076](../../../../record/decisions/model-runtime-delivery-adoption/decision.md) 采用的是旧 runner v3 投影；D-100 的七个 provider 节点清单不含本节点。
+规范正文入口：[Runner5](../../../../spec/capabilities/loop-extension-runner/v5/contract.md)、[LC6](../../../../spec/data/loop-extension/v6/contract.md)、[MS6](../../../../spec/data/messages/v6/contract.md)、[SL3](../../../../spec/capabilities/session-log/v3/contract.md)、[RT9](../../../../spec/capabilities/model-request-runtime/v9/contract.md)、[MR8](../../../../spec/data/model-response/v8/contract.md)。Runner5 冻结的需求来源 topic/rev 为：PF-012 rev15、PF-008 rev7、PF-002 rev26、PF-013 rev14、PF-014 rev8、PF-004 rev13、PF-000 rev1、PF-005 rev7、PF-015 rev13；当前 PF-013 已为 rev15；新增 token 估算与可配置余量由 RT9 发送门及档案提供者承担，runner 不计量、不填实际用量、不绕过该门。这个增量复核不把 Runner5 的冻结来源 rev14 改成 rev15；本稿不重裁产品要求。D-076 采用的是旧 runner v3 投影；D-100 的七个 provider 节点清单不含本节点。
 
 **规范精确依赖没有自动升级。**Runner5 仍冻结依赖 RT7、MR7、SL2；本稿提议当前实现显式消费 RT9、MR8、SL3。RT7→RT9 的 runner 消费点限于 S-24/S-35/S-50/S-60/S-67/S-76，新增估算门和恢复时序由 runtime 承担，不改 runner 的守卫答复与 retry 含义；D-104 明示 runner 消费的 MR7 S-10/S-14/S-36 未变，MR8 的恢复 Timing 不能被 runner 改成新失败种类或直接触发重试。SL3 保留原栅栏、判重、读取语义，追加面多出的显式 condition 在本节点每次写指定 `unconditional`，不假称 runner 结论与 HTTP 原子。技术采用前须核上述差异和 V5-1，不能以当前包能 import 代替符合性。
 
-其余依赖保持 Runner5 catalog：CB3、CA2、IV1、AE4、AR3、MF3、modality-projection2、tool-admission2、session-tenancy2、execution-environments2。当前表示资源仍沿 LC6/MS6 的精确 Schema 闭包，不将 RT9 所用 MP6 无条件投进 LC6 的 MP5 定义。Cordis 采用 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)，存储为独立抽象；静态配置错误统一**启动失败**。
+其余依赖保持 Runner5 catalog：CB3、CA2、IV1、AE4、AR3、MF3、modality-projection2、tool-admission2、session-tenancy2、execution-environments2。当前表示资源仍沿 LC6/MS6 的精确 Schema 闭包，不将 RT9 所用 MP6 无条件投进 LC6 的 MP5 定义。Cordis 采用 D-025 的 4.0.4，存储为独立抽象；静态配置错误统一**启动失败**。
 
 ## 已有公共构件与候选新增面
 

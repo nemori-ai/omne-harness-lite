@@ -4,10 +4,8 @@ import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
-import type {
-  DiagnosticRecord,
-  DiagnosticScope,
-} from '@omne-harness-lite/model-request-runtime-local'
+import type { DiagnosticScope } from '@omne-harness-lite/model-request-runtime'
+import type { DiagnosticRecord } from '@omne-harness-lite/model-request-runtime-local'
 import { createDiagnosticJournal, openDiagnosticJournalReader } from '../src/diagnostic-journal.ts'
 import type { DiagnosticJournalConfig } from '../src/diagnostic-journal.ts'
 
@@ -81,7 +79,7 @@ function deferred() {
   return { promise, release }
 }
 
-describe('example diagnostic JSONL journal', () => {
+describe('example diagnostic SQL journal journal', () => {
   it('creates owner-private files, queries and exports exact closed records after read-only reopen', async () => {
     const journal = await createDiagnosticJournal(config())
     expect(await journal.query({ scope, limit: 2, maxBytes: 1024 })).toEqual({
@@ -135,7 +133,7 @@ describe('example diagnostic JSONL journal', () => {
     expect(await reopened.close()).toHaveProperty('complete', true)
   })
 
-  it('retains exact large associations and decimal cost in JSONL and exported pages', async () => {
+  it('retains exact large associations and decimal cost in SQL journal and exported pages', async () => {
     const journal = await createDiagnosticJournal(config())
     const large = new LosslessNumber('9007199254740993')
     const exact: DiagnosticRecord = {

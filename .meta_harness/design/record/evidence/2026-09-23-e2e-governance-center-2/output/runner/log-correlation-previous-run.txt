@@ -1,5 +1,0 @@
-engineering-record files: 17; request records carrying an account correlation number: 219
-distinct account correlation numbers in the records: 8; distinct tenant correlation numbers: 9
-AccountIds seen in wire answers: 6; of these, whose SHA-256(label || 0x00 || AccountId) is in the records: 6
-TenantIds seen in wire answers: 15; of these, whose SHA-256(label || 0x00 || canonical TenantId) is in the records: 8
-record account numbers not linked to a wire AccountId: 2

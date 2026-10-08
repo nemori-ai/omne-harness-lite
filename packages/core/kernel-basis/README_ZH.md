@@ -28,22 +28,30 @@
 ### 定义插件并管理服务生命周期
 
 ```ts
-import { Context } from '@deepseek-ai/cordis'
+import { Context, Service } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { definePlugin, fiberIsActive, resolveOptional } from '@omne-harness-lite/kernel-basis/cordis'
+
+class Greeting extends Service {
+  static readonly provide = 'greeting'
+  constructor(ctx: Context, private readonly prefix: string) {
+    super(ctx, Greeting.provide)
+  }
+  greet(name: string): string { return `${this.prefix}, ${name}` }
+}
 
 const greeting = definePlugin({
   name: 'greeting',
   Config: z.object({ prefix: z.string().min(1) }),
   apply(ctx, config) {
-    ctx.provide('greeting', { greet: (name: string) => `${config.prefix}, ${name}` })
+    new Greeting(ctx, config.prefix)
   },
 })
 const ctx = new Context()
 const fiber = ctx.plugin(greeting, { prefix: 'Hello' })
 try {
   await fiber
-  const service = resolveOptional<{ greet(name: string): string }>(ctx, 'greeting')
+  const service = resolveOptional<Greeting>(ctx, Greeting.provide)
   if (service === undefined) throw new Error('greeting unavailable')
   console.log(service.greet('Ada')) // Hello, Ada
   console.log(fiberIsActive(fiber.ctx)) // true
@@ -94,6 +102,10 @@ try {
 }
 ```
 
+现有 helper 承诺见 [SPEC.md](SPEC.md)。
+
+现有 helper 承诺见 [SPEC.md](SPEC.md)。
+
 ## 边界与失败处理
 
 这些助手采用 Cordis **4.0.4** 的语义。必需的 `inject` 依赖缺席时 Fiber 保持 pending；更换提供者会卸载并重跑插件体。`resolveOptional` 在调用时读取，提供者缺席或未 active 时返回 `undefined`，不会建立必需依赖。泛型类型由调用方断言，不构成服务校验。配置或插件体失败会使 `await fiber` 拒绝；配置失败发生在插件体运行之前。
@@ -111,3 +123,5 @@ pnpm --filter @omne-harness-lite/kernel-basis run test
 ```
 
 先构建 workspace 依赖。这些检查覆盖本包；组合行为需针对实际消费者与提供者验证。
+
+行为与验证义务：[SPEC.md](SPEC.md) 和[验证入口](verification/README.md)。

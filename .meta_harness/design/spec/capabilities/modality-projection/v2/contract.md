@@ -5,9 +5,9 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.modality-projection, 2)`——
   `family = capabilities`、`topic = modality-projection`、规范路径 `spec/capabilities/modality-projection/v2/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：已由 [D-061](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
+- **状态**：已由 D-061 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-013 rev 12** 为准，另引 **PF-012 rev 14**、**PF-006 rev 19**、**PF-015 rev 11**、**PF-009 rev 8**；每次改 rev 之前逐版读 changelog 核过受影响的条款，结论记在[验证入口「变化的影响」](../verification.md#变化的影响)。
-  主线裁定的原文在 [D-060](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md)（产品负责人尚未逐条追认；第一轮评审处置的裁定在它的[第五节](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）
+  主线裁定的原文在 D-060（产品负责人尚未逐条追认；第一轮评审处置的裁定在它的第五节）
 - **精确语义依赖**（五项；消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)；前四项与本契约同为 candidate、未冻结）：
   - `omne-harness-lite-design-2026-09-15 · data.content-blocks · v2`
   - `omne-harness-lite-design-2026-09-15 · data.messages · v2`
@@ -39,13 +39,13 @@
 >
 > | 条款 | 产品正文 | 主线的推理 |
 > |---|---|---|
-> | [S-5](#s-5-模态投影是对会话日志的一次折叠) 与 [S-20](#s-20-一条消息在落盘之前的转换全有或全无) ① 的「只计、只转给模型看的块」 | [PF-013 §4 模态投影](../../../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)「它只算标着给模型看的块……转换件因此也不转它」 | [D-060 §S17 S17-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s17modality-projection报回的) |
-> | [S-10](#s-10-一个块落在哪个键上) 的「两键都命中取媒体类型键，只出一份」、[S-11](#s-11-一次合法的转换产出) 的「只交 transcript 不交派生块非法」 | [PF-013 §4 转换件](../../../../product/PF-013-model-profiles-and-invocation/design.md#转换件)契约表第一、三行 | [D-060 §S1 S1-g](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s1content-blocks报回的) |
-> | [S-9](#s-9-登记表同键一件登记是系统装配层的声明)、[S-12](#s-12-缺席时的默认答案)、[S-21](#s-21-转换件不可用即转换失败) 的「登记了却不可用 = 转换失败 = 否决」 | PF-013 §4 转换件「登记了、此刻却用不了……当转换失败」；[PF-012 §5.8](../../../../product/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里) 区分没登记与登记了却不可用 | [D-060 §S17 S17-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s17modality-projection报回的) |
-> | [S-24](#s-24-转换件不发起模型调用) 的「转换件不发起模型调用」 | PF-013 §4 转换件契约表「本版不调模型」 | [D-060 §块 C 对账 C-R2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-c-对账d-reconciliation-c需主线看八项) |
+> | [S-5](#s-5-模态投影是对会话日志的一次折叠) 与 [S-20](#s-20-一条消息在落盘之前的转换全有或全无) ① 的「只计、只转给模型看的块」 | [PF-013 §4 模态投影](../../../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)「它只算标着给模型看的块……转换件因此也不转它」 | D-060 §S17 S17-e |
+> | [S-10](#s-10-一个块落在哪个键上) 的「两键都命中取媒体类型键，只出一份」、[S-11](#s-11-一次合法的转换产出) 的「只交 transcript 不交派生块非法」 | [PF-013 §4 转换件](../../../../product/PF-013-model-profiles-and-invocation/design.md#转换件)契约表第一、三行 | D-060 §S1 S1-g |
+> | [S-9](#s-9-登记表同键一件登记是系统装配层的声明)、[S-12](#s-12-缺席时的默认答案)、[S-21](#s-21-转换件不可用即转换失败) 的「登记了却不可用 = 转换失败 = 否决」 | PF-013 §4 转换件「登记了、此刻却用不了……当转换失败」；[PF-012 §5.8](../../../../product/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里) 区分没登记与登记了却不可用 | D-060 §S17 S17-d |
+> | [S-24](#s-24-转换件不发起模型调用) 的「转换件不发起模型调用」 | PF-013 §4 转换件契约表「本版不调模型」 | D-060 §块 C 对账 C-R2 |
 >
-> **只有主线裁定、产品正文不必写的**（见 [D-060 §S17](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s17modality-projection报回的)）：[S-18](#s-18-转换一个块-convert) ① 的 `tenant`（S17-a；它由系统那一件从统一输入的执行环境句柄取，[S-20](#s-20-一条消息在落盘之前的转换全有或全无) ②，见 [D-060 §八 M38](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）；[S-19](#s-19-查登记-lookupconverter) 的服务面名与三支结果（S17-b）；[S-20](#s-20-一条消息在落盘之前的转换全有或全无) ⑤ 对模型回复挂派生表示不是改写（S17-c）；[S-21](#s-21-转换件不可用即转换失败)、[S-23](#s-23-同一位置上转换之后不再动块) 系统转换件钉末位（S17-d）与转换上界即拓展件时限（S17-g）；契约身份沿用、拥有两件事（S17-h，[S-1](#s-1-本契约拥有什么)）。
-> **[S-17](#s-17-声明转换件-declareconverters) 的整份声明操作**（原子替换、`keyTaken` 在一份之内判）是主线裁定，见 [D-060 §五 K41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)。
+> **只有主线裁定、产品正文不必写的**（见 D-060 §S17）：[S-18](#s-18-转换一个块-convert) ① 的 `tenant`（S17-a；它由系统那一件从统一输入的执行环境句柄取，[S-20](#s-20-一条消息在落盘之前的转换全有或全无) ②，见 D-060 §八 M38）；[S-19](#s-19-查登记-lookupconverter) 的服务面名与三支结果（S17-b）；[S-20](#s-20-一条消息在落盘之前的转换全有或全无) ⑤ 对模型回复挂派生表示不是改写（S17-c）；[S-21](#s-21-转换件不可用即转换失败)、[S-23](#s-23-同一位置上转换之后不再动块) 系统转换件钉末位（S17-d）与转换上界即拓展件时限（S17-g）；契约身份沿用、拥有两件事（S17-h，[S-1](#s-1-本契约拥有什么)）。
+> **[S-17](#s-17-声明转换件-declareconverters) 的整份声明操作**（原子替换、`keyTaken` 在一份之内判）是主线裁定，见 D-060 §五 K41。
 >
 > 另有若干条是**规格层推导**，各自在条款正文里写明理由：[S-8](#s-8-转换件的键) 的键取值域、[S-10](#s-10-一个块落在哪个键上) 的「媒体类型键只管文件块」、[S-11](#s-11-一次合法的转换产出) ③、[S-17](#s-17-声明转换件-declareconverters) 的「一份声明里同键两次即 `keyTaken`」（PF-013 §4「同一个键上只有一件生效」落到装配那一刻的检查）、[S-18](#s-18-转换一个块-convert) ① 的 `tenant`、[S-20](#s-20-一条消息在落盘之前的转换全有或全无) 的全有或全无、[S-22](#s-22-没有转换件输入的消息不依赖转换这一侧)、[S-23](#s-23-同一位置上转换之后不再动块)。
 
@@ -58,7 +58,7 @@
 
 ### S-1 本契约拥有什么
 
-**契约身份沿用 `modality-projection`，实际拥有两件事**（主线裁定，见 [D-060 §S17 S17-h](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s17modality-projection报回的)：改名收益不够）：一件是**判定**（投影与兼容），一件是**转换**（转换件的键、登记与一次转换）。
+**契约身份沿用 `modality-projection`，实际拥有两件事**（主线裁定，见 D-060 §S17 S17-h：改名收益不够）：一件是**判定**（投影与兼容），一件是**转换**（转换件的键、登记与一次转换）。
 两件共用同一个事实——**一个块有没有 [transcript](../../../../ubiquitous_language/terms/record-and-context.md#ul-transcript--transcript--transcript)**：转换那一半在落盘之前决定它，判定那一半在落盘之后读它。
 
 | # | 拥有 | 正文 |
@@ -145,7 +145,7 @@
 | 被消费的条款 | 用在哪 |
 |---|---|
 | [`#S-1`](../../../data/loop-extension/v2/contract.md#s-1-十一个位置) `before_persist_message` | [S-20](#s-20-一条消息在落盘之前的转换全有或全无)：系统自带的模态转换站在这里 |
-| [`#S-11`](../../../data/loop-extension/v2/contract.md#s-11-输入的成员) 输入的成员（`environment` 十一个位置都带）、[`#S-41`](../../../data/loop-extension/v2/contract.md#s-41-执行环境句柄) 执行环境句柄：经它取得调用方租户身份、不交出会话标识 | [S-20](#s-20-一条消息在落盘之前的转换全有或全无) ②、[S-18](#s-18-转换一个块-convert) ①：`tenant` 的来路（[D-060 §八 M38](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）；句柄怎样解析、解析不出时归哪一类，读面在 `capability.loop-extension-runner` v2 S-50（**指路**：它消费本契约，反向登记会成环） |
+| [`#S-11`](../../../data/loop-extension/v2/contract.md#s-11-输入的成员) 输入的成员（`environment` 十一个位置都带）、[`#S-41`](../../../data/loop-extension/v2/contract.md#s-41-执行环境句柄) 执行环境句柄：经它取得调用方租户身份、不交出会话标识 | [S-20](#s-20-一条消息在落盘之前的转换全有或全无) ②、[S-18](#s-18-转换一个块-convert) ①：`tenant` 的来路（D-060 §八 M38）；句柄怎样解析、解析不出时归哪一类，读面在 `capability.loop-extension-runner` v2 S-50（**指路**：它消费本契约，反向登记会成环） |
 | [`#S-5`](../../../data/loop-extension/v2/contract.md#s-5-报错处置策略) `treat_as_veto` 在「之前」的位置落 `veto` | [S-21](#s-21-转换件不可用即转换失败)：转换件这一类报错即否决 |
 | [`#S-10`](../../../data/loop-extension/v2/contract.md#s-10-本版没有-order) 模态转换件排在 `before_persist_message` 末位 | [S-23](#s-23-同一位置上转换之后不再动块)：转换之后不再动块的前提 |
 | [`#S-23`](../../../data/loop-extension/v2/contract.md#s-23-rewrite) `before_persist_message` 上的 `rewrite` 改的是 `message`；模型产出的消息只许系统模态转换件挂派生表示 | [S-20](#s-20-一条消息在落盘之前的转换全有或全无) ⑤：转成了就交回挂好派生属性的那条消息，模型回复同样走得通 |
@@ -163,7 +163,7 @@
 | [`#S-30`](../../../data/identity-values/v1/contract.md#s-30-跨边界须重新验证) 跨边界须重新验证 | [S-26](#s-26-装配给的保证-vs-协议须给的保证) 的「协议给」列 |
 | [`#S-33`](../../../data/identity-values/v1/contract.md#s-33-表示层校验与判定分开) 表示层校验与判定分开 | [S-13](#s-13-输入不合形状收成-invalidinput) |
 
-> **提到但不消费的，逐条点名**（按[登记口径](../../../README.md#当前状态)，否定式提及与对照不登）：
+> **提到但不消费的，逐条点名**（按[登记口径](../../../README.md#当前采用)，否定式提及与对照不登）：
 > [`data.messages/v2#S-28`](../../../data/messages/v2/contract.md#s-28-此刻模型可读是算出来的)（投影**不是**「此刻模型可读」，[S-5](#s-5-模态投影是对会话日志的一次折叠) 拿它作对照）；
 > [`data.messages/v2#S-6`](../../../data/messages/v2/contract.md#s-6-每种消息能装哪几类块)（只在已闭合的 G-7 里出现过）；
 > [`data.model-profile/v2#S-9`](../../../data/model-profile/v2/contract.md#s-9-inputconstraints)（兼容判定**不看**送进去之前的限制）；
@@ -209,7 +209,7 @@ project(L)   ≝ { modality(b) | m ∈ msgs(L), b ∈ tree(m), counted(b),
 | **派生表示里的块不计** | [PF-013 §4 转换件](../../../../product/PF-013-model-profiles-and-invocation/design.md#转换件)：转换件交出来的块「**不进消息的块序列，也不另立对象**：它们挂在原块上」；[§4 模态投影](../../../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)：配上了 transcript 的块「**不再进这份投影**」。派生块是原块的另一种样子，原块带着 transcript，**它们不是另外的原件**——PF-013 原话支持，不另起说法 |
 | **四种模态都算，文本也算** | 定义里「只有原件、没有 transcript」对文本块字面成立（文本、思考、工具调用块都不能带 transcript，[`data.content-blocks/v2#S-2`](../../../data/content-blocks/v2/contract.md#s-2-块底座)）。**它从不挡任何档案**：每份档案都收得下文本（[`data.model-profile/v2#S-7`](../../../data/model-profile/v2/contract.md#s-7-modality-与两组模态)）。不为它开特例，定义就少一处分支 |
 | **没有模态的文件块不算** | [PF-013 §4 模态](../../../../product/PF-013-model-profiles-and-invocation/design.md#模态)：媒体类型落在四种之外的文件块只是一个引用，**任何模型都读得了**；判定式对它给出「无模态」，不是第五个取值 |
-| **只有落进日志的消息算** | 投影从日志得来。**`SystemMessage` 不落日志、每次组装现算**（[PF-009 §4 消息](../../../../product/PF-009-context-message-types/design.md#消息)），所以不在里面；本版系统提示词也只有文本（PF-010；[D-060 §S17 S17-f](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s17modality-projection报回的)），这里没有要进投影的块 |
+| **只有落进日志的消息算** | 投影从日志得来。**`SystemMessage` 不落日志、每次组装现算**（[PF-009 §4 消息](../../../../product/PF-009-context-message-types/design.md#消息)），所以不在里面；本版系统提示词也只有文本（PF-010；D-060 §S17 S17-f），这里没有要进投影的块 |
 
 ### S-6 只增不减，可以逐条并进去，重算必得同一答案
 
@@ -271,10 +271,10 @@ project(L)   ≝ { modality(b) | m ∈ msgs(L), b ∈ tree(m), counted(b),
 2. **还没有任何一份声明生效时，登记表答不出任何一个键**——答不出不是「没登记」（[S-12](#s-12-缺席时的默认答案)）。
    进程刚起来、系统装配层还没交来那一份声明时就是这样；否则那一段里落盘的块会以「没有 transcript」进日志、**永久**进投影。登记表本身不可用时同样答不出。
 3. **一个键离开登记表只有一条路：新的一份声明里不再有它。**那是一次有意的装配动作，后果要被看见：此后落在这个键上的块照原样落盘、进投影（[S-6](#s-6-只增不减可以逐条并进去重算必得同一答案)）。
-   **替换同理**：换一件就是交来一份在这个键上写着新那一件的声明。**整份原子替换**：旧的一份一直生效到新的一份生效的那一刻，**中间没有任何一刻对哪个键答「没登记」**——这一半在任何部署形态下成立。**单机时还多一半**：一个两份声明里都有的键，任何时刻都答得出「有」；这一半由装配给（[S-26](#s-26-装配给的保证-vs-协议须给的保证)），跨进程之后声明换代可以让节点一度答不出（那时按 [S-12](#s-12-缺席时的默认答案) 以转换失败收场），**只承诺不答「没登记」**（主线裁定，见 [D-060 §七 M19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。
+   **替换同理**：换一件就是交来一份在这个键上写着新那一件的声明。**整份原子替换**：旧的一份一直生效到新的一份生效的那一刻，**中间没有任何一刻对哪个键答「没登记」**——这一半在任何部署形态下成立。**单机时还多一半**：一个两份声明里都有的键，任何时刻都答得出「有」；这一半由装配给（[S-26](#s-26-装配给的保证-vs-协议须给的保证)），跨进程之后声明换代可以让节点一度答不出（那时按 [S-12](#s-12-缺席时的默认答案) 以转换失败收场），**只承诺不答「没登记」**（主线裁定，见 D-060 §七 M19）。
 
 > **与产品正文一致**：[PF-012 §5.8](../../../../product/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里) 区分**没登记**（照原样落盘）与**登记了却不可用**（当转换失败）；
-> 系统自带件不走租户件「缺席即视作卸载」那一条，由装配预先声明的指定挂件顶上、模态转换那一件的效果是当转换失败（[`data.loop-extension/v2#S-33`](../../../data/loop-extension/v2/contract.md#s-33-不可用与报错两分)；产品裁定见 [D-059 U-5](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#凭据档案工具拓展件卡片-pf-013-rev-10pf-002-rev-1819pf-006-rev-19pf-012-rev-12pf-007-rev-17pf-008-rev-7pf-016-rev-8)）。
+> 系统自带件不走租户件「缺席即视作卸载」那一条，由装配预先声明的指定挂件顶上、模态转换那一件的效果是当转换失败（[`data.loop-extension/v2#S-33`](../../../data/loop-extension/v2/contract.md#s-33-不可用与报错两分)；产品裁定见 D-059 U-5）。
 > **理由是后果不对称**：「视作没装」让一次瞬时故障变成永久的产品后果（那个块原样落盘、永久进投影、可选模型永久变少），
 > 而「否决」只让这一次请求失败、可以重发。
 
@@ -408,7 +408,7 @@ keys(b) ≝
 
 ### S-17 声明转换件 `declareConverters`
 
-**系统装配层把它的一整份转换件声明交进来，整份原子地成为登记表**（主线裁定，见 [D-060 §五 K41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）。
+**系统装配层把它的一整份转换件声明交进来，整份原子地成为登记表**（主线裁定，见 D-060 §五 K41）。
 
 | # | 内容 |
 |---|---|
@@ -465,7 +465,7 @@ keys(b) ≝
 
 ### S-19 查登记 `lookupConverter`
 
-**`lookupConverter(key) → { registered } | { unregistered } | { unavailable }`**（主线裁定，见 [D-060 §S17 S17-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s17modality-projection报回的)）——
+**`lookupConverter(key) → { registered } | { unregistered } | { unavailable }`**（主线裁定，见 D-060 §S17 S17-b）——
 **给一个键，答此刻登记表在这个键上有没有一件。**有一个消费者没有它走不通：资产注册表算工具**结果那一端**的可用性（[第十二节](#十二消费者核对)资产注册表那一行）。
 
 | # | 内容 |
@@ -494,7 +494,7 @@ keys(b) ≝
 | 步 | 内容 |
 |---|---|
 | ① | **挑出要转的块**：`tree(m)`（[S-5](#s-5-模态投影是对会话日志的一次折叠)）里每一个**给模型看的**（`counted(b)`，嵌套按合取，含嵌在工具结果里任意层的）、**还没带派生属性的**语音块、图块、文件块——下文称**要转的块**。**只给人看的块（`toModel = false`）不转**，与它不进投影同一理由：没有模型会读它，它不需要 transcript（[PF-013 §4 模态投影](../../../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)「转换件因此也不转它」）。**已带派生属性的块不转**：它已经有 transcript，不进投影；它本来就不是 [S-18](#s-18-转换一个块-convert) 的输入。它从哪来、带着的派生属性可不可信，不由本契约判（[`data.content-blocks/v2#S-2`](../../../data/content-blocks/v2/contract.md#s-2-块底座)：只有转换件写它们） |
-| ② | 对每一块要转的块调 [S-18](#s-18-转换一个块-convert)，`tenant` 取 `m` 所属会话的租户身份——**从这一件这一次统一输入的执行环境句柄解析得到**（`environment`，[`data.loop-extension/v2#S-41`](../../../data/loop-extension/v2/contract.md#s-41-执行环境句柄)；读面在 `capability.loop-extension-runner` v2 S-50；主线裁定，见 [D-060 §八 M38](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），不经别的通道。**只在 ① 挑出了要转的块时才解析**（没有要转的块就不需要租户身份，[S-22](#s-22-没有转换件输入的消息不依赖转换这一侧)）。**句柄解析不出租户身份，这一件报错**：不以「没有租户」、也不以别的租户身份去调 S-18；报错按它的策略 `treat_as_veto` 否决这条消息（[S-21](#s-21-转换件不可用即转换失败) 末行），与 `converterFailed` 同一结局 |
+| ② | 对每一块要转的块调 [S-18](#s-18-转换一个块-convert)，`tenant` 取 `m` 所属会话的租户身份——**从这一件这一次统一输入的执行环境句柄解析得到**（`environment`，[`data.loop-extension/v2#S-41`](../../../data/loop-extension/v2/contract.md#s-41-执行环境句柄)；读面在 `capability.loop-extension-runner` v2 S-50；主线裁定，见 D-060 §八 M38），不经别的通道。**只在 ① 挑出了要转的块时才解析**（没有要转的块就不需要租户身份，[S-22](#s-22-没有转换件输入的消息不依赖转换这一侧)）。**句柄解析不出租户身份，这一件报错**：不以「没有租户」、也不以别的租户身份去调 S-18；报错按它的策略 `treat_as_veto` 否决这条消息（[S-21](#s-21-转换件不可用即转换失败) 末行），与 `converterFailed` 同一结局 |
 | ③ | **每一块都是「转成了」或 `noConverter`** ⇒ 进 ④；**任何一块以 S-18 的三个失败值之一收场**（`invalidInput`、`converterFailed`、`transcriptMissing`）⇒ 进 ⑥ |
 | ④ | 把每个「转成了」的产出挂到原块上：`renderings` 与 `transcript` 成为那个块的两个成员；派生块在挂上时补齐标识，**挂上之后整条消息满足 [`data.content-blocks/v2#S-3`](../../../data/content-blocks/v2/contract.md#s-3-blockid)**。`noConverter` 的块原样不动 |
 | ⑤ | 交回 `rewrite`，`message` 是挂好之后的那一条（[`data.loop-extension/v2#S-23`](../../../data/loop-extension/v2/contract.md#s-23-rewrite)：`before_persist_message` 上对模型产出的消息，`rewrite` 只许挂派生表示、只认系统模态转换件交回的）。**除了给转成了的块添上这两个成员，这条消息的任何成员、任何一块都不变**；一块都没转成时交回 `observed` |
@@ -508,7 +508,7 @@ keys(b) ≝
 - **否决之后怎么走不归本契约。**输入被拒并告知发送方、模型回复不落盘且下一次迭代另起一次新调用、工具结果让这次运行失败、系统追加的那些只落结论——
   **归 `capability.loop-extension-runner` v2**（候选；按消息是谁产生的分三路，[PF-012](../../../../product/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)）。
 - **对模型回复做这件事，不是 D-5「落盘前对模型回复只许否决、不许改写」要防的改写**：挂派生属性不改块序列、不改原块的任何成员（[S-11](#s-11-一次合法的转换产出)）。
-  `data.loop-extension` v2 已为它留出口——模型产出的消息在落盘之前只许否决，**另许系统模态转换件挂派生表示**（[`#S-23`](../../../data/loop-extension/v2/contract.md#s-23-rewrite)；主线裁定，见 [D-060 §S17 S17-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s17modality-projection报回的)；产品行 [PF-012 §5.8](../../../../product/PF-012-agent-loop-and-run/design.md#消息落盘之前每条消息都经过它不只是输入)「转换件挂派生表示不算改写」）；
+  `data.loop-extension` v2 已为它留出口——模型产出的消息在落盘之前只许否决，**另许系统模态转换件挂派生表示**（[`#S-23`](../../../data/loop-extension/v2/contract.md#s-23-rewrite)；主线裁定，见 D-060 §S17 S17-c；产品行 [PF-012 §5.8](../../../../product/PF-012-agent-loop-and-run/design.md#消息落盘之前每条消息都经过它不只是输入)「转换件挂派生表示不算改写」）；
   「交回的是不是只多了派生表示、是不是系统那一件」由 runner 判（`capability.loop-extension-runner` v2 S-14 ②）。
 
 ### S-21 转换件不可用即转换失败
@@ -521,7 +521,7 @@ keys(b) ≝
 | 登记表答不出 | 同上 | [S-9](#s-9-登记表同键一件登记是系统装配层的声明) 第 2 条 |
 | **系统自带的模态转换那一件整个不可用** | 对**含要转的块**（[S-20](#s-20-一条消息在落盘之前的转换全有或全无) ①：给模型看、还没带派生属性的语音块、图块、文件块）的消息，按否决处置；对不含的消息见 [S-22](#s-22-没有转换件输入的消息不依赖转换这一侧) | 这一格由 `capability.loop-extension-runner` v2 S-17 的指定挂件表兑现；系统自带件**不走**租户件「缺席即视作卸载」，由指定挂件顶上（[`data.loop-extension/v2#S-33`](../../../data/loop-extension/v2/contract.md#s-33-不可用与报错两分)；D-059 U-5） |
 | **一次转换跑过了拓展件时限** | 这一件报错，按 `treat_as_veto` 否决——与 `converterFailed` 同一结局 | 时限就是拓展件时限，**不单独立一个转换上界**（D-060 §S17 S17-g）；那个时限本版没有值，在 `capability.loop-extension-runner` v2 的 G-7 |
-| **执行环境句柄解析不出租户身份**（有要转的块时） | 这一件报错，按 `treat_as_veto` 否决——与 `converterFailed` 同一结局；**没有要转的块的消息不受牵连**（[S-22](#s-22-没有转换件输入的消息不依赖转换这一侧)） | [S-20](#s-20-一条消息在落盘之前的转换全有或全无) ②；分界照 `capability.loop-extension-runner` v2 S-50 第 4 条：这一件已开始（已挑出要转的块）才取租户身份，取不到是报错（[D-060 §八 M38](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） |
+| **执行环境句柄解析不出租户身份**（有要转的块时） | 这一件报错，按 `treat_as_veto` 否决——与 `converterFailed` 同一结局；**没有要转的块的消息不受牵连**（[S-22](#s-22-没有转换件输入的消息不依赖转换这一侧)） | [S-20](#s-20-一条消息在落盘之前的转换全有或全无) ②；分界照 `capability.loop-extension-runner` v2 S-50 第 4 条：这一件已开始（已挑出要转的块）才取租户身份，取不到是报错（D-060 §八 M38） |
 
 **合起来是本契约的核心安全性质**：
 
@@ -588,7 +588,7 @@ keys(b) ≝
 | **投影等于对日志的折叠，重算必得同一答案** | [S-5](#s-5-模态投影是对会话日志的一次折叠)、[S-6](#s-6-只增不减可以逐条并进去重算必得同一答案) 的定义；任何存着答案的一方（模型请求运行时）对它的义务 | 日志只增不改 | [PF-013 §4 模态投影](../../../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)、[§6.18](../../../../product/PF-013-model-profiles-and-invocation/design.md#618-模态投影要答得快而且是增量维护出来的) |
 | **投影只增不减** | [S-6](#s-6-只增不减可以逐条并进去重算必得同一答案) | 块落盘不变（`data.content-blocks/v2#S-22`）；压缩不改标注（`data.messages/v2#S-27`） | [PF-013 §4 模态投影](../../../../product/PF-013-model-profiles-and-invocation/design.md#模态投影) |
 | **每个键上至多一件生效** | [S-17](#s-17-声明转换件-declareconverters) ③⑥ 的 `keyTaken` | 登记只经 [S-17](#s-17-声明转换件-declareconverters)（装配给） | [PF-013 §4 转换件](../../../../product/PF-013-model-profiles-and-invocation/design.md#转换件)「同一个键上只有一件生效」；一份声明内同键即拒：D-060 §五 K41 |
-| **一个块至多一份派生表示；有派生表示则有 transcript，反之亦然** | [S-10](#s-10-一个块落在哪个键上)（只一件被调用）、[S-11](#s-11-一次合法的转换产出) ①④ | 块层形状（`data.content-blocks/v2#S-19`） | [PF-013 §4 转换件](../../../../product/PF-013-model-profiles-and-invocation/design.md#转换件)「只出一份派生表示」「transcript……每一次都必须有」；[D-060 §S1 S1-g](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s1content-blocks报回的) |
+| **一个块至多一份派生表示；有派生表示则有 transcript，反之亦然** | [S-10](#s-10-一个块落在哪个键上)（只一件被调用）、[S-11](#s-11-一次合法的转换产出) ①④ | 块层形状（`data.content-blocks/v2#S-19`） | [PF-013 §4 转换件](../../../../product/PF-013-model-profiles-and-invocation/design.md#转换件)「只出一份派生表示」「transcript……每一次都必须有」；D-060 §S1 S1-g |
 | **文本从不挡任何档案** | [S-7](#s-7-模态兼容) | 每份档案收得下文本（`data.model-profile/v2#S-7`） | [PF-013 §4 模态](../../../../product/PF-013-model-profiles-and-invocation/design.md#模态)；档案一侧的条款在 `data.model-profile` v2 |
 
 ### 安全性质（绝不能发生）
@@ -601,11 +601,11 @@ keys(b) ≝
 | **一条消息部分转换之后落盘** | [S-20](#s-20-一条消息在落盘之前的转换全有或全无) ③ | 改写与落盘在同一次提交（执行器） | [PF-013 §4](../../../../product/PF-013-model-profiles-and-invocation/design.md#转换件)「没有第四路」 |
 | **转换改动了原块** | [S-11](#s-11-一次合法的转换产出)、[S-20](#s-20-一条消息在落盘之前的转换全有或全无) ⑤ | — | PF-013 §4「原件一步没动」 |
 | **转换件据当前模型决定转不转** | [S-18](#s-18-转换一个块-convert) ①：输入里没有模型 | — | PF-013 §4「三件事它不做」 |
-| **只给人看的块把模型挤出合法目标** | [S-5](#s-5-模态投影是对会话日志的一次折叠) 的 `counted` | — | [PF-013 §4 模态投影](../../../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)「它只算标着给模型看的块」；[D-060 §S17 S17-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s17modality-projection报回的) |
+| **只给人看的块把模型挤出合法目标** | [S-5](#s-5-模态投影是对会话日志的一次折叠) 的 `counted` | — | [PF-013 §4 模态投影](../../../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)「它只算标着给模型看的块」；D-060 §S17 S17-e |
 | **兼容判定在投影未知时答 `ok`** | [S-12](#s-12-缺席时的默认答案)、[S-16](#s-16-兼容判定-compatible) ⑧ | 调用方不以 `∅` 顶替 | fail-closed |
 | **转换读到另一个租户的字节** | [S-18](#s-18-转换一个块-convert) ① 的 `tenant` | 存储按调用方租户身份现判（[G-6](#十一已知缺口)） | [SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant)、`data.content-blocks/v2#S-23` |
 | **纯文本消息因转换这一侧不可用而被否决** | [S-22](#s-22-没有转换件输入的消息不依赖转换这一侧) | 执行器的「不可用」处置表照此区分 | 规格层推导（「不可用即否决」的波及面） |
-| **转换件发起模型调用** | [S-24](#s-24-转换件不发起模型调用) | 提供者与装配让转换件够不着模型请求运行时 | [PF-013 §4 转换件](../../../../product/PF-013-model-profiles-and-invocation/design.md#转换件)「本版不调模型」；[D-060 §块 C 对账 C-R2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-c-对账d-reconciliation-c需主线看八项) |
+| **转换件发起模型调用** | [S-24](#s-24-转换件不发起模型调用) | 提供者与装配让转换件够不着模型请求运行时 | [PF-013 §4 转换件](../../../../product/PF-013-model-profiles-and-invocation/design.md#转换件)「本版不调模型」；D-060 §块 C 对账 C-R2 |
 
 ### 进展性质（全部有界）
 
@@ -630,7 +630,7 @@ keys(b) ≝
 |---|---|---|---|
 | **登记表只由系统装配层写**（[S-17](#s-17-声明转换件-declareconverters) ②） | 只有装配那一段够得着它 | 在接收边界鉴别调用方，只认系统装配层 | 任何够得着的一方都能把一个键指到自己的实现上，替全部租户决定模型读到什么 |
 | **登记表答「没登记」当且仅当现行系统装配未声明**（[S-9](#s-9-登记表同键一件登记是系统装配层的声明)） | 同一进程里的一份登记表，整份原子替换；第一份声明到位之前答不出 | 每个做转换的节点看到**同一份**现行声明；声明换代要让所有节点都进入「答不出」再一起进入新声明 | 某个节点落后一代，把一个已声明的键答成「没登记」：那一块原样落盘、**永久**进投影 |
-| **声明换代时，一个两份声明里都有的键任何时刻都答得出「有」**（[S-9](#s-9-登记表同键一件登记是系统装配层的声明) 第 3 条、[S-17](#s-17-声明转换件-declareconverters) ④） | 同一进程里整份原子替换：旧的一份生效到新的一份生效那一刻 | **不再承诺**：换代时节点可以一度答不出（按 [S-12](#s-12-缺席时的默认答案) 以转换失败收场、这一次请求被否决、可以重发）；**只承诺不答「没登记」**（[D-060 §七 M19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)） | 做成跨进程也「答得出『有』」要一次分布式的原子切换；照 S-9／S-17 旧字面实现会与上一行的「一起进入答不出」相抵 |
+| **声明换代时，一个两份声明里都有的键任何时刻都答得出「有」**（[S-9](#s-9-登记表同键一件登记是系统装配层的声明) 第 3 条、[S-17](#s-17-声明转换件-declareconverters) ④） | 同一进程里整份原子替换：旧的一份生效到新的一份生效那一刻 | **不再承诺**：换代时节点可以一度答不出（按 [S-12](#s-12-缺席时的默认答案) 以转换失败收场、这一次请求被否决、可以重发）；**只承诺不答「没登记」**（D-060 §七 M19） | 做成跨进程也「答得出『有』」要一次分布式的原子切换；照 S-9／S-17 旧字面实现会与上一行的「一起进入答不出」相抵 |
 | **只有系统自带的模态转换那一件调转换**（[S-18](#s-18-转换一个块-convert) ②） | 进程内调用链 | 同上，鉴别调用方 | 绕过全有或全无，一条消息的部分块被转 |
 | **转换的产出与原消息同一次落盘**（[S-20](#s-20-一条消息在落盘之前的转换全有或全无) ④） | 同一次日志追加 | 远端做完的转换**先交回、再落盘**；不允许「先落原样、之后补挂」 | 事后补挂违反只增不改；不补则那块永久没有 transcript |
 | **读引用所指的字节以 `tenant` 进行**（[S-18](#s-18-转换一个块-convert) ①） | 本机存储 | `tenant` 随请求到达存储，**在接收边界重新验证**（[`data.identity-values/v1#S-30`](../../../data/identity-values/v1/contract.md#s-30-跨边界须重新验证)） | 拿着复制来的引用读到别的租户的字节 |
@@ -777,9 +777,7 @@ keys(b) ≝
 
 **本版是首版**，没有被采用的旧版本，因此没有语义或表示差异可记，也没有消费者迁移；`registry/lineage.json` 不因本契约增加条目。
 
-**起草当日按主线两次更正修订**（2026-09-23，未冻结，原地改）：转换件站位改为 `before_persist_message`；投影照 PF-013 §4 原话定义、只计给模型看的块、是纯函数；
-`convert` 不带目标模态；工具两端移出；登记表同键重复登记 `keyTaken`；失败值收窄；转换件不得发起模型调用。
-**第一轮独立评审处置**（2026-09-24，未冻结，原地改）：逐键登记改为整份声明 [`declareConverters`](#s-17-声明转换件-declareconverters)（没有单独的「登记完」）；「要转的块」统一为「给模型看、还没带派生属性的」；依据改链到产品正文与 D-060。影响都记在[验证入口](../verification.md#变化的影响)。
+
 
 **本版的规范工件**：本文件与 [`examples.md`](examples.md)。接受状态、冻结记录与执行结果都在本版本目录之外维护，本文件不填进度、通过状态或哈希。
 

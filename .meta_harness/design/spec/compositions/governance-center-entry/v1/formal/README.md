@@ -1,7 +1,7 @@
 # 形式工件与论证映射
 
 `composition.governance-center-entry` v1（候选）选用的形式工件：一个 TLA+ 行为模型，检查**判定次序 × 四种入口答复 × 「判不了优先于无效」**。
-为什么触发、为什么不选 Alloy，见[契约 S-37](../contract.md#s-37-本版选用的形式工件)。执行记录在版本外的[验证入口](../../verification.md#实际执行)，本页不填通过状态。
+为什么触发、为什么不选 Alloy，见[契约 S-37](../contract.md#s-37-本版选用的形式工件)。[验证入口](../../verification.md)维护方法、覆盖、前提和限制；每次运行输入与输出放本工作树 `tmp/<task>/`。
 
 ## 本版本选用什么
 
@@ -62,7 +62,7 @@
     | [`Validity_deriveBeforePayload.cfg`](Validity_deriveBeforePayload.cfg) | 先做身份推导与补授权，再核载荷 | `PayloadBeforeDerive` |
 
   - **没有专门变异的断言**：`HealthUnconditional`、`ExemptIgnoresPresentation`、`ExemptInputWithoutLookup`、`RejectionOnlyWhenJudged`、`NoDomainWithoutGates`。它们的前件在可达性核对里都能被走到（公开体检、免认人路由、「无效」、领域调用四类答复与分支都可达），但**没有一个变异证明它们会失败**；这是本版有效性核对的已知缺口，记在[验证入口](../../verification.md#证据义务)。`AnsweredClosed` 由 `TypeOK` 推出，不列入。
-- **结果入口**：[验证入口 · 实际执行](../../verification.md#实际执行)。
+- **结果入口**：[验证入口 · 实际执行](../../verification.md)。
 
 TLA+ 描述行为规格，TLC 对给定模型做有限状态检查；在已检查范围内未发现反例，不自动成为任意范围的证明。
 

@@ -1,7 +1,0 @@
-HTTP/1.1 200 OK
-Content-Type: application/json
-Cache-Control: no-store
-Content-Length: 18
-Connection: close
-
-"version-mismatch"

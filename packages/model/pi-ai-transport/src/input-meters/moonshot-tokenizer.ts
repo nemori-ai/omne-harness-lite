@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { Tiktoken } from 'js-tiktoken/lite'
 
-const vocabularyUrl = new URL('../../tokenizers/moonshot/tiktoken.model', import.meta.url)
+const vocabularyUrl = new URL('../../resources/tokenizers/moonshot/tiktoken.model', import.meta.url)
 const vocabularyHash = 'b6c497a7469b33ced9c38afb1ad6e47f03f5e5dc05f15930799210ec050c5103'
 
 // JS Unicode regexp has no character-class intersection. The negative lookahead
@@ -42,7 +42,7 @@ function loadTokenizer(configName: string): Tiktoken {
     ranked[rank] = line.slice(0, space)
   }
   if (ranked.some(token => !token)) throw new Error('incomplete Moonshot vocabulary')
-  const configUrl = new URL(`../../tokenizers/moonshot/${configName}`, import.meta.url)
+  const configUrl = new URL(`../../resources/tokenizers/moonshot/${configName}`, import.meta.url)
   const config: Config = JSON.parse(readFileSync(configUrl, 'utf8'))
   const specialTokens: Record<string, number> = {}
   for (const [id, item] of Object.entries(config.added_tokens_decoder ?? {})) {

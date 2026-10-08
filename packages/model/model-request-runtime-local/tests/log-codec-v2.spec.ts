@@ -1,3 +1,4 @@
+import { modelFormat } from './log-codec-fixture.ts'
 import { describe, expect, it } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import * as codec from '@omne-harness-lite/model-request-runtime'
@@ -32,7 +33,7 @@ describe('D100 current root model-log codec', () => {
     const prepared = codec.prepareModelLogEntry(write(captured))
     if (!('ok' in prepared)) throw new Error('prepare')
     expect(codec.modelLogFormat).toBe('mrr/3')
-    expect(jsonObject(prepared.ok.payload).format).toBe('mrr/3')
+    expect(modelFormat(prepared.ok.payload)).toBe('mrr/3')
     expect(prepared.ok.dedupeKey?.startsWith('mrr/3/')).toBe(true)
     expect(prepared.ok.readKeys.every(key => key.startsWith('mrr/3/'))).toBe(true)
     expect(jsonObject(jsonObject(captured.value).raw).headers).toEqual({
@@ -40,10 +41,8 @@ describe('D100 current root model-log codec', () => {
     })
     expect(writeJsonLossless(captured.value)).toContain('0.0000000000000000000000000310')
     expect(writeJsonLossless(captured.value)).toContain('9007199254740993')
-    expect(anchors().entries.every(entry => jsonObject(entry.payload).format === 'mrr/3')).toBe(
-      true,
-    )
-    expect(batch().every(entry => jsonObject(entry.payload).format === 'mrr/3')).toBe(true)
+    expect(anchors().entries.every(entry => modelFormat(entry.payload) === 'mrr/3')).toBe(true)
+    expect(batch().every(entry => modelFormat(entry.payload) === 'mrr/3')).toBe(true)
   })
 
   it('keeps absent and empty headers distinct and rejects malformed values', () => {
@@ -82,8 +81,8 @@ describe('D100 current root model-log codec', () => {
       { ...entry, tenant: { organization: 'other', account: 'other' } },
       { ...entry, readKeys: [] },
       { ...entry, dedupeKey: entry.dedupeKey?.replace('mrr/3', 'mrr/1') },
-      { ...entry, payload: { ...jsonObject(entry.payload), format: 'mrr/1' } },
-      { ...entry, payload: { ...jsonObject(entry.payload), format: 'mrr/2' } },
+      { ...entry, payload: { ...jsonObject(entry.payload), version: 'mrr/1' } },
+      { ...entry, payload: { ...jsonObject(entry.payload), version: 'mrr/2' } },
     ])
       expect(
         codec.inspectModelLogEntry({
@@ -99,7 +98,9 @@ describe('D100 current root model-log codec', () => {
   it.each(['mrr/1', 'mrr/2', 'mrr/4'])('refuses old or unknown %s in a complete prefix', format => {
     const prior = durable()
     const entries = prior.prefix.entries.map((entry, index) =>
-      index === 3 ? { ...entry, payload: { ...jsonObject(entry.payload), format } } : entry,
+      index === 3
+        ? { ...entry, payload: { ...jsonObject(entry.payload), version: format } }
+        : entry,
     )
     expect(
       codec.inspectSettlementMembers({
@@ -127,7 +128,7 @@ describe('D100 current root model-log codec', () => {
     })
     if (!('completeMembers' in winner)) throw new Error('prior winner')
     expect(winner.completeMembers.mode).toBe('read')
-    expect(winner.completeMembers.entries.map(entry => jsonObject(entry.payload).format)).toEqual([
+    expect(winner.completeMembers.entries.map(entry => modelFormat(entry.payload))).toEqual([
       'mrr/3',
       'mrr/3',
     ])

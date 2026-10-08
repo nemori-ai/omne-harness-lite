@@ -8,7 +8,7 @@
 **本程实现不交付**，可独立运行的装配里这一件的实现另行决定。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.tool-admission, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 `accepted`；`family=capabilities`、`topic=tool-admission`、
   `contract_path=spec/capabilities/tool-admission/v2/contract.md`；`resources` 含契约与 `examples.md`；
   依赖五项（`data.identity-values`、`data.content-blocks`、`data.tool-definition`、`data.loop-extension`、`data.asset-model`，均 v1），clauses 取自[契约 S-4](v2/contract.md#s-4-依赖方向与被消费的面)
@@ -48,4 +48,4 @@
 
 ## 2026-09-26 版本接受
 
-本次接受 `capability.tool-admission` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `capability.tool-admission` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

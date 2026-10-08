@@ -3,8 +3,8 @@
 > 本版逐字继承 RT8 的七份模型与其配置，新增 RecoveryTiming 只表达此次时序责任。未运行本版模型；前驱证据不能冒充本版执行。
 
 
-本目录不保存运行产物；前驱 v6 新增的四个正配置在其原输入下由独立 TLC 执行且退出0，六个否定配置各以指定断言反例退出12。这些是前驱执行结果；本版执行结果只在版本外验证入口记录。执行证据见[版本外验证入口](../../verification.md#v8-估算计量保证)与[独立有限模型记录](../../../../../record/evidence/2026-09-28-formal-model-input-successors/README.md)。
-前驱执行使用当时主线给定的 TLC 工具链，精确版本、输入哈希、原始输出、退出码及修复前失败记录在版本外验证入口定位；模型与配置存在不等于已运行或实现符合。
+前驱 v6 的四个正配置、六个否定配置保持其原输入与范围，不能代替本版全部配置的执行。正配置与否定配置须按指定断言分别核对；实际执行输入和结果放执行工作树 `tmp/<task>/`。
+模型与配置存在不等于已运行或实现符合。复跑应核对实际工具版本、输入和前提；每次运行输出放本工作树 `tmp/<task>/`。
 
 ## 原状态机的采用边界
 
@@ -36,8 +36,8 @@ v6 保留十三个服务操作，原有交错消费已冻结 [v2 Invocation](../
 | [Adaptation_DisposeActive.cfg](validity-check/Adaptation_DisposeActive.cfg)（主线拥有） | 仍有持有者时释放资源 | `NoDisposeWithLease` |
 | [Adaptation_Rebind.cfg](validity-check/Adaptation_Rebind.cfg)（主线拥有） | 在途绑定随新采用版本改变 | `BindingPinned` |
 
-以上是配置的预期结果；实际执行见版本外验证入口。正向无反例与否定出现指定反例须成对记录；某断言若只在正向列中通过，不能说已证实它能失败。
-RT3 起草时三个正向任务的登记名分别为 `model-request-runtime-v3-content-gate`、`model-request-runtime-v3-adaptation-binding`、`model-request-runtime-v3-adaptation-lifecycle`；本版在待集成候选 fragment 以 v7 精确路径另列对应任务，旧运行不改记为 v5。这三模型的七份否定配置均不登记为正向 formal task。
+以上是配置的预期结果；实际执行输入和结果放执行工作树 `tmp/<task>/`。正向无反例与否定出现指定反例须成对检查；某断言若只在正向列中通过，不能说已证实它能失败。
+RT3 的三个正向任务的登记名分别为 `model-request-runtime-v3-content-gate`、`model-request-runtime-v3-adaptation-binding`、`model-request-runtime-v3-adaptation-lifecycle`；本版在待集成候选 fragment 以 v7 精确路径另列对应任务，旧输入结果不能代替 v5。这三模型的七份否定配置均不登记为正向 formal task。
 没有新 Alloy 模型：本批新增值结构由 model-profile/messages/model-response 的 Schema 承接，本契约只引值不另立结构权威。
 
 继承的 ContentGate/AdaptationBinding 与 Adaptation 各保留原义务；这三份模型不承载 `retryDelay` 的实数关系、结果投影的全部字段、发送前取消的外层结果形状或S-66 当前输入提供者的真实读取、跨源一致性或 S-28/S-29 续接新输入分支。这些由规范向量及实现符合性验收承担。
@@ -47,7 +47,7 @@ S-15/S-16/S-17/S-33/S-55 的 opened 回执未知及取消后迟到提交分支�
 
 ## 结算组合模型
 
-[Settlement.tla](Settlement.tla) 承接 S-17/S-68～S-73。新模型与以下配置为 candidate；作者未执行 TLC，正式运行由独立验证者负责。SL3 模型及旧 RT3 运行均不代替本模型的执行。
+[Settlement.tla](Settlement.tla) 承接 S-17/S-68～S-73。独立验证须运行以下正负配置；SL3 模型和旧 RT3 运行均不代替本模型的执行。
 
 模型使用两个有共同 ResponseId 的结算者：1 写单响应，2 写同一 MessageId 的消息+响应批；一个原发出、一个新尝试或同 Run 终结边界、至多 NoiseLimit 个无关追加。所有日志条目是单一序列；读取与提交分开，真实 Run 语义由边界种类抽象。Budget 是有限实验预算，不是产品默认值。配置不施加公平性，只检查安全/责任不变量，不声称无饥饿或预算内必成功。
 
@@ -95,7 +95,7 @@ FinalPlan 的准确计数等于实际量，可靠界不小于实际量，是前�
 | PendingReply_DropFacts.cfg | PreserveFacts=FALSE | CompleteHandoff |
 | RetryHistory_DispatchCount.cfg | UseDispatchCount=TRUE | CountsOwnConclusions |
 
-前驱 RT6 模型独立 TLC 结果（不是 v8 运行）：FinalPlan 两正配置分别49/43个不同状态，PendingReply正配置8，RetryHistory正配置42；四正均退出0，六负均退出12并命中上表指定断言。FinalPlan首次解析失败退出150仍保留，修后复跑结果不覆盖原失败；[证据](../../../../../record/evidence/2026-09-28-formal-model-input-successors/README.md)绑定精确输入哈希与工具。未运行Alloy或真实IO；不据有限模型声称计量、历史来源或实现符合性已验证。否定配置不作为正式正任务登记。继承 RT5 的四模型十九配置保持逐字节相同；新三模型十配置不代替旧范围。
+不据有限模型声称计量、历史来源或实现符合性已验证。否定配置不作为正式正任务登记。继承 RT5 的四模型十九配置保持逐字节相同；新三模型十配置不代替旧范围。
 
 ## v8 FinalPlan 断言与成对负控
 

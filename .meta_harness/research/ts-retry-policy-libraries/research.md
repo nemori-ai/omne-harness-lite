@@ -2,7 +2,7 @@
 
 - 调查对象与日期：npm 上的 `cockatiel@4.0.0`、`p-retry@8.0.1`、`retry@0.13.1`、`exponential-backoff@3.1.3`、`async-retry@1.3.3`、`ts-retry-promise@0.8.1`、
   `@lifeomic/attempt@3.1.0`、`promise-retry@2.0.1`；参照 Python `tenacity@9.1.4` 与 `effect@3.22.2` 的 `Schedule`。全部取证于 **2026-09-25**，本机 Node `v24.18.0`、npm `11.16.0`、TypeScript `6.0.3`。
-- 消费者：[D-063 R-6](../../design/record/decisions/assets-runtimes-rulings-2026-09-25/README.md) 的三个落点——
+- 消费者：D-063 R-6 的三个落点——
   [model-request-runtime 节点](../../design/realization/packages/model/model-request-runtime/design.md) P-5 改写、
   [契约 G-8](../../design/spec/capabilities/model-request-runtime/v2/contract.md#十二已知缺口) 改成「策略配置项与默认初值」、实施边界 W-10b。
 - 最近核对：2026-09-25 / 上述版本。

@@ -8,7 +8,7 @@
 纯数据模块，候选节点 rev 1（2026-09-27）。
 - 源码位置：`packages/core/agent-definition`，**尚未建包**。
 - 契约：[`data.agent-definition/v1`](../../../../spec/data/agent-definition/v1/contract.md)，catalog 状态 `candidate`，S-1～S-10。
-- 边界依据：[已提交求值的读取链候选](../../../../record/proposals/model-request-adaptation/read-projection.md)；PF-004 rev 12、PF-002 rev 20、PF-013 rev 13 的具体来源由契约入口维护。
+- 边界依据：已提交求值的读取链候选；PF-004 rev 12、PF-002 rev 20、PF-013 rev 13 的具体来源由契约入口维护。
 
 ## 分层状态
 
@@ -29,12 +29,12 @@
 
 ## 2026-09-27 技术采用
 
-[D-072](../../../../record/decisions/agent-definition-read-adoption/decision.md)已接受 AD1 及本纯模块设计。此事件不修改此前设计字节，不证明源码或真实IO。Profile3 依据 D070 已接受；当前源生产者为 evaluation-input-store，验收应用为 model-request-acceptance，其节点和实际结果分别核验。
+D-072已接受 AD1 及本纯模块设计。此事件不修改此前设计字节，不证明源码或真实IO。Profile3 依据 D070 已接受；当前源生产者为 evaluation-input-store，验收应用为 model-request-acceptance，其节点和实际结果分别核验。
 
 ## 2026-10-03 固定Schema技术采用
 
-[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)与[本节点固定图装配](fixed-schema-precompile-design.md)补充现行设计。只改变固定图编译/装载时机；本机制实施、实际绑定与验证未完成，原契约和历史run的状态不据此改写。
+D-116与[本节点固定图装配](fixed-schema-precompile-design.md)补充现行设计。只改变固定图编译/装载时机；本机制实施、实际绑定与验证未完成，原契约和历史run的状态不据此改写。
 
 ## 2026-10-03 D-116 主体实施与有限验收
 
-本节点固定图已实施构建期生成与首次实际消费时的同步原生装载。全部定义、公开结果/errors、构建失败清理、恢复、新鲜性及制品消费的实际范围见[主体原始运行与有限签收](../../../../record/evidence/2026-10-03-tests-fixed-schema-main/README.md)。本段取代上文 D-116 补充中关于固定图实施/验证尚待的状态；原契约、其他能力与历史运行的边界不变。
+本节点固定图已实施构建期生成与首次实际消费时的同步原生装载。全部定义、公开结果/errors、构建失败清理、恢复、新鲜性及制品消费的实际范围见主体原始运行与有限签收。本段取代上文 D-116 补充中关于固定图实施/验证尚待的状态；原契约、其他能力与历史运行的边界不变。

@@ -1,9 +1,0 @@
-export declare const SCHEMA_DEF_NAMES: readonly ["Instant", "OfferTiming", "OfferState", "SettledState"];
-export type SchemaDefName = (typeof SCHEMA_DEF_NAMES)[number];
-export interface SchemaValidation {
-    readonly valid: boolean;
-    readonly errors: readonly string[];
-}
-export declare function validate(defName: SchemaDefName, value: unknown): SchemaValidation;
-export declare const schemaId: string;
-//# sourceMappingURL=validate.d.ts.map

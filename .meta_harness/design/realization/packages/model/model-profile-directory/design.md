@@ -1,6 +1,6 @@
 # model-profile-directory 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 契约：[`capability.model-profile-directory` v2](../../../../spec/capabilities/model-profile-directory/v2/contract.md)（下文「契约 S-n」「契约 G-n」都指它）。
 本页的插件名、服务名、方法名、表名与列名一律是**候选**；契约的九件事不复述，只写兑现点与缺口。
@@ -9,7 +9,7 @@
 
 **自建两个插件。**P-1 的全部写操作都是单次存储提交，没有跨提交的在途状态（契约 S-23），形状与 [organization-governance](../../tenancy/organization-governance/design.md) 同类：一个插件、一条 fiber、失败值是闭合字面联合、写后再 `emit` 通知。
 
-- **复用**：档案与建档内容的形状、表示层校验（`data.model-profile`）由同批纯模块 [`packages/core/model-profile`](../../core/model-profile/README.md) 给（一契约一包，D-060 §八 M41）；`CredentialRef` 的形状（`data.asset-model/v2#S-23`）由 `packages/core/asset-model` 给；身份值与 `Instant` 由已实现的 [`identity-values`](../../core/identity-values/README.md)、[`offer-expiry`](../../core/offer-expiry/README.md) 给；插件层共用件 `definePlugin`、`resolveOptional`、`Outcome` 取 [kernel-basis](../../core/kernel-basis/README.md)；存储走 [core/storage 协议](../../core/storage/design.md#协议)。
+- **复用**：档案与建档内容的形状、表示层校验（`data.model-profile`）由同批纯模块 [`packages/core/model-profile`](../../core/model-profile/README.md) 给（一契约一包，D-060 §八 M41）；`CredentialRef` 的形状（`data.asset-model/v2#S-23`）由 `packages/core/asset-model` 给；身份值与 `Instant` 由已实现的 [`identity-values`](../../core/identity-values/README.md)、[`offer-expiry`](../../core/offer-expiry/README.md) 给；插件层共用件 `definePlugin`、`resolveOptional`、`Outcome` 取 [kernel-basis](../../../../../../packages/core/kernel-basis/README.md)；存储走 [core/storage 协议](../../core/storage/design.md#协议)。
 - **成员资格判定**取已实现的 [organization-governance](../../tenancy/organization-governance/README.md) 的 `memberships.standing`（契约依赖钉 `capability.organization-governance` v1 的 S-26；那个节点按 v2 修订后，S-26 在两版同文，钉 v1 的调用拿 v1 的答复——同一提供者双版本服务的规则见 [OG v3 第十三节](../../../../spec/capabilities/organization-governance/v3/contract.md#十三版本差异与规范工件)，由装配绑定）。
 - **不在本节点**：凭据本体的保管（契约 S-2：保管方归提供者设计）。**据点一侧接口已定**：`capability.credential-custodian` v2（[S-12](../../../../spec/capabilities/credential-custodian/v2/contract.md#s-12-storereplica) `storeReplica`、[S-13](../../../../spec/capabilities/credential-custodian/v2/contract.md#s-13-readreplica) `readReplica`、[S-15](../../../../spec/capabilities/credential-custodian/v2/contract.md#s-15-discardloginstate) `discardLoginState`），P-1r 经它存取租户那一把的副本（D-060 §八 M47）；真承接者未到，最小提供者节点 [`credential-custodian-local`](../../infra/credential-custodian-local/design.md#实施缺口与消费者影响) 已立（candidate；副本以密文落在据点 `storage`、本机只放 `keyFile`）；**中心一侧本版不收**（那份契约 [G-7](../../../../spec/capabilities/credential-custodian/v2/contract.md#十一已知缺口)）——P-1 在中心把引用换成值没有保管方可调（缺口 MPD-N1）。中心 ↔ 据点的线上形状（契约 G-7）。
 
@@ -22,7 +22,7 @@
 | 导出（候选） | 做什么 | 输入与输出的契约坐标 |
 |---|---|---|
 | `scopeChain(tenant)` | 由 `TenantId` 派生范围链（租户格 → 组织格 → 出厂格） | [S-6](../../../../spec/capabilities/model-profile-directory/v2/contract.md#s-6-范围链)；`data.identity-values/v1` |
-| `winningRow(rows, routeName, allowed)` | 链上各格的行 → 一个路由名的胜出行（在册且范围允许）；`allowed` 由调用方交 | S-17 末段；[D-063 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)：本版 `allowed` 就是那一格登记的全部档案 |
+| `winningRow(rows, routeName, allowed)` | 链上各格的行 → 一个路由名的胜出行（在册且范围允许）；`allowed` 由调用方交 | S-17 末段；D-063 R-4：本版 `allowed` 就是那一格登记的全部档案 |
 | `manifestDisposition(loaded, manifest)` | 已装入状态与一份清单 → 逐条处置（新增、更新、撤回）或 `manifestNotNewer` | S-8、S-18 ④ |
 | `configEligibility(initiator, scope, standing)` | 配置资格：先比发起者与格，再看调用方交来的成员资格答复 | S-10；`standing` 的答复形状照 `capability.organization-governance/v1#S-26` |
 | `credentialSlot(binding, origin, factoryConfigured)` | 取哪一格的那一把、「有没有」怎样答（不碰值） | S-20 ④ 的判定部分 |
@@ -55,7 +55,7 @@
 |---|---|---|
 | `modelCatalog` | `registerProfile`、`withdrawProfile`、`relistProfile`、`updateProfile`、`readProfile`、`listProfiles`、`bindCredential`、`unbindCredential`、`credentialPresent`（≡ `resolveCredential(…, present)`） | 中心的管理面与治理面（未来资产/据点入口（版本未分配） 的路由，未起草） |
 | `modelCatalogRead` | `readProfile`、`listProfiles`、`credentialPresent` | 模型请求运行时（展示列表按每一条的来源问「有没有」）、据点交付面（「有没有、哪个范围、什么时候配的」） |
-| `credentialLookup` | `value(tenant, origin)`（≡ `resolveCredential(…, value)`） | **只有模型请求运行时**：静态检查候选规则（同 OG 的 `restricted-call-sites`）——只许 `packages/model/model-request-runtime` 解析这个服务名；随 M47 加一条：P-1r 的副本表（`model_catalog_replica`）与两个读面的返回类型都不含凭据值与引用，**据点上的值只经保管方落地、只经 `credentialLookup.value` 读出**；随 [D-060 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑩ 再加一条：**保管方的 `readReplica` 只许 P-1r 调**（`credentialCustodian` 的其余消费者——MCP 桥——只许调 `depositOAuth`、`resolve`；保管方契约 [S-19](../../../../spec/capabilities/credential-custodian/v2/contract.md#s-19-装配给的保证-vs-协议须给的保证) 第 3 行） |
+| `credentialLookup` | `value(tenant, origin)`（≡ `resolveCredential(…, value)`） | **只有模型请求运行时**：静态检查候选规则（同 OG 的 `restricted-call-sites`）——只许 `packages/model/model-request-runtime` 解析这个服务名；随 M47 加一条：P-1r 的副本表（`model_catalog_replica`）与两个读面的返回类型都不含凭据值与引用，**据点上的值只经保管方落地、只经 `credentialLookup.value` 读出**；随 D-060 §八 N-37 ⑩ 再加一条：**保管方的 `readReplica` 只许 P-1r 调**（`credentialCustodian` 的其余消费者——MCP 桥——只许调 `depositOAuth`、`resolve`；保管方契约 [S-19](../../../../spec/capabilities/credential-custodian/v2/contract.md#s-19-装配给的保证-vs-协议须给的保证) 第 3 行） |
 
 | | 两种问法同在 `credentialLookup`（草图） | **取值单列（本方）** |
 |---|---|---|
@@ -198,9 +198,9 @@ P-1r 的副本表（候选 `model_catalog_replica`）由[据点装配](../../../
 
 ## 实施缺口与消费者影响
 
-**消费者影响（[D-063 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)，G-19 闭合）**：模型请求运行时的允许集合 `A` 本版就是「这个范围里登记的全部档案」——胜出行存在即在册且范围允许，第二道滤在本版是空滤；它由本节点的读面（`listProfiles`、`readProfile`）直接给出，**本节点不因此加操作**。将来要收窄，那一项走资产求值（PF-002），`winningRow` 的 `allowed` 参数就是为它留的口。
+**消费者影响（D-063 R-4，G-19 闭合）**：模型请求运行时的允许集合 `A` 本版就是「这个范围里登记的全部档案」——胜出行存在即在册且范围允许，第二道滤在本版是空滤；它由本节点的读面（`listProfiles`、`readProfile`）直接给出，**本节点不因此加操作**。将来要收窄，那一项走资产求值（PF-002），`winningRow` 的 `allowed` 参数就是为它留的口。
 
-契约自己的 G-n 不在此重抄；下面是本节点的缺口。其中「本程不补、留给下一程」（owner 主线，[D-060 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）的是：MPD-N1（C-5 `infra/secrets`）、MPD-N2（C-3 据点上的中心事实副本读面、C-4 未来资产/据点入口（版本未分配））。
+契约自己的 G-n 不在此重抄；下面是本节点的缺口。其中「本程不补、留给下一程」（owner 主线，D-060 §八 M43）的是：MPD-N1（C-5 `infra/secrets`）、MPD-N2（C-3 据点上的中心事实副本读面、C-4 未来资产/据点入口（版本未分配））。
 
 | # | 缺口 | owner | 受阻的消费者 | 闭合条件 |
 |---|---|---|---|---|
@@ -209,5 +209,5 @@ P-1r 的副本表（候选 `model_catalog_replica`）由[据点装配](../../../
 | MPD-N3 | **迁移片段要进中心装配**：`modelProfileDirectoryMigrations` 由 [tenancy-host](../../../apps/tenancy-host/README.md) 合成（D-059：承载已超出租户领域） | 己（tenancy-host 修订） | P-1 启动 | tenancy-host 的装载清单与迁移合成列入 P-1 |
 | MPD-N4 | **静态检查规则未写**：`credentialLookup` 只许模型请求运行时解析；读面返回类型与 P-1r 副本表不含凭据值与引用（据点上的值只经保管方落地，M47）；**保管方的 `readReplica` 只许 P-1r 调**（N-37 ⑩；保管方 [S-19](../../../../spec/capabilities/credential-custodian/v2/contract.md#s-19-装配给的保证-vs-协议须给的保证) 第 3 行，MCP 桥节点 N-14 管 `depositOAuth`／`resolve` 那一半） | 本节点 ＋ 承载仓库 `tools/ts-checks` | 契约 S-12 与保管方 S-11 的装配给 | 规则写成、并在 CI 里跑 |
 | MPD-N5 | **发布清单的来源与序号**：发布物怎样交给中心装配、序号由谁给（契约 G-9 的实施一侧） | 装配（tenancy-host）与发布流程 | `loadManifest` | 发布流程写明单一来源 |
-| MPD-N6 | **不带 `thisArg` 的派发对谁可见未核**（H-7）：`profile.withdrawn` 的 F③ 读法取保守一边；本版没有监听者，无后果 | [kernel-basis](../../core/kernel-basis/README.md) 待补 probe（D-060 §八 M65） | 任何将来接上的 `profile.withdrawn` 监听者 | probe 在 4.0.4 上立起；第一个监听者接上之前必须闭合 |
+| MPD-N6 | **不带 `thisArg` 的派发对谁可见未核**（H-7）：`profile.withdrawn` 的 F③ 读法取保守一边；本版没有监听者，无后果 | [kernel-basis](../../../../../../packages/core/kernel-basis/README.md) 待补 probe（D-060 §八 M65） | 任何将来接上的 `profile.withdrawn` 监听者 | probe 在 4.0.4 上立起；第一个监听者接上之前必须闭合 |
 | MPD-N7 | **函数层的行为没有契约条款**：`winningRow`、`manifestDisposition`、`configEligibility`、`credentialSlot` 借本契约的判定写成纯函数，契约写的是服务面（与 TER T-17 同题） | 主线 | 外部取用这几个函数的人 | 契约为函数面给出条款，或明写「函数面不受契约约束」 |

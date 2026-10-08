@@ -14,12 +14,10 @@ import {
   type ReadTx,
 } from '@omne-harness-lite/storage'
 import { openStorage } from '@omne-harness-lite/storage-sql'
-import {
-  createAssemblyManifestStore,
-  assemblyManifestStorePlugin,
-  type ManifestDb,
-} from '../src/index.ts'
+import { createAssemblyManifestStore, type ManifestDb } from '../src/index.ts'
 import { type AssemblyManifestService } from '@omne-harness-lite/assembly-manifest'
+import { assemblyManifestStorePlugin, AssemblyManifestResourcesService } from '../src/cordis.ts'
+import { AssemblyManifestService as ManifestService } from '@omne-harness-lite/assembly-manifest/cordis'
 import { database, input, evaluated } from './support.ts'
 
 test('known empty, lossless record, history and evaluation survive real file reopen', async () => {
@@ -384,9 +382,11 @@ test('close after prior idle waits for a later actual read; withdrawn Cordis ref
   await database(async storage => {
     const ctx = new Context()
     ctx.provide('storage', storage)
+    new AssemblyManifestResourcesService(ctx)
     const fiber = ctx.plugin(assemblyManifestStorePlugin, {})
     await fiber
     const store = ctx.get('assemblyManifest') as AssemblyManifestService
+    expect(store).toBeInstanceOf(ManifestService)
     await store.readHead('session')
     let release!: () => void, entered!: () => void
     const gate = new Promise<void>(resolve => {

@@ -1,28 +1,27 @@
+import type {
+  AckPendingReason,
+  AcknowledgedCallView,
+  RuntimeCloseResult,
+  ServiceUnavailable,
+} from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { isNonNegativeJsonInteger, type JsonValue } from '@omne-harness-lite/content-blocks'
 import type { CallKey, ModelCallAcknowledgedRecord } from '@omne-harness-lite/messages'
 import type { ResponseId } from '@omne-harness-lite/model-response'
-import { completeAcknowledgedView } from './acknowledged-view.ts'
+import { completeAcknowledgedView } from '@omne-harness-lite/model-request-runtime'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
+import type { ModelCallContentStore } from './reference-types.ts'
 import type {
-  AckPendingReason,
   AcknowledgedCallFacts,
-  AcknowledgedCallView,
   ModelCallCleanupResult,
-  ModelCallContentStore,
-} from './reference-types.ts'
-import type {
-  AcknowledgementCleanupPolicy,
-  CallContainerStore,
-  RuntimeCloseResult,
-  RuntimeConstruction,
-  ServiceUnavailable,
-} from './service-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { CallContainerStore, RuntimeConstruction } from './service-types.ts'
+import type { AcknowledgementCleanupPolicy } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementLogBinding,
   SettlementScheduler,
   SettlementTask,
-} from './settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 
 function cleanupWaitAllowed(
@@ -105,6 +104,13 @@ export function createAcknowledgementCustody<P extends PlannedSemantics, R>(inpu
   readonly scheduler: SettlementScheduler
   readonly policy: AcknowledgementCleanupPolicy
   readonly diagnostic: (event: { readonly kind: string; readonly detail?: JsonValue }) => void
+  readonly runtimeCopies?: {
+    readonly stopCapture: (ref: CallKey) => void
+    readonly releaseCopies: (
+      binding: SettlementLogBinding,
+      ref: CallKey,
+    ) => readonly AckPendingReason[]
+  }
 }): AcknowledgementCustody {
   if (
     typeof input.policy?.next !== 'function' ||
@@ -186,14 +192,18 @@ export function createAcknowledgementCustody<P extends PlannedSemantics, R>(inpu
       report('confirm', ref, { result: 'unavailable' })
       return { cleanup: 'pending', pendingReasons: ['storage_unavailable'] }
     }
-    if (confirmed.phase === 'released') return { cleanup: 'released' }
+    if (confirmed.phase === 'released' && input.runtimeCopies === undefined)
+      return { cleanup: 'released' }
     let inMemory: readonly AckPendingReason[]
     try {
+      input.runtimeCopies?.stopCapture(ref)
       inMemory = await releaseInMemory(ref)
+      if (inMemory.length === 0) inMemory = input.runtimeCopies?.releaseCopies(binding, ref) ?? []
     } catch {
       inMemory = ['writer_in_flight']
     }
     if (inMemory.length !== 0) return { cleanup: 'pending', pendingReasons: inMemory }
+    if (confirmed.phase === 'released') return { cleanup: 'released' }
     return await input.content.releaseAcknowledged({ binding, call: ref.callId })
   }
 

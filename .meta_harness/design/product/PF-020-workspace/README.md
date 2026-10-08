@@ -61,18 +61,18 @@ Omne Host 首版仅提供 Git 工作区，中心托管 Git 仓库，部署节点
 | 工作区是什么、边界在哪里 | [产品设计](design.md) |
 | 工作区怎样被装载、跨会话继续工作 | [流程与状态](flows.md) |
 | 做成什么样算对了 | [验收标准](acceptance.md) |
-| 哪些是用户裁定、哪些是 PM 推导、哪些未定 | [决策与来源](decisions.md) |
-| 这块设计如何演变 | [变更历史](changelog.md) |
-| 本轮交流原话 | [设计交流笔记](interviews/2026-09-24-workspace-concept.md) |
-| Omne Host Git 范围、实例解耦与 agent 自主同步 | [托管工作区讨论](interviews/2026-09-27-omne-host.md) |
-| 目录布局、第三方复用与设置优先级的确认过程 | [目录讨论笔记](interviews/2026-09-27-directory-layout.md) |
-| 组织参与限制、共享与本地目录的确认过程 | [2026-09-27 交流笔记](interviews/2026-09-27-assets-settings-and-attachment.md) |
+| 哪些是用户裁定、哪些是 PM 推导、哪些未定 | [决策与来源](design.md) |
+| 这块设计如何演变 | [变更历史](design.md) |
+| 本轮交流原话 | [设计交流笔记](design.md) |
+| Omne Host Git 范围、实例解耦与 agent 自主同步 | [托管工作区讨论](design.md) |
+| 目录布局、第三方复用与设置优先级的确认过程 | [目录讨论笔记](design.md) |
+| 组织参与限制、共享与本地目录的确认过程 | [2026-09-27 交流笔记](design.md) |
 
 ## 状态
 
-- 产品设计：**rev 22，已确定条款正式接受**（产品负责人，2026-09-27）。已完成本次工作区模型及跨 PF 增量的独立只读评审；接受范围和来源见 [本次登记](decisions.md#2026-09-27-产品正式状态登记)。外部仓库登记不设 Omne 治理所有者，各租户均为参与者。组织限制启用时，外部仓库不以工作区身份附着或加载装配来源，普通目录访问仍沿已有权限；产品正式不等于技术规格已齐备。
+- 产品设计：**rev 22，已确定条款正式接受**（产品负责人，2026-09-27）。已完成本次工作区模型及跨 PF 增量的独立只读评审；接受范围和来源见 [本次登记](design.md)。外部仓库登记不设 Omne 治理所有者，各租户均为参与者。组织限制启用时，外部仓库不以工作区身份附着或加载装配来源，普通目录访问仍沿已有权限；产品正式不等于技术规格已齐备。
 - 未决项：本批产品裁决已闭合；保留未来扩展、跨 PF 与交付面交接，以及后续规格与实现细化（见 [design.md 第九节](design.md#九未决项)）。
-- 待讨论策略见 [decisions.md](decisions.md#三待继续讨论)；用户已明确的方向与 PM 推导分列，不为未决项填写默认值。
+- 待讨论策略见 [decisions.md](design.md)；用户已明确的方向与 PM 推导分列，不为未决项填写默认值。
 - 技术投影：尚未开始。
 
 ## 本包的文件
@@ -83,9 +83,6 @@ PF-020-workspace/
 ├── design.md
 ├── flows.md
 ├── acceptance.md
-├── decisions.md
-├── changelog.md
-└── interviews/
     ├── 2026-09-24-workspace-concept.md
     ├── 2026-09-27-assets-settings-and-attachment.md
     ├── 2026-09-27-directory-layout.md

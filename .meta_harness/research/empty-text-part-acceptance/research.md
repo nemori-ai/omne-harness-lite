@@ -2,7 +2,7 @@
 
 - 调查对象与日期：OpenRouter Chat Completions 上本仓库 official 目录里声明图片输入的 31 条路由（各钉一个供应商、不回退），实测窗口 2026-10-02T16:59:56Z–17:09:23Z；
   本仓库 `73fbfd5ff` 的 `pi-ai-transport` 投影与计量器；上游 pi `1b6ddca8`（#9797 的修复）。
-- 消费者：本仓库 [issue #50](https://github.com/nemori-ai/omne-harness-lite/issues/50) 的第二项待办——投影要不要升版（[窄修复提案](../../design/record/proposals/moonshot-empty-text/README.md)、[D-115](../../design/record/decisions/moonshot-empty-text-adoption/README.md)）；
+- 消费者：本仓库 [issue #50](https://github.com/nemori-ai/omne-harness-lite/issues/50) 的第二项待办——投影要不要升版（窄修复提案、D-115）；
   [pi-ai-transport 实现节点](../../design/realization/packages/model/pi-ai-transport/README.md)。
 - 最近核对：2026-10-02 / 上述窗口与版本。
 - 当前结论：31 条里只有 Kimi K3、Kimi K2.7 Code、GLM-5.3 Flash 三条拒收，都是流开始前的 HTTP 400，空文本段在图片前后结果一样；
@@ -180,7 +180,7 @@ OpenAI 六条 `-pro` 路由在 −50 到 +53 之间来回，三种请求之间�
 
 ## 采用与后续核对
 
-2026-10-03：[窄修复提案](../../design/record/proposals/moonshot-empty-text/README.md)与 [D-115](../../design/record/decisions/moonshot-empty-text-adoption/README.md)消费本轮观察；没有新增上游行为结论。
+2026-10-03：窄修复提案与 D-115消费本轮观察；没有新增上游行为结论。
 上游供应商与 OpenRouter 的行为没有版本号可钉，重测时以实测窗口的时间戳为旧版本 token；结论若变，按[演进事件词](../README.md#演进事件词)记 `changelog.md` 再改正文。
 
 

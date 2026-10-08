@@ -117,7 +117,7 @@
 ### D-9 许可与耦合
 
 - 实际观察：根 `LICENSE` 为 MIT（`LICENSE:1-3`）；Cordis 为 vendored `@deepseek-ai/cordis` `4.0.2`（`vendor/cordis/package.json:2-4`）；`dsh-tools` peer 依赖 `cordis`、`dsh-agent`、`dsh-code-runtime`、`dsh-invariants`、`dsh-llm`、`dsh-scope`、`dsh-session`、`dsh-system-prompt`、`dsh-user-approval` 九个包（`packages/core/tools/package.json:43-53`）；`ToolRuntime extends Service`、`static inject = ['systemPrompt']`（`index.ts:779-785`）
-- 对照：本项目 D-025 接受 `@deepseek-ai/cordis` **4.0.4**，4.0.2→4.0.4 差异未读（`.meta_harness/design/record/decisions/cordis-adoption-version/decision.md:1-15`）。
+- 对照：本项目 D-025 接受 `@deepseek-ai/cordis` **4.0.4**，4.0.2→4.0.4 差异未读（当前集成边界见 `packages/core/kernel-basis/SPEC.md`）。
 
 ---
 

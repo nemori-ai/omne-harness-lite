@@ -1,10 +1,11 @@
+import { mockPrefixReader } from './mock-prefix-fixture.ts'
 import { expect, test, vi } from 'vitest'
 import { CreationPublication } from '../src/creation-publication.ts'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
-import type { SettlementLogBinding, SettlementTask } from '../src/settlement-types.ts'
+import type { SettlementLogBinding, SettlementTask } from '@omne-harness-lite/model-request-runtime'
 import type { AppendResult, LogEntry, ReadResult } from '@omne-harness-lite/session-log'
 import { session, tenant } from './log-codec-fixture.ts'
 import { ControlledSettlementOwner, deferred } from './settlement-fixture.ts'
@@ -49,6 +50,7 @@ function fixture() {
     generation,
     currentGeneration: () => generation,
     log: { readSince: read, readByKey: read, append },
+    readPrefix: mockPrefixReader('creation-publication-unit-journal'),
   }
   const owner = new ControlledSettlementOwner()
   const grant = owner.acquire(1)

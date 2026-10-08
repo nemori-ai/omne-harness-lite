@@ -2,7 +2,7 @@
 
 ## 输入与边界
 
-本增量接续 [v3 投影](v3-design.md)，不改写旧采用版本。基线为 `omne-harness-lite-design-2026-09-15`，消费已登记的候选 [capability.model-profile-directory/v4](../../../../spec/capabilities/model-profile-directory/v4/contract.md) S-1～S-38 与 [data.model-profile/v4](../../../../spec/data/model-profile/v4/contract.md) S-1～S-33。两份契约尚未接受；[D-096](../../../../record/decisions/model-profile-input-limits-product-adoption/decision.md)只接受 PF-013 rev 14 产品规则，不接受本节点。
+本增量接续 [v3 投影](v3-design.md)，不改写旧采用版本。基线为 `omne-harness-lite-design-2026-09-15`，消费已登记的候选 [capability.model-profile-directory/v4](../../../../spec/capabilities/model-profile-directory/v4/contract.md) S-1～S-38 与 [data.model-profile/v4](../../../../spec/data/model-profile/v4/contract.md) S-1～S-33。两份契约尚未接受；D-096只接受 PF-013 rev 14 产品规则，不接受本节点。
 
 源码 `packages/model/model-profile-directory` 已存在；本次核对基线为 `be026d6cc430a891177035a046a4d8aa8a4530a7`，此前节点中的“尚未建包”是历史状态。当前源码仍消费 v3。下文源码名称用于定位已有实现；其 **v4 投影、尚未实施的改动均为候选**，不声称新的签名已经存在。
 
@@ -20,7 +20,7 @@
 | S-36(5)、S-37；data S-11、S-28 | 更新、清单处置与建档 | `equality.ts` 的 `upstreamEqual` 补第六项 `upstreamInputLimits`；集合／对象／精确数值相等沿现有比较；`runtime.ts` 写入时校验时钟不早于旧 `updatedAt` | 当前 `this.now()` 未比较旧值，不能只加字段就声称满足时标；V4-5 |
 | S-18、S-36(3、4)、S-38 | 清单、更新并发 | 保留 `model_manifest_state(id=1)` 与档案行的现有事务和锁定读；清单各行、配置历史、序号、处置同提交 | 真实 SQLite 交错与进程中断验收 V4-6、V4-7；不以 Cordis 串行保证替代存储 |
 | S-36(6～7)、G-12 | 存储版本处理及装配切换 | 不默认升级存量；旧行显式补全之前读面不可用。完整升级来源与执行由 G4-2 承接；已取得快照保持原值 | 新库完整 v4 写读可独立实施；旧数据升级不能由类型替换自动完成；V4-8 |
-| S-12、S-19～S-23、S-34、S-35 | 原凭据及生命周期路径 | 本增量不改 `localCredentialLookupPlugin`、共同 Unit 引用匹配、准入关闭／排空、提交后撤回通知 | 继承 [v3 设计](v3-design.md) 与 [D-075](../../../../record/decisions/model-credential-source-projection/decision.md) 的边界，不提升凭据或跨进程交付状态；V4-9 |
+| S-12、S-19～S-23、S-34、S-35 | 原凭据及生命周期路径 | 本增量不改 `localCredentialLookupPlugin`、共同 Unit 引用匹配、准入关闭／排空、提交后撤回通知 | 继承 [v3 设计](v3-design.md) 与 D-075 的边界，不提升凭据或跨进程交付状态；V4-9 |
 
 ## 持久化、并发与失败
 
@@ -56,7 +56,7 @@
 
 ## 依赖、装卸与取舍
 
-Cordis 继续采用 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)。P-1 必需依赖 `storage`、`clock`、`memberships`，本机凭据插件只必需依赖 `storage`；类型／校验的 v4 依赖是包依赖，不是新服务。配置错误继续启动失败；可缺席的工厂凭据不算配置错误，调用时按原目录失败集合收场。
+Cordis 继续采用 D-025 的 4.0.4。P-1 必需依赖 `storage`、`clock`、`memberships`，本机凭据插件只必需依赖 `storage`；类型／校验的 v4 依赖是包依赖，不是新服务。配置错误继续启动失败；可缺席的工厂凭据不算配置错误，调用时按原目录失败集合收场。
 
 机制依据为 [plugin-body-reruns-on-provider-change](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)、[effect-disposal-concurrent-not-ordered](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)、[plugin-throw-fails-fiber](../../../../basis/cordis/plugin-throw-fails-fiber.md)，均有 4.0.4 probe。`provide` 纳管沿既有实现和 kernel-basis probe；尚无对应 basis 条目，不新增上游保证。
 

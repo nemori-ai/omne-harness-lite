@@ -306,7 +306,7 @@
 |---|---|---|
 | 租户 `(org_7fd2c1, acc_91ab40)` 在自己那层建 `vendor-a/chat-large` | **建出** | 与正例 A（官方）同名，但不在同一格：两条并存；官方引用只解析到官方那一条，自建引用带着这一格（[S-13](contract.md#s-13-modelprofileref)、[S-14](contract.md#s-14-引用只精确解析不跨层)） |
 | 同一租户在自己那层再建 `vendor-b/coder-7b` | `route_name_taken` | 撞同一格里的名字（正例 B） |
-| 组织 `org_7fd2c1` 在组织层建 `vendor-b/coder-7b` | **建出** | 组织层与它某个租户的租户层不是同一格，同名并存（[PF-013 裁决 39、40](../../../../product/PF-013-model-profiles-and-invocation/decisions.md#2026-09-24--同路由名的档案并存按层从下往上覆盖)、[§4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)）；对那个租户，谁生效是运行时按层覆盖的事，不是本判定 |
+| 组织 `org_7fd2c1` 在组织层建 `vendor-b/coder-7b` | **建出** | 组织层与它某个租户的租户层不是同一格，同名并存（[PF-013 裁决 39、40](../../../../product/PF-013-model-profiles-and-invocation/design.md)、[§4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)）；对那个租户，谁生效是运行时按层覆盖的事，不是本判定 |
 | 组织 `org_7fd2c1` 在组织层建 `vendor-c/vision-mini` | `route_name_taken` | 撞同一格里一条**已撤回**的档案（正例 C）：要再用这个名字，是把正例 C **恢复在册**，不是另建（[S-10](contract.md#s-10-registration)） |
 | 组织 `org_t3a9` 在组织层建 `vendor-c/vision-mini` | **建出** | 不在同一格；它的上级是 `org_7fd2c1` 这件事不参与判定 |
 | 系统发布一条新的官方档案 `vendor-b/coder-7b` | **建出**（清单装入的处置 `added`） | 出厂默认层那一格里没有这个名字；与正例 B 并存 |

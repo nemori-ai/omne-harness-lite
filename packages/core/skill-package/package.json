@@ -22,7 +22,9 @@
   "files": [
     "dist",
     "schema",
-    "generated"
+    "generated",
+    "README.md",
+    "README_ZH.md"
   ],
   "scripts": {
     "build": "node ../../../scripts/build-fixed-schemas.mjs",
@@ -40,5 +42,12 @@
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "module"
+    }
   }
 }

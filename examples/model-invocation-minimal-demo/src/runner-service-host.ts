@@ -25,11 +25,13 @@ import {
   readSettlementPrefix,
   type CurrentHistoryReaders,
   type SettlementPrefix,
-  type ModelRuntimeService,
-  type CanDispatchAgainResult,
   type SettlementLogBinding,
   type SettlementRegistration,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
+import type {
+  ModelRuntimeOperations,
+  CanDispatchAgainResult,
+} from '@omne-harness-lite/model-request-runtime'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import type { AssemblyManifestStore } from '@omne-harness-lite/assembly-manifest-store'
 import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy'
@@ -74,7 +76,7 @@ export type AuthorizedRunnerScope = { readonly binding: SettlementLogBinding } &
 /** This port is supplied only by an actual external Run/environment owner. */
 export interface DemoRunnerServiceHostDependencies {
   readonly runnerHost: ReturnType<typeof createDemoRunnerHost>
-  readonly model: ModelRuntimeService
+  readonly model: (actor: AuthenticatedActor) => ModelRuntimeOperations
   readonly manifest: AssemblyManifestStore
   readonly history: RunnerReadScope['sources']['history']
   readonly sessionTenancy: SessionTenancyService
@@ -473,9 +475,10 @@ export function createDemoRunnerServiceHost(
         scope.release()
         return { failure: 'unavailable' }
       }
-      let consumed: Awaited<ReturnType<typeof dependencies.model.readAttempts>>
+      const model = dependencies.model(authorization.actor)
+      let consumed: Awaited<ReturnType<typeof model.readAttempts>>
       try {
-        consumed = await dependencies.model.readAttempts(
+        consumed = await model.readAttempts(
           { session: settlement.session, callId },
           { consumeFailure: true },
         )
@@ -589,7 +592,7 @@ export function createDemoRunnerServiceHost(
           async judgeCapabilities(input, output) {
             if (!scope.isActive() || !failurePosition(input) || output.kind !== 'retry')
               return { kind: 'unavailable' }
-            const guarded = await dependencies.model.canDispatchAgain({
+            const guarded = await model.canDispatchAgain({
               session: settlement.session,
               callId,
               plan: output.plan,

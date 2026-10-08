@@ -6,37 +6,47 @@ Public retry types and retryDelay now belong to [the pure owner](../../core/mode
 
 Invoke one explicit model transport and assemble its stream into a final result, with cancellation, content deadlines and an asynchronous first-content gate. This experimental ESM workspace package is not published on npm.
 
-The current implementation contains standalone invocation, pure policy functions, bounded durable consumers, four session selection/query operations, and pure call-history interpretation. `createModelRuntime` composes the fifteen typed RT12 methods under one process-local call owner. The fifteenth, `acknowledgeCall` (S-96), fixes one durable acknowledgement per call and then releases the call's model copies through the retention gate; afterwards every read, same-key `openCall` recognition and `reconcile` answers the S-97 acknowledged small view, and control or new work reaches its terminal refusal (S-100). A post-ACK `settleReply` that brings its own `retainedResult` is validated (S-99) and then settled through one staged write responsibility (S-99⑧, see “Settlement after ACK” below). Run-backed settlement consumes an explicitly supplied authorized Run-history reader; the production Run terminal and recovery owner remain host responsibilities. The `./cordis` entry exposes an application-retained assembly through Cordis. Reply disposition uses the original anchored invocation handle and recognizes a completed original batch through the authorized session log and its owner after the local container is gone. Conditional Run recovery preserves the original response attempt while accounting a late batch in the later attempt; no-Run reconciliation can also settle a durable dispatched call without another model request using the stopped original invocation's facts or a host-confirmed cold-recovery absence. An interrupt intent with no dispatch is closed with its durable end record. Response-usage calibration follows [D107](../../../.meta_harness/design/record/decisions/model-input-usage-calibration-adoption/decision.md) and the [runtime v16 mapping](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v16-usage-calibration-design.md). Explicit call-host and bounded observer wiring follows [D103](../../../.meta_harness/design/record/decisions/model-runtime-host-observer-adoption/decision.md); the shared ports and queue alone do not prove a real session endpoint, which the host must supply (the [minimal demo](../../../examples/model-invocation-minimal-demo/README.md) supplies one for its single-process assembly). See the [current service design](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md), [D105 recovery mapping](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-timing-design.md), [recovery owner supplement](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-owner-supplement.md) and [realization status](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md); Run-backed production success still needs the host’s actual Run terminal source and owner.
+The current implementation contains standalone invocation, pure policy functions, bounded durable consumers, four session selection/query operations, and pure call-history interpretation. `createModelRuntime` composes the fifteen typed RT12 methods under one process-local call owner. The fifteenth, `acknowledgeCall` (S-96), fixes one durable acknowledgement per call and then releases the call's model copies through the retention gate; afterwards every read, same-key `openCall` recognition and `reconcile` answers the S-97 acknowledged small view, and control or new work reaches its terminal refusal (S-100). A post-ACK `settleReply` that brings its own `retainedResult` is validated (S-99) and then settled through one staged write responsibility (S-99⑧, see “Settlement after ACK” below). Run-backed settlement consumes an explicitly supplied authorized Run-history reader; the production Run terminal and recovery owner remain host responsibilities. The `./cordis` entry exposes an application-retained assembly through Cordis. Reply disposition uses the original anchored invocation handle and recognizes a completed original batch through the authorized session log and its owner after the local container is gone. Conditional Run recovery preserves the original response attempt while accounting a late batch in the later attempt; no-Run reconciliation can also settle a durable dispatched call without another model request using the stopped original invocation's facts or a host-confirmed cold-recovery absence. An interrupt intent with no dispatch is closed with its durable end record. Response-usage calibration follows D107 and the [runtime v16 mapping](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v16-usage-calibration-design.md). Explicit call-host and bounded observer wiring follows D103; the shared ports and queue alone do not prove a real session endpoint, which the host must supply (the [minimal demo](../../../examples/model-invocation-minimal-demo/README.md) supplies one for its single-process assembly). See the [current service design](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md), [D105 recovery mapping](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-timing-design.md), [recovery owner supplement](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-owner-supplement.md) and [realization status](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md); Run-backed production success still needs the host’s actual Run terminal source and owner.
+
+Public operation types and portable policy/history/response functions in the API tables below come from `@omne-harness-lite/model-request-runtime`. Concrete invocation, coordination and storage factories come from this package. See the [public owner](../../core/model-request-runtime/README.md). The unique `MODEL_RUNTIME_SERVICE` key comes from the public `./cordis` entry.
+
+`ownOpenCallInput(input)` checks and copies request-owned JSON before host admission. It preserves the original host and observer endpoint references. It does not check permission or acquire resources. See [SPEC.md](SPEC.md).
+
+`validDispatchInput(input)` shares the dispatch entry's identifier checks. It does not validate a retry plan or authorize a call. See [SPEC.md](SPEC.md).
+
+The physical factory owner also receives `executionSource`. Metadata queries omit invocation and private call contents. Recovery uses explicit capture/release. Confirmed ACK cleanup removes private copies after physical stop and all earlier captures release. Business projections and hosts do not receive it. Complete the assembly owner's recovery work before `executionSource.release()`; confirmed overall close is required. See [source production](SPEC.md#实际执行来源的生产).
 
 ## Public API
 
-| Export                                                                           | Purpose                                                                                                                                                                                                                                                                            |
-| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `invokeModel(input)`                                                             | Return a handle containing `outcome`, `snapshot()`, `observedFacts()` and `abort()`                                                                                                                                                                                                |
-| `classifyCause(facts, hasContent, table)`                                        | Classify failure sources using an explicit status table without altering raw status                                                                                                                                                                                                |
-| `dispatchGuard(input)`                                                           | Synchronously check one retry plan against explicit call, dispatch and profile facts                                                                                                                                                                                               |
-| `DispatchGuardInput`, `DispatchGuardResult`, `DispatchGuardFact<T>`              | Readonly guard inputs, closed answers and explicit known/unknown facts                                                                                                                                                                                                             |
-| `TransportAdapter`, `PlanInput`                                                  | Consumer-owned planning/send/read ports and explicit request context                                                                                                                                                                                                               |
-| `InvocationPolicy`, `ModelInvocationResult`                                      | Scheduling/redaction/diagnostic policy and an unsettled result projection with an actual string send time                                                                                                                                                                          |
-| `modelLogFormat`, `encodeModelLogKey`, `decodeModelLogKey`                       | Current `mrr/3` payload with closed business keys, reversible UTF16 encoding and exact dispatch normalization                                                                                                                                                                      |
-| `captureModelLogValue`, `prepareModelLogEntry`, `inspectModelLogEntry`           | Strict owned values, position-free candidates and reverse validation of actual log entries                                                                                                                                                                                         |
-| `inspectSettlementMembers`                                                       | Check complete response/message members and original associations from one complete prefix                                                                                                                                                                                         |
-| `modelLogJsonEqual`, `recognizeMessageValue`                                     | Exact full JSON equality and recognition retaining the original captured message                                                                                                                                                                                                   |
-| `createSessionModelSelection(input)`                                             | Borrowed-provider consumer with `legalTargets`, `selectModel`, `displayList`, `effectiveModel` and owned operation cleanup                                                                                                                                                         |
-| `interpretCallHistory({ prefix, callId })`                                       | Interpret original no-Run or Run-owned call entries from a complete, owned SL3 prefix; terminal Run facts remain a separate authorized input                                                                                                                                       |
-| `projectCallState({ session, callId, history, local? })`                         | Overlay a process-owned `open` or `reply_pending` responsibility only while no durable response overrides it                                                                                                                                                                       |
-| `ModelRuntimeService`, `RuntimeConstruction` and operation input/result types    | Explicit fifteen-operation service contract and required host ports, including the required `acknowledgementCleanup` retry policy; the type contract does not itself install a running service                                                                                    |
-| `createCallContainerStore()`                                                     | Process-owned per-session/call resources and bounded, cancellable short reservations                                                                                                                                                                                               |
-| `ModelCallHost`, `ModelObserverRequest`, `SessionObserverAccess`                 | Explicit original-call lifetime and authorized, per-dispatch observer ports                                                                                                                                                                                                        |
-| `createCallPreparationOwner(host)`                                               | Synchronously register one original call before asynchronous preparation and retain late resources until actual close                                                                                                                                                              |
-| `createModelObserverQueue(input)`                                                | Per-dispatch snapshot-first observer queue with exact serialized UTF-8 byte and event bounds; accepted delivery is not reader completion                                                                                                                                           |
-| `createRuntimeReads(construction)`                                               | Six selection and history methods plus `close()` for borrowed-provider ownership                                                                                                                                                                                                   |
-| `createServiceCalls(construction)`, `createServiceControl(construction)`         | Independent call and control method composers for the shared runtime assembly                                                                                                                                                                                                      |
-| `createServiceDispatch(construction)`                                            | Dispatch and dispatchAgain through the fixed profile and exact transport lease, current session facts, durable anchors and the original invocation handle                                                                                                                          |
-| `createRuntimeSettleReply(input)`, `createRuntimeReconcile(input)`               | Non-persisted disposition reads the immutable ready payload through `callFacts`, checks current `callAccess` for `settle`, and writes the final response through the settlement coordinator. A repeated disposition after a committed final is decided by that final alone: the same disposition is recognized with its original state and another answers `alreadyEnded`, with no value consulted and nothing written. After ACK a validated caller-held value settles through staged work; the settle component requires the ACK `custody` and an `instance` id. Reconcile retains original scopes until actual stop and full-prefix recognition; it requires the runtime's ACK `custody`, answers an acknowledged call per call, and with `settlementWork` concludes work rows this runtime does not own |
-| `createSettlementWork(input)`                                                    | One post-ACK write responsibility over the settlement coordinator: the complete batch is durable in its work row before each append, the row is retired through the ACK custody. Usable by an external persisted writer as well |
-| `createServiceAcknowledge(construction, custody?)`, `createAcknowledgementCustody(input)` | The fifteenth operation and the per-runtime custody that releases in-memory copies, then retained content, under the explicit `acknowledgementCleanup` policy and scheduler |
-| `createModelRuntime(construction)`                                               | Compose the fifteen methods under one call store, one ACK custody and one retryable close owner; no Cordis context is required                                                                                                                                                    |
+| Export                                                                                    | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `invokeModel(input)`                                                                      | Return a handle containing `outcome`, `snapshot()`, `observedFacts()` and `abort()`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `classifyCause(facts, hasContent, table)`                                                 | Classify failure sources using an explicit status table without altering raw status                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `dispatchGuard(input)`                                                                    | Synchronously check one retry plan against explicit call, dispatch and profile facts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `DispatchGuardInput`, `DispatchGuardResult`, `DispatchGuardFact<T>`                       | Readonly guard inputs, closed answers and explicit known/unknown facts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `TransportAdapter`, `PlanInput`                                                           | Consumer-owned planning/send/read ports and explicit request context                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `InvocationPolicy`, `ModelInvocationResult`                                               | Scheduling/redaction/diagnostic policy and an unsettled result projection with an actual string send time                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `modelLogFormat`, `encodeModelLogKey`, `decodeModelLogKey`                                | Current `mrr/3` payload with closed business keys, reversible UTF16 encoding and exact dispatch normalization                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `captureModelLogValue`, `prepareModelLogEntry`, `inspectModelLogEntry`                    | Strict owned values, position-free candidates and reverse validation of actual log entries                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `inspectSettlementMembers`                                                                | Check complete response/message members and original associations from one complete prefix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `modelLogJsonEqual`, `recognizeMessageValue`                                              | Exact full JSON equality and recognition retaining the original captured message                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `createSessionModelSelection(input)`                                                      | Borrowed-provider consumer with `legalTargets`, `selectModel`, `displayList`, `effectiveModel` and owned operation cleanup                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `interpretCallHistory({ prefix, callId })`                                                | Interpret original no-Run or Run-owned call entries from a complete, owned SL3 prefix; terminal Run facts remain a separate authorized input                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `projectCallState({ session, callId, history, local? })`                                  | Overlay a process-owned `open` or `reply_pending` responsibility only while no durable response overrides it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `ModelRuntimeOperations`, `RuntimeConstruction` and operation input/result types          | Explicit fifteen-operation service contract and required host ports, including the required `acknowledgementCleanup` retry policy; the type contract does not itself install a running service                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `createCallContainerStore()`                                                              | Process-owned per-session/call resources and bounded, cancellable short reservations                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `ModelCallHost`, `ModelObserverRequest`, `SessionObserverAccess`                          | Explicit original-call lifetime and authorized, per-dispatch observer ports                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `createCallPreparationOwner(host)`                                                        | Synchronously register one original call before asynchronous preparation and retain late resources until actual close                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `createModelObserverQueue(input)`                                                         | Per-dispatch snapshot-first observer queue with exact serialized UTF-8 byte and event bounds; accepted delivery is not reader completion                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `createRuntimeReads(construction)`                                                        | Six selection and history methods plus `close()` for borrowed-provider ownership                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `createServiceCalls(construction)`, `createServiceControl(construction)`                  | Independent call and control method composers for the shared runtime assembly                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `createServiceDispatch(construction)`                                                     | Dispatch and dispatchAgain through the fixed profile and exact transport lease, current session facts, durable anchors and the original invocation handle                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `createRuntimeSettleReply(input)`, `createRuntimeReconcile(input)`                        | Non-persisted disposition reads the immutable ready payload through `callFacts`, checks current `callAccess` for `settle`, and writes the final response through the settlement coordinator. A repeated disposition after a committed final is decided by that final alone: the same disposition is recognized with its original state and another answers `alreadyEnded`, with no value consulted and nothing written. After ACK a validated caller-held value settles through staged work; the settle component requires the ACK `custody` and an `instance` id. Reconcile retains original scopes until actual stop and full-prefix recognition; it requires the runtime's ACK `custody`, answers an acknowledged call per call, and with `settlementWork` concludes work rows this runtime does not own |
+| `createSettlementWork(input)`                                                             | One post-ACK write responsibility over the settlement coordinator: the complete batch is durable in its work row before each append, the row is retired through the ACK custody. Usable by an external persisted writer as well                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `createServiceAcknowledge(construction, custody?)`, `createAcknowledgementCustody(input)` | The fifteenth operation and the per-runtime custody that releases in-memory copies, then retained content, under the explicit `acknowledgementCleanup` policy and scheduler                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `createModelRuntime(construction)`                                                        | Compose the fifteen methods under one call store, one ACK custody and one retryable close owner; no Cordis context is required                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+
+`createModelRuntime` also returns `project(inputs, facts)`. Trusted assembly supplies fixed-subject `ModelRuntimeHostInputs` and a borrowed facts view from the same content owner. Use `createModelCallFacts(...).project(presence)` to bind the view's presence reader. All projections share the physical execution and retryable close owner. A projection has no `close`. Keep source ports stable and recheck current authority at each operation. See [projection behavior](SPEC.md#固定主体与共享执行). The named Service binding uses the same pure factory and physical owner. |
 
 `createRuntimeReconcile(input)` returns `{ reconcile, close }`. An unavailable reconciliation keeps its original recovery scope when facts or writes remain unresolved; a later reconciliation uses that same scope before attempting another recovery entry for the session. `close()` seals new reconciliation, stops owned tasks, reads the original complete prefix, and releases each scope only after the physical work is accounted for. It never appends a business record. If `close()` returns `unavailable`, retain this same component and retry after the original task or read source recovers. `createModelRuntime` includes this close in its own retryable close.
 
@@ -46,38 +56,15 @@ The service forwards the existing `SettlementDiagnostic` through `RuntimeConstru
 
 ## Cordis service assembly
 
-`@omne-harness-lite/model-request-runtime-local/cordis` exports `createModelRuntimePlugin` and the `modelRuntime` service key. The application supplies a complete `ModelRuntimeAssembly` through `construct`; this plugin does not fill missing operations. Cordis waits for the declared required providers before construction. The host retains `assembly.owner` before `construct` resolves. One cleanup effect closes admission to `openCall`, `dispatch`, and `dispatchAgain`, then calls that owner's `close()`. It calls `owner.release()` exactly once only after actual close reports `released`. If close is unavailable, the host keeps the same owner after the fiber unloads and must later complete stop/recovery and retry close; a diagnostic alone cannot release it. Existing references can still invoke allowed settlement and read operations during shutdown.
+`createModelRuntimeLocal()` creates one trusted assembly factory. Its plugin constructs the private call store, content store and facts from named host inputs, execution support, Storage, Clock and transport. Configuration contains explicit scope, content, waiter and token-margin limits. It accepts no `construct` callback or default policy. The managed row requires `assemblyLifetime`.
 
-```ts
-import type { Context } from '@deepseek-ai/cordis'
-import {
-  createModelRuntimePlugin,
-  type ModelRuntimeAssembly,
-  type ModelRuntimeAssemblyOwner,
-} from '@omne-harness-lite/model-request-runtime-local/cordis'
+The four exact Config fields (`tokenMargin.multiplier`, `tokenMargin.reserveTokens`, `reservationWaitPolicy.maxWaitersPerCall`, `reservationWaitPolicy.timeoutMs`) use JSON number lexeme strings, for example `"1.10000000000000000001"` and `"256"`. Encode the original `JsonNumber` with `jsonNumberSource`. The provider validates each string and restores its exact value without floating-point conversion. Independent functions keep their existing `JsonNumber` inputs.
 
-const retained = new Set<ModelRuntimeAssemblyOwner>()
-export function retainRuntime(
-  service: ModelRuntimeAssembly['service'],
-  close: ModelRuntimeAssemblyOwner['close'],
-): ModelRuntimeAssembly {
-  const owner: ModelRuntimeAssemblyOwner = {
-    close,
-    release() {
-      if (!retained.delete(owner)) throw new Error('runtime owner was not retained')
-    },
-  }
-  retained.add(owner)
-  return { service, owner }
-}
+The public service key and all fifteen operations belong to `@omne-harness-lite/model-request-runtime/cordis`. Each ordinary method captures its fixed subject through the original host bridge and the actual caller fiber. Projections share the same physical runtime. A caller contribution stops its consumption and returns its borrow after actual stopping; it does not cancel execution or write an ACK.
 
-export async function installRuntime(
-  ctx: Context,
-  construct: () => Promise<ModelRuntimeAssembly>, // must retain before resolving
-) {
-  return ctx.plugin(createModelRuntimePlugin({ construct }), {})
-}
-```
+The factory creator retains `ready`, `closeAdmission`, `close` and `owner()`. Only this trusted creator receives the original execution source and borrowed facts. These capabilities are absent from ordinary service results and host captures. `closeAdmission()` stops openCall, dispatch and dispatchAgain at their original admission points. It preserves validation, authority and failure order, existing work, recovery and consumption. Actual `close()` starts physical stopping and contribution cleanup. `close()` returns `unavailable` or rejects when resources remain owned; retry the same owner. The managed close control keeps the original dependencies until confirmed closure. Do not mount one factory twice or start a successor pool before the prior managed row closes.
+
+See the actual [managed model assembly](../../../examples/model-invocation-minimal-demo/src/model-runtime-assembly.ts) and [caller input bridge](../../../examples/model-invocation-minimal-demo/src/model-runtime-inputs.ts). The pure `createModelRuntime(construction)` remains independently usable.
 
 The exported `createCallContainerStore().waitReserve(...)` takes an explicit positive waiter limit and timeout plus an owned scheduler and abort signal. The explicit `OpenCallInput.host` is a lifecycle owner, not session identity: session, tenant and log generation still come from the authorized session binding. Its `register(close)` must synchronously reject registration after stopping; the preparation owner registers before any asynchronous preparation, keeps the same close responsibility after call publication, and unregisters only after actual release. Once a call container is inserted, the active reservation attaches the original anchored invocation handle. Releasing the reservation leaves that handle, pending reply, observer binding, unknown writers and exact transport lease with the container. A system stop first asks the original call's durable S-36 closure to settle; `container.close()` releases the lease only after that result, the original handle and observer tasks report actual release, and the remaining owner checks pass. The reservation does not create durable authorization. An unavailable anchored close retains its coordinator and borrowed references. Once the original work has actually stopped and settlement facts become available, call `close()` again; concurrent closes share one attempt, and a released close is idempotent.
 
@@ -125,10 +112,14 @@ export async function inspectWithRuntime(
 `readAttempts`, `dispatch` and `dispatchAgain` have an explicit `{ consumeFailure: true }` overload for a caller that will run the failure extension. It returns `{ result, consumption }`; a normal one-argument call still returns only the business result and holds no failure scope. `consumption.kind === 'failure'` provides a non-serializable `ModelFailureSource` from the same authorized full-prefix read that supplied the failed result. The source checks the original dispatched entry shells and failed response in that prefix. Verify the exact subject **and the actual runner execution** before passing it to the runner, and always release the borrow. Verification reads the owned snapshot and current admission/generation, without reading a later log tail. A later unrelated append does not invalidate it; release, owner revocation, host stop or generation replacement does.
 
 ```ts
-import type {CallKey, ModelFailureExecution, ModelRuntimeService} from '@omne-harness-lite/model-request-runtime-local'
+import type { CallKey } from '@omne-harness-lite/model-request-runtime'
+import type {
+  ModelFailureExecution,
+  ModelRuntimeOperations,
+} from '@omne-harness-lite/model-request-runtime'
 
 export async function inspectFailure(
-  service: ModelRuntimeService,
+  service: ModelRuntimeOperations,
   key: CallKey,
   execution: ModelFailureExecution,
 ) {
@@ -177,7 +168,7 @@ import {
   interpretCallHistory,
   projectCallState,
   type SettlementPrefix,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import type { SessionRef } from '@omne-harness-lite/messages'
 
 export function readNoRunCall(prefix: SettlementPrefix, session: SessionRef, callId: string) {
@@ -231,7 +222,7 @@ Supply a complete `PlanInput`, including an explicit calibration source, an expl
 For a first request with no predecessor, construct the input without inventing an old usage value:
 
 ```ts
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime-local'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 
 export function firstRequest(input: Omit<PlanInput, 'calibration' | 'outputHistory'>): PlanInput {
   return { ...input, calibration: { kind: 'none', reason: 'no_observation' }, outputHistory: [] }
@@ -243,7 +234,7 @@ An independent caller that owns an authorized original response and knows which 
 ```ts
 import type { ContentBlock } from '@omne-harness-lite/content-blocks'
 import type { ModelResponse } from '@omne-harness-lite/model-response'
-import type { PlanInput, ReplaySelection } from '@omne-harness-lite/model-request-runtime-local'
+import type { PlanInput, ReplaySelection } from '@omne-harness-lite/model-request-runtime'
 
 export function nextRequest(
   input: Omit<PlanInput, 'calibration' | 'outputHistory'>,
@@ -293,14 +284,14 @@ On a later request, the authorized same-session history reader supplies `calibra
 `TransportAdapter.read` must return `readFacts` on every terminal branch, including abort and failure. `invokeModel` retains the last facts read after actual stop; it does not replace real usage or cost with an input estimate. The fixed `projectOutput` adapter maps the actually retained reply or delivered blocks into an output-group fact. The same `inputCalibration` value is carried through a pending response, the original durable response and its readback; cold recovery reads those facts without another model request or tokenizer pass. The runtime currently verifies selected no-Run replies and same-call prior dispatches. A cross-call response without an associated selected message, and Run-backed history without its authorized Run owner, remain source-unavailable rather than guessed from log position.
 
 ```ts
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import {
-  invokeModel,
   openRouterCredentialRedactionConfig,
   type PlanInput,
   type PlannedSemantics,
   type TransportAdapter,
   type InvocationPolicy,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 
 export const callerPolicy: InvocationPolicy = {
   now: () => new Date().toISOString(),
@@ -363,7 +354,7 @@ The function checks call existence, terminal or `reply_pending` phase, any prior
 This synthetic example runs without a service or credentials. Declare `content-blocks` as a direct dependency alongside this package for exact JSON numbers.
 
 ```ts
-import { dispatchGuard, type DispatchGuardInput } from '@omne-harness-lite/model-request-runtime-local'
+import { dispatchGuard, type DispatchGuardInput } from '@omne-harness-lite/model-request-runtime'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 
 const input: DispatchGuardInput = {
@@ -449,7 +440,7 @@ The function copies and validates JSON data without reading getters, leaves call
 `decideRetry` consumes the complete LC6 failure subject, including its per-call `retryConclusions`, and explicit backoff inputs. It returns the LC6 `retry` or `observed` result, or a rejection. It performs no waiting or sending; an actual retry still needs `dispatchGuard` and the durable call service. The policy values below are caller choices, not runtime defaults.
 
 ```ts
-import { decideRetry } from '@omne-harness-lite/model-request-runtime-local'
+import { decideRetry } from '@omne-harness-lite/model-request-runtime'
 import type { AfterModelCallFailureSubject } from '@omne-harness-lite/loop-extension'
 
 export function chooseRetry(subject: AfterModelCallFailureSubject) {
@@ -465,12 +456,12 @@ The no-fallback branch counts the default extension's recorded conclusions, so a
 
 ## Capture, prepare and recognize log values
 
-These pure functions implement the [D088 adopted format](../../../.meta_harness/design/record/decisions/model-runtime-log-codec-adoption/decision.md). Static root imports and calls do not open a log, install Cordis, read environment credentials, obtain a clock or generate identities. `SessionLog` types are borrowed from that package's public root. Every session, tenant, run/attempt pair, purpose and message prefix is explicit. A supplied message prefix must be the complete legal prefix before that message; `null` means unavailable and is rejected for a log message.
+These pure functions implement the D088 adopted format. Static root imports and calls do not open a log, install Cordis, read environment credentials, obtain a clock or generate identities. `SessionLog` types are borrowed from that package's public root. Every session, tenant, run/attempt pair, purpose and message prefix is explicit. A supplied message prefix must be the complete legal prefix before that message; `null` means unavailable and is rejected for a log message.
 
 Text reception and value reception are different modes. Nested duplicate object members, getters, `toJSON`, unsupported objects and fake number brands are rejected. The returned capture retains the original immutable JSON and number spellings. The response judge checks the capture; it does not manufacture an owned `ModelResponse` from `{ ok: true }`.
 
 ```ts
-import { captureModelLogValue } from '@omne-harness-lite/model-request-runtime-local'
+import { captureModelLogValue } from '@omne-harness-lite/model-request-runtime'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
 const captured = captureModelLogValue({
@@ -492,7 +483,7 @@ import {
   captureModelLogValue,
   prepareModelLogEntry,
   encodeModelLogKey,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
 
 const tenant = parseTenantId({ organization: 'example-organization', account: 'example-account' })
@@ -526,7 +517,7 @@ if ('position' in prepared.ok) throw new Error('A candidate has no durable posit
 Full-value recognition compares numeric mathematical values, unordered object members, ordered arrays and exact strings. Absence differs from `null`. It returns the original capture rather than rewriting its number spelling. An id-only or same-source check cannot substitute for full equality.
 
 ```ts
-import { recognizeMessageValue } from '@omne-harness-lite/model-request-runtime-local'
+import { recognizeMessageValue } from '@omne-harness-lite/model-request-runtime'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
 const original =
@@ -547,10 +538,10 @@ Read mode recognizes an existing batch using its own MessageId, ResponseId, bind
 
 Member checking does **not** prove one physical append, lawful history, read permission, Run lifecycle, or actual old-task stop. H1 once `[M,R]` and H2 separately `[M]`/`[R]` can expose identical SL3 read results. G29-P/H remain host/all-writer responsibilities. An existing complete withRun batch is recognized from its original durable values without recomputing late. A new candidate requires both the same-prefix MS6 attempts and the host’s G28 terminal source; unknown is unavailable, and the accounting attempt never replaces the original response attempt. Production host wiring of the composed service, actual runner/app adoption, G30/G31 and model certification still need their own evidence.
 
-The member checker consumes the [D089 adopted](../../../.meta_harness/design/record/decisions/model-time-order-projection-adoption/decision.md) `offer-expiry` root comparator on the captured original timing strings. It checks `sentAt <= firstTokenAt <= endedAt`, or `sentAt <= endedAt` when no first token exists, when the actual `sentAt` is known. Under [D105](../../../.meta_harness/design/record/decisions/model-recovery-timing-provider-adoption/decision.md), only an anchored `interrupted` response may carry `sentAt: null`; the first-token/ended comparison and opened-record equality still apply. Null means the actual send time is unavailable, not proof of zero send or zero cost. Ordinary invocation results and pending replies still require an actual string time. Static invalid dates and reversed known times cannot return complete members. Arbitrary fractional digits and offset-equivalent instants keep their precision; the original opened string must still match exactly.
+The member checker consumes the D089 adopted `offer-expiry` root comparator on the captured original timing strings. It checks `sentAt <= firstTokenAt <= endedAt`, or `sentAt <= endedAt` when no first token exists, when the actual `sentAt` is known. Under D105, only an anchored `interrupted` response may carry `sentAt: null`; the first-token/ended comparison and opened-record equality still apply. Null means the actual send time is unavailable, not proof of zero send or zero cost. Ordinary invocation results and pending replies still require an actual string time. Static invalid dates and reversed known times cannot return complete members. Arbitrary fractional digits and offset-equivalent instants keep their precision; the original opened string must still match exactly.
 
 ```ts
-import { captureModelLogValue, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime-local'
+import { captureModelLogValue, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
 
 const sent = '2026-09-27T00:00:00.0004Z'
@@ -587,7 +578,7 @@ The comparator and `completeMembers` operate within the declared legal RFC3339 i
 
 ## Explicit shared credential redaction
 
-`createCredentialRedactionPolicy(config)` constructs the pure policy adopted by [D093](../../../.meta_harness/design/record/decisions/model-credential-policy-adoption/decision.md). All three named parameters are required. `openRouterCredentialRedactionConfig` is the deeply immutable, explicit `openrouter-redaction/1` baseline: minimum fragment length 8, the 11 adopted denylist headers and the three finite sk-/Bearer/Basic descriptors. The algorithm has no implicit configuration, environment, network, storage or Cordis dependency.
+`createCredentialRedactionPolicy(config)` constructs the pure policy adopted by D093. All three named parameters are required. `openRouterCredentialRedactionConfig` is the deeply immutable, explicit `openrouter-redaction/1` baseline: minimum fragment length 8, the 11 adopted denylist headers and the three finite sk-/Bearer/Basic descriptors. The algorithm has no implicit configuration, environment, network, storage or Cordis dependency.
 
 `policy.bind(knownCredential)` returns `{ ok: bound }` or `{ rejected: 'invalidInput' }`. The frozen bound closure only exposes `text(value)`, `headers(value)` and `json(value)`, each returning the same explicit result shell. Known credentials must be nonempty printable ASCII. Full credentials shorter than the fragment minimum remain protected. All matches use the original input and their interval union becomes `█`; scanning does not normalize, decode unknown encodings or evaluate open regular expressions. Headers first remove original denylist keys with ASCII case folding, then redact keys and values; string versus ordered string-array shape, duplicates and empty values survive. JSON processes keys and all scalar tokens, including exact numbers, booleans and null. A matching nonstring scalar becomes a marker string; unhit types and exact numeric spelling remain. Outputs are independent and frozen, and processing the safe value again gives the same value. Exact-number admission captures the trusted public LosslessNumber source getter at module initialization, reads the branded source explicitly, and immediately clones a standard owned number; token matching uses jsonNumberSource on that clone. Caller prototype Get traps cannot substitute that numeric token.
 
@@ -598,7 +589,7 @@ import {
   createCredentialRedactionPolicy,
   openRouterCredentialRedactionConfig,
   redact,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
 const policy = createCredentialRedactionPolicy(openRouterCredentialRedactionConfig)
@@ -646,7 +637,7 @@ import {
   displayList,
   effectiveModel,
   type SelectionCompatibility,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import type { ProfileRow } from '@omne-harness-lite/model-profile-directory'
 
 const rows: readonly ProfileRow[] = [
@@ -704,6 +695,8 @@ Legal targets do not filter credentials or deployment transport capabilities. A 
 
 Success is `{ ok: value }`. Malformed or missing required data returns `{ invalidInput: { reason } }`; explicit unknown required facts and an unexpectedly throwing compatibility callback return `{ unavailable: true }` without its original error. No partial result is returned. A selected/effective name with no row returns `{ profileNotFound: true }`. Credential facts are keyed by full winning ref and origin: absent required fact is malformed, explicitly unknown presence is unavailable. Outputs are owned and deeply immutable; borrowed callbacks remain caller-owned. The fifteen methods are composed. This selection component does not provide a persistent projection cache; see “Durable session model selection” below for its bounded current-read consumer.
 
+Target integration and ownership choices are in [ADR](adr/service-lifetime.md).
+
 ## Development
 
 ```sh
@@ -712,11 +705,11 @@ pnpm --filter @omne-harness-lite/model-request-runtime-local run typecheck
 pnpm --filter @omne-harness-lite/model-request-runtime-local run test
 ```
 
-The first command also builds the workspace dependencies. The companion transport tests exercise `invokeModel` against actual local HTTPS and the public core assembler; this package's `tests/acceptance-*.spec.ts` files and the [minimal demo](../../../examples/model-invocation-minimal-demo/README.md) service tests exercise the composed service over real SQLite and JSONL. None of these local tests certifies a live model route; recorded real-route evidence lives in the [realization verification](../../../.meta_harness/design/realization/packages/model/model-request-runtime/verification.md).
+The first command also builds the workspace dependencies. The companion transport tests exercise `invokeModel` against actual local HTTPS and the public core assembler; this package's `tests/acceptance-*.spec.ts` files and the [minimal demo](../../../examples/model-invocation-minimal-demo/README.md) service tests exercise the composed service over real SQLite journal transactions. None of these local tests certifies a live model route; recorded real-route evidence lives in the [realization verification](../../../.meta_harness/design/realization/packages/model/model-request-runtime/verification.md).
 
 ## Current model log codec
 
-The package root exports one current codec for records and messages judged by the current `messages` entry (MS8) and responses judged by the current `model-response` entry (MR11). Its payload and business-key format is `mrr/3`. It preserves ordered string-array `raw.headers`, exact numbers, and the difference between absent and empty values. Previous `mrr/1` and `mrr/2` records are rejected as unknown format; there is no versioned runtime codec export or compatibility reader.
+The public `model-request-runtime` core root owns the current codec. It uses the current `messages` and `model-response` judges. Its business-key format is `mrr/3`. Records and responses use the Session Log fact envelope owned by `model-request-runtime`, version `mrr/3`. Messages use the message envelope owned by `messages`, version `9`. It preserves ordered string-array `raw.headers`, exact numbers, and the difference between absent and empty values. Previous `mrr/1` and `mrr/2` records are rejected as unknown format; there is no versioned runtime codec export or compatibility reader.
 
 The following standalone example prepares a complete persisted `[M,R]` batch or one nonpersisted response. Supply the complete actual response and legal message prefix; the example performs no IO and grants no log permission. Declare the imported packages as direct dependencies.
 
@@ -726,10 +719,10 @@ import {
   prepareModelLogEntry,
   inspectSettlementMembers,
   type InspectSettlementMembersInput,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { LogPrefixView } from '@omne-harness-lite/messages'
-import type { OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type { OwnedLogEntry } from '@omne-harness-lite/session-log'
 
 export function prepareReplyBatch(
   session: string,
@@ -780,7 +773,7 @@ Append the **entire returned array once** through the actual SL3 provider. The c
 
 Upstream error/local text pass through the bound shared JSON/text policy. Raw/error keys and all scalar tokens are processed, while independent protocol status and actual usage/cost remain intact even if their literal value equals the credential. Processing rejection/defect omits unsafe payload and emits fixed stage diagnostics; an already retained H survives. A pre-send bind defect rejects the outcome with a controlled stage error and no fabricated sent result. Diagnostic-sink failure does not alter business behavior.
 
-Business reply/tool fragments retain their original assembler semantics. This implementation does not close the outstanding content-echo policy, raw-body attachments, full S20, production TLS composition or durable service. Exact scope is adopted by [D095](../../../.meta_harness/design/record/decisions/model-credential-path-adoption/decision.md).
+Business reply/tool fragments retain their original assembler semantics. This implementation does not close the outstanding content-echo policy, raw-body attachments, full S20, production TLS composition or durable service. Exact scope is adopted by D095.
 
 ## Durable settlement components
 
@@ -788,7 +781,7 @@ Business reply/tool fragments retain their original assembler semantics. This im
 
 Supply the host's actual session/tenant/log-generation binding and registered owner. `SettlementRegistration.start` must register before invoking the operation; `stopped` means actual resource cessation. The owner enforces shared concurrency admission and supplies the actual opened receipt plus all unresolved old writers. These structural ports grant no authorization or historical batch certification. Required named contention limits and the exact monotonic scheduler are explicit; no default attempts, timer or waiting policy is installed.
 
-```typescript
+```ts
 import {
   createSettlementCoordinator,
   type SettlementCoordinatorInput,
@@ -854,8 +847,8 @@ After actual host preparation, pass its input and an explicit reply disposition 
 import {
   createAnchoredModelInvocation,
   type AnchoredInvocationInput,
-  type PlannedSemantics,
 } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { ReplyDisposition } from '@omne-harness-lite/model-response'
 
 /** Supply actual host preparation and an explicit caller disposition. */
@@ -881,10 +874,8 @@ export async function runPreparedInvocation<P extends PlannedSemantics, R>(
 Every `legalTargets` and `selectModel` operation independently reads current EvaluationInput and calls the adopted AE4 evaluator before computing legality. Missing optional root `model` is valid; model locks never filter the legal target set. `displayList()` reads that current legality and the authoritative last selection, then calls the directory's `credentialPresent(tenant, origin)` for each displayed winning row. It returns one entry per route with current source, covered rows, annotations and a selected flag. A selected withdrawn route remains visible; a selected name with no directory row returns `profileNotFound`. Unreadable inputs return `unavailable`. Presence reads expose no credential body or reference and do not certify that a later value lookup will succeed. These operations implement [RT5 S9–S14/S24–S27/S66](../../../.meta_harness/design/spec/capabilities/model-request-runtime/v5/contract.md#s-24-legaltargets) through the adopted [R3-P2 projection](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v3-design.md#契约到-cordis-的投影).
 
 ```ts
-import {
-  createSessionModelSelection,
-  type SessionModelSelectionInput,
-} from '@omne-harness-lite/model-request-runtime-local'
+import { type SessionModelSelectionInput } from '@omne-harness-lite/model-request-runtime'
+import { createSessionModelSelection } from '@omne-harness-lite/model-request-runtime-local'
 
 // ports come from the authenticated host's actual scoped providers.
 export async function initializeExplicitSelection(
@@ -912,8 +903,8 @@ Pass resolved `ModelToolEntry` values through `planInput.tools`. `modelEntry` co
 import {
   createAnchoredModelInvocation,
   type AnchoredInvocationInput,
-  type PlannedSemantics,
 } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { modelEntry, type ToolDefinition } from '@omne-harness-lite/tool-definition'
 
 export function invokeWithTools<P extends PlannedSemantics, R>(
@@ -970,7 +961,8 @@ The following public query reads already-written records; the host retains the c
 
 ```ts
 // calibration-diagnostics-query
-import type { DiagnosticCollector, DiagnosticScope } from '@omne-harness-lite/model-request-runtime-local'
+import type { DiagnosticScope } from '@omne-harness-lite/model-request-runtime'
+import type { DiagnosticCollector } from '@omne-harness-lite/model-request-runtime-local'
 
 export async function readPlanningDiagnostics(
   collector: DiagnosticCollector,
@@ -996,9 +988,11 @@ export async function readPlanningDiagnostics(
 import {
   invokeModel,
   type DiagnosticCollector,
+} from '@omne-harness-lite/model-request-runtime-local'
+import {
   type InvocationInput,
   type PlannedSemantics,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 
 export function invokeWithLocalDiagnostics<P extends PlannedSemantics, R>(
   input: InvocationInput<P, R>,
@@ -1022,7 +1016,10 @@ For the service path, supply `RuntimeConstruction.diagnosticCollector`, which co
 `createDefaultRetryImplementation` is a standalone LC6 contribution. The caller supplies a complete backoff policy and an explicit sample source. It reads only the current failure subject, including every ordered retry conclusion; it never schedules a wait, sends a request or writes a conclusion. A missing sample before decision yields `notStartedUnavailable`; invalid input after invocation yields `errored`. The runner still verifies the positioned subject and calls `canDispatchAgain` before accepting a retry.
 
 ```ts
-import {createDefaultRetryImplementation, DEFAULT_RETRY_BUILTIN} from '@omne-harness-lite/model-request-runtime-local'
+import {
+  createDefaultRetryImplementation,
+  DEFAULT_RETRY_BUILTIN,
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { RunnerImplementations } from '@omne-harness-lite/loop-extension-runner'
 
 export function registerDefaultRetry(registry: RunnerImplementations) {
@@ -1034,7 +1031,7 @@ export function registerDefaultRetry(registry: RunnerImplementations) {
 }
 ```
 
-Call the returned disposer when this registration generation ends. The corresponding Cordis fiber is exported from `@omne-harness-lite/model-request-runtime-local/cordis` as `createModelDefaultRetryPlugin({policy,sample})`. It requires `loopExtensionImplementations` and registers only `omne-official:default-retry` within its effect. The host must still provide a declaration with that exact builtin name, `after_model_call`, and `{ending:'failure'}`; the plugin does not create a declaration or give itself rewrite power. An official Run failure path also needs the host's authorized Run history and failure source; a no-Run call cannot enter the runner's `after_model_call` position.
+Call the returned disposer when this registration generation ends. The corresponding Cordis fiber is exported from `@omne-harness-lite/model-request-runtime-local/cordis` as `modelDefaultRetry` with a serializable policy configuration; its sample source is injected. It requires `loopExtensionImplementations` and registers only `omne-official:default-retry` within its effect. The host must still provide a declaration with that exact builtin name, `after_model_call`, and `{ending:'failure'}`; the plugin does not create a declaration or give itself rewrite power. An official Run failure path also needs the host's authorized Run history and failure source; a no-Run call cannot enter the runner's `after_model_call` position.
 
 Planning now consumes the asynchronous [D109 runtime mapping](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v21-image-preparation-design.md). Every adapter implements `plan(input, execution): Promise<PlanResult<P>>`; it must finish its owned native work before resolving, including cancellation. `invokeModel` passes its actual owner signal and an optional caller-owned opaque `reuseScope`. The scope grants no authorization and is never persisted. A fixed anchored plan is reused by the inner invocation without preparing images again. The service tracks preparation with its exact transport lease; cancellation and close wait for actual completion before releasing references. This runtime does not load a codec or supply image-policy defaults; those are explicit transport factory inputs.
 
@@ -1043,7 +1040,7 @@ import type {
   PlanInput,
   PlannedSemantics,
   TransportAdapter,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 
 export async function prepare<P extends PlannedSemantics, R>(
   transport: TransportAdapter<P, R>,
@@ -1061,10 +1058,8 @@ export async function prepare<P extends PlannedSemantics, R>(
 The service constructor requires an explicit positive safe integer `maxScopes` and a synchronous `ExactTransportAcquirer.clearReuseScope(scope)` capability. For a fixed transport instance, retain its cleanup closure until runtime close succeeds:
 
 ```ts
-import type {
-  ExactTransportAcquirer,
-  PlannedSemantics,
-} from '@omne-harness-lite/model-request-runtime-local'
+import type { ExactTransportAcquirer } from '@omne-harness-lite/model-request-runtime-local'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 
 export function fixedAcquirer<P extends PlannedSemantics, R>(
   acquire: ExactTransportAcquirer<P, R>['acquire'],
@@ -1083,10 +1078,10 @@ D110 adopts the [RT11 reference lifecycle mapping](../../../.meta_harness/design
 The content store (`createModelCallContentStore`) confirms immutable UTF-8 bytes in the existing Storage provider before returning a payload reference. It verifies SHA-256 before strict lossless parsing, rejects same-key different-byte writes, recognizes a committed row after a lost receipt, and drains actual writes on close. External attachment/raw-body references return `unavailable` unless a trusted retention provider is supplied. Its directed test (`tests/reference-content.spec.ts`) uses real SQLite and SessionLog; service creation, acquisition and marker publication are exercised by the service tests described below. RT12 S-98 retention sits in the same Storage: `put` holds a publish permit and refuses once the call is retiring, reads check the phase in the same snapshot as the copy, `prepareAcknowledgement`/`confirmAcknowledgement` fix the ACK record, and `releaseAcknowledged` deletes the exact rows and marks the call released in one transaction, or reports `writer_in_flight`, `storage_unavailable` or `receipt_unknown`. Publication admits its marker from the complete prefix before `put`, so a refused marker leaves no row. Permits are not recovered across processes, and orphan rows from an interrupted unpublished `put` are not deleted.
 
 ```ts
+import { type SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
 import {
   createModelCallContentStore,
   type ModelCallContentValue,
-  type SettlementLogBinding,
 } from '@omne-harness-lite/model-request-runtime-local'
 import type { Storage } from '@omne-harness-lite/storage'
 
@@ -1111,6 +1106,6 @@ export async function confirmContent(
 // A confirmed row is content only; publish the adopted SessionLog marker separately.
 ```
 
-The internal `publishModelCallContent` step writes accepted creation or ready content first, reads the authoritative JSONL prefix, and appends its marker with `tailEquals`. A real SQLite/JSONL scenario confirms the created marker once, recognizes an exact retry, and refuses replacement bytes. Public `openCall` and reply-bearing `dispatch` invoke this publisher before returning a reference or terminal state. `createIndependentCallConsumer` provides a separately owned wait/release resource: aborting one wait leaves the consumer alive, while release waits for its actual receiving tasks to stop. `createRuntimeAcquire` answers `acquireCall` through the trusted access and presence providers and the shared facts projection.
+The internal `publishModelCallContent` step writes accepted creation or ready content first, reads the authoritative Session Log prefix, and appends its marker with `tailEquals`. A real SQLite/SQL Session Log scenario confirms the created marker once, recognizes an exact retry, and refuses replacement bytes. Public `openCall` and reply-bearing `dispatch` invoke this publisher before returning a reference or terminal state. `createIndependentCallConsumer` provides a separately owned wait/release resource: aborting one wait leaves the consumer alive, while release waits for its actual receiving tasks to stop. `createRuntimeAcquire` answers `acquireCall` through the trusted access and presence providers and the shared facts projection.
 
-`createModelCallFacts` projects created and ready markers from the actual session prefix and reads their confirmed content by digest. A separate facts instance can reconstruct the same reference from JSONL and SQLite after the first owner closes. In the Cordis/Storage service scenarios, `openCall` returns the created reference, `dispatch` publishes ready without inventing a final response, and a new `acquireCall({ mode: 'read' })` consumer observes `complete` with `disposition_pending`. Releasing this consumer does not cancel the execution owner. The runtime releases its exact transport lease after ready work actually drains. Later disposition, ACK reclamation (RT12 S-98, see the acknowledgement section above) and creation-key recognition are exercised by `tests/acceptance-a22-acknowledgement.spec.ts`, `tests/acceptance-a22-settlement-work.spec.ts` and `tests/acceptance-20260930-a22-runtime.spec.ts`, and through the demo service by its `tests/call-reference-service.spec.ts`.
+`createModelCallFacts` projects created and ready markers from the actual session prefix and reads their confirmed content by digest. A separate facts instance can reconstruct the same reference from SQL Session Log and SQLite content storage after the first owner closes. In the Cordis/Storage service scenarios, `openCall` returns the created reference, `dispatch` publishes ready without inventing a final response, and a new `acquireCall({ mode: 'read' })` consumer observes `complete` with `disposition_pending`. Releasing this consumer does not cancel the execution owner. The runtime releases its exact transport lease after ready work actually drains. Later disposition, ACK reclamation (RT12 S-98, see the acknowledgement section above) and creation-key recognition are exercised by `tests/acceptance-a22-acknowledgement.spec.ts`, `tests/acceptance-a22-settlement-work.spec.ts` and `tests/acceptance-20260930-a22-runtime.spec.ts`, and through the demo service by its `tests/call-reference-service.spec.ts`.

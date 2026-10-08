@@ -1,18 +1,13 @@
-# 条款到证据的绑定表；2026-09-27 v4 候选新增 0 条，保留下列 v3 实际测试绑定 1 条。
-# v4 的 RootSettings 有限模型及指定变异不构成生产实现证据；不重标旧测试坐标。
-# 本次实现、结果值判定、共享根选择与真实生产者缺口见 verification.md 的 AE4-1～AE4-8。
 version: 1
 node: "asset-evaluation"
 kind: "provider"
 
 bindings:
 
-# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
 
   - clause: "capability.asset-evaluation/v3#S-15"
     evidence: "test:tools/core-verification/src/w6-asset-consumer.ts#w6.asset.five-real-ports"
     assumptions:
       - "仅当前NonConnector五真实正文端口域，显式成员／持有／正文快照；第六Connector及外部PRE1～9事实不在证据内。"
-      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
-      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
-    alignment_checked: "2026-09-26"
+      - "本条仅绑定上述具名用例的有限输入；执行输入、输出及接受过程归本工作树 tmp/。"
+      - "有限实现测试，不是任意输入证明；测试通过不提升整体接受状态。"

@@ -108,7 +108,7 @@
 
 允许模块持有编译产物：`model-response/v4-design.md:58`、`model-profile/v3-design.md:62`、`agent-definition/design.md:26`、`content-blocks/design.md:129`、`tool-definition/design.md:41,79-86`。
 
-「no module-level author cache」：`content-blocks/design.md:169`；来源 `record/decisions/mainline-self-rulings-2026-09/decision.md:557`（M44）、`570`（M50）；
+「no module-level author cache」：`content-blocks/design.md:169`；适用范围由上述模块的当前承诺维护；
 `tool-definition/design.md:81`；`tool-definition/verification.md:33`：「编译作者 schema 的 ajv 实例不得出现在模块顶层；本包自己 Schema 的校验函数是有界常量，不在此列」。
 含义：以作者／MCP 对端输入为键、随输入增长、无 owner 的模块级编译缓存；不管本包固定 Schema。
 

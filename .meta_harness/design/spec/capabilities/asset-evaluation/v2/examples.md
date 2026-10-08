@@ -242,7 +242,7 @@
 1. **`variant` 的值读进来了，锁没读进来**：`h11` 上那条配值不带 `immutable`，`dropped` 里有一条 `immutable_flag`（[S-28](contract.md#s-28-配值与禁用只对工作区提供的资产生效丢掉的留痕)）。
 2. **两条 `unknown_asset` 分属两种写法**：给清单没列的资产配值（[G-4](contract.md#十一已知缺口) 挡下的那件事），与禁用清单没列的资产（[工作区只禁得掉自己提供的](../../../../product/PF-002-assets-settings-and-permissions/design.md#禁用是逐层配的布尔设置任一层为真即不可见)）。
 3. **`connectionTarget` 与 `execute:search` 这两条读进来了**：读入面手上没有属性声明，判不出它们是落点类与权限项，
-   `DropReason` 本来就没有为它们设的理由（[D-060 §一 S10-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s10asset-evaluation报回的)）。它们在 [E-1](#e-1-四格齐全的一次求值) 的求值里被丢弃并各留一条痕——**每一种条目只在一处丢**（[S-24](contract.md#s-24-工作区那一格在第四步只贡献设置)），**两个场景要连起来看**。
+   `DropReason` 本来就没有为它们设的理由（D-060 §一 S10-d）。它们在 [E-1](#e-1-四格齐全的一次求值) 的求值里被丢弃并各留一条痕——**每一种条目只在一处丢**（[S-24](contract.md#s-24-工作区那一格在第四步只贡献设置)），**两个场景要连起来看**。
 4. **三个列表都在**：把 `assignments` 或 `disabled` 整个拿掉，结果是 `invalidInput`，不是「没有配值」「没有禁用」（[S-16](contract.md#s-16-readworkspacecarrier) ⑧）；写成空列表才是「没有」。
 5. **`since` 不在结果里**：两份持有与三条配值都不带 `since`，调用方以读到这份文件的时刻补上（[S-27](contract.md#s-27-清单列的资产变成工作区那一格的持有)）。
 
@@ -365,7 +365,7 @@ definitions：`ast_off_helper3`（`agent_definition:helper3`，official，引用
 
 ## E-7 成环即拒，并指出环在哪
 
-对应 [S-43](contract.md#s-43-成环即拒并指出环在哪)（主线裁定 [D-060 §八 M31、M32](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。**三支同跑**；产品原话是 [PF-002 谁能组合谁](../../../../product/PF-002-assets-settings-and-permissions/design.md#谁能组合谁)规则 2 与 [flows §二](../../../../product/PF-002-assets-settings-and-permissions/flows.md#二分支与异常)「成环时拒绝并指出环在哪」。
+对应 [S-43](contract.md#s-43-成环即拒并指出环在哪)（主线裁定 D-060 §八 M31、M32）。**三支同跑**；产品原话是 [PF-002 谁能组合谁](../../../../product/PF-002-assets-settings-and-permissions/design.md#谁能组合谁)规则 2 与 [flows §二](../../../../product/PF-002-assets-settings-and-permissions/flows.md#二分支与异常)「成环时拒绝并指出环在哪」。
 
 **共同输入**：`tenant`、`standing` 同 E-1；无 `workspace`、无 `session`、无 `mcpActionSets`；每份持有的 `versionSelection` 都是 `current`，每份定义都只有第 1 版。
 
@@ -403,7 +403,7 @@ definitions：`ast_off_helper3`（`agent_definition:helper3`，official，引用
 
 ## E-8 读不了正文的一类即拒
 
-对应 [S-44](contract.md#s-44-读不了正文的一类即拒)（主线裁定 [D-060 §八 M45](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。**四支同跑**：本版 `plugin` 与根以外的 `agent_definition` 没有正文规则（[S-10](contract.md#s-10-各类正文契约须供的两条规则) 末段，[G-3](contract.md#十一已知缺口)、[G-21](contract.md#十一已知缺口)），第 2 步走到它们的生效资产即以 `categoryUnsupported` 失败。
+对应 [S-44](contract.md#s-44-读不了正文的一类即拒)（主线裁定 D-060 §八 M45）。**四支同跑**：本版 `plugin` 与根以外的 `agent_definition` 没有正文规则（[S-10](contract.md#s-10-各类正文契约须供的两条规则) 末段，[G-3](contract.md#十一已知缺口)、[G-21](contract.md#十一已知缺口)），第 2 步走到它们的生效资产即以 `categoryUnsupported` 失败。
 
 **共同输入**：`tenant`、`standing` 同 E-1；无 `workspace`、无 `session`、无 `mcpActionSets`；每份持有的 `versionSelection` 都是 `current`，每份定义都只有第 1 版。
 

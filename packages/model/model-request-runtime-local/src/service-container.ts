@@ -1,3 +1,9 @@
+import type {
+  ModelArrivalTarget,
+  ModelCallHost,
+  OpenCallInput,
+  RuntimeCloseResult,
+} from '@omne-harness-lite/model-request-runtime'
 import { notifyReferenceConsumers } from './reference-consumer.ts'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
@@ -8,27 +14,23 @@ import {
   type JsonNumber,
 } from '@omne-harness-lite/content-blocks'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
+import type { AuthorizedCallObserver } from '@omne-harness-lite/model-request-runtime'
+import type { CallKey } from '@omne-harness-lite/messages'
 import type {
   CallContainer,
   CallContainerStore,
   CallContainerView,
-  CallKey,
   CallOperationState,
   CallReservation,
   CallPreparationOwner,
   CallPreparationResult,
   CreateCallContainerInput,
-  ModelCallHost,
   CallObserverBinding,
   ModelObserverQueue,
-  AuthorizedCallObserver,
-  ModelArrivalTarget,
-  OpenCallInput,
-  RuntimeCloseResult,
   ReservationWaitPolicy,
 } from './service-types.ts'
-import type { SettlementScheduler } from './settlement-types.ts'
-import type { AnchoredInvocationHandle } from './anchored-invocation-types.ts'
+import type { SettlementScheduler } from '@omne-harness-lite/model-request-runtime'
+import type { AnchoredInvocationHandle } from '@omne-harness-lite/model-request-runtime'
 
 const invocationSlots = new WeakMap<object, (handle: AnchoredInvocationHandle) => void>()
 const replacementSlots = new WeakMap<
@@ -253,6 +255,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
   let leaseReleased = false
   let leaseReleaseAttempted = false
   let stopFailed = false
+  let semanticStopped = false
   let invocation: AnchoredInvocationHandle | undefined
   let observer: CallObserverBinding | undefined = input.observer
   const pendingObserverCleanup = new Set<AuthorizedCallObserver>()
@@ -325,6 +328,27 @@ export function createCallContainer<P extends PlannedSemantics, R>(
     })
   }
 
+  async function stopSemantic(): Promise<PromiseSettledResult<RuntimeCloseResult>[]> {
+    // The original confirmed stop remains valid while other owners finish closing.
+    // Those owners can already have closed the source needed for the first stop.
+    if (semanticStopped) return []
+    const results = await Promise.allSettled([
+      Promise.resolve().then(() =>
+        input.systemStop({
+          view: () => container.view(),
+          publishStopped: () => {
+            if (released || releaseAttempted) throw new TypeError('call already released')
+            operation = Object.freeze({ phase: 'ready' })
+            notifyReferenceConsumers(container)
+          },
+        }),
+      ),
+    ])
+    const result = results[0]
+    if (result?.status === 'fulfilled' && 'released' in result.value) semanticStopped = true
+    return results
+  }
+
   async function closeOnce(): Promise<RuntimeCloseResult> {
     if (released) return { released: true }
     if (releaseAttempted) {
@@ -343,18 +367,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
         return { unavailable: true }
       }
     }
-    const semantic = await Promise.allSettled([
-      Promise.resolve().then(() =>
-        input.systemStop({
-          view: () => container.view(),
-          publishStopped: () => {
-            if (released || releaseAttempted) throw new TypeError('call already released')
-            operation = Object.freeze({ phase: 'ready' })
-            notifyReferenceConsumers(container)
-          },
-        }),
-      ),
-    ])
+    const semantic = await stopSemantic()
     const queue = observer?.queue
     const authorization = observer?.authorization
     // One close path, two calls told apart by the phase the system stop left behind (RT12

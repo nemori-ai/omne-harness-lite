@@ -73,7 +73,7 @@ let tokenizer: Tokenizer
 beforeAll(() => {
   cert = certificate()
   for (const model of qwenCommercialModels) qwenCommercialMeter(model)
-  const directory = new URL('../tokenizers/qwen-38-24t/', import.meta.url)
+  const directory = new URL('../resources/tokenizers/qwen-38-24t/', import.meta.url)
   tokenizer = new Tokenizer(
     JSON.parse(readFileSync(new URL('tokenizer.json', directory), 'utf8')),
     JSON.parse(readFileSync(new URL('tokenizer_config.json', directory), 'utf8')),

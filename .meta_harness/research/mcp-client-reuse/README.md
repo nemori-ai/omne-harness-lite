@@ -17,7 +17,7 @@ Pi 明确不做 MCP，不作参照。
   对象：DSH `c291e796`（补读决策记录）、pi `3390bd9`（核实本体不做 MCP）、pi 生态第三方 `pi-mcp-adapter@2.37.0`、Codex 同 commit 的 `codex-mcp` 与 `Cargo.lock`（补首轮缺件）、
   LangChain Python `52a4535f` 与 JS `@langchain/mcp-adapters` 1.1.4、OpenAI Agents Python `32edd3c3`、Vercel `@ai-sdk/mcp` 2.0.56、Claude Agent SDK 与 Claude Code `2.1.280` 文档及 CHANGELOG；
   远程源均记精确 commit 或发布版本。只给事实与「撞上会怎样」，不给推荐。
-- 消费者：提案 [MCP 客户端采用](../../design/record/proposals/mcp-client-adoption/README.md)（首轮读数已被其 design.md 与 alternatives.md 引用；第二轮待其作者处置）。
+- 消费者：提案 MCP 客户端采用（首轮读数已被其 design.md 与 alternatives.md 引用；第二轮待其作者处置）。
 - 第三轮（2026-09-23）：为提案候选假设 N-11（stdio 拉起位置）看同行怎么做——MCP 规范、DSH、Codex（含远程同 commit 的 `codex-mcp`、`exec-server`）、官方 TS/Python SDK 各版本、OpenAI Agents、LangChain、Vercel、Claude Code 文档与 Agent SDK、Docker MCP Gateway、mcp-proxy、supergateway；只给事实与两种取值各自的后果，不给推荐。
 - 最近核对：2026-09-23（首轮）；2026-09-23（第二轮，[changelog](changelog.md) rev 1）；2026-09-23（第三轮，[changelog](changelog.md) rev 2）。
 

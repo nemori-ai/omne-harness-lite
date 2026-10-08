@@ -7,7 +7,7 @@ import { createDemoDiagnosticConfig } from '../src/demo.ts'
 import { createDiagnosticJournal } from '../src/diagnostic-journal.ts'
 import { demoRetirement } from './model-request-support.ts'
 
-describe('D6 bounded metric generation at the actual JSONL assembly boundary', () => {
+describe('D6 bounded metric generation at the actual SQL journal assembly boundary', () => {
   it('does not turn high-cardinality call, model or tenant strings into labels and starts a new collector at zero', async () => {
     const parent = resolve('tmp/d6-completion')
     await fs.mkdir(parent, { recursive: true, mode: 0o700 })

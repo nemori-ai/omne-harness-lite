@@ -98,7 +98,7 @@ describe('demo real recovery host', () => {
     }
   })
 
-  it('authenticates, stops the real call host, and recognizes the original JSONL batch twice without another HTTP request', async () => {
+  it('authenticates, stops the real call host, and recognizes the original SQL journal batch twice without another HTTP request', async () => {
     const config = await callDeployment('demo-recovery-complete')
     const tls = await createLocalTls(join(dirname(config.databaseFile), 'tls'))
     const recoveryEvents: string[] = []
@@ -241,6 +241,15 @@ describe('demo real recovery host', () => {
       ).toEqual({
         runtimeStopped: true,
       })
+      expect(await bound.service.dispatch({ session: prepared.session, callId: '' })).toEqual({
+        invalidInput: { reason: 'malformed' },
+      })
+      expect(
+        await bound.service.dispatch(
+          { session: prepared.session, callId: 'blocked-call' },
+          { consumeFailure: true },
+        ),
+      ).toEqual({ result: { runtimeStopped: true }, consumption: { kind: 'notApplicable' } })
       let closeSettled = false
       let businessClose: Awaited<ReturnType<typeof app.close>> | undefined
       const closing = diagnostics.closeAfterBusiness(async () => {

@@ -36,7 +36,6 @@ export async function prepareSecondSession(
         return () => clearTimeout(timer)
       },
     },
-    { current: input.owner, observeExit: async () => 'unknown' },
     true,
   )
   assert.ok(config.modelRequest)

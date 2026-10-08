@@ -3,14 +3,13 @@
 量的是：给 [design-reviewer](../../../roles/design-reviewer/role.md) 一份施工计划、让它判「计划」这一种，
 它能不能把计划里的已知缺陷报出来，同时保持只读、只做这一种判断。判据页是手册的 `references/review/plan.md`。
 
-状态：**用例与判定方法都已签字（2026-10-01，第 1 版）。判定方法先签的是以无界面宿主进程调用的判官；那种调用方式同日停用，
-判官改由主会话派 subagent（规则另加了一句），重新校准后负责人当天重签。还没有基线——负责人定：完整基线放到整份方案的最后再跑。**
+状态：用例与判定方法已采用；完整基线尚未运行。当前配置和采用范围见 `flow.json`。
 
 ## 材料
 
 | 材料 | 是什么 | 应当被报出 | 来源 |
 |---|---|---|---|
-| `raf-plan` | 节点 `session/run-attempt-facts-derived` 的落地计划 | 6 处（P1～P6） | 主会话为 [2026-10-01 的对照](../../design-reviewer-merge-2026-10-01/README.md)写的，原样迁入 |
+| `raf-plan` | 节点 `session/run-attempt-facts-derived` 的落地计划 | 6 处（P1～P6） | 明确种入的案例输入 |
 | `ccp-plan` | 节点 `infra/center-connection-probe` 的落地计划 | 6 处（Q1～Q6） | 主会话为本用例集写的，缺陷类型与上一份不重复 |
 | `raf-plan-clean` | 第一份计划改掉六处缺陷与对照中两个角色都指出的原有问题之后的版本 | 无（对照） | 主会话写的 |
 
@@ -20,17 +19,10 @@
 
 ## 判官校准
 
-[calibration/cases.json](calibration/cases.json) 是 6 份报告的人工判定：对照里新旧两个角色各一份真实报告，
-加 4 份反例（删掉两条发现、把一条发现挪进「未覆盖」、结论是没有问题的报告、另一份材料的报告）。
-
-现行判官是派成 subagent 的 Claude Sonnet 5.5（宿主记录的档位是 medium，派发者定不了档位）。2026-10-01 校准：
-36 处判定与人工全部一致（21 处报出、15 处没报出），阻断条数等 8 项运行级计数也都一致；6 次派发，没有答复被驳回。
-[比对记录](calibration/results/judge-subagent-claude-sonnet-5-5-rules-70fdea287e52.md)。
-负责人当时签的那个以无界面宿主进程调用的判官，记录在[这里](calibration/results/judge-claude-sonnet-5-5@high-rules-62bf4cac80e1.md)；
-改成 subagent 后、补「一个编号就是一条发现」那句规则之前的一次，记录在[这里](calibration/results/judge-subagent-claude-sonnet-5-5-rules-a676226b68b6.md)。
-两次都是 36 处全部一致。
-
-校准报告都是关于 `raf-plan` 的；`ccp-plan` 与对照材料上判得怎样，没有校准过。
+[calibration/cases.json](calibration/cases.json) 与 `calibration/reports/` 是判官的已知好/坏输入，
+保留人工期望值、逐字引用和运行级判定规则。判官由主会话派 subagent；
+每次校准的输入、输出与比对结果放本工作树 tmp，不持久保存运行流水。
+已知问题与表外发现分别计数，判据改变后须复核适用范围；未校准材料不能冒充已验证。
 
 ## 量不出什么
 

@@ -87,7 +87,7 @@ async function multiRoundInput(definition: (typeof definitions)[number]): Promis
       type: 'system_reminder',
       createdAt: at,
       nature: 'event',
-      source: { kind: 'attempt_started', attempt: 1, reason: 'first', at },
+      source: { kind: 'extension', extension: 'transport-business-reminder' },
       blocks: [
         {
           id: 'xai-reminder-text',
@@ -169,7 +169,7 @@ async function authenticationInput(definition: (typeof definitions)[number]): Pr
         type: 'system_reminder',
         createdAt: at,
         nature: 'event',
-        source: { kind: 'attempt_started', attempt: 1, reason: 'first', at },
+        source: { kind: 'extension', extension: 'transport-business-reminder' },
         blocks: [
           {
             id: 'xai-reminder-text',

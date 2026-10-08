@@ -3,8 +3,8 @@
 本报告是第二轮调查的完整论证与盘点表原貌。当前该信什么以 [research.md 的「第二轮」](../research.md#第二轮开放格式原文与三家扩展) 为准；
 每条观察的精确出处在 [evidence.md](../evidence.md) 的 E15–E25，下文用「E 编号」指向；原文字节在 [sources/](../sources/provenance.json)。
 
-**本报告不写方案**：分类栏沿用提案 [键分四类](../../../design/record/proposals/skill-spec-adoption/alternatives.md#b-采用-agent-skills-开放格式加本项目扩展)（核心 / 本项目扩展候选 / 属性类 / 未知）只为说明「这个键落在哪一格」，
-「与 P 的关系」栏只写「撞上哪条、撞上会怎样」，不写该不该收。P1–P8 的原文见 [alternatives.md](../../../design/record/proposals/skill-spec-adoption/alternatives.md#选择对象与必要约束)。
+**本报告不写方案**：分类栏沿用提案 键分四类（核心 / 本项目扩展候选 / 属性类 / 未知）只为说明「这个键落在哪一格」，
+「与 P 的关系」栏只写「撞上哪条、撞上会怎样」，不写该不该收。P1–P8 的原文见 alternatives.md。
 
 ## 一、调查对象与取得方式
 

@@ -20,8 +20,7 @@
 
 ## 这些条目从哪来
 
-来自[迁移前的防御文档](../.meta_harness/agents/research/project-baseline/defensive-patterns-before-migration.md.txt)
-及其参考资料，并结合[框架治理研究](../.meta_harness/agents/research/framework-governance/README.md)重新限定了语义。
+本页结合[框架治理研究](../.meta_harness/agents/research/framework-governance/README.md)和本项目的有效契约限定适用范围。
 **它们是设计经验，不伪装成本项目的生产事故或实测模型弱点。**
 
 当前使用方式都是**按需设计提醒**：风险出现时读相关条目，不要求每次任务加载全部十条。
@@ -127,7 +126,9 @@ abort、kill 或 unregister 只是停止请求。释放契约必须说明返回�
 ### DP-10 规格、实现与证据对齐
 
 测试只说明所覆盖的性质，模型检查只说明给定边界和假设。三者任一改变后，
-旧证据不能无条件声明新行为仍成立。
+旧证据不能无条件声明新行为仍成立。发现缺口时先核对有效承诺，比较实现、检查器与指导的候选原因，
+用能区分解释的反例归因，允许共同责任；读数变绿不证明原因已查明。最小方法与包装/提取器反例见
+[判断指导](../.meta_harness/agents/skills/harness-design-handbook/canonical/references/architecture/assurance/judgment.md#缺口不直接归责)。
 
 **适用与限制**：设计和行为变更；不要求文字修正重跑无关模型。
 **复核触发**：规格、模型、实现或假设变化。

@@ -1,6 +1,0 @@
-
-> omne-harness-lite-workspace@ format:check /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish
-> ./scripts/format.sh check
-
-Checking formatting...
-All matched files use Prettier code style!

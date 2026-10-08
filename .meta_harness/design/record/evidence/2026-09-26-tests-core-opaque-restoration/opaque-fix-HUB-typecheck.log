@@ -1,9 +1,0 @@
-Scope: 4 of 35 workspace projects
-packages/core/content-blocks typecheck$ tsc -p tsconfig.test.json
-packages/core/content-blocks typecheck: Done
-packages/core/messages typecheck$ tsc -p tsconfig.test.json
-packages/core/tool-definition typecheck$ tsc -p tsconfig.test.json
-packages/core/messages typecheck: Done
-packages/core/tool-definition typecheck: Done
-packages/core/loop-extension typecheck$ tsc -p tsconfig.test.json
-packages/core/loop-extension typecheck: Done

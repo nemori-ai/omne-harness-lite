@@ -271,14 +271,14 @@ describe('ZV2 counterexample 6: template oracle against three pinned Jinja templ
 
   it('pins the oracle inputs: templates, both evidence batches and the Jinja version', () => {
     const file = (path: string) => readFileSync(new URL(path, import.meta.url))
-    expect(sha256(file('../tokenizers/zai-glm5/glm-5.2-chat-template.jinja'))).toBe(
+    expect(sha256(file('../resources/tokenizers/zai-glm5/glm-5.2-chat-template.jinja'))).toBe(
       oracle.templateSha256['glm-5.2'],
     )
-    expect(sha256(file('../tokenizers/zai-glm5/glm-5.3-chat-template.jinja'))).toBe(
+    expect(sha256(file('../resources/tokenizers/zai-glm5/glm-5.3-chat-template.jinja'))).toBe(
       oracle.templateSha256['glm-5.3'],
     )
     expect(goldens.templateSha256).toBe(oracle.templateSha256['glm-5.3'])
-    expect(sha256(file('../tokenizers/zai-glm5/glm-5.3-flash-chat-template.jinja'))).toBe(
+    expect(sha256(file('../resources/tokenizers/zai-glm5/glm-5.3-flash-chat-template.jinja'))).toBe(
       oracle.templateSha256['glm-5.3-flash'],
     )
     expect(sha256(file('./fixtures/zai/visible-reasoning-fragments.json'))).toBe(

@@ -2,7 +2,7 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
-> **当前状态：未开始。**`data.offer-expiry` v1 已由 [D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md) 接受并冻结（2026-09-22），提供者设计在 [`realization/packages/core/offer-expiry`](../../../realization/packages/core/offer-expiry/README.md)；尚无源码、尚无装配。**此后版本目录不再原地改，语义改动发布 v2。**
+> **当前状态：未开始。**`data.offer-expiry` v1 已由 D-023 接受并冻结（2026-09-22），提供者设计在 [`realization/packages/core/offer-expiry`](../../../realization/packages/core/offer-expiry/README.md)；尚无源码、尚无装配。**此后版本目录不再原地改，语义改动发布 v2。**
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
 > **四条规范场景一条都未执行**——文件存在不代替结果。
 > 唯一跑过的是起草时对 Schema 正反实例的一次自检，其范围与局限见[下节](#结果与反例)；
@@ -57,31 +57,9 @@
 
 ### 尚无的记录
 
-规范场景 S-23～S-26 与 S-4 尚无执行记录。首次执行时在此记录工具与版本、环境、配置、输入范围、
-可复现步骤与原始结果位置；记录多时按执行拆文件并从本页链接，
-原始产物归 [record/evidence/](../../../record/evidence/README.md)。
+本页维护验证义务、方法、前提与覆盖限制。单次执行的工具与版本、环境、配置、输入范围、步骤和原始结果留本工作树 `tmp/`，不建立永久运行索引。
 
 记录时必须分开陈述：Schema 校验的结果、规范场景演练的结果、真实组合的符合性。
-
-## 实际执行
-
-| run id | 本契约的哪条义务 | 结果 | evidence |
-|---|---|---|---|
-| `2026-09-22-formal-tenant-domain-2` | **一条也没有** | **本次运行不覆盖本契约。**它是评审轮一改了模型之后的重跑，跑的仍只有 `capability.organization-governance` v1 与 `composition.account-registration` v1 的形式工件；**本契约不建形式工件**，因此在那次运行里没有可跑的东西 | [run README](../../../record/evidence/2026-09-22-formal-tenant-domain-2/README.md) |
-| `2026-09-22-formal-tenant-domain` | **一条也没有** | **本次运行不覆盖本契约。**它只跑了 `capability.organization-governance` v1 与 `composition.account-registration` v1 的形式工件；**本契约不建形式工件**，因此在那次运行里没有可跑的东西 | [run README](../../../record/evidence/2026-09-22-formal-tenant-domain/README.md) |
-
-**这两行必须写出来，不能留白**：同批契约跑过两轮，容易被读成「这批都验过了」。
-本契约可跑的义务是 S-23～S-26 四条规范场景与 S-4 的跨字段检查，**一条都没演练过**；
-此外 [S-17](v1/contract.md#s-17-装配给的保证-vs-协议须给的保证) 的五行装配给保证（同源、无窗口、新鲜度、默认值为正、`now` 不后退）
-**不是可跑义务**，证据形式是装配设计对时间源与配置校验的选型声明加架构评审——当前无提供者、无装配，同样未完成；
-它们失效的形态都是静默放行，四条场景一条也测不出。
-
-**那两次运行里的 `Membership.tla` 与 `Registration.tla` 都没有为本契约建邀约状态机**——
-[那正是本包不建模型的理由](README.md#版本包)：过期判定式没有交错可被反驳，
-需要行为模型的是「接受」与效果写入的同提交关系，归拥有该操作的能力契约。
-
-**catalog 登记**（2026-09-22，`candidate`，依赖 `data.identity-values` v1 的 `S-1`／`S-3`）
-**不产生任何证据**，它只是把坐标与资源放进采用面。
 
 ## 形式化工件
 
@@ -97,7 +75,7 @@
 ## 变化的影响
 
 - **已执行：PF-001 升到 rev 15**（2026-09-22，
-  [changelog rev 15](../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)）。
+  [changelog rev 15](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）。
   **rev 15 只改 [flows §4](../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作) 成员名单那一行**
   （拆成「有效成员」与「已解除的成员」两行，后者只归超管），**本契约不受影响**——
   它引的五处**一处也不在 flows §4 那张表里，原文逐字未变**（逐处见下一条）。
@@ -106,7 +84,7 @@
   **只改 rev 标注**：抬头 `（PF-001 rev 14）` → `（PF-001 rev 15）`。
   **不新增证据义务，已有结论不受影响。**
 - **已执行：PF-001 升到 rev 14**（2026-09-22，
-  [changelog rev 14](../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)）。
+  [changelog rev 14](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）。
   **rev 14 只改了 [flows §4 角色与操作](../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作) 那张表**
   （补三行读面授权，答的是 `capability.organization-governance/v1` 登记的缺口 G-11），
   **本契约不受影响**——它引的是 [§4 两种邀约都会过期](../../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)、
@@ -157,7 +135,7 @@
   | **[S-13](v1/contract.md#s-13-接受路径上三种来路给同一个拒绝值) 第三条来路标为规格层推导**（非阻断 9） | 写明 [PF-001 flows §2](../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#二分支与异常) **只给了前两条来路**，`accepted` 那一条的依据在本契约内部（[S-7](v1/contract.md#s-7-派生状态)＋[S-12](v1/contract.md#s-12-过期与撤回收场相同)） | **不改变 [S-24](v1/contract.md#s-24-撤回之后接受被拒以及再次接受一份已接受的) 的三支**。**registry 侧已完成**（评审轮三核对）：`covers.json` 里 `flows §2` 那一行**不登 `S-13`**，且该行 `note` 已写明例外理由——第三条来路是规格层推导，flows §2 只给「已过期／被撤回」两条，按规则重登时勿加回 |
 
 - **已执行：PF-001 升到 rev 13 的复核**（2026-09-22，
-  [PF-001 changelog rev 13](../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)）。
+  [PF-001 changelog rev 13](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）。
   **复核对象**：rev 13 的两条裁决与三处校准**有没有一条落在本契约上**，
   其中**三处直接点到本契约的正文**（团队组织、未激活清除、flows §2 措辞）。
   **复核结论：本契约的条款一条也不用改**，逐条如下——
@@ -196,8 +174,8 @@
   [已执行的 Schema 自检仍然有效](#已执行起草时的-schema-自检2026-09-22)——
   这几条都不动 `OfferTiming` 的形状，也不改派生状态的四个取值。
 - **已执行：PF-001 升到 rev 11、PF-003 升到 rev 4**（2026-09-22，
-  [PF-001 changelog](../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)、
-  [PF-003 changelog](../../../product/PF-003-asset-transfer-and-sharing/changelog.md)）：
+  [PF-001 changelog](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)、
+  [PF-003 changelog](../../../product/PF-003-asset-transfer-and-sharing/design.md)）：
   两份正文同日按同一改法把邀约时长定成「**每类各有默认值（部署配置），发出时发起者可指定这一份**」，
   并写明指定值**不进四层作用域**。[S-14](v1/contract.md#s-14-offer_ttl) 据此改写取值与作用域层次两行，
   [S-15](v1/contract.md#s-15-改参数不动已发出的) 补上指定值那一支；**判定式（S-8）、求值时点（S-9／S-10）与派生状态（S-7）一条没动**，
@@ -206,7 +184,7 @@
   **此后 [S-25](v1/contract.md#s-25-上界为-offer_ttl) 的演练须显式给出这一份的时长**，不得依赖某个全局默认；
   另须补一条「**指定值与该类默认值分别落进 `expiresAt`**」的演练，两路在同一次里对比。
 - **已执行：PF-001 升到 rev 12 的复核**（2026-09-22，
-  [changelog](../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)）。
+  [changelog](../../../product/PF-001-identity-scope-and-agent-constraints/design.md)）。
   **复核对象**：rev 12 的三条裁决与两处校准**有没有一条落在本契约上**。
   **复核结论：一条也没有。**逐条如下——
 

@@ -4,13 +4,12 @@
 针对它的原有测试被拿走，按一份完整的施工简报让它为这个模块写模块级测试——写出的测试在当前实现上是否全过，
 以及能否杀死一组它看不到的变异体（每个变异体是模块的一处改动，各自违反一条规格）。判定由程序在收录运行时做，没有判官。
 
-状态：**第 1 版，两次签字已齐（2026-10-02），还没有基线。**负责人签判定方法时定了：**类型检查只记录，不计入成败**（与原判定器相同）。
+状态：用例与判定方法已采用；完整基线尚未运行。负责人签判定方法时定了：**类型检查只记录，不计入成败**（与原判定器相同）。
 基线何时跑由 [#72](https://github.com/nemori-ai/omne-harness-lite/issues/72) 跟踪。
 
 ## 材料
 
-两项都取自[角色模型对照（Sonnet 5.5）](../../role-model-sonnet55/README.md)留出集里属于 verification-developer 的任务
-（[留出集](../../role-model-sonnet55/suites/role-tasks-heldout-v1.json)的 `VD-1`、`VD-2`，变异体是其中的 `mutants`），钉在提交 `003561900`，成员 `apps/cli`。
+两项的基底、任务和变异体由 [flow.json](flow.json) 定义，成员是 `apps/cli`。
 
 | 材料 | 被测模块 | 拿走的原有测试 | 写入范围 | 变异体 |
 |---|---|---|---|---|
@@ -67,29 +66,9 @@ briefs/_write-tests.md   施工简报的框架；briefs/VD-*.md 按 @@段名 分
 
 ## 运行设置
 
-Claude Sonnet 5.5，high，放行 Read、Glob、Grep、Edit、Write、Bash，每份材料 2 次。出处：
-
-- 模型：原对照里 verification-developer 跑过 Opus 5.5 与 Sonnet 5.5 两组，结论是换成 Sonnet 5.5，并已落到角色源
-  （[对照的采用表](../../role-model-sonnet55/README.md#采用)；[角色源](../../../roles/verification-developer/claude.yaml)现钉 `claude-sonnet-5-5`）。这里取 Sonnet 5.5 那一组。
-- 档位：原对照「档位取角色默认（application-developer 为 medium，其余 high）」，verification-developer 两组都是 high。
-- 工具：原运行脚本 `tooling/evalrun.py` 的 `run` 放行 `Bash`、`Read`、`Edit`、`Write`、`Glob`、`Grep`，禁 `WebFetch`、`WebSearch`、`Agent`。
-  角色定义里另有 WebFetch、WebSearch；registered 派发拿不走它们，用了就体现在 `only_allowed` 上。
-
-## 复制时改了什么
-
-用例的内容（简报框架、两份任务简报、被测模块、拿走的测试、写入范围、全部变异体）逐字取自原对照，只有：
-
-- 清单字段按 `flow.json` 的形状改写：`target`、`hidden_tests`、`allowed_write`、`mutants` 放进每份材料的 `task`，字段名与值不变。
-- 简报框架 `briefs/_write-tests.md` 与原对照的同名文件逐字相同；`{ROLE}` 填的是 `verification-developer`，与原对照相同。
-- 材料的 `target`（一句说明）与 `tags` 是新写的，不进简报。
-
-## 基线数字与噪声范围
-
-还没有基线。
-
-原对照里这两项的结果（`claude -p` 无界面运行、角色定义作为主会话、每任务每模型 2 次，是旧的结果，**不是这个用例集的基线**）：
-VD-1 两个模型都是 10/10 ×2，VD-2 都是 8/8 ×2，四组全部成功。见[原对照的逐任务表](../../role-model-sonnet55/README.md#sonnet-55-对-opus-55)。
-两份材料、每份最多两种结果，这个流目前分辨不出两个变体之间的小差别。
+模型、档位、工具清单、次数和判定阈值以 [flow.json](flow.json) 为准。
+角色的默认配置归[角色源](../../../roles/verification-developer/claude.yaml)。
+每次执行的输出与比较结果放本工作树 tmp，不在用例说明中追加运行流水。
 
 ## 量不出什么
 

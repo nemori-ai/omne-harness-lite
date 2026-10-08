@@ -198,11 +198,11 @@
 > environment**, so when it goes, **all of them go with it**.
 
 - **形态**：对象
-- **出处**：[PF-007 §6.4 `Shell()`](../../product/PF-007-meta-capabilities/design.md#64-shell通向命令行)（rev 23） · [PF-005 §6.3](../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
+- **出处**：[PF-007 §6.4 `Shell()`](../../product/PF-007-meta-capabilities/design.md#64-shell通向命令行)（rev 25） · [PF-005 §6.3](../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
 - **⚠️ 别混**：**不是[会话](agent-runtime-loop.md#ul-session--会话--session)。**
   两者**毫无关系**——一个是协作的归属边界，一个是执行环境里的一条命令行。
   **`Shell()` 的命令名 `create_session` / `close_session` 不改**（那是接口），
-  **但叙述一律写「终端会话」**。改名依据见 [UL-D-1 裁决 5](../decisions.md#定死了什么)
+  **但叙述一律写「终端会话」**。改名依据见 [现行词义](../index.md)
 - **注意**：**状态的寿命是显式的**——开会话才有持久状态，**不做隐式持久**；
   给一个不存在的标识**必须明确失败**，不得悄悄降级成一次性执行
 
@@ -353,7 +353,7 @@
   不是[登录状态](subjects-and-ownership.md#ul-login-state--登录状态--login-state)——那三样各归各的拥有者。
   也不是[治理中心标识](#ul-governance-center-identifier--治理中心标识--governance-center-identifier)：一个是秘密、可换，一个是名字、不换
 - **注意**：它具体给哪几句话背书归技术设计；本条以技术侧采用需要部署级秘密的路为前提
-  （[PF-017 decisions §二](../../product/PF-017-governance-center-as-deployable-application/decisions.md#二pm-推导)），改路则复核
+  （[PF-017 decisions §二](../../product/PF-017-governance-center-as-deployable-application/design.md)），改路则复核
 
 ### UL-governance-center-identifier · 治理中心标识 · Governance Center Identifier
 
@@ -420,7 +420,7 @@
 > not decide which one is configured** — setting, replacing or unbinding one is not its call.
 
 - **形态**：属性
-- **出处**：[UL-D-5](../decisions.md#ul-d-5--凭据保管方--2026-09-25)（依据 D-063 R-1，定义由 PM 起草）
+- **出处**：[现行词义](../index.md)（依据 D-063 R-1，定义由 PM 起草）
 - **⚠️ 别混**：**不是[模型凭据](capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)，
   也不是 [MCP 凭据](capabilities-and-composition.md#ul-mcp-credential--mcp-凭据--mcp-credential)**——
   那两样说的是「配的是哪一把」，是租户或持有上的一项值；这一条说的是**那一把的值放在谁手里、谁取得到**

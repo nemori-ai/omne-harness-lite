@@ -1,5 +1,0 @@
-
-> @omne-harness-lite/ts-checks@0.0.0 scan /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tools/ts-checks
-> node --experimental-strip-types src/cli.ts ../../packages ../../apps
-
-PASS: ts-checks 27 条规则，扫描 /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/packages、/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/apps，无违反。

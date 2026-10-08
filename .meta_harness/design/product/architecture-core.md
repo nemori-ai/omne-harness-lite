@@ -6,7 +6,7 @@
 只回答一件事：**你手上这个 PF，改它的半径有多大。**
 
 > **本文件拥有一份清单**：哪些 topic 覆盖[架构内核](../ubiquitous_language/terms/architecture-core-and-extension.md#ul-architecture-core--架构内核--architecture-core)。
-> **词条引用这份清单，而不是写死编号**——[产品负责人的原话](../ubiquitous_language/decisions.md#ul-d-2--架构内核--2026-09-20)是
+> **词条引用这份清单，而不是写死编号**——[现行词义](../ubiquitous_language/index.md)是
 > 「未来可能会拓展其他 PF 归到这一类里面」。**往下面那张表加一行，那个 PF 就进了架构内核。**
 
 ## 什么是架构内核 PF
@@ -41,15 +41,15 @@
 | [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | **定义、装配、装配清单**三者的关系、**两类 agent**，以及注入进来的是什么 | rev 20 |
 | [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | 动作**实际落到哪里**，隔离边界在哪，**作用准不准落在宿主机上** | rev 9 |
 | [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | agent **能做什么**——工具与技能的常驻、装载与占位 | rev 24 |
-| [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | 系统**自带、关不掉的那几扇门**：agent 怎么问人、怎么看见自己、**一次放行怎么算** | rev 23 |
+| [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | 系统**自带、关不掉的那几扇门**：agent 怎么问人、怎么看见自己、**一次放行怎么算** | rev 25 |
 | [PF-008 Human in the Loop](PF-008-human-in-the-loop/README.md) | 人**在哪里看到这些问题、怎么答、答完怎么回去** | rev 7 |
 | [PF-009 上下文消息类型](PF-009-context-message-types/README.md) | **一共有哪几种消息** | rev 9 |
-| [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | 消息**怎么组装**成给模型看的那一份，装不下时怎么办 | rev 7 |
+| [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | 消息**怎么组装**成给模型看的那一份，装不下时怎么办 | rev 8 |
 | [PF-011 非常态的分层处置](PF-011-off-nominal-handling/README.md) | 事情没按正常走的时候，**谁接手、接不住了往哪交** | rev 5 |
-| [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | 一次运行**怎么走完**，停机之后又怎么接着走；**只看日志怎么判断该不该起一副协程**；**agent runtime 与取消怎么传播** | rev 21 |
+| [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | 一次运行**怎么走完**，停机之后又怎么接着走；**只看日志怎么判断该不该起一副协程**；**agent runtime 与取消怎么传播** | rev 24 |
 | [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | 我们能调哪些模型 · 把请求发出去 · 这一层失败了能做什么 · 什么时候算试尽 · 用户怎么换 | rev 17 |
-| [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | 外面进来的事怎么被收下、排队、什么时候被取走；**控制指令的受理** | rev 11 |
-| [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | 会话怎么建、**活成什么样、什么时候被归档**、会话与会话之间是什么关系、**会话带着哪些 runtime context**、**运行模式**、**存储要守住什么** | rev 20 |
+| [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | 外面进来的事怎么被收下、排队、什么时候被取走；**控制指令的受理** | rev 13 |
+| [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | 会话怎么建、**活成什么样、什么时候被归档**、会话与会话之间是什么关系、**会话带着哪些 runtime context**、**运行模式**、**存储要守住什么** | rev 21 |
 
 **十六个全部有正文了。**
 **PF-015 同样属于架构内核**——它立的是别人赖以成立的前提：
@@ -60,7 +60,7 @@ rev 1 把那个名字定为[归档](PF-015-session-lifecycle-and-ownership/desig
 > **五块大纲现已全部有落点**：工具权限那条腿由
 > [PF-007 §5.6](PF-007-meta-capabilities/design.md#56-一次放行判断走四步) 接住
 > （执行环境权限归 [PF-005](PF-005-execution-environments-and-sandboxes/README.md)）。
-> 它的接受范围见 [D-074](../record/decisions/session-workspace-product-acceptance/decision.md)，改动半径以[本 rev 覆盖到哪](PF-015-session-lifecycle-and-ownership/README.md#本-rev-覆盖到哪)为准。
+> 它的接受范围见 D-074，改动半径以[本 rev 覆盖到哪](PF-015-session-lifecycle-and-ownership/README.md#本-rev-覆盖到哪)为准。
 
 ## 改一个架构内核 PF 意味着什么
 
@@ -115,7 +115,7 @@ PF-004 用 PF-002 的定义、PF-003 的流动，PF-005 又接 PF-004 装配与�
 
 **2026-09-20，产品负责人裁决**，分两次给：先划范围，再定词。
 **两段原话、六条裁决与 PM 起草定义时的推理链，全部记在
-[UL-D-2](../ubiquitous_language/decisions.md#ul-d-2--架构内核--2026-09-20)**——
+[现行词义](../ubiquitous_language/index.md)**——
 那里是这件事的依据所在，**本文件不复制**。
 
 **裁决定的是：范围（当时的 16 个）· 含义（立规矩 vs 用规矩）· 清单可增补 ·

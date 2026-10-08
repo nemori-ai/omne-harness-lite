@@ -1,3 +1,14 @@
+import type { CallFacts, CallFactsView } from './reference-types.ts'
+import type {
+  CallLifecycleState,
+  CallOrigin,
+  CallPresenceFact,
+  CallResultFact,
+  CallSource,
+  RetainedCallReadView,
+  ServiceInvalidInput,
+  ServiceUnavailable,
+} from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { isNonNegativeJsonInteger, type JsonNumber } from '@omne-harness-lite/content-blocks'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
@@ -16,32 +27,21 @@ import type {
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import type { LogEntry, ReadResult } from '@omne-harness-lite/session-log'
 import {
+  readModelLogEnvelope,
   encodeModelLogKey,
   inspectModelLogEntry,
   type CapturedModelLogValue,
 } from '@omne-harness-lite/model-request-runtime'
-import { settlementGenerationCurrent } from './settlement-prefix.ts'
+import { settlementGenerationCurrent } from '@omne-harness-lite/model-request-runtime'
 import {
   acknowledgedAttempts,
   attemptFromFinal,
   originOfEntry,
   type AcknowledgedDispatch,
-} from './acknowledged-view.ts'
-import type {
-  AcknowledgedCallFacts,
-  CallFacts,
-  CallPresence,
-  RetainedCallReadView,
-  CallOrigin,
-  ModelCallContentStore,
-  CallResultFact,
-  CallLifecycleState,
-  ModelCallContentValue,
-  CallPresenceFact,
-  CallSource,
-} from './reference-types.ts'
-import type { SettlementLogBinding } from './settlement-types.ts'
-import type { ServiceInvalidInput, ServiceUnavailable } from './service-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { ModelCallContentStore, ModelCallContentValue } from './reference-types.ts'
+import type { AcknowledgedCallFacts, CallPresence } from '@omne-harness-lite/model-request-runtime'
+import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
 
 type RelevantRecord =
   | ModelCallAcknowledgedRecord
@@ -128,8 +128,11 @@ type Projection =
   | typeof unavailable
 
 function project(entry: LogEntry, existing: ProjectedCall | undefined): Projection {
-  if (!object(entry.payload) || entry.payload.format !== 'mrr/3') return undefined
-  const category = entry.payload.category
+  const decoded = readModelLogEnvelope(entry.payload)
+  if ('failure' in decoded) return unavailable
+  if (decoded.kind === 'other') return undefined
+  if (decoded.envelope.format !== 'mrr/3') return unavailable
+  const category = decoded.envelope.category
   if (category !== 'record' && category !== 'response') return undefined
   const inspected = inspectModelLogEntry({
     session: entry.session,
@@ -254,7 +257,11 @@ function projectReady(
 }
 
 function entryCall(entry: LogEntry): string | undefined {
-  const raw = object(entry.payload) && object(entry.payload.value) ? entry.payload.value : undefined
+  const decoded = readModelLogEnvelope(entry.payload)
+  const raw =
+    'kind' in decoded && decoded.kind === 'model' && object(decoded.envelope.value)
+      ? decoded.envelope.value
+      : undefined
   return raw !== undefined && typeof raw.call === 'string'
     ? raw.call
     : raw !== undefined && object(raw.call) && typeof raw.call.callId === 'string'
@@ -396,7 +403,7 @@ export function createModelCallFacts(input: {
   readonly content: ModelCallContentStore
   readonly presence: CallPresence
   readonly maxScopes: number
-}): CallFacts {
+}): CallFacts & { readonly project: (presence: CallPresence) => CallFactsView } {
   if (
     !Number.isSafeInteger(input.maxScopes) ||
     input.maxScopes <= 0 ||
@@ -529,6 +536,7 @@ export function createModelCallFacts(input: {
   async function view(
     scope: Scope,
     ref: CallKey,
+    presence: CallPresence,
   ): Promise<
     | { readonly view: RetainedCallReadView }
     | { readonly acknowledged: AcknowledgedCallFacts }
@@ -567,7 +575,7 @@ export function createModelCallFacts(input: {
     }
     const state = callState(projected, result)
     const origin: CallOrigin = created.origin
-    const observed = await input.presence.read(
+    const observed = await presence.read(
       { ref, origin, source, executionGeneration: null },
       async fact => fact,
     )
@@ -583,33 +591,40 @@ export function createModelCallFacts(input: {
       }),
     }
   }
-  return Object.freeze<CallFacts>({
-    content: input.content,
-    async refresh(binding) {
-      if (closed) return unavailable
-      const scope = scopeFor(binding)
-      return scope === undefined ? unavailable : await update(scope)
-    },
-    async lookup({ binding, ref }) {
-      if (binding.session !== ref.session) return unavailable
-      const scope = scopeFor(binding)
-      if (scope === undefined || !('current' in (await update(scope)))) return unavailable
-      return await view(scope, ref)
-    },
-    async creation({ binding, creationKey }) {
-      const scope = scopeFor(binding)
-      if (scope === undefined || !('current' in (await update(scope)))) return unavailable
-      const callId = scope.creations.get(creationKey)
-      if (callId === undefined) return notFound
-      const found = await view(scope, { session: binding.session, callId })
-      if (!('view' in found)) return found
-      const marker = scope.calls.get(callId)?.created ?? scope.calls.get(callId)?.rejected
-      if (marker === undefined) return unavailable
-      const content = await input.content.read({ binding, call: callId, ref: marker.payload })
-      return 'content' in content && content.content.kind === 'created'
-        ? { payload: content.content.value, view: found.view }
-        : unavailable
-    },
+  function project(presence: CallPresence): CallFactsView {
+    if (typeof presence?.read !== 'function') throw new TypeError('call presence required')
+    return Object.freeze<CallFactsView>({
+      content: input.content,
+      async refresh(binding) {
+        if (closed) return unavailable
+        const scope = scopeFor(binding)
+        return scope === undefined ? unavailable : await update(scope)
+      },
+      async lookup({ binding, ref }) {
+        if (binding.session !== ref.session) return unavailable
+        const scope = scopeFor(binding)
+        if (scope === undefined || !('current' in (await update(scope)))) return unavailable
+        return await view(scope, ref, presence)
+      },
+      async creation({ binding, creationKey }) {
+        const scope = scopeFor(binding)
+        if (scope === undefined || !('current' in (await update(scope)))) return unavailable
+        const callId = scope.creations.get(creationKey)
+        if (callId === undefined) return notFound
+        const found = await view(scope, { session: binding.session, callId }, presence)
+        if (!('view' in found)) return found
+        const marker = scope.calls.get(callId)?.created ?? scope.calls.get(callId)?.rejected
+        if (marker === undefined) return unavailable
+        const content = await input.content.read({ binding, call: callId, ref: marker.payload })
+        return 'content' in content && content.content.kind === 'created'
+          ? { payload: content.content.value, view: found.view }
+          : unavailable
+      },
+    })
+  }
+  return Object.freeze({
+    ...project(input.presence),
+    project,
     async close() {
       closed = true
       const ended = await input.content.close()

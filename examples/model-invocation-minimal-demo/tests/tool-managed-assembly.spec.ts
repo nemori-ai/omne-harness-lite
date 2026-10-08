@@ -1,10 +1,12 @@
+import { createAcceptanceApplication } from '../src/bootstrap.ts'
+import { createDemoConfig } from '../src/deployment.ts'
 // @module-tag slow
-// Real TLS model turns, SQL and a physical JSONL owner exercise the managed tool subtree.
+// Real TLS model turns, SQL and a physical SQL journal owner exercise the managed tool subtree.
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import type { Fiber } from '@deepseek-ai/cordis'
 import { expect, test, vi } from 'vitest'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { openDemo } from '../src/demo.ts'
 import { createLocalTls } from './local-tls.ts'
 import { demoRetirement } from './model-request-support.ts'
@@ -114,8 +116,9 @@ test(
               async acquire() {
                 return { kind: 'rejected', reason: 'noMatchingEnvironment' }
               },
+              listRecoveryResources: async () => ({ kind: 'resources', values: [] }),
               async recover() {
-                return 'pending'
+                return { status: 'pending' }
               },
             })
           },
@@ -128,32 +131,30 @@ test(
     try {
       expect(await demo.close()).toMatchObject({ complete: false })
       expect(retire).toHaveBeenCalledTimes(1)
-      await expect(
-        openJsonlSessionLog({
-          dir: join(data, 'session-logs'),
-          processOwnership: {
-            current: 'competing-test-owner',
-            async observeExit() {
-              return 'unknown'
-            },
-          },
-        }),
-      ).rejects.toThrow()
+      const competing = createAcceptanceApplication(
+        createDemoConfig(
+          data,
+          'competing-retirement',
+          () => new Date().toISOString(),
+          { multiplier: 1.1, reserveTokens: 256 },
+          demoRetirement(),
+          true,
+        ),
+        {
+          stage: 'modelRequest',
+          developmentTransport: tls.developmentTransport,
+          diagnostics: { record() {} },
+        },
+      )
+      await expect(competing.ready).rejects.toThrow()
+      expect((await competing.close()).complete).toBe(true)
       expect(await demo.application.createToolSession(demo.actor, 'after-close')).toMatchObject({
         kind: 'rejected',
       })
       confirmed = true
       expect(await demo.close()).toMatchObject({ complete: true })
       expect(retire).toHaveBeenCalledTimes(2)
-      const physical = await openJsonlSessionLog({
-        dir: join(data, 'session-logs'),
-        processOwnership: {
-          current: 'post-confirmation-owner',
-          async observeExit() {
-            return 'unknown'
-          },
-        },
-      })
+      const physical = await openSqlLogFixture({ file: join(data, 'db.sqlite') })
       await physical.close()
     } finally {
       confirmed = true
@@ -187,15 +188,7 @@ test(
         ),
       ).rejects.toThrow()
       expect(tls.requests).toHaveLength(0)
-      const physical = await openJsonlSessionLog({
-        dir: join(data, 'session-logs'),
-        processOwnership: {
-          current: 'after-prefix-close',
-          async observeExit() {
-            return 'unknown'
-          },
-        },
-      })
+      const physical = await openSqlLogFixture({ file: join(data, 'db.sqlite') })
       await physical.close()
     } finally {
       await tls.close()

@@ -1,21 +1,14 @@
 // @module-tag slow
-// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 JSONL 会话日志。
-import { Context } from '@deepseek-ai/cordis'
-import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
-import { z } from 'zod'
-import { createModelRuntimePlugin, MODEL_RUNTIME_SERVICE } from '../src/service-plugin.ts'
+// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import type { ModelCallHost, SessionRuntimeBinding } from '../src/service-types.ts'
+import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
+import type { ModelCallHost } from '@omne-harness-lite/model-request-runtime'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
-import type {
-  CallContainerStore,
-  RuntimeConstruction,
-  ModelRuntimeService,
-} from '../src/service-types.ts'
+import type { CallContainerStore, RuntimeConstruction } from '../src/service-types.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
-import { interpretCallHistory } from '../src/call-history.ts'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import { noWaitScheduler, policy as settlementPolicy } from './settlement-fixture.ts'
 import { payload, transport, type TestPlan } from './anchored-invocation-fixture.ts'
@@ -100,15 +93,151 @@ function construction(
     },
     reservationWaitPolicy: { maxWaitersPerCall: 1, timeoutMs: 1 },
     acknowledgementCleanup: { next: () => ({ stop: true }) },
-    recovery: { enter: async () => ({ unavailable: true }) },
+    recovery: {
+      async authorize() {
+        return { authorized: true as const }
+      },
+      enter: async () => ({ unavailable: true }),
+    },
     diagnostic() {},
   }
 }
 
+describe('fixed-subject projections of a single physical runtime', () => {
+  it('retains each original source, rechecks current qualification, and closes admission for all projections', async () => {
+    const original = construction()
+    const runtime = createModelRuntime(original)
+    const seen: string[] = []
+    let validA = true
+    const a = runtime.project(
+      {
+        ...original,
+        sessions: {
+          async bind() {
+            seen.push(validA ? 'A-current' : 'A-revoked')
+            return { failure: 'unavailable' }
+          },
+        },
+      },
+      original.callFacts,
+    )
+    const b = runtime.project(
+      {
+        ...original,
+        sessions: {
+          async bind() {
+            seen.push('B-current')
+            return { failure: 'unavailable' }
+          },
+        },
+      },
+      original.callFacts,
+    )
+    await a.effectiveModel({ session })
+    await b.effectiveModel({ session })
+    validA = false
+    await a.effectiveModel({ session })
+    expect(seen).toEqual(['A-current', 'B-current', 'A-revoked'])
+    const stop = await runtime.close()
+    expect(stop).toEqual({ released: true })
+    expect(await a.openCall({} as never)).toEqual({ runtimeStopped: true })
+    expect(await b.dispatch({ session, callId: 'missing' })).toEqual({ runtimeStopped: true })
+  })
+
+  it('rejects a different physical content owner rather than adopting it', async () => {
+    const original = construction(),
+      other = construction()
+    const runtime = createModelRuntime(original)
+    expect(() => runtime.project(original, other.callFacts)).toThrow(TypeError)
+    expect(await runtime.close()).toEqual({ released: true })
+    expect(await other.calls.close()).toEqual({ released: true })
+  })
+
+  it('does not reopen recovery after authorization returns following overall close', async () => {
+    const original = construction()
+    const authorization = deferred<{ readonly authorized: true }>()
+    const enteredAuthorization = deferred<void>()
+    let entered = 0
+    const runtime = createModelRuntime(original)
+    const projected = runtime.project(
+      {
+        ...original,
+        recovery: {
+          authorize() {
+            enteredAuthorization.finish()
+            return authorization.promise
+          },
+          async enter() {
+            entered++
+            return { unavailable: true }
+          },
+        },
+      },
+      original.callFacts,
+    )
+    const pending = projected.reconcile({ session })
+    await enteredAuthorization.promise
+    const closing = runtime.close()
+    authorization.finish({ authorized: true })
+    expect(await pending).toEqual({ unavailable: true })
+    expect(await closing).toEqual({ released: true })
+    expect(entered).toBe(0)
+  })
+
+  it('authorizes every recovery call and treats a thrown source as unavailable without entering', async () => {
+    const original = construction()
+    let entered = 0,
+      checks = 0
+    const runtime = createModelRuntime(original)
+    const denied = runtime.project(
+      {
+        ...original,
+        recovery: {
+          async authorize() {
+            checks++
+            return { unavailable: true }
+          },
+          async enter() {
+            entered++
+            return { unavailable: true }
+          },
+        },
+      },
+      original.callFacts,
+    )
+    const failed = runtime.project(
+      {
+        ...original,
+        recovery: {
+          async authorize() {
+            checks++
+            throw new Error('original source failed')
+          },
+          async enter() {
+            entered++
+            return { unavailable: true }
+          },
+        },
+      },
+      original.callFacts,
+    )
+    expect(await denied.reconcile({ session })).toEqual({ unavailable: true })
+    expect(await failed.reconcile({ session })).toEqual({ unavailable: true })
+    expect(checks).toBe(2)
+    expect(entered).toBe(0)
+    expect(await runtime.close()).toEqual({ released: true })
+  })
+})
+
 describe('D102 unified model runtime owner', () => {
-  it.each([false, true])(
-    'runs the real SQLite/JSONL runtime through close (scope cleanup initially fails: %s)',
-    async initiallyFails => {
+  it.each([
+    [false, false],
+    [true, false],
+    [false, true],
+    [true, true],
+  ])(
+    'runs the real SQLite/SQL journal runtime through close (scope cleanup fails: %s, projected: %s)',
+    async (initiallyFails, projected) => {
       const host = await selectionHost(true, true)
       try {
         const selected = host.create()
@@ -201,19 +330,34 @@ describe('D102 unified model runtime owner', () => {
             failure: () => ({ unavailable: true }),
             run: () => ({ unavailable: true }),
           },
-          recovery: { enter: async () => ({ unavailable: true }) },
+          recovery: {
+            async authorize() {
+              return { authorized: true as const }
+            },
+            enter: async () => ({ unavailable: true }),
+          },
           diagnostic() {},
         }
         const runtime = createModelRuntime(construction)
+        const service = projected
+          ? runtime.project(construction, construction.callFacts)
+          : runtime.service
+        const successor = runtime.project(construction, construction.callFacts)
+        expect(Object.keys(service).sort()).toEqual(Object.keys(runtime.service).sort())
+        expect(service).not.toHaveProperty('close')
+        expect(service).not.toHaveProperty('executionSource')
+        expect(successor).not.toHaveProperty('executionSource')
+        expect(runtime.executionSource.release()).toEqual({ unavailable: true })
+
         expect(
-          await runtime.service.selectModel({
+          await service.selectModel({
             session: host.session,
             routeName: 'example/model-a',
           }),
         ).toEqual({ selected: 'example/model-a' })
-        const effective = await runtime.service.effectiveModel({ session: host.session })
+        const effective = await service.effectiveModel({ session: host.session })
         if (!('effectiveModel' in effective)) throw new Error('effective model absent')
-        const opened = await runtime.service.openCall({
+        const opened = await service.openCall({
           creationKey: unwrap(parseOpaqueIdentifier('runtime_create_1', 'CreationKey')),
           session: host.session,
           target: effective.effectiveModel.routeName,
@@ -227,15 +371,36 @@ describe('D102 unified model runtime owner', () => {
           callId: 'runtime-call-1',
           state: 'open',
         })
-        const dispatched = await runtime.service.dispatch({
+        const actualContainer = calls.find({ session: host.session, callId: 'runtime-call-1' })
+        if (actualContainer === undefined) throw new Error('physical container absent')
+        const observed = runtime.executionSource.lookup(actualContainer.key)
+        expect(observed).toHaveProperty('execution')
+        if (!('execution' in observed)) throw new Error('original source absent')
+        expect(observed.execution.session).toBe(binding)
+        expect(observed.execution.owner).toBe(actualContainer.view().owner)
+        expect(observed.execution.executionGeneration).toBe(
+          actualContainer.view().executionGeneration,
+        )
+        expect(observed.execution.registered).toBe(true)
+        expect(observed.execution.released).toBe(false)
+        const dispatched = await service.dispatch({
           session: host.session,
           callId: 'runtime-call-1',
         })
         expect(dispatched).toHaveProperty('replyPending')
+        const dispatchedObservation = runtime.executionSource.lookup(actualContainer.key)
+        if (!('execution' in dispatchedObservation)) throw new Error('dispatch source absent')
+        expect(dispatchedObservation.execution).not.toHaveProperty('invocation')
+        const capturedExecution = runtime.executionSource.capture(host.session)
+        if (!('capture' in capturedExecution)) throw new Error('capture absent')
+        expect(capturedExecution.capture.executions[0]?.invocation).toBe(
+          actualContainer.view().invocation,
+        )
+        capturedExecution.capture.release()
         expect(wire.sends()).toBe(1)
         // S-86/S-34⑤: the confirmed ready is complete with disposition_pending on every read
         // face; readAttempts carries the complete original result, never reply_pending.
-        const beforeSettle = await runtime.service.readAttempts({
+        const beforeSettle = await service.readAttempts({
           session: host.session,
           callId: 'runtime-call-1',
         })
@@ -248,13 +413,13 @@ describe('D102 unified model runtime owner', () => {
           ready: { record: { kind: 'model_call_reply_ready', response: 'runtime-response' } },
           result: { disposition: 'disposition_pending', pending: { id: 'runtime-response' } },
         })
-        const settled = await runtime.service.settleReply({
+        const settled = await (projected ? successor : service).settleReply({
           session: host.session,
           callId: 'runtime-call-1',
           disposition: { vetoed: { by: 'runtime-gate' } },
         })
         expect(settled).toEqual({ callId: 'runtime-call-1', state: 'complete' })
-        const attempts = await runtime.service.readAttempts({
+        const attempts = await service.readAttempts({
           session: host.session,
           callId: 'runtime-call-1',
         })
@@ -277,7 +442,7 @@ describe('D102 unified model runtime owner', () => {
         // later entry answers the small acknowledged branch or its terminal refusal.
         const acknowledgedRef = { session: host.session, callId: 'runtime-call-1' }
         const target = { kind: 'response' as const, response: 'runtime-response' }
-        const acknowledged = await runtime.service.acknowledgeCall({
+        const acknowledged = await (projected ? successor : service).acknowledgeCall({
           ref: acknowledgedRef,
           expectedResult: target,
         })
@@ -305,21 +470,21 @@ describe('D102 unified model runtime owner', () => {
             },
           ],
         }
-        const read = await runtime.service.acquireCall({ ref: acknowledgedRef, mode: 'read' })
+        const read = await service.acquireCall({ ref: acknowledgedRef, mode: 'read' })
         expect(read).toMatchObject({ view: small })
         expect(read).not.toHaveProperty('consumer')
-        expect(await runtime.service.readAttempts(acknowledgedRef)).toMatchObject({
+        expect(await service.readAttempts(acknowledgedRef)).toMatchObject({
           acknowledged: small,
         })
         expect(
-          await runtime.service.canDispatchAgain({
+          await service.canDispatchAgain({
             ...acknowledgedRef,
             plan: { provider: 'test' },
           }),
         ).toEqual({ alreadyEnded: true })
-        expect(await runtime.service.dispatch(acknowledgedRef)).toEqual({ alreadyEnded: true })
+        expect(await service.dispatch(acknowledgedRef)).toEqual({ alreadyEnded: true })
         expect(
-          await runtime.service.acknowledgeCall({
+          await service.acknowledgeCall({
             ref: acknowledgedRef,
             expectedResult: { kind: 'ended', ending: 'released' },
           }),
@@ -330,7 +495,7 @@ describe('D102 unified model runtime owner', () => {
         expect(refusedLog.entries).toHaveLength(acknowledgedLog.entries.length)
         expect(wire.sends()).toBe(1)
         expect(
-          await runtime.service.openCall({
+          await service.openCall({
             creationKey: unwrap(parseOpaqueIdentifier('runtime_create_2', 'CreationKey')),
             session: host.session,
             target: effective.effectiveModel.routeName,
@@ -345,7 +510,7 @@ describe('D102 unified model runtime owner', () => {
           state: 'open',
         })
         holdBind = true
-        const lateOpen = runtime.service.openCall({
+        const lateOpen = service.openCall({
           creationKey: unwrap(parseOpaqueIdentifier('runtime_create_3', 'CreationKey')),
           session: host.session,
           target: effective.effectiveModel.routeName,
@@ -361,17 +526,26 @@ describe('D102 unified model runtime owner', () => {
         })
         await Promise.resolve()
         expect(closeFinished).toBe(false)
-        expect(await runtime.service.openCall({} as never)).toEqual({ runtimeStopped: true })
+        expect(await service.openCall({} as never)).toEqual({ runtimeStopped: true })
         bound.finish({ binding })
         expect(await lateOpen).toEqual({ runtimeStopped: true })
         expect(await closing).toEqual(initiallyFails ? { unavailable: true } : { released: true })
         expect(cleanupAttempts).toBe(1)
         if (initiallyFails) {
+          expect(runtime.executionSource.release()).toEqual({ unavailable: true })
+          expect(runtime.executionSource.lookup(actualContainer.key)).toHaveProperty('execution')
           cleanupFailed = false
           expect(await runtime.close()).toEqual({ released: true })
           expect(cleanupAttempts).toBe(2)
         }
         expect(await runtime.close()).toEqual({ released: true })
+        const afterClose = runtime.executionSource.lookup(actualContainer.key)
+        if (!('execution' in afterClose)) throw new Error('close erased original execution')
+        expect(afterClose.execution.released).toBe(true)
+        expect(runtime.executionSource.release()).toEqual({ released: true })
+        expect(runtime.executionSource.release()).toEqual({ released: true })
+        expect(runtime.executionSource.lookup(actualContainer.key)).toEqual({ unknown: true })
+        expect(runtime.executionSource.snapshot(host.session)).toEqual([])
         expect(cleanupAttempts).toBe(initiallyFails ? 2 : 1)
         expect(released).toBe(2)
         expect(registrations.size).toBe(0)
@@ -444,10 +618,6 @@ it.each(['open', 'dispatch'] as const)(
     const started = deferred<void>()
     const native = deferred<void>()
     let closing: Promise<unknown> | undefined
-    const ctx = new Context()
-    const closeStarted = deferred<void>()
-    let ownerReleased = 0
-    let cleanup: (() => Promise<void>) | undefined
     try {
       const selected = host.create()
       const wire = transport()
@@ -532,49 +702,9 @@ it.each(['open', 'dispatch'] as const)(
           }),
         },
       })
-      const dependencies = await ctx.plugin(
-        definePlugin({
-          name: 'planning-owner-dependencies',
-          Config: z.object({}).strict(),
-          apply(inner) {
-            for (const name of [
-              'sessionLog',
-              'modelCatalogRead',
-              'credentialLookup',
-              'modelTransport',
-              'storage',
-              'clock',
-            ])
-              inner.provide(name, {})
-          },
-        }),
-        {},
-      )
-      const consumer = await ctx.plugin(
-        createModelRuntimePlugin({
-          construct: async () => ({
-            service: runtime.service,
-            owner: {
-              close: () => {
-                closeStarted.finish()
-                return runtime.close()
-              },
-              release: () => {
-                ownerReleased++
-              },
-            },
-          }),
-        }),
-        {},
-      )
-      await consumer.await()
-      cleanup = async () => {
-        await consumer.dispose()
-        await dependencies.dispose()
-      }
-      const offered: unknown = ctx.get(MODEL_RUNTIME_SERVICE)
-      if (!isRuntimeService(offered)) throw new Error('real Cordis service absent')
-      const service = offered
+      // Standalone exact-lease regression remains independent of Cordis construction.
+      // Actual named-provider shutdown is covered separately in service-plugin.spec.ts.
+      const service = runtime.service
       const callHost: ModelCallHost = {
         signal: new AbortController().signal,
         stopping: () => false,
@@ -603,12 +733,10 @@ it.each(['open', 'dispatch'] as const)(
       await started.promise
       expect(tracked).toBeGreaterThan(0)
       let closed = false
-      closing = consumer.dispose().then(async () => {
-        const result = await runtime.close()
+      closing = runtime.close().then(async result => {
         closed = true
         return result
       })
-      await closeStarted.promise
       expect(planSignal?.aborted).toBe(true)
       expect(closed).toBe(false)
       expect(released).toBe(0)
@@ -619,7 +747,7 @@ it.each(['open', 'dispatch'] as const)(
       await operation
       expect(await closing).toEqual({ released: true })
       expect(released).toBe(1)
-      expect(ownerReleased).toBe(1)
+      expect(runtime.executionSource.release()).toEqual({ released: true })
       expect(clearedScopes).toEqual([seenScopes[0]])
       expect(wire.sends()).toBe(0)
       expect(await runtime.close()).toEqual({ released: true })
@@ -627,28 +755,7 @@ it.each(['open', 'dispatch'] as const)(
     } finally {
       native.finish()
       await closing
-      await cleanup?.()
       await host.close()
     }
   },
 )
-
-function isRuntimeService(value: unknown): value is ModelRuntimeService {
-  if (value === null || typeof value !== 'object') return false
-  return [
-    'legalTargets',
-    'displayList',
-    'effectiveModel',
-    'selectModel',
-    'openCall',
-    'acquireCall',
-    'dispatch',
-    'dispatchAgain',
-    'interrupt',
-    'releaseCall',
-    'reconcile',
-    'readAttempts',
-    'settleReply',
-    'canDispatchAgain',
-  ].every(name => name in value && typeof Reflect.get(value, name) === 'function')
-}

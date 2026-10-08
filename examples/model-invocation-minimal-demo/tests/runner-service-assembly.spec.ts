@@ -1,9 +1,10 @@
+import { readAttemptStarted } from '@omne-harness-lite/session-runtime'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
-import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime-local'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import type { RunnerDispatchRequest } from '@omne-harness-lite/loop-extension-runner'
 import { createAcceptanceApplication, type ControlledRunFixturePort } from '../src/bootstrap.ts'
@@ -78,10 +79,15 @@ describe('formal runner and P5 demo assembly', () => {
         if (run !== 'controlled-run-1' || attempt !== 1) return { unavailable: true }
         const selected = messagePrefixWithSources(prefix, { run, attempt })
         if ('unavailable' in selected) return { unavailable: true }
-        const starts = selected.messages.filter(
-          message =>
-            message.type === 'system_reminder' && message.source.kind === 'attempt_started',
-        )
+        const starts = prefix.entries.filter(entry => {
+          const parsed = readAttemptStarted(entry)
+          return (
+            'kind' in parsed &&
+            parsed.kind === 'fact' &&
+            parsed.fact.run === run &&
+            parsed.fact.attempt === attempt
+          )
+        })
         if (starts.length !== 1) return { unavailable: true }
         // This finite controlled owner never writes a Run end fact; it cannot certify a general G28 owner.
         return {

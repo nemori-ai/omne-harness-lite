@@ -7,7 +7,7 @@
 > **EN**: The adaptation attribute held by a model invocation, identifying the exact versions of its shared implementation, family rules and narrow model definition, together with the adopted configuration. Rules and configuration in one binding do not change after later updates.
 
 - **形态**：属性
-- **出处**：[UL-D-6](../decisions.md#ul-d-6--模型适配绑定--2026-09-27)
+- **出处**：[现行词义](../index.md)
 - **别混**：与模型档案的范围身份、凭据以及 Cordis fiber 实例身份不同；不是独立领域对象。
 
 ### UL-model-prefix-cache-policy · 模型前缀缓存策略 · Model Prefix Cache Policy
@@ -17,7 +17,7 @@
 > **EN**: The configuration attribute of a model adaptation binding that controls upstream prompt-prefix caching, specifying automatic or explicit mode and its applicable configuration. Configuration does not establish that the upstream has written or read a cache.
 
 - **形态**：属性
-- **出处**：[UL-D-6](../decisions.md#ul-d-6--模型适配绑定--2026-09-27)
+- **出处**：[现行词义](../index.md)
 - **别混**：与完整响应缓存、缓存命中事实和本系统持久化日志不同。
 
 **这一卷回答：agent 由什么构成，以及它因此能做什么。**
@@ -249,7 +249,7 @@
 - **别混**：MCP 是**我出去调它**，Connector 是**它进来找我**
 - **能组合**：**不组合任何资产**
 - **注意 ③**：**事件目录不是它的身份**——身份仍是 name，换一份实现目录可以不同；消息包整份随信封进来（厚信封），只送一个标识回头去拉本版不支持
-- **注意 ④**：**② 那一路本 topic 只定它存在与它这一侧的配置**——受理怎么开新会话、同一件事来两次怎么办归 [PF-014](../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（rev 11）；新会话以哪个 agent definition、哪个租户身份建归 PF-015；同一份连接件的一条事件走哪一路由什么决定，PF-002 记为待裁（D-6）
+- **注意 ④**：**② 那一路本 topic 只定它存在与它这一侧的配置**——受理怎么开新会话、同一件事来两次怎么办归 [PF-014](../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（rev 13）；新会话以哪个 agent definition、哪个租户身份建归 PF-015；同一份连接件的一条事件走哪一路由什么决定，PF-002 记为待裁（D-6）
 - **注意 ⑤**：触发会话的默认运行模式**只管此后开出来的新会话**，与 ① 那一路无关；租户可调，组织的值与锁照默认与强制那一套管着；工作区配不了
 
 ### UL-connector-event-type · 连接件事件类型 · Connector Event Type
@@ -314,7 +314,7 @@
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
 - **出处**：[PF-002 §4 Loop Extension](../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension) · [不可用处置是这一件自己的声明](../../product/PF-002-assets-settings-and-permissions/design.md#不可用处置是这一件自己的声明)（rev 32） ·
-  [PF-012 §4 拓展件](../../product/PF-012-agent-loop-and-run/design.md#拓展件) · [§5.8](../../product/PF-012-agent-loop-and-run/design.md#58-loop-拓展点)（rev 21）
+  [PF-012 §4 拓展件](../../product/PF-012-agent-loop-and-run/design.md#拓展件) · [§5.8](../../product/PF-012-agent-loop-and-run/design.md#58-loop-拓展点)（rev 24）
 - **注意 ④**：**不可用处置是这一件自己的一项声明，不是设置，也不是权限**——持有它的各层不给它配值、也收窄不了它；取值与谁能用哪一种归 PF-012。声明了否决，也要干预力求出来是可否决才算数
 - **注意 ③**：**外来 hook**（Claude Code / Codex 格式）导入为拓展件时按其声明的输出能力定档；**工作区带来的一律只观察**
 - **⚠️ 别混**：**它不是[拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)**——
@@ -358,7 +358,7 @@
 
 - **形态**：变体（父：[拓展件](#ul-loop-extension--拓展件--loop-extension)）
 - **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 17） ·
-  [PF-012 §5.8 模态转换为什么必须落在这里](../../product/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)（rev 21）
+  [PF-012 §5.8 模态转换为什么必须落在这里](../../product/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)（rev 24）
 - **⚠️ 别混 ①**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)**——
   那是把**太大**的工具结果换成占位、原件离开消息；转换件处理的是**读不懂**，**原件一步没动**
 - **⚠️ 别混 ②**：**父词条是资产的一类，它本版却不是资产**——它走拓展件的位置与干预力，
@@ -554,7 +554,7 @@
 - **形态**：属性
 - **出处**：[PF-004 §4 注入](../../product/PF-004-agent-definition-and-assembly/design.md#注入)（rev 20） · [§5.3](../../product/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)（rev 20）
 - **弃用的说法**：**「agent 构成 / Instance Constitution」**——
-  2026-09-20 之前的名字，主语是已退役的「运行实例」，见 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)
+  2026-09-20 之前的名字，主语是已退役的「运行实例」，见 [现行词义](../index.md)
 - **别混**：构成记录、会话能力的当前采用值和单次调用的实际输入是不同时间粒度；能力条目变化本身不等于 runtime 的直接依赖变化。
 
 ### UL-action-space · 动作空间 · Action Space
@@ -605,7 +605,7 @@
 > necessarily resident, and can be neither disabled nor replaced.**
 
 - **形态**：对象
-- **出处**：[PF-007 §4 meta](../../product/PF-007-meta-capabilities/design.md#meta)（rev 23） · [meta 与常驻的关系](../../product/PF-007-meta-capabilities/design.md#meta-与常驻的关系)（rev 23）
+- **出处**：[PF-007 §4 meta](../../product/PF-007-meta-capabilities/design.md#meta)（rev 25） · [meta 与常驻的关系](../../product/PF-007-meta-capabilities/design.md#meta-与常驻的关系)（rev 25）
 - **⚠️ 注意 ①**：**「不可禁用」说的是那扇门，不是门后的每一条命令。**
   [权限照常作用在命令这一级](../../product/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门)——
   **一条命令可以被关掉，而那扇门关不掉**。
@@ -639,7 +639,7 @@
 > resident budget is **on entry points, not on individual actions**.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 槽位](../../product/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [PF-007 §5.4](../../product/PF-007-meta-capabilities/design.md#54-十三个槽位是预算的地板也是它的天花板意义)（rev 23）
+- **出处**：[PF-006 §4 槽位](../../product/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [PF-007 §5.4](../../product/PF-007-meta-capabilities/design.md#54-十三个槽位是预算的地板也是它的天花板意义)（rev 25）
 - **别混**：**裸写「槽位」不作数**——它专指系统提示词里的那种占位
 - **注意**：**不占槽位不等于不在[动作空间](#ul-action-space--动作空间--action-space)里**——见[三层正交](reach-and-availability.md#三层正交这是本卷的地基)
 

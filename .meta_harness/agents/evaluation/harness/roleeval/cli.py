@@ -80,7 +80,7 @@ def main_checkout(repo: Path) -> Path:
 
 
 def flow_dir(flow: Flow, out: Path | None) -> Path:
-    return out if out else main_checkout(REPO) / "tmp" / "role-evals" / flow.id
+    return out if out else REPO / "tmp" / "role-evals" / flow.id
 
 
 def work_root(arg: Path | None) -> Path:
@@ -104,8 +104,7 @@ def sha256(path: Path) -> str:
 
 def build_copy(flow: Flow, material: Material, dest: Path) -> None:
     settings = flow.workspace
-    workspace.build(REPO, dest, base=flow.base(material), material_paths=flow.material_paths(material),
-                    material_excludes=settings["material_excludes"], subject_paths=settings["subject_paths"])
+    workspace.build(REPO, dest, fixture=flow.fixture(material), subject_paths=settings["subject_paths"])
     workspace.apply(dest, material.ops(), suite=flow.root)
     workspace.commit(dest)
 
@@ -144,15 +143,14 @@ def verify(flow: Flow, work: Path, only: list[str] | None = None, notes: list[st
     for material in flow.materials:
         if only and material.id not in only:
             continue
-        base = flow.base(material)
-        if not workspace.is_ancestor(REPO, base):
-            problems.append(f"{material.id}: base {base} is not an ancestor of HEAD; pin a commit that stays reachable")
-            continue
         dest = work / f"verify-{flow.id}-{material.id}-{os.getpid()}"
         try:
-            workspace.build(REPO, dest, base=base, material_paths=flow.material_paths(material),
-                            material_excludes=flow.workspace["material_excludes"],
+            workspace.build(REPO, dest, fixture=flow.fixture(material),
                             subject_paths=flow.workspace["subject_paths"])
+            for path in material.required_inputs:
+                target = (dest / path).resolve()
+                if not target.is_relative_to(dest.resolve()) or not target.is_file():
+                    problems.append(f"{material.id}: required input is missing or outside copy: {path}")
             clean = workspace.tree_hash(dest)
             workspace.apply(dest, material.ops(), suite=flow.root)
             if material.ops() and workspace.tree_hash(dest) == clean:
@@ -160,6 +158,9 @@ def verify(flow: Flow, work: Path, only: list[str] | None = None, notes: list[st
             if "{WORKDIR}" not in material.brief.read_text(encoding="utf-8"):
                 problems.append(f"{material.id}: brief does not say where the copy is ({{WORKDIR}})")
             for seed in material.seeds:
+                for path in seed.files:
+                    if not (dest / path).is_file():
+                        problems.append(f"{material.id}.{seed.id}: seed input is missing: {path}")
                 texts = [(dest / path).read_text(encoding="utf-8") for path in seed.files if (dest / path).is_file()]
                 for fragment in seed.fragments():
                     if not any(fragment in text for text in texts):
@@ -224,7 +225,7 @@ def inputs(flow: Flow) -> str:
         f"角色 `{flow.role}` 做「{flow.judgment}」判断；{host['model']}，{host['effort']}；"
         f"每份材料跑 {flow.reps} 次。", "",
         f"共 {len(flow.materials)} 份材料、{seeds} 处应当被报出的问题。", "",
-        "| 材料 | 标签 | 应报出 | 已知的原有问题 | 取自提交 | 待审对象 |", "|---|---|---|---|---|---|",
+        "| 材料 | 标签 | 应报出 | 已知的原有问题 | 案例输入 | 待审对象 |", "|---|---|---|---|---|---|",
     ]
     for material in flow.materials:
         lines.append(f"| `{material.id}` | {'、'.join(material.tags) or '—'} | {len(material.seeds)} | "

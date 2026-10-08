@@ -17,4 +17,4 @@ Clock.now 返回 Instant 或 unavailable。业务消费者仍按所采用的 off
 
 Clock 与纯值的原承诺继续按[旧节点设计](../../../.meta_harness/design/realization/packages/core/offer-expiry/design.md)采用的精确版本执行。
 本页只接续本批公开集成承诺；不据本页退役其余旧正文。
-集成边界依据 [D-114](../../../.meta_harness/design/record/decisions/cordis-integration-conventions/decision.md)，承诺归属依据 [D-115](../../../.meta_harness/design/record/decisions/actual-architecture-and-thin-spec/decision.md)。
+集成边界依据 D-114，承诺归属依据 D-115。

@@ -1,5 +1,0 @@
-
-> @omne-harness-lite/cli@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/apps/cli
-> node ../../scripts/build-fixed-schemas.mjs
-
-built @omne-harness-lite/cli: 2 fixed Schema graphs

@@ -18,7 +18,7 @@
 | 某个能力该怎么建模、边界画在哪 | `.meta_harness/design/`，加载 `harness-design-handbook` skill |
 | 某个概念精确指什么 | [统一语言](../.meta_harness/design/ubiquitous_language/README.md) |
 | 上游到底保证什么、别人怎么做的 | [research](../.meta_harness/research/README.md) 或 [agents/research](../.meta_harness/agents/research/README.md) |
-| 接受某个选择的正式依据 | `.meta_harness/design/record/` |
+| 接受某个选择的正式依据 | 实际承诺拥有者的当前正文；接受过程归工作树 tmp |
 | 面向读者讲述工程复盘、解释技术方案与实验 | `blogs/` 子模块，加载 `write-blog` skill |
 | 设计知识怎么组织、版本怎么走 | [design/AGENTS.md](../.meta_harness/design/AGENTS.md) 的准入，与各区 README |
 | **环境、命令、源码归属、检查含义、编码防御** | **这里** |

@@ -1,5 +1,6 @@
+import { modelCategory, modelValue } from './log-codec-fixture.ts'
 // @module-tag slow
-// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 JSONL 会话日志。
+// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 import { describe, expect, it } from 'vitest'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
@@ -7,8 +8,8 @@ import { narrow } from '@omne-harness-lite/storage'
 import type { AppendResult, LogEntry } from '@omne-harness-lite/session-log'
 import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
 import type { ModelCallContentStore } from '../src/reference-types.ts'
-import type { SettlementLogBinding } from '../src/settlement-types.ts'
-import type { AcknowledgementCleanupPolicy } from '../src/service-types.ts'
+import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
+import type { AcknowledgementCleanupPolicy } from '@omne-harness-lite/model-request-runtime'
 import { payload } from './anchored-invocation-fixture.ts'
 import { acknowledgementHost, type HostOptions } from './acknowledgement-host-fixture.ts'
 import {
@@ -23,13 +24,7 @@ const disposition = { vetoed: { by: 'a22-gate' } } as const
 const other = { consumed: { by: 'compaction' } } as const
 
 function isResponseEntry(entry: { readonly payload: unknown }): boolean {
-  const wrapper = entry.payload
-  return (
-    typeof wrapper === 'object' &&
-    wrapper !== null &&
-    'category' in wrapper &&
-    wrapper.category === 'response'
-  )
+  return modelCategory(entry.payload) === 'response'
 }
 function finals(entries: readonly LogEntry[], response: string): readonly LogEntry[] {
   return entries.filter(entry => isResponseEntry(entry) && payload(entry).id === response)
@@ -37,8 +32,8 @@ function finals(entries: readonly LogEntry[], response: string): readonly LogEnt
 
 /** The call id of a response log wrapper `{ category, value: { call: { callId } } }`. */
 function callOf(wrapper: unknown): string {
-  if (typeof wrapper !== 'object' || wrapper === null || !('value' in wrapper)) return ''
-  const value = wrapper.value
+  if (modelCategory(wrapper) !== 'response') return ''
+  const value = modelValue(wrapper)
   if (typeof value !== 'object' || value === null || !('call' in value)) return ''
   const call = value.call
   return typeof call === 'object' && call !== null && 'callId' in call ? String(call.callId) : ''
@@ -119,7 +114,7 @@ async function acknowledgedReady(h: Host) {
   return { ref, retained }
 }
 
-describe('A22-V13/V14 post-ACK settlement work on real SQLite/JSONL (inline, noRun)', () => {
+describe('A22-V13/V14 post-ACK settlement work on real SQLite/SQL journal (inline, noRun)', () => {
   it.each(['commit_then_hang', 'drop_then_hang'] as const)(
     'A22-V13/R4: a writer that never answers (%s) leaves only its staged batch; the recovery owner concludes it',
     async mode => {
@@ -255,6 +250,7 @@ describe('A22-V13/V14 post-ACK settlement work on real SQLite/JSONL (inline, noR
             raced = true
             // The pre-ACK writer that held a publish permit commits the same ResponseId first.
             const binding: SettlementLogBinding = {
+              ...h.host.create().input.binding,
               session: h.host.session,
               tenant: h.host.tenant,
               log: h.host.log,

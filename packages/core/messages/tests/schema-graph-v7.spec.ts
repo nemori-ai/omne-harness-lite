@@ -1,5 +1,6 @@
 import { assertContentSchemaTransition } from '../../content-blocks/tests/schema-transition.ts'
 import { assertToolSchemaTransition } from '../../tool-definition/tests/schema-transition.ts'
+import { assertMessagesSchemaTransition } from './schema-transition.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
@@ -39,10 +40,10 @@ const publicPaths = [
 ]
 const completeRuntime = createSchemaRuntime(resources)
 describe('M8-V1 exact public-definition resource closure', () => {
-  it('compiles all 54 definitions with MP5 and MP6 both present', () => {
+  it('compiles all 53 definitions with MP5 and MP6 both present', () => {
     expect(resources).toHaveLength(9)
     expect(new Set(resources.map(resource => resource.$id)).size).toBe(9)
-    expect(SCHEMA_DEF_NAMES).toHaveLength(54)
+    expect(SCHEMA_DEF_NAMES).toHaveLength(53)
     expect(new Set(SCHEMA_DEF_NAMES)).toEqual(new Set(Object.keys(schema.$defs)))
     const runtime = completeRuntime
     for (const name of SCHEMA_DEF_NAMES) {
@@ -60,10 +61,14 @@ describe('M8-V1 exact public-definition resource closure', () => {
       const relative = new URL(resource.$id).pathname.split('/spec/data/')[1]
       if (relative === undefined) throw new Error('canonical resource id required')
       const canonical = readFileSync(
-        new URL(`../../../../.meta_harness/design/spec/data/${relative}`, import.meta.url),
+        new URL(
+          `../../../../.meta_harness/design/spec/data/${publicPath === 'messages/schema' ? relative.replace('/v9/', '/v8/') : relative}`,
+          import.meta.url,
+        ),
       )
       if (publicPath === 'content-blocks/schema') assertContentSchemaTransition(bytes, canonical)
       else if (publicPath === 'tool-definition/schema') assertToolSchemaTransition(bytes, canonical)
+      else if (publicPath === 'messages/schema') assertMessagesSchemaTransition(bytes, canonical)
       else {
         expect(bytes.equals(canonical)).toBe(true)
         expect(createHash('sha256').update(bytes).digest('hex')).toBe(

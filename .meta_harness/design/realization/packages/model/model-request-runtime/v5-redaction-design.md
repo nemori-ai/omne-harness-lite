@@ -4,9 +4,9 @@
 
 ## 输入、承诺与范围
 
-baseline `omne-harness-lite-design-2026-09-15` 的 [RT5](../../../../spec/capabilities/model-request-runtime/v5/contract.md) 与 [MR5](../../../../spec/data/model-response/v5/contract.md) 已由 [D-090](../../../../record/decisions/model-headers-v5-adoption/decision.md) 接受，catalog 坐标一致。本文投影 RT5 S-20/S-46/S-54/S-58/S-60/S-63、G-6 和 MR5 S-20/S-21/S-22；其余十三操作、late、恢复、费用与模型适配不重定。产品依据沿 RT5 已采用的 PF-013 rev 13 §6.16、PF-011 的写前脱敏要求；不借当前产品新版扩大采用。
+baseline `omne-harness-lite-design-2026-09-15` 的 [RT5](../../../../spec/capabilities/model-request-runtime/v5/contract.md) 与 [MR5](../../../../spec/data/model-response/v5/contract.md) 已由 D-090 接受，catalog 坐标一致。本文投影 RT5 S-20/S-46/S-54/S-58/S-60/S-63、G-6 和 MR5 S-20/S-21/S-22；其余十三操作、late、恢复、费用与模型适配不重定。产品依据沿 RT5 已采用的 PF-013 rev 13 §6.16、PF-011 的写前脱敏要求；不借当前产品新版扩大采用。
 
-[D-091](../../../../record/decisions/model-transport-response-resource-adoption/decision.md) 只采用不透明 R 和私有网络资源；[transport 头投影 rev2](../pi-ai-transport/v5-headers-design.md) 的 PH-G2 尚未关闭。本文给 G-6 **可供安全评审接受或拒绝的具体生产基线**，不是从产品中读出的数值，也不以候选存在、空配置或测试值宣布 G-6 完成。秘密政策接受、两 provider 接线、附件写方、真实验证分别过门。
+D-091 只采用不透明 R 和私有网络资源；[transport 头投影 rev2](../pi-ai-transport/v5-headers-design.md) 的 PH-G2 尚未关闭。本文给 G-6 **可供安全评审接受或拒绝的具体生产基线**，不是从产品中读出的数值，也不以候选存在、空配置或测试值宣布 G-6 完成。秘密政策接受、两 provider 接线、附件写方、真实验证分别过门。
 
 领域性质沿既有契约，不重新做领域拆分：四个表面都不得泄漏本次已用凭据及规定片段；处理发生在公共返回或持久写入前；其余原文不改；已留存的头在取消、读失败后仍保留。此次是已有机制读数之后的窄投影，不声称重新取得双盲读数。政策是数据与纯计算；没有新 plugin、fiber、service、表或诊断原文流。
 
@@ -79,7 +79,7 @@ baseline `omne-harness-lite-design-2026-09-15` 的 [RT5](../../../../spec/capabi
 
 ## Cordis、装卸与存储要求
 
-沿 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md) 的 Cordis 4.0.4。政策不独立 inject；它随现有 P-2/transport 配置构造，改变提供者仍按 [plugin-body-reruns-on-provider-change](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md) 处理，不能推成旧请求重发。配置失败依据 [plugin-throw-fails-fiber](../../../../basis/cordis/plugin-throw-fails-fiber.md)；关闭顺序不靠 [effect-disposal-concurrent-not-ordered](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md) 提供。三条均有 probe；本增补未运行它们。Node 字节分块、UTF-8/SSE 解码及资源停止是**待按实际采用版本取证的实现主张**，不是 Cordis 保证。
+沿 D-025 的 Cordis 4.0.4。政策不独立 inject；它随现有 P-2/transport 配置构造，改变提供者仍按 [plugin-body-reruns-on-provider-change](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md) 处理，不能推成旧请求重发。配置失败依据 [plugin-throw-fails-fiber](../../../../basis/cordis/plugin-throw-fails-fiber.md)；关闭顺序不靠 [effect-disposal-concurrent-not-ordered](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md) 提供。三条均有 probe；本增补未运行它们。Node 字节分块、UTF-8/SSE 解码及资源停止是**待按实际采用版本取证的实现主张**，不是 Cordis 保证。
 
 | 装载所得 | owner、可用点与部分失败 | 撤除/完成与仍然为真 |
 | --- | --- | --- |
@@ -112,4 +112,4 @@ baseline `omne-harness-lite-design-2026-09-15` 的 [RT5](../../../../spec/capabi
 | R5R-G3：MR5 S-20 raw.body 实际附件写方/资源配置未落地 | 原附件 owner 与 model-request-acceptance/产品装配 owner 指定真实附件提供者、留存大小/期限配置和字节投影，完成 R5R-V3。只关闭参数选择不等于 full S-20/原始体 IO 完成 |
 | R5R-G4：必需事实与秘密处理失败的边界待安全评审明确 | RT5 S-18/S-20/S-46、MR5 S-21 同时约束真实状态/费用/身份与不得含凭据。现有 ASCII 凭据准入允许 `503`；若上游实际 HTTP 503，error 原文可以遮罩，但 `failure.statusCode` 按来源仍为 503。该碰撞是否属于“出现凭据”不能由本稿裁成豁免，也不能自行收紧凭据格式、改身份/金额或删必需字段。原契约 owner 必须对具体反例定界；未解决前，涉及此冲突的必需输出与 full S-20 验收受阻，三参数本身的评审可继续 |
 
-验证义务及真实执行状态见 [R5R-V1～V7](verification.md#v5-g-6-脱敏政策候选证据义务)。本次没有新的 formal/test 绑定；上述候选不升级 G-28～G-31、TL-G1、十三操作、真实租户链、恢复或 37 模型生产认证。
+验证义务及真实执行状态见 [R5R-V1～V7](verification.md#v5-g-6-脱敏政策证据义务)。本次没有新的 formal/test 绑定；上述候选不升级 G-28～G-31、TL-G1、十三操作、真实租户链、恢复或 37 模型生产认证。

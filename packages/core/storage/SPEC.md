@@ -18,6 +18,10 @@ StorageService 只要求原 Storage 的 read/write。AtomicStorage 是显式可�
 借用服务发布与存储资源所有权必须分别声明。撤除发布不等于事务已停止；资源拥有者必须完成准入和在途收场。
 跨进程后不能用本地对象身份代替事务协议，租户授权也不能从 Context 推断。
 
+StorageUnit.observeCompletion在有效单元调用帧内取得本地提交拥有者的操作结束Promise。它不开始事务、提交或取得写权限；调用方不能在原事务内await它，否则会等待自己。参与者在事务外等待该信号，再根据其结果排空已经暂存的责任。
+结果committed只在实际提交成功后给出；rolledBack表示原回调失败且write已可靠完成回滚；提交结果不能确认时返回unknown。unknown必须沿参与者原身份认回，不能据结束信号假定原事实不存在或远端所有可能writer已经停止。网络断开时本地调用可以结束，但服务端事务仍可能提交。参与者只有认回已提交结果或可靠确认未提交后，才能解除对应未知提交责任。静止证据只排除未来写入，不能单独代替结果认回或保管义务；其后仍须核对原事实及应承接责任。未完成这些核对时，不报告关闭或重发。
+该Promise正常解决，不携带原异常或秘密，也不回调参与者代码。重复观察返回同一个Promise，单元结束后不能重新取得观察面。普通afterCommit仍是提交后的尽力通知，不代替结束观察。
+
 提供者须通过真实存储符合性及同提交/撤除组合。四层公开入口检查须包含源码、声明、运行装载与实际制品消费。
 
 ## 启动资源和完成通知
@@ -38,4 +42,4 @@ SQL owning 绑定在 migrate 路径必需注入 storageStartup；plain 不取得
 未迁行为及验证义务继续归[旧节点设计](../../../.meta_harness/design/realization/packages/core/storage/design.md)与[验证义务](../../../.meta_harness/design/realization/packages/core/storage/verification.md)。
 快照维护继续归[原维护协议](../../../.meta_harness/design/realization/packages/core/storage/maintenance.md)。
 本页只接续本批公开集成承诺；不据本页退役其余旧正文。
-集成边界依据 [D-114](../../../.meta_harness/design/record/decisions/cordis-integration-conventions/decision.md)，承诺归属依据 [D-115](../../../.meta_harness/design/record/decisions/actual-architecture-and-thin-spec/decision.md)。
+集成边界依据 D-114，承诺归属依据 D-115。

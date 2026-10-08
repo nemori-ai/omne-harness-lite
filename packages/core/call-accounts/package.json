@@ -38,5 +38,12 @@
     "typescript": "catalog:",
     "vitest": "catalog:",
     "@omne-harness-lite/asset-model": "workspace:*"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "module"
+    }
   }
 }

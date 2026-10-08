@@ -9,7 +9,7 @@ import {
   type SystemReminderMessage,
 } from '@omne-harness-lite/messages'
 import { encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { createRunnerReminderLogAdapter } from '../src/reminder-log.ts'
 import { createRunnerTaskOwner } from '../src/task-owner.ts'
 import { type RunnerLogBinding } from '@omne-harness-lite/loop-extension-runner'
@@ -50,10 +50,7 @@ describe('runner reminder uses the model message identity domain', () => {
     const root = resolve(process.cwd(), '../../../tmp/runner-public')
     await mkdir(root, { recursive: true })
     const dir = await mkdtemp(join(root, 'reminder-'))
-    const log = await openJsonlSessionLog({
-      dir,
-      processOwnership: { current: 'reminder-test', observeExit: async () => 'exited' },
-    })
+    const log = await openSqlLogFixture({ dir: dir })
     try {
       const owner = createRunnerTaskOwner(binding)
       const prefix = async (): Promise<readonly LoggedMessage[] | { unavailable: true }> => {

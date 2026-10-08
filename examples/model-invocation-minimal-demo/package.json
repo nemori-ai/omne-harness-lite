@@ -30,7 +30,8 @@
     "build": "node ../../scripts/build-fixed-schemas.mjs",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
-    "start": "node dist/cli.js"
+    "start": "node dist/cli.js",
+    "acceptance": "vitest run --config vitest.acceptance.config.ts"
   },
   "dependencies": {
     "@omne-harness-lite/assembly-lifecycle": "workspace:*",
@@ -57,7 +58,6 @@
     "@omne-harness-lite/model-response": "workspace:*",
     "@omne-harness-lite/offer-expiry": "workspace:*",
     "@omne-harness-lite/pi-ai-transport": "workspace:*",
-    "@omne-harness-lite/session-log-jsonl": "workspace:*",
     "@omne-harness-lite/session-tenancy-table": "workspace:*",
     "@omne-harness-lite/storage": "workspace:*",
     "@omne-harness-lite/storage-sql": "workspace:*",
@@ -74,6 +74,7 @@
     "@omne-harness-lite/asset-registry-local": "workspace:*",
     "@omne-harness-lite/assembly-manifest": "workspace:*",
     "zod": "catalog:",
+    "ajv": "catalog:",
     "@omne-harness-lite/organization-governance-sql": "workspace:*",
     "@omne-harness-lite/execution-environments": "workspace:*",
     "@omne-harness-lite/runtime-context": "workspace:*",
@@ -86,13 +87,20 @@
     "@omne-harness-lite/execution-environments-host": "workspace:*",
     "@omne-harness-lite/credential-verification-scrypt": "workspace:*",
     "@omne-harness-lite/account-identity-sql": "workspace:*",
-    "@omne-harness-lite/account-registration-sequential": "workspace:*"
+    "@omne-harness-lite/account-registration-sequential": "workspace:*",
+    "@omne-harness-lite/session-runtime": "workspace:*",
+    "@omne-harness-lite/session-log-sql": "workspace:*",
+    "@omne-harness-lite/model-message-projection": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
-    "@omne-harness-lite/model-request-runtime": "workspace:*",
-    "ajv": "catalog:"
+    "ajv": "catalog:",
+    "kysely": "catalog:",
+    "@omne-harness-lite/session-log-sql": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*",
+    "@omne-harness-lite/storage-sql": "workspace:*",
+    "@omne-harness-lite/session-log": "workspace:*"
   }
 }

@@ -1,3 +1,24 @@
+import { createDemoModelInputs } from './model-runtime-inputs.ts'
+import { startModelRuntimeAssembly } from './model-runtime-assembly.ts'
+import {
+  createDemoRecoveryScope,
+  discardUnissuedRecovery,
+  type DemoRecoveryReady,
+} from './recovery-lifetime.ts'
+import {
+  captureExecutionInvocations,
+  releasedExecutionCalls,
+  originalExecutionInvocation,
+} from './recovery-executions.ts'
+import {
+  createSessionModelSelection,
+  ownOpenCallInput,
+  validDispatchInput,
+  modelCallContentMigrations,
+  type SettlementCoordinator,
+  type SessionModelSelection,
+} from '@omne-harness-lite/model-request-runtime-local'
+import { attemptStartedPayload } from '@omne-harness-lite/session-runtime'
 import type { UpgradeConfirmation } from '@omne-harness-lite/storage'
 import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance-sql/cordis'
@@ -17,55 +38,54 @@ import {
   BorrowedManifest,
   BorrowedAssetRegistry,
 } from './assembly-inputs.ts'
-import { copyJsonValue, isJsonNumber, type JsonValue } from '@omne-harness-lite/content-blocks'
+import {
+  copyJsonValue,
+  isJsonNumber,
+  jsonNumberSource,
+  type JsonValue,
+} from '@omne-harness-lite/content-blocks'
 import {
   judgeModelProfileDocument,
   type ModelRequestParameters,
 } from '@omne-harness-lite/model-profile'
+import { type SessionEffectiveModelResult } from '@omne-harness-lite/model-request-runtime-local'
 import {
-  createSessionModelSelection,
-  createCallContainerStore,
-  createModelCallContentStore,
-  createModelCallFacts,
-  createModelRuntime,
-  modelCallContentMigrations,
   interpretCallHistory,
   readSettlementPrefix,
-  type ModelRuntimeService,
-  type ModelCallHost,
-  type ModelObserverRequest,
-  type DispatchResult,
-  type OpenCallResult,
-  type OpenCallRun,
-  type RuntimeConstruction,
   type SessionRuntimeBinding,
-  type ModelObserverEndpoint,
-  type RuntimeCloseResult,
   type SessionObserverAccess,
   type SettlementResult,
   type SettlementOwner,
-  type SettlementCoordinator,
-  type SessionModelSelection,
   type SessionModelSelectionInput,
   type SettlementLogBinding,
   type RunHistoryReader,
   type CurrentHistoryReaders,
-  type SessionSelectModelResult,
   type LegalTargetsResult,
-  type SessionEffectiveModelResult,
-  type ServiceEffectiveModelResult,
-  type ServiceLegalTargetsResult,
-  type ServiceSelectModelResult,
   type DisplayListResult,
-  type ServiceDisplayListResult,
-  type ReconcileResult,
-  type CallContainer,
   type AnchoredInvocationHandle,
+  type ModelRuntimeExecutionCapture,
   type ObserverDiagnostic,
   type SettlementDiagnostic,
-  type FailureConsumableOperation,
-  type FailureConsumption,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
+import type {
+  ModelRuntimeOperations,
+  ModelRuntimeHostInputs,
+  ModelCallHost,
+  ModelObserverRequest,
+  DispatchResult,
+  OpenCallResult,
+  OpenCallRun,
+  ModelObserverEndpoint,
+  RuntimeCloseResult,
+  SessionSelectModelResult,
+  ServiceEffectiveModelResult,
+  ServiceLegalTargetsResult,
+  ServiceSelectModelResult,
+  ServiceDisplayListResult,
+  ReconcileResult,
+  FailureConsumableOperation,
+  FailureConsumption,
+} from '@omne-harness-lite/model-request-runtime'
 import {
   type ModelLogSettlementTarget,
   type DiagnosticEvent,
@@ -225,7 +245,22 @@ import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-
 import { sessionTenancyTablePlugin } from '@omne-harness-lite/session-tenancy-table/cordis'
 import { SESSION_TENANCY } from '@omne-harness-lite/session-tenancy/cordis'
 import { type SessionTenancyService } from '@omne-harness-lite/session-tenancy'
-import { openJsonlSessionLog, type JsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import {
+  openSqlSessionLog,
+  sessionLogMigrations,
+  type SqlSessionLog,
+} from '@omne-harness-lite/session-log-sql'
+import {
+  createOriginalIssueOwner,
+  originalIssueMigrations,
+} from '@omne-harness-lite/model-request-runtime-local'
+import { createSessionTenancyReader } from '@omne-harness-lite/session-tenancy-table'
+import {
+  createSqlLogAuthority,
+  checkSqlActor,
+  type SqlLogAuthoritySources,
+} from './sql-log-authority.ts'
+import type { RecoveryAccess } from '@omne-harness-lite/execution-environments'
 import { type ReadResult } from '@omne-harness-lite/session-log'
 import {
   borrowedSessionLog,
@@ -237,7 +272,8 @@ import { AuthorizedLogOwner, createAuthorizedLogOwner } from './authorized-log-o
 import { createSessionIngress, SessionIngressAuthority } from './session-ingress.ts'
 import { createSessionContextCreator } from './session-context-creation.ts'
 import { sessionIdentitySource } from './session-context-source.ts'
-import { runtimeContextLocal } from '@omne-harness-lite/runtime-context-local/cordis'
+import { runtimeContextMigrations } from '@omne-harness-lite/runtime-context-local'
+import { startRuntimeContextAssembly } from './runtime-context-assembly.ts'
 import { createTrustedSessionAccessPlugin } from './trusted-session-access.ts'
 import type {
   SessionAccess,
@@ -289,8 +325,8 @@ import {
   type StartupPhase,
 } from './types.ts'
 
-type LoginFace = Pick<LoginsService, 'issue' | 'exchange' | 'verify'>
-type MembershipFace = Pick<MembershipsService, 'currentTenant' | 'standing'>
+type LoginFace = Pick<LoginsService, 'participate' | 'issue' | 'exchange' | 'verify'>
+type MembershipFace = Pick<MembershipsService, 'participate' | 'currentTenant' | 'standing'>
 type CatalogFace = Pick<
   ModelCatalog,
   'bindCredential' | 'credentialPresent' | 'listProfiles' | 'readProfile'
@@ -303,14 +339,16 @@ function loginFace(value: unknown): value is LoginFace {
     object(value) &&
     typeof value.issue === 'function' &&
     typeof value.exchange === 'function' &&
-    typeof value.verify === 'function'
+    typeof value.verify === 'function' &&
+    typeof value.participate === 'function'
   )
 }
 function membershipFace(value: unknown): value is MembershipFace {
   return (
     object(value) &&
     typeof value.currentTenant === 'function' &&
-    typeof value.standing === 'function'
+    typeof value.standing === 'function' &&
+    typeof value.participate === 'function'
   )
 }
 function catalogFace(value: unknown): value is CatalogFace {
@@ -514,7 +552,7 @@ export interface AcceptanceApplication {
   bindModelRuntime(
     actor: AuthenticatedActor,
     session: unknown,
-  ): Promise<ScenarioResult<{ readonly service: ModelRuntimeService }>>
+  ): Promise<ScenarioResult<{ readonly service: ModelRuntimeOperations }>>
   startServiceCall(
     actor: AuthenticatedActor,
     session: unknown,
@@ -614,16 +652,21 @@ export function createAcceptanceApplication(
           : STAGE_FIBERS
   const context = new Context()
   const guard = createUpgradeGuard()
-  const fibers = new Map<StageFiber, Fiber>()
+  const fibers = new Map<ResourceCloseStep, Fiber>()
   const admitted = new Set<Promise<unknown>>()
   const hooks = options.hooks
   let storage: SqlStorage | undefined
   let replica: ModelReplicaCustodian | undefined
-  let sessionLogOwner: JsonlSessionLog | undefined
+  let sessionLogOwner: SqlSessionLog | undefined
+  let journalTenancy: ReturnType<typeof createSessionTenancyReader> | undefined
+  let originalIssue: ReturnType<typeof createOriginalIssueOwner> | undefined
+  let journalAuthoritySource: SqlLogAuthoritySources | undefined
+  const journalRecovery = Object.freeze(Object.create(null)) as RecoveryAccess
   let sessionLogBacking: ReturnType<typeof createSessionLogBacking> | undefined
   let authorizedLogOwner: Awaited<ReturnType<typeof createAuthorizedLogOwner>> | undefined
   let sessionIngress: ReturnType<typeof createSessionIngress> | undefined
   let contextCreator: ReturnType<typeof createSessionContextCreator> | undefined
+  let contextAssembly: Awaited<ReturnType<typeof startRuntimeContextAssembly>> | undefined
   const trustedAccess = createTrustedSessionAccessPlugin()
   let runnerHost: ReturnType<typeof createDemoRunnerHost> | undefined
   let runnerService: LoopExtensionRunnerService | undefined
@@ -645,7 +688,18 @@ export function createAcceptanceApplication(
     }
   >()
 
-  const runnerActors = new AsyncLocalStorage<AuthenticatedActor>()
+  const invocationActors = new AsyncLocalStorage<AuthenticatedActor | undefined>()
+  function withInvocationActor<T>(actor: AuthenticatedActor, work: () => Promise<T>): Promise<T> {
+    const captured = copyJsonValue(actor)
+    const identity =
+      'failed' in captured ||
+      captured.ok === null ||
+      typeof captured.ok !== 'object' ||
+      Array.isArray(captured.ok)
+        ? undefined
+        : (captured.ok as unknown as AuthenticatedActor)
+    return invocationActors.run(identity, work)
+  }
   const toolMaintenance = new AsyncLocalStorage<SessionScope>()
   const toolDeliveries = new Map<string, ReturnType<typeof createToolDelivery>>()
   let manifest: AssemblyManifestStore | undefined
@@ -654,8 +708,16 @@ export function createAcceptanceApplication(
   let assetRegistry: AssetRegistry | undefined
   let transportService: ModelTransportService | undefined
   const modelContributions: Fiber[] = []
+  let modelAssembly: Awaited<ReturnType<typeof startModelRuntimeAssembly>> | undefined
+  let modelInputs: Awaited<ReturnType<typeof createDemoModelInputs>> | undefined
   let modelRuntime:
-    | { readonly service: ModelRuntimeService; readonly close: () => Promise<RuntimeCloseResult> }
+    ReturnType<Awaited<ReturnType<typeof startModelRuntimeAssembly>>['owner']> | undefined
+  let projectModel:
+    | ((
+        actor: AuthenticatedActor,
+        boundSession?: SessionRef,
+        recoveryAuthorization?: ModelRuntimeHostInputs['recovery']['authorize'],
+      ) => ModelRuntimeOperations)
     | undefined
   let currentInputs: CurrentEvaluationInputs | undefined
   let inputSource: InputSourceDependencies | undefined
@@ -675,42 +737,21 @@ export function createAcceptanceApplication(
       selectionInput?: SessionModelSelectionInput
     }
   >()
-  const runtimeActors = new Map<SessionRef, AuthenticatedActor>()
   // Aborted when this application withdraws access; every access evidence carries this signal.
   const accessRevocation = new AbortController()
   // Sessions whose cold recovery scope was built under host-witnessed exit of the old worker.
   // Settlement coordinators that still own an unresolved original write; closed again on shutdown.
   const retainedSettlements = new Set<Pick<SettlementCoordinator, 'close'>>()
+  const retainedSettlementSessions = new WeakMap<Pick<SettlementCoordinator, 'close'>, SessionRef>()
   const coldStopped = new Map<SessionRef, ReadonlyMap<string, ModelLogSettlementTarget>>()
   const runtimeBindings = new Map<SessionRef, SessionRuntimeBinding>()
   const controlledRuns = new Map<SessionRef, ControlledSingleRunSelection>()
-  const calls = createCallContainerStore<PlannedRequest, RawResponse>()
-  const trackedCalls = new Map<
-    SessionRef,
-    Map<string, CallContainer<PlannedRequest, RawResponse>>
-  >()
   const callHosts = new Map<SessionRef, Set<DemoCallHost>>()
   const sessionTasks = new Map<SessionRef, Set<Promise<unknown>>>()
   const recoveryTasks = new Set<Promise<unknown>>()
   const recoveryAdmission = new Set<SessionRef>()
   const recoveryBusy = new Set<SessionRef>()
-  const recoveryReady = new Map<
-    SessionRef,
-    {
-      readonly binding: Pick<SessionRuntimeBinding, 'log'>
-      readonly owner: ReturnType<typeof createRequestOwner>
-      readonly originals: ReadonlyMap<
-        string,
-        {
-          readonly target: ModelLogSettlementTarget
-          readonly handle: AnchoredInvocationHandle
-        }
-      >
-      readonly coldTargets: ReadonlyMap<string, ModelLogSettlementTarget>
-      readonly coldAbsent: boolean
-      scopeIssued: boolean
-    }
-  >()
+  const recoveryReady = new Map<SessionRef, DemoRecoveryReady>()
   const observerAccess = createDemoObserverAccess()
   const observerGrants = new Set<{ readonly revoke: () => Promise<RuntimeCloseResult> }>()
   let gateOpen = false,
@@ -880,13 +921,6 @@ export function createAcceptanceApplication(
     job.then(finish, finish)
     return job
   }
-  function retainCall(session: SessionRef, callId: string): void {
-    const container = calls.find({ session, callId })
-    if (container === undefined) return
-    const sessionCalls = trackedCalls.get(session) ?? new Map()
-    sessionCalls.set(callId, container)
-    trackedCalls.set(session, sessionCalls)
-  }
   async function load<C>(
     name: StageFiber,
     plugin: Plugin.Object<C>,
@@ -911,6 +945,183 @@ export function createAcceptanceApplication(
     record({ event: 'fiber', phase: name, outcome: 'active', fiber: name, state: fiber.state })
     assertNotClosing()
   }
+  type ResourceCloseStep =
+    | StageFiber
+    | 'replica'
+    | 'sessionLogOwner'
+    | 'sessionLogBorrows'
+    | 'authorizedLogOwner'
+    | 'contextCreator'
+    | 'modelContributions'
+    | 'modelRuntime'
+    | 'modelInputs'
+    | 'assetRegistry'
+    | 'registryHistory'
+    | 'fixedRootInput'
+    | 'assemblyManifest'
+
+  async function drainToolConsumers() {
+    if ((await toolAssembly?.closeAuthors()) === 'retained')
+      throw new Error('Tool author close retained')
+    for (const driver of toolDrivers.values()) await driver.close()
+    toolDrivers.clear()
+    for (const delivery of toolDeliveries.values()) await delivery.close()
+    toolDeliveries.clear()
+    await toolFacilities?.close()
+    if ((await toolAssembly?.closeDependencies()) === 'retained')
+      throw new Error('Tool dependency close retained')
+    await runnerServiceFiber?.dispose()
+    await defaultRetryFiber?.dispose()
+  }
+  function modelResourcesRetained(
+    stoppedRuntime: Awaited<ReturnType<NonNullable<typeof modelRuntime>['close']>> | undefined,
+  ) {
+    return (
+      retainedSettlements.size !== 0 ||
+      (stoppedRuntime !== undefined && 'unavailable' in stoppedRuntime) ||
+      (transportService !== undefined &&
+        (transportService.inspect().references !== 0 ||
+          transportService.inspect().executions !== 0)) ||
+      [...sessionBorrows.values()].some(borrow => borrow.owner.retained())
+    )
+  }
+  async function closeRetainedSettlements(session?: SessionRef): Promise<boolean> {
+    const owned = [...retainedSettlements].filter(
+      coordinator =>
+        session === undefined || retainedSettlementSessions.get(coordinator) === session,
+    )
+    const results = await Promise.allSettled(
+      owned.map(async coordinator => {
+        await coordinator.close()
+        retainedSettlements.delete(coordinator)
+        retainedSettlementSessions.delete(coordinator)
+      }),
+    )
+    return results.every(result => result.status === 'fulfilled')
+  }
+  async function drainModelConsumers() {
+    // Recovery still uses the original runtime, binding and SQL journal owner.
+    await Promise.allSettled([...recoveryTasks])
+    for (const session of recoveryReady.keys()) discardUnissuedRecovery(session, recoveryReady)
+    const stoppedRuntime = await modelRuntime?.close()
+    const stoppedSelections = await Promise.allSettled(
+      [...sessionBorrows.values()].flatMap(borrow =>
+        borrow.selector === undefined ? [] : [borrow.selector.close()],
+      ),
+    )
+    await Promise.allSettled([...admitted])
+    const lateObservers = await Promise.allSettled([...observerGrants].map(grant => grant.revoke()))
+    // An unresolved original settlement write is resolved on its own coordinator, or it stays owned.
+    await closeRetainedSettlements()
+    const consumerUnavailable = [...stoppedSelections, ...lateObservers].some(
+      result => result.status === 'rejected' || 'unavailable' in result.value,
+    )
+    if (consumerUnavailable || modelResourcesRetained(stoppedRuntime)) return false
+    if (modelRuntime !== undefined && !('released' in modelRuntime.executionSource.release()))
+      return false
+    for (const borrow of sessionBorrows.values()) borrow.owner.release()
+    return true
+  }
+  function resourceCloseOrder(): readonly ResourceCloseStep[] {
+    return [
+      ...(stage === 'modelRequest'
+        ? ([
+            'modelRuntime',
+            'modelInputs',
+            'modelContributions',
+            'modelTransport',
+            'assetRegistry',
+            'fixedRootInput',
+            'registryHistory',
+            'assemblyManifest',
+            'evaluationInputs',
+          ] as const)
+        : []),
+      ...(logStage
+        ? ([
+            'contextCreator',
+            'sessionContextSource',
+            'runtimeContext',
+            'authorizedLogOwner',
+            'sessionAccess',
+            'sessionLogBorrows',
+            'sessionLogOwner',
+            'sessionLog',
+          ] as const)
+        : []),
+      ...(preparationStage ? (['sessionTenancy'] as const) : []),
+      'lookup',
+      'directory',
+      'replica',
+      'registration',
+      'governance',
+      'accountIdentity',
+      'credentials',
+      'clock',
+      'storage',
+    ]
+  }
+  const resourceClosers: Partial<Record<ResourceCloseStep, () => Promise<unknown>>> = {
+    async modelRuntime() {
+      if ((await modelAssembly?.close()) === 'retained')
+        throw new Error('model runtime close retained')
+    },
+    async modelInputs() {
+      await modelInputs?.close()
+    },
+    async modelContributions() {
+      const retired = await Promise.allSettled(
+        [...modelContributions].reverse().map(fiber => fiber.dispose()),
+      )
+      if (retired.some(result => result.status === 'rejected'))
+        throw new Error('model contribution cleanup failed')
+    },
+    contextCreator: async () => contextCreator?.drain(),
+    async runtimeContext() {
+      if ((await contextAssembly?.close()) === 'retained')
+        throw new Error('runtime context close retained')
+    },
+    authorizedLogOwner: async () => authorizedLogOwner?.drain(),
+    sessionLogBorrows: async () => sessionLogBacking?.drain(),
+    async sessionLogOwner() {
+      if (originalIssue !== undefined && (await originalIssue.close()).kind !== 'released')
+        throw new Error('original model claim retained')
+      if (!runnerHost) {
+        await sessionLogOwner?.close()
+        return
+      }
+      const result = await runnerHost.close()
+      if (!result.complete) throw new Error('runner task recovery unfinished')
+      await journalTenancy?.close()
+      for (const item of result.recovered)
+        record({ event: 'close', phase: 'runnerRecovery', outcome: item.kind })
+    },
+    assetRegistry: async () => assetRegistry?.close(),
+    fixedRootInput: async () => fixedRootInput?.close(),
+    registryHistory: async () => registryHistory?.close(),
+    assemblyManifest: async () => manifest?.close(),
+  }
+  async function closeAssemblyResource(name: ResourceCloseStep) {
+    const close = resourceClosers[name]
+    if (close) await close()
+    else await fibers.get(name)?.dispose()
+  }
+  async function closePhysicalResources(unfinished: string[]) {
+    if (unfinished.length) return
+    try {
+      await storage?.close()
+      record({ event: 'close', phase: 'storageOwner', outcome: 'closed' })
+    } catch {
+      unfinished.push('storageOwner')
+      record({ event: 'close', phase: 'storageOwner', outcome: 'failed' })
+      return
+    }
+    try {
+      await context.fiber.dispose()
+    } catch {
+      unfinished.push('context')
+    }
+  }
   async function closeResources(): Promise<CloseResult> {
     if (cleanupPromise !== undefined) return cleanupPromise
     closing = true
@@ -918,22 +1129,14 @@ export function createAcceptanceApplication(
     accessRevocation.abort()
     runnerHost?.closeAdmission()
     contextCreator?.closeAdmission()
+    contextAssembly?.closeAdmission()
+    modelAssembly?.closeAdmission()
     record({ event: 'gate', phase: 'scenario', outcome: 'closed' })
     const attempt = (async () => {
       // Stop actual consumers before waiting admitted work: setup work cannot start a new call once closing.
       await Promise.allSettled([...observerGrants].map(grant => grant.revoke()))
       try {
-        if ((await toolAssembly?.closeAuthors()) === 'retained')
-          throw new Error('Tool author close retained')
-        for (const driver of toolDrivers.values()) await driver.close()
-        toolDrivers.clear()
-        for (const delivery of toolDeliveries.values()) await delivery.close()
-        toolDeliveries.clear()
-        await toolFacilities?.close()
-        if ((await toolAssembly?.closeDependencies()) === 'retained')
-          throw new Error('Tool dependency close retained')
-        await runnerServiceFiber?.dispose()
-        await defaultRetryFiber?.dispose()
+        await drainToolConsumers()
       } catch {
         return {
           complete: false,
@@ -941,37 +1144,7 @@ export function createAcceptanceApplication(
           pending: await guard.pending(),
         }
       }
-      // Recovery may still need this runtime's service, binding and JSONL owner.
-      await Promise.allSettled([...recoveryTasks])
-      const stoppedRuntime = await modelRuntime?.close()
-      const stoppedSelections = await Promise.allSettled(
-        [...sessionBorrows.values()].flatMap(borrow =>
-          borrow.selector === undefined ? [] : [borrow.selector.close()],
-        ),
-      )
-      await Promise.allSettled([...admitted])
-      const lateObservers = await Promise.allSettled(
-        [...observerGrants].map(grant => grant.revoke()),
-      )
-      // An unresolved original settlement write is resolved on its own coordinator, or it stays owned.
-      await Promise.allSettled(
-        [...retainedSettlements].map(async coordinator => {
-          await coordinator.close()
-          retainedSettlements.delete(coordinator)
-        }),
-      )
-      const consumerUnavailable = [...stoppedSelections, ...lateObservers].some(
-        result => result.status === 'rejected' || 'unavailable' in result.value,
-      )
-      if (
-        consumerUnavailable ||
-        retainedSettlements.size !== 0 ||
-        (stoppedRuntime !== undefined && 'unavailable' in stoppedRuntime) ||
-        (transportService !== undefined &&
-          (transportService.inspect().references !== 0 ||
-            transportService.inspect().executions !== 0)) ||
-        [...sessionBorrows.values()].some(borrow => borrow.owner.retained())
-      ) {
+      if (!(await drainModelConsumers()))
         return {
           complete: false,
           unfinished: [
@@ -983,89 +1156,21 @@ export function createAcceptanceApplication(
           ],
           pending: await guard.pending(),
         }
-      }
-      for (const borrow of sessionBorrows.values()) borrow.owner.release()
       // Admitted delivery can still need a maintenance read to recognize its complete C batch.
       // The business gate is already closed; keep the physical owner available until consumers drain.
       authorizedLogOwner?.closeAdmission()
       sessionLogBacking?.closeAdmission()
       sessionIngress?.stop()
-      runtimeActors.clear()
+
       coldStopped.clear()
       runtimeBindings.clear()
       controlledRuns.clear()
       const unfinished: string[] = []
-      const order: readonly (
-        | StageFiber
-        | 'replica'
-        | 'sessionLogOwner'
-        | 'sessionLogBorrows'
-        | 'authorizedLogOwner'
-        | 'contextCreator'
-        | 'modelContributions'
-        | 'assetRegistry'
-        | 'registryHistory'
-        | 'fixedRootInput'
-        | 'assemblyManifest'
-      )[] = [
-        ...(stage === 'modelRequest'
-          ? ([
-              'modelContributions',
-              'modelTransport',
-              'assetRegistry',
-              'fixedRootInput',
-              'registryHistory',
-              'assemblyManifest',
-              'evaluationInputs',
-            ] as const)
-          : []),
-        ...(logStage
-          ? ([
-              'contextCreator',
-              'sessionContextSource',
-              'runtimeContext',
-              'authorizedLogOwner',
-              'sessionAccess',
-              'sessionLogBorrows',
-              'sessionLogOwner',
-              'sessionLog',
-            ] as const)
-          : []),
-        ...(preparationStage ? (['sessionTenancy'] as const) : []),
-        'lookup',
-        'directory',
-        'replica',
-        'registration',
-        'governance',
-        'accountIdentity',
-        'credentials',
-        'clock',
-        'storage',
-      ]
+      const order = resourceCloseOrder()
       for (const [index, name] of order.entries()) {
         try {
-          if (name === 'modelContributions') {
-            const retired = await Promise.allSettled(
-              [...modelContributions].reverse().map(fiber => fiber.dispose()),
-            )
-            if (retired.some(result => result.status === 'rejected'))
-              throw new Error('model contribution cleanup failed')
-          } else if (name === 'contextCreator') await contextCreator?.drain()
-          else if (name === 'authorizedLogOwner') await authorizedLogOwner?.drain()
-          else if (name === 'sessionLogBorrows') await sessionLogBacking?.drain()
-          else if (name === 'sessionLogOwner') {
-            if (runnerHost !== undefined) {
-              const result = await runnerHost.close()
-              if (!result.complete) throw new Error('runner task recovery unfinished')
-              for (const item of result.recovered)
-                record({ event: 'close', phase: 'runnerRecovery', outcome: item.kind })
-            } else await sessionLogOwner?.close()
-          } else if (name === 'assetRegistry') await assetRegistry?.close()
-          else if (name === 'fixedRootInput') await fixedRootInput?.close()
-          else if (name === 'registryHistory') await registryHistory?.close()
-          else if (name === 'assemblyManifest') await manifest?.close()
-          else if (name === 'replica') await replica?.close()
-          else await fibers.get(name)?.dispose()
+          if (name === 'replica') await replica?.close()
+          else await closeAssemblyResource(name)
           record({ event: 'close', phase: name, outcome: 'closed' })
         } catch {
           unfinished.push(...order.slice(index))
@@ -1073,22 +1178,7 @@ export function createAcceptanceApplication(
           break
         }
       }
-      if (unfinished.length === 0) {
-        try {
-          await storage?.close()
-          record({ event: 'close', phase: 'storageOwner', outcome: 'closed' })
-        } catch {
-          unfinished.push('storageOwner')
-          record({ event: 'close', phase: 'storageOwner', outcome: 'failed' })
-        }
-      }
-      if (unfinished.length === 0) {
-        try {
-          await context.fiber.dispose()
-        } catch {
-          unfinished.push('context')
-        }
-      }
+      await closePhysicalResources(unfinished)
       const pending = await guard.pending()
       const result = {
         complete: unfinished.length === 0,
@@ -1111,137 +1201,344 @@ export function createAcceptanceApplication(
     })
     return attempt
   }
+  function migrationFragments() {
+    return [
+      ...(preparationStage ? requestPreparationMigrations : acceptanceMigrations),
+      ...(stage === 'modelRequest' ? evaluationInputMigrations : []),
+      ...(stage === 'modelRequest' ? assemblyManifestMigrations : []),
+      ...(stage === 'modelRequest' ? modelCallContentMigrations('sqlite') : []),
+      ...(logStage
+        ? [...runtimeContextMigrations, ...sessionLogMigrations, ...originalIssueMigrations]
+        : []),
+      ...(hooks?.extraMigrations ?? []).filter(
+        extra => !assemblyManifestMigrations.some(builtin => builtin === extra),
+      ),
+    ]
+  }
+  async function prepareDeploymentStage() {
+    if (
+      stage !== 'authentication' &&
+      stage !== 'requestPreparation' &&
+      stage !== 'sessionLog' &&
+      stage !== 'modelRequest'
+    )
+      throw new Error('acceptance stage invalid')
+    const logDeployment = logStage
+      ? await prepareSessionLogDeployment(config.sessionLog)
+      : undefined
+    requestDeployment =
+      stage === 'modelRequest'
+        ? prepareModelRequestDeployment(config.modelRequest, options.developmentTransport)
+        : undefined
+    const prepared = await prepare(config)
+    assertNotClosing()
+    record({ event: 'stage', phase: 'prepare', outcome: 'ready' })
+    return { prepared, logDeployment }
+  }
+  function databaseReplaced(
+    prepared: Awaited<ReturnType<typeof prepare>>,
+    owner: { readonly dev: bigint; readonly ino: bigint; readonly birthtimeNs: bigint },
+  ) {
+    const prior = prepared.databaseIdentity
+    return (
+      prior === undefined ||
+      prior.dev !== owner.dev ||
+      prior.ino !== owner.ino ||
+      prior.birthtimeNs !== owner.birthtimeNs
+    )
+  }
+  async function verifyDatabaseOwner(prepared: Awaited<ReturnType<typeof prepare>>) {
+    const database = await open(config.databaseFile, constants.O_RDONLY | constants.O_NOFOLLOW)
+    try {
+      const owner = await database.stat({ bigint: true })
+      const uid = process.getuid?.()
+      if (!owner.isFile() || uid === undefined || owner.uid !== BigInt(uid))
+        throw new Error('acceptance database owner invalid')
+      // The read-only precheck already refused unsafe preexisting files.
+      // Only a genuinely new/replaced owned file is eligible for restriction.
+      const replaced = databaseReplaced(prepared, owner)
+      if (replaced) await database.chmod(0o600)
+      const info = await database.stat()
+      if (!info.isFile() || info.uid !== process.getuid?.() || (info.mode & 0o777) !== 0o600)
+        throw new Error('acceptance database owner invalid')
+      record({
+        event: 'stage',
+        phase: 'databaseOwner',
+        outcome: replaced
+          ? prepared.databaseIdentity === undefined
+            ? 'created'
+            : 'restored'
+          : 'verified',
+      })
+    } finally {
+      await database.close()
+    }
+  }
+  async function openStorageStage(prepared: Awaited<ReturnType<typeof prepare>>) {
+    phase = 'storage'
+    category = 'storage'
+    const fragments = migrationFragments()
+    storage = await openStorage(
+      {
+        dialect: 'sqlite',
+        file: config.databaseFile,
+        migrations: composeMigrations(fragments),
+        upgrade: { guard, checks: [migrationPrefixCheck(fragments), clockPreflight()] },
+      },
+      {
+        logger: {
+          info: () => record({ event: 'provider', phase: 'storage', outcome: 'info' }),
+          warn: () => record({ event: 'provider', phase: 'storage', outcome: 'warn' }),
+          error: () => record({ event: 'provider', phase: 'storage', outcome: 'error' }),
+        },
+      },
+    )
+    await verifyDatabaseOwner(prepared)
+    record({ event: 'stage', phase: 'migrations', outcome: 'complete' })
+    await hooks?.storageOpened?.(storage, guard)
+    assertNotClosing()
+    await load('storage', storageBinding(storage), {})
+
+    return storage
+  }
+  async function awaitClockReady() {
+    phase = 'clockReady'
+    category = 'clockUnavailable'
+    const clock: unknown = context.get(CLOCK_SERVICE)
+    if (!clockFace(clock)) throw new Error('acceptance clock absent')
+    activeClock = clock
+    const deadline = config.wait.monotonicNow() + config.wait.clockTimeoutMs
+    let waiting = false
+    while (clock.now() === 'unavailable') {
+      if (!waiting) {
+        waiting = true
+        record({ event: 'stage', phase: 'clockReady', outcome: 'waiting' })
+      }
+      assertNotClosing()
+      const remaining = deadline - config.wait.monotonicNow()
+      if (remaining <= 0) throw new Error('acceptance clock deadline')
+      await config.wait.sleep(Math.min(config.wait.pollMs, remaining))
+    }
+    record({ event: 'stage', phase: 'clockReady', outcome: 'ready' })
+    if (!allActive(BASE_FIBERS)) {
+      category = 'failed'
+      throw new Error('acceptance base changed')
+    }
+    return clock
+  }
+  async function confirmUpgrade(clock: Clock) {
+    phase = 'confirm'
+    category = 'confirmation'
+    await hooks?.beforeConfirm?.(guard)
+    assertNotClosing()
+    if (!allActive(BASE_FIBERS) || clock.now() === 'unavailable')
+      throw new Error('acceptance base no longer ready')
+    record({ event: 'confirm', phase: 'upgrade', outcome: 'started' })
+    const confirmation = await guard.confirm()
+    if (confirmation.snapshotTaken && !confirmation.snapshotRemoved)
+      throw new Error('acceptance snapshot not removed')
+    record({ event: 'confirm', phase: 'upgrade', outcome: 'succeeded', confirmation })
+    category = 'failed'
+    assertNotClosing()
+    await hooks?.afterConfirm?.()
+    assertNotClosing()
+    return confirmation
+  }
+  async function startDirectory(prepared: Awaited<ReturnType<typeof prepare>>) {
+    new DirectoryDiagnostics(context, {
+      record(event) {
+        record({
+          event: 'directory',
+          phase: event.operation,
+          outcome: event.outcome ?? event.phase,
+        })
+      },
+    })
+    await load('directory', modelProfileDirectoryPlugin, prepared.directory)
+  }
+  async function startSessionTenancy() {
+    if (preparationStage) {
+      await load('sessionTenancy', sessionTenancyTablePlugin, {})
+      const value: unknown = context.get(SESSION_TENANCY)
+      if (!sessionTenancyFace(value)) throw new Error('acceptance session tenancy absent')
+      sessionTenancy = value
+    }
+  }
+  async function openPhysicalLog(logDeployment: AcceptanceConfig['sessionLog']) {
+    phase = 'sessionLog'
+    category = 'failed'
+    assertNotClosing()
+    if (logDeployment === undefined) throw new Error('acceptance log deployment absent')
+    if (storage === undefined) throw new Error('session journal storage absent')
+    journalTenancy = createSessionTenancyReader(storage)
+    journalAuthoritySource = {
+      storage,
+      recovery: journalRecovery,
+      tenancy: journalTenancy,
+      logins: () => logins,
+      memberships: () => memberships,
+      access: trustedAccess,
+      ingress: () => sessionIngress,
+    }
+    const authority = createSqlLogAuthority(journalAuthoritySource)
+    sessionLogOwner = openSqlSessionLog({
+      storage,
+      authority,
+      operationLimit: logDeployment.operationLimit,
+    })
+    originalIssue = createOriginalIssueOwner({
+      storage,
+      log: sessionLogOwner.participant,
+      access: journalRecovery,
+      limit: logDeployment.operationLimit,
+      authority: {
+        async authorizeIn(unit, identity) {
+          const actor = invocationActors.getStore()
+          if (actor === undefined || closing || journalAuthoritySource === undefined)
+            return { kind: 'unavailable' }
+          const result = await checkSqlActor(unit, journalAuthoritySource, actor, identity)
+          return { kind: result === 'notAuthorized' ? 'denied' : result }
+        },
+      },
+    })
+    const consumerLog = (await hooks?.sessionLogOpened?.(sessionLogOwner)) ?? sessionLogOwner
+    sessionLogBacking = createSessionLogBacking(
+      consumerLog,
+      sessionLogOwner.backing.ownerGeneration,
+    )
+    new SessionLogBacking(context, sessionLogBacking.operations)
+    runnerHost = createDemoRunnerHost(sessionLogOwner, sessionLogOwner.backing.ownerGeneration)
+    await load('sessionLog', borrowedSessionLog, {})
+  }
+  function captureBusinessServices() {
+    const loginValue: unknown = context.get(LOGINS_SERVICE),
+      membershipValue: unknown = context.get(MEMBERSHIPS_SERVICE),
+      catalogValue: unknown = context.get(MODEL_CATALOG),
+      lookupValue: unknown = context.get(CREDENTIAL_LOOKUP),
+      registrationValue: unknown = context.get(REGISTRATION_SERVICE)
+    if (
+      !loginFace(loginValue) ||
+      !membershipFace(membershipValue) ||
+      !catalogFace(catalogValue) ||
+      !lookupFace(lookupValue) ||
+      !registrationFace(registrationValue)
+    )
+      throw new Error('acceptance service mapping invalid')
+    logins = loginValue
+    memberships = membershipValue
+    catalog = catalogValue
+    lookup = lookupValue
+    registration = registrationValue
+  }
+  const authorizeSessionIngress: Parameters<typeof createSessionIngress>[0] = async (
+    actor,
+    scope,
+  ) => {
+    // Application admission rejects new work during close. Existing tracked work
+    // keeps its live ingress until the domain drains, with current identity checks.
+    if (sessionTenancy === undefined) return 'unavailable'
+    const checked = await checkActor(actor)
+    if (!('account' in checked)) return 'notAuthorized'
+    if (!tenantIdEquals(checked.tenant, scope.tenant)) return 'notAuthorized'
+    const held = await sessionTenancy.holdingTenant(scope.session)
+    if ('failure' in held) return held.failure === 'unavailable' ? 'unavailable' : 'notAuthorized'
+    return tenantIdEquals(held.tenant, scope.tenant) ? 'authorized' : 'notAuthorized'
+  }
+  async function startLogicalLogDomain(
+    logDeployment: AcceptanceConfig['sessionLog'],
+    storage: SqlStorage,
+    clock: Clock,
+  ) {
+    sessionIngress = createSessionIngress(authorizeSessionIngress)
+    new SessionIngressAuthority(context, sessionIngress.operations)
+    await load('sessionAccess', trustedAccess.plugin, {})
+    if (!sessionLogBacking || !sessionTenancy || !logDeployment)
+      throw new Error('session log owner dependencies absent')
+    const catalogStorage = storage
+    if (sessionLogOwner === undefined) throw new Error('SQL journal owner absent')
+    const owner = await createAuthorizedLogOwner({
+      owner: sessionLogOwner.owner,
+      ...(hooks?.sessionLogOpened === undefined ? {} : { decorateLog: hooks.sessionLogOpened }),
+      generation: sessionLogOwner.backing.ownerGeneration,
+      recovery: journalRecovery,
+      catalog: () => catalogStorage.read(tx => readSessionCatalogIn(tx)),
+    })
+    authorizedLogOwner = owner
+    context.effect(() => () => owner.drain())
+    new AuthorizedLogOwner(context, owner.operations)
+    await restoreContextPrefixes(owner)
+    await startContextProvider(catalogStorage, sessionTenancy, clock)
+  }
+  async function restoreContextPrefixes(
+    owner: Awaited<ReturnType<typeof createAuthorizedLogOwner>>,
+  ) {
+    // No creation or user write is admitted until every existing physical prefix is checked.
+    const owned = await owner.operations.enumerate(owner.recovery)
+    if (owned.kind !== 'sessions') throw new Error('session log catalog unavailable')
+    for (const { scope } of owned.sessions) {
+      const prefix = await owner.operations.readPrefix(owner.recovery, scope)
+      if (prefix.kind !== 'prefix') throw new Error('session log prefix recovery unavailable')
+    }
+  }
+  async function startContextProvider(
+    catalogStorage: SqlStorage,
+    sessionTenancy: SessionTenancyService,
+    clock: Clock,
+  ) {
+    contextAssembly = await startRuntimeContextAssembly(context)
+    await contextAssembly.ready
+    const contextFiber = contextAssembly.fiber()
+    if (!contextFiber) throw new Error('runtime context fiber missing')
+    fibers.set('runtimeContext', contextFiber)
+    await hooks?.fiberCreated?.('runtimeContext', contextFiber)
+    if (contextFiber.state !== FIBER_STATE.ACTIVE) throw new Error('runtime context fiber inactive')
+    record({
+      event: 'fiber',
+      phase: 'runtimeContext',
+      outcome: 'active',
+      fiber: 'runtimeContext',
+      state: contextFiber.state,
+    })
+    assertNotClosing()
+    await load('sessionContextSource', sessionIdentitySource, {})
+    const creator = createSessionContextCreator({
+      initializer: contextAssembly.initializer,
+      tenancy: sessionTenancy,
+      clock,
+      createRow: scope =>
+        catalogStorage.atomic(unit =>
+          unit.mutate(tx => seedHoldingTenant(tx, scope.session, scope.tenant)),
+        ),
+    })
+    contextCreator = creator
+    context.effect(() => () => creator.drain())
+  }
+
+  function openAdmission() {
+    phase = 'admission'
+    assertNotClosing()
+    if (!allActive(stage === 'modelRequest' ? SESSION_LOG_FIBERS : requiredFibers))
+      throw new Error('acceptance required stage changed')
+    if (stage === 'modelRequest') identityGateOpen = true
+    else gateOpen = true
+    record({
+      event: 'gate',
+      phase: 'scenario',
+      outcome: stage === 'modelRequest' ? 'identityOpen' : 'open',
+    })
+  }
   async function start(): Promise<{ readonly confirmation: UpgradeConfirmation }> {
     try {
-      if (
-        stage !== 'authentication' &&
-        stage !== 'requestPreparation' &&
-        stage !== 'sessionLog' &&
-        stage !== 'modelRequest'
-      )
-        throw new Error('acceptance stage invalid')
-      const logDeployment = logStage
-        ? await prepareSessionLogDeployment(config.sessionLog)
-        : undefined
-      requestDeployment =
-        stage === 'modelRequest'
-          ? prepareModelRequestDeployment(config.modelRequest, options.developmentTransport)
-          : undefined
-      const prepared = await prepare(config)
-      assertNotClosing()
-      record({ event: 'stage', phase: 'prepare', outcome: 'ready' })
-      phase = 'storage'
-      category = 'storage'
-      const fragments = [
-        ...(preparationStage ? requestPreparationMigrations : acceptanceMigrations),
-        ...(stage === 'modelRequest' ? evaluationInputMigrations : []),
-        ...(stage === 'modelRequest' ? assemblyManifestMigrations : []),
-        ...(stage === 'modelRequest' ? modelCallContentMigrations('sqlite') : []),
-        ...(hooks?.extraMigrations ?? []).filter(
-          extra => !assemblyManifestMigrations.some(builtin => builtin === extra),
-        ),
-      ]
-      storage = await openStorage(
-        {
-          dialect: 'sqlite',
-          file: config.databaseFile,
-          migrations: composeMigrations(fragments),
-          upgrade: { guard, checks: [migrationPrefixCheck(fragments), clockPreflight()] },
-        },
-        {
-          logger: {
-            info: () => record({ event: 'provider', phase: 'storage', outcome: 'info' }),
-            warn: () => record({ event: 'provider', phase: 'storage', outcome: 'warn' }),
-            error: () => record({ event: 'provider', phase: 'storage', outcome: 'error' }),
-          },
-        },
-      )
-      const database = await open(config.databaseFile, constants.O_RDONLY | constants.O_NOFOLLOW)
-      try {
-        const owner = await database.stat({ bigint: true })
-        const uid = process.getuid?.()
-        if (!owner.isFile() || uid === undefined || owner.uid !== BigInt(uid))
-          throw new Error('acceptance database owner invalid')
-        // The read-only precheck already refused unsafe preexisting files.
-        // Only a genuinely new/replaced owned file is eligible for restriction.
-        const replaced =
-          prepared.databaseIdentity === undefined ||
-          prepared.databaseIdentity.dev !== owner.dev ||
-          prepared.databaseIdentity.ino !== owner.ino ||
-          prepared.databaseIdentity.birthtimeNs !== owner.birthtimeNs
-        if (replaced) await database.chmod(0o600)
-        const info = await database.stat()
-        if (!info.isFile() || info.uid !== process.getuid?.() || (info.mode & 0o777) !== 0o600)
-          throw new Error('acceptance database owner invalid')
-        record({
-          event: 'stage',
-          phase: 'databaseOwner',
-          outcome: replaced
-            ? prepared.databaseIdentity === undefined
-              ? 'created'
-              : 'restored'
-            : 'verified',
-        })
-      } finally {
-        await database.close()
-      }
-      record({ event: 'stage', phase: 'migrations', outcome: 'complete' })
-      await hooks?.storageOpened?.(storage, guard)
-      assertNotClosing()
-      await load('storage', storageBinding(storage), {})
-
+      const { prepared, logDeployment } = await prepareDeploymentStage()
+      const storage = await openStorageStage(prepared)
       await load('clock', clockPlugin, {})
       await load('credentials', credentialsPlugin, prepared.credentials)
       await load('accountIdentity', accountIdentityPlugin, prepared.identity)
       await load('governance', organizationGovernancePlugin, prepared.governance)
       await load('registration', registrationPlugin, prepared.registration)
-      phase = 'clockReady'
-      category = 'clockUnavailable'
-      const clock: unknown = context.get(CLOCK_SERVICE)
-      if (!clockFace(clock)) throw new Error('acceptance clock absent')
-      activeClock = clock
-      const deadline = config.wait.monotonicNow() + config.wait.clockTimeoutMs
-      let waiting = false
-      while (clock.now() === 'unavailable') {
-        if (!waiting) {
-          waiting = true
-          record({ event: 'stage', phase: 'clockReady', outcome: 'waiting' })
-        }
-        assertNotClosing()
-        const remaining = deadline - config.wait.monotonicNow()
-        if (remaining <= 0) throw new Error('acceptance clock deadline')
-        await config.wait.sleep(Math.min(config.wait.pollMs, remaining))
-      }
-      record({ event: 'stage', phase: 'clockReady', outcome: 'ready' })
-      if (!allActive(BASE_FIBERS)) {
-        category = 'failed'
-        throw new Error('acceptance base changed')
-      }
-      phase = 'confirm'
-      category = 'confirmation'
-      await hooks?.beforeConfirm?.(guard)
-      assertNotClosing()
-      if (!allActive(BASE_FIBERS) || clock.now() === 'unavailable')
-        throw new Error('acceptance base no longer ready')
-      record({ event: 'confirm', phase: 'upgrade', outcome: 'started' })
-      const confirmation = await guard.confirm()
-      if (confirmation.snapshotTaken && !confirmation.snapshotRemoved)
-        throw new Error('acceptance snapshot not removed')
-      record({ event: 'confirm', phase: 'upgrade', outcome: 'succeeded', confirmation })
-      category = 'failed'
-      assertNotClosing()
-      await hooks?.afterConfirm?.()
-      assertNotClosing()
-      new DirectoryDiagnostics(context, {
-        record(event) {
-          record({
-            event: 'directory',
-            phase: event.operation,
-            outcome: event.outcome ?? event.phase,
-          })
-        },
-      })
-      await load('directory', modelProfileDirectoryPlugin, prepared.directory)
+      const clock = await awaitClockReady()
+      const confirmation = await confirmUpgrade(clock)
+      await startDirectory(prepared)
       phase = 'replica'
       category = 'failed'
       await hooks?.beforeReplica?.()
@@ -1272,113 +1569,11 @@ export function createAcceptanceApplication(
       await hooks?.beforeLookup?.()
       new ReplicaReader(context, { readIn: replica.readBoundReplicaIn })
       await load('lookup', localCredentialLookupPlugin, { mode: 'localCredentialOnly' })
-      if (preparationStage) {
-        await load('sessionTenancy', sessionTenancyTablePlugin, {})
-        const value: unknown = context.get(SESSION_TENANCY)
-        if (!sessionTenancyFace(value)) throw new Error('acceptance session tenancy absent')
-        sessionTenancy = value
-      }
-      if (logStage) {
-        phase = 'sessionLog'
-        category = 'failed'
-        assertNotClosing()
-        if (logDeployment === undefined) throw new Error('acceptance log deployment absent')
-        const ownedLogOptions: Parameters<typeof openJsonlSessionLog>[0] = {
-          ...logDeployment,
-          diagnostic: event =>
-            record({
-              event: 'sessionLog',
-              phase: event.stage,
-              outcome: event.outcome ?? event.level,
-            }),
-        }
-        sessionLogOwner = await openJsonlSessionLog(ownedLogOptions)
-        const consumerLog = (await hooks?.sessionLogOpened?.(sessionLogOwner)) ?? sessionLogOwner
-        sessionLogBacking = createSessionLogBacking(consumerLog)
-        new SessionLogBacking(context, sessionLogBacking.operations)
-        runnerHost = createDemoRunnerHost(
-          sessionLogOwner,
-          ownedLogOptions,
-          sessionLogBacking.operations.ownerGeneration,
-        )
-        await load('sessionLog', borrowedSessionLog, {})
-      }
-      const loginValue: unknown = context.get(LOGINS_SERVICE),
-        membershipValue: unknown = context.get(MEMBERSHIPS_SERVICE),
-        catalogValue: unknown = context.get(MODEL_CATALOG),
-        lookupValue: unknown = context.get(CREDENTIAL_LOOKUP),
-        registrationValue: unknown = context.get(REGISTRATION_SERVICE)
-      if (
-        !loginFace(loginValue) ||
-        !membershipFace(membershipValue) ||
-        !catalogFace(catalogValue) ||
-        !lookupFace(lookupValue) ||
-        !registrationFace(registrationValue)
-      )
-        throw new Error('acceptance service mapping invalid')
-      logins = loginValue
-      memberships = membershipValue
-      catalog = catalogValue
-      lookup = lookupValue
-      registration = registrationValue
-      if (logStage) {
-        sessionIngress = createSessionIngress(async (actor, scope) => {
-          if (closing || sessionTenancy === undefined) return 'unavailable'
-          const checked = await checkActor(actor)
-          if (!('account' in checked)) return 'notAuthorized'
-          if (!tenantIdEquals(checked.tenant, scope.tenant)) return 'notAuthorized'
-          const held = await sessionTenancy.holdingTenant(scope.session)
-          if ('failure' in held)
-            return held.failure === 'unavailable' ? 'unavailable' : 'notAuthorized'
-          return tenantIdEquals(held.tenant, scope.tenant) ? 'authorized' : 'notAuthorized'
-        })
-        new SessionIngressAuthority(context, sessionIngress.operations)
-        await load('sessionAccess', trustedAccess.plugin, {})
-        if (!sessionLogBacking || !sessionTenancy || !logDeployment)
-          throw new Error('session log owner dependencies absent')
-        const catalogStorage = storage
-        const owner = await createAuthorizedLogOwner({
-          dir: logDeployment.dir,
-          backing: sessionLogBacking.operations,
-          access: context.sessionAccess,
-          tenancy: sessionTenancy,
-          catalog: () => catalogStorage.read(tx => readSessionCatalogIn(tx)),
-        })
-        authorizedLogOwner = owner
-        context.effect(() => () => owner.drain())
-        new AuthorizedLogOwner(context, owner.operations)
-        // No creation or user write is admitted until every existing physical prefix is checked.
-        const owned = await owner.operations.enumerate(owner.recovery)
-        if (owned.kind !== 'sessions') throw new Error('session log catalog unavailable')
-        for (const { scope } of owned.sessions) {
-          const prefix = await owner.operations.readPrefix(owner.recovery, scope)
-          if (prefix.kind !== 'prefix') throw new Error('session log prefix recovery unavailable')
-        }
-        await load('runtimeContext', runtimeContextLocal, {})
-        await load('sessionContextSource', sessionIdentitySource, {})
-        const creator = createSessionContextCreator({
-          backing: sessionLogBacking.operations,
-          tenancy: sessionTenancy,
-          clock,
-          createRow: scope =>
-            catalogStorage.atomic(unit =>
-              unit.mutate(tx => seedHoldingTenant(tx, scope.session, scope.tenant)),
-            ),
-        })
-        contextCreator = creator
-        context.effect(() => () => creator.drain())
-      }
-      phase = 'admission'
-      assertNotClosing()
-      if (!allActive(stage === 'modelRequest' ? SESSION_LOG_FIBERS : requiredFibers))
-        throw new Error('acceptance required stage changed')
-      if (stage === 'modelRequest') identityGateOpen = true
-      else gateOpen = true
-      record({
-        event: 'gate',
-        phase: 'scenario',
-        outcome: stage === 'modelRequest' ? 'identityOpen' : 'open',
-      })
+      await startSessionTenancy()
+      if (logStage) await openPhysicalLog(logDeployment)
+      captureBusinessServices()
+      if (logStage) await startLogicalLogDomain(logDeployment, storage, clock)
+      openAdmission()
       return { confirmation }
     } catch (error) {
       if (error instanceof StorageStartupFailure) category = 'storage'
@@ -1757,7 +1952,6 @@ export function createAcceptanceApplication(
           if (requestDeployment === undefined || transportService === undefined)
             throw new Error('model runtime construction prerequisites absent')
           const deployment = requestDeployment
-          const transport = transportService
           function newId<B extends string>(label: string, brand: B) {
             const parsed = parseOpaqueIdentifier(`${label}-${randomUUID()}`, brand)
             if (!isOk(parsed)) throw new Error('model identity source invalid')
@@ -1765,8 +1959,7 @@ export function createAcceptanceApplication(
           }
           if (storage === undefined) throw new Error('acceptance storage absent')
           const callPresence = createDemoCallPresence({
-            calls,
-            retained: ref => trackedCalls.get(ref.session)?.get(ref.callId),
+            executions: () => modelRuntime?.executionSource,
             settled: session => {
               const owner = sessionBorrows.get(session)?.owner.owner
               return (
@@ -1780,34 +1973,6 @@ export function createAcceptanceApplication(
               return targets === undefined ? undefined : { target: targets.get(ref.callId) ?? null }
             },
           })
-          const callFacts = createModelCallFacts({
-            content: createModelCallContentStore({
-              storage,
-              policy: deployment.callReferences.content,
-            }),
-            presence: callPresence,
-            maxScopes: deployment.callReferences.maxScopes,
-          })
-          const callAccess = createDemoCallAccess({
-            async authorize(session) {
-              const actor = runtimeActors.get(session)
-              if (actor === undefined || closing || recoveryAdmission.has(session))
-                return { unavailable: true }
-              const access = await sessionAccess(actor, session)
-              if ('borrow' in access) {
-                runtimeActors.set(session, access.checked)
-                return { binding: access.borrow.binding }
-              }
-              return 'failure' in access &&
-                (access.failure === 'identityMismatch' ||
-                  access.failure === 'membershipNotEffective')
-                ? { denied: true }
-                : { unavailable: true }
-            },
-            facts: callFacts,
-            revoked: accessRevocation.signal,
-            diagnostic: outcome => record({ event: 'operation', phase: 'callAccess', outcome }),
-          })
           // Immutable deployment identifiers only; the created payload cannot cite a mutable path.
           const sourceVersions = Object.freeze({
             officialManifest: `ordinal:${config.officialManifest.ordinal}`,
@@ -1819,71 +1984,18 @@ export function createAcceptanceApplication(
               .sort()
               .join(','),
           })
-          const construction: RuntimeConstruction<PlannedRequest, RawResponse> = {
-            callAccess,
+          const baseInputs: ModelRuntimeHostInputs = {
+            callAccess: {
+              async check() {
+                return { unavailable: true }
+              },
+            },
             callPresence,
-            callFacts,
-            maxScopes: deployment.maxScopes,
             sessions: {
-              async bind(session) {
-                const originalActor = runtimeActors.get(session)
-                if (originalActor === undefined) return { failure: 'unavailable' }
-                const access = await sessionAccess(originalActor, session)
-                if (!('borrow' in access)) return { failure: 'unavailable' }
-                if (catalog === undefined || lookup === undefined || currentInputs === undefined)
-                  return { failure: 'unavailable' }
-                const selectionInput = ensureSelection(access.borrow)
-                if (selectionInput === undefined) return { failure: 'unavailable' }
-                const existing = runtimeBindings.get(session)
-                if (existing !== undefined) {
-                  if (
-                    existing.log !== access.borrow.binding ||
-                    existing.selection !== selectionInput
-                  )
-                    return { failure: 'unavailable' }
-                  return { binding: existing }
-                }
-                const binding: SessionRuntimeBinding = {
-                  log: access.borrow.binding,
-                  selection: selectionInput,
-                  sourceVersions,
-                  catalog,
-                  credentials: lookup,
-                  currentEvaluationInputs: currentInputs,
-                  observers: observerAccess.access,
-                  tools: requestDeployment?.assetRegistry ??
-                    assetRegistry ?? {
-                      async lookup() {
-                        return { failure: 'unavailable' }
-                      },
-                    },
-                }
-                runtimeBindings.set(session, binding)
-                return { binding }
+              async bind() {
+                return { failure: 'unavailable' }
               },
             },
-            calls,
-            transport: {
-              clearReuseScope(scope) {
-                return transport.clearReuseScope(scope)
-              },
-              acquire(binding, routeName) {
-                if (closing) return { unavailable: true }
-                const acquired = transport.acquire(binding, routeName)
-                if ('lease' in acquired) return acquired
-                return acquired.rejected === 'invalidInput'
-                  ? { invalidInput: { reason: 'malformed' } }
-                  : { unavailable: true }
-              },
-            },
-            settlementContention: deployment.settlement.contention,
-            settlementScheduler: deployment.settlement.scheduler,
-            policy: {
-              ...deployment.invocation,
-              diagnostic: event =>
-                'tenant' in event ? recordSettlement(event) : recordInvocationDiagnostic(event),
-            },
-            tokenMargin: deployment.tokenMargin,
             identities: {
               call: () => newId('call', 'ModelCallId'),
               response: () => newId('response', 'ResponseId'),
@@ -1906,9 +2018,10 @@ export function createAcceptanceApplication(
                 options.runHistory ??
                 createToolDriverRunReader(sessionLogBacking!.operations.ownerGeneration),
             },
-            reservationWaitPolicy: deployment.reservationWaitPolicy,
-            acknowledgementCleanup: deployment.acknowledgementCleanup,
             recovery: {
+              async authorize() {
+                return { unavailable: true }
+              },
               async enter(input) {
                 const ready = recoveryReady.get(input.session)
                 if (
@@ -1921,65 +2034,157 @@ export function createAcceptanceApplication(
                   ready.owner.owner.unresolvedWrites().length !== 0
                 )
                   return { unavailable: true }
-                ready.scopeIssued = true
                 record({ event: 'operation', phase: 'recovery', outcome: 'entered' })
-                let closed = false
-                return {
-                  scope: {
-                    binding: ready.binding,
-                    owner: ready.owner.owner,
-                    originalInvocation(key, target) {
-                      if (key.session !== input.session || key.callId !== target.call)
-                        return { unavailable: true }
-                      const original = ready.originals.get(key.callId)
-                      if (original !== undefined) {
-                        if (
-                          original.target.response !== target.response ||
-                          !modelLogJsonEqual(original.target.dispatch, target.dispatch)
-                        )
-                          return { unavailable: true }
-                        return { original: original.handle }
-                      }
-                      const cold = ready.coldTargets.get(key.callId)
-                      if (
-                        !ready.coldAbsent ||
-                        cold === undefined ||
-                        cold.response !== target.response ||
-                        !modelLogJsonEqual(cold.dispatch, target.dispatch) ||
-                        trackedCalls.get(key.session)?.has(key.callId)
-                      )
-                        return { unavailable: true }
-                      return { absent: true }
-                    },
-                    async close() {
-                      if (closed) return
-                      await ready.owner.drain()
-                      if (
-                        ready.owner.retained() ||
-                        ready.owner.owner.unresolvedWrites().length !== 0 ||
-                        ready.binding.log.currentGeneration() !== ready.binding.log.generation
-                      )
-                        throw new Error('recovery owner retained')
-                      closed = true
-                      recoveryReady.delete(input.session)
-                      recoveryAdmission.delete(input.session)
-                      // Every unresolved dispatch of the covered cold worker is now settled.
-                      if (coldStopped.has(input.session)) coldStopped.set(input.session, new Map())
-                      record({ event: 'operation', phase: 'recovery', outcome: 'closed' })
-                    },
-                  },
-                }
+                return createDemoRecoveryScope(input.session, ready, {
+                  executions: () => modelRuntime?.executionSource,
+                  readyRows: recoveryReady,
+                  admission: recoveryAdmission,
+                  coldStopped,
+                  onClosed: () =>
+                    record({ event: 'operation', phase: 'recovery', outcome: 'closed' }),
+                })
               },
             },
+          }
+          modelInputs = await createDemoModelInputs(context, baseInputs, {
+            settlementContention: deployment.settlement.contention,
+            settlementScheduler: deployment.settlement.scheduler,
+            policy: {
+              ...deployment.invocation,
+              diagnostic: event =>
+                'tenant' in event ? recordSettlement(event) : recordInvocationDiagnostic(event),
+            },
+            acknowledgementCleanup: deployment.acknowledgementCleanup,
             diagnosticCollector: tenant.collector,
             diagnostic: recordSettlement,
-          }
-          try {
-            modelRuntime = createModelRuntime(construction)
-          } catch (error) {
-            // The runtime never took ownership of the facts owner; stop its content writes here.
-            await callFacts.close()
-            throw error
+          })
+          modelAssembly = await startModelRuntimeAssembly(context, {
+            maxScopes: deployment.maxScopes,
+            callReferences: deployment.callReferences,
+            reservationWaitPolicy: {
+              maxWaitersPerCall: jsonNumberSource(
+                deployment.reservationWaitPolicy.maxWaitersPerCall,
+              ),
+              timeoutMs: jsonNumberSource(deployment.reservationWaitPolicy.timeoutMs),
+            },
+            tokenMargin: {
+              multiplier: jsonNumberSource(deployment.tokenMargin.multiplier),
+              reserveTokens: jsonNumberSource(deployment.tokenMargin.reserveTokens),
+            },
+          })
+          await modelAssembly.ready
+          modelRuntime = modelAssembly.owner()
+          projectModel = (original, boundSession, recoveryAuthorization) => {
+            // Capture identity values, then recheck the same subject at every admission point.
+            const actor: AuthenticatedActor = Object.freeze({
+              ...original,
+              tenant: Object.freeze({ ...original.tenant }),
+            })
+            const inputsOwner = modelInputs
+            if (!inputsOwner) throw new AcceptanceOperationDefect('modelInputs')
+            return inputsOwner.caller(callerStopped => {
+              const qualification = new AbortController()
+              const revoked = AbortSignal.any([
+                accessRevocation.signal,
+                qualification.signal,
+                callerStopped,
+              ])
+              const qualify = async (session: SessionRef) => {
+                if (boundSession !== undefined && session !== boundSession)
+                  return { failure: 'stageClosed' as const }
+                const current = await sessionAccess(actor, session)
+                if (
+                  'step' in current &&
+                  current.step === 'verify' &&
+                  'failure' in current.result &&
+                  current.result.failure === 'login-state-rejected'
+                ) {
+                  qualification.abort()
+                }
+                return current
+              }
+              const facts = modelRuntime?.facts
+              if (!facts) throw new AcceptanceOperationDefect('modelRuntimeFacts')
+              const access = createDemoCallAccess({
+                async authorize(session) {
+                  if (revoked.aborted || closing || recoveryAdmission.has(session))
+                    return { unavailable: true }
+                  const current = await qualify(session)
+                  if ('borrow' in current) return { binding: current.borrow.binding }
+                  return 'failure' in current &&
+                    (current.failure === 'identityMismatch' ||
+                      current.failure === 'membershipNotEffective')
+                    ? { denied: true }
+                    : { unavailable: true }
+                },
+                facts,
+                revoked,
+                diagnostic: outcome => record({ event: 'operation', phase: 'callAccess', outcome }),
+              })
+              const inputs: ModelRuntimeHostInputs = Object.freeze({
+                callAccess: access,
+                callPresence,
+                identities: baseInputs.identities,
+                history: baseInputs.history,
+                sessions: Object.freeze({
+                  async bind(
+                    session: SessionRef,
+                  ): ReturnType<ModelRuntimeHostInputs['sessions']['bind']> {
+                    if (boundSession !== undefined && recoveryAdmission.has(session))
+                      return { failure: 'unavailable' }
+                    const access = await qualify(session)
+                    if (revoked.aborted || !('borrow' in access)) return { failure: 'unavailable' }
+                    if (
+                      catalog === undefined ||
+                      lookup === undefined ||
+                      currentInputs === undefined
+                    )
+                      return { failure: 'unavailable' }
+                    const selectionInput = ensureSelection(access.borrow)
+                    if (selectionInput === undefined) return { failure: 'unavailable' }
+                    const existing = runtimeBindings.get(session)
+                    if (existing !== undefined) {
+                      if (
+                        existing.log !== access.borrow.binding ||
+                        existing.selection !== selectionInput
+                      )
+                        return { failure: 'unavailable' }
+                      return { binding: existing }
+                    }
+                    const binding: SessionRuntimeBinding = {
+                      log: access.borrow.binding,
+                      selection: selectionInput,
+                      sourceVersions,
+                      catalog,
+                      credentials: lookup,
+                      currentEvaluationInputs: currentInputs,
+                      observers: observerAccess.access,
+                      tools: requestDeployment?.assetRegistry ??
+                        assetRegistry ?? {
+                          async lookup() {
+                            return { failure: 'unavailable' }
+                          },
+                        },
+                    }
+                    runtimeBindings.set(session, binding)
+                    return { binding }
+                  },
+                }),
+                recovery: Object.freeze({
+                  async authorize(
+                    input: Parameters<ModelRuntimeHostInputs['recovery']['authorize']>[0],
+                  ) {
+                    if (recoveryAuthorization !== undefined) return recoveryAuthorization(input)
+                    const current = await qualify(input.session)
+                    return !revoked.aborted && 'borrow' in current
+                      ? { authorized: true as const }
+                      : { unavailable: true as const }
+                  },
+                  enter: baseInputs.recovery.enter,
+                }),
+              })
+              return inputs
+            })
           }
           if (
             runnerHost === undefined ||
@@ -1993,7 +2198,7 @@ export function createAcceptanceApplication(
             toolFacilities = createToolRunnerFacilities(authorizedLogOwner.operations)
           const host = createDemoRunnerServiceHost({
             runnerHost,
-            model: modelRuntime.service,
+            model: actor => actorModel(actor),
             manifest,
             history: { read: registryHistory.read },
             sessionTenancy,
@@ -2041,12 +2246,12 @@ export function createAcceptanceApplication(
                   },
                 }
               }
-              const actor = runnerActors.getStore()
+              const actor = invocationActors.getStore()
               if (actor === undefined) return { unavailable: true }
               const access = await sessionAccess(actor, session)
               if (!('borrow' in access) || recoveryAdmission.has(access.borrow.binding.session))
                 return { unavailable: true }
-              runtimeActors.set(access.borrow.binding.session, access.checked)
+
               return { actor: access.checked, binding: access.borrow.binding }
             },
             ...(options.runnerExternal === undefined ? {} : { external: options.runnerExternal }),
@@ -2122,6 +2327,7 @@ export function createAcceptanceApplication(
           runnerService = runnerValue
           if (config.tools) {
             if (!authorizedLogOwner) throw new Error('tool maintenance owner absent')
+            await verifyToolRecoveryOwnership()
             toolAssembly = await installDemoTools({
               ctx: context,
               recovery: authorizedLogOwner.recovery,
@@ -2131,6 +2337,8 @@ export function createAcceptanceApplication(
                 gateOpen = false
                 runnerHost?.closeAdmission()
                 contextCreator?.closeAdmission()
+                contextAssembly?.closeAdmission()
+                modelAssembly?.closeAdmission()
               },
             })
             await toolAssembly.ready
@@ -2349,6 +2557,40 @@ export function createAcceptanceApplication(
       }
     })
   }
+  function observeLogRead(result: ReadResult): ReadResult {
+    if ('failure' in result) record({ event: 'sessionLog', phase: 'read', outcome: result.failure })
+    return result
+  }
+  async function readAuthorizedLog(
+    actor: AuthenticatedActor,
+    scope: SessionScope,
+  ): Promise<ReadResult> {
+    const ingressOwner = sessionIngress,
+      logOwner = sessionLogOwner
+    if (ingressOwner === undefined || logOwner === undefined) return { failure: 'unavailable' }
+    const operations = ['session.log.coordinate'] satisfies AccessOperation[]
+    const ingress = await ingressOwner.enter(actor, scope, 'coordinator', [], operations)
+    if (ingress.kind !== 'entered') return { failure: 'unavailable' }
+    try {
+      const issuer = trustedAccess.currentIssuer(ingress.identity)
+      if ('unavailable' in issuer) return { failure: 'unavailable' }
+      const issued = await issuer.issue({ ...ingress.identity, operations })
+      if (issued.kind !== 'issued') return { failure: 'unavailable' }
+      try {
+        const held = await logOwner.owner.borrow(issued.access, scope)
+        if (held.kind !== 'borrowed') return { failure: 'unavailable' }
+        try {
+          return await held.log.readSince(scope.session, 0)
+        } finally {
+          await held.release()
+        }
+      } finally {
+        issuer.revoke(issued.access)
+      }
+    } finally {
+      ingressOwner.revoke(ingress.identity.binding)
+    }
+  }
   function readSessionLog(
     actor: AuthenticatedActor,
     session: unknown,
@@ -2367,7 +2609,9 @@ export function createAcceptanceApplication(
         const held = await sessionTenancy.holdingTenant(parsed.ok)
         if ('failure' in held) return { step: 'holdingTenant', result: held }
         if (!tenantIdEquals(held.tenant, checked.tenant)) return { failure: 'identityMismatch' }
-        return await sessionLogOwner.readSince(parsed.ok, 0)
+        return observeLogRead(
+          await readAuthorizedLog(checked, { session: parsed.ok, tenant: held.tenant }),
+        )
       } catch (error) {
         throw operationError(error, 'readSessionLog')
       }
@@ -2429,6 +2673,26 @@ export function createAcceptanceApplication(
       }
     })
   }
+  async function fixedJournalPrefix(
+    log: NonNullable<typeof sessionLogOwner>,
+    session: SessionRef,
+    tenant: TenantId,
+  ) {
+    const current = await log.participant.source(journalRecovery, { session, tenant })
+    if ('failure' in current) return { failure: 'unavailable' } as const
+    const fixed = await log.participant.readPrefix(journalRecovery, current.source)
+    return 'failure' in fixed
+      ? ({ failure: 'unavailable' } as const)
+      : { entries: fixed.entries, tail: fixed.source.tail, source: fixed.source }
+  }
+  async function ensureCallJournal(session: SessionRef, tenant: TenantId) {
+    const issue = originalIssue
+    if (closing || authorizedLogOwner === undefined || issue === undefined) return
+    const held = await authorizedLogOwner.operations.borrow(journalRecovery, { session, tenant })
+    if (held.kind !== 'borrowed') return
+    await held.release()
+    return issue
+  }
   async function sessionAccess(actor: AuthenticatedActor, session: unknown) {
     const checked = await checkActor(actor)
     if (!('account' in checked)) return checked
@@ -2441,7 +2705,8 @@ export function createAcceptanceApplication(
     if ('failure' in held) return { step: 'holdingTenant' as const, result: held }
     if (!tenantIdEquals(held.tenant, checked.tenant))
       return { failure: 'identityMismatch' as const }
-    if (closing) return { failure: 'stageClosed' as const }
+    const issue = await ensureCallJournal(parsed.ok, held.tenant)
+    if (issue === undefined) return { failure: 'stageClosed' as const }
     let borrow = sessionBorrows.get(parsed.ok)
     if (borrow === undefined) {
       const generation = Object.freeze({})
@@ -2450,6 +2715,8 @@ export function createAcceptanceApplication(
         session: parsed.ok,
         tenant: held.tenant,
         log,
+        readPrefix: () => fixedJournalPrefix(log, parsed.ok, held.tenant),
+        originalIssue: issue,
         generation,
         currentGeneration: () =>
           sessionLogOwner === log && allActive(requiredFibers) ? generation : null,
@@ -2502,35 +2769,22 @@ export function createAcceptanceApplication(
           if (!('report' in available)) return { unavailable: true } as const
           const now = activeClock?.now()
           if (now === undefined || now === 'unavailable') return { unavailable: true } as const
-          const messageId = parseOpaqueIdentifier(`attempt-${randomUUID()}`, 'MessageId')
-          if (!isOk(messageId)) return { unavailable: true } as const
-          const value: SystemReminderMessage = {
-            id: messageId.ok,
-            type: 'system_reminder',
-            nature: 'event',
-            source: {
-              kind: 'attempt_started',
+          const entry = {
+            ok: {
+              tenant: access.checked.tenant,
+              run,
               attempt,
-              reason: 'first',
-              at: new Date(now).toISOString(),
+              dedupeKey: `session-attempt:${randomUUID()}`,
+              readKeys: ['session-runtime/attempts'],
+              payload: attemptStartedPayload({
+                kind: 'attempt_started',
+                run,
+                attempt,
+                reason: 'first',
+                at: new Date(now).toISOString(),
+              }),
             },
-            blocks: [],
-            createdAt: new Date(now).toISOString(),
           }
-          if (!('ok' in judgeMessage(value))) return { unavailable: true } as const
-          const captured = captureModelLogValue({
-            category: 'message',
-            input: { kind: 'value', value },
-          })
-          if ('invalidValue' in captured) return { unavailable: true } as const
-          const entry = prepareModelLogEntry({
-            session: binding.session,
-            shell: { tenant: access.checked.tenant, run, attempt },
-            captured: captured.ok,
-            purpose: { kind: 'message' },
-            messagePrefix: decoded.messages,
-          })
-          if ('invalidValue' in entry) return { unavailable: true } as const
           const task = acquired.registration.start('append', async () =>
             binding.log.append(
               binding.session,
@@ -2711,37 +2965,38 @@ export function createAcceptanceApplication(
   function bindModelRuntime(
     actor: AuthenticatedActor,
     session: unknown,
-  ): Promise<ScenarioResult<{ readonly service: ModelRuntimeService }>> {
+  ): Promise<ScenarioResult<{ readonly service: ModelRuntimeOperations }>> {
     if (stage !== 'modelRequest' || !admit()) return Promise.resolve({ failure: 'stageClosed' })
     return trackSessionInput(session, async () => {
       const access = await sessionAccess(actor, session)
       if (!('borrow' in access)) return access
       if (recoveryAdmission.has(access.borrow.binding.session)) return { failure: 'stageClosed' }
       if (modelRuntime === undefined) return { failure: 'stageClosed' }
-      runtimeActors.set(access.borrow.binding.session, access.checked)
+
       return { service: boundModelService(access.checked, access.borrow.binding.session) }
     })
   }
-  function boundModelService(actor: AuthenticatedActor, session: SessionRef): ModelRuntimeService {
+  function actorModel(
+    actor: AuthenticatedActor,
+    boundSession?: SessionRef,
+    recoveryAuthorization?: ModelRuntimeHostInputs['recovery']['authorize'],
+  ): ModelRuntimeOperations {
+    if (projectModel === undefined) throw new AcceptanceOperationDefect('modelRuntime')
+    return projectModel(actor, boundSession, recoveryAuthorization)
+  }
+  function boundModelService(
+    actor: AuthenticatedActor,
+    session: SessionRef,
+  ): ModelRuntimeOperations {
     if (modelRuntime === undefined) throw new AcceptanceOperationDefect('modelRuntime')
-    const service = modelRuntime.service
-    function invoke<I extends { readonly session: SessionRef }, R>(
-      input: I,
-      operation: (value: I) => Promise<R>,
-      denied: R,
-    ): Promise<R> {
-      if (input?.session !== session || closing || recoveryAdmission.has(session))
-        return Promise.resolve(denied)
-      return trackSession(session, async () => {
-        const access = await sessionAccess(actor, session)
-        if (!('borrow' in access) || recoveryAdmission.has(session)) return denied
-        runtimeActors.set(session, access.checked)
-        return operation(input)
-      })
+    const service = actorModel(actor, session)
+    function invoke<I, R>(input: I, operation: (value: I) => Promise<R>): Promise<R> {
+      // The projected ports enforce this Session after each operation's own representation check.
+      return trackSession(session, () => withInvocationActor(actor, () => operation(input)))
     }
     function scopedFailure<I extends { readonly session: SessionRef }, R>(
       operation: FailureConsumableOperation<I, R>,
-      denied: R,
+      blocked?: (value: I) => Promise<R | undefined>,
     ): FailureConsumableOperation<I, R> {
       function call(input: I): Promise<R>
       function call(
@@ -2752,73 +3007,85 @@ export function createAcceptanceApplication(
         input: I,
         options?: { readonly consumeFailure: true },
       ): Promise<R | FailureConsumption<R>> {
-        return options === undefined
-          ? invoke(input, value => operation(value), denied)
-          : invoke(input, value => operation(value, options), {
-              result: denied,
-              consumption: { kind: 'notApplicable' },
-            } as const)
+        return invoke(input, async value => {
+          const validOptions =
+            options === undefined ||
+            (options?.consumeFailure === true && Object.keys(options).length === 1)
+          const result = validOptions ? await blocked?.(value) : undefined
+          if (result !== undefined)
+            return options === undefined
+              ? result
+              : {
+                  result,
+                  consumption: { kind: 'notApplicable' as const },
+                }
+          return options === undefined ? operation(value) : operation(value, options)
+        })
       }
       return call
     }
     return {
-      acquireCall: input => {
-        if (input?.ref?.session !== session || closing || recoveryAdmission.has(session))
-          return Promise.resolve({ unavailable: true })
-        return trackSession(session, async () => {
+      acquireCall: input => invoke(input, value => service.acquireCall(value)),
+      // ACK still obtains its own fresh access; a held reference never confirms permission.
+      acknowledgeCall: input => invoke(input, value => service.acknowledgeCall(value)),
+      legalTargets: input => invoke(input, value => service.legalTargets(value)),
+      displayList: input => invoke(input, value => service.displayList(value)),
+      effectiveModel: input => invoke(input, value => service.effectiveModel(value)),
+      selectModel: input => invoke(input, value => service.selectModel(value)),
+      openCall: input => {
+        const owned = ownOpenCallInput(input)
+        if ('invalidInput' in owned) return Promise.resolve(owned)
+        return invoke(owned.request, async value => {
+          if (value.session !== session) return { unavailable: true } as const
           const access = await sessionAccess(actor, session)
-          if (!('borrow' in access) || recoveryAdmission.has(session)) return { unavailable: true }
-          runtimeActors.set(session, access.checked)
-          return service.acquireCall(input)
+          if (!('borrow' in access) && !('failure' in access && access.failure === 'stageClosed'))
+            return { unavailable: true } as const
+          if (closing || recoveryAdmission.has(session)) return { runtimeStopped: true } as const
+          if (!('borrow' in access)) return { unavailable: true } as const
+          if (![...(callHosts.get(session) ?? [])].some(owner => owner.host === value.host))
+            return { runtimeStopped: true } as const
+          const result = await service.openCall(value)
+          return result
         })
       },
-      acknowledgeCall: input => {
-        if (input?.ref?.session !== session || closing || recoveryAdmission.has(session))
-          return Promise.resolve({ unavailable: true })
-        // Only the runtime's own fresh, awaited `ack` access check can confirm; a held reference
-        // or an unreleased consumer never does.
-        return trackSession(session, async () => {
-          const access = await sessionAccess(actor, session)
-          if (!('borrow' in access) || recoveryAdmission.has(session)) return { unavailable: true }
-          runtimeActors.set(session, access.checked)
-          return service.acknowledgeCall(input)
-        })
-      },
-      legalTargets: input =>
-        invoke(input, value => service.legalTargets(value), { unavailable: true }),
-      displayList: input =>
-        invoke(input, value => service.displayList(value), { unavailable: true }),
-      effectiveModel: input =>
-        invoke(input, value => service.effectiveModel(value), { unavailable: true }),
-      selectModel: input =>
-        invoke(input, value => service.selectModel(value), { unavailable: true }),
-      openCall: input =>
-        invoke(
-          input,
-          async value => {
-            if (![...(callHosts.get(session) ?? [])].some(owner => owner.host === value.host))
-              return { runtimeStopped: true } as const
-            const result = await service.openCall(value)
-            if ('callId' in result) retainCall(session, result.callId)
-            return result
-          },
-          { runtimeStopped: true },
-        ),
-      dispatch: scopedFailure(service.dispatch, { runtimeStopped: true }),
-      dispatchAgain: scopedFailure(service.dispatchAgain, { runtimeStopped: true }),
-      interrupt: input => invoke(input, value => service.interrupt(value), { unavailable: true }),
-      releaseCall: input =>
-        invoke(input, value => service.releaseCall(value), { unavailable: true }),
+      dispatch: scopedFailure(service.dispatch, async value => {
+        if (
+          !validDispatchInput(value) ||
+          value.session !== session ||
+          !(closing || recoveryAdmission.has(session))
+        )
+          return undefined
+        const access = await sessionAccess(actor, session)
+        return 'borrow' in access || ('failure' in access && access.failure === 'stageClosed')
+          ? { runtimeStopped: true }
+          : { unavailable: true }
+      }),
+      dispatchAgain: scopedFailure(service.dispatchAgain, async value => {
+        if (
+          !validDispatchInput(value) ||
+          !('plan' in value) ||
+          value.session !== session ||
+          !(closing || recoveryAdmission.has(session))
+        )
+          return undefined
+        const access = await sessionAccess(actor, session)
+        return 'borrow' in access || ('failure' in access && access.failure === 'stageClosed')
+          ? { runtimeStopped: true }
+          : { unavailable: true }
+      }),
+      interrupt: input => invoke(input, value => service.interrupt(value)),
+      releaseCall: input => invoke(input, value => service.releaseCall(value)),
       reconcile: async input => {
+        const represented = parseOpaqueIdentifier(input?.session, 'SessionRef')
+        if (!isOk(represented) || !validateMessage('SessionRef', represented.ok).valid)
+          return { invalidInput: { reason: 'malformed' } }
         if (input.session !== session) return { unavailable: true }
         const result = await reconcileModelRuntime(actor, session)
         return 'calls' in result || 'invalidInput' in result ? result : { unavailable: true }
       },
-      readAttempts: scopedFailure(service.readAttempts, { unavailable: true }),
-      settleReply: input =>
-        invoke(input, value => service.settleReply(value), { unavailable: true }),
-      canDispatchAgain: input =>
-        invoke(input, value => service.canDispatchAgain(value), { unavailable: true }),
+      readAttempts: scopedFailure(service.readAttempts),
+      settleReply: input => invoke(input, value => service.settleReply(value)),
+      canDispatchAgain: input => invoke(input, value => service.canDispatchAgain(value)),
     }
   }
   function attachModelCallHost(
@@ -2842,7 +3109,7 @@ export function createAcceptanceApplication(
       for (const previous of owners) if (previous.released?.()) owners.delete(previous)
       owners.add(owner)
       callHosts.set(key, owners)
-      runtimeActors.set(key, access.checked)
+
       return { attached: true }
     })
   }
@@ -2860,20 +3127,29 @@ export function createAcceptanceApplication(
         return { unavailable: true }
       recoveryBusy.add(key)
       recoveryAdmission.add(key)
+      const captures: ModelRuntimeExecutionCapture[] = []
+      const captured = new Map<string, Set<AnchoredInvocationHandle>>()
       try {
+        // Resolve only this Session's original message writer before stopping its calls.
+        if (!(await closeRetainedSettlements(key))) return { unavailable: true }
         let ready = recoveryReady.get(key)
         if (ready === undefined) {
           const owners = callHosts.get(key)
           const cold = owners === undefined
-          if (cold && (runtimeBindings.has(key) || trackedCalls.has(key)))
+          if (
+            cold &&
+            (runtimeBindings.has(key) || modelRuntime.executionSource.snapshot(key).length !== 0)
+          )
             return { unavailable: true }
           for (const previous of owners ?? []) if (previous.released?.()) owners?.delete(previous)
           // Capture the original handle before stop may remove the container from the store.
-          const captured = new Map<string, AnchoredInvocationHandle>()
-          for (const [callId, container] of trackedCalls.get(key) ?? []) {
-            const handle = container.view().invocation
-            if (handle !== undefined) captured.set(callId, handle)
-          }
+          const beforeStop = modelRuntime.executionSource.capture(key)
+          if ('unavailable' in beforeStop) return { unavailable: true }
+          captures.push(beforeStop.capture)
+          for (const [callId, handles] of captureExecutionInvocations(
+            beforeStop.capture.executions,
+          ))
+            captured.set(callId, handles)
           // Stop active HTTP dispatch before draining admitted work: that work can be
           // waiting for the very abort which the host owns.
           const stopping = Promise.allSettled(
@@ -2883,30 +3159,32 @@ export function createAcceptanceApplication(
           const stopped = await stopping
           await access.borrow.owner.drain()
           const warmBinding = runtimeBindings.get(key)
-          const ownedCalls = trackedCalls.get(key)
+          const afterStop = modelRuntime.executionSource.capture(key)
+          if ('unavailable' in afterStop) return { unavailable: true }
+          captures.push(afterStop.capture)
+          let executions = afterStop.capture.executions
           if (
             (!cold && warmBinding === undefined) ||
             (warmBinding !== undefined && warmBinding.log !== access.borrow.binding) ||
             access.borrow.binding.currentGeneration() !== access.borrow.binding.generation
           )
             return { unavailable: true }
-          for (const [callId, container] of ownedCalls ?? []) {
-            const view = container.view()
-            if (
-              view.key.session !== key ||
-              view.key.callId !== callId ||
-              view.session !== warmBinding ||
-              view.owner !== access.borrow.owner.owner
-            )
-              return { unavailable: true }
-            if (!captured.has(callId) && view.invocation !== undefined)
-              captured.set(callId, view.invocation)
-          }
+          const ownedCalls = releasedExecutionCalls(
+            executions,
+            key,
+            warmBinding,
+            access.borrow.owner.owner,
+          )
           if (
-            stopped.some(result => result.status === 'rejected' || 'unavailable' in result.value) ||
-            [...(ownedCalls?.values() ?? [])].some(container => !container.canRemove())
+            ownedCalls === undefined ||
+            stopped.some(result => result.status === 'rejected' || 'unavailable' in result.value)
           )
             return { unavailable: true }
+          for (const [callId, handles] of captureExecutionInvocations(executions)) {
+            const originals = captured.get(callId) ?? new Set<AnchoredInvocationHandle>()
+            for (const handle of handles) originals.add(handle)
+            captured.set(callId, originals)
+          }
           if (
             access.borrow.owner.retained() ||
             access.borrow.owner.owner.admission() !== 'open' ||
@@ -2953,38 +3231,73 @@ export function createAcceptanceApplication(
             string,
             { readonly target: ModelLogSettlementTarget; readonly handle: AnchoredInvocationHandle }
           >()
-          for (const [callId, handle] of captured) {
+          for (const [callId, handles] of captured) {
             const history = interpretCallHistory({ prefix: prefix.prefix, callId })
             if (!('known' in history)) return { unavailable: true }
             const last = history.known.dispatches.at(-1)
             if (last === undefined || last.response !== null) continue
-            originals.set(callId, {
-              target: {
-                call: callId,
-                dispatch: last.record.dispatch,
-                response: last.record.response,
-              },
-              handle,
-            })
+            const target: ModelLogSettlementTarget = {
+              call: callId,
+              dispatch: last.record.dispatch,
+              response: last.record.response,
+            }
+            const handle = originalExecutionInvocation(handles, target)
+            if (handle === undefined) return { unavailable: true }
+            originals.set(callId, { target, handle })
           }
           ready = {
             binding: { log: access.borrow.binding },
             owner: access.borrow.owner,
+            captures: [...captures],
             originals,
             coldTargets,
             coldAbsent: cold && options.coldRecovery?.covered === true,
             scopeIssued: false,
           }
           recoveryReady.set(key, ready)
+          // The ready row is now the sole prepared holder. No raw preparation array
+          // or handle Map may cross the asynchronous scope handoff.
+          captured.clear()
+          executions = []
+          captures.length = 0
           if (ready.coldAbsent) coldStopped.set(key, coldTargets)
         } else {
           await Promise.allSettled([...(sessionTasks.get(key) ?? [])])
           await access.borrow.owner.drain()
         }
-        return await modelRuntime.service.reconcile({ session: key })
+        // This task was admitted before closing. Recheck its subject and original
+        // borrow without admitting new work or borrowing a replacement source.
+        const authorizeRecovery: ModelRuntimeHostInputs['recovery']['authorize'] = async input => {
+          if (
+            input.session !== key ||
+            !recoveryBusy.has(key) ||
+            sessionBorrows.get(key) !== access.borrow ||
+            access.borrow.binding.currentGeneration() !== access.borrow.binding.generation
+          )
+            return { unavailable: true }
+          const checked = await checkActor(access.checked)
+          if (!('account' in checked) || !tenantIdEquals(checked.tenant, access.checked.tenant))
+            return { unavailable: true }
+          const held = await sessionTenancy?.holdingTenant(key)
+          return held !== undefined &&
+            'tenant' in held &&
+            tenantIdEquals(held.tenant, checked.tenant) &&
+            recoveryBusy.has(key) &&
+            sessionBorrows.get(key) === access.borrow &&
+            access.borrow.binding.currentGeneration() === access.borrow.binding.generation
+            ? { authorized: true }
+            : { unavailable: true }
+        }
+        return await actorModel(access.checked, key, authorizeRecovery).reconcile({ session: key })
       } catch {
         return { unavailable: true }
       } finally {
+        captured.clear()
+        const prepared = recoveryReady.get(key)
+        discardUnissuedRecovery(key, recoveryReady)
+        // A successful enter hands these frames to the registered runtime scope.
+        if (prepared?.scopeIssued !== true) for (const capture of captures) capture.release()
+        captures.length = 0
         recoveryBusy.delete(key)
       }
     })
@@ -3056,7 +3369,10 @@ export function createAcceptanceApplication(
           options.runHistory ??
           createToolDriverRunReader(sessionLogBacking!.operations.ownerGeneration),
         diagnostic: recordSettlement,
-        retain: coordinator => retainedSettlements.add(coordinator),
+        retain: coordinator => {
+          retainedSettlements.add(coordinator)
+          retainedSettlementSessions.set(coordinator, access.borrow.binding.session)
+        },
       })
     }
     return isOk(parsed) ? trackSession(parsed.ok, work) : track(work)
@@ -3064,7 +3380,7 @@ export function createAcceptanceApplication(
   async function modelSelectionOperation<T>(
     actor: AuthenticatedActor,
     session: unknown,
-    work: (service: ModelRuntimeService, session: SessionRef) => Promise<T>,
+    work: (service: ModelRuntimeOperations, session: SessionRef) => Promise<T>,
   ): Promise<ScenarioResult<T>> {
     const bound = await bindModelRuntime(actor, session)
     if (!('service' in bound)) return bound
@@ -3124,72 +3440,74 @@ export function createAcceptanceApplication(
           >,
         ) => trackSession(parsedSession.ok, work)
       : track
-    return run(async () => {
-      const access = await sessionAccess(actor, session)
-      if (!('borrow' in access)) return access
-      const { borrow, checked } = access
-      if (recoveryAdmission.has(borrow.binding.session)) return { failure: 'stageClosed' }
-      const controlledRun = controlledRuns.get(borrow.binding.session)
-      if (
-        controlledRun !== undefined &&
-        (request.run !== controlledRun.run ||
-          request.attempt === undefined ||
-          ExactDecimal.from(request.attempt).compare(ExactDecimal.from(controlledRun.attempt)) !==
-            0)
-      )
-        return { invalidInput: { reason: 'malformed' } }
-      if (
-        ![...(callHosts.get(borrow.binding.session) ?? [])].some(
-          owner => owner.host === request.host,
+    return withInvocationActor(actor, () =>
+      run(async () => {
+        const access = await sessionAccess(actor, session)
+        if (!('borrow' in access)) return access
+        const { borrow, checked } = access
+        if (recoveryAdmission.has(borrow.binding.session)) return { failure: 'stageClosed' }
+        const controlledRun = controlledRuns.get(borrow.binding.session)
+        if (
+          controlledRun !== undefined &&
+          (request.run !== controlledRun.run ||
+            request.attempt === undefined ||
+            ExactDecimal.from(request.attempt).compare(ExactDecimal.from(controlledRun.attempt)) !==
+              0)
         )
-      )
-        return { failure: 'stageClosed' }
-      if (modelRuntime === undefined) return { unavailable: true }
-      if (tools.length !== 0 && requestDeployment?.assetRegistry === undefined)
-        return { unavailable: true }
-      runtimeActors.set(borrow.binding.session, checked)
-      const effective = await modelRuntime.service.effectiveModel({
-        session: borrow.binding.session,
-      })
-      if (!('effectiveModel' in effective)) return effective
-      if (requestDeployment === undefined) return { unavailable: true }
-      const appended = await appendServiceMessage(
-        borrow.binding,
-        borrow.owner.owner,
-        checked.tenant,
-        copiedUser,
-      )
-      if (!('messages' in appended)) return appended
-      const opened = await modelRuntime.service.openCall({
-        creationKey: deriveCreationKey({
+          return { invalidInput: { reason: 'malformed' } }
+        if (
+          ![...(callHosts.get(borrow.binding.session) ?? [])].some(
+            owner => owner.host === request.host,
+          )
+        )
+          return { failure: 'stageClosed' }
+        if (modelRuntime === undefined) return { unavailable: true }
+        if (tools.length !== 0 && requestDeployment?.assetRegistry === undefined)
+          return { unavailable: true }
+
+        const service = actorModel(checked)
+        const effective = await service.effectiveModel({
           session: borrow.binding.session,
-          userMessage: copiedUser.id,
+        })
+        if (!('effectiveModel' in effective)) return effective
+        if (requestDeployment === undefined) return { unavailable: true }
+        const appended = await appendServiceMessage(
+          borrow.binding,
+          borrow.owner.owner,
+          checked.tenant,
+          copiedUser,
+        )
+        if (!('messages' in appended)) return appended
+        const opened = await service.openCall({
+          creationKey: deriveCreationKey({
+            session: borrow.binding.session,
+            userMessage: copiedUser.id,
+            ...(callId === undefined ? {} : { callId: callId.ok }),
+            ...(request.run === undefined ? {} : { run: request.run, attempt: request.attempt }),
+          }),
+          session: borrow.binding.session,
           ...(callId === undefined ? {} : { callId: callId.ok }),
-          ...(request.run === undefined ? {} : { run: request.run, attempt: request.attempt }),
-        }),
-        session: borrow.binding.session,
-        ...(callId === undefined ? {} : { callId: callId.ok }),
-        target: effective.effectiveModel.routeName,
-        basis: effective.effectiveModel,
-        messages: appended.messages,
-        parameters,
-        tools,
-        host: request.host,
-        ...(request.observer === undefined ? {} : { observer: request.observer }),
-        ...(request.run === undefined
-          ? {}
-          : { run: request.run, attempt: request.attempt, report: request.report }),
-      })
-      if ('callId' in opened) retainCall(borrow.binding.session, opened.callId)
-      if (!('state' in opened) || (opened.state !== 'open' && opened.state !== 'resumable'))
-        return opened
-      const result = await modelRuntime.service.dispatch({
-        session: borrow.binding.session,
-        callId: opened.callId,
-        ...(request.run === undefined ? {} : { attempt: request.attempt }),
-      })
-      return { callId: opened.callId, result }
-    })
+          target: effective.effectiveModel.routeName,
+          basis: effective.effectiveModel,
+          messages: appended.messages,
+          parameters,
+          tools,
+          host: request.host,
+          ...(request.observer === undefined ? {} : { observer: request.observer }),
+          ...(request.run === undefined
+            ? {}
+            : { run: request.run, attempt: request.attempt, report: request.report }),
+        })
+        if (!('state' in opened) || (opened.state !== 'open' && opened.state !== 'resumable'))
+          return opened
+        const result = await service.dispatch({
+          session: borrow.binding.session,
+          callId: opened.callId,
+          ...(request.run === undefined ? {} : { attempt: request.attempt }),
+        })
+        return { callId: opened.callId, result }
+      }),
+    )
   }
   async function toolDeliveryFor(scope: SessionScope) {
     if (!config.tools || !authorizedLogOwner || !runnerService) return
@@ -3220,6 +3538,24 @@ export function createAcceptanceApplication(
     })
     toolDeliveries.set(scope.session, delivery)
     return delivery
+  }
+
+  async function verifyToolRecoveryOwnership() {
+    if (options.coldRecovery?.covered === true) return
+    if (!authorizedLogOwner) throw new Error('tool recovery owner absent')
+    const owned = await authorizedLogOwner.operations.enumerate(authorizedLogOwner.recovery)
+    if (owned.kind !== 'sessions') throw new Error('tool recovery catalog unavailable')
+    for (const { scope } of owned.sessions) {
+      const prefix = await authorizedLogOwner.operations.readPrefix(
+        authorizedLogOwner.recovery,
+        scope,
+      )
+      if (prefix.kind !== 'prefix') throw new Error('tool recovery prefix unavailable')
+      const tools = projectToolJournal(scope, prefix.prefix.entries)
+      if ('invalid' in tools) throw new Error('tool recovery journal invalid')
+      if ([...tools.executions.values()].some(execution => !execution.confirmed))
+        throw new Error('original tool execution stop unverified')
+    }
   }
 
   async function recoverToolDeliveries() {
@@ -3273,7 +3609,7 @@ export function createAcceptanceApplication(
       !admit()
     )
       return reject('stageClosed')
-    return runnerActors.run(actor, () =>
+    return withInvocationActor(actor, () =>
       trackSessionInput(session, async () => {
         const access = await sessionAccess(actor, session)
         if (!('borrow' in access)) return reject('notAuthorized')
@@ -3345,7 +3681,8 @@ export function createAcceptanceApplication(
           }
           toolDrivers.set(borrow.binding.session, owned)
         }
-        runtimeActors.set(borrow.binding.session, checked)
+
+        const model = actorModel(checked)
         const appended = await appendServiceMessage(
           borrow.binding,
           borrow.owner.owner,
@@ -3387,7 +3724,7 @@ export function createAcceptanceApplication(
             acquired.registration.release()
           }
           if ('unavailable' in projected) return reject('historyProjectionUnavailable')
-          const effective = await modelRuntime!.service.effectiveModel({
+          const effective = await model.effectiveModel({
             session: borrow.binding.session,
           })
           if (!('effectiveModel' in effective)) return reject('modelUnavailable')
@@ -3414,7 +3751,7 @@ export function createAcceptanceApplication(
             observerGrants.add(grant)
             observer = { ...request.observer, endpoint }
           }
-          const opened = await modelRuntime!.service.openCall({
+          const opened = await model.openCall({
             creationKey,
             session: borrow.binding.session,
             target: effective.effectiveModel.routeName,
@@ -3428,7 +3765,6 @@ export function createAcceptanceApplication(
             attempt: adopted.attempt,
             report: adopted.report,
           })
-          if ('callId' in opened) retainCall(borrow.binding.session, opened.callId)
           if (!('state' in opened) || (opened.state !== 'open' && opened.state !== 'resumable')) {
             await grant?.revoke()
             return reject(
@@ -3438,7 +3774,7 @@ export function createAcceptanceApplication(
                   : Object.keys(opened).join(',')),
             )
           }
-          const dispatched = await modelRuntime!.service.dispatch({
+          const dispatched = await model.dispatch({
             session: borrow.binding.session,
             callId: opened.callId,
             attempt: adopted.attempt,
@@ -3506,7 +3842,7 @@ export function createAcceptanceApplication(
       if (stage !== 'modelRequest' || !admit() || service === undefined)
         return Promise.resolve({ failure: 'stageClosed' })
       if (request.manifest !== session) return Promise.resolve({ failure: 'identityMismatch' })
-      return runnerActors.run(actor, () =>
+      return withInvocationActor(actor, () =>
         trackSessionInput(session, () => service.dispatch(request, signal)),
       )
     },
@@ -3515,7 +3851,7 @@ export function createAcceptanceApplication(
       if (stage !== 'modelRequest' || !admit() || service === undefined)
         return Promise.resolve({ failure: 'stageClosed' })
       if (request.manifest !== session) return Promise.resolve({ failure: 'identityMismatch' })
-      return runnerActors.run(actor, () =>
+      return withInvocationActor(actor, () =>
         trackSessionInput(session, () => service.replay(request)),
       )
     },

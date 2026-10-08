@@ -1,5 +1,7 @@
+import { modelCategory, modelValue, replaceModelValue } from './log-codec-fixture.ts'
+import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 // @module-tag slow
-// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 JSONL 会话日志。
+// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 import { expect, test } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import type { AvailabilityReport } from '@omne-harness-lite/asset-registry'
@@ -17,7 +19,7 @@ import { createRuntimeReads } from '../src/service-reads.ts'
 import { createModelCallContentStore } from '../src/reference-content.ts'
 import { createModelCallFacts } from '../src/reference-facts.ts'
 import { createRuntimeAcquire } from '../src/service-acquire.ts'
-import { interpretCallHistory } from '../src/call-history.ts'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
@@ -31,15 +33,16 @@ import {
   dispatchAgainAdmission,
   positiveDurationMs,
 } from '../src/service-dispatch.ts'
-import type { UnacknowledgedCallHistory } from '../src/call-history.ts'
+import type { UnacknowledgedCallHistory } from '@omne-harness-lite/model-request-runtime'
 import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
-import type { RuntimeConstruction, SessionRuntimeBinding } from '../src/service-types.ts'
+import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
+import type { RuntimeConstruction } from '../src/service-types.ts'
 import type { PlanFailure } from '@omne-harness-lite/model-request-runtime'
 import type {
   DiagnosticAssociation,
-  DiagnosticCollector,
   DiagnosticScope,
-} from '../src/diagnostics-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { DiagnosticCollector } from '../src/diagnostics-types.ts'
 import type { DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
 
 const session = unwrap(parseOpaqueIdentifier('session_dispatch', 'SessionRef'))
@@ -144,7 +147,7 @@ test('retry checks the same fact-class and provider rules as the public guard', 
   ).toEqual({ retryRefused: { why: 'provider_not_allowed' } })
 })
 
-// Real SQLite/JSONL end to end: an explicit budget, since shared-host load alone crosses 5 s.
+// Real SQLite/SQL journal end to end: an explicit budget, since shared-host load alone crosses 5 s.
 test('service dispatch writes both anchors before handing out a complete pending response', async () => {
   const host = await selectionHost(true, true)
   const contentStore = createModelCallContentStore({
@@ -405,7 +408,12 @@ test('service dispatch writes both anchors before handing out a complete pending
           known: { run, originalAttempt, latestAttempt: latestRunAttempt, terminal: 'open' },
         }),
       },
-      recovery: { enter: async () => ({ unavailable: true }) },
+      recovery: {
+        async authorize() {
+          return { authorized: true as const }
+        },
+        enter: async () => ({ unavailable: true }),
+      },
       diagnostic() {},
       diagnosticCollector,
     }
@@ -488,7 +496,7 @@ test('service dispatch writes both anchors before handing out a complete pending
       },
     })
     expect(await acquired.close()).toEqual({ released: true })
-    // A second, empty projection reconstructs this ref from the real JSONL/SQLite sources.
+    // A second, empty projection reconstructs this ref from the real SQL journal/SQLite sources.
     const coldContent = createModelCallContentStore({
       storage: host.storage,
       policy: { maxConcurrentWrites: 4, maxContentBytes: 1_000_000 },
@@ -875,32 +883,12 @@ test('service dispatch writes both anchors before handing out a complete pending
     expect(calls.find({ session: host.session, callId: 'actual-call-6' })).toBeUndefined()
     const run = 'calibration-dispatch-run'
     const appendAttempt = async (attempt: number) => {
-      const captured = captureModelLogValue({
-        category: 'message',
-        input: {
-          kind: 'value',
-          value: {
-            id: `calibration-dispatch-attempt-${attempt}`,
-            type: 'system_reminder',
-            nature: 'event',
-            source: {
-              kind: 'attempt_started',
-              attempt,
-              reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
-              at: '2026-09-29T00:00:00Z',
-            },
-            blocks: [],
-            createdAt: '2026-09-29T00:00:00Z',
-          },
-        },
-      })
-      if (!('ok' in captured)) throw new Error(`Run attempt capture: ${JSON.stringify(captured)}`)
-      const entry = prepareModelLogEntry({
+      const entry = prepareAttemptFact({
         session: host.session,
         shell: { tenant: binding.log.tenant, run, attempt },
-        captured: captured.ok,
-        purpose: { kind: 'message' },
-        messagePrefix: [],
+        key: `calibration-dispatch-attempt-${attempt}`,
+        reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
+        at: '2026-09-29T00:00:00Z',
       })
       if (!('ok' in entry)) throw new Error('Run attempt entry')
       const appended = await binding.log.log.append(
@@ -1017,7 +1005,8 @@ test('service dispatch writes both anchors before handing out a complete pending
     const shells = durable.entries.flatMap(entry => {
       const payload = entry.payload
       if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) return []
-      const value = 'value' in payload ? payload.value : undefined
+      if (modelCategory(payload) !== 'record') return []
+      const value = modelValue(payload)
       if (value === null || typeof value !== 'object' || Array.isArray(value)) return []
       const record = value as { readonly kind?: unknown; readonly call?: unknown }
       return record.kind === 'model_call_dispatched' && record.call === 'actual-call-8'

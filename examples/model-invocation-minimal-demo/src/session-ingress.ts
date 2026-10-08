@@ -10,6 +10,7 @@ import type {
 } from '@omne-harness-lite/session-tenancy'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type { AuthenticatedActor } from './types.ts'
+import type { StorageUnit } from '@omne-harness-lite/storage'
 
 type Check = 'authorized' | 'notAuthorized' | 'unavailable'
 interface Entry {
@@ -67,6 +68,25 @@ export function createSessionIngress(
   }
   return Object.freeze({
     operations: Object.freeze(operations),
+    /** Recheck the private ingress and actual current sources in the caller's transaction. */
+    async checkIn(
+      unit: StorageUnit,
+      identity: AccessIdentity,
+      operation: AccessOperation,
+      check: (unit: StorageUnit, actor: AuthenticatedActor, scope: SessionScope) => Promise<Check>,
+    ) {
+      if (!active) return rejected('ownerStopped')
+      const entry = entries.get(identity.binding)
+      if (!entry || !sameIdentity(identity, entry.identity) || !entry.operations.has(operation))
+        return rejected('notAuthorized')
+      const verdict = await check(unit, entry.actor, entry.identity.scope)
+      if (!active) return rejected('ownerStopped')
+      if (entries.get(identity.binding) !== entry) return rejected('notAuthorized')
+      if (verdict === 'notAuthorized') entries.delete(identity.binding)
+      return verdict === 'authorized'
+        ? { kind: 'authorized' as const, identity: entry.identity }
+        : rejected(verdict)
+    },
     async enter(
       actor: AuthenticatedActor,
       scope: SessionScope,

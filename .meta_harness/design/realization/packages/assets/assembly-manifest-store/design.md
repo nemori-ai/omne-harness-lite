@@ -1,10 +1,10 @@
 # assembly-manifest-store 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 ## 实现路径与来源
 
-**自建一个薄插件：两张表、四个操作。**装配清单的换表记录与条件追加是本项目的产品语义（PF-004 §4、PF-015 §6.11），没有上游对应物；存储走本仓库已实现的 `core/storage` 协议与 `infra/storage-sql` 提供者（[D-026](../../../../record/decisions/infrastructure-persistence-choices/decision.md)），与据点上的其余 SQL 写入者同一实例、不另开连接。契约第十一节在「本机 JSON 文件或 sqlite 表」之间留了选择，本批取后者：条件追加要的「判定与写入同一步」「头与各类最后一条一次一致读」，协议的写事务与只读事务直接给出，JSON 文件要重造一遍。
+**自建一个薄插件：两张表、四个操作。**装配清单的换表记录与条件追加是本项目的产品语义（PF-004 §4、PF-015 §6.11），没有上游对应物；存储走本仓库已实现的 `core/storage` 协议与 `infra/storage-sql` 提供者（D-026），与据点上的其余 SQL 写入者同一实例、不另开连接。契约第十一节在「本机 JSON 文件或 sqlite 表」之间留了选择，本批取后者：条件追加要的「判定与写入同一步」「头与各类最后一条一次一致读」，协议的写事务与只读事务直接给出，JSON 文件要重造一遍。
 
 | 用什么 | 从哪来 | 用来做什么 |
 |---|---|---|
@@ -16,9 +16,9 @@
 | `Instant` | [`core/offer-expiry`](../../core/offer-expiry/README.md) | `filledAt` 的表示与比较（毫秒整数） |
 | `SessionRef`；不透明标识的词法 | [`core/messages`](../../core/messages/README.md)；[`core/identity-values`](../../core/identity-values/README.md) | 会话指认；`EvaluationRef` 的表示层校验 |
 | `node:crypto`（随机字节） | Node 内置 | 铸 `EvaluationRef` |
-| `definePlugin` | [`core/kernel-basis`](../../core/kernel-basis/README.md) | 插件骨架与配置校验 |
+| `definePlugin` | [`core/kernel-basis`](../../../../../../packages/core/kernel-basis/README.md) | 插件骨架与配置校验 |
 
-**Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）。
+**Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（D-025）。
 **配置**：只有 `presenceSource`（可选，运行时对象，只有验收装配给；在 Config 里以 `z.custom` 描述、同引用交到插件体，与 storage-sql 守卫对象同一前提）。**本节点没有策略配置项**：契约不许替写入方重试（S-3），没有计时、缓冲或上限可调。**配置错误政策：启动失败**（basis [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)）；**缺 `presenceSource` 不是配置错误**——产品装配本来就没有来源。
 
 ## 公开面
@@ -167,7 +167,7 @@
 | R-AMS3 | 写事务内读到全部已提交写的最新值 | S-12 第 2 条 | P-3 |
 | R-AMS4 | 唯一冲突可识别、名字稳定；冲突之后事务仍可用 | S-8、S-9、S-12 第 3 条 | `UniqueViolation { constraint }`，P-11；P-2 |
 | R-AMS5 | 一次只读事务看到同一个已提交快照 | S-16 ④ | `read(fn)`，P-6 |
-| R-AMS6 | 提交之后跨进程重启仍在 | S-13 第 2 条 | P-7；**断电边界**：`synchronous = NORMAL`（[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md)）——AMS-4 |
+| R-AMS6 | 提交之后跨进程重启仍在 | S-13 第 2 条 | P-7；**断电边界**：`synchronous = NORMAL`（D-027）——AMS-4 |
 | R-AMS7 | 读不到可识别，不返回空或旧快照；缺陷不折成不可用 | S-14 | `StorageUnavailable`、`StorageDefect`，P-8 |
 | R-AMS8 | 外键两向可识别、不延迟；`ON DELETE RESTRICT` | S-24（结构兜底） | P-10 |
 | R-AMS9 | 迁移幂等；唯一约束用 `CREATE UNIQUE INDEX` 显式命名、主键不命名 | 依 [storage-sql 对迁移文件的要求](../../infra/storage-sql/design.md#依赖作用域与绑定) | 装配合成 |
@@ -221,7 +221,7 @@
 | AMS-1 | **真承接者未到**（契约 G-1，据点装配 C-2） | 产品据点清单里注册表停在 `PENDING`（本版不装本节点） | 主线 → PF-004 那一程 | 那一程的装配清单契约收下或取代 AM v1，提供者节点互指或取代本节点 |
 | AMS-2 | **在场事实在产品装配里没有来源**（契约 G-2）：`dependencyPresence` 恒 `unavailable`；这个查询是否该住在装配清单里，语义归属仍存疑 | 派发器对带 `needs` 的件恒收「判不出」 | 主线（这个查询的家）；PF-006 依赖解析与据点装配那一程（事实的来源） | 事实有写面与来源；若家不在这里，从契约新版移出、本节点删掉这一查询 |
 | AMS-3 | **派发器读链与模型请求运行时读求值结果读不出**（契约 G-4）：本节点原样交回写入方记下的 `content`，读法没有约定 | 派发器服务面的链与不可用处置、模型请求运行时的选中初值、层锁与两个时限（验收里由测试经函数面直接交值） | PF-004 那一程（C-2） | 那一程定下记录里求值那一部分的形状与读法 |
-| AMS-4 | **断电边界**（契约 G-3；已知边界，主线已裁（[D-060 §八 N-40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)））：边界与论证见 [session-log-jsonl SLJ-2](../../session/session-log-jsonl/design.md#实施缺口与消费者影响)，本节点不另论证。落在本节点的后果：注册表已被告知成功，重建出来少一次换表 | S-13 第 2 条、注册表 R-M7 | 主线（已知边界） | 不闭合的已知边界；产品要求断电不丢时另出决定、契约出新版 |
+| AMS-4 | **断电边界**（契约 G-3；已知边界，主线已裁（D-060 §八 N-40））：边界与论证见 [session-log-jsonl SLJ-2](../../session/session-log-jsonl/design.md#实施缺口与消费者影响)，本节点不另论证。落在本节点的后果：注册表已被告知成功，重建出来少一次换表 | S-13 第 2 条、注册表 R-M7 | 主线（已知边界） | 不闭合的已知边界；产品要求断电不丢时另出决定、契约出新版 |
 | AMS-5 | **升级恢复撤掉确认之前的记录**：与「本版不删」冲突的唯一一条路径；与 AMS-4 同一条已知边界的另一条来路（[SLJ-2](../../session/session-log-jsonl/design.md#实施缺口与消费者影响)） | S-24、S-13 | 装配 | 不闭合的已知边界；由「开闸在确认之后」挡住——前提同 [SLJ-2](../../session/session-log-jsonl/design.md#实施缺口与消费者影响)，已由 [cli 升级确认在第一次受理之前](../../../apps/cli/design.md#升级确认在第一次受理之前) 承接（据点清单 A-28，产品与验收装配同一时点：全部 fiber `ACTIVE` 之后 `guard.confirm()`，确认之后才开闸；证据义务 `assembly.upgrade-confirmed`，名候选，归 cli 节点） |
 | AMS-6 | **pg 上的哨兵与重判路径只在 `OMNE_TEST_PG_URL` 可连时能测**；跳过不是通过 | S-12 在 pg 上的证据 | 实现者 | 有可连的 pg 时跑并登记 |
 | AMS-7 | **产品据点清单本版不装本节点**（据点装配关键选择 5）；装上即完整兑现换表那三个操作，在场查询恒 `unavailable` | —— | 主线 | 据点装配的改选条件成立 |

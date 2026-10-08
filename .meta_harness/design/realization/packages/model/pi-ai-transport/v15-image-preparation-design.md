@@ -1,8 +1,8 @@
-# v15 请求图片准备（候选）
+# v15 请求图片准备（）
 
 2026-09-29 revision 4。语义依据为已接受 [RT10](../../../../spec/capabilities/model-request-runtime/v10/contract.md) S57/S74/S77～83、[MR9](../../../../spec/data/model-response/v9/contract.md) S41～45；本提供者映射尚未采用、未实施，新增bindings 0，验收尚待。接续v13，和并行v14 refusal无语义替代关系。只交付已选图片同模态发送前处理，不实现完整上下文组装或跨模态renderings。
 
-架构选择见[提案](../../../../record/proposals/model-request-image-preparation/README.md)。独立领域读数/三候选与四表在该包；pi/DSH/Sharp主源事实归 research/typescript-image-input-handling（HUB e9a5d13e + 26ddf358），本页不复制研究。
+架构选择见提案。独立领域读数/三候选与四表在该包；pi/DSH/Sharp主源事实归 research/typescript-image-input-handling（HUB e9a5d13e + 26ddf358），本页不复制研究。
 
 ## 唯一公开接口归属与异步接缝
 
@@ -208,3 +208,10 @@ DecodedImage是本batch独占、不可序列化的短时资源句柄，既不是
 sourceMaxBytes/decodedMaxPixels限制、policy与codec metadata/encode所有值必须由公开helper验证，独立调用接口不能依赖planner已经验过。sharp版本、libvips完整versions、平台/架构、适配器RGBA8/EXIF/sRGB行为revision进入codec revision；像素语义或encoder行为改变必须新revision，不能静默热改同一实现。文件IO、URL、凭据与持久写仍禁止；source code加载在装配阶段已完成。
 
 **无图exact边界**：仅images=[]时nonImageWireBytes等于完整实际请求字节；planner确知其超适用maxRequestBytes，直接按原RT10 `input_limit_exceeded{basis:exact,metric:maxRequestBytes,actual,limit}`拒绝。helper独立调用空images时也返回专门 `{rejected:{reason:'exact_request_limit_exceeded',actualBytes,limitBytes}}`，映射相同，不能映成size_unavailable。有图时nonImageWireBytes只是完整量的下界，哪怕已超cap也不得把它写成exact actual；可无需搜索直接返回 `no_candidate{stage:request_total}`，plan映射原input_size_unavailable(maxRequestBytes)，诊断说明是非图片部分已使搜索无可行结果，不伪造完整actual。其余无合规图片候选仍按per_image/request_total的no_candidate。该exact值仅为技术helper结果，未新增RT业务枚举。
+
+## 当前采用范围
+
+选中图片的请求期缩放/重编码与有限搜索；统一异步 plan/context、真实准备任务生命周期、受信作用域隔离及 full/φ/δ 的共享计量依据。既有 RT10/MR9 精确语义不改变，无新持久对象或服务键。
+
+技术采用不表示实现或实际验证已完成。验证义务：IP-V1..IP-V10；取消等待 native 实际停止后释放；缓存冷热同结果与资源上限/native 峰值；实际 HTTPS、包制品和双语消费者；计量与实际 wire 同一依据。
+范围之外：完整 Session/Run/Agent；媒体平台/外部下载/持久派生；仅由图片采用提升 T29 引用生命周期范围。

@@ -5,7 +5,7 @@ import { expect, test, vi } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import type { SessionLog } from '@omne-harness-lite/session-log'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import type { SessionAccess, SessionAccessOperations } from '@omne-harness-lite/session-tenancy'
 import {
   createParameterJudge,
@@ -529,6 +529,10 @@ test('implementation resource invalidation records unavailable and aborts its ow
 })
 
 test.each<ToolDefinition>([
+  {
+    ...definition,
+    settings: { timeout: { category: 'preference', default: 'PT1S' } },
+  },
   { ...definition, needs: { attachmentStorage: 'declared-storage' } },
   { ...definition, needs: { externalServices: ['declared-service'] } },
   {
@@ -565,3 +569,42 @@ test.each<ToolDefinition>([
     }
   },
 )
+
+test('a background waiting declaration does not block execution or add a runtime deadline', async () => {
+  const entered = deferred<void>(),
+    finish = deferred<string>()
+  const f = await fixture(
+    async () => {
+      entered.resolve()
+      return finish.promise
+    },
+    undefined,
+    {
+      ...definition,
+      allowBackground: true,
+      settings: { backgroundThreshold: { category: 'preference', default: 'PT0.001S' } },
+    },
+  )
+  try {
+    expect(await f.owner.operations.submit(request)).toHaveProperty('kind', 'recorded')
+    const observer = await f.observer()
+    await entered.promise
+    observer.release()
+    await new Promise(resolve => setTimeout(resolve, 15))
+    expect(f.implementation).toHaveBeenCalledOnce()
+    const current = await f.observer()
+    expect(await current.read()).toMatchObject({
+      kind: 'found',
+      snapshot: { state: { phase: 'running' } },
+    })
+    finish.resolve('original result')
+    await f.owner.idle()
+    expect(await current.read()).toMatchObject({
+      snapshot: { state: { terminal: { outcome: 'completed', result: 'original result' } } },
+    })
+    current.release()
+  } finally {
+    finish.resolve('cleanup')
+    await f.close()
+  }
+})

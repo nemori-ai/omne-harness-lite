@@ -1,16 +1,17 @@
+import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 // @module-tag slow
-// Real SQLite/JSONL runtime and tenant setup for current read-access regressions.
+// Real SQLite/SQL journal runtime and tenant setup for current read-access regressions.
 import { describe, expect, it, vi } from 'vitest'
 import { getEventListeners } from 'node:events'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
-import { interpretCallHistory } from '../src/call-history.ts'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { dispatched } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import type { CallAccessEvidence } from '../src/reference-types.ts'
+import type { CallAccessEvidence } from '@omne-harness-lite/model-request-runtime'
 import { createRuntimeReads } from '../src/service-reads.ts'
 import { acknowledgementHost } from './acknowledgement-host-fixture.ts'
 import { ControlledSettlementOwner, deferred } from './settlement-fixture.ts'
@@ -359,14 +360,20 @@ describe('RT12 S-34/S-87/S-100 current read admission', () => {
       })
       const remove = vi.spyOn(grant.signal, 'removeEventListener')
       try {
-        await append('message', {
-          id: 'listener-attempt-start',
-          type: 'system_reminder',
-          nature: 'event',
-          source: { kind: 'attempt_started', attempt: 1, reason: 'first', at },
-          blocks: [],
-          createdAt: at,
-        })
+        await world.host.log.append(
+          ref.session,
+          [
+            prepareAttemptFact({
+              session: ref.session,
+              shell,
+              key: 'listener-attempt-start',
+              reason: 'first',
+              at: at,
+            }).ok,
+          ],
+          { kind: 'fenced', run, attempt: 1 },
+          { kind: 'unconditional' },
+        )
         await append('record', { ...dispatched, call: ref.callId, response: 'listener-response' })
         const { reply: _reply, replyDisposition: _disposition, ...body } = responseV5
         await append('response', {

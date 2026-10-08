@@ -3,12 +3,12 @@
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
 > **当前状态（2026-09-25，第二轮独立评审修复之后；同日按实现映射反推原地改，模型与配置未改、未重跑）：形式工件在第一轮修复后由修复者本机重跑过，第二轮没有改模型与配置、未重跑；规范场景与故障注入一条都没演练。**
-> `capability.tool-execution-runtime` v2 是 `candidate`，经两轮独立评审（处置见[独立评审](#独立评审)）后原地修订，**未接受**；尚无提供者设计、尚无源码。
+> `capability.tool-execution-runtime` v2 是 `candidate`，经两轮独立评审（处置见独立评审）后原地修订，**未接受**；尚无提供者设计、尚无源码。
 > **第二轮新增的承诺**（以模型面名字查注册表与 `UnlistedCall`、有序撤下收尾帧流、上交之后撤下、发帧形状不合按原名交回）**都不在模型里**，证据只能是规范场景 [S-68](v2/contract.md#s-68-有序撤下收尾在途的帧流上交之后撤下)、[S-69](v2/contract.md#s-69-查不到条目的调用即刻收场不可用) 等，全部未开始。
 > 模型那几条「无反例」**之所以有内容**，是因为同一次执行里六个去保护配置、三份补充否定配置都按预期给出了反例，七个可达性探针都按预期被反驳；
 > 按构造成立的几条（`SequentialBatch`、`ConcurrencyCap`、`WaitOnlyForeground`、`ReminderAfterPlaceholder`、`ArchiveSettlesAll` 等）**不作为证据**，理由在 [formal 入口](v2/formal/README.md#本版选用什么)。
 > **本轮新增的条款**（提交的判重与租户核对、参数解析不了的调用、执行者一侧四个原语、工具侧到达装配前提、丢失在途状态时的账）**都不在模型里**，证据只能是规范场景，全部未开始。
-> **原始输出没有存进 `record/evidence/`**：修复者对那一区没有写权限，下面「实际执行」一节只是摘要，原始日志在主检出根的 `tmp/formal-runs/tool-execution-runtime-v2-2026-09-24d/`，**正式证据 run 待主线落盘**。
+> 单次模型执行须明确当前输入、配置、作用域与正反对照的判读；原始结果留本工作树 `tmp/`，不以模型结果代替真实场景。
 
 ## 证据义务
 
@@ -16,9 +16,9 @@
 
 | 规范条款与性质 | 模型／配置 | 实际证据入口、输入与范围 | 未完成义务、责任与受阻消费者 |
 |---|---|---|---|
-| [S-16](v2/contract.md#s-16-首胜收场只写一次) · [S-17](v2/contract.md#s-17-持久意图先于外部效果) · [S-18](v2/contract.md#s-18-收场先落停止后发) · [S-19](v2/contract.md#s-19-送达) · [S-20](v2/contract.md#s-20-恢复扫描与停机不重来) · [S-29](v2/contract.md#s-29-会话归档) · [S-30](v2/contract.md#s-30-答复等待) 的安全性质 | TLC 对 [`Execution.tla`](v2/formal/Execution.tla)，配置 [`Execution.cfg`](v2/formal/Execution.cfg)；formal task `tool-execution-runtime-v2-execution` | **已执行**（[下文](#实际执行)，2026-09-24 重跑同一结果）：**无反例**，741,344 个不同状态、完整穷尽、深度 22；覆盖只到[formal 入口](v2/formal/README.md#本版选用什么)第一张表里**有去保护配置或补充配置反驳**的那几条，按构造的几条不算 | 结论只在模型的固定规模内、**且存储真的兑现同一行条件写与「不只成一半」**这个前提下成立；跨进程不自动成立（[S-46](v2/contract.md#s-46-装配给的保证-vs-协议须给的保证)） |
-| [S-19](v2/contract.md#s-19-送达) · [S-20](v2/contract.md#s-20-恢复扫描与停机不重来) · [S-18](v2/contract.md#s-18-收场先落停止后发) 的进展性质 | 同一模型，配置 [`ExecutionProgress.cfg`](v2/formal/ExecutionProgress.cfg)（`FairSpec`，`MaxWaits = 1`）；formal task `tool-execution-runtime-v2-execution-progress` | **已执行**（[下文](#实际执行)）：**无反例**，524,448 个不同状态、完整穷尽、深度 20；**约 16 分钟**，是本分支最慢的一个 formal task | 三条公平性是**前提**：恢复终会发生、日志追加终会成功、强制停止终会生效（后一条依赖 X-5，未核） |
-| 同上的**有效性**（六处保护各自去掉） | 六个 `Execution_*.cfg`，**预期找到反例** | **已执行**：六个都**按预期违反**，轨迹对得上各配置注释写的局面（[结果与反例](#结果与反例)） | **必须与第一行成对报告**。它们**不登记为 formal task**——期望失败的检查与该清单的语义相反 |
+| [S-16](v2/contract.md#s-16-首胜收场只写一次) · [S-17](v2/contract.md#s-17-持久意图先于外部效果) · [S-18](v2/contract.md#s-18-收场先落停止后发) · [S-19](v2/contract.md#s-19-送达) · [S-20](v2/contract.md#s-20-恢复扫描与停机不重来) · [S-29](v2/contract.md#s-29-会话归档) · [S-30](v2/contract.md#s-30-答复等待) 的安全性质 | TLC 对 [`Execution.tla`](v2/formal/Execution.tla)，配置 [`Execution.cfg`](v2/formal/Execution.cfg)；formal task `tool-execution-runtime-v2-execution` | **已执行**（[下文](verification.md)，2026-09-24 重跑同一结果）：**无反例**，741,344 个不同状态、完整穷尽、深度 22；覆盖只到[formal 入口](v2/formal/README.md#本版选用什么)第一张表里**有去保护配置或补充配置反驳**的那几条，按构造的几条不算 | 结论只在模型的固定规模内、**且存储真的兑现同一行条件写与「不只成一半」**这个前提下成立；跨进程不自动成立（[S-46](v2/contract.md#s-46-装配给的保证-vs-协议须给的保证)） |
+| [S-19](v2/contract.md#s-19-送达) · [S-20](v2/contract.md#s-20-恢复扫描与停机不重来) · [S-18](v2/contract.md#s-18-收场先落停止后发) 的进展性质 | 同一模型，配置 [`ExecutionProgress.cfg`](v2/formal/ExecutionProgress.cfg)（`FairSpec`，`MaxWaits = 1`）；formal task `tool-execution-runtime-v2-execution-progress` | **已执行**（[下文](verification.md)）：**无反例**，524,448 个不同状态、完整穷尽、深度 20；**约 16 分钟**，是本分支最慢的一个 formal task | 三条公平性是**前提**：恢复终会发生、日志追加终会成功、强制停止终会生效（后一条依赖 X-5，未核） |
+| 同上的**有效性**（六处保护各自去掉） | 六个 `Execution_*.cfg`，**预期找到反例** | **已执行**：六个都**按预期违反**，轨迹对得上各配置注释写的局面（结果与反例） | **必须与第一行成对报告**。它们**不登记为 formal task**——期望失败的检查与该清单的语义相反 |
 | `AtMostOneToolMessage`、`OneAccountPerEnded`、`NoNewDeliveryAfterArchive` 的有效性（`FirstWins = FALSE`） | 三份补充否定配置，在验证入口的证据里（不进版本目录） | **已执行（2026-09-24）**：三份都**按预期违反** | 同上，不登记 |
 | 关键路径可达（两批都提交、第二次进等待、转后台、用户中断、取消运行、归档、停机后恢复） | 七个可达性探针：`ExecutionReach.tla`（`EXTENDS Execution`）里七条「到不了」的不变量，主配置同常量 | **已执行（2026-09-24）**：七条都**按预期被反驳**（反例即可达） | 同上，不登记；「守卫不是靠没人动得了成立的」这句话的证据 |
 
@@ -60,8 +60,8 @@
 
 ### 两源已知失败情形
 
-[D-032](../../../record/decisions/tool-execution-runtime-baseline/decision.md) 要求把两源（DSH `jobs` 与 minimal-runtime `local-execution`）已知的失败情形列成测试义务，
-来源见[提案的候选与取舍](../../../record/proposals/tool-execution-runtime-baseline/alternatives.md#a--fork-dsh-jobsjobsjobs-localtool-jobs-再改造)与[仍待区分的实验](../../../record/proposals/tool-execution-runtime-baseline/alternatives.md#仍待区分的实验)。
+D-032 要求把两源（DSH `jobs` 与 minimal-runtime `local-execution`）已知的失败情形列成测试义务，
+来源见提案的候选与取舍与仍待区分的实验。
 
 | # | 已知失败情形（来源） | 本契约的哪条义务挡住它 | 测试义务（证据形式） | 状态 |
 |---|---|---|---|---|
@@ -83,9 +83,9 @@
 |---|---|---|---|
 | 凭据本身不含会话，核对按 `(会话, CallId, 生效参数)`；核对面区分 `invalid` 与 `unavailable` | [S-23](v2/contract.md#s-23-提交一批) ② | `capability.tool-admission` | 那份契约的场景；本契约 S-60 |
 | 替换件与不可用条目带原因 | [S-23](v2/contract.md#s-23-提交一批) ④ | `capability.asset-registry` | 那份契约的场景 |
-| `lookup` 在 `within = run{报告}` 下以模型面名字 `ModelToolName` 查 `tool` 类条目，答那一条、「没有」或 `unavailable` 三者分开 | [S-23](v2/contract.md#s-23-提交一批) ② 第 6 条 | `capability.asset-registry` S-25、S-7（[D-060 §七 M8](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)） | 那份契约的场景；本契约 S-69 |
-| 报告里查不到条目的调用不进 `admit`、那一次经过记 `observed{no_such_entry}`，以 `UnlistedCall` 交给本能力 | [S-23](v2/contract.md#s-23-提交一批) ① | `capability.loop-extension-runner`、`capability.tool-admission`（[D-060 §七 M10](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)） | 那两份契约的场景；本契约 S-69 |
-| 可用性报告里钉住每个接入点的接入点持有（`endpointHoldings`） | [S-23](v2/contract.md#s-23-提交一批) ②、[S-38](v2/contract.md#s-38-起执行者) | `capability.asset-registry`（[D-060 §五 K30](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)） | 那份契约的场景 |
+| `lookup` 在 `within = run{报告}` 下以模型面名字 `ModelToolName` 查 `tool` 类条目，答那一条、「没有」或 `unavailable` 三者分开 | [S-23](v2/contract.md#s-23-提交一批) ② 第 6 条 | `capability.asset-registry` S-25、S-7（D-060 §七 M8） | 那份契约的场景；本契约 S-69 |
+| 报告里查不到条目的调用不进 `admit`、那一次经过记 `observed{no_such_entry}`，以 `UnlistedCall` 交给本能力 | [S-23](v2/contract.md#s-23-提交一批) ① | `capability.loop-extension-runner`、`capability.tool-admission`（D-060 §七 M10） | 那两份契约的场景；本契约 S-69 |
+| 可用性报告里钉住每个接入点的接入点持有（`endpointHoldings`） | [S-23](v2/contract.md#s-23-提交一批) ②、[S-38](v2/contract.md#s-38-起执行者) | `capability.asset-registry`（D-060 §五 K30） | 那份契约的场景 |
 | 会话持有的租户读得到 | [S-21](v2/contract.md#s-21-租户与会话范围)、[S-23](v2/contract.md#s-23-提交一批) ② | `capability.session-tenancy` v2 S-5～S-8；那一写的真承接者是会话那一程（[G-12](v2/contract.md#十二已知缺口)） | 那份接口契约的场景 |
 | 两件事实（尝试是否被取代、运行是否终结）只从假变真、读不到不编 | [S-13](v2/contract.md#s-13-账) | `capability.run-attempt-facts` v2 S-5、S-6、S-9；真承接者是 agent loop 与运行那一程（[G-18](v2/contract.md#十二已知缺口)） | 那份接口契约的场景 |
 | 落点判断：本版只有宿主机，读不到、没有允许都不答 `host` | [S-38](v2/contract.md#s-38-起执行者) 第 2 步 | `capability.execution-environments` v2 S-6、S-12；沙箱与设施匹配归 PF-005 那一程（[G-4](v2/contract.md#十二已知缺口)） | 那份接口契约的场景 |
@@ -101,84 +101,6 @@
 | 对齐什么 | 依据 | 涉及 | 现状 |
 |---|---|---|---|
 | **多命令调用在起执行者之前按所选命令的 `commands[c].input` 校验 `args`**（缺必填、未知键、类型不合）；**不合即不起执行者、收场 `failed`**，新失败种类 `arguments_invalid`，结果内容**必须带该命令的参数用法**（与 `Tools().inspect` 给出的同一份文本），让模型能自纠。落点：[S-23](v2/contract.md#s-23-提交一批) 的九件事与 S-42 之前那一步 | 研究 V-5 结论 ③（`tool-definition-shape-sources`，HUB `1867ceb0`），产品负责人 2026-09-24；`data.tool-definition/v2#S-7` 第 3、4 条（判定以 `commands[c].input` 为准、`args` 缺席按 `{}` 判——flat 形的模型面不替它判参数） | 本契约 S-11、S-23、S-42；`data.content-blocks` 的收场与结果块；`Tools().inspect`（PF-007 的契约，尚未建立） | **已落正文（2026-09-24）**：原有的 `arguments_rejected` 就是这一种，改名为 `arguments_invalid`，**种类当时仍是七个**（本行原写的「七个变八个」不成立；第一轮评审修复加了 `unparseable`，现在是八个）；判定从起执行者移到提交时（S-23 ④ 第 ② 条）；S-42 列明它不经卸载那一关；新场景 S-61。**仍待**：`Tools().inspect` 的契约建立后核「同一份用法」 |
-
-## 实际执行
-
-**2026-09-23，起草者本机，run 未落进 `record/evidence/`。**
-
-- **工具**：TLC2 Version 2026.09.12.025210（rev 867aefb），`/opt/tlaplus/tla2tools.jar`；OpenJDK 21.0.12.1（Temurin），`/usr/local/bin/java`
-- **工作目录**：设计根 `.meta_harness/design`（与 `formal-tasks.json` 的 runner 相同）
-- **输入**：本分支工作树里的 `v2/formal/Execution.tla` 与八个配置（提交之前的同内容文件；提交之后以提交修订为准）
-- **命令**（主配置，与 `formal-tasks.json` 的 `tool-execution-runtime-v2-execution` 相同，另加 `-Djava.io.tmpdir` 指到设计根的 `tmp/`——本机根分区满，TLC 的临时文件不能落 `/tmp`）：
-  `java -cp tla2tools.jar tlc2.TLC -metadir tmp/tlc/tool-execution-runtime-v2-execution -cleanup -noGenerateSpecTE -workers 1 -config spec/capabilities/tool-execution-runtime/v2/formal/Execution.cfg spec/capabilities/tool-execution-runtime/v2/formal/Execution.tla`；
-  进展配置与六个有效性核对同一命令形制，只换 `-config` 与 `-metadir`
-
-| 配置 | 退出码 | 结果 | 规模 |
-|---|---|---|---|
-| `Execution.cfg` | **0** | `Model checking completed. No error has been found.` | 2,656,347 generated · **741,344 distinct** · 0 left · 深度 22 · 1 min 12 s |
-| `ExecutionProgress.cfg` | **0** | `Model checking completed. No error has been found.`（`LostSettles`、`HandoffLands`、`StopsTakeEffect`，12 个时序分支） | 1,858,831 generated · **524,448 distinct** · 0 left · 深度 20 · 15 min 56 s（与别的检查并跑；登记的超时 2400 s） |
-| `Execution_NoFirstWins.cfg` | 13 | `Action property OutcomeStable is violated.` | 轨迹 5 步 |
-| `Execution_VolatileHandoff.cfg` | 12 | `Invariant EndedIsLanded is violated.` | 轨迹 3 步 |
-| `Execution_StopBeforeWrite.cfg` | 12 | `Invariant InterruptHonored is violated.` | 轨迹 4 步 |
-| `Execution_PartialRecovery.cfg` | 12 | `Invariant ServingConsistent is violated.` | 轨迹 4 步 |
-| `Execution_RestartOnRecover.cfg` | 12 | `Invariant AtMostOneStart is violated.` | 轨迹 5 步 |
-| `Execution_NoWaitIndex.cfg` | 12 | `Invariant NoStaleAnswer is violated.` | 轨迹 7 步 |
-
-**经登记的 runner 再跑一遍**：`JAVA_BIN=/usr/local/bin/java TLA2TOOLS_JAR=/opt/tlaplus/tla2tools.jar make design-check FORMAL=run`（2026-09-24 本机，提交 `dfef00fd` 的模型与配置）：
-本分支登记的八个 formal task 全部 `exit=0`，其中 `tool-execution-runtime-v2-execution` 与 `tool-execution-runtime-v2-execution-progress` 两个是本契约的；整次 18 min 05 s，`PASS: design tree … formal=run`。
-
-**2026-09-24 修订批（第五节）之后复跑两个 formal task**（起草者本机，run 未落进 `record/evidence/`）：本批**没改** `Execution.tla` 与任何 `.cfg`（参数不合那一支不在模型里，见 [formal/README](v2/formal/README.md)），复跑只为确认结论不随正文改动失效。同一 TLC2 版本，命令形制同上（`-metadir tmp/tlc/te-rev0924-<配置>`），两个配置先后串行跑：
-
-| 配置 | 退出码 | 结果 | 规模 |
-|---|---|---|---|
-| `Execution.cfg` | **0** | `Model checking completed. No error has been found.` | 2,656,347 generated · **741,344 distinct** · 0 left · 深度 22 · 1 min 10 s |
-| `ExecutionProgress.cfg` | **0** | `Model checking completed. No error has been found.`（12 个时序分支，时序检查 3 min 01 s） | 1,858,831 generated · **524,448 distinct** · 0 left · 深度 20 · 19 min 42 s（与其他代理的检查并跑） |
-
-规模与 2026-09-23 那次逐位相同。六个否定配置本批没有复跑。
-
-**2026-09-24 第一轮独立评审修复之后（修复者本机，run 未落进 `record/evidence/`）**：`Execution.tla` 只改了注释（`StartFail`、`Return` 两处，TE-7），配置未改；为 TE-6 补跑三份补充否定配置与七个可达性探针，同时把主配置、进展配置与六个否定配置全部重跑一遍。
-
-- **工具**：同上（TLC2 2026.09.12.025210，rev 867aefb；OpenJDK 21.0.12.1，`/usr/local/bin/java`；`-Djava.io.tmpdir=tmp/java`，设计根下）
-- **证据目录**：主检出根 `tmp/formal-runs/tool-execution-runtime-v2-2026-09-24d/`——`run.sh`（逐配置一次 TLC，`-workers 1 -cleanup -noGenerateSpecTE`，`-metadir tmp/tlc/ter-ev-<名字>`）、`input/`（版本目录里模型与八个配置的副本）、`variant/`（补充配置、探针模块与它们的基底）、`logs/`（每个配置的完整输出与退出码）
-- **输入的 SHA-256**：`Execution.tla` `57b9b031bd5ca1633f00c5111b811164d2b7dd2186b3549642b78eb7300dfe23`（其余见证据目录 `input.sha256`、`variant.sha256`）；版本目录里的模型与八个配置与 `input/` 逐个相同；`variant/Execution.tla` 与之相同，`ExecutionReach.tla` `50a041a74da9afaaaefdbdb27bd3ec9f32a1d1cdcc55d245c08e611e092b704e`
-
-| 配置 | 退出码 | 结果 | 规模 |
-|---|---|---|---|
-| `Execution.cfg` | **0** | `Model checking completed. No error has been found.` | 2,656,347 generated · **741,344 distinct** · 0 left · 深度 22 · 1 min 20 s |
-| `ExecutionProgress.cfg` | **0** | `Model checking completed. No error has been found.`（12 个时序分支） | 1,858,831 generated · **524,448 distinct** · 0 left · 深度 20 · 15 min 56 s |
-| `Execution_NoFirstWins.cfg` | 13 | `Action property OutcomeStable is violated.` | 深度 5 |
-| `Execution_VolatileHandoff.cfg` | 12 | `Invariant EndedIsLanded is violated.` | 深度 3 |
-| `Execution_StopBeforeWrite.cfg` | 12 | `Invariant InterruptHonored is violated.` | 深度 4 |
-| `Execution_PartialRecovery.cfg` | 12 | `Invariant ServingConsistent is violated.` | 深度 4 |
-| `Execution_RestartOnRecover.cfg` | 12 | `Invariant AtMostOneStart is violated.` | 深度 5 |
-| `Execution_NoWaitIndex.cfg` | 12 | `Invariant NoStaleAnswer is violated.` | 深度 7 |
-| 补充 `Execution_NoFirstWins_ToolMessage.cfg` | 12 | `Invariant AtMostOneToolMessage is violated.` | 深度 7 |
-| 补充 `Execution_NoFirstWins_Account.cfg` | 12 | `Invariant OneAccountPerEnded is violated.` | 深度 5 |
-| 补充 `Execution_NoFirstWins_Archive.cfg` | 13 | `Action property NoNewDeliveryAfterArchive is violated.` | 深度 6 |
-| 探针 `Reach_NotBothSubmitted.cfg` | 12 | `Invariant NotBothSubmitted is violated.`——两批都能提交 | 深度 3 |
-| 探针 `Reach_NotSecondWait.cfg` | 12 | `Invariant NotSecondWait is violated.`——能进第二次等待 | 深度 6 |
-| 探针 `Reach_NotBackgrounded.cfg` | 12 | `Invariant NotBackgrounded is violated.`——非发起即后台的调用能转后台 | 深度 3 |
-| 探针 `Reach_NotInterrupted.cfg` | 12 | `Invariant NotInterrupted is violated.`——能被用户中断 | 深度 3 |
-| 探针 `Reach_NotRunCancelled.cfg` | 12 | `Invariant NotRunCancelled is violated.`——取消运行能中断调用 | 深度 3 |
-| 探针 `Reach_NotArchived.cfg` | 12 | `Invariant NotArchived is violated.`——归档能中断调用 | 深度 3 |
-| 探针 `Reach_NotRecovered.cfg` | 12 | `Invariant NotRecovered is violated.`——停机之后恢复、落 `abnormal_interruption` | 深度 4 |
-
-主配置与进展配置的规模与 2026-09-23 那次逐位相同。**这次运行不是 `make design-check FORMAL=run`**；那条入口只跑登记的两个任务，本轮未经它复跑。
-
-### 结果与反例
-
-| 配置 | 轨迹 | 对得上注释写的局面吗 |
-|---|---|---|
-| `NoFirstWins` | `Submit(b1)` → `Start(c1)` → `Interrupt(c1)` → `LateReturn(c1)` | 是：中断落定之后晚到的完成覆盖了收场 |
-| `VolatileHandoff` | `Submit(b2)` → `Crash` | 是：替换件 c4 的 `unavailable` 已写进记录，那条工具消息只在进程内存里，停机即丢 |
-| `StopBeforeWrite` | `Submit(b1)` → `InterruptSignal(c1)` → `StartFail(c1)` | 是：停止先发、中断的收场还没写，另一路收场（起不来）抢先落定 |
-| `PartialRecovery` | `Submit(b2)` → `Crash` → `Recover` | 是：发起即后台的 c3 不在「只处置前台」的扫描范围里，恢复之后记录未收场、找不到活体 |
-| `RestartOnRecover` | `Submit(b1)` → `Start(c1)` → `Crash` → `Recover` | 是：恢复把在跑的 c1 重起了一遍 |
-| `NoWaitIndex` | `Submit(b1)` → `Start(c1)` → `EnterWait(c1)` → `Answer(c1,1)` → `EnterWait(c1)` → `Answer(c1,1)` | 是：答给第 1 次的答复解除了第 2 次 |
-
-**模型的演化**：本日第一版把送达建成「与收场同一步」、以 `SameCommit` 开关对照；主线随后裁定「同一提交」目前没有共同存储对象、两种承接形状交给提供者设计，
-模型改为「交付 + 追加」两步（`DurableHandoff` 开关），同时覆盖两种形状。第一版的运行结果**不再代表本模型**，不列。
-第二版在 `Waiters = {c1, c2}` 下主配置达 1,921,132 个不同状态、3 min 10 s；为让 formal task 在合理时间内跑完，收成只有 c1 进等待（c2 的等待与 c1 的等待对哪条性质都不提供新局面），即上表。
 
 ## 变化的影响
 
@@ -211,7 +133,7 @@
   - **formal**：模型与配置未改（参数那一支与占位原因都不在模型里）。
   - **对消费者**：没有已采用的消费者，无迁移。**语义改变**：没写 `additionalProperties` 的 `input` 从「收未知键」变为「拒未知键」；前台超时的那条消息从「落不下去」变为可以落。
   - **（同日第二轮，主线裁定，以 PF-006 §6.7 为准）`terminated_by_agent` 只落后台执行收场提醒的结果块，不作占位**：[S-10](v2/contract.md#s-10-占位原因) 那一行、[S-25](v2/contract.md#s-25-中断一次执行) 表下那一条（原写「照常落占位」，与 S-25 自己的「后台的执行被中断，落 `background_execution_finished` 提醒」相抵）改写；与 `data.content-blocks` S-18 同一措辞。模型与配置未改。
-- **2026-09-24 第一轮独立评审修复（候选，未冻结，原地改；评审基线 `765b01dc`）**。本轮主线裁定链 [D-060 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)（K2、K10、K23、K24、K25、K27、K29、K30、K50）：
+- **2026-09-24 第一轮独立评审修复（候选，未冻结，原地改；评审基线 `765b01dc`）**。本轮主线裁定链 D-060 §五（K2、K10、K23、K24、K25、K27、K29、K30、K50）：
   - **产品依据逐版复核**：PF-012 10→14（rev 11 放行之后到执行之间不重判——S-23 的「放行之后参数不许再变」照旧成立；rev 12 系统自带件不可用由指定挂件顶上——卸载判定这一件写进新条款 [S-63](v2/contract.md#s-63-卸载判定这一件)，S-42「那一关不可用」改引它；rev 13、14 只动转换件，不触及本能力）；PF-009 7→8（§9.2 在途状态；有块才有 `ToolInternalMessage`——S-19、S-39 改判据）；PF-007 16→18（rev 17 全拒件不触及本能力；rev 18 `Ask()` 五个出口——停机那一种即 S-20 第 4 步，「明确拒绝回复」怎样进来仍是 G-10）；PF-008 5→7（rev 6 本版不在后台等——S-12 的 `notInForeground`；rev 7「已作废」——S-20 第 4 步依据改引、G-5 收窄）；PF-014 5→7（rev 6、7 不触及本能力，§5.4 未改）。PF-006 19、PF-015 11、PF-005 5、PF-000 1、PF-011 4 仍是当前 rev。
   - **提交**（[S-23](v2/contract.md#s-23-提交一批)，TE-1～TE-3、X-3、X-6）：批项分 `AdmittedCall`／`UnparseableCall` 两种；判定次序写全——服务 → 会话租户（新失败值 `crossTenant`）→ 判重（`callIdConflict`；全部已登记即按幂等返回）→ 归档／取消 → 凭据（核对按会话、`CallId`、生效参数）→ 注册表（按定义名找，逆转写在这里做一次；MCP 动作取可用性报告里的接入点持有）；解析不了的即刻收场 `failed{unparseable}`；发起即后台被拒只是收场，删逐条失败值；⑤ 没有逐条失败值，重放给首次的 `disposition`。失败值全集十二 → 十四（加 `crossTenant`、`notInForeground`）；失败种类七 → 八（加 `unparseable`）。
   - **执行者一侧四个原语**（TE-5）：[S-12](v2/contract.md#s-12-等待)、[S-39](v2/contract.md#s-39-发帧)、[S-40](v2/contract.md#s-40-报账)、[S-41](v2/contract.md#s-41-交回) 各补九件事——等待交回 `answered`／`ended`、失败 `notInForeground` 等；发帧交回 `accepted`／`dropped{rejected|notAFrame|executionEnded}`、没有失败值；报账逐笔 `recorded`／`rejected`／`executionEnded`，报过的钱落执行记录的 `reportedCost`、停机不丢；交回 `settled`／`discarded`／`escalated`。
@@ -220,11 +142,11 @@
   - **缺口**：新立 [G-16](v2/contract.md#十二已知缺口)（整批被拒之后落什么收场，owner agent loop 契约）；G-5 收窄（「已作废」产品已定）；G-12 加「会话持有的租户从哪读」；G-13 收窄为几条尚无决定记录的主线裁定；G-2、G-6、G-8、G-14 的账本编号改链 D-060。
   - **与 `capability.asset-registry` 同轮修订对齐**：[S-23](v2/contract.md#s-23-提交一批) ② 第 6 条写明接入点持有**原样取自报告的 `endpointHoldings`、本能力不自己解析**；报告对那个接入点写明「没有」生效的持有，按读不到处理（`dependencyUnavailable{registry}`），不拿别的那份补上。
   - **新规范场景** [S-64](v2/contract.md#s-64-参数收齐却解析不了)～[S-67](v2/contract.md#s-67-租户不符整批不收)；examples 第 8 节删逐条的 `backgroundNotAllowed`、加 `crossTenant`、`notInForeground` 两行与「发起即后台被拒」一支，新增第 9、10 节，第 6 节补 `frames` 与 `reportedCost`。
-  - **形式**（TE-6、TE-7）：模型只改两处注释、配置未改；formal/README 把 `ReminderAfterPlaceholder`、`ArchiveSettlesAll` 标为按构造，`FirstWins = FALSE` 反驳另三条的说法由三份补充配置作证，「关键路径可达」由七个可达性探针作证；契约安全性质表同改。重跑结果见[实际执行](#实际执行)。
+  - **形式**（TE-6、TE-7）：模型只改两处注释、配置未改；formal/README 把 `ReminderAfterPlaceholder`、`ArchiveSettlesAll` 标为按构造，`FirstWins = FALSE` 反驳另三条的说法由三份补充配置作证，「关键路径可达」由七个可达性探针作证；契约安全性质表同改。重跑结果见[实际执行](verification.md)。
   - **登记**：catalog 依赖补 `data.tool-definition` S-6、S-18，`data.messages` S-31，`data.arrival-events` S-14、S-29，`capability.stream-assembly` S-28，`data.loop-extension` S-7；covers 相关 note 按现行内容改（`reviewed` 保持 false）；formal-tasks 未改。
   - **依据落持久记录**：设计依据下的第二张表逐行链 D-060 与产品小节；账本编号与施工标签删去；几条 2026-09-23／24 的主线裁定尚无决定记录，写「决定记录待补」并归 G-13。
   - **对消费者**：没有已采用的消费者，无迁移。**语义改变**：agent loop 把解析不了的调用也交给 `submit`，不再自己落结果；重放一批不再因运行已取消而被拒；租户不符不再以错误租户落记录；执行者对四个原语拿得到确定的交回值。
-- **2026-09-25 第二轮独立评审修复（修复波 2；候选，未冻结，原地改；评审基线 `8ad37c50`，本轮起点 HUB `7c3ef6c2`）**。本轮主线裁定链 [D-060 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)（M8、M10、M12、M13、M16、M18、M23、M29）与 [§六 N-8](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)，逐条处置见[独立评审 · 第二轮](#第二轮2026-09-25)：
+- **2026-09-25 第二轮独立评审修复（修复波 2；候选，未冻结，原地改；评审基线 `8ad37c50`，本轮起点 HUB `7c3ef6c2`）**。本轮主线裁定链 D-060 §七（M8、M10、M12、M13、M16、M18、M23、M29）与 §六 N-8，逐条处置见独立评审 · 第二轮：
   - **查注册表的名字**（M8、M10）：[S-23](v2/contract.md#s-23-提交一批) ② 第 6 条以 `call.tool` 原样（`ModelToolName`）按 `capability.asset-registry` S-25 查，逆转写只为找执行者；注册表答「没有」→ ④ 即刻收场 `unavailable{no_such_entry}`，与「读不到」（整批 `dependencyUnavailable{registry}`）分开；批项多一种 `UnlistedCall = { call }`（报告里查不到条目、没进放行判断的调用），查得到条目即整批 `notAdmitted`。S-1、S-2、S-4、S-6、S-9、S-15、CS-1 同改；新场景 [S-69](v2/contract.md#s-69-查不到条目的调用即刻收场不可用)，examples 第 8 节加「第四支」。
   - **撤下与上交**（M12、M13）：[S-48](v2/contract.md#s-48-本能力自己的撤除与换代) 改写——有序撤下先对开着的装配状态 `abandon`（帧流 `lost`）、再写同一个首胜收场 `failed{abnormal_interruption}`，账取 `abandon` 的 `frames`；停机仍 `"unknown"`；正确性不依赖撤下这一步写成。[S-47](v2/contract.md#s-47-依赖的提供者不可用) 删「存储回来后照常写」，改为上交之后本任撤下；[S-41](v2/contract.md#s-41-交回) ⑤ 写明交回的结果随本任丢弃。S-9、S-10、S-11、S-13、S-15、S-39、[S-62](v2/contract.md#s-62-工具侧到达装配前提的承诺) 第 6 条、S-46 同改；新场景 [S-68](v2/contract.md#s-68-有序撤下收尾在途的帧流上交之后撤下)，examples 第 6、10 节各加一段。
   - **路由与观察者**（M16）：S-62 第 1 条路由键是（会话，目标），第 9 条只推给本会话观察者；被拒而无处可说的照旧留记录条目。
@@ -235,7 +157,7 @@
   - **形式**：`Execution.tla` 与八个配置**未改**，**本轮未运行 TLC**；formal/README 语义映射写明有序撤下、上交、`UnlistedCall` 不在模型里、不作证据。
   - **登记**：catalog 本契约依赖 `capability.asset-registry` 加 S-25、`capability.stream-assembly` 加 S-23、S-24（TE2-7）；covers 加 PF-009 §6.9、PF-011 §6.2 两条（本契约条目 62 → 64），PF-006 §6.12 那一行的三条补 S-48（`reviewed` 保持 false）；formal-tasks 未改。
   - **对消费者**：没有已采用的消费者，无迁移。**语义改变**：注册表答「没有」从整批 `dependencyUnavailable{registry}` 变为那一项 `ended{unavailable}`；loop 多交一种批项 `UnlistedCall`；有序撤下时在途执行当场落收场（此前留给下一任）；上交之后本任不再服务；发帧的执行者对形状不合的帧拿到的是原名而不是 `malformed`；报账空批明确失败 `invalidInput`。
-- **2026-09-25 修复波 3：实现映射反推（候选，未冻结，原地改）**：裁定出处 [D-060 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M33、M42、M43；逐条处置见[实现映射反推（2026-09-25）](#实现映射反推2026-09-25)。
+- **2026-09-25 修复波 3：实现映射反推（候选，未冻结，原地改）**：裁定出处 D-060 §八 M33、M42、M43；逐条处置见[实现映射反推（2026-09-25）](#实现映射反推2026-09-25)。
   - **`submit` 带 `report`**（M33）：[S-23](v2/contract.md#s-23-提交一批) 签名与 ① 加 `report`，② 第 6 条改 `within = run{report}`、`endpointHoldings` 取自它；⑥ 的 `invalidInput` 收「报告带的会话、运行不是本次的」，⑧ 收「`report` 缺席」；S-4（asset-registry 那一行）、S-6（`endpointHolding` 行）、S-15、S-46（新一行）、S-47（注册表那一行）、CS-1 同改；examples 共用局面加 `rpt_1`、七处 `submit` 带它、第 8 节加一行「报告不对」。
   - **送达通知只在本进程内**（M42）：[S-46](v2/contract.md#s-46-装配给的保证-vs-协议须给的保证) 末行新增；[S-45](v2/contract.md#s-45-送达通知) 加一条指路。
   - **缺口**（M43）：[G-6](v2/contract.md#十二已知缺口) 放宽为「由谁驱动、结论怎样交回」（T-2 并入）；新增 G-17（观察者订阅面，T-3）、G-18（`late` 读面，T-4）、G-19（模型调用成本的来路，T-5），owner 主线、本程不补；S-13、S-40、S-42、S-62 第 9 条各加一处指路。
@@ -243,62 +165,17 @@
   - **形式**：`Execution.tla` 与配置**未改**（模型里没有报告、没有送达通知、没有账），**本轮未运行 TLC**；formal/README 不改。
   - **登记**：catalog 本契约条目不变（新引的 `capability.asset-registry/v2#S-11` 第 3 条、`capability.loop-extension-runner/v2#S-21`、`data.call-accounts/v2#S-20`、`#S-39` 都已在已登记的 clauses 里）；covers 不变；formal-tasks 不变。
   - **对消费者**：没有已采用的消费者，无迁移。**语义改变**：`submit` 多一个必带的输入，缺它或带错运行的报告整批 `invalidInput`；此前「这次尝试的报告」没有来路（节点 T-1），现在由调用方交来。
-  - **同轮追加 M46**（[D-060 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M46；本轮推导经 N-20 接受）：报告带 `attempt`，`submit` 核会话、运行、尝试三者，任一对不上即 `invalidInput`——S-23 ①⑥、S-4、S-15、S-46、CS-1、设计依据表同改；examples 第 8 节「报告不对」一行加「同一运行上一次尝试的报告」一支。R-38 已答。模型仍未改，未运行 TLC。
-- **2026-09-25 修复波 3 跨批对齐（drafter 丑；候选，未冻结，原地改）**：裁定出处 [D-060 §八 N-22](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) T-16；逐条见[实现映射反推](#实现映射反推2026-09-25)末行。
+  - **同轮追加 M46**（D-060 §八 M46；本轮推导经 N-20 接受）：报告带 `attempt`，`submit` 核会话、运行、尝试三者，任一对不上即 `invalidInput`——S-23 ①⑥、S-4、S-15、S-46、CS-1、设计依据表同改；examples 第 8 节「报告不对」一行加「同一运行上一次尝试的报告」一支。R-38 已答。模型仍未改，未运行 TLC。
+- **2026-09-25 修复波 3 跨批对齐（drafter 丑；候选，未冻结，原地改）**：裁定出处 D-060 §八 N-22 T-16；逐条见[实现映射反推](#实现映射反推2026-09-25)末行。
   - **语义改变**：失败种类八个 → **九个**（`schema_unsupported`）；[S-23](v2/contract.md#s-23-提交一批) ④ 的参数判定分两支——判不了（编不出、超出实现登记的上限、判定超时）即刻 `failed{schema_unsupported}`、判得了而不合 `failed{arguments_invalid}`，都只落这一项；⑤ 的即刻收场种类随之多一个；S-38 与卸载那一关的两处列举同步。**`submit` 的失败值集合不变**（仍没有逐条失败值）。
   - **登记**：catalog 本契约 → `data.tool-definition` 的 clauses 补 `S-26`（第 13 行：判不了的那一种由它定义）；covers、formal-tasks 不变。
   - **形式**：`Execution.tla` 不区分参数判定的种类（即刻收场在模型里是一类），**未改、未运行 TLC**。
   - **证据**：examples 第 8 节「参数不合」那张表加一行（判定超时）；新义务并进[规范场景](#规范场景) S-61 那一行（加一支），不另立——仍「未开始」。
   - **对消费者**：`data.tool-definition` 的 G-15 据此关闭（同批由丑落）；runner、放行判断不受影响（参数判定只在本能力）。
 
-## 独立评审
-
-处置栏的 K 编号指 [D-060 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) 的主线裁定。
-
-| 评审 | 对象与基线 | 发现 | 处置 | 落在哪 |
-|---|---|---|---|---|
-| spec-reviewer，2026-09-24 | v2 candidate，基线 `765b01dc` | TE-1 发起即后台被拒是收场还是逐条失败值 | **接受**（K50）：只是收场 `failed{background_start_refused}`；删 `backgroundNotAllowed` 的逐条用法 | [S-23](v2/contract.md#s-23-提交一批) ④⑤⑥；examples 第 8 节 |
-| 同上 | 同上 | TE-2 判重的位次、`callIdConflict` 的位次 | **接受**（K50）：判重在凭据、归档、取消之前（租户核对之后），全部已登记即返回首次结果；`callIdConflict` 在判重那一步 | [S-23](v2/contract.md#s-23-提交一批) ②⑦；S-65；examples 第 9 节 |
-| 同上 | 同上 | TE-3 提交时不核会话租户 | **接受**（K50）：核对会话持有的租户，不符 `crossTenant`、读不到 `dependencyUnavailable{storage}` | [S-21](v2/contract.md#s-21-租户与会话范围)、[S-23](v2/contract.md#s-23-提交一批) ②⑥⑧；S-67；G-12 |
-| 同上 | 同上 | TE-4 丢失在途状态时 `frames` 填什么 | **接受**（K50）：写 `"unknown"`，从没起过的写零 | [S-13](v2/contract.md#s-13-账)、[S-20](v2/contract.md#s-20-恢复扫描与停机不重来)；examples 第 6 节 |
-| 同上 | 同上 | TE-5 执行者四个原语没有九件事 | **接受**（K50） | [S-12](v2/contract.md#s-12-等待)、[S-39](v2/contract.md#s-39-发帧)、[S-40](v2/contract.md#s-40-报账)、[S-41](v2/contract.md#s-41-交回) |
-| 同上 | 同上 | TE-6 `FirstWins` 反驳范围、可达性、`ReminderAfterPlaceholder` | **接受**：补三份补充否定配置与七个可达性探针（都按预期）；`ReminderAfterPlaceholder`、`ArchiveSettlesAll` 标按构造，次序的证据改为场景 S-52 | formal/README；契约第八节；本文件「证据义务」「实际执行」 |
-| 同上 | 同上 | TE-7 模型注释、状态行、`data.messages` S-31 未登记 | **接受** | `Execution.tla` 两处注释；契约头部状态行；S-4；catalog |
-| 同上 | 同上 | X-1 调用块里是模型面名字，谁做逆转写 | **接受**（K10）：本能力在提交时按定义名找条目之前逆转写一次，登记消费 `data.tool-definition` S-6、S-18；执行记录里的调用块保留模型面名字 | [S-23](v2/contract.md#s-23-提交一批) ②、[S-38](v2/contract.md#s-38-起执行者)、S-4 |
-| 同上 | 同上 | X-2 工具侧没有接住 stream-assembly S-28 | **接受**（K23） | [S-62](v2/contract.md#s-62-工具侧到达装配前提的承诺)；S-66；examples 第 10 节 |
-| 同上 | 同上 | X-3 解析不了的调用谁收场 | **接受**（K24）：本能力，`UnparseableCall` 即刻 `failed{unparseable}` | [S-23](v2/contract.md#s-23-提交一批)、[S-11](v2/contract.md#s-11-失败的种类)、S-2；S-64 |
-| 同上 | 同上 | X-4 整批被拒之后落什么收场 | **登缺口**（K25） | [G-16](v2/contract.md#十二已知缺口)、CS-1 |
-| 同上 | 同上 | X-6 凭据绑不绑会话 | **接受**（K27）：凭据本身不含会话，核对按（会话，`CallId`，生效参数） | [S-23](v2/contract.md#s-23-提交一批) ②；本文件「由别处承担」第一行 |
-| 同上 | 同上 | X-7 帧流收尾、`ToolInternalMessage` 判据 | **接受**（K2）：改引 `data.messages/v2#S-14`；等待到点与执行者换代落 `lost`（经 `abandon`）；判据为交出的块非空 | [S-19](v2/contract.md#s-19-送达)、[S-39](v2/contract.md#s-39-发帧) |
-| 同上 | 同上 | X-9 卸载判定的能力标识没人定 | **接受**（K29）：`omne-official:offload-judgment`，登记消费 `data.loop-extension` S-7 | [S-63](v2/contract.md#s-63-卸载判定这一件)、S-1、S-42 |
-| 同上 | 同上 | X-10 产品 rev 过期 | **接受**：逐版复核，见「变化的影响」 | 契约头部；S-12、S-19、S-20、S-39、S-42 |
-| 同上 | 同上 | X-11 规格层名字无词条 | **接受**（按主线：产品正文没定义的规格层名字不立词条）：活体、执行者、失败的种类仍标「（无词条）」，已有词条的（到达装配、在途状态、发帧、执行帧、拓展件不可用处置）逐处链接 | S-1、S-7、S-11、S-37、S-39、S-63 |
-| 同上 | 同上 | X-12 账本编号与施工标签 | **接受**：改链 D-060 与产品小节；尚无决定记录的归 G-13 | 设计依据、G 表、S-42、S-43、examples、formal/README、README |
-
-### 第二轮（2026-09-25）
-
-spec-reviewer 第二轮复评，对象 v2 candidate，基线 HUB `8ad37c50`，发现表 `tmp/assets-runtimes/reviews/r2-R4a.md`（任务区）；处置依据 [D-060 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)（下称 M 编号）与 [§六 N-8](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)。
-
-| # | 发现 | 处置 | 落在哪 |
-|---|---|---|---|
-| X2-1 | 【阻断】查注册表用定义名，与注册表按模型面名字建键对不上；没登 asset-registry S-25；注册表的「没有」没有收法 | **接受**（M8、M10）：以 `call.tool` 原样（`ModelToolName`）查，逆转写只为找执行者；登记消费 S-25；「没有」→ 那一项即刻 `unavailable{no_such_entry}`，与「读不到」分开；报告里查不到条目的调用以新批项 `UnlistedCall` 交来（名字本契约取，R-34），查得到条目即整批 `notAdmitted`。注册表一侧（S-7、S-25）归 asset-registry 起草者 | [S-23](v2/contract.md#s-23-提交一批) ①②④⑤⑥⑧ 与表后两条；S-1、S-2、[S-4](v2/contract.md#s-4-依赖方向与被消费的面)、S-6、S-9、S-15、CS-1；[S-69](v2/contract.md#s-69-查不到条目的调用即刻收场不可用)；examples 第 8 节；catalog |
-| X2-2 | 【应修】宿主撤下时在途的流：三份契约三种说法；TER「撤除时不写收场」与 call-accounts S-11「计数的一方还在却丢了是违约」相抵 | **接受**（M12）：有序撤下前对每个开着的装配状态 `abandon`（`lost`），账取 `abandon` 的 `frames`，当场写首胜收场；停机仍 `"unknown"`。stream-assembly 那一半（SA2-1）由本批同一起草者在那份契约落；MRR 一侧归 R5 起草者 | [S-48](v2/contract.md#s-48-本能力自己的撤除与换代)、[S-62](v2/contract.md#s-62-工具侧到达装配前提的承诺) 第 6 条、[S-39](v2/contract.md#s-39-发帧)、S-9、S-10、S-11、S-13、S-46；[S-68](v2/contract.md#s-68-有序撤下收尾在途的帧流上交之后撤下)；examples 第 10 节 |
-| TE2-1 | 【应修】D-060 §六 N-8 没落进本契约：七处「决定记录待补」、G-13 开着、第 134 行「名字由本契约取」、verification R 行未标已裁 | **接受**：七处改链 N-8；G-13 闭合；那一行改链 N-8；R-28～R-31、R-33 标已裁 | 设计依据第二张表、[S-11](v2/contract.md#s-11-失败的种类) 两条、[S-23](v2/contract.md#s-23-提交一批) 表后、[S-37](v2/contract.md#s-37-执行者登记与撤下)、[S-43](v2/contract.md#s-43-一批依次与同一工具的并发上限)、[G-13](v2/contract.md#十二已知缺口)；本文件「报给主线」 |
-| TE2-2 | 【应修】S-40 ⑥ 没收 ⑧ 用到的 `invalidInput` | **接受**（M29）：⑥ 补 `invalidInput`，写明集合闭合、单笔不合形状走 ⑤ | [S-40](v2/contract.md#s-40-报账) ⑥⑧ |
-| TE2-3 | 【应修】S-39 ⑧ 把形状问题一律收成 `malformed` | **接受**（M29）：形状不合的事件交给 `accept`、按原名交回、照 S-62 第 4 条补 `trim`；本能力自己只在事件缺席时给 `malformed`、不补 `trim`（「不补」是本契约的推导：没交出任何一帧） | [S-39](v2/contract.md#s-39-发帧) ⑤⑧；examples 第 10 节 |
-| TE2-4 | 【应修】S-41 ⑤ 的 `escalated` 与 S-47「存储回来后照常写」给出不同收场 | **接受**（M13）：上交之后本任撤下、不再服务，删「存储回来后照常写」；交回的结果随本任丢弃，下一任扫描落 `failed{abnormal_interruption}`；等着的 `awaitForeground` 得 `runtimeStopped`、不一直等 | [S-47](v2/contract.md#s-47-依赖的提供者不可用)、[S-41](v2/contract.md#s-41-交回) ⑤、[S-48](v2/contract.md#s-48-本能力自己的撤除与换代)、S-15、第八节不变量；S-68；examples 第 6 节 |
-| TE2-5 | 【建议】同一批多项凭据核对结果不同时给哪个失败值；`verifyToken` 的 `invalidInput` 与 ⑥「先于一切」不一致 | **接受**（M29）：取 ⑥ 最左（`invalidInput` > `notAdmitted` > `admissionUnavailable`），`why` 取批内最前那个不符项的 `reason`（「批内最前」是本契约的推导）；⑥ 写明 `verifyToken` 的 `invalidInput` 出在第 5 步 | [S-23](v2/contract.md#s-23-提交一批) ② 第 5 条、⑥ |
-| TE2-6 | 【建议】S-39「有意停下」的列举漏了 agent 掐掉 | **接受**：改为「收场为 `interrupted` 的全部」并指 S-10 那几行，列举补 agent 经 `BkgJobs()` 掐掉 | [S-39](v2/contract.md#s-39-发帧) 帧流收尾那一条 |
-| TE2-7 | 【建议】S-4 与 catalog 漏登 stream-assembly S-23、S-24 | **接受**：它们是发帧原语原样交回的拒绝值出处，实质消费，补登 | [S-4](v2/contract.md#s-4-依赖方向与被消费的面)；catalog |
-| M16 | S-62 路由键与观察者范围（R5 R2-MRR-6 在本能力的同形处） | **接受**：第 1 条按（会话，目标）路由，第 9 条只推给本会话观察者；无处可说的拒绝照旧留记录条目 | [S-62](v2/contract.md#s-62-工具侧到达装配前提的承诺) 第 1、9 条 |
-| M18 | README 那句「提供者是运行时协程」 | **接受**：改为这句原文并链 M18 | [README](README.md) |
-| M23 | S-25 表下「主线裁定 2026-09-24」没有持久出处 | **顺带改链**：以 PF-006 §6.7 为准、D-060 §七 M23 | [S-25](v2/contract.md#s-25-中断一次执行) |
-
-**核对**：评审表里 TE-5、X-1、X-2 三项「兑现有误」随上面几行一并处置；X-12 的残留即 TE2-1。
-
 ## 实现映射反推（2026-09-25）
 
-realization-drafter 起草本能力的节点（`realization/packages/tools/tool-execution-runtime/`）时报回的契约层缺陷，主线裁定见 [D-060 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)（下称 M 编号）。本契约涉及三条。
+realization-drafter 起草本能力的节点（`realization/packages/tools/tool-execution-runtime/`）时报回的契约层缺陷，主线裁定见 D-060 §八（下称 M 编号）。本契约涉及三条。
 
 | 裁定 | 来源 | 处置 | 落在哪 |
 |---|---|---|---|
@@ -313,7 +190,7 @@ realization-drafter 起草本能力的节点（`realization/packages/tools/tool-
 
 ## 修订波（2026-09-25 公开面）
 
-依据链：[D-063](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1（替身改为接口契约 ＋ 最小提供者）；[D-060 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-29（读面立契约时加 `dependencyUnavailable{runAttemptFacts}`）、N-37 ④（尝试事实最小提供者不另存表、「已终结」产品装配恒 `unavailable`）、⑨（执行环境的消费者是本契约 S-38 第 2 步与 G-4）。候选未冻结，原地改。
+依据链：D-063 R-1（替身改为接口契约 ＋ 最小提供者）；D-060 §八 N-29（读面立契约时加 `dependencyUnavailable{runAttemptFacts}`）、N-37 ④（尝试事实最小提供者不另存表、「已终结」产品装配恒 `unavailable`）、⑨（执行环境的消费者是本契约 S-38 第 2 步与 G-4）。候选未冻结，原地改。
 
 | 变化 | 依据 | 落在哪 | 语义变不变、对消费者 |
 |---|---|---|---|
@@ -361,7 +238,7 @@ realization-drafter 起草本能力的节点（`realization/packages/tools/tool-
 | R-25 | **「前台超时」没有 token**：PF-006 rev 18 §6.6／§6.7 定了占位原因「前台超时」，`data.content-blocks` v2 的 S-18 没有对应的 `reason.code`，账本也没给名字；本契约不自造。前台上限到点而不许后台时，记录照写、那条消息落不下去（S-10 那一行「停下并上交」） | S-10、S-44、G-3 | 账本缺名（2026-09-24）；**已裁（主线 2026-09-24：定名 `foreground_timeout`，进 `data.content-blocks` v2 S-18）** |
 | R-26 | **参数判定的两个次序是推导**：同一项既被注册表判为不可用又参数不合时报 `unavailable`；参数不合又发起即后台被拒时报 `arguments_invalid`。简报只说「按所选命令的 `input` 校验」，没说与另两种即刻收场谁先 | S-23 ④ | 推导待确认（2026-09-24）；**已裁（主线 2026-09-24 确认）** |
 | R-27 | **单函数工具同样判参数**：简报写「按所选命令的 `input`」；本契约把单函数工具（按它的 `input`）一并纳入同一种类——否则 MCP 条目与单函数工具的坏参数会原样交给执行者，与多命令工具两套规矩 | S-11、S-23 ④ | 推导待确认（2026-09-24）；**已裁（主线 2026-09-24 确认）** |
-| R-28 | **本轮由本契约取的名字**（D-060 §五只给了语义）：失败值 `notInForeground`；批项 `AdmittedCall`／`UnparseableCall`；执行记录的 `reportedCost`；四个原语的交回值——等待 `answered{value, by}`／`ended{outcome}`，发帧 `accepted`／`dropped{rejected{value}｜notAFrame｜executionEnded}`，报账逐笔 `recorded`／`rejected{value}`（含 `notToolReported`）／`executionEnded`，交回 `settled{outcome}`／`discarded`／`escalated` | [S-6](v2/contract.md#s-6-执行记录)、[S-12](v2/contract.md#s-12-等待)、[S-23](v2/contract.md#s-23-提交一批)、[S-39](v2/contract.md#s-39-发帧)～[S-41](v2/contract.md#s-41-交回) | 名字待过目（2026-09-24）；**已裁（[D-060 §六 N-8](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) 接受）** |
+| R-28 | **本轮由本契约取的名字**（D-060 §五只给了语义）：失败值 `notInForeground`；批项 `AdmittedCall`／`UnparseableCall`；执行记录的 `reportedCost`；四个原语的交回值——等待 `answered{value, by}`／`ended{outcome}`，发帧 `accepted`／`dropped{rejected{value}｜notAFrame｜executionEnded}`，报账逐笔 `recorded`／`rejected{value}`（含 `notToolReported`）／`executionEnded`，交回 `settled{outcome}`／`discarded`／`escalated` | [S-6](v2/contract.md#s-6-执行记录)、[S-12](v2/contract.md#s-12-等待)、[S-23](v2/contract.md#s-23-提交一批)、[S-39](v2/contract.md#s-39-发帧)～[S-41](v2/contract.md#s-41-交回) | 名字待过目（2026-09-24）；**已裁（D-060 §六 N-8 接受）** |
 | R-29 | **租户核对排在判重之前**：K50 只说判重在凭据核对之前；本契约把会话租户的核对再往前放一步，否则别的租户的调用方能据幂等返回读到这个会话里登记过哪些调用 | [S-23](v2/contract.md#s-23-提交一批) ② | 推导待确认（2026-09-24）；**已裁（D-060 §六 N-8「租户核对先于判重」）** |
 | R-30 | **交回写不下去时 `escalated`**：收场写不下去就上交（PF-011），这次执行此刻没有收场，由下一任恢复扫描按停机处置；执行者不重交 | [S-41](v2/contract.md#s-41-交回) ⑤⑥ | 推导待确认（2026-09-24）；**已裁（D-060 §六 N-8；上交之后本任撤下见 §七 M13）** |
 | R-31 | **几条主线裁定尚无决定记录**：一批依次、本地实现撤下不影响在途、落点执行时不到位落 `failed{environment_unavailable}`（2026-09-23）；参数不合即刻失败并带用法、未知键一律拒、单函数工具同一规则、即刻收场的次序（2026-09-24） | [G-13](v2/contract.md#十二已知缺口) | 决定记录待补；**已闭合（D-060 §六 N-8 登了这七条，G-13 关）** |
@@ -371,10 +248,10 @@ realization-drafter 起草本能力的节点（`realization/packages/tools/tool-
 | R-35 | **`data.messages` S-14 的对应表没有「工具执行运行时有序撤下」这一行**：M12 之后本能力有序撤下时对开着的帧流调 `abandon`，`ending` 落 `lost`；那张表现有「执行者换了代」一行只写 MCP 桥。建议甲在那张表补一行（或把「执行者换了代」写宽到「执行那一侧的承载者撤下」），本契约 S-39 已按 `lost` 写 | `data.messages/v2#S-14`；本契约 [S-39](v2/contract.md#s-39-发帧)、[S-48](v2/contract.md#s-48-本能力自己的撤除与换代) | 与其他契约的措辞对齐（甲那一侧） |
 | R-36 | **`data.content-blocks` S-18 `abnormal_interruption` 那一行只写「据点停过机、恢复时追补；或 MCP 桥换代」**：M12 之后本能力有序撤下时也当场写这个值；取值与收场不变，只是那一行的说明窄了一路 | `data.content-blocks/v2#S-18`；本契约 [S-10](v2/contract.md#s-10-占位原因) | 描述对齐（甲那一侧） |
 | R-37 | **上交之后的那条条目落在哪**：PF-011 §6.3「上交必须留下条目」，而本能力上交恰因为执行记录与会话日志写不下去——那条条目此刻进不了会话日志。本契约只写到「上交、撤下」，条目由接手那一层（部署装配）留在哪、以什么形式（结构化日志？），本版没有答案 | [S-47](v2/contract.md#s-47-依赖的提供者不可用)、[S-41](v2/contract.md#s-41-交回) ⑤ | 与其他契约的缺口（装配与观测那一程）；**不自决** |
-| R-38 | **修复波 3 的两处推导待确认**（[D-060 §八 M33](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：`report` 与本次会话、运行对不上收成 `invalidInput`、排在一切之前（与 runner 同一条）；`report` 恒必带，一批里全是 `UnparseableCall` 也不例外。另：报告只带会话与运行、不带尝试（`capability.asset-registry/v2#S-11`），**同一运行里上一次尝试的报告核对得过**——M33 只要求核会话与 `runId`，本契约照此，不另加一条 | [S-23](v2/contract.md#s-23-提交一批) ①⑥⑧ | **已答（2026-09-25）**：两处推导经 D-060 §八 N-20 接受；尝试那一半裁为 M46——报告带 `attempt`，核三者（本文件「实现映射反推」M46 行） |
+| R-38 | **修复波 3 的两处推导待确认**（D-060 §八 M33）：`report` 与本次会话、运行对不上收成 `invalidInput`、排在一切之前（与 runner 同一条）；`report` 恒必带，一批里全是 `UnparseableCall` 也不例外。另：报告只带会话与运行、不带尝试（`capability.asset-registry/v2#S-11`），**同一运行里上一次尝试的报告核对得过**——M33 只要求核会话与 `runId`，本契约照此，不另加一条 | [S-23](v2/contract.md#s-23-提交一批) ①⑥⑧ | **已答（2026-09-25）**：两处推导经 D-060 §八 N-20 接受；尝试那一半裁为 M46——报告带 `attempt`，核三者（本文件「实现映射反推」M46 行） |
 | R-39 | **M43 那几个缺口在闭合之前怎样落，本契约只写了方向**：G-6 按「那一关不可用」落（降级）；G-17 不推给任何观察者；G-18 的 `late`、G-19 的 `usage` 与模型调用成本**兑现不了**、不给过渡值。实现节点若要一个过渡写法（例如 `late` 判不出时写什么），须主线另裁——`data.call-accounts` 里这两格的缺席各有确定含义，没有「判不出」的写法 | [G-6](v2/contract.md#十二已知缺口)、G-17～G-19 | **已答（2026-09-25）**：D-060 §八 N-20 接受——G-6／G-17～G-19 闭合前 `late`、`usage` 不给过渡值 |
-| R-40 | **T-16 落地的两处推导**（[D-060 §八 N-22](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：① 判定没走完（超时）就以 `schema_unsupported` 收场，即使已判出某个键不合也不报 `arguments_invalid`——否则同一次调用在快慢两台机器上收场不同的机会更多；② `schema_unsupported` 的块只说「判不了、哪一种」，不附用法、不说参数不合。另：「判定时限」是实现登记的第三样上限，本契约不取名、不填值，挂 `data.tool-definition` 的 G-16 | [S-11](v2/contract.md#s-11-失败的种类)、[S-23](v2/contract.md#s-23-提交一批) ④ | 推导待确认（2026-09-25，丑） |
+| R-40 | **T-16 落地的两处推导**（D-060 §八 N-22）：① 判定没走完（超时）就以 `schema_unsupported` 收场，即使已判出某个键不合也不报 `arguments_invalid`——否则同一次调用在快慢两台机器上收场不同的机会更多；② `schema_unsupported` 的块只说「判不了、哪一种」，不附用法、不说参数不合。另：「判定时限」是实现登记的第三样上限，本契约不取名、不填值，挂 `data.tool-definition` 的 G-16 | [S-11](v2/contract.md#s-11-失败的种类)、[S-23](v2/contract.md#s-23-提交一批) ④ | 推导待确认（2026-09-25，丑） |
 | R-41 | **会话租户读不到仍借 `{storage}`，尝试事实读不到已是 `{runAttemptFacts}`——两处不对称**：N-29 只给尝试事实这一格加了专值；`holdingTenant` 答 `sessionNotFound`／`unavailable` 本波沿用 `dependencyUnavailable{storage}`（存储其实是好的）。要不要同样加 `{sessionTenancy}`，由主线定；本波不自加 | [S-21](v2/contract.md#s-21-租户与会话范围)、[S-23](v2/contract.md#s-23-提交一批) ⑧；`capability.session-tenancy` 消费者核对那一行 | 与其他契约的对齐。**已裁（主线，2026-09-25）**：加 `dependencyUnavailable{sessionTenancy}`，与 `{runAttemptFacts}` 同列；已落（见[修订波](#修订波2026-09-25-公开面)第二行） |
-| R-42 | **产品装配里本能力一次账都落不下**：`capability.run-attempt-facts` 的最小提供者在运行终结记录形状（它的 G-3）定下之前对「已终结」恒答 `unavailable`（[D-060 §八 N-37](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ④），`attemptFacts` 因此整次 `unavailable`；按 S-13 读不到就不写缺席的 `late`，于是**凡要落账的收场都写不下去**——操作以 `dependencyUnavailable{runAttemptFacts}` 失败，执行者交回的以 `escalated` 上交、本任撤下。这是 fail-closed 的正确方向，但等于产品装配里工具执行跑不完。可选的出路（不自选）：接受到那份 G-3 闭合为止；或让那份读面在「已被取代」为真时单给出它（`late` 只要任一为真即 `true`）；或 `data.call-accounts` 的 `late` 加一个「判不出」取值 | [S-13](v2/contract.md#s-13-账)、[G-18](v2/contract.md#十二已知缺口)；`capability.run-attempt-facts` G-3、S-9 | 产品／与其他契约的缺口。**已裁（主线，2026-09-25）**：与 modality-projection、runner 报的两件是同一个事实——本程产品装配没有 loop 与会话，这些读面在那里没有调用者，验收装配以种子答（N-37 ④）；**不改条款、不给 `late` 加第三值**，前提写进 G-18 的 owner 一栏（见[修订波](#修订波2026-09-25-公开面)第三行） |
+| R-42 | **产品装配里本能力一次账都落不下**：`capability.run-attempt-facts` 的最小提供者在运行终结记录形状（它的 G-3）定下之前对「已终结」恒答 `unavailable`（D-060 §八 N-37 ④），`attemptFacts` 因此整次 `unavailable`；按 S-13 读不到就不写缺席的 `late`，于是**凡要落账的收场都写不下去**——操作以 `dependencyUnavailable{runAttemptFacts}` 失败，执行者交回的以 `escalated` 上交、本任撤下。这是 fail-closed 的正确方向，但等于产品装配里工具执行跑不完。可选的出路（不自选）：接受到那份 G-3 闭合为止；或让那份读面在「已被取代」为真时单给出它（`late` 只要任一为真即 `true`）；或 `data.call-accounts` 的 `late` 加一个「判不出」取值 | [S-13](v2/contract.md#s-13-账)、[G-18](v2/contract.md#十二已知缺口)；`capability.run-attempt-facts` G-3、S-9 | 产品／与其他契约的缺口。**已裁（主线，2026-09-25）**：与 modality-projection、runner 报的两件是同一个事实——本程产品装配没有 loop 与会话，这些读面在那里没有调用者，验收装配以种子答（N-37 ④）；**不改条款、不给 `late` 加第三值**，前提写进 G-18 的 owner 一栏（见[修订波](#修订波2026-09-25-公开面)第三行） |
 
 - 2026-09-25（N-25）：S-30 ⑥ 的 `invalidInput` 扩到「形状校验判不了」（编不出、超上限、校验超时），不新增值；证据义务同 N-15 那一支。

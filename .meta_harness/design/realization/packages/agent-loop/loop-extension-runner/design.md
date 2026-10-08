@@ -1,16 +1,16 @@
 # loop-extension-runner 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 契约：[`capability.loop-extension-runner` v2](../../../../spec/capabilities/loop-extension-runner/v2/contract.md)（下文「契约 S-n」「契约 G-n」都指它）。
 本页的插件名、服务名、方法名一律是**候选**；契约的九件事不复述，只写兑现点与缺口。
 
 ## 实现路径与来源
 
-**自建，不 fork。**D-033 接受的 hooks 兼容层起点明写「不取 DSH 的 `runner`」（[D-033](../../../../record/decisions/hooks-compat-baseline/decision.md#选择与范围)）——它的「执行器拒绝 ⇒ 非阻断、永不抛」正是本契约 S-12 末条不继承的方向。
+**自建，不 fork。**D-033 接受的 hooks 兼容层起点明写「不取 DSH 的 `runner`」（D-033）——它的「执行器拒绝 ⇒ 非阻断、永不抛」正是本契约 S-12 末条不继承的方向。
 
 - **求值不用 Cordis 的事件派发**：`emit` 丢掉返回值，`bail` 遇到异步监听者就把 Promise 当作结论交回、不等它（basis [`async-control-not-bail`](../../../../basis/cordis/async-control-not-bail.md)）；本契约 S-10 第 5 条要 runner 自己等每一件。链的次序与成员是会话级数据（装配清单），不是 Cordis 的注册序。runner 按清单逐件 `await` 直接调用实现。**名字相同、含义不同**：契约说的「逐件顺序求值」不是 Cordis 的 `waterfall`（契约 S-10 的注）。
-- **复用**：结论、输入、声明、记录的形状与表示层校验取同批纯模块 [`packages/core/loop-extension`](../../core/loop-extension/README.md)；消息、块、归属标识、响应体取 [`packages/core/messages`](../../core/messages/README.md)、[`packages/core/content-blocks`](../../core/content-blocks/README.md)、[`packages/core/call-accounts`](../../core/call-accounts/README.md)、[`packages/core/model-response`](../../core/model-response/README.md)（一契约一包，D-060 §八 M41）；句柄的不透明串用 `identity-values` 的 `generateOpaqueIdentifier()`；共用件 `definePlugin`、`resolveOptional`、`Outcome` 取 [kernel-basis](../../core/kernel-basis/README.md)。
+- **复用**：结论、输入、声明、记录的形状与表示层校验取同批纯模块 [`packages/core/loop-extension`](../../core/loop-extension/README.md)；消息、块、归属标识、响应体取 [`packages/core/messages`](../../core/messages/README.md)、[`packages/core/content-blocks`](../../core/content-blocks/README.md)、[`packages/core/call-accounts`](../../core/call-accounts/README.md)、[`packages/core/model-response`](../../core/model-response/README.md)（一契约一包，D-060 §八 M41）；句柄的不透明串用 `identity-values` 的 `generateOpaqueIdentifier()`；共用件 `definePlugin`、`resolveOptional`、`Outcome` 取 [kernel-basis](../../../../../../packages/core/kernel-basis/README.md)。
 - **效果合成、三张处置表都是纯函数**（契约 S-12、S-13、S-15、S-17 的表），与插件分开导出，场景逐格演练它们。
 
 ## 公开面
@@ -21,7 +21,7 @@
 
 | 导出（候选） | 做什么 | 输入与输出的契约坐标 |
 |---|---|---|
-| `runPass(pass, chain, ports, signal) → Promise<PassResult>` | 对**一次经过**逐件求值：钉两处末位 → 按 `ports.readConclusions` 读回已落的结论并核前缀（对不上即 `replayInconsistent`）→ 从第一件没有最终结论的件起：判在场（`ports.presence`）→ `ports.invoke(name, input)` → 两类合法性判断（`ports.judges`）→ **`await ports.record(结论, 键)` 确认之后**才开始下一件 → 遇终止即停 → 提醒 → 合成效果。`pass` 是 (位置, 维度, 锚, 统一输入)，**锚是调用方给的不透明键**（[S-5](../../../../spec/capabilities/loop-extension-runner/v2/contract.md#s-5-一次经过)，[D-063 R-12](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）；`chain` 是调用方给的有序件列表（各件的名字、`needs`、不可用处置）；中止信号到 ⇒ `cancelled`，在途那一件不落结论 | 统一输入、结论、记录、效果、提醒：`data.loop-extension/v2`；消息与块：`data.messages/v2`、`data.content-blocks/v2`；逐件与先落后算、不可用与报错、效果合成、关门表的**词汇**借本契约 [S-10](../../../../spec/capabilities/loop-extension-runner/v2/contract.md#s-10-逐件顺序求值先落后算)、[S-12](../../../../spec/capabilities/loop-extension-runner/v2/contract.md#s-12-不可用与报错runner-怎么分)、S-13、[S-15](../../../../spec/capabilities/loop-extension-runner/v2/contract.md#s-15-效果怎么合成)、[S-17](../../../../spec/capabilities/loop-extension-runner/v2/contract.md#s-17-系统自带件不可用时一律关门)——**函数层的行为本身没有契约条款**（缺口 RUN-N7） |
+| `runPass(pass, chain, ports, signal) → Promise<PassResult>` | 对**一次经过**逐件求值：钉两处末位 → 按 `ports.readConclusions` 读回已落的结论并核前缀（对不上即 `replayInconsistent`）→ 从第一件没有最终结论的件起：判在场（`ports.presence`）→ `ports.invoke(name, input)` → 两类合法性判断（`ports.judges`）→ **`await ports.record(结论, 键)` 确认之后**才开始下一件 → 遇终止即停 → 提醒 → 合成效果。`pass` 是 (位置, 维度, 锚, 统一输入)，**锚是调用方给的不透明键**（[S-5](../../../../spec/capabilities/loop-extension-runner/v2/contract.md#s-5-一次经过)，D-063 R-12）；`chain` 是调用方给的有序件列表（各件的名字、`needs`、不可用处置）；中止信号到 ⇒ `cancelled`，在途那一件不落结论 | 统一输入、结论、记录、效果、提醒：`data.loop-extension/v2`；消息与块：`data.messages/v2`、`data.content-blocks/v2`；逐件与先落后算、不可用与报错、效果合成、关门表的**词汇**借本契约 [S-10](../../../../spec/capabilities/loop-extension-runner/v2/contract.md#s-10-逐件顺序求值先落后算)、[S-12](../../../../spec/capabilities/loop-extension-runner/v2/contract.md#s-12-不可用与报错runner-怎么分)、S-13、[S-15](../../../../spec/capabilities/loop-extension-runner/v2/contract.md#s-15-效果怎么合成)、[S-17](../../../../spec/capabilities/loop-extension-runner/v2/contract.md#s-17-系统自带件不可用时一律关门)——**函数层的行为本身没有契约条款**（缺口 RUN-N7） |
 | `composeEffect(conclusions)` | S-15 那张表：已落结论 → 效果 | 同 S-15 |
 | `unavailableDisposition`、`errorDisposition`、`closedGateFallback`（S-12、S-13、S-17 三张表） | 纯函数，逐格对表 | 同各条 |
 | `passKeys(pass, name)` | 一件在一次经过上的判重键与读取键（带写入方前缀 `runner/`，会话日志 [G-5](../../../../spec/capabilities/session-log/v2/contract.md#十已知缺口)） | `capability.session-log/v2` [S-8](../../../../spec/capabilities/session-log/v2/contract.md#s-8-判重键)、[S-9](../../../../spec/capabilities/session-log/v2/contract.md#s-9-读取键) 的「键由写入方拼」 |
@@ -42,7 +42,7 @@
 
 | 单元 | 服务键（候选）与方法 | 必需 inject | 调用时取用（`resolveOptional`） | 配置 |
 |---|---|---|---|---|
-| 插件 `loop-extension-runner` | `loopExtensionRunner`：`dispatch`（另收调用方的中止信号，投影层参数）、`replay`（契约 S-21、S-22）；`loopExtensionImplementations`：`registerBuiltin(builtinName, 实现) → 注销函数`、`registerCommandExecutor(执行器) → 注销函数`、`resolveTenant(environment)`、`resolveExecutionEnvironment(environment)`（契约 S-50） | `sessionLog`（`capability.session-log/v2`：[S-17](../../../../spec/capabilities/session-log/v2/contract.md#s-17-append追加一批条目) `append`、[S-18](../../../../spec/capabilities/session-log/v2/contract.md#s-18-readbykey按读取键读) `readByKey`） | `assemblyManifest`（`capability.assembly-manifest/v2`：[S-16](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-16-readhead读头与每一类最后一条) `readHead` 读链，[S-19](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-19-dependencypresence依赖名此刻在不在场) `dependencyPresence` 判 `needs`——**在场判定是它的一个查询，不另设服务键**，[D-060 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ②）；`modelRuntime`（`legalTargets`、`canDispatchAgain`）；`toolAdmission`（`admit`，本批无提供者）；`sessionTenancy`（`capability.session-tenancy/v2` [S-8](../../../../spec/capabilities/session-tenancy/v2/contract.md#s-8-holdingtenant读会话持有的租户身份) `holdingTenant`）与 `executionEnvironments`（`capability.execution-environments/v2` [S-11](../../../../spec/capabilities/execution-environments/v2/contract.md#s-11-resolvesessionenvironment) `resolveSessionEnvironment`）——后两者只供句柄解析（契约 S-50；真承接者未到、接口已定，契约 G-20） | 无 |
+| 插件 `loop-extension-runner` | `loopExtensionRunner`：`dispatch`（另收调用方的中止信号，投影层参数）、`replay`（契约 S-21、S-22）；`loopExtensionImplementations`：`registerBuiltin(builtinName, 实现) → 注销函数`、`registerCommandExecutor(执行器) → 注销函数`、`resolveTenant(environment)`、`resolveExecutionEnvironment(environment)`（契约 S-50） | `sessionLog`（`capability.session-log/v2`：[S-17](../../../../spec/capabilities/session-log/v2/contract.md#s-17-append追加一批条目) `append`、[S-18](../../../../spec/capabilities/session-log/v2/contract.md#s-18-readbykey按读取键读) `readByKey`） | `assemblyManifest`（`capability.assembly-manifest/v2`：[S-16](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-16-readhead读头与每一类最后一条) `readHead` 读链，[S-19](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-19-dependencypresence依赖名此刻在不在场) `dependencyPresence` 判 `needs`——**在场判定是它的一个查询，不另设服务键**，D-060 §八 N-37 ②）；`modelRuntime`（`legalTargets`、`canDispatchAgain`）；`toolAdmission`（`admit`，本批无提供者）；`sessionTenancy`（`capability.session-tenancy/v2` [S-8](../../../../spec/capabilities/session-tenancy/v2/contract.md#s-8-holdingtenant读会话持有的租户身份) `holdingTenant`）与 `executionEnvironments`（`capability.execution-environments/v2` [S-11](../../../../spec/capabilities/execution-environments/v2/contract.md#s-11-resolvesessionenvironment) `resolveSessionEnvironment`）——后两者只供句柄解析（契约 S-50；真承接者未到、接口已定，契约 G-20） | 无 |
 
 - **只 inject 会话日志**（接口 `capability.session-log` v2 已定；真承接者 loop 与会话那一程未到，最小提供者节点 [`session-log-jsonl`](../../session/session-log-jsonl/design.md#消费者要求的承接互指) 已立（candidate），RUN-N1）：草图写派发器「inject：会话日志读写」、其余一律可选取用——`inject` 没有可选形式（basis [`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)），写进去就等于「没有它我不跑」，而本契约要的是「实现缺席即那一件不可用，不是 runner 不可用」（契约 S-4）。
 - **配置错误政策**：本插件没有配置。重复登记同一个 `builtinName` 或第二个命令执行器 ⇒ 登记方法抛出 ⇒ **登记者**的插件体抛出、`FAILED`、装配启动失败——与同批各节点同一条「配置错误即启动失败」；runner 自己不受影响。
@@ -69,7 +69,7 @@
 
 - **造**：每调一件实现，runner 用 `generateOpaqueIdentifier()` 造一只新串放进输入的 `environment`，并在本实例的**句柄表**里登一行：串 → (`manifest` 指认的会话, 这一件, 这一次经过, 调用代际)。**表里只有会话的内部指认，串本身不承载它**；输入里没有会话标识（契约 S-50 第 2 条）。
 - **失效**：那一次调用返回（或按叫停被放弃）时删掉那一行；此后解析即失败，不返回上一次的值（S-50 第 3 条）。句柄表随 runner 实例生灭（[装卸表](#成对的装载与撤除)），runner 换代之后旧实例造的句柄一律解析失败——那一件按 S-50 第 4 条自己归「起不来」或报错，而它交回的东西不会落：那一次 `dispatch` 在下一处检查点以 `unavailable` 收场（[runner 自身被撤除](#状态并发与失败映射)）。
-- **解析**：两样**分开解析、按需才取**——`resolveTenant` 经 `sessionTenancy.holdingTenant(会话)` 取那个会话持有的租户身份；`resolveExecutionEnvironment` **先经同一个 `holdingTenant` 取租户，再以 (租户, 会话) 调 `executionEnvironments.resolveSessionEnvironment`**（[S-11](../../../../spec/capabilities/execution-environments/v2/contract.md#s-11-resolvesessionenvironment)：它要租户才答；[D-060 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑩），交回执行环境引用（那份契约的 [S-5](../../../../spec/capabilities/execution-environments/v2/contract.md#s-5-执行环境引用)，不透明）。模态转换那一件只在有块要转时取租户（D-060 §八 N-20），它不必因为执行环境那一侧不在而失败；反过来，**租户读不到时执行环境也解析不出**——这是 S-11 的入参决定的，不是本节点的选择。
+- **解析**：两样**分开解析、按需才取**——`resolveTenant` 经 `sessionTenancy.holdingTenant(会话)` 取那个会话持有的租户身份；`resolveExecutionEnvironment` **先经同一个 `holdingTenant` 取租户，再以 (租户, 会话) 调 `executionEnvironments.resolveSessionEnvironment`**（[S-11](../../../../spec/capabilities/execution-environments/v2/contract.md#s-11-resolvesessionenvironment)：它要租户才答；D-060 §八 N-37 ⑩），交回执行环境引用（那份契约的 [S-5](../../../../spec/capabilities/execution-environments/v2/contract.md#s-5-执行环境引用)，不透明）。模态转换那一件只在有块要转时取租户（D-060 §八 N-20），它不必因为执行环境那一侧不在而失败；反过来，**租户读不到时执行环境也解析不出**——这是 S-11 的入参决定的，不是本节点的选择。
 - **解析不出**（行已删；来源缺席；`holdingTenant` 答 `sessionNotFound` 或 `unavailable`；`resolveSessionEnvironment` 答它 [S-11](../../../../spec/capabilities/execution-environments/v2/contract.md#s-11-resolvesessionenvironment) ⑥ 的任一失败值）⇒ 那一次解析以可识别的失败收场（候选 `environmentUnresolved`），**不给默认、不回退宿主机、不拿别的会话的顶上**；归「起不来」还是报错由那一件按它开始与否判（S-50 第 4 条），runner 在它交回时照 S-12 记。
 - **受限**：两个解析方法与登记方法同在受限面 `loopExtensionImplementations` 上，只有登记过实现的系统包够得着（RUN-N6 的同一条静态检查）。
 
@@ -83,7 +83,7 @@
 
 | 契约责任 | 插件、服务或公开操作 | 实现／源码与采用版本 | 符合性依据或缺口 |
 |---|---|---|---|
-| S-5 一次经过与锚 | **锚是调用方随 `dispatch` 交来的不透明键**（参数 `anchor`，一批动作时是逐项对应的 `anchors`，`replay` 同名；契约 [S-21](../../../../spec/capabilities/loop-extension-runner/v2/contract.md#s-21-dispatch一次经过)；[D-063 R-12](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)），runner 不推、不解析，原样拼进判重键与读取键（`passKeys`） | 尚未实现 | 不再受阻：场景的键由测试给。**键怎样算**归 loop 那一程（契约 G-1 收窄后的那一半）；调用方的两条义务（同一次经过同一把、不同经过不同把）本节点兑现不了 |
+| S-5 一次经过与锚 | **锚是调用方随 `dispatch` 交来的不透明键**（参数 `anchor`，一批动作时是逐项对应的 `anchors`，`replay` 同名；契约 [S-21](../../../../spec/capabilities/loop-extension-runner/v2/contract.md#s-21-dispatch一次经过)；D-063 R-12），runner 不推、不解析，原样拼进判重键与读取键（`passKeys`） | 尚未实现 | 不再受阻：场景的键由测试给。**键怎样算**归 loop 那一程（契约 G-1 收窄后的那一半）；调用方的两条义务（同一次经过同一把、不同经过不同把）本节点兑现不了 |
 | S-6 链从装配清单来；两处末位 | 经过开始时经 `assemblyManifest.readHead`（[S-16](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-16-readhead读头与每一类最后一条)）读一次链（之后不变）——**从记录内容里怎样取出链是 assembly-manifest 的 [G-4](../../../../spec/capabilities/assembly-manifest/v2/contract.md#十已知缺口)**，服务面读链在它闭合前写不成代码；函数面 `runPass` 由调用方交链，不受它挡；按能力标识把放行判断、模态转换移到各自链末；清单里没有它们也在链末认一件 | 同上 | 放行判断的标识已定（`omne-official:admission-judgment`）；**模态转换的标识未定型**（契约 G-3，modality-projection 节点 MP-N2），认不出就钉不了；清单里四样值怎么表示是契约 G-2 |
 | S-7 系统自带件 | 登记表（上节）；认法只凭能力标识 | 同上 | 循环探测、重试的标识同在契约 G-3 |
 | S-8 不持有运行实例里的状态 | 除登记表（实现句柄，不是事实）之外没有任何状态；「已有结论」「连续否决次数」都现读日志 | 同上 | 重启、换协程、换实例不改任何一次经过的结果 |
@@ -130,7 +130,7 @@
 |---|---|---|---|
 | RL-1 | 每条结论一次追加，确认即落盘；确认之前 runner 不开始下一件 | S-10 第 2 条、S-32 第 1 行 | [S-13](../../../../spec/capabilities/session-log/v2/contract.md#s-13-提交与持久) 第 2、4 条（成功返回即已持久、读自己写的） |
 | RL-2 | **尝试栅栏在写入边界上判**：带运行的经过（含它引出的嵌套经过）的每一次写带 `fenced{run, attempt}`；日志在提交点上看已提交条目壳上的 `(run, attempt)`，同一运行有更大序号即整批不写（`attemptSuperseded`）。**不另存尝试行**——比较对象就是日志里的条目 | S-21 ②、S-32 第 3 行 | [S-10](../../../../spec/capabilities/session-log/v2/contract.md#s-10-尝试栅栏)（只关不开；前提「每次尝试第一条是尝试开始记录」是 loop 的义务）、[S-14](../../../../spec/capabilities/session-log/v2/contract.md#s-14-同一会话的追加一条接一条判定与写入是同一步) |
-| RL-3 | **无运行的经过按 (位置, 维度, 锚, 件名) 至多一条**：`passKeys` 把它拼成判重键（带前缀 `runner/`；锚是调用方交来的键，[D-063 R-12](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)），已有即拒（`alreadyRecorded{keys}`），runner 改读那一条接着走 | S-21 ②、S-32 第 4 行 | [S-8](../../../../spec/capabilities/session-log/v2/contract.md#s-8-判重键)（按耐久内容判、撞上整批不写、判定与写入同一步）；键的名字空间是那份契约的 G-5 |
+| RL-3 | **无运行的经过按 (位置, 维度, 锚, 件名) 至多一条**：`passKeys` 把它拼成判重键（带前缀 `runner/`；锚是调用方交来的键，D-063 R-12），已有即拒（`alreadyRecorded{keys}`），runner 改读那一条接着走 | S-21 ②、S-32 第 4 行 | [S-8](../../../../spec/capabilities/session-log/v2/contract.md#s-8-判重键)（按耐久内容判、撞上整批不写、判定与写入同一步）；键的名字空间是那份契约的 G-5 |
 | RL-4 | 提醒按 `MessageId` 至多一条：以它拼判重键，已有即不再写 | S-19 第 2 条 | S-8 |
 | RL-5 | 按锚读出一次经过已落的全部结论，按提交次序；读不到返回可识别的失败，不返回空 | S-22、S-28、S-9 第 4 条 | [S-9](../../../../spec/capabilities/session-log/v2/contract.md#s-9-读取键)（每条结论带「这一次经过」的读取键）、[S-18](../../../../spec/capabilities/session-log/v2/contract.md#s-18-readbykey按读取键读)（按位置升序；读不到 `unavailable`，不返回空） |
 | RL-6 | `ask` 记录落盘即可见；卡片由等待原语从它重建（卡片那一侧的唯一性归卡片与等待，契约 S-27 第 2 条） | S-27、S-32 倒数第 3 行 | S-13 第 4 条 |
@@ -181,7 +181,7 @@ runner 的每一次写都是一次追加，**没有「同一提交」要跨 owne
 | `capability.modality-projection/v2` S-20、S-22、S-23 | 系统自带那一件经登记表 | 求值那一刻查 | 缺席 ⇒ 指定挂件 |
 | `capability.session-log/v2` [S-8](../../../../spec/capabilities/session-log/v2/contract.md#s-8-判重键)～[S-10](../../../../spec/capabilities/session-log/v2/contract.md#s-10-尝试栅栏)、[S-17](../../../../spec/capabilities/session-log/v2/contract.md#s-17-append追加一批条目)、[S-18](../../../../spec/capabilities/session-log/v2/contract.md#s-18-readbykey按读取键读) | 必需 inject `sessionLog`；RL-1～RL-6 | 每一次写与读 | `unavailable` ⇒ `unavailable`，停在出事那一件之前；`attemptSuperseded` ⇒ `attemptSuperseded`；`alreadyRecorded` ⇒ 读已落的那一条接着走；`tenantMismatch` 与 `invalidInput` ⇒ 缺陷（壳上的租户与尝试是 runner 如实给的） |
 | `capability.session-tenancy/v2` [S-8](../../../../spec/capabilities/session-tenancy/v2/contract.md#s-8-holdingtenant读会话持有的租户身份)、`capability.execution-environments/v2` [S-11](../../../../spec/capabilities/execution-environments/v2/contract.md#s-11-resolvesessionenvironment)（契约 S-50；真承接者未到、接口已定，G-20） | 调用时取用 `sessionTenancy`、`executionEnvironments`，只在句柄解析时；执行环境先经 `holdingTenant` | 每一次解析现取 | 缺席或答不出 ⇒ 那一次解析失败，不给默认 |
-| `capability.assembly-manifest/v2` [S-19](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-19-dependencypresence依赖名此刻在不在场) `dependencyPresence` | 调用时取用 `assemblyManifest`（同一个服务键，[D-060 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ②） | 每一件判在场时现取 | 缺席、`unavailable`（含有一个名字没有事实） ⇒ 带 `needs` 的件判不出 ⇒ `unavailable` |
+| `capability.assembly-manifest/v2` [S-19](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-19-dependencypresence依赖名此刻在不在场) `dependencyPresence` | 调用时取用 `assemblyManifest`（同一个服务键，D-060 §八 N-37 ②） | 每一件判在场时现取 | 缺席、`unavailable`（含有一个名字没有事实） ⇒ 带 `needs` 的件判不出 ⇒ `unavailable` |
 
 **被谁消费**：agent loop 与入站受理方（`loopExtensionRunner`）；五类贡献者（`loopExtensionImplementations`）。
 
@@ -200,7 +200,7 @@ runner 的每一次写都是一次追加，**没有「同一提交」要跨 owne
 | **收到叫停即返回 `cancelled`，不等在途那一件** | 等它结束再返回：`dispatch` 返回时这一次经过里没有任何东西还在跑，取消路径更干净 | 返回之后那一件可能还在跑一小段（兼容件要等子进程确认退出），它的外部效果不因返回而停止 | 中：契约只要「它这一次求值不留记录」，没有要求等；等则取消的时长受一个无上界的件支配 |
 
 **runner 自身被撤除**（dispose，或因 `sessionLog` 换代而重跑；D-060 §八 M63）：在途的 `dispatch` **不继续**，以 `unavailable` 收场、**不再落任何结论记录**。
-- **检查点**：复用上面三处，查叫停的同时查「本实例已撤除」——判 `fiberIsActive(ctx)`（[kernel-basis](../../core/kernel-basis/README.md) 共用件，与 account-registration「每步之前检查本 fiber 是否仍 `ACTIVE`」同一写法）。等在途那一件时，与叫停一起竞速的还有**实例的停止信号**（执行环境句柄表那个 effect 的撤除函数第一步触发），一件慢件拖不住这次收场。在途那一件不另收停止信号：它的贡献者 inject 了本插件的登记面，随之重跑、自己收场（兼容件经撤除函数停子进程）。
+- **检查点**：复用上面三处，查叫停的同时查「本实例已撤除」——判 `fiberIsActive(ctx)`（[kernel-basis](../../../../../../packages/core/kernel-basis/README.md) 共用件，与 account-registration「每步之前检查本 fiber 是否仍 `ACTIVE`」同一写法）。等在途那一件时，与叫停一起竞速的还有**实例的停止信号**（执行环境句柄表那个 effect 的撤除函数第一步触发），一件慢件拖不住这次收场。在途那一件不另收停止信号：它的贡献者 inject 了本插件的登记面，随之重跑、自己收场（兼容件经撤除函数停子进程）。
 - **为什么查 fiber 状态、不只查撤除函数里的标记**：撤除开始时 runner fiber 先离开 `ACTIVE`，服务随后消失，贡献者的注销在那之后——所以一次「因撤除而查不到实现」一定发生在离开 `ACTIVE` 之后，而追加之前的检查排在查表之后，**必然看得见撤除**，指定挂件的否决写不进日志。撤除开始之前就已发出的追加照常落下：它依据的是撤除之前的登记表，是一条正当的结论。
 - **待核对主张**：「撤除开始即离开 `ACTIVE`，先于任何 effect 撤除」。kernel-basis 的 `fiber-state-readable` 没有观察到 `UNLOADING`（那个节点记下的缺口），basis [`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md) 第三条（`UNLOADING` 之后再建 effect 即抛）与它一致但不是它的 probe。会失败的证据是 [verification](verification.md#证据义务) 的最小场景：它不成立，场景里就会看到撤除之后落下的否决。
 - **不申请 S-8 例外**：已提交的结论都在；下一次对同一次经过的 `dispatch`（新实例上）从日志接着走、在途那一件重新求值——「换一个 runner 实例不改变任何一次经过的结果」（契约 S-8、S-33 末段）由此守住。
@@ -218,7 +218,7 @@ runner 的每一次写都是一次追加，**没有「同一提交」要跨 owne
 
 ## 实施缺口与消费者影响
 
-契约自己的 G-n 不在此重抄；实现受阻于其中的 G-2（清单里四样值的表示）、G-3（三个能力标识）、G-5（提醒的 `id`）、G-7（时限）、G-8（loop 那一程，含叫停丢了之后的写入）、G-14（行为模型）、G-16（凭据交出的那一格）、G-17（答复的三种表示）、G-20（执行环境句柄两样：接口已定、真承接者未到）；G-1 已收窄为「锚的算法归 loop 那一程」，不再挡本节点的回放与只跑一轮（[D-063 R-12](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）。下面是本节点自己的缺口；「本程不补、留给下一程」的几项按 [D-060 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 标出它的编号。
+契约自己的 G-n 不在此重抄；实现受阻于其中的 G-2（清单里四样值的表示）、G-3（三个能力标识）、G-5（提醒的 `id`）、G-7（时限）、G-8（loop 那一程，含叫停丢了之后的写入）、G-14（行为模型）、G-16（凭据交出的那一格）、G-17（答复的三种表示）、G-20（执行环境句柄两样：接口已定、真承接者未到）；G-1 已收窄为「锚的算法归 loop 那一程」，不再挡本节点的回放与只跑一轮（D-063 R-12）。下面是本节点自己的缺口；「本程不补、留给下一程」的几项按 D-060 §八 M43 标出它的编号。
 
 | # | 缺口 | owner | 受阻的消费者 | 闭合条件 |
 |---|---|---|---|---|

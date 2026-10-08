@@ -1,7 +1,8 @@
+import { modelCategory, modelValue, replaceModelValue } from './log-codec-fixture.ts'
 /**
  * Independent counterexamples for T29 task A (ACK history projection), review 2026-09-30.
  * Derived from RT12 S-95..S-101 and MS8 S-56..S-59, not from the author's tests.
- * Every case runs over the actual JSONL session log.
+ * Every case runs over the actual SQL journal session log.
  */
 import { mkdir, mkdtemp } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -9,15 +10,15 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import type { AppendResult, OwnedLogEntry, SessionLog } from '@omne-harness-lite/session-log'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { captureModelLogValue, encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
-import { interpretCallHistory } from '../src/call-history.ts'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import {
   interpretSettlementPrefix,
   readSettlementPrefix,
   type SettlementPrefix,
-} from '../src/settlement-prefix.ts'
-import { type SettlementTaskKind } from '../src/settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import { type SettlementTaskKind } from '@omne-harness-lite/model-request-runtime'
 import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
 import { dispatched, opened, prepare, session, tenant } from './log-codec-fixture.ts'
 import { prepareV2, responseV5 } from './log-codec-v2-fixture.ts'
@@ -35,17 +36,19 @@ async function withLog(name: string, work: (h: Harness) => Promise<void>) {
   )
   await mkdir(root, { recursive: true })
   const dir = await mkdtemp(join(root, `${name}-`))
-  const log = await openJsonlSessionLog({
-    dir,
-    processOwnership: {
-      current: `review-history:${process.pid}`,
-      async observeExit() {
-        return 'unknown'
-      },
-    },
-  })
+  const log = await openSqlLogFixture({ dir: dir })
   const generation = Object.freeze({})
-  const binding = { session, tenant, log, generation, currentGeneration: () => generation }
+  const binding = {
+    session,
+    tenant,
+    log,
+    generation,
+    currentGeneration: () => generation,
+    readPrefix(this: import('@omne-harness-lite/model-request-runtime').SettlementLogBinding) {
+      return log.fixturePrefix({ session: this.session, tenant: this.tenant }, this.log)
+    },
+    originalIssue: log.fixtureOriginalIssue,
+  }
   const owner = new ControlledSettlementOwner()
   try {
     await work({
@@ -743,10 +746,16 @@ describe('review 2026-09-30 / Q2 consistency of the ACK against S-95 targets and
           await h.append(rec(ready))
         }
         const valid = rec(base)
-        const payload = valid.payload as { value: Record<string, unknown> }
+        const payload = modelValue(valid.payload) as Record<
+          string,
+          import('@omne-harness-lite/content-blocks').JsonValue
+        >
         await h.append({
           ...valid,
-          payload: { ...payload, value: { ...payload.value, ...over } },
+          payload: replaceModelValue(valid.payload, {
+            ...payload,
+            ...over,
+          } as import('@omne-harness-lite/content-blocks').JsonValue),
         } as OwnedLogEntry)
         expect(await history(h), name).toEqual(HISTORY)
       })
@@ -783,13 +792,16 @@ describe('review 2026-09-30 / Q2 consistency of the ACK against S-95 targets and
     await withLog('q2-dup-releasable', async h => {
       await completeCall(h)
       const valid = rec(ack)
-      const payload = valid.payload as { value: Record<string, unknown> }
+      const payload = modelValue(valid.payload) as Record<
+        string,
+        import('@omne-harness-lite/content-blocks').JsonValue
+      >
       await h.append({
         ...valid,
-        payload: {
+        payload: replaceModelValue(valid.payload, {
           ...payload,
-          value: { ...payload.value, releasablePayloads: [createdPayload, createdPayload] },
-        },
+          releasablePayloads: [createdPayload, createdPayload],
+        }),
       } as OwnedLogEntry)
       expect(await history(h)).toEqual(HISTORY)
     })

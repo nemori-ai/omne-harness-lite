@@ -49,7 +49,7 @@ function message(type: 'system' | 'system_reminder' | 'user'): Message {
       },
     ],
     ...(type === 'system_reminder'
-      ? { nature: 'event', source: { kind: 'attempt_started', attempt: 1, reason: 'first', at } }
+      ? { nature: 'event', source: { kind: 'extension', extension: 'transport-business-reminder' } }
       : {}),
   })
 }

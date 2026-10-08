@@ -1,7 +1,8 @@
+import { fixturePayload } from './log-payload-fixture.ts'
 import { mkdir, mkdtemp } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { expect, test } from 'vitest'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { openDemo } from '../src/demo.ts'
 import { createLocalTls } from './local-tls.ts'
@@ -35,14 +36,7 @@ test(
               async append(...args) {
                 if (
                   args[1].some(
-                    entry =>
-                      entry.payload &&
-                      typeof entry.payload === 'object' &&
-                      'value' in entry.payload &&
-                      entry.payload.value &&
-                      typeof entry.payload.value === 'object' &&
-                      'kind' in entry.payload.value &&
-                      entry.payload.value.kind === 'delivery_confirmed',
+                    entry => fixturePayload(entry.payload).value.kind === 'delivery_confirmed',
                   )
                 ) {
                   entered.resolve()
@@ -81,12 +75,7 @@ test(
       const result = await closing
       expect(result).toMatchObject({ complete: true })
       // Reacquire the actual physical owner after the application has released its lock.
-      const physical = await openJsonlSessionLog({
-        dir: join(root, 'data', 'session-logs'),
-        policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
-        processOwnership: { current: 'post-close-proof', observeExit: async () => 'unknown' },
-        diagnostic() {},
-      })
+      const physical = await openSqlLogFixture({ file: join(root, 'data', 'db.sqlite') })
       const session = unwrap(parseOpaqueIdentifier(demo.session, 'SessionRef'))
       const read = await physical.readSince(session, 0)
       await physical.close()
@@ -159,15 +148,7 @@ test(
       expect(sent).toMatchObject({ kind: 'refused', reason: 'actions:unavailable' })
       expect(tls.requests).toHaveLength(1)
       expect(await demo.close()).toMatchObject({ complete: true })
-      const physical = await openJsonlSessionLog({
-        dir: join(root, 'data', 'session-logs'),
-        policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
-        processOwnership: {
-          current: 'post-denial-close-proof',
-          observeExit: async () => 'unknown',
-        },
-        diagnostic() {},
-      })
+      const physical = await openSqlLogFixture({ file: join(root, 'data', 'db.sqlite') })
       const session = unwrap(parseOpaqueIdentifier(demo.session, 'SessionRef'))
       const read = await physical.readSince(session, 0)
       await physical.close()

@@ -9,7 +9,7 @@ import {
 } from './deepseek-boundary.ts'
 import { guardInputMeter } from './shared.ts'
 // Projection adapted from DeepSeek-V4-Pro encoding/encoding_dsv4.py at
-// b5968e9190ef611bbf34a7229255be88a0e937c1 (MIT; tokenizers/deepseek-v4/LICENSE).
+// b5968e9190ef611bbf34a7229255be88a0e937c1 (MIT; resources/tokenizers/deepseek-v4/LICENSE).
 // This is an estimate of the chosen OpenRouter/DeepInfra route, not a claim that
 // its private prompt construction is byte-identical to the public reference.
 import { createHash } from 'node:crypto'
@@ -303,7 +303,9 @@ const CONFIG_SHA256 = '6ac8c8dc065ed118161d02dd532749ae3f52c243deac27872134fae2f
 let sharedTokenizer: Tokenizer | undefined
 
 function pinnedFile(name: string, sha256: string): JsonObject {
-  const bytes = readFileSync(new URL(`../../tokenizers/deepseek-v4/${name}`, import.meta.url))
+  const bytes = readFileSync(
+    new URL(`../../resources/tokenizers/deepseek-v4/${name}`, import.meta.url),
+  )
   if (createHash('sha256').update(bytes).digest('hex') !== sha256)
     throw new TypeError(`DeepSeek V4 ${name} failed pinned hash`)
   const value: unknown = JSON.parse(bytes.toString('utf8'))

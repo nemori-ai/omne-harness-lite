@@ -1,8 +1,8 @@
 # PF-013 · 两家优先模型贡献与纯图缓存投影 v8
 
-2026-09-29，candidate，未接受、未实施。局部快照仅投影 OpenAI/Anthropic 的共享完整输出贡献及 Anthropic 纯图断点；不替代 PF-013 全部投影、不修改产品正文、不重开 T29。精确来源见 [provenance](provenance.json)。
+2026-09-29，candidate，未接受、未实施。局部快照仅投影 OpenAI/Anthropic 的共享完整输出贡献及 Anthropic 纯图断点；不替代 PF-013 全部投影、不修改产品正文、不重开 T29。精确来源见 [provenance](../../design.md)。
 
-沿 RT10/MR9、D107 v13、D109 v15 与原 basis 适用接缝；没有新公开 MR/RT 字段、operation、服务、存储或 Session/Run。唯一规则在[提供者 revision 5](../../../../realization/packages/model/pi-ai-transport/priority-family-output-cache-candidate.md)，选择和改票条件在[提案附页](../../../../record/proposals/model-input-usage-calibration/priority-family-choice.md)。
+沿 RT10/MR9、D107 v13、D109 v15 与原 basis 适用接缝；没有新公开 MR/RT 字段、operation、服务、存储或 Session/Run。唯一规则在[提供者 revision 5](../../../../realization/packages/model/pi-ai-transport/priority-family-output-cache-candidate.md)，选择和改票条件在提案附页。
 
 | 已确认需求 | 窄提供者承接 | 边界及待验 |
 | --- | --- | --- |

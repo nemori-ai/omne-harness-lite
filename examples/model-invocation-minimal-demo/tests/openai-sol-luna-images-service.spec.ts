@@ -87,7 +87,7 @@ function firstImageUrl(body: unknown): string {
   return url
 }
 // Each case runs the real demo assembly: planning and metering over the final body, a durable
-// JSONL batch and settlement over the retained prefix. With a 4 MiB inline image (and, for
+// SQL journal batch and settlement over the retained prefix. With a 4 MiB inline image (and, for
 // `bytes`, image preparation) cases measured 30-58 s on the shared host, so they carry an
 // explicit budget instead of the 60 s suite default. Assertions are unchanged by it.
 const IMAGE_CASE_BUDGET_MS = 180_000
@@ -295,8 +295,14 @@ describe.each(models)('%s images through authorized service', model => {
         expect(match[2]).not.toBe(original)
         expect(Buffer.from(match[2], 'base64').length).toBeLessThanOrEqual(4194304)
         // The durable user message keeps the caller's original bytes; only the wire is prepared.
+        // Large synchronous JSON work can exhaust the leased Clock before its renewal task runs.
+        // Wait for the actual domain source; the following read still checks current authority.
+        await vi.waitFor(() => expect(app.currentTime()).not.toBe('unavailable'), {
+          timeout: 15_000,
+        })
         const logged = await app.readSessionLog(who, session)
-        if (!('entries' in logged)) throw Error('durable session read unavailable')
+        if (!('entries' in logged))
+          throw Error(JSON.stringify({ logged, readEvents: events.slice(-12) }))
         expect(JSON.stringify(logged.entries)).toContain(original)
       }
       for (const sent of tls.requests) expect(sent.body).toMatchObject({ model })

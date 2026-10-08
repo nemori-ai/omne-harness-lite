@@ -22,7 +22,9 @@
     "README.md",
     "SPEC.md",
     "schema",
-    "generated"
+    "generated",
+    "README_ZH.md",
+    "verification"
   ],
   "scripts": {
     "build": "node ../../../scripts/build-fixed-schemas.mjs",
@@ -39,14 +41,21 @@
     "@omne-harness-lite/identity-values": "workspace:*",
     "@omne-harness-lite/kernel-basis": "workspace:*",
     "@omne-harness-lite/offer-expiry": "workspace:*",
-    "@omne-harness-lite/call-accounts": "workspace:*"
+    "@omne-harness-lite/call-accounts": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*",
+    "@omne-harness-lite/assembly-lifecycle": "workspace:*",
+    "@omne-harness-lite/cordis-plugin-tree": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "@deepseek-ai/cordis": "catalog:",
-    "@omne-harness-lite/session-log-jsonl": "workspace:*"
+    "@omne-harness-lite/storage-sql": "workspace:*",
+    "kysely": "catalog:",
+    "@omne-harness-lite/session-log-sql": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*",
+    "@omne-harness-lite/session-log": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "catalog:"
@@ -54,6 +63,13 @@
   "peerDependenciesMeta": {
     "@deepseek-ai/cordis": {
       "optional": true
+    }
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "service-provider"
     }
   }
 }

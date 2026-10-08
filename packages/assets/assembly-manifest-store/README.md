@@ -2,27 +2,30 @@
 
 [中文](README_ZH.md)
 
-Persist immutable session assembly records and read their heads, tables and evaluation projections through public Storage. This experimental ESM workspace package is not published on npm. Its current provider adopts MF4; component checks are separate from complete model-runtime acceptance. See [realization and verification](../../../.meta_harness/design/realization/packages/assets/assembly-manifest-store/README.md).
+Persist immutable session assembly records through public Storage. The standalone MF4 factory and Cordis binding share the same six-operation implementation.
+This experimental ESM workspace package is not published on npm. Component acceptance is separate from complete model-runtime acceptance.
+[Binding behavior](SPEC.md), [verification](verification/README.md) and the retained [MF4 sources](../../../.meta_harness/design/realization/packages/assets/assembly-manifest-store/README.md) define their respective scopes.
 
-## Public API
+## Public entries
 
-| Export | Purpose |
-| --- | --- |
-| `createAssemblyManifestStore(storage, options)` | Create a standalone closure borrowing caller-owned storage |
-| `readHead`, `append`, `readHistory` | Read a head, conditionally append, select a category's historical record |
-| `readGiven(session, head)` | Read the actual original full-fill record at an explicit observed head |
-| `readEvaluation`, `dependencyPresence` | Read the current evaluation projection and explicit dependency facts |
-| `checkManifestAppendInput`, `checkManifestGivenReadInput`, `judgeManifestAppend` | Reuse pure input and append-decision components |
-| `answerPresence`, `readEvaluationProjection` | Reuse fact projection helpers |
-| `assemblyManifestMigrations` | Compose SQL migration fragments before admission |
-| `assemblyManifestStorePlugin`, `ASSEMBLY_MANIFEST_SERVICE` | Cordis provider and service identity |
+| Entry | Exports |
+|---|---|
+| Root | createAssemblyManifestStore, assemblyManifestMigrations, AssemblyManifestStore and ManifestDb |
+| ./cordis | assemblyManifestStorePlugin, AssemblyManifestStoreService, AssemblyManifestResourcesService |
+| Public owner: @omne-harness-lite/assembly-manifest | Six-operation types, ManifestAppendInput, PresenceSource, ManifestOptions, ManifestDiagnostic and pure input/decision helpers |
+| Public owner: @omne-harness-lite/assembly-manifest/cordis | Abstract business/resource Services and their unique keys |
 
-## Append and read back
+The root does not import Cordis. A created store exposes readHead, append, readHistory, dependencyPresence, readEvaluation, readGiven and close.
+Pure checks and projection helpers come from the public definition package, rather than provider aliases.
 
-Supply a real session and a complete record built by the assembly owner. The append expects the observed head; a conflict is a classified result. `readGiven` validates the stored evaluation content and original-fill kind, so arbitrary JSON is not a usable evaluation record.
+## Independent use
+
+Supply a real session and a complete record from the assembly owner. Append requires the observed head.
+Conflicts, missing records, invalid input and unavailable storage remain distinct.
 
 ```ts
-import { createAssemblyManifestStore, type ManifestAppendInput } from '@omne-harness-lite/assembly-manifest-store'
+import { createAssemblyManifestStore } from '@omne-harness-lite/assembly-manifest-store'
+import type { ManifestAppendInput } from '@omne-harness-lite/assembly-manifest'
 import type { Storage } from '@omne-harness-lite/storage'
 
 export async function recordAssembly(storage: Storage, session: string, record: ManifestAppendInput) {
@@ -37,13 +40,16 @@ export async function recordAssembly(storage: Storage, session: string, record: 
 }
 ```
 
-Use `readHistory(session, category, filledAt)` for the exact category snapshot and `readEvaluation(session)` for the current public projection. Missing records, illegal input and unavailable storage remain distinct. Repeated append decisions preserve the recorded owner; they are not an instruction to retry an unknown commit.
+## Cordis and resource ownership
 
-## Integrate and close
+Migrate with assemblyManifestMigrations before admission. Publish storage and an explicit AssemblyManifestResourcesService, then load the manifest plugin with `{}`.
+The resource service carries optional presence and diagnostic ports. Callbacks are runtime resources and cannot appear in serialized plugin configuration.
+A diagnostic requires a diagnosticFailure callback. Unknown presence facts remain unknown; diagnostic output excludes content and raw errors.
 
-Compose `assemblyManifestMigrations` with the application's other fragments and complete its migration/admission checks first. `dependencyPresence` needs an explicit `PresenceSource`; unknown facts do not become absent. Optional diagnostic ports receive stage facts without content and own their output bounds.
-
-Call `store.close()` to stop new work and drain admitted operations, then close your storage. The closure and plugin borrow storage and do not delete history. Component tests use real temporary SQLite and child-process crashes; they do not prove power-loss durability or the full registry/runtime composition.
+The plugin borrows storage and ports. Withdrawal stops new valid calls and lets admitted work finish on the captured generation.
+Assembly code selecting AssemblyManifestStoreService retains its stable closed promise. Only fulfillment proves actual drain and permits borrowed-resource release.
+Rejected completion requires inspection; repeated kernel disposal does not replace this observation. Replacement does not release the old generation.
+For independent use, await store.close before releasing borrowed resources. Neither path deletes history or closes caller-owned storage.
 
 ```sh
 pnpm --filter @omne-harness-lite/assembly-manifest-store... run build

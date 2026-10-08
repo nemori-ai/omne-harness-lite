@@ -1,10 +1,10 @@
 # ZAI 五叶可见推理历史的参考计量
 
-2026-09-30，revision 1，candidate；独立架构评审 2026-09-30「可采用」，Z-N1～Z-N5 已按评审闭合；同日[主线技术采用](../../../../record/decisions/model-input-usage-calibration-adoption/zai-visible-reasoning-decision.md)；实施与释放状态以本页「实施附注」与 [verification.md](verification.md) 的 ZV 段为准（五叶均已释放为 `pi-ai:zai@mp4-18`；ZV4 真实回放待主线付费执行）。
+2026-09-30，revision 1，candidate；独立架构评审 2026-09-30「可采用」，Z-N1～Z-N5 已按评审闭合；同日主线技术采用；实施与释放状态以本页「实施附注」与 [verification.md](verification.md) 的 ZV 段为准（五叶均已释放为 `pi-ai:zai@mp4-18`；ZV4 真实回放待主线付费执行）。
 
 ## 基准、性质与证据
 
-基准为已接受 [RT12](../../../../spec/capabilities/model-request-runtime/v12/contract.md)／[MR11](../../../../spec/data/model-response/v11/contract.md) 的计量语义（接受依据沿 [D107](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md)）与当前 ZAI 实现：五叶 definition `2`（Prime `3`）、`pi-ai:zai@mp4-17`，五个 meter 均 full-only，任何历史 assistant 带 `reasoning` 或 `reasoning_details` 一律 unavailable，经规划器以 `input_size_unavailable` 发前拒绝（[本机 110 例](verification.md#2026-09-30-zai-五叶本机-tls-有限覆盖)）。主调度 2026-09-30 裁定四家含 ZAI 以 full-only 交付（R-A，[D-111](../../../../record/decisions/model-request-runtime-rulings-2026-09-30/README.md)）；另裁定本机「回复无推理」与「调用方隐藏 thinking」两形已收口、可见推理历史即 GG-12 本页（R-O，已裁未入档，见 ZG8）。本页不新增公开操作、输出组语义、对象或存储；相关对象仍为 ModelDefinition、ModelProfile、ModelInvocationInput、PendingModelResponse，未经尚不存在的装配反查索引核实。
+基准为已接受 [RT12](../../../../spec/capabilities/model-request-runtime/v12/contract.md)／[MR11](../../../../spec/data/model-response/v11/contract.md) 的计量语义（接受依据沿 D107）与当前 ZAI 实现：五叶 definition `2`（Prime `3`）、`pi-ai:zai@mp4-17`，五个 meter 均 full-only，任何历史 assistant 带 `reasoning` 或 `reasoning_details` 一律 unavailable，经规划器以 `input_size_unavailable` 发前拒绝（[本机 110 例](verification.md)）。主调度 2026-09-30 裁定四家含 ZAI 以 full-only 交付（R-A，D-111）；另裁定本机「回复无推理」与「调用方隐藏 thinking」两形已收口、可见推理历史即 GG-12 本页（R-O，已裁未入档，见 ZG8）。本页不新增公开操作、输出组语义、对象或存储；相关对象仍为 ModelDefinition、ModelProfile、ModelInvocationInput、PendingModelResponse，未经尚不存在的装配反查索引核实。
 
 沿用已封存性质，不声明新的双盲封存：全部实际输入有据计量或发前拒绝，估算须有适用依据、不以私有模板为普遍前置（[S-74](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-74-每次发送之前的完整输入限制与固定计划)③⑤）；来源真实性先于计量，可判矛盾不得借 full 绕过（[S-77](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-77-计量依据身份与两类失效)）；reasoning 不双加、不无条件用 I+O、margin 只应用一次（[S-78](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-78-递推关系精度与重新校准)）；独立公开计量无隐藏读取、来源不可核即 unavailable（[S-79](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-79-现有公开函数的九项增量)④⑥⑧）；下一请求的输入贡献由实际回放的 role/template/内容决定，原响应、实际 wire 与上游 usage 保留（[MR11 S-43](../../../../spec/data/model-response/v11/contract.md#s-43-outputgroup-与回放)）。
 
@@ -12,7 +12,7 @@
 
 两批原件。起草者只读复算，未发请求；复算是独立 Python 读数，不是执行 TS reader。
 
-**2026-09-27**：[probe 证据 run](../../../../record/evidence/2026-09-27-probe-model-request-runtime/README.md) 归档 `openrouter-research.tar.gz` 中 23 个 `z-ai/*` 成员，SHA-256 与[成员清单](../../../../record/evidence/2026-09-27-probe-model-request-runtime/input-and-output-hashes-v2.json)逐项一致。全部固定路由（`provider.order` 单值、`allow_fallbacks:false`、`require_parameters:true`）、`stream:true`、单轮 system+user+user、无 tools、`max_tokens:1024`，HTTP 200、`finish_reason:"stop"`，服务方展示名 `Z.AI`（Prime 为 `Alibaba`）、上游 model 等于路由模型。其中 13 个带推理：
+**2026-09-27**：probe 证据 run 归档 `openrouter-research.tar.gz` 中 23 个 `z-ai/*` 成员，SHA-256 与成员清单逐项一致。全部固定路由（`provider.order` 单值、`allow_fallbacks:false`、`require_parameters:true`）、`stream:true`、单轮 system+user+user、无 tools、`max_tokens:1024`，HTTP 200、`finish_reason:"stop"`，服务方展示名 `Z.AI`（Prime 为 `Alibaba`）、上游 model 等于路由模型。其中 13 个带推理：
 
 | 叶 | 成员（`openrouter-research/…`） | SHA-256 | 请求 effort | 带 details 的帧 |
 |---|---|---|---|---:|
@@ -54,7 +54,7 @@
 
 [OpenRouter Reasoning Tokens 官方快照](../../../../../research/model-request-adaptation/vendor-continuation/xai/closeout-2026-09-30/openrouter-reasoning-tokens.txt)（2026-09-30 取得，SHA-256 `a80ca4bcee4915cc1d1697fd620743bfbbc97f45f5a25213fcc149bad5681bc7`）的「Preserving Reasoning」写明可用 `message.reasoning` 字符串或 `message.reasoning_details` 数组把推理传回、`reasoning_content` 是 `reasoning` 的别名。它没说同一消息兼带两者时取哪一个，没说 OpenRouter 如何把二者转成 Z.AI／Alibaba 原生字段，也没说所选路由是否清除历史推理——这些是**待核对主张**（`design/basis/` 无对应条目，须按来源核对或真实差分取证）。
 
-固定公开模板（执行仓库 `tokenizers/zai-glm5/`，GLM-5.3 `zai-org/GLM-5.3`@`aca966e4e02791568aa6a4ced368624b3d897f42` 文件 SHA-256 `3740abce…`，Flash `zai-org/GLM-5.3-Flash`@`eb9eb208eb0d988989d07a6a12d0fdeb5f52574a` `0c4099f3…`，GLM-5.2 `zai-org/GLM-5.2`@`cf457fa734ab149ffef225f80893eb38c6ff5cdc` `172dc74a…`）对 assistant 取字符串 `reasoning_content`，不 trim，渲进 `<think>…</think>`；缺席时渲 `<think></think>`。渲染条件两代不同：GLM-5.3／Flash 在 `clear_thinking` 缺省（即 false）时对**全部**历史 assistant 渲染；GLM-5.2 在 `clear_thinking` 缺省时**只**对末条 user 之后的 assistant 渲染、之前的一律 `<think></think>`，显式 `clear_thinking=false` 才全部渲染。当前 TS 投影 `zai-glm53.ts`、`zai-glm52.ts` 的渲染器对 `reasoning`／`reasoning_details` 一律拒绝；离线候选 `renderGlm53HistoryCandidatePrompt` 把纯文本 `reasoning` 放进 `reasoning_content` 槽位，其输出与独立 Jinja 预言在五份 09-28 历史上的 prompt 哈希一致（`history-template-goldens.json`，仅 GLM-5.3 模板、`clear_thinking=false`）。Prime／FlashX 未找到公开模板或 checkpoint（[来源核对](../../../../../research/model-request-adaptation/vendor-continuation/zai/2026-09-28-reasoning-and-commercial-meter.md)记为来源缺口，不是不存在的证明）；已采用算法以 GLM-5.3 公开模板作诊断投影、再减 1（路由 fit 与独立 holdout 四点零误差，只覆盖文本／工具，[研究](../../../../../research/model-request-adaptation/vendor-continuation/zai/2026-09-28-commercial-holdout-result.md)）。
+固定公开模板（执行仓库 `resources/tokenizers/zai-glm5/`，GLM-5.3 `zai-org/GLM-5.3`@`aca966e4e02791568aa6a4ced368624b3d897f42` 文件 SHA-256 `3740abce…`，Flash `zai-org/GLM-5.3-Flash`@`eb9eb208eb0d988989d07a6a12d0fdeb5f52574a` `0c4099f3…`，GLM-5.2 `zai-org/GLM-5.2`@`cf457fa734ab149ffef225f80893eb38c6ff5cdc` `172dc74a…`）对 assistant 取字符串 `reasoning_content`，不 trim，渲进 `<think>…</think>`；缺席时渲 `<think></think>`。渲染条件两代不同：GLM-5.3／Flash 在 `clear_thinking` 缺省（即 false）时对**全部**历史 assistant 渲染；GLM-5.2 在 `clear_thinking` 缺省时**只**对末条 user 之后的 assistant 渲染、之前的一律 `<think></think>`，显式 `clear_thinking=false` 才全部渲染。当前 TS 投影 `zai-glm53.ts`、`zai-glm52.ts` 的渲染器对 `reasoning`／`reasoning_details` 一律拒绝；离线候选 `renderGlm53HistoryCandidatePrompt` 把纯文本 `reasoning` 放进 `reasoning_content` 槽位，其输出与独立 Jinja 预言在五份 09-28 历史上的 prompt 哈希一致（`history-template-goldens.json`，仅 GLM-5.3 模板、`clear_thinking=false`）。Prime／FlashX 未找到公开模板或 checkpoint（[来源核对](../../../../../research/model-request-adaptation/vendor-continuation/zai/2026-09-28-reasoning-and-commercial-meter.md)记为来源缺口，不是不存在的证明）；已采用算法以 GLM-5.3 公开模板作诊断投影、再减 1（路由 fit 与独立 holdout 四点零误差，只覆盖文本／工具，[研究](../../../../../research/model-request-adaptation/vendor-continuation/zai/2026-09-28-commercial-holdout-result.md)）。
 
 **与 Moonshot／Qwen 的一处实质差别**：那两家的 meter 在各自页面之前已接受纯 `reasoning` 字符串进模板槽位，details 映射只是把新表示接到已有路径上；ZAI 五个 meter 连纯字符串都拒绝。本页因此同时引入两件事——纯 `reasoning` 字符串与可见 details 都投到模板推理槽位，隐含「所选路由把历史推理计入 prompt、不清除」这一新假设。主要未知是路由是否清除历史推理：清除则本页高估（方向保守）；不清除而另有私有包装，本页漏计包装本身。私有 tokenizer 差异（Prime／FlashX）另属 estimated。本页因此是**有来源的估算候选**：把可见文字放进固定模板既有推理槽位，不是上游等值事实。
 
@@ -100,7 +100,7 @@ full 先按原件核：原 body 的 `model` 等于定义、原 body 与原 seria
 | 形状识别与投影 `visibleReasoningDetailText`／`projectVisibleReasoningBody` | 直接复用，同文键集合传 `['reasoning']`（与 Qwen 相同）；`[REDACTED]` 排除在共享函数内 | 不改共享函数。并行键政策四家：DeepSeek 任何并行键即拒，Moonshot 两键同文只计一次，Qwen 与本家族 `reasoning` 同文只计一次、`reasoning_content` 拒。沿主调度 2026-09-30 裁决 P1 同法登记为已知差异（P1 原只点名前三家）：产品路径永不同时发两键，差异只对直接调用者可见 |
 | `zai-candidate.ts` 无绑定历史候选 | 其纯字符串渲染被本页的生产路径取代 | 随实施删除，不留第二条同义路径；冻结探针若仍需候选计数，改用生产 meter（ZV5） |
 
-直接入口守门：三个 ZAI factory 现以 `Object.freeze` 返回 `defineInputMeter` 的对象，直接 `measureFull` 不经共同包装；规划器路径经 `plan.ts`／`input-limits.ts` 调共同包装。本页让带推理的历史首次可计量，不接线则直接调用 factory 方法可携非法显式 history 得到估算——[DeepSeek 评审](../../../../record/proposals/model-input-usage-calibration/deepseek-visible-reasoning-review.md) N1 的同构。三个 factory 的公开 full／φ／δ 方法经唯一的通用接线函数 `guardInputMeter` 接到共同包装，五叶一并（含尚未释放的 GLM-5.3、Flash）：共同包装只加来源与表示校验，不改任何一叶的数值。这是 S-77、S-79⑥ 与 [H13](verification.md#h13-多个历史输出组候选) 的落实，不新增契约承诺。
+直接入口守门：三个 ZAI factory 现以 `Object.freeze` 返回 `defineInputMeter` 的对象，直接 `measureFull` 不经共同包装；规划器路径经 `plan.ts`／`input-limits.ts` 调共同包装。本页让带推理的历史首次可计量，不接线则直接调用 factory 方法可携非法显式 history 得到估算——DeepSeek 评审 N1 的同构。三个 factory 的公开 full／φ／δ 方法经唯一的通用接线函数 `guardInputMeter` 接到共同包装，五叶一并（含尚未释放的 GLM-5.3、Flash）：共同包装只加来源与表示校验，不改任何一叶的数值。这是 S-77、S-79⑥ 与 [H13](verification.md#h13-多个历史输出组) 的落实，不新增契约承诺。
 
 ## 失败层、版本与装卸
 
@@ -108,7 +108,7 @@ full 先按原件核：原 body 的 `model` 等于定义、原 body 与原 seria
 
 发布时每个已释放叶的 definition、`pi-ai:zai` implementation 与 algorithm 提升到新的唯一修订，未释放叶保持原修订；固定旧 lease 不热替换，已借出的旧 meter 跑完各自规划；不保留旧 factory 或兼容重载，旧到新 basis 未证兼容即 full。历史事实保留原坐标。配置错误沿同一政策：未知或滞后的 definition／implementation 修订在 factory 构造期抛错，贡献不发布半份。 分两批释放时，同一 GLM-5.3 渲染器同时承载已释放叶（放行）与未释放叶（维持拒绝），分流键是各叶的 definition／implementation 修订，不是布尔开关或参数切换（评审 Z-N5）。
 
-Cordis 继续由原官方模型贡献插件与 transport service 固定整份 meter，采用版本沿 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md)；不新增 service、fiber、inject、effect 或事件，不新增上游内核主张。装载时 meter 取得既有 tokenizer（摘要不符即构造期抛错）与模板常量；一次调用的派生副本随规划结束释放；插件卸载、lease 引用与实停责任不变。meter 是纯函数，没有在途调用可取消；跨进程无新状态可继承；已发请求与上游费用不因纯函数结束而改变。新增 Storage 要求 0、装配节点 0、bindings 0；无跨 owner 提交。
+Cordis 继续由原官方模型贡献插件与 transport service 固定整份 meter，采用版本沿 D-025；不新增 service、fiber、inject、effect 或事件，不新增上游内核主张。装载时 meter 取得既有 tokenizer（摘要不符即构造期抛错）与模板常量；一次调用的派生副本随规划结束释放；插件卸载、lease 引用与实停责任不变。meter 是纯函数，没有在途调用可取消；跨进程无新状态可继承；已发请求与上游费用不因纯函数结束而改变。新增 Storage 要求 0、装配节点 0、bindings 0；无跨 owner 提交。
 
 ## 对账
 
@@ -183,9 +183,9 @@ ZV5：已释放叶 definition／implementation／algorithm 唯一修订与显式
 - ZG5 托管两叶：Prime／FlashX 未找到公开模板，减 1 只在无历史的文本／工具上 fit 与 holdout；带历史输入的误差未知。归 ZV4 残差记录。
 - ZG6 观察覆盖：GLM-5.2 `high`、Prime `high`/`max`、回复带 tool_calls 时的 details 形状未观察，列为 ZV4 的前提假设。
 - ZG7 证据归档：本页 09-27 形状表是起草者对归档原件的复算，长期家应在 research；09-28 原件在 HUB 私有目录，工作区只有研究页的哈希与执行仓库夹具里的原样 SSE。归主线。
-- ZG8 裁决与缺口入档：R-O 已裁未入档；GG-12 只在 [verification 逐叶表](verification.md#2026-09-30-真实认证逐叶证据r6r7-认证工具唯一预算账本)提及，未进 D-111 的共享缺口清单。随采用决定入档。
+- ZG8 裁决与缺口入档：R-O 已裁未入档；GG-12 只在 [verification 逐叶表](verification.md)提及，未进 D-111 的共享缺口清单。随采用决定入档。
 - ZG9 认证工具缓存档：Prime 路由要求显式 5m `last_message`；若认证工具 service 配置档仍固定 automatic，Prime 的 service 路径会与 Qwen 开源两叶同样在 prepare 被拒（**已被观测**：冻结 SHA 重跑中 Qwen 开源两叶 service 已因同一原因在 prepare 被拒，见 verification.md；owner：root 认证工具 R8，作为 ZV4 service 路径的前置；未试）。归 root 工具 owner。
 
 ## 实施附注（2026-09-30，主线）
 
-ZV0 通过后第二批两叶释放（执行仓库 `fc5b5384`，`officialCatalogRevision` 2）：GLM-5.3 与 Flash 由 2／`pi-ai:zai@mp4-17` 升为 definition 3／`pi-ai:zai@mp4-18`，algorithm `glm-5.3-public-template-2`／`glm-5.3-flash-public-template-2`，tokenizer 显式钉在未变的 `tokenizer-basis/glm-5.3-public-template-1`／`tokenizer-basis/glm-5.3-flash-public-template-1`；逐叶采用矩阵与 ZG2 记录的是起草时状态，ZV0 读数与本机验证见 [verification.md](verification.md#zai-五叶可见推理历史候选义务)。
+ZV0 通过后第二批两叶释放（执行仓库 `fc5b5384`，`officialCatalogRevision` 2）：GLM-5.3 与 Flash 由 2／`pi-ai:zai@mp4-17` 升为 definition 3／`pi-ai:zai@mp4-18`，algorithm `glm-5.3-public-template-2`／`glm-5.3-flash-public-template-2`，tokenizer 显式钉在未变的 `tokenizer-basis/glm-5.3-public-template-1`／`tokenizer-basis/glm-5.3-flash-public-template-1`；逐叶采用矩阵与 ZG2 记录的是起草时状态，ZV0 读数与本机验证见 [verification.md](verification.md#zai-五叶可见推理历史义务)。

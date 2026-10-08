@@ -1,3 +1,5 @@
+import { modelValue, modelCategory } from './log-codec-fixture.ts'
+import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
@@ -18,8 +20,8 @@ import { createCallContainerStore } from '../src/service-container.ts'
 import { createSettlementWork } from '../src/settlement-work.ts'
 import type { ModelCallSettlementWorkStore } from '../src/reference-types.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
-import type { AcknowledgementCleanupPolicy } from '../src/service-types.ts'
-import type { SettlementScheduler } from '../src/settlement-types.ts'
+import type { AcknowledgementCleanupPolicy } from '@omne-harness-lite/model-request-runtime'
+import type { SettlementScheduler } from '@omne-harness-lite/model-request-runtime'
 import { anchors, jsonObject, session } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 import { controlled, deferred, noWaitScheduler, policy, request } from './settlement-fixture.ts'
@@ -52,13 +54,7 @@ async function workStorage(
 }
 
 function isResponseBatch(entries: readonly { readonly payload: unknown }[]): boolean {
-  return entries.some(
-    ({ payload }) =>
-      typeof payload === 'object' &&
-      payload !== null &&
-      'category' in payload &&
-      payload.category === 'response',
-  )
+  return entries.some(({ payload }) => modelCategory(payload) === 'response')
 }
 
 /** The durable held batch of this work row right now, serialized; null when absent. */
@@ -71,39 +67,19 @@ async function held(
   return 'absent' in read ? null : writeJsonLossless(read.work.staged.entries)
 }
 
-describe('RT12 S-99⑧ settlement work over the real coordinator, JSONL and SQLite', () => {
+describe('RT12 S-99⑧ settlement work over the real coordinator, SQL journal and SQLite', () => {
   it('A22-V13 seam A: after a proven zero write the rebuilt late batch is durable before its append', async () => {
     await controlled('work-late-rebuild', async ({ binding, owner, dir, wrap }) => {
       const parsed = parseOpaqueIdentifier('controlled-work-run', 'SessionRef')
       if (!('ok' in parsed)) throw new Error('session')
       const runSession = parsed.ok
       const attemptStart = (attempt: number) => {
-        const message = captureModelLogValue({
-          category: 'message',
-          input: {
-            kind: 'value',
-            value: {
-              id: `attempt-${attempt}`,
-              type: 'system_reminder',
-              nature: 'event',
-              source: {
-                kind: 'attempt_started',
-                attempt,
-                reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
-                at: '2026-09-29T00:00:00Z',
-              },
-              blocks: [],
-              createdAt: '2026-09-29T00:00:00Z',
-            },
-          },
-        })
-        if (!('ok' in message)) throw new Error('attempt message capture')
-        const entry = prepareModelLogEntry({
+        const entry = prepareAttemptFact({
           session: runSession,
           shell: { tenant: binding.tenant, run: 'controlled-run', attempt },
-          captured: message.ok,
-          purpose: { kind: 'message' },
-          messagePrefix: [],
+          key: `attempt-${attempt}`,
+          reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
+          at: '2026-09-29T00:00:00Z',
         })
         if (!('ok' in entry)) throw new Error('attempt message prepare')
         return entry.ok
@@ -118,7 +94,7 @@ describe('RT12 S-99⑧ settlement work over the real coordinator, JSONL and SQLi
       const original = anchors().entries.map(entry => {
         const captured = captureModelLogValue({
           category: 'record',
-          input: { kind: 'value', value: jsonObject(entry.payload).value },
+          input: { kind: 'value', value: modelValue(entry.payload) },
         })
         if (!('ok' in captured)) throw new Error('anchor capture')
         const prepared = prepareModelLogEntry({
@@ -257,7 +233,7 @@ describe('RT12 S-99⑧ settlement work over the real coordinator, JSONL and SQLi
       expect(read).toMatchObject({ work: { generation: 1, owner: 'runtime-d' } })
       const log = await binding.log.readSince(session, 0)
       if (!('entries' in log)) throw new Error('log')
-      const categories = log.entries.map(entry => jsonObject(entry.payload).category)
+      const categories = log.entries.map(entry => modelCategory(entry.payload))
       expect(categories.filter(item => item === 'response')).toHaveLength(0)
       expect(categories.filter(item => item === 'message')).toHaveLength(1)
       // Repeating does not complete the residual batch or switch identities either.

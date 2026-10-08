@@ -4,7 +4,7 @@
 
 ## 输入与边界
 
-[catalog](../../../../registry/catalog.json) 中 MR9、RT10 均为 candidate，不能把独立评审或有限模型通过当接受。依据是 [U0 revision3](../../../../record/proposals/model-input-usage-calibration/design.md) 及其[施工简报（已外置）](../../../../record/evidence/2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件)。候选精确字节如下；正式接受后须由主线核对采用范围，不能自动跟随同名文件改动。
+[catalog](../../../../registry/catalog.json) 中 MR9、RT10 均为 candidate，不能把独立评审或有限模型通过当接受。依据是 U0 revision3 及其施工简报（已外置）。候选精确字节如下；正式接受后须由主线核对采用范围，不能自动跟随同名文件改动。
 
 | 输入 | SHA-256 |
 |---|---|
@@ -12,7 +12,7 @@
 | MR9 Schema | `f282244688fa9442787b94f11c02444923843c8d8ae471d323e42792c8ee457c` |
 | RT10 contract | `add7ff23a73a6ad5a749f40f6707f408f60d33b6032080ad6ba4751f10d5695c` |
 
-承接 [v7 公共施工面](v7-current-design.md)、[v8 当前 codec](v8-current-codec-design.md)、[v9 估算政策](v9-token-estimate-design.md)、[v10 组合 owner](v10-owner-assembly-design.md)、[v12 时序](v12-recovery-timing-design.md)及[恢复留存](v12-recovery-owner-supplement.md)、[v14 冷宿主](v14-cold-demo-host-design.md)、[v15 观测](v15-diagnostics-demo-design.md)。保留 D025 的 [Cordis 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)，SL3 抽象与既有 JSONL 提供者；不新增 plugin、fiber、service、数据库或计量真值 store。静态必需配置非法仍启动失败；函数显式输入非法沿 malformed，构件不可用沿 unavailable，业务缺凭据仍是既有具名失败。
+承接 [v7 公共施工面](v7-current-design.md)、[v8 当前 codec](v8-current-codec-design.md)、[v9 估算政策](v9-token-estimate-design.md)、[v10 组合 owner](v10-owner-assembly-design.md)、[v12 时序](v12-recovery-timing-design.md)及[恢复留存](v12-recovery-owner-supplement.md)、[v14 冷宿主](v14-cold-demo-host-design.md)、[v15 观测](v15-diagnostics-demo-design.md)。保留 D025 的 Cordis 4.0.4，SL3 抽象与既有 JSONL 提供者；不新增 plugin、fiber、service、数据库或计量真值 store。静态必需配置非法仍启动失败；函数显式输入非法沿 malformed，构件不可用沿 unavailable，业务缺凭据仍是既有具名失败。
 
 源码已有 `types.ts`、`invoke.ts`、`service-calls.ts`、`service-dispatch.ts`、`response-construction.ts`、共同 log codec、reconcile 与 example 消费者；本增量尚未接通。纯 `invokeModel` 与 plan 不要求 Cordis、tenant、session、log；P-2 服务是这些公开构件的消费者。完整 compaction、真实 Run/Loop、十三操作缺口与 G-36/G-37 不在本页被补造或关闭。
 
@@ -125,4 +125,4 @@ demo 继续归 `examples/model-invocation-minimal-demo`：完整多轮/流式输
 - **U16-G4（S-81）**：真实 JSONL 并发、unknown 原批、旧任务停止、冷恢复及 lease 留存仍待验；有限模型不代实际 IO。
 - **U16-G5（S-82/S-83）**：百万性能与原型有效性待本实现测量；G-37 各模型真实口径/φ 与 G-36 estimated 硬 fit 原开放项保留，不把本地边际性能当上游精确性。已知当前四条 Anthropic explicit/last_message 缓存路由逐轮迁移缓存标记，并可能改变 string/text-array 包装；完整 wire-message 投影可能每轮 prefix_changed 而 full。该范围必须实测并交 transport/主线判定性能目标是否满足，不承诺全部模型正常 append 已增量，也不自行剥 cache_control 冒称 token-neutral。
 
-归装配的身份授权、真实读源、时钟/诊断、安全输入、旧宿主停止及冷恢复权限仍由既有示例/服务/日志 owner 承接；没有因此需要建立新的正式应用节点。所有新验证义务见 [U16 验证](verification.md#u16-输入观察校准实施候选)，均非已运行结果。
+归装配的身份授权、真实读源、时钟/诊断、安全输入、旧宿主停止及冷恢复权限仍由既有示例/服务/日志 owner 承接；没有因此需要建立新的正式应用节点。所有新验证义务见 [U16 验证](verification.md#u16-输入观察校准实施)，均非已运行结果。

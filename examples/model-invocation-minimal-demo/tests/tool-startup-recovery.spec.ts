@@ -1,5 +1,7 @@
+import { fixturePayload } from './log-payload-fixture.ts'
+import { retainJournalBatchesThrough } from './sql-batches-fixture.ts'
 // @module-tag slow
-// Actual TLS, SQL, two sessions and cold JSONL recovery require multiple application lifetimes.
+// Actual TLS, SQL, two sessions and cold SQL journal recovery require multiple application lifetimes.
 import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
@@ -79,7 +81,6 @@ async function seed(cuts: readonly ('execution_ended' | 'delivery_ready')[]) {
         () => '2026-10-05T00:00:00Z',
         { multiplier: 1.1, reserveTokens: 256 },
         demoRetirement(),
-        host.processOwnership,
         true,
       )
       if (!storage || !context || !deployed.modelRequest)
@@ -139,20 +140,8 @@ async function seed(cuts: readonly ('execution_ended' | 'delivery_ready')[]) {
     expect((await demo.close()).complete).toBe(true)
     demo = undefined
     for (const [index, session] of sessions.entries()) {
-      const dir = join(data, 'session-logs', createHash('sha256').update(session).digest('hex')),
-        file = join(dir, 'entries.jsonl'),
-        lines = (await readFile(file, 'utf8')).trimEnd().split('\n'),
-        cut = lines.findIndex(line => {
-          const batch = JSON.parse(line)
-          return batch.entries.some(
-            (entry: { payload?: { value?: { kind?: string } } }) =>
-              entry.payload?.value?.kind === cuts[index],
-          )
-        })
-      expect(cut).toBeGreaterThanOrEqual(0)
-      // Keep complete actual commits only, after the original application has closed.
-      await writeFile(file, lines.slice(0, cut + 1).join('\n') + '\n')
-      await rm(join(dir, 'index.jsonl'), { force: true })
+      // Keep whole original commits and corresponding indexes after the application closes.
+      retainJournalBatchesThrough(join(data, 'db.sqlite'), session, cuts[index]!)
     }
     return { data, tls, options, host, sessions }
   } catch (error) {
@@ -187,14 +176,7 @@ it('cold startup delivers A/B obligations for every owned session before opening
             append: async (...args: Parameters<typeof log.append>) => {
               if (
                 args[1].some(
-                  entry =>
-                    entry.payload &&
-                    typeof entry.payload === 'object' &&
-                    'value' in entry.payload &&
-                    entry.payload.value &&
-                    typeof entry.payload.value === 'object' &&
-                    'kind' in entry.payload.value &&
-                    entry.payload.value.kind === 'delivery_confirmed',
+                  entry => fixturePayload(entry.payload).value.kind === 'delivery_confirmed',
                 )
               ) {
                 entered.resolve()

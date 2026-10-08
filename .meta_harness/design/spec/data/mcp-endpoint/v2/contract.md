@@ -5,7 +5,7 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.mcp-endpoint, 2)`——
   `family = data`、`topic = mcp-endpoint`、规范路径 `spec/data/mcp-endpoint/v2/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：已由 [D-061](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
+- **状态**：已由 D-061 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-002 rev 20、PF-006 rev 19** 为准；PF-016 rev 8、PF-005 rev 5、PF-012 rev 14 只引
 - **精确语义依赖**：
 
@@ -13,7 +13,7 @@
   |---|---|---|---|
   | `omne-harness-lite-design-2026-09-15 · data.asset-model · v2`（**candidate**） | [S-2](../../asset-model/v2/contract.md#s-2-能力标识名的词法)、[S-10](../../asset-model/v2/contract.md#s-10-八类正文的外壳)、[S-12](../../asset-model/v2/contract.md#s-12-属性声明由正文推出)、[S-13](../../asset-model/v2/contract.md#s-13-设置项类别)、[S-14](../../asset-model/v2/contract.md#s-14-属性配值)、[S-15](../../asset-model/v2/contract.md#s-15-disabled-是保留项名)、[S-18](../../asset-model/v2/contract.md#s-18-资产持有)、[S-20](../../asset-model/v2/contract.md#s-20-出厂格与工作区格的持有)、[S-23](../../asset-model/v2/contract.md#s-23-凭据引用)、[S-27](../../asset-model/v2/contract.md#s-27-表示层拒绝值)、[S-36](../../asset-model/v2/contract.md#s-36-usableby-是保留项名) | 能力标识名的词法、mcp 那一支正文外壳、属性声明的形状与推出义务、设置项类别、属性配值与留存、保留项 `disabled` 与 `usableBy`、持有的键、工作区格的限制、凭据引用与「未配即缺席」、名字收窄的拒绝值原名携带（S-27 第三种情形） | 本契约的 `McpEndpoint` 就是 S-10 里 mcp 那一支 `$ref` 的值；[S-14](#s-14-推出规则五类项) 按 S-12 的形状给推出规则；凭据取值域引用它的 `$defs/CredentialRef`（写在推出的声明里，不在本契约 Schema 里） |
   | `omne-harness-lite-design-2026-09-15 · data.tool-definition · v2`（**candidate**） | [S-4](../../tool-definition/v2/contract.md#s-4-单函数工具)、[S-14](../../tool-definition/v2/contract.md#s-14-时长的表示)、[S-15](../../tool-definition/v2/contract.md#s-15-执行权限)、[S-18](../../tool-definition/v2/contract.md#s-18-名字的表示与相等)、[S-26](../../tool-definition/v2/contract.md#s-26-表示层拒绝值与判定次序)、[S-27](../../tool-definition/v2/contract.md#s-27-表示层拒绝不是判定) | 参数 schema 的要求、`schema_unsupported` 与它在 MCP 来源上以同形替换件出现（S-4、S-26 第 13 行、S-27 末段；2026-09-25 补登，M37）；时长的表示；执行权限三档；工具定义 `name` 的收窄（字符集、三种相邻、转写后长度）；三种相邻的拒绝值 `name_reserved_sequence` | `$ref` 它的 `$defs/Duration`（两项超时）与 `$defs/ExecutePermission`（逐动作执行权限的作者默认）；动作条目名 `$ref` 它的 `$defs/ToolName`（[S-11](#s-11-动作条目名)）；接入点 name 的收窄由它推出（[S-26](#s-26-接入点-name-登记时收窄)）；条目名含三种相邻时原名携带它的 `name_reserved_sequence`（[S-20](#s-20-表示层拒绝值与判定次序) 第 7 行） |
-  | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示)、[S-33](../../identity-values/v1/contract.md#s-33-表示层校验与判定分开) | 不透明标识的交换表示与空白码点集合；表示层校验与判定分开 | OAuth 绑定号与各处「空白」按 S-31 的散文自定义，**不 `$ref` 它的 `OpaqueIdentifier`**（主线裁定，见 [D-060 §S1 S1-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s1content-blocks报回的)） |
+  | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示)、[S-33](../../identity-values/v1/contract.md#s-33-表示层校验与判定分开) | 不透明标识的交换表示与空白码点集合；表示层校验与判定分开 | OAuth 绑定号与各处「空白」按 S-31 的散文自定义，**不 `$ref` 它的 `OpaqueIdentifier`**（主线裁定，见 D-060 §S1 S1-a） |
   | `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1` | [S-22](../../offer-expiry/v1/contract.md#s-22-schema-的范围) | 时刻的规范形式 | `$ref` 它的 `$defs/Instant`：`fetchedAt`、`since` |
 
   `data.asset-model` v2 与 `data.tool-definition` v2 都是**同批候选**，定型前它们的条款号与 `$defs` 名可能随评审变；变了在[验证入口](../verification.md#变化的影响)登记影响。
@@ -27,13 +27,13 @@
 | 依据 | 位置 | 本契约取它的什么 |
 |---|---|---|
 | MCP 是外部工具来源的接入点；接入点是资产、动作不是；身份是接入点的 name，动作清单、连接参数、凭据都不是身份；每个动作一个工具条目；自带的属性（连接目标与凭据是落点与身份类，两项超时是偏好类；能不能用；逐动作执行权限随对端此刻的动作而有）；本版桥到哪一步随采用的客户端；不组合任何资产 | [PF-002 §4 MCP](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp) | S-1～S-3、S-7、S-8、S-14、S-16 |
-| MCP 凭据：一份持有一份值、静态或经 OAuth 取得是同一项、工作区一级取不了、还没取或失效即连不上、续期不算换值、随持有生灭、值永不呈现、**组织那一层不持有**（产品负责人裁定见 [D-059 U-1](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#凭据档案工具拓展件卡片-pf-013-rev-10pf-002-rev-1819pf-006-rev-19pf-012-rev-12pf-007-rev-17pf-008-rev-7pf-016-rev-8)；原 G-3 关闭） | [PF-002 §4 MCP 凭据](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的) | S-6、S-12、S-13 |
+| MCP 凭据：一份持有一份值、静态或经 OAuth 取得是同一项、工作区一级取不了、还没取或失效即连不上、续期不算换值、随持有生灭、值永不呈现、**组织那一层不持有**（产品负责人裁定见 D-059 U-1；原 G-3 关闭） | [PF-002 §4 MCP 凭据](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的) | S-6、S-12、S-13 |
 | 设置项分四类、资产声明每一项时必须标类别 | [PF-002 §5.2](../../../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别) | S-14 |
 | 项的目录不需要单独维护；项的存在性由组装决定 | [PF-002 §5.2 两个推论](../../../../product/PF-002-assets-settings-and-permissions/design.md#由此得到两个推论) | S-15 |
 | 工作区那一级不参与权限计算；落点与身份类与 `immutable` 同样滤掉；工作区自己提供的资产权限取最严值、不认它自己声明的出厂值；**仓库带来的、以本地命令方式接入的 MCP 接入点默认不启用**，由持有这份工作区的租户在自己的设置里逐件打开 | [PF-002 §5.7](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算) | S-8、S-17 |
 | 对端动作在动作空间里是工具条目；随接入点持有与授权；每一次执行尝试开始前与可用性一起重取、一次尝试之内不变；连不上即不可用、替换件照最近一次拿到的清单装 | [PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作) · [连不上就是不可用](../../../../product/PF-006-tools-and-skills/design.md#接入点连不上它的动作就是不可用) | S-9、S-11、S-15 |
 | 每一次执行尝试也算一次「开始」（已落进 PF-006 §6.13） | [PF-012 §5.7 每一次尝试开始都要做四件事](../../../../product/PF-012-agent-loop-and-run/design.md#每一次尝试开始都要做四件事) | S-9、S-15 |
-| MCP 客户端的采用：官方 SDK 上自写薄桥；本版桥 tools 列举与调用、取消与日志通知、静态鉴权（请求头 / stdio 环境变量）、stdio 与 Streamable HTTP、elicitation、进度、OAuth；不桥 resources 条目、prompts、sampling、roots、任务式动作、旧式 SSE；stdio 一律在据点机拉起 | [D-037](../../../../record/decisions/mcp-client-adoption/decision.md) | S-3～S-5、S-9 |
+| MCP 客户端的采用：官方 SDK 上自写薄桥；本版桥 tools 列举与调用、取消与日志通知、静态鉴权（请求头 / stdio 环境变量）、stdio 与 Streamable HTTP、elicitation、进度、OAuth；不桥 resources 条目、prompts、sampling、roots、任务式动作、旧式 SSE；stdio 一律在据点机拉起 | D-037 | S-3～S-5、S-9 |
 | 统一语言正式名 | [MCP](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-mcp--mcp--mcp) · [MCP 凭据](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-mcp-credential--mcp-凭据--mcp-credential) · [工具定义](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition) · [资产持有](../../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-asset-holding--资产持有--asset-holding) · [属性配值](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-attribute-assignment--属性配值--attribute-assignment) · [能力标识](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier) · [连接目标](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-connection-target--连接目标--connection-target) · [谁可以使用它](../../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-usable-by--谁可以使用它--usable-by) | 全部英文名 |
 | 规格形式；部署边界；租户隔离 | [SYS-SPEC](../../../../foundation/cross-system-constraints/requirements.md#sys-spec) · [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) · [SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant) | S-18～S-21；[第五节](#五装配给与协议给) |
 
@@ -41,15 +41,15 @@
 >
 > | 条款 | 依据来自哪 |
 > |---|---|
-> | [S-9](#s-9-动作清单副本) 的 `not_fetched` 一支 | **主线裁定**，见 [D-060 §六 N-3](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)：「还没取过」是显式取值，不是缺席 |
-> | [S-11](#s-11-动作条目名) 动作条目名的拼法与词法 | 拼法「接入点:动作」：**主线裁定**，见 [D-060 §六 N-3](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；词法取 `data.tool-definition/v2#S-18` 的收窄（[D-060 TD-2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#产品负责人-2026-09-24-追加要求工具定义须能构造供应商工具-payload已取证已发对齐波)），落在 `data.asset-model/v2#S-2` 之内 |
-> | [S-16](#s-16-逐动作项按动作名键) 逐动作项按动作名键、动作消失再出现原配值照旧 | **主线裁定**，见 [D-060 §六 N-3](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) |
+> | [S-9](#s-9-动作清单副本) 的 `not_fetched` 一支 | **主线裁定**，见 D-060 §六 N-3：「还没取过」是显式取值，不是缺席 |
+> | [S-11](#s-11-动作条目名) 动作条目名的拼法与词法 | 拼法「接入点:动作」：**主线裁定**，见 D-060 §六 N-3；词法取 `data.tool-definition/v2#S-18` 的收窄（D-060 TD-2），落在 `data.asset-model/v2#S-2` 之内 |
+> | [S-16](#s-16-逐动作项按动作名键) 逐动作项按动作名键、动作消失再出现原配值照旧 | **主线裁定**，见 D-060 §六 N-3 |
 > | [S-7](#s-7-两项超时的作者默认)、[S-8](#s-8-执行权限的作者默认) 作者默认写在正文里 | **规格层推导**：`data.asset-model/v2#S-12` 要求这类项声明带作者给的 `default` |
-> | [S-13](#s-13-凭据配值的取值域) 凭据「还没取」即缺席、[S-14](#s-14-推出规则五类项) 不产出「能不能用」 | **主线裁定**，见 [D-060 §S21 S21-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)（「未配」只有缺席一种写法）与 [D-060 §S18 S18-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的)（「谁可以使用它」是 `data.asset-model` 保留的 `usableBy`） |
-> | [S-13](#s-13-凭据配值的取值域) 取值域之外的值不由本契约起拒绝值 | **主线裁定**，见 [D-060 §五 K7](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)：「凭据位写了非引用值」只有资产治理写面的 `valueOutOfDomain` 一个拒绝值 |
-> | [S-6](#s-6-正文不收凭据)、[S-9](#s-9-动作清单副本) 的「不在正文里」 | **主线裁定**，见 [D-060 §S19 S19-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的)：副本、OAuth 绑定、凭据都按持有存放 |
+> | [S-13](#s-13-凭据配值的取值域) 凭据「还没取」即缺席、[S-14](#s-14-推出规则五类项) 不产出「能不能用」 | **主线裁定**，见 D-060 §S21 S21-b（「未配」只有缺席一种写法）与 D-060 §S18 S18-c（「谁可以使用它」是 `data.asset-model` 保留的 `usableBy`） |
+> | [S-13](#s-13-凭据配值的取值域) 取值域之外的值不由本契约起拒绝值 | **主线裁定**，见 D-060 §五 K7：「凭据位写了非引用值」只有资产治理写面的 `valueOutOfDomain` 一个拒绝值 |
+> | [S-6](#s-6-正文不收凭据)、[S-9](#s-9-动作清单副本) 的「不在正文里」 | **主线裁定**，见 D-060 §S19 S19-a：副本、OAuth 绑定、凭据都按持有存放 |
 > | [S-18](#s-18-规范表示)～[S-21](#s-21-表示层拒绝不是判定也不修补) | **SYS-SPEC** |
-> | [S-26](#s-26-接入点-name-登记时收窄) 接入点 name 登记时收窄、拒绝值 `name_not_projectable` | **主线自定**，见 [D-059「主线自定，待确认」](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#主线自定待确认)（「接入点 name 登记时收窄到可转写词法」；原 [G-11](#八已知缺口)）；收窄的具体内容由 `data.tool-definition/v2#S-18` 推出 |
+> | [S-26](#s-26-接入点-name-登记时收窄) 接入点 name 登记时收窄、拒绝值 `name_not_projectable` | **主线自定**，见 D-059「主线自定，待确认」（「接入点 name 登记时收窄到可转写词法」；原 [G-11](#八已知缺口)）；收窄的具体内容由 `data.tool-definition/v2#S-18` 推出 |
 
 ## 一、目的与消费者
 
@@ -166,7 +166,7 @@
 
 ### S-3 连接目标两种，闭合
 
-**`McpTransport` 按 `kind` 判别，本版恰两种：`stdio`、`streamable_http`。**依据是 [D-037](../../../../record/decisions/mcp-client-adoption/decision.md) 复选卡片勾选的「stdio 与 Streamable HTTP 传输」。
+**`McpTransport` 按 `kind` 判别，本版恰两种：`stdio`、`streamable_http`。**依据是 D-037 复选卡片勾选的「stdio 与 Streamable HTTP 传输」。
 
 - **其余一切传输（含旧式 SSE）拒绝，拒绝值 `transport_unknown`**——D-037 明写旧式 SSE 不桥；`kind` 缺席是 `malformed`（M2）。
 - **它是「连接目标」这一项[落点与身份类](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)设置的取值域**（[S-14](#s-14-推出规则五类项)）：
@@ -175,7 +175,7 @@
 
 ### S-4 stdio
 
-**`{ kind: "stdio", command, args, env? }`：由[会话据点](../../../../ubiquitous_language/terms/grounding-and-isolation.md#ul-session-base--会话据点--session-base)的进程在据点机上拉起一个子进程，经它的标准输入输出通信**（本版取值，[D-037](../../../../record/decisions/mcp-client-adoption/decision.md)；「可换落点」是将来的拓展点，不在本版）。
+**`{ kind: "stdio", command, args, env? }`：由[会话据点](../../../../ubiquitous_language/terms/grounding-and-isolation.md#ul-session-base--会话据点--session-base)的进程在据点机上拉起一个子进程，经它的标准输入输出通信**（本版取值，D-037；「可换落点」是将来的拓展点，不在本版）。
 
 | 成员 | 必填 | 含义 |
 |---|---|---|
@@ -210,7 +210,7 @@
 依据三条，任一条都足以排除「正文里放凭据」：
 
 1. **一份持有一份值，不跨租户身份共用**（[PF-002 §4 MCP 凭据](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)）。正文随版本被每一个持有它的格共用；凭据写在正文里，就被所有持有者共用了。
-2. **凭据是落点与身份类设置**（同上；`data.asset-model/v2#S-23`，主线裁定见 [D-060 §块 A A4](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-a-形状shapes-draft-assets-v0md-a1a10)）。设置的值挂在持有上，由有配值资格的人配；正文里写的只能是默认值，而**凭据类项没有一个自然的默认值**——它不带默认，各格都没配就是「还没取」（[S-13](#s-13-凭据配值的取值域)）。
+2. **凭据是落点与身份类设置**（同上；`data.asset-model/v2#S-23`，主线裁定见 D-060 §块 A A4）。设置的值挂在持有上，由有配值资格的人配；正文里写的只能是默认值，而**凭据类项没有一个自然的默认值**——它不带默认，各格都没配就是「还没取」（[S-13](#s-13-凭据配值的取值域)）。
 3. **工作区那一级取不了**（同上，与 [PF-002 §5.7](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)）。仓库带来的接入点，正文来自目录里的文件；正文若有凭据位置，一个仓库就能随正文带进来一个凭据——那正是「工作区一级取不了」要挡的。
 
 **表示层的后果**：
@@ -220,7 +220,7 @@
 - **「凭据放错了地方」不另起一个拒绝值**：凭据配值写了一个不是凭据引用的值，归写这条配值的资产治理写面判 `valueOutOfDomain`（[S-13](#s-13-凭据配值的取值域)）；正文上的这两种写法各落本契约已有的值。**拒绝不修补**（[S-21](#s-21-表示层拒绝不是判定也不修补)）：不忽略那个成员、不删掉 userinfo 后接受；
 - **`env`、`args`、`url` 的查询串里写进秘密，形状上挡不住**：它们被当作可以呈现的普通内容对待（PF-016 §6.11 管不到它们，因为它们不是凭据）。**凭据的唯一入口是凭据配值**——这是给作者的义务，不是本契约能兑现的保证。
 
-> **凭据与 OAuth 绑定都不是正文成员**（主线裁定，见 [D-060 §S19 S19-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的)）：
+> **凭据与 OAuth 绑定都不是正文成员**（主线裁定，见 D-060 §S19 S19-a）：
 > 凭据是持有上的配值（取值域见 [S-13](#s-13-凭据配值的取值域)），OAuth 绑定按持有保存（[S-12](#s-12-oauth-绑定)，存在哪归 `capability.mcp-bridge`）。
 
 ### S-7 两项超时的作者默认
@@ -246,7 +246,7 @@
 |---|---|---|
 | `execute.default` | 本接入点**每一个动作**的「**执行权限**」共用的那一个默认档 | `forbid`、`auto`、`ask`（`data.tool-definition/v2` 的 [ExecutePermission](../../tool-definition/v2/contract.md#s-15-执行权限)） |
 
-- **「能不能用」不在正文里**：它是 `data.asset-model` v2 保留的 [`usableBy`](../../asset-model/v2/contract.md#s-36-usableby-是保留项名)——取值域是租户角色两值加 `self`、默认 `self`，八类资产共用一份声明（`data.asset-model/v2#S-36`；主线裁定，见 [D-060 §S18 S18-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的)）。作者不另给它的默认。
+- **「能不能用」不在正文里**：它是 `data.asset-model` v2 保留的 [`usableBy`](../../asset-model/v2/contract.md#s-36-usableby-是保留项名)——取值域是租户角色两值加 `self`、默认 `self`，八类资产共用一份声明（`data.asset-model/v2#S-36`；主线裁定，见 D-060 §S18 S18-c）。作者不另给它的默认。
 - **一个接入点只给一个执行权限默认档，对它的每一个动作都一样**：作者写正文时并不知道对端此刻有哪些动作——那是对端决定的、随时会变（[S-9](#s-9-动作清单副本)）。
   逐动作地收窄，是持有它的各格的事（[S-16](#s-16-逐动作项按动作名键)）。
 - **它就是 PF-002 §5.7 说的「它自己声明的出厂值」**：一个声明了 `auto` 的接入点，被持有在组织、租户格时按收窄合成；**被工作区提供时这个值不被认**，取最严值（[S-17](#s-17-工作区格上的这些项)）。
@@ -275,7 +275,7 @@
 - **对端按账号给出的动作可能不同**：同一个接入点在两个租户身份下用两份凭据，对端看到的是两个账号（[PF-002 acceptance §一](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md#一可观察场景)），给出的清单不必相同——一份共用的清单装不下；
 - **替换件要的是「这一份持有最近一次拿到的」**（[PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#接入点连不上它的动作就是不可用)），不是作者发布时看到的那一份。
 
-> **副本住在持有上，不在正文里**（主线裁定，见 [D-060 §S19 S19-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的)：投影读的是持有上的副本，不是正文里的动作快照）。形状（本条）不变。
+> **副本住在持有上，不在正文里**（主线裁定，见 D-060 §S19 S19-a：投影读的是持有上的副本，不是正文里的动作快照）。形状（本条）不变。
 
 ### S-10 对端动作描述
 
@@ -289,7 +289,7 @@
 
 - **必填的两项就是 MCP 协议里工具项的必填项**；对端给的一项缺了它们，是对端违反协议——整次列举不成立（`capability.mcp-bridge` 按协议错误收），**不是**本契约替它补一个。
 - **`inputSchema` 在这里只要求是对象**：它能不能成为一份工具定义的参数（`data.tool-definition/v2` 的 [S-4](../../tool-definition/v2/contract.md#s-4-单函数工具)），在投影时判——一项不合格不让整份副本不合格（`capability.mcp-bridge`）。
-  **投影时判出 `schema_unsupported` 的那一项不同**（主线裁定，见 [D-060 §八 M37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：它的参数 schema 过了那份契约表示层的前十二道、只是这个实现编不出来（或某个 `pattern` 超出实现的上限，[`data.tool-definition/v2#S-26`](../../tool-definition/v2/contract.md#s-26-表示层拒绝值与判定次序) 第 13 行）——**形状合法**，所以这个动作**不被排除**，以**同形替换件**出现，原因写 `schema_unsupported`（会话资产注册表的 `stand_in{for: schema_unsupported}`；[`data.tool-definition/v2#S-27`](../../tool-definition/v2/contract.md#s-27-表示层拒绝不是判定) 末段）。打这个标记的是桥的投影（`capability.mcp-bridge` S-17）；同形的依据仍是本条原样存下的 `inputSchema`。过不了前十二道的照旧被桥排除。
+  **投影时判出 `schema_unsupported` 的那一项不同**（主线裁定，见 D-060 §八 M37）：它的参数 schema 过了那份契约表示层的前十二道、只是这个实现编不出来（或某个 `pattern` 超出实现的上限，[`data.tool-definition/v2#S-26`](../../tool-definition/v2/contract.md#s-26-表示层拒绝值与判定次序) 第 13 行）——**形状合法**，所以这个动作**不被排除**，以**同形替换件**出现，原因写 `schema_unsupported`（会话资产注册表的 `stand_in{for: schema_unsupported}`；[`data.tool-definition/v2#S-27`](../../tool-definition/v2/contract.md#s-27-表示层拒绝不是判定) 末段）。打这个标记的是桥的投影（`capability.mcp-bridge` S-17）；同形的依据仍是本条原样存下的 `inputSchema`。过不了前十二道的照旧被桥排除。
 - **原样保存的理由**：副本是替换件同形的唯一依据（[S-9](#s-9-动作清单副本)），改写一个字节，替换件就与对端原件不同形；
   **其余成员留着**，是因为投影规则可能按协议版本读其中几项（例如声明必须以任务方式执行的那一项，`capability.mcp-bridge`），丢了就无从读。
 - **对端给的说明与参数 schema 是不受信任的内容**：它们会原样进模型面（经投影），本契约不对它们作任何承诺。
@@ -366,7 +366,7 @@
 { "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v2/asset-model.schema.json#/$defs/CredentialRef" }
 ```
 
-- **「还没取」是缺席**（主线裁定，见 [D-060 §S21 S21-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)：「未配」只有缺席一种写法，与连接件同）：这一项**不带 `default`**（[S-14](#s-14-推出规则五类项)），各格都没为它配值时，求值得到缺席——**连不上**（[PF-002](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)「还没取就是连不上」）。
+- **「还没取」是缺席**（主线裁定，见 D-060 §S21 S21-b：「未配」只有缺席一种写法，与连接件同）：这一项**不带 `default`**（[S-14](#s-14-推出规则五类项)），各格都没为它配值时，求值得到缺席——**连不上**（[PF-002](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)「还没取就是连不上」）。
   **撤掉就是删掉这一格的那条配值**，不是写回一个表示「没有」的值；取值域里**没有**这样的值。
 - **取值域之外的一切，由写这条配值的一方判为 `valueOutOfDomain`**——`capability.asset-governance` v2 [S-38](../../../capabilities/asset-governance/v2/contract.md#s-38-assign-配值) ② 的取值域校验：「凭据位写了非引用值」**只有这一个拒绝值**，本契约不另起一个（主线裁定，见[设计依据](#设计依据)的注）。
   一个对象里放着 token、一个数字、一个 `null`、`{ "kind": "not_fetched" }`……都在此。**只能按形状判**——一个明文 token 若恰好是一个非空、首尾无空白的字符串，它形状上就是一个 `CredentialRef`，**本条挡不住**。
@@ -525,13 +525,13 @@
 | # | 性质 | 类 | 来源 | 谁在何处保护 | 违反时可观察到什么 |
 |---|---|---|---|---|---|
 | P-1 | 正文里没有凭据的位置；凭据只作为持有上的配值存在 | 安全 | [PF-002 §4 MCP 凭据](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的) | Schema ＋ 接收边界（[S-6](#s-6-正文不收凭据)、[S-20](#s-20-表示层拒绝值与判定次序)）＋ 资产治理写面的取值域校验（[S-13](#s-13-凭据配值的取值域)） | 一个仓库带进来的接入点连上了某个账号；或同一个凭据被持有同一接入点的所有格共用 |
-| P-2 | 副本的「还没取」「对端没有动作」「表示不完整」三者分得开；凭据的「还没取」只有缺席一种写法 | 不变量 | 主线裁定（`not_fetched`，见[设计依据](#设计依据)的注）· [D-060 §S21 S21-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的) · [PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#接入点连不上它的动作就是不可用) | Schema（[S-9](#s-9-动作清单副本)、[S-13](#s-13-凭据配值的取值域)） | 从没连上过的接入点被当成「没有动作」，或一个缺时刻的清单被当成最新 |
-| P-3 | 本版只有两种传输；未知传输不被猜成已知 | 安全 | [D-037](../../../../record/decisions/mcp-client-adoption/decision.md) | Schema（[S-3](#s-3-连接目标两种闭合)、[S-19](#s-19-判别式与枚举闭合)） | 一个 URL 被当成程序拉起，或一个旧式 SSE 服务端被按新协议连 |
-| P-4 | 同一份正文与同一份动作集，推出同一组属性声明；逐动作项的项名在一个接入点内唯一 | 不变量 | `data.asset-model/v2#S-12` · [D-060 §块 A A3](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-a-形状shapes-draft-assets-v0md-a1a10) | 推出规则（[S-14](#s-14-推出规则五类项)、[S-15](#s-15-推出规则的输入正文与动作集)） | 设置页长出来的表单与正文、清单对不上；两个动作共用一个权限项 |
+| P-2 | 副本的「还没取」「对端没有动作」「表示不完整」三者分得开；凭据的「还没取」只有缺席一种写法 | 不变量 | 主线裁定（`not_fetched`，见[设计依据](#设计依据)的注）· D-060 §S21 S21-b · [PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#接入点连不上它的动作就是不可用) | Schema（[S-9](#s-9-动作清单副本)、[S-13](#s-13-凭据配值的取值域)） | 从没连上过的接入点被当成「没有动作」，或一个缺时刻的清单被当成最新 |
+| P-3 | 本版只有两种传输；未知传输不被猜成已知 | 安全 | D-037 | Schema（[S-3](#s-3-连接目标两种闭合)、[S-19](#s-19-判别式与枚举闭合)） | 一个 URL 被当成程序拉起，或一个旧式 SSE 服务端被按新协议连 |
+| P-4 | 同一份正文与同一份动作集，推出同一组属性声明；逐动作项的项名在一个接入点内唯一 | 不变量 | `data.asset-model/v2#S-12` · D-060 §块 A A3 | 推出规则（[S-14](#s-14-推出规则五类项)、[S-15](#s-15-推出规则的输入正文与动作集)） | 设置页长出来的表单与正文、清单对不上；两个动作共用一个权限项 |
 | P-5 | 动作消失再出现，原配值照旧生效 | 安全 | 主线裁定（见[设计依据](#设计依据)的注） | 推出规则按动作名键（[S-16](#s-16-逐动作项按动作名键)）＋ `data.asset-model/v2#S-14` 的留存 | 组织配的「禁止」在对端撤下又加回之后悄悄回到作者默认 |
 | P-6 | 条目名在一个接入点内与对端动作名一一对应；本契约不改写对端动作名 | 不变量 | 主线裁定（拼法，见[设计依据](#设计依据)的注）· [PF-006 §6.3](../../../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装) 同形 | 拼法（[S-11](#s-11-动作条目名)） | 两个对端动作落到同一个条目上；或替换件与原件不同名 |
 | P-7 | 缺席不补、表示非法即拒、拒绝值唯一 | 安全 | SYS-SPEC | 每个接收边界（[S-20](#s-20-表示层拒绝值与判定次序)、[S-21](#s-21-表示层拒绝不是判定也不修补)） | 两个实现对同一份坏输入报不同的拒绝值；或缺的执行权限被补成 `auto` |
-| P-8 | 登得上的接入点，它的 name 拼得出条目名的前缀 | 不变量 | [D-059「主线自定，待确认」](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#主线自定待确认) | 登记时的写面校验（[S-26](#s-26-接入点-name-登记时收窄)） | 一个接入点登得上、它的每一个动作却都被桥以「条目名拼不出」排除 |
+| P-8 | 登得上的接入点，它的 name 拼得出条目名的前缀 | 不变量 | D-059「主线自定，待确认」 | 登记时的写面校验（[S-26](#s-26-接入点-name-登记时收窄)） | 一个接入点登得上、它的每一个动作却都被桥以「条目名拼不出」排除 |
 
 **本契约不拥有任何进展性质**：它没有状态转移。**不建 `formal/`**：结构约束 Schema 与条款即可表达，没有需要在给定规模里找反例的关系；
 属性项在各格上怎样求值的结构性质归 `capability.asset-evaluation` 的 Alloy 模型（`data.asset-model` 的验证入口已登记），那份模型消费本契约推出的声明。
@@ -590,9 +590,9 @@
 
 | # | 缺口 | 影响 | owner |
 |---|---|---|---|
-| **G-1** | **已闭合（2026-09-24 整批对齐）**：`data.asset-model` v2 的 S-12 第 1 条为 `mcp` 写明第二个输入（动作清单副本）；副本按持有存放（[D-060 §S19 S19-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的)） | — | — |
+| **G-1** | **已闭合（2026-09-24 整批对齐）**：`data.asset-model` v2 的 S-12 第 1 条为 `mcp` 写明第二个输入（动作清单副本）；副本按持有存放（D-060 §S19 S19-a） | — | — |
 | **G-2** | **收窄（2026-09-24 整批对齐）**：条目名在各家供应商那里怎样呈现已由 `data.tool-definition/v2` 的 S-6、S-18 定（`:` 转写、长度）。**仍缺**：动作条目名跨接入点、跨作者工具可能撞名（[S-11](#s-11-动作条目名)） | 同一个动作空间里两个同名条目 | **注册表**（`capability.asset-registry` v2，candidate） |
-| **G-3** | **已关闭（PF-002 §4 MCP 凭据「归谁」；[D-059 U-1](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#凭据档案工具拓展件卡片-pf-013-rev-10pf-002-rev-1819pf-006-rev-19pf-012-rev-12pf-007-rev-17pf-008-rev-7pf-016-rev-8)）**：组织那一层不持有 MCP 凭据——组织格上没有凭据配值、没有 OAuth 绑定（[S-12](#s-12-oauth-绑定)）；形状不变 | — | — |
+| **G-3** | **已关闭（PF-002 §4 MCP 凭据「归谁」；D-059 U-1）**：组织那一层不持有 MCP 凭据——组织格上没有凭据配值、没有 OAuth 绑定（[S-12](#s-12-oauth-绑定)）；形状不变 | — | — |
 | **G-4** | **设置页呈现逐动作项时用哪一份动作集**：注册表钉住的是每次尝试的；设置页不在任何一次尝试里。尤其组织格——组织那一层不持有凭据（PF-002 §4，原 G-3），它那一格没有自己的副本 | 组织与租户在设置页上看得见、配得着哪些动作的执行权限 | **PF-002 / PF-016 的 owner**（产品面：给不在任何一次运行里的人看什么） |
 | **G-5** | **已移交（2026-09-24 整批对齐）**：「能不能用」不再是本契约的项，是 `data.asset-model` 保留的 `usableBy`；`default` 是 `self` 这一个取值，它与 `self`、角色在求值里怎样对上，答案在 `capability.asset-evaluation/v2` 的 [S-39](../../../capabilities/asset-evaluation/v2/contract.md#s-39-谁可以使用它值与判定) | — | — |
 | **G-6** | **已闭合（2026-09-24 整批对齐）**：`data.asset-model` v2 的 S-2 已改为禁 `/`、许 `:`，与本契约的条目名词法同一套 | — | — |
@@ -600,7 +600,7 @@
 | **G-8** | **是否禁止明文 `http` 连外网地址**（[S-5](#s-5-streamable_http)） | 凭据可能在明文信道上出示 | **产品负责人**（治理政策）；本版不禁 |
 | **G-9** | **已闭合（2026-09-24 整批对齐）**：属性配值带 `since`（`data.asset-model/v2#S-14`） | — | — |
 | **G-10** | **已闭合（2026-09-24 整批对齐）**：`data.asset-model` v2 的 mcp 一支已 `$ref` 本契约的 `McpEndpoint` | — | — |
-| **G-11** | **已关闭（主线自定，[D-059「主线自定，待确认」](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#主线自定待确认)）**：接入点 name 在登记时收窄到拼得出条目名的词法，不合即拒，拒绝值 `name_not_projectable`（[S-26](#s-26-接入点-name-登记时收窄)） | — | — |
+| **G-11** | **已关闭（主线自定，D-059「主线自定，待确认」）**：接入点 name 在登记时收窄到拼得出条目名的词法，不合即拒，拒绝值 `name_not_projectable`（[S-26](#s-26-接入点-name-登记时收窄)） | — | — |
 
 **它们都不是默认值**：消费者碰上时停在缺口，不挑一个看起来合理的答案。
 

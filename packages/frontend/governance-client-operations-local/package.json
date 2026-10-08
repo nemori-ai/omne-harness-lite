@@ -20,7 +20,9 @@
   "files": [
     "dist",
     "generated",
-    "SPEC.md"
+    "SPEC.md",
+    "README.md",
+    "README_ZH.md"
   ],
   "scripts": {
     "build": "node ../../../scripts/build-fixed-schemas.mjs",
@@ -47,5 +49,12 @@
     "@omne-harness-lite/governance-center-entry-https-json": "workspace:*",
     "@omne-harness-lite/governance-center-entry": "workspace:*",
     "@omne-harness-lite/assembly-lifecycle": "workspace:*"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "service-provider"
+    }
   }
 }

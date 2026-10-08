@@ -1,18 +1,23 @@
+import { modelCategory } from './log-codec-fixture.ts'
 import { describe, expect, it } from 'vitest'
 import { isJsonNumber, type JsonNumber } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
-import { interpretCallHistory } from '../src/call-history.ts'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { createRuntimeReads } from '../src/service-reads.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
-import type { SessionModelSelectionInput } from '../src/session-selection-types.ts'
+import type { SessionModelSelectionInput } from '@omne-harness-lite/model-request-runtime'
 import type { SessionLog } from '@omne-harness-lite/session-log'
-import type { RuntimeConstruction, SessionRuntimeBinding } from '../src/service-types.ts'
+import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
+import type { RuntimeConstruction } from '../src/service-types.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
-import type { SettlementRegistration, SettlementTaskKind } from '../src/settlement-types.ts'
+import type {
+  SettlementRegistration,
+  SettlementTaskKind,
+} from '@omne-harness-lite/model-request-runtime'
 import { selectionHost, AT } from './session-selection-fixture.ts'
 import { dispatched, opened } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
@@ -107,6 +112,10 @@ function construction(
     reservationWaitPolicy: { maxWaitersPerCall: 1, timeoutMs: 1 },
     acknowledgementCleanup: { next: () => ({ stop: true }) },
     recovery: {
+      async authorize() {
+        return { authorized: true as const }
+      },
+
       enter() {
         throw new Error('read operation must not enter recovery')
       },
@@ -122,23 +131,14 @@ function currentSelection(
     ...input,
     async projection(prefix) {
       for (const entry of prefix.entries) {
-        const payload = entry.payload
-        if (
-          payload === null ||
-          typeof payload !== 'object' ||
-          Array.isArray(payload) ||
-          isJsonNumber(payload) ||
-          !('category' in payload) ||
-          payload.category !== 'record'
-        )
-          return { unknown: true }
+        if (modelCategory(entry.payload) !== 'record') return { unknown: true }
       }
       return { known: [] }
     },
   }
 }
 
-describe('RT7 service selection and reads on real SQLite/JSONL session', () => {
+describe('RT7 service selection and reads on real SQLite/SQL journal session', () => {
   it('does not cache unavailable close while an actual-stop receipt remains unresolved', async () => {
     const host = await selectionHost()
     const held = host.create()
@@ -586,10 +586,10 @@ describe('RT7 service selection and reads on real SQLite/JSONL session', () => {
         typeof payload !== 'object' ||
         Array.isArray(payload) ||
         isJsonNumber(payload) ||
-        !('format' in payload)
+        !('version' in payload)
       )
         throw new Error('current codec entry payload missing')
-      const stale = { ...current, payload: { ...payload, format: 'mrr/2' } }
+      const stale = { ...current, payload: { ...payload, version: 'mrr/2' } }
       const submitted = await host.log.append(
         host.session,
         [stale],

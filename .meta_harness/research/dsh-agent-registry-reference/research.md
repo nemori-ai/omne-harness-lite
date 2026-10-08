@@ -1,7 +1,7 @@
 # DSH AgentRegistry 提供哪种引用，谁拥有执行寿命
 
 - 调查对象与日期：DSH `639ed015397290b3745d163aafe02ffee4aa3f84` 的 agent registry；2026-09-29。
-- 消费者：[模型调用引用与生命周期提案](../../design/record/proposals/model-runtime-reference-lifecycle/README.md)。
+- 消费者：模型调用引用与生命周期提案。
 - 最近核对：本轮首读，固定 SHA 与三份来源哈希见清单。
 - 当前结论：该 registry 是进程内活对象门面与 factory 委托，不是耐久终态库；调用者 ownerCtx、runtime parent、裸查询对象与销毁句柄明确分开。完整 factory 销毁实现未核，文档次序有冲突。本结论不构成 DSH Agent 采用决定。
 

@@ -19,14 +19,14 @@
   },
   "files": [
     "dist",
-    "tokenizers/deepseek-v4",
-    "tokenizers/deepseek-v41-flash",
-    "tokenizers/anthropic-legacy",
-    "tokenizers/google-gemma4",
-    "tokenizers/qwen-38-24t",
-    "tokenizers/qwen-38-27b",
-    "tokenizers/zai-glm5",
-    "tokenizers/moonshot",
+    "resources/tokenizers/deepseek-v4",
+    "resources/tokenizers/deepseek-v41-flash",
+    "resources/tokenizers/anthropic-legacy",
+    "resources/tokenizers/google-gemma4",
+    "resources/tokenizers/qwen-38-24t",
+    "resources/tokenizers/qwen-38-27b",
+    "resources/tokenizers/zai-glm5",
+    "resources/tokenizers/moonshot",
     "LICENSE.pi",
     "UPSTREAM.md",
     "provenance.json",
@@ -53,7 +53,8 @@
     "@omne-harness-lite/kernel-basis": "workspace:*",
     "zod": "catalog:",
     "sharp": "catalog:",
-    "@omne-harness-lite/model-request-runtime": "workspace:*"
+    "@omne-harness-lite/model-request-runtime": "workspace:*",
+    "@omne-harness-lite/image-codec": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "catalog:"

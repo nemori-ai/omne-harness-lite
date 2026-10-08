@@ -7,12 +7,12 @@ Design-chain identities, catalog registrations, frozen versions and formal tasks
 from __future__ import annotations
 
 import argparse
-import hashlib
 import os
+import subprocess
 from pathlib import Path
 
 import yaml
-from .doc_support import markdown_links, repository_root, validate_link
+from .doc_support import headings, local_target, markdown_links, repository_root, validate_link
 
 ROOTS = ("README.md", "CONTRIBUTING.md", "AGENTS.md", "CLAUDE.md", "docs", "packages", "apps",
          "tools", "scripts", ".agents", ".claude", ".codex", ".meta_harness")
@@ -21,17 +21,7 @@ IGNORED_DIRECTORIES = {".git", ".venv", "node_modules", ".dist", "dist", "build"
 
 # Retained originals keep the relative links they were written with, by design: rewriting them
 # would falsify the record of what the source actually said. Their own entries explain this.
-RETAINED = ("{meta}/design_legacy", "{meta}/research/legacy_backup", "{meta}/agents/research")
-
-# One byte-preserved upstream API source, sealed in the adjacent sha256.json.
-# Its relative links belong to Node's doc/api tree, not this repository. Keep the
-# surrounding research README in the navigation check and reject modified bytes.
-RETAINED_FILES = {
-    ".meta_harness/research/governance-recovery-providers/reports/"
-    "2026-09-26-snapshot-check-worker/maintenance-probe/node24-worker-threads.md":
-    "148bc99fe9b4a2b991dd0966168d3f2188c75e1e673d3eb723ede3dd32accd81",
-}
-
+RETAINED = ("{meta}/design_legacy", "{meta}/research/legacy_backup")
 
 def collect(root: Path) -> list[Path]:
     retained = [root / pattern.format(meta=".meta_harness") for pattern in RETAINED]
@@ -42,13 +32,13 @@ def collect(root: Path) -> list[Path]:
             files.append(path)
         elif path.is_dir():
             for directory, children, names in os.walk(path):
-                children[:] = [child for child in children if child not in IGNORED_DIRECTORIES]
+                children[:] = [child for child in children if child not in IGNORED_DIRECTORIES
+                              and (Path(directory) / child).resolve() != (root / ".meta_harness/design/record").resolve()]
                 files.extend(Path(directory) / name for name in names if name.endswith(".md"))
     # `.templates/` holds placeholders such as `{{YYYY-MM-DD-topic}}.md`; they are meant to be
     # filled in when a topic is created, so they cannot resolve where they sit.
     return [p for p in files
             if ".templates" not in p.parts
-            and p.relative_to(root).as_posix() not in RETAINED_FILES
             and not any(p.is_relative_to(area) for area in retained)]
 
 
@@ -68,16 +58,24 @@ def check_skill_mirrors(root: Path, errors: list[str]) -> None:
             errors.append(f"skill mirror differs: {relative}")
 
 
+
 def check(root: Path):
     errors: list[str] = []
-    for relative, expected in RETAINED_FILES.items():
-        path = root / relative
-        if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() != expected:
-            errors.append(f"{relative}: retained upstream source digest differs")
+    record = root / ".meta_harness/design/record"
+    repository = subprocess.run(["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+                                capture_output=True, text=True)
+    if repository.returncode == 0 and Path(repository.stdout.strip()).resolve() == root:
+        tracked = subprocess.run(["git", "-C", str(root), "ls-files", "--", ".meta_harness/design/record"],
+                                 capture_output=True, text=True, check=True)
+        if tracked.stdout.strip():
+            errors.append("process record files must not be tracked in Git")
     files = collect(root)
     for path in sorted(files):
         for raw in markdown_links(path):
             try:
+                target, fragment = local_target(path, raw, root)
+                if target is not None and target.resolve().is_relative_to(record.resolve()):
+                    raise ValueError("process record is not a current owner")
                 validate_link(path, raw, root)
             except ValueError as error:
                 errors.append(f"{path.relative_to(root)}: {error}")

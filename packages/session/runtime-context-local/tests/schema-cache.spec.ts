@@ -14,11 +14,17 @@ test('fixed codec loads on first validation and reuses the native module cache',
     const api = await import('@omne-harness-lite/runtime-context-local');
     await import('@omne-harness-lite/runtime-context-local/cordis');
     if (require.cache[generated]) throw Error('eager fixed validator');
-    const initializer = api.createContextSessionInitializer({
-      readSince: async () => ({entries: [], tail: 0}),
-      readByKey: async () => ({entries: [], tail: 0}),
-      append: async () => ({positions: [1], tail: 1}),
-    });
+    const {mkdtemp, rm} = await import('node:fs/promises');
+    const {join} = await import('node:path');
+    const {tmpdir} = await import('node:os');
+    const {openStorage} = await import('@omne-harness-lite/storage-sql');
+    const {composeMigrations} = await import('@omne-harness-lite/storage');
+    const {openSqlSessionLog, sessionLogMigrations} = await import('@omne-harness-lite/session-log-sql');
+    const dir = await mkdtemp(join(tmpdir(), 'omne-context-cache-'));
+    const storage = await openStorage({dialect:'sqlite',file:join(dir,'context.sqlite'),synchronous:'full',migrations:composeMigrations([...api.runtimeContextMigrations, ...sessionLogMigrations]),upgrade:false});
+    const log = openSqlSessionLog({storage,authority:{storage,authorize:async()=>({kind:'denied'}),authorizeEnumeration:async()=>({kind:'denied'})},operationLimit:8});
+    const owner = api.createRuntimeContext({log,storage,access:{authorize:async()=>({kind:'rejected',reason:'notAuthorized'})},now:()=> '2026-10-06T00:00:00Z'});
+    const initializer = owner.initializer;
     if (require.cache[generated]) throw Error('eager factory validation');
     const scope = { tenant: {organization:'org',account:'alice'}, session:'session' };
     const seed = {required:[],initial:[],fixed:[]};
@@ -28,6 +34,11 @@ test('fixed codec loads on first validation and reuses the native module cache',
     if (!cached) throw Error('validator not cached');
     await initializer.initializeContextSession(scope, seed);
     if (require.cache[generated] !== cached) throw Error('validator reloaded');
+    owner.closeAdmission();
+    await owner.drain();
+    await log.close();
+    await storage.close();
+    await rm(dir, {recursive:true,force:true});
     console.log('lazy-native-cache: passed');
   `,
     ],

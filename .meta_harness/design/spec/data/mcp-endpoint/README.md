@@ -7,7 +7,7 @@
 它是 `data.asset-model` v2 里 mcp 那一支正文的家（那边 `$ref` 本契约的 `McpEndpoint`），也是 [`capability.mcp-bridge`](../../capabilities/mcp-bridge/README.md) 读写的全部形状。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.mcp-endpoint, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 `accepted`（`acceptance` 指向 D-061 的 `acceptance.json`）。`family=data`、`topic=mcp-endpoint`、
   `contract_path=spec/data/mcp-endpoint/v2/contract.md`，`resources` 另含 `v2/mcp-endpoint.schema.json` 与 `v2/examples.md`；
   依赖四项：`data.asset-model` v2、`data.tool-definition` v2（两者都是候选）、`data.identity-values` v1（不透明标识的交换表示）、`data.offer-expiry` v1——
@@ -34,7 +34,7 @@
 | 交换与存储表示 | [v1 Schema](v2/mcp-endpoint.schema.json) |
 | 一个值长什么样、什么会被拒、拒绝值叫什么 | [v1 正反实例](v2/examples.md) |
 | 一个接入点有哪些属性项、默认值从哪来 | [S-14 推出规则](v2/contract.md#s-14-推出规则五类项)与[实例第 7 节](v2/examples.md#7-推出的属性声明) |
-| 凭据为什么不在正文里、副本为什么不在正文里 | [S-6](v2/contract.md#s-6-正文不收凭据)、[S-9](v2/contract.md#s-9-动作清单副本)——主线裁定，见 [D-060 §S19 S19-a](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) |
+| 凭据为什么不在正文里、副本为什么不在正文里 | [S-6](v2/contract.md#s-6-正文不收凭据)、[S-9](v2/contract.md#s-9-动作清单副本)——主线裁定，见 D-060 §S19 S19-a |
 | 凭据写错了地方报什么 | [S-20](v2/contract.md#s-20-表示层拒绝值与判定次序) 末尾——没有专门的值；凭据配值的非引用值归资产治理写面的 `valueOutOfDomain` |
 | 哪里在等裁决 | [已知缺口](v2/contract.md#八已知缺口) |
 | 哪些条款有怎样的证据义务，现在到哪一步 | [验证与覆盖](verification.md) |
@@ -53,4 +53,4 @@
 
 ## 2026-09-26 版本接受
 
-本次接受 `data.mcp-endpoint` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `data.mcp-endpoint` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

@@ -7,12 +7,15 @@ import { DatabaseSync } from 'node:sqlite'
 import { copyJsonValue, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { type LogEntry } from '@omne-harness-lite/session-log'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
-import { readSettlementPrefix, type SettlementPrefix } from '../src/settlement-prefix.ts'
+import {
+  readSettlementPrefix,
+  type SettlementPrefix,
+} from '@omne-harness-lite/model-request-runtime'
 import { authorizedCalibration } from '../src/service-calibration.ts'
-import type { CurrentHistoryReaders } from '../src/service-types.ts'
+import type { CurrentHistoryReaders } from '@omne-harness-lite/model-request-runtime'
 import {
   anchors,
   batch,
@@ -98,15 +101,7 @@ async function realPrefix(
   const row = sql.prepare('SELECT organization,account FROM owner WHERE session=?').get(session)
   const owned = parseTenantId(row)
   if (!('ok' in owned)) throw Error('SQL owner absent')
-  const log = await openJsonlSessionLog({
-    dir: join(dir, 'log'),
-    processOwnership: {
-      current: 'controlled-source-guards',
-      async observeExit() {
-        return 'unknown'
-      },
-    },
-  })
+  const log = await openSqlLogFixture({ dir: join(dir, 'log') })
   try {
     const a = anchors().entries.map(({ session: _s, position: _p, ...entry }) => entry)
     expect(
@@ -123,7 +118,17 @@ async function realPrefix(
     let generation = {}
     const stopped: Promise<void>[] = []
     const read = await readSettlementPrefix({
-      binding: { session, tenant: owned.ok, generation, currentGeneration: () => generation, log },
+      binding: {
+        session,
+        tenant: owned.ok,
+        generation,
+        currentGeneration: () => generation,
+        log,
+        readPrefix(this: import('@omne-harness-lite/model-request-runtime').SettlementLogBinding) {
+          return log.fixturePrefix({ session: this.session, tenant: this.tenant }, this.log)
+        },
+        originalIssue: log.fixtureOriginalIssue,
+      },
       registration: {
         start(_kind, action) {
           const controller = new AbortController()

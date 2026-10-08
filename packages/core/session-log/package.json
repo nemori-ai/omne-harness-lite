@@ -18,7 +18,9 @@
   },
   "files": [
     "dist",
-    "SPEC.md"
+    "SPEC.md",
+    "README.md",
+    "README_ZH.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -31,7 +33,8 @@
     "@omne-harness-lite/identity-values": "workspace:*",
     "@omne-harness-lite/messages": "workspace:*",
     "@omne-harness-lite/session-tenancy": "workspace:*",
-    "@omne-harness-lite/execution-environments": "workspace:*"
+    "@omne-harness-lite/execution-environments": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

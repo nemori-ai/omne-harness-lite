@@ -19,7 +19,9 @@
     "dist",
     "schema",
     "generated",
-    "SPEC.md"
+    "SPEC.md",
+    "README.md",
+    "README_ZH.md"
   ],
   "scripts": {
     "build": "node ../../../scripts/build-fixed-schemas.mjs",
@@ -37,5 +39,12 @@
     "typescript": "catalog:",
     "vitest": "catalog:",
     "@omne-harness-lite/identity-values": "workspace:*"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "module"
+    }
   }
 }

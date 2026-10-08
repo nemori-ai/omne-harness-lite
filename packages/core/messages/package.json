@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.messages v8 的当前消息、ACK 记录与无损语义摘要判定",
+  "description": "data.messages v9 的当前消息、ACK 记录与无损语义摘要判定",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -22,6 +22,7 @@
     "schema",
     "README.md",
     "README_ZH.md",
+    "SPEC.md",
     "generated"
   ],
   "scripts": {
@@ -41,5 +42,12 @@
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "module"
+    }
   }
 }

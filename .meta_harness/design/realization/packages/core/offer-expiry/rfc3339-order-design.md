@@ -6,8 +6,8 @@
 
 | 输入／层 | 状态与边界 |
 | --- | --- |
-| 时间语义接受 | baseline `omne-harness-lite-design-2026-09-15`；[OE1 S-22](../../../../spec/data/offer-expiry/v1/contract.md#s-22-schema-的范围) 要求带偏移的 RFC3339 时间点、按时间点比较；contract SHA256 `71165d083892075381b6ab74a56c9550c266ce375ef69a1ee9b431a3da85d07f`，由 [D023](../../../../record/decisions/tenant-domain-design-acceptance/decision.md) 接受。[OE2](../../../../spec/data/offer-expiry/v2/contract.md) 由 [D040](../../../../record/decisions/governance-identity-offer-contracts/decision.md) 接受，contract SHA256 `aafec15fa3ae22f889b30c1fac51a2a75b79333e4b9d4636733de24ba929f709`；v2 明确保留 v1 时间表示，两版 Schema 的 Instant 定义逐值相同 |
-| 直接消费者 | [MR4 S-17](../../../../spec/data/model-response/v4/contract.md#s-17-首-token-与时序) 的 sentAt≤firstTokenAt≤endedAt，仍精确消费 OE1，不因 core 当前采用 OE2 而升级；[D088](../../../../record/decisions/model-runtime-log-codec-adoption/decision.md) 采用 [runtime 共同 codec rev2](../../model/model-request-runtime/v4-log-codec-design.md)，SHA256 `f537277f2610b2d98169c69d5c71fcbb3e62fd65de3364ae0ff5148603e92c27`，其关联检查第4项要求精确时间顺序 |
+| 时间语义接受 | baseline `omne-harness-lite-design-2026-09-15`；[OE1 S-22](../../../../spec/data/offer-expiry/v1/contract.md#s-22-schema-的范围) 要求带偏移的 RFC3339 时间点、按时间点比较；contract SHA256 `71165d083892075381b6ab74a56c9550c266ce375ef69a1ee9b431a3da85d07f`，由 D023 接受。[OE2](../../../../spec/data/offer-expiry/v2/contract.md) 由 D040 接受，contract SHA256 `aafec15fa3ae22f889b30c1fac51a2a75b79333e4b9d4636733de24ba929f709`；v2 明确保留 v1 时间表示，两版 Schema 的 Instant 定义逐值相同 |
+| 直接消费者 | [MR4 S-17](../../../../spec/data/model-response/v4/contract.md#s-17-首-token-与时序) 的 sentAt≤firstTokenAt≤endedAt，仍精确消费 OE1，不因 core 当前采用 OE2 而升级；D088 采用 [runtime 共同 codec rev2](../../model/model-request-runtime/v4-log-codec-design.md)，SHA256 `f537277f2610b2d98169c69d5c71fcbb3e62fd65de3364ae0ff5148603e92c27`，其关联检查第4项要求精确时间顺序 |
 | 原提供者边界 | [design](design.md) 已采用品牌化毫秒 Instant 及 Math.round 映射、Clock 形状和四位年书写纠偏，SHA256 `70e64ca8557684b61a71dbe13585808b698d67424d055c947246a8f9707427aa`；当前源码 `packages/core/offer-expiry/src/time.ts` SHA256 `478edcc0ab6c9ff395ace2028139cd082845f27c0645c10fc62ac379af384ed2`。本页不把其历史测试改称失败，也不把毫秒值扩成新的持久时间对象 |
 | 可实施 | 候选 B 的普通域精确比较与合法闰秒顺序内核已可评；下文建议 R1“合法时点前提下排序”，没有完整外部事实认证承诺。**TL-G1 真实调用方的合法性前提与证据仍未闭合**，依赖它的模型接线不能据 helper 返回 ok 直接放行；R1/R2 选择仍待独立评审和主线采用。不截断已明确精度要求 |
 | 绑定证据 | 新增 0。下面 TO-V 是待执行义务，不指向尚不存在的测试 |
@@ -39,7 +39,7 @@ B 不新增第三方时间平台：当前 core 已有日期、字段及偏移检
 | 静态可判定的表示非法必须可识别 | 非字符串、结构、字段范围、日历、偏移等确定非法值返回 invalidInput；外部闰秒事实前提沿 TL-G1 | TO-V3/V6；Schema format 注解与本函数 ok 均不是完整闰秒认证 |
 | 原毫秒公开面保持 | Instant／Duration／Clock、instantFromEpochMs、instantFromRfc3339、instantToRfc3339、compareInstants、addDuration 和过期函数沿原设计 | TO-V8；不升级旧消费者的规范版，不把它们自动重绑新函数 |
 
-**没有 Cordis 原语、配置、存储要求或装卸贡献，均为 0 项。**无 inject／effect／fiber／service，无连接、监听、计时器或跨 owner 同提交；每次同步调用持有输入原串的只读引用和局部字段，返回后释放局部状态，不全局缓存任意输入。Cordis 采用仍沿 [D025](../../../../record/decisions/cordis-adoption-version/decision.md) 4.0.4，本函数不依赖其运行行为。调用方装配的真实时钟与同源保证沿 [D076](../../../../record/decisions/model-runtime-delivery-adoption/decision.md)、[D087](../../../../record/decisions/model-runtime-v4-projection-adoption/decision.md)，不因纯比较器而撤销。
+**没有 Cordis 原语、配置、存储要求或装卸贡献，均为 0 项。**无 inject／effect／fiber／service，无连接、监听、计时器或跨 owner 同提交；每次同步调用持有输入原串的只读引用和局部字段，返回后释放局部状态，不全局缓存任意输入。Cordis 采用仍沿 D025 4.0.4，本函数不依赖其运行行为。调用方装配的真实时钟与同源保证沿 D076、D087，不因纯比较器而撤销。
 
 ## 接收域与标准边界
 

@@ -1,4 +1,0 @@
-
-> @omne-harness-lite/governance-client-operations@0.0.0 typecheck /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/frontend/governance-client-operations
-> tsc -p tsconfig.test.json
-

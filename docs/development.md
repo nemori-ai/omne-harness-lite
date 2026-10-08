@@ -1,5 +1,13 @@
 # 开发指南
 
+## 终态与过程材料
+
+Git 保存当前终态，不保存开发流水或决策形成史。实现侧的公开类型、薄 `SPEC.md`、必要简短 ADR、测试/模型及可复跑验证资源归对应包或应用；ADR 只说明当前选择、必要理由和复核条件。有效需求和系统级预期仍由设计工作区维护，不复制成包内第二份权威。
+
+提案、接受过程、评审、计划、进度及某次执行的输入/输出，写在本工作树 `tmp/<task>/`。不要求永久追溯，不提交这些材料，不通过改名、搬进 research/ADR/fixtures 或建立 Git 历史链接台账继续入库。`.meta_harness/design/record/` 整体被忽略，不是新材料的落点。
+
+长期验证文档写验证义务、操作方法、前提和局限；单次结果留 `tmp/`。确有运行消费者需要的小型夹具随消费者维护，不复制整份开发证据。获准改变承诺后只更新其现行拥有者；接受、实现和验证仍分别判断，删除形成史不会撤销不变式或降低验证要求。
+
 本页帮助开发者和 coding agent 从当前检出开始工作：准备环境、找到该改的地方、
 跑对应的检查。贡献范围与交付要求见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
 
@@ -46,6 +54,13 @@ make check
 设计链登记、工具测试与格式检查，**不调用真实模型**。
 已有环境时，日常修改按受影响范围选择单项检查即可。
 
+### 开工时确定交付报告
+
+固定任务 BASE 与影响范围后，按[提交与 PR 表达](../CONTRIBUTING.md#提交与-pr-表达)判断报告触发条件。
+需要帮助时加载 `prepare-pr`。修改产品源码时，从首个可运行候选及正常复查点保存适用结构快照到本任务 tmp；
+等到开 PR 才采集，无法恢复中途引入后解决的数量。报告实际工具的 BASE/merge-base、范围与规则版本，
+没有快照的数据保留未知。最终候选再核对，不要求每个 commit 全量测量。
+
 ### 形式工具链
 
 TLA+/TLC 与 Alloy **已装在系统全局路径**，不需要在仓库里准备任何东西：
@@ -76,6 +91,30 @@ pnpm format:write
 
 需要本地提交检查时，确认没有既有 `pre-commit` hook 后运行 `pnpm format:hook:install`。
 安装器不覆盖已有 hook；所装检查只读 Git index 中已暂存的文件，**不 stash、不改工作区**。
+
+## 创建和整改产品包
+
+产品包先明确已接受的职责、公开接口与行为依据。建包时使用[版本化包模板](../tools/ts-checks/templates/package/README_ZH.md)，不要手写另一套结构。模板不能替代架构设计或技术接受。
+
+从仓库根先预览，再创建草稿：
+
+```sh
+pnpm package:template create --group core --name example-capability --variant service-contract
+pnpm package:template create --group core --name example-capability --variant service-contract --write
+```
+
+按职责选择 module、cordis-module、service-contract 或 service-provider。公共 Service 定义归 core；独立能力从纯根导出，Cordis 集成放 ./cordis。源码、薄 SPEC、Schema、模型及 ADR 的归属详见模板说明。生成的草稿只报告模板来源，不写采用标识。占位须由真实承诺与验证替换，不生成空测试或假 Service。
+
+现存包整改先做只读盘点，再按精确版本核对实际结构：
+
+```sh
+pnpm package:template scan --json
+pnpm package:template scan --member packages/core/storage --check
+```
+
+逐包核对全部目录、文件和资源归属，完成模板全量适配及适用集成责任的人工核验后，才能添加 omneHarness.packageTemplate 的 id/version/variant。保留原公开能力、源码、Schema 身份及模型义务，不批量抬升标识。不完整、未核对和仍有适用偏离的包保持无标识。[逐包核对记录](../tools/ts-checks/templates/package/adoption-review.md)列明本批采用与剩余范围。标识表示完整模板采用，不表示全系统或业务验收。
+
+扫描遍历全部源码节点，按精确版本与变体实例化模板树，未声明路径、错位资源、空目录和软链接均报失败；不沿 Git ignore 隐藏源码。只排除模板声明的根构建/依赖/临时目录并报告清单。标识状态、完整结构及静态集成结果分别显示。普通盘点退出 0 不表示合规；--check 的 0/1/2 分别表示当前完整结构通过且无已知集成偏离、采用/结构/偏离失败、规则未覆盖或输入错误。集成 unknown 仍须人工核对，0 不表示生命周期或业务验收。创建不覆盖已有目标，扫描不改文件。
 
 ## 博客子模块
 
@@ -164,7 +203,7 @@ PYTHONDONTWRITEBYTECODE=1 uv run --locked pytest tools/spec-tools/tests/
 检查器 CLI 默认从当前工作目录定位受检仓库；检查另一个检出时传 `--root PATH`。
 
 保留失败的实际输出与影响判断，修正后重跑受影响的检查。
-交付时说明检查针对哪个源码状态与范围。临时日志放 `tmp/`，测试组合用 `tmp/test-runs/`，测试运行器的账本在主检出的 `tmp/test-ledger/`；
+交付时说明检查针对哪个源码状态与范围。临时日志放 `tmp/`，测试组合用 `tmp/test-runs/`，测试运行器的账本在执行工作树的 `tmp/test-ledger/`；
 **临时目录不承担长期证据归档**。
 
 ## 使用 coding agents
@@ -212,6 +251,42 @@ Claude Code 通过同级 `CLAUDE.md` 的 `@AGENTS.md` 读取同一份约定。
 | `No projects matched the filters` | 核对 `pnpm-workspace.yaml` 和成员 `package.json` 的实际包名；应用包括 `@omne-harness-lite/cli`、`@omne-harness-lite/tenancy-host` |
 | `storage conformance · postgres` 显示 skipped | 未设 `OMNE_TEST_PG_URL`；跳过不是通过（[验证与证据](verification.md)） |
 | 不知道如何启动产品 | 先构建，再按 [CLI](../apps/cli/README.md) 或 [治理中心](../apps/tenancy-host/README.md) 的命令启动；制品打包不自动安装或发布服务 |
+
+## 准备提交与 PR
+
+标题、报告要求与 squash 规则归[CONTRIBUTING](../CONTRIBUTING.md#提交与-pr-表达)。
+用 `prepare-pr` 按主要结果选模板、读取对应成品示例和必要版式参考；语言引用 `asd-ste100`。
+源码和数据不足以支持的结论写未知，不从教学示例抄数字或接受状态。
+
+浏览器使用 `.github/PULL_REQUEST_TEMPLATE/` 下的
+[feature](../.github/PULL_REQUEST_TEMPLATE/feature.md)、[docs](../.github/PULL_REQUEST_TEMPLATE/docs.md)、
+[fix](../.github/PULL_REQUEST_TEMPLATE/fix.md)、[refactor](../.github/PULL_REQUEST_TEMPLATE/refactor.md)。
+比较页面的查询参数可选 `template=feature.md` 等；未选择时使用[短默认入口](../.github/pull_request_template.md)。
+模板要合入默认分支后才在正常创建入口生效，候选分支上的文件不能证明已生效。
+机制依据见 [GitHub 文档](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/creating-a-pull-request-template-for-your-repository)。
+
+从执行仓库根将所选模板复制到自己的任务 tmp，填写并移除提示后，再通过 body file 创建：
+
+```sh
+mkdir -p tmp/pr-delivery
+cp .github/PULL_REQUEST_TEMPLATE/docs.md tmp/pr-delivery/pr-body.md
+# 编辑 pr-body.md，使其对应最终 diff 与真实报告。
+gh pr create --base main --head <自己的工作分支> \
+  --title 'docs(pr): 提供分类模板与交付写作 skill' \
+  --body-file tmp/pr-delivery/pr-body.md
+```
+
+`gh pr create --template <文件>` 可作为交互填写入口；agent 使用完成的 body file，避免把未填模板提交出去。
+已有 PR 改用 `gh pr edit <PR号> --body-file tmp/pr-delivery/pr-body.md`，按最终结果更新而非追加流水。
+`--fill/--fill-verbose` 产生的 commit 汇总仍需整理；`--dry-run` 可能推送，不能当无副作用预览。
+参数依据见 [GitHub CLI](https://cli.github.com/manual/gh_pr_create)。
+
+提交信息也可先写任务文件，再用 `git commit -F <文件>`，保留适用来源/删卡 trailer。
+获准 squash 时用最终标题与简短正文，保留这些 trailer；正文文件不能直接复制 PR 长表。
+开 PR 与合入各按已有授权，不因模板而扩大权限。
+
+先看可用的编写预览，再核对唯一真实 PR 的表、图、折叠、链接和体验步骤；不创建试验 PR。
+实际 diff 或报告改变时同步正文，短 docs 可以几句话，重大缺口保持可见。
 
 ## 保持本页可用
 

@@ -14,12 +14,17 @@
     "./cordis": {
       "types": "./dist/cordis.d.ts",
       "import": "./dist/cordis.js"
+    },
+    "./migrations": {
+      "types": "./dist/migrations.d.ts",
+      "import": "./dist/migrations.js"
     }
   },
   "files": [
     "dist",
     "README.md",
-    "SPEC.md"
+    "SPEC.md",
+    "README_ZH.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -27,6 +32,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@omne-harness-lite/storage": "workspace:*",
     "@omne-harness-lite/assembly-lifecycle": "workspace:*",
     "@omne-harness-lite/cordis-plugin-tree": "workspace:*",
     "@omne-harness-lite/content-blocks": "workspace:*",
@@ -34,9 +40,11 @@
     "@omne-harness-lite/session-tenancy": "workspace:*",
     "@omne-harness-lite/kernel-basis": "workspace:*",
     "@omne-harness-lite/identity-values": "workspace:*",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "node-pty": "catalog:"
   },
   "devDependencies": {
+    "@omne-harness-lite/storage-sql": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
@@ -48,6 +56,13 @@
   "peerDependenciesMeta": {
     "@deepseek-ai/cordis": {
       "optional": true
+    }
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "service-provider"
     }
   }
 }

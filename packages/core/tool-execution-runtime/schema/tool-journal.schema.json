@@ -461,6 +461,31 @@
               "$ref": "#/$defs/Ref"
             },
             "kind": {
+              "const": "resource_adopted"
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "revision",
+            "ref",
+            "kind",
+            "key"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "const": 1
+            },
+            "ref": {
+              "$ref": "#/$defs/Ref"
+            },
+            "kind": {
               "const": "execution_waiting"
             },
             "waitIndex": {
@@ -616,7 +641,8 @@
             "at": {
               "type": "string",
               "minLength": 1
-            }
+            },
+            "evidence": {}
           },
           "required": [
             "revision",

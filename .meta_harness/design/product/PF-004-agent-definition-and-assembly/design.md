@@ -1,12 +1,12 @@
 # PF-004：Agent 定义与装配
 
-- 修订：rev 20，2026-09-29 · [变更历史](changelog.md)
+- 修订：rev 20，2026-09-29 · [变更历史](design.md)
 - 状态：能力绑定四条规则及 Skill、Tool、MCP 的统一适用范围由产品负责人直接裁定；其余接受范围及显式缺口见 [README](README.md#状态)，不据此扩大规格或实现状态。
 
 > **本 topic 拥有的是数据，不是活物。**一次装配求值出来的那份构成叫[装配清单](#装配清单)，
 > 它是数据；**照它跑起来的那个协程**叫
 > [agent runtime](../PF-012-agent-loop-and-run/design.md#agent-runtime)，**归 PF-012**。
-> 两者的分界见 [UL-D-3](../../ubiquitous_language/decisions.md#ul-d-3--runtime-与活体--2026-09-20)。
+> 两者的分界见 [现行词义](../../ubiquitous_language/index.md)。
 
 ## 一、背景与问题
 
@@ -38,7 +38,7 @@
 > [agent runtime](../PF-012-agent-loop-and-run/design.md#agent-runtime)，一个协程，
 > 归 [PF-012](../PF-012-agent-loop-and-run/README.md)。
 > **把它和清单当成同一个对象，那个对象就会一半是不可变的数据、
-> 一半是「占用即消耗的计算资源」**——[两者必须分开的依据见 UL-D-3](../../ubiquitous_language/decisions.md#ul-d-3--runtime-与活体--2026-09-20)。
+> 一半是「占用即消耗的计算资源」**——[现行词义](../../ubiquitous_language/index.md)。
 
 会话怎么管、输入怎么进来、一次运行怎么被驱动，都不在这里（见 §2）。
 
@@ -178,7 +178,7 @@ Agent Definition 是输入之一；作用域提供资产候选，不意味着所
 > 的第二段「装配」，那一段明写它是「一次求值」。**
 > **第三段「活体」不在本 topic**——它是 [agent runtime](../PF-012-agent-loop-and-run/design.md#agent-runtime)，
 > 归 PF-012。**求值的结果是数据，不是活体**；
-> [两者的分界见 UL-D-3](../../ubiquitous_language/decisions.md#ul-d-3--runtime-与活体--2026-09-20)。
+> [现行词义](../../ubiquitous_language/index.md)。
 
 ### 能力自动继承
 
@@ -701,3 +701,7 @@ Runtime 持有的是这些持久事实和服务的使用关系，不复制一份
 ## 九、未决项
 
 当前会话与 Agent runtime 装配范围无待裁决项。连接件相关设计依 PF-002 搁置，不作为装配规则的前置条件。
+
+## 当前适用边界与待接续事项
+
+- 本 topic 按构成捕获、注入可变表达；SYS-COMPOSITION.C3 尚未明确区分构成性绑定与可变注入。该跨正文张力须由系统约束拥有者澄清，不能把权限与执行环境误作装配后永不变化，也不能在本次材料清理中改写系统约束。

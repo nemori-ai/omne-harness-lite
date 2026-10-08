@@ -18,10 +18,12 @@ export {
 export {
   prepareModelLogEntry,
   inspectModelLogEntry,
+  inspectModelMessageEntry,
   type ModelLogShell,
   type ModelLogPurpose,
   type PrepareModelLogEntryInput,
   type InspectModelLogEntryInput,
+  type InspectModelMessageEntryInput,
   type InspectedModelLogEntry,
 } from './log-codec-entry.ts'
 export {

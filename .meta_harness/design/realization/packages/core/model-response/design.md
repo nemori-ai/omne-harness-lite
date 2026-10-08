@@ -1,6 +1,6 @@
 # model-response 实现设计
 
-> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，D-062／D-065）。此状态不表示实现或实际验证完成。
 
 契约：[`data.model-response` v2](../../../../spec/data/model-response/v2/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
 导出名、类型名一律为**已接受的设计**，源码不存在。
@@ -9,8 +9,8 @@
 
 **自建一个 TypeScript 纯模块**，写法与 [content-blocks](../content-blocks/design.md#实现路径与来源) 相同：`ajv` 8.20.0 的 Draft 2020-12 入口、Schema 原样复制并逐字节核对、拒绝值[按契约次序逐条判](../content-blocks/design.md#拒绝值按契约的次序逐条判不从-schema-错误里反推)（`malformed` 是剩余项）。
 Schema 以 `allOf` 的 `if/then` 表达收场的条件关系（S-26），ajv 的 2020 入口支持。
-用量与费用的金额经 [call-accounts](../call-accounts/design.md) 的 `ExactDecimal`，读写经 content-blocks 的[严格无损 JSON](../content-blocks/design.md#严格的无损-json-读写)，不经浮点（[D-060 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
-**Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
+用量与费用的金额经 [call-accounts](../call-accounts/design.md) 的 `ExactDecimal`，读写经 content-blocks 的[严格无损 JSON](../content-blocks/design.md#严格的无损-json-读写)，不经浮点（D-060 §八 M36）。
+**Cordis 版本**：采用 4.0.4（D-025）；本模块不依赖 Cordis。
 
 ## 公开面
 
@@ -58,7 +58,7 @@ Schema 以 `allOf` 的 `if/then` 表达收场的条件关系（S-26），ajv 的
 包之间只能单向依赖：[messages](../messages/README.md) 与 [call-accounts](../call-accounts/README.md) 不依赖本包，本包依赖它们——**所以对齐测试放在本包**：取两包导出的 Schema 与本包 Schema，逐项比较这些 `$defs` 的完整断言投影逐字相同。
 
 **2026-09-26 冻结原件核对与比较口径**：上述五组 `$defs` 在已冻结原件中已经有 `title`／`description`／`$comment`／`examples` 注解差异，断言形状相同；不能声称整个片段同字节，也不改写冻结原件使其相同。MR-1 的比较只在 Schema 对象位置排除这四个已观察到的注解键，递归核对其余全部断言与应用器结构、`$ref` 等；`properties` 等映射的键名，以及 `const`／`enum` 等实例数据原样保留，不能把用户数据中的同名字段删掉。每份完整 Schema 副本仍逐字节等于自己的冻结原件；证据另记五组片段原始 hash 与注解差异，并用约束变异和同名实例字段反例证明比较会红。该口径兑现表示形状对齐，不声称注解全文对齐或写入者留痕相等。
-**测试归属的选择**已由 [D-060 §八 M44](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)「副本对齐测试放依赖方」接受；上段注解比较口径是本轮原件核对后的技术采用，不倒记成 M44 的裁定。[tool-definition](../tool-definition/design.md#实施缺口与消费者影响) 对 `ModelToolName` 同样处理。
+**测试归属的选择**已由 D-060 §八 M44「副本对齐测试放依赖方」接受；上段注解比较口径是本轮原件核对后的技术采用，不倒记成 M44 的裁定。[tool-definition](../tool-definition/design.md#实施缺口与消费者影响) 对 `ModelToolName` 同样处理。
 
 | | 不做对齐测试，靠评审 | 在被依赖方里比（反向依赖本包） | **在本包里比（本节点选）** |
 |---|---|---|---|
@@ -74,7 +74,7 @@ Schema 以 `allOf` 的 `if/then` 表达收场的条件关系（S-26），ajv 的
 | `data.call-accounts` v2、`data.content-blocks` v2、`data.messages` v2、`data.model-profile` v2、`data.loop-extension` v2（`FailureCause`）、`data.offer-expiry` v1、`data.identity-values` v1 | [call-accounts](../call-accounts/README.md)、[content-blocks](../content-blocks/README.md)、[messages](../messages/README.md)、[model-profile](../model-profile/README.md)、[loop-extension](../loop-extension/README.md)、已实现的 offer-expiry 与 identity-values | 随包版本 | 静态 import |
 | 被消费 | 模型请求运行时、读响应体的各方 | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
 
-包依赖与 catalog 的契约依赖同构（[D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
+包依赖与 catalog 的契约依赖同构（D-060 §八 M41），无环。**没有配置项**。
 
 ## 状态、并发与失败映射
 
@@ -97,6 +97,6 @@ Schema 以 `allOf` 的 `if/then` 表达收场的条件关系（S-26），ajv 的
 
 ## D-068：当前3的精确投影
 
-本节点设计采用 `data.model-response · v3`（[规范](../../../../spec/data/model-response/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 [D-068](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md) 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
+本节点设计采用 `data.model-response · v3`（[规范](../../../../spec/data/model-response/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 D-068 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
 
 六data默认schema为3并各公开`./schema/v2`原2完整字节/$id；AR/CA/MP/Skill/MCP/Slash仍2，固定Schema图显式取旧资源。SA/AE没有自有Schema，不造空文件或空集通过。Connector只保留被AM规范引用的冻结资源，真实提供者纵线延期。

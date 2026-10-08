@@ -1,7 +1,0 @@
-
-> omne-harness-lite-workspace@ format:write /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers
-> ./scripts/format.sh write -- tools/core-verification/src/w1-public-consumer.ts tools/core-verification/src/dependency-surface.ts tools/core-verification/tests/dependency-surface.spec.ts
-
-tools/core-verification/src/w1-public-consumer.ts 191ms (unchanged)
-tools/core-verification/src/dependency-surface.ts 19ms (unchanged)
-tools/core-verification/tests/dependency-surface.spec.ts 12ms (unchanged)

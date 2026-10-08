@@ -1,16 +1,16 @@
 # 固定Schema的构建与装载
 
-2026-10-03；技术采用 D-116。固定图机制已实施，实际验证范围见本页的运行记录。这个补充只改变固定图的编译时机，不改变本节点契约版本、领域拒绝、原值或租户保证。
+固定图机制只改变编译时机，不改变本节点契约版本、领域拒绝、原值或租户保证。服务端实现归 [governance-center-entry-node](../../../../../../packages/tenancy/governance-center-entry-node/SPEC.md)。本页保留尚未迁出的固定图承诺和验证义务，不保存某次运行结果。
 
-采用依据：[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)；完整共享机制与有限公开面：[施工设计](../../../../record/proposals/fixed-schema-precompile/design.md)。旧正文里固定图的导入时编译句仅在该范围内由本页取代；作者/动态port构造和其它生命周期保持。
+固定图采用构建时编译和首次消费时加载。旧正文中固定图的导入时编译仅在该范围内由本页取代；作者/动态 port 构造和其他生命周期保持。
 
 ## 本节点的有限图
 
-| 装配源码 | 图 | 种类 | 资源登记数 | 定义请求数 | 精确装配记录 |
-|---|---|---|---|---|---|
-| `packages/tenancy/governance-center-entry/src/routing/schema.ts` | 0 | ordinary-ajv | 3 | 107 | [资源/选项/定义](../../../../../research/fixed-schema-compile-cost/2026-10-03/upstream/captured-graphs-65/packages__tenancy__governance-center-entry__src__routing__schema.ts.json) |
+| 当前输入拥有者 | 图 | 种类 | 资源 |
+|---|---|---|---|
+| [src/schema-inputs.ts](../../../../../../packages/tenancy/governance-center-entry-node/src/schema-inputs.ts) | ordinary | ordinary-ajv | identity-values、offer-expiry、本包治理中心 Schema |
 
-记录器只执行资源/派生构造，没有校验；definitions含原getSchema/compile方法、keyword与options、资源内容及装配源码SHA。build输入须与其逐项对齐；新的src/schema-inputs只装配，运行包装不再编译固定图。
+`schema-inputs.ts` 只装配资源和派生定义，不执行校验。它拥有资源、定义方法、keyword、options 及装配源码清单；build 须消费全部当前输入。定义集合来自本包 Schema 的 `$defs`，不以历史捕获数量限制当前集合。运行包装不再编译固定图。
 
 ## 构建、消费与生命周期
 
@@ -31,4 +31,4 @@ SC-2 的只读导入边界继续约束 `src/routing/schema.ts`。拆出的 `src/
 - FS65-5：native src/dist身份、full exact/meta/B1/ref/dynamicRef/propertyNames/errors及故意分域反控归CB/messages共享扩散门；未通过不向其余图扩散。
 - FS65-6：MR保留导入JSON变异保护；各owner不因晚加载而迟捕资源；运行期不编译固定图的采样及残留作者编译单列。
 
-本次实际执行及有限签收见[主体运行记录](../../../../record/evidence/2026-10-03-tests-fixed-schema-main/README.md)。它记录上述义务的有限定义、对拍、构建失败、新鲜性与原生消费范围；共享失败路径由代表性包实测。此前旧实现 run 保持原坐标，不作为新生成机制的运行证据。
+验证须分别覆盖有限定义、对拍、构建失败、新鲜性和原生消费；共享失败路径由代表性包检查。每次执行的输入、结果和未覆盖范围写本工作树 `tmp/<task>/`。此前旧实现的运行结果不能证明当前生成机制满足这些义务。

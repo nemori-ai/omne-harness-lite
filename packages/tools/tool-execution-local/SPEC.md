@@ -10,8 +10,7 @@ LP-3 Tail conflicts trigger a complete recheck and configured capped exponential
 
 LP-4 Startup enumeration uses private maintenance authority. Unreadable or invalid sessions and unconfirmed resource cleanup prevent readiness. Close retains a failed cleanup obligation for retry; it does not release the journal borrow on a failed recovery attempt. Existing delivery obligations remain in the common log for the application delivery owner.
 
-LP-5 Unsupported execution dependencies fail before author entry. They cannot use tool declaration defaults as resolved settings. Interactive answers and cost reports cannot return successful reception until their durable protocol is implemented.
-
+LP-5 Unsupported execution dependencies fail before author entry. The provider cannot use dependency declaration defaults as resolved settings. backgroundThreshold is an upper caller waiting preference, not an execution dependency. Its declaration does not prevent execution or create a runtime timer. Interactive answers and cost reports cannot return successful reception until their durable protocol is implemented.
 
 LP-6 The close adapter preserves the original runtime.ready Promise. Managed startup also requires successful control retention and current ownership. A retention failure rejects managed readiness without changing the root readiness result. The adapter close starts one original close attempt and remains pending after rejection. The host can observe the retained attempt and explicitly retry the same instance. Concurrent retries share one attempt. The adapter does not schedule retries or change the root retry policy. Successful close is permanent. It does not close shared dependencies or reopen admission.
 
@@ -25,5 +24,6 @@ LP-9 New facility operations re-read current input for the original call. The re
 
 LP-10 The Cordis placement plugins are static exports. Their configuration contains only name, factoryPermission, and an explicit unique or reference selection policy. There is no implicit first-candidate policy. The reference must belong to the complete matched set. Trusted root construction can supply a different selection function. The plugin does not accept that function as configuration. Source contribution and its pending calls follow the registering plugin's lifetime.
 
-
 LP-11 原环境 lease 失效触发原终局路径，旧执行不获取替代环境。只有原 lease.release 确认 released 才放弃活体租约；pending 或异常仍由原执行 owner 持有并承担原释放责任。后续 close 只重试原 lease，失败不假报关闭完成。冷恢复仅维护原资源引用并异常收场，不重建作者栈或租约。单个工具 runtime 关闭不销毁共享环境 registry。
+
+LP-12 Original resource plan, permission, adoption, and terminal decisions share the ToolJournal prefix. Adoption transfers an existing permitted resource only to the original adopted environment. Call release does not destroy that resource. Each later action needs its own plan and permission. Startup maintenance uses recoverOwned for original environment resources, records only matching original keys, and preserves partial failures as pending readiness. It does not replay actions or create substitute resource keys.

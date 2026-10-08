@@ -21,7 +21,9 @@
     "dist",
     "SPEC.md",
     "schema",
-    "generated"
+    "generated",
+    "README.md",
+    "README_ZH.md"
   ],
   "scripts": {
     "build": "node ../../../scripts/build-fixed-schemas.mjs",
@@ -46,6 +48,13 @@
   "peerDependenciesMeta": {
     "@deepseek-ai/cordis": {
       "optional": true
+    }
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "service-contract"
     }
   }
 }

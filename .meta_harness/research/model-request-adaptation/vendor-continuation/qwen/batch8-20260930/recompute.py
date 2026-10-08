@@ -22,7 +22,7 @@ Method (as written in the research page section "本仓库 batch8 的离线复�
 Run (offline, packages from the local uv cache; nothing is added to the repo lock):
   uv run --offline --no-project --with jinja2==3.1.6 --with tokenizers==0.23.2 \
     python recompute.py --private-dir <batch8-f8e55130> --scenario-dir <r6-families/qwen> \
-    --tokenizer-dir <packages/model/pi-ai-transport/tokenizers/qwen-38-24t> --out recompute-output.json
+    --tokenizer-dir <packages/model/pi-ai-transport/resources/tokenizers/qwen-38-24t> --out recompute-output.json
 """
 
 from __future__ import annotations

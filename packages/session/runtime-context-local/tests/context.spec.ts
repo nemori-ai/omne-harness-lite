@@ -1,10 +1,11 @@
+import { factLogPayload } from '@omne-harness-lite/session-log'
 import { expect, test, vi } from 'vitest'
 import {
   parseTenantId,
   parseOpaqueIdentifier,
   tenantIdEquals,
 } from '@omne-harness-lite/identity-values'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import type { SessionLog } from '@omne-harness-lite/session-log'
 import type {
   AccessIdentity,
@@ -18,7 +19,7 @@ import type {
   ContextSource,
   ContextSessionSeed,
 } from '@omne-harness-lite/runtime-context'
-import { createRuntimeContext, createContextSessionInitializer } from '../src/index.ts'
+import { createRuntimeContext } from '../src/index.ts'
 import { scope, at, identityRegistration, seed, source, host, init, reader } from './fixture.ts'
 
 test('independent registration/content revisions, immutable data, required identities and persistent removal', async () => {
@@ -61,7 +62,12 @@ test('independent registration/content revisions, immutable data, required ident
     expect(await read.read(['identity'])).toMatchObject({ reason: 'sourceUnavailable' })
     const removed = await api.remove(h.access, scope, 'public', added.revision)
     expect(removed.kind).toBe('applied')
-    const restored = createRuntimeContext({ log: h.log, access: h.auth.operations, now: () => at })
+    const restored = createRuntimeContext({
+      storage: h.storage,
+      log: h.log,
+      access: h.auth.operations,
+      now: () => at,
+    })
     restored.sources.registerSource(source())
     const entries = await restored.operations.registrations(h.access, scope)
     expect(entries).toMatchObject({ entries: [{ key: 'identity' }] })
@@ -155,7 +161,7 @@ test('concurrent incompatible initialization writes only one policy; unknown ver
   const h = await host()
   try {
     const alternative: ContextSessionSeed = { required: [], initial: [], fixed: [] }
-    const other = createContextSessionInitializer(h.log)
+    const other = h.initializer
     const values = await Promise.all([
       h.initializer.initializeContextSession(scope, seed),
       other.initializeContextSession(scope, alternative),
@@ -167,16 +173,22 @@ test('concurrent incompatible initialization writes only one policy; unknown ver
     ).toMatchObject({ reason: 'revisionConflict' })
     await h.log.append(
       scope.session,
-      [{ tenant: scope.tenant, readKeys: [], payload: { codec: 'runtime-context/2' } }],
+      [
+        {
+          tenant: scope.tenant,
+          readKeys: [],
+          payload: factLogPayload('runtime-context', '2', { codec: 'runtime-context/2' }),
+        },
+      ],
       { kind: 'unfenced' },
       { kind: 'unconditional' },
     )
     expect(await h.owner.operations.registrations(h.access, scope)).toMatchObject({
       reason: 'unavailable',
     })
-    expect(
-      await createContextSessionInitializer(h.log).initializeContextSession(scope, seed),
-    ).toMatchObject({ reason: 'unavailable' })
+    expect(await h.initializer.initializeContextSession(scope, seed)).toMatchObject({
+      reason: 'unavailable',
+    })
     await other.drain()
   } finally {
     await h.close()
@@ -191,7 +203,13 @@ test('unknown receipt retains the original initialization and blocks a second de
     physical = gate.promise.then(() => h.log.append(...args))
     return { failure: 'unavailable' }
   })
-  const initializer = createContextSessionInitializer({ ...h.log, append })
+  const testOwner = createRuntimeContext({
+    log: { ...h.log, append },
+    storage: h.storage,
+    access: h.auth.operations,
+    now: () => at,
+  })
+  const initializer = { ...testOwner.initializer, drain: testOwner.drain }
   try {
     expect(await initializer.initializeContextSession(scope, seed)).toMatchObject({
       reason: 'unavailable',
@@ -448,7 +466,7 @@ test('a required downgrade and a live function value cannot change the durable r
 for (const recovery of ['persisted', 'reread_source', 'recompute'] as const)
   test(`${recovery} uses its declared recovery rule after physical log close and reopen`, async () => {
     const h = await host()
-    let recoveredLog: Awaited<ReturnType<typeof openJsonlSessionLog>> | undefined
+    let recoveredLog: Awaited<ReturnType<typeof openSqlLogFixture>> | undefined
     let recoveredOwner: ReturnType<typeof createRuntimeContext> | undefined
     try {
       const initial = await init(h)
@@ -485,12 +503,10 @@ for (const recovery of ['persisted', 'reread_source', 'recompute'] as const)
       await h.owner.drain()
       await h.initializer.drain()
       await h.log.close()
-      recoveredLog = await openJsonlSessionLog({
-        dir: h.dir,
-        processOwnership: { current: 'context-reopened', observeExit: async () => 'exited' },
-      })
+      recoveredLog = await openSqlLogFixture({ dir: h.dir })
       recoveredOwner = createRuntimeContext({
         log: recoveredLog,
+        storage: h.storage,
         access: h.auth.operations,
         now: () => at,
       })

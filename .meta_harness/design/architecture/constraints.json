@@ -217,18 +217,6 @@
       "source": "system-intent.md#责任方向"
     },
     {
-      "id": "packages/session/session-log-jsonl",
-      "paths": [
-        "packages/session/session-log-jsonl/src/**"
-      ],
-      "layer": "unknown",
-      "domains": [
-        "session"
-      ],
-      "status": "candidate",
-      "source": "system-intent.md#责任方向"
-    },
-    {
       "id": "packages/session/session-tenancy-table",
       "paths": [
         "packages/session/session-tenancy-table/src/**"
@@ -491,7 +479,7 @@
         "context"
       ],
       "status": "adopted",
-      "source": ".meta_harness/design/record/decisions/identity-shared-mechanism-projection/decision.md"
+      "source": "apps/tenancy-host/SPEC.md"
     },
     {
       "id": "packages/core/stream-assembly",
@@ -558,12 +546,12 @@
       "paths": [
         "packages/core/model-request-runtime/src/**"
       ],
-      "layer": "unknown",
+      "layer": "contract",
       "domains": [
         "model"
       ],
-      "status": "candidate",
-      "source": "system-intent.md#责任方向"
+      "status": "adopted",
+      "source": "packages/core/model-request-runtime/SPEC.md"
     },
     {
       "id": "identity-definition-account-identity",
@@ -1424,6 +1412,54 @@
       ],
       "status": "adopted",
       "source": ".meta_harness/design/architecture/identity-integration/preservation.md"
+    },
+    {
+      "id": "packages/core/session-runtime",
+      "paths": [
+        "packages/core/session-runtime/src/**"
+      ],
+      "layer": "contract",
+      "domains": [
+        "session"
+      ],
+      "status": "adopted",
+      "source": "packages/core/session-runtime/SPEC.md"
+    },
+    {
+      "id": "packages/core/model-message-projection",
+      "paths": [
+        "packages/core/model-message-projection/src/**"
+      ],
+      "layer": "policy",
+      "domains": [
+        "context"
+      ],
+      "status": "adopted",
+      "source": "packages/core/model-message-projection/SPEC.md"
+    },
+    {
+      "id": "packages/core/agent-loop",
+      "paths": [
+        "packages/core/agent-loop/src/**"
+      ],
+      "layer": "policy",
+      "domains": [
+        "agent"
+      ],
+      "status": "adopted",
+      "source": "packages/core/agent-loop/SPEC.md"
+    },
+    {
+      "id": "packages/session/session-log-sql",
+      "paths": [
+        "packages/session/session-log-sql/src/**"
+      ],
+      "layer": "storage-adapter",
+      "domains": [
+        "session"
+      ],
+      "status": "adopted",
+      "source": "packages/session/session-log-sql/SPEC.md"
     }
   ],
   "rules": [

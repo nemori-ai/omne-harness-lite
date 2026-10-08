@@ -1,8 +1,8 @@
 # PF-013 · 请求图片准备技术投影 v6
 
-2026-09-29，**post-review candidate，未接受、未实施、未验证**。本版仅投影请求图片缩放/重编码窄增量；不是PF-013全部技术设计的替代，不提升并行T29规格/registry设计状态。
+当前技术采用范围与排除见本页“当前采用范围”；不据此宣称实现或验证完成。
 
-来源坐标与摘要见[provenance.json](provenance.json)。精确提供者候选为[transport v15 revision4](../../../../realization/packages/model/pi-ai-transport/v15-image-preparation-design.md)及[runtime v21 revision3](../../../../realization/packages/model/model-request-runtime/v21-image-preparation-design.md)，冻结审阅commit为`e73ae0ef5dec1032f0fc5855041b5f00d3caac7f`，各自SHA在provenance。主线预留D-109用于采用，**预留编号不是已发生的接受**；本投影不写registry或决定。
+来源坐标与摘要见[provenance.json](../../design.md)。精确提供者候选为[transport v15 revision4](../../../../realization/packages/model/pi-ai-transport/v15-image-preparation-design.md)及[runtime v21 revision3](../../../../realization/packages/model/model-request-runtime/v21-image-preparation-design.md)，冻结审阅commit为`e73ae0ef5dec1032f0fc5855041b5f00d3caac7f`，各自SHA在provenance。主线预留D-109用于采用，**预留编号不是已发生的接受**；本投影不写registry或决定。
 
 ## 需求及确认范围
 
@@ -12,13 +12,13 @@ PF-010整包rev7的接受标注仍不整齐；本版仅使用本轮明确要求�
 
 ## 对象及性质
 
-原模型档案、内容块、消息、会话日志、模型调用和响应保持既有身份；同模态请求临时图片不冒充UL-derived-rendering（它指落盘前其它模态派生），不新增持久对象。精确对象来源和4 INV/5 SAF/3 LIV见[独立封存领域读数](../../../../record/proposals/model-request-image-preparation/sources/domain-reading.md)，性质到机制和IP-V1～10逐项关系见[四表](../../../../record/proposals/model-request-image-preparation/design.md#表a独立领域性质的承载)。
+原模型档案、内容块、消息、会话日志、模型调用和响应保持既有身份；同模态请求临时图片不冒充UL-derived-rendering（它指落盘前其它模态派生），不新增持久对象。精确对象来源和4 INV/5 SAF/3 LIV见独立封存领域读数，性质到机制和IP-V1～10逐项关系见四表。
 
 核心性质：原图与原历史不变；有效profile限制约束本次实际发送bytes；图数/单图/总量/token各自检查不替代；无法准备或缺配置零新HTTP；原outputHistory先验真，坏摘要不借full掩盖；合法实际表示变化触发前缀失效；真实任务停止前owner不释放；成功进展以资源可用、请求有效和有限候选集合内存在合规表示为前提，不保证任意图像/上游接受。
 
 ## 精确契约与操作交接
 
-沿[RT10](../../../../spec/capabilities/model-request-runtime/v10/contract.md) S53/S54/S56/S57/S74/S77～83、[MR9](../../../../spec/data/model-response/v9/contract.md) S41～45，接受依据仍[D-107](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md)的现行范围。没有新业务操作、线上字段或规格版本；准备的技术值不覆盖这些契约。
+沿[RT10](../../../../spec/capabilities/model-request-runtime/v10/contract.md) S53/S54/S56/S57/S74/S77～83、[MR9](../../../../spec/data/model-response/v9/contract.md) S41～45，接受依据仍D-107的现行范围。没有新业务操作、线上字段或规格版本；准备的技术值不覆盖这些契约。
 
 | 操作/接缝 | 前置与后置 | 失败/缺席 | 提交点与责任 |
 |---|---|---|---|
@@ -46,6 +46,13 @@ PF-010整包rev7的接受标注仍不整齐；本版仅使用本轮明确要求�
 
 ## 证据与缺口状态
 
-两份节点在上述SHA上独立architecture-reviewer及spec-reviewer完成最终复核，均无各自范围阻断；完整报告对象、旧反例与修订见[评审记录](../../../../record/proposals/model-request-image-preparation/review.md#2026-09-29-r3r4-收束记录)。新增实际bindings为0，产品代码尚未实施。
+两份节点在上述SHA上独立architecture-reviewer及spec-reviewer完成最终复核，均无各自范围阻断；完整报告对象、旧反例与修订见评审记录。新增实际bindings为0，产品代码尚未实施。
 
 已有sharp合成8例、preset代表参数及4096有限搜索组合观察只支持有限技术可行性，不证明最大资源/全部格式/平台确定性/真实HTTP。未决政策新增0；当前门是主线采用与实施验证，非等待完整Session/Run/context设计。若实现引入授权下载、持久变体或跨owner单飞，须重新核边界，不能借本版批准。
+
+## 当前采用范围
+
+选中图片的请求期缩放/重编码与有限搜索；统一异步 plan/context、真实准备任务生命周期、受信作用域隔离及 full/φ/δ 的共享计量依据。既有 RT10/MR9 精确语义不改变，无新持久对象或服务键。
+
+技术采用不表示实现或实际验证已完成。验证义务：IP-V1..IP-V10；取消等待 native 实际停止后释放；缓存冷热同结果与资源上限/native 峰值；实际 HTTPS、包制品和双语消费者；计量与实际 wire 同一依据。
+范围之外：完整 Session/Run/Agent；媒体平台/外部下载/持久派生；仅由图片采用提升 T29 引用生命周期范围。

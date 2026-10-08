@@ -1,5 +1,7 @@
+import { fixturePayload } from './log-payload-fixture.ts'
+import { physicalBatches } from './sql-batches-fixture.ts'
 // @module-tag slow
-// Six compositions open real Cordis providers, JSONL owners and result files.
+// Six compositions open real Cordis providers, SQL journal owners and result files.
 import { readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { expect, test, vi } from 'vitest'
@@ -121,7 +123,7 @@ for (const kind of ['run-ended', 'attempt-replaced'] as const)
             const payload = entry.payload
             if (payload === null || typeof payload !== 'object')
               throw new Error('actual terminal payload unavailable')
-            const value = captureToolJournalValue(Reflect.get(payload, 'value'))
+            const value = captureToolJournalValue(fixturePayload(payload).value)
             if ('invalid' in value || value.kind !== 'execution_ended')
               throw new Error('actual terminal candidate unavailable')
             return value.account.late
@@ -129,25 +131,23 @@ for (const kind of ['run-ended', 'attempt-replaced'] as const)
           expect(candidates).toEqual([undefined, true])
         }
         // Verify the physical append, rather than inferring atomicity from projected positions.
-        const files = (await readdir(f.f.dir, { recursive: true })).filter(file =>
-          file.endsWith('entries.jsonl'),
-        )
-        expect(files).toHaveLength(1)
-        const batches = (await readFile(join(f.f.dir, files[0]!), 'utf8'))
-          .trimEnd()
-          .split('\n')
-          .map(line => JSON.parse(line) as { entries: { dedupeKey?: string; payload: unknown }[] })
+        const batches = physicalBatches(join(f.f.dir, '..', 'context.sqlite'))
         const terminalBatches = batches.filter(batch =>
           batch.entries.some(entry => entry.dedupeKey === terminal.key),
         )
         expect(terminalBatches).toHaveLength(1)
         expect(terminalBatches[0]!.entries).toHaveLength(1)
-        expect(terminalBatches[0]!.entries[0]!.payload).toMatchObject({
+        expect(terminalBatches[0]!.entries[0]!.physicalPayload).toMatchObject({
+          kind: 'fact',
+          owner: 'tool-execution-runtime',
           value: {
-            kind: 'execution_ended',
-            terminal: terminal.value.terminal,
-            account: terminal.value.account,
-            delivery: terminal.value.delivery,
+            category: 'execution',
+            value: {
+              kind: 'execution_ended',
+              terminal: terminal.value.terminal,
+              account: terminal.value.account,
+              delivery: terminal.value.delivery,
+            },
           },
         })
         expect(executor).toHaveBeenCalledTimes(1)

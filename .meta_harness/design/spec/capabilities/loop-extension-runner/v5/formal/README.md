@@ -63,7 +63,7 @@
   spec/capabilities/loop-extension-runner/v5/formal/Runner.tla
 ```
 
-其他配置只替换 config 与 metadir；实际 raw、原始输入及工具版本见[验证入口](../../verification.md#v5-候选完整失败历史)。
+其他配置只替换 config 与 metadir；[验证入口](../../verification.md#v5-发布前破坏性演进)拥有覆盖、前提与限制，实际 raw、原始输入及工具版本放本工作树 `tmp/<task>/`。
 
 ## 失败调用关联与历史的有限模型
 

@@ -4,7 +4,7 @@
 
 ## 输入与采用门
 
-继承 [D-076](../../../../record/decisions/model-runtime-delivery-adoption/decision.md) 的 [v3-design](v3-design.md) 与 [D-087](../../../../record/decisions/model-runtime-v4-projection-adoption/decision.md) 的 [v4-design](v4-design.md)：十三操作、P-2/P-5、宿主责任、同次前缀和未知写者机制不重做。沿 [D-099](../../../../record/decisions/model-input-limit-consumer-contract-adoption/decision.md) 已接受的 [RT6 S-74～S-76](../../../../spec/capabilities/model-request-runtime/v6/contract.md#s-74-每次发送之前的完整输入限制与固定计划) 补最终输入计量、完整未处分响应、真实重试历史与 S-34 重取。
+继承 D-076 的 [v3-design](v3-design.md) 与 D-087 的 [v4-design](v4-design.md)：十三操作、P-2/P-5、宿主责任、同次前缀和未知写者机制不重做。沿 D-099 已接受的 [RT6 S-74～S-76](../../../../spec/capabilities/model-request-runtime/v6/contract.md#s-74-每次发送之前的完整输入限制与固定计划) 补最终输入计量、完整未处分响应、真实重试历史与 S-34 重取。
 
 本稿最终目标坐标为同一 baseline `omne-harness-lite-design-2026-09-15` 的 `capability.model-request-runtime/v7`、`capability.model-profile-directory/v5`、`data.model-profile/v5`、`data.messages/v6`、`data.model-response/v7`、`data.loop-extension/v6`、`capability.loop-extension-runner/v5`。已阅读这七份无旧格式过渡候选；它们只在原 RT6 语义上去除旧格式 codec/读回/结算义务及替换精确坐标。**本次检出 catalog 尚未登记这些版本，候选尚未采用；R7-G1 阻止据本稿宣称新代际已采用。**正文用 RT7/MP5/MS6/MR7/LC6 指上述精确目标，非已接受声明。候选最终资源与 catalog 对齐由主线完成，不由本稿改契约。
 

@@ -1,6 +1,6 @@
 # Model profile directory
 
-The current directory consumes adopted `capability.model-profile-directory/v5` and `data.model-profile/v5` under [D100](../../../.meta_harness/design/record/decisions/model-runtime-current-generation-adoption/decision.md), through the [current provider projection](../../../.meta_harness/design/realization/packages/model/model-profile-directory/v5-current-design.md). It owns the durable catalog, append-only configuration revision facts, official manifest state and tenant credential bindings.
+The current directory consumes adopted `capability.model-profile-directory/v5` and `data.model-profile/v5` under D100, through the [current provider projection](../../../.meta_harness/design/realization/packages/model/model-profile-directory/v5-current-design.md). It owns the durable catalog, append-only configuration revision facts, official manifest state and tenant credential bindings.
 
 The definition package `@omne-harness-lite/model-profile-directory` owns the pure judgments and service protocols. This provider root exports its configuration types. `./cordis` contains the two Cordis plugins and schemas; `./migrations` contains `modelProfileDirectoryMigrations`; restricted `./tx-reads` contains `createCredentialBindingReader`. The authoritative directory exists as a service.
 
@@ -10,15 +10,34 @@ Use the pure judgments without Cordis:
 
 ```typescript
 import assert from 'node:assert/strict'
-import { scopeChain, winningRow, configEligibility, credentialSlot } from '@omne-harness-lite/model-profile-directory'
+import {
+  scopeChain,
+  winningRow,
+  configEligibility,
+  credentialSlot,
+} from '@omne-harness-lite/model-profile-directory'
 import type { ProfileRow } from '@omne-harness-lite/model-profile-directory'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 
 export function choose(rows: readonly ProfileRow[], tenant: TenantId) {
-  assert.deepEqual(scopeChain(tenant).map(scope => scope.layer), ['tenant', 'organization', 'factory'])
-  assert.equal(configEligibility(tenant, { layer: 'tenant', tenant }, { standing: 'effective', role: 'member' }), 'eligible')
+  assert.deepEqual(
+    scopeChain(tenant).map(scope => scope.layer),
+    ['tenant', 'organization', 'factory'],
+  )
+  assert.equal(
+    configEligibility(
+      tenant,
+      { layer: 'tenant', tenant },
+      { standing: 'effective', role: 'member' },
+    ),
+    'eligible',
+  )
   assert.deepEqual(credentialSlot(undefined, 'custom', true), { present: false })
-  return winningRow(rows, 'demo/model', rows.map(row => row.profile.routeName))
+  return winningRow(
+    rows,
+    'demo/model',
+    rows.map(row => row.profile.routeName),
+  )
 }
 ```
 
@@ -47,11 +66,18 @@ import type { TenantId } from '@omne-harness-lite/identity-values'
 export async function manageModels(catalog: ModelCatalog, tenant: TenantId) {
   const scope = { layer: 'tenant', tenant } as const
   const created = await catalog.registerProfile(tenant, scope, {
-    routeName: 'demo/model', origin: 'custom', providers: ['provider-a'], allowFallback: false,
-    inputModalities: ['text'], outputModalities: ['text'],
-    maxInputTokens: 8192, maxOutputTokens: 2048, inputConstraints: {},
+    routeName: 'demo/model',
+    origin: 'custom',
+    providers: ['provider-a'],
+    allowFallback: false,
+    inputModalities: ['text'],
+    outputModalities: ['text'],
+    maxInputTokens: 8192,
+    maxOutputTokens: 2048,
+    inputConstraints: {},
     upstreamInputLimits: {
-      maxInputTokens: { status: 'unknown' }, maxRequestBytes: { status: 'unknown' },
+      maxInputTokens: { status: 'unknown' },
+      maxRequestBytes: { status: 'unknown' },
     },
     adaptation: {
       implementation: { name: 'publisher-implementation', revision: 'impl-1' },
@@ -60,19 +86,34 @@ export async function manageModels(catalog: ModelCatalog, tenant: TenantId) {
     },
   })
   assert.ok('profile' in created)
-  const revised = await catalog.updateProfile(tenant, created.ref, { replace: { allowFallback: true } })
+  const revised = await catalog.updateProfile(tenant, created.ref, {
+    replace: { allowFallback: true },
+  })
   assert.ok('profile' in revised)
   assert.equal(revised.profile.updatedAt, created.profile.updatedAt)
-  const changed = await catalog.updateProfile(tenant, created.ref, { replace: {
-    maxInputTokens: 4096,
-    upstreamInputLimits: { maxInputTokens: { status: 'limited', value: 4096 }, maxRequestBytes: { status: 'unknown' } },
-  } })
+  const changed = await catalog.updateProfile(tenant, created.ref, {
+    replace: {
+      maxInputTokens: 4096,
+      upstreamInputLimits: {
+        maxInputTokens: { status: 'limited', value: 4096 },
+        maxRequestBytes: { status: 'unknown' },
+      },
+    },
+  })
   assert.ok('profile' in changed)
   assert.equal(changed.profile.maxInputTokens, 4096)
-  assert.deepEqual(changed.profile.upstreamInputLimits.maxInputTokens, { status: 'limited', value: 4096 })
-  assert.deepEqual(await catalog.updateProfile(tenant, created.ref, { replace: {
-    upstreamInputLimits: { maxInputTokens: { status: 'limited', value: 3000 } },
-  } }), { failure: 'invalidInput', reason: 'malformed' })
+  assert.deepEqual(changed.profile.upstreamInputLimits.maxInputTokens, {
+    status: 'limited',
+    value: 4096,
+  })
+  assert.deepEqual(
+    await catalog.updateProfile(tenant, created.ref, {
+      replace: {
+        upstreamInputLimits: { maxInputTokens: { status: 'limited', value: 3000 } },
+      },
+    }),
+    { failure: 'invalidInput', reason: 'malformed' },
+  )
   assert.deepEqual(await catalog.readProfile(tenant, created.ref), changed)
   const rows = await catalog.listProfiles(tenant)
   assert.ok(Array.isArray(rows))
@@ -81,7 +122,9 @@ export async function manageModels(catalog: ModelCatalog, tenant: TenantId) {
   const bound = await catalog.bindCredential(tenant, tenant, 'trusted-source-reference')
   assert.ok('boundAt' in bound)
   assert.deepEqual(await catalog.credentialPresent(tenant, 'custom'), {
-    present: true, scope: { layer: 'tenant', tenant }, boundAt: bound.boundAt,
+    present: true,
+    scope: { layer: 'tenant', tenant },
+    boundAt: bound.boundAt,
   })
   assert.deepEqual(await catalog.unbindCredential(tenant, tenant), { tenant, present: false })
   return rows
@@ -98,8 +141,14 @@ import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profil
 import { composeMigrations } from '@omne-harness-lite/storage'
 import type { AtomicStorage, MigrationFragment } from '@omne-harness-lite/storage'
 
-export function trustedAssemblyInputs(storage: AtomicStorage, otherOwnerMigrations: readonly MigrationFragment[]) {
-  const migrations = composeMigrations([...otherOwnerMigrations, ...modelProfileDirectoryMigrations])
+export function trustedAssemblyInputs(
+  storage: AtomicStorage,
+  otherOwnerMigrations: readonly MigrationFragment[],
+) {
+  const migrations = composeMigrations([
+    ...otherOwnerMigrations,
+    ...modelProfileDirectoryMigrations,
+  ])
   const readCredentialBindingIn = createCredentialBindingReader(storage)
   // Pass this real closure to the unique CCL component. Bootstrap never executes it.
   return { migrations, readCredentialBindingIn }

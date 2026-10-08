@@ -1,9 +1,13 @@
+import type { AckPendingReason } from '@omne-harness-lite/model-request-runtime'
 import { randomUUID } from 'node:crypto'
 import type { CallKey } from '@omne-harness-lite/messages'
 import type { AcknowledgementCustody } from './acknowledgement-custody.ts'
-import type { AckPendingReason, ModelCallSettlementWorkStore } from './reference-types.ts'
+import type { ModelCallSettlementWorkStore } from './reference-types.ts'
 import { createSettlementCoordinator } from './settlement-coordinator.ts'
-import { interpretSettlementPrefix, readSettlementPrefix } from './settlement-prefix.ts'
+import {
+  interpretSettlementPrefix,
+  readSettlementPrefix,
+} from '@omne-harness-lite/model-request-runtime'
 import { requestStopAndWait } from './settlement-stop.ts'
 import type {
   RunHistoryReader,
@@ -12,12 +16,11 @@ import type {
   SettlementDiagnostic,
   SettlementLogBinding,
   SettlementOwner,
-  SettlementRequest,
   SettlementResult,
   SettlementScheduler,
-  SettlementStagedBatch,
   SettlementTask,
-} from './settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { SettlementRequest, SettlementStagedBatch } from './settlement-types.ts'
 
 /**
  * What one post-ACK write responsibility concluded. `ended`: every writer of this work actually

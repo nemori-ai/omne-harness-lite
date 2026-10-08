@@ -1,1 +1,0 @@
-{"ts":1791185407217,"level":"error","name":"tenancy-host","event":"startup-failed","stage":"manifest","item":"absent","errorType":"PluginTreeError","message":"tenancy-host startup failed at manifest: plugin tree rejected","code":"missing-target","rowId":"absent"}

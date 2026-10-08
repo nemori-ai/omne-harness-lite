@@ -1,3 +1,4 @@
+import { modelValue } from './log-codec-fixture.ts'
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber, copyJsonValue, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
@@ -9,8 +10,11 @@ import {
   modelLogJsonEqual,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
-import { readSettlementPrefix, type SettlementPrefix } from '../src/settlement-prefix.ts'
-import type { CurrentHistoryReaders } from '../src/service-types.ts'
+import {
+  readSettlementPrefix,
+  type SettlementPrefix,
+} from '@omne-harness-lite/model-request-runtime'
+import type { CurrentHistoryReaders } from '@omne-harness-lite/model-request-runtime'
 import {
   batch,
   binding,
@@ -22,7 +26,7 @@ import {
   session,
 } from './log-codec-fixture.ts'
 import { controlled, type ControlledSettlementOwner } from './settlement-fixture.ts'
-import type { SettlementLogBinding } from '../src/settlement-types.ts'
+import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
 
 const digest = (character: string) => character.repeat(64)
 
@@ -260,8 +264,8 @@ describe('U16-V6 same-log causal source order', () => {
       expect(after).toEqual(before)
       expect(submissions).toHaveLength(writes)
       if ('failure' in after) throw new Error('actual SL3 readback')
-      expect(modelLogJsonEqual(jsonObject(entryAt(prefix, 3).payload).value, A)).toBe(true)
-      expect(modelLogJsonEqual(jsonObject(entryAt(prefix, 7).payload).value, B)).toBe(true)
+      expect(modelLogJsonEqual(modelValue(entryAt(prefix, 3).payload), A)).toBe(true)
+      expect(modelLogJsonEqual(modelValue(entryAt(prefix, 7).payload), B)).toBe(true)
       expect(modelLogJsonEqual(A.cost, B.cost)).toBe(false)
     })
   })

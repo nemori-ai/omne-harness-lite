@@ -1,5 +1,5 @@
+import { installSqlControlFault } from './sql-control-fault.ts'
 import { dirname, join } from 'node:path'
-import { open, type FileHandle } from 'node:fs/promises'
 import { describe, expect, it, vi } from 'vitest'
 import { judgeMessage, type ToolMessage, type UserMessage } from '@omne-harness-lite/messages'
 import { createAcceptanceApplication } from '../src/bootstrap.ts'
@@ -68,16 +68,6 @@ function send(
     parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
     host: host.host,
   })
-}
-function fileMethods(value: unknown): value is Pick<FileHandle, 'datasync' | 'truncate'> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'datasync' in value &&
-    typeof value.datasync === 'function' &&
-    'truncate' in value &&
-    typeof value.truncate === 'function'
-  )
 }
 
 describe('real unified service boundaries in the demo', () => {
@@ -150,28 +140,14 @@ describe('real unified service boundaries in the demo', () => {
     }
   })
 
-  it('retains an unknown actual JSONL reply append and prevents a second physical send', async () => {
+  it('retains an unknown actual SQL reply append and prevents a second physical send', async () => {
     const config = await callDeployment('service-unknown-reply')
     const tls = await createLocalTls(join(dirname(config.databaseFile), 'tls'))
-    const probe = await open(join(dirname(config.databaseFile), 'probe'), 'w')
-    const prototype: unknown = Object.getPrototypeOf(probe)
-    if (!fileMethods(prototype)) throw new Error('actual file methods unavailable')
-    const sync = prototype.datasync,
-      truncate = prototype.truncate
-    let fail = false
-    const syncSpy = vi.spyOn(prototype, 'datasync').mockImplementation(async function (
-      this: Pick<FileHandle, 'datasync' | 'truncate'>,
-    ) {
-      if (fail) throw Object.assign(new Error('controlled fs fault'), { code: 'EIO' })
-      await sync.call(this)
-    })
-    const truncateSpy = vi.spyOn(prototype, 'truncate').mockImplementation(async function (
-      this: Pick<FileHandle, 'datasync' | 'truncate'>,
-      size,
-    ) {
-      if (fail) throw Object.assign(new Error('controlled fs fault'), { code: 'EIO' })
-      await truncate.call(this, size)
-    })
+    const fault = installSqlControlFault(
+      config.databaseFile,
+      'lostReceipt',
+      '"category":"response"',
+    )
     const app = createAcceptanceApplication(config, {
       stage: 'modelRequest',
       developmentTransport: tls.developmentTransport,
@@ -196,7 +172,7 @@ describe('real unified service boundaries in the demo', () => {
       const first = await send(app, who, 's1', host, 'first')
       if (!('result' in first) || !('replyPending' in first.result))
         throw new Error('pending reply unavailable')
-      fail = true
+      fault.arm()
       expect(await app.persistModelReply(who, 's1', first.result.replyPending)).toMatchObject({
         unavailable: true,
       })
@@ -211,13 +187,10 @@ describe('real unified service boundaries in the demo', () => {
       expect(businessClose?.complete).toBe(false)
       expect(closed.complete).toBe(false)
     } finally {
-      fail = false
-      syncSpy.mockRestore()
-      truncateSpy.mockRestore()
+      fault.close()
       await host.stop()
       if (diagnostics) await diagnostics.closeAfterBusiness(() => app.close())
       else await app.close()
-      await probe.close()
       await tls.close()
     }
   })

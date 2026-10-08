@@ -1,9 +1,15 @@
+import { readAttemptStarted } from '@omne-harness-lite/session-runtime'
+import { modelValue, modelCategory } from './log-codec-fixture.ts'
+import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
-import { readSettlementPrefix } from '../src/settlement-prefix.ts'
-import { type SettlementScheduler, type SettlementOwner } from '../src/settlement-types.ts'
+import { readSettlementPrefix } from '@omne-harness-lite/model-request-runtime'
+import {
+  type SettlementScheduler,
+  type SettlementOwner,
+} from '@omne-harness-lite/model-request-runtime'
 import {
   modelLogJsonEqual,
   captureModelLogValue,
@@ -12,7 +18,7 @@ import {
 import {
   interpretRunAtPrefix,
   readSettlementPrefix as readRunPrefix,
-} from '../src/settlement-prefix.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type { SessionLog, AppendResult } from '@omne-harness-lite/session-log'
 import {
   anchors,
@@ -461,7 +467,7 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
       const originals = anchors().entries.map(entry => {
         const captured = captureModelLogValue({
           category: 'record',
-          input: { kind: 'value', value: jsonObject(entry.payload).value },
+          input: { kind: 'value', value: modelValue(entry.payload) },
         })
         if (!('ok' in captured)) throw new Error('withRun record capture')
         const prepared = prepareModelLogEntry({
@@ -528,38 +534,18 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
     })
   })
   for (const race of [false, true])
-    it(`uses one real JSONL prefix for a superseded Run response with tail race=${race}`, async () => {
+    it(`uses one real SQL journal prefix for a superseded Run response with tail race=${race}`, async () => {
       await controlled(`with-run-tail-${race}`, async ({ binding, owner, submissions, wrap }) => {
         const parsed = parseOpaqueIdentifier('controlled-run-tail', 'SessionRef')
         if (!('ok' in parsed)) throw new Error('session')
         const runSession = parsed.ok
         async function appendStart(attempt: number) {
-          const message = captureModelLogValue({
-            category: 'message',
-            input: {
-              kind: 'value',
-              value: {
-                id: `attempt-${attempt}`,
-                type: 'system_reminder',
-                nature: 'event',
-                source: {
-                  kind: 'attempt_started',
-                  attempt,
-                  reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
-                  at: '2026-09-29T00:00:00Z',
-                },
-                blocks: [],
-                createdAt: '2026-09-29T00:00:00Z',
-              },
-            },
-          })
-          if (!('ok' in message)) throw new Error('attempt message capture')
-          const entry = prepareModelLogEntry({
+          const entry = prepareAttemptFact({
             session: runSession,
             shell: { tenant: binding.tenant, run: 'controlled-run', attempt },
-            captured: message.ok,
-            purpose: { kind: 'message' },
-            messagePrefix: [],
+            key: `attempt-${attempt}`,
+            reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
+            at: '2026-09-29T00:00:00Z',
           })
           if (!('ok' in entry)) throw new Error('attempt message prepare')
           const appended = await binding.log.append(
@@ -574,7 +560,7 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
         const original = anchors().entries.map(entry => {
           const captured = captureModelLogValue({
             category: 'record',
-            input: { kind: 'value', value: jsonObject(entry.payload).value },
+            input: { kind: 'value', value: modelValue(entry.payload) },
           })
           if (!('ok' in captured)) throw new Error('anchor capture')
           const prepared = prepareModelLogEntry({
@@ -768,11 +754,17 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
         const durable = await binding.log.readSince(runSession, 0)
         if ('failure' in durable) throw new Error('durable Run batch unavailable')
         expect(
-          durable.entries.filter(entry => jsonObject(entry.payload).category === 'response'),
+          durable.entries.filter(entry => modelCategory(entry.payload) === 'response'),
         ).toHaveLength(1)
         expect(
-          durable.entries.filter(entry => jsonObject(entry.payload).category === 'message'),
-        ).toHaveLength(3)
+          durable.entries.filter(entry => modelCategory(entry.payload) === 'message'),
+        ).toHaveLength(1)
+        expect(
+          durable.entries.filter(entry => {
+            const read = readAttemptStarted(entry)
+            return 'kind' in read && read.kind === 'fact'
+          }),
+        ).toHaveLength(2)
         await coordinator.close()
         const originalFirst = createSettlementCoordinator({
           binding: { ...binding, session: runSession },
@@ -812,7 +804,7 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
   })
   for (const alternative of ['consumed', 'vetoed', 'no_reply'] as const)
     for (const persistedFirst of [true, false])
-      it(`lets one complete withRun batch win a real JSONL race, ${alternative}, persistedFirst=${persistedFirst}`, async () => {
+      it(`lets one complete withRun batch win a real SQL journal race, ${alternative}, persistedFirst=${persistedFirst}`, async () => {
         await controlled(
           `with-run-disposition-race-${alternative}-${persistedFirst}`,
           async ({ binding, owner, submissions }) => {
@@ -821,38 +813,19 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
             const runSession = parsed.ok
             const run = 'disposition-run'
             const attempt = 1
-            const startValue = captureModelLogValue({
-              category: 'message',
-              input: {
-                kind: 'value',
-                value: {
-                  id: 'race-attempt-start',
-                  type: 'system_reminder',
-                  nature: 'event',
-                  source: {
-                    kind: 'attempt_started',
-                    attempt,
-                    reason: 'first',
-                    at: '2026-09-29T00:00:00Z',
-                  },
-                  blocks: [],
-                  createdAt: '2026-09-29T00:00:00Z',
-                },
-              },
-            })
-            if (!('ok' in startValue)) throw new Error('start value')
-            const started = prepareModelLogEntry({
+
+            const started = prepareAttemptFact({
               session: runSession,
               shell: { tenant: binding.tenant, run, attempt },
-              captured: startValue.ok,
-              purpose: { kind: 'message' },
-              messagePrefix: [],
+              key: 'race-attempt-start',
+              reason: 'first',
+              at: '2026-09-29T00:00:00Z',
             })
             if (!('ok' in started)) throw new Error('start entry')
             const anchorsWithRun = anchors().entries.map(entry => {
               const captured = captureModelLogValue({
                 category: 'record',
-                input: { kind: 'value', value: jsonObject(entry.payload).value },
+                input: { kind: 'value', value: modelValue(entry.payload) },
               })
               if (!('ok' in captured)) throw new Error('anchor value')
               const prepared = prepareModelLogEntry({
@@ -876,7 +849,7 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
             // and which side commits first otherwise depends on real IO completion order. Pin it:
             // the leader may commit only after the follower has read the same prefix, and the
             // follower may submit only after the leader's append returned. Both hold one tail, the
-            // leader commits first, and the follower loses at the JSONL commit point and recognizes
+            // leader commits first, and the follower loses at the SQL journal commit point and recognizes
             // the durable winner.
             const followerRead = deferred<void>(),
               leaderCommitted = deferred<void>()
@@ -1016,18 +989,18 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
             const raw = await binding.log.readSince(runSession, 0)
             if ('failure' in raw) throw new Error('winning Run batch')
             const responses = raw.entries.filter(
-              entry => jsonObject(entry.payload).category === 'response',
+              entry => modelCategory(entry.payload) === 'response',
             )
             const assistantMessages = raw.entries.filter(entry => {
-              const payload = jsonObject(entry.payload)
               return (
-                payload.category === 'message' && jsonObject(payload.value).type === 'assistant'
+                modelCategory(entry.payload) === 'message' &&
+                jsonObject(modelValue(entry.payload)).type === 'assistant'
               )
             })
             expect(responses).toHaveLength(1)
             const result = responses[0]
             if (result === undefined) throw new Error('response winner')
-            const value = jsonObject(jsonObject(result.payload).value)
+            const value = jsonObject(modelValue(result.payload))
             expect(value.replyDisposition).toEqual(
               persistedFirst
                 ? 'persisted'

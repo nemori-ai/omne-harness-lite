@@ -1,15 +1,15 @@
 # tenancy-host 的形状
 
-> 本批设计已接受（2026-09-26，[D-062](../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，[当前选择](#技术栈采用)／[当前选择](#技术栈采用)）。此状态不表示实现或实际验证完成。
 
 每一节都是「引用 + 本应用的选择」。**治理中心作为一个应用在产品上是什么归
 [PF-017](../../../product/PF-017-governance-center-as-deployable-application/README.md)，租户领域是什么归
 [PF-001](../../../product/PF-001-identity-scope-and-agent-constraints/README.md)；边上的保证归六份契约（五份租户契约与 `composition.governance-center-entry/v1`，后者下称入口契约）；
-采用理由归[决定](../../../record/decisions/README.md)。本页不复述它们，也不在它们之外另立一份语义。**
+采用理由归[当前选择](#技术栈采用)。本页不复述它们，也不在它们之外另立一份语义。**
 
 **本页对本应用进程的称呼「tenancy-host 进程」是本页给进程起的名字，不是概念**：它是
 [治理中心](../../../product/PF-016-cli-tui-delivery-surface/design.md#治理中心)（「治理事实所在的那一处」，不是进程）作为一个应用运行时的那个进程——
-PF-017 为这个应用开题时点名的就是本节点（[拍板记录](../../../product/PF-017-governance-center-as-deployable-application/decisions.md#一拍板记录)开题一行），入口契约的消费者一栏也把本节点列为承载它的装配（[S-2](../../../spec/compositions/governance-center-entry/v1/contract.md#s-2-参与方与精确承诺) 末段）。
+PF-017 为这个应用开题时点名的就是本节点（[拍板记录](../../../product/PF-017-governance-center-as-deployable-application/design.md)开题一行），入口契约的消费者一栏也把本节点列为承载它的装配（[S-2](../../../spec/compositions/governance-center-entry/v1/contract.md#s-2-参与方与精确承诺) 末段）。
 
 ## 交付面与非目标
 
@@ -20,7 +20,7 @@ PF-017 有意不在治理中心身上用「交付面」这个词，本节标题�
 [PF-001 身份、范围与对 Agent 的约束](../../../product/PF-001-identity-scope-and-agent-constraints/README.md)（rev 25）
 的[投影 v1 第 3 步](../../../product/PF-001-identity-scope-and-agent-constraints/projection/v1/projection.md#8-实施顺序)：
 把租户领域的五个 provider、四个基础设施 provider 与入口层所在的包装进**一台机器上的一个进程**，给它们真实的存储、时钟与密钥，并让它对客户端与运维者各开一张面。
-**本程追加（设计已接受，尚未实现）**：同一进程再装资产提供者与模型档案目录的中心插件 P-1（[D-059](../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3)：承载已超出租户领域、现在不改名）；它们兑现的契约都是 `accepted`，本版**对外不可达**（入口契约 v1 路由表封闭），[design「本程追加」](design.md#本程追加资产治理与模型档案目录的中心侧候选尚未实现)。
+**本程追加（设计已接受，尚未实现）**：同一进程再装资产提供者与模型档案目录的中心插件 P-1（[当前选择](#技术栈采用)：承载已超出租户领域、现在不改名）；它们兑现的契约都是 `accepted`，本版**对外不可达**（入口契约 v1 路由表封闭），[design「本程追加」](design.md#本程追加资产治理与模型档案目录的中心侧候选尚未实现)。
 **它是一个采用型装配**：不选产品政策，不拥有能力语义，每一处选择都指向决定、契约或某个 provider 节点。
 
 **与形状相关的非目标**：
@@ -29,7 +29,7 @@ PF-017 有意不在治理中心身上用「交付面」这个词，本节标题�
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **不写客户端一侧**             | 据点进程里的客户端代理、防冒充的确认、「问不到」的呈现归 `apps/cli` 与 PF-016；本节点只装中心一侧（[入口契约 S-3](../../../spec/compositions/governance-center-entry/v1/contract.md#s-3-本契约明确不承诺什么)「客户端一侧」）                                                                                                                                                                               |
 | **不开第三张面**               | 进程对外只有入口层的客户端一面与运维面（[S-25](../../../spec/compositions/governance-center-entry/v1/contract.md#s-25-运维面只在中心所在的机器上且没有治理路由)、[PF-017 §5.1](../../../product/PF-017-governance-center-as-deployable-application/design.md#51-中心有两张面没有第三张)）；本节点不另开任何监听、管理端口或调试入口                                                                         |
-| **不在 pg 上部署** | [D-026](../../../record/decisions/infrastructure-persistence-choices/decision.md#选择与范围)：pg 方言本程只接线；pg 上的装配演练只在测试里跑（`OMNE_TEST_PG_URL` 指向可连的库时），pg 部署还挡在升级整体性的缺口 U-3 上（[design.md](design.md#实施缺口与消费者影响)） |
+| **不在 pg 上部署** | [当前选择](#技术栈采用)：pg 方言本程只接线；pg 上的装配演练只在测试里跑（`OMNE_TEST_PG_URL` 指向可连的库时），pg 部署还挡在升级整体性的缺口 U-3 上（[design.md](design.md#实施缺口与消费者影响)） |
 | **不做密钥轮换**               | 无需求；[identity-values 节点](../../packages/core/identity-values/design.md#交接凭证走签名不走进程内登记)把「不轮换」记为本版选择。重生密钥的后果写在 [design.md](design.md#密钥装配两对-ed25519-密钥作为部署配置输入)                                                                                                                                                                                     |
 | **不建治理事实自动清扫定时器** | 既有残留清扫仍未纳入；备份的外部Linux调度另见[维护候选](maintenance-binding.md)，不由治理服务隐式发起 |
 | **不切进程、不做多实例**       | 本版单机一个进程（[SYS-DEPLOY](../../../foundation/cross-system-constraints/requirements.md#sys-deploy)；多实例是 [PF-017 非目标](../../../product/PF-017-governance-center-as-deployable-application/design.md#非目标)）；中心自身被拆开之后的保证归入口契约 G-8 与各契约「协议给」那一列（投影 [Q-8](../../../product/PF-001-identity-scope-and-agent-constraints/projection/v1/projection.md#7-未决项)） |
@@ -97,22 +97,22 @@ PF-017 有意不在治理中心身上用「交付面」这个词，本节标题�
 ## 技术栈采用
 
 **下表每一行的状态都不是「已经这么做了」，而是「这一版装配选了什么」。**「已采用」只到采用方向；
-实现与验证的状态在 [README「分层状态」](README.md#分层状态)。精确版本从承载仓库根 `pnpm-workspace.yaml` 的 catalog 读（纯文本指认）。
+实现与验证的状态在 [README「分层状态与明确缺口」](README.md#分层状态与明确缺口)。精确版本从承载仓库根 `pnpm-workspace.yaml` 的 catalog 读（纯文本指认）。
 
 | 选型点               | 采用                                                                                                                                                                                        | 精确版本                               | 状态      | 依据                                                                                                                                                              |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 内核                 | `@deepseek-ai/cordis` 官方发布包，直接采用；插件形态经 `core/kernel-basis` 的 `definePlugin`                                                                                                | 4.0.4                                  | 已采用    | [D-025](../../../record/decisions/cordis-adoption-version/decision.md)                                                                                            |
-| 查询层与迁移 API     | Kysely（含它的 `Migrator`／`MigrationProvider`），只因「只改配置切 pg」这一条要求                                                                                                           | 0.29.6                                 | 已采用    | [D-026](../../../record/decisions/infrastructure-persistence-choices/decision.md)                                                                                 |
-| 开发期存储           | sqlite 文件库，驱动 Node ≥ 24 内置 `node:sqlite`（`infra/storage-sql` 自写薄 Driver）；WAL、`synchronous=FULL`（D-039 中心档位）、`foreign_keys=ON`                                                         | 随 Node `>=24 <25`（承载仓库 engines） | 已采用    | [D-026](../../../record/decisions/infrastructure-persistence-choices/decision.md)                                                                                 |
-| 生产期存储           | PostgreSQL 经 Kysely 内置方言 + `pg`；**本程只接线不跑**                                                                                                                                    | `pg` 8.23.0                            | 已采用    | [D-026](../../../record/decisions/infrastructure-persistence-choices/decision.md)                                                                                 |
-| in-memory 存储       | **不提供**；测试对着 sqlite 临时文件库                                                                                                                                                      | —                                      | 已采用    | [D-026](../../../record/decisions/infrastructure-persistence-choices/decision.md)                                                                                 |
-| 时间源提供者         | `packages/infra/clock`（单调钟锚定 + 存储里写在前的租约；机制归该节点，**该节点尚未被接受**）                                                                                               | —                                      | 已采用    | [D-026](../../../record/decisions/infrastructure-persistence-choices/decision.md)                                                                                 |
-| 交接凭证的不可伪造   | 签名而非进程内登记，原语 Node 内置 `crypto`（Ed25519 由 identity-values 节点定）                                                                                                            | 随 Node 24                             | 已采用    | [D-023](../../../record/decisions/tenant-domain-design-acceptance/decision.md)                                                                                    |
-| 入口层与运维面的落点 | 一个包两个插件、都不 provide、装在清单最后（运维面在前） | 不适用 | 已采用 | [D-028](../../../record/decisions/governance-center-design-acceptance/decision.md)（[提案 governance-center-entry 候选 A](../../../record/proposals/governance-center-entry/alternatives.md#候选-a)） |
-| 客户端一面的传输 | HTTP/1.1 over TLS（Node 内置 `node:tls`，入口层包在原始套接字上自成帧，最低 TLS 1.3）；整个信封在请求体里；每个答复 `Connection: close`；只有 TLS 监听。形状归 governance-center-entry 节点 | 传输绑定 `composition.governance-center-entry-https-json` v1（已冻结） | 已采用 | [D-029](../../../record/decisions/governance-center-transport-binding-acceptance/decision.md)（出示物在请求体，取代[提案 cli-tui D11](../../../record/proposals/cli-tui/alternatives.md#d11-线上协议与认证)的 `Authorization` 头那一处） |
-| 运维面的本机通道 | Unix 域套接字上的 HTTP，目录只对中心的运行用户可访问 | 不适用 | 已采用 | [D-028](../../../record/decisions/governance-center-design-acceptance/decision.md)（[提案 governance-center-entry 运维面](../../../record/proposals/governance-center-entry/design.md#运维面)） |
-| 升级的整体性 | 迁移前只读核对；sqlite 迁移前建快照、确认之前的启动失败恢复快照；pg 迁移一个事务 | 不适用 | 已采用 | [D-028](../../../record/decisions/governance-center-design-acceptance/decision.md)（本节点设计；[提案装配草图](../../../record/proposals/governance-center-entry/design.md#装载顺序)「迁移之前」「迁移」两行） |
-| 带重复键报告的 JSON 解析器 | 入口层包内自写（逐码点判嵌套深度与成员数、重复成员按契约收场） | 不适用 | 已采用 | [D-029](../../../record/decisions/governance-center-transport-binding-acceptance/decision.md) 第三项 |
+| 内核                 | `@deepseek-ai/cordis` 官方发布包，直接采用；插件形态经 `core/kernel-basis` 的 `definePlugin`                                                                                                | 4.0.4                                  | 已采用    | [当前选择](#技术栈采用)                                                                                            |
+| 查询层与迁移 API     | Kysely（含它的 `Migrator`／`MigrationProvider`），只因「只改配置切 pg」这一条要求                                                                                                           | 0.29.6                                 | 已采用    | [当前选择](#技术栈采用)                                                                                 |
+| 开发期存储           | sqlite 文件库，驱动 Node ≥ 24 内置 `node:sqlite`（`infra/storage-sql` 自写薄 Driver）；WAL、`synchronous=FULL`（D-039 中心档位）、`foreign_keys=ON`                                                         | 随 Node `>=24 <25`（承载仓库 engines） | 已采用    | [当前选择](#技术栈采用)                                                                                 |
+| 生产期存储           | PostgreSQL 经 Kysely 内置方言 + `pg`；**本程只接线不跑**                                                                                                                                    | `pg` 8.23.0                            | 已采用    | [当前选择](#技术栈采用)                                                                                 |
+| in-memory 存储       | **不提供**；测试对着 sqlite 临时文件库                                                                                                                                                      | —                                      | 已采用    | [当前选择](#技术栈采用)                                                                                 |
+| 时间源提供者         | `packages/infra/clock`（单调钟锚定 + 存储里写在前的租约；机制归该节点，**该节点尚未被接受**）                                                                                               | —                                      | 已采用    | [当前选择](#技术栈采用)                                                                                 |
+| 交接凭证的不可伪造   | 签名而非进程内登记，原语 Node 内置 `crypto`（Ed25519 由 identity-values 节点定）                                                                                                            | 随 Node 24                             | 已采用    | [当前选择](#技术栈采用)                                                                                    |
+| 入口层与运维面的落点 | 一个包两个插件、都不 provide、装在清单最后（运维面在前） | 不适用 | 已采用 | [当前选择](#技术栈采用)（[当前选择](#技术栈采用)） |
+| 客户端一面的传输 | HTTP/1.1 over TLS（Node 内置 `node:tls`，入口层包在原始套接字上自成帧，最低 TLS 1.3）；整个信封在请求体里；每个答复 `Connection: close`；只有 TLS 监听。形状归 governance-center-entry 节点 | 传输绑定 `composition.governance-center-entry-https-json` v1（已冻结） | 已采用 | [当前选择](#技术栈采用)（出示物在请求体，取代[当前选择](#技术栈采用)的 `Authorization` 头那一处） |
+| 运维面的本机通道 | Unix 域套接字上的 HTTP，目录只对中心的运行用户可访问 | 不适用 | 已采用 | [当前选择](#技术栈采用)（[当前选择](#技术栈采用)） |
+| 升级的整体性 | 迁移前只读核对；sqlite 迁移前建快照、确认之前的启动失败恢复快照；pg 迁移一个事务 | 不适用 | 已采用 | [当前选择](#技术栈采用)（本节点设计；[当前选择](#技术栈采用)「迁移之前」「迁移」两行） |
+| 带重复键报告的 JSON 解析器 | 入口层包内自写（逐码点判嵌套深度与成员数、重复成员按契约收场） | 不适用 | 已采用 | [当前选择](#技术栈采用) 第三项 |
 
 **不在上表、因为既无决定也无提案的选择**（本节点只能记为候选，理由与落选方在 design.md）：
 密钥下发路径（环境变量 / 文件路径，`_FILE` 惯例；TLS 材料沿同一规矩）、config 校验库（zod，经 `definePlugin`；kernel-basis 节点记「采用版本无决定」）、

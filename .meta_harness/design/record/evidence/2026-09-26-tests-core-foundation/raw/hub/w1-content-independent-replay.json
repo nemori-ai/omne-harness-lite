@@ -1,8 +1,0 @@
-{
-  "node": "v24.18.0",
-  "precision": 6,
-  "duplicates": 3,
-  "publicToolCallRoundtrip": true,
-  "exactBytes": true,
-  "result": "pass"
-}

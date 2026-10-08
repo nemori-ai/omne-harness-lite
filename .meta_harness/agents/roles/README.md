@@ -9,8 +9,8 @@
 |---|---|---|
 | product-design-drafter | 把一个产品需求做成完整、可被评审的产品设计；配备联网**产品调研**能力，学同类产品的边界与取舍，不做技术调研；把验收场景切成故事卡并交第一张卡的演示脚本；固定 xhigh | [产品设计起草](product-design-drafter/role.md) |
 | product-design-reviewer | 评审起草交付的文档本身：逻辑、完整性、明显漏洞，叠加一层可实施性；带故事卡的稿子另核卡与场景对不对得上，不评卡切得好不好；**不评判品味与方向**；只读，固定 xhigh | [产品设计评审](product-design-reviewer/role.md) |
-| spec-drafter | 按施工简报写一份候选契约包（九件事、Schema、examples、verification、触发的形式工件）并登记 registry；或对整批草稿做独立评审前的对齐；不选政策、不写机制；默认 xhigh，可调 | [规格起草](spec-drafter/role.md) |
-| realization-drafter | 按节点划分写一个 provider／assembly 节点四件套；跨 owner「同一提交」必须点名共同存储对象，绑定只绑会失败的证据，正文不指认任务区；不改契约；默认 xhigh，可调 | [实现映射起草](realization-drafter/role.md) |
+| spec-drafter | 仅用于具名未迁旧任务：按施工简报写一份候选契约包（九件事、Schema、examples、verification、触发的形式工件）并登记 registry；或对整批草稿做独立评审前的对齐；不选政策、不写机制；默认 xhigh，可调 | [规格起草](spec-drafter/role.md) |
+| realization-drafter | 仅用于具名未迁旧任务：按节点划分写一个 provider／assembly 节点四件套；跨 owner「同一提交」必须点名共同存储对象，绑定只绑会失败的证据，正文不指认任务区；不改契约；默认 xhigh，可调 | [实现映射起草](realization-drafter/role.md) |
 | design-reviewer | 设计材料的独立只读评审，**一次派发只做一种判断**：选择（读数、能力边界、契约批次的语义整体、realization 节点）、表达（规格文本）或计划（施工计划）；只读本次那一页判据，不混报、不修复、不接受；固定 xhigh | [设计评审](design-reviewer/role.md) |
 | implementation-reviewer | 一次实现类交付的独立评审，**只在接受级别 L2／L3 或读数里有未交代的红项时派**；先跑执行仓库声明的检查，再按检查表问；每条发现带工具输出或具体反例，不收品味意见；不改受版本管理的文件、不接受；默认 high | [实现评审](implementation-reviewer/role.md) |
 | developer | 按规格与施工计划实现一个限定的切片：内核原语、能力与组合的行为、具体提供者，或应用装配与流程；**写入范围由任务给，不由角色名给**；模型与档位按本次任务选，默认 high | [开发](developer/role.md) |
@@ -72,8 +72,10 @@ agent 在这里的位置是评审与反驳——派 design-reviewer 判「选择
 对提案写出落选方最强的论证。亲写的人按手册的纪律**先写完领域读数并封存（落盘、提交），再开始承载读数**，
 产物开头写明封存在哪个提交。这三样都用领域与能力的语言写：Cordis 是装配时要满足的契约规范，到提供者设计才出场。
 
-规格与实现映射仍有 drafter，服务于 `harness-design-handbook` 主线里**能独立成稿的那几段**；哪几段归主线、哪几段派角色，
-权威表在手册的[工作区上下文](../skills/harness-design-handbook/canonical/references/legacy-workspace-context.md#实现设计与交付)，
+规格与实现映射 drafter 只服务于具名未迁旧任务；派发必须给出精确旧源与未迁范围。
+新/已迁任务从[现行维护入口](../../design/architecture/README.md)定位公开类型、模块旁薄规格与验证资源，不预建四件套。
+未迁任务中哪几段归主线、哪几段派角色，
+权威表在手册的[工作区上下文](../skills/harness-design-handbook/canonical/references/legacy-workspace-context.md)，
 这里只写派发时要给什么。两者都不做对账、不选产品政策、不接受，也都不派评审。
 
 **这两个角色不合并**（2026-10-01 定）：一个写「契约承诺什么性质」，一个写「用 Cordis 怎么兑现」，这条分界正是领域建模独立于 Cordis 的落点；
@@ -148,7 +150,7 @@ tui-developer 消费应用契约并实现终端交互；派发时给齐共同开
 
 tui-debugger 服务于**终端界面（TUI）应用**的运行现象，与评审判文档、developer 改代码都不同：
 它**运行被测程序、往指定目录写证据**，但**不改产品源码、不接受结果**。
-设计依据与调研在 [`design/record/proposals/cli-tui`](../../design/record/proposals/cli-tui/README.md)
+现行职责与适用条件由各角色正文维护；候选讨论和调研过程留工作树 tmp
 与 [`research/agent-debugger-subagents`](../../research/agent-debugger-subagents/README.md)。
 
 | 角色 | 问的问题 | 可写 | 交给谁 |
@@ -200,7 +202,7 @@ design-reviewer、product-design-reviewer 与 product-design-drafter 固定档�
 （原 spec-reviewer 钉的就是 Opus 5.5，合并对照里「表达」那一种也是在它上面跑的）；判「选择」与「计划」用钉值。
 Codex 一端钉 GPT-6 Astra，三种判断都用它。
 
-**developer 的模型按本次任务选**，不由角色固定。选法写在它的 description 里，依据是[角色合一记录](../evaluation/role-merge-2026-10-01.md)：
+**developer 的模型按本次任务选**，不由角色固定。选法写在它的 description 里，依据是角色合一记录：
 
 | 任务 | Claude Code | Codex | 档位 |
 |---|---|---|---|
@@ -231,6 +233,4 @@ agent 试用，并说明未经应用的原生沙箱与权限不能算生效；�
 **改了角色正文、它内联的共享正文、它读的判据页，或换了模型与档位之后**，有常设用例集的角色拿[用例集](../evaluation/suites/README.md)重跑一遍、
 与基线逐用例比；哪些角色已有用例集、各自量得出多大的变化，见那一页。还没有用例集的角色，改动的验证范围照实写进评估记录。
 
-采用记录和迁移验证见[本轮记录](../evaluation/role-migration.md)，旧试用归
-[历史记录](../evaluation/legacy-roles/README.md)，只支持原修订。
-当前 worktree 根宿主入口的切换与原件留档见[退役记录](../evaluation/host-entry-retirement/README.md)。
+当前采用范围、必要理由和复核条件归角色源；本次试用与验证放工作树 tmp，不要求恢复迁移过程。

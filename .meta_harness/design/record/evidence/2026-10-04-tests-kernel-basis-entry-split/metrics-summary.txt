@@ -1,6 +1,0 @@
-结构度量 c78205b1c · 分支 panqiwei/identity-model-r1-t1a · 基线 9f8c09517dccb8f870eeac1ad960650810730f2e（函数变化 merge-base 9f8c09517dccb8f870eeac1ad960650810730f2e）
-范围：变更 22 个成员、6 个函数；提交 1 个，每提交文件数中位 63、最大 63
-结构：方向违规 0，环 0，已登记例外 1，变更触及的跨成员导入 20 条；成员风险 红 20、黄 9、绿 17
-圈复杂度（warn 10／alert 12）：变更函数超 alert 0、超 warn 0；存量超 alert 284、超 warn 269
-覆盖率：未开启，只报圈复杂度
-审讯页：/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t1a/metrics-final/review.html

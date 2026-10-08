@@ -1,12 +1,12 @@
-# call-accounts CA3 候选增量
+# call-accounts CA3 增量
 
-2026-09-29，`kind: provider`，candidate，未接受。节点及既有源码均为 `packages/core/call-accounts`；源码已存在，本稿不修改源码，也不取代 [CA2 已采用设计](design.md)。
+当前技术采用范围与排除见本页“当前采用范围”；不据此宣称实现或验证完成。
 
 ## 输入与适用范围
 
 精确坐标为 `(omne-harness-lite-design-2026-09-15, data.call-accounts, 3)`，见 [catalog](../../../../registry/catalog.json) 的 candidate 条目。语义输入固定为提交 `3f597c18` 中的 [CA3 contract](../../../../spec/data/call-accounts/v3/contract.md) 与 [Schema](../../../../spec/data/call-accounts/v3/call-accounts.schema.json)；下文 S- 坐标均属此版本。后续候选修订须核差异，不能把可变链接当作固定文本。
 
-本批新增责任的产品范围为 PF-013 rev16、PF-012 rev21、PF-015 rev20；其余继承条款的当前来源由规格 owner 逐条复核，本稿不声称产品来源已全量对齐。边界背景见 [reference lifecycle 提案](../../../../record/proposals/model-runtime-reference-lifecycle/README.md) 与 [r4 交叉修订方向](../../../../record/proposals/model-runtime-reference-lifecycle/technical-choices-r4.md)。本节点可独立起草；全批契约与节点 gate 完成前不得采用。
+本批新增责任的产品范围为 PF-013 rev16、PF-012 rev21、PF-015 rev20；其余继承条款的当前来源由规格 owner 逐条复核，本稿不声称产品来源已全量对齐。边界背景见 reference lifecycle 提案 与 r4 交叉修订方向。本节点可独立起草；全批契约与节点 gate 完成前不得采用。
 
 **契约承诺**：S-40～S-42 把 ready/final 唯一选择交给实际日志/成本读面；S-1～S-39 的值与纯计算义务沿前驱保留。**共同约定**：保持纯模块、现有公开操作及精确十进制；迁移当前格式消费者而不增兼容执行入口；无新账务服务。**本稿的实现推导**：现有显式输入足以承接唯一选择结果，CA3 不要求修改求和签名。它仍待独立节点评审。
 
@@ -50,7 +50,7 @@
 | `data.content-blocks/v2` S-14、`data.asset-model/v2` S-3 | 沿 CA3 catalog 精确依赖；实际包提供既有无损 JSON/身份与标识判断 | 不因外侧消费后继版本而擅升 CA3 语义依赖；当前依赖来源复核归规格 owner |
 | `data.model-response/v10`、`data.messages/v7`、`capability.model-request-runtime/v11` | 都是本批 CA3 的消费者/原事实 owner；只接受它们送来的上述显式值 | 不建立 CA→MR/MS/runtime 的包或契约反向依赖；后继接口未成稿的部分不猜 |
 
-无配置项、服务键、`inject`、isolate、Fiber、effect 或事件。外侧 Cordis 采用 4.0.4，依据 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md)；本包无直接依赖，本候选不依赖任何 Cordis 上游语义，故没有新增 basis 绑定或待核对上游主张。
+无配置项、服务键、`inject`、isolate、Fiber、effect 或事件。外侧 Cordis 采用 4.0.4，依据 D-025；本包无直接依赖，本候选不依赖任何 Cordis 上游语义，故没有新增 basis 绑定或待核对上游主张。
 
 共同配置政策：静态非法构造/配置在初始化失败；外侧显式调用坏输入沿其闭合 `invalidInput`；可信来源不可用为 `unavailable`。本包值层仍返回已有拒绝值/求值失败，不把运行期来源错误塞进值枚举；本稿不增重试、超时或容量默认值。
 
@@ -124,3 +124,10 @@
 | G3-4 | S-5/S-22～S-24/S-27～S-29：CA3 Schema、消费者图与公开示例迁移未实施、未复验 | 本包实施者及各消费者 owner；以 V3-1～V3-5/V3-9 的当前制品和示例运行闭合 |
 
 前驱 G-3/G-10 等仍以契约为准；本稿不补造完整 ToolRuntime、Run 读面或其失败政策。
+
+## 当前采用范围
+
+RT11/MR10/MS7/CA3 引用生命周期增量：CallKey 查回、独立消费者、原执行 owner、不可变私有内容与原日志 marker、原完整 Pending/final 关系及费用唯一选择。
+
+技术采用不表示实现或实际验证已完成。验证义务：各节点当前关联验证义务；runtime R20-V1..R20-V23；SQL/JSONL 分域、unknown 留责、真实停止与来源当前性；正式包制品与全部受影响消费者。
+范围之外：ACK 之后永久保管/noGC：已被 ACK 后继取代；完整 Session/Run/Agent/通用 registry 或内容平台。

@@ -27,7 +27,8 @@
   },
   "files": [
     "dist",
-    "README_ZH.md"
+    "README_ZH.md",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

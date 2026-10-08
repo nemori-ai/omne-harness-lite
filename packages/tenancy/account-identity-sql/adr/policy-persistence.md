@@ -1,7 +1,7 @@
 # 身份策略与持久操作
 
 采用范围：内部职责迁移，沿 AI3 和[公共身份承诺](../../../core/account-identity/SPEC.md)。
-采用依据：[身份集成设计](../../../../.meta_harness/design/record/decisions/identity-integration-design/README.md)
+采用依据：身份集成设计
 及成员 [SPEC](../SPEC.md)；不新增业务政策或跨 owner 事务例外。
 
 原 accounts/logins/records 同时选择业务结果并编写 SQL。现由 identity-data.ts 定义私有数据面，

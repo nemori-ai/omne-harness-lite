@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Standalone model invocation, pure policies, log codec and durable model runtime service",
+  "description": "Standalone model invocation and concrete durable-runtime providers consuming public model contracts",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -20,7 +20,10 @@
   "files": [
     "dist",
     "README.md",
-    "README_ZH.md"
+    "README_ZH.md",
+    "SPEC.md",
+    "adr",
+    "verification"
   ],
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
@@ -50,7 +53,10 @@
     "@omne-harness-lite/model-request-runtime": "workspace:*",
     "@omne-harness-lite/session-log": "workspace:*",
     "@omne-harness-lite/session-tenancy": "workspace:*",
-    "@omne-harness-lite/loop-extension-runner": "workspace:*"
+    "@omne-harness-lite/loop-extension-runner": "workspace:*",
+    "@omne-harness-lite/session-runtime": "workspace:*",
+    "@omne-harness-lite/assembly-lifecycle": "workspace:*",
+    "@omne-harness-lite/cordis-plugin-tree": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness-lite/account-identity": "workspace:*",
@@ -62,13 +68,23 @@
     "vitest": "catalog:",
     "@omne-harness-lite/organization-governance-sql": "workspace:*",
     "@omne-harness-lite/organization-governance": "workspace:*",
-    "@omne-harness-lite/session-log-jsonl": "workspace:*",
     "@omne-harness-lite/session-tenancy-table": "workspace:*",
     "@omne-harness-lite/evaluation-input-store": "workspace:*",
     "@omne-harness-lite/model-profile-directory-local": "workspace:*",
     "@omne-harness-lite/asset-registry-local": "workspace:*",
     "@omne-harness-lite/credential-verification-scrypt": "workspace:*",
     "@omne-harness-lite/account-identity-sql": "workspace:*",
-    "@omne-harness-lite/account-registration-sequential": "workspace:*"
+    "@omne-harness-lite/account-registration-sequential": "workspace:*",
+    "@omne-harness-lite/session-log-sql": "workspace:*",
+    "@omne-harness-lite/execution-environments": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*",
+    "@omne-harness-lite/session-log": "workspace:*"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "service-provider"
+    }
   }
 }

@@ -49,7 +49,7 @@ function message(type: 'system' | 'system_reminder' | 'user', text: string): Mes
       { id: `${type}-text`, kind: 'text', text, visibility: { toHuman: true, toModel: true } },
     ],
     ...(type === 'system_reminder'
-      ? { nature: 'event', source: { kind: 'attempt_started', attempt: 1, reason: 'first', at } }
+      ? { nature: 'event', source: { kind: 'extension', extension: 'transport-business-reminder' } }
       : {}),
   })
   if ('rejected' in result) throw new Error(result.rejected)

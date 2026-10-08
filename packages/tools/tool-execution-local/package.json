@@ -19,7 +19,8 @@
   "files": [
     "dist",
     "README.md",
-    "SPEC.md"
+    "SPEC.md",
+    "README_ZH.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -49,11 +50,15 @@
     "@omne-harness-lite/assembly-lifecycle": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness-lite/model-request-runtime": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "@deepseek-ai/cordis": "catalog:",
-    "@omne-harness-lite/session-log-jsonl": "workspace:*"
+    "@omne-harness-lite/session-log-sql": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*",
+    "@omne-harness-lite/storage-sql": "workspace:*",
+    "@omne-harness-lite/session-log": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "catalog:"
@@ -61,6 +66,13 @@
   "peerDependenciesMeta": {
     "@deepseek-ai/cordis": {
       "optional": true
+    }
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "1.0.0",
+      "variant": "service-provider"
     }
   }
 }

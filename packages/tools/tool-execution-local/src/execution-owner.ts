@@ -98,6 +98,23 @@ function executionSnapshot(ref: ExecutionRef, history: ToolJournalHistory): Exec
     ...(intent.selected ? { selected: intent.selected } : {}),
     ...(history.environment ? { adoptedEnvironment: history.environment.value.adoption } : {}),
     adoptedContext: history.contextReads.flatMap(record => record.value.values),
+    resources: [...history.resources.values()].map(resource => {
+      const observation = resource.observations.at(-1)?.value
+      return {
+        resource: resource.planned.value.resource,
+        permission: resource.permitted ? ('permitted' as const) : ('planned' as const),
+        ownership: resource.adopted ? ('environment' as const) : ('call' as const),
+        ...(observation
+          ? {
+              observation: {
+                status: observation.status,
+                at: observation.at,
+                ...(observation.evidence === undefined ? {} : { evidence: observation.evidence }),
+              },
+            }
+          : {}),
+      }
+    }),
     state: history.terminal
       ? {
           phase: 'ended',
@@ -258,7 +275,9 @@ export function createExecutionOwner(input: {
   function unsupportedDependencies(selected: SelectedTool): boolean {
     const definition = selected.definition
     return (
-      Object.keys(definition.settings ?? {}).some(name => name !== 'targetEnvironment') ||
+      Object.keys(definition.settings ?? {}).some(
+        name => name !== 'targetEnvironment' && name !== 'backgroundThreshold',
+      ) ||
       (definition.settings?.targetEnvironment !== undefined && !input.environments) ||
       (definition.needs?.attachmentStorage !== undefined && !input.bindWriter) ||
       (definition.needs?.externalServices?.length ?? 0) > 0

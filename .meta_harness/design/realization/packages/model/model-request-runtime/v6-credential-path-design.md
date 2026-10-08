@@ -1,6 +1,6 @@
 # model-request-runtime：RT5 来源定界与公共调用接线
 
-2026-09-28，rev 3，candidate，未接受/未实施/新增bindings0。本页消费RT5/MR5，不表示采用尚未接受的RT6模态批次。接续[D-093](../../../../record/decisions/model-credential-policy-adoption/decision.md)纯政策、[D-090](../../../../record/decisions/model-headers-v5-adoption/decision.md)头事实和用户2026-09-28“采用按来源定界”的裁决；不修改冻结规范。
+当前技术采用范围与排除见本页“当前采用范围”；不据此宣称实现或验证完成。
 
 ## 来源与纯政策
 
@@ -65,3 +65,10 @@
 | CP-V4 | 实际制品公开函数/双语原样示例、受影响build/type/tests/rules和真实TLS异常收口。动态错误受控、sink失败不改变业务、存在原始失败日志 |
 
 尚未执行义务，不把D093纯构件pass计成接线pass。raw.body附件继续沿R5R-G3未采用；真实业务内容凭据回显在逐片可见、工具参数原文、一次解析和落盘一致性之间需要原产品/契约owner裁定，本页不宣称完整S20、全成员秘密保护或所有观测出口已覆盖。新增头接线不提前认证十三操作、37模型、全部结算/恢复或M1。
+
+## 当前采用范围
+
+RT5/MR5 的按来源定界凭据政策与两节点 revision 3 接线；同一次完整配置显式校验/冻结，共享 text/headers/json；直接 send 的零连接非法配置门；单一 rawHeaders 的固定交接与处理故障出口。
+
+技术采用不表示实现或实际验证已完成。验证义务：CP-V1..CP-V5；PH-V；完整内容秘密边界和 G29-P/H；实际 TLS/socket/reader/回调收口；各既有操作及模型认证按实际当前实现范围验证。
+范围之外：RT6 模态候选；给所有业务 reply/tool 内容追加未声明保密保证；冻结规范变更。

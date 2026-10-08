@@ -1,5 +1,5 @@
 /**
- * Review 2026-09-30 Q4 (a)-(h) at the settlement coordinator, over an actual JSONL SessionLog and an
+ * Review 2026-09-30 Q4 (a)-(h) at the settlement coordinator, over an actual SQL journal SessionLog and an
  * actual SQL session-tenant mapping (tests/settlement-fixture.ts `controlled`). The wrappers only
  * change what the caller of the log sees (receipt lost / prefix unreadable); commit or absence
  * is decided by the real log.
@@ -11,7 +11,7 @@ import {
   type SettlementRegistration,
   type SettlementTask,
   type SettlementTaskKind,
-} from '../src/settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import type { AppendResult, SessionLog } from '@omne-harness-lite/session-log'
 import {
   ControlledSettlementOwner,
@@ -24,7 +24,7 @@ import {
 import { dispatched, opened, prepare, session, tenant } from './log-codec-fixture.ts'
 import { batchV2 } from './log-codec-v2-fixture.ts'
 import { createRuntimeReconcile } from '../src/service-reconcile.ts'
-import type { SessionRuntimeBinding } from '../src/service-types.ts'
+import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 import { storeUnavailableCustody } from './reference-ports-fixture.ts'
 
@@ -530,6 +530,10 @@ describe('review 2026-09-30 Q3/S2 fail-closed granularity: reconcile per call (R
           now: () => '2026-09-30T00:00:03Z',
           diagnostic() {},
           recovery: {
+            async authorize() {
+              return { authorized: true as const }
+            },
+
             async enter() {
               return {
                 scope: {

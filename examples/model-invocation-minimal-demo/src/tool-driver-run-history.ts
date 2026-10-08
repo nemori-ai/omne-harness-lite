@@ -1,5 +1,5 @@
+import { readAttemptStarted } from '@omne-harness-lite/session-runtime'
 import { ExactDecimal, type AttemptId } from '@omne-harness-lite/call-accounts'
-import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
 import type { InspectedRunnerConclusion } from '@omne-harness-lite/loop-extension-runner'
 import { compareInteger, type LogEntry } from '@omne-harness-lite/session-log'
 import type { DriverValue } from './tool-driver-types.ts'
@@ -26,10 +26,6 @@ export interface DriverRunnerRecord {
 }
 export function attemptIdentity(value: AttemptId): string {
   return ExactDecimal.from(value).toCanonicalString()
-}
-function sameInstant(left: string, right: string): boolean {
-  const compared = compareRfc3339Instants(left, right)
-  return 'ok' in compared && compared.ok === 0
 }
 function sameAttempt(entry: LogEntry, run: string, attempt: AttemptId): boolean {
   return (
@@ -87,7 +83,19 @@ export function projectDriverRuns(
   records: readonly DriverRecord[],
   models: DriverModelHistory,
   runners: readonly DriverRunnerRecord[],
+  entries: readonly LogEntry[],
 ): ReadonlyMap<string, DriverRun> {
+  const starts = new Map<string, LogEntry>()
+  for (const entry of entries) {
+    const fact = readAttemptStarted(entry)
+    requireHistory(!('failure' in fact), 'invalid attempt start fact')
+    if (fact.kind !== 'fact') continue
+    requireHistory(
+      entry.dedupeKey !== undefined && !starts.has(entry.dedupeKey),
+      'attempt start requires a unique key',
+    )
+    starts.set(entry.dedupeKey, entry)
+  }
   const runs = new Map<string, DriverRun>()
   const inbounds = new Set<string>()
   let open: string | undefined
@@ -108,8 +116,7 @@ export function projectDriverRuns(
       open = value.run
     } else if (value.kind === 'attempt_adopted') {
       const run = runs.get(value.run)
-      const started = models.byKey.get(value.startedMessageKey)
-      const message = started?.captured.message
+      const started = starts.get(value.startedFactKey)
       requireHistory(
         run !== undefined &&
           open === value.run &&
@@ -118,18 +125,14 @@ export function projectDriverRuns(
         'attempt does not advance an open Run',
       )
       requireHistory(
-        started !== undefined &&
-          message?.type === 'system_reminder' &&
-          message.source.kind === 'attempt_started' &&
-          sameAttempt(started.entry, value.run, value.attempt) &&
-          compareInteger(message.source.attempt, value.attempt) === 0 &&
-          sameInstant(message.createdAt, message.source.at),
-        'attempt has no matching started message',
+        started !== undefined && sameAttempt(started, value.run, value.attempt),
+        'attempt has no matching started fact',
       )
-      // Presence/order are observable here. The writer owns their one-append publication.
+      // The writer owns their one-append publication. This reader checks presence and order.
       requireHistory(
-        compareInteger(started.entry.position, run.start.entry.position) > 0,
-        'attempt message predates Run',
+        compareInteger(started.position, run.start.entry.position) > 0 &&
+          compareInteger(started.position, record.entry.position) < 0,
+        'attempt fact is outside its Run and adoption interval',
       )
       const attempt: AdoptedAttempt = { ...record, value }
       run.adoptions.set(attemptIdentity(value.attempt), attempt)
@@ -156,13 +159,8 @@ export function projectDriverRuns(
         ? undefined
         : run?.adoptions.get(attemptIdentity(item.entry.attempt))
     requireHistory(attempt !== undefined, 'model fact has no adopted attempt')
-    const started =
-      item.captured.message?.type === 'system_reminder' &&
-      item.captured.message.source.kind === 'attempt_started'
     requireHistory(
-      started
-        ? item.entry.dedupeKey === attempt.value.startedMessageKey
-        : compareInteger(item.entry.position, attempt.entry.position) > 0,
+      compareInteger(item.entry.position, attempt.entry.position) > 0,
       'model fact predates or conflicts with adoption',
     )
   }

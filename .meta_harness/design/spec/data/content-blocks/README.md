@@ -4,11 +4,11 @@
 七类块、两个标注、块的模态怎么判、工具调用与工具结果、执行收场与占位原因、派生表示与 transcript、
 指向存储里一份字节的引用——以及一个值不合形状时，拒绝值叫什么。
 
-它是 core 三层（[D-035](../../../record/decisions/message-and-stream-baseline/README.md)）里**被其余全部引用的那份共用数据契约**：
+它是 core 三层（D-035）里**被其余全部引用的那份共用数据契约**：
 消息、到达事件、流装配、工具运行时、模型请求运行时与上下文组装都引用它的 `$defs` 名与成员名，**不各自复述一份**。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.content-blocks, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 `accepted`（`acceptance` 指向 D-061 的 `acceptance.json`）。`family=data`、`topic=content-blocks`、
   `contract_path=spec/data/content-blocks/v2/contract.md`，`resources` 另含 `v2/content-blocks.schema.json` 与 `v2/examples.md`；
   依赖一项：`omne-harness-lite-design-2026-09-15 · data.identity-values · v2`，消费 clauses `S-31`、`S-34`。**登记在 [registry](../../../registry/README.md)，本行只作索引**
@@ -18,7 +18,7 @@
 
 | 准入问题 | 答 |
 |---|---|
-| 语义拥有者 | 本契约。块被六类消费者共享，写两遍必然分叉；[D-035](../../../record/decisions/message-and-stream-baseline/decision.md) 定了数据契约自研、三层落 core、先于两个运行时的契约定型 |
+| 语义拥有者 | 本契约。块被六类消费者共享，写两遍必然分叉；D-035 定了数据契约自研、三层落 core、先于两个运行时的契约定型 |
 | 稳定身份 | `data.content-blocks`，版本 1 |
 | 适用范围 | 一个部署之内，块出现在哪里都一样；跨进程后要由协议重新兑现的，逐行列在[契约第四节](v2/contract.md#四装配给与协议给) |
 | 为什么是 data 而不是 capability | 它**没有操作**：没有提交点、没有状态转移、没有自己的授权前提。块怎样到达、怎样落盘、怎样被组装，归各自的契约 |
@@ -51,8 +51,8 @@
 
 ## 2026-09-26 版本接受
 
-本次接受 `data.content-blocks` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `data.content-blocks` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
 
 ## 2026-09-26 D-068 当前 v3
 
-`data.content-blocks · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，以上旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。
+`data.content-blocks · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 D-068。本段为当前导航，以上旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。

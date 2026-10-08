@@ -17,7 +17,8 @@ import type {
   ModelCallSettlementWorkKey,
   ModelCallSettlementWorkStore,
 } from './reference-types.ts'
-import type { SettlementLogBinding, SettlementStagedBatch } from './settlement-types.ts'
+import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
+import type { SettlementStagedBatch } from './settlement-types.ts'
 
 interface WorkRow {
   readonly organization: string

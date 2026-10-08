@@ -1,3 +1,11 @@
+import type {
+  EffectiveModel,
+  ModelObserverRequest,
+  OpenCallInput,
+  OpenCallResult,
+  ServiceInvalidInput,
+} from '@omne-harness-lite/model-request-runtime'
+import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import { createPlanReuseScopes, type PlanReuseScopes } from './plan-reuse-scopes.ts'
 import { randomUUID } from 'node:crypto'
 import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
@@ -38,29 +46,35 @@ import {
   withOwnedReads,
 } from './service-control.ts'
 import { createSettlementCoordinator } from './settlement-coordinator.ts'
-import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
+import {
+  readSettlementPrefix,
+  settlementGenerationCurrent,
+} from '@omne-harness-lite/model-request-runtime'
 import { publishModelCallContent } from './reference-publish.ts'
 import { authorizedCalibration } from './service-calibration.ts'
-import { acknowledgedAsTerminal, type UnacknowledgedCallHistory } from './call-history.ts'
+import {
+  acknowledgedAsTerminal,
+  type UnacknowledgedCallHistory,
+} from '@omne-harness-lite/model-request-runtime'
+import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type {
   CallPreparationOwner,
   CallObserverBinding,
-  ModelObserverRequest,
-  OpenCallInput,
-  OpenCallResult,
   RuntimeConstruction,
   ExactTransportLease,
-  ServiceInvalidInput,
-  SessionRuntimeBinding,
 } from './service-types.ts'
-import type { EffectiveModel } from './selection-types.ts'
-import type { SettlementOwner, SettlementRegistration, SettlementTask } from './settlement-types.ts'
+import type {
+  SettlementOwner,
+  SettlementRegistration,
+  SettlementTask,
+} from '@omne-harness-lite/model-request-runtime'
 import type { AppendResult } from '@omne-harness-lite/session-log'
-import type { CallKey } from './service-types.ts'
-import type { CurrentHistoryReaders } from './service-types.ts'
-import type { SettlementLogBinding } from './settlement-types.ts'
+import type { CallKey } from '@omne-harness-lite/messages'
+import type { CurrentHistoryReaders } from '@omne-harness-lite/model-request-runtime'
+import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
-import type { AcknowledgedCallFacts, ModelCallPublishPermit } from './reference-types.ts'
+import type { AcknowledgedCallFacts } from '@omne-harness-lite/model-request-runtime'
+import type { ModelCallPublishPermit } from './reference-types.ts'
 import { requestStopAndWait } from './settlement-stop.ts'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import { CreationPublication } from './creation-publication.ts'
@@ -433,6 +447,7 @@ interface UnknownAppend {
   readonly registration: SettlementRegistration
   readonly task: SettlementTask<AppendResult>
   readonly readTasks: Set<SettlementTask<unknown>>
+  readonly call: CurrentHistoryReaders['call']
   /** RT12 S-98: a content publish permit held until this original batch is recognized. */
   readonly permit?: ModelCallPublishPermit
 }
@@ -448,6 +463,7 @@ export class UnknownAppendTracker {
     owner: SettlementOwner,
     registration: SettlementRegistration,
     task: SettlementTask<AppendResult>,
+    call: CurrentHistoryReaders['call'],
     permit?: ModelCallPublishPermit,
   ): void {
     this.#writes.add({
@@ -456,17 +472,15 @@ export class UnknownAppendTracker {
       owner,
       registration,
       task,
+      call,
       readTasks: new Set(),
       ...(permit === undefined ? {} : { permit }),
     })
   }
 
-  close(input: {
-    readonly concurrent: import('@omne-harness-lite/content-blocks').JsonNumber
-    readonly call: CurrentHistoryReaders['call']
-  }): Promise<{ readonly released: true } | { readonly unavailable: true }> {
+  close(): Promise<{ readonly released: true } | { readonly unavailable: true }> {
     if (this.#closing !== undefined) return this.#closing
-    const attempt = this.#closeOnce(input)
+    const attempt = this.#closeOnce()
     this.#closing = attempt
     const finish = () => {
       if (this.#closing === attempt) this.#closing = undefined
@@ -475,10 +489,7 @@ export class UnknownAppendTracker {
     return attempt
   }
 
-  async #closeOnce(input: {
-    readonly concurrent: import('@omne-harness-lite/content-blocks').JsonNumber
-    readonly call: CurrentHistoryReaders['call']
-  }): Promise<{ readonly released: true } | { readonly unavailable: true }> {
+  async #closeOnce(): Promise<{ readonly released: true } | { readonly unavailable: true }> {
     const writes = [...this.#writes]
     for (const write of writes) {
       try {
@@ -520,7 +531,7 @@ export class UnknownAppendTracker {
       if ('unavailable' in read) continue
       let recognized: ReturnType<CurrentHistoryReaders['call']>
       try {
-        recognized = input.call(read.prefix, write.key.callId)
+        recognized = write.call(read.prefix, write.key.callId)
       } catch {
         continue
       }
@@ -652,6 +663,7 @@ export function boundSession(session: SessionRuntimeBinding, request: OpenCallIn
 
 export interface ServiceCalls {
   readonly openCall: (input: OpenCallInput) => Promise<OpenCallResult>
+  readonly closeAdmission: () => void
   readonly close: () => Promise<{ readonly released: true } | { readonly unavailable: true }>
 }
 
@@ -661,17 +673,31 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
   borrowedScopes?: PlanReuseScopes,
   sharedCustody?: AcknowledgementCustody,
-): ServiceCalls {
+): ProjectedComponent<ServiceCalls, RuntimeConstruction<P, R>> {
+  return buildServiceCalls(runtime, borrowedScopes, sharedCustody)
+}
+
+class ServiceCallsState<P extends PlannedSemantics, R> {
+  readonly retainedReads = new OwnedReadTracker()
+  readonly appends = new OwnedAppendTracker()
+  readonly unknownWrites = new UnknownAppendTracker()
+  readonly preparations = new Set<CallPreparationOwner<P, R>>()
+  readonly planningTasks = new Set<Promise<void>>()
+  readonly creations = new Map<string, CreationAttempt>()
+  closing = false
+  admissionClosed = false
+}
+
+function buildServiceCalls<P extends PlannedSemantics, R>(
+  runtime: RuntimeConstruction<P, R>,
+  borrowedScopes?: PlanReuseScopes,
+  sharedCustody?: AcknowledgementCustody,
+  physical: ServiceCallsState<P, R> = new ServiceCallsState<P, R>(),
+): ProjectedComponent<ServiceCalls, RuntimeConstruction<P, R>> {
   const ownCustody = sharedCustody === undefined ? runtimeCustody(runtime) : undefined
   const custody = sharedCustody ?? ownCustody
   const scopes = borrowedScopes ?? createPlanReuseScopes(runtime)
-  const retainedReads = new OwnedReadTracker()
-  const appends = new OwnedAppendTracker()
-  const unknownWrites = new UnknownAppendTracker()
-  const preparations = new Set<CallPreparationOwner<P, R>>()
-  const planningTasks = new Set<Promise<void>>()
-  const creations = new Map<string, CreationAttempt>()
-  let closing = false
+
   async function historyFor(
     session: SessionRuntimeBinding,
     callId: NonNullable<OpenCallInput['callId']>,
@@ -679,7 +705,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
     const read = await withOwnedReads(
       session.selection.owner,
       runtime.settlementContention.limits.concurrent,
-      retainedReads,
+      physical.retainedReads,
       async registration => {
         const prefix = await readSettlementPrefix({ binding: session.log, registration })
         return 'unavailable' in prefix
@@ -722,7 +748,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
     }
   }
   const openCall = async (input: OpenCallInput): Promise<OpenCallResult> => {
-    if (closing) return { runtimeStopped: true }
+    if (physical.closing) return { runtimeStopped: true }
     const owned = ownOpenCallInput(input)
     if ('invalidInput' in owned) return owned
     const request = owned.request
@@ -734,7 +760,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
       existing === undefined ? createCallPreparationOwner<P, R>(request.host) : undefined
     if (prepared !== undefined && !('owner' in prepared)) return prepared
     const preparation = prepared?.owner
-    if (preparation !== undefined) preparations.add(preparation)
+    if (preparation !== undefined) physical.preparations.add(preparation)
     let preparationAttached = false
     let published = false
     let creation: CreationAttempt | undefined
@@ -763,7 +789,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
           session.log.session,
           request.creationKey,
         ])
-        const prior = creations.get(slot)
+        const prior = physical.creations.get(slot)
         if (prior?.busy) return { unavailable: true }
         const value = creationValueOf(request, session)
         if (prior !== undefined && !modelLogJsonEqual(prior.value, value))
@@ -775,12 +801,12 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
         creation = prior ?? { binding: session, value: copied.ok, busy: false }
         creationSlot = slot
         creation.busy = true
-        creations.set(slot, creation)
+        physical.creations.set(slot, creation)
         // Unknown ownership precedes even a visible marker: completion is not actual stop.
         if (creation.publication !== undefined) {
           const recovered = await creation.publication.retry(
             () =>
-              !closing &&
+              !physical.closing &&
               !preparation?.stopping() &&
               !request.host.signal.aborted &&
               !request.host.stopping() &&
@@ -790,7 +816,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
         }
         const recognized = await recognizeCreation(runtime, custody, session, request)
         if (
-          closing ||
+          physical.closing ||
           preparation?.stopping() ||
           request.host.signal.aborted ||
           request.host.stopping()
@@ -803,6 +829,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
           return recognized
         }
         if (creation.publication !== undefined) return { unavailable: true }
+        if (physical.admissionClosed) return { runtimeStopped: true }
       }
       if (preparation?.stopping() || request.host.signal.aborted || request.host.stopping())
         return { runtimeStopped: true }
@@ -837,7 +864,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
           : { unavailable: true }
       const reservation = gate.reservation
       try {
-        if (closing) return { runtimeStopped: true }
+        if (physical.closing) return { runtimeStopped: true }
         const local = reservation.view()
         if (request.callId !== undefined && local !== undefined) {
           if (preparation !== undefined) return { unavailable: true }
@@ -849,6 +876,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
             return { unavailable: true }
           const history = await historyFor(session, callId)
           if ('unavailable' in history) return { unavailable: true }
+          if (physical.admissionClosed) return { runtimeStopped: true }
           if ('absent' in history) return { wrongPhase: { phase: 'open' } }
           if (history.known.phase !== 'resumable')
             return { wrongPhase: { phase: history.known.phase ?? 'in_flight' } }
@@ -873,7 +901,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
             const replaced = await reservation.replaceObserverBinding(next)
             if (!('replaced' in replaced)) return { unavailable: true }
           }
-          if (closing) return { runtimeStopped: true }
+          if (physical.closing) return { runtimeStopped: true }
           reservation.updateRequest(request)
           return { ref: key, callId, state: 'resumable' }
         }
@@ -883,6 +911,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
           const history = await historyFor(session, callId)
           if ('unavailable' in history) return { unavailable: true }
           if ('absent' in history) return { callNotFound: true }
+          if (physical.admissionClosed) return { runtimeStopped: true }
           if (history.known.phase !== 'resumable')
             return { wrongPhase: { phase: history.known.phase ?? 'in_flight' } }
           const last = history.known.dispatches.at(-1)
@@ -926,7 +955,14 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
                 runtime,
                 key,
                 (binding, originalOwner, registration, task) =>
-                  unknownWrites.keep(key, binding, originalOwner, registration, task),
+                  physical.unknownWrites.keep(
+                    key,
+                    binding,
+                    originalOwner,
+                    registration,
+                    task,
+                    runtime.history.call,
+                  ),
               ),
               ...(observer === undefined ? {} : { observer }),
               binding: {
@@ -939,7 +975,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
               owner: session.selection.owner,
               coordinator,
             })
-            if (closing || preparation?.stopping()) return { runtimeStopped: true }
+            if (physical.closing || preparation?.stopping()) return { runtimeStopped: true }
             preparation?.attach(container)
             preparationAttached = true
             transferred = true
@@ -959,7 +995,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
         const facts = await withOwnedReads(
           owner,
           runtime.settlementContention.limits.concurrent,
-          retainedReads,
+          physical.retainedReads,
           async registration => {
             const holding = await registration.start(
               'read',
@@ -1020,9 +1056,9 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
         const checked = facts.ok
         if ('profileNotFound' in checked) return { profileNotFound: true }
         if ('undispatched' in checked) {
-          if (closing) return { runtimeStopped: true }
+          if (physical.closing) return { runtimeStopped: true }
           const written = await appendControlRecord({
-            trackTask: task => appends.track(task),
+            trackTask: task => physical.appends.track(task),
             binding: session.log,
             owner,
             concurrent: runtime.settlementContention.limits.concurrent,
@@ -1034,7 +1070,14 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
               cause: checked.undispatched,
             },
             retainUnknown(registration, task) {
-              unknownWrites.keep(key, session.log, owner, registration, task)
+              physical.unknownWrites.keep(
+                key,
+                session.log,
+                owner,
+                registration,
+                task,
+                runtime.history.call,
+              )
             },
           })
           return 'appended' in written
@@ -1106,20 +1149,20 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
             () => undefined,
             () => undefined,
           )
-          planningTasks.add(stopped)
+          physical.planningTasks.add(stopped)
           preparation?.retainStopped(stopped)
           const planned = await planning.finally(() => {
-            planningTasks.delete(stopped)
+            physical.planningTasks.delete(stopped)
             scopeLease.release()
           })
-          if (closing || preparation?.stopping() || request.host.signal.aborted)
+          if (physical.closing || preparation?.stopping() || request.host.signal.aborted)
             return { runtimeStopped: true }
           if ('rejected' in planned) {
             if (planned.rejected === 'unavailable') return { unavailable: true }
             if (planned.rejected === 'modality_not_carried') {
-              if (closing) return { runtimeStopped: true }
+              if (physical.closing) return { runtimeStopped: true }
               const written = await appendControlRecord({
-                trackTask: task => appends.track(task),
+                trackTask: task => physical.appends.track(task),
                 binding: session.log,
                 owner,
                 concurrent: runtime.settlementContention.limits.concurrent,
@@ -1133,7 +1176,14 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
                   cause: 'modality_mismatch',
                 },
                 retainUnknown(registration, task) {
-                  unknownWrites.keep(key, session.log, owner, registration, task)
+                  physical.unknownWrites.keep(
+                    key,
+                    session.log,
+                    owner,
+                    registration,
+                    task,
+                    runtime.history.call,
+                  )
                 },
               })
               return 'appended' in written
@@ -1212,13 +1262,13 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
             binding: session.log,
             owner,
             concurrent: runtime.settlementContention.limits.concurrent,
-            reads: retainedReads,
+            reads: physical.retainedReads,
             contentStore: runtime.callFacts.content,
             content: { kind: 'created', value: created },
             locator: callId,
             version: 'v1',
             at: runtime.policy.now(),
-            trackTask: task => appends.track(task),
+            trackTask: task => physical.appends.track(task),
             retainUnknown(registration, task, permit, entry) {
               if (creation === undefined) throw new Error('creation owner missing')
               creation.publication = new CreationPublication({
@@ -1241,7 +1291,14 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
               runtime,
               key,
               (binding, originalOwner, registration, task) =>
-                unknownWrites.keep(key, binding, originalOwner, registration, task),
+                physical.unknownWrites.keep(
+                  key,
+                  binding,
+                  originalOwner,
+                  registration,
+                  task,
+                  runtime.history.call,
+                ),
             ),
             ...(observer === undefined ? {} : { observer }),
             binding: {
@@ -1254,7 +1311,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
             owner,
             coordinator,
           })
-          if (closing || preparation?.stopping()) return { runtimeStopped: true }
+          if (physical.closing || preparation?.stopping()) return { runtimeStopped: true }
           preparation?.attach(container)
           preparationAttached = true
           transferred = true
@@ -1278,32 +1335,32 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
     } finally {
       if (creation !== undefined && creationSlot !== undefined) {
         creation.busy = false
-        if (creation.publication === undefined) creations.delete(creationSlot)
+        if (creation.publication === undefined) physical.creations.delete(creationSlot)
       }
     }
     if (preparation !== undefined && !published) {
       const cleaned = preparationAttached ? await preparation.close() : await preparation.discard()
       if ('unavailable' in cleaned) return { unavailable: true }
     }
-    if (preparation !== undefined) preparations.delete(preparation)
+    if (preparation !== undefined) physical.preparations.delete(preparation)
     if (request.host.signal.aborted || request.host.stopping()) return { runtimeStopped: true }
     if (creationSession !== undefined) {
-      if (closing || creationSession.selection.owner.admission() !== 'open')
+      if (physical.closing || creationSession.selection.owner.admission() !== 'open')
         return { runtimeStopped: true }
       if (!boundSession(creationSession, request)) return { unavailable: true }
     }
     return result
   }
   const close = async () => {
-    closing = true
+    physical.closing = true
     const [reads, appendResult, prepared] = await Promise.all([
-      retainedReads.close(),
-      appends.close(),
+      physical.retainedReads.close(),
+      physical.appends.close(),
       Promise.all(
-        [...preparations].map(async owner => {
+        [...physical.preparations].map(async owner => {
           try {
             const result = await owner.close()
-            if ('released' in result) preparations.delete(owner)
+            if ('released' in result) physical.preparations.delete(owner)
             return result
           } catch {
             return { unavailable: true } as const
@@ -1311,16 +1368,13 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
         }),
       ),
     ])
-    await Promise.all([...planningTasks])
-    const writes = await unknownWrites.close({
-      concurrent: runtime.settlementContention.limits.concurrent,
-      call: runtime.history.call,
-    })
+    await Promise.all([...physical.planningTasks])
+    const writes = await physical.unknownWrites.close()
     const creationWrites = await Promise.all(
-      [...creations.entries()].map(async ([slot, attempt]) => {
+      [...physical.creations.entries()].map(async ([slot, attempt]) => {
         if (attempt.publication === undefined) return { unavailable: true } as const
         const result = await attempt.publication.close()
-        if ('released' in result) creations.delete(slot)
+        if ('released' in result) physical.creations.delete(slot)
         return result
       }),
     )
@@ -1331,10 +1385,20 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
       creationWrites.every(result => 'released' in result) &&
       (custodyResult === undefined || 'released' in custodyResult) &&
       prepared.every(result => 'released' in result) &&
-      preparations.size === 0 &&
+      physical.preparations.size === 0 &&
       (borrowedScopes !== undefined || 'released' in scopes.close())
       ? ({ released: true } as const)
       : ({ unavailable: true } as const)
   }
-  return Object.freeze({ openCall, close })
+  return retainRuntimeProjection(
+    Object.freeze({
+      openCall,
+      close,
+      closeAdmission: () => {
+        physical.admissionClosed = true
+      },
+    }),
+    (next: RuntimeConstruction<P, R>) =>
+      buildServiceCalls(next, borrowedScopes, sharedCustody, physical),
+  )
 }

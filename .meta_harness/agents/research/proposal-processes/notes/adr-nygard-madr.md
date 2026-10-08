@@ -72,25 +72,3 @@ status 的取值域是开放列表：`{proposed | rejected | accepted | deprecat
 MADR 用三段式元数据表达角色：`decision-makers`（参与决定的人）、`consulted`（双向沟通的专家）、`informed`（单向知会）。这三个字段整块被标为 optional。
 
 **推断**：MADR 把"谁决定"当元数据而非流程——它不定义评审、不定义阶段门、不定义谁有权把 status 从 proposed 改成 accepted。ADR 是一种**记录格式**，不是一套流程；把它当流程用时，阶段门必须由采用方自己补（Semantic Kernel 的做法见 [semantic-kernel-adr](semantic-kernel-adr.md)）。
-
-## 4. 与本项目骨架的对照（推断）
-
-| 骨架条 | ADR/MADR 的对应 | 判断 |
-|---|---|---|
-| 每个决定点 ≥ 3 真候选 | `Considered Options` 必需但数量不限，模板允许 `only option` | 部分先例：必需是有的，数量不是 |
-| 基线候选（不做 / 最小改动） | 无 | 无先例 |
-| 比较用同一把尺，尺先于矩阵 | `Decision Drivers` + `Decision Outcome` 引用 driver 作为理由（`which meets k.o. criterion decision driver`） | **有先例**，且逻辑与本项目一致：尺（driver）先于选择 |
-| 决定 = 选择 + 否决理由 | `Pros and Cons` 承载否决理由，但整块可选 | 弱先例 |
-| 复议条件 | `More Information` 提到 `if/when it should be re-visited` | 弱先例 |
-| 证据两级的第二级 | `Confirmation`（fitness function / ArchUnit） | **有先例** |
-
-- **值得引入**：`Decision Drivers` → `Decision Outcome` 的引用关系（选择必须援引已声明的尺）。这是本项目骨架第 3 条"尺先于矩阵"在上游最接近的实现。
-- **值得引入**：`Good/Neutral/Bad, because` 的固定前缀——它让"每个候选是否写了代价"变成可粗筛的结构。
-- **不适合**：MADR 的 status 开放取值域。本项目需要封闭词表才能做跨文档一致性检查（对照 Kubernetes KEP 把 status/stage 做成封闭枚举并跨字段校验）。
-
-## 5. 局限与未覆盖
-
-- Nygard 原文经 WebFetch 提取，**未逐字通读**；`cognitect.com` 域名在 Cognitect 并入 Nubank 后的长期可达性未知。
-- 未读 MADR 的 `docs/`、`CHANGELOG.md` 与另外三个模板（`adr-template-bare.md`、`adr-template-minimal.md`、`adr-template-bare-minimal.md`）；"minimal"系列很可能连 `Considered Options` 都去掉，本轮**未核对**。
-- `adr.github.io` 的抓取结果较稀薄（其 `/adr-templates/` 子页未读），因此"还有哪些 ADR 模板、各自如何处理备选"（Tyree & Akerman、Y-statements）**未覆盖**。
-- MADR 在实践中的兑现率见 [adr-empirical-study](adr-empirical-study.md) 与 [semantic-kernel-adr](semantic-kernel-adr.md)。

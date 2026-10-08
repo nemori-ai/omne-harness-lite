@@ -4,7 +4,7 @@
 
 ## 输入与兑现边界
 
-基线为 `omne-harness-lite-design-2026-09-15`；精确依赖接受状态及采用记录以 [registry catalog](../../../../registry/catalog.json) 为准。本轮输入为[模型适配提案](../../../../record/proposals/model-request-adaptation/design.md)与主线对本机取值缺口的裁定，消费者为 [model-profile-directory v3 候选](../../model/model-profile-directory/v3-design.md)及 `apps/model-request-acceptance`。产品依据沿既有 CCL 的 PF-016 rev 8、PF-002 rev 20、PF-013 rev 13。本稿只补真实本机副本与目录当前引用的关联，不交付中心送达、OAuth 用户流程或完整 secrets 子系统。
+基线为 `omne-harness-lite-design-2026-09-15`；精确依赖接受状态及采用记录以 [registry catalog](../../../../registry/catalog.json) 为准。本轮输入为模型适配提案与主线对本机取值缺口的裁定，消费者为 [model-profile-directory v3 候选](../../model/model-profile-directory/v3-design.md)及 `apps/model-request-acceptance`。产品依据沿既有 CCL 的 PF-016 rev 8、PF-002 rev 20、PF-013 rev 13。本稿只补真实本机副本与目录当前引用的关联，不交付中心送达、OAuth 用户流程或完整 secrets 子系统。
 
 | 精确坐标 | 本节点消费或保留范围 |
 | --- | --- |
@@ -14,7 +14,7 @@
 | `core/storage` 现有 AtomicStorage/StorageUnit；D-042 共同参与采用 | 同一个真实实例、顺序参与、异常先到共同终结边界；Unit.query 不等于独立只读快照 |
 | `capability.account-identity/v3`、`capability.organization-governance/v2` | **归装配**的真实账号、登录状态及租户资格前提；本节点不增加读时登录核验，也不重做身份服务 |
 
-现有包尚无实现。`core/storage` 的公开 protocol 已有 `atomic`、`StorageUnit.assertStorage/run/query/mutate`；候选目录 `./tx-reads` 尚未实现。保留 [D-026](../../../../record/decisions/infrastructure-persistence-choices/decision.md) 的存储选择、[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md) 的 NORMAL 边界。本轮新增组合先以真实 SQLite 文件库验收；不能仅由 StorageUnit 类型外推 PG 或跨库可用。
+现有包尚无实现。`core/storage` 的公开 protocol 已有 `atomic`、`StorageUnit.assertStorage/run/query/mutate`；候选目录 `./tx-reads` 尚未实现。保留 D-026 的存储选择、D-027 的 NORMAL 边界。本轮新增组合先以真实 SQLite 文件库验收；不能仅由 StorageUnit 类型外推 PG 或跨库可用。
 
 ## 契约责任到插件、服务与操作
 
@@ -124,7 +124,7 @@ keyFile 仍为本据点实际独立文件，沿旧普通文件、32 字节、060
 
 装配关闭顺序为 runtime/P-1r 停止新取值并等实际调用，随后关闭 model-only factory，最后关闭 OG/storage/clock 等借用依赖。组件只等待自身进入的工作；参与方法返回后外层 unit 尚未结束时，外层 owner 仍持有结果，不能先交 body 或关闭共享 storage。完整插件模式沿原桥先停、custodian 后停的顺序。不能同时把 full 与 model-only 两个独立生命周期对象用于同一组装配来源而不明确唯一 owner。
 
-Cordis 采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/decision.md)）。[`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)、[`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)、[`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)、[`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)仍是机制依据；已有 probe 不验证本组合。model-only 不借条件 optional inject 隐藏 MCP 缺依赖。原 provide 纳管主张及 Node crypto/fs 的 CCL-11/12 前提仍待对应实际证据，不据本稿升格。
+Cordis 采用 4.0.4（D-025）。[`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)、[`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)、[`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)、[`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)仍是机制依据；已有 probe 不验证本组合。model-only 不借条件 optional inject 隐藏 MCP 缺依赖。原 provide 纳管主张及 Node crypto/fs 的 CCL-11/12 前提仍待对应实际证据，不据本稿升格。
 
 ## 关键选择与缺口
 

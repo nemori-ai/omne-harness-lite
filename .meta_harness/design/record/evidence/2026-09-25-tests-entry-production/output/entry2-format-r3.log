@@ -1,3 +1,0 @@
-tools/ts-checks/src/rules/presentation-only-authn.ts 27ms
-tools/ts-checks/tests/entry-rules.spec.ts 26ms
-packages/tenancy/governance-center-entry/src/routing/routes.ts 26ms (unchanged)

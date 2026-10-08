@@ -89,28 +89,3 @@
 **观察**：这解决了本项目已经遇到的"新头旧身"问题——不是靠人记得改，是**门不让过**。
 
 删除/合并的规则也写得很硬（原文摘）：`Before deletion, the owner must preserve every unique rationale, alternative, consequence, required verification, and named coverage gap; repair every inbound link… Consolidation must not rewrite the old file into its opposite or rely on git history as the only copy of rationale.`
-
-## 6. 与本项目骨架的对照（推断）
-
-| 骨架条 | DSH 的对应 | 判断 |
-|---|---|---|
-| 每个决定点 ≥ 3 真候选 | 强制小节，**不定数量** | 无先例支持数量下限 |
-| 「真」候选，不是同形状调参 | `each genuine alternative`；`Alternatives are recorded, never invented` | **有先例**，且是最相关的一条 |
-| 基线候选（不做 / 最小改动） | 无 | 无先例 |
-| 决定 = 选择 + 否决理由 + 复议条件 | `Status: rejected — <why>` 强制；`## Consequences` 记"代价与买到了什么"；归档判据里提到 `reintroduction condition` | 大部分有先例 |
-| 评审清单 | 无成文 checklist，替代物是 CI 门 + `slop checklist`（在 `docs/AGENTS.md`） | 形态不同 |
-| 每个决定点的 Cordis 投影 | 无（DSH 不做这件事） | 本项目独有 |
-
-- **值得引入**：`Alternatives are recorded, never invented` + 精确的 grandfather 注释。这是唯一一条同时管住"缺失"和"编造"的规则，并且两者都可机器核对（有没有标题 / 有没有那条注释）。
-- **值得引入**：lifecycle 文件夹 ↔ Status 行 ↔ 必需标题骨架三者互相交叉校验，迁移时强制重写。
-- **值得引入**：跨引用必须是相对 markdown 链接（本项目的 `make docs-check` 已经校验链接与锚点，形态一致）。
-- **需注意的差异**：DSH 的 Agent Note 是**每个非平凡变更一份**的高频记录，颗粒度接近"一次提交的决定"；本项目的 proposal 是"一组决定点"的长期正文，颗粒度更大。直接照搬 DSH 的骨架（`Problem/Decision/Alternatives/Consequences`）会把本项目的多决定点提案压成单决定点。
-
-## 7. 局限与未覆盖
-
-- 45 份是随机抽样（`shuf` 固定随机源），不是全量 397 份（proposed+implemented+rejected）的普查；字数中位数有抽样误差。
-- "每个候选"的计数用了 bold-led 段落 / `###` 子标题的启发式，不可靠；本笔记只引用**字数**与**存在性**两个指标作为结论依据。
-- 未读 `scripts/agent-note-tree.ts`（分类门）与 `verify-archived-agent-notes.ts` 的实现，只读了 README 对它们的描述。
-- 未读 `docs/AGENTS.md` 里被引用的 "slop checklist" 正文。
-- 未覆盖 `archived/` 的 629 份（它们保留封存时的格式，不受当前 gate 约束）。
-- 未覆盖 DSH 内部**谁**批准一份 `proposed/` → `implemented/` 的迁移；README 只规定格式，不规定评审权。

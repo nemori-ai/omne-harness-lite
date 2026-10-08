@@ -1,4 +1,9 @@
-import type { JsonNumber } from '@omne-harness-lite/content-blocks'
+import type {
+  RetainedCallReadView,
+  AcknowledgedCallFacts,
+  ModelCallCleanupResult,
+} from '@omne-harness-lite/model-request-runtime'
+
 import type {
   CallKey,
   CreationKey,
@@ -6,224 +11,21 @@ import type {
   ModelCallCreatedPayload,
   ModelCallPayloadRef,
 } from '@omne-harness-lite/messages'
+import type { PendingModelResponse, ResponseId } from '@omne-harness-lite/model-response'
+import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
+import type { SettlementStagedBatch } from './settlement-types.ts'
+
 import type {
-  ModelResponse,
-  PendingModelResponse,
-  ReplyDisposition,
-  ResponseId,
-  Route,
-  Timing,
-} from '@omne-harness-lite/model-response'
-import type { SettlementLogBinding, SettlementStagedBatch } from './settlement-types.ts'
-import type { ModelLogSettlementTarget } from '@omne-harness-lite/model-request-runtime'
-import type {
-  ModelObserverRequest,
   RuntimeCloseResult,
   ServiceCallNotFound,
   ServiceInvalidInput,
-  ServiceRuntimeStopped,
   ServiceUnavailable,
-} from './service-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 
-export type { CallKey, CreationKey, ModelCallPayloadRef, ModelCallCreatedPayload }
-/** RT11 S-6 is shared by lookup, creation recognition and reconciliation. */
-export type CallLifecycleState =
-  | 'open'
-  | 'in_flight'
-  | 'speaking'
-  | 'reply_pending'
-  | 'awaiting_decision'
-  | 'resumable'
-  | 'complete'
-  | 'handed_up'
-  | 'interrupted'
-export interface CallSource {
-  /** Bound to the actual log dataset by trusted assembly; never serialized into CallKey. */
-  readonly generation: object
-  readonly progress: JsonNumber
-}
-export type CallOrigin = ModelCallCreatedPayload['origin']
-export type CallResultFact =
-  | { readonly disposition: 'disposition_pending'; readonly pending: PendingModelResponse }
-  | { readonly disposition: 'final'; readonly response: ModelResponse }
-export type CallPresenceFact = {
-  readonly source: CallSource
-  /** Exact original execution registration; absence is not proof of stopping. */
-  readonly executionGeneration: object | null
-  readonly sourceVersion: string
-} & (
-  | { readonly kind: 'live' }
-  | {
-      readonly kind: 'stopped'
-      readonly target: ModelLogSettlementTarget | null
-      readonly unknownBatches: readonly string[]
-    }
-  | { readonly kind: 'unknown' }
-  | { readonly kind: 'notFound' }
-)
-/** A view of a call whose model-side copy is still retained (no legal acknowledgement yet). */
-export interface RetainedCallReadView {
-  readonly ref: CallKey
-  readonly origin: CallOrigin
-  readonly state: CallLifecycleState
-  readonly source: CallSource
-  readonly presence: Exclude<CallPresenceFact, { readonly kind: 'notFound' }>
-  readonly result?: CallResultFact
-  readonly acknowledged?: never
-}
-
-/** RT12 S-95 AckTarget: the record projection owned by MS8 S-58, never a second union. */
-export type AckTarget = ModelCallAcknowledgedRecord['target']
-/** RT12 S-96⑤: only current, real obstacles to releasing the model-side copy. */
-export type AckPendingReason =
-  | 'writer_in_flight'
-  | 'read_in_flight'
-  | 'receipt_unknown'
-  | 'storage_unavailable'
-  | 'external_retention'
-/** RT12 S-96⑤: confirmation summary plus the current cleanup progress of the same CallKey. */
-export type CallAcknowledgement = {
-  readonly ref: CallKey
-  readonly target: AckTarget
-  /** The original acknowledgement fact's time; never rewritten by a later recognition. */
-  readonly acknowledgedAt: ModelCallAcknowledgedRecord['acknowledgedAt']
-} & (
-  | {
-      readonly cleanup: 'pending'
-      /** Non-empty and without duplicates. */
-      readonly pendingReasons: readonly [AckPendingReason, ...AckPendingReason[]]
-    }
-  | { readonly cleanup: 'released'; readonly pendingReasons?: never }
-)
-/** RT12 S-97: the current final disposition of one attempt, or the reply still pending. */
-export type AcknowledgedAttemptDisposition =
-  | {
-      readonly disposition: 'final'
-      readonly replyDisposition?: ReplyDisposition
-      readonly late?: true
-    }
-  | {
-      readonly disposition: 'disposition_pending'
-      readonly replyDisposition?: never
-      readonly late?: never
-    }
-/**
- * RT12 S-97: one original dispatch as a small accounting result. It never carries the route,
- * profile, parameters, reply, delivered content, raw response or input calibration.
- */
-export type AcknowledgedAttempt = {
-  readonly response: ResponseId
-  readonly dispatch: JsonNumber
-  /** The original account shell of this dispatch; may differ from the creation attempt. */
-  readonly origin: CallOrigin
-  readonly usage: ModelResponse['usage']
-  readonly cost: ModelResponse['cost']
-  readonly credentialScope: Route['credentialScope']
-  readonly provider: Route['provider']
-  readonly upstreamRequestId?: string
-  readonly timing: Timing
-} & (
-  | {
-      readonly outcome: 'interrupted'
-      readonly initiator: 'user' | 'run_cancelled' | 'runtime_lost'
-    }
-  | { readonly outcome: 'complete' | 'truncated' | 'failed'; readonly initiator?: never }
-) &
-  AcknowledgedAttemptDisposition
-/**
- * RT12 S-97: the explicit acknowledged branch. Released content is neither callNotFound nor
- * damage, and this branch is not another encoding of a complete response.
- */
-export interface AcknowledgedCallView {
-  readonly ref: CallKey
-  readonly acknowledged: CallAcknowledgement
-  readonly origin: CallOrigin
-  readonly terminalState: ModelCallAcknowledgedRecord['terminalState']
-  readonly source: CallSource
-  /** Known to be empty only when no dispatch exists; an unverifiable source is unavailable. */
-  readonly attempts: readonly AcknowledgedAttempt[]
-  readonly state?: never
-  readonly presence?: never
-  readonly result?: never
-}
-/** Discriminated by `acknowledged`: present only on the RT12 S-97 branch. */
-export type CallReadView = RetainedCallReadView | AcknowledgedCallView
-/**
- * Durable facts of the S-97 branch before the runtime adds its current cleanup progress. The
- * record is the verified original ACK batch (creation digest, target, releasable payloads).
- */
-export type AcknowledgedCallFacts = Omit<AcknowledgedCallView, 'acknowledged'> & {
-  readonly record: ModelCallAcknowledgedRecord
-}
-export interface AcquireCallInput {
-  readonly ref: CallKey
-  readonly mode: 'read' | 'wait'
-  readonly observer?: ModelObserverRequest
-}
-export type AcquireCallResult =
-  | { readonly view: RetainedCallReadView; readonly consumer?: CallConsumer }
-  | { readonly view: AcknowledgedCallView; readonly consumer?: never }
-  | ServiceInvalidInput
-  | ServiceUnavailable
-  | ServiceCallNotFound
-  | ServiceRuntimeStopped
-export interface CallConsumer {
-  readonly wait: (input: { readonly signal?: AbortSignal }) => Promise<CallWaitResult>
-  readonly release: () => void
-  readonly stopped: Promise<void>
-}
-export type CallWaitResult =
-  | { readonly view: CallReadView }
-  | { readonly released: true }
-  | { readonly aborted: true }
-  | ServiceUnavailable
-  | { readonly rejected: { readonly reason: 'buffer_full' | 'consumer_failed' } }
-
-/** `ack` (RT12 S-95) is granted only by current succession, never by read/wait or a held ref. */
-export type CallAccessAction = 'read' | 'wait' | 'settle' | 'cancel' | 'ack'
-export interface CallAccessInput {
-  readonly binding: SettlementLogBinding
-  readonly ref: CallKey
-  readonly action: CallAccessAction
-  /** Only trusted content lookup supplies original association; caller identity is captured. */
-  readonly origin?: CallOrigin
-}
-export interface CallAccessEvidence {
-  readonly action: CallAccessAction
-  readonly ref: CallKey
-  readonly source: CallSource
-  readonly sourceVersion: string
-  /** Immediate resource invalidation only; never a cached authorization grant. */
-  readonly revoked: AbortSignal
-}
-export type CallAccessResult<T> =
-  | { readonly allowed: T; readonly evidence: CallAccessEvidence }
-  | { readonly denied: true; readonly evidence: CallAccessEvidence }
-  | ServiceInvalidInput
-  | ServiceUnavailable
-/** S-87/S-93: each callback is an admission point, held against revocation until actual drain. */
-export interface CallAccess {
-  readonly check: <T>(
-    input: CallAccessInput,
-    admitted: (evidence: CallAccessEvidence) => Promise<T>,
-  ) => Promise<CallAccessResult<T>>
-}
-export interface CallPresenceInput {
-  readonly ref: CallKey
-  readonly origin: CallOrigin
-  readonly source: CallSource
-  readonly executionGeneration: object | null
-}
-/** The trusted host keeps live attachment and exact-generation ending in one critical section. */
-export interface CallPresence {
-  readonly read: <T>(
-    input: CallPresenceInput,
-    observed: (fact: CallPresenceFact) => Promise<T>,
-  ) => Promise<{ readonly read: T } | ServiceInvalidInput | ServiceUnavailable>
-}
 export type ModelCallContentValue =
   | { readonly kind: 'created'; readonly value: ModelCallCreatedPayload }
   | { readonly kind: 'reply_ready'; readonly value: PendingModelResponse }
+
 /**
  * RT12 S-98: a committed publish permit on the call's retention row. The publisher releases it
  * only after its marker outcome is known and its append task actually stopped.
@@ -231,23 +33,25 @@ export type ModelCallContentValue =
 export interface ModelCallPublishPermit {
   readonly release: () => Promise<RuntimeCloseResult>
 }
+
 /** RT12 S-98 custody phase of one CallKey; not an execution state. */
 export type ModelCallRetentionPhase = 'retained' | 'retiring' | 'acknowledged' | 'released'
+
 export type ModelCallRetentionKey = {
   readonly binding: SettlementLogBinding
   readonly call: CallKey['callId']
 }
+
 /** Pure, synchronous ACK batch builder run over contents read under the retention lock. */
 export type ModelCallAcknowledgementBuilder = (
   contents: readonly ModelCallContentValue[],
 ) => { readonly record: ModelCallAcknowledgedRecord } | ServiceInvalidInput | ServiceUnavailable
-export type ModelCallCleanupResult =
-  | { readonly cleanup: 'released' }
-  | { readonly cleanup: 'pending'; readonly pendingReasons: readonly AckPendingReason[] }
+
 /** RT12 S-99⑧: one post-ACK settlement's write responsibility for one ResponseId. */
 export type ModelCallSettlementWorkKey = ModelCallRetentionKey & {
   readonly response: ResponseId
 }
+
 /**
  * The durable staging row of one started post-ACK settlement: the complete batch of the latest
  * append not yet known to have written nothing, with its identity. `workId` names one write
@@ -261,6 +65,7 @@ export interface ModelCallSettlementWork {
   readonly owner: string
   readonly staged: SettlementStagedBatch
 }
+
 export interface ModelCallSettlementWorkStore {
   /** Insert a new work row; an existing row of any work is returned, never replaced. */
   readonly stage: (
@@ -304,6 +109,7 @@ export interface ModelCallSettlementWorkStore {
     | { readonly pending: 'storage_unavailable' | 'receipt_unknown' }
   >
 }
+
 export interface ModelCallContentStore {
   /**
    * Confirm immutable original bytes before issuing the reference. Content, the call's
@@ -380,6 +186,7 @@ export interface ModelCallContentStore {
   readonly work: ModelCallSettlementWorkStore
   readonly close: () => Promise<RuntimeCloseResult>
 }
+
 /** This node implements the port from its immutable Storage rows and authoritative SL3 keys. */
 export interface CallFacts {
   readonly content: ModelCallContentStore
@@ -412,3 +219,6 @@ export interface CallFacts {
   ) => Promise<{ readonly current: true } | ServiceUnavailable>
   readonly close: () => Promise<RuntimeCloseResult>
 }
+
+/** Borrowed readers of the same physical content/index; no independent close owner. */
+export type CallFactsView = Omit<CallFacts, 'close'>

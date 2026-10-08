@@ -4,7 +4,7 @@
 
 本包同时公开独立函数与 Cordis 服务插件。宿主通过类型化端口提供已授权作用域、必要时的真实 Run、完整日志前缀、有序定义、拓展件执行、等待与卡片事实，以及能力判定。`runPass` 不创建 Run，也不决定模型能否重试发送。`readRunnerRetryConclusions` 检查条目和稠密位置，但单凭数组不能证明读取权限。
 
-采用范围见 [D-106](../../../.meta_harness/design/record/decisions/runner-current-pure-provider-adoption/decision.md)，依据 [Runner5](../../../.meta_harness/design/spec/capabilities/loop-extension-runner/v5/contract.md)、[LC6](../../../.meta_harness/design/spec/data/loop-extension/v6/contract.md) 和继承 [v5](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v5-current-design.md) 的 [v6 实现映射](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v6-run-pass-design.md)，服务接线沿已采用的 [v7](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v7-model-service-design.md)。[验证义务](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/verification.md)区分公共函数层与尚待接线的正式宿主。
+采用范围见 D-106，依据 [Runner5](../../../.meta_harness/design/spec/capabilities/loop-extension-runner/v5/contract.md)、[LC6](../../../.meta_harness/design/spec/data/loop-extension/v6/contract.md) 和继承 [v5](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v5-current-design.md) 的 [v6 实现映射](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v6-run-pass-design.md)，服务接线沿已采用的 [v7](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v7-model-service-design.md)。[验证义务](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/verification.md)区分公共函数层与尚待接线的正式宿主。
 
 提供者根入口拥有独立执行函数；共用类型、纯 codec 和投影归 `@omne-harness-lite/loop-extension-runner`。插件从 `@omne-harness-lite/loop-extension-runner-local/cordis` 导出。
 
@@ -84,7 +84,7 @@ console.log(result.effect.kind) // proceed
 宿主已将模型 runtime 的 `ModelFailureSource` 与本 runner 绑定配对后，可原样转交实际 execution。无 Run 的 execution 在此拒绝；另一 Run 由来源自身拒绝。
 
 ```ts
-import type {ModelFailureSource} from '@omne-harness-lite/model-request-runtime-local'
+import type { ModelFailureSource } from '@omne-harness-lite/model-request-runtime'
 import type { RunnerLogBinding, RunnerPorts } from '@omne-harness-lite/loop-extension-runner'
 
 export function failurePort(

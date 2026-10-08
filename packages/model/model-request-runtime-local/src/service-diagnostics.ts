@@ -1,5 +1,6 @@
 import type { TenantId } from '@omne-harness-lite/identity-values'
-import type { DiagnosticAssociation, DiagnosticCollector } from './diagnostics-types.ts'
+import type { DiagnosticAssociation } from '@omne-harness-lite/model-request-runtime'
+import type { DiagnosticCollector } from './diagnostics-types.ts'
 import type {
   DiagnosticEmitter,
   DiagnosticEvent,

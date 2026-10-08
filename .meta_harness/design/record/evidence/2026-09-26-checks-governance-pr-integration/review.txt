@@ -1,7 +1,0 @@
-独立architecture-reviewer review_maintenance_boundary最终结论（主线转存）。
-已确认真实契约身份冲突，不能机械合并；不阻断Draft PR。核对39e9376a16495ec9044f90e0f45bced37b5aaeaa与bb3d8bc449563be4b58e9bcde1619c01c8ff5e58。
-阻断1：相同baseline/id/version的OG2两边均accepted/frozen且hash不同，各自实际匹配。本线S61–64拒绝/显式参与/共同提交依赖AI3/OE2；main关系生效时刻承载分享不复活，依赖AI1/OE1。共同冻结路径中不同hash就是该contract。取ours损失asset-transfer/v1时刻保证；取main损失本线AR2/EC2/EC3/CG1/CG2新增条款。拼接正文重算frozen或只改目录都破坏接受与依赖。
-阻断2：D038–D045复用于不同决定事件，需追加身份协调记录，保留事件、路径、提交与历史编号，不能覆盖或全局替换冻结正文。
-非阻断：保留已验提交/证据并发布Draft PR。必须明确尚未集成main，原验收不构成对main资产/运行时组合的验证。
-建议由两线spec/registry owner追加冲突来源，确定新坐标及承接条款，沿消费者发布必要版本或采用映射，再调整提供者并验证新组合。无需重做产品政策。
-未覆盖：未审全部38文本冲突，未重审产品代码。只读，无写入或测试。

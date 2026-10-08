@@ -26,15 +26,15 @@
 | [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | active | 20 |
 | [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | active | 9 |
 | [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | active | 24 |
-| [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | active | 23 |
+| [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | active | 25 |
 | [PF-008 Human in the Loop](PF-008-human-in-the-loop/README.md) | active | 7 |
 | [PF-009 上下文消息类型](PF-009-context-message-types/README.md) | active | 9 |
-| [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | active | 7 |
+| [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | active | 8 |
 | [PF-011 非常态的分层处置](PF-011-off-nominal-handling/README.md) | active | 5 |
-| [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | active | 21 |
+| [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | active | 24 |
 | [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | active | 17 |
-| [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | active | 11 |
-| [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | active | 20 |
+| [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | active | 13 |
+| [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | active | 21 |
 | [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 11 |
 | [PF-017 治理中心作为一个可部署应用](PF-017-governance-center-as-deployable-application/README.md) | active | 7 |
 | [PF-020 工作区](PF-020-workspace/README.md) | active | 22 |
@@ -53,14 +53,14 @@ PF-020「工作区」与 [PF-021「日程与日历」](PF-021-schedule-and-calen
 
 **PF-015 于 2026-09-21 开题**，见 [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md)。
 它是 2026-09-17「agent-loop / session / inbound 会是多个 PF，不是单个」那条裁决
-（记在 [PF-008 decisions](PF-008-human-in-the-loop/decisions.md#一拍板记录)）的**最后一个落点**——
+（记在 [PF-008 decisions](PF-008-human-in-the-loop/design.md)）的**最后一个落点**——
 agent-loop 是 [PF-012](PF-012-agent-loop-and-run/README.md)，
 模型调用那一层是 [PF-013](PF-013-model-profiles-and-invocation/README.md)，
 inbound 是 [PF-014](PF-014-inbound-intake-and-queueing/README.md)，**四个全部开题**。
 
 > **那两条吊在「这段协作到此为止」上的规则，已经落到锚点上了。**
 > 那个锚点是[归档](PF-015-session-lifecycle-and-ownership/design.md#会话归档)——
-> [没有删除会话的概念，也就没有「会话结束」这回事](../ubiquitous_language/decisions.md#ul-d-4--主会话与子会话--2026-09-21)。
+> [现行词义](../ubiquitous_language/index.md)。
 > **两条的去向各不相同**：
 >
 > - [会话授权上下文**不随归档消失**](PF-007-meta-capabilities/design.md#会话授权上下文)——
@@ -71,11 +71,10 @@ inbound 是 [PF-014](PF-014-inbound-intake-and-queueing/README.md)，**四个全
 > **PF-015 五块大纲现已全部有落点**（2026-09-23）：工具权限那条腿由
 > [PF-007 §5.6](PF-007-meta-capabilities/design.md#56-一次放行判断走四步) 接住——
 > 三档执行权限各落放行四步里的一处；执行环境权限归 [PF-005](PF-005-execution-environments-and-sandboxes/README.md)。
-> PF-015 rev 13 已正式接受，范围与保留未决项见 [D-074](../record/decisions/session-workspace-product-acceptance/decision.md)。
+> PF-015 rev 13 已正式接受，范围与保留未决项见 D-074。
 
 > **2026-09-20**：**产品正文统一去历史化。**产品负责人的要求：
 > **`design.md` 只记录最终正式确定的设计**——「之前怎么样、现在怎么样」与推导过程
-> 一律不进正文，分别归 `changelog.md`、`decisions.md` 与 `interviews/`。
 > **十四个 topic 的 `design.md` / `flows.md` / `acceptance.md` / `README.md` 全部过了一遍**：
 > 删掉 rev 对照、交割说明、「原先写的是」，以及未决项里那些「rev N 已闭合」的条目；
 > **现行规则一个字没改，所以除 PF-010 与 PF-012 之外不升 rev**。
@@ -85,16 +84,16 @@ inbound 是 [PF-014](PF-014-inbound-intake-and-queueing/README.md)，**四个全
 > **2026-09-19**：PF-011 开题为[非常态的分层处置](PF-011-off-nominal-handling/README.md)，
 > 它的地盘此前由 PF-012 的一节暂时拿着。**PF-011 本轮设计按产品负责人要求全程未参考那一份。**
 >
-> **同日交割完成。**[PF-012 rev 2](PF-012-agent-loop-and-run/changelog.md) 在**同时看两边**的前提下
+> **同日交割完成。**[PF-012 rev 2](PF-012-agent-loop-and-run/design.md) 在**同时看两边**的前提下
 > 把「失败三档」整块交出，并补上 rev 1 漏掉的那一半——
 > [Run 的终态与非常态的终局是两条线](PF-012-agent-loop-and-run/design.md#512-run-的终态与非常态的终局是两条线)。
-> **PF-011 同步升到 rev 3**，[那边 §9.1 已关](PF-011-off-nominal-handling/changelog.md#rev-3--2026-09-19--交割完成两笔账清掉)，
+> **PF-011 同步升到 rev 3**，[那边 §9.1 已关](PF-011-off-nominal-handling/design.md)，
 > **模型一个字没改**。
 
 > **2026-09-18 的一次编号重排**：PF-009 原名「上下文消息类型与上下文管理」，
 > 因体量过大**收窄为只讲消息类型**；上下文管理与组装另立 PF-010，
 > 异常分层处理另立 PF-011；**原 PF-010（Agent Loop 与 Run）顺延为 PF-012**。
-> 记录见 [PF-012 changelog](PF-012-agent-loop-and-run/changelog.md)。
+> 记录见 [PF-012 changelog](PF-012-agent-loop-and-run/design.md)。
 
 ## 一个 topic 包含什么
 
@@ -105,9 +104,6 @@ PF-0NN-<slug>/
 ├── flows.md          旅程、异常分支、状态流转、角色矩阵
 ├── acceptance.md     可观察场景、绝不能发生的事、判据
 ├── stories.md        故事卡：还没交付的那几块，先做哪块、怎么演示
-├── decisions.md      拍板记录 / PM 推导 / 待裁决        ← 必须
-├── changelog.md      产品设计本身的演进（rev N）        ← 必须
-├── interviews/       设计交流笔记（原始材料）
 └── projection/       技术设计的投影，按版本固化
 ```
 
@@ -176,4 +172,4 @@ product/<topic>/design.md   ──→  handbook skill A–G  ──→  spec/ ·
 
 ## 2026-09-27 工作区产品增量正式登记
 
-依据产品负责人授权“design/product 下的变更，如果未翻正式的，帮我翻一下顺手”，本次登记 PR #13 的 PF-001／002／003／004／005／006／007／014／015／016／017／020 工作区增量为正式产品设计。接受仅覆盖已确定条款与据已有裁决修正的残余矛盾；既有未决与此前接受范围保留，产品正式状态不升级冻结契约、提供者采用或实现完成度。独立评审范围与外部仓库登记仅参与者及受限时不取得工作区身份的同批裁决见 [PF-020 登记](PF-020-workspace/decisions.md#2026-09-27-产品正式状态登记)。
+依据产品负责人授权“design/product 下的变更，如果未翻正式的，帮我翻一下顺手”，本次登记 PR #13 的 PF-001／002／003／004／005／006／007／014／015／016／017／020 工作区增量为正式产品设计。接受仅覆盖已确定条款与据已有裁决修正的残余矛盾；既有未决与此前接受范围保留，产品正式状态不升级冻结契约、提供者采用或实现完成度。独立评审范围与外部仓库登记仅参与者及受限时不取得工作区身份的同批裁决见 [PF-020 登记](PF-020-workspace/design.md)。

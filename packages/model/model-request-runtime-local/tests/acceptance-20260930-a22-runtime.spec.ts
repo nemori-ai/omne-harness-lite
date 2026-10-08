@@ -1,10 +1,12 @@
+import { DatabaseSync } from 'node:sqlite'
+import { modelCategory, modelValue, replaceModelValue } from './log-codec-fixture.ts'
 // @module-tag slow
-// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 JSONL 会话日志。
+// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 /**
  * Independent acceptance 2026-09-30 for the T29 runtime increment: A2 acknowledgeCall, A3 the
  * RT12 S-98 retention gate and the review-fix batch (B1/N1/S1). Scope A22-V1..V12, V15, V16.
  *
- * Every case runs the production runtime over real SQLite Storage and a real JSONL SessionLog
+ * Every case runs the production runtime over real SQLite Storage and a real SQL journal SessionLog
  * (tests/session-selection-fixture.ts boots the real Cordis assembly for identity, tenancy and
  * the model catalog). Wrappers only disturb what the runtime *sees* (a receipt, a transaction
  * outcome, a principal); commit or absence is always decided by the real log/database, and every
@@ -32,8 +34,8 @@ import { createModelCallContentStore } from '../src/reference-content.ts'
 import { createModelCallFacts } from '../src/reference-facts.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
-import { interpretCallHistory } from '../src/call-history.ts'
-import { acknowledgedAttempts, attemptFromWitness } from '../src/acknowledged-view.ts'
+import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
+import { acknowledgedAttempts, attemptFromWitness } from '@omne-harness-lite/model-request-runtime'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
@@ -42,21 +44,20 @@ import type {
   CallAccess,
   CallAccessAction,
   CallPresence,
-  ModelCallContentStore,
-} from '../src/reference-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { ModelCallContentStore } from '../src/reference-types.ts'
+import type { RuntimeConstruction } from '../src/service-types.ts'
 import type {
   AcknowledgementCleanupPolicy,
-  ModelCallHost,
-  OpenCallInput,
-  RuntimeConstruction,
   SessionRuntimeBinding,
-} from '../src/service-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
+import type { ModelCallHost, OpenCallInput } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementOwner,
   SettlementRegistration,
   SettlementTask,
   SettlementTaskKind,
-} from '../src/settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import {
   ControlledSettlementOwner,
@@ -86,7 +87,7 @@ interface Grant {
   readonly revoked: AbortController
 }
 
-/** One real host (SQLite + JSONL + Cordis services) shared by any number of runtimes. */
+/** One real host (SQLite + SQL journal + Cordis services) shared by any number of runtimes. */
 async function world() {
   const host = await selectionHost(true, true)
   const grants = new Map<string, Grant>()
@@ -133,21 +134,20 @@ async function world() {
           .executeTakeFirst(),
       )
     },
-    /** Raw bytes of every JSONL file of the session log directory. */
+    /** Exact durable SQL row text; file/WAL housekeeping is not a journal write. */
     async logBytes(): Promise<string> {
-      const root = join(host.dir, 'log')
-      const out: string[] = []
-      async function walk(dir: string): Promise<void> {
-        for (const item of (await readdir(dir, { withFileTypes: true })).sort((a, b) =>
-          a.name.localeCompare(b.name),
-        )) {
-          const path = join(dir, item.name)
-          if (item.isDirectory()) await walk(path)
-          else out.push(`${path}\n${await readFile(path, 'utf8')}`)
-        }
+      const db = new DatabaseSync(join(host.dir, 'log', 'journal.sqlite'), { readOnly: true })
+      try {
+        return JSON.stringify(
+          db
+            .prepare(
+              'select session, position, batch, value from sl_entry order by session, position_length, position',
+            )
+            .all(),
+        )
+      } finally {
+        db.close()
       }
-      await walk(root)
-      return out.join('\n--\n')
     },
   }
   return w
@@ -331,6 +331,10 @@ async function runtimeOn(w: World, options: RuntimeOptions = {}) {
       run: () => ({ unavailable: true }),
     },
     recovery: {
+      async authorize() {
+        return { authorized: true as const }
+      },
+
       enter: async () => ({
         scope: {
           binding: { log: selected.input.binding },
@@ -421,7 +425,7 @@ const ofCall = (call: string) => (entry: LogEntry) => {
   )
 }
 
-/** Wrap a JSONL append so ACK batches follow a scripted receipt; everything else is real. */
+/** Wrap a SQL journal append so ACK batches follow a scripted receipt; everything else is real. */
 function ackAppend(
   script: (
     entry: LogEntry,
@@ -1639,9 +1643,7 @@ describe('A22-V11/V12 settleReply after release (RT12 S-99, MR11 S-46/S-47)', ()
         await rt.service.settleReply({ ...ref, disposition, retainedResult: pending }),
       ).toEqual({ callId: ref.callId, state: 'complete' })
       const appended = (await w.entries()).slice(entriesBefore)
-      expect(appended.map(entry => (entry.payload as { category?: unknown }).category)).toEqual([
-        'response',
-      ])
+      expect(appended.map(entry => modelCategory(entry.payload))).toEqual(['response'])
       expect(payload(appended[0] as LogEntry)).toMatchObject({
         id: pending.id,
         replyDisposition: disposition,

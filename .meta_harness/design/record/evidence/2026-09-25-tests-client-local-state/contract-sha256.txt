@@ -1,1 +1,0 @@
-7c5c3734267709758ba10643c84a829c1850012db87a81766ff5c525b28a84e6  .meta_harness/design/spec/capabilities/client-local-state/v1/contract.md

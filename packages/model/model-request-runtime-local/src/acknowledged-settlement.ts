@@ -1,10 +1,10 @@
+import type { SettleReplyInput, SettleReplyResult } from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { judgeModelCallSemanticDigest } from '@omne-harness-lite/messages'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
-import { attemptFromWitness } from './acknowledged-view.ts'
+import { attemptFromWitness } from '@omne-harness-lite/model-request-runtime'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
-import type { AcknowledgedCallFacts } from './reference-types.ts'
-import type { SettleReplyInput, SettleReplyResult } from './service-types.ts'
+import type { AcknowledgedCallFacts } from '@omne-harness-lite/model-request-runtime'
 
 const malformed = Object.freeze({ invalidInput: { reason: 'malformed' } } as const)
 

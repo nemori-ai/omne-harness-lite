@@ -79,7 +79,7 @@ const coverage: Conformance['coverage'] = [
   ...['IC-15', 'IC-16'].map(id => ({
     id,
     evidence: 'not-implemented' as const,
-    scope: '插件树加载器未实现；源码条目不证明最终配置',
+    scope: '插件树加载器已交付；本静态规则尚未覆盖最终配置，须核对真实组合证据',
   })),
   { id: 'IC-17', evidence: 'undecided', scope: '会话作用域机制待设计；图框不证明隔离' },
 ]

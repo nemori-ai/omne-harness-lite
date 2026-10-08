@@ -18,11 +18,17 @@ test('an acquired provider cannot grant a facility outside the original requirem
     if (result.kind !== 'acquired') throw new Error('command facility not acquired')
     // The provider truthfully describes both ports; it must not expand the acquired authority.
     expect(result.lease.facilities.description.facilities).toEqual(['command', 'files'])
-    expect(await result.lease.facilities.files?.write('unrequested', new Uint8Array([1]))).toEqual({
+    expect(
+      await result.lease.facilities.files?.write({
+        path: 'unrequested',
+        data: new Uint8Array([1]),
+        mode: 'create',
+      }),
+    ).toEqual({
       kind: 'rejected',
       reason: 'notAuthorized',
     })
-    expect(await result.lease.facilities.files?.read('unrequested')).toEqual({
+    expect(await result.lease.facilities.files?.read({ path: 'unrequested' })).toEqual({
       kind: 'rejected',
       reason: 'notAuthorized',
     })

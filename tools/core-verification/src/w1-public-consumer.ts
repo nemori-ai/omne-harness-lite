@@ -113,7 +113,7 @@ const negativeControl = process.argv.includes('--negative-control=outcome')
 const cases: readonly ConsumerCase[] = [
   {
     id: 'w1.kernel.outcome-public',
-    sources: ['realization/packages/core/kernel-basis/design.md#能力到-cordis-的投影'],
+    sources: ['packages/core/kernel-basis/SPEC.md'],
     run() {
       const success = succeed({ answer: 42 })
       const failure = fail('consumerUnavailable')
@@ -127,7 +127,7 @@ const cases: readonly ConsumerCase[] = [
   },
   {
     id: 'w1.kernel.public-lifecycle',
-    sources: ['realization/packages/core/kernel-basis/design.md#状态并发与失败映射'],
+    sources: ['packages/core/kernel-basis/SPEC.md'],
     async run() {
       const ctx = new Context()
       let applied = 0
@@ -166,7 +166,7 @@ const cases: readonly ConsumerCase[] = [
   },
   {
     id: 'w1.kernel.public-assembly-cleanup',
-    sources: ['realization/packages/core/kernel-basis/design.md#成对的装载与撤除'],
+    sources: ['packages/core/kernel-basis/SPEC.md'],
     async run() {
       const assembly = await bootAssembly({ services: [{ name: 'w1AssemblyValue', value: 7 }] })
       assert.equal(resolveOptional(assembly.ctx, 'w1AssemblyValue'), 7)

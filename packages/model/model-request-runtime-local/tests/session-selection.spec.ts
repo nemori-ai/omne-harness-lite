@@ -1,5 +1,5 @@
 // @module-tag slow
-// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 JSONL 会话日志。
+// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 import { describe, expect, it } from 'vitest'
 import { selectionHost, AT, ROOT, profile } from './session-selection-fixture.ts'
 import { jsonObject } from './log-codec-fixture.ts'
@@ -12,7 +12,10 @@ import { deferred, ControlledSettlementOwner } from './settlement-fixture.ts'
 import { narrow } from '@omne-harness-lite/storage'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
-import type { SettlementRegistration, SettlementTaskKind } from '../src/settlement-types.ts'
+import type {
+  SettlementRegistration,
+  SettlementTaskKind,
+} from '@omne-harness-lite/model-request-runtime'
 
 describe('RT5 real session model selection and current evaluation', () => {
   it('each legality and repeat command reads current inputs; new model locks never filter the S11 set', async () => {
@@ -820,7 +823,7 @@ describe('RT5 real session model selection and current evaluation', () => {
       const oldEntry = {
         ...entry.ok,
         readKeys: entry.ok.readKeys.map(old),
-        payload: { ...jsonObject(entry.ok.payload), format: 'mrr/1' },
+        payload: { ...jsonObject(entry.ok.payload), version: 'mrr/1' },
       }
       const appended = await host.log.append(
         host.session,

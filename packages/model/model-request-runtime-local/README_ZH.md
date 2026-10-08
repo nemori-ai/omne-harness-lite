@@ -6,33 +6,43 @@
 
 调用一次显式模型传输，把响应流装配为最终结果，提供取消、内容时限和异步首内容门。本包是实验性 ESM workspace 成员，尚未发布到 npm。
 
-当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及纯调用历史解释器。`createModelRuntime` 已把 RT12 的十五个类型化方法组合在同一个进程内调用 owner 下。第十五操作 `acknowledgeCall`（S-96）为每次调用固定一条耐久确认，再经保留门释放该调用的模型副本；此后各读取入口、同键 `openCall` 认回与 `reconcile` 都回 S-97 已确认小视图，控制与新工作到达其终态拒绝（S-100）。ACK 后自带 `retainedResult` 的 `settleReply` 按 S-99 核验后，经一份暂存的写责任完成结算（S-99⑧，见下文「ACK 后的结算」）。属于 Run 的结算消费宿主显式提供的已授权 Run 历史读源；生产 Run 终结与恢复 owner 仍由宿主负责。`./cordis` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的原完整批；有 Run 的条件恢复保留响应原 attempt，并在较新 attempt 中归账。对于已耐久记录「已出门」但缺响应的调用，不属于 Run 的对账可读取实际停止的原执行事实，或经宿主确认的冷恢复缺席，追补一条中断响应且不再发模型请求。只有中断意图、没有发出记录的调用由耐久终结记录收口。显式调用宿主和有界观察接线遵循 [D103](../../../.meta_harness/design/record/decisions/model-runtime-host-observer-adoption/decision.md)；共享端口和队列自身不能证明真实会话接收端已接入，须由宿主提供（[最小示例](../../../examples/model-invocation-minimal-demo/README_ZH.md)为其单进程装配提供了一个）。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)、[D105 恢复映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-timing-design.md)及[恢复 owner 补充](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-owner-supplement.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的生产成功路径仍依赖宿主真实的 Run 终结来源与 owner。
+当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及纯调用历史解释器。`createModelRuntime` 已把 RT12 的十五个类型化方法组合在同一个进程内调用 owner 下。第十五操作 `acknowledgeCall`（S-96）为每次调用固定一条耐久确认，再经保留门释放该调用的模型副本；此后各读取入口、同键 `openCall` 认回与 `reconcile` 都回 S-97 已确认小视图，控制与新工作到达其终态拒绝（S-100）。ACK 后自带 `retainedResult` 的 `settleReply` 按 S-99 核验后，经一份暂存的写责任完成结算（S-99⑧，见下文「ACK 后的结算」）。属于 Run 的结算消费宿主显式提供的已授权 Run 历史读源；生产 Run 终结与恢复 owner 仍由宿主负责。`./cordis` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的原完整批；有 Run 的条件恢复保留响应原 attempt，并在较新 attempt 中归账。对于已耐久记录「已出门」但缺响应的调用，不属于 Run 的对账可读取实际停止的原执行事实，或经宿主确认的冷恢复缺席，追补一条中断响应且不再发模型请求。只有中断意图、没有发出记录的调用由耐久终结记录收口。显式调用宿主和有界观察接线遵循 D103；共享端口和队列自身不能证明真实会话接收端已接入，须由宿主提供（[最小示例](../../../examples/model-invocation-minimal-demo/README_ZH.md)为其单进程装配提供了一个）。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)、[D105 恢复映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-timing-design.md)及[恢复 owner 补充](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-owner-supplement.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的生产成功路径仍依赖宿主真实的 Run 终结来源与 owner。
+
+下文 API 表中的公共操作类型和选择、重试、历史、响应构造函数从 `@omne-harness-lite/model-request-runtime` 导入；具体调用、协调、存储等工厂从本包导入。见[公共拥有者](../../core/model-request-runtime/README_ZH.md)。唯一 `MODEL_RUNTIME_SERVICE` 键从公共 `./cordis` 导入。
+
+`ownOpenCallInput(input)` 在宿主准入前检查并复制请求自有 JSON，保留原 host 与 observer endpoint 引用。它不核验权限，不登记资源。行为见 [SPEC.md](SPEC.md)。
+
+`validDispatchInput(input)` 复用 dispatch 入口的身份表示检查，不校验重试计划，不授予调用权限。行为见 [SPEC.md](SPEC.md)。
+
+物理工厂拥有者另取得 `executionSource`，元数据查询不携原调用句柄或私有大内容。恢复用显式 capture/release；ACK 确认、实际停止且旧借用释放后解除模型侧副本。业务投影和 host 不取得它。完成装配自己的恢复责任后再显式调用 `executionSource.release()`；整体 close 必须已确认。见[来源生产](SPEC.md#实际执行来源的生产)。
 
 ## 公开接口
 
-| 导出                                                                             | 用途                                                                                                                                                                 |
-| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `invokeModel(input)`                                                             | 返回包含 `outcome`、`snapshot()`、`observedFacts()` 与 `abort()` 的句柄                                                                                              |
-| `classifyCause(facts, hasContent, table)`                                        | 按显式状态码表分类来源，保留原始状态码                                                                                                                               |
-| `dispatchGuard(input)`                                                           | 按显式调用、发出与档案事实同步判定一次重试计划                                                                                                                       |
-| `DispatchGuardInput`、`DispatchGuardResult`、`DispatchGuardFact<T>`              | 只读守卫输入、闭合答案与明确的已知／未知事实                                                                                                                         |
-| `TransportAdapter`、`PlanInput`                                                  | 调用者持有的 plan/send/read 端口与显式请求输入                                                                                                                       |
-| `InvocationPolicy`、`ModelInvocationResult`                                      | 调度、脱敏、诊断政策与携带实际字符串发送时刻的未结算结果投影                                                                                                         |
-| `createSessionModelSelection(input)`                                             | 借用提供者的消费者：`legalTargets`、`selectModel`、`displayList`、`effectiveModel` 与操作收口                                                                        |
-| `interpretCallHistory({ prefix, callId })`                                       | 从完整自有 SL3 前缀经当前 `mrr/3` codec 解释不属于 Run 或属于 Run 的原始调用记录；Run 终结事实另由授权来源提供                                                       |
-| `projectCallState({ session, callId, history, local? })`                         | 仅在耐久响应尚未覆盖时叠加进程自有 `open` 或 `reply_pending` 责任                                                                                                    |
-| `ModelRuntimeService`、`RuntimeConstruction` 及各操作输入／结果类型              | 十五操作的显式服务契约与必需宿主端口（含必需的 `acknowledgementCleanup` 重试政策）；类型契约本身不安装可运行服务                                                     |
-| `createCallContainerStore()`                                                     | 按会话和调用持有进程资源，以及有界、可取消的短 reservation                                                                                                           |
-| `ModelCallHost`、`ModelObserverRequest`、`SessionObserverAccess`                 | 原调用的显式生命周期，以及按 dispatch 授权的观察端口                                                                                                                 |
-| `createCallPreparationOwner(host)`                                               | 异步准备前同步登记原调用；迟到资源直到实际收口仍有 owner                                                                                                             |
-| `createModelObserverQueue(input)`                                                | 每次 dispatch 快照优先的观察队列；按真实 UTF-8 字节和事件数双限，接纳不等于接收者完成                                                                                |
-| `createRuntimeReads(construction)`                                               | 六项选择与历史读取方法，以及负责借用提供者收口的 `close()`                                                                                                           |
-| `createServiceCalls(construction)`、`createServiceControl(construction)`         | 面向共享 runtime 装配的独立调用与控制方法组合件                                                                                                                      |
-| `createServiceDispatch(construction)`                                            | 使用固定档案、精确 transport lease、当前会话事实、耐久锚点及原调用句柄实现 dispatch／dispatchAgain                                                                   |
-| `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)`               | 非持久化处分从 `callFacts` 读取不可变 ready 内容，经当前 `callAccess` 的 `settle` 准入，再由既有结算算法写最终响应；final 已提交后的重复处分只由该 final 判定：同处分以原状态认回，异处分答 `alreadyEnded`，不查阅任何值，也不写入。ACK 后经核验的调用方自持值通过暂存写责任结算；处分组件必需 ACK `custody` 与 `instance` 标识。对账保留原 scope，直到实际停止并从完整前缀认回；对账必需 runtime 的 ACK `custody`，已确认调用逐调用作答，给出 `settlementWork` 时收口本 runtime 不持有的写责任行 |
-| `createSettlementWork(input)`                                                    | 基于结算协调器的一份 ACK 后写责任：每次追加前完整批已耐久在写责任行中，行经 ACK custody 退役；外部 persisted 写方同样可用 |
-| `createServiceAcknowledge(construction, custody?)`、`createAcknowledgementCustody(input)` | 第十五操作，以及每个 runtime 一份的 custody：按显式 `acknowledgementCleanup` 政策与调度器先释放内存副本、再释放保留内容 |
-| `createModelRuntime(construction)`                                               | 十五方法共用一份调用 store、一份 ACK custody 与可重试收口 owner；无需 Cordis Context                                                                                 |
+| 导出                                                                                      | 用途                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `invokeModel(input)`                                                                      | 返回包含 `outcome`、`snapshot()`、`observedFacts()` 与 `abort()` 的句柄                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `classifyCause(facts, hasContent, table)`                                                 | 按显式状态码表分类来源，保留原始状态码                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `dispatchGuard(input)`                                                                    | 按显式调用、发出与档案事实同步判定一次重试计划                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `DispatchGuardInput`、`DispatchGuardResult`、`DispatchGuardFact<T>`                       | 只读守卫输入、闭合答案与明确的已知／未知事实                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `TransportAdapter`、`PlanInput`                                                           | 调用者持有的 plan/send/read 端口与显式请求输入                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `InvocationPolicy`、`ModelInvocationResult`                                               | 调度、脱敏、诊断政策与携带实际字符串发送时刻的未结算结果投影                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `createSessionModelSelection(input)`                                                      | 借用提供者的消费者：`legalTargets`、`selectModel`、`displayList`、`effectiveModel` 与操作收口                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `interpretCallHistory({ prefix, callId })`                                                | 从完整自有 SL3 前缀经当前 `mrr/3` codec 解释不属于 Run 或属于 Run 的原始调用记录；Run 终结事实另由授权来源提供                                                                                                                                                                                                                                                                                                                                                                                    |
+| `projectCallState({ session, callId, history, local? })`                                  | 仅在耐久响应尚未覆盖时叠加进程自有 `open` 或 `reply_pending` 责任                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `ModelRuntimeOperations`、`RuntimeConstruction` 及各操作输入／结果类型                    | 十五操作的显式服务契约与必需宿主端口（含必需的 `acknowledgementCleanup` 重试政策）；类型契约本身不安装可运行服务                                                                                                                                                                                                                                                                                                                                                                                  |
+| `createCallContainerStore()`                                                              | 按会话和调用持有进程资源，以及有界、可取消的短 reservation                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `ModelCallHost`、`ModelObserverRequest`、`SessionObserverAccess`                          | 原调用的显式生命周期，以及按 dispatch 授权的观察端口                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `createCallPreparationOwner(host)`                                                        | 异步准备前同步登记原调用；迟到资源直到实际收口仍有 owner                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `createModelObserverQueue(input)`                                                         | 每次 dispatch 快照优先的观察队列；按真实 UTF-8 字节和事件数双限，接纳不等于接收者完成                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `createRuntimeReads(construction)`                                                        | 六项选择与历史读取方法，以及负责借用提供者收口的 `close()`                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `createServiceCalls(construction)`、`createServiceControl(construction)`                  | 面向共享 runtime 装配的独立调用与控制方法组合件                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `createServiceDispatch(construction)`                                                     | 使用固定档案、精确 transport lease、当前会话事实、耐久锚点及原调用句柄实现 dispatch／dispatchAgain                                                                                                                                                                                                                                                                                                                                                                                                |
+| `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)`                        | 非持久化处分从 `callFacts` 读取不可变 ready 内容，经当前 `callAccess` 的 `settle` 准入，再由既有结算算法写最终响应；final 已提交后的重复处分只由该 final 判定：同处分以原状态认回，异处分答 `alreadyEnded`，不查阅任何值，也不写入。ACK 后经核验的调用方自持值通过暂存写责任结算；处分组件必需 ACK `custody` 与 `instance` 标识。对账保留原 scope，直到实际停止并从完整前缀认回；对账必需 runtime 的 ACK `custody`，已确认调用逐调用作答，给出 `settlementWork` 时收口本 runtime 不持有的写责任行 |
+| `createSettlementWork(input)`                                                             | 基于结算协调器的一份 ACK 后写责任：每次追加前完整批已耐久在写责任行中，行经 ACK custody 退役；外部 persisted 写方同样可用                                                                                                                                                                                                                                                                                                                                                                         |
+| `createServiceAcknowledge(construction, custody?)`、`createAcknowledgementCustody(input)` | 第十五操作，以及每个 runtime 一份的 custody：按显式 `acknowledgementCleanup` 政策与调度器先释放内存副本、再释放保留内容                                                                                                                                                                                                                                                                                                                                                                           |
+| `createModelRuntime(construction)`                                                        | 十五方法共用一份调用 store、一份 ACK custody 与可重试收口 owner；无需 Cordis Context                                                                                                                                                                                                                                                                                                                                                                                                              |
+
+`createModelRuntime` 还返回 `project(inputs, facts)`。受信装配交入固定主体的 `ModelRuntimeHostInputs` 和同一内容拥有者的借用 facts 视图。用 `createModelCallFacts(...).project(presence)` 固定视图的 presence reader。全部投影共用原执行与可重试整体 close；投影自身没有 `close`。端口保持稳定，各操作仍重核当前资格。行为见[固定主体与共享执行](SPEC.md#固定主体与共享执行)。纯工厂投影不表示正式 Service 已完成整改。 |
 
 `createRuntimeReconcile(input)` 返回 `{ reconcile, close }`。事实或写入未决而返回 `unavailable` 时，组件保留原恢复作用域；下一次对账会先沿同一作用域认回，不为同会话另开一个恢复入口。`close()` 关闭新对账准入，停止有归属的任务，从原绑定读取完整前缀；仅在物理工作有确定结果后释放各作用域。收口不追加业务记录。若返回 `unavailable`，宿主须继续持有同一组件，在原任务或读取来源恢复后重试；`createModelRuntime` 已将此收口纳入自身的可重试收口。
 
@@ -42,38 +52,15 @@
 
 ## Cordis 服务装配
 
-`@omne-harness-lite/model-request-runtime-local/cordis` 导出 `createModelRuntimePlugin` 与 `modelRuntime` 服务键。应用通过 `construct` 交入完整的 `ModelRuntimeAssembly`；插件不会替缺失操作填占位实现。Cordis 等声明的必需提供者齐备才构造。宿主在 `construct` 返回前保留 `assembly.owner`。单个收口 effect 先关闭 `openCall`、`dispatch`、`dispatchAgain` 的新准入，再调用该 owner 的 `close()`；只有真实收口返回 `released` 才恰一次调用 `owner.release()`。若收口不可用，宿主在 fiber 卸载后继续持有同一个 owner，负责之后的实际停止／恢复及再次收口；诊断日志不能替代释放。已有服务引用在撤除期间仍可执行允许的结算和读取。
+`createModelRuntimeLocal()` 创建一代可信装配工厂。插件从具名宿主输入、执行支持、Storage、Clock 和 transport 构造私有调用池、内容及事实。配置显式提供作用域、内容、等待和 token margin 界限，不接收 `construct` 回调，不补政策默认值；受管行另需 `assemblyLifetime`。
 
-```ts
-import type { Context } from '@deepseek-ai/cordis'
-import {
-  createModelRuntimePlugin,
-  type ModelRuntimeAssembly,
-  type ModelRuntimeAssemblyOwner,
-} from '@omne-harness-lite/model-request-runtime-local/cordis'
+Config 的四个精确字段（`tokenMargin.multiplier/reserveTokens`、`reservationWaitPolicy.maxWaitersPerCall/timeoutMs`）使用 JSON 数字词法字符串，例如 `"1.10000000000000000001"` 和 `"256"`。装配方用 `jsonNumberSource` 编码原 `JsonNumber`，提供者严检后恢复精确值，不经浮点转换。独立函数仍使用原 `JsonNumber` 输入。
 
-const retained = new Set<ModelRuntimeAssemblyOwner>()
-export function retainRuntime(
-  service: ModelRuntimeAssembly['service'],
-  close: ModelRuntimeAssemblyOwner['close'],
-): ModelRuntimeAssembly {
-  const owner: ModelRuntimeAssemblyOwner = {
-    close,
-    release() {
-      if (!retained.delete(owner)) throw new Error('runtime owner was not retained')
-    },
-  }
-  retained.add(owner)
-  return { service, owner }
-}
+公共服务键和十五操作归 `@omne-harness-lite/model-request-runtime/cordis`。普通方法通过原宿主桥及实际调用 fiber 捕获固定主体；投影共用同一物理运行时。调用贡献只停止其消费，实际停止后归还借用，不取消执行、不写 ACK。
 
-export async function installRuntime(
-  ctx: Context,
-  construct: () => Promise<ModelRuntimeAssembly>, // 返回前须由宿主持有
-) {
-  return ctx.plugin(createModelRuntimePlugin({ construct }), {})
-}
-```
+工厂创建者持有 `ready`、`closeAdmission`、`close` 和 `owner()`。只有可信创建者取得原执行来源及事实借用面，普通服务结果和宿主 capture 不携这些能力。`closeAdmission()` 在原业务判断次序中的停止准入点同步拒绝新建、dispatch 和 dispatchAgain，保留已准入工作、读取、恢复及 ACK；实际 `close()` 才排空并释放资源。资源尚未收场时 `close()` 返回 `unavailable` 或拒绝，须重试同一 owner。受管关闭控制保有原依赖直到确认关闭；同一 factory 不能挂载两次，原行未闭合不能启动后继池。
+
+真实消费者见[受管模型装配](../../../examples/model-invocation-minimal-demo/src/model-runtime-assembly.ts)和[调用方输入桥](../../../examples/model-invocation-minimal-demo/src/model-runtime-inputs.ts)。纯 `createModelRuntime(construction)` 仍可独立使用。
 
 已导出的 `createCallContainerStore().waitReserve(...)` 要求显式的正数等待者上限和超时，以及有归属的调度器与取消信号。显式 `OpenCallInput.host` 是生命周期 owner，不是会话身份；会话、租户与日志代际仍来自已授权会话绑定。它的 `register(close)` 必须在停止后同步拒绝登记；准备 owner 在任何异步准备前登记，调用发布后仍保留同一关闭责任，实际释放后才 unregister。调用容器插入后，活跃 reservation 绑定原锚定调用句柄；释放短 reservation 不丢该句柄、待处分回复、观察绑定、未知写者或精确传输租约。系统停止先请求同一原调用的耐久 S-36 收口；`container.close()` 只有在该结果、原句柄、观察任务均实际释放且其余 owner 核查通过后才释放租约。reservation 本身不产生耐久授权。锚定调用的 `close()` 返回 `unavailable` 时仍保留原协调器与借用引用；原工作实际停止且结算事实可读取后，可再次调用 `close()`。并发关闭共用同一次尝试，已释放后的关闭幂等。
 
@@ -121,10 +108,14 @@ export async function inspectWithRuntime(
 `readAttempts`、`dispatch` 和 `dispatchAgain` 为需要运行失败扩展的调用方提供显式 `{ consumeFailure: true }` 重载，返回 `{ result, consumption }`。普通单参数调用仍只返回业务结果，不持有失败作用域。`consumption.kind === 'failure'` 给出不可序列化的 `ModelFailureSource`，来源就是产出失败结果的同一次授权完整前缀读取。来源会核对该前缀中的原 dispatched 条目壳和失败响应。交给 runner 前，须同时核验精确主体与**该次 runner 的实际 execution**，并始终释放借用。核验只检查自有快照、当前准入和代际，不另读更新的日志尾；无关追加不会使其失效，释放、撤权、宿主停止或代际替换则会。
 
 ```ts
-import type {CallKey, ModelFailureExecution, ModelRuntimeService} from '@omne-harness-lite/model-request-runtime-local'
+import type { CallKey } from '@omne-harness-lite/model-request-runtime'
+import type {
+  ModelFailureExecution,
+  ModelRuntimeOperations,
+} from '@omne-harness-lite/model-request-runtime'
 
 export async function inspectFailure(
-  service: ModelRuntimeService,
+  service: ModelRuntimeOperations,
   key: CallKey,
   execution: ModelFailureExecution,
 ) {
@@ -173,7 +164,7 @@ import {
   interpretCallHistory,
   projectCallState,
   type SettlementPrefix,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import type { SessionRef } from '@omne-harness-lite/messages'
 
 export function readNoRunCall(prefix: SettlementPrefix, session: SessionRef, callId: string) {
@@ -186,7 +177,7 @@ export function readNoRunCall(prefix: SettlementPrefix, session: SessionRef, cal
 
 MS8 `model_call_acknowledged` 记录使用独立的按调用稳定日志键；只有本前缀核实其创建键与条目壳、每项可释放载荷都属于该调用（仅当调用不拥有任何载荷时才允许空列表）、目标确为该调用真实终结记录或最后一次终结响应后，才以 `known.acknowledged`（`{ record, entry }`）暴露。仅有 ready 标记时还须带原账见证；若 final 先于 ACK 胜出，解释器把该 final 与见证逐项比较 outcome、initiator、usage、cost、provider、凭据范围与时序。创建与保留结果摘要需要内容，解释器不核。缺少或矛盾的终态来源、或出现不同值的第二条 ACK，返回原因 `history` 的 `unavailable`。`projectCallState` 仍拒绝已确认历史；服务消费者对控制与新工作使用 `acknowledgedAsTerminal`，对读取使用 S-97 小视图，不当作缺席，也不从缓存再给全文。日志只按键去重，`acknowledgeCall` 只从整值读回的耐久值认回自己的批。见 [runtime v22 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v22-acknowledgement-design.md)。
 
-响应 usage 校准遵循 [D107 采用决定](../../../.meta_harness/design/record/decisions/model-input-usage-calibration-adoption/decision.md)及 [runtime v16 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v16-usage-calibration-design.md)。
+响应 usage 校准遵循 D107 采用决定及 [runtime v16 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v16-usage-calibration-design.md)。
 
 ## ACK 的确认、撤回与释放
 
@@ -229,7 +220,7 @@ MS8 `model_call_acknowledged` 记录使用独立的按调用稳定日志键；�
 第一次请求没有前序观察时，明确声明这一事实，不编造历史 usage：
 
 ```ts
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime-local'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 
 export function firstRequest(input: Omit<PlanInput, 'calibration' | 'outputHistory'>): PlanInput {
   return { ...input, calibration: { kind: 'none', reason: 'no_observation' }, outputHistory: [] }
@@ -241,7 +232,7 @@ export function firstRequest(input: Omit<PlanInput, 'calibration' | 'outputHisto
 ```ts
 import type { ContentBlock } from '@omne-harness-lite/content-blocks'
 import type { ModelResponse } from '@omne-harness-lite/model-response'
-import type { PlanInput, ReplaySelection } from '@omne-harness-lite/model-request-runtime-local'
+import type { PlanInput, ReplaySelection } from '@omne-harness-lite/model-request-runtime'
 
 export function nextRequest(
   input: Omit<PlanInput, 'calibration' | 'outputHistory'>,
@@ -291,14 +282,14 @@ export function nextRequest(
 `TransportAdapter.read` 的每种终态，包括取消与失败，均须返回 `readFacts`。`invokeModel` 在实际停止后保留最终读取事实，不用输入估算覆盖真实 usage 或费用。固定的 `projectOutput` 适配器把实际保留的回复或已交付块映成输出组。相同的 `inputCalibration` 贯穿 Pending、原耐久响应与认回；冷恢复读取原事实，不再请求模型或重新分词。目前 runtime 可核验选入的 no-Run 回复与同一调用的前序 dispatch。跨调用且无关联选入消息的响应，以及缺少授权 Run owner 的 Run 历史，保持来源不可用，不从日志物理位置猜测。
 
 ```ts
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import {
-  invokeModel,
   openRouterCredentialRedactionConfig,
   type PlanInput,
   type PlannedSemantics,
   type TransportAdapter,
   type InvocationPolicy,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 
 export const callerPolicy: InvocationPolicy = {
   now: () => new Date().toISOString(),
@@ -361,7 +352,7 @@ export async function invokeOnce<P extends PlannedSemantics, R>(
 下面的教学示例无需服务或凭据即可执行。使用精确 JSON 数时，把 `content-blocks` 与本包一起声明为直接依赖。
 
 ```ts
-import { dispatchGuard, type DispatchGuardInput } from '@omne-harness-lite/model-request-runtime-local'
+import { dispatchGuard, type DispatchGuardInput } from '@omne-harness-lite/model-request-runtime'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 
 const input: DispatchGuardInput = {
@@ -444,7 +435,7 @@ console.log(delay.ok, next.ok)
 
 ## 显式共享凭据脱敏
 
-`createCredentialRedactionPolicy(config)` 构造 [D093](../../../.meta_harness/design/record/decisions/model-credential-policy-adoption/decision.md) 采用的纯政策。三个具名参数缺一不可。`openRouterCredentialRedactionConfig` 是显式交入、深度不可变的 `openrouter-redaction/1` 基线：片段最小长度 8、已采用的 11 项头名单与 sk-/Bearer/Basic 三个有限描述。算法没有隐式配置、环境、网络、存储或 Cordis 依赖。
+`createCredentialRedactionPolicy(config)` 构造 D093 采用的纯政策。三个具名参数缺一不可。`openRouterCredentialRedactionConfig` 是显式交入、深度不可变的 `openrouter-redaction/1` 基线：片段最小长度 8、已采用的 11 项头名单与 sk-/Bearer/Basic 三个有限描述。算法没有隐式配置、环境、网络、存储或 Cordis 依赖。
 
 `policy.bind(knownCredential)` 返回 `{ ok: bound }` 或 `{ rejected: 'invalidInput' }`。冻结的闭包只公开 `text(value)`、`headers(value)`、`json(value)`，三个操作沿同一明确结果壳。已知凭据须为非空可打印 ASCII；完整凭据即使短于片段阈值也会保护。所有匹配均从原输入求区间并集，每段变为 `█`，不正规化、不猜未知编码、不执行开放正则。头先按原键的 ASCII 大小写折叠剥除名单项，再处理键和值；字符串／有序字符串数组的形状、重复与空值保留。JSON 处理键及全部 scalar token，包括精确数字、布尔和 null；命中的非字符串 scalar 整体变成标记字符串，未命中的类型与数字词法保持。输出独立且冻结，安全值再次处理在值意义上相等。 精确数字准入在模块初始化时捕获可信的公开 LosslessNumber source getter，显式读取品牌源后立即复制为标准自有数字；token 匹配在这份副本上调用 jsonNumberSource，调用者原型的 Get trap 不能替换该数字 token。
 
@@ -455,7 +446,7 @@ import {
   createCredentialRedactionPolicy,
   openRouterCredentialRedactionConfig,
   redact,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
 const policy = createCredentialRedactionPolicy(openRouterCredentialRedactionConfig)
@@ -503,7 +494,7 @@ import {
   displayList,
   effectiveModel,
   type SelectionCompatibility,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import type { ProfileRow } from '@omne-harness-lite/model-profile-directory'
 
 const rows: readonly ProfileRow[] = [
@@ -561,6 +552,8 @@ console.log(legal.ok[0], list.ok[0].annotations, effective.ok.selectedBy)
 
 成功为 `{ ok: value }`；非法或缺必需数据返回 `{ invalidInput: { reason } }`，必需事实明确未知或兼容回调意外抛错返回 `{ unavailable: true }`，不交出原异常或部分集合。选中／有效名字在链上查无行时返回 `{ profileNotFound: true }`。凭据有无按完整胜出 ref 与来源匹配：缺必需事实是 malformed，显式未知有无是 unavailable。结果自持且深度不可变；借用回调寿命仍归调用者。十五方法已组合；持久投影缓存不由本选择构件提供，当前读取的限定消费者见下文「会话模型的耐久选择」。
 
+目标集成边界与责任选择见 [ADR](adr/service-lifetime.md)。
+
 ## 开发与验证
 
 ```sh
@@ -569,18 +562,18 @@ pnpm --filter @omne-harness-lite/model-request-runtime-local run typecheck
 pnpm --filter @omne-harness-lite/model-request-runtime-local run test
 ```
 
-第一条命令同时构建 workspace 依赖。配套传输测试用真实本地 HTTPS 和公开 core 装配器验证 `invokeModel`；本包 `tests/acceptance-*.spec.ts` 与[最小示例](../../../examples/model-invocation-minimal-demo/README_ZH.md)的服务测试在真实 SQLite 与 JSONL 上验证组合后的服务。这些本地测试都不认证真实模型路由；已记录的真实路由证据见 [realization 验证](../../../.meta_harness/design/realization/packages/model/model-request-runtime/verification.md)。
+第一条命令同时构建 workspace 依赖。配套传输测试用真实本地 HTTPS 和公开 core 装配器验证 `invokeModel`；本包 `tests/acceptance-*.spec.ts` 与[最小示例](../../../examples/model-invocation-minimal-demo/README_ZH.md)的服务测试在真实 SQLite 内容存储与 SQL Session Log 上验证组合后的服务。这些本地测试都不认证真实模型路由；已记录的真实路由证据见 [realization 验证](../../../.meta_harness/design/realization/packages/model/model-request-runtime/verification.md)。
 
 ## 日志值的捕获、构造与认回
 
-成员检查消费 [D089 已采用](../../../.meta_harness/design/record/decisions/model-time-order-projection-adoption/decision.md) 的 offer-expiry 公共根比较器：实际 `sentAt` 已知时核 `sentAt <= firstTokenAt <= endedAt`，首 token 缺席时核 `sentAt <= endedAt`。[D105](../../../.meta_harness/design/record/decisions/model-recovery-timing-provider-adoption/decision.md) 下仅已锚定的 `interrupted` 响应允许 `sentAt: null`；首 token 与 ended 的比较、opened 原值相等仍须核对。null 表示实际发送时刻不可用，不证明零次发送或零费用。普通调用结果和待处分响应仍须有实际字符串时刻。静态非法日期与已知时刻逆序不能返回成员完整；任意小数、时区同点与 opened 原字符串均照原样保留。
+成员检查消费 D089 已采用 的 offer-expiry 公共根比较器：实际 `sentAt` 已知时核 `sentAt <= firstTokenAt <= endedAt`，首 token 缺席时核 `sentAt <= endedAt`。D105 下仅已锚定的 `interrupted` 响应允许 `sentAt: null`；首 token 与 ended 的比较、opened 原值相等仍须核对。null 表示实际发送时刻不可用，不证明零次发送或零费用。普通调用结果和待处分响应仍须有实际字符串时刻。静态非法日期与已知时刻逆序不能返回成员完整；任意小数、时区同点与 opened 原字符串均照原样保留。
 
-本包根入口公开 `modelLogFormat`、`encodeModelLogKey`、`decodeModelLogKey`、`captureModelLogValue`、`prepareModelLogEntry`、`inspectModelLogEntry`、`inspectSettlementMembers`、`modelLogJsonEqual`、`recognizeMessageValue` 及其类型，消费 [D088 的精确采用](../../../.meta_harness/design/record/decisions/model-runtime-log-codec-adoption/decision.md)。所有这些构件均为纯函数；静态导入和调用不打开日志、不装 Cordis、不读取环境凭据或时钟、不发号。日志类型只从 session-log-jsonl 根入口借用。
+公共定义包 `model-request-runtime` 根入口公开 `modelLogFormat`、`encodeModelLogKey`、`decodeModelLogKey`、`captureModelLogValue`、`prepareModelLogEntry`、`inspectModelLogEntry`、`inspectSettlementMembers`、`modelLogJsonEqual`、`recognizeMessageValue` 及其类型，消费 D088 的精确采用。所有这些构件均为纯函数；静态导入和调用不打开日志、不装 Cordis、不读取环境凭据或时钟、不发号。日志类型只从 session-log 根入口消费。
 
 文本与值接收是两个显式模式。任意层重复成员、getter、`toJSON`、非 JSON 对象及伪数字品牌均拒绝。捕获返回自有不可变原 JSON，保留数字词法；响应 judge 的 `{ ok: true }` 不会替调用方制造 owned ModelResponse。
 
 ```ts
-import { captureModelLogValue } from '@omne-harness-lite/model-request-runtime-local'
+import { captureModelLogValue } from '@omne-harness-lite/model-request-runtime'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
 const captured = captureModelLogValue({
@@ -602,7 +595,7 @@ import {
   captureModelLogValue,
   prepareModelLogEntry,
   encodeModelLogKey,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
 
 const tenant = parseTenantId({ organization: 'example-organization', account: 'example-account' })
@@ -636,7 +629,7 @@ if ('position' in prepared.ok) throw new Error('A candidate has no durable posit
 全值相等按精确数学数字、对象成员无序、数组有序和原字符串判断；缺席不等于 null。消息认回保留原捕获值，不用本次候选覆盖原值；仅比 id、正文或 source 不够。
 
 ```ts
-import { recognizeMessageValue } from '@omne-harness-lite/model-request-runtime-local'
+import { recognizeMessageValue } from '@omne-harness-lite/model-request-runtime'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
 const original =
@@ -658,7 +651,7 @@ if (!writeJsonLossless(recognized.original.value).includes('1.00'))
 成员检查不证明一次物理 append、合法历史、读权限、Run 生命周期或旧任务实际停止。H1 一次 `[M,R]` 与 H2 分次 `[M]`/`[R]` 可有相同 SL3 读面；G29-P/H 仍由宿主和全部写方关闭。已提交的完整 withRun 原批按原耐久值认回，不重新计算 late。新候选必须同时取得同前缀 MS6 尝试与宿主 G28 终结来源；未知为不可用，归账 attempt 不替换响应里的原发出 attempt。十五方法已组合；生产宿主接线、真实 runner/app 采用、G30/G31 与模型认证仍须各自证据。
 
 ```ts
-import { captureModelLogValue, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime-local'
+import { captureModelLogValue, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
 
 const sent = '2026-09-27T00:00:00.0004Z'
@@ -705,10 +698,10 @@ import {
   prepareModelLogEntry,
   inspectSettlementMembers,
   type InspectSettlementMembersInput,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { LogPrefixView } from '@omne-harness-lite/messages'
-import type { OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type { OwnedLogEntry } from '@omne-harness-lite/session-log'
 
 export function prepareReplyBatch(
   session: string,
@@ -759,7 +752,7 @@ export function inspectReplyBatch(input: InspectSettlementMembersInput) {
 
 上游错误与本地文本经绑定的共享 JSON／text 政策处理，raw/error 的 key 与所有 scalar 都覆盖；独立协议状态和真实 usage/cost 即使字面值与凭据巧合仍保真。处理拒绝或 defect 时省略不安全载荷，交固定阶段诊断，已持有 H 保留。发送前 bind defect 以受控阶段异常拒绝 outcome，不造发出结果；诊断 sink 失败不改变业务。
 
-业务 reply／工具片段保持原装配语义。本实现不关闭内容回显政策、raw.body 附件、完整 S20、生产 TLS 组合或耐久服务。精确采用范围见 [D095](../../../.meta_harness/design/record/decisions/model-credential-path-adoption/decision.md)。
+业务 reply／工具片段保持原装配语义。本实现不关闭内容回显政策、raw.body 附件、完整 S20、生产 TLS 组合或耐久服务。精确采用范围见 D095。
 
 ## 耐久结算构件
 
@@ -767,7 +760,7 @@ export function inspectReplyBatch(input: InspectSettlementMembersInput) {
 
 由宿主提供实际 session/tenant/log 代际绑定与已登记 owner。`SettlementRegistration.start` 必须先登记、再执行；`stopped` 表示资源实际停止。owner 负责同一所有者的并发准入，并提供实际 opened 回执及全部尚未确认的旧写方。这些接口形状不授予权限或认证历史物理同批。具名争用预算和精确单调调度器须显式提供，不安装默认次数、计时器或等待政策。
 
-```typescript
+```ts
 import {
   createSettlementCoordinator,
   type SettlementCoordinatorInput,
@@ -822,8 +815,8 @@ unavailable。之后的其他处置或 close 都不能替换保留的原请求�
 import {
   createAnchoredModelInvocation,
   type AnchoredInvocationInput,
-  type PlannedSemantics,
 } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { ReplyDisposition } from '@omne-harness-lite/model-response'
 
 /** Supply actual host preparation and an explicit caller disposition. */
@@ -849,10 +842,8 @@ export async function runPreparedInvocation<P extends PlannedSemantics, R>(
 `legalTargets` 和 `selectModel` 每次都独立读取当前 EvaluationInput，并调用采用的 AE4 evaluator 后再计算合法目标。根可选 `model` 缺席仍合法；模型锁不筛选合法目标集合。`displayList()` 读取本次合法目标和权威最后选中，再按每条展示胜出行的来源调用目录 `credentialPresent(tenant, origin)`，返回每个路由一条的当前来源、被覆盖行、注记和选中标记。选中名字全被撤回时仍展示；目录没有该选中名字的任何一行时返回 `profileNotFound`；输入读不到返回 `unavailable`。presence 读不暴露凭据本体或引用，也不保证后续取值成功。兑现范围为 [RT5 S9–S14/S24–S27/S66](../../../.meta_harness/design/spec/capabilities/model-request-runtime/v5/contract.md#s-24-legaltargets)，沿采用的 [R3-P2 投影](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v3-design.md#契约到-cordis-的投影)。
 
 ```ts
-import {
-  createSessionModelSelection,
-  type SessionModelSelectionInput,
-} from '@omne-harness-lite/model-request-runtime-local'
+import { type SessionModelSelectionInput } from '@omne-harness-lite/model-request-runtime'
+import { createSessionModelSelection } from '@omne-harness-lite/model-request-runtime-local'
 
 // ports come from the authenticated host's actual scoped providers.
 export async function initializeExplicitSelection(
@@ -877,7 +868,7 @@ export async function initializeExplicitSelection(
 `decideRetry` 消费完整 LC6 失败主体（包括按调用归属的 `retryConclusions`）和显式退避输入，返回 LC6 的 `retry`／`observed` 或拒绝值。它不等待、不发送；实际再发仍须经过 `dispatchGuard` 和耐久调用服务。下面的政策值由调用者明确选择，不是 runtime 默认值。
 
 ```ts
-import { decideRetry } from '@omne-harness-lite/model-request-runtime-local'
+import { decideRetry } from '@omne-harness-lite/model-request-runtime'
 import type { AfterModelCallFailureSubject } from '@omne-harness-lite/loop-extension'
 
 export function chooseRetry(subject: AfterModelCallFailureSubject) {
@@ -899,8 +890,8 @@ export function chooseRetry(subject: AfterModelCallFailureSubject) {
 import {
   createAnchoredModelInvocation,
   type AnchoredInvocationInput,
-  type PlannedSemantics,
 } from '@omne-harness-lite/model-request-runtime-local'
+import { type PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { modelEntry, type ToolDefinition } from '@omne-harness-lite/tool-definition'
 
 export function invokeWithTools<P extends PlannedSemantics, R>(
@@ -957,7 +948,8 @@ export async function recordSend(config: DiagnosticCollectorConfig, httpStatus: 
 
 ```ts
 // calibration-diagnostics-query
-import type { DiagnosticCollector, DiagnosticScope } from '@omne-harness-lite/model-request-runtime-local'
+import type { DiagnosticScope } from '@omne-harness-lite/model-request-runtime'
+import type { DiagnosticCollector } from '@omne-harness-lite/model-request-runtime-local'
 
 export async function readPlanningDiagnostics(
   collector: DiagnosticCollector,
@@ -983,9 +975,11 @@ export async function readPlanningDiagnostics(
 import {
   invokeModel,
   type DiagnosticCollector,
+} from '@omne-harness-lite/model-request-runtime-local'
+import {
   type InvocationInput,
   type PlannedSemantics,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 
 export function invokeWithLocalDiagnostics<P extends PlannedSemantics, R>(
   input: InvocationInput<P, R>,
@@ -1009,7 +1003,10 @@ export function invokeWithLocalDiagnostics<P extends PlannedSemantics, R>(
 `createDefaultRetryImplementation` 是独立的 LC6 贡献函数。调用方显式提供完整退避政策和采样来源。它只读取本次失败主体，包括有序保留的全部重试结论；它不等待、不发送请求，也不写结论。决策开始前取不到采样返回 `notStartedUnavailable`；被调用后的非法输入返回 `errored`。runner 仍须核验定位主体并调用 `canDispatchAgain`，获准后才接受 retry。
 
 ```ts
-import {createDefaultRetryImplementation, DEFAULT_RETRY_BUILTIN} from '@omne-harness-lite/model-request-runtime-local'
+import {
+  createDefaultRetryImplementation,
+  DEFAULT_RETRY_BUILTIN,
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { RunnerImplementations } from '@omne-harness-lite/loop-extension-runner'
 
 export function registerDefaultRetry(registry: RunnerImplementations) {
@@ -1030,7 +1027,7 @@ import type {
   PlanInput,
   PlannedSemantics,
   TransportAdapter,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 
 export async function prepare<P extends PlannedSemantics, R>(
   transport: TransportAdapter<P, R>,
@@ -1048,10 +1045,8 @@ export async function prepare<P extends PlannedSemantics, R>(
 服务构造必须显式提供正安全整数 `maxScopes`，以及同步的 `ExactTransportAcquirer.clearReuseScope(scope)`。固定 transport 实例的装配须保留其清理闭包，直到 runtime close 成功：
 
 ```ts
-import type {
-  ExactTransportAcquirer,
-  PlannedSemantics,
-} from '@omne-harness-lite/model-request-runtime-local'
+import type { ExactTransportAcquirer } from '@omne-harness-lite/model-request-runtime-local'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 
 export function fixedAcquirer<P extends PlannedSemantics, R>(
   acquire: ExactTransportAcquirer<P, R>['acquire'],
@@ -1070,10 +1065,10 @@ D110 已采用 [RT11 引用生命周期映射](../../../.meta_harness/design/rea
 内容存储（`createModelCallContentStore`）先通过既有 Storage 确认不可变 UTF-8 字节，再返回 payload 引用。读取先核 SHA-256，再严格无损解析；同键不同字节拒绝覆盖，提交回执丢失后认回原行，close 等真实写任务停止。外部 attachment/raw-body 引用缺可信保留提供者时返回 `unavailable`。其定向测试（`tests/reference-content.spec.ts`）使用真实 SQLite 和 SessionLog；服务创建、acquire 与 marker 发布由下述服务测试覆盖。RT12 S-98 保留与内容共用同一 Storage：`put` 持发布许可，调用进入 retiring 后拒绝；读取在复制的同一快照内核阶段；`prepareAcknowledgement`/`confirmAcknowledgement` 固定 ACK 记录；`releaseAcknowledged` 在同一事务中删除精确行并标记 released，否则报告 `writer_in_flight`、`storage_unavailable` 或 `receipt_unknown`。发布先从完整前缀准入 marker 再 `put`，被拒的 marker 不留行。许可不跨进程恢复；中断的未发布 `put` 留下的孤行不删除。
 
 ```ts
+import { type SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
 import {
   createModelCallContentStore,
   type ModelCallContentValue,
-  type SettlementLogBinding,
 } from '@omne-harness-lite/model-request-runtime-local'
 import type { Storage } from '@omne-harness-lite/storage'
 
@@ -1098,6 +1093,6 @@ export async function confirmContent(
 // 已确认行只是内容；采用的 SessionLog marker 需单独发布。
 ```
 
-内部 `publishModelCallContent` 先写入 accepted 创建或 ready 内容、读取权威 JSONL 前缀，再以 `tailEquals` 追加 marker。真实 SQLite/JSONL 场景验证 created marker 单次提交、同原件认回及不同字节拒绝。公开 `openCall` 和有回复 `dispatch` 在返回 ref 或终态前调用该发布件。`createIndependentCallConsumer` 独立拥有 wait/release 资源：单次 wait 取消不结束 consumer，release 等待接收任务真实停止。`createRuntimeAcquire` 经受信资格与存在性提供者及共同 facts 投影回答 `acquireCall`。
+内部 `publishModelCallContent` 先写入 accepted 创建或 ready 内容、读取权威 Session Log 前缀，再以 `tailEquals` 追加 marker。真实 SQLite/SQL Session Log 场景验证 created marker 单次提交、同原件认回及不同字节拒绝。公开 `openCall` 和有回复 `dispatch` 在返回 ref 或终态前调用该发布件。`createIndependentCallConsumer` 独立拥有 wait/release 资源：单次 wait 取消不结束 consumer，release 等待接收任务真实停止。`createRuntimeAcquire` 经受信资格与存在性提供者及共同 facts 投影回答 `acquireCall`。
 
-`createModelCallFacts` 从实际会话前缀投影 created/ready marker，并按摘要读取已确认内容。首个 owner 关闭后，另一个 facts 实例能从 JSONL 和 SQLite 还原同一引用。在 Cordis/Storage 服务场景中，`openCall` 返回创建引用，`dispatch` 发布 ready 而不捏造最终响应，新建 `acquireCall({ mode: 'read' })` 消费者看到 `complete` 与 `disposition_pending`。释放消费者不取消执行 owner。ready 工作真实排空后，runtime 释放精确 transport lease。之后的处分、ACK 回收（RT12 S-98，见上文确认一节）与 creation key 认回由 `tests/acceptance-a22-acknowledgement.spec.ts`、`tests/acceptance-a22-settlement-work.spec.ts`、`tests/acceptance-20260930-a22-runtime.spec.ts` 覆盖，经 demo 服务的路径由其 `tests/call-reference-service.spec.ts` 覆盖。
+`createModelCallFacts` 从实际会话前缀投影 created/ready marker，并按摘要读取已确认内容。首个 owner 关闭后，另一个 facts 实例能从 SQL Session Log 和 SQLite 内容存储还原同一引用。在 Cordis/Storage 服务场景中，`openCall` 返回创建引用，`dispatch` 发布 ready 而不捏造最终响应，新建 `acquireCall({ mode: 'read' })` 消费者看到 `complete` 与 `disposition_pending`。释放消费者不取消执行 owner。ready 工作真实排空后，runtime 释放精确 transport lease。之后的处分、ACK 回收（RT12 S-98，见上文确认一节）与 creation key 认回由 `tests/acceptance-a22-acknowledgement.spec.ts`、`tests/acceptance-a22-settlement-work.spec.ts`、`tests/acceptance-20260930-a22-runtime.spec.ts` 覆盖，经 demo 服务的路径由其 `tests/call-reference-service.spec.ts` 覆盖。

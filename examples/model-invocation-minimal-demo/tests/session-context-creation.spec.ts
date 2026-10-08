@@ -4,7 +4,13 @@ import { join } from 'node:path'
 import { expect, it, vi } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { instantFromEpochMs, instantFromRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
+import { openStorage } from '@omne-harness-lite/storage-sql'
+import { composeMigrations } from '@omne-harness-lite/storage'
+import {
+  createRuntimeContext,
+  runtimeContextMigrations,
+} from '@omne-harness-lite/runtime-context-local'
 import type { SessionLog } from '@omne-harness-lite/session-log'
 import type { HoldingTenantResult, SessionScope } from '@omne-harness-lite/session-tenancy'
 import { createSessionLogBacking } from '../src/log-backing.ts'
@@ -19,13 +25,23 @@ const at = unwrap(instantFromRfc3339('2026-10-04T00:00:00Z'))
 
 async function fixture() {
   const dir = await mkdtemp(join(tmpdir(), 'omne-context-creator-'))
-  const log = await openJsonlSessionLog({
-    dir,
-    processOwnership: { current: 'context-creator', observeExit: async () => 'unknown' },
-  })
+  const log = await openSqlLogFixture({ dir: dir })
   const append = vi.fn<SessionLog['append']>(log.append)
   const observed = { ...log, append }
   const backing = createSessionLogBacking(observed)
+  const borrow = backing.operations.borrow()
+  const storage = await openStorage({
+    dialect: 'sqlite',
+    file: join(dir, 'context.sqlite'),
+    migrations: composeMigrations(runtimeContextMigrations),
+    upgrade: false,
+  })
+  const context = createRuntimeContext({
+    log: borrow.log,
+    storage,
+    access: { authorize: async () => ({ kind: 'rejected', reason: 'notAuthorized' }) },
+    now: () => '2026-10-04T00:00:00Z',
+  })
   const now = vi.fn<Clock['now']>(() => at)
   let held: HoldingTenantResult = { failure: 'sessionNotFound' }
   const createRow = vi.fn(async () => {
@@ -35,12 +51,14 @@ async function fixture() {
   })
   const owner = createSessionContextCreator({
     clock: { now },
-    backing: backing.operations,
+    initializer: context.initializer,
     tenancy: { holdingTenant: async () => held },
     createRow,
   })
   return {
     owner,
+    context,
+    borrow,
     log,
     append,
     backing,
@@ -51,6 +69,10 @@ async function fixture() {
     },
     async cleanup() {
       // Each failure test checks retained ownership before this isolated fixture is destroyed.
+      context.closeAdmission()
+      await context.drain()
+      await borrow.release()
+      await storage.close()
       await log.close()
       await rm(dir, { recursive: true, force: true })
     },
@@ -72,10 +94,14 @@ it('coalesces first creation and preserves the initial value on repeated prepara
     if ('failure' in read) throw new Error('prefix missing')
     expect(read.entries).toHaveLength(1)
     expect(read.entries[0]?.payload).toMatchObject({
-      kind: 'session_initialized',
-      seed: {
-        fixed: [{ key: 'session', value: scope }],
-        initial: [{ observedAt: '2026-10-04T00:00:00.000Z' }],
+      kind: 'fact',
+      owner: 'runtime-context',
+      value: {
+        kind: 'session_initialized',
+        seed: {
+          fixed: [{ key: 'session', value: scope }],
+          initial: [{ observedAt: '2026-10-04T00:00:00.000Z' }],
+        },
       },
     })
     await f.owner.drain()
@@ -161,11 +187,14 @@ it('retains an absent unknown append and releases only after the same batch appe
     expect(await f.owner.prepare(scope)).toMatchObject({ reason: 'unavailable' })
     expect(await f.owner.prepare(scope)).toMatchObject({ reason: 'unavailable' })
     expect(f.append).toHaveBeenCalledTimes(1)
-    await expect(f.owner.drain()).rejects.toThrow('unresolved writes')
+    await f.owner.drain()
+    f.context.closeAdmission()
+    await expect(f.context.drain()).rejects.toThrow('unresolved writes')
     expect(await f.owner.prepare(scope)).toMatchObject({ reason: 'ownerStopped' })
     if (!original) throw new Error('original request missing')
     expect(await f.log.append(...original)).not.toHaveProperty('failure')
-    await expect(f.owner.drain()).resolves.toBeUndefined()
+    await expect(f.context.drain()).resolves.toBeUndefined()
+    await f.borrow.release()
     await f.backing.drain()
   } finally {
     await f.cleanup()
@@ -196,6 +225,7 @@ it('waits for an admitted creation before release and rejects creation after clo
     expect(await creating).toEqual({ kind: 'prepared' })
     await draining
     expect(drained).toBe(true)
+    await f.borrow.release()
     await f.backing.drain()
   } finally {
     gate.resolve()

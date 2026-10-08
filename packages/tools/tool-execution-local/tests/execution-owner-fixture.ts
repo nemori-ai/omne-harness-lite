@@ -5,7 +5,7 @@ import { vi } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import type { SessionLog } from '@omne-harness-lite/session-log'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import type { SessionAccess, SessionAccessOperations } from '@omne-harness-lite/session-tenancy'
 import {
   createParameterJudge,
@@ -108,7 +108,7 @@ export function frozenDelivery(
     selectedChain: chain,
   }
 }
-/** Real JSONL/codec/projection/invoker/implementation registry. Delivery bytes and chain selection remain controlled inputs. */
+/** Real SQL journal/codec/projection/invoker/implementation registry. Delivery bytes and chain selection remain controlled inputs. */
 export async function fixture(
   executor: ToolExecutor = async () => 'actual-result',
   invalidated?: AbortSignal,
@@ -116,10 +116,7 @@ export async function fixture(
   environments?: Parameters<typeof createExecutionOwner>[0]['environments'],
 ) {
   const dir = await mkdtemp(join(tmpdir(), 'omne-execution-owner-'))
-  const log = await openJsonlSessionLog({
-    dir,
-    processOwnership: { current: 'owner-test', observeExit: async () => 'exited' },
-  })
+  const log = await openSqlLogFixture({ dir: dir })
   const append = vi.fn<SessionLog['append']>(log.append),
     readSince = vi.fn(log.readSince)
   const implementation = vi.fn(executor),
@@ -279,6 +276,9 @@ export async function fixture(
     return acquired.observer
   }
   return {
+    dir,
+    backing,
+    history,
     owner,
     journal,
     log,

@@ -7,7 +7,7 @@
 - [实际装配捕获](upstream/captured-graphs-65/index.json)：22源码、26图、435定义请求。编译器是记录器，未执行任何校验；CLI forms的假返回true调用显式记录在unvalidatedInvocations中，不能作为forms通过。首次ST require ESM失败的原件在upstream/captured-graphs-65-r1，r2只排除不参与初始化的函数/异常类导入。
 - [摘要清单](upstream/provenance.json)保留原路径与SHA。生成探针CJS仍带原绝对helper坐标，是原run字节，不宣称可直接迁移运行；源码从仓库根执行可重建探路件。未复跑原第三方库或全量性能研究。
 
-消费者是[固定Schema提案](../../../design/record/proposals/fixed-schema-precompile/README.md)，选择与实现接受不归本目录。
+消费者是固定Schema提案，选择与实现接受不归本目录。
 
 原始源码、JSON、日志和生成代码位于upstream，以保持run字节；原官方Markdown快照另存.md.txt，正文和SHA不变，上游相对链接不成为本仓库导航。原路径映射见父topic的upstream/source-paths.json。
 

@@ -21,7 +21,7 @@ import { callDeployment, publication, rootBody, ROOT } from './model-request-sup
 import { activateModelFixture, actor, PASSWORD, ref } from './support.ts'
 
 // D-108 / transport v14 rev2 RF-V3/V5/V7/V9. Only the upstream HTTPS boundary
-// is controlled; model invocation, Cordis service and SQLite/JSONL remain real.
+// is controlled; model invocation, Cordis service and SQLite/SQL journal remain real.
 const MODEL = deepseekV4Pro0813Definition.modelId
 const REFUSAL = '  I cannot provide that answer.\n保留完整文字。 '
 const AT = '2026-09-28T00:00:00Z'

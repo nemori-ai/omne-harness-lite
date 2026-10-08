@@ -7,7 +7,9 @@ import {
   parseOpaqueIdentifier,
   tenantIdEquals,
 } from '@omne-harness-lite/identity-values'
-import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { openStorage } from '@omne-harness-lite/storage-sql'
+import { composeMigrations, type Storage } from '@omne-harness-lite/storage'
+import { openSqlLogFixture } from './sql-log-fixture.ts'
 import type { SessionLog } from '@omne-harness-lite/session-log'
 import type {
   AccessIdentity,
@@ -21,7 +23,7 @@ import type {
   ContextSource,
   ContextSessionSeed,
 } from '@omne-harness-lite/runtime-context'
-import { createRuntimeContext, createContextSessionInitializer } from '../src/index.ts'
+import { createRuntimeContext, runtimeContextMigrations } from '../src/index.ts'
 const tenant = parseTenantId({ organization: 'org', account: 'alice' }),
   session = parseOpaqueIdentifier('session', 'SessionRef')
 if (!('ok' in tenant) || !('ok' in session)) throw new Error('fixture invalid')
@@ -96,22 +98,34 @@ export function source(
     read: async () => ({ kind: 'values', values: [] }),
   }
 }
-export async function host(now: Parameters<typeof createRuntimeContext>[0]['now'] = () => at) {
+export async function host(
+  now: Parameters<typeof createRuntimeContext>[0]['now'] = () => at,
+  wrapStorage: (storage: Storage) => Storage = storage => storage,
+) {
   const dir = await mkdtemp(join(tmpdir(), 'omne-context-')),
-    log = await openJsonlSessionLog({
-      dir,
-      processOwnership: { current: 'context-tests', observeExit: async () => 'exited' },
-    })
-  const auth = authority(),
-    initializer = createContextSessionInitializer(log)
+    log = await openSqlLogFixture({ dir: dir })
+  const storage = await openStorage({
+    dialect: 'sqlite',
+    file: join(dir, 'context.sqlite'),
+    migrations: composeMigrations(runtimeContextMigrations),
+    upgrade: false,
+  })
+  const auth = authority()
   const observedLog = { ...log, readSince: vi.fn(log.readSince) }
-  const owner = createRuntimeContext({ log: observedLog, access: auth.operations, now })
+  const owner = createRuntimeContext({
+    log: observedLog,
+    storage: wrapStorage(storage),
+    access: auth.operations,
+    now,
+  })
+  const initializer = { ...owner.initializer, drain: owner.drain }
   const access = auth.bind('coordinator', ['identity', 'public', 'secret'])
   const publisher = auth.bind('source', ['identity', 'public', 'secret'])
   const tool = auth.bind('tool', ['identity', 'public', 'secret'])
   const disposeSource = owner.sources.registerSource(source())
   return {
     dir,
+    storage,
     log,
     observedLog,
     auth,
@@ -126,6 +140,7 @@ export async function host(now: Parameters<typeof createRuntimeContext>[0]['now'
       await owner.drain()
       await initializer.drain()
       await log.close()
+      await storage.close()
       await rm(dir, { recursive: true, force: true })
     },
   }

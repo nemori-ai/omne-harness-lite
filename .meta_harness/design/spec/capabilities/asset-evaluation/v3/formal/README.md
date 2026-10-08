@@ -1,9 +1,9 @@
 # 形式化工件与论证映射
 
-> 本目录为 v3 候选的规范模型包；可执行模型与配置沿源 v2 保持原字节。旧执行结果不重标为 v3；本轮运行状态只见 [起草报告](../../../../../record/decisions/core-implementation-spec-reconciliation/draft-report.md)。
+> 本目录为 v3 候选的规范模型包；可执行模型与配置沿源 v2 保持原字节。旧执行结果不重标为 v3；实际执行输入和结果放执行工作树 `tmp/<task>/`。
 
 本页拥有**条款 → 性质 → 模型 → 检查命令**这一层对应关系，以及模型**盖不到什么**。
-它不是模型，也不是证明，**不填通过状态**——实际执行的工具、命令、范围与结果在[验证入口](../../verification.md)。
+它不是模型，也不是证明，**不填通过状态**。[验证入口](../../verification.md)维护方法、覆盖、前提和限制；每次运行输入与输出放本工作树 `tmp/<task>/`。
 
 本版只选用一个工件，[理由在契约 S-32](../contract.md#s-32-本版选用哪些形式工件)：
 求值是输入到结果的一个函数，要证的是**结果里什么能出现、什么不能**，那是结构关系，用 Alloy。
@@ -23,7 +23,7 @@
 | [S-39](../contract.md#s-39-谁可以使用它值与判定) | **(viii) 判为用不了的不生效**：这次求值的租户用不了的那份资产，不出现在任何能力标识的生效结果里 | 断言 `UnusableNeverEffective`；`run usableByFallback` 给出两种退回的实例（退回出厂那一份；锁随被滤掉的那份不起作用、更具体的一份生效） | **判定本身不在模型**：`Unusable` 是给定的持有子集，只加两条 fact——official 不判（`OfficialNotJudged`）、指向同一份资产的持有同判（`JudgedPerAsset`）。值怎么求、`self` 对作者、角色在不在值里，证据形式是规范场景 [S-41](../contract.md#s-41-判下来用不了的退回下一层) |
 | [S-23](../contract.md#s-23-第四步权限) 的「在效」 | **(ix) 用不了的那份不带走外层的界**：组织或租户那一格对 `c` 的持有被滤掉、却仍在效，且那一格对生效资产声明的权限项 `i` 配了带锁的值——那条值就在 `i` 的界里 | 断言 `UnusableKeepsBounds`；`run unusableConstrains` 给出前件成立的实例 | 与 (vi) 同样贴近 `permBounds` 的定义，价值在 M11：**把「被滤掉的仍在效」钉进模型**。「谁可以使用它」这一项自己的参与者不看锁截断（[S-39](../contract.md#s-39-谁可以使用它值与判定) 第 1 条），模型的 `PermissionItem` 不含它 |
 | [S-23](../contract.md#s-23-第四步权限) | **(vi) 换了实现逃不出外层对这个能力标识锁下的界**：组织或租户那一格对 `c` 的在效持有指向被替换的那一份、且给生效资产声明的权限项 `i` 配了**带锁**的值——那条值就在 `i` 的界里 | 断言 `ReplacementCannotEscapePermission` | **它与 `permBounds` 的定义很近**：它的用处是把「按能力标识」钉住，把参与条件改回「只看指向生效资产的持有」时必须失败（下面的 M7）。**替换件没声明、外层锁过的那一项**（S-23 最后一段）不在断言范围——模型只对生效资产声明的项下断言；证据形式是规范场景 [S-36](../contract.md#s-36-换了实现设置不跟过去权限的约束跟过去)（E-4 A 支的 `network`） |
-| [S-23](../contract.md#s-23-第四步权限) | **(vii) 与界不交的挑选不给出值**：有挑选落在界内时，值来自其中一条，且没有一条落在界内的挑选比它更里（[D-060 §一 S10-b](../../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s10asset-evaluation报回的)） | 断言 `NonFittingPickNeverSources`；`run pickSkipped` 给出「更里的一条被跳过」的实例 | 「落在界内」是值域上的事，模型把它当作给定的布尔 `Fits`、`defaultFits`。**挑选不含界**（`permPicks` = 参与的配值减去界；2026-09-24 随 rev 17 §5.3 改，原先的 fact `BoundsFitUnlessEmpty` 随「界同时是挑选」一起删去）。值本身与「没有挑选落在界内」时的落档由规范场景 [S-36](../contract.md#s-36-换了实现设置不跟过去权限的约束跟过去)（E-4 C、D、E 支）兜 |
+| [S-23](../contract.md#s-23-第四步权限) | **(vii) 与界不交的挑选不给出值**：有挑选落在界内时，值来自其中一条，且没有一条落在界内的挑选比它更里（D-060 §一 S10-b） | 断言 `NonFittingPickNeverSources`；`run pickSkipped` 给出「更里的一条被跳过」的实例 | 「落在界内」是值域上的事，模型把它当作给定的布尔 `Fits`、`defaultFits`。**挑选不含界**（`permPicks` = 参与的配值减去界；2026-09-24 随 rev 17 §5.3 改，原先的 fact `BoundsFitUnlessEmpty` 随「界同时是挑选」一起删去）。值本身与「没有挑选落在界内」时的落档由规范场景 [S-36](../contract.md#s-36-换了实现设置不跟过去权限的约束跟过去)（E-4 C、D、E 支）兜 |
 | [S-23](../contract.md#s-23-第四步权限) | **(x) 不锁的「禁止」也是界**：执行权限上配成恰 `{forbid}` 的参与配值在界里（PF-002 rev 17 §5.3） | 断言 `ForbidIsBound`；`run unlockedForbid` 给出一条不带锁的 `{forbid}` 参与的实例 | 贴近 `permBounds` 的定义，价值在 M12。「配成恰 `{forbid}`」「这一项是执行权限」是值域上的事实，模型取给定的子集 `ForbidAssign`；它压过更里面的挑选这件事要算值，由 E-4 D 支兜 |
 
 **没有进模型的，各自的理由**：
@@ -114,8 +114,8 @@
   | M12 | `permBounds` 只取带锁的（不锁的「禁止」不算界） | `ForbidIsBound` |
   | M13 | `settingParticipating` 里对治理类的滤（落点类的滤留着） | `WorkspaceNeverSourcesGovernance` |
 
-- **判读**：`check` 行是 `UNSAT` 读作**本范围内无反例**，是 `SAT` 读作找到反例；`run` 行反之（[D-060 §一 S10-c](../../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s10asset-evaluation报回的)）。
-- **为什么不登记为 formal task**：`alloy exec` **找到反例照样退出 0**，[检查器只以退出码判成败](../../../../../registry/README.md#当前状态)，
+- **判读**：`check` 行是 `UNSAT` 读作**本范围内无反例**，是 `SAT` 读作找到反例；`run` 行反之（D-060 §一 S10-c）。
+- **为什么不登记为 formal task**：`alloy exec` **找到反例照样退出 0**，[检查器只以退出码判成败](../../../../../registry/README.md#当前采用)，
   登记它只会得到一个永远通过的任务。结果按命令逐条读，记在[验证入口](../../verification.md#形式化工件)。
 
 Alloy 在给定规模内找反例；**在已检查范围内未发现反例，不自动成为任意规模的证明**。

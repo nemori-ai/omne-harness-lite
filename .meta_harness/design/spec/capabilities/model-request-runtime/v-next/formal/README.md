@@ -1,6 +1,6 @@
 # v-next ACK 行为模型：暂存行扩展
 
-2026-09-30，candidate。本目录是 v12 冻结的 [`formal/AckLifecycle.tla`](../../v12/formal/AckLifecycle.tla) 的候选后继：按[接缝 revision 2](../../../../../record/proposals/model-runtime-reference-lifecycle/ack-post-confirmation-settlement.md) R1/R2 加入暂存行代际、回执未知的在途追加与恢复时的可读性；其余动作、常量与十条原不变量逐字保留，八份原变异配置与 v12 字节相同。它不是已登记的 formal task，不改 registry；下一版本冻结时随 contract 一起登记。抽象边界沿 [v12 ACK-README](../../v12/formal/ACK-README.md)：两个 call、两个 consumer、单 Focus、至多一次 crash，不建模真实权限来源、字节或密码学。
+2026-09-30，candidate。本目录是 v12 冻结的 [`formal/AckLifecycle.tla`](../../v12/formal/AckLifecycle.tla) 的候选后继：按接缝 revision 2 R1/R2 加入暂存行代际、回执未知的在途追加与恢复时的可读性；其余动作、常量与十条原不变量逐字保留，八份原变异配置与 v12 字节相同。它不是已登记的 formal task，不改 registry；下一版本冻结时随 contract 一起登记。抽象边界沿 [v12 ACK-README](../../v12/formal/ACK-README.md)：两个 call、两个 consumer、单 Focus、至多一次 crash，不建模真实权限来源、字节或密码学。
 
 ## 相对 v12 改了什么
 
@@ -37,4 +37,4 @@
 - 接缝 R3（删除重试/唤醒复用 ACK 清理构件、删除回执未知从同行认回）、R4（代重送前重核 settle 资格）、反例 C 的认回/`alreadyEnded` 返回、D 的部分碰撞键、E 的代际比较：均未建模，证据在版本外 verification 登记的真实并发验收义务。
 - 不证明真实字节、SQL/JSONL 耐久、权限来源或密码学。
 
-实际执行结果与输入位置在版本外 [verification](../../verification.md#接缝-revision-2-修订2026-09-30)。
+实际执行结果与输入位置在版本外 [verification](../../verification.md#ack-处分与恢复接缝)。

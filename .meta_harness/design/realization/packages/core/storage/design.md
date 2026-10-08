@@ -12,7 +12,7 @@
 
 **来源**：
 
-- [D-026](../../../../record/decisions/infrastructure-persistence-choices/decision.md)：不提供 in-memory 实现；SQL 经通用查询层、只改配置切方言；查询层取 **Kysely**、sqlite 驱动取 `node:sqlite`；SQL 存储提供者进第一程。
+- D-026：不提供 in-memory 实现；SQL 经通用查询层、只改配置切方言；查询层取 **Kysely**、sqlite 驱动取 `node:sqlite`；SQL 存储提供者进第一程。
   本节点据此做两件事：**查询能力经 Kysely 的构建器由事务对象暴露，协议不自造第二套 DSL**；**测试夹具就是真实提供者的 sqlite 临时文件库**，套件不带任何内存实现。
 - 研究正文[「Drizzle 在类型层按方言分裂，Kysely 在构造时传方言」](../../../../../research/agent-harness-persistence-and-identity-infra/research.md#drizzle-在类型层按方言分裂kysely-在构造时传方言)：
   Kysely 的 `forUpdate()` 在 sqlite 下**不会被剥掉、静默变成普通读**，`supportsTransactionalDdl = false`。**这是协议把锁做成显式方法而不是让调用方自己写 `forUpdate()` 的直接理由**——锁语义必须由协议按方言解释，否则 R-3 在 sqlite 上会无声失守。
@@ -20,7 +20,7 @@
 - 两个 tenancy 节点的[跨 owner「同一提交」解释](../../tenancy/organization-governance/design.md#跨-owner-的同一提交账号行上的过期事实加组织行对账号行的引用约束)：
   账号行上的过期事实（行锁下落盘）+ 组织行对账号行的引用约束。本节点不重复那段推理，只保证它依赖的三个原语——锁定读、引用约束两向可识别、唯一冲突后事务仍可用——在两种方言下都由协议给出并被套件证明。
 
-**Cordis 版本**：本节点不依赖 Cordis。提供者插件与消费者插件按 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md) 采用 `@deepseek-ai/cordis` 4.0.4。
+**Cordis 版本**：本节点不依赖 Cordis。提供者插件与消费者插件按 D-025 采用 `@deepseek-ai/cordis` 4.0.4。
 **依赖版本**：Kysely 0.29.6（workspace catalog；D-026 与研究核对的也是它），根协议公开面只依赖它的**类型**；已批准的一致性套件 `./conformance` 使用 Kysely 的运行时 `sql` 构建检查约束，vitest 4.1.11 也是该子路径的运行时依赖（套件是 `describe` 块）；`node:sqlite`、`pg` 归提供者节点。
 
 ## 协议
@@ -245,7 +245,7 @@ describeStorageConformance(name: string, factory: () => Promise<StorageInstance>
 
 ## P-13 显式共同事务扩展
 
-按 D-040 的 AI3 S-49/51 需要，采用[提供者候选 r2](../../../../record/proposals/governance-production-mechanisms/storage-unit.md)的显式单元；已独立定向评审无阻断。主线在既定实施授权内采用此绑定。原 Storage 和 P-1～P-12 不变，新增 AtomicStorage 扩展与 StorageUnit（run/query/mutate/assertStorage/afterCommit）。普通 read/write 不隐式参与，嵌套仍拒绝。
+按 D-040 的 AI3 S-49/51 需要，采用提供者候选 r2的显式单元；已独立定向评审无阻断。主线在既定实施授权内采用此绑定。原 Storage 和 P-1～P-12 不变，新增 AtomicStorage 扩展与 StorageUnit（run/query/mutate/assertStorage/afterCommit）。普通 read/write 不隐式参与，嵌套仍拒绝。
 
 unit 的 query/mutate 是同一 tx 的暂存，不代表独立提交；query 只给 ReadTx 类型，不声称数据库硬只读。作用域同域/活跃帧/串行子调用检查，任何逃出 run 的异常永久污染；P-2冲突只可在参与操作内部处理。接纳即挂内部拒绝观察；作用域结束若有调用在途，禁止新调用并等待其静止后回滚。不是检测所有await/背景交接或沙箱化裸SQL。
 
@@ -258,4 +258,4 @@ SqlStorage.atomic 复用已有 write 事务和排空；单元局部 ALS 只管�
 
 ## D057 符合性运行器依赖精化（2026-09-26）
 
-[D057](../../../../record/decisions/governance-conformance-runner-adoption/README.md)限定取代本页旧Vitest运行时依赖与无runner参数签名：describeStorageConformance(name,factory,runner)、describeAtomicStorageConformance(name,factory,runner)。runner为两个suite实际使用的Vitest函数Pick类型；测试进程提供，core不自行导入运行时。Vitest只作开发依赖；普通根公开入口不导出runner类型。声明消费与制品依赖清单实际验证归verification，不由type import字样推定隔离已完成。
+D057限定取代本页旧Vitest运行时依赖与无runner参数签名：describeStorageConformance(name,factory,runner)、describeAtomicStorageConformance(name,factory,runner)。runner为两个suite实际使用的Vitest函数Pick类型；测试进程提供，core不自行导入运行时。Vitest只作开发依赖；普通根公开入口不导出runner类型。声明消费与制品依赖清单实际验证归verification，不由type import字样推定隔离已完成。

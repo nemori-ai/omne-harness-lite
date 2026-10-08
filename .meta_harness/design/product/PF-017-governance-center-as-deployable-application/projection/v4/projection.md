@@ -8,6 +8,6 @@
 
 Cordis边界不变：storage-sql拥有原锁句柄与升级；AI拥有自己迁移片段；宿主只合成并保留旧九条前缀、追加第十条，不能改片段业务。没有新service/fiber/inject/event。共享存储及全部跨owner业务保证仍沿既有v2投影/registry，分发仍沿v3。
 
-依据：[D053](../../../../record/decisions/governance-startup-repair-adoption/decision.md)、[提供者](../../../../realization/packages/infra/storage-sql/design.md)、[AI节点](../../../../realization/packages/tenancy/account-identity/design.md)。节点非冻结规范，provenance为null，实施前核接受范围；本版快照不原地覆盖。
+依据：D053、[提供者](../../../../realization/packages/infra/storage-sql/design.md)、[AI节点](../../../../realization/packages/tenancy/account-identity/design.md)。节点非冻结规范，provenance为null，实施前核接受范围；本版快照不原地覆盖。
 
 完成判据：保留原host两进程恰一成功断言；旧EXCLUSIVE与新IMMEDIATE两个方向互拒；GC/正常释放/SIGKILL/升级快照回归；真实SQLite Migrator无外层事务在第三DDL后UPDATE前故障，列与原行回滚；旧实现负控失败，成功后重复不动新登录；完成类型、全量相应回归与新制品跨平台验证再引用。备份/恢复/服务管理与MacGUI/IME等未决仍不由本版解决。

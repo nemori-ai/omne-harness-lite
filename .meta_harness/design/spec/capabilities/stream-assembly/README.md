@@ -5,10 +5,10 @@
 
 **它是纯计算**：五个操作——`start`、`accept`、`snapshot`、`closeOut`、`abandon`——都作用于**调用方持有**的状态值。
 持有状态、按目标路由事件、把结果包成 `AssistantMessage` 或 `ToolInternalMessage`、落盘记账，都归宿主（模型请求运行时、工具执行运行时）。
-它是 core 三层（[D-035](../../../record/decisions/message-and-stream-baseline/README.md)）里的第三层：到达装配自写。
+它是 core 三层（D-035）里的第三层：到达装配自写。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.stream-assembly, 2)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **状态**：`accepted`、资源已冻结（2026-09-26，D-061）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 `accepted`（`acceptance` 指向 D-061 的 `acceptance.json`）。`family=capabilities`、`topic=stream-assembly`、
   `contract_path=spec/capabilities/stream-assembly/v2/contract.md`，`resources` 另含 `v2/examples.md` 与 `v2/formal/` 下的模型、四份配置与映射页；
   依赖三项：`data.arrival-events` v2、`data.content-blocks` v2、`data.call-accounts` v2（消费 clauses 见[契约头部](v2/contract.md)）。
@@ -20,7 +20,7 @@
 
 | 准入问题 | 答 |
 |---|---|
-| 语义拥有者 | 本契约。到达装配的规则被模型请求运行时与工具执行运行时共用，写两遍必然分叉；[D-035](../../../record/decisions/message-and-stream-baseline/decision.md) 定了这一层自写、三层落 core、先于两个运行时的契约 |
+| 语义拥有者 | 本契约。到达装配的规则被模型请求运行时与工具执行运行时共用，写两遍必然分叉；D-035 定了这一层自写、三层落 core、先于两个运行时的契约 |
 | 稳定身份 | `capability.stream-assembly`，版本 1 |
 | 适用范围 | 一个部署之内的一条条流；跨进程后要由协议重新兑现的，逐行列在[契约 S-29](v2/contract.md#s-29-部署装配给与协议给) |
 | 为什么是 capability 而不是 data | 它有操作、有失败集合、有状态怎样前进的规则、有要用行为模型检查的性质；**但没有自己持有的状态**——状态是调用方手里的值 |
@@ -51,8 +51,8 @@
 
 ## 2026-09-26 版本接受
 
-本次接受 `capability.stream-assembly` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `capability.stream-assembly` v2 的全部条款，D-061 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
 
 ## 2026-09-26 D-068 当前 v3
 
-`capability.stream-assembly · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，以上旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。
+`capability.stream-assembly · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 D-068。本段为当前导航，以上旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。

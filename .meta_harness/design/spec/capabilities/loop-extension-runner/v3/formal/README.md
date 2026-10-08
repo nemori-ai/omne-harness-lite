@@ -60,4 +60,4 @@
   spec/capabilities/loop-extension-runner/v3/formal/Runner.tla
 ```
 
-其他配置只替换 config 与 metadir；实际 raw、原始输入及工具版本见[验证入口](../../verification.md#v3-候选精确消费演进)。
+其他配置只替换 config 与 metadir；[验证入口](../../verification.md#v3-精确消费演进)拥有覆盖、前提与限制，实际 raw、原始输入及工具版本放本工作树 `tmp/<task>/`。

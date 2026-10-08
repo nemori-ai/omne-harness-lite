@@ -1,6 +1,7 @@
+import { modelCategory } from './log-codec-fixture.ts'
 /**
  * Review 2026-09-30 Q4/Q6 at the anchored invocation handle (the object the runtime container and
- * external persisted-reply owners hold), over an actual JSONL log + SQL identity mapping.
+ * external persisted-reply owners hold), over an actual SQL journal log + SQL identity mapping.
  */
 import { afterAll, describe, expect, it } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
@@ -10,7 +11,7 @@ import type {
   SettlementRegistration,
   SettlementTask,
   SettlementTaskKind,
-} from '../src/settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 import { createAnchoredModelInvocation } from '../src/anchored-invocation.ts'
 import { harness, payload } from './anchored-invocation-fixture.ts'
 import type { ControlledSettlementOwner } from './settlement-fixture.ts'
@@ -28,9 +29,7 @@ interface Mode {
   read: 'ok' | 'fail'
 }
 const isFinal = (entries: readonly unknown[]) =>
-  entries.some(
-    entry => (entry as { payload?: { category?: string } }).payload?.category === 'response',
-  )
+  entries.some(entry => modelCategory((entry as { payload?: unknown }).payload) === 'response')
 
 function install(h: { log: SessionLog; wrap: (log: SessionLog) => void }, mode: Mode): string[] {
   const seen: string[] = []
@@ -55,9 +54,7 @@ function install(h: { log: SessionLog; wrap: (log: SessionLog) => void }, mode: 
 const finalCount = async (log: SessionLog, session: SessionRef) => {
   const read = await log.readSince(session, 0)
   if (!('entries' in read)) throw new Error('read')
-  return read.entries.filter(
-    entry => (entry.payload as { category?: string }).category === 'response',
-  ).length
+  return read.entries.filter(entry => modelCategory(entry.payload) === 'response').length
 }
 
 describe('review 2026-09-30 Q4 anchored handle: original unknown request is pinned and resolved', () => {

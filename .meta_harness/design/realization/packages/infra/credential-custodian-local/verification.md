@@ -9,7 +9,7 @@
 
 ### 契约的形式工件：已运行，不作本节点的绑定
 
-formal task `credential-custodian-v2-sweep`（[run 2026-09-25-formal-credential-custodian](../../../../record/evidence/2026-09-25-formal-credential-custodian/README.md)：正配置无反例，三份去保护配置与两个探针按预期）证的是**契约模型**：「只丢三种」与「按排到之后读的时刻判」缺一即有反例。它把「在绑定上排序」建成每个动作的原子性、两侧共用一个 `Expired`——**这两条被建模方式吸收，模型不检查它们**；而本节点对 S-18 的份额恰是这两条（锁同一绑定行、锁到之后取时刻；过期只经桥的 `isPendingExpired` 判）。所以它是本节点设计的依据，不是本节点实现的证据；[bindings](bindings.yaml) 不登记它。本节点那一份的证据是下面的 S-28 与 N-1。
+formal task `credential-custodian-v2-sweep`（run 2026-09-25-formal-credential-custodian：正配置无反例，三份去保护配置与两个探针按预期）证的是**契约模型**：「只丢三种」与「按排到之后读的时刻判」缺一即有反例。它把「在绑定上排序」建成每个动作的原子性、两侧共用一个 `Expired`——**这两条被建模方式吸收，模型不检查它们**；而本节点对 S-18 的份额恰是这两条（锁同一绑定行、锁到之后取时刻；过期只经桥的 `isPendingExpired` 判）。所以它是本节点设计的依据，不是本节点实现的证据；[bindings](bindings.yaml) 不登记它。本节点那一份的证据是下面的 S-28 与 N-1。
 
 ### 规范场景（七条，全部未开始）
 
@@ -42,10 +42,6 @@ formal task `credential-custodian-v2-sweep`（[run 2026-09-25-formal-credential-
 | N-10 | **桥的事务内读函数与本节点的约定**：桥改 `mcp_oauth_binding` 的四列之一而不改读函数时，本节点的 S-25 集成测试要红 | 集成测试（引用桥的迁移片段与读函数） | 未开始（两包都尚未建包） | 本节点 ＋ 桥节点（X-1～X-3） |
 | N-11 | 上游语义取证（CCL-11）：GCM 认证失败在 `final()` 抛、`'wx'` 不覆盖、同一句柄 `fstat` | 各一条会失败的测试（Node 24.18.0 起） | 未开始 | 本节点 |
 
-## 实际执行
-
-**无。**本节点没有源码；契约模型的那一次运行见上文，不计入本节点。
-
 ## 覆盖缺口
 
 - **全部条款没有任何实现证据**：源码、测试、集成运行都不存在；[bindings](bindings.yaml) 为空。
@@ -54,22 +50,6 @@ formal task `credential-custodian-v2-sweep`（[run 2026-09-25-formal-credential-
 - **打不开的 OAuth 条目本版没有收场路径**（契约 G-10）：N-3 只证「留下、记 error、不动绑定」，不证它会被收走；受阻消费者：桥（那个绑定一直 `credentialUnavailable`，直到人重新授权）。
 - **密钥丢失而条目表非空时没有运维出口**（CCL-13）：N-5 只证启动失败与诊断，不证人能从那里走出来。
 - **契约 S-19 右列（协议须给）**本节点一条都不兑现。
-
-## 独立评审
-
-**独立评审 N7**（architecture-reviewer，2026-09-25；对象：本节点首稿与同批另三个节点；结论无阻断）。下表是本节点名下各项的处置，依据主线裁定 [D-060 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)。**处置不等于评审闭合**：本次修订尚未复评。
-
-| 评审项 | 处置 | 落在哪 |
-|---|---|---|
-| F-1 过期谓词两边各写一份，边界可构造「`granted` 却交不出」 | 改：过期只经桥 `./tx-reads` 导出的 `isPendingExpired`（`now > since + ttl`，同 `Sweep.tla`）；本包不手写比较。契约 S-18 第 2 条已写明运算符（规格侧） | design [实现路径](design.md#实现路径与来源)、[公开面](design.md#公开面) `sweepVerdict`、[跨 owner 一节](design.md#跨-owner-的同一提交桥的绑定行与引用约束)第一条反证加边界一支；N-1 边界一支、N-8 |
-| F-2 换钥后 OAuth 条目无丢弃路径、`GrantedResolvable` 缺前提 | 改：关键选择四翻转——密钥缺席且条目表非空 ⇒ 启动失败、表空 ⇒ 生成；打不开的 OAuth 条目本版留下、记 error、不作废绑定；代价表补「OAuth 那一半没有覆盖路径」一行。契约 `GrantedResolvable` 前提「条目可开封」与 G-10 由规格侧补 | design [关键选择四](design.md#关键选择)、失败映射、装卸表；新缺口 CCL-13；N-3、N-5 |
-| F-6 「cli 已按 M48 显式驱动」引用过宽 | 改为「要求 cli 加入显式次序；未加入时的收场已兜住」，对指 cli A-32（cli 已加：验收装配里执行环境 → 保管方，最后撤根） | design [装卸](design.md#成对的装载与撤除)末段、归装配 |
-| S-1 清扫调度语义未写 | 写明起点到起点、轮不重叠、超半间隔跳拍记 warn，并推出上界 | design [关键选择五](design.md#关键选择)末段；S-28 行两支计时断言 |
-| S-6 CCL-1 与桥节点不同步 | CCL-1 改「已由桥节点 X-1／X-2 闭合」并互指；`readOAuthBinding`、`lockOAuthBinding` 与过期谓词 `isPendingExpired`（桥节点 X-3，桥已导出并自用）同在桥的 `./tx-reads`，本节点判过期一律经它 | design CCL-1、依赖表、跨 owner 一节；README |
-| D-1 `oauthPendingTtl` 双持（主线裁） | 维持双持加相等装配测试；谓词已只一份 | design CCL-3 |
-| 观察：本包依赖 `tools/mcp-bridge` 子路径的方向（主线裁） | 与契约依赖同向，接受 | design 关键选择一、CCL-10 |
-| 顺带 | CCL-7、CCL-8 的契约措辞已落（D-060 §八 N-40 ③），改「已闭合」 | design 缺口表 |
-
 
 ## 模型副本来源绑定候选的验证义务
 

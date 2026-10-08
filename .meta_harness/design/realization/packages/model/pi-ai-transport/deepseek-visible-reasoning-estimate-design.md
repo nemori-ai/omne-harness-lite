@@ -4,7 +4,7 @@
 
 ## 基准、性质与证据
 
-基准为已接受 MR9/RT10 的计量语义及当前两款 DeepSeek 实现，接受依据沿 [D107](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md)。本次不新增公开操作、输出组语义、对象或存储；RT12/MR11 后继沿用此计量责任。相关对象仍为已定义的 ModelDefinition、ModelProfile、ModelInvocationInput、PendingModelResponse；对象归属不变，未经尚不存在的装配反查索引核实。
+基准为已接受 MR9/RT10 的计量语义及当前两款 DeepSeek 实现，接受依据沿 D107。本次不新增公开操作、输出组语义、对象或存储；RT12/MR11 后继沿用此计量责任。相关对象仍为已定义的 ModelDefinition、ModelProfile、ModelInvocationInput、PendingModelResponse；对象归属不变，未经尚不存在的装配反查索引核实。
 
 领域读数沿既有已封存性质：全部实际输入须有有据计量或发前拒绝（RT10 S-74）；估算不冒实际值/上界；稳定 P 不重新 tokenize，I/φ/δ 不漏计或双计（S-77/S-78）；独立公开计量不偷读日志/凭据/环境（S-79）；保留完整原响应、实际 wire 与上游 usage（MR9 S-43）。此次补读已知机制，不声明新的双盲封存。
 

@@ -64,8 +64,8 @@ SHAPE = f"""# CLI 的形状
 
 | 选型点 | 采用 | 精确版本 | 状态 | 依据 |
 |---|---|---|---|---|
-| 运行时 | Node.js | 24.1.0 | 已采用 | [决定]({UP}/record/decisions/cli-runtime/decision.md) |
-| 渲染层 | Ink | 未钉 | candidate | [提案]({UP}/record/proposals/cli-renderer/alternatives.md) |
+| 运行时 | Node.js | 24.1.0 | 已采用 | [决定]({UP}/realization/apps/cli/runtime.md) |
+| 渲染层 | Ink | 未钉 | candidate | [提案]({UP}/realization/apps/cli/renderer.md) |
 
 ## 分发与升级
 
@@ -117,8 +117,8 @@ def tree(tmp_path: Path) -> Path:
     files = {
         f"{TOPIC}/README.md": "---\nid: PF-020\nrevision: 3\nstatus: active\n---\n# PF-020 命令行\n",
         "registry/catalog.json": json.dumps(CATALOG, ensure_ascii=False, indent=2) + "\n",
-        "record/decisions/cli-runtime/decision.md": "# 采用 Node.js\n",
-        "record/proposals/cli-renderer/alternatives.md": "# 渲染层候选\n",
+        "realization/apps/cli/runtime.md": "# 采用 Node.js\n",
+        "realization/apps/cli/renderer.md": "# 渲染层候选\n",
         f"{CLI}/README.md": ENTRY,
         f"{CLI}/architecture.md": SHAPE,
         f"{CLI}/bindings.yaml": BINDINGS,
@@ -150,6 +150,16 @@ def test_clean_tree_passes(tree: Path, capsys: pytest.CaptureFixture[str]) -> No
     assert errors(tree) == []
     assert realization_nodes.main(["--root", str(tree)]) == 0
     assert "2 个实现映射节点（apps 1、packages 1）" in capsys.readouterr().out
+
+
+def test_stack_basis_accepts_current_owner_anchor(tree: Path) -> None:
+    edit(tree, f"{CLI}/architecture.md", "runtime.md)", "runtime.md#采用-nodejs)")
+    assert errors(tree) == []
+
+
+def test_stack_basis_rejects_missing_current_owner_anchor(tree: Path) -> None:
+    edit(tree, f"{CLI}/architecture.md", "runtime.md)", "runtime.md#missing)")
+    assert any("现行依据缺少锚点 missing" in message for message in errors(tree))
 
 
 def test_empty_realization_passes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -248,19 +258,17 @@ def test_stack_status_has_only_two_values(tree: Path) -> None:
     assert any("状态写的是「试用」" in message for message in errors(tree))
 
 
-def test_adopted_needs_a_decision_and_candidate_needs_a_proposal(tree: Path) -> None:
-    edit(tree, f"{CLI}/architecture.md", f"[决定]({UP}/record/decisions/cli-runtime/decision.md)",
-         f"[提案]({UP}/record/proposals/cli-renderer/alternatives.md)")
-    assert any("「已采用」的依据要链到 record/decisions/<topic>/decision.md" in message for message in errors(tree))
-    edit(tree, f"{CLI}/architecture.md", f"| Ink | 未钉 | candidate | [提案]({UP}/record/proposals/cli-renderer/alternatives.md) |",
-         "| Ink | 未钉 | candidate | 待定 |")
-    assert any("「candidate」的依据要链到 record/proposals/<topic>/ 下的文件" in message for message in errors(tree))
+@pytest.mark.parametrize("basis", ["record/decisions/topic/decision.md", "tmp/choice.md", "../../outside.md", "https://example.com/choice.md"])
+def test_stack_needs_a_current_owner(tree: Path, basis: str) -> None:
+    edit(tree, f"{CLI}/architecture.md", f"[决定]({UP}/realization/apps/cli/runtime.md)",
+         f"[依据]({UP}/{basis})" if not basis.startswith("https:") else f"[依据]({basis})")
+    assert any("技术栈依据必须指向当前语义拥有者" in message for message in errors(tree))
 
 
 def test_basis_link_must_point_at_a_file_that_exists(tree: Path) -> None:
-    (tree / "record/decisions/cli-runtime/decision.md").unlink()
+    (tree / "realization/apps/cli/runtime.md").unlink()
     found = errors(tree)
-    assert any("依据链到 record/decisions/cli-runtime/decision.md，但这个文件不存在" in message for message in found)
+    assert any("依据链到 realization/apps/cli/runtime.md，但这个文件不存在" in message for message in found)
     assert any("链接解析不到" in message for message in found)  # 同一条链接也进相对链接检查
 
 

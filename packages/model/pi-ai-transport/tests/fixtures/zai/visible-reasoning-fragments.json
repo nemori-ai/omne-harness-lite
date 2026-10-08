@@ -1,5 +1,4 @@
 {
-  "source": ".meta_harness/design/record/evidence/2026-09-27-probe-model-request-runtime/openrouter-research.tar.gz",
   "note": "Ordered visible reasoning fragments of the thirteen archived ZAI raw streams that carried reasoning (GLM-5.2 x5, GLM-5.3-Flash x3, GLM-5.3-FlashX x5; fixed z-ai/fp8 route). Every reasoning frame's delta was exactly {content: '', role: 'assistant', reasoning: F, reasoning_details: [{type: 'reasoning.text', text: F, format: 'unknown', index: 0}]}, one contiguous run per stream; tests rebuild those frames and let the real reader merge them. No request was sent to obtain this file.",
   "streams": [
     {
@@ -656,7 +655,16 @@
       "model": "z-ai/glm-5.3-flash",
       "provider": "z-ai/fp8",
       "effort": "low",
-      "fragments": ["Fixture", " name", " for", " code", " A", "...", " alpha", "."]
+      "fragments": [
+        "Fixture",
+        " name",
+        " for",
+        " code",
+        " A",
+        "...",
+        " alpha",
+        "."
+      ]
     },
     {
       "member": "openrouter-research/remaining-03/2be1f829-8040-4902-8da6-9cdc7d52d517.json",
@@ -664,7 +672,9 @@
       "model": "z-ai/glm-5.3-flash",
       "provider": "z-ai/fp8",
       "effort": "low",
-      "fragments": ["alpha"]
+      "fragments": [
+        "alpha"
+      ]
     },
     {
       "member": "openrouter-research/remaining-03/5b805eb1-bda8-40ea-b98b-d864db18c863.json",
@@ -694,7 +704,10 @@
       "model": "z-ai/glm-5.3-flashx",
       "provider": "z-ai/fp8",
       "effort": "low",
-      "fragments": ["AL", "PHA"]
+      "fragments": [
+        "AL",
+        "PHA"
+      ]
     },
     {
       "member": "openrouter-research/automatic-01/a22fc49d-4610-41ad-ab06-e25ac7706634.json",
@@ -702,7 +715,9 @@
       "model": "z-ai/glm-5.3-flashx",
       "provider": "z-ai/fp8",
       "effort": "low",
-      "fragments": ["alpha"]
+      "fragments": [
+        "alpha"
+      ]
     },
     {
       "member": "openrouter-research/remaining-03/53fab9fb-d496-4f27-816e-e2ee6cf87fcc.json",
@@ -710,7 +725,10 @@
       "model": "z-ai/glm-5.3-flashx",
       "provider": "z-ai/fp8",
       "effort": "low",
-      "fragments": ["AL", "PHA"]
+      "fragments": [
+        "AL",
+        "PHA"
+      ]
     },
     {
       "member": "openrouter-research/remaining-03/ec5fe6bf-7ef8-4b5b-8bda-464c09a45f2d.json",
@@ -718,7 +736,10 @@
       "model": "z-ai/glm-5.3-flashx",
       "provider": "z-ai/fp8",
       "effort": "low",
-      "fragments": ["AL", "PHA"]
+      "fragments": [
+        "AL",
+        "PHA"
+      ]
     },
     {
       "member": "openrouter-research/remaining-03/eecb1509-4b78-4d26-8d27-0c034ba85912.json",
@@ -726,7 +747,10 @@
       "model": "z-ai/glm-5.3-flashx",
       "provider": "z-ai/fp8",
       "effort": "low",
-      "fragments": ["AL", "PHA"]
+      "fragments": [
+        "AL",
+        "PHA"
+      ]
     }
   ]
 }

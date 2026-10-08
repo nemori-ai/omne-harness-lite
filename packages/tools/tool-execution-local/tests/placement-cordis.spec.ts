@@ -55,6 +55,9 @@ async function fixture(
     async acquire() {
       return { kind: 'rejected', reason: 'unavailable' } as const
     }
+    async recoverOwned() {
+      return { kind: 'recovered', values: [], failures: [] } as const
+    }
     async recover() {
       return { kind: 'rejected', reason: 'unavailable' } as const
     }
@@ -127,6 +130,7 @@ test('the static Cordis contributor uses public injected ports and its caller ow
         origin: { run: 'run', attempt: 1, assistantMessage: 'reply' },
         selected: { ...h.h.selected, definition: pure },
         adoptedContext: [],
+        resources: [],
         state: { phase: 'queued' },
       },
     })

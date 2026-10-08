@@ -1,3 +1,5 @@
+import { LosslessNumber } from '@omne-harness-lite/content-blocks'
+import { physicalBatches } from './sql-batches-fixture.ts'
 import { deriveCreationKey } from '../src/call-references.ts'
 import { dirname, join } from 'node:path'
 import { readFile, readdir } from 'node:fs/promises'
@@ -386,7 +388,7 @@ describe('OpenAI controlled TLS delivery through actual Cordis providers', () =>
           id: 'openai-reminder',
           createdAt: AT,
           nature: 'event',
-          source: { kind: 'attempt_started', attempt: 1, reason: 'first', at: AT },
+          source: { kind: 'extension', extension: 'delivery-business-reminder' },
           blocks: [
             {
               id: 'openai-reminder-text',
@@ -545,21 +547,14 @@ describe('OpenAI controlled TLS delivery through actual Cordis providers', () =>
         expect(serialized).toContain('OpenAI')
         expect(serialized).toContain(MODEL)
         expect(serialized).toContain('value=42')
-        // Inspect the actual JSONL commits: each assistant and response must
+        // Inspect the actual SQL commits: each assistant and response must
         // occupy the same durable batch, with upstream facts kept separate from estimates.
         if (config.sessionLog === undefined) throw new Error('session log configuration absent')
-        const paths = await readdir(config.sessionLog.dir, { recursive: true })
-        const logFiles = paths.filter(path => path.endsWith('entries.jsonl'))
-        expect(logFiles).toHaveLength(1)
-        const logFile = logFiles[0]
-        if (logFile === undefined) throw new Error('actual JSONL missing')
-        const batches = (await readFile(join(config.sessionLog.dir, logFile), 'utf8'))
-          .trim()
-          .split('\n')
-          .filter(line => line.includes('"category":"response"'))
+        const batches = physicalBatches(config.databaseFile).filter(batch =>
+          batch.entries.some(entry => entry.payload.category === 'response'),
+        )
         expect(batches).toHaveLength(3)
-        for (const line of batches) {
-          const batch: unknown = JSON.parse(line)
+        for (const batch of batches) {
           expect(batch).toMatchObject({
             entries: [
               { payload: { category: 'message', value: { type: 'assistant' } } },
@@ -581,7 +576,7 @@ describe('OpenAI controlled TLS delivery through actual Cordis providers', () =>
                       cache_write_tokens: 0,
                       source: 'upstream',
                     },
-                    cost: { cost_usd: 0.0000117, source: 'upstream_usage' },
+                    cost: { cost_usd: new LosslessNumber('0.0000117'), source: 'upstream_usage' },
                   },
                 },
               },

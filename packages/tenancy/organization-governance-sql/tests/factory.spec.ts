@@ -35,6 +35,7 @@ test.each([false, true])(
             run: fn => unit.run(fn),
             query: fn => unit.query(fn),
             mutate: fn => unit.mutate(fn),
+            observeCompletion: () => unit.observeCompletion(),
             afterCommit: notify => unit.afterCommit(notify),
           }),
         )

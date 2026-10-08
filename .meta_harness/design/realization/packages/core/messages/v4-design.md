@@ -2,9 +2,9 @@
 
 ## 输入与实施边界
 
-本稿消费 catalog 已登记的 `omne-harness-lite-design-2026-09-15 · data.messages · v4` 和 `data.model-profile · v3`，两者均为 candidate。依据是[适配提案 revision 2](../../../../record/proposals/model-request-adaptation/design.md)及其[独立复审范围](../../../../record/proposals/model-request-adaptation/review.md)；复审没有接受本节点。需求依据沿 messages v4 所列版本，本增量直接关联 PF-009 rev 8 的消息责任、PF-013 rev 13 的模型调用留痕。原已接受的 [design.md](design.md) 及 v3 证据不改写。
+本稿消费 catalog 已登记的 `omne-harness-lite-design-2026-09-15 · data.messages · v4` 和 `data.model-profile · v3`，两者均为 candidate。依据是适配提案 revision 2及其独立复审范围；复审没有接受本节点。需求依据沿 messages v4 所列版本，本增量直接关联 PF-009 rev 8 的消息责任、PF-013 rev 13 的模型调用留痕。原已接受的 [design.md](design.md) 及 v3 证据不改写。
 
-源码包 `packages/core/messages` 已有 v3 实现；本稿的 v4、保留 v3 纯值入口和新增验收尚未实现。主线本批明确保留面：已公开的 v3 函数/类型转入显式旧入口，v2 只保留现有 Schema 及完整闭包，不新增从未公开的 messages v2 judge。延伸现有纯模块，不新建包、插件或服务。Cordis 采用 4.0.4 由 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md) 决定；本节点不导入 Cordis，不依赖任何 basis 机制主张。新公开入口、内部方法及接线在下文均为候选，现有函数名只用于定位增量。
+源码包 `packages/core/messages` 已有 v3 实现；本稿的 v4、保留 v3 纯值入口和新增验收尚未实现。主线本批明确保留面：已公开的 v3 函数/类型转入显式旧入口，v2 只保留现有 Schema 及完整闭包，不新增从未公开的 messages v2 judge。延伸现有纯模块，不新建包、插件或服务。Cordis 采用 4.0.4 由 D-025 决定；本节点不导入 Cordis，不依赖任何 basis 机制主张。新公开入口、内部方法及接线在下文均为候选，现有函数名只用于定位增量。
 
 ## 契约责任到兑现点
 

@@ -29,22 +29,30 @@ Each TypeScript example is self-contained and uses the built public exports.
 ### Define a plugin and manage its service lifetime
 
 ```ts
-import { Context } from '@deepseek-ai/cordis'
+import { Context, Service } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { definePlugin, fiberIsActive, resolveOptional } from '@omne-harness-lite/kernel-basis/cordis'
+
+class Greeting extends Service {
+  static readonly provide = 'greeting'
+  constructor(ctx: Context, private readonly prefix: string) {
+    super(ctx, Greeting.provide)
+  }
+  greet(name: string): string { return `${this.prefix}, ${name}` }
+}
 
 const greeting = definePlugin({
   name: 'greeting',
   Config: z.object({ prefix: z.string().min(1) }),
   apply(ctx, config) {
-    ctx.provide('greeting', { greet: (name: string) => `${config.prefix}, ${name}` })
+    new Greeting(ctx, config.prefix)
   },
 })
 const ctx = new Context()
 const fiber = ctx.plugin(greeting, { prefix: 'Hello' })
 try {
   await fiber
-  const service = resolveOptional<{ greet(name: string): string }>(ctx, 'greeting')
+  const service = resolveOptional<Greeting>(ctx, Greeting.provide)
   if (service === undefined) throw new Error('greeting unavailable')
   console.log(service.greet('Ada')) // Hello, Ada
   console.log(fiberIsActive(fiber.ctx)) // true
@@ -95,6 +103,8 @@ try {
 }
 ```
 
+The existing helper commitments are in [SPEC.md](SPEC.md).
+
 ## Boundaries and failures
 
 These helpers adopt Cordis **4.0.4** semantics. Required `inject` dependencies keep a fiber pending when absent; replacing their provider unloads and reruns the plugin body. `resolveOptional` reads at call time, returns `undefined` for absent or non-active providers, and does not establish a required dependency. Its generic type is a caller assertion, not service validation. Config or plugin-body failures reject `await fiber`; config failure occurs before the body runs.
@@ -112,3 +122,5 @@ pnpm --filter @omne-harness-lite/kernel-basis run test
 ```
 
 Build workspace dependencies first. These checks cover this package; integration behavior requires the actual consumer and provider.
+
+Behavior and verification obligations: [SPEC.md](SPEC.md) and [verification](verification/README.md).

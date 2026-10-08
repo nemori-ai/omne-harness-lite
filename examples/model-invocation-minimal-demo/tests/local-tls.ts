@@ -84,6 +84,7 @@ export async function createLocalTls(
       requests.push({ body, authorization: req.headers.authorization })
       await onReceive()
       received.resolve()
+      if (res.destroyed || res.writableEnded) return
       if (mode === 'http503') {
         res.writeHead(503, { 'content-type': 'application/json' })
         res.end(JSON.stringify({ error: { message: 'controlled failure', code: 503 } }))
@@ -122,6 +123,8 @@ export async function createLocalTls(
         return
       }
       await new Promise<void>(resolve => setTimeout(resolve, 15))
+      // The real client can cancel during this controlled streaming gap.
+      if (res.destroyed || res.writableEnded) return
       res.write(
         `data: ${JSON.stringify({ choices: [{ delta: { content: 'second' }, finish_reason: null }] })}\n\n`,
       )
@@ -182,7 +185,10 @@ export async function createLocalTls(
     },
     closedSockets: () => closedSockets,
     finishHeld() {
-      held?.end('data: [DONE]\n\n')
+      const response = held
+      held = undefined
+      if (response && !response.destroyed && !response.writableEnded)
+        response.end('data: [DONE]\n\n')
     },
     async close() {
       server.closeAllConnections()

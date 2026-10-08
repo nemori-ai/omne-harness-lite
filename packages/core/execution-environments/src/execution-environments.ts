@@ -43,6 +43,8 @@ export interface ResourceLifecycle {
   ) => Promise<'recorded' | 'conflict' | 'closed' | 'unavailable'>
   /** Confirmed permission precedes the first external command effect. Unknown is unavailable. */
   readonly permit: (key: string) => Promise<'confirmed' | 'closed' | 'unavailable'>
+  /** Transfers the existing resource to this call's durably adopted environment only. */
+  readonly adopt: (key: string) => Promise<'confirmed' | 'closed' | 'unavailable'>
   readonly stopped: (
     key: string,
     status: 'confirmed' | 'unconfirmed',
@@ -145,15 +147,37 @@ export interface EnvironmentProvider {
       readonly placement: EnvironmentPlacement
     },
   ) => Promise<EnvironmentProviderAcquisition>
-  readonly recover: (
-    resource: ManagedResource,
-  ) => Promise<'confirmedStopped' | 'pending' | 'unsupported'>
+  readonly listRecoveryResources: (
+    scope: ContextScope,
+  ) => Promise<
+    | { readonly kind: 'resources'; readonly values: readonly ManagedResource[] }
+    | { readonly kind: 'unavailable' }
+  >
+  readonly recover: (resource: ManagedResource) => Promise<ResourceRecoveryResult>
   readonly retire: () => Promise<
     | { readonly kind: 'drained' }
     | { readonly kind: 'pending'; readonly resources: readonly ManagedResource[] }
   >
 }
+export interface ResourceRecoveryResult {
+  readonly status: 'confirmedStopped' | 'pending' | 'unsupported'
+  readonly evidence?: JsonValue
+}
+export type OwnedRecoveryResult =
+  | {
+      readonly kind: 'recovered'
+      readonly values: readonly ({ readonly resource: ManagedResource } & ResourceRecoveryResult)[]
+      readonly failures: readonly {
+        readonly provider: string
+        readonly reason: 'notAuthorized' | 'unavailable' | 'providerUnavailable'
+      }[]
+    }
+  | EnvironmentRejection
 export interface EnvironmentProviderRegistrations {
+  readonly recoverOwned: (
+    scope: ContextScope,
+    authorization: RecoveryAccess,
+  ) => Promise<OwnedRecoveryResult>
   readonly registerProvider: (provider: EnvironmentProvider) => () => Promise<void>
   /** Trusted recovery driver only; does not grant facilities or reauthorize old work. */
   readonly recover: (
@@ -164,6 +188,7 @@ export interface EnvironmentProviderRegistrations {
     | readonly {
         readonly resource: ManagedResource
         readonly status: 'confirmedStopped' | 'pending' | 'unsupported'
+        readonly evidence?: JsonValue
       }[]
     | EnvironmentRejection
   >

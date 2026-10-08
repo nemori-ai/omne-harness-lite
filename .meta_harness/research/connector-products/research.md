@@ -213,6 +213,6 @@ routines「Claude Code doesn't reuse sessions across events」（[E7](evidence.m
 
 ## 采用与后续核对
 
-尚无采用者。本包为 PF-002 连接件「事件类型目录与订阅」方向的产品裁决提供先例与代价，裁决本身归 [record/decisions](../../design/record/decisions/README.md)；
+尚无采用者。本包为 PF-002 连接件「事件类型目录与订阅」方向的产品裁决提供先例与代价，裁决过程留本工作树 tmp，获准产品规则写回 PF-002 正文；
 架构读数若引用 C-2、C-3、C-7，请把「先例这样做」与「本项目这样选」分开写。
 后续任一家改版（channels 出 preview、ChatGPT 事件目录扩展、Claude Tag GA）都先按 [演进事件词](../README.md#演进事件词)记一条再改正文。

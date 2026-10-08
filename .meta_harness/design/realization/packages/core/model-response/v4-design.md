@@ -2,7 +2,7 @@
 
 本文件是 `packages/core/model-response` 的增量映射，状态 **candidate**；不修改 [已接受设计](design.md)，不把 v3 的实际验证移记为 v4。契约坐标为 `omne-harness-lite-design-2026-09-15 · data.model-response · v4`，以下 S-n 均指 [该契约](../../../../spec/data/model-response/v4/contract.md)。本次读取的正文 SHA-256 为 `b591476555136ef8e86fba235b95df23627aa930581ee13db2817079d5cbf566`，是候选输入快照，不能冒充冻结凭据。
 
-增量依据为 [model-request-adaptation 提案 rev 2](../../../../record/proposals/model-request-adaptation/design.md) 及其 [独立评审范围](../../../../record/proposals/model-request-adaptation/review.md)。需求沿契约所列 PF-013 rev 13、PF-009 rev 8、PF-004 rev 12、PF-012 rev 15、PF-001 rev 19、PF-011 rev 4、PF-010 rev 6；本节点不扩展产品范围。
+增量依据为 model-request-adaptation 提案 rev 2 及其 独立评审范围。需求沿契约所列 PF-013 rev 13、PF-009 rev 8、PF-004 rev 12、PF-012 rev 15、PF-001 rev 19、PF-011 rev 4、PF-010 rev 6；本节点不扩展产品范围。
 
 ## 实现路径与来源
 
@@ -12,7 +12,7 @@
 
 v3 纯值子面直接执行固定版本规则，不按输入缺字段猜版本，不把缺少绑定的旧响应补成 v4。选择哪个版本归消费者的显式采用；保留面是主线指定的现有消费者边界，不构成任意历史版本兼容承诺。
 
-Cordis 采用版本仍为 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-version/decision.md)。本节点不使用 Cordis API，不依赖任何 basis 机制语义，也没有待核对的上游生命周期主张。
+Cordis 采用版本仍为 D-025 的 4.0.4。本节点不使用 Cordis API，不依赖任何 basis 机制语义，也没有待核对的上游生命周期主张。
 
 ## 契约责任到实现的投影
 

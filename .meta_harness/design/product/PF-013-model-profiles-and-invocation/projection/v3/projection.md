@@ -1,8 +1,8 @@
 # PF-013-model-profiles-and-invocation · 设计投影 v3
 
 - 当前需求修订：rev 13，2026-09-26 已正式接受。
-- 状态：**accepted，post-review，未表示已实现或已验证**。G4／G5／G6 由 [D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md) 闭合。
-- 来源：当前产品、精确契约与节点；[provenance.json](provenance.json) 逐文件记录 SHA-256。只有 registry/frozen 的规格资源标 frozen；其他 hash 为快照校验。
+- 状态：**accepted，post-review，未表示已实现或已验证**。G4／G5／G6 由 D-065 闭合。
+- 来源：当前产品、精确契约与节点；[provenance.json](../../design.md) 逐文件记录 SHA-256。只有 registry/frozen 的规格资源标 frozen；其他 hash 为快照校验。
 - 本页按当前来源重建导航，不沿用 v1 的旧缺口计数或替身表。各操作的九项承诺与节点实现判断只在下列精确来源中定义；阅读本页时按链接展开完整条目，不从标题推导默认值。
 
 ## 1. 需求与确认范围
@@ -1676,7 +1676,7 @@
 | `packages/tools/asset-registry` | [条款、会失败的证据与 assumptions](../../../../realization/packages/tools/asset-registry/bindings.yaml) | [已跑范围、未跑义务、评审处置与已知缺口](../../../../realization/packages/tools/asset-registry/verification.md) |
 | `packages/tools/mcp-bridge` | [条款、会失败的证据与 assumptions](../../../../realization/packages/tools/mcp-bridge/bindings.yaml) | [已跑范围、未跑义务、评审处置与已知缺口](../../../../realization/packages/tools/mcp-bridge/verification.md) |
 
-形式工具只在有限模型与其登记前提内提供证据。本次接受没有执行新测试、形式任务或真实供应商调用；此前实际运行查 record/evidence，不把本次状态登记当作运行证据。
+形式工具只在有限模型与其明确前提内提供证据。接受状态不表示测试、形式任务或真实供应商调用已完成；每次执行结果留本工作树 tmp，不把状态登记当作运行证据。
 
 ## 7. 未决缺口与受阻消费
 下表逐份指向当前契约与节点中的完整缺口清单，owner、闭合条件和缺席答复均以这些清单为准。已在后续裁决闭合的产品确认项不再列作待签；未实现的读面、输入接线、loop、比较门等仍保留。
@@ -1772,4 +1772,4 @@
 已知实施缺口不因 G6 签署而关闭；这些步骤不发布新的产品规则、替身默认值或并行调度承诺。
 
 
-本快照的行政坐标迁移依据：[D-066](../../../../record/decisions/pr9-pr10-coordinate-reconciliation/decision.md)。原投影与原输入完整保存在该决定指向的 main 快照，不提升既有验证范围。
+本快照的行政坐标迁移依据：D-066。原投影与原输入完整保存在该决定指向的 main 快照，不提升既有验证范围。

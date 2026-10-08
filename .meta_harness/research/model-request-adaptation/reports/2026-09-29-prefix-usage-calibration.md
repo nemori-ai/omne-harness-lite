@@ -1,6 +1,6 @@
 # 响应 usage 校准稳定输入前缀：事实、数学边界与离线成本
 
-观察日期：2026-09-29。研究输入是“上游响应的 input usage 准确”；实务文档核对其口径与必要限定。本文给事实及推导，不作接受决定；候选承载方案见[提案](../../../design/record/proposals/model-input-usage-calibration/README.md)。未发实际模型请求，所有将来的真实模型请求仍须统一经 OpenRouter。
+观察日期：2026-09-29。研究输入是“上游响应的 input usage 准确”；实务文档核对其口径与必要限定。本文给事实及推导，不作接受决定；候选承载方案见提案。未发实际模型请求，所有将来的真实模型请求仍须统一经 OpenRouter。
 
 ## 1. 结论的适用前提
 
@@ -54,7 +54,7 @@ Cnext − Ĉnext = (φθ−φ̂θ) + (δθ−δ̂θ)
 
 ## 4. 仓库当前语义与PF核对
 
-基线`846d4c9096f5b4d18d07fa60c5c56cf29f53fe00`，采用状态以[候选包来源清单](../../../design/record/proposals/model-input-usage-calibration/baseline.json)列出的registry/决定为准，不以冻结正文残留“candidate”标题否定已采用状态，也不使用design_legacy。
+基线`846d4c9096f5b4d18d07fa60c5c56cf29f53fe00`，采用状态以候选包来源清单列出的registry/决定为准，不以冻结正文残留“candidate”标题否定已采用状态，也不使用design_legacy。
 
 - [CA2 S6](../../../design/spec/data/call-accounts/v2/contract.md)：归一化输入三项互斥，总输入需包含缓存读写；output含reasoning，缺明细仍unknown。当前`accounts.ts`在部分cache细项缺失时无法由归一化字段重建虽在原prompt总量中已知的I；MR8的raw诊断附件会过期，单靠附件不是耐久来源。
 - [RT9 S54/S57/S58/S60/S74](../../../design/spec/capabilities/model-request-runtime/v9/contract.md)：公开调用显式输入、纯规划、固定最终body、可替换组件；完整最终输入仍有字节/图片门，token允许有依据estimated并显式margin。[MP6](../../../design/spec/data/model-profile/v6/contract.md)负责相关准入计量政策。不能把本地tokenizer的精确编码长度等同上游准确窗口输入；现meter诚实标estimated。
