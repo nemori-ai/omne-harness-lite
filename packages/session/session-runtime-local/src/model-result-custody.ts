@@ -59,9 +59,12 @@ interface Database {
   sr_model_result: ResultRow
   sr_model_issue: { session: string; call: string; dispatch: string; issue: string }
 }
-export function createModelResultCustody(host: Host): LocalModelResultCustody {
+export function createModelResultCustody(host: Host) {
   const owner = new ResultCustody(host)
-  return Object.freeze({ store: owner.store, read: owner.read })
+  return Object.freeze({
+    operations: Object.freeze<LocalModelResultCustody>({ store: owner.store, read: owner.read }),
+    readIn: owner.readIn,
+  })
 }
 class ResultCustody {
   constructor(readonly host: Host) {}
@@ -267,6 +270,21 @@ class ResultCustody {
           source: await this.source(unit, scope),
         },
       },
+    }
+  }
+  /** Private original-Unit seam; the coordinator supplies the actual Run grant before entry. */
+  readIn = async (unit: StorageUnit, requested: SessionScope, call: string, key: string) => {
+    try {
+      unit.assertStorage(this.host.options.storage)
+      const scope = this.gate(this.host.authority.coordination, requested)
+      if (!checkKey(call) || !checkKey(key)) throw new InvalidStateInput()
+      const row = await this.row(unit, scope, call, key)
+      if (!row) return { kind: 'absent' as const }
+      const saved = this.decode(row, scope)
+      await this.verifySaved(unit, scope, saved)
+      return saved
+    } catch (error) {
+      return failure(error)
     }
   }
   row(unit: StorageUnit, scope: SessionScope, call: string, key: string) {

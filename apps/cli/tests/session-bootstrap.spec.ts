@@ -1738,6 +1738,30 @@ it('captures a nonempty actual native invocation and transfers its complete resu
     },
   )
   expect(saved).toMatchObject({ kind: 'custodied', pending: dispatched.replyPending })
+  if (!('kind' in saved) || saved.kind !== 'custodied') throw new Error('actual custody missing')
+  const adoption = {
+    kind: 'adoptResult' as const,
+    stepKey: 'adopt-native-original-result',
+    run: original.preparation.run,
+    attempt: original.preparation.attempt,
+    permit: original.preparation.permit,
+    result: saved.witness.receipt,
+  }
+  const adopted = await original.f.runtime.lifecycle.commitStep(
+    original.f.runtime.coordinationAuthority,
+    original.scope,
+    saved.witness.receipt.source,
+    adoption,
+  )
+  expect(adopted).toMatchObject({ kind: 'committed', receipt: { step: 'adoptResult' } })
+  expect(
+    await original.f.runtime.lifecycle.commitStep(
+      original.f.runtime.coordinationAuthority,
+      original.scope,
+      saved.witness.receipt.source,
+      adoption,
+    ),
+  ).toEqual(adopted)
   // dispatch has actually closed its ready invocation; root settlement uses the public SDK coordinator.
   const coordinator = createSettlementCoordinator({
     binding: linked.binding.log,

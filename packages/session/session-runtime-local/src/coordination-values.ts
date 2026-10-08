@@ -27,6 +27,7 @@ const fields = {
   startAttempt: ['kind', 'stepKey', 'run', 'reason'],
   adoptInput: ['kind', 'stepKey', 'run', 'attempt', 'inputPosition', 'permit'],
   prepareCall: ['kind', 'stepKey', 'run', 'attempt', 'call', 'originalPosition', 'permit'],
+  adoptResult: ['kind', 'stepKey', 'run', 'attempt', 'result', 'permit'],
   finish: ['kind', 'stepKey', 'run', 'attempt', 'terminal', 'reason', 'permit'],
 }
 export function lifecycleInput(
@@ -90,6 +91,7 @@ function checkStepFields(data: Record<string, unknown>, limit: number) {
   if ('attempt' in data) positionText(data.attempt, limit)
   if (data.kind === 'prepareCall' && (!checkKey(data.call) || !checkKey(data.originalPosition)))
     throw new InvalidStateInput()
+  if (data.kind === 'adoptResult') checkResultReceipt(data.result, limit)
   checkReason(data)
 }
 function checkReason(data: Record<string, unknown>) {
@@ -119,4 +121,30 @@ export function boundedText(value: unknown, limit: number) {
   const text = writeJsonLossless(copied.ok)
   if (Buffer.byteLength(text) > limit) throw new CoordinationRejection('unavailable')
   return text
+}
+
+function checkResultReceipt(value: unknown, limit: number) {
+  const receipt = resultReceiptFields(value)
+  const scope = stateScope({ tenant: receipt.tenant, session: receipt.session })
+  const source = checkSourceToken(receipt.source)
+  if (
+    'failure' in source ||
+    !tenantIdEquals(scope.tenant, source.ok.tenant) ||
+    scope.session !== source.ok.session ||
+    !checkKey(receipt.call) ||
+    !checkKey(receipt.resultKey)
+  )
+    throw new InvalidStateInput()
+  positionText(receipt.position, limit)
+  if (compareInteger(receipt.position as JsonNumber, source.ok.tail) > 0)
+    throw new InvalidStateInput()
+}
+
+function resultReceiptFields(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new InvalidStateInput()
+  const receipt = value as Record<string, unknown>
+  const keys = ['tenant', 'session', 'call', 'resultKey', 'position', 'source']
+  if (Object.keys(receipt).length !== keys.length || !keys.every(k => Object.hasOwn(receipt, k)))
+    throw new InvalidStateInput()
+  return receipt
 }

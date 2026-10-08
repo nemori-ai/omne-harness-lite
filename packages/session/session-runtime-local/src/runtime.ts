@@ -167,13 +167,15 @@ class SessionIngress implements LocalSessionIngress {
       log: this.log,
     })
     this.modelResults = Object.freeze<LocalSessionIngress['modelResults']>({
-      store: (...args) => this.run(this.access, () => custody.store(...args), [] as const),
-      read: (...args) => this.run(this.access, () => custody.read(...args), [] as const),
+      store: (...args) =>
+        this.run(this.access, () => custody.operations.store(...args), [] as const),
+      read: (...args) => this.run(this.access, () => custody.operations.read(...args), [] as const),
     })
     this.modelInvocation = Object.freeze({
       admit: (...args) => this.run(this.access, () => model.admit(...args), [] as const),
     })
     const lifecycle = createSessionLifecycle({
+      readModelIn: custody.readIn,
       options,
       authority: this.authority,
       state: this.state,

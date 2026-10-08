@@ -27,7 +27,9 @@ import { RuntimeRejection } from './runtime-values.ts'
 import { lifecycleInput, CoordinationRejection, usableSource } from './coordination-values.ts'
 import { grantRun, readStep, saveStep, saveCallPreparation } from './coordination-store.ts'
 
-interface Host {
+import { adoptModelResultIn, type ResultAdoptionHost } from './result-adoption.ts'
+
+interface Host extends ResultAdoptionHost {
   readonly options: RuntimeOptions
   readonly authority: ReturnType<typeof runtimeAuthority>
   readonly state: ReturnType<typeof createLocalSessionState>
@@ -264,6 +266,8 @@ class Lifecycle {
     semantic: string,
   ): Promise<StepCommit> {
     if (step.kind === 'prepareCall') return this.prepareCall(unit, scope, head, step, semantic)
+    if (step.kind === 'adoptResult')
+      return adoptModelResultIn(unit, this.host, scope, step, semantic)
     const change = this.change(step),
       staged = this.requireStage(
         await this.host.state.participant.stageIn(
@@ -328,7 +332,7 @@ class Lifecycle {
   }
 
   change(
-    step: Exclude<SessionLifecycleStep, { kind: 'startRun' | 'prepareCall' }>,
+    step: Exclude<SessionLifecycleStep, { kind: 'startRun' | 'prepareCall' | 'adoptResult' }>,
   ): Exclude<SessionStateChange, { kind: 'initialize' | 'acceptInput' | 'startRun' }> {
     if (step.kind === 'startAttempt') {
       if (step.reason !== 'first') throw new CoordinationRejection('retryFromFacts')
@@ -354,7 +358,7 @@ class Lifecycle {
   }
   entry(
     scope: SessionScope,
-    step: Exclude<SessionLifecycleStep, { kind: 'startRun' | 'prepareCall' }>,
+    step: Exclude<SessionLifecycleStep, { kind: 'startRun' | 'prepareCall' | 'adoptResult' }>,
     change: ReturnType<Lifecycle['change']>,
   ): LogEntryInput {
     const attempt = change.attempt,

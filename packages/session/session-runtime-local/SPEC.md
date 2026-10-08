@@ -74,7 +74,7 @@ readSession和readProgress在同原单元取得当前状态与真实SourceToken�
 
 ## 持久Run生命周期协调
 
-lifecycle.commitStep是可信宿主分面，接原coordinationAuthority、Scope、expectedSource及startRun／startAttempt／adoptInput／prepareCall／finish。普通CLI或协议body不得提供这项活体权限或permit。关闭等待已登记的协调工作，同时拒绝新工作；借入依赖仍归宿主。
+lifecycle.commitStep是可信宿主分面，接原coordinationAuthority、Scope、expectedSource及startRun／startAttempt／adoptInput／prepareCall／adoptResult／finish。普通CLI或协议body不得提供这项活体权限或permit。关闭等待已登记的协调工作，同时拒绝新工作；借入依赖仍归宿主。
 
 startRun先核当前成员、active状态、原待处理输入和日志来源，再登记并执行真实G28新Run登录核验。租户消费单元再次核当前相关状态。原ticket使用、唯一Run、初始输入资格采用、sr_run_grant、run_started和sr_coordination_step同提交。此时attempt为null，不签发permit。状态参加者的startRun只是保留；本提供者用adoptInitialIn在同原单元完成初始采用，再对外报告。该方法只准尚无attempt、原Run和原保留位置匹配的状态，不能替代后续有permit的adoptInput。历史输入保留，只移除pending工作行。
 
@@ -179,3 +179,14 @@ close停止新的发行和使用，等待已登记的原核验工作结束，撤
 journal.readPrefix只属于原工厂的可信宿主返回面，不是普通用户传输或Cordis服务。每次读取须持有原活体Ingress Access，随后在实际G28成员顺序与原同租户StorageUnit内核当前资格、Session归属及完整日志坐标，并调用日志readPrefixIn。复制Access、不同主体／租户、当前拒绝或关闭均不授读取权。找不到原Session明确notFound；存储不可用不冒成功。
 
 该读面返回完整授权日志，包含内部事实与能力数据。应用必须按用户展示承诺投影后才能输出，不得把原日志直接序列化发给普通客户端。读面不追加消息、创建Run、发起模型／工具或重复初始化。读取与其他原Ingress工作共用准入上界及关闭排空。
+
+
+## 原模型结果的协调采用
+
+`lifecycle.commitStep(adoptResult)`要求真实最新AttemptPermit、原Run／attempt及已可靠保存的ResultReceipt。它在原协调StorageUnit中读取完整原结果及其持久发起证明，重新核原保管事实、Scope、原调用／结果身份和回执全文；不嵌套调用独立事务的modelResults.read。缺失、异回执或异Run／attempt返回retryFromFacts，复制或旧permit返回staleAttempt，终态拒绝新采用。
+
+本提供者的`session-runtime-local/1`事实result_adopted、sr_result_adoption消费索引及原StepReceipt同提交。索引按Session／call／response唯一；原stepKey重放认回快照，另一stepKey不能重复消费同结果。输入SourceToken仍须属于原日志且不能指向未来；保管回执必须与持久原值精确相符。存储缺陷保留原异常，提交不明返回原Scope和stepKey；原键认回，不换键重做。
+
+协调采用只移交原结果的推进责任。它不改Pending原件，不决定replyDisposition，不另写assistant消息，也不发ACK。消息／响应配对由原模型SDK在原日志下完成，工具结果仍沿其原协议。保管原全文和费用记录不会因采用而删除；消费索引移除的是待采用资格，不删除不可变历史。普通CLI和宿主协议不暴露这个内部端口、原Unit或permit。关闭沿原Ingress排空规则。
+
+当前实际ModelRuntime公开调用、Session保管及最新permit采用、原SDK结算和ACK已有受控模型IO组合；正式运行宿主与真实OpenRouter仍须完整交付验收，不据单步回执宣称Agent Loop完成。

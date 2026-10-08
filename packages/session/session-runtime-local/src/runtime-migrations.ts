@@ -90,4 +90,20 @@ export const sessionRuntimeMigrations: readonly MigrationFragment[] = [
       },
     },
   },
+  {
+    name: 'local_session_result_adoption',
+    migration: {
+      async up(db) {
+        await db.schema
+          .createTable('sr_result_adoption')
+          .addColumn('session', 'text', c => c.notNull())
+          .addColumn('call', 'text', c => c.notNull())
+          .addColumn('response', 'text', c => c.notNull())
+          .addColumn('result_key', 'text', c => c.notNull())
+          .addColumn('step_key', 'text', c => c.notNull())
+          .addPrimaryKeyConstraint('sr_result_adoption_pk', ['session', 'call', 'response'])
+          .execute()
+      },
+    },
+  },
 ]

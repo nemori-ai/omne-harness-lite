@@ -173,7 +173,9 @@ function checkReceiptIdentity(receipt: StepReceipt, scope: SessionScope, key: st
     receipt.session !== scope.session ||
     receipt.stepKey !== key ||
     !checkKey(receipt.run) ||
-    !['startRun', 'startAttempt', 'adoptInput', 'prepareCall', 'finish'].includes(receipt.step) ||
+    !['startRun', 'startAttempt', 'adoptInput', 'prepareCall', 'adoptResult', 'finish'].includes(
+      receipt.step,
+    ) ||
     Object.keys(receipt).length !== keys.length ||
     !keys.every(k => Object.hasOwn(receipt, k))
   )

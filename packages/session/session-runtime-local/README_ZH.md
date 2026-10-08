@@ -26,9 +26,9 @@
 
 根入口导出createLocalSessionIngress及sessionRuntimeMigrations。可信宿主固定原中心／来源／租户，并借入G28、实际日志及SessionBootstrap。创建先持久固定唯一身份，再在事务外初始化原Context，最后同提交发布事实、空状态和原回执。受理将原消息、事实、pending和回执共同提交；失败不留下半批，重放不重复追加。
 
-operations提供创建、输入及只读查询。可信lifecycle分面另接新Run、首次attempt、输入承接、调用准备和收尾；原grant、日志／状态／pending与StepReceipt共同提交。新Run验证登录，原Run沿持久授权继续。重放返回原回执，不重新签发permit。完整调用协调、恢复接管、取消／归档及正式宿主接线仍由各自施工和验收承担，不能从这个子集推定已经完成。
+operations提供创建、输入及只读查询。可信lifecycle分面另接新Run、首次attempt、输入／结果承接、调用准备和收尾；原grant、日志／状态／pending与StepReceipt共同提交。新Run验证登录，原Run沿持久授权继续。重放返回原回执，不重新签发permit。完整调用协调、恢复接管、取消／归档及正式宿主接线仍由各自施工和验收承担，不能从这个子集推定已经完成。
 
-根通过modelIssue选择原模型参加者，并提供实际当前模型资格和显式容量。可信modelInvocation.admit在原Unit核持久准备及当前permit，将原模型锚点、唯一claim和Session发起证明同提交。只有原模型拥有者可consume该claim；重放不授第二启动权。Run终态或Ingress关闭后，该拥有者仍可只读原精确证明。根须保留借入日志和Storage直至原模型拥有者释放。实际模型来源适配、ACK、工具及完整生产宿主仍未完成。
+根通过modelIssue选择原模型参加者，并提供实际当前模型资格和显式容量。可信modelInvocation.admit在原Unit核持久准备及当前permit，将原模型锚点、唯一claim和Session发起证明同提交。只有原模型拥有者可consume该claim；重放不授第二启动权。Run终态或Ingress关闭后，该拥有者仍可只读原精确证明。根须保留借入日志和Storage直至原模型拥有者释放。实际模型来源及原SDK ACK适配由应用选择；工具及完整生产宿主仍未完成。
 
 ## 开发
 
@@ -61,3 +61,5 @@ createLocalSessionAccess借入真实当前authority、固定的已鉴权主体�
 可信根以原协调权限、Scope和Run借用runJournal；每次实际Unit重新核原持久grant。借用提供完整前缀和SessionLog操作，供模型结算使用，不代替当前执行资格或唯一发起claim。
 
 根须等原模型工作及ACK责任结束再归还借用；Ingress关闭等待已接受借用归还。借用close撤新入口并排空实际单元，不关闭物理依赖；进程内generation在关闭时失效。行为归[提供者规格](SPEC.md#原run日志借用)。
+
+原模型结果的最新permit一次采用沿`lifecycle.commitStep(adoptResult)`，行为见[提供者规格](SPEC.md#原模型结果的协调采用)。它不重复写模型回复、不替代原SDK结算或ACK。

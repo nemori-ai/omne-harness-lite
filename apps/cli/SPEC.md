@@ -395,7 +395,7 @@ close同步撤本原拥有者的新准入，等待原模型唯一发起责任核
 
 构造在借用后失败时，先归还已分配的日志。若归还也失败，AggregateError保留两项原错误，不报告成功。作用域及content owner校验不能由复制的配置对象或进程代际替代。进程借用代际、持久日志代际和物理executionGeneration各有原语义，不能互相比较来授权。
 
-组合测试使用实际物理ModelRuntime、project、SQLite日志、原Run grant和唯一发起owner。非空原调用经公开openCall／dispatch产生完整Pending；实际executionSource交给Session保管，原SDK保存消息／响应批次后原acknowledgeCall成功。治理运输、当前模型资格、catalog和模型IO仍受控；该组合不覆盖正式宿主、最新permit的结果采用或真实OpenRouter首答。
+组合测试使用实际物理ModelRuntime、project、SQLite日志、原Run grant和唯一发起owner。非空原调用经公开openCall／dispatch产生完整Pending；实际executionSource交给Session保管，最新permit提交原结果一次采用，原SDK保存消息／响应批次后原acknowledgeCall成功。治理运输、当前模型资格、catalog和模型IO仍受控；该组合不覆盖正式宿主或真实OpenRouter首答。
 
 ## 原模型结果来源与借用结束
 

@@ -1980,6 +1980,152 @@ describe('original model result custody', () => {
       throw new Error('original dispatch envelope missing')
     return read.envelope.value
   }
+  async function adoptingFixture() {
+    const m = await resultFixture()
+    const saved = await m.store()
+    if (!('kind' in saved) || saved.kind !== 'custodied')
+      throw new Error('original custody missing')
+    const step = {
+      kind: 'adoptResult' as const,
+      stepKey: 'adopt-original-result',
+      run: m.p.step.run,
+      attempt: m.p.step.attempt,
+      permit: m.p.step.permit,
+      result: saved.witness.receipt,
+    }
+    const adopt = (candidate = step) =>
+      m.f.runtime.lifecycle.commitStep(
+        m.f.runtime.coordinationAuthority,
+        m.p.scope,
+        saved.witness.receipt.source,
+        candidate,
+      )
+    return { ...m, saved, step, adopt }
+  }
+  it('adopts an original stored result once under its actual latest permit without inserting a second reply', async () => {
+    const m = await adoptingFixture()
+    const adopted = await m.adopt()
+    expect(adopted).toMatchObject({
+      kind: 'committed',
+      receipt: {
+        ...m.p.scope,
+        run: m.step.run,
+        attempt: m.step.attempt,
+        step: 'adoptResult',
+        stepKey: m.step.stepKey,
+      },
+      permit: null,
+    })
+    expect(await m.adopt()).toEqual(adopted)
+    expect(await m.adopt({ ...m.step, stepKey: 'duplicate-adoption' })).toEqual({
+      failure: 'retryFromFacts',
+    })
+    expect(await m.f.count('sr_result_adoption')).toEqual({ n: 1 })
+    expect(await m.f.count('sr_model_result')).toEqual({ n: 1 })
+    const after = await m.f.runtime.journal.readPrefix(m.f.runtime.access, m.p.scope.session)
+    if (!('kind' in after) || after.kind !== 'prefix') throw new Error('actual journal missing')
+    expect(after.entries.slice(-1)).toMatchObject([
+      {
+        payload: {
+          kind: 'fact',
+          owner: 'session-runtime-local',
+          value: { kind: 'result_adopted' },
+        },
+      },
+    ])
+  })
+  it('recognizes the original adopted result after its real commit return is lost', async () => {
+    const m = await adoptingFixture()
+    const actual = m.f.storage.atomic.bind(m.f.storage)
+    let visits = 0
+    const fault = vi.spyOn(m.f.storage, 'atomic').mockImplementation(async work => {
+      const outcome = await actual(work)
+      if (++visits === 2) throw new StorageUnavailable('adoption committed but return lost')
+      return outcome
+    })
+    expect(await m.adopt()).toEqual({
+      kind: 'unknownCommit',
+      scope: m.p.scope,
+      stepKey: m.step.stepKey,
+    })
+    fault.mockRestore()
+    expect(await m.f.count('sr_result_adoption')).toEqual({ n: 1 })
+    expect(await m.adopt()).toHaveProperty('kind', 'committed')
+    expect(await m.f.count('sr_result_adoption')).toEqual({ n: 1 })
+    expect(await m.adopt({ ...m.step, stepKey: 'lost-return-new-key' })).toEqual({
+      failure: 'retryFromFacts',
+    })
+  })
+  it('rolls back adoption fact, consumed index and receipt together when the original Unit cannot commit', async () => {
+    const m = await adoptingFixture()
+    const before = await m.f.runtime.journal.readPrefix(m.f.runtime.access, m.p.scope.session)
+    const actual = m.f.storage.atomic.bind(m.f.storage)
+    let visits = 0
+    const fault = vi.spyOn(m.f.storage, 'atomic').mockImplementation(work => {
+      if (++visits !== 2) return actual(work)
+      return actual(async unit => {
+        await work(unit)
+        throw new StorageUnavailable('original adoption rolled back')
+      })
+    })
+    expect(await m.adopt()).toEqual({
+      kind: 'unknownCommit',
+      scope: m.p.scope,
+      stepKey: m.step.stepKey,
+    })
+    fault.mockRestore()
+    expect(await m.f.count('sr_result_adoption')).toEqual({ n: 0 })
+    expect(await m.f.runtime.journal.readPrefix(m.f.runtime.access, m.p.scope.session)).toEqual(
+      before,
+    )
+    expect(await m.adopt()).toHaveProperty('kind', 'committed')
+  })
+  it('refuses copied permits and altered custody coordinates without adopting the original result', async () => {
+    const m = await adoptingFixture()
+    expect(await m.adopt({ ...m.step, permit: { ...m.step.permit } })).toEqual({
+      failure: 'staleAttempt',
+    })
+    expect(await m.adopt({ ...m.step, result: { ...m.step.result, position: 1 } })).toEqual({
+      failure: 'retryFromFacts',
+    })
+    expect(
+      await m.adopt({
+        ...m.step,
+        result: { ...m.step.result, resultKey: 'absent-original-result' },
+      }),
+    ).toEqual({ failure: 'retryFromFacts' })
+    expect(await m.f.count('sr_result_adoption')).toEqual({ n: 0 })
+    expect(await m.adopt()).toHaveProperty('kind', 'committed')
+  })
+  it('keeps terminal result custody but gives it no new adoption or progression', async () => {
+    const m = await adoptingFixture()
+    expect(
+      await m.f.runtime.lifecycle.commitStep(
+        m.f.runtime.coordinationAuthority,
+        m.p.scope,
+        m.saved.witness.receipt.source,
+        {
+          kind: 'finish',
+          stepKey: 'finish-before-adopt',
+          run: m.step.run,
+          attempt: m.step.attempt,
+          permit: m.step.permit,
+          terminal: 'completed',
+          reason: 'no remaining actions',
+        },
+      ),
+    ).toHaveProperty('kind', 'committed')
+    expect(await m.adopt()).toEqual({ failure: 'terminal' })
+    expect(
+      await m.f.runtime.modelResults.read(
+        m.f.runtime.coordinationAuthority,
+        m.p.scope,
+        m.step.result.call,
+        m.step.result.resultKey,
+      ),
+    ).toMatchObject({ kind: 'alreadyCustodied', pending: m.data.pending })
+    expect(await m.f.count('sr_result_adoption')).toEqual({ n: 0 })
+  })
   it('saves the complete original Pending and fixed receipt, without a disposition or model ACK', async () => {
     const { f, p, data, store, verify } = await resultFixture()
     const saved = await store()

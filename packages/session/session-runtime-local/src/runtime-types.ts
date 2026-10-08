@@ -132,7 +132,7 @@ export interface LocalSessionIngress {
 }
 export type SessionLifecycleStep = Extract<
   CoordinationStep,
-  { kind: 'startRun' | 'startAttempt' | 'adoptInput' | 'prepareCall' | 'finish' }
+  { kind: 'startRun' | 'startAttempt' | 'adoptInput' | 'prepareCall' | 'adoptResult' | 'finish' }
 >
 export interface CreationRow {
   operation: string
