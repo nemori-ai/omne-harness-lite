@@ -2376,6 +2376,9 @@ importers:
       '@omne-harness-lite/arrival-events':
         specifier: workspace:*
         version: link:../../core/arrival-events
+      '@omne-harness-lite/assembly-lifecycle':
+        specifier: workspace:*
+        version: link:../../core/assembly-lifecycle
       '@omne-harness-lite/asset-evaluation':
         specifier: workspace:*
         version: link:../../core/asset-evaluation
@@ -2391,6 +2394,9 @@ importers:
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../../core/content-blocks
+      '@omne-harness-lite/cordis-plugin-tree':
+        specifier: workspace:*
+        version: link:../../core/cordis-plugin-tree
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values

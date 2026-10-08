@@ -663,6 +663,7 @@ export function boundSession(session: SessionRuntimeBinding, request: OpenCallIn
 
 export interface ServiceCalls {
   readonly openCall: (input: OpenCallInput) => Promise<OpenCallResult>
+  readonly closeAdmission: () => void
   readonly close: () => Promise<{ readonly released: true } | { readonly unavailable: true }>
 }
 
@@ -684,6 +685,7 @@ class ServiceCallsState<P extends PlannedSemantics, R> {
   readonly planningTasks = new Set<Promise<void>>()
   readonly creations = new Map<string, CreationAttempt>()
   closing = false
+  admissionClosed = false
 }
 
 function buildServiceCalls<P extends PlannedSemantics, R>(
@@ -827,6 +829,7 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
           return recognized
         }
         if (creation.publication !== undefined) return { unavailable: true }
+        if (physical.admissionClosed) return { runtimeStopped: true }
       }
       if (preparation?.stopping() || request.host.signal.aborted || request.host.stopping())
         return { runtimeStopped: true }
@@ -873,6 +876,7 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
             return { unavailable: true }
           const history = await historyFor(session, callId)
           if ('unavailable' in history) return { unavailable: true }
+          if (physical.admissionClosed) return { runtimeStopped: true }
           if ('absent' in history) return { wrongPhase: { phase: 'open' } }
           if (history.known.phase !== 'resumable')
             return { wrongPhase: { phase: history.known.phase ?? 'in_flight' } }
@@ -907,6 +911,7 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
           const history = await historyFor(session, callId)
           if ('unavailable' in history) return { unavailable: true }
           if ('absent' in history) return { callNotFound: true }
+          if (physical.admissionClosed) return { runtimeStopped: true }
           if (history.known.phase !== 'resumable')
             return { wrongPhase: { phase: history.known.phase ?? 'in_flight' } }
           const last = history.known.dispatches.at(-1)
@@ -1386,7 +1391,13 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
       : ({ unavailable: true } as const)
   }
   return retainRuntimeProjection(
-    Object.freeze({ openCall, close }),
+    Object.freeze({
+      openCall,
+      close,
+      closeAdmission: () => {
+        physical.admissionClosed = true
+      },
+    }),
     (next: RuntimeConstruction<P, R>) =>
       buildServiceCalls(next, borrowedScopes, sharedCustody, physical),
   )

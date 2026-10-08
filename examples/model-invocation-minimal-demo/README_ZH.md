@@ -109,6 +109,11 @@ node examples/model-invocation-minimal-demo/dist/cli.js --data "$PWD/tmp/my-tool
 
 ## 装配 runtime 的公开面
 
+
+模型阶段通过受管插件树装载具名 `createModelRuntimeLocal()` 提供者。JSON 配置给出显式界限，宿主输入与执行政策经具名服务注入。每项操作使用登记固定主体的真实调用方 fiber；有限操作归还借用后撤除，消费或失败来源未实际归还时继续保有。原执行来源只由可信装配持有。
+
+私有占位阻止同一稳定装配 Context 在启动中或原关闭未确认时另建提供者。原树与原提供者均确认关闭后才释放；未确认关闭重试同一 owner。这是单宿主装配规则，不是租户授权或跨进程锁。
+
 `createModelRuntime(construction)` 除传输、历史 reader 与政策外，还需要只有宿主才能提供的受信端口。`src/bootstrap.ts` 的 `createAcceptanceApplication` 用真实组件提供它们（不用内存替身，也不发布恒答 `unavailable` 的端口）：
 
 | runtime 输入                           | 本示例提供                                                                                                                                                                                                                                                                                                                               |
