@@ -1,5 +1,9 @@
 import { readSessionSubmission } from '../src/session-submission.ts'
 import {
+  createSessionModelAttempt,
+  type OriginalSessionModelWork,
+} from '../src/session-agent-attempt.ts'
+import {
   runSessionModelTurn,
   type SessionModelTurnOptions,
   type RetainedSessionModelTurn,
@@ -1217,7 +1221,10 @@ function nativeModelConstruction(
   }
 }
 async function readNativePrefix(binding: SettlementLogBinding) {
-  const registration: SettlementRegistration = {
+  return readSettlementPrefix({ binding, registration: nativeReadRegistration() })
+}
+function nativeReadRegistration(): SettlementRegistration {
+  return {
     start(_kind, operation) {
       const controller = new AbortController()
       const completion = operation(controller.signal)
@@ -1232,7 +1239,6 @@ async function readNativePrefix(binding: SettlementLogBinding) {
     },
     release() {},
   }
-  return readSettlementPrefix({ binding, registration })
 }
 it('assembles native prefix and unique issue consumers over the same actual original Run journal', async () => {
   const original = await originalModelBinding()
@@ -1614,6 +1620,15 @@ it.each([
   'ackUnavailable',
   'prefixDefect',
   'retentionDefect',
+  'agentNormal',
+  'agentDenied',
+  'agentSourceChanged',
+  'agentMissingCurrent',
+  'agentReconcileNeeded',
+  'agentCurrentDefect',
+  'agentDetach',
+  'agentTransferPending',
+  'agentHandoffDefect',
 ] as const)('runs the host-owned model turn with original responsibility: %s', async fault => {
   // Governance/current qualification, model catalog and transport are controlled. Runtime execution and SQL are real.
   let bridge!: SessionModelResultSource
@@ -1631,7 +1646,18 @@ it.each([
     })
     return bridge.source
   }, true)
-  const ports = nativeCallFixturePorts(original.scope, original.f.runtime, original.f.storage)
+  const entered = Promise.withResolvers<void>(),
+    released = Promise.withResolvers<void>()
+  const deferred = ['agentDetach', 'agentTransferPending', 'agentHandoffDefect'].includes(fault)
+  cleanup.push(async () => {
+    released.resolve()
+  })
+  const ports = nativeCallFixturePorts(
+    original.scope,
+    original.f.runtime,
+    original.f.storage,
+    deferred ? { entered: entered.resolve, wait: released.promise } : undefined,
+  )
   const options = nativeBindingOptions(original, ports.configure)
   native = options.nativeModel
   const configured = {
@@ -1805,6 +1831,104 @@ it.each([
       fault === 'stalePermit'
         ? { ...turn.preparation, permit: { ...turn.preparation.permit } }
         : turn.preparation,
+  }
+  if (fault.startsWith('agent')) {
+    const grant = await original.f.access.issuer.issue({
+      principal: source.accountId,
+      principalKind: 'human',
+      scope: original.scope,
+      consumer: 'model',
+      contextKeys: [],
+      operations: ['context.read'],
+    })
+    if (grant.kind !== 'issued') throw new Error('actual Context access unavailable')
+    const context = await original.f.assembly.context(original.scope)!.ready
+    const contextBinding = await context.bind(grant.access, original.scope, 'model')
+    if (contextBinding.kind !== 'bound') throw new Error('actual readable Context unavailable')
+    const currentDefect = new Error('root qualification source defect')
+    const handoffDefect = new Error('root original job retention defect')
+    let held: OriginalSessionModelWork | undefined,
+      acceptTransfer = fault !== 'agentTransferPending'
+    const transfer = vi.fn(async (work: OriginalSessionModelWork) => {
+      held = work
+      if (fault === 'agentHandoffDefect') throw handoffDefect
+      return acceptTransfer ? ('retained' as const) : ('pending' as const)
+    })
+    const frame = createSessionModelAttempt({
+      turn: actual,
+      registration: nativeReadRegistration(),
+      transfer,
+      current: async facts => {
+        if (fault === 'agentCurrentDefect') throw currentDefect
+        const metadata = await contextBinding.reader.snapshot()
+        if (metadata.kind !== 'snapshot') throw new Error('actual Context observation unavailable')
+        // Current model qualification, provider generation and reconciliation are controlled root inputs.
+        return {
+          source:
+            fault === 'agentSourceChanged'
+              ? { ...facts.source, journalGeneration: 'other-generation' }
+              : facts.source,
+          authorized: fault !== 'agentDenied',
+          assembly: JSON.stringify(refreshed.report.snapshots),
+          contextGeneration:
+            fault === 'agentMissingCurrent' ? null : 'controlled-context-provider-generation',
+          reconciled: fault !== 'agentReconcileNeeded',
+        }
+      },
+    })
+    if (fault === 'agentCurrentDefect') {
+      await expect(frame.drive()).rejects.toBe(currentDefect)
+      expect(ports.sends()).toBe(0)
+      expect(await frame.close()).toEqual({ kind: 'released' })
+    } else if (deferred) {
+      const cancellation = new AbortController()
+      const driving = frame.drive(cancellation.signal)
+      await Promise.race([
+        entered.promise,
+        driving.then(() => {
+          throw new Error('drive stopped before native send')
+        }),
+      ])
+      cancellation.abort()
+      if (fault === 'agentHandoffDefect') {
+        await expect(driving).rejects.toBe(handoffDefect)
+        await expect(frame.close()).rejects.toBe(handoffDefect)
+        expect(transfer).toHaveBeenCalledTimes(1)
+      } else {
+        expect(await driving).toMatchObject({
+          kind: fault === 'agentDetach' ? 'handedBack' : 'waiting',
+          originalCalls: [actual.preparation.originalPosition],
+        })
+        acceptTransfer = true
+        expect(await frame.close()).toEqual({ kind: 'released' })
+      }
+      expect(held?.turn).toBe(actual)
+      expect(held?.originalPosition).toBe(actual.preparation.originalPosition)
+      expect(ack).not.toHaveBeenCalled()
+      expect(ports.sends()).toBe(1)
+      released.resolve()
+      expect(await held!.completion).toMatchObject({ acknowledged: true })
+      expect(ack).toHaveBeenCalledTimes(1)
+    } else {
+      const driven = await frame.drive()
+      if (fault === 'agentNormal') {
+        expect(driven).toHaveProperty('kind', 'committed')
+        expect(ack).toHaveBeenCalledTimes(1)
+        expect(ports.sends()).toBe(1)
+      } else {
+        expect(driven).toMatchObject({
+          kind: 'blocked',
+          reason: fault === 'agentDenied' ? 'denied' : 'unavailable',
+        })
+        expect(ack).not.toHaveBeenCalled()
+        expect(ports.sends()).toBe(0)
+      }
+      expect(await frame.close()).toEqual({ kind: 'released' })
+      expect(transfer).not.toHaveBeenCalled()
+      expect(await frame.drive()).toMatchObject({ kind: 'blocked', reason: 'released' })
+    }
+    expect(bridge.close()).toEqual({ released: true })
+    return
   }
   if (fault === 'prefixDefect' || fault === 'retentionDefect') {
     if (fault === 'prefixDefect')

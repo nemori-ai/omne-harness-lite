@@ -75,6 +75,7 @@ export function nativeCallFixturePorts(
   scope: SessionScope,
   ingress: LocalSessionIngress,
   storage: AtomicStorage,
+  sendControl?: { readonly entered: () => void; readonly wait: Promise<void> },
 ) {
   const owner = selectionOwner()
   const pending = originalPending()
@@ -225,6 +226,10 @@ export function nativeCallFixturePorts(
                 projectOutput: () => ({ unavailable: true }),
                 send: async () => {
                   sends++
+                  if (sendControl) {
+                    sendControl.entered()
+                    await sendControl.wait
+                  }
                   return { response: {} }
                 },
                 async *read() {

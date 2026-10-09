@@ -445,3 +445,11 @@ release撤销该捕获的新验证，等待已经参加的实际StorageUnit结�
 仅本次输入对应Run的completed返回退出码0；failed／cancelled返回3；受理但等待未完成及未确认返回4。终态消息须来自覆盖该终态观察的用户文本前缀，返回原输入及该Run的消息；迟到的其他Run消息不混入。本报告只输出请求的完整租户绑定、Session、operationKey和messageId，不回显原消息体。用户文本规则继续排除事实、OpaqueJson和ModelOnly内容。最终JSON使用现有无损编码器，原日志整数位置不得经JSON.stringify取整。
 
 实际SQLite／Ingress组合已覆盖原输入关联与上一轮completed隔离；编译后的main已通过真实catalog及租户鉴权目录、实际私有Unix通道完成机读观察。此进程测试的宿主结果受控，不表示生产独立宿主、真实OpenRouter、核心Agent Loop或默认终端路径已经交付。
+
+## 已准备模型段的 Agent Loop 消费
+
+`session-agent-attempt.ts`复用本项目核心Agent Loop的nextStep、driveStep和releaseAttempt，消费一个已持久准备的原模型段。可信应用根提供原permit、原Run绑定、真实日志读取登记、当前资格／装配／Context代际／原调用对账来源，以及宿主任务接管端口。缺少来源不补默认值。日志中的原准备、Run、最新attempt及SourceToken须与该段匹配；实际唯一发起拥有者仍在原提交及发起点重核资格。只读观察不授予模型IO权。
+
+每个模型段只持有一个原runSessionModelTurn任务。重复观察不启动第二次调用。取消或关闭Agent本地等待不取消宿主拥有的模型执行signal。交还成功须由宿主接住同一个任务Promise、原turn及其绑定；只保存任务标识不能视为交还。接管返回pending时继续保留原责任，显式关闭可再次交还同一任务。接管抛错须上抛原缺陷，不自动重试未知交还，不冒称已释放。业务和接管同时失败时保留两项原错误。
+
+该构件仅消费已准备模型段，不承担输入取批、Run创建、工具执行、调度扫描或Run终态判定。组合测试使用实际SQLite、Context只读绑定、项目Agent Loop、物理ModelRuntime及原保管／SDK结算／ACK；当前资格、Context提供者代际、对账和模型运输仍受控。测试通过不表示正式运行根或真实OpenRouter首答已经交付。

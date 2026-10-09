@@ -115,6 +115,9 @@ importers:
       '@earendil-works/pi-tui':
         specifier: 'catalog:'
         version: 1.0.0(patch_hash=a2c748dd3dc3e866ab9a5f788c123accdcdcdf2ac43d6f137c4358c3dcad856c)
+      '@omne-harness-lite/agent-loop':
+        specifier: workspace:*
+        version: link:../../packages/core/agent-loop
       '@omne-harness-lite/assembly-lifecycle':
         specifier: workspace:*
         version: link:../../packages/core/assembly-lifecycle
