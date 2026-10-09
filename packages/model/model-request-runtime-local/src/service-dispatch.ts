@@ -676,16 +676,23 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
       })
       let observerLegacyEnabled = true
       const observerDiagnostic = (event: ObserverDiagnostic): void => {
-        if (
+        if (!observerScopeMatches(event)) {
+          reportDiagnosticFailure('model_runtime.diagnostic_scope_mismatch')
+          return
+        }
+        emitLegacyObserver(event)
+        recordObserver(event)
+      }
+      const observerScopeMatches = (event: ObserverDiagnostic): boolean => {
+        return !(
           event.session !== key.session ||
           !tenantIdEquals(event.tenant, session.log.tenant) ||
           event.callId !== key.callId ||
           !isJsonNumber(event.dispatch) ||
           ExactDecimal.from(event.dispatch).compare(ExactDecimal.from(admission.dispatch)) !== 0
-        ) {
-          reportDiagnosticFailure('model_runtime.diagnostic_scope_mismatch')
-          return
-        }
+        )
+      }
+      const emitLegacyObserver = (event: ObserverDiagnostic): void => {
         if (observerLegacyEnabled) {
           try {
             const returned: unknown = runtime.policy.diagnostic({
@@ -711,6 +718,8 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
             reportDiagnosticFailure()
           }
         }
+      }
+      const recordObserver = (event: ObserverDiagnostic): void => {
         const observer = operationDiagnostics(
           runtime.diagnosticCollector,
           session.log.tenant,
@@ -825,6 +834,10 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
         const collector = runtime.diagnosticCollector
         let legacySettlementEnabled = true
         const settlementDiagnostic = (event: SettlementDiagnostic): void => {
+          emitLegacySettlement(event)
+          recordSettlement(event)
+        }
+        const emitLegacySettlement = (event: SettlementDiagnostic): void => {
           if (legacySettlementEnabled) {
             try {
               const returned: unknown = runtime.diagnostic(event)
@@ -837,17 +850,22 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
               reportDiagnosticFailure()
             }
           }
+        }
+        const settlementScopeMatches = (event: SettlementDiagnostic): boolean => {
+          return !(
+            !tenantIdEquals(event.tenant, session.log.tenant) ||
+            event.session !== key.session ||
+            event.call !== key.callId ||
+            !isJsonNumber(event.dispatch) ||
+            ExactDecimal.from(event.dispatch).compare(ExactDecimal.from(admission.dispatch)) !==
+              0 ||
+            event.response !== responseId
+          )
+        }
+        const recordSettlement = (event: SettlementDiagnostic): void => {
           if (collector === undefined) return
           try {
-            if (
-              !tenantIdEquals(event.tenant, session.log.tenant) ||
-              event.session !== key.session ||
-              event.call !== key.callId ||
-              !isJsonNumber(event.dispatch) ||
-              ExactDecimal.from(event.dispatch).compare(ExactDecimal.from(admission.dispatch)) !==
-                0 ||
-              event.response !== responseId
-            ) {
+            if (!settlementScopeMatches(event)) {
               reportDiagnosticFailure('model_runtime.diagnostic_scope_mismatch')
               return
             }
