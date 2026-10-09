@@ -67,6 +67,7 @@ import {
 import {
   createRuntimeContext,
   runtimeContextMigrations,
+  inspectContextLogEntry,
 } from '@omne-harness-lite/runtime-context-local'
 import { judgeMessage, type UserMessage } from '@omne-harness-lite/messages'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
@@ -83,6 +84,7 @@ import {
 } from './driver-native-fixture.ts'
 import { createSessionModelResultSource } from '../src/model-result-source.ts'
 import type { SessionDriverRunSources, LocalSessionDriverOptions } from '../src/driver-types.ts'
+import type { FactReader } from '@omne-harness-lite/model-message-projection'
 import type { CurrentEvaluationInputs } from '@omne-harness-lite/asset-evaluation'
 import type {
   ModelRuntimeOperations,
@@ -5260,6 +5262,161 @@ describe('driver complete original Model Run', () => {
       f.native.executionSource.snapshot(f.scope.session).every(execution => execution.copyReleased),
     ).toBe(true)
   })
+  async function actualContext(f: Awaited<ReturnType<typeof running>>) {
+    for (const fragment of runtimeContextMigrations)
+      await f.f.storage.write(tx => fragment.migration.up(tx.db))
+    const host = createLocalSessionContext({
+      scope: f.scope,
+      storage: f.f.storage,
+      logBacking: f.f.log().backing,
+      access: { authorize: async () => ({ kind: 'rejected', reason: 'notAuthorized' }) },
+      clock: { now: async () => unwrap(instantFromRfc3339(at)) },
+    })
+    runResources.push(async () => {
+      host.requestStop()
+      expect(await host.closed).toMatchObject({ complete: true })
+    })
+    const context = await host.ready
+    expect(
+      await host.initializer.initializeContextSession(f.scope, {
+        required: [],
+        initial: [],
+        fixed: [],
+      }),
+    ).toMatchObject({ kind: 'applied' })
+    const sources: SessionDriverRunSources = Object.create(f.sources, {
+      context: { value: context },
+      contextGeneration: { value: host.currentGeneration },
+      projection: {
+        value: {
+          ...f.sources.projection,
+          options: {
+            factReaders: new Map<string, FactReader>([
+              [
+                'runtime-context',
+                (_value, entry) =>
+                  'event' in inspectContextLogEntry(f.scope, entry) ? 'valid' : 'invalid',
+              ],
+            ]),
+          },
+        },
+      },
+    })
+    return { host, sources }
+  }
+  it('consumes the actual isolated Cordis Context generation and returns borrows without stopping that Context', async () => {
+    const f = await running()
+    const { host, sources } = await actualContext(f)
+    const generation = host.currentGeneration()
+    expect(generation).toEqual(expect.any(String))
+    const task = createDriverModelRunTask({ ...f.input, sources })
+    expect(await task.completion).toBe('released')
+    expect(await task.close()).toBe('released')
+    expect(f.ports.sends()).toBe(1)
+    expect(host.currentGeneration()).toBe(generation)
+    expect(f.native.executionSource.snapshot(f.scope.session)[0]!.copyReleased).toBe(true)
+  })
+  it('requires the actual Context fact reader before projecting its journal into a model request', async () => {
+    const f = await running()
+    const { sources } = await actualContext(f)
+    const withoutCodec: SessionDriverRunSources = Object.create(sources, {
+      projection: { value: f.sources.projection },
+    })
+    const task = createDriverModelRunTask({ ...f.input, sources: withoutCodec })
+    expect(await task.completion).toBe('retained')
+    expect(await task.close()).toBe('pending')
+    expect(f.ports.sends()).toBe(0)
+    expect(await f.f.count('sr_model_issue')).toEqual({ n: 0 })
+    expect(f.sources.release).not.toHaveBeenCalled()
+  })
+  it('blocks original Model IO when the actual Session Context has withdrawn its generation', async () => {
+    const f = await running()
+    const { host, sources } = await actualContext(f)
+    host.requestStop()
+    expect(host.currentGeneration()).toBeNull()
+    const task = createDriverModelRunTask({ ...f.input, sources })
+    expect(await task.completion).toBe('retained')
+    expect(await task.close()).toBe('pending')
+    expect(f.ports.sends()).toBe(0)
+    expect(await f.f.count('sr_model_issue')).toEqual({ n: 0 })
+    expect(f.sources.release).not.toHaveBeenCalled()
+    expect(await host.closed).toMatchObject({ complete: true })
+  })
+  it.each(['custody', 'adoption'] as const)(
+    'retains an unknown complete-result %s and recognizes its original bytes without ACK or redispatch',
+    async stage => {
+      const f = await running()
+      const source = f.input.options.model.results
+      let captured: Awaited<ReturnType<typeof source.capture>> | undefined
+      const capture: typeof source.capture = async (...args) => {
+        captured = await source.capture(...args)
+        return captured
+      }
+      const loseNextWrite = () => {
+        const write = f.f.storage.write.bind(f.f.storage)
+        vi.spyOn(f.f.storage, 'write').mockImplementationOnce(async (...writeArgs) => {
+          await write(...writeArgs)
+          throw new StorageUnavailable(`actual driver complete-result ${stage} return lost`)
+        })
+      }
+      const store: typeof f.f.runtime.modelResults.store = async (...args) => {
+        if (stage === 'custody') loseNextWrite()
+        return f.f.runtime.modelResults.store(...args)
+      }
+      const commitStep: typeof f.f.runtime.lifecycle.commitStep = async (...args) => {
+        if (stage === 'adoption' && args[3].kind === 'adoptResult') loseNextWrite()
+        return f.f.runtime.lifecycle.commitStep(...args)
+      }
+      const task = createDriverModelRunTask({
+        ...f.input,
+        options: {
+          ...f.input.options,
+          ingress: {
+            ...f.f.runtime,
+            modelResults: { ...f.f.runtime.modelResults, store },
+            lifecycle: { commitStep },
+          },
+          model: { ...f.input.options.model, results: { ...source, capture } },
+        },
+      })
+      expect(await task.completion).toBe('retained')
+      expect(await task.close()).toBe('pending')
+      expect(f.ports.sends()).toBe(1)
+      expect(await f.f.count('sr_model_result')).toEqual({ n: 1 })
+      expect(f.native.executionSource.snapshot(f.scope.session)[0]!.copyReleased).toBe(false)
+      expect(f.sources.release).not.toHaveBeenCalled()
+      expect(f.releaseModel).not.toHaveBeenCalled()
+      expect(source.close()).toEqual({ pending: true })
+      if (!captured || !('captured' in captured))
+        throw new Error('actual original result capture missing')
+      const saved = await f.f.runtime.modelResults.read(
+        f.f.runtime.coordinationAuthority,
+        f.scope,
+        f.prepared.preparation.call,
+        f.prepared.identities.resultKey,
+      )
+      expect(saved).toMatchObject({ kind: 'alreadyCustodied', pending: captured.captured.pending })
+      if (stage === 'custody')
+        expect(await source.release(captured.captured)).toEqual({ pending: true })
+      expect(
+        await source.confirmCustody(
+          captured.captured,
+          f.f.runtime,
+          f.prepared.identities.resultKey,
+        ),
+      ).toEqual({ confirmed: true })
+      // Return only this recognized observation. This does not settle the original reply or ACK it.
+      expect(await source.release(captured.captured)).toEqual({ released: true })
+      expect(source.close()).toEqual({ released: true })
+      expect(await task.close()).toBe('pending')
+      expect(f.native.executionSource.snapshot(f.scope.session)[0]!.copyReleased).toBe(false)
+      expect(f.ports.sends()).toBe(1)
+      expect(await f.f.count('sr_model_result')).toEqual({ n: 1 })
+      expect(
+        await f.f.runtime.readWork(f.f.runtime.coordinationAuthority, f.scope, 1),
+      ).toMatchObject({ head: { run: { state: 'runnable' } } })
+    },
+  )
   it('retains both original-issue uncertainty and the original native turn without claiming ACK or launching IO', async () => {
     const f = await running(undefined, true)
     const admit: typeof f.f.runtime.modelInvocation.admit = async (...args) => {
