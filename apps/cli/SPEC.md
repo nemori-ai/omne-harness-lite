@@ -30,7 +30,7 @@ closed 保留协调器报告及 fiber/端口撤除错误。正常本地打开失
 
 ## 随 CLI 发行的官方会话定义
 
-`session-factory-assets.ts` 拥有 `omne:session`、资产 `omne.cli.session-agent` 的官方版本 1。它是实际发行内容，不采用测试资产。发行时间固定在版本内；实际安装时间来自借入 Clock。正文明确声明空 references、attributes 和空 contextSessionSeed，不隐含模型、时限、秘密、预算或工具权限。
+`session-factory-assets.ts` 拥有 `omne:session`、资产 `omne.cli.session-agent` 的官方发行。版本 1 的原正文及发行时间保持不变；版本 2 追加两项可覆盖偏好：`first_token_wait_limit=PT2M`、`post_first_token_stall_limit=PT30S`。这两项值属于本发行定义，不是全系统产品阈值或运行时补值。模型运行时必须读取实际求值结果；其他已授权配值层可按原求值规则覆盖。本增量不声称已经提供 CLI 配值管理入口。发行时间固定在各版本内；实际安装时间来自借入 Clock。两个版本均明确声明空 references 和空 contextSessionSeed，不隐含模型、秘密、预算或工具权限。
 
 实际运行根仅在可信 creation 配置明确选择该定义时部署它。根先核实际 CG 登录，保留现有部署声明，再由具名工厂拥有者调用 EIS 官方安装入口。安装完成后，真实 G28、EIS 配方和独立 Session Context 按原准入路径消费定义；不能以 official 来源代替成员或执行授权。其他显式根不被替换，未配置 creation 不自动建会话。
 

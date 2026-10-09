@@ -237,3 +237,58 @@ test('CAS rejects the losing deployment after both installers observed the same 
     await h.close()
   }
 })
+
+test('appends an official release while preserving its immutable prefix and installation time', async () => {
+  const h = await boot(undefined, [{ capability, meta: false }])
+  try {
+    expect(await installOfficialFactoryDefinition(h.deps, request)).toEqual({ revision: '1' })
+    const next = {
+      ...release,
+      versions: [
+        ...release.versions,
+        {
+          number: 2,
+          publishedAt: '2026-10-09T05:06:56Z',
+          content: {
+            category: 'agent_definition' as const,
+            body: toOpaqueJson({ references: [], attributes: [], revisionSpecific: 'two' }),
+          },
+        },
+      ],
+    }
+    expect(
+      await installOfficialFactoryDefinition(h.deps, {
+        ...request,
+        definition: next,
+        since: '2026-10-09T05:06:56Z',
+      }),
+    ).toEqual({ revision: '2' })
+    expect(
+      await installOfficialFactoryDefinition(h.deps, { ...request, definition: next }),
+    ).toEqual({ revision: '2' })
+    expect(await installOfficialFactoryDefinition(h.deps, request)).toEqual({ failure: 'conflict' })
+    const persisted = await h.storage.read(tx =>
+      narrow<{
+        evaluation_input_version: { store_key: string; version_position: string; version: string }
+      }>(tx)
+        .selectFrom('evaluation_input_version')
+        .select(['version_position', 'version'])
+        .where('store_key', '=', h.deps.storeKey)
+        .orderBy('version_position')
+        .execute(),
+    )
+    expect(persisted.map(row => JSON.parse(row.version).number)).toEqual([1, 2])
+    expect(JSON.parse(persisted[0]!.version).publishedAt).toEqual(AT)
+    const factory = await h.storage.read(tx =>
+      narrow<{ evaluation_input_scope: { store_key: string; layer: string; holdings: string } }>(tx)
+        .selectFrom('evaluation_input_scope')
+        .select('holdings')
+        .where('store_key', '=', h.deps.storeKey)
+        .where('layer', '=', 'factory')
+        .executeTakeFirstOrThrow(),
+    )
+    expect(JSON.parse(factory.holdings)[0].since).toEqual(AT)
+  } finally {
+    await h.close()
+  }
+})

@@ -24,9 +24,9 @@
 
 `./publication` 的 `installOfficialFactoryDefinition` 由可信工厂部署拥有者使用。CLI 的具名拥有者是 `apps/cli/src/session-factory-assets.ts`；普通运行时、命令输入和消费者没有发布权，也不能转导出该入口。CLI 发行最小官方会话定义的依据为负责人明确选择；这不扩大其他调用方的发布权限。
 
-安装输入必须是部署清单已声明的 official 定义、一个已发布版本、无 draft，以及实际安装时间。工厂持有的 immutable 沿清单 meta，配值为空。安装不授予成员资格、Context 读取权、模型或工具执行权。
+安装输入必须是部署清单已声明的 official 定义、至少一个已发布版本、无 draft，以及实际安装时间。工厂持有的 immutable 沿清单 meta，配值为空。安装不授予成员资格、Context 读取权、模型或工具执行权。
 
-部署读取同一快照中的原定义、完整版本、工厂持有和指定组织／租户层。原 release 或同能力工厂持有不同则 conflict，不覆盖。已有且一致时认回原 revision 和 holding.since，不重新发布。不存在时使用原 publishLocalInputs 的 expectedRevision 同提交发布；并发变更返回 conflict，不自动重试。
+部署读取同一快照中的原定义、完整版本、工厂持有和指定组织／租户层。同能力工厂持有不同则 conflict，不覆盖。已有定义只允许追加已发布版本；元数据与原版本前缀必须逐项相等，改写、删除版本或回退均为 conflict。追加版本不改变原 holding.since。已有且一致时认回原 revision 和 holding.since，不重新发布。不存在时使用原 publishLocalInputs 的 expectedRevision 同提交发布；并发变更返回 conflict，不自动重试。
 
 新增持有保留工厂其他持有。指定的组织／租户层只在缺失时明确建立为空；已有层、其他资产和会话配方不改写。完整工厂集合仍须与可信部署清单一致。存储失败或提交响应丢失返回 unavailable，不声称回滚；调用方可再次核原身份，不能换 release 或冒认成功。
 

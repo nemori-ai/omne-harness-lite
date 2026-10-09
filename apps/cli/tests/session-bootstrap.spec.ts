@@ -650,16 +650,33 @@ it('deploys the actual CLI official release and creates an independently initial
     throw new Error('official Session not created')
   const scope = { tenant, session: created.session }
   expect(root.owners.bootstrap.context(scope)).toBeDefined()
-  expect(await root.owners.bootstrap.inputs(scope)?.read(scope.session, tenant)).toMatchObject({
+  const supplied = await root.owners.bootstrap.inputs(scope)?.read(scope.session, tenant)
+  expect(supplied).toMatchObject({
     input: {
       root: {
         definition: officialSessionDefinition,
-        source: { asset: officialSessionAsset.id, version: 1 },
-        attributes: [],
+        source: { asset: officialSessionAsset.id, version: 2 },
         references: [],
       },
     },
   })
+  if (!supplied || !('input' in supplied)) throw new Error('official input unavailable')
+  const given = evaluate(supplied.input)
+  if (!('ok' in given)) throw new Error('official definition cannot be evaluated')
+  expect(given.ok.values).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        capability: officialSessionDefinition,
+        item: 'first_token_wait_limit',
+        value: 'PT2M',
+      }),
+      expect.objectContaining({
+        capability: officialSessionDefinition,
+        item: 'post_first_token_stall_limit',
+        value: 'PT30S',
+      }),
+    ]),
+  )
   expect(
     await root.owners.ingress.readWork(root.owners.ingress.coordinationAuthority, scope, 1),
   ).toMatchObject({ kind: 'work', inputs: [], head: { run: null } })

@@ -75,7 +75,7 @@ function installationInput(
     if (error instanceof BodyProviderUnavailableError) return { failure: 'unavailable' }
     throw error
   }
-  if (release.origin !== 'official' || release.draft !== undefined || release.versions.length !== 1)
+  if (release.origin !== 'official' || release.draft !== undefined || release.versions.length === 0)
     return { failure: 'invalidInput' }
   const declared = deps.deployedOfficial.find(entry => equal(entry.capability, release.capability))
   if (!declared) return { failure: 'invalidInput' }
@@ -145,16 +145,29 @@ async function installationSnapshot(
     .where('store_key', '=', deps.storeKey)
     .executeTakeFirst()
   const original = await storedDefinition(tx, deps, release.id)
-  if (original && !equal(original, release)) return { failure: 'conflict' }
+  if (original && !canAppendRelease(original, release)) return { failure: 'conflict' }
+  const changed = !equal(original, release)
   const factory = await factoryScopes(tx, deps, holding, head)
   if ('failure' in factory) return factory
   const scopes = [...factory.scopes, ...(await missingScopes(tx, deps, holders))]
-  if (original && scopes.length === 0) checkInstalledHead(head, deps)
+  if (!changed && scopes.length === 0) checkInstalledHead(head, deps)
   return {
     expectedRevision: head?.revision ?? null,
-    definitions: original ? [] : [release],
+    definitions: changed ? [release] : [],
     scopes,
   }
+}
+function canAppendRelease(
+  original: ReturnType<typeof definition>,
+  next: ReturnType<typeof definition>,
+) {
+  const { versions: before, ...originalMetadata } = original
+  const { versions: after, ...nextMetadata } = next
+  return (
+    equal(originalMetadata, nextMetadata) &&
+    before.length <= after.length &&
+    before.every((version, index) => equal(version, after[index]))
+  )
 }
 
 async function factoryScopes(

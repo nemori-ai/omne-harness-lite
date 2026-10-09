@@ -26,8 +26,43 @@ export const officialSessionAsset = Object.freeze({
       }),
       publishedAt: '2026-10-09T04:41:58Z',
     }),
+    Object.freeze({
+      number: 2,
+      content: Object.freeze({
+        category: 'agent_definition' as const,
+        body: toOpaqueJson({
+          references: [],
+          attributes: [
+            timingPreference('first_token_wait_limit', 'PT2M'),
+            timingPreference('post_first_token_stall_limit', 'PT30S'),
+          ],
+          contextSessionSeed: { required: [], initial: [], fixed: [] },
+        }),
+      }),
+      publishedAt: '2026-10-09T05:06:56Z',
+    }),
   ]),
 })
+/** Exact AD1 duration domain; defaults belong to this release, not the runtime. */
+function timingPreference(item: string, initial: string) {
+  return {
+    item,
+    kind: 'setting',
+    category: 'preference',
+    default: initial,
+    domain: {
+      kind: 'open',
+      schema: {
+        allOf: [
+          {
+            $ref: 'https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v3/tool-definition.schema.json#/$defs/Duration',
+          },
+          { pattern: '[1-9]' },
+        ],
+      },
+    },
+  }
+}
 export function officialSessionManifest(
   existing: EvaluationStorageDependencies['deployedOfficial'],
 ) {

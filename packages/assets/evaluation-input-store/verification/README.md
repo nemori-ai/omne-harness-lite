@@ -8,7 +8,7 @@
 | 同文件的诊断/锁/生命周期场景 | sink失败、真实锁及事务后纯观察、参与异常经过实际终结、阻塞 drain、Cordis撤除后的旧引用 |
 | [crash-worker.mjs](../tests/crash-worker.mjs) 与 source.spec.ts | SIGKILL before_commit/after_commit_before_ack，核真实 revision及完整旧/新发布，不自动重试；不是断电证明 |
 | [deployment.spec.ts](../tests/deployment.spec.ts) | meta iff、更新局部scope仍核factory、配置复制、旧裸格式显式重发布、实际锁再检查、缺项零写 |
-| [factory-installation.spec.ts](../tests/factory-installation.spec.ts) | 官方 release 与部署清单一致、重复认回原 revision／since、已有层及配方保持、身份冲突、提交响应丢失后认回 |
+| [factory-installation.spec.ts](../tests/factory-installation.spec.ts) | 官方 release 与部署清单一致、重复认回原 revision／since、追加版本保留不可变前缀且拒绝回退、已有层及配方保持、身份冲突、提交响应丢失后认回 |
 | [registry.spec.ts](../tests/registry.spec.ts) | 实际C16/selector、等值版本、无fallback、reload/refresh角色、unheld固定正文不伪造holding、missing/unresolved/cycle、参与失败及drain |
 | [history.spec.ts](../tests/history.spec.ts) | 精确旧版、unheld/换表/重开、错tenant零MF、原tuple必要、reuse移除、撤销、闭合失败/缺陷、阻塞MF及close、实例换代、双sink、同SQLite与OG竞争 |
 | [default-owner.spec.ts](../tests/default-owner.spec.ts) 与 default-owner worker/seed | src/dist首用失败原抛可重试、成功复用、import零编译、生产快照不受原资源变异影响、实际SQLite对拍 |
