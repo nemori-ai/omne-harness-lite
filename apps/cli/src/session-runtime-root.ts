@@ -50,7 +50,7 @@ export async function startSessionRuntimeRoot(
   )
     throw new TypeError('actual Session runtime identity required')
   const options = Object.freeze({ ...requested, binding, source: Object.freeze(source) })
-  await confirmLogin(options)
+  await confirmSessionRuntimeLogin(options)
   const root = new RuntimeRoot(options)
   try {
     await root.initialize()
@@ -66,7 +66,9 @@ export async function startSessionRuntimeRoot(
     throw error
   }
 }
-async function confirmLogin(options: SessionRuntimeRootOptions) {
+export async function confirmSessionRuntimeLogin(
+  options: Pick<SessionRuntimeRootOptions, 'governance' | 'source'>,
+) {
   const opened = await options.governance.openUse()
   if (opened.kind !== 'use') throw new Error('current login unavailable')
   await usingGovernanceUse(opened.use, async use => {

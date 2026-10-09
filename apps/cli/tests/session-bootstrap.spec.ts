@@ -1,3 +1,5 @@
+import { startFileSessionRuntimeRoot, FileSessionRuntimeFailure } from '../src/session-file-root.ts'
+import { prepareTenantDirectory, tenantPaths } from '../src/state-layout.ts'
 import {
   createSessionModelWorkOwner,
   type SessionModelWorkOwner,
@@ -3152,4 +3154,123 @@ it('uses original work tokens and the actual tenant Unit instead of treating abs
   expect(await read()).toBe('settled')
   work.release(token)
   expect(await read()).toBe('unavailable')
+})
+
+it('opens the actual file Session root, creates the official Session and recognizes it on reopen', async () => {
+  // Real file resources, Clock, CG client, G28, EIS, Context and listener.
+  // Governance transport and model qualification are controlled; this empty Session has no model IO.
+  const { f, options } = await rootFixture()
+  await prepareTenantDirectory(options.home, options.binding)
+  const creation = {
+    definition: officialSessionDefinition,
+    executionType: input.executionType,
+    mode: input.mode,
+    collaboration: input.collaboration,
+  }
+  const createModel = vi.fn(() => ({
+    ready: Promise.resolve(options.model),
+    close: async () => ({ released: true as const }),
+  }))
+  const sources = {
+    ...options,
+    creation,
+    inputSource: {
+      ...options.inputSource,
+      deployedOfficial: [{ capability: officialSessionDefinition, meta: false }],
+    },
+    createModel,
+  }
+  const root = await startFileSessionRuntimeRoot(sources)
+  cleanup.push(async () => {
+    expect(await root.close()).toEqual({ closed: true })
+  })
+  const request = {
+    format: 'omne-session-host/1' as const,
+    binding: options.binding,
+    command: 'createSession' as const,
+    input: { ...creation, operationKey: 'file-official-create' },
+  }
+  const reply = await sendSessionHostRequest({
+    home: options.home,
+    request,
+    policy: { timeoutMs: 5000, maxResponseBytes: 65536 },
+  })
+  expect(reply).toMatchObject({ kind: 'reply', result: { kind: 'created' } })
+  expect(createModel).toHaveBeenCalledOnce()
+  expect(await root.close()).toEqual({ closed: true })
+  const reopened = await startFileSessionRuntimeRoot(sources)
+  cleanup.push(async () => {
+    expect(await reopened.close()).toEqual({ closed: true })
+  })
+  expect(
+    await sendSessionHostRequest({
+      home: options.home,
+      request,
+      policy: { timeoutMs: 5000, maxResponseBytes: 65536 },
+    }),
+  ).toEqual(reply)
+  expect(await reopened.close()).toEqual({ closed: true })
+  const use = await f.client.openUse()
+  expect(use.kind).toBe('use')
+  if (use.kind === 'use') await use.use.close()
+})
+it('retains actual file resources after failed model readiness until its original owner releases', async () => {
+  const { options } = await rootFixture()
+  await prepareTenantDirectory(options.home, options.binding)
+  const failure = new Error('original physical model startup failure')
+  let held = true
+  let actualStorage: import('@omne-harness-lite/storage').AtomicStorage | undefined
+  let actualClock: import('@omne-harness-lite/offer-expiry').Clock | undefined
+  const closing = vi.fn(async () =>
+    held ? { unavailable: true as const } : { released: true as const },
+  )
+  let retained: FileSessionRuntimeFailure | undefined
+  try {
+    await startFileSessionRuntimeRoot({
+      ...options,
+      createModel: (storage, clock) => {
+        actualStorage = storage
+        actualClock = clock
+        return { ready: Promise.reject(failure), close: closing }
+      },
+    })
+  } catch (error) {
+    if (!(error instanceof FileSessionRuntimeFailure)) throw error
+    retained = error
+  }
+  if (!retained || !actualStorage || !actualClock) throw new Error('actual retained root missing')
+  cleanup.push(async () => {
+    held = false
+    expect(await retained.closeRetained()).toEqual({ closed: true })
+  })
+  expect(retained.errors).toEqual([failure])
+  expect(closing).toHaveBeenCalledOnce()
+  await actualStorage.atomic(async unit => unit.assertStorage(actualStorage!))
+  expect(await actualClock.now()).not.toBe('unavailable')
+  held = false
+  expect(await retained.closeRetained()).toEqual({ closed: true })
+  expect(await actualClock.now()).toBe('unavailable')
+  await expect(
+    actualStorage.atomic(async unit => unit.assertStorage(actualStorage!)),
+  ).rejects.toThrow()
+})
+it('rejects a different actual login before the file Session root allocates its runtime', async () => {
+  const { options } = await rootFixture()
+  const createModel = vi.fn(() => ({
+    ready: Promise.resolve(options.model),
+    close: async () => ({ released: true as const }),
+  }))
+  await expect(
+    startFileSessionRuntimeRoot({
+      ...options,
+      source: {
+        ...options.source,
+        loginStateHandle: unwrap(parseLoginStateId('different-actual-login')),
+      },
+      createModel,
+    }),
+  ).rejects.toThrow('fixed Session source')
+  expect(createModel).not.toHaveBeenCalled()
+  const { access } = await import('node:fs/promises')
+  await expect(access(tenantPaths(options.home, options.binding).data)).rejects.toThrow()
 })

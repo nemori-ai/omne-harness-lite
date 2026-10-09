@@ -133,6 +133,9 @@ importers:
       '@omne-harness-lite/client-local-state-sqlite':
         specifier: workspace:*
         version: link:../../packages/frontend/client-local-state-sqlite
+      '@omne-harness-lite/clock-lease':
+        specifier: workspace:*
+        version: link:../../packages/infra/clock-lease
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../../packages/core/content-blocks
