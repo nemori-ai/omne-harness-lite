@@ -23,7 +23,8 @@ import type {
 } from '@omne-harness-lite/session-runtime'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import { AdmissionFailure } from './admission-types.ts'
-import { InvalidStateInput } from './state-values.ts'
+import { InvalidStateInput, stateScope } from './state-values.ts'
+import { stateRow } from './state-store.ts'
 import { runtimeAuthority } from './runtime-authority.ts'
 import { createSessionLifecycle } from './coordination.ts'
 import { createSessionModelAdmission } from './model-invocation.ts'
@@ -79,6 +80,7 @@ export function createLocalSessionIngress(options: RuntimeOptions): LocalSession
     journal: owner.journal,
     tenancy: owner.tenancy,
     coordinationAuthority: owner.coordinationAuthority,
+    readWork: owner.readWork,
     lifecycle: owner.lifecycle,
     modelInvocation: owner.modelInvocation,
     modelResults: owner.modelResults,
@@ -116,6 +118,32 @@ class SessionIngress implements LocalSessionIngress {
   get coordinationAuthority() {
     return this.authority.coordination
   }
+  readonly readWork: LocalSessionIngress['readWork'] = (authority, requested, limit) =>
+    this.run(
+      this.access,
+      async () => {
+        if (authority !== this.authority.coordination) throw new RuntimeRejection('denied')
+        const scope = stateScope(requested)
+        if (!tenantIdEquals(scope.tenant, this.options.tenant)) throw new RuntimeRejection('denied')
+        if (
+          !Number.isSafeInteger(limit) ||
+          limit < 1 ||
+          limit > this.options.policy.state.maxBatchSize
+        )
+          throw new InvalidStateInput()
+        const original = await this.options.storage.atomic(unit =>
+          unit.run(async () => {
+            const row = await stateRow(unit, scope)
+            if (!row?.run || !['runnable', 'waiting'].includes(row.run_state!)) return undefined
+            return this.authority.withinRun(unit, scope, row.run, () =>
+              this.workSnapshot(unit, scope, limit),
+            )
+          }),
+        )
+        return original ?? (await this.member(unit => this.workSnapshot(unit, scope, limit)))
+      },
+      ['notFound'] as const,
+    )
   readonly modelInvocation: LocalSessionIngress['modelInvocation']
   readonly runJournal: LocalSessionIngress['runJournal']
   private readonly originalJournals: ReturnType<typeof createOriginalRunJournal>
@@ -549,6 +577,28 @@ class SessionIngress implements LocalSessionIngress {
     const state = await this.state.participant.headIn(unit, this.authority.coordination, scope)
     if ('failure' in state) throw new RuntimeRejection(state.failure)
     return state.head
+  }
+  async workSnapshot(unit: StorageUnit, scope: SessionScope, limit: number) {
+    const row = await creationBySession(unit, scope.session)
+    if (!row) throw new RuntimeRejection('notFound')
+    decodeCreation(row, this.options)
+    const head = await this.head(unit, scope)
+    if (!row.published || !head) throw new RuntimeRejection('unavailable')
+    const inputs = await this.state.participant.pendingIn(
+      unit,
+      this.authority.coordination,
+      scope,
+      limit,
+    )
+    if ('failure' in inputs) throw new RuntimeRejection(inputs.failure)
+    const source = await this.log.sourceIn(unit, this.authority.logAccess, scope)
+    if ('failure' in source) throw new RuntimeRejection(source.failure)
+    return Object.freeze({
+      kind: 'work' as const,
+      head,
+      source: source.source,
+      inputs: Object.freeze([...inputs.positions]),
+    })
   }
   async ownership(requested: unknown) {
     const session = sessionRef(requested, this.options)

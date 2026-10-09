@@ -1,3 +1,4 @@
+import { prepareSessionModelRun } from '../src/session-run-preparation.ts'
 import { readSessionSubmission } from '../src/session-submission.ts'
 import {
   createSessionModelAttempt,
@@ -116,6 +117,134 @@ const source: AdmissionSource = {
 const tenant = unwrap(parseTenantId({ organization: 'team', account: source.accountId }))
 const definition = { category: 'agent_definition' as const, name: 'bootstrap:actual-root' }
 const now = '2026-10-08T00:00:00Z'
+it('observes original pending work with state and source without consuming it or granting an attempt', async () => {
+  const f = await setup()
+  const created = await f.runtime.operations.createSession(f.runtime.access, input)
+  if (!('kind' in created) || created.kind !== 'created') throw new Error('Session not created')
+  const scope = { tenant, session: created.session }
+  const empty = await f.runtime.readWork(f.runtime.coordinationAuthority, scope, 1)
+  expect(empty).toMatchObject({ kind: 'work', inputs: [], head: { run: null } })
+  const message = judgeMessage({
+    id: 'work-input',
+    type: 'user',
+    createdAt: now,
+    blocks: [
+      {
+        kind: 'text',
+        id: 'work-text',
+        text: 'pending work',
+        visibility: { toHuman: true, toModel: true },
+      },
+    ],
+  })
+  if ('rejected' in message || message.ok.type !== 'user') throw new Error('message unavailable')
+  const accepted = await f.runtime.operations.submitInput(
+    f.runtime.access,
+    scope.session,
+    'work-submit',
+    message.ok,
+  )
+  if (!('kind' in accepted) || accepted.kind !== 'accepted') throw new Error('input not accepted')
+  const first = await f.runtime.readWork(f.runtime.coordinationAuthority, scope, 1)
+  if (!('kind' in first) || first.kind !== 'work') throw new Error('work unavailable')
+  expect(first.inputs).toHaveLength(1)
+  expect(first.head.run).toBeNull()
+  expect(first.source).toEqual(accepted.receipt.source)
+  expect(await f.runtime.readWork(f.runtime.coordinationAuthority, scope, 1)).toEqual(first)
+  const started = await f.runtime.lifecycle.commitStep(
+    f.runtime.coordinationAuthority,
+    scope,
+    first.source,
+    {
+      kind: 'startRun',
+      stepKey: 'work-run',
+      inputPosition: first.inputs[0]!,
+    },
+  )
+  if (!('kind' in started) || started.kind !== 'committed') throw new Error('Run not started')
+  const adopted = await f.runtime.readWork(f.runtime.coordinationAuthority, scope, 1)
+  expect(adopted).toMatchObject({
+    kind: 'work',
+    inputs: [],
+    head: { run: { id: started.receipt.run, attempt: null } },
+  })
+  await f.admission.close()
+  expect(await f.runtime.readWork(f.runtime.coordinationAuthority, scope, 1)).toEqual(adopted)
+})
+it('rejects a copied work-read authority and invalid scope before reading the original journal', async () => {
+  const f = await setup()
+  const created = await f.runtime.operations.createSession(f.runtime.access, input)
+  if (!('kind' in created) || created.kind !== 'created') throw new Error('Session not created')
+  const scope = { tenant, session: created.session }
+  expect(await f.runtime.readWork({ ...f.runtime.coordinationAuthority }, scope, 1)).toEqual({
+    failure: 'denied',
+  })
+  expect(
+    await f.runtime.readWork(
+      f.runtime.coordinationAuthority,
+      {
+        ...scope,
+        tenant: unwrap(parseTenantId({ organization: 'other', account: tenant.account })),
+      },
+      1,
+    ),
+  ).toEqual({ failure: 'denied' })
+  expect(await f.runtime.readWork(f.runtime.coordinationAuthority, scope, 0)).toEqual({
+    failure: 'invalidInput',
+  })
+  expect(await f.runtime.readWork(f.runtime.coordinationAuthority, scope, 17)).toEqual({
+    failure: 'invalidInput',
+  })
+  await f.runtime.close()
+  expect(await f.runtime.readWork(f.runtime.coordinationAuthority, scope, 1)).toEqual({
+    failure: 'unavailable',
+  })
+})
+it('keeps an empty Session idle and validates original Run identities before starting work', async () => {
+  const f = await setup()
+  const created = await f.runtime.operations.createSession(f.runtime.access, input)
+  if (!('kind' in created) || created.kind !== 'created') throw new Error('Session not created')
+  const options = {
+    ingress: f.runtime,
+    scope: { tenant, session: created.session },
+    identities: {
+      startKey: 'empty-start',
+      attemptKey: 'empty-attempt',
+      prepareKey: 'empty-prepare',
+      call: 'empty-call',
+      originalPosition: 'empty-position',
+    },
+  }
+  const before = await f.runtime.readWork(f.runtime.coordinationAuthority, options.scope, 1)
+  expect(await prepareSessionModelRun(options)).toEqual({ kind: 'idle' })
+  await expect(
+    prepareSessionModelRun({ ...options, identities: { ...options.identities, call: '' } }),
+  ).rejects.toThrow('original Run identities required')
+  expect(await f.runtime.readWork(f.runtime.coordinationAuthority, options.scope, 1)).toEqual(
+    before,
+  )
+})
+it('does not mint a second Run or permit when the host observes an already prepared active Run', async () => {
+  const original = await originalModelBinding()
+  const f = original.f
+  const before = await f.runtime.readWork(f.runtime.coordinationAuthority, original.scope, 1)
+  expect(
+    await prepareSessionModelRun({
+      ingress: f.runtime,
+      scope: original.scope,
+      identities: {
+        startKey: 'replacement-start',
+        attemptKey: 'replacement-attempt',
+        prepareKey: 'replacement-prepare',
+        call: 'replacement-call',
+        originalPosition: 'replacement-position',
+      },
+    }),
+  ).toEqual({ failure: 'retryFromFacts' })
+  expect(await f.runtime.readWork(f.runtime.coordinationAuthority, original.scope, 1)).toEqual(
+    before,
+  )
+})
 async function setup(
   maxBindings = 16,
   declareSeed: boolean | 'invalid' = true,
@@ -983,59 +1112,20 @@ async function originalModelBinding(
     message.ok,
   )
   if (!('kind' in accepted) || accepted.kind !== 'accepted') throw new Error('input not accepted')
-  const prefix = await f.log.readSince(scope.session, 0)
-  if ('failure' in prefix) throw new Error('original input unavailable')
-  const acceptedFact = readSessionFact(
-    prefix.entries.find(entry => compareInteger(entry.position, accepted.receipt.position) === 0)!,
-  )
-  if (!('fact' in acceptedFact) || acceptedFact.fact.kind !== 'input_accepted')
-    throw new Error('original acceptance fact unavailable')
-  const started = await f.runtime.lifecycle.commitStep(
-    f.runtime.coordinationAuthority,
+  const prepared = await prepareSessionModelRun({
+    ingress: f.runtime,
     scope,
-    accepted.receipt.source,
-    {
-      kind: 'startRun',
-      stepKey: 'model-root-run',
-      inputPosition: acceptedFact.fact.messagePosition,
+    identities: {
+      startKey: 'model-root-run',
+      attemptKey: 'model-root-attempt',
+      prepareKey: 'model-root-prepare',
+      call: 'model-root-call',
+      originalPosition: 'model-root-loop-position',
     },
-  )
-  if (!('kind' in started) || started.kind !== 'committed' || !started.receipt.run)
-    throw new Error('Run not started')
-  const attempt = await f.runtime.lifecycle.commitStep(
-    f.runtime.coordinationAuthority,
-    scope,
-    started.source,
-    {
-      kind: 'startAttempt',
-      stepKey: 'model-root-attempt',
-      run: started.receipt.run,
-      reason: 'first',
-    },
-  )
-  if (
-    !('kind' in attempt) ||
-    attempt.kind !== 'committed' ||
-    !attempt.permit ||
-    attempt.receipt.attempt === null
-  )
-    throw new Error('attempt not started')
-  const preparation: Extract<SessionLifecycleStep, { kind: 'prepareCall' }> = {
-    kind: 'prepareCall',
-    stepKey: 'model-root-prepare',
-    run: started.receipt.run,
-    attempt: attempt.receipt.attempt,
-    call: 'model-root-call',
-    originalPosition: 'model-root-loop-position',
-    permit: attempt.permit,
-  }
-  const prepared = await f.runtime.lifecycle.commitStep(
-    f.runtime.coordinationAuthority,
-    scope,
-    attempt.source,
-    preparation,
-  )
-  if (!('kind' in prepared) || prepared.kind !== 'committed') throw new Error('call not prepared')
+  })
+  if (!('kind' in prepared) || prepared.kind !== 'prepared')
+    throw new Error('original model Run not prepared')
+  const { preparation } = prepared
   const adaptation = {
     implementation: { name: 'controlled-adapter', revision: 'one' },
     definition: { modelId: 'controlled/model', revision: 'one' },

@@ -448,6 +448,8 @@ release撤销该捕获的新验证，等待已经参加的实际StorageUnit结�
 
 ## 已准备模型段的 Agent Loop 消费
 
+`session-run-preparation.ts`由可信宿主消费实际Ingress.readWork，从原持久pending的最早位置经现有同提交startRun、首次startAttempt及prepareCall进入原模型段。调用者须在任何副作用前给出五项有效的原Run／attempt／prepare／call／位置身份；未知提交保留原Scope和stepKey，不生成替代键或自动重试。空会话保持idle，已活动的Run返回retryFromFacts交给其原拥有者，不起第二Run或重发permit。没有可靠原permit不能继续准备。此路径不决定Run终态，不承担工具或重启接管；普通客户端读取和其signal不启动这条路径。
+
 `session-agent-attempt.ts`复用本项目核心Agent Loop的nextStep、driveStep和releaseAttempt，消费一个已持久准备的原模型段。可信应用根提供原permit、原Run绑定、真实日志读取登记、当前资格／装配／Context代际／原调用对账来源，以及宿主任务接管端口。缺少来源不补默认值。日志中的原准备、Run、最新attempt及SourceToken须与该段匹配；实际唯一发起拥有者仍在原提交及发起点重核资格。只读观察不授予模型IO权。
 
 每个模型段只持有一个原runSessionModelTurn任务。重复观察不启动第二次调用。取消或关闭Agent本地等待不取消宿主拥有的模型执行signal。交还成功须由宿主接住同一个任务Promise、原turn及其绑定；只保存任务标识不能视为交还。接管返回pending时继续保留原责任，显式关闭可再次交还同一任务。接管抛错须上抛原缺陷，不自动重试未知交还，不冒称已释放。业务和接管同时失败时保留两项原错误。

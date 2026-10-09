@@ -17,7 +17,9 @@ import type {
   CoordinationAuthority,
   CoordinationStep,
   StepCommit,
+  SessionHead,
 } from '@omne-harness-lite/session-runtime'
+import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { SourceToken } from '@omne-harness-lite/session-log'
 import type { LogAuthorityOperations, SessionLogParticipant } from '@omne-harness-lite/session-log'
 import type { AdmissionSource, AdmissionTicket, LocalAdmission } from './admission-types.ts'
@@ -91,6 +93,20 @@ export interface LocalSessionIngress {
   readonly tenancy: SessionTenancyService
   /** Trusted host port. Do not send its live authority or permits over a wire protocol. */
   readonly coordinationAuthority: CoordinationAuthority
+  /** Trusted coordinator snapshot. This read neither consumes pending work nor issues a permit. */
+  readonly readWork: (
+    authority: CoordinationAuthority,
+    scope: SessionScope,
+    limit: number,
+  ) => Promise<
+    | {
+        readonly kind: 'work'
+        readonly head: SessionHead
+        readonly source: SourceToken
+        readonly inputs: readonly JsonNumber[]
+      }
+    | Failure<'invalidInput' | 'denied' | 'unavailable' | 'notFound'>
+  >
   readonly modelInvocation: {
     readonly admit: (
       authority: CoordinationAuthority,
