@@ -1,3 +1,4 @@
+import { prepareToolJournalEntry } from '@omne-harness-lite/tool-execution-runtime'
 // @module-tag slow
 // Uses real root and tenant SQLite transactions, log owners and Cordis lifetimes.
 import {
@@ -31,7 +32,7 @@ import {
   sessionLogMigrations,
   type SqlSessionLog,
 } from '@omne-harness-lite/session-log-sql'
-import { compareInteger } from '@omne-harness-lite/session-log'
+import { compareInteger, checkAppendInput } from '@omne-harness-lite/session-log'
 import {
   judgePendingModelResponse,
   type PendingModelResponse,
@@ -117,7 +118,9 @@ afterEach(async () => {
 async function fixture(
   initialize: RuntimeOptions['bootstrap']['initialize'] = vi.fn(async () => 'ready' as const),
   maxSteps = 32,
-  configure?: (storage: SqlStorage) => Pick<RuntimeOptions, 'modelIssue' | 'modelResults'>,
+  configure?: (
+    storage: SqlStorage,
+  ) => Pick<RuntimeOptions, 'modelIssue' | 'modelResults' | 'toolIssue'>,
   readTime: RuntimeOptions['now'] = async () => at,
   workSettledIn: RuntimeOptions['workSettledIn'] = async () => 'settled',
 ) {
@@ -2879,4 +2882,272 @@ it('keeps an active original Run visible in the work scan after it consumes the 
   })
   // The scan returns a candidate, not a permit or newly refreshed login qualification.
   expect(await f.count('sr_model_issue')).toEqual({ n: 0 })
+})
+
+describe('Session original Tool participation', () => {
+  it('rejects a copied coordination authority before providing original Tool support', async () => {
+    const f = await fixture(undefined, 32, () => ({
+      toolIssue: { maxRecords: 8, current: { authorizeIn: async () => ({ kind: 'authorized' }) } },
+    }))
+    const result = await f.runtime.toolInvocation.support(
+      Object.freeze({}) as typeof f.runtime.coordinationAuthority,
+    )
+    expect(result).toEqual({ unavailable: true })
+  })
+  it('does not provide original Tool support without an explicit current qualification source', async () => {
+    const f = await fixture()
+    expect(await f.runtime.toolInvocation.support(f.runtime.coordinationAuthority)).toEqual({
+      unavailable: true,
+    })
+  })
+})
+
+async function sessionToolFixture() {
+  const current = vi.fn<
+    import('@omne-harness-lite/tool-execution-runtime').ToolOriginalIssueAuthority['authorizeIn']
+  >(async () => ({ kind: 'authorized' }))
+  const f = await fixture(undefined, 32, () => ({
+    toolIssue: { maxRecords: 8, current: { authorizeIn: current } },
+  }))
+  const p = await preparedAttempt(f)
+  const prepared = await f.runtime.lifecycle.commitStep(
+    f.runtime.coordinationAuthority,
+    p.scope,
+    p.attempt.source,
+    p.step,
+  )
+  if (!('kind' in prepared) || prepared.kind !== 'committed')
+    throw new Error('actual Tool preparation unavailable')
+  const support = await f.runtime.toolInvocation.support(f.runtime.coordinationAuthority)
+  if ('unavailable' in support) throw new Error('actual Tool support unavailable')
+  const identityBase: import('@omne-harness-lite/tool-execution-runtime').ToolOriginalIssueIdentity =
+    {
+      ref: { ...p.scope, callId: unwrap(parseOpaqueIdentifier(p.step.call, 'CallId')) },
+      origin: {
+        run: p.step.run,
+        attempt: p.step.attempt,
+        assistantMessage: 'controlled-tool-reply',
+      },
+      adoption: 'controlled-adoption',
+      executionGeneration: 'controlled-native-generation',
+      originalPosition: 'controlled-native-intended',
+    }
+  const native = prepareToolJournalEntry({
+    origin: identityBase.origin,
+    value: {
+      kind: 'execution_intended',
+      revision: 1,
+      ref: identityBase.ref,
+      origin: identityBase.origin,
+      input: { format: 'controlled-tool/1', value: 'original-input' },
+    },
+  })
+  if ('invalid' in native) throw new Error('invalid controlled native Tool intent')
+  const identity = { ...identityBase, originalPosition: native.entry.dedupeKey! }
+  const claim = Object.freeze(
+    {},
+  ) as import('@omne-harness-lite/tool-execution-runtime').ToolOriginalIssueClaim
+  let failStage = false
+  const participant: import('@omne-harness-lite/tool-execution-runtime').ToolOriginalIssueParticipant =
+    {
+      identity,
+      expected: { ownerGeneration: 'controlled-backing-generation', tail: prepared.source.tail },
+      stopped: Promise.resolve(),
+      async stageOriginalIn(unit) {
+        const source = await support.log.sourceIn(unit, support.access, p.scope)
+        if ('failure' in source) throw new Error('source unavailable in shared unit')
+        const prefix = await support.log.readPrefixIn(unit, support.access, source.source)
+        if ('failure' in prefix) throw new Error('prefix unavailable in shared unit')
+        if (prefix.entries.some(entry => entry.dedupeKey === identity.originalPosition))
+          return { kind: 'alreadyIssued', identity }
+        const request = checkAppendInput(
+          p.scope.session,
+          [native.entry],
+          { kind: 'unfenced' },
+          { kind: 'tailEquals', tail: source.source.tail },
+        )
+        if ('failure' in request) throw new Error('bad Tool fixture append')
+        const result = await support.log.appendIn(unit, support.access, request.ok, source.source)
+        if ('failure' in result) throw new Error('Tool fixture append failed')
+        return failStage
+          ? { kind: 'conflict' }
+          : { kind: 'staged', identity, claim, positions: result.entries.map(e => e.position) }
+      },
+      async consumeOriginalIn(unit, candidate) {
+        unit.assertStorage(f.storage)
+        return candidate === claim ? { kind: 'staged', identity } : { kind: 'invalidInput' }
+      },
+    }
+  return {
+    f,
+    p,
+    prepared,
+    support,
+    identity,
+    claim,
+    participant,
+    current,
+    failStage: () => {
+      failStage = true
+    },
+  }
+}
+
+describe('Session original Tool shared transaction', () => {
+  it('stages the Tool intent and Session proof together after actual preparation, then consumes the same claim', async () => {
+    const t = await sessionToolFixture()
+    expect(await t.support.admission.admitOriginal(t.participant)).toMatchObject({
+      kind: 'issued',
+      identity: t.identity,
+      claim: t.claim,
+    })
+    expect(await t.f.count('sr_tool_issue')).toEqual({ n: 1 })
+    const original = await t.f.log().readSince(t.p.scope.session, t.prepared.source.tail)
+    if ('failure' in original) throw new Error('actual Tool log unavailable')
+    expect(original.entries.map(e => e.dedupeKey)).toEqual([t.identity.originalPosition])
+    expect(await t.support.admission.consumeOriginal(t.claim)).toEqual({
+      kind: 'launch',
+      identity: t.identity,
+    })
+    expect(await t.support.admission.consumeOriginal(Object.freeze({}) as typeof t.claim)).toEqual({
+      kind: 'invalidInput',
+    })
+  })
+  it('rolls back the native staged fact when original participation rejects', async () => {
+    const t = await sessionToolFixture()
+    t.failStage()
+    expect(await t.support.admission.admitOriginal(t.participant)).toEqual({ kind: 'conflict' })
+    expect(await t.f.count('sr_tool_issue')).toEqual({ n: 0 })
+    expect(await t.f.log().readSince(t.p.scope.session, t.prepared.source.tail)).toHaveProperty(
+      'entries.length',
+      0,
+    )
+  })
+  it('rechecks current Tool qualification before consumption', async () => {
+    const t = await sessionToolFixture()
+    expect(await t.support.admission.admitOriginal(t.participant)).toHaveProperty('kind', 'issued')
+    t.current.mockResolvedValue({ kind: 'denied' })
+    expect(await t.support.admission.consumeOriginal(t.claim)).toEqual({ kind: 'denied' })
+    expect(await t.f.count('sr_tool_issue')).toEqual({ n: 1 })
+  })
+  it('refuses a foreign original identity without staging its fact', async () => {
+    const t = await sessionToolFixture()
+    expect(
+      await t.support.admission.admitOriginal({
+        ...t.participant,
+        identity: {
+          ...t.identity,
+          ref: {
+            ...t.identity.ref,
+            tenant: unwrap(parseTenantId({ organization: 'other', account: 'owner' })),
+          },
+        },
+      }),
+    ).toEqual({ kind: 'denied' })
+    expect(await t.f.count('sr_tool_issue')).toEqual({ n: 0 })
+  })
+})
+
+it('recognizes the original Tool Session proof after its real commit return is lost', async () => {
+  const t = await sessionToolFixture()
+  const atomic = t.f.storage.atomic.bind(t.f.storage)
+  const fault = vi.spyOn(t.f.storage, 'atomic').mockImplementationOnce(async action => {
+    await atomic(action)
+    throw new StorageUnavailable('controlled original Tool commit return lost')
+  })
+  expect(await t.support.admission.admitOriginal(t.participant)).toEqual({
+    kind: 'unknownCommit',
+    identity: t.identity,
+  })
+  fault.mockRestore()
+  expect(await t.f.count('sr_tool_issue')).toEqual({ n: 1 })
+  expect(await t.support.admission.admitOriginal(t.participant)).toEqual({
+    kind: 'alreadyIssued',
+    identity: t.identity,
+  })
+  expect(await t.support.admission.consumeOriginal(t.claim)).toEqual({
+    kind: 'launch',
+    identity: t.identity,
+  })
+})
+
+it('retains read-only original Tool proof after Run completion and denies old permit consumption', async () => {
+  const t = await sessionToolFixture()
+  expect(await t.support.admission.admitOriginal(t.participant)).toHaveProperty('kind', 'issued')
+  const read = await t.f.runtime.journal.readPrefix(t.f.runtime.access, t.p.scope.session)
+  if (!('kind' in read) || read.kind !== 'prefix') throw new Error('actual prefix unavailable')
+  expect(
+    await t.f.runtime.lifecycle.commitStep(
+      t.f.runtime.coordinationAuthority,
+      t.p.scope,
+      read.source,
+      {
+        kind: 'finish',
+        stepKey: 'finish-tool-original',
+        run: t.p.step.run,
+        attempt: t.p.step.attempt,
+        permit: t.p.step.permit,
+        terminal: 'completed',
+        reason: 'controlled-settled-source',
+      },
+    ),
+  ).toHaveProperty('kind', 'committed')
+  expect(await t.support.admission.consumeOriginal(t.claim)).toEqual({ kind: 'staleAttempt' })
+  await t.f.runtime.close()
+  expect(
+    await t.f.storage.atomic(unit => t.support.log.sourceIn(unit, t.support.access, t.p.scope)),
+  ).toHaveProperty('kind', 'source')
+  expect(await t.f.runtime.toolInvocation.support(t.f.runtime.coordinationAuthority)).toEqual({
+    unavailable: true,
+  })
+})
+
+it('reports unavailable before Tool staging without claiming an unknown commit', async () => {
+  const t = await sessionToolFixture()
+  const fault = vi
+    .spyOn(t.f.storage, 'atomic')
+    .mockRejectedValueOnce(new StorageUnavailable('before original Tool transaction'))
+  expect(await t.support.admission.admitOriginal(t.participant)).toEqual({ kind: 'unavailable' })
+  fault.mockRestore()
+  expect(await t.f.count('sr_tool_issue')).toEqual({ n: 0 })
+})
+
+it('rejects a staged Tool position that does not reach the actual shared-unit tail', async () => {
+  const t = await sessionToolFixture()
+  const participant = {
+    ...t.participant,
+    async stageOriginalIn(unit: Parameters<typeof t.participant.stageOriginalIn>[0]) {
+      const staged = await t.participant.stageOriginalIn(unit)
+      return staged.kind === 'staged' ? { ...staged, positions: [] } : staged
+    },
+  }
+  await expect(t.support.admission.admitOriginal(participant)).rejects.toThrow(
+    'Tool issue positions do not end at the staged source',
+  )
+  expect(await t.f.count('sr_tool_issue')).toEqual({ n: 0 })
+  expect(await t.f.log().readSince(t.p.scope.session, t.prepared.source.tail)).toHaveProperty(
+    'entries.length',
+    0,
+  )
+})
+
+it('rejects a Session preparation presented as the original Tool intent', async () => {
+  const t = await sessionToolFixture()
+  const identity = { ...t.identity, originalPosition: t.p.step.originalPosition }
+  const participant = {
+    ...t.participant,
+    identity,
+    async stageOriginalIn(unit: Parameters<typeof t.participant.stageOriginalIn>[0]) {
+      const staged = await t.participant.stageOriginalIn(unit)
+      return staged.kind === 'staged' ? { ...staged, identity } : staged
+    },
+  }
+  await expect(t.support.admission.admitOriginal(participant)).rejects.toThrow(
+    'Tool issue lacks original intent',
+  )
+  expect(await t.f.count('sr_tool_issue')).toEqual({ n: 0 })
+  expect(await t.f.log().readSince(t.p.scope.session, t.prepared.source.tail)).toHaveProperty(
+    'entries.length',
+    0,
+  )
 })

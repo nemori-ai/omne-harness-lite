@@ -1,3 +1,4 @@
+import { createSessionToolAdmission } from './tool-invocation.ts'
 import {
   checkKey,
   checkAppendInput,
@@ -66,8 +67,7 @@ export function createLocalSessionIngress(options: RuntimeOptions): LocalSession
     options.policy.maxRecordBytes,
     options.policy.maxInFlight,
     options.policy.maxSteps,
-    ...(options.modelIssue ? [options.modelIssue.maxRecords] : []),
-    ...(options.modelResults ? [options.modelResults.maxRecords] : []),
+    ...optionalRecordBounds(options),
   ])
     if (!Number.isSafeInteger(bound) || bound < 1 || bound >= Number.MAX_SAFE_INTEGER)
       throw new InvalidStateInput()
@@ -89,10 +89,16 @@ export function createLocalSessionIngress(options: RuntimeOptions): LocalSession
     readWork: owner.readWork,
     lifecycle: owner.lifecycle,
     modelInvocation: owner.modelInvocation,
+    toolInvocation: owner.toolInvocation,
     modelResults: owner.modelResults,
     runJournal: owner.runJournal,
     close: owner.close,
   })
+}
+function optionalRecordBounds(options: RuntimeOptions): readonly number[] {
+  return [options.modelIssue, options.toolIssue, options.modelResults].flatMap(option =>
+    option ? [option.maxRecords] : [],
+  )
 }
 class SessionIngress implements LocalSessionIngress {
   readonly authority: ReturnType<typeof runtimeAuthority>
@@ -171,6 +177,8 @@ class SessionIngress implements LocalSessionIngress {
       },
       ['notFound'] as const,
     )
+  readonly toolInvocation: LocalSessionIngress['toolInvocation']
+  readonly toolAdmission: ReturnType<typeof createSessionToolAdmission>
   readonly modelInvocation: LocalSessionIngress['modelInvocation']
   readonly runJournal: LocalSessionIngress['runJournal']
   private readonly originalJournals: ReturnType<typeof createOriginalRunJournal>
@@ -209,6 +217,14 @@ class SessionIngress implements LocalSessionIngress {
       logAuthority: this.authority.logAccess,
       isOpen: () => true,
     })
+    this.toolAdmission = createSessionToolAdmission({
+      options,
+      authority: this.authority,
+      state: this.state,
+      log: this.log,
+      isOpen: () => this.accepting,
+    })
+    this.toolInvocation = Object.freeze({ support: this.toolAdmission.support })
     const model = createSessionModelAdmission({
       options: this.options,
       authority: this.authority,
@@ -230,6 +246,7 @@ class SessionIngress implements LocalSessionIngress {
       admit: (...args) => this.run(this.access, () => model.admit(...args), [] as const),
     })
     const lifecycle = createSessionLifecycle({
+      prepared: this.toolAdmission.remember,
       readModelIn: custody.readIn,
       options,
       authority: this.authority,
@@ -325,6 +342,7 @@ class SessionIngress implements LocalSessionIngress {
     const settled = await Promise.allSettled([...this.pending])
     const errors = settled.filter(r => r.status === 'rejected').map(r => r.reason)
     if (errors.length) throw new AggregateError(errors, 'Session ingress drain failed')
+    await this.toolAdmission.close()
     await this.originalJournals.close()
   }
   member<T>(action: (unit: StorageUnit) => Promise<T>): Promise<T> {

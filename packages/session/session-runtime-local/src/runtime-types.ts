@@ -1,4 +1,8 @@
 import type {
+  ToolOriginalIssueAuthority,
+  ToolOriginalIssueSupport,
+} from '@omne-harness-lite/tool-execution-runtime'
+import type {
   OriginalIssueAuthority,
   OriginalIssueParticipant,
   OriginalIssueTicket,
@@ -61,6 +65,11 @@ export interface RuntimeOptions {
     readonly maxRecords: number
     readonly source: ModelResultSource
   }
+  /** Explicit original Tool qualification and durable Session proof capacity. */
+  readonly toolIssue?: {
+    readonly maxRecords: number
+    readonly current: ToolOriginalIssueAuthority
+  }
   /** Root-selected original model owner. Omission means model admission is unavailable. */
   readonly modelIssue?: {
     readonly maxRecords: number
@@ -94,6 +103,11 @@ export interface LocalSessionIngress {
   readonly coordinationAuthority: CoordinationAuthority
   readonly scanWork: SessionWorkReading['scanWork']
   readonly readWork: SessionWorkReading['readWork']
+  readonly toolInvocation: {
+    readonly support: (
+      authority: CoordinationAuthority,
+    ) => Promise<ToolOriginalIssueSupport | { readonly unavailable: true }>
+  }
   readonly modelInvocation: {
     readonly admit: (
       authority: CoordinationAuthority,

@@ -106,4 +106,19 @@ export const sessionRuntimeMigrations: readonly MigrationFragment[] = [
       },
     },
   },
+  {
+    name: 'local_session_tool_issue',
+    migration: {
+      async up(db) {
+        await db.schema
+          .createTable('sr_tool_issue')
+          .addColumn('session', 'text', c => c.notNull())
+          .addColumn('call', 'text', c => c.notNull())
+          .addColumn('identity', 'text', c => c.notNull())
+          .addColumn('preparation', 'text', c => c.notNull())
+          .addPrimaryKeyConstraint('sr_tool_issue_pk', ['session', 'call'])
+          .execute()
+      },
+    },
+  },
 ]

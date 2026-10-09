@@ -30,6 +30,10 @@ import { grantRun, readStep, saveStep, saveCallPreparation } from './coordinatio
 import { adoptModelResultIn, type ResultAdoptionHost } from './result-adoption.ts'
 
 interface Host extends ResultAdoptionHost {
+  readonly prepared?: (
+    scope: SessionScope,
+    step: Extract<SessionLifecycleStep, { kind: 'prepareCall' }>,
+  ) => void
   readonly options: RuntimeOptions
   readonly authority: ReturnType<typeof runtimeAuthority>
   readonly state: ReturnType<typeof createLocalSessionState>
@@ -65,7 +69,10 @@ class Lifecycle {
       )
       const scope = input.scope
       if (!tenantIdEquals(scope.tenant, this.host.options.tenant)) return { failure: 'denied' }
-      return await this.commit(input)
+      const result = await this.commit(input)
+      if ('kind' in result && result.kind === 'committed' && input.step.kind === 'prepareCall')
+        this.host.prepared?.(input.scope, input.step)
+      return result
     } catch (error) {
       return this.failure(error)
     }

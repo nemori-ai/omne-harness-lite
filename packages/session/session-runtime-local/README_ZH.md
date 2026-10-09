@@ -71,3 +71,5 @@ createLocalSessionAccess借入真实当前authority、固定的已鉴权主体�
 根入口公开`createSessionRunModelBinding`、`createSessionModelResultSource`、`createSessionRunHistory`和`runSessionModelTurn`。这些函数绑定原Run、读取历史，并完成原结果的保管、采用、SDK结算与ACK。应用通过Core接口传入实际Model与结算factory；本包不选择具体Model提供者。先归还Model装配借用，再归还原日志。这些构件不代表完整driver已交付，也不授予新执行权。行为见[规格](SPEC.md#原-run-的模型运行时接线)。
 
 根入口还公开`prepareSessionModelRun`、`createSessionModelAttempt`和`createSessionModelObservations`。提供者消费Core Agent Loop、保留原模型任务，并区分本地等待结束与物理执行结束。这些构件不等于完整driver或工具循环。
+
+`RuntimeOptions.toolIssue`显式启用原工具准入支持。`toolInvocation.support`只接受本Ingress的原协调权限，并在共享事务核验原调用准备、permit及实际工具意图。本支持尚不包含工具结果保管、普通交付或完整driver装配，不能把它当作完整工具路径。
