@@ -280,7 +280,6 @@ describe('ACK evidence and original-writer boundaries on real SQL', () => {
           const isAck = isAcknowledgement(args[1][0]?.payload)
           if (!isAck || collided) return await real(...args)
           collided = true
-          // A competing writer lands the identical fixed batch before this attempt's CAS.
           const competing = await real(...args)
           if ('failure' in competing) throw new Error('competing ACK did not land')
           return await real(...args)

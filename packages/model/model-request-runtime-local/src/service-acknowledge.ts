@@ -440,10 +440,8 @@ function buildServiceAcknowledge<P extends PlannedSemantics, R>(
       const reread = await readPrefix(session)
       if (reread === undefined) return 'unavailable'
       current = reread
-      // Re-reading recognizes the original batch before policy can end this attempt.
       const again = recognizeAcknowledgement(current, ref.callId, record)
       if (again !== undefined) return again
-      // Only a stopped, zero-write batch absent from the full prefix may retreat.
       if ('stop' in decision) return 'withdrawn'
       previousWaitMs = decision.proceed.waitMs
       const waited = runtime.settlementScheduler.wait(
@@ -478,7 +476,6 @@ function buildServiceAcknowledge<P extends PlannedSemantics, R>(
     const first = await runtime.callFacts.lookup({ binding, ref })
     let origin = acknowledgementOrigin(first)
     if (origin === undefined && !('callNotFound' in first)) {
-      // A fixed retiring batch still derives its origin from the original creation shell.
       const retention = await runtime.callFacts.content.retention({ binding, call: ref.callId })
       if (!('phase' in retention) || retention.phase !== 'retiring') return unavailable
       const prefix = await readPrefix(session)
@@ -574,7 +571,6 @@ function buildServiceAcknowledge<P extends PlannedSemantics, R>(
           : unavailable
       }
       const recognizeClosed = async (): Promise<AcknowledgeCallResult> => {
-        // A stopped host recognizes durable ACKs, but starts no new ACK work.
         const durable = await runtime.callFacts.lookup({ binding, ref })
         if ('acknowledged' in durable) return await recognize(durable.acknowledged.record)
         return 'callNotFound' in durable ? notFound : unavailable
@@ -587,7 +583,6 @@ function buildServiceAcknowledge<P extends PlannedSemantics, R>(
         const written = await append(session, ref, record, shell, prefix)
         if (written === 'conflict') return unavailable
         if (written === 'withdrawn') {
-          // RT12 S-96: back to retained on the same row; nothing is deleted.
           const withdrawn = await runtime.callFacts.content.withdrawAcknowledgement({
             binding,
             call: ref.callId,
@@ -599,7 +594,6 @@ function buildServiceAcknowledge<P extends PlannedSemantics, R>(
           return unavailable
         }
         if (written === 'unavailable') return unavailable
-        // Neither the receipt nor a key collision confirms the fixed batch.
         const readBack = await readPrefix(session)
         if (readBack === undefined || !current()) return unavailable
         const durable = confirmedAcknowledgement(readBack, ref, record, shell, binding)
