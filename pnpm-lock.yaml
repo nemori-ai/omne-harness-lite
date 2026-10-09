@@ -184,6 +184,9 @@ importers:
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
         version: link:../../packages/core/organization-governance
+      '@omne-harness-lite/pi-ai-transport':
+        specifier: workspace:*
+        version: link:../../packages/model/pi-ai-transport
       '@omne-harness-lite/runtime-context':
         specifier: workspace:*
         version: link:../../packages/core/runtime-context

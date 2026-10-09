@@ -58,7 +58,8 @@
     "@omne-harness-lite/model-message-projection": "workspace:*",
     "@omne-harness-lite/agent-loop": "workspace:*",
     "@omne-harness-lite/session-log-sql": "workspace:*",
-    "@omne-harness-lite/clock-lease": "workspace:*"
+    "@omne-harness-lite/clock-lease": "workspace:*",
+    "@omne-harness-lite/pi-ai-transport": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

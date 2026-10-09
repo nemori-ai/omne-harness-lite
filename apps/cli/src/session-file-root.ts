@@ -36,20 +36,31 @@ import {
 } from './session-runtime-root.ts'
 import type { SessionRuntimeRoot, SessionRuntimeRootOptions } from './session-runtime-root-types.ts'
 import { parseRunLoginBinding } from './session-preparation.ts'
+import {
+  createNativeSessionModelOwner,
+  type SessionNativeModelOptions,
+} from './session-native-model.ts'
 
 export interface FileSessionModelOwner {
   readonly ready: Promise<SessionRuntimeRootOptions['model']>
   /** Actual physical pool closure, not a statement inferred from absence of calls. */
   readonly close: () => Promise<RuntimeCloseResult>
 }
-export interface FileSessionRuntimeOptions extends Omit<
+type FileSessionRuntimeInputs = Omit<
   SessionRuntimeRootOptions,
   'storage' | 'rootStorage' | 'clock' | 'model'
-> {
-  /** Return the original close owner before asynchronous acquisition. A thrown constructor retains no resources. */
-  readonly createModel: (storage: AtomicStorage, clock: Clock) => FileSessionModelOwner
+> & {
   readonly clockOptions?: Omit<OpenLeaseClockOptions, 'file' | 'initialize'>
 }
+export type FileSessionRuntimeOptions = FileSessionRuntimeInputs &
+  (
+    | { readonly nativeModel: SessionNativeModelOptions; readonly createModel?: never }
+    | {
+        readonly nativeModel?: never
+        /** Return the original close owner before asynchronous acquisition. A thrown constructor retains no resources. */
+        readonly createModel: (storage: AtomicStorage, clock: Clock) => FileSessionModelOwner
+      }
+  )
 /** Original resources remain available to the owner when startup cleanup cannot finish. */
 export class FileSessionRuntimeFailure extends AggregateError {
   constructor(
@@ -140,7 +151,9 @@ class FileRootOwner {
       file: clockFile,
       ...(creator ? { initialize: {} } : {}),
     })
-    this.model = o.createModel(this.storage, this.clock)
+    this.model = o.nativeModel
+      ? createNativeSessionModelOwner(this.storage, this.clock, o.nativeModel)
+      : o.createModel(this.storage, this.clock)
     this.modelOptions = await this.model.ready
   }
   close = (): ReturnType<SessionRuntimeRoot['close']> => {

@@ -1,4 +1,9 @@
 import { startFileSessionRuntimeRoot, FileSessionRuntimeFailure } from '../src/session-file-root.ts'
+import type {
+  SessionNativeModelOptions,
+  SessionNativeModelPool,
+} from '../src/session-native-model.ts'
+import { officialCatalog } from '@omne-harness-lite/pi-ai-transport'
 import { prepareTenantDirectory, tenantPaths } from '../src/state-layout.ts'
 import {
   createSessionModelWorkOwner,
@@ -3273,4 +3278,101 @@ it('rejects a different actual login before the file Session root allocates its 
   expect(createModel).not.toHaveBeenCalled()
   const { access } = await import('node:fs/promises')
   await expect(access(tenantPaths(options.home, options.binding).data)).rejects.toThrow()
+})
+
+function nativeFileModelOptions(
+  f: Awaited<ReturnType<typeof rootFixture>>['f'],
+  options: SessionRuntimeRootOptions,
+  bind: SessionNativeModelOptions['bind'],
+): SessionNativeModelOptions {
+  const original = nativeModelConstruction(f.storage)
+  const { calls, callFacts, transport: _unusedTransport, ...sources } = original
+  cleanup.push(async () => {
+    expect(await calls.close()).toEqual({ released: true })
+    expect(await callFacts.close()).toEqual({ released: true })
+    expect(await callFacts.content.close()).toEqual({ released: true })
+  })
+  return {
+    // This fixture selects an actual official leaf. It does not publish a user model selection.
+    modelIds: [officialCatalog[0]!.definition.modelId],
+    network: {
+      policy: {
+        maxConnections: 2,
+        idleConnectionTimeoutMs: 1000,
+        connectTimeoutMs: 1000,
+        maxErrorBodyBytes: 8192,
+        maxSseEventBytes: 65536,
+        credentialRedaction: sources.policy.credentialRedaction,
+      },
+    },
+    retirement: {
+      force: false,
+      waitMilliseconds: 2000,
+      schedule: (ms, callback) => {
+        const timer = setTimeout(callback, ms)
+        return () => clearTimeout(timer)
+      },
+    },
+    contentPolicy: { maxConcurrentWrites: 2, maxContentBytes: 65536 },
+    maxFactScopes: options.model.maxRecords,
+    sources: () => sources,
+    bind,
+  }
+}
+it('opens the file Session root with the actual official transport and physical ModelRuntime pool', async () => {
+  const { f, options, configure } = await rootFixture()
+  await prepareTenantDirectory(options.home, options.binding)
+  let physical: SessionNativeModelPool | undefined
+  const nativeModel = nativeFileModelOptions(f, options, pool => {
+    physical = pool
+    return options.model
+  })
+  const root = await startFileSessionRuntimeRoot({
+    ...options,
+    nativeModel,
+    inputSource: {
+      ...options.inputSource,
+      deployedOfficial: [{ capability: officialSessionDefinition, meta: false }],
+    },
+    creation: {
+      definition: officialSessionDefinition,
+      mode: input.mode,
+      collaboration: input.collaboration,
+      executionType: input.executionType,
+    },
+  })
+  cleanup.push(async () => {
+    expect(await root.close()).toEqual({ closed: true })
+  })
+  if (!physical) throw new Error('actual physical model pool not selected')
+  const created = await root.owners.ingress.operations.createSession(root.owners.ingress.access, {
+    ...input,
+    definition: officialSessionDefinition,
+  })
+  expect(created).toMatchObject({ kind: 'created' })
+  expect(configure).toHaveBeenCalledOnce()
+  expect(await root.close()).toEqual({ closed: true })
+  expect(await physical.runtime.service.openCall({} as never)).toEqual({ runtimeStopped: true })
+  // The file root closes its physical pool, but still does not close the borrowed governance client.
+  const use = await f.client.openUse()
+  expect(use.kind).toBe('use')
+  if (use.kind === 'use') await use.use.close()
+})
+it('closes the original physical pool when binding fails after official transport startup', async () => {
+  const { f, options } = await rootFixture()
+  await prepareTenantDirectory(options.home, options.binding)
+  const failure = new Error('original production model binding defect')
+  let physical: SessionNativeModelPool | undefined
+  const nativeModel = nativeFileModelOptions(f, options, pool => {
+    physical = pool
+    throw failure
+  })
+  await expect(startFileSessionRuntimeRoot({ ...options, nativeModel })).rejects.toBe(failure)
+  if (!physical) throw new Error('actual allocated model pool missing')
+  expect(await physical.runtime.service.openCall({} as never)).toEqual({ runtimeStopped: true })
+  const reopened = await startFileSessionRuntimeRoot({
+    ...options,
+    nativeModel: nativeFileModelOptions(f, options, () => options.model),
+  })
+  expect(await reopened.close()).toEqual({ closed: true })
 })
