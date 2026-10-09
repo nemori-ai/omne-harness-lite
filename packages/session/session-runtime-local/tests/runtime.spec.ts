@@ -68,6 +68,7 @@ import { judgeMessage, type UserMessage } from '@omne-harness-lite/messages'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import { createLocalSessionIngress } from '../src/runtime.ts'
 import { createSessionDriverWorkOwner } from '../src/driver-work.ts'
+import { startDriverRun } from '../src/driver-run.ts'
 import { sessionRuntimeMigrations } from '../src/runtime-migrations.ts'
 import { admissionMigrations, admissionUseMigrations } from '../src/admission-migrations.ts'
 import { sessionStateMigrations } from '../src/state-migrations.ts'
@@ -97,6 +98,30 @@ const input: CreateSessionInput = {
   collaboration: 'co-work',
 }
 const at = '2026-10-08T00:00:00Z'
+function driverIdentityFixture() {
+  return {
+    run: vi.fn(() => ({ startKey: 'driver-run', attemptKey: 'driver-attempt' })),
+    model: vi.fn(() => ({
+      prepareKey: 'driver-model-prepare',
+      originalPosition: 'driver-model-position',
+      resultKey: 'driver-model-result',
+      adoptionKey: 'driver-model-adopt',
+      call: unwrap(parseOpaqueIdentifier('driver-model-call', 'ModelCallId')),
+      creationKey: unwrap(parseOpaqueIdentifier('driver-model-create', 'CreationKey')),
+    })),
+    tool: () => {
+      throw new Error('this Run start must not execute tools')
+    },
+    modelContent: {
+      response: () => {
+        throw new Error('this Run start must not create response content')
+      },
+      message: () => {
+        throw new Error('this Run start must not create message content')
+      },
+    },
+  }
+}
 function createLocalSessionContext(options: Omit<SessionContextOptions, 'runtimeContext'>) {
   return assembleSessionContext({ ...options, runtimeContext: createRuntimeContextLocal() })
 }
@@ -226,6 +251,113 @@ async function create(f: Awaited<ReturnType<typeof fixture>>) {
   if (!('kind' in result) || result.kind !== 'created') throw new Error('create failed')
   return result
 }
+it('starts the driver Run from the oldest persistent input and derives model keys after actual attempt creation', async () => {
+  const f = await fixture(),
+    created = await create(f)
+  const scope = { tenant, session: created.session }
+  await f.runtime.operations.submitInput(f.runtime.access, created.session, 'first-input', user())
+  await f.runtime.operations.submitInput(
+    f.runtime.access,
+    created.session,
+    'second-input',
+    user('Second', 'second-message'),
+  )
+  const work = await f.runtime.readWork(f.runtime.coordinationAuthority, scope, 2)
+  if (!('kind' in work)) throw new Error('actual work unavailable')
+  const identities = driverIdentityFixture()
+  const started = await startDriverRun({ ingress: f.runtime, identities }, scope, () => true)
+  if (started.kind !== 'prepared') throw new Error('driver Run not prepared')
+  expect(identities.run).toHaveBeenCalledWith(scope, work.inputs[0])
+  expect(started.preparation.permit).toBeTruthy()
+  const prefix = await f.log().readSince(scope.session, 0)
+  if ('failure' in prefix) throw new Error('actual Run history unavailable')
+  const attempt = prefix.entries.find(entry => {
+    const read = readSessionFact(entry)
+    return 'fact' in read && read.fact.kind === 'attempt_started'
+  })
+  expect(attempt).toBeDefined()
+  expect(identities.model).toHaveBeenCalledWith(
+    scope,
+    started.preparation.run,
+    started.preparation.attempt,
+    attempt!.position,
+  )
+  const next = await f.runtime.readWork(f.runtime.coordinationAuthority, scope, 2)
+  expect(next).toMatchObject({
+    kind: 'work',
+    inputs: [work.inputs[1]],
+    head: { run: { state: 'runnable', attempt: 1 } },
+  })
+  expect(await f.count('sr_model_issue')).toEqual({ n: 0 })
+  expect(await f.count('sr_coordination_step')).toEqual({ n: 3 })
+  expect((await startDriverRun({ ingress: f.runtime, identities }, scope, () => true)).kind).toBe(
+    'blocked',
+  )
+  expect(identities.run).toHaveBeenCalledOnce()
+  expect(identities.model).toHaveBeenCalledOnce()
+})
+
+it('retains the original driver step on a lost Run receipt without allocating an attempt or replacement keys', async () => {
+  const f = await fixture(),
+    created = await create(f)
+  const scope = { tenant, session: created.session }
+  await f.runtime.operations.submitInput(f.runtime.access, created.session, 'first-input', user())
+  const identities = driverIdentityFixture()
+  const actual = f.runtime.lifecycle.commitStep
+  const commit = vi.fn<typeof actual>(async (...args) => {
+    const result = await actual(...args)
+    if (args[3].kind === 'startRun' && 'kind' in result && result.kind === 'committed')
+      return { kind: 'unknownCommit', scope, stepKey: args[3].stepKey }
+    return result
+  })
+  const ingress = { ...f.runtime, lifecycle: { commitStep: commit } }
+  const started = await startDriverRun({ ingress, identities }, scope, () => true)
+  expect(started).toMatchObject({
+    kind: 'blocked',
+    originals: [
+      {
+        step: { kind: 'startRun', stepKey: 'driver-run' },
+        result: { kind: 'unknownCommit', stepKey: 'driver-run' },
+      },
+    ],
+  })
+  expect(commit).toHaveBeenCalledOnce()
+  expect(identities.run).toHaveBeenCalledOnce()
+  expect(identities.model).not.toHaveBeenCalled()
+  expect(await f.count('sr_pending_input')).toEqual({ n: 0 })
+  expect(await f.count('sr_coordination_step')).toEqual({ n: 1 })
+  expect(await f.count('sr_model_issue')).toEqual({ n: 0 })
+})
+
+it('withdraws the driver before new steps and preserves the actual Run already committed', async () => {
+  const f = await fixture(),
+    created = await create(f)
+  const scope = { tenant, session: created.session }
+  await f.runtime.operations.submitInput(f.runtime.access, created.session, 'first-input', user())
+  const identities = driverIdentityFixture()
+  let open = false
+  expect((await startDriverRun({ ingress: f.runtime, identities }, scope, () => open)).kind).toBe(
+    'blocked',
+  )
+  expect(identities.run).not.toHaveBeenCalled()
+  expect(await f.count('sr_pending_input')).toEqual({ n: 1 })
+  open = true
+  const actual = f.runtime.lifecycle.commitStep
+  const commit = vi.fn<typeof actual>(async (...args) => {
+    const result = await actual(...args)
+    open = false
+    return result
+  })
+  const ingress = { ...f.runtime, lifecycle: { commitStep: commit } }
+  const started = await startDriverRun({ ingress, identities }, scope, () => open)
+  expect(started).toMatchObject({
+    kind: 'blocked',
+    originals: [{ step: { kind: 'startRun' }, result: { kind: 'committed' } }],
+  })
+  expect(commit).toHaveBeenCalledOnce()
+  expect(identities.model).not.toHaveBeenCalled()
+  expect(await f.count('sr_coordination_step')).toEqual({ n: 1 })
+})
 it('publishes a single initialized empty Session without Run, attempt, pending input or model IO', async () => {
   const f = await fixture(),
     result = await create(f)

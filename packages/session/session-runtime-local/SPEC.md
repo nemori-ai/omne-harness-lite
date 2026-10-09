@@ -300,6 +300,12 @@ Run source factory接原Scope及真实BorrowedRunJournal，返回显式原Scope�
 实际toolAccess、目录／秘密／工具来源、选择输入、历史／CallPresence及消息投影来源。
 registry提供原采用装配的refreshAvailability和list；driver以原Scope、Run、attempt取得真实报告及该报告内的工具列表。
 它与providers.tools所查询的实际registry必须配对，不能由只有lookup的绑定构造或猜测报告。
+actions借入实际Core Runner及其当前admission政策，字段沿RunnerActionRequest.admission去掉report。
+root必须给同Runner host采用的实际grants对象、runMode及适用parent；SessionAccess不是grants。
+driver保留grants的不透明身份，并从原报告、完整模型调用及稳定原anchor构造整批请求。
+请求manifest为原Scope.session，由实际Runner核对应manifest来源；不另造配置或manifest身份。
+Runner返回token不代替整批完成事实及最后工具准入。原采用／整批事实必须先由实际拥有者可靠持久确认。
+撤除只归还本Run借用，不关闭共享Runner或执行池。类型通过不证明Runner host、policy及历史来源配对。
 来源不完整或代际不符返回unavailable，不补常量CurrentInputs、空history或“已恢复”。
 实际生产者仍按I02及各Core协议实现；该factory只包装这些真实来源，不把数据变成资格。
 driver先核返回Scope／Run与原journal一致、工具borrow的显式tenant与固定租户一致，再调用任何业务面。

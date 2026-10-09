@@ -7,6 +7,10 @@ import type { CreationKey } from '@omne-harness-lite/messages'
 import type { RuntimeContextOperations } from '@omne-harness-lite/runtime-context'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import type {
+  LoopExtensionRunnerService,
+  RunnerActionRequest,
+} from '@omne-harness-lite/loop-extension-runner'
+import type {
   ProjectionRules,
   ProjectionOptions,
 } from '@omne-harness-lite/model-message-projection'
@@ -64,6 +68,11 @@ export interface SessionDriverRunSources {
   readonly context: RuntimeContextOperations
   readonly contextGeneration: () => string | null
   readonly toolAccess: SessionAccess
+  /** Actual Runner and its trusted policy. The driver owns the ordered batch and report. */
+  readonly actions: {
+    readonly runner: LoopExtensionRunnerService
+    readonly admission: Omit<RunnerActionRequest['admission'], 'report'>
+  }
   readonly providers: Omit<SessionRuntimeBinding, 'log' | 'selection' | 'currentEvaluationInputs'>
   readonly selection: Omit<SessionModelSelectionInput, 'binding' | 'currentEvaluationInputs'>
   readonly host: Omit<ModelRuntimeHostInputs, 'sessions' | 'callAccess' | 'identities'>
