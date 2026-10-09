@@ -25,8 +25,8 @@ import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 
 const unavailable = Object.freeze({ unavailable: true } as const)
 const malformed = Object.freeze({ invalidInput: { reason: 'malformed' } } as const)
-function ownInput(input: AcquireCallInput): AcquireCallInput | typeof malformed {
-  if (
+function validAcquireRef(input: AcquireCallInput): boolean {
+  return !(
     input === null ||
     typeof input !== 'object' ||
     Array.isArray(input) ||
@@ -37,42 +37,61 @@ function ownInput(input: AcquireCallInput): AcquireCallInput | typeof malformed 
     !Object.hasOwn(input.ref, 'session') ||
     !Object.hasOwn(input.ref, 'callId')
   )
-    return malformed
-  const session = parseOpaqueIdentifier(input.ref.session, 'SessionRef')
-  const call = parseOpaqueIdentifier(input.ref.callId, 'ModelCallId')
-  if (
-    !('ok' in session) ||
-    !('ok' in call) ||
+}
+function validAcquireMode(input: AcquireCallInput): boolean {
+  return !(
     (input.mode !== 'read' && input.mode !== 'wait') ||
     (input.mode === 'read' && input.observer !== undefined)
   )
-    return malformed
-  let observer: ModelObserverRequest | undefined
-  if (input.observer !== undefined) {
-    const value = input.observer
-    if (
-      value === null ||
-      typeof value !== 'object' ||
-      value.session !== session.ok ||
-      value.endpoint === null ||
-      typeof value.endpoint !== 'object' ||
-      typeof value.endpoint.open !== 'function' ||
-      ![value.observer_max_buffered_events, value.observer_max_buffered_bytes].every(
-        n => isNonNegativeJsonInteger(n) && ExactDecimal.from(n).compare(ExactDecimal.from(0)) > 0,
-      )
+}
+function validAcquireObserver(
+  value: ModelObserverRequest,
+  session: AcquireCallInput['ref']['session'],
+): boolean {
+  return !(
+    value === null ||
+    typeof value !== 'object' ||
+    value.session !== session ||
+    value.endpoint === null ||
+    typeof value.endpoint !== 'object' ||
+    typeof value.endpoint.open !== 'function' ||
+    ![value.observer_max_buffered_events, value.observer_max_buffered_bytes].every(
+      n => isNonNegativeJsonInteger(n) && ExactDecimal.from(n).compare(ExactDecimal.from(0)) > 0,
     )
-      return malformed
-    const endpoint = value.endpoint
-    const open = endpoint.open
-    observer = Object.freeze({
-      session: session.ok,
-      endpoint: Object.freeze({
-        open: (scope: Parameters<typeof open>[0]) => open.call(endpoint, scope),
-      }),
-      observer_max_buffered_events: value.observer_max_buffered_events,
-      observer_max_buffered_bytes: value.observer_max_buffered_bytes,
-    })
-  }
+  )
+}
+function captureAcquireObserver(
+  value: ModelObserverRequest,
+  session: AcquireCallInput['ref']['session'],
+): ModelObserverRequest {
+  const endpoint = value.endpoint
+  const open = endpoint.open
+  return Object.freeze({
+    session,
+    endpoint: Object.freeze({
+      open: (scope: Parameters<typeof open>[0]) => open.call(endpoint, scope),
+    }),
+    observer_max_buffered_events: value.observer_max_buffered_events,
+    observer_max_buffered_bytes: value.observer_max_buffered_bytes,
+  })
+}
+function inspectAcquireObserver(
+  input: AcquireCallInput,
+  session: AcquireCallInput['ref']['session'],
+): { readonly observer?: ModelObserverRequest } | typeof malformed {
+  if (input.observer === undefined) return {}
+  const value = input.observer
+  if (!validAcquireObserver(value, session)) return malformed
+  return { observer: captureAcquireObserver(value, session) }
+}
+function ownInput(input: AcquireCallInput): AcquireCallInput | typeof malformed {
+  if (!validAcquireRef(input)) return malformed
+  const session = parseOpaqueIdentifier(input.ref.session, 'SessionRef')
+  const call = parseOpaqueIdentifier(input.ref.callId, 'ModelCallId')
+  if (!('ok' in session) || !('ok' in call) || !validAcquireMode(input)) return malformed
+  const inspected = inspectAcquireObserver(input, session.ok)
+  if ('invalidInput' in inspected) return inspected
+  const observer = inspected.observer
   return Object.freeze({
     ref: Object.freeze({ session: session.ok, callId: call.ok }),
     mode: input.mode,

@@ -217,25 +217,21 @@ function basis(value: unknown): value is EffectiveModel {
   )
 }
 
-/** Capture request-owned JSON before asynchronous preparation; host/endpoint remain capability refs. */
-export function ownOpenCallInput(
-  input: OpenCallInput,
-): { readonly request: OpenCallInput } | ServiceInvalidInput {
-  if (
-    input === null ||
-    typeof input !== 'object' ||
+function validOpenIdentity(input: OpenCallInput): boolean {
+  return !(
     !('ok' in parseOpaqueIdentifier(input.session, 'SessionRef')) ||
     !('ok' in parseOpaqueIdentifier(input.creationKey, 'CreationKey')) ||
     (input.callId !== undefined && !('ok' in judgeAccountValue('ModelCallId', input.callId))) ||
     !(
       'ok' in
-      judgeModelProfileDocument('ModelProfileRef', {
-        origin: 'official',
-        routeName: input.target,
-      })
+      judgeModelProfileDocument('ModelProfileRef', { origin: 'official', routeName: input.target })
     ) ||
     (input.targetChangedBy !== undefined &&
-      !contentShape('CapabilityId', input.targetChangedBy).valid) ||
+      !contentShape('CapabilityId', input.targetChangedBy).valid)
+  )
+}
+function validOpenHost(input: OpenCallInput): boolean {
+  return !(
     input.host === null ||
     typeof input.host !== 'object' ||
     !(input.host.signal instanceof AbortSignal) ||
@@ -244,35 +240,45 @@ export function ownOpenCallInput(
     !Array.isArray(input.messages) ||
     !Array.isArray(input.tools)
   )
-    return { invalidInput: { reason: 'malformed' } }
+}
+function validOpenObserver(observer: ModelObserverRequest): boolean {
+  return !(
+    !object(observer) ||
+    !('ok' in parseOpaqueIdentifier(observer.session, 'SessionRef')) ||
+    !object(observer.endpoint) ||
+    typeof observer.endpoint.open !== 'function' ||
+    !isNonNegativeJsonInteger(observer.observer_max_buffered_events) ||
+    ExactDecimal.from(observer.observer_max_buffered_events).compare(ExactDecimal.from(0)) <= 0 ||
+    !isNonNegativeJsonInteger(observer.observer_max_buffered_bytes) ||
+    ExactDecimal.from(observer.observer_max_buffered_bytes).compare(ExactDecimal.from(0)) <= 0
+  )
+}
+function inspectOpenObserver(
+  input: OpenCallInput,
+): { readonly observer: ModelObserverRequest | undefined } | ServiceInvalidInput {
   const observer = input.observer
   if (observer !== undefined) {
-    if (
-      !object(observer) ||
-      !('ok' in parseOpaqueIdentifier(observer.session, 'SessionRef')) ||
-      !object(observer.endpoint) ||
-      typeof observer.endpoint.open !== 'function' ||
-      !isNonNegativeJsonInteger(observer.observer_max_buffered_events) ||
-      ExactDecimal.from(observer.observer_max_buffered_events).compare(ExactDecimal.from(0)) <= 0 ||
-      !isNonNegativeJsonInteger(observer.observer_max_buffered_bytes) ||
-      ExactDecimal.from(observer.observer_max_buffered_bytes).compare(ExactDecimal.from(0)) <= 0
-    )
-      return { invalidInput: { reason: 'malformed' } }
+    if (!validOpenObserver(observer)) return { invalidInput: { reason: 'malformed' } }
     if (observer.session !== input.session)
       return { invalidInput: { reason: 'observer_scope_mismatch' } }
   }
-  if (input.targetChangedBy === undefined && input.target !== input.basis?.routeName)
-    return { invalidInput: { reason: 'malformed' } }
-  if (
+  return { observer }
+}
+function validOpenRun(input: OpenCallInput): boolean {
+  return !(
     (input.run === undefined) !== (input.attempt === undefined) ||
     (input.run === undefined) !== (input.report === undefined) ||
     (input.run !== undefined && !('ok' in judgeAccountValue('RunId', input.run))) ||
     (input.attempt !== undefined && !('ok' in judgeAccountValue('AttemptId', input.attempt)))
   )
-    return { invalidInput: { reason: 'malformed' } }
-  const clonedBasis = copyJsonValue(input.basis)
-  if (!('ok' in clonedBasis) || !basis(clonedBasis.ok))
-    return { invalidInput: { reason: 'malformed' } }
+}
+function validOpenAssociation(input: OpenCallInput): boolean {
+  if (input.targetChangedBy === undefined && input.target !== input.basis?.routeName) return false
+  return validOpenRun(input)
+}
+function ownOpenParameters(
+  input: OpenCallInput,
+): { readonly parameters: ModelRequestParameters | undefined } | ServiceInvalidInput {
   const clonedParameters =
     input.parameters === undefined ? undefined : copyJsonValue(input.parameters)
   if (
@@ -286,56 +292,97 @@ export function ownOpenCallInput(
       ? undefined
       : // The owned copy was checked against ModelRequestParameters immediately above.
         (clonedParameters.ok as ModelRequestParameters)
+  return { parameters }
+}
+function validOpenReport(input: OpenCallInput, report: JsonValue | undefined): boolean {
+  return !(
+    !object(report) ||
+    report.session !== input.session ||
+    report.runId !== input.run ||
+    !isJsonNumber(report.attempt) ||
+    !('ok' in judgeAccountValue('AttemptId', report.attempt)) ||
+    input.attempt === undefined ||
+    ExactDecimal.from(report.attempt).compare(ExactDecimal.from(input.attempt)) !== 0
+  )
+}
+function ownOpenReport(
+  input: OpenCallInput,
+): { readonly report: JsonValue | undefined } | ServiceInvalidInput {
   const clonedReport = input.report === undefined ? undefined : copyJsonValue(input.report)
   if (clonedReport !== undefined && !('ok' in clonedReport))
     return { invalidInput: { reason: 'malformed' } }
   if (input.run !== undefined) {
     const report = clonedReport?.ok
-    if (
-      !object(report) ||
-      report.session !== input.session ||
-      report.runId !== input.run ||
-      !isJsonNumber(report.attempt) ||
-      !('ok' in judgeAccountValue('AttemptId', report.attempt)) ||
-      input.attempt === undefined ||
-      ExactDecimal.from(report.attempt).compare(ExactDecimal.from(input.attempt)) !== 0
-    )
-      return { invalidInput: { reason: 'malformed' } }
+    if (!validOpenReport(input, report)) return { invalidInput: { reason: 'malformed' } }
   }
+  return { report: clonedReport?.ok }
+}
+interface CapturedOpenJson {
+  readonly basis: EffectiveModel
+  readonly parameters: ModelRequestParameters | undefined
+  readonly report: JsonValue | undefined
+}
+function ownOpenJson(input: OpenCallInput): CapturedOpenJson | ServiceInvalidInput {
+  const clonedBasis = copyJsonValue(input.basis)
+  if (!('ok' in clonedBasis) || !basis(clonedBasis.ok))
+    return { invalidInput: { reason: 'malformed' } }
+  const parameters = ownOpenParameters(input)
+  if ('invalidInput' in parameters) return parameters
+  const report = ownOpenReport(input)
+  if ('invalidInput' in report) return report
+  return { basis: clonedBasis.ok, parameters: parameters.parameters, report: report.report }
+}
+function indexOpenMessagePairs(
+  message: OpenCallInput['messages'][number],
+  calls: Map<string, number>,
+  results: Map<string, number>,
+): void {
+  if (message.type === 'assistant')
+    for (const block of message.blocks)
+      if (block.kind === 'tool_call' && block.complete)
+        calls.set(block.callId, (calls.get(block.callId) ?? 0) + 1)
+  if (message.type === 'tool') results.set(message.callId, (results.get(message.callId) ?? 0) + 1)
+}
+function ownOpenMessages(input: OpenCallInput): OpenCallInput['messages'][number][] | undefined {
   const messages: OpenCallInput['messages'][number][] = []
-  const calls = new Map<string, number>()
-  const results = new Map<string, number>()
+  const calls = new Map<string, number>(),
+    results = new Map<string, number>()
   for (const item of input.messages) {
     const judged = judgeMessage(item)
-    if ('rejected' in judged || judged.ok.type === 'tool_internal')
-      return { invalidInput: { reason: 'malformed' } }
+    if ('rejected' in judged || judged.ok.type === 'tool_internal') return undefined
     messages.push(judged.ok)
-    if (judged.ok.type === 'assistant')
-      for (const block of judged.ok.blocks)
-        if (block.kind === 'tool_call' && block.complete)
-          calls.set(block.callId, (calls.get(block.callId) ?? 0) + 1)
-    if (judged.ok.type === 'tool')
-      results.set(judged.ok.callId, (results.get(judged.ok.callId) ?? 0) + 1)
+    indexOpenMessagePairs(judged.ok, calls, results)
   }
   if (
     [...calls].some(([id, count]) => count !== 1 || results.get(id) !== 1) ||
     [...results].some(([id, count]) => count !== 1 || calls.get(id) !== 1)
   )
-    return { invalidInput: { reason: 'malformed' } }
+    return undefined
+  return messages
+}
+function ownOpenTools(input: OpenCallInput): OpenCallInput['tools'][number][] | undefined {
   const tools: OpenCallInput['tools'][number][] = []
   for (const item of input.tools) {
-    if (!toolShape('ModelToolName', item).valid || tools.includes(item))
-      return { invalidInput: { reason: 'malformed' } }
+    if (!toolShape('ModelToolName', item).valid || tools.includes(item)) return undefined
     tools.push(item)
   }
+  return tools
+}
+function projectOpenRequest(
+  input: OpenCallInput,
+  json: CapturedOpenJson,
+  observer: ModelObserverRequest | undefined,
+  messages: OpenCallInput['messages'][number][],
+  tools: OpenCallInput['tools'][number][],
+): OpenCallInput {
   const common = {
     creationKey: input.creationKey,
     session: input.session,
     ...(input.callId === undefined ? {} : { callId: input.callId }),
     target: input.target,
     ...(input.targetChangedBy === undefined ? {} : { targetChangedBy: input.targetChangedBy }),
-    basis: clonedBasis.ok,
-    ...(parameters === undefined ? {} : { parameters }),
+    basis: json.basis,
+    ...(json.parameters === undefined ? {} : { parameters: json.parameters }),
     messages: Object.freeze(messages),
     tools: Object.freeze(tools),
     host: input.host,
@@ -353,13 +400,37 @@ export function ownOpenCallInput(
   const request: OpenCallInput =
     input.run === undefined
       ? Object.freeze(common)
-      : Object.freeze({
-          ...common,
-          run: input.run,
-          attempt: input.attempt,
-          report: clonedReport?.ok,
-        })
-  return { request }
+      : Object.freeze({ ...common, run: input.run, attempt: input.attempt, report: json.report })
+  return request
+}
+function captureOpenRequest(
+  input: OpenCallInput,
+  observer: ModelObserverRequest | undefined,
+): { readonly request: OpenCallInput } | ServiceInvalidInput {
+  const json = ownOpenJson(input)
+  if ('invalidInput' in json) return json
+  const messages = ownOpenMessages(input)
+  if (messages === undefined) return { invalidInput: { reason: 'malformed' } }
+  const tools = ownOpenTools(input)
+  if (tools === undefined) return { invalidInput: { reason: 'malformed' } }
+  return { request: projectOpenRequest(input, json, observer, messages, tools) }
+}
+
+/** Capture request-owned JSON before asynchronous preparation; host/endpoint remain capability refs. */
+export function ownOpenCallInput(
+  input: OpenCallInput,
+): { readonly request: OpenCallInput } | ServiceInvalidInput {
+  if (
+    input === null ||
+    typeof input !== 'object' ||
+    !validOpenIdentity(input) ||
+    !validOpenHost(input)
+  )
+    return { invalidInput: { reason: 'malformed' } }
+  const inspected = inspectOpenObserver(input)
+  if ('invalidInput' in inspected) return inspected
+  if (!validOpenAssociation(input)) return { invalidInput: { reason: 'malformed' } }
+  return captureOpenRequest(input, inspected.observer)
 }
 
 function snapshotOf(profile: ModelProfile): ModelProfileSnapshot | undefined {
