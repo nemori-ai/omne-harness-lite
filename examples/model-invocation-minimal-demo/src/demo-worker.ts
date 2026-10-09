@@ -62,6 +62,7 @@ async function start(message: DemoPacket, body: Readonly<Record<string, unknown>
     typeof body.multiplier !== 'string' ||
     typeof body.reserveTokens !== 'string' ||
     (body.tools !== undefined && typeof body.tools !== 'boolean') ||
+    (body.initializeClock !== undefined && typeof body.initializeClock !== 'boolean') ||
     !positiveInteger(body.maxOutputTokens) ||
     !positiveInteger(body.retirementWaitMilliseconds) ||
     typeof body.covered !== 'boolean' ||
@@ -114,6 +115,7 @@ async function start(message: DemoPacket, body: Readonly<Record<string, unknown>
       undefined,
       {
         covered: body.covered,
+        initializeClock: body.initializeClock === true,
         async readCredential() {
           if (typeof body.keyFile === 'string') {
             let loaded = await readPrivateFile(body.keyFile)

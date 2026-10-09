@@ -17,7 +17,7 @@ describe('bootAssembly', () => {
       },
     })
     const assembly = await bootAssembly({
-      services: [{ name: 'clock', value: { now: () => 1 } }],
+      services: [{ name: 'clock', value: { now: async () => 1 } }],
       plugins: [{ plugin, config: {} }],
     })
     expect(seenClock).toEqual({ now: expect.any(Function) })

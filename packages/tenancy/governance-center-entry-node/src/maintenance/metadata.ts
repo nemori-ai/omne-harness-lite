@@ -20,6 +20,11 @@ export function parseMetadata(value: unknown): Metadata {
   if (!validMetadata(value)) throw new MaintenanceFailure('invalid-backup')
   if (metadataTime(value.startedAt) > metadataTime(value.finishedAt))
     throw new MaintenanceFailure('invalid-backup')
+  if (
+    value.clockCheckpoint.writtenAt > value.clockCheckpoint.upperBound ||
+    metadataTime(value.finishedAt) > value.clockCheckpoint.writtenAt
+  )
+    throw new MaintenanceFailure('invalid-backup')
   return value
 }
 
@@ -34,6 +39,7 @@ export function metadataBytes(metadata: Metadata): Buffer {
     finishedAt,
     byteLength,
     sha256,
+    clockCheckpoint,
   } = parseMetadata(metadata)
   const header = Buffer.from(
     JSON.stringify({
@@ -45,6 +51,7 @@ export function metadataBytes(metadata: Metadata): Buffer {
       finishedAt,
       byteLength,
       sha256,
+      clockCheckpoint,
     }),
     'utf8',
   )

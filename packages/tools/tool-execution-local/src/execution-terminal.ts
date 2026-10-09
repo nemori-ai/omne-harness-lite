@@ -32,7 +32,7 @@ export function createTerminalCommitter(input: {
     const captured = copyJsonValue(supplied)
     if ('failed' in captured) return 'unavailable'
     const request = captured.ok as unknown as typeof supplied
-    const ended = input.clock.now()
+    const ended = await input.clock.now()
     if (ended === 'unavailable') return 'unavailable'
     const endedAt = instantToRfc3339(ended)
     for (let attempt = 0; attempt < input.attempts; attempt++) {

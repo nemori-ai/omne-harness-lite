@@ -162,7 +162,7 @@ describe('assembly.manifest-shape', () => {
       for (const offset of [0, 1, -5_000, 1]) {
         now.mockReturnValue(wall + offset)
         const expected = offset < 0 ? 'unavailable' : wall + offset
-        expect(clock.now()).toBe(expected)
+        expect(await clock.now()).toBe(expected)
         for (const name of [
           'account-identity',
           'organization-governance',
@@ -174,7 +174,7 @@ describe('assembly.manifest-shape', () => {
           const registration = consumer.reflect._getImpl(CLOCK_SERVICE)
           expect(registration?.value, name).toBe(clockRegistration?.value)
           expect(registration?.fiber, name).toBe(clockRegistration?.fiber)
-          expect(consumer.get(CLOCK_SERVICE)?.now(), name).toBe(expected)
+          expect(await consumer.get(CLOCK_SERVICE)?.now(), name).toBe(expected)
         }
       }
     } finally {
@@ -384,7 +384,10 @@ describe('assembly.dispose-reverse-order 与 assembly.dispose-with-inflight', ()
     expect(log.events('fiber-disposed').map(l => l['plugin'])).toEqual(
       [...DISTRIBUTION_IDS].reverse(),
     )
-    const [lease] = query<{ lease_until: number }>(d.file, 'SELECT lease_until FROM clock_lease')
+    const [lease] = query<{ lease_until: number }>(
+      `${d.file}.clock.sqlite`,
+      'SELECT lease_until FROM clock_lease',
+    )
     expect(lease?.lease_until).toBeGreaterThanOrEqual(before - 1)
     expect(lease?.lease_until).toBeLessThanOrEqual(after)
     expect(lease?.lease_until).toBeLessThan(before + LEASE_WIDTH_MS)
@@ -516,7 +519,7 @@ describe('assembly.clock-write-failure-fails-boot', () => {
     const first = await hosts.start(d)
     await hosts.stop(first.host)
     execute(
-      d.file,
+      `${d.file}.clock.sqlite`,
       "CREATE TRIGGER block_lease BEFORE UPDATE ON clock_lease BEGIN SELECT RAISE(ABORT, 'injected lease write failure'); END",
     )
     const refused = await hosts.refuse(d)

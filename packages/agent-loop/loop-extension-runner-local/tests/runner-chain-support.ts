@@ -70,7 +70,7 @@ export async function chainHost(
   const assembly = await bootAssembly({
     services: [{ name: 'storage', value: storage }],
     plugins: [
-      { plugin: clockPlugin, config: {} },
+      { plugin: clockPlugin, config: { file: join(directory, 'clock.sqlite'), initialize: true } },
       {
         plugin: credentialsPlugin,
         config: { cost: 1024, blockSize: 8, parallelization: 1, saltBytes: 16, keyBytes: 32 },

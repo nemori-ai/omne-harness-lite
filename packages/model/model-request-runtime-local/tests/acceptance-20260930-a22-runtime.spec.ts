@@ -158,7 +158,7 @@ interface RuntimeOptions {
   readonly prefix?: string
   readonly append?: (real: SessionLog['append']) => SessionLog['append']
   readonly storage?: (real: Storage) => Storage
-  readonly now?: () => string
+  readonly now?: () => Promise<string>
   readonly cleanup?: AcknowledgementCleanupPolicy
   readonly owner?: SettlementOwner
   readonly wire?: ReturnType<typeof transport>
@@ -316,7 +316,7 @@ async function runtimeOn(w: World, options: RuntimeOptions = {}) {
         diagnostics.push(event.kind)
         options.diagnostic?.(event)
       }),
-      now: options.now ?? (() => CLOCK_1),
+      now: options.now ?? (async () => CLOCK_1),
       schedule: () => () => {},
     },
     identities: {
@@ -984,7 +984,7 @@ describe('A22-V5 log-first confirmation and unknown ACK receipts (RT12 S-96⑧, 
     await withWorld(async w => {
       let clock = CLOCK_1
       const rt = await runtimeOn(w, {
-        now: () => clock,
+        now: async () => clock,
         append: ackAppend(async (_entry, real) => {
           const landed = await real()
           if ('failure' in landed) throw new Error(`real append failed: ${landed.failure}`)
@@ -1004,7 +1004,7 @@ describe('A22-V5 log-first confirmation and unknown ACK receipts (RT12 S-96⑧, 
       // process exit without close; the log is reopened by a new process
       clock = CLOCK_2
       await w.host.reopen()
-      const cold = await runtimeOn(w, { prefix: 'cold', now: () => CLOCK_2 })
+      const cold = await runtimeOn(w, { prefix: 'cold', now: async () => CLOCK_2 })
       const read = await cold.service.acquireCall({ ref, mode: 'read' })
       expect(read).toMatchObject({
         view: { acknowledged: { acknowledgedAt: CLOCK_1, cleanup: 'released' } },
@@ -1027,7 +1027,7 @@ describe('A22-V5 log-first confirmation and unknown ACK receipts (RT12 S-96⑧, 
         let clock = CLOCK_1
         let drop = true
         const rt = await runtimeOn(w, {
-          now: () => clock,
+          now: async () => clock,
           append: ackAppend(async (_entry, real) => {
             if (drop) {
               drop = false
@@ -1051,7 +1051,7 @@ describe('A22-V5 log-first confirmation and unknown ACK receipts (RT12 S-96⑧, 
         let retry = rt
         if (cold) {
           await w.host.reopen()
-          retry = await runtimeOn(w, { prefix: 'cold', now: () => CLOCK_2 })
+          retry = await runtimeOn(w, { prefix: 'cold', now: async () => CLOCK_2 })
         }
         expect(await retry.service.acknowledgeCall({ ref, expectedResult: target })).toMatchObject({
           acknowledged: { acknowledgedAt: CLOCK_1, cleanup: 'released' },

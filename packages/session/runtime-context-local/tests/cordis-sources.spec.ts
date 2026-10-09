@@ -48,7 +48,7 @@ test('Cordis source contribution withdraws immediately and drains its original p
     authorize = h.auth.operations.authorize
   }
   class Time extends ClockService {
-    now = () => instant
+    now = async () => instant
   }
   const dependencies = await ctx.plugin({
     name: 'context-test-dependencies',

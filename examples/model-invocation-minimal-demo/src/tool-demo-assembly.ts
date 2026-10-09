@@ -1,3 +1,10 @@
+import { shell } from '@omne-harness-lite/meta-shell/cordis'
+import { files } from '@omne-harness-lite/meta-files/cordis'
+import { STORAGE_SERVICE } from '@omne-harness-lite/storage/cordis'
+import { shellConfig, filesConfig, DEMO_HOST_PROVIDER } from './meta-tool-config.ts'
+import { CURRENT_EVALUATION_INPUTS } from '@omne-harness-lite/asset-evaluation/cordis'
+import { resultReaderConfig } from './demo-result-reader.ts'
+import { type DemoAttachmentRead } from './demo-result-reader.ts'
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { FIBER_STATE, definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
@@ -55,7 +62,7 @@ import {
   TOOL_IMPLEMENTATIONS,
 } from '@omne-harness-lite/tool-execution-runtime/cordis'
 import { toolActionHistory } from './tool-driver-history.ts'
-import { demoPureTools } from './demo-tools.cordis.ts'
+import { demoPureTools, demoResultReader } from './demo-tools.cordis.ts'
 
 class History extends ToolActionHistoryService {
   inspect(...args: Parameters<typeof toolActionHistory.inspect>) {
@@ -120,48 +127,63 @@ export const managedToolOwnedInputs = Object.assign(
 
 // Trusted observation retains real contribution fibers; it is not an authorization interface.
 const contributions = new WeakMap<Fiber, { readonly official: Fiber; readonly pure: Fiber }>()
-export const managedDemoToolContributions = Object.assign(
-  definePlugin({
-    name: 'demo-tool-contributions-managed',
-    Config: EmptyConfig,
-    inject: [LOOP_EXTENSION_IMPLEMENTATIONS, TOOL_IMPLEMENTATIONS, ASSEMBLY_LIFETIME_SERVICE],
-    apply(ctx) {
-      let official: Fiber | undefined, pure: Fiber | undefined
-      startAssemblyWork(
-        ctx,
-        async () => {
-          official = ctx.plugin(officialAdmission, {})
-          pure = ctx.plugin(demoPureTools, {})
-          contributions.set(ctx.fiber, { official, pure })
-          await Promise.all([Promise.resolve(official), Promise.resolve(pure)])
-          if (
-            (official.state !== FIBER_STATE.ACTIVE && official.state !== FIBER_STATE.PENDING) ||
-            pure.state !== FIBER_STATE.ACTIVE
-          )
-            throw new Error('Demo tool contribution unavailable')
-        },
-        async () => {
-          await pure?.dispose()
-          await official?.dispose()
-        },
-      )
+export function createDemoToolContributions(read: DemoAttachmentRead) {
+  return Object.assign(
+    definePlugin({
+      name: 'demo-tool-contributions-managed',
+      Config: EmptyConfig,
+      inject: [LOOP_EXTENSION_IMPLEMENTATIONS, TOOL_IMPLEMENTATIONS, ASSEMBLY_LIFETIME_SERVICE],
+      apply(ctx) {
+        let official: Fiber | undefined, pure: Fiber | undefined
+        const tools: Fiber[] = []
+        startAssemblyWork(
+          ctx,
+          async () => {
+            official = ctx.plugin(officialAdmission, {})
+            pure = ctx.plugin(demoPureTools, {})
+            tools.push(
+              ctx.plugin(shell, shellConfig),
+              ctx.plugin(files, filesConfig),
+              ctx.plugin(demoResultReader(read), {}),
+            )
+            contributions.set(ctx.fiber, { official, pure })
+            await Promise.all([
+              Promise.resolve(official),
+              Promise.resolve(pure),
+              ...tools.map(tool => Promise.resolve(tool)),
+            ])
+            if (
+              (official.state !== FIBER_STATE.ACTIVE && official.state !== FIBER_STATE.PENDING) ||
+              pure.state !== FIBER_STATE.ACTIVE ||
+              tools.some(tool => tool.state !== FIBER_STATE.ACTIVE)
+            )
+              throw new Error('Demo tool contribution unavailable')
+          },
+          async () => {
+            for (const tool of tools.reverse()) await tool.dispose()
+            await pure?.dispose()
+            await official?.dispose()
+          },
+        )
+      },
+    }),
+    {
+      assemblyLifecycle: 1 as const,
+      describeAssembly(value: unknown): AssemblyDeclaration {
+        EmptyConfig.parse(value)
+        return {
+          provides: [],
+          requires: [LOOP_EXTENSION_IMPLEMENTATIONS, TOOL_IMPLEMENTATIONS],
+          optional: [],
+          dynamicProvides: [],
+          dynamicRequires: [TOOL_ADMISSION],
+          claims: [],
+        }
+      },
     },
-  }),
-  {
-    assemblyLifecycle: 1 as const,
-    describeAssembly(value: unknown): AssemblyDeclaration {
-      EmptyConfig.parse(value)
-      return {
-        provides: [],
-        requires: [LOOP_EXTENSION_IMPLEMENTATIONS, TOOL_IMPLEMENTATIONS],
-        optional: [],
-        dynamicProvides: [],
-        dynamicRequires: [TOOL_ADMISSION],
-        claims: [],
-      }
-    },
-  },
-)
+  )
+}
+export const managedDemoToolContributions = createDemoToolContributions(async () => undefined)
 
 /** Prepare before applying any provider; the caller retains the returned handle before awaiting ready. */
 export async function installDemoTools(input: {
@@ -170,6 +192,7 @@ export async function installDemoTools(input: {
   readonly directory: string
   readonly config: ToolRuntimeConfig
   readonly onStopping: () => void
+  readonly readAttachment?: DemoAttachmentRead
 }) {
   const own = '@omne-harness-lite/model-invocation-minimal-demo'
   const rows: PluginRow[] = [
@@ -203,9 +226,33 @@ export async function installDemoTools(input: {
       config: {},
     },
     {
+      id: 'host-placement',
+      plugin: {
+        package: '@omne-harness-lite/tool-execution-local',
+        export: 'managedToolEnvironmentPlacement',
+      },
+      config: {
+        name: 'demo-host-placement',
+        factoryPermission: 'always-allow',
+        selection: { kind: 'unique' },
+      },
+    },
+    {
+      id: 'host-provider',
+      plugin: {
+        package: '@omne-harness-lite/execution-environments-host',
+        export: 'hostEnvironment',
+      },
+      config: { provider: DEMO_HOST_PROVIDER },
+    },
+    {
       id: 'tool-results',
       plugin: { package: '@omne-harness-lite/tool-result-files', export: 'managedToolResultFiles' },
-      config: { directory: input.directory, storage: input.config.resultStorage },
+      config: {
+        directory: input.directory,
+        storage: input.config.resultStorage,
+        reader: resultReaderConfig,
+      },
     },
     {
       id: 'tool-admission-host',
@@ -240,9 +287,18 @@ export async function installDemoTools(input: {
       LOOP_EXTENSION_IMPLEMENTATIONS,
       TOOL_ADMISSION_PASS_SOURCE,
       TOOL_RUNTIME_STARTUP,
+      STORAGE_SERVICE,
+      CURRENT_EVALUATION_INPUTS,
     ],
     resolveModule: reference =>
-      reference.package === own ? import('./cordis.ts') : import(`${reference.package}/cordis`),
+      reference.package === own
+        ? import('./cordis.ts').then(module => ({
+            ...module,
+            managedDemoToolContributions: createDemoToolContributions(
+              input.readAttachment ?? (async () => undefined),
+            ),
+          }))
+        : import(`${reference.package}/cordis`),
   })
   let control: ToolRuntimeCloseControl | undefined
   let observed = false

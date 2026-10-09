@@ -63,7 +63,7 @@ function construction(
       },
     },
     policy: {
-      now: () => '2026-09-28T00:00:00Z',
+      now: async () => '2026-09-28T00:00:00Z',
       schedule: () => {
         throw new Error('healthy close must not schedule')
       },

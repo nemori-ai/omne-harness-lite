@@ -1,4 +1,4 @@
-import { formatSection, formatCommandList, formatUsage } from '@omne-harness-lite/unix-format'
+import { formatSection, formatCommandList } from '@omne-harness-lite/unix-format'
 const styles = { markdownCompatible: false, maxWidth: 0 }
 export const descriptions = {
   help: 'Read tool help or command help.',
@@ -51,7 +51,14 @@ const notes = {
 export const COMMAND_HELP = Object.fromEntries(
   Object.keys(descriptions).map(name => {
     const key = name as keyof typeof descriptions
-    return [key, [formatUsage('Files', key, usage[key]), descriptions[key], notes[key]].join('\n')]
+    return [
+      key,
+      [
+        formatSection('USAGE', `Files({command: "${key}", args: {${usage[key]}}})`, styles),
+        descriptions[key],
+        notes[key],
+      ].join('\n'),
+    ]
   }),
 )
 export const FILES_HELP = [
@@ -69,7 +76,7 @@ export const FILES_HELP = [
   ),
   formatSection(
     'NOTES',
-    'Relative paths use files.initial.cwd from Runtime Context. Absolute paths remain inside the selected environment semantics. A default directory grants no permission. Text results use Unix labels and tables. Files sends no progress frames. Edit results include a diff. Unknown results do not mean that nothing changed.',
+    'Use help with a command name to read its parameter schema. Put command parameters in args. Relative paths use files.initial.cwd from Runtime Context. Absolute paths remain inside the selected environment semantics. A default directory grants no permission. Text results use Unix labels and tables. Files sends no progress frames. Edit results include a diff. Unknown results do not mean that nothing changed.',
     styles,
   ),
 ].join('\n\n')

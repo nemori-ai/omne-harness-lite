@@ -173,7 +173,7 @@ export async function callDeployment(
         retirement: demoRetirement(),
       },
       invocation: {
-        now: () => AT,
+        now: async () => AT,
         firstContentTimeoutMs: 15000,
         idleContentTimeoutMs: 120000,
         schedule(ms, callback) {

@@ -107,7 +107,7 @@ test('w1.types.offer.derived-state-and-clock', () => {
   expectTypeOf<OfferState>().toEqualTypeOf<
     'pending' | 'accepted' | 'withdrawn' | 'declined' | 'expired'
   >()
-  expectTypeOf<ReturnType<Clock['now']>>().toEqualTypeOf<Instant | 'unavailable'>()
+  expectTypeOf<ReturnType<Clock['now']>>().toEqualTypeOf<Promise<Instant | 'unavailable'>>()
   // @ts-expect-error 派生 expired 不是持久终结状态
   const stored: SettledState = 'expired'
   // @ts-expect-error 时间点是品牌化数值

@@ -58,7 +58,7 @@ test('initialization admitted before stop stays owned through a delayed original
         write: fn => h.storage.write(fn),
       },
       access: h.auth.operations,
-      now: () => at,
+      now: async () => at,
     })
     const initializing = owner.initializer.initializeContextSession(scope, seed)
     await entered.promise

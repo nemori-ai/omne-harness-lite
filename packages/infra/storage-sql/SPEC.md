@@ -44,20 +44,34 @@ unit 保留原 frame、busy、既有污染的校验次序，再核验实例身�
 验证必须覆盖双向参与、多个调用方、跨实例拒绝、污染、回滚、通知、拥有/借用撤除及提供者换代。
 既有 SQLite 符合性、升级、维护、真实治理/模型消费者与实际制品消费继续承担各自验证责任。
 
+## SQLite 的异步执行与排他
+
+每个SQLite连接及其原生SQL执行属于独立worker。打开、SQL、提交、回滚和关闭不得在应用事件循环上执行。main仍拥有事务回调和准入队列；同一连接的命令按进入顺序执行。等待不会隐式重放语句或事务回调。引擎的整数、字节、扩展错误和自动回滚状态保持，不以JS布尔值猜测事务是否仍在。
+
+读池在等待打开前预占名额；失败退还名额，关停拒绝未取得连接的等候者。打开中的连接计入未关闭资源。关闭停止新命令、排空原队列与备份、关闭原生连接，并等待worker实际退出。error事件、发送close或发送terminate均不能替代退出。未知结果不得伪装成未提交。线程异常退出不自动重建连接或重放请求。
+
+SQLite属主及维护工作根用永久文件的flock排他。main强持有文件描述符；helper只有无signal且退出码0才授予准入。失败或未知取得结果先等helper停止，再尝试关闭描述符。worker退出不释放main持有的排他。全部数据库工作、文件操作和升级恢复收场后，最后关闭描述符。关闭未证实成功时保留强引用和原排他。运行期间不得删除或替换锁文件。
+
+`NodeSqliteDialect` 的 `readOnly: true` 仅允许用于 read 角色：以原生只读模式打开已有文件，不创建缺失文件、不设置 journal_mode。默认池保留原连接模式与 query_only 保护，避免改变最后连接关闭时的 WAL 检查点行为。
+
+此Linux提供者需要util-linux的flock可执行文件。缺少依赖则启动失败，不降级为无锁模式。旧空SQLite锁与新flock锁不构成互斥协议；升级本实现前必须停止旧进程，不支持两种版本并发访问同一属主数据。本节取代旧节点设计中的空协调库机制，保留其唯一属主、恢复和关闭责任。
+
+备份继续借原固定read transaction。取消只提出停止请求，资源仍保有到原生backup实际收场。查询元信息必须保留容量限制。worker内部同步执行不是应用线程同步执行，也不表示任意同步业务回调已被异步化。
+
 ## 方言事务与错误
 
 SQLite 独立读句柄设置 query_only=ON，以 deferred BEGIN 开始；首条实际读固定 WAL 快照，不见后来提交。写句柄 BEGIN IMMEDIATE，callback 的 await 期间仍持写锁。写句柄 busy_timeout=0，以异步重试让持锁调用方继续进展，总等待上限 5 秒后 StorageUnavailable。当前等待序列为 1、2、4、8、16、32、50 毫秒，随后保持 50 毫秒；这是提供者选择，不是公平性保证。读句柄 busy_timeout=5000。
 
 SQLite 的 lockRow/lockSentinel 由库级写锁覆盖。PostgreSQL lockRow 用 FOR UPDATE，不存在行不提供插入排他；唯一约束裁决竞争。lockSentinel 用事务级 advisory lock，无需业务表；哈希碰撞只增加串行等待，不表示身份相等。PG 写事务的每条语句使用 SAVEPOINT/RELEASE；失败先 ROLLBACK TO，允许同事务重读。事务外启动／迁移语句不加此装饰，共用 pool 只 end 一次。
 
-| 方言错误 | 提供者翻译 |
-| --- | --- |
-| SQLite 2067/1555 | UniqueViolation，反查明确迁移约束名；反查失败是 StorageDefect |
-| SQLite 787/1811 且报文含 FOREIGN KEY | delete 为 delete-restricted，其余触发语句为 missing-target |
-| SQLite BUSY、I/O、CANTOPEN、FULL 主码及已关闭句柄 | StorageUnavailable，保留 cause |
-| SQLite READONLY、NOT NULL、CHECK、语法、未知列、绑定误用及未知驱动错误 | StorageDefect；读写句柄上的 READONLY 均如此 |
-| PG 23505/23503 | 唯一／引用错误；按触发 DELETE 区分引用方向 |
-| PG 08xxx、57P01/57P02、53xxx、40001/40P01/55P03 | 连接、资源或并发不可用；不能把未知提交回执断言成未提交 |
+| 方言错误                                                               | 提供者翻译                                                    |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------- |
+| SQLite 2067/1555                                                       | UniqueViolation，反查明确迁移约束名；反查失败是 StorageDefect |
+| SQLite 787/1811 且报文含 FOREIGN KEY                                   | delete 为 delete-restricted，其余触发语句为 missing-target    |
+| SQLite BUSY、I/O、CANTOPEN、FULL 主码及已关闭句柄                      | StorageUnavailable，保留 cause                                |
+| SQLite READONLY、NOT NULL、CHECK、语法、未知列、绑定误用及未知驱动错误 | StorageDefect；读写句柄上的 READONLY 均如此                   |
+| PG 23505/23503                                                         | 唯一／引用错误；按触发 DELETE 区分引用方向                    |
+| PG 08xxx、57P01/57P02、53xxx、40001/40P01/55P03                        | 连接、资源或并发不可用；不能把未知提交回执断言成未提交        |
 
 调用方原异常不重包装。SQLite CREATE UNIQUE INDEX 使用明确索引名，主键统一 `<table>_pkey`，含 rowid 别名主键。表内 UNIQUE 的自动名不能冒称迁移约束名。业务迁移拥有命名纪律。当前 UPDATE 被引用主键仍按触发语句记 missing-target；PG 缺 constraint 返回 unknown，尚未兑现公共约束命名要求。两项差异不能据此页宣称闭合。
 
@@ -79,7 +93,7 @@ pending 只观察原附着位置，never-attached/clear/pending(location) 不从
 
 ## JSON、初始化与同步
 
-JSON 列用 text，Driver/Kysely 不自动 parse/stringify；无损应用读写归 content-blocks。取得 DatabaseSync 即拥有，即使 PRAGMA 未完成也必须收场。按需 reader 全初始化成功后才占池容量。主错误与关闭错误均保留；close 抛但实际已关仍报告失败，不虚构泄漏；仍开则保强引用与已取得源锁。
+JSON 列用 text，Driver/Kysely 不自动 parse/stringify；无损应用读写归 content-blocks。worker取得 DatabaseSync 即拥有，即使 PRAGMA 未完成也必须收场。按需 reader 在等待打开前占池名额，初始化失败归还名额。主错误与关闭错误均保留；close 抛但实际已关仍报告失败，不虚构泄漏；仍开则保强引用与已取得源锁。
 
 normal 为缺省，full 只接受固定枚举，对当前／以后开的读写句柄和迁移写连接统一设置，不拼任意输入到 PRAGMA。FULL 依赖 OS、文件系统及设备兑现同步，不是已验证物理断电保证。
 
@@ -89,7 +103,7 @@ normal 为缺省，full 只接受固定枚举，对当前／以后开的读写�
 
 所有生产打开路径，包括独立 openStorage、直接方言／lazy driver、升级 acquire/restore/snapshot/confirm 和维护源读，都先核真实祖先 marker；存在 marker 或无法检查即拒绝。拒绝最终符号链接文件，新文件从真实父目录判断。私有 inspect 只打开当前持锁根任务文件，没有公开跳过 flag。保护覆盖断电后明文删除回退；恶意宿主搬明文、删 marker 或硬链接不在保证。
 
-`.owner-lock` 是私有空协调库，IMMEDIATE、timeout=0，实际 close 前保强引用。同根在线／离线跨进程互斥，取不到 busy。不同根可检查同封装，不承诺同源全局锁或全机资源封顶。
+`.owner-lock` 是永久flock文件，main持有同一FileHandle到真实任务结束，不删除或替换文件。同根在线／离线跨进程互斥，取不到 busy。不同根可检查同封装，不承诺同源全局锁或全机资源封顶。
 
 源专用只读句柄 BEGIN＋首读固定观察后备份；期间其他写者可提交，副本仍固定。backup Promise 真结算才 ROLLBACK/close，不由取消回调抛错／超时推定结束。page_count×page_size≤1GiB，可用空间≥两倍预估＋256MiB；progress 核取消、WAL≥1GiB 及实际页数界限。每次 run/session 检查操作共享以单调时间计的 5 分钟取消请求预算，不为每一步重新计时。预算不是结束上限，不证明故障 IO 能停止。
 

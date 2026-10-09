@@ -239,7 +239,7 @@ export async function actionIntegrationFixture(
         }
       },
       selectedRun: () => undefined,
-      now: () => at,
+      now: async () => at,
       actions: {
         owner: owner.operations,
         authorization: authorization.operations,
@@ -259,7 +259,7 @@ export async function actionIntegrationFixture(
         { name: 'sessionLogBacking', value: backing.operations },
         { name: 'toolActionHistory', value: toolActionHistory },
         { name: 'sessionLogOwner', value: owner.operations },
-        { name: 'clock', value: { now: () => unwrap(instantFromRfc3339(at)) } },
+        { name: 'clock', value: { now: async () => unwrap(instantFromRfc3339(at)) } },
         ...(environmentInputs
           ? [{ name: 'currentEvaluationInputs', value: environmentInputs.reader }]
           : []),

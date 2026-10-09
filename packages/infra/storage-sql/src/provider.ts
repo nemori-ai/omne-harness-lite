@@ -212,7 +212,7 @@ export class SqlStorage implements StorageInstance, AtomicStorage {
         throw new StorageDefect('native storage handles remain open')
       handlesClosed = true
     } finally {
-      if (this.snapshots !== undefined && !handlesClosed) {
+      if (!handlesClosed) {
         retainStorageHandles(this.handles)
         throw new StorageDefect('storage handles did not close; source ownership is retained')
       }

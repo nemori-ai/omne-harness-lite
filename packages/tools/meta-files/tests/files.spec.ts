@@ -14,8 +14,24 @@ test('definition declares only files and original attachment storage; help needs
   const { environment: unused, ...withoutEnvironment } = h.deps
   const value = await h.tool.executor({ command: 'help', args: {} }, withoutEnvironment)
   expect(text(value)).toContain('COMMANDS:')
+  expect(text(value)).toContain('Use help with a command name to read its parameter schema.')
+  expect(text(value)).toContain('Put command parameters in args.')
   expect(h.deps.context.read).not.toHaveBeenCalled()
   expect(h.deps.frames.emit).not.toHaveBeenCalled()
+  const editHelp = text(
+    await h.tool.executor({ command: 'help', args: { command: 'edit' } }, withoutEnvironment),
+  )
+  expect(editHelp).toMatch(/USAGE:[^\n]*\n[^\n]*Files[^\n]*\n/u)
+  expect(editHelp).toContain('args:')
+  expect(editHelp).not.toContain('params=')
+  expect(editHelp).toContain('unified diff.\nmatch.text is literal.')
+  const argumentsSection = editHelp.split('ARGUMENTS:')[1]
+  expect(argumentsSection).toBeDefined()
+  const schema = JSON.parse(argumentsSection!)
+  expect(schema.required).toEqual(['path', 'match', 'replacement', 'expectedVersion'])
+  expect(schema.properties.match.properties.text.type).toBe('string')
+  expect(schema.properties.path.minLength).toBe(1)
+  expect(h.deps.context.read).not.toHaveBeenCalled()
 })
 test.each([
   'read',

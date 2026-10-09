@@ -119,7 +119,7 @@ describe('Directory5 current complete profile records on real SQLite', () => {
       const clock = actualClock(h.assembly)
       const parsed = instantFromRfc3339(first.profile.updatedAt)
       if (!('ok' in parsed)) throw new Error('Actual timestamp malformed')
-      const now = vi.spyOn(clock, 'now').mockReturnValue(parsed.ok)
+      const now = vi.spyOn(clock, 'now').mockResolvedValue(parsed.ok)
       let row = expectRow(
         await h.catalog.updateProfile(alice, first.ref, {
           replace: {
@@ -177,20 +177,20 @@ describe('Directory5 current complete profile records on real SQLite', () => {
       for (const [index, replace] of drivers.entries()) {
         const later = instantFromEpochMs(Number(parsed.ok) + index + 1)
         if (!('ok' in later)) throw new Error('Later clock syntax')
-        now.mockReturnValue(later.ok)
+        now.mockResolvedValue(later.ok)
         row = expectRow(await h.catalog.updateProfile(alice, first.ref, { replace }))
         expect(row.profile.updatedAt).toBe(instantToRfc3339(later.ok))
       }
       now.mockRestore()
       const earlier = instantFromEpochMs(0)
       if (!('ok' in earlier)) throw new Error('Earlier clock syntax')
-      const earlyClock = vi.spyOn(clock, 'now').mockReturnValue(earlier.ok)
+      const earlyClock = vi.spyOn(clock, 'now').mockResolvedValue(earlier.ok)
       const before = await stored(h)
       expect(
         await h.catalog.updateProfile(alice, first.ref, { replace: { maxInputTokens: 800 } }),
       ).toEqual({ failure: 'unavailable' })
       expect(await stored(h)).toEqual(before)
-      earlyClock.mockReturnValue('unavailable')
+      earlyClock.mockResolvedValue('unavailable')
       expect(
         await h.catalog.updateProfile(alice, first.ref, { replace: { maxInputTokens: 800 } }),
       ).toEqual({ failure: 'unavailable' })
@@ -306,7 +306,7 @@ describe('Directory5 current complete profile records on real SQLite', () => {
             ],
           },
           undefined,
-          { now: () => earlier.ok },
+          { now: async () => earlier.ok },
         ),
       ).rejects.toThrow()
       expect(await stored(h)).toEqual(before)
@@ -381,8 +381,12 @@ describe('Directory5 current complete profile records on real SQLite', () => {
       const spy = vi.spyOn(h.storage, 'write').mockImplementation(async fn =>
         original(async tx => {
           const result = await fn(tx)
-          entered?.()
-          await releasePromise
+          // Standing also uses an atomic write scope. Hold the profile update,
+          // not its earlier authorization read, so the commit order is explicit.
+          if (typeof result === 'object' && result !== null && 'profile' in result) {
+            entered?.()
+            await releasePromise
+          }
           return result
         }),
       )

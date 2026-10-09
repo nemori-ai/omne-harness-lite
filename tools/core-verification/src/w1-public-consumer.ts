@@ -401,7 +401,7 @@ const cases: readonly ConsumerCase[] = [
   {
     id: 'w1.offer.public-evaluation-order',
     sources: ['data.offer-expiry/v2#S-8', 'data.offer-expiry/v2#S-13', 'data.offer-expiry/v2#S-20'],
-    run() {
+    async run() {
       const start = unwrap(instantFromEpochMs(1_000))
       const ttl = unwrap(parseOfferTtl(1_000))
       const computedTiming = timingFrom(start, ttl)
@@ -414,30 +414,35 @@ const cases: readonly ConsumerCase[] = [
       const clock = testClock(start)
       clock.advance(1_000)
       assert.equal(
-        deriveState({ timing, settled: null, now: clock.now(), target: 'exists' }),
+        deriveState({ timing, settled: null, now: await clock.now(), target: 'exists' }),
         'pending',
       )
       clock.advance(1)
       assert.equal(
-        deriveState({ timing, settled: null, now: clock.now(), target: 'exists' }),
+        deriveState({ timing, settled: null, now: await clock.now(), target: 'exists' }),
         'expired',
       )
       assert.equal(deriveState({ timing, settled: null, now: start, target: 'absent' }), 'expired')
       assert.equal(
-        deriveState({ timing, settled: null, now: clock.now(), target: 'unavailable' }),
+        deriveState({ timing, settled: null, now: await clock.now(), target: 'unavailable' }),
         'unavailable',
       )
       clock.setUnavailable(true)
       assert.equal(
-        deriveState({ timing, settled: null, now: clock.now(), target: 'absent' }),
+        deriveState({ timing, settled: null, now: await clock.now(), target: 'absent' }),
         'unavailable',
       )
       assert.equal(
-        deriveState({ timing, settled: 'withdrawn', now: clock.now(), target: 'unavailable' }),
+        deriveState({
+          timing,
+          settled: 'withdrawn',
+          now: await clock.now(),
+          target: 'unavailable',
+        }),
         'withdrawn',
       )
       assert.equal(
-        deriveState({ timing, settled: 'accepted', now: clock.now(), target: 'absent' }),
+        deriveState({ timing, settled: 'accepted', now: await clock.now(), target: 'absent' }),
         'accepted',
       )
       assert.equal(acceptable('pending'), true)
@@ -445,7 +450,7 @@ const cases: readonly ConsumerCase[] = [
         assert.equal(acceptable(state), false)
       assert.throws(() => clock.advance(-1), RangeError)
       clock.setUnavailable(false)
-      assert.equal(clock.now(), clock.current)
+      assert.equal(await clock.now(), clock.current)
     },
   },
   {

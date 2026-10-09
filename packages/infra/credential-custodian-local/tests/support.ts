@@ -102,7 +102,7 @@ export async function createFixture() {
   const events: ReplicaObservation[] = []
   const clockState = { unavailable: false, throws: false, calls: 0 }
   const clock: Clock = {
-    now: () => {
+    now: async () => {
       clockState.calls++
       if (clockState.throws) throw new Error('clock-secret-test-body')
       return clockState.unavailable ? 'unavailable' : instant

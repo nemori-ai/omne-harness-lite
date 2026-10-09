@@ -27,9 +27,9 @@ export interface HealthSources {
 }
 
 /** `clockSane`：现读钟；读不到（含运行中回拨，时钟的提供者答 `'unavailable'`）或抛出 ⇒ `false`。 */
-export function clockSane(clock: Clock): boolean {
+export async function clockSane(clock: Clock): Promise<boolean> {
   try {
-    return clock.now() !== 'unavailable'
+    return (await clock.now()) !== 'unavailable'
   } catch {
     return false
   }
@@ -51,7 +51,7 @@ export async function fullHealthBody(
     storageReachable,
     deploymentKeyPresent: sources.deploymentKey.present,
     deploymentKeyComplete: sources.deploymentKey.complete,
-    clockSane: clockSane(sources.clock),
+    clockSane: await clockSane(sources.clock),
     defectCount,
     deploymentParameters: {
       unactivatedRetention: parameters.unactivatedRetention,

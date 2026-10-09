@@ -2,6 +2,7 @@ import { mkdtemp, rm, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, vi } from 'vitest'
+import { setTimeout as yieldToTimers } from 'node:timers/promises'
 import { Context } from '@deepseek-ai/cordis'
 import { SessionAccessService } from '@omne-harness-lite/session-tenancy/cordis'
 import { SessionLogBackingService } from '@omne-harness-lite/session-log/cordis'
@@ -112,7 +113,7 @@ async function fixture() {
           : 'notAuthorized',
     },
     history: {
-      inspect(prefix, callId) {
+      inspect: vi.fn<ToolResultStorageDependencies['history']['inspect']>((prefix, callId) => {
         if (
           compareInteger(prefix.tail, prefix.entries.length) !== 0 ||
           prefix.entries.some(
@@ -187,7 +188,7 @@ async function fixture() {
           },
         }
         return { kind: 'known', facts }
-      },
+      }),
     },
   }
   let store = await openToolResultStorage({ directory, storage: 'results' }, dependencies)
@@ -300,6 +301,43 @@ async function fixture() {
     },
   }
 }
+
+test.each(['renewal', 'revocation', 'replacement'] as const)(
+  'writer binding lets due %s run after history and rechecks its authority and owner',
+  async change => {
+    const f = await fixture()
+    try {
+      await f.intent()
+      let due = false
+      const inspect = vi.mocked(f.dependencies.history.inspect)
+      const originalInspect = inspect.getMockImplementation()!
+      inspect.mockImplementation((prefix, call) => {
+        const result = originalInspect(prefix, call)
+        // Model a due maintenance task queued while the synchronous history port runs.
+        setTimeout(() => {
+          due = true
+          if (change === 'revocation') f.revoke()
+          if (change === 'replacement') f.replaceOwner()
+        }, 0)
+        return result
+      })
+      const original = f.authorize.getMockImplementation()!
+      f.authorize.mockImplementation(async (...args) => {
+        if (change === 'renewal' && f.authorize.mock.calls.length > 1 && !due)
+          return { kind: 'rejected', reason: 'unavailable' }
+        return original(...args)
+      })
+      const result = await f.store.operations.bindWriter(access, ref, 'results')
+      expect(due).toBe(true)
+      expect(result.kind).toBe(change === 'renewal' ? 'bound' : 'rejected')
+      if (result.kind === 'rejected')
+        expect(result.reason).toBe(change === 'revocation' ? 'notAuthorized' : 'ownerStopped')
+    } finally {
+      await yieldToTimers(0)
+      await f.close()
+    }
+  },
+)
 
 test('prepared author result is invisible until a confirmed terminal, then reads the original rather than delivery text', async () => {
   const f = await fixture()

@@ -1,6 +1,7 @@
-// 自写 node:sqlite Driver：一个写句柄 + 进程内写队列；读句柄独立、query_only=ON；BEGIN IMMEDIATE 忙时异步重试（P-12）。
+// node:sqlite工作线程适配：一写队列、最多四读连接；BEGIN IMMEDIATE忙时异步重试（P-12）。
 // 复用 kysely 的 SqliteAdapter / SqliteQueryCompiler / SqliteIntrospector。
-import { DatabaseSync } from 'node:sqlite'
+import { performance } from 'node:perf_hooks'
+import { AsyncSqliteDatabase } from './async-database.ts'
 import {
   CompiledQuery,
   SqliteAdapter,
@@ -24,6 +25,8 @@ export interface NodeSqliteDialectOptions {
   readonly synchronous?: 'normal' | 'full'
   /** 本 Kysely 实例只做读或只做写：提供者为两种事务各开一个实例，事务种类因此在构造期就定了。 */
   readonly role: 'write' | 'read'
+  /** Open an existing file without write access. Valid only with role=read. */
+  readonly readOnly?: boolean
   /** 写锁争用的总等待上限；超过 ⇒ StorageUnavailable。 */
   readonly writeLockTimeoutMs?: number
 }
@@ -58,7 +61,7 @@ function returnsRows(sql: string): boolean {
 /** Internal reusable executor; not exported through the package's public entry. */
 export class NodeSqliteConnection implements DatabaseConnection {
   constructor(
-    readonly db: DatabaseSync,
+    readonly db: AsyncSqliteDatabase,
     readonly role: 'write' | 'read',
     private readonly resolver: UniqueConstraintResolver,
   ) {}
@@ -66,27 +69,25 @@ export class NodeSqliteConnection implements DatabaseConnection {
   async executeQuery<R>(compiled: CompiledQuery): Promise<QueryResult<R>> {
     const kind = statementKind(compiled.sql)
     try {
-      const statement = this.db.prepare(compiled.sql)
       const parameters = compiled.parameters as readonly (
         null | number | bigint | string | Uint8Array
       )[]
       if (returnsRows(compiled.sql)) {
-        const rows = statement.all(...parameters) as R[]
+        const rows = (await this.db.all(compiled.sql, parameters)) as R[]
         return { rows }
       }
-      const result = statement.run(...parameters)
+      const result = await this.db.run(compiled.sql, parameters)
       return {
         rows: [],
         numAffectedRows: BigInt(result.changes),
         insertId: BigInt(result.lastInsertRowid),
       }
     } catch (error) {
-      throw translateSqliteError(
-        error,
-        kind,
-        message => this.resolver.resolve(this.db, message),
-        this.role,
-      )
+      const constraint =
+        error instanceof Error && 'errcode' in error && [2067, 1555].includes(Number(error.errcode))
+          ? await this.resolver.resolve(this.db, error.message)
+          : undefined
+      throw translateSqliteError(error, kind, () => constraint, this.role)
     }
   }
 
@@ -99,54 +100,59 @@ export class NodeSqliteConnection implements DatabaseConnection {
 }
 
 // Covers failed initialization before a connection can enter the pool.
-const retainedNativeHandles = new Set<DatabaseSync>()
+const retainedNativeHandles = new Set<AsyncSqliteDatabase>()
 
 export class NodeSqliteDriver implements Driver {
-  readonly #native = new Set<DatabaseSync>()
+  readonly #native = new Set<AsyncSqliteDatabase>()
   get resourcesClosed(): boolean {
     return [...this.#native].every(db => !db.isOpen)
   }
   #writer: NodeSqliteConnection | undefined
   #readers: NodeSqliteConnection[] = []
   #openReaders = 0
-  #readerWaiters: ((c: DatabaseConnection) => void)[] = []
+  #readerWaiters: { resolve(c: DatabaseConnection): void; reject(error: unknown): void }[] = []
   #writeQueue: Promise<void> = Promise.resolve()
   #closed = false
   readonly #resolver = new UniqueConstraintResolver()
 
-  constructor(private readonly options: NodeSqliteDialectOptions) {}
+  constructor(private readonly options: NodeSqliteDialectOptions) {
+    if (options.readOnly && options.role !== 'read')
+      throw new TypeError('native read-only SQLite requires role=read')
+  }
 
   async init(): Promise<void> {
     if (this.options.role === 'write') {
-      this.#writer = new NodeSqliteConnection(this.#open('write'), 'write', this.#resolver)
+      this.#writer = new NodeSqliteConnection(await this.#open('write'), 'write', this.#resolver)
     } else {
       // 读句柄按需开；这里开一个以便打开失败在启动期暴露
-      this.#readers.push(new NodeSqliteConnection(this.#open('read'), 'read', this.#resolver))
+      this.#readers.push(new NodeSqliteConnection(await this.#open('read'), 'read', this.#resolver))
       this.#openReaders = 1
     }
   }
 
-  #open(role: 'write' | 'read'): DatabaseSync {
+  async #open(role: 'write' | 'read'): Promise<AsyncSqliteDatabase> {
     assertProductionStoragePath(this.options.file)
-    const db = new DatabaseSync(this.options.file, {
+    const db = new AsyncSqliteDatabase(this.options.file, {
       enableForeignKeyConstraints: true,
       timeout: role === 'write' ? 0 : 5000,
+      readOnly: this.options.readOnly ?? false,
     })
     this.#native.add(db)
     try {
-      db.exec('PRAGMA journal_mode = WAL')
-      db.exec(
+      await db.ready
+      if (!this.options.readOnly) await db.exec('PRAGMA journal_mode = WAL')
+      await db.exec(
         this.options.synchronous === 'full'
           ? 'PRAGMA synchronous = FULL'
           : 'PRAGMA synchronous = NORMAL',
       )
-      db.exec('PRAGMA foreign_keys = ON')
-      if (role === 'read') db.exec('PRAGMA query_only = ON')
+      await db.exec('PRAGMA foreign_keys = ON')
+      if (role === 'read') await db.exec('PRAGMA query_only = ON')
       return db
     } catch (error) {
       // The pool does not own this handle until initialization succeeds.
       try {
-        db.close()
+        await db.close()
       } catch (closing) {
         if (db.isOpen) retainedNativeHandles.add(db)
         throw new AggregateError([error, closing], 'sqlite initialization and cleanup failed')
@@ -161,12 +167,23 @@ export class NodeSqliteDriver implements Driver {
       const idle = this.#readers.pop()
       if (idle !== undefined) return idle
       if (this.#openReaders < MAX_READERS) {
-        const connection = new NodeSqliteConnection(this.#open('read'), 'read', this.#resolver)
         this.#openReaders += 1
-        return connection
+        try {
+          const db = await this.#open('read')
+          if (this.#closed) {
+            await db.close()
+            throw new StorageUnavailable('sqlite storage is closed')
+          }
+          return new NodeSqliteConnection(db, 'read', this.#resolver)
+        } catch (error) {
+          this.#openReaders -= 1
+          throw error
+        }
       }
       // 到上限：排队等一个读句柄被释放
-      return new Promise<DatabaseConnection>(resolve => this.#readerWaiters.push(resolve))
+      return new Promise<DatabaseConnection>((resolve, reject) =>
+        this.#readerWaiters.push({ resolve, reject }),
+      )
     }
     if (this.#writer === undefined) throw new StorageUnavailable('sqlite storage is closed')
     // 写：进程内队列，同一实例的多个 write 顺序共用一个句柄
@@ -191,19 +208,19 @@ export class NodeSqliteDriver implements Driver {
   ): Promise<void> {
     const c = connection as NodeSqliteConnection
     if (c.role === 'read') {
-      c.db.exec('BEGIN')
+      await c.db.exec('BEGIN')
       return
     }
     if (settings.accessMode === 'read only')
       throw new Error('read transaction requested on the write handle (provider bug)')
-    const deadline = Date.now() + (this.options.writeLockTimeoutMs ?? WRITE_LOCK_TIMEOUT_MS)
+    const deadline = performance.now() + (this.options.writeLockTimeoutMs ?? WRITE_LOCK_TIMEOUT_MS)
     let attempt = 0
     for (;;) {
       try {
-        c.db.exec('BEGIN IMMEDIATE')
+        await c.db.exec('BEGIN IMMEDIATE')
         return
       } catch (error) {
-        if (!isSqliteBusy(error) || Date.now() >= deadline) {
+        if (!isSqliteBusy(error) || performance.now() >= deadline) {
           throw translateSqliteError(error, 'other', () => undefined)
         }
         await sleep(RETRY_BACKOFF_MS[Math.min(attempt, RETRY_BACKOFF_MS.length - 1)]!)
@@ -215,7 +232,7 @@ export class NodeSqliteDriver implements Driver {
   async commitTransaction(connection: DatabaseConnection): Promise<void> {
     const c = connection as NodeSqliteConnection
     try {
-      c.db.exec('COMMIT')
+      await c.db.exec('COMMIT')
     } catch (error) {
       throw translateSqliteError(error, 'other', () => undefined)
     }
@@ -224,7 +241,7 @@ export class NodeSqliteDriver implements Driver {
   async rollbackTransaction(connection: DatabaseConnection): Promise<void> {
     const c = connection as NodeSqliteConnection
     try {
-      if (c.db.isTransaction) c.db.exec('ROLLBACK')
+      await c.db.rollback()
     } catch (error) {
       throw translateSqliteError(error, 'other', () => undefined)
     }
@@ -239,12 +256,12 @@ export class NodeSqliteDriver implements Driver {
       return
     }
     if (this.#closed) {
-      c.db.close()
+      await c.db.close()
       return
     }
     const waiter = this.#readerWaiters.shift()
     if (waiter !== undefined) {
-      waiter(c)
+      waiter.resolve(c)
       return
     }
     this.#readers.push(c)
@@ -253,11 +270,13 @@ export class NodeSqliteDriver implements Driver {
   /** 关准入 → 等在途写排空 → 关全部句柄。 */
   async destroy(): Promise<void> {
     this.#closed = true
+    for (const waiter of this.#readerWaiters.splice(0))
+      waiter.reject(new StorageUnavailable('sqlite storage is closed'))
     await this.#writeQueue
     const failures: unknown[] = []
     for (const db of this.#native) {
       try {
-        if (db.isOpen) db.close()
+        if (db.isOpen) await db.close()
       } catch (error) {
         failures.push(error)
       }
@@ -273,6 +292,13 @@ export class NodeSqliteDriver implements Driver {
   }
 }
 
+// The upstream adapter describes its single-connection driver. This driver owns a pool.
+class PooledSqliteAdapter extends SqliteAdapter {
+  override get supportsMultipleConnections(): boolean {
+    return true
+  }
+}
+
 export class NodeSqliteDialect implements Dialect {
   readonly driver: NodeSqliteDriver
   constructor(options: NodeSqliteDialectOptions) {
@@ -285,7 +311,7 @@ export class NodeSqliteDialect implements Dialect {
     return new SqliteQueryCompiler()
   }
   createAdapter() {
-    return new SqliteAdapter()
+    return new PooledSqliteAdapter()
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   createIntrospector(db: Kysely<any>) {

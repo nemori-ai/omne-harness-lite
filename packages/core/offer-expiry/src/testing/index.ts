@@ -17,7 +17,7 @@ export function testClock(start: Instant): TestClock {
     get current() {
       return current
     },
-    now() {
+    async now() {
       return unavailable ? 'unavailable' : current
     },
     advance(ms) {

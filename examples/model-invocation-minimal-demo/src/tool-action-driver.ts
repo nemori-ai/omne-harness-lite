@@ -1,3 +1,4 @@
+import { setTimeout as yieldToTimers } from 'node:timers/promises'
 import {
   copyJsonValue,
   validate as validateContent,
@@ -183,6 +184,7 @@ export function createToolActionDriver(input: {
       const facts = start.calls.get(acquired.source.calls[0].callId)
       if (facts === undefined) return { kind: 'rejected', reason: 'unavailable' } as const
       if (facts.batch.kind === 'complete') return delivered(facts.batch.completion)
+      await yieldToTimers(0)
       const result = await input.runner.dispatch(acquired.request, signal)
       if ('failure' in result) return { kind: 'rejected', reason: result.failure } as const
       if (

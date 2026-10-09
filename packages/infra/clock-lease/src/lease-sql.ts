@@ -1,6 +1,7 @@
 // 三个原持久操作：借用 Storage，不选择时间/停止政策，不拥有连接关闭。
-import type { Kysely } from 'kysely'
-import { UniqueViolation, type Storage } from '@omne-harness-lite/storage'
+import { sql, type Kysely } from 'kysely'
+import type { ClockCheckpoint, Instant } from '@omne-harness-lite/offer-expiry'
+import { UniqueViolation, StorageDefect, type Storage } from '@omne-harness-lite/storage'
 import { CLOCK_LEASE_TABLE, leaseRow, type ClockLeaseTable } from './lease.ts'
 import type { LeasePersistence } from './lease-persistence.ts'
 
@@ -41,7 +42,15 @@ export function createLeasePersistence(storage: Storage): LeasePersistence {
           .where('id', '=', 1)
           .where('lease_until', '<', leaseUntil)
           .executeTakeFirst()
-        return (result.numUpdatedRows ?? 0n) > 0n
+        if ((result.numUpdatedRows ?? 0n) > 0n) return true
+        const existing = await db
+          .selectFrom(CLOCK_LEASE_TABLE)
+          .selectAll()
+          .where('id', '=', 1)
+          .executeTakeFirst()
+        if (!existing || leaseRow(existing).lease_until < leaseUntil)
+          throw new StorageDefect('clock reservation row is missing or malformed')
+        return false
       })
     },
     retract(expectedLeaseUntil, at) {
@@ -57,4 +66,17 @@ export function createLeasePersistence(storage: Storage): LeasePersistence {
       })
     },
   }
+}
+
+/** Read the legacy floor only for an explicitly requested resource migration. */
+export async function readLegacyClockFloor(storage: Storage): Promise<ClockCheckpoint> {
+  return storage.read(async tx => {
+    const { rows } = await sql<{
+      lease_until: number
+      written_at: number
+    }>`SELECT lease_until,written_at FROM clock_lease WHERE id=1`.execute(tx.db)
+    if (!rows[0]) return { writtenAt: 0 as Instant, upperBound: 0 as Instant }
+    const row = leaseRow(rows[0])
+    return { writtenAt: row.written_at as Instant, upperBound: row.lease_until as Instant }
+  })
 }

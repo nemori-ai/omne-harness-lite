@@ -137,8 +137,8 @@ describe('independent calibration preservation with original writer unknown and 
         const base = createDemoConfig(
           dataDirectory,
           `calibration-cold-${mode}`,
-          () => {
-            const at = app?.currentTime()
+          async () => {
+            const at = await app?.currentTime()
             if (!at || at === 'unavailable') throw Error('real clock absent')
             return at
           },

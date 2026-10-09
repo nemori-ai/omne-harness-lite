@@ -114,7 +114,8 @@ export function checkHostPolicy(
       const role = claim.name.slice('tenancy-host/'.length)
       if (!isHostPluginRole(role)) throw new HostPluginPolicyError('unknown-role')
       if (roles.has(role)) throw new HostPluginPolicyError('duplicate-role', role)
-      if (claim.version !== 1) throw new HostPluginPolicyError('unsupported-role-version', role)
+      if (claim.version !== (role === 'clock' ? 2 : 1))
+        throw new HostPluginPolicyError('unsupported-role-version', role)
       roles.set(role, { id: row.id, config: claim.config, provides: row.declaration.provides })
     }
   for (const role of Object.keys(required)) {

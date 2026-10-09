@@ -30,6 +30,7 @@ import type {
   Instant,
   Duration,
   Clock,
+  ClockCheckpoint,
   OfferTiming,
   SettledState,
   OfferState,
@@ -219,10 +220,15 @@ test('w1.types.complete.identity-warrant-and-schema', () => {
 })
 
 test('w1.types.complete.offer-time-and-input', () => {
-  const consume = (instant: Instant, duration: Duration, timing: OfferTiming, clock: Clock) => {
+  const consume = async (
+    instant: Instant,
+    duration: Duration,
+    timing: OfferTiming,
+    clock: Clock,
+  ) => {
     const state: SettledState = 'accepted'
     const target: TargetExistence = 'unavailable'
-    const input: DeriveStateInput = { timing, settled: state, target, now: clock.now() }
+    const input: DeriveStateInput = { timing, settled: state, target, now: await clock.now() }
     const derived: OfferState | 'unavailable' = deriveState(input)
     // @ts-expect-error 时间点与正时长有不同品牌
     const badDuration: Duration = instant
@@ -233,6 +239,9 @@ test('w1.types.complete.offer-time-and-input', () => {
     return { derived, badDuration, badInstant, unparsed }
   }
   expectTypeOf(consume).toBeFunction()
+  expectTypeOf<Awaited<ReturnType<NonNullable<Clock['checkpoint']>>>>().toEqualTypeOf<
+    ClockCheckpoint | 'unavailable'
+  >()
   const schema: OfferSchemaDefName = 'OfferTiming'
   const result: OfferSchemaValidation = validateOffer(schema, undefined)
   expectTypeOf(result.valid).toEqualTypeOf<boolean>()

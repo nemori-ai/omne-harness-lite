@@ -102,7 +102,6 @@ describe('D055 each schema owner checks the same snapshot', () => {
       'CREATE TRIGGER unwanted AFTER INSERT ON account BEGIN SELECT 1; END',
       'host-snapshot-objects',
     ],
-    ['missing clock floor', 'DELETE FROM clock_lease', 'clock-snapshot-floor'],
     [
       'inverted clock floor',
       'UPDATE clock_lease SET written_at=lease_until+1',
@@ -179,4 +178,22 @@ describe('D055 each schema owner checks the same snapshot', () => {
       expect(failures).toContain(expected)
     },
   )
+})
+
+it('accepts an empty legacy Clock table because the current floor is in the backup checkpoint', async () => {
+  const { storage, maintenance } = await fixture()
+  await storage.write(async tx => {
+    await sql`DELETE FROM clock_lease`.execute(tx.db)
+  })
+  const failures = await maintenance.run(session =>
+    session.snapshot(async view => {
+      const failures: string[] = []
+      for (const check of hostSnapshotChecks) {
+        const result = await check(view)
+        if (!result.ok) failures.push(result.check)
+      }
+      return failures
+    }),
+  )
+  expect(failures).toEqual([])
 })

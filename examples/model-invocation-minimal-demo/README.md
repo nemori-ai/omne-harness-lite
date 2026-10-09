@@ -100,7 +100,6 @@ The demo installs every official definition published by `@omne-harness-lite/pi-
 
 ## Assembling the runtime's public surface
 
-
 The model stage loads the named `createModelRuntimeLocal()` provider through a managed plugin tree. JSON configuration contains explicit limits; host inputs and execution policies come from named services. Each operation uses an actual caller fiber with a fixed subject. Finite calls dispose that fiber after returning its borrow; consumer and failure-source borrows keep it alive until actual release. The trusted assembly keeps the original execution source.
 
 A private reservation blocks another provider on the same stable assembly Context while startup or original closure is pending. It releases only after the original tree and provider both confirm closure. Retained closure retries the original owner. This is a single-host assembly rule, not tenant authorization or a cross-process lock.
@@ -333,6 +332,18 @@ Every test uses a controlled local TLS endpoint with synthetic upstream response
 
 The service, selection, observer, recovery, acknowledgement and calibration mapping follows the accepted [RT12](../../packages/core/model-request-runtime/SPEC.md) and [MR11](../../packages/core/model-response/SPEC.md), with calibration adopted by D107 and image preparation by D-109; provider status is in the [runtime provider](../../packages/model/model-request-runtime-local/README.md). Bounded real OpenRouter PTY evidence for the unified-service assembly is in the 2026-09-28 demo service evidence, and real per-leaf three-round runs through this demo's service entry are listed in the [transport verification](../../packages/model/pi-ai-transport/SPEC.md). The CLI's model switch itself is verified only against controlled local TLS and the PTY check.
 
-## Pure tool loop
+## Tool loop
 
-Add `--tools` and use a new private data directory. The demo registers `demo__echo` and `demo__nonce`, records a Run and its adopted attempt, executes model-selected calls through Tool Runtime, and requests a model continuation after the tool messages are confirmed. Ask: “Call demo__nonce once, then reply with exactly its password.” The tool generates the password when it runs. An existing session without the required context declarations cannot enter this mode.
+Add `--tools` and use a new private data directory. The demo registers Shell, Files, `demo__echo`, `demo__nonce`, and a reader for published text attachments. It records a Run and its adopted attempt, executes model-selected calls through Tool Runtime, and requests a model continuation after the tool messages are confirmed. Ask: “Call demo__nonce once, then reply with exactly its password.” The tool generates the password when it runs. An existing session without the required context declarations cannot enter this mode.
+
+## Host tools in the demo
+
+Use `--tools` with a new data directory. The demo registers the production Shell and Files plugins, the actual host provider, and the existing environment placement evaluator. The tools obtain their initial directory from Runtime Context. The directory is the demo launch directory. It is not a sandbox boundary. This demo grants automatic execution permission, so commands and file changes affect the host.
+
+Ask Shell to run `pwd`. Ask Files to create, read, and edit a file, then report the confirmed unified diff. Edit requires the version from a current read. Files.open supports static PNG, JPEG, and WebP. The log retains the confirmed attachment reference. For each model request, the demo captures the original tool access handle and reads authorized image bytes in sequence. The provider uses these fixed bytes for the wire projection, then prepares, meters, and sends the request. Its semantic input retains the reference. The terminal has no image preview or tool internal message streaming display.
+
+### Independent Clock migration
+
+New demo directories explicitly create an independent Clock resource. For a directory from the older shared-database Clock, stop all old processes, then run the same CLI command once with `--initialize-clock`. This imports the old durable time floor. Omit the flag after migration. An ordinary start refuses missing Clock state; it never recreates that state from an obsolete business backup. Keep the Clock SQLite file, its `.clock.json` manifest, and the business database together when moving the deployment.
+
+`close()` can report incomplete when its bounded observation expires. The original business close continues. When it completes, the same owned task continues through transport retirement and diagnostic writer closure. A timeout is not cancellation or evidence of clean closure. Known failures and incomplete resource results still require a later observation or explicit retry.

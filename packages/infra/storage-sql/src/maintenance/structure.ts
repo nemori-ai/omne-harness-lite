@@ -1,4 +1,5 @@
-import type { DatabaseSync, SQLOutputValue } from 'node:sqlite'
+import type { SQLOutputValue } from 'node:sqlite'
+import type { AsyncSqliteDatabase } from '../sqlite/async-database.ts'
 import {
   SnapshotFailure,
   type SnapshotStructure,
@@ -26,14 +27,16 @@ function definition(value: SQLOutputValue | undefined): string | null {
 }
 
 /** Bounded metadata from the same completed copy; identifiers are bound parameters. */
-export function snapshotStructure(db: DatabaseSync): SnapshotStructure {
+export async function snapshotStructure(db: AsyncSqliteDatabase): Promise<SnapshotStructure> {
   const tables: SnapshotTable[] = []
   const views: string[] = []
   const triggers: string[] = []
-  const schema = db.prepare(
+  const schema = await db.all(
     "SELECT type, substr(name,1,129) AS name, length(name) AS name_length, substr(sql,1,16385) AS definition FROM sqlite_schema WHERE type IN ('table','view','trigger') AND name NOT GLOB 'sqlite_*'",
+    [],
+    65,
   )
-  for (const row of schema.iterate()) {
+  for (const row of schema) {
     if (tables.length + views.length + triggers.length >= 64 || integer(row, 'name_length') > 128)
       throw new SnapshotFailure('capacity')
     const name = text(row, 'name')
@@ -48,74 +51,102 @@ export function snapshotStructure(db: DatabaseSync): SnapshotStructure {
       triggers.push(name)
       continue
     }
-    const columns: SnapshotTable['columns'][number][] = []
-    for (const column of db
-      .prepare('SELECT name,type,"notnull",pk FROM pragma_table_xinfo(?)')
-      .iterate(name)) {
-      if (columns.length >= 128) throw new SnapshotFailure('capacity')
-      columns.push({
-        name: text(column, 'name'),
-        type: text(column, 'type'),
-        notNull: integer(column, 'notnull') === 1,
-        primaryKeyPosition: integer(column, 'pk'),
-      })
-    }
-    const indexes: SnapshotTable['indexes'][number][] = []
-    for (const index of db
-      .prepare(
-        'SELECT substr(name,1,129) AS name,length(name) AS name_length,"unique",partial FROM pragma_index_list(?)',
-      )
-      .iterate(name)) {
-      if (indexes.length >= 128) throw new SnapshotFailure('capacity')
-      if (integer(index, 'name_length') > 128) throw new SnapshotFailure('capacity')
-      const indexName = text(index, 'name')
-      const parts: (string | null)[] = []
-      for (const part of db
-        .prepare('SELECT name FROM pragma_index_xinfo(?) WHERE key=1 ORDER BY seqno')
-        .iterate(indexName)) {
-        if (parts.length >= 128) throw new SnapshotFailure('capacity')
-        parts.push(part.name === null ? null : text(part, 'name'))
-      }
-      const record = db
-        .prepare(
-          "SELECT substr(sql,1,16385) AS definition FROM sqlite_schema WHERE type='index' AND name=?",
-        )
-        .get(indexName)
-      if (record === undefined) throw new SnapshotFailure('invalid-data')
-      indexes.push({
-        name: indexName,
-        unique: integer(index, 'unique') === 1,
-        partial: integer(index, 'partial') === 1,
-        columns: parts,
-        definition: definition(record.definition),
-      })
-    }
-    const keys = new Map<
-      number,
-      { table: string; from: string[]; to: (string | null)[]; onUpdate: string; onDelete: string }
-    >()
-    for (const row of db
-      .prepare('SELECT * FROM pragma_foreign_key_list(?) ORDER BY id,seq')
-      .iterate(name)) {
-      const id = integer(row, 'id')
-      let key = keys.get(id)
-      if (key === undefined) {
-        if (keys.size >= 128) throw new SnapshotFailure('capacity')
-        key = {
-          table: text(row, 'table'),
-          from: [],
-          to: [],
-          onUpdate: text(row, 'on_update'),
-          onDelete: text(row, 'on_delete'),
-        }
-        keys.set(id, key)
-      }
-      if (key.from.length >= 128) throw new SnapshotFailure('capacity')
-      key.from.push(text(row, 'from'))
-      key.to.push(row.to === null ? null : text(row, 'to'))
-    }
-    const foreignKeys: SnapshotForeignKey[] = [...keys.values()]
+    const columns = await tableColumns(db, name)
+    const indexes = await tableIndexes(db, name)
+    const foreignKeys = await tableForeignKeys(db, name)
     tables.push({ name, definition: sql, columns, indexes, foreignKeys })
   }
   return { tables, views, triggers }
+}
+
+async function tableColumns(
+  db: AsyncSqliteDatabase,
+  name: string,
+): Promise<SnapshotTable['columns']> {
+  const columns: SnapshotTable['columns'][number][] = []
+  for (const column of await db.all(
+    'SELECT name,type,"notnull",pk FROM pragma_table_xinfo(?)',
+    [name],
+    129,
+  )) {
+    if (columns.length >= 128) throw new SnapshotFailure('capacity')
+    columns.push({
+      name: text(column, 'name'),
+      type: text(column, 'type'),
+      notNull: integer(column, 'notnull') === 1,
+      primaryKeyPosition: integer(column, 'pk'),
+    })
+  }
+  return columns
+}
+
+async function tableIndexes(
+  db: AsyncSqliteDatabase,
+  name: string,
+): Promise<SnapshotTable['indexes']> {
+  const indexes: SnapshotTable['indexes'][number][] = []
+  for (const index of await db.all(
+    'SELECT substr(name,1,129) AS name,length(name) AS name_length,"unique",partial FROM pragma_index_list(?)',
+    [name],
+    129,
+  )) {
+    if (indexes.length >= 128) throw new SnapshotFailure('capacity')
+    if (integer(index, 'name_length') > 128) throw new SnapshotFailure('capacity')
+    const indexName = text(index, 'name')
+    const parts: (string | null)[] = []
+    for (const part of await db.all(
+      'SELECT name FROM pragma_index_xinfo(?) WHERE key=1 ORDER BY seqno',
+      [indexName],
+      129,
+    )) {
+      if (parts.length >= 128) throw new SnapshotFailure('capacity')
+      parts.push(part.name === null ? null : text(part, 'name'))
+    }
+    const record = await db.get(
+      "SELECT substr(sql,1,16385) AS definition FROM sqlite_schema WHERE type='index' AND name=?",
+      [indexName],
+    )
+    if (record === undefined) throw new SnapshotFailure('invalid-data')
+    indexes.push({
+      name: indexName,
+      unique: integer(index, 'unique') === 1,
+      partial: integer(index, 'partial') === 1,
+      columns: parts,
+      definition: definition(record.definition),
+    })
+  }
+  return indexes
+}
+
+async function tableForeignKeys(
+  db: AsyncSqliteDatabase,
+  name: string,
+): Promise<readonly SnapshotForeignKey[]> {
+  const keys = new Map<
+    number,
+    { table: string; from: string[]; to: (string | null)[]; onUpdate: string; onDelete: string }
+  >()
+  for (const row of await db.all(
+    'SELECT * FROM pragma_foreign_key_list(?) ORDER BY id,seq',
+    [name],
+    128 * 128 + 1,
+  )) {
+    const id = integer(row, 'id')
+    let key = keys.get(id)
+    if (key === undefined) {
+      if (keys.size >= 128) throw new SnapshotFailure('capacity')
+      key = {
+        table: text(row, 'table'),
+        from: [],
+        to: [],
+        onUpdate: text(row, 'on_update'),
+        onDelete: text(row, 'on_delete'),
+      }
+      keys.set(id, key)
+    }
+    if (key.from.length >= 128) throw new SnapshotFailure('capacity')
+    key.from.push(text(row, 'from'))
+    key.to.push(row.to === null ? null : text(row, 'to'))
+  }
+  return [...keys.values()]
 }

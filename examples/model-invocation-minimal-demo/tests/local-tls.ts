@@ -68,10 +68,12 @@ export async function createLocalTls(
       | 'http503'
       | 'http503empty'
       | 'tool'
-      | 'tool_nonce' = 'complete',
+      | 'tool_nonce'
+      | 'tool_once' = 'complete',
     nonceRequestStart = 0,
     closedSockets = 0,
     held: ServerResponse | undefined
+  let scriptedTool: { name: string; arguments: string } | undefined
   const server = createServer({ key: await readFile(key), cert: certBytes }, (req, res) => {
     const work = (async () => {
       const chunks: Buffer[] = []
@@ -100,9 +102,17 @@ export async function createLocalTls(
         'x-request-id': 'independent-upstream-id',
         'set-cookie': ['safe-one=1', 'safe-two=2'],
       })
-      if (mode === 'tool' || (mode === 'tool_nonce' && requests.length === nonceRequestStart + 1)) {
+      if (
+        mode === 'tool' ||
+        ((mode === 'tool_nonce' || mode === 'tool_once') &&
+          requests.length === nonceRequestStart + 1)
+      ) {
+        const tool =
+          mode === 'tool_once'
+            ? scriptedTool!
+            : { name: mode === 'tool_nonce' ? 'demo__nonce' : 'example__read', arguments: '{}' }
         res.end(
-          `data: ${JSON.stringify({ id: 'independent-generation', model: responseModel, provider, choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_exact', function: { name: mode === 'tool_nonce' ? 'demo__nonce' : 'example__read', arguments: '{}' } }] }, finish_reason: null }] })}\n\n` +
+          `data: ${JSON.stringify({ id: 'independent-generation', model: responseModel, provider, choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_exact', function: tool }] }, finish_reason: null }] })}\n\n` +
             `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'tool_calls' }], usage: { prompt_tokens: 9, completion_tokens: 3, total_tokens: 12, prompt_tokens_details: { cached_tokens: 4, cache_write_tokens: 0 }, cost: 0.0000117 } })}\n\ndata: [DONE]\n\n`,
         )
         return
@@ -177,6 +187,11 @@ export async function createLocalTls(
     },
     setMode(value: typeof mode) {
       mode = value
+      nonceRequestStart = requests.length
+    },
+    setToolCall(name: string, args: unknown) {
+      scriptedTool = { name, arguments: JSON.stringify(args) }
+      mode = 'tool_once'
       nonceRequestStart = requests.length
     },
     /** Null omits usage; undefined restores the standard controlled usage frame. */

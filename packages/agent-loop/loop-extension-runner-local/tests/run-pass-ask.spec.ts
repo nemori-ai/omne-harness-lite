@@ -118,7 +118,7 @@ function controlled() {
       entries.push(stored)
       return { kind: 'confirmed', entry: stored }
     },
-    now: () => at,
+    now: async () => at,
     mintReminder: () => 'reminder-ask',
     isActive: () => true,
     fallbackNeedsProjection: async () => false,

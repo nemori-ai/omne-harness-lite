@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "clock 服务：offer-expiry 的 Clock 形状的实现——单调钟锚定 + 存储里写在前的租约，回拨 ⇒ 'unavailable'",
+  "description": "异步 Clock：独立持久时间范围、按需申请与可见回拨",
   "engines": {
     "node": ">=24 <25"
   },
@@ -36,10 +36,10 @@
     "kysely": "catalog:",
     "zod": "catalog:",
     "@omne-harness-lite/assembly-lifecycle": "workspace:*",
-    "@omne-harness-lite/cordis-plugin-tree": "workspace:*"
+    "@omne-harness-lite/cordis-plugin-tree": "workspace:*",
+    "@omne-harness-lite/storage-sql": "workspace:*"
   },
   "devDependencies": {
-    "@omne-harness-lite/storage-sql": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

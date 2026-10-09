@@ -26,6 +26,18 @@ export type ModelCallContentValue =
   | { readonly kind: 'created'; readonly value: ModelCallCreatedPayload }
   | { readonly kind: 'reply_ready'; readonly value: PendingModelResponse }
 
+/** Durable custody of exact external bytes, including a later cold recovery.
+ * Confirmation must cover every locator in the supplied original content.
+ * Custody lasts at least as long as that call's retained payloads. A provider may
+ * retain bytes longer under its own lifetime. This store does not delete them.
+ */
+export interface ModelCallExternalContentCustody {
+  readonly confirm: (input: {
+    readonly binding: SettlementLogBinding
+    readonly content: ModelCallContentValue
+  }) => Promise<{ readonly retained: true } | ServiceUnavailable>
+}
+
 /**
  * RT12 S-98: a committed publish permit on the call's retention row. The publisher releases it
  * only after its marker outcome is known and its append task actually stopped.

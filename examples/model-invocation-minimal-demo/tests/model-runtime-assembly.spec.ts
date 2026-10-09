@@ -121,7 +121,7 @@ async function assemblyFixture() {
         new Inputs(inner)
         new Support(inner)
         inner.provide('storage', storage)
-        inner.provide('clock', { now: () => 'unavailable' })
+        inner.provide('clock', { now: async () => 'unavailable' })
         inner.provide('modelTransport', {
           clearReuseScope() {},
           acquire: () => ({ rejected: 'unavailable' }),
