@@ -93,6 +93,19 @@ export interface LocalSessionIngress {
   readonly tenancy: SessionTenancyService
   /** Trusted host port. Do not send its live authority or permits over a wire protocol. */
   readonly coordinationAuthority: CoordinationAuthority
+  /** Trusted keyset scan of this tenant's durable work index. Candidates grant no execution. */
+  readonly scanWork: (
+    authority: CoordinationAuthority,
+    after: SessionRef | null,
+    limit: number,
+  ) => Promise<
+    | {
+        readonly kind: 'workPage'
+        readonly sessions: readonly SessionRef[]
+        readonly next: SessionRef | null
+      }
+    | Failure<'invalidInput' | 'denied' | 'unavailable'>
+  >
   /** Trusted coordinator snapshot. This read neither consumes pending work nor issues a permit. */
   readonly readWork: (
     authority: CoordinationAuthority,

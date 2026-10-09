@@ -49,4 +49,16 @@ export const sessionStateMigrations: readonly MigrationFragment[] = [
       },
     },
   },
+  {
+    name: 'local_session_work_index',
+    migration: {
+      async up(db) {
+        await db.schema
+          .createIndex('sr_session_work_scope')
+          .on('sr_session_state')
+          .columns(['tenant', 'lifecycle', 'session'])
+          .execute()
+      },
+    },
+  },
 ]

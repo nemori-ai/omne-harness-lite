@@ -2661,3 +2661,89 @@ describe('original Run journal borrow for model settlement', () => {
     }
   })
 })
+
+it('scans only bounded durable tenant work using an original keyset cursor without consuming input', async () => {
+  const f = await fixture()
+  const a = await create(f)
+  const b = await f.runtime.operations.createSession(f.runtime.access, {
+    ...input,
+    operationKey: 'scan-second',
+  })
+  if (!('kind' in b) || b.kind !== 'created') throw new Error('second Session missing')
+  const authority = f.runtime.coordinationAuthority
+  expect(await f.runtime.scanWork(authority, null, 1)).toEqual({
+    kind: 'workPage',
+    sessions: [],
+    next: null,
+  })
+  for (const session of [a.session, b.session]) {
+    expect(
+      await f.runtime.operations.submitInput(
+        f.runtime.access,
+        session,
+        'scan-input',
+        user('scan', session),
+      ),
+    ).toHaveProperty('kind', 'accepted')
+  }
+  const ordered = [a.session, b.session].sort()
+  const before = await f.count('sr_pending_input')
+  expect(await f.runtime.scanWork(authority, null, 1)).toEqual({
+    kind: 'workPage',
+    sessions: [ordered[0]],
+    next: ordered[0],
+  })
+  expect(await f.runtime.scanWork(authority, ordered[0]!, 1)).toEqual({
+    kind: 'workPage',
+    sessions: [ordered[1]],
+    next: ordered[1],
+  })
+  expect(await f.runtime.scanWork(authority, ordered[1]!, 1)).toEqual({
+    kind: 'workPage',
+    sessions: [],
+    next: null,
+  })
+  expect(await f.runtime.scanWork(authority, null, 3)).toEqual({
+    kind: 'workPage',
+    sessions: ordered,
+    next: null,
+  })
+  expect(await f.count('sr_pending_input')).toEqual(before)
+  expect(await f.count('sr_run_seen')).toEqual({ n: 0 })
+  expect(await f.runtime.scanWork({ ...authority }, null, 1)).toEqual({ failure: 'denied' })
+  expect(await f.runtime.scanWork(authority, null, 0)).toEqual({ failure: 'invalidInput' })
+  expect(await f.runtime.scanWork(authority, null, 17)).toEqual({ failure: 'invalidInput' })
+  await f.runtime.close()
+  expect(await f.runtime.scanWork(authority, null, 1)).toEqual({ failure: 'unavailable' })
+})
+
+it('keeps an active original Run visible in the work scan after it consumes the last pending input', async () => {
+  const f = await fixture(),
+    created = await create(f)
+  expect(
+    await f.runtime.operations.submitInput(
+      f.runtime.access,
+      created.session,
+      'scan-run-input',
+      user(),
+    ),
+  ).toHaveProperty('kind', 'accepted')
+  const scope = { tenant, session: created.session },
+    authority = f.runtime.coordinationAuthority
+  const work = await f.runtime.readWork(authority, scope, 1)
+  if (!('kind' in work)) throw new Error('actual pending missing')
+  const started = await f.runtime.lifecycle.commitStep(authority, scope, work.source, {
+    kind: 'startRun',
+    stepKey: 'scan-start',
+    inputPosition: work.inputs[0]!,
+  })
+  expect(started).toHaveProperty('kind', 'committed')
+  expect(await f.count('sr_pending_input')).toEqual({ n: 0 })
+  expect(await f.runtime.scanWork(authority, null, 16)).toEqual({
+    kind: 'workPage',
+    sessions: [created.session],
+    next: null,
+  })
+  // The scan returns a candidate, not a permit or newly refreshed login qualification.
+  expect(await f.count('sr_model_issue')).toEqual({ n: 0 })
+})

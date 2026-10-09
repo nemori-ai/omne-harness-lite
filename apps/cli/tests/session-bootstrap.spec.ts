@@ -1,3 +1,4 @@
+import { startRunningSessionHost } from '../src/session-execution-host.ts'
 import { prepareSessionModelRun } from '../src/session-run-preparation.ts'
 import { readSessionSubmission } from '../src/session-submission.ts'
 import {
@@ -1082,7 +1083,7 @@ it('dispatches strict data through the original ingress and actual Context and r
   expect(f.exchanges).toHaveBeenCalledTimes(before)
 })
 
-async function originalModelBinding(
+async function originalModelInput(
   resultSource?: (storage: AtomicStorage) => ModelResultSource,
   nativeTiming = false,
 ) {
@@ -1112,6 +1113,14 @@ async function originalModelBinding(
     message.ok,
   )
   if (!('kind' in accepted) || accepted.kind !== 'accepted') throw new Error('input not accepted')
+  return { f, scope, accepted }
+}
+async function originalModelBinding(
+  resultSource?: (storage: AtomicStorage) => ModelResultSource,
+  nativeTiming = false,
+) {
+  const original = await originalModelInput(resultSource, nativeTiming)
+  const { f, scope } = original
   const prepared = await prepareSessionModelRun({
     ingress: f.runtime,
     scope,
@@ -1125,6 +1134,13 @@ async function originalModelBinding(
   })
   if (!('kind' in prepared) || prepared.kind !== 'prepared')
     throw new Error('original model Run not prepared')
+  return originalIssueForPrepared(original, prepared)
+}
+async function originalIssueForPrepared(
+  originalInput: Awaited<ReturnType<typeof originalModelInput>>,
+  prepared: Extract<Awaited<ReturnType<typeof prepareSessionModelRun>>, { kind: 'prepared' }>,
+) {
+  const { f, scope, accepted } = originalInput
   const { preparation } = prepared
   const adaptation = {
     implementation: { name: 'controlled-adapter', revision: 'one' },
@@ -1701,55 +1717,14 @@ it('recognizes actual original Session custody after lost commit before returnin
   expect(bridge.close()).toEqual({ released: true })
 })
 
-it.each([
-  'normal',
-  'missingCodec',
-  'custodyUnknown',
-  'stalePermit',
-  'settlementClosed',
-  'ackUnavailable',
-  'prefixDefect',
-  'retentionDefect',
-  'agentNormal',
-  'agentDenied',
-  'agentSourceChanged',
-  'agentMissingCurrent',
-  'agentReconcileNeeded',
-  'agentCurrentDefect',
-  'agentDetach',
-  'agentTransferPending',
-  'agentHandoffDefect',
-] as const)('runs the host-owned model turn with original responsibility: %s', async fault => {
-  // Governance/current qualification, model catalog and transport are controlled. Runtime execution and SQL are real.
-  let bridge!: SessionModelResultSource
-  let native: ReturnType<typeof createModelRuntime> | undefined
-  const original = await originalModelBinding(storage => {
-    bridge = createSessionModelResultSource({
-      storage,
-      tenant,
-      executionSource: () => native?.executionSource,
-      maxCaptures: 2,
-      retainReferencesIn: async unit => {
-        unit.assertStorage(storage)
-        return 'retained'
-      },
-    })
-    return bridge.source
-  }, true)
-  const entered = Promise.withResolvers<void>(),
-    released = Promise.withResolvers<void>()
-  const deferred = ['agentDetach', 'agentTransferPending', 'agentHandoffDefect'].includes(fault)
-  cleanup.push(async () => {
-    released.resolve()
-  })
-  const ports = nativeCallFixturePorts(
-    original.scope,
-    original.f.runtime,
-    original.f.storage,
-    deferred ? { entered: entered.resolve, wait: released.promise } : undefined,
-  )
+async function actualModelTurn(
+  original: Awaited<ReturnType<typeof originalModelBinding>>,
+  bridge: SessionModelResultSource,
+  fault: string = 'normal',
+  gate?: { entered: () => void; wait: Promise<void> },
+) {
+  const ports = nativeCallFixturePorts(original.scope, original.f.runtime, original.f.storage, gate)
   const options = nativeBindingOptions(original, ports.configure)
-  native = options.nativeModel
   const configured = {
     ...options,
     selection: {
@@ -1833,7 +1808,7 @@ it.each([
     ingress: original.f.runtime,
     scope: original.scope,
     preparation: original.preparation,
-    linked,
+    linked: { ...linked, operations: { ...linked.operations, acknowledgeCall: ack } },
     source: bridge,
     call: {
       creationKey: unwrap(parseOpaqueIdentifier('native-session-create-call', 'CreationKey')),
@@ -1875,6 +1850,59 @@ it.each([
     adoptionKey: 'adopt-native-original-result',
     retain: retained,
   }
+  return { ports, options, linked, refreshed, prefixError, retentionError, retained, ack, turn }
+}
+
+it.each([
+  'normal',
+  'missingCodec',
+  'custodyUnknown',
+  'stalePermit',
+  'settlementClosed',
+  'ackUnavailable',
+  'prefixDefect',
+  'retentionDefect',
+  'agentNormal',
+  'agentDenied',
+  'agentSourceChanged',
+  'agentMissingCurrent',
+  'agentReconcileNeeded',
+  'agentCurrentDefect',
+  'agentDetach',
+  'agentTransferPending',
+  'agentHandoffDefect',
+] as const)('runs the host-owned model turn with original responsibility: %s', async fault => {
+  // Governance/current qualification, model catalog and transport are controlled. Runtime execution and SQL are real.
+  let bridge!: SessionModelResultSource
+  let native: ReturnType<typeof createModelRuntime> | undefined
+  const original = await originalModelBinding(storage => {
+    bridge = createSessionModelResultSource({
+      storage,
+      tenant,
+      executionSource: () => native?.executionSource,
+      maxCaptures: 2,
+      retainReferencesIn: async unit => {
+        unit.assertStorage(storage)
+        return 'retained'
+      },
+    })
+    return bridge.source
+  }, true)
+  const entered = Promise.withResolvers<void>(),
+    released = Promise.withResolvers<void>()
+  const deferred = ['agentDetach', 'agentTransferPending', 'agentHandoffDefect'].includes(fault)
+  cleanup.push(async () => {
+    released.resolve()
+  })
+  const built = await actualModelTurn(
+    original,
+    bridge,
+    fault,
+    deferred ? { entered: entered.resolve, wait: released.promise } : undefined,
+  )
+  const { ports, options, linked, refreshed, prefixError, retentionError, retained, ack, turn } =
+    built
+  native = options.nativeModel
   const log =
     fault === 'prefixDefect' || fault === 'retentionDefect'
       ? {
@@ -2261,3 +2289,177 @@ it('reads only a submitInput receipt and leaves unknown identities absent withou
   ).toEqual({ failure: 'invalidInput' })
   expect(await original.f.log.readSince(original.scope.session, 0)).toEqual(before)
 })
+
+it.each(['normal', 'detach', 'retained', 'rootFailure', 'diagnosticFailure', 'misbound'] as const)(
+  'runs the actual background Session host without observation requests: %s',
+  async fault => {
+    // SQL, CG client, original Run/attempt, ModelRuntime, SDK/custody/ACK and Unix listener are real.
+    // Governance transport, qualification/generation, model transport and finish-work proof are controlled.
+    let native: ReturnType<typeof createModelRuntime> | undefined
+    let bridge!: SessionModelResultSource
+    const initial = await originalModelInput(storage => {
+      bridge = createSessionModelResultSource({
+        storage,
+        tenant,
+        executionSource: () => native?.executionSource,
+        maxCaptures: 2,
+        retainReferencesIn: async unit => {
+          unit.assertStorage(storage)
+          return 'retained'
+        },
+      })
+      return bridge.source
+    }, true)
+    const entered = Promise.withResolvers<void>(),
+      released = Promise.withResolvers<void>()
+    cleanup.push(async () => {
+      released.resolve()
+    })
+    const home = await mkdtemp(join(tmpdir(), 'omne-running-host-'))
+    cleanup.push(() => rm(home, { recursive: true, force: true }))
+    let built: Awaited<ReturnType<typeof actualModelTurn>> | undefined
+    const factoryFailure = new Error('actual model root preparation defect')
+    const diagnosticFailure = new Error('root diagnostic defect')
+    const diagnostic = vi.fn(() => {
+      if (fault === 'diagnosticFailure') throw diagnosticFailure
+    })
+    const factory = vi.fn(
+      async (
+        scope: SessionScope,
+        prepared: Extract<Awaited<ReturnType<typeof prepareSessionModelRun>>, { kind: 'prepared' }>,
+      ) => {
+        expect(scope).toEqual(initial.scope)
+        if (fault === 'rootFailure' || fault === 'diagnosticFailure') throw factoryFailure
+        const original = await originalIssueForPrepared(initial, prepared)
+        built = await actualModelTurn(
+          original,
+          bridge,
+          fault === 'retained' ? 'missingCodec' : 'normal',
+          { entered: entered.resolve, wait: released.promise },
+        )
+        native = built.options.nativeModel
+        const turn =
+          fault === 'retained'
+            ? { ...built.turn, projection: { rules: built.turn.projection.rules } }
+            : built.turn
+        return {
+          turn:
+            fault === 'misbound'
+              ? {
+                  ...turn,
+                  scope: {
+                    ...scope,
+                    session: unwrap(parseOpaqueIdentifier('foreign', 'SessionRef')),
+                  },
+                }
+              : turn,
+          registration: nativeReadRegistration(),
+          transfer: async () => 'pending' as const,
+          current: async (facts: import('@omne-harness-lite/agent-loop').LoopFacts) => ({
+            source: facts.source,
+            authorized: true,
+            assembly: JSON.stringify(built!.refreshed.report.snapshots),
+            contextGeneration: 'controlled-generation',
+            reconciled: true,
+          }),
+        }
+      },
+    )
+    const host = await startRunningSessionHost({
+      home,
+      binding: { formatVersion: 1, centerId, tenant },
+      ingress: initial.f.runtime,
+      transport: {
+        maxRequestBytes: 65536,
+        maxResponseBytes: 65536,
+        maxConnections: 8,
+        maxInFlight: 4,
+        requestTimeoutMs: 2000,
+        headersTimeoutMs: 1000,
+        idleTimeoutMs: 1000,
+        checkIntervalMs: 100,
+        maxFailureRecords: 8,
+        maxHeaderBytes: 8192,
+      },
+      execution: { scanLimit: 2, intervalMs: 5, maxTasks: 4, maxHeld: 4, maxFailures: 8 },
+      identities: () => ({
+        startKey: 'model-root-run',
+        attemptKey: 'model-root-attempt',
+        prepareKey: 'model-root-prepare',
+        call: 'model-root-call',
+        originalPosition: 'model-root-loop-position',
+      }),
+      model: factory,
+      diagnostic,
+    })
+    let closed = false
+    cleanup.push(async () => {
+      released.resolve()
+      if (!closed) {
+        try {
+          await host.close()
+        } catch {}
+      }
+    })
+    if (fault === 'rootFailure' || fault === 'diagnosticFailure' || fault === 'misbound') {
+      await vi.waitFor(() => expect(diagnostic).toHaveBeenCalled(), { timeout: 3000 })
+      const stopped = host.close()
+      closed = true
+      const failure = await stopped.catch(error => error)
+      expect(failure).toBeInstanceOf(AggregateError)
+      if (fault === 'misbound') {
+        expect(failure.errors[0]).toBeInstanceOf(TypeError)
+        expect(built!.ports.sends()).toBe(0)
+      } else
+        expect(failure.errors).toEqual(
+          fault === 'diagnosticFailure' ? [factoryFailure, diagnosticFailure] : [factoryFailure],
+        )
+      expect(factory).toHaveBeenCalledTimes(1)
+      return
+    }
+    if (fault === 'retained') {
+      await vi.waitFor(() => expect(built?.retained).toHaveBeenCalledTimes(1), { timeout: 3000 })
+      expect(await host.close()).toEqual({ pending: true, held: 1 })
+      closed = true
+      expect(built!.ack).not.toHaveBeenCalled()
+      expect(built!.ports.sends()).toBe(0)
+      return
+    }
+    // Await actual transport entry. No Session read or progress request has run since host start.
+    await entered.promise
+    expect(built!.ports.sends()).toBe(1)
+    if (fault === 'detach') {
+      const stopped = host.close()
+      closed = true
+      let returned = false
+      void stopped.then(() => {
+        returned = true
+      })
+      await new Promise<void>(resolve => setImmediate(resolve))
+      expect(returned).toBe(false)
+      expect(built!.ack).not.toHaveBeenCalled()
+      released.resolve()
+      expect(await stopped).toEqual({ closed: true })
+    } else {
+      released.resolve()
+      await vi.waitFor(() => expect(built!.ack).toHaveBeenCalledTimes(1), { timeout: 3000 })
+      expect(await host.close()).toEqual({ closed: true })
+      closed = true
+    }
+    expect(factory).toHaveBeenCalledTimes(1)
+    expect(built!.ack).toHaveBeenCalledTimes(1)
+    const head = await initial.f.runtime.readWork(
+      initial.f.runtime.coordinationAuthority,
+      initial.scope,
+      1,
+    )
+    expect(head).toMatchObject({ kind: 'work', head: { run: { state: 'completed' } }, inputs: [] })
+    expect(
+      await initial.f.runtime.operations.readSession(
+        initial.f.runtime.access,
+        initial.scope.session,
+      ),
+    ).toHaveProperty('kind', 'session')
+    expect(bridge.close()).toEqual({ released: true })
+  },
+)

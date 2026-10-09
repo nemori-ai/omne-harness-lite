@@ -9,7 +9,12 @@ import {
 import { judgeMessage } from '@omne-harness-lite/messages'
 import type { SessionRef, UserMessage } from '@omne-harness-lite/messages'
 import { parseTenantId, tenantIdEquals, isOk } from '@omne-harness-lite/identity-values'
-import { StorageUnavailable, StorageDefect, type StorageUnit } from '@omne-harness-lite/storage'
+import {
+  narrow,
+  StorageUnavailable,
+  StorageDefect,
+  type StorageUnit,
+} from '@omne-harness-lite/storage'
 import { checkOperationRef, sessionFactPayload } from '@omne-harness-lite/session-runtime'
 import type {
   Access,
@@ -24,7 +29,7 @@ import type {
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import { AdmissionFailure } from './admission-types.ts'
 import { InvalidStateInput, stateScope } from './state-values.ts'
-import { stateRow } from './state-store.ts'
+import { stateRow, stateHead, type StateDb } from './state-store.ts'
 import { runtimeAuthority } from './runtime-authority.ts'
 import { createSessionLifecycle } from './coordination.ts'
 import { createSessionModelAdmission } from './model-invocation.ts'
@@ -80,6 +85,7 @@ export function createLocalSessionIngress(options: RuntimeOptions): LocalSession
     journal: owner.journal,
     tenancy: owner.tenancy,
     coordinationAuthority: owner.coordinationAuthority,
+    scanWork: owner.scanWork,
     readWork: owner.readWork,
     lifecycle: owner.lifecycle,
     modelInvocation: owner.modelInvocation,
@@ -118,6 +124,27 @@ class SessionIngress implements LocalSessionIngress {
   get coordinationAuthority() {
     return this.authority.coordination
   }
+  readonly scanWork: LocalSessionIngress['scanWork'] = (authority, after, limit) =>
+    this.run(
+      this.access,
+      async () => {
+        if (authority !== this.authority.coordination) throw new RuntimeRejection('denied')
+        if (!Number.isSafeInteger(limit) || limit < 1 || limit > this.options.policy.maxSessions)
+          throw new InvalidStateInput()
+        const cursor = after === null ? null : sessionRef(after, this.options)
+        return this.options.storage.atomic(unit =>
+          unit.run(async () => {
+            const sessions = await this.workCandidates(unit, cursor, limit)
+            return Object.freeze({
+              kind: 'workPage' as const,
+              sessions: Object.freeze(sessions),
+              next: sessions.length === limit ? sessions.at(-1)! : null,
+            })
+          }),
+        )
+      },
+      [] as const,
+    )
   readonly readWork: LocalSessionIngress['readWork'] = (authority, requested, limit) =>
     this.run(
       this.access,
@@ -599,6 +626,38 @@ class SessionIngress implements LocalSessionIngress {
       source: source.source,
       inputs: Object.freeze([...inputs.positions]),
     })
+  }
+  async workCandidates(unit: StorageUnit, cursor: SessionRef | null, limit: number) {
+    const rows = await unit.query(tx => {
+      let query = narrow<StateDb>(tx)
+        .selectFrom('sr_session_state')
+        .selectAll()
+        .where('tenant', '=', JSON.stringify(this.options.tenant))
+        .where('lifecycle', '=', 'active')
+        .where(eb =>
+          eb.or([
+            eb('run_state', 'in', ['runnable', 'waiting']),
+            eb.exists(
+              eb
+                .selectFrom('sr_pending_input')
+                .select('session')
+                .whereRef('sr_pending_input.session', '=', 'sr_session_state.session'),
+            ),
+          ]),
+        )
+        .orderBy('session')
+        .limit(limit)
+      if (cursor !== null) query = query.where('session', '>', cursor)
+      return query.execute()
+    })
+    for (const row of rows) {
+      const scope = { tenant: this.options.tenant, session: sessionRef(row.session, this.options) }
+      stateHead(row, scope)
+      const creation = await creationBySession(unit, scope.session)
+      if (!creation?.published) throw new StorageDefect('work candidate lacks published Session')
+      decodeCreation(creation, this.options)
+    }
+    return rows.map(row => sessionRef(row.session, this.options))
   }
   async ownership(requested: unknown) {
     const session = sessionRef(requested, this.options)

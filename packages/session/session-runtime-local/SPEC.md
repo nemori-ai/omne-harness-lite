@@ -192,3 +192,9 @@ journal.readPrefix只属于原工厂的可信宿主返回面，不是普通用�
 协调采用只移交原结果的推进责任。它不改Pending原件，不决定replyDisposition，不另写assistant消息，也不发ACK。消息／响应配对由原模型SDK在原日志下完成，工具结果仍沿其原协议。保管原全文和费用记录不会因采用而删除；消费索引移除的是待采用资格，不删除不可变历史。普通CLI和宿主协议不暴露这个内部端口、原Unit或permit。关闭沿原Ingress排空规则。
 
 当前实际ModelRuntime公开调用、Session保管及最新permit采用、原SDK结算和ACK已有受控模型IO组合；正式运行宿主与真实OpenRouter仍须完整交付验收，不据单步回执宣称Agent Loop完成。
+
+## 租户持久工作扫描
+
+可信根以原coordinationAuthority调用scanWork，按Session身份键集分页读取本租户active且仍有pending或活动Run的已发布Session。上界须为正整数且不超过原maxSessions；复制authority、非法游标或关闭后调用不能读取。实际同StorageUnit校验状态和原创建发布身份；坏记录不伪装为空页。满页返回最后身份作为next，非满页next为null，调用者据此回到起点。
+
+扫描不消耗pending、不核发新permit、不补登录资格，也不授模型／工具IO。登录资格、原grant及最新栅栏仍在后续原协调操作中核验。`local_session_work_index`作为独立迁移增加tenant／lifecycle／session索引；原状态迁移不改写。分页扫描及其关闭排空归原Ingress生命周期，普通用户传输不暴露该端口。
