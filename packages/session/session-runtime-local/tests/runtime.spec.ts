@@ -4808,7 +4808,10 @@ describe('driver original model turn construction', () => {
 })
 
 describe('driver complete original Model Run', () => {
-  async function running(gate?: { readonly entered: () => void; readonly wait: Promise<void> }) {
+  async function running(
+    gate?: { readonly entered: () => void; readonly wait: Promise<void> },
+    retainedIssue = false,
+  ) {
     let original!: OriginalIssueOwner
     let native: ReturnType<typeof createModelRuntime> | undefined
     let results!: ReturnType<typeof createSessionModelResultSource>
@@ -5012,8 +5015,10 @@ describe('driver complete original Model Run', () => {
     )
     if (!('journal' in borrowed)) throw new Error('actual driver original journal missing')
     runResources.push(async () => {
-      expect(await native!.close()).toEqual({ released: true })
-      expect(native!.executionSource.release()).toEqual({ released: true })
+      // Unknown original issue has no native stop proof. Fixture disposal does not settle it.
+      const expected = retainedIssue ? { unavailable: true } : { released: true }
+      expect(await native!.close()).toEqual(expected)
+      expect(native!.executionSource.release()).toEqual(expected)
       expect(results.close()).toEqual({ released: true })
       await borrowed.journal.close()
     })
@@ -5183,6 +5188,189 @@ describe('driver complete original Model Run', () => {
     expect(
       f.native.executionSource.snapshot(f.scope.session).every(execution => execution.copyReleased),
     ).toBe(true)
+  })
+  it('adopts an input received during native IO in the same original Run before the next model call and finish', async () => {
+    const entered = Promise.withResolvers<void>(),
+      returned = Promise.withResolvers<void>()
+    const f = await running({ entered: entered.resolve, wait: returned.promise })
+    runResources.push(async () => returned.resolve())
+    const model: LocalSessionDriverOptions['identities']['model'] = (
+      _scope,
+      _run,
+      _attempt,
+      position,
+    ) => ({
+      prepareKey: `continue-prepare:${position}`,
+      originalPosition: `continue-position:${position}`,
+      resultKey: `continue-result:${position}`,
+      adoptionKey: `continue-adopt:${position}`,
+      call: unwrap(parseOpaqueIdentifier(`continue-call:${position}`, 'ModelCallId')),
+      creationKey: unwrap(parseOpaqueIdentifier(`continue-create:${position}`, 'CreationKey')),
+    })
+    const probes = f.f.probe.mock.calls.length
+    const task = createDriverModelRunTask({
+      ...f.input,
+      options: { ...f.input.options, identities: { ...f.input.options.identities, model } },
+    })
+    await entered.promise
+    expect(
+      await f.f.runtime.operations.submitInput(
+        f.f.runtime.access,
+        f.scope.session,
+        'during-model',
+        user('New input during model IO', 'during-model'),
+      ),
+    ).toMatchObject({ kind: 'accepted' })
+    returned.resolve()
+    expect(await task.completion).toBe('released')
+    expect(await task.close()).toBe('released')
+    expect(f.ports.sends()).toBe(2)
+    expect(f.f.probe.mock.calls.length).toBe(probes)
+    expect(f.sources.release).toHaveBeenCalledOnce()
+    expect(f.releaseModel).toHaveBeenCalledTimes(2)
+    expect(f.ports.sentRequests[1]!.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'assistant' }),
+        expect.objectContaining({
+          type: 'user',
+          blocks: expect.arrayContaining([
+            expect.objectContaining({ text: 'New input during model IO' }),
+          ]),
+        }),
+      ]),
+    )
+    const state = await f.f.runtime.readWork(f.f.runtime.coordinationAuthority, f.scope, 2)
+    expect(state).toMatchObject({
+      kind: 'work',
+      inputs: [],
+      head: { run: { id: f.prepared.preparation.run, state: 'completed' } },
+    })
+    const prefix = await f.f.runtime.journal.readPrefix(f.f.runtime.access, f.scope.session)
+    if (!('kind' in prefix) || prefix.kind !== 'prefix')
+      throw new Error('actual final prefix missing')
+    const facts = prefix.entries.flatMap(entry => {
+      const read = readSessionFact(entry)
+      return 'fact' in read ? [read.fact] : []
+    })
+    expect(facts.filter(fact => fact.kind === 'run_started')).toHaveLength(1)
+    expect(facts.filter(fact => fact.kind === 'attempt_started')).toHaveLength(1)
+    expect(facts.filter(fact => fact.kind === 'input_adopted')).toHaveLength(1)
+    expect(facts.filter(fact => fact.kind === 'call_prepared')).toHaveLength(2)
+    expect(
+      f.native.executionSource.snapshot(f.scope.session).every(execution => execution.copyReleased),
+    ).toBe(true)
+  })
+  it('retains both original-issue uncertainty and the original native turn without claiming ACK or launching IO', async () => {
+    const f = await running(undefined, true)
+    const admit: typeof f.f.runtime.modelInvocation.admit = async (...args) => {
+      const actual = await f.f.runtime.modelInvocation.admit(...args)
+      if (!('kind' in actual) || actual.kind !== 'issued')
+        throw new Error('actual original issue missing before lost return')
+      return {
+        kind: 'unknownCommit',
+        scope: f.scope,
+        call: args[3].call,
+        originalPosition: args[3].originalPosition,
+      }
+    }
+    const task = createDriverModelRunTask({
+      ...f.input,
+      options: { ...f.input.options, ingress: { ...f.f.runtime, modelInvocation: { admit } } },
+    })
+    expect(await task.completion).toBe('retained')
+    expect(await task.close()).toBe('pending')
+    expect(f.ports.sends()).toBe(0)
+    expect(f.sources.release).not.toHaveBeenCalled()
+    expect(f.releaseModel).not.toHaveBeenCalled()
+    expect(await f.f.count('sr_model_issue')).toEqual({ n: 1 })
+    expect(await f.f.count('mr_original_issue')).toEqual({ n: 1 })
+    expect(await f.f.count('sr_model_result')).toEqual({ n: 0 })
+    expect(await f.f.runtime.readWork(f.f.runtime.coordinationAuthority, f.scope, 1)).toMatchObject(
+      { head: { run: { state: 'runnable' } } },
+    )
+  })
+  it('retains queued input after withdrawal and does not adopt or launch another model segment', async () => {
+    const entered = Promise.withResolvers<void>(),
+      returned = Promise.withResolvers<void>()
+    const f = await running({ entered: entered.resolve, wait: returned.promise })
+    runResources.push(async () => returned.resolve())
+    const next = vi.fn<LocalSessionDriverOptions['identities']['model']>(() => {
+      throw new Error('withdrawn task must not create another invocation')
+    })
+    const task = createDriverModelRunTask({
+      ...f.input,
+      options: { ...f.input.options, identities: { ...f.input.options.identities, model: next } },
+    })
+    await entered.promise
+    await f.f.runtime.operations.submitInput(
+      f.f.runtime.access,
+      f.scope.session,
+      'stop-pending',
+      user('Keep pending after withdrawal', 'stop-pending'),
+    )
+    task.requestStop()
+    expect(await task.close()).toBe('pending')
+    returned.resolve()
+    expect(await task.completion).toBe('retained')
+    expect(await task.close()).toBe('pending')
+    expect(next).not.toHaveBeenCalled()
+    expect(f.ports.sends()).toBe(1)
+    expect(f.native.executionSource.snapshot(f.scope.session)[0]!.copyReleased).toBe(true)
+    expect(f.releaseModel).toHaveBeenCalledOnce()
+    expect(f.sources.release).not.toHaveBeenCalled()
+    expect(await f.f.count('sr_pending_input')).toEqual({ n: 1 })
+    expect(await f.f.runtime.readWork(f.f.runtime.coordinationAuthority, f.scope, 2)).toMatchObject(
+      { head: { run: { id: f.prepared.preparation.run, state: 'runnable' } } },
+    )
+  })
+  it('re-reads a finish/input race and adopts the actual queued input without redispatching the completed call', async () => {
+    const f = await running()
+    let inserted = false
+    const commitStep: typeof f.f.runtime.lifecycle.commitStep = async (...args) => {
+      if (args[3].kind === 'finish' && !inserted) {
+        inserted = true
+        expect(
+          await f.f.runtime.operations.submitInput(
+            f.f.runtime.access,
+            f.scope.session,
+            'finish-race',
+            user('Arrival before finish commit', 'finish-race'),
+          ),
+        ).toMatchObject({ kind: 'accepted' })
+      }
+      return f.f.runtime.lifecycle.commitStep(...args)
+    }
+    const model: LocalSessionDriverOptions['identities']['model'] = (
+      _scope,
+      _run,
+      _attempt,
+      position,
+    ) => ({
+      prepareKey: `race-prepare:${position}`,
+      originalPosition: `race-position:${position}`,
+      resultKey: `race-result:${position}`,
+      adoptionKey: `race-adopt:${position}`,
+      call: unwrap(parseOpaqueIdentifier(`race-call:${position}`, 'ModelCallId')),
+      creationKey: unwrap(parseOpaqueIdentifier(`race-create:${position}`, 'CreationKey')),
+    })
+    const task = createDriverModelRunTask({
+      ...f.input,
+      options: {
+        ...f.input.options,
+        ingress: { ...f.f.runtime, lifecycle: { commitStep } },
+        identities: { ...f.input.options.identities, model },
+      },
+    })
+    expect(await task.completion).toBe('released')
+    expect(await task.close()).toBe('released')
+    expect(f.ports.sends()).toBe(2)
+    expect(f.sources.release).toHaveBeenCalledOnce()
+    expect(f.releaseModel).toHaveBeenCalledTimes(2)
+    expect(await f.f.count('sr_model_issue')).toEqual({ n: 2 })
+    expect(await f.f.count('sr_model_result')).toEqual({ n: 2 })
+    expect(await f.f.runtime.readWork(f.f.runtime.coordinationAuthority, f.scope, 1)).toMatchObject(
+      { inputs: [], head: { run: { id: f.prepared.preparation.run, state: 'completed' } } },
+    )
   })
   it('owns a late original source borrow through withdrawal and refuses any subsequent Model construction', async () => {
     const f = await running()

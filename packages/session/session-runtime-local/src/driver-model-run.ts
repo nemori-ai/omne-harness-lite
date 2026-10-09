@@ -4,7 +4,7 @@ import type {
 } from '@omne-harness-lite/model-request-runtime'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type { SessionLifecycleStep, StepCommit } from '@omne-harness-lite/session-runtime'
-import type { SourceToken } from '@omne-harness-lite/session-log'
+import { checkKey, type SourceToken } from '@omne-harness-lite/session-log'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type { BorrowedRunJournal } from './run-journal-types.ts'
 import type { DriverRunStart } from './driver-run.ts'
@@ -41,14 +41,30 @@ export function createDriverModelRunTask(input: {
 class ModelRunTask {
   readonly local = new AbortController()
   readonly ready = Promise.withResolvers<void>()
-  readonly token: ReturnType<Inputs['work']['begin']>
-  readonly segment: ReturnType<typeof createDriverModelSegment>
-  readonly reads: ReturnType<typeof createDriverReads>
-  phase: 'building' | 'driving' | 'original' | 'finishing' | 'returning' | 'retained' | 'released' =
-    'building'
+  token: ReturnType<Inputs['work']['begin']>
+  segment: ReturnType<typeof createDriverModelSegment>
+  reads: ReturnType<typeof createDriverReads>
+  phase:
+    | 'building'
+    | 'driving'
+    | 'original'
+    | 'finishing'
+    | 'returningModel'
+    | 'returning'
+    | 'retained'
+    | 'released' = 'building'
+  prepared: Prepared
+  readonly tokens = new Set<ReturnType<Inputs['work']['begin']>>()
+  readonly steps: {
+    readonly source: SourceToken
+    readonly step: SessionLifecycleStep
+    readonly result: StepCommit
+  }[] = []
+  modelReturned = 0
+  returningModel?: Promise<void>
   frame?: SessionModelAttempt
   original?: OriginalSessionModelWork
-  retained?: RetainedSessionModelTurn
+  readonly retained = new Set<RetainedSessionModelTurn>()
   finishing?: {
     readonly source: SourceToken
     readonly step: SessionLifecycleStep
@@ -65,6 +81,7 @@ class ModelRunTask {
       journal.run !== prepared.preparation.run
     )
       throw new TypeError('original Run journal required')
+    this.prepared = prepared
     this.reads = createDriverReads(sources.selection)
     this.segment = createDriverModelSegment(
       options,
@@ -73,57 +90,63 @@ class ModelRunTask {
       sources,
       () => !this.local.signal.aborted,
       async retained => {
-        if (this.retained && this.retained !== retained)
-          throw new Error('original model responsibility already retained')
-        this.retained = retained
+        this.retained.add(retained)
       },
     )
     this.token = options.work.begin(scope, prepared.preparation)
+    this.tokens.add(this.token)
   }
   requestStop = () => this.local.abort()
   async run(): Promise<'released' | 'retained'> {
     try {
-      const built = await this.segment.build()
-      if ('failure' in built) return this.hold()
-      const { scope, sources } = this.input
-      this.frame = createSessionModelAttempt({
-        turn: built.turn,
-        registration: this.reads.registration,
-        current: createSessionModelObservations(built.turn, this.reads.registration, {
-          scope,
-          currentGeneration: sources.contextGeneration,
-        }),
-        transfer: async original => {
-          if (this.original && this.original !== original)
-            throw new Error('foreign original model work')
-          this.original = original
-          return 'retained'
-        },
-      })
-      this.phase = 'driving'
-      this.driving = this.frame.drive(this.local.signal)
-      this.ready.resolve()
-      const driven = await this.driving
-      if (this.original) {
-        this.phase = 'original'
-        const original = await this.original.completion
-        if (!('acknowledged' in original)) return this.hold()
-      } else if (!('kind' in driven) || driven.kind !== 'committed') return this.hold()
-      return await this.finish()
+      for (;;) {
+        const result = await this.driveModel()
+        if (result !== 'continue') return result
+      }
     } catch (error) {
-      if (this.phase !== 'returning') this.phase = 'retained'
+      if (this.phase !== 'returning' && this.phase !== 'returningModel') this.phase = 'retained'
       throw error
     } finally {
       this.ready.resolve()
     }
   }
+  async driveModel(): Promise<'released' | 'retained' | 'continue'> {
+    const built = await this.segment.build()
+    if ('failure' in built) return this.hold()
+    const { scope, sources } = this.input
+    this.frame = createSessionModelAttempt({
+      turn: built.turn,
+      registration: this.reads.registration,
+      current: createSessionModelObservations(built.turn, this.reads.registration, {
+        scope,
+        currentGeneration: sources.contextGeneration,
+      }),
+      transfer: async original => {
+        if (this.original && this.original !== original)
+          throw new Error('foreign original model work')
+        this.original = original
+        return 'retained'
+      },
+    })
+    this.phase = 'driving'
+    this.driving = this.frame.drive(this.local.signal)
+    this.ready.resolve()
+    const driven = await this.driving
+    if (this.original) {
+      this.phase = 'original'
+      const original = await this.original.completion
+      if (!('acknowledged' in original)) return this.hold()
+    } else if (!('kind' in driven) || driven.kind !== 'committed') return this.hold()
+    return await this.finish()
+  }
   hold(): 'retained' {
     this.phase = 'retained'
     return 'retained'
   }
-  async finish(): Promise<'released' | 'retained'> {
+  async finish(): Promise<'released' | 'retained' | 'continue'> {
     this.phase = 'finishing'
-    const { options, scope, prepared } = this.input
+    const { options, scope } = this.input
+    const prepared = this.prepared
     const ingress = options.ingress
     const response = await ingress.modelResults.read(
       ingress.coordinationAuthority,
@@ -141,8 +164,12 @@ class ModelRunTask {
     if (!('kind' in ended) || ended.kind !== 'released') return this.hold()
     // Only the original acknowledged turn reaches this point. Custody alone is not a stop proof.
     options.work.complete(this.token)
+    this.phase = 'returningModel'
+    await this.returnModel()
     const observed = await ingress.readWork(ingress.coordinationAuthority, scope, 1)
     if (!('kind' in observed)) return this.hold()
+    const pending = observed.inputs[0]
+    if (pending !== undefined) return this.continueInput(observed.source, pending)
     const step: SessionLifecycleStep = {
       kind: 'finish',
       stepKey: `${prepared.identities.prepareKey}:finish`,
@@ -160,9 +187,116 @@ class ModelRunTask {
       step,
     )
     this.finishing.result = finished
-    if (!('kind' in finished) || finished.kind !== 'committed') return this.hold()
+    if (!('kind' in finished) || finished.kind !== 'committed') return this.finishRefused(finished)
     this.phase = 'returning'
     return this.returnOriginal()
+  }
+  async finishRefused(result: StepCommit): Promise<'continue' | 'retained'> {
+    if (!('failure' in result) || result.failure !== 'retryFromFacts') return this.hold()
+    const { options, scope } = this.input
+    const latest = await options.ingress.readWork(options.ingress.coordinationAuthority, scope, 1)
+    if (!('kind' in latest) || latest.inputs[0] === undefined) return this.hold()
+    // The refused finish made no commit. Read the new original input; never redispatch the old call.
+    return this.continueInput(latest.source, latest.inputs[0])
+  }
+  returnModel() {
+    this.returningModel ??= this.returnModelBorrows().catch(error => {
+      delete this.returningModel
+      throw error
+    })
+    return this.returningModel
+  }
+  async returnModelBorrows() {
+    const returns = [this.reads.close, this.segment.release]
+    while (this.modelReturned < returns.length) {
+      await returns[this.modelReturned]!()
+      this.modelReturned++
+    }
+  }
+  async commitNext(source: SourceToken, step: SessionLifecycleStep) {
+    if (this.local.signal.aborted) return undefined
+    const { options, scope } = this.input
+    const result = await options.ingress.lifecycle.commitStep(
+      options.ingress.coordinationAuthority,
+      scope,
+      source,
+      step,
+    )
+    this.steps.push({ source, step, result })
+    return 'kind' in result && result.kind === 'committed' ? result : undefined
+  }
+  async continueInput(
+    source: SourceToken,
+    position: SourceToken['tail'],
+  ): Promise<'continue' | 'retained'> {
+    const { scope, options } = this.input
+    const { preparation, identities } = this.prepared
+    const adopted = await this.commitNext(source, {
+      kind: 'adoptInput',
+      stepKey: `${identities.prepareKey}:input:${position}`,
+      run: preparation.run,
+      attempt: preparation.attempt,
+      permit: preparation.permit,
+      inputPosition: position,
+    })
+    if (!adopted) return this.hold()
+    if (this.local.signal.aborted) return this.hold()
+    const next = Object.freeze({
+      ...options.identities.model(
+        scope,
+        preparation.run,
+        preparation.attempt,
+        adopted.receipt.position,
+      ),
+    })
+    if (!Object.values(next).every(checkKey))
+      throw new TypeError('stable next original model identities required')
+    const step = Object.freeze({
+      kind: 'prepareCall' as const,
+      stepKey: next.prepareKey,
+      run: preparation.run,
+      attempt: preparation.attempt,
+      permit: preparation.permit,
+      call: next.call,
+      originalPosition: next.originalPosition,
+    })
+    const token = options.work.begin(scope, step)
+    this.tokens.add(token)
+    const prepared = await this.commitNext(adopted.source, step)
+    if (!prepared) return this.hold()
+    this.prepareModel(
+      {
+        kind: 'prepared',
+        preparation: step,
+        identities: next,
+        source: prepared.source,
+      },
+      token,
+    )
+    return 'continue'
+  }
+  prepareModel(prepared: Prepared, token: ReturnType<Inputs['work']['begin']>) {
+    const { options, scope, sources } = this.input
+    this.prepared = prepared
+    this.token = token
+    this.reads = createDriverReads(sources.selection)
+    this.segment = createDriverModelSegment(
+      options,
+      scope,
+      prepared,
+      sources,
+      () => !this.local.signal.aborted,
+      async retained => {
+        this.retained.add(retained)
+      },
+    )
+    delete this.original
+    this.retained.clear()
+    delete this.frame
+    delete this.driving
+    delete this.returningModel
+    this.modelReturned = 0
+    this.phase = 'building'
   }
   returnOriginal() {
     this.returning ??= this.returnBorrows().catch(error => {
@@ -173,12 +307,15 @@ class ModelRunTask {
   }
   async returnBorrows(): Promise<'released'> {
     const { options, journal, sources } = this.input
-    const returns = [this.reads.close, this.segment.release, sources.release, journal.close]
+    const returns = [() => this.returnModel(), sources.release, journal.close]
     while (this.returned < returns.length) {
       await returns[this.returned]!()
       this.returned++
     }
-    options.work.release(this.token)
+    for (const token of this.tokens) {
+      options.work.release(token)
+      this.tokens.delete(token)
+    }
     this.phase = 'released'
     return 'released'
   }
@@ -190,6 +327,10 @@ class ModelRunTask {
     await this.reads.close()
     if (this.phase === 'released') return 'released'
     if (this.phase === 'returning') return this.returnOriginal()
+    if (this.phase === 'returningModel') {
+      await this.returnModel()
+      this.phase = 'retained'
+    }
     return 'pending'
   }
 }
