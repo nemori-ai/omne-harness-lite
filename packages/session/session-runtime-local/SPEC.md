@@ -298,6 +298,8 @@ Tool pool／环境等根资源不归driver关闭。静态可赋值不证明facto
 
 Run source factory接原Scope及真实BorrowedRunJournal，返回显式原Scope／Run及同一原Run的求值输入、Context与世代、
 实际toolAccess、目录／秘密／工具来源、选择输入、历史／CallPresence及消息投影来源。
+registry提供原采用装配的refreshAvailability和list；driver以原Scope、Run、attempt取得真实报告及该报告内的工具列表。
+它与providers.tools所查询的实际registry必须配对，不能由只有lookup的绑定构造或猜测报告。
 来源不完整或代际不符返回unavailable，不补常量CurrentInputs、空history或“已恢复”。
 实际生产者仍按I02及各Core协议实现；该factory只包装这些真实来源，不把数据变成资格。
 driver先核返回Scope／Run与原journal一致、工具borrow的显式tenant与固定租户一致，再调用任何业务面。
@@ -313,6 +315,9 @@ native Model response／message identity仍沿其既有Core来源，不从consum
 model.original是实际CoreOriginalIssueOwner，须与Ingress原modelIssue参加者为同一拥有者；
 driver绑定prepareOriginal／同Unit admission／consume，不调用其独立admit来绕Session栅栏。
 物理executionSource、Model factory和实际facts须属同一原Model池；snapshot不是停止临界区证明。
+model.results必须是原SessionModelResultSource，与Ingress.modelResults采用同一个source.verifyIn并与该物理池配对。
+driver使用其capture、confirmCustody、release保留原捕获及未知接管责任；只读executionSource不能代替它。
+该来源为借入能力，driver归还自己取得的捕获，不关闭整个结果source或物理池。
 独立settlement factory按原Binding及实际Owner构造，Model SDK原ready关闭结算入口后仍能接续原批次。
 
 work与Ingress.workSettledIn是同一个实际SessionDriverWorkOwner，不能另造只看当前任务数的reader。

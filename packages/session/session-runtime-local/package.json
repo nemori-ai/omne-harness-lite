@@ -51,7 +51,8 @@
     "@omne-harness-lite/model-message-projection": "workspace:*",
     "@omne-harness-lite/agent-loop": "workspace:*",
     "@omne-harness-lite/loop-extension-runner": "workspace:*",
-    "@omne-harness-lite/loop-extension": "workspace:*"
+    "@omne-harness-lite/loop-extension": "workspace:*",
+    "@omne-harness-lite/asset-registry": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

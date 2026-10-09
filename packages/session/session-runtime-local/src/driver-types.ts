@@ -1,5 +1,6 @@
 import type { AttemptId, RunId } from '@omne-harness-lite/call-accounts'
 import type { CurrentEvaluationInputs } from '@omne-harness-lite/asset-evaluation'
+import type { AssetRegistryService } from '@omne-harness-lite/asset-registry'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { JsonNumber, CallId } from '@omne-harness-lite/content-blocks'
 import type { CreationKey } from '@omne-harness-lite/messages'
@@ -33,6 +34,7 @@ import type { LocalSessionIngress } from './runtime-types.ts'
 import type { SessionDriverModelFactory } from './driver-model-types.ts'
 import type { LocalToolResultCustody, LocalToolResultDelivery } from './tool-result-types.ts'
 import type { StateOptions } from './state-types.ts'
+import type { SessionModelResultSource } from './model-result-source.ts'
 
 declare const workTokenBrand: unique symbol
 export interface SessionDriverWorkToken {
@@ -57,6 +59,8 @@ export interface SessionDriverRunSources {
   readonly scope: SessionScope
   readonly run: RunId
   readonly evaluation: CurrentEvaluationInputs
+  /** Actual adopted registry. Lookup-only model bindings cannot produce a Run report. */
+  readonly registry: Pick<AssetRegistryService, 'refreshAvailability' | 'list'>
   readonly context: RuntimeContextOperations
   readonly contextGeneration: () => string | null
   readonly toolAccess: SessionAccess
@@ -139,6 +143,8 @@ export interface LocalSessionDriverOptions {
     readonly factory: SessionDriverModelFactory
     readonly original: OriginalIssueOwner
     readonly executionSource: () => ModelRuntimeExecutionSource | undefined
+    /** Same original source whose verifyIn is supplied to Ingress.modelResults. */
+    readonly results: SessionModelResultSource
     readonly settlement: SettlementCoordinatorFactory
     readonly maxCallReads: number
   }
