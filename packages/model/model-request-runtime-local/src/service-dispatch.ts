@@ -84,56 +84,62 @@ const settlementUnavailableKinds = new Set<string>([
   'settlement.unavailable.candidate',
 ])
 
+type SettlementProgress = {
+  readonly outcome: DiagnosticEvent['outcome']
+  readonly settlement: 'unsettled' | 'submitted' | 'committed' | 'unknown'
+}
+
 export function settlementEvent(event: SettlementDiagnostic): DiagnosticEvent | undefined {
-  let outcome: DiagnosticEvent['outcome']
-  let settlement: 'unsettled' | 'submitted' | 'committed' | 'unknown'
-  switch (event.kind) {
-    case 'settlement.enter':
-      outcome = 'started'
-      settlement = 'unsettled'
-      break
-    case 'settlement.wait':
-    case 'settlement.tail_changed_this':
-    case 'settlement.collision':
-      outcome = 'waiting'
-      settlement = 'unsettled'
-      break
-    case 'settlement.append':
-      outcome = 'accepted'
-      settlement = 'submitted'
-      break
-    case 'settlement.recognized':
-    case 'settlement.committed':
-      outcome = 'completed'
-      settlement = 'committed'
-      break
-    case 'settlement.receipt_unconfirmed':
-    case 'settlement.unknown_retained':
-    case 'settlement.stop_unconfirmed':
-      outcome = 'unknown'
-      settlement = 'unknown'
-      break
-    case 'settlement.stop_request_failed':
-      outcome = 'failed'
-      settlement = 'unknown'
-      break
-    default:
-      if (!settlementUnavailableKinds.has(event.kind)) return undefined
-      outcome = 'unavailable'
-      settlement = 'unknown'
+  let progress = settlementProgress(event.kind)
+  if (progress === undefined) {
+    if (!settlementUnavailableKinds.has(event.kind)) return undefined
+    progress = { outcome: 'unavailable', settlement: 'unknown' }
   }
   return {
     source: 'runtime',
     stage: 'settlement',
-    outcome,
+    outcome: progress.outcome,
     facts: {
       kind: 'progress',
-      settlement,
+      settlement: progress.settlement,
       owner: event.owner,
       policy: event.policy,
       submissions: event.submissions,
       tailConflicts: event.tailConflicts,
     },
+  }
+}
+
+function settlementProgress(kind: SettlementDiagnostic['kind']): SettlementProgress | undefined {
+  switch (kind) {
+    case 'settlement.enter':
+      return { outcome: 'started', settlement: 'unsettled' }
+    case 'settlement.wait':
+    case 'settlement.tail_changed_this':
+    case 'settlement.collision':
+      return { outcome: 'waiting', settlement: 'unsettled' }
+    case 'settlement.append':
+      return { outcome: 'accepted', settlement: 'submitted' }
+    case 'settlement.recognized':
+    case 'settlement.committed':
+      return { outcome: 'completed', settlement: 'committed' }
+    default:
+      return settlementUnconfirmedProgress(kind)
+  }
+}
+
+function settlementUnconfirmedProgress(
+  kind: SettlementDiagnostic['kind'],
+): SettlementProgress | undefined {
+  switch (kind) {
+    case 'settlement.receipt_unconfirmed':
+    case 'settlement.unknown_retained':
+    case 'settlement.stop_unconfirmed':
+      return { outcome: 'unknown', settlement: 'unknown' }
+    case 'settlement.stop_request_failed':
+      return { outcome: 'failed', settlement: 'unknown' }
+    default:
+      return undefined
   }
 }
 
@@ -235,7 +241,6 @@ export type DispatchAdmission =
   | Extract<DispatchResult, { readonly wrongPhase: object }>
   | Extract<DispatchResult, { readonly unavailable: true }>
 
-/** RT7 S-29 order: authoritative terminal and opened facts outrank local readiness. */
 export function dispatchAdmission(
   history: UnacknowledgedCallHistory,
   local: CallOperationState | undefined,
@@ -250,6 +255,13 @@ export function dispatchAdmission(
   if (alreadySpoke(history)) return { retryRefused: { why: 'already_spoke' } }
   if (phase !== 'open' && phase !== 'resumable') return { wrongPhase: { phase } }
   if (firstProvider.length === 0) return { unavailable: true }
+  return admittedDispatch(history, firstProvider)
+}
+
+function admittedDispatch(
+  history: UnacknowledgedCallHistory,
+  firstProvider: string,
+): Extract<DispatchAdmission, { readonly allowed: true }> {
   return {
     allowed: true,
     dispatch: 'known' in history ? history.known.dispatches.length + 1 : 1,
@@ -269,7 +281,6 @@ export type DispatchAgainAdmission =
   | Extract<DispatchAgainResult, { readonly unavailable: true }>
   | Extract<DispatchAgainResult, { readonly invalidInput: object }>
 
-/** Use the same closed S-30/S-50 guard for actual resend; never derive a weaker check. */
 export function dispatchAgainAdmission(
   key: CallKey,
   history: UnacknowledgedCallHistory,
@@ -313,6 +324,12 @@ export function dispatchAgainAdmission(
       dispatch: ('known' in history ? history.known.dispatches.length : 0) + 1,
       provider: plan.provider,
     }
+  return rejectedDispatchAgain(checked)
+}
+
+function rejectedDispatchAgain(
+  checked: Exclude<ReturnType<typeof dispatchGuard>, { readonly allowed: true }>,
+): Exclude<DispatchAgainAdmission, { readonly allowed: true }> {
   if ('refused' in checked) return { retryRefused: checked.refused }
   if (checked.rejected === 'wrongPhase') return { wrongPhase: { phase: checked.phase } }
   if (checked.rejected === 'alreadyEnded') return { alreadyEnded: true }
@@ -1284,7 +1301,17 @@ type PreparationResult =
   | { readonly invalidInput: { readonly reason: 'malformed' | 'unknownTool' } }
   | { readonly unavailable: true; readonly diagnosticReason?: 'scope_disallowed' }
 
-/** Do not spend a dispatch number or write an anchor before these current provider facts. */
+type CredentialValue = Exclude<
+  Awaited<ReturnType<SessionRuntimeBinding['credentials']['value']>>,
+  { readonly failure: unknown }
+>
+type CredentialPreparation =
+  | { readonly credentialText: string; readonly value: CredentialValue }
+  | Extract<
+      PreparationResult,
+      { readonly unavailable: true } | { readonly credentialUnavailable: true }
+    >
+
 async function prepareSend<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
   session: SessionRuntimeBinding,
@@ -1297,23 +1324,9 @@ async function prepareSend<P extends PlannedSemantics, R>(
   const container = runtime.calls.find(key)
   if (container === undefined) return { unavailable: true }
   const view = container.view()
-  if (view.request.run === undefined && attempt !== undefined)
-    return { invalidInput: { reason: 'malformed' } }
-  const calibrationTarget =
-    view.request.run === undefined
-      ? { callId: key.callId, dispatch }
-      : attempt === undefined
-        ? null
-        : { callId: key.callId, dispatch, run: view.request.run, attempt }
+  const calibrationTarget = currentCalibrationTarget()
   if (calibrationTarget === null) return { invalidInput: { reason: 'malformed' } }
-  if (
-    view.session !== session ||
-    view.owner.admission() !== 'open' ||
-    !settlementGenerationCurrent(session.log) ||
-    'unknown' in view.owner.opened() ||
-    view.owner.unresolvedWrites().length !== 0
-  )
-    return { unavailable: true }
+  if (preparationUnavailable()) return { unavailable: true }
   const timing = await currentDispatchTiming(runtime, session, retained)
   if ('unavailable' in timing) return timing
   const credential = await withOwnedReads(
@@ -1327,35 +1340,17 @@ async function prepareSend<P extends PlannedSemantics, R>(
           await session.credentials.value(session.log.tenant, view.binding.profile.origin),
       ).completion,
   )
-  if ('unavailable' in credential) return credential
-  if ('failure' in credential.ok)
-    return credential.ok.failure === 'credentialUnavailable'
-      ? { credentialUnavailable: true }
-      : { unavailable: true }
-  const value = credential.ok
-  if (
-    (value.scope.layer === 'tenant' && !tenantIdEquals(value.scope.tenant, session.log.tenant)) ||
-    (view.binding.profile.origin === 'custom' && value.scope.layer === 'factory')
-  )
-    return { unavailable: true, diagnosticReason: 'scope_disallowed' }
-  if (!(value.value instanceof Uint8Array)) return { unavailable: true }
-  let credentialText: string
-  try {
-    credentialText = new TextDecoder('utf-8', { fatal: true }).decode(value.value)
-  } catch {
-    return { unavailable: true }
-  }
-  if (credentialText.length === 0) return { credentialUnavailable: true }
+  const credentialPrepared = currentCredential(credential)
+  if (!('credentialText' in credentialPrepared)) return credentialPrepared
+  const value = credentialPrepared.value
+  const credentialText = credentialPrepared.credentialText
   let tools: Awaited<ReturnType<typeof resolveCallTools>>
   try {
     tools = await resolveCallTools(view.request, session.tools)
   } catch {
     return { unavailable: true }
   }
-  if ('failure' in tools)
-    return tools.failure === 'unavailable'
-      ? { unavailable: true }
-      : { invalidInput: { reason: tools.reason ?? 'malformed' } }
+  if ('failure' in tools) return toolPreparationFailure(tools)
   const calibration = await withOwnedReads(
     view.owner,
     runtime.settlementContention.limits.concurrent,
@@ -1397,4 +1392,68 @@ async function prepareSend<P extends PlannedSemantics, R>(
       },
     },
   }
+
+  function currentCalibrationTarget(): Parameters<typeof authorizedCalibration>[2] | null {
+    if (view.request.run === undefined && attempt !== undefined) return null
+    return view.request.run === undefined
+      ? { callId: key.callId, dispatch }
+      : attempt === undefined
+        ? null
+        : { callId: key.callId, dispatch, run: view.request.run, attempt }
+  }
+
+  function preparationUnavailable(): boolean {
+    return (
+      view.session !== session ||
+      view.owner.admission() !== 'open' ||
+      !settlementGenerationCurrent(session.log) ||
+      'unknown' in view.owner.opened() ||
+      view.owner.unresolvedWrites().length !== 0
+    )
+  }
+
+  function currentCredential(
+    credential:
+      | { readonly ok: Awaited<ReturnType<SessionRuntimeBinding['credentials']['value']>> }
+      | { readonly unavailable: true },
+  ): CredentialPreparation {
+    if ('unavailable' in credential) return credential
+    if ('failure' in credential.ok)
+      return credential.ok.failure === 'credentialUnavailable'
+        ? { credentialUnavailable: true }
+        : { unavailable: true }
+    const value = credential.ok
+    if (
+      (value.scope.layer === 'tenant' && !tenantIdEquals(value.scope.tenant, session.log.tenant)) ||
+      (view.binding.profile.origin === 'custom' && value.scope.layer === 'factory')
+    )
+      return { unavailable: true, diagnosticReason: 'scope_disallowed' }
+    const text = decodeCredential()
+    return typeof text === 'string' ? { credentialText: text, value } : text
+
+    function decodeCredential():
+      | string
+      | Extract<
+          PreparationResult,
+          { readonly unavailable: true } | { readonly credentialUnavailable: true }
+        > {
+      if (!(value.value instanceof Uint8Array)) return { unavailable: true }
+      let credentialText: string
+      try {
+        credentialText = new TextDecoder('utf-8', { fatal: true }).decode(value.value)
+      } catch {
+        return { unavailable: true }
+      }
+      if (credentialText.length === 0) return { credentialUnavailable: true }
+      return credentialText
+    }
+  }
+}
+
+function toolPreparationFailure(
+  tools: Extract<Awaited<ReturnType<typeof resolveCallTools>>, { readonly failure: unknown }>,
+): Extract<PreparationResult, { readonly unavailable: true } | { readonly invalidInput: unknown }> {
+  return tools.failure === 'unavailable'
+    ? { unavailable: true }
+    : { invalidInput: { reason: tools.reason ?? 'malformed' } }
 }
