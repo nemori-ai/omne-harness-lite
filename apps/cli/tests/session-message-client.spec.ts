@@ -105,6 +105,7 @@ async function fixture(
   const execute = vi.fn(read)
   const host = await startLocalSessionHost({
     home,
+    binding: request.binding,
     endpoint: { execute },
     policy: hostPolicy,
     diagnostic: error => {

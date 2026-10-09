@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'node:http'
-import { join } from 'node:path'
-import { resolveStateHome } from './state-layout.ts'
+import { basename, join } from 'node:path'
+import { resolveStateHome, tenantPaths, type TenantBinding } from './state-layout.ts'
 
 export class SessionProtocolFailure extends Error {
   constructor(
@@ -15,14 +15,23 @@ export class SessionProtocolFailure extends Error {
     super(`session host protocol: ${reason}`)
   }
 }
-export function sessionHostAddress(home: string): {
+export function sessionHostAddress(
+  home: string,
+  binding: TenantBinding,
+): {
   readonly home: string
   readonly directory: string
   readonly socketPath: string
 } {
   const checked = resolveStateHome({ explicitHome: home, osHome: home })
   const directory = join(checked, 'run')
-  return { home: checked, directory, socketPath: join(directory, 'session-host.sock') }
+  // Reuse the full canonical identity digest. Base64url only shortens its representation.
+  const digest = basename(tenantPaths(checked, binding).directory)
+  const filename = Buffer.from(digest, 'hex').toString('base64url') + '.sock'
+  const socketPath = join(directory, filename)
+  // Keep the complete identity on Linux and Darwin; never allow native path truncation.
+  if (Buffer.byteLength(socketPath) > 103) throw new TypeError('Session socket path too long')
+  return { home: checked, directory, socketPath }
 }
 export function positivePolicy(policy: object, required: readonly string[]): void {
   if (

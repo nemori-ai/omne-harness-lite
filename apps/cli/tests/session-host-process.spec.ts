@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { once } from 'node:events'
+import { request as httpRequest } from 'node:http'
+import { sessionHostAddress } from '../src/session-host-io.ts'
 import { sendSessionHostRequest } from '../src/session-host-client.ts'
 import { parseSessionHostRequest } from '../src/session-host-protocol.ts'
 const homes: string[] = [],
@@ -118,8 +120,6 @@ it('completes the original real SQLite creation and recognizes its receipt after
     kind: 'reply',
     result: { kind: 'absent' },
   })
-  const closed = nextMessage(host, 'closed'),
-    hostExit = once(host, 'exit', { signal: AbortSignal.timeout(10000) })
   host.send('release')
   const replay = await sendSessionHostRequest({ home, request: checked(packet), policy })
   expect(replay).toMatchObject({
@@ -136,10 +136,37 @@ it('completes the original real SQLite creation and recognizes its receipt after
     result: { kind: 'present' },
   })
   const foreign = checked({ ...packet, binding: { ...binding, centerId: 'b'.repeat(32) } })
-  expect(await sendSessionHostRequest({ home, request: foreign, policy })).toMatchObject({
-    kind: 'reply',
-    result: { failure: 'denied' },
+  expect(await sendSessionHostRequest({ home, request: foreign, policy })).toEqual({
+    kind: 'unconfirmed',
+    request: foreign,
+    reason: 'transportUnavailable',
   })
+  // Directly address the live original host: changing the payload cannot route into its tenant.
+  const socketPath = sessionHostAddress(home, checked(packet).binding).socketPath
+  const status = await new Promise<number>((resolve, reject) => {
+    const request = httpRequest(
+      {
+        socketPath,
+        path: '/session',
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+      },
+      response => {
+        response.resume()
+        response.once('end', () => resolve(response.statusCode!))
+        response.once('error', reject)
+      },
+    )
+    request.once('error', reject)
+    request.end(JSON.stringify(foreign))
+  })
+  expect(status).toBe(400)
+  expect(await sendSessionHostRequest({ home, request: receiptRequest, policy })).toMatchObject({
+    kind: 'reply',
+    result: { kind: 'present' },
+  })
+  const closed = nextMessage(host, 'closed'),
+    hostExit = once(host, 'exit', { signal: AbortSignal.timeout(10000) })
   host.send('close')
   await closed
   expect(await hostExit).toEqual([0, null])

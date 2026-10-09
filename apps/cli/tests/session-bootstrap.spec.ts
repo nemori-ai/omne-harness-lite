@@ -3,6 +3,9 @@ import {
   type SessionModelWorkOwner,
 } from '../src/session-work-owner.ts'
 import { startRunningSessionHost } from '../src/session-execution-host.ts'
+import { startSessionRuntimeRoot } from '../src/session-runtime-root.ts'
+import type { SessionRuntimeRootOptions } from '../src/session-runtime-root-types.ts'
+import { sendSessionHostRequest } from '../src/session-host-client.ts'
 import { prepareSessionModelRun } from '../src/session-run-preparation.ts'
 import { readSessionSubmission } from '../src/session-submission.ts'
 import {
@@ -505,6 +508,9 @@ async function setup(
     })
   return {
     directory,
+    root,
+    client,
+    base,
     runtime,
     assembly,
     storage,
@@ -532,6 +538,281 @@ const input = {
   mode: 'never' as const,
   collaboration: 'co-work' as const,
 }
+
+async function rootFixture(withModel = false) {
+  const f = await setup(16, true, withModel, undefined, withModel)
+  await f.assembly.close()
+  await f.access.close()
+  await f.runtime.close()
+  await f.log.close()
+  await f.admission.close()
+  if (f.modelOwner) expect(await f.modelOwner.close()).toEqual({ kind: 'released' })
+  const configure = vi.fn<SessionRuntimeRootOptions['model']['configure']>(() => async () => {
+    throw new Error('empty Session must not request a model')
+  })
+  const options: SessionRuntimeRootOptions = {
+    home: f.directory,
+    binding: { formatVersion: 1, centerId: source.centerId, tenant },
+    source,
+    rootStorage: f.root,
+    storage: f.storage,
+    governance: f.client,
+    clock: { now: () => unwrap(instantFromRfc3339(now)) },
+    inputSource: f.base,
+    contextSeed: contextSeedFromDefinition,
+    runtimePolicy: {
+      maxSessions: 16,
+      maxRecordBytes: 65536,
+      maxInFlight: 8,
+      maxSteps: 32,
+      state: { maxPendingPerSession: 16, maxBatchSize: 16, maxRecordBytes: 65536 },
+      receipts: { maxRecords: 32, maxRecordBytes: 65536 },
+    },
+    admissionPolicy: { maxLogins: 8, maxTickets: 16, maxRecordBytes: 8192 },
+    logOperationLimit: 32,
+    contextAccess: ingress => ({
+      principal: { principal: source.accountId, principalKind: 'human' },
+      consumers: ['model'],
+      operations: ['context.read'],
+      policy: { maxBindings: 16, maxContextKeys: 16 },
+      authority: {
+        check: async (identity, operation) => {
+          if (operation !== 'context.read') return { kind: 'rejected', reason: 'notAuthorized' }
+          const read = await ingress.operations.readSession(ingress.access, identity.scope.session)
+          return 'kind' in read && read.kind === 'session' && read.session.lifecycle === 'active'
+            ? { kind: 'authorized', identity }
+            : { kind: 'rejected', reason: 'notAuthorized' }
+        },
+      },
+    }),
+    model: {
+      current: { authorizeIn: f.modelCurrent },
+      maxInFlight: 8,
+      maxRecords: 16,
+      maxCaptures: 8,
+      executionSource: () => undefined,
+      retainReferencesIn: async () => {
+        throw new Error('empty Session has no model result')
+      },
+      configure,
+    },
+    transport: {
+      maxRequestBytes: 65536,
+      maxResponseBytes: 65536,
+      maxConnections: 8,
+      maxInFlight: 4,
+      requestTimeoutMs: 2000,
+      headersTimeoutMs: 1000,
+      idleTimeoutMs: 1000,
+      checkIntervalMs: 100,
+      maxFailureRecords: 8,
+      maxHeaderBytes: 8192,
+    },
+    execution: { scanLimit: 16, intervalMs: 5, maxTasks: 8, maxHeld: 16, maxFailures: 8 },
+    identities: () => {
+      throw new Error('empty Session must not start a Run')
+    },
+    diagnostic: error => {
+      throw error
+    },
+  }
+  return { f, options, configure }
+}
+it('assembles the actual runtime root and creates a legal empty Session through its socket without starting a model', async () => {
+  const { f, options, configure } = await rootFixture()
+  const root = await startSessionRuntimeRoot(options)
+  cleanup.push(async () => {
+    expect(await root.close()).toEqual({ closed: true })
+  })
+  const request = parseSessionHostRequest({
+    format: 'omne-session-host/1',
+    binding: options.binding,
+    command: 'createSession',
+    input,
+  })
+  if (!request) throw new Error('invalid request')
+  const reply = await sendSessionHostRequest({
+    home: options.home,
+    request,
+    policy: { timeoutMs: 2000, maxResponseBytes: 65536 },
+  })
+  expect(reply).toMatchObject({ kind: 'reply', result: { kind: 'created' } })
+  expect(configure).toHaveBeenCalledOnce()
+  const created = await root.owners.ingress.operations.createSession(
+    root.owners.ingress.access,
+    input,
+  )
+  if (!('kind' in created) || created.kind !== 'created') throw new Error('not created')
+  const scope = { tenant, session: created.session }
+  expect(root.owners.bootstrap.context(scope)).toBeDefined()
+  const read = await root.owners.ingress.readWork(
+    root.owners.ingress.coordinationAuthority,
+    scope,
+    1,
+  )
+  expect(read).toMatchObject({ kind: 'work', inputs: [], head: { run: null } })
+  expect(await root.close()).toEqual({ closed: true })
+  const borrowed = await f.client.openUse()
+  expect(borrowed.kind).toBe('use')
+  if (borrowed.kind === 'use') await borrowed.use.close()
+  await f.storage.atomic(async unit => unit.assertStorage(f.storage))
+})
+it('releases the actual partial runtime root after a model configuration defect and permits fresh assembly', async () => {
+  const { options } = await rootFixture()
+  const defect = new Error('controlled root model configuration failure')
+  await expect(
+    startSessionRuntimeRoot({
+      ...options,
+      model: {
+        ...options.model,
+        configure: () => {
+          throw defect
+        },
+      },
+    }),
+  ).rejects.toBe(defect)
+  const root = await startSessionRuntimeRoot(options)
+  expect(await root.close()).toEqual({ closed: true })
+})
+it('closes a foreign-origin actual governance use before any refresh or runtime allocation', async () => {
+  const { f, options, configure } = await rootFixture()
+  const opened = await f.client.openUse()
+  if (opened.kind !== 'use') throw new Error('actual governance use unavailable')
+  const close = vi.fn(() => opened.use.close())
+  const run = vi.fn(opened.use.run.bind(opened.use))
+  const openUse = vi.fn(async () => ({
+    ...opened,
+    origin: { ...opened.origin, accountId: unwrap(parseAccountId('foreign-account')) },
+    use: { ...opened.use, run, close },
+  }))
+  await expect(
+    startSessionRuntimeRoot({
+      ...options,
+      governance: {
+        openUse,
+        runAction: f.client.runAction.bind(f.client),
+        runPrepared: f.client.runPrepared.bind(f.client),
+        close: f.client.close.bind(f.client),
+      },
+    }),
+  ).rejects.toThrow('opened governance use does not match')
+  expect(close).toHaveBeenCalledOnce()
+  expect(run).not.toHaveBeenCalled()
+  expect(configure).not.toHaveBeenCalled()
+})
+it('drives a pending input through the actual assembled root to model custody, ACK and completed without observation', async () => {
+  // The actual root owns G28, SQL log, legal fixture recipe, Context, task proof and model bridges.
+  // Governance/model transport, permissions and generation are controlled, not production evidence.
+  const { f, options } = await rootFixture(true)
+  let built: Awaited<ReturnType<typeof actualModelTurn>> | undefined
+  const submitted =
+    Promise.withResolvers<Awaited<ReturnType<typeof originalModelInput>>['accepted']>()
+  const configure: SessionRuntimeRootOptions['model']['configure'] =
+    owners => async (scope, prepared) => {
+      const accepted = await submitted.promise
+      const composed = {
+        ...f,
+        runtime: owners.ingress,
+        assembly: owners.bootstrap,
+        modelOwner: owners.originalModel,
+      }
+      const original = await originalIssueForPrepared({ f: composed, scope, accepted }, prepared)
+      built = await actualModelTurn(original, owners.modelResults)
+      return {
+        turn: built.turn,
+        registration: nativeReadRegistration(),
+        transfer: async () => 'pending',
+        current: async facts => ({
+          source: facts.source,
+          authorized: true,
+          assembly: JSON.stringify(built!.refreshed.report.snapshots),
+          contextGeneration: 'controlled-generation',
+          reconciled: true,
+        }),
+      }
+    }
+  const root = await startSessionRuntimeRoot({
+    ...options,
+    identities: () => ({
+      startKey: 'model-root-run',
+      attemptKey: 'model-root-attempt',
+      prepareKey: 'model-root-prepare',
+      call: 'model-root-call',
+      originalPosition: 'model-root-loop-position',
+    }),
+    model: {
+      ...options.model,
+      configure,
+      executionSource: () => built?.options.nativeModel.executionSource,
+      retainReferencesIn: async unit => {
+        unit.assertStorage(f.storage)
+        return 'retained'
+      },
+    },
+  })
+  cleanup.push(async () => {
+    expect(await root.close()).toEqual({ closed: true })
+  })
+  const ingress = root.owners.ingress
+  const created = await ingress.operations.createSession(ingress.access, input)
+  if (!('kind' in created) || created.kind !== 'created')
+    throw new Error('root Session not created')
+  const message = judgeMessage({
+    id: 'model-root-input',
+    type: 'user',
+    createdAt: now,
+    blocks: [
+      {
+        id: 'model-root-input-text',
+        kind: 'text',
+        text: 'actual root request',
+        visibility: { toHuman: true, toModel: true },
+      },
+    ],
+  })
+  if ('rejected' in message || message.ok.type !== 'user') throw new Error('invalid root message')
+  const accepted = await ingress.operations.submitInput(
+    ingress.access,
+    created.session,
+    'model-root-input-operation',
+    message.ok,
+  )
+  if (!('kind' in accepted) || accepted.kind !== 'accepted')
+    throw new Error('root input not accepted')
+  submitted.resolve(accepted)
+  await vi.waitFor(() => expect(built?.ack).toHaveBeenCalledOnce(), { timeout: 3000 })
+  await vi.waitFor(
+    async () =>
+      expect(
+        await ingress.readWork(
+          ingress.coordinationAuthority,
+          { tenant, session: created.session },
+          1,
+        ),
+      ).toMatchObject({ kind: 'work', inputs: [], head: { run: { state: 'completed' } } }),
+    { timeout: 3000 },
+  )
+  expect(await root.close()).toEqual({ closed: true })
+  expect(built!.ports.sends()).toBe(1)
+  const receipt = await sendSessionHostRequest({
+    home: options.home,
+    request: parseSessionHostRequest({
+      format: 'omne-session-host/1',
+      binding: options.binding,
+      command: 'readReceipt',
+      operation: accepted.receipt.operation,
+    })!,
+    policy: { maxResponseBytes: 65536, timeoutMs: 1000 },
+  })
+  expect(receipt).toHaveProperty('kind', 'unconfirmed')
+  // Root shutdown did not close the actual borrowed tenant store or physical pool.
+  await f.storage.atomic(async unit => unit.assertStorage(f.storage))
+  const borrowedFrame = built!.options.nativeModel.executionSource.capture(created.session)
+  if ('unavailable' in borrowedFrame)
+    throw new Error('root closed the borrowed physical execution source')
+  borrowedFrame.capture.release()
+  expect(borrowedFrame.capture.executions).toEqual([])
+})
 it('publishes after actual CG, original member observation, legal source and isolated Context initialization without starting a Run', async () => {
   const f = await setup()
   const created = await f.runtime.operations.createSession(f.runtime.access, input)
@@ -1730,7 +2011,12 @@ async function actualModelTurn(
   gate?: { entered: () => void; wait: Promise<void> },
 ) {
   const ports = nativeCallFixturePorts(original.scope, original.f.runtime, original.f.storage, gate)
-  const options = nativeBindingOptions(original, ports.configure)
+  const options = nativeBindingOptions(original, base => {
+    const configured = ports.configure(base)
+    return fault === 'differentCallFactory'
+      ? { ...configured, identities: { ...configured.identities, call: () => 'other-global-call' } }
+      : configured
+  })
   const configured = {
     ...options,
     selection: {
@@ -1861,6 +2147,7 @@ async function actualModelTurn(
 
 it.each([
   'normal',
+  'differentCallFactory',
   'missingCodec',
   'custodyUnknown',
   'stalePermit',
@@ -2073,7 +2360,7 @@ it.each([
     return
   }
   const result = await runSessionModelTurn(actual)
-  if (fault !== 'normal') {
+  if (fault !== 'normal' && fault !== 'differentCallFactory') {
     const stage =
       fault === 'missingCodec'
         ? 'projection'

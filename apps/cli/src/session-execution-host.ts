@@ -80,6 +80,7 @@ export async function startRunningSessionHost(
   const root = new ExecutionHost(captured)
   const server = await startLocalSessionHost({
     home: captured.home,
+    binding: captured.binding,
     endpoint: createSessionHostEndpoint(captured),
     policy: captured.transport,
     diagnostic: error => root.fail(error),

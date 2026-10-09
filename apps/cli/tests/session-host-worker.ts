@@ -99,6 +99,7 @@ const endpoint = createSessionHostEndpoint({
 })
 const host = await startLocalSessionHost({
   home,
+  binding: { formatVersion: 1, centerId, tenant },
   endpoint,
   policy: {
     maxRequestBytes: 16384,

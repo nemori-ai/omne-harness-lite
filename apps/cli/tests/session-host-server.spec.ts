@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { request as httpRequest } from 'node:http'
 import { startLocalSessionHost, type LocalSessionHost } from '../src/session-host-server.ts'
+import { checkedTenantBinding } from '../src/state-layout-values.ts'
 import type { SessionHostEndpoint } from '../src/session-host-protocol.ts'
 const homes: string[] = [],
   hosts: LocalSessionHost[] = []
@@ -21,6 +22,7 @@ const packet = {
   command: 'readSession',
   session: 'original-session',
 }
+const binding = checkedTenantBinding(packet.binding)
 const policy = {
   maxRequestBytes: 2048,
   maxResponseBytes: 4096,
@@ -41,7 +43,13 @@ async function boot(
   const home = await mkdtemp(join(tmpdir(), 'omne-host-'))
   homes.push(home)
   const diagnostic = report ?? vi.fn()
-  const host = await startLocalSessionHost({ home, endpoint, policy: selectedPolicy, diagnostic })
+  const host = await startLocalSessionHost({
+    home,
+    binding,
+    endpoint,
+    policy: selectedPolicy,
+    diagnostic,
+  })
   hosts.push(host)
   return { home, host, diagnostic }
 }
@@ -79,6 +87,7 @@ it('owns a private actual Unix HTTP socket and refuses to replace a live host', 
   await expect(
     startLocalSessionHost({
       home: f.home,
+      binding,
       endpoint: { execute: async () => ({ failure: 'denied' }) },
       policy,
       diagnostic: vi.fn(),
@@ -182,4 +191,31 @@ it('does not turn a completed operation with an excessive reply into a wire ackn
   expect(await send(f.host.socketPath).response).toMatchObject({ status: 503 })
   expect(execute).toHaveBeenCalledTimes(1)
   expect(f.diagnostic).not.toHaveBeenCalled()
+})
+
+it('keeps two tenant hosts alive in one home and closing one does not stop the other', async () => {
+  const f = await boot()
+  const otherBinding = checkedTenantBinding({
+    ...binding,
+    tenant: { ...binding.tenant, organization: 'second-team' },
+  })
+  const execute = vi.fn<SessionHostEndpoint['execute']>(async () => ({ failure: 'unavailable' }))
+  const other = await startLocalSessionHost({
+    home: f.home,
+    binding: otherBinding,
+    endpoint: { execute },
+    policy,
+    diagnostic: vi.fn(),
+  })
+  hosts.push(other)
+  expect(other.socketPath).not.toBe(f.host.socketPath)
+  expect(
+    await send(other.socketPath, { ...packet, binding: otherBinding }).response,
+  ).toHaveProperty('status', 200)
+  await f.host.close()
+  expect(
+    await send(other.socketPath, { ...packet, binding: otherBinding }).response,
+  ).toHaveProperty('status', 200)
+  expect(await send(other.socketPath, packet).response).toHaveProperty('status', 400)
+  expect(execute).toHaveBeenCalledTimes(2)
 })

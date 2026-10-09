@@ -1,6 +1,8 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { createServer } from 'node:http'
-import { mkdtemp, rm, chmod, mkdir, lstat } from 'node:fs/promises'
+import { mkdtemp, rm, chmod, lstat } from 'node:fs/promises'
+import { sessionHostAddress } from '../src/session-host-io.ts'
+import { prepareStateDirectory } from '../src/state-layout.ts'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { sendSessionHostRequest } from '../src/session-host-client.ts'
@@ -51,6 +53,7 @@ async function boot(execute: SessionHostEndpoint['execute']) {
   const home = await directory()
   const host = await startLocalSessionHost({
     home,
+    binding: request.binding,
     endpoint: { execute },
     policy: serverPolicy,
     diagnostic: error => {
@@ -162,10 +165,10 @@ it.each([
   ],
   ['wrong media type', '{"format":"omne-session-host/1","result":{}}', 'text/plain'],
 ])('refuses a native peer with %s', async (_name, body, contentType) => {
-  const home = await directory(),
-    run = join(home, 'run'),
-    socket = join(run, 'session-host.sock')
-  await mkdir(run, { mode: 0o700 })
+  const home = await directory()
+  const address = sessionHostAddress(home, request.binding),
+    socket = address.socketPath
+  await prepareStateDirectory(home, address.directory)
   const server = createServer((incoming, response) => {
     incoming.resume()
     response.writeHead(200, { 'content-type': contentType })

@@ -38,7 +38,7 @@ export async function sendSessionHostRequest(options: {
   positivePolicy(options.policy, ['maxResponseBytes', 'timeoutMs'])
   const packet = parseSessionHostRequest(options.request)
   if (!packet) throw new TypeError('invalid session client request')
-  const address = sessionHostAddress(options.home)
+  const address = sessionHostAddress(options.home, packet.binding)
   try {
     await checkStateDirectory(address.home, address.directory)
     await checkSocket(address.socketPath)

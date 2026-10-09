@@ -148,6 +148,7 @@ it('runs the compiled formal machine entry through actual selected catalog and t
   const commands: string[] = []
   const host = await startLocalSessionHost({
     home: f.input.home,
+    binding: checkedTenantBinding({ formatVersion: 1, centerId, tenant }),
     policy: {
       maxRequestBytes: 65536,
       maxResponseBytes: 65536,

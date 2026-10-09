@@ -351,7 +351,7 @@ createSessionTextReader消费实际Ingress可信journal面，固定真实租户�
 AttemptPermit、Storage和原始日志均不进入请求或回复。普通消息输出只包含允许展示的文本。
 
 `startLocalSessionHost`拥有本机Unix HTTP监听器及入站请求。通道地址为状态根下的
-`run/session-host.sock`；父目录按原私有命名空间规则检查，socket归当前OS用户且为0600。
+`run/<tenant-digest>.sock`。tenant-digest复用租户目录的完整SHA-256身份摘要，以base64url编码，不截短摘要；绑定同时包括中心、组织和账号。共享run目录仅承载临时通道，各租户持久数据仍在原独立目录。不同租户可在同一状态根保持独立宿主；通道名不授予访问权，服务端在调用业务入口前重新核完整绑定。完整socket路径超过103字节时拒绝启动或发送，不允许系统截断路径。父目录按原私有命名空间规则检查，socket归当前OS用户且为0600。
 绑定失败不能先删已有socket，也不能覆盖存活宿主。Node HTTP负责消息分帧；应用只校验
 固定POST路径、媒体类型、严格UTF-8／JSON及实际字节上界。通道不提供对同一OS用户或
 管理员的沙箱保护，不替代根装配的真实身份来源。
@@ -471,3 +471,13 @@ release撤销该捕获的新验证，等待已经参加的实际StorageUnit结�
 后台模型段使用同一个createSessionModelWorkOwner：可信根将其readIn交Ingress.workSettledIn，同时把原拥有者交执行宿主。该拥有者固定真实Storage实例／租户和显式maxRecords，登记原Scope／准备并返回不可复制的原token。没有登记记录返回unavailable，有任一未确认任务返回pending；不能用空集合推定settled。宿主只有在实际模型段返回原保管／采用／ACK成功后才确认token；finish仍在原Unit核真实实例，可靠finish及归还日志后才能释放记录。不同准备、租户、复制token或提前释放不授结算权。
 
 该记录表示当前根对实际任务的保管，属于运行时资源；它不是持久恢复证明。新进程不能据旧Run或日志存在补登记为已结算，重启认回仍须由后续恢复承诺完成。工具回复不使用这个模型段将整Run证明为已结算。普通客户端不能取得readIn、原Unit或token。
+
+### 正式运行根的装配与关闭
+
+`startSessionRuntimeRoot`借入真实根／租户Storage、治理客户端、时钟、合法部署输入和物理模型池，组合已有G28、SessionIngress、原模型发起／结果保管拥有者、工作结算证明及独立Session Context。构造先核固定中心／账号／登录句柄和实际opened use来源，再刷新登录；原use关闭结束后才分配本机运行资源。缺失资产、Context seed、模型资格、引用保管或策略均不补默认。普通客户端只使用既有私有通道协议；可信owners不进入协议。
+
+模型Run绑定将SDK的call工厂固定为Session已经持久prepareCall的原call，保持原message／response工厂。全局模型工厂不能另造call后与原准备不匹配。模型执行来源由正式根提供实际来源getter，引用保管仍在同Unit完成；该getter不授予权限。
+
+关闭先停止宿主及等待原任务；仍有未交还责任时返回pending，保留原拥有者。可靠收场后依次结束原发起／捕获、Context及访问绑定、Ingress、日志和G28。本入口不关闭借入Storage、治理客户端或物理模型池。启动失败必须完成已分配资源的实际收场；若收场失败或pending，则抛SessionRuntimeRootFailure并保留原closeRetained闭包及原错误。closeRetained只保留原收场责任，不承诺自动重试、恢复准入或取消独立模型／工具。
+
+此函数负责实际资源总装与监听，不负责创建独立OS进程、解析生产配置文件或发行资产。调用方必须提供完整且可信的部署输入，并承担借入资源的最终关闭。

@@ -1,7 +1,8 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { chmod } from 'node:fs/promises'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { prepareStateDirectory } from './state-layout.ts'
+import { prepareStateDirectory, type TenantBinding } from './state-layout.ts'
+import { checkedTenantBinding } from './state-layout-values.ts'
 import { parseSessionHostRequest, type SessionHostEndpoint } from './session-host-protocol.ts'
 import {
   positivePolicy,
@@ -29,6 +30,7 @@ export interface LocalSessionHost {
   readonly close: () => Promise<void>
 }
 interface HostOptions {
+  readonly binding: TenantBinding
   readonly home: string
   readonly endpoint: SessionHostEndpoint
   readonly policy: SessionHostPolicy
@@ -47,10 +49,11 @@ export async function startLocalSessionHost(options: HostOptions): Promise<Local
     'maxFailureRecords',
     'maxHeaderBytes',
   ])
-  const address = sessionHostAddress(options.home)
+  const binding = Object.freeze(checkedTenantBinding(options.binding))
+  const address = sessionHostAddress(options.home, binding)
   await prepareStateDirectory(address.home, address.directory)
   const owned = new HttpSessionHost(
-    Object.freeze({ ...options, policy: Object.freeze({ ...options.policy }) }),
+    Object.freeze({ ...options, binding, policy: Object.freeze({ ...options.policy }) }),
   )
   await owned.listen(address.socketPath)
   return Object.freeze({
@@ -134,7 +137,8 @@ class HttpSessionHost {
       const text = await readSessionBody(request, this.options.policy.maxRequestBytes)
       const parsed = readJsonStrict(text)
       const packet = 'ok' in parsed ? parseSessionHostRequest(parsed.ok) : undefined
-      if (!packet) throw new SessionProtocolFailure('invalidRequest', 400)
+      if (!packet || !sameBinding(packet.binding, this.options.binding))
+        throw new SessionProtocolFailure('invalidRequest', 400)
       if (!this.admitting) throw new SessionProtocolFailure('unavailable', 503)
       // Client disconnect never supplies a cancellation signal to this original operation.
       const result = await this.options.endpoint.execute(packet)
@@ -197,6 +201,13 @@ class HttpSessionHost {
         `session host closed with failures; additional failures: ${this.additionalFailures}`,
       )
   }
+}
+function sameBinding(left: TenantBinding, right: TenantBinding) {
+  return (
+    left.centerId === right.centerId &&
+    left.tenant.organization === right.tenant.organization &&
+    left.tenant.account === right.tenant.account
+  )
 }
 function sendResponse(response: ServerResponse, status: number, body: Buffer): Promise<void> {
   if (response.destroyed) return Promise.resolve()

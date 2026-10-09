@@ -190,6 +190,9 @@ importers:
       '@omne-harness-lite/session-log':
         specifier: workspace:*
         version: link:../../packages/core/session-log
+      '@omne-harness-lite/session-log-sql':
+        specifier: workspace:*
+        version: link:../../packages/session/session-log-sql
       '@omne-harness-lite/session-runtime':
         specifier: workspace:*
         version: link:../../packages/core/session-runtime
@@ -221,9 +224,6 @@ importers:
       '@omne-harness-lite/asset-registry-local':
         specifier: workspace:*
         version: link:../../packages/tools/asset-registry-local
-      '@omne-harness-lite/session-log-sql':
-        specifier: workspace:*
-        version: link:../../packages/session/session-log-sql
       '@omne-harness-lite/tool-definition':
         specifier: workspace:*
         version: link:../../packages/core/tool-definition

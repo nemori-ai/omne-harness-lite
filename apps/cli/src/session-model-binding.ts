@@ -49,6 +49,7 @@ export async function createSessionRunModelBinding(
   )
   if ('failure' in borrowed) return borrowed
   const journal = borrowed.journal
+  const originalCall = options.preparation.call
   try {
     const log = Object.freeze({
       session: journal.scope.session,
@@ -73,6 +74,10 @@ export async function createSessionRunModelBinding(
     const operations = options.model.project(
       {
         ...options.host,
+        identities: Object.freeze({
+          ...options.host.identities,
+          call: () => originalCall,
+        }),
         sessions: {
           bind: async session =>
             session === journal.scope.session ? { binding } : { failure: 'invalidInput' },
