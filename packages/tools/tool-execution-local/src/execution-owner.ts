@@ -1,5 +1,7 @@
+import { randomUUID } from 'node:crypto'
 import { copyJsonValue, type JsonValue } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
+import type { CheckedPrefix } from '@omne-harness-lite/session-log'
 import { instantToRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
 import type {
   ContextBinding,
@@ -31,11 +33,14 @@ import type {
   ToolImplementationOperations,
   ToolRuntimeOperations,
   ToolResultWriter,
+  ToolOriginalIssueSupport,
+  ToolJournalPayload,
 } from '@omne-harness-lite/tool-execution-runtime'
 import type {
   ExecutionEnvironmentOperations,
   EnvironmentFacilities,
 } from '@omne-harness-lite/execution-environments'
+import { createToolOriginalIssue } from './original-issue.ts'
 import { createExecutionEnvironment } from './execution-environment.ts'
 import { createExecutionContextReader } from './execution-context.ts'
 import { createExecutionObserver } from './execution-observer.ts'
@@ -72,6 +77,11 @@ interface OwnedExecution {
   ending: Promise<unknown>
   writer?: ToolResultWriter
   frameBytes: number
+  original?: ReturnType<typeof createToolOriginalIssue>
+  readonly stopped: Promise<void>
+  readonly resolveStopped: () => void
+  readonly rejectStopped: (error: unknown) => void
+  finished: boolean
 }
 function ownRef(supplied: ExecutionRef): ExecutionRef | undefined {
   const copied = copyJsonValue(supplied)
@@ -136,6 +146,7 @@ function executionSnapshot(ref: ExecutionRef, history: ToolJournalHistory): Exec
 /** Private execution owner. Construction ports stay inside the provider; none are plugin config. */
 export function createExecutionOwner(input: {
   readonly journal: Journal
+  readonly originalIssue?: ToolOriginalIssueSupport | undefined
   readonly authorization: SessionAccessOperations
   readonly admission: () => ToolAdmissionOperations | undefined
   readonly implementations: ToolImplementationOperations
@@ -173,6 +184,7 @@ export function createExecutionOwner(input: {
     readonly writer?: ToolResultWriter
   }) => Promise<PreparedTerminal | 'unavailable'>
 }) {
+  const originalGeneration = randomUUID()
   const owned = new Map<string, OwnedExecution>(),
     submissions = new Map<string, Promise<unknown>>(),
     listeners = new Map<string, Set<() => void>>(),
@@ -305,6 +317,7 @@ export function createExecutionOwner(input: {
     } as const
   }
   async function invocationSelection(job: OwnedExecution) {
+    if (!(await prepareOriginalEntry(job))) return
     // A declaration is not a resolved dependency.
     if (job.selected && unsupportedDependencies(job.selected)) {
       await end(job, { outcome: 'unavailable', reason: 'execution_dependencies_unavailable' })
@@ -506,13 +519,21 @@ export function createExecutionOwner(input: {
     await end(job, job.result)
   }
   async function releaseCompletedExecution(job: OwnedExecution): Promise<void> {
-    if (job.entered) {
+    if (!job.original && job.entered) {
       await release(job)
       return
     }
     // A lost start or adoption receipt retains both original dependencies until recognition or termination.
     const view = await input.journal.read(job.request.scope, job.ref.callId)
-    if (view.kind === 'view' && view.executions.get(job.ref.callId)?.terminal) await release(job)
+    if (view.kind === 'view' && view.executions.get(job.ref.callId)?.terminal)
+      job.finished = await release(job)
+  }
+  async function prepareOriginalEntry(job: OwnedExecution): Promise<boolean> {
+    if (!job.original) return true
+    const gate = await job.original.launch()
+    if (gate === 'finishUnconfirmed')
+      await end(job, { outcome: 'unavailable', reason: 'original_consume_unconfirmed' })
+    return gate === 'launch'
   }
   async function run(job: OwnedExecution): Promise<void> {
     let removeInvalidation: (() => void) | undefined
@@ -552,9 +573,11 @@ export function createExecutionOwner(input: {
     void task.then(
       () => {
         if (job.task === task) delete job.task
+        if (job.finished) job.resolveStopped()
       },
-      () => {
+      error => {
         if (job.task === task) delete job.task
+        job.rejectStopped(error)
       },
     )
     // Reentry may finish a retained terminal or recognize a lost start receipt. It never invokes twice.
@@ -593,7 +616,17 @@ export function createExecutionOwner(input: {
       ? input.implementations.acquire(decision.selected)
       : undefined
     const lease = acquired && 'implementation' in acquired ? acquired : undefined
+    let resolveStopped!: () => void, rejectStopped!: (error: unknown) => void
+    const stopped = new Promise<void>((resolve, reject) => {
+      resolveStopped = resolve
+      rejectStopped = reject
+    })
+    void stopped.catch(() => {})
     const job: OwnedExecution = {
+      stopped,
+      resolveStopped,
+      rejectStopped,
+      finished: false,
       request,
       ref,
       acceptedAt: basis.acceptedAt,
@@ -639,44 +672,70 @@ export function createExecutionOwner(input: {
       if (!transferred) await release(job)
     }
   }
+  async function admitOriginalJob(job: OwnedExecution): Promise<SubmissionResult> {
+    if (!(await job.original!.admit())) return { kind: 'rejected', reason: 'runtimeUnavailable' }
+    launch(job)
+    return { kind: 'recorded', execution: job.ref }
+  }
+  async function commitIntent(job: OwnedExecution, expected: CheckedPrefix) {
+    const value: Extract<ToolJournalPayload, { kind: 'execution_intended' }> = {
+      kind: 'execution_intended',
+      revision: 1,
+      ref: job.ref,
+      origin: job.request.origin,
+      ...(job.selected ? { selected: job.selected } : {}),
+      input: {
+        format: 'tool-input/1',
+        submission: submissionIdentity(job.request),
+        acceptedAt: job.acceptedAt,
+        chain: job.chain,
+        pass: job.pass,
+      } as unknown as JsonValue,
+    }
+    if (input.originalIssue) {
+      job.original = createToolOriginalIssue({
+        support: input.originalIssue,
+        generation: originalGeneration,
+        expected: expected,
+        value,
+        stopped: job.stopped,
+        isOpen: () => open && input.journal.isCurrent(),
+      })
+      return { kind: 'original', result: await admitOriginalJob(job) } as const
+    }
+    return input.journal.commit({
+      ref: job.ref,
+      origin: job.request.origin,
+      expected: expected,
+      values: [value],
+    })
+  }
+  async function resumeOwnedExecution(
+    decision: Exclude<SubmissionAdmission, { kind: 'rejected' }>,
+    ref: ExecutionRef,
+  ): Promise<SubmissionResult | undefined> {
+    const job = owned.get(keyOf(ref))
+    if (job?.original) return admitOriginalJob(job)
+    if (decision.kind !== 'existing') return
+    if (job) launch(job)
+    return { kind: 'recorded', execution: ref }
+  }
   async function submit(supplied: ExecutionSubmission): Promise<SubmissionResult> {
     for (let attempt = 0; attempt < input.attempts; attempt++) {
       const decision = await check(supplied)
       if (decision.kind === 'rejected') return decision
       const request = decision.request,
         ref: ExecutionRef = { ...request.scope, callId: request.call.callId }
-      if (decision.kind === 'existing') {
-        const job = owned.get(keyOf(ref))
-        if (job) launch(job)
-        return { kind: 'recorded', execution: ref }
-      }
+      const resumed = await resumeOwnedExecution(decision, ref)
+      if (resumed) return resumed
+      if (decision.kind !== 'admitted') throw new Error('unhandled original execution replay')
       const prepared = await prepareIntent(decision, ref)
       if (prepared.kind === 'retry') continue
       if (prepared.kind !== 'prepared') return prepared
       const job = prepared.job
-      // Retain continuity before an append whose receipt can be lost.
       owned.set(keyOf(ref), job)
-      const committed = await input.journal.commit({
-        ref,
-        origin: request.origin,
-        expected: decision.view.prefix,
-        values: [
-          {
-            kind: 'execution_intended',
-            revision: 1,
-            ref,
-            origin: request.origin,
-            ...(job.selected ? { selected: job.selected } : {}),
-            input: {
-              format: 'tool-input/1',
-              submission: submissionIdentity(request),
-              acceptedAt: job.acceptedAt,
-              chain: job.chain,
-              pass: job.pass,
-            } as unknown as JsonValue,
-          },
-        ],
-      })
+      const committed = await commitIntent(job, decision.view.prefix)
+      if (committed.kind === 'original') return committed.result
       if (committed.kind === 'view') {
         launch(job)
         return { kind: 'recorded', execution: ref }
@@ -691,6 +750,8 @@ export function createExecutionOwner(input: {
     return { kind: 'rejected', reason: 'runtimeUnavailable' }
   }
   async function closeExecution(job: OwnedExecution): Promise<void> {
+    if (job.original && !(await job.original.canClose()))
+      throw new Error('execution owner retains unconfirmed original admission')
     const view = await input.journal.read(job.request.scope, job.ref.callId)
     if (view.kind !== 'view') throw new Error('execution owner retains unresolved writes')
     if (view.executions.has(job.ref.callId)) {
@@ -817,6 +878,7 @@ export function createExecutionOwner(input: {
         }
         if (faults.size) throw new AggregateError([...faults], 'execution owner task failed')
         await input.journal.close()
+        owned.forEach(job => job.resolveStopped())
       })()
       closing = task
       void task.catch(() => {

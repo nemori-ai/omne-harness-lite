@@ -27,6 +27,7 @@ import {
   type ExecutionSubmission,
   type ExecutionTerminal,
   type ToolExecutor,
+  type ToolOriginalIssueSupport,
 } from '@omne-harness-lite/tool-execution-runtime'
 import { createExecutionOwner } from '../src/execution-owner.ts'
 import { createToolImplementationRegistry } from '../src/implementations.ts'
@@ -114,6 +115,9 @@ export async function fixture(
   invalidated?: AbortSignal,
   adoptedDefinition: ToolDefinition = definition,
   environments?: Parameters<typeof createExecutionOwner>[0]['environments'],
+  originalIssue?: (
+    log: Awaited<ReturnType<typeof openSqlLogFixture>>,
+  ) => ToolOriginalIssueSupport | Promise<ToolOriginalIssueSupport>,
 ) {
   const dir = await mkdtemp(join(tmpdir(), 'omne-execution-owner-'))
   const log = await openSqlLogFixture({ dir: dir })
@@ -246,6 +250,7 @@ export async function fixture(
   )
   const owner = createExecutionOwner({
     journal,
+    ...(originalIssue ? { originalIssue: await originalIssue(log) } : {}),
     ...(environments ? { environments } : {}),
     authorization: { authorize },
     admission: () => admission,

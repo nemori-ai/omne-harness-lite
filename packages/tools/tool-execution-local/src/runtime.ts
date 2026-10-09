@@ -8,6 +8,8 @@ import type {
   ToolRuntimeDependencies,
   ToolRuntimeInstance,
   ToolRuntimeOperations,
+  ToolRuntimeOriginalIssueDependencies,
+  ToolOriginalIssueSupport,
 } from '@omne-harness-lite/tool-execution-runtime'
 import { createExecutionOwner } from './execution-owner.ts'
 import { createResultPreparation } from './execution-result.ts'
@@ -19,6 +21,22 @@ import { jsonObject } from './json-values.ts'
 export function createToolRuntime(
   supplied: ToolRuntimeConfig,
   dependencies: ToolRuntimeDependencies,
+): ToolRuntimeInstance {
+  return createRuntime(supplied, dependencies)
+}
+
+export function createOriginalIssueToolRuntime(
+  supplied: ToolRuntimeConfig,
+  dependencies: ToolRuntimeOriginalIssueDependencies,
+): ToolRuntimeInstance {
+  if (!dependencies.originalIssue) throw new TypeError('original Tool issue support required')
+  return createRuntime(supplied, dependencies, dependencies.originalIssue)
+}
+
+function createRuntime(
+  supplied: ToolRuntimeConfig,
+  dependencies: ToolRuntimeDependencies,
+  originalIssue?: ToolOriginalIssueSupport,
 ): ToolRuntimeInstance {
   const copied = copyJsonValue(supplied)
   if ('failed' in copied) throw new TypeError('ordinary tool runtime configuration required')
@@ -60,6 +78,7 @@ export function createToolRuntime(
   const owner = createExecutionOwner({
     ...dependencies,
     journal,
+    originalIssue,
     attempts: config.tailRetry.attempts,
     frameQueueBytes: config.frameQueueBytes,
     retry,

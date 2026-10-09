@@ -153,6 +153,7 @@ export function createRuntimeJournal(input: {
 
   return Object.freeze({
     generation,
+    isCurrent: active,
     read(
       supplied: SessionScope,
       call: string,

@@ -4,6 +4,10 @@
 
 `createToolRuntime(config, dependencies)` 返回 operations、ready、idle() 与 close()。发布操作前必须等待 ready。依赖包括共享日志代、完整动作历史、runtime context、结果存储及不可变 runner 链读取口。启动恢复使用应用的私有维护授权。
 
+`createOriginalIssueToolRuntime(config, dependencies)` 选择同一个原工具执行器，并要求传入 `originalIssue`。该可信输入携带实际共同存储、日志参加者、日志权限、当前资格和Session准入。装配须先将 `toolOriginalIssueMigrations` 合入同库迁移。工厂不关闭这些借入资源；普通工厂和既有Cordis绑定不会隐式取得此协议。
+
+原owner先保有完整job、输入和固定实现，再给Session提供同事务参加者。原意图和唯一claim先提交；原claim的消费确认后才进入作者。发起不明保留原job；消费已提交但回执丢失时，以未启动的unavailable终局收场，不补调作者。`stopped`只证明该job的实际工作和借用已收场，不代替结果交付凭证。目前组件验证使用真实SQLite与原执行器，Session准入仍为受控输入；完整Session保管／交付和动态Cordis驱动另行验证。
+
 `./cordis` 承载普通与 managed 绑定。后者使用共享装配生命周期及启动服务，保留原实例的关闭控制。配置仅包含普通数据，不能塞入活体依赖或授权 token。恢复完成后才登记运行时，撤除等待原执行善后，不关闭应用物理日志或兄弟提供者。
 
 观察者 release 不停止执行。冷恢复收场 queued、running、waiting 责任，不重新进入工具作者函数。未确认的资源停止会阻止就绪。存在 targetEnvironment 的工具采用实际资产输入和当前授权，持有同一个环境 lease；纯工具不获取环境。原始外部作用、逻辑终局和物理停止分别报告。
