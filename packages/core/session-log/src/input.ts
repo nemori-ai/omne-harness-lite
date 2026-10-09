@@ -48,6 +48,30 @@ function conditionFrom(value: JsonValue): AppendCondition | InvalidInput {
 function validPayload(value: JsonValue | undefined): value is JsonValue {
   return value !== undefined && !('failure' in checkLogPayload(value))
 }
+function readKeysFrom(values: readonly JsonValue[]): readonly string[] | InvalidInput {
+  const readKeys: string[] = []
+  const seen = new Set<string>()
+  for (const key of values) {
+    if (!checkKey(key) || seen.has(key)) return invalidInput
+    seen.add(key)
+    readKeys.push(key)
+  }
+  return Object.freeze(readKeys)
+}
+function entryCoordinates(value: {
+  readonly [key: string]: JsonValue
+}): Pick<OwnedLogEntry, 'run' | 'attempt' | 'dedupeKey'> | InvalidInput {
+  if (Object.hasOwn(value, 'run') !== Object.hasOwn(value, 'attempt')) return invalidInput
+  const run = value.run
+  const attempt = value.attempt
+  if (run !== undefined && (!checkKey(run) || !positiveInteger(attempt))) return invalidInput
+  const dedupeKey = value.dedupeKey
+  if (dedupeKey !== undefined && !checkKey(dedupeKey)) return invalidInput
+  return {
+    ...(typeof run === 'string' && positiveInteger(attempt) ? { run, attempt } : {}),
+    ...(typeof dedupeKey === 'string' ? { dedupeKey } : {}),
+  }
+}
 function entryFrom(value: JsonValue): OwnedLogEntry | InvalidInput {
   if (
     !object(value) ||
@@ -57,28 +81,47 @@ function entryFrom(value: JsonValue): OwnedLogEntry | InvalidInput {
   const tenant = parseTenantId(value.tenant)
   if (!isOk(tenant) || !Object.hasOwn(value, 'payload') || !Array.isArray(value.readKeys))
     return invalidInput
-  const readKeys: string[] = []
-  const seen = new Set<string>()
-  for (const key of value.readKeys) {
-    if (!checkKey(key) || seen.has(key)) return invalidInput
-    seen.add(key)
-    readKeys.push(key)
-  }
-  if (Object.hasOwn(value, 'run') !== Object.hasOwn(value, 'attempt')) return invalidInput
-  const run = value.run
-  const attempt = value.attempt
-  if (run !== undefined && (!checkKey(run) || !positiveInteger(attempt))) return invalidInput
-  const dedupeKey = value.dedupeKey
-  if (dedupeKey !== undefined && !checkKey(dedupeKey)) return invalidInput
+  const readKeys = readKeysFrom(value.readKeys)
+  if ('failure' in readKeys) return invalidInput
+  const coordinates = entryCoordinates(value)
+  if ('failure' in coordinates) return invalidInput
   const payload = value.payload
   if (!validPayload(payload)) return invalidInput
   return Object.freeze({
     tenant: Object.freeze(tenant.ok),
-    ...(typeof run === 'string' && positiveInteger(attempt) ? { run, attempt } : {}),
-    ...(typeof dedupeKey === 'string' ? { dedupeKey } : {}),
-    readKeys: Object.freeze(readKeys),
+    ...coordinates,
+    readKeys,
     payload,
   })
+}
+
+function entryMatchesFence(entry: OwnedLogEntry, fence: AppendFence): boolean {
+  return (
+    fence.kind !== 'fenced' ||
+    (entry.run === fence.run &&
+      entry.attempt !== undefined &&
+      compareInteger(entry.attempt, fence.attempt) === 0)
+  )
+}
+function entriesFrom(
+  raw: readonly JsonValue[],
+  fence: AppendFence,
+): readonly OwnedLogEntry[] | InvalidInput {
+  const owned: OwnedLogEntry[] = []
+  const keys = new Set<string>()
+  for (const entry of raw) {
+    const parsed = entryFrom(entry)
+    if ('failure' in parsed) return invalidInput
+    const first = owned[0]
+    if (first !== undefined && !tenantIdEquals(first.tenant, parsed.tenant)) return invalidInput
+    if (parsed.dedupeKey !== undefined) {
+      if (keys.has(parsed.dedupeKey)) return invalidInput
+      keys.add(parsed.dedupeKey)
+    }
+    if (!entryMatchesFence(parsed, fence)) return invalidInput
+    owned.push(parsed)
+  }
+  return Object.freeze(owned)
 }
 
 /** S-17/S-32: representation only; copies all data before any IO or queue admission. */
@@ -105,30 +148,12 @@ export function checkAppendInput(
   const parsedFence = fenceFrom(rawFence)
   const parsedCondition = conditionFrom(rawCondition)
   if ('failure' in parsedFence || 'failure' in parsedCondition) return invalidInput
-  const owned: OwnedLogEntry[] = []
-  const keys = new Set<string>()
-  for (const entry of rawEntries) {
-    const parsed = entryFrom(entry)
-    if ('failure' in parsed) return invalidInput
-    const first = owned[0]
-    if (first !== undefined && !tenantIdEquals(first.tenant, parsed.tenant)) return invalidInput
-    if (parsed.dedupeKey !== undefined) {
-      if (keys.has(parsed.dedupeKey)) return invalidInput
-      keys.add(parsed.dedupeKey)
-    }
-    if (
-      parsedFence.kind === 'fenced' &&
-      (parsed.run !== parsedFence.run ||
-        parsed.attempt === undefined ||
-        compareInteger(parsed.attempt, parsedFence.attempt) !== 0)
-    )
-      return invalidInput
-    owned.push(parsed)
-  }
+  const owned = entriesFrom(rawEntries, parsedFence)
+  if ('failure' in owned) return invalidInput
   return Object.freeze({
     ok: Object.freeze({
       session: parsedSession.ok,
-      entries: Object.freeze(owned),
+      entries: owned,
       fence: parsedFence,
       condition: parsedCondition,
     }),

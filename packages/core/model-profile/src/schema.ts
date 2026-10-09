@@ -1,4 +1,4 @@
-import { LosslessNumber, type JsonValue } from '@omne-harness-lite/content-blocks'
+import { LosslessNumber, type JsonObject, type JsonValue } from '@omne-harness-lite/content-blocks'
 import { createRequire } from 'node:module'
 import { schemaId, SCHEMA_DEF_NAMES } from './schema-inputs.ts'
 export { schemaId, SCHEMA_DEF_NAMES }
@@ -30,25 +30,32 @@ export function validate(defName: SchemaDefName, value: unknown): SchemaValidati
 
 type NumericContext = SchemaDefName | 'generic'
 
+const profileNumericMembers = ['maxInputTokens', 'maxOutputTokens']
+const inputConstraintMembers = ['maxImageBytes', 'maxImages', 'maxRequestBytes']
+const inputLimitMembers = ['maxInputTokens', 'maxRequestBytes', 'maxImageBytes', 'maxImages']
+const numericMembers: Partial<Record<NumericContext, readonly string[]>> = {
+  InputLimitFact: ['value'],
+  InputConstraints: inputConstraintMembers,
+  ModelRequestParameters: ['topP', 'maxOutputTokens'],
+  ModelProfile: profileNumericMembers,
+  ModelProfileContent: profileNumericMembers,
+  ModelProfileSnapshot: profileNumericMembers,
+}
+
+function isProfileContext(context: NumericContext): boolean {
+  return (
+    context === 'ModelProfile' ||
+    context === 'ModelProfileContent' ||
+    context === 'ModelProfileSnapshot'
+  )
+}
+
+function isNumericMember(context: NumericContext, member: string): boolean {
+  return numericMembers[context]?.includes(member) === true
+}
+
 function project(value: JsonValue, context: NumericContext, member?: string): unknown {
-  if (LosslessNumber.is(value)) {
-    if (context === 'InputLimitFact' && member === 'value') return 1
-    if (
-      context === 'InputConstraints' &&
-      ['maxImageBytes', 'maxImages', 'maxRequestBytes'].includes(member ?? '')
-    )
-      return 1
-    if (context === 'ModelRequestParameters' && (member === 'topP' || member === 'maxOutputTokens'))
-      return 1
-    if (
-      (context === 'ModelProfile' ||
-        context === 'ModelProfileContent' ||
-        context === 'ModelProfileSnapshot') &&
-      (member === 'maxInputTokens' || member === 'maxOutputTokens')
-    )
-      return 1
-    return 0
-  }
+  if (LosslessNumber.is(value)) return isNumericMember(context, member ?? '') ? 1 : 0
   if (Array.isArray(value)) return value.map(item => project(item, 'generic'))
   if (isObject(value))
     return Object.fromEntries(
@@ -61,73 +68,65 @@ function project(value: JsonValue, context: NumericContext, member?: string): un
 }
 
 function childContext(context: NumericContext, key: string): NumericContext {
-  const profile =
-    context === 'ModelProfile' ||
-    context === 'ModelProfileContent' ||
-    context === 'ModelProfileSnapshot'
+  const profile = isProfileContext(context)
   if (profile && key === 'inputConstraints') return 'InputConstraints'
   if (profile && key === 'upstreamInputLimits') return 'UpstreamInputLimits'
   if (profile && key === 'parameters') return 'ModelRequestParameters'
-  if (
-    context === 'UpstreamInputLimits' &&
-    ['maxInputTokens', 'maxRequestBytes', 'maxImageBytes', 'maxImages'].includes(key)
-  )
-    return 'InputLimitFact'
-  if (
-    (profile && ['maxInputTokens', 'maxOutputTokens'].includes(key)) ||
-    (context === 'InputConstraints' &&
-      ['maxImageBytes', 'maxImages', 'maxRequestBytes'].includes(key)) ||
-    (context === 'InputLimitFact' && key === 'value') ||
-    (context === 'ModelRequestParameters' && ['topP', 'maxOutputTokens'].includes(key))
-  )
-    return context
+  if (context === 'UpstreamInputLimits' && inputLimitMembers.includes(key)) return 'InputLimitFact'
+  if (isNumericMember(context, key)) return context
   return 'generic'
+}
+
+function exactParameterNumbers(value: JsonObject): boolean {
+  if (Object.hasOwn(value, 'seed') && !isJsonInteger(value.seed)) return false
+  return !parametersOutOfRange(value)
+}
+
+function exactConstraintNumbers(value: JsonObject): boolean {
+  return inputConstraintMembers.every(
+    name => !Object.hasOwn(value, name) || isPositiveInteger(value[name]),
+  )
+}
+
+function exactLimitNumbers(value: JsonObject): boolean {
+  return inputLimitMembers.every(
+    name =>
+      !Object.hasOwn(value, name) ||
+      (value[name] !== undefined && exactNumbers('InputLimitFact', value[name])),
+  )
+}
+
+function exactProfileChildren(value: JsonObject): boolean {
+  const children: readonly (readonly [string, SchemaDefName])[] = [
+    ['inputConstraints', 'InputConstraints'],
+    ['parameters', 'ModelRequestParameters'],
+    ['upstreamInputLimits', 'UpstreamInputLimits'],
+  ]
+  for (const [name, definition] of children) {
+    if (
+      Object.hasOwn(value, name) &&
+      value[name] !== undefined &&
+      !exactNumbers(definition, value[name])
+    )
+      return false
+  }
+  return true
+}
+
+function exactProfileNumbers(value: JsonObject): boolean {
+  for (const name of profileNumericMembers) {
+    if (Object.hasOwn(value, name) && !isPositiveInteger(value[name])) return false
+  }
+  return exactProfileChildren(value)
 }
 
 function exactNumbers(defName: SchemaDefName, value: JsonValue): boolean {
   if (!isObject(value)) return true
-  if (defName === 'ModelRequestParameters') {
-    if (Object.hasOwn(value, 'seed') && !isJsonInteger(value.seed)) return false
-    return !parametersOutOfRange(value)
-  }
-  if (defName === 'InputConstraints')
-    return ['maxImageBytes', 'maxImages', 'maxRequestBytes'].every(
-      name => !Object.hasOwn(value, name) || isPositiveInteger(value[name]),
-    )
+  if (defName === 'ModelRequestParameters') return exactParameterNumbers(value)
+  if (defName === 'InputConstraints') return exactConstraintNumbers(value)
   if (defName === 'InputLimitFact')
     return !Object.hasOwn(value, 'value') || isPositiveInteger(value.value)
-  if (defName === 'UpstreamInputLimits')
-    return ['maxInputTokens', 'maxRequestBytes', 'maxImageBytes', 'maxImages'].every(
-      name =>
-        !Object.hasOwn(value, name) ||
-        (value[name] !== undefined && exactNumbers('InputLimitFact', value[name])),
-    )
-  if (
-    defName === 'ModelProfile' ||
-    defName === 'ModelProfileContent' ||
-    defName === 'ModelProfileSnapshot'
-  ) {
-    for (const name of ['maxInputTokens', 'maxOutputTokens']) {
-      if (Object.hasOwn(value, name) && !isPositiveInteger(value[name])) return false
-    }
-    if (
-      Object.hasOwn(value, 'inputConstraints') &&
-      value.inputConstraints !== undefined &&
-      !exactNumbers('InputConstraints', value.inputConstraints)
-    )
-      return false
-    if (
-      Object.hasOwn(value, 'parameters') &&
-      value.parameters !== undefined &&
-      !exactNumbers('ModelRequestParameters', value.parameters)
-    )
-      return false
-    if (
-      Object.hasOwn(value, 'upstreamInputLimits') &&
-      value.upstreamInputLimits !== undefined &&
-      !exactNumbers('UpstreamInputLimits', value.upstreamInputLimits)
-    )
-      return false
-  }
+  if (defName === 'UpstreamInputLimits') return exactLimitNumbers(value)
+  if (isProfileContext(defName)) return exactProfileNumbers(value)
   return true
 }

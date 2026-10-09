@@ -20,18 +20,22 @@ export function judgeAccountValue(kind: SchemaDefName, value: unknown): AccountJ
   if (numbers(copied).some(number => ExactDecimal.from(number).compare(ExactDecimal.from(0)) < 0))
     return Object.freeze({ rejected: 'negative_amount' })
   if (badSource(kind, copied)) return Object.freeze({ rejected: 'unknown_with_source' })
-  if (
-    kind === 'ToolCallAccount' &&
-    isObject(copied) &&
-    isObject(copied.cost) &&
-    Array.isArray(copied.cost.items) &&
-    copied.cost.items.some(item => isObject(item) && item.cost_usd === 'unknown') &&
-    isJsonNumber(copied.cost.total_usd)
-  )
+  if (totalKnownWithUnknownItem(kind, copied))
     return Object.freeze({ rejected: 'total_not_unknown' })
   if (!combinations(kind, copied) || !validate(kind, copied).valid)
     return Object.freeze({ rejected: 'malformed' })
   return Object.freeze({ ok: true })
+}
+
+function totalKnownWithUnknownItem(kind: SchemaDefName, value: JsonValue): boolean {
+  return (
+    kind === 'ToolCallAccount' &&
+    isObject(value) &&
+    isObject(value.cost) &&
+    Array.isArray(value.cost.items) &&
+    value.cost.items.some(item => isObject(item) && item.cost_usd === 'unknown') &&
+    isJsonNumber(value.cost.total_usd)
+  )
 }
 
 function validTarget(value: JsonValue | undefined): boolean {
@@ -63,40 +67,56 @@ function badSource(kind: SchemaDefName, value: JsonValue): boolean {
       ? value.cost_usd !== 'unknown' || Object.hasOwn(value, 'upstream_inference_cost_usd')
       : value.cost_usd === 'unknown'
   if (kind === 'CostItem') return (value.source === 'none') !== (value.cost_usd === 'unknown')
-  if (kind === 'ToolCallAccount')
-    return (
-      (isObject(value.usage) && badSource('Usage', value.usage)) ||
-      (isObject(value.cost) &&
-        Array.isArray(value.cost.items) &&
-        value.cost.items.some(item => badSource('CostItem', item)))
-    )
+  if (kind === 'ToolCallAccount') return badToolSource(value)
   return false
+}
+function badToolSource(value: JsonObject): boolean {
+  return (
+    (isObject(value.usage) && badSource('Usage', value.usage)) ||
+    (isObject(value.cost) &&
+      Array.isArray(value.cost.items) &&
+      value.cost.items.some(item => badSource('CostItem', item)))
+  )
 }
 function combinations(kind: SchemaDefName, value: JsonValue): boolean {
   if (kind === 'AttemptId')
     return isJsonNumber(value) && ExactDecimal.from(value).compare(ExactDecimal.from(1)) >= 0
   if (!isObject(value)) return true
-  if (kind === 'Usage')
-    return (
-      !isJsonNumber(value.reasoning_tokens) ||
-      !isJsonNumber(value.output_tokens) ||
-      ExactDecimal.from(value.reasoning_tokens).compare(ExactDecimal.from(value.output_tokens)) <= 0
-    )
+  if (kind === 'Usage') return usageCombination(value)
   if (kind === 'CostItem')
     return value.source !== 'model_response' || value.service === 'model_call'
   if (kind === 'TrimSummary') return trimValid(value)
   if (kind === 'FrameAccount') return frameValid(value)
-  if (kind === 'CostCorrection')
-    return (
-      validInstant(value.at) &&
-      (value.obtainedVia !== 'generation_endpoint' ||
-        (isObject(value.target) && value.target.kind === 'model_response'))
-    )
+  if (kind === 'CostCorrection') return correctionCombination(value)
   if (kind !== 'ToolCallAccount') return true
+  return toolCombination(value)
+}
+function usageCombination(value: JsonObject): boolean {
+  return (
+    !isJsonNumber(value.reasoning_tokens) ||
+    !isJsonNumber(value.output_tokens) ||
+    ExactDecimal.from(value.reasoning_tokens).compare(ExactDecimal.from(value.output_tokens)) <= 0
+  )
+}
+function correctionCombination(value: JsonObject): boolean {
+  return (
+    validInstant(value.at) &&
+    (value.obtainedVia !== 'generation_endpoint' ||
+      (isObject(value.target) && value.target.kind === 'model_response'))
+  )
+}
+function toolCombination(value: JsonObject): boolean {
   if (!isObject(value.cost) || !Array.isArray(value.cost.items) || !isObject(value.wallClock))
     return false
   const items = value.cost.items
   if (!items.every(item => combinations('CostItem', item))) return false
+  if (!mirrorsValid(value, items)) return false
+  if (!toolTotalValid(value.cost, items)) return false
+  if (value.frames !== 'unknown' && (!isObject(value.frames) || !frameValid(value.frames)))
+    return false
+  return toolClockValid(value.wallClock, value.stoppedAt)
+}
+function mirrorsValid(value: JsonObject, items: readonly JsonValue[]): boolean {
   const mirrors = items.filter(item => isObject(item) && item.service === 'model_call')
   const references = mirrors.map(item => (isObject(item) ? item.reference : undefined))
   if (
@@ -105,6 +125,9 @@ function combinations(kind: SchemaDefName, value: JsonValue): boolean {
   )
     return false
   if (isObject(value.usage) && !combinations('Usage', value.usage)) return false
+  return true
+}
+function toolTotalValid(cost: JsonObject, items: readonly JsonValue[]): boolean {
   const sum = amountSum(
     items.flatMap(item =>
       isObject(item) && (isJsonNumber(item.cost_usd) || item.cost_usd === 'unknown')
@@ -114,21 +137,22 @@ function combinations(kind: SchemaDefName, value: JsonValue): boolean {
   )
   if (
     sum !== 'unknown' &&
-    (value.cost.total_usd === 'unknown' ||
-      !isJsonNumber(value.cost.total_usd) ||
-      sum.compare(ExactDecimal.from(value.cost.total_usd)) !== 0)
+    (cost.total_usd === 'unknown' ||
+      !isJsonNumber(cost.total_usd) ||
+      sum.compare(ExactDecimal.from(cost.total_usd)) !== 0)
   )
     return false
-  if (value.frames !== 'unknown' && (!isObject(value.frames) || !frameValid(value.frames)))
-    return false
-  if (!validInstant(value.wallClock.startedAt)) return false
-  for (const end of [value.wallClock.endedAt, value.stoppedAt])
+  return true
+}
+function toolClockValid(wallClock: JsonObject, stoppedAt: JsonValue | undefined): boolean {
+  if (!validInstant(wallClock.startedAt)) return false
+  for (const end of [wallClock.endedAt, stoppedAt])
     if (
       end !== undefined &&
       (!validInstant(end) ||
-        typeof value.wallClock.startedAt !== 'string' ||
+        typeof wallClock.startedAt !== 'string' ||
         typeof end !== 'string' ||
-        compareAccountInstants(end, value.wallClock.startedAt) < 0)
+        compareAccountInstants(end, wallClock.startedAt) < 0)
     )
       return false
   return true
@@ -142,13 +166,7 @@ function trimValid(value: JsonObject): boolean {
   )
     return false
   const reason = value.byReason
-  if (
-    !isJsonNumber(reason.rate_merged) ||
-    !isJsonNumber(reason.quota_exhausted) ||
-    !isJsonNumber(reason.rejected) ||
-    !isJsonNumber(reason.frame_too_long)
-  )
-    return false
+  if (!trimReasonNumbers(reason)) return false
   return (
     ExactDecimal.from(value.merged).compare(ExactDecimal.from(reason.rate_merged)) === 0 &&
     ExactDecimal.from(value.cut).compare(
@@ -157,6 +175,17 @@ function trimValid(value: JsonObject): boolean {
     (ExactDecimal.from(value.cut).compare(ExactDecimal.from(0)) !== 0 ||
       ExactDecimal.from(reason.frame_too_long).compare(ExactDecimal.from(0)) !== 0 ||
       ExactDecimal.from(value.omittedBytes).compare(ExactDecimal.from(0)) === 0)
+  )
+}
+function trimReasonNumbers(
+  reason: JsonObject,
+): reason is JsonObject &
+  Readonly<Record<'rate_merged' | 'quota_exhausted' | 'rejected' | 'frame_too_long', JsonNumber>> {
+  return (
+    isJsonNumber(reason.rate_merged) &&
+    isJsonNumber(reason.quota_exhausted) &&
+    isJsonNumber(reason.rejected) &&
+    isJsonNumber(reason.frame_too_long)
   )
 }
 function frameValid(value: JsonObject): boolean {

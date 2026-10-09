@@ -35,17 +35,7 @@ export function copyInputCalibration(
   return Object.freeze({ ok: copied as unknown as InputCalibration })
 }
 
-/** MR11 S-44: called only after member shape and the existing named rejection checks. */
-export function calibrationRelationsValid(value: JsonObject): boolean {
-  const calibration = value.inputCalibration
-  const route = value.route
-  const usage = value.usage
-  if (!isObject(calibration) || !isObject(route) || !isObject(usage)) return false
-  if (!localRelations(calibration)) return false
-  const request = calibration.requestInput
-  const observed = calibration.observedInput
-  const output = calibration.outputGroup
-  if (!isObject(request) || !isObject(observed) || !isObject(output)) return false
+function requestBindingMatches(request: JsonObject, route: JsonObject): boolean {
   if (request.kind === 'known') {
     const basis = request.countingBasis
     if (
@@ -56,30 +46,46 @@ export function calibrationRelationsValid(value: JsonObject): boolean {
     )
       return false
   }
-  if (observed.kind !== 'unavailable') {
-    const amounts = [usage.input_tokens, usage.cache_read_tokens, usage.cache_write_tokens]
-    const known = amounts.filter(isJsonNumber)
-    if (observed.kind === 'from_usage') {
-      if (known.length !== 3 || usage.source !== 'upstream') return false
-    } else {
-      if (known.length === 3 || !isJsonNumber(observed.tokens)) return false
-      const sum = known.reduce(
-        (total, amount) => total.add(ExactDecimal.from(amount)),
-        ExactDecimal.from(0),
-      )
-      if (sum.compare(ExactDecimal.from(observed.tokens)) > 0) return false
-    }
-    const provenance = observed.provenance
-    if (!isObject(provenance)) return false
-    for (const name of ['upstreamRequestId', 'upstreamModel', 'servingProvider']) {
-      if (
-        provenance[name] !== undefined &&
-        route[name] !== undefined &&
-        provenance[name] !== route[name]
-      )
-        return false
-    }
+  return true
+}
+
+function observedAmountsValid(observed: JsonObject, usage: JsonObject): boolean {
+  const amounts = [usage.input_tokens, usage.cache_read_tokens, usage.cache_write_tokens]
+  const known = amounts.filter(isJsonNumber)
+  if (observed.kind === 'from_usage') {
+    if (known.length !== 3 || usage.source !== 'upstream') return false
+  } else {
+    if (known.length === 3 || !isJsonNumber(observed.tokens)) return false
+    const sum = known.reduce(
+      (total, amount) => total.add(ExactDecimal.from(amount)),
+      ExactDecimal.from(0),
+    )
+    if (sum.compare(ExactDecimal.from(observed.tokens)) > 0) return false
   }
+  return true
+}
+
+function provenanceMatches(provenance: JsonObject, route: JsonObject): boolean {
+  for (const name of ['upstreamRequestId', 'upstreamModel', 'servingProvider']) {
+    if (
+      provenance[name] !== undefined &&
+      route[name] !== undefined &&
+      provenance[name] !== route[name]
+    )
+      return false
+  }
+  return true
+}
+
+function observedInputMatches(observed: JsonObject, route: JsonObject, usage: JsonObject): boolean {
+  if (observed.kind === 'unavailable') return true
+  if (!observedAmountsValid(observed, usage)) return false
+  const provenance = observed.provenance
+  if (!isObject(provenance)) return false
+  return provenanceMatches(provenance, route)
+}
+
+function outputGroupMatches(output: JsonObject, value: JsonObject): boolean {
   if (output.kind === 'known') {
     const blocks =
       output.source === 'reply'
@@ -99,4 +105,22 @@ export function calibrationRelationsValid(value: JsonObject): boolean {
       return false
   }
   return true
+}
+
+/** MR11 S-44: called only after member shape and the existing named rejection checks. */
+export function calibrationRelationsValid(value: JsonObject): boolean {
+  const calibration = value.inputCalibration
+  const route = value.route
+  const usage = value.usage
+  if (!isObject(calibration) || !isObject(route) || !isObject(usage)) return false
+  if (!localRelations(calibration)) return false
+  const request = calibration.requestInput
+  const observed = calibration.observedInput
+  const output = calibration.outputGroup
+  if (!isObject(request) || !isObject(observed) || !isObject(output)) return false
+  return (
+    requestBindingMatches(request, route) &&
+    observedInputMatches(observed, route, usage) &&
+    outputGroupMatches(output, value)
+  )
 }

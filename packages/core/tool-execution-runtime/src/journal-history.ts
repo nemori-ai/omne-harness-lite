@@ -207,13 +207,9 @@ function apply(state: ToolJournalHistory, record: InspectedToolJournalEntry): vo
   }
 }
 
-/** Checks this domain's ordered state transitions. Other domains still require their owner's decoder. */
-export function projectToolJournal(
-  scope: SessionScope,
-  entries: readonly LogEntry[],
-): { readonly executions: ReadonlyMap<string, ToolJournalHistory> } | { readonly invalid: true } {
+function captureHistoryInput(scope: SessionScope, entries: readonly LogEntry[]) {
   const copied = copyJsonValue({ scope, entries })
-  if ('failed' in copied) return { invalid: true }
+  if ('failed' in copied) return undefined
   const captured = copied.ok as unknown as {
     readonly scope: SessionScope
     readonly entries: readonly LogEntry[]
@@ -227,7 +223,17 @@ export function projectToolJournal(
     !('ok' in parseOpaqueIdentifier(ownedScope.session, 'SessionRef')) ||
     !Array.isArray(captured.entries)
   )
-    return { invalid: true }
+    return undefined
+  return captured
+}
+/** Checks this domain's ordered state transitions. Other domains still require their owner's decoder. */
+export function projectToolJournal(
+  scope: SessionScope,
+  entries: readonly LogEntry[],
+): { readonly executions: ReadonlyMap<string, ToolJournalHistory> } | { readonly invalid: true } {
+  const captured = captureHistoryInput(scope, entries)
+  if (captured === undefined) return { invalid: true }
+  const ownedScope = captured.scope
   const executions = new Map<string, ToolJournalHistory>(),
     keys = new Set<string>()
   let position = 0 as import('@omne-harness-lite/content-blocks').JsonNumber

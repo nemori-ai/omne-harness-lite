@@ -17,6 +17,13 @@ import {
 import type { ModelProfileRef } from '@omne-harness-lite/model-profile'
 import type {
   Message,
+  MessageBase,
+  SystemMessage,
+  UserMessage,
+  ToolInternalMessage,
+  SystemReminderMessage,
+  ModelCallAcknowledgedRecord,
+  ModelCallDispatchedRecord,
   ModelInvocationRecord,
   ReminderSource,
   PlainMessageBlock,
@@ -122,39 +129,43 @@ export function brandRecord(source: unknown): ModelInvocationRecord {
     value.creationKey !== undefined
   )
     return Object.freeze({ ...value, creationKey: id(value.creationKey, 'CreationKey') })
-  if (value.kind === 'model_call_acknowledged') {
-    if (value.target.kind === 'ended') {
-      const { accountingWitness, retainedResultDigest, ...common } = value
-      return Object.freeze({ ...common, creationKey: id(value.creationKey, 'CreationKey') })
-    }
-    const witness = value.accountingWitness
-    if (witness === undefined) {
-      const { accountingWitness, ...common } = value
-      return Object.freeze({ ...common, creationKey: id(value.creationKey, 'CreationKey') })
-    }
-    const tenant = parseTenantId(witness.origin.tenant)
-    if (!('ok' in tenant)) throw new Error('validated witness tenant failed branding')
-    const credentialScope =
-      witness.credentialScope.layer === 'factory'
-        ? Object.freeze({ layer: 'factory' as const })
-        : scope(witness.credentialScope)
-    if (credentialScope.layer !== witness.credentialScope.layer)
-      throw new Error('validated witness credential scope changed layer')
-    return Object.freeze({
-      ...value,
-      creationKey: id(value.creationKey, 'CreationKey'),
-      accountingWitness: Object.freeze({
-        ...witness,
-        origin: Object.freeze({
-          ...witness.origin,
-          tenant: tenant.ok,
-          session: id(witness.origin.session, 'SessionRef'),
-        }),
-        credentialScope,
-      }),
-    })
-  }
+  if (value.kind === 'model_call_acknowledged') return brandAcknowledged(value)
   if (value.kind !== 'model_call_dispatched') return Object.freeze(value)
+  return brandDispatched(value)
+}
+function brandAcknowledged(value: Wire<ModelCallAcknowledgedRecord>): ModelCallAcknowledgedRecord {
+  if (value.target.kind === 'ended') {
+    const { accountingWitness, retainedResultDigest, ...common } = value
+    return Object.freeze({ ...common, creationKey: id(value.creationKey, 'CreationKey') })
+  }
+  const witness = value.accountingWitness
+  if (witness === undefined) {
+    const { accountingWitness, ...common } = value
+    return Object.freeze({ ...common, creationKey: id(value.creationKey, 'CreationKey') })
+  }
+  const tenant = parseTenantId(witness.origin.tenant)
+  if (!('ok' in tenant)) throw new Error('validated witness tenant failed branding')
+  const credentialScope =
+    witness.credentialScope.layer === 'factory'
+      ? Object.freeze({ layer: 'factory' as const })
+      : scope(witness.credentialScope)
+  if (credentialScope.layer !== witness.credentialScope.layer)
+    throw new Error('validated witness credential scope changed layer')
+  return Object.freeze({
+    ...value,
+    creationKey: id(value.creationKey, 'CreationKey'),
+    accountingWitness: Object.freeze({
+      ...witness,
+      origin: Object.freeze({
+        ...witness.origin,
+        tenant: tenant.ok,
+        session: id(witness.origin.session, 'SessionRef'),
+      }),
+      credentialScope,
+    }),
+  })
+}
+function brandDispatched(value: Wire<ModelCallDispatchedRecord>): ModelCallDispatchedRecord {
   if (value.credentialScope.layer === 'factory')
     return Object.freeze({
       ...value,
@@ -188,6 +199,63 @@ function source(value: Wire<ReminderSource>): ReminderSource {
       return value
   }
 }
+function systemBlock(item: unknown): SystemMessage['blocks'][number] {
+  const branded = plain(item)
+  if (branded.kind !== 'text') throw new Error('validated system contains non-text')
+  return branded
+}
+function userBlock(item: unknown): UserMessage['blocks'][number] {
+  const branded = block(item)
+  if (branded.kind === 'thinking' || branded.kind === 'tool_call' || branded.kind === 'tool_result')
+    throw new Error('invalid user block')
+  return branded
+}
+function internalBlock(item: unknown): ToolInternalMessage['blocks'][number] {
+  const branded = plain(item)
+  if (branded.visibility.toModel !== false) throw new Error('invalid internal visibility')
+  return Object.freeze({
+    ...branded,
+    visibility: Object.freeze({ ...branded.visibility, toModel: false as const }),
+  })
+}
+function assistantMessage(
+  value: Wire<AssistantMessage>,
+  base: Omit<MessageBase, 'type' | 'blocks'>,
+): AssistantMessage {
+  if (value.ending === 'complete')
+    return Object.freeze({
+      ...base,
+      type: 'assistant',
+      response: value.response,
+      ending: 'complete',
+      blocks: Object.freeze(value.blocks.map(assistantComplete)),
+    })
+  return Object.freeze({
+    ...base,
+    type: 'assistant',
+    response: value.response,
+    ending: value.ending,
+    blocks: Object.freeze(value.blocks.map(assistantInterrupted)),
+  })
+}
+function reminderMessage(
+  value: Wire<SystemReminderMessage>,
+  base: Omit<MessageBase, 'type' | 'blocks'>,
+): SystemReminderMessage {
+  const brandedSource = source(value.source)
+  const blocks = Object.freeze(
+    value.blocks.map(item => (item.kind === 'tool_result' ? toolResult(item) : plain(item))),
+  )
+  const reminder = { ...base, type: 'system_reminder' as const, blocks }
+  if (
+    brandedSource.kind === 'runtime_context_changed' ||
+    brandedSource.kind === 'runtime_context_snapshot'
+  )
+    return Object.freeze({ ...reminder, nature: 'state', source: brandedSource })
+  if (brandedSource.kind === 'extension')
+    return Object.freeze({ ...reminder, nature: value.nature, source: brandedSource })
+  return Object.freeze({ ...reminder, nature: 'event', source: brandedSource })
+}
 /** Shape-only transport adapter; message uniqueness and pairing remain with its receiver. */
 export function brandMessage(representation: unknown): Message {
   const copied = copyJsonValue(representation)
@@ -197,42 +265,15 @@ export function brandMessage(representation: unknown): Message {
   const base = { ...value, id: id(value.id, 'MessageId') }
   switch (value.type) {
     case 'system': {
-      const blocks = value.blocks.map(item => {
-        const branded = plain(item)
-        if (branded.kind !== 'text') throw new Error('validated system contains non-text')
-        return branded
-      })
+      const blocks = value.blocks.map(systemBlock)
       return Object.freeze({ ...base, type: 'system', blocks: Object.freeze(blocks) })
     }
     case 'user': {
-      const blocks = value.blocks.map(item => {
-        const branded = block(item)
-        if (
-          branded.kind === 'thinking' ||
-          branded.kind === 'tool_call' ||
-          branded.kind === 'tool_result'
-        )
-          throw new Error('invalid user block')
-        return branded
-      })
+      const blocks = value.blocks.map(userBlock)
       return Object.freeze({ ...base, type: 'user', blocks: Object.freeze(blocks) })
     }
     case 'assistant':
-      if (value.ending === 'complete')
-        return Object.freeze({
-          ...base,
-          type: 'assistant',
-          response: value.response,
-          ending: 'complete',
-          blocks: Object.freeze(value.blocks.map(assistantComplete)),
-        })
-      return Object.freeze({
-        ...base,
-        type: 'assistant',
-        response: value.response,
-        ending: value.ending,
-        blocks: Object.freeze(value.blocks.map(assistantInterrupted)),
-      })
+      return assistantMessage(value, base)
     case 'tool': {
       const result = toolMessageResult(value.blocks[0])
       return Object.freeze({
@@ -243,14 +284,7 @@ export function brandMessage(representation: unknown): Message {
       })
     }
     case 'tool_internal': {
-      const blocks = value.blocks.map(item => {
-        const branded = plain(item)
-        if (branded.visibility.toModel !== false) throw new Error('invalid internal visibility')
-        return Object.freeze({
-          ...branded,
-          visibility: Object.freeze({ ...branded.visibility, toModel: false as const }),
-        })
-      })
+      const blocks = value.blocks.map(internalBlock)
       return Object.freeze({
         ...base,
         type: 'tool_internal',
@@ -259,21 +293,8 @@ export function brandMessage(representation: unknown): Message {
         blocks: Object.freeze(blocks),
       })
     }
-    case 'system_reminder': {
-      const brandedSource = source(value.source)
-      const blocks = Object.freeze(
-        value.blocks.map(item => (item.kind === 'tool_result' ? toolResult(item) : plain(item))),
-      )
-      const reminder = { ...base, type: 'system_reminder' as const, blocks }
-      if (
-        brandedSource.kind === 'runtime_context_changed' ||
-        brandedSource.kind === 'runtime_context_snapshot'
-      )
-        return Object.freeze({ ...reminder, nature: 'state', source: brandedSource })
-      if (brandedSource.kind === 'extension')
-        return Object.freeze({ ...reminder, nature: value.nature, source: brandedSource })
-      return Object.freeze({ ...reminder, nature: 'event', source: brandedSource })
-    }
+    case 'system_reminder':
+      return reminderMessage(value, base)
     case 'compaction':
       return Object.freeze({
         ...base,

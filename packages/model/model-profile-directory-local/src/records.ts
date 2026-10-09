@@ -75,6 +75,9 @@ export function decodeProfile(row: ProfileRecord): ProfileRow {
       throw new StorageUnavailable('stored profile scope cannot be read as current format')
     return { ref: { origin: 'official', routeName: row.route_name }, profile }
   }
+  return customProfileRow(row, profile)
+}
+function customProfileRow(row: ProfileRecord, profile: ModelProfile): ProfileRow {
   const scope = parseScopeLayerIdentity(
     row.scope_layer === 'organization'
       ? { layer: 'organization', organization: row.organization_id }

@@ -2,6 +2,7 @@ import {
   isJsonNumber,
   validate as validateContent,
   type JsonObject,
+  type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import {
   OPAQUE_IDENTIFIER_WHITESPACE_CODE_POINTS,
@@ -37,6 +38,63 @@ const contentMembers = [
 ]
 const profileMembers = [...contentMembers, 'registration', 'updatedAt']
 
+function modalityRejection(
+  input: JsonValue | undefined,
+  output: JsonValue | undefined,
+): ModelProfileRejection | undefined {
+  if (isStringArray(input) && isStringArray(output)) {
+    if (input.length === 0 || output.length === 0) return 'modalities_empty'
+    if (!input.includes('text')) return 'input_text_missing'
+    if ([...input, ...output].some(item => !validateContent('Modality', item).valid))
+      return 'modality_unknown'
+  }
+  return undefined
+}
+
+function parameterRejection(
+  params: JsonValue | undefined,
+  maxOutputTokens: JsonValue | undefined,
+): ModelProfileRejection | undefined {
+  if (isObject(params)) {
+    if (parametersOutOfRange(params)) return 'parameter_out_of_range'
+    if (
+      isJsonNumber(params.maxOutputTokens) &&
+      isJsonNumber(maxOutputTokens) &&
+      compareNumbers(params.maxOutputTokens, maxOutputTokens) > 0
+    )
+      return 'max_output_exceeds_profile'
+  }
+  return undefined
+}
+
+function profileRejection(
+  kind: ModelProfileDocumentKind,
+  document: JsonObject,
+): ModelProfileRejection | undefined {
+  if (isStringArray(document.providers) && document.providers.length === 0) return 'providers_empty'
+  const input = document.inputModalities
+  const output = document.outputModalities
+  const modality = modalityRejection(input, output)
+  if (modality !== undefined) return modality
+  if (
+    kind === 'ModelProfile' &&
+    document.registration !== 'listed' &&
+    document.registration !== 'withdrawn'
+  )
+    return 'registration_unknown'
+  const params = document.parameters
+  const parameter = parameterRejection(params, document.maxOutputTokens)
+  if (parameter !== undefined) return parameter
+  if (
+    isObject(document.inputConstraints) &&
+    Object.keys(document.inputConstraints).some(
+      key => !['maxImageBytes', 'maxImages', 'maxRequestBytes'].includes(key),
+    )
+  )
+    return 'constraint_unknown'
+  return undefined
+}
+
 /** S-25: check all malformed conditions before any of the nine named predicates. */
 export function judgeModelProfileDocument(
   kind: ModelProfileDocumentKind,
@@ -51,61 +109,32 @@ export function judgeModelProfileDocument(
   }
   if (document.routeName === '') return rejected('route_name_empty')
   if (kind === 'ModelProfileRef') return Object.freeze({ ok: true })
-  if (isStringArray(document.providers) && document.providers.length === 0)
-    return rejected('providers_empty')
-  const input = document.inputModalities
-  const output = document.outputModalities
-  if (isStringArray(input) && isStringArray(output)) {
-    if (input.length === 0 || output.length === 0) return rejected('modalities_empty')
-    if (!input.includes('text')) return rejected('input_text_missing')
-    if ([...input, ...output].some(item => !validateContent('Modality', item).valid))
-      return rejected('modality_unknown')
-  }
-  if (
-    kind === 'ModelProfile' &&
-    document.registration !== 'listed' &&
-    document.registration !== 'withdrawn'
-  )
-    return rejected('registration_unknown')
-  const params = document.parameters
-  if (isObject(params)) {
-    if (parametersOutOfRange(params)) return rejected('parameter_out_of_range')
-    if (
-      isJsonNumber(params.maxOutputTokens) &&
-      isJsonNumber(document.maxOutputTokens) &&
-      compareNumbers(params.maxOutputTokens, document.maxOutputTokens) > 0
-    )
-      return rejected('max_output_exceeds_profile')
-  }
-  if (
-    isObject(document.inputConstraints) &&
-    Object.keys(document.inputConstraints).some(
-      key => !['maxImageBytes', 'maxImages', 'maxRequestBytes'].includes(key),
-    )
-  )
-    return rejected('constraint_unknown')
+  const reason = profileRejection(kind, document)
+  if (reason !== undefined) return rejected(reason)
   // This is an invariant check on the implementation, not a fallback error classifier.
   if (!validate(kind, document).valid)
     throw new Error('model-profile predicates disagree with owned Schema')
   return Object.freeze({ ok: true })
 }
 
-function malformed(kind: ModelProfileDocumentKind, value: JsonObject): boolean {
-  if (kind === 'ModelRequestParameters') return malformedParameters(value, false)
+function malformedIdentity(value: JsonObject): boolean {
   if (
     typeof value.routeName !== 'string' ||
     (value.origin !== 'official' && value.origin !== 'custom')
   )
     return true
   if (routeWhitespace(value.routeName)) return true
-  if (kind === 'ModelProfileRef') {
-    const members =
-      value.origin === 'official' ? ['origin', 'routeName'] : ['origin', 'scope', 'routeName']
-    if (!hasMembers(value, members, members)) return true
-    return value.origin === 'custom' && !('ok' in parseScopeLayerIdentity(value.scope))
-  }
-  const required = kind === 'ModelProfile' ? profileMembers : contentMembers
-  if (!hasMembers(value, required, [...required, 'parameters'])) return true
+  return false
+}
+
+function malformedRef(value: JsonObject): boolean {
+  const members =
+    value.origin === 'official' ? ['origin', 'routeName'] : ['origin', 'scope', 'routeName']
+  if (!hasMembers(value, members, members)) return true
+  return value.origin === 'custom' && !('ok' in parseScopeLayerIdentity(value.scope))
+}
+
+function malformedBinding(value: JsonObject): boolean {
   if (!validate('ModelAdaptationBinding', value.adaptation).valid) return true
   const binding = value.adaptation
   if (
@@ -114,14 +143,30 @@ function malformed(kind: ModelProfileDocumentKind, value: JsonObject): boolean {
     (value.routeName !== '' && binding.definition.modelId !== value.routeName)
   )
     return true
-  if (typeof value.allowFallback !== 'boolean') return true
+  return false
+}
+
+function malformedLists(value: JsonObject): boolean {
   for (const name of ['providers', 'inputModalities', 'outputModalities']) {
     const items = value[name]
     if (!isStringArray(items) || new Set(items).size !== items.length) return true
     if (name === 'providers' && items.some(item => item === '')) return true
   }
+  return false
+}
+
+function malformedContentStructure(kind: ModelProfileDocumentKind, value: JsonObject): boolean {
+  const required = kind === 'ModelProfile' ? profileMembers : contentMembers
+  if (!hasMembers(value, required, [...required, 'parameters'])) return true
+  if (malformedBinding(value)) return true
+  if (typeof value.allowFallback !== 'boolean') return true
+  if (malformedLists(value)) return true
   if (!isPositiveInteger(value.maxInputTokens) || !isPositiveInteger(value.maxOutputTokens))
     return true
+  return false
+}
+
+function malformedConstraints(value: JsonObject): boolean {
   if (!isObject(value.inputConstraints)) return true
   for (const name of ['maxImageBytes', 'maxImages', 'maxRequestBytes']) {
     if (
@@ -130,12 +175,58 @@ function malformed(kind: ModelProfileDocumentKind, value: JsonObject): boolean {
     )
       return true
   }
+  return false
+}
+
+function malformed(kind: ModelProfileDocumentKind, value: JsonObject): boolean {
+  if (kind === 'ModelRequestParameters') return malformedParameters(value, false)
+  if (malformedIdentity(value)) return true
+  if (kind === 'ModelProfileRef') return malformedRef(value)
+  if (malformedContentStructure(kind, value)) return true
+  if (malformedConstraints(value)) return true
   if (Object.hasOwn(value, 'parameters') && malformedParameters(value.parameters, true)) return true
   if (malformedInputLimits(value)) return true
   return (
     kind === 'ModelProfile' &&
     (typeof value.registration !== 'string' || !validateExpiry('Instant', value.updatedAt).valid)
   )
+}
+
+function malformedLimitFact(fact: unknown): boolean {
+  if (!isObject(fact) || typeof fact.status !== 'string') return true
+  if (fact.status === 'limited') {
+    if (
+      !hasMembers(fact, ['status', 'value'], ['status', 'value']) ||
+      !isPositiveInteger(fact.value)
+    )
+      return true
+  } else if (
+    (fact.status !== 'unknown' && fact.status !== 'unbounded') ||
+    !hasMembers(fact, ['status'], ['status'])
+  )
+    return true
+  return false
+}
+
+function projectCapsExceedFacts(
+  value: JsonObject,
+  constraints: JsonObject,
+  limits: JsonObject,
+  required: readonly string[],
+): boolean {
+  for (const name of required) {
+    const cap = name === 'maxInputTokens' ? value.maxInputTokens : constraints[name]
+    const fact = limits[name]
+    if (
+      isPositiveInteger(cap) &&
+      isObject(fact) &&
+      fact.status === 'limited' &&
+      isPositiveInteger(fact.value) &&
+      compareNumbers(cap, fact.value) > 0
+    )
+      return true
+  }
+  return false
 }
 
 function malformedInputLimits(value: JsonObject): boolean {
@@ -151,32 +242,9 @@ function malformedInputLimits(value: JsonObject): boolean {
   if (!image && Object.hasOwn(constraints, 'maxImages')) return true
   for (const name of required) {
     const fact = limits[name]
-    if (!isObject(fact) || typeof fact.status !== 'string') return true
-    if (fact.status === 'limited') {
-      if (
-        !hasMembers(fact, ['status', 'value'], ['status', 'value']) ||
-        !isPositiveInteger(fact.value)
-      )
-        return true
-    } else if (
-      (fact.status !== 'unknown' && fact.status !== 'unbounded') ||
-      !hasMembers(fact, ['status'], ['status'])
-    )
-      return true
+    if (malformedLimitFact(fact)) return true
   }
-  for (const name of required) {
-    const cap = name === 'maxInputTokens' ? value.maxInputTokens : constraints[name]
-    const fact = limits[name]
-    if (
-      isPositiveInteger(cap) &&
-      isObject(fact) &&
-      fact.status === 'limited' &&
-      isPositiveInteger(fact.value) &&
-      compareNumbers(cap, fact.value) > 0
-    )
-      return true
-  }
-  return false
+  return projectCapsExceedFacts(value, constraints, limits, required)
 }
 
 function hasMembers(
