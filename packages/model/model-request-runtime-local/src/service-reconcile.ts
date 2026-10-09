@@ -1007,9 +1007,14 @@ function buildRuntimeReconcile(
   }
 
   async function reconcile(request: ReconcileInput): Promise<ReconcileResult> {
-    if (typeof request.session !== 'string' || request.session.length === 0)
-      return { invalidInput: { reason: 'malformed' } }
-    if (physical.closed) return { unavailable: true }
+    const requestRejected = (): ReconcileResult | undefined => {
+      if (typeof request.session !== 'string' || request.session.length === 0)
+        return { invalidInput: { reason: 'malformed' } }
+      if (physical.closed) return { unavailable: true }
+      return undefined
+    }
+    const rejected = requestRejected()
+    if (rejected !== undefined) return rejected
     try {
       const authorization = await input.recovery.authorize(request)
       if (!('authorized' in authorization) || physical.closed) return { unavailable: true }
@@ -1021,37 +1026,45 @@ function buildRuntimeReconcile(
     if (previous !== undefined) {
       if (previous.active !== undefined) return { unavailable: true }
       const ready = await releaseEntry(previous, previous.exitAttempted)
-      if (!ready) return { unavailable: true }
-      if (physical.closed) return { unavailable: true }
-      if (previous.exitAttempted) {
-        if (physical.entries.has(request.session)) return { unavailable: true }
-      } else if (
-        previous.active !== undefined ||
-        physical.entries.get(request.session) !== previous
-      ) {
-        return { unavailable: true }
+      const retainedEntryReusable = (): boolean => {
+        if (!ready) return false
+        if (physical.closed) return false
+        if (previous.exitAttempted) {
+          if (physical.entries.has(request.session)) return false
+        } else if (
+          previous.active !== undefined ||
+          physical.entries.get(request.session) !== previous
+        ) {
+          return false
+        }
+        return true
       }
+      if (!retainedEntryReusable()) return { unavailable: true }
     }
-    entry =
-      previous !== undefined && physical.entries.get(request.session) === previous
-        ? previous
-        : {
-            session: request.session,
-            reads: new Set(),
-            settlements: new Set(),
-            unknownControl: new UnknownAppendTracker(),
-            pendingControl: new Set(),
-            controlTasks: new Set(),
-            originals: new Map(),
-            active: undefined,
-            releasing: undefined,
-            exitAttempted: false,
-          }
-    if (physical.entries.get(request.session) !== entry)
-      physical.entries.set(request.session, entry)
+    const retainEntry = (): RecoveryEntry => {
+      const retained: RecoveryEntry =
+        previous !== undefined && physical.entries.get(request.session) === previous
+          ? previous
+          : {
+              session: request.session,
+              reads: new Set(),
+              settlements: new Set(),
+              unknownControl: new UnknownAppendTracker(),
+              pendingControl: new Set(),
+              controlTasks: new Set(),
+              originals: new Map(),
+              active: undefined,
+              releasing: undefined,
+              exitAttempted: false,
+            }
+      if (physical.entries.get(request.session) !== retained)
+        physical.entries.set(request.session, retained)
+      return retained
+    }
+    entry = retainEntry()
     const entering = entry.entered ?? Promise.resolve().then(() => input.recovery.enter(request))
     entry.entered = entering
-    const active = (async (): Promise<ReconcileResult> => {
+    const recoverEnteredScope = async (): Promise<ReconcileResult> => {
       let observer: ReturnType<typeof operationDiagnostics> | undefined
       let terminalRecorded = false
       let diagnosticReportEnabled = true
@@ -1068,71 +1081,77 @@ function buildRuntimeReconcile(
         const entered = await entering
         if ('unavailable' in entered) return { unavailable: true }
         entry.scope = entered.scope
-        if (entered.scope.binding.log.session === request.session) {
-          try {
-            observer = operationDiagnostics(
-              input.diagnosticCollector,
-              entered.scope.binding.log.tenant,
-              { executionId: randomUUID(), session: request.session },
-              reportDiagnosticFailure,
-            )
-            observer.record({
-              source: 'runtime',
-              stage: 'recovery',
-              outcome: 'started',
-              facts: { kind: 'progress' },
-            })
-          } catch {
-            reportDiagnosticFailure()
+        const observeRecoveryScope = (): void => {
+          if (entered.scope.binding.log.session === request.session) {
+            try {
+              observer = operationDiagnostics(
+                input.diagnosticCollector,
+                entered.scope.binding.log.tenant,
+                { executionId: randomUUID(), session: request.session },
+                reportDiagnosticFailure,
+              )
+              observer.record({
+                source: 'runtime',
+                stage: 'recovery',
+                outcome: 'started',
+                facts: { kind: 'progress' },
+              })
+            } catch {
+              reportDiagnosticFailure()
+            }
           }
         }
+        observeRecoveryScope()
         if (physical.closed) return { unavailable: true }
+        const observeAnchor = (
+          anchor: Parameters<Parameters<typeof readRecoveredCalls>[4]>[0],
+        ): void => {
+          let recovered: ReturnType<typeof operationDiagnostics> | undefined
+          try {
+            recovered = operationDiagnostics(
+              input.diagnosticCollector,
+              entered.scope.binding.log.tenant,
+              {
+                executionId: randomUUID(),
+                session: request.session,
+                call: anchor.call,
+                dispatch: anchor.dispatch,
+                response: anchor.response,
+              },
+              reportDiagnosticFailure,
+            )
+            for (const [kind, position] of [
+              ['dispatched', anchor.dispatchedPosition],
+              ['opened', anchor.openedPosition],
+            ] as const) {
+              if (position === undefined) continue
+              recovered.record({
+                source: 'runtime',
+                stage: 'recovery',
+                outcome: 'started',
+                facts: {
+                  kind: 'progress',
+                  anchor: kind,
+                  anchorId: ExactDecimal.from(position).toString(),
+                },
+              })
+            }
+          } catch {
+            reportDiagnosticFailure()
+          } finally {
+            try {
+              recovered?.close()
+            } catch {
+              reportDiagnosticFailure()
+            }
+          }
+        }
         const result = await readRecoveredCalls(
           request,
           entry,
           input,
           () => physical.closed,
-          anchor => {
-            let recovered: ReturnType<typeof operationDiagnostics> | undefined
-            try {
-              recovered = operationDiagnostics(
-                input.diagnosticCollector,
-                entered.scope.binding.log.tenant,
-                {
-                  executionId: randomUUID(),
-                  session: request.session,
-                  call: anchor.call,
-                  dispatch: anchor.dispatch,
-                  response: anchor.response,
-                },
-                reportDiagnosticFailure,
-              )
-              for (const [kind, position] of [
-                ['dispatched', anchor.dispatchedPosition],
-                ['opened', anchor.openedPosition],
-              ] as const) {
-                if (position === undefined) continue
-                recovered.record({
-                  source: 'runtime',
-                  stage: 'recovery',
-                  outcome: 'started',
-                  facts: {
-                    kind: 'progress',
-                    anchor: kind,
-                    anchorId: ExactDecimal.from(position).toString(),
-                  },
-                })
-              }
-            } catch {
-              reportDiagnosticFailure()
-            } finally {
-              try {
-                recovered?.close()
-              } catch {
-                reportDiagnosticFailure()
-              }
-            }
-          },
+          observeAnchor,
         )
         if (physical.closed) return { unavailable: true }
         if ('unavailable' in result) {
@@ -1146,14 +1165,17 @@ function buildRuntimeReconcile(
           return result
         }
         const released = await releaseEntry(entry, true)
-        observer?.record({
-          source: 'runtime',
-          stage: 'recovery',
-          outcome: released ? 'completed' : 'unavailable',
-          facts: { kind: 'progress', ...(released ? { retry: 'without_resend' } : {}) },
-        })
-        terminalRecorded = true
-        return released ? result : { unavailable: true }
+        const releasedRecoveryResult = (): ReconcileResult => {
+          observer?.record({
+            source: 'runtime',
+            stage: 'recovery',
+            outcome: released ? 'completed' : 'unavailable',
+            facts: { kind: 'progress', ...(released ? { retry: 'without_resend' } : {}) },
+          })
+          terminalRecorded = true
+          return released ? result : { unavailable: true }
+        }
+        return releasedRecoveryResult()
       } catch {
         observer?.record({
           source: 'runtime',
@@ -1177,7 +1199,8 @@ function buildRuntimeReconcile(
           reportDiagnosticFailure()
         }
       }
-    })()
+    }
+    const active = recoverEnteredScope()
     entry.active = active
     const result = await active
     if (entry.active === active) entry.active = undefined
@@ -1188,32 +1211,33 @@ function buildRuntimeReconcile(
     if (physical.closing !== undefined) return physical.closing
     physical.closed = true
     const attempt = (async () => {
-      for (const entry of physical.entries.values()) {
-        for (const read of entry.reads)
-          for (const task of read.tasks) {
+      const requestEntryStops = (): void => {
+        for (const entry of physical.entries.values()) {
+          for (const read of entry.reads)
+            for (const task of read.tasks) {
+              try {
+                task.requestStop()
+              } catch {
+                // Await stopped below.
+              }
+            }
+          for (const settlement of entry.settlements) {
+            try {
+              settlement.task?.requestStop()
+            } catch {
+              // Actual stopped remains authoritative.
+            }
+          }
+          for (const task of entry.controlTasks) {
             try {
               task.requestStop()
             } catch {
-              // Await stopped below.
+              // Actual stopped remains authoritative.
             }
-          }
-        for (const settlement of entry.settlements) {
-          try {
-            settlement.task?.requestStop()
-          } catch {
-            // Actual stopped remains authoritative.
-          }
-        }
-        for (const task of entry.controlTasks) {
-          try {
-            task.requestStop()
-          } catch {
-            // Actual stopped remains authoritative.
           }
         }
       }
-      // A held task keeps its own scope, but does not prevent an independent
-      // session's stopped scope from leaving recovery admission.
+      requestEntryStops()
       const active = [...physical.entries.values()].some(entry => entry.active !== undefined)
       const outcomes = await Promise.allSettled(
         [...physical.entries.values()]
