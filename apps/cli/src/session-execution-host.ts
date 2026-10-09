@@ -20,7 +20,10 @@ import {
 import type { RetainedSessionModelTurn } from './session-model-turn.ts'
 import type { TenantBinding } from './state-layout-values.ts'
 import { checkedTenantBinding } from './state-layout-values.ts'
-import type { SessionModelWorkOwner } from './session-work-owner.ts'
+import type {
+  SessionDriverWorkOwner,
+  SessionDriverWorkToken,
+} from '@omne-harness-lite/session-runtime-local'
 
 type Prepared = Extract<Awaited<ReturnType<typeof prepareSessionModelRun>>, { kind: 'prepared' }>
 export interface SessionExecutionPolicy {
@@ -36,7 +39,7 @@ export interface RunningSessionHostOptions {
   readonly ingress: LocalSessionIngress
   readonly creation?: SessionCreationDefaults
   /** The same actual work owner supplied to Ingress.workSettledIn by the trusted root. */
-  readonly work: SessionModelWorkOwner
+  readonly work: SessionDriverWorkOwner
   readonly transport: SessionHostPolicy
   readonly execution: SessionExecutionPolicy
   /** The root binds these identities to the original durable input, before any step commit. */
@@ -60,7 +63,7 @@ interface Slot {
   work?: OriginalSessionModelWork
   retained?: RetainedSessionModelTurn
   driving?: Promise<void>
-  workToken?: object
+  workToken?: SessionDriverWorkToken
 }
 
 /** Own the listener and background model jobs. Neither reads nor client signals drive the queue. */
@@ -99,7 +102,7 @@ function requireRootPorts(options: RunningSessionHostOptions) {
     throw new TypeError('actual root configuration required')
   if (
     !options.work ||
-    !(['begin', 'readIn', 'acknowledge', 'release'] as const).every(
+    !(['begin', 'readIn', 'complete', 'release'] as const).every(
       key => typeof options.work[key] === 'function',
     )
   )
@@ -252,7 +255,7 @@ class ExecutionHost {
       result.pending.reply.blocks.some(block => block.kind === 'tool_call')
     )
       return
-    this.options.work.acknowledge(slot.workToken!)
+    this.options.work.complete(slot.workToken!)
     const finished = await ingress.lifecycle.commitStep(
       ingress.coordinationAuthority,
       slot.scope,

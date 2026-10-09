@@ -1,5 +1,7 @@
 # @omne-harness-lite/session-runtime-local
 
+根入口另提供createSessionDriverWorkOwner和createSessionCallAccess，供可信运行时构造原工作及Run读面。它们不代表完整driver、恢复执行者或新的Model／Tool权限；行为归[SPEC](SPEC.md)。
+
 [English](README.md)
 
 本包提供Session操作的本机持久准入。根入口独立于Cordis；Session业务承诺由[公开定义](../../core/session-runtime/SPEC.md)拥有，提供者顺序及资源规则见[SPEC](SPEC.md)。

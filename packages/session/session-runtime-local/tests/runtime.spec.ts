@@ -1,3 +1,5 @@
+// @module-tag slow
+// Uses real root and tenant SQLite transactions, log owners and Cordis lifetimes.
 import {
   createOriginalIssueOwner,
   originalIssueMigrations,
@@ -57,6 +59,7 @@ import {
 import { judgeMessage, type UserMessage } from '@omne-harness-lite/messages'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import { createLocalSessionIngress } from '../src/runtime.ts'
+import { createSessionDriverWorkOwner } from '../src/driver-work.ts'
 import { sessionRuntimeMigrations } from '../src/runtime-migrations.ts'
 import { admissionMigrations, admissionUseMigrations } from '../src/admission-migrations.ts'
 import { sessionStateMigrations } from '../src/state-migrations.ts'
@@ -116,6 +119,7 @@ async function fixture(
   maxSteps = 32,
   configure?: (storage: SqlStorage) => Pick<RuntimeOptions, 'modelIssue' | 'modelResults'>,
   readTime: RuntimeOptions['now'] = async () => at,
+  workSettledIn: RuntimeOptions['workSettledIn'] = async () => 'settled',
 ) {
   const root = await mkdtemp(join(tmpdir(), 'omne-session-runtime-'))
   roots.push(root)
@@ -177,7 +181,7 @@ async function fixture(
     },
     bootstrap: { initialize },
     now: readTime,
-    workSettledIn: async () => 'settled',
+    workSettledIn,
   }
   const runtime = createLocalSessionIngress(options)
   const count = (table: string) =>
@@ -1560,6 +1564,66 @@ it('commits original call preparation and its step receipt under the actual late
   ).toEqual(result)
   expect(await f.count('sr_call_preparation')).toEqual({ n: 1 })
   expect(f.probe).toHaveBeenCalledTimes(before)
+})
+it('holds actual original driver work through finish and refuses absent, copied or uncompleted responsibility', async () => {
+  let work!: ReturnType<typeof createSessionDriverWorkOwner>
+  const f = await fixture(
+    undefined,
+    32,
+    storage => {
+      work = createSessionDriverWorkOwner({ storage, tenant, maxRecords: 1 })
+      return {}
+    },
+    undefined,
+    (unit, scope, run) => work.readIn(unit, scope, run),
+  )
+  const p = await preparedAttempt(f)
+  const prepared = await f.runtime.lifecycle.commitStep(
+    f.runtime.coordinationAuthority,
+    p.scope,
+    p.attempt.source,
+    p.step,
+  )
+  if (!('kind' in prepared) || prepared.kind !== 'committed')
+    throw new Error('actual prepare failed')
+  const read = () =>
+    f.storage.atomic(unit => unit.run(() => work.readIn(unit, p.scope, p.step.run)))
+  expect(await read()).toBe('unavailable')
+  const token = work.begin(p.scope, p.step)
+  expect(work.begin(p.scope, p.step)).toBe(token)
+  expect(() => work.begin(p.scope, { ...p.step })).toThrow('original preparation')
+  expect(() => work.complete({ ...token })).toThrow('original work token')
+  expect(() => work.release(token)).toThrow('uncompleted')
+  expect(await read()).toBe('pending')
+  const finish = {
+    kind: 'finish' as const,
+    stepKey: 'driver-original-finish',
+    run: p.step.run,
+    attempt: p.step.attempt,
+    permit: p.step.permit,
+    terminal: 'completed' as const,
+    reason: 'actual original work settled',
+  }
+  expect(
+    await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      p.scope,
+      prepared.source,
+      finish,
+    ),
+  ).toEqual({ failure: 'retryFromFacts' })
+  work.complete(token)
+  expect(await read()).toBe('settled')
+  expect(
+    await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      p.scope,
+      prepared.source,
+      finish,
+    ),
+  ).toHaveProperty('kind', 'committed')
+  work.release(token)
+  expect(await read()).toBe('unavailable')
 })
 it('refuses copied permits before saving original call preparation', async () => {
   const f = await fixture(),

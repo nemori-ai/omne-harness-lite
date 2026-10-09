@@ -10,6 +10,7 @@ import {
 } from '@omne-harness-lite/agent-loop'
 import {
   readSettlementPrefix,
+  interpretCallHistory,
   type SettlementPrefix,
   type SettlementRegistration,
 } from '@omne-harness-lite/model-request-runtime'
@@ -21,6 +22,80 @@ import {
   type SessionModelTurnResult,
 } from './session-model-turn.ts'
 import { createSessionRunHistory } from './session-run-history.ts'
+import type { LocalSessionContext } from '@omne-harness-lite/session-runtime-local/cordis'
+import { tenantIdEquals } from '@omne-harness-lite/identity-values'
+import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import { instantToRfc3339 } from '@omne-harness-lite/offer-expiry'
+
+/** Observe the original normal-path attempt from its actual owners; this does not recover executions. */
+export function createSessionModelObservations(
+  turn: SessionModelTurnOptions,
+  registration: SettlementRegistration,
+  context: LocalSessionContext,
+): (facts: LoopFacts) => Promise<CurrentInputs> {
+  if (
+    context.scope.session !== turn.scope.session ||
+    !tenantIdEquals(context.scope.tenant, turn.scope.tenant)
+  )
+    throw new TypeError('actual original Session Context required')
+  const assembly = observedAssembly(turn)
+  return async () => {
+    const read = await readSettlementPrefix({ binding: turn.linked.binding.log, registration })
+    const generation = context.currentGeneration()
+    if (!('prefix' in read))
+      return {
+        source: null,
+        authorized: null,
+        assembly,
+        contextGeneration: generation,
+        reconciled: null,
+      }
+    const history = createSessionRunHistory(turn.scope)(
+      read.prefix,
+      turn.preparation.run,
+      turn.preparation.attempt,
+    )
+    const call = interpretCallHistory({ prefix: read.prefix, callId: turn.preparation.call })
+    return {
+      source: read.prefix.source,
+      authorized: originalAttemptCurrent(history, turn),
+      assembly,
+      contextGeneration: context.currentGeneration() === generation ? generation : null,
+      // An owned complete prefix with no original call is the fresh normal path.
+      // Existing original calls need their actual reconciliation owner; do not invent recovery.
+      reconciled: 'unavailable' in call ? null : 'absent' in call,
+    }
+  }
+}
+function originalAttemptCurrent(
+  history: ReturnType<ReturnType<typeof createSessionRunHistory>>,
+  turn: SessionModelTurnOptions,
+): boolean | null {
+  if (!('known' in history)) return null
+  return (
+    history.known.terminal === 'open' &&
+    compareInteger(history.known.latestAttempt, turn.preparation.attempt) === 0
+  )
+}
+function observedAssembly(turn: SessionModelTurnOptions): string {
+  const report = turn.call.report
+  if (
+    report.session !== turn.scope.session ||
+    report.runId !== turn.preparation.run ||
+    compareInteger(report.attempt, turn.preparation.attempt) !== 0
+  )
+    throw new TypeError('actual original Run assembly report required')
+  return writeJsonLossless({
+    session: report.session,
+    run: report.runId,
+    attempt: report.attempt,
+    computedAt: instantToRfc3339(report.computedAt),
+    snapshots: report.snapshots.map(snapshot => ({
+      category: snapshot.category,
+      filledAt: instantToRfc3339(snapshot.filledAt),
+    })),
+  })
+}
 
 /** This is an actual private job, not a serializable statement that execution was transferred. */
 export interface OriginalSessionModelWork {

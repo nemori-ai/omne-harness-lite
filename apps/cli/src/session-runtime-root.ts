@@ -20,7 +20,7 @@ import {
 } from './session-factory-assets.ts'
 import { createSessionOriginalModelOwner } from './session-model-owner.ts'
 import { createSessionModelResultSource } from './session-model-results.ts'
-import { createSessionModelWorkOwner } from './session-work-owner.ts'
+import { createSessionDriverWorkOwner } from '@omne-harness-lite/session-runtime-local'
 import { startRunningSessionHost, type RunningSessionHost } from './session-execution-host.ts'
 import type {
   SessionRuntimeRoot,
@@ -120,7 +120,7 @@ class RuntimeRoot {
       maxCaptures: o.model.maxCaptures,
       retainReferencesIn: o.model.retainReferencesIn,
     })
-    const work = createSessionModelWorkOwner({
+    const work = createSessionDriverWorkOwner({
       storage: o.storage,
       tenant: o.binding.tenant,
       maxRecords: o.execution.maxHeld,

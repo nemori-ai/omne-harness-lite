@@ -1,3 +1,4 @@
+import { createSessionCallAccess } from '@omne-harness-lite/session-runtime-local'
 import type {
   SessionRuntimeBinding,
   SessionModelSelectionInput,
@@ -30,7 +31,9 @@ export interface SessionRunModelBindingOptions {
   readonly retainUnknown: (result: ModelIssueUnknown) => Promise<void>
   readonly model: Pick<ReturnType<typeof createModelRuntime>, 'project'>
   readonly facts: CallFactsView
-  readonly host: Omit<ModelRuntimeHostInputs, 'sessions'>
+  readonly host: Omit<ModelRuntimeHostInputs, 'sessions' | 'callAccess'>
+  /** Explicit application admission bound for this original Run's read/ACK callbacks. */
+  readonly maxCallReads: number
 }
 export interface SessionRunModelBinding {
   readonly binding: SessionRuntimeBinding
@@ -53,10 +56,12 @@ export async function createSessionRunModelBinding(
   if ('failure' in borrowed) return borrowed
   const journal = borrowed.journal
   const originalCall = options.preparation.call
+  let callAccess: ReturnType<typeof createSessionCallAccess> | undefined
   let inputs: CurrentInputReader | undefined
   let returned: Promise<void> | undefined
   const returnJournal = () =>
     (returned ??= (async () => {
+      await callAccess?.close()
       await inputs?.close()
       await journal.close()
     })())
@@ -91,9 +96,17 @@ export async function createSessionRunModelBinding(
         currentEvaluationInputs: inputs,
       }),
     })
+    callAccess = createSessionCallAccess({
+      journal,
+      binding: log,
+      ingress: options.ingress,
+      preparation: options.preparation,
+      maxInFlight: options.maxCallReads,
+    })
     const operations = options.model.project(
       {
         ...options.host,
+        callAccess: callAccess.access,
         identities: Object.freeze({
           ...options.host.identities,
           call: () => originalCall,

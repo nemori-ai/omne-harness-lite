@@ -496,7 +496,7 @@ createSessionForMessage从已运行的匹配宿主读取实际创建偏好，捕
 
 本构件测试覆盖无观察请求的自动模型执行及局部退出交还；其中治理运输、模型运输、当前资格／代际和原工作结算证明仍为受控输入。正式main启动／附着、真实OpenRouter、工具执行和独立进程部署由完整应用验收承担。
 
-后台模型段使用同一个createSessionModelWorkOwner：可信根将其readIn交Ingress.workSettledIn，同时把原拥有者交执行宿主。该拥有者固定真实Storage实例／租户和显式maxRecords，登记原Scope／准备并返回不可复制的原token。没有登记记录返回unavailable，有任一未确认任务返回pending；不能用空集合推定settled。宿主只有在实际模型段返回原保管／采用／ACK成功后才确认token；finish仍在原Unit核真实实例，可靠finish及归还日志后才能释放记录。不同准备、租户、复制token或提前释放不授结算权。
+可信根选择Session提供者的createSessionDriverWorkOwner，将同一readIn交Ingress.workSettledIn，并将同一owner交驱动。工作登记／结清／释放行为归[提供者承诺](../../packages/session/session-runtime-local/SPEC.md#完整驱动构造的施工面)。应用不另写工作状态机；原模型段须实际完成保管／采用／ACK并停止writer后才调用complete，可靠finish及归还日志后才release。
 
 该记录表示当前根对实际任务的保管，属于运行时资源；它不是持久恢复证明。新进程不能据旧Run或日志存在补登记为已结算，重启认回仍须由后续恢复承诺完成。工具回复不使用这个模型段将整Run证明为已结算。普通客户端不能取得readIn、原Unit或token。
 
@@ -576,6 +576,14 @@ createSessionForMessage从已运行的匹配宿主读取实际创建偏好，捕
 | 语法/TTY/profile/尺寸准入不合，或业务前捕获取消且没有CG结果 | 退出2 | 对应invalid-options / tty-required / tty-unsupported / input-cancelled |
 
 稳定诊断沿CQ1 S10已有封闭代码；所有原始异常/源内容不回显。TUI不输出机器JSON事件流，machine+tui作为输入不合按CQ1机器错误模板处理。无可交付CG报告的缺陷仅稳定诊断；中途终端写失败不重写已失去可信交付的一份屏幕内容。
+
+## 原Run调用读取与Loop当前观察
+
+createSessionContextReadGrant只绑定可信根已确认的自然人登录与同源Ingress，消费者名称不推导主体种类。固定账号必须属于固定租户。这个应用输入适配仅提供context.read，显式消费者和容量由根给定；它不签发token，不授模型发起、Agent、工具效果或日志协调权。每次check通过实际Ingress的readSession核当前G28成员顺序与原Session持有，并要求Session已发布active；无法读保持unavailable，其他非可读状态拒绝。发行、撤销、借用及关闭仍由实际createLocalSessionAccess拥有。根须先通过实际CG确认来源，不能从普通请求调用此适配获取权限。
+
+createSessionRunModelBinding消费Session提供者公开的createSessionCallAccess，并显式提供maxCallReads。原Run读取／ACK／关闭行为归[提供者承诺](../../packages/session/session-runtime-local/SPEC.md#可信宿主日志读取)。应用只选择实际Model提供者；运行消费机制迁至Session拥有者，关闭先结束CallAccess，再归还求值输入和原journal。
+
+createSessionModelObservations用于尚未发起原调用的正常段。当前Source和Run／attempt从原授权日志完整前缀及已有解释器读取，assembly身份从实际采用报告产生，Context身份来自实际Context拥有者。不能用日志世代或固定字符串冒充Context。原Run当前资格只准许这个Loop段；模型发起仍必须通过原Session同提交、最新permit及当前模型权限。完整前缀没有该call才能判为正常新调用；原call存在时要求对账，来源不可得时保持未知，不伪造恢复完成。该函数不提供冷恢复执行者。实际Context停止时Loop阻断发起，模型／工具原执行池的结束仍由原拥有者核验。
 
 ## S-12 验证义务
 

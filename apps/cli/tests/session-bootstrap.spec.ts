@@ -1,3 +1,8 @@
+// @module-tag slow
+// Uses actual governance, SQLite, Context, model pools and background scans.
+import { createSessionCallAccess } from '@omne-harness-lite/session-runtime-local'
+import { createSessionContextReadGrant } from '../src/session-context-access.ts'
+import type { BorrowedRunJournal } from '@omne-harness-lite/session-runtime-local'
 import { startFileSessionRuntimeRoot, FileSessionRuntimeFailure } from '../src/session-file-root.ts'
 import type {
   SessionNativeModelOptions,
@@ -6,9 +11,9 @@ import type {
 import { officialCatalog } from '@omne-harness-lite/pi-ai-transport'
 import { prepareTenantDirectory, prepareStateDirectory, tenantPaths } from '../src/state-layout.ts'
 import {
-  createSessionModelWorkOwner,
-  type SessionModelWorkOwner,
-} from '../src/session-work-owner.ts'
+  createSessionDriverWorkOwner,
+  type SessionDriverWorkOwner,
+} from '@omne-harness-lite/session-runtime-local'
 import { startRunningSessionHost } from '../src/session-execution-host.ts'
 import { startSessionRuntimeRoot } from '../src/session-runtime-root.ts'
 import {
@@ -24,6 +29,7 @@ import { prepareSessionModelRun } from '../src/session-run-preparation.ts'
 import { readSessionSubmission } from '../src/session-submission.ts'
 import {
   createSessionModelAttempt,
+  createSessionModelObservations,
   type OriginalSessionModelWork,
 } from '../src/session-agent-attempt.ts'
 import {
@@ -474,12 +480,13 @@ async function setup(
       },
     }
   }
-  const access = createLocalSessionAccess({
-    tenant,
-    principal: { principal: source.accountId, principalKind: 'human' },
+  const contextGrant = createSessionContextReadGrant(runtime, source, tenant, {
     consumers: ['model'],
-    operations: ['context.read'],
     policy: { maxBindings, maxContextKeys: 16 },
+  })
+  const access = createLocalSessionAccess({
+    ...contextGrant,
+    tenant,
     authority: {
       async check(identity, operation) {
         checks()
@@ -488,19 +495,12 @@ async function setup(
           currentGate.entered()
           await currentGate.wait
         }
-        if (operation !== 'context.read') return { kind: 'rejected', reason: 'notAuthorized' }
-        const view = await runtime.operations.readSession(runtime.access, identity.scope.session)
-        if ('kind' in view && view.kind === 'session' && view.session.lifecycle === 'active') {
-          if (authorityDefect) throw authorityDefect
-          return {
-            kind: 'authorized',
-            identity: corruptIdentity ? corruptIdentity(identity) : identity,
-          }
-        }
+        const decision = await contextGrant.authority.check(identity, operation)
+        if (decision.kind === 'rejected') return decision
+        if (authorityDefect) throw authorityDefect
         return {
-          kind: 'rejected',
-          reason:
-            'failure' in view && view.failure === 'unavailable' ? 'unavailable' : 'notAuthorized',
+          kind: 'authorized',
+          identity: corruptIdentity ? corruptIdentity(identity) : decision.identity,
         }
       },
     },
@@ -587,21 +587,11 @@ async function rootFixture(withModel = false) {
     },
     admissionPolicy: { maxLogins: 8, maxTickets: 16, maxRecordBytes: 8192 },
     logOperationLimit: 32,
-    contextAccess: ingress => ({
-      principal: { principal: source.accountId, principalKind: 'human' },
-      consumers: ['model'],
-      operations: ['context.read'],
-      policy: { maxBindings: 16, maxContextKeys: 16 },
-      authority: {
-        check: async (identity, operation) => {
-          if (operation !== 'context.read') return { kind: 'rejected', reason: 'notAuthorized' }
-          const read = await ingress.operations.readSession(ingress.access, identity.scope.session)
-          return 'kind' in read && read.kind === 'session' && read.session.lifecycle === 'active'
-            ? { kind: 'authorized', identity }
-            : { kind: 'rejected', reason: 'notAuthorized' }
-        },
-      },
-    }),
+    contextAccess: ingress =>
+      createSessionContextReadGrant(ingress, source, tenant, {
+        consumers: ['model'],
+        policy: { maxBindings: 16, maxContextKeys: 16 },
+      }),
     model: {
       current: { authorizeIn: f.modelCurrent },
       maxInFlight: 8,
@@ -973,13 +963,11 @@ it('drives two rounds through one actual assembled root and physical model pool 
         },
         registration: nativeReadRegistration(),
         transfer: async () => 'pending',
-        current: async facts => ({
-          source: facts.source,
-          authorized: true,
-          assembly: JSON.stringify(current.refreshed.report.snapshots),
-          contextGeneration: 'controlled-generation',
-          reconciled: true,
-        }),
+        current: createSessionModelObservations(
+          current.turn,
+          nativeReadRegistration(),
+          owners.bootstrap.context(scope)!,
+        ),
       }
     }
   const root = await startSessionRuntimeRoot({
@@ -1270,6 +1258,80 @@ async function issuedContext(f: Awaited<ReturnType<typeof setup>>) {
   const context = await f.assembly.context(scope)!.ready
   return { scope, request, issued, context }
 }
+it('uses the confirmed natural-person ingress for Context reads without granting model or tool execution', async () => {
+  const f = await setup()
+  const { scope } = await issuedContext(f)
+  const grant = createSessionContextReadGrant(f.runtime, source, tenant, {
+    consumers: ['model'],
+    policy: { maxBindings: 8, maxContextKeys: 16 },
+  })
+  const owner = createLocalSessionAccess({ ...grant, tenant })
+  cleanup.push(owner.close)
+  const request = {
+    principal: source.accountId,
+    principalKind: 'human' as const,
+    scope,
+    consumer: 'model' as const,
+    contextKeys: [],
+    operations: ['context.read' as const],
+  }
+  expect(() =>
+    createSessionContextReadGrant(
+      f.runtime,
+      source,
+      {
+        ...tenant,
+        account: unwrap(parseAccountId('other-account')),
+      },
+      { consumers: ['model'], policy: { maxBindings: 8, maxContextKeys: 16 } },
+    ),
+  ).toThrow('Confirmed fixed Context read source required')
+  const issued = await owner.issuer.issue(request)
+  expect(issued.kind).toBe('issued')
+  if (issued.kind !== 'issued') throw new Error('actual read grant missing')
+  const context = await f.assembly.context(scope)!.ready
+  expect(await context.bind(issued.access, scope, 'model')).toEqual({
+    kind: 'rejected',
+    reason: 'notAuthorized',
+  })
+  expect(await owner.operations.authorize(issued.access, scope, 'context.read')).toHaveProperty(
+    'kind',
+    'authorized',
+  )
+  expect(await owner.issuer.issue({ ...request, principalKind: 'agent' })).toEqual({
+    kind: 'rejected',
+    reason: 'notAuthorized',
+  })
+  expect(await owner.operations.authorize(issued.access, scope, 'tool.submit')).toEqual({
+    kind: 'rejected',
+    reason: 'notAuthorized',
+  })
+  expect(await owner.operations.authorize(issued.access, scope, 'session.log.coordinate')).toEqual({
+    kind: 'rejected',
+    reason: 'notAuthorized',
+  })
+  f.exchanges.mockImplementation(async (_options, request) => ({
+    kind: 'reply',
+    sendAttempted: true,
+    reply: {
+      result: (request as { operation: string }).operation.endsWith('#S-36')
+        ? tenant
+        : { standing: 'ineffective' },
+    },
+  }))
+  const ticket = await f.admission.reserve(source, {
+    tenant,
+    session: null,
+    purpose: 'createSession',
+    operationKey: 'actual-grant-refusal',
+    inputPosition: null,
+  })
+  await f.admission.query(ticket.ticket)
+  expect(await owner.operations.authorize(issued.access, scope, 'context.read')).toEqual({
+    kind: 'rejected',
+    reason: 'notAuthorized',
+  })
+})
 it('reads the actual isolated Context through an issued live binding and rejects copied and revoked bindings', async () => {
   const f = await setup()
   const { scope, issued, context } = await issuedContext(f)
@@ -1845,6 +1907,7 @@ function nativeBindingOptions(
     model,
     facts: construction.callFacts,
     host: construction,
+    maxCallReads: 4,
     ingress: f.runtime,
     issueOwner: f.modelOwner,
     scope,
@@ -1962,6 +2025,100 @@ function nativeReadRegistration(): SettlementRegistration {
     release() {},
   }
 }
+async function actualCallAccess() {
+  const original = await originalModelBinding()
+  const options = nativeBindingOptions(original)
+  let borrowed: BorrowedRunJournal | undefined
+  const linked = await createSessionRunModelBinding({
+    ...options,
+    inputs: journal => {
+      borrowed = journal
+      return options.inputs(journal)
+    },
+  })
+  if ('failure' in linked || !borrowed) throw new Error('actual Run borrow missing')
+  cleanup.push(linked.returnJournal)
+  const owner = createSessionCallAccess({
+    journal: borrowed,
+    binding: linked.binding.log,
+    ingress: original.f.runtime,
+    preparation: original.preparation,
+    maxInFlight: 2,
+  })
+  cleanup.push(owner.close)
+  const input = {
+    binding: linked.binding.log,
+    ref: { session: original.scope.session, callId: original.preparation.call },
+    action: 'read' as const,
+  }
+  return { original, linked, owner, input }
+}
+it('authorizes the original Run call read from its actual grant and exact preparation, without granting ACK', async () => {
+  const { owner, input, original } = await actualCallAccess()
+  const observed = vi.fn(
+    async (evidence: import('@omne-harness-lite/model-request-runtime').CallAccessEvidence) => ({
+      progress: evidence.source.progress,
+    }),
+  )
+  const result = await owner.access.check(input, observed)
+  expect(result).toHaveProperty('allowed')
+  expect(observed).toHaveBeenCalledOnce()
+  expect(result).toHaveProperty('evidence.source.generation', input.binding.generation)
+  expect(result).toHaveProperty('evidence.revoked.aborted', false)
+  const ack = vi.fn(async () => 'must not ACK')
+  expect(await owner.access.check({ ...input, action: 'ack' }, ack)).toHaveProperty('denied', true)
+  expect(ack).not.toHaveBeenCalled()
+  for (const action of ['cancel', 'settle'] as const) {
+    expect(await owner.access.check({ ...input, action }, ack)).toHaveProperty('denied', true)
+  }
+  expect(ack).not.toHaveBeenCalled()
+  expect(
+    await original.f.runtime.operations.readProgress(
+      original.f.runtime.access,
+      original.scope.session,
+    ),
+  ).toHaveProperty('progress.run', original.preparation.run)
+})
+it('refuses copied bindings, other calls and false original origins before entering the private callback', async () => {
+  const { owner, input, original } = await actualCallAccess()
+  const callback = vi.fn(async () => 'must not read')
+  expect(
+    await owner.access.check({ ...input, binding: { ...input.binding } }, callback),
+  ).toHaveProperty('invalidInput')
+  expect(
+    await owner.access.check({ ...input, ref: { ...input.ref, callId: 'foreign-call' } }, callback),
+  ).toHaveProperty('invalidInput')
+  const falseOrigin = { ...original.scope, run: original.preparation.run, attempt: 999 }
+  expect(await owner.access.check({ ...input, origin: falseOrigin }, callback)).toHaveProperty(
+    'invalidInput',
+  )
+  expect(callback).not.toHaveBeenCalled()
+})
+it('revokes new call access synchronously and drains the original admitted callback before close', async () => {
+  const { owner, input } = await actualCallAccess()
+  const entered = Promise.withResolvers<void>(),
+    returned = Promise.withResolvers<void>()
+  cleanup.push(async () => returned.resolve())
+  let signal: AbortSignal | undefined
+  const reading = owner.access.check(input, async evidence => {
+    signal = evidence.revoked
+    entered.resolve()
+    await returned.promise
+    return 'original read ended'
+  })
+  await entered.promise
+  const closed = vi.fn()
+  const closing = owner.close().then(closed)
+  expect(signal?.aborted).toBe(true)
+  expect(await owner.access.check(input, async () => 'no')).toEqual({ unavailable: true })
+  await Promise.resolve()
+  expect(closed).not.toHaveBeenCalled()
+  returned.resolve()
+  expect(await reading).toEqual({ unavailable: true })
+  await closing
+  expect(closed).toHaveBeenCalledOnce()
+})
+
 it('assembles native prefix and unique issue consumers over the same actual original Run journal', async () => {
   const original = await originalModelBinding()
   const linked = await createSessionRunModelBinding(nativeBindingOptions(original))
@@ -2570,6 +2727,7 @@ it.each([
   'agentDenied',
   'agentSourceChanged',
   'agentMissingCurrent',
+  'agentContextStopped',
   'agentReconcileNeeded',
   'agentCurrentDefect',
   'agentDetach',
@@ -2664,7 +2822,8 @@ it.each([
       operations: ['context.read'],
     })
     if (grant.kind !== 'issued') throw new Error('actual Context access unavailable')
-    const context = await original.f.assembly.context(original.scope)!.ready
+    const contextOwner = original.f.assembly.context(original.scope)!
+    const context = await contextOwner.ready
     const contextBinding = await context.bind(grant.access, original.scope, 'model')
     if (contextBinding.kind !== 'bound') throw new Error('actual readable Context unavailable')
     const currentDefect = new Error('root qualification source defect')
@@ -2676,25 +2835,25 @@ it.each([
       if (fault === 'agentHandoffDefect') throw handoffDefect
       return acceptTransfer ? ('retained' as const) : ('pending' as const)
     })
+    const observe = createSessionModelObservations(actual, nativeReadRegistration(), contextOwner)
+    if (fault === 'agentContextStopped') contextOwner.requestStop()
     const frame = createSessionModelAttempt({
       turn: actual,
       registration: nativeReadRegistration(),
       transfer,
       current: async facts => {
         if (fault === 'agentCurrentDefect') throw currentDefect
-        const metadata = await contextBinding.reader.snapshot()
-        if (metadata.kind !== 'snapshot') throw new Error('actual Context observation unavailable')
-        // Current model qualification, provider generation and reconciliation are controlled root inputs.
+        const observed = await observe(facts)
+        // These cases replace one real observation to exercise its rejection branch.
         return {
+          ...observed,
           source:
             fault === 'agentSourceChanged'
               ? { ...facts.source, journalGeneration: 'other-generation' }
-              : facts.source,
-          authorized: fault !== 'agentDenied',
-          assembly: JSON.stringify(refreshed.report.snapshots),
-          contextGeneration:
-            fault === 'agentMissingCurrent' ? null : 'controlled-context-provider-generation',
-          reconciled: fault !== 'agentReconcileNeeded',
+              : observed.source,
+          authorized: fault === 'agentDenied' ? false : observed.authorized,
+          contextGeneration: fault === 'agentMissingCurrent' ? null : observed.contextGeneration,
+          reconciled: fault === 'agentReconcileNeeded' ? false : observed.reconciled,
         }
       },
     })
@@ -3001,10 +3160,10 @@ it.each(['normal', 'detach', 'retained', 'rootFailure', 'diagnosticFailure', 'mi
     // Governance transport, qualification/generation and model transport are controlled; work proof owns actual jobs.
     let native: ReturnType<typeof createModelRuntime> | undefined
     let bridge!: SessionModelResultSource
-    let work!: SessionModelWorkOwner
+    let work!: SessionDriverWorkOwner
     const initial = await originalModelInput(
       storage => {
-        work = createSessionModelWorkOwner({ storage, tenant, maxRecords: 4 })
+        work = createSessionDriverWorkOwner({ storage, tenant, maxRecords: 4 })
         bridge = createSessionModelResultSource({
           storage,
           tenant,
@@ -3177,7 +3336,7 @@ it.each(['normal', 'detach', 'retained', 'rootFailure', 'diagnosticFailure', 'mi
 
 it('uses original work tokens and the actual tenant Unit instead of treating absent work as settled', async () => {
   const original = await originalModelBinding()
-  const work = createSessionModelWorkOwner({ storage: original.f.storage, tenant, maxRecords: 1 })
+  const work = createSessionDriverWorkOwner({ storage: original.f.storage, tenant, maxRecords: 1 })
   const read = () =>
     original.f.storage.atomic(unit =>
       unit.run(() => work.readIn(unit, original.scope, original.preparation.run)),
@@ -3186,11 +3345,11 @@ it('uses original work tokens and the actual tenant Unit instead of treating abs
   const token = work.begin(original.scope, original.preparation)
   expect(work.begin(original.scope, original.preparation)).toBe(token)
   expect(() => work.begin(original.scope, { ...original.preparation })).toThrow(
-    'original model preparation',
+    'original preparation',
   )
   expect(await read()).toBe('pending')
-  expect(() => work.acknowledge({ ...token })).toThrow('original model work token')
-  expect(() => work.release(token)).toThrow('unacknowledged')
+  expect(() => work.complete({ ...token })).toThrow('original work token')
+  expect(() => work.release(token)).toThrow('uncompleted')
   expect(await read()).toBe('pending')
   const other = await openStorage({
     dialect: 'sqlite',
@@ -3212,7 +3371,7 @@ it('uses original work tokens and the actual tenant Unit instead of treating abs
     ),
   ).toBe('unavailable')
   expect(() => work.begin({ ...original.scope, tenant: foreign }, original.preparation)).toThrow(
-    'foreign model work',
+    'foreign original work',
   )
   expect(() =>
     work.begin(
@@ -3220,7 +3379,7 @@ it('uses original work tokens and the actual tenant Unit instead of treating abs
       { ...original.preparation, call: 'other-call' },
     ),
   ).toThrow('capacity')
-  work.acknowledge(token)
+  work.complete(token)
   expect(await read()).toBe('settled')
   work.release(token)
   expect(await read()).toBe('unavailable')

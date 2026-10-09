@@ -217,6 +217,13 @@ close停止新的发行和使用，等待已登记的原核验工作结束，撤
 
 ## 可信宿主日志读取
 
+createSessionCallAccess为原Run日志借用和精确prepareCall提供可信的读取／等待入口。
+构造核实际日志、Scope、Run、代际及显式maxInFlight；复制binding或异call／origin不能进入回调。
+每次读取原授权完整前缀并认回精确call_prepared，read／wait不授发起、settle或cancel。
+ACK另须认回同一原result_custodied和Session完整保管凭证的call、位置及摘要；读取权不授ACK。
+关闭同步撤准入与原AbortSignal，等待所有已登记回调结束；缺陷保持原异常。
+调用方须先close，再归还求值输入及原journal；这个构件不提供物理CallPresence临界区或冷恢复证明。
+
 journal.readPrefix只属于原工厂的可信宿主返回面，不是普通用户传输或Cordis服务。每次读取须持有原活体Ingress Access，随后在实际G28成员顺序与原同租户StorageUnit内核当前资格、Session归属及完整日志坐标，并调用日志readPrefixIn。复制Access、不同主体／租户、当前拒绝或关闭均不授读取权。找不到原Session明确notFound；存储不可用不冒成功。
 
 该读面返回完整授权日志，包含内部事实与能力数据。应用必须按用户展示承诺投影后才能输出，不得把原日志直接序列化发给普通客户端。读面不追加消息、创建Run、发起模型／工具或重复初始化。读取与其他原Ingress工作共用准入上界及关闭排空。
@@ -308,6 +315,13 @@ readIn在实际Unit核原Run持久工作及所有原责任；缺失来源、未�
 已知仍有责任返回pending。只有可靠全结清才settled，不把空Map当恢复证明。
 release须等可靠Run finish及原日志／输入归还，不因complete或终局事实出现就删除原token。
 root先构造这个owned ledger，再把同一readIn给Ingress和同一owner给driver；不由CLI另写工作状态机。
+
+createSessionDriverWorkOwner提供该live ledger，固定实际Storage、租户及显式maxRecords。
+begin登记原prepare引用，重复同引用返回原token，其他准备不能替代它。
+readIn先核Unit所属真实Storage，保留原Run的全部已登记责任；不存在记录返回unavailable。
+complete与release仅接受本owner的原token；未complete不得release，释放后缺记录仍不可判settled。
+它不自动证明调用方已完成保管／ACK／writer停止，可信驱动必须提供前述实际证据后才调用complete。
+本构件不构造冷恢复执行者；重启或未登记责任不能从空Map取得结算证明。
 
 各factory先登记自己拥有的部分资源再异步取得来源；失败保原缺陷及收场责任，不能无句柄丢弃借用。
 构造关闭／晚到的原资源仍按Core startup与control承诺收场。driver留原责任，root留仍被借用的来源。

@@ -4,6 +4,8 @@
 
 This package provides persistent local admission for Session operations. The root exports independent functions and trusted construction ports. Session behavior belongs to [the public definition](../../core/session-runtime/SPEC.md). Provider behavior belongs to [SPEC.md](SPEC.md).
 
+The root also exports `createSessionDriverWorkOwner` and `createSessionCallAccess` for trusted runtime construction. They retain original work and enforce original Run reads. They do not provide the complete driver, execution recovery, or new Model or Tool permission.
+
 ## Admission
 
 Compose `admissionMigrations` on the shared root database. Compose `admissionUseMigrations` on each tenant runtime database. Then call `createLocalAdmission` with the root storage, the trusted governance probe, and explicit capacity limits. The caller owns both storage instances and the probe.

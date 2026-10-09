@@ -32,3 +32,7 @@ export type * from './tool-result-types.ts'
 export type * from './run-journal-types.ts'
 export type * from './driver-model-types.ts'
 export type * from './driver-types.ts'
+export { createSessionDriverWorkOwner } from './driver-work.ts'
+
+export { createSessionCallAccess } from './call-access.ts'
+export type { SessionCallAccessOptions } from './call-access.ts'
