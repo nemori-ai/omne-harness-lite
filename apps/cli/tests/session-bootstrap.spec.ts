@@ -659,6 +659,72 @@ it('assembles the actual runtime root and creates a legal empty Session through 
   if (borrowed.kind === 'use') await borrowed.use.close()
   await f.storage.atomic(async unit => unit.assertStorage(f.storage))
 })
+it('finishes the original root close after its retained model observation is explicitly returned', async () => {
+  // Root/SQL/source ownership are real. Native reply metadata is controlled; no IO or ACK is authorized.
+  const original = await originalModelBinding()
+  const linked = await createSessionRunModelBinding(nativeBindingOptions(original))
+  if ('failure' in linked) throw new Error('original Run binding missing')
+  cleanup.push(linked.returnJournal)
+  const pending = originalPending()
+  const unused = async (): Promise<never> => {
+    throw new Error('observation must not authorize execution or ACK')
+  }
+  const execution: ModelRuntimeCapturedExecution = {
+    key: { session: original.scope.session, callId: pending.call.callId },
+    session: linked.binding,
+    owner: linked.binding.selection.owner,
+    executionGeneration: Object.freeze({}),
+    registered: true,
+    released: false,
+    copyReleased: false,
+    invocation: {
+      outcome: Promise.resolve({ replyPending: pending }),
+      snapshot() {
+        throw new Error('unused observation snapshot')
+      },
+      observedFacts: () => ({ unavailable: true }),
+      abort() {},
+      interrupt() {},
+      borrowControl: () => ({ unavailable: true }),
+      settleReply: unused,
+      finishReady: unused,
+      close: unused,
+    },
+  }
+  const returned = vi.fn()
+  const source: ModelRuntimeExecutionSource = {
+    capture: () => ({ capture: { executions: [execution], release: returned } }),
+    lookup: () => ({ execution }),
+    snapshot: () => [execution],
+    release: () => ({ unavailable: true }),
+  }
+  const { f, options } = await rootFixture()
+  const root = await startSessionRuntimeRoot({
+    ...options,
+    model: { ...options.model, executionSource: () => source },
+  })
+  const held = await root.owners.modelResults.capture(original.scope, pending.call.callId)
+  if ('failure' in held) throw new Error('original observation unavailable')
+  cleanup.push(async () => {
+    await root.owners.modelResults.release(held.captured)
+    await root.close()
+  })
+  const first = root.close()
+  expect(root.close()).toBe(first)
+  expect(await first).toEqual({ pending: true })
+  expect(returned).not.toHaveBeenCalled()
+  expect(await root.owners.modelResults.capture(original.scope, pending.call.callId)).toEqual({
+    failure: 'unavailable',
+  })
+  expect(await root.owners.modelResults.release(held.captured)).toEqual({ released: true })
+  expect(returned).toHaveBeenCalledOnce()
+  const final = root.close()
+  expect(root.close()).toBe(final)
+  expect(await final).toEqual({ closed: true })
+  expect(root.close()).toBe(final)
+  // Root close never takes over the borrowed store or physical execution source.
+  await f.storage.atomic(async unit => unit.assertStorage(f.storage))
+})
 it('preserves unavailable from the actual root Clock and rolls back input, log and receipt together', async () => {
   const { options } = await rootFixture()
   let available = true

@@ -70,6 +70,7 @@ export interface SessionRuntimeRoot {
   readonly socketPath: string
   /** Trusted bootstrap/inspection only. Ordinary clients use the private socket protocol. */
   readonly owners: SessionRuntimeRootOwners
-  /** Borrowed storage, governance client and physical execution pools remain with the caller. */
+  /** Borrowed dependencies remain with the caller. After known pending resources are returned,
+   * an explicit close can finish the original shutdown. It never reopens admission or retries IO. */
   readonly close: () => Promise<{ readonly closed: true } | { readonly pending: true }>
 }

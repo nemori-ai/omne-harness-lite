@@ -192,7 +192,13 @@ class RuntimeRoot {
     })
   }
   close = (): ReturnType<SessionRuntimeRoot['close']> => {
-    if (!this.closing) this.closing = this.finishClose()
+    if (!this.closing)
+      this.closing = this.finishClose().then(result => {
+        // A known pending observation can be explicitly returned after this attempt ends.
+        // Keep shared in-flight/closed results and failures; do not cache pending forever.
+        if ('pending' in result) delete this.closing
+        return result
+      })
     return this.closing
   }
   async finishClose(): ReturnType<SessionRuntimeRoot['close']> {
