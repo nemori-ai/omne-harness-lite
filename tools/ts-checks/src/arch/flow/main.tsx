@@ -5,11 +5,14 @@ import { architectureSvg } from './export-svg.ts'
 import { elementsOf, Graph, type ArchInstance } from './graph.tsx'
 import type { StructureFlowApi } from '../../metrics/flow/api.ts'
 import { structureFlow } from '../../metrics/flow/structure.tsx'
+import type { ReportUiApi } from './controls-api.ts'
+import { reportUi, upgradeReport } from './controls.tsx'
 
 declare global {
   interface Window {
     ArchitectureFlow?: ArchitectureFlowApi
     StructureFlow?: StructureFlowApi
+    ReportUi?: ReportUiApi
   }
 }
 
@@ -32,3 +35,6 @@ const api: ArchitectureFlowApi = {
 
 window.ArchitectureFlow = api
 window.StructureFlow = structureFlow
+window.ReportUi = reportUi
+// bundle 内联在页面标记之后、页面脚本之前：此时把原生控件换成 antd，页面脚本随后按 id 取句柄。
+upgradeReport(document)

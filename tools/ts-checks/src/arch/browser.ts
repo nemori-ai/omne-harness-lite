@@ -7,6 +7,7 @@ import type { architectureViewport } from './viewport.ts'
 import type { architectureMatrix } from './matrix.ts'
 import type { conformanceBrowser } from './conformance-browser.ts'
 import type { ArchitectureFlowApi, FlowHandle, FlowProps } from './flow/api.ts'
+import type { ReportUiApi } from './flow/controls-api.ts'
 
 /** Embedded after TypeScript erasure. Only the supplied projection function crosses this boundary. */
 export function architectureBrowser(
@@ -18,43 +19,31 @@ export function architectureBrowser(
   engine: Pick<ELK, 'layout'>,
   attachConformance: typeof conformanceBrowser,
   flow: ArchitectureFlowApi,
+  ui: ReportUiApi,
 ): void {
   const required = (id: string): HTMLElement => {
     const element = document.getElementById(id)
     if (element === null) throw new Error(`Missing architecture element ${id}`)
     return element
   }
-  const select = (id: string): HTMLSelectElement => {
-    const element = required(id)
-    if (!(element instanceof HTMLSelectElement)) throw new Error(`Expected select ${id}`)
-    return element
-  }
-  const checkbox = (id: string): HTMLInputElement => {
-    const element = required(id)
-    if (!(element instanceof HTMLInputElement)) throw new Error(`Expected input ${id}`)
-    return element
-  }
-  const group = select('arch-group'),
-    focus = select('arch-focus'),
-    changes = select('arch-changes')
-  const neighbors = checkbox('arch-neighbors'),
-    complexity = checkbox('arch-complexity'),
-    coupling = checkbox('arch-coupling')
+  // 表单控件由 antd 渲染；这里只经句柄读写，取值、设值与 onChange 的语义与原生控件一致。
+  const group = ui.select('arch-group'),
+    focus = ui.select('arch-focus'),
+    changes = ui.select('arch-changes')
+  const neighbors = ui.checkbox('arch-neighbors'),
+    complexity = ui.checkbox('arch-complexity'),
+    coupling = ui.checkbox('arch-coupling')
   const diagram = required('arch-diagram'),
     detail = required('arch-detail'),
     list = required('arch-relations')
   const nodeById = new Map([...graph.nodes, ...graph.groups].map(node => [node.id, node]))
-  const exportButtons = ['arch-export-svg', 'arch-export-json'].map(id => {
-    const el = required(id)
-    if (!(el instanceof HTMLButtonElement)) throw new Error(`Expected button ${id}`)
-    return el
-  })
+  const exportButtons = ['arch-export-svg', 'arch-export-json'].map(id => ui.button(id))
   let request = 0
   let viewport: ReturnType<typeof architectureViewport> | undefined
   let flowHandle: FlowHandle | undefined
   let geometry: { width: number; height: number } | undefined
   let overviewMode: 'matrix' | 'graph' = 'matrix'
-  const relations = new Map<RelationKind, HTMLInputElement>()
+  const relations = new Map<RelationKind, { readonly checked: boolean }>()
   const element = (tag: string, text = '', className = ''): HTMLElement => {
     const el = document.createElement(tag)
     el.textContent = text
@@ -68,12 +57,7 @@ export function architectureBrowser(
     el.addEventListener('click', action)
     return el
   }
-  const option = (value: string, text: string): HTMLOptionElement => {
-    const el = document.createElement('option')
-    el.value = value
-    el.textContent = text
-    return el
-  }
+  const option = (value: string, label: string) => ({ value, label })
   const kindLabel = {
     member: '组件 / 包',
     service: '服务键 · 静态同名',
@@ -94,11 +78,11 @@ export function architectureBrowser(
     `产品成员 ${graph.document.current.scope.productMembers.length} · 静态事实 ${graph.document.current.facts.length} · 具体未知 ${graph.document.current.unknown.length}`
   required('arch-measurement').textContent =
     `圈复杂度算法 functionMetrics · 色带来源 ${graph.measurement.configSource} · 无函数表示无测量单元，覆盖率未提供；颜色不表示架构符合性。`
-  group.append(
+  group.setOptions([
     option('', '系统总览'),
     ...graph.groups.map(node => option(node.group ?? '', node.label)),
-  )
-  focus.append(
+  ])
+  focus.setOptions([
     option('', '不聚焦'),
     ...graph.nodes
       .filter(node => node.kind !== 'external')
@@ -108,20 +92,16 @@ export function architectureBrowser(
           `${nodeKind(node)} · ${node.member ?? node.label}${changeLabel[node.change] === '' ? '' : ' · ' + changeLabel[node.change]}`,
         ),
       ),
-  )
-  if (graph.baseline === undefined) {
-    for (const child of changes.options) if (child.value !== 'current') child.disabled = true
-  }
+  ])
+  if (graph.baseline === undefined)
+    changes.setOptions(
+      changes.options.map(item => ({ ...item, disabled: item.value !== 'current' })),
+    )
   for (const [key, label] of Object.entries(graph.relations)) {
-    const input = document.createElement('input')
-    input.type = 'checkbox'
-    input.checked = true
-    const relation = key as RelationKind
-    relations.set(relation, input)
-    const el = element('label')
-    el.append(input, ` ${label}`)
-    required('arch-kinds').append(el)
-    input.addEventListener('change', render)
+    const control = ui.checkboxElement(label, true)
+    relations.set(key as RelationKind, control.handle)
+    required('arch-kinds').append(control.element)
+    control.handle.onChange(render)
   }
   const selection = (): ViewSelection => {
     const value = changes.value
@@ -135,7 +115,7 @@ export function architectureBrowser(
       relations: [...relations].filter(([, input]) => input.checked).map(([key]) => key),
       complexity: complexity.checked,
       coupling: coupling.checked,
-      conformance: checkbox('arch-conformance').checked,
+      conformance: ui.checkbox('arch-conformance').checked,
     }
   }
   let shown = selectView(graph, selection())
@@ -147,8 +127,9 @@ export function architectureBrowser(
       if (node !== undefined) focusNode(node)
     },
     () => shown,
+    ui,
   )
-  const conformance = checkbox('arch-conformance')
+  const conformance = ui.checkbox('arch-conformance')
   function download(name: string, content: string, type: string): void {
     const url = URL.createObjectURL(new Blob([content], { type }))
     const link = document.createElement('a')
@@ -210,7 +191,7 @@ export function architectureBrowser(
         ),
       )
     if (node.member !== undefined && node.change !== 'removed')
-      detail.append(button('查看此成员的复杂度', () => showMetrics(node.member)))
+      detail.append(ui.action('查看此成员的复杂度', () => showMetrics(node.member)))
     if (node.member !== undefined) {
       const rows = intent.forMember(node.member)
       detail.append(
@@ -218,7 +199,7 @@ export function architectureBrowser(
           'p',
           `静态符合性：偏离 ${rows.filter(row => row.state === 'deviation').length}，未知 ${rows.filter(row => row.state === 'unknown').length}；范围有限，不证明行为。`,
         ),
-        button('查看此成员的符合性', () => intent.open(node.member)),
+        ui.action('查看此成员的符合性', () => intent.open(node.member)),
       )
     }
     const versions =
@@ -426,19 +407,27 @@ export function architectureBrowser(
     }
     const breadcrumb = required('arch-breadcrumb')
     breadcrumb.replaceChildren(
-      button('总览', () => {
-        group.value = ''
-        focus.value = ''
-        render()
-      }),
+      ui.action(
+        '总览',
+        () => {
+          group.value = ''
+          focus.value = ''
+          render()
+        },
+        'link',
+      ),
     )
     if (group.value !== '')
       breadcrumb.append(
         ' / ',
-        button(group.value, () => {
-          focus.value = ''
-          render()
-        }),
+        ui.action(
+          group.value,
+          () => {
+            focus.value = ''
+            render()
+          },
+          'link',
+        ),
       )
     if (focus.value !== '')
       breadcrumb.append(
@@ -476,11 +465,10 @@ export function architectureBrowser(
     for (const [id, mode] of [
       ['arch-matrix', 'matrix'],
       ['arch-graph', 'graph'],
-    ]) {
-      if (id === undefined) continue
-      const el = required(id)
-      el.hidden = !shown.overview
-      el.setAttribute('aria-pressed', String(overviewMode === mode))
+    ] as const) {
+      const control = ui.button(id)
+      control.hidden = !shown.overview
+      control.pressed = overviewMode === mode
     }
     viewport?.dispose()
     viewport = undefined
@@ -533,49 +521,48 @@ export function architectureBrowser(
     for (const limitation of graph.document.current.scope.limitations)
       container.append(element('p', limitation))
   }
-  for (const control of [changes, neighbors, complexity, coupling])
-    control.addEventListener('change', render)
-  conformance.addEventListener('change', render)
-  group.addEventListener('change', () => {
+  changes.onChange(render)
+  for (const control of [neighbors, complexity, coupling, conformance]) control.onChange(render)
+  group.onChange(() => {
     focus.value = ''
     render()
   })
-  focus.addEventListener('change', () => {
+  focus.onChange(() => {
     group.value = nodeById.get(focus.value)?.group ?? ''
     render()
   })
-  required('arch-home').addEventListener('click', () => {
+  ui.button('arch-home').onClick(() => {
     group.value = ''
     focus.value = ''
     render()
   })
-  required('arch-tab').addEventListener('click', showArchitecture)
-  required('metrics-tab').addEventListener('click', () => showMetrics())
-  required('arch-zoom-in').addEventListener('click', () =>
+  ui.onView('architecture', showArchitecture)
+  ui.onView('metrics', () => showMetrics())
+  ui.button('arch-zoom-in').onClick(() =>
     flowHandle === undefined ? viewport?.zoom(1.3) : flowHandle.zoomIn(),
   )
-  required('arch-zoom-out').addEventListener('click', () =>
+  ui.button('arch-zoom-out').onClick(() =>
     flowHandle === undefined ? viewport?.zoom(1 / 1.3) : flowHandle.zoomOut(),
   )
-  required('arch-fit').addEventListener('click', () =>
+  ui.button('arch-fit').onClick(() =>
     flowHandle === undefined ? viewport?.fit() : flowHandle.fitView(),
   )
-  required('arch-matrix').addEventListener('click', () => {
+  ui.button('arch-matrix').onClick(() => {
     overviewMode = 'matrix'
     render()
   })
-  required('arch-graph').addEventListener('click', () => {
+  ui.button('arch-graph').onClick(() => {
     overviewMode = 'graph'
     render()
   })
-  required('arch-export-json').addEventListener('click', () =>
+  ui.button('arch-export-json').onClick(() =>
     download(
       'architecture-selection.json',
       JSON.stringify(shown, null, 2) + '\n',
       'application/json',
     ),
   )
-  required('arch-export-svg').addEventListener('click', () => {
+  ui.button('arch-export-svg').onClick(() => {
     if (flowHandle !== undefined) {
       download('architecture-selection.svg', flowHandle.svg(), 'image/svg+xml')
       return

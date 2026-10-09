@@ -1,11 +1,12 @@
 // 审讯页。结构图是 React Flow 岛（src/metrics/flow/）：层是横向的列、组是层内容器、成员是卡片，
-// 几何与画哪些线由该目录的纯函数算出，本文件只留原生 DOM 的明细、悬停清单与选择状态。
+// 几何与画哪些线由该目录的纯函数算出，本文件留明细、悬停清单与选择状态。
 // 做法取自 Robert C. Martin 的 uml-viewer 与它的前身 arch-view（按其逻辑重写，不搬原文）：
 // - 默认不逐条画连线，只在卡片上标入/出、悬停时列出捆在一起的「从 → 到」，违规排前并标红：
 //   uml-viewer 的 triangles 模式（application/hit.clj:28-77、engine/draw.clj:373-402）。
 //   画线的取舍见 flow/edges.ts。
-// - 评分到颜色：评分不超过 5 时在「差 → 中」之间取色，否则在「中 → 好」之间取色（draw.clj:34-48）；
-//   覆盖率单元格 ≥80% 为好、≥50% 为中、其余为差（draw.clj:61-66）。
+// - 评分到颜色：评分不超过 5 时在「差 → 中」之间取色，否则在「中 → 好」之间取色（draw.clj:34-48），
+//   见 flow/structure.tsx 的 toneOf；覆盖率单元格的取色见 flow/function-table.tsx（draw.clj:61-66）。
+// 表单控件、函数表与折叠区由 antd 渲染（src/arch/flow/controls.tsx），本文件的脚本经句柄读写。
 // - 端点没有框的边跳过（提交 2f532e27）；成员名只显示最后一段（提交 70fffa0c）。
 import type { Report } from './report.ts'
 import type { ArchitectureView } from '../arch/view.ts'
@@ -76,17 +77,12 @@ h1 .mono { font-size:.62em; font-weight:500; color:var(--muted); letter-spacing:
 .badge { display:inline-flex; align-items:center; height:24px; padding:0 10px; border-radius:999px; border:1px solid var(--line-strong);
   background:var(--panel); color:var(--muted); font-size:12.5px; font-weight:500; letter-spacing:0; margin-left:12px; vertical-align:middle; }
 .badge.bad { border-color:color-mix(in srgb, var(--bad) 45%, transparent); background:color-mix(in srgb, var(--bad) 8%, var(--panel)); color:var(--bad); }
-/* 控件：架构视图与度量页共用一套，没有架构数据的页面也一致。 */
-button, select { font:inherit; font-size:13px; line-height:1; color:var(--fg); background:var(--panel); border:1px solid var(--line-strong);
-  border-radius:var(--r-ctrl); height:var(--ctrl-h); padding:0 12px; transition:background-color .12s ease, border-color .12s ease; }
-button { cursor:pointer; }
-button:hover:not(:disabled) { background:var(--panel-2); border-color:color-mix(in srgb, var(--fg) 28%, var(--line-strong)); }
-button:disabled { cursor:wait; opacity:.45; }
-select { appearance:none; -webkit-appearance:none; padding:0 30px 0 10px; cursor:pointer;
-  background-image:linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
-  background-position:calc(100% - 15px) 50%, calc(100% - 10px) 50%; background-size:5px 5px; background-repeat:no-repeat; }
-input[type=checkbox], input[type=radio] { accent-color:var(--ink); width:14px; height:14px; margin:0; vertical-align:-2px; }
-button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible { outline:2px solid var(--changed); outline-offset:2px; }
+/* 原生按钮只剩侧栏清单与详情里的条目，antd 控件（.ant-*）自带样式，这里不碰。 */
+/* :where 不加优先级，侧栏条目（.arch-card 等）自己的行高与尺寸照常生效。 */
+:where(button:not([class*="ant-"])) { font:inherit; font-size:13px; line-height:1; color:var(--fg); background:var(--panel); border:1px solid var(--line-strong);
+  border-radius:var(--r-ctrl); height:var(--ctrl-h); padding:0 12px; cursor:pointer; transition:background-color .12s ease, border-color .12s ease; }
+:where(button:not([class*="ant-"])):hover { background:var(--panel-2); border-color:color-mix(in srgb, var(--fg) 28%, var(--line-strong)); }
+:where(button:not([class*="ant-"])):focus-visible { outline:2px solid var(--changed); outline-offset:2px; }
 [hidden] { display:none !important; }
 .pane-head { margin-bottom:8px; }
 .pane-head .meta { margin-top:2px; }
@@ -98,17 +94,23 @@ pre.summary { margin:20px 0 0; padding:16px 20px; background:var(--panel); borde
 .legend { display:flex; flex-wrap:wrap; align-items:center; gap:6px 20px; color:var(--muted); font-size:12.5px; margin:0 0 14px; }
 .legend span { white-space:normal; }
 .swatch { display:inline-block; width:12px; height:12px; border-radius:3px; vertical-align:-2px; margin-right:6px; border:1px solid var(--line-strong); }
-table { border-collapse:separate; border-spacing:0; width:100%; background:var(--panel); border:1px solid var(--line); border-radius:var(--r-panel); }
-th, td { text-align:left; padding:8px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
-th { position:sticky; top:var(--sticky-top); z-index:2; background:var(--panel-2); font-size:12px; color:var(--muted); font-weight:500; cursor:pointer; user-select:none; white-space:nowrap; }
-thead th:first-child { border-top-left-radius:var(--r-panel); } thead th:last-child { border-top-right-radius:var(--r-panel); }
-tbody tr:last-child td { border-bottom:0; }
-tbody tr:hover td { background-color:color-mix(in srgb, var(--panel-2) 70%, var(--line)); }
-td { font-size:13px; } td.mono:first-child { color:var(--muted); }
+table:not(.ant-table table) { border-collapse:separate; border-spacing:0; width:100%; background:var(--panel); border:1px solid var(--line); border-radius:var(--r-panel); }
+th:not(.ant-table th), td:not(.ant-table td) { text-align:left; padding:8px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+th:not(.ant-table th) { position:sticky; top:var(--sticky-top); z-index:2; background:var(--panel-2); font-size:12px; color:var(--muted); font-weight:500; cursor:pointer; user-select:none; white-space:nowrap; }
+thead th:not(.ant-table th):first-child { border-top-left-radius:var(--r-panel); } thead th:not(.ant-table th):last-child { border-top-right-radius:var(--r-panel); }
+tbody tr:last-child td:not(.ant-table td) { border-bottom:0; }
+tbody tr:hover td:not(.ant-table td) { background-color:color-mix(in srgb, var(--panel-2) 70%, var(--line)); }
+td:not(.ant-table td) { font-size:13px; } td.mono:first-child { color:var(--muted); }
 td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
 tr.changed td.fn { font-weight:600; }
-.controls { display:flex; flex-wrap:wrap; gap:8px 20px; margin:0 0 12px; font-size:13px; }
-.controls label { display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
+/* 函数表（antd Table）：路径用次要色，数字等宽。 */
+.ui-function-table .ant-table { font-size:13px; }
+.ui-function-table td.mono { font-family:var(--mono); font-size:12.5px; } .ui-function-table td.ui-muted { color:var(--muted); }
+.ui-function-table td.num { font-variant-numeric:tabular-nums; }
+/* 不给正在排序的列加底色：评分列已有风险色，排序方向由表头箭头表示。重复类名是为了压过 antd 运行时注入的同级规则。 */
+.ui-function-table.ui-function-table .ant-table-tbody > tr > td.ant-table-column-sort, .ui-function-table.ui-function-table .ant-table-thead > tr > th.ant-table-column-sort { background-color:transparent; }
+.ui-function-table.ui-function-table .ant-table-thead > tr > th.ant-table-column-sort { background-color:var(--panel-2); }
+.controls { margin:0 0 12px; }
 ul.plain { margin:4px 0; padding-left:18px; } ul.plain li { margin:2px 0; }
 .bad { color:var(--bad); } .except { color:var(--except); }
 .empty { color:var(--muted); padding:6px 0; }
@@ -137,11 +139,6 @@ const short = path => path.split('/').pop()
 const pct = ratio => ratio === undefined ? '—' : Math.round(ratio * 100) + '%'
 const num = value => Number.isInteger(value) ? String(value) : value.toFixed(1)
 const metric = report.coverageEnabled ? 'CRAP' : 'CC'
-// 评分 1（最差）到 10（最好）：不超过 5 在「差 → 中」之间取色，否则在「中 → 好」之间取色。
-const tone = (grade, suffix) => grade <= 5
-  ? 'color-mix(in srgb, var(--mid' + suffix + ') ' + Math.round(grade / 5 * 100) + '%, var(--bad' + suffix + '))'
-  : 'color-mix(in srgb, var(--good' + suffix + ') ' + Math.round((grade - 5) / 5 * 100) + '%, var(--mid' + suffix + '))'
-const coverTone = ratio => ratio === undefined ? '' : 'color:var(--' + (ratio >= 0.8 ? 'good' : ratio >= 0.5 ? 'mid' : 'bad') + ')'
 const memberByPath = new Map(report.members.map(member => [member.path, member]))
 const outgoing = new Map(), incoming = new Map()
 for (const edge of report.edges) {
@@ -154,7 +151,7 @@ const sorted = edges => [...edges].sort((a, b) => rankEdge(a) - rankEdge(b))
 let selected = null
 let showGroupLines = false
 let filter = report.hasBase ? 'changed' : 'over'
-let sortKey = 'score'
+let sortKey = 'score', sortOrder = 'descend'
 
 // ---- 结构图 ----
 const structure = document.getElementById('structure')
@@ -175,9 +172,11 @@ function mountFlow() {
   redraw()
 }
 new ResizeObserver(mountFlow).observe(structure)
-document.getElementById('structure-zoom-in').addEventListener('click', () => flow?.zoomIn())
-document.getElementById('structure-zoom-out').addEventListener('click', () => flow?.zoomOut())
-document.getElementById('structure-fit').addEventListener('click', () => flow?.fitView())
+// 控件由 antd 渲染（window.ReportUi），按 id 取句柄。
+const ui = window.ReportUi
+ui.button('structure-zoom-in').onClick(() => flow?.zoomIn())
+ui.button('structure-zoom-out').onClick(() => flow?.zoomOut())
+ui.button('structure-fit').onClick(() => flow?.fitView())
 function showHover(event, path) {
   const out = sorted(outgoing.get(path) ?? []), inc = sorted(incoming.get(path) ?? [])
   hover.replaceChildren($('div', { class: 'mono', text: path }))
@@ -195,7 +194,7 @@ function showHover(event, path) {
   hover.style.left = Math.min(event.clientX + 14, window.innerWidth - 540) + 'px'
   hover.style.top = (event.clientY + 16) + 'px'
 }
-document.getElementById('lines').addEventListener('change', event => { showGroupLines = event.target.checked; redraw() })
+ui.checkbox('lines').onChange(checked => { showGroupLines = checked; redraw() })
 
 // ---- 明细 ----
 const detail = document.getElementById('detail')
@@ -240,28 +239,35 @@ function renderSide() {
   side.append($('h4', { text: '它依赖的（' + out.length + '）' }), out.length ? $('ul', { class: 'plain' }, ...out.map(edge => edgeItem(edge, edge.to))) : $('div', { class: 'empty', text: '无' }))
   side.append($('h4', { text: '依赖它的（' + inc.length + '）' }), inc.length ? $('ul', { class: 'plain' }, ...inc.map(edge => edgeItem(edge, edge.from))) : $('div', { class: 'empty', text: '无' }))
 }
+// 筛选单选与函数表只建一次：每次重画明细时把同一个元素挪回去，只更新数据，切换排序与筛选时不闪。
+const filters = $('div', { class: 'controls' })
+const filterRadio = ui.radio(filters, [...(report.hasBase ? [{ value: 'changed', label: '基线以来变更的' }] : []), { value: 'over', label: '超阈值的' }, { value: 'all', label: '全部' }],
+  filter, value => { filter = value; renderDetail() })
+const tableHost = $('div')
+let functionTable = null
 function renderDetail() {
   renderSide()
   detail.replaceChildren()
   const scope = selected === null ? report.functions : report.functions.filter(row => row.member === selected)
-  const radio = (value, label) => $('label', {}, Object.assign($('input', { type: 'radio', name: 'filter', onchange: () => { filter = value; renderDetail() } }), { checked: filter === value }), ' ' + label)
-  detail.append($('h2', { text: selected === null ? '全仓的函数' : short(selected) + ' 的函数' }),
-    $('div', { class: 'controls' }, report.hasBase ? radio('changed', '基线以来变更的') : null, radio('over', '超阈值的'), radio('all', '全部')))
+  filterRadio.value = filter
+  detail.append($('h2', { text: selected === null ? '全仓的函数' : short(selected) + ' 的函数' }), filters)
   let rows = scope.filter(row => filter === 'all' || (filter === 'changed' ? row.changed : row.level !== 'ok'))
-  const keys = { score: row => -row.score, cc: row => -row.complexity, cov: row => row.coverage ?? 2, path: row => row.path + String(row.line).padStart(6, '0') }
-  rows = [...rows].sort((a, b) => { const x = keys[sortKey](a), y = keys[sortKey](b); return x < y ? -1 : x > y ? 1 : 0 })
+  // 升降序都可选；没有覆盖率数据的函数无论方向都排在最后。
+  const keys = { score: row => row.score, cc: row => row.complexity, cov: row => row.coverage, path: row => row.path + String(row.line).padStart(6, '0') }
+  // sortKey 为 null 时不排序，保持报告给出的原始顺序。
+  if (sortKey !== null) rows = [...rows].sort((a, b) => {
+    const x = keys[sortKey](a), y = keys[sortKey](b)
+    if (x === undefined || y === undefined) return x === y ? 0 : x === undefined ? 1 : -1
+    const order = x < y ? -1 : x > y ? 1 : 0
+    return sortOrder === 'ascend' ? order : -order
+  })
   const total = rows.length
   rows = rows.slice(0, 400)
   if (rows.length === 0) { detail.append($('div', { class: 'empty', text: '没有符合条件的函数。' })); return }
-  const head = (key, label, cls) => $('th', { class: cls ?? '', text: label + (sortKey === key ? ' ▾' : ''), onclick: () => { sortKey = key; renderDetail() } })
-  const table = $('table', {}, $('thead', {}, $('tr', {}, head('path', '位置'), $('th', { text: '函数' }), head('cc', 'CC', 'num'), head('cov', '覆盖', 'num'), head('score', metric === 'CRAP' ? 'CRAP' : '评级分', 'num'), $('th', { text: '变更' }))))
-  const body = $('tbody')
-  for (const row of rows)
-    body.append($('tr', { class: row.changed ? 'changed' : '' },
-      $('td', { class: 'mono', text: row.path + ':' + row.line }), $('td', { class: 'fn mono', text: row.name }),
-      $('td', { class: 'num', text: String(row.complexity) }), $('td', { class: 'num', style: coverTone(row.coverage), text: pct(row.coverage) }),
-      $('td', { class: 'num', style: 'background:' + tone(row.grade, '-fill'), text: num(row.score) }), $('td', { text: row.changed ? '是' : '' })))
-  table.append(body); detail.append(table)
+  const props = { rows, metric, sortKey, sortOrder, onSort: (key, order) => { sortKey = key; sortOrder = order; renderDetail() } }
+  if (functionTable === null) functionTable = ui.functionTable(tableHost, props)
+  else functionTable.update(props)
+  detail.append(tableHost)
   if (total > rows.length) detail.append($('div', { class: 'empty', text: '只显示前 ' + rows.length + ' 条，共 ' + total + ' 条；点成员缩小范围。' }))
 }
 

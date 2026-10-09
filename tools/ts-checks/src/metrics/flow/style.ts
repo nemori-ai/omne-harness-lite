@@ -6,8 +6,6 @@ export const STRUCTURE_STYLE = `
 .structure-frame > .structure-bar, .structure-frame > #structure, .structure-frame > .structure-foot { grid-column:1; }
 .structure-bar { display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; padding:8px 12px 8px 16px; border-bottom:1px solid var(--line); font-size:12.5px; color:var(--muted); }
 .structure-bar .spacer { flex:1; }
-.structure-bar button { height:28px; padding:0 10px; font-size:12.5px; }
-.structure-bar label { display:flex; align-items:center; gap:8px; color:var(--fg); cursor:pointer; }
 #structure { position:relative; min-width:0; background:var(--canvas); }
 /* contain:size：侧栏内容再长也不撑高网格行，只在侧栏里滚动。 */
 .structure-side { grid-column:2; grid-row:1 / -1; contain:size; min-width:0; overflow:auto; padding:18px 20px; border-left:1px solid var(--line); font-size:12.5px; line-height:1.65; overflow-wrap:anywhere; }

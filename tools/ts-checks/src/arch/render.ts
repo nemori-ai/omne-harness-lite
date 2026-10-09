@@ -45,11 +45,6 @@ body:has(.arch-nav) { --sticky-top:57px; }
   margin:-32px calc(50% - 50vw) 28px; padding:0 max(32px, calc(50vw - 880px));
   background:color-mix(in srgb, var(--bg) 86%, transparent); -webkit-backdrop-filter:saturate(1.4) blur(10px); backdrop-filter:saturate(1.4) blur(10px);
   border-bottom:1px solid var(--line); }
-.arch-nav button { height:32px; padding:0 14px; border:0; background:transparent; color:var(--muted); font-size:13.5px; font-weight:500; border-radius:var(--r-ctrl); }
-.arch-nav button:hover:not(:disabled) { background:color-mix(in srgb, var(--fg) 6%, transparent); color:var(--fg); border:0; }
-body:has(#architecture-pane:not([hidden])) #arch-tab,
-body:has(#conformance-pane:not([hidden])) #conformance-tab,
-body:has(#metrics-pane:not([hidden])) #metrics-tab { background:var(--ink); color:var(--on-ink); }
 .arch-heading { display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px 24px; }
 .arch-heading h1 { margin:0; }
 #arch-counts { font-size:13px; color:var(--muted); margin:0; font-variant-numeric:tabular-nums; }
@@ -57,28 +52,18 @@ body:has(#metrics-pane:not([hidden])) #metrics-tab { background:var(--ink); colo
 .arch-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px; padding:18px 0 14px; }
 .arch-toolbar label { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); }
 .arch-toolbar select { max-width:320px; color:var(--fg); }
-/* 折叠区：自绘箭头，标题与内容共用一个面板。 */
-.arch-filters, .arch-notice { margin:0 0 12px; background:var(--panel); border:1px solid var(--line); border-radius:var(--r-panel); }
-.arch-filters > summary, .arch-notice > summary { list-style:none; display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer;
-  font-size:13px; font-weight:600; color:var(--fg); border-radius:var(--r-panel); }
-.arch-filters > summary::-webkit-details-marker, .arch-notice > summary::-webkit-details-marker { display:none; }
-.arch-filters > summary::before, .arch-notice > summary::before { content:''; width:6px; height:6px; margin:0 2px 2px;
-  border-right:1.5px solid var(--muted); border-bottom:1.5px solid var(--muted); transform:rotate(-45deg); transition:transform .15s ease; }
-.arch-filters[open] > summary::before, .arch-notice[open] > summary::before { transform:rotate(45deg); margin-bottom:4px; }
-.arch-filters > summary:hover, .arch-notice > summary:hover { background:var(--panel-2); }
-.arch-filters[open] > summary, .arch-notice[open] > summary { border-bottom-left-radius:0; border-bottom-right-radius:0; }
-.arch-filters .arch-toolbar { padding:4px 16px 14px; }
-.arch-filters fieldset { margin:0 16px 16px; padding:12px 14px 14px; border:1px solid var(--line); border-radius:var(--r-item); }
+/* 折叠区由 antd Collapse 渲染；外层只管间距。#conformance-expected-path 仍是普通面板。 */
+.ui-collapse { margin:0 0 12px; }
+#architecture-pane .ui-collapse.arch-notice { margin-top:16px; } #architecture-pane .ui-collapse.arch-notice ~ .ui-collapse.arch-notice { margin-top:0; }
+.ui-collapse .ant-collapse { background:var(--panel); }
+.ui-collapse .ant-collapse-header-text { font-weight:600; }
+.ui-collapse .arch-toolbar { padding:0 0 14px; }
+.arch-filters fieldset { margin:0; padding:12px 14px 14px; border:1px solid var(--line); border-radius:var(--r-item); }
 .arch-filters legend { padding:0 6px; font-size:12px; color:var(--muted); }
-#arch-kinds { display:flex; flex-wrap:wrap; gap:8px; font-size:12.5px; }
-#arch-kinds label { display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 12px 0 10px; border:1px solid var(--line-strong);
-  border-radius:999px; background:var(--panel); cursor:pointer; transition:background-color .12s ease, border-color .12s ease; }
-#arch-kinds label:has(input:checked) { background:var(--panel-2); border-color:color-mix(in srgb, var(--fg) 35%, var(--line-strong)); }
-#arch-kinds label:has(input:not(:checked)) { color:var(--muted); }
-.arch-notice > :not(summary) { margin-left:16px; margin-right:16px; }
-.arch-notice > :last-child:not(summary) { margin-bottom:14px; }
-.arch-notice p, .arch-notice li { font-size:13px; line-height:1.7; }
-#architecture-pane .arch-notice:first-of-type { margin-top:16px; }
+#arch-kinds { display:flex; flex-wrap:wrap; gap:6px 18px; }
+.ui-collapse p, .ui-collapse li { font-size:13px; line-height:1.7; }
+.ui-collapse-body > :first-child { margin-top:0; } .ui-collapse-body > :last-child { margin-bottom:0; }
+div.arch-notice:not(.ui-collapse) { margin:0 0 12px; padding:4px 16px; background:var(--panel); border:1px solid var(--line); border-radius:var(--r-panel); }
 .arch-workspace { display:grid; grid-template-columns:200px minmax(0,1fr) 320px; border:1px solid var(--line); border-radius:var(--r-panel);
   overflow:hidden; height:72vh; min-height:520px; background:var(--panel); margin-bottom:16px; }
 .arch-sidebar { min-width:0; overflow:auto; padding:16px; background:var(--panel); }
@@ -95,10 +80,8 @@ body:has(#metrics-pane:not([hidden])) #metrics-tab { background:var(--ink); colo
 .arch-card[aria-current=true]:hover, .arch-item[aria-current=true]:hover { background:color-mix(in srgb, var(--panel-2) 70%, var(--line)); }
 .arch-canvas { display:flex; flex-direction:column; min-width:0; overflow:hidden; background:var(--canvas); }
 .arch-canvas-bar { display:flex; align-items:center; flex-wrap:wrap; gap:6px; padding:8px 12px; border-bottom:1px solid var(--line); font-size:12px; background:var(--panel); }
-.arch-canvas-bar button { height:28px; padding:0 10px; font-size:12.5px; }
 #arch-breadcrumb { flex:1; overflow-wrap:anywhere; color:var(--muted); }
-#arch-breadcrumb button { height:auto; border:0; padding:3px 4px; background:none; font-size:12px; color:var(--fg); }
-#arch-breadcrumb button:hover { text-decoration:underline; background:none; }
+.ui-link .ant-btn { padding:0 4px; height:auto; }
 #arch-diagram { flex:1; min-height:0; overflow:hidden; position:relative; }
 #arch-diagram > svg { display:block; width:100%; height:100%; touch-action:none; cursor:grab; background:#fafbf9; }
 #arch-diagram > svg:active { cursor:grabbing; }
@@ -122,7 +105,7 @@ body:has(#metrics-pane:not([hidden])) #metrics-tab { background:var(--ink); colo
 .arch-inspector { border-left:1px solid var(--line); }
 #arch-detail { overflow-wrap:anywhere; } #arch-detail h2 { font-size:15px; color:var(--fg); margin:4px 0 8px; }
 #arch-detail code { display:block; font-size:11px; color:var(--muted); overflow-wrap:anywhere; }
-#arch-detail ul { padding-left:18px; } #arch-detail button { margin:6px 0; } #arch-unknown li { overflow-wrap:anywhere; }
+#arch-detail ul { padding-left:18px; } #arch-detail .ui-action { display:inline-block; margin:6px 8px 6px 0; } #arch-unknown li { overflow-wrap:anywhere; }
 #conformance-pane .arch-toolbar { padding-top:20px; }
 #conformance-counts { font-size:14px; font-weight:500; margin:4px 0 2px; font-variant-numeric:tabular-nums; }
 #conformance-selection { margin:0 0 12px; }
@@ -135,7 +118,7 @@ body:has(#metrics-pane:not([hidden])) #metrics-tab { background:var(--ink); colo
 #conformance-pane pre { white-space:pre-wrap; overflow-wrap:anywhere; }
 @media(min-width:1700px) { .arch-workspace { grid-template-columns:230px minmax(0,1fr) 350px; } }
 @media(max-width:1050px) { .arch-workspace { grid-template-columns:160px minmax(0,1fr) 250px; } .arch-sidebar { padding:10px; } }
-@media(max-width:760px) { .arch-nav { margin:-20px -16px 20px; padding:0 16px; } .arch-workspace { display:block; height:auto; } .arch-navigation { max-height:180px; border-right:0; border-bottom:1px solid var(--line); } .arch-canvas { height:65vh; min-height:360px; } .arch-inspector { max-height:420px; border-left:0; border-top:1px solid var(--line); } }
+@media(max-width:760px) { .arch-nav { margin:-20px -16px 20px; padding:0 16px; overflow-x:auto; } .arch-workspace { display:block; height:auto; } .arch-navigation { max-height:180px; border-right:0; border-bottom:1px solid var(--line); } .arch-canvas { height:65vh; min-height:360px; } .arch-inspector { max-height:420px; border-left:0; border-top:1px solid var(--line); } }
 </style>
 <nav class="arch-nav" aria-label="评审视图"><button id="arch-tab">架构视图</button><button id="conformance-tab">责任与符合性</button><button id="metrics-tab">复杂度与风险</button></nav>
 <section id="architecture-pane">
@@ -145,8 +128,8 @@ body:has(#metrics-pane:not([hidden])) #metrics-tab { background:var(--ink); colo
 </header>
 <div class="arch-toolbar">
 <button id="arch-home">系统总览</button>
-<label>目录组或应用 <select id="arch-group"></select></label>
-<label>聚焦组件 <select id="arch-focus"></select></label>
+<label>目录组或应用 <select id="arch-group" data-width="200"></select></label>
+<label>聚焦组件 <select id="arch-focus" data-width="320" data-search></select></label>
 <label><input id="arch-neighbors" type="checkbox" checked>显示邻接</label>
 </div>
 <details class="arch-filters" open><summary>关系、变化与度量</summary>
@@ -180,7 +163,7 @@ body:has(#metrics-pane:not([hidden])) #metrics-tab { background:var(--ink); colo
 <header class="pane-head"><h1>系统责任与架构符合性</h1><p id="conformance-coordinate" class="meta"></p></header>
 <div id="conformance-expected-path" class="arch-notice"></div>
 <details class="arch-notice"><summary>已认可责任方向与候选实现映射</summary><div id="conformance-responsibility" class="conformance-domains"></div></details>
-<div class="arch-toolbar"><label>结果 <select id="conformance-state"><option value="deviation">静态偏离</option><option value="new">新增偏离</option><option value="stock">存量偏离</option><option value="unknown">未知</option><option value="converged">有限静态检查符合</option><option value="all">全部</option></select></label><label>责任 <select id="conformance-domain"></select></label><label>成员 <select id="conformance-member"></select></label></div>
+<div class="arch-toolbar"><label>结果 <select id="conformance-state"><option value="deviation">静态偏离</option><option value="new">新增偏离</option><option value="stock">存量偏离</option><option value="unknown">未知</option><option value="converged">有限静态检查符合</option><option value="all">全部</option></select></label><label>责任 <select id="conformance-domain"></select></label><label>成员 <select id="conformance-member" data-width="320" data-search></select></label></div>
 <p id="conformance-counts"></p><p id="conformance-selection" class="meta"></p><div id="conformance-rows"></div>
 <details class="arch-notice" open><summary>预期语义变化</summary><div id="conformance-changes"></div></details>
 <details class="arch-notice"><summary>机械、人工与行为证据边界</summary><div id="conformance-coverage"></div></details>
@@ -211,6 +194,6 @@ export function architectureScript(): string {
     diagram.setAttribute('aria-busy', 'false');
     throw error;
   }
-  (${architectureBrowser.toString()})(graph,${selectArchitectureView.toString()},${architectureLayoutInput.toString()},${architectureViewport.toString()},${architectureMatrix.toString()},new ELK(),${conformanceBrowser.toString()},window.ArchitectureFlow);
+  (${architectureBrowser.toString()})(graph,${selectArchitectureView.toString()},${architectureLayoutInput.toString()},${architectureViewport.toString()},${architectureMatrix.toString()},new ELK(),${conformanceBrowser.toString()},window.ArchitectureFlow,window.ReportUi);
 })();`
 }

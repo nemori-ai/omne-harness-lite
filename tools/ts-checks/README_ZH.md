@@ -315,6 +315,7 @@ stdout 仍只有实际架构 JSON，报告路径写到 stderr。构建后也可�
 经同一个 architecture 入口导出。数据类型归 [view.ts](src/arch/view.ts)，
 类型表达不出的行为归 [薄规格](src/arch/SPEC.md)，回归见 [视图测试](tests/architecture-view.spec.ts)。
 关系图由 React 19 与 @xyflow/react 展示（`src/arch/flow/`），ELK 仍负责位置与路由，节点不可拖动。
+表单控件、视图切换、折叠区与函数表由 antd 6 渲染（`flow/controls.tsx`），与 React Flow 打进同一个 bundle；页面标记仍写原生控件，加载时替换，id 与文字不变。
 React 19 没有浏览器单文件构建，所以 `renderPage` 生成页面时用 esbuild 把岛打成一个 IIFE 内联（`flow/bundle.ts`），
 从 `src/` 与 `dist/` 都能运行，页面仍离线自包含。关系图模式的 SVG 导出由同一份几何生成（`flow/export-svg.ts`），
 回归见 [岛测试](tests/architecture-flow.spec.ts)。
