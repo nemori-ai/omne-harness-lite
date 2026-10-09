@@ -376,11 +376,11 @@ function buildRuntimeAcquire<P extends PlannedSemantics, R>(
           }
           unregister = retained.registration.unregister
           try {
-            const installObserver = (): boolean => {
+            const installObserver = (observed: CallContainerView<P, R>): boolean => {
               if (owned.observer !== undefined) {
                 if (
-                  local.operation.phase !== 'dispatching' ||
-                  local.invocation === undefined ||
+                  observed.operation.phase !== 'dispatching' ||
+                  observed.invocation === undefined ||
                   bound.binding.observers === undefined
                 ) {
                   return false
@@ -395,7 +395,7 @@ function buildRuntimeAcquire<P extends PlannedSemantics, R>(
                   return false
                 }
                 authorization = authorized.observer
-                const target = local.operation.target
+                const target = observed.operation.target
                 const opened = authorization.open(target)
                 if (!('receiver' in opened)) {
                   return false
@@ -484,17 +484,19 @@ function buildRuntimeAcquire<P extends PlannedSemantics, R>(
               }
               return true
             }
-            if (!installObserver()) {
+            if (!installObserver(local)) {
               await entry.close()
               return unavailable
             }
-            const observerSnapshot = (): Pick<
+            const observerSnapshot = (
+              observed: CallContainerView<P, R>,
+            ): Pick<
               Parameters<typeof createIndependentCallConsumer>[0],
               'queue' | 'initialSnapshot'
             > => {
-              return queue === undefined || local.invocation === undefined
+              return queue === undefined || observed.invocation === undefined
                 ? {}
-                : { queue, initialSnapshot: local.invocation.snapshot() }
+                : { queue, initialSnapshot: observed.invocation.snapshot() }
             }
             const original = local.executionGeneration
             consumer = createIndependentCallConsumer({
@@ -512,7 +514,7 @@ function buildRuntimeAcquire<P extends PlannedSemantics, R>(
                 const read = await acquireCall({ ref: owned.ref, mode: 'read' })
                 return 'view' in read ? { view: read.view } : unavailable
               },
-              ...observerSnapshot(),
+              ...observerSnapshot(local),
               onStopped: () => {
                 // This original entry retains the cleanup promise; failed cleanup remains retryable.
                 entry.close()
