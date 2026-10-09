@@ -127,8 +127,7 @@ class RuntimeRoot {
       policy: o.runtimePolicy,
       now: async () => {
         const instant = await o.clock.now()
-        if (instant === 'unavailable') throw new Error('Session clock unavailable')
-        return instantToRfc3339(instant)
+        return instant === 'unavailable' ? instant : instantToRfc3339(instant)
       },
       log: authority => {
         this.log = openSqlSessionLog({

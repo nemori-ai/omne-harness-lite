@@ -498,6 +498,8 @@ createSessionForMessage从已运行的匹配宿主读取实际创建偏好，捕
 
 关闭先停止宿主及等待原任务；仍有未交还责任时返回pending，保留原拥有者。可靠收场后依次结束原发起／捕获、Context及访问绑定、Ingress、日志和G28。本入口不关闭借入Storage、治理客户端或物理模型池。启动失败必须完成已分配资源的实际收场；若收场失败或pending，则抛SessionRuntimeRootFailure并保留原closeRetained闭包及原错误。closeRetained只保留原收场责任，不承诺自动重试、恢复准入或取消独立模型／工具。
 
+运行根将借入Clock的有效Instant转换为RFC3339；原`unavailable`保持为Session时间端口的`unavailable`，由Session提供者回滚本次日志、状态及回执并返回公开不可用结果。不把声明的时钟不可用抛成普通内部错误，不补墙钟。Clock的意外异常仍传播原缺陷。
+
 此函数负责实际资源总装与监听，不负责创建独立OS进程、解析生产配置文件或发行资产。调用方必须提供完整且可信的部署输入，并承担借入资源的最终关闭。
 
 ## 既有终端部件的验证义务

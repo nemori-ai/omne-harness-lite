@@ -659,6 +659,57 @@ it('assembles the actual runtime root and creates a legal empty Session through 
   if (borrowed.kind === 'use') await borrowed.use.close()
   await f.storage.atomic(async unit => unit.assertStorage(f.storage))
 })
+it('preserves unavailable from the actual root Clock and rolls back input, log and receipt together', async () => {
+  const { options } = await rootFixture()
+  let available = true
+  const root = await startSessionRuntimeRoot({
+    ...options,
+    clock: {
+      now: async () => (available ? unwrap(instantFromRfc3339(now)) : 'unavailable'),
+    },
+  })
+  cleanup.push(() => root.close().then(() => {}))
+  const ingress = root.owners.ingress
+  const created = await ingress.operations.createSession(ingress.access, input)
+  if (!('kind' in created) || created.kind !== 'created') throw new Error('Session not created')
+  const original = await ingress.journal.readPrefix(ingress.access, created.session)
+  const message = judgeMessage({
+    id: 'clock-unavailable-input',
+    type: 'user',
+    createdAt: now,
+    blocks: [
+      {
+        id: 'clock-unavailable-text',
+        kind: 'text',
+        text: 'must remain unaccepted',
+        visibility: { toHuman: true, toModel: true },
+      },
+    ],
+  })
+  if ('rejected' in message || message.ok.type !== 'user') throw new Error('invalid message')
+  available = false
+  await expect(
+    ingress.operations.submitInput(
+      ingress.access,
+      created.session,
+      'clock-unavailable',
+      message.ok,
+    ),
+  ).resolves.toEqual({ failure: 'unavailable' })
+  expect(await ingress.journal.readPrefix(ingress.access, created.session)).toEqual(original)
+  expect(
+    await ingress.readWork(ingress.coordinationAuthority, { tenant, session: created.session }, 1),
+  ).toMatchObject({ kind: 'work', inputs: [], head: { run: null } })
+  expect(
+    await ingress.operations.readReceipt(ingress.access, {
+      tenant,
+      principal: source.accountId,
+      session: created.session,
+      operation: 'submitInput',
+      operationKey: 'clock-unavailable',
+    }),
+  ).toEqual({ kind: 'absent' })
+})
 it('releases the actual partial runtime root after a model configuration defect and permits fresh assembly', async () => {
   const { options } = await rootFixture()
   const defect = new Error('controlled root model configuration failure')
