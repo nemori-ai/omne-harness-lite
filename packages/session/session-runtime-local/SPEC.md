@@ -280,11 +280,17 @@ root须保留实际可用依赖，直到原closed；服务从Context不可见不
 ### 完整驱动构造的施工面
 
 LocalSessionDriverFactory.create的施工签名接LocalSessionDriverOptions及原启动signal，返回实际驱动control。
-实际createLocalSessionDriver仍属E1待实现入口；工作owner及原模型消费构件已提供公开函数，不提供占位驱动函数。
+根入口的createLocalSessionDriver已提供正常Model路径。它扫描租户持久工作，建立原Session任务，再借用原Run输入、注册表和Context。工具批次消费和Cordis驱动插件仍须完成；这个入口不表示完整Model／Tool驱动已经交付。
 Options不含home、socket、命令、终端或整个attempt的configure回调。
 root只选择实际来源、Model／Tool提供者及显式工程政策；Session驱动复用core Agent Loop，
 负责扫描、原Run／attempt、日志借用、报告／HostInputs构造、原调用、保管、采用和适用ACK。
 它从Session事实和实际求值输入生成请求，不用root回调代行Loop，也不制造默认route、秘密、权限或预算。
+
+正常路径使用原Clock确认来源可用，再以Session身份键集分页扫描；每页受scanLimit和maxStepsPerPass共同限制。实际任务owner在异步分配Run或来源前登记任务，按maxTasks及maxHeld限制拥有的责任，同一Session不启动并行任务。轮询等待复用Node timers/promises，间隔只来自显式policy，不自定重试或超时政策。
+
+原启动signal或requestStop立即撤销新扫描及新任务准入，并停止本地等待。撤除不取消已发模型效果、不关闭借入的物理执行池。close等待已经开始的实际扫描返回，再收拢原任务的真实close结果；有未完责任时返回pending及held，不能以任务服务不可见冒充closed。只有实际closed后撤掉原signal监听。
+
+Clock不可用、扫描失败和任务缺陷停止新工作并通过原diagnostic报告。原错误和diagnostic缺陷按maxFailures保留，超出容量的数量也保留；close抛出原缺陷集合，不返回成功。关闭后的重读、认回及未知责任仍沿原拥有者，驱动不自动重发未知调用。
 
 ingress必须是同租户的SessionDriverIngress，含实际工具support／保管／普通交付，
 现有窄LocalSessionIngress不能冒充完整施工输入。

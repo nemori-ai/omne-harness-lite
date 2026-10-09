@@ -1,5 +1,10 @@
 // @module-tag slow
 // Uses actual governance, SQLite, Context, model pools and background scans.
+import {
+  createLocalSessionDriver,
+  type LocalSessionDriverOptions,
+  type RuntimeOptions,
+} from '@omne-harness-lite/session-runtime-local'
 import { createSessionCallAccess } from '@omne-harness-lite/session-runtime-local'
 import { createSessionContextReadGrant } from '../src/session-context-access.ts'
 import type { BorrowedRunJournal } from '@omne-harness-lite/session-runtime-local'
@@ -92,6 +97,8 @@ import {
 } from '@omne-harness-lite/session-runtime-local'
 import {
   originalIssueMigrations,
+  createOriginalIssueOwner,
+  type OriginalIssueOwner,
   createSettlementCoordinator,
   createModelRuntime,
   createCallContainerStore,
@@ -285,6 +292,7 @@ async function setup(
   resultSource?: (storage: AtomicStorage) => ModelResultSource,
   nativeTiming = false,
   workSettled?: import('@omne-harness-lite/session-runtime-local').RuntimeOptions['workSettledIn'],
+  issue?: RuntimeOptions['modelIssue'],
 ) {
   const directory = await mkdtemp(join(tmpdir(), 'omne-formal-bootstrap-'))
   cleanup.push(() => rm(directory, { recursive: true, force: true }))
@@ -309,7 +317,9 @@ async function setup(
     ...sessionRuntimeMigrations,
     ...runtimeContextMigrations,
     ...evaluationInputMigrations,
-    ...(withModel ? [...originalIssueMigrations, ...modelCallContentMigrations('sqlite')] : []),
+    ...(withModel || issue !== undefined
+      ? [...originalIssueMigrations, ...modelCallContentMigrations('sqlite')]
+      : []),
   ])
     await storage.write(tx => item.migration.up(tx.db))
   const local = await openClientLocalState(
@@ -396,6 +406,7 @@ async function setup(
     now: async () => now,
     workSettledIn: workSettled ?? (async () => 'settled'),
     ...(modelOwner ? { modelIssue: modelOwner.modelIssue } : {}),
+    ...(issue ? { modelIssue: issue } : {}),
     ...(resultSource ? { modelResults: { maxRecords: 16, source: resultSource(storage) } } : {}),
   })
   cleanup.push(() => runtime.close())
@@ -1767,8 +1778,17 @@ async function originalModelInput(
   resultSource?: (storage: AtomicStorage) => ModelResultSource,
   nativeTiming = false,
   workSettled?: import('@omne-harness-lite/session-runtime-local').RuntimeOptions['workSettledIn'],
+  issue?: RuntimeOptions['modelIssue'],
 ) {
-  const f = await setup(16, true, true, resultSource, nativeTiming, workSettled)
+  const f = await setup(
+    16,
+    true,
+    issue === undefined,
+    resultSource,
+    nativeTiming,
+    workSettled,
+    issue,
+  )
   const created = await f.runtime.operations.createSession(f.runtime.access, input)
   if (!('kind' in created) || created.kind !== 'created') throw new Error('Session not created')
   const scope = { tenant, session: created.session }
@@ -1796,6 +1816,274 @@ async function originalModelInput(
   if (!('kind' in accepted) || accepted.kind !== 'accepted') throw new Error('input not accepted')
   return { f, scope, accepted }
 }
+it.each(['normal', 'foreignScope'] as const)(
+  'public driver pairs the original Run reader with actual bootstrap, Context and adopted registry: %s',
+  async fault => {
+    let native: ReturnType<typeof createModelRuntime> | undefined
+    let bridge!: SessionModelResultSource,
+      work!: SessionDriverWorkOwner,
+      original!: OriginalIssueOwner
+    let sourceStorage!: AtomicStorage
+    const accepted = await originalModelInput(
+      storage => {
+        sourceStorage = storage
+        work = createSessionDriverWorkOwner({ storage, tenant, maxRecords: 16 })
+        bridge = createSessionModelResultSource({
+          storage,
+          tenant,
+          executionSource: () => native?.executionSource,
+          maxCaptures: 4,
+          retainReferencesIn: async unit => {
+            unit.assertStorage(storage)
+            return 'retained'
+          },
+        })
+        return bridge.source
+      },
+      true,
+      (...args) => work.readIn(...args),
+      {
+        maxRecords: 16,
+        current: { authorizeIn: async () => ({ kind: 'authorized' }) },
+        create(binding) {
+          original = createOriginalIssueOwner({
+            storage: sourceStorage,
+            log: binding.log,
+            access: binding.access,
+            authority: binding.authority,
+            limit: 8,
+          })
+          return original.participant
+        },
+      },
+    )
+    const { f, scope } = accepted
+    let returnedScope = scope
+    if (fault === 'foreignScope') {
+      const other = await f.runtime.operations.createSession(f.runtime.access, {
+        ...input,
+        operationKey: 'public-source-foreign-session',
+      })
+      if (!('kind' in other) || other.kind !== 'created')
+        throw new Error('actual foreign Session unavailable')
+      returnedScope = { tenant, session: other.session }
+    }
+    cleanup.push(async () => {
+      expect(await original.close()).toEqual({ kind: 'released' })
+    })
+    cleanup.push(async () => {
+      expect(bridge.close()).toEqual({ released: true })
+    })
+    const ports = nativeCallFixturePorts(scope, f.runtime, f.storage)
+    const construction = ports.configure(nativeModelConstruction(f.storage))
+    native = createModelRuntime(construction)
+    nativeModels.push(native)
+    for (const migration of assemblyManifestMigrations)
+      await f.storage.write(tx => migration.migration.up(tx.db))
+    const manifest = createAssemblyManifestStore(f.storage)
+    cleanup.push(() => manifest.close())
+    const returned = vi.fn(),
+      diagnostic = vi.fn()
+    const acquire: LocalSessionDriverOptions['sources']['acquire'] = async (requested, journal) => {
+      expect(requested).toEqual(scope)
+      expect(journal.scope).toEqual(scope)
+      const reader = f.assembly.runInputs(requested, journal),
+        context = f.assembly.context(requested)
+      if (!reader || !context) throw new Error('actual original bootstrap source missing')
+      cleanup.push(() => reader.close())
+      const runtimeContext = await context.ready
+      const registry = createAssetRegistry({
+        manifest,
+        currentInputs: reader,
+        sessionTenancy: f.runtime.tenancy,
+        fixedRootInput: {
+          read: async request => {
+            const current = await reader.read(request.session, request.tenant)
+            if (
+              !('input' in current) ||
+              JSON.stringify(current.input.root.source) !== JSON.stringify(request.rootSource)
+            )
+              return { failure: 'unavailable', stage: 'fixed_body' }
+            return current
+          },
+        },
+        deployedMeta: [],
+        clock: { now: async () => unwrap(instantFromRfc3339(now)) },
+        diagnostic() {},
+        diagnosticFailure() {},
+        monotonicNow: process.hrtime.bigint,
+        conflictPolicy: { maxRetries: 0 },
+        maxInFlight: 4,
+      })
+      cleanup.push(() => registry.close())
+      const value = await reader.read(scope.session, tenant)
+      if (!('input' in value)) throw new Error('actual original Run input unavailable')
+      const evaluated = evaluate(value.input)
+      if (!('ok' in evaluated)) throw new Error('actual root composition unavailable')
+      const filled = await registry.fill(
+        scope.session,
+        evaluated.ok,
+        'public-driver-root-fill',
+        evaluated.ok.composition,
+      )
+      if (!('snapshots' in filled)) throw new Error('actual registry fill unavailable')
+      return {
+        scope: returnedScope,
+        run: journal.run,
+        evaluation: reader,
+        registry,
+        context: runtimeContext,
+        contextGeneration: context.currentGeneration,
+        get toolAccess(): never {
+          throw new Error('normal model path must not take a tool grant')
+        },
+        get actions(): never {
+          throw new Error('normal model path must not read tool runner qualification')
+        },
+        providers: {
+          catalog: ports.catalog,
+          credentials: ports.credentials,
+          tools: { lookup: async () => ({ failure: 'unavailable' as const }) },
+          sourceVersions: { controlled: 'normal-root-deployment' },
+        },
+        selection: {
+          owner: ports.owner,
+          concurrent: 1,
+          sessionTenancy: f.runtime.tenancy,
+          catalog: ports.catalog,
+          projection: async () => ({ known: [] }),
+          compatible: () => ({ ok: true }),
+          now: async () => now,
+          diagnostic() {},
+          onDiagnosticFailure() {},
+        },
+        host: {
+          history: construction.history,
+          recovery: construction.recovery,
+          callPresence: construction.callPresence,
+        },
+        projection: {
+          rules: {
+            version: 'public-driver-root',
+            external: null,
+            system: [],
+            pendingCardBlocks: null,
+            lastModelRequestPrefixLength: null,
+          },
+          options: {
+            factReaders: new Map([
+              [
+                'runtime-context',
+                (_value, entry) =>
+                  'event' in inspectContextLogEntry(scope, entry) ? 'valid' : 'invalid',
+              ],
+            ]),
+          },
+        },
+        release: async () => {
+          await registry.close()
+          await reader.close()
+          returned()
+        },
+      }
+    }
+    const options: LocalSessionDriverOptions = {
+      tenant,
+      ingress: f.runtime,
+      work,
+      sources: { acquire },
+      clock: { now: async () => unwrap(instantFromRfc3339(now)) },
+      policy: {
+        scanLimit: 4,
+        intervalMs: 20,
+        maxTasks: 2,
+        maxHeld: 4,
+        maxFailures: 4,
+        maxStepsPerPass: 4,
+      },
+      identities: {
+        run: () => ({ startKey: 'public-root-start', attemptKey: 'public-root-attempt' }),
+        model: () => ({
+          prepareKey: 'public-root-prepare',
+          originalPosition: 'public-root-position',
+          resultKey: 'public-root-result',
+          adoptionKey: 'public-root-adopt',
+          call: unwrap(parseOpaqueIdentifier('public-root-call', 'ModelCallId')),
+          creationKey: unwrap(parseOpaqueIdentifier('public-root-create', 'CreationKey')),
+        }),
+        tool: () => {
+          throw new Error('normal reply must not create tool identities')
+        },
+        modelContent: construction.identities,
+      },
+      model: {
+        original,
+        executionSource: () => native?.executionSource,
+        results: bridge,
+        maxCallReads: 4,
+        factory: {
+          acquire: async host => {
+            const operations = native!.project(host, construction.callFacts)
+            expect(
+              await operations.selectModel({
+                session: scope.session,
+                routeName: 'controlled/model',
+              }),
+            ).toEqual({ selected: 'controlled/model' })
+            return { operations, release: async () => {} }
+          },
+        },
+        settlement: {
+          create: binding =>
+            createSettlementCoordinator({
+              ...binding,
+              settlementContention: construction.settlementContention,
+              settlementScheduler: construction.settlementScheduler,
+              diagnostic() {},
+            }),
+        },
+      },
+      tools: {
+        acquire: async () => {
+          throw new Error('normal reply must not borrow the tool pool')
+        },
+      },
+      diagnostic,
+    }
+    const control = await createLocalSessionDriver(options, new AbortController().signal)
+    if (fault === 'foreignScope') {
+      await vi.waitFor(() => expect(diagnostic).toHaveBeenCalledOnce())
+      await expect(control.close()).rejects.toThrow('Session driver failed')
+      expect(returned).toHaveBeenCalledOnce()
+      expect(ports.sends()).toBe(0)
+      expect(native.executionSource.snapshot(scope.session)).toEqual([])
+      expect(await f.runtime.readWork(f.runtime.coordinationAuthority, scope, 1)).toMatchObject({
+        head: { run: { state: 'runnable' } },
+      })
+      return
+    }
+    cleanup.push(async () => {
+      control.requestStop()
+      expect(await control.close()).toEqual({ closed: true })
+    })
+    await vi.waitFor(
+      async () => {
+        expect(await f.runtime.readWork(f.runtime.coordinationAuthority, scope, 1)).toMatchObject({
+          head: { run: { state: 'completed' } },
+          inputs: [],
+        })
+        expect(returned).toHaveBeenCalledOnce()
+      },
+      { timeout: 10000, interval: 20 },
+    )
+    expect(ports.sends()).toBe(1)
+    expect(diagnostic).not.toHaveBeenCalled()
+    expect(native.executionSource.snapshot(scope.session)[0]!.copyReleased).toBe(true)
+    expect(f.assembly.context(scope)!.currentGeneration()).toEqual(expect.any(String))
+    expect(await control.close()).toEqual({ closed: true })
+  },
+)
+
 async function originalModelBinding(
   resultSource?: (storage: AtomicStorage) => ModelResultSource,
   nativeTiming = false,

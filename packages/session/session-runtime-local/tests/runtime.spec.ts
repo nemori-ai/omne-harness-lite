@@ -76,6 +76,7 @@ import { createSessionDriverWorkOwner } from '../src/driver-work.ts'
 import { startDriverRun } from '../src/driver-run.ts'
 import { bindDriverOriginal, createDriverModelSegment } from '../src/driver-model.ts'
 import { createDriverModelRunTask } from '../src/driver-model-run.ts'
+import { createLocalSessionDriver } from '../src/index.ts'
 import { createDriverRunTask } from '../src/driver-run-task.ts'
 import {
   nativeCallFixturePorts,
@@ -5261,6 +5262,168 @@ describe('driver complete original Model Run', () => {
     expect(
       f.native.executionSource.snapshot(f.scope.session).every(execution => execution.copyReleased),
     ).toBe(true)
+  })
+  function driverOptions(f: Awaited<ReturnType<typeof running>>): LocalSessionDriverOptions {
+    return {
+      ...f.input.options,
+      tenant,
+      clock: { now: async () => unwrap(instantFromRfc3339(at)) },
+      policy: {
+        scanLimit: 4,
+        intervalMs: 20,
+        maxTasks: 2,
+        maxHeld: 4,
+        maxFailures: 4,
+        maxStepsPerPass: 4,
+      },
+      sources: { acquire: async (_scope, journal) => sourcesForRun(f, journal) },
+      tools: {
+        acquire: async () => {
+          throw new Error('ordinary model reply must not borrow tools')
+        },
+      },
+      diagnostic: vi.fn(),
+    }
+  }
+  it('public driver scans durable work and independently completes the next normal Model Run', async () => {
+    const f = await running()
+    expect(await createDriverModelRunTask(f.input).completion).toBe('released')
+    const identities = driverIdentityFixture()
+    identities.run.mockReturnValue({ startKey: 'public-run-2', attemptKey: 'public-attempt-2' })
+    identities.model.mockReturnValue({
+      prepareKey: 'public-model-prepare-2',
+      originalPosition: 'public-model-position-2',
+      resultKey: 'public-model-result-2',
+      adoptionKey: 'public-model-adopt-2',
+      call: unwrap(parseOpaqueIdentifier('public-model-call-2', 'ModelCallId')),
+      creationKey: unwrap(parseOpaqueIdentifier('public-model-create-2', 'CreationKey')),
+    })
+    await f.f.runtime.operations.submitInput(
+      f.f.runtime.access,
+      f.scope.session,
+      'public-input',
+      user('Public next round', 'public-input'),
+    )
+    const options = driverOptions(f)
+    const control = await createLocalSessionDriver(
+      { ...options, identities: { ...identities, modelContent: options.identities.modelContent } },
+      new AbortController().signal,
+    )
+    runResources.push(async () => {
+      control.requestStop()
+      expect(await control.close()).toEqual({ closed: true })
+    })
+    await vi.waitFor(
+      async () => {
+        expect(f.ports.sends()).toBe(2)
+        expect(
+          await f.f.runtime.readWork(f.f.runtime.coordinationAuthority, f.scope, 1),
+        ).toMatchObject({ head: { run: { state: 'completed' } }, inputs: [] })
+        expect(f.sources.release).toHaveBeenCalledTimes(2)
+      },
+      { timeout: 10000, interval: 20 },
+    )
+    control.requestStop()
+    expect(await control.close()).toEqual({ closed: true })
+    expect(options.diagnostic).not.toHaveBeenCalled()
+    expect(f.native.executionSource.snapshot(f.scope.session).every(row => row.copyReleased)).toBe(
+      true,
+    )
+    expect(
+      await f.f.runtime.operations.readSession(f.f.runtime.access, f.scope.session),
+    ).toHaveProperty('kind', 'session')
+  })
+  it('public driver aborted before startup does not scan, acquire or consume persistent input', async () => {
+    const f = await running()
+    const signal = new AbortController()
+    signal.abort()
+    const scan = vi.fn(f.f.runtime.scanWork),
+      options = driverOptions(f)
+    const control = await createLocalSessionDriver(
+      { ...options, ingress: { ...f.f.runtime, scanWork: scan } },
+      signal.signal,
+    )
+    expect(await control.close()).toEqual({ closed: true })
+    expect(scan).not.toHaveBeenCalled()
+    expect(f.ports.sends()).toBe(0)
+    expect(await f.f.count('sr_model_issue')).toEqual({ n: 0 })
+  })
+  it('public driver retains original scan and diagnostic failures without reporting a closed owner', async () => {
+    const f = await running(),
+      options = driverOptions(f)
+    const fault = new Error('actual scan owner defect'),
+      reportFault = new Error('actual diagnostic defect')
+    const scan = vi.fn<typeof f.f.runtime.scanWork>(async () => {
+      throw fault
+    })
+    const diagnostic = vi.fn(() => {
+      throw reportFault
+    })
+    const control = await createLocalSessionDriver(
+      { ...options, ingress: { ...f.f.runtime, scanWork: scan }, diagnostic },
+      new AbortController().signal,
+    )
+    await vi.waitFor(() => expect(diagnostic).toHaveBeenCalledWith(fault))
+    try {
+      await control.close()
+      throw new Error('failed driver must not close successfully')
+    } catch (error) {
+      expect(error).toBeInstanceOf(AggregateError)
+      if (!(error instanceof AggregateError)) throw error
+      expect(error.errors).toEqual(expect.arrayContaining([fault, reportFault]))
+    }
+    expect(scan).toHaveBeenCalledOnce()
+    expect(f.ports.sends()).toBe(0)
+  })
+  it('public driver refuses unavailable Clock before reading or launching Session work', async () => {
+    const f = await running(),
+      options = driverOptions(f)
+    const scan = vi.fn(f.f.runtime.scanWork),
+      diagnostic = vi.fn()
+    const control = await createLocalSessionDriver(
+      {
+        ...options,
+        clock: { now: async () => 'unavailable' },
+        ingress: { ...f.f.runtime, scanWork: scan },
+        diagnostic,
+      },
+      new AbortController().signal,
+    )
+    await vi.waitFor(() => expect(diagnostic).toHaveBeenCalledOnce())
+    await expect(control.close()).rejects.toThrow('Session driver failed')
+    expect(scan).not.toHaveBeenCalled()
+    expect(f.ports.sends()).toBe(0)
+  })
+  it('public driver waits for the actual in-flight scan before declaring close', async () => {
+    const f = await running(),
+      options = driverOptions(f)
+    const entered = Promise.withResolvers<void>(),
+      returned = Promise.withResolvers<void>()
+    const scan: typeof f.f.runtime.scanWork = async (...args) => {
+      entered.resolve()
+      await returned.promise
+      return f.f.runtime.scanWork(...args)
+    }
+    const control = await createLocalSessionDriver(
+      { ...options, ingress: { ...f.f.runtime, scanWork: scan } },
+      new AbortController().signal,
+    )
+    runResources.push(async () => {
+      returned.resolve()
+      await control.close()
+    })
+    await entered.promise
+    let closed = false
+    const closing = control.close().then(result => {
+      closed = true
+      return result
+    })
+    await new Promise<void>(resolve => setImmediate(resolve))
+    expect(closed).toBe(false)
+    returned.resolve()
+    expect(await closing).toEqual({ closed: true })
+    expect(f.ports.sends()).toBe(0)
+    expect(f.sources.release).not.toHaveBeenCalled()
   })
   async function actualContext(f: Awaited<ReturnType<typeof running>>) {
     for (const fragment of runtimeContextMigrations)

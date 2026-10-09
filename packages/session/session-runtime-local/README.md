@@ -4,7 +4,9 @@
 
 This package provides persistent local admission for Session operations. The root exports independent functions and trusted construction ports. Session behavior belongs to [the public definition](../../core/session-runtime/SPEC.md). Provider behavior belongs to [SPEC.md](SPEC.md).
 
-The root also exports `createSessionDriverWorkOwner` and `createSessionCallAccess` for trusted runtime construction. They retain original work and enforce original Run reads. They do not provide the complete driver, execution recovery, or new Model or Tool permission.
+The root exports `createLocalSessionDriver` for the normal Model path. It scans durable Session work and owns original Run tasks. The caller supplies actual Run sources, Model services, Clock and explicit policy. Stop withdraws new work; close waits for the actual scan and task returns. Tool batch consumption and the Cordis driver plugin remain incomplete.
+
+`createSessionDriverWorkOwner` and `createSessionCallAccess` retain original work and enforce original Run reads. They do not grant new Model or Tool permission or provide execution recovery.
 
 ## Admission
 

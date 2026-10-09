@@ -6,6 +6,8 @@
 
 本包提供Session操作的本机持久准入。根入口独立于Cordis；Session业务承诺由[公开定义](../../core/session-runtime/SPEC.md)拥有，提供者顺序及资源规则见[SPEC](SPEC.md)。
 
+根入口的`createLocalSessionDriver`提供正常Model路径：扫描持久Session工作并拥有原Run任务。调用者提供实际Run来源、模型服务、Clock及显式policy。停止撤销新工作；关闭等待实际扫描和原任务归还。工具批次消费和Cordis驱动插件仍未完成，不能据此声明完整driver或冷恢复已经交付。
+
 ## 使用
 
 在共享根库组合admissionMigrations，在每租户实际运行库组合admissionUseMigrations，然后以根Storage、可信治理核验端口及显式容量策略调用createLocalAdmission。调用者保管借入依赖。
