@@ -12,11 +12,15 @@ import type {
   NonConnectorEvaluationInput,
   CurrentEvaluationInputs,
 } from '@omne-harness-lite/asset-evaluation'
-import type { EvaluationStorageDependencies } from '@omne-harness-lite/evaluation-input-store'
+import type {
+  EvaluationStorageDependencies,
+  CurrentInputReader,
+} from '@omne-harness-lite/evaluation-input-store'
 import type {
   SessionBootstrap,
   LocalAdmission,
   AdmissionSource,
+  BorrowedRunJournal,
 } from '@omne-harness-lite/session-runtime-local'
 import type { LocalSessionContext } from '@omne-harness-lite/session-runtime-local/cordis'
 
@@ -40,6 +44,11 @@ export interface SessionBootstrapAssembly extends SessionBootstrap {
   /** Trusted host lookup. These references must not be exposed in the ordinary client protocol. */
   readonly context: (scope: SessionScope) => LocalSessionContext | undefined
   readonly inputs: (scope: SessionScope) => CurrentEvaluationInputs | undefined
+  /** Trusted host only. Reader lifetime is bounded by both the original Run borrow and this bootstrap. */
+  readonly runInputs: (
+    scope: SessionScope,
+    journal: BorrowedRunJournal,
+  ) => CurrentInputReader | undefined
   readonly close: () => Promise<void>
   readonly retryClose: () => Promise<void>
 }

@@ -17,12 +17,34 @@ import {
 } from './data.ts'
 import { sessionRecipe, captureRecipeIn } from './recipe-store.ts'
 import type { SourceDb } from './types.ts'
-import type { AdmittedInputSource, AdmittedInputSourceDependencies } from './admitted-types.ts'
+import type {
+  AdmittedInputSource,
+  AdmittedInputSourceDependencies,
+  RunInputReaderDependencies,
+} from './admitted-types.ts'
+import type { CurrentInputReader } from './types.ts'
 
 /** One Session's source. The trusted unit owner supplies current authorization; stored role data never grants it. */
 export function createAdmittedEvaluationInputSource(
   dependencies: AdmittedInputSourceDependencies,
 ): AdmittedInputSource {
+  return createInputSource(dependencies)
+}
+
+/** Read the same current recipe and publication through an actual original-Run authority. No capture port. */
+export function createRunEvaluationInputReader(
+  dependencies: RunInputReaderDependencies,
+): CurrentInputReader {
+  if (typeof dependencies.withOriginalRunUnit !== 'function')
+    throw new TypeError('Run input reader requires original Run authority')
+  return createInputSource({
+    ...dependencies,
+    withAuthorizedUnit: dependencies.withOriginalRunUnit,
+    readCreationStanding: async () => ({ failure: 'unavailable' }),
+  }).reader
+}
+
+function createInputSource(dependencies: AdmittedInputSourceDependencies): AdmittedInputSource {
   const deps = ownDependencies(dependencies)
   const tenant = parseTenantId(deps.scope?.tenant)
   if (
@@ -192,4 +214,8 @@ export function createAdmittedEvaluationInputSource(
   }
   return Object.freeze({ reader, captureSessionRecipe: capture, close })
 }
-export type { AdmittedInputSource, AdmittedInputSourceDependencies } from './admitted-types.ts'
+export type {
+  AdmittedInputSource,
+  AdmittedInputSourceDependencies,
+  RunInputReaderDependencies,
+} from './admitted-types.ts'

@@ -2448,6 +2448,31 @@ describe('original Run journal borrow for model settlement', () => {
     if (!('journal' in result)) throw new Error('original Run journal unavailable')
     return { f, p, journal: result.journal }
   }
+  it('holds the original Run unit through a trusted input read and drains it before returning the borrow', async () => {
+    const { f, journal } = await borrowed()
+    const entered = Promise.withResolvers<void>()
+    const finish = Promise.withResolvers<void>()
+    const read = journal.withReadUnit(async unit => {
+      unit.assertStorage(f.storage)
+      entered.resolve()
+      await finish.promise
+      return { original: true }
+    })
+    await entered.promise
+    let closed = false
+    const closing = journal.close().then(() => {
+      closed = true
+    })
+    await new Promise(resolve => setImmediate(resolve))
+    expect(closed).toBe(false)
+    const late = vi.fn(async () => 'late')
+    expect(await journal.withReadUnit(late)).toEqual({ unavailable: true })
+    expect(late).not.toHaveBeenCalled()
+    finish.resolve()
+    expect(await read).toEqual({ read: { original: true } })
+    await closing
+    expect(journal.currentGeneration()).toBeNull()
+  })
   it('provides one actual prefix and same-Unit write under the original grant after member refusal', async () => {
     const { f, p, journal } = await borrowed()
     try {

@@ -1850,6 +1850,7 @@ function nativeBindingOptions(
     scope,
     preparation,
     retainUnknown: unknown,
+    inputs: journal => f.assembly.runInputs(scope, journal),
     selection: {
       owner: {
         name: 'controlled-selection-owner',
@@ -1861,7 +1862,6 @@ function nativeBindingOptions(
       concurrent: 1,
       sessionTenancy: f.runtime.tenancy,
       catalog,
-      currentEvaluationInputs: inputs,
       projection: unused,
       compatible: () => ({ ok: true }),
       now: async () => now,
@@ -1873,7 +1873,6 @@ function nativeBindingOptions(
       credentials: { value: unused },
       tools: { lookup: unused },
       sourceVersions: { fixture: 'explicit-controlled-deployment' },
-      currentEvaluationInputs: inputs,
     },
   }
 }
@@ -1980,6 +1979,69 @@ it('assembles native prefix and unique issue consumers over the same actual orig
   expect(await issue.admitOriginal(original.original)).toEqual({ kind: 'conflict' })
   expect(original.unknown).not.toHaveBeenCalled()
 })
+it.each(['member', 'login'] as const)(
+  'reads current legal inputs for the original Run after %s refusal and revokes them with its journal',
+  async mode => {
+    const original = await originalModelBinding()
+    const { f, scope, preparation } = original
+    const borrowed = await f.runtime.runJournal.borrow(
+      f.runtime.coordinationAuthority,
+      scope,
+      preparation.run,
+    )
+    if (!('journal' in borrowed)) throw new Error('original journal unavailable')
+    cleanup.push(borrowed.journal.close)
+    const reader = f.assembly.runInputs(scope, borrowed.journal)
+    if (!reader) throw new Error('original Run input reader missing')
+    cleanup.push(() => reader.close())
+    f.exchanges.mockImplementation(async (_options, request) =>
+      mode === 'login'
+        ? {
+            kind: 'entry-answer',
+            answer: 'login-state-rejected',
+            sendAttempted: true,
+          }
+        : {
+            kind: 'reply',
+            sendAttempted: true,
+            reply: {
+              result: (request as { operation: string }).operation.endsWith('#S-36')
+                ? tenant
+                : { standing: 'ineffective' },
+            },
+          },
+    )
+    const refused = await f.admission.reserve(source, {
+      tenant,
+      session: null,
+      purpose: 'createSession',
+      operationKey: 'refuse-new-input-reader',
+      inputPosition: null,
+    })
+    expect(await f.admission.query(refused.ticket)).toHaveProperty(
+      'state',
+      mode === 'login' ? 'rejected' : 'memberRejected',
+    )
+    const exchanges = f.exchanges.mock.calls.length
+    const memberRead = await f.assembly.inputs(scope)?.read(scope.session, tenant)
+    if (mode === 'member') expect(memberRead).toEqual({ failure: 'unavailable' })
+    else
+      expect(memberRead).toHaveProperty('input.standing', { standing: 'effective', role: 'member' })
+    expect(await reader.read(scope.session, tenant)).toHaveProperty('input.root.source', {
+      asset: 'root-asset',
+      version: 1,
+    })
+    expect(f.exchanges.mock.calls.length).toBe(exchanges)
+    expect(
+      f.assembly.runInputs(
+        { ...scope, session: 'foreign-session' as SessionScope['session'] },
+        borrowed.journal,
+      ),
+    ).toBeUndefined()
+    await borrowed.journal.close()
+    expect(await reader.read(scope.session, tenant)).toEqual({ failure: 'unavailable' })
+  },
+)
 it('keeps actual Session closure pending until the native binding returns its original journal', async () => {
   const original = await originalModelBinding()
   const options = nativeBindingOptions(original)
@@ -2036,9 +2098,11 @@ it('shares one physical native runtime across two original bindings and keeps cu
     throw new Error('original native binding unavailable')
   cleanup.push(first.returnJournal, second.returnJournal)
   expect(first.binding.log.generation).not.toBe(second.binding.log.generation)
-  expect(first.binding.currentEvaluationInputs).toBe(options.providers.currentEvaluationInputs)
-  expect(second.binding.selection.currentEvaluationInputs).toBe(
-    options.selection.currentEvaluationInputs,
+  expect(first.binding.currentEvaluationInputs).toBe(
+    first.binding.selection.currentEvaluationInputs,
+  )
+  expect(second.binding.currentEvaluationInputs).toBe(
+    second.binding.selection.currentEvaluationInputs,
   )
   expect(first.binding.catalog).toBe(options.providers.catalog)
   expect(await first.operations.effectiveModel({ session: original.scope.session })).toEqual({
@@ -2358,13 +2422,14 @@ async function actualModelTurn(
           }
         : configured
     })
-  const configured = {
+  const configured: SessionRunModelBindingOptions = {
     ...options,
     ingress: original.f.runtime,
     issueOwner: original.f.modelOwner!,
     scope: original.scope,
     preparation: original.preparation,
     retainUnknown: original.unknown,
+    inputs: journal => original.f.assembly.runInputs(original.scope, journal),
     selection: {
       ...options.selection,
       owner: ports.owner,

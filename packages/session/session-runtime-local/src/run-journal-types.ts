@@ -1,6 +1,7 @@
 import type { SessionLog, SourceToken, LogEntry } from '@omne-harness-lite/session-log'
 import type { CoordinationAuthority } from '@omne-harness-lite/session-runtime'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
+import type { StorageUnit } from '@omne-harness-lite/storage'
 
 /** Trusted borrowed original-Run log. It cannot be sent in a client protocol. */
 export interface BorrowedRunJournal {
@@ -10,6 +11,10 @@ export interface BorrowedRunJournal {
   readonly generation: object
   readonly currentGeneration: () => object | null
   readonly log: SessionLog
+  /** Trusted local input reads under this original Run grant. No external IO or escaped unit. */
+  readonly withReadUnit: <T>(
+    read: (unit: StorageUnit) => Promise<T>,
+  ) => Promise<{ readonly read: T } | { readonly unavailable: true }>
   readonly readPrefix: () => Promise<
     | {
         readonly entries: readonly LogEntry[]

@@ -85,12 +85,16 @@ class BoundRunJournal {
     })
     // The borrower receives close errors too; the owner may start draining later.
     void this.returned.catch(() => undefined)
-    this.port = Object.freeze({
+    this.port = Object.freeze<BorrowedRunJournal>({
       scope,
       run,
       generation: this.generation,
       currentGeneration: () => (this.open ? this.generation : null),
       log: Object.freeze(this.log),
+      withReadUnit: read =>
+        this.operation(() => this.inUnit(async unit => ({ read: await read(unit) })), {
+          unavailable: true as const,
+        }),
       readPrefix: () => this.operation(() => this.prefix(), { failure: 'unavailable' as const }),
       close: this.close,
     })

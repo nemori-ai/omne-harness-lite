@@ -23,3 +23,9 @@ export interface AdmittedInputSource {
   /** Stops both read and capture admission and waits for original owned work. Borrowed owners remain open. */
   readonly close: () => Promise<void>
 }
+
+/** Trusted original-Run owner. The callback verifies its durable grant in the actual tenant unit. */
+export interface RunInputReaderDependencies extends EvaluationStorageDependencies {
+  readonly scope: SessionScope
+  readonly withOriginalRunUnit: AdmittedInputSourceDependencies['withAuthorizedUnit']
+}

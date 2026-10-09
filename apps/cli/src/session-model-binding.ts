@@ -12,7 +12,9 @@ import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type {
   LocalSessionIngress,
   SessionLifecycleStep,
+  BorrowedRunJournal,
 } from '@omne-harness-lite/session-runtime-local'
+import type { CurrentInputReader } from '@omne-harness-lite/evaluation-input-store'
 import type { SessionOriginalModelOwner, ModelIssueUnknown } from './session-model-owner.ts'
 
 type Preparation = Extract<SessionLifecycleStep, { kind: 'prepareCall' }>
@@ -22,8 +24,9 @@ export interface SessionRunModelBindingOptions {
   readonly issueOwner: SessionOriginalModelOwner
   readonly scope: SessionScope
   readonly preparation: Preparation
-  readonly selection: Omit<SessionModelSelectionInput, 'binding'>
-  readonly providers: Omit<SessionRuntimeBinding, 'log' | 'selection'>
+  readonly selection: Omit<SessionModelSelectionInput, 'binding' | 'currentEvaluationInputs'>
+  readonly providers: Omit<SessionRuntimeBinding, 'log' | 'selection' | 'currentEvaluationInputs'>
+  readonly inputs: (journal: BorrowedRunJournal) => CurrentInputReader | undefined
   readonly retainUnknown: (result: ModelIssueUnknown) => Promise<void>
   readonly model: Pick<ReturnType<typeof createModelRuntime>, 'project'>
   readonly facts: CallFactsView
@@ -50,7 +53,19 @@ export async function createSessionRunModelBinding(
   if ('failure' in borrowed) return borrowed
   const journal = borrowed.journal
   const originalCall = options.preparation.call
+  let inputs: CurrentInputReader | undefined
+  let returned: Promise<void> | undefined
+  const returnJournal = () =>
+    (returned ??= (async () => {
+      await inputs?.close()
+      await journal.close()
+    })())
   try {
+    inputs = options.inputs(journal)
+    if (!inputs) {
+      await returnJournal()
+      return { failure: 'unavailable' }
+    }
     const log = Object.freeze({
       session: journal.scope.session,
       tenant: journal.scope.tenant,
@@ -68,8 +83,13 @@ export async function createSessionRunModelBinding(
     const binding = Object.freeze<SessionRuntimeBinding>({
       ...options.providers,
       sourceVersions: Object.freeze({ ...options.providers.sourceVersions }),
+      currentEvaluationInputs: inputs,
       log,
-      selection: Object.freeze({ ...options.selection, binding: log }),
+      selection: Object.freeze({
+        ...options.selection,
+        binding: log,
+        currentEvaluationInputs: inputs,
+      }),
     })
     const operations = options.model.project(
       {
@@ -85,10 +105,10 @@ export async function createSessionRunModelBinding(
       },
       options.facts,
     )
-    return Object.freeze({ binding, operations, returnJournal: journal.close })
+    return Object.freeze({ binding, operations, returnJournal })
   } catch (error) {
     try {
-      await journal.close()
+      await returnJournal()
     } catch (closeError) {
       throw new AggregateError([error, closeError], 'model binding and journal return failed')
     }

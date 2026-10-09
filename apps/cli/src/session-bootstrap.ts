@@ -6,8 +6,10 @@ import {
 } from '@omne-harness-lite/session-runtime-local'
 import {
   createAdmittedEvaluationInputSource,
+  createRunEvaluationInputReader,
   type AdmittedInputSource,
 } from '@omne-harness-lite/evaluation-input-store/admitted'
+import type { CurrentInputReader } from '@omne-harness-lite/evaluation-input-store'
 import type { ContextSessionSeed } from '@omne-harness-lite/runtime-context'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type { LocalSessionContext } from '@omne-harness-lite/session-runtime-local/cordis'
@@ -25,6 +27,7 @@ interface SessionRow {
   readonly source: AdmittedInputSource
   context?: LocalSessionContext
   initialized: boolean
+  readonly runReaders: Set<CurrentInputReader>
 }
 /** Application composition of original G28 evidence, current member ordering, legal input and independent Context. */
 export function createSessionBootstrap(
@@ -104,7 +107,7 @@ export function createSessionBootstrap(
           : { failure: 'unavailable' }
       },
     })
-    return { scope: fixed, ticket, source, initialized: false }
+    return { scope: fixed, ticket, source, initialized: false, runReaders: new Set() }
   }
   async function originalSession(scope: SessionScope, ticket: AdmissionTicket) {
     try {
@@ -192,9 +195,9 @@ export function createSessionBootstrap(
   async function close(retry: boolean) {
     if (retry && !stopped) throw new TypeError('Session bootstrap has not started closing')
     stopped = true
-    const sourceStops = [...rows.values()].map(row => {
+    const sourceStops = [...rows.values()].flatMap(row => {
       row.context?.requestStop()
-      return row.source.close()
+      return [row.source.close(), ...[...row.runReaders].map(reader => reader.close())]
     })
     const work = await Promise.allSettled([...jobs.values(), ...sourceStops])
     const failures = work.flatMap(result => (result.status === 'rejected' ? [result.reason] : []))
@@ -215,6 +218,32 @@ export function createSessionBootstrap(
     inputs: scope => {
       const row = selected(scope)
       return row ? Object.freeze({ read: row.source.reader.read }) : undefined
+    },
+    runInputs: (scope, journal) => {
+      const row = selected(scope)
+      if (
+        !row ||
+        journal.scope.session !== scope.session ||
+        !tenantIdEquals(journal.scope.tenant, scope.tenant) ||
+        journal.currentGeneration() !== journal.generation
+      )
+        return undefined
+      const source = createRunEvaluationInputReader({
+        ...options.inputSource,
+        scope: row.scope,
+        storage: options.storage,
+        sessionTenancy: options.tenancy,
+        withOriginalRunUnit: journal.withReadUnit,
+      })
+      const reader: CurrentInputReader = Object.freeze({
+        read: source.read,
+        async close() {
+          await source.close()
+          row.runReaders.delete(reader)
+        },
+      })
+      row.runReaders.add(reader)
+      return reader
     },
     close: () => close(false),
     retryClose: () => close(true),

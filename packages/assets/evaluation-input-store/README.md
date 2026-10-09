@@ -11,7 +11,7 @@ Read owned evaluation input from immutable local publications, actual session te
 | `.` | `createEvaluationInputReader`, `evaluationInputMigrations`, dependency/reader types |
 | `./cordis` | `evaluationInputStorePlugin`; the shared CurrentEvaluationInputs Service and support ports belong to asset-evaluation |
 | `./publication` | Trusted `publishLocalInputs`, `installOfficialFactoryDefinition`, `captureSessionRecipe`, `readPublicationRevision` and publication types |
-| `./admitted` | Fixed-Session source with trusted current authorization and original recipe capture. See [SPEC](SPEC.md). |
+| `./admitted` | Fixed-Session recipe capture and input reads under current member or original Run authority. See [SPEC](SPEC.md). |
 | `./registry-inputs` | Restricted fixed-root reader for an admitted registry caller |
 | `./registry-history` | `createRegistryHistoryReader` and history types for authorized exact historical body reads |
 
@@ -66,3 +66,5 @@ pnpm --filter @omne-harness-lite/evaluation-input-store run test
 ## Admitted Session source
 
 The Session host supplies current G28 member and internal-call authorization through `./admitted`. It also supplies the original creation ticket’s durable role. The role is recipe data. Each read checks current authorization separately. This source uses the same publication and recipe storage. It does not act as an organization-governance service. The original shared-governance reader retains its existing scope. Read and capture share one close operation. The host closes borrowed resources after the source drains.
+
+`createRunEvaluationInputReader` reads the same current recipe and publication under the original Run grant. The host supplies the actual authorized tenant unit. This reader cannot capture a recipe or grant model execution. Its close operation stops new reads and drains owned work.

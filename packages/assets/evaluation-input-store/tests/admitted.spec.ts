@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import {
   createAdmittedEvaluationInputSource,
+  createRunEvaluationInputReader,
   type AdmittedInputSourceDependencies,
 } from '../src/admitted.ts'
 import { boot, ROOT, asset, holding } from './support.ts'
@@ -11,6 +12,33 @@ import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 const cleanups: Array<() => Promise<void>> = []
 afterEach(async () => {
   for (const close of cleanups.splice(0).reverse()) await close()
+})
+it('limits the Run factory to reads and uses only the original owner unit for current publication', async () => {
+  const fixture = await sourceFixture()
+  const { f, identity, session, source } = fixture
+  expect(
+    await source.captureSessionRecipe({ session, tenant: identity.tenant, rootDefinition: ROOT }),
+  ).toEqual({ captured: true })
+  fixture.deny()
+  const withOriginalRunUnit: AdmittedInputSourceDependencies['withAuthorizedUnit'] = vi.fn(read =>
+    f.storage.atomic(async unit => ({ read: await read(unit) })),
+  )
+  const reader = createRunEvaluationInputReader({
+    ...f.deps,
+    scope: { tenant: identity.tenant, session },
+    withOriginalRunUnit,
+  })
+  cleanups.push(() => reader.close())
+  expect(Object.keys(reader).sort()).toEqual(['close', 'read'])
+  expect(await source.reader.read(session, identity.tenant)).toEqual({ failure: 'unavailable' })
+  expect(await reader.read(session, identity.tenant)).toHaveProperty('input.root.definition', ROOT)
+  expect(withOriginalRunUnit).toHaveBeenCalledOnce()
+  expect(await reader.read('other-session', identity.tenant)).toEqual({ failure: 'unavailable' })
+  expect(withOriginalRunUnit).toHaveBeenCalledOnce()
+  await reader.close()
+  expect(await reader.read(session, identity.tenant)).toEqual({ failure: 'unavailable' })
+  expect(withOriginalRunUnit).toHaveBeenCalledOnce()
+  await f.storage.atomic(async unit => unit.assertStorage(f.storage))
 })
 async function sourceFixture() {
   const f = await boot()
