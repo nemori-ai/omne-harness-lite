@@ -372,7 +372,7 @@ it.each(['unavailable', 'throw'] as const)(
         },
         remove(reservation) {
           removes++
-          world.calls.remove(reservation)
+          return world.calls.remove(reservation)
         },
       },
     }
