@@ -60,6 +60,33 @@ import type {
 import { requestStopAndWait } from './settlement-stop.ts'
 
 const unavailable = Object.freeze({ unavailable: true } as const)
+
+function recordedDiagnosticReference(ref: unknown): DiagnosticRecordResult | undefined {
+  if (
+    ref !== null &&
+    typeof ref === 'object' &&
+    'collectorId' in ref &&
+    'sequence' in ref &&
+    typeof ref.collectorId === 'string' &&
+    typeof ref.sequence === 'string'
+  )
+    return { recorded: { collectorId: ref.collectorId, sequence: ref.sequence } }
+  return undefined
+}
+
+function droppedDiagnosticReply(result: object): DiagnosticRecordResult | undefined {
+  if (
+    'dropped' in result &&
+    (result.dropped === 'invalid' ||
+      result.dropped === 'unsupported' ||
+      result.dropped === 'oversize' ||
+      result.dropped === 'queue_full' ||
+      result.dropped === 'closed')
+  )
+    return { dropped: result.dropped }
+  return undefined
+}
+
 /** One actual emitter is shared by the anchored owner and the inner public invocation. */
 function anchoredDiagnostics<P extends PlannedSemantics, R>(
   input: AnchoredInvocationInput<P, R>,
@@ -109,25 +136,12 @@ function anchoredDiagnostics<P extends PlannedSemantics, R>(
         return { dropped: 'invalid' }
       } else if (result !== null && typeof result === 'object') {
         if ('recorded' in result) {
-          const ref = result.recorded
-          if (
-            ref !== null &&
-            typeof ref === 'object' &&
-            'collectorId' in ref &&
-            'sequence' in ref &&
-            typeof ref.collectorId === 'string' &&
-            typeof ref.sequence === 'string'
-          )
-            return { recorded: { collectorId: ref.collectorId, sequence: ref.sequence } }
-        } else if (
-          'dropped' in result &&
-          (result.dropped === 'invalid' ||
-            result.dropped === 'unsupported' ||
-            result.dropped === 'oversize' ||
-            result.dropped === 'queue_full' ||
-            result.dropped === 'closed')
-        )
-          return { dropped: result.dropped }
+          const reference = recordedDiagnosticReference(result.recorded)
+          if (reference !== undefined) return reference
+        } else {
+          const dropped = droppedDiagnosticReply(result)
+          if (dropped !== undefined) return dropped
+        }
       }
       recordEnabled = false
       report('model_anchor.diagnostic_contract_violation')
