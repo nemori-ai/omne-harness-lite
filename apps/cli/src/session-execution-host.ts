@@ -20,6 +20,7 @@ import {
 import type { RetainedSessionModelTurn } from './session-model-turn.ts'
 import type { TenantBinding } from './state-layout-values.ts'
 import { checkedTenantBinding } from './state-layout-values.ts'
+import type { SessionModelWorkOwner } from './session-work-owner.ts'
 
 type Prepared = Extract<Awaited<ReturnType<typeof prepareSessionModelRun>>, { kind: 'prepared' }>
 export interface SessionExecutionPolicy {
@@ -33,6 +34,8 @@ export interface RunningSessionHostOptions {
   readonly home: string
   readonly binding: TenantBinding
   readonly ingress: LocalSessionIngress
+  /** The same actual work owner supplied to Ingress.workSettledIn by the trusted root. */
+  readonly work: SessionModelWorkOwner
   readonly transport: SessionHostPolicy
   readonly execution: SessionExecutionPolicy
   /** The root binds these identities to the original durable input, before any step commit. */
@@ -56,6 +59,7 @@ interface Slot {
   work?: OriginalSessionModelWork
   retained?: RetainedSessionModelTurn
   driving?: Promise<void>
+  workToken?: object
 }
 
 /** Own the listener and background model jobs. Neither reads nor client signals drive the queue. */
@@ -67,12 +71,7 @@ export async function startRunningSessionHost(
     if (!Number.isSafeInteger(value) || value < 1 || value > 2147483647)
       throw new TypeError('bounded host execution policy required')
   }
-  if (
-    typeof options.identities !== 'function' ||
-    typeof options.model !== 'function' ||
-    typeof options.diagnostic !== 'function'
-  )
-    throw new TypeError('actual root configuration required')
+  requireRootPorts(options)
   const captured = Object.freeze({
     ...options,
     binding: Object.freeze(checkedTenantBinding(options.binding)),
@@ -88,6 +87,21 @@ export async function startRunningSessionHost(
   root.server = server
   root.start()
   return Object.freeze({ socketPath: server.socketPath, close: root.close })
+}
+function requireRootPorts(options: RunningSessionHostOptions) {
+  if (
+    typeof options.identities !== 'function' ||
+    typeof options.model !== 'function' ||
+    typeof options.diagnostic !== 'function'
+  )
+    throw new TypeError('actual root configuration required')
+  if (
+    !options.work ||
+    !(['begin', 'readIn', 'acknowledge', 'release'] as const).every(
+      key => typeof options.work[key] === 'function',
+    )
+  )
+    throw new TypeError('actual model work owner required')
 }
 class ExecutionHost {
   server!: LocalSessionHost
@@ -186,6 +200,7 @@ class ExecutionHost {
     // Returning the binding transfers its references even when validation exposes a root defect.
     slot.options = configured
     validateTurn(slot.scope, prepared, configured, this.options.ingress)
+    slot.workToken = this.options.work.begin(slot.scope, prepared.preparation)
     const frame = createSessionModelAttempt({
       ...configured,
       turn: {
@@ -235,6 +250,7 @@ class ExecutionHost {
       result.pending.reply.blocks.some(block => block.kind === 'tool_call')
     )
       return
+    this.options.work.acknowledge(slot.workToken!)
     const finished = await ingress.lifecycle.commitStep(
       ingress.coordinationAuthority,
       slot.scope,
@@ -253,6 +269,7 @@ class ExecutionHost {
     const released = await slot.frame!.close()
     if (!('kind' in released) || released.kind !== 'released') return
     await slot.options!.turn.linked.returnJournal()
+    this.options.work.release(slot.workToken!)
     this.slots.delete(slot.scope.session)
   }
   fail(error: unknown) {

@@ -1,3 +1,7 @@
+import {
+  createSessionModelWorkOwner,
+  type SessionModelWorkOwner,
+} from '../src/session-work-owner.ts'
 import { startRunningSessionHost } from '../src/session-execution-host.ts'
 import { prepareSessionModelRun } from '../src/session-run-preparation.ts'
 import { readSessionSubmission } from '../src/session-submission.ts'
@@ -252,6 +256,7 @@ async function setup(
   withModel = false,
   resultSource?: (storage: AtomicStorage) => ModelResultSource,
   nativeTiming = false,
+  workSettled?: import('@omne-harness-lite/session-runtime-local').RuntimeOptions['workSettledIn'],
 ) {
   const directory = await mkdtemp(join(tmpdir(), 'omne-formal-bootstrap-'))
   cleanup.push(() => rm(directory, { recursive: true, force: true }))
@@ -361,7 +366,7 @@ async function setup(
     },
     bootstrap: { initialize: (...args) => assembly.initialize(...args) },
     now: () => now,
-    workSettledIn: async () => 'settled',
+    workSettledIn: workSettled ?? (async () => 'settled'),
     ...(modelOwner ? { modelIssue: modelOwner.modelIssue } : {}),
     ...(resultSource ? { modelResults: { maxRecords: 16, source: resultSource(storage) } } : {}),
   })
@@ -1086,8 +1091,9 @@ it('dispatches strict data through the original ingress and actual Context and r
 async function originalModelInput(
   resultSource?: (storage: AtomicStorage) => ModelResultSource,
   nativeTiming = false,
+  workSettled?: import('@omne-harness-lite/session-runtime-local').RuntimeOptions['workSettledIn'],
 ) {
-  const f = await setup(16, true, true, resultSource, nativeTiming)
+  const f = await setup(16, true, true, resultSource, nativeTiming, workSettled)
   const created = await f.runtime.operations.createSession(f.runtime.access, input)
   if (!('kind' in created) || created.kind !== 'created') throw new Error('Session not created')
   const scope = { tenant, session: created.session }
@@ -2294,22 +2300,28 @@ it.each(['normal', 'detach', 'retained', 'rootFailure', 'diagnosticFailure', 'mi
   'runs the actual background Session host without observation requests: %s',
   async fault => {
     // SQL, CG client, original Run/attempt, ModelRuntime, SDK/custody/ACK and Unix listener are real.
-    // Governance transport, qualification/generation, model transport and finish-work proof are controlled.
+    // Governance transport, qualification/generation and model transport are controlled; work proof owns actual jobs.
     let native: ReturnType<typeof createModelRuntime> | undefined
     let bridge!: SessionModelResultSource
-    const initial = await originalModelInput(storage => {
-      bridge = createSessionModelResultSource({
-        storage,
-        tenant,
-        executionSource: () => native?.executionSource,
-        maxCaptures: 2,
-        retainReferencesIn: async unit => {
-          unit.assertStorage(storage)
-          return 'retained'
-        },
-      })
-      return bridge.source
-    }, true)
+    let work!: SessionModelWorkOwner
+    const initial = await originalModelInput(
+      storage => {
+        work = createSessionModelWorkOwner({ storage, tenant, maxRecords: 4 })
+        bridge = createSessionModelResultSource({
+          storage,
+          tenant,
+          executionSource: () => native?.executionSource,
+          maxCaptures: 2,
+          retainReferencesIn: async unit => {
+            unit.assertStorage(storage)
+            return 'retained'
+          },
+        })
+        return bridge.source
+      },
+      true,
+      (unit, scope, run) => work.readIn(unit, scope, run),
+    )
     const entered = Promise.withResolvers<void>(),
       released = Promise.withResolvers<void>()
     cleanup.push(async () => {
@@ -2369,6 +2381,7 @@ it.each(['normal', 'detach', 'retained', 'rootFailure', 'diagnosticFailure', 'mi
       home,
       binding: { formatVersion: 1, centerId, tenant },
       ingress: initial.f.runtime,
+      work,
       transport: {
         maxRequestBytes: 65536,
         maxResponseBytes: 65536,
@@ -2463,3 +2476,54 @@ it.each(['normal', 'detach', 'retained', 'rootFailure', 'diagnosticFailure', 'mi
     expect(bridge.close()).toEqual({ released: true })
   },
 )
+
+it('uses original work tokens and the actual tenant Unit instead of treating absent work as settled', async () => {
+  const original = await originalModelBinding()
+  const work = createSessionModelWorkOwner({ storage: original.f.storage, tenant, maxRecords: 1 })
+  const read = () =>
+    original.f.storage.atomic(unit =>
+      unit.run(() => work.readIn(unit, original.scope, original.preparation.run)),
+    )
+  expect(await read()).toBe('unavailable')
+  const token = work.begin(original.scope, original.preparation)
+  expect(work.begin(original.scope, original.preparation)).toBe(token)
+  expect(() => work.begin(original.scope, { ...original.preparation })).toThrow(
+    'original model preparation',
+  )
+  expect(await read()).toBe('pending')
+  expect(() => work.acknowledge({ ...token })).toThrow('original model work token')
+  expect(() => work.release(token)).toThrow('unacknowledged')
+  expect(await read()).toBe('pending')
+  const other = await openStorage({
+    dialect: 'sqlite',
+    file: join(original.f.directory, 'foreign-unit.sqlite'),
+    synchronous: 'full',
+  })
+  cleanup.push(() => other.close())
+  await expect(
+    other.atomic(unit =>
+      unit.run(() => work.readIn(unit, original.scope, original.preparation.run)),
+    ),
+  ).rejects.toThrow()
+  const foreign = unwrap(parseTenantId({ organization: 'other', account: tenant.account }))
+  expect(
+    await original.f.storage.atomic(unit =>
+      unit.run(() =>
+        work.readIn(unit, { ...original.scope, tenant: foreign }, original.preparation.run),
+      ),
+    ),
+  ).toBe('unavailable')
+  expect(() => work.begin({ ...original.scope, tenant: foreign }, original.preparation)).toThrow(
+    'foreign model work',
+  )
+  expect(() =>
+    work.begin(
+      { ...original.scope, session: unwrap(parseOpaqueIdentifier('other-session', 'SessionRef')) },
+      { ...original.preparation, call: 'other-call' },
+    ),
+  ).toThrow('capacity')
+  work.acknowledge(token)
+  expect(await read()).toBe('settled')
+  work.release(token)
+  expect(await read()).toBe('unavailable')
+})
