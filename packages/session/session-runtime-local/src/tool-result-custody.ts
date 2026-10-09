@@ -52,7 +52,10 @@ interface Database {
 }
 export function createToolResultCustody(host: Host) {
   const owner = new ToolCustody(host)
-  return Object.freeze<LocalToolResultCustody>({ store: owner.store, read: owner.read })
+  return Object.freeze({
+    operations: Object.freeze<LocalToolResultCustody>({ store: owner.store, read: owner.read }),
+    readIn: owner.readIn,
+  })
 }
 class ToolCustody {
   constructor(readonly host: Host) {}
@@ -126,6 +129,14 @@ class ToolCustody {
       if (key !== undefined) query = query.where('result_key', '=', key)
       return query.executeTakeFirst()
     })
+  }
+  readIn = async (unit: StorageUnit, scope: SessionScope, call: string, key: string) => {
+    unit.assertStorage(this.host.options.storage)
+    const row = await this.row(unit, scope, call, key)
+    if (!row) return { kind: 'absent' as const }
+    const saved = this.decode(row, scope)
+    await this.verifySaved(unit, scope, saved)
+    return saved
   }
   async stage(unit: StorageUnit, scope: SessionScope, input: ToolResultInput, writing: () => void) {
     const row = await this.row(unit, scope, input.original.ref.callId)

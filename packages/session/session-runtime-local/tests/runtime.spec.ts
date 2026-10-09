@@ -2,6 +2,9 @@ import {
   prepareToolJournalEntry,
   projectToolJournal,
 } from '@omne-harness-lite/tool-execution-runtime'
+import { readPassConclusions } from '@omne-harness-lite/loop-extension-runner-local'
+import { prepareRunnerConclusion } from '@omne-harness-lite/loop-extension-runner'
+import { judgeDefinition } from '@omne-harness-lite/loop-extension'
 // @module-tag slow
 // Uses real root and tenant SQLite transactions, log owners and Cordis lifetimes.
 import {
@@ -44,6 +47,7 @@ import {
   LosslessNumber,
   readJsonStrict,
   writeJsonLossless,
+  copyJsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import {
@@ -123,7 +127,10 @@ async function fixture(
   maxSteps = 32,
   configure?: (
     storage: SqlStorage,
-  ) => Pick<RuntimeOptions, 'modelIssue' | 'modelResults' | 'toolIssue' | 'toolResults'>,
+  ) => Pick<
+    RuntimeOptions,
+    'modelIssue' | 'modelResults' | 'toolIssue' | 'toolResults' | 'toolDelivery'
+  >,
   readTime: RuntimeOptions['now'] = async () => at,
   workSettledIn: RuntimeOptions['workSettledIn'] = async () => 'settled',
 ) {
@@ -2905,7 +2912,10 @@ describe('Session original Tool participation', () => {
   })
 })
 
-async function sessionToolFixture(terminal = false) {
+async function sessionToolFixture(
+  terminal = false,
+  conclusionMode?: 'observed' | 'foreignAttempt',
+) {
   const current = vi.fn<
     import('@omne-harness-lite/tool-execution-runtime').ToolOriginalIssueAuthority['authorizeIn']
   >(async () => ({ kind: 'authorized' }))
@@ -2918,6 +2928,7 @@ async function sessionToolFixture(terminal = false) {
     toolIssue: { maxRecords: 8, current: { authorizeIn: current } },
     ...(terminal
       ? {
+          toolDelivery: { readConclusions: readPassConclusions },
           toolResults: {
             maxRecords: 8,
             source: {
@@ -2964,6 +2975,40 @@ async function sessionToolFixture(terminal = false) {
     },
   })
   if ('invalid' in native) throw new Error('invalid controlled native Tool intent')
+  const definition = judgeDefinition({
+    name: 'omne-fixture:after-observer',
+    position: 'after_action',
+    dimension: { scope: 'each' },
+    power: 'observe',
+    implementation: { kind: 'builtin', builtinName: 'controlled-after-observer' },
+  })
+  if ('rejected' in definition) throw new Error('invalid controlled after-action definition')
+  const chain = copyJsonValue(
+    conclusionMode ? [{ definition: definition.ok, power: 'observe' }] : [],
+  )
+  if ('failed' in chain) throw new Error('invalid controlled after-action chain')
+  const conclusion = prepareRunnerConclusion({
+    session: p.scope.session,
+    tenant: p.scope.tenant,
+    execution: {
+      kind: 'withRun',
+      run: identityBase.origin.run,
+      attempt: conclusionMode === 'foreignAttempt' ? 2 : identityBase.origin.attempt,
+    },
+    anchor: 'controlled-delivery-pass',
+    occurrence: { kind: 'final' },
+    reminders: [],
+    value: {
+      position: 'after_action',
+      dimension: { scope: 'each' },
+      callId: identityBase.ref.callId,
+      extension: definition.ok.name,
+      power: 'observe',
+      at,
+      output: { kind: 'observed' },
+    },
+  })
+  if ('invalidInput' in conclusion) throw new Error('invalid controlled after-action conclusion')
   const ended = prepareToolJournalEntry({
     origin: identityBase.origin,
     value: {
@@ -2981,7 +3026,7 @@ async function sessionToolFixture(terminal = false) {
       },
       delivery: {
         pass: 'controlled-delivery-pass',
-        selectedChain: null,
+        selectedChain: chain.ok,
         result: {
           id: unwrap(parseOpaqueIdentifier('controlled-tool-result', 'BlockId')),
           kind: 'tool_result',
@@ -3013,7 +3058,9 @@ async function sessionToolFixture(terminal = false) {
           return { kind: 'alreadyIssued', identity }
         const request = checkAppendInput(
           p.scope.session,
-          terminal ? [native.entry, ended.entry] : [native.entry],
+          terminal
+            ? [native.entry, ended.entry, ...(conclusionMode ? [conclusion.entry] : [])]
+            : [native.entry],
           { kind: 'unfenced' },
           { kind: 'tailEquals', tail: source.source.tail },
         )
@@ -3039,6 +3086,7 @@ async function sessionToolFixture(terminal = false) {
     participant,
     current,
     verifyResult,
+    conclusionKey: conclusionMode ? conclusion.entry.dedupeKey! : undefined,
     failStage: () => {
       failStage = true
     },
@@ -3229,8 +3277,8 @@ describe('Session Tool result custody', () => {
   })
 })
 
-async function toolCustodyFixture() {
-  const t = await sessionToolFixture(true)
+async function toolCustodyFixture(conclusionMode?: 'observed' | 'foreignAttempt') {
+  const t = await sessionToolFixture(true, conclusionMode)
   expect(await t.support.admission.admitOriginal(t.participant)).toHaveProperty('kind', 'issued')
   const prefix = await t.f.runtime.journal.readPrefix(t.f.runtime.access, t.p.scope.session)
   if (!('kind' in prefix) || prefix.kind !== 'prefix')
@@ -3374,4 +3422,334 @@ it('reports a defect when a stored Tool custody loses its original issue proof',
       t.input.resultKey,
     ),
   ).rejects.toThrow('stored Tool custody lost original proof')
+})
+
+describe('ordinary Tool delivery', () => {
+  it('requires the original coordination authority', async () => {
+    const f = await fixture()
+    await expect(
+      f.runtime.toolDelivery.confirm(
+        Object.freeze({}) as typeof f.runtime.coordinationAuthority,
+        { tenant, session: unwrap(parseOpaqueIdentifier('unknown', 'SessionRef')) },
+        {} as import('../src/tool-result-types.ts').ToolDeliveryInput,
+      ),
+    ).resolves.toEqual({ failure: 'denied' })
+  })
+  it('requires an explicit original conclusion interpreter', async () => {
+    const f = await fixture()
+    await expect(
+      f.runtime.toolDelivery.confirm(
+        f.runtime.coordinationAuthority,
+        { tenant, session: unwrap(parseOpaqueIdentifier('unknown', 'SessionRef')) },
+        {} as import('../src/tool-result-types.ts').ToolDeliveryInput,
+      ),
+    ).resolves.toEqual({ failure: 'unavailable' })
+  })
+})
+
+async function toolDeliveryFixture(conclusionMode?: 'observed' | 'foreignAttempt') {
+  const t = await toolCustodyFixture(conclusionMode)
+  const saved = await t.f.runtime.toolResults.store(
+    t.f.runtime.coordinationAuthority,
+    t.p.scope,
+    t.input,
+  )
+  if (!('witness' in saved)) throw new Error('actual Tool custody unavailable')
+  const prefix = await t.f.runtime.journal.readPrefix(t.f.runtime.access, t.p.scope.session)
+  if (!('kind' in prefix) || prefix.kind !== 'prefix')
+    throw new Error('actual Tool source unavailable')
+  const message = judgeMessage({
+    id: 'ordinary-tool-message',
+    type: 'tool',
+    callId: t.identity.ref.callId,
+    createdAt: at,
+    blocks: [t.input.terminal.value.delivery.result],
+  })
+  if ('rejected' in message || message.ok.type !== 'tool')
+    throw new Error('invalid Tool message fixture')
+  return {
+    ...t,
+    delivery: {
+      witness: saved.witness,
+      source: prefix.source,
+      permit: t.p.step.permit,
+      result: message.ok.blocks[0],
+      message: message.ok,
+      conclusions: t.conclusionKey ? [t.conclusionKey] : [],
+    },
+  }
+}
+
+it('commits ordinary Tool ready, message, confirmation and adoption in one actual unit', async () => {
+  const t = await toolDeliveryFixture()
+  const result = await t.f.runtime.toolDelivery.confirm(
+    t.f.runtime.coordinationAuthority,
+    t.p.scope,
+    t.delivery,
+  )
+  expect(result).toHaveProperty('kind', 'confirmed')
+  if (!('source' in result)) throw new Error('actual Tool delivery missing')
+  const prefix = await t.f.runtime.journal.readPrefix(t.f.runtime.access, t.p.scope.session)
+  if (!('kind' in prefix) || prefix.kind !== 'prefix') throw new Error('missing delivered prefix')
+  expect(
+    prefix.entries.filter(entry => compareInteger(entry.position, t.delivery.source.tail) > 0),
+  ).toHaveLength(4)
+  const projected = projectToolJournal(t.p.scope, prefix.entries)
+  if ('invalid' in projected) throw new Error('invalid delivered Tool history')
+  expect(projected.executions.get(t.identity.ref.callId)?.confirmed?.value.message).toEqual(
+    t.delivery.message,
+  )
+  expect(
+    prefix.entries.find(entry => compareInteger(entry.position, result.messagePosition) === 0)
+      ?.payload,
+  ).toMatchObject({
+    kind: 'message',
+    owner: 'messages',
+    value: t.delivery.message,
+  })
+  expect(await t.f.count('sr_tool_delivery')).toEqual({ n: 1 })
+  expect(
+    await t.f.runtime.toolDelivery.confirm(
+      t.f.runtime.coordinationAuthority,
+      t.p.scope,
+      t.delivery,
+    ),
+  ).toEqual({ ...result, kind: 'alreadyConfirmed' })
+  expect(await t.f.count('sr_tool_delivery')).toEqual({ n: 1 })
+})
+
+it('rolls back the complete ordinary Tool delivery batch on actual transaction failure', async () => {
+  const t = await toolDeliveryFixture()
+  const atomic = t.f.storage.atomic.bind(t.f.storage)
+  const fault = vi.spyOn(t.f.storage, 'atomic').mockImplementationOnce(action =>
+    atomic(async unit => {
+      await action(unit)
+      throw new StorageUnavailable('controlled Tool delivery rollback')
+    }),
+  )
+  expect(
+    await t.f.runtime.toolDelivery.confirm(
+      t.f.runtime.coordinationAuthority,
+      t.p.scope,
+      t.delivery,
+    ),
+  ).toHaveProperty('kind', 'unknownCommit')
+  fault.mockRestore()
+  expect(await t.f.count('sr_tool_delivery')).toEqual({ n: 0 })
+  expect(await t.f.log().readSince(t.p.scope.session, t.delivery.source.tail)).toHaveProperty(
+    'entries.length',
+    0,
+  )
+})
+
+it('recognizes ordinary Tool delivery after the actual commit reply is lost', async () => {
+  const t = await toolDeliveryFixture()
+  const atomic = t.f.storage.atomic.bind(t.f.storage)
+  const fault = vi.spyOn(t.f.storage, 'atomic').mockImplementationOnce(async action => {
+    await atomic(action)
+    throw new StorageUnavailable('controlled Tool delivery reply loss')
+  })
+  expect(
+    await t.f.runtime.toolDelivery.confirm(
+      t.f.runtime.coordinationAuthority,
+      t.p.scope,
+      t.delivery,
+    ),
+  ).toEqual({
+    kind: 'unknownCommit',
+    scope: t.p.scope,
+    call: t.identity.ref.callId,
+    resultKey: t.delivery.witness.receipt.resultKey,
+  })
+  fault.mockRestore()
+  expect(
+    await t.f.runtime.toolDelivery.confirm(
+      t.f.runtime.coordinationAuthority,
+      t.p.scope,
+      t.delivery,
+    ),
+  ).toHaveProperty('kind', 'alreadyConfirmed')
+  expect(await t.f.count('sr_tool_delivery')).toEqual({ n: 1 })
+  expect(await t.f.log().readSince(t.p.scope.session, t.delivery.source.tail)).toHaveProperty(
+    'entries.length',
+    4,
+  )
+})
+
+it('denies ordinary Tool delivery with a copied permit and retains original custody', async () => {
+  const t = await toolDeliveryFixture()
+  expect(
+    await t.f.runtime.toolDelivery.confirm(t.f.runtime.coordinationAuthority, t.p.scope, {
+      ...t.delivery,
+      permit: Object.freeze({}) as typeof t.delivery.permit,
+    }),
+  ).toEqual({ failure: 'staleAttempt' })
+  expect(await t.f.count('sr_tool_delivery')).toEqual({ n: 0 })
+  expect(await t.f.count('sr_tool_result')).toEqual({ n: 1 })
+})
+
+it('rejects caller-declared Tool conclusion keys absent from the original pass', async () => {
+  const t = await toolDeliveryFixture()
+  expect(
+    await t.f.runtime.toolDelivery.confirm(t.f.runtime.coordinationAuthority, t.p.scope, {
+      ...t.delivery,
+      conclusions: ['made-up-conclusion'],
+    }),
+  ).toEqual({ failure: 'invalidSource' })
+  expect(await t.f.count('sr_tool_delivery')).toEqual({ n: 0 })
+})
+
+it('does not change a confirmed ordinary Tool projection under the same original result', async () => {
+  const t = await toolDeliveryFixture()
+  expect(
+    await t.f.runtime.toolDelivery.confirm(
+      t.f.runtime.coordinationAuthority,
+      t.p.scope,
+      t.delivery,
+    ),
+  ).toHaveProperty('kind', 'confirmed')
+  expect(
+    await t.f.runtime.toolDelivery.confirm(t.f.runtime.coordinationAuthority, t.p.scope, {
+      ...t.delivery,
+      message: {
+        ...t.delivery.message,
+        id: unwrap(parseOpaqueIdentifier('other-tool-message', 'MessageId')),
+      },
+    }),
+  ).toEqual({ failure: 'identityConflict' })
+  expect(await t.f.count('sr_tool_delivery')).toEqual({ n: 1 })
+})
+
+it('rejects an incomplete stored ordinary Tool delivery proof', async () => {
+  const t = await toolDeliveryFixture()
+  expect(
+    await t.f.runtime.toolDelivery.confirm(
+      t.f.runtime.coordinationAuthority,
+      t.p.scope,
+      t.delivery,
+    ),
+  ).toHaveProperty('kind', 'confirmed')
+  await t.f.storage.atomic(unit =>
+    unit.mutate(async tx => {
+      const db = narrow<{ sr_tool_delivery: { session: string; record: string } }>(tx)
+      const row = await db
+        .selectFrom('sr_tool_delivery')
+        .selectAll()
+        .where('session', '=', t.p.scope.session)
+        .executeTakeFirstOrThrow()
+      const record = JSON.parse(row.record)
+      record.batch.pop()
+      await db
+        .updateTable('sr_tool_delivery')
+        .set({ record: JSON.stringify(record) })
+        .where('session', '=', t.p.scope.session)
+        .execute()
+    }),
+  )
+  await expect(
+    t.f.runtime.toolDelivery.confirm(t.f.runtime.coordinationAuthority, t.p.scope, t.delivery),
+  ).rejects.toThrow('Tool delivery batch is incomplete')
+})
+
+it('uses the actual nonempty after-action conclusion history for ordinary Tool delivery', async () => {
+  const t = await toolDeliveryFixture('observed')
+  expect(t.delivery.conclusions).toEqual([t.conclusionKey])
+  expect(
+    await t.f.runtime.toolDelivery.confirm(
+      t.f.runtime.coordinationAuthority,
+      t.p.scope,
+      t.delivery,
+    ),
+  ).toHaveProperty('kind', 'confirmed')
+})
+
+it('does not use another attempt conclusion for ordinary Tool delivery', async () => {
+  const t = await toolDeliveryFixture('foreignAttempt')
+  expect(
+    await t.f.runtime.toolDelivery.confirm(
+      t.f.runtime.coordinationAuthority,
+      t.p.scope,
+      t.delivery,
+    ),
+  ).toEqual({ failure: 'invalidSource' })
+  expect(await t.f.count('sr_tool_delivery')).toEqual({ n: 0 })
+})
+
+it('rejects new ordinary Tool delivery after the original Run ends', async () => {
+  const t = await toolDeliveryFixture()
+  expect(
+    await t.f.runtime.lifecycle.commitStep(
+      t.f.runtime.coordinationAuthority,
+      t.p.scope,
+      t.delivery.source,
+      {
+        kind: 'finish',
+        stepKey: 'finish-before-tool-delivery',
+        run: t.p.step.run,
+        attempt: t.p.step.attempt,
+        permit: t.p.step.permit,
+        terminal: 'completed',
+        reason: 'controlled-settled-source',
+      },
+    ),
+  ).toHaveProperty('kind', 'committed')
+  expect(
+    await t.f.runtime.toolDelivery.confirm(
+      t.f.runtime.coordinationAuthority,
+      t.p.scope,
+      t.delivery,
+    ),
+  ).toEqual({ failure: 'staleAttempt' })
+  expect(await t.f.count('sr_tool_delivery')).toEqual({ n: 0 })
+  expect(await t.f.count('sr_tool_result')).toEqual({ n: 1 })
+})
+
+it('recognizes a completed ordinary Tool batch after Run termination without granting new delivery', async () => {
+  const t = await toolDeliveryFixture()
+  const confirmed = await t.f.runtime.toolDelivery.confirm(
+    t.f.runtime.coordinationAuthority,
+    t.p.scope,
+    t.delivery,
+  )
+  if (!('source' in confirmed)) throw new Error('actual Tool delivery unavailable')
+  expect(
+    await t.f.runtime.lifecycle.commitStep(
+      t.f.runtime.coordinationAuthority,
+      t.p.scope,
+      confirmed.source,
+      {
+        kind: 'finish',
+        stepKey: 'finish-after-tool-delivery',
+        run: t.p.step.run,
+        attempt: t.p.step.attempt,
+        permit: t.p.step.permit,
+        terminal: 'completed',
+        reason: 'controlled-settled-source',
+      },
+    ),
+  ).toHaveProperty('kind', 'committed')
+  expect(
+    await t.f.runtime.toolDelivery.confirm(
+      t.f.runtime.coordinationAuthority,
+      t.p.scope,
+      t.delivery,
+    ),
+  ).toEqual({ ...confirmed, kind: 'alreadyConfirmed' })
+  expect(await t.f.count('sr_tool_delivery')).toEqual({ n: 1 })
+})
+
+it('does not claim unknown ordinary Tool delivery before entering the original transaction', async () => {
+  const t = await toolDeliveryFixture()
+  const fault = vi
+    .spyOn(t.f.storage, 'atomic')
+    .mockRejectedValueOnce(new StorageUnavailable('before Tool delivery transaction'))
+  expect(
+    await t.f.runtime.toolDelivery.confirm(
+      t.f.runtime.coordinationAuthority,
+      t.p.scope,
+      t.delivery,
+    ),
+  ).toEqual({ failure: 'unavailable' })
+  fault.mockRestore()
+  expect(await t.f.count('sr_tool_delivery')).toEqual({ n: 0 })
 })

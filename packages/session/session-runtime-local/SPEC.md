@@ -135,7 +135,7 @@ Ingress关闭同步拒新保管／读取，并等待已登记保管的真实Unit
 
 ## 原工具结果保管与普通交付协议
 
-tool-result-types.ts声明B01工具保管及普通交付接口。Ingress已提供toolResults保管分面；普通交付分面尚未实现。RuntimeOptions.toolResults须显式给出原ToolResultCustodySource和容量。来源及结果库由可信根选择，Ingress不关闭它们。
+tool-result-types.ts声明B01工具保管及普通交付接口。Ingress已提供toolResults保管分面及toolDelivery普通交付分面。RuntimeOptions.toolResults须显式给出原ToolResultCustodySource和容量。来源及结果库由可信根选择，Ingress不关闭它们。
 LocalToolResultCustody.store不要求最新AttemptPermit。它在实际Session Unit核原持久grant、
 工具原发起证明、完整终局的不可变日志坐标及ToolResultCustodySource证据。
 原Run终态和旧attempt仍可保管，不新查询登录、不补新attempt或IO权。
@@ -165,9 +165,17 @@ delivery_confirmed内的message须与本批真实消息完全相同，消息posi
 本期不在此入口生成后台SystemReminderMessage，不把普通工具结果或attempt事实包装成提醒。
 confirm不是Model ACK，也不单凭确认宣称作者／writer已停止；原工具关闭仍需实际停止证明。
 
+RuntimeOptions.toolDelivery.readConclusions是可信根选定的公开纯历史解释器，只消费本批实际前缀、原DeliveryBasis的selectedChain和pass。它不是插件配置或执行权限。本提供者复用Core Runner的pass键、结论codec和composeEffect；不选择具体Runner，不复制其链历史解释规则。缺少解释器或完整结论时不确认交付。
+
+B01普通路径核after_action各项final结论的原Run／attempt、精确键序、完整链及作用后的结果。after_action作用未能形成普通结果时返回retryFromFacts，不在此入口实现待答或后台提醒旅程。普通ToolMessage承载已核结果，callId与原执行一致。新交付要求实际最新permit；可信原批次重放只认回完整已存事实，不重授permit。
+
+提供者在同Unit写入尚缺的delivery_ready、messages子类型条目、delivery_confirmed及本提供者的tool_result_adopted事实。采用事实保存原call、resultKey、保管position和真实message身份；sr_tool_delivery仅保留这一完整批次的认回索引及原Source。重读必须核四项实际条目、消息position、同一完整投影及原确认，不以索引存在冒称完成。消息身份已用于其他批次时拒绝别名，不修改原文、终局或账。
+
+普通交付与保管共用Ingress的准入、容量和真实close排空；它不关闭借入的解释器、Tool pool、日志或存储。具体来源与原工厂、动态Cordis及真实工具旅程仍有后续验证门。
+
 E1验证真实共享SQLite、原Tool终局／结果库及Session：源和全引用完整性、外部不可变内容保留、
 旧attempt／终态保管、同键冲突、commit返回丢失、完整普通消息／confirmed／采用全批回滚和认回，
-原job关闭后的实际读取以及重复确认零新消息／费用。当前仅类型／行为承诺，不声称这些行为已通过。
+原job关闭后的实际读取以及重复确认零新消息／费用。当前分面及有限SQLite／Runner组合不能证明上述完整原池、结果库和引用存续义务已通过。
 
 ## 持久归属与独立Session Context
 
@@ -430,4 +438,4 @@ createSessionModelObservations用于尚未发起原调用的正常段。当前So
 
 同一原claim只映射回其原participant与准备。消费还要认回原Session证明，不能把一个工具的准备用于另一个工具。工具拥有者负责唯一claim的实际消费和作者执行；Session返回launch前必须确认其共同事务已提交。原工具支持不关闭共享存储或工具池，不把结果保管当作交付确认。
 
-原工具日志核验可在本Scope已有发起证明后使用只读原事实权限，包括Run终态或Ingress关闭后。该权限不允许追加或新工具发起。工具支持的在途准入和消费受Ingress的容量及close排空约束。原工具结果保管已提供；普通交付、原工厂和Cordis组合另有实现与验证责任。
+原工具日志核验可在本Scope已有发起证明后使用只读原事实权限，包括Run终态或Ingress关闭后。该权限不允许追加或新工具发起。工具支持的在途准入和消费受Ingress的容量及close排空约束。原工具结果保管及普通交付已提供；完整原工厂和Cordis组合另有实现与验证责任。

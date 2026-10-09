@@ -1,5 +1,6 @@
 import { createSessionToolAdmission } from './tool-invocation.ts'
 import { createToolResultCustody } from './tool-result-custody.ts'
+import { createToolResultDelivery } from './tool-delivery.ts'
 import {
   checkKey,
   checkAppendInput,
@@ -92,6 +93,7 @@ export function createLocalSessionIngress(options: RuntimeOptions): LocalSession
     modelInvocation: owner.modelInvocation,
     toolInvocation: owner.toolInvocation,
     toolResults: owner.toolResults,
+    toolDelivery: owner.toolDelivery,
     modelResults: owner.modelResults,
     runJournal: owner.runJournal,
     close: owner.close,
@@ -181,6 +183,7 @@ class SessionIngress implements LocalSessionIngress {
     )
   readonly toolInvocation: LocalSessionIngress['toolInvocation']
   readonly toolResults: LocalSessionIngress['toolResults']
+  readonly toolDelivery: LocalSessionIngress['toolDelivery']
   readonly toolAdmission: ReturnType<typeof createSessionToolAdmission>
   readonly modelInvocation: LocalSessionIngress['modelInvocation']
   readonly runJournal: LocalSessionIngress['runJournal']
@@ -234,8 +237,20 @@ class SessionIngress implements LocalSessionIngress {
       log: this.log,
     })
     this.toolResults = Object.freeze<LocalSessionIngress['toolResults']>({
-      store: (...args) => this.run(this.access, () => toolCustody.store(...args), [] as const),
-      read: (...args) => this.run(this.access, () => toolCustody.read(...args), [] as const),
+      store: (...args) =>
+        this.run(this.access, () => toolCustody.operations.store(...args), [] as const),
+      read: (...args) =>
+        this.run(this.access, () => toolCustody.operations.read(...args), [] as const),
+    })
+    const toolDelivery = createToolResultDelivery({
+      options,
+      authority: this.authority,
+      log: this.log,
+      state: this.state,
+      readToolIn: toolCustody.readIn,
+    })
+    this.toolDelivery = Object.freeze<LocalSessionIngress['toolDelivery']>({
+      confirm: (...args) => this.run(this.access, () => toolDelivery.confirm(...args), [] as const),
     })
     const model = createSessionModelAdmission({
       options: this.options,

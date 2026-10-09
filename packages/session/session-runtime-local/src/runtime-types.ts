@@ -31,7 +31,12 @@ import type { StateOptions, StatePolicy } from './state-types.ts'
 import type { ReceiptPolicy } from './receipt-types.ts'
 import type { OriginalRunJournal } from './run-journal-types.ts'
 import type { ModelResultSource, LocalModelResultCustody } from './model-result-types.ts'
-import type { LocalToolResultCustody } from './tool-result-types.ts'
+import type { LocalToolResultCustody, LocalToolResultDelivery } from './tool-result-types.ts'
+import type {
+  ReadPassConclusionsInput,
+  RunnerReplayFailure,
+} from '@omne-harness-lite/loop-extension-runner'
+import type { Conclusion } from '@omne-harness-lite/loop-extension'
 
 /** The host must durably bind the original recipe and initialize its real Session Context before ready. */
 export interface SessionBootstrap {
@@ -76,6 +81,12 @@ export interface RuntimeOptions {
     readonly maxRecords: number
     readonly source: ToolResultCustodySource
   }
+  /** Root-selected pure interpreter; it reads only the provided exact-prefix history. */
+  readonly toolDelivery?: {
+    readonly readConclusions: (
+      input: ReadPassConclusionsInput,
+    ) => readonly Conclusion[] | RunnerReplayFailure
+  }
   /** Root-selected original model owner. Omission means model admission is unavailable. */
   readonly modelIssue?: {
     readonly maxRecords: number
@@ -115,6 +126,7 @@ export interface LocalSessionIngress {
     ) => Promise<ToolOriginalIssueSupport | { readonly unavailable: true }>
   }
   readonly toolResults: LocalToolResultCustody
+  readonly toolDelivery: LocalToolResultDelivery
   readonly modelInvocation: {
     readonly admit: (
       authority: CoordinationAuthority,

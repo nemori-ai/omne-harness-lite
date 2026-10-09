@@ -74,4 +74,6 @@ The root also exports `prepareSessionModelRun`, `createSessionModelAttempt`, and
 
 `RuntimeOptions.toolIssue` enables the trusted original Tool admission support. `toolInvocation.support` requires this Ingress owner's coordination authority. The provider checks the original prepared call and actual intent in the shared transaction. Tool result custody, delivery, and complete driver composition remain separate work; this support alone is not a complete Tool path.
 
-`toolResults` retains and recognizes the original Tool terminal evidence and Session custody receipt in one unit. The trusted root supplies the immutable Tool result source. Ordinary Tool message delivery and the full native factory composition remain unimplemented.
+`toolResults` retains and recognizes the original Tool terminal evidence and Session custody receipt in one unit. The trusted root supplies the immutable Tool result source. The full native factory composition remains unverified.
+
+`toolDelivery` confirms the ordinary Tool message with its ready, confirmation and adoption facts in one unit. The root supplies the existing pure Runner history interpreter. New delivery requires the current permit; recognition verifies the full original batch. Full native and Cordis composition remains a separate verification gate.

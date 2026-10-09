@@ -74,4 +74,6 @@ createLocalSessionAccess借入真实当前authority、固定的已鉴权主体�
 
 `RuntimeOptions.toolIssue`显式启用原工具准入支持。`toolInvocation.support`只接受本Ingress的原协调权限，并在共享事务核验原调用准备、permit及实际工具意图。本支持尚不包含工具结果保管、普通交付或完整driver装配，不能把它当作完整工具路径。
 
-`toolResults`在同一单元中保管并认回原Tool终局证据和Session保管回执。可信根提供不可变的Tool结果来源。普通工具消息交付及完整native工厂组合仍未实现。
+`toolResults`在同一单元中保管并认回原Tool终局证据和Session保管回执。可信根提供不可变的Tool结果来源。完整native工厂组合仍未验证。
+
+`toolDelivery`在同一单元中确认普通工具消息及其ready、confirmed和采用事实。可信根提供现有Runner纯历史解释器。新交付须持有当前permit；认回核完整原批次。完整native和Cordis组合仍须另验。
