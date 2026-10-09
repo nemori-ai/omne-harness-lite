@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   IDENTITY_BRAND_NAMES,
@@ -8,20 +6,15 @@ import {
   parseAccountId,
   validate,
 } from '../src/index.ts'
-import { SPEC_DIR } from './spec-fixtures.ts'
 
 describe('S-31：唯一公开空白码点集合', () => {
   it('与已接受正文的显式码点表相同', () => {
-    const contract = readFileSync(resolve(SPEC_DIR, 'contract.md'), 'utf8')
-    const section = contract.split('**「空白」恰是下列码点，逐个列出：**')[1]?.split('**首字符')[0]
-    expect(section).toBeDefined()
-    const expected = Array.from(
-      section?.matchAll(/U\+([0-9A-F]{4})(?: – U\+([0-9A-F]{4}))?/g) ?? [],
-    ).flatMap(match => {
-      const first = Number.parseInt(match[1] ?? '', 16)
-      const last = match[2] === undefined ? first : Number.parseInt(match[2], 16)
-      return Array.from({ length: last - first + 1 }, (_, index) => first + index)
-    })
+    // Fixed adopted input, independent of the exported set and parser.
+    const expected = [
+      0x0009, 0x000a, 0x000b, 0x000c, 0x000d, 0x0020, 0x0085, 0x00a0, 0x1680, 0x2000, 0x2001,
+      0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200a, 0x2028, 0x2029,
+      0x202f, 0x205f, 0x3000, 0xfeff,
+    ]
     expect(expected).toHaveLength(26)
     expect(OPAQUE_IDENTIFIER_WHITESPACE_CODE_POINTS).toEqual(expected)
   })

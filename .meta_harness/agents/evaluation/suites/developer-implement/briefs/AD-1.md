@@ -21,13 +21,130 @@
 | A6 | 成员检查 | `apps/cli` 下 `pnpm test` 与 `pnpm typecheck` 通过 |
 
 @@SPEC
-- 契约：`.meta_harness/design/spec/compositions/governance-cli-entry/v1/contract.md`（CQ1）S-2、S-3、S-4、S-6、S-10；命令表 `commands.json` 同目录。接受依据：`.meta_harness/design/record/decisions/governance-cli-file-entry-adoption/`（D049）。
-- 节点设计：`.meta_harness/design/realization/apps/cli/governance.md`「输入取得」与「首个可实施增量的裁剪」；节点入口 `README.md` 同目录。
-- CG2 的 Intent/Output 形状与合法示例：`.meta_harness/design/spec/compositions/governance-client-operations/`；类型从包 `@omne-harness-lite/governance-client-operations` 的公开入口取。
 - 公开面与相邻接口：失败用 `apps/cli/src/diagnostic.ts` 的 `InputFailure`（代码取自封闭集合）；命令与调用形状来自 `apps/cli/src/parser.ts`；`apps/cli/src/tui/forms.ts` 与 `apps/cli/src/application.ts` 是本模块的消费者。
 - 本次采用值：普通载荷上限 64KiB，证书文件上限 1MiB，每个秘密上限 64KiB；JSON 嵌套深度上限 64。
 - 已采用的增量裁剪：秘密只从受保护文件取得；来源缺席以 `tty-unsupported` 失败，不进入任何终端输入。
 - 关闭已打开文件被拒绝属于缺陷而不是输入失败：以消息为 `input-restore-failed` 的普通 `Error` 抛出。
+
+
+本评估使用固定基底的接口／命令表与以下局部规则，CQ编号仅为本案例条款标签。它们不是当前项目的产品交付承诺或历史接受记录；不得据此恢复中央设计目录。
+
+## S-2 进程输入与模式
+
+一条调用只发起一个CG Input，机器呈现是`machine`前缀子命令，例如`omne machine tenant current`；相同命令移除该前缀为人读呈现。机器输出是一个CG2 Output JSON文档并以换行结束，不改为JSON事件流。进程状态严格消费CG2 S15。
+
+全局`--state-dir <directory>`指定本机状态目录；省略时应用映射定义一个确定的当前OS用户默认目录，不能按当前项目或登录名暗换目录。操作命令由commands.json精确映射。未知/重复命令、重复选项、未知选项、缺值、额外位置参数、秘密来源选项重复均拒绝，不能忽略继续。
+
+仅register/login/invoke接受`--payload-file <path>`读取一次严格UTF-8 JSON对象，作为非秘密载荷。缺席时载荷为空对象，但注册/登录允许`--login-identifier <exact-value>`设置loginIdentifier；该选项与载荷同名成员同时出现为冲突，不定义覆盖优先级。configure/health/logout不接受payload-file或login-identifier；secret来源选项仅对应secretFields中存在的字段，其他来源选项必须在读取任何文件前拒绝。命令表逐项列出allowedOptions，state-dir也必须在其中；不存在“通用解析了但当前命令忽略”的选项。命令表的secretFields成员禁止出现在该文件内，即使值为空、null或占位字符串也拒绝。原始载荷/解析错误片段不回显。
+
+`center configure`专用`--endpoint <HTTPS URL>`及恰一个`--system-ca`、`--ca-file <path>`、`--spki <64 hex>`。证书文件只读一次并作为值交给CG；原绑定匹配/保存仍由CG裁决。其他命令不接受这些配置选项，不用失败连接建议自动信任新证书。
+
+只读命令接受`--refresh`，省略沿CG2 prefer-copy；写命令不接受。普通读取与秘密读取均有提供者声明的有界输入限额，超限显式拒绝，不截断。`--help`及`--version`是无治理动作的进程说明，不访问状态/中心；机器模式不兼容这两种说明，以输入不合报告，不输出非CG文档。无参数时显示本期帮助；TUI入口单独采用前不伪装成已支持。
+
+
+## S-3 取得非秘密输入
+
+1. 输入：已解析路径及被选择命令，可能含证书文件与非秘密载荷文件；不含任意秘密读取指令。
+2. 前置：命令/选项纯语法有效，未开始CG动作。
+3. 次序：每文件打开并有界读取一次；UTF-8不合、BOM、JSON语法不合、非对象或重复成员拒绝。本期JSON数值只接受十进制安全整数字面量，不接受小数或指数写法；越界整数也拒绝，不能先经浮点舍入而变成合法期限。证书文件不按JSON读取，由CG信任配置进一步核对。
+4. 状态：仅形成不可变输入快照，不写源文件，不改变本地选择。
+5. 成功：原字符串/对象语义保留；不偷偷补入当前账号或当前租户。
+6. 失败：读取不可用、大小超限、表示不合，进入S6稳定输入诊断；没有部分载荷继续执行。
+7. 重复：本次不重读、不自动改路径；下一次命令可明确重试。
+8. 外部效果：只读用户指定文件，无网络/治理修改。
+9. 收场：成功、失败、取消均关闭本次拥有的文件句柄；不删除输入文件。
+
+
+## S-4 取得秘密
+
+1. 输入：命令表secretFields的每个成员与一种具名来源。credential用`--credential-file`，currentCredential用`--current-credential-file`，newCredential用`--new-credential-file`；选项值仅路径，不是秘密。
+2. 前置：非秘密Intent已经有效，CG2已按S16捕获绑定/身份并进入输入回调。人读必须先用该Preview呈现本动作身份与影响；机器回调不输出Preview。文件必须通过提供者对当前用户独占可读权限、常规文件、所有权及符号链接边界的核对；本版脚本入口只接受受保护常规文件，不接受描述符或普通stdin作为秘密来源。来源缺席时，仅人读且有独占TTY才可提示无回显输入；机器模式不隐式询问、不从环境变量取凭据。
+3. 次序：每来源只读取一次，严格有界UTF-8，不trim、不去掉文件末尾换行。TTY显示固定非秘密提示，密码字符不进入输出；键入/粘贴提交边界与恢复方式由实现映射给出并验证。取消或不支持的输入必须显式失败，不能静默改变凭据后提交。
+4. 状态：秘密仅供这次CG调用，不能进入缓存、历史、命令表、日志或诊断。没有自动保存密码、自动重登或凭据找回。
+5. 成功：把精确值填入对应CG/EC载荷，由CG2构造并对完整Input校验；不把秘密置于argv或普通JSON文件。
+6. 失败：权限/来源/表示/超限/EOF/取消/TTY不可用分别进入稳定诊断；未取得全部需要的秘密不返回continue；正常输入问题返回cancelled并留稳定诊断，CG保留已发生的准备事实。诊断不给秘密内容或原始异常。
+7. 重复：不重读不回退另一来源；重新调用才是新尝试。
+8. 外部效果：读取明确来源、TTY模式与提示。用户的源文件不删除；不打开/关闭任意调用方描述符。
+9. 收场：拥有的文件关闭；TTY恢复进入前的OS属性和终端模拟器模式；输入/控制输出必须属于同一终端且归本次独占。已开始粘贴或可能构成开始标记的尾段仍归当前输入，取消/超限/内容拒绝不转交下一提示，不在尾段实际结束前恢复回显。恢复实际结束后回调才允许返回continue，不等目标网络完成。清除应用持续引用，不承诺JavaScript内存可靠擦除；不可调度强杀/终端消失不伪称恢复成功。
+
+
+## S-6 安全呈现与进程状态
+
+操作前人读只消费CG2 Preview，操作后公开数据只消费CG2 Output。所有人读命令要求stdout是实际TTY，缺席时明确输入不合并提示显式machine模式，不能悄悄改模式；机器无此要求。改密预览必须说明全部旧登录失效，不能隐含新增权限、凭据找回或替用户确认其他治理动作。人读至少明确操作、原中心、账号/未知、非秘密登录句柄、原expectedTenant（若有）、远端阶段/结果、本地保存结果、线上/副本/无数据；副本显示取得时刻，失败字面保留；不得把当前租户等同成员有效，或把报告原身份改挂到新选择。人读可用本地化说明，但保留精确失败名与报告关联标识。
+
+人读的远端字符串和ID必须作为数据转义，不能成为ANSI/OSC、光标移动、终端标题或伪造的新提示。机器输出必须一次完整合法JSON表示，JSON字符串中的控制字符不得以可执行终端序列泄出；stdout不混入进度、logger或调试输出，诊断只到stderr且不含输入/原异常。不同呈现模式不得改变CG调用与结果状态。
+
+应用在CG受理前失败时，使用同一CG2 Output形状表达未发起：action/operation只取已验证命令，未知时invalid/null；origin未知，不猜记录；remote=not-attempted/none/false，local=not-requested，view=none，use=ended。表示/秘密来源不合归admission.invalid-input；CLS不可用归local-unavailable、损坏/未来格式沿同名原因；未声明异常归独立defect及稳定internal-defect。关联标识由应用为这次未受理调用生成。应用失败发生在CG已受理后不能使用这个“未发起”模板，须等其真实结果；缺陷遵守CG2 S14，不用异常文本救场。
+
+写stdout失败、EPIPE或输出终端在完整JSON交付前消失，不尝试补写第二个JSON或重做业务；尽可调度地完成资源收场。进程状态70表明输出未完整交付，不能凭已生成的报告声称用户收到；无法写stderr也不触发无限递归诊断。正常报告进程状态沿CG2 S15，成功改密/退出后的reenter-required也不由CLI私改为0。
+
+
+## S-10 交付前后失败的收敛
+
+正常次序是CG动作返回 → 完整CG close → CLS close → 最终报告输出。TTY恢复包含在输入回调实际结束里，必须先于目标治理请求；输出以后没有普通close任务，也不再开始业务。进程说明/help路径没有这两项资源。
+
+| 失败位置 | 报告与收场 |
+|---|---|
+| CG受理前的语法、来源声明、非秘密文件或CLS打开失败 | 使用S6未发起模板；源字段只来自验证过的命令。已打开文件仍等实际关闭 |
+| CG输入回调内的正常来源/权限/EOF/取消 | 返回cancelled，CG2保留准备读数和本地结算；stderr只给稳定诊断代码，不重新生成“完全未访问”报告 |
+| 输入回调内TTY恢复或已打开文件关闭的未声明失败 | 不返回continue，作为稳定input缺陷交CG；继续尽可调度恢复，不发送目标、不宣称恢复成功 |
+| CG动作抛未声明异常而没有可交付报告 | 应用不能猜远端结果或伪造not-attempted；只在stderr报稳定缺陷并状态70，尽可调度收场；机器文档此时未交付 |
+| CG close拒绝 | 保留已经返回的CG报告，状态70及稳定收场诊断；不称CG静止，不主动close借用的CLS，不靠process.exit强行“完成”。自然进程结束也不算静止证据 |
+| CLS close拒绝（CG已实际静止） | 保留CG报告与原本地结算，状态70及稳定收场诊断；不将关闭失败解释成提交失败或重做治理 |
+| 最终输出开始前已知应用收场缺陷 | CG报告保持事实不变，stderr稳定诊断和退出70是本次交付失败；不伪造CG内部defect.stage来指代不同拥有者 |
+| 最终输出过程中EPIPE/写失败 | 不补第二份JSON，不再执行业务；原报告是否生成与用户是否收到分开，状态70；stderr失败不递归 |
+
+稳定诊断只用封闭代码：invalid-command、invalid-options、input-unavailable、input-too-large、invalid-encoding、invalid-json、secret-permissions、secret-source、input-eof、input-cancelled、tty-required、tty-unsupported、input-restore-failed、state-unavailable、state-invalid、internal-defect、client-close-failed、state-close-failed、output-failed。正常CG失败已在报告里，不把原错误文本塞进诊断。
+
+未发起模板的operation：register固定AR2 S8、login固定AI3 S15、logout固定AI3 S16、invoke取命令表坐标、configure/health与invalid为null；它不是任意输入声称的operation。正常状态沿CG2 S15，只有本节明确的应用交付失败覆盖为70。
+
+## 装配与资源
+
+一个Node24进程，Linux/macOS当前用户；本案例使用固定代码基底，目标与写入范围由上方施工简报限定。默认状态目录两平台统一为`$HOME/.omne-harness-lite`，`--state-dir`可显式覆盖。HOME必须指向当前OS用户可信且耐久已存在的绝对目录；不按cwd/登录名猜。应用不创建任何祖先目录：默认只由CLS创建HOME下的最终私有目录，自定义路径的父层同样必须已可信耐久存在，缺席则明确失败。这样CLS对直接父目录与私有目录的同步承诺不被应用新增路径削弱。不同中心用不同目录，不chmod既有不安全目录来绕过核对。
+
+应用通过CLS公开构造创建实例，再通过CG公开构造创建服务。此切片不要求起root Context：两个公开构造与各自Cordis插件来自同一提供者实现；无需为了形状添加空Context。未来嵌入Cordis宿主时须依照已接受节点先close CG、再撤CLS，不能依赖effect并发排序。
+
+应用内部按parser/input/secret/presentation/lifecycle分模块；它们不是独立服务。public报告沿CG Schema校验，type-only引用CG类型。只有主入口负责stdout；logger/进度不进入机器流，底层异常只映射稳定分类。原异常、完整输入、TLS材料和CLS快照不交给通用logger。
+
+## 输入取得
+
+Node公开参数解析与fs/TTY API，不能依赖私有readline回显方法。命令目录从CQ1 commands.json准确复制并做漂移核对；普通文件同样先以非阻塞/不接管终端方式打开、fd核regular后才读，不读FIFO/设备；普通payload有界64KiB、证书1MiB、每个秘密64KiB，UTF-8解析不替换非法字节。重复JSON成员拒绝，不做字符串ID归一化。只有机读报告或人读公开投影能离开应用。
+
+秘密文件：以O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_NOCTTY打开最终分量；类型核对前不阻塞等待FIFO对端、不取得字符设备控制终端，fstat核当前euid、regular、POSIX权限不得给组/其他人任何访问；核对之后只读该fd，打开后路径替换不重取。最终文件符号链接拒绝；父路径重定向不能绕过已打开文件的所有权/权限核对，不声称防同UID/root或额外ACL授权。本期采用秘密文件入口，不接受fd/pipe或普通stdin：Node文件读取取消不自动中止已提交的阻塞pipe读取，不能用Promise.race返回后留下读者消费数据。普通文件读取已发出后取消只停止后续受理，实际读取返回并关闭拥有句柄后再完成收场；不承诺操作系统IO停滞时的有界释放。
+
+TTY秘密协议候选（尚待实际原型核对）：stdin/stderr须均为TTY且fstat指向同一字符设备；只支持新建CLI进程的独占stdin，不接管已有data/readable监听者或另一raw拥有者。Node24.21的setRawMode(true)首次切换由libuv捕获实际termios，setRawMode(false)恢复该快照；不能用启动时isRaw=false推断OS原来就是cooked。实际OS属性须在两平台PTY验证。
+
+模拟器模式另管：进入raw后用DECRQM查询2004状态，只有明确可变set/reset答复才继续；不识别/查询超时则不提示秘密，明确tty-unsupported，可另行使用秘密文件。原为reset时发送enable并再次查询确认；原为set不改变。查询与控制输出都走同一stderr终端，不能由stdout重定向到别处。恢复时只恢复本次修改的2004，并查询确认，再恢复OS模式；查询失败明确input-restore-failed，不冒称成功。查询探测上限1000ms只裁“未取得支持证明”，不当作输入尾段已结束；已有输入解析责任不能因这个定时器消失。
+
+输入按字节增量解析，秘密仅在内存，任何字符/星号/长度均不回显。支持已提交Unicode文本、尾部退格、整行清除、括号粘贴和帧外显式Enter；不支持的编辑控制键拒绝本次输入。粘贴中的换行/控制序列不提交目标，内容非法或超过64KiB时标失败、丢弃内容但继续拥有帧直到end标记或真实EOF；始标记的跨块前缀同样不能提前释放。取消/信号只标停止，不能恢复回显后让余下秘密进入shell或下一提示。缓冲只保留有限解析前缀与允许大小内容，超限后不继续累积。外部输入若永不完成已开始帧，关闭也不声称完成；这是具名输入最终结束前提，不用50ms空闲或超时替代。终端失联/物理消失走恢复失败边界。
+
+EOF指输入流实际结束，Ctrl-D只是受限提示的取消键。严格UTF-8解码跨块保持完整，不用替换字符改写凭据。帧内不支持内容明确拒绝，秘密文件可表达精确UTF-8。此协议不是通用编辑器；真实IME与终端兼容性必须单独验证，不能从合成字节流推导。
+
+在CG2唯一回调内从Preview展示身份/影响，再逐个取得秘密；每个提示恢复实际完成后才能继续下一个，全部完成才返回continue。取消时等已开始粘贴尾段收场，不能立即切到下一提示。不保存undo/kill ring。引用释放不等于内存可靠擦除。TUI的丰富编辑器与pi-tui适配不在这次CLI采用范围，不能把该密码提示扩充成自建全功能渲染器。
+
+## 输出、信号与失败
+
+人读只投影CG报告：非秘密身份、结果分类及数据。文本经JSON式转义后再增加由应用拥有的排版，额外转义DEL/C1与双向控制字符，远端ESC/OSC不能成为终端指令。机器输出一个验证过的CG JSON文档；UTF-8 JSON编码后的控制字节与人读相同检查，换行只由应用写入。stdout.write必须等待回调/背压结果，EPIPE后只记录稳定失败且不再次输出正文。
+
+信号订阅属于应用本次运行；SIGHUP/SIGTERM/SIGINT先取消未完成输入并恢复TTY，标记停止，调用CG close传播交互取消；尚未受理时不再开始CG调用。已受理CG动作无法以信号证明撤销，必须等待原动作/close（网络最长仍由CG超时控制），确认CG静止后关CLS，再输出最终报告。close拒绝沿CQ1 S10，不把Promise拒绝当静止证明。process.exitCode在完成后设置，不用process.exit抢断收场。输出失败发生在远端动作后时不能构造“未发送”假报告。
+
+预受理失败模板只使用已验证命令和未知origin，符合CG Schema；报错没有源文件内容/原异常。TypeScript内部未声明异常向主入口稳定诊断边界传播。无参数显示帮助；正式TUI命令尚未开放，不能在帮助里暗示已完成。
+
+## 分发与尚缺的证据
+
+本期仍以npm包+bin/Node24为候选；workspace依赖未发布，普通npm pack不自动成为可安装交付。需通过离线依赖打包或可独立安装的制品实验后再采用具体打包路径，不能拿本地pnpm执行当员工安装完成。pi-tui直接采用的E1/E3另有未完成义务。
+
+本案例使用固定CLI代码和下述文件输入规则。TTY秘密输入不是本任务的可实施面。
+
+## 预览、数值与收场规则
+
+CG2 Preview承担原捕获可见身份，所有人读要求stdout TTY；改密影响在回调内说明。命令表含逐条选项白名单与载荷来源，错误选项不会打开文件。数值输入只接受安全整数字面量，拒绝小数/指数避免舍入越过期限校验。CQ1 S10把输入恢复、CG/CLS关闭与输出失败分开，保留原CG事实。
+
+## 本案例采用的文件输入
+
+本案例使用受保护秘密文件CLI：全部31路由及配置/体检/退出入口、CG2 Preview与公开报告均保留；秘密只从明确指定的受保护常规文件取得，来源缺席返回tty-unsupported，不进入raw或2004，不在帮助中宣称可交互输入密码。没有秘密的命令仍在人读回调中展示Preview。这个增量不以TTY候选的成立为前置，也不声称完成TUI/秘密提示目标。
+
+上方TTY协议仍是未采用候选：2004模式可查询不代表正文中的ESC[201~不可伪装结束，输入流中的DECRQM形状也不自动是真答复。必须先建立受支持模拟器/设置与可信输入来源前提并实测，不能继续只改字符串解析器解决不可区分的帧。用户本期TTY/TUI义务不因此删除；本切片取得可运行CLI后独立接续，不能以文件入口作为最终全链路验收。
 
 @@PROPERTIES
 - 每个文件只打开并读取一次；任何收场路径都关闭本次打开的句柄。

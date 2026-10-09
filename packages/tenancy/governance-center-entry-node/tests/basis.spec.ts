@@ -3,7 +3,7 @@
 // 2. ajv 8 的 `unicodeRegExp` 缺省开启：`pattern` 以 `u` 标志编译、按码点求值；`maxLength` 按码点计（源码：lib/core.ts 的选项缺省、
 //    lib/vocabularies/code.ts 的 usePattern、lib/runtime/ucs2length.ts）。
 // 3. Node 24.18：把预先建好的 `secureContext` 交给 `tls.createServer`，ECDSA 证书握不了手（client-face.ts 因此直接传材料）。
-// 4. 规范 Schema 的包内副本与 spec 目录那一份逐字节相同（漂移即红）；副本连同所引的两份 Schema 在 ajv 里编得出每条路由的定义。
+// 4. 规范 Schema 的包内副本与独立基线夹具那一份逐字节相同（漂移即红）；副本连同所引的两份 Schema 在 ajv 里编得出每条路由的定义。
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { connect, createSecureContext, createServer } from 'node:tls'

@@ -147,7 +147,7 @@ export class TestClock implements Clock {
   get current(): Instant {
     return this.#current
   }
-  now(): Instant | 'unavailable' {
+  async now(): Promise<Instant | 'unavailable'> {
     return this.unavailable ? 'unavailable' : this.#current
   }
   /** 只前推，不后退。 */
@@ -282,7 +282,7 @@ export class AccountsStandIn {
           if (row === undefined) return { failure: 'account-not-found' as const }
           if (row.activated === 1) return { ok: { activated: true, retentionExpired: false } }
           if (row.expired_at !== null) return { ok: { activated: false, retentionExpired: true } }
-          const now = this.clock.now()
+          const now = await this.clock.now()
           if (now === 'unavailable') return { failure: 'storage-unavailable' as const }
           if (now > Number(row.retention_deadline)) {
             await tx.db

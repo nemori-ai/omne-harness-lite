@@ -126,6 +126,13 @@ describe('D055 maintenance import boundary', () => {
     `${E}src/ops/requests.ts`,
     "import { readJsonText } from '../json.ts'; import { OnlineMaintenance } from '../maintenance/online.ts'",
   )
+  it.each([
+    ['governance-maintenance.schema.json', 0],
+    ['other.schema.json', 1],
+  ])('permits only the adopted maintenance resource: %s', (name, violations) => {
+    const input = file(`${E}src/schema-inputs.ts`, `import data from '../schema/${name}'`)
+    expect(opsImportWhitelist.check([events, ops, input])).toHaveLength(violations)
+  })
   it('checks the D-116 resource leaf and permits only its finite generated entry', () => {
     const schema = file(
       `${E}src/routing/schema.ts`,

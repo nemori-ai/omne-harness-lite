@@ -1,3 +1,0 @@
-{"head":"1ec4cdd8cb3cf005b872d6767096345a5a0edb7f","node":"v24.21.0","oldRawRoot":[true,false],"cases":61,"twoDomainCases":122,"metaCases":6,"scope":"identity handoff only; no import-cost, compiler-free helper, or build-failure claim"}
-(node:22879) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
-(Use `node --trace-warnings ...` to show where the warning was created)

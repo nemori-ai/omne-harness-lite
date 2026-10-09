@@ -1,83 +1,21 @@
-# Meta Harness 工具
+# 设计与 Agent 工具入口
 
-本目录只依赖工作区内部路径执行确定性生成与设计检查，不从承载产品仓库发现
-`docs/`、`spec/` 或配置。将完整 `.meta_harness/` 复制到另一目录后，显式传入其中的
-`design/` 仍可运行；产品消费者观测通过重基清单传入，不因邻近源码而升级采用状态。
+本目录维护现行设计导航、领域对象与故事卡对账，以及 skills／roles 的宿主生成和接入。模块接口、薄规格及验证资源由实际包／应用拥有，工具不建立另一份中央契约或实现映射。
 
-## 设计信息包检查
+## 现行源检查
 
-`check_design.py` 检查新设计谱系的身份、资源、引用、冻结和形式任务登记。
-执行仓库用显式 `--source-root` 检查 workspace 成员拥有的源码与薄规格链接；独立复制不传该选项，保留设计区边界。
-退役来源不恢复为当前权威。当前 Markdown 只能指向现行语义拥有者；record 和任务 tmp 不能承担持久承诺。
+`check_sources.py` 检查现行设计的本地文件、Markdown 锚点和显式模块拥有者：
 
 ```sh
-python tooling/src/check_design.py --root design --formal registered
-python tooling/src/check_design.py --root design --formal skip
-python tooling/src/check_design.py --root design --gate release --formal run
+python tooling/src/check_sources.py --root design
+python tooling/src/check_sources.py --root design --source-root /explicit/execution-checkout
 ```
 
-三个形式任务模式含义不同：`registered` 只确认任务与工件已登记；`skip` 记录本次明确
-跳过执行；`run` 才调用清单中的 runner，并传播缺工具、超时和非零退出。前两种模式
-都不能作为 TLC、Alloy 或其他模型已通过的证据。`--previous-frozen PATH` 可核对同一
-baseline 先前冻结登记未被改变或移除，也没有向已冻结版本目录追加资源；新增规范工件
-必须进入新版本。
+`--source-root` 是明确的执行检出，不从安装位置或父目录猜测。模块链接只允许实际 workspace 的 packages／apps 成员，目标与 package.json 必须在该检出内；排除成员、非法声明、缺文件、错锚点及越界软链接非零。没有 source-root 时不放行外部模块路径。
 
-`--gate internal` 检查仍在编辑的信息树内部一致，允许保留可核对的 blocked relation 和
-`unknown` consumer；`--gate release` 作为切换/冻结门，对任一 blocked relation、unknown
-consumer 或缺少 current_bindings 的关系失败。不能通过暂时删掉 catalog dependency 来绕过
-尚未释放的重基关系。
+过程材料不能作为现行源，别名不能绕过归属。spec、realization、registry 三个旧根不得重新出现，空目录、普通文件或悬空软链接同样拒绝。其他本地链接只能指向有效设计、Agent／research 源或设计工作区根入口。外部 URL 不在本工具中抓取或核实。
 
-设计根必须包含五份清单；路径均相对设计根，禁止绝对路径、`..` 和符号链接逃逸：
-
-| 文件                | 持续含义与关键字段                                                                                               |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `baseline.json`     | `format=1`、稳定 `baseline_id`、Schema `schema_namespace`、旧谱系清单及显式 `version_policy` |
-| `catalog.json`      | 当前谱系的精确三元组、family/topic、状态、版本资源、接受决定和条款级依赖                                         |
-| `lineage.json`      | 旧→新条款关系、退出身份、`freeze_gate` 与实际产品消费者的旧/新谱系观察                                           |
-| `frozen.json`       | 已接受 catalog 资源的 SHA-256；发布后只追加，新内容必须新版本                                                    |
-| `formal-tasks.json` | 模型种类、已登记工件、可注入 argv runner 和超时；结果不写回规范                                                  |
-
-catalog 的稳定键是 `(baseline_id, contract_id, version)`。本次重基的 baseline 使用
-`{"kind":"initial-uniform","version":1}`，后续稳定演化切换为 `{"kind":"evolving"}` 后可
-新增 v2，不能改写 v1。资源位置为 `spec/{family}/{topic}/v{version}/...`；同一坐标重复登记直接
-拒绝，即使两个文件内容不同。`accepted` 条目内含 `acceptance.scope_path` 和非空 `scope_clauses`，前者必须逐字等于本行 contract_path。
-全部版本资源继续冻结。候选和接受状态不因文件存在而提升，接受过程只放任务 tmp。
-
-依赖必须带精确坐标和实际消费条款。当前谱系坐标须在 catalog 中存在；旧谱系坐标须
-引用一条精确重基关系。关系声明源/目标 clauses、逐条 mapping、实际 consumers、release
-evidence 及 freeze gate。accepted 旧依赖只可映到 accepted 精确目标，且消费 clauses 必须
-完全落在关系覆盖内。`freeze_gate.blocked=true` 会阻断采用，退出身份不能作为当前
-依赖复活；先把其被消费条款映射到当前活体能力，再让 catalog 依赖当前坐标。产品包仍
-消费旧 Schema 时，以 `consumer_observations.status=observed-legacy` 保存事实，不能标为
-`current`。每项 consumer 的 `current_binding.owner_path` 指向现行语义拥有者，不保存源 commit/hash/snapshot。
-`current` 坐标必须真实存在，`unknown` 不能通过 release gate；条款映射、冻结和根越界检查继续拒绝反例。
-
-每个 catalog Schema 的 `$id` 必须为
-`{schema_namespace}/{baseline_id}/spec/{family}/{topic}/v{version}/{resource}`。检查器解析所有
-`$ref`/`$dynamicRef` 的资源和 JSON Pointer；旧命名空间、缺资源与缺 pointer 都非零退出。
-它也核对设计根内 Markdown 文件和锚点，因此 当前要求与采用范围的导航
-可在独立副本中检查。当前实现不执行完整 JSON Schema 实例校验；迁移纵线仍须为具体
-Schema 提供 Draft 2020-12 结构和正反实例验证。
-
-`rebase_resources.py` 只复制显式列入清单且源 SHA-256 匹配的资源：
-
-```sh
-python tooling/src/rebase_resources.py \
-  --source-root /path/to/source-checkout \
-  --design-root design \
-  --manifest /path/to/rebase-files.json
-```
-
-清单格式为 `{"format":1,"files":[...]}`；每项给出 `source`、`target`、
-`source_sha256` 和 `replacements`。每个替换必须写出精确 `from`、`to` 与预期 `count`，
-数量不符、源漂移、目标碰撞时在写入前整体拒绝。无替换的二进制工件逐字节复制；带替换
-的文件必须是 UTF-8。`--check` 只读核对全部目标与当前渲染一致。这个工具不决定条款
-等价性、不自动改版本字符串；条款筛选和重基关系由内容拥有者给出，最终由设计检查器
-核对精确身份、依赖和引用。
-
-测试使用含 core-work 跨身份 `$ref`、command-input 退出身份重基、多个 RunDriver cfg、
-requirements/decision 链及旧产品 Schema 消费观察的小型设计树。它同时覆盖 namespace
-混用、同坐标碰撞、冻结漂移、阻断 gate、断链、runner 错误传播及复制到仓库外运行。
+该工具不判断条款等价性、采用状态、实现符合性或模型覆盖。公开 Schema 身份、规范输入及形式模型的正负控由真实拥有者维护并执行；单次原始输出归执行工作树 tmp。根 `make design-check` 组合本检查、领域对象及故事卡对账，不隐式执行形式模型。
 
 ## 领域对象对账
 
@@ -102,53 +40,13 @@ python tooling/src/domain_objects.py --root design --stale report   # rev 落后
   一个括号里并列几个 rev 的，按前面 topic 出现的次序配，个数配不上就报错。
 - 总表比对时**忽略生成时间那一行**，所以隔天重跑不会因为日期而判过期。
 - `--stale report` 供本地迭代看待复核队列，**不是通过的证据**。
-- 链接与锚点是否存在由 `check_design.py` 统一查，本工具不重复；
+- 链接与锚点是否存在由 `check_sources.py` 统一查，本工具不重复；
   它也**不判断任何条目的内容对不对**，更查不出产品正文里新冒出来、却没人立词条的对象。
 
 测试用一棵含一个 topic、一卷四个词条（含一个变体）、三条对象条目与一项待裁的小型设计树，覆盖：
 一致时通过且总表可往返、只改生成时间不判过期、对象词条缺条目与条目缺对象词条、条目缺词条或缺必填字段、
 rev 落后（含 topic 内三处 rev 不一致）及其 report 模式、依据缺 rev 或指向非产品正文、
 形态缺失/非法/变体的父无效、未定词条须同时出现在 pending 与 conflicts、索引与分卷不一致、待裁缺 owner。
-
-## 实现映射节点对账
-
-`realization_nodes.py` 核 `design/realization/apps/<node>/` 与 `design/realization/packages/<group>/<node>/` 每个节点的形状
-（`packages/` 是[两层布局](../design/realization/README.md#packages-的两层布局)：第一层没有 `README.md` 的目录是 group，节点在它下面一层）；
-`.templates/` 不是主题，不参与对账：
-
-```sh
-python tooling/src/realization_nodes.py --root design                # 对账
-python tooling/src/realization_nodes.py --root design --stale warn   # 交付面 rev 落后只列出，不判失败
-```
-
-节点该长什么样，权威正文在 [realization/README.md](../design/realization/README.md) 与
-[AGENTS.md](../design/realization/AGENTS.md)；这里只记工具自己查到哪：
-
-- **kind 与身份**：README 的 `- kind：` 只能是 `provider` 或 `assembly`，`bindings.yaml` 的
-  `node` 等于目录名、`kind` 与 README 一致；assembly 必须有 `architecture.md`，provider 不得有。
-- **源码位置**：`- 源码位置：` 里的 `apps/<node>` 或 `packages/<group>/<node>`，必须与节点在 `realization/` 下的路径逐字相同；
-  整行写「尚未建包」且不含路径时放行。
-- **交付面 rev**：assembly 的 `- 交付面：` 行与 `architecture.md` 的「交付面与非目标」一节，
-  指向 `product/PF-*/README.md` 的链接后面必须跟它那个 topic 的「（rev N）」，
-  读法与[领域对象条目的依据](../design/ubiquitous_language/conventions.md#rev-怎么写怎么读)完全相同（正则就复用那一份）。
-  漂移默认判失败，`--stale warn`（或 `report`，同义）降为只列出——**不是通过的证据**。
-- **技术栈采用**：该节表里「状态」只有 `已采用` 与 `candidate`；前者的「依据」必须链到存在的
-  当前节点/规格等语义拥有者；候选的未决与当前比较边界同样在拥有者正文中定位。过程材料和外部快照都不满足这个检查。
-- **契约坐标**：表头叫「契约坐标」或「精确形状归谁」的列，反引号里的 `contract_id/vN` 必须在
-  `registry/catalog.json` 里存在（只比 contract_id 与 version，节点不写 baseline）；契约未立写「待立：…」放行。
-- **draft 不得登记绑定**：交付面 PF 的 front-matter `status` 是 `draft` 时，`bindings.yaml` 的 `bindings` 必须为空。
-- **相对链接**：节点内 markdown 的本地相对链接要能解析（带文件与行号）。锚点、以及设计根内其他文件的链接，
-  仍由 `check_design.py` 统一查，本工具不重复。
-
-它**不判断任何节点的内容对不对**：查不出一条绑定的证据是否真能支持那条条款、
-`assumptions` 写得对不对、某条应用间的边是否只写了一侧；表列改名之后对应的检查会静默跳过。
-`bindings.yaml` 读 `node`、`kind`、`bindings` 三个顶层键做对账，另核装配声明 `assembly`／`composition` 的形状（顶层键只认六个、派发模式五种、同节点服务键不重复、`defines` 的 `contract`／`owner` 恰写其一、`source` 锚点存在、装配节点挂的插件在被引用节点的声明里——被引用节点还没声明时只打 `NOTE:` 提示）；绑定条目里的其余字段无人校验，声明与代码是否一致由开发工具核。
-工具只读 `--root` 指向的设计根，不从承载仓库发现 `apps/` 或 `packages/` 源码。
-
-`assembly.importExceptions` 核 IC-5 同提交例外的形状：目标节点存在且不是本节点、导出符号非空且不含通配符、同一目标符号不重复、共同存储对象有名称、正文出处存在。它不证明导入的是事务内读函数，也不证明两个写入者共享同一提交；语义归设计评审。
-
-测试用一棵含一个产品 topic、一个 catalog、一个 assembly 与一个 provider 节点的小型设计树，
-逐条覆盖每条规则的通过与失败，外加空目录通过、缺 `realization/`、缺 catalog、YAML 读不出来。
 
 ## 故事卡对账
 
@@ -178,84 +76,13 @@ python tooling/src/stories.py --root design
 
 它**不判断卡切得好不好**：查不出一张卡是不是只证明一件事、演示照着做不做得出来、顺序排得对不对；
 它只读眼前这一版，**看不到「已发到」有没有被改小、删卡的提交带没带 trailer**——那由执行仓库对一段提交范围的检查来看。
-链接的锚点由 `check_design.py` 统一查。没有编号的场景行它看不见——一个 topic 的场景都没编号时，「还不属于任何卡」那一条不会出现。
+链接的锚点由 `check_sources.py` 统一查。没有编号的场景行它看不见——一个 topic 的场景都没编号时，「还不属于任何卡」那一条不会出现。
 
 测试用一棵含两个 topic 的小型设计树，逐条覆盖每条规则的通过与失败，外加没有 `stories.md`、缺 `product/`、跨 topic 的引用与前置。
 
-## 设计评审报告
-
-`design_review.py` 对契约做确定性的机械核对，并给出 catalog 依赖图的结构读数，供派发者附进设计评审简报：
-评审者不再用眼睛重做这些核对，只对报出的每一条判断成立与否。
-
-```sh
-python tooling/src/design_review.py --root design                                  # 全部坐标
-python tooling/src/design_review.py --root design --contract data.messages/v8 --format json
-python tooling/src/design_review.py --root design --include-frozen                 # 已接受契约的产品依据 rev 也看
-```
-
-**它不是门禁**：报出问题时退出码仍为 0，只有用法错误（如 `--contract` 的坐标不在 catalog 里）、
-清单或配置读不了才非零。它只读设计根，不写任何文件，也不接进 `check_design.py` 的判定。
-给了 `--contract` 时，逐份核对项只看这些坐标，登记类核对项只看涉及它们的 catalog 依赖与 covers 条目，依赖图始终算全图。
-
-输出四节，次序固定：「成立的问题」「未能判定」「依赖图」「未覆盖」。每条一行
-`[<核对项>] <相对设计根的路径>:<行号>  <坐标>  <说明>`。**写法认不准的一律归「未能判定」并写明原因，不猜。**
-
-| 核对项 | 判据 |
-|---|---|
-| `bare-clause-ref` | 「本契约定义了哪些条款」= 代码块外以 `S-n` 开头的标题（现有契约全部这样写；一条也没有的契约归未能判定）。正文里本契约没有的 `S-n`，若同一句（句号、问号、叹号之间，段落可折行；表格一行算一句）里写出了别的契约——契约身份或 catalog 里的 topic 名、`topic/vN`、指向别的契约正文的链接——就不报；`#S-n` 前文同一段写出过别的契约的也不报。紧跟在简称后的（`EC S-34`、`runtime7 S-67/S-76`）、句中有这类简称的、所在小节标题写的是别的契约的，归未能判定；写着「本契约」或链接到本文件锚点的照报 |
-| `analysis-id-in-contract` | 正文里出现 `INV-n`、`SAF-n`、`LIV-n`；代码块与引用块里的归未能判定 |
-| `stale-product-rev` | 「产品依据」那一句（到第一个句号为止，去掉全角与半角括号里的补充说明）里的 `PF-nnn rev k` 与该 topic README front-matter 的 `revision` 不同。默认只看 `candidate`；`--include-frozen` 全看，冻结了的在说明里注明。找不到「产品依据」或写的是 rev 区间的归未能判定 |
-| `dependency-clause-missing` | catalog 依赖消费的 `S-n` 不在目标契约的条款里；目标不在当前 catalog 或认不出条款的归未能判定 |
-| `covers-target-missing` | covers 的 `target.clauses` 不在目标契约里；`target` 坐标不在 catalog 里；`requirement.clause` 指的产品文件或小节锚点不存在 |
-| `unregistered-file` | 已登记坐标的版本目录里有不在 `resources` 里的文件 |
-| `nine-items` | 只判 capability／composition 里有「# \| 写什么」两列定义表（首列是圈号）的契约：从定义表读出要求的项，再核每张「# \| 内容」操作表是否逐项有行、有内容（「无」「不发」算有内容，只写破折号的归未能判定）。没有定义表的契约、首列是圈号却不是这种两列格式的表，归未能判定 |
-| `open-failure-set` | 上一项认出的操作表里，定义表写着「失败」的那一格，列举（第一个句号之前）的最后一项恰是「其他／其它（错误、失败……）」「等」「等等」「etc」「…」。最后一项以「其他」开头但不止于此的（如「其他沿原失败集合」）归未能判定。**契约有操作表却没有定义表时，这一项同样没核**，报告在「未能判定」里另列一条说明，不让读者以为核过了 |
-
-依赖图的节点是 catalog 坐标，边是当前谱系的 `dependencies`：强连通分量多于一个节点或有自环的列为环；
-不稳定度 `I = 出边数 / (入边数 + 出边数)`，边 `A → B` 上 `I(B) - I(A)` 超过 `unstableDependencyMargin` 的列出；
-按 `入 + 出` 取前 `fanTop` 个列出扇入扇出。两个阈值在 [`design-review.config.json`](design-review.config.json)，
-代码里不写死，配置缺失或不合法时明确报错退出。
-
-**报出问题不等于契约有错**，没报出也不等于没有这类问题。它不判断：一句话有没有两种读法、同名不同义、
-用词是不是统一语言的词条、状态词有没有混用、业务选择对不对、Schema 与正文在语义上是否一致；
-也不核带坐标的条款引用在目标契约里是否存在，不解析简称指向哪份契约。这些在输出的「未覆盖」一节原样列出。
-
-测试用现造的小设计树逐项覆盖每个核对项与依赖图每种读数的报与不报（含同一句里先写坐标、段落折行、
-外层链接包着指向别处的内层链接、简称串、否定句里的「其他」、阈值恰好相等），配置的各种非法写法，
-命令行四节次序与 JSON 形状，以及跑完之后设计树逐文件哈希不变。
-
-## 旧版规格的消费者盘点
-
-`spec_retention.py` 回答一个问题：**每个旧版规格目录还被谁消费，删掉它之前要先迁走什么。**
-依据是规格只留最新一版的过渡规矩：旧版目录是一笔要还的债，消费者迁完才删。
-
-```sh
-python tooling/src/spec_retention.py --root design                         # 全部契约
-python tooling/src/spec_retention.py --root design --contract data.messages --format json
-```
-
-**它只读、只报告，不是门禁**：数到多少引用退出码都是 0，只有清单读不了或 `--contract` 的身份不在 catalog 里才非零；不写任何文件，也不接进 `check_design.py`。
-
-对每份契约，数字最大的版本算「最新」，其余都算旧版。每个旧版目录各数：
-
-| 列 | 数的是什么 |
-|---|---|
-| 最新版依赖它 / 旧版依赖它 | catalog 里别的契约的 `dependencies` 指向这个坐标的条数，按发起方是不是它自己契约的最新版分开 |
-| 覆盖登记 | covers 里 `target` 是这个坐标的条目数 |
-| 形式任务 | formal-tasks 里工件路径落在这个版本目录下的任务数 |
-| 绑定行 | 各实现节点 `bindings.yaml` 里 `clause` 写着这个坐标的行数 |
-| 链接（三列） | Markdown 里指进这个版本目录的链接数，按出处分：各契约最新版的规格文件、别的规格文件、其余设计文档 |
-
-行按「登记里的引用」（前五列之和）从少到多排，最容易迁走的在前；五列与三列链接全为零的列为「可以先删」。
-另列出**最新版里没有任何形式任务引用的模型文件**（`.tla`、`.als`）——形式化的正版要持续维护，模型没有任务就没有人在跑它。
-
-**不能声称**：数到零就可以删——它不数正文里没做成链接的路径与简称（`RT12`、`OG2`）、`packages/`／`apps/`／`tools/` 里按版本路径读规格的代码与随包的 Schema 副本、
-设计根以外的 Markdown；引用可以直接改指最新版——旧条款与最新版同号条款是否等价它不判；数字最大的就是唯一现行的一条线——并列的两条线会被算成一新一旧。
-这些在输出末尾「没有数的」一节原样列出。
-
 ## Agent 编译
 
-本轮实现从一个 `agents/` 源根按宿主策略编译四处目录，并提供独立的相对软链接工具。
+生成器从一个 `agents/` 源根按宿主策略编译四处目录，并提供独立的相对软链接工具。
 `projection.py` 解析源和适配并产生内存产物，`compile_agents.py` 负责 CLI 与预检写入，
 `link_agents.py` 暴露项目入口。没有安装更新器、发布事务或知识图谱依赖。
 
@@ -302,7 +129,7 @@ slots:
 
 `mode: unsupported` 必须提供非空 `reason`，使所选宿主构建失败并说明缺口；
 不是自动丢弃或发一个看似可用的空 skill。当前仅支持这两种模式；未知字段、版本、模式和
-身份不匹配均拒绝。本轮不实现 cc-master 的 stub、partial overlay 或完整发布事务。
+身份不匹配均拒绝。生成器不支持 stub、partial overlay 或完整发布事务。
 
 ## 宿主钩子
 

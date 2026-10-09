@@ -743,7 +743,7 @@ interface ReconcileConstruction {
   readonly run?: RunHistoryReader
   readonly contention: SettlementContention
   readonly scheduler: SettlementScheduler
-  readonly now: () => string
+  readonly now: () => Promise<string>
   readonly diagnostic: (event: SettlementDiagnostic) => void
   readonly diagnosticCollector?: Pick<DiagnosticCollector, 'emitter'>
   readonly onDiagnosticFailure?: () => void
@@ -1132,7 +1132,7 @@ async function readRecoveredCalls(
   input: {
     readonly contention: SettlementContention
     readonly scheduler: SettlementScheduler
-    readonly now: () => string
+    readonly now: () => Promise<string>
     readonly diagnostic: (event: SettlementDiagnostic) => void
     readonly run?: RunHistoryReader
     readonly custody: AcknowledgementCustody
@@ -1320,7 +1320,7 @@ async function readRecoveredCalls(
             : { run: last.dispatched.run, attempt: last.dispatched.attempt }),
           ...originalFacts,
           firstTokenAt: firstTokenAt === null ? null : firstTokenAt.firstTokenAt,
-          endedAt: input.now(),
+          endedAt: await input.now(),
           initiator: history.known.intent?.initiator ?? 'runtime_lost',
         })
         if ('rejected' in candidate) return { unavailable: true }

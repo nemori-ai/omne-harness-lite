@@ -115,6 +115,7 @@ async function fixture(
   initialize: RuntimeOptions['bootstrap']['initialize'] = vi.fn(async () => 'ready' as const),
   maxSteps = 32,
   configure?: (storage: SqlStorage) => Pick<RuntimeOptions, 'modelIssue' | 'modelResults'>,
+  readTime: RuntimeOptions['now'] = async () => at,
 ) {
   const root = await mkdtemp(join(tmpdir(), 'omne-session-runtime-'))
   roots.push(root)
@@ -175,7 +176,7 @@ async function fixture(
       return log.participant
     },
     bootstrap: { initialize },
-    now: () => at,
+    now: readTime,
     workSettledIn: async () => 'settled',
   }
   const runtime = createLocalSessionIngress(options)
@@ -328,6 +329,38 @@ it('admits message, original fact, pending qualification and receipt in one real
   ).toEqual({ failure: 'identityConflict' })
   expect(await f.count('sr_pending_input')).toEqual({ n: 1 })
 })
+it('waits for async time, rolls back unavailable input and drains that original wait on close', async () => {
+  const entered = Promise.withResolvers<void>()
+  const released = Promise.withResolvers<string | 'unavailable'>()
+  let waiting = false
+  const f = await fixture(undefined, 32, undefined, async () => {
+    if (!waiting) return at
+    entered.resolve()
+    return released.promise
+  })
+  const created = await create(f)
+  const before = await f.count('sr_operation_receipt')
+  waiting = true
+  const submitting = f.runtime.operations.submitInput(
+    f.runtime.access,
+    created.session,
+    'clock-unavailable-input',
+    user(),
+  )
+  await entered.promise
+  let closed = false
+  const closing = f.runtime.close().then(() => {
+    closed = true
+  })
+  await Promise.resolve()
+  expect(closed).toBe(false)
+  released.resolve('unavailable')
+  expect(await submitting).toEqual({ failure: 'unavailable' })
+  await closing
+  expect(closed).toBe(true)
+  expect(await f.count('sr_pending_input')).toEqual({ n: 0 })
+  expect(await f.count('sr_operation_receipt')).toEqual(before)
+})
 it('rolls back staged message and fact if the pending capacity refuses admission', async () => {
   const f = await fixture()
   // Capacity is a construction policy, independent of the input payload.
@@ -457,7 +490,7 @@ it('initializes the real Runtime Context journal before publishing the Session',
     storage: f.storage,
     log: backing.log,
     access: { authorize: async () => ({ kind: 'rejected', reason: 'notAuthorized' }) },
-    now: () => at,
+    now: async () => at,
   })
   try {
     const created = await create(f)
@@ -1224,7 +1257,7 @@ it('initializes the actual Runtime Context in separate Session hosts and withdra
         reason: 'notAuthorized' as const,
       })),
     },
-    clock: { now: () => unwrap(instantFromRfc3339(at)) },
+    clock: { now: async () => unwrap(instantFromRfc3339(at)) },
   }
   const hostA = createLocalSessionContext({ ...options, scope: { tenant, session: a.session } })
   const hostB = createLocalSessionContext({ ...options, scope: { tenant, session: b.session } })
@@ -1301,7 +1334,7 @@ it('publishes a Session only after its actual isolated Runtime Context initializ
       storage: f.storage,
       logBacking: f.log().backing,
       access: { authorize: async () => ({ kind: 'rejected', reason: 'notAuthorized' }) },
-      clock: { now: () => unwrap(instantFromRfc3339(at)) },
+      clock: { now: async () => unwrap(instantFromRfc3339(at)) },
     })
     await host.ready
     const applied = await host.initializer.initializeContextSession(scope, {
@@ -1354,7 +1387,7 @@ it('retains the original Session Context borrow after release failure and permit
     storage: f.storage,
     logBacking: backing,
     access: { authorize: async () => ({ kind: 'rejected', reason: 'notAuthorized' }) },
-    clock: { now: () => unwrap(instantFromRfc3339(at)) },
+    clock: { now: async () => unwrap(instantFromRfc3339(at)) },
   })
   try {
     await host.ready
@@ -1412,7 +1445,7 @@ it('reports actual Session Context setup failure and releases the original log b
       },
     },
     access: { authorize: async () => ({ kind: 'rejected', reason: 'notAuthorized' }) },
-    clock: { now: () => unwrap(instantFromRfc3339(at)) },
+    clock: { now: async () => unwrap(instantFromRfc3339(at)) },
   })
   await expect(host.ready).rejects.toThrow()
   host.requestStop()

@@ -235,8 +235,9 @@ describe('S-31 两个同标识并发注册', () => {
         c.service().register(identifier, PASSWORD),
         c.service().register(identifier, PASSWORD),
       ])
-      expect(outcomes).toContain('registered')
-      for (const outcome of outcomes) expect(['registered', 'identifier-taken']).toContain(outcome)
+      expect(outcomes, JSON.stringify(c.messages())).toContain('registered')
+      for (const outcome of outcomes)
+        expect(['registered', 'identifier-taken'], JSON.stringify(c.messages())).toContain(outcome)
       await expectRegistered(c, identifier)
     }
   })
@@ -249,7 +250,10 @@ describe('S-31 两个同标识并发注册', () => {
         c.service().register(identifier, PASSWORD),
         c.service().register(identifier, OTHER_PASSWORD),
       ])
-      expect([a, b].sort()).toEqual(['identifier-taken', 'registered'])
+      expect([a, b].sort(), JSON.stringify(c.messages())).toEqual([
+        'identifier-taken',
+        'registered',
+      ])
       await expectRegistered(c, identifier)
       // 先成者的凭据认得回这条记录（① 认回走比对），后成者的不行
       const winner = a === 'registered' ? PASSWORD : OTHER_PASSWORD

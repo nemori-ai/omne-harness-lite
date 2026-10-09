@@ -40,9 +40,9 @@ async function fixture() {
     log: borrow.log,
     storage,
     access: { authorize: async () => ({ kind: 'rejected', reason: 'notAuthorized' }) },
-    now: () => '2026-10-04T00:00:00Z',
+    now: async () => '2026-10-04T00:00:00Z',
   })
-  const now = vi.fn<Clock['now']>(() => at)
+  const now = vi.fn<Clock['now']>(async () => at)
   let held: HoldingTenantResult = { failure: 'sessionNotFound' }
   const createRow = vi.fn(async () => {
     if ('tenant' in held) return 'alreadyPresent' as const
@@ -86,7 +86,7 @@ it('coalesces first creation and preserves the initial value on repeated prepara
       { kind: 'prepared' },
       { kind: 'prepared' },
     ])
-    f.now.mockReturnValue(unwrap(instantFromEpochMs(at + 1000)))
+    f.now.mockResolvedValue(unwrap(instantFromEpochMs(at + 1000)))
     expect(await f.owner.prepare(scope)).toEqual({ kind: 'prepared' })
     expect(f.createRow).toHaveBeenCalledTimes(1)
     expect(f.append).toHaveBeenCalledTimes(1)
@@ -148,7 +148,7 @@ it('retains an unconfirmed SQL creation without taking initialization authority 
 it('does no creation or append when the explicit clock is unavailable', async () => {
   const f = await fixture()
   try {
-    f.now.mockReturnValue('unavailable')
+    f.now.mockResolvedValue('unavailable')
     expect(await f.owner.prepare(scope)).toMatchObject({ reason: 'unavailable' })
     expect(f.createRow).not.toHaveBeenCalled()
     expect(f.append).not.toHaveBeenCalled()
@@ -166,7 +166,7 @@ it('recognizes the original initialization after a committed write loses its rec
       return { failure: 'unavailable' }
     })
     expect(await f.owner.prepare(scope)).toMatchObject({ reason: 'unavailable' })
-    f.now.mockReturnValue(unwrap(instantFromEpochMs(at + 10_000)))
+    f.now.mockResolvedValue(unwrap(instantFromEpochMs(at + 10_000)))
     expect(await f.owner.prepare(scope)).toEqual({ kind: 'prepared' })
     expect(f.now).toHaveBeenCalledTimes(1)
     expect(f.append).toHaveBeenCalledTimes(1)

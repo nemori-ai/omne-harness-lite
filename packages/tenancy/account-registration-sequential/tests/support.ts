@@ -6,7 +6,7 @@
 // - 凭据：真实 credential-verification 插件（scrypt 低代价测试参数 N=1024，只为跑得快）。
 // - 故障与交错：`InstrumentedStorage` 包在真实存储外面，按语句（种类、表、更新的列）注入 `StorageUnavailable`、
 //   在事务内某条语句之后停住、让某次提交回滚、或在某次提交成立之后、返回调用方之前停住。
-import { mkdtempSync } from 'node:fs'
+import { existsSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite'
@@ -86,7 +86,7 @@ export function composedMigrations() {
   ])
 }
 
-// ---- 时间替身：offer-expiry `Clock` 形状（now(): Instant | 'unavailable'），可前推、可回拨、可答 'unavailable' ----
+// ---- 时间替身：offer-expiry `Clock` 形状（async now(): Promise<Instant | 'unavailable'>），可前推、可回拨、可答 'unavailable' ----
 
 export class TestClock {
   #current = START
@@ -485,7 +485,17 @@ export async function bootComposition(options: CompositionOptions = {}): Promise
     assembly = await bootAssembly({
       services,
       plugins: [
-        ...(clock === undefined ? [{ plugin: clockPlugin, config: {} }] : []),
+        ...(clock === undefined
+          ? [
+              {
+                plugin: clockPlugin,
+                config: {
+                  file: `${file}.clock.sqlite`,
+                  initialize: !existsSync(`${file}.clock.sqlite.clock.json`),
+                },
+              },
+            ]
+          : []),
         { plugin: credentialsPlugin, config: FAST_CREDENTIALS },
         participants.accountIdentity,
         participants.organizationGovernance,

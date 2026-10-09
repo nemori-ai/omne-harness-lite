@@ -814,7 +814,7 @@ describe('A1b noRun actual SQL journal + SQL identity mapping + production invok
               }
               return h.input.policy.schedule(milliseconds, callback)
             },
-            now() {
+            async now() {
               if (boundary === 'clock' && !triggered) {
                 triggered = true
                 h.controller.abort()
@@ -950,7 +950,7 @@ describe('A1b noRun actual SQL journal + SQL identity mapping + production invok
       const handle = createAnchoredModelInvocation({
         ...h.input,
         transport: t.adapter,
-        policy: { ...h.input.policy, now: () => `2026-09-28T00:00:0${tick++}Z` },
+        policy: { ...h.input.policy, now: async () => `2026-09-28T00:00:0${tick++}Z` },
         onAccepted(_event, snapshot) {
           if (snapshot.firstContentAt !== undefined) {
             expect(h.writes).toHaveLength(2)

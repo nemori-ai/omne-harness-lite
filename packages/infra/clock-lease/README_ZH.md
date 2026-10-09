@@ -2,134 +2,45 @@
 
 [English](README.md)
 
-供必须使用同一时间源的操作使用的统一时钟服务。通过 `Clock.now(): Instant | 'unavailable'` 返回 Unix epoch 毫秒，先持久化租约，再返回租约范围内的时刻。墙钟回拨时返回 `'unavailable'`，直到墙钟追上，而不返回更小的时刻。
+本包提供异步 Clock。`await clock.now()` 返回当前系统时间或 `unavailable`。墙钟回拨会明确暴露，不用虚构时间掩盖。
+公开行为归 [SPEC.md](SPEC.md)，工作区操作见[开发指南](../../../docs/development.md)。
 
-本包当前是私有、尚未发布的 ESM workspace 成员。构建检出后，从 workspace 消费者通过公开包名导入；目前没有可用的 npm 发布版本。Node 与 pnpm 工具链见[开发指南](../../../docs/development.md)。提供者使用共享[存储协议](../../core/storage/README.md)；示例使用 [storage-sql](../storage-sql/README.md) 和可丢弃的 SQLite 文件。
+## 独立资源
 
-## 公开 API
+`openLeaseClock({ file, initialize: {} })` 明确创建一个独立资源，并完成启动。
+后续用 `openLeaseClock({ file })` 打开同一资源。普通打开不会重建缺失文件。
+保存数据库及同路径 `.clock.json` manifest。初始化失败但尚未开放时间的 prepared 状态可以继续完成。
 
-| 用途           | 导出                                                                                                  |
-| -------------- | ----------------------------------------------------------------------------------------------------- |
-| 直接提供者     | `LeaseClock`, `LeaseClockOptions`, `ClockLogger`                                                      |
-| 时间源注入     | `TimeSources`, `systemTimeSources`                                                                    |
-| 启动回拨检测   | `ClockRollbackDetected`, `isRolledBack`                                                               |
-| 本包拥有的结构 | `clockMigrations`, `clockLeaseMigration`, `CLOCK_LEASE_TABLE`, `ClockLeaseTable`                      |
-| 租约设置       | `LEASE_WIDTH_MS` (10,000), `RENEW_PERIOD_MS` (3,333)                                                  |
-| Cordis 接入    | `clockPlugin` (`./cordis`), `ClockConfig` (root), `CLOCK_SERVICE` (`offer-expiry/cordis`) (`'clock'`) |
-| 只读核对       | `clockPreflight`, `CLOCK_PREFLIGHT_CHECK`, `clockSnapshotCheck`, `CLOCK_SNAPSHOT_TABLES`              |
+`initialize.floor` 可导入明确迁移时读取的旧底线或备份 checkpoint。已有资源通过 `minimum` 接纳备份底线，不能降低已有更高值。
+接纳和格式确认都先于时间发布。业务库升级回滚不能回退独立 Clock。
 
-## 使用提供者与可控时间源
+本包复用 storage-sql 的 worker 与排他机制，需要 Node24、Linux 和 PATH 中的 util-linux flock。
+Clock 使用独立 SQLite 文件及 FULL 提交配置。物理耐久仍依赖存储栈正确执行同步，本包测试不证明物理断电行为。
 
-这个例子运行真实 SQLite 存储，并控制时间读数，以展示默认系统时间源使用的同一条回拨路径。`upgrade: false` 用于这份可丢弃夹具；生产存储应使用属主升级守卫。
+## Cordis 装配
 
-```ts
-import assert from 'node:assert/strict'
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { LeaseClock, clockMigrations, type TimeSources } from '@omne-harness-lite/clock-lease'
-import { composeMigrations } from '@omne-harness-lite/storage'
-import { openStorage, type SqlStorage } from '@omne-harness-lite/storage-sql'
+`./cordis` 导出 clockPlugin 和 managedClockPlugin。配置为 `{ file, initialize? }`。
+只有明确首次创建或旧源迁移时才设置 initialize，之后省略。插件注入 storage，用于初始化时读取旧 clock_lease 底线。
+运行期使用独立数据库。业务写事务可以等待 Clock，不会等待自身写锁。
 
-const directory = await mkdtemp(join(tmpdir(), 'omne-clock-example-'))
-let storage: SqlStorage | undefined
-let clock: LeaseClock | undefined
-let wall = 1_900_000_000_000
-const sources: TimeSources = { wall: () => wall, monotonic: () => 0n }
-try {
-  storage = await openStorage({
-    dialect: 'sqlite',
-    file: join(directory, 'clock.sqlite'),
-    migrations: composeMigrations(clockMigrations),
-    upgrade: false,
-  })
-  clock = new LeaseClock({ storage, sources })
-  assert.equal(clock.now(), 'unavailable')
-  await clock.start()
-  assert.equal(clock.now(), wall)
-  wall -= 100
-  assert.equal(clock.now(), 'unavailable')
-  wall += 100
-  assert.equal(clock.now(), wall)
-  console.log(clock.now())
-} finally {
-  await clock?.close()
-  await storage?.close()
-  await rm(directory, { recursive: true, force: true })
-}
-```
+服务键与 ClockService 归 core/offer-expiry。managed 插件还注入 assemblyLifetime，保有启动与实际关闭责任。
+运行期 unavailable 不自动撤除插件。关闭开始后，旧引用不再获得新时刻。
 
-直接使用 `LeaseClock` 时，调用者拥有 `start()` 和 `close()` 生命周期。先关时钟，再关存储：关闭先停止新的时间读取及续约、清掉定时器，再等待已开始的定时续约并尝试收回自身租约；不会关闭传入的存储。每个实例只使用一轮启动/关闭生命周期，手工调用 `renew()` 时应在关闭前等待它完成。
+## 时间算法
 
-## 通过 Cordis 提供时钟
+每次请求现读墙钟。样本在已确认持久范围内时直接返回，无需访问数据库。
+超出范围时，多个请求共用一次申请。提交成功后重新取时，再检查回拨、停止和范围。
+单次请求最多申请两次，持续缓慢或故障时明确返回 unavailable。没有定时续约器。
 
-将时钟迁移与应用迁移合并，先加载存储，再加载时钟。例子使用已采用的 Cordis 4.0.4 生命周期 API，明确先撤时钟，再撤存储。
+LEASE_WIDTH_MS 为10秒。崩溃重启后，实例可能等待墙钟追上旧上界；墙钟早于旧 written_at 则启动失败。
+临时存储失败保留已确认上界，存储缺陷闩住该实例。关闭先停止取时、排空申请，再回收租约并关闭资源。
 
-```ts
-import assert from 'node:assert/strict'
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { Context, type Fiber } from '@deepseek-ai/cordis'
-import { clockMigrations } from '@omne-harness-lite/clock-lease'
-import { clockPlugin } from '@omne-harness-lite/clock-lease/cordis'
-import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
-import type { Clock } from '@omne-harness-lite/offer-expiry'
-import { composeMigrations } from '@omne-harness-lite/storage'
-import { createUpgradeGuard } from '@omne-harness-lite/storage-sql'
-import { storageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
-import { StorageStartup } from '@omne-harness-lite/storage/cordis'
+低层 LeaseClock 仍可接受调用者提供的专用 Storage。调用者负责排他、耐久及关闭顺序，不能传入正在等待 Clock 的业务数据库。
+TimeSources 用于测试控制时间；monotonic 字段不用于推算墙钟。
 
-const directory = await mkdtemp(join(tmpdir(), 'omne-clock-plugin-example-'))
-const ctx = new Context()
-const guard = createUpgradeGuard()
-class Startup extends StorageStartup {
-  readonly migrations = composeMigrations(clockMigrations)
-  readonly upgrade = { checks: [], guard }
-}
-let storageFiber: Fiber | undefined
-let clockFiber: Fiber | undefined
-try {
-  await ctx.plugin(inner => {
-    new Startup(inner)
-  })
-  storageFiber = ctx.plugin(storageSqlPlugin, {
-    dialect: 'sqlite',
-    file: join(directory, 'clock.sqlite'),
-    startup: 'migrate',
-  })
-  await storageFiber
-  clockFiber = ctx.plugin(clockPlugin, {})
-  await clockFiber
-  const clock = ctx.get(CLOCK_SERVICE) as Clock | undefined
-  assert.ok(clock)
-  const now = clock.now()
-  assert.notEqual(now, 'unavailable')
-  const confirmation = await guard.confirm()
-  assert.ok(!confirmation.snapshotTaken || confirmation.snapshotRemoved)
-  console.log(now)
-} finally {
-  await clockFiber?.dispose()
-  await storageFiber?.dispose()
-  await ctx.fiber.dispose()
-  // Cordis logs disposer failures; retain the fixture if recovery is pending.
-  assert.equal(await guard.pending(), 'clear')
-  await rm(directory, { recursive: true, force: true })
-}
-```
+## 备份与验证
 
-`clockPlugin` 必需依赖 `storage` 服务，只在启动成功后提供 `clock`。存储缺席时 fiber 保持 pending；启动异常使加载失败。提供者替换时 Cordis 撤除并重载依赖插件。运行期间，`'unavailable'` 是时钟返回值，不会移除服务或撤除插件。撤除插件会移除其提供的服务，保留的旧引用返回 `'unavailable'`。
+当前备份必须保留 Clock checkpoint。clockPreflight、clockSnapshotCheck 只核对业务库中保留的旧表，不能替代独立底线。
+读取 checkpoint 的消费者须处理能力缺失和 unavailable。恢复先持久接纳底线，之后才允许发布时刻。
 
-## 可用性与持久化边界
-
-每次 `now()` 都现读墙钟。单个运行实例的成功读数不会递减，也不会超过它确知已持久化的租约。`monotonic` 仍是 `TimeSources` 的注入字段，但当前实现不用它推算时刻。`systemTimeSources` 读取环境，不保证环境墙钟准确。
-
-启动时，墙钟读数早于持久化的 `written_at` 会抛 `ClockRollbackDetected`。进程非正常重启后，时钟可能保持不可用，直到墙钟追上旧租约，通常最多等待租约宽度。墙钟前跳超过租约时，在续约前不可用；随后校正回退可能导致长得多的等待。
-
-定时续约失败通过 `logger` 和 `onRenewFailure` 报告。暂时存储失败可能耗尽租约；`StorageDefect` 会将时钟闩为不可用并停掉定时器。显式 `renew()` 失败直接拒绝给调用者。关闭时收回租约失败通过同一诊断面报告。调用者须按操作的失败政策处理 `'unavailable'`，并让发出和过期判定使用同一时钟。
-
-重启保证依赖持久化租约确实存活。SQLite 默认 `synchronous: 'normal'` 不承诺最近提交在 OS 崩溃或断电后仍存活。`full` 只有在存储栈兑现同步请求时才强化持久性；物理断电行为未验证。本提供者不提供真实时间准确度上界，也不提供独立运行时钟实例或分布式节点间的顺序保证。它拥有一行存储级租约，没有租户专属时钟身份；租户隔离与消费者政策归应用。
-
-`clockPreflight()` 提供迁移启动前的只读核对：表或行缺席通过，确定回拨拒绝。`clockSnapshotCheck` 检查 SQLite 快照的时钟表和持久化下界，不授权应用从快照重新开放。
-
-开发本包时运行该成员的 `build`、`typecheck` 和 `test` 脚本。本版租约时间固定，`ClockConfig` 只接受 `{}`。
+运行本成员的 build、typecheck 和 test。算法、真实进程资源、Cordis 服务、备份和应用装配的验证范围分别记录。

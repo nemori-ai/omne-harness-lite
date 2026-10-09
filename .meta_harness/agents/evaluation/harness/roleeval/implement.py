@@ -3,7 +3,7 @@
 The copy has the module's body replaced by a stub, its own tests removed and the member's build
 output deleted (it holds the answer). When the run is recorded the program puts the original tests
 back - the role's own tests are set aside - and runs the member's test and type checks. This is the
-judgment of the earlier role-model comparison (``role-model-sonnet55/tooling/evalrun.py``:
+judgment of the earlier role-model comparison (``the scoped program-judged suite``:
 ``render_brief``, ``prepare``, ``judge_scope``, ``oracle_implement``), unchanged.
 """
 from __future__ import annotations

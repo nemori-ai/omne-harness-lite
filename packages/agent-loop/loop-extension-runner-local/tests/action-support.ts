@@ -211,7 +211,7 @@ export async function batchHost(
       }),
       verifyFailure: async () => ({ kind: 'unavailable' }),
       judgeCapabilities: async () => ({ kind: 'accepted' }),
-      now: () => at,
+      now: async () => at,
       mintReminder: () => 'reminder',
       fallbackNeedsProjection: async () => false,
       invokeCommand: async () => ({ kind: 'notStartedUnavailable' }),

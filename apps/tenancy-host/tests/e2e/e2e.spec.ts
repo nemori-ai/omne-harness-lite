@@ -2059,7 +2059,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
       expect((await fullHealth(opsSocketOf(dA))).health?.['centerId']).toBe(centerIdA)
       // Test-only extraction inside the permanently marked work root; never opened by product serve.
       const envelope = readFileSync(isolated)
-      const magic = Buffer.from('OMNE-CENTER-BACKUP/1\n')
+      const magic = Buffer.from('OMNE-CENTER-BACKUP/2\n')
       expect(envelope.subarray(0, magic.length)).toEqual(magic)
       forensicFile = join(work, 'forensic.sqlite')
       writeFileSync(

@@ -41,7 +41,8 @@ function reference(file: SourceFile, specifier: string): Entry | undefined {
 }
 export const evaluationPublicationBoundary: Rule = {
   id: 'evaluation-publication-boundary',
-  source: 'EIS design public publication responsibility / verification static boundary',
+  source:
+    'packages/assets/evaluation-input-store/SPEC.md: 持久身份、发布与捕获; verification/README.md',
   description:
     'source publication and admitted recipe capture are held by their owner and named trusted application/bootstrap fixtures',
   check(files) {

@@ -60,6 +60,10 @@ export async function deployment(label: string, root = tempDirectory(label)): Pr
     [`${ENV.entryTlsPrivateKey}_FILE`]: tlsKeyFile,
     [ENV.opsSocketDirectory]: socketDirectory,
   }
+  Object.defineProperty(env, ENV.clockInitialize, {
+    enumerable: true,
+    get: () => (existsSync(`${file}.clock.sqlite.clock.json`) ? undefined : '1'),
+  })
   return {
     root,
     file,

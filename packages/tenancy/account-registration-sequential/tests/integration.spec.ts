@@ -2,7 +2,7 @@
 // I-7、I-8、I-10 用真实 clock 插件；I-6 用时间替身。真实组合，含真实 credential-verification。
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { LEASE_WIDTH_MS } from '@omne-harness-lite/clock-lease'
+import { LEASE_WIDTH_MS, type LeaseClock } from '@omne-harness-lite/clock-lease'
 import { generateHandoffKeyPair } from '@omne-harness-lite/identity-values'
 import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import { AccountRegistrationConfigSchema } from '@omne-harness-lite/account-registration-sequential'
@@ -25,6 +25,7 @@ import {
 } from './support.ts'
 
 const compositions: Composition[] = []
+type Clock = Pick<LeaseClock, 'now' | 'checkpoint'>
 afterEach(async () => {
   for (const c of compositions.splice(0).reverse()) await c.dispose()
 })
@@ -61,14 +62,17 @@ describe('I-6 清除完成之前同一标识重新注册', () => {
   it.skip('I-6 撞 account_login_identifier_unique 那一支——sqlite 下到不了：写事务 BEGIN IMMEDIATE 串行，AI 在写事务里按标识重读（current），先成者的行总被看见，走的是「不同类 ⇒ 重来」而不是插入撞唯一索引；那一支只在 pg 上走，归 W3-A（pg 首跑，AI verification 已登记同一条）', () => {})
 })
 
-describe('I-7 单一共享 storage 上三方写并发', () => {
-  // 归慢层：真实等待＋真库：按真实时钟压满一个以上的续约周期，期间在 SQLite 文件库上并发写。
+describe('I-7 业务并发写与独立 Clock 扩界', () => {
+  // 真实 I/O 跨过一次时间窗口，覆盖按需扩界及其间的业务竞争。
   it(
-    '真实 clock 定时续约写 ＋ AI accounts.read 落盘写 ＋ OG／AR 写，跨过至少一次续约：没有「nested storage call」缺陷，每次调用都落在自己的结果集合里，不变量成立',
+    '按需扩界与 AI、OG、AR 写并发：无嵌套存储缺陷，业务不变量保持',
     { tags: ['slow'] },
     async () => {
       // 留存期限 1 ms：几乎每一次 ② 的账号读面都要把过期落盘（AI 的读面里的写），重来的注册又要就地跑清除链
       const c = await boot({ retention: 1 })
+      const clock = c.ctx.get('clock') as Clock
+      const initial = await clock.checkpoint?.()
+      if (!initial || initial === 'unavailable') throw new Error('no initial clock checkpoint')
       const expiryWitness = await c.accounts.produce('expiry-witness', PASSWORD)
       if (!('ok' in expiryWitness)) throw new Error('expiry witness was not produced')
       await new Promise(resolve => setTimeout(resolve, 5))
@@ -78,7 +82,7 @@ describe('I-7 单一共享 storage 上三方写并发', () => {
         ok: { activated: false, retentionExpired: true },
       })
       const outcomes: string[] = []
-      const deadline = performance.now() + 4_000 // > 续约周期（LEASE_WIDTH_MS / 3 ≈ 3.3 s）
+      const deadline = performance.now() + LEASE_WIDTH_MS + 500
       let round = 0
       while (performance.now() < deadline) {
         const identifier = `load-${round % 5}`
@@ -95,11 +99,12 @@ describe('I-7 单一共享 storage 上三方写并发', () => {
           })(),
         ])
         outcomes.push(...batch)
-        // node:sqlite 是同步驱动，一整轮调用可以只靠微任务走完；不让出宏任务，定时续约就永远排不上（真实请求经 I/O 到达，天然让出）
-        await new Promise(resolve => setTimeout(resolve, 0))
       }
+      const final = await clock.checkpoint?.()
+      if (!final || final === 'unavailable') throw new Error('no final clock checkpoint')
+      expect(final.upperBound).toBeGreaterThan(initial.upperBound)
       const written = c.storage.statements.slice(mark).filter(s => s.inWrite)
-      expect(written.filter(s => s.tables.has('clock_lease')).length).toBeGreaterThan(0) // 续约真的发生在窗口里
+      expect(written.filter(s => s.tables.has('clock_lease'))).toEqual([])
       expect(
         written.filter(s => s.tables.has('account') && s.columns.has('expired_at')).length,
       ).toBeGreaterThan(0)
@@ -155,35 +160,33 @@ describe('I-8 同一库文件整装配重启（同进程 dispose 再 boot，不�
 
 describe('I-10 storage 先于 clock 撤除', () => {
   // 归慢层：真实等待＋真库：重启后按真实时钟等旧租约到期、钟才可读（真 clock 插件、SQLite 文件库）。
-  it(
-    '存储先关、再撤 clock：clock 记一条 warn、撤除不抛；同一库文件下一次启动 clock 不报回拨',
-    { tags: ['slow'] },
-    async () => {
-      const c = await bootComposition({ label: 'clock-order' })
-      const clockFiber = c.assembly.fibers[1]
-      if (clockFiber === undefined) throw new Error('no clock fiber')
-      await c.raw.close()
-      await expect(clockFiber.dispose()).resolves.toBeUndefined()
-      const warns = c
-        .messages()
-        .filter(m => m.type === 'warn')
-        .map(m => m.args.map(String).join(' '))
-        .filter(text => text.includes('reclaiming the lease on dispose failed'))
-      expect(warns).toHaveLength(1)
-      await c.assembly.dispose()
+  it('业务存储先关不影响独立 Clock 回收；重启沿用同一时间底线', { tags: ['slow'] }, async () => {
+    const c = await bootComposition({ label: 'clock-order' })
+    const clockFiber = c.assembly.fibers[1]
+    if (clockFiber === undefined) throw new Error('no clock fiber')
+    const last = await (c.ctx.get('clock') as Clock).now()
+    if (last === 'unavailable') throw new Error('clock unavailable before close')
+    await c.raw.close()
+    await expect(clockFiber.dispose()).resolves.toBeUndefined()
+    const warns = c
+      .messages()
+      .filter(m => m.type === 'warn')
+      .map(m => m.args.map(String).join(' '))
+      .filter(text => text.includes('reclaiming the lease on dispose failed'))
+    expect(warns).toEqual([])
+    await c.assembly.dispose()
 
-      // 租约没收回：下一次启动不报回拨（boot 不抛 ClockRollbackDetected）；接手旧行后 hw 起于旧 lease_until，
-      // 在那之前答 'unavailable'（等至多一个租约宽度），之后照常取时、注册走得通
-      const next = await boot({ file: c.file, keys: c.keys })
-      const clock = next.ctx.get('clock') as { now(): number | 'unavailable' }
-      const waitedFrom = performance.now()
-      while (clock.now() === 'unavailable') {
-        expect(performance.now() - waitedFrom).toBeLessThan(LEASE_WIDTH_MS + 2_000)
-        await new Promise(resolve => setTimeout(resolve, 100))
-      }
-      expect(await next.service().register('after-restart', PASSWORD)).toBe('registered')
-    },
-  )
+    // 回收独立资源后，同一资源重启仍不得早于上次发布的时间。
+    const next = await boot({ file: c.file, keys: c.keys })
+    const clock = next.ctx.get('clock') as Clock
+    const waitedFrom = performance.now()
+    while ((await clock.now()) === 'unavailable') {
+      expect(performance.now() - waitedFrom).toBeLessThan(LEASE_WIDTH_MS + 2_000)
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+    expect(await clock.now()).toBeGreaterThanOrEqual(last)
+    expect(await next.service().register('after-restart', PASSWORD)).toBe('registered')
+  })
 })
 
 describe('插件装载面', () => {

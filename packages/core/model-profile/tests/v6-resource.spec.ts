@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { assertAdoptedSchemaBytes } from './schema-identity.ts'
 import { readFileSync } from 'node:fs'
 import { Ajv2020 } from 'ajv/dist/2020.js'
 import { describe, expect, it } from 'vitest'
@@ -45,15 +45,11 @@ describe('MP6-R1..3 pure resource publication and MP5 value preservation', () =>
       ['../schema/v6/model-profile.schema.json', 'v6'],
     ] as const) {
       const bytes = readFileSync(new URL(relative, import.meta.url))
-      const original = readFileSync(
-        new URL(
-          `../../../../.meta_harness/design/spec/data/model-profile/${version}/model-profile.schema.json`,
-          import.meta.url,
-        ),
-      )
-      expect(bytes).toEqual(original)
-      expect(createHash('sha256').update(bytes).digest('hex')).toBe(
-        createHash('sha256').update(original).digest('hex'),
+      assertAdoptedSchemaBytes(
+        version === 'v5'
+          ? '@omne-harness-lite/model-profile/schema'
+          : '@omne-harness-lite/model-profile/schema/v6',
+        bytes,
       )
     }
   })
@@ -64,7 +60,7 @@ describe('MP6-R1..3 pure resource publication and MP5 value preservation', () =>
       const source: unknown = JSON.parse(
         readFileSync(
           new URL(
-            `../../../../.meta_harness/design/spec/data/model-profile/${version}/examples.json`,
+            version === 'v5' ? 'fixtures/profile-examples.json' : 'fixtures/snapshot-examples.json',
             import.meta.url,
           ),
           'utf8',

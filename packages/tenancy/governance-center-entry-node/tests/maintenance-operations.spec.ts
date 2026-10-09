@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
 import { composeMigrations, type SnapshotMaintenance } from '@omne-harness-lite/storage'
-import { instantFromEpochMs } from '@omne-harness-lite/offer-expiry'
+import { instantFromEpochMs, type Clock } from '@omne-harness-lite/offer-expiry'
 import {
   createUpgradeGuard,
   openSnapshotInspection,
@@ -76,8 +76,13 @@ async function fixture(identity = centerId) {
   await guard.confirm()
   if (storage.maintenance === undefined) throw new Error('missing source maintenance')
   let now = Date.parse('2026-09-26T00:00:00.000Z')
-  const clock = {
-    now() {
+  const clock: Clock = {
+    async checkpoint() {
+      const parsed = instantFromEpochMs(now)
+      if (!('ok' in parsed)) throw new Error('bad fixture time')
+      return { writtenAt: parsed.ok, upperBound: parsed.ok }
+    },
+    async now() {
       const parsed = instantFromEpochMs(now)
       if (!('ok' in parsed)) throw new Error('bad fixture time')
       return parsed.ok
@@ -143,6 +148,7 @@ async function fixture(identity = centerId) {
     storage,
     report,
     onClosed,
+    clock,
     afterExport(fn: () => Promise<void>) {
       afterExport = fn
     },
@@ -462,4 +468,29 @@ it('reports retained restored output if only its target directory close fails', 
   } finally {
     faults.closePath = ''
   }
+})
+
+it('refuses backup when the injected clock cannot retain a durable floor', async () => {
+  const { online, backups, clock } = await fixture()
+  vi.spyOn(clock, 'checkpoint').mockResolvedValue('unavailable')
+  expect(await online.backup({ onlyIfDue: false })).toEqual({ status: 'unavailable' })
+  expect((await readdir(backups)).filter(name => name.endsWith('.omne-backup'))).toEqual([])
+})
+
+it('checks cancellation after waiting for the durable clock checkpoint', async () => {
+  const { online, backups, clock } = await fixture()
+  const entered = Promise.withResolvers<void>()
+  const release = Promise.withResolvers<void>()
+  const original = clock.checkpoint!
+  vi.spyOn(clock, 'checkpoint').mockImplementation(async () => {
+    entered.resolve()
+    await release.promise
+    return original()
+  })
+  const pending = online.backup({ onlyIfDue: false })
+  await entered.promise
+  online.stop()
+  release.resolve()
+  expect(await pending).toEqual({ status: 'cancelled' })
+  expect((await readdir(backups)).filter(name => name.endsWith('.omne-backup'))).toEqual([])
 })

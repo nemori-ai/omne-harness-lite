@@ -1,53 +1,70 @@
-import { DatabaseSync, type SQLInputValue } from 'node:sqlite'
+import { Worker } from 'node:worker_threads'
+import { vi } from 'vitest'
 
-/** Test-only physical SQLite failure. Before-write rolls back; lost receipt commits then hides reads. */
-export function sqlJournalFault(file: string, committed: boolean) {
-  const prepare = DatabaseSync.prototype.prepare,
-    exec = DatabaseSync.prototype.exec
-  const pending = new WeakSet<DatabaseSync>()
+interface Request {
+  readonly id: number
+  readonly command?: { readonly kind: string; readonly sql?: string }
+}
+interface Reply {
+  readonly id: number
+  readonly ok: boolean
+}
+
+/** One fixture journal: refuse before insert, or lose its actual COMMIT receipt and hide reads. */
+export function sqlJournalFault(committed: boolean) {
+  const post = Worker.prototype.postMessage,
+    emit = Worker.prototype.emit
+  const pending = new WeakSet<Worker>()
+  const receipts = new WeakMap<Worker, number>()
   let armed = false,
     blocked = false,
     failures = 0
-  const fault = () =>
-    Object.assign(new Error('controlled runner journal IO fault'), {
+  const failure = (id: number) => ({
+    id,
+    open: true,
+    ok: false,
+    error: {
+      name: 'Error',
+      message: 'controlled runner journal IO fault',
       code: 'ERR_SQLITE_ERROR',
       errcode: 10,
       errstr: 'disk I/O error',
-    })
-  DatabaseSync.prototype.prepare = function (sql: string) {
-    const target = this.location('main') === file
-    if (target && blocked && /^select\b/iu.test(sql) && sql.includes('sl_entry')) throw fault()
-    const statement = prepare.call(this, sql)
-    if (!target || !/insert into "sl_entry"/iu.test(sql)) return statement
-    const db = this
-    return new Proxy(statement, {
-      get(object, key) {
-        const member: unknown = Reflect.get(object, key)
-        if (key === 'run')
-          return (...args: SQLInputValue[]) => {
-            if (armed && !committed) {
-              failures++
-              blocked = true
-              throw fault()
-            }
-            const result = statement.run(...args)
-            if (armed) pending.add(db)
-            return result
-          }
-        return typeof member === 'function' ? member.bind(object) : member
-      },
-    })
-  }
-  DatabaseSync.prototype.exec = function (sql: string) {
-    const result = exec.call(this, sql)
+    },
+  })
+  const posting = vi.spyOn(Worker.prototype, 'postMessage').mockImplementation(function (
+    this: Worker,
+    message: Request,
+  ) {
+    const sql = message.command?.sql ?? ''
+    const insert = armed && /insert into "sl_entry"/iu.test(sql)
+    const refuse = blocked && /^select\b/iu.test(sql) && sql.includes('sl_entry')
+    if (refuse || (insert && !committed)) {
+      if (insert) failures++
+      blocked = true
+      queueMicrotask(() => emit.call(this, 'message', failure(message.id)))
+      return
+    }
+    if (insert) pending.add(this)
     if (/^COMMIT$/iu.test(sql) && pending.has(this)) {
       pending.delete(this)
+      receipts.set(this, message.id)
+    }
+    post.call(this, message)
+  })
+  const receiving = vi.spyOn(Worker.prototype, 'emit').mockImplementation(function (
+    this: Worker,
+    event: string | symbol,
+    ...args: unknown[]
+  ) {
+    const reply = args[0] as Reply | undefined
+    if (event === 'message' && reply?.ok && receipts.get(this) === reply.id) {
+      receipts.delete(this)
       failures++
       blocked = true
-      throw fault()
+      return emit.call(this, event, failure(reply.id))
     }
-    return result
-  }
+    return emit.call(this, event, ...args)
+  })
   return {
     arm() {
       armed = true
@@ -60,8 +77,8 @@ export function sqlJournalFault(file: string, committed: boolean) {
     close() {
       armed = false
       blocked = false
-      DatabaseSync.prototype.prepare = prepare
-      DatabaseSync.prototype.exec = exec
+      posting.mockRestore()
+      receiving.mockRestore()
     },
   }
 }

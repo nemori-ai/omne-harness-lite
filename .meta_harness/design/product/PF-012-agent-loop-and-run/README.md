@@ -207,7 +207,6 @@ relations:
 - **欠 [PF-000](../PF-000-occurrences-and-record-entries/README.md) 一次跟进**：
   [当前规则与范围](../PF-000-occurrences-and-record-entries/design.md)，
   **没有直接矛盾**，条目的种类与形状仍归那边定
-- 技术投影：尚未开始
 
 ## 本包的文件
 

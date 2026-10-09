@@ -138,3 +138,5 @@ The implemented input domain is `NonConnectorEvaluationInput`. `defaultBodyContr
 Both operations are pure calculations over explicit input. The caller supplies a consistent, authorized snapshot and verifies workspace ownership and provenance. No files, clocks, stores, models or tools are accessed. The reader does not load `source` bodies; it returns holdings without `since`, which the caller supplies from the actual read event. Permission classification, bound intersection and pick checks are also exported as `classifyPermissionAssignment`, `boundOf` and `pickWithinBound`; they calculate values without granting execution authority.
 
 See [source exports](src/index.ts), [tests](tests/) and [asset model](../asset-model/README.md).
+
+Behavior belongs to [SPEC](SPEC.md). Check methods and limits belong to [verification](verification/README.md).

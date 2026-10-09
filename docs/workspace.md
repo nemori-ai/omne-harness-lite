@@ -6,7 +6,7 @@ Python 当前服务于开发工具。
 > 成员入口见 [packages/README](../packages/README.md)、[apps/README](../apps/README.md)；承诺和证据沿[架构维护入口](../.meta_harness/design/architecture/README.md)查找，未迁单元仍查旧节点。本页维护归属与 workspace 规则，不另存易过期的成员总数。
 
 系统级要求与架构预期归 `.meta_harness/`；公开类型、薄 SPEC、必要 ADR 和验证资源随成员拥有者维护。
-未迁规格仍归[旧 spec 区](../.meta_harness/design/spec/README.md)；
+公开承诺与必要验证资源由实际成员拥有；
 目录和包的划分不直接决定插件、服务或部署边界。
 
 ## 目录与内容归属
@@ -21,25 +21,18 @@ Python 当前服务于开发工具。
 | 各包或应用内的 `src/` | 该成员的实现源码 | TS、Python 都可采用；源码跟随所属包，不汇入根 `src/` |
 | 各成员的 `tests/` | 该成员的验证 | 测试夹具就近维护；共享测试工具按实际消费边界提取 |
 | 各成员的 `acceptance/` | 产品验收场景的可执行验收 | 放在承载那些场景用户入口的成员里；见下面「可执行验收」 |
-| [docs/](README.md) | 项目开发文档：环境、布局、检查、防御指导；另接入 `blogs/` 子模块 | 设计与 research 的权威正文归 `.meta_harness/` |
-| `docs/blogs/` | 个人技术博客的独立 Git 子模块 | 工程复盘与开发者技术专题；内容和历史由个人博客仓库维护 |
+| [docs/](README.md) | 项目开发文档：环境、布局、检查、防御指导 | 设计与 research 的权威正文归 `.meta_harness/` |
 | [.meta_harness/](../.meta_harness/README.md) | 可独立迁出的私有设计工作区 | 需求、产品、统一语言、全局架构预期、决定、研究与 agent 能力的唯一源；未迁规格仍在其中 |
 | 根 `.agents/`、`.claude/`、`.codex/` | 指向 `.meta_harness/` 内同名目录的相对软链接 | 只暴露生成产物；源与检查归工作区 |
 
 按用途和所有权选择顶层位置，再按实际依赖选择语言与构建工具。独立包不等于
 独立发布、独立进程或独立微服务，也不要求每个 Cordis 插件单独成包。
 
-`docs/blogs/` 接入 [PanQiWei/omne-harness-blogs](https://github.com/PanQiWei/omne-harness-blogs)，
-用于面向读者的工程复盘与技术传播。博客可据设计、实现和实验材料撰写，
-不承担设计接受、契约定义或研究证据归档的权威职责；这些正文仍归 `.meta_harness/`。
-博客仓库独立管理可见性和访问权限，父仓库只保存 `.gitmodules` 配置和采用的 commit。
-它不属于产品 workspace 或构建依赖；初始化与更新方法见[开发指南](development.md#博客子模块)。
-
 产品包采用 `packages/<能力族>/<职责包>/` 两层：**第一层只组织相关能力，不是 workspace 成员**；
 第二层才拥有 `package.json`、`src`、依赖、公开入口和测试。
 能力的 Cordis 服务定义一律放 `packages/core/`，具体提供者放所属领域或 `infra/`；消费者依赖服务定义及契约、不依赖提供者，
 装配负责选择提供者。每个包的根入口与 Cordis 无关，Cordis 绑定放同包的 `./cordis` 入口。
-这些规则与其余集成规矩的权威在 [Cordis 集成约定](../.meta_harness/design/realization/cordis-integration-conventions.md)。
+这些规则与其余集成规矩的权威在 [Cordis 集成约定](../.meta_harness/design/architecture/cordis-integration-conventions.md)。
 不机械地为每个插件创建包。
 
 **可执行验收**放在成员的 `acceptance/` 目录，与 `tests/` 分开，因为两者的主人不同：
@@ -62,7 +55,7 @@ Python 当前服务于开发工具。
 共享类型和有身份的运行时原语保持唯一拥有者，其他包通过公开入口复用。
 
 > **只为承诺和职责已明确、且确实要写代码的责任建成员。**新单元按[架构维护规则](../.meta_harness/design/architecture/README.md)就近维护类型与薄规格；
-> 未迁单元继续采用精确 spec/realization，不要求新建空节点；
+> 不为尚未实现的承诺建空成员；
 > 第一层组名（`core`、`infra`、`tenancy`、`frontend`）随节点布局。
 
 ## 当前可执行代码

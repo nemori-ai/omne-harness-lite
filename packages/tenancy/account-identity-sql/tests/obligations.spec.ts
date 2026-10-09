@@ -400,7 +400,7 @@ describe('凭据计算挪出写事务之后的交错（节点 design「状态、
     expect(await racing2).toStrictEqual({ failure: 'credential-rejected', reason: 'min-length:8' })
   })
 
-  it('④ 重来之后再变一次 ⇒ storage-unavailable，无写入', async () => {
+  it('④ 重取凭据证据期间转为已激活 ⇒ identifier-taken，无写入', async () => {
     const h = await harness('interleave-4')
     // 第一次快照「无」、派生放行前另一路占用该标识 ⇒ 重来；第二次快照「未过期」、比对放行前激活 ⇒ 再变
     const g1 = gate()
@@ -414,7 +414,7 @@ describe('凭据计算挪出写事务之后的交错（节点 design「状态、
     await g2.reached
     expect(await h.accounts.activate(other, activationWarrant(h.keys, other))).toBe('ok')
     g2.release()
-    expect(await racing).toStrictEqual(UNAVAILABLE)
+    expect(await racing).toStrictEqual({ failure: 'identifier-taken' })
     const accounts = await rows(h, 'account')
     expect(accounts).toHaveLength(1)
     expect(accounts[0]).toMatchObject({ account_id: other })
@@ -538,4 +538,24 @@ describe('归别处的静态规则形式（本包只提出检查形式与类型�
   it.skip('S-45 熵审阅的两条文本规则：本包源码不出现 Math.random；插件体构造实现类时不传随机源参数——归 W2-C（tools/ts-checks）', () => {})
   it.skip('S-30「进程外来的身份一律先过 S-44」接收边界一侧：边界包不调 logins.verify、不 import parseLoginStateId、不写 as LoginStateId——归 W2-C（规则）与 W2-B（入口层包）', () => {})
   it.skip('凭据计算挪出写事务之后的交错 ② 在 pg 上再跑一次（走撞唯一约束那条路）——归 W3-A（pg 首跑）', () => {})
+})
+
+it('still bounds retries when a live account is replaced and credential evidence must be read again', async () => {
+  const h = await harness('interleave-replaced-live')
+  const derive = gate()
+  h.probe.pauseDerive = derive.wait
+  const racing = h.accounts.produce('retry-live', 'first-password')
+  await derive.reached
+  const other = await produceOk(h, 'retry-live', 'other-password')
+  const verify = gate()
+  h.probe.pauseVerify = verify.wait
+  derive.release()
+  await verify.reached
+  h.clock.advance(HOUR_MS + 1)
+  expect(await h.accounts.purge(other, purgeWarrant(h.keys, other))).toBe('ok')
+  const replacement = await produceOk(h, 'retry-live', 'new-password')
+  verify.release()
+  expect(await racing).toStrictEqual(UNAVAILABLE)
+  expect(await rows(h, 'account')).toMatchObject([{ account_id: replacement, activated: 0 }])
+  expect(h.probe.callsInsideWrite).toEqual([])
 })

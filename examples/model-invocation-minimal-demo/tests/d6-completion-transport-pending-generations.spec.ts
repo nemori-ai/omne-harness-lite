@@ -22,7 +22,7 @@ import { callDeployment, demoRetirement } from './model-request-support.ts'
 const definition = deepseekV41FlashDefinition
 
 const invocationPolicy: InvocationPolicy = {
-  now: () => new Date().toISOString(),
+  now: async () => new Date().toISOString(),
   schedule(milliseconds, callback) {
     const timer = setTimeout(callback, milliseconds)
     return () => clearTimeout(timer)

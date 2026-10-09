@@ -1,4 +1,0 @@
-rounds=5 node=v24.21.0 load1 per round: 8.02 8.02 8.58 8.58 8.58 8.58
-ajv runtime, all 21                  {"importMs":50.1,"compileMs":329.8,"firstMs":2.9,"firstUseMs":385.5,"tenKMs":51.1,"firstUseCpuMs":468.5}
-ajv runtime, only ToolDefinition     {"importMs":50.6,"compileMs":164.1,"firstMs":3.8,"firstUseMs":218.7,"tenKMs":47.9,"firstUseCpuMs":266.8}
-ajv standalone module, all 21        {"importMs":0.1,"compileMs":11.3,"firstMs":3.6,"firstUseMs":14.9,"tenKMs":55.3,"firstUseCpuMs":17.1}

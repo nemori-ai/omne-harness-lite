@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { compareArchitecture } from '../src/arch/compare.ts'
 import { extractArchitecture } from '../src/arch/extract.ts'
-import { readIntents } from '../src/arch/intent.ts'
-import { snapshotOf } from '../src/arch/snapshot.ts'
+import { snapshotOf } from './architecture-snapshot.ts'
 
 const source = 'packages/session/example/src/plugin.ts'
 function extract(text: string, extra: Record<string, string> = {}) {
@@ -23,18 +21,6 @@ const prelude = `import { definePlugin as plugin } from '@omne-harness-lite/kern
 import { Context as C, Service } from '@deepseek-ai/cordis'
 `
 
-function declaredComparisons(result: ReturnType<typeof extract>) {
-  const root = '.meta_harness/design/realization'
-  const declaration = snapshotOf(
-    new Map([
-      [
-        `${root}/packages/session/example/bindings.yaml`,
-        'assembly: {plugins: [{name: p, source: "design.md#plugin", provides: [svc]}]}',
-      ],
-    ]),
-  )
-  return compareArchitecture(result, readIntents(declaration, root)).comparisons
-}
 const contextCases: readonly {
   label: string
   header: string
@@ -379,7 +365,7 @@ export const name = 'exported'; export const inject = ['clock']; export function
     ])
   })
   it.each(contextCases)(
-    'retains provides and convergence for $label Context origin',
+    'retains plugin and provides for $label Context origin',
     ({ header, parameterType, extra }) => {
       const result = extract(
         `import {definePlugin} from '@omne-harness-lite/kernel-basis';
@@ -391,12 +377,11 @@ ${header};export const p=definePlugin({name:'p',apply(ctx:${parameterType}){ctx.
         expect.objectContaining({ key: 'svc', plugin: 'p' }),
       ])
       expect(
-        declaredComparisons(result)
-          .filter(c => c.state === 'converged')
-          .map(c => c.kind)
+        result.facts
+          .filter(f => ['plugin', 'provides'].includes(f.kind))
+          .map(f => f.kind)
           .sort(),
       ).toEqual(['plugin', 'provides'])
-      expect(declaredComparisons(result).some(c => c.state === 'missing')).toBe(false)
     },
   )
   it('rejects ordinary namespace/type aliases and terminates cyclic type aliases', () => {
@@ -428,9 +413,7 @@ export {identifier as name, run as apply, dependencies as inject}
       expect.objectContaining({ key: 'svc', plugin: 'p' }),
     ])
     expect(result.facts.filter(f => f.kind === 'injects').map(f => f.key)).toEqual(['clock'])
-    expect(declaredComparisons(result).find(c => c.kind === 'provides')).toMatchObject({
-      state: 'converged',
-    })
+    expect(result.facts.find(f => f.kind === 'provides')).toMatchObject({ key: 'svc', plugin: 'p' })
   })
   it.each([
     'export const data={label:name}',
@@ -443,10 +426,7 @@ export {identifier as name, run as apply, dependencies as inject}
     )
     expect(result.facts.filter(f => f.kind === 'plugin')).toEqual([])
     expect(result.facts.filter(f => f.plugin !== undefined)).toEqual([])
-    expect(declaredComparisons(result).filter(c => c.state === 'converged')).toEqual([])
-    expect(declaredComparisons(result).find(c => c.kind === 'plugin')).toMatchObject({
-      state: 'missing',
-    })
+    expect(result.unknown.filter(f => f.kind === 'plugin')).toEqual([])
   })
   it.each([
     ['static name=getName()', 'getName()'],
@@ -469,11 +449,7 @@ export {identifier as name, run as apply, dependencies as inject}
           serviceIdentifier: false,
         }),
       ])
-      expect(
-        declaredComparisons(result)
-          .filter(c => c.declaration !== undefined)
-          .map(c => c.state),
-      ).toEqual(['unknown', 'unknown'])
+      expect(result.unknown.filter(f => f.kind === 'plugin')).toHaveLength(1)
       expect(result.serviceIdentifiers).toEqual({ attempted: 1, unresolved: 0, rate: 0 })
     },
   )
@@ -482,7 +458,7 @@ export {identifier as name, run as apply, dependencies as inject}
       `${prelude}export class P {static name='p';constructor(ctx:C){ctx.provide('svc',{})}}`,
     )
     expect(normal.unknown).toEqual([])
-    expect(declaredComparisons(normal).map(c => c.state)).toEqual(['converged', 'converged'])
+    expect(normal.facts.map(f => f.kind).sort()).toEqual(['plugin', 'provides'])
     const dynamic = extract(
       `${prelude}export class P extends Service {static provide='svc';static name=getName();constructor(ctx:C){super(ctx)}}`,
     )
@@ -495,7 +471,7 @@ export {identifier as name, run as apply, dependencies as inject}
     ])
     expect(dynamic.facts.find(f => f.kind === 'defines')).toMatchObject({ key: 'svc' })
     expect(dynamic.serviceIdentifiers).toEqual({ attempted: 2, unresolved: 0, rate: 0 })
-    expect(declaredComparisons(dynamic).some(c => c.state === 'missing')).toBe(false)
+    expect(dynamic.facts.filter(f => f.kind === 'plugin')).toEqual([])
   })
   it('resolves repeated const operands without weakening recursive-cycle detection', () => {
     const result = extract(`${prelude}const A='s';const B=A+A;const X=Y+'x';const Y=X;

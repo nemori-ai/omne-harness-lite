@@ -1,13 +1,7 @@
-import { readIntents, semanticIntent } from './intent.ts'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
-import { fileAt, git } from '../metrics/git.ts'
-import { readRevisionTexts } from '../metrics/revision-files.ts'
 import { extractArchitecture } from './extract.ts'
 import { readArchitectureSource, type ArchitectureSource } from './source.ts'
 import { CONSTRAINT_PATH, readConstraints, roleAt, semanticConstraints } from './constraints.ts'
 import type { ActualExtraction, PackageImport, Fact } from './actual-model.ts'
-import type { IntentNode } from './model.ts'
 import type { ActualArchitectureInput } from './actual.ts'
 import type {
   ArchitectureConstraints,
@@ -18,43 +12,6 @@ import type {
   RuleId,
 } from './conformance-model.ts'
 
-const NODE_ROOT = '.meta_harness/design/realization'
-/** Intent comparison only needs its owning files. Product source comes from ArchitectureSource. */
-function nodeIntents(root: string, source: ArchitectureSource): IntentNode[] {
-  const texts = new Map<string, string>()
-  const wanted = (path: string) =>
-    /^(packages\/[^/]+\/[^/]+|apps\/[^/]+)\/(bindings\.yaml|README\.md)$/u.test(
-      path.slice(NODE_ROOT.length + 1),
-    )
-  if (source.source.kind === 'revision') {
-    const paths = git(root, [
-      'ls-tree',
-      '-r',
-      '--name-only',
-      '-z',
-      source.source.commit,
-      '--',
-      NODE_ROOT,
-    ])
-      .split('\0')
-      .filter(wanted)
-    for (const [path, text] of readRevisionTexts(root, source.source.commit, paths)) {
-      texts.set(path, text)
-    }
-  } else {
-    const walk = (dir: string): void => {
-      for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        const full = join(dir, entry.name),
-          path = relative(root, full).replaceAll('\\', '/')
-        if (entry.isDirectory()) walk(full)
-        else if (entry.isFile() && wanted(path)) texts.set(path, readFileSync(full, 'utf8'))
-      }
-    }
-    if (statSync(join(root, NODE_ROOT), { throwIfNoEntry: false })?.isDirectory())
-      walk(join(root, NODE_ROOT))
-  }
-  return readIntents({ texts, members: [] }, NODE_ROOT)
-}
 const coverage: Conformance['coverage'] = [
   ...['LAYER-ENTRY', 'LAYER-DIP', 'IC-1', 'IC-2', 'IC-3', 'IC-4', 'IC-5'].map(id => ({
     id,
@@ -94,23 +51,26 @@ const adopted = (path: string, intent: ArchitectureConstraints | null) => {
   const result = role(path, intent)
   return result?.status === 'adopted' && result.layer !== 'unknown' ? result : undefined
 }
-function exceptionAt(edge: PackageImport, nodes: readonly IntentNode[]) {
-  const node = nodes.find(item => item.member === edge.member)
-  const exception = node?.assembly?.importExceptions.find(
+function exceptionAt(
+  edge: PackageImport,
+  intent: ArchitectureConstraints | null,
+  extraction: ActualExtraction,
+) {
+  const members = new Set(extraction.members.map(member => member.path))
+  const exception = intent?.importExceptions?.find(
     item =>
       edge.target.kind === 'workspace' &&
+      item.member === edge.member &&
       item.target === edge.target.member &&
       edge.symbol !== '*' &&
       item.symbols.includes(edge.symbol) &&
-      nodes.some(n => n.member === item.target),
+      members.has(item.member) &&
+      members.has(item.target),
   )
-  return exception === undefined ? undefined : { ...exception, path: node?.path ?? '' }
+  return exception === undefined ? undefined : { ...exception, path: CONSTRAINT_PATH }
 }
-function rowsOf(
-  extraction: ActualExtraction,
-  input: ConstraintInput,
-  nodes: readonly IntentNode[],
-): ConformanceRow[] {
+
+function rowsOf(extraction: ActualExtraction, input: ConstraintInput): ConformanceRow[] {
   const rows: ConformanceRow[] = [],
     intent = input.value
   const rules = new Map(intent?.rules.map(rule => [rule.id, rule]) ?? [])
@@ -206,7 +166,7 @@ function rowsOf(
             (target?.layer === 'storage-port' || target?.layer === 'storage-adapter')
           : from.layer === 'policy' &&
             ['interaction', 'storage-adapter', 'assembly'].includes(target?.layer ?? '')
-      const conflict = violates ? exceptionAt(edge, nodes) : undefined
+      const conflict = violates ? exceptionAt(edge, intent, extraction) : undefined
       imported(
         edge,
         id,
@@ -233,8 +193,7 @@ function rowsOf(
         imported(edge, 'IC-5', 'converged', '明确的装配入口选择实现')
         return
       }
-      const node = nodes.find(item => item.member === edge.member)
-      if (from === undefined && (edge.member.startsWith('apps/') || node?.assembly === undefined)) {
+      if (from === undefined) {
         imported(
           edge,
           'IC-5',
@@ -243,14 +202,14 @@ function rowsOf(
         )
         return
       }
-      const exception = exceptionAt(edge, nodes)
+      const exception = exceptionAt(edge, intent, extraction)
       imported(
         edge,
         'IC-5',
         exception === undefined ? 'deviation' : 'converged',
         exception === undefined
           ? '非装配入口引用非 core/util 提供者，BASE 无精确符号同提交例外'
-          : `静态例外：${node?.path} ${exception.source}；共同存储 ${exception.sharedStorage}，事务行为仍需证据`,
+          : `静态例外：${exception.path} ${exception.source}；共同存储 ${exception.sharedStorage}，事务行为仍需证据`,
       )
     }
   }
@@ -383,31 +342,6 @@ function checkRoots(
     }
   }
 }
-function legacyChanges(
-  head: readonly IntentNode[],
-  base: readonly IntentNode[],
-): ConstraintChange[] {
-  const before = new Map(base.map(node => [node.member, node])),
-    after = new Map(head.map(node => [node.member, node]))
-  const value = (node: IntentNode | undefined) =>
-    node?.assembly === undefined && node?.composition === undefined
-      ? null
-      : node === undefined
-        ? null
-        : semanticIntent(node)
-  return [...new Set([...before.keys(), ...after.keys()])].sort().flatMap(id =>
-    value(before.get(id)) === value(after.get(id))
-      ? []
-      : [
-          {
-            id,
-            path: (after.get(id) ?? before.get(id))?.path ?? '',
-            before: value(before.get(id)),
-            after: value(after.get(id)),
-          },
-        ],
-  )
-}
 export function conformanceOf(
   root: string,
   current: ArchitectureSource,
@@ -416,7 +350,7 @@ export function conformanceOf(
 ): Conformance {
   return analyzeConformance(root, current, baseline, path).conformance
 }
-/** Shared observations for the global report and the still-active node sensor. */
+/** One extraction per source version for constraints and actual assembly observations. */
 export function analyzeConformance(
   root: string,
   current: ArchitectureSource,
@@ -425,19 +359,17 @@ export function analyzeConformance(
 ) {
   const head = readConstraints(root, current.source, path),
     base = baseline === undefined ? undefined : readConstraints(root, baseline.source, path)
-  const headNodes = nodeIntents(root, current),
-    baseNodes = baseline === undefined ? undefined : nodeIntents(root, baseline)
   const headActual = extractArchitecture(current.snapshot),
     baseActual = baseline === undefined ? undefined : extractArchitecture(baseline.snapshot)
-  const rows = rowsOf(headActual, base ?? head, baseNodes ?? headNodes)
+  const rows = rowsOf(headActual, base ?? head)
   const stock = new Set(
     baseActual === undefined
       ? []
-      : rowsOf(baseActual, base ?? head, baseNodes ?? [])
+      : rowsOf(baseActual, base ?? head)
           .filter(row => row.state === 'deviation')
           .map(row => row.id),
   )
-  const changes = base === undefined ? [] : legacyChanges(headNodes, baseNodes ?? [])
+  const changes: ConstraintChange[] = []
   const before = semanticConstraints(base?.value ?? null),
     after = semanticConstraints(head.value)
   if (base !== undefined && before !== after)
@@ -462,7 +394,7 @@ export function analyzeConformance(
     coverage,
     limitations,
   }
-  return { conformance, headActual, baseActual, headNodes, baseNodes }
+  return { conformance, headActual, baseActual }
 }
 export function readConformance(
   input: ActualArchitectureInput & { readonly member?: string },

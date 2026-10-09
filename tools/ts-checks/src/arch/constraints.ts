@@ -4,6 +4,7 @@ import { fileAt } from '../metrics/git.ts'
 import {
   RULE_IDS,
   type ArchitectureConstraints,
+  type ArchitectureImportException,
   type ArchitectureRole,
   type ConstraintInput,
   type Layer,
@@ -51,8 +52,45 @@ export function safePath(path: string): string {
     throw new Error(`Invalid architecture path: ${path}`)
   return path
 }
+function memberPath(value: unknown): string {
+  const path = safePath(str(value))
+  if (!/^(packages\/[^/]+\/[^/]+|apps\/[^/]+)$/u.test(path))
+    throw new Error(`Architecture exceptions require exact members: ${path}`)
+  return path
+}
+function importException(value: unknown): ArchitectureImportException {
+  const row = obj(value, ['id', 'member', 'target', 'symbols', 'sharedStorage', 'source'])
+  const symbols = strings(row['symbols'])
+  if (symbols.length === 0 || symbols.some(symbol => symbol.includes('*')))
+    throw new Error('Architecture exceptions require exact nonempty symbols')
+  return {
+    id: str(row['id']),
+    member: memberPath(row['member']),
+    target: memberPath(row['target']),
+    symbols,
+    sharedStorage: str(row['sharedStorage']),
+    source: str(row['source']),
+  }
+}
+function importExceptions(value: unknown): ArchitectureImportException[] {
+  const rows = unique(list(value === undefined ? [] : value).map(importException))
+  const seen = new Set<string>()
+  for (const row of rows)
+    for (const symbol of row.symbols) {
+      const key = JSON.stringify([row.member, row.target, symbol])
+      if (seen.has(key)) throw new Error('Architecture exceptions repeat a member/target/symbol')
+      seen.add(key)
+    }
+  return rows
+}
 export function parseConstraints(text: string): ArchitectureConstraints {
-  const value = obj(JSON.parse(text), ['schemaVersion', 'domains', 'roles', 'rules'])
+  const value = obj(JSON.parse(text), [
+    'schemaVersion',
+    'domains',
+    'roles',
+    'rules',
+    'importExceptions',
+  ])
   if (value['schemaVersion'] !== 1) throw new Error('Unsupported architecture constraint schema')
   const domains = unique(
     list(value['domains']).map(item => {
@@ -103,7 +141,13 @@ export function parseConstraints(text: string): ArchitectureConstraints {
       return { id: known, source: str(row['source']) }
     }),
   )
-  return { schemaVersion: 1, domains, roles, rules }
+  return {
+    schemaVersion: 1,
+    domains,
+    roles,
+    rules,
+    importExceptions: importExceptions(value['importExceptions']),
+  }
 }
 export function readConstraints(
   root: string,
@@ -126,6 +170,13 @@ export function semanticConstraints(value: ArchitectureConstraints | null): stri
   return JSON.stringify({
     schemaVersion: 1,
     domains: sorted(value.domains),
+    ...(value.importExceptions?.length
+      ? {
+          importExceptions: sorted(
+            value.importExceptions.map(row => ({ ...row, symbols: [...row.symbols].sort() })),
+          ),
+        }
+      : {}),
     rules: sorted(value.rules),
     roles: sorted(
       value.roles.map(row => ({

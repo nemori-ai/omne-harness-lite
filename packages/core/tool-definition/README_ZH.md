@@ -120,3 +120,5 @@ console.log(
 Tool Result 是返回内容，不是执行收场。结果内容与 offload 摘要都禁止工具调用，包括已经完整但参数无法解析的调用。看起来像 JSON 的字符串仍是文本。身份唯一性、权限、依赖可用性、后台工作与执行归运行时负责；本包不执行工具、不访问模型。
 
 公开 JSON Schema 入口是 `@omne-harness-lite/tool-definition/schema`（v3）和 `/schema/v2`。参见[源码导出](src/index.ts)、[测试](tests/)与[内容块](../content-blocks/README_ZH.md)。
+
+行为与验证职责见[薄 SPEC](SPEC.md)和[验证入口](verification/README.md)。

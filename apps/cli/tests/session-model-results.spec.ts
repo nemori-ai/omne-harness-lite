@@ -79,7 +79,7 @@ async function fixture(maxCaptures = 2, waitForReply?: Promise<void>) {
       currentEvaluationInputs: inputs,
       projection: unused,
       compatible: () => ({ ok: true }),
-      now: () => now,
+      now: async () => now,
       diagnostic() {},
       onDiagnosticFailure() {},
     },

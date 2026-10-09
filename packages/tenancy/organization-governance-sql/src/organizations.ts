@@ -107,7 +107,7 @@ async function createPersonal(
     const d = tx
     const existing = await readOrganizationOwnedBy(d, account)
     if (existing !== undefined) return succeed(created(existing.id, account))
-    const now = deps.clock.now()
+    const now = await deps.clock.now()
     if (now === 'unavailable') return fail('unavailable')
     const id = mintIdentifier('OrganizationId')
     try {
@@ -154,7 +154,7 @@ async function createTeam(
 
   return deps.mutate(async tx => {
     const d = tx
-    const now = deps.clock.now()
+    const now = await deps.clock.now()
     if (now === 'unavailable') return fail('unavailable')
     const id = mintIdentifier('OrganizationId')
     if (creationKey !== undefined) {

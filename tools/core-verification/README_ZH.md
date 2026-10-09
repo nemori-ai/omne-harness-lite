@@ -5,22 +5,10 @@
 本开发成员承接核心包的真实组合验证，产品包通过公开构建入口消费。依赖全部是开发依赖，
 不会令 core 产品包反向依赖 infra。
 
-当前交付包含存储一致性套件有效性自测、W1 五包的独立公开消费者、W6 五个真实正文
-提供者的资产组合、真实流装配组合及独立打包消费者。存储部分依据
-[storage 实现设计 P-10／C-11／C-12](../../.meta_harness/design/realization/packages/core/storage/design.md#要求到协议再到会红的测试)
-与 [验证义务及覆盖缺口](../../.meta_harness/design/realization/packages/core/storage/verification.md#覆盖缺口)。
-P／C 编号是该节点的协议与用例编号，没有独立契约坐标。
-
-公开消费者的采用依据是
-[kernel-basis](../../packages/core/kernel-basis/SPEC.md)、
-[identity-values](../../.meta_harness/design/realization/packages/core/identity-values/design.md)、
-[offer-expiry](../../.meta_harness/design/realization/packages/core/offer-expiry/design.md)、
-[storage](../../.meta_harness/design/realization/packages/core/storage/design.md) 与
-[content-blocks](../../.meta_harness/design/realization/packages/core/content-blocks/design.md)
-的实际公开面；数据契约精确采用 `data.identity-values/v1`、`data.offer-expiry/v2`、
-`data.content-blocks/v3`，跨包 Instant Schema 接线另采用已批准的 offer-expiry/v1 资源，
-接受与冻结从 [registry](../../.meta_harness/design/registry/README.md) 核对。
-kernel／storage 采用 D-025／D-026 与上述技术设计，没有独立数据契约坐标。
+本工具检查真实存储一致性、W1 独立公开消费者、五个正文提供者的资产组合、流装配组合及独立打包消费者。
+存储性质与负控依据见 [Storage SPEC](../../packages/core/storage/SPEC.md) 和
+[验证义务](../../packages/core/storage/verification/README.md)。其他行为由实际成员的公开入口及薄 SPEC 约束，
+从[架构维护入口](../../.meta_harness/design/architecture/README.md)定位拥有者。本工具不定义产品政策。
 
 从仓库根准备锁定环境并运行：
 
@@ -54,7 +42,7 @@ JSON 报告、执行参数和外键注入观察。父测试拥有子进程及私
 原默认路径及全部判据保持不变。W6 命令示例：
 
 ```sh
-OMNE_CORE_VERIFICATION_EVIDENCE_ROOT=tmp/w6-core-verification/epoch-4/run \
+OMNE_CORE_VERIFICATION_EVIDENCE_ROOT=tmp/w6-core-verification/my-run \
   pnpm --filter @omne-harness-lite/core-verification run test
 ```
 
@@ -144,14 +132,9 @@ TypeScript 的实际模块解析验证入口是 `dist/index.d.ts`，并逐项比
 
 ## W6 真实 core 组合与打包消费者
 
-采用关系从 `.meta_harness/design/registry/{catalog,frozen}.json` 与各 core 节点的
-`README.md`、`design.md`、`verification.md`、`bindings.yaml` 核对；本工具不定义产品政策。
-当前施工输入及32项 core-composition 步骤／外部责任映射见 [w6-coverage.json](w6-coverage.json)。
-规格采用 D-068 已接受、冻结的 CB／Messages／MR／Loop／TD／AM 3 与 SA／AE 3；
-其余数据仍2、identity1、默认offer2与保留offer1。测量 epoch 4 的产品输入释放为 HUB
-`0ec3eed2`，包含实际 SA 与完整六包 v3 源码；两条组合链及18 core＋2 util 的实际打包检查已接入。
-epoch 2／3 原源码、输入和原始输出已独立封存，不能随本轮重新标注。
-Skill SP3／S20 的完整语义仍待用户裁决，本工具不据 normalized 输入关闭它。
+实际消费者只通过成员的构建后公开入口组合。具体场景及目标断言由测试源码维护，
+不是中央版本登记或单次执行台账。Skill 当前读取／值与保留正文消费者的范围仍须区分，
+这些夹具不关闭未裁决的完整 Skill 语义。
 
 `w6-asset-consumer` 只通过已构建的公开入口连接五个真实 bodyContract → asset-model →
 asset-evaluation。它使用实际 Skill 文本读取、清单解析、记录判断、求值、Slash 展开、
@@ -170,13 +153,16 @@ OAuth、当前成员资格、第三方计费或持久化事实。Connector 第�
 构建后运行独立打包验证：
 
 ```sh
-OMNE_CORE_VERIFICATION_EVIDENCE_ROOT=tmp/w6-core-verification/epoch-4/run \
+OMNE_CORE_VERIFICATION_EVIDENCE_ROOT=tmp/w6-core-verification/my-run \
   node tools/core-verification/dist/w6-packed-consumer.js
 ```
 
 该命令 `pnpm pack` 实际成员，在自己的临时消费者内离线安装 tarballs；消费者的
 overrides 同时把传递的 `0.0.0` 依赖钉回这批 tarballs，避免从 registry 取同名包。
-它不改包内容、不使用源码别名或 workspace 源码软链接。公开子路径清单按已采用节点固定，
+它不改包内容、不使用源码别名或 workspace 源码软链接。20 个目标的公开子路径期望在验证源码中独立固定，不从被测制品生成。
+支持依赖按实际 workspace 生产／peer 依赖闭包打包，不增加目标 API 覆盖数。
+首次离线运行前须准备锁定外部依赖的 pnpm 缓存，缓存缺失属于环境失败，不能算产品负控。
+
 根与批准声明子路径的类型从 TypeScript 已解析导出符号枚举（含 `export type *`、别名与
 值／类型双用类），逐个 `import type` 并重新导出，独立 `tsc` 在严格模式、
 `skipLibCheck: false` 下检查；全部公开 JSON 子入口同样以实际 JSON import 消费并核对解析位置。
@@ -186,7 +172,7 @@ overrides 同时把传递的 `0.0.0` 依赖钉回这批 tarballs，避免从 reg
 在该消费者的 node_modules 下，并运行上述固定16个资产子场景；这次运行的输入、stdout
 与构建产物 hash 单独保存，不把 workspace 运行改标成打包证据。
 
-当前流消费者使用 Messages v6 与 ModelResponse v9 的公开根。受控模型路由明确给出适配绑定和完整的纯文本档案约束。这些仅组合流装配的夹具没有适配器请求投影、输出摘要证据或上游用量，因此 MR9 校准明确记录 `not_retained`／`missing_usage`，不虚构观察。报告的 `specEpoch: 3` 及下表历史契约坐标标识原 W6 验证时期，不表示当前包根仍提供旧版，也不把历史制品重新签收。
+流消费者使用当前 Messages 与 ModelResponse 的公开根。受控模型路由明确给出适配绑定和完整的纯文本档案约束。这些仅组合流装配的夹具没有适配器请求投影、输出摘要证据或上游用量，因此 MR9 校准明确记录 `not_retained`／`missing_usage`，不虚构观察。报告的 `specEpoch: 3` 及下表历史契约坐标标识原 W6 验证时期，不表示当前包根仍提供旧版，也不把历史制品重新签收。
 
 只运行这条流组合和帧数负控：
 
@@ -195,7 +181,7 @@ pnpm --filter @omne-harness-lite/core-verification exec vitest run tests/w6-stre
 ```
 
 `w6-stream-consumer` 通过 CB／CA → AR → SA → Messages／MR 的六个实际公开根入口运行13个固定场景，
-相同构建 JS 也在独立 tarball 消费者再次运行。判据从冻结契约和手算值取得，覆盖：
+相同构建 JS 也在独立 tarball 消费者再次运行。判据沿用独立采用的规范输入和手算值，覆盖：
 
 | 稳定 Test ID 后缀（前缀 `w6.stream.`） | 判据与采用范围 |
 |---|---|
@@ -217,15 +203,38 @@ pnpm --filter @omne-harness-lite/core-verification exec vitest run tests/w6-stre
 要求恰 `w6.stream.tool-frame-replace-and-account` 以目标 AssertionError 失败、其余12项绿，
 不能用任意非零退出代替。五 API 的闭合结果、快照只读与 complete／unparseable 类型由
 `tests/w6-stream-types.spec-d.ts` 严格检查。输入时间、run／attempt／callId 及报账来路是显式前提，
-这批 core 步骤不证明 transport、执行副作用、持久日志或引用真实存在；32项映射分别列外部 owner。
+这批 core 步骤不证明 transport、执行副作用、持久日志或引用真实存在。下表说明对应责任边界。
 
-实际 Node 消费根和批准运行时子路径，六数据默认3及全部公开 `schema/v2` 保留资源、其他 Schema 公共入口及包内闭包资源逐份与冻结字节
-核对，所有 `$defs` 在实际 Ajv 2020-12 中编译。默认及保留资源还逐公开子路径核对明确的版本坐标；
-错期负控要求恰 `w6.schema.current-and-retained-coordinates` 报 AssertionError，其余五项通过。内部 Connector Schema 是已冻结的结构资源，
-不冒充实际 Connector bodyContract。每包 private/src/dist、相邻路径和未公开版本各自
-必须产生 TS2307 与 `ERR_PACKAGE_PATH_NOT_EXPORTED`；不是任意编译错误／异常都算拒绝。
-storage/conformance 另在独立 Vitest 宿主中核对公开函数可导入，其真实 SQLite 套件与
-C11/C12 效力仍由已有 W1 子进程场景运行，不以导入函数代替数据库验证。
+实际 Node 消费根与明确公开的运行时子路径。Schema 回归基准见
+[packed-schema-identities.json](fixtures/packed-schema-identities.json)：30 份原始资源对应 29 个不同身份，
+每份保留独立的 URI、摘要及公开入口期望。基准不从候选 tarball 重新生成，也不作为产品契约登记。
+验证器从安装后的 tarball 读取资源，检查原始字节、URI 与引用闭包，并用实际 Ajv 2020-12 编译所有 `$defs`。
+错期负控要求恰 `w6.schema.current-and-retained-coordinates` 报 AssertionError，其余五项通过。
+内部 Connector Schema 仅是结构资源，不冒充实际 Connector bodyContract。
+每包 private/src/dist、相邻路径和未公开版本必须分别产生 TS2307 与
+`ERR_PACKAGE_PATH_NOT_EXPORTED`，任意编译错误／异常不能代替正确拒绝。
+公开 `storage/conformance` 另在独立 Vitest 宿主检查可导入；真实 SQLite 与
+C11／C12 效力由 W1 子进程场景检查，导入函数不能代替数据库验证。
+
+### 组合范围与外部责任
+
+| 实际检查的组合 | 夹具外仍由谁负责 |
+|---|---|
+| 实际 SQLite 提供者；关闭外键的目标断言负控 | storage-sql 拥有引擎／WAL 行为；不证明 PostgreSQL、掉电耐久性或行锁失效检测 |
+| CB／AR／SA 原文、无损参数、封口及递归消息身份 | transport 拥有真实来源与迟到交付；Session Log 拥有跨消息唯一性和持久化 |
+| CA／AR／SA 帧结算、未知费用及 MR／Messages 结果形状 | 模型／工具运行时拥有真实派发、迟到费用、引用存在和持久同提交 |
+| AM／AE 五个实际正文端口、属性覆盖／锁定／权限投影 | Connector 第六端口不在此范围；输入拥有者负责 PRE-1～PRE-9、快照、工厂完整性及持有层唯一性 |
+| 工作区清单、carrier、记录身份及 workspace-only Skill 读取 | 文件读取者负责真实文件系统快照、符号链接边界、目录身份及输入时刻 |
+| TenantId 比较、author／owner／official 与跨租户持有拒绝 | 身份／Session／资产拥有者负责有效成员资格、唯一键及持久化 |
+| MCP 动作命名、输入 Schema、非法参数及动作权限 | 注册与桥接拥有者负责真实抓取、固定快照、不可用动作、调用超时与费用来路 |
+| TD 保留属性、原样字符串工具结果及 CB 可见性 | 工具运行时负责实际设置／权限效果、结果身份与卸载字节；上下文拥有者负责最终受众与投影 |
+| Skill 正文、Slash 展开、声明值与权限 | 发布拥有者负责不可变包字节；运行时负责有效 usableBy、资源获取与设置消费 |
+| SA 快照、分支、裁剪、替换帧及中断形状 | 运行时负责调用登记、不可解析内容不执行、真实取消、帧发出与交付 |
+| CB／Messages 压缩投影及结果记录判断 | Session／上下文拥有者负责不可变日志、压缩记录与真实引用 |
+| Slash 保留名、词法名与空声明规则 | 治理拥有者负责发布拒绝和用户呈现；运行时负责调用前权限 |
+
+上述边界不能通过这套纯组合测试自行关闭。保留 Schema／正文资源仅在明确公开路径上消费，
+不恢复旧中央登记、旧目录或版本冻结流程。
 
 每次完整打包命令在 `tmp/w6-core-verification/packed-consumers/run-*` 保存 tarball、
 消费者输入／源码、安装与编译原始输出、逐命令状态、声明库存、Schema／JS hash 和报告。

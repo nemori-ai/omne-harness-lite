@@ -224,7 +224,7 @@ class ResultCustody {
     input: OwnedResult,
     original: OriginalIssueIdentity,
   ): Promise<ModelResultStored> {
-    const at = this.host.options.now()
+    const at = await this.host.options.now()
     if (at === 'unavailable') throw new CustodyRefusal('unavailable')
     const semanticDigest = runtimeSemantic(input.pending, this.limit)
     const request = checkAppendInput(

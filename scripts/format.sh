@@ -65,7 +65,7 @@ run_prettier() {
 collect_default_targets() {
     local path
     while IFS= read -r -d '' path; do
-        if is_format_target "$path"; then
+        if is_format_target "$path" && [[ -e "$repo_root/$path" || -L "$repo_root/$path" ]]; then
             targets+=("$path")
         fi
     done < <(git -C "$repo_root" ls-files --cached --others --exclude-standard -z)

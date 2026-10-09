@@ -171,9 +171,9 @@ describe('capability.organization-governance v1 · 规范场景', () => {
       expect(oks, `round ${round}`).toHaveLength(1)
       expect(rejected, `round ${round}`).toEqual([{ failure: 'wouldLeaveNoSuperAdministrator' }])
       // 组织自始至终有超管：恰剩一位有效超管，是先成的那一方
-      const admins = okOf(await a.memberships.list(x, true))
-      const effectiveAdmins = admins.filter(m => m.effective && m.role === 'superAdministrator')
       const winner = results[0] === 'ok' ? x : y
+      const admins = okOf(await a.memberships.list(winner, true))
+      const effectiveAdmins = admins.filter(m => m.effective && m.role === 'superAdministrator')
       expect(effectiveAdmins.map(m => m.tenant)).toEqual([winner])
     }
     // 单次被拒的那个值：唯一的超管降级自己

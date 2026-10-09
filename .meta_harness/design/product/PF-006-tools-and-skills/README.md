@@ -143,10 +143,8 @@ Tool Definition ──装配──→ 动作空间里的条目 ──调用─�
 - 未决项：**无**
 - 待裁决：**无**
 - 来源问题：见 [当前规则与范围](design.md)
-- 技术投影：[v2](projection/README.md)，当前 accepted／post-review；规格来源已冻结，精确采用范围由当前正文表达；显式缺口及未实现状态分别保留
 
 技术投影按 `harness-design-handbook` skill 展开，
-产物按其步骤 G 落回本包的 `projection/v2/`。
 
 ## 本包的文件
 

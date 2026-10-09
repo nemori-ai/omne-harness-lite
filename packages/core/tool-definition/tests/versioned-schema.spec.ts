@@ -1,3 +1,4 @@
+import { adoptedSchemaBytes } from './adopted-schema-input.ts'
 import { assertToolSchemaTransition } from './schema-transition.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -13,12 +14,7 @@ it('D068 current default3 has only the adopted delta; retained2 stays byte-exact
     const bytes = readFileSync(
       new URL(`../schema/tool-definition${suffix}.schema.json`, import.meta.url),
     )
-    const original = readFileSync(
-      new URL(
-        `../../../../.meta_harness/design/spec/data/tool-definition/v${version}/tool-definition.schema.json`,
-        import.meta.url,
-      ),
-    )
+    const original = adoptedSchemaBytes('tool-definition', version)
     if (version === 3) assertToolSchemaTransition(bytes, original)
     else {
       expect(bytes.equals(original)).toBe(true)

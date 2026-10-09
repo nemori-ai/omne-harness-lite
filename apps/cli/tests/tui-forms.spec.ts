@@ -7,13 +7,7 @@ const signal = new AbortController().signal
 it('preserves the form grammar and applies only the current name and schema-owner changes', () => {
   for (const name of ['tui-forms.schema.json'])
     expect(readFileSync(new URL('../forms/' + name, import.meta.url), 'utf8')).toBe(
-      readFileSync(
-        new URL(
-          '../../../.meta_harness/design/spec/compositions/governance-cli-entry/v2/' + name,
-          import.meta.url,
-        ),
-        'utf8',
-      ),
+      readFileSync(new URL('./fixtures/' + name, import.meta.url), 'utf8'),
     )
   const baseline = JSON.parse(
     readFileSync(
@@ -49,7 +43,7 @@ it('all 34 forms produce the original canonical intent, with secrets separate an
   }[] = JSON.parse(
     readFileSync(
       new URL(
-        '../../../.meta_harness/design/spec/compositions/governance-client-operations/v1/examples.json',
+        '../../../packages/core/governance-client-operations/tests/fixtures/action-examples.json',
         import.meta.url,
       ),
       'utf8',

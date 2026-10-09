@@ -8,13 +8,7 @@ import {
 import { brandRecord, judgeModelInvocationRecord, validate } from '@omne-harness-lite/messages'
 
 const examples = JSON.parse(
-  readFileSync(
-    new URL(
-      '../../../../.meta_harness/design/spec/data/messages/v8/input-limit-examples.json',
-      import.meta.url,
-    ),
-    'utf8',
-  ),
+  readFileSync(new URL('fixtures/input-limit-examples.json', import.meta.url), 'utf8'),
 ) as {
   readonly contract: string
   readonly cases: readonly {

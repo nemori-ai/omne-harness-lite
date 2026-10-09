@@ -1,0 +1,11 @@
+# SQLite执行线程与属主排他
+
+采用Node官方SQLite引擎，每连接一个worker。保留Kysely方言、原事务队列和最多四读连接。Node worker_threads承担线程与消息传递；私有适配只传有限SQL和资源操作，不建立通用RPC、数据库引擎或线程池。
+
+公开Storage原本异步，但同步原生SQL会阻塞应用调度。独立worker让SQL等待与计算离开应用事件循环，同时保留引擎的整数、字节、扩展错误、真实事务状态和backup语义。代价是每连接线程内存和每命令消息传递成本；长事务、批量操作与逐条小查询的成本必须分别量测。
+
+排他留main。main经异步文件打开及util-linux flock helper取得锁，持有同一open file description。数据库worker独死时，排他仍覆盖其他连接和main在途恢复操作。如果锁与数据库连接分属worker，锁worker独死会提前放锁；若把全部资源放进一个worker，还需把main已经发出的文件恢复操作一并迁入。当前选择保留原恢复责任，减少跨线程所有权变化。
+
+正常释放必须覆盖原生backup、SQL worker退出和main文件操作。取消或未知回执不提前释放。原生backup在Node 24.21.0经ThreadPoolWork运行，正常worker环境清理等待原生请求结束；不能把worker error或database.close的返回冒称为backup已完成。提供者先等backup Promise，再关闭连接和worker。
+
+若需要其他操作系统、连接数量显著增加，或测量显示线程成本占主要资源，重新评估执行器与排他实现。采用原生异步第三方驱动前，核对完整整数/字节、自动回滚及备份关闭保证；API返回Promise不能替代这些保证。

@@ -8,6 +8,8 @@ export * from './retirement-policy.ts'
 export * from './transport-diagnostic.ts'
 export {
   inspectCurrentModelLogPrefix,
+  createModelLogReadInspector,
+  type ModelLogReadInspector,
   reconstructAdaptedParameters,
   type CompletePrefixInput,
 } from './log-codec-settlement.ts'

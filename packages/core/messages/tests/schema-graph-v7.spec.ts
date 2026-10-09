@@ -1,7 +1,4 @@
-import { assertContentSchemaTransition } from '../../content-blocks/tests/schema-transition.ts'
-import { assertToolSchemaTransition } from '../../tool-definition/tests/schema-transition.ts'
-import { assertMessagesSchemaTransition } from './schema-transition.ts'
-import { createHash } from 'node:crypto'
+import { assertAdoptedSchemaBytes } from './schema-identity.ts'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { SCHEMA_DEF_NAMES, validate } from '@omne-harness-lite/messages'
@@ -58,23 +55,7 @@ describe('M8-V1 exact public-definition resource closure', () => {
       const publicPath = publicPaths[index]
       if (publicPath === undefined) throw new Error('public resource path required')
       const bytes = readFileSync(new URL(import.meta.resolve(`@omne-harness-lite/${publicPath}`)))
-      const relative = new URL(resource.$id).pathname.split('/spec/data/')[1]
-      if (relative === undefined) throw new Error('canonical resource id required')
-      const canonical = readFileSync(
-        new URL(
-          `../../../../.meta_harness/design/spec/data/${publicPath === 'messages/schema' ? relative.replace('/v9/', '/v8/') : relative}`,
-          import.meta.url,
-        ),
-      )
-      if (publicPath === 'content-blocks/schema') assertContentSchemaTransition(bytes, canonical)
-      else if (publicPath === 'tool-definition/schema') assertToolSchemaTransition(bytes, canonical)
-      else if (publicPath === 'messages/schema') assertMessagesSchemaTransition(bytes, canonical)
-      else {
-        expect(bytes.equals(canonical)).toBe(true)
-        expect(createHash('sha256').update(bytes).digest('hex')).toBe(
-          createHash('sha256').update(canonical).digest('hex'),
-        )
-      }
+      assertAdoptedSchemaBytes(`@omne-harness-lite/${publicPath}`, bytes)
     })
     it(`removing ${resource.$id} fails with that exact missing URI`, () => {
       let failure: unknown

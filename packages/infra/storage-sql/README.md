@@ -15,16 +15,18 @@ release is not available. See the [development guide](../../../docs/development.
 for the Node and pnpm toolchain. Consumers also declare the public packages they
 import, such as `kysely` and `@omne-harness-lite/storage`.
 
+SQLite SQL runs in Node workers. Guarded ownership and snapshot inspection require Linux with util-linux `flock` on PATH. Missing `flock` fails startup. Stop all processes that use the previous SQLite coordination lock before this upgrade. The two lock mechanisms do not exclude each other. Application transaction callbacks still run in the application thread.
+
 ## Public API
 
-| Purpose                        | Exports                                                                                                                                                                      |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Direct provider                | `openStorage`, `OpenStorageOptions`, `SqlStorage`, `StorageSqlConfig` (runtime schema and type)                                                                              |
-| Cordis service                 | `./cordis`: `storageSqlPlugin`, `managedStorageSqlPlugin`, `StorageSqlPluginConfig`, `SqlStorageService` |
+| Purpose                        | Exports                                                                                                                                                                                 |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Direct provider                | `openStorage`, `OpenStorageOptions`, `SqlStorage`, `StorageSqlConfig` (runtime schema and type)                                                                                         |
+| Cordis service                 | `./cordis`: `storageSqlPlugin`, `managedStorageSqlPlugin`, `StorageSqlPluginConfig`, `SqlStorageService`                                                                                |
 | Owned upgrade                  | `createUpgradeGuard`, `UpgradeGuard`, `UpgradeGuardNotAttached`, `StorageStartupFailure`, `StorageStartupStage`, `StorageSqlLogger`; `storage`: `UpgradeConfirmation`, `UpgradePending` |
-| Lower-level SQLite integration | `NodeSqliteDialect`, `NodeSqliteDriver`, `NodeSqliteDialectOptions`                                                                                                          |
-| Error translation              | `translateSqliteError`, `translatePgError`                                                                                                                                   |
-| SQLite inspection              | `openSnapshotInspection`, `storageSnapshotCheck`, `STORAGE_SNAPSHOT_TABLES`                                                                                                  |
+| Lower-level SQLite integration | `NodeSqliteDialect`, `NodeSqliteDriver`, `NodeSqliteDialectOptions`                                                                                                                     |
+| Error translation              | `translateSqliteError`, `translatePgError`                                                                                                                                              |
+| SQLite inspection              | `openSnapshotInspection`, `storageSnapshotCheck`, `STORAGE_SNAPSHOT_TABLES`                                                                                                             |
 
 The provider owns database handles, transaction boundaries, dialect behavior, and
 configured migration execution. The application owns its tables and migrations.
@@ -166,7 +168,9 @@ class Startup extends StorageStartup {
 }
 let fiber: Fiber | undefined
 try {
-  await ctx.plugin(inner => { new Startup(inner) })
+  await ctx.plugin(inner => {
+    new Startup(inner)
+  })
   fiber = ctx.plugin(storageSqlPlugin, {
     dialect: 'sqlite',
     file: join(directory, 'owned.sqlite'),
@@ -281,3 +285,5 @@ restored application. These APIs do not perform disaster recovery.
 For package development, run this member's `build`, `typecheck`, and `test`
 scripts. PostgreSQL tests require a dedicated `OMNE_TEST_PG_URL`; skipping them
 does not verify PostgreSQL behavior.
+
+Behavior belongs to [SPEC](SPEC.md). Check methods and limits belong to [verification](verification/README.md).

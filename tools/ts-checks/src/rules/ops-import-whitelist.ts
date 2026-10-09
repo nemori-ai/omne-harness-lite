@@ -217,6 +217,12 @@ function judgeReadonlyLeaf(file: SourceFile, ref: ImportRef): string | undefined
       ].includes(specifier)
     )
       return undefined
+    // The async Clock backup envelope is a separate, fixed resource of this same owner.
+    if (
+      module === `${ENTRY_SRC}schema-inputs` &&
+      resolved === 'tenancy/governance-center-entry-node/schema/governance-maintenance.schema.json'
+    )
+      return undefined
   }
   if (module === `${ENTRY_SRC}center-id/snapshot`) {
     if (specifier === '@omne-harness-lite/storage') return undefined

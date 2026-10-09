@@ -331,6 +331,7 @@ interface PreparedSend {
 export interface ServiceDispatch {
   readonly dispatch: FailureConsumableOperation<DispatchInput, DispatchResult>
   readonly dispatchAgain: FailureConsumableOperation<DispatchAgainInput, DispatchAgainResult>
+  readonly closeAdmission: () => void
   readonly close: () => Promise<{ readonly released: true } | { readonly unavailable: true }>
 }
 
@@ -350,6 +351,7 @@ class ServiceDispatchState<P extends PlannedSemantics, R> {
   readonly lastDiagnosticByCall = new WeakMap<object, DiagnosticReference>()
   readonly sources = new Set<ModelFailureSource>()
   closing = false
+  admissionClosed = false
   diagnosticFailureReportEnabled = true
 }
 
@@ -509,6 +511,7 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
         refusal.close()
         return admission
       }
+      if (physical.admissionClosed) return { runtimeStopped: true }
       const diagnosticOwner = runtime.calls.find(key)
       const priorDiagnostic =
         diagnosticOwner === undefined
@@ -982,6 +985,10 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
         return { unavailable: true }
       if ('replyPending' in outcome) {
         const pending = outcome.replyPending
+        const at = await runtime.policy.now()
+        const current = finish.reservation.view()
+        if (current?.invocation !== handle || current.operation.phase !== 'dispatching')
+          return { unavailable: true }
         const published = await publishModelCallContent({
           binding: session.log,
           owner: view.owner,
@@ -991,7 +998,7 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
           content: { kind: 'reply_ready', value: pending },
           locator: pending.id,
           version: 'v1',
-          at: runtime.policy.now(),
+          at,
           trackTask: task => physical.appends.track(task),
           retainUnknown(registration, task, permit) {
             physical.unknownWrites.keep(
@@ -1238,6 +1245,9 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
     Object.freeze({
       dispatch,
       dispatchAgain,
+      closeAdmission: () => {
+        physical.admissionClosed = true
+      },
       close: async () => {
         physical.closing = true
         for (const source of physical.sources) source.release()

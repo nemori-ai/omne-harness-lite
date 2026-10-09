@@ -123,7 +123,7 @@ export async function boot(wrap: (storage: AtomicStorage) => AtomicStorage = sto
     storage,
     accounts: { participate: () => unusedAccounts },
     logins: { participate: () => unusedLogins },
-    clock: { now: () => 0 as Instant },
+    clock: { now: async () => 0 as Instant },
     config: {
       invitationTtlDefault: unwrap(parseOfferTtl(1)),
       affiliationRequestTtlDefault: unwrap(parseOfferTtl(1)),

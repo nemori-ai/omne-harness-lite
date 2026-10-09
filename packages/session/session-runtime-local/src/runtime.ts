@@ -459,7 +459,7 @@ class SessionIngress implements LocalSessionIngress {
       mode: input.mode,
       collaboration: input.collaboration,
       workspace: input.workspace ?? null,
-      at: this.instant(),
+      at: await this.instant(),
     }
     const staged = await this.append(unit, scope, [
       { tenant: scope.tenant, readKeys: [], payload: sessionFactPayload(fact) },
@@ -483,8 +483,8 @@ class SessionIngress implements LocalSessionIngress {
     await publishCreation(unit, operation)
     return receipt
   }
-  instant() {
-    const at = this.options.now()
+  async instant() {
+    const at = await this.options.now()
     if (at === 'unavailable') throw new RuntimeRejection('unavailable')
     return at
   }
@@ -584,7 +584,7 @@ class SessionIngress implements LocalSessionIngress {
       operation,
       semanticDigest: semantic,
       messagePosition: position,
-      at: this.instant(),
+      at: await this.instant(),
     }
     const accepted = await this.append(unit, scope, [
       { tenant: scope.tenant, readKeys: [], payload: sessionFactPayload(fact) },

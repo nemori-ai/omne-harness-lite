@@ -58,7 +58,7 @@ const owner = createRuntimeContext({
       },
     }),
   },
-  now: () => '2026-10-04T00:00:00Z',
+  now: async () => '2026-10-04T00:00:00Z',
 })
 const current = await owner.operations.registrations(access, scope)
 if (current.kind !== 'registrations') throw new Error('crash fixture seed absent')

@@ -1,5 +1,10 @@
+import { checkpointDigestBytes } from './metadata-policy.ts'
 import { join } from 'node:path'
-import { instantToRfc3339, type Instant } from '@omne-harness-lite/offer-expiry'
+import {
+  instantToRfc3339,
+  type Instant,
+  type ClockCheckpoint,
+} from '@omne-harness-lite/offer-expiry'
 import type { SnapshotSession } from '@omne-harness-lite/storage'
 import { checkView } from './input.ts'
 import { MaintenanceFailure } from './failure.ts'
@@ -48,10 +53,21 @@ export class OnlineMaintenance {
     this.#accepting = false
     this.#abort?.abort()
   }
-  #now(): Instant {
-    const now = this.options.clock.now()
+  async #now(): Promise<Instant> {
+    const now = await this.options.clock.now()
     if (now === 'unavailable') throw new MaintenanceFailure('unavailable')
     return now
+  }
+  async #checkpoint(finishedAt: Instant): Promise<ClockCheckpoint> {
+    const clockCheckpoint = await this.options.clock.checkpoint?.()
+    if (!clockCheckpoint || clockCheckpoint === 'unavailable')
+      throw new MaintenanceFailure('unavailable')
+    if (
+      clockCheckpoint.writtenAt < finishedAt ||
+      clockCheckpoint.upperBound < clockCheckpoint.writtenAt
+    )
+      throw new MaintenanceFailure('unavailable')
+    return clockCheckpoint
   }
   #run(
     definition: string,
@@ -95,13 +111,13 @@ export class OnlineMaintenance {
   backupStatus(input: unknown): Promise<MaintenanceResult> {
     if (!this.effects.validate('BackupStatusInput', input))
       return Promise.resolve({ status: 'invalid-input' })
-    return this.#run('BackupStatusResult', (session, centerId) =>
+    return this.#run('BackupStatusResult', async (session, centerId) =>
       observeBackups(
         this.options.backupDirectory,
         session,
         this.options,
         centerId,
-        this.#now(),
+        await this.#now(),
         this.effects,
       ),
     )
@@ -111,7 +127,7 @@ export class OnlineMaintenance {
       return Promise.resolve({ status: 'invalid-input' })
     return this.#run('BackupResult', async (session, centerId, markPublished) => {
       if (input.onlyIfDue) {
-        const now = this.#now()
+        const now = await this.#now()
         const status = await observeBackups(
           this.options.backupDirectory,
           session,
@@ -126,7 +142,7 @@ export class OnlineMaintenance {
         )
           return { status: 'not-due', backup: status.latest }
       }
-      const startedAt = this.#now()
+      const startedAt = await this.#now()
       return session.snapshot(async view => {
         if ((await checkView(view, this.options, this.effects.readCenter)) !== centerId)
           throw new MaintenanceFailure('invalid-backup')
@@ -135,10 +151,12 @@ export class OnlineMaintenance {
           checkCancelled(session)
           hash.update(await view.read(offset, Math.min(CHUNK_BYTES, view.byteLength - offset)))
         }
-        const finishedAt = this.#now()
+        const finishedAt = await this.#now()
         if (finishedAt < startedAt) throw new MaintenanceFailure('unavailable')
+        const clockCheckpoint = await this.#checkpoint(finishedAt)
+        hash.update(checkpointDigestBytes(clockCheckpoint))
         const metadata: Metadata = {
-          format: 'omne-center-backup/1',
+          format: 'omne-center-backup/2',
           centerId,
           sourceBuildId: this.options.sourceBuildId,
           migrationNames: view.inspection.appliedMigrations,
@@ -146,6 +164,7 @@ export class OnlineMaintenance {
           finishedAt: instantToRfc3339(finishedAt),
           byteLength: view.byteLength,
           sha256: hash.hex(),
+          clockCheckpoint,
         }
         const fileName = this.effects.backupName()
         return this.effects.files.useDirectory(

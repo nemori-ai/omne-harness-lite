@@ -84,7 +84,7 @@ it('V3-12 actual dispose shuts admission, waits admitted method, preserves commi
     expect(
       await storage.read(async tx => tx.db.selectFrom('model_profile').selectAll().execute()),
     ).toHaveLength(1)
-    expect(actualClock(assembly).now()).not.toBe('unavailable')
+    expect(await actualClock(assembly).now()).not.toBe('unavailable')
   } finally {
     release.resolve()
     write.mockRestore()

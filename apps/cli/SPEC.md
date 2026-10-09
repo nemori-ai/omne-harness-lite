@@ -499,3 +499,52 @@ createSessionForMessage从已运行的匹配宿主读取实际创建偏好，捕
 关闭先停止宿主及等待原任务；仍有未交还责任时返回pending，保留原拥有者。可靠收场后依次结束原发起／捕获、Context及访问绑定、Ingress、日志和G28。本入口不关闭借入Storage、治理客户端或物理模型池。启动失败必须完成已分配资源的实际收场；若收场失败或pending，则抛SessionRuntimeRootFailure并保留原closeRetained闭包及原错误。closeRetained只保留原收场责任，不承诺自动重试、恢复准入或取消独立模型／工具。
 
 此函数负责实际资源总装与监听，不负责创建独立OS进程、解析生产配置文件或发行资产。调用方必须提供完整且可信的部署输入，并承担借入资源的最终关闭。
+
+## 既有终端部件的验证义务
+
+以下义务约束仍存在的旧终端部件。其CQ命令清单不是当前正式入口；迁移须保持输入／输出／恢复性质，不恢复旧公开命令。正式入口由前文和entry-command拥有。
+
+## S-9 单次交互操作的结算
+
+1. 输入：经S5/S6形成的Intent和CG2 Report。
+2. 前置：一次最多一个CG调用；治理屏仅invoke/logout，setup屏仅configure/health/register/login，精确phase归forms。禁止为了health从治理屏调用会重新捕获本地选择的根级runPrepared；匿名health在明确setup新调用中提供。不把界面按钮启用状态当成授权。
+3. 次序：等完整CG调用及本地结算，再显示原Report与分类。需要重进或use已结束时进入S10。当前身份只从OG2 S36的可用结果更新；S37成功的Ack之后标为未确认并明确现读S36，读不成保持未确认，不猜成目标。写结果未知同样不猜身份。
+4. 状态：原origin不挂到另一个选择；结果/视图沿CG。旧界面详情不作为新的缓存来源，重新进入详情必须再经CG读取。
+5. 成功：显示与CLI同一事实、失败名和该动作exitStatus；成功改密/退出仍是reenter-required。setup任一动作完整结算后结束本屏，退出沿该Report，不把根级ended当成自动进入治理屏的指令。
+6. 失败：unavailable、unknown、rejected、local conflict/uncertain、需重进分开；未声明CG异常无可交付Report时不能编造not-attempted。
+7. 重复：不重试写，不因回到主页、重新登录、网络恢复或重绘而重发。回主页的明确刷新沿S4。
+8. 效果：只有CG/中心/CLS拥有业务事实；界面不自行清登录、CAS或记授权结果。
+9. 收场：记录本次用户操作的CG退出状态供S11；初始/附带读取不覆盖用户操作状态，CG已结束才允许另一次输入。
+
+## S-10 退出与依赖释放
+
+1. 输入：退出键、EOF、信号、CG要求重进、呈现/内部失败。
+2. 前置：可调度；终端物理消失、SIGKILL不承诺可恢复。
+3. 次序：幂等关闭新动作/重绘准入，请求CG关闭；等本次输入帧、CG实际工作及已经提交的普通输出全部结束；同一输出拥有者恢复本次改动的模拟器模式并核实，再恢复OS属性并撤输入监听；最后关闭CLS并给稳定结束说明。没有活动use的setup同样关闭CG根及其已受理任务，不凭use缺席跳过根工作。
+4. 状态：关闭不改变已发出的业务事实，不把停止说成撤销；待画帧可以丢弃，已发帧不可撤回。
+5. 成功：没有遗留输入消费者、重绘、模式改动或仍被使用的CLS；不自动再开use。
+6. 失败：CG关闭拒绝不得宣称静止或撤CLS；输入/输出/恢复无法结束不靠超时假释放；已知恢复/关闭缺陷按S11报告。
+7. 重复：重复信号/关闭只作用同一收场任务，不创建新调用或重复最终输出。
+8. 效果：已知业务结果原样保留；不强制退出以伪造完成。
+9. 收场：资源按实际拥有关系配对；退出后迟到事件不能再写或发请求。
+
+## S-11 失败与退出状态
+
+正常用户退出时，状态沿最近一次用户明确请求的操作之CG exitStatus；没有该操作时为0，初始/附带读不覆盖它。CG要求重进/结束触发退出时使用该Report的exitStatus。输入调用不合/环境不支持在进入前为2；内部、终端恢复、输出或关闭失败为70，保留原业务报告，不伪造CG defect字段。用户读到失败不因TUI进程随后可正常关闭而被改写为成功。
+
+没有CG Report的初始化结果固定如下，仍按S10释放实际拥有部分，绝不生成假的CG业务报告：
+
+| 结果 | 处置/状态 | 稳定诊断 |
+|---|---|---|
+| openUse not-configured / not-logged-in | 转连接与登录屏，无失败退出；用户未执行任何操作便退出为0 | 屏上说明缺少配置/登录，不当内部缺陷 |
+| CLS打开unavailable；openUse local-unavailable | 退出3 | state-unavailable |
+| CLS打开invalid-record / unsupported-format / unsafe-path / invalid-directory；openUse invalid-record / unsupported-format | 退出2 | state-invalid |
+| 应用在初始化期间已观察到自己的取消并请求关闭；在途openUse之后不交付use | 退出2，这是应用的初始化取消处置，不新增CG2的openUse失败集合 | input-cancelled |
+| openUse busy / defect；参与方抛未声明异常；openUse返回本表未列出的形状/原因 | 退出70 | internal-defect |
+| 语法/TTY/profile/尺寸准入不合，或业务前捕获取消且没有CG结果 | 退出2 | 对应invalid-options / tty-required / tty-unsupported / input-cancelled |
+
+稳定诊断沿CQ1 S10已有封闭代码；所有原始异常/源内容不回显。TUI不输出机器JSON事件流，machine+tui作为输入不合按CQ1机器错误模板处理。无可交付CG报告的缺陷仅稳定诊断；中途终端写失败不重写已失去可信交付的一份屏幕内容。
+
+## S-12 验证义务
+
+forms逐条覆盖CQ1全部34命令/31路由，生成Intent与原CG/EC Schema一致，条件/可选字段与秘密槽精确。相同治理旅程在CLI/TUI消费同一CG事实；初始收件箱和失权/不可得/空区别；其他进程改变本地状态、原预览后CAS冲突不换登录。终端测试覆盖严格增量UTF-8、控制文本、跨块帧、超限丢弃、输入/输出背压、resize、确认修订、取消/EOF/信号、实际模式及OS属性恢复。模型只证明其有限状态与来源/进展假设；真实模拟器/IME、最终制品和Linux/macOS运行另验。

@@ -1,288 +1,364 @@
-import { MODEL_RUNTIME_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
+// @module-tag slow
+// Real SQLite construction and official Cordis. Controlled ports are not real login evidence.
 import { Context } from '@deepseek-ai/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
-import { z } from 'zod'
-import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
-import { describe, expect, it } from 'vitest'
-import { createModelRuntimePlugin, type ModelRuntimeAssemblyOwner } from '../src/service-plugin.ts'
+import { MODEL_RUNTIME_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
+import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type {
-  FailureConsumableOperation,
-  FailureConsumption,
-  ModelRuntimeOperations,
+  CallConsumer,
+  ModelFailureSource,
+  ModelRuntimeHostLease,
 } from '@omne-harness-lite/model-request-runtime'
+import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
+import { createModelRuntimeLocal } from '../src/service-plugin.ts'
+import { createProviderContributions } from '../src/provider-contributions.ts'
+import {
+  namedProviderFixture,
+  providerConfig,
+  unavailableInputs,
+} from './named-provider-fixture.ts'
 
-const unavailable = async () => ({ unavailable: true }) as const
-function failureUnavailable<I>(
-  observe?: (options: { readonly consumeFailure: true } | undefined) => void,
-): FailureConsumableOperation<I, { readonly unavailable: true }> {
-  function invoke(input: I): Promise<{ readonly unavailable: true }>
-  function invoke(
-    input: I,
-    options: { readonly consumeFailure: true },
-  ): Promise<FailureConsumption<{ readonly unavailable: true }>>
-  async function invoke(
-    _input: I,
-    options?: { readonly consumeFailure: true },
-  ): Promise<{ readonly unavailable: true } | FailureConsumption<{ readonly unavailable: true }>> {
-    observe?.(options)
-    return options === undefined
-      ? { unavailable: true }
-      : { result: { unavailable: true }, consumption: { kind: 'notApplicable' } }
-  }
-  return invoke
-}
-function service(): ModelRuntimeOperations {
-  return {
-    acquireCall: unavailable,
-    legalTargets: unavailable,
-    displayList: unavailable,
-    effectiveModel: unavailable,
-    selectModel: unavailable,
-    openCall: unavailable,
-    dispatch: failureUnavailable(),
-    dispatchAgain: failureUnavailable(),
-    interrupt: unavailable,
-    releaseCall: unavailable,
-    reconcile: unavailable,
-    readAttempts: failureUnavailable(),
-    settleReply: unavailable,
-    canDispatchAgain: unavailable,
-    acknowledgeCall: unavailable,
-  }
-}
+const session = unwrap(parseOpaqueIdentifier('named-session', 'SessionRef'))
+const callId = unwrap(parseOpaqueIdentifier('named-call', 'ModelCallId'))
+const key = { session, callId }
 
-async function dependencies(ctx: Context) {
-  return await ctx.plugin(
-    definePlugin({
-      name: 'runtime-test-dependencies',
-      Config: z.object({}).strict(),
-      apply(inner) {
-        inner.provide('sessionLog', {})
-        inner.provide('modelCatalogRead', {})
-        inner.provide('credentialLookup', {})
-        inner.provide('modelTransport', {})
-        inner.provide('storage', {})
-        inner.provide('clock', {})
-      },
-    }),
-    {},
-  )
-}
-
-function isRuntimeService(value: unknown): value is ModelRuntimeOperations {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    [
-      'acquireCall',
-      'legalTargets',
-      'displayList',
-      'effectiveModel',
-      'selectModel',
-      'openCall',
-      'dispatch',
-      'dispatchAgain',
-      'interrupt',
-      'releaseCall',
-      'reconcile',
-      'readAttempts',
-      'settleReply',
-      'canDispatchAgain',
-    ].every(key => typeof Reflect.get(value, key) === 'function')
-  )
-}
-
-describe('Cordis P-2 runtime assembly', () => {
-  it('forwards the fourteenth acquireCall operation through actual Cordis', async () => {
-    const ctx = new Context()
-    const parsedSession = parseOpaqueIdentifier('ref-session', 'SessionRef')
-    const parsedCall = parseOpaqueIdentifier('ref-call', 'ModelCallId')
-    if (!('ok' in parsedSession) || !('ok' in parsedCall)) throw new Error('fixture identifiers')
-    const input = {
-      ref: { session: parsedSession.ok, callId: parsedCall.ok },
-      mode: 'read' as const,
+describe('named model runtime provider', () => {
+  it('loads exact decimal lexemes and rejects numeric objects, invalid syntax and invalid bounds before setup', async () => {
+    const exact = {
+      ...providerConfig,
+      tokenMargin: { multiplier: '1.10000000000000000001', reserveTokens: '9007199254740993' },
+      reservationWaitPolicy: { maxWaitersPerCall: '2e1', timeoutMs: '1e3' },
     }
-    const received: unknown[] = []
-    const consumer = await ctx.plugin(
-      createModelRuntimePlugin({
-        construct: async () => ({
-          service: {
-            ...service(),
-            acquireCall: async request => {
-              received.push(request)
-              return { callNotFound: true }
-            },
-          },
-          owner: { close: async () => ({ released: true as const }), release() {} },
-        }),
-      }),
-      {},
-    )
-    const provider = await dependencies(ctx)
-    try {
-      await consumer.await()
-      const actual = ctx.get(MODEL_RUNTIME_SERVICE)
-      if (!isRuntimeService(actual)) throw new Error('complete service required')
-      expect(await actual.acquireCall(input)).toEqual({ callNotFound: true })
-      expect(received).toEqual([input])
-    } finally {
-      await provider.dispose()
-      await consumer.dispose()
-    }
-  })
-  it('forwards explicit failure consumption through the real Cordis service for all three methods', async () => {
-    const ctx = new Context()
-    const seen: string[] = []
-    const original = service()
-    const consumer = await ctx.plugin(
-      createModelRuntimePlugin({
-        async construct() {
-          return {
-            service: {
-              ...original,
-              dispatch: failureUnavailable(options =>
-                seen.push(`dispatch:${options?.consumeFailure}`),
-              ),
-              dispatchAgain: failureUnavailable(options =>
-                seen.push(`dispatchAgain:${options?.consumeFailure}`),
-              ),
-              readAttempts: failureUnavailable(options =>
-                seen.push(`readAttempts:${options?.consumeFailure}`),
-              ),
-            },
-            owner: { close: async () => ({ released: true as const }), release() {} },
-          }
-        },
-      }),
-      {},
-    )
-    const provider = await dependencies(ctx)
-    try {
-      await consumer.await()
-      const actual = ctx.get(MODEL_RUNTIME_SERVICE)
-      if (actual === undefined || typeof actual !== 'object' || !('dispatch' in actual))
-        throw new Error('Cordis runtime service missing')
-      const methods = actual as ModelRuntimeOperations
-      expect(
-        await methods.dispatch({} as Parameters<ModelRuntimeOperations['dispatch']>[0], {
-          consumeFailure: true,
-        }),
-      ).toEqual({ result: { unavailable: true }, consumption: { kind: 'notApplicable' } })
-      expect(
-        await methods.dispatchAgain({} as Parameters<ModelRuntimeOperations['dispatchAgain']>[0], {
-          consumeFailure: true,
-        }),
-      ).toEqual({ result: { unavailable: true }, consumption: { kind: 'notApplicable' } })
-      expect(
-        await methods.readAttempts({} as Parameters<ModelRuntimeOperations['readAttempts']>[0], {
-          consumeFailure: true,
-        }),
-      ).toEqual({ result: { unavailable: true }, consumption: { kind: 'notApplicable' } })
-      expect(seen).toEqual(['dispatch:true', 'dispatchAgain:true', 'readAttempts:true'])
-      expect(
-        await methods.readAttempts({} as Parameters<ModelRuntimeOperations['readAttempts']>[0]),
-      ).toEqual({
-        unavailable: true,
-      })
-      expect(seen.at(-1)).toBe('readAttempts:undefined')
-    } finally {
-      await provider.dispose()
-      await consumer.dispose()
-    }
-  })
-  it('waits for required providers and closes admission before actual assembly close completes', async () => {
-    const ctx = new Context()
-    let constructed = 0
-    let closeStarted = false
-    let finishClose: (() => void) | undefined
-    const closing = new Promise<void>(resolve => {
-      finishClose = resolve
+    const provider = createModelRuntimeLocal()
+    const schema = provider.plugin.Config
+    if (!schema) throw new Error('provider schema absent')
+    expect(await schema['~standard'].validate(JSON.parse(JSON.stringify(exact)))).toEqual({
+      value: exact,
     })
-    const retained = new Set<ModelRuntimeAssemblyOwner>()
-    let releases = 0
-    const plugin = createModelRuntimePlugin({
-      async construct() {
-        constructed++
-        const owner: ModelRuntimeAssemblyOwner = {
-          async close() {
-            closeStarted = true
-            await closing
-            return { released: true }
-          },
-          release() {
-            if (!retained.delete(owner)) throw new Error('owner not retained')
-            releases++
-          },
-        }
-        retained.add(owner)
+    for (const value of [1, 'NaN', '01', '+1', '0.99'])
+      expect(() =>
+        provider.plugin.describeAssembly({
+          ...exact,
+          tokenMargin: { ...exact.tokenMargin, multiplier: value },
+        }),
+      ).toThrow()
+    for (const value of [0, '-1', '0.5', 'Infinity'])
+      expect(() =>
+        provider.plugin.describeAssembly({
+          ...exact,
+          reservationWaitPolicy: { ...exact.reservationWaitPolicy, maxWaitersPerCall: value },
+        }),
+      ).toThrow()
+    const host = await namedProviderFixture({ config: exact })
+    try {
+      await host.binding.ready
+      expect(host.ctx.get(MODEL_RUNTIME_SERVICE)).toBeDefined()
+    } finally {
+      await host.close()
+    }
+  })
+  it('waits for named dependencies, constructs real private resources and publishes all fifteen methods', async () => {
+    const host = await namedProviderFixture({ deferDependencies: true })
+    try {
+      expect(host.ctx.get(MODEL_RUNTIME_SERVICE)).toBeUndefined()
+      expect(host.captures).toEqual([])
+      await host.supplyDependencies()
+      await host.binding.ready
+      const service = host.ctx.get(MODEL_RUNTIME_SERVICE)
+      if (!service) throw new Error('actual service not published')
+      for (const privateName of [
+        'executionSource',
+        'runtime',
+        'facts',
+        'bridge',
+        'contributions',
+        'owner',
+      ])
+        expect(Reflect.get(service, privateName)).toBeUndefined()
+      for (const name of [
+        'acquireCall',
+        'legalTargets',
+        'displayList',
+        'effectiveModel',
+        'selectModel',
+        'openCall',
+        'dispatch',
+        'dispatchAgain',
+        'interrupt',
+        'releaseCall',
+        'reconcile',
+        'readAttempts',
+        'settleReply',
+        'canDispatchAgain',
+        'acknowledgeCall',
+      ] as const)
+        expect(typeof service[name]).toBe('function')
+      expect(await service.acquireCall({ ref: key, mode: 'read' })).toEqual({ unavailable: true })
+      for (const invoke of [
+        () => service.dispatch(key, { consumeFailure: true }),
+        () =>
+          service.dispatchAgain({ ...key, plan: { provider: 'test' } }, { consumeFailure: true }),
+        () => service.readAttempts(key, { consumeFailure: true }),
+      ]) {
+        const value = await invoke()
+        expect(value).toHaveProperty('result')
+        expect(value.consumption.kind).toBe('notApplicable')
+      }
+      expect(host.releases()).toBe(4)
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('captures two actual caller fibers through ordinary methods, without a setup subject shortcut', async () => {
+    const seen: unknown[] = []
+    const host = await namedProviderFixture({
+      capture(fiber) {
         return {
-          service: service(),
-          owner,
+          ...unavailableInputs(),
+          sessions: {
+            async bind() {
+              seen.push(fiber)
+              return { failure: 'unavailable' }
+            },
+          },
         }
       },
     })
-    const consumer = await ctx.plugin(plugin, {})
-    expect(constructed).toBe(0)
-    const provider = await dependencies(ctx)
-    await consumer.await()
-    expect(constructed).toBe(1)
-    const offered = ctx.get(MODEL_RUNTIME_SERVICE)
-    if (offered === undefined || typeof offered !== 'object' || !('openCall' in offered))
-      throw new Error('runtime service absent')
-    const actual = offered as ModelRuntimeOperations
-    const disposing = provider.dispose()
-    await Promise.resolve()
-    expect(closeStarted).toBe(true)
-    expect(await actual.openCall({} as Parameters<ModelRuntimeOperations['openCall']>[0])).toEqual({
-      runtimeStopped: true,
-    })
-    expect(
-      await actual.readAttempts({} as Parameters<ModelRuntimeOperations['readAttempts']>[0]),
-    ).toEqual({
-      unavailable: true,
-    })
-    finishClose?.()
-    await disposing
-    expect(retained.size).toBe(0)
-    expect(releases).toBe(1)
-    await consumer.dispose()
+    try {
+      await host.binding.ready
+      const callers = [
+        host.ctx.plugin(
+          definePlugin({ name: 'caller-a', Config: z.object({}).strict(), apply() {} }),
+          {},
+        ),
+        host.ctx.plugin(
+          definePlugin({ name: 'caller-b', Config: z.object({}).strict(), apply() {} }),
+          {},
+        ),
+      ]
+      for (const caller of callers) {
+        const service = caller.ctx.get(MODEL_RUNTIME_SERVICE)
+        if (!service) throw new Error('caller service absent')
+        expect(await service.legalTargets({ session })).toEqual({ unavailable: true })
+        expect(host.captures.at(-1) === caller.ctx.fiber).toBe(true)
+      }
+      expect(seen.length).toBe(2)
+      for (const [index, caller] of callers.entries())
+        expect(seen[index] === caller.ctx.fiber).toBe(true)
+      await Promise.all(callers.map(caller => caller.dispose()))
+    } finally {
+      await host.close()
+    }
   })
 
-  it('leaves an unavailable owner with its real host after the Cordis fiber unloads', async () => {
-    const ctx = new Context()
-    const retained = new Set<ModelRuntimeAssemblyOwner>()
-    let actualStop = false
-    let releases = 0
-    const plugin = createModelRuntimePlugin({
-      async construct() {
-        const owner: ModelRuntimeAssemblyOwner = {
-          async close() {
-            return actualStop ? { released: true } : { unavailable: true }
-          },
-          release() {
-            if (!retained.delete(owner)) throw new Error('owner not retained')
-            releases++
-          },
-        }
-        retained.add(owner)
-        return { service: service(), owner }
+  it('stops new admission synchronously, retains a failed original borrow and retries the same owner', async () => {
+    let blocked = false
+    const host = await namedProviderFixture({
+      release() {
+        if (blocked) throw new Error('borrow return blocked')
       },
     })
-    const consumer = await ctx.plugin(plugin, {})
-    const provider = await dependencies(ctx)
-    await consumer.await()
-    expect(retained.size).toBe(1)
-    await provider.dispose()
-    await consumer.dispose()
-    expect(ctx.get(MODEL_RUNTIME_SERVICE)).toBeUndefined()
-    expect(retained.size).toBe(1)
-    expect(releases).toBe(0)
-    const original = [...retained][0]
-    if (original === undefined) throw new Error('host lost the original owner')
-    actualStop = true
-    expect(await original.close()).toEqual({ released: true })
-    original.release()
-    expect(retained.size).toBe(0)
+    try {
+      await host.binding.ready
+      const service = host.ctx.get(MODEL_RUNTIME_SERVICE)
+      if (!service) throw new Error('service absent')
+      const owner = host.binding.owner()
+      host.binding.closeAdmission()
+      // This fixture has no qualified session. Admission closure cannot grant a subject
+      // enough authority to distinguish runtimeStopped from its original unavailable result.
+      expect(await service.dispatch(key)).toEqual({ unavailable: true })
+      blocked = true
+      await expect(host.binding.close()).rejects.toThrow('borrow return blocked')
+      expect(host.releases()).toBe(1)
+      expect(host.binding.owner().executionSource).toBe(owner.executionSource)
+      blocked = false
+      expect(await host.binding.close()).toEqual({ released: true })
+      expect(host.releases()).toBe(2)
+      expect(await host.binding.close()).toEqual({ released: true })
+      expect(host.releases()).toBe(2)
+    } finally {
+      blocked = false
+      await host.close()
+    }
+  })
+
+  it('rejects missing/extra configuration instead of accepting construct or inferred defaults', () => {
+    const provider = createModelRuntimeLocal()
+    expect(() => provider.plugin.describeAssembly({})).toThrow()
+    expect(() => provider.plugin.describeAssembly({ ...providerConfig, construct() {} })).toThrow()
+    expect(() => provider.plugin.describeAssembly(providerConfig)).not.toThrow()
+    expect(provider.plugin.describeAssembly(providerConfig).requires).not.toContain(
+      'modelInputMeters',
+    )
+  })
+})
+
+describe('caller contribution responsibility', () => {
+  function lease(release: () => void): ModelRuntimeHostLease {
+    return { generation: Object.freeze({}), isCurrent: () => true, release }
+  }
+  it('observes actual stopped and closes independently of caller disposal', async () => {
+    const context = new Context()
+    const caller = context.plugin(
+      definePlugin({ name: 'consumer-caller', Config: z.object({}).strict(), apply() {} }),
+      {},
+    )
+    const stopped = Promise.withResolvers<void>()
+    let releases = 0,
+      returned = 0
+    const consumer: CallConsumer = {
+      wait: async () => ({ released: true }),
+      release() {
+        releases++
+      },
+      stopped: stopped.promise,
+    }
+    const contributions = createProviderContributions()
+    const borrow = contributions.borrow(
+      lease(() => returned++),
+      caller.ctx,
+    )
+    await borrow.complete(consumer)
+    borrow.consumer(consumer).release()
+    await Promise.resolve()
     expect(releases).toBe(1)
+    expect(returned).toBe(0)
+    const closed = contributions.close()
+    stopped.resolve()
+    await closed
+    expect(returned).toBe(1)
+    expect(releases).toBe(1)
+    await caller.dispose()
+    await context.fiber.dispose()
+  })
+
+  it('returns a late consumer to the original owner after caller withdrawal', async () => {
+    const context = new Context()
+    const caller = context.plugin(
+      definePlugin({ name: 'late-caller', Config: z.object({}).strict(), apply() {} }),
+      {},
+    )
+    const contributions = createProviderContributions()
+    let returned = 0,
+      requested = 0
+    const requestedStop = Promise.withResolvers<void>()
+    const borrow = contributions.borrow(
+      lease(() => returned++),
+      caller.ctx,
+    )
+    const withdrawn = caller.dispose()
+    const stopped = Promise.withResolvers<void>()
+    const completing = borrow.complete({
+      wait: async () => ({ released: true }),
+      release() {
+        requested++
+        requestedStop.resolve()
+      },
+      stopped: stopped.promise,
+    })
+    await requestedStop.promise
+    expect(returned).toBe(0)
+    expect(requested).toBe(1)
+    stopped.resolve()
+    await completing
+    await withdrawn
+    expect(returned).toBe(1)
+    await contributions.close()
+    await context.fiber.dispose()
+  })
+
+  it('finishes an empty acquisition after the active caller has started disposing', async () => {
+    const context = new Context()
+    const caller = context.plugin(
+      definePlugin({ name: 'empty-acquisition-caller', Config: z.object({}).strict(), apply() {} }),
+      {},
+    )
+    await caller
+    const contributions = createProviderContributions()
+    let returned = 0
+    const borrow = contributions.borrow(
+      lease(() => returned++),
+      caller.ctx,
+    )
+    const disposing = caller.dispose()
+    await expect(borrow.complete()).resolves.toBeUndefined()
+    await disposing
+    expect(returned).toBe(1)
+    await contributions.close()
+    await context.fiber.dispose()
+  })
+
+  it('returns a naturally stopped consumer without requiring an explicit release request', async () => {
+    const stopped = Promise.withResolvers<void>(),
+      contributions = createProviderContributions()
+    let returned = 0,
+      requests = 0
+    const borrow = contributions.borrow(lease(() => returned++))
+    await borrow.complete({
+      wait: async () => ({ released: true }),
+      release() {
+        requests++
+      },
+      stopped: stopped.promise,
+    })
+    stopped.resolve()
+    await stopped.promise
+    expect(returned).toBe(1)
+    await contributions.close()
+    expect(requests).toBe(0)
+  })
+
+  it('returns the lease when effect registration fails on an actually disposed caller', async () => {
+    const context = new Context(),
+      contributions = createProviderContributions()
+    const caller = context.plugin(
+      definePlugin({ name: 'disposed-caller', Config: z.object({}).strict(), apply() {} }),
+      {},
+    )
+    await caller
+    await caller.dispose()
+    let returned = 0
+    expect(() =>
+      contributions.borrow(
+        lease(() => returned++),
+        caller.ctx,
+      ),
+    ).toThrow()
+    expect(returned).toBe(1)
+    await contributions.close()
+    await context.fiber.dispose()
+  })
+
+  it('retains a throwing failure-source release and retries the original source before returning its lease', async () => {
+    const contributions = createProviderContributions()
+    const borrow = contributions.borrow(lease(() => order.push('lease')))
+    const order: string[] = []
+    let blocked = true
+    const original: ModelFailureSource = {
+      // This fixture verifies synchronous custody only; actual authorized subjects are covered
+      // by the SQL/TLS failure-consumption tests, rather than by this opaque stand-in.
+      subject: Object.freeze({}) as ModelFailureSource['subject'],
+      verify() {
+        return { unavailable: true }
+      },
+      release() {
+        order.push('source')
+        if (blocked) throw new Error('original source retained')
+      },
+    }
+    await borrow.complete(original)
+    const source = borrow.source(original)
+    expect(
+      source.verify(original.subject, {} as Parameters<ModelFailureSource['verify']>[1]),
+    ).toEqual({ unavailable: true })
+    expect(() => source.release()).toThrow('original source retained')
+    await expect(contributions.close()).rejects.toThrow('original source retained')
+    expect(order).toEqual(['source', 'source'])
+    blocked = false
+    await contributions.close()
+    source.release()
+    expect(order).toEqual(['source', 'source', 'source', 'lease'])
   })
 })

@@ -48,7 +48,7 @@ The terminal-receipt suite checks each byte split around a receipt, ordinary ANS
 Build the host member and its native dependency first. Then run the bounded probes from the repository root:
 
 ```sh
-./scripts/with-test-slot.sh node packages/infra/execution-environments-host/verification/pty-boundaries.mjs /absolute/task/tmp/pty-boundaries
+./scripts/with-test-slot.sh node packages/infra/execution-environments-host/tests/pty-boundaries.mjs /absolute/task/tmp/pty-boundaries
 ```
 
 The verifier uses real PTYs, Bash, and original user scopes. It copies compiled workers to disposable directories. Only these copies receive controlled cutpoints. One probe inserts output during asynchronous terminal disposal. Another holds the private stdout transport under actual backpressure until the target terminates itself. Both must reject completion. Each probe also removes its completion guard as a negative control. The same observable oracle must identify the resulting false completion.

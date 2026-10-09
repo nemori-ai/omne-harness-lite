@@ -149,8 +149,8 @@ describe('影响面计划（真实规则）', () => {
     expect(result.members[0]?.dependsOn).toBeUndefined()
   })
 
-  it('登记文件：只选读它的两个成员', () => {
-    const result = plan(['.meta_harness/design/registry/catalog.json'])
+  it('外部制品校验读取公共Schema：选实际拥有者与读者', () => {
+    const result = plan(['packages/core/messages/schema/messages.schema.json'])
     expect(result.test).toEqual(['packages/core/stream-assembly', 'tools/core-verification'])
     expect(result.members.every(entry => entry.changed.length === 0)).toBe(true)
     expect(result.python.run).toBe(false)
@@ -199,12 +199,10 @@ describe('影响面计划（真实规则）', () => {
     expect(result.build).toEqual(RESIDENT_BUILD)
   })
 
-  it('规格：全量，理由说出文件与命中的模式', () => {
-    const result = plan(['docs/a.md', '.meta_harness/design/spec/data/x/v1/contract.md'])
+  it('根清单：全量，理由说出文件与命中的模式', () => {
+    const result = plan(['docs/a.md', 'pnpm-lock.yaml'])
     expect(result.mode).toBe('full')
-    expect(result.reason).toBe(
-      '全局文件 .meta_harness/design/spec/data/x/v1/contract.md 有改动（命中 .meta_harness/design/spec/**）',
-    )
+    expect(result.reason).toBe('全局文件 pnpm-lock.yaml 有改动（命中 pnpm-lock.yaml）')
     expect(result.test).toHaveLength(MEMBERS.length)
     expect(result.acceptance).toEqual(['packages/tools/tool-execution-local', 'apps/top'])
     expect(result.python.run).toBe(true)

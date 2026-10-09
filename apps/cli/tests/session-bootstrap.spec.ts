@@ -370,7 +370,7 @@ async function setup(
       return log.participant
     },
     bootstrap: { initialize: (...args) => assembly.initialize(...args) },
-    now: () => now,
+    now: async () => now,
     workSettledIn: workSettled ?? (async () => 'settled'),
     ...(modelOwner ? { modelIssue: modelOwner.modelIssue } : {}),
     ...(resultSource ? { modelResults: { maxRecords: 16, source: resultSource(storage) } } : {}),
@@ -500,7 +500,7 @@ async function setup(
     tenancy: runtime.tenancy,
     logBacking: log.backing,
     access: access.operations,
-    clock: { now: () => unwrap(instantFromRfc3339(now)) },
+    clock: { now: async () => unwrap(instantFromRfc3339(now)) },
     contextSeed: seed,
   })
   cleanup.push(() => assembly.close())
@@ -559,7 +559,7 @@ async function rootFixture(withModel = false) {
     rootStorage: f.root,
     storage: f.storage,
     governance: f.client,
-    clock: { now: () => unwrap(instantFromRfc3339(now)) },
+    clock: { now: async () => unwrap(instantFromRfc3339(now)) },
     inputSource: f.base,
     contextSeed: contextSeedFromDefinition,
     runtimePolicy: {
@@ -1660,7 +1660,7 @@ function nativeBindingOptions(
       currentEvaluationInputs: inputs,
       projection: unused,
       compatible: () => ({ ok: true }),
-      now: () => now,
+      now: async () => now,
       diagnostic() {},
       onDiagnosticFailure() {},
     },
@@ -1704,7 +1704,7 @@ function nativeModelConstruction(
       },
     },
     policy: {
-      now: () => now,
+      now: async () => now,
       schedule: () => {
         throw new Error('this test must not invoke model IO')
       },
@@ -2201,7 +2201,7 @@ async function actualModelTurn(
       },
     },
     deployedMeta: [],
-    clock: { now: () => unwrap(instantFromRfc3339(now)) },
+    clock: { now: async () => unwrap(instantFromRfc3339(now)) },
     diagnostic() {},
     diagnosticFailure() {},
     monotonicNow: process.hrtime.bigint,

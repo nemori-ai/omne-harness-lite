@@ -1,0 +1,2602 @@
+[
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.account-identity/v3#S-50",
+      "payload": {
+        "currentCredential": "old-secret",
+        "newCredential": "new-secret"
+      }
+    },
+    "title": "EC2 projection capability.account-identity/v3#S-50"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.account-identity/v3#S-50",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.account-identity/v3#S-50",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "local": {
+        "status": "installed"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.account-identity/v3#S-50",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "use": "reenter-required"
+    },
+    "title": "safe result capability.account-identity/v3#S-50"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "composition.governance-center-entry/v2#S-50",
+      "payload": {
+        "loginIdentifier": "recipient@example.invalid",
+        "expectedTenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        }
+      }
+    },
+    "title": "EC2 projection composition.governance-center-entry/v2#S-50"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "composition.governance-center-entry/v2#S-50",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "composition.governance-center-entry/v2#S-50",
+          "reply": {
+            "result": "inv_1"
+          }
+        }
+      },
+      "local": {
+        "status": "not-requested"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "composition.governance-center-entry/v2#S-50",
+          "reply": {
+            "result": "inv_1"
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result composition.governance-center-entry/v2#S-50"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-61",
+      "payload": {
+        "invitation": "inv_1"
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-61"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-61",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-61",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "local": {
+        "status": "not-requested"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-61",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-61"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-62",
+      "payload": {
+        "affiliationRequest": "afr_1",
+        "expectedTenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        }
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-62"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-62",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-62",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "local": {
+        "status": "not-requested"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-62",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-62"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "register",
+      "payload": {
+        "loginIdentifier": "ada@example.invalid",
+        "credential": "correct horse battery staple"
+      }
+    },
+    "title": "EC2 projection composition.account-registration/v2#S-8"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "register",
+      "operation": "composition.account-registration/v2#S-8",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": null,
+        "loginStateHandle": null
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "composition.account-registration/v2#S-8",
+          "reply": {
+            "result": "registered"
+          }
+        }
+      },
+      "local": {
+        "status": "not-requested"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "composition.account-registration/v2#S-8",
+          "reply": {
+            "result": "registered"
+          }
+        }
+      },
+      "use": "ended"
+    },
+    "title": "safe result composition.account-registration/v2#S-8"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "login",
+      "payload": {
+        "loginIdentifier": "ada@example.invalid",
+        "credential": "correct horse battery staple"
+      }
+    },
+    "title": "EC2 projection capability.account-identity/v3#S-15"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "login",
+      "operation": "capability.account-identity/v3#S-15",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": null,
+        "loginStateHandle": null
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.account-identity/v3#S-15",
+          "reply": {
+            "result": {
+              "loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e"
+            }
+          }
+        }
+      },
+      "local": {
+        "status": "installed"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.account-identity/v3#S-15",
+          "reply": {
+            "result": {
+              "loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e"
+            }
+          }
+        }
+      },
+      "use": "ended"
+    },
+    "title": "safe result capability.account-identity/v3#S-15"
+  },
+  {
+    "definition": "Output",
+    "valid": false,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "login",
+      "operation": "capability.account-identity/v3#S-15",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": null,
+        "loginStateHandle": null
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.account-identity/v3#S-15",
+          "reply": {
+            "result": {
+              "loginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW",
+              "loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e"
+            }
+          }
+        }
+      },
+      "local": {
+        "status": "installed"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.account-identity/v3#S-15",
+          "reply": {
+            "result": {
+              "loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e"
+            }
+          }
+        }
+      },
+      "use": "ended"
+    },
+    "title": "raw login bearer forbidden"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "login",
+      "operation": "capability.account-identity/v3#S-15",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": null,
+        "loginStateHandle": null
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.account-identity/v3#S-15",
+          "reply": {
+            "result": {
+              "loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e"
+            }
+          }
+        }
+      },
+      "local": {
+        "status": "unconfirmed",
+        "recovery": {
+          "observation": "unknown"
+        }
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.account-identity/v3#S-15",
+          "reply": {
+            "result": {
+              "loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e"
+            }
+          }
+        }
+      },
+      "use": "ended"
+    },
+    "title": "remote login succeeded; local durability unknown"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.account-identity/v3#S-16",
+      "payload": {
+        "loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e"
+      }
+    },
+    "title": "EC2 projection capability.account-identity/v3#S-16"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.account-identity/v3#S-16",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.account-identity/v3#S-16",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "local": {
+        "status": "not-requested"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.account-identity/v3#S-16",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.account-identity/v3#S-16"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.account-identity/v3#S-37",
+      "payload": {}
+    },
+    "title": "EC2 projection capability.account-identity/v3#S-37"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.account-identity/v3#S-37",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.account-identity/v3#S-37",
+          "reply": {
+            "result": [
+              {
+                "loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e",
+                "issuedAt": "2026-09-23T08:00:00Z",
+                "lastActivityAt": "2026-09-23T08:00:00Z",
+                "absoluteExpiresAt": "2026-09-23T16:00:00Z",
+                "idleExpiresAt": "2026-09-23T09:00:00Z"
+              }
+            ]
+          }
+        }
+      },
+      "local": {
+        "status": "installed"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.account-identity/v3#S-37",
+          "reply": {
+            "result": [
+              {
+                "loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e",
+                "issuedAt": "2026-09-23T08:00:00Z",
+                "lastActivityAt": "2026-09-23T08:00:00Z",
+                "absoluteExpiresAt": "2026-09-23T16:00:00Z",
+                "idleExpiresAt": "2026-09-23T09:00:00Z"
+              }
+            ]
+          }
+        },
+        "query": {
+          "operation": "capability.account-identity/v3#S-37",
+          "payload": {}
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.account-identity/v3#S-37"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-21",
+      "payload": {
+        "name": "test organization"
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-21"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-21",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-21",
+          "reply": {
+            "result": "org_new"
+          }
+        }
+      },
+      "local": {
+        "status": "not-requested"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-21",
+          "reply": {
+            "result": "org_new"
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-21"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-22",
+      "payload": {
+        "organization": "org_kf22"
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-22"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-22",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-22",
+          "reply": {
+            "result": {
+              "organization": "org_kf22",
+              "organizationKind": "team",
+              "name": "test organization"
+            }
+          }
+        }
+      },
+      "local": {
+        "status": "installed"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-22",
+          "reply": {
+            "result": {
+              "organization": "org_kf22",
+              "organizationKind": "team",
+              "name": "test organization"
+            }
+          }
+        },
+        "query": {
+          "operation": "capability.organization-governance/v2#S-22",
+          "payload": {
+            "organization": "org_kf22"
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-22"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-23",
+      "payload": {
+        "invitedAccount": "acc_91ab40",
+        "expectedTenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        }
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-23"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-23",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-23",
+          "reply": {
+            "result": "inv_1"
+          }
+        }
+      },
+      "local": {
+        "status": "not-requested"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-23",
+          "reply": {
+            "result": "inv_1"
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-23"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-24",
+      "payload": {
+        "invitation": "inv_1",
+        "expectedTenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        }
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-24"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-24",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-24",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "local": {
+        "status": "not-requested"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-24",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-24"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-25",
+      "payload": {
+        "invitation": "inv_1"
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-25"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-25",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-25",
+          "reply": {
+            "result": {
+              "organization": "org_kf22",
+              "account": "acc_7f3c91"
+            }
+          }
+        }
+      },
+      "local": {
+        "status": "not-requested"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-25",
+          "reply": {
+            "result": {
+              "organization": "org_kf22",
+              "account": "acc_7f3c91"
+            }
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-25"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-26",
+      "payload": {
+        "tenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        }
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-26"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-26",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-26",
+          "reply": {
+            "result": {
+              "standing": "effective",
+              "role": "member"
+            }
+          }
+        }
+      },
+      "local": {
+        "status": "installed"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-26",
+          "reply": {
+            "result": {
+              "standing": "effective",
+              "role": "member"
+            }
+          }
+        },
+        "query": {
+          "operation": "capability.organization-governance/v2#S-26",
+          "payload": {
+            "tenant": {
+              "organization": "org_kf22",
+              "account": "acc_7f3c91"
+            }
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-26"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-27",
+      "payload": {}
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-27"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-27",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-27",
+          "reply": {
+            "result": [
+              {
+                "organization": "org_kf22",
+                "account": "acc_7f3c91"
+              }
+            ]
+          }
+        }
+      },
+      "local": {
+        "status": "installed"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-27",
+          "reply": {
+            "result": [
+              {
+                "organization": "org_kf22",
+                "account": "acc_7f3c91"
+              }
+            ]
+          }
+        },
+        "query": {
+          "operation": "capability.organization-governance/v2#S-27",
+          "payload": {}
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-27"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-28",
+      "payload": {
+        "targetTenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        },
+        "role": "member",
+        "expectedTenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        }
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-28"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-28",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-28",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "local": {
+        "status": "not-requested"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-28",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-28"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-29",
+      "payload": {
+        "targetTenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        },
+        "expectedTenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        }
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-29"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-29",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-29",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "local": {
+        "status": "not-requested"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-29",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-29"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-30",
+      "payload": {
+        "recipientOrganization": "org_b7",
+        "direction": "recipientAsParent",
+        "expectedTenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        }
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-30"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-30",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-30",
+          "reply": {
+            "result": "afr_1"
+          }
+        }
+      },
+      "local": {
+        "status": "not-requested"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-30",
+          "reply": {
+            "result": "afr_1"
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-30"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-31",
+      "payload": {
+        "affiliationRequest": "afr_1",
+        "expectedTenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        }
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-31"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-31",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-31",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "local": {
+        "status": "not-requested"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-31",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-31"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-32",
+      "payload": {
+        "affiliationRequest": "afr_1",
+        "expectedTenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        }
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-32"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-32",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-32",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "local": {
+        "status": "not-requested"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-32",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-32"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-33",
+      "payload": {
+        "childOrganization": "org_b7",
+        "expectedTenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        }
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-33"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-33",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-33",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "local": {
+        "status": "not-requested"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-33",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-33"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-34",
+      "payload": {
+        "organizations": ["org_kf22"]
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-34"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-34",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-34",
+          "reply": {
+            "result": ["org_b7"]
+          }
+        }
+      },
+      "local": {
+        "status": "installed"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-34",
+          "reply": {
+            "result": ["org_b7"]
+          }
+        },
+        "query": {
+          "operation": "capability.organization-governance/v2#S-34",
+          "payload": {
+            "organizations": ["org_kf22"]
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-34"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-35",
+      "payload": {
+        "tenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        }
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-35"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-35",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-35",
+          "reply": {
+            "result": {
+              "organizationLayer": {
+                "layer": "organization",
+                "organization": "org_kf22"
+              },
+              "tenantLayer": {
+                "layer": "tenant",
+                "tenant": {
+                  "organization": "org_kf22",
+                  "account": "acc_7f3c91"
+                }
+              }
+            }
+          }
+        }
+      },
+      "local": {
+        "status": "installed"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-35",
+          "reply": {
+            "result": {
+              "organizationLayer": {
+                "layer": "organization",
+                "organization": "org_kf22"
+              },
+              "tenantLayer": {
+                "layer": "tenant",
+                "tenant": {
+                  "organization": "org_kf22",
+                  "account": "acc_7f3c91"
+                }
+              }
+            }
+          }
+        },
+        "query": {
+          "operation": "capability.organization-governance/v2#S-35",
+          "payload": {
+            "tenant": {
+              "organization": "org_kf22",
+              "account": "acc_7f3c91"
+            }
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-35"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-36",
+      "payload": {}
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-36"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-36",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-36",
+          "reply": {
+            "result": {
+              "organization": "org_kf22",
+              "account": "acc_7f3c91"
+            }
+          }
+        }
+      },
+      "local": {
+        "status": "installed"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-36",
+          "reply": {
+            "result": {
+              "organization": "org_kf22",
+              "account": "acc_7f3c91"
+            }
+          }
+        },
+        "query": {
+          "operation": "capability.organization-governance/v2#S-36",
+          "payload": {}
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-36"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-37",
+      "payload": {
+        "targetTenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        },
+        "expectedTenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        }
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-37"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-37",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-37",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "local": {
+        "status": "not-requested"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-37",
+          "reply": {
+            "result": "ok"
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-37"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-55",
+      "payload": {
+        "invitation": "inv_1",
+        "callerIdentityKind": "account"
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-55"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-55",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-55",
+          "reply": {
+            "result": {
+              "invitation": "inv_1",
+              "issuerOrganization": "org_kf22",
+              "invitedAccount": "acc_91ab40",
+              "role": "member",
+              "offerTiming": {
+                "issuedAt": "2026-09-23T08:00:00Z",
+                "expiresAt": "2026-09-23T08:00:00.25Z"
+              },
+              "offerState": "pending"
+            }
+          }
+        }
+      },
+      "local": {
+        "status": "installed"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-55",
+          "reply": {
+            "result": {
+              "invitation": "inv_1",
+              "issuerOrganization": "org_kf22",
+              "invitedAccount": "acc_91ab40",
+              "role": "member",
+              "offerTiming": {
+                "issuedAt": "2026-09-23T08:00:00Z",
+                "expiresAt": "2026-09-23T08:00:00.25Z"
+              },
+              "offerState": "pending"
+            }
+          }
+        },
+        "query": {
+          "operation": "capability.organization-governance/v2#S-55",
+          "payload": {
+            "invitation": "inv_1",
+            "callerIdentityKind": "account"
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-55"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-56",
+      "payload": {
+        "affiliationRequest": "afr_1",
+        "expectedTenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        }
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-56"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-56",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-56",
+          "reply": {
+            "result": {
+              "affiliationRequest": "afr_1",
+              "issuerOrganization": "org_kf22",
+              "recipientOrganization": "org_b7",
+              "direction": "recipientAsParent",
+              "offerTiming": {
+                "issuedAt": "2026-09-23T08:00:00Z",
+                "expiresAt": "2026-09-23T08:00:00.123Z"
+              },
+              "offerState": "pending"
+            }
+          }
+        }
+      },
+      "local": {
+        "status": "installed"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-56",
+          "reply": {
+            "result": {
+              "affiliationRequest": "afr_1",
+              "issuerOrganization": "org_kf22",
+              "recipientOrganization": "org_b7",
+              "direction": "recipientAsParent",
+              "offerTiming": {
+                "issuedAt": "2026-09-23T08:00:00Z",
+                "expiresAt": "2026-09-23T08:00:00.123Z"
+              },
+              "offerState": "pending"
+            }
+          }
+        },
+        "query": {
+          "operation": "capability.organization-governance/v2#S-56",
+          "payload": {
+            "affiliationRequest": "afr_1",
+            "expectedTenant": {
+              "organization": "org_kf22",
+              "account": "acc_7f3c91"
+            }
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-56"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-57",
+      "payload": {}
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-57"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-57",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-57",
+          "reply": {
+            "result": [
+              {
+                "invitation": "inv_1",
+                "issuerOrganization": "org_kf22",
+                "invitedAccount": "acc_91ab40",
+                "role": "member",
+                "offerTiming": {
+                  "issuedAt": "2026-09-23T08:00:00Z",
+                  "expiresAt": "2026-09-23T08:00:00.25Z"
+                },
+                "offerState": "pending"
+              }
+            ]
+          }
+        }
+      },
+      "local": {
+        "status": "installed"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-57",
+          "reply": {
+            "result": [
+              {
+                "invitation": "inv_1",
+                "issuerOrganization": "org_kf22",
+                "invitedAccount": "acc_91ab40",
+                "role": "member",
+                "offerTiming": {
+                  "issuedAt": "2026-09-23T08:00:00Z",
+                  "expiresAt": "2026-09-23T08:00:00.25Z"
+                },
+                "offerState": "pending"
+              }
+            ]
+          }
+        },
+        "query": {
+          "operation": "capability.organization-governance/v2#S-57",
+          "payload": {}
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-57"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-58",
+      "payload": {
+        "expectedTenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        }
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-58"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-58",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-58",
+          "reply": {
+            "result": {
+              "invitations": [
+                {
+                  "invitation": "inv_1",
+                  "issuerOrganization": "org_kf22",
+                  "invitedAccount": "acc_91ab40",
+                  "role": "member",
+                  "offerTiming": {
+                    "issuedAt": "2026-09-23T08:00:00Z",
+                    "expiresAt": "2026-09-23T08:00:00.25Z"
+                  },
+                  "offerState": "pending"
+                }
+              ],
+              "affiliationRequests": [
+                {
+                  "affiliationRequest": "afr_1",
+                  "issuerOrganization": "org_kf22",
+                  "recipientOrganization": "org_b7",
+                  "direction": "recipientAsParent",
+                  "offerTiming": {
+                    "issuedAt": "2026-09-23T08:00:00Z",
+                    "expiresAt": "2026-09-23T08:00:00.123Z"
+                  },
+                  "offerState": "pending"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "local": {
+        "status": "installed"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-58",
+          "reply": {
+            "result": {
+              "invitations": [
+                {
+                  "invitation": "inv_1",
+                  "issuerOrganization": "org_kf22",
+                  "invitedAccount": "acc_91ab40",
+                  "role": "member",
+                  "offerTiming": {
+                    "issuedAt": "2026-09-23T08:00:00Z",
+                    "expiresAt": "2026-09-23T08:00:00.25Z"
+                  },
+                  "offerState": "pending"
+                }
+              ],
+              "affiliationRequests": [
+                {
+                  "affiliationRequest": "afr_1",
+                  "issuerOrganization": "org_kf22",
+                  "recipientOrganization": "org_b7",
+                  "direction": "recipientAsParent",
+                  "offerTiming": {
+                    "issuedAt": "2026-09-23T08:00:00Z",
+                    "expiresAt": "2026-09-23T08:00:00.123Z"
+                  },
+                  "offerState": "pending"
+                }
+              ]
+            }
+          }
+        },
+        "query": {
+          "operation": "capability.organization-governance/v2#S-58",
+          "payload": {
+            "expectedTenant": {
+              "organization": "org_kf22",
+              "account": "acc_7f3c91"
+            }
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-58"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-59",
+      "payload": {
+        "expectedTenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        }
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-59"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-59",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-59",
+          "reply": {
+            "result": [
+              {
+                "tenant": {
+                  "organization": "org_kf22",
+                  "account": "acc_7f3c91"
+                },
+                "role": "superAdministrator",
+                "effective": true
+              }
+            ]
+          }
+        }
+      },
+      "local": {
+        "status": "installed"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-59",
+          "reply": {
+            "result": [
+              {
+                "tenant": {
+                  "organization": "org_kf22",
+                  "account": "acc_7f3c91"
+                },
+                "role": "superAdministrator",
+                "effective": true
+              }
+            ]
+          }
+        },
+        "query": {
+          "operation": "capability.organization-governance/v2#S-59",
+          "payload": {
+            "expectedTenant": {
+              "organization": "org_kf22",
+              "account": "acc_7f3c91"
+            }
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-59"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-60",
+      "payload": {
+        "expectedTenant": {
+          "organization": "org_kf22",
+          "account": "acc_7f3c91"
+        }
+      }
+    },
+    "title": "EC2 projection capability.organization-governance/v2#S-60"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-60",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.organization-governance/v2#S-60",
+          "reply": {
+            "result": [
+              {
+                "affiliationRequest": "afr_1",
+                "issuerOrganization": "org_kf22",
+                "direction": "recipientAsParent",
+                "offerTiming": {
+                  "issuedAt": "2026-09-23T08:00:00Z",
+                  "expiresAt": "2026-09-23T08:00:00.123Z"
+                },
+                "offerState": "pending"
+              }
+            ]
+          }
+        }
+      },
+      "local": {
+        "status": "installed"
+      },
+      "view": {
+        "source": "online",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-60",
+          "reply": {
+            "result": [
+              {
+                "affiliationRequest": "afr_1",
+                "issuerOrganization": "org_kf22",
+                "direction": "recipientAsParent",
+                "offerTiming": {
+                  "issuedAt": "2026-09-23T08:00:00Z",
+                  "expiresAt": "2026-09-23T08:00:00.123Z"
+                },
+                "offerState": "pending"
+              }
+            ]
+          }
+        },
+        "query": {
+          "operation": "capability.organization-governance/v2#S-60",
+          "payload": {
+            "expectedTenant": {
+              "organization": "org_kf22",
+              "account": "acc_7f3c91"
+            }
+          }
+        }
+      },
+      "use": "active"
+    },
+    "title": "safe result capability.organization-governance/v2#S-60"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "configure",
+      "endpoint": "https://center.example.invalid/",
+      "trust": {
+        "mode": "ca"
+      }
+    },
+    "title": "system CA configuration"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "logout"
+    },
+    "title": "selected-login logout"
+  },
+  {
+    "definition": "Input",
+    "valid": true,
+    "value": {
+      "action": "health"
+    },
+    "title": "configured-center public health"
+  },
+  {
+    "definition": "Input",
+    "valid": false,
+    "value": {
+      "action": "invoke",
+      "operation": "capability.account-identity/v3#S-15",
+      "payload": {
+        "loginIdentifier": "a",
+        "credential": "b"
+      }
+    },
+    "title": "login cannot bypass dedicated settlement"
+  },
+  {
+    "definition": "Input",
+    "valid": false,
+    "value": {
+      "action": "logout",
+      "presentedLoginState": "forbidden-secret"
+    },
+    "title": "caller cannot supply bearer"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-27",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "unavailable",
+        "stage": "health",
+        "sendAttempted": false,
+        "transportFailure": "connection"
+      },
+      "local": {
+        "status": "installed"
+      },
+      "view": {
+        "source": "copy",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-27",
+          "reply": {
+            "result": [
+              {
+                "organization": "org_kf22",
+                "account": "acc_7f3c91"
+              }
+            ]
+          }
+        },
+        "query": {
+          "operation": "capability.organization-governance/v2#S-27",
+          "payload": {}
+        },
+        "acquiredAt": "2026-09-25T00:00:00Z"
+      },
+      "use": "active"
+    },
+    "title": "offline historical copy is explicit"
+  },
+  {
+    "definition": "Output",
+    "valid": false,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-27",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "unavailable",
+        "stage": "health",
+        "sendAttempted": false,
+        "transportFailure": "connection"
+      },
+      "local": {
+        "status": "installed"
+      },
+      "view": {
+        "source": "copy",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-27",
+          "reply": {
+            "result": [
+              {
+                "organization": "org_kf22",
+                "account": "acc_7f3c91"
+              }
+            ]
+          }
+        },
+        "query": {
+          "operation": "capability.organization-governance/v2#S-27",
+          "payload": {}
+        }
+      },
+      "use": "active"
+    },
+    "title": "copy requires observation time"
+  },
+  {
+    "definition": "Output",
+    "valid": false,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-27",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "unavailable",
+        "stage": "health",
+        "sendAttempted": false,
+        "transportFailure": "connection"
+      },
+      "local": {
+        "status": "unconfirmed"
+      },
+      "view": {
+        "source": "copy",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-27",
+          "reply": {
+            "result": [
+              {
+                "organization": "org_kf22",
+                "account": "acc_7f3c91"
+              }
+            ]
+          }
+        },
+        "query": {
+          "operation": "capability.organization-governance/v2#S-27",
+          "payload": {}
+        },
+        "acquiredAt": "2026-09-25T00:00:00Z"
+      },
+      "use": "active"
+    },
+    "title": "unconfirmed cannot omit verification result"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "register",
+      "operation": "composition.account-registration/v2#S-8",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": null,
+        "loginStateHandle": null
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "unknown",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "composition.account-registration/v2#S-8",
+          "reply": {
+            "failure": "interrupted"
+          }
+        }
+      },
+      "local": {
+        "status": "not-requested"
+      },
+      "view": {
+        "source": "none"
+      },
+      "use": "ended"
+    },
+    "title": "AR interrupted preserves unknown effects"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "login",
+      "operation": "capability.account-identity/v3#S-15",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": null,
+        "loginStateHandle": null
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.account-identity/v3#S-15",
+          "reply": {
+            "result": {
+              "loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e"
+            }
+          }
+        }
+      },
+      "local": {
+        "status": "unconfirmed",
+        "recovery": {
+          "observation": "unknown"
+        }
+      },
+      "view": {
+        "source": "none"
+      },
+      "use": "ended",
+      "defect": {
+        "stage": "recovery",
+        "code": "internal-defect"
+      }
+    },
+    "title": "recovery defect preserves earlier unconfirmed result"
+  },
+  {
+    "definition": "Output",
+    "valid": true,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "login",
+      "operation": "capability.account-identity/v3#S-15",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": null,
+        "loginStateHandle": null
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "success",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "capability.account-identity/v3#S-15",
+          "reply": {
+            "result": {
+              "loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e"
+            }
+          }
+        }
+      },
+      "local": {
+        "status": "defect"
+      },
+      "view": {
+        "source": "none"
+      },
+      "use": "ended",
+      "defect": {
+        "stage": "settlement",
+        "code": "internal-defect"
+      }
+    },
+    "title": "admitted remote success survives local implementation defect"
+  },
+  {
+    "definition": "Output",
+    "valid": false,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "invoke",
+      "operation": "capability.organization-governance/v2#S-27",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": "acc_7f3c91",
+        "loginStateHandle": "example-handle"
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "unavailable",
+        "stage": "health",
+        "sendAttempted": false,
+        "transportFailure": "connection"
+      },
+      "local": {
+        "status": "installed"
+      },
+      "view": {
+        "source": "copy",
+        "data": {
+          "operation": "capability.organization-governance/v2#S-27",
+          "reply": {
+            "result": [
+              {
+                "organization": "org_kf22",
+                "account": "acc_7f3c91"
+              }
+            ]
+          }
+        },
+        "acquiredAt": "2026-09-25T00:00:00Z"
+      },
+      "use": "active"
+    },
+    "title": "historical output requires exact nonsecret query"
+  },
+  {
+    "definition": "Output",
+    "valid": false,
+    "value": {
+      "format": "governance-client/1",
+      "actionId": "example-action",
+      "action": "register",
+      "operation": "composition.account-registration/v2#S-8",
+      "origin": {
+        "centerId": "11111111111111111111111111111111",
+        "accountId": null,
+        "loginStateHandle": null
+      },
+      "admission": {
+        "status": "admitted"
+      },
+      "remote": {
+        "status": "unknown",
+        "stage": "operation",
+        "sendAttempted": true,
+        "reply": {
+          "operation": "composition.account-registration/v2#S-8",
+          "reply": {
+            "failure": "interrupted"
+          }
+        },
+        "answer": "unavailable"
+      },
+      "local": {
+        "status": "not-requested"
+      },
+      "view": {
+        "source": "none"
+      },
+      "use": "ended"
+    },
+    "title": "entry and business reply are mutually exclusive"
+  }
+]

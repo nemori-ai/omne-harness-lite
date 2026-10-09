@@ -63,10 +63,6 @@ artifacts rather than chat; parallel writers "double up on functionality" and en
 - This repository deliberately differs from him in one respect: he stopped using
   reviewing agents too, while the owner keeps independent review and an acceptance gate.
 
-In a declared `.meta_harness` workspace the dated research behind this table is the
-topic `research/clean-code-doctrine-current`; read it there rather than quoting from
-memory.
-
 ## What to offer instead
 
 - Put the requested units in an order; deliver one, integrate it, start the next.

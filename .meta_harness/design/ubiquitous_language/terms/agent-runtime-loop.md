@@ -233,8 +233,7 @@
 - **⚠️ 别混**：**`auto_permission` 决定「准不准」，执行环境那一维的 `auto_place` 决定「落在哪」**——
   两者会在同一次执行里一前一后出现。**两个名字特意分开取，就是为了不撞**
   （`auto_place` 是[执行环境权限](grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission)的一档，归 PF-005）。
-  另外**上游有一个叫 `auto` 的档，语义是「不问人、改问模型」**
-  （[见调研](../../../research/agent-harness-session-design/research.md)），
+  另外**上游有一个叫 `auto` 的档，语义是「不问人、改问模型」**，
   **我们这一档从不替人作判断**；`never` 与 `bypass-permissions` 两档则与上游同义
 - **注意 ①**：**`auto_permission` 是有闭环的那一档**——问人的答案**落成新的[授权表达](interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression)**，
   下一次同样的事就算得出来了。**「同一件事不必问第二遍」就是这个闭环**

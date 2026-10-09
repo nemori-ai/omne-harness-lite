@@ -172,3 +172,5 @@ The first and closing delimiter lines must each be exactly `---`. The body is ev
 A value accepted by v3 is not automatically accepted by v2. Give it to the retained v2 judge before passing it to a v2 consumer: author-defined references to the v3 schema can produce `malformed` `M12` there. Asset Model, Asset Evaluation and Slash Command retain their explicit v2 body integration; using a new default entry does not upgrade those consumers.
 
 See [source exports](src/index.ts), [tests](tests/), [asset model](../asset-model/README.md) and [slash command](../slash-command/README.md).
+
+See [behavior](SPEC.md) and [verification duties](verification/README.md).

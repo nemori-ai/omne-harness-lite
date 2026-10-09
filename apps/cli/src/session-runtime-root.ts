@@ -125,8 +125,8 @@ class RuntimeRoot {
       tenant: o.binding.tenant,
       principal: o.source.accountId,
       policy: o.runtimePolicy,
-      now: () => {
-        const instant = o.clock.now()
+      now: async () => {
+        const instant = await o.clock.now()
         if (instant === 'unavailable') throw new Error('Session clock unavailable')
         return instantToRfc3339(instant)
       },

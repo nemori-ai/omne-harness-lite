@@ -105,8 +105,8 @@ export function createRuntimeContextLocal() {
                 log: borrow.log,
                 storage,
                 access,
-                now() {
-                  const value = clock.now()
+                async now() {
+                  const value = await clock.now()
                   return value === 'unavailable' ? { unavailable: true } : instantToRfc3339(value)
                 },
                 changed: () => {

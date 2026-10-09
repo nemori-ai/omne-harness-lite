@@ -1,7 +1,12 @@
+import type { SqliteRow } from '../sqlite/worker-protocol.ts'
 import { constants } from 'node:fs'
 import { open } from 'node:fs/promises'
-import { DatabaseSync } from 'node:sqlite'
-import { SnapshotFailure, type SnapshotView } from '@omne-harness-lite/storage'
+import { AsyncSqliteDatabase } from '../sqlite/async-database.ts'
+import {
+  SnapshotFailure,
+  type SnapshotView,
+  type SnapshotStructure,
+} from '@omne-harness-lite/storage'
 import { readMigrationRegistry } from '../upgrade/registry.ts'
 import { checkPhysicalSnapshot } from './physical-check.ts'
 import { snapshotReadDb } from './read-db.ts'
@@ -19,16 +24,16 @@ export async function useSnapshotView<T>(
   resources = new SnapshotResources(),
 ): Promise<T> {
   await checkPhysicalSnapshot(file)
-  const source = new DatabaseSync(file, { readOnly: true })
+  const source = new AsyncSqliteDatabase(file, { readOnly: true })
   const db = snapshotReadDb(source)
   resources.own(
     async () => {
       // A failed query drain must not close its dependency out from under it.
       await db.destroy()
       try {
-        if (source.isTransaction) source.exec('ROLLBACK')
+        await source.rollback()
       } finally {
-        source.close()
+        await source.close()
       }
     },
     () => !source.isOpen,
@@ -38,42 +43,9 @@ export async function useSnapshotView<T>(
   let readFailure: unknown
   return withCleanup(
     async () => {
-      source.exec('PRAGMA query_only = ON; BEGIN')
-      const structure = snapshotStructure(source)
-      const registry = structure.tables.find(table => table.name === 'kysely_migration')
-      if (
-        registry === undefined ||
-        !['name', 'timestamp'].every(name => registry.columns.some(c => c.name === name))
-      )
-        throw new SnapshotFailure('invalid-data')
-      const rows = source
-        .prepare(
-          `SELECT
-      typeof(name) AS name_type,length(name) AS name_length,substr(name,1,129) AS name,
-      typeof(timestamp) AS timestamp_type,length(timestamp) AS timestamp_length,
-      substr(timestamp,1,41) AS timestamp FROM kysely_migration LIMIT 257`,
-        )
-        .all()
-      if (rows.length > 256) throw new SnapshotFailure('capacity')
-      const names = new Set<string>()
-      for (const row of rows) {
-        if (
-          row.name_type !== 'text' ||
-          typeof row.name_length !== 'number' ||
-          row.name_length > 128 ||
-          row.timestamp_type !== 'text' ||
-          typeof row.timestamp_length !== 'number' ||
-          row.timestamp_length > 40 ||
-          typeof row.name !== 'string' ||
-          !/^[A-Za-z0-9_]{1,128}$/.test(row.name) ||
-          names.has(row.name) ||
-          typeof row.timestamp !== 'string' ||
-          !Number.isFinite(Date.parse(row.timestamp))
-        )
-          throw new SnapshotFailure('invalid-data')
-        names.add(row.name)
-      }
-      if (rows.length === 0) throw new SnapshotFailure('invalid-data')
+      await source.exec('PRAGMA query_only = ON; BEGIN')
+      const structure = await snapshotStructure(source)
+      await validateRegistry(source, structure)
       const appliedMigrations = await readMigrationRegistry(db)
       const bytes = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW)
       const closeBytes = resources.own(() => bytes.close())
@@ -136,4 +108,46 @@ export async function useSnapshotView<T>(
       await resources.close()
     },
   )
+}
+
+async function validateRegistry(
+  source: AsyncSqliteDatabase,
+  structure: SnapshotStructure,
+): Promise<void> {
+  const registry = structure.tables.find(table => table.name === 'kysely_migration')
+  if (
+    registry === undefined ||
+    !['name', 'timestamp'].every(name => registry.columns.some(c => c.name === name))
+  )
+    throw new SnapshotFailure('invalid-data')
+  const rows = await source.all(
+    `SELECT
+      typeof(name) AS name_type,length(name) AS name_length,substr(name,1,129) AS name,
+      typeof(timestamp) AS timestamp_type,length(timestamp) AS timestamp_length,
+      substr(timestamp,1,41) AS timestamp FROM kysely_migration LIMIT 257`,
+  )
+  if (rows.length > 256) throw new SnapshotFailure('capacity')
+  const names = new Set<string>()
+  for (const row of rows) {
+    validateRegistryRow(row)
+    if (names.has(row.name)) throw new SnapshotFailure('invalid-data')
+    names.add(row.name)
+  }
+  if (rows.length === 0) throw new SnapshotFailure('invalid-data')
+}
+
+function validateRegistryRow(row: SqliteRow): asserts row is SqliteRow & { name: string } {
+  if (
+    row.name_type !== 'text' ||
+    typeof row.name_length !== 'number' ||
+    row.name_length > 128 ||
+    row.timestamp_type !== 'text' ||
+    typeof row.timestamp_length !== 'number' ||
+    row.timestamp_length > 40 ||
+    typeof row.name !== 'string' ||
+    !/^[A-Za-z0-9_]{1,128}$/.test(row.name) ||
+    typeof row.timestamp !== 'string' ||
+    !Number.isFinite(Date.parse(row.timestamp))
+  )
+    throw new SnapshotFailure('invalid-data')
 }

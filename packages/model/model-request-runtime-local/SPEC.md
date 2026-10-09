@@ -61,7 +61,7 @@
 
 十五操作的公共定义与 Cordis Service 定义已迁至 core/model-request-runtime；本包维护实际提供者和私有 construction。跨包调用者使用 core 公共类型，不依赖本包私有实现类型。完整迁移验收尚未完成。
 生产 Session/Run 历史、终结与恢复来源仍由其各自拥有者承担，本批不宣称完整 Agent Runtime 已实现。
-实际 runtime 以公共定义的本地Service子类提供，唯一键归core。具名宿主输入、执行支持及调用方Context主体投影仍按[集成目标](adr/service-lifetime.md)接续；当前construction工厂和本次类转发不证明这些后续IC义务已兑现。
+正式 createModelRuntimeLocal 工厂以公共定义的本地 Service 子类提供十五操作，唯一键归 core。具名宿主输入、执行支持及按实际调用方 fiber 捕获主体遵循[资源与集成责任](adr/service-lifetime.md)。配置只含显式序列化界限；提供者自建私有调用、内容及事实，原 owner/source 仅交可信工厂创建者。消费 effect 在异步取得前登记，原 consumer 实际 stopped 后才归还借用；提供者也主动收场贡献，失败保有同 owner 重试。纯 construction 工厂保持独立使用。
 
 ## 验证
 
@@ -97,3 +97,23 @@ releaseCopies 对全部原代核同 log binding、真实 released/未 registered
 原 A22-V10 GC 两例、六轮收集和 90000ms 保持。
 另验 metadata 外持、request/pending/invocation 的大引用、idle frame、活动 capture 对 ACK 的阻挡与释放后重试。
 有限机制模型核同步 pin/seal/erase/released 和整体释放次序，不证明 GC 或 IO。
+
+## 停止新工作与实际关闭
+
+独立 `createModelRuntime` 的 `closeAdmission()` 与正式提供者的同名控制仅关闭 openCall、dispatch、dispatchAgain 的新工作门。表示、当前资格和原完整逐操作失败次序保持；新门只拒绝进入实际新工作，已越过该点的任务保有原输入及资源。现存事实的读取、消费、失败来源、恢复、处分及 ACK 不由此关闭。应用已准入的恢复必须能继续使用原拥有者。
+
+实际 `close()` 才启动原物理停止/排空与消费收场。消费 release 请求不是 stopped，原 source 同步 release 抛错不能归还其借用。只有实际资源和贡献责任全部归还后，可信装配才释放执行来源与 setup 借用；失败保有同 owner 重试。
+
+异步 `acquireCall` 已创建真实 consumer 却因原资格撤销或物理停止而不能交付时，获取操作须请求该原 consumer 释放并等待其真实 `stopped` 后返回失败。不得丢弃句柄后提前归还获取所借的宿主来源；成功交付后的责任仍归调用贡献，不停止共享执行。
+
+提供者 Config 中 tokenMargin.multiplier/reserveTokens 及 reservationWaitPolicy.maxWaitersPerCall/timeoutMs 唯一使用严格 JSON 数字词法字符串。前者保留 multiplier ≥ 1、非负整数 reserveTokens；后者保留正整数义务。非法词法或下界在取得资源前拒绝，无默认或数字兼容分支。提供者用 LosslessNumber 恢复精确值；装配方用公共 jsonNumberSource 编码，不能经 Number 舍入。独立函数的 JsonNumber 业务类型不变。
+
+## 外部内容保有
+
+`createModelCallContentStore` 默认拒绝外部附件引用。可选 `externalContent` 是受信构造端口，不是租户配置。提供者返回 `retained` 前，必须确认原内容中的全部外部原字节已耐久、不可变保有。保有须覆盖本调用内容的完整寿命及冷恢复。提供者可以按自身寿命保留更久。本存储的 ACK 清理只删除模型调用内容，不删除外部拥有者的字节。
+
+确认失败、异常或原日志代际已变时，不发布内容引用。确认任务归原存储的在途任务，close 须等其实际停止。原内容摘要、retention 同提交、publish permit 和 ACK 规则保持。提供者不支持某种外部内容时必须拒绝，不能仅凭 locator 存在宣告保有。
+
+`createModelRuntimeLocal(construction)` 将同一可选保有端口交给自建内容存储。可选 `decorateTransport` 只装饰原取得 lease 的 adapter。binding、signal、track、release 与原提供者责任保持。装饰同步抛错时归还该原 lease。两端口仅归可信装配闭包，不进入 Config 或普通 Context 服务，也不授予调用主体权限。装饰器必须保留原计划语义、取消与真实执行停止。
+
+装配创建时固定两端口。装饰只用于请求投影，保留原 send、read、projectOutput、品牌及借用语义。它不能取得独立资源或关闭权，不能启动返回任务未覆盖的工作。

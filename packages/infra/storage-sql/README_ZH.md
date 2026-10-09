@@ -8,16 +8,18 @@
 
 本包当前是私有、尚未发布的 ESM workspace 成员。构建检出后，从 workspace 消费者通过公开包名导入；目前没有可用的 npm 发布版本。Node 与 pnpm 工具链见[开发指南](../../../docs/development.md)。消费者也要声明自己导入的公开包，例如 `kysely` 和 `@omne-harness-lite/storage`。
 
+SQLite的SQL在Node工作线程执行。属主守卫和快照检查要求Linux环境，并在PATH提供util-linux的`flock`；缺少命令则启动失败。升级本实现前必须停止使用旧SQLite协调锁的进程，两种锁机制不能互相排斥。业务事务回调仍在应用线程运行。
+
 ## 公开 API
 
-| 用途             | 导出                                                                                                                                                                         |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 直接提供者       | `openStorage`, `OpenStorageOptions`, `SqlStorage`, `StorageSqlConfig` （运行时 schema 与类型）                                                                               |
-| Cordis 服务      | `./cordis`: `storageSqlPlugin`, `managedStorageSqlPlugin`, `StorageSqlPluginConfig`, `SqlStorageService` |
+| 用途             | 导出                                                                                                                                                                                    |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 直接提供者       | `openStorage`, `OpenStorageOptions`, `SqlStorage`, `StorageSqlConfig` （运行时 schema 与类型）                                                                                          |
+| Cordis 服务      | `./cordis`: `storageSqlPlugin`, `managedStorageSqlPlugin`, `StorageSqlPluginConfig`, `SqlStorageService`                                                                                |
 | 属主升级         | `createUpgradeGuard`, `UpgradeGuard`, `UpgradeGuardNotAttached`, `StorageStartupFailure`, `StorageStartupStage`, `StorageSqlLogger`; `storage`: `UpgradeConfirmation`, `UpgradePending` |
-| 底层 SQLite 接入 | `NodeSqliteDialect`, `NodeSqliteDriver`, `NodeSqliteDialectOptions`                                                                                                          |
-| 错误翻译         | `translateSqliteError`, `translatePgError`                                                                                                                                   |
-| SQLite 检查      | `openSnapshotInspection`, `storageSnapshotCheck`, `STORAGE_SNAPSHOT_TABLES`                                                                                                  |
+| 底层 SQLite 接入 | `NodeSqliteDialect`, `NodeSqliteDriver`, `NodeSqliteDialectOptions`                                                                                                                     |
+| 错误翻译         | `translateSqliteError`, `translatePgError`                                                                                                                                              |
+| SQLite 检查      | `openSnapshotInspection`, `storageSnapshotCheck`, `STORAGE_SNAPSHOT_TABLES`                                                                                                             |
 
 提供者拥有数据库句柄、事务边界、方言行为和已配置迁移的执行。应用拥有自己的表和迁移。存储错误、`narrow<DB>()` 与迁移组合由 `@omne-harness-lite/storage` 导出。
 
@@ -143,7 +145,9 @@ class Startup extends StorageStartup {
 }
 let fiber: Fiber | undefined
 try {
-  await ctx.plugin(inner => { new Startup(inner) })
+  await ctx.plugin(inner => {
+    new Startup(inner)
+  })
   fiber = ctx.plugin(storageSqlPlugin, {
     dialect: 'sqlite',
     file: join(directory, 'owned.sqlite'),
@@ -208,3 +212,5 @@ Node 24.18 的 `node:sqlite` 存在已知限界：已打开的连接跨结构变
 拥有插件只在配置中给出 maintenance.workDirectory，完成目标从 `StorageCompletion.closed` 取得；独立 openStorage 仍在原输入中接收 onClosed。
 
 开发本包时运行该成员的 `build`、`typecheck` 和 `test` 脚本。PostgreSQL 测试需要专用 `OMNE_TEST_PG_URL`；跳过不能验证 PostgreSQL 行为。
+
+[行为承诺](SPEC.md)拥有类型之外的规则；[验证入口](verification/README.md)说明方法与限制。

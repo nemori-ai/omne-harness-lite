@@ -66,7 +66,7 @@ test('independent registration/content revisions, immutable data, required ident
       storage: h.storage,
       log: h.log,
       access: h.auth.operations,
-      now: () => at,
+      now: async () => at,
     })
     restored.sources.registerSource(source())
     const entries = await restored.operations.registrations(h.access, scope)
@@ -207,7 +207,7 @@ test('unknown receipt retains the original initialization and blocks a second de
     log: { ...h.log, append },
     storage: h.storage,
     access: h.auth.operations,
-    now: () => at,
+    now: async () => at,
   })
   const initializer = { ...testOwner.initializer, drain: testOwner.drain }
   try {
@@ -237,7 +237,7 @@ test('unknown receipt retains the original initialization and blocks a second de
 test.each(['unavailable', 'throws', 'malformed'] as const)(
   'clock %s does not persist a fabricated observation time',
   async failure => {
-    const h = await host(() => {
+    const h = await host(async () => {
       if (failure === 'throws') throw new Error('clock unavailable')
       return failure === 'malformed' ? '2026-02-30T00:00:00Z' : { unavailable: true }
     })
@@ -262,6 +262,51 @@ test.each(['unavailable', 'throws', 'malformed'] as const)(
       ).toEqual({ kind: 'rejected', reason: 'unavailable' })
       expect(await h.log.readSince(scope.session, 0)).toEqual(before)
     } finally {
+      await h.close()
+    }
+  },
+)
+
+test.each(['ownerStopped', 'sourceUnavailable'] as const)(
+  'publication refuses %s after waiting for its observation time',
+  async reason => {
+    const entered = Promise.withResolvers<void>()
+    const clock = Promise.withResolvers<string>()
+    let waiting = false
+    const h = await host(async () => {
+      if (!waiting) return at
+      entered.resolve()
+      return clock.promise
+    })
+    try {
+      const initial = await init(h)
+      expect(
+        await h.owner.operations.register(
+          h.access,
+          scope,
+          { ...identityRegistration, key: 'public', required: false },
+          initial,
+        ),
+      ).toHaveProperty('kind', 'applied')
+      const before = await h.log.readSince(scope.session, 0)
+      waiting = true
+      const updating = h.owner.operations.update(
+        h.publisher,
+        scope,
+        { key: 'public', value: 'stale publication' },
+        'absent',
+      )
+      await entered.promise
+      if (reason === 'ownerStopped') h.owner.closeAdmission()
+      else {
+        await h.disposeSource.dispose()
+        h.owner.sources.registerSource(source())
+      }
+      clock.resolve(at)
+      expect(await updating).toEqual({ kind: 'rejected', reason })
+      expect(await h.log.readSince(scope.session, 0)).toEqual(before)
+    } finally {
+      clock.resolve(at)
       await h.close()
     }
   },
@@ -508,7 +553,7 @@ for (const recovery of ['persisted', 'reread_source', 'recompute'] as const)
         log: recoveredLog,
         storage: h.storage,
         access: h.auth.operations,
-        now: () => at,
+        now: async () => at,
       })
       recoveredOwner.sources.registerSource(source())
       const binding = await recoveredOwner.operations.bind(h.tool, scope, 'tool')

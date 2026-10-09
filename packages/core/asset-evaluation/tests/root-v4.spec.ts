@@ -19,10 +19,7 @@ import {
 import { assignment, definition, holding, root, tenant, simple } from './fixtures.ts'
 
 const examples = readFileSync(
-  new URL(
-    '../../../../.meta_harness/design/spec/data/agent-definition/v1/examples.md',
-    import.meta.url,
-  ),
+  new URL('../../agent-definition/tests/fixtures/agent-definition-examples.md', import.meta.url),
   'utf8',
 )
 const fixture = [...examples.matchAll(/```json\n([\s\S]*?)\n```/gu)][1]?.[1]

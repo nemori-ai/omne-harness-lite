@@ -411,7 +411,7 @@ export interface DemoDiagnosticAssembly {
     readonly tenant: DiagnosticHealth
     readonly transports: DemoTransportHealth
   }
-  /** First close the real business owner. Only then retire transports and diagnostic writers. */
+  /** Close business first, then transports and diagnostic writers. Observation timeout does not cancel this continuation. */
   readonly closeAfterBusiness: (
     businessClose: () => Promise<{ readonly complete: boolean }>,
   ) => Promise<{
@@ -592,70 +592,82 @@ export async function openDemoDiagnosticAssembly(
   async function closeAfterBusiness(
     businessClose: () => Promise<{ readonly complete: boolean }>,
   ): ReturnType<DemoDiagnosticAssembly['closeAfterBusiness']> {
-    if (closeTask) return closeTask
-    const task = (async () => {
-      transports.stopAdmission()
-      businessTask ??= Promise.resolve().then(businessClose)
-      const business = await waitBounded(
-        businessTask,
-        config.collector.closeWaitMs,
-        config.collector.schedule,
+    transports.stopAdmission()
+    businessTask ??= Promise.resolve().then(businessClose)
+    const ownedBusiness = businessTask
+    if (!closeTask) {
+      // The owned continuation survives an observation timeout. A late business
+      // completion must still retire transports and close the diagnostic writers.
+      const task = ownedBusiness.then(
+        async result => {
+          if (!result.complete) return incomplete(false)
+          return finishClose()
+        },
+        () => incomplete(false),
       )
-      const businessComplete = 'value' in business && business.value.complete
-      if (
-        ('failed' in business && business.failed === 'task') ||
-        ('value' in business && !business.value.complete)
+      closeTask = task
+      void task.then(
+        result => {
+          if (!result.businessComplete && businessTask === ownedBusiness) businessTask = undefined
+          if (closeTask === task) closeTask = undefined
+        },
+        () => {
+          if (closeTask === task) closeTask = undefined
+        },
       )
-        businessTask = undefined
-      if (!businessComplete)
-        return { complete: false, businessComplete, transports: transports.health() }
-      const prior = transports.health()
-      for (const entry of prior.live)
-        if (entry.role === 'current') transports.markRetired(entry.generation)
-      // The real service close operation is owned here after the business owner completed.
-      let closeTasks: Promise<RetirementResult | { readonly failed: true }>[]
-      try {
-        closeTasks = transports
-          .health()
-          .live.map(entry => transports.closeRetired(entry.generation, config.transportRetirement))
-      } catch {
-        return { complete: false, businessComplete, transports: transports.health() }
-      }
-      const retired = await waitBounded(
-        Promise.all(closeTasks),
-        config.collector.closeWaitMs,
-        config.collector.schedule,
-      )
-      if (!('value' in retired))
-        return { complete: false, businessComplete, transports: transports.health() }
-      const transportHealth = transports.health()
-      if (
-        transportHealth.transportLiveInstances !== 0 ||
-        transportHealth.transportReservedInstances !== 0
-      )
-        return { complete: false, businessComplete, transports: transportHealth }
-      const [localClosed, tenantClosed] = await Promise.all([
-        localCollector.close(),
-        tenantCollector.close(),
-      ])
-      return {
-        complete: 'complete' in localClosed && 'complete' in tenantClosed,
-        businessComplete,
-        local: localClosed,
-        tenant: tenantClosed,
-        transports: transports.health(),
-      }
-    })()
-    closeTask = task
-    void task.then(
-      () => {
-        closeTask = undefined
-      },
-      () => {
-        closeTask = undefined
-      },
+    }
+    const ownedClose = closeTask
+    const business = await waitBounded(
+      ownedBusiness,
+      config.collector.closeWaitMs,
+      config.collector.schedule,
     )
-    return task
+    if (!('value' in business)) return incomplete(false)
+    return ownedClose
+  }
+
+  function incomplete(businessComplete: boolean) {
+    return { complete: false, businessComplete, transports: transports.health() }
+  }
+
+  async function finishClose(): ReturnType<DemoDiagnosticAssembly['closeAfterBusiness']> {
+    const businessComplete = true
+    const prior = transports.health()
+    for (const entry of prior.live)
+      if (entry.role === 'current') transports.markRetired(entry.generation)
+    // The real service close operation is owned here after the business owner completed.
+    let closeTasks: Promise<RetirementResult | { readonly failed: true }>[]
+    try {
+      closeTasks = transports
+        .health()
+        .live.map(entry => transports.closeRetired(entry.generation, config.transportRetirement))
+    } catch {
+      return { complete: false, businessComplete, transports: transports.health() }
+    }
+    const retired = await waitBounded(
+      Promise.all(closeTasks),
+      config.collector.closeWaitMs,
+      config.collector.schedule,
+    )
+    if (!('value' in retired))
+      return { complete: false, businessComplete, transports: transports.health() }
+    const transportHealth = transports.health()
+    if (
+      transportHealth.transportLiveInstances !== 0 ||
+      transportHealth.transportReservedInstances !== 0
+    )
+      return { complete: false, businessComplete, transports: transportHealth }
+    const [localClosed, tenantClosed] = await Promise.all([
+      localCollector.close(),
+      tenantCollector.close(),
+    ])
+    return {
+      complete: 'complete' in localClosed && 'complete' in tenantClosed,
+      businessComplete,
+      local: localClosed,
+      tenant: tenantClosed,
+      transports: transports.health(),
+    }
   }
 
   return Object.freeze({

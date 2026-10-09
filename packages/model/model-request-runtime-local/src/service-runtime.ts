@@ -34,6 +34,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   readonly service: ModelRuntimeOperations
   readonly project: (inputs: ModelRuntimeHostInputs, facts: CallFactsView) => ModelRuntimeOperations
   readonly close: () => Promise<RuntimeCloseResult>
+  readonly closeAdmission: () => void
   readonly executionSource: ModelRuntimeExecutionSource
 } {
   if (ownedStores.has(provided.calls)) throw new TypeError('call store already owned')
@@ -317,6 +318,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
     if (released) return Promise.resolve({ released: true })
     if (closing !== undefined) return closing
     admissionClosed = true
+    closeAdmission()
     const attempt = closeOnce()
     closing = attempt
       .then(result => {
@@ -330,5 +332,15 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
     return closing
   }
 
-  return Object.freeze({ service, project, close, executionSource: executions.source })
+  function closeAdmission(): void {
+    calls.closeAdmission()
+    dispatch.closeAdmission()
+  }
+  return Object.freeze({
+    service,
+    project,
+    closeAdmission,
+    close,
+    executionSource: executions.source,
+  })
 }

@@ -138,7 +138,7 @@ describe('assembly.no-commit-before-open ②：确认之前 SIGKILL，没有任�
   })
 })
 
-describe('交错 I-9：两进程属主排他，clock 租约在同一文件', () => {
+describe('交错 I-9：两进程属主排他，Clock 使用独立资源', () => {
   it('两进程同时 boot() 同一份库 ⇒ 恰一个起来、另一个于「被占」拒绝；A 撤除后 B 起来，startedAt 不早于 A 最后写下的 lease_until', async () => {
     const d = await deployment('two-processes')
     const a = track(spawnHost({ env: d.env }))
@@ -159,7 +159,7 @@ describe('交错 I-9：两进程属主排他，clock 租约在同一文件', () 
     await winner.until('disposed true')
     await winner.exited()
     const [lease] = query<{ lease_until: number; written_at: number }>(
-      d.file,
+      `${d.file}.clock.sqlite`,
       'SELECT lease_until, written_at FROM clock_lease',
     )
     if (lease === undefined) throw new Error('no clock lease')

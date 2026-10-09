@@ -9,15 +9,15 @@ function at(ms: number): Instant {
 }
 
 describe('testClock', () => {
-  it('只前推、可切不可用', () => {
+  it('只前推、可切不可用', async () => {
     const clock = testClock(at(1000))
-    expect(clock.now()).toBe(1000)
+    expect(await clock.now()).toBe(1000)
     clock.advance(5)
-    expect(clock.now()).toBe(1005)
+    expect(await clock.now()).toBe(1005)
     expect(() => clock.advance(-1)).toThrow(RangeError)
     clock.setUnavailable(true)
-    expect(clock.now()).toBe('unavailable')
+    expect(await clock.now()).toBe('unavailable')
     clock.setUnavailable(false)
-    expect(clock.now()).toBe(1005)
+    expect(await clock.now()).toBe(1005)
   })
 })

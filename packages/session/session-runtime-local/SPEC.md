@@ -198,3 +198,7 @@ journal.readPrefix只属于原工厂的可信宿主返回面，不是普通用�
 可信根以原coordinationAuthority调用scanWork，按Session身份键集分页读取本租户active且仍有pending或活动Run的已发布Session。上界须为正整数且不超过原maxSessions；复制authority、非法游标或关闭后调用不能读取。实际同StorageUnit校验状态和原创建发布身份；坏记录不伪装为空页。满页返回最后身份作为next，非满页next为null，调用者据此回到起点。
 
 扫描不消耗pending、不核发新permit、不补登录资格，也不授模型／工具IO。登录资格、原grant及最新栅栏仍在后续原协调操作中核验。`local_session_work_index`作为独立迁移增加tenant／lifecycle／session索引；原状态迁移不改写。分页扫描及其关闭排空归原Ingress生命周期，普通用户传输不暴露该端口。
+
+## 异步时间读取
+
+可信构造的now返回Promise。创建发布、受理、协调和结果保管等待原时间读数，再在原StorageUnit写入时间戳。必要时间不可用时回滚本单元，不保存Promise、改取墙钟或返回受理成功。已登记操作的关闭排空包括原时间等待；关闭不以取消等待代替原工作结束。Clock能力存在不证明时间可用，时间源和当前资格由真实宿主提供。

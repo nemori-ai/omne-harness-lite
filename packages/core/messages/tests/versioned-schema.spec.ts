@@ -1,3 +1,4 @@
+import { assertAdoptedSchemaBytes } from './schema-identity.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
@@ -15,22 +16,21 @@ it('MS9 current transition and retained6/3/2 preserve their complete resource sh
     [2, retained, '../schema/messages.v2.schema.json'],
   ] as const) {
     const bytes = readFileSync(new URL(path, import.meta.url))
-    const original = readFileSync(
-      new URL(
-        `../../../../.meta_harness/design/spec/data/messages/v${version === 9 ? 8 : version}/messages.schema.json`,
-        import.meta.url,
-      ),
-    )
-    if (version === 9) assertMessagesSchemaTransition(bytes, original)
-    else {
-      expect(bytes.equals(original)).toBe(true)
-      expect(createHash('sha256').update(bytes).digest('hex')).toBe(
-        createHash('sha256').update(original).digest('hex'),
+    if (version === 9) {
+      const original = readFileSync(
+        new URL('fixtures/message-before-attempt-facts.schema.json', import.meta.url),
       )
-      expect(Object.keys(resource.$defs)).toEqual(
-        Object.keys(JSON.parse(original.toString()).$defs),
+      expect(createHash('sha256').update(original).digest('hex')).toBe(
+        '029be66cccc02103fbe2da6241a366b112a235e9f7f7e89462a843e602c39126',
       )
+      assertMessagesSchemaTransition(bytes, original)
     }
+    assertAdoptedSchemaBytes(
+      version === 9
+        ? '@omne-harness-lite/messages/schema'
+        : `@omne-harness-lite/messages/schema/v${version}`,
+      bytes,
+    )
     expect(resource.$id).toContain(`/v${version}/messages.schema.json`)
   }
 })

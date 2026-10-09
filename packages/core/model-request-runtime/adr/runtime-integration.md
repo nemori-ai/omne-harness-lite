@@ -89,7 +89,7 @@ isCurrent 失效只关闭该代际的新工作，不能统一屏蔽关闭后读�
 绑定为 `ModelRuntimeExecutionSupportService`，静态键 `modelRuntimeExecutionSupport`。它提供同部署代际的显式执行政策，调用方先取得这一代际的固定引用。具体政策由可替换的支持提供者创建；时间与调度仍借用实际 Clock，不自行创建第二套时钟。配置只描述现有显式政策数据；next、decide、schedule、diagnostic 等可执行对象不序列化，不加入隐式重试或清理默认。
 支持拥有者负责其调度句柄和诊断资源，按原在途工作排空后释放；模型行在其后装配、之前完成关闭。它与受信主体桥是不同的变更/寿命拥有者，不因接线便利合成整个 RuntimeConstruction 服务。
 
-提供者必需注入 host-input、execution-support、Storage、Clock、modelTransport、modelInputMeters 及其实际已采用支持能力。
+提供者必需注入 host-input、execution-support、Storage、Clock、modelTransport 及其实际已采用支持能力。modelInputMeters 由实际选择并登记计量器的 transport／adaptation 贡献注入；local runtime 不添加无直接消费的依赖。
 支持服务的精确键从公共 `./cordis` 取得，不复制字符串常量。
 配置只含已有显式标量/序列化策略；maxScopes、等待界、token margin、ACK 清理及关闭诊断没有隐式默认值。
 身份、回调、策略执行、资源与生命周期对象经具名服务或提供者自有构件交入，不进 JSON。

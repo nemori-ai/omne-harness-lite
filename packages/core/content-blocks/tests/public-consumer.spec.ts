@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, it } from 'vitest'
-import { SPEC_DIR } from './spec-fixtures.ts'
+import { FIXTURE_DIR } from './spec-fixtures.ts'
 
 it('consumes built public exports and Schema without source aliases or runtime services', () => {
   const output = execFileSync(
@@ -48,6 +48,6 @@ it('consumes built public exports and Schema without source aliases or runtime s
   )
   assertContentSchemaTransition(
     Buffer.from(output),
-    readFileSync(resolve(SPEC_DIR, '../v3/content-blocks.schema.json')),
+    readFileSync(resolve(FIXTURE_DIR, 'content-before-admission.schema.json')),
   )
 })

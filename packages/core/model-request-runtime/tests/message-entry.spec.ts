@@ -3,7 +3,11 @@ import { expect, it } from 'vitest'
 import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { messageLogPayload, type LogEntry } from '@omne-harness-lite/session-log'
-import { inspectModelLogEntry, inspectModelMessageEntry } from '../src/index.ts'
+import {
+  createModelLogReadInspector,
+  inspectModelLogEntry,
+  inspectModelMessageEntry,
+} from '../src/index.ts'
 const tenant = unwrap(parseTenantId({ organization: 'message-org', account: 'message-user' }))
 const scope = { session: 'message-session', tenant }
 function entry(value: unknown): LogEntry {
@@ -21,6 +25,40 @@ function entry(value: unknown): LogEntry {
   }
 }
 const at = '2026-10-07T00:00:00Z'
+it('owns an immutable complete read without retaining the caller prefix', () => {
+  const row = entry({ id: 'owned-user', type: 'user', createdAt: at, blocks: [] })
+  const input = { ...scope, prefix: { entries: [row], tail: 1 } }
+  const result = createModelLogReadInspector(input)
+  expect(result).toHaveProperty('ok')
+  if (!('ok' in result)) throw Error('owned complete read expected')
+  input.prefix.entries.length = 0
+  expect(result.ok.entries).toHaveLength(1)
+  expect(result.ok.entries[0]?.entry).toEqual(row)
+  expect(Object.isFrozen(result.ok)).toBe(true)
+  expect(Object.isFrozen(result.ok.entries)).toBe(true)
+  expect(Object.isFrozen(result.ok.entries[0]?.entry.payload)).toBe(true)
+})
+it.each([null, {}, { ...scope, prefix: {} }, { ...scope, prefix: { entries: {}, tail: 0 } }])(
+  'refuses malformed owned reads %j',
+  input => {
+    expect(createModelLogReadInspector(input as never)).toEqual({
+      inconsistent: true,
+      reason: 'input',
+    })
+  },
+)
+it('refuses a read prefix getter without executing it', () => {
+  let calls = 0
+  const result = createModelLogReadInspector({
+    ...scope,
+    get prefix() {
+      calls++
+      return { entries: [], tail: 0 }
+    },
+  })
+  expect(result).toEqual({ inconsistent: true, reason: 'input' })
+  expect(calls).toBe(0)
+})
 it('validates a generic user body and preserves other-owner keys without a history prefix', () => {
   const row = entry({ id: 'user', type: 'user', createdAt: at, blocks: [] })
   const result = inspectModelMessageEntry({ ...scope, entry: row, purpose: { kind: 'message' } })

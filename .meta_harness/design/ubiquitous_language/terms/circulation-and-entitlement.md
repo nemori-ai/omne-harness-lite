@@ -287,7 +287,7 @@
 
 - **形态**：属性
 - **出处**：[PF-003 §4 复制血缘](../../product/PF-003-asset-transfer-and-sharing/design.md#复制血缘) · [§6.5](../../product/PF-003-asset-transfer-and-sharing/design.md#65-首次复制)（rev 6）
-- **别混**：**不是 [registry 里那份血缘](../../registry/README.md)**（设计对象的新旧身份对应）。**裸写「血缘」不作数**
+- **别混**：**不是设计材料的新旧身份对应**。**裸写「血缘」不作数**
 - **注意**：对目标组织**有意做得很浅**——能看到「由某租户在某时送进来第几版」，**看不到源资产本身**
 - **弃用**：~~「转移血缘 / Transfer Lineage」~~（旧 ID ~~`UL-transfer-lineage`~~）
 

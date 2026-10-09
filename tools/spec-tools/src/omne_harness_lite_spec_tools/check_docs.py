@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Check repository-wide Markdown navigation and the generated Codex/Claude skill mirrors.
 
-Design-chain identities, catalog registrations, frozen versions and formal tasks are checked by
-`.meta_harness/tooling/src/check_design.py`; this checker does not duplicate them.
+This checker validates links and mirrors, not behavior, acceptance or model results.
 """
 from __future__ import annotations
 
@@ -19,12 +18,7 @@ ROOTS = ("README.md", "CONTRIBUTING.md", "AGENTS.md", "CLAUDE.md", "docs", "pack
 IGNORED_DIRECTORIES = {".git", ".venv", "node_modules", ".dist", "dist", "build",
                        "__pycache__", ".pytest_cache", "tmp", ".worktrees"}
 
-# Retained originals keep the relative links they were written with, by design: rewriting them
-# would falsify the record of what the source actually said. Their own entries explain this.
-RETAINED = ("{meta}/design_legacy", "{meta}/research/legacy_backup")
-
 def collect(root: Path) -> list[Path]:
-    retained = [root / pattern.format(meta=".meta_harness") for pattern in RETAINED]
     files: list[Path] = []
     for name in ROOTS:
         path = root / name
@@ -38,8 +32,7 @@ def collect(root: Path) -> list[Path]:
     # `.templates/` holds placeholders such as `{{YYYY-MM-DD-topic}}.md`; they are meant to be
     # filled in when a topic is created, so they cannot resolve where they sit.
     return [p for p in files
-            if ".templates" not in p.parts
-            and not any(p.is_relative_to(area) for area in retained)]
+            if ".templates" not in p.parts]
 
 
 def check_skill_mirrors(root: Path, errors: list[str]) -> None:
@@ -96,8 +89,7 @@ def main(argv=None):
         print(f"ERROR: {error}")
     if not errors:
         print(f"PASS: {count} Markdown files; local links and skill mirrors.")
-    print("NOTE: retained originals are excluded by design; design-chain registrations are checked "
-          "by the meta-harness design checker, not here.")
+    print("NOTE: Navigation and mirror consistency do not establish semantic correctness.")
     return 1 if errors else 0
 
 

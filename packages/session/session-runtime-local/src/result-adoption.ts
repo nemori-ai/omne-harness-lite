@@ -27,7 +27,7 @@ export interface ResultAdoptionHost {
     scope: SessionScope,
     entries: readonly LogEntryInput[],
   ) => Promise<{ readonly entries: readonly { readonly position: StepReceipt['position'] }[] }>
-  readonly instant: () => string
+  readonly instant: () => Promise<string>
 }
 interface AdoptionDb {
   sr_result_adoption: {
@@ -63,7 +63,7 @@ export async function adoptModelResultIn(
         resultPosition: step.result.position,
         response: saved.pending.id,
         stepKey: step.stepKey,
-        at: host.instant(),
+        at: await host.instant(),
       }),
     },
   ])

@@ -136,7 +136,7 @@ async function fixture(
       released.external++
       return await externalPort()
     },
-    now: () => '2026-09-29T00:00:00Z',
+    now: async () => '2026-09-29T00:00:00Z',
     selectedRun: () => undefined,
   })
   return {

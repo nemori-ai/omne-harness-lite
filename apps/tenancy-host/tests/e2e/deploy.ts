@@ -317,6 +317,7 @@ export interface Deployment {
 
 export const ENV = {
   storageFile: 'OMNE_TENANCY_STORAGE_FILE',
+  clockInitialize: 'OMNE_TENANCY_CLOCK_INITIALIZE',
   unactivatedRetention: 'OMNE_TENANCY_UNACTIVATED_RETENTION',
   invitationTtlDefault: 'OMNE_TENANCY_INVITATION_TTL_DEFAULT',
   affiliationRequestTtlDefault: 'OMNE_TENANCY_AFFILIATION_REQUEST_TTL_DEFAULT',
@@ -343,6 +344,7 @@ export const PARAMETER_VARIABLES = [
 export function envOf(d: Deployment): Record<string, string> {
   return {
     [ENV.storageFile]: d.dbFile,
+    [ENV.clockInitialize]: existsSync(`${d.dbFile}.clock.sqlite.clock.json`) ? '0' : '1',
     ...d.keys,
     [ENV.unactivatedRetention]: d.settings.unactivatedRetention,
     [ENV.invitationTtlDefault]: d.settings.invitationTtlDefault,

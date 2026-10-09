@@ -93,7 +93,6 @@ relations:
   外加 PF-012 那边的[待处理消息队列](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue)
 - **[PF-013](../PF-013-model-profiles-and-invocation/README.md) 与
   [PF-012](../PF-012-agent-loop-and-run/README.md) 是同一次联合修订的另两份产物**，要对齐后才谈接受
-- 技术投影：尚未开始
 
 ## 本包的文件
 

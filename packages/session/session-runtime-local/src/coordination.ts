@@ -41,7 +41,7 @@ interface Host extends ResultAdoptionHost {
     scope: SessionScope,
     entries: readonly LogEntryInput[],
   ) => Promise<{ readonly entries: readonly { readonly position: StepReceipt['position'] }[] }>
-  readonly instant: () => string
+  readonly instant: () => Promise<string>
 }
 export function createSessionLifecycle(host: Host): LocalSessionIngress['lifecycle'] {
   const coordinator = new Lifecycle(host)
@@ -228,7 +228,7 @@ class Lifecycle {
           run,
           inputPosition: step.inputPosition,
           stepKey: step.stepKey,
-          at: this.host.instant(),
+          at: await this.host.instant(),
         }),
       },
     ])
@@ -278,7 +278,7 @@ class Lifecycle {
           change,
         ),
       )
-    const appended = await this.host.append(unit, scope, [this.entry(scope, step, change)])
+    const appended = await this.host.append(unit, scope, [await this.entry(scope, step, change)])
     const receipt: StepReceipt = {
       ...scope,
       run: step.run,
@@ -313,7 +313,7 @@ class Lifecycle {
           call: step.call,
           originalPosition: step.originalPosition,
           stepKey: step.stepKey,
-          at: this.host.instant(),
+          at: await this.host.instant(),
         }),
       },
     ])
@@ -356,13 +356,13 @@ class Lifecycle {
       terminal: step.terminal,
     }
   }
-  entry(
+  async entry(
     scope: SessionScope,
     step: Exclude<SessionLifecycleStep, { kind: 'startRun' | 'prepareCall' | 'adoptResult' }>,
     change: ReturnType<Lifecycle['change']>,
-  ): LogEntryInput {
+  ): Promise<LogEntryInput> {
     const attempt = change.attempt,
-      at = this.host.instant()
+      at = await this.host.instant()
     let payload: unknown
     if (step.kind === 'startAttempt')
       payload = attemptStartedPayload({

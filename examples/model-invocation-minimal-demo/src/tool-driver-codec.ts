@@ -27,7 +27,11 @@ import {
   type OwnedLogEntry,
 } from '@omne-harness-lite/session-log'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
-import { judgeToolDefinition, modelName } from '@omne-harness-lite/tool-definition'
+import {
+  judgeToolDefinition,
+  modelName,
+  type ParameterJudge,
+} from '@omne-harness-lite/tool-definition'
 import type { DriverPayload, DriverValue } from './tool-driver-types.ts'
 
 export const toolDriverFormat = 'tool-driver/1'
@@ -78,7 +82,10 @@ function fixedShape(name: 'Value' | 'Payload', value: JsonValue): boolean {
   return validators[name](value)
 }
 
-function adoptionValid(value: Extract<DriverValue, { kind: 'attempt_adopted' }>): boolean {
+function adoptionValid(
+  value: Extract<DriverValue, { kind: 'attempt_adopted' }>,
+  parameters?: ParameterJudge,
+): boolean {
   if (
     value.report === null ||
     typeof value.report !== 'object' ||
@@ -108,7 +115,7 @@ function adoptionValid(value: Extract<DriverValue, { kind: 'attempt_adopted' }>)
         identity(tool.asset) &&
         !('failed' in version) &&
         positiveInteger(version.ok) &&
-        'ok' in judgeToolDefinition(tool.definition) &&
+        'ok' in judgeToolDefinition(tool.definition, parameters) &&
         modelName(tool.definition.name) === tool.name
       )
     }) &&
@@ -147,7 +154,7 @@ function completionValid(value: Extract<DriverValue, { kind: 'actions_completed'
   })
 }
 
-function valueValid(value: DriverValue): boolean {
+function valueValid(value: DriverValue, parameters?: ParameterJudge): boolean {
   if ('origin' in value) {
     if (
       !identity(value.origin.run) ||
@@ -170,7 +177,7 @@ function valueValid(value: DriverValue): boolean {
         positiveInteger(value.attempt) &&
         identity(value.adoption) &&
         identity(value.startedFactKey) &&
-        adoptionValid(value)
+        adoptionValid(value, parameters)
       )
     case 'actions_completed':
       return identity(value.adoption) && completionValid(value)
@@ -211,12 +218,15 @@ function valueValid(value: DriverValue): boolean {
 }
 
 /** Captures JSON before schema or owner code can observe it; getters are never executed. */
-export function captureDriverValue(input: unknown): DriverValue | typeof invalid {
+export function captureDriverValue(
+  input: unknown,
+  parameters?: ParameterJudge,
+): DriverValue | typeof invalid {
   const copy = copyJsonValue(input)
   if ('failed' in copy || !fixedShape('Value', copy.ok)) return invalid
   // This cast follows the closed graph; foreign nested values are judged immediately below.
   const value = copy.ok as unknown as DriverValue
-  return valueValid(value) ? value : invalid
+  return valueValid(value, parameters) ? value : invalid
 }
 
 /** Only captured values enter this internal spelling function. */
@@ -263,10 +273,11 @@ function localRelations(value: DriverValue, scope: SessionScope, key: string): b
 export function prepareDriverEntry(
   suppliedScope: SessionScope,
   input: unknown,
+  parameters?: ParameterJudge,
 ): { readonly entry: OwnedLogEntry } | typeof invalid {
   const scope = captureScope(suppliedScope)
   if (scope === undefined) return invalid
-  const value = captureDriverValue(input)
+  const value = captureDriverValue(input, parameters)
   if ('invalid' in value) return value
   const key = keyOf(value)
   const exec =
@@ -302,6 +313,7 @@ function claimsKey(value: unknown): boolean {
 export function inspectDriverEntry(
   suppliedScope: SessionScope,
   input: LogEntry,
+  parameters?: ParameterJudge,
 ):
   | { readonly value: DriverValue; readonly key: string; readonly entry: LogEntry }
   | typeof invalid
@@ -345,9 +357,9 @@ export function inspectDriverEntry(
     )
   )
     return invalid
-  const value = captureDriverValue((payload as unknown as DriverPayload).value)
+  const value = captureDriverValue((payload as unknown as DriverPayload).value, parameters)
   if ('invalid' in value) return invalid
-  const expected = prepareDriverEntry(scope, value)
+  const expected = prepareDriverEntry(scope, value, parameters)
   if ('invalid' in expected) return invalid
   const key = expected.entry.dedupeKey
   if (key === undefined) throw new Error('prepared driver entry lacks its key')

@@ -75,10 +75,11 @@ export function createInvocationDiagnostics<P extends PlannedSemantics, R>(
   let recordEnabled = true
   let reportEnabled = true
   let closeAttempted = false
+  let reportCallback: ((kind: string) => void) | undefined = report
   const reportFailure = (kind: string): void => {
-    if (!reportEnabled) return
+    if (!reportEnabled || !reportCallback) return
     try {
-      const returned: unknown = report(kind)
+      const returned: unknown = reportCallback(kind)
       if (drainDiagnosticThenable(returned)) reportEnabled = false
     } catch {
       reportEnabled = false
@@ -126,14 +127,20 @@ export function createInvocationDiagnostics<P extends PlannedSemantics, R>(
       })
     : undefined
   const close = (): void => {
-    if (!emitter || closeAttempted) return
+    if (closeAttempted) return
     closeAttempted = true
     try {
+      if (!emitter) return
       const returned: unknown = emitter.close()
       if (drainDiagnosticThenable(returned))
         reportFailure('model_invocation.diagnostic_contract_violation')
     } catch {
       reportFailure('model_invocation.diagnostic_sink_failed')
+    } finally {
+      // A transport may retain this facade after physical stop. Its closed
+      // callbacks must not retain the invocation through the sink or reporter.
+      emitter = undefined
+      reportCallback = undefined
     }
   }
   return { record, ...(transport ? { transport } : {}), close }

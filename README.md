@@ -8,7 +8,7 @@
 保持利益对齐。
 
 > 产品设计、规格与实验实现并行推进。承诺归属从[架构维护入口](.meta_harness/design/architecture/README.md)查找；
-> 未迁契约及实现仍从[身份清单](.meta_harness/design/registry/README.md)和[实现映射](.meta_harness/design/realization/README.md)追溯。
+> 公开定义、模块行为和验证责任从[架构维护入口](.meta_harness/design/architecture/README.md)定位实际拥有者。
 > 治理中心的启动与配置见 [tenancy-host](apps/tenancy-host/README.md)；
 > 可运行不等于已经满足生产准入。第一版完整交付为单机系统。
 
@@ -77,7 +77,7 @@ Agent 定义与装配、执行环境与沙箱、工具与技能、Meta Capabilit
 | 位置 | 内容 |
 |---|---|
 | [.meta_harness/](.meta_harness/README.md) | **设计工作区**：需求、产品设计、统一语言、规格、研究、已发生的事、agent 能力 |
-| [docs/](docs/README.md) | 项目开发文档：环境、源码布局、检查含义、防御指导；`blogs/` 接入个人技术博客子模块 |
+| [docs/](docs/README.md) | 项目开发文档：环境、源码布局、检查含义、防御指导 |
 | [packages/](packages/README.md)、[apps/](apps/README.md) | 产品包与应用装配；采用范围与验证状态见实现映射 |
 | [tools/spec-tools/](tools/spec-tools/README.md)、[scripts/](scripts/README.md) | 开发检查器与仓库自动化 |
 

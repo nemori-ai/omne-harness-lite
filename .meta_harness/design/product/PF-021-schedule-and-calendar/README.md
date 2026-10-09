@@ -55,7 +55,6 @@ relations:
 | 裁决、推导与待裁事项 | [决策与来源](design.md) |
 | 修订内容 | [变更历史](design.md) |
 | 本轮讨论及被撤销的方案 | [交流笔记](design.md) |
-| 上游需求事实与证据 | [前置调研](../../../research/omne-next-schedule-calendar/README.md) |
 
 ## 关系与定位
 

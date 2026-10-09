@@ -555,7 +555,13 @@ describe('T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写�
       stub.on(OPERATIONS[id] ?? '', async () => {
         throw new TypeError('boom')
       })
-      if (id === og(26)) failWith(stub, id, Promise.reject(new TypeError('boom')))
+      if (id === og(26)) {
+        let calls = 0
+        stub.on(OPERATIONS[id] ?? '', async () => {
+          if (++calls === 1) return { standing: 'effective', role: 'member' }
+          throw new TypeError('boom')
+        })
+      }
       const decision = await run(stub, envelope(id, PAYLOADS[id], exempt ? ABSENT : P))
       expect(decision.bytes).toBe(UNAVAILABLE)
       expect(decision.record).toMatchObject({

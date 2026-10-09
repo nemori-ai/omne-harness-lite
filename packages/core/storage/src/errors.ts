@@ -1,6 +1,6 @@
 /**
  * 存储失败的四型。以异常到达调用方；调用方只 catch 前三种，`StorageDefect` 与其他异常上抛（那是缺陷）。
- * 设计：.meta_harness/design/realization/packages/core/storage/design.md（协议 P-1～P-12）。
+ * 设计：packages/core/storage/SPEC.md P-1～P-12）。
  */
 
 /** 瞬时失败：连接、忙超时、I/O、撤除期间被关。调用方折成契约的「不可用」字面（`mapStorageError`）。 */

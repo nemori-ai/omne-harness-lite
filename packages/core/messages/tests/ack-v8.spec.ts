@@ -16,7 +16,7 @@ import {
   type ModelCallSemanticDigestRole,
 } from '@omne-harness-lite/messages'
 
-const base = new URL('../../../../.meta_harness/design/spec/data/messages/v8/', import.meta.url)
+const base = new URL('./fixtures/', import.meta.url)
 function object(value: unknown): Record<string, unknown> {
   if (
     value === null ||

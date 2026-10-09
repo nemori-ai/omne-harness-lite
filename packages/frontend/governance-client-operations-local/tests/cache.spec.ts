@@ -24,7 +24,13 @@ import {
 } from './support.ts'
 
 const examples: { definition: string; valid: boolean; value: unknown }[] = JSON.parse(
-  readFileSync(new URL('./fixtures/governance-actions.json', import.meta.url), 'utf8'),
+  readFileSync(
+    new URL(
+      '../../../core/governance-client-operations/tests/fixtures/action-examples.json',
+      import.meta.url,
+    ),
+    'utf8',
+  ),
 )
 const outputs = examples
   .filter(e => e.valid && e.definition === 'Output')

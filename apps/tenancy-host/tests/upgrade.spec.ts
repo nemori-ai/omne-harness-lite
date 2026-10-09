@@ -57,11 +57,6 @@ async function seeded(label: string): Promise<{ d: Deployment; centerId: string 
   return { d, centerId: host.serving.centerId }
 }
 
-function withoutClockLease(dump: ReturnType<typeof dumpDatabase>) {
-  const { clock_lease: _ignored, ...rows } = dump.rows
-  return { schema: dump.schema, rows }
-}
-
 describe('AI3 append preserves the released host migration prefix', () => {
   it('opens an actual database with the nine old global migrations and appends the bounded migration', async () => {
     const d = await deployment('bounded-prefix')
@@ -132,7 +127,12 @@ describe('assembly.upgrade-preflight-refuses：只读核对不过 ⇒ 不碰数�
   it('② clock_lease.written_at 在墙钟之后 ⇒ 在跑任何迁移之前拒绝（钟比中心用过的最晚时刻早），库的内容不变', async () => {
     const { d } = await seeded('rollback-preflight')
     const future = Date.now() + 3_600_000
-    execute(d.file, 'UPDATE clock_lease SET written_at = ?, lease_until = ?', future, future)
+    execute(
+      `${d.file}.clock.sqlite`,
+      'UPDATE clock_lease SET written_at = ?, lease_until = ?',
+      future,
+      future,
+    )
     const before = dumpDatabase(d.file)
     const refused = await hosts.refuse(d, { extraMigrations: [fragment('upgrade_probe')] })
     expect(refused.failure.stage).toBe('preflight')
@@ -207,13 +207,48 @@ describe('assembly.upgrade-restore-on-boot-failure：确认之前的任何启动
     await oldVersionStillStarts(d, centerId)
   })
 
-  it('迁移之后 clock 启动时检出回拨（ClockRollbackDetected）⇒ 拒绝；恢复连同那次写一起撤回', async () => {
-    const { d, centerId, refused } = await refusedUpgrade('clock', () => undefined, [
-      fragment('upgrade_probe'),
-      fragment('future_clock'),
-    ])
+  it('迁移期间独立 Clock 底线提高：启动拒绝，业务回滚不降低 Clock 底线', async () => {
+    const { d, centerId } = await seeded('independent-clock-rollback')
+    const before = dumpDatabase(d.file)
+    const clockFile = `${d.file}.clock.sqlite`
+    const previous = query<{ written_at: number; lease_until: number }>(
+      clockFile,
+      'SELECT written_at,lease_until FROM clock_lease',
+    )[0]!
+    const future = Date.now() + 3_600_000
+    const refused = await hosts.refuse(d, {
+      extraMigrations: [
+        fragment('upgrade_probe'),
+        {
+          name: 'independent_clock_fault',
+          migration: {
+            async up() {
+              execute(
+                clockFile,
+                'UPDATE clock_lease SET written_at=?, lease_until=?',
+                future,
+                future,
+              )
+            },
+          },
+        },
+      ],
+    })
     expect(refused.failure).toMatchObject({ stage: 'plugin', item: 'clock-lease' })
     expect(refused.failure.message).toContain('ClockRollbackDetected')
+    expect(allDisposed(refused.fibers)).toBe(true)
+    expect(dumpDatabase(d.file)).toEqual(before)
+    expect(sidecarsOf(d.file)).toEqual({ db: true, wal: false, shm: false, snapshot: false })
+    expect(query(clockFile, 'SELECT written_at,lease_until FROM clock_lease')).toEqual([
+      { written_at: future, lease_until: future },
+    ])
+    // Remove only the fixture's corruption. Product rollback must not do this.
+    execute(
+      clockFile,
+      'UPDATE clock_lease SET written_at=?, lease_until=?',
+      previous.written_at,
+      previous.lease_until,
+    )
     await oldVersionStillStarts(d, centerId)
   })
 
@@ -321,7 +356,7 @@ describe('assembly.upgrade-confirmed：确认绑在实例上，确认之后不�
       snapshotRemoved: false,
     })
     await hosts.stop(again.host)
-    expect(withoutClockLease(dumpDatabase(d.file))).toEqual(withoutClockLease(after))
+    expect(dumpDatabase(d.file)).toEqual(after)
   })
 
   it('交错守卫对象：给存储的是守卫 A、确认时调另一个 createUpgradeGuard() 的 B ⇒ UpgradeGuardNotAttached ⇒ 从未开闸、逆序全撤、快照恢复、拒绝并点名守卫没挂上', async () => {

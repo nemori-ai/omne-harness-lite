@@ -1,6 +1,6 @@
 # credential-custodian-local
 
-本包为单个账号在一台机器上的据点保管加密模型凭据副本，实施 D075 的 model-only 投影：两个受限技术动作和一个组件生命周期。采用 [CCL rev2](../../../.meta_harness/design/realization/packages/infra/credential-custodian-local/v2-design.md) 与 D075，验证义务见 [MCR-V1～V8](../../../.meta_harness/design/realization/packages/infra/credential-custodian-local/verification.md)。本包没有注册完整 credentialCustodian 服务，没有 OAuth/MCP 装配或清扫。通用六操作仍待其真实提供者实施。
+本包为单个账号在一台机器上的据点保管加密模型凭据副本，实施 D075 的 model-only 投影：两个受限技术动作和一个组件生命周期。采用 [CCL rev2](SPEC.md) 与 D075，验证义务见 [MCR-V1～V8](SPEC.md)。本包没有注册完整 credentialCustodian 服务，没有 OAuth/MCP 装配或清扫。通用六操作仍待其真实提供者实施。
 
 公开根入口只有 `sealBody`、`openBody` 及其数据类型，纯计算不依赖 Cordis 或存储。`./migrations` 导出 `replicaMigrations` 两个片段：副本表/登录状态索引，以及可空 `source_ref` 增列。旧行的密文、登录归属、时间都不改变，来源只增 NULL，不从当前目录猜来源。装配经公开 `composeMigrations` 与目录片段共同迁入同一个真实 AtomicStorage；生产升级确认归存储 owner。
 

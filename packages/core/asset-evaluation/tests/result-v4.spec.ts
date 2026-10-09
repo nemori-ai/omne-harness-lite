@@ -10,13 +10,7 @@ import { judgeEffectiveAssembly } from '../src/index.ts'
 
 type MutableObject = { [key: string]: JsonValue }
 
-const examples = readFileSync(
-  new URL(
-    '../../../../.meta_harness/design/spec/capabilities/asset-evaluation/v4/examples.md',
-    import.meta.url,
-  ),
-  'utf8',
-)
+const examples = readFileSync(new URL('./fixtures/evaluation-examples.md', import.meta.url), 'utf8')
 const text = /```json\n([\s\S]*?)\n```/u.exec(examples.slice(examples.indexOf('## E-10')))?.[1]
 if (text === undefined) throw new Error('missing E-10 normative input')
 function fixture(): MutableObject {

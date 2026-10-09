@@ -4,14 +4,14 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { OPAQUE_IDENTIFIER_WHITESPACE_CODE_POINTS } from '@omne-harness-lite/identity-values'
 import { judgeContentBlock, SCHEMA_DEF_NAMES, validate, writeJsonLossless } from '../src/index.ts'
-import { exampleRows, SPEC_DIR } from './spec-fixtures.ts'
+import { exampleRows, FIXTURE_DIR } from './spec-fixtures.ts'
 
 const rows = exampleRows()
 describe('V-1: frozen Schema and all normative instances', () => {
   it('current Schema changes only AR-1; all other assertions match the frozen source', () => {
     assertContentSchemaTransition(
       readFileSync(resolve(import.meta.dirname, '../schema/content-blocks.schema.json')),
-      readFileSync(resolve(SPEC_DIR, '../v3/content-blocks.schema.json')),
+      readFileSync(resolve(FIXTURE_DIR, 'content-before-admission.schema.json')),
     )
   })
   it('has the 162 normative rows (60 pass, 102 reject) and all 25 definitions', () => {

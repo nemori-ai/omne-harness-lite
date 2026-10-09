@@ -1,6 +1,6 @@
 {
-  "source": ".meta_harness/design/spec/data/mcp-endpoint/v2/examples.md",
-  "sourceSha256": "3fd1089fba522a5944c46ae2176fc3053297348eba49adc1dd6daaaf85a6c7f0",
+  "source": "endpoint-examples.md",
+  "sourceSha256": "0cbcc8fe74d6391ee7808dbb7dbdd0122cd1404ed0b23fefab3bda73537df0f3",
   "cases": [
     {
       "id": "block-1",

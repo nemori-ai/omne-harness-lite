@@ -251,7 +251,7 @@ export async function fixture(
     admission: () => admission,
     implementations,
     context: { bind },
-    clock: { now: () => unwrap(instantFromRfc3339(at)) },
+    clock: { now: async () => unwrap(instantFromRfc3339(at)) },
     attempts: 3,
     invoke: createToolInvoker({
       parameters: createParameterJudge(),

@@ -44,13 +44,7 @@ function parsed(source: string): JsonValue {
   return result.ok
 }
 const rawRows = parsed(
-  readFileSync(
-    new URL(
-      '../../../../.meta_harness/design/spec/data/messages/v8/reference-examples.json',
-      import.meta.url,
-    ),
-    'utf8',
-  ),
+  readFileSync(new URL('fixtures/reference-examples.json', import.meta.url), 'utf8'),
 )
 if (!Array.isArray(rawRows)) throw new Error('reference rows required')
 const rows: readonly JsonValue[] = rawRows

@@ -1,24 +1,17 @@
 # 有效语义与保持边界
 
-## 精确输入
+## 当前拥有者
 
-下表的版本来自接受登记和实际消费者，不按目录中的最大版本推断。
-旧文件中的 candidate 标题或过时源码注释不改变接受登记。
-条款及其 Schema、形式资源共同构成输入，不能只搬操作签名。
+公开类型、业务行为和配套资源从实际拥有者读取。采用范围与未实现边界不能从目录或最大版本推断；数据身份、失败顺序和同提交责任由公共SPEC持续维护。
 
-| 简称    | 有效输入及接受依据                                                                                                                                                                  | 本批关系                                                                                                       |
-| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| AI3     | [account-identity v3](../../spec/capabilities/account-identity/v3/contract.md)，身份与 offer 采用                                                                                   | 账号、登录及凭据接缝                                                                                           |
-| OG2     | [organization-governance v2](../../spec/capabilities/organization-governance/v2/contract.md)，事务参与采用                                                                          | 已实现四服务面；OG3 的资产读取和新增承诺不伪报通过                                                             |
-| AR2     | [account-registration v2](../../spec/compositions/account-registration/v2/contract.md)，有界注册采用                                                                                | 注册及过期清除编排                                                                                             |
-| EC3/HT3 | [入口 v3](../../spec/compositions/governance-center-entry/v3/contract.md)、[HTTPS JSON v3](../../spec/compositions/governance-center-entry-https-json/v3/contract.md)，在线维护采用 | 服务端与运维面；普通客户端的组织名称增量改用当前协议3及公共 Schema，见下文。HTTPS 框架与其余未迁条款保持原依据 |
-| CG2     | [客户端操作 v2](../../spec/compositions/governance-client-operations/v2/contract.md)，预备输入采用                                                                                  | 全部 action、use、预备输入及报告                                                                               |
-| CLS1    | [本地状态 v1](../../spec/capabilities/client-local-state/v1/contract.md)，本地状态采用                                                                                              | 必要公共形状、CAS、资源生命周期；不裁定新的客户端产品政策                                                      |
-
-IV1/OE2 的身份、warrant、时间形状与失败字面继续由原拥有者维护。
-CG2 明确消费的 EC2/HT2 不因服务端采用 EC3/HT3而自动升版。
-组织名称增量是显式采用的例外：创建输入和组织读面由 [organization-governance SPEC](../../../../packages/core/organization-governance/SPEC.md) 维护，普通线上协议3及唯一 Schema 由 [governance-center-entry SPEC](../../../../packages/core/governance-center-entry/SPEC.md) 维护。客户端采用范围见 [governance-client-operations SPEC](../../../../packages/core/governance-client-operations/SPEC.md)。固定路由字符串保留其身份，不能据此把新形状解释成原冻结条款。
-各契约未迁条款、原测试、模型配置和 Schema URI 保留原身份。
+| 服务范围 | 唯一当前入口 | 范围 |
+|---|---|---|
+| 账号、登录、凭据 | [account-identity](../../../../packages/core/account-identity/SPEC.md) | 身份及凭据接缝 |
+| 组织及成员 | [organization-governance](../../../../packages/core/organization-governance/SPEC.md) | 四服务面与明确未实现增量 |
+| 注册及清除 | [account-registration](../../../../packages/core/account-registration/SPEC.md) | 有界编排与中断 |
+| 治理入口业务与线协议 | [entry](../../../../packages/core/governance-center-entry/SPEC.md)、[HTTPS JSON](../../../../packages/core/governance-center-entry-https-json/SPEC.md) | 线协议的稳定身份不因源码归位改变 |
+| 客户端操作 | [governance-client-operations](../../../../packages/core/governance-client-operations/SPEC.md) | action、use、预备输入与报告 |
+| 客户端本地状态 | [client-local-state](../../../../packages/core/client-local-state/SPEC.md) | CAS、快照身份与资源生命周期 |
 
 ## 操作全集与目标拥有者
 

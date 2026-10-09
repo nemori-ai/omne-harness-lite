@@ -193,7 +193,9 @@ export async function boot(
       },
     ],
     plugins: [
-      ...(sharedClock === undefined ? [{ plugin: clockPlugin, config: {} }] : []),
+      ...(sharedClock === undefined
+        ? [{ plugin: clockPlugin, config: { file: file('clock'), initialize: true } }]
+        : []),
       {
         plugin: organizationGovernancePlugin,
         config: {

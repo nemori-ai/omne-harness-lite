@@ -27,13 +27,7 @@ function invocation(args: string[]) {
 describe('exact command and nonsecret syntax', () => {
   it('ships the exact accepted command registry', () => {
     expect(readFileSync(new URL('../commands/governance.json', import.meta.url), 'utf8')).toBe(
-      readFileSync(
-        new URL(
-          '../../../.meta_harness/design/spec/compositions/governance-cli-entry/v1/commands.json',
-          import.meta.url,
-        ),
-        'utf8',
-      ),
+      readFileSync(new URL('./fixtures/commands.json', import.meta.url), 'utf8'),
     )
   })
   for (const command of commands) {
@@ -84,7 +78,7 @@ describe('exact command and nonsecret syntax', () => {
       JSON.parse(
         readFileSync(
           new URL(
-            '../../../.meta_harness/design/spec/compositions/governance-client-operations/v1/examples.json',
+            '../../../packages/core/governance-client-operations/tests/fixtures/action-examples.json',
             import.meta.url,
           ),
           'utf8',

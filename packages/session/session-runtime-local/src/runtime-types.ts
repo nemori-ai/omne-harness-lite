@@ -55,7 +55,7 @@ export interface RuntimeOptions {
   /** Creates a borrowed participant with the actual same storage and live authority checks. */
   readonly log: (authority: LogAuthorityOperations) => SessionLogParticipant
   readonly bootstrap: SessionBootstrap
-  readonly now: () => string | 'unavailable'
+  readonly now: () => Promise<string | 'unavailable'>
   readonly workSettledIn: StateOptions['workSettledIn']
   /** Explicit original result source and custody capacity. Absence grants no result custody. */
   readonly modelResults?: {

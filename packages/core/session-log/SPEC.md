@@ -1,7 +1,7 @@
 # Session Log：可信装配借用
 
 本页拥有 SessionLogBackingOperations、受权 SessionLogOwnerOperations、SourceToken、typed payload 与 SessionLogParticipant 的行为。
-普通日志追加沿原 SL3 行为；新增参加端口不使普通 append 自动加入调用者事务。
+普通三操作遵循下述共同日志行为；参加端口不使普通append自动加入调用者事务。
 
 ## 固定日志坐标
 
@@ -78,3 +78,15 @@ SLO-3：readPrefix 只返回同一 ownerGeneration 下完整、有序、逐项�
 SLO-4：维护令牌与普通访问令牌分离。维护权限只收尾已归属的责任；业务恢复写者
 须依据完整前缀核验可恢复对象，不得创建新执行意图或新的 Run。低层日志借用不代替
 这些业务核验。发布 runtime Ready 前，全部持有会话的恢复均须成功。
+
+## 普通日志操作
+
+- **L1 共同身份、只增与精确值**：每Session一本；已提交壳/载荷/位置不可改删，跨会话不可读写，位置从1起连续、同日志才可比，空尾0。run/attempt同在同缺，壳如实归写方；载荷保持合法严格JSON值，数无损，不规范化成不同值。判重键与readKeys逐码点精确、不解析；dedupe不自动成为readKey，写方若要按它读需显式同时放readKeys。未知普通JSON保持opaque/other；**SLP-1具名typed封装校验优先**，不能从“日志不校验业务载荷”恢复旁路。当前受权participant/owner每次核实际holding与资格，不能把“首条租户由写方填写”读成免核当前授权。
+- **L2 append与出口**：表示→当前适用授权→tenantMismatch→attemptSuperseded→alreadyRecorded{keys}→tailChanged{tail}→整批成功；任一所需事实不可得或提交未确认是unavailable，不假定前项通过。empty批、批内不同tenant/重复dedupe、条目读取键重复、run/attempt不配对、fenced壳不匹配、非法JSON/附position、缺fence/condition等表示先拒。全批依原序取连续位置，同步可见/持久；判租户/栅栏/键/尾和写不可插入其他追加。已确定拒绝（invalidInput、tenantMismatch、attemptSuperseded、alreadyRecorded、tailChanged及适用授权拒绝）全零写；unavailable或提交未确认仍可能整批已写，沿L5保留未知责任。tailChanged不占键/分配位置/初始化日志租户，actual tail只是该判定点事实。tailEquals可合法大于actual tail后冲突，无隐式unconditional、不舍入。无键追加合法但不幂等，不为所有caller新增业务ID/必填dedupe。
+- **L3 栅栏和判重**：dedupe看耐久已提交内容/同成败索引，非进程Set；任何撞键整批拒，keys只说明撞上的键存在，不证明旧完整内容等值。fenced只比较同Run已提交壳上的更大attempt，不验证该attempt已开始；先写尝试开始是其owner责任。结算是否unfenced及late归业务owner，日志不判。重启在同前缀同输入下判定不变，不交活状态。
+- **L4 两个读面**：表示先拒，随后当前读取授权；readByKey返回含该readKey的**全部**条目升序+同一读取点真实tail；readSince返回after之后至同次tail的全部连续条目，after必填非负精确整数，after==tail或>tail均合法空结果并照实返回tail。不可读/缺片/中途失败unavailable，不交部分或假空。原窄口读从未追加日志可得空日志，但不免除当前SessionAccess资格；不能以空日志证明Session不存在。合法1..a原前缀可接连续a+1..tail，身份/来源/无缺号成立才算完整；按键片段不是完整前缀。
+- **L5 未知与恢复**：unavailable/无回执可能全写或全不写，绝非半批；后来的tail/tenant/fence拒绝只证明后来调用，不能证明原调用零写。需业务唯一性的写方保留稳定原ID/完整批，权威认回所有原值；旧writer未实际停/隔离时一次缺席不关闭未知。tailChanged对本次合法调用确定零写，允许没有先前未知的caller合法重读重构，不改成强制有键重试。存在先前未知仍守其责任。条件消费者须由合法完整前缀解释业务并构完整批，尾比较不保护错误解释/未授权读/同批新增边界；无限争用不承诺无饥饿，显式策略耗尽保有未完成责任。
+- **L6 持久边界与未闭**：成功后进程/提供者重启原批/位置不丢，后续读见成功批；本窄口没有归档封存政策，归档后合法追加/读不自行禁止。普通三操作不发业务事件。OS崩溃/断电耐久强度沿实际存储提供者声明，不能迁移时升级承诺。完整Session日志产品（额外壳、创建/封存/通知/投影/Run事实认法）、跨进程鉴别、新鲜度、跨写方键分配仍归其真实owner，不在此开发。
+
+
+模型与实际验证义务见[verification](verification/README.md)。
