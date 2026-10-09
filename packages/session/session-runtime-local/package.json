@@ -61,6 +61,10 @@
     "@omne-harness-lite/session-log-sql": "workspace:*",
     "@omne-harness-lite/runtime-context-local": "workspace:*",
     "@omne-harness-lite/model-request-runtime-local": "workspace:*",
-    "@omne-harness-lite/loop-extension-runner-local": "workspace:*"
+    "@omne-harness-lite/loop-extension-runner-local": "workspace:*",
+    "@omne-harness-lite/tool-execution-local": "workspace:*",
+    "@omne-harness-lite/tool-result-files": "workspace:*",
+    "@omne-harness-lite/tool-definition": "workspace:*",
+    "@omne-harness-lite/assembly-manifest-store": "workspace:*"
   }
 }

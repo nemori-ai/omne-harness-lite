@@ -3,7 +3,7 @@ import {
   projectToolJournal,
 } from '@omne-harness-lite/tool-execution-runtime'
 import { readPassConclusions } from '@omne-harness-lite/loop-extension-runner-local'
-import { prepareRunnerConclusion } from '@omne-harness-lite/loop-extension-runner'
+import { prepareRunnerConclusion, readRunnerChain } from '@omne-harness-lite/loop-extension-runner'
 import { judgeDefinition } from '@omne-harness-lite/loop-extension'
 // @module-tag slow
 // Uses real root and tenant SQLite transactions, log owners and Cordis lifetimes.
@@ -3752,4 +3752,465 @@ it('does not claim unknown ordinary Tool delivery before entering the original t
   ).toEqual({ failure: 'unavailable' })
   fault.mockRestore()
   expect(await t.f.count('sr_tool_delivery')).toEqual({ n: 0 })
+})
+
+import {
+  createOriginalIssueToolRuntime,
+  createToolImplementationRegistry,
+  createToolInvoker,
+  createToolOriginalIssueVerifier,
+  toolOriginalIssueMigrations,
+} from '@omne-harness-lite/tool-execution-local'
+import {
+  openToolResultStorage,
+  openToolResultCustodySource,
+} from '@omne-harness-lite/tool-result-files'
+import {
+  createParameterJudge,
+  isToolReturn,
+  toolResultOf,
+  type ToolDefinition,
+} from '@omne-harness-lite/tool-definition'
+import {
+  createAssemblyManifestStore,
+  assemblyManifestMigrations,
+} from '@omne-harness-lite/assembly-manifest-store'
+import { createRunnerTaskOwner } from '@omne-harness-lite/loop-extension-runner-local'
+import type {
+  ToolRuntimeOriginalIssueDependencies,
+  ExecutionSubmission,
+  ToolOriginalIssueParticipant,
+} from '@omne-harness-lite/tool-execution-runtime'
+
+it('composes the public native Tool factory with Session original issue, actual immutable files and ordinary delivery', async () => {
+  let actualSource: Awaited<ReturnType<typeof openToolResultCustodySource>> | undefined
+  const qualified = vi.fn(async () => ({ kind: 'authorized' as const }))
+  const f = await fixture(undefined, 32, () => ({
+    toolIssue: { maxRecords: 8, current: { authorizeIn: qualified } },
+    toolResults: {
+      maxRecords: 8,
+      source: {
+        verifyIn: (...args) => {
+          if (!actualSource) throw new Error('actual file source is not ready')
+          return actualSource.source.verifyIn(...args)
+        },
+      },
+    },
+    toolDelivery: { readConclusions: readPassConclusions },
+  }))
+  const p = await preparedAttempt(f)
+  const prepared = await f.runtime.lifecycle.commitStep(
+    f.runtime.coordinationAuthority,
+    p.scope,
+    p.attempt.source,
+    p.step,
+  )
+  if (!('kind' in prepared) || prepared.kind !== 'committed')
+    throw new Error('actual preparation failed')
+  for (const migration of [...toolOriginalIssueMigrations, ...assemblyManifestMigrations])
+    await f.storage.write(tx => migration.migration.up(tx.db))
+  const support = await f.runtime.toolInvocation.support(f.runtime.coordinationAuthority)
+  if ('unavailable' in support) throw new Error('actual support unavailable')
+  const callId = unwrap(parseOpaqueIdentifier(p.step.call, 'CallId'))
+  const origin = {
+    run: p.step.run,
+    attempt: p.step.attempt,
+    assistantMessage: 'actual-native-tool-reply',
+  }
+  const access = Object.freeze({}) as import('@omne-harness-lite/session-tenancy').SessionAccess
+  const recovery = Object.freeze({}) as ToolRuntimeOriginalIssueDependencies['recovery']
+  const definition: ToolDefinition = {
+    name: 'fixture-echo',
+    description: 'Echo the exact input.',
+    paradigm: 'single',
+    origin: { kind: 'authored' },
+    input: {
+      type: 'object',
+      description: 'Echo input.',
+      properties: { value: { type: 'string', description: 'Value.' } },
+      required: ['value'],
+    },
+    permissions: { execute: { default: 'auto' } },
+  }
+  const request: ExecutionSubmission = {
+    scope: p.scope,
+    access,
+    origin,
+    adoption: 'native-adopted',
+    admissionToken: 'controlled-root-token' as NonNullable<ExecutionSubmission['admissionToken']>,
+    call: {
+      id: unwrap(parseOpaqueIdentifier('native-call-block', 'BlockId')),
+      kind: 'tool_call',
+      complete: true,
+      visibility: { toHuman: true, toModel: true },
+      callId,
+      tool: definition.name,
+      arguments: { value: 'exact native reply' },
+    },
+  }
+  const prefix = async () => {
+    const current = await f.runtime.journal.readPrefix(f.runtime.access, p.scope.session)
+    if (!('kind' in current) || current.kind !== 'prefix')
+      throw new Error('actual prefix unavailable')
+    return current
+  }
+  const generation = f.log().backing.ownerGeneration
+  const backing = f.log().backing
+  const history: ToolRuntimeOriginalIssueDependencies['history'] = {
+    inspect(checked, id) {
+      const tools = projectToolJournal(p.scope, checked.entries)
+      if ('invalid' in tools) return { kind: 'unavailable' }
+      const tool = tools.executions.get(id)
+      return {
+        kind: 'known',
+        facts: {
+          origin,
+          latestAttempt: origin.attempt,
+          runState: 'open',
+          calls: [request.call],
+          route: tool
+            ? { kind: 'execution', intentKey: tool.intent.entry.dedupeKey! }
+            : { kind: 'none' },
+          adoption: {
+            key: request.adoption,
+            tools: [
+              {
+                name: definition.name,
+                capability: 'tool:fixture-echo',
+                asset: 'native-echo',
+                version: '1',
+                definition,
+              },
+            ],
+            report: {
+              session: p.scope.session,
+              runId: origin.run,
+              attempt: origin.attempt,
+              computedAt: unwrap(instantFromRfc3339(at)),
+              snapshots: [],
+              availability: [],
+              mcpActions: [],
+              endpointHoldings: [],
+              effectivePermissions: {},
+              skillGate: [],
+            },
+          },
+          batch: {
+            kind: 'complete',
+            completion: {
+              key: 'controlled-native-batch',
+              gate: { kind: 'available' },
+              items: [
+                {
+                  callId,
+                  effectiveCall: request.call,
+                  conclusions: ['controlled-native-allow'],
+                  decision: { kind: 'allow', conclusion: 'controlled-native-allow' },
+                },
+              ],
+            },
+          },
+        },
+      }
+    },
+  }
+  const authorization: ToolRuntimeOriginalIssueDependencies['authorization'] = {
+    async authorize(candidate, scope) {
+      if (candidate !== access || writeJsonLossless(scope) !== writeJsonLossless(p.scope))
+        return { kind: 'rejected', reason: 'notAuthorized' }
+      return {
+        kind: 'authorized',
+        identity: {
+          binding: 'controlled-root-tool',
+          principal: 'owner',
+          principalKind: 'human',
+          scope,
+          consumer: 'tool',
+          contextKeys: [],
+        },
+      }
+    },
+  }
+  const manifest = createAssemblyManifestStore(f.storage)
+  const filled = await manifest.append(p.scope.session, 0, {
+    evaluation: { kind: 'given', ref: 'native-empty-loop-evaluation' },
+    tables: { loop_extension: { filledAt: unwrap(instantFromRfc3339(at)), composition: [] } },
+    content: {
+      evaluation: {
+        root: input.definition,
+        assets: [
+          {
+            capability: input.definition,
+            asset: 'controlled-native-root',
+            version: 1,
+            from: 'factory',
+            replaced: [],
+          },
+        ],
+        composition: [],
+        values: [],
+        filteredOut: [],
+        unresolved: [],
+      },
+      compositionOrder: [],
+      filledBy: { kind: 'assembly' },
+    },
+  })
+  if ('failure' in filled) throw new Error('actual manifest fill failed: ' + JSON.stringify(filled))
+  const binding = { session: p.scope.session, tenant, logGeneration: generation }
+  const chainSources = {
+    sessionTenancy: f.runtime.tenancy,
+    manifest,
+    history: { read: async () => ({ failure: 'unavailable' as const, stage: 'source' as const }) },
+    isActive: () => true,
+  }
+  expect(
+    await readRunnerChain({ session: p.scope.session, binding, sources: chainSources }),
+  ).toEqual([])
+  const files = await openToolResultStorage(
+    { directory: join(f.root, 'native-results'), storage: 'native-results' },
+    {
+      authorization,
+      backing,
+      history,
+      recoveryAuthority: {
+        authorizeRecovery: async candidate =>
+          candidate === recovery ? 'authorized' : 'notAuthorized',
+      },
+    },
+  )
+  const taskOwner = createRunnerTaskOwner(binding)
+  const implementation = vi.fn<import('@omne-harness-lite/tool-execution-runtime').ToolExecutor>(
+    async args => {
+      if (
+        args === null ||
+        typeof args !== 'object' ||
+        Array.isArray(args) ||
+        !('value' in args) ||
+        typeof args.value !== 'string'
+      )
+        throw new TypeError('Expected echo value')
+      return args.value
+    },
+  )
+  const registry = createToolImplementationRegistry()
+  const withdraw = registry.register({
+    capability: 'tool:fixture-echo',
+    asset: 'native-echo',
+    version: '1',
+    definition,
+    executor: implementation,
+  })
+  const issued: ToolOriginalIssueParticipant[] = []
+  const admission: ReturnType<ToolRuntimeOriginalIssueDependencies['admission']> = {
+    forPass: async () => ({ kind: 'rejected', reason: 'passUnavailable' }),
+    verifyToken: async () => {
+      const current = await prefix()
+      return {
+        kind: 'valid',
+        checked: { scope: p.scope, ownerGeneration: generation, tail: current.source.tail },
+      }
+    },
+  }
+  const native = createOriginalIssueToolRuntime(
+    {
+      frameQueueBytes: 4096,
+      tailRetry: { attempts: 2, minDelayMs: 0, maxDelayMs: 0 },
+      resultStorage: 'native-results',
+    },
+    {
+      backing,
+      history,
+      authorization,
+      recovery,
+      owner: {
+        enumerate: async candidate =>
+          candidate === recovery
+            ? {
+                kind: 'sessions',
+                sessions: [{ scope: p.scope, locator: 'controlled-native-scope' }],
+              }
+            : { kind: 'rejected', reason: 'notAuthorized' },
+        readPrefix: async () => {
+          const current = await prefix()
+          return {
+            kind: 'prefix',
+            prefix: {
+              scope: p.scope,
+              ownerGeneration: generation,
+              entries: current.entries,
+              tail: current.source.tail,
+            },
+          }
+        },
+        borrow: async () => ({ kind: 'rejected', reason: 'notAuthorized' }),
+      },
+      admission: () => admission,
+      implementations: registry,
+      context: {
+        bind: async () => ({
+          kind: 'bound',
+          reader: {
+            read: async () => ({ kind: 'values', values: [] }),
+            snapshot: async () => ({ kind: 'rejected', reason: 'unavailable' }),
+            changes: async () => ({ kind: 'rejected', reason: 'unavailable' }),
+          },
+        }),
+      },
+      environments: {
+        recover: async () => [],
+        recoverOwned: async () => ({ kind: 'recovered', values: [], failures: [] }),
+        resolvePlacement: async () => ({ kind: 'notApplicable' }),
+        acquire: async () => ({ kind: 'rejected', reason: 'unavailable' }),
+      },
+      results: files.operations,
+      runnerHost: {
+        acquireDispatch: async () => ({ failure: 'unavailable' }),
+        acquireReplay: async () => ({
+          binding,
+          owner: taskOwner,
+          isActive: () => true,
+          release() {},
+          sources: {
+            sessionTenancy: f.runtime.tenancy,
+            manifest,
+            history: { read: async () => ({ failure: 'unavailable', stage: 'source' }) },
+            isActive: () => true,
+          },
+        }),
+      },
+      invoke: createToolInvoker({
+        parameters: createParameterJudge(),
+        judgeResult: value =>
+          isToolReturn(value)
+            ? {
+                kind: 'valid',
+                result:
+                  typeof value === 'string'
+                    ? value
+                    : toolResultOf(
+                        value,
+                        unwrap(parseOpaqueIdentifier('native-judged', 'BlockId')),
+                      ),
+              }
+            : { kind: 'invalid' },
+      }),
+      clock: { now: async () => unwrap(instantFromRfc3339(at)) },
+      originalIssue: {
+        ...support,
+        admission: {
+          admitOriginal: async participant => {
+            issued.push(participant)
+            return support.admission.admitOriginal(participant)
+          },
+          consumeOriginal: support.admission.consumeOriginal,
+        },
+      },
+    },
+  )
+  try {
+    actualSource = await openToolResultCustodySource(
+      { directory: join(f.root, 'native-results'), storage: 'native-results' },
+      {
+        storage: f.storage,
+        log: support.log,
+        access: support.access,
+        original: createToolOriginalIssueVerifier(f.storage),
+      },
+    )
+    await native.ready
+    expect(await native.operations.submit(request)).toEqual({
+      kind: 'recorded',
+      execution: { ...p.scope, callId },
+    })
+    await native.idle()
+    expect(implementation).toHaveBeenCalledTimes(1)
+    expect(await native.operations.submit(request)).toEqual({
+      kind: 'recorded',
+      execution: { ...p.scope, callId },
+    })
+    await native.idle()
+    expect(implementation).toHaveBeenCalledTimes(1)
+    expect(await f.count('tool_original_issue')).toEqual({ n: 1 })
+    expect(await f.count('sr_tool_issue')).toEqual({ n: 1 })
+    expect(issued).toHaveLength(2)
+    expect(issued[1]).toBe(issued[0])
+    await issued[0]!.stopped
+    const current = await prefix()
+    const tools = projectToolJournal(p.scope, current.entries)
+    if ('invalid' in tools) throw new Error('actual native history invalid')
+    const terminal = tools.executions.get(callId)!.terminal!
+    expect(terminal.value.terminal).toEqual({ outcome: 'completed', result: 'exact native reply' })
+    expect(
+      await f.storage.atomic(unit =>
+        actualSource!.source.verifyIn(
+          unit,
+          { ...issued[0]!.identity, executionGeneration: 'copied-native-generation' },
+          terminal,
+        ),
+      ),
+    ).toEqual({ failure: 'invalidSource' })
+    const custody = await f.runtime.toolResults.store(f.runtime.coordinationAuthority, p.scope, {
+      original: issued[0]!.identity,
+      source: current.source,
+      terminal,
+      resultKey: 'native-result',
+    })
+    expect(custody).toHaveProperty('kind', 'custodied')
+    if (!('witness' in custody))
+      throw new Error('actual native custody failed: ' + JSON.stringify(custody))
+    expect(custody.result.stored!.result.content[0]).toHaveProperty('text', 'exact native reply')
+    await native.close()
+    await files.close()
+    expect(
+      await f.storage.atomic(unit =>
+        actualSource!.source.verifyIn(unit, issued[0]!.identity, terminal),
+      ),
+    ).toHaveProperty('verified.stored.result.content.0.text', 'exact native reply')
+    expect(
+      await f.runtime.toolResults.read(
+        f.runtime.coordinationAuthority,
+        p.scope,
+        callId,
+        'native-result',
+      ),
+    ).toHaveProperty('kind', 'alreadyCustodied')
+    const tail = await prefix()
+    const projected = terminal.value.delivery.result
+    const message = judgeMessage({
+      id: 'native-tool-message',
+      type: 'tool',
+      callId,
+      createdAt: at,
+      blocks: [projected],
+    })
+    if ('rejected' in message || message.ok.type !== 'tool' || !p.attempt.permit)
+      throw new Error('actual ToolMessage or permit rejected')
+    const confirmed = await f.runtime.toolDelivery.confirm(
+      f.runtime.coordinationAuthority,
+      p.scope,
+      {
+        witness: custody.witness,
+        source: tail.source,
+        permit: p.attempt.permit,
+        result: message.ok.blocks[0],
+        conclusions: [],
+        message: message.ok,
+      },
+    )
+    expect(confirmed).toHaveProperty('kind', 'confirmed')
+    expect(await native.operations.submit(request)).toEqual({
+      kind: 'rejected',
+      reason: 'ownerStopped',
+    })
+    expect(implementation).toHaveBeenCalledTimes(1)
+  } finally {
+    await native.close()
+    await actualSource?.close()
+    await files.close()
+    await withdraw()
+    taskOwner.closeAdmission()
+    await taskOwner.drain()
+    await manifest.close()
+  }
 })

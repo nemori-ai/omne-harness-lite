@@ -2858,6 +2858,9 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
+      '@omne-harness-lite/assembly-manifest-store':
+        specifier: workspace:*
+        version: link:../../assets/assembly-manifest-store
       '@omne-harness-lite/loop-extension-runner-local':
         specifier: workspace:*
         version: link:../../agent-loop/loop-extension-runner-local
@@ -2873,6 +2876,15 @@ importers:
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../infra/storage-sql
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../../core/tool-definition
+      '@omne-harness-lite/tool-execution-local':
+        specifier: workspace:*
+        version: link:../../tools/tool-execution-local
+      '@omne-harness-lite/tool-result-files':
+        specifier: workspace:*
+        version: link:../../tools/tool-result-files
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
