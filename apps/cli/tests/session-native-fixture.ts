@@ -1,5 +1,6 @@
 import {
   createModelCallFacts,
+  createCallContainerPresence,
   type RuntimeConstruction,
 } from '@omne-harness-lite/model-request-runtime-local'
 import type {
@@ -102,30 +103,7 @@ export function nativeCallFixturePorts(
   const requests: Array<{ readonly messages: unknown }> = []
   const sentRequests: Array<{ readonly messages: unknown }> = []
   function configure(base: Construction): Construction {
-    const presence: Construction['callPresence'] = {
-      async read(input, observed) {
-        const local = base.calls.find(input.ref)?.view()
-        return {
-          read: await observed(
-            local
-              ? {
-                  kind: 'live',
-                  source: input.source,
-                  executionGeneration: local.executionGeneration,
-                  sourceVersion: 'actual-run-binding',
-                }
-              : {
-                  kind: 'stopped',
-                  source: input.source,
-                  executionGeneration: null,
-                  sourceVersion: 'actual-run-binding',
-                  target: null,
-                  unknownBatches: [],
-                },
-          ),
-        }
-      },
-    }
+    const presence = createCallContainerPresence(base.calls)
     const facts = createModelCallFacts({ content: base.callFacts.content, presence, maxScopes: 8 })
     return {
       ...base,

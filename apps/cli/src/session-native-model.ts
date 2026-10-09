@@ -9,6 +9,7 @@ import type {
 import {
   createModelRuntime,
   createCallContainerStore,
+  createCallContainerPresence,
   createModelCallContentStore,
   createModelCallFacts,
   type RuntimeConstruction,
@@ -49,7 +50,7 @@ export interface SessionNativeModelOptions {
   readonly sources: (
     calls: Calls,
     clock: Clock,
-  ) => Omit<Construction, 'calls' | 'callFacts' | 'transport'>
+  ) => Omit<Construction, 'calls' | 'callFacts' | 'callPresence' | 'transport'>
   readonly bind: (
     pool: SessionNativeModelPool,
   ) => Omit<SessionRuntimeRootOptions['model'], 'executionSource'>
@@ -128,9 +129,10 @@ class NativeModelOwner {
     })
     this.calls = createCallContainerStore<PlannedRequest, RawResponse>()
     const sources = this.options.sources(this.calls, this.clock)
+    const presence = createCallContainerPresence(this.calls)
     this.facts = createModelCallFacts({
       content: this.content,
-      presence: sources.callPresence,
+      presence,
       maxScopes: this.options.maxFactScopes,
     })
     this.transport = createModelTransportService({
@@ -155,6 +157,7 @@ class NativeModelOwner {
       ...sources,
       calls: this.calls,
       callFacts: this.facts,
+      callPresence: presence,
       transport: {
         clearReuseScope: scope => this.transport!.clearReuseScope(scope),
         acquire: (binding, routeName) => {

@@ -26,6 +26,14 @@
 耐久 acknowledge 先保护当前状态，再在同一存储提交中推进释放；不能先删内容再声称提交成功。
 外部效果、日志及模型请求的失败范围沿原协议，不以换包名或改入口消除义务。
 
+## 实际调用容器的存续读面
+
+根工厂createCallContainerPresence只借入本包实际createCallContainerStore返回的原store，不接受复制或自造store。它不拥有store的关闭权，也不授调用资格。
+
+有原容器时，read核原创建Scope、日志generation及指定的executionGeneration，然后交付实际容器的原世代。sourceVersion来自该容器借入的sourceVersions。observed回调期间保有原容器读引用；精确租约释放和原close不得越过它。close撤新读，读引用未归还时返回unavailable，归还后可显式重试原close。回调失败保留原异常，仍归还读引用。
+
+原容器缺失时只返回unknown、空executionGeneration及请求所带日志进度的版本表示。这个结果不证明来源有效、数据不存在或原执行已停止。不制造stopped目标或清空未知批次。已开始关闭的实际容器返回unavailable，不能以缺少容器或租约引用冒充关闭证明。实际重启恢复及停止证明仍归原恢复拥有者。
+
 ## 固定主体与共享执行
 
 `createModelRuntime(construction)` 返回默认完整 `service`、`project(inputs, facts)`、唯一整体 `close` 与物理拥有者的 `executionSource`。

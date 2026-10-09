@@ -1,6 +1,6 @@
 import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import { describe, expect, it } from 'vitest'
-import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
+import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import type { AppendResult } from '@omne-harness-lite/session-log'
 import type { SettlementTask } from '@omne-harness-lite/model-request-runtime'
 import type {
@@ -17,6 +17,7 @@ import {
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { AnchoredInvocationHandle } from '@omne-harness-lite/model-request-runtime'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
+import { createCallContainerPresence } from '../src/index.ts'
 
 function deferred() {
   let resolve: (() => void) | undefined
@@ -50,7 +51,11 @@ function fixture(
   const log = { session: sessionId, tenant: { organization: 'test', account: 'test' }, generation }
   const selectionLog = { ...log, tenant: { ...log.tenant } }
   // Unused provider members belong to the host; this test exercises only local resource ownership.
-  const session = { log, selection: { binding: selectionLog } } as unknown as SessionRuntimeBinding
+  const session = {
+    log,
+    selection: { binding: selectionLog },
+    sourceVersions: { containerFixture: 'v1' },
+  } as unknown as SessionRuntimeBinding
   const oldWrites: SettlementTask<AppendResult>[] = []
   const host: ModelCallHost = {
     signal: new AbortController().signal,
@@ -109,6 +114,117 @@ function fixture(
     },
   }
 }
+
+describe('actual container presence', () => {
+  function setup() {
+    const f = fixture('session', 'call', async control => {
+      control.publishStopped()
+      return { released: true }
+    })
+    const calls = createCallContainerStore<PlannedSemantics, never>()
+    const entry = calls.reserve(f.container.key)
+    if (!('reservation' in entry)) throw new Error('actual reservation required')
+    expect(calls.insert(entry.reservation, f.container)).toBe(true)
+    entry.reservation.release()
+    const view = f.container.view()
+    return {
+      container: f.container,
+      get leaseReleases() {
+        return f.leaseReleases
+      },
+      calls,
+      presence: createCallContainerPresence(calls),
+      input: {
+        ref: view.key,
+        origin: { session: view.key.session, tenant: view.session.log.tenant },
+        source: { generation: view.session.log.generation, progress: 0 },
+        executionGeneration: null,
+      },
+    }
+  }
+  it('reads the actual generation and captured source versions', async () => {
+    const f = setup()
+    const result = await f.presence.read(f.input, async fact => fact)
+    expect(result).toMatchObject({
+      read: { kind: 'live', sourceVersion: '{"containerFixture":"v1"}' },
+    })
+    if (!('read' in result)) throw new Error('actual read required')
+    expect(result.read.executionGeneration).toBe(f.container.view().executionGeneration)
+    expect(result.read.source.generation).toBe(f.input.source.generation)
+    expect(await f.calls.close()).toEqual({ released: true })
+  })
+  it('keeps ending and lease release outside the actual observed section', async () => {
+    const f = setup(),
+      entered = deferred(),
+      resume = deferred()
+    // No reply is consumed here; only the phase and exact lease-ending gate are exercised.
+    f.container.publish({ phase: 'complete', pending: {} as PendingModelResponse })
+    const read = f.presence.read(f.input, async fact => {
+      entered.finish()
+      await resume.promise
+      return fact
+    })
+    await entered.promise
+    expect(f.container.releaseExecutionLease()).toEqual({ unavailable: true })
+    expect(await f.calls.close()).toEqual({ unavailable: true })
+    expect(f.container.canRemove()).toBe(false)
+    expect(f.leaseReleases).toBe(0)
+    resume.finish()
+    expect(await read).toHaveProperty('read.kind', 'live')
+    expect(await f.calls.close()).toEqual({ released: true })
+    expect(f.leaseReleases).toBe(1)
+  })
+  it('rejects a foreign source, origin or execution generation before observation', async () => {
+    const f = setup()
+    const tenant = parseTenantId({ organization: 'foreign', account: 'test' })
+    if ('invalidInput' in tenant) throw new Error('test tenant required')
+    let observations = 0
+    const observed = async () => ++observations
+    for (const input of [
+      { ...f.input, source: { ...f.input.source, generation: {} } },
+      { ...f.input, origin: { ...f.input.origin, tenant: tenant.ok } },
+      { ...f.input, executionGeneration: {} },
+    ])
+      expect(await f.presence.read(input, observed)).toEqual({ unavailable: true })
+    expect(observations).toBe(0)
+    expect(await f.calls.close()).toEqual({ released: true })
+  })
+  it('reports unknown after actual removal and never manufactures a stopped target', async () => {
+    const f = setup()
+    expect(await f.container.close()).toEqual({ released: true })
+    const entry = f.calls.reserve(f.container.key)
+    if (!('reservation' in entry)) throw new Error('actual reservation required')
+    expect(f.calls.remove(entry.reservation)).toBe(true)
+    entry.reservation.release()
+    const result = await f.presence.read(f.input, async fact => fact)
+    expect(result).toMatchObject({ read: { kind: 'unknown', executionGeneration: null } })
+    if ('read' in result) expect(result.read).not.toHaveProperty('target')
+    expect(await f.calls.close()).toEqual({ released: true })
+  })
+  it('releases the observed section on a callback defect and retains that defect', async () => {
+    const f = setup(),
+      defect = new Error('observed defect')
+    await expect(
+      f.presence.read(f.input, async () => {
+        throw defect
+      }),
+    ).rejects.toBe(defect)
+    expect(await f.calls.close()).toEqual({ released: true })
+  })
+  it('rejects a copied store and does not admit malformed presence data', async () => {
+    const f = setup()
+    expect(() => createCallContainerPresence({ ...f.calls })).toThrow('actual call container store')
+    let observations = 0
+    expect(
+      await f.presence.read(
+        { ...f.input, source: { ...f.input.source, progress: -1 } },
+        async () => ++observations,
+      ),
+    ).toEqual({ invalidInput: { reason: 'malformed' } })
+    expect(observations).toBe(0)
+    expect(await f.calls.close()).toEqual({ released: true })
+  })
+})
 
 describe('call container admission and retention', () => {
   it('retains verified semantic stop while retrying an unfinished observer close', async () => {

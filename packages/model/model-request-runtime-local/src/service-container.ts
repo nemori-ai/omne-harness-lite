@@ -31,6 +31,14 @@ import type {
 } from './service-types.ts'
 import type { SettlementScheduler } from '@omne-harness-lite/model-request-runtime'
 import type { AnchoredInvocationHandle } from '@omne-harness-lite/model-request-runtime'
+import type { CallPresence } from '@omne-harness-lite/model-request-runtime'
+import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import {
+  registerPresenceStore,
+  registerContainerPresence,
+  containerPresenceMatches,
+  originalContainerOrigin,
+} from './call-presence.ts'
 
 const invocationSlots = new WeakMap<object, (handle: AnchoredInvocationHandle) => void>()
 const replacementSlots = new WeakMap<
@@ -256,6 +264,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
   let leaseReleaseAttempted = false
   let stopFailed = false
   let semanticStopped = false
+  let presenceReaders = 0
   let invocation: AnchoredInvocationHandle | undefined
   let observer: CallObserverBinding | undefined = input.observer
   const pendingObserverCleanup = new Set<AuthorizedCallObserver>()
@@ -349,24 +358,31 @@ export function createCallContainer<P extends PlannedSemantics, R>(
     return results
   }
 
+  function finishRetriedRelease(): RuntimeCloseResult {
+    if (!leaseReleased) return { unavailable: true }
+    try {
+      return finishRelease()
+    } catch {
+      return { unavailable: true }
+    }
+  }
+
+  function abortDispatch(): boolean {
+    if (operation.phase !== 'dispatching') return true
+    try {
+      operation.abort()
+      return true
+    } catch {
+      return false
+    }
+  }
+
   async function closeOnce(): Promise<RuntimeCloseResult> {
     if (released) return { released: true }
-    if (releaseAttempted) {
-      if (!leaseReleased) return { unavailable: true }
-      try {
-        return finishRelease()
-      } catch {
-        return { unavailable: true }
-      }
-    }
     admissionClosed = true
-    if (operation.phase === 'dispatching') {
-      try {
-        operation.abort()
-      } catch {
-        return { unavailable: true }
-      }
-    }
+    if (presenceReaders > 0) return { unavailable: true }
+    if (releaseAttempted) return finishRetriedRelease()
+    if (!abortDispatch()) return { unavailable: true }
     const semantic = await stopSemantic()
     const queue = observer?.queue
     const authorization = observer?.authorization
@@ -424,6 +440,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
     },
     releaseExecutionLease(): RuntimeCloseResult {
       if (leaseReleased) return { released: true }
+      if (presenceReaders > 0) return { unavailable: true }
       if (
         leaseReleaseAttempted ||
         (operation.phase !== 'complete' && operation.phase !== 'interrupted')
@@ -448,6 +465,29 @@ export function createCallContainer<P extends PlannedSemantics, R>(
     },
     canRemove: () => released,
   }
+  const presenceOrigin = originalContainerOrigin(input)
+  const readPresence: CallPresence['read'] = async (requested, observed) => {
+    if (admissionClosed || released || releaseAttempted) return { unavailable: true }
+    const view = container.view()
+    if (!containerPresenceMatches(view, requested, presenceOrigin)) return { unavailable: true }
+    const sourceVersion = writeJsonLossless(view.session.sourceVersions)
+    presenceReaders++
+    try {
+      return {
+        read: await observed(
+          Object.freeze({
+            kind: 'live',
+            executionGeneration: view.executionGeneration,
+            source: Object.freeze({ ...requested.source }),
+            sourceVersion,
+          }),
+        ),
+      }
+    } finally {
+      presenceReaders--
+    }
+  }
+  registerContainerPresence(container, readPresence)
   invocationSlots.set(container, handle => {
     if (released || releaseAttempted || admissionClosed)
       throw new TypeError('call container admission closed')
@@ -1023,7 +1063,7 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
       : { unavailable: true }
   }
 
-  return Object.freeze({
+  const store: CallContainerStore<P, R> = Object.freeze({
     find: current,
     reserve,
     async waitReserve(
@@ -1158,4 +1198,6 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
       return closing
     },
   })
+  registerPresenceStore(store)
+  return store
 }
