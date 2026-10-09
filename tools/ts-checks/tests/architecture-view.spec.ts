@@ -1,3 +1,4 @@
+import { gunzipSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
@@ -407,6 +408,7 @@ describe('architecture view projection', () => {
         "ctx.provide('</script><img src=x onerror=alert(1)>',{})",
       ),
     })
+    const view = buildArchitectureView(doc, bands)
     const html = renderPage(
       buildReport({
         files: [],
@@ -423,8 +425,18 @@ describe('architecture view projection', () => {
         summary: [],
         changedEdgeLimit: 24,
       },
-      buildArchitectureView(doc, bands),
+      view,
     )
+    // 架构数据以 gzip + base64 内联，解压后与渲染前的投影逐字节一致。
+    const packed =
+      /<script type="application\/gzip" id="architecture-data" data-encoding="base64">([A-Za-z0-9+/=]+)<\/script>/u.exec(
+        html,
+      )?.[1]
+    expect(packed).toBeDefined()
+    expect(gunzipSync(Buffer.from(packed ?? '', 'base64')).toString('utf8')).toBe(
+      JSON.stringify(view),
+    )
+    expect(html).toContain('new DecompressionStream(')
     expect(html).not.toContain('<img src=x')
     expect(html).not.toMatch(/<script[^>]+src=|<link[^>]+href=|fetch\(/u)
     expect(html).toContain('architecture-pane')

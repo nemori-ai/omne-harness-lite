@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { gzipSync } from 'node:zlib'
+import { transformSync } from 'esbuild'
 import { architectureBrowser } from './browser.ts'
 import { architectureLayoutInput } from './layout.ts'
 import { architectureViewport } from './viewport.ts'
@@ -7,15 +9,33 @@ import { architectureMatrix } from './matrix.ts'
 import { conformanceBrowser } from './conformance-browser.ts'
 import { selectArchitectureView, type ArchitectureView } from './view.ts'
 
-export function architectureMarkup(graph: ArchitectureView): string {
-  const data = JSON.stringify(graph)
-    .replaceAll('<', '\\u003c')
-    .replaceAll('\u2028', '\\u2028')
-    .replaceAll('\u2029', '\\u2029')
-  const bundle = readFileSync(
+let elk: string | undefined
+
+/**
+ * elkjs 不发布压缩过的 elk.bundled.js（只有 elk-worker.min.js），这里在生成页面时压缩一次并缓存。
+ * 它的版权声明是普通注释，压缩会删掉，所以先摘出带 Copyright 的声明块，去重后放回开头。
+ */
+export function elkScript(): string {
+  if (elk !== undefined) return elk
+  const source = readFileSync(
     createRequire(import.meta.url).resolve('elkjs/lib/elk.bundled.js'),
     'utf8',
   )
+  const notices = [
+    ...new Set(
+      (source.match(/\/\*[\s\S]*?\*\//gu) ?? []).filter(text => text.includes('Copyright')),
+    ),
+  ]
+  const code = transformSync(source, { minify: true, legalComments: 'none', target: 'es2020' }).code
+  elk = `${notices.join('\n')}\n${code}`
+  return elk
+}
+
+export function architectureMarkup(graph: ArchitectureView): string {
+  // 架构数据有几十 MB 且高度重复：gzip 后以 base64 内联，体积约为原来的 5%。
+  // base64 只含字母、数字与 +/=，不可能提前闭合脚本标签。
+  const data = gzipSync(JSON.stringify(graph), { level: 9 }).toString('base64')
+  const bundle = elkScript()
   const inline = (script: string): string => script.replaceAll('</script', '<\\/script')
   // React Flow 的 bundle 与样式由 renderPage 内联一次，架构视图与结构图共用。
   return `<style>
@@ -165,10 +185,32 @@ body:has(#metrics-pane:not([hidden])) #metrics-tab { background:var(--ink); colo
 <details class="arch-notice" open><summary>预期语义变化</summary><div id="conformance-changes"></div></details>
 <details class="arch-notice"><summary>机械、人工与行为证据边界</summary><div id="conformance-coverage"></div></details>
 </section>
-<script type="application/json" id="architecture-data">${data}</script>
+<script type="application/gzip" id="architecture-data" data-encoding="base64">${data}</script>
 <script>${inline(bundle)}</script>`
 }
 
+/**
+ * 先用浏览器原生的 DecompressionStream 解压架构数据，再启动视图；解压是异步的，视图在数据就绪后才挂上。
+ * 解压或解析失败时在布局状态栏显示原因并把画布标为失败，不静默留空。
+ */
 export function architectureScript(): string {
-  return `(${architectureBrowser.toString()})(${selectArchitectureView.toString()},${architectureLayoutInput.toString()},${architectureViewport.toString()},${architectureMatrix.toString()},new ELK(),${conformanceBrowser.toString()},window.ArchitectureFlow);`
+  return `(async () => {
+  const diagram = document.getElementById('arch-diagram');
+  const status = document.getElementById('arch-layout-status');
+  let graph;
+  try {
+    const packed = document.getElementById('architecture-data').textContent.trim();
+    const binary = atob(packed);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    graph = JSON.parse(await new Response(stream).text());
+  } catch (error) {
+    status.textContent = '架构数据无法解压：' + (error instanceof Error ? error.message : String(error));
+    diagram.dataset.layoutState = 'failed';
+    diagram.setAttribute('aria-busy', 'false');
+    throw error;
+  }
+  (${architectureBrowser.toString()})(graph,${selectArchitectureView.toString()},${architectureLayoutInput.toString()},${architectureViewport.toString()},${architectureMatrix.toString()},new ELK(),${conformanceBrowser.toString()},window.ArchitectureFlow);
+})();`
 }

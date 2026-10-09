@@ -1,12 +1,12 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { buildSync } from 'esbuild'
+import { buildSync, transformSync } from 'esbuild'
 
 export interface FlowBundle {
   /** Self-contained IIFE: React, @xyflow/react and both islands. It sets `window.ArchitectureFlow` and `window.StructureFlow`. */
   readonly script: string
-  /** @xyflow/react's own stylesheet. The island's styling lives in `style.ts`. */
+  /** @xyflow/react's own stylesheet, minified here because the package ships no minified CSS. The island's styling lives in `style.ts`. */
   readonly style: string
 }
 
@@ -39,10 +39,10 @@ export function architectureFlowBundle(): FlowBundle {
   })
   const script = result.outputFiles.find(file => file.path.endsWith('.js'))?.text
   if (script === undefined) throw new Error('Architecture flow bundle produced no script')
-  const style = readFileSync(
-    createRequire(import.meta.url).resolve('@xyflow/react/dist/style.css'),
-    'utf8',
-  )
+  const style = transformSync(
+    readFileSync(createRequire(import.meta.url).resolve('@xyflow/react/dist/style.css'), 'utf8'),
+    { loader: 'css', minify: true },
+  ).code
   cached = { script, style }
   return cached
 }
