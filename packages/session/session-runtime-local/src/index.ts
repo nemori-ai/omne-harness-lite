@@ -53,3 +53,12 @@ export type {
 
 export { createSessionRunModelBinding } from './model-binding.ts'
 export type { SessionRunModelBinding, SessionRunModelBindingOptions } from './model-binding.ts'
+
+export { createSessionModelAttempt, createSessionModelObservations } from './model-attempt.ts'
+export type {
+  OriginalSessionModelWork,
+  SessionModelAttemptOptions,
+  SessionModelAttempt,
+} from './model-attempt.ts'
+export { prepareSessionModelRun } from './run-preparation.ts'
+export type { SessionRunIdentities } from './run-preparation.ts'

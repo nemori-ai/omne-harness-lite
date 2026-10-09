@@ -20,9 +20,9 @@ import {
   runSessionModelTurn,
   type SessionModelTurnOptions,
   type SessionModelTurnResult,
-} from '@omne-harness-lite/session-runtime-local'
-import { createSessionRunHistory } from '@omne-harness-lite/session-runtime-local'
-import type { LocalSessionContext } from '@omne-harness-lite/session-runtime-local/cordis'
+} from './model-turn.ts'
+import { createSessionRunHistory } from './run-history.ts'
+import type { LocalSessionContext } from './session-context-types.ts'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { instantToRfc3339 } from '@omne-harness-lite/offer-expiry'

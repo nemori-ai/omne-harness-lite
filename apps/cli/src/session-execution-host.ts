@@ -10,13 +10,16 @@ import {
   type LocalSessionHost,
   type SessionHostPolicy,
 } from './session-host-server.ts'
-import { prepareSessionModelRun, type SessionRunIdentities } from './session-run-preparation.ts'
+import {
+  prepareSessionModelRun,
+  type SessionRunIdentities,
+} from '@omne-harness-lite/session-runtime-local'
 import {
   createSessionModelAttempt,
   type SessionModelAttempt,
   type SessionModelAttemptOptions,
   type OriginalSessionModelWork,
-} from './session-agent-attempt.ts'
+} from '@omne-harness-lite/session-runtime-local'
 import type { RetainedSessionModelTurn } from '@omne-harness-lite/session-runtime-local'
 import type { TenantBinding } from './state-layout-values.ts'
 import { checkedTenantBinding } from './state-layout-values.ts'

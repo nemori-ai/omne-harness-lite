@@ -443,13 +443,7 @@ createSessionForMessage从已运行的匹配宿主读取实际创建偏好，捕
 
 ## 已准备模型段的 Agent Loop 消费
 
-`session-run-preparation.ts`由可信宿主消费实际Ingress.readWork，从原持久pending的最早位置经现有同提交startRun、首次startAttempt及prepareCall进入原模型段。调用者须在任何副作用前给出五项有效的原Run／attempt／prepare／call／位置身份；未知提交保留原Scope和stepKey，不生成替代键或自动重试。空会话保持idle，已活动的Run返回retryFromFacts交给其原拥有者，不起第二Run或重发permit。没有可靠原permit不能继续准备。此路径不决定Run终态，不承担工具或重启接管；普通客户端读取和其signal不启动这条路径。
-
-`session-agent-attempt.ts`复用本项目核心Agent Loop的nextStep、driveStep和releaseAttempt，消费一个已持久准备的原模型段。可信应用根提供原permit、原Run绑定、真实日志读取登记、当前资格／装配／Context代际／原调用对账来源，以及宿主任务接管端口。缺少来源不补默认值。日志中的原准备、Run、最新attempt及SourceToken须与该段匹配；实际唯一发起拥有者仍在原提交及发起点重核资格。只读观察不授予模型IO权。
-
-每个模型段只持有一个原runSessionModelTurn任务。重复观察不启动第二次调用。取消或关闭Agent本地等待不取消宿主拥有的模型执行signal。交还成功须由宿主接住同一个任务Promise、原turn及其绑定；只保存任务标识不能视为交还。接管返回pending时继续保留原责任，显式关闭可再次交还同一任务。接管抛错须上抛原缺陷，不自动重试未知交还，不冒称已释放。业务和接管同时失败时保留两项原错误。
-
-该构件仅消费已准备模型段，不承担输入取批、Run创建、工具执行、调度扫描或Run终态判定。组合测试使用实际SQLite、Context只读绑定、项目Agent Loop、物理ModelRuntime及原保管／SDK结算／ACK；当前资格、Context提供者代际、对账和模型运输仍受控。测试通过不表示正式运行根或真实OpenRouter首答已经交付。
+应用通过Session公开入口调用prepareSessionModelRun、createSessionModelAttempt和createSessionModelObservations。原Run准备、Loop解释、任务保留和本地等待结束均归提供者。应用提供原身份和真实来源，不维护第二个Loop。行为见[提供者规格](../../packages/session/session-runtime-local/SPEC.md#已准备模型段的-agent-loop-消费)。
 
 ## 后台Session执行宿主
 
@@ -550,7 +544,7 @@ createSessionContextReadGrant只绑定可信根已确认的自然人登录与同
 
 createSessionRunModelBinding消费Session提供者公开的createSessionCallAccess，并显式提供maxCallReads。原Run读取／ACK／关闭行为归[提供者承诺](../../packages/session/session-runtime-local/SPEC.md#可信宿主日志读取)。应用只选择实际Model提供者；运行消费机制迁至Session拥有者，关闭先结束CallAccess，再归还求值输入和原journal。
 
-createSessionModelObservations用于尚未发起原调用的正常段。当前Source和Run／attempt从原授权日志完整前缀及已有解释器读取，assembly身份从实际采用报告产生，Context身份来自实际Context拥有者。不能用日志世代或固定字符串冒充Context。原Run当前资格只准许这个Loop段；模型发起仍必须通过原Session同提交、最新permit及当前模型权限。完整前缀没有该call才能判为正常新调用；原call存在时要求对账，来源不可得时保持未知，不伪造恢复完成。该函数不提供冷恢复执行者。实际Context停止时Loop阻断发起，模型／工具原执行池的结束仍由原拥有者核验。
+应用选择实际Context和当前来源，调用Session提供者的createSessionModelObservations；解释规则见[提供者规格](../../packages/session/session-runtime-local/SPEC.md#已准备模型段的-agent-loop-消费)。
 
 ## S-12 验证义务
 

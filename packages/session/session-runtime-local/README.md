@@ -69,3 +69,5 @@ The root must retain the borrow until the original model work and ACK responsibi
 ## Original model consumers
 
 The root exports `createSessionRunModelBinding`, `createSessionModelResultSource`, `createSessionRunHistory`, and `runSessionModelTurn`. They bind an original Run, read its history, and transfer a complete result through custody, adoption, SDK settlement, and ACK. The application supplies the actual model and settlement factories through Core interfaces. This package does not select a concrete Model provider. Return the model assembly borrow before its original journal. These functions do not complete the full driver or authorize new execution. See [behavior](SPEC.md#原-run-的模型运行时接线).
+
+The root also exports `prepareSessionModelRun`, `createSessionModelAttempt`, and `createSessionModelObservations`. The provider consumes the Core Agent Loop, retains the original model job, and separates local waits from physical execution. These components do not implement the complete driver or tool loop.

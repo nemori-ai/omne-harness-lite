@@ -25,13 +25,14 @@ import type { SessionRuntimeRootOptions } from '../src/session-runtime-root-type
 import { sendSessionHostRequest } from '../src/session-host-client.ts'
 import { createSessionForMessage } from '../src/session-creation-client.ts'
 import { readSubmittedReply } from '../src/session-message-replies.ts'
-import { prepareSessionModelRun } from '../src/session-run-preparation.ts'
+import { prepareSessionModelRun } from '@omne-harness-lite/session-runtime-local'
 import { readSessionSubmission } from '../src/session-submission.ts'
 import {
   createSessionModelAttempt,
   createSessionModelObservations,
   type OriginalSessionModelWork,
-} from '../src/session-agent-attempt.ts'
+  type SessionModelAttemptOptions,
+} from '@omne-harness-lite/session-runtime-local'
 import {
   runSessionModelTurn,
   type SessionModelTurnOptions,
@@ -3244,7 +3245,7 @@ it.each(['normal', 'detach', 'retained', 'rootFailure', 'diagnosticFailure', 'mi
               : turn,
           registration: nativeReadRegistration(),
           transfer: async () => 'pending' as const,
-          current: async (facts: import('@omne-harness-lite/agent-loop').LoopFacts) => ({
+          current: async (facts: Parameters<SessionModelAttemptOptions['current']>[0]) => ({
             source: facts.source,
             authorized: true,
             assembly: JSON.stringify(built!.refreshed.report.snapshots),

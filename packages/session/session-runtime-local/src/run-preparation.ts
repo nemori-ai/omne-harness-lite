@@ -1,7 +1,4 @@
-import type {
-  LocalSessionIngress,
-  SessionLifecycleStep,
-} from '@omne-harness-lite/session-runtime-local'
+import type { LocalSessionIngress, SessionLifecycleStep } from './runtime-types.ts'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type { StepCommit } from '@omne-harness-lite/session-runtime'
 import { checkKey } from '@omne-harness-lite/session-log'
