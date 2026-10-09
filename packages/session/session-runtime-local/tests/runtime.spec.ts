@@ -1,4 +1,5 @@
 import { Context } from '@deepseek-ai/cordis'
+import { RUNTIME_CONTEXT } from '@omne-harness-lite/runtime-context/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { z } from 'zod'
 import {
@@ -39,6 +40,7 @@ import {
 import {
   SessionDriverStartupService,
   SESSION_DRIVER_CONTROL,
+  SESSION_DRIVER_STARTUP,
   SESSION_INGRESS,
   SESSION_LIFECYCLE,
   SESSION_WORK_READING,
@@ -1529,6 +1531,124 @@ it('initializes the actual Runtime Context in separate Session hosts and withdra
         .executeTakeFirstOrThrow(),
     ),
   ).toEqual({ n: 2 })
+})
+it('owns dynamic injected sources and event hints in each actual independent Session Context', async () => {
+  const f = await fixture(),
+    a = await create(f)
+  const createdB = await f.runtime.operations.createSession(f.runtime.access, {
+    ...input,
+    operationKey: 'dynamic-context-b',
+  })
+  if (!('kind' in createdB) || createdB.kind !== 'created')
+    throw new Error('actual second Session not created')
+  for (const migration of runtimeContextMigrations)
+    await f.storage.write(tx => migration.migration.up(tx.db))
+  function assemble(scope: SessionScope) {
+    const provider = createRuntimeContextLocal(),
+      mounted = Promise.withResolvers<Context>()
+    // Trusted test root composes the actual provider, preserving its original ready/close ownership.
+    const plugin = Object.assign(
+      definePlugin({
+        name: 'actual-session-composition',
+        Config: z.object({}).strict(),
+        apply(ctx) {
+          mounted.resolve(ctx)
+          ctx.plugin(provider.plugin, {})
+        },
+      }),
+      { assemblyLifecycle: 1 as const },
+    )
+    const host = assembleSessionContext({
+      scope,
+      storage: f.storage,
+      logBacking: f.log().backing,
+      access: { authorize: async () => ({ kind: 'rejected', reason: 'notAuthorized' }) },
+      clock: { now: async () => unwrap(instantFromRfc3339(at)) },
+      runtimeContext: { ...provider, plugin },
+    })
+    return { host, mounted: mounted.promise }
+  }
+  const one = assemble({ tenant, session: a.session }),
+    two = assemble({ tenant, session: createdB.session })
+  const handles: import('@omne-harness-lite/runtime-context').ContextSourceHandle[] = []
+  const hints = [vi.fn(), vi.fn()]
+  const contribution = definePlugin({
+    name: 'same-session-source',
+    inject: [RUNTIME_CONTEXT],
+    Config: z.object({ index: z.number().int().min(0).max(1) }).strict(),
+    apply(ctx, config) {
+      handles[config.index] = ctx.runtimeContext.registerSource({
+        name: 'same-injected-source',
+        recovery: 'reread_source',
+        consumers: ['model'],
+        requiredKeys: [],
+        read: async () => ({ kind: 'values', values: [] }),
+      })
+      ctx.on('runtime-context/cache-invalidated', hints[config.index]!)
+    },
+  })
+  try {
+    await one.host.ready
+    await two.host.ready
+    const seed = { required: [], initial: [], fixed: [] }
+    expect(await one.host.initializer.initializeContextSession(one.host.scope, seed)).toMatchObject(
+      { kind: 'applied' },
+    )
+    expect(await two.host.initializer.initializeContextSession(two.host.scope, seed)).toMatchObject(
+      { kind: 'applied' },
+    )
+    const first = await one.mounted,
+      second = await two.mounted
+    expect(first).not.toBe(second)
+    expect(first.get(SESSION_DRIVER_STARTUP)).toBeUndefined()
+    expect(second.get(SESSION_DRIVER_STARTUP)).toBeUndefined()
+    expect(first.get(SESSION_LIFECYCLE)).toBeUndefined()
+    expect(second.get(SESSION_LIFECYCLE)).toBeUndefined()
+    const fiberA = first.plugin(contribution, { index: 0 }),
+      fiberB = second.plugin(contribution, { index: 1 })
+    await fiberA
+    await fiberB
+    expect(handles[0]!.generation).not.toBe(handles[1]!.generation)
+    const before = await f.log().readSince(a.session, 0)
+    first.emit('runtime-context/cache-invalidated')
+    expect(hints[0]).toHaveBeenCalledOnce()
+    expect(hints[1]).not.toHaveBeenCalled()
+    // A hint alone is neither a durable business fact nor execution authority.
+    expect(await f.log().readSince(a.session, 0)).toEqual(before)
+    expect(await handles[0]!.invalidate(two.host.scope, [])).toMatchObject({ kind: 'rejected' })
+    expect(
+      await handles[0]!.invalidate(
+        {
+          ...one.host.scope,
+          tenant: unwrap(parseTenantId({ ...tenant, organization: 'other-tenant' })),
+        },
+        [],
+      ),
+    ).toMatchObject({ kind: 'rejected' })
+    await fiberA.dispose()
+    expect(await handles[0]!.invalidate(one.host.scope, [])).toMatchObject({ kind: 'rejected' })
+    expect(await handles[1]!.invalidate(two.host.scope, [])).toEqual({ kind: 'invalidated' })
+    const originalGeneration = handles[0]!.generation
+    const replacement = first.plugin(contribution, { index: 0 })
+    await replacement
+    expect(handles[0]!.generation).not.toBe(originalGeneration)
+    expect(await handles[0]!.invalidate(one.host.scope, [])).toEqual({ kind: 'invalidated' })
+    one.host.requestStop()
+    expect(await one.host.closed).toMatchObject({ complete: true })
+    expect(await handles[0]!.invalidate(one.host.scope, [])).toMatchObject({ kind: 'rejected' })
+    expect(await handles[1]!.invalidate(two.host.scope, [])).toEqual({ kind: 'invalidated' })
+    expect(two.host.currentGeneration()).toEqual(expect.any(String))
+    await fiberB.dispose()
+    expect(await handles[1]!.invalidate(two.host.scope, [])).toMatchObject({ kind: 'rejected' })
+  } finally {
+    one.host.requestStop()
+    two.host.requestStop()
+    await Promise.all([one.host.closed, two.host.closed])
+  }
+  expect(await f.runtime.operations.readSession(f.runtime.access, a.session)).toHaveProperty(
+    'kind',
+    'session',
+  )
 })
 it('publishes a Session only after its actual isolated Runtime Context initializer has confirmed the original seed', async () => {
   let f!: Awaited<ReturnType<typeof fixture>>,

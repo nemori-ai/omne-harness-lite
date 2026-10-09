@@ -41,3 +41,12 @@ CoreModel的原结算／ACK／引用模型和[CoreTool的有限执行模型](../
 无终端首答／正常二轮／真实工具属于真实运行闭环；Unix HTTP的29项构件场景不能替代它们。
 正式安装、真实终端矩阵、客户端退出后继续和独立OS宿主属于应用验收。
 缺实际OpenRouter来源、费用授权／预算、获准工具或指定终端时，相关验收保持未验证。
+
+## 代表性Cordis组合入口
+
+[运行时组合测试](../tests/runtime.spec.ts)中的`owns dynamic injected sources`场景，
+使用实际SQLite、独立Session Context和Runtime Context工厂。它核同名动态源、
+类型化事件提示、贡献撤除／重装、外来Scope拒绝，以及停止A不撤B。
+普通Session Context不提供驱动startup或协调生命周期服务。
+[驱动插件测试](../tests/driver-cordis.spec.ts)另核Core startup依赖和原control责任。
+受控startup不替代物理Model／Tool证明；实际公开driver往返场景归同一运行时测试文件。
