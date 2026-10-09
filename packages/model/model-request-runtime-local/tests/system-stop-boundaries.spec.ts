@@ -408,3 +408,37 @@ describe('original system stop and control history boundaries', () => {
     })
   })
 })
+
+
+describe('original ownership uncertainty refuses system cancellation', () => {
+  it.each(['opened', 'writer'] as const)('retains a call with uncertain original %s without a final', async uncertainty => {
+    const owner = new ControlledSettlementOwner()
+    await withStop(`ownership-${uncertainty}`, async f => {
+      const before = await f.world.entries()
+      const completed = deferred<AppendResult>()
+      let held: SettlementRegistration | undefined
+      let task: SettlementTask<AppendResult> | undefined
+      const grant = owner.acquire(2)
+      if ('unavailable' in grant) throw new Error('actual external writer registration')
+      held = grant.registration
+      task = held.start('append', async () => await completed.promise)
+      if (uncertainty === 'opened') owner.openedState = { unknown: task }
+      else owner.oldWrites.push(task)
+      try {
+        expect(await f.stop()).toEqual({ unavailable: true })
+        expect(f.trace).toEqual(['view'])
+        expect(f.retained).toEqual([])
+        expect(await f.world.entries()).toEqual(before)
+        expect(owner.active).toBe(1)
+        if (uncertainty === 'opened') expect(owner.opened()).toEqual({ unknown: task })
+        else expect(owner.unresolvedWrites()[0]).toBe(task)
+      } finally {
+        owner.openedState = { confirmed: true }
+        owner.oldWrites.length = 0
+        completed.resolve({ failure: 'unavailable' })
+        if (task !== undefined) await task.stopped
+        held?.release()
+      }
+    }, { owner })
+  })
+})
