@@ -135,7 +135,7 @@ Session责任尚存时不得删除已交付的原文、raw或附件；归档、R
 来源故障或引用不完整返回unavailable／invalidSource，不报告可靠保管。
 Session同Unit登记保管后，后续读取不要求已关闭的job再核发资格；访问仍按各自读取授权。
 
-本协议固定跨拥有者的核验输入与存续责任。Session保管写入者已实现并有受控来源组合验证；普通交付写入者已有有限实际SQLite／Runner解释器组合；实际Tool结果来源和完整native组合仍待验证。
+本协议固定跨拥有者的核验输入与存续责任。Session保管写入者已实现并有受控来源组合验证；普通交付写入者已有有限实际SQLite／Runner解释器组合；文件结果来源及 native 持久原身份核验已有分别限定的 SQLite／文件验证；完整 native／Session 工厂组合仍待验证。
 交付确认须指向同批中的实际消息事实；delivery_ready或Session保管凭证均不是delivery_confirmed。
 工具没有模型AcknowledgeCallInput，不能借模型ACK释放原工具责任。
 

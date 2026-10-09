@@ -3556,6 +3556,9 @@ importers:
       '@omne-harness-lite/session-tenancy':
         specifier: workspace:*
         version: link:../../core/session-tenancy
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../core/storage
       '@omne-harness-lite/tool-admission':
         specifier: workspace:*
         version: link:../../core/tool-admission
@@ -3575,9 +3578,6 @@ importers:
       '@omne-harness-lite/session-log-sql':
         specifier: workspace:*
         version: link:../../session/session-log-sql
-      '@omne-harness-lite/storage':
-        specifier: workspace:*
-        version: link:../../core/storage
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../infra/storage-sql

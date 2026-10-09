@@ -20,6 +20,7 @@ import {
   type ToolResultWriter,
 } from '@omne-harness-lite/tool-execution-runtime'
 import { createImmutableFiles } from './immutable-files.ts'
+import { readStoredResult } from './result-record.ts'
 import { createByteStore } from './bytes.ts'
 import { createRecords, fileKey, object, same } from './records.ts'
 import {
@@ -27,7 +28,7 @@ import {
   captureReference,
   captureResult,
   captureScope,
-  originalMatches,
+  captureStoreConfig,
   references,
 } from './values.ts'
 
@@ -41,18 +42,9 @@ export async function openToolResultStorage(
   config: Pick<ResultStoreConfig, 'directory' | 'storage'>,
   dependencies: ToolResultStorageDependencies,
 ): Promise<ToolResultStorageInstance> {
-  const copied = copyJsonValue(config)
-  if (
-    'failed' in copied ||
-    !object(copied.ok) ||
-    Object.keys(copied.ok).length !== 2 ||
-    typeof copied.ok.directory !== 'string' ||
-    !copied.ok.directory ||
-    !('ok' in parseOpaqueIdentifier(copied.ok.storage, 'StorageId'))
-  )
-    throw new TypeError('result file configuration required')
-  const storage = copied.ok.storage as string,
-    files = await createImmutableFiles(copied.ok.directory)
+  const copied = captureStoreConfig(config)
+  const storage = copied.storage,
+    files = await createImmutableFiles(copied.directory)
   const records = createRecords(files),
     bytes = createByteStore(files, storage),
     generation = dependencies.backing.ownerGeneration
@@ -208,19 +200,7 @@ export async function openToolResultStorage(
           ? terminal.result
           : undefined
     if (returned === undefined) return reject('notFound')
-    const stored = await records.read(fileKey(ref, ['result']))
-    if (typeof stored === 'string') return reject('storageUnavailable')
-    const value = captureResult(stored.value)
-    if (
-      stored.format !== 'tool-result-files/1' ||
-      stored.kind !== 'result' ||
-      Object.keys(stored).length !== 3 ||
-      !value ||
-      !same(value.ref, ref) ||
-      !originalMatches(value, returned)
-    )
-      return reject('storageUnavailable')
-    return { kind: 'found' as const, value }
+    return readStoredResult(records, ref, returned)
   }
   const operations = Object.freeze<ToolResultStorageOperations>({
     bindWriter(access, supplied, declaredStorage) {

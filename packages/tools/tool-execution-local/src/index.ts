@@ -7,3 +7,4 @@ export {
   ToolEnvironmentPlacementConfig,
 } from './environment-placement.ts'
 export { toolOriginalIssueMigrations } from './original-issue-migrations.ts'
+export { createToolOriginalIssueVerifier } from './original-proof.ts'

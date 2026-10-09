@@ -361,3 +361,41 @@ it('does not stage or invoke after the original backing generation changes', asy
     await f.close()
   }
 })
+
+import { createToolOriginalIssueVerifier } from '../src/index.ts'
+
+it('reads the native original identity in the caller unit after actual job close without new issue or author calls', async () => {
+  const { f, participants } = await admittedFixture()
+  try {
+    await f.owner.operations.submit(request)
+    await f.owner.idle()
+    await participants[0]!.stopped
+    await f.owner.close()
+    const original = participants[0]!.identity,
+      verifier = createToolOriginalIssueVerifier(f.log.fixtureStorage),
+      atomic = vi.spyOn(f.log.fixtureStorage, 'atomic')
+    expect(await f.log.fixtureStorage.atomic(unit => verifier.verifyIn(unit, original))).toBe(true)
+    expect(atomic).toHaveBeenCalledTimes(1)
+    atomic.mockRestore()
+    for (const changed of [
+      { ...original, executionGeneration: 'other-native-generation' },
+      { ...original, adoption: 'other-adoption' },
+      { ...original, origin: { ...original.origin, attempt: 2 } },
+    ])
+      expect(await f.log.fixtureStorage.atomic(unit => verifier.verifyIn(unit, changed))).toBe(
+        false,
+      )
+    await f.log.fixtureStorage.write(tx =>
+      narrow<{ tool_original_issue: { identity: string } }>(tx)
+        .updateTable('tool_original_issue')
+        .set({ identity: '{invalid' })
+        .execute(),
+    )
+    await expect(
+      f.log.fixtureStorage.atomic(unit => verifier.verifyIn(unit, original)),
+    ).rejects.toThrow('invalid original Tool identity')
+    expect(f.implementation).toHaveBeenCalledTimes(1)
+  } finally {
+    await f.close()
+  }
+})

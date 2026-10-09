@@ -27,7 +27,8 @@ import {
   type ToolResultStorageDependencies,
   type ToolResultWriter,
 } from '@omne-harness-lite/tool-execution-runtime'
-import { openToolResultStorage } from '../src/index.ts'
+import { publicationIo } from '../src/immutable-files.ts'
+import { openToolResultStorage, openToolResultCustodySource } from '../src/index.ts'
 import { toolResultFiles } from '../src/cordis.ts'
 
 const scope = {
@@ -211,7 +212,7 @@ async function fixture() {
       ref,
       kind: 'execution_intended',
       origin,
-      input: {},
+      input: { submission: { adoption: 'adopted' } },
       selected: {
         capability: 'tool:echo',
         asset: 'echo-asset',
@@ -230,6 +231,7 @@ async function fixture() {
   }
   async function end(
     terminal: ExecutionTerminal = { outcome: 'completed', result: result.result },
+    delivery?: Extract<ToolJournalPayload, { kind: 'execution_ended' }>['delivery'],
   ) {
     await append({ revision: 1, ref, kind: 'execution_started', at })
     const judgment = judgeContentBlock({
@@ -255,7 +257,11 @@ async function fixture() {
         frames: 'unknown',
         wallClock: { startedAt: at, endedAt: at },
       },
-      delivery: { pass: 'after', selectedChain: [], result: judgment.ok as ToolResultBlock },
+      delivery: delivery ?? {
+        pass: 'after',
+        selectedChain: [],
+        result: judgment.ok as ToolResultBlock,
+      },
     })
   }
   async function writer(): Promise<ToolResultWriter> {
@@ -766,6 +772,385 @@ test('Cordis rejects callback-bearing or invalid result store configuration befo
   } finally {
     await fiber.dispose()
     await registry.dispose()
+    await f.close()
+  }
+})
+
+test('custody reads immutable author result in the caller unit after writer owner close', async () => {
+  const f = await fixture()
+  let custody: Awaited<ReturnType<typeof openToolResultCustodySource>> | undefined
+  try {
+    await f.intent()
+    const writer = await f.writer()
+    expect(await writer.recordResult(result)).toBe('recorded')
+    await f.end()
+    await f.store.close()
+    custody = await openToolResultCustodySource(
+      { directory: f.directory, storage: 'results' },
+      {
+        storage: f.log.fixtureStorage,
+        log: f.log.participant,
+        access: f.log.fixtureAccess,
+        original: controlledOriginalProof,
+      },
+    )
+    const prefix = await f.log.fixturePrefix(scope)
+    if ('failure' in prefix) throw new Error('fixture prefix unavailable')
+    const history = projectToolJournal(scope, prefix.entries)
+    if ('invalid' in history) throw new Error('fixture history invalid')
+    const execution = history.executions.get(ref.callId)!
+    const original = {
+      ref,
+      origin,
+      adoption: 'adopted',
+      executionGeneration: 'native-owner',
+      originalPosition: execution.intent.entry.dedupeKey!,
+    }
+    const independent = vi.spyOn(f.log.fixtureStorage, 'atomic')
+    const evidence = await f.log.fixtureStorage.atomic(unit =>
+      custody!.source.verifyIn(unit, original, execution.terminal!),
+    )
+    expect(independent).toHaveBeenCalledTimes(1)
+    independent.mockRestore()
+    expect(evidence).toEqual({
+      verified: { original, terminal: execution.terminal, stored: result, references: [] },
+    })
+    await custody.close()
+    expect(
+      await f.log.fixtureStorage.atomic(unit =>
+        custody!.source.verifyIn(unit, original, execution.terminal!),
+      ),
+    ).toEqual({ failure: 'unavailable' })
+    expect(await f.log.fixturePrefix(scope)).toHaveProperty('tail', 3)
+  } finally {
+    await custody?.close()
+    await f.close()
+  }
+})
+
+const controlledOriginalProof = {
+  async verifyIn(
+    _unit: import('@omne-harness-lite/storage').StorageUnit,
+    original: import('@omne-harness-lite/tool-execution-runtime').ToolOriginalIssueIdentity,
+  ) {
+    return original.executionGeneration === 'native-owner'
+  },
+}
+
+async function custodyFixture() {
+  const f = await fixture()
+  const custody = await openToolResultCustodySource(
+    { directory: f.directory, storage: 'results' },
+    {
+      storage: f.log.fixtureStorage,
+      log: f.log.participant,
+      access: f.log.fixtureAccess,
+      original: controlledOriginalProof,
+    },
+  )
+  async function originalTerminal() {
+    const prefix = await f.log.fixturePrefix(scope)
+    if ('failure' in prefix) throw new Error('custody prefix unavailable')
+    const projected = projectToolJournal(scope, prefix.entries)
+    if ('invalid' in projected) throw new Error('custody fixture history invalid')
+    const execution = projected.executions.get(ref.callId)!
+    return {
+      original: {
+        ref,
+        origin,
+        adoption: 'adopted',
+        executionGeneration: 'native-owner',
+        originalPosition: execution.intent.entry.dedupeKey!,
+      },
+      terminal: execution.terminal!,
+    }
+  }
+  return {
+    ...f,
+    custody,
+    originalTerminal,
+    async verify() {
+      const input = await originalTerminal()
+      return f.log.fixtureStorage.atomic(unit =>
+        custody.source.verifyIn(unit, input.original, input.terminal),
+      )
+    },
+    async close() {
+      await custody.close()
+      await f.close()
+    },
+  }
+}
+
+test('custody rejects altered terminal, original origin, adoption and intent position', async () => {
+  const f = await custodyFixture()
+  try {
+    await f.intent()
+    expect(await (await f.writer()).recordResult(result)).toBe('recorded')
+    await f.end()
+    const input = await f.originalTerminal()
+    for (const original of [
+      { ...input.original, origin: { ...origin, attempt: 2 } },
+      { ...input.original, adoption: 'other-adoption' },
+      { ...input.original, executionGeneration: 'copied-generation' },
+      { ...input.original, originalPosition: 'other-intent' },
+      {
+        ...input.original,
+        ref: { ...ref, callId: unwrap(parseOpaqueIdentifier('other-call', 'CallId')) },
+      },
+    ])
+      expect(
+        await f.log.fixtureStorage.atomic(unit =>
+          f.custody.source.verifyIn(unit, original, input.terminal),
+        ),
+      ).toEqual({ failure: 'invalidSource' })
+    const terminal = { ...input.terminal, entry: { ...input.terminal.entry, position: 2 } }
+    expect(
+      await f.log.fixtureStorage.atomic(unit =>
+        f.custody.source.verifyIn(unit, input.original, terminal),
+      ),
+    ).toEqual({ failure: 'invalidSource' })
+    expect(await f.verify()).toHaveProperty('verified.stored', result)
+  } finally {
+    await f.close()
+  }
+})
+
+test('custody cannot certify a returned author result with no durable result record', async () => {
+  const f = await custodyFixture()
+  try {
+    await f.intent()
+    await f.end()
+    expect(await f.verify()).toEqual({ failure: 'unavailable' })
+  } finally {
+    await f.close()
+  }
+})
+
+test('custody accepts a genuine no-author terminal without inventing a stored result', async () => {
+  const f = await custodyFixture()
+  try {
+    await f.intent()
+    await f.end({ outcome: 'unavailable', reason: 'Before author' })
+    const input = await f.originalTerminal()
+    expect(await f.verify()).toEqual({ verified: { ...input, references: [] } })
+    expect(await readdir(f.directory)).toEqual([])
+  } finally {
+    await f.close()
+  }
+})
+
+async function attachedCustodyFixture() {
+  const f = await custodyFixture()
+  try {
+    await f.intent()
+    const writer = await f.writer()
+    const raw = await writer.storeRaw(Buffer.from('raw author bytes'), 'text/plain')
+    const nested = await writer.putAttachment('nested', Buffer.from('nested bytes'), 'text/plain')
+    const projection = await writer.putAttachment(
+      'projection',
+      Buffer.from('projection bytes'),
+      'text/plain',
+    )
+    const internal = await writer.putAttachment(
+      'internal',
+      Buffer.from('internal bytes'),
+      'text/plain',
+    )
+    if (
+      raw.kind !== 'stored' ||
+      nested.kind !== 'stored' ||
+      projection.kind !== 'stored' ||
+      internal.kind !== 'stored'
+    )
+      throw new Error('custody attachment preparation failed')
+    const value: StoredToolResult = {
+      ref,
+      raw: raw.reference,
+      result: toolResultOf(
+        {
+          content: [
+            {
+              id: 'nested-result',
+              kind: 'tool_result',
+              visibility: { toHuman: true, toModel: true },
+              callId: 'nested-call',
+              outcome: 'completed',
+              blocks: [
+                {
+                  id: 'nested-file',
+                  kind: 'file',
+                  visibility: { toHuman: true, toModel: true },
+                  attachment: nested.reference,
+                },
+              ],
+            },
+          ],
+        },
+        unwrap(parseOpaqueIdentifier('unused', 'BlockId')),
+      ),
+    }
+    expect(await writer.recordResult(value)).toBe('recorded')
+    const block = judgeContentBlock({
+      id: 'projection-result',
+      kind: 'tool_result',
+      visibility: { toHuman: true, toModel: true },
+      callId: ref.callId,
+      outcome: 'completed',
+      blocks: result.result.content,
+      offloaded: projection.reference,
+    })
+    if ('rejected' in block || block.ok.kind !== 'tool_result')
+      throw new Error('custody delivery invalid')
+    await f.end(
+      { outcome: 'completed', result: value.result },
+      {
+        pass: 'after',
+        selectedChain: [],
+        result: block.ok,
+        internal: {
+          id: unwrap(parseOpaqueIdentifier('internal-message', 'MessageId')),
+          type: 'tool_internal',
+          callId: ref.callId,
+          ending: 'complete',
+          createdAt: at,
+          blocks: [
+            {
+              id: unwrap(parseOpaqueIdentifier('internal-file', 'BlockId')),
+              kind: 'file',
+              visibility: { toHuman: true, toModel: false },
+              attachment: internal.reference,
+            },
+          ],
+        },
+      },
+    )
+    return {
+      ...f,
+      value,
+      required: [raw.reference, nested.reference, projection.reference, internal.reference],
+    }
+  } catch (error) {
+    await f.close()
+    throw error
+  }
+}
+
+test('custody verifies raw, nested author, projected and internal reference bytes after job owner close', async () => {
+  const f = await attachedCustodyFixture()
+  try {
+    await f.store.close()
+    const checked = await f.verify()
+    expect(checked).toHaveProperty('verified.stored', f.value)
+    if ('failure' in checked) throw new Error('reference custody unavailable')
+    expect(checked.verified.references).toHaveLength(4)
+    expect(checked.verified.references).toEqual(expect.arrayContaining(f.required))
+    const before = await readdir(f.directory)
+    await f.custody.close()
+    expect(await readdir(f.directory)).toEqual(before)
+    const reopened = await openToolResultCustodySource(
+      { directory: f.directory, storage: 'results' },
+      {
+        storage: f.log.fixtureStorage,
+        log: f.log.participant,
+        access: f.log.fixtureAccess,
+        original: controlledOriginalProof,
+      },
+    )
+    try {
+      const input = await f.originalTerminal()
+      expect(
+        await f.log.fixtureStorage.atomic(unit =>
+          reopened.source.verifyIn(unit, input.original, input.terminal),
+        ),
+      ).toHaveProperty('verified.stored', f.value)
+    } finally {
+      await reopened.close()
+    }
+  } finally {
+    await f.close()
+  }
+})
+
+for (const index of [0, 1, 2, 3])
+  test(`custody refuses corrupt required reference ${index}`, async () => {
+    const f = await attachedCustodyFixture()
+    try {
+      await writeFile(join(f.directory, `${f.required[index]!.key}.bytes`), 'corrupted bytes')
+      expect(await f.verify()).toEqual({ failure: 'unavailable' })
+    } finally {
+      await f.close()
+    }
+  })
+
+test('custody closes admission then waits for actual in-flight file read without closing borrowed journal', async () => {
+  const f = await custodyFixture()
+  let resume!: () => void, entered!: () => void
+  const paused = new Promise<void>(resolve => {
+      resume = resolve
+    }),
+    started = new Promise<void>(resolve => {
+      entered = resolve
+    })
+  let spy: ReturnType<typeof vi.spyOn> | undefined
+  try {
+    await f.intent()
+    expect(await (await f.writer()).recordResult(result)).toBe('recorded')
+    await f.end()
+    const input = await f.originalTerminal(),
+      originalOpen = publicationIo.open
+    let gate = true
+    spy = vi.spyOn(publicationIo, 'open').mockImplementation(async (...args) => {
+      if (gate && String(args[0]).endsWith('.json')) {
+        gate = false
+        entered()
+        await paused
+      }
+      return originalOpen(...args)
+    })
+    const work = f.log.fixtureStorage.atomic(unit =>
+      f.custody.source.verifyIn(unit, input.original, input.terminal),
+    )
+    await started
+    let closed = false
+    const closing = f.custody.close().then(() => {
+      closed = true
+    })
+    await yieldToTimers(0)
+    expect(closed).toBe(false)
+    resume()
+    expect(await work).toHaveProperty('verified.stored', result)
+    await closing
+    expect(closed).toBe(true)
+    expect(
+      await f.log.fixtureStorage.atomic(unit =>
+        f.custody.source.verifyIn(unit, input.original, input.terminal),
+      ),
+    ).toEqual({ failure: 'unavailable' })
+    expect(await f.log.fixturePrefix(scope)).toHaveProperty('tail', 3)
+  } finally {
+    resume()
+    spy?.mockRestore()
+    await f.close()
+  }
+})
+
+test('custody refuses a unit from another storage instead of reading outside the original transaction', async () => {
+  const f = await custodyFixture(),
+    other = await fixture()
+  try {
+    await f.intent()
+    await (await f.writer()).recordResult(result)
+    await f.end()
+    const input = await f.originalTerminal()
+    await expect(
+      other.log.fixtureStorage.atomic(unit =>
+        f.custody.source.verifyIn(unit, input.original, input.terminal),
+      ),
+    ).rejects.toThrow()
+    expect(await f.verify()).toHaveProperty('verified.stored', result)
+  } finally {
+    await other.close()
     await f.close()
   }
 })

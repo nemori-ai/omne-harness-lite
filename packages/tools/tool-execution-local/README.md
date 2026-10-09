@@ -33,3 +33,5 @@ pnpm --filter @omne-harness-lite/tool-execution-local run acceptance
 Do not run the build concurrently with acceptance. The acceptance configuration refuses to start when the demo entry is absent. The affected-test reader rule selects this member when the demo inputs change; it does not build excluded example members. A scoped check must therefore complete the explicit demo build first.
 
 The independent acceptance owner maintains `acceptance/*.acceptance.ts`. Those scenarios declare their product coverage and use public entries. Provider implementation work does not change their assertions. Network acceptance reads the local OpenRouter configuration without displaying credentials. A missing credential or a failed model request is not a passing result.
+
+受信根可从纯根入口调用 `createToolOriginalIssueVerifier(storage)`。其 `verifyIn` 只在调用者原 Unit 读取完整持久原身份，不发行 claim 或执行权。原 job 关闭后仍可供既有结果保管核验；共享 Storage 的存续由根负责。
