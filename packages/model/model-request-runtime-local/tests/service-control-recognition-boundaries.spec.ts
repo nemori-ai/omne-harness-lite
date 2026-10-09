@@ -328,3 +328,91 @@ it('preserves the original in-flight signal error boundary after durable intent'
     await world.host.close()
   }
 })
+
+it.each(['unavailable', 'throw'] as const)(
+  'recognizes a durable interrupted ending after its receipt is lost and retries original close %s',
+  async failure => {
+    const owner = new ControlledSettlementOwner()
+    let receiptLost = false
+    const world = await acknowledgementHost({
+      owner,
+      append:
+        real =>
+        async (...args) => {
+          const result = await real(...args)
+          if (!receiptLost && args[1].some(entry => kind(entry) === 'model_call_ended')) {
+            receiptLost = true
+            return { failure: 'unavailable' }
+          }
+          return result
+        },
+    })
+    const fault = new Error('original container close failure')
+    let blocked = true
+    let closes = 0
+    let removes = 0
+    const construction: Construction = {
+      ...world.construction,
+      calls: {
+        ...world.calls,
+        find(key) {
+          const original = world.calls.find(key)
+          if (original === undefined) return undefined
+          return {
+            ...original,
+            async close() {
+              closes++
+              if (blocked) {
+                if (failure === 'throw') throw fault
+                return { unavailable: true }
+              }
+              return await original.close()
+            },
+          }
+        },
+        remove(reservation) {
+          removes++
+          world.calls.remove(reservation)
+        },
+      },
+    }
+    const control = createServiceControl(construction)
+    try {
+      const opened = await world.service.openCall(world.request(`p6-failed-ending-${failure}`))
+      if (!('ref' in opened)) throw new Error('actual original call absent')
+      expect(await control.interrupt({ ...opened.ref, initiator: 'user' })).toEqual({
+        stage: 'before_dispatch',
+      })
+      if (failure === 'throw') await expect(control.close()).rejects.toBe(fault)
+      else expect(await control.close()).toEqual({ unavailable: true })
+      expect(receiptLost).toBe(true)
+      expect(closes).toBe(1)
+      expect(removes).toBe(0)
+      expect(owner.active).toBe(0)
+      const entries = await world.entries()
+      expect(
+        entries
+          .filter(entry => kind(entry) === 'model_call_interrupt_intent')
+          .map(entry => modelValue(entry.payload)),
+      ).toEqual([expect.objectContaining({ call: opened.callId, initiator: 'user' })])
+      expect(
+        entries
+          .filter(entry => kind(entry) === 'model_call_ended')
+          .map(entry => modelValue(entry.payload)),
+      ).toEqual([
+        expect.objectContaining({ call: opened.callId, ending: 'interrupted', initiator: 'user' }),
+      ])
+      blocked = false
+      expect(await control.close()).toEqual({ released: true })
+      expect(closes).toBe(2)
+      expect(removes).toBe(0)
+      expect(owner.active).toBe(0)
+      expect(await world.entries()).toEqual(entries)
+    } finally {
+      blocked = false
+      expect(await control.close()).toEqual({ released: true })
+      expect(await world.runtime.close()).toEqual({ released: true })
+      await world.host.close()
+    }
+  },
+)
