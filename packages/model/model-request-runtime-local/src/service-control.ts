@@ -191,18 +191,23 @@ export interface ControlFacts {
   readonly localCall: boolean
 }
 
-/** Project only already-validated history; this does not authorize a raw log or infer a Run. */
-export function controlFactsFromHistory(
-  history: UnacknowledgedCallHistory,
-  localCall: boolean,
-  operation?: CallOperationState,
-): ControlFacts {
+function durableControlFacts(history: UnacknowledgedCallHistory): ControlFacts['durable'] {
   let durable: ControlFacts['durable']
   if ('unavailable' in history) durable = { unavailable: true }
   else if ('absent' in history) durable = { absent: true }
   else if (history.known.phase === null || history.known.phase === 'open')
     durable = { noDispatch: true, intentExists: history.known.intent !== null }
   else durable = { phase: history.known.phase, intentExists: history.known.intent !== null }
+  return durable
+}
+
+/** Project only already-validated history; this does not authorize a raw log or infer a Run. */
+export function controlFactsFromHistory(
+  history: UnacknowledgedCallHistory,
+  localCall: boolean,
+  operation?: CallOperationState,
+): ControlFacts {
+  const durable = durableControlFacts(history)
   const last = 'known' in history ? history.known.dispatches.at(-1) : undefined
   const pendingMatches =
     operation?.phase === 'reply_pending' &&
@@ -323,6 +328,21 @@ export async function appendControlRecord(
     input.run !== undefined && input.attempt !== undefined
       ? { kind: 'fenced', run: input.run, attempt: input.attempt }
       : { kind: 'unfenced' }
+  return runControlAppend(input, binding, owner, prepared, registration, fence)
+}
+
+type ControlAppendOutcome = { readonly appended: true } | { readonly unavailable: true }
+type PreparedControlRecord = Extract<ReturnType<typeof prepareModelLogEntry>, { readonly ok: unknown }>
+type ControlReceipt = ReturnType<typeof settlementAppendReceipt>
+
+async function runControlAppend(
+  input: ControlAppendInput,
+  binding: SettlementLogBinding,
+  owner: SettlementOwner,
+  prepared: PreparedControlRecord,
+  registration: SettlementRegistration,
+  fence: AppendFence,
+): Promise<ControlAppendOutcome> {
   let started = false
   let task: SettlementTask<AppendResult>
   try {
@@ -339,11 +359,9 @@ export async function appendControlRecord(
     return { unavailable: true }
   }
   const untrack = input.trackTask?.(task)
-  try {
-    let raw: unknown
+
+  async function rejectedCompletion(): Promise<ControlAppendOutcome> {
     try {
-      raw = await task.completion
-    } catch {
       if (started) {
         input.retainUnknown(registration, task)
         return { unavailable: true }
@@ -355,32 +373,51 @@ export async function appendControlRecord(
         input.retainUnknown(registration, task)
       }
       return { unavailable: true }
+    } finally {
+      untrack?.()
     }
-    const receipt = settlementAppendReceipt(raw, 1)
-    if (
-      started &&
-      (receipt === null || ('failure' in receipt && receipt.failure === 'unavailable'))
-    ) {
-      input.retainUnknown(registration, task)
-      return { unavailable: true }
-    }
-    try {
-      await requestStopAndWait(task)
-    } catch {
-      input.retainUnknown(registration, task)
-      return { unavailable: true }
-    }
-    try {
-      registration.release()
-    } catch {
-      return { unavailable: true }
-    }
-    return started && receipt !== null && !('failure' in receipt)
-      ? { appended: true }
-      : { unavailable: true }
-  } finally {
-    untrack?.()
   }
+
+  async function receivedCompletion(raw: unknown): Promise<ControlAppendOutcome> {
+    try {
+      const receipt = settlementAppendReceipt(raw, 1)
+      if (
+        started &&
+        (receipt === null || ('failure' in receipt && receipt.failure === 'unavailable'))
+      ) {
+        input.retainUnknown(registration, task)
+        return { unavailable: true }
+      }
+      try {
+        await requestStopAndWait(task)
+      } catch {
+        input.retainUnknown(registration, task)
+        return { unavailable: true }
+      }
+      try {
+        registration.release()
+      } catch {
+        return { unavailable: true }
+      }
+      return completedControlAppend(started, receipt)
+    } finally {
+      untrack?.()
+    }
+  }
+
+  let raw: unknown
+  try {
+    raw = await task.completion
+  } catch {
+    return rejectedCompletion()
+  }
+  return receivedCompletion(raw)
+}
+
+function completedControlAppend(started: boolean, receipt: ControlReceipt): ControlAppendOutcome {
+  return started && receipt !== null && !('failure' in receipt)
+    ? { appended: true }
+    : { unavailable: true }
 }
 
 interface UnknownControlWrite {
@@ -442,117 +479,16 @@ export function createOriginalSystemStop<P extends PlannedSemantics, R>(
         if (view.invocation !== undefined) {
           let closed: RuntimeCloseResult
           if (view.operation.phase === 'reply_pending') {
-            // RT11/RT12 S-86: a formed complete result is never closed into another final. Its
-            // ready publication was unknown: only a durable ready (or a later terminal fact)
-            // lets the original invocation finish as ready; otherwise responsibility stays.
             const responseId = view.operation.pending.id
-            const durable = await withOwnedReads(
-              view.owner,
-              runtime.settlementContention.limits.concurrent,
-              reads,
-              async registration => {
-                const result = await readSettlementPrefix({
-                  binding: view.session.log,
-                  registration,
-                })
-                return 'unavailable' in result
-                  ? ({ unavailable: true } as const)
-                  : runtime.history.call(result.prefix, key.callId)
-              },
-            )
-            if ('unavailable' in durable || !('known' in durable.ok)) return { unavailable: true }
-            const known = durable.ok.known
-            const readyDurable =
-              known.acknowledged !== null ||
-              known.dispatches.some(
-                item =>
-                  item.record.response === responseId &&
-                  (item.ready !== null || item.response !== null),
-              )
-            if (!readyDurable) return { unavailable: true }
+            const durable = await readOriginalStopHistory(runtime, key, reads, view)
+            if (!originalReplyIsDurable(durable, responseId)) return { unavailable: true }
             closed = await view.invocation.finishReady()
           } else closed = await view.invocation.close()
           if ('unavailable' in closed) return { unavailable: true }
         }
-        const received = await withOwnedReads(
-          view.owner,
-          runtime.settlementContention.limits.concurrent,
-          reads,
-          async registration => {
-            const result = await readSettlementPrefix({ binding: view.session.log, registration })
-            return 'unavailable' in result
-              ? ({ unavailable: true } as const)
-              : runtime.history.call(result.prefix, key.callId)
-          },
-        )
+        const received = await readOriginalStopHistory(runtime, key, reads, view)
         if ('unavailable' in received) return { unavailable: true }
-        if ('unavailable' in received.ok) {
-          const durable = await runtime.callFacts.lookup({ binding: view.session.log, ref: key })
-          if (
-            'acknowledged' in durable ||
-            ('view' in durable &&
-              durable.view.result !== undefined &&
-              (durable.view.state === 'complete' || durable.view.state === 'interrupted'))
-          ) {
-            control.publishStopped()
-            return { released: true }
-          }
-          return { unavailable: true }
-        }
-        // A verified acknowledgement exists only for a terminal call (RT12 S-95): stopping it
-        // needs no content and no acknowledged view, so it never blocks close. A confirmed
-        // ready marker is already complete/interrupted with disposition_pending (S-86): the
-        // owner stop neither cancels nor changes it and needs no final.
-        const durable = received.ok
-        if (
-          'known' in durable &&
-          (durable.known.acknowledged !== null ||
-            durable.known.phase === 'complete' ||
-            durable.known.phase === 'interrupted' ||
-            durable.known.phase === 'handed_up' ||
-            durable.known.phase === 'reply_pending')
-        ) {
-          control.publishStopped()
-          return { released: true }
-        }
-        const history = rejectAcknowledgedHistory(durable)
-        if (
-          'known' in history &&
-          history.known.phase !== null &&
-          history.known.phase !== 'open' &&
-          history.known.phase !== 'awaiting_decision' &&
-          history.known.phase !== 'resumable'
-        )
-          return { unavailable: true }
-        if ('unknown' in view.owner.opened() || view.owner.unresolvedWrites().length !== 0)
-          return { unavailable: true }
-        const account = controlAccount(
-          history,
-          view.request.run,
-          view.request.attempt,
-          view.operation,
-        )
-        if ('unavailable' in account) return account
-        const appended = await appendControlRecord({
-          binding: view.session.log,
-          owner: view.owner,
-          concurrent: runtime.settlementContention.limits.concurrent,
-          ...account,
-          record: {
-            kind: 'model_call_ended',
-            call: key.callId,
-            ending: 'interrupted',
-            initiator:
-              'known' in history && history.known.intent !== null
-                ? history.known.intent.initiator
-                : 'run_cancelled',
-          },
-          retainUnknown: (registration, task) =>
-            retainUnknown(view.session.log, view.owner, registration, task),
-        })
-        if ('unavailable' in appended) return { unavailable: true }
-        control.publishStopped()
-        return { released: true }
+        return await settleOriginalStopHistory(runtime, key, retainUnknown, control, view, received.ok)
       } catch {
         return { unavailable: true }
       }
@@ -561,6 +497,150 @@ export function createOriginalSystemStop<P extends PlannedSemantics, R>(
     const drained = await reads.drain()
     return 'unavailable' in drained ? { unavailable: true } : result
   }
+}
+
+type StopView<P extends PlannedSemantics, R> = ReturnType<SystemStopControl<P, R>['view']>
+type StopHistory = CallHistoryResult | { readonly unavailable: true }
+type OwnedStopHistory = { readonly ok: StopHistory } | { readonly unavailable: true }
+type OriginalWriteRetention = (
+  binding: SettlementLogBinding,
+  owner: SettlementOwner,
+  registration: SettlementRegistration,
+  task: SettlementTask<AppendResult>,
+) => void
+type PendingResponseId = Extract<CallOperationState, { readonly phase: 'reply_pending' }>['pending']['id']
+
+function readOriginalStopHistory<P extends PlannedSemantics, R>(
+  runtime: RuntimeConstruction<P, R>,
+  key: CallKey,
+  reads: OwnedReadTracker,
+  view: StopView<P, R>,
+): Promise<OwnedStopHistory> {
+  return withOwnedReads(
+    view.owner,
+    runtime.settlementContention.limits.concurrent,
+    reads,
+    async registration => {
+      const result = await readSettlementPrefix({ binding: view.session.log, registration })
+      return 'unavailable' in result
+        ? ({ unavailable: true } as const)
+        : runtime.history.call(result.prefix, key.callId)
+    },
+  )
+}
+
+function originalReplyIsDurable(durable: OwnedStopHistory, responseId: PendingResponseId): boolean {
+  if ('unavailable' in durable || !('known' in durable.ok)) return false
+  const known = durable.ok.known
+  const readyDurable =
+    known.acknowledged !== null ||
+    known.dispatches.some(
+      item =>
+        item.record.response === responseId &&
+        (item.ready !== null || item.response !== null),
+    )
+  return readyDurable
+}
+
+function settleOriginalStopHistory<P extends PlannedSemantics, R>(
+  runtime: RuntimeConstruction<P, R>,
+  key: CallKey,
+  retainUnknown: OriginalWriteRetention,
+  control: SystemStopControl<P, R>,
+  view: StopView<P, R>,
+  durable: StopHistory,
+): RuntimeCloseResult | Promise<RuntimeCloseResult> {
+  if ('unavailable' in durable) return stopFromCallFacts(runtime, key, control, view)
+  if (
+    'known' in durable &&
+    (durable.known.acknowledged !== null ||
+      durable.known.phase === 'complete' ||
+      durable.known.phase === 'interrupted' ||
+      durable.known.phase === 'handed_up' ||
+      durable.known.phase === 'reply_pending')
+  ) {
+    control.publishStopped()
+    return { released: true }
+  }
+  const history = rejectAcknowledgedHistory(durable)
+  return cancelOriginalHistory(runtime, key, retainUnknown, control, view, history)
+}
+
+async function stopFromCallFacts<P extends PlannedSemantics, R>(
+  runtime: RuntimeConstruction<P, R>,
+  key: CallKey,
+  control: SystemStopControl<P, R>,
+  view: StopView<P, R>,
+): Promise<RuntimeCloseResult> {
+  const durable = await runtime.callFacts.lookup({ binding: view.session.log, ref: key })
+  if (
+    'acknowledged' in durable ||
+    ('view' in durable &&
+      durable.view.result !== undefined &&
+      (durable.view.state === 'complete' || durable.view.state === 'interrupted'))
+  ) {
+    control.publishStopped()
+    return { released: true }
+  }
+  return { unavailable: true }
+}
+
+function cancelOriginalHistory<P extends PlannedSemantics, R>(
+  runtime: RuntimeConstruction<P, R>,
+  key: CallKey,
+  retainUnknown: OriginalWriteRetention,
+  control: SystemStopControl<P, R>,
+  view: StopView<P, R>,
+  history: UnacknowledgedCallHistory,
+): RuntimeCloseResult | Promise<RuntimeCloseResult> {
+  if (
+    'known' in history &&
+    history.known.phase !== null &&
+    history.known.phase !== 'open' &&
+    history.known.phase !== 'awaiting_decision' &&
+    history.known.phase !== 'resumable'
+  )
+    return { unavailable: true }
+  if ('unknown' in view.owner.opened() || view.owner.unresolvedWrites().length !== 0)
+    return { unavailable: true }
+  return appendOriginalCancellation(runtime, key, retainUnknown, control, view, history)
+}
+
+async function appendOriginalCancellation<P extends PlannedSemantics, R>(
+  runtime: RuntimeConstruction<P, R>,
+  key: CallKey,
+  retainUnknown: OriginalWriteRetention,
+  control: SystemStopControl<P, R>,
+  view: StopView<P, R>,
+  history: UnacknowledgedCallHistory,
+): Promise<RuntimeCloseResult> {
+  const account = controlAccount(
+    history,
+    view.request.run,
+    view.request.attempt,
+    view.operation,
+  )
+  if ('unavailable' in account) return account
+  const appended = await appendControlRecord({
+    binding: view.session.log,
+    owner: view.owner,
+    concurrent: runtime.settlementContention.limits.concurrent,
+    ...account,
+    record: {
+      kind: 'model_call_ended',
+      call: key.callId,
+      ending: 'interrupted',
+      initiator:
+        'known' in history && history.known.intent !== null
+          ? history.known.intent.initiator
+          : 'run_cancelled',
+    },
+    retainUnknown: (registration, task) =>
+      retainUnknown(view.session.log, view.owner, registration, task),
+  })
+  if ('unavailable' in appended) return { unavailable: true }
+  control.publishStopped()
+  return { released: true }
 }
 
 /** The service instance retains uncertain append owners across calls. A later complete read is
