@@ -8,6 +8,10 @@ import { judgeDefinition } from '@omne-harness-lite/loop-extension'
 import { REGISTERED_CATEGORIES, buildTableContents } from '@omne-harness-lite/asset-registry'
 import { evaluate, type NonConnectorEvaluationInput } from '@omne-harness-lite/asset-evaluation'
 import { capabilityCanonicalString } from '@omne-harness-lite/asset-model'
+import { driverActionFixture } from './driver-action-fixture.ts'
+import { publishDriverActionBatch } from '../src/driver-action-batch.ts'
+import { createSessionToolActionHistory } from '../src/driver-action-history.ts'
+import { inspectActionBatch, sessionActionBatchOwner } from '../src/driver-action-facts.ts'
 import { modelName } from '@omne-harness-lite/tool-definition'
 // @module-tag slow
 // Uses real root and tenant SQLite transactions, log owners and Cordis lifetimes.
@@ -5104,11 +5108,11 @@ describe('driver complete original Model Run', () => {
       },
     })
   }
-  it('persists the exact nonempty evaluated tool version and rejects a changed table without another append', async () => {
-    const f = await running()
+  function evaluatedDriverTool() {
     const root = { category: 'agent_definition', name: 'example:root' } as const
     const capability = { category: 'tool', name: 'example:read' } as const
     const references = [{ capability, resident: true }]
+    const attributes = controlledTimingDeclarations()
     const definition = {
       name: capability.name,
       paradigm: 'single',
@@ -5124,7 +5128,7 @@ describe('driver complete original Model Run', () => {
         definition: root,
         source: { asset: 'ast_driver_root', version: 1 },
         references,
-        attributes: [],
+        attributes,
       },
       definitions: [
         {
@@ -5137,7 +5141,7 @@ describe('driver complete original Model Run', () => {
               publishedAt: at,
               content: {
                 category: 'agent_definition',
-                body: toOpaqueJson({ references, attributes: [] }),
+                body: toOpaqueJson({ references, attributes }),
               },
             },
           ],
@@ -5171,14 +5175,19 @@ describe('driver complete original Model Run', () => {
     expect(built).toHaveProperty('plans')
     if (!('plans' in built)) throw new Error('actual table construction failed')
     const entries = built.plans.find(plan => plan.category === 'tool')!.entries
+    const permission = evaluated.ok.values.find(value => value.item === 'execute')
+    if (!permission) throw new Error('evaluated execute permission missing')
+    return { input, entries, capability, definition, permission }
+  }
+  it('persists the exact nonempty evaluated tool version and rejects a changed table without another append', async () => {
+    const f = await running()
+    const { input, entries, capability, definition, permission } = evaluatedDriverTool()
     const refreshed = await f.sources.registry.refreshAvailability(
       f.scope.session,
       { kind: 'start', runId: f.prepared.preparation.run },
       f.prepared.preparation.attempt,
     )
     if (!('report' in refreshed)) throw new Error('original report missing')
-    const permission = evaluated.ok.values.find(value => value.item === 'execute')
-    if (!permission) throw new Error('evaluated execute permission missing')
     const report = {
       ...refreshed.report,
       availability: entries.map(({ capability, availability }) => ({ capability, availability })),
@@ -5356,6 +5365,258 @@ describe('driver complete original Model Run', () => {
     expect(await task.close()).toBe('pending')
     await f.borrowed.journal.close()
   })
+  it.each([
+    { lostReturn: false, asked: false },
+    { lostReturn: true, asked: false },
+    { lostReturn: false, asked: true },
+  ])(
+    'publishes the whole actual Runner batch before recognition, $lostReturn lost return, $asked asked',
+    async ({ lostReturn, asked }) => {
+      const judged = judgeMessage({
+        id: 'action-source-data',
+        type: 'assistant',
+        response: 'action-source-response',
+        ending: 'complete',
+        createdAt: at,
+        blocks: ['one', 'bad', 'two'].map(id => ({
+          id: `action-${id}`,
+          kind: 'tool_call',
+          complete: true,
+          callId: `action-${id}`,
+          tool: 'example__read',
+          ...(id === 'bad'
+            ? { unparseable: true, rawArguments: '{' }
+            : { arguments: { path: id } }),
+          visibility: { toHuman: true, toModel: true },
+        })),
+      })
+      if (!('ok' in judged) || judged.ok.type !== 'assistant')
+        throw new Error('controlled action data rejected')
+      const calls: import('@omne-harness-lite/content-blocks').ToolCallBlock[] = []
+      for (const block of judged.ok.blocks)
+        if (block.kind === 'tool_call' && block.complete === true) calls.push(block)
+      const f = await running(undefined, false, calls)
+      const table = evaluatedDriverTool()
+      const registry: SessionDriverRunSources['registry'] = {
+        list: async () => ({ entries: table.entries }),
+        refreshAvailability: async (...args) => {
+          const value = await f.sources.registry.refreshAvailability(...args)
+          if (!('report' in value)) return value
+          return {
+            report: {
+              ...value.report,
+              availability: table.entries.map(({ capability, availability }) => ({
+                capability,
+                availability,
+              })),
+              effectivePermissions: { [modelName(table.capability.name)]: table.permission },
+            },
+          }
+        },
+      }
+      const sources: SessionDriverRunSources = Object.assign(Object.create(f.sources), {
+        registry,
+        evaluation: { read: async () => ({ input: table.input }) },
+        providers: {
+          ...f.sources.providers,
+          tools: {
+            lookup: async (_session: unknown, _category: unknown, name: string) => {
+              const entry = table.entries.find(entry => modelName(entry.capability.name) === name)
+              return entry ? { entry } : { none: true as const }
+            },
+          },
+        },
+      })
+      const task = createDriverModelRunTask({ ...f.input, sources })
+      expect(await task.completion).toBe('retained')
+      const read = await f.borrowed.journal.readPrefix()
+      if ('failure' in read) throw new Error('actual action prefix missing')
+      const prefix = {
+        scope: f.scope,
+        ownerGeneration: read.source.journalGeneration,
+        entries: read.entries,
+        tail: read.tail,
+      }
+      const replies = [...readDriverModelHistory(prefix).replies.values()]
+      expect(replies, JSON.stringify(f.ports.trace)).toHaveLength(1)
+      const reply = replies[0]!
+      const found = readDriverToolBatch(prefix, reply.message.id)
+      if (found.kind !== 'batch') throw new Error('actual original Model action batch missing')
+      const runner = await driverActionFixture(f.borrowed.journal, found.batch).open()
+      runResources.push(runner.close)
+      if (asked)
+        runner.judge.mockImplementation(async (_access, _scope, _pass, candidates) => {
+          const results = candidates.map(
+            (candidate): import('@omne-harness-lite/tool-admission').AdmissionResult => ({
+              kind: 'ask',
+              card: {
+                explanation: 'Confirm this controlled action.',
+                options: [{ id: 'yes', label: 'Yes' }],
+                about: { position: 'before_action', callId: candidate.call.callId },
+              },
+            }),
+          )
+          if (!results[0]) throw new Error('controlled ask candidates are empty')
+          return { kind: 'decisions', results: [results[0], ...results.slice(1)] }
+        })
+      const history = createSessionToolActionHistory({ readConclusions: readPassConclusions })
+      expect(history.inspect(prefix, calls[0]!.callId)).toMatchObject({
+        kind: 'known',
+        facts: { batch: { kind: 'pending' } },
+      })
+      let lost = false
+      const actual = f.borrowed.journal.log
+      const log: typeof actual = {
+        ...actual,
+        append: async (...args) => {
+          const result = await actual.append(...args)
+          if (
+            lostReturn &&
+            !lost &&
+            args[1].some(entry => {
+              const payload = checkLogPayload(entry.payload)
+              return 'payload' in payload && payload.payload.owner === sessionActionBatchOwner
+            }) &&
+            'positions' in result
+          ) {
+            lost = true
+            return { failure: 'unavailable' }
+          }
+          return result
+        },
+      }
+      const journal = { ...f.borrowed.journal, log }
+      const request = {
+        journal,
+        message: reply.message.id,
+        actions: runner.actions,
+        signal: new AbortController().signal,
+      }
+      const withdrawn = new AbortController()
+      withdrawn.abort()
+      expect(await publishDriverActionBatch({ ...request, signal: withdrawn.signal })).toEqual({
+        kind: 'unavailable',
+      })
+      expect(runner.append).not.toHaveBeenCalled()
+      expect(runner.judge).not.toHaveBeenCalled()
+      const result = await publishDriverActionBatch(request)
+      if (asked) {
+        expect(result).toEqual({ kind: 'waiting' })
+        const waiting = await journal.readPrefix()
+        if ('failure' in waiting) throw new Error('actual asked prefix unavailable')
+        expect(waiting.entries.some(entry => inspectActionBatch(prefix, entry))).toBe(false)
+        expect(
+          history.inspect(
+            { ...prefix, entries: waiting.entries, tail: waiting.tail },
+            calls[0]!.callId,
+          ),
+        ).toMatchObject({ kind: 'known', facts: { batch: { kind: 'pending' } } })
+        await runner.close()
+        expect(await task.close()).toBe('pending')
+        await journal.close()
+        return
+      }
+      expect(result, JSON.stringify(result)).toHaveProperty(
+        'kind',
+        lostReturn ? 'unconfirmed' : 'complete',
+      )
+      if (lostReturn) expect(result).not.toHaveProperty('admissions')
+      else
+        expect(result).toMatchObject({
+          admissions: [
+            { callId: calls[0]!.callId, token: expect.any(String) },
+            { callId: calls[2]!.callId, token: expect.any(String) },
+          ],
+        })
+      const current = await journal.readPrefix()
+      if ('failure' in current) throw new Error('actual completed prefix missing')
+      const completed = { ...prefix, ...current }
+      const records = completed.entries.flatMap(entry => {
+        const read = inspectActionBatch(completed, entry)
+        return read ? [read] : []
+      })
+      expect(records).toHaveLength(1)
+      expect(records[0]!.value.completion.items.map(item => item.callId)).toEqual(
+        calls.map(call => call.callId),
+      )
+      expect(records[0]!.value.completion.items.map(item => item.decision.kind)).toEqual([
+        'allow',
+        'notExecutable',
+        'allow',
+      ])
+      expect(history.inspect(completed, calls[0]!.callId)).toMatchObject({
+        kind: 'known',
+        facts: { batch: { kind: 'complete' }, route: { kind: 'none' } },
+      })
+      const count = runner.judge.mock.calls.length
+      expect(await publishDriverActionBatch(request)).toMatchObject({
+        kind: 'complete',
+        admissions: [
+          { callId: calls[0]!.callId, token: expect.any(String) },
+          { callId: calls[2]!.callId, token: expect.any(String) },
+        ],
+      })
+      expect(runner.judge).toHaveBeenCalledTimes(count)
+      expect(
+        history.inspect(
+          { ...completed, entries: completed.entries.filter(entry => entry !== records[0]!.entry) },
+          calls[1]!.callId,
+        ),
+      ).toEqual({ kind: 'unavailable' })
+      const badPayload = copyJsonValue({
+        kind: 'fact',
+        owner: sessionActionBatchOwner,
+        version: '1',
+        value: {
+          ...records[0]!.value,
+          completion: {
+            ...records[0]!.value.completion,
+            items: [...records[0]!.value.completion.items].reverse(),
+          },
+        },
+      })
+      if (!('ok' in badPayload)) throw new Error('controlled reordered payload is not JSON')
+      const broken = completed.entries.map(entry =>
+        entry === records[0]!.entry ? { ...entry, payload: badPayload.ok } : entry,
+      )
+      expect(history.inspect({ ...completed, entries: broken }, calls[0]!.callId)).toEqual({
+        kind: 'unavailable',
+      })
+      const future = completed.entries.map(entry =>
+        entry === records[0]!.entry
+          ? {
+              ...entry,
+              payload: {
+                ...(entry.payload as import('@omne-harness-lite/content-blocks').JsonObject),
+                version: 'unknown-version',
+              },
+            }
+          : entry,
+      )
+      expect(history.inspect({ ...completed, entries: future }, calls[0]!.callId)).toEqual({
+        kind: 'unavailable',
+      })
+      expect(
+        history.inspect(
+          {
+            ...completed,
+            scope: {
+              ...completed.scope,
+              tenant: unwrap(
+                parseTenantId({ organization: 'foreign-organization', account: 'foreign-member' }),
+              ),
+            },
+          },
+          calls[0]!.callId,
+        ),
+      ).toEqual({ kind: 'unavailable' })
+      expect(f.ports.sends()).toBe(1)
+      expect(lost).toBe(lostReturn)
+      await runner.close()
+      expect(await task.close()).toBe('pending')
+      await journal.close()
+    },
+  )
   it('reads an actual settled Model reply and rejects missing or duplicate provenance anchors', async () => {
     const f = await running()
     const task = createDriverModelRunTask(f.input)

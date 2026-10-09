@@ -85,3 +85,9 @@ createLocalSessionAccess借入真实当前authority、固定的已鉴权主体�
 正常Model驱动先可靠持久化原report和完整工具表，再创建模型调用。非空工具须匹配原求值选中的精确版本。提交未确认时不发起模型，也不自动重试。显式认回仅接受完整相同的原快照。
 
 根入口导出`inspectSessionToolAdoption`、`sessionToolActionOwner`及`SessionToolAdoption`。读取器核验事实及原Scope和键，不执行IO、不授予Tool权限。投影不会把该事实发给模型。完整Runner整批完成及Tool执行仍须另外交付。行为见[薄规格](SPEC.md#原-run-的模型运行时接线)。
+
+## 完整工具批次
+
+`createSessionToolActionHistory`从同一完整prefix读取原模型工具批次、整批完成事实及原Native Tool路由。根提供成熟的Runner结论解释器。该函数不执行IO，也不授予执行权限。
+
+内部批次消费者调用实际Runner并核其原replay，可靠持久化完整原序后才返回执行locator。asked项保持pending；写入未确认不返回locator，认回原事实不重新dispatch。整批事实不进入模型消息。完整Tool驱动与普通交付仍需通过组合验证。见[SPEC](SPEC.md#原-run-的模型运行时接线)。

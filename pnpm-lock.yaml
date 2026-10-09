@@ -2857,6 +2857,9 @@ importers:
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
+      '@omne-harness-lite/tool-admission':
+        specifier: workspace:*
+        version: link:../../core/tool-admission
       '@omne-harness-lite/tool-definition':
         specifier: workspace:*
         version: link:../../core/tool-definition

@@ -18,6 +18,8 @@ import {
   inspectSessionToolAdoption,
   sessionToolActionOwner,
 } from './driver-tool-adoption.ts'
+import { inspectActionBatch, sessionActionBatchOwner } from './driver-action-facts.ts'
+import { DriverHistoryInvalid } from './driver-model-history.ts'
 
 type Prepared = Extract<DriverRunStart, { kind: 'prepared' }>
 type Inputs = Pick<LocalSessionDriverOptions, 'ingress' | 'identities' | 'model'>
@@ -256,6 +258,14 @@ function toolAdoptionProjection(
   factReaders.set(sessionToolActionOwner, (_value, entry) =>
     'adoption' in inspectSessionToolAdoption(scope, entry) ? 'valid' : 'invalid',
   )
+  factReaders.set(sessionActionBatchOwner, (_value, entry) => {
+    try {
+      return inspectActionBatch({ scope }, entry) ? 'valid' : 'invalid'
+    } catch (error) {
+      if (error instanceof DriverHistoryInvalid) return 'invalid'
+      throw error
+    }
+  })
   return { ...projection, options: { ...projection.options, factReaders } }
 }
 

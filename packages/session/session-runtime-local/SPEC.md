@@ -330,6 +330,31 @@ driver保留grants的不透明身份，并从原报告、完整模型调用及�
 请求manifest为原Scope.session，由实际Runner核对应manifest来源；不另造配置或manifest身份。
 Runner返回token不代替整批完成事实及最后工具准入。原采用／整批事实必须先由实际拥有者可靠持久确认。
 撤除只归还本Run借用，不关闭共享Runner或执行池。类型通过不证明Runner host、policy及历史来源配对。
+
+整批完成事实的owner为`session-runtime-action-batches`，version为`1`，kind为`actions_completed`。
+原键为`session-runtime-action-batches/1/`加原assistantMessage的JSON字符串。
+事实固定原Run／attempt／模型消息、原采用键、实际选中before_action链，以及完整有序ActionBatchCompletion。
+解析项的原anchor为`session-runtime-action-batches/1/pass/`加`[assistantMessage, callId]`的JSON字符串。
+每项保存原结论键序、作用后的调用和最终处置；不可解析项保留原序，不制造pass或结论。
+
+内部整批消费者调用实际Runner.dispatch，随后调用该Runner的只读replay，核原结论、完整调用、链、Scope和日志世代。
+仍有asked项或缺少整批admissions时不写完成事实，也不返回执行locator。
+完成事实采用原attempt栅栏及同一prefix的tailEquals条件，一次写入完整批次。
+未确认保留原事实值及原键，不返回locator或自动重发。显式认回先核完整原事实和实际结论，不再次dispatch。
+已完成事实也不授予新执行权；真正Tool准入仍核当前permit、原结论locator及唯一发起claim。
+
+根函数`createSessionToolActionHistory`实现Core的纯ToolActionHistoryOperations。
+根装配通过`readConclusions`提供与toolDelivery相同签名的成熟Runner历史解释器。
+本包不选择具体Runner提供者，也不复制其pass历史解释规则。
+读取器只消费完整CheckedPrefix，核Model来源、原采用、全部调用及实际Runner结论。
+错误owner版本、缺失／重复锚点、重排或删减批次、异Scope及不一致的原结论返回unavailable。
+原Native Tool路由另由Core工具日志状态机核验；intent必须在原完成事实之后，处于原有效attempt，且选中实现与原采用精确一致。
+没有完成事实的有效原prefix只返回pending，不把token或结论存在当作整批完成。
+此函数不执行IO，不授予权限，不关闭任何借入资源。
+
+Model投影使用此事实owner的形状读取器，保留事实与消息的区分，不将整批事实包装成SystemReminderMessage。
+上述整批消费者与历史读取器不表示完整Tool运行驱动已交付；原Native Tool、stopped、结果保管、after_action及下一Model的完整组合仍须通过各自验证。
+
 来源不完整或代际不符返回unavailable，不补常量CurrentInputs、空history或“已恢复”。
 实际生产者仍按I02及各Core协议实现；该factory只包装这些真实来源，不把数据变成资格。
 driver先核返回Scope／Run与原journal一致、工具borrow的显式tenant与固定租户一致，再调用任何业务面。

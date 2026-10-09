@@ -85,3 +85,9 @@ The root also exports `prepareSessionModelRun`, `createSessionModelAttempt`, and
 The normal Model driver persists the original report and complete adopted tool table before it creates a model call. Nonempty entries must match the exact version selected by the original evaluation. An unconfirmed append blocks Model IO and does not trigger a retry. Explicit recognition accepts only the same complete snapshot.
 
 The root exports `inspectSessionToolAdoption`, `sessionToolActionOwner`, and `SessionToolAdoption`. This reader validates the fact and its original Scope and key. It performs no IO and grants no Tool permission. The projection keeps this fact out of model messages. Full Runner batch completion and Tool execution remain separate work. See [SPEC](SPEC.md#原-run-的模型运行时接线).
+
+## Complete action batches
+
+`createSessionToolActionHistory` reads the original adopted Model tool batch, the complete action fact, and the native Tool route from one exact prefix. The root supplies the mature Runner conclusion interpreter. This function performs no IO and grants no execution permission.
+
+The internal batch consumer dispatches the actual Runner, checks its original replay, and persists the whole ordered batch before returning execution locators. An asked pass keeps the batch pending. An unconfirmed append returns no locator. Recognition uses the original fact without redispatch. The fact stays outside model messages. The full Tool driver and ordinary delivery still require their composition checks. See [SPEC](SPEC.md#原-run-的模型运行时接线).
