@@ -11,6 +11,9 @@ import {
   createOriginalIssueOwner,
   originalIssueMigrations,
   type OriginalIssueOwner,
+  createModelRuntime,
+  createSettlementCoordinator,
+  modelCallContentMigrations,
 } from '@omne-harness-lite/model-request-runtime-local'
 import {
   captureModelLogValue,
@@ -48,6 +51,7 @@ import {
   readJsonStrict,
   writeJsonLossless,
   copyJsonValue,
+  toOpaqueJson,
 } from '@omne-harness-lite/content-blocks'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import {
@@ -70,8 +74,16 @@ import { createLocalSessionIngress } from '../src/runtime.ts'
 import { createSessionDriverWorkOwner } from '../src/driver-work.ts'
 import { startDriverRun } from '../src/driver-run.ts'
 import { bindDriverOriginal, createDriverModelSegment } from '../src/driver-model.ts'
+import { createDriverModelRunTask } from '../src/driver-model-run.ts'
+import { createDriverRunTask } from '../src/driver-run-task.ts'
+import {
+  nativeCallFixturePorts,
+  nativeModelConstruction,
+  controlledTimingDeclarations,
+} from './driver-native-fixture.ts'
 import { createSessionModelResultSource } from '../src/model-result-source.ts'
-import type { SessionDriverRunSources } from '../src/driver-types.ts'
+import type { SessionDriverRunSources, LocalSessionDriverOptions } from '../src/driver-types.ts'
+import type { CurrentEvaluationInputs } from '@omne-harness-lite/asset-evaluation'
 import type {
   ModelRuntimeOperations,
   ModelRuntimeHostInputs,
@@ -89,6 +101,7 @@ const roots: string[] = [],
   logs: SqlSessionLog[] = [],
   admissions: LocalAdmission[] = []
 const modelOwners: OriginalIssueOwner[] = []
+const runResources: Array<() => Promise<void>> = []
 const centerId = 'a'.repeat(32)
 if (!isGovernanceCenterId(centerId)) throw new Error('bad center fixture')
 const source: AdmissionSource = {
@@ -145,6 +158,7 @@ function user(text = 'Hello', id = 'message-1'): UserMessage {
   return checked.ok
 }
 afterEach(async () => {
+  for (const close of runResources.splice(0).reverse()) await close()
   vi.restoreAllMocks()
   for (const owner of modelOwners.splice(0))
     expect(await owner.close()).toEqual({ kind: 'released' })
@@ -4790,5 +4804,444 @@ describe('driver original model turn construction', () => {
     f.withdraw()
     expect(await f.build()).toEqual({ failure: 'unavailable' })
     expect(f.acquire).not.toHaveBeenCalled()
+  })
+})
+
+describe('driver complete original Model Run', () => {
+  async function running(gate?: { readonly entered: () => void; readonly wait: Promise<void> }) {
+    let original!: OriginalIssueOwner
+    let native: ReturnType<typeof createModelRuntime> | undefined
+    let results!: ReturnType<typeof createSessionModelResultSource>
+    let work!: ReturnType<typeof createSessionDriverWorkOwner>
+    const f = await fixture(
+      undefined,
+      32,
+      storage => {
+        work = createSessionDriverWorkOwner({ storage, tenant, maxRecords: 8 })
+        results = createSessionModelResultSource({
+          storage,
+          tenant,
+          executionSource: () => native?.executionSource,
+          maxCaptures: 4,
+          retainReferencesIn: async unit => {
+            unit.assertStorage(storage)
+            return 'retained'
+          },
+        })
+        return {
+          modelResults: { maxRecords: 8, source: results.source },
+          modelIssue: {
+            maxRecords: 8,
+            current: { authorizeIn: async () => ({ kind: 'authorized' }) },
+            create: binding => {
+              original = createOriginalIssueOwner({ storage, ...binding, limit: 8 })
+              modelOwners.push(original)
+              return original.participant
+            },
+          },
+        }
+      },
+      async () => at,
+      (...args) => work.readIn(...args),
+    )
+    for (const migration of modelCallContentMigrations('sqlite'))
+      await f.storage.write(tx => migration.migration.up(tx.db))
+    const created = await create(f)
+    const scope = { tenant, session: created.session }
+    await f.runtime.operations.submitInput(
+      f.runtime.access,
+      scope.session,
+      'driver-native-input',
+      user(),
+    )
+    const identities = driverIdentityFixture()
+    const prepared = await startDriverRun({ ingress: f.runtime, identities }, scope, () => true)
+    if (prepared.kind !== 'prepared') throw new Error('original Run not prepared')
+    const root = { category: 'agent_definition' as const, name: 'controlled-driver-root' }
+    const attributes = controlledTimingDeclarations()
+    const evaluation: CurrentEvaluationInputs = {
+      read: async (session, requestedTenant) => {
+        if (
+          session !== scope.session ||
+          writeJsonLossless(requestedTenant) !== writeJsonLossless(tenant)
+        )
+          return { failure: 'unavailable' }
+        return {
+          input: {
+            tenant,
+            standing: { standing: 'effective', role: 'member' },
+            root: {
+              definition: root,
+              source: { asset: 'controlled-driver-root', version: 1 },
+              references: [],
+              attributes,
+            },
+            definitions: [
+              {
+                id: 'controlled-driver-root',
+                capability: root,
+                origin: 'official',
+                versions: [
+                  {
+                    number: 1,
+                    publishedAt: at,
+                    content: {
+                      category: 'agent_definition',
+                      body: toOpaqueJson({ references: [], attributes }),
+                    },
+                  },
+                ],
+              },
+            ],
+            holdings: [
+              {
+                holder: { layer: 'factory' },
+                capability: root,
+                asset: 'controlled-driver-root',
+                basis: { kind: 'official' },
+                versionSelection: { kind: 'current' },
+                immutable: false,
+                assignments: [],
+                since: at,
+              },
+            ],
+          },
+        }
+      },
+    }
+    const ports = nativeCallFixturePorts(scope, f.runtime, f.storage, gate)
+    const construction = ports.configure(nativeModelConstruction(f.storage))
+    native = createModelRuntime(construction)
+    const releaseModel = vi.fn(async () => {})
+    const model: LocalSessionDriverOptions['model'] = {
+      original,
+      factory: {
+        acquire: async (host: ModelRuntimeHostInputs) => {
+          const operations = native!.project(host, construction.callFacts)
+          // Explicit test deployment selection, not a driver default or a production factory policy.
+          expect(
+            await operations.selectModel({ session: scope.session, routeName: 'controlled/model' }),
+          ).toEqual({ selected: 'controlled/model' })
+          return { operations, release: releaseModel }
+        },
+      },
+      executionSource: () => native?.executionSource,
+      results,
+      settlement: {
+        create: binding =>
+          createSettlementCoordinator({
+            ...binding,
+            settlementContention: construction.settlementContention,
+            settlementScheduler: construction.settlementScheduler,
+            diagnostic() {},
+          }),
+      },
+      maxCallReads: 4,
+    }
+    const unavailable = async (): Promise<never> => {
+      throw new Error('unexpected source consumer')
+    }
+    const sources: SessionDriverRunSources = {
+      scope,
+      run: prepared.preparation.run,
+      evaluation,
+      registry: {
+        refreshAvailability: async () => ({
+          report: {
+            session: scope.session,
+            runId: prepared.preparation.run,
+            attempt: prepared.preparation.attempt,
+            computedAt: unwrap(instantFromRfc3339(at)),
+            snapshots: [],
+            availability: [],
+            mcpActions: [],
+            endpointHoldings: [],
+            effectivePermissions: {},
+            skillGate: [],
+          },
+        }),
+        list: async () => ({ entries: [] }),
+      },
+      get context(): never {
+        throw new Error('the model segment reads the explicit Context generation')
+      },
+      contextGeneration: () => 'controlled-driver-context',
+      get toolAccess(): never {
+        throw new Error('the normal Model reply needs no tool access')
+      },
+      get actions(): never {
+        throw new Error('normal reply does not run tools')
+      },
+      providers: {
+        catalog: ports.catalog,
+        credentials: ports.credentials,
+        tools: { lookup: unavailable },
+        sourceVersions: { fixture: 'controlled-driver-deployment' },
+      },
+      selection: {
+        owner: ports.owner,
+        concurrent: 1,
+        sessionTenancy: f.runtime.tenancy,
+        catalog: ports.catalog,
+        projection: async () => ({ known: [] }),
+        compatible: () => ({ ok: true }),
+        now: async () => at,
+        diagnostic() {},
+        onDiagnosticFailure() {},
+      },
+      host: {
+        history: construction.history,
+        recovery: construction.recovery,
+        callPresence: construction.callPresence,
+      },
+      projection: {
+        rules: {
+          version: 'controlled-driver-projection',
+          external: null,
+          system: [],
+          pendingCardBlocks: null,
+          lastModelRequestPrefixLength: null,
+        },
+      },
+      release: vi.fn(async () => {}),
+    }
+    const borrowed = await f.runtime.runJournal.borrow(
+      f.runtime.coordinationAuthority,
+      scope,
+      prepared.preparation.run,
+    )
+    if (!('journal' in borrowed)) throw new Error('actual driver original journal missing')
+    runResources.push(async () => {
+      expect(await native!.close()).toEqual({ released: true })
+      expect(native!.executionSource.release()).toEqual({ released: true })
+      expect(results.close()).toEqual({ released: true })
+      await borrowed.journal.close()
+    })
+    const input = {
+      options: {
+        ingress: f.runtime,
+        identities: { ...identities, modelContent: construction.identities },
+        model,
+        work,
+      },
+      scope,
+      prepared,
+      journal: borrowed.journal,
+      sources,
+    }
+    return { input, f, native, scope, work, ports, sources, releaseModel, borrowed, prepared }
+  }
+  async function sourcesForRun(
+    f: Awaited<ReturnType<typeof running>>,
+    journal: import('../src/run-journal-types.ts').BorrowedRunJournal,
+  ): Promise<SessionDriverRunSources> {
+    const prefix = await journal.readPrefix()
+    if ('failure' in prefix) throw new Error('actual new Run prefix missing')
+    const attempt = prefix.entries
+      .map(entry => readSessionFact(entry))
+      .find(
+        read =>
+          'fact' in read && read.fact.kind === 'attempt_started' && read.fact.run === journal.run,
+      )
+    if (!attempt || !('fact' in attempt) || attempt.fact.kind !== 'attempt_started')
+      throw new Error('actual new attempt missing')
+    const originalAttempt = attempt.fact.attempt
+    return Object.assign(Object.create(f.sources), {
+      run: journal.run,
+      registry: {
+        list: f.sources.registry.list,
+        refreshAvailability: async () => ({
+          report: {
+            session: f.scope.session,
+            runId: journal.run,
+            attempt: originalAttempt,
+            computedAt: unwrap(instantFromRfc3339(at)),
+            snapshots: [],
+            availability: [],
+            mcpActions: [],
+            endpointHoldings: [],
+            effectivePermissions: {},
+            skillGate: [],
+          },
+        }),
+      },
+    })
+  }
+  it('uses Agent Loop, original native issue, custody, settlement and ACK before actual Run finish and return', async () => {
+    const f = await running()
+    const task = createDriverModelRunTask(f.input)
+    expect(await task.completion).toBe('released')
+    expect(await task.close()).toBe('released')
+    expect(f.ports.sends()).toBe(1)
+    expect(f.sources.release).toHaveBeenCalledOnce()
+    expect(f.releaseModel).toHaveBeenCalledOnce()
+    expect(f.borrowed.journal.currentGeneration()).toBeNull()
+    expect(await f.f.count('sr_model_issue')).toEqual({ n: 1 })
+    expect(await f.f.count('sr_model_result')).toEqual({ n: 1 })
+    expect(await f.f.count('sr_result_adoption')).toEqual({ n: 1 })
+    const state = await f.f.runtime.readWork(f.f.runtime.coordinationAuthority, f.scope, 1)
+    expect(state).toMatchObject({
+      kind: 'work',
+      inputs: [],
+      head: { run: { id: f.prepared.preparation.run, state: 'completed' } },
+    })
+    const snapshot = f.native.executionSource.snapshot(f.scope.session)
+    expect(snapshot).toHaveLength(1)
+    expect(snapshot[0]!.copyReleased).toBe(true)
+  })
+  it('withdraws local waits while the exact original native job remains owned, then finishes after its actual ACK', async () => {
+    const entered = Promise.withResolvers<void>(),
+      returned = Promise.withResolvers<void>()
+    const f = await running({ entered: entered.resolve, wait: returned.promise })
+    runResources.push(async () => returned.resolve())
+    const task = createDriverModelRunTask(f.input)
+    await entered.promise
+    task.requestStop()
+    expect(await task.close()).toBe('pending')
+    expect(f.sources.release).not.toHaveBeenCalled()
+    expect(f.releaseModel).not.toHaveBeenCalled()
+    expect(f.borrowed.journal.currentGeneration()).not.toBeNull()
+    expect(f.native.executionSource.snapshot(f.scope.session)[0]!.copyReleased).toBe(false)
+    expect(await f.f.runtime.readWork(f.f.runtime.coordinationAuthority, f.scope, 1)).toMatchObject(
+      { head: { run: { state: 'runnable' } } },
+    )
+    returned.resolve()
+    expect(await task.completion).toBe('released')
+    expect(await task.close()).toBe('released')
+    expect(f.ports.sends()).toBe(1)
+    expect(f.releaseModel).toHaveBeenCalledOnce()
+    expect(f.native.executionSource.snapshot(f.scope.session)[0]!.copyReleased).toBe(true)
+  })
+  it('retains the original completed Run borrow on return failure and retries that return without model redispatch', async () => {
+    const f = await running()
+    const defect = new Error('original source return failure')
+    vi.mocked(f.sources.release).mockRejectedValueOnce(defect)
+    const task = createDriverModelRunTask(f.input)
+    await expect(task.completion).rejects.toBe(defect)
+    expect(f.releaseModel).toHaveBeenCalledOnce()
+    expect(f.borrowed.journal.currentGeneration()).not.toBeNull()
+    expect(await task.close()).toBe('released')
+    expect(await task.close()).toBe('released')
+    expect(f.sources.release).toHaveBeenCalledTimes(2)
+    expect(f.releaseModel).toHaveBeenCalledOnce()
+    expect(f.ports.sends()).toBe(1)
+    expect(f.borrowed.journal.currentGeneration()).toBeNull()
+  })
+  it('starts the next queued round with another actual Run only after the previous Run and its borrows finish', async () => {
+    const f = await running()
+    const first = createDriverModelRunTask(f.input)
+    expect(await first.completion).toBe('released')
+    const identities = driverIdentityFixture()
+    identities.run.mockReturnValue({ startKey: 'driver-run-2', attemptKey: 'driver-attempt-2' })
+    identities.model.mockReturnValue({
+      prepareKey: 'driver-model-prepare-2',
+      originalPosition: 'driver-model-position-2',
+      resultKey: 'driver-model-result-2',
+      adoptionKey: 'driver-model-adopt-2',
+      call: unwrap(parseOpaqueIdentifier('driver-model-call-2', 'ModelCallId')),
+      creationKey: unwrap(parseOpaqueIdentifier('driver-model-create-2', 'CreationKey')),
+    })
+    expect(
+      await f.f.runtime.operations.submitInput(
+        f.f.runtime.access,
+        f.scope.session,
+        'driver-round-2',
+        user('Second round', 'driver-round-2'),
+      ),
+    ).toMatchObject({ kind: 'accepted' })
+    const acquire = vi.fn<LocalSessionDriverOptions['sources']['acquire']>(
+      async (scope, journal) => {
+        expect(scope).toEqual(f.scope)
+        expect(journal.scope).toEqual(f.scope)
+        expect(journal.run).not.toBe(f.prepared.preparation.run)
+        return sourcesForRun(f, journal)
+      },
+    )
+    const task = createDriverRunTask(
+      {
+        ...f.input.options,
+        identities: { ...identities, modelContent: f.input.options.identities.modelContent },
+        sources: { acquire },
+      },
+      f.scope,
+    )
+    expect(await task.completion).toBe('released')
+    expect(await task.close()).toBe('released')
+    expect(acquire).toHaveBeenCalledOnce()
+    expect(f.ports.sends()).toBe(2)
+    expect(f.ports.sentRequests[1]!.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'user' }),
+        expect.objectContaining({ type: 'assistant' }),
+      ]),
+    )
+    expect(f.releaseModel).toHaveBeenCalledTimes(2)
+    expect(f.sources.release).toHaveBeenCalledTimes(2)
+    expect(acquire.mock.calls[0]![1].currentGeneration()).toBeNull()
+    expect(await f.f.count('sr_model_result')).toEqual({ n: 2 })
+    expect(await f.f.count('sr_result_adoption')).toEqual({ n: 2 })
+    expect(
+      f.native.executionSource.snapshot(f.scope.session).every(execution => execution.copyReleased),
+    ).toBe(true)
+  })
+  it('owns a late original source borrow through withdrawal and refuses any subsequent Model construction', async () => {
+    const f = await running()
+    expect(await createDriverModelRunTask(f.input).completion).toBe('released')
+    const identities = driverIdentityFixture()
+    identities.run.mockReturnValue({ startKey: 'late-run', attemptKey: 'late-attempt' })
+    identities.model.mockReturnValue({
+      ...identities.model(),
+      prepareKey: 'late-prepare',
+      originalPosition: 'late-position',
+      resultKey: 'late-result',
+      adoptionKey: 'late-adopt',
+      call: unwrap(parseOpaqueIdentifier('late-call', 'ModelCallId')),
+      creationKey: unwrap(parseOpaqueIdentifier('late-create', 'CreationKey')),
+    })
+    await f.f.runtime.operations.submitInput(
+      f.f.runtime.access,
+      f.scope.session,
+      'late-input',
+      user('Late original borrow', 'late-input'),
+    )
+    const entered = Promise.withResolvers<void>(),
+      arrived = Promise.withResolvers<void>()
+    const acquire = vi.fn<LocalSessionDriverOptions['sources']['acquire']>(
+      async (_scope, journal) => {
+        entered.resolve()
+        await arrived.promise
+        return sourcesForRun(f, journal)
+      },
+    )
+    const modelAcquire = vi.fn(f.input.options.model.factory.acquire)
+    const task = createDriverRunTask(
+      {
+        ...f.input.options,
+        identities: { ...identities, modelContent: f.input.options.identities.modelContent },
+        model: { ...f.input.options.model, factory: { acquire: modelAcquire } },
+        sources: { acquire },
+      },
+      f.scope,
+    )
+    runResources.push(async () => {
+      arrived.resolve()
+      await task.completion
+      await task.close()
+    })
+    await entered.promise
+    task.requestStop()
+    expect(await task.close()).toBe('pending')
+    expect(modelAcquire).not.toHaveBeenCalled()
+    expect(acquire.mock.calls[0]![1].currentGeneration()).not.toBeNull()
+    arrived.resolve()
+    expect(await task.completion).toBe('retained')
+    expect(await task.close()).toBe('released')
+    expect(acquire.mock.calls[0]![1].currentGeneration()).toBeNull()
+    expect(modelAcquire).not.toHaveBeenCalled()
+    expect(f.ports.sends()).toBe(1)
+    expect(f.sources.release).toHaveBeenCalledTimes(2)
+    expect(await f.f.runtime.readWork(f.f.runtime.coordinationAuthority, f.scope, 1)).toMatchObject(
+      { head: { run: { state: 'runnable' } } },
+    )
   })
 })
