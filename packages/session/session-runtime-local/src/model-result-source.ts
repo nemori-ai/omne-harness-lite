@@ -12,9 +12,9 @@ import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type {
   ModelResultInput,
   ModelResultSource,
-  LocalSessionIngress,
   ModelResultStored,
-} from '@omne-harness-lite/session-runtime-local'
+} from './model-result-types.ts'
+import type { LocalSessionIngress } from './runtime-types.ts'
 import type {
   ModelRuntimeExecutionSource,
   AnchoredInvocationHandle,

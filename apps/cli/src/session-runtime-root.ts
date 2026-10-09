@@ -19,7 +19,7 @@ import {
   officialSessionManifest,
 } from './session-factory-assets.ts'
 import { createSessionOriginalModelOwner } from './session-model-owner.ts'
-import { createSessionModelResultSource } from './session-model-results.ts'
+import { createSessionModelResultSource } from '@omne-harness-lite/session-runtime-local'
 import { createSessionDriverWorkOwner } from '@omne-harness-lite/session-runtime-local'
 import { startRunningSessionHost, type RunningSessionHost } from './session-execution-host.ts'
 import type {

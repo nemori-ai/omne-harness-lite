@@ -36,3 +36,20 @@ export { createSessionDriverWorkOwner } from './driver-work.ts'
 
 export { createSessionCallAccess } from './call-access.ts'
 export type { SessionCallAccessOptions } from './call-access.ts'
+
+export { createSessionModelResultSource } from './model-result-source.ts'
+export type {
+  CapturedSessionModelReply,
+  SessionModelResultSourceOptions,
+  SessionModelResultSource,
+} from './model-result-source.ts'
+export { createSessionRunHistory } from './run-history.ts'
+export { runSessionModelTurn } from './model-turn.ts'
+export type {
+  SessionModelTurnOptions,
+  SessionModelTurnResult,
+  RetainedSessionModelTurn,
+} from './model-turn.ts'
+
+export { createSessionRunModelBinding } from './model-binding.ts'
+export type { SessionRunModelBinding, SessionRunModelBindingOptions } from './model-binding.ts'

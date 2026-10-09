@@ -400,52 +400,19 @@ close同步撤本原拥有者的新准入，等待原模型唯一发起责任核
 
 ## 原 Run 的模型运行时接线
 
-`createSessionRunModelBinding`只供可信运行根调用。它先用原协调权限和实际Run grant借用Session日志，再将原prepareCall和唯一发起owner接入`SettlementLogBinding`。模型执行和模型选择使用同一个日志binding及借用代际。完整前缀来自原借用的实际日志读面；不把普通用户Access提升成Run写权限。
-
-可信inputs工厂在借用建立后接该原BorrowedRunJournal。SessionBootstrap.runInputs只接已初始化且与原借用Scope一致的Session，并从实际withReadUnit构造原Run求值输入读面。模型选择与执行共用这一份读面，不能各自借入新会话成员读取器。原创建角色仍只是持久配方数据。登录拒绝或成员准入拒绝不撤该Run的持久读取资格；最新attempt和当前模型权限仍在原模型发起点核对。缺读面先归还原借用再返回unavailable；构造失败同时保留原错误及收场错误。returnJournal先关闭读面并排空实际读取，再归还日志；bootstrap关闭也撤所有未归还读面的准入并排空。关闭不停止借入的模型池、治理客户端或Storage。
-
-本应用使用已有物理ModelRuntime的`project`建立原调用的操作面，不创建第二个执行池。事实视图必须借入该物理runtime的同一content owner，由原ModelRuntime核验。可信根显式提供原host权限端口、身份源、当前评估输入、catalog、凭据、工具lookup、选择策略及版本坐标。构造器不推断主体、模型、秘密或权限，不补默认资产及配方。仅固定Session能够通过该投影的sessions.bind；不同Session返回invalidInput。
-
-返回的operations是模型的普通公开操作面，不包含executionSource或物理runtime的close。原executionSource仍由物理运行根持有。`returnJournal`只撤销和归还该次日志借用，等待原日志单元结束；它不停止模型，不确认结果保管，也不发ACK。运行根必须先完成原模型结算／保管责任，并等待原模型对该binding的工作实际结束，才调用returnJournal。Session关闭等待日志借用归还；借入的Storage、日志、Context和物理模型池由各自原拥有者关闭。
-
-构造在借用后失败时，先归还已分配的日志。若归还也失败，AggregateError保留两项原错误，不报告成功。作用域及content owner校验不能由复制的配置对象或进程代际替代。进程借用代际、持久日志代际和物理executionGeneration各有原语义，不能互相比较来授权。
-
-组合测试使用实际物理ModelRuntime、project、SQLite日志、原Run grant和唯一发起owner。非空原调用经公开openCall／dispatch产生完整Pending；实际executionSource交给Session保管，最新permit提交原结果一次采用，原SDK保存消息／响应批次后原acknowledgeCall成功。治理运输、当前模型资格、catalog和模型IO仍受控；该组合不覆盖正式宿主或真实OpenRouter首答。
+可信根从Session提供者公开入口选择`createSessionRunModelBinding`。它提供实际Model装配factory、原issue绑定、原Run求值来源及工程策略；领域借用和调用绑定由提供者拥有。具体ModelRuntime及其facts仍在应用根配对。行为见[提供者规格](../../packages/session/session-runtime-local/SPEC.md#原-run-的模型运行时接线)。
 
 ## 原模型结果来源与借用结束
 
-`createSessionModelResultSource`只供可信运行根构造。根须提供租户的实际AtomicStorage、完整TenantId、原物理ModelRuntime.executionSource的读取端口、明确捕获容量及同单元引用接管端口。它不从请求数据恢复这些能力，不提供默认引用接管器。执行来源尚未装配时返回unavailable。容量检查先于来源捕获；不同租户在进入执行来源前拒绝。
-
-capture只选择原Session和call的唯一执行，等待其原invocation.outcome。仅完整PendingModelResponse能够成为结果来源，必须保留原Run、attempt、dispatch及无损数据。借用的物理executionGeneration对象、原唯一发起记录的字符串代际和持久日志代际分别使用，不互相比较。原invocation只留在来源拥有者内部；返回的捕获仅含固定Scope、完整Pending和原对象身份，不泄露可执行句柄。复制捕获对象不能取得释放资格。
-
-`source.verifyIn`先核实际存储单元，再核捕获的原Scope、调用、attempt、dispatch、完整Pending及物理来源当前记录。ACK已解除副本或来源已失去记录时，不接管引用。引用接管必须参加调用者的同一StorageUnit；端口返回unavailable不折成verified，异常保留原异常。此适配器不独立提交、不推进Run，也不决定回复处置或发ACK。
-
-release撤销该捕获的新验证，等待已经参加的实际StorageUnit结束。正常提交或确定回滚后才返回原frame；事务回调结束本身不构成可释放条件。完成观察为unknown时保持pending和原借用责任，不能据此确认接管。`confirmCustody`通过根所持原Session协调权限读取原call/resultKey的完整结果，核对原Scope、日志代际、回执键及完整结果后才能解除这项不明义务；absent、不可用或不同结果不能解除。确认结果保管不是回复采用或ACK的授权。
-
-来源拥有者在归还frame前清除原执行数组和invocation引用；捕获分面不让这些能力逃逸到调用者。close只撤新捕获准入；已分配且正在等待的捕获仍由原拥有者结束。存在未归还捕获时close返回pending。它不停止借入ModelRuntime、不关闭借入Storage、Session或Context，也不代替物理模型拥有者的真实关闭证明。
-
+可信根从Session提供者公开入口选择`createSessionModelResultSource`，传入实际物理executionSource、同Unit引用保管与明确容量。该构造器的能力身份和释放语义由提供者维护。行为见[提供者规格](../../packages/session/session-runtime-local/SPEC.md#原模型结果来源与借用结束)。
 
 ## 原Run历史的模型读取
 
-`createSessionRunHistory`由可信根固定完整SessionScope。它只解释模型SDK给出的原owned prefix；Scope、来源或借用代际失效时返回unavailable，不另开存储事务，不授执行权。
-
-读取从同一完整前缀核原run_started、原attempt及最新attempt、run_finished。无Run、无原attempt、重复开始、倒序attempt或不匹配的终态拒绝；合法其他会话事实和模型消息保留，不改成模型提醒。读取至多O(n)，没有新增缓存算法。
-
-实际ModelRuntime的dispatch发布ready后可关闭原invocation结算入口。可信根不能假定捕获该句柄后仍能settleReply；需要结算时复用公开SDK coordinator及原Run日志、真实owner和Run历史。原完整结果先由Session可靠接管；原SDK仍拥有消息／响应配对及ACK条件。Session结果采用和原能力结算分别核对，不以保管或模型ACK冒充最新permit的推进完成。
-
+模型SDK的Run历史由Session提供者公开`createSessionRunHistory`解释。应用不维护另一份Run状态扫描。行为见[提供者规格](../../packages/session/session-runtime-local/SPEC.md#原run历史的模型读取)。
 
 ## 宿主拥有的一次原模型消费
 
-`runSessionModelTurn`由运行宿主消费一个已持久准备的原调用。输入包含实际Ingress、固定Scope、原prepareCall、实际Run绑定和结果来源，以及真实模型依据／装配报告、投影规则与拥有者codec、原创建／结果／采用键和原结算owner／策略。模型IO的signal属于运行宿主，不借用终端客户端的signal。缺少这些输入不补默认身份、模型、秘密、权限或策略。
-
-消费者从原Run借用的完整日志计算请求消息，复用`projectMessages`和`materializeMessages`；事实不转为提醒。实际Context等来源须由其拥有者的公开codec验证，缺codec阻止调用。本实现做固定前缀的O(n)投影，没有改变缓存算法。原openCall使用实际准备的call身份来源，返回call必须与原准备一致；dispatch显式带原attempt，不自行造调用或更换原键重试。
-
-完整结果依次经过实际执行来源捕获、Session同提交保管、最新permit采用、原SDK消息／响应结算、真实任务停止和结算owner关闭、来源frame归还，再请求原ACK。保管、采用和SDK结算分别成功才继续；任何一步未确认都不假完成，不将保管等同回复处置。该消费者不决定Run终态、不执行工具、不创建第二个Agent Loop，也不停止借入的物理ModelRuntime、Session或日志。
-
-根必须提供`retain`责任端口。返回retained前，该端口须接管原turn的配置、身份、绑定及尚未结束的捕获／结算coordinator；不能只写一条日志后丢掉能力。消费者不自动重发或重试未知提交。根使用原身份和实际公开认回操作处理未完成责任；本文不承诺完整重启恢复。ACK不可用时，Session原全文和已结算记录仍保留，来源归还不等于ACK成功。
-
-异常完成仍等待原结算任务的stopped。原缺陷上抛；异常处理中的责任接管也失败时，AggregateError保留两项原错误。责任端口一次失败不再自动调用第二次。返回acknowledged仅表示原结果采用和原ACK闭合，不代表Run已completed、真实OpenRouter或完整宿主已通过验收。
-
+原模型段通过Session提供者公开`runSessionModelTurn`执行。应用只提供真实源、工程策略和原责任保管端口。结算使用Core factory；选择具体Model提供者仍归根。行为见[提供者规格](../../packages/session/session-runtime-local/SPEC.md#宿主拥有的一次原模型消费)。
 
 ## 原消息受理与机读结果观察
 

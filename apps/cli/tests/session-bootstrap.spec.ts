@@ -36,7 +36,7 @@ import {
   runSessionModelTurn,
   type SessionModelTurnOptions,
   type RetainedSessionModelTurn,
-} from '../src/session-model-turn.ts'
+} from '@omne-harness-lite/session-runtime-local'
 import { createSessionHostEndpoint, parseSessionHostRequest } from '../src/session-host-protocol.ts'
 import { messageLogPayload, compareInteger } from '@omne-harness-lite/session-log'
 import { createSessionTextReader } from '../src/session-reading.ts'
@@ -72,7 +72,7 @@ import {
 import {
   createSessionModelResultSource,
   type SessionModelResultSource,
-} from '../src/session-model-results.ts'
+} from '@omne-harness-lite/session-runtime-local'
 import { originalPending } from './model-result-fixture.ts'
 import { nativeCallFixturePorts, controlledTimingDeclarations } from './session-native-fixture.ts'
 import { createAssetRegistry } from '@omne-harness-lite/asset-registry-local'
@@ -81,16 +81,17 @@ import {
   assemblyManifestMigrations,
 } from '@omne-harness-lite/assembly-manifest-store'
 import { evaluate } from '@omne-harness-lite/asset-evaluation'
-import { createSessionRunHistory } from '../src/session-run-history.ts'
+import { createSessionRunHistory } from '@omne-harness-lite/session-runtime-local'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import { StorageUnavailable } from '@omne-harness-lite/storage'
 import { createSessionOriginalModelOwner } from '../src/session-model-owner.ts'
 import {
   createSessionRunModelBinding,
   type SessionRunModelBindingOptions,
-} from '../src/session-model-binding.ts'
+} from '@omne-harness-lite/session-runtime-local'
 import {
   originalIssueMigrations,
+  createSettlementCoordinator,
   createModelRuntime,
   createCallContainerStore,
   createModelCallContentStore,
@@ -1904,15 +1905,18 @@ function nativeBindingOptions(
   return {
     construction,
     nativeModel: model,
-    model,
-    facts: construction.callFacts,
+    model: {
+      acquire: async host => ({
+        operations: model.project(host, construction.callFacts),
+        release: async () => {},
+      }),
+    },
     host: construction,
     maxCallReads: 4,
     ingress: f.runtime,
-    issueOwner: f.modelOwner,
+    originalIssue: journal => f.modelOwner!.bind(f.runtime, journal.scope, preparation, unknown),
     scope,
     preparation,
-    retainUnknown: unknown,
     inputs: journal => f.assembly.runInputs(scope, journal),
     selection: {
       owner: {
@@ -2279,7 +2283,7 @@ it('shares one physical native runtime across two original bindings and keeps cu
 it('rejects a foreign Session before attaching a native original issue binding', async () => {
   const original = await originalModelBinding()
   const options = nativeBindingOptions(original)
-  const bind = vi.fn(options.issueOwner.bind)
+  const bind = vi.fn(options.originalIssue)
   expect(
     await createSessionRunModelBinding({
       ...options,
@@ -2287,7 +2291,7 @@ it('rejects a foreign Session before attaching a native original issue binding',
         ...options.scope,
         tenant: unwrap(parseTenantId({ ...tenant, organization: 'other' })),
       },
-      issueOwner: { ...options.issueOwner, bind },
+      originalIssue: bind,
     }),
   ).toEqual({ failure: 'denied' })
   expect(bind).not.toHaveBeenCalled()
@@ -2299,11 +2303,8 @@ it('returns an allocated original journal when the trusted native owner construc
   await expect(
     createSessionRunModelBinding({
       ...options,
-      issueOwner: {
-        ...options.issueOwner,
-        bind() {
-          throw defect
-        },
+      originalIssue() {
+        throw defect
       },
     }),
   ).rejects.toBe(defect)
@@ -2323,7 +2324,15 @@ it('returns the original journal if native projection detects a different physic
   await expect(
     createSessionRunModelBinding({
       ...options,
-      facts: { ...options.facts, content: foreignContent },
+      model: {
+        acquire: async host => ({
+          operations: options.nativeModel.project(host, {
+            ...options.construction.callFacts,
+            content: foreignContent,
+          }),
+          release: async () => {},
+        }),
+      },
     }),
   ).rejects.toThrow('runtime projection must borrow the original content owner')
   await original.f.runtime.close()
@@ -2582,10 +2591,15 @@ async function actualModelTurn(
   const configured: SessionRunModelBindingOptions = {
     ...options,
     ingress: original.f.runtime,
-    issueOwner: original.f.modelOwner!,
+    originalIssue: journal =>
+      original.f.modelOwner!.bind(
+        original.f.runtime,
+        journal.scope,
+        original.preparation,
+        original.unknown,
+      ),
     scope: original.scope,
     preparation: original.preparation,
-    retainUnknown: original.unknown,
     inputs: journal => original.f.assembly.runInputs(original.scope, journal),
     selection: {
       ...options.selection,
@@ -2702,9 +2716,15 @@ async function actualModelTurn(
     },
     settlement: {
       owner: ports.owner,
-      settlementContention: options.construction.settlementContention,
-      settlementScheduler: options.construction.settlementScheduler,
-      diagnostic() {},
+      factory: {
+        create: binding =>
+          createSettlementCoordinator({
+            ...binding,
+            settlementContention: options.construction.settlementContention,
+            settlementScheduler: options.construction.settlementScheduler,
+            diagnostic() {},
+          }),
+      },
     },
     resultKey: 'native-session-original-result',
     adoptionKey: 'adopt-native-original-result',
@@ -3702,4 +3722,64 @@ it('closes the original physical pool when binding fails after official transpor
     nativeModel: nativeFileModelOptions(f, options, () => options.model),
   })
   expect(await reopened.close()).toEqual({ closed: true })
+})
+
+it('returns the original Run inputs when the public model factory is unavailable', async () => {
+  const original = await originalModelBinding()
+  const options = nativeBindingOptions(original)
+  let journal: BorrowedRunJournal | undefined
+  const acquire = vi.fn(async () => ({ unavailable: true as const }))
+  const result = await createSessionRunModelBinding({
+    ...options,
+    inputs: current => {
+      journal = current
+      return options.inputs(current)
+    },
+    model: { acquire },
+  })
+  expect(result).toEqual({ failure: 'unavailable' })
+  expect(acquire).toHaveBeenCalledOnce()
+  expect(journal?.currentGeneration()).toBeNull()
+  await original.f.runtime.close()
+  expect(await original.f.log.readSince(original.scope.session, 0)).toHaveProperty('entries')
+})
+
+it('keeps the original Run journal until the public model borrow has actually returned', async () => {
+  const original = await originalModelBinding()
+  const options = nativeBindingOptions(original)
+  const entered = Promise.withResolvers<void>()
+  const stopped = Promise.withResolvers<void>()
+  cleanup.push(async () => stopped.resolve())
+  const linked = await createSessionRunModelBinding({
+    ...options,
+    model: {
+      async acquire(inputs) {
+        const acquired = await options.model.acquire(inputs)
+        if ('unavailable' in acquired) return acquired
+        return {
+          operations: acquired.operations,
+          async release() {
+            entered.resolve()
+            await stopped.promise
+            await acquired.release()
+          },
+        }
+      },
+    },
+  })
+  if ('failure' in linked) throw new Error('actual model binding unavailable')
+  cleanup.push(linked.returnJournal)
+  const returning = linked.returnJournal()
+  await entered.promise
+  expect(linked.binding.log.currentGeneration()).toBe(linked.binding.log.generation)
+  let closed = false
+  const closing = original.f.runtime.close().then(() => {
+    closed = true
+  })
+  await new Promise(resolve => setImmediate(resolve))
+  expect(closed).toBe(false)
+  stopped.resolve()
+  await returning
+  await closing
+  expect(linked.binding.log.currentGeneration()).toBeNull()
 })

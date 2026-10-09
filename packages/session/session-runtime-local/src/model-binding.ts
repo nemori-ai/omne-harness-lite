@@ -1,36 +1,31 @@
-import { createSessionCallAccess } from '@omne-harness-lite/session-runtime-local'
+import { createSessionCallAccess } from './call-access.ts'
 import type {
   SessionRuntimeBinding,
   SessionModelSelectionInput,
   ModelRuntimeHostInputs,
   ModelRuntimeOperations,
+  OriginalIssueAdmission,
 } from '@omne-harness-lite/model-request-runtime'
-import type {
-  createModelRuntime,
-  CallFactsView,
-} from '@omne-harness-lite/model-request-runtime-local'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
-import type {
-  LocalSessionIngress,
-  SessionLifecycleStep,
-  BorrowedRunJournal,
-} from '@omne-harness-lite/session-runtime-local'
-import type { CurrentInputReader } from '@omne-harness-lite/evaluation-input-store'
-import type { SessionOriginalModelOwner, ModelIssueUnknown } from './session-model-owner.ts'
+import type { LocalSessionIngress, SessionLifecycleStep } from './runtime-types.ts'
+import type { BorrowedRunJournal } from './run-journal-types.ts'
+import type { SessionDriverModelFactory, SessionDriverModelBorrow } from './driver-model-types.ts'
 
 type Preparation = Extract<SessionLifecycleStep, { kind: 'prepareCall' }>
 /** Actual scoped providers and original preparation supplied by the trusted running host. */
 export interface SessionRunModelBindingOptions {
   readonly ingress: LocalSessionIngress
-  readonly issueOwner: SessionOriginalModelOwner
+  readonly originalIssue: (journal: BorrowedRunJournal) => OriginalIssueAdmission
   readonly scope: SessionScope
   readonly preparation: Preparation
   readonly selection: Omit<SessionModelSelectionInput, 'binding' | 'currentEvaluationInputs'>
   readonly providers: Omit<SessionRuntimeBinding, 'log' | 'selection' | 'currentEvaluationInputs'>
-  readonly inputs: (journal: BorrowedRunJournal) => CurrentInputReader | undefined
-  readonly retainUnknown: (result: ModelIssueUnknown) => Promise<void>
-  readonly model: Pick<ReturnType<typeof createModelRuntime>, 'project'>
-  readonly facts: CallFactsView
+  readonly inputs: (
+    journal: BorrowedRunJournal,
+  ) =>
+    | (SessionRuntimeBinding['currentEvaluationInputs'] & { readonly close: () => Promise<void> })
+    | undefined
+  readonly model: SessionDriverModelFactory
   readonly host: Omit<ModelRuntimeHostInputs, 'sessions' | 'callAccess'>
   /** Explicit application admission bound for this original Run's read/ACK callbacks. */
   readonly maxCallReads: number
@@ -57,10 +52,12 @@ export async function createSessionRunModelBinding(
   const journal = borrowed.journal
   const originalCall = options.preparation.call
   let callAccess: ReturnType<typeof createSessionCallAccess> | undefined
-  let inputs: CurrentInputReader | undefined
+  let inputs: ReturnType<SessionRunModelBindingOptions['inputs']>
+  let model: SessionDriverModelBorrow | undefined
   let returned: Promise<void> | undefined
   const returnJournal = () =>
     (returned ??= (async () => {
+      await model?.release()
       await callAccess?.close()
       await inputs?.close()
       await journal.close()
@@ -78,12 +75,7 @@ export async function createSessionRunModelBinding(
       readPrefix: journal.readPrefix,
       generation: journal.generation,
       currentGeneration: journal.currentGeneration,
-      originalIssue: options.issueOwner.bind(
-        options.ingress,
-        journal.scope,
-        options.preparation,
-        options.retainUnknown,
-      ),
+      originalIssue: options.originalIssue(journal),
     })
     const binding = Object.freeze<SessionRuntimeBinding>({
       ...options.providers,
@@ -103,22 +95,24 @@ export async function createSessionRunModelBinding(
       preparation: options.preparation,
       maxInFlight: options.maxCallReads,
     })
-    const operations = options.model.project(
-      {
-        ...options.host,
-        callAccess: callAccess.access,
-        identities: Object.freeze({
-          ...options.host.identities,
-          call: () => originalCall,
-        }),
-        sessions: {
-          bind: async session =>
-            session === journal.scope.session ? { binding } : { failure: 'invalidInput' },
-        },
+    const acquired = await options.model.acquire({
+      ...options.host,
+      callAccess: callAccess.access,
+      identities: Object.freeze({
+        ...options.host.identities,
+        call: () => originalCall,
+      }),
+      sessions: {
+        bind: async session =>
+          session === journal.scope.session ? { binding } : { failure: 'invalidInput' },
       },
-      options.facts,
-    )
-    return Object.freeze({ binding, operations, returnJournal })
+    })
+    if ('unavailable' in acquired) {
+      await returnJournal()
+      return { failure: 'unavailable' }
+    }
+    model = acquired
+    return Object.freeze({ binding, operations: model.operations, returnJournal })
   } catch (error) {
     try {
       await returnJournal()

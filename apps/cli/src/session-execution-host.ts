@@ -17,7 +17,7 @@ import {
   type SessionModelAttemptOptions,
   type OriginalSessionModelWork,
 } from './session-agent-attempt.ts'
-import type { RetainedSessionModelTurn } from './session-model-turn.ts'
+import type { RetainedSessionModelTurn } from '@omne-harness-lite/session-runtime-local'
 import type { TenantBinding } from './state-layout-values.ts'
 import { checkedTenantBinding } from './state-layout-values.ts'
 import type {

@@ -14,7 +14,7 @@ import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type { AtomicStorage, StorageUnit } from '@omne-harness-lite/storage'
 import { originalPending } from './model-result-fixture.ts'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
-import { createSessionRunHistory } from '../src/session-run-history.ts'
+import { createSessionRunHistory } from '@omne-harness-lite/session-runtime-local'
 import toolSchema from '@omne-harness-lite/tool-definition/schema' with { type: 'json' }
 
 export function controlledTimingDeclarations() {

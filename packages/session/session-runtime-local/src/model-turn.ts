@@ -2,12 +2,10 @@ import {
   modelLogJsonEqual,
   type CallKey,
   type OpenCallInput,
-} from '@omne-harness-lite/model-request-runtime'
-import {
-  createSettlementCoordinator,
-  type SettlementCoordinatorInput,
+  type SettlementOwner,
+  type SettlementCoordinatorFactory,
   type SettlementCoordinator,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/model-request-runtime'
 import {
   projectMessages,
   materializeMessages,
@@ -17,18 +15,12 @@ import {
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { checkKey } from '@omne-harness-lite/session-log'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
-import type {
-  LocalSessionIngress,
-  SessionLifecycleStep,
-} from '@omne-harness-lite/session-runtime-local'
+import type { LocalSessionIngress, SessionLifecycleStep } from './runtime-types.ts'
 import type { StepReceipt } from '@omne-harness-lite/session-runtime'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
-import type { SessionRunModelBinding } from './session-model-binding.ts'
-import type {
-  SessionModelResultSource,
-  CapturedSessionModelReply,
-} from './session-model-results.ts'
-import { createSessionRunHistory } from './session-run-history.ts'
+import type { SessionModelResultSource, CapturedSessionModelReply } from './model-result-source.ts'
+import { createSessionRunHistory } from './run-history.ts'
+import type { SessionRunModelBinding } from './model-binding.ts'
 
 type Preparation = Extract<SessionLifecycleStep, { kind: 'prepareCall' }>
 type CallInput = Pick<
@@ -51,7 +43,10 @@ export interface SessionModelTurnOptions {
   readonly source: SessionModelResultSource
   readonly call: CallInput
   readonly projection: { readonly rules: ProjectionRules; readonly options?: ProjectionOptions }
-  readonly settlement: Omit<SettlementCoordinatorInput, 'binding' | 'run'>
+  readonly settlement: {
+    readonly factory: SettlementCoordinatorFactory
+    readonly owner: SettlementOwner
+  }
   readonly resultKey: string
   readonly adoptionKey: string
   /** The host retains this original turn, binding and any private handles before return. */
@@ -226,8 +221,8 @@ class ModelTurn {
     const { options } = this,
       pending = this.captured!.pending
     this.stage = 'settlement'
-    this.coordinator = createSettlementCoordinator({
-      ...options.settlement,
+    this.coordinator = options.settlement.factory.create({
+      owner: options.settlement.owner,
       binding: options.linked.binding.log,
       run: createSessionRunHistory(options.scope),
     })

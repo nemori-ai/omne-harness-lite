@@ -20,8 +20,8 @@ import {
   runSessionModelTurn,
   type SessionModelTurnOptions,
   type SessionModelTurnResult,
-} from './session-model-turn.ts'
-import { createSessionRunHistory } from './session-run-history.ts'
+} from '@omne-harness-lite/session-runtime-local'
+import { createSessionRunHistory } from '@omne-harness-lite/session-runtime-local'
 import type { LocalSessionContext } from '@omne-harness-lite/session-runtime-local/cordis'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'

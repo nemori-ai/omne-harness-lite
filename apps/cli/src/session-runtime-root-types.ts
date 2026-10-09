@@ -21,7 +21,7 @@ import type { SessionOriginalModelOwner } from './session-model-owner.ts'
 import type {
   SessionModelResultSource,
   SessionModelResultSourceOptions,
-} from './session-model-results.ts'
+} from '@omne-harness-lite/session-runtime-local'
 import type { RunningSessionHostOptions } from './session-execution-host.ts'
 import type { TenantBinding } from './state-layout-values.ts'
 import type { SessionCreationDefaults } from './session-host-protocol.ts'

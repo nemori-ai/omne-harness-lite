@@ -14,7 +14,7 @@ import type {
 } from '@omne-harness-lite/model-request-runtime'
 import type { ModelResultInput } from '@omne-harness-lite/session-runtime-local'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
-import { createSessionModelResultSource } from '../src/session-model-results.ts'
+import { createSessionModelResultSource } from '@omne-harness-lite/session-runtime-local'
 import { originalPending } from './model-result-fixture.ts'
 
 const now = '2026-10-08T00:00:00Z'

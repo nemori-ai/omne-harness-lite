@@ -65,3 +65,7 @@ createLocalSessionAccess借入真实当前authority、固定的已鉴权主体�
 根须等原模型工作及ACK责任结束再归还借用；Ingress关闭等待已接受借用归还。借用close撤新入口并排空实际单元，不关闭物理依赖；进程内generation在关闭时失效。行为归[提供者规格](SPEC.md#原run日志借用)。
 
 原模型结果的最新permit一次采用沿`lifecycle.commitStep(adoptResult)`，行为见[提供者规格](SPEC.md#原模型结果的协调采用)。它不重复写模型回复、不替代原SDK结算或ACK。
+
+## 原模型消费构件
+
+根入口公开`createSessionRunModelBinding`、`createSessionModelResultSource`、`createSessionRunHistory`和`runSessionModelTurn`。这些函数绑定原Run、读取历史，并完成原结果的保管、采用、SDK结算与ACK。应用通过Core接口传入实际Model与结算factory；本包不选择具体Model提供者。先归还Model装配借用，再归还原日志。这些构件不代表完整driver已交付，也不授予新执行权。行为见[规格](SPEC.md#原-run-的模型运行时接线)。
