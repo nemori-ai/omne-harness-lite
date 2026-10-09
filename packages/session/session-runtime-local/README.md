@@ -79,3 +79,9 @@ The root also exports `prepareSessionModelRun`, `createSessionModelAttempt`, and
 `toolResults` retains and recognizes the original Tool terminal evidence and Session custody receipt in one unit. The trusted root supplies the immutable Tool result source. The full native factory composition remains unverified.
 
 `toolDelivery` confirms the ordinary Tool message with its ready, confirmation and adoption facts in one unit. The root supplies the existing pure Runner history interpreter. New delivery requires the current permit; recognition verifies the full original batch. Full native and Cordis composition remains a separate verification gate.
+
+## Adopted tools before Model IO
+
+The normal Model driver persists the original report and complete adopted tool table before it creates a model call. Nonempty entries must match the exact version selected by the original evaluation. An unconfirmed append blocks Model IO and does not trigger a retry. Explicit recognition accepts only the same complete snapshot.
+
+The root exports `inspectSessionToolAdoption`, `sessionToolActionOwner`, and `SessionToolAdoption`. This reader validates the fact and its original Scope and key. It performs no IO and grants no Tool permission. The projection keeps this fact out of model messages. Full Runner batch completion and Tool execution remain separate work. See [SPEC](SPEC.md#原-run-的模型运行时接线).

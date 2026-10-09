@@ -53,7 +53,8 @@
     "@omne-harness-lite/loop-extension-runner": "workspace:*",
     "@omne-harness-lite/loop-extension": "workspace:*",
     "@omne-harness-lite/asset-registry": "workspace:*",
-    "@omne-harness-lite/tool-definition": "workspace:*"
+    "@omne-harness-lite/tool-definition": "workspace:*",
+    "@omne-harness-lite/asset-model": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

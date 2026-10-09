@@ -1,6 +1,5 @@
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { compareInteger } from '@omne-harness-lite/session-log'
-import { modelName } from '@omne-harness-lite/tool-definition'
 import type {
   OriginalIssueAdmission,
   OriginalIssueClaim,
@@ -14,6 +13,11 @@ import type { SessionRunModelBinding } from './model-binding.ts'
 import type { DriverRunStart } from './driver-run.ts'
 import type { LocalSessionDriverOptions, SessionDriverRunSources } from './driver-types.ts'
 import type { SessionModelTurnOptions } from './model-turn.ts'
+import {
+  persistDriverToolAdoption,
+  inspectSessionToolAdoption,
+  sessionToolActionOwner,
+} from './driver-tool-adoption.ts'
 
 type Prepared = Extract<DriverRunStart, { kind: 'prepared' }>
 type Inputs = Pick<LocalSessionDriverOptions, 'ingress' | 'identities' | 'model'>
@@ -133,9 +137,8 @@ class ModelSegment {
       throw error
     }
   }
-  async describe(): Promise<SessionModelTurnOptions | Failure> {
-    const { sources, scope, prepared, options } = this
-    if (this.closing || !this.isOpen()) return { failure: 'unavailable' }
+  async adoptedTable() {
+    const { sources, scope, prepared } = this
     const preparation = prepared.preparation
     const refreshed = await sources.registry.refreshAvailability(
       scope.session,
@@ -152,16 +155,33 @@ class ModelSegment {
       throw new TypeError('actual original Run report required')
     const tools = await sources.registry.list(scope.session, 'tool', { kind: 'run', report })
     if (!('entries' in tools)) return { failure: 'unavailable' }
+    if (!this.isOpen()) return { failure: 'unavailable' as const }
+    const adoption = await persistDriverToolAdoption({
+      scope,
+      log: this.linked!.binding.log.log,
+      preparation,
+      report,
+      entries: tools.entries,
+      inputs: this.inputs,
+    })
+    return 'adoption' in adoption ? adoption : { failure: 'unavailable' as const }
+  }
+  async describe(): Promise<SessionModelTurnOptions | Failure> {
+    const { sources, scope, prepared, options } = this
+    if (this.closing || !this.isOpen()) return { failure: 'unavailable' }
+    const adopted = await this.adoptedTable()
+    if (!('adoption' in adopted)) return { failure: 'unavailable' }
+    const { report, tools } = adopted.adoption
+    const preparation = prepared.preparation
     const model = await this.linked!.operations.effectiveModel({ session: scope.session })
-    if (!('effectiveModel' in model)) return { failure: 'unavailable' }
-    if (!this.isOpen()) return { failure: 'unavailable' }
+    if (!('effectiveModel' in model) || !this.isOpen()) return { failure: 'unavailable' }
     return Object.freeze<SessionModelTurnOptions>({
       ingress: options.ingress,
       scope,
       preparation,
       linked: this.linked!,
       source: options.model.results,
-      projection: sources.projection,
+      projection: toolAdoptionProjection(scope, sources.projection),
       resultKey: prepared.identities.resultKey,
       adoptionKey: prepared.identities.adoptionKey,
       call: {
@@ -169,7 +189,7 @@ class ModelSegment {
         report,
         target: model.effectiveModel.routeName,
         basis: model.effectiveModel,
-        tools: tools.entries.map(entry => modelName(entry.capability.name)),
+        tools: tools.map(entry => entry.name),
         host: this.host,
       },
       settlement: {
@@ -226,6 +246,17 @@ class ModelSegment {
     }
     await this.linked?.returnJournal()
   }
+}
+
+function toolAdoptionProjection(
+  scope: SessionScope,
+  projection: SessionDriverRunSources['projection'],
+): SessionModelTurnOptions['projection'] {
+  const factReaders = new Map(projection.options?.factReaders)
+  factReaders.set(sessionToolActionOwner, (_value, entry) =>
+    'adoption' in inspectSessionToolAdoption(scope, entry) ? 'valid' : 'invalid',
+  )
+  return { ...projection, options: { ...projection.options, factReaders } }
 }
 
 export function bindDriverOriginal(input: {

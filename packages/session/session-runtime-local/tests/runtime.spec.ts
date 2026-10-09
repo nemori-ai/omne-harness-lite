@@ -5,6 +5,10 @@ import {
 import { readPassConclusions } from '@omne-harness-lite/loop-extension-runner-local'
 import { prepareRunnerConclusion, readRunnerChain } from '@omne-harness-lite/loop-extension-runner'
 import { judgeDefinition } from '@omne-harness-lite/loop-extension'
+import { REGISTERED_CATEGORIES, buildTableContents } from '@omne-harness-lite/asset-registry'
+import { evaluate, type NonConnectorEvaluationInput } from '@omne-harness-lite/asset-evaluation'
+import { capabilityCanonicalString } from '@omne-harness-lite/asset-model'
+import { modelName } from '@omne-harness-lite/tool-definition'
 // @module-tag slow
 // Uses real root and tenant SQLite transactions, log owners and Cordis lifetimes.
 import {
@@ -19,6 +23,7 @@ import {
   captureModelLogValue,
   readModelLogEnvelope,
   prepareModelLogEntry,
+  createModelLogReadInspector,
   type OriginalIssueInput,
   type OriginalIssueAuthority,
 } from '@omne-harness-lite/model-request-runtime'
@@ -41,7 +46,7 @@ import {
   sessionLogMigrations,
   type SqlSessionLog,
 } from '@omne-harness-lite/session-log-sql'
-import { compareInteger, checkAppendInput } from '@omne-harness-lite/session-log'
+import { compareInteger, checkAppendInput, checkLogPayload } from '@omne-harness-lite/session-log'
 import {
   judgePendingModelResponse,
   type PendingModelResponse,
@@ -76,6 +81,7 @@ import { createSessionDriverWorkOwner } from '../src/driver-work.ts'
 import { startDriverRun } from '../src/driver-run.ts'
 import { bindDriverOriginal, createDriverModelSegment } from '../src/driver-model.ts'
 import { createDriverModelRunTask } from '../src/driver-model-run.ts'
+import { readDriverModelHistory, DriverHistoryInvalid } from '../src/driver-model-history.ts'
 import { createLocalSessionDriver } from '../src/index.ts'
 import { createDriverRunTask } from '../src/driver-run-task.ts'
 import {
@@ -4522,7 +4528,10 @@ describe('driver original model turn construction', () => {
       runId: m.p.step.run,
       attempt: m.p.step.attempt,
       computedAt: instant,
-      snapshots: [],
+      snapshots: REGISTERED_CATEGORIES.map(category => ({
+        category,
+        filledAt: unwrap(instantFromRfc3339(at)),
+      })),
       availability: [],
       mcpActions: [],
       endpointHoldings: [],
@@ -4690,7 +4699,13 @@ describe('driver original model turn construction', () => {
     if ('failure' in built) throw new Error('actual driver binding missing')
     const issue = built.turn.linked.binding.log.originalIssue
     if (!issue) throw new Error('actual original admission missing')
-    const admitted = await issue.admitOriginal(f.m.original)
+    expect(await issue.admitOriginal(f.m.original)).toEqual({ kind: 'unavailable' })
+    expect(await f.m.f.count('mr_original_issue')).toEqual({ n: 0 })
+    const prefix = await f.m.f.runtime.journal.readPrefix(f.m.f.runtime.access, f.m.p.scope.session)
+    if (!('kind' in prefix) || prefix.kind !== 'prefix')
+      throw new Error('actual dispatch source missing')
+    const admitted = await issue.admitOriginal(modelInput(f.m.p, prefix.source))
+    expect(admitted).toHaveProperty('confirmed')
     if (!('confirmed' in admitted)) throw new Error('actual launch claim missing')
     expect(await issue.consumeOriginal(admitted.claim)).toEqual({ kind: 'launch' })
     f.withdraw()
@@ -4809,6 +4824,12 @@ describe('driver original model turn construction', () => {
     expect(f.acquire).not.toHaveBeenCalled()
   })
 })
+
+import {
+  inspectSessionToolAdoption,
+  sessionToolActionOwner,
+  persistDriverToolAdoption,
+} from '../src/driver-tool-adoption.ts'
 
 describe('driver complete original Model Run', () => {
   async function running(
@@ -4958,7 +4979,10 @@ describe('driver complete original Model Run', () => {
             runId: prepared.preparation.run,
             attempt: prepared.preparation.attempt,
             computedAt: unwrap(instantFromRfc3339(at)),
-            snapshots: [],
+            snapshots: REGISTERED_CATEGORIES.map(category => ({
+              category,
+              filledAt: unwrap(instantFromRfc3339(at)),
+            })),
             availability: [],
             mcpActions: [],
             endpointHoldings: [],
@@ -5064,7 +5088,10 @@ describe('driver complete original Model Run', () => {
             runId: journal.run,
             attempt: originalAttempt,
             computedAt: unwrap(instantFromRfc3339(at)),
-            snapshots: [],
+            snapshots: REGISTERED_CATEGORIES.map(category => ({
+              category,
+              filledAt: unwrap(instantFromRfc3339(at)),
+            })),
             availability: [],
             mcpActions: [],
             endpointHoldings: [],
@@ -5075,6 +5102,311 @@ describe('driver complete original Model Run', () => {
       },
     })
   }
+  it('persists the exact nonempty evaluated tool version and rejects a changed table without another append', async () => {
+    const f = await running()
+    const root = { category: 'agent_definition', name: 'example:root' } as const
+    const capability = { category: 'tool', name: 'example:read' } as const
+    const references = [{ capability, resident: true }]
+    const definition = {
+      name: capability.name,
+      paradigm: 'single',
+      description: 'Read the controlled test value.',
+      origin: { kind: 'authored' },
+      input: { type: 'object', properties: {}, additionalProperties: false },
+      permissions: { execute: { default: 'auto' } },
+    } as const
+    const input: NonConnectorEvaluationInput = {
+      tenant,
+      standing: { standing: 'effective', role: 'member' },
+      root: {
+        definition: root,
+        source: { asset: 'ast_driver_root', version: 1 },
+        references,
+        attributes: [],
+      },
+      definitions: [
+        {
+          id: 'ast_driver_root',
+          capability: root,
+          origin: 'official',
+          versions: [
+            {
+              number: 1,
+              publishedAt: at,
+              content: {
+                category: 'agent_definition',
+                body: toOpaqueJson({ references, attributes: [] }),
+              },
+            },
+          ],
+        },
+        {
+          id: 'ast_driver_read',
+          capability,
+          origin: 'official',
+          versions: [1, 2].map(number => ({
+            number,
+            publishedAt: at,
+            content: { category: 'tool', definition },
+          })),
+        },
+      ],
+      holdings: [root, capability].map(capability => ({
+        holder: { layer: 'factory' },
+        capability,
+        asset: capability.category === 'tool' ? 'ast_driver_read' : 'ast_driver_root',
+        basis: { kind: 'official' },
+        versionSelection: { kind: 'pinned', number: 1 },
+        immutable: false,
+        assignments: [],
+        since: at,
+      })),
+    }
+    const evaluated = evaluate(input)
+    expect(evaluated).toHaveProperty('ok')
+    if (!('ok' in evaluated)) throw new Error('controlled tool evaluation rejected')
+    const built = buildTableContents(evaluated.ok, [capability], input.definitions)
+    expect(built).toHaveProperty('plans')
+    if (!('plans' in built)) throw new Error('actual table construction failed')
+    const entries = built.plans.find(plan => plan.category === 'tool')!.entries
+    const refreshed = await f.sources.registry.refreshAvailability(
+      f.scope.session,
+      { kind: 'start', runId: f.prepared.preparation.run },
+      f.prepared.preparation.attempt,
+    )
+    if (!('report' in refreshed)) throw new Error('original report missing')
+    const permission = evaluated.ok.values.find(value => value.item === 'execute')
+    if (!permission) throw new Error('evaluated execute permission missing')
+    const report = {
+      ...refreshed.report,
+      availability: entries.map(({ capability, availability }) => ({ capability, availability })),
+      effectivePermissions: { [modelName(capability.name)]: permission },
+    }
+    const request = {
+      scope: f.scope,
+      log: f.borrowed.journal.log,
+      preparation: f.prepared.preparation,
+      report,
+      entries,
+      inputs: { read: async () => ({ input }) },
+    }
+    const first = await persistDriverToolAdoption(request)
+    expect(first).toMatchObject({
+      adoption: {
+        tools: [
+          {
+            name: modelName(capability.name),
+            capability: capabilityCanonicalString(capability),
+            asset: 'ast_driver_read',
+            version: '1',
+            definition,
+          },
+        ],
+      },
+    })
+    expect(await persistDriverToolAdoption(request)).toEqual(first)
+    const wrong = entries.map(entry => ({ ...entry, from: 'tenant' as const }))
+    expect(await persistDriverToolAdoption({ ...request, entries: wrong })).toEqual({
+      unavailable: true,
+    })
+    const changed = entries.map(entry => ({
+      ...entry,
+      content: {
+        category: 'tool' as const,
+        definition: { ...definition, description: 'Changed body.' },
+      },
+    }))
+    expect(await persistDriverToolAdoption({ ...request, entries: changed })).toEqual({
+      unavailable: true,
+    })
+    const prefix = await f.borrowed.journal.readPrefix()
+    if ('failure' in prefix) throw new Error('actual adopted prefix missing')
+    const facts = prefix.entries.filter(entry => {
+      const payload = checkLogPayload(entry.payload)
+      return 'payload' in payload && payload.payload.owner === sessionToolActionOwner
+    })
+    expect(facts).toHaveLength(1)
+    if (!('adoption' in first)) throw new Error('actual adoption missing')
+    expect(inspectSessionToolAdoption(f.scope, facts[0]!)).toEqual({
+      kind: 'adoption',
+      adoption: first.adoption,
+    })
+    expect(f.ports.sends()).toBe(0)
+    expect(f.native.executionSource.snapshot(f.scope.session)).toEqual([])
+    await f.borrowed.journal.close()
+  })
+  it('reads an actual settled Model reply and rejects missing or duplicate provenance anchors', async () => {
+    const f = await running()
+    const task = createDriverModelRunTask(f.input)
+    expect(await task.completion).toBe('released')
+    const read = await f.f.runtime.journal.readPrefix(f.f.runtime.access, f.scope.session)
+    if (!('kind' in read) || read.kind !== 'prefix') throw new Error('actual model prefix missing')
+    const prefix = {
+      scope: f.scope,
+      ownerGeneration: read.source.journalGeneration,
+      entries: read.entries,
+      tail: read.source.tail,
+    }
+    const history = readDriverModelHistory(prefix)
+    expect(history.replies.size).toBe(1)
+    const reply = [...history.replies.values()][0]!
+    expect(reply.message.response).toBe(reply.response.response!.id)
+    expect(reply.created.run).toBe(f.prepared.preparation.run)
+    expect(reply.dispatched.attempt).toEqual(f.prepared.preparation.attempt)
+    const onlyMessage = { ...prefix, entries: [reply.entry] }
+    expect(() => readDriverModelHistory(onlyMessage)).toThrow(DriverHistoryInvalid)
+    expect(() =>
+      readDriverModelHistory({
+        ...prefix,
+        entries: prefix.entries.filter(entry => entry.dedupeKey !== reply.created.dedupeKey),
+      }),
+    ).toThrow(DriverHistoryInvalid)
+    expect(() =>
+      readDriverModelHistory({
+        ...prefix,
+        entries: prefix.entries.filter(entry => entry.dedupeKey !== reply.dispatched.dedupeKey),
+      }),
+    ).toThrow(DriverHistoryInvalid)
+    expect(() =>
+      readDriverModelHistory({ ...prefix, entries: [...prefix.entries, reply.dispatched] }),
+    ).toThrow(DriverHistoryInvalid)
+    expect(() =>
+      readDriverModelHistory({ ...prefix, entries: [...prefix.entries, reply.entry] }),
+    ).toThrow(DriverHistoryInvalid)
+  })
+  it('persists the original adopted tool table before native Model IO, with no Tool permission from the fact', async () => {
+    const f = await running()
+    const task = createDriverModelRunTask(f.input)
+    expect(await task.completion).toBe('released')
+    const prefix = await f.f.runtime.journal.readPrefix(f.f.runtime.access, f.scope.session)
+    if (!('kind' in prefix) || prefix.kind !== 'prefix') throw new Error('actual prefix missing')
+    const adopted = prefix.entries.filter(entry => {
+      const payload = checkLogPayload(entry.payload)
+      return 'payload' in payload && payload.payload.owner === sessionToolActionOwner
+    })
+    expect(adopted).toHaveLength(1)
+    const inspected = inspectSessionToolAdoption(f.scope, adopted[0]!)
+    expect(inspected).toMatchObject({
+      kind: 'adoption',
+      adoption: {
+        kind: 'tools_adopted',
+        call: f.prepared.preparation.call,
+        run: f.prepared.preparation.run,
+        attempt: f.prepared.preparation.attempt,
+        tools: [],
+      },
+    })
+    const model = createModelLogReadInspector({
+      ...f.scope,
+      prefix: { entries: prefix.entries, tail: prefix.source.tail },
+    })
+    if (!('ok' in model)) throw new Error('actual Model provenance unavailable')
+    const creation = model.ok.entries.find(
+      item => item.captured.record?.kind === 'model_call_created',
+    )
+    expect(creation).toBeDefined()
+    expect(compareInteger(adopted[0]!.position, creation!.entry.position)).toBeLessThan(0)
+    expect(f.ports.sends()).toBe(1)
+    expect(writeJsonLossless(f.ports.sentRequests)).not.toContain(sessionToolActionOwner)
+    expect(
+      inspectSessionToolAdoption(f.scope, {
+        ...adopted[0]!,
+        payload: { ...(adopted[0]!.payload as object), version: 'unknown' },
+      }),
+    ).toEqual({ failure: 'invalidInput' })
+    expect(
+      inspectSessionToolAdoption(
+        {
+          ...f.scope,
+          session: unwrap(parseOpaqueIdentifier('foreign-adoption-session', 'SessionRef')),
+        },
+        adopted[0]!,
+      ),
+    ).toEqual({ failure: 'invalidInput' })
+    expect(
+      inspectSessionToolAdoption(f.scope, { ...adopted[0]!, dedupeKey: 'another-call-adoption' }),
+    ).toEqual({ failure: 'invalidInput' })
+    expect(await task.close()).toBe('released')
+  })
+  it('retains an unconfirmed original tool adoption with zero Model IO, then recognizes only its exact snapshot', async () => {
+    const f = await running()
+    let lost = false
+    const originalBorrow = f.f.runtime.runJournal.borrow
+    const borrow: typeof originalBorrow = async (...args) => {
+      const result = await originalBorrow(...args)
+      if (!('journal' in result)) return result
+      const original = result.journal
+      return {
+        journal: {
+          ...original,
+          log: {
+            ...original.log,
+            append: async (...input) => {
+              const result = await original.log.append(...input)
+              const adoption = input[1].some(entry => {
+                const value = checkLogPayload(entry.payload)
+                return 'payload' in value && value.payload.owner === sessionToolActionOwner
+              })
+              if (adoption && 'positions' in result && !lost) {
+                lost = true
+                return { failure: 'unavailable' }
+              }
+              return result
+            },
+          },
+        },
+      }
+    }
+    const task = createDriverModelRunTask({
+      ...f.input,
+      options: {
+        ...f.input.options,
+        ingress: {
+          ...f.f.runtime,
+          runJournal: { borrow },
+        },
+      },
+    })
+    expect(await task.completion).toBe('retained')
+    expect(lost).toBe(true)
+    expect(await task.close()).toBe('pending')
+    expect(f.ports.sends()).toBe(0)
+    expect(f.native.executionSource.snapshot(f.scope.session)).toEqual([])
+    const report = await f.sources.registry.refreshAvailability(
+      f.scope.session,
+      { kind: 'start', runId: f.prepared.preparation.run },
+      f.prepared.preparation.attempt,
+    )
+    if (!('report' in report)) throw new Error('actual original report unavailable')
+    const request = {
+      scope: f.scope,
+      log: f.borrowed.journal.log,
+      preparation: f.prepared.preparation,
+      report: report.report,
+      entries: [],
+      inputs: f.sources.evaluation,
+    }
+    const recognized = await persistDriverToolAdoption(request)
+    expect(recognized).toHaveProperty('adoption')
+    expect(
+      await persistDriverToolAdoption({
+        ...request,
+        report: {
+          ...request.report,
+          computedAt: unwrap(instantFromRfc3339('2026-10-08T00:00:01Z')),
+        },
+      }),
+    ).toEqual({ unavailable: true })
+    const prefix = await f.borrowed.journal.readPrefix()
+    if ('failure' in prefix) throw new Error('actual adopted prefix missing')
+    expect(
+      prefix.entries.filter(entry => 'adoption' in inspectSessionToolAdoption(f.scope, entry)),
+    ).toHaveLength(1)
+    expect(f.ports.sends()).toBe(0)
+    expect(await f.f.runtime.readWork(f.f.runtime.coordinationAuthority, f.scope, 1)).toMatchObject(
+      { head: { run: { state: 'runnable' } } },
+    )
+  })
   it('uses Agent Loop, original native issue, custody, settlement and ACK before actual Run finish and return', async () => {
     const f = await running()
     const task = createDriverModelRunTask(f.input)

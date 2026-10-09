@@ -64,3 +64,5 @@ export { prepareSessionModelRun } from './run-preparation.ts'
 export type { SessionRunIdentities } from './run-preparation.ts'
 
 export { createLocalSessionDriver } from './driver.ts'
+export { inspectSessionToolAdoption, sessionToolActionOwner } from './driver-tool-adoption.ts'
+export type { SessionToolAdoption } from './driver-tool-adoption.ts'

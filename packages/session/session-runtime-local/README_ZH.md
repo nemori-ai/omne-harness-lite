@@ -79,3 +79,9 @@ createLocalSessionAccess借入真实当前authority、固定的已鉴权主体�
 `toolResults`在同一单元中保管并认回原Tool终局证据和Session保管回执。可信根提供不可变的Tool结果来源。完整native工厂组合仍未验证。
 
 `toolDelivery`在同一单元中确认普通工具消息及其ready、confirmed和采用事实。可信根提供现有Runner纯历史解释器。新交付须持有当前permit；认回核完整原批次。完整native和Cordis组合仍须另验。
+
+## 模型发起前的工具采用
+
+正常Model驱动先可靠持久化原report和完整工具表，再创建模型调用。非空工具须匹配原求值选中的精确版本。提交未确认时不发起模型，也不自动重试。显式认回仅接受完整相同的原快照。
+
+根入口导出`inspectSessionToolAdoption`、`sessionToolActionOwner`及`SessionToolAdoption`。读取器核验事实及原Scope和键，不执行IO、不授予Tool权限。投影不会把该事实发给模型。完整Runner整批完成及Tool执行仍须另外交付。行为见[薄规格](SPEC.md#原-run-的模型运行时接线)。

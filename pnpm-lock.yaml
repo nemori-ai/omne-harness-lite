@@ -2800,6 +2800,9 @@ importers:
       '@omne-harness-lite/asset-evaluation':
         specifier: workspace:*
         version: link:../../core/asset-evaluation
+      '@omne-harness-lite/asset-model':
+        specifier: workspace:*
+        version: link:../../core/asset-model
       '@omne-harness-lite/asset-registry':
         specifier: workspace:*
         version: link:../../core/asset-registry

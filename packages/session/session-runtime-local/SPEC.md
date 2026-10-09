@@ -306,6 +306,20 @@ Run source factory接原Scope及真实BorrowedRunJournal，返回显式原Scope�
 实际toolAccess、目录／秘密／工具来源、选择输入、历史／CallPresence及消息投影来源。
 registry提供原采用装配的refreshAvailability和list；driver以原Scope、Run、attempt取得真实报告及该报告内的工具列表。
 它与providers.tools所查询的实际registry必须配对，不能由只有lookup的绑定构造或猜测报告。
+
+正常Model段在创建原模型调用前，先将该调用实际采用的完整report和工具表写入原Run日志。
+事实owner为`session-runtime-tool-actions`，version为`1`，kind为`tools_adopted`；
+dedupeKey为`session-runtime-tool-actions/1/adoption/`加原call的JSON字符串。
+该事实固定原call、Run、attempt、report，以及每项工具的model name、规范capability标识、asset、精确version和definition。
+非空表须与同一原Run的实际求值输入、选中asset／来源及精确版本正文一致，不能按同名或相同内容猜版本。
+report须包含Core规定的完整类别快照；工具名字必须唯一，权限表的键须与采用表配对。
+写入前持有不可变输入快照；写入仍使用原Run／attempt栅栏和原日志尾部条件。
+未确认不创建或发起模型，也不自动重试。显式认回仅接受同一键的完整相同值，异语义不追加。
+
+根函数`inspectSessionToolAdoption`读取此owner的形状与外壳；异Scope、错误原键或未知版本拒绝。
+此读取不执行IO，也不授予工具权限。driver的事实投影读取器采用同一读取函数，事实不转成模型消息。
+完整模型回复的来源仍由Model拥有者的codec核验原创建、dispatch、response及persisted消息的结算配对。
+单独assistant消息不构成工具来源。此采用事实不等于Runner整批完成、不等于Token、当前资格或一次执行claim。
 actions借入实际Core Runner及其当前admission政策，字段沿RunnerActionRequest.admission去掉report。
 root必须给同Runner host采用的实际grants对象、runMode及适用parent；SessionAccess不是grants。
 driver保留grants的不透明身份，并从原报告、完整模型调用及稳定原anchor构造整批请求。
@@ -355,7 +369,7 @@ E1须验证函数根与Cordis真实输入隔离、工作登记与finish竞争、
 
 本包公开`SessionDriverModelFactory`及`SessionDriverModelBorrow`作为可信根构造协议。
 它们不是新的Model投影服务；实际模型操作及HostInputs沿core/model-request-runtime的现有公开协议。
-尚无实际factory适配器、完整driver根函数或plugin绑定；这些类型不能当作已实现入口。
+正常Model Run的公开driver根函数及实际来源组合已具备限定实现。完整Tool消费和plugin绑定尚未完成；不得把正常Model子集当作完整driver。
 
 Session驱动从真实原Scope／Run及日志借用构造HostInputs，应用根只选择实际Model提供者并装配这些输入。
 acquire须在返回前核完整输入及实际装配成功，返回普通ModelRuntimeOperations和本次装配的release。
