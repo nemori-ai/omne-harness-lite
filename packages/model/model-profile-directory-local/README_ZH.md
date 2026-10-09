@@ -2,7 +2,9 @@
 
 当前目录按 D100 消费已采用的 `capability.model-profile-directory/v5`、`data.model-profile/v5`，沿[Public behavior](SPEC.md)实施。包拥有耐久目录、只追加的配置修订事实、官方清单状态和租户凭据绑定。
 
-定义包 `@omne-harness-lite/model-profile-directory` 拥有纯判断和服务协议。本提供者根入口导出配置类型；`./cordis` 导出两个 Cordis 插件及配置 Schema；`./migrations` 导出 `modelProfileDirectoryMigrations`；受限 `./tx-reads` 导出 `createCredentialBindingReader`。权威目录以服务面存在。
+定义包 `@omne-harness-lite/model-profile-directory` 拥有纯判断和服务协议。本提供者根入口导出配置类型和`createLocalModelDirectory`。独立函数与Cordis入口共用目录实现。调用方提供真实Storage、Clock、成员观察、明确清单及诊断端口；返回的拥有者提供ready和close，不关闭借入依赖。
+
+`./cordis` 导出两个 Cordis 插件及配置 Schema；`./migrations` 导出 `modelProfileDirectoryMigrations`；受限 `./tx-reads` 导出 `createCredentialBindingReader`。受限`./local-credentials`导出`createLocalCredentialLookup`。可信装配只把原replica的bound read闭包交给该工厂，并持有replica的实际关闭责任；普通runtime只借用就绪的CredentialLookup，不获得reader或replica组件。独立与Cordis入口共用取值实现。
 
 下面例子消费已经认证的租户身份及装配好的 storage、clock 和真实 memberships，不建立身份或证明登录来源。结构合法的绑定可先于实现注册保存；调用运行时仍须取得精确版本。
 

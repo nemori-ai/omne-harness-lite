@@ -21,6 +21,11 @@ import {
   type TransportOptions,
 } from '@omne-harness-lite/pi-ai-transport'
 import type { SessionRuntimeRootOptions } from './session-runtime-root-types.ts'
+import {
+  createSessionModelDirectory,
+  type SessionModelDirectoryOptions,
+  type SessionModelDirectoryRead,
+} from './session-model-directory.ts'
 
 type Construction = RuntimeConstruction<PlannedRequest, RawResponse>
 type Runtime = ReturnType<typeof createModelRuntime<PlannedRequest, RawResponse>>
@@ -30,9 +35,11 @@ export interface SessionNativeModelPool {
   readonly runtime: Runtime
   readonly facts: CallFacts
   readonly content: Content
+  readonly directory?: SessionModelDirectoryRead
 }
 /** Trusted application inputs. Model choice, authorization and budgets have no fallback. */
 export interface SessionNativeModelOptions {
+  readonly directory?: SessionModelDirectoryOptions
   readonly modelIds: readonly string[]
   readonly network: Omit<TransportOptions, 'definitions' | 'inputMeters' | 'baseUrl' | 'tls'>
   readonly retirement: RetirementPolicy
@@ -90,6 +97,7 @@ function configuredEntries(ids: readonly string[]) {
   })
 }
 class NativeModelOwner {
+  directory?: ReturnType<typeof createSessionModelDirectory>
   content?: Content
   calls?: Calls
   facts?: CallFacts
@@ -103,8 +111,14 @@ class NativeModelOwner {
     readonly clock: Clock,
     readonly options: SessionNativeModelOptions,
   ) {}
-  initialize(entries: ReturnType<typeof configuredEntries>): SessionRuntimeRootOptions['model'] {
+  async initialize(
+    entries: ReturnType<typeof configuredEntries>,
+  ): Promise<SessionRuntimeRootOptions['model']> {
     if (this.stopping) throw new Error('native model owner stopped before acquisition')
+    if (this.options.directory)
+      this.directory = createSessionModelDirectory(this.storage, this.clock, this.options.directory)
+    const directory = await this.directory?.ready
+    if (this.stopping) throw new Error('native model owner stopped during directory setup')
     this.content = createModelCallContentStore({
       storage: this.storage,
       policy: this.options.contentPolicy,
@@ -157,6 +171,7 @@ class NativeModelOwner {
       runtime: this.runtime,
       facts: this.facts,
       content: this.content,
+      ...(directory ? { directory } : {}),
     })
     return Object.freeze({ ...bound, executionSource: () => this.runtime?.executionSource })
   }
@@ -186,6 +201,7 @@ class NativeModelOwner {
       if (!('retired' in result)) throw new Error('original model transport cleanup failed')
       await this.transport.closed
     }
+    await this.directory?.close()
     return { released: true }
   }
   async closeRuntime(): Promise<RuntimeCloseResult> {

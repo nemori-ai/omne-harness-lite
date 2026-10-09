@@ -8,16 +8,15 @@ import type { Clock } from '@omne-harness-lite/offer-expiry'
 import { StorageDefect, type AtomicStorage } from '@omne-harness-lite/storage'
 import { invalid, object, parseManifest } from '@omne-harness-lite/model-profile-directory'
 import { isCredentialRef } from './records.ts'
-import { CatalogImplementation, OperationOwner, sanitized } from './runtime.ts'
-import { createCredentialBindingReader } from './tx-reads.ts'
+import { OperationOwner, sanitized } from './runtime.ts'
+import { createLocalModelDirectory } from './local.ts'
+import { createLocalCredentialLookup } from './local-credentials.ts'
 import type {
   CredentialLookup,
   DiagnosticSink,
   OfficialManifest,
-  ReadBoundReplicaIn,
 } from '@omne-harness-lite/model-profile-directory'
 import type {
-  FactoryCredential,
   MembershipsRead,
   ModelProfileDirectoryConfig,
   LocalCredentialLookupConfig,
@@ -73,24 +72,27 @@ function actualStorage(ctx: Context): AtomicStorage {
   if (!storage(value)) throw new StorageDefect('directory requires AtomicStorage')
   return value
 }
-function ownerFor(ctx: Context): OperationOwner {
+function observersFor(ctx: Context) {
   const logger = ctx.logger('model-profile-directory')
-  const owner = new OperationOwner(
-    {
-      record(event) {
-        const sink = ctx.get(MODEL_DIRECTORY_DIAGNOSTICS)
-        if (sink) sink.record(event)
-        else logger.info('directory %o', event)
-      },
+  const diagnostics: DiagnosticSink = {
+    record(event) {
+      const sink = ctx.get(MODEL_DIRECTORY_DIAGNOSTICS)
+      if (sink) sink.record(event)
+      else logger.info('directory %o', event)
     },
-    () => {
-      try {
-        logger.error('directory diagnostic sink failed')
-      } catch {
-        /* Both observation destinations failed; business facts remain authoritative. */
-      }
-    },
-  )
+  }
+  const onDiagnosticFailure = () => {
+    try {
+      logger.error('directory diagnostic sink failed')
+    } catch {
+      /* Business facts remain authoritative if both observation destinations fail. */
+    }
+  }
+  return { diagnostics, onDiagnosticFailure }
+}
+function ownerFor(ctx: Context): OperationOwner {
+  const observers = observersFor(ctx)
+  const owner = new OperationOwner(observers.diagnostics, observers.onDiagnosticFailure)
   ctx.effect(() => () => owner.close())
   return owner
 }
@@ -116,38 +118,24 @@ export const modelProfileDirectoryPlugin = definePlugin<ModelProfileDirectoryCon
       standing: unknown = ctx.get(MEMBERSHIPS_SERVICE)
     if (!clock(time) || !memberships(standing))
       throw new Error('directory clock or memberships mapping invalid')
-    const owner = ownerFor(ctx)
-    const catalog = new CatalogImplementation({
+    const directory = createLocalModelDirectory({
       storage: actual,
       clock: time,
       memberships: standing,
-      owner,
+      ...observersFor(ctx),
+      manifest: config.officialManifest,
       factoryConfigured: config.factoryCredentialRef !== undefined,
-      notify: ref => {
-        try {
-          ctx.emit('profile.withdrawn', ref)
-        } catch {
-          owner.record({
-            operation: 'profile.withdrawn',
-            phase: 'notification',
-            outcome: 'listener_failed',
-          })
-        }
+      withdrawn: ref => {
+        ctx.emit('profile.withdrawn', ref)
       },
     })
+    ctx.effect(() => () => directory.close())
     try {
-      await catalog.ready()
-      const loaded = await owner.execute('loadManifest', () =>
-        catalog.loadManifest(config.officialManifest),
-      )
-      if ('failure' in loaded) {
-        if (loaded.failure === 'manifestNotNewer')
-          owner.record({ operation: 'loadManifest', phase: 'error', outcome: 'manifestNotNewer' })
-        else throw new Error('official manifest could not be loaded')
-      }
-      new CatalogProvider(ctx, catalog.management)
-      if (config.faceMode !== 'management') new CatalogReadProvider(ctx, catalog.read)
+      const catalog = await directory.ready
+      new CatalogProvider(ctx, catalog)
+      if (config.faceMode !== 'management') new CatalogReadProvider(ctx, catalog)
       if (config.faceMode === 'developmentBaseFaces') {
+        const owner = ownerFor(ctx)
         const lookup: CredentialLookup = {
           value: (tenant, origin) =>
             owner.execute('value', async () => {
@@ -173,54 +161,18 @@ export const localCredentialLookupPlugin = definePlugin<LocalCredentialLookupCon
   Config: LocalCredentialLookupConfigSchema,
   async apply(ctx) {
     unique(ctx, [CREDENTIAL_LOOKUP])
-    const actual = actualStorage(ctx)
-    // Validate the real directory table before provide; migrations belong to assembly.
-    const reader = createCredentialBindingReader(actual)
-    await actual.read(async tx => {
-      await tx.db
-        .selectFrom('model_credential_binding')
-        .select(['organization_id', 'account_id', 'credential_ref', 'bound_at'])
-        .limit(0)
-        .execute()
+    const lookup = createLocalCredentialLookup({
+      storage: actualStorage(ctx),
+      ...observersFor(ctx),
+      readBoundReplicaIn: (unit, tenant, ref) =>
+        ctx.boundCredentialReplicaReader.readIn(unit, tenant, ref),
+      factoryCredential: async () => {
+        const reader = ctx.get(FACTORY_MODEL_CREDENTIAL)
+        return reader === undefined ? { absent: true } : reader.read()
+      },
     })
-    const owner = ownerFor(ctx)
-    const lookup: CredentialLookup = {
-      value: (tenantInput, origin) =>
-        owner.execute('value', async () => {
-          const tenant = parseTenantId(tenantInput)
-          if (!('ok' in tenant) || (origin !== 'official' && origin !== 'custom')) return invalid()
-          // Values are held privately until the outer unit has really committed.
-          const selected = await actual.atomic(async unit => {
-            const current = await reader(unit, tenant.ok)
-            if ('absent' in current) return { absent: true } as const
-            const replica = await ctx.boundCredentialReplicaReader.readIn(
-              unit,
-              tenant.ok,
-              current.binding.credentialRef,
-            )
-            if (
-              'body' in replica &&
-              (!(replica.body instanceof Uint8Array) || replica.body.byteLength === 0)
-            )
-              throw new StorageDefect('replica reader returned malformed body')
-            return { replica }
-          })
-          if ('replica' in selected)
-            return 'body' in selected.replica
-              ? { scope: { layer: 'tenant', tenant: tenant.ok }, value: selected.replica.body }
-              : { failure: 'credentialUnavailable' }
-          const factoryReader = ctx.get(FACTORY_MODEL_CREDENTIAL)
-          if (origin === 'custom' || factoryReader === undefined)
-            return { failure: 'credentialUnavailable' }
-          const factory = await factoryReader.read()
-          if ('failure' in factory) return factory
-          if ('absent' in factory) return { failure: 'credentialUnavailable' }
-          if (!(factory.body instanceof Uint8Array) || factory.body.byteLength === 0)
-            throw new StorageDefect('factory credential provider returned malformed body')
-          return { scope: { layer: 'factory' }, value: factory.body }
-        }),
-    }
-    new CredentialProvider(ctx, lookup)
+    ctx.effect(() => () => lookup.close())
+    new CredentialProvider(ctx, await lookup.ready)
   },
 })
 export type { ModelProfileDirectoryConfig, LocalCredentialLookupConfig } from './types.ts'

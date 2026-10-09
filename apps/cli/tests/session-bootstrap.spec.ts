@@ -4,7 +4,7 @@ import type {
   SessionNativeModelPool,
 } from '../src/session-native-model.ts'
 import { officialCatalog } from '@omne-harness-lite/pi-ai-transport'
-import { prepareTenantDirectory, tenantPaths } from '../src/state-layout.ts'
+import { prepareTenantDirectory, prepareStateDirectory, tenantPaths } from '../src/state-layout.ts'
 import {
   createSessionModelWorkOwner,
   type SessionModelWorkOwner,
@@ -36,7 +36,7 @@ import { messageLogPayload, compareInteger } from '@omne-harness-lite/session-lo
 import { createSessionTextReader } from '../src/session-reading.ts'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { afterEach, expect, it, vi } from 'vitest'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { openStorage } from '@omne-harness-lite/storage-sql'
@@ -3422,6 +3422,109 @@ it('opens the file Session root with the actual official transport and physical 
   const use = await f.client.openUse()
   expect(use.kind).toBe('use')
   if (use.kind === 'use') await use.use.close()
+})
+it('owns real directory and credential lookup with the native file pool without inventing a credential', async () => {
+  const { f, options } = await rootFixture(true)
+  await prepareTenantDirectory(options.home, options.binding)
+  const paths = tenantPaths(options.home, options.binding)
+  await prepareStateDirectory(options.home, paths.auth)
+  const keyFile = join(paths.auth, 'model-replica.key')
+  await writeFile(keyFile, new Uint8Array(32).fill(7), { flag: 'wx', mode: 0o600 })
+  let pool: SessionNativeModelPool | undefined
+  const nativeModel = {
+    ...nativeFileModelOptions(f, options, observed => {
+      pool = observed
+      return options.model
+    }),
+    directory: {
+      governance: f.client,
+      source,
+      tenant,
+      keyFile,
+      diagnostics: { record() {} },
+      onDiagnosticFailure() {},
+      replicaDiagnostics: { record() {}, sinkFailure() {} },
+    },
+  }
+  const root = await startFileSessionRuntimeRoot({ ...options, nativeModel })
+  cleanup.push(async () => {
+    expect(await root.close()).toEqual({ closed: true })
+  })
+  expect(pool).toHaveProperty('directory.catalog')
+  if (!pool?.directory) throw new Error('production directory missing')
+  const current = await pool.directory.catalog.listProfiles(tenant)
+  expect(Array.isArray(current)).toBe(true)
+  expect(JSON.stringify(current)).toContain(officialCatalog[0]!.definition.modelId)
+  expect(await pool.directory.credentials.value(tenant, 'official')).toEqual({
+    failure: 'credentialUnavailable',
+  })
+  const exchanges = f.exchanges.mock.calls.length
+  await root.close()
+  expect(await pool.directory.catalog.listProfiles(tenant)).toEqual({ failure: 'unavailable' })
+  expect(await pool.directory.credentials.value(tenant, 'official')).toEqual({
+    failure: 'unavailable',
+  })
+  expect(f.exchanges.mock.calls.length).toBe(exchanges)
+  const use = await f.client.openUse()
+  expect(use.kind).toBe('use')
+  if (use.kind === 'use') await use.use.close()
+})
+it('refuses a directory for another login before any governance or file acquisition', async () => {
+  const { f, options } = await rootFixture()
+  const bind = vi.fn(() => options.model)
+  const nativeModel = {
+    ...nativeFileModelOptions(f, options, bind),
+    directory: {
+      governance: f.client,
+      tenant,
+      source: { ...source, loginStateHandle: unwrap(parseLoginStateId('another-login')) },
+      keyFile: join(options.home, 'missing-key'),
+      diagnostics: { record() {} },
+      onDiagnosticFailure() {},
+      replicaDiagnostics: { record() {}, sinkFailure() {} },
+    },
+  }
+  const exchanges = f.exchanges.mock.calls.length
+  await expect(startFileSessionRuntimeRoot({ ...options, nativeModel })).rejects.toThrow(
+    'model directory does not belong',
+  )
+  expect(f.exchanges.mock.calls.length).toBe(exchanges)
+  expect(bind).not.toHaveBeenCalled()
+  await expect(stat(join(options.home, 'data', 'session-admission.sqlite'))).rejects.toHaveProperty(
+    'code',
+    'ENOENT',
+  )
+})
+it('releases directory startup resources after a missing key and reopens the original file root', async () => {
+  const { f, options } = await rootFixture()
+  await prepareTenantDirectory(options.home, options.binding)
+  const paths = tenantPaths(options.home, options.binding)
+  await prepareStateDirectory(options.home, paths.auth)
+  const keyFile = join(paths.auth, 'model-replica.key')
+  const bind = vi.fn(() => options.model)
+  const nativeModel = {
+    ...nativeFileModelOptions(f, options, bind),
+    directory: {
+      governance: f.client,
+      source,
+      tenant,
+      keyFile,
+      diagnostics: { record() {} },
+      onDiagnosticFailure() {},
+      replicaDiagnostics: { record() {}, sinkFailure() {} },
+    },
+  }
+  await expect(startFileSessionRuntimeRoot({ ...options, nativeModel })).rejects.toBeInstanceOf(
+    StorageUnavailable,
+  )
+  expect(bind).not.toHaveBeenCalled()
+  await writeFile(keyFile, new Uint8Array(32).fill(9), { flag: 'wx', mode: 0o600 })
+  const root = await startFileSessionRuntimeRoot({ ...options, nativeModel })
+  cleanup.push(async () => {
+    expect(await root.close()).toEqual({ closed: true })
+  })
+  expect(bind).toHaveBeenCalledOnce()
+  expect(await root.close()).toEqual({ closed: true })
 })
 it('closes the original physical pool when binding fails after official transport startup', async () => {
   const { f, options } = await rootFixture()

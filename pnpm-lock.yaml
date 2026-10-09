@@ -139,6 +139,9 @@ importers:
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../../packages/core/content-blocks
+      '@omne-harness-lite/credential-custodian-local':
+        specifier: workspace:*
+        version: link:../../packages/infra/credential-custodian-local
       '@omne-harness-lite/evaluation-input-store':
         specifier: workspace:*
         version: link:../../packages/assets/evaluation-input-store
@@ -169,6 +172,12 @@ importers:
       '@omne-harness-lite/model-message-projection':
         specifier: workspace:*
         version: link:../../packages/core/model-message-projection
+      '@omne-harness-lite/model-profile-directory':
+        specifier: workspace:*
+        version: link:../../packages/core/model-profile-directory
+      '@omne-harness-lite/model-profile-directory-local':
+        specifier: workspace:*
+        version: link:../../packages/model/model-profile-directory-local
       '@omne-harness-lite/model-request-runtime':
         specifier: workspace:*
         version: link:../../packages/core/model-request-runtime

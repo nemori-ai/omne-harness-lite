@@ -1,0 +1,152 @@
+import type { AtomicStorage } from '@omne-harness-lite/storage'
+import type { Clock } from '@omne-harness-lite/offer-expiry'
+import {
+  isOk,
+  parseTenantId,
+  tenantIdEquals,
+  type TenantId,
+} from '@omne-harness-lite/identity-values'
+import type { GovernanceClientOperations } from '@omne-harness-lite/governance-client-operations'
+import type { AdmissionSource } from '@omne-harness-lite/session-runtime-local'
+import type {
+  ModelCatalogRead,
+  CredentialLookup,
+  DiagnosticSink,
+} from '@omne-harness-lite/model-profile-directory'
+import { createLocalModelDirectory } from '@omne-harness-lite/model-profile-directory-local'
+import { createLocalCredentialLookup } from '@omne-harness-lite/model-profile-directory-local/local-credentials'
+import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads'
+import {
+  createModelReplicaCustodian,
+  type ModelReplicaCustodian,
+  type ReplicaDiagnostics,
+} from '@omne-harness-lite/credential-custodian-local/model-replica'
+import {
+  officialCatalog,
+  officialCatalogRevision,
+  createOfficialCatalogProfile,
+} from '@omne-harness-lite/pi-ai-transport'
+import { createSessionAdmissionProbe } from './session-admission-probe.ts'
+import { parseRunLoginBinding } from './session-preparation.ts'
+
+/** Actual fixed tenant and governance source. Key and existing bindings are never synthesized. */
+export interface SessionModelDirectoryOptions {
+  readonly governance: GovernanceClientOperations
+  readonly source: AdmissionSource
+  readonly tenant: TenantId
+  readonly keyFile: string
+  readonly diagnostics: DiagnosticSink
+  readonly onDiagnosticFailure: () => void
+  readonly replicaDiagnostics: ReplicaDiagnostics
+}
+export interface SessionModelDirectoryRead {
+  readonly catalog: ModelCatalogRead
+  readonly credentials: CredentialLookup
+}
+
+/** Application-only resource owner. Only read faces leave this constructor. */
+export function createSessionModelDirectory(
+  storage: AtomicStorage,
+  clock: Clock,
+  requested: SessionModelDirectoryOptions,
+) {
+  const source = parseRunLoginBinding(requested.source)
+  const tenant = parseTenantId(requested.tenant)
+  if (!source || !isOk(tenant) || tenant.ok.account !== source.accountId)
+    throw new TypeError('fixed model directory identity required')
+  const options = Object.freeze({
+    ...requested,
+    source: Object.freeze(source),
+    tenant: Object.freeze(tenant.ok),
+  })
+  const probe = createSessionAdmissionProbe(options.governance, options.source, options.tenant)
+  let directory: ReturnType<typeof createLocalModelDirectory> | undefined
+  let replica: ModelReplicaCustodian | undefined
+  let lookup: ReturnType<typeof createLocalCredentialLookup> | undefined
+  let stopping = false
+  let closing: Promise<void> | undefined
+  async function standing(candidate: TenantId) {
+    if (stopping || !tenantIdEquals(candidate, options.tenant))
+      return { failure: 'unavailable' } as const
+    const observed = await probe.verify(options.source, {
+      tenant: options.tenant,
+      session: null,
+      purpose: 'createSession',
+      operationKey: 'model-directory-member-observation',
+      inputPosition: null,
+    })
+    if (observed.kind === 'memberValid')
+      return { standing: 'effective', role: observed.role } as const
+    return observed.kind === 'memberRejected'
+      ? ({ standing: 'ineffective' } as const)
+      : ({ failure: 'unavailable' } as const)
+  }
+  async function start(): Promise<SessionModelDirectoryRead> {
+    if (stopping) throw new Error('model directory stopped before acquisition')
+    const entries = officialCatalog.map(entry => {
+      const profile = createOfficialCatalogProfile(
+        entry,
+        'official-catalog:' + officialCatalogRevision,
+      )
+      if ('rejected' in profile) throw new Error('invalid official catalog profile')
+      return profile.ok
+    })
+    directory = createLocalModelDirectory({
+      storage,
+      clock,
+      memberships: { standing },
+      manifest: { ordinal: officialCatalogRevision, entries },
+      factoryConfigured: false,
+      diagnostics: options.diagnostics,
+      onDiagnosticFailure: options.onDiagnosticFailure,
+      withdrawn() {},
+    })
+    const catalog = await directory.ready
+    replica = await createModelReplicaCustodian({
+      storage,
+      clock,
+      keyFile: options.keyFile,
+      readCredentialBindingIn: createCredentialBindingReader(storage),
+      diagnostics: options.replicaDiagnostics,
+    })
+    lookup = createLocalCredentialLookup({
+      storage,
+      readBoundReplicaIn: replica.readBoundReplicaIn,
+      diagnostics: options.diagnostics,
+      onDiagnosticFailure: options.onDiagnosticFailure,
+    })
+    const credentials = await lookup.ready
+    return Object.freeze({
+      catalog: Object.freeze({
+        readProfile: catalog.readProfile,
+        listProfiles: catalog.listProfiles,
+        credentialPresent: catalog.credentialPresent,
+      }),
+      credentials,
+    })
+  }
+  async function closeResources() {
+    stopping = true
+    await started
+    await lookup?.close()
+    await replica?.close()
+    await directory?.close()
+  }
+  const ready = Promise.resolve().then(start)
+  void ready.catch(() => {})
+  const started = ready.then(
+    () => undefined,
+    () => undefined,
+  )
+  function close() {
+    if (!closing) {
+      const attempt = closeResources()
+      closing = attempt
+      void attempt.catch(() => {
+        if (closing === attempt) closing = undefined
+      })
+    }
+    return closing
+  }
+  return Object.freeze({ ready, close })
+}

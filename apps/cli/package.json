@@ -23,6 +23,9 @@
     "acceptance": "vitest run --config acceptance/vitest.config.ts"
   },
   "dependencies": {
+    "@omne-harness-lite/model-profile-directory": "workspace:*",
+    "@omne-harness-lite/model-profile-directory-local": "workspace:*",
+    "@omne-harness-lite/credential-custodian-local": "workspace:*",
     "@earendil-works/pi-tui": "catalog:",
     "@omne-harness-lite/client-local-state": "workspace:*",
     "@omne-harness-lite/governance-client-operations": "workspace:*",

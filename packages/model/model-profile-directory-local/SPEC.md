@@ -8,3 +8,12 @@ storage/clock/memberships必需注入；检查存储并合法装入清单后才�
 
 
 取值reader只暂取body；唯有该次外层atomic成功并真实返回后才交出。退出/提交失败不交body；absent仅在共同单元正常终结后映射credentialUnavailable。已声明StorageUnavailable穿过单元并待真实终结后映射unavailable；StorageDefect与未知异常不吞成普通业务拒绝。参与方异常与收口归[凭据保管提供者](../../infra/credential-custodian-local/SPEC.md)，目录不以已经读到明文冒充提交成功。
+
+
+## 独立函数与Cordis入口
+
+根函数`createLocalModelDirectory`接真实Storage、Clock、MembershipsRead、明确OfficialManifest及诊断／通知端口。返回ready与close；原拥有者先于异步初始化存在。ready仅在实际表可读且清单处理成功后交管理面。重复或旧清单沿既有manifestNotNewer规则观察，不覆盖新清单。close撤准入并等待初始化与原操作，之后新操作返回unavailable；借入依赖由调用方释放。Cordis目录插件直接消费此函数，不维护另一份业务实现。
+
+`./local-credentials`是受限构造入口，不是普通runtime取值的替代入口。`createLocalCredentialLookup`仅接真实Storage、原ReadBoundReplicaIn、可选真实工厂凭据源及诊断端口。表就绪前不交CredentialLookup。close等待原初始化和取值事务，禁止新增取值，不关闭借入replica或Storage。初始化存储不可用按StorageUnavailable暴露；坏存储与未知缺陷仍暴露，不降为凭据缺席。
+
+可信CLI目录拥有者在原start中创建一次实际replica，只把其readBoundReplicaIn交该取值工厂，并在closeResources等待取值排空后关闭原replica。构造、只读闭包传递、实际读取和关闭是分别受限的权能；它们不因同文件或工厂导入而合并。检查器同时保留现有具名装配边界；无关CLI文件、非start函数、普通runtime及插件配置不能取得这些闭包。实际读取仍只在P-1r的value操作及对应参与者内进行。

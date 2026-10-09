@@ -654,3 +654,73 @@ test('custodian may import its exact pure read type but no provider or other dir
   ])
     expect(check(`${allowed}\n${statement}`, path)).not.toEqual([])
 })
+
+const cliDirectory = 'apps/cli/src/session-model-directory.ts'
+const nativeDirectory = `
+import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads';
+import { createModelReplicaCustodian, type ModelReplicaCustodian } from '@omne-harness-lite/credential-custodian-local/model-replica';
+import { createLocalCredentialLookup } from '@omne-harness-lite/model-profile-directory-local/local-credentials';
+export function createSessionModelDirectory() {
+  let replica: ModelReplicaCustodian | undefined;
+  async function start() {
+    replica = await createModelReplicaCustodian({ readCredentialBindingIn: createCredentialBindingReader(storage) });
+    const lookup = createLocalCredentialLookup({ readBoundReplicaIn: replica.readBoundReplicaIn });
+    return lookup.ready;
+  }
+  async function closeResources() { await replica?.close(); }
+}
+`
+test.each([cliDirectory, 'cli/src/session-model-directory.ts'])(
+  'native directory owns construction and cleanup, not body reading: %s',
+  path => {
+    expect(check(nativeDirectory, path)).toEqual([])
+  },
+)
+test.each([
+  'replica.readBoundReplicaIn(unit,tenant,ref);',
+  'replica.storeBoundReplica(input);',
+  'consume(replica);',
+  'consume(replica.readBoundReplicaIn);',
+  'return replica;',
+  'createLocalCredentialLookup({ readBoundReplicaIn: replica });',
+  'createLocalCredentialLookup({ other: replica.readBoundReplicaIn });',
+])('native start refuses extra credential powers: %s', body => {
+  expect(check(nativeDirectory.replace('return lookup.ready;', body), cliDirectory)).not.toEqual([])
+})
+test('native lookup construction is restricted to the original acquisition function', () => {
+  expect(
+    check(
+      nativeDirectory.replace('async function start()', 'async function elsewhere()'),
+      cliDirectory,
+    ),
+  ).not.toEqual([])
+  expect(check(nativeDirectory, 'apps/cli/src/another-directory.ts')).not.toEqual([])
+  expect(
+    check(nativeDirectory.replace('createSessionModelDirectory()', 'anotherOwner()'), cliDirectory),
+  ).not.toEqual([])
+})
+test('independent P-1r reads only inside its value operation', () => {
+  const path = 'packages/model/model-profile-directory-local/src/local-credentials.ts'
+  const source = `import type {LocalCredentialLookupDependencies} from './local-credentials.ts';
+    import {createCredentialBindingReader} from './tx-reads.ts';
+    export function createLocalCredentialLookup(dependencies: LocalCredentialLookupDependencies) {
+      const reader = createCredentialBindingReader(storage);
+      const read = dependencies.readBoundReplicaIn;
+      const lookup = {value: async () => { await reader(unit,tenant); await read(unit,tenant,ref); }};
+      return lookup;
+    }`
+  expect(check(source, path)).toEqual([])
+  expect(check(source.replace('value: async', 'wrong: async'), path)).not.toEqual([])
+  expect(check(source.replace('return lookup;', 'return read;'), path)).not.toEqual([])
+})
+test('Cordis lookup transfers only its actual read closure into the independent P-1r owner', () => {
+  const source = `import {createLocalCredentialLookup} from './local-credentials.ts';
+    export const localCredentialLookupPlugin = {apply(ctx) {
+      createLocalCredentialLookup({readBoundReplicaIn:(unit,tenant,ref)=>ctx.boundCredentialReplicaReader.readIn(unit,tenant,ref)});
+    }}`
+  expect(check(source, p1r)).toEqual([])
+  expect(check(source.replace('readBoundReplicaIn:', 'other:'), p1r)).not.toEqual([])
+  expect(check(source.replace('localCredentialLookupPlugin', 'unrelatedPlugin'), p1r)).not.toEqual(
+    [],
+  )
+})

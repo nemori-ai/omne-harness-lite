@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { parseTenantId, isOk, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { constants } from 'node:fs'
 import { open } from 'node:fs/promises'
 import { composeMigrations } from '@omne-harness-lite/storage'
@@ -18,6 +19,8 @@ import {
 import { sessionLogMigrations } from '@omne-harness-lite/session-log-sql'
 import { runtimeContextMigrations } from '@omne-harness-lite/runtime-context-local'
 import { evaluationInputMigrations } from '@omne-harness-lite/evaluation-input-store'
+import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory-local/migrations'
+import { replicaMigrations } from '@omne-harness-lite/credential-custodian-local/migrations'
 import {
   originalIssueMigrations,
   modelCallContentMigrations,
@@ -80,6 +83,8 @@ const tenantMigrations = composeMigrations([
   ...evaluationInputMigrations,
   ...originalIssueMigrations,
   ...modelCallContentMigrations('sqlite'),
+  ...modelProfileDirectoryMigrations,
+  ...replicaMigrations,
 ])
 /** Production file owner. It does not invent deployment, model selection or execution authority. */
 export async function startFileSessionRuntimeRoot(
@@ -95,6 +100,8 @@ export async function startFileSessionRuntimeRoot(
   )
     throw new TypeError('actual fixed Session source required')
   const options = Object.freeze({ ...requested, home, binding, source: Object.freeze(source) })
+  if (!directoryMatchesRoot(options))
+    throw new TypeError('model directory does not belong to the fixed Session root')
   await confirmSessionRuntimeLogin(options)
   const owner = new FileRootOwner(options)
   try {
@@ -120,6 +127,22 @@ export async function startFileSessionRuntimeRoot(
     throw error
   }
 }
+function directoryMatchesRoot(options: FileSessionRuntimeOptions): boolean {
+  const directory = options.nativeModel?.directory
+  if (!directory) return true
+  const tenant = parseTenantId(directory.tenant)
+  const source = parseRunLoginBinding(directory.source)
+  return (
+    isOk(tenant) &&
+    tenantIdEquals(tenant.ok, options.binding.tenant) &&
+    !!source &&
+    source.centerId === options.source.centerId &&
+    source.accountId === options.source.accountId &&
+    source.loginStateHandle === options.source.loginStateHandle &&
+    directory.governance === options.governance
+  )
+}
+
 class FileRootOwner {
   rootStorage?: SqlStorage
   storage?: SqlStorage

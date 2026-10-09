@@ -5,6 +5,8 @@ import { isTestPath } from '../rule.ts'
 import { lineAt } from '../source-text.ts'
 import { nodeName, syntaxImports, syntaxOf, visitSyntax } from '../syntax.ts'
 
+const cliBootstrap = 'apps/cli/src/session-model-directory.ts'
+const lookupEntry = '@omne-harness-lite/model-profile-directory-local/local-credentials'
 const bootstrap = 'examples/model-invocation-minimal-demo/src/bootstrap.ts'
 const directory = 'packages/model/model-profile-directory-local/src/'
 const custodian = 'packages/infra/credential-custodian-local/src/'
@@ -22,6 +24,7 @@ const value = (...tokens: Token[]): Value => new Set(tokens)
 const restricted = new Set([
   'binding-factory',
   'replica-factory',
+  'lookup-factory',
   'binding-reader',
   'replica',
   'read',
@@ -41,6 +44,7 @@ function merge(...inputs: Value[]): Value {
 function pathOf(file: SourceFile): string {
   const path = file.path.replaceAll('\\', '/').replace(/^\.\//u, '')
   if (/^(?:model|infra)\//u.test(path)) return `packages/${path}`
+  if (path.startsWith('cli/')) return `apps/${path}`
   if (path.startsWith('model-invocation-minimal-demo/')) return `examples/${path}`
   return path
 }
@@ -53,7 +57,7 @@ function target(file: SourceFile, specifier: string): string {
 function moduleKind(
   file: SourceFile,
   specifier: string,
-): 'binding' | 'replica' | 'reader-adapter' | undefined {
+): 'binding' | 'replica' | 'lookup' | 'reader-adapter' | undefined {
   const resolved = target(file, specifier)
   if (
     resolved === bindingEntry ||
@@ -69,8 +73,21 @@ function moduleKind(
     )
   )
     return 'replica'
+  if (
+    resolved === lookupEntry ||
+    /^(?:packages\/model\/model-profile-directory-local\/(?:src|dist)\/|@omne-harness-lite\/model-profile-directory-local\/(?:src\/)?)local-credentials(?:\.d)?(?:\.[cm]?[jt]s)?$/u.test(
+      resolved,
+    )
+  )
+    return 'lookup'
   if (resolved === readerAdapter) return 'reader-adapter'
   return undefined
+}
+function isRestrictedEntry(kind: ReturnType<typeof moduleKind>): boolean {
+  return kind === 'binding' || kind === 'replica' || kind === 'lookup'
+}
+function isLookupDependency(name: string | undefined): boolean {
+  return name === 'LocalCredentialLookupConfig' || name === 'LocalCredentialLookupDependencies'
 }
 function member(input: Value, key: string): Value {
   const result = new Set<string>()
@@ -130,12 +147,11 @@ function within(node: ts.Node, name: string): boolean {
   }
   return false
 }
-function appOperation(node: ts.Node, name: string): boolean {
+function appOperation(node: ts.Node, name: string, owner: string): boolean {
   let current: ts.Node | undefined = node
   while (current !== undefined) {
     const named = functionName(current)
-    if (named !== undefined)
-      return named === name && within(current.parent, 'createAcceptanceApplication')
+    if (named !== undefined) return named === name && within(current.parent, owner)
     current = current.parent
   }
   return false
@@ -206,13 +222,21 @@ export const modelCredentialBoundary: Rule = {
       }
       const directoryOwner = path.startsWith(directory)
       const component = path === `${custodian}model-replica.ts`
-      const isApp = path === bootstrap
+      const isApp = path === bootstrap || path === cliBootstrap
       const p1r = (node: ts.Node): boolean =>
-        path === `${directory}cordis.ts` && within(node, 'localCredentialLookupPlugin')
+        (path === `${directory}cordis.ts` && within(node, 'localCredentialLookupPlugin')) ||
+        (path === `${directory}local-credentials.ts` &&
+          within(node, 'createLocalCredentialLookup') &&
+          within(node, 'value'))
       const adapter = (node: ts.Node): boolean =>
         path === readerAdapter && within(node, 'readIn') && inReaderAdapter(node)
       const app = (node: ts.Node, operation: string): boolean =>
-        isApp && appOperation(node, operation)
+        isApp &&
+        appOperation(
+          node,
+          operation,
+          path === cliBootstrap ? 'createSessionModelDirectory' : 'createAcceptanceApplication',
+        )
       const bindings = new Map<ts.Node, Map<string, Set<string>>>()
       const types = new Map<string, string>()
       const symbol = (name: string, at: ts.Node): Set<string> | undefined => {
@@ -255,7 +279,7 @@ export const modelCredentialBoundary: Rule = {
         if (name === 'ReadCredentialBindingIn') return value('binding-reader')
         if (name === 'ReadBoundReplicaIn') return value('read')
         if (component && name === 'ModelReplicaOptions') return value('options')
-        if (directoryOwner && name === 'LocalCredentialLookupConfig') return value('lookup-config')
+        if (directoryOwner && isLookupDependency(name)) return value('lookup-config')
         return empty
       }
       for (const ref of syntaxImports(syntax)) {
@@ -279,9 +303,9 @@ export const modelCredentialBoundary: Rule = {
           })
         }
         const kind = moduleKind(file, ref.specifier)
-        if (kind !== 'binding' && kind !== 'replica') continue
+        if (!isRestrictedEntry(kind)) continue
         const permitted =
-          kind === 'binding' ? directoryOwner || isApp : path.startsWith(custodian) || isApp
+          kind === 'replica' ? path.startsWith(custodian) || isApp : directoryOwner || isApp
         if (!permitted)
           violations.push({
             rule: this.id,
@@ -300,9 +324,11 @@ export const modelCredentialBoundary: Rule = {
               ? value('createCredentialBindingReader:binding-factory')
               : kind === 'replica'
                 ? value('createModelReplicaCustodian:replica-factory')
-                : kind === 'reader-adapter'
-                  ? value('ReplicaReader:reader-adapter')
-                  : empty
+                : kind === 'lookup'
+                  ? value('createLocalCredentialLookup:lookup-factory')
+                  : kind === 'reader-adapter'
+                    ? value('ReplicaReader:reader-adapter')
+                    : empty
           if (clause?.name !== undefined && exports.size !== 0)
             report(node, 'restricted entry does not provide a default runtime import')
           if (named !== undefined && ts.isNamespaceImport(named)) {
@@ -330,7 +356,7 @@ export const modelCredentialBoundary: Rule = {
                 original === 'BOUND_CREDENTIAL_REPLICA_READER'
               )
                 declare(spec.name.text, spec).add('reader-key')
-              if ((kind === 'binding' || kind === 'replica') && imported.size === 0)
+              if (isRestrictedEntry(kind) && imported.size === 0)
                 report(spec, 'restricted entry runtime import is not an approved factory')
               for (const token of imported) declare(spec.name.text, spec).add(token)
             }
@@ -442,8 +468,7 @@ export const modelCredentialBoundary: Rule = {
               [...evaluate(element)].map(token => nested('array', token)),
             ),
           )
-        if (ts.isArrowFunction(node) && !ts.isBlock(node.body))
-          return new Set([...evaluate(node.body)].map(token => nested('callback', token)))
+        if (ts.isArrowFunction(node) && !ts.isBlock(node.body)) return arrowValue(node)
         if (ts.isObjectLiteralExpression(node)) {
           const tokens = new Set<string>()
           for (const prop of node.properties) {
@@ -458,6 +483,13 @@ export const modelCredentialBoundary: Rule = {
           return tokens
         }
         return empty
+      }
+      function arrowValue(node: ts.ArrowFunction): Value {
+        const invoked = ts.isCallExpression(node.body) ? evaluate(node.body.expression) : empty
+        const capturedRead = invoked.has('read') ? value('read') : empty
+        return new Set(
+          [...merge(evaluate(node.body), capturedRead)].map(token => nested('callback', token)),
+        )
       }
       let changed = false
       const add = (into: Set<string> | undefined, input: Value): void => {
@@ -519,11 +551,43 @@ export const modelCredentialBoundary: Rule = {
             add(symbol(node.left.text, node), evaluate(node.right))
         })
       } while (changed)
+      function lookupConstruction(node: ts.CallExpression): boolean {
+        return (
+          (path === `${directory}cordis.ts` && p1r(node)) ||
+          (path === cliBootstrap && app(node, 'start'))
+        )
+      }
+      function readerExecution(node: ts.CallExpression): boolean {
+        return component || p1r(node) || adapter(node)
+      }
+      function replicaArgument(node: ts.CallExpression, argument: ts.Expression): boolean {
+        return (
+          app(node, 'start') &&
+          evaluate(node.expression).has('replica-factory') &&
+          node.arguments[0] === argument
+        )
+      }
+      function lookupArgument(
+        node: ts.CallExpression,
+        argument: ts.Expression,
+        input: Value,
+      ): boolean {
+        return (
+          lookupConstruction(node) &&
+          evaluate(node.expression).has('lookup-factory') &&
+          node.arguments[0] === argument &&
+          [...input].every(
+            token =>
+              token === 'readBoundReplicaIn:read' || token === 'readBoundReplicaIn:callback:read',
+          )
+        )
+      }
       const legalCall = (node: ts.CallExpression, token: string): boolean => {
         if (token === 'binding-factory') return directoryOwner || app(node, 'start')
         if (token === 'replica-factory') return app(node, 'start')
+        if (token === 'lookup-factory') return lookupConstruction(node)
         if (token === 'binding-reader') return component || p1r(node)
-        if (token === 'read') return component || p1r(node) || adapter(node)
+        if (token === 'read') return readerExecution(node)
         if (token === 'store') return component || app(node, 'publishCredential')
         if (token === 'close') return component || app(node, 'closeResources')
         return false
@@ -534,8 +598,9 @@ export const modelCredentialBoundary: Rule = {
         input: Value,
       ): boolean => {
         const called = evaluate(node.expression)
-        if (app(node, 'start') && called.has('replica-factory') && node.arguments[0] === argument)
+        if (replicaArgument(node, argument))
           return [...input].every(token => token === 'readCredentialBindingIn:binding-reader')
+        if (lookupArgument(node, argument, input)) return true
         // The component may delegate its typed options to same-file private helpers.
         if (
           component &&
@@ -564,7 +629,7 @@ export const modelCredentialBoundary: Rule = {
         ) {
           const kind = moduleKind(file, node.moduleSpecifier.text)
           if (
-            (kind === 'binding' && !directoryOwner) ||
+            ((kind === 'binding' || kind === 'lookup') && !directoryOwner) ||
             (kind === 'replica' && !path.startsWith(custodian)) ||
             kind === 'reader-adapter'
           )
@@ -592,7 +657,7 @@ export const modelCredentialBoundary: Rule = {
             ts.isStringLiteralLike(node.arguments[0])
           ) {
             const kind = moduleKind(file, node.arguments[0].text)
-            if (kind === 'binding' || kind === 'replica')
+            if (isRestrictedEntry(kind))
               report(node, 'restricted model credential entry requires a static import')
           }
         }
