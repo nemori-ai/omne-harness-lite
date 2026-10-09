@@ -1,26 +1,23 @@
 /** 结构图岛的样式。颜色取页面 token，深浅色跟随系统设置，不另配一套。 */
 export const STRUCTURE_STYLE = `
-#structure { --canvas:#f4f4f1; }
-@media (prefers-color-scheme: dark) { #structure { --canvas:#121417; } }
 /* 侧栏占满右列，与工具栏、画布、底栏三行等高；左列自上而下是这三行。 */
-.structure-frame { margin-top:8px; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--panel);
+.structure-frame { margin-top:4px; border:1px solid var(--line); border-radius:var(--r-panel); overflow:hidden; background:var(--panel);
   display:grid; grid-template-columns:minmax(0,1fr) 360px; grid-template-rows:auto minmax(460px,62vh) auto; }
 .structure-frame > .structure-bar, .structure-frame > #structure, .structure-frame > .structure-foot { grid-column:1; }
-.structure-bar { display:flex; align-items:center; flex-wrap:wrap; gap:8px 14px; padding:9px 12px; border-bottom:1px solid var(--line); font-size:12px; }
+.structure-bar { display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; padding:8px 12px 8px 16px; border-bottom:1px solid var(--line); font-size:12.5px; color:var(--muted); }
 .structure-bar .spacer { flex:1; }
-.structure-bar button { font:inherit; color:inherit; background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:4px 9px; cursor:pointer; }
-.structure-bar button:focus-visible { outline:3px solid var(--changed); outline-offset:2px; }
-.structure-bar label { display:flex; align-items:center; gap:6px; }
+.structure-bar button { height:28px; padding:0 10px; font-size:12.5px; }
+.structure-bar label { display:flex; align-items:center; gap:8px; color:var(--fg); cursor:pointer; }
 #structure { position:relative; min-width:0; background:var(--canvas); }
 /* contain:size：侧栏内容再长也不撑高网格行，只在侧栏里滚动。 */
-.structure-side { grid-column:2; grid-row:1 / -1; contain:size; min-width:0; overflow:auto; padding:14px 16px; border-left:1px solid var(--line); font-size:12.5px; line-height:1.55; overflow-wrap:anywhere; }
-.structure-side h3 { font-size:13.5px; margin:0 0 4px; }
-.structure-side h4 { font-size:12.5px; margin:14px 0 4px; }
+.structure-side { grid-column:2; grid-row:1 / -1; contain:size; min-width:0; overflow:auto; padding:18px 20px; border-left:1px solid var(--line); font-size:12.5px; line-height:1.65; overflow-wrap:anywhere; }
+.structure-side h3 { font-size:14px; margin:0 0 6px; }
+.structure-side h4 { font-size:12.5px; font-weight:600; margin:18px 0 6px; padding-top:14px; border-top:1px solid var(--line); }
 .structure-side p { margin:6px 0; }
 .structure-side ul.plain { padding-left:16px; }
 .structure-side ul.plain ul { font-size:11.5px; color:var(--muted); }
 @media (max-width:900px) { .structure-frame { display:block; } #structure { height:62vh; min-height:420px; } .structure-side { contain:none; border-left:0; border-top:1px solid var(--line); max-height:420px; } }
-.structure-foot { padding:7px 12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); }
+.structure-foot { padding:8px 16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); }
 .structure-flow { position:absolute; inset:0; }
 .structure-flow .react-flow { background:var(--canvas); --xy-background-pattern-dots-color-default: rgba(120,128,140,.3); }
 .structure-flow .react-flow__node { cursor:default; }

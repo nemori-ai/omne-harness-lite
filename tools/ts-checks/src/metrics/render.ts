@@ -32,14 +32,26 @@ function embed(value: unknown): string {
 
 /** 审讯页的样式；流程体检页（`src/loop/health-render.ts`）沿用同一套，风格一致。 */
 export const STYLE = `
-:root { --bg:#fbfbf9; --fg:#1d1f21; --muted:#6b7280; --line:#d6d3cd; --panel:#ffffff;
+/* 设计 token：底色、墨色、线色与圆角阶、控件高度。风险三色、变更蓝、例外橙是数据编码，色相不随界面调整。 */
+:root { color-scheme:light;
+  --bg:#f4f5f7; --panel:#ffffff; --panel-2:#f7f8fa; --canvas:#f6f7f9;
+  --fg:#1c2128; --muted:#5f6772; --faint:#8a929c; --line:#e3e6ea; --line-strong:#cdd2d8;
+  --ink:#1c2128; --on-ink:#ffffff;
   --bad-fill:#f8d2cf; --mid-fill:#fbeebf; --good-fill:#dcefdc;
   --bad:#c0392b; --mid:#b98900; --good:#3f8a4b;
-  --nodata:#e5e7eb; --edge:#9aa0a6; --changed:#1f6feb; --except:#c77700; }
-@media (prefers-color-scheme: dark) { :root { --bg:#15171a; --fg:#e6e6e6; --muted:#9aa0a6; --line:#3a3d42; --panel:#1d2024;
+  --nodata:#e5e7eb; --edge:#9aa0a6; --changed:#1f6feb; --except:#c77700;
+  --r-panel:12px; --r-item:8px; --r-ctrl:6px; --ctrl-h:32px; --sticky-top:0px;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --shadow-float:0 14px 36px -14px rgba(16,24,40,.32), 0 2px 6px rgba(16,24,40,.08); }
+@media (prefers-color-scheme: dark) { :root { color-scheme:dark;
+  --bg:#121417; --panel:#1a1d21; --panel-2:#16191c; --canvas:#15181b;
+  --fg:#e6e8eb; --muted:#9aa1ab; --faint:#6f7680; --line:#2c3036; --line-strong:#3d424a;
+  --ink:#e6e8eb; --on-ink:#121417;
   --bad-fill:rgb(74,40,24); --mid-fill:rgb(61,58,24); --good-fill:rgb(30,74,56);
   --bad:rgb(224,122,74); --mid:rgb(212,192,90); --good:rgb(95,181,138);
-  --nodata:#2a2d31; --edge:#6b7076; --changed:#58a6ff; --except:#e09a2d; } }
+  --nodata:#2a2d31; --edge:#6b7076; --changed:#58a6ff; --except:#e09a2d;
+  --shadow-float:0 14px 36px -14px rgba(0,0,0,.7), 0 2px 6px rgba(0,0,0,.4); } }
 * { box-sizing: border-box; }
 /* 细滚动条：轨道透明、滑块圆头；半径 = 宽度的一半，跟着 --sb-size 走，不是组件圆角标度的一员。 */
 :root { --sb-track-color:transparent; --sb-thumb-color:rgb(180,180,180); --sb-size:5px; }
@@ -49,23 +61,61 @@ export const STYLE = `
 ::-webkit-scrollbar-thumb { background:var(--sb-thumb-color); border-radius:calc(var(--sb-size) / 2); }
 ::-webkit-scrollbar-thumb:hover { background:color-mix(in srgb, var(--sb-thumb-color) 70%, var(--fg)); }
 @supports not selector(::-webkit-scrollbar) { * { scrollbar-width:thin; scrollbar-color:var(--sb-thumb-color) var(--sb-track-color); } }
-body { margin:0; padding:16px 20px 60px; background:var(--bg); color:var(--fg);
-  font:14px/1.5 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; }
-h1 { font-size:18px; margin:0 0 4px; } h2 { font-size:15px; margin:22px 0 8px; }
-code, pre, .mono { font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; }
-.meta { color:var(--muted); } .badge { display:inline-block; padding:0 6px; border-radius:4px; border:1px solid var(--line); margin-left:6px; }
-.badge.bad { border-color:var(--bad); color:var(--bad); }
-pre.summary { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:10px 12px; overflow-x:auto; margin:10px 0 0; }
-#hover { position:fixed; z-index:10; display:none; max-width:520px; background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:8px 10px; box-shadow:0 4px 14px rgba(0,0,0,.18); font-size:12.5px; pointer-events:none; }
-#hover b { display:block; margin-top:4px; } #hover div.bad { color:var(--bad); } #hover div.except { color:var(--except); }
-.legend { color:var(--muted); font-size:12px; margin-top:6px; } .legend span { margin-right:14px; white-space:nowrap; }
-.swatch { display:inline-block; width:12px; height:12px; border-radius:3px; vertical-align:-2px; margin-right:4px; border:1px solid var(--line); }
-table { border-collapse:collapse; width:100%; background:var(--panel); } th, td { text-align:left; padding:4px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
-th { font-size:12px; color:var(--muted); font-weight:500; cursor:pointer; user-select:none; } td.num, th.num { text-align:right; }
+/* overflow-x:clip：吸顶导航用 100vw 通栏，不带出横向滚动条；clip 不建滚动容器，吸顶照常生效。 */
+html { overflow-x:clip; }
+body { margin:0; padding:32px 32px 80px; overflow-x:clip; background:var(--bg); color:var(--fg);
+  font:14px/1.6 var(--font); -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+/* 报告版心：结构图与架构工作区都需要宽画布，版心不窄于 1600。 */
+.report { max-width:1760px; margin:0 auto; }
+h1 { font-size:26px; line-height:1.25; font-weight:650; letter-spacing:-.01em; margin:0 0 6px; }
+h2 { font-size:16px; line-height:1.4; font-weight:600; margin:40px 0 12px; }
+h3 { font-size:14px; font-weight:600; }
+code, pre, .mono { font-family:var(--mono); font-size:12.5px; }
+h1 .mono { font-size:.62em; font-weight:500; color:var(--muted); letter-spacing:0; margin-left:4px; }
+.meta { color:var(--muted); font-size:13px; }
+.badge { display:inline-flex; align-items:center; height:24px; padding:0 10px; border-radius:999px; border:1px solid var(--line-strong);
+  background:var(--panel); color:var(--muted); font-size:12.5px; font-weight:500; letter-spacing:0; margin-left:12px; vertical-align:middle; }
+.badge.bad { border-color:color-mix(in srgb, var(--bad) 45%, transparent); background:color-mix(in srgb, var(--bad) 8%, var(--panel)); color:var(--bad); }
+/* 控件：架构视图与度量页共用一套，没有架构数据的页面也一致。 */
+button, select { font:inherit; font-size:13px; line-height:1; color:var(--fg); background:var(--panel); border:1px solid var(--line-strong);
+  border-radius:var(--r-ctrl); height:var(--ctrl-h); padding:0 12px; transition:background-color .12s ease, border-color .12s ease; }
+button { cursor:pointer; }
+button:hover:not(:disabled) { background:var(--panel-2); border-color:color-mix(in srgb, var(--fg) 28%, var(--line-strong)); }
+button:disabled { cursor:wait; opacity:.45; }
+select { appearance:none; -webkit-appearance:none; padding:0 30px 0 10px; cursor:pointer;
+  background-image:linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position:calc(100% - 15px) 50%, calc(100% - 10px) 50%; background-size:5px 5px; background-repeat:no-repeat; }
+input[type=checkbox], input[type=radio] { accent-color:var(--ink); width:14px; height:14px; margin:0; vertical-align:-2px; }
+button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible { outline:2px solid var(--changed); outline-offset:2px; }
+[hidden] { display:none !important; }
+.pane-head { margin-bottom:8px; }
+.pane-head .meta { margin-top:2px; }
+pre.summary { margin:20px 0 0; padding:16px 20px; background:var(--panel); border:1px solid var(--line); border-radius:var(--r-panel);
+  font-size:12.5px; line-height:1.75; overflow-x:auto; color:var(--fg); }
+#hover { position:fixed; z-index:30; display:none; max-width:520px; background:var(--panel); border:1px solid var(--line); border-radius:10px;
+  padding:10px 12px; box-shadow:var(--shadow-float); font-size:12.5px; line-height:1.55; pointer-events:none; }
+#hover b { display:block; margin-top:6px; font-weight:600; } #hover div.bad { color:var(--bad); } #hover div.except { color:var(--except); }
+.legend { display:flex; flex-wrap:wrap; align-items:center; gap:6px 20px; color:var(--muted); font-size:12.5px; margin:0 0 14px; }
+.legend span { white-space:normal; }
+.swatch { display:inline-block; width:12px; height:12px; border-radius:3px; vertical-align:-2px; margin-right:6px; border:1px solid var(--line-strong); }
+table { border-collapse:separate; border-spacing:0; width:100%; background:var(--panel); border:1px solid var(--line); border-radius:var(--r-panel); }
+th, td { text-align:left; padding:8px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+th { position:sticky; top:var(--sticky-top); z-index:2; background:var(--panel-2); font-size:12px; color:var(--muted); font-weight:500; cursor:pointer; user-select:none; white-space:nowrap; }
+thead th:first-child { border-top-left-radius:var(--r-panel); } thead th:last-child { border-top-right-radius:var(--r-panel); }
+tbody tr:last-child td { border-bottom:0; }
+tbody tr:hover td { background-color:color-mix(in srgb, var(--panel-2) 70%, var(--line)); }
+td { font-size:13px; } td.mono:first-child { color:var(--muted); }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
 tr.changed td.fn { font-weight:600; }
-.controls { margin:8px 0; } .controls label { margin-right:14px; }
-ul.plain { margin:4px 0; padding-left:18px; } .bad { color:var(--bad); } .except { color:var(--except); }
+.controls { display:flex; flex-wrap:wrap; gap:8px 20px; margin:0 0 12px; font-size:13px; }
+.controls label { display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
+ul.plain { margin:4px 0; padding-left:18px; } ul.plain li { margin:2px 0; }
+.bad { color:var(--bad); } .except { color:var(--except); }
 .empty { color:var(--muted); padding:6px 0; }
+/* 方向违规与例外并排；DOM 顺序不变，窄屏回到上下。 */
+.report-pair { display:grid; grid-template-columns:repeat(auto-fit, minmax(420px, 1fr)); gap:0 24px; }
+.report-block > div { padding:12px 16px; background:var(--panel); border:1px solid var(--line); border-radius:var(--r-panel); }
+@media (max-width:760px) { body { padding:20px 16px 64px; } }
 `
 
 const SCRIPT = `
@@ -250,11 +300,14 @@ export function renderPage(
 <style>${STYLE}${flow.style}${FLOW_STYLE}${STRUCTURE_STYLE}</style>
 </head>
 <body>
+<main class="report">
 ${architecture === undefined ? '' : architectureMarkup(architecture)}
 <section id="metrics-pane"${architecture === undefined ? '' : ' hidden'}>
+<header class="pane-head">
 <h1>结构度量 <span class="mono">${context.shortHead}</span>${context.dirty ? '<span class="badge bad">工作树不干净，不能当作该提交的度量</span>' : ''}</h1>
 <div class="meta">分支 <span class="mono">${escapeHtml(context.branch)}</span> · ${escapeHtml(base)} · 评级用 ${metric} · 函数 warn ${thresholds.warn} / alert ${thresholds.alert} · 成员色带 ${bands.green} / ${bands.yellow} / ${bands.red} · 生成于 ${context.generatedAt}</div>
 <pre class="summary">${escapeHtml(context.summary.join('\n'))}</pre>
+</header>
 <h2>结构</h2>
 <div class="legend">
 <span><i class="swatch" style="background:var(--good-fill)"></i>风险值不超过 ${bands.green}</span>
@@ -276,12 +329,13 @@ ${architecture === undefined ? '' : architectureMarkup(architecture)}
 <aside id="structure-side" class="structure-side" aria-label="成员详情"></aside>
 </div>
 <div id="hover"></div>
-<h2>方向违规与环</h2>
-<div id="findings"></div>
-<h2>已登记的例外</h2>
-<div id="exceptions"></div>
+<div class="report-pair">
+<section class="report-block"><h2>方向违规与环</h2><div id="findings"></div></section>
+<section class="report-block"><h2>已登记的例外</h2><div id="exceptions"></div></section>
+</div>
 <div id="detail"></div>
 </section>
+</main>
 <script type="application/json" id="data">${embed({ report, page: { changedEdgeLimit: context.changedEdgeLimit } })}</script>
 <script>${inline(flow.script)}</script>
 <script>${SCRIPT}</script>
