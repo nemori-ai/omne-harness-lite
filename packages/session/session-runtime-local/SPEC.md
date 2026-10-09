@@ -320,6 +320,10 @@ report须包含Core规定的完整类别快照；工具名字必须唯一，权�
 此读取不执行IO，也不授予工具权限。driver的事实投影读取器采用同一读取函数，事实不转成模型消息。
 完整模型回复的来源仍由Model拥有者的codec核验原创建、dispatch、response及persisted消息的结算配对。
 单独assistant消息不构成工具来源。此采用事实不等于Runner整批完成、不等于Token、当前资格或一次执行claim。
+原工具批次读取保留可靠完成回复中的全部完整tool_call原序，包含不可解析项。
+不完整工具片段、重复call身份、缺少唯一原采用或原Run／attempt事实时，不产生可推进批次。
+原Run是否已结束与最新attempt来自同一prefix的Session事实，沿原Run读取器的相同状态规则计算；不补默认attempt或open。
+这仍是只读来源；实际Runner整批确认及工具资格须另核。
 actions借入实际Core Runner及其当前admission政策，字段沿RunnerActionRequest.admission去掉report。
 root必须给同Runner host采用的实际grants对象、runMode及适用parent；SessionAccess不是grants。
 driver保留grants的不透明身份，并从原报告、完整模型调用及稳定原anchor构造整批请求。

@@ -1,3 +1,4 @@
+import { writeJsonLossless, type ToolCallBlock } from '@omne-harness-lite/content-blocks'
 import {
   createModelCallFacts,
   createModelCallContentStore,
@@ -77,6 +78,7 @@ export function nativeCallFixturePorts(
   ingress: LocalSessionIngress,
   storage: AtomicStorage,
   sendControl?: { readonly entered: () => void; readonly wait: Promise<void> },
+  toolCalls: readonly ToolCallBlock[] = [],
 ) {
   const owner = selectionOwner()
   const adaptation = {
@@ -286,6 +288,26 @@ export function nativeCallFixturePorts(
                     t: 'close' as const,
                     index: 0,
                     block: { id, kind: 'text' as const, text: 'actual native result', visibility },
+                  }
+                  for (const [offset, block] of toolCalls.entries()) {
+                    const index = offset + 1
+                    yield {
+                      t: 'open' as const,
+                      index,
+                      id: block.id,
+                      kind: 'tool_call' as const,
+                      fill: 'append' as const,
+                      visibility: block.visibility,
+                      head: { tool: block.tool, callId: block.callId },
+                    }
+                    yield {
+                      t: 'fill' as const,
+                      index,
+                      payload: block.unparseable
+                        ? block.rawArguments
+                        : writeJsonLossless(block.arguments),
+                    }
+                    yield { t: 'close' as const, index }
                   }
                   return {
                     ended: 'end' as const,

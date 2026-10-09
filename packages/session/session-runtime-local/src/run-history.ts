@@ -10,7 +10,12 @@ import {
   tenantIdEquals,
 } from '@omne-harness-lite/identity-values'
 import { readSessionFact, type SessionFact } from '@omne-harness-lite/session-runtime'
-import { compareInteger, checkKey, positiveInteger } from '@omne-harness-lite/session-log'
+import {
+  compareInteger,
+  checkKey,
+  positiveInteger,
+  type LogEntry,
+} from '@omne-harness-lite/session-log'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type { AttemptId } from '@omne-harness-lite/call-accounts'
 
@@ -24,7 +29,7 @@ export function createSessionRunHistory(requested: SessionScope): RunHistoryRead
   return (prefix, run, attempt) => {
     if (!validPrefix(prefix, scope) || !checkKey(run) || !positiveInteger(attempt))
       return { unavailable: true }
-    const state = readRun(prefix, run, attempt)
+    const state = readDriverRunState(prefix.entries, run, attempt)
     if (!state || !state.original || state.latest === undefined) return { unavailable: true }
     return {
       known: Object.freeze({
@@ -52,9 +57,13 @@ interface RunState {
   latest?: AttemptId
   ended: boolean
 }
-function readRun(prefix: SettlementPrefix, run: string, attempt: AttemptId): RunState | undefined {
+export function readDriverRunState(
+  entries: readonly LogEntry[],
+  run: string,
+  attempt: AttemptId,
+): RunState | undefined {
   const state: RunState = { started: false, original: false, ended: false }
-  for (const entry of prefix.entries) {
+  for (const entry of entries) {
     const parsed = readSessionFact(entry)
     if ('failure' in parsed) return undefined
     if (parsed.kind === 'other' || !('run' in parsed.fact) || parsed.fact.run !== run) continue

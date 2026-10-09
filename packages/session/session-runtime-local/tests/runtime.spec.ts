@@ -82,6 +82,7 @@ import { startDriverRun } from '../src/driver-run.ts'
 import { bindDriverOriginal, createDriverModelSegment } from '../src/driver-model.ts'
 import { createDriverModelRunTask } from '../src/driver-model-run.ts'
 import { readDriverModelHistory, DriverHistoryInvalid } from '../src/driver-model-history.ts'
+import { readDriverToolBatch } from '../src/driver-tool-source.ts'
 import { createLocalSessionDriver } from '../src/index.ts'
 import { createDriverRunTask } from '../src/driver-run-task.ts'
 import {
@@ -4835,6 +4836,7 @@ describe('driver complete original Model Run', () => {
   async function running(
     gate?: { readonly entered: () => void; readonly wait: Promise<void> },
     retainedIssue = false,
+    toolCalls: readonly import('@omne-harness-lite/content-blocks').ToolCallBlock[] = [],
   ) {
     let original!: OriginalIssueOwner
     let native: ReturnType<typeof createModelRuntime> | undefined
@@ -4936,7 +4938,7 @@ describe('driver complete original Model Run', () => {
         }
       },
     }
-    const ports = nativeCallFixturePorts(scope, f.runtime, f.storage, gate)
+    const ports = nativeCallFixturePorts(scope, f.runtime, f.storage, gate, toolCalls)
     const construction = ports.configure(nativeModelConstruction(f.storage))
     native = createModelRuntime(construction)
     const releaseModel = vi.fn(async () => {})
@@ -5233,6 +5235,125 @@ describe('driver complete original Model Run', () => {
     })
     expect(f.ports.sends()).toBe(0)
     expect(f.native.executionSource.snapshot(f.scope.session)).toEqual([])
+    await f.borrowed.journal.close()
+  })
+  it('derives the complete ordered tool batch from its actual adopted Model reply, including unparseable calls', async () => {
+    const judged = judgeMessage({
+      id: 'controlled-tool-reply-data',
+      type: 'assistant',
+      response: 'controlled-response-data',
+      ending: 'complete',
+      createdAt: at,
+      blocks: [
+        {
+          id: 'tool-one',
+          kind: 'tool_call',
+          complete: true,
+          callId: 'call-one',
+          tool: 'example__read',
+          arguments: { path: 'one' },
+          visibility: { toHuman: true, toModel: true },
+        },
+        {
+          id: 'tool-invalid',
+          kind: 'tool_call',
+          complete: true,
+          callId: 'call-invalid',
+          tool: 'example__read',
+          unparseable: true,
+          rawArguments: '{',
+          visibility: { toHuman: true, toModel: true },
+        },
+        {
+          id: 'tool-two',
+          kind: 'tool_call',
+          complete: true,
+          callId: 'call-two',
+          tool: 'example__read',
+          arguments: { path: 'two' },
+          visibility: { toHuman: true, toModel: true },
+        },
+      ],
+    })
+    if (!('ok' in judged) || judged.ok.type !== 'assistant')
+      throw new Error('controlled tool data rejected')
+    const calls: import('@omne-harness-lite/content-blocks').ToolCallBlock[] = []
+    for (const block of judged.ok.blocks)
+      if (block.kind === 'tool_call' && block.complete === true) calls.push(block)
+    const f = await running(undefined, false, calls)
+    const task = createDriverModelRunTask(f.input)
+    expect(await task.completion).toBe('retained')
+    const read = await f.borrowed.journal.readPrefix()
+    if ('failure' in read) throw new Error('actual tool reply prefix missing')
+    const prefix = {
+      scope: f.scope,
+      ownerGeneration: read.source.journalGeneration,
+      entries: read.entries,
+      tail: read.tail,
+    }
+    const saved = await f.f.runtime.modelResults.read(
+      f.f.runtime.coordinationAuthority,
+      f.scope,
+      f.prepared.preparation.call,
+      f.prepared.identities.resultKey,
+    )
+    expect(saved, JSON.stringify(f.ports.trace)).toHaveProperty('pending.outcome', 'complete')
+    const replies = [...readDriverModelHistory(prefix).replies.values()]
+    expect(replies).toHaveLength(1)
+    const reply = replies[0]!
+    const batch = readDriverToolBatch(prefix, reply.message.id)
+    expect(batch).toMatchObject({
+      kind: 'batch',
+      batch: {
+        origin: {
+          run: f.prepared.preparation.run,
+          attempt: f.prepared.preparation.attempt,
+          assistantMessage: reply.message.id,
+        },
+        latestAttempt: f.prepared.preparation.attempt,
+        runState: 'open',
+        calls,
+        adoption: { adoption: { call: f.prepared.preparation.call, tools: [] } },
+      },
+    })
+    expect(readDriverToolBatch(prefix, 'absent-message')).toEqual({ kind: 'notFound' })
+    expect(
+      readDriverToolBatch(
+        {
+          ...prefix,
+          entries: prefix.entries.filter(
+            entry => !('adoption' in inspectSessionToolAdoption(f.scope, entry)),
+          ),
+        },
+        reply.message.id,
+      ),
+    ).toEqual({ kind: 'unavailable' })
+    expect(
+      readDriverToolBatch(
+        {
+          ...prefix,
+          entries: prefix.entries.filter(entry => {
+            const parsed = readSessionFact(entry)
+            return !('fact' in parsed && parsed.fact.kind === 'attempt_started')
+          }),
+        },
+        reply.message.id,
+      ),
+    ).toEqual({ kind: 'unavailable' })
+    expect(
+      readDriverToolBatch(
+        {
+          ...prefix,
+          scope: {
+            ...prefix.scope,
+            session: unwrap(parseOpaqueIdentifier('foreign-tool-batch', 'SessionRef')),
+          },
+        },
+        reply.message.id,
+      ),
+    ).toEqual({ kind: 'unavailable' })
+    expect(f.ports.sends()).toBe(1)
+    expect(await task.close()).toBe('pending')
     await f.borrowed.journal.close()
   })
   it('reads an actual settled Model reply and rejects missing or duplicate provenance anchors', async () => {
