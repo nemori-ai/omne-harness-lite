@@ -1,5 +1,5 @@
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import { copyJsonValue } from '@omne-harness-lite/content-blocks'
+import { copyJsonValue, type JsonObject, type JsonValue } from '@omne-harness-lite/content-blocks'
 import {
   parseOpaqueIdentifier,
   parseTenantId,
@@ -73,11 +73,7 @@ function scopeOf(input: unknown): SessionScope | undefined {
     session = parseOpaqueIdentifier(copy.ok.session, 'SessionRef')
   return 'ok' in tenant && 'ok' in session ? { tenant: tenant.ok, session: session.ok } : undefined
 }
-/** The execution origin remains the shell origin even when its attempt has ended. */
-export function prepareToolJournalEntry(input: {
-  readonly origin: ExecutionOrigin
-  readonly value: ToolJournalPayload
-}): { readonly entry: OwnedLogEntry } | typeof invalidJournal {
+function capturePreparation(input: unknown) {
   const copy = copyJsonValue(input)
   if (
     'failed' in copy ||
@@ -94,7 +90,24 @@ export function prepareToolJournalEntry(input: {
     !positiveInteger(origin.attempt)
   )
     return invalidJournal
-  const value = captureToolJournalValue(copy.ok.value)
+  return {
+    origin: {
+      run: origin.run,
+      attempt: origin.attempt,
+      assistantMessage: origin.assistantMessage,
+    },
+    value: copy.ok.value,
+  }
+}
+/** The execution origin remains the shell origin even when its attempt has ended. */
+export function prepareToolJournalEntry(input: {
+  readonly origin: ExecutionOrigin
+  readonly value: ToolJournalPayload
+}): { readonly entry: OwnedLogEntry } | typeof invalidJournal {
+  const captured = capturePreparation(input)
+  if ('invalid' in captured) return captured
+  const { origin } = captured
+  const value = captureToolJournalValue(captured.value)
   if ('invalid' in value) return value
   if (
     value.kind === 'execution_intended' &&
@@ -136,22 +149,14 @@ export interface InspectedToolJournalEntry {
   readonly key: string
   readonly entry: LogEntry
 }
-/** Unknown claimed versions fail closed; unrelated domains retain their own decoders. */
-export function inspectToolJournalEntry(
-  suppliedScope: SessionScope,
-  input: LogEntry,
-): InspectedToolJournalEntry | typeof invalidJournal | { readonly unrelated: true } {
-  const scope = scopeOf(suppliedScope),
-    copy = copyJsonValue(input)
-  if (scope === undefined || 'failed' in copy || !journalObject(copy.ok)) return invalidJournal
-  const row = copy.ok
-  const payload = ownedToolPayload(row.payload)
-  if (!(
+function claimsToolRecord(row: JsonObject): boolean {
+  return (
     claims(row.dedupeKey) ||
     (Array.isArray(row.readKeys) && row.readKeys.some(claims)) ||
     (journalObject(row.payload) && row.payload.owner === 'tool-execution-runtime')
-  ))
-    return { unrelated: true }
+  )
+}
+function captureToolShell(scope: SessionScope, row: JsonObject, payload: JsonValue | null) {
   if (
     row.session !== scope.session ||
     !positiveInteger(row.position) ||
@@ -174,6 +179,9 @@ export function inspectToolJournalEntry(
     )
   )
     return invalidJournal
+  return { payload, attempt: row.attempt }
+}
+function captureScopedToolValue(scope: SessionScope, row: JsonObject, payload: JsonObject) {
   const tenant = parseTenantId(row.tenant),
     value = captureToolJournalValue(payload.value)
   if (
@@ -184,8 +192,15 @@ export function inspectToolJournalEntry(
     value.ref.session !== scope.session
   )
     return invalidJournal
-  const key = keyOf(value),
-    expected = [key, callKey(value.ref.callId), toolJournalAll]
+  return value
+}
+function matchesToolKeys(
+  row: JsonObject,
+  value: ToolJournalPayload,
+  key: string,
+  attempt: ExecutionOrigin['attempt'],
+): boolean {
+  const expected = [key, callKey(value.ref.callId), toolJournalAll]
   if (
     row.dedupeKey !== key ||
     !Array.isArray(row.readKeys) ||
@@ -193,9 +208,28 @@ export function inspectToolJournalEntry(
     !expected.every(item => (row.readKeys as readonly unknown[]).includes(item)) ||
     (value.kind === 'execution_intended' &&
       (row.run !== value.origin.run ||
-        ExactDecimal.from(row.attempt).compare(ExactDecimal.from(value.origin.attempt)) !== 0))
+        ExactDecimal.from(attempt).compare(ExactDecimal.from(value.origin.attempt)) !== 0))
   )
-    return invalidJournal
+    return false
+  return true
+}
+/** Unknown claimed versions fail closed; unrelated domains retain their own decoders. */
+export function inspectToolJournalEntry(
+  suppliedScope: SessionScope,
+  input: LogEntry,
+): InspectedToolJournalEntry | typeof invalidJournal | { readonly unrelated: true } {
+  const scope = scopeOf(suppliedScope),
+    copy = copyJsonValue(input)
+  if (scope === undefined || 'failed' in copy || !journalObject(copy.ok)) return invalidJournal
+  const row = copy.ok
+  const payload = ownedToolPayload(row.payload)
+  if (!claimsToolRecord(row)) return { unrelated: true }
+  const shell = captureToolShell(scope, row, payload)
+  if ('invalid' in shell) return shell
+  const value = captureScopedToolValue(scope, row, shell.payload)
+  if ('invalid' in value) return value
+  const key = keyOf(value)
+  if (!matchesToolKeys(row, value, key, shell.attempt)) return invalidJournal
   return { value, key, entry: row as unknown as LogEntry }
 }
 
