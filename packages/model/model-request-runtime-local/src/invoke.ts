@@ -433,6 +433,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
     function sendAdmission(
       actualAt: string,
     ): { sentAt: string } | { stopped: Exclude<InvocationOutcome, ModelInvocationResult> } {
+      if (controller.signal.aborted) return { stopped: { cancelledBeforeSend: true } }
       let admitted: unknown = true
       try {
         if (input.beforeSend !== undefined) admitted = input.beforeSend()
@@ -525,6 +526,14 @@ export function invokeModel<P extends PlannedSemantics, R>(
     function rejectArrivalGate(): void {
       gateFailed = !controller.signal.aborted
       controller.abort()
+    }
+    function consumeGatedArrival(
+      arrival: { event: ArrivalEvent; becameContent: boolean },
+      at: string,
+    ): void {
+      if (controller.signal.aborted) return
+      firstTokenAt = at
+      consumeArrival(arrival, true)
     }
     function consumeArrival(
       arrival: { event: ArrivalEvent; becameContent: boolean },
@@ -900,7 +909,6 @@ export function invokeModel<P extends PlannedSemantics, R>(
       if (controller.signal.aborted) return { cancelledBeforeSend: true }
       deadline(input.policy.firstContentTimeoutMs)
       const actualAt = await input.policy.now()
-      if (controller.signal.aborted) return { cancelledBeforeSend: true }
       const sendDecision = sendAdmission(actualAt)
       if ('stopped' in sendDecision) return sendDecision.stopped
       diagnostics.record({
@@ -934,9 +942,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
               continue
             }
             const at = await input.policy.now()
-            if (controller.signal.aborted) continue
-            firstTokenAt = at
-            consumeArrival(gated.arrival, true)
+            consumeGatedArrival(gated.arrival, at)
           }
         } finally {
           // Ordinary abort and rejection drive next() to the reader's owned final facts.

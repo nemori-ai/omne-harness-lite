@@ -920,6 +920,33 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
   function retainedOwnershipBlocksRelease(): boolean {
     return quarantined || unresolved.size > 0 || (dispatchConfirmed && !settled)
   }
+  function prepareOpenedEntry(at: string): OwnedLogEntry {
+    const value = captureModelLogValue({
+      category: 'record',
+      input: {
+        kind: 'value',
+        value: {
+          kind: 'model_call_opened',
+          call: dispatched.call,
+          dispatch: dispatched.dispatch,
+          firstTokenAt: at,
+        },
+      },
+    })
+    if ('invalidValue' in value) throw new Error('model_anchor.opened')
+    const entry = prepareModelLogEntry({
+      session: binding.session,
+      shell: {
+        tenant: binding.tenant,
+        ...(input.run === undefined ? {} : { run: input.run, attempt: input.attempt }),
+      },
+      captured: value.ok,
+      purpose: { kind: 'record' },
+      messagePrefix: null,
+    })
+    if ('invalidValue' in entry) throw new Error('model_anchor.opened')
+    return entry.ok
+  }
   function startInvocationWork(
     admission: NonNullable<Awaited<ReturnType<typeof admitDispatched>>>,
   ) {
@@ -953,31 +980,7 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
               const at = await policy.now()
               if (!usable()) throw new Error('model_anchor.stopped')
               if (!('ok' in compareRfc3339Instants(at, at))) throw new Error('model_anchor.clock')
-              const value = captureModelLogValue({
-                category: 'record',
-                input: {
-                  kind: 'value',
-                  value: {
-                    kind: 'model_call_opened',
-                    call: dispatched.call,
-                    dispatch: dispatched.dispatch,
-                    firstTokenAt: at,
-                  },
-                },
-              })
-              if ('invalidValue' in value) throw new Error('model_anchor.opened')
-              const entry = prepareModelLogEntry({
-                session: binding.session,
-                shell: {
-                  tenant: binding.tenant,
-                  ...(input.run === undefined ? {} : { run: input.run, attempt: input.attempt }),
-                },
-                captured: value.ok,
-                purpose: { kind: 'record' },
-                messagePrefix: null,
-              })
-              if ('invalidValue' in entry) throw new Error('model_anchor.opened')
-              openedTask = append(entry.ok)
+              openedTask = append(prepareOpenedEntry(at))
               const openedReceipt = await receipt(openedTask)
               if (openedReceipt === undefined) throw new Error('model_anchor.unconfirmed')
               openedConfirmed = true
