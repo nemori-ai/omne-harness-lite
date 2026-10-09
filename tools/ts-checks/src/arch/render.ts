@@ -6,8 +6,6 @@ import { architectureViewport } from './viewport.ts'
 import { architectureMatrix } from './matrix.ts'
 import { conformanceBrowser } from './conformance-browser.ts'
 import { selectArchitectureView, type ArchitectureView } from './view.ts'
-import { architectureFlowBundle } from './flow/bundle.ts'
-import { FLOW_STYLE } from './flow/style.ts'
 
 export function architectureMarkup(graph: ArchitectureView): string {
   const data = JSON.stringify(graph)
@@ -18,10 +16,9 @@ export function architectureMarkup(graph: ArchitectureView): string {
     createRequire(import.meta.url).resolve('elkjs/lib/elk.bundled.js'),
     'utf8',
   )
-  const flow = architectureFlowBundle()
   const inline = (script: string): string => script.replaceAll('</script', '<\\/script')
-  return `<style>${flow.style}${FLOW_STYLE}</style>
-<style>
+  // React Flow 的 bundle 与样式由 renderPage 内联一次，架构视图与结构图共用。
+  return `<style>
 button,select { font:inherit; color:inherit; background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:6px 9px; }
 button { cursor:pointer; } button:disabled { cursor:wait; opacity:.45; }
 button:focus-visible,select:focus-visible { outline:3px solid var(--changed); outline-offset:2px; }
@@ -137,8 +134,7 @@ button:focus-visible,select:focus-visible { outline:3px solid var(--changed); ou
 <details class="arch-notice"><summary>机械、人工与行为证据边界</summary><div id="conformance-coverage"></div></details>
 </section>
 <script type="application/json" id="architecture-data">${data}</script>
-<script>${inline(bundle)}</script>
-<script>${inline(flow.script)}</script>`
+<script>${inline(bundle)}</script>`
 }
 
 export function architectureScript(): string {

@@ -126,7 +126,7 @@ function ElkEdgeView({ id, data, markerEnd, style }: EdgeProps<ArchEdge>) {
 }
 
 /** ⌘ on macOS, Ctrl elsewhere. Held: the wheel zooms the canvas. Released: the wheel scrolls the page. */
-const ZOOM_KEYS = ['Meta', 'Control']
+export const ZOOM_KEYS = ['Meta', 'Control']
 
 const NODE_TYPES = { arch: ArchNodeView }
 const EDGE_TYPES = { elk: ElkEdgeView }

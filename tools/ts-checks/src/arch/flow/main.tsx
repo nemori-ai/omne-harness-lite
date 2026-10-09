@@ -3,10 +3,13 @@ import { createRoot } from 'react-dom/client'
 import type { ArchitectureFlowApi, FlowHandle, FlowProps } from './api.ts'
 import { architectureSvg } from './export-svg.ts'
 import { elementsOf, Graph, type ArchInstance } from './graph.tsx'
+import type { StructureFlowApi } from '../../metrics/flow/api.ts'
+import { structureFlow } from '../../metrics/flow/structure.tsx'
 
 declare global {
   interface Window {
     ArchitectureFlow?: ArchitectureFlowApi
+    StructureFlow?: StructureFlowApi
   }
 }
 
@@ -28,3 +31,4 @@ const api: ArchitectureFlowApi = {
 }
 
 window.ArchitectureFlow = api
+window.StructureFlow = structureFlow

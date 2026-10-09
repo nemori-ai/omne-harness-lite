@@ -96,6 +96,7 @@ describe('architecture flow island', () => {
   it('bundles React, @xyflow/react and the island into one inert inline script', () => {
     const bundle = architectureFlowBundle()
     expect(bundle.script).toContain('ArchitectureFlow')
+    expect(bundle.script).toContain('StructureFlow')
     expect(bundle.script).not.toContain('</script')
     expect(bundle.script).not.toMatch(/<script[^>]+src=|<link[^>]+href=|fetch\(/u)
     expect(bundle.style).toContain('.react-flow')

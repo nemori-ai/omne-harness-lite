@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { buildSync } from 'esbuild'
 
 export interface FlowBundle {
-  /** Self-contained IIFE: React, @xyflow/react and the island. It sets `window.ArchitectureFlow`. */
+  /** Self-contained IIFE: React, @xyflow/react and both islands. It sets `window.ArchitectureFlow` and `window.StructureFlow`. */
   readonly script: string
   /** @xyflow/react's own stylesheet. The island's styling lives in `style.ts`. */
   readonly style: string
