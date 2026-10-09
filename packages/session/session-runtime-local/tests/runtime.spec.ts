@@ -69,6 +69,13 @@ import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import { createLocalSessionIngress } from '../src/runtime.ts'
 import { createSessionDriverWorkOwner } from '../src/driver-work.ts'
 import { startDriverRun } from '../src/driver-run.ts'
+import { bindDriverOriginal, createDriverModelSegment } from '../src/driver-model.ts'
+import { createSessionModelResultSource } from '../src/model-result-source.ts'
+import type { SessionDriverRunSources } from '../src/driver-types.ts'
+import type {
+  ModelRuntimeOperations,
+  ModelRuntimeHostInputs,
+} from '@omne-harness-lite/model-request-runtime'
 import { sessionRuntimeMigrations } from '../src/runtime-migrations.ts'
 import { admissionMigrations, admissionUseMigrations } from '../src/admission-migrations.ts'
 import { sessionStateMigrations } from '../src/state-migrations.ts'
@@ -4345,4 +4352,443 @@ it('composes the public native Tool factory with Session original issue, actual 
     await taskOwner.drain()
     await manifest.close()
   }
+})
+
+describe('driver original model binding', () => {
+  async function binding() {
+    const m = await modelFixture()
+    let available = true
+    const launched = vi.fn()
+    const retained = vi.fn(async () => {})
+    const issue = bindDriverOriginal({
+      options: { ingress: m.f.runtime, model: { original: m.owner } },
+      prepared: { preparation: m.p.step },
+      scope: m.p.scope,
+      available: () => available,
+      launched,
+      retain: retained,
+    })
+    return {
+      ...m,
+      issue,
+      launched,
+      retained,
+      withdraw: () => {
+        available = false
+      },
+    }
+  }
+  it('commits through the actual Session Unit and consumes only its original claim once', async () => {
+    const m = await binding()
+    expect(await m.owner.admitOriginal(m.original)).toEqual({ kind: 'denied' })
+    const admitted = await m.issue.admitOriginal(m.original)
+    if (!('confirmed' in admitted)) throw new Error('actual driver admission missing')
+    expect(await m.f.count('sr_model_issue')).toEqual({ n: 1 })
+    expect(await m.issue.consumeOriginal({ ...admitted.claim })).toEqual({ kind: 'invalidInput' })
+    expect(await m.issue.consumeOriginal(admitted.claim)).toEqual({ kind: 'launch' })
+    expect(await m.issue.consumeOriginal(admitted.claim)).toEqual({ kind: 'unavailable' })
+    expect(m.launched).toHaveBeenCalledOnce()
+    expect(m.retained).not.toHaveBeenCalled()
+    expect(await m.issue.admitOriginal(m.original)).toEqual({ kind: 'conflict' })
+  })
+  it('withdraws new admission and launch without closing the borrowed original owner', async () => {
+    const m = await binding()
+    const admitted = await m.issue.admitOriginal(m.original)
+    if (!('confirmed' in admitted)) throw new Error('actual driver admission missing')
+    m.withdraw()
+    expect(await m.issue.consumeOriginal(admitted.claim)).toEqual({ kind: 'unavailable' })
+    expect(await m.issue.admitOriginal(m.original)).toEqual({ kind: 'unavailable' })
+    expect(m.launched).not.toHaveBeenCalled()
+    expect(await m.owner.consumeOriginal(admitted.claim)).toEqual({ kind: 'launch' })
+  })
+  it('rechecks the real current model qualification before launch', async () => {
+    const m = await binding()
+    const admitted = await m.issue.admitOriginal(m.original)
+    if (!('confirmed' in admitted)) throw new Error('actual driver admission missing')
+    m.current.mockResolvedValueOnce({ kind: 'denied' })
+    expect(await m.issue.consumeOriginal(admitted.claim)).toEqual({ kind: 'denied' })
+    expect(m.launched).not.toHaveBeenCalled()
+    expect(await m.f.count('sr_model_issue')).toEqual({ n: 1 })
+  })
+  it('retains an unknown original commit and never turns it into another launch', async () => {
+    const m = await binding()
+    const admit = m.f.runtime.modelInvocation.admit
+    const issue = bindDriverOriginal({
+      options: {
+        model: { original: m.owner },
+        ingress: {
+          ...m.f.runtime,
+          modelInvocation: {
+            admit: async (...args) => {
+              const committed = await admit(...args)
+              if (!('kind' in committed) || committed.kind !== 'issued')
+                throw new Error('actual original issue was not committed')
+              return {
+                kind: 'unknownCommit',
+                scope: m.p.scope,
+                call: m.p.step.call,
+                originalPosition: m.p.step.originalPosition,
+              }
+            },
+          },
+        },
+      },
+      scope: m.p.scope,
+      prepared: { preparation: m.p.step },
+      available: () => true,
+      launched: m.launched,
+      retain: m.retained,
+    })
+    expect(await issue.admitOriginal(m.original)).toEqual({ kind: 'unavailable' })
+    expect(m.retained).toHaveBeenCalledOnce()
+    expect(m.retained.mock.calls[0]).toMatchObject([
+      {
+        stage: 'originalIssue',
+        reason: {
+          kind: 'unknownCommit',
+          call: m.p.step.call,
+          originalPosition: m.p.step.originalPosition,
+        },
+      },
+    ])
+    expect(m.launched).not.toHaveBeenCalled()
+    expect(await m.f.count('sr_model_issue')).toEqual({ n: 1 })
+  })
+})
+
+describe('driver original model turn construction', () => {
+  async function construction() {
+    const m = await modelFixture()
+    const identities = driverIdentityFixture()
+    const prepared = {
+      kind: 'prepared' as const,
+      preparation: m.p.step,
+      identities: {
+        ...identities.model(),
+        call: unwrap(parseOpaqueIdentifier(m.p.step.call, 'ModelCallId')),
+      },
+      source: m.prepared.source,
+    }
+    const unused = async (): Promise<never> => {
+      throw new Error('unexpected model execution')
+    }
+    const absent = (): never => {
+      throw new Error('unexpected source consumer')
+    }
+    const operations: ModelRuntimeOperations = {
+      acquireCall: unused,
+      legalTargets: unused,
+      displayList: unused,
+      selectModel: unused,
+      effectiveModel: vi.fn<ModelRuntimeOperations['effectiveModel']>(async () => ({
+        effectiveModel: {
+          routeName: 'controlled/model',
+          selected: 'controlled/model',
+          selectedBy: 'session',
+          profile: { origin: 'official', routeName: 'controlled/model' },
+        },
+      })),
+      openCall: unused,
+      dispatch: unused,
+      dispatchAgain: unused,
+      interrupt: unused,
+      releaseCall: unused,
+      reconcile: unused,
+      readAttempts: unused,
+      settleReply: unused,
+      canDispatchAgain: unused,
+      acknowledgeCall: unused,
+    }
+    const instant = unwrap(instantFromRfc3339(at))
+    const report = {
+      session: m.p.scope.session,
+      runId: m.p.step.run,
+      attempt: m.p.step.attempt,
+      computedAt: instant,
+      snapshots: [],
+      availability: [],
+      mcpActions: [],
+      endpointHoldings: [],
+      effectivePermissions: {},
+      skillGate: [],
+    }
+    const refresh = vi.fn(async () => ({ report }))
+    const list = vi.fn(async () => ({ entries: [] }))
+    const read = vi.fn(async () => ({ failure: 'unavailable' as const }))
+    const sources: SessionDriverRunSources = {
+      scope: m.p.scope,
+      run: m.p.step.run,
+      registry: { refreshAvailability: refresh, list },
+      evaluation: { read },
+      get context() {
+        return absent()
+      },
+      contextGeneration: () => 'controlled-context',
+      get toolAccess() {
+        return absent()
+      },
+      get actions() {
+        return absent()
+      },
+      providers: {
+        tools: { lookup: unused },
+        catalog: {
+          readProfile: unused,
+          listProfiles: unused,
+          credentialPresent: unused,
+        },
+        credentials: { value: unused },
+        sourceVersions: { fixture: 'controlled-source' },
+      },
+      selection: {
+        owner: {
+          name: 'controlled-selection',
+          admission: () => 'open',
+          opened: () => ({ confirmed: true }),
+          unresolvedWrites: () => [],
+          acquire: () => ({ unavailable: true }),
+        },
+        concurrent: 1,
+        sessionTenancy: m.f.runtime.tenancy,
+        catalog: { listProfiles: unused, credentialPresent: unused },
+        projection: unused,
+        compatible: () => ({ ok: true }),
+        now: async () => at,
+        diagnostic() {},
+        onDiagnosticFailure() {},
+      },
+      host: {
+        callPresence: { read: unused },
+        history: { call: absent, calibration: absent, failure: absent, run: absent },
+        recovery: { authorize: unused, enter: unused },
+      },
+      projection: {
+        rules: {
+          version: 'controlled-driver',
+          external: null,
+          system: [],
+          pendingCardBlocks: null,
+          lastModelRequestPrefixLength: null,
+        },
+      },
+      release: vi.fn(async () => {}),
+    }
+    const release = vi.fn(async () => {})
+    let host: ModelRuntimeHostInputs | undefined
+    const results = createSessionModelResultSource({
+      storage: m.f.storage,
+      tenant,
+      executionSource: () => undefined,
+      maxCaptures: 4,
+      retainReferencesIn: unused,
+    })
+    const acquire = vi.fn(async (inputs: ModelRuntimeHostInputs) => {
+      host = inputs
+      return { operations, release }
+    })
+    const options = {
+      ingress: m.f.runtime,
+      identities,
+      model: {
+        original: m.owner,
+        factory: { acquire },
+        results,
+        executionSource: () => undefined,
+        settlement: { create: absent },
+        maxCallReads: 4,
+      },
+    }
+    let open = true
+    const retain = vi.fn(async () => {})
+    const segment = createDriverModelSegment(
+      options,
+      m.p.scope,
+      prepared,
+      sources,
+      () => open,
+      retain,
+    )
+    return {
+      segment,
+      m,
+      sources,
+      prepared,
+      options,
+      acquire,
+      refresh,
+      list,
+      read,
+      release,
+      retain,
+      host: () => host,
+      withdraw: () => {
+        open = false
+      },
+      build: segment.build,
+    }
+  }
+  it('builds its own original binding, actual coordinates, report and native input identities', async () => {
+    const f = await construction()
+    const built = await f.build()
+    if ('failure' in built) throw new Error('actual driver binding missing')
+    expect(f.refresh).toHaveBeenCalledWith(
+      f.m.p.scope.session,
+      { kind: 'start', runId: f.m.p.step.run },
+      f.m.p.step.attempt,
+    )
+    expect(f.list).toHaveBeenCalledWith(f.m.p.scope.session, 'tool', {
+      kind: 'run',
+      report: built.turn.call.report,
+    })
+    expect(f.host()?.identities.call()).toBe(f.m.p.step.call)
+    expect(
+      await f.host()?.sessions.bind(unwrap(parseOpaqueIdentifier('foreign-session', 'SessionRef'))),
+    ).toEqual({ failure: 'invalidInput' })
+    const actual = await f.host()!.sessions.bind(f.m.p.scope.session)
+    if (!('binding' in actual)) throw new Error('actual binding missing')
+    expect(actual.binding).toBe(built.turn.linked.binding)
+    expect(built.turn.preparation).toBe(f.m.p.step)
+    expect(built.turn.resultKey).toBe(f.prepared.identities.resultKey)
+    expect(built.turn.call).toMatchObject({ target: 'controlled/model', tools: [] })
+    const stop = vi.fn(async () => ({ released: true as const }))
+    const registered = built.turn.call.host.register(stop)
+    if (!('registration' in registered)) throw new Error('original host registration missing')
+    f.withdraw()
+    expect(built.turn.call.host.stopping()).toBe(true)
+    expect(built.turn.call.host.signal.aborted).toBe(false)
+    registered.registration.unregister()
+    await built.release()
+    await built.release()
+    expect(f.release).toHaveBeenCalledOnce()
+    expect(stop).not.toHaveBeenCalled()
+    expect(f.sources.release).not.toHaveBeenCalled()
+    expect(await actual.binding.currentEvaluationInputs.read(f.m.p.scope.session, tenant)).toEqual({
+      failure: 'unavailable',
+    })
+    expect(f.read).not.toHaveBeenCalled()
+  })
+  it('keeps an already launched original host live when only the driver withdraws', async () => {
+    const f = await construction()
+    const built = await f.build()
+    if ('failure' in built) throw new Error('actual driver binding missing')
+    const issue = built.turn.linked.binding.log.originalIssue
+    if (!issue) throw new Error('actual original admission missing')
+    const admitted = await issue.admitOriginal(f.m.original)
+    if (!('confirmed' in admitted)) throw new Error('actual launch claim missing')
+    expect(await issue.consumeOriginal(admitted.claim)).toEqual({ kind: 'launch' })
+    f.withdraw()
+    expect(built.turn.call.host.stopping()).toBe(false)
+    expect(built.turn.call.host.signal.aborted).toBe(false)
+    await built.release()
+    expect(built.turn.call.host.stopping()).toBe(true)
+  })
+  it('returns the same retained host callbacks after failure without conflating registrations', async () => {
+    const f = await construction()
+    const owned = createDriverModelSegment(
+      f.options,
+      f.m.p.scope,
+      f.prepared,
+      f.sources,
+      () => true,
+      f.retain,
+    )
+    const built = await owned.build()
+    if ('failure' in built) throw new Error('actual driver binding missing')
+    const defect = new Error('original callback return failed')
+    const close = vi.fn(async () => ({ released: true as const }))
+    const first = built.turn.call.host.register(close)
+    const second = built.turn.call.host.register(close)
+    if (!('registration' in first) || !('registration' in second))
+      throw new Error('actual registrations missing')
+    first.registration.unregister()
+    close.mockRejectedValueOnce(defect)
+    await expect(owned.release()).rejects.toBe(defect)
+    expect(f.release).not.toHaveBeenCalled()
+    await owned.release()
+    expect(close).toHaveBeenCalledTimes(2)
+    expect(f.release).toHaveBeenCalledOnce()
+    expect(f.sources.release).not.toHaveBeenCalled()
+  })
+  it('recognizes concurrent builds without allocating a second original binding', async () => {
+    const f = await construction()
+    const first = f.segment.build()
+    expect(f.segment.build()).toBe(first)
+    const built = await first
+    if ('failure' in built) throw new Error('actual driver binding missing')
+    expect(f.acquire).toHaveBeenCalledOnce()
+    await f.segment.release()
+    expect(await f.segment.build()).toBe(built)
+    expect(built.turn.call.host.stopping()).toBe(true)
+  })
+  it('waits for a late actual borrow and returns it without reading the report after close', async () => {
+    const f = await construction()
+    let enter!: () => void, continueBuild!: () => void
+    const entered = new Promise<void>(resolve => {
+      enter = resolve
+    })
+    const waiting = new Promise<void>(resolve => {
+      continueBuild = resolve
+    })
+    const original = f.acquire.getMockImplementation()!
+    f.acquire.mockImplementationOnce(async inputs => {
+      enter()
+      await waiting
+      return original(inputs)
+    })
+    const building = f.segment.build()
+    await entered
+    let returned = false
+    const closing = f.segment.release().then(() => {
+      returned = true
+    })
+    await Promise.resolve()
+    expect(returned).toBe(false)
+    continueBuild()
+    expect(await building).toEqual({ failure: 'unavailable' })
+    await closing
+    expect(f.release).toHaveBeenCalledOnce()
+    expect(f.refresh).not.toHaveBeenCalled()
+  })
+  it('rejects foreign Run sources before touching its factory or registry', async () => {
+    const f = await construction()
+    expect(() =>
+      createDriverModelSegment(
+        f.options,
+        f.m.p.scope,
+        f.prepared,
+        Object.assign(Object.create(f.sources), { run: 'foreign-run' }),
+        () => true,
+        f.retain,
+      ),
+    ).toThrow('actual original Run sources')
+    expect(f.acquire).not.toHaveBeenCalled()
+    expect(f.refresh).not.toHaveBeenCalled()
+  })
+  it('returns actual allocated binding when the report owner gives unavailable', async () => {
+    const f = await construction()
+    const sources: SessionDriverRunSources = Object.assign(Object.create(f.sources), {
+      registry: {
+        ...f.sources.registry,
+        refreshAvailability: async () => ({ failure: 'unavailable' as const }),
+      },
+    })
+    expect(
+      await createDriverModelSegment(
+        f.options,
+        f.m.p.scope,
+        f.prepared,
+        sources,
+        () => true,
+        f.retain,
+      ).build(),
+    ).toEqual({ failure: 'unavailable' })
+    expect(f.release).toHaveBeenCalledOnce()
+    expect(f.list).not.toHaveBeenCalled()
+  })
+  it('does not start construction after withdrawal', async () => {
+    const f = await construction()
+    f.withdraw()
+    expect(await f.build()).toEqual({ failure: 'unavailable' })
+    expect(f.acquire).not.toHaveBeenCalled()
+  })
 })

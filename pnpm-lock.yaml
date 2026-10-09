@@ -2854,6 +2854,9 @@ importers:
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../../core/tool-definition
       '@omne-harness-lite/tool-execution-runtime':
         specifier: workspace:*
         version: link:../../core/tool-execution-runtime
@@ -2879,9 +2882,6 @@ importers:
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../infra/storage-sql
-      '@omne-harness-lite/tool-definition':
-        specifier: workspace:*
-        version: link:../../core/tool-definition
       '@omne-harness-lite/tool-execution-local':
         specifier: workspace:*
         version: link:../../tools/tool-execution-local
