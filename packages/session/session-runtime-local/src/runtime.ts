@@ -1,4 +1,5 @@
 import { createSessionToolAdmission } from './tool-invocation.ts'
+import { createToolResultCustody } from './tool-result-custody.ts'
 import {
   checkKey,
   checkAppendInput,
@@ -90,14 +91,15 @@ export function createLocalSessionIngress(options: RuntimeOptions): LocalSession
     lifecycle: owner.lifecycle,
     modelInvocation: owner.modelInvocation,
     toolInvocation: owner.toolInvocation,
+    toolResults: owner.toolResults,
     modelResults: owner.modelResults,
     runJournal: owner.runJournal,
     close: owner.close,
   })
 }
 function optionalRecordBounds(options: RuntimeOptions): readonly number[] {
-  return [options.modelIssue, options.toolIssue, options.modelResults].flatMap(option =>
-    option ? [option.maxRecords] : [],
+  return [options.modelIssue, options.toolIssue, options.modelResults, options.toolResults].flatMap(
+    option => (option ? [option.maxRecords] : []),
   )
 }
 class SessionIngress implements LocalSessionIngress {
@@ -178,6 +180,7 @@ class SessionIngress implements LocalSessionIngress {
       ['notFound'] as const,
     )
   readonly toolInvocation: LocalSessionIngress['toolInvocation']
+  readonly toolResults: LocalSessionIngress['toolResults']
   readonly toolAdmission: ReturnType<typeof createSessionToolAdmission>
   readonly modelInvocation: LocalSessionIngress['modelInvocation']
   readonly runJournal: LocalSessionIngress['runJournal']
@@ -225,6 +228,15 @@ class SessionIngress implements LocalSessionIngress {
       isOpen: () => this.accepting,
     })
     this.toolInvocation = Object.freeze({ support: this.toolAdmission.support })
+    const toolCustody = createToolResultCustody({
+      options,
+      authority: this.authority,
+      log: this.log,
+    })
+    this.toolResults = Object.freeze<LocalSessionIngress['toolResults']>({
+      store: (...args) => this.run(this.access, () => toolCustody.store(...args), [] as const),
+      read: (...args) => this.run(this.access, () => toolCustody.read(...args), [] as const),
+    })
     const model = createSessionModelAdmission({
       options: this.options,
       authority: this.authority,

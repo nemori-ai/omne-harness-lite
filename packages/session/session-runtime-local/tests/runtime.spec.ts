@@ -1,4 +1,7 @@
-import { prepareToolJournalEntry } from '@omne-harness-lite/tool-execution-runtime'
+import {
+  prepareToolJournalEntry,
+  projectToolJournal,
+} from '@omne-harness-lite/tool-execution-runtime'
 // @module-tag slow
 // Uses real root and tenant SQLite transactions, log owners and Cordis lifetimes.
 import {
@@ -18,7 +21,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { openStorage, type SqlStorage } from '@omne-harness-lite/storage-sql'
-import { StorageUnavailable, type AtomicStorage } from '@omne-harness-lite/storage'
+import { narrow, StorageUnavailable, type AtomicStorage } from '@omne-harness-lite/storage'
 import {
   parseAccountId,
   parseOpaqueIdentifier,
@@ -120,7 +123,7 @@ async function fixture(
   maxSteps = 32,
   configure?: (
     storage: SqlStorage,
-  ) => Pick<RuntimeOptions, 'modelIssue' | 'modelResults' | 'toolIssue'>,
+  ) => Pick<RuntimeOptions, 'modelIssue' | 'modelResults' | 'toolIssue' | 'toolResults'>,
   readTime: RuntimeOptions['now'] = async () => at,
   workSettledIn: RuntimeOptions['workSettledIn'] = async () => 'settled',
 ) {
@@ -2902,12 +2905,30 @@ describe('Session original Tool participation', () => {
   })
 })
 
-async function sessionToolFixture() {
+async function sessionToolFixture(terminal = false) {
   const current = vi.fn<
     import('@omne-harness-lite/tool-execution-runtime').ToolOriginalIssueAuthority['authorizeIn']
   >(async () => ({ kind: 'authorized' }))
-  const f = await fixture(undefined, 32, () => ({
+  const verifyResult = vi.fn<
+    import('@omne-harness-lite/tool-execution-runtime').ToolResultCustodySource['verifyIn']
+  >(async (_unit, original, value) => ({
+    verified: { original, terminal: value, references: [] },
+  }))
+  const f = await fixture(undefined, 32, storage => ({
     toolIssue: { maxRecords: 8, current: { authorizeIn: current } },
+    ...(terminal
+      ? {
+          toolResults: {
+            maxRecords: 8,
+            source: {
+              verifyIn: async (...args) => {
+                args[0].assertStorage(storage)
+                return verifyResult(...args)
+              },
+            },
+          },
+        }
+      : {}),
   }))
   const p = await preparedAttempt(f)
   const prepared = await f.runtime.lifecycle.commitStep(
@@ -2943,6 +2964,36 @@ async function sessionToolFixture() {
     },
   })
   if ('invalid' in native) throw new Error('invalid controlled native Tool intent')
+  const ended = prepareToolJournalEntry({
+    origin: identityBase.origin,
+    value: {
+      kind: 'execution_ended',
+      revision: 1,
+      ref: identityBase.ref,
+      terminal: { outcome: 'unavailable', reason: 'controlled-no-author-result' },
+      account: {
+        callId: identityBase.ref.callId,
+        initiator: p.scope.tenant,
+        externalEffect: 'unknown',
+        cost: { total_usd: 0, items: [] },
+        frames: 'unknown',
+        wallClock: { startedAt: at, endedAt: at },
+      },
+      delivery: {
+        pass: 'controlled-delivery-pass',
+        selectedChain: null,
+        result: {
+          id: unwrap(parseOpaqueIdentifier('controlled-tool-result', 'BlockId')),
+          kind: 'tool_result',
+          callId: identityBase.ref.callId,
+          outcome: 'unavailable',
+          visibility: { toHuman: true, toModel: true },
+          blocks: [],
+        },
+      },
+    },
+  })
+  if ('invalid' in ended) throw new Error('invalid controlled Tool terminal')
   const identity = { ...identityBase, originalPosition: native.entry.dedupeKey! }
   const claim = Object.freeze(
     {},
@@ -2962,7 +3013,7 @@ async function sessionToolFixture() {
           return { kind: 'alreadyIssued', identity }
         const request = checkAppendInput(
           p.scope.session,
-          [native.entry],
+          terminal ? [native.entry, ended.entry] : [native.entry],
           { kind: 'unfenced' },
           { kind: 'tailEquals', tail: source.source.tail },
         )
@@ -2987,6 +3038,7 @@ async function sessionToolFixture() {
     claim,
     participant,
     current,
+    verifyResult,
     failStage: () => {
       failStage = true
     },
@@ -3150,4 +3202,176 @@ it('rejects a Session preparation presented as the original Tool intent', async 
     'entries.length',
     0,
   )
+})
+
+describe('Session Tool result custody', () => {
+  it('rejects a copied authority before reading the original Tool result', async () => {
+    const f = await fixture()
+    expect(
+      await f.runtime.toolResults.read(
+        Object.freeze({}) as typeof f.runtime.coordinationAuthority,
+        { tenant, session: unwrap(parseOpaqueIdentifier('unknown', 'SessionRef')) },
+        'tool-call',
+        'tool-result',
+      ),
+    ).toEqual({ failure: 'denied' })
+  })
+  it('does not claim custody without an explicit original Tool result source', async () => {
+    const f = await fixture()
+    expect(
+      await f.runtime.toolResults.read(
+        f.runtime.coordinationAuthority,
+        { tenant, session: unwrap(parseOpaqueIdentifier('unknown', 'SessionRef')) },
+        'tool-call',
+        'tool-result',
+      ),
+    ).toEqual({ failure: 'unavailable' })
+  })
+})
+
+async function toolCustodyFixture() {
+  const t = await sessionToolFixture(true)
+  expect(await t.support.admission.admitOriginal(t.participant)).toHaveProperty('kind', 'issued')
+  const prefix = await t.f.runtime.journal.readPrefix(t.f.runtime.access, t.p.scope.session)
+  if (!('kind' in prefix) || prefix.kind !== 'prefix')
+    throw new Error('missing original Tool prefix')
+  const projected = projectToolJournal(t.p.scope, prefix.entries)
+  if ('invalid' in projected) throw new Error('invalid original Tool history')
+  const terminal = projected.executions.get(t.identity.ref.callId)?.terminal
+  if (!terminal) throw new Error('missing original Tool terminal')
+  return {
+    ...t,
+    input: {
+      resultKey: 'original-tool-result',
+      source: prefix.source,
+      original: t.identity,
+      terminal,
+    },
+  }
+}
+
+it('stores and recognizes the original Tool terminal once without rereading its source', async () => {
+  const t = await toolCustodyFixture()
+  const saved = await t.f.runtime.toolResults.store(
+    t.f.runtime.coordinationAuthority,
+    t.p.scope,
+    t.input,
+  )
+  expect(saved).toHaveProperty('kind', 'custodied')
+  if (!('witness' in saved)) throw new Error('missing original Tool custody')
+  t.verifyResult.mockRejectedValue(new Error('released original Tool source must not be reused'))
+  const read = await t.f.runtime.toolResults.read(
+    t.f.runtime.coordinationAuthority,
+    t.p.scope,
+    t.identity.ref.callId,
+    t.input.resultKey,
+  )
+  expect(read).toEqual({ ...saved, kind: 'alreadyCustodied' })
+  expect(
+    await t.f.runtime.toolResults.store(t.f.runtime.coordinationAuthority, t.p.scope, t.input),
+  ).toEqual(read)
+  expect(t.verifyResult).toHaveBeenCalledTimes(1)
+  expect(await t.f.count('sr_tool_result')).toEqual({ n: 1 })
+  expect(
+    await t.f.runtime.toolResults.store(t.f.runtime.coordinationAuthority, t.p.scope, {
+      ...t.input,
+      resultKey: 'other-result',
+    }),
+  ).toEqual({ failure: 'identityConflict' })
+})
+
+it('retains Tool custody when the actual commit reply is lost', async () => {
+  const t = await toolCustodyFixture()
+  const atomic = t.f.storage.atomic.bind(t.f.storage)
+  const fault = vi.spyOn(t.f.storage, 'atomic').mockImplementationOnce(async action => {
+    await atomic(action)
+    throw new StorageUnavailable('Tool custody commit reply lost')
+  })
+  expect(
+    await t.f.runtime.toolResults.store(t.f.runtime.coordinationAuthority, t.p.scope, t.input),
+  ).toEqual({
+    kind: 'unknownCommit',
+    scope: t.p.scope,
+    call: t.identity.ref.callId,
+    resultKey: t.input.resultKey,
+  })
+  fault.mockRestore()
+  expect(
+    await t.f.runtime.toolResults.read(
+      t.f.runtime.coordinationAuthority,
+      t.p.scope,
+      t.identity.ref.callId,
+      t.input.resultKey,
+    ),
+  ).toHaveProperty('kind', 'alreadyCustodied')
+  expect(t.verifyResult).toHaveBeenCalledTimes(1)
+  expect(await t.f.count('sr_tool_result')).toEqual({ n: 1 })
+})
+
+it('does not save Tool custody when the actual source is unavailable', async () => {
+  const t = await toolCustodyFixture()
+  t.verifyResult.mockResolvedValue({ failure: 'unavailable' })
+  expect(
+    await t.f.runtime.toolResults.store(t.f.runtime.coordinationAuthority, t.p.scope, t.input),
+  ).toEqual({ failure: 'unavailable' })
+  expect(await t.f.count('sr_tool_result')).toEqual({ n: 0 })
+})
+
+it('rejects Tool custody when the original terminal has been changed', async () => {
+  const t = await toolCustodyFixture()
+  expect(
+    await t.f.runtime.toolResults.store(t.f.runtime.coordinationAuthority, t.p.scope, {
+      ...t.input,
+      terminal: { ...t.input.terminal, key: 'substituted-terminal' },
+    }),
+  ).toEqual({ failure: 'invalidSource' })
+  expect(t.verifyResult).not.toHaveBeenCalled()
+})
+
+it('custodies an original Tool terminal after its Run has ended without a new permit', async () => {
+  const t = await toolCustodyFixture()
+  expect(
+    await t.f.runtime.lifecycle.commitStep(
+      t.f.runtime.coordinationAuthority,
+      t.p.scope,
+      t.input.source,
+      {
+        kind: 'finish',
+        stepKey: 'finish-before-tool-custody',
+        run: t.p.step.run,
+        attempt: t.p.step.attempt,
+        permit: t.p.step.permit,
+        terminal: 'completed',
+        reason: 'controlled-settled-source',
+      },
+    ),
+  ).toHaveProperty('kind', 'committed')
+  t.f.setDecision('rejected')
+  expect(
+    await t.f.runtime.toolResults.store(t.f.runtime.coordinationAuthority, t.p.scope, t.input),
+  ).toHaveProperty('kind', 'custodied')
+  expect(t.verifyResult).toHaveBeenCalledTimes(1)
+})
+
+it('reports a defect when a stored Tool custody loses its original issue proof', async () => {
+  const t = await toolCustodyFixture()
+  expect(
+    await t.f.runtime.toolResults.store(t.f.runtime.coordinationAuthority, t.p.scope, t.input),
+  ).toHaveProperty('kind', 'custodied')
+  await t.f.storage.atomic(unit =>
+    unit.mutate(tx =>
+      narrow<{ sr_tool_issue: { session: string } }>(tx)
+        .deleteFrom('sr_tool_issue')
+        .where('session', '=', t.p.scope.session)
+        .execute(),
+    ),
+  )
+  await expect(
+    t.f.runtime.toolResults.read(
+      t.f.runtime.coordinationAuthority,
+      t.p.scope,
+      t.identity.ref.callId,
+      t.input.resultKey,
+    ),
+  ).rejects.toThrow('stored Tool custody lost original proof')
 })

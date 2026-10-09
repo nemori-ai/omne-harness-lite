@@ -73,3 +73,5 @@ createLocalSessionAccess借入真实当前authority、固定的已鉴权主体�
 根入口还公开`prepareSessionModelRun`、`createSessionModelAttempt`和`createSessionModelObservations`。提供者消费Core Agent Loop、保留原模型任务，并区分本地等待结束与物理执行结束。这些构件不等于完整driver或工具循环。
 
 `RuntimeOptions.toolIssue`显式启用原工具准入支持。`toolInvocation.support`只接受本Ingress的原协调权限，并在共享事务核验原调用准备、permit及实际工具意图。本支持尚不包含工具结果保管、普通交付或完整driver装配，不能把它当作完整工具路径。
+
+`toolResults`在同一单元中保管并认回原Tool终局证据和Session保管回执。可信根提供不可变的Tool结果来源。普通工具消息交付及完整native工厂组合仍未实现。

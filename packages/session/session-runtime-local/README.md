@@ -73,3 +73,5 @@ The root exports `createSessionRunModelBinding`, `createSessionModelResultSource
 The root also exports `prepareSessionModelRun`, `createSessionModelAttempt`, and `createSessionModelObservations`. The provider consumes the Core Agent Loop, retains the original model job, and separates local waits from physical execution. These components do not implement the complete driver or tool loop.
 
 `RuntimeOptions.toolIssue` enables the trusted original Tool admission support. `toolInvocation.support` requires this Ingress owner's coordination authority. The provider checks the original prepared call and actual intent in the shared transaction. Tool result custody, delivery, and complete driver composition remain separate work; this support alone is not a complete Tool path.
+
+`toolResults` retains and recognizes the original Tool terminal evidence and Session custody receipt in one unit. The trusted root supplies the immutable Tool result source. Ordinary Tool message delivery and the full native factory composition remain unimplemented.

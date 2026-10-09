@@ -1,6 +1,7 @@
 import type {
   ToolOriginalIssueAuthority,
   ToolOriginalIssueSupport,
+  ToolResultCustodySource,
 } from '@omne-harness-lite/tool-execution-runtime'
 import type {
   OriginalIssueAuthority,
@@ -30,6 +31,7 @@ import type { StateOptions, StatePolicy } from './state-types.ts'
 import type { ReceiptPolicy } from './receipt-types.ts'
 import type { OriginalRunJournal } from './run-journal-types.ts'
 import type { ModelResultSource, LocalModelResultCustody } from './model-result-types.ts'
+import type { LocalToolResultCustody } from './tool-result-types.ts'
 
 /** The host must durably bind the original recipe and initialize its real Session Context before ready. */
 export interface SessionBootstrap {
@@ -70,6 +72,10 @@ export interface RuntimeOptions {
     readonly maxRecords: number
     readonly current: ToolOriginalIssueAuthority
   }
+  readonly toolResults?: {
+    readonly maxRecords: number
+    readonly source: ToolResultCustodySource
+  }
   /** Root-selected original model owner. Omission means model admission is unavailable. */
   readonly modelIssue?: {
     readonly maxRecords: number
@@ -108,6 +114,7 @@ export interface LocalSessionIngress {
       authority: CoordinationAuthority,
     ) => Promise<ToolOriginalIssueSupport | { readonly unavailable: true }>
   }
+  readonly toolResults: LocalToolResultCustody
   readonly modelInvocation: {
     readonly admit: (
       authority: CoordinationAuthority,

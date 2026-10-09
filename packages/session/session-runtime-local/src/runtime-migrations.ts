@@ -1,6 +1,21 @@
 import type { MigrationFragment } from '@omne-harness-lite/storage'
 export const sessionRuntimeMigrations: readonly MigrationFragment[] = [
   {
+    name: 'local_session_tool_result',
+    migration: {
+      async up(db) {
+        await db.schema
+          .createTable('sr_tool_result')
+          .addColumn('session', 'text', c => c.notNull())
+          .addColumn('call', 'text', c => c.notNull())
+          .addColumn('result_key', 'text', c => c.notNull())
+          .addColumn('record', 'text', c => c.notNull())
+          .addPrimaryKeyConstraint('sr_tool_result_pk', ['session', 'call'])
+          .execute()
+      },
+    },
+  },
+  {
     name: 'local_session_creation',
     migration: {
       async up(db) {

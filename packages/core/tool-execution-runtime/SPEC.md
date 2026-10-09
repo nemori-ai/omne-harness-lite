@@ -107,7 +107,7 @@ issued后撤权、旧permit或owner停止可以阻止consume，已确认queued�
 
 ### 验证义务与当前差距
 
-当前仅定义参加／消费及构造协议，没有实际Tool／Session同Unit桥。
+native Tool原参加／消费组件和Session同Unit准入桥已实现，分别有有限组合测试；完整原Tool工厂与Session组合尚未验证。
 E1须组合原native owner、Session及真实租户SQLite验证：完整意图与原claim／Session栅栏同提交、
 异租户／异Storage／旧permit拒绝、全批回滚、发起及消费commit返回丢失、原owner认回与新owner零launch、
 重复／复制／跨代claim最多一次作者调用、existing路径同守卫、issued后拒绝consume收场、实际关闭保留。
@@ -135,7 +135,7 @@ Session责任尚存时不得删除已交付的原文、raw或附件；归档、R
 来源故障或引用不完整返回unavailable／invalidSource，不报告可靠保管。
 Session同Unit登记保管后，后续读取不要求已关闭的job再核发资格；访问仍按各自读取授权。
 
-本协议只固定跨拥有者的核验输入与存续责任。实际来源、Session保管和原交付的写入者仍待实现。
+本协议固定跨拥有者的核验输入与存续责任。Session保管写入者已实现并有受控来源组合验证；实际Tool结果来源和普通交付写入者仍待实现。
 交付确认须指向同批中的实际消息事实；delivery_ready或Session保管凭证均不是delivery_confirmed。
 工具没有模型AcknowledgeCallInput，不能借模型ACK释放原工具责任。
 

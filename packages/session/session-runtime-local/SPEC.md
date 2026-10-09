@@ -135,7 +135,7 @@ Ingress关闭同步拒新保管／读取，并等待已登记保管的真实Unit
 
 ## 原工具结果保管与普通交付协议
 
-tool-result-types.ts只声明B01工具保管及普通交付的施工接口；当前Ingress尚未提供这两个分面。
+tool-result-types.ts声明B01工具保管及普通交付接口。Ingress已提供toolResults保管分面；普通交付分面尚未实现。RuntimeOptions.toolResults须显式给出原ToolResultCustodySource和容量。来源及结果库由可信根选择，Ingress不关闭它们。
 LocalToolResultCustody.store不要求最新AttemptPermit。它在实际Session Unit核原持久grant、
 工具原发起证明、完整终局的不可变日志坐标及ToolResultCustodySource证据。
 原Run终态和旧attempt仍可保管，不新查询登录、不补新attempt或IO权。
@@ -430,4 +430,4 @@ createSessionModelObservations用于尚未发起原调用的正常段。当前So
 
 同一原claim只映射回其原participant与准备。消费还要认回原Session证明，不能把一个工具的准备用于另一个工具。工具拥有者负责唯一claim的实际消费和作者执行；Session返回launch前必须确认其共同事务已提交。原工具支持不关闭共享存储或工具池，不把结果保管当作交付确认。
 
-原工具日志核验可在本Scope已有发起证明后使用只读原事实权限，包括Run终态或Ingress关闭后。该权限不允许追加或新工具发起。工具支持的在途准入和消费受Ingress的容量及close排空约束。完整工具结果保管、普通交付、原工厂和Cordis组合另有实现与验证责任。
+原工具日志核验可在本Scope已有发起证明后使用只读原事实权限，包括Run终态或Ingress关闭后。该权限不允许追加或新工具发起。工具支持的在途准入和消费受Ingress的容量及close排空约束。原工具结果保管已提供；普通交付、原工厂和Cordis组合另有实现与验证责任。
