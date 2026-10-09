@@ -523,6 +523,38 @@ interface UnknownAppend {
   readonly permit?: ModelCallPublishPermit
 }
 
+function requestUnknownWriteStops(writes: readonly UnknownAppend[]): void {
+  for (const write of writes) {
+    try {
+      write.task.requestStop()
+    } catch {
+      // The actual stopped promise remains authoritative.
+    }
+  }
+}
+
+function recognizedUnknownCall(
+  write: UnknownAppend,
+  prefix: Parameters<CurrentHistoryReaders['call']>[0],
+): boolean {
+  let recognized: ReturnType<CurrentHistoryReaders['call']>
+  try {
+    recognized = write.call(prefix, write.key.callId)
+  } catch {
+    return false
+  }
+  return !('unavailable' in recognized)
+}
+
+function releaseUnknownWrite(write: UnknownAppend, retained: Set<UnknownAppend>): void {
+  try {
+    write.registration.release()
+    retained.delete(write)
+  } catch {
+    // A failed writer release remains owned for a later close attempt.
+  }
+}
+
 /** Unknown append receipts retain their original writer until it stops and a full prefix is read. */
 export class UnknownAppendTracker {
   readonly #writes = new Set<UnknownAppend>()
@@ -562,13 +594,7 @@ export class UnknownAppendTracker {
 
   async #closeOnce(): Promise<{ readonly released: true } | { readonly unavailable: true }> {
     const writes = [...this.#writes]
-    for (const write of writes) {
-      try {
-        write.task.requestStop()
-      } catch {
-        // The actual stopped promise remains authoritative.
-      }
-    }
+    requestUnknownWriteStops(writes)
     for (const write of writes) {
       try {
         await write.task.stopped
@@ -600,21 +626,10 @@ export class UnknownAppendTracker {
       if (stopped.some(result => result.status === 'rejected')) continue
       write.readTasks.clear()
       if ('unavailable' in read) continue
-      let recognized: ReturnType<CurrentHistoryReaders['call']>
-      try {
-        recognized = write.call(read.prefix, write.key.callId)
-      } catch {
-        continue
-      }
-      if ('unavailable' in recognized) continue
+      if (!recognizedUnknownCall(write, read.prefix)) continue
       // The original batch is now determined and its writer stopped: its content permit ends.
       if (write.permit !== undefined && !('released' in (await write.permit.release()))) continue
-      try {
-        write.registration.release()
-        this.#writes.delete(write)
-      } catch {
-        // A failed writer release remains owned for a later close attempt.
-      }
+      releaseUnknownWrite(write, this.#writes)
     }
     return this.#writes.size === 0 ? { released: true } : { unavailable: true }
   }
@@ -1434,39 +1449,38 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
   }
   const close = async () => {
     physical.closing = true
+    const closePreparation = async (owner: CallPreparationOwner<P, R>) => {
+      try {
+        const result = await owner.close()
+        if ('released' in result) physical.preparations.delete(owner)
+        return result
+      } catch {
+        return { unavailable: true } as const
+      }
+    }
     const [reads, appendResult, prepared] = await Promise.all([
       physical.retainedReads.close(),
       physical.appends.close(),
-      Promise.all(
-        [...physical.preparations].map(async owner => {
-          try {
-            const result = await owner.close()
-            if ('released' in result) physical.preparations.delete(owner)
-            return result
-          } catch {
-            return { unavailable: true } as const
-          }
-        }),
-      ),
+      Promise.all([...physical.preparations].map(closePreparation)),
     ])
     await Promise.all([...physical.planningTasks])
     const writes = await physical.unknownWrites.close()
-    const creationWrites = await Promise.all(
-      [...physical.creations.entries()].map(async ([slot, attempt]) => {
-        if (attempt.publication === undefined) return { unavailable: true } as const
-        const result = await attempt.publication.close()
-        if ('released' in result) physical.creations.delete(slot)
-        return result
-      }),
-    )
+    const closeCreation = async ([slot, attempt]: [string, CreationAttempt]) => {
+      if (attempt.publication === undefined) return { unavailable: true } as const
+      const result = await attempt.publication.close()
+      if ('released' in result) physical.creations.delete(slot)
+      return result
+    }
+    const creationWrites = await Promise.all([...physical.creations.entries()].map(closeCreation))
     const custodyResult = ownCustody === undefined ? undefined : await ownCustody.close()
+    const preparationsReleased = () =>
+      prepared.every(result => 'released' in result) && physical.preparations.size === 0
     return 'released' in reads &&
       'released' in appendResult &&
       'released' in writes &&
       creationWrites.every(result => 'released' in result) &&
       (custodyResult === undefined || 'released' in custodyResult) &&
-      prepared.every(result => 'released' in result) &&
-      physical.preparations.size === 0 &&
+      preparationsReleased() &&
       (borrowedScopes !== undefined || 'released' in scopes.close())
       ? ({ released: true } as const)
       : ({ unavailable: true } as const)
