@@ -19,6 +19,14 @@ import type {
   SessionDriverToolBorrow,
   SessionDriverWorkToken,
 } from './driver-types.ts'
+import type {
+  ToolResultInput,
+  ToolResultStored,
+  LocalToolResultCustody,
+  ToolDeliveryInput,
+  LocalToolResultDelivery,
+} from './tool-result-types.ts'
+import { deliverDriverToolWork } from './driver-tool-delivery.ts'
 import { publishDriverActionBatch } from './driver-action-batch.ts'
 import { inspectActionBatch } from './driver-action-facts.ts'
 import { readDriverToolBatch } from './driver-tool-source.ts'
@@ -46,6 +54,11 @@ export interface DriverToolWork {
   source?: SourceToken
   stopped: boolean
   stopFailure?: { readonly error: unknown }
+  custodyInput?: ToolResultInput
+  custodyResult?: Awaited<ReturnType<LocalToolResultCustody['store']>>
+  custody?: ToolResultStored
+  deliveryInput?: ToolDeliveryInput
+  deliveryResult?: Awaited<ReturnType<LocalToolResultDelivery['confirm']>>
 }
 
 /** Holds the actual native participant before its first admission; result and stopped remain separate. */
@@ -93,7 +106,7 @@ class ToolRun {
         }
         const work = this.prepareWork(request, record[0]!.entry.position)
         this.work.push(work)
-        if (!(await this.execute(work))) return 'retained'
+        if (!(await this.executeAndDeliver(work))) return 'retained'
       }
       return 'ended'
     } catch (error) {
@@ -102,6 +115,19 @@ class ToolRun {
     } finally {
       this.driving = false
     }
+  }
+  async executeAndDeliver(work: DriverToolWork) {
+    if (!(await this.execute(work))) return false
+    const delivered = await deliverDriverToolWork({
+      ...this.input,
+      ingress: this.input.options.ingress,
+      runner: this.input.sources.actions.runner,
+      work,
+    })
+    return (
+      'kind' in delivered &&
+      (delivered.kind === 'confirmed' || delivered.kind === 'alreadyConfirmed')
+    )
   }
   async selectedBatch() {
     const published = await publishDriverActionBatch({
@@ -253,10 +279,14 @@ class ToolRun {
       const ended = await observed.observer.waitForEnd()
       if (ended.kind !== 'found' || ended.snapshot.state.phase !== 'ended') return false
       await work.participant.stopped
-      return await this.readTerminal(work, work.participant)
+      return await this.retainResult(work, work.participant)
     } finally {
       observed.observer.release()
     }
+  }
+  async retainResult(work: DriverToolWork, participant: ToolOriginalIssueParticipant) {
+    if (!(await this.readTerminal(work, participant))) return false
+    return await this.storeResult(work)
   }
   async readTerminal(work: DriverToolWork, participant: ToolOriginalIssueParticipant) {
     const { scope } = this.input
@@ -272,6 +302,30 @@ class ToolRun {
     )
     work.terminal = execution.terminal
     work.source = current.source
+    return true
+  }
+  async storeResult(work: DriverToolWork) {
+    const { options, scope } = this.input
+    requireHistory(
+      work.terminal !== undefined && work.participant !== undefined,
+      'original stopped Tool result required',
+    )
+    const current = await this.prefix()
+    const input: ToolResultInput = Object.freeze({
+      original: work.participant.identity,
+      terminal: work.terminal,
+      source: current.source,
+      resultKey: work.identities.resultKey,
+    })
+    work.custodyInput = input
+    const result = await options.ingress.toolResults.store(
+      options.ingress.coordinationAuthority,
+      scope,
+      input,
+    )
+    work.custodyResult = result
+    if (!('witness' in result)) return false
+    work.custody = result
     return true
   }
   close = async (): Promise<'released' | 'pending'> => {

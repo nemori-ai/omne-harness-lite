@@ -73,13 +73,15 @@ export function driverActionFixture(journal: BorrowedRunJournal, batch: DriverTo
   const unreachable = async (): Promise<never> => {
     throw new Error('unexpected unrelated source')
   }
-  const makeScope = async (): Promise<RunnerDispatchScope> => {
+  const makeScope = async (request: {
+    readonly position: string
+  }): Promise<RunnerDispatchScope> => {
     const prefix = await journal.readPrefix()
     if ('failure' in prefix) throw new Error('actual original journal unavailable')
     binding.logGeneration = prefix.source.journalGeneration
     return {
       binding,
-      selectedChain,
+      selectedChain: request.position === 'after_action' ? [] : selectedChain,
       owner,
       action: source,
       isActive: () => active,

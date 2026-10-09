@@ -1,3 +1,5 @@
+import { inspectToolJournalEntry } from '@omne-harness-lite/tool-execution-runtime'
+import { inspectRunnerConclusion } from '@omne-harness-lite/loop-extension-runner'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { compareInteger } from '@omne-harness-lite/session-log'
 import type {
@@ -266,6 +268,13 @@ function toolAdoptionProjection(
       throw error
     }
   })
+  factReaders.set('tool-execution-runtime', (_value, entry) => {
+    const inspected = inspectToolJournalEntry(scope, entry)
+    return 'value' in inspected ? 'valid' : 'invalid'
+  })
+  factReaders.set('loop-extension-runner', (_value, entry) =>
+    'conclusion' in inspectRunnerConclusion({ ...scope, entry }) ? 'valid' : 'invalid',
+  )
   return { ...projection, options: { ...projection.options, factReaders } }
 }
 

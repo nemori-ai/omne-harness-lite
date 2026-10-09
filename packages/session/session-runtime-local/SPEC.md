@@ -280,7 +280,7 @@ root须保留实际可用依赖，直到原closed；服务从Context不可见不
 ### 完整驱动构造的施工面
 
 LocalSessionDriverFactory.create的施工签名接LocalSessionDriverOptions及原启动signal，返回实际驱动control。
-根入口的createLocalSessionDriver已提供正常Model路径。它扫描租户持久工作，建立原Session任务，再借用原Run输入、注册表和Context。工具批次消费和Cordis驱动插件仍须完成；这个入口不表示完整Model／Tool驱动已经交付。
+根入口的createLocalSessionDriver提供正常Model／Tool路径。它扫描租户持久工作，建立原Session任务，再借用原Run输入、注册表和Context。Cordis驱动插件及生产来源组合仍须完成各自验证，不把函数实现称为完整产品交付。
 Options不含home、socket、命令、终端或整个attempt的configure回调。
 root只选择实际来源、Model／Tool提供者及显式工程政策；Session驱动复用core Agent Loop，
 负责扫描、原Run／attempt、日志借用、报告／HostInputs构造、原调用、保管、采用和适用ACK。
@@ -362,7 +362,12 @@ Tool段借用根给定的原factory及本Ingress的同Unit支持，等待实际r
 工具终局须经实际observer和Core工具日志读取，且取得同一个原participant的stopped；observer.release不构成停止证明。
 未知或缺少原终局保持原身份、工作token和必要借用，不重发。执行中撤回只阻断本消费者后继发起，不用共享池关闭代替原任务处理。
 全部原任务取得终局与实际stopped后，可归还本次Tool借用；归还失败保留原责任并可显式续关。
-此时工作账本仍未settled。原结果保管、普通after_action交付、下一Model及完整Cordis组合是其后的条件；Tool终局不直接结束Run。
+每项真实stopped后，driver从原终局和最新Source调用toolResults.store；根给定的实际不可变结果来源核原字节、引用、费用及发起证明。未确认保管不启动after_action、不交付，也不自动重发。
+已可靠保管的原终局给出after_action的原pass、初始subject与选中chain。driver调用实际Runner，核返回原chain，再以不带attempt的请求只读replay；纯composeEffect和passKeys只接各自公开形状，不携带执行字段。效果非proceed或原结论不一致保持责任。
+普通ToolMessage使用原调用、已确认效果结果及原终局结束时间；其身份从该项固定adoptionKey派生。最新Source／permit、原保管witness和全部final结论键一起交toolDelivery.confirm。未知交付保留完整输入、原结果和工作，不启动下一Model；认回仍由公开交付拥有者核原语义。
+整批普通交付和全部真实stopped成立、原Tool借用可靠归还后，driver才能完成该批Tool工作。原Model工作继续保留，直至下一Model工作已经登记；原位置从最后一项已确认普通消息位置派生。有待处理输入时先沿原adoptInput规则消费。
+下一Model复用同一原Run／permit、实际原Model池与Source。投影通过Core工具codec和Runner结论codec核各自事实owner，只将正式消息投入请求；不把工具事件或整批事实包装成SystemReminderMessage，也不改变缓存算法。
+Tool终局或借用归还均不直接结束Run。后继Model完成后仍须经现有无pending及全部工作settled门才能finish；完整Cordis组合另受其行为验证门约束。
 
 来源不完整或代际不符返回unavailable，不补常量CurrentInputs、空history或“已恢复”。
 实际生产者仍按I02及各Core协议实现；该factory只包装这些真实来源，不把数据变成资格。
@@ -407,7 +412,7 @@ E1须验证函数根与Cordis真实输入隔离、工作登记与finish竞争、
 
 本包公开`SessionDriverModelFactory`及`SessionDriverModelBorrow`作为可信根构造协议。
 它们不是新的Model投影服务；实际模型操作及HostInputs沿core/model-request-runtime的现有公开协议。
-正常Model Run的公开driver根函数及实际来源组合已具备限定实现。完整Tool消费和plugin绑定尚未完成；不得把正常Model子集当作完整driver。
+正常Model／Tool Run的公开driver根函数已具备消费实现。plugin绑定及正式生产来源组合仍须完成各自验证，函数实现不表示完整Cordis或产品交付。
 
 Session驱动从真实原Scope／Run及日志借用构造HostInputs，应用根只选择实际Model提供者并装配这些输入。
 acquire须在返回前核完整输入及实际装配成功，返回普通ModelRuntimeOperations和本次装配的release。

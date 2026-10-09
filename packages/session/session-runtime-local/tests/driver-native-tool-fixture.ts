@@ -20,9 +20,13 @@ import {
   createOriginalIssueToolRuntime,
   createToolImplementationRegistry,
   createToolInvoker,
+  createToolOriginalIssueVerifier,
   toolOriginalIssueMigrations,
 } from '@omne-harness-lite/tool-execution-local'
-import { openToolResultStorage } from '@omne-harness-lite/tool-result-files'
+import {
+  openToolResultStorage,
+  openToolResultCustodySource,
+} from '@omne-harness-lite/tool-result-files'
 import {
   createParameterJudge,
   isToolReturn,
@@ -143,6 +147,7 @@ export async function driverNativeToolFixture(input: {
   const binding = { ...scope, logGeneration: generation }
   const taskOwner = createRunnerTaskOwner(binding)
   let native: ReturnType<typeof createOriginalIssueToolRuntime> | undefined
+  let custody: Awaited<ReturnType<typeof openToolResultCustodySource>> | undefined
   const release = vi.fn(async () => {})
   const acquire: SessionDriverToolFactory['acquire'] = vi.fn(async originalIssue => {
     if (native) throw new Error('original driver pool acquired twice')
@@ -222,6 +227,15 @@ export async function driverNativeToolFixture(input: {
         clock: { now: async () => unwrap(instantFromRfc3339('2026-10-08T00:00:00Z')) },
       },
     )
+    custody = await openToolResultCustodySource(
+      { directory: join(input.root, 'driver-results'), storage: 'driver-results' },
+      {
+        storage: input.storage,
+        log: originalIssue.log,
+        access: originalIssue.access,
+        original: createToolOriginalIssueVerifier(input.storage),
+      },
+    )
     return { tenant: scope.tenant, runtime: native, release }
   })
   return {
@@ -234,8 +248,12 @@ export async function driverNativeToolFixture(input: {
     get native() {
       return native
     },
+    get custody() {
+      return custody
+    },
     async close() {
       await native?.close()
+      await custody?.close()
       await admission.close()
       await files.close()
       for (const withdraw of withdraws) withdraw()

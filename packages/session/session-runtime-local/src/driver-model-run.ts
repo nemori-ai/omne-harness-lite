@@ -190,7 +190,7 @@ class ModelRunTask {
     this.phase = 'returning'
     return this.returnOriginal()
   }
-  async runTools(message: string): Promise<'retained'> {
+  async runTools(message: string): Promise<'continue' | 'retained'> {
     const { options, scope, journal, sources } = this.input
     this.phase = 'returningModel'
     await this.returnModel()
@@ -205,8 +205,19 @@ class ModelRunTask {
       permit: this.prepared.preparation.permit,
       signal: this.local.signal,
     })
-    await this.toolRun.completion
-    return this.hold()
+    const ended = await this.toolRun.completion
+    for (const work of this.toolRun.work) this.tokens.add(work.token)
+    if (ended !== 'ended' || this.local.signal.aborted) return this.hold()
+    if ((await this.toolRun.close()) !== 'released') return this.hold()
+    for (const work of this.toolRun.work) options.work.complete(work.token)
+    const delivered = this.toolRun.work.at(-1)?.deliveryResult
+    if (!delivered || !('messagePosition' in delivered)) return this.hold()
+    const observed = await options.ingress.readWork(options.ingress.coordinationAuthority, scope, 1)
+    if (!('kind' in observed)) return this.hold()
+    const pending = observed.inputs[0]
+    return pending === undefined
+      ? this.continueModel(observed.source, delivered.messagePosition)
+      : this.continueInput(observed.source, pending)
   }
   async finishRefused(result: StepCommit): Promise<'continue' | 'retained'> {
     if (!('failure' in result) || result.failure !== 'retryFromFacts') return this.hold()
@@ -257,14 +268,17 @@ class ModelRunTask {
       inputPosition: position,
     })
     if (!adopted) return this.hold()
+    return this.continueModel(adopted.source, adopted.receipt.position)
+  }
+  async continueModel(
+    source: SourceToken,
+    position: SourceToken['tail'],
+  ): Promise<'continue' | 'retained'> {
+    const { scope, options } = this.input
+    const { preparation } = this.prepared
     if (this.local.signal.aborted) return this.hold()
     const next = Object.freeze({
-      ...options.identities.model(
-        scope,
-        preparation.run,
-        preparation.attempt,
-        adopted.receipt.position,
-      ),
+      ...options.identities.model(scope, preparation.run, preparation.attempt, position),
     })
     if (!Object.values(next).every(checkKey))
       throw new TypeError('stable next original model identities required')
@@ -279,8 +293,10 @@ class ModelRunTask {
     })
     const token = options.work.begin(scope, step)
     this.tokens.add(token)
-    const prepared = await this.commitNext(adopted.source, step)
+    const prepared = await this.commitNext(source, step)
     if (!prepared) return this.hold()
+    // The next original work is registered before the preceding Model token completes.
+    options.work.complete(this.token)
     this.prepareModel(
       {
         kind: 'prepared',

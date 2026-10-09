@@ -78,7 +78,7 @@ export function nativeCallFixturePorts(
   ingress: LocalSessionIngress,
   storage: AtomicStorage,
   sendControl?: { readonly entered: () => void; readonly wait: Promise<void> },
-  toolCalls: readonly ToolCallBlock[] = [],
+  toolCalls: readonly ToolCallBlock[] | ((send: number) => readonly ToolCallBlock[]) = [],
 ) {
   const owner = selectionOwner()
   const adaptation = {
@@ -289,7 +289,9 @@ export function nativeCallFixturePorts(
                     index: 0,
                     block: { id, kind: 'text' as const, text: 'actual native result', visibility },
                   }
-                  for (const [offset, block] of toolCalls.entries()) {
+                  const selectedCalls =
+                    typeof toolCalls === 'function' ? toolCalls(sends) : toolCalls
+                  for (const [offset, block] of selectedCalls.entries()) {
                     const index = offset + 1
                     yield {
                       t: 'open' as const,
