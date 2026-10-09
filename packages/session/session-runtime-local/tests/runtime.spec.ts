@@ -1,4 +1,5 @@
 import { Context } from '@deepseek-ai/cordis'
+import { DatabaseSync } from 'node:sqlite'
 import { RUNTIME_CONTEXT } from '@omne-harness-lite/runtime-context/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { z } from 'zod'
@@ -6889,6 +6890,64 @@ describe('driver complete original Model Run', () => {
       await root.dispose()
       await tool?.close()
       await runner?.close()
+    }
+  })
+  it('public driver refuses new Model IO after an actual SQLite call-preparation failure and retains the original Run', async () => {
+    const f = await running()
+    expect(await createDriverModelRunTask(f.input).completion).toBe('released')
+    expect(f.ports.sends()).toBe(1)
+    const options = driverOptions(f),
+      acquire = vi.fn(options.model.factory.acquire)
+    const identities = driverIdentityFixture()
+    identities.run.mockReturnValue({
+      startKey: 'sql-rejected-run',
+      attemptKey: 'sql-rejected-attempt',
+    })
+    identities.model.mockReturnValue({
+      prepareKey: 'sql-rejected-prepare',
+      originalPosition: 'sql-rejected-position',
+      resultKey: 'sql-rejected-result',
+      adoptionKey: 'sql-rejected-adopt',
+      call: unwrap(parseOpaqueIdentifier('sql-rejected-call', 'ModelCallId')),
+      creationKey: unwrap(parseOpaqueIdentifier('sql-rejected-create', 'CreationKey')),
+    })
+    const sql = new DatabaseSync(join(f.f.root, 'tenant.sqlite'))
+    sql.exec(
+      "CREATE TRIGGER reject_model_prepare BEFORE INSERT ON sr_call_preparation BEGIN SELECT RAISE(ABORT, 'controlled actual SQL prepare rejection'); END",
+    )
+    expect(
+      await f.f.runtime.operations.submitInput(
+        f.f.runtime.access,
+        f.scope.session,
+        'sql-rejected-model-input',
+        user('Do not lose this input', 'sql-rejected-model-input'),
+      ),
+    ).toHaveProperty('kind', 'accepted')
+    const control = await createLocalSessionDriver(
+      {
+        ...options,
+        identities: { ...identities, modelContent: options.identities.modelContent },
+        model: { ...options.model, factory: { ...options.model.factory, acquire } },
+      },
+      new AbortController().signal,
+    )
+    try {
+      await vi.waitFor(() => expect(options.diagnostic).toHaveBeenCalledOnce(), { timeout: 10000 })
+      expect(f.ports.sends()).toBe(1)
+      expect(acquire).not.toHaveBeenCalled()
+      expect(await f.f.count('sr_call_preparation')).toEqual({ n: 1 })
+      expect(await f.f.count('sr_model_issue')).toEqual({ n: 1 })
+      const work = await options.ingress.readWork(options.ingress.coordinationAuthority, f.scope, 1)
+      expect(work).toMatchObject({ kind: 'work', head: { run: { state: 'runnable' } } })
+      await expect(control.close()).rejects.toBeInstanceOf(AggregateError)
+      expect(
+        f.native.executionSource.snapshot(f.scope.session).every(row => row.copyReleased),
+      ).toBe(true)
+    } finally {
+      control.requestStop()
+      await control.close().catch(() => undefined)
+      sql.exec('DROP TRIGGER reject_model_prepare')
+      sql.close()
     }
   })
   it('public driver aborted before startup does not scan, acquire or consume persistent input', async () => {
