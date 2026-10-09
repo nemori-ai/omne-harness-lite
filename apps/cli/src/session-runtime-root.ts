@@ -13,6 +13,11 @@ import { parseRunLoginBinding, readCurrentLogin } from './session-preparation.ts
 import { usingGovernanceUse } from './governance-use-work.ts'
 import { createSessionAdmissionProbe } from './session-admission-probe.ts'
 import { createSessionBootstrap } from './session-bootstrap.ts'
+import {
+  deployOfficialSessionDefinition,
+  officialSessionDefinition,
+  officialSessionManifest,
+} from './session-factory-assets.ts'
 import { createSessionOriginalModelOwner } from './session-model-owner.ts'
 import { createSessionModelResultSource } from './session-model-results.ts'
 import { createSessionModelWorkOwner } from './session-work-owner.ts'
@@ -151,12 +156,28 @@ class RuntimeRoot {
       ...o.contextAccess(this.ingress),
       tenant: o.binding.tenant,
     })
+    let inputSource = o.inputSource
+    if (o.creation?.definition.name === officialSessionDefinition.name) {
+      inputSource = {
+        ...inputSource,
+        deployedOfficial: officialSessionManifest(inputSource.deployedOfficial),
+      }
+      await deployOfficialSessionDefinition(
+        {
+          ...inputSource,
+          storage: o.storage,
+          sessionTenancy: this.ingress.tenancy,
+        },
+        o.binding.tenant,
+        o.clock,
+      )
+    }
     this.bootstrap = createSessionBootstrap({
       storage: o.storage,
       admission: this.admission,
       source: o.source,
       tenant: o.binding.tenant,
-      inputSource: o.inputSource,
+      inputSource,
       tenancy: this.ingress.tenancy,
       logBacking: this.log!.backing,
       access: this.access.operations,

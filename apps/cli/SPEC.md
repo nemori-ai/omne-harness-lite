@@ -28,6 +28,14 @@ closed 保留协调器报告及 fiber/端口撤除错误。正常本地打开失
 验证必须包含实际 SQLite/TLS/CLI、异常启动前缀、在途与迟到结果、取消、关闭故障和恢复次序。
 既有有限模型、必要 PTY 与完整 GUI/IME 验收的各自范围保持，不互相替代。
 
+## 随 CLI 发行的官方会话定义
+
+`session-factory-assets.ts` 拥有 `omne:session`、资产 `omne.cli.session-agent` 的官方版本 1。它是实际发行内容，不采用测试资产。发行时间固定在版本内；实际安装时间来自借入 Clock。正文明确声明空 references、attributes 和空 contextSessionSeed，不隐含模型、时限、秘密、预算或工具权限。
+
+实际运行根仅在可信 creation 配置明确选择该定义时部署它。根先核实际 CG 登录，保留现有部署声明，再由具名工厂拥有者调用 EIS 官方安装入口。安装完成后，真实 G28、EIS 配方和独立 Session Context 按原准入路径消费定义；不能以 official 来源代替成员或执行授权。其他显式根不被替换，未配置 creation 不自动建会话。
+
+重新启动认回原 release、revision 和安装时间；冲突、Clock unavailable 或发布结果不明均停止该次启动并收场，不覆盖、不重发、不把会话发布为 active。此装配承诺不表示正式 main 已完成宿主进程启动或真实 OpenRouter 验收。
+
 ## 应用根与租户目录
 
 负责人已明确每租户有独立目录，并能识别自己的治理中心。应用路径形状由

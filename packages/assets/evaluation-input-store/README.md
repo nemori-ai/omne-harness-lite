@@ -10,7 +10,7 @@ Read owned evaluation input from immutable local publications, actual session te
 | --- | --- |
 | `.` | `createEvaluationInputReader`, `evaluationInputMigrations`, dependency/reader types |
 | `./cordis` | `evaluationInputStorePlugin`; the shared CurrentEvaluationInputs Service and support ports belong to asset-evaluation |
-| `./publication` | Trusted `publishLocalInputs`, `captureSessionRecipe`, `readPublicationRevision` and publication types |
+| `./publication` | Trusted `publishLocalInputs`, `installOfficialFactoryDefinition`, `captureSessionRecipe`, `readPublicationRevision` and publication types |
 | `./admitted` | Fixed-Session source with trusted current authorization and original recipe capture. See [SPEC](SPEC.md). |
 | `./registry-inputs` | Restricted fixed-root reader for an admitted registry caller |
 | `./registry-history` | `createRegistryHistoryReader` and history types for authorized exact historical body reads |

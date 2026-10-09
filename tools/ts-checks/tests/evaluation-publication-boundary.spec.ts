@@ -3,6 +3,7 @@ import { evaluationPublicationBoundary } from '../src/rules/evaluation-publicati
 const entry = '@omne-harness-lite/evaluation-input-store/publication'
 const imported = `import { publishLocalInputs, captureSessionRecipe } from '${entry}';`
 test.each([
+  'apps/cli/src/session-factory-assets.ts',
   'examples/model-invocation-minimal-demo/src/bootstrap.ts',
   'examples/model-invocation-minimal-demo/tests/bootstrap.spec.ts',
   'packages/assets/evaluation-input-store/tests/crash-worker.mjs',
@@ -13,6 +14,8 @@ test.each([
   expect(evaluationPublicationBoundary.check([{ path, text: imported }])).toEqual([])
 })
 test.each([
+  'apps/cli/src/entry-providers.ts',
+  'apps/cli/src/session-runtime-root.ts',
   'packages/model/model-request-runtime-local/src/runtime.ts',
   'packages/agent-loop/loop-extension-runner-local/src/runner-chain.ts',
   'packages/agent-loop/loop-extension-runner-local/tests/unapproved-publication.ts',

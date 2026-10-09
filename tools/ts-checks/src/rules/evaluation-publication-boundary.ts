@@ -8,6 +8,13 @@ const entries = [
   '@omne-harness-lite/evaluation-input-store/admitted',
 ] as const
 type Entry = (typeof entries)[number]
+const namedPublishers = new Set([
+  'apps/cli/src/session-factory-assets.ts',
+  'apps/cli/tests/session-bootstrap.spec.ts',
+  'packages/model/model-request-runtime-local/tests/session-selection-fixture.ts',
+  'packages/agent-loop/loop-extension-runner-local/tests/runner-chain-support.ts',
+  'examples/model-invocation-minimal-demo/src/bootstrap.ts',
+])
 function owner(path: string): boolean {
   return /^packages\/assets\/evaluation-input-store\/src\/[^/]+\.ts$/u.test(path)
 }
@@ -21,10 +28,7 @@ function allowed(path: string, target: Entry): boolean {
   return (
     owner(path) ||
     /^packages\/assets\/evaluation-input-store\/tests\/.+\.(?:ts|mjs)$/u.test(path) ||
-    path === 'apps/cli/tests/session-bootstrap.spec.ts' ||
-    path === 'packages/model/model-request-runtime-local/tests/session-selection-fixture.ts' ||
-    path === 'packages/agent-loop/loop-extension-runner-local/tests/runner-chain-support.ts' ||
-    path === 'examples/model-invocation-minimal-demo/src/bootstrap.ts' ||
+    namedPublishers.has(path) ||
     /^examples\/model-invocation-minimal-demo\/tests\/.+\.ts$/u.test(path)
   )
 }
@@ -44,7 +48,7 @@ export const evaluationPublicationBoundary: Rule = {
   source:
     'packages/assets/evaluation-input-store/SPEC.md: 持久身份、发布与捕获; verification/README.md',
   description:
-    'source publication and admitted recipe capture are held by their owner and named trusted application/bootstrap fixtures',
+    'source publication and admitted recipe capture are held by their owner, named CLI factory and trusted bootstrap fixtures',
   check(files) {
     const violations: Violation[] = []
     const report = (file: SourceFile, index: number, message: string) => {
@@ -65,7 +69,7 @@ export const evaluationPublicationBoundary: Rule = {
           report(
             file,
             ref.index,
-            'publication is limited to its component owner, trusted acceptance bootstrap/tests and named real-source fixture through the public entry',
+            'publication is limited to its component owner, named CLI factory and trusted bootstrap/tests through the public entry',
           )
       if (refs.length === 0) continue
       visitSyntax(syntax, node => {

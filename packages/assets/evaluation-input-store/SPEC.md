@@ -20,6 +20,16 @@
 - 捕获前实际 SessionTenancy owner 已建立不可变映射。本包核 holdingTenant，再在 EIS-OG 同一 atomic 取真实 effective standing。既有 recipe 只比较 tenant/root/session values/workspace；相同返回原捕获值，不同返回 conflict，不用后来角色覆写。
 - 首次捕获使用当时真实来源与角色。映射建立与 recipe 捕获是两个 owner 的步骤，没有跨 owner 的会话创建同提交保证；中间缺 recipe 为 unavailable。首次 capture 的原子准入可在 mutate 内构造和求值；下文“事务后纯阶段”只约束三种读取。
 
+### 官方工厂定义部署
+
+`./publication` 的 `installOfficialFactoryDefinition` 由可信工厂部署拥有者使用。CLI 的具名拥有者是 `apps/cli/src/session-factory-assets.ts`；普通运行时、命令输入和消费者没有发布权，也不能转导出该入口。CLI 发行最小官方会话定义的依据为负责人明确选择；这不扩大其他调用方的发布权限。
+
+安装输入必须是部署清单已声明的 official 定义、一个已发布版本、无 draft，以及实际安装时间。工厂持有的 immutable 沿清单 meta，配值为空。安装不授予成员资格、Context 读取权、模型或工具执行权。
+
+部署读取同一快照中的原定义、完整版本、工厂持有和指定组织／租户层。原 release 或同能力工厂持有不同则 conflict，不覆盖。已有且一致时认回原 revision 和 holding.since，不重新发布。不存在时使用原 publishLocalInputs 的 expectedRevision 同提交发布；并发变更返回 conflict，不自动重试。
+
+新增持有保留工厂其他持有。指定的组织／租户层只在缺失时明确建立为空；已有层、其他资产和会话配方不改写。完整工厂集合仍须与可信部署清单一致。存储失败或提交响应丢失返回 unavailable，不声称回滚；调用方可再次核原身份，不能换 release 或冒认成功。
+
 ## 普通当前读取
 
 1. 先校验形状，再核实例准入，再读实际 SessionTenancy 归属，然后核当前 OG effective 和 recipe tenant。合法跨租户、未知或撤销拒绝为 unavailable；畸形为 invalidInput，即使已停止也先拒绝畸形。

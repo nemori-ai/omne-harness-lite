@@ -1,4 +1,5 @@
 import { sessionRecipe, captureRecipeIn } from './recipe-store.ts'
+export { installOfficialFactoryDefinition } from './factory-installation.ts'
 import {
   capabilityCanonicalString,
   BodyProviderUnavailableError,

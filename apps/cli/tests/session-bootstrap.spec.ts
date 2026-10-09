@@ -4,6 +4,11 @@ import {
 } from '../src/session-work-owner.ts'
 import { startRunningSessionHost } from '../src/session-execution-host.ts'
 import { startSessionRuntimeRoot } from '../src/session-runtime-root.ts'
+import {
+  officialSessionDefinition,
+  officialSessionAsset,
+  officialSessionManifest,
+} from '../src/session-factory-assets.ts'
 import type { SessionRuntimeRootOptions } from '../src/session-runtime-root-types.ts'
 import { sendSessionHostRequest } from '../src/session-host-client.ts'
 import { createSessionForMessage } from '../src/session-creation-client.ts'
@@ -98,7 +103,10 @@ import {
   inspectContextLogEntry,
 } from '@omne-harness-lite/runtime-context-local'
 import { evaluationInputMigrations } from '@omne-harness-lite/evaluation-input-store'
-import { publishLocalInputs } from '@omne-harness-lite/evaluation-input-store/publication'
+import {
+  publishLocalInputs,
+  readPublicationRevision,
+} from '@omne-harness-lite/evaluation-input-store/publication'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import { contextSeedFromDefinition } from '../src/session-seed.ts'
 import { createSessionAdmissionProbe } from '../src/session-admission-probe.ts'
@@ -620,6 +628,61 @@ async function rootFixture(withModel = false) {
   }
   return { f, options, configure }
 }
+it('deploys the actual CLI official release and creates an independently initialized empty Session', async () => {
+  const { f, options, configure } = await rootFixture()
+  const creation = {
+    definition: officialSessionDefinition,
+    mode: input.mode,
+    collaboration: input.collaboration,
+    executionType: input.executionType,
+  }
+  const root = await startSessionRuntimeRoot({ ...options, creation })
+  const deployed = { ...f.base, deployedOfficial: officialSessionManifest(f.base.deployedOfficial) }
+  expect(await readPublicationRevision(deployed)).toEqual({ revision: '2' })
+  cleanup.push(async () => {
+    expect(await root.close()).toEqual({ closed: true })
+  })
+  const created = await root.owners.ingress.operations.createSession(root.owners.ingress.access, {
+    ...creation,
+    operationKey: 'create-official-session',
+  })
+  if (!('kind' in created) || created.kind !== 'created')
+    throw new Error('official Session not created')
+  const scope = { tenant, session: created.session }
+  expect(root.owners.bootstrap.context(scope)).toBeDefined()
+  expect(await root.owners.bootstrap.inputs(scope)?.read(scope.session, tenant)).toMatchObject({
+    input: {
+      root: {
+        definition: officialSessionDefinition,
+        source: { asset: officialSessionAsset.id, version: 1 },
+        attributes: [],
+        references: [],
+      },
+    },
+  })
+  expect(
+    await root.owners.ingress.readWork(root.owners.ingress.coordinationAuthority, scope, 1),
+  ).toMatchObject({ kind: 'work', inputs: [], head: { run: null } })
+  expect(configure).toHaveBeenCalledOnce()
+  expect(await root.close()).toEqual({ closed: true })
+  // Reopen the actual running root without republishing the immutable CLI release.
+  const next = await startSessionRuntimeRoot({ ...options, creation })
+  expect(await readPublicationRevision(deployed)).toEqual({ revision: '2' })
+  cleanup.push(async () => {
+    expect(await next.close()).toEqual({ closed: true })
+  })
+  const recognized = await next.owners.ingress.operations.createSession(
+    next.owners.ingress.access,
+    {
+      ...creation,
+      operationKey: 'create-official-session',
+    },
+  )
+  expect(recognized).toEqual(created)
+  expect(await next.close()).toEqual({ closed: true })
+  // The actual storage and CG remain borrowed; their original cleanup still belongs to f.
+  expect(f.storage).toBe(options.storage)
+})
 it('assembles the actual runtime root and creates a legal empty Session through its socket without starting a model', async () => {
   const { f, options, configure } = await rootFixture()
   const root = await startSessionRuntimeRoot(options)

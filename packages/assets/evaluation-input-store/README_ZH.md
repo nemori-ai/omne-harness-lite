@@ -10,7 +10,7 @@
 | --- | --- |
 | `.` | `createEvaluationInputReader`、`evaluationInputMigrations` 和依赖/reader类型 |
 | `./cordis` | `evaluationInputStorePlugin`；共享 CurrentEvaluationInputs Service及支持端口归asset-evaluation |
-| `./publication` | 可信 `publishLocalInputs`、`captureSessionRecipe`、`readPublicationRevision` 及发布类型 |
+| `./publication` | 可信 `publishLocalInputs`、`installOfficialFactoryDefinition`、`captureSessionRecipe`、`readPublicationRevision` 及发布类型 |
 | `./admitted` | 固定Session的可信当前授权单元来源和原创建配方捕获，见[SPEC](SPEC.md) |
 | `./registry-inputs` | 供已准入 registry 调用者使用的受限固定根读取器 |
 | `./registry-history` | `createRegistryHistoryReader` 及历史类型，读取已授权精确历史正文 |
