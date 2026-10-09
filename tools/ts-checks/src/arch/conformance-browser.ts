@@ -1,12 +1,14 @@
 /// <reference lib="dom" />
 import type { ArchitectureView, SelectedArchitecture } from './view.ts'
 import type { ConformanceRow } from './conformance-model.ts'
+import type { ReportUiApi } from './flow/controls-api.ts'
 
 /** Separate intent navigation from source graph layout. All external values enter through textContent. */
 export function conformanceBrowser(
   graph: ArchitectureView,
   focus: (member: string) => void,
   selected: () => SelectedArchitecture,
+  ui: ReportUiApi,
 ): {
   refresh: () => void
   open: (member?: string) => void
@@ -22,36 +24,24 @@ export function conformanceBrowser(
     node.textContent = text
     return node
   }
-  const button = (text: string, action: () => void): HTMLElement => {
-    const node = el('button', text)
-    node.addEventListener('click', action)
-    return node
-  }
-  const selector = (id: string): HTMLSelectElement => {
-    const node = required(id)
-    if (!(node instanceof HTMLSelectElement)) throw new Error('Expected conformance selector')
-    return node
-  }
-  const state = selector('conformance-state'),
-    domain = selector('conformance-domain'),
-    member = selector('conformance-member')
+  // 下拉与按钮由 antd 渲染，经句柄读写。
+  const state = ui.select('conformance-state'),
+    domain = ui.select('conformance-domain'),
+    member = ui.select('conformance-member')
   const doc = graph.conformance,
     input = doc?.comparedWith === 'baseline' ? doc.baseline : doc?.current
   const rows = doc?.rows ?? []
   let limit = 60
   const roles = input?.value?.roles ?? []
   const domains = input?.value?.domains ?? doc?.current.value?.domains ?? []
-  const option = (value: string, text: string) => {
-    const node = document.createElement('option')
-    node.value = value
-    node.textContent = text
-    return node
-  }
-  domain.append(option('', '全部责任板块'))
-  for (const row of domains) domain.append(option(row.id, row.label))
-  member.append(option('', '全部成员'))
-  for (const node of graph.nodes.filter(node => node.member !== undefined))
-    member.append(option(node.member ?? '', node.member ?? node.label))
+  const option = (value: string, label: string) => ({ value, label })
+  domain.setOptions([option('', '全部责任板块'), ...domains.map(row => option(row.id, row.label))])
+  member.setOptions([
+    option('', '全部成员'),
+    ...graph.nodes
+      .filter(node => node.member !== undefined)
+      .map(node => option(node.member ?? '', node.member ?? node.label)),
+  ])
   const locatedMembers = (id: string) =>
     new Set(
       roles
@@ -81,7 +71,11 @@ export function conformanceBrowser(
       card.setAttribute('data-state', row.state)
       card.setAttribute('data-age', row.age)
       card.append(
-        button(`${row.rule} · ${row.state} · ${row.age} · ${row.member}`, () => focus(row.member)),
+        ui.action(
+          `${row.rule} · ${row.state} · ${row.age} · ${row.member}`,
+          () => focus(row.member),
+          'link',
+        ),
         el('p', `${row.key} · ${row.reason}`),
         el('p', `预期出处：${row.expected}`),
         ...row.sites.map(site => el('code', `${site.path}:${site.line}`)),
@@ -90,7 +84,7 @@ export function conformanceBrowser(
     }
     if (chosen.length > limit)
       container.append(
-        button('显示更多结果', () => {
+        ui.action('显示更多结果', () => {
           limit += 60
           refresh()
         }),
@@ -110,11 +104,11 @@ export function conformanceBrowser(
     refresh()
   }
   for (const control of [state, domain, member])
-    control.addEventListener('change', () => {
+    control.onChange(() => {
       limit = 60
       refresh()
     })
-  required('conformance-tab').addEventListener('click', () => open())
+  ui.onView('conformance', () => open())
   required('conformance-coordinate').textContent =
     doc === undefined
       ? '全局预期未提供，符合性未判定。'

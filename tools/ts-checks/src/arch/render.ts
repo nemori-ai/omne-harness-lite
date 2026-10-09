@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { gzipSync } from 'node:zlib'
+import { transformSync } from 'esbuild'
 import { architectureBrowser } from './browser.ts'
 import { architectureLayoutInput } from './layout.ts'
 import { architectureViewport } from './viewport.ts'
@@ -7,76 +9,127 @@ import { architectureMatrix } from './matrix.ts'
 import { conformanceBrowser } from './conformance-browser.ts'
 import { selectArchitectureView, type ArchitectureView } from './view.ts'
 
-export function architectureMarkup(graph: ArchitectureView): string {
-  const data = JSON.stringify(graph)
-    .replaceAll('<', '\\u003c')
-    .replaceAll('\u2028', '\\u2028')
-    .replaceAll('\u2029', '\\u2029')
-  const bundle = readFileSync(
+let elk: string | undefined
+
+/**
+ * elkjs 不发布压缩过的 elk.bundled.js（只有 elk-worker.min.js），这里在生成页面时压缩一次并缓存。
+ * 它的版权声明是普通注释，压缩会删掉，所以先摘出带 Copyright 的声明块，去重后放回开头。
+ */
+export function elkScript(): string {
+  if (elk !== undefined) return elk
+  const source = readFileSync(
     createRequire(import.meta.url).resolve('elkjs/lib/elk.bundled.js'),
     'utf8',
   )
+  const notices = [
+    ...new Set(
+      (source.match(/\/\*[\s\S]*?\*\//gu) ?? []).filter(text => text.includes('Copyright')),
+    ),
+  ]
+  const code = transformSync(source, { minify: true, legalComments: 'none', target: 'es2020' }).code
+  elk = `${notices.join('\n')}\n${code}`
+  return elk
+}
+
+export function architectureMarkup(graph: ArchitectureView): string {
+  // 架构数据有几十 MB 且高度重复：gzip 后以 base64 内联，体积约为原来的 5%。
+  // base64 只含字母、数字与 +/=，不可能提前闭合脚本标签。
+  const data = gzipSync(JSON.stringify(graph), { level: 9 }).toString('base64')
+  const bundle = elkScript()
+  const inline = (script: string): string => script.replaceAll('</script', '<\\/script')
+  // React Flow 的 bundle 与样式由 renderPage 内联一次，架构视图与结构图共用。
   return `<style>
-button,select { font:inherit; color:inherit; background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:6px 9px; }
-button { cursor:pointer; } button:disabled { cursor:wait; opacity:.45; }
-button:focus-visible,select:focus-visible { outline:3px solid var(--changed); outline-offset:2px; }
-[hidden] { display:none !important; }
-.arch-nav { display:flex; gap:8px; margin-bottom:14px; }
-#architecture-pane { --canvas:#fafbf9; }
-.arch-heading { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
-.arch-heading h1 { margin:0; font-size:22px; }
-#arch-counts { font-size:12px; color:var(--muted); margin:0; }
-#arch-coordinate { font-size:11px; overflow-wrap:anywhere; }
-.arch-toolbar { display:flex; flex-wrap:wrap; gap:9px 14px; padding:12px 0; }
-.arch-toolbar label { display:flex; align-items:center; gap:6px; font-size:12px; }
-.arch-toolbar select { max-width:320px; }
-#arch-kinds { display:flex; flex-wrap:wrap; gap:7px 13px; font-size:12px; }
-.arch-filters { margin-bottom:12px; } .arch-filters summary { cursor:pointer; color:var(--muted); }
-.arch-filters fieldset { margin:10px 0; border:1px solid var(--line); border-radius:6px; }
-.arch-workspace { display:grid; grid-template-columns:190px minmax(0,1fr) 300px; border:1px solid var(--line); border-radius:10px; overflow:hidden; height:72vh; min-height:520px; background:var(--panel); }
-.arch-sidebar { min-width:0; overflow:auto; padding:14px; background:var(--panel); }
-.arch-sidebar h2 { font-size:11px; letter-spacing:.06em; color:var(--muted); margin:8px 0 12px; }
-.arch-sidebar h3 { font-size:12px; }
-.arch-sidebar p,.arch-sidebar li { font-size:12px; line-height:1.6; }
+/* 视图切换：吸顶的分段控件；当前视图由面板是否隐藏决定，不另设状态。 */
+body:has(.arch-nav) { --sticky-top:57px; }
+.arch-nav { position:sticky; top:0; z-index:20; display:flex; gap:4px; height:57px; align-items:center;
+  margin:-32px calc(50% - 50vw) 28px; padding:0 max(32px, calc(50vw - 880px));
+  background:color-mix(in srgb, var(--bg) 86%, transparent); -webkit-backdrop-filter:saturate(1.4) blur(10px); backdrop-filter:saturate(1.4) blur(10px);
+  border-bottom:1px solid var(--line); }
+.arch-heading { display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px 24px; }
+.arch-heading h1 { margin:0; }
+#arch-counts { font-size:13px; color:var(--muted); margin:0; font-variant-numeric:tabular-nums; }
+#arch-coordinate { font-size:12px; margin:6px 0 0; overflow-wrap:anywhere; color:var(--faint); }
+.arch-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px; padding:18px 0 14px; }
+.arch-toolbar label { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); }
+.arch-toolbar select { max-width:320px; color:var(--fg); }
+/* 折叠区由 antd Collapse 渲染；外层只管间距。#conformance-expected-path 仍是普通面板。 */
+.ui-collapse { margin:0 0 12px; }
+#architecture-pane .ui-collapse.arch-notice { margin-top:16px; } #architecture-pane .ui-collapse.arch-notice ~ .ui-collapse.arch-notice { margin-top:0; }
+.ui-collapse .ant-collapse { background:var(--panel); }
+.ui-collapse .ant-collapse-header-text { font-weight:600; }
+.ui-collapse .arch-toolbar { padding:0 0 14px; }
+.arch-filters fieldset { margin:0; padding:12px 14px 14px; border:1px solid var(--line); border-radius:var(--r-item); }
+.arch-filters legend { padding:0 6px; font-size:12px; color:var(--muted); }
+#arch-kinds { display:flex; flex-wrap:wrap; gap:6px 18px; }
+.ui-collapse p, .ui-collapse li { font-size:13px; line-height:1.7; }
+.ui-collapse-body > :first-child { margin-top:0; } .ui-collapse-body > :last-child { margin-bottom:0; }
+div.arch-notice:not(.ui-collapse) { margin:0 0 12px; padding:4px 16px; background:var(--panel); border:1px solid var(--line); border-radius:var(--r-panel); }
+.arch-workspace { display:grid; grid-template-columns:200px minmax(0,1fr) 320px; border:1px solid var(--line); border-radius:var(--r-panel);
+  overflow:hidden; height:72vh; min-height:520px; background:var(--panel); margin-bottom:16px; }
+.arch-sidebar { min-width:0; overflow:auto; padding:16px; background:var(--panel); }
+.arch-sidebar h2 { font-size:12px; font-weight:600; color:var(--muted); margin:6px 0 10px; }
+.arch-sidebar h2 ~ h2 { margin-top:22px; }
+.arch-sidebar h3 { font-size:13px; }
+.arch-sidebar p, .arch-sidebar li { font-size:12.5px; line-height:1.65; }
 .arch-navigation { border-right:1px solid var(--line); }
-.arch-card,.arch-item,.arch-edge { display:block; text-align:left; width:100%; margin:4px 0; padding:8px; overflow-wrap:anywhere; font-size:11px; }
-.arch-card[aria-current=true] { border-color:var(--changed); background:#eaf1fa; }
+.arch-card, .arch-item, .arch-edge { display:block; height:auto; text-align:left; width:100%; margin:0 0 6px; padding:8px 10px; line-height:1.45;
+  overflow-wrap:anywhere; font-size:12px; border-color:var(--line); border-radius:var(--r-item); }
+.arch-card:hover, .arch-item:hover, .arch-edge:hover { border-color:color-mix(in srgb, var(--fg) 28%, var(--line-strong)); }
+.arch-card[aria-current=true], .arch-item[aria-current=true] { border-color:var(--line-strong); box-shadow:inset 3px 0 0 var(--ink);
+  background:var(--panel-2); color:var(--fg); font-weight:600; }
+.arch-card[aria-current=true]:hover, .arch-item[aria-current=true]:hover { background:color-mix(in srgb, var(--panel-2) 70%, var(--line)); }
 .arch-canvas { display:flex; flex-direction:column; min-width:0; overflow:hidden; background:var(--canvas); }
-.arch-canvas-bar { display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:10px 12px; border-bottom:1px solid var(--line); font-size:11px; background:var(--panel); }
-#arch-breadcrumb { flex:1; overflow-wrap:anywhere; }
-#arch-breadcrumb button { border:0; padding:3px; background:none; font-size:11px; }
+.arch-canvas-bar { display:flex; align-items:center; flex-wrap:wrap; gap:6px; padding:8px 12px; border-bottom:1px solid var(--line); font-size:12px; background:var(--panel); }
+#arch-breadcrumb { flex:1; overflow-wrap:anywhere; color:var(--muted); }
+.ui-link .ant-btn { padding:0 4px; height:auto; }
 #arch-diagram { flex:1; min-height:0; overflow:hidden; position:relative; }
-#arch-diagram svg { display:block; width:100%; height:100%; touch-action:none; cursor:grab; }
-#arch-diagram svg:active { cursor:grabbing; }
-#arch-diagram [data-node-id],#arch-diagram [data-edge-id] { cursor:pointer; }
+#arch-diagram > svg { display:block; width:100%; height:100%; touch-action:none; cursor:grab; background:#fafbf9; }
+#arch-diagram > svg:active { cursor:grabbing; }
+#arch-diagram > svg [data-node-id],#arch-diagram > svg [data-edge-id] { cursor:pointer; }
 #arch-diagram g[role=button]:hover rect { stroke:#1f6feb; stroke-width:2; }
 #arch-diagram path[role=button]:hover { stroke:#1f6feb; stroke-width:4; }
-.arch-canvas-footer { padding:8px 12px; border-top:1px solid var(--line); background:var(--panel); font-size:11px; color:var(--muted); }
-.arch-loading,.arch-error { padding:24px; } .arch-error { color:#a83228; }
+.arch-canvas-footer { padding:8px 12px; border-top:1px solid var(--line); background:var(--panel); font-size:12px; color:var(--muted); }
+.arch-loading,.arch-error { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:24px;
+  background-image:radial-gradient(circle, rgba(120,128,140,.35) 1px, transparent 1.6px); background-size:22px 22px; }
+.arch-loading { opacity:0; animation:arch-fade-in .25s ease .15s forwards; }
+.arch-paper { background-color:#fafbf9; }
+.arch-status-box { display:flex; flex-direction:column; align-items:center; gap:4px; min-width:260px; max-width:560px; padding:18px 24px; border:1px solid var(--line); border-radius:var(--r-item); background:var(--panel); color:var(--fg); box-shadow:var(--shadow-float); }
+.arch-error .arch-status-box { align-items:flex-start; border-color:var(--bad); border-left-width:4px; }
+.arch-loading-ring { width:26px; height:26px; margin-bottom:6px; border-radius:50%; border:2.5px solid color-mix(in srgb, var(--line) 85%, transparent); border-top-color:var(--changed); animation:arch-spin .9s linear infinite; }
+.arch-status-title { margin:0; font-size:13px; font-weight:600; }
+.arch-status-detail { margin:0; font-size:12px; color:var(--muted); overflow-wrap:anywhere; }
+.arch-error .arch-status-title { color:var(--bad); }
+@keyframes arch-spin { to { transform:rotate(360deg); } }
+@keyframes arch-fade-in { to { opacity:1; } }
+@media (prefers-reduced-motion: reduce) { .arch-loading { animation:none; opacity:1; } .arch-loading-ring { animation:none; } }
 .arch-inspector { border-left:1px solid var(--line); }
-#arch-detail { overflow-wrap:anywhere; } #arch-detail h2 { font-size:15px; color:var(--ink); }
-#arch-detail code { display:block; font-size:10px; overflow-wrap:anywhere; }
-#arch-detail ul { padding-left:18px; } #arch-unknown li { overflow-wrap:anywhere; }
-.arch-notice { padding:9px 12px; border:1px solid var(--line); border-radius:6px; background:var(--panel); font-size:12px; margin-top:12px; }
-.arch-notice summary { cursor:pointer; }
-.conformance-domains { display:grid; grid-template-columns:repeat(auto-fit,minmax(270px,1fr)); gap:10px; }
-.conformance-domain-card,.conformance-row { padding:12px; border:1px solid var(--line); border-radius:8px; margin:8px 0; overflow-wrap:anywhere; }
-.conformance-domain-card p,.conformance-row p { font-size:12px; }
+#arch-detail { overflow-wrap:anywhere; } #arch-detail h2 { font-size:15px; color:var(--fg); margin:4px 0 8px; }
+#arch-detail code { display:block; font-size:11px; color:var(--muted); overflow-wrap:anywhere; }
+#arch-detail ul { padding-left:18px; } #arch-detail .ui-action { display:inline-block; margin:6px 8px 6px 0; } #arch-unknown li { overflow-wrap:anywhere; }
+#conformance-pane .arch-toolbar { padding-top:20px; }
+#conformance-counts { font-size:14px; font-weight:500; margin:4px 0 2px; font-variant-numeric:tabular-nums; }
+#conformance-selection { margin:0 0 12px; }
+.conformance-domains { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:10px; }
+.conformance-domain-card, .conformance-row { padding:12px 14px; background:var(--panel); border:1px solid var(--line); border-radius:var(--r-item); margin:8px 0; overflow-wrap:anywhere; }
+.conformance-domain-card p, .conformance-row p { font-size:12.5px; line-height:1.65; }
 .conformance-row[data-state=deviation] { border-left:4px solid #ad6100; }
-.conformance-row code { display:block; font-size:11px; }
+.conformance-row code { display:block; font-size:11.5px; color:var(--muted); }
+#conformance-expected-path { padding:4px 16px; }
 #conformance-pane pre { white-space:pre-wrap; overflow-wrap:anywhere; }
-@media(min-width:1700px) { .arch-workspace { grid-template-columns:220px minmax(0,1fr) 330px; } }
-@media(max-width:1050px) { .arch-workspace { grid-template-columns:155px minmax(0,1fr) 245px; } .arch-sidebar { padding:9px; } }
-@media(max-width:760px) { .arch-workspace { display:block; height:auto; } .arch-navigation { max-height:180px; border-bottom:1px solid var(--line); } .arch-canvas { height:65vh; min-height:360px; } .arch-inspector { max-height:420px; border-top:1px solid var(--line); } }
+@media(min-width:1700px) { .arch-workspace { grid-template-columns:230px minmax(0,1fr) 350px; } }
+@media(max-width:1050px) { .arch-workspace { grid-template-columns:160px minmax(0,1fr) 250px; } .arch-sidebar { padding:10px; } }
+@media(max-width:760px) { .arch-nav { margin:-20px -16px 20px; padding:0 16px; overflow-x:auto; } .arch-workspace { display:block; height:auto; } .arch-navigation { max-height:180px; border-right:0; border-bottom:1px solid var(--line); } .arch-canvas { height:65vh; min-height:360px; } .arch-inspector { max-height:420px; border-left:0; border-top:1px solid var(--line); } }
 </style>
 <nav class="arch-nav" aria-label="评审视图"><button id="arch-tab">架构视图</button><button id="conformance-tab">责任与符合性</button><button id="metrics-tab">复杂度与风险</button></nav>
 <section id="architecture-pane">
+<header class="pane-head">
 <div class="arch-heading"><h1>全局实际架构</h1><p id="arch-counts"></p></div>
 <p id="arch-coordinate" class="meta mono"></p>
+</header>
 <div class="arch-toolbar">
 <button id="arch-home">系统总览</button>
-<label>目录组或应用 <select id="arch-group"></select></label>
-<label>聚焦组件 <select id="arch-focus"></select></label>
+<label>目录组或应用 <select id="arch-group" data-width="200"></select></label>
+<label>聚焦组件 <select id="arch-focus" data-width="320" data-search></select></label>
 <label><input id="arch-neighbors" type="checkbox" checked>显示邻接</label>
 </div>
 <details class="arch-filters" open><summary>关系、变化与度量</summary>
@@ -94,7 +147,7 @@ button:focus-visible,select:focus-visible { outline:3px solid var(--changed); ou
 <div class="arch-canvas">
 <div class="arch-canvas-bar"><nav id="arch-breadcrumb" aria-label="当前架构路径"></nav><button id="arch-matrix">依赖矩阵</button><button id="arch-graph">关系图</button><button id="arch-zoom-in">放大</button><button id="arch-zoom-out">缩小</button><button id="arch-fit">适应全图</button></div>
 <div id="arch-diagram" role="region" aria-label="架构画布" aria-busy="true" data-layout-state="loading"></div>
-<div class="arch-canvas-footer"><span id="arch-layout-status" role="status" aria-live="polite">正在布局…</span> · 拖动画布空白区域平移</div>
+<div class="arch-canvas-footer"><span id="arch-layout-status" role="status" aria-live="polite">正在布局…</span> · <span id="arch-canvas-hint">拖动画布空白区域平移</span></div>
 </div>
 <aside class="arch-sidebar arch-inspector" aria-label="架构详情"><h2>所选节点或关系</h2><div id="arch-detail"></div><h2>关系清单</h2><div id="arch-relations"></div></aside>
 </div>
@@ -107,18 +160,40 @@ button:focus-visible,select:focus-visible { outline:3px solid var(--changed); ou
 <details class="arch-notice"><summary>六问导航与尚未确认的边界</summary><div id="arch-guidance"></div></details>
 </section>
 <section id="conformance-pane" hidden>
-<h1>系统责任与架构符合性</h1><p id="conformance-coordinate" class="meta"></p>
+<header class="pane-head"><h1>系统责任与架构符合性</h1><p id="conformance-coordinate" class="meta"></p></header>
 <div id="conformance-expected-path" class="arch-notice"></div>
 <details class="arch-notice"><summary>已认可责任方向与候选实现映射</summary><div id="conformance-responsibility" class="conformance-domains"></div></details>
-<div class="arch-toolbar"><label>结果 <select id="conformance-state"><option value="deviation">静态偏离</option><option value="new">新增偏离</option><option value="stock">存量偏离</option><option value="unknown">未知</option><option value="converged">有限静态检查符合</option><option value="all">全部</option></select></label><label>责任 <select id="conformance-domain"></select></label><label>成员 <select id="conformance-member"></select></label></div>
+<div class="arch-toolbar"><label>结果 <select id="conformance-state"><option value="deviation">静态偏离</option><option value="new">新增偏离</option><option value="stock">存量偏离</option><option value="unknown">未知</option><option value="converged">有限静态检查符合</option><option value="all">全部</option></select></label><label>责任 <select id="conformance-domain"></select></label><label>成员 <select id="conformance-member" data-width="320" data-search></select></label></div>
 <p id="conformance-counts"></p><p id="conformance-selection" class="meta"></p><div id="conformance-rows"></div>
 <details class="arch-notice" open><summary>预期语义变化</summary><div id="conformance-changes"></div></details>
 <details class="arch-notice"><summary>机械、人工与行为证据边界</summary><div id="conformance-coverage"></div></details>
 </section>
-<script type="application/json" id="architecture-data">${data}</script>
-<script>${bundle.replaceAll('</script', '<\\/script')}</script>`
+<script type="application/gzip" id="architecture-data" data-encoding="base64">${data}</script>
+<script>${inline(bundle)}</script>`
 }
 
+/**
+ * 先用浏览器原生的 DecompressionStream 解压架构数据，再启动视图；解压是异步的，视图在数据就绪后才挂上。
+ * 解压或解析失败时在布局状态栏显示原因并把画布标为失败，不静默留空。
+ */
 export function architectureScript(): string {
-  return `(${architectureBrowser.toString()})(${selectArchitectureView.toString()},${architectureLayoutInput.toString()},${architectureViewport.toString()},${architectureMatrix.toString()},new ELK(),${conformanceBrowser.toString()});`
+  return `(async () => {
+  const diagram = document.getElementById('arch-diagram');
+  const status = document.getElementById('arch-layout-status');
+  let graph;
+  try {
+    const packed = document.getElementById('architecture-data').textContent.trim();
+    const binary = atob(packed);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    graph = JSON.parse(await new Response(stream).text());
+  } catch (error) {
+    status.textContent = '架构数据无法解压：' + (error instanceof Error ? error.message : String(error));
+    diagram.dataset.layoutState = 'failed';
+    diagram.setAttribute('aria-busy', 'false');
+    throw error;
+  }
+  (${architectureBrowser.toString()})(graph,${selectArchitectureView.toString()},${architectureLayoutInput.toString()},${architectureViewport.toString()},${architectureMatrix.toString()},new ELK(),${conformanceBrowser.toString()},window.ArchitectureFlow,window.ReportUi);
+})();`
 }
