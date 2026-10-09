@@ -725,16 +725,20 @@ it('closes a foreign-origin actual governance use before any refresh or runtime 
   expect(run).not.toHaveBeenCalled()
   expect(configure).not.toHaveBeenCalled()
 })
-it('drives a pending input through the actual assembled root to model custody, ACK and completed without observation', async () => {
+it('drives two rounds through one actual assembled root and physical model pool without observation', async () => {
   // The actual root owns G28, SQL log, legal fixture recipe, Context, task proof and model bridges.
   // Governance/model transport, permissions and generation are controlled, not production evidence.
   const { f, options } = await rootFixture(true)
   let built: Awaited<ReturnType<typeof actualModelTurn>> | undefined
-  const submitted =
-    Promise.withResolvers<Awaited<ReturnType<typeof originalModelInput>>['accepted']>()
+  const submissions = [0, 1].map(() =>
+    Promise.withResolvers<Awaited<ReturnType<typeof originalModelInput>>['accepted']>(),
+  )
+  const builtRounds: Array<Awaited<ReturnType<typeof actualModelTurn>>> = []
+  let configuredRounds = 0
   const configure: SessionRuntimeRootOptions['model']['configure'] =
     owners => async (scope, prepared) => {
-      const accepted = await submitted.promise
+      const round = configuredRounds++
+      const accepted = await submissions[round]!.promise
       const composed = {
         ...f,
         runtime: owners.ingress,
@@ -742,15 +746,33 @@ it('drives a pending input through the actual assembled root to model custody, A
         modelOwner: owners.originalModel,
       }
       const original = await originalIssueForPrepared({ f: composed, scope, accepted }, prepared)
-      built = await actualModelTurn(original, owners.modelResults)
+      const current = await actualModelTurn(
+        original,
+        owners.modelResults,
+        'normal',
+        undefined,
+        builtRounds[0],
+      )
+      built = current
+      builtRounds.push(current)
       return {
-        turn: built.turn,
+        turn: {
+          ...current.turn,
+          call: {
+            ...current.turn.call,
+            creationKey: unwrap(
+              parseOpaqueIdentifier(`${prepared.preparation.call}:create`, 'CreationKey'),
+            ),
+          },
+          resultKey: `${prepared.preparation.call}:result`,
+          adoptionKey: `${prepared.preparation.call}:adopt`,
+        },
         registration: nativeReadRegistration(),
         transfer: async () => 'pending',
         current: async facts => ({
           source: facts.source,
           authorized: true,
-          assembly: JSON.stringify(built!.refreshed.report.snapshots),
+          assembly: JSON.stringify(current.refreshed.report.snapshots),
           contextGeneration: 'controlled-generation',
           reconciled: true,
         }),
@@ -764,12 +786,12 @@ it('drives a pending input through the actual assembled root to model custody, A
       mode: input.mode,
       collaboration: input.collaboration,
     },
-    identities: () => ({
-      startKey: 'model-root-run',
-      attemptKey: 'model-root-attempt',
-      prepareKey: 'model-root-prepare',
-      call: 'model-root-call',
-      originalPosition: 'model-root-loop-position',
+    identities: (_scope, position) => ({
+      startKey: `model-root-run:${position}`,
+      attemptKey: `model-root-attempt:${position}`,
+      prepareKey: `model-root-prepare:${position}`,
+      call: `model-root-call:${position}`,
+      originalPosition: `model-root-loop-position:${position}`,
     }),
     model: {
       ...options.model,
@@ -824,7 +846,7 @@ it('drives a pending input through the actual assembled root to model custody, A
   const accepted = reply.kind === 'reply' ? readSubmittedReply(reply.result, packet) : undefined
   if (!accepted || !('kind' in accepted) || accepted.kind !== 'accepted')
     throw new Error('root input not accepted')
-  submitted.resolve(accepted)
+  submissions[0]!.resolve(accepted)
   await vi.waitFor(() => expect(built?.ack).toHaveBeenCalledOnce(), { timeout: 3000 })
   await vi.waitFor(
     async () =>
@@ -837,8 +859,67 @@ it('drives a pending input through the actual assembled root to model custody, A
       ).toMatchObject({ kind: 'work', inputs: [], head: { run: { state: 'completed' } } }),
     { timeout: 3000 },
   )
+  const firstReading = await readSessionSubmission(ingress, accepted.receipt.operation)
+  if (!('kind' in firstReading) || firstReading.kind !== 'submission')
+    throw new Error('first submission not found')
+  expect(firstReading.run).toHaveProperty('state', 'completed')
+  const secondPacket = parseSessionHostRequest({
+    ...packet,
+    operationKey: 'model-root-second-operation',
+    message: {
+      ...message.ok,
+      id: 'model-root-second-input',
+      blocks: [
+        {
+          ...message.ok.blocks[0],
+          id: 'model-root-second-text',
+          text: 'second actual root request',
+        },
+      ],
+    },
+  })
+  if (!secondPacket || secondPacket.command !== 'submitInput')
+    throw new Error('invalid second root input')
+  const secondReply = await sendSessionHostRequest({
+    home: options.home,
+    request: secondPacket,
+    policy: { timeoutMs: 2000, maxResponseBytes: 65536 },
+  })
+  const secondAccepted =
+    secondReply.kind === 'reply' ? readSubmittedReply(secondReply.result, secondPacket) : undefined
+  if (!secondAccepted || !('kind' in secondAccepted) || secondAccepted.kind !== 'accepted')
+    throw new Error('second root input not accepted')
+  submissions[1]!.resolve(secondAccepted)
+  await vi.waitFor(
+    async () => {
+      expect(await readSessionSubmission(ingress, secondAccepted.receipt.operation)).toMatchObject({
+        kind: 'submission',
+        run: { state: 'completed' },
+      })
+    },
+    { timeout: 3000 },
+  )
+  const firstAfterSecond = await readSessionSubmission(ingress, accepted.receipt.operation)
+  expect(firstAfterSecond).toMatchObject({
+    kind: 'submission',
+    receipt: firstReading.receipt,
+    run: firstReading.run,
+  })
+  const secondReading = await readSessionSubmission(ingress, secondAccepted.receipt.operation)
+  if (!('kind' in secondReading) || secondReading.kind !== 'submission')
+    throw new Error('second submission not found')
+  expect(secondReading.run?.id).not.toBe(firstReading.run?.id)
+  expect(builtRounds).toHaveLength(2)
+  expect(builtRounds[1]!.options.nativeModel).toBe(builtRounds[0]!.options.nativeModel)
+  expect(builtRounds.map(round => round.ack.mock.calls.length)).toEqual([1, 1])
+  expect(built!.ports.sentRequests).toHaveLength(2)
+  expect(JSON.stringify(built!.ports.sentRequests[1]!.messages)).toContain('actual root request')
+  expect(JSON.stringify(built!.ports.sentRequests[1]!.messages)).toContain('actual native result')
+  expect(JSON.stringify(built!.ports.sentRequests[1]!.messages)).toContain(
+    'second actual root request',
+  )
   expect(await root.close()).toEqual({ closed: true })
-  expect(built!.ports.sends()).toBe(1)
+  expect(built!.ports.sends()).toBe(2)
   const receipt = await sendSessionHostRequest({
     home: options.home,
     request: parseSessionHostRequest({
@@ -2054,16 +2135,32 @@ async function actualModelTurn(
   bridge: SessionModelResultSource,
   fault: string = 'normal',
   gate?: { entered: () => void; wait: Promise<void> },
+  existing?: {
+    readonly ports: ReturnType<typeof nativeCallFixturePorts>
+    readonly options: ReturnType<typeof nativeBindingOptions>
+  },
 ) {
-  const ports = nativeCallFixturePorts(original.scope, original.f.runtime, original.f.storage, gate)
-  const options = nativeBindingOptions(original, base => {
-    const configured = ports.configure(base)
-    return fault === 'differentCallFactory'
-      ? { ...configured, identities: { ...configured.identities, call: () => 'other-global-call' } }
-      : configured
-  })
+  const ports =
+    existing?.ports ??
+    nativeCallFixturePorts(original.scope, original.f.runtime, original.f.storage, gate)
+  const options =
+    existing?.options ??
+    nativeBindingOptions(original, base => {
+      const configured = ports.configure(base)
+      return fault === 'differentCallFactory'
+        ? {
+            ...configured,
+            identities: { ...configured.identities, call: () => 'other-global-call' },
+          }
+        : configured
+    })
   const configured = {
     ...options,
+    ingress: original.f.runtime,
+    issueOwner: original.f.modelOwner!,
+    scope: original.scope,
+    preparation: original.preparation,
+    retainUnknown: original.unknown,
     selection: {
       ...options.selection,
       owner: ports.owner,

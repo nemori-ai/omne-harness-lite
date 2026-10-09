@@ -96,8 +96,11 @@ export function nativeCallFixturePorts(
     }),
   }
   let sends = 0
+  let responses = 0
+  let messages = 0
   const trace: string[] = []
   const requests: Array<{ readonly messages: unknown }> = []
+  const sentRequests: Array<{ readonly messages: unknown }> = []
   function configure(base: Construction): Construction {
     const presence: Construction['callPresence'] = {
       async read(input, observed) {
@@ -224,8 +227,9 @@ export function nativeCallFixturePorts(
                   }
                 },
                 projectOutput: () => ({ unavailable: true }),
-                send: async () => {
+                send: async planned => {
                   sends++
+                  sentRequests.push({ messages: planned.input.messages })
                   if (sendControl) {
                     sendControl.entered()
                     await sendControl.wait
@@ -276,8 +280,15 @@ export function nativeCallFixturePorts(
       },
       identities: {
         call: () => 'model-root-call',
-        response: () => 'actual-native-response',
-        message: () => unwrap(parseOpaqueIdentifier('actual-native-message', 'MessageId')),
+        response: () =>
+          responses++ === 0 ? 'actual-native-response' : `actual-native-response:${responses}`,
+        message: () =>
+          unwrap(
+            parseOpaqueIdentifier(
+              messages++ === 0 ? 'actual-native-message' : `actual-native-message:${messages}`,
+              'MessageId',
+            ),
+          ),
       },
     }
   }
@@ -288,6 +299,7 @@ export function nativeCallFixturePorts(
     sends: () => sends,
     trace,
     requests,
+    sentRequests,
     credentials: {
       value: async () => ({
         scope: { layer: 'factory' as const },
