@@ -55,13 +55,24 @@ export async function createSessionRunModelBinding(
   let inputs: ReturnType<SessionRunModelBindingOptions['inputs']>
   let model: SessionDriverModelBorrow | undefined
   let returned: Promise<void> | undefined
+  let returnStage = 0
+  const returns = [
+    () => model?.release(),
+    () => callAccess?.close(),
+    () => inputs?.close(),
+    () => journal.close(),
+  ]
   const returnJournal = () =>
-    (returned ??= (async () => {
-      await model?.release()
-      await callAccess?.close()
-      await inputs?.close()
-      await journal.close()
-    })())
+    (returned ??= returnOriginal().catch(error => {
+      returned = undefined
+      throw error
+    }))
+  async function returnOriginal() {
+    while (returnStage < returns.length) {
+      await returns[returnStage]!()
+      returnStage++
+    }
+  }
   try {
     inputs = options.inputs(journal)
     if (!inputs) {

@@ -3784,3 +3784,70 @@ it('keeps the original Run journal until the public model borrow has actually re
   await closing
   expect(linked.binding.log.currentGeneration()).toBeNull()
 })
+
+it.each(['model', 'inputs'] as const)(
+  'retries the same original model borrow return after a %s defect without constructing another binding',
+  async stage => {
+    const original = await originalModelBinding()
+    const options = nativeBindingOptions(original)
+    const failure = new Error('original model borrow return failed')
+    const entered = Promise.withResolvers<void>()
+    const returned = Promise.withResolvers<void>()
+    cleanup.push(async () => returned.resolve())
+    const release = vi.fn(async () => {})
+    const releaseInputs = vi.fn(async () => {})
+    const acquire = vi.fn(async (inputs: Parameters<typeof options.model.acquire>[0]) => {
+      const borrowed = await options.model.acquire(inputs)
+      if ('unavailable' in borrowed) return borrowed
+      release.mockImplementation(async () => {
+        if (stage === 'model') {
+          if (release.mock.calls.length === 1) throw failure
+          entered.resolve()
+          await returned.promise
+        }
+        await borrowed.release()
+      })
+      return { operations: borrowed.operations, release }
+    })
+    const linked = await createSessionRunModelBinding({
+      ...options,
+      model: { acquire },
+      inputs: journal => {
+        const originalInputs = options.inputs(journal)
+        if (!originalInputs) return undefined
+        releaseInputs.mockImplementation(async () => {
+          if (stage === 'inputs') {
+            if (releaseInputs.mock.calls.length === 1) throw failure
+            entered.resolve()
+            await returned.promise
+          }
+          await originalInputs.close()
+        })
+        return { ...originalInputs, close: releaseInputs }
+      },
+    })
+    if ('failure' in linked) throw new Error('actual model binding unavailable')
+    cleanup.push(linked.returnJournal)
+    await expect(linked.returnJournal()).rejects.toBe(failure)
+    expect(linked.binding.log.currentGeneration()).toBe(linked.binding.log.generation)
+    const retry = linked.returnJournal()
+    expect(linked.returnJournal()).toBe(retry)
+    expect(
+      await Promise.race([
+        entered.promise.then(() => 'returning'),
+        retry.then(
+          () => 'returned',
+          () => 'failed',
+        ),
+      ]),
+    ).toBe('returning')
+    expect(linked.binding.log.currentGeneration()).toBe(linked.binding.log.generation)
+    returned.resolve()
+    await retry
+    expect(linked.binding.log.currentGeneration()).toBeNull()
+    await linked.returnJournal()
+    expect(acquire).toHaveBeenCalledOnce()
+    expect(release).toHaveBeenCalledTimes(stage === 'model' ? 2 : 1)
+    expect(releaseInputs).toHaveBeenCalledTimes(stage === 'inputs' ? 2 : 1)
+  },
+)
