@@ -6,6 +6,8 @@ import { startRunningSessionHost } from '../src/session-execution-host.ts'
 import { startSessionRuntimeRoot } from '../src/session-runtime-root.ts'
 import type { SessionRuntimeRootOptions } from '../src/session-runtime-root-types.ts'
 import { sendSessionHostRequest } from '../src/session-host-client.ts'
+import { createSessionForMessage } from '../src/session-creation-client.ts'
+import { readSubmittedReply } from '../src/session-message-replies.ts'
 import { prepareSessionModelRun } from '../src/session-run-preparation.ts'
 import { readSessionSubmission } from '../src/session-submission.ts'
 import {
@@ -674,6 +676,29 @@ it('releases the actual partial runtime root after a model configuration defect 
   const root = await startSessionRuntimeRoot(options)
   expect(await root.close()).toEqual({ closed: true })
 })
+it('does not invent creation preferences or reserve a Session in an unconfigured actual root', async () => {
+  const { options } = await rootFixture()
+  const root = await startSessionRuntimeRoot(options)
+  cleanup.push(() => root.close().then(() => {}))
+  const originalId = vi.fn(() => 'must-not-be-used')
+  const result = await createSessionForMessage({
+    home: options.home,
+    binding: options.binding,
+    signal: new AbortController().signal,
+    policy: { timeoutMs: 2000, maxResponseBytes: 65536 },
+    originalId,
+  })
+  expect(result).toMatchObject({
+    kind: 'session-creation',
+    status: 'blocked',
+    request: null,
+    operation: null,
+  })
+  expect(originalId).not.toHaveBeenCalled()
+  expect(
+    await root.owners.ingress.scanWork(root.owners.ingress.coordinationAuthority, null, 8),
+  ).toMatchObject({ kind: 'workPage', sessions: [] })
+})
 it('closes a foreign-origin actual governance use before any refresh or runtime allocation', async () => {
   const { f, options, configure } = await rootFixture()
   const opened = await f.client.openUse()
@@ -733,6 +758,12 @@ it('drives a pending input through the actual assembled root to model custody, A
     }
   const root = await startSessionRuntimeRoot({
     ...options,
+    creation: {
+      definition: input.definition,
+      executionType: input.executionType,
+      mode: input.mode,
+      collaboration: input.collaboration,
+    },
     identities: () => ({
       startKey: 'model-root-run',
       attemptKey: 'model-root-attempt',
@@ -754,9 +785,14 @@ it('drives a pending input through the actual assembled root to model custody, A
     expect(await root.close()).toEqual({ closed: true })
   })
   const ingress = root.owners.ingress
-  const created = await ingress.operations.createSession(ingress.access, input)
-  if (!('kind' in created) || created.kind !== 'created')
-    throw new Error('root Session not created')
+  const created = await createSessionForMessage({
+    home: options.home,
+    binding: options.binding,
+    signal: new AbortController().signal,
+    originalId: () => input.operationKey,
+    policy: { timeoutMs: 2000, maxResponseBytes: 65536 },
+  })
+  if (created.kind !== 'created-session') throw new Error('root Session not created')
   const message = judgeMessage({
     id: 'model-root-input',
     type: 'user',
@@ -771,13 +807,22 @@ it('drives a pending input through the actual assembled root to model custody, A
     ],
   })
   if ('rejected' in message || message.ok.type !== 'user') throw new Error('invalid root message')
-  const accepted = await ingress.operations.submitInput(
-    ingress.access,
-    created.session,
-    'model-root-input-operation',
-    message.ok,
-  )
-  if (!('kind' in accepted) || accepted.kind !== 'accepted')
+  const packet = parseSessionHostRequest({
+    format: 'omne-session-host/1',
+    binding: options.binding,
+    command: 'submitInput',
+    session: created.session,
+    operationKey: 'model-root-input-operation',
+    message: message.ok,
+  })
+  if (!packet || packet.command !== 'submitInput') throw new Error('invalid root input request')
+  const reply = await sendSessionHostRequest({
+    home: options.home,
+    request: packet,
+    policy: { timeoutMs: 2000, maxResponseBytes: 65536 },
+  })
+  const accepted = reply.kind === 'reply' ? readSubmittedReply(reply.result, packet) : undefined
+  if (!accepted || !('kind' in accepted) || accepted.kind !== 'accepted')
     throw new Error('root input not accepted')
   submitted.resolve(accepted)
   await vi.waitFor(() => expect(built?.ack).toHaveBeenCalledOnce(), { timeout: 3000 })

@@ -4,7 +4,7 @@ import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type { LocalSessionIngress } from '@omne-harness-lite/session-runtime-local'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import { compareInteger } from '@omne-harness-lite/session-log'
-import { createSessionHostEndpoint } from './session-host-protocol.ts'
+import { createSessionHostEndpoint, type SessionCreationDefaults } from './session-host-protocol.ts'
 import {
   startLocalSessionHost,
   type LocalSessionHost,
@@ -34,6 +34,7 @@ export interface RunningSessionHostOptions {
   readonly home: string
   readonly binding: TenantBinding
   readonly ingress: LocalSessionIngress
+  readonly creation?: SessionCreationDefaults
   /** The same actual work owner supplied to Ingress.workSettledIn by the trusted root. */
   readonly work: SessionModelWorkOwner
   readonly transport: SessionHostPolicy

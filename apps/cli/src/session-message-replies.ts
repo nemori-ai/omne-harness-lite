@@ -38,6 +38,10 @@ const operation = z.unknown().transform((value, ctx) => {
   return z.NEVER
 })
 const receipt = z.strictObject({ operation, position, source }).readonly()
+export function readSessionReceiptValue(value: unknown): Receipt | undefined {
+  const checked = receipt.safeParse(value)
+  return checked.success ? checked.data : undefined
+}
 const submitted: z.ZodType<Awaited<ReturnType<SessionRuntime['submitInput']>>> = z.union([
   z.strictObject({ kind: z.literal('accepted'), receipt }),
   z.strictObject({ kind: z.literal('unknownCommit'), operation }),

@@ -27,6 +27,13 @@ it('accepts exact original creation data and normalizes only the exact binding v
   expect(Object.isFrozen(parsed)).toBe(true)
   expect(Object.isFrozen(parsed?.binding)).toBe(true)
 })
+it('accepts a data-only creation configuration reading without a Session or execution authority', () => {
+  const reading = { format: request.format, binding, command: 'readCreationDefaults' }
+  expect(parseSessionHostRequest(reading)).toEqual(reading)
+  expect(parseSessionHostRequest({ ...reading, session: 'invented' })).toBeUndefined()
+  expect(parseSessionHostRequest({ ...reading, defaults: request.input })).toBeUndefined()
+  expect(parseSessionHostRequest({ ...reading, permit: {} })).toBeUndefined()
+})
 it.each([
   { ...request, access: {} },
   { ...request, format: 'unknown' },

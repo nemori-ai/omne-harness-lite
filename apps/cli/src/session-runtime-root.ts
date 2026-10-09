@@ -176,6 +176,7 @@ class RuntimeRoot {
       binding: o.binding,
       ingress: this.ingress,
       work,
+      ...(o.creation === undefined ? {} : { creation: o.creation }),
       transport: o.transport,
       execution: o.execution,
       identities: o.identities,

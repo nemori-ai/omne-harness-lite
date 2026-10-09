@@ -49,24 +49,38 @@ const message = z.unknown().transform((value, ctx) => {
   ctx.addIssue({ code: 'custom', message: 'invalid user message' })
   return z.NEVER
 })
-const input = z
-  .strictObject({
-    operationKey: key,
-    definition: z.strictObject({ category: z.literal('agent_definition'), name: key }).readonly(),
-    executionType: key,
-    mode: z.enum(['never', 'auto_permission', 'bypass-permissions']),
-    collaboration: z.enum(['co-work', 'auto-drive']),
-    workspace: z.string().optional(),
-  })
-  .transform(({ workspace, ...fields }) =>
-    Object.freeze(workspace === undefined ? fields : { ...fields, workspace }),
-  )
+const inputShape = z.strictObject({
+  operationKey: key,
+  definition: z.strictObject({ category: z.literal('agent_definition'), name: key }).readonly(),
+  executionType: key,
+  mode: z.enum(['never', 'auto_permission', 'bypass-permissions']),
+  collaboration: z.enum(['co-work', 'auto-drive']),
+  workspace: z.string().optional(),
+})
+const input = inputShape.transform(({ workspace, ...fields }) =>
+  Object.freeze(workspace === undefined ? fields : { ...fields, workspace }),
+)
 const common = { format: z.literal('omne-session-host/1'), binding }
+export type SessionCreationDefaults = Pick<
+  CreateSessionInput,
+  'definition' | 'executionType' | 'mode' | 'collaboration'
+>
+const creationDefaults = inputShape.omit({ operationKey: true, workspace: true }).readonly()
+export function parseSessionCreationDefaults(value: unknown): SessionCreationDefaults | undefined {
+  const copied = copyJsonValue(value)
+  if ('failed' in copied) return undefined
+  const checked = creationDefaults.safeParse(copied.ok)
+  return checked.success ? checked.data : undefined
+}
+export type SessionCreationDefaultsReading =
+  | { readonly kind: 'creationDefaults'; readonly defaults: SessionCreationDefaults }
+  | { readonly kind: 'creationNotReady' }
 /** Data only. Neither requests nor replies carry live access, coordination, or attempt handles. */
 export type SessionHostRequest = {
   readonly format: 'omne-session-host/1'
   readonly binding: TenantBinding
 } & (
+  | { readonly command: 'readCreationDefaults' }
   | { readonly command: 'createSession'; readonly input: CreateSessionInput }
   | {
       readonly command: 'submitInput'
@@ -82,6 +96,7 @@ export type SessionHostRequest = {
 )
 const requests: z.ZodType<SessionHostRequest> = z
   .discriminatedUnion('command', [
+    z.strictObject({ ...common, command: z.literal('readCreationDefaults') }),
     z.strictObject({ ...common, command: z.literal('createSession'), input }),
     z.strictObject({
       ...common,
@@ -108,6 +123,7 @@ export type SessionHostResult =
   | Awaited<ReturnType<LocalSessionIngress['operations'][keyof LocalSessionIngress['operations']]>>
   | SessionTextReading
   | SessionSubmissionReading
+  | SessionCreationDefaultsReading
 
 export interface SessionHostEndpoint {
   readonly execute: (request: SessionHostRequest) => Promise<SessionHostResult>
@@ -116,9 +132,14 @@ export interface SessionHostEndpoint {
 export function createSessionHostEndpoint(options: {
   readonly binding: TenantBinding
   readonly ingress: LocalSessionIngress
+  readonly creation?: SessionCreationDefaults
 }): SessionHostEndpoint {
   const bound = Object.freeze(checkedTenantBinding(options.binding))
   const { ingress } = options
+  const defaults =
+    options.creation === undefined ? undefined : parseSessionCreationDefaults(options.creation)
+  if (options.creation !== undefined && !defaults)
+    throw new TypeError('invalid actual Session creation configuration')
   const text = createSessionTextReader({ tenant: bound.tenant, ingress })
   return Object.freeze<SessionHostEndpoint>({
     execute: async request => {
@@ -127,6 +148,8 @@ export function createSessionHostEndpoint(options: {
         !tenantIdEquals(request.binding.tenant, bound.tenant)
       )
         return { failure: 'denied' }
+      if (request.command === 'readCreationDefaults')
+        return defaults ? { kind: 'creationDefaults', defaults } : { kind: 'creationNotReady' }
       return dispatch(ingress, text, request)
     },
   })
@@ -134,7 +157,7 @@ export function createSessionHostEndpoint(options: {
 function dispatch(
   ingress: LocalSessionIngress,
   text: ReturnType<typeof createSessionTextReader>,
-  request: SessionHostRequest,
+  request: Exclude<SessionHostRequest, { command: 'readCreationDefaults' }>,
 ): Promise<SessionHostResult> {
   const operations = ingress.operations,
     access = ingress.access

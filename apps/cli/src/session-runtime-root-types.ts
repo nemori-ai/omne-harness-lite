@@ -24,6 +24,7 @@ import type {
 } from './session-model-results.ts'
 import type { RunningSessionHostOptions } from './session-execution-host.ts'
 import type { TenantBinding } from './state-layout-values.ts'
+import type { SessionCreationDefaults } from './session-host-protocol.ts'
 
 /** Trusted application inputs. No callback, Unit or execution source is ordinary command data. */
 export interface SessionRuntimeRootOptions {
@@ -36,6 +37,8 @@ export interface SessionRuntimeRootOptions {
   readonly clock: Clock
   readonly inputSource: SessionBootstrapOptions['inputSource']
   readonly contextSeed: SessionBootstrapOptions['contextSeed']
+  /** Actual deployment preferences. Omission disables ordinary default creation; it never selects an asset. */
+  readonly creation?: SessionCreationDefaults
   readonly runtimePolicy: RuntimePolicy
   readonly admissionPolicy: AdmissionPolicy
   readonly logOperationLimit: number

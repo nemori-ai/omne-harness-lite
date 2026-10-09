@@ -15,6 +15,7 @@ import {
 import { StateLayoutFailure } from './state-layout.ts'
 import { CliCatalogFailure } from './catalog.ts'
 import type { SessionMessageOutcome } from './session-message-client.ts'
+import type { SessionCreationBlocked } from './session-creation-client.ts'
 import type { SelectionBlocked } from './selected-tenant-work.ts'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
@@ -25,6 +26,7 @@ export type EntryOutcome =
   | LoginEntryOutcome
   | TenantMembershipOutcome
   | SessionMessageOutcome
+  | SessionCreationBlocked
   | SelectionBlocked
   | { readonly kind: 'not-ready'; readonly reason: 'capability-not-installed' }
   | { readonly kind: 'governance-result'; readonly report: ActionReport }
@@ -93,7 +95,8 @@ export async function runEntryCli(args: readonly string[], runtime: EntryRuntime
   }
 }
 function formatEntryReport(report: EntryReport, command: ExecutableEntry): string {
-  if (report.outcome.kind === 'session-message') return writeJsonLossless(report) + '\n'
+  if (report.outcome.kind === 'session-message' || report.outcome.kind === 'session-creation')
+    return writeJsonLossless(report) + '\n'
   const json = command.kind === 'message' || (command.kind === 'governance' && command.json)
   return JSON.stringify(report, null, json ? undefined : 2) + '\n'
 }
@@ -109,6 +112,7 @@ export function entryExitCode(result: EntryExecution): number {
   if (result.diagnostics.length) return 70
   const outcome = result.outcome
   if (outcome.kind === 'session-message') return sessionMessageExit(outcome)
+  if (outcome.kind === 'session-creation') return outcome.status === 'unconfirmed' ? 4 : 3
   if (outcome.kind === 'created') return createdExit(outcome)
   if (outcome.kind === 'unresolved') return exitStatus(outcome.result.report)
   if (outcome.kind === 'governance-result') return governanceExit(outcome.report)

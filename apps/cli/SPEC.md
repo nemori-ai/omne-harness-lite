@@ -345,6 +345,11 @@ createSessionTextReader消费实际Ingress可信journal面，固定真实租户�
 独立读取面。解析拒绝重复字段、未知字段、非法消息及非数据对象，不执行访问器或toJSON。
 稳定操作键和完整OperationRef沿用原拥有者；传输不生成新的业务身份。
 
+`readCreationDefaults`只读可信根显式给定的创建偏好：AgentDefinition引用、executionType、
+mode和collaboration。它不授予成员资格、资产合法性或执行权限，也不预留Session。
+未配置时返回creationNotReady，不补初始资产或策略。偏好快照不包含operationKey或workspace。
+客户端后续提交完整createSession输入；真正创建仍由原G28和Session拥有者核验。
+
 `createSessionHostEndpoint`只供可信根装配使用。装配须提供真实匹配的中心／租户绑定和
 原LocalSessionIngress；它不能从普通请求body造principal或Access。绑定不同在业务端口
 调用前拒绝。实际调用使用原活体Access及提供者的当前授权检查；Access、协调资格、
@@ -438,13 +443,26 @@ release撤销该捕获的新验证，等待已经参加的实际StorageUnit结�
 
 普通宿主数据协议增加readSubmission。请求只含完整租户绑定及原OperationRef，不含活体Access、permit或协调资格。宿主仍从可信构造取得原Ingress；跨中心／租户绑定在业务动作前拒绝。用户文本读取携带日志原run字段，未归属Run时为null。该字段只是归因数据，不是执行权。
 
-正式main通过entry-execution消费session-message-entry。当前已实现明确指定既有会话的`omne --message-file <path> --json --session <session-id>`路径；新会话准备及裸终端入口仍须完成。文件有明确大小上限，必须是严格UTF-8、无重复字段的JSON UserMessage。应用读取真实根catalog选择及该租户的已有鉴权目录，核中心／账号一致；不从消息文件制造身份，不自动建立缺失租户或切换选择。客户端只拥有自己打开的catalog和治理客户端装配；模型、工具、Session及宿主执行资格仍由宿主拥有。新Run的登录确认继续由原G28路径承担，客户端提交或读取不替代它。
+正式main通过entry-execution消费session-message-entry，支持`omne --message-file <path> --json [--session <session-id>]`。
+文件有明确大小上限，必须是严格UTF-8、无重复字段的JSON UserMessage。应用先验证完整消息，
+再读取真实根catalog选择及该租户的已有鉴权目录，核中心／账号一致。它不从消息文件制造身份，
+不自动建立缺失租户或切换选择。客户端只拥有自己打开的catalog和治理客户端装配；模型、工具、
+Session及宿主执行资格仍由宿主拥有。新Run的登录确认继续由原G28路径承担。
+
+指定Session时只提交与观察，不读取创建偏好或创建新Session。未指定Session时，
+createSessionForMessage从已运行的匹配宿主读取实际创建偏好，捕获完整输入并只分配一个原创建键。
+可靠认回完整原创建回执后，才用独立消息操作键提交消息。配置缺失或非法时不分配创建键。
+创建运输未确认、unknownCommit或回复身份不匹配时保留完整原请求及OperationRef，返回退出码4，
+不重发、不新建会话，也不提交消息。明确创建拒绝和配置不可用返回3。
+创建回执必须匹配原租户、主体、操作键、新Session及原日志坐标。机读报告使用无损编码。
+读取偏好与创建之间的配置变化不改写已捕获的原语义，实际创建仍重新核合法资产和资格。
 
 `submitSessionMessage`只发送一次原提交。其余请求只观察原回执；它拒绝异操作、改变的回执、异journalGeneration、不同消息和倒退前缀。unknownCommit保留完整原OperationRef；运输未确认保留原请求身份，均不自动重发。取得回执后，等待超时、断连或取消等待仍保留原回执，不取消原Run。应用根显式提供请求时限、整体等待时限、轮询间隔和回复容量；使用Node异步计时器及总等待截止信号，不为客户端等待创建线程。
 
 仅本次输入对应Run的completed返回退出码0；failed／cancelled返回3；受理但等待未完成及未确认返回4。终态消息须来自覆盖该终态观察的用户文本前缀，返回原输入及该Run的消息；迟到的其他Run消息不混入。本报告只输出请求的完整租户绑定、Session、operationKey和messageId，不回显原消息体。用户文本规则继续排除事实、OpaqueJson和ModelOnly内容。最终JSON使用现有无损编码器，原日志整数位置不得经JSON.stringify取整。
 
-实际SQLite／Ingress组合已覆盖原输入关联与上一轮completed隔离；编译后的main已通过真实catalog及租户鉴权目录、实际私有Unix通道完成机读观察。此进程测试的宿主结果受控，不表示生产独立宿主、真实OpenRouter、核心Agent Loop或默认终端路径已经交付。
+该路径消费已经配置并运行的宿主。正式main的独立进程启动、生产配置准备及裸终端入口仍须完成。
+实际SQLite／Ingress组合和编译后进程测试分别验证所属路径；受控宿主或模型结果不表示真实OpenRouter交付。
 
 ## 已准备模型段的 Agent Loop 消费
 
