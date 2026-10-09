@@ -260,6 +260,35 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
   return buildServiceAcknowledge(runtime, sharedCustody)
 }
 
+interface AckAttempt {
+  readonly registration: SettlementRegistration
+  readonly task: SettlementTask<AppendResult>
+  readonly attempted: () => boolean
+}
+
+type AckAttemptResult =
+  | { readonly done: 'appended' | 'unavailable' }
+  | { readonly collision: 'alreadyRecorded' | 'tailChanged' }
+
+type AckInspection =
+  | { readonly refused: AcknowledgeCallResult }
+  | { readonly record: ModelCallAcknowledgedRecord }
+  | {
+      readonly sources: CallSources
+      readonly terminal: Extract<Terminal, { readonly target: AckTarget }>
+    }
+
+function acknowledgementReceiptOutcome(
+  receipt: ReturnType<typeof settlementAppendReceipt>,
+  attempted: boolean,
+): AckAttemptResult {
+  if (receipt !== null && !('failure' in receipt)) return { done: 'appended' }
+  if (receipt === null || !attempted) return { done: 'unavailable' }
+  if (receipt.failure === 'alreadyRecorded' || receipt.failure === 'tailChanged')
+    return { collision: receipt.failure }
+  return { done: 'unavailable' }
+}
+
 class ServiceAcknowledgeState {
   readonly reads = new OwnedReadTracker()
   readonly retained = new Map<string, RetainedAck>()
@@ -343,91 +372,164 @@ function buildServiceAcknowledge<P extends PlannedSemantics, R>(
     let tailConflicts = 0
     let previousWaitMs: JsonNumber = 0
     const started = runtime.settlementScheduler.nowMonotonicMs()
-    for (;;) {
-      if (appendUnavailable(physical.closed, owner, binding)) return 'unavailable'
-      const found = recognizeAcknowledgement(current, ref.callId, record)
-      if (found !== undefined) return found
+
+    const launchAttempt = (tail: SettlementPrefix['tail']): AckAttempt | 'unavailable' => {
       const grant = owner.acquire(runtime.settlementContention.limits.concurrent)
       if (!('registration' in grant)) return 'unavailable'
       const registration = grant.registration
-      const tail = current.tail
       let attempted = false
+      const write = async (): Promise<AppendResult> => {
+        if (appendUnavailable(physical.closed, owner, binding)) return { failure: 'unavailable' }
+        attempted = true
+        // RT12 S-96④: unfenced, conditioned on the same full prefix just checked.
+        return await binding.log.append(
+          binding.session,
+          [prepared.ok],
+          { kind: 'unfenced' },
+          { kind: 'tailEquals', tail },
+        )
+      }
       let task: SettlementTask<AppendResult>
       try {
-        task = registration.start('controlAppend', async () => {
-          if (appendUnavailable(physical.closed, owner, binding))
-            return { failure: 'unavailable' } as const
-          attempted = true
-          // RT12 S-96④: unfenced, conditioned on the same full prefix just checked.
-          return await binding.log.append(
-            binding.session,
-            [prepared.ok],
-            { kind: 'unfenced' },
-            { kind: 'tailEquals', tail },
-          )
-        })
+        task = registration.start('controlAppend', write)
       } catch {
         registration.release()
         return 'unavailable'
       }
-      submissions++
+      return { registration, task, attempted: () => attempted }
+    }
+
+    const observeAttempt = async (attempt: AckAttempt): Promise<AckAttemptResult> => {
+      const { registration, task } = attempt
       let receipt: ReturnType<typeof settlementAppendReceipt>
       try {
         receipt = settlementAppendReceipt(await task.completion, 1)
       } catch {
         receipt = null
       }
-      if (unknownAcknowledgement(attempted, receipt)) {
+      if (unknownAcknowledgement(attempt.attempted(), receipt)) {
         // The original batch may land later: keep its writer, never rebuild the batch.
         physical.retained.set(keyOf(ref), { registration, task })
         report('append', ref, { receipt: 'unknown' })
-        return 'unavailable'
+        return { done: 'unavailable' }
       }
       try {
         await requestStopAndWait(task)
       } catch {
         physical.retained.set(keyOf(ref), { registration, task })
-        return 'unavailable'
+        return { done: 'unavailable' }
       }
       registration.release()
-      if (receipt !== null && !('failure' in receipt)) return 'appended'
-      if (receipt === null || !attempted) return 'unavailable'
-      if (receipt.failure === 'alreadyRecorded' || receipt.failure === 'tailChanged') {
-        if (receipt.failure === 'tailChanged') tailConflicts++
-        const decision = runtime.settlementContention.decide({
-          stage: receipt.failure === 'tailChanged' ? 'tailChanged' : 'collision',
-          submissions,
-          tailConflicts,
-          elapsedMs: ExactDecimal.from(runtime.settlementScheduler.nowMonotonicMs())
-            .add(ExactDecimal.from(negative(started)))
-            .toJsonNumber(),
-          retainedBytes: 0,
-          previousWaitMs,
-        })
-        const reread = await readPrefix(session)
-        if (reread === undefined) return 'unavailable'
-        current = reread
-        // Re-reading may recognize the original batch; only the same batch is ever resent.
-        const again = recognizeAcknowledgement(current, ref.callId, record)
-        if (again !== undefined) return again
-        // This batch wrote nothing (tailChanged/alreadyRecorded), its writer stopped, the fresh
-        // complete prefix has no ACK, and the explicit policy ends: the preparation may retreat.
-        if ('stop' in decision) return 'withdrawn'
-        previousWaitMs = decision.proceed.waitMs
-        const waited = runtime.settlementScheduler.wait(
-          decision.proceed.waitMs,
-          new AbortController().signal,
-        )
-        try {
-          if ((await waited.completion) !== 'elapsed') return 'unavailable'
-          await requestStopAndWait(waited)
-        } catch {
-          return 'unavailable'
-        }
-        continue
-      }
-      return 'unavailable'
+      return acknowledgementReceiptOutcome(receipt, attempt.attempted())
     }
+
+    const resolveCollision = async (
+      failure: 'alreadyRecorded' | 'tailChanged',
+    ): Promise<'retry' | 'present' | 'conflict' | 'unavailable' | 'withdrawn'> => {
+      if (failure === 'tailChanged') tailConflicts++
+      const decision = runtime.settlementContention.decide({
+        stage: failure === 'tailChanged' ? 'tailChanged' : 'collision',
+        submissions,
+        tailConflicts,
+        elapsedMs: ExactDecimal.from(runtime.settlementScheduler.nowMonotonicMs())
+          .add(ExactDecimal.from(negative(started)))
+          .toJsonNumber(),
+        retainedBytes: 0,
+        previousWaitMs,
+      })
+      const reread = await readPrefix(session)
+      if (reread === undefined) return 'unavailable'
+      current = reread
+      // Re-reading recognizes the original batch before policy can end this attempt.
+      const again = recognizeAcknowledgement(current, ref.callId, record)
+      if (again !== undefined) return again
+      // Only a stopped, zero-write batch absent from the full prefix may retreat.
+      if ('stop' in decision) return 'withdrawn'
+      previousWaitMs = decision.proceed.waitMs
+      const waited = runtime.settlementScheduler.wait(
+        decision.proceed.waitMs,
+        new AbortController().signal,
+      )
+      try {
+        if ((await waited.completion) !== 'elapsed') return 'unavailable'
+        await requestStopAndWait(waited)
+      } catch {
+        return 'unavailable'
+      }
+      return 'retry'
+    }
+
+    for (;;) {
+      if (appendUnavailable(physical.closed, owner, binding)) return 'unavailable'
+      const found = recognizeAcknowledgement(current, ref.callId, record)
+      if (found !== undefined) return found
+      const attempt = launchAttempt(current.tail)
+      if (attempt === 'unavailable') return 'unavailable'
+      submissions++
+      const observed = await observeAttempt(attempt)
+      if ('done' in observed) return observed.done
+      const collision = await resolveCollision(observed.collision)
+      if (collision !== 'retry') return collision
+    }
+  }
+
+  async function acknowledgementSource(session: SessionRuntimeBinding, ref: CallKey) {
+    const binding = session.log
+    const first = await runtime.callFacts.lookup({ binding, ref })
+    let origin = acknowledgementOrigin(first)
+    if (origin === undefined && !('callNotFound' in first)) {
+      // A fixed retiring batch still derives its origin from the original creation shell.
+      const retention = await runtime.callFacts.content.retention({ binding, call: ref.callId })
+      if (!('phase' in retention) || retention.phase !== 'retiring') return unavailable
+      const prefix = await readPrefix(session)
+      const sources = prefix === undefined ? undefined : sourcesOf(prefix, ref.callId)
+      if (sources === undefined) return unavailable
+      origin = originOfEntry(sources.creation)
+    }
+    return { origin }
+  }
+
+  function inspectAcknowledgement(prefix: SettlementPrefix, ref: CallKey): AckInspection {
+    let history: ReturnType<typeof runtime.history.call>
+    try {
+      history = runtime.history.call(prefix, ref.callId)
+    } catch {
+      return { refused: unavailable }
+    }
+    if ('absent' in history) return { refused: notFound }
+    if (!('known' in history)) return { refused: unavailable }
+    const known = history.known
+    if (known.acknowledged !== null) return { record: known.acknowledged.record }
+    const sources = sourcesOf(prefix, ref.callId)
+    if (sources === undefined) return { refused: unavailable }
+    const terminal = terminalOf(known, sources)
+    if ('nonTerminal' in terminal)
+      return { refused: { wrongPhase: { phase: terminal.nonTerminal } } }
+    return { sources, terminal }
+  }
+
+  function confirmedAcknowledgement(
+    prefix: SettlementPrefix,
+    ref: CallKey,
+    record: ModelCallAcknowledgedRecord,
+    shell: ModelLogShell,
+    binding: SettlementLogBinding,
+  ): ModelCallAcknowledgedRecord | undefined {
+    let after: ReturnType<typeof runtime.history.call>
+    try {
+      after = runtime.history.call(prefix, ref.callId)
+    } catch {
+      return undefined
+    }
+    const durable = 'known' in after ? after.known.acknowledged : null
+    if (
+      durable === null ||
+      !modelLogJsonEqual(durable.record, record) ||
+      !modelLogJsonEqual(shellOf(durable.entry), shell) ||
+      durable.entry.session !== binding.session
+    )
+      return undefined
+    return durable.record
   }
 
   async function acknowledge(input: AcknowledgeCallInput): Promise<AcknowledgeCallResult> {
@@ -444,68 +546,72 @@ function buildServiceAcknowledge<P extends PlannedSemantics, R>(
     const session = bound.binding
     const binding = session.log
     if (!validAcknowledgementBinding(binding, session, ref, custody)) return unavailable
-    const first = await runtime.callFacts.lookup({ binding, ref })
-    let origin = acknowledgementOrigin(first)
-    if (origin === undefined && !('callNotFound' in first)) {
-      // RT12 S-96⑧/S-98: a batch fixed before an unconfirmed append closed the copy reads, so the
-      // facts view is unavailable; the original creation shell in the log still names the
-      // origin, and the retry below resends or recognizes the same fixed batch only.
-      const retention = await runtime.callFacts.content.retention({ binding, call: ref.callId })
-      if (!('phase' in retention) || retention.phase !== 'retiring') return unavailable
-      const prefix = await readPrefix(session)
-      const sources = prefix === undefined ? undefined : sourcesOf(prefix, ref.callId)
-      if (sources === undefined) return unavailable
-      origin = originOfEntry(sources.creation)
-    }
-    const admitted = await runtime.callAccess.check(
-      { binding, ref, action: 'ack', ...(origin === undefined ? {} : { origin }) },
-      async (evidence: CallAccessEvidence): Promise<AcknowledgeCallResult> => {
-        const current = (): boolean =>
-          evidence.action === 'ack' &&
-          evidence.ref.session === ref.session &&
-          evidence.ref.callId === ref.callId &&
-          evidence.source.generation === binding.generation &&
-          !evidence.revoked.aborted &&
-          settlementGenerationCurrent(binding)
-        if (!current()) return unavailable
-        const recognize = async (
-          record: ModelCallAcknowledgedRecord,
-        ): Promise<AcknowledgeCallResult> => {
-          // RT12 S-96⑦: the same target recognizes the original ACK and its current progress.
-          if (!modelLogJsonEqual(record.target, expectedResult))
-            return { wrongPhase: { phase: record.terminalState } }
-          const cleanup = await custody.cleanup({ binding, ref, record })
-          // A durable record that contradicts the retained originals is no lawful ACK.
-          if (!('cleanup' in cleanup)) return unavailable
-          return current()
-            ? { acknowledged: acknowledgementSummary(ref, record, cleanup) }
-            : unavailable
-        }
-        if (physical.closed) {
-          // RT12 S-96⑧/S-100: a stopped host still recognizes a readable durable ACK and its
-          // cleanup progress, but starts no new ACK work.
-          const durable = await runtime.callFacts.lookup({ binding, ref })
-          if ('acknowledged' in durable) return await recognize(durable.acknowledged.record)
-          return 'callNotFound' in durable ? notFound : unavailable
-        }
-        const key = keyOf(ref)
-        if (!(await settleRetained(key))) return unavailable
-        const prefix = await readPrefix(session)
-        if (prefix === undefined || !current()) return unavailable
-        let history: ReturnType<typeof runtime.history.call>
-        try {
-          history = runtime.history.call(prefix, ref.callId)
-        } catch {
+    const source = await acknowledgementSource(session, ref)
+    if ('unavailable' in source) return unavailable
+    const { origin } = source
+
+    const admittedAcknowledgement = async (
+      evidence: CallAccessEvidence,
+    ): Promise<AcknowledgeCallResult> => {
+      const current = (): boolean =>
+        evidence.action === 'ack' &&
+        evidence.ref.session === ref.session &&
+        evidence.ref.callId === ref.callId &&
+        evidence.source.generation === binding.generation &&
+        !evidence.revoked.aborted &&
+        settlementGenerationCurrent(binding)
+      const recognize = async (
+        record: ModelCallAcknowledgedRecord,
+      ): Promise<AcknowledgeCallResult> => {
+        // RT12 S-96⑦: the same target recognizes the original ACK and its current progress.
+        if (!modelLogJsonEqual(record.target, expectedResult))
+          return { wrongPhase: { phase: record.terminalState } }
+        const cleanup = await custody.cleanup({ binding, ref, record })
+        // A durable record that contradicts the retained originals is no lawful ACK.
+        if (!('cleanup' in cleanup)) return unavailable
+        return current()
+          ? { acknowledged: acknowledgementSummary(ref, record, cleanup) }
+          : unavailable
+      }
+      const recognizeClosed = async (): Promise<AcknowledgeCallResult> => {
+        // A stopped host recognizes durable ACKs, but starts no new ACK work.
+        const durable = await runtime.callFacts.lookup({ binding, ref })
+        if ('acknowledged' in durable) return await recognize(durable.acknowledged.record)
+        return 'callNotFound' in durable ? notFound : unavailable
+      }
+      const confirmPrepared = async (
+        record: ModelCallAcknowledgedRecord,
+        shell: ModelLogShell,
+        prefix: SettlementPrefix,
+      ): Promise<AcknowledgeCallResult> => {
+        const written = await append(session, ref, record, shell, prefix)
+        if (written === 'conflict') return unavailable
+        if (written === 'withdrawn') {
+          // RT12 S-96: back to retained on the same row; nothing is deleted.
+          const withdrawn = await runtime.callFacts.content.withdrawAcknowledgement({
+            binding,
+            call: ref.callId,
+            record,
+          })
+          report('withdrawn', ref, {
+            result: 'phase' in withdrawn ? withdrawn.phase : 'unavailable',
+          })
           return unavailable
         }
-        if ('absent' in history) return notFound
-        if (!('known' in history)) return unavailable
-        const known = history.known
-        if (known.acknowledged !== null) return await recognize(known.acknowledged.record)
-        const sources = sourcesOf(prefix, ref.callId)
-        if (sources === undefined) return unavailable
-        const terminal = terminalOf(known, sources)
-        if ('nonTerminal' in terminal) return { wrongPhase: { phase: terminal.nonTerminal } }
+        if (written === 'unavailable') return unavailable
+        // Neither the receipt nor a key collision confirms the fixed batch.
+        const readBack = await readPrefix(session)
+        if (readBack === undefined || !current()) return unavailable
+        const durable = confirmedAcknowledgement(readBack, ref, record, shell, binding)
+        if (durable === undefined) return unavailable
+        report('confirmed', ref, { via: written })
+        return await recognize(durable)
+      }
+      const acknowledgeTerminal = async (
+        prefix: SettlementPrefix,
+        sources: CallSources,
+        terminal: Extract<Terminal, { readonly target: AckTarget }>,
+      ): Promise<AcknowledgeCallResult> => {
         if (!modelLogJsonEqual(terminal.target, expectedResult)) {
           const phase =
             terminal.state ??
@@ -539,50 +645,26 @@ function buildServiceAcknowledge<P extends PlannedSemantics, R>(
         })
         if (!('record' in prepared)) return 'invalidInput' in prepared ? malformed : unavailable
         const record = prepared.record
-        // A fixed batch always names this call's one real target; anything else is broken.
         if (!modelLogJsonEqual(record.target, terminal.target)) return unavailable
         if (!current()) return unavailable
-        const shell: ModelLogShell = {
-          tenant: sources.creation.tenant,
-          ...(sources.creation.run === undefined ? {} : { run: sources.creation.run }),
-          ...(sources.creation.attempt === undefined ? {} : { attempt: sources.creation.attempt }),
-        }
-        const written = await append(session, ref, record, shell, prefix)
-        if (written === 'conflict') return unavailable
-        if (written === 'withdrawn') {
-          // RT12 S-96 (the one retreat): back to retained on the same row; nothing is deleted.
-          const withdrawn = await runtime.callFacts.content.withdrawAcknowledgement({
-            binding,
-            call: ref.callId,
-            record,
-          })
-          report('withdrawn', ref, {
-            result: 'phase' in withdrawn ? withdrawn.phase : 'unavailable',
-          })
-          return unavailable
-        }
-        if (written === 'unavailable') return unavailable
-        // R-J/MS8 S-58: the log deduplicates by key only, so neither a receipt nor a key
-        // collision recognizes this batch. Read the durable value back and compare it whole.
-        const readBack = await readPrefix(session)
-        if (readBack === undefined || !current()) return unavailable
-        let after: ReturnType<typeof runtime.history.call>
-        try {
-          after = runtime.history.call(readBack, ref.callId)
-        } catch {
-          return unavailable
-        }
-        const durable = 'known' in after ? after.known.acknowledged : null
-        if (
-          durable === null ||
-          !modelLogJsonEqual(durable.record, record) ||
-          !modelLogJsonEqual(shellOf(durable.entry), shell) ||
-          durable.entry.session !== binding.session
-        )
-          return unavailable
-        report('confirmed', ref, { via: written })
-        return await recognize(durable.record)
-      },
+        return confirmPrepared(record, shellOf(sources.creation), prefix)
+      }
+
+      if (!current()) return unavailable
+      if (physical.closed) return recognizeClosed()
+      const key = keyOf(ref)
+      if (!(await settleRetained(key))) return unavailable
+      const prefix = await readPrefix(session)
+      if (prefix === undefined || !current()) return unavailable
+      const inspected = inspectAcknowledgement(prefix, ref)
+      if ('refused' in inspected) return inspected.refused
+      if ('record' in inspected) return await recognize(inspected.record)
+      return acknowledgeTerminal(prefix, inspected.sources, inspected.terminal)
+    }
+
+    const admitted = await runtime.callAccess.check(
+      { binding, ref, action: 'ack', ...(origin === undefined ? {} : { origin }) },
+      admittedAcknowledgement,
     )
     if ('allowed' in admitted) return admitted.allowed
     return 'invalidInput' in admitted ? admitted : unavailable
