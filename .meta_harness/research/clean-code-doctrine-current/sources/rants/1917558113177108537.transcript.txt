@@ -1,6 +1,0 @@
-[00:00] What is it that you think happens inside of a SQL database when it receives a SQL string?
-[00:07] Well, it compiles it down into an internal
-[00:12] representation, a data representation, and then uses a set of function calls to interpret that data
-[00:19] representation to access the data period.
-[00:22] And that data representation and those function calls are what we programmers should be using to access data.
-[00:34] We should not be using some bloated old arcane syntax invented 50 years ago for people typing at a teletype.

@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import {
   createModelCallSemanticDigest,
   judgeModelCallCreatedPayload,
@@ -30,10 +31,7 @@ import type { ModelCallContentValue } from '../src/reference-types.ts'
 
 async function normative(path: string, name: string): Promise<unknown> {
   const result = readJsonStrict(
-    await readFile(
-      new URL(`../../../../.meta_harness/design/spec/data/${path}`, import.meta.url),
-      'utf8',
-    ),
+    await readFile(new URL(`../../../core/${path}`, import.meta.url), 'utf8'),
   )
   if ('failed' in result || !Array.isArray(result.ok)) throw new Error('normative rows')
   const row = result.ok.find(
@@ -45,7 +43,7 @@ async function normative(path: string, name: string): Promise<unknown> {
 }
 async function created(): Promise<Extract<ModelCallContentValue, { kind: 'created' }>> {
   const result = judgeModelCallCreatedPayload(
-    await normative('messages/v7/reference-examples.json', 'created-original-input'),
+    await normative('messages/tests/fixtures/reference-examples.json', 'created-original-input'),
   )
   if ('rejected' in result) throw new Error('accepted created fixture')
   return { kind: 'created', value: result.ok }
@@ -55,7 +53,7 @@ function isPending(value: unknown): value is PendingModelResponse {
 }
 async function pending(): Promise<Extract<ModelCallContentValue, { kind: 'reply_ready' }>> {
   const value = await normative(
-    'model-response/v10/ready-examples.json',
+    'model-response/tests/fixtures/ready-examples.json',
     'ready-complete-original-facts',
   )
   if (!isPending(value)) throw new Error('accepted pending fixture')
@@ -712,6 +710,196 @@ describe('RT12 S-98 retention gate on real SQLite', () => {
       expect(await rowCount(h.storage, 'model_call_content', call)).toBe(0)
       await store.close()
       await direct.close()
+    })
+  })
+})
+
+it('malformed created content is rejected before any publisher can be retained', async () => {
+  await host(async h => {
+    const store = createModelCallContentStore({ storage: h.storage, policy })
+    expect(
+      await store.put({
+        binding: h.binding,
+        locator: 'invalid-created',
+        version: '1',
+        content: { kind: 'created', value: {} } as unknown as ModelCallContentValue,
+      }),
+    ).toHaveProperty('invalidInput')
+    expect(await store.retention({ binding: h.binding, call: h.content.value.ref.callId })).toEqual(
+      { phase: null, publishers: 0 },
+    )
+    await store.close()
+  })
+})
+it('refuses content belonging to another session before publication', async () => {
+  await host(async h => {
+    const store = createModelCallContentStore({ storage: h.storage, policy })
+    try {
+      expect(
+        await store.put({
+          binding: {
+            ...h.binding,
+            session: unwrap(parseOpaqueIdentifier('other-session', 'SessionRef')),
+          },
+          locator: 'other-session-content',
+          version: '1',
+          content: h.content,
+        }),
+      ).toHaveProperty('invalidInput')
+      expect(
+        await store.retention({ binding: h.binding, call: h.content.value.ref.callId }),
+      ).toEqual({ phase: null, publishers: 0 })
+    } finally {
+      await store.close()
+    }
+  })
+})
+for (const allowance of [-1, 0, 1] as const)
+  it(`enforces the serialized byte limit with allowance ${allowance}`, async () => {
+    await host(async h => {
+      const byteLength = new TextEncoder().encode(writeJsonLossless(h.content.value)).byteLength
+      const store = createModelCallContentStore({
+        storage: h.storage,
+        policy: { ...policy, maxContentBytes: byteLength + allowance },
+      })
+      try {
+        const result = await store.put({
+          binding: h.binding,
+          locator: 'byte-limit',
+          version: '1',
+          content: h.content,
+        })
+        if (allowance < 0) {
+          expect(result).toEqual({ unavailable: true })
+          expect(
+            await store.retention({ binding: h.binding, call: h.content.value.ref.callId }),
+          ).toEqual({ phase: null, publishers: 0 })
+        } else {
+          expect(result).toHaveProperty('ref')
+          if (!('ref' in result)) throw new Error('Exact byte boundary refused')
+          await result.permit.release()
+          expect(
+            await store.read({
+              binding: h.binding,
+              call: h.content.value.ref.callId,
+              ref: result.ref,
+            }),
+          ).toHaveProperty('content')
+        }
+      } finally {
+        await store.close()
+      }
+    })
+  })
+describe('external content custody before publication', () => {
+  for (const mode of ['unavailable', 'throw', 'syncThrow', 'falseRetention'] as const)
+    it(`refuses external content when custody returns ${mode}`, async () => {
+      await host(async h => {
+        const store = createModelCallContentStore({
+          storage: h.storage,
+          policy,
+          externalContent: {
+            confirm() {
+              if (mode === 'syncThrow') throw new Error('custody invocation failed')
+              return Promise.resolve().then(() => {
+                if (mode === 'throw') throw new Error('custody IO failed')
+                if (mode === 'falseRetention')
+                  return { retained: false } as unknown as { retained: true }
+                return { unavailable: true as const }
+              })
+            },
+          },
+        })
+        expect(
+          await store.put({
+            binding: h.binding,
+            locator: 'external-failed',
+            version: '1',
+            content: await pending(),
+          }),
+        ).toEqual({ unavailable: true })
+        expect(
+          await store.retention({ binding: h.binding, call: h.content.value.ref.callId }),
+        ).toEqual({ phase: null, publishers: 0 })
+        await store.close()
+      })
+    })
+  it('keeps exact original locators under confirmed durable custody across reopen', async () => {
+    await host(async h => {
+      const original = await pending()
+      const seen: ModelCallContentValue[] = []
+      const store = createModelCallContentStore({
+        storage: h.storage,
+        policy,
+        externalContent: {
+          async confirm(request) {
+            expect(request.binding.tenant).toEqual(h.binding.tenant)
+            expect(request.binding.session).toBe(h.binding.session)
+            seen.push(request.content)
+            return { retained: true }
+          },
+        },
+      })
+      const written = await store.put({
+        binding: h.binding,
+        locator: 'external-held',
+        version: '1',
+        content: original,
+      })
+      expect(seen).toHaveLength(1)
+      if (!('ref' in written)) throw new Error('Confirmed custody publication refused')
+      await written.permit.release()
+      await store.close()
+      const recovered = createModelCallContentStore({ storage: await h.reopen(), policy })
+      const read = await recovered.read({
+        binding: h.binding,
+        call: original.value.call.callId,
+        ref: written.ref,
+      })
+      expect('content' in read && writeJsonLossless(read.content.value)).toBe(
+        writeJsonLossless(original.value),
+      )
+      await recovered.close()
+    })
+  })
+  it('close drains actual custody IO and an expired generation cannot publish afterwards', async () => {
+    await host(async h => {
+      const entered = deferred(),
+        stopped = deferred()
+      let current = true
+      const binding = {
+        ...h.binding,
+        currentGeneration: () => (current ? h.binding.generation : {}),
+      }
+      const store = createModelCallContentStore({
+        storage: h.storage,
+        policy,
+        externalContent: {
+          async confirm() {
+            entered.resolve()
+            await stopped.promise
+            return { retained: true }
+          },
+        },
+      })
+      const publication = store.put({
+        binding,
+        locator: 'external-wait',
+        version: '1',
+        content: await pending(),
+      })
+      await entered.promise
+      let closed = false
+      const closing = store.close().then(() => {
+        closed = true
+      })
+      await Promise.resolve()
+      expect(closed).toBe(false)
+      current = false
+      stopped.resolve()
+      expect(await publication).toEqual({ unavailable: true })
+      await closing
+      expect(closed).toBe(true)
     })
   })
 })

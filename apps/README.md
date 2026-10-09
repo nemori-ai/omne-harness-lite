@@ -9,7 +9,7 @@
 
 | 应用 | 是什么 | 状态 |
 | --- | --- | --- |
-| [`tenancy-host`](tenancy-host/README.md) | 治理中心作为一个可部署应用：租户领域四个插件、存储与时钟、入口层与运维面装在一个进程里；迁移合成与升级守卫、两步开闸、逆序撤除；`keygen`／`serve` 两条子命令 | 已实现；sqlite 上装配级测试通过，pg 16 上 pg 用例通过（运行 `2026-09-23-tests-tenancy-leg-2`，逐条见节点 verification）。设计：[realization/apps/tenancy-host](../.meta_harness/design/realization/apps/tenancy-host/README.md) |
+| [`tenancy-host`](tenancy-host/README.md) | 治理中心作为一个可部署应用：租户领域四个插件、存储与时钟、入口层与运维面装在一个进程里；迁移合成与升级守卫、两步开闸、逆序撤除；`keygen`／`serve` 两条子命令 | 当前SQLite装配范围与未实现/验证边界见[应用SPEC](tenancy-host/SPEC.md) |
 
 [治理CLI](cli/README.md)已按D049建立文件输入增量；只装配CG2/CLS，尚无TUI或Agent据点，独立安装制品待验证。
 

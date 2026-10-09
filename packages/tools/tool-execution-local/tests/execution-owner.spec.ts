@@ -45,6 +45,59 @@ import {
   fixture,
 } from './execution-owner-fixture.ts'
 
+test.each(['renewal', 'revocation'] as const)(
+  'context reads allow due %s before consulting the original current reader',
+  async operation => {
+    let due = false
+    const sourceRead = vi.fn(async () =>
+      !due
+        ? ({ kind: 'rejected', reason: 'unavailable' } as const)
+        : operation === 'revocation'
+          ? ({ kind: 'rejected', reason: 'notAuthorized' } as const)
+          : ({
+              kind: 'values',
+              values: [{ key: 'key', revision: '1', value: 'current-context', observedAt: at }],
+            } as const),
+    )
+    const f = await fixture(async (_args, deps) => {
+      setTimeout(() => {
+        due = true
+      }, 0)
+      const observed = await deps.context.read(['key'])
+      return observed.kind === 'values' ? 'current-context' : observed.reason
+    })
+    f.bind.mockImplementation(async () => ({ kind: 'bound', reader: { read: sourceRead } }))
+    try {
+      expect(await f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+      const observer = await f.observer()
+      const ended = await observer.waitForEnd()
+      expect(ended).toMatchObject({
+        kind: 'found',
+        snapshot: {
+          state: {
+            phase: 'ended',
+            terminal: {
+              outcome: 'completed',
+              result: operation === 'renewal' ? 'current-context' : 'notAuthorized',
+            },
+          },
+        },
+      })
+      expect(sourceRead).toHaveBeenCalledOnce()
+      const logged = await f.log.readSince(scope.session, 0)
+      if ('failure' in logged) throw new Error('actual log required')
+      const projected = projectToolJournal(scope, logged.entries)
+      if (!('executions' in projected)) throw new Error('actual projection required')
+      expect(projected.executions.get(ref.callId)?.contextReads).toHaveLength(
+        operation === 'renewal' ? 1 : 0,
+      )
+      observer.release()
+    } finally {
+      await f.close()
+    }
+  },
+)
+
 test('concurrent identical submissions invoke one captured closure and persist terminal, account and delivery together', async () => {
   const f = await fixture()
   try {

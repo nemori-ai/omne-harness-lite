@@ -1,6 +1,10 @@
 import { readFile } from 'node:fs/promises'
 import { Context, type Fiber, type Logger } from '@deepseek-ai/cordis'
-import { clockPreflight, ClockRollbackDetected } from '@omne-harness-lite/clock-lease'
+import {
+  clockPreflight,
+  clockResourcePreflight,
+  ClockRollbackDetected,
+} from '@omne-harness-lite/clock-lease'
 import {
   GovernanceCenterClockTimeoutError,
   governanceCenterPreflight,
@@ -407,7 +411,12 @@ export async function boot(options: BootOptions = {}): Promise<TenancyHost> {
           upgrade: {
             checks: [
               dataFormatPreflight(input.migrationNames),
-              clockPreflight(),
+              input.config.storage.dialect === 'sqlite'
+                ? clockResourcePreflight({
+                    file: `${input.config.storage.file}.clock.sqlite`,
+                    initialize: input.config.initializeClock ?? false,
+                  })
+                : clockPreflight(),
               governanceCenterPreflight,
             ],
             guard,

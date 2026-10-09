@@ -147,4 +147,4 @@ assert.ok(pinned.$id.includes('/call-accounts/v2/'))
 assert.deepEqual(current.$defs, pinned.$defs)
 ```
 
-采用依据与映射：ACK 决定、[CA4](../../../.meta_harness/design/spec/data/call-accounts/v4/contract.md)、[提供者](../../../.meta_harness/design/realization/packages/core/call-accounts/v4-acknowledgement-design.md)。本包验证导航：[显式输入](tests/v3.spec.ts)与[规范实例](tests/examples.spec.ts)；真实来源选择、权限和持久恢复由组合验证承担。
+采用依据与映射：ACK 决定、[CA4](SPEC.md)、[提供者](SPEC.md)。本包验证导航：[显式输入](tests/v3.spec.ts)与[规范实例](tests/examples.spec.ts)；真实来源选择、权限和持久恢复由组合验证承担。

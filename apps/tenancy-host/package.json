@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "治理中心装配：存储与迁移合成、升级守卫确认、时钟、密钥、四个 tenancy 插件与入口层的装载清单、两步开闸与逆序撤除。设计：.meta_harness/design/realization/apps/tenancy-host/",
+  "description": "\u6cbb\u7406\u4e2d\u5fc3\u5e94\u7528\u88c5\u914d\uff1a\u5b58\u50a8\u3001\u65f6\u949f\u3001\u8eab\u4efd\u6cbb\u7406\u3001\u5165\u53e3\u548c\u8fd0\u7ef4\uff0c\u5b8c\u6574\u542f\u52a8\u786e\u8ba4\u3001\u5f00\u95f8\u53ca\u6709\u5e8f\u6536\u573a\u3002",
   "engines": {
     "node": ">=24 <25"
   },

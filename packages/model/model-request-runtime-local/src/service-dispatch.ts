@@ -985,6 +985,10 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
         return { unavailable: true }
       if ('replyPending' in outcome) {
         const pending = outcome.replyPending
+        const at = await runtime.policy.now()
+        const current = finish.reservation.view()
+        if (current?.invocation !== handle || current.operation.phase !== 'dispatching')
+          return { unavailable: true }
         const published = await publishModelCallContent({
           binding: session.log,
           owner: view.owner,
@@ -994,7 +998,7 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
           content: { kind: 'reply_ready', value: pending },
           locator: pending.id,
           version: 'v1',
-          at: runtime.policy.now(),
+          at,
           trackTask: task => physical.appends.track(task),
           retainUnknown(registration, task, permit) {
             physical.unknownWrites.keep(

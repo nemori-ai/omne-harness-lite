@@ -1,3 +1,4 @@
+import { adoptedSchemaBytes } from './adopted-schema-input.ts'
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
@@ -127,12 +128,7 @@ describe('V-1/V-3/SC-6 body contract and pure declaration module', () => {
   })
   it('P-schema resource exact frozen bytes and schema value detached/deeply immutable', () => {
     const resource = readFileSync(new URL('../schema/slash-command.schema.json', import.meta.url))
-    const frozen = readFileSync(
-      new URL(
-        '../../../../.meta_harness/design/spec/data/slash-command/v2/slash-command.schema.json',
-        import.meta.url,
-      ),
-    )
+    const frozen = adoptedSchemaBytes('slash-command', 2)
     expect(resource.equals(frozen)).toBe(true)
     expect(createHash('sha256').update(resource).digest('hex')).toBe(
       '595e5662cf7ebd5d84c5ba3edee7b4dd8a6e817a4738343bfa86c318cc1ac40e',

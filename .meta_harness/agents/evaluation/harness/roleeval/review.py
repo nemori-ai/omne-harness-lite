@@ -11,10 +11,7 @@ file or move HEAD off the delivery commit.
 """
 from __future__ import annotations
 
-import os
 import shutil
-import subprocess
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -26,22 +23,8 @@ from .suite import Flow, Material
 FIRST_PARAGRAPH_LIMIT = 600
 
 
-def design_review_report(repo: Path, dest: Path, contract: str) -> str:
-    """The mechanical report the dispatcher attaches, produced on the copy the role will read."""
-    done = subprocess.run(
-        [sys.executable, str(repo / ".meta_harness/tooling/src/design_review.py"),
-         "--root", str(dest / ".meta_harness/design"), "--contract", contract],
-        cwd=str(repo), env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"), capture_output=True, text=True)
-    if done.returncode != 0:
-        raise RuntimeError(f"design review report failed on {contract}:\n{done.stdout}{done.stderr}")
-    return done.stdout
-
-
 def brief(flow: Flow, material: Material, dest: Path, *, repo: Path) -> str:
     text = material.brief.read_text(encoding="utf-8").replace("{WORKDIR}", str(dest))
-    if flow.attach_design_review:
-        report = design_review_report(repo, dest, material.contract)
-        text += f"\n## 设计评审报告（派发者在本检出上跑出的原始输出）\n\n```\n{report}```\n"
     return text
 
 
@@ -172,9 +155,6 @@ def _seed_prompt(material: Material, seed: Any) -> str:
     op = seed.op or {}
     if op.get("op") == "replace":
         lines += ["", "原文：", op["find"], "", "种入后：", op["replace"]]
-    elif op.get("op") == "catalog-add-clause":
-        lines += ["", f"种入：在 catalog 对 {op['dependency']['contract_id']} v{op['dependency']['version']} "
-                      f"的依赖声明里加上条款 {op['clause']}"]
     elif seed.edits:
         for edit in seed.edits:
             if edit["op"] == "replace":

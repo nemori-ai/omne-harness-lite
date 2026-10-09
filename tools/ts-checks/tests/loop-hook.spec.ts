@@ -315,3 +315,32 @@ describe('收工钩子的判断', () => {
     expect(renderWarning('短', '/h')).toContain('原因：短（全文在 /h/hook.log）')
   })
 })
+
+describe('complete neutral assembly output', () => {
+  it('retains large fact lists without spreading them into function arguments', () => {
+    const basic = readings()
+    const added = Array.from({ length: 150_000 }, (_, index) => ({
+      id: `fact-${index}`,
+      member: 'packages/core/example',
+      plugin: 'large',
+      scope: 'top',
+      kind: 'injects' as const,
+      key: `dependency-${index}`,
+      path: 'packages/core/example/src/index.ts',
+      line: 1,
+    }))
+    const result = findingsOf({
+      ...basic,
+      explain: {
+        ...basic.explain,
+        assemblyDelta: { status: 'data', data: { added, removed: [], changed: [] } },
+      },
+    })
+    const neutral = result.filter(row => row.key.startsWith('["assembly","added",'))
+    expect(result).toHaveLength(findingsOf(basic).length + added.length)
+    expect(neutral).toHaveLength(added.length)
+    expect(neutral[0]?.text).toContain('dependency-0')
+    expect(neutral.at(-1)?.text).toContain('dependency-149999')
+    expect(result[0]?.text).toContain('硬线')
+  })
+})

@@ -1,9 +1,8 @@
 // sqlite 上的属主机制：库旁锁文件上的排他、在线备份建一致快照、「库不存在」标记、恢复次序。
 // 取证（Node 24.18 `node:sqlite`，2026-09-23，见包内测试与交付记录）：
-// - 同一进程两个 DatabaseSync 句柄对同一文件 `BEGIN EXCLUSIVE`：后者得 SQLITE_BUSY（互斥）；跨进程同样，持有者被 SIGKILL 后即可取得。
 // - `backup(source, path)` 读穿预写日志（只在预写日志里的提交进了快照）；目标是有效库 ⇒ 覆盖；目标是半成品 ⇒
 //   SQLITE_NOTADB／SQLITE_CORRUPT 失败。`VACUUM INTO` 对非空目标报 "output file already exists"。所以②删半成品而不是忽略。
-import { DatabaseSync, backup } from 'node:sqlite'
+import { AsyncSqliteDatabase } from './async-database.ts'
 import { chmod, rename, stat, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { StorageStartupFailure } from '../upgrade/guard.ts'
@@ -51,6 +50,8 @@ function describe(error: unknown): string {
 
 export class SqliteOwnerSite implements OwnerSite {
   readonly paths: SqliteOwnerPaths
+  readonly #snapshots = new Set<AsyncSqliteDatabase>()
+  readonly resourcesClosed = (): boolean => [...this.#snapshots].every(db => !db.isOpen)
 
   constructor(
     file: string,
@@ -65,14 +66,13 @@ export class SqliteOwnerSite implements OwnerSite {
   }
 
   /**
-   * ①：库旁空锁库上持住唯一写事务槽。IMMEDIATE允许竞争者短暂读锁库元信息，
-   * 避免零等待EXCLUSIVE把两名竞争者都拒绝；第二个写事务仍不能取得属主资格。
-   * 文件锁随进程死亡释放；强引用直到release。MEMORY日志不留附属文件。
+   * ①：main持有永久锁文件的描述符。flock helper成功退出后仍持排他；
+   * worker独死不释放属主。恢复和全部数据库工作收场后才关闭描述符。
    */
   async acquire(): Promise<OwnerLock> {
     assertProductionStoragePath(this.paths.db)
     try {
-      return acquireSqliteLock(this.paths.lock)
+      return await acquireSqliteLock(this.paths.lock)
     } catch (error) {
       if (error instanceof SqliteLockBusy)
         throw new StorageStartupFailure(
@@ -133,12 +133,17 @@ export class SqliteOwnerSite implements OwnerSite {
   readonly takeSnapshot = async (): Promise<void> => {
     assertProductionStoragePath(this.paths.db)
     try {
-      const source = new DatabaseSync(this.paths.db, { timeout: 5000 })
+      const source = new AsyncSqliteDatabase(this.paths.db, { timeout: 5000 })
+      this.#snapshots.add(source)
       try {
-        source.exec('PRAGMA query_only = ON')
-        await backup(source, this.paths.snapshotTemp)
+        await source.exec('PRAGMA query_only = ON')
+        await source.backup(this.paths.snapshotTemp)
       } finally {
-        source.close()
+        try {
+          await source.close()
+        } finally {
+          if (!source.isOpen) this.#snapshots.delete(source)
+        }
       }
       const { mode } = await stat(this.paths.db)
       await chmod(this.paths.snapshotTemp, mode & 0o777)
@@ -146,7 +151,7 @@ export class SqliteOwnerSite implements OwnerSite {
       await this.hooks.beforeSnapshotRename?.()
       await this.#publishTemp()
     } catch (error) {
-      await this.#discardTemp()
+      if (this.resourcesClosed()) await this.#discardTemp()
       throw new StorageStartupFailure(
         'snapshot',
         `cannot take the upgrade snapshot at ${this.paths.snapshot}: ${describe(error)}`,

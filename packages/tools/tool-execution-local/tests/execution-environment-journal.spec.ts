@@ -37,7 +37,7 @@ async function journalFixture(started = true) {
   const closed = new AbortController(),
     retry = vi.fn(async () => {}),
     invalidate = vi.fn(),
-    now = vi.fn<Clock['now']>(() => unwrap(instantFromRfc3339(at)))
+    now = vi.fn<Clock['now']>(async () => unwrap(instantFromRfc3339(at)))
   const journal = { ...f.journal, read: vi.fn(f.journal.read), commit: vi.fn(f.journal.commit) }
   const environment = createExecutionEnvironment({
     ref,
@@ -505,7 +505,7 @@ test('unavailable stop timestamp does not append a physical observation', async 
     await f.environment.prepare()
     const resources = f.ports.resources()!
     await resources.plan(resource)
-    f.now.mockReturnValueOnce('unavailable')
+    f.now.mockResolvedValueOnce('unavailable')
     expect(await resources.stopped(resource.key, 'confirmed')).toBe('unavailable')
     expect((await history(f)).resources.get(resource.key)?.observations).toHaveLength(0)
   } finally {

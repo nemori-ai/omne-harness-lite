@@ -59,9 +59,9 @@ import {
   type SnapshotDecision,
 } from './trend.ts'
 
-import { type Reflexion } from './sensors/reflexion.ts'
+import type { AssemblyObservations, AssemblyDelta } from './sensors/assembly.ts'
 import { readArchitectureSensors } from './sensors/conformance.ts'
-import type { IntentChange } from '../arch/compare.ts'
+import type { ConstraintChange } from '../arch/conformance-model.ts'
 
 const OFF = '配置里关了'
 
@@ -96,8 +96,9 @@ interface Sensors {
   readonly topicChurn: Reading<readonly TopicChurn[]>
   readonly worktrees: Reading<readonly WorktreeChanges[]>
   readonly acceptance: Reading<AcceptanceTiming>
-  readonly reflexion: Reading<Reflexion>
-  readonly assemblyChanges: Reading<readonly IntentChange[]>
+  readonly architecture: Reading<AssemblyObservations>
+  readonly assemblyDelta: Reading<AssemblyDelta>
+  readonly architectureChanges: Reading<readonly ConstraintChange[]>
 }
 
 /** 基线合并点到当前工作树的改动：全部改动路径，与改动过的成员源码在合并点的文本。 */
@@ -203,9 +204,9 @@ async function readSensors(
 ): Promise<Sensors> {
   const { sensors } = config
   const windowStart = new Date(Date.now() - sensors.topicChurn.windowDays * 24 * 60 * 60 * 1000)
-  const { reflexion, intentChanges, conformance } = readArchitectureSensors(
+  const { architecture, assemblyDelta, architectureChanges, conformance } = readArchitectureSensors(
     root,
-    sensors.reflexion,
+    sensors.architecture,
     change?.mergeBase,
   )
   return {
@@ -221,8 +222,9 @@ async function readSensors(
     worktrees: sensors.worktrees.enabled
       ? data(readWorktrees(root, config.primaryBranch))
       : noData(OFF),
-    reflexion,
-    assemblyChanges: intentChanges,
+    architecture,
+    assemblyDelta,
+    architectureChanges,
     acceptance: sensors.acceptance.enabled ? readAcceptanceTiming(acceptanceAt) : noData(OFF),
   }
 }
@@ -253,18 +255,12 @@ function indicatorValues(
       ? sensors.worktrees.data.filter(tree => tree.problem !== undefined)
       : []
   return {
-    newDeviations: {
-      reading:
-        sensors.reflexion.status === 'no-data'
-          ? sensors.reflexion
-          : map(sensors.reflexion.data.newDeviations, items => items.length),
-    },
-    assemblyChanges: {
-      reading: map(sensors.assemblyChanges, items => items.length),
-    },
-    missingAssembly: { reading: map(sensors.reflexion, result => result.missing.length) },
+    addedAssemblyFacts: { reading: map(sensors.assemblyDelta, result => result.added.length) },
+    removedAssemblyFacts: { reading: map(sensors.assemblyDelta, result => result.removed.length) },
+    changedAssemblyFacts: { reading: map(sensors.assemblyDelta, result => result.changed.length) },
+    architectureChanges: { reading: map(sensors.architectureChanges, items => items.length) },
     unresolvedServiceNames: {
-      reading: map(sensors.reflexion, result => result.current.serviceIdentifiers.unresolved),
+      reading: map(sensors.architecture, result => result.current.serviceIdentifiers.unresolved),
     },
     redMembers: { reading: data(report.members.filter(m => m.band === 'red').length) },
     functionsOverAlert: {
@@ -640,11 +636,7 @@ export async function runLoopStatus(
       ? undefined
       : {
           ...explainOf(root, report, sensors, change),
-          newDeviations:
-            sensors.reflexion.status === 'no-data'
-              ? sensors.reflexion
-              : sensors.reflexion.data.newDeviations,
-          assemblyChanges: sensors.assemblyChanges,
+          assemblyDelta: sensors.assemblyDelta,
           conformance: sensors.conformance,
         }
   const lines = renderStatus({
@@ -658,7 +650,7 @@ export async function runLoopStatus(
     hardLines,
     indicators,
     explain,
-    reflexion: sensors.reflexion,
+    architecture: sensors.architecture,
     explainTop: config.explainTop,
     overBudget,
     budgets,

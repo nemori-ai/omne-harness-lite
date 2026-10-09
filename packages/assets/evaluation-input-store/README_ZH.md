@@ -2,13 +2,14 @@
 
 [English](README.md)
 
-从不可变本地发布、实际会话租户归属及当前组织治理事实读取独立持有的求值输入。本包是实验性、未发布的 ESM workspace 成员，提供独立闭包及 Cordis 读取服务。已接受范围与组件覆盖见[实现映射](../../../.meta_harness/design/realization/packages/assets/evaluation-input-store/README.md)。
+从不可变本地发布、实际会话租户归属及当前组织治理事实读取独立持有的求值输入。本包是实验性、未发布的 ESM workspace 成员，提供独立闭包及 Cordis 读取服务。提供者行为见[薄SPEC](SPEC.md)，资源与局限见[验证入口](verification/README.md)。
 
 ## 公开入口
 
 | 入口 | 能力 |
 | --- | --- |
-| `.` | `createEvaluationInputReader`、`evaluationInputMigrations`、`createEvaluationInputStorePlugin`、`CURRENT_EVALUATION_INPUTS_SERVICE` 和输入/结果类型 |
+| `.` | `createEvaluationInputReader`、`evaluationInputMigrations` 和依赖/reader类型 |
+| `./cordis` | `evaluationInputStorePlugin`；共享 CurrentEvaluationInputs Service及支持端口归asset-evaluation |
 | `./publication` | 可信 `publishLocalInputs`、`captureSessionRecipe`、`readPublicationRevision` 及发布类型 |
 | `./registry-inputs` | 供已准入 registry 调用者使用的受限固定根读取器 |
 | `./registry-history` | `createRegistryHistoryReader` 及历史类型，读取已授权精确历史正文 |

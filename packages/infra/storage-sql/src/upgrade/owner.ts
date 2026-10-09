@@ -1,5 +1,5 @@
 // 属主实例（开了升级守卫的实例）的插件体路径与撤除收尾；方言差异在 OwnerSite 里。
-// 设计：.meta_harness/design/realization/packages/infra/storage-sql/design.md「属主实例：排他、迁移前只读核对、升级快照与确认」。
+// 属主排他、迁移前核对与升级快照责任归包旁 SPEC.md。
 //   ① 取排他，附着守卫   ② 清半成品、恢复遗留快照   ③ 库不存在 ⇒ 落「库不存在」标记   ④ 打开句柄、ping
 //   ⑤ 一次只读事务：读表清单与迁移登记，跑 checks   ⑥ 有待跑迁移且还没有快照 ⇒ 建一致快照   ⑦ 迁移   ⑧ 交出实例
 //   撤除：守卫置为已撤、关准入 → 等在途事务与在途确认 → 关句柄 → 磁盘上仍有快照 ⇒ 恢复 → 放排他
@@ -41,6 +41,8 @@ export interface OwnerLock {
 
 /** 一种方言上的属主机制：排他、遗留处理、快照与恢复。pg 没有快照，相应各步是空操作。 */
 export interface OwnerSite extends AttachmentSite {
+  /** Additional native resources used by the site, including upgrade backups. */
+  readonly resourcesClosed?: () => boolean
   /** ①：拿不到 ⇒ `StorageStartupFailure('occupied')`；锁本身打不开 ⇒ 原样抛出。 */
   acquire(): Promise<OwnerLock>
   /** ②：删临时名上的半成品；磁盘上有快照 ⇒ 恢复。失败 ⇒ `StorageStartupFailure('restore')`，带位置。 */
@@ -183,79 +185,100 @@ export async function openOwnedStorage(input: OwnedStorageInput): Promise<SqlSto
     await hooks.beforePreflight?.(handles)
     const applied = await preflight(storage, handles, input.checks)
 
-    let known: string[]
-    try {
-      known = Object.keys(await input.migrations.getMigrations())
-    } catch (error) {
-      throw new StorageStartupFailure(
-        'migration',
-        `migrations could not be listed: ${describe(error)}`,
-        { cause: error },
-      )
-    }
-    // 最低防线（架构评审 N-1）：登记里有本次 migrations 不认识的名字 ⇒ 这份数据来自更新的或别的版本，
-    // 在核对阶段具名失败，不拍快照、不跑迁移。次序是否为前缀由装配的数据格式核对判。
-    const beyond = applied.filter(name => !known.includes(name))
-    if (beyond.length > 0) {
-      throw new StorageStartupFailure(
-        'preflight',
-        `check "migration-registry-beyond-known": ${beyond.length} applied migration(s) unknown to this version, first "${beyond[0]}"`,
-        {
-          cause: { ok: false, check: 'migration-registry-beyond-known', detail: beyond.join(', ') },
-        },
-      )
-    }
-    const pending = known.filter(name => !applied.includes(name))
-    if (pending.length > 0 && !attachment.snapshotTaken && site.takeSnapshot !== undefined) {
-      await site.takeSnapshot()
-      attachment.snapshotTaken = true
-    }
-
-    await hooks.beforeMigrate?.()
-    const migrator = new Migrator({ db: handles.writeDb, provider: input.migrations })
-    const { error, results } = await migrator.migrateToLatest()
-    if (results?.some(result => result.status === 'Success') === true) attachment.migrated = true
-    if (error !== undefined) {
-      const failed = results?.find(result => result.status === 'Error')?.migrationName
-      throw new StorageStartupFailure(
-        'migration',
-        failed === undefined
-          ? `migrations could not run: ${describe(error)}`
-          : `migration "${failed}" failed: ${describe(error)}`,
-        { cause: error },
-      )
-    }
+    await migrateOwnedStorage(input, handles, attachment, applied)
 
     attachment.phase = 'serving'
     return storage
   } catch (error) {
     attachment.phase = 'ended'
-    if (error instanceof WorkspaceAcquisitionIncomplete) {
-      if (handles !== undefined) retainStorageHandles(handles)
+    return cleanupFailedOpen(error, input, handles, lock, snapshots)
+  }
+}
+
+async function migrateOwnedStorage(
+  input: OwnedStorageInput,
+  handles: DialectHandles,
+  attachment: GuardAttachment,
+  applied: readonly string[],
+): Promise<void> {
+  const { site, hooks } = input
+  let known: string[]
+  try {
+    known = Object.keys(await input.migrations.getMigrations())
+  } catch (error) {
+    throw new StorageStartupFailure(
+      'migration',
+      `migrations could not be listed: ${describe(error)}`,
+      { cause: error },
+    )
+  }
+  // 最低防线（架构评审 N-1）：登记里有本次 migrations 不认识的名字 ⇒ 这份数据来自更新的或别的版本，
+  // 在核对阶段具名失败，不拍快照、不跑迁移。次序是否为前缀由装配的数据格式核对判。
+  const beyond = applied.filter(name => !known.includes(name))
+  if (beyond.length > 0) {
+    throw new StorageStartupFailure(
+      'preflight',
+      `check "migration-registry-beyond-known": ${beyond.length} applied migration(s) unknown to this version, first "${beyond[0]}"`,
+      {
+        cause: { ok: false, check: 'migration-registry-beyond-known', detail: beyond.join(', ') },
+      },
+    )
+  }
+  const pending = known.filter(name => !applied.includes(name))
+  if (pending.length > 0 && !attachment.snapshotTaken && site.takeSnapshot !== undefined) {
+    await site.takeSnapshot()
+    attachment.snapshotTaken = true
+  }
+
+  await hooks.beforeMigrate?.()
+  const migrator = new Migrator({ db: handles.writeDb, provider: input.migrations })
+  const { error, results } = await migrator.migrateToLatest()
+  if (results?.some(result => result.status === 'Success') === true) attachment.migrated = true
+  if (error !== undefined) {
+    const failed = results?.find(result => result.status === 'Error')?.migrationName
+    throw new StorageStartupFailure(
+      'migration',
+      failed === undefined
+        ? `migrations could not run: ${describe(error)}`
+        : `migration "${failed}" failed: ${describe(error)}`,
+      { cause: error },
+    )
+  }
+}
+
+/** Close the failed startup prefix without releasing ownership of surviving resources. */
+async function cleanupFailedOpen(
+  error: unknown,
+  input: OwnedStorageInput,
+  handles: DialectHandles | undefined,
+  lock: OwnerLock,
+  snapshots: SnapshotEngine | undefined,
+): Promise<never> {
+  if (error instanceof WorkspaceAcquisitionIncomplete) {
+    if (handles !== undefined) retainStorageHandles(handles)
+    input.maintenance?.onClosed('error')
+    throw new StorageStartupFailure(
+      'preflight',
+      'maintenance initialization cleanup incomplete; source ownership is retained',
+      { cause: error },
+    )
+  }
+  if (snapshots !== undefined) {
+    try {
+      await snapshots.close()
+    } catch (closeError) {
       input.maintenance?.onClosed('error')
-      throw new StorageStartupFailure(
-        'preflight',
-        'maintenance initialization cleanup incomplete; source ownership is retained',
-        { cause: error },
-      )
-    }
-    if (snapshots !== undefined) {
-      try {
-        await snapshots.close()
-      } catch (closeError) {
-        input.maintenance?.onClosed('error')
-        if (!snapshots.ownershipReleased) {
-          if (handles !== undefined) retainStorageHandles(handles)
-          throw new StorageStartupFailure(
-            'preflight',
-            'maintenance startup cleanup failed; ownership is retained',
-            { cause: new AggregateError([error, closeError]) },
-          )
-        }
+      if (!snapshots.ownershipReleased) {
+        if (handles !== undefined) retainStorageHandles(handles)
+        throw new StorageStartupFailure(
+          'preflight',
+          'maintenance startup cleanup failed; ownership is retained',
+          { cause: new AggregateError([error, closeError]) },
+        )
       }
     }
-    throw await abortStartup(error, site, handles, lock, input.maintenance !== undefined)
   }
+  throw await abortStartup(error, input.site, handles, lock)
 }
 
 /** 启动失败的收尾：关句柄 → 有快照或标记即恢复 → 放排他；返回要抛出的失败。 */
@@ -264,7 +287,6 @@ async function abortStartup(
   site: OwnerSite,
   handles: DialectHandles | undefined,
   lock: OwnerLock,
-  retainOnCloseFailure: boolean,
 ): Promise<unknown> {
   let result = failure
   // Do not restore data or release source ownership while a native handle survives.
@@ -272,20 +294,20 @@ async function abortStartup(
     try {
       await destroyHandles(handles)
     } catch (closeError) {
-      if (retainOnCloseFailure) {
-        retainStorageHandles(handles)
-        return new StorageStartupFailure(
-          'preflight',
-          'startup handles remain open; ownership is retained',
-          {
-            cause: new AggregateError([failure, closeError]),
-          },
-        )
-      }
-      await lock.release()
-      throw closeError
+      retainStorageHandles(handles)
+      return new StorageStartupFailure(
+        'preflight',
+        'startup handles did not close; ownership is retained',
+        { cause: new AggregateError([failure, closeError]) },
+      )
     }
   }
+  if (site.resourcesClosed?.() === false)
+    return new StorageStartupFailure(
+      'snapshot',
+      'upgrade snapshot handles remain open; ownership is retained',
+      { cause: failure },
+    )
   try {
     // ②自己的恢复已经失败过：不在同一次启动里再动那份快照
     const restoreAlreadyFailed =
@@ -331,6 +353,8 @@ function ownerTeardown(
       return attachment.confirming
     },
     async finish(handlesClosed) {
+      if (!handlesClosed || site.resourcesClosed?.() === false)
+        throw new StorageDefect('native resources remain open; ownership is retained')
       let outcome: { ok: true } | { ok: false; error: unknown } = { ok: true }
       try {
         // 句柄没关干净就不替换库文件：快照留在磁盘上，下一次启动的②恢复它

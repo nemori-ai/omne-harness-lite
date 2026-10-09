@@ -116,3 +116,5 @@ console.log(blocks.map(block => block.origin?.kind)) // ['skill_body', 'slash_co
 `expandSkill` 接收已经选定的 SkillPackage，并要求调用方为每个输出块提供一份身份与可见性标注。它不读取、不选择、不授权技能。不符合辅助函数前提的输入会抛出 `TypeError`，与解析失败不同。本包不记录日志、不发送内容、不执行命令、不解析服务名；这些效果由调用方负责。
 
 JSON Schema 通过 `@omne-harness-lite/slash-command/schema` 公开。参见[源码导出](src/index.ts)、[测试](tests/)与[技能包](../skill-package/README_ZH.md)。
+
+行为与验证职责见[薄 SPEC](SPEC.md)和[验证入口](verification/README.md)。

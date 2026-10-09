@@ -53,7 +53,16 @@ test.each([false, true])(
     d.env[ENV.opsSocketDirectory] = join(d.root, 'new-ops')
     for (const [key, value] of Object.entries(d.env)) vi.stubEnv(key, value)
     const file = join(d.root, 'plugins.json')
-    await writeFile(file, JSON.stringify([{ op: 'replace', id: 'clock-lease', config: {} }]))
+    await writeFile(
+      file,
+      JSON.stringify([
+        {
+          op: 'replace',
+          id: 'clock-lease',
+          config: { file: `${d.file}.clock.sqlite`, initialize: true },
+        },
+      ]),
+    )
     const streams = io(),
       flags = reverse
         ? ['--print-plugins', '--plugins', file]

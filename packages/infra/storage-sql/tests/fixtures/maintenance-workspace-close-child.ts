@@ -1,4 +1,4 @@
-import { DatabaseSync } from 'node:sqlite'
+import childProcess, { type SpawnOptions } from 'node:child_process'
 import { composeMigrations } from '@omne-harness-lite/storage'
 import { existsSync, promises as fs } from 'node:fs'
 import { syncBuiltinESMExports } from 'node:module'
@@ -12,44 +12,46 @@ const marker = join(root, '.omne-isolated')
 const original = fs.open
 let observed: WeakRef<Awaited<ReturnType<typeof fs.open>>> | undefined
 let attempts = 0
-let native: WeakRef<DatabaseSync> | undefined
-const nativeClose = DatabaseSync.prototype.close
-const nativeExec = DatabaseSync.prototype.exec
-const isCoordination = (db: DatabaseSync) =>
-  db.prepare('PRAGMA database_list').get()?.file === join(root, '.owner-lock')
-if (resource?.startsWith('coordination')) {
-  DatabaseSync.prototype.close = function () {
-    if (!isCoordination(this)) return nativeClose.call(this)
-    native = new WeakRef(this)
-    attempts++
-    if (behavior !== 'return-open')
-      throw Object.assign(new Error('injected coordination close failure'), { code: 'EIO' })
-  }
-  DatabaseSync.prototype.exec = function (sql: string) {
-    if (
-      isCoordination(this) &&
-      resource === 'coordination-pragma' &&
-      sql === 'PRAGMA journal_mode = MEMORY'
+const originalSpawn = childProcess.spawn
+childProcess.spawn = ((
+  command: string,
+  args: readonly string[] = [],
+  options: SpawnOptions = {},
+) => {
+  const stdio = options?.stdio
+  const target = Array.isArray(stdio) && stdio[3] === observed?.deref()?.fd
+  if (command === 'flock' && target && resource === 'coordination-spawn')
+    return originalSpawn(process.execPath, ['--eval', 'process.exit(2)'], options)
+  if (command === 'flock' && target && resource === 'coordination-acquired')
+    return originalSpawn(
+      process.execPath,
+      [
+        '--input-type=module',
+        '--eval',
+        `
+      import { spawnSync } from 'node:child_process'
+      const result = spawnSync('flock', ['--exclusive', '--nonblock', '3'],
+        { stdio: ['ignore', 'ignore', 'ignore', 3] })
+      process.exit(result.status === 0 ? 2 : 3)
+    `,
+      ],
+      options,
     )
-      throw new Error('injected coordination initialization failure')
-    const result = nativeExec.call(this, sql)
-    if (isCoordination(this) && resource === 'coordination-begin' && sql === 'BEGIN IMMEDIATE')
-      throw new Error('injected failure after actual BEGIN')
-    return result
-  }
-}
+  return originalSpawn(command, args, options)
+}) as unknown as typeof childProcess.spawn
 fs.open = async (...args) => {
   if (resource === 'coordination-release' && String(args[0]) === marker)
     throw Object.assign(new Error('injected marker open failure'), { code: 'EIO' })
   const handle = await original(...args)
   const path = String(args[0])
-  const match =
-    resource === 'marker'
+  const match = resource?.startsWith('coordination')
+    ? path === join(root, '.owner-lock')
+    : resource === 'marker'
       ? path === marker
       : resource === 'root'
         ? path === root
         : path === dirname(root) && existsSync(marker)
-  if (match && !resource?.startsWith('coordination')) {
+  if (match) {
     observed = new WeakRef(handle)
     const close = handle.close.bind(handle)
     handle.close = async () => {
@@ -81,8 +83,7 @@ try {
   failure = error
 }
 fs.open = original
-DatabaseSync.prototype.close = nativeClose
-DatabaseSync.prototype.exec = nativeExec
+childProcess.spawn = originalSpawn
 syncBuiltinESMExports()
 for (let i = 0; i < 3; i++) {
   await new Promise<void>(resolve => setImmediate(resolve))
@@ -94,7 +95,7 @@ process.stdout.write(
     stage: 'failed',
     failed: failure !== undefined,
     attempts,
-    resourceOpen: (observed?.deref()?.fd ?? -1) >= 0 || native?.deref()?.isOpen === true,
+    resourceOpen: (observed?.deref()?.fd ?? -1) >= 0,
   }) + '\n',
 )
 await exit

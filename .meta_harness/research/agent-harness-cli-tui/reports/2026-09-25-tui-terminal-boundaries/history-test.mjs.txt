@@ -1,9 +1,0 @@
-import assert from 'node:assert/strict'
-import { Input } from '@earendil-works/pi-tui'
-const input=new Input()
-for(let i=0;i<1000;i++){input.handleInput('x');input.handleInput('\x05')}
-assert.equal(input.getValue().length,1000)
-for(let i=0;i<1000;i++)input.handleInput('\x1f')
-assert.equal(input.getValue().length,744,'only latest 256 snapshots remain undoable')
-const field=new Input();field.handleInput('中文👩‍💻test');field.handleInput('\x7f');assert.equal(field.getValue(),'中文👩‍💻tes');field.handleInput('\x1f');assert.equal(field.getValue(),'中文👩‍💻test')
-console.log(JSON.stringify({status:'PASS',piTui:'0.86.1 with candidate UndoStack256 patch',publicChecks:['latest 256 undo snapshots','ordinary Unicode editing/deletion/undo unchanged'],scope:'isolated candidate delta, no product dependency or TUI adoption'}))

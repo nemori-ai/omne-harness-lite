@@ -125,7 +125,7 @@ export class LoginsImpl implements Omit<LoginsService, 'participate'> {
     ) {
       return IDENTIFIER_OR_CREDENTIAL_REJECTED
     }
-    const issuedAt = this.deps.clock.now()
+    const issuedAt = await this.deps.clock.now()
     if (issuedAt === 'unavailable') return STORAGE_UNAVAILABLE
     // 出示物在一切判定通过之后才产生；随机源失败 ⇒ 不签发，不换任何别的来源
     let presentation: LoginStatePresentation
@@ -246,9 +246,10 @@ export class LoginsImpl implements Omit<LoginsService, 'participate'> {
             const account = await tx.accountById(judged.ok)
             if (account === undefined) throw new StorageDefect('validated account disappeared')
             const rows = await tx.loginsByAccount(judged.ok)
+            const instant = await clock.now()
             const values = rows
               .filter(row =>
-                loginValidAt(row, storedRevision(account.credential_revision), clock.now()),
+                loginValidAt(row, storedRevision(account.credential_revision), instant),
               )
               .map(row => ({
                 loginStateId: storedLoginStateId(row.login_state_id),
@@ -263,9 +264,9 @@ export class LoginsImpl implements Omit<LoginsService, 'participate'> {
         invoke(async () => {
           const parsed = parseLoginStateId(caller)
           if (!isOk(parsed)) return INVALID_INPUT
-          const now = trustedNow(this.deps.clock)
+          const now = await trustedNow(this.deps.clock)
           await unit.mutate(async tx => {
-            const judged = await judgeLoginState(tx, parsed.ok, { now: () => now })
+            const judged = await judgeLoginState(tx, parsed.ok, { now: async () => now })
             if ('failure' in judged) return
             await tx.recordActivity(parsed.ok, now)
           })

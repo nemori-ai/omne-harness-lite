@@ -159,7 +159,7 @@ async function fixture() {
     },
     verifyFailure: async (_subject, _binding, _execution) => ({ kind: 'unavailable' }),
     judgeCapabilities: async () => ({ kind: 'accepted' }),
-    now: () => at,
+    now: async () => at,
     mintReminder: () => 'recorded-error-reminder',
     isActive: () => true,
     fallbackNeedsProjection: async () => false,

@@ -2,11 +2,8 @@ import { readFileSync } from 'node:fs'
 import { readJsonStrict } from '@omne-harness-lite/content-blocks'
 import { judgeAccountValue, validate, SCHEMA_DEF_NAMES, type SchemaDefName } from '../src/index.ts'
 
-const spec = new URL(
-  '../../../../.meta_harness/design/spec/data/call-accounts/v4/',
-  import.meta.url,
-)
-const text = readFileSync(new URL('examples.md', spec), 'utf8')
+const fixtures = new URL('./fixtures/', import.meta.url)
+const text = readFileSync(new URL('account-examples.md', fixtures), 'utf8')
 export interface Example {
   readonly kind: SchemaDefName
   readonly line: number

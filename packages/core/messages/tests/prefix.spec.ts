@@ -179,10 +179,7 @@ describe('V4 compaction list S29 and two-stage representation', () => {
   })
 })
 describe('V5 canonical five-message readability and three variants', () => {
-  const source = readFileSync(
-    new URL('../../../../.meta_harness/design/spec/data/messages/v2/examples.md', import.meta.url),
-    'utf8',
-  )
+  const source = readFileSync(new URL('fixtures/message-examples.md', import.meta.url), 'utf8')
   const scene = source.slice(source.indexOf('## 11.'), source.indexOf('## 12.'))
   const messages = [...scene.matchAll(/^\| m[1-5] \| `(.+)` \|$/gm)].map(match => {
     const value = readJsonStrict(match[1] ?? '')

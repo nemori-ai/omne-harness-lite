@@ -1,3 +1,4 @@
+import { adoptedSchemaBytes } from './adopted-schema-input.ts'
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
@@ -31,17 +32,13 @@ function ownDefinition(name: string): name is SchemaDefName {
   return SCHEMA_DEF_NAMES.some(candidate => candidate === name)
 }
 const ownUrl = new URL('../schema/mcp-endpoint.schema.json', import.meta.url)
-const authoritativeUrl = new URL(
-  '../../../../.meta_harness/design/spec/data/mcp-endpoint/v2/mcp-endpoint.schema.json',
-  import.meta.url,
-)
 
 describe('frozen normative examples', () => {
   it('preserves the adopted frozen Schema byte for byte', () => {
-    expect(readFileSync(ownUrl)).toEqual(readFileSync(authoritativeUrl))
+    expect(readFileSync(ownUrl)).toEqual(adoptedSchemaBytes('mcp-endpoint', 2))
   })
   it('tracks the exact normative artifact supplying the oracle', () => {
-    const bytes = readFileSync(new URL(`../../../../${fixture.source}`, import.meta.url))
+    const bytes = readFileSync(new URL(`fixtures/${fixture.source}`, import.meta.url))
     expect(createHash('sha256').update(bytes).digest('hex')).toBe(fixture.sourceSha256)
     expect(fixture.cases).toHaveLength(116)
   })

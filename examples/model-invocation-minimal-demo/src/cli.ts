@@ -15,6 +15,7 @@ const { values } = parseArgs({
     'ipc-max-commands': { type: 'string' },
     help: { type: 'boolean' },
     tools: { type: 'boolean' },
+    'initialize-clock': { type: 'boolean' },
   },
   allowPositionals: false,
 })
@@ -34,7 +35,7 @@ const commandsSource = values['ipc-max-commands'] ?? '1'
 const maxCommands = /^[1-9][0-9]*$/u.test(commandsSource) ? Number(commandsSource) : NaN
 if (values.help) {
   process.stdout.write(
-    'From repository root: node examples/model-invocation-minimal-demo/dist/cli.js --data /private/new-directory --token-margin-multiplier 1.1 --token-margin-reserve 256 [--tools] [--key-file /private/openrouter-key] [--max-output-tokens 16384] [--transport-retirement-wait-ms 10000] [--ipc-max-message-bytes 1048576] [--ipc-max-commands 1]\nFrom this example directory: node dist/cli.js with the same options.\n--max-output-tokens defaults to 16384; the selected model profile enforces its maximum. --transport-retirement-wait-ms defaults to 10000; force=false. Both token margin options are required. Admission uses ceil(estimate * multiplier) + reserve; this is not a guaranteed upstream token bound.\nCredential: OPENROUTER_API_KEY, owner-only raw-key file (not .env), or existing encrypted replica. Keys are never command-line values.\n',
+    'From repository root: node examples/model-invocation-minimal-demo/dist/cli.js --data /private/new-directory --token-margin-multiplier 1.1 --token-margin-reserve 256 [--tools] [--initialize-clock] [--key-file /private/openrouter-key] [--max-output-tokens 16384] [--transport-retirement-wait-ms 10000] [--ipc-max-message-bytes 1048576] [--ipc-max-commands 1]\nFrom this example directory: node dist/cli.js with the same options.\n--max-output-tokens defaults to 16384; the selected model profile enforces its maximum. --transport-retirement-wait-ms defaults to 10000; force=false. Both token margin options are required. Admission uses ceil(estimate * multiplier) + reserve; this is not a guaranteed upstream token bound.\n--initialize-clock explicitly migrates a legacy data directory once. Stop old processes first. Omit it after successful migration. Missing Clock state is never reset automatically.\nCredential: OPENROUTER_API_KEY, owner-only raw-key file (not .env), or existing encrypted replica. Keys are never command-line values.\n',
   )
 } else if (!Number.isSafeInteger(maxOutputTokens)) {
   process.stderr.write('--max-output-tokens must be a positive safe integer. Use --help.\n')
@@ -67,6 +68,7 @@ if (values.help) {
     const supervisor = createDemoSupervisor({
       dataDirectory: values.data,
       tools: values.tools ?? false,
+      initializeClock: values['initialize-clock'] ?? false,
       ...(values['key-file'] === undefined ? {} : { keyFile: values['key-file'] }),
       multiplier: values['token-margin-multiplier'] ?? '',
       reserveTokens: values['token-margin-reserve'] ?? '',

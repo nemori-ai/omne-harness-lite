@@ -1,5 +1,5 @@
 {
-  "sourceSha256": "5ebd5c965d680f790b862ae2ece2b02f07b41a6b856d8ac66c5d2b736574c3c2",
+  "sourceSha256": "660e90331a093cf7c1a7236a0c95b57f90767539fbee5215113b6477aa81a9c4",
   "rows": [
     {
       "text": "---\nname: x\ndescription: d\n!opaque a: first\n!opaque b: second\n---\nbody",

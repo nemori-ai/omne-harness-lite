@@ -7,10 +7,7 @@ import {
   type SchemaDefName,
 } from '../src/index.ts'
 
-export const SPEC_DIR = resolve(
-  import.meta.dirname,
-  '../../../../.meta_harness/design/spec/data/content-blocks/v2',
-)
+export const FIXTURE_DIR = resolve(import.meta.dirname, 'fixtures')
 export interface ExampleRow {
   readonly section: number
   readonly line: number
@@ -26,7 +23,7 @@ function definition(name: string): SchemaDefName {
   return found
 }
 export function exampleRows(): readonly ExampleRow[] {
-  const lines = readFileSync(resolve(SPEC_DIR, 'examples.md'), 'utf8').split('\n')
+  const lines = readFileSync(resolve(FIXTURE_DIR, 'content-examples.md'), 'utf8').split('\n')
   let section = 0
   let defName: SchemaDefName = 'ContentBlock'
   const rows: ExampleRow[] = []

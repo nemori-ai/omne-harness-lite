@@ -43,7 +43,7 @@ The asset fixture supplies all four members of the accepted AE4 `CompositionRoot
 
 The asset suite checks sixteen named scenarios and a negative control that changes only the expected workspace permission. The expected assertion must fail while the other scenarios pass; an arbitrary nonzero process exit, timeout, startup failure or skipped test does not satisfy the control. Other suites apply the same distinction between detected defects and failed test infrastructure.
 
-The stream consumer has thirteen fixed scenarios and uses the current Messages v6 and ModelResponse v9 public roots. Its controlled model route includes the adaptation binding and complete text-only profile constraints. These stream-only fixtures have no adapter input projection, output-digest evidence or upstream usage: their MR9 calibration explicitly records `not_retained` / `missing_usage`, without inventing observations. The report's `specEpoch: 3` and historical coverage citations identify the original W6 verification epoch, not the versions supplied by current package roots or renewed acceptance of historical artifacts.
+The stream consumer has thirteen fixed scenarios and uses the current Messages and ModelResponse public roots. Its controlled model route includes the adaptation binding and complete text-only profile constraints. These stream-only fixtures have no adapter input projection, output-digest evidence or upstream usage: their MR9 calibration explicitly records `not_retained` / `missing_usage`, without inventing observations. The report's `specEpoch: 3` and historical coverage citations identify the original W6 verification epoch, not the versions supplied by current package roots or renewed acceptance of historical artifacts.
 
 Run this composition and its frame-count negative control with:
 
@@ -53,7 +53,13 @@ pnpm --filter @omne-harness-lite/core-verification exec vitest run tests/w6-stre
 
 The normal run must pass all thirteen scenarios. The negative control must fail only `w6.stream.tool-frame-replace-and-account`, with the other twelve passing; unrelated malformed responses or arbitrary nonzero exits do not satisfy it.
 
-The [detailed coverage map](w6-coverage.json) and [Chinese reference](README_ZH.md) retain scenario identifiers, historical verification epochs and packed-consumer details. Accepted versions and implementation obligations remain in the [design registry](../../.meta_harness/design/registry/README.md) and the corresponding realization nodes; this tool does not define product policy.
+The [Chinese reference](README_ZH.md) describes each verification boundary and its external owner. Product promises belong to the actual members' public interfaces and thin specifications. Use the [architecture entry](../../.meta_harness/design/architecture/README.md) to locate those owners.
+
+The packed consumer measures twenty explicit target packages. It also packs their workspace production and peer dependencies for installation, without counting support packages as target API coverage. Public export expectations remain independent literals in the verifier.
+
+The [Schema regression input](fixtures/packed-schema-identities.json) preserves thirty resource hashes and twenty-nine distinct identities. The verifier reads installed archives and checks bytes, URIs, references and every `$defs` compilation. It never derives expected hashes from the candidate archives. This input is a regression oracle, not a contract registry.
+
+The isolated installation runs offline. Prepare the declared external dependency cache before the first run. A missing cache is an environment failure and cannot satisfy a product negative control.
 
 ## Evidence and limits
 

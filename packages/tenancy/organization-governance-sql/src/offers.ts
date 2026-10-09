@@ -210,7 +210,7 @@ async function issueInvitation(
       account: target.ok,
     })
     if (existing?.effective === true) return fail('alreadyAnEffectiveMember')
-    const now = deps.clock.now()
+    const now = await deps.clock.now()
     if (now === 'unavailable') return fail('unavailable')
     const timing = timingFrom(now, ttl)
     if (timing === 'unavailable') return fail('unavailable')
@@ -257,7 +257,7 @@ async function withdrawInvitation(
     // ④ 提交内先现读一次过期判定（OE S-8 反方向：已过期的不得再写终结记录）
     const step = withdrawStep(
       record.settled ??
-        invitationState(record, deps.clock.now(), await existenceOne(d, record.issuer)),
+        invitationState(record, await deps.clock.now(), await existenceOne(d, record.issuer)),
     )
     if (step === 'alreadyConcluded' || step === 'unavailable') return fail(step)
     if (step === 'write') {
@@ -304,7 +304,7 @@ async function acceptInvitation(
     // ② 过期在写入的同一提交内重新求值（OE S-10）；三种来路折成一个布尔再映射（OE S-13）
     const state =
       record.settled ??
-      invitationState(record, deps.clock.now(), await existenceOne(d, record.issuer))
+      invitationState(record, await deps.clock.now(), await existenceOne(d, record.issuer))
     if (state === 'unavailable') return fail('unavailable')
     if (!acceptable(state)) return fail('offerNoLongerValid')
     const existing = await readMembership(d, tenant)
@@ -346,7 +346,7 @@ async function issueAffiliationRequest(
     if (other.kind === 'personal') return fail('personalOrganizationTakesNoPartInAffiliation')
     if (!(await isSuperAdministrator(d, initiator.ok))) return fail('notAuthorized')
     // 一般的环与「己方已有上级」不在这里判，留给接受那一刻（S-30 正文）
-    const now = deps.clock.now()
+    const now = await deps.clock.now()
     if (now === 'unavailable') return fail('unavailable')
     const timing = timingFrom(now, ttl)
     if (timing === 'unavailable') return fail('unavailable')
@@ -384,7 +384,7 @@ async function withdrawAffiliationRequest(
     if (!(await isSuperAdministrator(d, initiator.ok))) return fail('notAuthorized')
     const step = withdrawStep(
       record.settled ??
-        requestState(record, deps.clock.now(), await existenceOne(d, record.recipient)),
+        requestState(record, await deps.clock.now(), await existenceOne(d, record.recipient)),
     )
     if (step === 'alreadyConcluded' || step === 'unavailable') return fail(step)
     if (step === 'write') {
@@ -433,7 +433,7 @@ async function acceptAffiliationRequest(
     // ④① 过期重判，指向对象只有接收方组织
     const state = requestState(
       record,
-      deps.clock.now(),
+      await deps.clock.now(),
       recipientOrg === undefined ? 'absent' : 'exists',
     )
     if (state === 'unavailable') return fail('unavailable')
@@ -488,7 +488,7 @@ async function readInvitation(
     if (!allowed) return fail('invitationDoesNotExist')
     const state =
       record.settled ??
-      invitationState(record, deps.clock.now(), await existenceOne(d, record.issuer))
+      invitationState(record, await deps.clock.now(), await existenceOne(d, record.issuer))
     if (state === 'unavailable') return fail('unavailable')
     return succeed(invitationReading(record, state))
   })
@@ -513,7 +513,7 @@ async function readAffiliationRequest(
     }
     const state =
       record.settled ??
-      requestState(record, deps.clock.now(), await existenceOne(d, record.recipient))
+      requestState(record, await deps.clock.now(), await existenceOne(d, record.recipient))
     if (state === 'unavailable') return fail('unavailable')
     return succeed(requestReading(record, state))
   })
@@ -550,7 +550,7 @@ async function listReceivedInvitations(
   return deps.query(async tx => {
     const d = tx
     const records = (await d.invitationsForAccount(account.ok)).map(decodeInvitation)
-    const now = deps.clock.now()
+    const now = await deps.clock.now()
     const existence = await existenceOf(
       d,
       records.filter(r => r.settled === null).map(r => r.issuer),
@@ -579,7 +579,7 @@ async function listIssued(
     const organization = caller.ok.organization
     const invitations = (await d.invitationsForIssuer(organization)).map(decodeInvitation)
     const requests = (await d.affiliationsFrom(organization)).map(decodeAffiliationRequest)
-    const now = deps.clock.now()
+    const now = await deps.clock.now()
     const existence = await existenceOf(d, [
       ...invitations.filter(r => r.settled === null).map(r => r.issuer),
       ...requests.filter(r => r.settled === null).map(r => r.recipient),
@@ -615,7 +615,7 @@ async function listReceivedAffiliationRequests(
     const d = tx
     if (!(await isSuperAdministrator(d, caller.ok))) return fail('notAuthorized')
     const records = (await d.affiliationsTo(caller.ok.organization)).map(decodeAffiliationRequest)
-    const now = deps.clock.now()
+    const now = await deps.clock.now()
     // 指向对象就是调用方自己的组织；读不到以异常上抛 ⇒ unavailable，绝不判成「不存在 ⇒ 全表过期」
     const existence = await existenceOf(
       d,
@@ -650,7 +650,7 @@ async function declineInvitation(
     const d = tx
     const state =
       located.settled ??
-      invitationState(located, deps.clock.now(), await existenceOne(d, located.issuer))
+      invitationState(located, await deps.clock.now(), await existenceOne(d, located.issuer))
     if (state === 'declined') return 'ok'
     if (state === 'unavailable') return fail('unavailable')
     if (!acceptable(state)) return fail('alreadyConcluded')
@@ -676,7 +676,7 @@ async function declineAffiliationRequest(
     const state =
       record.settled ??
       record.settled ??
-      requestState(record, deps.clock.now(), await existenceOne(d, record.recipient))
+      requestState(record, await deps.clock.now(), await existenceOne(d, record.recipient))
     if (state === 'declined') return 'ok'
     if (state === 'unavailable') return fail('unavailable')
     if (!acceptable(state)) return fail('alreadyConcluded')

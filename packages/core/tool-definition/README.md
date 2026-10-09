@@ -120,3 +120,5 @@ Input schemas use the supported Draft 2020-12 subset. Every declared parameter n
 A Tool Result is returned content, not an execution outcome. Tool calls are forbidden in result content and offload summaries, including complete calls whose arguments could not be parsed. A JSON-looking string remains text. Identity uniqueness, permissions, dependency availability, background work and execution belong to the runtime. This package does not execute tools or contact models.
 
 Public JSON Schema entries are `@omne-harness-lite/tool-definition/schema` (v3) and `/schema/v2`. See [source exports](src/index.ts), [tests](tests/) and [content blocks](../content-blocks/README.md).
+
+See [behavior](SPEC.md) and [verification duties](verification/README.md).

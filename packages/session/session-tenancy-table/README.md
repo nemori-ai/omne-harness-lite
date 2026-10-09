@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-Read a session's persistent tenant identity through public Storage, either standalone or inside a real shared transaction. This experimental ESM workspace member is unpublished; [realization status](../../../.meta_harness/design/realization/packages/session/session-tenancy-table/README.md) records its adopted scope and checks.
+Read a session's persistent tenant identity through public Storage, either standalone or inside a real shared transaction. This experimental ESM workspace member is unpublished; [realization status](SPEC.md) records its adopted scope and checks.
 
 | Public export | Purpose |
 | --- | --- |

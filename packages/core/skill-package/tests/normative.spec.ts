@@ -1,3 +1,4 @@
+import { adoptedSchemaBytes } from './adopted-schema-input.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
@@ -408,20 +409,10 @@ const variants: Case[] = [
 ]
 describe('frozen normative examples: all rows and variants', () => {
   it('binds fixture bytes to the frozen spec and exact package Schema', () => {
-    const source = readFileSync(
-      new URL(
-        '../../../../.meta_harness/design/spec/data/skill-package/v3/examples.md',
-        import.meta.url,
-      ),
-    )
+    const source = readFileSync(new URL('fixtures/package-examples.md', import.meta.url))
     expect(createHash('sha256').update(source).digest('hex')).toBe(normative.sourceSha256)
     expect(readFileSync(new URL('../schema/skill-package.schema.json', import.meta.url))).toEqual(
-      readFileSync(
-        new URL(
-          '../../../../.meta_harness/design/spec/data/skill-package/v3/skill-package.schema.json',
-          import.meta.url,
-        ),
-      ),
+      adoptedSchemaBytes('skill-package', 3),
     )
     expect(normative.rows).toHaveLength(79)
     expect(variants).toHaveLength(43)

@@ -29,7 +29,7 @@ export interface RuntimeContextDependencies {
   readonly storage: Storage
   readonly log: SessionLog
   readonly access: SessionAccessOperations
-  readonly now: () => string | { readonly unavailable: true }
+  readonly now: () => Promise<string | { readonly unavailable: true }>
   readonly changed?: () => void
   readonly diagnostic?: (
     stage: 'authority' | 'log' | 'source' | 'notification',
@@ -38,13 +38,11 @@ export interface RuntimeContextDependencies {
 }
 type Reason = Extract<ContextMutation, { kind: 'rejected' }>['reason']
 const rejected = <R extends string>(reason: R) => ({ kind: 'rejected', reason }) as const
-function preparedEvent(
-  prepare: () =>
-    | import('./journal-types.ts').ContextEvent
-    | { readonly kind: 'rejected'; readonly reason: Reason },
-) {
+type PreparedEvent =
+  import('./journal-types.ts').ContextEvent | { readonly kind: 'rejected'; readonly reason: Reason }
+async function preparedEvent(prepare: () => PreparedEvent | Promise<PreparedEvent>) {
   try {
-    const candidate = prepare()
+    const candidate = await prepare()
     if (candidate.kind === 'rejected') return candidate
     return decodeEvent(candidate) ?? rejected('invalidInput')
   } catch {
@@ -105,9 +103,7 @@ export function createRuntimeContext(deps: RuntimeContextDependencies) {
       current: ContextState,
       caller: AccessIdentity,
       scope: SessionScope,
-    ) =>
-      | import('./journal-types.ts').ContextEvent
-      | { readonly kind: 'rejected'; readonly reason: Reason },
+    ) => PreparedEvent | Promise<PreparedEvent>,
   ): Promise<ContextMutation> {
     const scope = checkedScope(inputScope)
     if (!scope) return rejected('invalidInput')
@@ -116,7 +112,7 @@ export function createRuntimeContext(deps: RuntimeContextDependencies) {
     if (!checked.identity.contextKeys.includes(key)) return rejected('notAuthorized')
     const current = await state(scope)
     if ('kind' in current) return current
-    const event = preparedEvent(() => prepare(current.state, checked.identity, scope))
+    const event = await preparedEvent(() => prepare(current.state, checked.identity, scope))
     if ('reason' in event) return event
     const latest = await authorize(access, scope, operation)
     if (latest.kind === 'rejected') return latest
@@ -218,7 +214,7 @@ export function createRuntimeContext(deps: RuntimeContextDependencies) {
         return Promise.resolve(rejected('invalidInput'))
       const key = copied.key,
         value = copied.value
-      return mutate(access, scope, 'context.publish', key, (current, caller, ownedScope) => {
+      return mutate(access, scope, 'context.publish', key, async (current, caller, ownedScope) => {
         if (caller.consumer !== 'source') return rejected('notAuthorized')
         const registration = current.registrations.get(key)
         if (!registration || (current.contents.get(key)?.revision ?? 'absent') !== expectedRevision)
@@ -234,10 +230,12 @@ export function createRuntimeContext(deps: RuntimeContextDependencies) {
         if (fixed && identity(value) !== identity(fixed.value)) return rejected('invalidInput')
         let observedAt: string | { readonly unavailable: true }
         try {
-          observedAt = deps.now()
+          observedAt = await deps.now()
         } catch {
           return rejected('unavailable')
         }
+        if (!work.active()) return rejected('ownerStopped')
+        if (sources.get(registration.source) !== source) return rejected('sourceUnavailable')
         if (typeof observedAt !== 'string' || !('ok' in instantFromRfc3339(observedAt)))
           return rejected('unavailable')
         const revision = identity({ scope: ownedScope, key, expectedRevision, value })

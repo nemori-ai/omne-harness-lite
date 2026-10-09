@@ -268,10 +268,11 @@ export function demoPublication(
 export function createDemoConfig(
   directory: string,
   runId: string,
-  now: () => string,
+  now: () => Promise<string>,
   tokenMargin: TokenMargin,
   retirement: RetirementPolicy,
   enableTools = false,
+  initializeClock = false,
 ): AcceptanceConfig {
   const keys = {
     activationSigning: join(directory, 'activation-private.pem'),
@@ -298,6 +299,7 @@ export function createDemoConfig(
       : {}),
     runId,
     databaseFile: join(directory, 'db.sqlite'),
+    initializeClock,
     keys,
     credentials: { cost: 1024, blockSize: 8, parallelization: 1, saltBytes: 16, keyBytes: 32 },
     identity: { credentialPolicy: { minLength: 8 }, unactivatedRetention: ttl.ok },

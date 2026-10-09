@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from design_validation import DesignValidator
+from design_sources import check_links
 from source_links import ModuleSources
 
 
@@ -17,9 +17,7 @@ def save(path: Path, value: str) -> None:
 
 
 def markdown(root: Path, source_root: Path | None = None) -> list[str]:
-    validator = DesignValidator(root, source_root=source_root)
-    validator._markdown()
-    return validator.errors
+    return check_links(root, source_root)
 
 
 @pytest.mark.parametrize('kind', ['proposals', 'decisions', 'evidence'])
@@ -98,3 +96,18 @@ def test_alias_cannot_make_process_document_a_current_owner(tmp_path: Path, pare
         href = 'alias'
     save(root / 'architecture/README.md', f'[owner]({href}#shape)\n')
     assert any('process record is not a current owner' in error for error in markdown(root))
+
+
+@pytest.mark.parametrize('name', ['spec', 'realization', 'registry'])
+@pytest.mark.parametrize('kind', ['empty', 'file', 'dangling-alias'])
+def test_retired_root_cannot_return_as_empty_tree_or_alias(tmp_path: Path, name: str, kind: str) -> None:
+    root = tmp_path / '.meta_harness/design'
+    save(root / 'architecture/README.md', '# Current\n')
+    target = root / name
+    if kind == 'empty':
+        target.mkdir()
+    elif kind == 'file':
+        target.write_text('not a maintained owner', encoding='utf-8')
+    else:
+        target.symlink_to(tmp_path / 'missing')
+    assert f'retired design root exists: {name}' in markdown(root)

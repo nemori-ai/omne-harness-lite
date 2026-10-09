@@ -168,6 +168,28 @@ it('binds through real login, membership and session rows; old tokens cannot sur
       reason: 'notAuthorized',
     })
     const logins = context.get(LOGINS_SERVICE) as LoginsService
+    const offline = vi.spyOn(logins, 'verify').mockResolvedValue({ failure: 'storage-unavailable' })
+    expect(await access.authorize(bound.tool, bound.scope, 'context.read')).toMatchObject({
+      reason: 'unavailable',
+    })
+    offline.mockRestore()
+    expect(await access.authorize(bound.tool, bound.scope, 'context.read')).toMatchObject({
+      kind: 'authorized',
+    })
+    const participate = logins.participate.bind(logins)
+    const sqlOffline = vi.spyOn(logins, 'participate').mockImplementation(unit => ({
+      ...participate(unit),
+      verify: async () => ({ failure: 'storage-unavailable' as const }),
+    }))
+    try {
+      expect(await owner.readPrefix(bound.control, bound.scope)).toMatchObject({
+        kind: 'rejected',
+        reason: 'unavailable',
+      })
+    } finally {
+      sqlOffline.mockRestore()
+    }
+    expect(await owner.readPrefix(bound.control, bound.scope)).toMatchObject({ kind: 'prefix' })
     await logins.revoke(alice.loginState, alice.loginState)
     expect(await access.authorize(bound.tool, bound.scope, 'context.read')).toMatchObject({
       reason: 'notAuthorized',

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
 import {
@@ -8,13 +9,7 @@ import {
 } from '../src/index.ts'
 import { json, modelTarget, frameTarget, visibility, cost, usage } from './fixtures.ts'
 
-const text = readFileSync(
-  new URL(
-    '../../../../.meta_harness/design/spec/data/arrival-events/v2/examples.md',
-    import.meta.url,
-  ),
-  'utf8',
-)
+const text = readFileSync(new URL('./fixtures/arrival-examples.md', import.meta.url), 'utf8')
 interface Row {
   readonly section: number
   readonly row: number
@@ -97,14 +92,10 @@ describe('V-1/V-2 frozen examples sections 1–9, exact schema and owned rejecti
     )
     expect([...SCHEMA_DEF_NAMES].sort()).toEqual(Object.keys(schema.$defs).sort())
   })
-  test('Schema byte identity with accepted resource', () => {
-    expect(readFileSync(new URL('../schema/arrival-events.schema.json', import.meta.url))).toEqual(
-      readFileSync(
-        new URL(
-          '../../../../.meta_harness/design/spec/data/arrival-events/v2/arrival-events.schema.json',
-          import.meta.url,
-        ),
-      ),
+  test('Schema byte identity with independent adopted digest', () => {
+    const bytes = readFileSync(new URL('../schema/arrival-events.schema.json', import.meta.url))
+    expect(createHash('sha256').update(bytes).digest('hex')).toBe(
+      'bcaac3fc5c9d7a0a223f68722164956507bf978e62bc1423d56cc9c4810b74c5',
     )
   })
 })

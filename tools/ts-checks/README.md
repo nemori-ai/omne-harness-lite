@@ -1,6 +1,6 @@
 # ts-checks
 
-Structural checks for this repository's TypeScript product sources and trusted application assemblies. Each rule names the contract or realization obligation it checks and has passing fixtures plus deliberate violations. This is a private workspace development tool; it is not a runtime plugin or a security sandbox.
+Structural checks for this repository's TypeScript product sources and trusted application assemblies. Each rule names its public contract or system constraint and has passing fixtures plus deliberate violations. This is a private workspace development tool; it is not a runtime plugin or a security sandbox.
 
 [中文说明 and the existing rule catalogue](README_ZH.md)
 
@@ -119,3 +119,21 @@ The exact `packages/agent-loop/loop-extension-runner-local/tests/runner-chain-su
 ## Package scaffolding
 
 The private `omne-package-template` CLI creates drafts and inventories exact template adoption. See the [template guide](templates/package/README.md) and [development entry](../../docs/development.md#创建和整改产品包). It reuses the architecture reader. Structural results do not accept business or lifecycle behavior.
+
+## Actual assembly observations
+
+The clean loop reads complete current and BASE sources through `sensors.architecture`.
+Global expectations belong to `.meta_harness/design/architecture/constraints.json`.
+It reports static conformance separately from added, removed and changed assembly facts.
+Fact counts are neutral. They have no thresholds or trend comparison.
+
+Identity excludes source positions and uses JSON tuples, so delimiter names do not collide.
+Metadata changes retain contract, owner and shape values before and after the change.
+A dynamic injection remains unknown. A static fact that disappears does not prove runtime release.
+A missing current expectation produces no-data and fails the enabled strict sensor.
+No BASE means no difference reading. Neither case becomes zero.
+
+The extractor does not prove lifecycle, authorization, isolation or shared commits.
+Public services, member SPEC files and behavior verification own those obligations.
+Tests cover source moves, injection additions, metadata changes, collisions, unknowns and missing inputs.
+See [the full configuration and output description](README_ZH.md#实际装配与全局架构约束).

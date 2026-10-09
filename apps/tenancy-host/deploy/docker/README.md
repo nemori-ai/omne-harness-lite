@@ -1,8 +1,7 @@
 # Docker governance center delivery
 
 These files implement the adopted Docker mapping at
-`.meta_harness/design/realization/apps/tenancy-host/docker.md` (D-071 stop,
-D-072 one-process health, PF017 projection v8).
+[host行为](../../SPEC.md)与本部署说明拥有当前停止、体检和数据维护边界。
 The supported Linux root operator is `omne-center`; it selects the two fixed Compose
 files and checks the actual Docker container before starting it. Direct `compose up`,
 `down`, `restart`, or a direct signal to PID 1 bypasses the supported lifecycle.

@@ -482,7 +482,7 @@ test('actual qualification and immutable body share the SQLite atomic boundary a
     const joined = await h.offers.acceptInvitation(member.tenant.account, invitation.ok)
     if (!('ok' in joined)) throw new Error('join failed')
     const s = await setup(h, joined.ok)
-    const other = await boot(h.file)
+    const other = await boot(h.file, undefined, h.clock)
     const held = gate(),
       waiting = gate()
     let first = true

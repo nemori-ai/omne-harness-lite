@@ -138,3 +138,5 @@ console.log(result.ok.dropped.map(entry => entry.reason)) // ['immutable_flag', 
 两个操作都是对显式输入的纯计算。调用方提供一致且经过授权的快照，并核实工作区所有权与来源。这里不访问文件、时钟、存储、模型或工具。读入器不加载 `source` 正文；返回的持有没有 `since`，由调用方按实际读入事件补上。另导出 `classifyPermissionAssignment`、`boundOf`、`pickWithinBound`，用于权限分类、约束交集与选值检查；它们只计算值，不授予执行权。
 
 参见[源码导出](src/index.ts)、[测试](tests/)与[资产模型](../asset-model/README_ZH.md)。
+
+[行为承诺](SPEC.md)拥有类型之外的规则；[验证入口](verification/README.md)说明方法与限制。

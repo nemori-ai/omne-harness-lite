@@ -122,7 +122,7 @@ function main(argv: readonly string[]): number {
   ]
   const debt = debtBlock(trend.snapshots, config, trendPath)
   const health: Health = {
-    conformance: readConformanceSensor(root, config.sensors.reflexion.enabled),
+    conformance: readConformanceSensor(root, config.sensors.architecture.enabled),
     meta: {
       head: at.head,
       shortHead: at.shortHead,

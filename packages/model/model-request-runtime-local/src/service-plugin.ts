@@ -30,6 +30,8 @@ import type {
   CallReadView,
   RetainedCallReadView,
   AcquireCallResult,
+  TransportAdapter,
+  AdaptationLease,
 } from '@omne-harness-lite/model-request-runtime'
 import {
   ModelRuntimeService,
@@ -45,6 +47,7 @@ import { createCallContainerStore } from './service-container.ts'
 import { createModelCallContentStore } from './reference-content.ts'
 import { createModelCallFacts } from './reference-facts.ts'
 import { createProviderContributions } from './provider-contributions.ts'
+import type { ModelCallExternalContentCustody } from './reference-types.ts'
 
 const integer = z.number().int().positive().max(Number.MAX_SAFE_INTEGER)
 const decimal = z.string().refine(value => {
@@ -315,8 +318,37 @@ class Provider extends ModelRuntimeService {
   }
 }
 
+/** Trusted assembly closure ports. These are not serialized policy or caller authority. */
+export interface ModelRuntimeLocalConstruction {
+  readonly externalContent?: ModelCallExternalContentCustody
+  /** Add request projection to the original adapter. Preserve send/read/projectOutput,
+   * semantic inputs, plan brands, cancellation and actual completion. No independent
+   * resources or close owner. The original lease retains binding/signal/track/release.
+   */
+  readonly decorateTransport?: (
+    original: TransportAdapter<PlannedRequest, RawResponse>,
+  ) => TransportAdapter<PlannedRequest, RawResponse>
+}
+
+function decoratedLease(
+  lease: AdaptationLease,
+  decorate: ModelRuntimeLocalConstruction['decorateTransport'],
+): { readonly lease: AdaptationLease } {
+  if (!decorate) return { lease }
+  try {
+    return { lease: { ...lease, transport: decorate(lease.transport) } }
+  } catch (error) {
+    lease.release()
+    throw error
+  }
+}
+
 /** Trusted assembly owns this factory; source/facts never become ordinary Context services. */
-export function createModelRuntimeLocal() {
+export function createModelRuntimeLocal(construction: ModelRuntimeLocalConstruction = {}) {
+  const contentDependencies = construction.externalContent
+    ? { externalContent: construction.externalContent }
+    : {}
+  const decorateTransport = construction.decorateTransport
   let mounted = false,
     stopped = false
   let runtime: Runtime | undefined
@@ -386,6 +418,7 @@ export function createModelRuntimeLocal() {
               content = createModelCallContentStore({
                 storage,
                 policy: config.callReferences.content,
+                ...contentDependencies,
               })
               facts = createModelCallFacts({
                 content,
@@ -420,7 +453,7 @@ export function createModelRuntimeLocal() {
                   clearReuseScope: scope => transport.clearReuseScope(scope),
                   acquire(binding, routeName) {
                     const result = transport.acquire(binding, routeName)
-                    if ('lease' in result) return result
+                    if ('lease' in result) return decoratedLease(result.lease, decorateTransport)
                     return result.rejected === 'invalidInput'
                       ? { invalidInput: { reason: 'malformed' } }
                       : { unavailable: true }

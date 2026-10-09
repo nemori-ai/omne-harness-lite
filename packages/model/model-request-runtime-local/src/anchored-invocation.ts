@@ -732,7 +732,7 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
           observed: null,
           sendState: 'not_sent',
           firstTokenAt: null,
-          endedAt: policy.now(),
+          endedAt: await policy.now(),
           initiator: interruptInitiator ?? 'run_cancelled',
         })
         if ('rejected' in candidate) return unavailable
@@ -767,7 +767,8 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
             beforeFirstContent: () => {
               openedGate = start('wait', async () => {
                 if (!usable()) throw new Error('model_anchor.stopped')
-                const at = policy.now()
+                const at = await policy.now()
+                if (!usable()) throw new Error('model_anchor.stopped')
                 if (!('ok' in compareRfc3339Instants(at, at))) throw new Error('model_anchor.clock')
                 const value = captureModelLogValue({
                   category: 'record',
@@ -850,7 +851,7 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
           planned,
           ...originalFacts,
           firstTokenAt: null,
-          endedAt: policy.now(),
+          endedAt: await policy.now(),
           initiator: interruptInitiator ?? 'run_cancelled',
         })
         if ('rejected' in candidate) return unavailable

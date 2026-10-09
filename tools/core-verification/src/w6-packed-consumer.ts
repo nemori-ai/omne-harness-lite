@@ -7,24 +7,31 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 import { exportedTypes, typeConsumerSource } from './packed-type-inventory.ts'
+import { packWorkspaceSupport } from './packed-workspace-support.ts'
 
 const root = fileURLToPath(new URL('../../../', import.meta.url))
 const evidence = evidencePath(root, 'tmp/w6-core-verification/packed-consumers', 'packed-consumers')
-const pendingStreamAllowed = process.argv.includes('--allow-pending-stream')
-// Accepted realization public surfaces. Connector remains outside this core delivery.
+// Fixed current public surfaces, independent of the candidate manifests. This verifier does not accept business behavior.
 const surfaces: Readonly<Record<string, readonly string[]>> = {
   'arrival-events': ['.', './schema'],
-  'asset-evaluation': ['.'],
-  'asset-model': ['.', './schema', './schema/v2'],
-  'call-accounts': ['.', './schema'],
-  'content-blocks': ['.', './schema', './schema-runtime', './schema/v2'],
+  'asset-evaluation': ['.', './cordis'],
+  'asset-model': ['.', './schema', './schema/v2', './schema/connector/v2'],
+  'call-accounts': ['.', './schema', './schema/v2'],
+  'content-blocks': [
+    '.',
+    './schema',
+    './schema-runtime',
+    './schema/v2',
+    './code-runtime',
+    './schema-codegen',
+  ],
   'identity-values': ['.', './schema'],
   'kernel-basis': ['.', './cordis', './testing'],
-  'loop-extension': ['.', './schema', './schema/v2'],
+  'loop-extension': ['.', './schema', './schema/v2', './schema/v3'],
   'mcp-endpoint': ['.', './schema'],
-  messages: ['.', './schema', './schema/v2'],
-  'model-profile': ['.', './schema'],
-  'model-response': ['.', './schema', './schema/v2'],
+  messages: ['.', './schema', './schema/v2', './schema/v3', './schema/v6'],
+  'model-profile': ['.', './schema', './schema/v2', './schema/v3', './schema/v6'],
+  'model-response': ['.', './schema'],
   'offer-expiry': ['.', './schema', './testing', './schema/v1', './cordis'],
   'skill-package': ['.', './schema', './v2', './schema/v2'],
   'slash-command': ['.', './schema'],
@@ -99,20 +106,7 @@ const dependencies: Record<string, string> = {
 for (const [name, subpaths] of Object.entries(surfaces)) {
   const group = name.endsWith('-format') ? 'util' : 'core'
   const member = join(root, 'packages', group, name)
-  let manifest: Record<string, unknown>
-  try {
-    manifest = record(JSON.parse(await readFile(join(member, 'package.json'), 'utf8')))
-  } catch (error) {
-    if (
-      name === 'stream-assembly' &&
-      pendingStreamAllowed &&
-      error instanceof Error &&
-      'code' in error &&
-      error.code === 'ENOENT'
-    )
-      continue
-    throw error
-  }
+  const manifest = record(JSON.parse(await readFile(join(member, 'package.json'), 'utf8')))
   assert.equal(manifest.name, '@omne-harness-lite/' + name)
   assert.deepEqual(
     Object.keys(record(manifest.exports)).sort(),
@@ -138,7 +132,10 @@ for (const [name, subpaths] of Object.entries(surfaces)) {
   members.push({ name, specifier, subpaths, tarball, hash: sha256(await readFile(tarball)) })
   dependencies[specifier] = 'file:' + tarball
 }
-assert.equal(members.length, pendingStreamAllowed ? 19 : 20)
+assert.equal(members.length, 20)
+const support = await packWorkspaceSupport(root, archiveDirectory, surfaces, run)
+for (const member of support) dependencies[member.specifier] = 'file:' + member.tarball
+
 await writeFile(
   join(consumer, 'package.json'),
   JSON.stringify(
@@ -149,7 +146,7 @@ await writeFile(
       dependencies,
       pnpm: {
         overrides: Object.fromEntries(
-          members.map(member => [member.specifier, 'file:' + member.tarball]),
+          [...members, ...support].map(member => [member.specifier, 'file:' + member.tarball]),
         ),
       },
     },
@@ -182,7 +179,7 @@ const inventory: { specifier: string; file: string; names: readonly string[]; sh
   []
 for (const member of members) {
   for (const subpath of member.subpaths.filter(
-    path => !path.startsWith('./schema') || path === './schema-runtime',
+    path => !(path === './schema' || path.startsWith('./schema/')),
   )) {
     const specifier = member.specifier + (subpath === '.' ? '' : subpath.slice(1))
     const resolved = ts.resolveModuleName(specifier, importer, options, ts.sys).resolvedModule
@@ -205,7 +202,7 @@ for (const member of members) {
 const jsonInventory: { specifier: string; file: string; sha256: string }[] = []
 for (const member of members) {
   for (const subpath of member.subpaths.filter(
-    path => path.startsWith('./schema') && path !== './schema-runtime',
+    path => path === './schema' || path.startsWith('./schema/'),
   )) {
     const specifier = member.specifier + subpath.slice(1)
     const resolved = ts.resolveModuleName(specifier, importer, options, ts.sys).resolvedModule
@@ -252,7 +249,7 @@ const forbidden = members.flatMap(member => [
   member.specifier + '/src/index.ts',
   member.specifier + '/dist/index.js',
   member.specifier + '/schema/v999',
-  member.specifier + '/schema/v3',
+  ...(member.subpaths.includes('./schema/v3') ? [] : [member.specifier + '/schema/v3']),
   member.specifier + '/neighbor',
   ...(member.name === 'offer-expiry' ? [] : [member.specifier + '/schema/v1']),
   ...(member.subpaths.includes('./schema/v2') ? [] : [member.specifier + '/schema/v2']),
@@ -294,12 +291,12 @@ await writeFile(
   }),
 )
 
-const frozen = record(
-  record(
-    JSON.parse(await readFile(join(root, '.meta_harness/design/registry/frozen.json'), 'utf8')),
-  ).files,
+const resourceOracleBytes = await readFile(
+  new URL('../fixtures/packed-schema-identities.json', import.meta.url),
 )
-const runtimeInput = { members, forbidden, frozen, designRoot: join(root, '.meta_harness/design') }
+const resourceOracle = JSON.parse(resourceOracleBytes.toString('utf8')) as unknown
+const runtimeInput = { members, forbidden, resourceOracle }
+
 await writeFile(join(consumer, 'input.json'), JSON.stringify(runtimeInput, null, 2) + '\n')
 await writeFile(
   join(consumer, 'consume.mjs'),
@@ -310,7 +307,7 @@ assert.equal(runtime.code, 0, runtime.stdout + runtime.stderr)
 const expectedRuntimeCases = [
   'w6.pack.actual-runtime-exports',
   'w6.schema.current-and-retained-coordinates',
-  'w6.schema.exact-frozen-bytes',
+  'w6.schema.exact-adopted-bytes',
   'w6.schema.fixed-resource-closure',
   'w6.schema.current3-raw-name-versus-retained2-arrival',
   'w6.pack.private-subpath-rejections',
@@ -474,10 +471,9 @@ const report = {
     file: fileURLToPath(import.meta.url),
     sha256: sha256(await readFile(fileURLToPath(import.meta.url))),
   },
-  frozenSha256: sha256(await readFile(join(root, '.meta_harness/design/registry/frozen.json'))),
-  scope: pendingStreamAllowed
-    ? '17 core + 2 util; stream-assembly pending explicit release'
-    : '18 core + 2 util',
+  resourceOracleSha256: sha256(resourceOracleBytes),
+  support,
+  scope: '18 core + 2 util; dependency archives are support, not measured API coverage',
   members,
   inventory,
   jsonInventory,

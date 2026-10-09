@@ -1,7 +1,9 @@
+# 模拟评审输入（非开发过程记录）
+
 # 施工计划：run-attempt-facts-derived 节点落地（候选）
 
 - **计划修订**：r1（候选，未获准执行）
-- **目标**：把实现映射节点 `realization/packages/session/run-attempt-facts-derived` 落成产品包，
+- **目标**：把模拟组件 `模拟组件/session/run-attempt-facts-derived` 落成产品包，
   并让执行宿主改用它提供的 `runAttemptFacts` 服务，替掉验收装配里「尝试与运行的事实」那个替身。
 - **采用的设计**：`capability.run-attempt-facts/v2`（已接受）；节点设计 `design.md`（已接受）；
   `capability.session-log/v2` 的 `readSince`。

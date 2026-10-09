@@ -9,7 +9,7 @@ module as the template has it, which must match exactly once - and runs the same
 that does not exit 0 kills the mutant. The module is put back after every mutant and at the end. The run
 succeeds when the tests are valid and no mutant survives.
 
-This is the judgment of the earlier role-model comparison (``role-model-sonnet55/tooling/evalrun.py``:
+This is the judgment of the earlier role-model comparison (``the scoped program-judged suite``:
 ``prepare``, ``judge_scope``, ``oracle_write_tests``). Where it differs, the suite's README says how and why.
 """
 from __future__ import annotations

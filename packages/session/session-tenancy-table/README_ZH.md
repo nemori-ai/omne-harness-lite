@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-通过公开 Storage 读取会话持久租户身份，可独立使用，也可加入真实共享事务。本包是实验性、未发布的 ESM workspace 成员；采用范围和检查见[实现映射](../../../.meta_harness/design/realization/packages/session/session-tenancy-table/README.md)。
+通过公开 Storage 读取会话持久租户身份，可独立使用，也可加入真实共享事务。本包是实验性、未发布的 ESM workspace 成员；采用范围和检查见[实现映射](SPEC.md)。
 
 | 公开导出 | 用途 |
 | --- | --- |

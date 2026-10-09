@@ -85,3 +85,15 @@ frame 释放不撤销逃逸引用。原 45000ms 冷恢复阈值保持；实际 w
 scope 完整创建后才标记 issued。关闭须先等待实际 owner 排空并核其保有、写者及原日志代际。失败保留原句柄、frames 和准入责任，同一 scope 可以重试。成功先拒绝旧 scope 的句柄读取，再清原句柄并释放 frames，最后撤除原准备和准入登记。未 issued 清理只作用于宿主仍拥有的准备，不能释放已经移交的责任。
 
 实际生产 helper 与 owner 的组合验证 scope 行为。真实应用故障和接线验证共同检查 bootstrap 的 finally／shutdown 调用，不能以 helper 测试替代真实应用行为。
+
+## 正式宿主工具最小装配
+
+工具模式公开的 Shell/Files 定义与登记实现使用同一作者工厂和配置。host 提供者、placement evaluator 与结果储存消费原公开入口及管理生命周期。demo 显式设自动执行许可，不改 Tool Runtime 的独立执行语义，也不增加后台状态。
+
+新会话创建权一次性播种 session 与工具初始值；工具 binding 只增加两个必要 Context key。初始目录来自应用启动目录，工具不能以进程默认目录补缺失 Context。已有会话缺少必要声明时仍拒绝，不从已有 SQL 行取得补种权。
+
+图片请求使用本次工具会话 scope 和原活体 access 读取原结果储存。读取逐次检查当前资格；未知或拒绝使原工具回合返回 imageUnavailable。日志保留原附件引用。原工具回合在 openCall/dispatch 之前串行读取并等待实际 IO 结束，再交固定 imageBytes 快照。公共 transport plan 不读持久源。原 provider 仅在 wire 投影中展开字节，并负责派生图、计量和发送。原计划 input 保持引用，不复制或伪造品牌计划。不得改写耐久消息或绕过历史/校准来源核验；不以附件路径读取代替确认引用。并发请求的 scope 不共享可变槽。
+
+图片引用的耐久保有来自原 ToolResultFiles。它在确认前同步原字节与元数据，不覆盖确认内容，也不提供 GC 或删除操作。模型内容存储的受信 custody 端口逐个确认同租户、同会话的原图片字节，保留原引用摘要。关闭只排空 IO，保留数据目录供冷恢复。用户须保留 demo 数据目录；本 demo 不提供自动附件回收。未支持的外部 file、voice、raw body、offload 和外部 rendering 明确拒绝，不能放宽为任意 locator 放行。
+
+工具历史投影可以在当次操作内复用调用者拥有的 ParameterJudge，以复用同一 Schema 的编译。每个原定义仍须完整判断，不能缓存判断结果、授权或历史有效性。操作结束后不保留此编译器。

@@ -50,7 +50,7 @@ const typeNames = new Set([
 ])
 export const registryHistoryBoundary: Rule = {
   id: 'registry-history-boundary',
-  source: 'D080/D106 R7; EIS history HI-1/HI-6/HI-V9 and AR4 S31/S33',
+  source: 'packages/assets/evaluation-input-store/SPEC.md: 历史正文读取; verification/README.md',
   description:
     'history factory belongs to the trusted assembly; registry source may only import types',
   check(files) {

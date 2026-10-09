@@ -351,6 +351,12 @@ importers:
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../../packages/core/messages
+      '@omne-harness-lite/meta-files':
+        specifier: workspace:*
+        version: link:../../packages/tools/meta-files
+      '@omne-harness-lite/meta-shell':
+        specifier: workspace:*
+        version: link:../../packages/tools/meta-shell
       '@omne-harness-lite/model-message-projection':
         specifier: workspace:*
         version: link:../../packages/core/model-message-projection
@@ -2185,6 +2191,9 @@ importers:
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../storage-sql
       kysely:
         specifier: 'catalog:'
         version: 0.29.6
@@ -2192,9 +2201,6 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
-      '@omne-harness-lite/storage-sql':
-        specifier: workspace:*
-        version: link:../storage-sql
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

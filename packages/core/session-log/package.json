@@ -20,7 +20,9 @@
     "dist",
     "SPEC.md",
     "README.md",
-    "README_ZH.md"
+    "README_ZH.md",
+    "verification",
+    "models"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

@@ -185,7 +185,7 @@ assert.deepEqual(
 
 `validate(defName, value)` 校验 MR11 的 25 个 JSON Schema 定义之一，返回 `{ valid: boolean }`。`judgeModelResponse(value)` 与 `judgePendingModelResponse(value)` 按 MR11 S-27 的顺序返回 `{ ok: true }` 或 `{ rejected: reason }`。它们保留精确 JSON 数值，不修改输入。表示合法不证明耐久锚点、时刻来源、实际用量、回复提交或响应体耐久；这些保证由运行时和写入者承担。
 
-MR12 的全部25个公开定义与既有两个私有成员校验入口，经各 owner 的公开 Schema 入口使用九份规范资源：MR12、CA4、IV1、MP5、CB2、OE1、LC6、CB3、MS9。私有成员视图单独生成，不算第十份规范资源。LC6只提供被引用的FailureCause定义；本包图不注册MS6、CA2、MP6、TD3或旧资产链。当前 Message／Response 资源分别遵循精确 F0 转换，其他必要资源保持采用的字节与 `$id`，不做 URI 重定向；资源缺失或错版会明确导致初始化失败。接受的[MR11 契约](../../../.meta_harness/design/spec/data/model-response/v11/contract.md)和[本包 v11 实现映射](../../../.meta_harness/design/realization/packages/core/model-response/v11-acknowledgement-design.md)是语义依据。
+MR12 的全部25个公开定义与既有两个私有成员校验入口，经各 owner 的公开 Schema 入口使用九份规范资源：MR12、CA4、IV1、MP5、CB2、OE1、LC6、CB3、MS9。私有成员视图单独生成，不算第十份规范资源。LC6只提供被引用的FailureCause定义；本包图不注册MS6、CA2、MP6、TD3或旧资产链。当前 Message／Response 资源分别遵循精确 F0 转换，其他必要资源保持采用的字节与 `$id`，不做 URI 重定向；资源缺失或错版会明确导致初始化失败。接受的[本包行为承诺](SPEC.md)和[验证职责](verification/README.md)是语义依据。
 
 ACK 不给响应体新增成员或处分。ACK 前消费方可自行保存上例中的完整 `PendingModelResponse`；合法 ACK 释放清单内的模型自有副本后，运行时只有核对 MS8 按角色隔离的语义摘要、原来源及当前资格，才能接收这份自持值用于后继真实处分。仍由同一组 `judgePendingModelResponse` 和 `judgeResponseFinalization` 核完整形状与原事实关系；摘要或原账见证都不能重造缺失的 route、raw 或 inputCalibration。ACK 本身不写 final 或 assistant 消息。
 
@@ -205,4 +205,4 @@ ACK 不给响应体新增成员或处分。ACK 前消费方可自行保存上例
 
 S-46 允许 Pending 作为不可变内容保留，但它仍不是 final。本函数不证明原字节、来源、授权、耐久发布或费用选择，不查询当前 provider/meter、不重算原摘要、不把 unknown 补零。首次持久消息允许的成对 renderings/transcript 新增由 messages 的唯一 `judgeModelReplyMessage` 判断；final.reply 自身仍保留原值。runtime/写方组合两个值判定与真实来源、当前写权检查，再提交原批。D-110 采用本版，真实 runtime/存储组合仍需另行验证。
 
-当前资源注册与验证根按已接受的[公开定义闭包revision 2](../../../.meta_harness/design/realization/packages/core/messages/public-definition-resource-closure-followup.md)和D110闭包决定执行。MS2/MS3/MS6资源继续供真正的外部消费者使用，不提供旧执行codec；LC/AE后继迁移与runtime耐久行为由各自owner承担。
+当前资源注册与验证根按已接受的[验证职责](verification/README.md)和D110闭包决定执行。MS2/MS3/MS6资源继续供真正的外部消费者使用，不提供旧执行codec；LC/AE后继迁移与runtime耐久行为由各自owner承担。

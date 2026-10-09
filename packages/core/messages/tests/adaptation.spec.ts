@@ -7,10 +7,7 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import { judgeModelInvocationRecord, validate } from '@omne-harness-lite/messages'
 
-const examples = readFileSync(
-  new URL('../../../../.meta_harness/design/spec/data/messages/v4/examples.md', import.meta.url),
-  'utf8',
-)
+const examples = readFileSync(new URL('fixtures/adaptation-examples.md', import.meta.url), 'utf8')
 const appendix = examples.slice(examples.indexOf('## 15.'))
 const rows = [...appendix.matchAll(/^\| `([^`]+)` \| (通过|拒绝) \| ([^|]+) \|/gmu)]
 

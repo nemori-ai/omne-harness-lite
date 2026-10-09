@@ -9,7 +9,10 @@ import type { z } from 'zod'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import type { Storage } from '@omne-harness-lite/storage'
 import { STORAGE_SERVICE } from '@omne-harness-lite/storage/cordis'
-import { LeaseClock } from './clock.ts'
+import type { LeaseClock } from './clock.ts'
+import { openLeaseClock } from './resource.ts'
+import { readLegacyClockFloor } from './lease-sql.ts'
+import type { ClockLogger } from './lease-policy.ts'
 import { ClockConfig } from './config.ts'
 import { LeaseClockService } from './service.ts'
 
@@ -21,7 +24,16 @@ function describeAssembly(value: unknown): AssemblyDeclaration {
     optional: [],
     dynamicProvides: [],
     dynamicRequires: [],
-    claims: [{ name: 'tenancy-host/clock', version: 1, config }],
+    claims: [
+      {
+        name: 'tenancy-host/clock',
+        version: 2,
+        config: {
+          file: config.file,
+          ...(config.initialize === undefined ? {} : { initialize: config.initialize }),
+        },
+      },
+    ],
   }
 }
 
@@ -29,10 +41,9 @@ export const clockPlugin = definePlugin<z.infer<typeof ClockConfig>>({
   name: 'clock-lease',
   inject: [STORAGE_SERVICE],
   Config: ClockConfig,
-  async apply(ctx: Context) {
+  async apply(ctx: Context, config) {
     const storage = ctx.get(STORAGE_SERVICE) as Storage
-    const clock = new LeaseClock({ storage, logger: ctx.logger })
-    await clock.start()
+    const clock = await openConfiguredClock(storage, config, ctx.logger)
     try {
       ctx.effect(() => () => clock.close())
     } catch (error) {
@@ -53,8 +64,7 @@ export const managedClockPlugin = Object.assign(
       startAssemblyWork(
         ctx,
         async () => {
-          resource = new LeaseClock({ storage: ctx.storage, logger: ctx.logger('clock-lease') })
-          await resource.start()
+          resource = await openConfiguredClock(ctx.storage, config, ctx.logger('clock-lease'))
           ctx.fiber.assertActive()
           if (!ctx.assemblyLifetime.isCurrent()) throw new Error('Assembly work has stopped')
           new LeaseClockService(ctx, resource)
@@ -67,3 +77,15 @@ export const managedClockPlugin = Object.assign(
   }),
   { assemblyLifecycle: 1 as const, describeAssembly },
 )
+
+async function openConfiguredClock(
+  storage: Storage,
+  config: z.infer<typeof ClockConfig>,
+  logger: ClockLogger,
+) {
+  return openLeaseClock({
+    file: config.file,
+    logger,
+    ...(config.initialize ? { initialize: { floor: await readLegacyClockFloor(storage) } } : {}),
+  })
+}

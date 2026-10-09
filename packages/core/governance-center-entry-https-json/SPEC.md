@@ -5,7 +5,7 @@
 
 本批迁入公共形状和集成承诺。精确业务源、采用依据和仍有效的模型义务见
 [身份迁移保持清单](../../../.meta_harness/design/architecture/identity-integration/preservation.md)。
-本页不替代尚未迁移的完整操作条款；N5/N6 接续剩余旧源及资源登记。
+完整字节、成帧与服务端拒绝责任归[提供者](../../tenancy/governance-center-entry-node/SPEC.md)；本页约束客户端单次读取和交付。
 
 客户端继续沿已接受的 HT2/EC2 协议；服务端采用 HT3/EC3 不自动升级客户端。
 每次调用只发送一次，不重试、不保存登录、不替用户接受信任、不记录请求秘密。
@@ -18,3 +18,12 @@
 
 可替代实现须保持原报文成帧、响应限制、Schema校验、精确失败类别和单次发送边界。
 验证须用真实TLS及有界异常路径；类型和固定回复不能替代实际网络收尾。
+
+## 客户端的四步读取
+
+1. 先完整读取HTTP/1.1及Content-Length指定body。提前关闭、超时、TLS失败或非HTTP均为网络问不到，不能从片段猜领域答案。
+2. 仅完整成帧后才识别精确18字节的version-mismatch body，它是跨版本特殊出口，不跳过framing。
+3. 其他JSON必须符合本次operation的Exchange或public-health响应。坏status、非JSON或其他路由结果为问不到，并记录安全peer anomaly，不自造业务失败。
+4. 只发一个请求，发送后不继续写、不pipeline重试；对端drain吞掉回复仍问不到，不据此断言未提交。
+
+客户端发POST、Content-Length且不等待100Continue。方法、路径、query、header和TLS/peer属性不决定治理答案；只有body的presentation参与认证。配置错误、停止实例误用、signal和sendAttempted仍沿上文精确边界。服务端新维护协议不自动扩充客户端业务版本或公共方法。

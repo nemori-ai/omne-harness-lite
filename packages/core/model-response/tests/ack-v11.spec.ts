@@ -22,13 +22,7 @@ function object(value: unknown): Record<string, unknown> {
   return Object.fromEntries(Object.entries(value))
 }
 const read = readJsonStrict(
-  readFileSync(
-    new URL(
-      '../../../../.meta_harness/design/spec/data/model-response/v11/ack-examples.json',
-      import.meta.url,
-    ),
-    'utf8',
-  ),
+  readFileSync(new URL('fixtures/ack-examples.json', import.meta.url), 'utf8'),
 )
 if ('failed' in read || !Array.isArray(read.ok)) throw new Error('missing MR11 ACK examples')
 const rows = read.ok.map(object)

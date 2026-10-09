@@ -28,10 +28,7 @@ import { RECEIVE_LIMITS } from '../src/index.ts'
 import { isGovernanceCenterId } from '@omne-harness-lite/governance-center-entry'
 import { StubParticipants } from './support/stubs.ts'
 
-const EXAMPLES = join(
-  import.meta.dirname,
-  '../../../../.meta_harness/design/spec/compositions/governance-center-entry-https-json/v2/examples.md',
-)
+const EXAMPLES = join(import.meta.dirname, 'fixtures/client-wire-examples.md')
 
 interface Example {
   readonly heading: string
@@ -215,7 +212,7 @@ describe('T-2：路由结果与完整体检的形状（examples §4、§5）', (
             throw new Error('not used')
           },
         },
-        clock: { now: () => instant(Date.UTC(2026, 8, 23, 9, 0, 0)) },
+        clock: { now: async () => instant(Date.UTC(2026, 8, 23, 9, 0, 0)) },
         deploymentKey: { present: true, complete: true },
         deploymentParameters: {
           unactivatedRetention: 604800000,

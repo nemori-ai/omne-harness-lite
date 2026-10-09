@@ -40,7 +40,7 @@ describe('assembly.clock-ready-timeout ②③ 与快速重启', () => {
     const before = dumpDatabase(d.file)
     const now = Date.now()
     execute(
-      d.file,
+      `${d.file}.clock.sqlite`,
       'UPDATE clock_lease SET written_at = ?, lease_until = ?',
       now - 1_000,
       now + CLOCK_READY_TIMEOUT_MS + 30_000,
@@ -57,6 +57,9 @@ describe('assembly.clock-ready-timeout ②③ 与快速重启', () => {
     expect(tablesOf(d.file)).not.toContain('upgrade_probe')
     expect(sidecarsOf(d.file).snapshot).toBe(false)
     expect(dumpDatabase(d.file)).toEqual(expected)
+    expect(query(`${d.file}.clock.sqlite`, 'SELECT lease_until FROM clock_lease')).toEqual([
+      { lease_until: now + CLOCK_READY_TIMEOUT_MS + 30_000 },
+    ])
     expect(before.rows['governance_center']).toEqual(expected.rows['governance_center'])
   }, 60_000)
 
@@ -65,7 +68,7 @@ describe('assembly.clock-ready-timeout ②③ 与快速重启', () => {
     const now = Date.now()
     const leaseUntil = now + 3_000
     execute(
-      d.file,
+      `${d.file}.clock.sqlite`,
       'UPDATE clock_lease SET written_at = ?, lease_until = ?',
       now - 1_000,
       leaseUntil,
@@ -79,20 +82,25 @@ describe('assembly.clock-ready-timeout ②③ 与快速重启', () => {
 describe('assembly.no-commit-before-open ⑤：确认之后等不到 serving（已接受的残余情形 U-4）', () => {
   it('开闸那一刻钟读不到 ⇒ 等 clockReadyTimeoutMs + 1 s 之后拒绝「钟读不到或回拨：重启前先核钟」、逆序撤完、端口已放；快照已确认、不恢复；恢复钟后同一版本照常起；钟往回拨则在只读核对上拒绝', async () => {
     const { d, centerId } = await seeded('u4')
-    // 另一个连接持住写锁：clock 续约写不进去，租约过期后 now() 答 'unavailable'
+    // 另一个连接持住独立 Clock 写锁：按需扩界失败后 now() 答 unavailable。
     let blocker: DatabaseSync | undefined
-    const refused = await hosts.refuse(d, {
-      extraMigrations: [fragment('upgrade_probe')],
-      beforeConfirm: async context => {
-        blocker = new DatabaseSync(d.file, { timeout: 0 })
-        blocker.exec('BEGIN IMMEDIATE')
-        const clock = context.get('clock') as Clock
-        await expect.poll(() => clock.now(), { timeout: 30_000, interval: 200 }).toBe('unavailable')
-      },
-    })
+    const refused = await hosts
+      .refuse(d, {
+        extraMigrations: [fragment('upgrade_probe')],
+        beforeConfirm: async context => {
+          blocker = new DatabaseSync(`${d.file}.clock.sqlite`, { timeout: 0 })
+          blocker.exec('BEGIN IMMEDIATE')
+          const clock = context.get('clock') as Clock
+          await expect
+            .poll(() => clock.now(), { timeout: 30_000, interval: 200 })
+            .toBe('unavailable')
+        },
+      })
+      .finally(() => {
+        blocker?.exec('ROLLBACK')
+        blocker?.close()
+      })
     const released = performance.now()
-    blocker?.exec('ROLLBACK')
-    blocker?.close()
     expect(refused.failure.stage).toBe('serving-timeout')
     expect(refused.failure.message).toContain('钟读不到或回拨：重启前先核钟')
     expect(refused.log.events('upgrade-confirmed')).toHaveLength(1)
@@ -114,7 +122,12 @@ describe('assembly.no-commit-before-open ⑤：确认之后等不到 serving（�
     await hosts.stop(again.host)
     // 反向：钟往回拨到 written_at 之前再原样重启 ⇒ 迁移前的只读核对拒绝（所以说明写「重启前先核钟」）
     const future = Date.now() + 3_600_000
-    execute(d.file, 'UPDATE clock_lease SET written_at = ?, lease_until = ?', future, future)
+    execute(
+      `${d.file}.clock.sqlite`,
+      'UPDATE clock_lease SET written_at = ?, lease_until = ?',
+      future,
+      future,
+    )
     const rolledBack = await hosts.refuse(d, { extraMigrations: [fragment('upgrade_probe')] })
     expect(rolledBack.failure.stage).toBe('preflight')
     expect(rolledBack.failure.message).toContain('clock-rolled-back')

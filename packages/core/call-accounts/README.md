@@ -147,4 +147,4 @@ assert.ok(pinned.$id.includes('/call-accounts/v2/'))
 assert.deepEqual(current.$defs, pinned.$defs)
 ```
 
-Adoption and mapping: ACK decision, [CA4](../../../.meta_harness/design/spec/data/call-accounts/v4/contract.md), [provider](../../../.meta_harness/design/realization/packages/core/call-accounts/v4-acknowledgement-design.md). Verification: [explicit inputs](tests/v3.spec.ts) and [normative examples](tests/examples.spec.ts). Actual source selection, access and durable recovery remain composition obligations.
+Adoption and mapping: ACK decision, [CA4](SPEC.md), [provider](SPEC.md). Verification: [explicit inputs](tests/v3.spec.ts) and [normative examples](tests/examples.spec.ts). Actual source selection, access and durable recovery remain composition obligations.

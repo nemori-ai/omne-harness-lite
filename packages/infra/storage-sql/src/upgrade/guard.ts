@@ -4,7 +4,7 @@ import type {
   UpgradeGuardHandle,
 } from '@omne-harness-lite/storage'
 // 升级守卫：装配造、经 config `upgrade.guard` 交给插件体、插件体取得排他之后附着；装配此后只对它调 confirm()／pending()。
-// 设计：.meta_harness/design/realization/packages/infra/storage-sql/design.md「确认为什么绑在守卫对象上」。
+// 守卫身份、确认与 pending 行为归包旁 SPEC.md。
 // 守卫只排本实例与装配之间的先后，不承担跨实例的排他（那归属主锁）。
 
 /** 启动失败的阶段：被占／恢复／核对／快照／迁移（R-U8；裁决账本 §十一）。 */

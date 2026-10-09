@@ -121,6 +121,40 @@ test('strictly classifies every record and accepts lossless position representat
     await f.close()
   }
 })
+test('joins equivalent dispatch spellings without accepting another dispatch', async () => {
+  const f = await historyFixture()
+  try {
+    const prefix = await f.prefix()
+    const equivalent = changed(
+      prefix,
+      row => {
+        const body = payload(row)
+        return (
+          body.value.kind === 'model_call_dispatched' ||
+          body.value.kind === 'model_call_opened' ||
+          body.category === 'response'
+        )
+      },
+      row => {
+        const body = payload(row)
+        return replaceFixtureValue(row, {
+          ...body.value,
+          dispatch: new LosslessNumber(body.category === 'response' ? '1.00' : '1e0'),
+        })
+      },
+    )
+    expect(inspect(equivalent)).toEqual(inspect(prefix))
+    expect(inspect(equivalent)).toMatchObject({ kind: 'known' })
+    const different = changed(
+      equivalent,
+      row => payload(row).category === 'response',
+      row => replaceFixtureValue(row, { ...payload(row).value, dispatch: 2 }),
+    )
+    expect(inspect(different)).toEqual({ kind: 'unavailable' })
+  } finally {
+    await f.close()
+  }
+})
 test.each([
   ['creation', (row: LogEntry) => payload(row).value?.kind === 'model_call_created'],
   [
@@ -629,6 +663,77 @@ test('model settlement reads the identical Run projection at its supplied tail a
     expect(read(await f.modelPrefix(), 'run', 3)).toEqual({ unavailable: true })
     f.revoke()
     expect(read(first, 'run', 1)).toEqual({ unavailable: true })
+  } finally {
+    await f.close()
+  }
+})
+
+test('a model attempt requires model-visible context and does not adopt tool-only environment defaults', async () => {
+  const f = await historyFixture(undefined, undefined, undefined, undefined, [], {
+    required: [
+      {
+        key: 'shell.initial',
+        source: 'tool-defaults',
+        config: null,
+        consumers: ['tool'],
+        required: true,
+        recovery: 'persisted',
+      },
+    ],
+    initial: [
+      { key: 'shell.initial', revision: 'initial', observedAt: at, value: { cwd: '/workspace' } },
+    ],
+    fixed: [],
+  })
+  try {
+    expect(readToolDriverHistory(await f.prefix())).not.toHaveProperty('unavailable')
+    const history = readToolDriverHistory(await f.prefix())
+    if ('unavailable' in history) throw new Error('Valid model attempt unavailable')
+    expect(history.runs.get('run')?.latest?.value.context).toEqual([])
+  } finally {
+    await f.close()
+  }
+})
+
+test('rejects tool-only context even when the model has adopted all required model values', async () => {
+  const modelValue = { key: 'instructions', revision: 'initial', observedAt: at, value: 'model' }
+  const toolValue = {
+    key: 'shell.initial',
+    revision: 'initial',
+    observedAt: at,
+    value: { cwd: '/private' },
+  }
+  const f = await historyFixture(undefined, undefined, undefined, undefined, [], {
+    required: [
+      {
+        key: modelValue.key,
+        source: 'model-source',
+        config: null,
+        consumers: ['model'],
+        required: true,
+        recovery: 'persisted',
+      },
+      {
+        key: toolValue.key,
+        source: 'tool-source',
+        config: null,
+        consumers: ['tool'],
+        required: true,
+        recovery: 'persisted',
+      },
+    ],
+    initial: [modelValue, toolValue],
+    fixed: [],
+  })
+  try {
+    const prefix = await f.prefix()
+    expect(readToolDriverHistory(prefix)).not.toHaveProperty('unavailable')
+    const leaked = changed(
+      prefix,
+      row => payload(row).value.kind === 'attempt_adopted',
+      row => replaceFixtureValue(row, { ...payload(row).value, context: [modelValue, toolValue] }),
+    )
+    expect(readToolDriverHistory(leaked)).toHaveProperty('unavailable')
   } finally {
     await f.close()
   }

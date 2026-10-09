@@ -590,7 +590,7 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       },
       reservationWaitPolicy: { maxWaitersPerCall: 2, timeoutMs: 100 },
       tokenMargin: { multiplier: 1.25, reserveTokens: 8 },
-      policy: { now: () => '2026-09-28T00:00:00Z', diagnostic() {} },
+      policy: { now: async () => '2026-09-28T00:00:00Z', diagnostic() {} },
       diagnosticCollector: {
         emitter(scope: DiagnosticScope, association?: DiagnosticAssociation) {
           return {

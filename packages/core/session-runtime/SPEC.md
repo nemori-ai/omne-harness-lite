@@ -85,3 +85,11 @@ SR10：close同步撤新准入／失效代际，然后await真正owned work drai
 在公平、有界事务调度下，协调者取得Session写锁后处理当前有资格输入或取消阶段，采用显式批量界，不被持续无关append饿死。所有触碰该Session当前选择／资格／tail的写方使用同一存储顺序；不额外假设安静窗口。当前权限端口在实际提交／发出准入点核实并与撤权有确定先后；Access历史快照不是许可。装配无法提供当前性／同次序资格证据时明确unavailable并保责任，不默认允许。
 
 本阶段操作的身份、授权、幂等、提交、通知与在途共用规则见[共用规则](adr/shared-operation-rules.md)。本文与该表一起读取；不从目录存在推断实现完成。
+
+## Run事实的投影依据
+
+会话日志是Run／attempt事实的唯一权威。相同Session／Run存在更大attempt序号的已确认条目时，原attempt已被取代；与Session Log尝试栅栏使用同一条件。attempt首条是其开始事实。明确Run终结事实使该Run进入吸收终态，后续延续是另一个Run，不能复活原Run。
+完整prefix中的这两项事实同时求值，不混合两次读取；按同一确认日志前缀派生的表或缓存才可作为投影。确认的取代／终结不会倒退；明确不存在原attempt、未知日志版本／终结形状或读取故障不合成两个false。身份与可信调用方显式给出，不能从当前上下文猜测，也不向普通用户暴露内部事实端口。
+Tool落账使用构造同一提交的完整prefix，不先读两个布尔再开写事务；Model沿其同prefix的RunHistoryReader。当前公开入口没有旧attemptFacts读方法或runAttemptFacts服务键，不为迁移增加兼容接口。未来跨进程读取必须说明日志位置和当前性，不能用滞后副本放宽栅栏或late责任。
+
+Run事实验证须核同一prefix两轴一致、取代与Session Log拒旧fence同条件、原attempt不存在及来源故障不答当前／open、已取代和已终结只增；未知终结版本不能补false。本义务不因事实读API退出而删除，未执行结果仍需如实报告。

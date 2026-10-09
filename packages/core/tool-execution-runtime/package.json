@@ -23,7 +23,8 @@
     "schema",
     "generated",
     "README.md",
-    "README_ZH.md"
+    "README_ZH.md",
+    "models"
   ],
   "scripts": {
     "build": "node ../../../scripts/build-fixed-schemas.mjs",

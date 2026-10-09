@@ -1,4 +1,5 @@
 import { expect, test, vi } from 'vitest'
+import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { fixture, text } from './fixture.ts'
 
 test.each(['\0a', 'a\0', 'a\0b'])(
@@ -14,7 +15,11 @@ test.each(['\0a', 'a\0', 'a\0b'])(
 test('every command has callable help and an unknown help command has no effects', async () => {
   const h = fixture()
   for (const [command, definition] of Object.entries(h.tool.definition.commands)) {
-    expect(await h.run('help', { command })).toBe(definition.help)
+    const result = text(await h.run('help', { command }))
+    expect(result.split('\n\nARGUMENTS:\n')[0]).toBe(definition.help)
+    const schema = result.split('\n\nARGUMENTS:\n')[1]
+    expect(schema).toBeDefined()
+    expect(JSON.parse(schema!)).toEqual(JSON.parse(writeJsonLossless(definition.input)))
     expect(definition.help).toContain('USAGE:')
   }
   expect(text(await h.run('help', { command: 'missing' }))).toContain('arguments:invalid')

@@ -38,12 +38,7 @@ export function touchedBase(root: string, primaryBranch: string): string | undef
   } catch {
     // 求不出合并点：只看未提交的改动。
   }
-  return changedFiles(root, base).some(
-    path =>
-      isProductSource(path) ||
-      path === CONSTRAINT_PATH ||
-      (path.startsWith('.meta_harness/design/realization/') && path.endsWith('/bindings.yaml')),
-  )
+  return changedFiles(root, base).some(path => isProductSource(path) || path === CONSTRAINT_PATH)
     ? base
     : undefined
 }
@@ -70,17 +65,16 @@ export function measureForHook(
     },
     change,
   )
-  const { conformance, reflexion, intentChanges } = readArchitectureSensors(
+  const { conformance, assemblyDelta } = readArchitectureSensors(
     root,
-    config.sensors.reflexion,
+    config.sensors.architecture,
     change.mergeBase,
   )
   return {
     explain: {
       ...explain,
       conformance,
-      assemblyChanges: intentChanges,
-      newDeviations: reflexion.status === 'data' ? reflexion.data.newDeviations : reflexion,
+      assemblyDelta,
     },
     hardLines: directionLines(report),
     alert: metrics.thresholds.alert,

@@ -1,0 +1,7 @@
+{
+  "slash-command/v2": {
+    "path": "../../slash-command/schema/slash-command.schema.json",
+    "sha256": "595e5662cf7ebd5d84c5ba3edee7b4dd8a6e817a4738343bfa86c318cc1ac40e",
+    "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/slash-command/v2/slash-command.schema.json"
+  }
+}

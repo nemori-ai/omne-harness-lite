@@ -1,12 +1,10 @@
 import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { type SchemaDefName, validate } from '../src/index.ts'
 
-const SPEC_FILE = resolve(
-  import.meta.dirname,
-  '../../../../.meta_harness/design/spec/data/offer-expiry/v2/offer-expiry.schema.json',
-)
+const SCHEMA_FILE = resolve(import.meta.dirname, '../schema/offer-expiry.schema.json')
 
 interface Counterexample {
   readonly value: unknown
@@ -19,13 +17,14 @@ interface DefWithExamples {
   readonly 'x-counterexamples'?: readonly Counterexample[]
 }
 
-const original = readFileSync(SPEC_FILE)
+const original = readFileSync(SCHEMA_FILE)
 const schema = JSON.parse(original.toString('utf8')) as { $defs: Record<string, DefWithExamples> }
 
-describe('Schema 副本', () => {
-  it('与 spec 目录的规范工件逐字节相同', () => {
-    const copy = readFileSync(resolve(import.meta.dirname, '../schema/offer-expiry.schema.json'))
-    expect(copy.equals(original)).toBe(true)
+describe('Schema adopted identity', () => {
+  it('retains independently fixed normative bytes', () => {
+    expect(createHash('sha256').update(original).digest('hex')).toBe(
+      '2fa7b9bcd5ba528ef4dafc6812cc087c839c0a45a5e0f465747ad44a7230d05b',
+    )
   })
 })
 

@@ -38,7 +38,7 @@ node dist/cli.js --data ../../tmp/my-model-demo --token-margin-multiplier 1.1 --
 | `--transport-retirement-wait-ms <n>` | `10000`   | 撤除传输贡献时的正整数等待；命令行始终设 `force=false`。等待超时仍保留 owner，不冒称清理完毕。                           |
 | `--ipc-max-message-bytes <n>`        | `1048576` | 每条完整 IPC 消息的字节上限，父子两端都生效。                                                                            |
 | `--ipc-max-commands <n>`             | `1`       | 主管与 worker 之间待处理 IPC 请求的上限。                                                                                |
-| `--tools`                            | 关闭      | 启用纯函数工具 `demo__echo`、`demo__nonce`，以及工具结果后的模型续答。                                                   |
+| `--tools`                            | 关闭      | 启用正式 `Shell`、`Files`、原 echo/nonce 和结果读取器；工具结果后由模型续答。                                            |
 | `--key-file <路径>`                  | 无        | 仅所有者可读（0600）的文件，只含密钥原始字节，不解析 `.env` 格式；末尾一个换行会被忽略。与 `OPENROUTER_API_KEY` 二选一。 |
 
 新对话请使用**尚不存在**的 `--data` 目录；示例以仅所有者可访问的权限创建它。`/exit` 或输入结束后，仍用相同路径继续。既有目录只有在认证会话及耐久日志可读、可对账时才接受；归属未知的未完工作会被拒绝。不要在命令行传密钥值。密钥发布进加密副本之后，正常重启可省略环境变量和 `--key-file`；再次提供密钥会通过真实凭据发布 API 替换。
@@ -87,6 +87,12 @@ node examples/model-invocation-minimal-demo/dist/cli.js --data "$PWD/tmp/my-tool
 
 输入“调用 demo__nonce 生成口令，然后原样回复口令”。口令只在工具实际执行时生成。工具结果确认写入会话后，示例在同一 Run 中请求模型续答。`demo__echo` 返回输入对象的 `value` 字段。工具模式的会话创建时就声明 context；已有缺少声明的会话会拒绝绑定。
 
+工具模式现已装配真实宿主执行环境。`Shell` 和 `Files` 使用工具公开工厂和 Cordis 插件；定义、Schema 与执行实现来自同一配置。初始目录是启动 demo 时的目录，通过 `shell.initial` 和 `files.initial` 提供。它不是沙箱边界。demo 明确设自动执行许可，命令和文件操作会影响宿主。
+
+可以输入“用 Shell 执行 pwd，并告诉我真实结果”，或“用 Files 创建 tmp/demo-note.txt，读取它，再把其中一个词改掉并返回 diff”。编辑前，模型须先读取当前 version。Files 文本返回 Unix 格式，edit/patch 返回 unified diff。工具模式新会话带这两个 Context 声明；旧会话若缺少它们，不自动伪造创建权，请使用新数据目录。
+
+Files.open 返回确认的图片附件。会话日志保留引用。demo 在进入模型调用前，以本次原工具访问句柄串行读取授权字节。公共 plan 只消费固定快照，不读取附件存储。原模型适配器在发送投影中展开字节，完成图片准备、计量和发送，原计划输入仍保留引用。支持静态 PNG/JPEG/WebP；终端没有图片预览，也不显示 tool internal message 流式增量。`demo__read_result` 仅供读取本会话已耐久发布的文本附件，不能读取任意宿主路径。
+
 ### 一轮对话做什么
 
 默认模式每轮发送一条文本用户消息，参数为 `reasoningEffort: 'low'` 与所配置的输出上限。已认证会话绑定统一的 `createModelRuntime` 服务；示例在发送前登记本次调用的宿主 owner，并保留到物理停止。服务打开并派发调用，由有界、经会话授权的观察端把回复流式送到终端。观察端默认上限为 256 个事件与 262,144 字节，程序调用可分别设置这两个正整数。投递诊断与背压不能代替持久历史或结算。
@@ -105,10 +111,9 @@ node examples/model-invocation-minimal-demo/dist/cli.js --data "$PWD/tmp/my-tool
 
 ### 模型
 
-示例装入 `@omne-harness-lite/pi-ai-transport` 发布的全部官方定义：按包的官方目录 `officialCatalog` 装入八家 37 叶（OpenAI 12、Anthropic 4、Google 2、DeepSeek 2、xAI 2、Qwen 8、Moonshot 2、ZAI 5），每叶一条官方档案、一个输入计量构件，档案固定该叶定义钉住的唯一供应商路由并禁止回退。缓存档由路由的缓存声明推导：自动缓存保持 automatic，显式缓存取声明的首个 TTL 与断点布局（如 Anthropic 为 `1h`／`last_message`）。模型、计量构件与缓存档的对应只在该包目录中维护，示例不另设映射。新会话显式初选 **`openai/gpt-6-luna`**。已有会话保留其耐久选择。**装入不等于认证**：哪些叶已真实认证，以[实现映射验证页](../../.meta_harness/design/realization/packages/model/pi-ai-transport/verification.md)的逐叶证据表为准；Google 两叶、Qwen 八叶、ZAI 五叶的输入校准仍在增量线上。`/models` 读取当前展示列表（按路由名排列这 37 条，上面的示例输出以 `...` 省略），`/model` 显示选中与有效路由，`/model <标识>` 耐久切换后续请求的选中路由，不重建会话，也不清空历史。上层锁可能让有效路由不同于选中路由；重启后读取耐久选择。沿用旧数据目录重启时，更高的官方清单序号把新增档案登记进目录，原两条 DeepSeek 档案按新配置修订更新。
+示例装入 `@omne-harness-lite/pi-ai-transport` 发布的全部官方定义：按包的官方目录 `officialCatalog` 装入八家 37 叶（OpenAI 12、Anthropic 4、Google 2、DeepSeek 2、xAI 2、Qwen 8、Moonshot 2、ZAI 5），每叶一条官方档案、一个输入计量构件，档案固定该叶定义钉住的唯一供应商路由并禁止回退。缓存档由路由的缓存声明推导：自动缓存保持 automatic，显式缓存取声明的首个 TTL 与断点布局（如 Anthropic 为 `1h`／`last_message`）。模型、计量构件与缓存档的对应只在该包目录中维护，示例不另设映射。新会话显式初选 **`openai/gpt-6-luna`**。已有会话保留其耐久选择。**装入不等于认证**：哪些叶已真实认证，以[实现映射验证页](../../packages/model/pi-ai-transport/SPEC.md)的逐叶证据表为准；Google 两叶、Qwen 八叶、ZAI 五叶的输入校准仍在增量线上。`/models` 读取当前展示列表（按路由名排列这 37 条，上面的示例输出以 `...` 省略），`/model` 显示选中与有效路由，`/model <标识>` 耐久切换后续请求的选中路由，不重建会话，也不清空历史。上层锁可能让有效路由不同于选中路由；重启后读取耐久选择。沿用旧数据目录重启时，更高的官方清单序号把新增档案登记进目录，原两条 DeepSeek 档案按新配置修订更新。
 
 ## 装配 runtime 的公开面
-
 
 模型阶段通过受管插件树装载具名 `createModelRuntimeLocal()` 提供者。JSON 配置给出显式界限，宿主输入与执行政策经具名服务注入。每项操作使用登记固定主体的真实调用方 fiber；有限操作归还借用后撤除，消费或失败来源未实际归还时继续保有。原执行来源只由可信装配持有。
 
@@ -340,4 +345,10 @@ python3 examples/model-invocation-minimal-demo/tests/pty-check.py
 | `tests/cold-supervisor.spec.ts`、`tests/crash-reopen.spec.ts`、`tests/control-writer-uncertainty.spec.ts`、`tests/response-writer-cold-recovery.spec.ts`      | 受管 worker、SIGKILL、崩溃重开、未知控制与响应写者，以及不再发 HTTP 的冷恢复                                                                                              |
 | `tests/runner-host.spec.ts`                                                                                                                                   | 已认证 runner pass、提醒持久化、重放、关闭后重开与文件系统故障注入                                                                                                        |
 
-服务、选择、观察端、恢复、确认与校准的映射遵循已接受的 [RT12](../../.meta_harness/design/spec/capabilities/model-request-runtime/v12/contract.md) 与 [MR11](../../.meta_harness/design/spec/data/model-response/v11/contract.md)，校准由 D107 采用，图片准备由 D-109 采用；提供者状态见 [runtime realization](../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)。统一服务装配的真实 OpenRouter PTY 有界证据见 2026-09-28 示例服务证据，经本示例服务入口的真实逐叶三轮运行列在 [transport 验证](../../.meta_harness/design/realization/packages/model/pi-ai-transport/verification.md)。命令行的模型切换本身只在受控本机 TLS 与 PTY 检查下验证。
+服务、选择、观察端、恢复、确认与校准的映射遵循已接受的 [RT12](../../packages/core/model-request-runtime/SPEC.md) 与 [MR11](../../packages/core/model-response/SPEC.md)，校准由 D107 采用，图片准备由 D-109 采用；提供者状态见 [runtime provider](../../packages/model/model-request-runtime-local/README.md)。统一服务装配的真实 OpenRouter PTY 有界证据见 2026-09-28 示例服务证据，经本示例服务入口的真实逐叶三轮运行列在 [transport 验证](../../packages/model/pi-ai-transport/SPEC.md)。命令行的模型切换本身只在受控本机 TLS 与 PTY 检查下验证。
+
+### 独立 Clock 迁移
+
+新建 demo 目录会显式创建独立 Clock 资源。旧版使用业务数据库内的 Clock：先停止全部旧进程，再在原 CLI 命令中加一次 `--initialize-clock`。该操作导入旧的耐久时间底线。迁移成功后去掉该参数。普通启动遇到 Clock 状态缺失会拒绝，不从可能过时的业务备份自动重建。搬动部署时，一起保留 Clock SQLite 文件、对应 `.clock.json` manifest 和业务数据库。
+
+`close()` 的有界观察到期时可以返回未完成，但原业务关闭继续执行。业务关闭完成后，同一个持有任务继续关闭 transport 和诊断写端，不再依赖下一次 close 调用来触发这段收尾。超时不表示取消或干净关闭；明确失败和资源未完成仍需后续观察或显式重试。

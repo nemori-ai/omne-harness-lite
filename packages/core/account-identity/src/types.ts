@@ -1,5 +1,5 @@
-// capability.account-identity v3 的服务面类型。契约：.meta_harness/design/spec/capabilities/account-identity/v3/contract.md；
-// 节点设计：.meta_harness/design/realization/packages/tenancy/account-identity/design.md。
+// capability.account-identity v3 的服务面类型。契约：packages/core/account-identity/SPEC.md；
+// 节点设计：packages/tenancy/account-identity-sql/SPEC.md。
 // 失败字面**逐字对契约**（kebab-case），每个方法的失败集合恰为契约所列，无兜底值；类型测试（tests/types.spec-d.ts）守 S-36。
 // 参数按「是不是用来认人」分：S-16 的发起方、S-17、S-37 是品牌 `LoginStateId`（契约「按来源读」），其余一律 `unknown`，
 // 表示层解析在方法体内做，不合格 ⇒ `invalid-input`（契约「它不是一次判定结果」）。品牌参数在运行期同样先过表示层。

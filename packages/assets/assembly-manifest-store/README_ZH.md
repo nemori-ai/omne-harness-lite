@@ -4,7 +4,7 @@
 
 通过公开 Storage 保存不可变会话装配记录。独立 MF4 工厂与 Cordis 绑定共用六操作实现。
 本包是实验性 ESM workspace 成员，尚未发布到 npm。组件接受与完整模型 runtime 接受分别记录。
-[绑定行为](SPEC.md)、[验证入口](verification/README.md)与保留的 [MF4 来源](../../../.meta_harness/design/realization/packages/assets/assembly-manifest-store/README.md)分别约束自己的范围。
+[提供者行为](SPEC.md)、[公共装配清单行为](../../core/assembly-manifest/SPEC.md)与[验证入口](verification/README.md)分别拥有自己的范围。
 
 ## 公开入口
 

@@ -79,7 +79,6 @@ relations:
   位置归 [PF-012](../PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)（rev 9），
   「有哪些模态、哪个模型收得下哪些」是大语言模型域定的，所以契约归这里
 - **本 topic 与 [PF-012](../PF-012-agent-loop-and-run/README.md)、[PF-014](../PF-014-inbound-intake-and-queueing/README.md) 各自演进、各自接受**，状态不互相牵连
-- 技术投影：[v2](projection/README.md)，当前 accepted／post-review；规格来源已冻结，精确采用范围由当前正文表达；显式缺口及未实现状态分别保留
 
 ## 本包的文件
 
@@ -89,7 +88,6 @@ PF-013-model-profiles-and-invocation/
 ├── design.md         概念、模型、规则、取舍、边界      ← 必须
 ├── flows.md          换模型的旅程、失败之后怎么走
 ├── acceptance.md     产品视角的验收标准
-└── projection/       技术投影（按版本固化的派生快照，不是权威）
 ```
 
 

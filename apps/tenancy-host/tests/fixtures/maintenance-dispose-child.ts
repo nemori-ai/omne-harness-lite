@@ -1,7 +1,6 @@
-import { promises as fs, realpathSync } from 'node:fs'
+import { promises as fs } from 'node:fs'
 import { once } from 'node:events'
 import { syncBuiltinESMExports } from 'node:module'
-import { DatabaseSync } from 'node:sqlite'
 import { boot, ENV } from '../../src/index.ts'
 import { StorageCompletion } from '@omne-harness-lite/storage/cordis'
 import { EntryMaintenance } from '@omne-harness-lite/governance-center-entry/cordis'
@@ -13,6 +12,26 @@ import { createOpsClient } from '../../src/maintenance-assembly.ts'
 const callOps = createOpsClient()
 
 const fault = process.argv[2]
+// Native worker failures are covered by storage-sql. At this assembly boundary,
+// hold the owner's descriptor open and verify that disposal cannot report success.
+let failStorageClose = false
+if (fault === 'storage-error') {
+  const source = process.env[ENV.storageFile]
+  if (source === undefined) throw new Error('missing test source')
+  const open = fs.open
+  fs.open = async (...args) => {
+    const handle = await open(...args)
+    if (String(args[0]) === `${source}.owner-lock`) {
+      const close = handle.close.bind(handle)
+      handle.close = async () => {
+        if (failStorageClose) throw new Error('injected owner descriptor close failure')
+        await close()
+      }
+    }
+    return handle
+  }
+  syncBuiltinESMExports()
+}
 class PendingStorageCompletion extends StorageCompletion {
   constructor(ctx: Context) {
     super(ctx)
@@ -90,20 +109,7 @@ if (fault === 'controller-error') {
   )
     throw new Error('cleanup fault did not reach the operation')
 }
-if (fault === 'storage-error') {
-  const source = process.env[ENV.storageFile]
-  if (source === undefined) throw new Error('missing test source')
-  const canonical = realpathSync(source)
-  const close = DatabaseSync.prototype.close
-  DatabaseSync.prototype.close = function (this: DatabaseSync): void {
-    const path = this.prepare('PRAGMA database_list')
-      .all()
-      .find(row => row.name === 'main')?.file
-    if (typeof path === 'string' && path.length > 0 && realpathSync(path) === canonical)
-      throw new Error('injected native source close failure')
-    close.call(this)
-  }
-}
+if (fault === 'storage-error') failStorageClose = true
 const result = await host.dispose()
 const exit = once(process.stdin, 'data')
 process.stdout.write(JSON.stringify({ stage: 'disposed', result }) + '\n')

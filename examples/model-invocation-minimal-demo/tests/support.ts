@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
 import assert from 'node:assert/strict'
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
@@ -70,6 +71,9 @@ export async function deployment(label: string): Promise<AcceptanceConfig> {
   return {
     runId: label,
     databaseFile: join(path, 'db.sqlite'),
+    get initializeClock() {
+      return !existsSync(join(path, 'db.sqlite.clock.sqlite.clock.json'))
+    },
     keys,
     credentials: { cost: 1024, blockSize: 8, parallelization: 1, saltBytes: 16, keyBytes: 32 },
     identity: { credentialPolicy: { minLength: 8 }, unactivatedRetention: duration(60_000) },

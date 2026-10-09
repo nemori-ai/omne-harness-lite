@@ -1,0 +1,30 @@
+[
+  {
+    "title": "请求消息带完整未解析坏名",
+    "definition": "ModelRequest",
+    "schema": true,
+    "result": "—",
+    "source": "{\n  \"target\": \"route_a\",\n  \"parameters\": {},\n  \"messages\": [\n    {\n      \"id\": \"msg_bad\",\n      \"type\": \"assistant\",\n      \"createdAt\": \"2026-09-26T00:00:00Z\",\n      \"response\": \"resp_bad\",\n      \"ending\": \"complete\",\n      \"blocks\": [\n        {\n          \"id\": \"b_bad\",\n          \"kind\": \"tool_call\",\n          \"visibility\": {\n            \"toHuman\": true,\n            \"toModel\": true\n          },\n          \"complete\": true,\n          \"callId\": \"call_bad\",\n          \"tool\": \"bad:name\",\n          \"rawArguments\": \"{\\\"x\\\":1}\",\n          \"unparseable\": true\n        }\n      ]\n    }\n  ],\n  \"tools\": [\n    \"read_file\"\n  ]\n}"
+  },
+  {
+    "title": "完成回复主体带完整未解析坏名",
+    "definition": "AfterModelCallCompleteReplySubject",
+    "schema": true,
+    "result": "—",
+    "source": "{\n  \"reply\": {\n    \"id\": \"msg_bad\",\n    \"type\": \"assistant\",\n    \"createdAt\": \"2026-09-26T00:00:00Z\",\n    \"response\": \"resp_bad\",\n    \"ending\": \"complete\",\n    \"blocks\": [\n      {\n        \"id\": \"b_bad\",\n        \"kind\": \"tool_call\",\n        \"visibility\": {\n          \"toHuman\": true,\n          \"toModel\": true\n        },\n        \"complete\": true,\n        \"callId\": \"call_bad\",\n        \"tool\": \"bad:name\",\n        \"rawArguments\": \"{\\\"x\\\":1}\",\n        \"unparseable\": true\n      }\n    ]\n  },\n  \"usage\": {\n    \"input_tokens\": 1840,\n    \"output_tokens\": 212,\n    \"cache_read_tokens\": 1536,\n    \"cache_write_tokens\": 0,\n    \"source\": \"upstream\"\n  },\n  \"cost\": {\n    \"cost_usd\": 0.0031,\n    \"source\": \"upstream_usage\"\n  }\n}"
+  },
+  {
+    "title": "共享形状不授予派发许可",
+    "definition": "BeforeActionSubject",
+    "schema": true,
+    "result": "禁止派发",
+    "source": "{\n  \"call\": {\n    \"id\": \"b_bad\",\n    \"kind\": \"tool_call\",\n    \"visibility\": {\n      \"toHuman\": true,\n      \"toModel\": true\n    },\n    \"complete\": true,\n    \"callId\": \"call_bad\",\n    \"tool\": \"read_file\",\n    \"rawArguments\": \"{\\\"x\\\":1}\",\n    \"unparseable\": true\n  },\n  \"definition\": {\n    \"name\": \"read_file\"\n  },\n  \"batch\": [\n    \"call_bad\"\n  ]\n}"
+  },
+  {
+    "title": "可用工具名字仍严格",
+    "definition": "ModelRequest",
+    "schema": false,
+    "result": "malformed",
+    "source": "{\n  \"target\": \"route_a\",\n  \"parameters\": {},\n  \"messages\": [\n    {\n      \"id\": \"msg_bad\",\n      \"type\": \"assistant\",\n      \"createdAt\": \"2026-09-26T00:00:00Z\",\n      \"response\": \"resp_bad\",\n      \"ending\": \"complete\",\n      \"blocks\": [\n        {\n          \"id\": \"b_bad\",\n          \"kind\": \"tool_call\",\n          \"visibility\": {\n            \"toHuman\": true,\n            \"toModel\": true\n          },\n          \"complete\": true,\n          \"callId\": \"call_bad\",\n          \"tool\": \"bad:name\",\n          \"rawArguments\": \"{\\\"x\\\":1}\",\n          \"unparseable\": true\n        }\n      ]\n    }\n  ],\n  \"tools\": [\n    \"bad:name\"\n  ]\n}"
+  }
+]

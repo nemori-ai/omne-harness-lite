@@ -26,13 +26,7 @@ function parse(text: string): JsonValue {
   return parsed.ok
 }
 const readyExamples = parse(
-  readFileSync(
-    new URL(
-      '../../../../.meta_harness/design/spec/data/model-response/v11/ready-examples.json',
-      import.meta.url,
-    ),
-    'utf8',
-  ),
+  readFileSync(new URL('fixtures/ready-examples.json', import.meta.url), 'utf8'),
 )
 if (!Array.isArray(readyExamples)) throw new Error('expected normative examples')
 const rows = readyExamples.map(object)

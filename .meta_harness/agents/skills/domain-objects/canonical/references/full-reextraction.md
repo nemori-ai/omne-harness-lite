@@ -16,7 +16,7 @@
 ### 1. 预生成锚点表
 
 对 `design/ubiquitous_language/terms/*.md` 与每个 topic 的 `design.md`、`flows.md`，
-用设计链链接检查**同一套 slug 算法**（`tooling/src/design_validation.py` 的 `github_anchor`）
+用设计链链接检查**同一套 slug 算法**（`tooling/src/markdown_support.py` 的 `github_anchor`）
 产出「行号 · 级别 · 标题 · 锚点」表。
 
 **锚点只许从表里抄，不许各自算。**十几个执行者各算各的，中文标题加标点的锚点一定有人算错，

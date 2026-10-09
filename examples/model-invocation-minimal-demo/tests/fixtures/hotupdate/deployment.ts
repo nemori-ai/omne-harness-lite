@@ -38,6 +38,7 @@ export async function hotupdateDeployment(): Promise<
     directory,
     runId: 'hotupdate-real-providers',
     databaseFile: join(directory, 'db.sqlite'),
+    initializeClock: true,
     keys,
     credentials: { cost: 1024, blockSize: 8, parallelization: 1, saltBytes: 16, keyBytes: 32 },
     identity: { credentialPolicy: { minLength: 8 }, unactivatedRetention: duration.ok },

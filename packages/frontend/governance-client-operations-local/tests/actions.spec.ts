@@ -24,7 +24,7 @@ import type { Runtime } from '../src/actions.ts'
 const examples: { definition: string; valid: boolean; value: unknown }[] = JSON.parse(
   readFileSync(
     new URL(
-      '../../../../.meta_harness/design/spec/compositions/governance-client-operations/v1/examples.json',
+      '../../../core/governance-client-operations/tests/fixtures/action-examples.json',
       import.meta.url,
     ),
     'utf8',

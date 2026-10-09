@@ -1,3 +1,4 @@
+import { adoptedSchemaBytes } from './adopted-schema-input.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
@@ -28,12 +29,7 @@ function entries(text = ambiguity): readonly SkillPackageEntry[] {
 const rejected = { rejected: 'malformed', malformed: 'M16' }
 describe('D069 precise frozen v3 input adoption', () => {
   it('binds all new normative text cases and both schema bytes to accepted resources', () => {
-    const source = readFileSync(
-      new URL(
-        '../../../../.meta_harness/design/spec/data/skill-package/v3/examples.md',
-        import.meta.url,
-      ),
-    )
+    const source = readFileSync(new URL('fixtures/package-examples.md', import.meta.url))
     expect(createHash('sha256').update(source).digest('hex')).toBe(normative.sourceSha256)
     expect(normative.rows).toHaveLength(14)
     for (const [path, version] of [
@@ -41,14 +37,7 @@ describe('D069 precise frozen v3 input adoption', () => {
       ['skill-package.v2.schema.json', 2],
     ] as const) {
       expect(readFileSync(new URL('../schema/' + path, import.meta.url))).toEqual(
-        readFileSync(
-          new URL(
-            '../../../../.meta_harness/design/spec/data/skill-package/v' +
-              version +
-              '/skill-package.schema.json',
-            import.meta.url,
-          ),
-        ),
+        adoptedSchemaBytes('skill-package', version),
       )
     }
     expect(schemaId).toBe(schema.$id)

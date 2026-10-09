@@ -51,10 +51,7 @@ it('keeps JSON limits above representation failure in the decision order', () =>
 })
 
 const normative = readFileSync(
-  join(
-    import.meta.dirname,
-    '../../../../.meta_harness/design/spec/compositions/governance-center-entry-https-json/v3/examples.md',
-  ),
+  join(import.meta.dirname, 'fixtures/maintenance-wire-examples.md'),
   'utf8',
 )
 const maintenanceSection = normative.slice(normative.indexOf('## 8.'))
@@ -64,14 +61,33 @@ const replies = [...maintenanceSection.matchAll(/```text\n([0-9a-f\n]+)\n```/g)]
 
 it('matches every frozen maintenance response byte example, including metadata time formatting', () => {
   let checked = 0
+  let retired = 0
   for (const bytes of replies) {
     const offset = bytes.indexOf('\r\n\r\n') + 4
     const value: unknown = JSON.parse(bytes.subarray(offset).toString('utf8'))
-    if (!entryValidator('BackupResult')(value) && !entryValidator('BackupStatusResult')(value))
+    if (!entryValidator('BackupResult')(value) && !entryValidator('BackupStatusResult')(value)) {
+      expect(JSON.stringify(value)).toContain('omne-center-backup/1')
+      retired += 1
       continue
+    }
     // This cast is preceded by the accepted result schemas, not a fixture-specific substitute.
     expect(responseBytes(maintenanceResultBody(value as MaintenanceResult))).toEqual(bytes)
     checked += 1
   }
-  expect(checked).toBeGreaterThanOrEqual(10)
+  expect(retired).toBeGreaterThan(0)
+  expect(checked + retired).toBeGreaterThanOrEqual(10)
+})
+
+it('serializes current maintenance examples with the durable checkpoint intact', () => {
+  const example = JSON.parse(
+    readFileSync(join(import.meta.dirname, '../verification/maintenance-v2.json'), 'utf8'),
+  )
+  expect(entryValidator('BackupResult')(example)).toBe(true)
+  const bytes = responseBytes(maintenanceResultBody(example))
+  expect(JSON.parse(bytes.subarray(bytes.indexOf('\r\n\r\n') + 4).toString('utf8'))).toEqual(
+    example,
+  )
+  expect(bytes.toString()).toContain(
+    '"clockCheckpoint":{"writtenAt":1790373601000,"upperBound":1790373611000}',
+  )
 })

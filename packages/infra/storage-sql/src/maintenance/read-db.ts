@@ -1,4 +1,4 @@
-import type { DatabaseSync } from 'node:sqlite'
+import type { AsyncSqliteDatabase } from '../sqlite/async-database.ts'
 import {
   Kysely,
   SqliteAdapter,
@@ -17,7 +17,7 @@ class SnapshotReadDriver implements Driver {
   #queue: Promise<void> = Promise.resolve()
   #release: (() => void) | undefined
   #closed = false
-  constructor(handle: DatabaseSync) {
+  constructor(handle: AsyncSqliteDatabase) {
     this.#connection = new NodeSqliteConnection(handle, 'read', new UniqueConstraintResolver())
   }
   async init(): Promise<void> {}
@@ -56,7 +56,7 @@ class SnapshotReadDriver implements Driver {
   }
 }
 
-export function snapshotReadDb(handle: DatabaseSync): UntypedDb {
+export function snapshotReadDb(handle: AsyncSqliteDatabase): UntypedDb {
   const driver = new SnapshotReadDriver(handle)
   return new Kysely({
     dialect: {

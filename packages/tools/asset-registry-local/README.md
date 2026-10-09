@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-Experimental session asset-table implementation. It is an unpublished ESM workspace scaffold: declarations/build exist, but its component checks are not passing and the full service is not accepted as delivered. The model-runtime vertical will complete only its required projection first. See [realization status](../../../.meta_harness/design/realization/packages/tools/asset-registry/README.md).
+Independent seven-operation registry closure. Full MCP and external dependency-fact paths remain incomplete; the local package has no formal provider plugin. See [provider behavior](SPEC.md) and [verification](verification/README.md).
 
 Loop extension declarations use the current `@omne-harness-lite/loop-extension` public types.
 
@@ -38,3 +38,5 @@ pnpm --filter @omne-harness-lite/asset-registry-local... run build
 pnpm --filter @omne-harness-lite/asset-registry-local run typecheck
 pnpm --filter @omne-harness-lite/asset-registry-local run test
 ```
+
+Behavior belongs to [SPEC](SPEC.md). Check methods and limits belong to [verification](verification/README.md).

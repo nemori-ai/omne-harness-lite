@@ -210,7 +210,7 @@ test('removing the last optional public registration preserves its CAS revision 
       storage: h.storage,
       log: h.log,
       access: h.auth.operations,
-      now: () => '2026-10-04T00:00:00Z',
+      now: async () => '2026-10-04T00:00:00Z',
     })
     next.sources.registerSource({
       name: 'session',

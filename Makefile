@@ -1,4 +1,4 @@
-.PHONY: check check-plan agents-check docs-check design-check design-review spec-retention formal-tools test product-check acceptance metrics test-affected test-tier test-triage mutation role-eval acceptance-lock card-retire scenario-status loop-status loop-card loop-health
+.PHONY: check check-plan agents-check docs-check design-check formal-tools test product-check acceptance metrics test-affected test-tier test-triage mutation role-eval acceptance-lock card-retire scenario-status loop-status loop-card loop-health
 
 TEST_RUNS := node --experimental-strip-types tools/ts-checks/src/testing/cli.ts
 
@@ -19,18 +19,9 @@ docs-check:
 	uv run --locked omne-docs-check
 
 design-check:
-	PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --source-root . --formal $(or $(FORMAL),registered) $(if $(GATE),--gate "$(GATE)") $(if $(PREVIOUS_FROZEN),--previous-frozen "$(PREVIOUS_FROZEN)")
+	PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/check_sources.py --root .meta_harness/design --source-root .
 	PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_harness/design $(if $(STALE),--stale "$(STALE)")
-	PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/realization_nodes.py --root .meta_harness/design $(if $(STALE),--stale "$(STALE)")
 	PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/stories.py --root .meta_harness/design
-
-# 设计评审报告：只读、只报告，不判失败。CONTRACT 给一个或几个 <contract_id>/v<N>，FROZEN=1 连已接受契约的产品依据 rev 一起看，FORMAT=json 输出 JSON。
-design-review:
-	PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/design_review.py --root .meta_harness/design $(foreach c,$(CONTRACT),--contract "$(c)") $(if $(FROZEN),--include-frozen) $(if $(FORMAT),--format "$(FORMAT)")
-
-# 旧版规格的消费者盘点：只读、只报告，不判失败。CONTRACT 给一个 <contract_id> 只看那一份，FORMAT=json 输出 JSON。
-spec-retention:
-	PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/spec_retention.py --root .meta_harness/design $(if $(CONTRACT),--contract "$(CONTRACT)") $(if $(FORMAT),--format "$(FORMAT)")
 
 # 角色评估：ARGS 给子命令与参数，如 ARGS="verify .meta_harness/agents/evaluation/suites/design-review-expression"。
 # 子命令都不调用模型：模型由主会话派 subagent 来跑，prepare／record、judge-brief／judge-record 成对围着那一次派发；用例与判定方法都签过字 prepare 才肯备。

@@ -78,7 +78,7 @@ async function seed(cuts: readonly ('execution_ended' | 'delivery_ready')[]) {
       const deployed = createDemoConfig(
         data,
         'second-session-seed',
-        () => '2026-10-05T00:00:00Z',
+        async () => '2026-10-05T00:00:00Z',
         { multiplier: 1.1, reserveTokens: 256 },
         demoRetirement(),
         true,

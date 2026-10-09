@@ -1,0 +1,217 @@
+{
+  "schemaVersion": 1,
+  "description": "Fixed packed-consumer regression inputs; not a contract registry or authority",
+  "resources": [
+    {
+      "member": "arrival-events",
+      "file": "schema/arrival-events.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/arrival-events/v2/arrival-events.schema.json",
+      "sha256": "bcaac3fc5c9d7a0a223f68722164956507bf978e62bc1423d56cc9c4810b74c5",
+      "publicEntry": "@omne-harness-lite/arrival-events/schema"
+    },
+    {
+      "member": "asset-model",
+      "file": "schema/asset-model.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v3/asset-model.schema.json",
+      "sha256": "f674f438dfee8fc1d6ad6106113fe72699232092c84699e5b216ca2792137131",
+      "publicEntry": "@omne-harness-lite/asset-model/schema"
+    },
+    {
+      "member": "asset-model",
+      "file": "schema/asset-model.v2.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v2/asset-model.schema.json",
+      "sha256": "3b4a9302a51f902f89f6bb567f2b91b0533f323d8f315853e35ac15a679f5890",
+      "publicEntry": "@omne-harness-lite/asset-model/schema/v2"
+    },
+    {
+      "member": "asset-model",
+      "file": "schema/resources/connector.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/connector/v2/connector.schema.json",
+      "sha256": "d02af56071f37786229142a73e93194529b7e3dad3b5a70c1a69e0fe44196d5d",
+      "publicEntry": "@omne-harness-lite/asset-model/schema/connector/v2"
+    },
+    {
+      "member": "asset-model",
+      "file": "schema/resources/tool-definition.v2.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v2/tool-definition.schema.json",
+      "sha256": "21f6ff19640da3905b4697404b8d7c527a4f0a6ec4c870b3f0affdc558c469ae",
+      "publicEntry": null
+    },
+    {
+      "member": "call-accounts",
+      "file": "schema/call-accounts.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/call-accounts/v4/call-accounts.schema.json",
+      "sha256": "710a589f5692edfd4d5d474ff9fd5df6320dd98ffba7f4c711b50c8fb1dab368",
+      "publicEntry": "@omne-harness-lite/call-accounts/schema"
+    },
+    {
+      "member": "call-accounts",
+      "file": "schema/v2/call-accounts.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/call-accounts/v2/call-accounts.schema.json",
+      "sha256": "c79cbf51ada9314d83f8bd5fcb5a10b2ebbf855a59bddbe68bb3fdfeffc19511",
+      "publicEntry": "@omne-harness-lite/call-accounts/schema/v2"
+    },
+    {
+      "member": "content-blocks",
+      "file": "schema/content-blocks.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v3/content-blocks.schema.json",
+      "sha256": "213ac1db057ec9657b89c41283cab09f66a7d607fa1a6beedcaa1bb203c7eace",
+      "publicEntry": "@omne-harness-lite/content-blocks/schema"
+    },
+    {
+      "member": "content-blocks",
+      "file": "schema/content-blocks.v2.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v2/content-blocks.schema.json",
+      "sha256": "ed9c7d15f35edfd1b24cef510367449a3a8ed5eefd5305464709220304ee6b21",
+      "publicEntry": "@omne-harness-lite/content-blocks/schema/v2"
+    },
+    {
+      "member": "identity-values",
+      "file": "schema/identity-values.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json",
+      "sha256": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+      "publicEntry": "@omne-harness-lite/identity-values/schema"
+    },
+    {
+      "member": "loop-extension",
+      "file": "schema/loop-extension.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v6/loop-extension.schema.json",
+      "sha256": "5749025d0d244e23f69eaa596598caf6479816e1b1a5cac43bb273e3c7918502",
+      "publicEntry": "@omne-harness-lite/loop-extension/schema"
+    },
+    {
+      "member": "loop-extension",
+      "file": "schema/loop-extension.v2.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v2/loop-extension.schema.json",
+      "sha256": "41ebe3501a30fe124b7226c055b5ff294cca399ad5f0179c6754b10160c8a0fe",
+      "publicEntry": "@omne-harness-lite/loop-extension/schema/v2"
+    },
+    {
+      "member": "loop-extension",
+      "file": "schema/loop-extension.v3.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v3/loop-extension.schema.json",
+      "sha256": "cc6c0bee411e7044166be429cd0e7701b92f0938b42d1a2f0ec86da4b8411b9f",
+      "publicEntry": "@omne-harness-lite/loop-extension/schema/v3"
+    },
+    {
+      "member": "mcp-endpoint",
+      "file": "schema/mcp-endpoint.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/mcp-endpoint/v2/mcp-endpoint.schema.json",
+      "sha256": "4fcddf8b9e2a870be8d47ac0abf3fc835ad330f4bd0afd2d6cfe866796df2c13",
+      "publicEntry": "@omne-harness-lite/mcp-endpoint/schema"
+    },
+    {
+      "member": "messages",
+      "file": "schema/messages.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/messages/v9/messages.schema.json",
+      "sha256": "75ac7d624c915d44ff17e78655cd7dfd323ba5a304ef74f358b4c96490949221",
+      "publicEntry": "@omne-harness-lite/messages/schema"
+    },
+    {
+      "member": "messages",
+      "file": "schema/messages.v2.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/messages/v2/messages.schema.json",
+      "sha256": "5069484d45c7a2d9165c1201307e9b4241acf8eceae20e749b5c24f377b0d65f",
+      "publicEntry": "@omne-harness-lite/messages/schema/v2"
+    },
+    {
+      "member": "messages",
+      "file": "schema/v3/messages.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/messages/v3/messages.schema.json",
+      "sha256": "5e832dccf0b5a88387d1b71c064331f81fe9251b5ff87bd1c6ab4151b5862005",
+      "publicEntry": "@omne-harness-lite/messages/schema/v3"
+    },
+    {
+      "member": "messages",
+      "file": "schema/v6/messages.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/messages/v6/messages.schema.json",
+      "sha256": "7daa83f4351baee1d98cf5f64a65cec0fd2bb6342a074aafff28b1aea097fdae",
+      "publicEntry": "@omne-harness-lite/messages/schema/v6"
+    },
+    {
+      "member": "model-profile",
+      "file": "schema/model-profile.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v5/model-profile.schema.json",
+      "sha256": "1c0d0073f9671eb163250f322ee62f003a7f007bf28eb15a69f9f34880d20156",
+      "publicEntry": "@omne-harness-lite/model-profile/schema"
+    },
+    {
+      "member": "model-profile",
+      "file": "schema/v2/model-profile.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v2/model-profile.schema.json",
+      "sha256": "3a2088c59777b9520af8355bb3b4e794637f4642fdbf8a93b268366717de8b3b",
+      "publicEntry": "@omne-harness-lite/model-profile/schema/v2"
+    },
+    {
+      "member": "model-profile",
+      "file": "schema/v3/model-profile.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v3/model-profile.schema.json",
+      "sha256": "fe5ef98ebd0902d0353dbc2ea8885d0bba24eff18912d8db9f8e9d6291790b8d",
+      "publicEntry": "@omne-harness-lite/model-profile/schema/v3"
+    },
+    {
+      "member": "model-profile",
+      "file": "schema/v6/model-profile.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v6/model-profile.schema.json",
+      "sha256": "11cb1b458b97b86e82003ee1cafe2f7b83db8cb65b2c00cd18a5ab1a9d5fe60f",
+      "publicEntry": "@omne-harness-lite/model-profile/schema/v6"
+    },
+    {
+      "member": "model-response",
+      "file": "schema/model-response.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-response/v12/model-response.schema.json",
+      "sha256": "5f2b5d189c1061473a5cac4452bd4885c6cd83fff32ea4b19836d5763d4d4d97",
+      "publicEntry": "@omne-harness-lite/model-response/schema"
+    },
+    {
+      "member": "offer-expiry",
+      "file": "schema/offer-expiry.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v2/offer-expiry.schema.json",
+      "sha256": "2fa7b9bcd5ba528ef4dafc6812cc087c839c0a45a5e0f465747ad44a7230d05b",
+      "publicEntry": "@omne-harness-lite/offer-expiry/schema"
+    },
+    {
+      "member": "offer-expiry",
+      "file": "schema/offer-expiry.v1.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v1/offer-expiry.schema.json",
+      "sha256": "63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684",
+      "publicEntry": "@omne-harness-lite/offer-expiry/schema/v1"
+    },
+    {
+      "member": "skill-package",
+      "file": "schema/skill-package.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/skill-package/v3/skill-package.schema.json",
+      "sha256": "8c4a5352cccb695d94072828c5881486e8cdd5474a2213a3a621b17e3fbc836b",
+      "publicEntry": "@omne-harness-lite/skill-package/schema"
+    },
+    {
+      "member": "skill-package",
+      "file": "schema/skill-package.v2.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/skill-package/v2/skill-package.schema.json",
+      "sha256": "eb2b30c03023e02584d0bfec54f1905751c4049b41e16ae3744c8b9606cbd4e5",
+      "publicEntry": "@omne-harness-lite/skill-package/schema/v2"
+    },
+    {
+      "member": "slash-command",
+      "file": "schema/slash-command.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/slash-command/v2/slash-command.schema.json",
+      "sha256": "595e5662cf7ebd5d84c5ba3edee7b4dd8a6e817a4738343bfa86c318cc1ac40e",
+      "publicEntry": "@omne-harness-lite/slash-command/schema"
+    },
+    {
+      "member": "tool-definition",
+      "file": "schema/tool-definition.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v3/tool-definition.schema.json",
+      "sha256": "a2adc219b2187d82f7a639488027e44f8bc4d4e31dd0ae8a08bf2f3633851db7",
+      "publicEntry": "@omne-harness-lite/tool-definition/schema"
+    },
+    {
+      "member": "tool-definition",
+      "file": "schema/tool-definition.v2.schema.json",
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v2/tool-definition.schema.json",
+      "sha256": "21f6ff19640da3905b4697404b8d7c527a4f0a6ec4c870b3f0affdc558c469ae",
+      "publicEntry": "@omne-harness-lite/tool-definition/schema/v2"
+    }
+  ],
+  "distinctResources": 29
+}

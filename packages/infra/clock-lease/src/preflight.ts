@@ -1,5 +1,5 @@
 // 迁移前的只读回拨核对（tenancy-host R-U1 的时钟那一条），由装配放进 storage-sql 的 `upgrade.checks`。
-// 设计：.meta_harness/design/realization/packages/infra/clock/design.md「迁移前的只读回拨核对」。
+// 设计：packages/infra/clock-lease/SPEC.md。
 // 与启动判定同一个纯函数 isRolledBack；只读、不建行、不续约；只拒确定回拨，旧租约窗口交给插件启动之后去等。
 import type { Kysely } from 'kysely'
 import type { PreflightCheck } from '@omne-harness-lite/storage'

@@ -1,3 +1,4 @@
+import { assertAdoptedPublicSchema } from './schema-identity.ts'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, expectTypeOf } from 'vitest'
 import {
@@ -49,14 +50,7 @@ function json(text: string): JsonValue {
 
 describe('current profile5 value and retained profile2 schema', () => {
   it('ships the exact frozen Schema, with different explicit version coordinates', () => {
-    expect(readFileSync(new URL('../schema/model-profile.schema.json', import.meta.url))).toEqual(
-      readFileSync(
-        new URL(
-          '../../../../.meta_harness/design/spec/data/model-profile/v5/model-profile.schema.json',
-          import.meta.url,
-        ),
-      ),
-    )
+    assertAdoptedPublicSchema('@omne-harness-lite/model-profile/schema')
     expect(schemaId).not.toBe(retainedSchema.$id)
     expect(validate('ModelProfile', profile).valid).toBe(true)
     expect(judgeModelProfileDocument('ModelProfile', profile)).toEqual({ ok: true })

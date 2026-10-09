@@ -22,7 +22,8 @@
     "README.md",
     "README_ZH.md",
     "generated",
-    "SPEC.md"
+    "SPEC.md",
+    "verification"
   ],
   "scripts": {
     "build": "node ../../../scripts/build-fixed-schemas.mjs",

@@ -8,7 +8,7 @@
     "commit": "6263fed545e48ad9efb5714f3fe76a7c1a0af1b5",
     "independently_reexecuted": false
   },
-  "adopted_design": ".meta_harness/design/realization/packages/util/xml-format/design.md",
+  "adopted_design": "README.md",
   "adopted_decision": "D-046",
   "imported_files": [
     {

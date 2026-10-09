@@ -1,4 +1,9 @@
 import { z } from 'zod'
 
-/** 本版无 config：租约宽度与续约周期是包内常量。 */
-export const ClockConfig = z.object({}).strict()
+/** Creation is explicit. A normal open never recreates a missing clock resource. */
+export const ClockConfig = z
+  .object({
+    file: z.string().min(1),
+    initialize: z.boolean().optional(),
+  })
+  .strict()

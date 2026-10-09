@@ -1,0 +1,12 @@
+{
+  "tool-definition/v3": {
+    "path": "../../tool-definition/tests/fixtures/tool-before-is-error.schema.json",
+    "sha256": "116e05d91003574cb2f8a50d51e82428c25d24552ad39e2eeb480edb94ec43a9",
+    "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v3/tool-definition.schema.json"
+  },
+  "tool-definition/v2": {
+    "path": "../../tool-definition/schema/tool-definition.v2.schema.json",
+    "sha256": "21f6ff19640da3905b4697404b8d7c527a4f0a6ec4c870b3f0affdc558c469ae",
+    "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v2/tool-definition.schema.json"
+  }
+}

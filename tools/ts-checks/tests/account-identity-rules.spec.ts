@@ -147,7 +147,7 @@ describe('ai-r8-no-credential-in-write', () => {
   it('变异核对：真实的 accounts.ts 原文无违反；在第一个写事务回调开头调一次 credentials.derive( ⇒ 报出', () => {
     const original = real(`${AI}accounts.ts`)
     expect(aiR8NoCredentialInWrite.check([original, real(`${AI}logins.ts`)])).toEqual([])
-    const anchor = 'return persistence.write(async tx => {'
+    const anchor = 'return this.deps.persistence.write(async tx => {'
     expect(original.text).toContain(anchor)
     const mutated = file(
       original.path,

@@ -434,8 +434,8 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
       throw new TypeError('fixed-root reader silently changed original source')
     return requiredOwn(result.input)
   }
-  function now(previous?: Instant): Instant {
-    const value = deps.clock.now()
+  async function now(previous?: Instant): Promise<Instant> {
+    const value = await deps.clock.now()
     if (value === 'unavailable') throw new Unavailable('clock')
     const next = previous !== undefined && value <= previous ? previous + 1 : value
     const checked = instantFromEpochMs(next)
@@ -464,15 +464,17 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
     records: Readonly<Partial<Record<RegisteredCategory, CheckedRegistryRecord>>>,
     facts: Record<string, JsonValue>,
   ) {
-    const tables = Object.fromEntries(
-      plans.map(plan => [
+    const entries: [string, { filledAt: Instant; composition: TablePlan['composition'] }][] = []
+    for (const plan of plans) {
+      entries.push([
         plan.category,
         {
-          filledAt: now(records[plan.category]?.record.tables[plan.category]?.filledAt),
+          filledAt: await now(records[plan.category]?.record.tables[plan.category]?.filledAt),
           composition: plan.composition,
         },
-      ]),
-    )
+      ])
+    }
+    const tables = Object.fromEntries(entries)
     const content = { evaluation, compositionOrder: sequence, filledBy: reason }
     const record = requiredOwn({
       evaluation: identity,
@@ -728,7 +730,7 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
           s,
           runIdentity.runId,
           attempt as AttemptId,
-          now(),
+          await now(),
           snapshots,
           evaluated.ok,
           deps.deployedMeta,

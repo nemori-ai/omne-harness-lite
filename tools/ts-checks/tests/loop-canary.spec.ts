@@ -30,6 +30,7 @@ function canary(): { root: string; base: string } {
   git(root, 'init', '-q')
   git(root, 'symbolic-ref', 'HEAD', 'refs/heads/main')
   copyCanary(root)
+  write(root, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*/*'\n  - 'apps/*'\n")
   commit(root, 'canary')
   // 一起改却分属两组：core/a 与 infra/b 再连着一起改四次。
   for (let round = 1; round <= 4; round += 1) {
@@ -44,7 +45,11 @@ function canary(): { root: string; base: string } {
     write(root, readme, text.replace(/^revision: \d+$/mu, `revision: ${revision}`))
     commit(root, `rev ${revision}`)
   }
-  const base = git(root, 'rev-parse', 'HEAD')
+  const pluginPath = 'packages/core/a/src/plugin.ts'
+  const pluginText = readFileSync(join(root, pluginPath), 'utf8')
+  write(root, pluginPath, pluginText.replace("inject: ['canaryUndeclared']", 'inject: []'))
+  const base = commit(root, 'before static dependency addition')
+  write(root, pluginPath, pluginText)
   // 基线之后：一个超 alert 的函数、一条新的跨成员依赖。
   write(root, 'apps/cli/src/route.ts', route)
   write(
@@ -181,17 +186,22 @@ describe('传感器金丝雀', { timeout: 120_000 }, () => {
     expect(status.explain.functions).toContainEqual(
       expect.objectContaining({ path: 'apps/cli/src/route.ts', name: 'route', level: 'alert' }),
     )
-    expect(dataOf(status, 'reflexion')).toMatchObject({
-      comparison: {
-        comparisons: expect.arrayContaining([
-          expect.objectContaining({
-            state: 'deviation',
-            member: 'packages/core/a',
-            plugin: 'a',
-            kind: 'injects',
-            key: 'canaryUndeclared',
-          }),
-        ]),
+    expect(dataOf(status, 'architecture')).toMatchObject({
+      facts: expect.arrayContaining([
+        expect.objectContaining({
+          member: 'packages/core/a',
+          plugin: 'a',
+          kind: 'injects',
+          key: 'canaryUndeclared',
+        }),
+      ]),
+      delta: {
+        status: 'data',
+        data: {
+          added: expect.arrayContaining([
+            expect.objectContaining({ kind: 'injects', key: 'canaryUndeclared' }),
+          ]),
+        },
       },
     })
     expect(dataOf(status, 'stability')).toEqual([
@@ -256,14 +266,14 @@ describe('传感器金丝雀', { timeout: 120_000 }, () => {
       `  ✗ 传感器没数据 1 个：sensors.topicChurn（${PRODUCT} 下没有 PF-* topic）`,
     )
   })
-  it('删除全部装配声明时 silent 指名 reflexion', async () => {
+  it('删除全局预期时 silent 指名 architecture', async () => {
     const { root, base } = canary()
-    rmSync(join(root, '.meta_harness/design/realization'), { recursive: true })
+    rmSync(join(root, '.meta_harness/design/architecture/constraints.json'))
     const { result, status } = await strictRun(root, base)
     expect(status.hardLines.sensors.silent).toEqual([
       {
-        sensor: 'reflexion',
-        reason: '.meta_harness/design/realization 缺失或没有 realization 节点',
+        sensor: 'architecture',
+        reason: '全局架构预期不可用：.meta_harness/design/architecture/constraints.json',
       },
     ])
     expect(result.code).toBe(1)

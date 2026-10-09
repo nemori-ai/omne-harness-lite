@@ -80,7 +80,7 @@ function construction(
       },
     },
     policy: {
-      now: () => AT,
+      now: async () => AT,
       schedule() {
         throw new Error('read operation must not schedule')
       },

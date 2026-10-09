@@ -177,7 +177,7 @@ export async function createModelReplicaCustodian(
       observe({ operation: 'store', phase: 'admission', outcome: 'accepted', tenant: tenant.ok })
       try {
         key = await readKeyFile(options.keyFile)
-        const now = options.clock.now()
+        const now = await options.clock.now()
         if (now === 'unavailable') {
           observe({
             operation: 'store',

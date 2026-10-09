@@ -5,6 +5,7 @@ import { preparePluginTree, loadPluginTree } from '@omne-harness-lite/cordis-plu
 import {
   createModelRuntimeLocal,
   type ModelRuntimeLocalConfig,
+  type ModelRuntimeLocalConstruction,
 } from '@omne-harness-lite/model-request-runtime-local/cordis'
 import {
   MODEL_RUNTIME_HOST_INPUTS,
@@ -18,14 +19,18 @@ import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 const reservations = new WeakMap<Context, object>()
 
 /** One real provider row retains its original dependencies until confirmed closure. */
-export async function startModelRuntimeAssembly(ctx: Context, config: ModelRuntimeLocalConfig) {
+export async function startModelRuntimeAssembly(
+  ctx: Context,
+  config: ModelRuntimeLocalConfig,
+  construction: ModelRuntimeLocalConstruction = {},
+) {
   if (reservations.has(ctx)) throw new Error('model runtime original assembly retained')
   const reservation = Object.freeze({})
   reservations.set(ctx, reservation)
   const releaseReservation = () => {
     if (reservations.get(ctx) === reservation) reservations.delete(ctx)
   }
-  const binding = createModelRuntimeLocal(),
+  const binding = createModelRuntimeLocal(construction),
     id = 'model-runtime'
   // prepare/load validation has not acquired provider resources. The returned tree owns
   // asynchronous setup, including failure, and always remains accessible to its caller.

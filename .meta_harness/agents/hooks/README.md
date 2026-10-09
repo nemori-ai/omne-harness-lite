@@ -32,10 +32,8 @@ tui-developer 子代理收工（`SubagentStop`）时跑执行仓库的收工钩�
   （宿主记录里那次钩子 1.4 秒、无输出、无报错）。可见钩子拿到的当前目录跟着会话里的 `cd` 走。
   `SubagentStop`、警告怎样显示、Codex 一端都还没有在真实会话里见过。
 - Codex：项目要受信任，且每条非托管钩子都要在 `/hooks` 里按定义逐条信任；定义一改就要重新信任。
-- 字段与行为的出处：研究[收工钩子：两个宿主在收工点能做什么、不能做什么](../../research/host-stop-hooks/README.md)
-  （Claude Code 2.1.287、Codex CLI 0.159.0，2026-10-01 取证，取证时没有实际触发过钩子）与 Codex 文档 Hooks 页「Config shape」一节。
-  警告用的 `systemMessage` 出自同一批钉住的文档原文：Claude Code 的「JSON output」表把它列为通用字段，Codex 的 Hooks 页写明 `Stop`、`SubagentStop` 支持它。
-  宿主升级后先回那里重新核对，再改这里。
+- 核对宿主字段与行为时，按实际采用版本查官方 [Claude Code hooks](https://code.claude.com/docs/en/hooks) 与 [Codex hooks](https://developers.openai.com/codex/hooks) 文档。
+  宿主升级后先核对字段及失败行为，再修改声明和生成物。
 
 ## 怎么关
 
