@@ -9,6 +9,8 @@ import { InputFailure } from './diagnostic.ts'
 import type { LocalRecord } from '@omne-harness-lite/client-local-state'
 import type { EntryExecution, ExecutableEntry } from './entry-application.ts'
 import type { EntryCommand } from './entry-command.ts'
+import { runSessionMessageEntry } from './session-message-entry.ts'
+import type { SessionMessagePolicy } from './session-message-client.ts'
 import { runLoginEntry } from './login-entry.ts'
 import { runSelectedGovernanceEntry } from './selected-governance-entry.ts'
 import type { PreparedFactory } from './prepared-client-work.ts'
@@ -27,6 +29,8 @@ export interface EntryExecutionOptions {
   readonly interactive?: GovernanceInteraction
   readonly preparedFactory?: PreparedFactory
   readonly session?: (command: Exclude<ExecutableEntry, GovernanceEntry>) => Promise<EntryExecution>
+  readonly sessionPolicy?: SessionMessagePolicy
+  readonly maxMessageBytes?: number
 }
 /** The application fixes construction. Parsed command values never supply a provider. */
 export async function executeEntry(
@@ -35,7 +39,7 @@ export async function executeEntry(
 ): Promise<EntryExecution> {
   if (command.kind !== 'governance') {
     if (options.session) return options.session(command)
-    return notReady()
+    if (!options.sessionPolicy || options.maxMessageBytes === undefined) return notReady()
   }
   if (options.signal.aborted) throw new InputFailure('input-cancelled')
   const home = resolveStateHome({
@@ -43,6 +47,19 @@ export async function executeEntry(
     ...(command.home === null ? {} : { explicitHome: command.home }),
   })
   const owned = await openCliCatalog(home, options.catalogPolicy)
+  if (command.kind !== 'governance')
+    return usingCatalog(owned, () =>
+      runSessionMessageEntry({
+        command,
+        home,
+        catalog: owned.catalog,
+        signal: options.signal,
+        originalId: options.originalId,
+        policy: options.sessionPolicy!,
+        maxMessageBytes: options.maxMessageBytes!,
+        ...(options.preparedFactory ? { preparedFactory: options.preparedFactory } : {}),
+      }),
+    )
   return usingCatalog(owned, () =>
     command.interactive
       ? executeInteractiveGovernance(

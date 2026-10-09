@@ -25,6 +25,13 @@ export function entryProviders(signal: AbortSignal): Pick<EntryRuntime, 'version
         signal,
         catalogPolicy: entryCatalogPolicy,
         originalId: randomUUID,
+        sessionPolicy: {
+          maxResponseBytes: 4 * 1024 * 1024,
+          timeoutMs: 10_000,
+          maxWaitMs: 120_000,
+          pollIntervalMs: 250,
+        },
+        maxMessageBytes: 1024 * 1024,
         confirmCenter: async () => false,
         interactive: {
           terminal: () => openTerminal(terminalProfile),

@@ -1,3 +1,4 @@
+import { readSessionSubmission } from '../src/session-submission.ts'
 import {
   runSessionModelTurn,
   type SessionModelTurnOptions,
@@ -1085,7 +1086,7 @@ async function originalModelBinding(
   }
   const unknown = vi.fn(async () => {})
   const issue = f.modelOwner!.bind(f.runtime, scope, preparation, unknown)
-  return { f, scope, preparation, original, issue, unknown }
+  return { f, scope, preparation, original, issue, unknown, accepted }
 }
 function nativeBindingOptions(
   original: Awaited<ReturnType<typeof originalModelBinding>>,
@@ -1872,6 +1873,15 @@ it.each([
       { type: 'user', blocks: [{ kind: 'text', text: 'one request' }] },
     ])
   expect(retained).not.toHaveBeenCalled()
+  const human = await createSessionTextReader({ tenant, ingress: original.f.runtime }).read(
+    original.scope,
+  )
+  if ('failure' in human) throw new Error('actual settled messages unavailable')
+  expect(human.messages.filter(message => message.type === 'assistant')).toHaveLength(1)
+  expect(human.messages.find(message => message.type === 'assistant')).toHaveProperty(
+    'run',
+    original.preparation.run,
+  )
   expect(bridge.close()).toEqual({ released: true })
 })
 
@@ -1947,4 +1957,93 @@ it('reads the actual terminal Run while refusing a prefix of another original Se
   expect(foreign(full.prefix, original.preparation.run, original.preparation.attempt)).toEqual({
     unavailable: true,
   })
+})
+
+it('correlates the original accepted input to its actual Run and never substitutes the last completed Run', async () => {
+  const original = await originalModelBinding()
+  const operation = original.accepted.receipt.operation
+  const active = await readSessionSubmission(original.f.runtime, operation)
+  expect(active).toMatchObject({
+    kind: 'submission',
+    messageId: 'model-root-message',
+    run: { id: original.preparation.run, state: 'running' },
+  })
+  const prefix = await original.f.runtime.journal.readPrefix(
+    original.f.runtime.access,
+    original.scope.session,
+  )
+  if ('failure' in prefix) throw new Error('original prefix missing')
+  const finished = await original.f.runtime.lifecycle.commitStep(
+    original.f.runtime.coordinationAuthority,
+    original.scope,
+    prefix.source,
+    {
+      kind: 'finish',
+      run: original.preparation.run,
+      attempt: original.preparation.attempt,
+      permit: original.preparation.permit,
+      stepKey: 'submission-original-finish',
+      terminal: 'completed',
+      reason: 'controlled-no-open-work',
+    },
+  )
+  if (!('kind' in finished) || finished.kind !== 'committed')
+    throw new Error('original Run not finished')
+  expect(await readSessionSubmission(original.f.runtime, operation)).toMatchObject({
+    kind: 'submission',
+    run: { id: original.preparation.run, state: 'completed' },
+  })
+  const next = judgeMessage({
+    id: 'submission-next-input',
+    type: 'user',
+    createdAt: now,
+    blocks: [
+      {
+        id: 'next-text',
+        kind: 'text',
+        text: 'next request',
+        visibility: { toHuman: true, toModel: true },
+      },
+    ],
+  })
+  if ('rejected' in next || next.ok.type !== 'user') throw new Error('invalid next fixture message')
+  const accepted = await original.f.runtime.operations.submitInput(
+    original.f.runtime.access,
+    original.scope.session,
+    'submission-next-operation',
+    next.ok,
+  )
+  if (!('kind' in accepted) || accepted.kind !== 'accepted')
+    throw new Error('next input not accepted')
+  const nextReading = await readSessionSubmission(original.f.runtime, accepted.receipt.operation)
+  expect(nextReading).toMatchObject({ kind: 'submission', run: null, messageId: next.ok.id })
+  const endpoint = createSessionHostEndpoint({
+    binding: { formatVersion: 1, centerId, tenant },
+    ingress: original.f.runtime,
+  })
+  const request = parseSessionHostRequest({
+    format: 'omne-session-host/1',
+    binding: { formatVersion: 1, centerId, tenant },
+    command: 'readSubmission',
+    operation: accepted.receipt.operation,
+  })
+  if (!request) throw new Error('valid submission request not parsed')
+  expect(await endpoint.execute(request)).toEqual(nextReading)
+})
+it('reads only a submitInput receipt and leaves unknown identities absent without submitting anything', async () => {
+  const original = await originalModelBinding()
+  const operation = {
+    ...original.accepted.receipt.operation,
+    operationKey: 'missing-original-input',
+  }
+  const before = await original.f.log.readSince(original.scope.session, 0)
+  expect(await readSessionSubmission(original.f.runtime, operation)).toEqual({ kind: 'absent' })
+  expect(
+    await readSessionSubmission(original.f.runtime, {
+      ...operation,
+      operation: 'createSession',
+      session: null,
+    }),
+  ).toEqual({ failure: 'invalidInput' })
+  expect(await original.f.log.readSince(original.scope.session, 0)).toEqual(before)
 })

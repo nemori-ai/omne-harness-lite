@@ -13,6 +13,9 @@ import { tenantPaths } from '../src/state-layout.ts'
 import { checkedTenantBinding } from '../src/state-layout-values.ts'
 import { openClientLocalState } from '@omne-harness-lite/client-local-state-sqlite'
 import { openStorage } from '@omne-harness-lite/storage-sql'
+import { spawn } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+import { startLocalSessionHost } from '../src/session-host-server.ts'
 
 const cleanup: (() => Promise<void>)[] = []
 const centerId = 'a'.repeat(32),
@@ -109,6 +112,155 @@ async function fixture() {
     },
   }
 }
+it('runs the compiled formal machine entry through actual selected catalog and tenant auth, with no model or coordination capability in the client', async () => {
+  const f = await fixture()
+  const logged = await runLoginEntry(
+    f.input,
+    f.owned.catalog,
+    new AbortController().signal,
+    f.factory,
+  )
+  expect(logged.outcome).toHaveProperty('kind', 'logged-in')
+  const messageFile = join(f.input.home, 'process-message.json')
+  await writeFile(
+    messageFile,
+    JSON.stringify({
+      id: 'process-input',
+      type: 'user',
+      createdAt: '2026-10-08T00:00:00Z',
+      blocks: [
+        {
+          id: 'process-input-text',
+          kind: 'text',
+          text: 'formal question',
+          visibility: { toHuman: true, toModel: true },
+        },
+      ],
+    }),
+  )
+  const source = {
+    tenant,
+    session: 'process-session',
+    journalGeneration: 'controlled-process-journal',
+    tail: 8,
+  }
+  let receipt: import('@omne-harness-lite/session-runtime').Receipt | undefined
+  const commands: string[] = []
+  const host = await startLocalSessionHost({
+    home: f.input.home,
+    policy: {
+      maxRequestBytes: 65536,
+      maxResponseBytes: 65536,
+      maxConnections: 8,
+      maxInFlight: 4,
+      requestTimeoutMs: 2000,
+      headersTimeoutMs: 1000,
+      idleTimeoutMs: 1000,
+      checkIntervalMs: 100,
+      maxFailureRecords: 8,
+      maxHeaderBytes: 8192,
+    },
+    diagnostic: error => {
+      throw error
+    },
+    endpoint: {
+      execute: async request => {
+        commands.push(request.command)
+        if (request.command === 'submitInput') {
+          expect(request.binding.tenant).toEqual(tenant)
+          expect(request.binding.centerId).toBe(centerId)
+          expect(request.message.id).toBe('process-input')
+          receipt = {
+            operation: {
+              tenant: request.binding.tenant,
+              principal: account,
+              session: request.session,
+              operation: 'submitInput',
+              operationKey: request.operationKey,
+            },
+            position: 2,
+            source: {
+              ...source,
+              tenant: request.binding.tenant,
+              session: request.session,
+              tail: 2,
+            },
+          }
+          return { kind: 'accepted', receipt }
+        }
+        if (!receipt) throw new Error('read before acceptance')
+        if (request.command === 'readSubmission')
+          return {
+            kind: 'submission',
+            receipt,
+            source: { ...receipt.source, tail: 8 },
+            inputPosition: 1,
+            messageId: 'process-input',
+            run: { id: 'process-run', state: 'completed' },
+          }
+        if (request.command === 'readMessages')
+          return {
+            kind: 'messages',
+            source: { ...receipt.source, tail: 8 },
+            messages: [
+              {
+                position: 7,
+                run: 'process-run',
+                id: 'process-reply',
+                type: 'assistant',
+                createdAt: '2026-10-08T00:00:00Z',
+                blocks: [{ id: 'reply-text', kind: 'text', text: 'controlled reply' }],
+              },
+            ],
+          }
+        throw new Error('unexpected process request')
+      },
+    },
+  })
+  cleanup.push(() => host.close())
+  const child = spawn(
+    process.execPath,
+    [
+      fileURLToPath(new URL('../dist/main.js', import.meta.url)),
+      '--home',
+      f.input.home,
+      '--session',
+      'process-session',
+      '--message-file',
+      messageFile,
+      '--json',
+    ],
+    { stdio: ['ignore', 'pipe', 'pipe'], signal: AbortSignal.timeout(10000) },
+  )
+  let stdout = '',
+    stderr = ''
+  child.stdout.on('data', chunk => {
+    stdout += String(chunk)
+  })
+  child.stderr.on('data', chunk => {
+    stderr += String(chunk)
+  })
+  const exit = await new Promise<number | null>((resolve, reject) => {
+    child.once('error', reject)
+    child.once('close', resolve)
+  })
+  expect({ exit, stderr }).toEqual({ exit: 0, stderr: '' })
+  const output = JSON.parse(stdout)
+  expect(output).toMatchObject({
+    format: 'omne-cli/1',
+    action: 'message',
+    outcome: {
+      kind: 'session-message',
+      status: 'completed',
+      receipt,
+      messages: [{ run: 'process-run', blocks: [{ text: 'controlled reply' }] }],
+    },
+    diagnostics: [],
+  })
+  expect(commands).toEqual(['submitInput', 'readSubmission', 'readMessages'])
+  expect(stdout).not.toContain(presentation)
+  expect(stdout).not.toContain(secret.trim())
+})
 it('installs the original issued login in actual tenant state and selects it without a Session', async () => {
   const f = await fixture()
   const result = await runLoginEntry(

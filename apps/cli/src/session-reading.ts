@@ -10,6 +10,7 @@ import type { LocalSessionIngress } from '@omne-harness-lite/session-runtime-loc
 
 export interface SessionTextMessage {
   readonly position: JsonNumber
+  readonly run: string | null
   readonly id: string
   readonly type: Message['type']
   readonly createdAt: string
@@ -88,6 +89,7 @@ function humanMessage(entry: LogEntry): readonly SessionTextMessage[] {
   return [
     Object.freeze({
       position: entry.position,
+      run: entry.run ?? null,
       id: message.id,
       type: message.type,
       createdAt: message.createdAt,

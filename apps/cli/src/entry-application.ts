@@ -14,6 +14,9 @@ import {
 } from './entry-command.ts'
 import { StateLayoutFailure } from './state-layout.ts'
 import { CliCatalogFailure } from './catalog.ts'
+import type { SessionMessageOutcome } from './session-message-client.ts'
+import type { SelectionBlocked } from './selected-tenant-work.ts'
+import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
 export type ExecutableEntry = Exclude<EntryCommand, { readonly kind: 'help' | 'version' }>
 export type EntryOutcome =
@@ -21,6 +24,8 @@ export type EntryOutcome =
   | TenantCreateEntryOutcome
   | LoginEntryOutcome
   | TenantMembershipOutcome
+  | SessionMessageOutcome
+  | SelectionBlocked
   | { readonly kind: 'not-ready'; readonly reason: 'capability-not-installed' }
   | { readonly kind: 'governance-result'; readonly report: ActionReport }
 export interface EntryExecution {
@@ -75,8 +80,7 @@ export async function runEntryCli(args: readonly string[], runtime: EntryRuntime
       action: command.kind === 'governance' ? command.action : command.kind,
       ...result,
     }
-    const json = command.kind === 'message' || (command.kind === 'governance' && command.json)
-    await writeOutput(runtime, JSON.stringify(report, null, json ? undefined : 2) + '\n')
+    await writeOutput(runtime, formatEntryReport(report, command))
     return entryExitCode(result)
   } catch (error) {
     const failure = entryFailure(error)
@@ -87,6 +91,11 @@ export async function runEntryCli(args: readonly string[], runtime: EntryRuntime
     }
     return failure.exit
   }
+}
+function formatEntryReport(report: EntryReport, command: ExecutableEntry): string {
+  if (report.outcome.kind === 'session-message') return writeJsonLossless(report) + '\n'
+  const json = command.kind === 'message' || (command.kind === 'governance' && command.json)
+  return JSON.stringify(report, null, json ? undefined : 2) + '\n'
 }
 function entryFailure(error: unknown): { code: string; exit: number } {
   if (error instanceof EntryOutputFailure) return { code: 'output-failed', exit: 70 }
@@ -99,12 +108,18 @@ function entryFailure(error: unknown): { code: string; exit: number } {
 export function entryExitCode(result: EntryExecution): number {
   if (result.diagnostics.length) return 70
   const outcome = result.outcome
+  if (outcome.kind === 'session-message') return sessionMessageExit(outcome)
   if (outcome.kind === 'created') return createdExit(outcome)
   if (outcome.kind === 'unresolved') return exitStatus(outcome.result.report)
   if (outcome.kind === 'governance-result') return governanceExit(outcome.report)
   if (outcome.kind === 'logged-in') return loginExit(outcome)
   if (outcome.kind === 'tenant-prepared') return membershipExit(outcome)
   return fixedExit[outcome.kind]
+}
+function sessionMessageExit(outcome: SessionMessageOutcome): number {
+  if (outcome.status === 'completed') return 0
+  if (outcome.status === 'unconfirmed' || outcome.status === 'accepted') return 4
+  return 3
 }
 function governanceExit(report: ActionReport): number {
   const clearsLogin =

@@ -430,3 +430,18 @@ release撤销该捕获的新验证，等待已经参加的实际StorageUnit结�
 根必须提供`retain`责任端口。返回retained前，该端口须接管原turn的配置、身份、绑定及尚未结束的捕获／结算coordinator；不能只写一条日志后丢掉能力。消费者不自动重发或重试未知提交。根使用原身份和实际公开认回操作处理未完成责任；本文不承诺完整重启恢复。ACK不可用时，Session原全文和已结算记录仍保留，来源归还不等于ACK成功。
 
 异常完成仍等待原结算任务的stopped。原缺陷上抛；异常处理中的责任接管也失败时，AggregateError保留两项原错误。责任端口一次失败不再自动调用第二次。返回acknowledged仅表示原结果采用和原ACK闭合，不代表Run已completed、真实OpenRouter或完整宿主已通过验收。
+
+
+## 原消息受理与机读结果观察
+
+`session-submission.ts`只读普通用户的原submitInput回执，再读一个经当前成员授权的固定完整日志前缀。这是两个读取操作；回执不可变，后续前缀必须同Scope、同journalGeneration，并覆盖原回执。它核原input_accepted与原UserMessage位置，再按run_started／input_adopted／run_finished关联真正消费该输入的Run。尚未消费时run为null；上一轮completed不能替代本次消息的结果。读取至多O(n)，不追加事实、不消费输入、不授予执行或取消资格。
+
+普通宿主数据协议增加readSubmission。请求只含完整租户绑定及原OperationRef，不含活体Access、permit或协调资格。宿主仍从可信构造取得原Ingress；跨中心／租户绑定在业务动作前拒绝。用户文本读取携带日志原run字段，未归属Run时为null。该字段只是归因数据，不是执行权。
+
+正式main通过entry-execution消费session-message-entry。当前已实现明确指定既有会话的`omne --message-file <path> --json --session <session-id>`路径；新会话准备及裸终端入口仍须完成。文件有明确大小上限，必须是严格UTF-8、无重复字段的JSON UserMessage。应用读取真实根catalog选择及该租户的已有鉴权目录，核中心／账号一致；不从消息文件制造身份，不自动建立缺失租户或切换选择。客户端只拥有自己打开的catalog和治理客户端装配；模型、工具、Session及宿主执行资格仍由宿主拥有。新Run的登录确认继续由原G28路径承担，客户端提交或读取不替代它。
+
+`submitSessionMessage`只发送一次原提交。其余请求只观察原回执；它拒绝异操作、改变的回执、异journalGeneration、不同消息和倒退前缀。unknownCommit保留完整原OperationRef；运输未确认保留原请求身份，均不自动重发。取得回执后，等待超时、断连或取消等待仍保留原回执，不取消原Run。应用根显式提供请求时限、整体等待时限、轮询间隔和回复容量；使用Node异步计时器及总等待截止信号，不为客户端等待创建线程。
+
+仅本次输入对应Run的completed返回退出码0；failed／cancelled返回3；受理但等待未完成及未确认返回4。终态消息须来自覆盖该终态观察的用户文本前缀，返回原输入及该Run的消息；迟到的其他Run消息不混入。本报告只输出请求的完整租户绑定、Session、operationKey和messageId，不回显原消息体。用户文本规则继续排除事实、OpaqueJson和ModelOnly内容。最终JSON使用现有无损编码器，原日志整数位置不得经JSON.stringify取整。
+
+实际SQLite／Ingress组合已覆盖原输入关联与上一轮completed隔离；编译后的main已通过真实catalog及租户鉴权目录、实际私有Unix通道完成机读观察。此进程测试的宿主结果受控，不表示生产独立宿主、真实OpenRouter、核心Agent Loop或默认终端路径已经交付。

@@ -12,6 +12,7 @@ import {
 import type { LocalSessionIngress } from '@omne-harness-lite/session-runtime-local'
 import { checkedTenantBinding, type TenantBinding } from './state-layout-values.ts'
 import { createSessionTextReader, type SessionTextReading } from './session-reading.ts'
+import { readSessionSubmission, type SessionSubmissionReading } from './session-submission.ts'
 
 const key = z.string().refine(checkKey)
 const tenant = z.unknown().transform((value, ctx) => {
@@ -77,7 +78,7 @@ export type SessionHostRequest = {
       readonly command: 'readSession' | 'readProgress' | 'readMessages'
       readonly session: SessionRef
     }
-  | { readonly command: 'readReceipt'; readonly operation: OperationRef }
+  | { readonly command: 'readReceipt' | 'readSubmission'; readonly operation: OperationRef }
 )
 const requests: z.ZodType<SessionHostRequest> = z
   .discriminatedUnion('command', [
@@ -92,6 +93,7 @@ const requests: z.ZodType<SessionHostRequest> = z
     z.strictObject({ ...common, command: z.literal('readSession'), session }),
     z.strictObject({ ...common, command: z.literal('readProgress'), session }),
     z.strictObject({ ...common, command: z.literal('readReceipt'), operation }),
+    z.strictObject({ ...common, command: z.literal('readSubmission'), operation }),
     z.strictObject({ ...common, command: z.literal('readMessages'), session }),
   ])
   .readonly()
@@ -105,6 +107,7 @@ export function parseSessionHostRequest(value: unknown): SessionHostRequest | un
 export type SessionHostResult =
   | Awaited<ReturnType<LocalSessionIngress['operations'][keyof LocalSessionIngress['operations']]>>
   | SessionTextReading
+  | SessionSubmissionReading
 
 export interface SessionHostEndpoint {
   readonly execute: (request: SessionHostRequest) => Promise<SessionHostResult>
@@ -146,6 +149,8 @@ function dispatch(
       return operations.readProgress(access, request.session)
     case 'readReceipt':
       return operations.readReceipt(access, request.operation)
+    case 'readSubmission':
+      return readSessionSubmission(ingress, request.operation)
     case 'readMessages':
       return text.read({ tenant: request.binding.tenant, session: request.session })
   }
