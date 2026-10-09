@@ -22,7 +22,7 @@ import {
   type SessionModelTurnResult,
 } from './model-turn.ts'
 import { createSessionRunHistory } from './run-history.ts'
-import type { LocalSessionContext } from './session-context-types.ts'
+import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { instantToRfc3339 } from '@omne-harness-lite/offer-expiry'
@@ -31,7 +31,10 @@ import { instantToRfc3339 } from '@omne-harness-lite/offer-expiry'
 export function createSessionModelObservations(
   turn: SessionModelTurnOptions,
   registration: SettlementRegistration,
-  context: LocalSessionContext,
+  context: {
+    readonly scope: SessionScope
+    readonly currentGeneration: () => string | null
+  },
 ): (facts: LoopFacts) => Promise<CurrentInputs> {
   if (
     context.scope.session !== turn.scope.session ||
