@@ -29,6 +29,7 @@ import {
   type CallHistoryResult,
   type UnacknowledgedCallHistory,
 } from '@omne-harness-lite/model-request-runtime'
+import type { CallContainerView } from './service-types.ts'
 import type { CallOperationState, SystemStopControl, RuntimeConstruction } from './service-types.ts'
 import type { CallKey, SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
@@ -718,9 +719,129 @@ function buildServiceControl<P extends PlannedSemantics, R>(
     )
   }
 
+  type InputFailure = Extract<
+    InterruptResult,
+    { readonly unavailable: true } | { readonly invalidInput: unknown }
+  >
+  type BoundSession = Awaited<ReturnType<RuntimeConstruction<P, R>['sessions']['bind']>>
+
+  function releaseInputFailure(key: CallKey): InputFailure | undefined {
+    if (physical.closing) return { unavailable: true }
+    if (
+      key === null ||
+      typeof key !== 'object' ||
+      !('ok' in parseOpaqueIdentifier(key.session, 'SessionRef')) ||
+      !('ok' in judgeAccountValue('ModelCallId', key.callId))
+    )
+      return { invalidInput: { reason: 'malformed' } }
+    return undefined
+  }
+
+  function interruptInputFailure(input: InterruptInput): InputFailure | undefined {
+    if (physical.closing) return { unavailable: true }
+    if (
+      input === null ||
+      typeof input !== 'object' ||
+      !('ok' in parseOpaqueIdentifier(input.session, 'SessionRef')) ||
+      !('ok' in judgeAccountValue('ModelCallId', input.callId)) ||
+      (input.initiator !== 'user' && input.initiator !== 'run_cancelled')
+    )
+      return { invalidInput: { reason: 'malformed' } }
+    return undefined
+  }
+
+  function bindFailure(
+    failure: Extract<BoundSession, { readonly failure: unknown }>['failure'],
+  ): InputFailure {
+    return failure === 'invalidInput'
+      ? { invalidInput: { reason: 'malformed' } }
+      : { unavailable: true }
+  }
+
+  function bindingMatches(session: SessionRuntimeBinding, key: CallKey): boolean {
+    if (
+      session.log.session !== key.session ||
+      session.selection.binding.session !== key.session ||
+      !tenantIdEquals(session.log.tenant, session.selection.binding.tenant) ||
+      session.log.generation !== session.selection.binding.generation
+    )
+      return false
+    return true
+  }
+
+  function localAccount(
+    history: UnacknowledgedCallHistory,
+    local: CallContainerView<P, R> | undefined,
+  ): ReturnType<typeof controlAccount> {
+    return controlAccount(history, local?.request.run, local?.request.attempt, local?.operation)
+  }
+
+  function releaseRefusal(
+    admission: ReleaseAdmission,
+  ): Exclude<ReleaseCallResult, { readonly callId: unknown }> | undefined {
+    if ('rejected' in admission) {
+      if (admission.rejected === 'callNotFound') return { callNotFound: true }
+      if (admission.rejected === 'alreadyEnded') return { alreadyEnded: true }
+      return { unavailable: true }
+    }
+    if ('wrongPhase' in admission) return { wrongPhase: { phase: admission.wrongPhase } }
+    return undefined
+  }
+
+  function interruptRefusal(
+    admission: Extract<InterruptAdmission, { readonly rejected: unknown }>,
+  ): InterruptResult {
+    if (admission.rejected === 'callNotFound') return { callNotFound: true }
+    if (admission.rejected === 'alreadyEnded') return { alreadyEnded: true }
+    return { unavailable: true }
+  }
+
   async function recognizeUnknown(
     writes: readonly UnknownControlWrite[],
   ): Promise<UnacknowledgedCallHistory> {
+    function compareOriginalReaders(
+      first: UnknownControlWrite,
+      prefix: Extract<
+        Awaited<ReturnType<typeof readSettlementPrefix>>,
+        { readonly prefix: unknown }
+      >['prefix'],
+    ): CallHistoryResult {
+      let history: CallHistoryResult
+      try {
+        history = first.call(prefix, first.key.callId)
+        for (const write of writes) {
+          if (write.released || write === first) continue
+          const original = write.call(prefix, write.key.callId)
+          if ('unavailable' in original) return original
+          if (!modelLogJsonEqual(original, history)) return { unavailable: true, reason: 'history' }
+        }
+      } catch {
+        return { unavailable: true, reason: 'history' }
+      }
+      return history
+    }
+
+    function releaseRecognized(
+      first: UnknownControlWrite,
+      history: Exclude<CallHistoryResult, { readonly unavailable: true }>,
+    ): UnacknowledgedCallHistory {
+      try {
+        for (const write of writes) {
+          if (write.released) continue
+          write.registration.release()
+          write.released = true
+        }
+      } catch {
+        return { unavailable: true, reason: 'history' }
+      }
+      const token = keyOf(first.key)
+      const remaining = physical.unknown.get(token)?.filter(write => !write.released)
+      if (remaining?.length) physical.unknown.set(token, remaining)
+      else physical.unknown.delete(token)
+      // RT12 S-100: an acknowledged call is its real terminal state for control decisions.
+      return acknowledgedAsTerminal(history)
+    }
+
     const first = writes.find(write => !write.released)
     if (first === undefined) return { unavailable: true, reason: 'history' }
     if (first.recognizing !== undefined) return await first.recognizing
@@ -754,34 +875,9 @@ function buildServiceControl<P extends PlannedSemantics, R>(
       if ('unavailable' in received) return { unavailable: true, reason: 'prefix' }
       // Recognizing the stopped writers' original batch needs no acknowledged view; callers
       // derive a control phase from the returned history (an ACK is its terminal state).
-      let history: CallHistoryResult
-      try {
-        history = first.call(received.prefix, first.key.callId)
-        for (const write of writes) {
-          if (write.released || write === first) continue
-          const original = write.call(received.prefix, write.key.callId)
-          if ('unavailable' in original) return original
-          if (!modelLogJsonEqual(original, history)) return { unavailable: true, reason: 'history' }
-        }
-      } catch {
-        return { unavailable: true, reason: 'history' }
-      }
+      const history = compareOriginalReaders(first, received.prefix)
       if ('unavailable' in history) return history
-      try {
-        for (const write of writes) {
-          if (write.released) continue
-          write.registration.release()
-          write.released = true
-        }
-      } catch {
-        return { unavailable: true, reason: 'history' }
-      }
-      const token = keyOf(first.key)
-      const remaining = physical.unknown.get(token)?.filter(write => !write.released)
-      if (remaining?.length) physical.unknown.set(token, remaining)
-      else physical.unknown.delete(token)
-      // RT12 S-100: an acknowledged call is its real terminal state for control decisions.
-      return acknowledgedAsTerminal(history)
+      return releaseRecognized(first, history)
     })()
     first.recognizing = attempt
     try {
@@ -819,32 +915,17 @@ function buildServiceControl<P extends PlannedSemantics, R>(
   }
 
   const releaseCall = async (key: CallKey): Promise<ReleaseCallResult> => {
-    if (physical.closing) return { unavailable: true }
-    if (
-      key === null ||
-      typeof key !== 'object' ||
-      !('ok' in parseOpaqueIdentifier(key.session, 'SessionRef')) ||
-      !('ok' in judgeAccountValue('ModelCallId', key.callId))
-    )
-      return { invalidInput: { reason: 'malformed' } }
+    const inputFailure = releaseInputFailure(key)
+    if (inputFailure !== undefined) return inputFailure
     let bound: Awaited<ReturnType<RuntimeConstruction<P, R>['sessions']['bind']>>
     try {
       bound = await runtime.sessions.bind(key.session)
     } catch {
       return { unavailable: true }
     }
-    if ('failure' in bound)
-      return bound.failure === 'invalidInput'
-        ? { invalidInput: { reason: 'malformed' } }
-        : { unavailable: true }
+    if ('failure' in bound) return bindFailure(bound.failure)
     const session = bound.binding
-    if (
-      session.log.session !== key.session ||
-      session.selection.binding.session !== key.session ||
-      !tenantIdEquals(session.log.tenant, session.selection.binding.tenant) ||
-      session.log.generation !== session.selection.binding.generation
-    )
-      return { unavailable: true }
+    if (!bindingMatches(session, key)) return { unavailable: true }
     const gate = await runtime.calls.waitReserve(key, {
       policy: runtime.reservationWaitPolicy,
       scheduler: runtime.settlementScheduler,
@@ -855,27 +936,46 @@ function buildServiceControl<P extends PlannedSemantics, R>(
     try {
       const local = reservation.view()
       const owner = local?.owner ?? session.selection.owner
-      if (owner.admission() !== 'open' || !settlementGenerationCurrent(session.log))
-        return { unavailable: true }
-      const history = await read(session, owner, key)
-      const facts = controlFactsFromHistory(history, local !== undefined, local?.operation)
-      const admission = classifyRelease(facts)
-      if ('rejected' in admission) {
-        if (admission.rejected === 'callNotFound') return { callNotFound: true }
-        if (admission.rejected === 'alreadyEnded') return { alreadyEnded: true }
-        return { unavailable: true }
+      function ownerReadable(): boolean {
+        if (owner.admission() !== 'open' || !settlementGenerationCurrent(session.log)) return false
+        return true
       }
-      if ('wrongPhase' in admission) return { wrongPhase: { phase: admission.wrongPhase } }
-      if (physical.closing) return { unavailable: true }
-      if ('unknown' in owner.opened() || owner.unresolvedWrites().length !== 0)
-        return { unavailable: true }
-      const account = controlAccount(
-        history,
-        local?.request.run,
-        local?.request.attempt,
-        local?.operation,
-      )
-      if ('unavailable' in account) return account
+      function releaseWriteAllowed(): boolean {
+        if (physical.closing) return false
+        if ('unknown' in owner.opened() || owner.unresolvedWrites().length !== 0) return false
+        return true
+      }
+      if (!ownerReadable()) return { unavailable: true }
+      function prepareRelease(
+        history: UnacknowledgedCallHistory,
+      ):
+        | {
+            readonly account: Exclude<
+              ReturnType<typeof controlAccount>,
+              { readonly unavailable: true }
+            >
+          }
+        | Exclude<ReleaseCallResult, { readonly callId: unknown }> {
+        const facts = controlFactsFromHistory(history, local !== undefined, local?.operation)
+        const admission = classifyRelease(facts)
+        const refused = releaseRefusal(admission)
+        if (refused !== undefined) return refused
+        if (!releaseWriteAllowed()) return { unavailable: true }
+        const account = localAccount(history, local)
+        if ('unavailable' in account) return account
+        return { account }
+      }
+      function releaseOutcome(
+        appended: Awaited<ReturnType<typeof appendControlRecord>>,
+      ): ReleaseCallResult {
+        return 'appended' in appended
+          ? { callId: key.callId, state: 'handed_up' }
+          : { unavailable: true }
+      }
+      const history = await read(session, owner, key)
+      const prepared = prepareRelease(history)
+      if (!('account' in prepared)) return prepared
+      const account = prepared.account
       const appended = await appendControlRecord({
         trackTask: task => physical.appends.track(task),
         binding: session.log,
@@ -892,23 +992,14 @@ function buildServiceControl<P extends PlannedSemantics, R>(
           if ('released' in closed) runtime.calls.remove(reservation)
         }
       }
-      return 'appended' in appended
-        ? { callId: key.callId, state: 'handed_up' }
-        : { unavailable: true }
+      return releaseOutcome(appended)
     } finally {
       reservation.release()
     }
   }
   const interrupt = async (input: InterruptInput): Promise<InterruptResult> => {
-    if (physical.closing) return { unavailable: true }
-    if (
-      input === null ||
-      typeof input !== 'object' ||
-      !('ok' in parseOpaqueIdentifier(input.session, 'SessionRef')) ||
-      !('ok' in judgeAccountValue('ModelCallId', input.callId)) ||
-      (input.initiator !== 'user' && input.initiator !== 'run_cancelled')
-    )
-      return { invalidInput: { reason: 'malformed' } }
+    const inputFailure = interruptInputFailure(input)
+    if (inputFailure !== undefined) return inputFailure
     const key: CallKey = { session: input.session, callId: input.callId }
     let bound: Awaited<ReturnType<RuntimeConstruction<P, R>['sessions']['bind']>>
     try {
@@ -916,18 +1007,9 @@ function buildServiceControl<P extends PlannedSemantics, R>(
     } catch {
       return { unavailable: true }
     }
-    if ('failure' in bound)
-      return bound.failure === 'invalidInput'
-        ? { invalidInput: { reason: 'malformed' } }
-        : { unavailable: true }
+    if ('failure' in bound) return bindFailure(bound.failure)
     const session = bound.binding
-    if (
-      session.log.session !== key.session ||
-      session.selection.binding.session !== key.session ||
-      !tenantIdEquals(session.log.tenant, session.selection.binding.tenant) ||
-      session.log.generation !== session.selection.binding.generation
-    )
-      return { unavailable: true }
+    if (!bindingMatches(session, key)) return { unavailable: true }
     const gate = await runtime.calls.waitReserve(key, {
       policy: runtime.reservationWaitPolicy,
       scheduler: runtime.settlementScheduler,
@@ -944,37 +1026,77 @@ function buildServiceControl<P extends PlannedSemantics, R>(
     try {
       const local = reservation.view()
       const owner = local?.owner ?? session.selection.owner
-      if (owner.admission() !== 'open' || !settlementGenerationCurrent(session.log))
-        return { unavailable: true }
-      if (local?.operation.phase === 'dispatching') {
-        const access = local.invocation?.borrowControl()
-        if (access === undefined || 'unavailable' in access) return { unavailable: true }
-        borrowed = access
+      function prepareControlOwner(): boolean {
+        if (owner.admission() !== 'open' || !settlementGenerationCurrent(session.log)) return false
+        if (local?.operation.phase === 'dispatching') {
+          const access = local.invocation?.borrowControl()
+          if (access === undefined || 'unavailable' in access) return false
+          borrowed = access
+        }
+        return true
       }
+      if (!prepareControlOwner()) return { unavailable: true }
       const controlOwner = borrowed?.owner ?? owner
       const history = await read(session, controlOwner, key)
       const admission = classifyInterrupt(
         controlFactsFromHistory(history, local !== undefined, local?.operation),
       )
-      if ('rejected' in admission) {
-        if (admission.rejected === 'callNotFound') return { callNotFound: true }
-        if (admission.rejected === 'alreadyEnded') return { alreadyEnded: true }
-        return { unavailable: true }
+      if ('rejected' in admission) return interruptRefusal(admission)
+      function originalSignal():
+        Extract<CallOperationState, { readonly phase: 'dispatching' }>['interrupt'] | undefined {
+        // A durable in-flight call needs its original local abort port. A detached old producer
+        // belongs to reconcile; merely writing an intent here would falsely promise a signal.
+        return local?.operation.phase === 'dispatching' ? local.operation.interrupt : undefined
       }
-      // A durable in-flight call needs its original local abort port. A detached old producer
-      // belongs to reconcile; merely writing an intent here would falsely promise a signal.
-      const signalInterrupt =
-        local?.operation.phase === 'dispatching' ? local.operation.interrupt : undefined
-      if (admission.stage !== 'before_dispatch' && signalInterrupt === undefined)
-        return { unavailable: true }
-      if (physical.closing) return { unavailable: true }
-      const account = controlAccount(
-        history,
-        local?.request.run,
-        local?.request.attempt,
-        local?.operation,
-      )
+      const signalInterrupt = originalSignal()
+      function permittedAccount(
+        admission: Extract<InterruptAdmission, { readonly stage: unknown }>,
+      ): ReturnType<typeof controlAccount> {
+        if (admission.stage !== 'before_dispatch' && signalInterrupt === undefined)
+          return { unavailable: true }
+        if (physical.closing) return { unavailable: true }
+        return localAccount(history, local)
+      }
+      const account = permittedAccount(admission)
       if ('unavailable' in account) return account
+      function recoverUnknownIntent(): void {
+        const pending = physical.unknown.get(keyOf(key))
+        if (borrowed !== undefined && pending !== undefined) {
+          // The failed receipt cannot authorize a stop. Once the actual writer stops,
+          // reconcile its effect from a complete prefix without requiring a retry call.
+          const recoveryOwner = borrowed.owner
+          async function recover(pending: readonly UnknownControlWrite[]): Promise<void> {
+            await reservationReleased
+            // Asking for the stop is not assuming it: the actual stopped proof still gates
+            // the recovery read, and an owner that stops only on request is not left waiting.
+            await Promise.allSettled(pending.map(write => requestStopAndWait(write.task)))
+            const next = await runtime.calls.waitReserve(key, {
+              policy: runtime.reservationWaitPolicy,
+              scheduler: runtime.settlementScheduler,
+              signal: new AbortController().signal,
+            })
+            if ('unavailable' in next) return
+            try {
+              await read(session, recoveryOwner, key)
+            } finally {
+              next.reservation.release()
+            }
+          }
+          const recovery = recover(pending)
+          physical.recoveries.add(recovery)
+          void recovery.then(
+            () => physical.recoveries.delete(recovery),
+            () => {
+              physical.recoveries.delete(recovery)
+              try {
+                runtime.policy.diagnostic({ kind: 'model_control.unknown_recovery_failed' })
+              } catch {
+                // An observer cannot complete or erase the unresolved write.
+              }
+            },
+          )
+        }
+      }
       if (!admission.intentExists) {
         const appended = await appendControlRecord({
           trackTask: task => physical.appends.track(task),
@@ -990,55 +1112,50 @@ function buildServiceControl<P extends PlannedSemantics, R>(
           retainUnknown: (registration, task) => retain(key, session.log, registration, task),
         })
         if ('unavailable' in appended) {
-          const pending = physical.unknown.get(keyOf(key))
-          if (borrowed !== undefined && pending !== undefined) {
-            // The failed receipt cannot authorize a stop. Once the actual writer stops,
-            // reconcile its effect from a complete prefix without requiring a retry call.
-            const recoveryOwner = borrowed.owner
-            const recovery = (async () => {
-              await reservationReleased
-              // Asking for the stop is not assuming it: the actual stopped proof still gates
-              // the recovery read, and an owner that stops only on request is not left waiting.
-              await Promise.allSettled(pending.map(write => requestStopAndWait(write.task)))
-              const next = await runtime.calls.waitReserve(key, {
-                policy: runtime.reservationWaitPolicy,
-                scheduler: runtime.settlementScheduler,
-                signal: new AbortController().signal,
-              })
-              if ('unavailable' in next) return
-              try {
-                await read(session, recoveryOwner, key)
-              } finally {
-                next.reservation.release()
-              }
-            })()
-            physical.recoveries.add(recovery)
-            void recovery.then(
-              () => physical.recoveries.delete(recovery),
-              () => {
-                physical.recoveries.delete(recovery)
-                try {
-                  runtime.policy.diagnostic({ kind: 'model_control.unknown_recovery_failed' })
-                } catch {
-                  // An observer cannot complete or erase the unresolved write.
-                }
-              },
-            )
-          }
+          recoverUnknownIntent()
           return { unavailable: true }
         }
       }
-      if (admission.stage === 'before_dispatch') {
-        // The local anchor may still be committing its dispatched record. Once the
-        // intent is durable, stop that path before it can start a network request.
-        if (local?.operation.phase === 'dispatching')
-          signalInterrupt?.(
-            'known' in history && history.known.intent !== null
-              ? history.known.intent.initiator
-              : input.initiator,
-          )
+      function startBackgroundEnding(): void {
         if (!physical.backgroundEnds.has(keyOf(key))) {
           let committed = false
+          function endingReceived(result: Awaited<ReturnType<typeof appendControlRecord>>): void {
+            if ('appended' in result) committed = true
+            else {
+              markEndUnavailable(key, session.log, owner)
+              runtime.policy.diagnostic({ kind: 'model_control.end_unavailable' })
+            }
+          }
+          function endingRejected(): void {
+            markEndUnavailable(key, session.log, owner)
+            try {
+              runtime.policy.diagnostic({ kind: 'model_control.end_unavailable' })
+            } catch {
+              // Diagnostics cannot settle or release the original effect.
+            }
+          }
+          async function cleanupEnding(): Promise<void> {
+            await reservationReleased
+            if (!committed || local === undefined) return
+            const next = await runtime.calls.waitReserve(key, {
+              policy: runtime.reservationWaitPolicy,
+              scheduler: runtime.settlementScheduler,
+              signal: new AbortController().signal,
+            })
+            if ('unavailable' in next) {
+              markEndUnavailable(key, session.log, owner)
+              return
+            }
+            try {
+              const container = runtime.calls.find(key)
+              if (container === undefined) return
+              const closed = await container.close()
+              if ('released' in closed) runtime.calls.remove(next.reservation)
+              else markEndUnavailable(key, session.log, owner)
+            } finally {
+              next.reservation.release()
+            }
+          }
           const ending = appendControlRecord({
             trackTask: task => physical.appends.track(task),
             binding: session.log,
@@ -1056,44 +1173,10 @@ function buildServiceControl<P extends PlannedSemantics, R>(
             },
             retainUnknown: (registration, task) => retain(key, session.log, registration, task),
           })
-            .then(result => {
-              if ('appended' in result) committed = true
-              else {
-                markEndUnavailable(key, session.log, owner)
-                runtime.policy.diagnostic({ kind: 'model_control.end_unavailable' })
-              }
-            })
-            .catch(() => {
-              markEndUnavailable(key, session.log, owner)
-              try {
-                runtime.policy.diagnostic({ kind: 'model_control.end_unavailable' })
-              } catch {
-                // Diagnostics cannot settle or release the original effect.
-              }
-            })
+            .then(endingReceived)
+            .catch(endingRejected)
           const cleanup = ending
-            .then(async () => {
-              await reservationReleased
-              if (!committed || local === undefined) return
-              const next = await runtime.calls.waitReserve(key, {
-                policy: runtime.reservationWaitPolicy,
-                scheduler: runtime.settlementScheduler,
-                signal: new AbortController().signal,
-              })
-              if ('unavailable' in next) {
-                markEndUnavailable(key, session.log, owner)
-                return
-              }
-              try {
-                const container = runtime.calls.find(key)
-                if (container === undefined) return
-                const closed = await container.close()
-                if ('released' in closed) runtime.calls.remove(next.reservation)
-                else markEndUnavailable(key, session.log, owner)
-              } finally {
-                next.reservation.release()
-              }
-            })
+            .then(cleanupEnding)
             .catch(() => {
               markEndUnavailable(key, session.log, owner)
             })
@@ -1111,18 +1194,34 @@ function buildServiceControl<P extends PlannedSemantics, R>(
           physical.backgroundEnds.set(keyOf(key), cleanup)
           if (local !== undefined) runtime.calls.find(key)?.retainStopped(ending)
         }
-      } else {
-        try {
-          signalInterrupt?.(
-            'known' in history && history.known.intent !== null
-              ? history.known.intent.initiator
-              : input.initiator,
-          )
-        } catch {
-          return { unavailable: true }
-        }
       }
-      return { stage: admission.stage }
+      function notifyAfterIntent(
+        admission: Extract<InterruptAdmission, { readonly stage: unknown }>,
+      ): InterruptResult {
+        if (admission.stage === 'before_dispatch') {
+          // The local anchor may still be committing its dispatched record. Once the
+          // intent is durable, stop that path before it can start a network request.
+          if (local?.operation.phase === 'dispatching')
+            signalInterrupt?.(
+              'known' in history && history.known.intent !== null
+                ? history.known.intent.initiator
+                : input.initiator,
+            )
+          startBackgroundEnding()
+        } else {
+          try {
+            signalInterrupt?.(
+              'known' in history && history.known.intent !== null
+                ? history.known.intent.initiator
+                : input.initiator,
+            )
+          } catch {
+            return { unavailable: true }
+          }
+        }
+        return { stage: admission.stage }
+      }
+      return notifyAfterIntent(admission)
     } finally {
       if (!borrowedTransferred) borrowed?.release()
       reservation.release()
@@ -1130,6 +1229,53 @@ function buildServiceControl<P extends PlannedSemantics, R>(
     }
   }
   const close = async (): Promise<{ readonly released: true } | { readonly unavailable: true }> => {
+    function requestUnknownStops(writes: readonly UnknownControlWrite[]): void {
+      for (const write of writes) {
+        try {
+          write.task.requestStop()
+        } catch {
+          // The stopped promise, not a requested cancellation, is authoritative.
+        }
+        for (const task of write.readTasks) {
+          try {
+            task.requestStop()
+          } catch {
+            // The retained read cannot be released until its actual stopped fact.
+          }
+        }
+      }
+    }
+    function failedEndRecognized(
+      received:
+        | { readonly ok: CallHistoryResult | { readonly unavailable: true } }
+        | { readonly unavailable: true },
+    ): boolean {
+      if (
+        'unavailable' in received ||
+        'unavailable' in received.ok ||
+        !('known' in received.ok) ||
+        received.ok.known.phase !== 'interrupted'
+      )
+        return false
+      return true
+    }
+    function closeResult(
+      readResult: RuntimeCloseResult,
+      appendResult: RuntimeCloseResult,
+      recoveryReads: RuntimeCloseResult,
+      finalRecoveryReads: RuntimeCloseResult,
+    ): RuntimeCloseResult {
+      if (
+        physical.unknown.size !== 0 ||
+        'unavailable' in readResult ||
+        'unavailable' in appendResult ||
+        'unavailable' in recoveryReads ||
+        'unavailable' in finalRecoveryReads ||
+        physical.backgroundFailed.size !== 0
+      )
+        return { unavailable: true }
+      return { released: true }
+    }
     physical.closing = true
     const [readResult, appendResult] = await Promise.all([
       physical.reads.close(),
@@ -1142,20 +1288,7 @@ function buildServiceControl<P extends PlannedSemantics, R>(
       return { unavailable: true }
     }
     const writes = [...physical.unknown.values()].flat()
-    for (const write of writes) {
-      try {
-        write.task.requestStop()
-      } catch {
-        // The stopped promise, not a requested cancellation, is authoritative.
-      }
-      for (const task of write.readTasks) {
-        try {
-          task.requestStop()
-        } catch {
-          // The retained read cannot be released until its actual stopped fact.
-        }
-      }
-    }
+    requestUnknownStops(writes)
     await Promise.allSettled(writes.map(write => write.task.stopped))
     for (const group of [...physical.unknown.values()]) await recognizeUnknown([...group])
     const recoveryReads = await physical.reconcileReads.drain()
@@ -1173,28 +1306,13 @@ function buildServiceControl<P extends PlannedSemantics, R>(
               failed.call(result.prefix, failed.key.callId)
         },
       )
-      if (
-        'unavailable' in received ||
-        'unavailable' in received.ok ||
-        !('known' in received.ok) ||
-        received.ok.known.phase !== 'interrupted'
-      )
-        continue
+      if (!failedEndRecognized(received)) continue
       const container = runtime.calls.find(failed.key)
       if (container !== undefined && 'unavailable' in (await container.close())) continue
       physical.backgroundFailed.delete(token)
     }
     const finalRecoveryReads = await physical.reconcileReads.drain()
-    if (
-      physical.unknown.size !== 0 ||
-      'unavailable' in readResult ||
-      'unavailable' in appendResult ||
-      'unavailable' in recoveryReads ||
-      'unavailable' in finalRecoveryReads ||
-      physical.backgroundFailed.size !== 0
-    )
-      return { unavailable: true }
-    return { released: true }
+    return closeResult(readResult, appendResult, recoveryReads, finalRecoveryReads)
   }
   return retainRuntimeProjection(
     Object.freeze({ releaseCall, interrupt, close }),
