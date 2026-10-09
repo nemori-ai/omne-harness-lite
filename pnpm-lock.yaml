@@ -2067,6 +2067,9 @@ importers:
       '@omne-harness-lite/session-tenancy':
         specifier: workspace:*
         version: link:../session-tenancy
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../storage
       '@omne-harness-lite/stream-assembly':
         specifier: workspace:*
         version: link:../stream-assembly
@@ -2794,6 +2797,9 @@ importers:
       '@omne-harness-lite/assembly-lifecycle':
         specifier: workspace:*
         version: link:../../core/assembly-lifecycle
+      '@omne-harness-lite/asset-evaluation':
+        specifier: workspace:*
+        version: link:../../core/asset-evaluation
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../../core/call-accounts
@@ -2812,6 +2818,9 @@ importers:
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../../core/messages
+      '@omne-harness-lite/model-message-projection':
+        specifier: workspace:*
+        version: link:../../core/model-message-projection
       '@omne-harness-lite/model-request-runtime':
         specifier: workspace:*
         version: link:../../core/model-request-runtime
@@ -2836,6 +2845,9 @@ importers:
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
+      '@omne-harness-lite/tool-execution-runtime':
+        specifier: workspace:*
+        version: link:../../core/tool-execution-runtime
       zod:
         specifier: 'catalog:'
         version: 4.6.5

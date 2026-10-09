@@ -12,6 +12,7 @@ import {
   type OriginalIssueParticipant,
   type OriginalIssueStage,
   type OriginalIssueFailure,
+  type OriginalIssueOwner,
 } from '@omne-harness-lite/model-request-runtime'
 import {
   checkAppendRequest,
@@ -64,25 +65,7 @@ export interface OriginalIssueOwnerOptions {
   readonly authority: OriginalIssueAuthority
   readonly limit: number
 }
-export interface OriginalIssueOwner {
-  readonly participant: OriginalIssueParticipant
-  readonly prepareOriginal: (
-    input: OriginalIssueInput,
-  ) => { readonly ticket: OriginalIssueTicket } | OriginalIssueFailure
-  /** Used by the original model path. A recognized claim never authorizes a second launch. */
-  readonly admitOriginal: (input: OriginalIssueInput) => Promise<
-    | {
-        readonly confirmed: true
-        readonly positions: readonly OriginalIssueIdentity['dispatch'][]
-        readonly claim: OriginalIssueClaim
-      }
-    | OriginalIssueFailure
-  >
-  readonly consumeOriginal: (
-    claim: OriginalIssueClaim,
-  ) => Promise<{ readonly kind: 'launch' } | OriginalIssueFailure>
-  readonly close: () => Promise<{ readonly kind: 'released' } | { readonly kind: 'pending' }>
-}
+export type { OriginalIssueOwner } from '@omne-harness-lite/model-request-runtime'
 function prepared(input: OriginalIssueInput, generation: string): Prepared | undefined {
   const value = captureInput(input)
   if (value === undefined) return undefined

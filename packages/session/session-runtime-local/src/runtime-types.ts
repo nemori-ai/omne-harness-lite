@@ -13,13 +13,12 @@ import type {
   PublicFailure,
   Failure,
   CreateSessionInput,
-  SessionRuntime,
+  SessionIngressOperations,
+  SessionLifecycle,
+  SessionLifecycleStep,
   CoordinationAuthority,
-  CoordinationStep,
-  StepCommit,
-  SessionHead,
+  SessionWorkReading,
 } from '@omne-harness-lite/session-runtime'
-import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { SourceToken } from '@omne-harness-lite/session-log'
 import type { LogAuthorityOperations, SessionLogParticipant } from '@omne-harness-lite/session-log'
 import type { AdmissionSource, AdmissionTicket, LocalAdmission } from './admission-types.ts'
@@ -73,10 +72,10 @@ export interface RuntimeOptions {
     }) => OriginalIssueParticipant
   }
 }
-export type SessionIngressOperations = Pick<
-  SessionRuntime,
-  'createSession' | 'readSession' | 'submitInput' | 'readReceipt' | 'readProgress'
->
+export type {
+  SessionIngressOperations,
+  SessionLifecycleStep,
+} from '@omne-harness-lite/session-runtime'
 export interface LocalSessionIngress {
   readonly access: Access
   readonly operations: SessionIngressOperations
@@ -93,33 +92,8 @@ export interface LocalSessionIngress {
   readonly tenancy: SessionTenancyService
   /** Trusted host port. Do not send its live authority or permits over a wire protocol. */
   readonly coordinationAuthority: CoordinationAuthority
-  /** Trusted keyset scan of this tenant's durable work index. Candidates grant no execution. */
-  readonly scanWork: (
-    authority: CoordinationAuthority,
-    after: SessionRef | null,
-    limit: number,
-  ) => Promise<
-    | {
-        readonly kind: 'workPage'
-        readonly sessions: readonly SessionRef[]
-        readonly next: SessionRef | null
-      }
-    | Failure<'invalidInput' | 'denied' | 'unavailable'>
-  >
-  /** Trusted coordinator snapshot. This read neither consumes pending work nor issues a permit. */
-  readonly readWork: (
-    authority: CoordinationAuthority,
-    scope: SessionScope,
-    limit: number,
-  ) => Promise<
-    | {
-        readonly kind: 'work'
-        readonly head: SessionHead
-        readonly source: SourceToken
-        readonly inputs: readonly JsonNumber[]
-      }
-    | Failure<'invalidInput' | 'denied' | 'unavailable' | 'notFound'>
-  >
+  readonly scanWork: SessionWorkReading['scanWork']
+  readonly readWork: SessionWorkReading['readWork']
   readonly modelInvocation: {
     readonly admit: (
       authority: CoordinationAuthority,
@@ -148,21 +122,10 @@ export interface LocalSessionIngress {
   }
   readonly modelResults: LocalModelResultCustody
   readonly runJournal: OriginalRunJournal
-  readonly lifecycle: {
-    readonly commitStep: (
-      authority: CoordinationAuthority,
-      scope: SessionScope,
-      expectedSource: SourceToken,
-      step: SessionLifecycleStep,
-    ) => Promise<StepCommit>
-  }
+  readonly lifecycle: SessionLifecycle
   /** Stops new public operations and waits for admitted work. Borrowed providers stay open. */
   readonly close: () => Promise<void>
 }
-export type SessionLifecycleStep = Extract<
-  CoordinationStep,
-  { kind: 'startRun' | 'startAttempt' | 'adoptInput' | 'prepareCall' | 'adoptResult' | 'finish' }
->
 export interface CreationRow {
   operation: string
   session: string

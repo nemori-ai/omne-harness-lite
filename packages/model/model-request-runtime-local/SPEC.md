@@ -4,7 +4,18 @@
 公共操作协议、形状和独立算法从[公共定义](../../core/model-request-runtime/SPEC.md)消费，不在此复制算法。
 根入口公开独立函数/工厂，Cordis 插件从 `./cordis` 导出。旧插件子入口已移除。
 
+独立整批结算的共享操作、句柄、请求及暂存批次形状归core/model-request-runtime。
+本提供者消费并重导出原类型名；SettlementCoordinatorInput和具体createSettlementCoordinator仍由本提供者拥有。
+构造输入沿core的SettlementCoordinatorBinding，另加本提供者原政策／scheduler／diagnostic字段。
+应用可将本工厂绑定为core的SettlementCoordinatorFactory；抽象分面不代替实际桥及借入资源的收场证明。
+应用选择实际工厂及显式owner／竞争／时钟策略，Session消费者只借入公开结算协议。
+原未知批次、实际停止及close保留责任不因定义归位改变。
+
 ## 保持的运行责任
+
+原发起Owner的共享操作形状归core/model-request-runtime，本包公开类型沿同一源重导出。
+具体createOriginalIssueOwner选同Storage、实际日志和权限，并保留原limit／持久实现。
+类型归属迁移不改变原发起、认回、消费或关闭算法，也不据此证明Session桥已消费实际owner。
 
 十五操作的形状归公共 `ModelRuntimeOperations`；类型之外的共享行为归公共 SPEC。
 尚未迁移的具体生命周期投影与跨拥有者组合义务继续按精确旧源，见[迁移范围](../../../.meta_harness/design/architecture/pilots/n4-ownership.md#模型请求运行时)。

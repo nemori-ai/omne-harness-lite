@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { definePlugin, FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
@@ -6,9 +7,23 @@ import {
   type AssemblyCloseReport,
 } from '@omne-harness-lite/assembly-lifecycle'
 import { RUNTIME_CONTEXT } from '@omne-harness-lite/runtime-context/cordis'
+import {
+  checkSessionDriverPolicy,
+  type SessionDriverPolicy,
+} from '@omne-harness-lite/session-runtime'
 import { InvalidStateInput, stateScope } from './state-values.ts'
 import { installSessionBridges, sameScope } from './session-context-bridges.ts'
 import type { SessionContextOptions, LocalSessionContext } from './session-context-types.ts'
+
+/** Standard Schema configuration adapter; all values are captured by the Core owner. */
+export const SessionDriverConfig: z.ZodType<SessionDriverPolicy> = z
+  .unknown()
+  .transform((value, ctx) => {
+    const checked = checkSessionDriverPolicy(value)
+    if ('policy' in checked) return checked.policy
+    ctx.addIssue({ code: 'custom', message: 'Complete bounded Session driver policy required' })
+    return z.NEVER
+  })
 
 /** Separate Session Context with explicit borrowed references. No parent process Context is shared. */
 export function createLocalSessionContext(requested: SessionContextOptions): LocalSessionContext {
@@ -17,7 +32,9 @@ export function createLocalSessionContext(requested: SessionContextOptions): Loc
     factory = options.runtimeContext
   const lifetime = createAssemblyLifetime(['runtimeContext'], factory.closeAdmission)
   if (!lifetime.tryClaim()) throw new Error('Fresh Session Context could not be claimed')
-  let host: Fiber | undefined, hostContext: Context | undefined
+  const generation = randomUUID()
+  let loaded = false
+  let host: Fiber | undefined, hostContext: Context | undefined, provider: Fiber | undefined
   const closed = lifetime.closed.then(async report => {
     try {
       await host?.dispose()
@@ -47,6 +64,7 @@ export function createLocalSessionContext(requested: SessionContextOptions): Loc
     if (!lifetime.isCurrent() || !hostContext)
       throw new Error('Session Context stopped before setup')
     const fiber = hostContext.plugin(factory.plugin, {})
+    provider = fiber
     if ((fiber.state as number) === FIBER_STATE.PENDING)
       throw new Error('Session Context dependency missing')
     await fiber
@@ -54,6 +72,7 @@ export function createLocalSessionContext(requested: SessionContextOptions): Loc
     if (!lifetime.isCurrent()) throw new Error('Session Context stopped during setup')
     const operations = hostContext.get(RUNTIME_CONTEXT)
     if (!operations) throw new Error('Session Runtime Context was not provided')
+    loaded = true
     return operations
   }
   const initializer: LocalSessionContext['initializer'] = Object.freeze<
@@ -85,6 +104,13 @@ export function createLocalSessionContext(requested: SessionContextOptions): Loc
     scope: options.scope,
     ready,
     initializer,
+    currentGeneration: () =>
+      loaded &&
+      lifetime.isCurrent() &&
+      host?.state === FIBER_STATE.ACTIVE &&
+      provider?.state === FIBER_STATE.ACTIVE
+        ? generation
+        : null,
     requestStop: () => {
       void lifetime.close()
     },

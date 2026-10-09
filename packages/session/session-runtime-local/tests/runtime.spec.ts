@@ -1262,8 +1262,14 @@ it('initializes the actual Runtime Context in separate Session hosts and withdra
   const hostA = createLocalSessionContext({ ...options, scope: { tenant, session: a.session } })
   const hostB = createLocalSessionContext({ ...options, scope: { tenant, session: b.session } })
   try {
+    expect(hostA.currentGeneration()).toBeNull()
+    expect(hostB.currentGeneration()).toBeNull()
     const [contextA, contextB] = await Promise.all([hostA.ready, hostB.ready])
     expect(contextA).not.toBe(contextB)
+    expect(hostA.currentGeneration()).toEqual(expect.any(String))
+    const generationA = hostA.currentGeneration()
+    expect(hostB.currentGeneration()).not.toBe(generationA)
+    expect(hostA.currentGeneration()).toBe(generationA)
     const registration = {
       name: 'same-local-source',
       recovery: 'reread_source' as const,
@@ -1299,6 +1305,8 @@ it('initializes the actual Runtime Context in separate Session hosts and withdra
     })
     expect(await sourceA.invalidate(hostB.scope, [])).toMatchObject({ kind: 'rejected' })
     hostA.requestStop()
+    expect(hostA.currentGeneration()).toBeNull()
+    expect(hostB.currentGeneration()).toEqual(expect.any(String))
     expect(await hostA.closed).toMatchObject({ complete: true })
     expect(await sourceA.invalidate(hostA.scope, [])).toMatchObject({ kind: 'rejected' })
     expect(await sourceB.invalidate(hostB.scope, [])).toEqual({ kind: 'invalidated' })
@@ -1391,8 +1399,10 @@ it('retains the original Session Context borrow after release failure and permit
   })
   try {
     await host.ready
+    expect(host.currentGeneration()).toEqual(expect.any(String))
     expect(await host.retryClose()).toBe('notStopping')
     host.requestStop()
+    expect(host.currentGeneration()).toBeNull()
     expect(await host.closeAttempt()).toBe('retained')
     let closed = false
     void host.closed.then(() => {
@@ -1411,6 +1421,7 @@ it('retains the original Session Context borrow after release failure and permit
       await release!()
     })
     expect(await host.retryClose()).toBe('closed')
+    expect(host.currentGeneration()).toBeNull()
     expect(await host.closed).toMatchObject({ complete: true })
     expect(attempts).toHaveBeenCalledTimes(2)
     expect(await f.count('sr_session_creation')).toEqual({ n: 1 })

@@ -8,6 +8,10 @@ import {
   type SettlementLogBinding,
   type SettlementRegistration,
   type SettlementContention,
+  type SettlementCoordinator as PublicSettlementCoordinator,
+  type SettlementRequest as PublicSettlementRequest,
+  type SettlementHandle as PublicSettlementHandle,
+  type SettlementCoordinatorBinding,
 } from '@omne-harness-lite/model-request-runtime'
 import {
   type SettlementCoordinatorInput,
@@ -17,6 +21,14 @@ import {
 
 test('public settlement is an owned independent closure with precise policy numbers and no authority switches', () => {
   expectTypeOf(createSettlementCoordinator).parameter(0).toEqualTypeOf<SettlementCoordinatorInput>()
+  expectTypeOf<
+    ReturnType<typeof createSettlementCoordinator>
+  >().toEqualTypeOf<PublicSettlementCoordinator>()
+  expectTypeOf<SettlementRequest>().toEqualTypeOf<PublicSettlementRequest>()
+  expectTypeOf<SettlementHandle>().toEqualTypeOf<PublicSettlementHandle>()
+  expectTypeOf<
+    Pick<SettlementCoordinatorInput, 'binding' | 'owner' | 'run'>
+  >().toEqualTypeOf<SettlementCoordinatorBinding>()
   expectTypeOf<SettlementHandle['completion']>().toEqualTypeOf<Promise<SettlementResult>>()
   expectTypeOf<SettlementHandle['stopped']>().toEqualTypeOf<Promise<void>>()
   expectTypeOf<SettlementContention['limits']['elapsedMs']>().toMatchTypeOf<

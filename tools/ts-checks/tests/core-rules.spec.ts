@@ -43,6 +43,23 @@ const purePackages = [
 ]
 
 describe('core-pure-imports', () => {
+  it('Tool original issue imports shared Unit types through the public storage entry', () => {
+    const path = 'core/tool-execution-runtime/src/original-issue.ts'
+    expect(
+      corePureImports.check([
+        file(path, "import type { AtomicStorage, StorageUnit } from '@omne-harness-lite/storage'"),
+      ]),
+    ).toEqual([])
+    for (const specifier of [
+      '@omne-harness-lite/storage/src/unit.ts',
+      '@omne-harness-lite/storage/cordis',
+      '@omne-harness-lite/storage-sql',
+      '@omne-harness-lite/tool-execution-local',
+    ])
+      expect(
+        corePureImports.check([file(path, `import type { Value } from '${specifier}'`)]),
+      ).toHaveLength(1)
+  })
   it('the context fixed graph grants only its own schema input site, without a handwritten compiler', () => {
     const resource = "import '@omne-harness-lite/runtime-context/schema'"
     expect(

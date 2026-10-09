@@ -240,7 +240,7 @@ class SessionIngress implements LocalSessionIngress {
       append: (unit, scope, entries) => this.append(unit, scope, entries),
       instant: () => this.instant(),
     })
-    this.lifecycle = Object.freeze({
+    this.lifecycle = Object.freeze<LocalSessionIngress['lifecycle']>({
       commitStep: (authority, scope, source, step) =>
         this.run(
           this.access,

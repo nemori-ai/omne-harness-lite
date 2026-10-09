@@ -181,6 +181,45 @@ Duration 与 JsonNumber 使用公开精确值语义，不能先转成毫秒浮�
 [验证资源](verification/README.md)维护性质、模型规模/公平性、正负控与实际组合义务；运行结果留任务 tmp。现行公共定义不再由冻结 RT12 充当第二权威。
 [精确保留范围](../../../.meta_harness/design/architecture/pilots/n4-ownership.md#模型请求运行时)仍约束未迁的具体提供者投影、跨拥有者兑现及综合模型，不因公共接口移动而关闭。
 
+## 独立结算协议
+
+本包拥有`SettlementCoordinator`、`SettlementHandle`、`SettlementRequest`、
+`SettlementStagedBatch`和`SettlementStaging`。这些共享形状接续原整批结算行为。
+它们不选择具体工厂、队列、存储或竞争政策，不授予模型发出、日志写权或ACK资格。
+具体提供者的构造输入仍由该提供者维护，应用负责选择并绑定实际资源和显式政策。
+
+`SettlementCoordinatorBinding`携带本次原日志binding、真实settlement owner及可选Run解释器。
+`SettlementCoordinatorFactory.create`接该绑定，返回一个承担下述整批结算和关闭责任的coordinator。
+应用选择实际工厂并绑定原contention、scheduler及diagnostic；Session消费者不选择具体邻包实现。
+构造错误保持原异常，不返回成功占位；构造失败不向调用者转移未返回的coordinator责任。
+构造不写业务日志、不发模型请求、不发ACK，也不能恢复已失效的日志或owner。
+缺Run解释器阻止新的withRun结算，但不阻止原批次认回。
+
+`./cordis`以`SettlementCoordinatorFactoryService`／`modelSettlementFactory`承载该构造协议，只供可信协调域。
+原binding、owner、函数和策略端口不进入JSON配置或普通Session Agent Context。
+依赖撤除停止新构造和驱动，已借coordinator仍保留原资源及策略依赖，直到真实close完成。
+撤除不允许释放未明责任、换新工厂重发或关闭借入的物理模型池。
+抽象工厂存在不表示实际桥、权限来源或撤除收场已实现。
+
+物理ModelRuntime发布reply_ready后可经原finishReady关闭SDK invocation的结算入口。
+消费者不得从captured invocation存在推断还能调用settleReply；此时沿独立coordinator协议结算原批。
+工厂必须借入真实有效的原owner；捕获副本寿命不等于结算权限或CallPresence临界区。
+
+settle在异步工作前捕获原target、current及完整response。
+返回句柄分别提供completion、requestStop和stopped。公开结果、停止请求与实际停止不是同一事实。
+staging存在时，hold须在原批可写入前可靠保存精确entries和append condition。
+hold只在初次提交前或此前写入已证明为零后调用；旧收据不明时不能覆盖原批。
+缺staging保持原模型侧的pre-ACK保管，不自动补一个成功保管端口。
+
+未知append即使句柄已经停止，仍保有原registration和精确批次。
+同target后继settle只经同source完整前缀认回原句柄，不自行再写。
+确认完整原批则认回；证明未写则释放原责任并返回write_unknown，之后才可另行提交。
+close先撤新准入、请求停止并主动核实保留的未知原件。
+全部原任务实际停止且registration释放后才成功；失败保留原拥有者及资源，供后续原close接续。
+消费者不得凭completion、缺记录或close请求清空责任、释放资源、替换原件或重发。
+
+类型归位只改变定义拥有者，不改变原算法、操作身份、失败结果或已接受的生命周期义务。
+
 ## 物理拥有者的执行来源
 
 `ModelRuntimeExecutionSource` 只交给物理运行时的受信装配拥有者。
@@ -231,6 +270,13 @@ attempt 开始由 Session 事实拥有者记录，不是模型消息。事件不
 一次完整读取中检查多个模型结算，应复用这份校验结果。原响应关联使用唯一性索引；重复响应仍拒绝，不以最后一个值覆盖冲突。该辅助函数不提供跨回合缓存，也不替代 Session 拥有的模型消息投影缓存。构造、各结算关联和输出字节的成本分别计量，不能把复用一次前缀校验表述为全部路径已达到线性复杂度。
 
 ## 原发起窄协议
+
+OriginalIssueOwner的共享prepareOriginal／participant／admission／consumeOriginal／close形状归本包。
+具体拥有者的Storage／LogAuthority／limit构造与持久承载仍归实际提供者。
+可信根选择原owner并给Session驱动借入；Session不能从具体Model提供者私有类型推断其消费协议。
+prepareOriginal只固定原ticket，不授IO；Session桥必须使用原participant参加自己的同Unit，
+不能改走owner.admitOriginal的独立提交来绕过Session栅栏。
+close只撤原发起拥有者，released不证明物理ModelRuntime或远端请求已经停止；pending保原身份与责任。
 
 OriginalIssueParticipant 暂存原 dispatched 事实和唯一执行 claim，必须参加调用者的同一 StorageUnit，不独立提交、不先发送模型请求。ticket 与 claim 仅由实际原拥有者签发；复制形状或取得 ticket 都不授予当前权限。
 

@@ -77,6 +77,7 @@ import type {
   ModelRuntimeOperations as Operations,
   ModelRuntimeHostInputOperations,
   ModelRuntimeExecutionSupport,
+  SettlementCoordinatorFactory,
   FailureConsumption,
   DispatchInput,
   DispatchResult,
@@ -176,8 +177,24 @@ export abstract class ModelRuntimeExecutionSupportService
 }
 export const MODEL_RUNTIME_EXECUTION_SUPPORT = ModelRuntimeExecutionSupportService.provide
 
+/** Trusted construction face. It does not grant log or execution authority.
+ * @contract capability.model-request-runtime
+ */
+export abstract class SettlementCoordinatorFactoryService
+  extends Service
+  implements SettlementCoordinatorFactory
+{
+  static readonly provide = 'modelSettlementFactory'
+  constructor(ctx: Context) {
+    super(ctx, SettlementCoordinatorFactoryService.provide)
+  }
+  abstract readonly create: SettlementCoordinatorFactory['create']
+}
+export const MODEL_SETTLEMENT_FACTORY = SettlementCoordinatorFactoryService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
+    modelSettlementFactory: SettlementCoordinatorFactoryService
     modelRuntime: ModelRuntimeService
     modelRuntimeHostInputs: ModelRuntimeHostInputsService
     modelRuntimeExecutionSupport: ModelRuntimeExecutionSupportService

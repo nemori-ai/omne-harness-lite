@@ -64,3 +64,12 @@ export interface OriginalIssueAdmission {
     claim: OriginalIssueClaim,
   ) => Promise<{ readonly kind: 'launch' } | OriginalIssueFailure>
 }
+
+/** Native original owner selected by the trusted root. It does not own the physical model pool. */
+export interface OriginalIssueOwner extends OriginalIssueAdmission {
+  readonly participant: OriginalIssueParticipant
+  readonly prepareOriginal: (
+    input: OriginalIssueInput,
+  ) => { readonly ticket: OriginalIssueTicket } | OriginalIssueFailure
+  readonly close: () => Promise<{ readonly kind: 'released' } | { readonly kind: 'pending' }>
+}

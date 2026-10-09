@@ -34,6 +34,8 @@ export interface LocalSessionContext {
   readonly scope: SessionScope
   readonly ready: Promise<RuntimeContextOperations & ContextSourceRegistrations>
   readonly initializer: ContextSessionInitializer
+  /** This actual Context owner's lifetime identity. Null before ready or after withdrawal; not execution permission. */
+  readonly currentGeneration: () => string | null
   /** Withdraws new work synchronously. This action does not cancel process-owned model/tool executions. */
   readonly requestStop: () => void
   readonly closed: Promise<AssemblyCloseReport>

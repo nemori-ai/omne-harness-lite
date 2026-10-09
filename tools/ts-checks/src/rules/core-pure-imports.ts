@@ -127,6 +127,8 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
     'tool-definition',
   ],
   'tool-execution-runtime': [
+    // B01 SR6: original Tool participation uses public shared Unit types, not a storage backend.
+    'storage',
     // TE-25 uses the shared pure close-control types; this does not grant a Cordis face.
     'assembly-lifecycle',
     // Adopted r10 i1/b1: the public runtime factory receives the core RunnerServiceHost read port.

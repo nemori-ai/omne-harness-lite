@@ -7,9 +7,15 @@ import type {
   SourceToken,
   LogEntry,
   AppendResult,
+  AppendCondition,
+  OwnedLogEntry,
   SessionLog,
 } from '@omne-harness-lite/session-log'
-import type { SettlementMembersResult } from './log-codec-settlement.ts'
+import type {
+  SettlementMembersResult,
+  ModelLogSettlementTarget,
+  ModelLogSettlementCurrent,
+} from './log-codec-settlement.ts'
 import type { SettlementPrefix } from './index.ts'
 
 /** G28's owner interprets both axes from the exact owned prefix supplied by this coordinator. */
@@ -149,3 +155,56 @@ export type SettlementUnavailableReason =
 export type SettlementResult =
   | { readonly settled: SettlementComplete; readonly origin: 'appended' | 'recognized' }
   | { readonly unavailable: true; readonly reason: SettlementUnavailableReason }
+
+export interface SettlementRequest {
+  readonly target: ModelLogSettlementTarget
+  readonly current: ModelLogSettlementCurrent | null
+  /** Complete declared response. Snapshot is captured before any asynchronous work. */
+  readonly response: unknown
+  /** Durably hold each exact batch before its append. Absence preserves pre-ACK retention. */
+  readonly staging?: SettlementStaging
+}
+
+/** The exact batch one settlement is about to append, with its identity. */
+export interface SettlementStagedBatch {
+  readonly target: ModelLogSettlementTarget
+  readonly current: ModelLogSettlementCurrent | null
+  readonly entries: readonly OwnedLogEntry[]
+  readonly condition: AppendCondition
+}
+
+/** Hold only before an initial append or after proven zero write, never an unknown receipt. */
+export interface SettlementStaging {
+  readonly hold: (
+    batch: SettlementStagedBatch,
+  ) => Promise<{ readonly held: true } | { readonly unavailable: true }>
+}
+
+export interface SettlementHandle extends SettlementTask<SettlementResult> {}
+
+export interface SettlementCoordinator {
+  /**
+   * An unknown append keeps its registration and exact batch after the handle stops.
+   * A same-target settle recognizes that original through the same-source full prefix.
+   * Proven absence releases it and returns write_unknown before another submission.
+   */
+  readonly settle: (request: SettlementRequest) => SettlementHandle
+  /**
+   * Revoke admission, stop tasks, and resolve retained unknown originals.
+   * Complete only after actual stop and registration release. Failure retains ownership.
+   */
+  readonly close: () => Promise<void>
+}
+
+/** Original call resources. Construction cannot restore an expired binding or owner. */
+export interface SettlementCoordinatorBinding {
+  readonly binding: SettlementLogBinding
+  readonly owner: SettlementOwner
+  /** Absence prevents only new withRun settlement, never original-batch recognition. */
+  readonly run?: RunHistoryReader
+}
+
+/** A trusted root selects the implementation and its explicit policies. */
+export interface SettlementCoordinatorFactory {
+  readonly create: (binding: SettlementCoordinatorBinding) => SettlementCoordinator
+}

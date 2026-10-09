@@ -2,6 +2,11 @@
 
 本包提供本机持久准入、Session状态和共同事务的具体承载。Session公开操作形状及业务不变量归[定义拥有者](../../core/session-runtime/SPEC.md)；日志参加协议归[Session Log](../../core/session-log/SPEC.md)。本文只拥有此提供者的存储、可信构造、顺序和资源行为。当前可调用的具体接口由src/index.ts导出；未导出的服务不能从目录推定已经实现。
 
+公开五项Ingress集合、六种生命周期步骤及commitStep签名由core/session-runtime拥有。
+本包只消费这些类型，并在根入口重导出原有子集类型名，不另定义共享签名。
+当前仅有其明确限定实现，不宣称完整七项SessionRuntime或全量SessionCoordination服务已实现。
+独立Session Context构造器也不等于上述服务绑定。
+
 ## 准入来源与存储
 
 createLocalAdmission是可信装配入口。调用者借入全根AtomicStorage、实际治理核验端口和有界AdmissionPolicy；不得向普通客户端暴露核验结果登记或guard签发。核验端口必须固定原中心、账号、登录handle及精确目标。valid只证明本次新Run登录有效；memberValid另证明目标成员当前effective；memberRejected证明登录有效但目标成员无效；rejected只用于可信登录拒绝。网络不可达、来源不明和未知不能伪装成拒绝或有效。核验返回的声明同时要求其实际owned查询已经结束；意外异常保留源丢失的责任。
@@ -56,7 +61,7 @@ readIn和stageIn均先核当前资格，再查询原身份。持久键闭合包�
 
 ## 公开创建和输入入口
 
-createLocalSessionIngress是固定中心来源／租户的可信构造入口。它借入LocalAdmission、租户AtomicStorage、实际日志参加者及SessionBootstrap。operations提供五项SessionIngressOperations；tenancy提供可信装配的持久归属读面；lifecycle另提供五种协调步骤及原活体coordinationAuthority。operations和lifecycle均不是完整SessionRuntime或SessionCoordination。cancelRun、setArchived、完整结果采用和恢复接管仍未完成。构造返回的Access仅凭原对象身份有效；复制对象和旧代对象不授予访问。入口关闭撤新准入并等待已受理的公开操作，不关闭借入提供者。
+createLocalSessionIngress是固定中心来源／租户的可信构造入口。它借入LocalAdmission、租户AtomicStorage、实际日志参加者及SessionBootstrap。operations提供五项SessionIngressOperations；tenancy提供可信装配的持久归属读面；lifecycle另提供六种协调步骤及原活体coordinationAuthority。operations和lifecycle均不是完整SessionRuntime或SessionCoordination。cancelRun、setArchived、完整结果采用和恢复接管仍未完成。构造返回的Access仅凭原对象身份有效；复制对象和旧代对象不授予访问。入口关闭撤新准入并等待已受理的公开操作，不关闭借入提供者。
 
 日志构造端口接收本入口的LogAuthorityOperations，必须使用同一实际Storage和原授权端口。公共创建／受理／读取的日志／状态／回执资格只在本次真实G28回调的原StorageUnit内有效。原Run协调另按下节的持久grant限定同Session单元。withMember核当前成员，先授权后查公开对象和原回执；外部请求不能登记核验结果或签发guard。新输入可持久受理，但不由受理启动Run或执行模型；新Run仍必须另经fresh登录准入。登录到期不能取消既有Run。
 
@@ -74,7 +79,7 @@ readSession和readProgress在同原单元取得当前状态与真实SourceToken�
 
 ## 持久Run生命周期协调
 
-readWork是可信宿主的只读协调面，要求原coordinationAuthority及固定租户Scope。复制权限、跨租户、非法批量上限和关闭后的新读取均拒绝。它在同一实际StorageUnit读取已发布Session状态、按原顺序限定数量的pending位置和日志SourceToken，不消费资格、不建Run、不签发permit。活动原Run沿其持久grant读取，不因新登录准入关闭而停止；没有活动原Run时仍核当前成员。前置内部状态观察只用于选择授权路径，返回的三项数据必须来自最后同一个单元。未发布初始化返回unavailable，缺Session返回notFound，损坏原记录保留StorageDefect。借入者不得把完整协调快照通过普通用户协议输出。
+readWork的同Unit快照、原grant授权路径、失败及只读限制沿[共享工作读取协议](../../core/session-runtime/SPEC.md#可信工作读取与原run日志)。本提供者以实际StorageUnit读取原状态／pending／SourceToken。
 
 lifecycle.commitStep是可信宿主分面，接原coordinationAuthority、Scope、expectedSource及startRun／startAttempt／adoptInput／prepareCall／adoptResult／finish。普通CLI或协议body不得提供这项活体权限或permit。关闭等待已登记的协调工作，同时拒绝新工作；借入依赖仍归宿主。
 
@@ -110,15 +115,9 @@ sr_model_issue只索引原唯一claim对应的身份和真实日志SourceToken�
 
 ## 原Run日志借用
 
-runJournal.borrow是可信运行根的内部入口，接原coordinationAuthority、固定Scope及原Run身份。它先在实际Unit核完整持久Run grant及原ticket使用，再返回BorrowedRunJournal。不签发新执行资格，不发送模型或工具请求。普通客户端和可序列化配方不能得到借用或其中的函数。复制权限、其他租户、缺失Run拒绝；损坏grant按StorageDefect报告。
+原Run日志的授权、代际、withReadUnit、unknown及归还／排空沿[共享借用协议](../../core/session-runtime/SPEC.md#可信工作读取与原run日志)。本提供者在实际租户Unit核持久Run grant及原ticket使用，并授权原日志参加者。
 
-借用提供原Session的SessionLog及完整readPrefix，供原模型准备、结算和ACK按各自公开协议使用。每次读写都在实际租户Unit重新核原grant，再授权同Unit日志参加者；不借普通成员读取资格，不嵌套日志独立事务。完整前缀包含本Unit取得的真实SourceToken；按key或位置读取保留实际尾部。写入复制／校验输入并拒绝其他Session、租户和Run；attempt fence、tail condition和去重沿原日志拥有者判断。拒绝使单元回滚。原Run日志权限不替代最新permit、当前模型资格或唯一claim。
-
-withReadUnit只供可信宿主读取本Run的求值输入。每次调用在原租户单元重新核原持久grant及ticket使用，随后调用一次读回调，并返回该回调的原结果。回调不得发外部IO、写入数据或使Unit逃逸。它不重新查询登录或成员，不签发新Run、模型或工具执行资格。已有Run的输入读取因而不使用新会话的成员准入端口；当前模型权限和最新attempt仍在原发起点另核。该读面与日志借用共用在途上界和关闭排空；close后不调用新回调，存储暂不可用返回unavailable，原程序缺陷保持异常。
-
-借用generation是进程内生命周期对象，不是持久journalGeneration，不授予权限。currentGeneration在该借用可用时返回原对象，close同步将它变为null。maxInFlight同时限制持有的借用数量及每个借用的在途操作；预留先于异步核验，归还实际借用后才释放容量。maxRecordBytes约束写入批次。没有自动超时释放、替换或驱逐旧借用。
-
-Ingress close拒新借用和公共操作，但已经接受的借用继续允许原Run结算；Ingress必须等借用者明确close并排空实际单元后才报告关闭。可信根须先完成原模型／工具责任，再归还借用，最后释放Ingress及共享依赖。BorrowedRunJournal.close拒新操作，等待本借用的真实工作，保持原关闭结果；失败保留原异常及拥有者责任，不关闭借入Storage或日志。未知存储提交按SessionLog原协议返回unavailable；原模型拥有者仍按原批次认回，不能视为未发或换键重发。
+maxInFlight同时限制持有的借用数量及每个借用的在途操作；预留先于异步核验，归还实际借用后才释放容量。maxRecordBytes约束写入批次。没有自动超时释放、替换或驱逐旧借用。
 
 ## 原完整模型结果保管
 
@@ -126,13 +125,49 @@ Ingress close拒新借用和公共操作，但已经接受的借用继续允许�
 
 modelResults.store只接原coordinationAuthority、固定Scope和完整ModelResultInput。它复制无损JSON并核公开PendingModelResponse形状，要求原Run／attempt存在。原持久Run grant、Session原发起证明、实际model_call_dispatched中的call／response／dispatch及当前日志来源在同Unit核对；不把物理模型代际与原发起拥有者代际混为一项。终态Run及旧attempt结果仍可沿原grant保管，不重新检查新Run登录、不获得新permit。
 
-原结果行、完整Pending、原执行身份、ResultReceipt和result_custodied事实在同Unit提交；引用来源也必须参加这个Unit。摘要不能代替全文。保管回执的位置指向该实际事实，source保存原提交坐标。可信read和重放重新核原事实内容及原发起证明，损坏的已存关系为StorageDefect，不能冒充absent。读取不依赖已释放的原结果来源再次授权。
+原模型结果行、完整Pending、原执行身份、ResultReceipt和result_custodied事实在同Unit提交；引用来源也必须参加这个Unit。摘要不能代替全文。保管回执的位置指向该实际事实，source保存原提交坐标。可信read和重放重新核原事实内容及原发起证明，损坏的已存关系为StorageDefect，不能冒充absent。读取不依赖已释放的原结果来源再次授权。
 
 持久键包含Session、call、resultKey。同键同语义返回原全文及原回执；异语义或同call／response换resultKey为identityConflict，不增事实、不重保管引用。语义保留精确数字和数组顺序，只排除对象字段顺序。maxRecords按租户全库计，maxRecordBytes约束输入和保存全文；达界仍可认回已有结果，不自动删历史。
 
 来源拒绝或引用保管失败使整个Unit回滚，包括来源已暂存的引用。暂存开始前的存储不可用为unavailable；开始后提交结果不明返回unknownCommit，保留原Scope／call／resultKey，只按原身份认回，不允许适配器据此ACK或改键重发。意外来源／存储缺陷原样上抛。可靠custodied只证明本分面的完整保管，原模型适配还须满足能力拥有者的全部ACK条件。
 
 Ingress关闭同步拒新保管／读取，并等待已登记保管的真实Unit结束；不关闭借入原模型来源、日志或Storage。宿主必须保留这些依赖直到原工作结束。关闭不撤销已发模型效果，也不提前释放尚未确认的原结果。
+
+## 原工具结果保管与普通交付协议
+
+tool-result-types.ts只声明B01工具保管及普通交付的施工接口；当前Ingress尚未提供这两个分面。
+LocalToolResultCustody.store不要求最新AttemptPermit。它在实际Session Unit核原持久grant、
+工具原发起证明、完整终局的不可变日志坐标及ToolResultCustodySource证据。
+原Run终态和旧attempt仍可保管，不新查询登录、不补新attempt或IO权。
+原终局、账和DeliveryBasis保留在唯一Session Log；原文及所有必要引用继续由实际Tool结果库持久拥有。
+Session同Unit登记完整证据／原终局坐标、稳定resultKey、ResultReceipt及result_custodied，
+不另建工具终局库。语义摘要只用于认回，不能代替完整证据。
+来源核验及内容持续可取沿core/tool-execution-runtime的原结果来源承诺；
+外部不可变字节的先行提交不被表述为参加Session Unit。
+
+可靠store返回custodied；同Scope/call/resultKey及完整语义重放返回alreadyCustodied和同一原回执。
+同键异值或同终局换resultKey为identityConflict。调用方数据不是原执行证明。
+read核持久原终局、原发起、证据及回执关系，不依赖原job继续存在；坏关系上抛StorageDefect。
+新的当前读取授权仍须成立。缺行返回absent，读取来源故障不能冒充缺行。
+暂存前的存储不可用为unavailable；暂存后提交不明返回ToolResultUnknown并保同一原Scope/call/resultKey。
+unknown不授权交付确认、结果释放或换身份重发工具；实际原工作和引用仍由原拥有者保留。
+
+LocalToolResultDelivery.confirm只用于本期普通工具消息。输入为原custody witness、SourceToken、
+最新AttemptPermit、真实after_action结论keys、结果投影及完整ToolMessage。
+提供者核已持久原保管、当前原Run／attempt、所有真实结论／原pass及消息归因；
+conclusions是持久结论的精确键，不是客户端声明的“hook已通过”。
+若原delivery_ready已经存在，只认回其同一完整投影；异投影拒绝，不改作者原文、终局或账。
+同一个实际Unit中暂存尚缺的delivery_ready、实际messages子类型条目、delivery_confirmed及原结果采用步骤。
+delivery_confirmed内的message须与本批真实消息完全相同，消息position才作为messagePosition返回。
+提交后返回confirmed、原保管ResultReceipt及新SourceToken；重放在核同一完整批次后返回alreadyConfirmed，
+不会重复消息、费用或采用。当前段终态／旧permit拒绝新交付推进，但保管及原工具结果责任不消失。
+交付未知仍沿ToolResultUnknown认回同一批次，不从delivery_ready、通知或内存发送声称confirmed。
+本期不在此入口生成后台SystemReminderMessage，不把普通工具结果或attempt事实包装成提醒。
+confirm不是Model ACK，也不单凭确认宣称作者／writer已停止；原工具关闭仍需实际停止证明。
+
+E1验证真实共享SQLite、原Tool终局／结果库及Session：源和全引用完整性、外部不可变内容保留、
+旧attempt／终态保管、同键冲突、commit返回丢失、完整普通消息／confirmed／采用全批回滚和认回，
+原job关闭后的实际读取以及重复确认零新消息／费用。当前仅类型／行为承诺，不声称这些行为已通过。
 
 ## 持久归属与独立Session Context
 
@@ -141,6 +176,8 @@ tenancy.holdingTenant供可信资产／根配方初始化和真实归属读取�
 ./cordis的createLocalSessionContext是实际B2装配构造器。每次建立新的官方Cordis Context，以一个宿主fiber拥有本Session贡献，显式桥借入原Storage／Clock／SessionLogBacking／SessionAccess；不从进程root隐式寻找引用。运行对象留可信构造参数，插件配置为空严格对象，不写入可序列化树。应用通过runtimeContext参数选择尚未挂载的新提供者，传入其原plugin、ready、initializer及closeAdmission。构造器不选择或导入具体Runtime Context提供者，也不复制其journal／projection机制。每个Session须使用独立提供者代际；不能跨Session复用已挂载的工厂。
 
 宿主先等桥fiber实际激活，再安装Runtime Context子提供者；服务激活后仍须等该提供者的真实资源ready。ready返回宿主fiber取用的RuntimeContextOperations及SourceRegistrations，后者的effect归这个宿主fiber，不登记到进程root。私有initializer只接固定Scope；外来Session／租户拒绝，非法Scope拒绝。SessionAccess桥逐调用核固定Scope及原返回的身份归属；原日志borrow的append／readSince／readByKey也只接本Session。桥不签发权限，不接收body中的伪造品牌，不成为第二个日志拥有者。
+
+currentGeneration只观察这个实际Context拥有者的生命周期身份。构造时分配唯一身份；桥、提供者及真实资源全部ready且原fiber仍ACTIVE时才返回该身份。ready前、setup失败、fiber不再ACTIVE或requestStop后返回null。保留关闭和retryClose不恢复身份。它不等于日志、投影或贡献源的世代，不授执行权，也不代替Runtime Context逐调用资格核验。
 
 正式创建宿主须先取得实际合法定义／根配方及其Context seed，再调用此构造器，并在真实initializer返回applied后发布Session。这个构造器只保证Context承载和明确桥接，不证明调用者已经取得合法资产；受控seed验证不能完成正式资产来源验收。
 
@@ -184,7 +221,6 @@ journal.readPrefix只属于原工厂的可信宿主返回面，不是普通用�
 
 该读面返回完整授权日志，包含内部事实与能力数据。应用必须按用户展示承诺投影后才能输出，不得把原日志直接序列化发给普通客户端。读面不追加消息、创建Run、发起模型／工具或重复初始化。读取与其他原Ingress工作共用准入上界及关闭排空。
 
-
 ## 原模型结果的协调采用
 
 `lifecycle.commitStep(adoptResult)`要求真实最新AttemptPermit、原Run／attempt及已可靠保存的ResultReceipt。它在原协调StorageUnit中读取完整原结果及其持久发起证明，重新核原保管事实、Scope、原调用／结果身份和回执全文；不嵌套调用独立事务的modelResults.read。缺失、异回执或异Run／attempt返回retryFromFacts，复制或旧permit返回staleAttempt，终态拒绝新采用。
@@ -197,9 +233,112 @@ journal.readPrefix只属于原工厂的可信宿主返回面，不是普通用�
 
 ## 租户持久工作扫描
 
-可信根以原coordinationAuthority调用scanWork，按Session身份键集分页读取本租户active且仍有pending或活动Run的已发布Session。上界须为正整数且不超过原maxSessions；复制authority、非法游标或关闭后调用不能读取。实际同StorageUnit校验状态和原创建发布身份；坏记录不伪装为空页。满页返回最后身份作为next，非满页next为null，调用者据此回到起点。
+扫描语义、权限、分页及关闭沿[共享工作读取协议](../../core/session-runtime/SPEC.md#可信工作读取与原run日志)。本提供者采用Session身份键集分页，pageLimit不超过原maxSessions。`local_session_work_index`迁移增加tenant／lifecycle／session索引，不改写原状态迁移。
 
-扫描不消耗pending、不核发新permit、不补登录资格，也不授模型／工具IO。登录资格、原grant及最新栅栏仍在后续原协调操作中核验。`local_session_work_index`作为独立迁移增加tenant／lifecycle／session索引；原状态迁移不改写。分页扫描及其关闭排空归原Ingress生命周期，普通用户传输不暴露该端口。
+## 驱动模型输入借用
+
+### Cordis驱动插件的施工约定
+
+E1在本包`./cordis`实现公开`SessionDriver`插件；当前入口只提供SessionDriverConfig，尚无该插件。
+插件使用SessionDriverConfig，并以字面量inject数组引用Core的SESSION_DRIVER_STARTUP。
+可信root在插件加载前提供实际startup，选择同租户的完整纯函数输入及具体提供者。
+插件不自行寻找进程目录、部署资产、鉴权材料或邻包工厂，不从政策字段制造权限。
+Config及最终插件树只保存六项工程policy。
+插件创建并拥有本次启动的AbortSignal，将它传入startup.start；撤除时由插件终止该signal。
+可信root为startup绑定实际业务依赖。signal和这些活体依赖均不进入树。
+
+插件先登记撤除处理，再等待原start；只在原启动仍有效且实际control已返回后，
+以Core SessionDriverControlService子类发布同一control，不另写服务键。
+在途撤除、依赖换代、部分启动失败、晚到control及pending close沿Core启动承诺保留原责任。
+root须保留实际可用依赖，直到原closed；服务从Context不可见不证明原资源已经释放。
+旧实例有未完责任时，不能由新实例代关、夺用原claim或重新发起原调用。
+
+公开Ingress、生命周期、工作读取及Run日志按Core四个限定分面绑定实际同一Ingress。
+绑定不把窄分面声明为完整七项／八种服务，不在普通Session Agent Context提供协调权限。
+普通请求持有的是数据；endpoint通过可信原Access调用，服务可见性本身不授予资格。
+驱动插件归可信运行宿主，不放入普通Session Agent Context。
+运行中按会话装上的Agent插件、贡献源及事件按原Session独立Context处理，
+不能因同名源或事件漏到另一个Session，也不进入进程的两层插件树。
+过程性facts-changed只能提示重读原事实，不能推动状态或取得permit；事件失败不得改变已提交结果。
+实际动态绑定、贡献撤除、原工作排空及两个Session／tenant隔离均由E1验证，不能用配置校验替代。
+
+### 完整驱动构造的施工面
+
+LocalSessionDriverFactory.create的施工签名接LocalSessionDriverOptions及原启动signal，返回实际驱动control。
+实际createLocalSessionDriver和工作owner工厂仍属E1待实现入口；当前只导出类型，不提供占位运行函数。
+Options不含home、socket、命令、终端或整个attempt的configure回调。
+root只选择实际来源、Model／Tool提供者及显式工程政策；Session驱动复用core Agent Loop，
+负责扫描、原Run／attempt、日志借用、报告／HostInputs构造、原调用、保管、采用和适用ACK。
+它从Session事实和实际求值输入生成请求，不用root回调代行Loop，也不制造默认route、秘密、权限或预算。
+
+ingress必须是同租户的SessionDriverIngress，含实际工具support／保管／普通交付，
+现有窄LocalSessionIngress不能冒充完整施工输入。
+toolInvocation.support只给真实原coordinationAuthority，返回同租户的CoreTool原参加支持。
+每次admission按原participant.identity定位实际Scope、原持久prepare／StepReceipt／最新permit及当前资格，
+不能将一份prepare绑定到所有工具，也不能从“当前会话”全局变量取得身份。
+tool factory须在原同Unit支持下采用实际ToolRuntimeOriginalIssueFactory并返回同一原native runtime借用。
+不按调用或Run重建共享工具owner、重扫存续job或再次恢复作者调用栈。
+实际ready后才消费普通operations；原终局、交付及stopped保留到可靠结束，release只归还本次借用。
+Tool pool／环境等根资源不归driver关闭。静态可赋值不证明factory采用了support。
+
+Run source factory接原Scope及真实BorrowedRunJournal，返回显式原Scope／Run及同一原Run的求值输入、Context与世代、
+实际toolAccess、目录／秘密／工具来源、选择输入、历史／CallPresence及消息投影来源。
+来源不完整或代际不符返回unavailable，不补常量CurrentInputs、空history或“已恢复”。
+实际生产者仍按I02及各Core协议实现；该factory只包装这些真实来源，不把数据变成资格。
+driver先核返回Scope／Run与原journal一致、工具borrow的显式tenant与固定租户一致，再调用任何业务面。
+不符时停止采用并归还该实际借用；归还故障仍由同一factory保管，不隐去原错误。
+source.release只归还其求值／Context等装配借用，不代driver归还原journal；driver最后关闭该原journal。
+应用选来源提供者，不自行判断Run或构造整个执行段。
+driver自建原log binding／callAccess／identities，再经Model factory取得原Scope的普通操作。
+报告、assembly及Loop观察从这些真实源及同一完整prefix计算；取代、撤权或来源不可靠拒新推进。
+
+identity source按完整Scope、持久输入／结果位置、Run／attempt返回稳定原键。
+同一坐标重读不因时间、随机数或配置变化换key。工具callId沿实际ToolCallBlock，不能重新分配。
+native Model response／message identity仍沿其既有Core来源，不从consumer名构造Agent身份。
+model.original是实际CoreOriginalIssueOwner，须与Ingress原modelIssue参加者为同一拥有者；
+driver绑定prepareOriginal／同Unit admission／consume，不调用其独立admit来绕Session栅栏。
+物理executionSource、Model factory和实际facts须属同一原Model池；snapshot不是停止临界区证明。
+独立settlement factory按原Binding及实际Owner构造，Model SDK原ready关闭结算入口后仍能接续原批次。
+
+work与Ingress.workSettledIn是同一个实际SessionDriverWorkOwner，不能另造只看当前任务数的reader。
+begin先于原调用登记同一真实prepare并返回只由本owner发行的work token；异租户／复制token拒绝。
+complete只在实际原结果／必要引用已保管、适用交付／ACK可靠、原writer已停止后登记；
+它不能从段completion、空capture、日志无记录或observer.release推出这些保证。
+readIn在实际Unit核原Run持久工作及所有原责任；缺失来源、未知提交或无法核原连续性返回unavailable，
+已知仍有责任返回pending。只有可靠全结清才settled，不把空Map当恢复证明。
+release须等可靠Run finish及原日志／输入归还，不因complete或终局事实出现就删除原token。
+root先构造这个owned ledger，再把同一readIn给Ingress和同一owner给driver；不由CLI另写工作状态机。
+
+各factory先登记自己拥有的部分资源再异步取得来源；失败保原缺陷及收场责任，不能无句柄丢弃借用。
+构造关闭／晚到的原资源仍按Core startup与control承诺收场。driver留原责任，root留仍被借用的来源。
+E1须验证函数根与Cordis真实输入隔离、工作登记与finish竞争、暖态／重启unknown、原结算和ACK、
+工具原pool不重建、复制token拒绝、归还失败保留及pending显式续关；类型与选择核对不证明行为。
+
+本包公开`SessionDriverModelFactory`及`SessionDriverModelBorrow`作为可信根构造协议。
+它们不是新的Model投影服务；实际模型操作及HostInputs沿core/model-request-runtime的现有公开协议。
+尚无实际factory适配器、完整driver根函数或plugin绑定；这些类型不能当作已实现入口。
+
+Session驱动从真实原Scope／Run及日志借用构造HostInputs，应用根只选择实际Model提供者并装配这些输入。
+acquire须在返回前核完整输入及实际装配成功，返回普通ModelRuntimeOperations和本次装配的release。
+缺来源或未可靠就绪返回unavailable，不补造资格、历史、CallPresence或空操作面。
+它不分配Session／Run，不判断Loop，不发模型、执行工具或ACK。
+构造缺陷保留原异常；已分配但未交还的装配资源仍由factory收场，不能无句柄转移责任。
+
+Cordis根可用隔离输入fiber消费既有ModelRuntimeHostInputsService及ModelRuntimeService。
+函数根可选择既有实际ModelRuntime.project。两种路径均须保持同一物理Model与facts配对。
+调用者trace、隔离输入和权限连续性须用实际组合验证，不从创建fiber或类型一致推断。
+factory不进入普通Agent Context或可序列化配置；实际原Run、输入和借用也不进入宿主数据协议。
+
+ModelRuntimeHostInputOperations.capture的输入租约与本借用不同。
+输入租约核某次操作的当前性，本借用保留原输入装配及普通操作面，直到所有原使用者真实结束。
+release只归还本次装配资源，不能关闭借入物理池，也不证明模型执行、结算或ACK完成。
+归还失败保留同一个借用，后续显式归还继续原收场，不换输入或复活失效代际。
+driver仍有原工作时须保持所需借用；驱动撤除及pending沿[共享驱动控制](../../core/session-runtime/SPEC.md#驱动撤除与原责任)。
+
+验证义务：双Session的实际caller trace和输入隔离；原操作输入租约的失效／释放；
+函数根的真实Model／facts配对；构造失败收场；原结算／ACK后归还及归还失败保留；
+pending不提前撤掉输入；任何归还路径不关闭物理池。
+这些是E1必须实现和验证的义务，类型及出口检查不构成行为证据。
 
 ## 异步时间读取
 

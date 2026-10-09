@@ -36,6 +36,109 @@ TE-16 工具恢复不重建调用栈；非终局等待按连续性丧失收场�
 
 TE-17 精确实现登记不得覆盖；撤除只关闭新采用，旧 lease 不重绑。实际资源失效须显式失败。每次 submit 一次执行，批次次序属于上层；runtime 仍负责逐会话同工具并发额度。
 
+## Session原工具发起参加协议
+
+B01的Session消费采用`original-issue.ts`中的工具专有原发起协议。
+现有普通ToolRuntimeOperations／createToolRuntime不因这些类型存在而获得同Unit能力；
+真实提供者须实现和验证下述构造、参加和消费责任后，才能作为B01的原工具实例。
+本节不增加ExecutionSubmission字段，不改TE-1～TE-17，也不声明当前提供者已支持本节。
+
+### 原身份与可信构造
+
+ToolOriginalIssueIdentity指认原ref、origin、adoption、executionGeneration及工具原intended键。
+唯一执行身份仍是tenant/session/callId；executionGeneration区别拥有者，不允许各代各执行一次。
+原工具键与Session prepare位置不同，原完整意图／selected实现／输入／pass不能以身份或摘要替代。
+身份和expected原前缀须由native owner快照并冻结；TypeScript readonly不能代替运行时捕获。
+ToolOriginalIssueClaim只在原owner持有的活体映射及持久发起记录中认回，不从字段或序列化值造claim。
+
+ToolRuntimeOriginalIssueFactory.create同步返回同一个ToolRuntimeInstance；ready仍沿其原启动／恢复协议。
+它必须采用ToolRuntimeOriginalIssueDependencies中全部originalIssue资源，不能忽略扩展字段。
+函数类型可赋值或普通实例的方法存在不证明这项行为；B01根只能选择实际已验证的提供者。
+资源包括同一AtomicStorage、实际SessionLogParticipant／LogAuthority、同Unit当前资格及Session admission。
+Unit及Storage类型只依赖core/storage公开入口；本包不加载具体存储后端或实现事务调度。
+它们只由可信构造取得，不能来自普通submit body、JSON配置或普通Agent Context。
+提供者须核原日志、Session单元和工具实例的实际存储／归属配对；其他StorageUnit按缺陷拒绝。
+构造失败仍由factory收场已分配的原资源；成功后按原ToolRuntime关闭协议收场，不关闭借入依赖。
+选择及环境后端仍复用原native owner；不建立第二发送器。
+
+### 原意图与唯一claim
+
+native owner完成原权限、BeforeActions、路由互斥、完整输入和固定实现检查后，保留job及实现借用，
+再产生ToolOriginalIssueParticipant。participant不是任意用户回调，绑定该真实原owner及原意图。
+stageOriginalIn在传入的实际StorageUnit核原前缀／当前依据，暂存既有execution_intended及原工具发起记录。
+发起记录保存完整固定意图、原执行代际及claim的未消费／已消费状态，归工具拥有者维护。
+既有SessionLogParticipant.appendIn／readPrefixIn可作日志底座，但不能替代工具原job和claim。
+participant不独立提交、不调用作者、不关闭实现借用，不使Unit逃逸。
+participant.stopped只在该原job的实际任务／writer结束且本job借用已归还后完成，
+不因admission返回、结果终局、observer.release或另一Session空闲而完成。
+unknown、未确认终局或尚需交付时保持原责任；实际收场缺陷拒绝stopped并保留同一原owner。
+它只证明本job拥有的工作收场，不证明外部效果可逆或共享物理池关闭。
+回滚后产生的暂存claim不授启动权；已存在同输入只返回alreadyIssued，不分配新claim；异输入拒绝。
+
+admission.admitOriginal只能来自可信Session构造，在同Unit核原prepare、最新permit、当前资格及原来源，
+并调用该participant，统一提交Session证明、工具intended和唯一claim。
+只有真实commit后才返回issued；alreadyIssued只认回完整原身份，不取得第二启动权。
+失败全体回滚；事务开始后提交结果不明返回unknownCommit和完整原身份。
+unknown须保同一个job、claim、意图、实现及输入借用；一次缺席读取不能证明原事务以后不会提交。
+相同原身份查明提交，不换键、不换代际重发效果。
+
+### 原claim消费与收场
+
+consumeOriginal由原native owner请求；admission核该原claim并在实际Unit重新核最新permit及当前资格，
+调用participant.consumeOriginalIn暂存唯一消费，真正commit后才能返回launch。
+ToolOriginalIssueAuthority只核同Unit当前资格，不替代native的权限、token、BeforeActions、原输入和实现守卫。
+participant.consumeOriginalIn的新消费返回staged；admission.consumeOriginal仅在真实commit后返回launch。
+已消费只返回alreadyConsumed，不再次grant launch。
+消费未知不返回launch，保原claim并认回其实际状态；即使已确认消费也不能对新owner补签启动权。
+若仍存续的原owner认回已消费，且证明本次没有交付launch、作者未进入、没有原调用／writer在途，
+则关闭该job的作者进入门，沿既有native end登记`{outcome:'unavailable',reason:'original_consume_unconfirmed'}`，
+同原终局批次登记实际账及交付责任，继续原结果交付并归还实现／输入借用。
+这里没有实际调用作者，不生成执行成功，也不把数据消费确认记作物理效果或费用。
+这是仍存续job的未启动收场，不冒充连续性丧失；原调用已经进入时只接续原执行／终局／交付。
+认回消费、排空或终局写仍不可靠时继续保管同一job／claim／借用，不用超时、缺席或新身份假结清。
+原工具作者只由持有真实原claim的native owner进入，所有首次及existing分支均执行该守卫。
+再次进入原launch协调函数与再次调用作者不同；旧收场可继续，但不能因已存在intended再次调用工具。
+unknown后仍存续的原owner仅可在证明持有原未消费claim时继续，不能从alreadyIssued造claim。
+连续性丧失沿TE-8收场，不恢复作者调用栈。
+
+issued后撤权、旧permit或owner停止可以阻止consume，已确认queued意图及交付责任仍由原native owner收场。
+已提交事实不回滚；实现／资源／费用／结果／原交付沿原Tool责任保留。
+不把工具结果cast为模型Pending或使用模型ACK，Session结果保管也不等于工具delivery_confirmed。
+
+### 验证义务与当前差距
+
+当前仅定义参加／消费及构造协议，没有实际Tool／Session同Unit桥。
+E1须组合原native owner、Session及真实租户SQLite验证：完整意图与原claim／Session栅栏同提交、
+异租户／异Storage／旧permit拒绝、全批回滚、发起及消费commit返回丢失、原owner认回与新owner零launch、
+重复／复制／跨代claim最多一次作者调用、existing路径同守卫、issued后拒绝consume收场、实际关闭保留。
+额外验证消费实际提交但回执丢失的暖态：查明原消费后零作者调用，原unavailable终局／账／交付完整；
+终局写未知保原job，认回后不重复交付或补发作者。原作者在途的重放不能错误走未启动收场。
+原工具形式化唯一执行及恢复义务须增加本参加边界的反例与检查，不据类型通过视为已证明。
+E2才验证真实工具往返；结果保管／引用／原交付接缝须另外闭合，不据本节完成整条工具链。
+
+## 原工具结果存储
+
+### Session保管的原结果来源
+
+ToolResultCustodySource.verifyIn接实际Session Unit、原ToolOriginalIssueIdentity及精确ToolTerminalRecord。
+它核完整原终局、账、DeliveryBasis与原发起归因，并核实际StoredToolResult及全部必要引用。
+有作者返回时stored必须存在且与原返回一致；无作者返回的终局不伪造原文。
+references包含原文、raw、内嵌附件及投影中的所有外置引用，不以摘要或最后一条记录代替完整内容。
+verified只在所有引用的内容已耐久、完整且在Session保管责任期间持续可取时返回。
+只读来源不得发行claim、调用作者或把缺席当作已经释放。
+
+Session和Tool共享不可变Session Log，保管可以固定原terminal坐标与完整引用，毋须另建终局副本库。
+verifyIn的名字不证明外部字节参加了Session事务。
+若原结果库在另一个存储中，可信根须验证其不可变提交及独立于原job、observer和Run的存续责任。
+Session责任尚存时不得删除已交付的原文、raw或附件；归档、Run终态、owner撤除都不授权删除。
+不能仅凭“无默认过期”声称没有其他删除路径。
+来源故障或引用不完整返回unavailable／invalidSource，不报告可靠保管。
+Session同Unit登记保管后，后续读取不要求已关闭的job再核发资格；访问仍按各自读取授权。
+
+本协议只固定跨拥有者的核验输入与存续责任。实际来源、Session保管和原交付的写入者仍待实现。
+交付确认须指向同批中的实际消息事实；delivery_ready或Session保管凭证均不是delivery_confirmed。
+工具没有模型AcknowledgeCallInput，不能借模型ACK释放原工具责任。
+
 RS-1（core/tool-execution-runtime）结果引用只定位不授权。原文和附件字节先耐久再引用，未知写认回，同 itemKey 异内容拒绝。已存原文无默认过期，归档与 Run 结束不删除。
 
 RS-2（core/tool-execution-runtime）readResult 只读已确认终局的原结果；after_action 仅改消息投影，不能改原文、终局或账。声明存储须能由装配中的读取工具读取，否则产出工具不可用。
