@@ -1,3 +1,6 @@
+import { Context } from '@deepseek-ai/cordis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
+import { z } from 'zod'
 import {
   prepareToolJournalEntry,
   projectToolJournal,
@@ -33,6 +36,15 @@ import {
   type OriginalIssueInput,
   type OriginalIssueAuthority,
 } from '@omne-harness-lite/model-request-runtime'
+import {
+  SessionDriverStartupService,
+  SESSION_DRIVER_CONTROL,
+  SESSION_INGRESS,
+  SESSION_LIFECYCLE,
+  SESSION_WORK_READING,
+  SESSION_RUN_JOURNAL,
+} from '@omne-harness-lite/session-runtime/cordis'
+import { SessionDriver, createLocalSessionIngressBinding } from '../src/cordis.ts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -4843,6 +4855,7 @@ describe('driver complete original Model Run', () => {
     gate?: { readonly entered: () => void; readonly wait: Promise<void> },
     retainedIssue = false,
     toolCalls: Parameters<typeof nativeCallFixturePorts>[4] = [],
+    maxSettlementBytes = 65536,
   ) {
     let original!: OriginalIssueOwner
     let native: ReturnType<typeof createModelRuntime> | undefined
@@ -4959,7 +4972,17 @@ describe('driver complete original Model Run', () => {
       },
     }
     const ports = nativeCallFixturePorts(scope, f.runtime, f.storage, gate, toolCalls)
-    const construction = ports.configure(nativeModelConstruction(f.storage))
+    const baseConstruction = nativeModelConstruction(f.storage)
+    const construction = ports.configure({
+      ...baseConstruction,
+      settlementContention: {
+        ...baseConstruction.settlementContention,
+        limits: {
+          ...baseConstruction.settlementContention.limits,
+          retainedBytes: maxSettlementBytes,
+        },
+      },
+    })
     native = createModelRuntime(construction)
     const releaseModel = vi.fn(async () => {})
     const model: LocalSessionDriverOptions['model'] = {
@@ -5141,6 +5164,65 @@ describe('driver complete original Model Run', () => {
         }),
       },
     })
+  }
+  function toolSources(
+    base: SessionDriverRunSources,
+    table: ReturnType<typeof evaluatedDriverTool>,
+    actual: {
+      readonly actions: () => SessionDriverRunSources['actions']
+      readonly access: () => SessionDriverRunSources['toolAccess']
+    },
+  ): SessionDriverRunSources {
+    const sources: SessionDriverRunSources = Object.create(base)
+    Object.defineProperties(sources, {
+      actions: {
+        get: () => {
+          return actual.actions()
+        },
+      },
+      toolAccess: {
+        get: () => {
+          return actual.access()
+        },
+      },
+      evaluation: { value: { read: async () => ({ input: table.input }) } },
+      registry: {
+        value: {
+          list: async () => ({ entries: table.entries }),
+          refreshAvailability: async (
+            ...args: Parameters<SessionDriverRunSources['registry']['refreshAvailability']>
+          ) => {
+            const value = await base.registry.refreshAvailability(...args)
+            return 'report' in value
+              ? {
+                  report: {
+                    ...value.report,
+                    availability: table.entries.map(({ capability, availability }) => ({
+                      capability,
+                      availability,
+                    })),
+                    effectivePermissions: {
+                      [modelName(table.capability.name)]: table.permission,
+                    },
+                  },
+                }
+              : value
+          },
+        },
+      },
+      providers: {
+        value: {
+          ...base.providers,
+          tools: {
+            lookup: async (_session: unknown, _category: unknown, name: string) => {
+              const entry = table.entries.find(entry => modelName(entry.capability.name) === name)
+              return entry ? { entry } : { none: true }
+            },
+          },
+        },
+      },
+    })
+    return sources
   }
   function evaluatedDriverTool() {
     const root = { category: 'agent_definition', name: 'example:root' } as const
@@ -5842,55 +5924,14 @@ describe('driver complete original Model Run', () => {
         runner = await driverActionFixture(f.borrowed.journal, found.batch).open()
         return runner
       }
-      const sources: SessionDriverRunSources = Object.create(f.sources)
-      Object.defineProperties(sources, {
-        actions: {
-          get: () => {
-            if (!runner) throw new Error('actual Runner not acquired')
-            return runner.actions
-          },
+      const sources = toolSources(f.sources, table, {
+        actions: () => {
+          if (!runner) throw new Error('actual Runner not acquired')
+          return runner.actions
         },
-        toolAccess: {
-          get: () => {
-            if (!tool) throw new Error('actual Tool not acquired')
-            return tool.access
-          },
-        },
-        evaluation: { value: { read: async () => ({ input: table.input }) } },
-        registry: {
-          value: {
-            list: async () => ({ entries: table.entries }),
-            refreshAvailability: async (
-              ...args: Parameters<SessionDriverRunSources['registry']['refreshAvailability']>
-            ) => {
-              const value = await f.sources.registry.refreshAvailability(...args)
-              return 'report' in value
-                ? {
-                    report: {
-                      ...value.report,
-                      availability: table.entries.map(({ capability, availability }) => ({
-                        capability,
-                        availability,
-                      })),
-                      effectivePermissions: {
-                        [modelName(table.capability.name)]: table.permission,
-                      },
-                    },
-                  }
-                : value
-            },
-          },
-        },
-        providers: {
-          value: {
-            ...f.sources.providers,
-            tools: {
-              lookup: async (_session: unknown, _category: unknown, name: string) => {
-                const entry = table.entries.find(entry => modelName(entry.capability.name) === name)
-                return entry ? { entry } : { none: true }
-              },
-            },
-          },
+        access: () => {
+          if (!tool) throw new Error('actual Tool not acquired')
+          return tool.access
         },
       })
       const ingress: typeof f.f.runtime = Object.create(f.f.runtime)
@@ -6439,53 +6480,296 @@ describe('driver complete original Model Run', () => {
       diagnostic: vi.fn(),
     }
   }
-  it('public driver scans durable work and independently completes the next normal Model Run', async () => {
-    const f = await running()
-    expect(await createDriverModelRunTask(f.input).completion).toBe('released')
-    const identities = driverIdentityFixture()
-    identities.run.mockReturnValue({ startKey: 'public-run-2', attemptKey: 'public-attempt-2' })
-    identities.model.mockReturnValue({
-      prepareKey: 'public-model-prepare-2',
-      originalPosition: 'public-model-position-2',
-      resultKey: 'public-model-result-2',
-      adoptionKey: 'public-model-adopt-2',
-      call: unwrap(parseOpaqueIdentifier('public-model-call-2', 'ModelCallId')),
-      creationKey: unwrap(parseOpaqueIdentifier('public-model-create-2', 'CreationKey')),
-    })
-    await f.f.runtime.operations.submitInput(
-      f.f.runtime.access,
-      f.scope.session,
-      'public-input',
-      user('Public next round', 'public-input'),
-    )
-    const options = driverOptions(f)
-    const control = await createLocalSessionDriver(
-      { ...options, identities: { ...identities, modelContent: options.identities.modelContent } },
-      new AbortController().signal,
-    )
-    runResources.push(async () => {
+  it.each(['function', 'cordis'] as const)(
+    'public $0 driver scans durable work and independently completes the next normal Model Run',
+    async entry => {
+      const f = await running()
+      expect(await createDriverModelRunTask(f.input).completion).toBe('released')
+      const identities = driverIdentityFixture()
+      identities.run.mockReturnValue({ startKey: 'public-run-2', attemptKey: 'public-attempt-2' })
+      identities.model.mockReturnValue({
+        prepareKey: 'public-model-prepare-2',
+        originalPosition: 'public-model-position-2',
+        resultKey: 'public-model-result-2',
+        adoptionKey: 'public-model-adopt-2',
+        call: unwrap(parseOpaqueIdentifier('public-model-call-2', 'ModelCallId')),
+        creationKey: unwrap(parseOpaqueIdentifier('public-model-create-2', 'CreationKey')),
+      })
+      await f.f.runtime.operations.submitInput(
+        f.f.runtime.access,
+        f.scope.session,
+        'public-input',
+        user('Public next round', 'public-input'),
+      )
+      const options = driverOptions(f)
+      const construction = {
+        ...options,
+        identities: { ...identities, modelContent: options.identities.modelContent },
+      }
+      let plugin: import('@deepseek-ai/cordis').Fiber | undefined
+      let root: import('@deepseek-ai/cordis').Fiber | undefined
+      let bound: import('@deepseek-ai/cordis').Fiber | undefined
+      let original: import('@omne-harness-lite/session-runtime').SessionDriverControl | undefined
+      let control: import('@omne-harness-lite/session-runtime').SessionDriverControl
+      if (entry === 'function') {
+        control = await createLocalSessionDriver(construction, new AbortController().signal)
+      } else {
+        const ctx = new Context()
+        class Startup extends SessionDriverStartupService {
+          readonly start: import('@omne-harness-lite/session-runtime').SessionDriverStartup['start'] =
+            async (policy, signal) => {
+              original = await createLocalSessionDriver({ ...construction, policy }, signal)
+              return original
+            }
+        }
+        root = ctx.plugin(
+          definePlugin({
+            name: 'actual-public-driver-root',
+            Config: z.object({}).strict(),
+            apply(inner) {
+              new Startup(inner)
+            },
+          }),
+          {},
+        )
+        await root
+        bound = ctx.plugin(createLocalSessionIngressBinding(f.f.runtime), {})
+        await bound
+        expect(
+          await ctx.get(SESSION_INGRESS)!.readSession(f.f.runtime.access, f.scope.session),
+        ).toEqual(await f.f.runtime.operations.readSession(f.f.runtime.access, f.scope.session))
+        expect(
+          await ctx
+            .get(SESSION_WORK_READING)!
+            .readWork(Object.freeze({}) as typeof f.f.runtime.coordinationAuthority, f.scope, 1),
+        ).toEqual({ failure: 'denied' })
+        expect(ctx.get(SESSION_LIFECYCLE)).toBeDefined()
+        const borrowed = await ctx
+          .get(SESSION_RUN_JOURNAL)!
+          .borrow(f.f.runtime.coordinationAuthority, f.scope, f.prepared.preparation.run)
+        expect(borrowed).toHaveProperty('journal')
+        if ('journal' in borrowed) await borrowed.journal.close()
+        plugin = ctx.plugin(SessionDriver, options.policy)
+        await plugin
+        await vi.waitFor(() => expect(ctx.get(SESSION_DRIVER_CONTROL)).toBeDefined())
+        control = ctx.get(SESSION_DRIVER_CONTROL)!
+      }
+      runResources.push(async () => {
+        control.requestStop()
+        expect(await control.close()).toEqual({ closed: true })
+        await plugin?.dispose()
+        await bound?.dispose()
+        await root?.dispose()
+      })
+      await vi.waitFor(
+        async () => {
+          expect(f.ports.sends()).toBe(2)
+          expect(
+            await f.f.runtime.readWork(f.f.runtime.coordinationAuthority, f.scope, 1),
+          ).toMatchObject({ head: { run: { state: 'completed' } }, inputs: [] })
+          expect(f.sources.release).toHaveBeenCalledTimes(2)
+        },
+        { timeout: 10000, interval: 20 },
+      )
       control.requestStop()
       expect(await control.close()).toEqual({ closed: true })
+      if (entry === 'cordis') {
+        await plugin!.dispose()
+        await bound!.dispose()
+        expect(await original!.close()).toEqual({ closed: true })
+      }
+      expect(options.diagnostic).not.toHaveBeenCalled()
+      expect(
+        f.native.executionSource.snapshot(f.scope.session).every(row => row.copyReleased),
+      ).toBe(true)
+      expect(
+        await f.f.runtime.operations.readSession(f.f.runtime.access, f.scope.session),
+      ).toHaveProperty('kind', 'session')
+    },
+  )
+  it('public Cordis driver completes the actual native Tool round trip without caller turn execution', async () => {
+    const checked = judgeMessage({
+      id: 'public-tool-source',
+      type: 'assistant',
+      response: 'public-tool-response',
+      ending: 'complete',
+      createdAt: at,
+      blocks: [
+        {
+          id: 'public-tool-block',
+          callId: 'public-tool-call',
+          kind: 'tool_call',
+          tool: 'example__read',
+          complete: true,
+          arguments: {},
+          visibility: { toHuman: true, toModel: true },
+        },
+      ],
     })
-    await vi.waitFor(
-      async () => {
-        expect(f.ports.sends()).toBe(2)
-        expect(
-          await f.f.runtime.readWork(f.f.runtime.coordinationAuthority, f.scope, 1),
-        ).toMatchObject({ head: { run: { state: 'completed' } }, inputs: [] })
-        expect(f.sources.release).toHaveBeenCalledTimes(2)
+    if (!('ok' in checked) || checked.ok.type !== 'assistant')
+      throw new Error('controlled public Tool reply rejected')
+    const calls: import('@omne-harness-lite/content-blocks').ToolCallBlock[] = []
+    for (const block of checked.ok.blocks)
+      if (block.kind === 'tool_call' && block.complete) calls.push(block)
+    // This three-call prefix exceeded the original 64 KiB fixture budget (69,262 bytes).
+    const f = await running(undefined, false, send => (send === 2 ? calls : []), 131072)
+    expect(await createDriverModelRunTask(f.input).completion).toBe('released')
+    const table = evaluatedDriverTool(),
+      history = createSessionToolActionHistory({ readConclusions: readPassConclusions })
+    let journal: import('../src/run-journal-types.ts').BorrowedRunJournal | undefined
+    let runner: Awaited<ReturnType<ReturnType<typeof driverActionFixture>['open']>> | undefined
+    let tool: Awaited<ReturnType<typeof driverNativeToolFixture>> | undefined
+    let original: import('@omne-harness-lite/session-runtime').SessionDriverControl | undefined
+    const options = driverOptions(f)
+    const identities = {
+      ...options.identities,
+      run: () => ({ startKey: 'public-tool-run', attemptKey: 'public-tool-attempt' }),
+      model: (
+        _scope: SessionScope,
+        _run: string,
+        _attempt: import('@omne-harness-lite/call-accounts').AttemptId,
+        position: import('@omne-harness-lite/content-blocks').JsonNumber,
+      ) => ({
+        prepareKey: `public-tool-model:${position}`,
+        originalPosition: `public-tool-model-position:${position}`,
+        resultKey: `public-tool-model-result:${position}`,
+        adoptionKey: `public-tool-model-adopt:${position}`,
+        call: unwrap(parseOpaqueIdentifier(`public-tool-model-call:${position}`, 'ModelCallId')),
+        creationKey: unwrap(
+          parseOpaqueIdentifier(`public-tool-model-create:${position}`, 'CreationKey'),
+        ),
+      }),
+      tool: (
+        _scope: SessionScope,
+        _run: string,
+        _attempt: import('@omne-harness-lite/call-accounts').AttemptId,
+        _position: import('@omne-harness-lite/content-blocks').JsonNumber,
+        call: import('@omne-harness-lite/content-blocks').CallId,
+      ) => ({
+        prepareKey: `public-native:${call}`,
+        originalPosition: `tool-runtime/1/${JSON.stringify(['execution_intended', call])}`,
+        resultKey: `public-native-result:${call}`,
+        adoptionKey: `public-native-adopt:${call}`,
+      }),
+    }
+    const sources: LocalSessionDriverOptions['sources'] = {
+      acquire: async (_scope, current) => {
+        journal = current
+        return toolSources(await sourcesForRun(f, current), table, {
+          actions: () => {
+            if (!runner) throw new Error('actual public Runner not acquired')
+            return runner.actions
+          },
+          access: () => {
+            if (!tool) throw new Error('actual public Tool not acquired')
+            return tool.access
+          },
+        })
       },
-      { timeout: 10000, interval: 20 },
+    }
+    const tools: LocalSessionDriverOptions['tools'] = {
+      acquire: async support => {
+        if (!journal) throw new Error('actual public Run not acquired')
+        const read = await journal.readPrefix()
+        if ('failure' in read) throw new Error('actual public batch unavailable')
+        const prefix = {
+          scope: f.scope,
+          ownerGeneration: read.source.journalGeneration,
+          entries: read.entries,
+          tail: read.tail,
+        }
+        const reply = [...readDriverModelHistory(prefix).replies.values()].find(value =>
+          value.message.blocks.some(block => block.kind === 'tool_call'),
+        )
+        if (!reply) throw new Error('actual public Tool reply absent')
+        const found = readDriverToolBatch(prefix, reply.message.id)
+        if (found.kind !== 'batch') throw new Error('actual public Tool batch absent')
+        runner = await driverActionFixture(journal, found.batch).open()
+        tool = await driverNativeToolFixture({
+          storage: f.f.storage,
+          root: f.f.root,
+          ingress: f.f.runtime,
+          backing: f.f.log().backing,
+          journal,
+          history,
+          call: calls[0]!.callId,
+        })
+        const borrowed = await tool.factory.acquire(support)
+        f.installToolResultSource(tool.custody!.source)
+        return borrowed
+      },
+    }
+    const ctx = new Context()
+    class Startup extends SessionDriverStartupService {
+      readonly start: import('@omne-harness-lite/session-runtime').SessionDriverStartup['start'] =
+        async (policy, signal) => {
+          original = await createLocalSessionDriver(
+            { ...options, identities, sources, tools, policy },
+            signal,
+          )
+          return original
+        }
+    }
+    const root = ctx.plugin(
+      definePlugin({
+        name: 'actual-public-tool-root',
+        Config: z.object({}).strict(),
+        apply(inner) {
+          new Startup(inner)
+        },
+      }),
+      {},
     )
-    control.requestStop()
-    expect(await control.close()).toEqual({ closed: true })
-    expect(options.diagnostic).not.toHaveBeenCalled()
-    expect(f.native.executionSource.snapshot(f.scope.session).every(row => row.copyReleased)).toBe(
-      true,
-    )
+    await root
+    const bound = ctx.plugin(createLocalSessionIngressBinding(f.f.runtime), {})
+    await bound
     expect(
-      await f.f.runtime.operations.readSession(f.f.runtime.access, f.scope.session),
-    ).toHaveProperty('kind', 'session')
+      await ctx
+        .get(SESSION_INGRESS)!
+        .submitInput(
+          f.f.runtime.access,
+          f.scope.session,
+          'public-tool-input',
+          user('Use the Tool', 'public-tool-input'),
+        ),
+    ).toHaveProperty('kind', 'accepted')
+    const plugin = ctx.plugin(SessionDriver, options.policy)
+    await plugin
+    try {
+      await vi.waitFor(
+        async () => {
+          expect(f.ports.sends()).toBe(3)
+          expect(
+            await ctx
+              .get(SESSION_WORK_READING)!
+              .readWork(f.f.runtime.coordinationAuthority, f.scope, 1),
+          ).toMatchObject({ head: { run: { state: 'completed' } }, inputs: [] })
+          expect(f.sources.release).toHaveBeenCalledTimes(2)
+        },
+        { timeout: 15000, interval: 20 },
+      )
+      expect(tool!.author).toHaveBeenCalledOnce()
+      expect(await f.f.count('sr_tool_result')).toEqual({ n: 1 })
+      expect(await f.f.count('sr_tool_delivery')).toEqual({ n: 1 })
+      expect(JSON.stringify(f.ports.sentRequests[2]!.messages)).toContain(
+        'actual driver native result',
+      )
+      expect(options.diagnostic).not.toHaveBeenCalled()
+      expect(tool!.release).toHaveBeenCalledOnce()
+      await plugin.dispose()
+      expect(await original!.close()).toEqual({ closed: true })
+      expect(
+        f.native.executionSource.snapshot(f.scope.session).every(row => row.copyReleased),
+      ).toBe(true)
+    } finally {
+      original?.requestStop()
+      await plugin.dispose()
+      await original?.close()
+      await bound.dispose()
+      await root.dispose()
+      await tool?.close()
+      await runner?.close()
+    }
   })
   it('public driver aborted before startup does not scan, acquire or consume persistent input', async () => {
     const f = await running()

@@ -6,7 +6,7 @@
 
 本包提供Session操作的本机持久准入。根入口独立于Cordis；Session业务承诺由[公开定义](../../core/session-runtime/SPEC.md)拥有，提供者顺序及资源规则见[SPEC](SPEC.md)。
 
-根入口的`createLocalSessionDriver`提供正常Model／Tool路径：扫描持久Session工作并拥有原Run任务。调用者提供实际Run来源、模型服务、Clock及显式policy。停止撤销新工作；关闭等待实际扫描和原任务归还。Cordis驱动插件及生产来源组合仍须完成各自验证，不能据此声明完整产品或冷恢复已经交付。
+根入口的`createLocalSessionDriver`提供正常Model／Tool路径：扫描持久Session工作并拥有原Run任务。调用者提供实际Run来源、模型服务、Clock及显式policy。停止撤销新工作；关闭等待实际扫描和原任务归还。`./cordis`公开SessionDriver，采用显式policy及Core startup注入；生产来源组合仍须另验，不能据此声明完整产品或冷恢复已经交付。
 
 ## 使用
 
@@ -44,7 +44,7 @@ pnpm --filter @omne-harness-lite/session-runtime-local typecheck
 pnpm --filter @omne-harness-lite/session-runtime-local test
 ```
 
-测试使用真实SQLite及真实进程崩溃，不替代完整CLI、OpenRouter、工具或宿主恢复验收。Cordis绑定仍在施工，尚未写模板采用标识。
+测试使用真实SQLite及真实进程崩溃，不替代完整CLI、OpenRouter、工具或宿主恢复验收。本包尚未写模板采用标识。
 
 可信tenancy读面从实际持久预留读取固定Session归属，不使用开发seed。./cordis导出createLocalSessionContext，建立独立Context及显式共享桥。应用以runtimeContext参数提供尚未挂载的新Runtime Context提供者，构造器使用其原plugin、ready、initializer及closeAdmission，不选择具体实现。私有initializer只接原Session，停止等待实际工作及日志borrow释放；释放失败保留责任，可重试原close。正式宿主仍须取得实际合法配方及seed，再确认初始化后发布Session。 currentGeneration观察实际Context生命周期身份；就绪前或撤除后返回null，不授执行权。
 
@@ -91,3 +91,13 @@ createLocalSessionAccess借入真实当前authority、固定的已鉴权主体�
 `createSessionToolActionHistory`从同一完整prefix读取原模型工具批次、整批完成事实及原Native Tool路由。根提供成熟的Runner结论解释器。该函数不执行IO，也不授予执行权限。
 
 内部批次消费者调用实际Runner并核其原replay，可靠持久化完整原序后才返回执行locator。asked项保持pending；写入未确认不返回locator，认回原事实不重新dispatch。整批事实不进入模型消息。原Model任务现已通过原同Unit支持消费实际Native Tool。它保留未完成Model工作，逐项prepare，并持有原Native participant与真实stopped。未知结果继续保留原责任，归还本次借用不关闭共享池。每项真实stopped后先经实际不可变结果来源保管，再执行原after_action与普通交付。保管或交付未知保留原责任，不发下一Model。完整批次交付和Tool借用归还可靠完成后，先登记下一Model工作，再完成上一Model责任；Core工具和Runner事实读取器保留event与消息的区别。Cordis与正式生产来源组合仍须通过各自验证。见[SPEC](SPEC.md#原-run-的模型运行时接线)。
+
+## Cordis驱动与操作分面
+
+可信宿主先提供实际Core startup，再加载SessionDriver。插件在原启动返回后发布同一control。
+Fiber ACTIVE不证明驱动就绪。撤除终止启动准入，调用原stop和close；
+部分启动资源、pending及关闭缺陷仍由root保留。服务撤除或Cordis dispose完成不证明资源closed。
+
+createLocalSessionIngressBinding(original)以空Config将Core四个限定分面绑定到同一借入Ingress。
+绑定委派准入、生命周期、工作读取和Run日志借用，不授予资格，也不在撤除时关闭原Ingress。
+行为归[SPEC](SPEC.md#cordis驱动插件)。

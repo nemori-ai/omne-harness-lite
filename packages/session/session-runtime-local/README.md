@@ -4,7 +4,7 @@
 
 This package provides persistent local admission for Session operations. The root exports independent functions and trusted construction ports. Session behavior belongs to [the public definition](../../core/session-runtime/SPEC.md). Provider behavior belongs to [SPEC.md](SPEC.md).
 
-The root exports `createLocalSessionDriver` for normal Model and Tool paths. It scans durable Session work and owns original Run tasks. The caller supplies actual Run sources, Model services, Clock and explicit policy. Stop withdraws new work; close waits for the actual scan and task returns. The Cordis driver plugin and production-source composition still require their own verification.
+The root exports `createLocalSessionDriver` for normal Model and Tool paths. It scans durable Session work and owns original Run tasks. The caller supplies actual Run sources, Model services, Clock and explicit policy. Stop withdraws new work; close waits for the actual scan and task returns. The `./cordis` entry exports `SessionDriver` with explicit policy and Core startup injection. Production-source composition requires separate acceptance.
 
 `createSessionDriverWorkOwner` and `createSessionCallAccess` retain original work and enforce original Run reads. They do not grant new Model or Tool permission or provide execution recovery.
 
@@ -36,7 +36,7 @@ pnpm --filter @omne-harness-lite/session-runtime-local typecheck
 pnpm --filter @omne-harness-lite/session-runtime-local test
 ```
 
-The tests use real SQLite transactions and an actual process crash. They do not replace CLI, OpenRouter, tool, or complete recovery acceptance. The Cordis binding is under construction; the package does not yet carry a template adoption marker.
+The tests use real SQLite transactions and an actual process crash. They do not replace CLI, OpenRouter, tool, or complete recovery acceptance. The package does not yet carry a template adoption marker.
 
 The root also exports `createLocalSessionIngress` and `sessionRuntimeMigrations`.
 This function composes persistent creation, input admission, receipts, and reads.
@@ -91,3 +91,18 @@ The root exports `inspectSessionToolAdoption`, `sessionToolActionOwner`, and `Se
 `createSessionToolActionHistory` reads the original adopted Model tool batch, the complete action fact, and the native Tool route from one exact prefix. The root supplies the mature Runner conclusion interpreter. This function performs no IO and grants no execution permission.
 
 The internal batch consumer dispatches the actual Runner, checks its original replay, and persists the whole ordered batch before returning execution locators. An asked pass keeps the batch pending. An unconfirmed append returns no locator. Recognition uses the original fact without redispatch. The fact stays outside model messages. The Model task now consumes the actual native Tool through the original same-unit support. It keeps the model work token pending, prepares each original call, and retains the native participant and its actual stopped proof. Unknown outcomes keep the original work. Returning this borrow does not close the shared pool. Each stopped Tool result enters actual immutable custody before the original after-action pass and ordinary delivery. Unknown custody or delivery retains the original work without another model call. Confirmed whole-batch delivery returns the Tool borrow and registers the next model work before completing the preceding Model responsibility. Core Tool and Runner fact readers keep events out of model messages. Cordis and production-source composition remain separate verification gates. See [SPEC](SPEC.md#原-run-的模型运行时接线).
+
+## Cordis driver and operation faces
+
+The trusted host supplies the actual Core startup service before it loads `SessionDriver`.
+The plugin publishes the original control after startup returns.
+Fiber activation does not prove driver readiness.
+Removal aborts startup admission and calls the original stop and close.
+The root retains partial startup resources and pending or failed close responsibilities.
+Service removal and Cordis disposal do not prove that these resources are closed.
+
+`createLocalSessionIngressBinding(original)` binds four Core faces to the same borrowed Ingress.
+Its configuration is an empty object.
+The binding delegates admission, lifecycle, work reads and Run journal borrowing.
+It grants no access and does not close the borrowed Ingress on removal.
+See [SPEC.md](SPEC.md#cordis驱动插件) for the ownership rules.

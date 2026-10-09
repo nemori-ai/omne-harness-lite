@@ -10,7 +10,12 @@ import { RUNTIME_CONTEXT } from '@omne-harness-lite/runtime-context/cordis'
 import {
   checkSessionDriverPolicy,
   type SessionDriverPolicy,
+  type SessionDriverControl,
 } from '@omne-harness-lite/session-runtime'
+import {
+  SESSION_DRIVER_STARTUP,
+  SessionDriverControlService,
+} from '@omne-harness-lite/session-runtime/cordis'
 import { InvalidStateInput, stateScope } from './state-values.ts'
 import { installSessionBridges, sameScope } from './session-context-bridges.ts'
 import type { SessionContextOptions, LocalSessionContext } from './session-context-types.ts'
@@ -24,6 +29,38 @@ export const SessionDriverConfig: z.ZodType<SessionDriverPolicy> = z
     ctx.addIssue({ code: 'custom', message: 'Complete bounded Session driver policy required' })
     return z.NEVER
   })
+
+class DriverControl extends SessionDriverControlService {
+  readonly requestStop: SessionDriverControl['requestStop']
+  readonly close: SessionDriverControl['close']
+  constructor(ctx: Context, original: SessionDriverControl) {
+    super(ctx)
+    this.requestStop = () => original.requestStop()
+    this.close = () => original.close()
+  }
+}
+
+/** Trusted runtime host only; six policy fields carry no live references or grants. */
+export const SessionDriver = definePlugin({
+  name: 'session-driver',
+  inject: [SESSION_DRIVER_STARTUP],
+  Config: SessionDriverConfig,
+  apply(ctx, policy) {
+    const startup = ctx.sessionDriverStartup,
+      stop = new AbortController()
+    ctx.effect(() => () => stop.abort(), 'session-driver.admission')
+    const setup = ctx.effect(async () => {
+      const original = await startup.start(policy, stop.signal)
+      if (!stop.signal.aborted) new DriverControl(ctx, original)
+      return async () => {
+        original.requestStop()
+        await original.close()
+      }
+    }, 'session-driver.original-start')
+    // The startup root retains partial resources; failed setup publishes no control.
+    void Promise.resolve(setup).catch(error => ctx.logger.error(error))
+  },
+})
 
 /** Separate Session Context with explicit borrowed references. No parent process Context is shared. */
 export function createLocalSessionContext(requested: SessionContextOptions): LocalSessionContext {
@@ -131,3 +168,5 @@ export type {
   SessionContextProvider,
   LocalSessionContext,
 } from './session-context-types.ts'
+
+export { createLocalSessionIngressBinding } from './ingress-cordis.ts'

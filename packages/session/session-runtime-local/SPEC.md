@@ -252,9 +252,9 @@ journal.readPrefix只属于原工厂的可信宿主返回面，不是普通用�
 
 ## 驱动模型输入借用
 
-### Cordis驱动插件的施工约定
+### Cordis驱动插件
 
-E1在本包`./cordis`实现公开`SessionDriver`插件；当前入口只提供SessionDriverConfig，尚无该插件。
+本包`./cordis`公开`SessionDriver`插件和SessionDriverConfig。
 插件使用SessionDriverConfig，并以字面量inject数组引用Core的SESSION_DRIVER_STARTUP。
 可信root在插件加载前提供实际startup，选择同租户的完整纯函数输入及具体提供者。
 插件不自行寻找进程目录、部署资产、鉴权材料或邻包工厂，不从政策字段制造权限。
@@ -262,13 +262,20 @@ Config及最终插件树只保存六项工程policy。
 插件创建并拥有本次启动的AbortSignal，将它传入startup.start；撤除时由插件终止该signal。
 可信root为startup绑定实际业务依赖。signal和这些活体依赖均不进入树。
 
-插件先登记撤除处理，再等待原start；只在原启动仍有效且实际control已返回后，
+插件使用官方Cordis effect，先登记同步撤除处理，再启动异步原start。
+同步撤除处理终止原signal；异步effect的收场等待晚到control，并调用同一requestStop和close。
+Fiber ACTIVE只说明插件已加载，不证明异步驱动已就绪。部分启动失败不发布control；
+实际启动失败与原资源仍由可信root拥有，不能将Fiber状态或dispose完成视为closed。
+只在原启动仍有效且实际control已返回后，
 以Core SessionDriverControlService子类发布同一control，不另写服务键。
 在途撤除、依赖换代、部分启动失败、晚到control及pending close沿Core启动承诺保留原责任。
 root须保留实际可用依赖，直到原closed；服务从Context不可见不证明原资源已经释放。
 旧实例有未完责任时，不能由新实例代关、夺用原claim或重新发起原调用。
 
-公开Ingress、生命周期、工作读取及Run日志按Core四个限定分面绑定实际同一Ingress。
+`./cordis`的`createLocalSessionIngressBinding(original)`按Core四个限定分面绑定实际同一Ingress：
+SessionIngressService、SessionLifecycleService、SessionWorkReadingService及SessionRunJournalService。
+original是可信构造时借入的实际LocalSessionIngress，不进入可序列化Config；Config只接受空对象。
+分面委派原操作，不复制存储、日志或权限；撤除只移除分面，不关闭借入Ingress。
 绑定不把窄分面声明为完整七项／八种服务，不在普通Session Agent Context提供协调权限。
 普通请求持有的是数据；endpoint通过可信原Access调用，服务可见性本身不授予资格。
 驱动插件归可信运行宿主，不放入普通Session Agent Context。
