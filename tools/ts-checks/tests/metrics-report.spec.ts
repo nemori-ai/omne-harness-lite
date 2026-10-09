@@ -314,8 +314,11 @@ describe('摘要与审讯页', () => {
       changedEdgeLimit: 24,
     })
     expect(html).toContain('"page":{"changedEdgeLimit":24}')
-    expect(html).not.toMatch(/<script[^>]+src=|<link[^>]+href=|https?:\/\/(?!www\.w3\.org)/u)
-    expect(html.match(/<\/script>/gu)).toHaveLength(2)
+    // 内联的 React 与 React Flow 在错误信息和署名链接里带网址字符串，那不是外部资源；与架构视图的测试判同一组加载方式。
+    expect(html).not.toMatch(/<script[^>]+src=|<link[^>]+href=|fetch\(/u)
+    // React Flow 的 bundle、内联数据与页面脚本。
+    expect(html.match(/<\/script>/gu)).toHaveLength(3)
+    expect(html).toContain('window.StructureFlow')
     expect(html).toContain('一行 &lt;b&gt;')
     expect(html).toContain('工作树不干净')
   })
