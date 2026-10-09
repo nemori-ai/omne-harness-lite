@@ -20,3 +20,12 @@ if (process.argv.length === 3 && process.argv[2] === '--version') {
     )
   }
 }
+// A failed command can retain resources deliberately. Flush diagnostics before
+// ending the process; failure is not a claim that those resources closed cleanly.
+if (process.exitCode === 1) {
+  await Promise.all([
+    new Promise<void>(resolve => process.stdout.write('', () => resolve())),
+    new Promise<void>(resolve => process.stderr.write('', () => resolve())),
+  ])
+  process.exit(1)
+}

@@ -99,7 +99,7 @@ export function source(
   }
 }
 export async function host(
-  now: Parameters<typeof createRuntimeContext>[0]['now'] = () => at,
+  now: Parameters<typeof createRuntimeContext>[0]['now'] = async () => at,
   wrapStorage: (storage: Storage) => Storage = storage => storage,
 ) {
   const dir = await mkdtemp(join(tmpdir(), 'omne-context-')),

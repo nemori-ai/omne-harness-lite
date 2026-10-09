@@ -107,3 +107,13 @@ releaseCopies 对全部原代核同 log binding、真实 released/未 registered
 异步 `acquireCall` 已创建真实 consumer 却因原资格撤销或物理停止而不能交付时，获取操作须请求该原 consumer 释放并等待其真实 `stopped` 后返回失败。不得丢弃句柄后提前归还获取所借的宿主来源；成功交付后的责任仍归调用贡献，不停止共享执行。
 
 提供者 Config 中 tokenMargin.multiplier/reserveTokens 及 reservationWaitPolicy.maxWaitersPerCall/timeoutMs 唯一使用严格 JSON 数字词法字符串。前者保留 multiplier ≥ 1、非负整数 reserveTokens；后者保留正整数义务。非法词法或下界在取得资源前拒绝，无默认或数字兼容分支。提供者用 LosslessNumber 恢复精确值；装配方用公共 jsonNumberSource 编码，不能经 Number 舍入。独立函数的 JsonNumber 业务类型不变。
+
+## 外部内容保有
+
+`createModelCallContentStore` 默认拒绝外部附件引用。可选 `externalContent` 是受信构造端口，不是租户配置。提供者返回 `retained` 前，必须确认原内容中的全部外部原字节已耐久、不可变保有。保有须覆盖本调用内容的完整寿命及冷恢复。提供者可以按自身寿命保留更久。本存储的 ACK 清理只删除模型调用内容，不删除外部拥有者的字节。
+
+确认失败、异常或原日志代际已变时，不发布内容引用。确认任务归原存储的在途任务，close 须等其实际停止。原内容摘要、retention 同提交、publish permit 和 ACK 规则保持。提供者不支持某种外部内容时必须拒绝，不能仅凭 locator 存在宣告保有。
+
+`createModelRuntimeLocal(construction)` 将同一可选保有端口交给自建内容存储。可选 `decorateTransport` 只装饰原取得 lease 的 adapter。binding、signal、track、release 与原提供者责任保持。装饰同步抛错时归还该原 lease。两端口仅归可信装配闭包，不进入 Config 或普通 Context 服务，也不授予调用主体权限。装饰器必须保留原计划语义、取消与真实执行停止。
+
+装配创建时固定两端口。装饰只用于请求投影，保留原 send、read、projectOutput、品牌及借用语义。它不能取得独立资源或关闭权，不能启动返回任务未覆盖的工作。

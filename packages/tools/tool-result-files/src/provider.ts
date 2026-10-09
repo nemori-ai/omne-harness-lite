@@ -1,3 +1,4 @@
+import { setTimeout as yieldToTimers } from 'node:timers/promises'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import type { RecoveryAccess } from '@omne-harness-lite/execution-environments'
@@ -81,6 +82,8 @@ export async function openToolResultStorage(
     scope: SessionScope,
     operation: AccessOperation,
   ): Promise<ResultStoreFailure | undefined> {
+    // History can keep a chain of microtasks busy. Run due maintenance before current authorization.
+    await yieldToTimers(0)
     if (!active()) return reject('ownerStopped')
     const checked = await dependencies.authorization.authorize(access, scope, operation)
     if (!active()) return reject('ownerStopped')

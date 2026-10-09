@@ -1,3 +1,5 @@
+import { META_TOOL_DEFINITIONS } from './meta-tool-config.ts'
+import { resultReaderSelection } from './demo-result-reader.ts'
 import { randomBytes } from 'node:crypto'
 import {
   capabilityCanonicalString,
@@ -57,24 +59,26 @@ export const DEMO_TOOL_IMPLEMENTATIONS: readonly ToolImplementation[] = [echo, n
         : async () => randomBytes(16).toString('hex'),
   }),
 )
-export const DEMO_TOOL_ASSETS: readonly AssetDefinition[] = DEMO_TOOL_IMPLEMENTATIONS.map(
-  implementation => ({
-    id: implementation.asset,
-    capability: { category: 'tool', name: implementation.definition.name },
-    origin: 'official',
-    versions: [
-      {
-        number: 1,
-        content: {
-          category: 'tool',
-          definition:
-            implementation.definition as unknown as import('@omne-harness-lite/content-blocks').JsonValue,
-        },
-        publishedAt,
+export const DEMO_TOOL_ASSETS: readonly AssetDefinition[] = [
+  ...DEMO_TOOL_IMPLEMENTATIONS,
+  ...META_TOOL_DEFINITIONS,
+  resultReaderSelection,
+].map(implementation => ({
+  id: implementation.asset,
+  capability: { category: 'tool', name: implementation.definition.name },
+  origin: 'official',
+  versions: [
+    {
+      number: 1,
+      content: {
+        category: 'tool',
+        definition:
+          implementation.definition as unknown as import('@omne-harness-lite/content-blocks').JsonValue,
       },
-    ],
-  }),
-)
+      publishedAt,
+    },
+  ],
+}))
 export const DEMO_TOOL_HOLDINGS: readonly AssetHolding[] = DEMO_TOOL_ASSETS.map(asset => ({
   holder: { layer: 'factory' },
   capability: asset.capability,

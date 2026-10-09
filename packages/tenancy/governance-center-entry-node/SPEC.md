@@ -57,7 +57,7 @@ R1-T5 的严格 JSON 形状搬迁只允许 json.ts 从 json-shapes.ts 以具名�
 
 ## 维护策略与实际文件拥有者
 
-维护的 Metadata、BackupDescriptor、大小上限和文件名判据由 maintenance/backup-data.ts 唯一维护；原 MAGIC 文本仍相同。metadata-policy.ts 拥有原时间判据，metadata.ts 与 input-codec.ts 拥有原协议校验和字节编码。
+维护的 Metadata、BackupDescriptor、大小上限和文件名判据由 maintenance/backup-data.ts 唯一维护；当前备份 MAGIC 为 `OMNE-CENTER-BACKUP/2`。metadata-policy.ts 拥有原时间判据，metadata.ts 与 input-codec.ts 拥有原协议校验和字节编码。
 
 input、catalog、publication、online、offline 只消费 maintenance-ports.ts 的具名效果。实际文件/目录、同fd稳定检查和资源登记分别归 input-io、directory-io、file-io；assembly 唯一选择文件、codec、摘要和中心读取。useBackup 在同一次 files.useInput 回调内完成原 header、纯输入对象构造与业务调用，close 仍由真实资源拥有者和 session 负责。公开离线工厂的名字、选项、结果和错误不变；不增加其他导出路径。
 
@@ -103,7 +103,7 @@ opsVersion=1、operation与payload三成员严格必给，无默认/extra；任�
 - 两面serving、升级confirmed、实际唯一deployment源owner才准入。backup/status/onlyIfDue共一个slot，busy立即返回不排队；各owner从同一完整snapshot核原源，业务可继续写，不改安全/login/clock。
 - `onlyIfDue:false`每次新output，target-exists不改名重试。true先完整validate并reconfirm latest：age<20h not-due，整20h due，无latest才备份。只扫描直接32hex.omne-backup名字，先数全部匹配含坏/foreign；超过256先capacity，不递归/nonmatching不计。
 - 每个匹配名的symlink/nonregular、format/hash/owner不合格或完整foreign-center候选，invalidCount恰加一后排除，继续其余候选；symlink不follow，非匹配名不计。因IO无法判定时返回unavailable，容量故障为capacity，二者及持久确认故障不计invalidCount并终止。foreign center排除先于时间评价；本中心future startedAt为unavailable。latest取最大startedAt，同刻ASCII文件名最小。每个本中心候选固定fd/parent重新fsync；unknown不退回旧件或继续备份。24h整为current，超过为overdue；full-health不做reconfirm。
-- 封装为ASCII OMNE-CENTER-BACKUP/1换行、uint32BE头长、compact strict JSON metadata、原SQLite bytes，无tail/压缩/加密。header1–16384、content1–1GiB；sourceBuildId按BUILD_ID或dev null，迁移完整有序列表与副本实际登记相等，startedAt≤finishedAt，且该闭区间必须包含实际固定观察时刻。输入可合法字段排序但拒duplicate/extra/BOM/bad UTF-8，输出固定顺序；SHA只数据库段，不认证metadata或源。
+- 封装为ASCII OMNE-CENTER-BACKUP/2换行、uint32BE头长、compact strict JSON metadata、原SQLite bytes，无tail/压缩/加密。header1–16384、content1–1GiB；sourceBuildId按BUILD_ID或dev null，迁移完整有序列表与副本实际登记相等，startedAt≤finishedAt，且该闭区间必须包含实际固定观察时刻。输入可合法字段排序但拒duplicate/extra/BOM/bad UTF-8，输出固定顺序；SHA覆盖数据库段和规范Clock checkpoint后缀，不认证任意metadata或来源身份。
 - O_NOFOLLOW普通文件、current uid、group/other无权限。固定同fd读head及全部body，核exact length/full SHA，64KiB流inspection针对同复制字节；前后fstat比较dev/ino/size/mtime/ctime，变化为unavailable。恶意改后恢复不在此防篡改保证内。
 - same-FS exclusive hardlink发布：file fsync→link→parent fsync，EXDEV为unavailable。visible但未durable是outcome-unknown，保原output、不retry，不凭存在性推success。unknown优先cleanup failure；durable后cleanup失败为unavailable，保output/protected residual及安全位置，不称cancelled或no-effect。只有未发布且实际工作清理完成才cancelled，durable后迟cancel仍completed。
 
@@ -124,3 +124,13 @@ schema-inputs只有资源、定义、options、keywords与sourceFiles，不做�
 native CJS helper保持receiver/instance，text function不得拆取；src/dist用同owner，原unknown、copy projection、公共错误和exact postcheck保持。显式作者运行构造独立保有/释放，不新增module增长cache、Service或fiber。SC2仅允许现schema-inputs/routing只读形状及generated/ordinary.cjs例外。
 
 全部定义、原oracle布尔/errors、原始输入摘要、新鲜性失效、missing helper/graph/代表性五共同失败、确定性及无half fallback须验证。共享CB/messages图的扩散性质由实际共享owner承担，本包不能单独宣称全部exact/meta/ref/dynamicRef证明。规范资源、四个有限模型及适用前提见[验证入口](verification/README.md)。
+
+## 独立时钟的备份底线
+
+在线备份先固定业务快照，再取 finishedAt，随后等待 Clock.checkpoint。时钟必须提供此能力；缺失、不可用或底线早于 finishedAt 均拒绝备份。异步等待后的取消仍由原 session 核验，不能发布已取消的备份。
+
+格式 `omne-center-backup/2` 必须携带 clockCheckpoint。writtenAt 和 upperBound 是非负安全整数，且 finishedAt ≤ writtenAt ≤ upperBound。摘要依次覆盖原业务数据库字节和 checkpointDigestBytes 定义的规范时间底线后缀。旧版本不再作为当前输入接受。解析检查、摘要与离线验证必须覆盖底线，不能只验证数据库字节。
+
+restoreIsolated 保留完整封套并保持 businessOpen=false，不开启业务数据库或时钟。未来激活恢复库的拥有者必须先把该 checkpoint 交给 Clock 的初始化或 minimum 接纳入口，且不得降低目标已有的更高底线。离线复制完成不等于业务已经激活。
+
+本次仅迁移备份维护的形状与行为：schema/governance-maintenance.schema.json 为当前维护协议的唯一形状源，采用新 URI `https://omne-harness-lite.invalid/schema/governance-center-maintenance/2.json`。31条业务路由保留主线接续的Schema资源。构建图为维护定义选择本包新源，为业务定义选择各自当前拥有者的源；运行时仍使用按需加载且由 Node 缓存的预编译校验器。旧维护成功示例的 /1 元数据已退役，测试仍核对未变答复字节并拒绝旧元数据，新例子归 verification/maintenance-v2.json。

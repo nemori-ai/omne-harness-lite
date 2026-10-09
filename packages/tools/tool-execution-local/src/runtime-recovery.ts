@@ -30,7 +30,7 @@ const sameResource = (a: ManagedResource, b: ManagedResource) =>
 async function stopReceipt(input: Input, execution: ToolJournalHistory, report: Report) {
   const intent = execution.intent.value
   const scope = { tenant: intent.ref.tenant, session: intent.ref.session }
-  const now = input.dependencies.clock.now()
+  const now = await input.dependencies.clock.now()
   if (now === 'unavailable') throw new Error('Tool recovery clock unavailable')
   const status = report.status === 'confirmedStopped' ? 'confirmed' : 'unconfirmed'
   for (let attempt = 0; attempt < input.attempts; attempt++) {

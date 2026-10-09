@@ -334,7 +334,7 @@ async function fixture(v: Variant) {
       counts.capability++
       return { kind: 'accepted' }
     },
-    now: () => {
+    now: async () => {
       counts.now++
       return at
     },
@@ -1487,7 +1487,7 @@ describe('independent ownership and physical recovery', () => {
                     kind: 'output',
                     value: { kind: 'veto', reason: 'legal competitor' },
                   }),
-                  now: () => '2026-09-29T00:00:01Z',
+                  now: async () => '2026-09-29T00:00:01Z',
                 },
                 signal(),
               )

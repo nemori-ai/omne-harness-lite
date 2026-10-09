@@ -21,7 +21,7 @@ function demoConfig() {
   return createDemoConfig(
     '/nonexistent/official-models-demo',
     'official-models',
-    () => '2026-09-30T00:00:00Z',
+    async () => '2026-09-30T00:00:00Z',
     { multiplier: 1.1, reserveTokens: 256 },
     demoRetirement(),
   )

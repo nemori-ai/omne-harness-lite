@@ -94,6 +94,7 @@ async function deployment(label: string): Promise<AcceptanceConfig> {
   return {
     runId: label,
     databaseFile: join(dir, 'db.sqlite'),
+    initializeClock: true,
     keys,
     credentials: { cost: 1024, blockSize: 8, parallelization: 1, saltBytes: 16, keyBytes: 32 },
     identity: { credentialPolicy: { minLength: 8 }, unactivatedRetention: duration(60000) },
@@ -162,7 +163,7 @@ async function callConfig(
         retirement: demoRetirement(),
       },
       invocation: {
-        now: () => '2026-09-29T00:00:00Z',
+        now: async () => '2026-09-29T00:00:00Z',
         firstContentTimeoutMs: 15000,
         idleContentTimeoutMs: 120000,
         schedule(ms, callback) {

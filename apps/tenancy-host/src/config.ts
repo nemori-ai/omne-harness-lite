@@ -26,6 +26,7 @@ export const ENV = {
   copyNoticeTtlDefault: 'OMNE_TENANCY_COPY_NOTICE_TTL_DEFAULT',
   sharingInvitationTtlDefault: 'OMNE_TENANCY_SHARING_INVITATION_TTL_DEFAULT',
   clockReadyTimeout: 'OMNE_TENANCY_CLOCK_READY_TIMEOUT',
+  clockInitialize: 'OMNE_TENANCY_CLOCK_INITIALIZE',
   credentialPolicy: 'OMNE_TENANCY_CREDENTIAL_POLICY',
   entryListen: 'OMNE_TENANCY_ENTRY_LISTEN',
   entryTlsCertChain: 'OMNE_TENANCY_ENTRY_TLS_CERT_CHAIN_PEM',
@@ -60,6 +61,7 @@ export interface DeploymentParameterValues {
 
 export interface HostConfig {
   readonly storage: StorageSource
+  readonly initializeClock?: boolean
   readonly keys: DeploymentKeyPems
   readonly parameters: DeploymentParameterValues
   /** 不是部署参数，只给 OG。 */
@@ -192,6 +194,13 @@ function clockReadyTimeout(env: HostEnv): number {
   return value
 }
 
+function initializeClock(env: HostEnv): boolean {
+  const value = present(env, ENV.clockInitialize)
+  if (value === undefined || value === '0') return false
+  if (value === '1') return true
+  throw configFailure(ENV.clockInitialize, 'must be 0 or 1')
+}
+
 /** 读全部 config。次序固定，第一个不成立的项即失败；不碰数据、不起 Context 之外的任何东西。 */
 export async function readHostConfig(env: HostEnv): Promise<HostConfig> {
   const storage = storageSource(env)
@@ -220,6 +229,7 @@ export async function readHostConfig(env: HostEnv): Promise<HostConfig> {
     throw configFailure(ENV.backupDirectory, 'must be an absolute path')
   return {
     storage,
+    ...(initializeClock(env) ? { initializeClock: true } : {}),
     keys,
     parameters,
     teamCreationKeyRetention,

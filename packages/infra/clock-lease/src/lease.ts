@@ -27,7 +27,10 @@ export function leaseRow(row: {
   readonly lease_until: number | string | bigint
   readonly written_at: number | string | bigint
 }): LeaseRecord {
-  return { lease_until: epochMs(row.lease_until), written_at: epochMs(row.written_at) }
+  const result = { lease_until: epochMs(row.lease_until), written_at: epochMs(row.written_at) }
+  if (result.written_at < 0 || result.written_at > result.lease_until)
+    throw new TypeError('clock_lease bounds are malformed')
+  return result
 }
 
 export const clockLeaseMigration: Migration = {

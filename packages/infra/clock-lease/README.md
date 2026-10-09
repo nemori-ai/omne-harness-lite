@@ -2,181 +2,91 @@
 
 [中文](README_ZH.md)
 
-A unified clock service for operations that must use the same time source. It
-returns epoch milliseconds through `Clock.now(): Instant | 'unavailable'` and
-persists a lease before returning times within that lease. A backward wall-clock
-step produces `'unavailable'` until the clock catches up, rather than returning a
-smaller time.
+An asynchronous Clock provider with a durable time floor. `await clock.now()` returns
+current wall-clock milliseconds or `'unavailable'`. A backward clock step remains
+visible. The provider never invents a later time to hide it.
 
-This is currently a private, unpublished ESM workspace package. Use its public
-package import from a workspace consumer after building the checkout; an npm
-release is not available. See the [development guide](../../../docs/development.md)
-for the Node and pnpm toolchain. The provider uses the shared
-[storage protocol](../../core/storage/README.md); the examples use
-[storage-sql](../storage-sql/README.md) with disposable SQLite files.
+This private ESM package requires Node 24, Linux, and util-linux `flock` on PATH.
+It uses [storage-sql](../storage-sql/README.md) for asynchronous SQLite operations.
+See [SPEC.md](SPEC.md) for behavior and [the development guide](../../../docs/development.md)
+for workspace commands.
 
-## Public API
-
-| Purpose                    | Exports                                                                                               |
-| -------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Direct provider            | `LeaseClock`, `LeaseClockOptions`, `ClockLogger`                                                      |
-| Time-source injection      | `TimeSources`, `systemTimeSources`                                                                    |
-| Startup rollback detection | `ClockRollbackDetected`, `isRolledBack`                                                               |
-| Owned schema               | `clockMigrations`, `clockLeaseMigration`, `CLOCK_LEASE_TABLE`, `ClockLeaseTable`                      |
-| Lease settings             | `LEASE_WIDTH_MS` (10,000), `RENEW_PERIOD_MS` (3,333)                                                  |
-| Cordis integration         | `clockPlugin` (`./cordis`), `ClockConfig` (root), `CLOCK_SERVICE` (`offer-expiry/cordis`) (`'clock'`) |
-| Read-only validation       | `clockPreflight`, `CLOCK_PREFLIGHT_CHECK`, `clockSnapshotCheck`, `CLOCK_SNAPSHOT_TABLES`              |
-
-## Use the provider with a controlled time source
-
-This example runs real SQLite storage while controlling the time readings. It
-demonstrates the same rollback path used by the default system time source.
-`upgrade: false` is for this disposable fixture; production storage should use an
-owned upgrade guard.
+## Open an independent resource
 
 ```ts
-import assert from 'node:assert/strict'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { LeaseClock, clockMigrations, type TimeSources } from '@omne-harness-lite/clock-lease'
-import { composeMigrations } from '@omne-harness-lite/storage'
-import { openStorage, type SqlStorage } from '@omne-harness-lite/storage-sql'
+import { openLeaseClock } from '@omne-harness-lite/clock-lease'
 
 const directory = await mkdtemp(join(tmpdir(), 'omne-clock-example-'))
-let storage: SqlStorage | undefined
-let clock: LeaseClock | undefined
-let wall = 1_900_000_000_000
-const sources: TimeSources = { wall: () => wall, monotonic: () => 0n }
+const file = join(directory, 'clock.sqlite')
+const clock = await openLeaseClock({ file, initialize: {} })
 try {
-  storage = await openStorage({
-    dialect: 'sqlite',
-    file: join(directory, 'clock.sqlite'),
-    migrations: composeMigrations(clockMigrations),
-    upgrade: false,
-  })
-  clock = new LeaseClock({ storage, sources })
-  assert.equal(clock.now(), 'unavailable')
-  await clock.start()
-  assert.equal(clock.now(), wall)
-  wall -= 100
-  assert.equal(clock.now(), 'unavailable')
-  wall += 100
-  assert.equal(clock.now(), wall)
-  console.log(clock.now())
+  console.log(await clock.now())
+  console.log(await clock.checkpoint())
 } finally {
-  await clock?.close()
-  await storage?.close()
+  await clock.close()
   await rm(directory, { recursive: true, force: true })
 }
 ```
 
-The caller owns `start()` and `close()` when using `LeaseClock` directly. Close
-the clock before its storage. Closing stops new time reads and renewals, clears
-the timer, waits for its scheduled renewal, and attempts to reclaim its last lease. It does not
-close the supplied storage. Use one start/close lifecycle per instance and await
-manually invoked `renew()` before closing.
+Use `initialize` only for explicit creation or migration. Omit it when opening an
+existing resource. A missing manifest or initialized database causes startup to
+fail. Preserve the database and its `.clock.json` manifest together.
 
-## Provide the clock through Cordis
+`initialize.floor` imports a legacy or backup `ClockCheckpoint`. `minimum` adopts
+a backup floor when opening an existing resource. Both complete before the clock
+can return time. Adoption never reduces an existing higher floor.
 
-Merge the clock’s migrations with the application’s migrations, load storage,
-then load the clock. This example uses the adopted Cordis 4.0.4 lifecycle API and
-explicitly disposes the clock before storage.
+The resource owns its storage and closes it after the clock stops and drains.
+SQLite uses FULL durability. This depends on the storage stack honoring sync;
+the tests do not prove physical power-loss behavior.
+
+## Integrate through Cordis
+
+`clockPlugin` and `managedClockPlugin` are exported from `./cordis`. They supply
+`CLOCK_SERVICE` from `@omne-harness-lite/offer-expiry/cordis`.
 
 ```ts
-import assert from 'node:assert/strict'
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { Context, type Fiber } from '@deepseek-ai/cordis'
-import { clockMigrations } from '@omne-harness-lite/clock-lease'
-import { clockPlugin } from '@omne-harness-lite/clock-lease/cordis'
-import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
-import type { Clock } from '@omne-harness-lite/offer-expiry'
-import { composeMigrations } from '@omne-harness-lite/storage'
-import { createUpgradeGuard } from '@omne-harness-lite/storage-sql'
-import { storageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
-import { StorageStartup } from '@omne-harness-lite/storage/cordis'
-
-const directory = await mkdtemp(join(tmpdir(), 'omne-clock-plugin-example-'))
-const ctx = new Context()
-const guard = createUpgradeGuard()
-class Startup extends StorageStartup {
-  readonly migrations = composeMigrations(clockMigrations)
-  readonly upgrade = { checks: [], guard }
-}
-let storageFiber: Fiber | undefined
-let clockFiber: Fiber | undefined
-try {
-  await ctx.plugin(inner => {
-    new Startup(inner)
-  })
-  storageFiber = ctx.plugin(storageSqlPlugin, {
-    dialect: 'sqlite',
-    file: join(directory, 'clock.sqlite'),
-    startup: 'migrate',
-  })
-  await storageFiber
-  clockFiber = ctx.plugin(clockPlugin, {})
-  await clockFiber
-  const clock = ctx.get(CLOCK_SERVICE) as Clock | undefined
-  assert.ok(clock)
-  const now = clock.now()
-  assert.notEqual(now, 'unavailable')
-  const confirmation = await guard.confirm()
-  assert.ok(!confirmation.snapshotTaken || confirmation.snapshotRemoved)
-  console.log(now)
-} finally {
-  await clockFiber?.dispose()
-  await storageFiber?.dispose()
-  await ctx.fiber.dispose()
-  // Cordis logs disposer failures; retain the fixture if recovery is pending.
-  assert.equal(await guard.pending(), 'clear')
-  await rm(directory, { recursive: true, force: true })
-}
+const fiber = ctx.plugin(clockPlugin, {
+  file: '/private/deployment/clock.sqlite',
+  initialize: true, // Explicit first creation or legacy migration only.
+})
+await fiber
+const time = await ctx.clock.now()
 ```
 
-`clockPlugin` requires the `storage` service and supplies `clock` only after
-startup succeeds. Missing storage leaves its fiber pending; a startup exception
-fails loading. Provider replacement causes Cordis to dispose and reload dependent
-plugins. During operation, `'unavailable'` is a clock result: it does not remove
-the service or dispose the plugin. Disposing it removes the provided service and
-retained references return `'unavailable'`.
+The plugin injects `storage` for the legacy floor during explicit initialization.
+Include `clockMigrations` in the business migration history for this import.
+Running requests use the independent clock database. They can await the clock
+inside a business write transaction without waiting for that same write lock.
 
-## Availability and persistence boundaries
+`managedClockPlugin` also injects the assembly lifetime. It retains startup and
+real shutdown through that owner. Runtime unavailability does not dispose the
+plugin. Retained references return unavailable after shutdown begins.
 
-Each `now()` reads the current wall clock. Successful readings from one running
-instance never decrease and never exceed its known persisted lease. The
-`monotonic` injection field remains part of `TimeSources`, but this implementation
-does not use it to extrapolate time. `systemTimeSources` reads the environment;
-it does not guarantee that the environment’s clock is accurate.
+## Algorithm and boundaries
 
-At startup, a wall reading earlier than persisted `written_at` throws
-`ClockRollbackDetected`. After an unclean process restart, the clock can remain
-unavailable while the wall clock catches up to the old lease, normally up to the
-lease width. A forward step beyond the lease is unavailable until renewal;
-correcting that step backward can cause a much longer wait.
+Each request samples the wall clock. If the confirmed durable range still covers
+that sample, no database operation is needed. Otherwise, concurrent requests share
+one durable reservation and sample again after it completes. A request makes at
+most two reservations. There is no renewal timer.
 
-Scheduled renewal failures are reported through `logger` and `onRenewFailure`.
-A temporary storage failure can exhaust the lease; a `StorageDefect` latches the
-clock unavailable and stops its timer. Explicit `renew()` failures reject to its
-caller. Lease-reclamation failures during close are reported through the same
-diagnostics. Callers must handle `'unavailable'` using their operation’s failure
-policy and keep issuance and expiry checks on the same clock.
+`LEASE_WIDTH_MS` is 10,000. After an unclean restart, the clock can wait until the
+wall clock reaches the previous upper bound. A wall time before the previous
+persisted write causes `ClockRollbackDetected`. Storage defects latch the instance.
+Temporary failures preserve its confirmed bound.
 
-The restart guarantee depends on the persisted lease surviving. SQLite’s default
-`synchronous: 'normal'` does not promise survival of recent commits after an OS
-crash or power loss. `full` strengthens durability only when the storage stack
-honors synchronization requests; physical power-loss behavior has not been
-verified. This provider gives neither a real-time accuracy bound nor ordering
-across independently running clock instances or distributed nodes. It owns one
-storage-wide lease row, with no tenant-specific clock identity; applications own
-tenant isolation and consumer policy.
+`LeaseClock` remains available for callers that own a dedicated Storage. These
+callers own start, exclusion, durability, and storage shutdown. Do not give it the
+business database. `TimeSources` controls readings for tests; its monotonic member
+is not used to extrapolate wall time.
 
-`clockPreflight()` provides a read-only check for migration startup: absent table
-or row passes, and a definite rollback refuses. `clockSnapshotCheck` checks a
-SQLite snapshot’s clock table and persisted floor; it does not authorize reopening
-an application from a snapshot.
+`clockPreflight` and `clockSnapshotCheck` inspect the legacy business table.
+They cannot replace the independent checkpoint in a current backup. The backup
+consumer must require `Clock.checkpoint` and preserve the exported floor.
 
-For package development, run this member's `build`, `typecheck`, and `test`
-scripts. Lease timing is fixed in this version; `ClockConfig` accepts only `{}`.
+Run this member's `build`, `typecheck`, and `test` scripts. The direct constructor,
+Cordis service, native resource lifecycle, and backup consumer require separate
+validation.

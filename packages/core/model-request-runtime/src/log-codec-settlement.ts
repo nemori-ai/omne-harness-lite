@@ -65,6 +65,13 @@ export type InspectSettlementMembersInput =
       readonly mode: 'write'
       readonly candidates: readonly OwnedLogEntry[]
     })
+/** Pure, read-only checks against one owned complete prefix. No authority or resource lease. */
+export interface ModelLogReadInspector {
+  readonly entries: readonly InspectedModelLogEntry[]
+  inspectSettlementMembers(
+    input: Pick<SettlementInputBase, 'target' | 'anchors' | 'current'>,
+  ): SettlementMembersResult
+}
 export type SettlementMemberReason =
   | 'input'
   | 'prefix'
@@ -102,6 +109,9 @@ function inconsistent(reason: SettlementMemberReason): SettlementMembersResult {
 }
 function undetermined(reason: SettlementMemberReason): SettlementMembersResult {
   return Object.freeze({ undetermined: true, reason })
+}
+function validSettlementTarget(target: ModelLogSettlementTarget): boolean {
+  return identity(target.call) && identity(target.response) && positiveInteger(target.dispatch)
 }
 function validDisposition(value: unknown): value is ReplyDisposition {
   return responseShape('ReplyDisposition', value).valid
@@ -208,18 +218,25 @@ function dropParameters(
   return true
 }
 
+function responseIndex(captures: readonly CapturedModelLogValue[]) {
+  const indexed = new Map<string, CapturedModelLogValue | false>()
+  for (const captured of captures) {
+    const id = captured.response?.id
+    if (id !== undefined) indexed.set(id, indexed.has(id) ? false : captured)
+  }
+  return indexed
+}
 function purpose(
   captured: CapturedModelLogValue,
-  captures: readonly CapturedModelLogValue[],
+  responses: ReadonlyMap<string, CapturedModelLogValue | false>,
 ): ModelLogPurpose | null {
   if (captured.category === 'record') return { kind: 'record' }
   if (captured.category === 'response') return { kind: 'response' }
   const message = captured.message
   if (message === null || message.type === 'system') return null
   if (message.type !== 'assistant') return { kind: 'message' }
-  const responses = captures.filter(item => item.response?.id === message.response)
-  const response = responses[0]
-  return responses.length === 1 && response !== undefined
+  const response = responses.get(message.response)
+  return response !== undefined && response !== false
     ? { kind: 'persistedMessage', response }
     : null
 }
@@ -501,10 +518,11 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
     const captured = capturePrefixEntries(input)
     if (!('ok' in captured)) return captured
     const { capturedEntries, captures } = captured.ok
+    const responses = responseIndex(captures)
     const messages: LoggedMessage[] = []
     const entries: InspectedModelLogEntry[] = []
     for (const { value, captured } of capturedEntries) {
-      const usage = purpose(captured, captures)
+      const usage = purpose(captured, responses)
       if (usage === null) return inconsistent('message')
       const inspected = inspectModelLogEntry({
         session: input.session,
@@ -761,13 +779,10 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
     input: InspectSettlementMembersInput,
     entry: OwnedLogEntry,
     captured: CapturedModelLogValue,
-    capturedCandidates: readonly Member[],
     messagePrefix: readonly LoggedMessage[],
+    responses: ReadonlyMap<string, CapturedModelLogValue | false>,
   ): OwnedLogEntry | undefined {
-    const usage = purpose(
-      captured,
-      capturedCandidates.map(item => item.captured),
-    )
+    const usage = purpose(captured, responses)
     if (usage === null || !tenantIdEquals(entry.tenant, input.tenant)) return undefined
     const ownedShell: ModelLogShell = {
       tenant: entry.tenant,
@@ -797,13 +812,14 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
     capturedCandidates: readonly Member[],
   ): Member[] | undefined {
     const members: Member[] = []
+    const responses = responseIndex(capturedCandidates.map(item => item.captured))
     const messagePrefix: LoggedMessage[] = all.flatMap(item =>
       item.captured.message !== null && item.captured.message.type !== 'system'
         ? [item.captured.message]
         : [],
     )
     for (const { entry, captured } of capturedCandidates) {
-      const prepared = prepareCandidate(input, entry, captured, capturedCandidates, messagePrefix)
+      const prepared = prepareCandidate(input, entry, captured, messagePrefix, responses)
       if (prepared === undefined) return undefined
       members.push({ entry: prepared, captured })
     }
@@ -811,15 +827,17 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
   }
 
   function inspectOwnedMembers(input: InspectSettlementMembersInput): SettlementMembersResult {
-    if (
-      !identity(input.target.call) ||
-      !identity(input.target.response) ||
-      !positiveInteger(input.target.dispatch)
-    )
-      return inconsistent('prefix')
+    if (!validSettlementTarget(input.target)) return inconsistent('prefix')
     const prefix = fullPrefix(input)
     if (!('ok' in prefix)) return prefix
-    const all = prefix.ok
+    return inspectFromPrefix(input, prefix.ok)
+  }
+
+  function inspectFromPrefix(
+    input: InspectSettlementMembersInput,
+    all: readonly InspectedModelLogEntry[],
+  ): SettlementMembersResult {
+    if (!validSettlementTarget(input.target)) return inconsistent('prefix')
     const anchors = ownedAnchors(input, all)
     if (anchors === undefined) return inconsistent('anchor')
     const { dispatched, opened, intent } = anchors
@@ -842,12 +860,54 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
     if (members === undefined) return inconsistent('entry')
     return association(input, members, all, dispatched, opened, intent)
   }
+
+  function createReadInspector(
+    supplied: CompletePrefixInput,
+  ): { readonly ok: ModelLogReadInspector } | SettlementMembersResult {
+    const copied = copyJsonValue(supplied)
+    if (
+      'failed' in copied ||
+      !object(copied.ok) ||
+      !object(copied.ok.prefix) ||
+      !Array.isArray(copied.ok.prefix.entries)
+    )
+      return inconsistent('input')
+    const input = copied.ok as unknown as CompletePrefixInput
+    const tenant = parseTenantId(input.tenant)
+    if (!('ok' in tenant)) return inconsistent('input')
+    const prefix = fullPrefix(input)
+    if (!('ok' in prefix)) return prefix
+    const entries = Object.freeze(prefix.ok)
+    return Object.freeze({
+      ok: Object.freeze<ModelLogReadInspector>({
+        entries,
+        inspectSettlementMembers(value) {
+          const current = ownCurrent(value.current)
+          if (!('ok' in current)) return current
+          return inspectFromPrefix(
+            {
+              ...input,
+              tenant: tenant.ok,
+              mode: 'read',
+              target: value.target,
+              anchors: value.anchors,
+              current: current.ok,
+            },
+            entries,
+          )
+        },
+      }),
+    })
+  }
   function copyEntry(entry: OwnedLogEntry): JsonValue | undefined {
     const copied = copyJsonValue(entry)
     return 'ok' in copied ? copied.ok : undefined
   }
 
-  return { inspectSettlementMembers, inspectCompletePrefix: fullPrefix }
+  return { inspectSettlementMembers, inspectCompletePrefix: fullPrefix, createReadInspector }
 }
-export const { inspectSettlementMembers, inspectCompletePrefix: inspectCurrentModelLogPrefix } =
-  createSettlementCodec(currentCodecDomain)
+export const {
+  inspectSettlementMembers,
+  inspectCompletePrefix: inspectCurrentModelLogPrefix,
+  createReadInspector: createModelLogReadInspector,
+} = createSettlementCodec(currentCodecDomain)

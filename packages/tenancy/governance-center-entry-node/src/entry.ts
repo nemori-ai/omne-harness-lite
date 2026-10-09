@@ -30,9 +30,9 @@ import { ClientFace } from './transport/client-face.ts'
 /** 等钟可读时的轮询间隔。 */
 const CLOCK_POLL_MS = 100
 
-function readClock(clock: Clock): Instant | undefined {
+async function readClock(clock: Clock): Promise<Instant | undefined> {
   try {
-    const now = clock.now()
+    const now = await clock.now()
     return now !== 'unavailable' && Number.isSafeInteger(now) ? now : undefined
   } catch {
     return undefined
@@ -49,26 +49,39 @@ function waitForClock(
   timeoutMs: number,
 ): Promise<Instant | 'timeout' | 'disposed'> {
   return new Promise(resolve => {
+    let settled = false
     let tick: NodeJS.Timeout | undefined
     const deadline = setTimeout(() => {
+      settled = true
       clearTimeout(tick)
       resolve('timeout')
     }, timeoutMs)
-    const attempt = () => {
+    const attempt = async () => {
       if (!isCurrent()) {
+        clearTimeout(deadline)
+        settled = true
+        resolve('disposed')
+        return
+      }
+      const now = await readClock(clock)
+      if (settled) return
+      if (!isCurrent()) {
+        settled = true
         clearTimeout(deadline)
         resolve('disposed')
         return
       }
-      const now = readClock(clock)
       if (now !== undefined) {
         clearTimeout(deadline)
+        settled = true
         resolve(now)
         return
       }
-      tick = setTimeout(attempt, CLOCK_POLL_MS)
+      tick = setTimeout(() => {
+        void attempt()
+      }, CLOCK_POLL_MS)
     }
-    attempt()
+    void attempt()
   })
 }
 
@@ -141,10 +154,10 @@ class EntryRuntime {
   startOpening(): void {
     if (this.#disposing || this.#face.gate !== 'closed' || this.#openDeadline !== undefined) return
     this.#openDeadline = setTimeout(() => this.#abandonOpening(), this.#clockReadyTimeoutMs)
-    this.#tryOpen()
+    void this.#tryOpen()
   }
 
-  #tryOpen(): void {
+  async #tryOpen(): Promise<void> {
     this.#openTick = undefined
     // 每一拍先核：本 fiber 已撤或闸已不是 closed ⇒ 停止，不开门、不发通知
     if (!this.accepting || !this.#current() || this.#face.gate !== 'closed') {
@@ -152,9 +165,18 @@ class EntryRuntime {
       return
     }
     // 独立装配的 EntryOpening.wait 可能已兑现，续延可能先于 fiber 进入 ACTIVE：等它就绪再开
-    const now = this.#dependencies.isReadyToOpen() ? readClock(this.#clock) : undefined
+    const now = this.#dependencies.isReadyToOpen() ? await readClock(this.#clock) : undefined
+    if (
+      !this.accepting ||
+      !this.#current() ||
+      this.#face.gate !== 'closed' ||
+      this.#openDeadline === undefined
+    )
+      return
     if (now === undefined) {
-      this.#openTick = setTimeout(() => this.#tryOpen(), CLOCK_POLL_MS)
+      this.#openTick = setTimeout(() => {
+        void this.#tryOpen()
+      }, CLOCK_POLL_MS)
       return
     }
     this.#stopOpening()

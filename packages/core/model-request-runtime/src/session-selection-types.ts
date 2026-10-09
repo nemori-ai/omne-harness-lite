@@ -22,7 +22,7 @@ export interface SessionModelSelectionInput {
   /** Interpret the actual complete prefix using the adopted projection implementation. */
   readonly projection: (prefix: SettlementPrefix) => Promise<SelectionProjection>
   readonly compatible: SelectionCompatibility
-  readonly now: () => string
+  readonly now: () => Promise<string>
   readonly diagnostic: (event: SessionSelectionDiagnostic) => void
   readonly onDiagnosticFailure: () => void
 }

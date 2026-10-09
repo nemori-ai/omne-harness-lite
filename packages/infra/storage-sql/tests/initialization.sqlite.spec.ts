@@ -1,4 +1,4 @@
-import { DatabaseSync } from 'node:sqlite'
+import { AsyncSqliteDatabase } from '../src/sqlite/async-database.ts'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -11,14 +11,14 @@ describe('partial SQLite handle initialization', () => {
     async role => {
       const directory = mkdtempSync(join(tmpdir(), 'omne-sql-init-'))
       const driver = new NodeSqliteDriver({ file: join(directory, 'db.sqlite'), role })
-      const handles: DatabaseSync[] = []
-      const exec = DatabaseSync.prototype.exec
-      const fault = vi.spyOn(DatabaseSync.prototype, 'exec').mockImplementationOnce(function (
-        this: DatabaseSync,
-      ) {
-        handles.push(this)
-        exec.call(this, 'SELECT * FROM deliberately_missing_table')
-      })
+      const handles: AsyncSqliteDatabase[] = []
+      const exec = AsyncSqliteDatabase.prototype.exec
+      const fault = vi
+        .spyOn(AsyncSqliteDatabase.prototype, 'exec')
+        .mockImplementationOnce(async function (this: AsyncSqliteDatabase) {
+          handles.push(this)
+          await exec.call(this, 'SELECT * FROM deliberately_missing_table')
+        })
       try {
         await expect(driver.init()).rejects.toThrow()
         expect(handles).toHaveLength(1)
@@ -36,14 +36,14 @@ describe('partial SQLite handle initialization', () => {
     const driver = new NodeSqliteDriver({ file: join(directory, 'db.sqlite'), role: 'read' })
     await driver.init()
     const held = await driver.acquireConnection()
-    const exec = DatabaseSync.prototype.exec
-    const handles: DatabaseSync[] = []
-    const fault = vi.spyOn(DatabaseSync.prototype, 'exec').mockImplementation(function (
-      this: DatabaseSync,
-    ) {
-      handles.push(this)
-      exec.call(this, 'SELECT * FROM deliberately_missing_table')
-    })
+    const exec = AsyncSqliteDatabase.prototype.exec
+    const handles: AsyncSqliteDatabase[] = []
+    const fault = vi
+      .spyOn(AsyncSqliteDatabase.prototype, 'exec')
+      .mockImplementation(async function (this: AsyncSqliteDatabase) {
+        handles.push(this)
+        await exec.call(this, 'SELECT * FROM deliberately_missing_table')
+      })
     try {
       for (let i = 0; i < 3; i += 1) await expect(driver.acquireConnection()).rejects.toThrow()
       expect(handles).toHaveLength(3)

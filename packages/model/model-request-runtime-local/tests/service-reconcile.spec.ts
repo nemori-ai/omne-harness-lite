@@ -583,7 +583,7 @@ describe('v17 conditional Run cold recovery', () => {
         custody: storeUnavailableCustody(),
         contention: policy(),
         scheduler: noWaitScheduler,
-        now: () => '2026-09-29T00:00:03Z',
+        now: async () => '2026-09-29T00:00:03Z',
         run(prefix, run, originalAttempt) {
           expect(prefix.binding.session).toBe(runSession)
           expect(run).toBe('reconcile-run')
@@ -657,7 +657,7 @@ describe('S-33 retained recovery ownership', () => {
         custody: storeUnavailableCustody(),
         contention: policy(),
         scheduler: noWaitScheduler,
-        now: () => '2026-09-27T00:00:03Z',
+        now: async () => '2026-09-27T00:00:03Z',
         diagnostic() {},
         recovery: {
           async authorize() {
@@ -705,7 +705,7 @@ describe('S-33 retained recovery ownership', () => {
           custody: storeUnavailableCustody(),
           contention: policy(),
           scheduler: noWaitScheduler,
-          now: () => '2026-09-27T00:00:03Z',
+          now: async () => '2026-09-27T00:00:03Z',
           diagnostic() {},
           recovery: {
             async authorize() {
@@ -777,7 +777,7 @@ describe('S-33 retained recovery ownership', () => {
         custody: storeUnavailableCustody(),
         contention: policy(),
         scheduler: noWaitScheduler,
-        now: () => '2026-09-27T00:00:03Z',
+        now: async () => '2026-09-27T00:00:03Z',
         diagnostic() {},
         recovery: {
           async authorize() {
@@ -871,7 +871,7 @@ describe('S-33 retained recovery ownership', () => {
           custody: storeUnavailableCustody(),
           contention: { ...policy(), limits: { ...policy().limits, concurrent: 1 } },
           scheduler: noWaitScheduler,
-          now: () => '2026-09-27T00:00:03Z',
+          now: async () => '2026-09-27T00:00:03Z',
           diagnostic() {},
           recovery: {
             async authorize() {
@@ -948,7 +948,7 @@ describe('S-33 retained recovery ownership', () => {
           custody: storeUnavailableCustody(),
           contention: { ...policy(), limits: { ...policy().limits, concurrent: 1 } },
           scheduler: noWaitScheduler,
-          now: () => '2026-09-27T00:00:03Z',
+          now: async () => '2026-09-27T00:00:03Z',
           diagnostic() {},
           recovery: {
             async authorize() {
@@ -1011,7 +1011,7 @@ describe('S-33 retained recovery ownership', () => {
           custody: storeUnavailableCustody(),
           contention: policy(),
           scheduler: noWaitScheduler,
-          now: () => '2026-09-27T00:00:03Z',
+          now: async () => '2026-09-27T00:00:03Z',
           diagnostic() {},
           recovery: {
             async authorize() {
@@ -1101,7 +1101,7 @@ describe('S-33 retained recovery ownership', () => {
           contention: policy(),
           scheduler: noWaitScheduler,
           // Each reconstruction would observe a different end time.
-          now: () => `2026-09-27T00:00:0${++clock}Z`,
+          now: async () => `2026-09-27T00:00:0${++clock}Z`,
           diagnostic() {},
           recovery: {
             async authorize() {
@@ -1160,7 +1160,7 @@ describe('S-33 retained recovery ownership', () => {
           custody: storeUnavailableCustody(),
           contention: policy(),
           scheduler: noWaitScheduler,
-          now: () => '2026-09-27T00:00:03Z',
+          now: async () => '2026-09-27T00:00:03Z',
           diagnostic() {},
           recovery: {
             async authorize() {
@@ -1226,7 +1226,7 @@ describe('S-33 noRun recovered full-prefix read', () => {
           custody: storeUnavailableCustody(),
           contention: policy(),
           scheduler: noWaitScheduler,
-          now: () => '2026-09-27T00:00:03Z',
+          now: async () => '2026-09-27T00:00:03Z',
           diagnostic() {},
           diagnosticCollector,
           recovery: {
@@ -1342,7 +1342,7 @@ describe('S-33 noRun recovered full-prefix read', () => {
           custody: storeUnavailableCustody(),
           contention: policy(),
           scheduler: noWaitScheduler,
-          now: () => '2026-09-27T00:00:03Z',
+          now: async () => '2026-09-27T00:00:03Z',
           diagnostic() {},
           recovery: {
             async authorize() {
@@ -1400,7 +1400,7 @@ describe('S-33 noRun recovered full-prefix read', () => {
         custody: storeUnavailableCustody(),
         contention: policy(),
         scheduler: noWaitScheduler,
-        now: () => '2026-09-27T00:00:03Z',
+        now: async () => '2026-09-27T00:00:03Z',
         diagnostic() {},
         recovery: {
           async authorize() {
@@ -1490,7 +1490,7 @@ describe('S-33 noRun recovered full-prefix read', () => {
           custody: storeUnavailableCustody(),
           contention: policy(),
           scheduler: noWaitScheduler,
-          now: () => '2026-09-27T00:00:03Z',
+          now: async () => '2026-09-27T00:00:03Z',
           diagnostic() {},
           recovery: {
             async authorize() {

@@ -9,10 +9,11 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import {
   inspectSettlementMembers,
+  createModelLogReadInspector,
   modelLogJsonEqual,
   captureModelLogValue,
   type InspectSettlementMembersInput,
-} from '@omne-harness-lite/model-request-runtime'
+} from '../src/index.ts'
 import type { LogEntry } from '@omne-harness-lite/session-log'
 import {
   anchors,
@@ -101,7 +102,95 @@ function expectRefused(input: InspectSettlementMembersInput) {
   const result = inspectSettlementMembers(input)
   expect(result).not.toHaveProperty('completeMembers')
   expect(result).not.toHaveProperty('absent')
+  const reader = createModelLogReadInspector(input)
+  const reused = 'ok' in reader ? reader.ok.inspectSettlementMembers(input) : reader
+  expect(reused).not.toHaveProperty('completeMembers')
+  expect(reused).not.toHaveProperty('absent')
 }
+it('rejects invalid settlement identities before looking up anchors', () => {
+  const input = originalInput()
+  const reader = createModelLogReadInspector(input)
+  if (!('ok' in reader)) throw new Error('complete prefix expected')
+  for (const target of [
+    { ...input.target, call: '' },
+    { ...input.target, response: '' },
+    { ...input.target, dispatch: 0 },
+  ]) {
+    const selected = { ...input, target }
+    expect(inspectSettlementMembers(selected)).toEqual({ inconsistent: true, reason: 'prefix' })
+    expect(reader.ok.inspectSettlementMembers(selected)).toEqual({
+      inconsistent: true,
+      reason: 'prefix',
+    })
+  }
+})
+it('rejects an invalid tenant before constructing a read inspector', () => {
+  const input = originalInput()
+  expect(
+    createModelLogReadInspector({ ...input, tenant: {} as unknown as typeof input.tenant }),
+  ).toEqual({ inconsistent: true, reason: 'input' })
+})
+it('rejects an invalid current message identity on every snapshot use', () => {
+  const input = originalInput()
+  const reader = createModelLogReadInspector(input)
+  if (!('ok' in reader)) throw new Error('complete prefix expected')
+  expect(
+    reader.ok.inspectSettlementMembers({
+      ...input,
+      current: { messageId: '', disposition: 'persisted' },
+    }),
+  ).toEqual({ inconsistent: true, reason: 'input' })
+})
+it('rejects two response captures for one persisted message', () => {
+  const input = originalInput()
+  const original = input.prefix.entries.find(entry => modelCategory(entry.payload) === 'response')!
+  const entries = [
+    ...input.prefix.entries,
+    { ...original, position: input.prefix.entries.length + 1, dedupeKey: 'duplicate-response' },
+  ]
+  const duplicate = { ...input, prefix: { entries, tail: entries.length } }
+  expect(createModelLogReadInspector(duplicate)).toEqual({
+    inconsistent: true,
+    reason: 'message',
+  })
+})
+it('reuses one owned prefix for independent settlement targets without changing the single-read results', () => {
+  const input = originalInput()
+  const reader = createModelLogReadInspector(input)
+  expect(reader).toHaveProperty('ok')
+  if (!('ok' in reader)) throw new Error('complete prefix expected')
+  for (const target of [
+    input.target,
+    { ...input.target, response: 'unrelated' },
+    { ...input.target, dispatch: 2 },
+    { ...input.target, call: '' },
+  ]) {
+    const selected = { ...input, target }
+    expect(reader.ok.inspectSettlementMembers(selected)).toEqual(inspectSettlementMembers(selected))
+  }
+  expect(Object.isFrozen(reader.ok.entries)).toBe(true)
+  expect(Object.isFrozen(reader.ok.entries[0])).toBe(true)
+})
+it('keeps the original inspected prefix after the caller replaces its entries and scope', () => {
+  const input = { ...originalInput() }
+  const expected = inspectSettlementMembers(input)
+  const reader = createModelLogReadInspector(input)
+  if (!('ok' in reader)) throw new Error('complete prefix expected')
+  const selected = { target: input.target, anchors: input.anchors, current: input.current }
+  input.prefix = { entries: [], tail: 0 }
+  input.session = 'another-session'
+  expect(reader.ok.inspectSettlementMembers(selected)).toEqual(expected)
+  expect(inspectSettlementMembers(input)).not.toHaveProperty('completeMembers')
+})
+it.each([null, {}, { tenant, session, prefix: {} }])(
+  'rejects malformed read snapshot input %j',
+  input => {
+    expect(createModelLogReadInspector(input as never)).toEqual({
+      inconsistent: true,
+      reason: 'input',
+    })
+  },
+)
 describe('D088 complete association prior to production gates', () => {
   it('accepts write-before-position structure without requiring a candidate R in the prefix', () => {
     const original = anchors()

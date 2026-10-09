@@ -90,7 +90,9 @@
     "@omne-harness-lite/account-registration-sequential": "workspace:*",
     "@omne-harness-lite/session-runtime": "workspace:*",
     "@omne-harness-lite/session-log-sql": "workspace:*",
-    "@omne-harness-lite/model-message-projection": "workspace:*"
+    "@omne-harness-lite/model-message-projection": "workspace:*",
+    "@omne-harness-lite/meta-shell": "workspace:*",
+    "@omne-harness-lite/meta-files": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

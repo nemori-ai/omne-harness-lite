@@ -103,7 +103,7 @@ export interface DemoRunnerServiceHostDependencies {
     ) => Promise<DemoRunnerExternalExecution | { readonly unavailable: true }>
   }
 
-  readonly now: () => string | { readonly unavailable: true }
+  readonly now: () => Promise<string | { readonly unavailable: true }>
   /** The application-selected local Run chain; request values alone are not a source. */
   readonly selectedRun: (
     session: string,

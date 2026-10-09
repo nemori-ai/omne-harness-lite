@@ -64,7 +64,7 @@ test('the injected clock controls publication; an unavailable clock adds no dura
   const parsed = instantFromRfc3339(at)
   if (!('ok' in parsed)) throw new Error('clock fixture invalid')
   let available = true
-  const h = await managedHost({ now: () => (available ? parsed.ok : 'unavailable') })
+  const h = await managedHost({ now: async () => (available ? parsed.ok : 'unavailable') })
   try {
     await h.binding.ready
     await h.binding.initializer.initializeContextSession(scope, seed)

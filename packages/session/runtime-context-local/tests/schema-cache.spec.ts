@@ -23,7 +23,7 @@ test('fixed codec loads on first validation and reuses the native module cache',
     const dir = await mkdtemp(join(tmpdir(), 'omne-context-cache-'));
     const storage = await openStorage({dialect:'sqlite',file:join(dir,'context.sqlite'),synchronous:'full',migrations:composeMigrations([...api.runtimeContextMigrations, ...sessionLogMigrations]),upgrade:false});
     const log = openSqlSessionLog({storage,authority:{storage,authorize:async()=>({kind:'denied'}),authorizeEnumeration:async()=>({kind:'denied'})},operationLimit:8});
-    const owner = api.createRuntimeContext({log,storage,access:{authorize:async()=>({kind:'rejected',reason:'notAuthorized'})},now:()=> '2026-10-06T00:00:00Z'});
+    const owner = api.createRuntimeContext({log,storage,access:{authorize:async()=>({kind:'rejected',reason:'notAuthorized'})},now: async () => '2026-10-06T00:00:00Z'});
     const initializer = owner.initializer;
     if (require.cache[generated]) throw Error('eager factory validation');
     const scope = { tenant: {organization:'org',account:'alice'}, session:'session' };

@@ -1,3 +1,4 @@
+import { setTimeout as yieldToTimers } from 'node:timers/promises'
 import { checkAppendInput } from '@omne-harness-lite/session-log'
 import { attemptStartedPayload } from '@omne-harness-lite/session-runtime'
 import { createHash } from 'node:crypto'
@@ -11,7 +12,11 @@ import {
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
 import type { RuntimeContextOperations } from '@omne-harness-lite/runtime-context'
-import { judgeToolDefinition, modelName } from '@omne-harness-lite/tool-definition'
+import {
+  judgeToolDefinition,
+  modelName,
+  createParameterJudge,
+} from '@omne-harness-lite/tool-definition'
 import type { ActionOrigin, AdoptedTool } from '@omne-harness-lite/tool-admission'
 import type { ToolRuntimeOperations } from '@omne-harness-lite/tool-execution-runtime'
 import type { ToolActionAuthority } from './tool-action-source.ts'
@@ -46,11 +51,11 @@ export function createToolTurnDriver(input: {
   readonly actions: ReturnType<typeof createToolActionDriver>
   readonly delivery: ReturnType<typeof createToolDelivery>
   readonly runner: LoopExtensionRunnerService
-  readonly now: () => string | 'unavailable'
+  readonly now: () => Promise<string | 'unavailable'>
 }) {
   async function beginRun(inboundKey: string) {
     const history = await input.journal.read(),
-      at = input.now()
+      at = await input.now()
     if ('unavailable' in history || at === 'unavailable') return unavailable
     const run = `tool-run-${identity([input.authority.scope, inboundKey])}`
     const existing = history.runs.get(run)
@@ -66,6 +71,7 @@ export function createToolTurnDriver(input: {
     return committed.kind === 'committed' ? ({ kind: 'started', run } as const) : unavailable
   }
   async function beginAttempt(run: string) {
+    const parameters = createParameterJudge()
     const history = await input.journal.read()
     if ('unavailable' in history) return { ...unavailable, step: 'history' }
     const current = history.runs.get(run)
@@ -106,7 +112,7 @@ export function createToolTurnDriver(input: {
         found.entry.asset !== selected.asset
       )
         return { ...unavailable, step: 'toolLookup' }
-      const judged = judgeToolDefinition(found.entry.content.definition)
+      const judged = judgeToolDefinition(found.entry.content.definition, parameters)
       if (!('ok' in judged)) return { ...unavailable, step: 'toolDefinition' }
       const definition = found.entry.content
         .definition as unknown as import('@omne-harness-lite/tool-definition').ToolDefinition
@@ -128,7 +134,7 @@ export function createToolTurnDriver(input: {
         .filter(entry => entry.consumers.includes('model'))
         .map(entry => entry.key),
     )
-    const at = input.now()
+    const at = await input.now()
     if (adopted.kind !== 'values' || at === 'unavailable')
       return { ...unavailable, step: 'contextRead' }
     const startedFactKey = `session-attempt:${identity([scope, run, attempt])}`
@@ -214,6 +220,8 @@ export function createToolTurnDriver(input: {
         if (returned.kind !== 'confirmed') return returned
         continue
       }
+      // Permit due maintenance after complete-history checks. The original gate rechecks authority.
+      await yieldToTimers(0)
       const submitted = await input.runtime.submit({
         access: input.toolAccess,
         scope: input.authority.scope,
@@ -227,6 +235,7 @@ export function createToolTurnDriver(input: {
           : {}),
       })
       if (submitted.kind !== 'recorded') return submitted
+      await yieldToTimers(0)
       const acquired = await input.runtime.acquire(input.toolAccess, submitted.execution)
       if (acquired.kind !== 'acquired') return acquired
       try {
@@ -247,16 +256,17 @@ export function createToolTurnDriver(input: {
     basis: readonly string[],
     reason: 'completed' | 'failed' = 'completed',
   ) {
-    const at = input.now()
+    const at = await input.now()
     if (at === 'unavailable') return unavailable
     const committed = await input.journal.commit({ kind: 'run_ended', run, reason, basis, at })
     return committed.kind === 'committed' ? ({ kind: 'ended' } as const) : unavailable
   }
   async function continueModel(origin: ActionOrigin, signal: AbortSignal) {
+    const parameters = createParameterJudge()
     const history = await input.journal.read()
     if ('unavailable' in history) return unavailable
     const existing = history.prefix.entries.flatMap(entry => {
-      const record = inspectDriverEntry(history.prefix.scope, entry)
+      const record = inspectDriverEntry(history.prefix.scope, entry, parameters)
       return 'value' in record &&
         record.value.kind === 'continuation_requested' &&
         record.value.origin.assistantMessage === origin.assistantMessage

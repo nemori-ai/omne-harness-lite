@@ -47,6 +47,7 @@ import { type FinalInputEvidence } from '@omne-harness-lite/model-request-runtim
 import { ownInputMeter, meterSource, meterMatches, measureFull } from './input-meter.ts'
 import { type InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { preparePlanImages } from './prepare-plan.ts'
+import { resolveImageMessages } from './image-source.ts'
 import type { ImagePreparer } from './image-preparation/types.ts'
 import { isImagePreparer } from './image-preparation/preparer.ts'
 import { inspectTransformRevision } from './meter-transform.ts'
@@ -147,7 +148,7 @@ export async function planRequest(
   const selection = selectPlanRoute(input, ownedDefinitions)
   if ('rejected' in selection) return selection
   const { definition, route, cache } = selection
-  const projectedMessages = projectMessages(input, definition, route)
+  const projectedMessages = projectResolvedMessages(input, definition, route, execution)
   if ('rejected' in projectedMessages) return projectedMessages
   const { messages, spans, stableArrays } = projectedMessages
   if (missing) return missing
@@ -291,6 +292,20 @@ function inputWithPreflight(
     if (!input) return { rejected: 'invalidInput', reason: 'malformed' }
   }
   return { input, missing }
+}
+
+function projectResolvedMessages(
+  input: PlanInput,
+  definition: ModelDefinition,
+  route: ModelRoute,
+  execution: PlanExecutionContext,
+): ReturnType<typeof projectMessages> {
+  try {
+    const messages = resolveImageMessages(input.messages, execution)
+    return projectMessages({ ...input, messages }, definition, route)
+  } catch {
+    return { rejected: 'unavailable' }
+  }
 }
 
 function projectMessages(
@@ -515,7 +530,8 @@ function validPlanExecution(execution: PlanExecutionContext): boolean {
     !execution ||
     !(execution.signal instanceof AbortSignal) ||
     (execution.reuseScope !== undefined &&
-      (!execution.reuseScope || typeof execution.reuseScope !== 'object'))
+      (!execution.reuseScope || typeof execution.reuseScope !== 'object')) ||
+    (execution.imageBytes !== undefined && !Array.isArray(execution.imageBytes))
   )
     return false
   return true

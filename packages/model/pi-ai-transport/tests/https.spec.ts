@@ -802,7 +802,7 @@ describe('actual HTTPS public invokeModel + transport + core assembler', () => {
       })
       await expect.poll(() => host.requests.length).toBe(1)
       table['503'] = 'request_rejected'
-      supplied.now = () => {
+      supplied.now = async () => {
         throw new Error('late policy replacement')
       }
       supplied.credentialRedaction = { ...supplied.credentialRedaction, credential_patterns: [] }

@@ -1,5 +1,5 @@
 import { mkdtemp, rm } from 'node:fs/promises'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -12,6 +12,7 @@ import { type LoginsService } from '@omne-harness-lite/account-identity'
 import { registrationPlugin } from '@omne-harness-lite/account-registration-sequential/cordis'
 import { type RegistrationService } from '@omne-harness-lite/account-registration'
 import { credentialsPlugin } from '@omne-harness-lite/credential-verification-scrypt/cordis'
+import type { Clock } from '@omne-harness-lite/offer-expiry'
 import { clockMigrations } from '@omne-harness-lite/clock-lease'
 import { clockPlugin } from '@omne-harness-lite/clock-lease/cordis'
 import { generateHandoffKeyPair, type TenantId } from '@omne-harness-lite/identity-values'
@@ -114,6 +115,7 @@ export function holding(
 export async function boot(
   file?: string,
   deployedOfficial: InputSourceDependencies['deployedOfficial'] = deployments,
+  borrowedClock?: Clock,
 ) {
   const directory = file === undefined ? await mkdtemp(join(tmpdir(), 'omne-eis-')) : undefined
   const databaseFile = file ?? join(directory as string, 'state.sqlite')
@@ -134,9 +136,22 @@ export async function boot(
     upgrade: false,
   })
   const assembly = await bootAssembly({
-    services: [{ name: 'storage', value: storage }],
+    services: [
+      { name: 'storage', value: storage },
+      ...(borrowedClock ? [{ name: 'clock', value: borrowedClock }] : []),
+    ],
     plugins: [
-      { plugin: clockPlugin, config: {} },
+      ...(borrowedClock
+        ? []
+        : [
+            {
+              plugin: clockPlugin,
+              config: {
+                file: `${databaseFile}.clock.sqlite`,
+                initialize: !existsSync(`${databaseFile}.clock.sqlite.clock.json`),
+              },
+            },
+          ]),
       // Reduced scrypt work only in this test composition; no product policy default.
       {
         plugin: credentialsPlugin,
@@ -192,6 +207,7 @@ export async function boot(
   return {
     storage,
     assembly,
+    clock: assembly.ctx.get('clock') as Clock,
     memberships,
     organizations,
     offers,

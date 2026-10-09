@@ -40,6 +40,7 @@ import type { ModelCallCleanupResult } from '@omne-harness-lite/model-request-ru
 import type {
   ModelCallContentStore,
   ModelCallContentValue,
+  ModelCallExternalContentCustody,
   ModelCallRetentionKey,
   ModelCallRetentionPhase,
 } from './reference-types.ts'
@@ -277,6 +278,17 @@ function requiresRetention(content: ModelCallContentValue): boolean {
       content.value.adopted.messages.some(message => hasExternalContent(message.blocks)))
   )
 }
+async function confirmExternalCustody(
+  source: ModelCallExternalContentCustody | undefined,
+  binding: SettlementLogBinding,
+  content: ModelCallContentValue,
+): Promise<boolean> {
+  if (!requiresRetention(content)) return true
+  const held = await Promise.resolve()
+    .then(() => source?.confirm({ binding, content }))
+    .catch(() => undefined)
+  return held !== undefined && 'retained' in held && held.retained === true
+}
 function ownedBinding(binding: SettlementLogBinding): SettlementLogBinding {
   return Object.freeze({ ...binding, tenant: Object.freeze({ ...binding.tenant }) })
 }
@@ -410,6 +422,7 @@ function requireCompatibleAcknowledgement(
 export function createModelCallContentStore(input: {
   readonly storage: Storage
   readonly policy: ModelCallContentPolicy
+  readonly externalContent?: ModelCallExternalContentCustody
 }): ModelCallContentStore {
   if (
     typeof input.storage?.read !== 'function' ||
@@ -421,6 +434,7 @@ export function createModelCallContentStore(input: {
     throw new TypeError('immutable content storage and explicit finite policy required')
   const storage = input.storage
   const policy = Object.freeze({ ...input.policy })
+  const externalContent = input.externalContent
   /** This store instance's generation; permits of another generation are never cleared here. */
   const generation = randomUUID()
   const tasks = new Set<Promise<void>>()
@@ -574,37 +588,42 @@ export function createModelCallContentStore(input: {
       return malformed
     return { binding: ownedBinding(request.binding), call: request.call }
   }
+  function capturePublication(request: Parameters<ModelCallContentStore['put']>[0]) {
+    // Capture all content synchronously before the first storage await.
+    const judged = judgedContent(request.content)
+    if (judged === undefined) return malformed
+    const content = judged
+    const binding = ownedBinding(request.binding)
+    if (!matchesContentBinding(content, binding)) return malformed
+    const call = ownerCall(content)
+    if (!validCall(call)) return malformed
+    const bytes = new TextEncoder().encode(writeJsonLossless(content.value))
+    if (bytes.byteLength > policy.maxContentBytes) return unavailable
+    const ref: ModelCallPayloadRef = Object.freeze({
+      kind: content.kind,
+      locator: request.locator,
+      version: request.version,
+      digest: digest(bytes),
+    })
+    const useId = randomUUID()
+    const candidate: ContentRow = {
+      ...retentionKey(binding, call),
+      locator: ref.locator,
+      version: ref.version,
+      kind: ref.kind,
+      digest: ref.digest,
+      bytes: Buffer.from(bytes),
+    }
+    return { content, binding, call, bytes, ref, useId, candidate }
+  }
   return Object.freeze<ModelCallContentStore>({
     async put(request) {
       if (closed || tasks.size >= policy.maxConcurrentWrites) return unavailable
       if (!validPutRequest(request)) return malformed
       if (!settlementGenerationCurrent(request.binding)) return unavailable
-      // Capture all content synchronously before the first storage await.
-      const content = judgedContent(request.content)
-      if (content === undefined) return malformed
-      // This factory has no external content-retention provider. Never publish bare locators.
-      if (requiresRetention(content)) return unavailable
-      const binding = ownedBinding(request.binding)
-      if (!matchesContentBinding(content, binding)) return malformed
-      const call = ownerCall(content)
-      if (!validCall(call)) return malformed
-      const bytes = new TextEncoder().encode(writeJsonLossless(content.value))
-      if (bytes.byteLength > policy.maxContentBytes) return unavailable
-      const ref: ModelCallPayloadRef = Object.freeze({
-        kind: content.kind,
-        locator: request.locator,
-        version: request.version,
-        digest: digest(bytes),
-      })
-      const useId = randomUUID()
-      const candidate: ContentRow = {
-        ...retentionKey(binding, call),
-        locator: ref.locator,
-        version: ref.version,
-        kind: ref.kind,
-        digest: ref.digest,
-        bytes: Buffer.from(bytes),
-      }
+      const publication = capturePublication(request)
+      if (!('content' in publication)) return publication
+      const { content, binding, call, bytes, ref, useId, candidate } = publication
       async function completePublication(): ReturnType<ModelCallContentStore['put']> {
         const committed = await writeOwned(async tx => {
           const row = await lockRetention(tx, binding, call)
@@ -678,7 +697,14 @@ export function createModelCallContentStore(input: {
           }),
         }
       }
-      return await owned(completePublication)
+      return await owned(async () => {
+        if (
+          !(await confirmExternalCustody(externalContent, binding, content)) ||
+          !settlementGenerationCurrent(binding)
+        )
+          return unavailable
+        return completePublication()
+      })
     },
     async read(request) {
       if (

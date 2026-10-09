@@ -348,8 +348,8 @@ export function createExecutionOwner(input: {
         break
       }
       if (job.environmentClosed.signal.aborted) return
-      const at = input.clock.now()
-      if (at === 'unavailable') return
+      const at = await input.clock.now()
+      if (at === 'unavailable' || job.environmentClosed.signal.aborted) return
       const committed = await input.journal.commit({
         ref: job.ref,
         origin: job.request.origin,
@@ -575,8 +575,8 @@ export function createExecutionOwner(input: {
       return
     return { chain: captured.ok.chain!, pass: captured.ok.pass as string }
   }
-  function captureExecutionBasis(ref: ExecutionRef) {
-    const now = input.clock.now(),
+  async function captureExecutionBasis(ref: ExecutionRef) {
+    const now = await input.clock.now(),
       assembly = start({ kind: 'tool_execution', callId: ref.callId })
     if (now === 'unavailable' || 'rejected' in assembly || !open)
       return { kind: 'rejected', reason: open ? 'runtimeUnavailable' : 'ownerStopped' } as const
@@ -585,7 +585,7 @@ export function createExecutionOwner(input: {
   function ownCandidate(
     decision: Admitted,
     ref: ExecutionRef,
-    basis: Extract<ReturnType<typeof captureExecutionBasis>, { kind: 'basis' }>,
+    basis: Extract<Awaited<ReturnType<typeof captureExecutionBasis>>, { kind: 'basis' }>,
     chain: NonNullable<Awaited<ReturnType<typeof captureIntentChain>>>,
   ): OwnedExecution {
     const request = decision.request
@@ -617,8 +617,9 @@ export function createExecutionOwner(input: {
     const request = decision.request,
       chain = await captureIntentChain(decision)
     if (!chain) return { kind: 'rejected', reason: 'runtimeUnavailable' } as const
-    const basis = captureExecutionBasis(ref)
+    const basis = await captureExecutionBasis(ref)
     if (basis.kind !== 'basis') return basis
+    if (!open) return { kind: 'rejected', reason: 'ownerStopped' } as const
     const job = ownCandidate(decision, ref, basis, chain)
     let transferred = false
     try {

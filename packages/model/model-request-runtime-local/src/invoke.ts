@@ -430,11 +430,9 @@ export function invokeModel<P extends PlannedSemantics, R>(
         diagnose('model_invocation.diagnostic_projection_failed')
       }
     }
-    function sendAdmission():
-      { sentAt: string } | { stopped: Exclude<InvocationOutcome, ModelInvocationResult> } {
-      if (controller.signal.aborted) return { stopped: { cancelledBeforeSend: true } }
-      deadline(input.policy.firstContentTimeoutMs)
-      const actualAt = input.policy.now()
+    function sendAdmission(
+      actualAt: string,
+    ): { sentAt: string } | { stopped: Exclude<InvocationOutcome, ModelInvocationResult> } {
       let admitted: unknown = true
       try {
         if (input.beforeSend !== undefined) admitted = input.beforeSend()
@@ -534,7 +532,6 @@ export function invokeModel<P extends PlannedSemantics, R>(
     ): void {
       const { event, becameContent } = arrival
       if (gated) {
-        firstTokenAt = input.policy.now()
         deadline(input.policy.idleContentTimeoutMs)
       } else if (firstTokenAt !== undefined && event.t === 'fill')
         deadline(input.policy.idleContentTimeoutMs)
@@ -830,11 +827,11 @@ export function invokeModel<P extends PlannedSemantics, R>(
         })
       diagnostics.close()
     }
-    function settleResult(
+    async function settleResult(
       planned: P,
       receivedEnd: StreamEnd | undefined,
       startedAt: string,
-    ): ModelInvocationResult {
+    ): Promise<ModelInvocationResult> {
       if (receivedEnd === undefined) throw new Error('transport omitted terminal facts')
       let end = receivedEnd
       retainStreamEnd(end)
@@ -861,6 +858,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
         outputGroup,
       })
       retainedCalibration = inputCalibration
+      terminal = true // The assembler result is fixed before asynchronous timestamp acquisition.
       const value: ModelInvocationResult = {
         inputCalibration,
         outcome,
@@ -871,7 +869,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
         timing: {
           sentAt: startedAt,
           ...(firstTokenAt === undefined ? {} : { firstTokenAt }),
-          endedAt: input.policy.now(),
+          endedAt: await input.policy.now(),
         },
         usage: end.readFacts.usage,
         cost: end.readFacts.cost,
@@ -899,7 +897,11 @@ export function invokeModel<P extends PlannedSemantics, R>(
       if ('stopped' in decision) return decision.stopped
       planned = decision.planned
       recordPlanned(planned)
-      const sendDecision = sendAdmission()
+      if (controller.signal.aborted) return { cancelledBeforeSend: true }
+      deadline(input.policy.firstContentTimeoutMs)
+      const actualAt = await input.policy.now()
+      if (controller.signal.aborted) return { cancelledBeforeSend: true }
+      const sendDecision = sendAdmission(actualAt)
       if ('stopped' in sendDecision) return sendDecision.stopped
       diagnostics.record({
         source: 'invocation',
@@ -931,6 +933,9 @@ export function invokeModel<P extends PlannedSemantics, R>(
               rejectArrivalGate()
               continue
             }
+            const at = await input.policy.now()
+            if (controller.signal.aborted) continue
+            firstTokenAt = at
             consumeArrival(gated.arrival, true)
           }
         } finally {
@@ -943,7 +948,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
           readerStopped = true
         }
       }
-      return settleResult(planned, end, sendDecision.sentAt)
+      return await settleResult(planned, end, sendDecision.sentAt)
     } finally {
       retainStoppedAccount()
       retainMissingCalibration(planned)

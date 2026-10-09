@@ -100,7 +100,9 @@ export async function recoveryFixture(options: { adopted?: boolean; started?: bo
     values: [],
     failures: [],
   }))
-  const now = vi.fn<ToolRuntimeDependencies['clock']['now']>(() => unwrap(instantFromRfc3339(at)))
+  const now = vi.fn<ToolRuntimeDependencies['clock']['now']>(async () =>
+    unwrap(instantFromRfc3339(at)),
+  )
   const input: Parameters<typeof recoverExecutions>[0] = {
     dependencies: {
       backing,

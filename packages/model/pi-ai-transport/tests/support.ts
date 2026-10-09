@@ -105,7 +105,7 @@ export const networkPolicy: TransportPolicy = {
 }
 export function policy(): InvocationPolicy {
   return {
-    now: () => new Date().toISOString(),
+    now: async () => new Date().toISOString(),
     schedule: (ms, fn) => {
       const timer = setTimeout(fn, ms)
       return () => clearTimeout(timer)

@@ -1,0 +1,445 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/schema/governance-center-maintenance/2.json",
+  "title": "Governance center maintenance with durable Clock checkpoint",
+  "$defs": {
+    "MaintenanceLocation": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "not": {
+        "pattern": "[\u0000-\u001f\u007f-\u009f\ud800-\udfff]"
+      }
+    },
+    "BackupFileName": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}\\.omne-backup$",
+      "minLength": 44,
+      "maxLength": 44
+    },
+    "Metadata": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "const": "omne-center-backup/2"
+        },
+        "centerId": {
+          "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v3/governance-center-entry.schema.json#/$defs/GovernanceCenterId"
+        },
+        "sourceBuildId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "minLength": 64,
+              "maxLength": 64
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "migrationNames": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9_]+$",
+            "not": {
+              "pattern": "[^A-Za-z0-9_]"
+            }
+          }
+        },
+        "startedAt": {
+          "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v2/offer-expiry.schema.json#/$defs/Instant"
+        },
+        "finishedAt": {
+          "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v2/offer-expiry.schema.json#/$defs/Instant"
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1073741824
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "clockCheckpoint": {
+          "type": "object",
+          "properties": {
+            "writtenAt": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "upperBound": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "writtenAt",
+            "upperBound"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "format",
+        "centerId",
+        "sourceBuildId",
+        "migrationNames",
+        "startedAt",
+        "finishedAt",
+        "byteLength",
+        "sha256",
+        "clockCheckpoint"
+      ],
+      "additionalProperties": false,
+      "description": "startedAt\u2264finishedAt\u3001\u56fa\u5b9a\u89c2\u5bdf\u3001\u6458\u8981/\u7cbe\u786e\u957f\u5ea6\u3001\u539f\u4e2d\u5fc3\u8eab\u4efd\u3001\u8fc1\u79fb\u524d\u7f00\u4e0e\u65f6\u949f\u5e95\u7ebf\u7531\u8bed\u4e49\u9a8c\u8bc1\uff0cSchema \u4e0d\u58f0\u79f0\u8986\u76d6\u3002"
+    },
+    "BackupDescriptor": {
+      "type": "object",
+      "properties": {
+        "fileName": {
+          "$ref": "#/$defs/BackupFileName"
+        },
+        "metadata": {
+          "$ref": "#/$defs/Metadata"
+        }
+      },
+      "required": [
+        "fileName",
+        "metadata"
+      ],
+      "additionalProperties": false
+    },
+    "BackupInput": {
+      "type": "object",
+      "properties": {
+        "onlyIfDue": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "onlyIfDue"
+      ],
+      "additionalProperties": false
+    },
+    "BackupStatusInput": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "VerifyInput": {
+      "type": "object",
+      "properties": {
+        "sourceLocation": {
+          "$ref": "#/$defs/MaintenanceLocation"
+        }
+      },
+      "required": [
+        "sourceLocation"
+      ],
+      "additionalProperties": false
+    },
+    "RestoreIsolatedInput": {
+      "type": "object",
+      "properties": {
+        "sourceLocation": {
+          "$ref": "#/$defs/MaintenanceLocation"
+        },
+        "targetLocation": {
+          "$ref": "#/$defs/MaintenanceLocation"
+        }
+      },
+      "required": [
+        "sourceLocation",
+        "targetLocation"
+      ],
+      "additionalProperties": false
+    },
+    "BackupOutcomeUnknown": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "outcome-unknown"
+        },
+        "fileName": {
+          "$ref": "#/$defs/BackupFileName"
+        },
+        "targetLocation": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "status",
+        "fileName",
+        "targetLocation"
+      ],
+      "additionalProperties": false
+    },
+    "RestoreOutcomeUnknown": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "outcome-unknown"
+        },
+        "fileName": {
+          "type": "null"
+        },
+        "targetLocation": {
+          "$ref": "#/$defs/MaintenanceLocation"
+        }
+      },
+      "required": [
+        "status",
+        "fileName",
+        "targetLocation"
+      ],
+      "additionalProperties": false
+    },
+    "BackupResult": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "completed"
+            },
+            "backup": {
+              "$ref": "#/$defs/BackupDescriptor"
+            }
+          },
+          "required": [
+            "status",
+            "backup"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "not-due"
+            },
+            "backup": {
+              "$ref": "#/$defs/BackupDescriptor"
+            }
+          },
+          "required": [
+            "status",
+            "backup"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "enum": [
+                "invalid-input",
+                "busy",
+                "unavailable",
+                "capacity",
+                "invalid-backup",
+                "target-exists",
+                "cancelled"
+              ]
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "$ref": "#/$defs/BackupOutcomeUnknown"
+        }
+      ]
+    },
+    "BackupStatusResult": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "observed"
+            },
+            "health": {
+              "const": "missing"
+            },
+            "latest": {
+              "type": "null"
+            },
+            "invalidCount": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 256
+            }
+          },
+          "required": [
+            "status",
+            "health",
+            "latest",
+            "invalidCount"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "observed"
+            },
+            "health": {
+              "enum": [
+                "current",
+                "overdue"
+              ]
+            },
+            "latest": {
+              "$ref": "#/$defs/BackupDescriptor"
+            },
+            "invalidCount": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 256
+            }
+          },
+          "required": [
+            "status",
+            "health",
+            "latest",
+            "invalidCount"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "enum": [
+                "invalid-input",
+                "busy",
+                "unavailable",
+                "capacity",
+                "cancelled"
+              ]
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "$ref": "#/$defs/BackupOutcomeUnknown"
+        }
+      ]
+    },
+    "VerifyResult": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "verified"
+            },
+            "metadata": {
+              "$ref": "#/$defs/Metadata"
+            },
+            "businessOpen": {
+              "const": false
+            }
+          },
+          "required": [
+            "status",
+            "metadata",
+            "businessOpen"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "enum": [
+                "invalid-input",
+                "busy",
+                "unavailable",
+                "capacity",
+                "invalid-backup",
+                "cancelled"
+              ]
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "RestoreIsolatedResult": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "restored-isolated"
+            },
+            "metadata": {
+              "$ref": "#/$defs/Metadata"
+            },
+            "targetLocation": {
+              "$ref": "#/$defs/MaintenanceLocation"
+            },
+            "businessOpen": {
+              "const": false
+            }
+          },
+          "required": [
+            "status",
+            "metadata",
+            "targetLocation",
+            "businessOpen"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "enum": [
+                "invalid-input",
+                "busy",
+                "unavailable",
+                "capacity",
+                "invalid-backup",
+                "target-exists",
+                "cancelled"
+              ]
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "$ref": "#/$defs/RestoreOutcomeUnknown"
+        }
+      ]
+    }
+  }
+}

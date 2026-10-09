@@ -17,3 +17,13 @@ scope必须为非null object，非法值同步TypeError。空或已清scope幂�
 ## 验证
 
 协议用例须独立覆盖refusal五类值、同帧顺序、跨帧、正常尾帧账、错误不drain与回放；资源用例须核固定代际、同步清理、失败保有和真实native结束。原Schema身份与精确模型绑定保持，模拟/TLS/有限模型不代替真实供应商认证。单次执行结果归工作树tmp。
+
+## 请求内图片字节
+
+本节约束 PlanExecutionContext.imageBytes 的消费。公开端口由 [model-request-runtime](../../core/model-request-runtime/SPEC.md) 拥有。
+
+planRequest 同步读取已提供的固定字节，只转换 wire 投影中的可见外部图片。不读取隐藏父块的子图，不重新读取 inline 字节。每个原引用必须有唯一快照。缺失、重复或取消时明确拒绝。本端口不执行持久源 IO，也不替代附件权限。
+
+原消息、日志引用、摘要和返回计划的 input 均保持原语义。投影字节进入现有图片 preparer、meter 和最后输入限制门。最后计划仍由原提供者签发和保存。不能复制、改写或伪造计划来通过原发起边界。
+
+本包不决定附件的持久寿命，不从 locator 自动取文件或网络资源。没有 imageBytes 时保留原行为。调用者先完成有界读取，保有原调用访问句柄，并等待读取实际停止。模型内容保有端口与本次固定字节各自履责。

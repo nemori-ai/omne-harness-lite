@@ -1329,6 +1329,16 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
               contextSources: {},
             },
           }
+          const at = await runtime.policy.now()
+          if (
+            physical.closing ||
+            preparation?.stopping() ||
+            request.host.signal.aborted ||
+            request.host.stopping()
+          )
+            return { runtimeStopped: true }
+          if (!boundSession(session, request)) return { unavailable: true }
+          if (owner.admission() !== 'open') return { runtimeStopped: true }
           const publication = await publishModelCallContent({
             binding: session.log,
             owner,
@@ -1338,7 +1348,7 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
             content: { kind: 'created', value: created },
             locator: callId,
             version: 'v1',
-            at: runtime.policy.now(),
+            at,
             trackTask: task => physical.appends.track(task),
             retainUnknown(registration, task, permit, entry) {
               if (creation === undefined) throw new Error('creation owner missing')

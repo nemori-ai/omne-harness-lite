@@ -5,7 +5,6 @@ export {
   isRolledBack,
   systemTimeSources,
   LEASE_WIDTH_MS,
-  RENEW_PERIOD_MS,
   type TimeSources,
   type ClockLogger,
 } from './lease-policy.ts'
@@ -16,5 +15,9 @@ export {
   type ClockLeaseTable,
 } from './lease.ts'
 export { clockPreflight, CLOCK_PREFLIGHT_CHECK } from './preflight.ts'
+export { clockResourcePreflight } from './resource-preflight.ts'
 export { ClockConfig } from './config.ts'
 export { clockSnapshotCheck, CLOCK_SNAPSHOT_TABLES } from './snapshot.ts'
+
+export { openLeaseClock, type OpenLeaseClockOptions } from './resource.ts'
+export { readLegacyClockFloor } from './lease-sql.ts'

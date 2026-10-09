@@ -19,7 +19,7 @@ import { addDuration } from '@omne-harness-lite/offer-expiry'
 import { ReferenceViolation, UniqueViolation } from '@omne-harness-lite/storage'
 import { type PolicyDeps, storageUnavailable } from './deps.ts'
 import { defect, describeError } from './diagnostics.ts'
-import { classifyAccount, sameOccupancy, settleExpiry } from './records.ts'
+import { classifyAccount, sameOccupancy, settleExpiry, type Occupancy } from './records.ts'
 import {
   ACCOUNT_LOGIN_IDENTIFIER_UNIQUE,
   ACCOUNT_PKEY,
@@ -82,7 +82,7 @@ export class AccountsImpl implements Omit<AccountsService, 'participate'> {
   ): Promise<ProduceResult | 'retry'> {
     const { persistence, clock } = this.deps
     // ② 快照：分四类；凭据计算只对快照做，不进写事务（R-8）
-    const snapshot = classifyAccount(
+    const snapshot = await classifyAccount(
       await persistence.read(tx => tx.accountByIdentifier(identifier)),
       clock,
     )
@@ -104,17 +104,36 @@ export class AccountsImpl implements Omit<AccountsService, 'participate'> {
         material = derived
       }
     }
-    // ③ 一次写事务：锁定读，与快照是同一行、同一类才按类收场；否则不写、重来
-    return persistence.write(async tx => {
+    // ③ The activated occupant is final. Other states still require matching credential evidence.
+    const decision = await this.#commitProduction(identifier, snapshot, reclaim, material)
+    if (decision !== 'activated') return decision
+    // A matched live snapshot skipped policy. Activation removes that exemption.
+    // Check outside the transaction: an activated account cannot disappear or revert.
+    if (reclaim) {
+      const policy = this.#checkPolicy(credentials, presented)
+      if (policy !== 'ok') return policy
+    }
+    return IDENTIFIER_TAKEN
+  }
+
+  async #commitProduction(
+    identifier: LoginIdentifier,
+    snapshot: Occupancy,
+    reclaim: boolean,
+    material: CredentialMaterial | undefined,
+  ): Promise<ProduceResult | 'retry' | 'activated'> {
+    return this.deps.persistence.write(async tx => {
       await tx.lockAccountByIdentifier(identifier)
-      const current = classifyAccount(await tx.accountByIdentifier(identifier), clock)
+      const current = await classifyAccount(
+        await tx.accountByIdentifier(identifier),
+        this.deps.clock,
+      )
       if (current === 'clock-unavailable') return STORAGE_UNAVAILABLE
+      if (current.kind === 'activated') return 'activated' as const
       if (!sameOccupancy(snapshot, current)) return 'retry'
       switch (current.kind) {
         case 'none':
           return this.#insertAccount(tx, identifier, material)
-        case 'activated':
-          return IDENTIFIER_TAKEN
         case 'expired':
           if (!current.landed && current.observedAt !== undefined)
             await tx.landAccountExpiry(current.accountId, current.observedAt)
@@ -135,7 +154,7 @@ export class AccountsImpl implements Omit<AccountsService, 'participate'> {
   ): Promise<ProduceResult | 'retry'> {
     // 快照为「无」时一定已经派生过材料；到这里还没有是本包的缺陷
     if (material === undefined) throw defect('produce: no derived material on the insert path')
-    const producedAt = this.deps.clock.now()
+    const producedAt = await this.deps.clock.now()
     if (producedAt === 'unavailable') return STORAGE_UNAVAILABLE
     const accountId = newAccountId()
     try {

@@ -18,9 +18,48 @@ export const sessionRegistration: ContextRegistration = Object.freeze({
   recovery: 'persisted',
 })
 
-export function sessionIdentityValue(scope: SessionScope, clock: Clock): ContextValue | undefined {
+export interface DemoToolDefaults {
+  readonly cwd: string
+  readonly envs: Readonly<Record<string, string>>
+}
+export const toolRegistrations: readonly ContextRegistration[] = [
+  'shell.initial',
+  'files.initial',
+].map(key =>
+  Object.freeze({
+    key,
+    source: 'demo-tool-defaults',
+    config: null,
+    consumers: Object.freeze(['tool'] as const),
+    required: true,
+    recovery: 'persisted' as const,
+  }),
+)
+export function toolInitialValues(defaults: DemoToolDefaults, observedAt: string): ContextValue[] {
+  return toolRegistrations.map(entry => ({
+    key: entry.key,
+    revision: 'initial',
+    observedAt,
+    value:
+      entry.key === 'shell.initial'
+        ? { cwd: defaults.cwd, envs: { ...defaults.envs } }
+        : { cwd: defaults.cwd },
+  }))
+}
+
+function contextSeedRegistrations(tools: DemoToolDefaults | undefined) {
+  return Object.freeze([sessionRegistration, ...(tools ? toolRegistrations : [])])
+}
+function contextSeedValues(initial: ContextValue, tools: DemoToolDefaults | undefined) {
+  return Object.freeze([initial, ...(tools ? toolInitialValues(tools, initial.observedAt) : [])])
+}
+
+export async function sessionIdentityValue(
+  scope: SessionScope,
+  clock: Clock,
+): Promise<ContextValue | undefined> {
   try {
-    const instant = clock.now()
+    const instant = await clock.now()
     if (instant === 'unavailable') return undefined
     const parsed = instantFromEpochMs(instant)
     if (!('ok' in parsed)) return undefined
@@ -47,6 +86,7 @@ export function createSessionContextCreator(deps: {
   readonly initializer: ContextSessionInitializer
   readonly tenancy: SessionTenancyService
   readonly clock: Clock
+  readonly tools?: DemoToolDefaults
   /** The result must be the confirmed outcome of the transaction that inserts the row. */
   readonly createRow: (scope: SessionScope) => Promise<'created' | 'alreadyPresent'>
 }) {
@@ -70,13 +110,13 @@ export function createSessionContextCreator(deps: {
           ? prepared
           : { kind: 'rejected', reason: 'notAuthorized' }
       if (held.failure !== 'sessionNotFound') return unavailable
-      const initial = sessionIdentityValue(scope, deps.clock)
+      const initial = await sessionIdentityValue(scope, deps.clock)
       if (!initial) return unavailable
       record = {
         status: 'uncertain',
         seed: Object.freeze({
-          required: Object.freeze([sessionRegistration]),
-          initial: Object.freeze([initial]),
+          required: contextSeedRegistrations(deps.tools),
+          initial: contextSeedValues(initial, deps.tools),
           fixed: Object.freeze([Object.freeze({ key: 'session', value: initial.value })]),
         }),
       }

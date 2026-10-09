@@ -128,7 +128,7 @@ export class ScriptedClock {
   /** 每读一次自动前推的毫秒数（让相继的读各得不同时刻）。 */
   step = 0
 
-  now(): number | 'unavailable' {
+  async now(): Promise<number | 'unavailable'> {
     const scripted = this.script.shift()
     let value: number | 'unavailable'
     if (scripted !== undefined) value = scripted
@@ -139,6 +139,12 @@ export class ScriptedClock {
     }
     this.reads.push({ value, label: this.label })
     return value
+  }
+
+  async checkpoint() {
+    return this.unavailable
+      ? ('unavailable' as const)
+      : { writtenAt: this.current, upperBound: this.current }
   }
 
   advance(ms: number): void {

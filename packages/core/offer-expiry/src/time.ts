@@ -145,5 +145,12 @@ export function parseOfferTtl(value: unknown): Parsed<Duration> {
  * `'unavailable'` 是返回值不是异常，消费者无法不接。
  */
 export interface Clock {
-  now(): Instant | 'unavailable'
+  now(): Promise<Instant | 'unavailable'>
+  /** Durable providers can export a restart floor. Consumers must check this capability. */
+  readonly checkpoint?: () => Promise<ClockCheckpoint | 'unavailable'>
+}
+
+export interface ClockCheckpoint {
+  readonly writtenAt: Instant
+  readonly upperBound: Instant
 }

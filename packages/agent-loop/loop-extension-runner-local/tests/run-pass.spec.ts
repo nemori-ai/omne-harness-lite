@@ -89,7 +89,7 @@ function ports(
     invoke: async () => ({ kind: 'output', value: { kind: 'observed' } }),
     verifyFailure: async (_subject, _binding, _execution) => ({ kind: 'unavailable' }),
     judgeCapabilities: async () => ({ kind: 'accepted' }),
-    now: () => at,
+    now: async () => at,
     mintReminder: () => 'reminder-id',
     isActive: () => true,
     fallbackNeedsProjection: async () => false,
@@ -103,6 +103,64 @@ function ports(
 }
 
 describe('public runner pass and actual SL3 log', () => {
+  it.each(['cancelled', 'inactive'] as const)(
+    'does not judge or record an old invocation after time awaits and becomes %s',
+    async stopped => {
+      const root = resolve(process.cwd(), '../../../tmp/runner-public')
+      await mkdir(root, { recursive: true })
+      const dir = await mkdtemp(join(root, 'clock-control-'))
+      const log = await openSqlLogFixture({ dir })
+      const owner = createRunnerTaskOwner(binding)
+      const controller = new AbortController()
+      const entered = Promise.withResolvers<void>()
+      const gate = Promise.withResolvers<string>()
+      let active = true
+      let judged = 0
+      try {
+        const request = runPass(
+          {
+            initial: initial('before_persist_message'),
+            anchor: 'message-1',
+            execution: { kind: 'noRun' },
+          },
+          [piece('runner-clock-control', 'before_persist_message')],
+          ports(log, owner, binding, {
+            now: () => {
+              entered.resolve()
+              return gate.promise
+            },
+            isActive: () => active,
+            judgeCapabilities: async () => {
+              judged++
+              return { kind: 'accepted' }
+            },
+          }),
+          controller.signal,
+        )
+        await entered.promise
+        if (stopped === 'cancelled') controller.abort()
+        else active = false
+        gate.resolve(at)
+        expect(await request).toEqual({
+          failure: stopped === 'cancelled' ? 'cancelled' : 'unavailable',
+        })
+        expect(judged).toBe(0)
+        expect(
+          await log.readByKey(
+            admittedSession,
+            'runner/5/["pass","before_persist_message",null,"message-1"]',
+          ),
+        ).toMatchObject({ entries: [] })
+      } finally {
+        gate.resolve(at)
+        owner.closeAdmission()
+        await owner.drain()
+        await log.close()
+        await rm(dir, { recursive: true, force: true })
+      }
+    },
+  )
+
   it('commits each result before the next invoke and reopens without invoking again', async () => {
     const root = resolve(process.cwd(), '../../../tmp/runner-public')
     await mkdir(root, { recursive: true })
@@ -512,7 +570,7 @@ describe('public runner pass and actual SL3 log', () => {
       releaseReads = resolve
     })
     function racing(owner: ReturnType<typeof createRunnerTaskOwner>, instant: string): RunnerPorts {
-      const ordinary = ports(log, owner, binding, { now: () => instant })
+      const ordinary = ports(log, owner, binding, { now: async () => instant })
       return {
         ...ordinary,
         readConclusions: async current => {

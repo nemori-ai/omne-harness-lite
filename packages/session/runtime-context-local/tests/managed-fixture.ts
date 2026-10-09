@@ -59,7 +59,7 @@ export async function managedHost(
     authorize = h.auth.operations.authorize
   }
   class Time extends ClockService {
-    now = options.now ?? (() => instant)
+    now = options.now ?? (async () => instant)
   }
   const dependencies = await ctx.plugin({
     name: 'managed-context-fixture',

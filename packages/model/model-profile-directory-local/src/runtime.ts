@@ -257,14 +257,14 @@ export class CatalogImplementation {
     if (!('ok' in parsed)) throw new StorageDefect('memberships v1 standing result malformed')
     return configEligibility(initiator, scope, parsed.ok)
   }
-  now(): string {
-    const time = this.deps.clock.now()
+  async now(): Promise<string> {
+    const time = await this.deps.clock.now()
     if (time === 'unavailable') throw new StorageUnavailable('clock unavailable')
     return instantToRfc3339(time)
   }
-  updatedAt(old: ModelProfile, content: ModelProfileContent): string {
+  async updatedAt(old: ModelProfile, content: ModelProfileContent): Promise<string> {
     if (upstreamEqual(old, content)) return old.updatedAt
-    const now = this.now()
+    const now = await this.now()
     const order = compareRfc3339Instants(now, old.updatedAt)
     if (!('ok' in order) || order.ok < 0)
       throw new StorageUnavailable('directory clock cannot advance model profile time')
@@ -340,7 +340,7 @@ export class CatalogImplementation {
       if (old !== undefined) return recognizedRegistration(old, content)
       const row: ProfileRow = {
         ref,
-        profile: { ...content, registration: 'listed', updatedAt: this.now() },
+        profile: { ...content, registration: 'listed', updatedAt: await this.now() },
       }
       try {
         await db(tx)
@@ -416,7 +416,10 @@ export class CatalogImplementation {
       const judgment = judgeModelProfileDocument('ModelProfile', changed)
       if ('rejected' in judgment) return invalid(judgment.rejected)
       if (!isProfile(changed)) throw new StorageDefect('updated profile validator disagrees')
-      const profile: ModelProfile = { ...changed, updatedAt: this.updatedAt(old.profile, changed) }
+      const profile: ModelProfile = {
+        ...changed,
+        updatedAt: await this.updatedAt(old.profile, changed),
+      }
       const row = { ref, profile }
       await this.history(tx, row, false)
       if (contentEqual(old.profile, profile)) return old
@@ -497,7 +500,7 @@ export class CatalogImplementation {
       await tx.lockRow('model_credential_binding', bindingKey(tenant.ok))
       const old = await readBinding(tx, tenant.ok)
       if (old?.credentialRef === credential) return { tenant: tenant.ok, boundAt: old.boundAt }
-      const time = this.deps.clock.now()
+      const time = await this.deps.clock.now()
       if (time === 'unavailable') throw new StorageUnavailable('clock unavailable')
       await db(tx)
         .insertInto('model_credential_binding')
@@ -569,7 +572,8 @@ export class CatalogImplementation {
           profile: {
             ...content,
             registration: 'listed',
-            updatedAt: old === undefined ? this.now() : this.updatedAt(old.profile, content),
+            updatedAt:
+              old === undefined ? await this.now() : await this.updatedAt(old.profile, content),
           },
         }
         await this.history(tx, row, false)

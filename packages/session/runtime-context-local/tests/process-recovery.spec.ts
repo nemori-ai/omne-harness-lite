@@ -41,7 +41,7 @@ for (const cut of ['after-log', 'inside-sql'] as const)
         storage: firstSql,
         log: firstLog,
         access: auth.operations,
-        now: () => at,
+        now: async () => at,
       })
       expect(
         await first.initializer.initializeContextSession(scope, {
@@ -80,7 +80,7 @@ for (const cut of ['after-log', 'inside-sql'] as const)
           storage: sql,
           log,
           access: auth.operations,
-          now: () => at,
+          now: async () => at,
         })
         try {
           const prefix = await log.readSince(scope.session, 0)

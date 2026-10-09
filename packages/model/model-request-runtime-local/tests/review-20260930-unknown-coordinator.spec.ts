@@ -527,7 +527,7 @@ describe('review 2026-09-30 Q3/S2 fail-closed granularity: reconcile per call (R
           custody: storeUnavailableCustody(),
           contention: policy(),
           scheduler: noWaitScheduler,
-          now: () => '2026-09-30T00:00:03Z',
+          now: async () => '2026-09-30T00:00:03Z',
           diagnostic() {},
           recovery: {
             async authorize() {

@@ -850,7 +850,7 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
     const permission = await originalIssue.consumeOriginal(claim)
     return permission.kind === 'launch' && usable()
   }
-  function interruptionBeforeLaunch(): ResponseConstructionResult {
+  async function interruptionBeforeLaunch(): Promise<ResponseConstructionResult> {
     return constructAnchoredInterruption({
       dispatched,
       ...(input.run === undefined ? {} : { run: input.run, attempt: input.attempt }),
@@ -858,11 +858,13 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
       observed: null,
       sendState: 'not_sent',
       firstTokenAt: null,
-      endedAt: policy.now(),
+      endedAt: await policy.now(),
       initiator: interruptInitiator ?? 'run_cancelled',
     })
   }
-  function stoppedWorkInterruption(): ResponseConstructionResult | typeof unavailable {
+  async function stoppedWorkInterruption(): Promise<
+    ResponseConstructionResult | typeof unavailable
+  > {
     const original = invocation?.observedFacts()
     if (original !== undefined && !('facts' in original)) return unavailable
     if (original !== undefined && original.facts.sentAt !== undefined) return unavailable
@@ -876,7 +878,7 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
       planned,
       ...originalFacts,
       firstTokenAt: null,
-      endedAt: policy.now(),
+      endedAt: await policy.now(),
       initiator: interruptInitiator ?? 'run_cancelled',
     })
   }
@@ -948,7 +950,8 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
           beforeFirstContent: () => {
             openedGate = start('wait', async () => {
               if (!usable()) throw new Error('model_anchor.stopped')
-              const at = policy.now()
+              const at = await policy.now()
+              if (!usable()) throw new Error('model_anchor.stopped')
               if (!('ok' in compareRfc3339Instants(at, at))) throw new Error('model_anchor.clock')
               const value = captureModelLogValue({
                 category: 'record',
@@ -1001,12 +1004,12 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
       }
     })
   }
-  function dispatchLaunchDecision(admission: Awaited<ReturnType<typeof admitDispatched>>) {
+  async function dispatchLaunchDecision(admission: Awaited<ReturnType<typeof admitDispatched>>) {
     if (admission === undefined) return { state: 'unavailable' } as const
     dispatchConfirmed = true
     dispatchedPosition = admission.positions[0]
     if (!usable()) {
-      const candidate = interruptionBeforeLaunch()
+      const candidate = await interruptionBeforeLaunch()
       if ('rejected' in candidate) return { state: 'unavailable' } as const
       interruption = candidate
       return { state: 'settle' } as const
@@ -1020,7 +1023,7 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
     try {
       if (!usable()) return { cancelledBeforeDispatch: true }
       const admission = await admitDispatched()
-      const decision = dispatchLaunchDecision(admission)
+      const decision = await dispatchLaunchDecision(admission)
       if (decision.state === 'unavailable') return unavailable
       if (decision.state === 'settle') {
         const stoppedSettlement = await settleCandidate(null)
@@ -1041,7 +1044,7 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
       if (!('outcome' in result)) {
         if (!('cancelledBeforeSend' in result)) return unavailable
         await requestStopAndWait(work)
-        const candidate = stoppedWorkInterruption()
+        const candidate = await stoppedWorkInterruption()
         if (!('response' in candidate)) return unavailable
         interruption = candidate
         const stoppedSettlement = await settleCandidate(null)
