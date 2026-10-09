@@ -10,6 +10,7 @@ import type { BorrowedRunJournal } from './run-journal-types.ts'
 import type { DriverRunStart } from './driver-run.ts'
 import type { DriverTask } from './driver-tasks.ts'
 import type { LocalSessionDriverOptions, SessionDriverRunSources } from './driver-types.ts'
+import { createDriverToolRun } from './driver-tool-run.ts'
 import { createDriverModelSegment } from './driver-model.ts'
 import {
   createSessionModelAttempt,
@@ -20,7 +21,7 @@ import {
 import type { RetainedSessionModelTurn } from './model-turn.ts'
 
 type Prepared = Extract<DriverRunStart, { kind: 'prepared' }>
-type Inputs = Pick<LocalSessionDriverOptions, 'ingress' | 'identities' | 'model' | 'work'>
+type Inputs = Pick<LocalSessionDriverOptions, 'ingress' | 'identities' | 'model' | 'tools' | 'work'>
 
 /** Takes responsibility for these original borrows before asynchronous Model construction. */
 export function createDriverModelRunTask(input: {
@@ -71,6 +72,7 @@ class ModelRunTask {
     result?: StepCommit
   }
   driving?: ReturnType<SessionModelAttempt['drive']>
+  toolRun?: ReturnType<typeof createDriverToolRun>
   returned = 0
   returning?: Promise<'released'>
   constructor(readonly input: Parameters<typeof createDriverModelRunTask>[0]) {
@@ -154,14 +156,11 @@ class ModelRunTask {
       prepared.preparation.call,
       prepared.identities.resultKey,
     )
-    if (
-      !('pending' in response) ||
-      response.pending.outcome !== 'complete' ||
-      response.pending.reply.blocks.some(block => block.kind === 'tool_call')
-    )
-      return this.hold()
+    if (!('pending' in response) || response.pending.outcome !== 'complete') return this.hold()
     const ended = await this.frame!.close()
     if (!('kind' in ended) || ended.kind !== 'released') return this.hold()
+    if (response.pending.reply.blocks.some(block => block.kind === 'tool_call'))
+      return this.runTools(response.pending.reply.id)
     // Only the original acknowledged turn reaches this point. Custody alone is not a stop proof.
     options.work.complete(this.token)
     this.phase = 'returningModel'
@@ -190,6 +189,24 @@ class ModelRunTask {
     if (!('kind' in finished) || finished.kind !== 'committed') return this.finishRefused(finished)
     this.phase = 'returning'
     return this.returnOriginal()
+  }
+  async runTools(message: string): Promise<'retained'> {
+    const { options, scope, journal, sources } = this.input
+    this.phase = 'returningModel'
+    await this.returnModel()
+    this.phase = 'finishing'
+    // The model work token still owns this unfinished batch until ordinary Tool delivery.
+    this.toolRun = createDriverToolRun({
+      options,
+      scope,
+      journal,
+      sources,
+      message,
+      permit: this.prepared.preparation.permit,
+      signal: this.local.signal,
+    })
+    await this.toolRun.completion
+    return this.hold()
   }
   async finishRefused(result: StepCommit): Promise<'continue' | 'retained'> {
     if (!('failure' in result) || result.failure !== 'retryFromFacts') return this.hold()
@@ -324,6 +341,7 @@ class ModelRunTask {
     await this.ready.promise
     if (this.driving) await Promise.allSettled([this.driving])
     if (this.frame) await this.frame.close()
+    if (this.toolRun) await this.toolRun.close()
     await this.reads.close()
     if (this.phase === 'released') return 'released'
     if (this.phase === 'returning') return this.returnOriginal()

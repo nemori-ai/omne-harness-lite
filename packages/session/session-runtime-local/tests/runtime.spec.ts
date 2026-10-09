@@ -9,6 +9,8 @@ import { REGISTERED_CATEGORIES, buildTableContents } from '@omne-harness-lite/as
 import { evaluate, type NonConnectorEvaluationInput } from '@omne-harness-lite/asset-evaluation'
 import { capabilityCanonicalString } from '@omne-harness-lite/asset-model'
 import { driverActionFixture } from './driver-action-fixture.ts'
+import { createDriverToolRun } from '../src/driver-tool-run.ts'
+import { driverNativeToolFixture } from './driver-native-tool-fixture.ts'
 import { publishDriverActionBatch } from '../src/driver-action-batch.ts'
 import { createSessionToolActionHistory } from '../src/driver-action-history.ts'
 import { inspectActionBatch, sessionActionBatchOwner } from '../src/driver-action-facts.ts'
@@ -4846,6 +4848,7 @@ describe('driver complete original Model Run', () => {
     let native: ReturnType<typeof createModelRuntime> | undefined
     let results!: ReturnType<typeof createSessionModelResultSource>
     let work!: ReturnType<typeof createSessionDriverWorkOwner>
+    const toolQualified = vi.fn(async () => ({ kind: 'authorized' as const }))
     const f = await fixture(
       undefined,
       32,
@@ -4862,6 +4865,7 @@ describe('driver complete original Model Run', () => {
           },
         })
         return {
+          toolIssue: { maxRecords: 8, current: { authorizeIn: toolQualified } },
           modelResults: { maxRecords: 8, source: results.source },
           modelIssue: {
             maxRecords: 8,
@@ -5061,13 +5065,26 @@ describe('driver complete original Model Run', () => {
         identities: { ...identities, modelContent: construction.identities },
         model,
         work,
+        tools: { acquire: async () => ({ unavailable: true as const }) },
       },
       scope,
       prepared,
       journal: borrowed.journal,
       sources,
     }
-    return { input, f, native, scope, work, ports, sources, releaseModel, borrowed, prepared }
+    return {
+      input,
+      f,
+      native,
+      scope,
+      work,
+      ports,
+      sources,
+      releaseModel,
+      borrowed,
+      prepared,
+      toolQualified,
+    }
   }
   async function sourcesForRun(
     f: Awaited<ReturnType<typeof running>>,
@@ -5369,9 +5386,12 @@ describe('driver complete original Model Run', () => {
     { lostReturn: false, asked: false },
     { lostReturn: true, asked: false },
     { lostReturn: false, asked: true },
+    { lostReturn: false, asked: false, native: 'complete' },
+    { lostReturn: false, asked: false, native: 'unknown' },
+    { lostReturn: false, asked: false, native: 'stopPending' },
   ])(
-    'publishes the whole actual Runner batch before recognition, $lostReturn lost return, $asked asked',
-    async ({ lostReturn, asked }) => {
+    'publishes the whole actual Runner batch before recognition, $lostReturn lost return, $asked asked, Native $native',
+    async ({ lostReturn, asked, native }) => {
       const judged = judgeMessage({
         id: 'action-source-data',
         type: 'assistant',
@@ -5386,7 +5406,7 @@ describe('driver complete original Model Run', () => {
           tool: 'example__read',
           ...(id === 'bad'
             ? { unparseable: true, rawArguments: '{' }
-            : { arguments: { path: id } }),
+            : { arguments: native ? {} : { path: id } }),
           visibility: { toHuman: true, toModel: true },
         })),
       })
@@ -5612,11 +5632,286 @@ describe('driver complete original Model Run', () => {
       ).toEqual({ kind: 'unavailable' })
       expect(f.ports.sends()).toBe(1)
       expect(lost).toBe(lostReturn)
+      if (native) {
+        const entered = Promise.withResolvers<void>(),
+          returned = Promise.withResolvers<void>()
+        const tool = await driverNativeToolFixture({
+          ...(native === 'stopPending'
+            ? {
+                execute: async () => {
+                  entered.resolve()
+                  await returned.promise
+                  return 'actual stopped result'
+                },
+              }
+            : {}),
+          storage: f.f.storage,
+          root: f.f.root,
+          ingress: f.f.runtime,
+          backing: f.f.log().backing,
+          journal,
+          history,
+          call: calls[0]!.callId,
+        })
+        try {
+          const consumer = createDriverToolRun({
+            options: {
+              ...f.input.options,
+              tools: {
+                acquire: support =>
+                  tool.factory.acquire(
+                    native === 'unknown'
+                      ? {
+                          ...support,
+                          admission: {
+                            ...support.admission,
+                            admitOriginal: async participant => {
+                              const result = await support.admission.admitOriginal(participant)
+                              return result.kind === 'issued'
+                                ? { kind: 'unknownCommit', identity: result.identity }
+                                : result
+                            },
+                          },
+                        }
+                      : support,
+                  ),
+              },
+              identities: {
+                ...f.input.options.identities,
+                tool: (_scope, _run, _attempt, _position, call) => ({
+                  prepareKey: `driver-tool-prepare:${call}`,
+                  originalPosition: `tool-runtime/1/${JSON.stringify(['execution_intended', call])}`,
+                  resultKey: `driver-tool-result:${call}`,
+                  adoptionKey: `driver-tool-adopt:${call}`,
+                }),
+              },
+            },
+            scope: f.scope,
+            journal,
+            message: reply.message.id,
+            permit: f.prepared.preparation.permit,
+            signal: new AbortController().signal,
+            sources: { actions: runner.actions, toolAccess: tool.access },
+          })
+          if (native === 'unknown') {
+            expect(await consumer.completion).toBe('retained')
+            expect(consumer.work).toHaveLength(1)
+            expect(consumer.work[0]!.participant!.identity.ref.callId).toBe(calls[0]!.callId)
+            expect(tool.author).not.toHaveBeenCalled()
+            expect(await f.f.count('sr_tool_issue')).toEqual({ n: 1 })
+            expect(await f.f.count('tool_original_issue')).toEqual({ n: 1 })
+            expect(await consumer.close()).toBe('pending')
+            expect(tool.release).not.toHaveBeenCalled()
+            expect(
+              await f.f.storage.atomic(unit =>
+                f.work.readIn(unit, f.scope, f.prepared.preparation.run),
+              ),
+            ).toBe('pending')
+            await tool.close()
+          } else if (native === 'stopPending') {
+            await entered.promise
+            expect(consumer.work[0]!.stopped).toBe(false)
+            expect(await consumer.close()).toBe('pending')
+            expect(tool.release).not.toHaveBeenCalled()
+            returned.resolve()
+            expect(await consumer.completion).toBe('retained')
+            expect(consumer.work).toHaveLength(1)
+            expect(consumer.work[0]!.stopped).toBe(true)
+            expect(tool.author).toHaveBeenCalledOnce()
+            expect(await consumer.close()).toBe('released')
+            expect(tool.release).toHaveBeenCalledOnce()
+            expect(
+              await f.f.storage.atomic(unit =>
+                f.work.readIn(unit, f.scope, f.prepared.preparation.run),
+              ),
+            ).toBe('pending')
+          } else {
+            expect(await consumer.completion).toBe('ended')
+            expect(consumer.work).toHaveLength(3)
+            expect(consumer.work.map(work => work.stopped)).toEqual([true, true, true])
+            expect(consumer.work.map(work => work.terminal!.value.terminal.outcome)).toEqual([
+              'completed',
+              'failed',
+              'completed',
+            ])
+            expect(tool.author).toHaveBeenCalledTimes(2)
+            expect(await f.f.count('sr_tool_issue')).toEqual({ n: 3 })
+            expect(await f.f.count('tool_original_issue')).toEqual({ n: 3 })
+            const actual = await tool.prefix()
+            expect(history.inspect(actual, calls[0]!.callId)).toMatchObject({
+              kind: 'known',
+              facts: { route: { kind: 'execution' } },
+            })
+            expect(
+              await f.f.storage.atomic(unit =>
+                f.work.readIn(unit, f.scope, f.prepared.preparation.run),
+              ),
+            ).toBe('pending')
+            expect(await consumer.close()).toBe('released')
+            expect(tool.release).toHaveBeenCalledOnce()
+            const observed = await tool.native!.operations.acquire(tool.access, {
+              ...f.scope,
+              callId: calls[0]!.callId,
+            })
+            expect(observed).toHaveProperty('kind', 'acquired')
+            if (observed.kind === 'acquired') observed.observer.release()
+            expect(tool.author).toHaveBeenCalledTimes(2)
+          }
+        } finally {
+          returned.resolve()
+          await tool.close()
+        }
+      }
       await runner.close()
       expect(await task.close()).toBe('pending')
       await journal.close()
     },
   )
+  it('drives the original Model task into actual Runner admission and one native Tool without another model call', async () => {
+    const judged = judgeMessage({
+      id: 'driver-native-tool-source',
+      type: 'assistant',
+      response: 'driver-native-tool-response',
+      ending: 'complete',
+      createdAt: at,
+      blocks: [
+        {
+          id: 'driver-native-call-block',
+          callId: 'driver-native-call',
+          kind: 'tool_call',
+          tool: 'example__read',
+          complete: true,
+          arguments: {},
+          visibility: { toHuman: true, toModel: true },
+        },
+      ],
+    })
+    if (!('ok' in judged) || judged.ok.type !== 'assistant')
+      throw new Error('controlled tool reply rejected')
+    const calls: import('@omne-harness-lite/content-blocks').ToolCallBlock[] = []
+    for (const block of judged.ok.blocks)
+      if (block.kind === 'tool_call' && block.complete === true) calls.push(block)
+    const f = await running(undefined, false, calls)
+    const table = evaluatedDriverTool()
+    const history = createSessionToolActionHistory({ readConclusions: readPassConclusions })
+    let runner: Awaited<ReturnType<ReturnType<typeof driverActionFixture>['open']>> | undefined
+    let tool: Awaited<ReturnType<typeof driverNativeToolFixture>> | undefined
+    const startRunner = async () => {
+      if (runner) return runner
+      const read = await f.borrowed.journal.readPrefix()
+      if ('failure' in read) throw new Error('actual driver prefix missing')
+      const prefix = {
+        scope: f.scope,
+        ownerGeneration: read.source.journalGeneration,
+        entries: read.entries,
+        tail: read.tail,
+      }
+      const replies = [...readDriverModelHistory(prefix).replies.values()]
+      const found = readDriverToolBatch(prefix, replies[0]!.message.id)
+      if (found.kind !== 'batch') throw new Error('actual Model source absent')
+      runner = await driverActionFixture(f.borrowed.journal, found.batch).open()
+      return runner
+    }
+    const sources: SessionDriverRunSources = Object.create(f.sources)
+    Object.defineProperties(sources, {
+      actions: {
+        get: () => {
+          if (!runner) throw new Error('actual Runner not acquired')
+          return runner.actions
+        },
+      },
+      toolAccess: {
+        get: () => {
+          if (!tool) throw new Error('actual Tool not acquired')
+          return tool.access
+        },
+      },
+      evaluation: { value: { read: async () => ({ input: table.input }) } },
+      registry: {
+        value: {
+          list: async () => ({ entries: table.entries }),
+          refreshAvailability: async (
+            ...args: Parameters<SessionDriverRunSources['registry']['refreshAvailability']>
+          ) => {
+            const value = await f.sources.registry.refreshAvailability(...args)
+            return 'report' in value
+              ? {
+                  report: {
+                    ...value.report,
+                    availability: table.entries.map(({ capability, availability }) => ({
+                      capability,
+                      availability,
+                    })),
+                    effectivePermissions: { [modelName(table.capability.name)]: table.permission },
+                  },
+                }
+              : value
+          },
+        },
+      },
+      providers: {
+        value: {
+          ...f.sources.providers,
+          tools: {
+            lookup: async (_session: unknown, _category: unknown, name: string) => {
+              const entry = table.entries.find(entry => modelName(entry.capability.name) === name)
+              return entry ? { entry } : { none: true }
+            },
+          },
+        },
+      },
+    })
+    const task = createDriverModelRunTask({
+      ...f.input,
+      sources,
+      options: {
+        ...f.input.options,
+        identities: {
+          ...f.input.options.identities,
+          tool: (_scope, _run, _attempt, _position, call) => ({
+            prepareKey: `native-driver:${call}`,
+            originalPosition: `tool-runtime/1/${JSON.stringify(['execution_intended', call])}`,
+            resultKey: `native-driver-result:${call}`,
+            adoptionKey: `native-driver-adoption:${call}`,
+          }),
+        },
+        tools: {
+          acquire: async support => {
+            tool = await driverNativeToolFixture({
+              storage: f.f.storage,
+              root: f.f.root,
+              ingress: f.f.runtime,
+              backing: f.f.log().backing,
+              journal: f.borrowed.journal,
+              history,
+              call: calls[0]!.callId,
+            })
+            await startRunner()
+            return tool.factory.acquire(support)
+          },
+        },
+      },
+    })
+    try {
+      expect(await task.completion).toBe('retained')
+      expect(tool!.author).toHaveBeenCalledOnce()
+      expect(f.ports.sends()).toBe(1)
+      expect(await f.f.count('sr_tool_issue')).toEqual({ n: 1 })
+      expect(
+        await f.f.storage.atomic(unit => f.work.readIn(unit, f.scope, f.prepared.preparation.run)),
+      ).toBe('pending')
+      expect(f.releaseModel).toHaveBeenCalledOnce()
+      expect(await task.close()).toBe('pending')
+      expect(tool!.release).toHaveBeenCalledOnce()
+      expect(history.inspect(await tool!.prefix(), calls[0]!.callId)).toMatchObject({
+        kind: 'known',
+        facts: { route: { kind: 'execution' } },
+      })
+    } finally {
+      await tool?.close()
+      await runner?.close()
+    }
+  })
   it('reads an actual settled Model reply and rejects missing or duplicate provenance anchors', async () => {
     const f = await running()
     const task = createDriverModelRunTask(f.input)

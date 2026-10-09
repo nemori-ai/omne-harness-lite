@@ -353,7 +353,16 @@ Runner返回token不代替整批完成事实及最后工具准入。原采用／
 此函数不执行IO，不授予权限，不关闭任何借入资源。
 
 Model投影使用此事实owner的形状读取器，保留事实与消息的区分，不将整批事实包装成SystemReminderMessage。
-上述整批消费者与历史读取器不表示完整Tool运行驱动已交付；原Native Tool、stopped、结果保管、after_action及下一Model的完整组合仍须通过各自验证。
+原Model任务仅在原SDK ACK、frame释放与模型收场可靠完成后进入Tool段。归还本段Model借用时，原Model工作token仍保留未完成责任；不能在Tool工作尚未登记时制造可finish的空隙。
+Tool段借用根给定的原factory及本Ingress的同Unit支持，等待实际ready，并核显式tenant。该借用不会创建或关闭另一执行池。
+整批完成事实可靠确认后，driver按原序消费全部非denied项；denied批次保留待处理，不发起工具。
+每项先登记原工作，再从最新Source提交prepareCall。原位置必须是Core工具codec产生的execution_intended键，callId沿原有效调用；不能用模型位置或替代身份。
+可信admission委托在第一调用前保留原Native participant，包括完整identity与真实stopped。它只委托本Ingress的原admit／consume；复制claim、异任务或撤回后的新consume不转交。
+真正Native Runtime仍核实际历史、locator、当前资格与唯一发起。driver不以整批事实或token代替上述权限。
+工具终局须经实际observer和Core工具日志读取，且取得同一个原participant的stopped；observer.release不构成停止证明。
+未知或缺少原终局保持原身份、工作token和必要借用，不重发。执行中撤回只阻断本消费者后继发起，不用共享池关闭代替原任务处理。
+全部原任务取得终局与实际stopped后，可归还本次Tool借用；归还失败保留原责任并可显式续关。
+此时工作账本仍未settled。原结果保管、普通after_action交付、下一Model及完整Cordis组合是其后的条件；Tool终局不直接结束Run。
 
 来源不完整或代际不符返回unavailable，不补常量CurrentInputs、空history或“已恢复”。
 实际生产者仍按I02及各Core协议实现；该factory只包装这些真实来源，不把数据变成资格。

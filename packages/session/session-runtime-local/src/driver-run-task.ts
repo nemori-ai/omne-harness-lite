@@ -7,7 +7,7 @@ import { createDriverModelRunTask } from './driver-model-run.ts'
 
 type Inputs = Pick<
   LocalSessionDriverOptions,
-  'ingress' | 'identities' | 'model' | 'work' | 'sources'
+  'ingress' | 'identities' | 'model' | 'tools' | 'work' | 'sources'
 >
 
 /** Register this task before it allocates its original Run or any asynchronous source borrow. */

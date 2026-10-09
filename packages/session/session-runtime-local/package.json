@@ -68,6 +68,7 @@
     "@omne-harness-lite/loop-extension-runner-local": "workspace:*",
     "@omne-harness-lite/tool-execution-local": "workspace:*",
     "@omne-harness-lite/tool-result-files": "workspace:*",
-    "@omne-harness-lite/assembly-manifest-store": "workspace:*"
+    "@omne-harness-lite/assembly-manifest-store": "workspace:*",
+    "@omne-harness-lite/tool-admission-local": "workspace:*"
   }
 }
