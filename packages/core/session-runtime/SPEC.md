@@ -13,6 +13,8 @@
 `AttemptPermit`不是裸ID，绑定tenant/session/run/attempt、执行者代际及已验证准入事实，只由协调者签发。
 `Receipt`包括OperationRef、受理／创建事实位置及SourceToken。全操作结果为下表成功联合或限定失败；未知公共提交按OperationRef查。内部step使用稳定stepKey／原消费位置认回，未知后重读该Session原事实，不另起新step；原调用仍按原call/result身份认回。
 内部StepReceipt含tenant/session、Run/attempt或显式null、stepKey、step变体、事实位置及SourceToken，不冒充公共OperationRef。ResultReceipt含tenant/session、原call/resultKey、事实位置及SourceToken。三个receipt各按其原身份认回；公共readReceipt不查询内部step或原结果。
+新Run登录查询明确拒绝或无法确认时，失败结果可携带`admission`，其中`inputPosition`标识原待处理消息，`reason`区分`loginRejected`和`confirmationUnavailable`。该观察不授予权限，不表示消息未受理，不替代原失败结果。只有实际新Run查询结果能产生该字段；存储故障、原提交不明或其他拒绝不能推断为登录失效。
+
 
 ### 限定操作面
 

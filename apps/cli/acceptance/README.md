@@ -1,6 +1,6 @@
 # Formal CLI acceptance
 
-Build the CLI before these checks. The scenarios execute `dist/main.js` and the formal Session host. They do not use a demo or replace runtime providers.
+Build the CLI before these checks. The command scenarios execute `dist/main.js` and the formal Session host. The S118 scenario consumes the public evaluation, asset registry, implementation registry and tool invocation functions. No scenario uses a demo.
 
 PF-016 S5 checks non-terminal refusal, machine-entry guidance and structured output. Its unsupported-terminal check uses the Linux `script` utility to supply a real PTY. That check does not cover a graphical terminal or input-method composition.
 
@@ -20,3 +20,5 @@ The network scenario makes three real model requests. It asks Shell for help, ex
 This replaces the old demo-specific nonce fixture. The scenario requests one help call and one execute call, and checks exactly two tool calls and three model requests. The old controlled-HTTPS demo variant is removed. This scenario uses the real endpoint and captured production requests; it does not claim controlled-endpoint coverage. Missing configuration, failed requests and unavailable facilities fail the check.
 
 Evidence contains the test input, client and host results, this Session's log and its verdict. It does not copy credentials or other tenant tables. Set `PF006_EVIDENCE_ROOT` to a worktree `tmp/` directory. Passing these checks does not replace independent acceptance or the real terminal matrix.
+
+PF-006 S118 uses two lawful implementations of the same tool. It checks that the tenant asset overrides the factory asset, reads the selected definition from the persisted registry, and calls that implementation with the original arguments. It asserts the selected asset and version, the actual result, and zero calls to the unselected implementation. The tenant standing and deployment inputs are controlled. This scenario does not claim a model, terminal or network test. Session and Tool Runtime tests separately check repeated original identity, one execution, result custody and delivery. S24/S69 check the complete real CLI tool round trip.

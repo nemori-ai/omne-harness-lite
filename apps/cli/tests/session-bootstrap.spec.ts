@@ -1,3 +1,5 @@
+import { submitSessionMessage } from '../src/session-message-client.ts'
+import type { Clock } from '@omne-harness-lite/offer-expiry'
 import { checkedTenantBinding } from '../src/state-layout-values.ts'
 import { openLeaseClock } from '@omne-harness-lite/clock-lease'
 import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
@@ -20,11 +22,8 @@ import {
 import { createSessionCallAccess } from '@omne-harness-lite/session-runtime-local'
 import { createSessionContextReadGrant } from '../src/session-context-access.ts'
 import type { BorrowedRunJournal } from '@omne-harness-lite/session-runtime-local'
-import {
-  startFileSessionRuntimeRoot,
-  startFileSessionDriverRoot,
-  FileSessionRuntimeFailure,
-} from '../src/session-file-root.ts'
+import { startFileSessionDriverRoot, FileSessionRuntimeFailure } from '../src/session-file-root.ts'
+import { createNativeSessionModelPool } from '../src/session-native-model.ts'
 import type {
   SessionNativeModelOptions,
   SessionNativeModelPool,
@@ -35,19 +34,15 @@ import {
   createSessionDriverWorkOwner,
   type SessionDriverWorkOwner,
 } from '@omne-harness-lite/session-runtime-local'
-import { startRunningSessionHost } from '../src/session-execution-host.ts'
 import { startSessionDriverHost } from '../src/session-driver-host.ts'
-import {
-  startSessionRuntimeRoot,
-  startSessionDriverRuntimeRoot,
-} from '../src/session-runtime-root.ts'
+import { startSessionDriverRuntimeRoot } from '../src/session-runtime-root.ts'
 import {
   officialSessionDefinition,
   officialSessionAsset,
   officialSessionManifest,
 } from '../src/session-factory-assets.ts'
 import type {
-  SessionRuntimeRootOptions,
+  SessionDriverRuntimeRootOptions,
   SessionDriverRootBinding,
 } from '../src/session-runtime-root-types.ts'
 import { sendSessionHostRequest } from '../src/session-host-client.ts'
@@ -601,10 +596,33 @@ async function rootFixture(withModel = false) {
   await f.log.close()
   await f.admission.close()
   if (f.modelOwner) expect(await f.modelOwner.close()).toEqual({ kind: 'released' })
-  const configure = vi.fn<SessionRuntimeRootOptions['model']['configure']>(() => async () => {
-    throw new Error('empty Session must not request a model')
-  })
-  const options: SessionRuntimeRootOptions = {
+  const unexpected = (): never => {
+    throw new Error('empty Session must not execute a Run')
+  }
+  const configure = vi.fn<SessionDriverRuntimeRootOptions['configure']>(() => ({
+    policy: {
+      scanLimit: 16,
+      intervalMs: 5,
+      maxTasks: 8,
+      maxHeld: 16,
+      maxFailures: 8,
+      maxStepsPerPass: 16,
+    },
+    identities: {
+      run: unexpected,
+      model: unexpected,
+      tool: unexpected,
+      modelContent: { response: unexpected, message: unexpected },
+    },
+    sources: { acquire: async () => unexpected() },
+    model: {
+      factory: { acquire: async () => unexpected() },
+      settlement: { create: unexpected },
+      maxCallReads: 4,
+    },
+    tools: { acquire: async () => unexpected() },
+  }))
+  const options: SessionDriverRuntimeRootOptions = {
     home: f.directory,
     binding: { formatVersion: 1, centerId: source.centerId, tenant },
     source,
@@ -637,8 +655,8 @@ async function rootFixture(withModel = false) {
       retainReferencesIn: async () => {
         throw new Error('empty Session has no model result')
       },
-      configure,
     },
+    configure,
     transport: {
       maxRequestBytes: 65536,
       maxResponseBytes: 65536,
@@ -651,10 +669,7 @@ async function rootFixture(withModel = false) {
       maxFailureRecords: 8,
       maxHeaderBytes: 8192,
     },
-    execution: { scanLimit: 16, intervalMs: 5, maxTasks: 8, maxHeld: 16, maxFailures: 8 },
-    identities: () => {
-      throw new Error('empty Session must not start a Run')
-    },
+    maxHeld: 16,
     diagnostic: error => {
       throw error
     },
@@ -669,7 +684,14 @@ it.each(['empty', 'startupFailure'] as const)(
       throw new Error('empty Session must not execute a Run')
     }
     const configure = vi.fn<() => SessionDriverRootBinding>(() => ({
-      policy: { ...options.execution, maxStepsPerPass: 16 },
+      policy: {
+        scanLimit: 16,
+        intervalMs: 5,
+        maxTasks: 8,
+        maxHeld: 16,
+        maxFailures: 8,
+        maxStepsPerPass: 16,
+      },
       identities: {
         run: unexpected,
         model: unexpected,
@@ -686,7 +708,7 @@ it.each(['empty', 'startupFailure'] as const)(
     }))
     const inputs = {
       ...options,
-      maxHeld: options.execution.maxHeld,
+      maxHeld: options.maxHeld,
       creation: {
         definition: input.definition,
         executionType: input.executionType,
@@ -742,7 +764,7 @@ it('deploys the actual CLI official release and creates an independently initial
     collaboration: input.collaboration,
     executionType: input.executionType,
   }
-  const root = await startSessionRuntimeRoot({ ...options, creation })
+  const root = await startSessionDriverRuntimeRoot({ ...options, creation })
   const deployed = { ...f.base, deployedOfficial: officialSessionManifest(f.base.deployedOfficial) }
   expect(await readPublicationRevision(deployed)).toEqual({ revision: '2' })
   cleanup.push(async () => {
@@ -792,7 +814,7 @@ it('deploys the actual CLI official release and creates an independently initial
   expect(configure).toHaveBeenCalledOnce()
   expect(await root.close()).toEqual({ closed: true })
   // Reopen the actual running root without republishing the immutable CLI release.
-  const next = await startSessionRuntimeRoot({ ...options, creation })
+  const next = await startSessionDriverRuntimeRoot({ ...options, creation })
   expect(await readPublicationRevision(deployed)).toEqual({ revision: '2' })
   cleanup.push(async () => {
     expect(await next.close()).toEqual({ closed: true })
@@ -811,7 +833,7 @@ it('deploys the actual CLI official release and creates an independently initial
 })
 it('assembles the actual runtime root and creates a legal empty Session through its socket without starting a model', async () => {
   const { f, options, configure } = await rootFixture()
-  const root = await startSessionRuntimeRoot(options)
+  const root = await startSessionDriverRuntimeRoot(options)
   cleanup.push(async () => {
     expect(await root.close()).toEqual({ closed: true })
   })
@@ -888,7 +910,7 @@ it('finishes the original root close after its retained model observation is exp
     release: () => ({ unavailable: true }),
   }
   const { f, options } = await rootFixture()
-  const root = await startSessionRuntimeRoot({
+  const root = await startSessionDriverRuntimeRoot({
     ...options,
     model: { ...options.model, executionSource: () => source },
   })
@@ -914,11 +936,101 @@ it('finishes the original root close after its retained model observation is exp
   // Root close never takes over the borrowed store or physical execution source.
   await f.storage.atomic(async unit => unit.assertStorage(f.storage))
 })
+it.each(['loginRejected', 'confirmationUnavailable'] as const)(
+  'reports %s for accepted input through the actual Driver and socket without starting a model',
+  async reason => {
+    const { f, options } = await rootFixture()
+    const root = await startSessionDriverRuntimeRoot({
+      ...options,
+      configure: async (...args) => {
+        const configured = await options.configure(...args)
+        return {
+          ...configured,
+          identities: {
+            ...configured.identities,
+            run: (_scope, position) => ({
+              startKey: `blocked-start:${position}`,
+              attemptKey: `blocked-attempt:${position}`,
+            }),
+          },
+        }
+      },
+    })
+    cleanup.push(async () => {
+      expect(await root.close()).toEqual({ closed: true })
+    })
+    const ingress = root.owners.ingress
+    const created = await ingress.operations.createSession(ingress.access, input)
+    if (!('kind' in created) || created.kind !== 'created') throw new Error('Session not created')
+    f.exchanges.mockImplementation(async () =>
+      reason === 'loginRejected'
+        ? { kind: 'entry-answer', answer: 'login-state-rejected', sendAttempted: true }
+        : { kind: 'unavailable', reason: 'connection', sendAttempted: false },
+    )
+    const request = parseSessionHostRequest({
+      format: 'omne-session-host/1',
+      binding: options.binding,
+      command: 'submitInput',
+      session: created.session,
+      operationKey: 'original-blocked-input',
+      message: {
+        id: 'blocked-message',
+        type: 'user',
+        createdAt: now,
+        blocks: [
+          {
+            id: 'blocked-text',
+            kind: 'text',
+            text: 'keep this original input',
+            visibility: { toHuman: true, toModel: true },
+          },
+        ],
+      },
+    })
+    if (!request || request.command !== 'submitInput') throw new Error('invalid input request')
+    const outcome = await submitSessionMessage({
+      home: options.home,
+      request,
+      signal: new AbortController().signal,
+      policy: { timeoutMs: 2000, maxResponseBytes: 65536, maxWaitMs: 5000, pollIntervalMs: 10 },
+    })
+    expect(outcome).toMatchObject({
+      status: 'accepted',
+      reason,
+      submission: { kind: 'submission', run: null, admission: { reason } },
+    })
+    if (outcome.status !== 'accepted' || !outcome.submission)
+      throw new Error('original admission observation missing')
+    expect(outcome.submission.admission?.inputPosition).toEqual(outcome.submission.inputPosition)
+    expect(outcome.receipt).not.toBeNull()
+    if (!outcome.receipt) throw new Error('original receipt missing')
+    const before = await ingress.journal.readPrefix(ingress.access, created.session)
+    expect(
+      await ingress.operations.readReceipt(ingress.access, outcome.receipt.operation),
+    ).toMatchObject({ receipt: outcome.receipt })
+    expect(
+      await ingress.readWork(
+        ingress.coordinationAuthority,
+        { tenant, session: created.session },
+        1,
+      ),
+    ).toMatchObject({
+      kind: 'work',
+      inputs: [outcome.submission.inputPosition],
+      head: { run: null },
+    })
+    expect(await ingress.journal.readPrefix(ingress.access, created.session)).toEqual(before)
+  },
+)
 it('preserves unavailable from the actual root Clock and rolls back input, log and receipt together', async () => {
   const { options } = await rootFixture()
   let available = true
-  const root = await startSessionRuntimeRoot({
+  const root = await startSessionDriverRuntimeRoot({
     ...options,
+    configure: async (...args) => {
+      const configured = await options.configure(...args)
+      return { ...configured, policy: { ...configured.policy, intervalMs: 60_000 } }
+    },
     clock: {
       now: async () => (available ? unwrap(instantFromRfc3339(now)) : 'unavailable'),
     },
@@ -969,22 +1081,19 @@ it('releases the actual partial runtime root after a model configuration defect 
   const { options } = await rootFixture()
   const defect = new Error('controlled root model configuration failure')
   await expect(
-    startSessionRuntimeRoot({
+    startSessionDriverRuntimeRoot({
       ...options,
-      model: {
-        ...options.model,
-        configure: () => {
-          throw defect
-        },
+      configure: () => {
+        throw defect
       },
     }),
   ).rejects.toBe(defect)
-  const root = await startSessionRuntimeRoot(options)
+  const root = await startSessionDriverRuntimeRoot(options)
   expect(await root.close()).toEqual({ closed: true })
 })
 it('does not invent creation preferences or reserve a Session in an unconfigured actual root', async () => {
   const { options } = await rootFixture()
-  const root = await startSessionRuntimeRoot(options)
+  const root = await startSessionDriverRuntimeRoot(options)
   cleanup.push(() => root.close().then(() => {}))
   const originalId = vi.fn(() => 'must-not-be-used')
   const result = await createSessionForMessage({
@@ -1017,7 +1126,7 @@ it('closes a foreign-origin actual governance use before any refresh or runtime 
     use: { ...opened.use, run, close },
   }))
   await expect(
-    startSessionRuntimeRoot({
+    startSessionDriverRuntimeRoot({
       ...options,
       governance: {
         openUse,
@@ -1030,218 +1139,6 @@ it('closes a foreign-origin actual governance use before any refresh or runtime 
   expect(close).toHaveBeenCalledOnce()
   expect(run).not.toHaveBeenCalled()
   expect(configure).not.toHaveBeenCalled()
-})
-it('drives two rounds through one actual assembled root and physical model pool without observation', async () => {
-  // The actual root owns G28, SQL log, legal fixture recipe, Context, task proof and model bridges.
-  // Governance/model transport, permissions and generation are controlled, not production evidence.
-  const { f, options } = await rootFixture(true)
-  let built: Awaited<ReturnType<typeof actualModelTurn>> | undefined
-  const submissions = [0, 1].map(() =>
-    Promise.withResolvers<Awaited<ReturnType<typeof originalModelInput>>['accepted']>(),
-  )
-  const builtRounds: Array<Awaited<ReturnType<typeof actualModelTurn>>> = []
-  let configuredRounds = 0
-  const configure: SessionRuntimeRootOptions['model']['configure'] =
-    owners => async (scope, prepared) => {
-      const round = configuredRounds++
-      const accepted = await submissions[round]!.promise
-      const composed = {
-        ...f,
-        runtime: owners.ingress,
-        assembly: owners.bootstrap,
-        modelOwner: owners.originalModel,
-      }
-      const original = await originalIssueForPrepared({ f: composed, scope, accepted }, prepared)
-      const current = await actualModelTurn(
-        original,
-        owners.modelResults,
-        'normal',
-        undefined,
-        builtRounds[0],
-      )
-      built = current
-      builtRounds.push(current)
-      return {
-        turn: {
-          ...current.turn,
-          call: {
-            ...current.turn.call,
-            creationKey: unwrap(
-              parseOpaqueIdentifier(`${prepared.preparation.call}:create`, 'CreationKey'),
-            ),
-          },
-          resultKey: `${prepared.preparation.call}:result`,
-          adoptionKey: `${prepared.preparation.call}:adopt`,
-        },
-        registration: nativeReadRegistration(),
-        transfer: async () => 'pending',
-        current: createSessionModelObservations(
-          current.turn,
-          nativeReadRegistration(),
-          owners.bootstrap.context(scope)!,
-        ),
-      }
-    }
-  const root = await startSessionRuntimeRoot({
-    ...options,
-    creation: {
-      definition: input.definition,
-      executionType: input.executionType,
-      mode: input.mode,
-      collaboration: input.collaboration,
-    },
-    identities: (_scope, position) => ({
-      startKey: `model-root-run:${position}`,
-      attemptKey: `model-root-attempt:${position}`,
-      prepareKey: `model-root-prepare:${position}`,
-      call: `model-root-call:${position}`,
-      originalPosition: `model-root-loop-position:${position}`,
-    }),
-    model: {
-      ...options.model,
-      configure,
-      executionSource: () => built?.options.nativeModel.executionSource,
-      retainReferencesIn: async unit => {
-        unit.assertStorage(f.storage)
-        return 'retained'
-      },
-    },
-  })
-  cleanup.push(async () => {
-    expect(await root.close()).toEqual({ closed: true })
-  })
-  const ingress = root.owners.ingress
-  const created = await createSessionForMessage({
-    home: options.home,
-    binding: options.binding,
-    signal: new AbortController().signal,
-    originalId: () => input.operationKey,
-    policy: { timeoutMs: 2000, maxResponseBytes: 65536 },
-  })
-  if (created.kind !== 'created-session') throw new Error('root Session not created')
-  const message = judgeMessage({
-    id: 'model-root-input',
-    type: 'user',
-    createdAt: now,
-    blocks: [
-      {
-        id: 'model-root-input-text',
-        kind: 'text',
-        text: 'actual root request',
-        visibility: { toHuman: true, toModel: true },
-      },
-    ],
-  })
-  if ('rejected' in message || message.ok.type !== 'user') throw new Error('invalid root message')
-  const packet = parseSessionHostRequest({
-    format: 'omne-session-host/1',
-    binding: options.binding,
-    command: 'submitInput',
-    session: created.session,
-    operationKey: 'model-root-input-operation',
-    message: message.ok,
-  })
-  if (!packet || packet.command !== 'submitInput') throw new Error('invalid root input request')
-  const reply = await sendSessionHostRequest({
-    home: options.home,
-    request: packet,
-    policy: { timeoutMs: 2000, maxResponseBytes: 65536 },
-  })
-  const accepted = reply.kind === 'reply' ? readSubmittedReply(reply.result, packet) : undefined
-  if (!accepted || !('kind' in accepted) || accepted.kind !== 'accepted')
-    throw new Error('root input not accepted')
-  submissions[0]!.resolve(accepted)
-  await vi.waitFor(() => expect(built?.ack).toHaveBeenCalledOnce(), { timeout: 3000 })
-  await vi.waitFor(
-    async () =>
-      expect(
-        await ingress.readWork(
-          ingress.coordinationAuthority,
-          { tenant, session: created.session },
-          1,
-        ),
-      ).toMatchObject({ kind: 'work', inputs: [], head: { run: { state: 'completed' } } }),
-    { timeout: 3000 },
-  )
-  const firstReading = await readSessionSubmission(ingress, accepted.receipt.operation)
-  if (!('kind' in firstReading) || firstReading.kind !== 'submission')
-    throw new Error('first submission not found')
-  expect(firstReading.run).toHaveProperty('state', 'completed')
-  const secondPacket = parseSessionHostRequest({
-    ...packet,
-    operationKey: 'model-root-second-operation',
-    message: {
-      ...message.ok,
-      id: 'model-root-second-input',
-      blocks: [
-        {
-          ...message.ok.blocks[0],
-          id: 'model-root-second-text',
-          text: 'second actual root request',
-        },
-      ],
-    },
-  })
-  if (!secondPacket || secondPacket.command !== 'submitInput')
-    throw new Error('invalid second root input')
-  const secondReply = await sendSessionHostRequest({
-    home: options.home,
-    request: secondPacket,
-    policy: { timeoutMs: 2000, maxResponseBytes: 65536 },
-  })
-  const secondAccepted =
-    secondReply.kind === 'reply' ? readSubmittedReply(secondReply.result, secondPacket) : undefined
-  if (!secondAccepted || !('kind' in secondAccepted) || secondAccepted.kind !== 'accepted')
-    throw new Error('second root input not accepted')
-  submissions[1]!.resolve(secondAccepted)
-  await vi.waitFor(
-    async () => {
-      expect(await readSessionSubmission(ingress, secondAccepted.receipt.operation)).toMatchObject({
-        kind: 'submission',
-        run: { state: 'completed' },
-      })
-    },
-    { timeout: 3000 },
-  )
-  const firstAfterSecond = await readSessionSubmission(ingress, accepted.receipt.operation)
-  expect(firstAfterSecond).toMatchObject({
-    kind: 'submission',
-    receipt: firstReading.receipt,
-    run: firstReading.run,
-  })
-  const secondReading = await readSessionSubmission(ingress, secondAccepted.receipt.operation)
-  if (!('kind' in secondReading) || secondReading.kind !== 'submission')
-    throw new Error('second submission not found')
-  expect(secondReading.run?.id).not.toBe(firstReading.run?.id)
-  expect(builtRounds).toHaveLength(2)
-  expect(builtRounds[1]!.options.nativeModel).toBe(builtRounds[0]!.options.nativeModel)
-  expect(builtRounds.map(round => round.ack.mock.calls.length)).toEqual([1, 1])
-  expect(built!.ports.sentRequests).toHaveLength(2)
-  expect(JSON.stringify(built!.ports.sentRequests[1]!.messages)).toContain('actual root request')
-  expect(JSON.stringify(built!.ports.sentRequests[1]!.messages)).toContain('actual native result')
-  expect(JSON.stringify(built!.ports.sentRequests[1]!.messages)).toContain(
-    'second actual root request',
-  )
-  expect(await root.close()).toEqual({ closed: true })
-  expect(built!.ports.sends()).toBe(2)
-  const receipt = await sendSessionHostRequest({
-    home: options.home,
-    request: parseSessionHostRequest({
-      format: 'omne-session-host/1',
-      binding: options.binding,
-      command: 'readReceipt',
-      operation: accepted.receipt.operation,
-    })!,
-    policy: { maxResponseBytes: 65536, timeoutMs: 1000 },
-  })
-  expect(receipt).toHaveProperty('kind', 'unconfirmed')
-  // Root shutdown did not close the actual borrowed tenant store or physical pool.
-  await f.storage.atomic(async unit => unit.assertStorage(f.storage))
-  const borrowedFrame = built!.options.nativeModel.executionSource.capture(created.session)
-  if ('unavailable' in borrowedFrame)
-    throw new Error('root closed the borrowed physical execution source')
-  borrowedFrame.capture.release()
-  expect(borrowedFrame.capture.executions).toEqual([])
 })
 it('publishes after actual CG, original member observation, legal source and isolated Context initialization without starting a Run', async () => {
   const f = await setup()
@@ -2006,7 +1903,7 @@ it.each(['normal', 'foreignScope', 'fillReceiptLost'] as const)(
         evaluation: { toolEnvironmentPermission: 'always-allow' as const },
         registry: registryPolicy,
       }
-      if (fault === 'normal') {
+      if (fault === 'normal' && returned.mock.calls.length === 0) {
         const stopped = createSessionRunAssets(assetOptions)
         await stopped.close()
         expect(await stopped.ready).toEqual({ unavailable: true })
@@ -2247,14 +2144,19 @@ it.each(['normal', 'foreignScope', 'fillReceiptLost'] as const)(
         maxStepsPerPass: 4,
       },
       identities: {
-        run: () => ({ startKey: 'public-root-start', attemptKey: 'public-root-attempt' }),
-        model: () => ({
-          prepareKey: 'public-root-prepare',
-          originalPosition: 'public-root-position',
-          resultKey: 'public-root-result',
-          adoptionKey: 'public-root-adopt',
-          call: unwrap(parseOpaqueIdentifier('public-root-call', 'ModelCallId')),
-          creationKey: unwrap(parseOpaqueIdentifier('public-root-create', 'CreationKey')),
+        run: (_scope, position) => ({
+          startKey: `public-root-start:${position}`,
+          attemptKey: `public-root-attempt:${position}`,
+        }),
+        model: (_scope, _run, _attempt, position) => ({
+          prepareKey: `public-root-prepare:${position}`,
+          originalPosition: `public-root-position:${position}`,
+          resultKey: `public-root-result:${position}`,
+          adoptionKey: `public-root-adopt:${position}`,
+          call: unwrap(parseOpaqueIdentifier(`public-root-call:${position}`, 'ModelCallId')),
+          creationKey: unwrap(
+            parseOpaqueIdentifier(`public-root-create:${position}`, 'CreationKey'),
+          ),
         }),
         tool: () => {
           throw new Error('normal reply must not create tool identities')
@@ -2359,6 +2261,60 @@ it.each(['normal', 'foreignScope', 'fillReceiptLost'] as const)(
     expect(diagnostic).not.toHaveBeenCalled()
     expect(native.executionSource.snapshot(scope.session)[0]!.copyReleased).toBe(true)
     expect(f.assembly.context(scope)!.currentGeneration()).toEqual(expect.any(String))
+    if (fault === 'normal') {
+      const first = await readSessionSubmission(f.runtime, accepted.accepted.receipt.operation)
+      expect(first).toMatchObject({ kind: 'submission', run: { state: 'completed' } })
+      const secondInput = judgeMessage({
+        id: 'public-driver-second',
+        type: 'user',
+        createdAt: now,
+        blocks: [
+          {
+            id: 'public-driver-second-text',
+            kind: 'text',
+            text: 'second public driver request',
+            visibility: { toHuman: true, toModel: true },
+          },
+        ],
+      })
+      if (!('ok' in secondInput) || secondInput.ok.type !== 'user')
+        throw new Error('second input invalid')
+      const second = await f.runtime.operations.submitInput(
+        f.runtime.access,
+        scope.session,
+        'public-driver-second-operation',
+        secondInput.ok,
+      )
+      if (!('kind' in second) || second.kind !== 'accepted')
+        throw new Error('second input not accepted')
+      await vi.waitFor(
+        async () => {
+          expect(await readSessionSubmission(f.runtime, second.receipt.operation)).toMatchObject({
+            kind: 'submission',
+            run: { state: 'completed' },
+          })
+          expect(returned).toHaveBeenCalledTimes(2)
+        },
+        { timeout: 10000 },
+      )
+      const secondRead = await readSessionSubmission(f.runtime, second.receipt.operation)
+      if (
+        !('kind' in first) ||
+        first.kind !== 'submission' ||
+        !('kind' in secondRead) ||
+        secondRead.kind !== 'submission'
+      )
+        throw new Error('original submissions missing')
+      expect(secondRead.run?.id).not.toBe(first.run?.id)
+      expect(
+        await readSessionSubmission(f.runtime, accepted.accepted.receipt.operation),
+      ).toMatchObject({ receipt: first.receipt, run: first.run })
+      expect(ports.sends()).toBe(2)
+      expect(JSON.stringify(ports.sentRequests[1]!.messages)).toContain(
+        'second public driver request',
+      )
+      expect(JSON.stringify(ports.sentRequests[1]!.messages)).toContain('actual native result')
+    }
     const request = parseSessionHostRequest({
       format: 'omne-session-host/1',
       binding: { formatVersion: 1, centerId, tenant },
@@ -3976,187 +3932,6 @@ it('reads only a submitInput receipt and leaves unknown identities absent withou
   expect(await original.f.log.readSince(original.scope.session, 0)).toEqual(before)
 })
 
-it.each(['normal', 'detach', 'retained', 'rootFailure', 'diagnosticFailure', 'misbound'] as const)(
-  'runs the actual background Session host without observation requests: %s',
-  async fault => {
-    // SQL, CG client, original Run/attempt, ModelRuntime, SDK/custody/ACK and Unix listener are real.
-    // Governance transport, qualification/generation and model transport are controlled; work proof owns actual jobs.
-    let native: ReturnType<typeof createSessionModelRuntime> | undefined
-    let bridge!: SessionModelResultSource
-    let work!: SessionDriverWorkOwner
-    const initial = await originalModelInput(
-      storage => {
-        work = createSessionDriverWorkOwner({ storage, tenant, maxRecords: 4 })
-        bridge = createSessionModelResultSource({
-          storage,
-          tenant,
-          executionSource: () => native?.executionSource,
-          maxCaptures: 2,
-          retainReferencesIn: async unit => {
-            unit.assertStorage(storage)
-            return 'retained'
-          },
-        })
-        return bridge.source
-      },
-      true,
-      (unit, scope, run) => work.readIn(unit, scope, run),
-    )
-    const entered = Promise.withResolvers<void>(),
-      released = Promise.withResolvers<void>()
-    cleanup.push(async () => {
-      released.resolve()
-    })
-    const home = await mkdtemp(join(tmpdir(), 'omne-running-host-'))
-    cleanup.push(() => rm(home, { recursive: true, force: true }))
-    let built: Awaited<ReturnType<typeof actualModelTurn>> | undefined
-    const factoryFailure = new Error('actual model root preparation defect')
-    const diagnosticFailure = new Error('root diagnostic defect')
-    const diagnostic = vi.fn(() => {
-      if (fault === 'diagnosticFailure') throw diagnosticFailure
-    })
-    const factory = vi.fn(
-      async (
-        scope: SessionScope,
-        prepared: Extract<Awaited<ReturnType<typeof prepareSessionModelRun>>, { kind: 'prepared' }>,
-      ) => {
-        expect(scope).toEqual(initial.scope)
-        if (fault === 'rootFailure' || fault === 'diagnosticFailure') throw factoryFailure
-        const original = await originalIssueForPrepared(initial, prepared)
-        built = await actualModelTurn(
-          original,
-          bridge,
-          fault === 'retained' ? 'missingCodec' : 'normal',
-          { entered: entered.resolve, wait: released.promise },
-        )
-        native = built.options.nativeModel
-        const turn =
-          fault === 'retained'
-            ? { ...built.turn, projection: { rules: built.turn.projection.rules } }
-            : built.turn
-        return {
-          turn:
-            fault === 'misbound'
-              ? {
-                  ...turn,
-                  scope: {
-                    ...scope,
-                    session: unwrap(parseOpaqueIdentifier('foreign', 'SessionRef')),
-                  },
-                }
-              : turn,
-          registration: nativeReadRegistration(),
-          transfer: async () => 'pending' as const,
-          current: async (facts: Parameters<SessionModelAttemptOptions['current']>[0]) => ({
-            source: facts.source,
-            authorized: true,
-            assembly: JSON.stringify(built!.refreshed.report.snapshots),
-            contextGeneration: 'controlled-generation',
-            reconciled: true,
-          }),
-        }
-      },
-    )
-    const host = await startRunningSessionHost({
-      home,
-      binding: { formatVersion: 1, centerId, tenant },
-      ingress: initial.f.runtime,
-      work,
-      transport: {
-        maxRequestBytes: 65536,
-        maxResponseBytes: 65536,
-        maxConnections: 8,
-        maxInFlight: 4,
-        requestTimeoutMs: 2000,
-        headersTimeoutMs: 1000,
-        idleTimeoutMs: 1000,
-        checkIntervalMs: 100,
-        maxFailureRecords: 8,
-        maxHeaderBytes: 8192,
-      },
-      execution: { scanLimit: 2, intervalMs: 5, maxTasks: 4, maxHeld: 4, maxFailures: 8 },
-      identities: () => ({
-        startKey: 'model-root-run',
-        attemptKey: 'model-root-attempt',
-        prepareKey: 'model-root-prepare',
-        call: 'model-root-call',
-        originalPosition: 'model-root-loop-position',
-      }),
-      model: factory,
-      diagnostic,
-    })
-    let closed = false
-    cleanup.push(async () => {
-      released.resolve()
-      if (!closed) {
-        try {
-          await host.close()
-        } catch {}
-      }
-    })
-    if (fault === 'rootFailure' || fault === 'diagnosticFailure' || fault === 'misbound') {
-      await vi.waitFor(() => expect(diagnostic).toHaveBeenCalled(), { timeout: 3000 })
-      const stopped = host.close()
-      closed = true
-      const failure = await stopped.catch(error => error)
-      expect(failure).toBeInstanceOf(AggregateError)
-      if (fault === 'misbound') {
-        expect(failure.errors[0]).toBeInstanceOf(TypeError)
-        expect(built!.ports.sends()).toBe(0)
-      } else
-        expect(failure.errors).toEqual(
-          fault === 'diagnosticFailure' ? [factoryFailure, diagnosticFailure] : [factoryFailure],
-        )
-      expect(factory).toHaveBeenCalledTimes(1)
-      return
-    }
-    if (fault === 'retained') {
-      await vi.waitFor(() => expect(built?.retained).toHaveBeenCalledTimes(1), { timeout: 3000 })
-      expect(await host.close()).toEqual({ pending: true, held: 1 })
-      closed = true
-      expect(built!.ack).not.toHaveBeenCalled()
-      expect(built!.ports.sends()).toBe(0)
-      return
-    }
-    // Await actual transport entry. No Session read or progress request has run since host start.
-    await entered.promise
-    expect(built!.ports.sends()).toBe(1)
-    if (fault === 'detach') {
-      const stopped = host.close()
-      closed = true
-      let returned = false
-      void stopped.then(() => {
-        returned = true
-      })
-      await new Promise<void>(resolve => setImmediate(resolve))
-      expect(returned).toBe(false)
-      expect(built!.ack).not.toHaveBeenCalled()
-      released.resolve()
-      expect(await stopped).toEqual({ closed: true })
-    } else {
-      released.resolve()
-      await vi.waitFor(() => expect(built!.ack).toHaveBeenCalledTimes(1), { timeout: 3000 })
-      expect(await host.close()).toEqual({ closed: true })
-      closed = true
-    }
-    expect(factory).toHaveBeenCalledTimes(1)
-    expect(built!.ack).toHaveBeenCalledTimes(1)
-    const head = await initial.f.runtime.readWork(
-      initial.f.runtime.coordinationAuthority,
-      initial.scope,
-      1,
-    )
-    expect(head).toMatchObject({ kind: 'work', head: { run: { state: 'completed' } }, inputs: [] })
-    expect(
-      await initial.f.runtime.operations.readSession(
-        initial.f.runtime.access,
-        initial.scope.session,
-      ),
-    ).toHaveProperty('kind', 'session')
-    expect(bridge.close()).toEqual({ released: true })
-  },
-)
-
 it('uses original work tokens and the actual tenant Unit instead of treating absent work as settled', async () => {
   const original = await originalModelBinding()
   const work = createSessionDriverWorkOwner({ storage: original.f.storage, tenant, maxRecords: 1 })
@@ -4210,7 +3985,7 @@ it('uses original work tokens and the actual tenant Unit instead of treating abs
 
 it('reads the durable Session workspace through the official Context source across registrations', async () => {
   const { options } = await rootFixture()
-  const root = await startSessionRuntimeRoot({
+  const root = await startSessionDriverRuntimeRoot({
     ...options,
     creation: {
       definition: officialSessionDefinition,
@@ -4286,10 +4061,9 @@ it('opens the actual file Session root, creates the official Session and recogni
     mode: input.mode,
     collaboration: input.collaboration,
   }
-  const createModel = vi.fn(() => ({
-    ready: Promise.resolve(options.model),
-    close: async () => ({ released: true as const }),
-  }))
+  const createModel = vi.fn((storage: AtomicStorage, clock: Clock) =>
+    createNativeSessionModelPool(storage, clock, nativeFileModelOptions(f, options)),
+  )
   const sources = {
     ...options,
     transport: { ...options.transport, idleTimeoutMs: 10000 },
@@ -4299,8 +4073,10 @@ it('opens the actual file Session root, creates the official Session and recogni
       deployedOfficial: [{ capability: officialSessionDefinition, meta: false }],
     },
     createModel,
+    initialRouteName: officialCatalog[0]!.definition.modelId,
+    configure: fileDriverBinding(options),
   }
-  const root = await startFileSessionRuntimeRoot(sources)
+  const root = await startFileSessionDriverRoot(sources)
   cleanup.push(async () => {
     expect(await root.close()).toEqual({ closed: true })
   })
@@ -4322,7 +4098,7 @@ it('opens the actual file Session root, creates the official Session and recogni
   ).toMatchObject({ kind: 'reply', result: { kind: 'created' } })
   expect(createModel).toHaveBeenCalledOnce()
   expect(await root.close()).toEqual({ closed: true })
-  const reopened = await startFileSessionRuntimeRoot(sources)
+  const reopened = await startFileSessionDriverRoot(sources)
   cleanup.push(async () => {
     expect(await reopened.close()).toEqual({ closed: true })
   })
@@ -4350,8 +4126,10 @@ it('retains actual file resources after failed model readiness until its origina
   )
   let retained: FileSessionRuntimeFailure | undefined
   try {
-    await startFileSessionRuntimeRoot({
+    await startFileSessionDriverRoot({
       ...options,
+      initialRouteName: officialCatalog[0]!.definition.modelId,
+      configure: fileDriverBinding(options),
       createModel: (storage, clock) => {
         actualStorage = storage
         actualClock = clock
@@ -4379,19 +4157,20 @@ it('retains actual file resources after failed model readiness until its origina
   ).rejects.toThrow()
 })
 it('rejects a different actual login before the file Session root allocates its runtime', async () => {
-  const { options } = await rootFixture()
-  const createModel = vi.fn(() => ({
-    ready: Promise.resolve(options.model),
-    close: async () => ({ released: true as const }),
-  }))
+  const { f, options } = await rootFixture()
+  const createModel = vi.fn((storage: AtomicStorage, clock: Clock) =>
+    createNativeSessionModelPool(storage, clock, nativeFileModelOptions(f, options)),
+  )
   await expect(
-    startFileSessionRuntimeRoot({
+    startFileSessionDriverRoot({
       ...options,
       source: {
         ...options.source,
         loginStateHandle: unwrap(parseLoginStateId('different-actual-login')),
       },
       createModel,
+      initialRouteName: officialCatalog[0]!.definition.modelId,
+      configure: fileDriverBinding(options),
     }),
   ).rejects.toThrow('fixed Session source')
   expect(createModel).not.toHaveBeenCalled()
@@ -4399,10 +4178,26 @@ it('rejects a different actual login before the file Session root allocates its 
   await expect(access(tenantPaths(options.home, options.binding).data)).rejects.toThrow()
 })
 
+function fileDriverBinding(
+  options: SessionDriverRuntimeRootOptions,
+  observe: (pool: SessionNativeModelPool) => void = () => {},
+) {
+  return async (
+    owners: Parameters<typeof options.configure>[0],
+    pool: SessionNativeModelPool,
+    work: Parameters<typeof options.configure>[1],
+  ) => {
+    observe(pool)
+    const {
+      model: { factory: _factory, ...model },
+      ...binding
+    } = await options.configure(owners, work)
+    return { ...binding, model }
+  }
+}
 function nativeFileModelOptions(
   f: Awaited<ReturnType<typeof rootFixture>>['f'],
-  options: SessionRuntimeRootOptions,
-  bind: SessionNativeModelOptions['bind'],
+  options: SessionDriverRuntimeRootOptions,
 ): SessionNativeModelOptions {
   const original = nativeModelConstruction(f.storage)
   const { calls, callFacts, transport: _unusedTransport, ...sources } = original
@@ -4435,20 +4230,20 @@ function nativeFileModelOptions(
     contentPolicy: { maxConcurrentWrites: 2, maxContentBytes: 65536 },
     maxFactScopes: options.model.maxRecords,
     sources: () => sources,
-    bind,
   }
 }
 it('opens the file Session root with the actual official transport and physical ModelRuntime pool', async () => {
   const { f, options, configure } = await rootFixture()
   await prepareTenantDirectory(options.home, options.binding)
   let physical: SessionNativeModelPool | undefined
-  const nativeModel = nativeFileModelOptions(f, options, pool => {
-    physical = pool
-    return options.model
-  })
-  const root = await startFileSessionRuntimeRoot({
+  const nativeModel = nativeFileModelOptions(f, options)
+  const root = await startFileSessionDriverRoot({
     ...options,
     nativeModel,
+    initialRouteName: nativeModel.modelIds[0]!,
+    configure: fileDriverBinding(options, pool => {
+      physical = pool
+    }),
     inputSource: {
       ...options.inputSource,
       deployedOfficial: [{ capability: officialSessionDefinition, meta: false }],
@@ -4486,10 +4281,7 @@ it('owns real directory and credential lookup with the native file pool without 
   await writeFile(keyFile, new Uint8Array(32).fill(7), { flag: 'wx', mode: 0o600 })
   let pool: SessionNativeModelPool | undefined
   const nativeModel = {
-    ...nativeFileModelOptions(f, options, observed => {
-      pool = observed
-      return options.model
-    }),
+    ...nativeFileModelOptions(f, options),
     directory: {
       governance: f.client,
       source,
@@ -4500,7 +4292,14 @@ it('owns real directory and credential lookup with the native file pool without 
       replicaDiagnostics: { record() {}, sinkFailure() {} },
     },
   }
-  const root = await startFileSessionRuntimeRoot({ ...options, nativeModel })
+  const root = await startFileSessionDriverRoot({
+    ...options,
+    nativeModel,
+    initialRouteName: nativeModel.modelIds[0]!,
+    configure: fileDriverBinding(options, actual => {
+      pool = actual
+    }),
+  })
   cleanup.push(async () => {
     expect(await root.close()).toEqual({ closed: true })
   })
@@ -4525,9 +4324,9 @@ it('owns real directory and credential lookup with the native file pool without 
 })
 it('refuses a directory for another login before any governance or file acquisition', async () => {
   const { f, options } = await rootFixture()
-  const bind = vi.fn(() => options.model)
+  const bind = vi.fn(fileDriverBinding(options))
   const nativeModel = {
-    ...nativeFileModelOptions(f, options, bind),
+    ...nativeFileModelOptions(f, options),
     directory: {
       governance: f.client,
       tenant,
@@ -4539,9 +4338,14 @@ it('refuses a directory for another login before any governance or file acquisit
     },
   }
   const exchanges = f.exchanges.mock.calls.length
-  await expect(startFileSessionRuntimeRoot({ ...options, nativeModel })).rejects.toThrow(
-    'model directory does not belong',
-  )
+  await expect(
+    startFileSessionDriverRoot({
+      ...options,
+      nativeModel,
+      initialRouteName: nativeModel.modelIds[0]!,
+      configure: bind,
+    }),
+  ).rejects.toThrow('model directory does not belong')
   expect(f.exchanges.mock.calls.length).toBe(exchanges)
   expect(bind).not.toHaveBeenCalled()
   await expect(stat(join(options.home, 'data', 'session-admission.sqlite'))).rejects.toHaveProperty(
@@ -4555,9 +4359,9 @@ it('releases directory startup resources after a missing key and reopens the ori
   const paths = tenantPaths(options.home, options.binding)
   await prepareStateDirectory(options.home, paths.auth)
   const keyFile = join(paths.auth, 'model-replica.key')
-  const bind = vi.fn(() => options.model)
+  const bind = vi.fn(fileDriverBinding(options))
   const nativeModel = {
-    ...nativeFileModelOptions(f, options, bind),
+    ...nativeFileModelOptions(f, options),
     directory: {
       governance: f.client,
       source,
@@ -4568,12 +4372,22 @@ it('releases directory startup resources after a missing key and reopens the ori
       replicaDiagnostics: { record() {}, sinkFailure() {} },
     },
   }
-  await expect(startFileSessionRuntimeRoot({ ...options, nativeModel })).rejects.toBeInstanceOf(
-    StorageUnavailable,
-  )
+  await expect(
+    startFileSessionDriverRoot({
+      ...options,
+      nativeModel,
+      initialRouteName: nativeModel.modelIds[0]!,
+      configure: bind,
+    }),
+  ).rejects.toBeInstanceOf(StorageUnavailable)
   expect(bind).not.toHaveBeenCalled()
   await writeFile(keyFile, new Uint8Array(32).fill(9), { flag: 'wx', mode: 0o600 })
-  const root = await startFileSessionRuntimeRoot({ ...options, nativeModel })
+  const root = await startFileSessionDriverRoot({
+    ...options,
+    nativeModel,
+    initialRouteName: nativeModel.modelIds[0]!,
+    configure: bind,
+  })
   cleanup.push(async () => {
     expect(await root.close()).toEqual({ closed: true })
   })
@@ -4585,16 +4399,26 @@ it('closes the original physical pool when binding fails after official transpor
   await prepareTenantDirectory(options.home, options.binding)
   const failure = new Error('original production model binding defect')
   let physical: SessionNativeModelPool | undefined
-  const nativeModel = nativeFileModelOptions(f, options, pool => {
+  const nativeModel = nativeFileModelOptions(f, options)
+  const bind = (_owners: Parameters<typeof options.configure>[0], pool: SessionNativeModelPool) => {
     physical = pool
     throw failure
-  })
-  await expect(startFileSessionRuntimeRoot({ ...options, nativeModel })).rejects.toBe(failure)
+  }
+  await expect(
+    startFileSessionDriverRoot({
+      ...options,
+      nativeModel,
+      initialRouteName: nativeModel.modelIds[0]!,
+      configure: bind,
+    }),
+  ).rejects.toBe(failure)
   if (!physical) throw new Error('actual allocated model pool missing')
   expect(await physical.runtime.service.openCall({} as never)).toEqual({ runtimeStopped: true })
-  const reopened = await startFileSessionRuntimeRoot({
+  const reopened = await startFileSessionDriverRoot({
     ...options,
-    nativeModel: nativeFileModelOptions(f, options, () => options.model),
+    nativeModel: nativeFileModelOptions(f, options),
+    initialRouteName: officialCatalog[0]!.definition.modelId,
+    configure: fileDriverBinding(options),
   })
   expect(await reopened.close()).toEqual({ closed: true })
 })
@@ -4731,7 +4555,7 @@ it.each(['normal', 'startupFailure', 'heldCapture'] as const)(
   async mode => {
     const { f, options } = await rootFixture()
     await prepareTenantDirectory(options.home, options.binding)
-    const nativeModel = nativeFileModelOptions(f, options, () => options.model)
+    const nativeModel = nativeFileModelOptions(f, options)
     const defect = new Error('file Driver binding failed')
     const unexpected = (): never => {
       throw new Error('empty file Session executed a Run')
@@ -4747,7 +4571,14 @@ it.each(['normal', 'startupFailure', 'heldCapture'] as const)(
       expect(work.readIn).toBeDefined()
       if (mode === 'startupFailure') throw defect
       return {
-        policy: { ...options.execution, maxStepsPerPass: 16 },
+        policy: {
+          scanLimit: 16,
+          intervalMs: 5,
+          maxTasks: 8,
+          maxHeld: 16,
+          maxFailures: 8,
+          maxStepsPerPass: 16,
+        },
         identities: {
           run: unexpected,
           model: unexpected,
@@ -4768,7 +4599,7 @@ it.each(['normal', 'startupFailure', 'heldCapture'] as const)(
       nativeModel,
       initialRouteName: nativeModel.modelIds[0]!,
       model: options.model,
-      maxHeld: options.execution.maxHeld,
+      maxHeld: options.maxHeld,
       inputSource: {
         ...options.inputSource,
         deployedOfficial: [{ capability: officialSessionDefinition, meta: false }],

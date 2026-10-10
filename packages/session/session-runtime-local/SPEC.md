@@ -631,3 +631,9 @@ Session的模型编排及Cordis构造器必须取得显式ModelPoolExecutor，�
 SessionDriverToolFactory.acquire在原发起支持之外显式接收scope和run。Driver从实际Run journal提供这两个值，工厂不得从创建先后顺序、集合首项或当前UI选择推断它们。绑定是普通路由数据，不签发新的执行权；原participant及claim仍须经过对应支持对象核验。
 
 应用可共享物理工具池，但每次借用必须保存原绑定和对应的原发起支持。池内调用的原Session及Run决定使用哪份支持；不得把其他Run的claim或停止证明用于本次借用。release只交还原借用，不能因此停止其他Run的工作或关闭共享池。Driver仍等待原participant停止，再交还借用。
+
+### 新 Run 登录阻挡的观察
+
+`createLocalSessionDriver`同时返回`SessionDriverObservations`。`readRunAdmission`只读本进程仍持有的原任务，不发网络请求，不重新准入，不修改队列或日志。它仅返回原`startRun`查询已明确产生的阻挡，携带该任务的待处理输入位置。不同租户、没有该任务或尚无确定结果时返回null；null不证明登录有效。
+
+观察随原任务的保留责任存在，不能替代持久回执或作为重启恢复来源。后续输入不得借用前一输入的阻挡。CLI须先按原回执授权读取，再核对输入位置；原消息保持已受理，不能因此重发或声称新Run已经开始。

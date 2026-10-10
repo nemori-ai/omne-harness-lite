@@ -7,7 +7,6 @@ import { SessionRuntimeFiles } from './session-runtime-files.ts'
 import { resolveStateHome } from './state-layout.ts'
 import { checkedTenantBinding } from './state-layout-values.ts'
 import {
-  startSessionRuntimeRoot,
   startSessionDriverRuntimeRoot,
   confirmSessionRuntimeLogin,
   SessionRuntimeRootFailure,
@@ -21,15 +20,13 @@ import type {
 import { createSessionDriverModelFactory } from './session-driver-model.ts'
 import { parseRunLoginBinding } from './session-preparation.ts'
 import {
-  createNativeSessionModelOwner,
-  type SessionNativeModelOptions,
   type SessionNativeModelPoolOptions,
   type SessionNativeModelPool,
   createNativeSessionModelPool,
 } from './session-native-model.ts'
 
 export interface FileSessionModelOwner {
-  readonly ready: Promise<SessionRuntimeRootOptions['model']>
+  readonly ready: Promise<SessionNativeModelPool>
   /** Actual physical pool closure, not a statement inferred from absence of calls. */
   readonly close: () => Promise<RuntimeCloseResult>
 }
@@ -39,21 +36,11 @@ type FileSessionRuntimeInputs = Omit<
 > & {
   readonly clockOptions?: Omit<OpenLeaseClockOptions, 'file' | 'initialize'>
 }
-export type FileSessionRuntimeOptions = FileSessionRuntimeInputs &
-  (
-    | { readonly nativeModel: SessionNativeModelOptions; readonly createModel?: never }
-    | {
-        readonly nativeModel?: never
-        /** Return the original close owner before asynchronous acquisition. A thrown constructor retains no resources. */
-        readonly createModel: (storage: AtomicStorage, clock: Clock) => FileSessionModelOwner
-      }
-  )
 export type FileSessionDriverOptions = Omit<
   SessionDriverRuntimeRootOptions,
   'storage' | 'rootStorage' | 'clock' | 'model' | 'configure'
 > & {
   readonly clockOptions?: Omit<OpenLeaseClockOptions, 'file' | 'initialize'>
-  readonly nativeModel: SessionNativeModelPoolOptions
   readonly initialRouteName: string
   readonly model: Omit<SessionDriverRuntimeRootOptions['model'], 'executionSource'>
   readonly configure: (
@@ -62,7 +49,13 @@ export type FileSessionDriverOptions = Omit<
     work: Parameters<SessionDriverRuntimeRootOptions['configure']>[1],
     files: Pick<SessionRuntimeRootOptions, 'storage' | 'clock'>,
   ) => FileSessionDriverBinding | Promise<FileSessionDriverBinding>
-}
+} & (
+    | { readonly nativeModel: SessionNativeModelPoolOptions; readonly createModel?: never }
+    | {
+        readonly nativeModel?: never
+        readonly createModel: (storage: AtomicStorage, clock: Clock) => FileSessionModelOwner
+      }
+  )
 export type FileSessionDriverBinding = Omit<SessionDriverRootBinding, 'model'> & {
   readonly model: Omit<SessionDriverRootBinding['model'], 'factory'>
 }
@@ -71,7 +64,9 @@ export async function startFileSessionDriverRoot(
   requested: FileSessionDriverOptions,
 ): Promise<SessionRuntimeRoot> {
   return startFileRoot(requested, async (owner, options) => {
-    const model = createNativeSessionModelPool(owner.storage!, owner.clock!, options.nativeModel)
+    const model = options.nativeModel
+      ? createNativeSessionModelPool(owner.storage!, owner.clock!, options.nativeModel)
+      : options.createModel(owner.storage!, owner.clock!)
     owner.model = model
     const pool = await model.ready
     return startSessionDriverRuntimeRoot({
@@ -111,25 +106,7 @@ export class FileSessionRuntimeFailure extends AggregateError {
     super(errors, 'file Session root startup failed; original resources retained')
   }
 }
-/** Production file owner. It does not invent deployment, model selection or execution authority. */
-export async function startFileSessionRuntimeRoot(
-  requested: FileSessionRuntimeOptions,
-): Promise<SessionRuntimeRoot> {
-  return startFileRoot(requested, async (owner, options) => {
-    const model = options.nativeModel
-      ? createNativeSessionModelOwner(owner.storage!, owner.clock!, options.nativeModel)
-      : options.createModel(owner.storage!, owner.clock!)
-    owner.model = model
-    return startSessionRuntimeRoot({
-      ...options,
-      storage: owner.storage!,
-      rootStorage: owner.rootStorage!,
-      clock: owner.clock!,
-      model: await model.ready,
-    })
-  })
-}
-type FileRootInputs = Omit<FileSessionRuntimeInputs, 'execution' | 'identities'> & {
+type FileRootInputs = FileSessionRuntimeInputs & {
   readonly nativeModel?: Pick<SessionNativeModelPoolOptions, 'directory'>
 }
 async function startFileRoot<T extends FileRootInputs>(

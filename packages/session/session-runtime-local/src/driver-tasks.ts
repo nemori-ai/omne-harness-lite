@@ -2,11 +2,13 @@ import {
   checkSessionDriverPolicy,
   type SessionDriverControl,
   type SessionDriverPolicy,
+  type SessionRunAdmissionBlock,
 } from '@omne-harness-lite/session-runtime'
 
 export interface DriverTask {
   /** Released includes actual borrow return, not native execution completion. */
   readonly completion: Promise<'released' | 'retained'>
+  readonly admission?: () => SessionRunAdmissionBlock | null
   readonly requestStop: () => void
   /** Stop local waits; external original work returns pending instead of blocking withdrawal. */
   readonly close: () => Promise<'released' | 'pending'>
@@ -17,12 +19,18 @@ export function createDriverTaskOwner(
   diagnostic: (error: unknown) => void,
 ): SessionDriverControl & {
   readonly admit: (session: string, create: () => Promise<DriverTask>) => boolean
+  readonly readRunAdmission: (session: string) => SessionRunAdmissionBlock | null
 } {
   const checked = checkSessionDriverPolicy(requested)
   if (!('policy' in checked) || typeof diagnostic !== 'function')
     throw new TypeError('complete driver policy and diagnostic required')
   const owner = new DriverTasks(checked.policy, diagnostic)
-  return Object.freeze({ admit: owner.admit, requestStop: owner.requestStop, close: owner.close })
+  return Object.freeze({
+    admit: owner.admit,
+    requestStop: owner.requestStop,
+    close: owner.close,
+    readRunAdmission: owner.readRunAdmission,
+  })
 }
 
 type SlotState =
@@ -52,6 +60,10 @@ class DriverTasks {
     this.slots.set(session, slot)
     void this.start(slot, create).catch(error => this.fail(error))
     return true
+  }
+  readRunAdmission = (session: string): SessionRunAdmissionBlock | null => {
+    const state = this.slots.get(session)?.state
+    return state && state.kind !== 'starting' ? (state.task?.admission?.() ?? null) : null
   }
   canAdmit(session: string) {
     const active = [...this.slots.values()].filter(

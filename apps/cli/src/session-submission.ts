@@ -16,6 +16,8 @@ import {
   type OperationRef,
   type Receipt,
   type Terminal,
+  type SessionDriverObservations,
+  type SessionRunAdmissionBlock,
 } from '@omne-harness-lite/session-runtime'
 
 export type SessionSubmissionReading =
@@ -26,6 +28,7 @@ export type SessionSubmissionReading =
       readonly inputPosition: JsonNumber
       readonly messageId: string
       readonly run: null | { readonly id: string; readonly state: 'running' | Terminal }
+      readonly admission?: SessionRunAdmissionBlock
     }
   | { readonly kind: 'absent' }
   | { readonly failure: 'invalidInput' | 'denied' | 'notFound' | 'unavailable' }
@@ -34,6 +37,7 @@ export type SessionSubmissionReading =
 export async function readSessionSubmission(
   ingress: LocalSessionIngress,
   operation: OperationRef,
+  observations?: SessionDriverObservations,
 ): Promise<SessionSubmissionReading> {
   const checked = checkOperationRef(operation)
   if (
@@ -50,6 +54,8 @@ export async function readSessionSubmission(
   validatePrefix(read.receipt, requested, prefix.source, prefix.entries)
   const original = originalInput(read.receipt, prefix.entries)
   const run = consumingRun(original.position, prefix.entries)
+  const admission =
+    run === null ? matchingAdmission(observations, requested, original.position) : null
   return {
     kind: 'submission',
     receipt: read.receipt,
@@ -57,7 +63,20 @@ export async function readSessionSubmission(
     inputPosition: original.position,
     messageId: original.id,
     run,
+    ...(admission ? { admission } : {}),
   }
+}
+function matchingAdmission(
+  observations: SessionDriverObservations | undefined,
+  operation: OperationRef,
+  inputPosition: JsonNumber,
+): SessionRunAdmissionBlock | null {
+  if (!observations || operation.session === null) return null
+  const blocked = observations.readRunAdmission({
+    tenant: operation.tenant,
+    session: operation.session,
+  })
+  return blocked && compareInteger(blocked.inputPosition, inputPosition) === 0 ? blocked : null
 }
 function defect(): never {
   throw new StorageDefect('invalid original input correlation')

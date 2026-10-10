@@ -32,7 +32,6 @@ import {
   officialCatalog,
   type TransportOptions,
 } from '@omne-harness-lite/pi-ai-transport'
-import type { SessionRuntimeRootOptions } from './session-runtime-root-types.ts'
 import {
   createSessionModelDirectory,
   type SessionModelDirectoryOptions,
@@ -75,27 +74,8 @@ export interface SessionNativeModelOptions {
     | 'acknowledgementFactory'
     | 'settlementFactory'
   >
-  readonly bind: (
-    pool: SessionNativeModelPool,
-  ) => Omit<SessionRuntimeRootOptions['model'], 'executionSource'>
 }
-export type SessionNativeModelPoolOptions = Omit<SessionNativeModelOptions, 'bind'>
-
-/** Own the existing ModelRuntime and the official OpenRouter transport over the tenant store. */
-export function createNativeSessionModelOwner(
-  storage: AtomicStorage,
-  clock: Clock,
-  options: SessionNativeModelOptions,
-) {
-  const bind = options.bind
-  const owner = createNativeSessionModelPool(storage, clock, options)
-  const ready = owner.ready.then(pool => ({
-    ...bind(pool),
-    executionSource: () => pool.runtime.executionSource,
-  }))
-  void ready.catch(() => {})
-  return Object.freeze({ ready, close: owner.close })
-}
+export type SessionNativeModelPoolOptions = SessionNativeModelOptions
 
 /** Allocate the physical pool independently of a particular Session driver binding. */
 export function createNativeSessionModelPool(

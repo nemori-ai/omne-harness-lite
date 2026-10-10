@@ -236,7 +236,7 @@ async function fixture(
     ...originalIssueMigrations,
   ])
     await storage.write(tx => fragment.migration.up(tx.db))
-  let decision: 'memberValid' | 'memberRejected' | 'rejected' = 'memberValid'
+  let decision: 'memberValid' | 'memberRejected' | 'rejected' | 'unavailable' = 'memberValid'
   const probe = vi.fn(async (_source: AdmissionSource, target: AdmissionTarget) => {
     if (decision !== 'memberValid') return { kind: decision }
     return target.purpose === 'startRun'
@@ -925,11 +925,43 @@ it('does not consume durable pending input or create a Run when the new Run logi
       admitted.receipt.source,
       { kind: 'startRun', stepKey: 'run-1', inputPosition: 3 },
     ),
-  ).toEqual({ failure: 'denied' })
+  ).toEqual({ failure: 'denied', admission: { inputPosition: 3, reason: 'loginRejected' } })
   expect(await f.count('sr_pending_input')).toEqual({ n: 1 })
   expect(await f.count('sr_run_seen')).toEqual({ n: 0 })
   expect(await f.log().readSince(created.session, 0)).toHaveProperty('tail', 4)
 })
+it.each(['rejected', 'unavailable'] as const)(
+  'reports the original new Run admission failure without consuming its message: %s',
+  async decision => {
+    const f = await fixture(),
+      created = await create(f)
+    const admitted = await f.runtime.operations.submitInput(
+      f.runtime.access,
+      created.session,
+      'blocked-input',
+      user(),
+    )
+    if (!('kind' in admitted) || admitted.kind !== 'accepted') throw new Error('input failed')
+    f.setDecision(decision)
+    const scope = { tenant, session: created.session }
+    const result = await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      scope,
+      admitted.receipt.source,
+      { kind: 'startRun', stepKey: 'blocked-run', inputPosition: 3 },
+    )
+    expect(result).toEqual({
+      failure: decision === 'rejected' ? 'denied' : 'unavailable',
+      admission: {
+        inputPosition: 3,
+        reason: decision === 'rejected' ? 'loginRejected' : 'confirmationUnavailable',
+      },
+    })
+    expect(await f.count('sr_pending_input')).toEqual({ n: 1 })
+    expect(await f.count('sr_run_seen')).toEqual({ n: 0 })
+    expect(await f.log().readSince(created.session, 0)).toHaveProperty('tail', 4)
+  },
+)
 it('recognizes the original Run step after later input without a second G28 check or adoption', async () => {
   const f = await fixture(),
     started = await startReadyRun(f)

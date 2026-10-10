@@ -35,7 +35,7 @@ type MessageState =
   | { readonly status: 'rejected'; readonly reason: string }
   | {
       readonly status: 'accepted'
-      readonly reason: 'waitExpired' | 'detached'
+      readonly reason: 'waitExpired' | 'detached' | 'loginRejected' | 'confirmationUnavailable'
       readonly submission: Submission | null
     }
   | {
@@ -126,14 +126,17 @@ async function observeSubmission(
       return { ...known, status: 'unconfirmed', reason: observation.reason }
     const read = observation.read
     submission = read
+    if (read.admission)
+      return { ...known, status: 'accepted', reason: read.admission.reason, submission: read }
     if (read.run && read.run.state !== 'running') return terminal(known, read, exchange)
-    try {
-      await pause(options.policy.pollIntervalMs, undefined, {
-        signal: waitSignal,
-      })
-    } catch (error) {
-      if (!waitSignal.aborted) throw error
-    }
+    await waitForObservation(options.policy.pollIntervalMs, waitSignal)
+  }
+}
+async function waitForObservation(intervalMs: number, signal: AbortSignal): Promise<void> {
+  try {
+    await pause(intervalMs, undefined, { signal })
+  } catch (error) {
+    if (!signal.aborted) throw error
   }
 }
 async function observeOnce(

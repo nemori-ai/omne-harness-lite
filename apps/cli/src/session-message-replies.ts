@@ -57,16 +57,26 @@ const submitted: z.ZodType<Awaited<ReturnType<SessionRuntime['submitInput']>>> =
   }),
 ])
 const submission: z.ZodType<SessionSubmissionReading> = z.union([
-  z.strictObject({
-    kind: z.literal('submission'),
-    receipt,
-    source,
-    inputPosition: position,
-    messageId: key,
-    run: z
-      .strictObject({ id: key, state: z.enum(['running', 'completed', 'failed', 'cancelled']) })
-      .nullable(),
-  }),
+  z
+    .strictObject({
+      kind: z.literal('submission'),
+      receipt,
+      source,
+      inputPosition: position,
+      messageId: key,
+      admission: z
+        .strictObject({
+          inputPosition: position,
+          reason: z.enum(['loginRejected', 'confirmationUnavailable']),
+        })
+        .optional(),
+      run: z
+        .strictObject({ id: key, state: z.enum(['running', 'completed', 'failed', 'cancelled']) })
+        .nullable(),
+    })
+    .transform(({ admission, ...value }) =>
+      admission === undefined ? value : { ...value, admission },
+    ),
   z.strictObject({ kind: z.literal('absent') }),
   z.strictObject({ failure: z.enum(['invalidInput', 'denied', 'notFound', 'unavailable']) }),
 ])
@@ -134,10 +144,18 @@ export function readSubmissionReply(value: unknown, request: SubmitRequest, orig
   if (
     result.messageId !== request.message.id ||
     !covers(result.source, original.source) ||
-    compareInteger(result.inputPosition, original.position) >= 0
+    compareInteger(result.inputPosition, original.position) >= 0 ||
+    !validAdmission(result)
   )
     return undefined
   return result
+}
+function validAdmission(reading: Submission): boolean {
+  if (!reading.admission) return true
+  return (
+    reading.run === null &&
+    compareInteger(reading.admission.inputPosition, reading.inputPosition) === 0
+  )
 }
 export function readMessagesReply(value: unknown, reading: Submission) {
   const checked = messages.safeParse(value)

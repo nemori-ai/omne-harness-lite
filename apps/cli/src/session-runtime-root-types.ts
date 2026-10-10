@@ -24,7 +24,7 @@ import type {
   SessionModelResultSource,
   SessionModelResultSourceOptions,
 } from '@omne-harness-lite/session-runtime-local'
-import type { RunningSessionHostOptions } from './session-execution-host.ts'
+import type { SessionHostPolicy } from './session-host-server.ts'
 import type { TenantBinding } from './state-layout-values.ts'
 import type { SessionCreationDefaults } from './session-host-protocol.ts'
 
@@ -54,11 +54,8 @@ export interface SessionRuntimeRootOptions {
     readonly maxCaptures: number
     readonly executionSource: () => ModelRuntimeExecutionSource | undefined
     readonly retainReferencesIn: SessionModelResultSourceOptions['retainReferencesIn']
-    readonly configure: (owners: SessionRuntimeRootOwners) => RunningSessionHostOptions['model']
   }
-  readonly transport: RunningSessionHostOptions['transport']
-  readonly execution: RunningSessionHostOptions['execution']
-  readonly identities: RunningSessionHostOptions['identities']
+  readonly transport: SessionHostPolicy
   readonly diagnostic: (error: unknown) => void
 }
 export interface SessionRuntimeRootOwners {
@@ -79,11 +76,7 @@ export type SessionDriverRootBinding = Omit<
     'original' | 'executionSource' | 'results'
   >
 }
-export type SessionDriverRuntimeRootOptions = Omit<
-  SessionRuntimeRootOptions,
-  'model' | 'execution' | 'identities'
-> & {
-  readonly model: Omit<SessionRuntimeRootOptions['model'], 'configure'>
+export type SessionDriverRuntimeRootOptions = SessionRuntimeRootOptions & {
   readonly tools?: Pick<RuntimeOptions, 'toolIssue' | 'toolResults' | 'toolDelivery'> & {
     /** End owned Tool resources after the driver stops and before shared Context/log closure. */
     readonly close?: () => Promise<void>

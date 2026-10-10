@@ -3,8 +3,10 @@ import {
   checkSessionDriverPolicy,
   type SessionDriverControl,
   type SessionDriverCloseResult,
+  type SessionDriverObservations,
 } from '@omne-harness-lite/session-runtime'
-import { parseTenantId } from '@omne-harness-lite/identity-values'
+import { parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'
+import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type { SessionRef } from '@omne-harness-lite/messages'
 import type { LocalSessionDriverOptions } from './driver-types.ts'
 import { createDriverTaskOwner } from './driver-tasks.ts'
@@ -14,7 +16,7 @@ import { createDriverRunTask } from './driver-run-task.ts'
 export async function createLocalSessionDriver(
   requested: LocalSessionDriverOptions,
   signal: AbortSignal,
-): Promise<SessionDriverControl> {
+): Promise<SessionDriverControl & SessionDriverObservations> {
   const tenant = parseTenantId(requested.tenant)
   const policy = checkSessionDriverPolicy(requested.policy)
   if (!('ok' in tenant) || !('policy' in policy) || typeof requested.diagnostic !== 'function')
@@ -24,7 +26,14 @@ export async function createLocalSessionDriver(
     signal,
   )
   driver.start()
-  return Object.freeze({ requestStop: driver.requestStop, close: driver.close })
+  return Object.freeze({
+    requestStop: driver.requestStop,
+    close: driver.close,
+    readRunAdmission: (scope: SessionScope) =>
+      tenantIdEquals(scope.tenant, driver.options.tenant)
+        ? driver.tasks.readRunAdmission(scope.session)
+        : null,
+  })
 }
 
 class LocalDriver {

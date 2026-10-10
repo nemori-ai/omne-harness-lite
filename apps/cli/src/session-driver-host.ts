@@ -1,8 +1,5 @@
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
-import type {
-  SessionDriverControl,
-  SessionDriverCloseResult,
-} from '@omne-harness-lite/session-runtime'
+import type { SessionDriverCloseResult } from '@omne-harness-lite/session-runtime'
 import {
   createLocalSessionDriver,
   type LocalSessionDriverOptions,
@@ -50,6 +47,7 @@ export async function startSessionDriverHost(
     endpoint: createSessionHostEndpoint({
       binding,
       ingress: options.driver.ingress,
+      observations: { readRunAdmission: scope => owner.driver?.readRunAdmission(scope) ?? null },
       clock: options.driver.clock,
       ...(options.initialRouteName === undefined
         ? {}
@@ -86,7 +84,7 @@ export async function startSessionDriverHost(
 class DriverHost {
   readonly signal = new AbortController()
   server?: LocalSessionHost
-  driver?: SessionDriverControl
+  driver?: Awaited<ReturnType<typeof createLocalSessionDriver>>
   closing?: Promise<SessionDriverCloseResult>
   stop() {
     this.server?.stopAdmission()

@@ -26,8 +26,7 @@ import {
 import { createSessionOriginalModelOwner } from './session-model-owner.ts'
 import { createSessionModelResultSource } from '@omne-harness-lite/session-runtime-local'
 import { createSessionDriverWorkOwner } from '@omne-harness-lite/session-runtime-local'
-import { startRunningSessionHost, type RunningSessionHost } from './session-execution-host.ts'
-import { startSessionDriverHost } from './session-driver-host.ts'
+import { startSessionDriverHost, type SessionDriverHost } from './session-driver-host.ts'
 import type {
   SessionRuntimeRoot,
   SessionRuntimeRootOptions,
@@ -74,30 +73,10 @@ export class SessionRuntimeRootFailure extends AggregateError {
     super(errors, 'Session runtime root could not start; original cleanup responsibility retained')
   }
 }
-/** Assemble existing owners. Storage/asset deployment and physical execution pools remain borrowed. */
-export async function startSessionRuntimeRoot(
-  requested: SessionRuntimeRootOptions,
-): Promise<SessionRuntimeRoot> {
-  return startRoot({ ...requested, maxHeld: requested.execution.maxHeld }, async root => {
-    const o = root.options
-    return startRunningSessionHost({
-      home: o.home,
-      binding: o.binding,
-      ingress: root.ingress!,
-      work: root.work!,
-      ...(o.creation === undefined ? {} : { creation: o.creation }),
-      transport: o.transport,
-      execution: requested.execution,
-      identities: requested.identities,
-      model: requested.model.configure(root.owners!),
-      diagnostic: o.diagnostic,
-    })
-  })
-}
 type RootInputs = Omit<SessionDriverRuntimeRootOptions, 'configure'>
 async function startRoot(
   requested: RootInputs,
-  startHost: (root: RuntimeRoot) => Promise<RunningSessionHost>,
+  startHost: (root: RuntimeRoot) => Promise<SessionDriverHost>,
 ): Promise<SessionRuntimeRoot> {
   const binding = Object.freeze(checkedTenantBinding(requested.binding)),
     source = parseRunLoginBinding(requested.source)
@@ -154,7 +133,7 @@ class RuntimeRoot {
   ingress?: LocalSessionIngress
   access?: LocalSessionAccess
   owners?: SessionRuntimeRootOwners
-  host?: RunningSessionHost
+  host?: SessionDriverHost
   modelOwner?: SessionRuntimeRootOwners['originalModel']
   results?: SessionRuntimeRootOwners['modelResults']
   work?: SessionDriverWorkOwner

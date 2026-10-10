@@ -488,18 +488,6 @@ createSessionForMessage从已运行的匹配宿主读取实际创建偏好，捕
 
 Driver故障先停止协议准入，再调用原诊断端口。关闭停止新请求和Driver的新工作，并等待实际网络请求及Driver收场；Driver返回pending时保留原资源，后续显式close继续原收场。网络与Driver的关闭错误全部保留。启动失败关闭已打开的监听器；关闭失败以SessionDriverHostStartupFailure保留原错误及closeRetained。这里不关闭借入的Ingress、Context、Storage或模型／工具执行池。
 
-当前该入口已用实际SQLite、Context、采用注册表及ModelRuntime验证普通Run与异Scope拒绝。治理和模型运输仍为受控输入。正式文件运行根和独立OS进程尚未接到本入口，不据此宣称正式CLI已完成。
-
-`startRunningSessionHost`组合本机监听器、原Ingress工作扫描、持久Run准备和核心Agent Loop模型段。可信根须给出固定TenantBinding、原Ingress、五项正整数执行策略、原操作身份工厂、实际模型装配工厂及诊断端口；绑定和策略在启动前捕获。模型工厂必须接原Scope、原准备和同一Ingress，不能自行发送模型请求。局部资源须在工厂返回前拥有失败收场责任。这个入口不补部署资产、当前资格、模型、秘密或预算。
-
-宿主按显式scanLimit与intervalMs进行持久键集分页扫描。扫描游标到末尾后返回起点，候选仍须由原协调入口核验并提交；扫描及普通查询均不授发起权。maxTasks约束新驱动工作的准入，maxHeld约束保留的Session槽位。同一宿主只保留一个Session槽位；已有活动Run由其原拥有者负责，不因再次扫描建立第二Run或签发第二permit。
-
-每个槽位持有原操作身份、实际attempt frame、原模型任务及必要保管记录。局部等待结束时，宿主先持有原completion和绑定，再确认交还，并等原任务结算。任务不因客户端退出或宿主停止等待而收到模型取消信号。只有实际完整结果已保管、采用并ACK，且回复不含tool_call，才尝试原finish；finish仍由提供者核验待处理输入和原工作结算，不以收到回复代替判据。工具回复和未确认结果继续保留责任，这个模型段不宣称工具闭环已经完成。
-
-关闭先撤新准入、停止扫描及监听器，再等已登记驱动和原任务结束，撤frame并排空交还任务。槽位未释放时返回pending及数量，不报告closed；任一实际缺陷保留并报告AggregateError。故障记录由maxFailures限定，超过上界时保留额外数量。关闭不会关闭借入Ingress、Context、原模型拥有者或物理执行池；完整运行根须在该责任真正结束后再收场借入资源。
-
-本构件测试覆盖无观察请求的自动模型执行及局部退出交还；其中治理运输、模型运输、当前资格／代际和原工作结算证明仍为受控输入。正式main启动／附着、真实OpenRouter、工具执行和独立进程部署由完整应用验收承担。
-
 可信根选择Session提供者的createSessionDriverWorkOwner，将同一readIn交Ingress.workSettledIn，并将同一owner交驱动。工作登记／结清／释放行为归[提供者承诺](../../packages/session/session-runtime-local/SPEC.md#完整驱动构造的施工面)。应用不另写工作状态机；原模型段须实际完成保管／采用／ACK并停止writer后才调用complete，可靠finish及归还日志后才release。
 
 该记录表示当前根对实际任务的保管，属于运行时资源；它不是持久恢复证明。新进程不能据旧Run或日志存在补登记为已结算，重启认回仍须由后续恢复承诺完成。工具回复不使用这个模型段将整Run证明为已结算。普通客户端不能取得readIn、原Unit或token。
@@ -510,7 +498,7 @@ Driver故障先停止协议准入，再调用原诊断端口。关闭停止新�
 
 `SessionOriginalModelOwner.native()`只向可信运行根借出已附着的同一原拥有者，并保留其完整ModelExecutionRecords类型。它与已交给Session的participant来自同一实例，不另建记录拥有者。初始化前或原关闭开始后拒绝新借用。普通命令和socket协议没有该入口，生命周期仍由原运行根管理。
 
-`startSessionRuntimeRoot`借入真实根／租户Storage、治理客户端、时钟、合法部署输入和物理模型池，组合已有G28、SessionIngress、原模型发起／结果保管拥有者、工作结算证明及独立Session Context。构造先核固定中心／账号／登录句柄和实际opened use来源，再刷新登录；原use关闭结束后才分配本机运行资源。缺失资产、Context seed、模型配置、引用保管或策略均不补默认。普通客户端只使用既有私有通道协议；可信owners不进入协议。
+`startSessionDriverRuntimeRoot`借入真实根／租户Storage、治理客户端、时钟、合法部署输入和物理模型池，组合已有G28、SessionIngress、原模型发起／结果保管拥有者、工作结算证明及独立Session Context。构造先核固定中心／账号／登录句柄和实际opened use来源，再刷新登录；原use关闭结束后才分配本机运行资源。缺失资产、Context seed、模型配置、引用保管或策略均不补默认。普通客户端只使用既有私有通道协议；可信owners不进入协议。
 
 模型Run绑定将SDK的call工厂固定为Session已经持久prepareCall的原call，保持原message／response工厂。全局模型工厂不能另造call后与原准备不匹配。模型执行来源由正式根提供实际来源getter，引用保管仍在同Unit完成；该getter不授予权限。
 
@@ -526,11 +514,11 @@ Driver故障先停止协议准入，再调用原诊断端口。关闭停止新�
 
 运行根在同一租户Storage上创建实际AssemblyManifestStore，并通过可信owners.manifest供Run资产装配借用。它在bootstrap及其资产读取器结束后关闭manifest，不把关闭责任交给普通客户端。租户迁移在现有迁移末尾追加assembly_manifest；重开文件根读取原装配表，不重新填表或改变先前迁移的顺序。启动失败同样关闭已经分配的manifest。
 
-`createNativeSessionModelPool`分配实际ModelRuntime、调用存储、内容存储、调用事实、官方OpenRouter运输和可选模型目录。ready返回这些原对象，close保留原关闭语义。Session绑定在资源分配之后由应用选择，不内置某个宿主循环。已有createNativeSessionModelOwner在同一分配函数上安装模型绑定，不另建第二个池。
+`createNativeSessionModelPool`分配实际ModelRuntime、调用存储、内容存储、调用事实、官方OpenRouter运输和可选模型目录。ready返回这些原对象，close保留原关闭语义。Session绑定在资源分配之后由应用选择，不内置某个宿主循环。文件根在池ready后注入同一公开Session Driver；可替换的池构造函数必须先返回原ready和close拥有者。
 
 该应用根显式选择Session的createSessionModelSelection并注入原Model读取适配器。sources只提供调用来源，不选择或替换此工厂；选择器的原句柄与关闭责任仍归物理拥有者。
 
-`startFileSessionRuntimeRoot`在分配资源前核固定中心／账号／登录来源，完成原CG刷新及use关闭，并核既有`tenant.json`的完整租户绑定。它不安装登录、绑定或模型凭据。准入库位于`<home>/data/session-admission.sqlite`，租户运行库沿`tenantPaths.runtime`，时钟使用该租户`run/clock.sqlite`的独立LeaseClock。目录、数据库及旁文件按既有私有命名空间规则检查。只有本次原子创建的新时钟文件允许初始化；重新打开不改写时钟身份。
+`startFileSessionDriverRoot`在分配资源前核固定中心／账号／登录来源，完成原CG刷新及use关闭，并核既有`tenant.json`的完整租户绑定。它不安装登录、绑定或模型凭据。准入库位于`<home>/data/session-admission.sqlite`，租户运行库沿`tenantPaths.runtime`，时钟使用该租户`run/clock.sqlite`的独立LeaseClock。目录、数据库及旁文件按既有私有命名空间规则检查。只有本次原子创建的新时钟文件允许初始化；重新打开不改写时钟身份。
 
 `startFileSessionDriverRoot`复用相同的文件资源和关闭拥有者，启动`startSessionDriverRuntimeRoot`。它先分配实际物理模型池，再把原pool、Session拥有者、工作结算拥有者和同一Storage／Clock交给可信configure。executionSource和Model工厂固定为原pool，不能由configure替换。configure提供公开Driver的Run来源、模型结算配置和工具绑定，不增加应用层循环。可信Session拥有者另提供原SqlSessionLog，供工具结果保管等组合使用；借用方不关闭它。普通协议不公开这些引用。配置失败也按同一顺序释放已分配资源。
 
@@ -642,3 +630,9 @@ CLI官方会话定义的第三版声明Shell及官方工具准入扩展，工厂
 发行包包含可执行的`bin/omne.js`及完整生产依赖。命令经真实模块路径加载同一`dist/main.js`，通过符号链接调用和从仓库外调用不改变应用资源定位。推荐代码目录为`~/.local/share/omne/builds/<BUILD_ID>/app`，命令链接为`~/.local/bin/omne`。该目录与`~/.omne`状态根分开。安装说明不覆盖现有版本或命令链接；切换代码不隐式停止已运行的租户宿主。
 
 发行检查从部署后的应用目录加载实际 Host 依赖的 node-pty 原生模块。失败不得发布归档；仅仓库源码或本机开发依赖加载成功不足以满足此检查。原生构建限根工作区的依赖白名单。当前 Shell Host 的 Linux/systemd 前提随发行说明交付；终端 profile 本身不保证工具设施可用。
+
+### 已受理输入的新 Run 登录提示
+
+私有`readSubmission`先按原OperationRef读取回执和用户消息，再关联实际Driver的只读观察。只有尚无消费Run、且观察的inputPosition等于该原消息位置时，返回可选admission。此观察不改变原受理结果，也不从其他输入、泛化拒绝或超时推断登录状态。
+
+`loginRejected`提示重新登录；`confirmationUnavailable`提示治理中心无法确认登录且新Run未开始。两者均保留原receipt，机读状态仍为accepted，退出码4。终端明确提示不要重发该消息。进程内无确定观察时保持原有等待／脱离语义，不能声称登录有效或永久失败。

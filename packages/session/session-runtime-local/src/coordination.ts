@@ -79,7 +79,8 @@ class Lifecycle {
   }
   failure(error: unknown): Extract<StepCommit, { failure: string }> {
     if (error instanceof StorageUnavailable) return { failure: 'unavailable' }
-    if (error instanceof CoordinationRejection) return { failure: error.failure }
+    if (error instanceof CoordinationRejection)
+      return { failure: error.failure, ...(error.admission ? { admission: error.admission } : {}) }
     if (error instanceof InvalidStateInput) return { failure: 'invalidInput' }
     if (error instanceof AdmissionFailure && error.reason === 'denied') return { failure: 'denied' }
     if (error instanceof RuntimeRejection)
@@ -171,6 +172,13 @@ class Lifecycle {
         checked.state === 'rejected' || checked.state === 'memberRejected'
           ? 'denied'
           : 'unavailable',
+        {
+          inputPosition: step.inputPosition,
+          reason:
+            checked.state === 'rejected' || checked.state === 'memberRejected'
+              ? 'loginRejected'
+              : 'confirmationUnavailable',
+        },
       )
     return ticket
   }

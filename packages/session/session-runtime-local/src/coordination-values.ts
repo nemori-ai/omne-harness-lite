@@ -12,13 +12,16 @@ import {
 } from '@omne-harness-lite/session-log'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
-import type { StepCommit } from '@omne-harness-lite/session-runtime'
+import type { StepCommit, SessionRunAdmissionBlock } from '@omne-harness-lite/session-runtime'
 import type { SessionLifecycleStep } from './runtime-types.ts'
 import { InvalidStateInput, positionText, stateScope, separatePermit } from './state-values.ts'
 import { runtimeSemantic } from './runtime-values.ts'
 
 export class CoordinationRejection extends Error {
-  constructor(readonly failure: Extract<StepCommit, { failure: string }>['failure']) {
+  constructor(
+    readonly failure: Extract<StepCommit, { failure: string }>['failure'],
+    readonly admission?: SessionRunAdmissionBlock,
+  ) {
     super(`local Session coordination: ${failure}`)
   }
 }

@@ -216,6 +216,11 @@ export type SessionLifecycleStep = Extract<
   CoordinationStep,
   { kind: 'startRun' | 'startAttempt' | 'adoptInput' | 'prepareCall' | 'adoptResult' | 'finish' }
 >
+/** Observation of a completed new-Run login check for one pending input. It grants no authority. */
+export interface SessionRunAdmissionBlock {
+  readonly inputPosition: JsonNumber
+  readonly reason: 'loginRejected' | 'confirmationUnavailable'
+}
 export type StepCommit =
   | {
       readonly kind: 'committed'
@@ -224,9 +229,9 @@ export type StepCommit =
       readonly permit: AttemptPermit | null
     }
   | { readonly kind: 'unknownCommit'; readonly scope: SessionScope; readonly stepKey: string }
-  | Failure<
+  | (Failure<
       'invalidInput' | 'retryFromFacts' | 'staleAttempt' | 'terminal' | 'denied' | 'unavailable'
-    >
+    > & { readonly admission?: SessionRunAdmissionBlock })
 export interface SessionCoordination {
   readonly commitStep: (
     authority: CoordinationAuthority,

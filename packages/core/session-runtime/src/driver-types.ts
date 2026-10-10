@@ -1,3 +1,6 @@
+import type { SessionScope } from '@omne-harness-lite/session-tenancy'
+import type { SessionRunAdmissionBlock } from './types.ts'
+
 /** The number of retained responsibility entries, not the number of threads or physical calls. */
 export type SessionDriverCloseResult =
   { readonly closed: true } | { readonly pending: true; readonly held: number }
@@ -24,4 +27,9 @@ export interface SessionDriverStartup {
     policy: SessionDriverPolicy,
     signal: AbortSignal,
   ) => Promise<SessionDriverControl>
+}
+
+/** Read-only process-local observation. Absence does not prove permission or completion. */
+export interface SessionDriverObservations {
+  readonly readRunAdmission: (scope: SessionScope) => SessionRunAdmissionBlock | null
 }

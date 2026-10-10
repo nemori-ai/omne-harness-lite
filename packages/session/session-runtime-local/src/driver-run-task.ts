@@ -1,3 +1,4 @@
+import type { SessionRunAdmissionBlock } from '@omne-harness-lite/session-runtime'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type { BorrowedRunJournal } from './run-journal-types.ts'
 import type { LocalSessionDriverOptions, SessionDriverRunSources } from './driver-types.ts'
@@ -15,6 +16,7 @@ export function createDriverRunTask(options: Inputs, scope: SessionScope): Drive
   const task = new RunTask(options, scope)
   return Object.freeze({
     completion: Promise.resolve().then(() => task.run()),
+    admission: task.admission,
     requestStop: task.requestStop,
     close: task.close,
   })
@@ -34,6 +36,13 @@ class RunTask {
     readonly options: Inputs,
     readonly scope: SessionScope,
   ) {}
+  admission = (): SessionRunAdmissionBlock | null => {
+    const started = this.started
+    if (started?.kind !== 'blocked') return null
+    const result = started.originals.at(-1)
+    if (result?.step.kind !== 'startRun' || !('failure' in result.result)) return null
+    return result.result.admission ?? null
+  }
   requestStop = () => {
     this.stopping = true
     this.model?.requestStop()

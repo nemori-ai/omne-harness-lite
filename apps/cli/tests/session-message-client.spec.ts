@@ -264,3 +264,71 @@ it('writes original receipt coordinates beyond the safe integer range without ro
   expect(output).toContain('"tail":9007199254740993')
   expect(output).not.toContain('9007199254740992')
 })
+
+it.each(['loginRejected', 'confirmationUnavailable'] as const)(
+  'keeps original receipt and explains new Run admission %s',
+  async reason => {
+    const f = await fixture(async packet =>
+      packet.command === 'submitInput'
+        ? { kind: 'accepted', receipt }
+        : { ...submission, run: null, admission: { inputPosition: 1, reason } },
+    )
+    const outcome = await submitSessionMessage(f.options)
+    expect(outcome).toMatchObject({
+      status: 'accepted',
+      reason,
+      receipt,
+      submission: { run: null, admission: { inputPosition: 1, reason } },
+    })
+    expect(f.execute.mock.calls.map(([packet]) => packet.command)).toEqual([
+      'submitInput',
+      'readSubmission',
+    ])
+    expect(entryExitCode({ outcome, diagnostics: [] })).toBe(4)
+    let output = ''
+    expect(
+      await runEntryCli(['--session', request.session], {
+        signal: f.controller.signal,
+        isTTY: true,
+        version: async () => '',
+        execute: async () => ({ outcome, diagnostics: [] }),
+        stdout: async text => {
+          output += text
+        },
+        stderr: async () => {},
+      }),
+    ).toBe(4)
+    expect(output).toContain(
+      reason === 'loginRejected' ? 'Sign in again' : 'could not confirm login',
+    )
+    expect(output).toContain('Do not resend this input')
+    expect(output).toContain(request.operationKey)
+  },
+)
+
+it.each(['differentInput', 'alreadyStarted'] as const)(
+  'rejects admission observations unrelated to this pending input: %s',
+  async mode => {
+    const f = await fixture(async packet =>
+      packet.command === 'submitInput'
+        ? { kind: 'accepted', receipt }
+        : {
+            ...submission,
+            run: mode === 'alreadyStarted' ? submission.run : null,
+            admission: {
+              inputPosition: mode === 'differentInput' ? 2 : 1,
+              reason: 'loginRejected',
+            },
+          },
+    )
+    expect(await submitSessionMessage(f.options)).toMatchObject({
+      status: 'unconfirmed',
+      reason: 'invalidSubmission',
+      receipt,
+    })
+    expect(f.execute.mock.calls.map(([packet]) => packet.command)).toEqual([
+      'submitInput',
+      'readSubmission',
+    ])
+  },
+)

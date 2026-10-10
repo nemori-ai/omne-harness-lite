@@ -9,6 +9,7 @@ import {
   checkOperationRef,
   type CreateSessionInput,
   type OperationRef,
+  type SessionDriverObservations,
 } from '@omne-harness-lite/session-runtime'
 import type { LocalSessionIngress } from '@omne-harness-lite/session-runtime-local'
 import { checkedTenantBinding, type TenantBinding } from './state-layout-values.ts'
@@ -140,6 +141,7 @@ export interface SessionHostEndpoint {
 export function createSessionHostEndpoint(options: {
   readonly binding: TenantBinding
   readonly ingress: LocalSessionIngress
+  readonly observations?: SessionDriverObservations
   readonly creation?: SessionCreationDefaults
   readonly clock?: Clock
   readonly initialRouteName?: string
@@ -170,7 +172,7 @@ export function createSessionHostEndpoint(options: {
       }
       if (request.command === 'readCreationDefaults')
         return defaults ? { kind: 'creationDefaults', defaults } : { kind: 'creationNotReady' }
-      return dispatch(ingress, text, request)
+      return dispatch(ingress, text, request, options.observations)
     },
   })
 }
@@ -181,6 +183,7 @@ function dispatch(
     SessionHostRequest,
     { command: 'readCreationDefaults' | 'readClock' | 'readInitialModel' }
   >,
+  observations?: SessionDriverObservations,
 ): Promise<SessionHostResult> {
   const operations = ingress.operations,
     access = ingress.access
@@ -196,7 +199,7 @@ function dispatch(
     case 'readReceipt':
       return operations.readReceipt(access, request.operation)
     case 'readSubmission':
-      return readSessionSubmission(ingress, request.operation)
+      return readSessionSubmission(ingress, request.operation, observations)
     case 'readMessages':
       return text.read({ tenant: request.binding.tenant, session: request.session })
   }

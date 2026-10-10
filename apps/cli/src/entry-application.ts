@@ -205,11 +205,21 @@ function createdExit(outcome: Extract<TenantCreateEntryOutcome, { kind: 'created
   }
 }
 
+function acceptedMessage(
+  reason: Extract<SessionMessageOutcome, { status: 'accepted' }>['reason'],
+): string {
+  if (reason === 'loginRejected')
+    return 'Input was accepted. Sign in again before starting the new Run. Do not resend this input.'
+  if (reason === 'confirmationUnavailable')
+    return 'Input was accepted. The governance center could not confirm login. The new Run has not started. Do not resend this input.'
+  return 'Input was accepted. Work continues in the host.'
+}
+
 function formatSessionReport(outcome: EntryOutcome): string {
   if (outcome.kind === 'session-message') {
     const status =
       outcome.status === 'accepted'
-        ? 'Input was accepted. Work continues in the host.'
+        ? acceptedMessage(outcome.reason)
         : outcome.status === 'unconfirmed'
           ? 'Input status is unconfirmed. Do not submit it again.'
           : `Input ended with status ${outcome.status}.`
