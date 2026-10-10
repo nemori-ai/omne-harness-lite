@@ -10,6 +10,8 @@ import type {
   ToolRuntimeOperations,
   ToolRuntimeOriginalIssueDependencies,
   ToolOriginalIssueSupport,
+  ToolPoolInstance,
+  PreparedToolExecution,
 } from '@omne-harness-lite/tool-execution-runtime'
 import { createExecutionOwner } from './execution-owner.ts'
 import { createResultPreparation } from './execution-result.ts'
@@ -57,22 +59,22 @@ export function createToolRuntime(
   supplied: ToolRuntimeConfig,
   dependencies: ToolRuntimeDependencies,
 ): ToolRuntimeInstance {
-  return createRuntime(supplied, dependencies)
+  return createRuntime(supplied, dependencies).ordinary
 }
 
 export function createOriginalIssueToolRuntime(
   supplied: ToolRuntimeConfig,
   dependencies: ToolRuntimeOriginalIssueDependencies,
-): ToolRuntimeInstance {
+): ToolPoolInstance {
   if (!dependencies.originalIssue) throw new TypeError('original Tool issue support required')
-  return createRuntime(supplied, dependencies, dependencies.originalIssue)
+  return createRuntime(supplied, dependencies, dependencies.originalIssue).prepared
 }
 
 function createRuntime(
   supplied: ToolRuntimeConfig,
   dependencies: ToolRuntimeDependencies,
   originalIssue?: ToolOriginalIssueSupport,
-): ToolRuntimeInstance {
+) {
   const config = captureRuntimeConfiguration(supplied)
   requireRuntimeFrameBudget(config)
   requireRuntimeTailRetry(config)
@@ -212,8 +214,7 @@ function createRuntime(
     },
   })
   let closing: Promise<void> | undefined
-  return Object.freeze({
-    operations,
+  const lifetime = {
     ready,
     idle: owner.idle,
     close() {
@@ -233,5 +234,16 @@ function createRuntime(
       })
       return task
     },
-  })
+  }
+  return {
+    ordinary: Object.freeze({ ...lifetime, operations }),
+    prepared: Object.freeze<ToolPoolInstance>({
+      ...lifetime,
+      operations: Object.freeze({
+        ...operations,
+        submit: (request: PreparedToolExecution) =>
+          state === 'ready' ? owner.submitPrepared(request) : Promise.resolve(unavailable()),
+      }),
+    }),
+  }
 }

@@ -9,6 +9,7 @@ import type { Clock } from '@omne-harness-lite/offer-expiry'
 import type {
   LoopExtensionRunnerService,
   RunnerActionRequest,
+  RunnerServiceHost,
 } from '@omne-harness-lite/loop-extension-runner'
 import type {
   ProjectionRules,
@@ -31,7 +32,7 @@ import type {
 import type { BorrowedRunJournal } from './run-journal-types.ts'
 import type { SessionScope, SessionAccess } from '@omne-harness-lite/session-tenancy'
 import type {
-  ToolRuntimeInstance,
+  ToolPoolInstance,
   ToolOriginalIssueSupport,
 } from '@omne-harness-lite/tool-execution-runtime'
 import type { LocalSessionIngress } from './runtime-types.ts'
@@ -71,6 +72,7 @@ export interface SessionDriverRunSources {
   /** Actual Runner and its trusted policy. The driver owns the ordered batch and report. */
   readonly actions: {
     readonly runner: LoopExtensionRunnerService
+    readonly host: RunnerServiceHost
     readonly admission: Omit<RunnerActionRequest['admission'], 'report'>
   }
   readonly providers: Omit<SessionRuntimeBinding, 'log' | 'selection' | 'currentEvaluationInputs'>
@@ -130,7 +132,7 @@ export interface SessionDriverIngress extends LocalSessionIngress {
 /** Borrow the same original native runtime; release never substitutes observer release for stopped. */
 export interface SessionDriverToolBorrow {
   readonly tenant: TenantId
-  readonly runtime: ToolRuntimeInstance
+  readonly runtime: ToolPoolInstance
   readonly release: () => Promise<void>
 }
 export interface SessionDriverToolFactory {

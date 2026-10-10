@@ -519,6 +519,8 @@ createSessionModelObservations用于尚未发起原调用的正常段。当前So
 
 ### 原工具准入提供者
 
+正常工具段从已持久采用的定义、原调用块及 before_action 结论准备请求。driver 在 prepareCall 提交后取得实际 SourceToken，并通过当前 Runner host 读取或取得其固定 after_action(each) 链。它核对原 Scope、日志世代和借用的存续，并归还原借用；来源不可用时不制造空链。ToolPoolInstance 接收完整准备请求，不替 Session 选定义或读完整日志。重复执行认回原调用；提交不明保留原工作，不更换身份或自动重发。
+
 `RuntimeOptions.toolIssue` 显式指定当前工具资格来源和本机发起证明容量。缺席时，`toolInvocation.support`返回unavailable；只有本Ingress的原coordinationAuthority可取得支持。该支持只给可信原Tool owner，不经普通请求、日志或Agent Context传输。
 
 工具支持从原participant.identity定位Scope和已确认prepareCall。prepareCall通过原生命周期提交后，提供者保有对应原permit；admit和consume仍在原Run共享Unit重新核验持久准备、StepReceipt、最新permit及当前工具资格。原工具意图的实际日志键、公开codec、ref、origin和暂存末尾位置须匹配，不能用任意标记或参与函数的返回值代替意图。工具意图与sr_tool_issue证明同提交；失败全批回滚，开始暂存后的存储结果不明保留原身份。

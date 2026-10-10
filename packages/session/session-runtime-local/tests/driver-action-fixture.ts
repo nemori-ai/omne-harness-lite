@@ -150,11 +150,12 @@ export function driverActionFixture(journal: BorrowedRunJournal, batch: DriverTo
       })
       owner = createRunnerTaskOwner(binding)
       const append = vi.fn(journal.log.append)
+      const host = { acquireDispatch: makeScope, acquireReplay: makeScope }
       const instance = createLoopExtensionRunner({
         log: { ...journal.log, append },
         access: authorization,
         isActive: () => active,
-        host: { acquireDispatch: makeScope, acquireReplay: makeScope },
+        host,
       })
       const judge = vi.fn<OfficialAdmissionContribution>(
         async (access, scope, pass, candidates) => {
@@ -177,6 +178,7 @@ export function driverActionFixture(journal: BorrowedRunJournal, batch: DriverTo
         append,
         actions: {
           runner: instance.runner,
+          host,
           admission: { grants, runMode: 'auto_permission' as const },
         },
         async close() {

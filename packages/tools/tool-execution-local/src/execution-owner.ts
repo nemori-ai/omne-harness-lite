@@ -38,6 +38,7 @@ import type {
   ToolJournalPayload,
   ToolExecutionRecords,
   PreparedToolExecution,
+  ToolSubmitResult,
 } from '@omne-harness-lite/tool-execution-runtime'
 import type {
   ExecutionEnvironmentOperations,
@@ -49,7 +50,11 @@ import { createExecutionContextReader } from './execution-context.ts'
 import { createExecutionObserver } from './execution-observer.ts'
 import type { PreparedTerminal } from './execution-result.ts'
 import { createTerminalCommitter } from './execution-terminal.ts'
-import { capturePreparedExecution } from './prepared-submission.ts'
+import {
+  capturePreparedExecution,
+  verifyPreparedExecution,
+  samePreparedExecution,
+} from './prepared-submission.ts'
 import { jsonObject, sameJson } from './json-values.ts'
 import type { createRuntimeJournal, RuntimeJournalFailure } from './runtime-journal.ts'
 import {
@@ -900,9 +905,9 @@ export function createExecutionOwner(input: {
     }
     return { kind: 'rejected', reason: 'runtimeUnavailable' }
   }
-  function enqueueSubmission(
+  function enqueueSubmission<T extends ToolSubmitResult>(
     request: ExecutionSubmission,
-    operation: () => Promise<SubmissionResult>,
+    operation: () => Promise<T>,
   ) {
     const key = JSON.stringify([
       request.scope.tenant.organization,
@@ -934,8 +939,8 @@ export function createExecutionOwner(input: {
   }
   async function admitPrepared(
     captured: Exclude<ReturnType<typeof capturePreparedExecution>, SubmissionResult>,
-  ): Promise<SubmissionResult> {
-    const { request, selected, source, chain } = captured
+  ): Promise<ToolSubmitResult> {
+    const { request } = captured
     const ref = { ...request.scope, callId: request.call.callId }
     if (!input.originalIssue || !input.journal.isCurrent())
       return { kind: 'rejected', reason: 'runtimeUnavailable' }
@@ -944,20 +949,25 @@ export function createExecutionOwner(input: {
     const previous = owned.get(keyOf(ref))
     if (previous) {
       const saved = preparedRequests.get(keyOf(ref))
-      if (
-        !saved ||
-        !sameJson(
-          { ...saved, request: submissionIdentity(saved.request) },
-          { ...captured, request: submissionIdentity(request) },
-        )
-      )
+      if (!samePreparedExecution(saved, captured))
         return { kind: 'rejected', reason: 'callConflict' }
-      return admitOriginalJob(previous)
+      const result = await admitOriginalJob(previous)
+      return result.kind === 'recorded' ? { ...result, kind: 'recognized' } : result
     }
+    const admissionFailure = await verifyPreparedExecution(captured, input.admission)
+    if (admissionFailure) return admissionFailure
     const basis = await captureExecutionBasis(ref)
     if (basis.kind !== 'basis') return basis
     const after = await authorize(request.access, ref, 'tool.submit')
     if (after) return { kind: 'rejected', reason: after }
+    return stagePrepared(captured, basis)
+  }
+  async function stagePrepared(
+    captured: Exclude<ReturnType<typeof capturePreparedExecution>, SubmissionResult>,
+    basis: Extract<Awaited<ReturnType<typeof captureExecutionBasis>>, { kind: 'basis' }>,
+  ): Promise<ToolSubmitResult> {
+    const { request, selected, source, chain } = captured
+    const ref = { ...request.scope, callId: request.call.callId }
     const job = ownCandidate({ request, selected }, ref, basis, chain)
     owned.set(keyOf(ref), job)
     preparedRequests.set(keyOf(ref), captured)
@@ -969,6 +979,15 @@ export function createExecutionOwner(input: {
     if (committed.kind !== 'original')
       throw new Error('prepared Tool lacks its original issue owner')
     return committed.result
+  }
+  async function preparedOutcome(
+    ref: ExecutionRef,
+    result: ToolSubmitResult,
+  ): Promise<ToolSubmitResult> {
+    if (result.kind !== 'rejected' || result.reason !== 'runtimeUnavailable') return result
+    const original = owned.get(keyOf(ref))?.original
+    if (!original || (await original.recordStatus()) === 'absent') return result
+    return { kind: 'unknownCommit', original: ref }
   }
   async function closeExecution(job: OwnedExecution): Promise<void> {
     if (job.original && !(await job.original.canClose()))
@@ -1056,7 +1075,7 @@ export function createExecutionOwner(input: {
   } satisfies ToolRuntimeOperations)
   return Object.freeze({
     operations,
-    submitPrepared(supplied: PreparedToolExecution): Promise<SubmissionResult> {
+    submitPrepared(supplied: PreparedToolExecution): Promise<ToolSubmitResult> {
       let captured: ReturnType<typeof capturePreparedExecution>
       try {
         captured = capturePreparedExecution(supplied)
@@ -1064,7 +1083,10 @@ export function createExecutionOwner(input: {
         return Promise.resolve({ kind: 'rejected', reason: 'invalidInput' })
       }
       if ('reason' in captured) return Promise.resolve(captured)
-      return enqueueSubmission(captured.request, () => admitPrepared(captured))
+      const ref = { ...captured.request.scope, callId: captured.request.call.callId }
+      return enqueueSubmission(captured.request, () => admitPrepared(captured)).then(result =>
+        preparedOutcome(ref, result),
+      )
     },
     async idle() {
       await Promise.all([...tasks])

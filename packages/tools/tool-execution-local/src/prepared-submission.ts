@@ -3,7 +3,14 @@ import { isToolDefinition } from '@omne-harness-lite/tool-definition'
 import { checkKey, checkSourceToken } from '@omne-harness-lite/session-log'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type { PreparedToolExecution, SelectedTool } from '@omne-harness-lite/tool-execution-runtime'
-import { captureSubmission, type SubmissionFailure } from './submission.ts'
+import type { ToolAdmissionOperations } from '@omne-harness-lite/tool-admission'
+import { compareInteger } from '@omne-harness-lite/session-log'
+import {
+  captureSubmission,
+  classifyAdmissionVerification,
+  submissionIdentity,
+  type SubmissionFailure,
+} from './submission.ts'
 import { jsonObject, sameJson } from './json-values.ts'
 
 const invalid: SubmissionFailure = Object.freeze({ kind: 'rejected', reason: 'invalidInput' })
@@ -88,4 +95,44 @@ export function capturePreparedExecution(input: PreparedToolExecution) {
   )
     return invalid
   return { request, selected, source: source.ok, chain }
+}
+
+export async function verifyPreparedExecution(
+  captured: Exclude<ReturnType<typeof capturePreparedExecution>, SubmissionFailure>,
+  currentAdmission: () => ToolAdmissionOperations | undefined,
+): Promise<SubmissionFailure | undefined> {
+  const { request, source } = captured
+  const admission = currentAdmission()
+  if (!admission || request.admissionToken === undefined)
+    return { kind: 'rejected', reason: 'admissionMissing' }
+  const result = classifyAdmissionVerification(
+    await admission.verifyToken(
+      request.access,
+      request.scope,
+      request.admissionToken,
+      request.call,
+    ),
+  )
+  if (result.kind === 'rejected') return result
+  if (currentAdmission() !== admission) return { kind: 'rejected', reason: 'admissionMissing' }
+  const checked = result.verified.checked
+  if (
+    checked.scope.session !== source.session ||
+    !tenantIdEquals(checked.scope.tenant, source.tenant) ||
+    compareInteger(checked.tail, source.tail) !== 0
+  )
+    return { kind: 'rejected', reason: 'runtimeUnavailable' }
+}
+
+export function samePreparedExecution(
+  saved: Exclude<ReturnType<typeof capturePreparedExecution>, SubmissionFailure> | undefined,
+  current: Exclude<ReturnType<typeof capturePreparedExecution>, SubmissionFailure>,
+) {
+  return (
+    saved !== undefined &&
+    sameJson(
+      { ...saved, request: submissionIdentity(saved.request) },
+      { ...current, request: submissionIdentity(current.request) },
+    )
+  )
 }

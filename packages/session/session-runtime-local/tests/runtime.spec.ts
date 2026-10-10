@@ -1,3 +1,4 @@
+import { prepareDriverToolRequest } from '../src/driver-tool-request.ts'
 import { Context } from '@deepseek-ai/cordis'
 import { DatabaseSync } from 'node:sqlite'
 import { RUNTIME_CONTEXT } from '@omne-harness-lite/runtime-context/cordis'
@@ -4372,7 +4373,11 @@ it('composes the public native Tool factory with Session original issue, actual 
     },
   })
   if ('failure' in filled) throw new Error('actual manifest fill failed: ' + JSON.stringify(filled))
-  const binding = { session: p.scope.session, tenant, logGeneration: generation }
+  const binding = {
+    session: p.scope.session,
+    tenant,
+    logGeneration: (await prefix()).source.journalGeneration,
+  }
   const chainSources = {
     sessionTenancy: f.runtime.tenancy,
     manifest,
@@ -4427,6 +4432,21 @@ it('composes the public native Tool factory with Session original issue, actual 
       }
     },
   }
+  const preparationHost: import('@omne-harness-lite/loop-extension-runner').RunnerServiceHost = {
+    acquireDispatch: async () => ({ failure: 'unavailable' }),
+    acquireReplay: async () => ({
+      binding,
+      owner: taskOwner,
+      isActive: () => true,
+      release() {},
+      sources: {
+        sessionTenancy: f.runtime.tenancy,
+        manifest,
+        history: { read: async () => ({ failure: 'unavailable', stage: 'source' }) },
+        isActive: () => true,
+      },
+    }),
+  }
   const native = createOriginalIssueToolRuntime(
     {
       frameQueueBytes: 4096,
@@ -4480,19 +4500,12 @@ it('composes the public native Tool factory with Session original issue, actual 
       },
       results: files.operations,
       runnerHost: {
-        acquireDispatch: async () => ({ failure: 'unavailable' }),
-        acquireReplay: async () => ({
-          binding,
-          owner: taskOwner,
-          isActive: () => true,
-          release() {},
-          sources: {
-            sessionTenancy: f.runtime.tenancy,
-            manifest,
-            history: { read: async () => ({ failure: 'unavailable', stage: 'source' }) },
-            isActive: () => true,
-          },
-        }),
+        acquireDispatch: async () => {
+          throw new Error('Tool pool must not select a Runner chain')
+        },
+        acquireReplay: async () => {
+          throw new Error('Tool pool must not select a Runner chain')
+        },
       },
       invoke: createToolInvoker({
         parameters: createParameterJudge(),
@@ -4534,14 +4547,28 @@ it('composes the public native Tool factory with Session original issue, actual 
       },
     )
     await native.ready
-    expect(await native.operations.submit(request)).toEqual({
+    const preparedRequest = await prepareDriverToolRequest({
+      request,
+      selected: {
+        capability: 'tool:fixture-echo',
+        asset: 'native-echo',
+        version: '1',
+        definition,
+        adoption: request.adoption,
+      },
+      source: (await prefix()).source,
+      host: preparationHost,
+      signal: new AbortController().signal,
+    })
+    if (!preparedRequest) throw new Error('actual native Tool request preparation failed')
+    expect(await native.operations.submit(preparedRequest)).toEqual({
       kind: 'recorded',
       execution: { ...p.scope, callId },
     })
     await native.idle()
     expect(implementation).toHaveBeenCalledTimes(1)
-    expect(await native.operations.submit(request)).toEqual({
-      kind: 'recorded',
+    expect(await native.operations.submit(preparedRequest)).toEqual({
+      kind: 'recognized',
       execution: { ...p.scope, callId },
     })
     await native.idle()
@@ -4614,7 +4641,7 @@ it('composes the public native Tool factory with Session original issue, actual 
       },
     )
     expect(confirmed).toHaveProperty('kind', 'confirmed')
-    expect(await native.operations.submit(request)).toEqual({
+    expect(await native.operations.submit(preparedRequest)).toEqual({
       kind: 'rejected',
       reason: 'ownerStopped',
     })

@@ -185,7 +185,7 @@ type AdmittedSubmission = Extract<SubmissionAdmission, { kind: 'admitted' }>
 type VerifiedAdmission = Extract<AdmissionVerification, { kind: 'valid' }>
 type AdmissionConclusion = SubmissionAdmission | { readonly kind: 'retry' }
 
-function classifyAdmissionVerification(
+export function classifyAdmissionVerification(
   verified: AdmissionVerification,
 ): SubmissionFailure | { readonly kind: 'valid'; readonly verified: VerifiedAdmission } {
   if (verified.kind === 'failed')

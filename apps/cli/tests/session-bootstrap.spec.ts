@@ -2162,7 +2162,7 @@ it.each(['normal', 'foreignScope', 'fillReceiptLost'] as const)(
         get toolAccess(): never {
           throw new Error('normal model path must not take a tool grant')
         },
-        actions: { runner: actions.runner, admission: runnerAdmission },
+        actions: { runner: actions.runner, host: actions.host, admission: runnerAdmission },
         providers: {
           catalog: ports.catalog,
           credentials: ports.credentials,

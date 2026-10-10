@@ -665,7 +665,7 @@ it('recognizes concurrent copies of one prepared input without re-entering the a
       await Promise.all([f.owner.submitPrepared(prepared), f.owner.submitPrepared(prepared)]),
     ).toEqual([
       { kind: 'recorded', execution: ref },
-      { kind: 'recorded', execution: ref },
+      { kind: 'recognized', execution: ref },
     ])
     await f.owner.idle()
     expect(f.implementation).toHaveBeenCalledTimes(1)
@@ -702,6 +702,35 @@ it('refuses a foreign prepared source and inconsistent arguments before invoking
   }
 })
 
+it('checks the actual admission token before issuing a prepared Tool request', async () => {
+  const { f } = await admittedFixture()
+  try {
+    const prepared = await preparedFor(f)
+    const { admissionToken: _token, ...missing } = prepared
+    expect(await f.owner.submitPrepared(missing)).toEqual({
+      kind: 'rejected',
+      reason: 'admissionMissing',
+    })
+    const verify = vi
+      .spyOn(f.admission, 'verifyToken')
+      .mockResolvedValue({ kind: 'invalid', reason: 'arguments_changed' })
+    expect(await f.owner.submitPrepared(prepared)).toEqual({
+      kind: 'rejected',
+      reason: 'callConflict',
+    })
+    expect(verify).toHaveBeenCalledWith(
+      prepared.access,
+      scope,
+      prepared.admissionToken,
+      prepared.call,
+    )
+    expect(f.implementation).not.toHaveBeenCalled()
+    expect(await f.log.readSince(scope.session, 0)).toHaveProperty('entries', [])
+  } finally {
+    await f.close()
+  }
+})
+
 it('rolls back original claim consumption and its start record together', async () => {
   const { f, participants, claims } = await admittedFixture({ consume: 'deny' })
   try {
@@ -729,6 +758,24 @@ it('rolls back original claim consumption and its start record together', async 
     )
     expect(row.consumed).toBe(0)
     expect(f.implementation).not.toHaveBeenCalled()
+  } finally {
+    await f.close()
+  }
+})
+
+it('retains an uncertain prepared admission and recognizes the original on an explicit retry', async () => {
+  const state = await admittedFixture({ stage: 'unknown' })
+  const { f } = state
+  try {
+    const prepared = await preparedFor(f)
+    expect(await f.owner.submitPrepared(prepared)).toEqual({ kind: 'unknownCommit', original: ref })
+    await f.owner.idle()
+    expect(f.implementation).not.toHaveBeenCalled()
+    state.setStage(undefined)
+    expect(await f.owner.submitPrepared(prepared)).toEqual({ kind: 'recognized', execution: ref })
+    await f.owner.idle()
+    expect(f.implementation).toHaveBeenCalledTimes(1)
+    expect(state.participants[0]).toBe(state.participants[1])
   } finally {
     await f.close()
   }

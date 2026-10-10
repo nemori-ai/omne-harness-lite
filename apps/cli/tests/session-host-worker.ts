@@ -90,7 +90,7 @@ const ingress = createLocalSessionIngress({
       return 'ready'
     },
   },
-  now: async () => new Date().toISOString(),
+  now: async () => '2026-10-10T00:00:00Z',
   workSettledIn: async () => 'settled',
 })
 const endpoint = createSessionHostEndpoint({

@@ -11,14 +11,14 @@ import type {
   ToolRuntimeDependencies,
   ToolRuntimeOriginalIssueDependencies,
   ToolRuntimeOriginalIssueFactory,
-  ToolRuntimeInstance,
+  ToolPoolInstance,
 } from '../src/index.ts'
 
 expectTypeOf<ToolRuntimeOriginalIssueDependencies>().toExtend<ToolRuntimeDependencies>()
 expectTypeOf<ToolOriginalIssueParticipant['stopped']>().toEqualTypeOf<Promise<void>>()
 expectTypeOf<
   ReturnType<ToolRuntimeOriginalIssueFactory['create']>
->().toEqualTypeOf<ToolRuntimeInstance>()
+>().toEqualTypeOf<ToolPoolInstance>()
 expectTypeOf<Parameters<ToolOriginalIssueParticipant['stageOriginalIn']>>().toEqualTypeOf<
   [StorageUnit]
 >()
@@ -42,6 +42,9 @@ expectTypeOf<
 >().toEqualTypeOf<ToolOriginalIssueUnknown>()
 
 declare const submission: ExecutionSubmission
+declare const nativePool: ReturnType<ToolRuntimeOriginalIssueFactory['create']>
+// @ts-expect-error Native submission requires selected inputs, their source and the prepared chain.
+nativePool.operations.submit(submission)
 declare const dependencies: ToolRuntimeDependencies
 declare const identity: ToolOriginalIssueIdentity
 // @ts-expect-error Ordinary Tool construction does not provide the same-unit support.

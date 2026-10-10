@@ -6,11 +6,8 @@ import type {
   SessionLogParticipant,
 } from '@omne-harness-lite/session-log'
 import type { ExecutionOrigin, ExecutionRef } from './tool-execution.ts'
-import type {
-  ToolRuntimeConfig,
-  ToolRuntimeDependencies,
-  ToolRuntimeInstance,
-} from './runtime-provider.ts'
+import type { ToolPoolInstance } from './execution-pool.ts'
+import type { ToolRuntimeConfig, ToolRuntimeDependencies } from './runtime-provider.ts'
 
 /** The generation distinguishes owners, not additional executions of the same call. */
 export interface ToolOriginalIssueIdentity {
@@ -123,5 +120,5 @@ export interface ToolRuntimeOriginalIssueFactory {
   readonly create: (
     config: ToolRuntimeConfig,
     dependencies: ToolRuntimeOriginalIssueDependencies,
-  ) => ToolRuntimeInstance
+  ) => ToolPoolInstance
 }

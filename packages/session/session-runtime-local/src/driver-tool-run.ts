@@ -1,6 +1,7 @@
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { compareInteger, checkKey, type SourceToken } from '@omne-harness-lite/session-log'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
+import type { FinalAction } from '@omne-harness-lite/tool-admission'
 import type { SessionLifecycleStep, StepCommit } from '@omne-harness-lite/session-runtime'
 import {
   prepareToolJournalEntry,
@@ -10,6 +11,7 @@ import {
   type ToolOriginalIssueClaim,
   type ToolOriginalIssueSupport,
   type ToolTerminalRecord,
+  type SelectedTool,
 } from '@omne-harness-lite/tool-execution-runtime'
 import { modelLogJsonEqual as equal } from '@omne-harness-lite/model-request-runtime'
 import type { BorrowedRunJournal } from './run-journal-types.ts'
@@ -29,8 +31,9 @@ import type {
 import { deliverDriverToolWork } from './driver-tool-delivery.ts'
 import { publishDriverActionBatch } from './driver-action-batch.ts'
 import { inspectActionBatch } from './driver-action-facts.ts'
-import { readDriverToolBatch } from './driver-tool-source.ts'
+import { readDriverToolBatch, type DriverToolBatch } from './driver-tool-source.ts'
 import { DriverHistoryInvalid, requireHistory } from './driver-model-history.ts'
+import { prepareDriverToolRequest } from './driver-tool-request.ts'
 
 type Preparation = Extract<SessionLifecycleStep, { kind: 'prepareCall' }>
 type Inputs = Pick<LocalSessionDriverOptions, 'ingress' | 'identities' | 'tools' | 'work'>
@@ -45,6 +48,7 @@ type Input = {
 }
 export interface DriverToolWork {
   readonly request: ExecutionSubmission
+  readonly selected: SelectedTool
   readonly preparation: Preparation
   readonly identities: ReturnType<Inputs['identities']['tool']>
   readonly token: SessionDriverWorkToken
@@ -96,15 +100,13 @@ class ToolRun {
       for (const item of published.completion.items) {
         if (!this.available()) return 'retained'
         const admission = published.admissions.find(value => value.callId === item.callId)
-        const request: ExecutionSubmission = {
-          scope: this.input.scope,
-          access: this.input.sources.toolAccess,
-          origin: found.batch.origin,
-          adoption: found.batch.adoption.key,
-          call: item.effectiveCall,
-          ...(admission ? { admissionToken: admission.token } : {}),
-        }
-        const work = this.prepareWork(request, record[0]!.entry.position)
+        const work = this.prepareItem(
+          item,
+          found.batch,
+          record[0]!.entry.position,
+          admission?.token,
+        )
+        if (!work) return 'retained'
         this.work.push(work)
         if (!(await this.executeAndDeliver(work))) return 'retained'
       }
@@ -115,6 +117,31 @@ class ToolRun {
     } finally {
       this.driving = false
     }
+  }
+  prepareItem(
+    item: FinalAction,
+    batch: DriverToolBatch,
+    position: SourceToken['tail'],
+    token: ExecutionSubmission['admissionToken'],
+  ) {
+    const request: ExecutionSubmission = {
+      scope: this.input.scope,
+      access: this.input.sources.toolAccess,
+      origin: batch.origin,
+      adoption: batch.adoption.key,
+      call: item.effectiveCall,
+      ...(token === undefined ? {} : { admissionToken: token }),
+    }
+    const adopted = batch.adoption.adoption.tools.find(tool => tool.name === request.call.tool)
+    if (!adopted || item.decision.kind === 'notExecutable') return
+    const { capability, asset, version, definition } = adopted
+    return this.prepareWork(request, position, {
+      capability,
+      asset,
+      version,
+      definition,
+      adoption: request.adoption,
+    })
   }
   async executeAndDeliver(work: DriverToolWork) {
     if (!(await this.execute(work))) return false
@@ -215,7 +242,11 @@ class ToolRun {
       },
     })
   }
-  prepareWork(request: ExecutionSubmission, position: SourceToken['tail']): DriverToolWork {
+  prepareWork(
+    request: ExecutionSubmission,
+    position: SourceToken['tail'],
+    selected: SelectedTool,
+  ): DriverToolWork {
     const { scope, options, permit } = this.input
     const identities = Object.freeze({
       ...options.identities.tool(
@@ -252,7 +283,7 @@ class ToolRun {
       originalPosition: identities.originalPosition,
     })
     const token = options.work.begin(scope, preparation)
-    return { request, preparation, identities, token, stopped: false }
+    return { request, selected, preparation, identities, token, stopped: false }
   }
   async execute(work: DriverToolWork) {
     const { options, scope } = this.input
@@ -266,23 +297,40 @@ class ToolRun {
     )
     if (!('kind' in work.prepared) || work.prepared.kind !== 'committed' || !this.available())
       return false
-    const runtime = this.borrowed!.runtime
-    const submitted = await runtime.operations.submit(work.request)
-    if (submitted.kind !== 'recorded' || !work.participant) return false
+    const submitted = await this.submitPrepared(work)
+    if (!submitted || !('execution' in submitted) || !work.participant) return false
     requireHistory(
       equal(submitted.execution, work.participant.identity.ref),
       'foreign original Tool execution',
     )
-    const observed = await runtime.operations.acquire(work.request.access, submitted.execution)
+    return this.observeResult(work, work.participant)
+  }
+  async observeResult(work: DriverToolWork, participant: ToolOriginalIssueParticipant) {
+    const observed = await this.borrowed!.runtime.operations.acquire(
+      work.request.access,
+      participant.identity.ref,
+    )
     if (observed.kind !== 'acquired') return false
     try {
       const ended = await observed.observer.waitForEnd()
       if (ended.kind !== 'found' || ended.snapshot.state.phase !== 'ended') return false
-      await work.participant.stopped
-      return await this.retainResult(work, work.participant)
+      await participant.stopped
+      return await this.retainResult(work, participant)
     } finally {
       observed.observer.release()
     }
+  }
+  async submitPrepared(work: DriverToolWork) {
+    const source = await this.prefix()
+    const prepared = await prepareDriverToolRequest({
+      request: work.request,
+      selected: work.selected,
+      source: source.source,
+      host: this.input.sources.actions.host,
+      signal: this.input.signal,
+    })
+    if (!prepared || !this.available()) return
+    return this.borrowed!.runtime.operations.submit(prepared)
   }
   async retainResult(work: DriverToolWork, participant: ToolOriginalIssueParticipant) {
     if (!(await this.readTerminal(work, participant))) return false
