@@ -180,7 +180,7 @@ it.each(['foreign-operation', 'foreign-generation', 'changed-receipt', 'differen
       packet.command === 'submitInput' ? { kind: 'accepted', receipt } : bad,
     )
     const outcome = await submitSessionMessage(f.options)
-    expect(outcome).toMatchObject({ status: 'unconfirmed', receipt, reason: 'invalidSubmission' })
+    expect(outcome).toMatchObject({ status: 'accepted', receipt, reason: 'invalidObservation' })
     expect(f.execute.mock.calls).toHaveLength(2)
   },
 )
@@ -233,7 +233,7 @@ it('does not expose raw blocks or accept a message prefix predating the original
         : { ...history, source: { ...source, tail: 7 } },
   )
   const outcome = await submitSessionMessage(f.options)
-  expect(outcome).toMatchObject({ status: 'unconfirmed', receipt, reason: 'invalidMessages' })
+  expect(outcome).toMatchObject({ status: 'accepted', receipt, reason: 'invalidObservation' })
   expect(outcome).not.toHaveProperty('messages')
 })
 it('writes original receipt coordinates beyond the safe integer range without rounding', async () => {
@@ -242,7 +242,6 @@ it('writes original receipt coordinates beyond the safe integer range without ro
   const saved = { ...receipt, position: parsed.ok, source: { ...receipt.source, tail: parsed.ok } }
   const f = await fixture(async () => ({ kind: 'unknownCommit', operation }))
   const observed = await submitSessionMessage(f.options)
-  // The wire codecs already reject shape errors. This case checks the final output boundary.
   const outcome: SessionMessageOutcome = { ...observed, receipt: saved }
   let output = ''
   expect(
@@ -322,8 +321,8 @@ it.each(['differentInput', 'alreadyStarted'] as const)(
           },
     )
     expect(await submitSessionMessage(f.options)).toMatchObject({
-      status: 'unconfirmed',
-      reason: 'invalidSubmission',
+      status: 'accepted',
+      reason: 'invalidObservation',
       receipt,
     })
     expect(f.execute.mock.calls.map(([packet]) => packet.command)).toEqual([
@@ -389,7 +388,9 @@ it('recovers a temporary observation outage without forgetting acceptance or sub
   })
   const outcome = await submitSessionMessage(f.options)
   expect(outcome).toMatchObject({ status: 'completed', receipt })
-  expect(f.execute.mock.calls.filter(([packet]) => packet.command === 'submitInput')).toHaveLength(1)
+  expect(f.execute.mock.calls.filter(([packet]) => packet.command === 'submitInput')).toHaveLength(
+    1,
+  )
   expect(reads).toBe(2)
 })
 
@@ -408,11 +409,15 @@ it('falls back from a timed-out presentation to the same authoritative receipt',
     onProgress: () => {},
   })
   expect(outcome).toMatchObject({ status: 'completed', receipt })
-  const reads = f.execute.mock.calls.map(([packet]) => packet).filter(packet => packet.command === 'readSubmission')
+  const reads = f.execute.mock.calls
+    .map(([packet]) => packet)
+    .filter(packet => packet.command === 'readSubmission')
   expect(reads).toHaveLength(2)
   expect(reads[0]).toHaveProperty('includePresentation', true)
   expect(reads[1]).not.toHaveProperty('includePresentation')
-  expect(f.execute.mock.calls.filter(([packet]) => packet.command === 'submitInput')).toHaveLength(1)
+  expect(f.execute.mock.calls.filter(([packet]) => packet.command === 'submitInput')).toHaveLength(
+    1,
+  )
 })
 
 it('retries a temporary final-message outage without replaying submission', async () => {
@@ -424,7 +429,9 @@ it('retries a temporary final-message outage without replaying submission', asyn
   })
   expect(await submitSessionMessage(f.options)).toMatchObject({ status: 'completed', receipt })
   expect(messages).toBe(2)
-  expect(f.execute.mock.calls.filter(([packet]) => packet.command === 'submitInput')).toHaveLength(1)
+  expect(f.execute.mock.calls.filter(([packet]) => packet.command === 'submitInput')).toHaveLength(
+    1,
+  )
 })
 
 it('retains known acceptance when detached during the final-message read', async () => {
@@ -435,6 +442,60 @@ it('retains known acceptance when detached during the final-message read', async
     f.controller.abort()
     return history
   })
-  expect(await submitSessionMessage(f.options)).toMatchObject({ status: 'accepted', reason: 'detached', receipt, submission })
-  expect(f.execute.mock.calls.filter(([packet]) => packet.command === 'submitInput')).toHaveLength(1)
+  expect(await submitSessionMessage(f.options)).toMatchObject({
+    status: 'accepted',
+    reason: 'detached',
+    receipt,
+    submission,
+  })
+  expect(f.execute.mock.calls.filter(([packet]) => packet.command === 'submitInput')).toHaveLength(
+    1,
+  )
+})
+
+it('discards invalid presentation data and validates a fresh authoritative read', async () => {
+  const onProgress = vi.fn()
+  const f = await fixture(async packet => {
+    if (packet.command === 'submitInput') return { kind: 'accepted', receipt }
+    if (packet.command === 'readMessages') return history
+    if (packet.command === 'readSubmission' && packet.includePresentation) {
+      const invalid = { ...submission, presentation: { revision: 1, omitted: false, items: [] } }
+      Reflect.set(invalid.presentation, 'items', 'invalid')
+      return invalid
+    }
+    return submission
+  })
+  expect(await submitSessionMessage({ ...f.options, onProgress })).toMatchObject({
+    status: 'completed',
+    receipt,
+  })
+  expect(onProgress).not.toHaveBeenCalled()
+  expect(
+    f.execute.mock.calls.filter(([packet]) => packet.command === 'readSubmission'),
+  ).toHaveLength(2)
+  expect(f.execute.mock.calls.filter(([packet]) => packet.command === 'submitInput')).toHaveLength(
+    1,
+  )
+})
+
+it('retains the last valid observation when subsequent reads stay unavailable until the deadline', async () => {
+  let reads = 0
+  const running = { ...submission, run: { id: 'original-run', state: 'running' as const } }
+  const unavailable = vi.fn()
+  const f = await fixture(async packet => {
+    if (packet.command === 'submitInput') return { kind: 'accepted', receipt }
+    return ++reads === 1 ? running : { failure: 'unavailable' }
+  })
+  expect(
+    await submitSessionMessage({
+      ...f.options,
+      policy: { ...policy, maxWaitMs: 150 },
+      onObservationUnavailable: unavailable,
+    }),
+  ).toMatchObject({ status: 'accepted', reason: 'waitExpired', receipt, submission: running })
+  expect(unavailable).toHaveBeenCalled()
+  expect(reads).toBeGreaterThan(1)
+  expect(f.execute.mock.calls.filter(([packet]) => packet.command === 'submitInput')).toHaveLength(
+    1,
+  )
 })

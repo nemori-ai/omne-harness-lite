@@ -212,6 +212,10 @@ function acceptedMessage(
     return 'Input was accepted. Sign in again before starting the new Run. Do not resend this input.'
   if (reason === 'confirmationUnavailable')
     return 'Input was accepted. The governance center could not confirm login. The new Run has not started. Do not resend this input.'
+  if (reason === 'observationUnavailable')
+    return 'Input was accepted. Its current status is unavailable. Do not resend this input.'
+  if (reason === 'invalidObservation')
+    return 'Input was accepted. The host returned an invalid observation. Do not resend this input.'
   return 'Input was accepted. Work continues in the host.'
 }
 

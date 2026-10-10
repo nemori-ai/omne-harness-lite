@@ -23,13 +23,14 @@ type Known = {
 }
 interface MessageOptions {
   readonly onProgress?: (presentation: SessionPresentation) => void
+  readonly onObservationUnavailable?: () => void
   readonly home: string
   readonly request: SubmitRequest
   readonly policy: SessionMessagePolicy
   readonly signal: AbortSignal
 }
 export interface SessionMessagePolicy extends SessionHostWaitPolicy {
-  readonly maxWaitMs: number
+  readonly maxWaitMs: number | null
   readonly pollIntervalMs: number
 }
 type MessageState =
@@ -37,7 +38,13 @@ type MessageState =
   | { readonly status: 'rejected'; readonly reason: string }
   | {
       readonly status: 'accepted'
-      readonly reason: 'waitExpired' | 'detached' | 'loginRejected' | 'confirmationUnavailable'
+      readonly reason:
+        | 'waitExpired'
+        | 'detached'
+        | 'loginRejected'
+        | 'confirmationUnavailable'
+        | 'observationUnavailable'
+        | 'invalidObservation'
       readonly submission: Submission | null
     }
   | {
@@ -77,11 +84,13 @@ export async function submitSessionMessage(
   }
 }
 async function submitOriginal(options: MessageOptions): Promise<InternalOutcome> {
-  positivePolicy(options.policy, ['maxResponseBytes', 'timeoutMs', 'maxWaitMs', 'pollIntervalMs'])
-  const waitSignal = AbortSignal.any([
-    options.signal,
-    AbortSignal.timeout(options.policy.maxWaitMs),
-  ])
+  const { maxWaitMs, ...finitePolicy } = options.policy
+  positivePolicy(finitePolicy, ['maxResponseBytes', 'timeoutMs', 'pollIntervalMs'])
+  if (maxWaitMs !== null) positivePolicy({ maxWaitMs }, ['maxWaitMs'])
+  const waitSignal =
+    maxWaitMs === null
+      ? options.signal
+      : AbortSignal.any([options.signal, AbortSignal.timeout(maxWaitMs)])
   const waitPolicy = {
     maxResponseBytes: options.policy.maxResponseBytes,
     timeoutMs: options.policy.timeoutMs,
@@ -107,6 +116,14 @@ async function submitOriginal(options: MessageOptions): Promise<InternalOutcome>
   const known = { ...base, receipt: accepted.receipt }
   return observeSubmission(options, known, exchange, waitSignal)
 }
+type Observation<T> =
+  | { readonly read: T }
+  | { readonly failure: 'retry' | 'observationUnavailable' | 'invalidObservation' }
+type ObservedMessages = Extract<
+  NonNullable<ReturnType<typeof readMessagesReply>>,
+  { kind: 'messages' }
+>
+type ObservationFailure = Extract<Observation<never>, { failure: string }>
 async function observeSubmission(
   options: MessageOptions,
   known: Known,
@@ -114,25 +131,56 @@ async function observeSubmission(
   waitSignal: AbortSignal,
 ): Promise<InternalOutcome> {
   let submission: Submission | null = null
-  for (;;) {
-    if (waitSignal.aborted)
-      return {
-        ...known,
-        status: 'accepted',
-        reason: options.signal.aborted ? 'detached' : 'waitExpired',
-        submission,
-      }
-    const observation = await observeOnce(known, exchange, options.onProgress !== undefined)
-    if (waitSignal.aborted) continue
-    if ('reason' in observation)
-      return { ...known, status: 'unconfirmed', reason: observation.reason }
-    const read = observation.read
-    submission = read
-    if (read.presentation) options.onProgress?.(read.presentation)
-    if (read.admission)
-      return { ...known, status: 'accepted', reason: read.admission.reason, submission: read }
-    if (read.run && read.run.state !== 'running') return terminal(known, read, exchange)
+  let presentation = options.onProgress !== undefined
+  while (!waitSignal.aborted) {
+    const observation = await observeOnce(known, exchange, presentation)
+    if (waitSignal.aborted) break
+    if ('failure' in observation) {
+      const fallback = presentation
+      presentation = false
+      if (!fallback && observation.failure !== 'retry')
+        return observationEnded(known, submission, observation.failure)
+      if (observation.failure === 'retry') options.onObservationUnavailable?.()
+    } else {
+      submission = observation.read
+      const outcome = await observedSubmission(options, known, submission, exchange, waitSignal)
+      if (outcome) return outcome
+    }
     await waitForObservation(options.policy.pollIntervalMs, waitSignal)
+  }
+  return interrupted(options, known, submission)
+}
+async function observedSubmission(
+  options: MessageOptions,
+  known: Known,
+  submission: Submission,
+  exchange: Exchange,
+  waitSignal: AbortSignal,
+): Promise<InternalOutcome | undefined> {
+  if (submission.presentation) options.onProgress?.(submission.presentation)
+  if (submission.admission)
+    return { ...known, status: 'accepted', reason: submission.admission.reason, submission }
+  if (submission.run && submission.run.state !== 'running')
+    return terminal(options, known, submission, exchange, waitSignal)
+  return undefined
+}
+function observationEnded(
+  known: Known,
+  submission: Submission | null,
+  reason: 'observationUnavailable' | 'invalidObservation',
+): InternalOutcome {
+  return { ...known, status: 'accepted', reason, submission }
+}
+function interrupted(
+  options: MessageOptions,
+  known: Known,
+  submission: Submission | null,
+): InternalOutcome {
+  return {
+    ...known,
+    status: 'accepted',
+    reason: options.signal.aborted ? 'detached' : 'waitExpired',
+    submission,
   }
 }
 async function waitForObservation(intervalMs: number, signal: AbortSignal): Promise<void> {
@@ -142,11 +190,18 @@ async function waitForObservation(intervalMs: number, signal: AbortSignal): Prom
     if (!signal.aborted) throw error
   }
 }
+function failedObservation(reason: string): ObservationFailure {
+  if (reason === 'transportUnavailable' || reason === 'hostRejected' || reason === 'unavailable')
+    return { failure: 'retry' }
+  if (reason === 'absent' || reason === 'denied' || reason === 'notFound')
+    return { failure: 'observationUnavailable' }
+  return { failure: 'invalidObservation' }
+}
 async function observeOnce(
   known: Known,
   exchange: Exchange,
   presentation: boolean,
-): Promise<{ read: Submission } | { reason: string }> {
+): Promise<Observation<Submission>> {
   const result = await exchange({
     format: known.request.format,
     binding: known.request.binding,
@@ -154,29 +209,55 @@ async function observeOnce(
     ...(presentation ? { includePresentation: true as const } : {}),
     operation: known.receipt.operation,
   })
-  if (result.kind !== 'reply') return { reason: result.reason }
+  if (result.kind !== 'reply') return failedObservation(result.reason)
   const read = readSubmissionReply(result.result, known.request, known.receipt)
-  if (!read || !('kind' in read) || read.kind !== 'submission')
-    return { reason: 'invalidSubmission' }
+  if (!read) return failedObservation('invalidSubmission')
+  if ('failure' in read) return failedObservation(read.failure)
+  if (read.kind === 'absent') return failedObservation('absent')
   return { read }
 }
 async function terminal(
+  options: MessageOptions,
   known: Known,
   submission: Submission,
   exchange: Exchange,
+  waitSignal: AbortSignal,
 ): Promise<InternalOutcome> {
+  while (!waitSignal.aborted) {
+    const observation = await observeMessages(known, submission, exchange)
+    if (waitSignal.aborted) break
+    if ('read' in observation) return terminalOutcome(known, submission, observation.read)
+    if (observation.failure !== 'retry')
+      return observationEnded(known, submission, observation.failure)
+    options.onObservationUnavailable?.()
+    await waitForObservation(options.policy.pollIntervalMs, waitSignal)
+  }
+  return interrupted(options, known, submission)
+}
+async function observeMessages(
+  known: Known,
+  submission: Submission,
+  exchange: Exchange,
+): Promise<Observation<ObservedMessages>> {
   const result = await exchange({
     format: known.request.format,
     binding: known.request.binding,
     command: 'readMessages',
     session: known.request.session,
   })
-  if (result.kind !== 'reply') return { ...known, status: 'unconfirmed', reason: result.reason }
+  if (result.kind !== 'reply') return failedObservation(result.reason)
   const read = readMessagesReply(result.result, submission)
-  if (!read || 'failure' in read)
-    return { ...known, status: 'unconfirmed', reason: 'invalidMessages' }
-  const run = submission.run!
-  if (run.state === 'running') throw new Error('nonterminal submission')
+  if (!read) return failedObservation('invalidMessages')
+  if ('failure' in read) return failedObservation(read.failure)
+  return { read }
+}
+function terminalOutcome(
+  known: Known,
+  submission: Submission,
+  read: ObservedMessages,
+): InternalOutcome {
+  const run = submission.run
+  if (!run || run.state === 'running') throw new Error('nonterminal submission')
   return {
     ...known,
     status: run.state,

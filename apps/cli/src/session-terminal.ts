@@ -58,19 +58,28 @@ async function interact(
     if (!message) return blocked('host-clock-unavailable')
     const prior = [...lines, '', 'You', text, '', 'Assistant']
     let shown = ''
-    options.dialog.progress('Conversation', [...prior, 'Waiting for the model…'])
+    let visible: readonly string[] = ['Waiting for the model…']
+    options.dialog.progress('Conversation', [...prior, ...visible])
     const outcome = await submitSessionMessage({
       onProgress: presentation => {
         const live = presentationLines(presentation)
         const next = JSON.stringify(live)
         if (next !== shown) {
           shown = next
-          options.dialog.progress('Conversation', [...prior, ...live])
+          visible = live
+          options.dialog.progress('Conversation', [...prior, ...visible])
         }
+      },
+      onObservationUnavailable: () => {
+        options.dialog.progress('Conversation', [
+          ...prior,
+          ...visible,
+          'Observation unavailable. Reconnecting…',
+        ])
       },
       home: options.home,
       signal: options.signal,
-      policy: options.policy,
+      policy: { ...options.policy, maxWaitMs: null },
       request: {
         format: 'omne-session-host/1',
         binding: options.binding,

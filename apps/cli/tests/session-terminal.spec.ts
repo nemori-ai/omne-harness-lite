@@ -333,14 +333,37 @@ it('preserves the original unknown submission and does not request another input
   expect(f.show).not.toHaveBeenCalled()
   expect(f.execute.mock.calls.filter(([p]) => p.command === 'submitInput')).toHaveLength(1)
 })
-it('keeps an accepted queued input and its identity when the bounded wait expires', async () => {
+it('keeps waiting beyond the script deadline until the terminal detaches', async () => {
   const f = await fixture('wait')
-  expect(
-    await runTerminalSession({ ...f.options, policy: { ...policy, maxWaitMs: 30 } }),
-  ).toMatchObject({
+  const controller = new AbortController()
+  let observed!: () => void
+  const firstRead = new Promise<void>(resolve => {
+    observed = resolve
+  })
+  const execute = f.execute.getMockImplementation()!
+  f.execute.mockImplementation(async packet => {
+    if (packet.command === 'readSubmission') observed()
+    return execute(packet)
+  })
+  let ended = false
+  const pending = runTerminalSession({
+    ...f.options,
+    signal: controller.signal,
+    policy: { ...policy, maxWaitMs: 30 },
+  }).finally(() => {
+    ended = true
+  })
+  try {
+    await firstRead
+    await new Promise(resolve => setTimeout(resolve, 80))
+    expect(ended).toBe(false)
+  } finally {
+    controller.abort()
+  }
+  expect(await pending).toMatchObject({
     outcome: {
       status: 'accepted',
-      reason: 'waitExpired',
+      reason: 'detached',
       receipt: { operation: { operation: 'submitInput' } },
     },
   })

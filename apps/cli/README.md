@@ -117,6 +117,7 @@ A standalone Escape key is not a cancel command. The client rejects multi-line p
 The client restores its terminal state after input and output finish. Paste already in progress must finish before terminal release.
 
 Detaching ends the client's wait. It does not stop the tenant host or cancel an admitted Run.
+The interactive client waits until the Run finishes or you detach; the script waiting limit does not end an interactive conversation. If a progress read is temporarily unavailable, the client preserves the accepted receipt and retries only reads. It shows a reconnecting notice. If live display reads fail, it continues without live content and loads the saved reply when the Run finishes.
 The exit message gives a session ID. Replace `SESSION_ID` below:
 
 ```bash
