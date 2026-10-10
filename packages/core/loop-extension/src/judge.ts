@@ -61,15 +61,18 @@ function abouts(
   return all
 }
 function dimensionRejection(frame: JsonObject): Rejection | undefined {
-  const needs = frame.position === 'after_model_call' || frame.position === 'after_action'
-  if (needs && !Object.hasOwn(frame, 'dimension')) return 'dimension_missing'
+  const required =
+    frame.position === 'after_model_call'
+      ? 'ending'
+      : frame.position === 'after_action'
+        ? 'scope'
+        : undefined
+  if (required !== undefined && !Object.hasOwn(frame, 'dimension')) return 'dimension_missing'
   if (Object.hasOwn(frame, 'dimension')) {
-    if (!needs || !validate('Dimension', frame.dimension).valid) return 'dimension_not_allowed'
+    if (required === undefined || !validate('Dimension', frame.dimension).valid)
+      return 'dimension_not_allowed'
     if (!object(frame.dimension)) return 'dimension_not_allowed'
-    if (frame.position === 'after_model_call' && !Object.hasOwn(frame.dimension, 'ending'))
-      return 'dimension_not_allowed'
-    if (frame.position === 'after_action' && !Object.hasOwn(frame.dimension, 'scope'))
-      return 'dimension_not_allowed'
+    if (!Object.hasOwn(frame.dimension, required)) return 'dimension_not_allowed'
   }
   return undefined
 }
