@@ -614,7 +614,7 @@ createSessionRunModelBinding消费Session提供者公开的createSessionCallAcce
 
 `connectProductionSessionHost` 消费既有连接协议。通道缺失时，用当前 Node 可执行文件启动发行包内的私有入口，启用 detached。子进程继承自己的私有日志文件描述符；父进程归还文件句柄不关闭子进程日志。已有通道不被覆盖，连接取消或超时不杀子进程。日志仅记录诊断类别，不输出启动身份材料或凭据。
 
-`startProductionSessionHost` 选择既有 Session Driver、官方定义、实际模型目录、加密凭据、同库参加者、Clock 和 OpenRouter 提供者。Run 的源和任务在实际生命周期内借用及归还，不由 CLI 消费者维护执行循环。当前发行定义的此装配支持文本模型回路；未安装的工具与扩展执行返回不可用。完整 B01 工具装配和裸终端接入仍须完成，不能以该文本装配替代这些交付要求。
+`startProductionSessionHost` 选择既有 Session Driver、官方定义、实际模型目录、加密凭据、同库参加者、Clock 和 OpenRouter 提供者。Run 的源和任务在实际生命周期内借用及归还，不由 CLI 消费者维护执行循环。当前发行定义同时安装文本模型回路、Shell及其准入扩展。未安装的工具与扩展执行返回不可用。裸终端入口消费同一独立宿主，不另设执行循环。
 
 
 ## 终端会话消费者
