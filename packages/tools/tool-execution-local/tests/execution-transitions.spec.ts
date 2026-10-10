@@ -7,6 +7,7 @@ import type {
   ToolExecutionRecords,
 } from '@omne-harness-lite/tool-execution-runtime'
 import { StorageUnavailable } from '@omne-harness-lite/storage'
+import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { createToolOriginalIssue } from '../src/original-issue.ts'
 import { toolOriginalIssueMigrations } from '../src/original-issue-migrations.ts'
@@ -40,6 +41,7 @@ async function fixture(issued = true) {
   let open = true
   const appendIn = vi.fn(log.participant.appendIn)
   const original = createToolOriginalIssue({
+    clock: { now: async () => unwrap(instantFromRfc3339('2026-10-10T00:00:00Z')) },
     support: {
       storage: log.fixtureStorage,
       log: {

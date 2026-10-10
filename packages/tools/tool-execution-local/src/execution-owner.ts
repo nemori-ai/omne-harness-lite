@@ -37,6 +37,7 @@ import type {
   ToolOriginalIssueSupport,
   ToolJournalPayload,
   ToolExecutionRecords,
+  PreparedToolExecution,
 } from '@omne-harness-lite/tool-execution-runtime'
 import type {
   ExecutionEnvironmentOperations,
@@ -48,6 +49,7 @@ import { createExecutionContextReader } from './execution-context.ts'
 import { createExecutionObserver } from './execution-observer.ts'
 import type { PreparedTerminal } from './execution-result.ts'
 import { createTerminalCommitter } from './execution-terminal.ts'
+import { capturePreparedExecution } from './prepared-submission.ts'
 import { jsonObject, sameJson } from './json-values.ts'
 import type { createRuntimeJournal, RuntimeJournalFailure } from './runtime-journal.ts'
 import {
@@ -201,6 +203,10 @@ export function createExecutionOwner(input: {
   }) => Promise<PreparedTerminal | 'unavailable'>
 }) {
   const originalGeneration = randomUUID()
+  const preparedRequests = new Map<
+    string,
+    Exclude<ReturnType<typeof capturePreparedExecution>, SubmissionResult>
+  >()
   const owned = new Map<string, OwnedExecution>(),
     submissions = new Map<string, Promise<unknown>>(),
     listeners = new Map<string, Set<() => void>>(),
@@ -746,7 +752,7 @@ export function createExecutionOwner(input: {
     return { kind: 'basis' as const, acceptedAt: instantToRfc3339(now), assembly: assembly.ok }
   }
   function ownCandidate(
-    decision: Admitted,
+    decision: Pick<Admitted, 'request' | 'selected' | 'notExecutable'>,
     ref: ExecutionRef,
     basis: Extract<Awaited<ReturnType<typeof captureExecutionBasis>>, { kind: 'basis' }>,
     chain: NonNullable<Awaited<ReturnType<typeof captureIntentChain>>>,
@@ -817,7 +823,10 @@ export function createExecutionOwner(input: {
     launch(job)
     return { kind: 'recorded', execution: job.ref }
   }
-  async function commitIntent(job: OwnedExecution, expected: CheckedPrefix) {
+  async function commitIntent(
+    job: OwnedExecution,
+    expected: Pick<CheckedPrefix, 'scope' | 'ownerGeneration' | 'tail'>,
+  ) {
     const value: Extract<ToolJournalPayload, { kind: 'execution_intended' }> = {
       kind: 'execution_intended',
       revision: 1,
@@ -835,6 +844,7 @@ export function createExecutionOwner(input: {
     if (input.originalIssue) {
       job.original = createToolOriginalIssue({
         support: input.originalIssue,
+        clock: input.clock,
         generation: originalGeneration,
         expected: expected,
         value,
@@ -890,6 +900,76 @@ export function createExecutionOwner(input: {
     }
     return { kind: 'rejected', reason: 'runtimeUnavailable' }
   }
+  function enqueueSubmission(
+    request: ExecutionSubmission,
+    operation: () => Promise<SubmissionResult>,
+  ) {
+    const key = JSON.stringify([
+      request.scope.tenant.organization,
+      request.scope.tenant.account,
+      request.scope.session,
+    ])
+    const task = track(
+      (submissions.get(key) ?? Promise.resolve()).then(async () => {
+        try {
+          return await operation()
+        } catch (error) {
+          faults.add(error)
+          return {
+            kind: 'rejected' as const,
+            reason: open ? ('runtimeUnavailable' as const) : ('ownerStopped' as const),
+          }
+        }
+      }),
+    )
+    const complete = task.then(
+      () => undefined,
+      () => undefined,
+    )
+    submissions.set(key, complete)
+    void complete.then(() => {
+      if (submissions.get(key) === complete) submissions.delete(key)
+    })
+    return task
+  }
+  async function admitPrepared(
+    captured: Exclude<ReturnType<typeof capturePreparedExecution>, SubmissionResult>,
+  ): Promise<SubmissionResult> {
+    const { request, selected, source, chain } = captured
+    const ref = { ...request.scope, callId: request.call.callId }
+    if (!input.originalIssue || !input.journal.isCurrent())
+      return { kind: 'rejected', reason: 'runtimeUnavailable' }
+    const denied = await authorize(request.access, ref, 'tool.submit')
+    if (denied) return { kind: 'rejected', reason: denied }
+    const previous = owned.get(keyOf(ref))
+    if (previous) {
+      const saved = preparedRequests.get(keyOf(ref))
+      if (
+        !saved ||
+        !sameJson(
+          { ...saved, request: submissionIdentity(saved.request) },
+          { ...captured, request: submissionIdentity(request) },
+        )
+      )
+        return { kind: 'rejected', reason: 'callConflict' }
+      return admitOriginalJob(previous)
+    }
+    const basis = await captureExecutionBasis(ref)
+    if (basis.kind !== 'basis') return basis
+    const after = await authorize(request.access, ref, 'tool.submit')
+    if (after) return { kind: 'rejected', reason: after }
+    const job = ownCandidate({ request, selected }, ref, basis, chain)
+    owned.set(keyOf(ref), job)
+    preparedRequests.set(keyOf(ref), captured)
+    const committed = await commitIntent(job, {
+      scope: request.scope,
+      ownerGeneration: journal.generation,
+      tail: source.tail,
+    })
+    if (committed.kind !== 'original')
+      throw new Error('prepared Tool lacks its original issue owner')
+    return committed.result
+  }
   async function closeExecution(job: OwnedExecution): Promise<void> {
     if (job.original && !(await job.original.canClose()))
       throw new Error('execution owner retains unconfirmed original admission')
@@ -910,31 +990,7 @@ export function createExecutionOwner(input: {
         return Promise.resolve({ kind: 'rejected', reason: 'invalidInput' })
       }
       if ('reason' in captured) return Promise.resolve(captured)
-      const request = captured,
-        key = JSON.stringify([
-          request.scope.tenant.organization,
-          request.scope.tenant.account,
-          request.scope.session,
-        ])
-      const task = track(
-        (submissions.get(key) ?? Promise.resolve()).then(async (): Promise<SubmissionResult> => {
-          try {
-            return await submit(request)
-          } catch (error) {
-            faults.add(error)
-            return { kind: 'rejected', reason: open ? 'runtimeUnavailable' : 'ownerStopped' }
-          }
-        }),
-      )
-      const complete = task.then(
-        () => undefined,
-        () => undefined,
-      )
-      submissions.set(key, complete)
-      void complete.then(() => {
-        if (submissions.get(key) === complete) submissions.delete(key)
-      })
-      return task
+      return enqueueSubmission(captured, () => submit(captured))
     },
     async acquire(access, supplied) {
       const ref = ownRef(supplied)
@@ -1000,6 +1056,16 @@ export function createExecutionOwner(input: {
   } satisfies ToolRuntimeOperations)
   return Object.freeze({
     operations,
+    submitPrepared(supplied: PreparedToolExecution): Promise<SubmissionResult> {
+      let captured: ReturnType<typeof capturePreparedExecution>
+      try {
+        captured = capturePreparedExecution(supplied)
+      } catch {
+        return Promise.resolve({ kind: 'rejected', reason: 'invalidInput' })
+      }
+      if ('reason' in captured) return Promise.resolve(captured)
+      return enqueueSubmission(captured.request, () => admitPrepared(captured))
+    },
     async idle() {
       await Promise.all([...tasks])
       if (faults.size) throw new AggregateError([...faults], 'execution owner task failed')

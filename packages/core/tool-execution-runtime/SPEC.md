@@ -10,6 +10,8 @@ Session 固定原工具请求、当前 attempt 和结果采用关系，Agent 决
 
 PreparedToolExecution 保留原 ExecutionRef、ExecutionOrigin、完整调用块、参数、真实 SelectedTool 和活体 RuntimeAccess。AdmissionToken 沿原可选输入及实际准入核验。数据身份、复制 Access、选中定义或 token 均不授予执行。持久工具执行保持原 Session、Run、attempt 及 assistantMessage 关联，不新增无 Run 的持久工具分支。
 
+请求生产者提供同一 Session 的实际 SourceToken，并固定 afterAction.pass 和 afterAction.selectedChain。池保存这些输入，不读取完整会话历史来重新选择定义或 after_action。args 必须与原调用块的 arguments 一致。普通 JSON 输入在首次等待前复制，Access 保留原活体对象；同一原调用的不同准备输入必须冲突，不得覆盖已保管的执行。
+
 ToolPoolConstruction 借入原实现、Context、环境、结果、Runner、授权和策略依赖，消费 ToolExecutionRecords。它不借入会话枚举、完整日志管理或历史驱动的准入准备接口。工具定义与采用来源在请求准备端核实，池仍核对固定输入及真正实现借用。普通读取、停止和答复保持原动作资格。
 
 ToolExecutionRecords 只读取或暂存工具能力自己的原记录，不独立提交或调用作者。实际共享 StorageUnit、原数据集及活体 job 或 claim 必须相符。复制对象、旧 owner 或异存储单元拒绝。暂存终局、原账及耐久交付义务仍由同 Unit 协调者提交；Session 从该提交的完整前缀计算跨域 late 与归因，池不解释完整会话历史。
@@ -122,6 +124,8 @@ unknown须保同一个job、claim、意图、实现及输入借用；一次缺�
 
 consumeOriginal由原native owner请求；admission核该原claim并在实际Unit重新核最新permit及当前资格，
 调用participant.consumeOriginalIn暂存唯一消费，真正commit后才能返回launch。
+唯一消费与原工具的execution_started记录在同一个实际Unit暂存；任何一项失败，两项一起回滚。
+该记录表示原执行已取得启动资格，不证明作者已进入或物理效果已发生。
 ToolOriginalIssueAuthority只核同Unit当前资格，不替代native的权限、token、BeforeActions、原输入和实现守卫。
 participant.consumeOriginalIn的新消费返回staged；admission.consumeOriginal仅在真实commit后返回launch。
 已消费只返回alreadyConsumed，不再次grant launch。

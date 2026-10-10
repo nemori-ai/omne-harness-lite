@@ -30,7 +30,7 @@ const reject = (reason: SubmissionFailure['reason']): SubmissionFailure => ({
   reason,
 })
 
-function captureSubmissionProperties(input: ExecutionSubmission) {
+function captureSubmissionProperties(input: unknown) {
   if (input === null || typeof input !== 'object') return reject('invalidInput')
   const prototype = Object.getPrototypeOf(input)
   if (prototype !== Object.prototype && prototype !== null) return reject('invalidInput')
@@ -85,9 +85,7 @@ function checkSubmissionCoordinates(
 }
 
 /** Access is an opaque live identity. Capture every ordinary value before the first await. */
-export function captureSubmission(
-  input: ExecutionSubmission,
-): ExecutionSubmission | SubmissionFailure {
+export function captureSubmission(input: unknown): ExecutionSubmission | SubmissionFailure {
   const properties = captureSubmissionProperties(input)
   if ('reason' in properties) return properties
   const captured = captureSubmissionData(properties.ordinary)

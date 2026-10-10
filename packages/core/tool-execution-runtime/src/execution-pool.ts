@@ -18,7 +18,8 @@ import type {
 } from './original-issue.ts'
 import type { ToolTerminalRecord } from './result-custody.ts'
 import type { ToolJournalHistory } from './journal-history.ts'
-import type { ToolJournalPayload } from './tool-journal.ts'
+import type { ToolJournalPayload, DeliveryBasis } from './tool-journal.ts'
+import type { SourceToken } from '@omne-harness-lite/session-log'
 import type { StorageUnit } from '@omne-harness-lite/storage'
 import type { ToolRuntimeDependencies, ToolRuntimeConfig } from './runtime-provider.ts'
 
@@ -29,6 +30,8 @@ export interface PreparedToolExecution {
   readonly call: ToolCallBlock
   readonly args: InvocationInput['args']
   readonly selected: SelectedTool
+  readonly source: SourceToken
+  readonly afterAction: Pick<DeliveryBasis, 'pass' | 'selectedChain'>
   readonly admissionToken?: ExecutionSubmission['admissionToken']
 }
 

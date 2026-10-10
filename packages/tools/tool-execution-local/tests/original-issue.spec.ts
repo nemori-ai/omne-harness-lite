@@ -4,7 +4,7 @@ import type {
   ToolOriginalIssueParticipant,
   ToolOriginalIssueSupport,
 } from '@omne-harness-lite/tool-execution-runtime'
-import { fixture, request, scope } from './execution-owner-fixture.ts'
+import { definition, fixture, request, scope } from './execution-owner-fixture.ts'
 import type { ContextReader } from '@omne-harness-lite/runtime-context'
 
 function support(log: Awaited<ReturnType<typeof fixture>>['log']): ToolOriginalIssueSupport {
@@ -75,6 +75,7 @@ describe('native original Tool owner', () => {
 })
 
 import { toolOriginalIssueMigrations } from '../src/original-issue-migrations.ts'
+import { projectToolJournal } from '@omne-harness-lite/tool-execution-runtime'
 import { deferred, ref } from './execution-owner-fixture.ts'
 import { narrow, StorageUnavailable } from '@omne-harness-lite/storage'
 import { checkAppendInput } from '@omne-harness-lite/session-log'
@@ -603,6 +604,132 @@ it('retains the Session-classified terminal and original account when its commit
     expect(f.implementation).toHaveBeenCalledTimes(1)
   } finally {
     returned.resolve('original-result')
+    await f.close()
+  }
+})
+
+async function preparedFor(f: Awaited<ReturnType<typeof fixture>>) {
+  if (request.call.arguments === undefined) throw new Error('missing fixture arguments')
+  const source = await f.log.participant.source(f.log.fixtureAccess, scope)
+  if ('failure' in source) throw new Error('missing actual prepared source')
+  const prepared: import('@omne-harness-lite/tool-execution-runtime').PreparedToolExecution = {
+    access: request.access,
+    ref,
+    origin: request.origin,
+    call: request.call,
+    args: request.call.arguments,
+    selected: {
+      capability: 'tool:echo',
+      asset: 'echo-asset',
+      version: '1',
+      definition,
+      adoption: request.adoption,
+    },
+    source: source.source,
+    afterAction: { pass: 'prepared-after-action', selectedChain: [] },
+    admissionToken: request.admissionToken,
+  }
+  return prepared
+}
+
+it('executes a prepared request without reading Session history or selecting the after-action chain', async () => {
+  const { f } = await admittedFixture()
+  const prepared = await preparedFor(f)
+  f.readSince.mockImplementation(() => {
+    throw new Error('prepared execution must not read complete Session history')
+  })
+  f.selectChain.mockRejectedValue(new Error('the request already owns its after-action chain'))
+  try {
+    expect(await f.owner.submitPrepared(prepared)).toEqual({ kind: 'recorded', execution: ref })
+    await f.owner.idle()
+    const observer = await f.observer()
+    try {
+      expect(await observer.read()).toHaveProperty('snapshot.state.phase', 'ended')
+    } finally {
+      observer.release()
+    }
+    expect(f.readSince).not.toHaveBeenCalled()
+    expect(f.selectChain).not.toHaveBeenCalled()
+    expect(f.implementation).toHaveBeenCalledTimes(1)
+  } finally {
+    f.readSince.mockImplementation(f.log.readSince)
+    await f.close()
+  }
+})
+
+it('recognizes concurrent copies of one prepared input without re-entering the author', async () => {
+  const { f } = await admittedFixture()
+  try {
+    const prepared = await preparedFor(f)
+    expect(
+      await Promise.all([f.owner.submitPrepared(prepared), f.owner.submitPrepared(prepared)]),
+    ).toEqual([
+      { kind: 'recorded', execution: ref },
+      { kind: 'recorded', execution: ref },
+    ])
+    await f.owner.idle()
+    expect(f.implementation).toHaveBeenCalledTimes(1)
+    expect(
+      await f.owner.submitPrepared({
+        ...prepared,
+        afterAction: { ...prepared.afterAction, pass: 'changed-pass' },
+      }),
+    ).toEqual({ kind: 'rejected', reason: 'callConflict' })
+    expect(f.implementation).toHaveBeenCalledTimes(1)
+  } finally {
+    await f.close()
+  }
+})
+
+it('refuses a foreign prepared source and inconsistent arguments before invoking the author', async () => {
+  const { f } = await admittedFixture()
+  try {
+    const prepared = await preparedFor(f)
+    expect(await f.owner.submitPrepared({ ...prepared, args: { value: 'substituted' } })).toEqual({
+      kind: 'rejected',
+      reason: 'invalidInput',
+    })
+    expect(
+      await f.owner.submitPrepared({
+        ...prepared,
+        source: { ...prepared.source, session: 'foreign' },
+      } as never),
+    ).toEqual({ kind: 'rejected', reason: 'invalidInput' })
+    expect(f.implementation).not.toHaveBeenCalled()
+    expect(await f.log.readSince(scope.session, 0)).toHaveProperty('entries', [])
+  } finally {
+    await f.close()
+  }
+})
+
+it('rolls back original claim consumption and its start record together', async () => {
+  const { f, participants, claims } = await admittedFixture({ consume: 'deny' })
+  try {
+    expect(await f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+    await f.owner.idle()
+    const failure = new Error('abort original consume unit')
+    await expect(
+      f.log.fixtureStorage.atomic(async unit => {
+        expect(
+          await participants[0]!.consumeOriginalIn(unit, [...claims.keys()][0]!),
+        ).toHaveProperty('kind', 'staged')
+        throw failure
+      }),
+    ).rejects.toBe(failure)
+    const read = await f.log.readSince(scope.session, 0)
+    if ('failure' in read) throw new Error('missing actual original log')
+    const projected = projectToolJournal(scope, read.entries)
+    if ('invalid' in projected) throw new Error('invalid actual Tool history')
+    expect(projected.executions.get(ref.callId)?.started).toBeUndefined()
+    const row = await f.log.fixtureStorage.read(tx =>
+      narrow<{ tool_original_issue: { consumed: number } }>(tx)
+        .selectFrom('tool_original_issue')
+        .select('consumed')
+        .executeTakeFirstOrThrow(),
+    )
+    expect(row.consumed).toBe(0)
+    expect(f.implementation).not.toHaveBeenCalled()
+  } finally {
     await f.close()
   }
 })

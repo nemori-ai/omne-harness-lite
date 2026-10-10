@@ -24,6 +24,7 @@ import {
   type ToolExecutionJob,
 } from '@omne-harness-lite/tool-execution-runtime'
 import { sameJson } from './json-values.ts'
+import { instantToRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
 import { createToolExecutionRecordReader } from './execution-records.ts'
 import { createToolExecutionTransitions } from './execution-transitions.ts'
 
@@ -43,6 +44,7 @@ type Completion = Promise<'committed' | 'rolledBack' | 'unknown'>
 
 export function createToolOriginalIssue(input: {
   readonly support: ToolOriginalIssueSupport
+  readonly clock: Clock
   readonly generation: string
   readonly expected: Pick<CheckedPrefix, 'scope' | 'tail' | 'ownerGeneration'>
   readonly value: Extract<ToolJournalPayload, { kind: 'execution_intended' }>
@@ -162,21 +164,60 @@ export function createToolOriginalIssue(input: {
       if (!input.isOpen()) return { kind: 'closed' }
       const existing = await find(unit)
       if (!existing || !same(existing) || !(await verifyIntent(unit))) return { kind: 'conflict' }
-      if (existing.consumed === 1) return { kind: 'alreadyConsumed', identity }
+      if (existing.consumed === 1) return existingConsumption(unit)
       if (existing.consumed !== 0)
         throw new StorageDefect('invalid original tool consumption state')
-      await unit.mutate(tx =>
-        narrow<Database>(tx)
-          .updateTable('tool_original_issue')
-          .set({ consumed: 1 })
-          .where('tenant', '=', row.tenant)
-          .where('session', '=', row.session)
-          .where('call', '=', row.call)
-          .execute(),
-      )
-      consumed = unit.observeCompletion()
-      return { kind: 'staged', identity }
+      return stageConsumption(unit)
     })
+  }
+  async function existingConsumption(unit: StorageUnit): Promise<ToolOriginalIssueConsumeStage> {
+    return (await verifyStarted(unit))
+      ? { kind: 'alreadyConsumed', identity }
+      : { kind: 'unavailable' }
+  }
+  async function stageConsumption(unit: StorageUnit): Promise<ToolOriginalIssueConsumeStage> {
+    if (!(await startIn(unit))) return { kind: 'unavailable' }
+    await unit.mutate(tx =>
+      narrow<Database>(tx)
+        .updateTable('tool_original_issue')
+        .set({ consumed: 1 })
+        .where('tenant', '=', row.tenant)
+        .where('session', '=', row.session)
+        .where('call', '=', row.call)
+        .execute(),
+    )
+    consumed = unit.observeCompletion()
+    return { kind: 'staged', identity }
+  }
+  async function verifyStarted(unit: StorageUnit) {
+    const result = await records.readOriginalIn(unit, identity.ref)
+    return result.kind === 'found' && result.history.started !== undefined
+  }
+  async function startIn(unit: StorageUnit): Promise<boolean> {
+    const now = await input.clock.now()
+    if (now === 'unavailable') return false
+    const source = await support.log.sourceIn(unit, support.access, expected.scope)
+    if ('failure' in source) return false
+    const prepared = prepareToolJournalEntry({
+      origin: identity.origin,
+      value: {
+        kind: 'execution_started',
+        revision: 1,
+        ref: identity.ref,
+        at: instantToRfc3339(now),
+      },
+    })
+    if ('invalid' in prepared) throw new StorageDefect('invalid original Tool start')
+    const request = checkAppendInput(
+      identity.ref.session,
+      [prepared.entry],
+      { kind: 'unfenced' },
+      { kind: 'tailEquals', tail: source.source.tail },
+    )
+    if ('failure' in request) throw new StorageDefect('invalid original Tool start batch')
+    const appended = await support.log.appendIn(unit, support.access, request.ok, source.source)
+    if ('failure' in appended) throw new StorageUnavailable('original Tool start was not confirmed')
+    return true
   }
   async function recognize(wantConsumed: boolean): Promise<boolean> {
     try {
@@ -187,7 +228,8 @@ export function createToolOriginalIssue(input: {
           existing !== undefined &&
           same(existing) &&
           (!wantConsumed || existing.consumed === 1) &&
-          (await verifyIntent(unit))
+          (await verifyIntent(unit)) &&
+          (!wantConsumed || (await verifyStarted(unit)))
         )
       })
     } catch (error) {
