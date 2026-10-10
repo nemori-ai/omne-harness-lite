@@ -9,6 +9,7 @@ import {
   type AppendResult,
   type CheckedPrefix,
   type LogEntry,
+  type JsonNumber,
   type OwnedLogEntry,
   type SessionLogBackingOperations,
 } from '@omne-harness-lite/session-log'
@@ -27,9 +28,17 @@ import {
 } from '@omne-harness-lite/tool-execution-runtime'
 import { jsonObject, sameJson } from './json-values.ts'
 
+/** The entries can be an indexed Tool history, not a complete Session prefix. */
+export interface ToolRecordSnapshot {
+  readonly scope: SessionScope
+  readonly ownerGeneration: string
+  readonly tail: JsonNumber
+  readonly entries: readonly LogEntry[]
+}
+
 export interface RuntimeJournalView {
   readonly kind: 'view'
-  readonly prefix: CheckedPrefix
+  readonly prefix: ToolRecordSnapshot
   readonly executions: ReadonlyMap<string, ToolJournalHistory>
   readonly facts?: ToolActionFacts
 }

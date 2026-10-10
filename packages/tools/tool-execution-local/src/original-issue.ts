@@ -223,6 +223,13 @@ export function createToolOriginalIssue(input: {
     participant,
     job,
     records: Object.freeze({ ...records, ...transitions }),
+    async recordStatus(): Promise<'known' | 'absent' | 'unconfirmed'> {
+      if (!staged) return admissionUnconfirmed ? 'unconfirmed' : 'absent'
+      const completion = await staged
+      if (completion === 'rolledBack') return 'absent'
+      if (completion === 'committed') return 'known'
+      return (await recognize(false)) ? 'known' : 'unconfirmed'
+    },
     async admit(): Promise<boolean> {
       const result = await support.admission.admitOriginal(participant)
       if (result.kind === 'unknownCommit') admissionUnconfirmed = true

@@ -68,9 +68,7 @@ function recognize(
   return { kind: 'recognized', positions }
 }
 
-export function createToolExecutionTransitions(
-  input: Input,
-): Pick<ToolExecutionRecords, 'stageTransitionIn' | 'terminalIn'> {
+export function createToolExecutionTransitions(input: Input) {
   const { support, identity } = input
   const scope = { tenant: identity.ref.tenant, session: identity.ref.session }
   const key = toolJournalCallKey(identity.ref.callId)
@@ -124,31 +122,34 @@ export function createToolExecutionTransitions(
     return { kind: 'staged', positions: appended.entries.map(entry => entry.position) }
   }
 
-  return Object.freeze<Pick<ToolExecutionRecords, 'stageTransitionIn' | 'terminalIn'>>({
-    async stageTransitionIn(unit, candidate, values) {
-      if (candidate !== input.job) return { kind: 'invalidSource' }
-      if (!input.isOpen()) return { kind: 'unavailable' }
-      const entries = prepare(input, values)
-      if (!entries) return { kind: 'invalidSource' }
-      try {
-        return await unit.run(() => stage(unit, entries))
-      } catch (error) {
-        if (error instanceof StorageUnavailable) return { kind: 'unavailable' }
-        throw error
-      }
+  const transitions = Object.freeze<Pick<ToolExecutionRecords, 'stageTransitionIn' | 'terminalIn'>>(
+    {
+      async stageTransitionIn(unit, candidate, values) {
+        if (candidate !== input.job) return { kind: 'invalidSource' }
+        if (!input.isOpen()) return { kind: 'unavailable' }
+        const entries = prepare(input, values)
+        if (!entries) return { kind: 'invalidSource' }
+        try {
+          return await unit.run(() => stage(unit, entries))
+        } catch (error) {
+          if (error instanceof StorageUnavailable) return { kind: 'unavailable' }
+          throw error
+        }
+      },
+      async terminalIn(unit, original) {
+        if (!sameJson(original, identity)) return { kind: 'invalidSource' }
+        try {
+          const current = await unit.run(() => read(unit))
+          if (current.kind !== 'found') return current
+          return current.history.terminal
+            ? { kind: 'found', terminal: current.history.terminal }
+            : { kind: 'absent' }
+        } catch (error) {
+          if (error instanceof StorageUnavailable) return { kind: 'unavailable' }
+          throw error
+        }
+      },
     },
-    async terminalIn(unit, original) {
-      if (!sameJson(original, identity)) return { kind: 'invalidSource' }
-      try {
-        const current = await unit.run(() => read(unit))
-        if (current.kind !== 'found') return current
-        return current.history.terminal
-          ? { kind: 'found', terminal: current.history.terminal }
-          : { kind: 'absent' }
-      } catch (error) {
-        if (error instanceof StorageUnavailable) return { kind: 'unavailable' }
-        throw error
-      }
-    },
-  })
+  )
+  return Object.freeze({ ...transitions, readCurrentIn: read })
 }

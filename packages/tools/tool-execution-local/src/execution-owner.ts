@@ -99,7 +99,7 @@ interface OwnedExecution {
   readonly rejectStopped: (error: unknown) => void
   finished: boolean
 }
-function ownRef(supplied: ExecutionRef): ExecutionRef | undefined {
+function ownRef(supplied: unknown): ExecutionRef | undefined {
   const copied = copyJsonValue(supplied)
   if ('failed' in copied || !jsonObject(copied.ok) || Object.keys(copied.ok).length !== 3) return
   const tenant = parseTenantId(copied.ok.tenant),
@@ -209,9 +209,58 @@ export function createExecutionOwner(input: {
     observers = new Set<ExecutionObserver>()
   let open = true,
     closing: Promise<void> | undefined
-  const journal: Journal = Object.freeze({ ...input.journal, commit })
-  const terminal = createTerminalCommitter({ ...input, journal })
-  const check = createSubmissionAdmission({ ...input, journal, isOpen: () => open })
+  const journal: Journal = Object.freeze({ ...input.journal, read: readJournal, commit })
+  const terminal = createTerminalCommitter({
+    ...input,
+    journal: Object.freeze({ ...journal, read: input.journal.read }),
+  })
+  const check = createSubmissionAdmission({ ...input, isOpen: () => open })
+  async function readJournal(
+    scope: Parameters<Journal['read']>[0],
+    call: string,
+  ): ReturnType<Journal['read']> {
+    const ref = ownRef({ ...scope, callId: call })
+    if (!ref) return { kind: 'rejected', reason: 'invalidInput' }
+    const original = owned.get(keyOf(ref))?.original
+    const support = input.originalIssue
+    if (!original || !support) return input.journal.read(scope, call)
+    return track(readOwnedJournal(scope, call, original, support))
+  }
+  async function readOwnedJournal(
+    scope: Parameters<Journal['read']>[0],
+    call: string,
+    original: ReturnType<typeof createToolOriginalIssue>,
+    support: ToolOriginalIssueSupport,
+  ): ReturnType<Journal['read']> {
+    const status = await original.recordStatus()
+    if (status === 'absent') return input.journal.read(scope, call)
+    if (status === 'unconfirmed') return { kind: 'rejected', reason: 'unavailable' }
+    return readOriginalRecords(original, support)
+  }
+  async function readOriginalRecords(
+    original: ReturnType<typeof createToolOriginalIssue>,
+    support: ToolOriginalIssueSupport,
+  ): ReturnType<Journal['read']> {
+    if (!journal.isCurrent()) return { kind: 'rejected', reason: 'unavailable' }
+    try {
+      const result = await support.storage.atomic(unit => original.records.readCurrentIn(unit))
+      if (!journal.isCurrent() || result.kind !== 'found')
+        return { kind: 'rejected', reason: 'unavailable' }
+      return {
+        kind: 'view',
+        prefix: {
+          scope: { tenant: result.source.tenant, session: result.source.session },
+          ownerGeneration: journal.generation,
+          tail: result.source.tail,
+          entries: result.entries,
+        },
+        executions: new Map([[original.participant.identity.ref.callId, result.history]]),
+      }
+    } catch (error) {
+      if (error instanceof StorageUnavailable) return { kind: 'rejected', reason: 'unavailable' }
+      throw error
+    }
+  }
   function captureRecordCommit(
     request: Parameters<Journal['commit']>[0],
     original: ReturnType<typeof createToolOriginalIssue>,
@@ -257,7 +306,7 @@ export function createExecutionOwner(input: {
     const fixed = captured.value
     try {
       await stageNativeRecords(support, original, fixed)
-      return input.journal.read(scopeOf(fixed.ref), fixed.ref.callId)
+      return journal.read(scopeOf(fixed.ref), fixed.ref.callId)
     } catch (error) {
       if (error instanceof NativeRecordCommitFailure)
         return { kind: 'rejected', reason: error.reason }
@@ -299,7 +348,7 @@ export function createExecutionOwner(input: {
     try {
       const before = await authorize(access, ref, 'tool.read')
       if (before) return rejected(before)
-      const view = await input.journal.read(scopeOf(ref), ref.callId)
+      const view = await journal.read(scopeOf(ref), ref.callId)
       const after = await authorize(access, ref, 'tool.read')
       if (!open) return rejected('ownerStopped')
       if (after) return rejected(after)
@@ -314,7 +363,7 @@ export function createExecutionOwner(input: {
   function end(job: OwnedExecution, result: ExecutionTerminal) {
     job.environmentClosed.abort('execution_closing')
     const task = job.ending.then(async () => {
-      const current = await input.journal.read(scopeOf(job.ref), job.ref.callId)
+      const current = await journal.read(scopeOf(job.ref), job.ref.callId)
       if (current.kind !== 'view') return 'unavailable' as const
       if (current.executions.get(job.ref.callId)?.terminal) return 'alreadyEnded' as const
       const delivery = await input.prepareDelivery({
@@ -334,7 +383,7 @@ export function createExecutionOwner(input: {
       const settled = closeOut(job.assembly)
       const frames =
         'ok' in settled && 'frames' in settled.ok.account ? settled.ok.account.frames : 'unknown'
-      const view = await input.journal.read(scopeOf(job.ref), job.ref.callId)
+      const view = await journal.read(scopeOf(job.ref), job.ref.callId)
       const startedAt =
         view.kind === 'view' ? view.executions.get(job.ref.callId)?.started?.value.at : undefined
       const committed = await terminal({
@@ -422,7 +471,7 @@ export function createExecutionOwner(input: {
   async function confirmStart(job: OwnedExecution): Promise<boolean | undefined> {
     let started = false
     for (let attempt = 0; attempt < input.attempts; attempt++) {
-      const view = await input.journal.read(job.request.scope, job.ref.callId)
+      const view = await journal.read(job.request.scope, job.ref.callId)
       if (view.kind !== 'view') return
       const history = view.executions.get(job.ref.callId)
       if (!history || history.terminal) return
@@ -594,7 +643,7 @@ export function createExecutionOwner(input: {
       return
     }
     // A lost start or adoption receipt retains both original dependencies until recognition or termination.
-    const view = await input.journal.read(job.request.scope, job.ref.callId)
+    const view = await journal.read(job.request.scope, job.ref.callId)
     if (view.kind === 'view' && view.executions.get(job.ref.callId)?.terminal)
       job.finished = await release(job)
   }
@@ -823,7 +872,7 @@ export function createExecutionOwner(input: {
   async function closeExecution(job: OwnedExecution): Promise<void> {
     if (job.original && !(await job.original.canClose()))
       throw new Error('execution owner retains unconfirmed original admission')
-    const view = await input.journal.read(job.request.scope, job.ref.callId)
+    const view = await journal.read(job.request.scope, job.ref.callId)
     if (view.kind !== 'view') throw new Error('execution owner retains unresolved writes')
     if (view.executions.has(job.ref.callId)) {
       const result = await end(job, { outcome: 'failed', code: 'abnormal_interruption' })
@@ -906,7 +955,7 @@ export function createExecutionOwner(input: {
       try {
         const before = await authorize(access, ref, 'tool.stop')
         if (before) return before === 'notAuthorized' ? before : 'unavailable'
-        const view = await input.journal.read(scopeOf(ref), ref.callId)
+        const view = await journal.read(scopeOf(ref), ref.callId)
         const after = await authorize(access, ref, 'tool.stop')
         if (after || !open) return after === 'notAuthorized' ? after : 'unavailable'
         if (view.kind !== 'view') return 'unavailable'

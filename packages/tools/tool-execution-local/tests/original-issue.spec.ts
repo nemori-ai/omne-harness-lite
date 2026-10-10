@@ -5,6 +5,7 @@ import type {
   ToolOriginalIssueSupport,
 } from '@omne-harness-lite/tool-execution-runtime'
 import { fixture, request, scope } from './execution-owner-fixture.ts'
+import type { ContextReader } from '@omne-harness-lite/runtime-context'
 
 function support(log: Awaited<ReturnType<typeof fixture>>['log']): ToolOriginalIssueSupport {
   return {
@@ -495,6 +496,38 @@ it('persists the original terminal through the same-unit records when the legacy
     expect(f.implementation).toHaveBeenCalledTimes(1)
     expect(legacyTerminal).toBe(0)
   } finally {
+    await f.close()
+  }
+})
+
+it('reads a retained native job without the complete Session reader', async () => {
+  const entered = deferred<ContextReader['read']>()
+  const returned = deferred<string>()
+  const { f } = await admittedFixture({
+    executor: async (_args, deps) => {
+      entered.resolve(deps.context.read)
+      return returned.promise
+    },
+  })
+  try {
+    expect(await f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+    const readContext = await entered.promise
+    f.readSince.mockClear()
+    f.readSince.mockImplementation(() => {
+      throw new Error('complete Session reader unavailable during ordinary native read')
+    })
+    expect(await readContext(['workspace'])).toHaveProperty('kind', 'values')
+    const observer = await f.observer()
+    try {
+      expect(await observer.read()).toHaveProperty('snapshot.state.phase', 'running')
+      expect(f.readSince).not.toHaveBeenCalled()
+    } finally {
+      observer.release()
+    }
+  } finally {
+    f.readSince.mockImplementation(f.log.readSince)
+    returned.resolve('done')
+    await f.owner.idle()
     await f.close()
   }
 })
