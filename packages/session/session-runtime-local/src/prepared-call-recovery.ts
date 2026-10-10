@@ -144,7 +144,7 @@ export async function recoverPreparedCallIn(
       kind: 'prepared',
       preparation: Object.freeze({ ...original.data, permit }),
       source: current.source,
-      predecessor: original.previous.position,
+      predecessor: attempt.position,
     })
   })
 }

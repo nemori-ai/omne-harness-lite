@@ -2,6 +2,7 @@ import { createSettlementCoordinator } from '@omne-harness-lite/session-runtime-
 import { prepareDriverToolRequest } from '../src/driver-tool-request.ts'
 import { Context } from '@deepseek-ai/cordis'
 import { DatabaseSync } from 'node:sqlite'
+import { createHash } from 'node:crypto'
 import { RUNTIME_CONTEXT } from '@omne-harness-lite/runtime-context/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { z } from 'zod'
@@ -7719,133 +7720,179 @@ describe('driver complete original Model Run', () => {
   })
 })
 
-it('restores an unissued first model call through the restarted provider with original identities', async () => {
-  const f = await fixture()
-  const started = await startReadyRun(f)
-  const { startDriverRun } = await import('../src/driver-run.ts')
-  const attempt = await f.runtime.lifecycle.commitStep(
-    f.runtime.coordinationAuthority,
-    started.scope,
-    started.result.source,
-    {
-      kind: 'startAttempt',
-      stepKey: 'restart-attempt',
-      run: started.result.receipt.run!,
-      reason: 'first',
-    },
-  )
-  if (!('kind' in attempt) || attempt.kind !== 'committed' || !attempt.permit)
-    throw new Error('attempt unavailable')
-  const identities = {
-    prepareKey: 'restart-prepare',
-    call: 'restart-call',
-    originalPosition: 'restart-origin',
-    creationKey: unwrap(parseOpaqueIdentifier('restart-input', 'CreationKey')),
-    resultKey: 'restart-result',
-    adoptionKey: 'restart-adopt',
-  }
-  const prepared = await f.runtime.lifecycle.commitStep(
-    f.runtime.coordinationAuthority,
-    started.scope,
-    attempt.source,
-    {
-      kind: 'prepareCall',
-      stepKey: identities.prepareKey,
-      run: started.result.receipt.run!,
-      attempt: 1,
-      permit: attempt.permit,
-      call: identities.call,
-      originalPosition: identities.originalPosition,
-    },
-  )
-  if (!('kind' in prepared) || prepared.kind !== 'committed')
-    throw new Error('preparation unavailable')
-  const before = await f.storage.read(tx =>
-    tx.db.selectFrom('sr_session_state').selectAll().execute(),
-  )
-  await f.runtime.close()
-  await f.log().close()
-  const restarted = createLocalSessionIngress(f.options)
-  try {
-    f.setDecision('rejected')
-    const model = vi.fn(() => identities)
-    const result = await startDriverRun(
+it.each([6, 10, 110])(
+  'restores an unissued first model call through the restarted provider with original identities at position %i',
+  async position => {
+    const f = await fixture()
+    const started = await startReadyRun(f)
+    const { startDriverRun } = await import('../src/driver-run.ts')
+    let source = started.result.source
+    if (position > 6) {
+      const borrowed = await f.runtime.runJournal.borrow(
+        f.runtime.coordinationAuthority,
+        started.scope,
+        started.result.receipt.run!,
+      )
+      if (!('journal' in borrowed)) throw new Error('original journal unavailable')
+      try {
+        for (let next = 6; next < position; next += 32) {
+          const appended = await borrowed.journal.log.append(
+            started.scope.session,
+            Array.from({ length: Math.min(32, position - next) }, () => ({
+              tenant,
+              readKeys: [],
+              payload: { history: true },
+            })),
+            { kind: 'unfenced' },
+            { kind: 'tailEquals', tail: source.tail },
+          )
+          expect(appended).not.toHaveProperty('failure')
+          const prefix = await borrowed.journal.readPrefix()
+          if ('failure' in prefix) throw new Error('original prefix unavailable')
+          source = prefix.source
+        }
+      } finally {
+        await borrowed.journal.close()
+      }
+    }
+    const attempt = await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      started.scope,
+      source,
       {
-        ingress: restarted,
-        identities: {
-          run: () => {
-            throw new Error('must not create another Run')
-          },
-          model,
-          tool: () => {
-            throw new Error('must not execute tools')
-          },
-          modelContent: {
-            response: () => 'response',
-            message: () => unwrap(parseOpaqueIdentifier('message', 'MessageId')),
-          },
-        },
+        kind: 'startAttempt',
+        stepKey: 'restart-attempt',
+        run: started.result.receipt.run!,
+        reason: 'first',
       },
-      started.scope,
-      () => true,
     )
-    expect(result).toMatchObject({
-      kind: 'prepared',
-      identities,
-      source: prepared.source,
-      preparation: {
-        run: started.result.receipt.run,
-        attempt: 1,
-        call: identities.call,
-        originalPosition: identities.originalPosition,
-      },
-    })
-    expect(model).toHaveBeenCalledWith(
+    if (!('kind' in attempt) || attempt.kind !== 'committed' || !attempt.permit)
+      throw new Error('attempt unavailable')
+    expect(compareInteger(attempt.receipt.position, position)).toBe(0)
+    expect(LosslessNumber.is(attempt.receipt.position)).toBe(position !== 6)
+    const originalModel: LocalSessionDriverOptions['identities']['model'] = (...parts) => {
+      const id = (kind: string, ...values: unknown[]) =>
+        kind + ':' + createHash('sha256').update(JSON.stringify(values)).digest('hex')
+      return {
+        prepareKey: id('prepare', parts),
+        call: id('call', parts),
+        originalPosition: id('origin', parts),
+        creationKey: unwrap(parseOpaqueIdentifier(id('creation', parts), 'CreationKey')),
+        resultKey: id('result', parts),
+        adoptionKey: id('adopt', parts),
+      }
+    }
+    const identities = originalModel(
       started.scope,
-      started.result.receipt.run,
+      started.result.receipt.run!,
       1,
       attempt.receipt.position,
     )
-    expect(
-      await f.storage.read(tx => tx.db.selectFrom('sr_session_state').selectAll().execute()),
-    ).toEqual(before)
-    if (result.kind !== 'prepared') throw new Error('recovery unavailable')
-    expect(result.preparation.permit).not.toBe(attempt.permit)
-    expect(
-      await restarted.lifecycle.commitStep(
+    const prepared = await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      started.scope,
+      attempt.source,
+      {
+        kind: 'prepareCall',
+        stepKey: identities.prepareKey,
+        run: started.result.receipt.run!,
+        attempt: 1,
+        permit: attempt.permit,
+        call: identities.call,
+        originalPosition: identities.originalPosition,
+      },
+    )
+    if (!('kind' in prepared) || prepared.kind !== 'committed')
+      throw new Error('preparation unavailable')
+    const before = await f.storage.read(tx =>
+      tx.db.selectFrom('sr_session_state').selectAll().execute(),
+    )
+    await f.runtime.close()
+    await f.log().close()
+    const restarted = createLocalSessionIngress(f.options)
+    try {
+      f.setDecision('rejected')
+      const model = vi.fn(originalModel)
+      const result = await startDriverRun(
+        {
+          ingress: restarted,
+          identities: {
+            run: () => {
+              throw new Error('must not create another Run')
+            },
+            model,
+            tool: () => {
+              throw new Error('must not execute tools')
+            },
+            modelContent: {
+              response: () => 'response',
+              message: () => unwrap(parseOpaqueIdentifier('message', 'MessageId')),
+            },
+          },
+        },
+        started.scope,
+        () => true,
+      )
+      if (result.kind === 'blocked')
+        throw new Error(`original preparation recovery blocked: ${JSON.stringify(result.reason)}`)
+      expect(result).toMatchObject({
+        kind: 'prepared',
+        identities,
+        source: prepared.source,
+        preparation: {
+          run: started.result.receipt.run,
+          attempt: 1,
+          call: identities.call,
+          originalPosition: identities.originalPosition,
+        },
+      })
+      expect(model).toHaveBeenCalledWith(
+        started.scope,
+        started.result.receipt.run,
+        1,
+        attempt.receipt.position,
+      )
+      expect(
+        await f.storage.read(tx => tx.db.selectFrom('sr_session_state').selectAll().execute()),
+      ).toEqual(before)
+      if (result.kind !== 'prepared') throw new Error('recovery unavailable')
+      expect(result.preparation.permit).not.toBe(attempt.permit)
+      expect(
+        await restarted.lifecycle.commitStep(
+          restarted.coordinationAuthority,
+          started.scope,
+          result.source,
+          {
+            kind: 'finish',
+            stepKey: 'old-permit-finish',
+            run: result.preparation.run,
+            attempt: 1,
+            permit: attempt.permit,
+            terminal: 'completed',
+            reason: 'done',
+          },
+        ),
+      ).toEqual({ failure: 'staleAttempt' })
+      const finished = await restarted.lifecycle.commitStep(
         restarted.coordinationAuthority,
         started.scope,
         result.source,
         {
           kind: 'finish',
-          stepKey: 'old-permit-finish',
+          stepKey: 'restart-finish',
           run: result.preparation.run,
           attempt: 1,
-          permit: attempt.permit,
+          permit: result.preparation.permit,
           terminal: 'completed',
           reason: 'done',
         },
-      ),
-    ).toEqual({ failure: 'staleAttempt' })
-    const finished = await restarted.lifecycle.commitStep(
-      restarted.coordinationAuthority,
-      started.scope,
-      result.source,
-      {
-        kind: 'finish',
-        stepKey: 'restart-finish',
-        run: result.preparation.run,
-        attempt: 1,
-        permit: result.preparation.permit,
-        terminal: 'completed',
-        reason: 'done',
-      },
-    )
-    expect(finished).toHaveProperty('kind', 'committed')
-  } finally {
-    await restarted.close()
-  }
-})
+      )
+      expect(finished).toHaveProperty('kind', 'committed')
+    } finally {
+      await restarted.close()
+    }
+  },
+)
 
 it.each([
   'authority',
