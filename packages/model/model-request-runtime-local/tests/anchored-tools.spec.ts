@@ -1,10 +1,11 @@
+import { invokeModel } from '../src/invoke.ts'
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
 import type { PlannedSemantics, TransportAdapter } from '@omne-harness-lite/model-request-runtime'
-import { createAnchoredModelInvocation } from '../src/anchored-invocation.ts'
+import { createAnchoredModelInvocation } from '@omne-harness-lite/session-runtime-local'
 import { harness, payload, transport } from './anchored-invocation-fixture.ts'
 import { fixturePlan, fixtureProjection, fixtureReadFacts } from './invoke-policy-fixture.ts'
 
@@ -65,6 +66,7 @@ describe('anchored noRun tool definitions and history', () => {
       const first = createAnchoredModelInvocation({
         ...h.input,
         planInput: { ...h.input.planInput, tools: [tool] },
+        invoke: invokeModel,
         transport: adapter,
         onAccepted(event) {
           accepted.push({ kind: event.t, writes: h.writes.length })

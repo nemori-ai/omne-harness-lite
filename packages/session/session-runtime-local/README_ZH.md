@@ -117,3 +117,75 @@ createLocalSessionIngressBinding(original)以空Config将Core四个限定分面�
 根函数 `createSessionModelCallFacts` 从会话日志重建并更新调用索引。装配根传入原内容存储，物理运行时保留关闭责任。见[规格](SPEC.md#模型调用事实索引)。
 
 根入口提供createSessionModelReads及固定前缀失败读取。Session拥有历史解释与读取寿命；Model提供原执行视图和借入的内容／ACK能力。
+
+## 原模型调用协调
+
+Session 的 `createAnchoredModelInvocation` 将显式传入的 `invokeModel`、真实 SessionLog 绑定与共同结算协调器
+直接组合。它支持一次发出，工具列表可包含已解析的模型面工具定义；可以不属于 Run，也可以带显式
+`run`/`attempt` 对，此时锚点以 fenced 方式追加。宿主提供固定的调用、响应与
+消息身份、完整档案绑定和选中来源、实际凭据范围与值、策略、传输、owner 和日志代际。
+本函数校验这些值；形状不证明授权或凭据来源。一次调用借用精确传输引用，当前交付没有
+实现传输热替换。
+
+原传输只规划一次。dispatched 确认先于 HTTP，opened 确认先于任何可见内容。完整 MR11
+响应使用原 opened 时刻、实际用量与费用、上游事实和同次调用已交接的安全响应头。
+成功或截断回复先交给调用者承担完整的 `PendingModelResponse`，尚无处置或晚到标记；底层 `settleReply('persisted')` 通过同一协调器一次追加
+`[AssistantMessage, ModelResponse]`；明确的 vetoed/consumed 处置只追加响应。
+确定的失败和系统中断在 outcome 返回前结算；系统中断没有回复，已交付内容保留在 delivered。
+
+`abort()` 请求系统停止。runtime 服务先持久化用户中断意图，再调用锚定句柄的 `interrupt(initiator)`；调用者通过 `runtime.interrupt` 使用完整协议。在途调用在原 owner 登记内执行短控制任务，并发上限为一时同样可用。控制追加回执未知时，实际任务停止后仍须由同一日志的完整权威前缀认回才释放登记；未决响应写入另行保留。`close()` 关闭准入、请求停止，并等待调用、门回调、追加与结算的实际任务停止。只有已确认结算
+或从未发出才调用 `releaseBorrowed`。未知锚点或未知结算返回 unavailable，保留句柄、
+原结算请求和借用引用。已出门或已开口锚点回执未知时，只由宿主在既有 S-33 时机恢复。
+结算追加回执未知时由共同协调器继续持有：其写者实际停止后，之后的 `settleReply` 或
+`close()` 读取同源完整前缀。读到完整批即认回；证实缺席才以同一原请求再次结算
+（noRun 逐字节相同，Run 批按 S-70④ 只允许更新 `late` 与条目壳）；前缀不可核则保持
+unavailable。之后的其他处置或 close 都不能替换保留的原请求。
+
+完成实际宿主准备后，把输入和明确的回复处置传给下例。close 为 unavailable 时，保留返回的 call 和实际宿主 owner。十五方法已组合；生产 Run owner 与模型认证仍须各自证据。
+
+```ts
+import { createAnchoredModelInvocation } from '@omne-harness-lite/session-runtime-local'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import type { AnchoredInvocationInput } from '@omne-harness-lite/model-request-runtime'
+import { type PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
+import type { ReplyDisposition } from '@omne-harness-lite/model-response'
+
+/** Supply actual host preparation and an explicit caller disposition. */
+export async function runPreparedInvocation<P extends PlannedSemantics, R>(
+  input: Omit<AnchoredInvocationInput<P, R>, 'invoke'>,
+  disposition: ReplyDisposition,
+) {
+  const call = createAnchoredModelInvocation({ ...input, invoke: invokeModel })
+  const outcome = await call.outcome
+  const settlement = 'replyPending' in outcome ? await call.settleReply(disposition) : null
+  const close = await call.close()
+  // Retain call and its host owner when close is unavailable; neither abort nor outcome proves release.
+  return { call, outcome, settlement, close }
+}
+```
+
+
+## 已准备调用中的工具
+
+通过 `planInput.tools` 传入已解析的 `ModelToolEntry`。`modelEntry` 把已校验的工具定义转换为模型面形状；使用下面示例的消费者应直接依赖 tool-definition 包。
+
+```ts
+import { createAnchoredModelInvocation } from '@omne-harness-lite/session-runtime-local'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import type { AnchoredInvocationInput } from '@omne-harness-lite/model-request-runtime'
+import { type PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
+import { modelEntry, type ToolDefinition } from '@omne-harness-lite/tool-definition'
+
+export function invokeWithTools<P extends PlannedSemantics, R>(
+  input: Omit<AnchoredInvocationInput<P, R>, 'invoke'>,
+  definitions: readonly ToolDefinition[],
+) {
+  return createAnchoredModelInvocation({
+    ...input,
+    invoke: invokeModel,
+    planInput: { ...input.planInput, tools: definitions.map(modelEntry) },
+  })
+}
+```
+
+runtime 负责发送定义并装配流式工具调用；调用者负责在后续历史中提供各调用对应的工具结果。该函数不执行工具，也不自动回填结果。非法定义、重名或孤儿调用在新的 dispatched 锚点和 HTTP 请求之前拒绝。内部服务组合构件已能按捕获的会话或 Run 报告范围解析名字；这不是公开的工具执行 API。

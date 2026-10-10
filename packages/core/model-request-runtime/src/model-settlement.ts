@@ -1,4 +1,9 @@
 import type {
+  AnchoredInvocationInput,
+  AnchoredInvocationHandle,
+} from './anchored-invocation-types.ts'
+import type { PlannedSemantics } from './invocation-types.ts'
+import type {
   SessionModelFailureReadInput,
   SessionModelFailureReadResult,
   SessionModelSourceCapture,
@@ -161,6 +166,9 @@ export interface SettlementWorkRecoveryInput {
 
 /** Session owns log interpretation. The root supplies these implementations without fallback. */
 export interface SessionModelSettlement {
+  readonly createInvocation: <P extends PlannedSemantics, R>(
+    input: AnchoredInvocationInput<P, R>,
+  ) => AnchoredInvocationHandle
   readonly captureSource: SessionModelSourceCapture
   readonly readFailure: (
     input: SessionModelFailureReadInput,

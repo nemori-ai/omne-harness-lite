@@ -101,3 +101,5 @@ export { createSessionModelSelection } from './model-selection.ts'
 export { createSessionModelReads } from './model-reads.ts'
 export { createModelFailureSource, readFailureSubject } from './model-failure-subject.ts'
 export { captureSessionModelSource, readSessionModelFailure } from './model-failure-read.ts'
+
+export { createAnchoredModelInvocation } from './model-invocation-coordinator.ts'

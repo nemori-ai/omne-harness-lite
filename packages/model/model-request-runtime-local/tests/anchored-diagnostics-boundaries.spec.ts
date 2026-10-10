@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DiagnosticEmitter } from '@omne-harness-lite/model-request-runtime'
-import { createAnchoredModelInvocation } from '../src/anchored-invocation.ts'
+import { createAnchoredModelInvocation } from '@omne-harness-lite/session-runtime-local'
 import { harness, payload, transport } from './anchored-invocation-fixture.ts'
 import { modelCategory } from './log-codec-fixture.ts'
 

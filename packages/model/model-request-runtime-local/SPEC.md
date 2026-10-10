@@ -5,7 +5,7 @@
 根入口公开独立函数/工厂，Cordis 插件从 `./cordis` 导出。旧插件子入口已移除。
 
 整批结算的操作、句柄、请求、暂存工作行及恢复输入归core/model-request-runtime。
-协调器、结算工作及恢复判断由session-runtime-local提供。RuntimeConstruction、ModelRuntimeLocalConstruction和AnchoredInvocationInput必须显式提供settlementFactory，不提供本地兜底实现。
+协调器、结算工作及恢复判断由session-runtime-local提供。RuntimeConstruction与ModelRuntimeLocalConstruction必须显式提供settlementFactory，不提供本地兜底实现。
 每条调用保留原binding、owner、Run解释器、策略及scheduler。未知批次和正在停止的操作继续使用原协调器；投影变更不替换这些资源。
 本包仍提供原内容存储中的SQL工作行机制，以及原custody的retireWork删除端口。它们不解释Session日志；Session决定完整批次、残留或可靠缺席后才请求删除。
 
@@ -200,3 +200,7 @@ RuntimeConstruction及ModelRuntimeLocalConstruction必须提供selectionFactory�
 RuntimeConstruction与ModelRuntimeLocalConstruction必须提供readFactory。createRuntimeReads只适配本机执行视图和原custody，将读取交给该工厂；它不读取或解释完整会话日志。单独构造时只建立一个custody并交给同一读取拥有者，各投影共享它。完整ModelRuntime已有的custody只借出view，关闭仍归该运行时。
 
 原失败响应交给SessionModelSettlement.readFailure核对，原发起从captureSource取得实际SourceToken。原registration、retainedReads、失败source集合、原收据验证、claim消费、物理launch和清理顺序保留。新接口不新增发送授权、不改变unknown处置，也不重建Session历史。
+
+## 原调用协调的移交
+
+createAnchoredModelInvocation归Session提供者，AnchoredInvocationInput归Core公开类型。本包只保留独立物理执行函数invokeModel。现行服务通过借入的sessionModelSettlement.createInvocation创建原handle，并显式传入invokeModel；它继续保留同一个handle，直到原ready确认或实际关闭完成。不得以工厂返回成功代替原结果保管、ready或停止证明。这是旧混合构造的迁移接缝，不表示完整执行池构造已经替换。

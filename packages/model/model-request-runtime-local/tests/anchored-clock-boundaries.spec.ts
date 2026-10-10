@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createAnchoredModelInvocation } from '../src/anchored-invocation.ts'
+import { createAnchoredModelInvocation } from '@omne-harness-lite/session-runtime-local'
 import { deferred, harness, payload, transport } from './anchored-invocation-fixture.ts'
 
 const at = '2026-09-28T00:00:00Z'

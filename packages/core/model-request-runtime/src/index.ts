@@ -87,3 +87,5 @@ export * from './model-unknown-append.ts'
 export * from './operation-diagnostics.ts'
 
 export type * from './model-reads.ts'
+
+export { ownPlanInput, preflightMissingInputLimits } from './capture-plan-input.ts'

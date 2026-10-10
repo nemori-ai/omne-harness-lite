@@ -1,3 +1,4 @@
+import { invokeModel } from '../src/invoke.ts'
 import { appendControlRecord } from '@omne-harness-lite/session-runtime-local'
 import { attemptStartedPayload } from '@omne-harness-lite/session-runtime'
 import { checkAppendInput } from '@omne-harness-lite/session-log'
@@ -8,8 +9,8 @@ import { join } from 'node:path'
 import type { PlanFailure } from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
-import type { AnchoredInvocationInput } from '../src/anchored-invocation-types.ts'
-import { createAnchoredModelInvocation } from '../src/anchored-invocation.ts'
+import type { AnchoredInvocationInput } from '@omne-harness-lite/model-request-runtime'
+import { createAnchoredModelInvocation } from '@omne-harness-lite/session-runtime-local'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
@@ -491,6 +492,7 @@ describe('A1b noRun actual SQL journal + SQL identity mapping + production invok
       const t = transport()
       const handle = createAnchoredModelInvocation({
         ...h.input,
+        invoke: invokeModel,
         planInput: { ...h.input.planInput, parameters: { temperature: 1, topP: 1 } },
         transport: {
           ...t.adapter,

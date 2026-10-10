@@ -573,7 +573,7 @@ Session `readCall` 同样供原未知写入的收场使用。读取沿原Source�
 
 ## 模型结算的实际拥有者
 
-根入口的sessionModelSettlement提供原协调器、结算工作和恢复判断。createSettlementCoordinator与createSettlementWork也可独立调用。公开形状及行为归[Core结算契约](../../core/model-request-runtime/SPEC.md)。这些操作不规划或发送模型请求。
+根入口的sessionModelSettlement提供原协调器、结算工作和恢复判断。createSettlementCoordinator与createSettlementWork也可独立调用。公开形状及行为归[Core结算契约](../../core/model-request-runtime/SPEC.md)。原协调器、结算工作及恢复判断本身不规划或发送模型请求。
 
 实现保留原协调器的任务登记、实际停止和unknown批次。createSettlementWork将原批次交给借入的SQL工作行存储，恢复只对不再被活体组件持有的工作判断原日志。retireWork使用原Model内容custody的删除机制，不新建清理队列。
 
@@ -606,3 +606,11 @@ recognizeSessionModelReply只读取完整已结算前缀，检查原日志和sel
 createSessionModelReads拥有完整模型历史读取、结果解释、选择句柄、读取资格及读任务收场。它的project共享同一物理读取状态，旧投影与新投影的关闭互相可见。撤销发生于内容读取或ACK补全期间时，不返回成功。原读任务实际停止、registration释放及原选择器关闭均是成功关闭的前提；失败保留原关闭责任。
 
 createModelFailureSource与readFailureSubject核对原失败前缀，返回的source持有固定前缀直到释放。readSessionModelFailure供Model借入原registration完成这一判断；captureSessionModelSource仅返回实际SourceToken。Model不接收完整前缀，也不承担失败历史解释。原物理执行、结果保管、内容清理和唯一发起权仍由其实际拥有者负责。
+
+## 原模型调用协调
+
+根函数createAnchoredModelInvocation与sessionModelSettlement.createInvocation使用同一实现。Session持有完整日志绑定、原owner、source、原issue回执和整批结算责任；调用方通过AnchoredInvocationInput.invoke显式提供物理执行函数。该函数必须同步返回原ModelInvocationHandle。缺少invoke时，在登记或原issue准入之前返回invalidInput，不消费唯一claim。
+
+原dispatched写入确认及原claim消费先于物理调用；原opened确认先于可见内容。完整Pending使用原ResponseId、用量、费用和实际响应事实。原batch未知时保留同一请求及handle，不重发模型。结果保管与ready未确认前不释放借用。finishReady和close等待原执行、门控、追加和结算任务实际停止；未知结果或释放失败保留原责任，供后继重试关闭。
+
+本提供者不选择具体Model实现，不建立第二个original owner，不关闭借入的Model池或日志。Model服务现行混合接缝调用此工厂并持有原handle；纯池构造及其消费者迁移仍是独立未完成项。

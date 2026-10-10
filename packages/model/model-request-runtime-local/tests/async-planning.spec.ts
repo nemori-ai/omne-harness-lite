@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { invokeModel } from '../src/invoke.ts'
-import { createAnchoredModelInvocation } from '../src/anchored-invocation.ts'
+import { createAnchoredModelInvocation } from '@omne-harness-lite/session-runtime-local'
 import { adapter, request, policy, deferred, fixturePlan } from './invoke-policy-fixture.ts'
 import { harness, transport } from './anchored-invocation-fixture.ts'
 

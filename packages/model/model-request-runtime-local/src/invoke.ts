@@ -32,7 +32,7 @@ import type {
   PlanResult,
   SendResult,
 } from '@omne-harness-lite/model-request-runtime'
-import { ownPlanInput, preflightMissingInputLimits } from './input.ts'
+import { ownPlanInput, preflightMissingInputLimits } from '@omne-harness-lite/model-request-runtime'
 import {
   createCredentialRedactionPolicy,
   CredentialRedactionConfigurationError,

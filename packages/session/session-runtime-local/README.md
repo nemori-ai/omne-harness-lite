@@ -122,3 +122,86 @@ See [SPEC.md](SPEC.md#cordis驱动插件) for the ownership rules.
 The Session-owned `createSessionModelCallFacts` factory rebuilds and updates the call index from the session log. The root passes the original content store; the physical runtime keeps the close responsibility. See [the specification](SPEC.md#模型调用事实索引).
 
 The root exports `createSessionModelReads` and the fixed-prefix failure readers. The read owner retains Session history and read lifetimes; Model supplies its original execution view and borrowed content/ACK operations.
+
+## Original model invocation coordination
+
+The Session provider owns `createAnchoredModelInvocation`. It composes the explicitly supplied `invokeModel` with a real
+SessionLog binding and the shared settlement coordinator. It supports one
+dispatch with an explicit list of resolved model tools, either without a Run or
+with an explicit `run`/`attempt` pair whose anchors use a fenced append. The host supplies fixed
+call/response/message identities, the complete profile binding and selection
+source, the actual credential scope/value, policy, transport, owner and log
+generation. The function validates these values; their shape does not establish
+authorization or credential provenance. It borrows the exact transport for this
+call; this delivery does not implement transport hot replacement.
+
+The original transport plans once. The confirmed dispatched record precedes
+HTTP, and the confirmed opened record precedes visible content. The complete MR11
+response uses that original opened timestamp, actual usage/cost/upstream facts
+and the same invocation's safe headers. Complete and truncated replies remain
+caller-owned full `PendingModelResponse` facts without disposition or lateness. The lower-level `settleReply('persisted')` uses
+the shared coordinator for one `[AssistantMessage, ModelResponse]` append;
+explicit vetoed/consumed dispositions use one response append. Determinate
+failure and system interruption settle a response before outcome resolves;
+system interruption retains any delivered content without creating a reply.
+
+`abort()` requests system stop. The runtime service persists the user interruption intent before invoking the anchored handle's `interrupt(initiator)`; callers use `runtime.interrupt` for that protocol. A live call shares its original owner registration with short control work, including when the concurrency limit is one. Uncertain control appends retain that registration until the task stops and a complete authoritative log prefix determines the effect; unresolved response writers remain a separate debt. `close()` closes admission, requests stop and waits for actual invocation, gate, append and settlement tasks to stop.
+Only confirmed settlement (or no dispatch) permits `releaseBorrowed`. Unknown
+anchors or settlement return unavailable and retain the handle, the original
+settlement request and borrowed references. An unknown dispatched or opened
+anchor is recovered only by the host at the existing S-33 boundary. An unknown
+settlement append stays owned by the shared coordinator: after its writer
+actually stopped, a later `settleReply` or `close()` reads the same-source
+complete prefix. A complete batch is recognized; proven absence lets the same
+original request be settled again (noRun bytes are identical; a Run batch may
+update only `late` and its shell under S-70④); an unverifiable prefix stays
+unavailable. A later disposition or close never replaces the retained original.
+
+After actual host preparation, pass its input and an explicit reply disposition to the example below. Retain the returned call and its host owner while close is unavailable. The fifteen-method service is composed; production Run ownership and model certification still need their own evidence.
+
+```ts
+import { createAnchoredModelInvocation } from '@omne-harness-lite/session-runtime-local'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import type { AnchoredInvocationInput } from '@omne-harness-lite/model-request-runtime'
+import { type PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
+import type { ReplyDisposition } from '@omne-harness-lite/model-response'
+
+/** Supply actual host preparation and an explicit caller disposition. */
+export async function runPreparedInvocation<P extends PlannedSemantics, R>(
+  input: Omit<AnchoredInvocationInput<P, R>, 'invoke'>,
+  disposition: ReplyDisposition,
+) {
+  const call = createAnchoredModelInvocation({ ...input, invoke: invokeModel })
+  const outcome = await call.outcome
+  const settlement = 'replyPending' in outcome ? await call.settleReply(disposition) : null
+  const close = await call.close()
+  // Retain call and its host owner when close is unavailable; neither abort nor outcome proves release.
+  return { call, outcome, settlement, close }
+}
+```
+
+
+## Tools in a prepared invocation
+
+Pass resolved `ModelToolEntry` values through `planInput.tools`. `modelEntry` converts a validated tool definition to that model-facing shape. Declare tool-definition as a direct dependency when using this example.
+
+```ts
+import { createAnchoredModelInvocation } from '@omne-harness-lite/session-runtime-local'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import type { AnchoredInvocationInput } from '@omne-harness-lite/model-request-runtime'
+import { type PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
+import { modelEntry, type ToolDefinition } from '@omne-harness-lite/tool-definition'
+
+export function invokeWithTools<P extends PlannedSemantics, R>(
+  input: Omit<AnchoredInvocationInput<P, R>, 'invoke'>,
+  definitions: readonly ToolDefinition[],
+) {
+  return createAnchoredModelInvocation({
+    ...input,
+    invoke: invokeModel,
+    planInput: { ...input.planInput, tools: definitions.map(modelEntry) },
+  })
+}
+```
+
+The runtime sends definitions and assembles streamed tool calls; the caller supplies each corresponding tool result in subsequent history. No tool is executed or automatically fed back by this function. Invalid definitions, duplicate names and orphan calls are rejected before a new dispatched anchor or HTTP request. The internal service composition helper now resolves names through the captured session or Run report scope; it is not a public tool execution API.

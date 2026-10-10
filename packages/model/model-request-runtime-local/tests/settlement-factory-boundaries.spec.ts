@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
-import { createAnchoredModelInvocation } from '../src/anchored-invocation.ts'
+import { createAnchoredModelInvocation } from '@omne-harness-lite/session-runtime-local'
 import { harness } from './anchored-invocation-fixture.ts'
 
 it('keeps the original reply pending when the Session settlement owner refuses its final batch', async () => {

@@ -31,7 +31,8 @@ import {
 } from '@omne-harness-lite/model-request-runtime'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import { randomUUID } from 'node:crypto'
-import { createAnchoredModelInvocation } from './anchored-invocation.ts'
+import { invokeModel } from './invoke.ts'
+import type { AnchoredInvocationHandle } from '@omne-harness-lite/model-request-runtime'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import {
   createPlanReuseScopes,
@@ -285,7 +286,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
 }
 
 class ServiceDispatchState<P extends PlannedSemantics, R> {
-  readonly invocations = new Set<ReturnType<typeof createAnchoredModelInvocation<P, R>>>()
+  readonly invocations = new Set<AnchoredInvocationHandle>()
   readonly retainedReads = new OwnedReadTracker()
   readonly appends = new OwnedAppendTracker()
   readonly unknownWrites = new UnknownAppendTracker()
@@ -365,7 +366,7 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
     })
     if ('unavailable' in gate) return { unavailable: true }
     const reservation = gate.reservation
-    let handle: ReturnType<typeof createAnchoredModelInvocation<P, R>> | undefined
+    let handle: AnchoredInvocationHandle | undefined
     let observerQueue: ModelObserverQueue | undefined
     let dispatchNumber = 0
     let untransferredScope: PlanReuseScopeLease | undefined
@@ -827,7 +828,8 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
             reportDiagnosticFailure()
           }
         }
-        const created = createAnchoredModelInvocation({
+        const created = runtime.settlementFactory.createInvocation({
+          invoke: invokeModel,
           settlementFactory: runtime.settlementFactory,
           ...(local.request.run === undefined
             ? {}

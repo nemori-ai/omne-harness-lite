@@ -1,5 +1,5 @@
 import type { SettlementRequest } from '@omne-harness-lite/model-request-runtime'
-import { originalIssueReceipt } from './original-issue-receipt.ts'
+import { originalIssueReceipt } from './model-original-issue-receipt.ts'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
@@ -7,9 +7,8 @@ import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
 import type { ModelCallDispatchedRecord } from '@omne-harness-lite/messages'
 import type { AppendResult, AppendSuccess, OwnedLogEntry } from '@omne-harness-lite/session-log'
 import type { ReplyDisposition } from '@omne-harness-lite/model-response'
-import { ownPlanInput, preflightMissingInputLimits } from './input.ts'
-import { invokeModel } from './invoke.ts'
-import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
+import { ownPlanInput, preflightMissingInputLimits } from '@omne-harness-lite/model-request-runtime'
+import { drainDiagnosticThenable } from '@omne-harness-lite/model-request-runtime'
 import {
   createCredentialRedactionPolicy,
   CredentialRedactionConfigurationError,
@@ -50,7 +49,7 @@ import type {
   AnchoredInvocationOutcome,
   ResponseConstructionResult,
 } from '@omne-harness-lite/model-request-runtime'
-import type { AnchoredInvocationInput } from './anchored-invocation-types.ts'
+import type { AnchoredInvocationInput } from '@omne-harness-lite/model-request-runtime'
 import type { SettlementCoordinatorInput } from '@omne-harness-lite/model-request-runtime'
 import type {
   DiagnosticEmitter,
@@ -259,6 +258,7 @@ function validAnchoredAdmission<P extends PlannedSemantics, R>(
 ): boolean {
   return (
     validAnchoredRun(input) &&
+    typeof input.invoke === 'function' &&
     input.signal instanceof AbortSignal &&
     !!input.policy &&
     validPolicy(input.policy) &&
@@ -954,7 +954,7 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
         if (!(await launchAuthorized(admission.claim)))
           return { cancelledBeforeSend: true } as const
         const invocationEmitter = engineering.invocationEmitter
-        invocation = invokeModel({
+        invocation = input.invoke({
           ...requested,
           transport: {
             plan: async () => ({ planned }),

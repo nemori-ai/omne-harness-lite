@@ -12,7 +12,7 @@ import type {
   SettlementTask,
   SettlementTaskKind,
 } from '@omne-harness-lite/model-request-runtime'
-import { createAnchoredModelInvocation } from '../src/anchored-invocation.ts'
+import { createAnchoredModelInvocation } from '@omne-harness-lite/session-runtime-local'
 import { harness, payload } from './anchored-invocation-fixture.ts'
 import type { ControlledSettlementOwner } from './settlement-fixture.ts'
 
