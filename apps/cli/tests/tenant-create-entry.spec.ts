@@ -11,7 +11,7 @@ import { createClientAssembly } from '../src/assembly.ts'
 import type { ClientAssemblyOptions, PreparedClientAssembly } from '../src/client-assembly.ts'
 import { openStorage } from '@omne-harness-lite/storage-sql'
 import { openClientLocalState } from '@omne-harness-lite/client-local-state-sqlite'
-import { prepareTenantDirectory, tenantPaths } from '../src/state-layout.ts'
+import { prepareTenantDirectory, prepareStateDirectory, tenantPaths } from '../src/state-layout.ts'
 import { checkedTenantBinding } from '../src/state-layout-values.ts'
 import { openCliCatalog } from '../src/catalog-open.ts'
 import { runTenantCreateEntry } from '../src/tenant-create-entry.ts'
@@ -20,6 +20,8 @@ import type { EntryReport } from '../src/entry-application.ts'
 import { tenantReference } from '../src/tenant-reference.ts'
 import { createGovernanceChoices } from '../src/governance-choices.ts'
 import { executeEntry } from '../src/entry-execution.ts'
+import { startLocalSessionHost } from '../src/session-host-server.ts'
+import { openRuntimeDatabase, sessionTenantMigrations } from '../src/session-runtime-files.ts'
 import { FakeTerminal, tick } from './support/tui.ts'
 
 const centerId = 'a'.repeat(32),
@@ -201,8 +203,8 @@ afterAll(async () => {
   )
   await rm(parent, { recursive: true, force: true })
 })
-async function fixture(selected = true, sourceAccount = account) {
-  const root = await mkdtemp(join(parent, 'case-')),
+async function fixture(selected = true, sourceAccount = account, directory = parent) {
+  const root = await mkdtemp(join(directory, 'case-')),
     home = join(root, '.omne')
   cleanup.push(() => rm(root, { recursive: true, force: true }))
   const owned = await openCliCatalog(home, {
@@ -1164,5 +1166,74 @@ it.each(['file', 'missing'] as const)(
     expect(terminal.restored).toBe(true)
     expect(terminal.frames.join('')).not.toContain('protected-openrouter-input')
     expect(await f.catalog.readSelection()).toMatchObject({ selected: binding })
+  },
+)
+
+it.each([null, 'existing-session'])(
+  'formal entry reuses a live host for session %s without reopening its runtime database',
+  async session => {
+    const f = await fixture(true, account, tmpdir()),
+      terminal = new FakeTerminal()
+    await f.catalog.registerCenter({
+      name: 'work',
+      center: { centerId, endpoint, trust: { mode: 'ca', certificateAuthorities: certificate } },
+    })
+    await prepareStateDirectory(f.home, tenantPaths(f.home, binding).data)
+    const storage = await openRuntimeDatabase(
+      tenantPaths(f.home, binding).runtime,
+      sessionTenantMigrations,
+    )
+    cleanup.push(() => storage.close())
+    const execute = vi.fn(async () => ({ kind: 'initialModel', routeName: 'active-host-route' }))
+    const host = await startLocalSessionHost({
+      home: f.home,
+      binding,
+      endpoint: { execute },
+      policy: {
+        maxRequestBytes: 65536,
+        maxResponseBytes: 65536,
+        maxConnections: 4,
+        maxInFlight: 2,
+        requestTimeoutMs: 2000,
+        headersTimeoutMs: 1000,
+        idleTimeoutMs: 1000,
+        checkIntervalMs: 100,
+        maxFailureRecords: 4,
+        maxHeaderBytes: 8192,
+      },
+      diagnostic(error) {
+        throw error
+      },
+    })
+    cleanup.push(host.close)
+    const command = parseEntryCommand(session ? ['--session', session] : [], true)
+    if (command.kind !== 'session') throw new Error('invalid session command')
+    const enterSession = vi.fn(async () => ({
+      outcome: { kind: 'not-ready' as const, reason: 'capability-not-installed' as const },
+      diagnostics: [],
+    }))
+    const result = await executeEntry(command, {
+      ...interactiveOptions(f.home, terminal),
+      modelSetupPolicy: { maxChoices: 256, maxCredentialBytes: 65536 },
+      sessionPolicy: {
+        timeoutMs: 1000,
+        maxResponseBytes: 65536,
+        maxWaitMs: 1000,
+        pollIntervalMs: 5,
+      },
+      enterSession,
+    })
+    expect(result.diagnostics).toEqual([])
+    expect(enterSession).toHaveBeenCalledExactlyOnceWith(
+      command,
+      expect.objectContaining({ kind: 'ready', binding }),
+      { routeName: 'active-host-route' },
+    )
+    expect(execute).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ command: 'readInitialModel', binding }),
+    )
+    expect(terminal.frames.join('')).not.toContain('Select model')
+    expect(terminal.restored).toBe(true)
+    expect(await storage.atomic(async () => 'still-owned')).toBe('still-owned')
   },
 )
