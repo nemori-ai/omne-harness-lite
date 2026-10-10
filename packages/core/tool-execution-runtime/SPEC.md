@@ -12,9 +12,9 @@ PreparedToolExecution 保留原 ExecutionRef、ExecutionOrigin、完整调用块
 
 请求生产者提供同一 Session 的实际 SourceToken，并固定 afterAction.pass 和 afterAction.selectedChain。池保存这些输入，不读取完整会话历史来重新选择定义或 after_action。正常请求的 args 必须与原调用块的 arguments 一致。不可执行结论由 Session 从已完成的原 before_action 批次取得，并在原发起的同一 Unit 核对；调用方不能仅凭自报结论跳过准入或伪造失败。普通 JSON 输入在首次等待前复制，Access 保留原活体对象；同一原调用的不同准备输入必须冲突，不得覆盖已保管的执行。
 
-ToolRuntimeOriginalIssueFactory 返回 ToolPoolInstance，submit 只接受准备好的请求。正常请求的工具准入 token 仍由实际 ToolAdmissionOperations 核验，缺席或无效不能发行新执行；核验来源须与请求的 Scope 和固定末尾位置一致。重复认回原调用仍先核当前访问资格，不把 token 或 SourceToken 当作独立执行权。完整纯池构造还须满足下段的依赖边界，不以返回类型相符代替验证。
+ToolRuntimeOriginalIssueFactory 返回 ToolPoolInstance，submit 只接受准备好的请求。ToolRuntimeOperations 只提供观察、停止和答复控制，不提供原始请求 submit。正常请求的工具准入 token 仍由实际 ToolAdmissionOperations 核验，缺席或无效不能发行新执行；核验来源须与请求的 Scope 和固定末尾位置一致。重复认回原调用仍先核当前访问资格，不把 token 或 SourceToken 当作独立执行权。完整纯池构造还须满足下段的依赖边界，不以返回类型相符代替验证。
 
-ToolPoolConstruction 借入原实现、Context、环境、结果、Runner、授权和策略依赖，消费 ToolExecutionRecords。它不借入会话枚举、完整日志管理或历史驱动的准入准备接口。工具定义与采用来源在请求准备端核实，池仍核对固定输入及真正实现借用。普通读取、停止和答复保持原动作资格。
+ToolPoolConstruction 借入原实现、Context、环境、结果、访问资格和策略依赖，消费 ToolExecutionRecords。它不借入会话枚举、完整日志管理或历史驱动的准入准备接口。工具定义与采用来源在请求准备端核实，池仍核对固定输入及真正实现借用。普通读取、停止和答复保持原动作资格。
 
 ToolExecutionRecords 只读取或暂存工具能力自己的原记录，不独立提交或调用作者。实际共享 StorageUnit、原数据集及活体 job 或 claim 必须相符。复制对象、旧 owner 或异存储单元拒绝。暂存终局、原账及耐久交付义务仍由同 Unit 协调者提交；Session 从该提交的完整前缀计算跨域 late 与归因，池不解释完整会话历史。
 

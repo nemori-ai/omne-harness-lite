@@ -4,7 +4,7 @@ import type {
   ToolOriginalIssueParticipant,
   ToolOriginalIssueSupport,
 } from '@omne-harness-lite/tool-execution-runtime'
-import { definition, fixture, request, scope } from './execution-owner-fixture.ts'
+import { fixture, request, scope } from './execution-owner-fixture.ts'
 import type { ContextReader } from '@omne-harness-lite/runtime-context'
 
 function support(log: Awaited<ReturnType<typeof fixture>>['log']): ToolOriginalIssueSupport {
@@ -39,7 +39,7 @@ describe('native original Tool owner', () => {
   it('never writes intent or invokes the author when Session rejects admission', async () => {
     const f = await fixture(undefined, undefined, undefined, undefined, support)
     try {
-      const result = await f.owner.operations.submit(request)
+      const result = await f.owner.submitPrepared(f.prepared)
       await f.owner.idle()
       expect(result).toEqual({ kind: 'rejected', reason: 'runtimeUnavailable' })
       expect(f.implementation).not.toHaveBeenCalled()
@@ -60,8 +60,8 @@ describe('native original Tool owner', () => {
       admission: { admitOriginal: admit, consumeOriginal: async () => ({ kind: 'denied' }) },
     }))
     try {
-      await f.owner.operations.submit(request)
-      await f.owner.operations.submit(request)
+      await f.owner.submitPrepared(f.prepared)
+      await f.owner.submitPrepared(f.prepared)
       await f.owner.idle()
       expect(admit).toHaveBeenCalledTimes(2)
       expect(participants[1]).toBe(participants[0])
@@ -74,7 +74,6 @@ describe('native original Tool owner', () => {
   })
 })
 
-import { toolOriginalIssueMigrations } from '../src/original-issue-migrations.ts'
 import { projectToolJournal } from '@omne-harness-lite/tool-execution-runtime'
 import { deferred, ref } from './execution-owner-fixture.ts'
 import { narrow, StorageUnavailable } from '@omne-harness-lite/storage'
@@ -98,8 +97,6 @@ async function admittedFixture(
     consumeMode = options.consume
   const f = await fixture(options.executor, undefined, undefined, undefined, async log => {
     await log.fixturePrefix(scope)
-    for (const fragment of toolOriginalIssueMigrations)
-      await log.fixtureStorage.write(tx => fragment.migration.up(tx.db))
     return {
       ...support(log),
       ...(options.classifyTerminalIn ? { classifyTerminalIn: options.classifyTerminalIn } : {}),
@@ -186,7 +183,7 @@ describe('native original Tool same-unit execution', () => {
   it('commits the full original intent and consumes once before one actual author call', async () => {
     const { f, participants, consumes } = await admittedFixture()
     try {
-      expect(await f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+      expect(await f.owner.submitPrepared(f.prepared)).toEqual({ kind: 'recorded', execution: ref })
       await f.owner.idle()
       await participants[0]!.stopped
       const records = await f.log.fixtureStorage.read(tx =>
@@ -201,7 +198,7 @@ describe('native original Tool same-unit execution', () => {
         JSON.parse(records[0]!.intent).payload.value.value.input.submission.call.arguments,
       ).toEqual({ value: 'captured' })
       expect(f.implementation).toHaveBeenCalledTimes(1)
-      await f.owner.operations.submit(request)
+      await f.owner.submitPrepared(f.prepared)
       await f.owner.idle()
       expect(f.implementation).toHaveBeenCalledTimes(1)
       expect(consumes()).toBe(1)
@@ -215,10 +212,11 @@ describe('native original Tool same-unit execution', () => {
     async stage => {
       const { f, consumes } = await admittedFixture({ stage })
       try {
-        expect(await f.owner.operations.submit(request)).toEqual({
-          kind: 'rejected',
-          reason: 'runtimeUnavailable',
-        })
+        expect(await f.owner.submitPrepared(f.prepared)).toEqual(
+          stage === 'unknown'
+            ? { kind: 'unknownCommit', original: ref }
+            : { kind: 'rejected', reason: 'runtimeUnavailable' },
+        )
         await f.owner.idle()
         expect(f.implementation).not.toHaveBeenCalled()
         expect(consumes()).toBe(0)
@@ -234,7 +232,7 @@ describe('native original Tool same-unit execution', () => {
   it('refuses a copied claim and never calls after a denied consume', async () => {
     const { f, participants, claims } = await admittedFixture({ consume: 'deny' })
     try {
-      await f.owner.operations.submit(request)
+      await f.owner.submitPrepared(f.prepared)
       await f.owner.idle()
       const claim = [...claims.keys()][0]!
       const copied = Object.freeze({ ...claim }) as ToolOriginalIssueClaim
@@ -250,7 +248,7 @@ describe('native original Tool same-unit execution', () => {
   it('closes an unstarted consumed job after a lost consume reply, with original terminal/account/delivery', async () => {
     const { f, participants } = await admittedFixture({ consume: 'unknown' })
     try {
-      await f.owner.operations.submit(request)
+      await f.owner.submitPrepared(f.prepared)
       await f.owner.idle()
       await participants[0]!.stopped
       expect(f.implementation).not.toHaveBeenCalled()
@@ -270,7 +268,7 @@ describe('native original Tool same-unit execution', () => {
     const author = deferred<string>()
     const { f, participants } = await admittedFixture({ executor: async () => author.promise })
     try {
-      await f.owner.operations.submit(request)
+      await f.owner.submitPrepared(f.prepared)
       await vi.waitFor(() => expect(f.implementation).toHaveBeenCalledTimes(1))
       let stopped = false
       void participants[0]!.stopped.then(() => {
@@ -294,9 +292,12 @@ describe('native original Tool same-unit execution', () => {
 it('recognizes a lost issue reply with the same participant and performs exactly one original call', async () => {
   const f = await admittedFixture({ stage: 'unknown' })
   try {
-    await f.f.owner.operations.submit(request)
+    await f.f.owner.submitPrepared(f.f.prepared)
     f.setStage(undefined)
-    expect(await f.f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+    expect(await f.f.owner.submitPrepared(f.f.prepared)).toEqual({
+      kind: 'recognized',
+      execution: ref,
+    })
     await f.f.owner.idle()
     expect(f.participants[1]).toBe(f.participants[0])
     expect(f.f.implementation).toHaveBeenCalledTimes(1)
@@ -309,10 +310,10 @@ it('recognizes a lost issue reply with the same participant and performs exactly
 it('does not revive a rolled back claim when the original job is staged again', async () => {
   const f = await admittedFixture({ stage: 'rollback', consume: 'deny' })
   try {
-    await f.f.owner.operations.submit(request)
+    await f.f.owner.submitPrepared(f.f.prepared)
     const oldClaim = [...f.claims.keys()][0]!
     f.setStage(undefined)
-    await f.f.owner.operations.submit(request)
+    await f.f.owner.submitPrepared(f.f.prepared)
     await f.f.owner.idle()
     expect(f.claims.size).toBe(2)
     expect(
@@ -330,7 +331,7 @@ it('rejects a foreign StorageUnit before any original write', async () => {
   const f = await admittedFixture({ consume: 'deny' })
   const other = await fixture()
   try {
-    await f.f.owner.operations.submit(request)
+    await f.f.owner.submitPrepared(f.f.prepared)
     await f.f.owner.idle()
     await expect(
       other.log.fixtureStorage.atomic(unit => f.participants[0]!.stageOriginalIn(unit)),
@@ -347,8 +348,6 @@ it('checks original current qualification again at consumption', async () => {
   let calls = 0
   const f = await fixture(undefined, undefined, undefined, undefined, async log => {
     await log.fixturePrefix(scope)
-    for (const fragment of toolOriginalIssueMigrations)
-      await log.fixtureStorage.write(tx => fragment.migration.up(tx.db))
     let participant: ToolOriginalIssueParticipant
     return {
       ...support(log),
@@ -372,7 +371,7 @@ it('checks original current qualification again at consumption', async () => {
     }
   })
   try {
-    await f.owner.operations.submit(request)
+    await f.owner.submitPrepared(f.prepared)
     await f.owner.idle()
     expect(calls).toBe(2)
     expect(f.implementation).not.toHaveBeenCalled()
@@ -381,12 +380,10 @@ it('checks original current qualification again at consumption', async () => {
   }
 })
 
-it('does not stage or invoke after the original backing generation changes', async () => {
+it('does not stage or invoke after its original record owner closes', async () => {
   let changeGeneration = () => {}
   const f = await fixture(undefined, undefined, undefined, undefined, async log => {
     await log.fixturePrefix(scope)
-    for (const fragment of toolOriginalIssueMigrations)
-      await log.fixtureStorage.write(tx => fragment.migration.up(tx.db))
     return {
       ...support(log),
       admission: {
@@ -401,18 +398,19 @@ it('does not stage or invoke after the original backing generation changes', asy
     }
   })
   changeGeneration = () => {
-    f.backing.ownerGeneration = 'replacement-generation'
+    void f.journal.close()
   }
   try {
-    expect(await f.owner.operations.submit(request)).toEqual({
+    expect(await f.owner.submitPrepared(f.prepared)).toEqual({
       kind: 'rejected',
       reason: 'runtimeUnavailable',
     })
     expect(f.implementation).not.toHaveBeenCalled()
     expect(await f.log.readSince(scope.session, 0)).toEqual({ entries: [], tail: 0 })
   } finally {
-    f.backing.ownerGeneration = 'owner-generation'
-    await f.close()
+    await expect(f.owner.close()).rejects.toThrow('retains unresolved writes')
+    await f.log.close()
+    await rm(f.dir, { recursive: true, force: true })
   }
 })
 
@@ -421,7 +419,7 @@ import { createToolOriginalIssueVerifier } from '../src/index.ts'
 it('reads the native original identity in the caller unit after actual job close without new issue or author calls', async () => {
   const { f, participants } = await admittedFixture()
   try {
-    await f.owner.operations.submit(request)
+    await f.owner.submitPrepared(f.prepared)
     await f.owner.idle()
     await participants[0]!.stopped
     await f.owner.close()
@@ -457,7 +455,7 @@ it('reads the native original identity in the caller unit after actual job close
 it('stages and consumes the original intent without the complete Session prefix capability', async () => {
   const { f, participants, consumes } = await admittedFixture({ forbidCompletePrefix: true })
   try {
-    expect(await f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+    expect(await f.owner.submitPrepared(f.prepared)).toEqual({ kind: 'recorded', execution: ref })
     await f.owner.idle()
     await participants[0]!.stopped
     expect(f.implementation).toHaveBeenCalledTimes(1)
@@ -473,7 +471,7 @@ it('rejects the original stale coordinate without reading the full prefix or ent
     advanceBeforeStage: true,
   })
   try {
-    expect(await f.owner.operations.submit(request)).toEqual({
+    expect(await f.owner.submitPrepared(f.prepared)).toEqual({
       kind: 'rejected',
       reason: 'runtimeUnavailable',
     })
@@ -503,7 +501,7 @@ it('persists the original terminal through the same-unit records when the legacy
     return f.log.append(session, entries, fence, condition)
   })
   try {
-    expect(await f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+    expect(await f.owner.submitPrepared(f.prepared)).toEqual({ kind: 'recorded', execution: ref })
     await f.owner.idle()
     const observer = await f.observer()
     try {
@@ -528,7 +526,7 @@ it('reads and finishes a retained native job without the complete Session reader
     },
   })
   try {
-    expect(await f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+    expect(await f.owner.submitPrepared(f.prepared)).toEqual({ kind: 'recorded', execution: ref })
     const readContext = await entered.promise
     f.readSince.mockClear()
     f.readSince.mockImplementation(() => {
@@ -571,7 +569,7 @@ it('retains the Session-classified terminal and original account when its commit
     classifyTerminalIn: classify,
   })
   try {
-    expect(await f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+    expect(await f.owner.submitPrepared(f.prepared)).toEqual({ kind: 'recorded', execution: ref })
     await entered.promise
     const atomic = f.log.fixtureStorage.atomic.bind(f.log.fixtureStorage)
     const lost = vi.spyOn(f.log.fixtureStorage, 'atomic').mockImplementation(async use => {
@@ -609,27 +607,7 @@ it('retains the Session-classified terminal and original account when its commit
 })
 
 async function preparedFor(f: Awaited<ReturnType<typeof fixture>>) {
-  if (request.call.arguments === undefined) throw new Error('missing fixture arguments')
-  const source = await f.log.participant.source(f.log.fixtureAccess, scope)
-  if ('failure' in source) throw new Error('missing actual prepared source')
-  const prepared: import('@omne-harness-lite/tool-execution-runtime').PreparedToolExecution = {
-    access: request.access,
-    ref,
-    origin: request.origin,
-    call: request.call,
-    args: request.call.arguments,
-    selected: {
-      capability: 'tool:echo',
-      asset: 'echo-asset',
-      version: '1',
-      definition,
-      adoption: request.adoption,
-    },
-    source: source.source,
-    afterAction: { pass: 'prepared-after-action', selectedChain: [] },
-    admissionToken: request.admissionToken,
-  }
-  return prepared
+  return f.prepared
 }
 
 it('executes a prepared request without reading Session history or selecting the after-action chain', async () => {
@@ -638,7 +616,6 @@ it('executes a prepared request without reading Session history or selecting the
   f.readSince.mockImplementation(() => {
     throw new Error('prepared execution must not read complete Session history')
   })
-  f.selectChain.mockRejectedValue(new Error('the request already owns its after-action chain'))
   try {
     expect(await f.owner.submitPrepared(prepared)).toEqual({ kind: 'recorded', execution: ref })
     await f.owner.idle()
@@ -649,7 +626,6 @@ it('executes a prepared request without reading Session history or selecting the
       observer.release()
     }
     expect(f.readSince).not.toHaveBeenCalled()
-    expect(f.selectChain).not.toHaveBeenCalled()
     expect(f.implementation).toHaveBeenCalledTimes(1)
   } finally {
     f.readSince.mockImplementation(f.log.readSince)
@@ -734,7 +710,7 @@ it('checks the actual admission token before issuing a prepared Tool request', a
 it('rolls back original claim consumption and its start record together', async () => {
   const { f, participants, claims } = await admittedFixture({ consume: 'deny' })
   try {
-    expect(await f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+    expect(await f.owner.submitPrepared(f.prepared)).toEqual({ kind: 'recorded', execution: ref })
     await f.owner.idle()
     const failure = new Error('abort original consume unit')
     await expect(
@@ -801,7 +777,6 @@ it.each(['unparseable', 'no_such_entry'] as const)(
     f.readSince.mockImplementation(() => {
       throw new Error('Session scan forbidden')
     })
-    f.selectChain.mockRejectedValue(new Error('chain selection forbidden'))
     try {
       expect(await f.owner.submitPrepared(supplied)).toEqual({ kind: 'recorded', execution: ref })
       await f.owner.idle()
@@ -831,7 +806,6 @@ it.each(['unparseable', 'no_such_entry'] as const)(
       expect(history.executions.get(ref.callId)?.started).toBeUndefined()
       expect(history.executions.get(ref.callId)?.terminal?.value.account.cost.total_usd).toBe(0)
       expect(verify).not.toHaveBeenCalled()
-      expect(f.selectChain).not.toHaveBeenCalled()
     } finally {
       f.readSince.mockImplementation(f.log.readSince)
       await f.close()

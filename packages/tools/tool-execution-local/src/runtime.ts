@@ -73,9 +73,6 @@ export function createOriginalIssueToolRuntime(
     attempts: config.tailRetry.attempts,
     frameQueueBytes: config.frameQueueBytes,
     retry,
-    selectChain: async () => {
-      throw new Error('prepared Tool request must supply its selected chain')
-    },
     async bindWriter(request, selected) {
       const storage = selected?.definition.needs?.attachmentStorage ?? config.resultStorage
       if (selected?.definition.needs?.attachmentStorage) {

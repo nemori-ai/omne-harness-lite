@@ -1,15 +1,7 @@
 import { expect, test, vi } from 'vitest'
 import { projectToolJournal } from '@omne-harness-lite/tool-execution-runtime'
 import type { ToolDefinition } from '@omne-harness-lite/tool-definition'
-import {
-  scope,
-  ref,
-  request,
-  access,
-  definition,
-  deferred,
-  fixture,
-} from './execution-owner-fixture.ts'
+import { scope, ref, access, definition, deferred, fixture } from './execution-owner-fixture.ts'
 
 import {
   environmentDefinition,
@@ -64,7 +56,7 @@ test.each([{ facilities: ['files'] }, { facilities: ['command', 'files'] }])(
       p.operations,
     )
     try {
-      await f.owner.operations.submit(request)
+      await f.owner.submitPrepared(f.prepared)
       await f.owner.idle()
       expect(f.implementation).toHaveBeenCalledOnce()
       expect(p.acquire).toHaveBeenCalledOnce()
@@ -118,7 +110,7 @@ test('author gets only required facilities after actual durable adoption and rec
     p.operations,
   )
   try {
-    expect(await f.owner.operations.submit(request)).toHaveProperty('kind', 'recorded')
+    expect(await f.owner.submitPrepared(f.prepared)).toHaveProperty('kind', 'recorded')
     await f.owner.idle()
     expect(f.implementation).toHaveBeenCalledOnce()
     expect(p.acquire).toHaveBeenCalledOnce()
@@ -158,7 +150,7 @@ test('missing required command facility prevents both durable adoption and autho
     p.operations,
   )
   try {
-    await f.owner.operations.submit(request)
+    await f.owner.submitPrepared(f.prepared)
     await f.owner.idle()
     expect(f.implementation).not.toHaveBeenCalled()
     expect(p.release).toHaveBeenCalledOnce()
@@ -177,30 +169,21 @@ test('missing required command facility prevents both durable adoption and autho
 test('unknown adoption receipt reuses the original lease and invokes once only after recognition', async () => {
   const p = environmentPorts(),
     f = await fixture(async () => 'once', undefined, environmentDefinition, p.operations)
-  let lost = false
-  f.append.mockImplementation(async (...args) => {
-    const result = await f.log.append(...args)
-    if (
-      !lost &&
-      args[1].some(entry => JSON.stringify(entry.payload).includes('execution_environment_adopted'))
-    ) {
-      lost = true
-      return { failure: 'unavailable' }
-    }
-    return result
-  })
+  const lost = f.loseNextCommit('execution_environment_adopted')
   try {
-    await f.owner.operations.submit(request)
+    await f.owner.submitPrepared(f.prepared)
     await f.owner.idle()
     expect(f.implementation).not.toHaveBeenCalled()
     expect(p.acquire).toHaveBeenCalledOnce()
     expect(p.release).not.toHaveBeenCalled()
-    await f.owner.operations.submit(request)
+    await f.owner.submitPrepared(f.prepared)
     await f.owner.idle()
     expect(f.implementation).toHaveBeenCalledOnce()
     expect(p.acquire).toHaveBeenCalledOnce()
     expect(p.release).toHaveBeenCalledOnce()
   } finally {
+    expect(lost.matched()).toBe(true)
+    lost.restore()
     await f.close()
   }
 })
@@ -220,7 +203,7 @@ test('terminal wins while original placement is pending and prevents acquire and
     p.operations,
   )
   try {
-    await f.owner.operations.submit(request)
+    await f.owner.submitPrepared(f.prepared)
     await entered.promise
     expect(await f.owner.operations.stop(access, ref, 'user_stop')).toBe('stopped')
     gate.resolve()
@@ -237,7 +220,7 @@ test('pending release retains the same lease for explicit close retry and never 
     f = await fixture(async () => 'once', undefined, environmentDefinition, p.operations)
   p.release.mockResolvedValue({ kind: 'pending', resources: [] })
   try {
-    await f.owner.operations.submit(request)
+    await f.owner.submitPrepared(f.prepared)
     await f.owner.idle()
     await expect(f.owner.close()).rejects.toThrow('environment cleanup obligation')
     expect(f.implementation).toHaveBeenCalledOnce()
@@ -277,15 +260,17 @@ test('closing before the physical permit append completes retains the fact but n
     p.operations,
   )
   let closing: Promise<void> | undefined
-  f.append.mockImplementation(async (...args) => {
-    if (args[1].some(entry => JSON.stringify(entry.payload).includes('resource_permitted'))) {
+  f.appendIn.mockImplementation(async (...args) => {
+    if (
+      args[2].entries.some(entry => JSON.stringify(entry.payload).includes('resource_permitted'))
+    ) {
       appending.resolve()
       await resume.promise
     }
-    return f.log.append(...args)
+    return f.log.participant.appendIn(...args)
   })
   try {
-    await f.owner.operations.submit(request)
+    await f.owner.submitPrepared(f.prepared)
     await appending.promise
     closing = f.owner.close()
     expect(p.resources()?.closed.aborted).toBe(true)

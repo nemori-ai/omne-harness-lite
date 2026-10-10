@@ -8,6 +8,9 @@ declare const tools: ToolExecutionRecords
 tools.enumerateSessions()
 // @ts-expect-error The tool record capability cannot obtain complete Session prefixes.
 tools.readPrefix()
+declare const operations: import('../src/index.ts').ToolRuntimeOperations
+// @ts-expect-error Raw submissions are not an execution control capability.
+operations.submit({})
 declare const controls: ToolPoolControls
 // @ts-expect-error Tool control cannot enumerate Sessions.
 controls.enumerateSessions()

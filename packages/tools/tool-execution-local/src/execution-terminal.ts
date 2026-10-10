@@ -1,7 +1,6 @@
 import type { FrameAccount } from '@omne-harness-lite/call-accounts'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import { instantToRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
-import { compareInteger } from '@omne-harness-lite/session-log'
 import type {
   DeliveryBasis,
   ExecutionOrigin,
@@ -9,22 +8,11 @@ import type {
   ExecutionTerminal,
   ToolJournalPayload,
 } from '@omne-harness-lite/tool-execution-runtime'
-import type { RuntimeJournal, RuntimeJournalView } from './execution-journal.ts'
-
-function terminalLate(
-  classification: 'session' | 'history',
-  facts: RuntimeJournalView['facts'],
-  attempt: ExecutionOrigin['attempt'],
-): boolean | 'unavailable' {
-  if (classification === 'session') return false
-  if (!facts) return 'unavailable'
-  return facts.runState !== 'open' || compareInteger(facts.latestAttempt, attempt) !== 0
-}
+import type { RuntimeJournal } from './execution-journal.ts'
 
 /** One terminal, its account and its delivery obligation use the same checked session tail. */
 export function createTerminalCommitter(input: {
   readonly journal: RuntimeJournal
-  readonly classification: 'session' | 'history'
   readonly clock: Clock
   readonly attempts: number
   readonly retry?: (attempt: number) => Promise<void>
@@ -55,8 +43,6 @@ export function createTerminalCommitter(input: {
       const execution = view.executions.get(request.ref.callId)
       if (!execution) return 'unavailable'
       if (execution.terminal) return 'alreadyEnded'
-      const late = terminalLate(input.classification, view.facts, request.origin.attempt)
-      if (late === 'unavailable') return 'unavailable'
       const value: ToolJournalPayload = {
         kind: 'execution_ended',
         revision: 1,
@@ -76,7 +62,6 @@ export function createTerminalCommitter(input: {
           frames: request.frames,
           wallClock: { startedAt: request.startedAt, endedAt },
           ...(request.terminal.outcome === 'interrupted' ? { stoppedAt: endedAt } : {}),
-          ...(late ? { late: true } : {}),
         },
       }
       const committed = await input.journal.commit({
@@ -88,7 +73,7 @@ export function createTerminalCommitter(input: {
       if (committed.kind === 'view') return 'recorded'
       if (committed.reason !== 'tailChanged') return 'unavailable'
       await input.retry?.(attempt)
-      // A new tail requires a new late decision. The terminal candidate itself does not change.
+      // Session classifies the terminal in the new commit unit. The terminal candidate does not change.
     }
     return 'unavailable'
   }

@@ -213,7 +213,6 @@ export type SubmissionResult =
         | 'ownerStopped'
     }
 export interface ToolRuntimeOperations {
-  readonly submit: (request: ExecutionSubmission) => Promise<SubmissionResult>
   readonly acquire: (
     access: RuntimeAccess,
     ref: ExecutionRef,

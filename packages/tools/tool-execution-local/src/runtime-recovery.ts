@@ -20,7 +20,6 @@ import type { RuntimeJournal } from './execution-journal.ts'
 type Input = {
   readonly dependencies: Pick<ToolRuntimeDependencies, 'recovery' | 'clock' | 'environments'>
   readonly journal: RuntimeJournal
-  readonly classification?: 'session' | 'history'
   readonly attempts: number
   readonly retry: (attempt: number) => Promise<void>
 }
@@ -122,7 +121,6 @@ async function finishInterruptedCall(input: Input, execution: ToolJournalHistory
   if (prepared === 'unavailable') throw new Error('Tool runtime recovery basis unavailable')
   const result = await createTerminalCommitter({
     ...input,
-    classification: input.classification ?? 'history',
     clock: input.dependencies.clock,
   })({
     ref: intent.ref,
@@ -186,7 +184,7 @@ export async function recoverOriginalExecutions(
         await recoverEnvironmentOwners(input, group.scope, group.executions)
         for (const execution of group.executions.values()) {
           await recoverCallResources(input, execution)
-          await finishInterruptedCall({ ...input, classification: 'session' }, execution)
+          await finishInterruptedCall(input, execution)
         }
       }
       for (;;) {
