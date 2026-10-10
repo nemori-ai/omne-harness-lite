@@ -327,6 +327,8 @@ session-bootstrap固定原center／account／login handle／tenant，借入真�
 
 runRegistry只接受同Scope、当前世代的原Run journal。它经evaluation-input-store的./admitted读取原Run固定根可用性和历史正文，不伪造当前成员或授予reload。应用保留读取器的关闭责任；单次借用释放或整个bootstrap关闭时，先排空读取器，再释放其借入的journal、manifest和Storage。
 
+createSessionRunAssets组合原Run输入、历史正文和实际AssetRegistry。构造同步返回包含ready和close的原资源拥有者，初始化失败后仍保留关闭入口。只有manifest为空时才按显式求值策略和initialFillRef填入六表；已有manifest必须从原表重建，不因新Run或新的initialFillRef重新填表。读取或填表未确认时ready返回unavailable，不自动重发。关闭先停止初始化发布，等待已开始的初始化，再关闭注册表和输入读取器；借入bootstrap、manifest、journal和Storage仍归原宿主。
+
 此装配构件的组合测试必须区分实际持久资格、资产和Context与受控运输／seed／访问端口。独立宿主、动态Agent贡献、真实SessionAccess发行、模型和工具消费者及默认产品路径仍须完整B01验收；构件通过不能作为三张故事卡完成的依据。
 
 ## Session访问发行的装配义务

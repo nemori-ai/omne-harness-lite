@@ -142,6 +142,9 @@ importers:
       '@omne-harness-lite/asset-evaluation':
         specifier: workspace:*
         version: link:../../packages/core/asset-evaluation
+      '@omne-harness-lite/asset-registry-local':
+        specifier: workspace:*
+        version: link:../../packages/tools/asset-registry-local
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../../packages/core/call-accounts
@@ -254,9 +257,6 @@ importers:
       '@omne-harness-lite/assembly-manifest-store':
         specifier: workspace:*
         version: link:../../packages/assets/assembly-manifest-store
-      '@omne-harness-lite/asset-registry-local':
-        specifier: workspace:*
-        version: link:../../packages/tools/asset-registry-local
       '@omne-harness-lite/tool-definition':
         specifier: workspace:*
         version: link:../../packages/core/tool-definition

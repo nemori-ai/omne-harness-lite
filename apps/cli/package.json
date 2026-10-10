@@ -61,14 +61,14 @@
     "@omne-harness-lite/model-message-projection": "workspace:*",
     "@omne-harness-lite/session-log-sql": "workspace:*",
     "@omne-harness-lite/clock-lease": "workspace:*",
-    "@omne-harness-lite/pi-ai-transport": "workspace:*"
+    "@omne-harness-lite/pi-ai-transport": "workspace:*",
+    "@omne-harness-lite/asset-registry-local": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "@omne-harness-lite/artifact-builder": "workspace:*",
-    "@omne-harness-lite/asset-registry-local": "workspace:*",
     "@omne-harness-lite/assembly-manifest-store": "workspace:*",
     "@omne-harness-lite/tool-definition": "workspace:*"
   }

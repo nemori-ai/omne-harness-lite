@@ -103,6 +103,7 @@ import type { AtomicStorage } from '@omne-harness-lite/storage'
 import { StorageUnavailable } from '@omne-harness-lite/storage'
 import { createSessionOriginalModelOwner } from '../src/session-model-owner.ts'
 import { createSessionDriverModelFactory } from '../src/session-driver-model.ts'
+import { createSessionRunAssets } from '../src/session-run-assets.ts'
 import {
   createSessionRunModelBinding,
   type SessionRunModelBindingOptions,
@@ -1895,7 +1896,7 @@ async function originalModelInput(
   if (!('kind' in accepted) || accepted.kind !== 'accepted') throw new Error('input not accepted')
   return { f, scope, accepted }
 }
-it.each(['normal', 'foreignScope'] as const)(
+it.each(['normal', 'foreignScope', 'fillReceiptLost'] as const)(
   'public driver pairs the original Run reader with actual bootstrap, Context and adopted registry: %s',
   async fault => {
     let native: ReturnType<typeof createModelRuntime> | undefined
@@ -1965,40 +1966,83 @@ it.each(['normal', 'foreignScope'] as const)(
     const acquire: LocalSessionDriverOptions['sources']['acquire'] = async (requested, journal) => {
       expect(requested).toEqual(scope)
       expect(journal.scope).toEqual(scope)
-      const reader = f.assembly.runInputs(requested, journal),
-        context = f.assembly.context(requested)
-      if (!reader || !context) throw new Error('actual original bootstrap source missing')
-      cleanup.push(() => reader.close())
+      const context = f.assembly.context(requested)
+      if (!context) throw new Error('actual original bootstrap Context missing')
       const runtimeContext = await context.ready
-      const registryInputs = f.assembly.runRegistry(requested, journal, manifest)
-      if (!registryInputs) throw new Error('actual original Run registry sources missing')
-      cleanup.push(registryInputs.close)
-      const registry = createAssetRegistry({
+      const registryPolicy = {
         manifest,
-        currentInputs: reader,
-        sessionTenancy: f.runtime.tenancy,
-        fixedRootInput: registryInputs.fixedRoot,
-        historicalBody: registryInputs.history,
-        deployedMeta: [],
+        deployedMeta: [] as const,
         clock: { now: async () => unwrap(instantFromRfc3339(now)) },
         diagnostic() {},
         diagnosticFailure() {},
         monotonicNow: process.hrtime.bigint,
         conflictPolicy: { maxRetries: 0 },
         maxInFlight: 4,
-      })
-      cleanup.push(() => registry.close())
-      const value = await reader.read(scope.session, tenant)
-      if (!('input' in value)) throw new Error('actual original Run input unavailable')
-      const evaluated = evaluate(value.input)
-      if (!('ok' in evaluated)) throw new Error('actual root composition unavailable')
-      const filled = await registry.fill(
-        scope.session,
-        evaluated.ok,
-        'public-driver-root-fill',
-        evaluated.ok.composition,
-      )
-      if (!('snapshots' in filled)) throw new Error('actual registry fill unavailable')
+      }
+      const assetOptions = {
+        bootstrap: f.assembly,
+        journal,
+        tenancy: f.runtime.tenancy,
+        initialFillRef: 'public-driver-root-fill',
+        evaluation: { toolEnvironmentPermission: 'always-allow' as const },
+        registry: registryPolicy,
+      }
+      if (fault === 'normal') {
+        const stopped = createSessionRunAssets(assetOptions)
+        await stopped.close()
+        expect(await stopped.ready).toEqual({ unavailable: true })
+        const unavailable = createSessionRunAssets({
+          ...assetOptions,
+          registry: {
+            ...registryPolicy,
+            manifest: {
+              ...manifest,
+              readHead: async () => ({ failure: 'unavailable' as const }),
+            },
+          },
+        })
+        cleanup.push(unavailable.close)
+        expect(await unavailable.ready).toEqual({ unavailable: true })
+        expect(await manifest.readHead(scope.session)).toEqual({ head: 0, latest: {} })
+        await unavailable.close()
+      }
+      if (fault === 'fillReceiptLost') {
+        const append = vi.fn(async (...args: Parameters<typeof manifest.append>) => {
+          const result = await manifest.append(...args)
+          return 'seq' in result ? { failure: 'unavailable' as const } : result
+        })
+        const lost = createSessionRunAssets({
+          ...assetOptions,
+          registry: { ...registryPolicy, manifest: { ...manifest, append } },
+        })
+        cleanup.push(lost.close)
+        expect(await lost.ready).toEqual({ unavailable: true })
+        expect(append).toHaveBeenCalledOnce()
+        expect(await manifest.readHead(scope.session)).toHaveProperty('head', 1)
+        await lost.close()
+      }
+      let assetOwner = createSessionRunAssets(assetOptions)
+      cleanup.push(assetOwner.close)
+      let assets = await assetOwner.ready
+      if ('unavailable' in assets) throw new Error('actual original Run assets unavailable')
+      const first = await manifest.readHead(scope.session)
+      expect(first).toHaveProperty('head', 1)
+      if (fault === 'normal') {
+        await assetOwner.close()
+        expect(await assets.registry.list(scope.session, 'tool', { kind: 'session' })).toEqual({
+          failure: 'unavailable',
+        })
+        expect(await assets.input.read(scope.session, tenant)).toEqual({ failure: 'unavailable' })
+        assetOwner = createSessionRunAssets({
+          ...assetOptions,
+          initialFillRef: 'another-run-must-preserve-the-original-fill',
+        })
+        cleanup.push(assetOwner.close)
+        assets = await assetOwner.ready
+        if ('unavailable' in assets) throw new Error('actual original Run assets unavailable')
+        expect(await manifest.readHead(scope.session)).toEqual(first)
+      }
+      const { input: reader, registry } = assets
       return {
         scope: returnedScope,
         run: journal.run,
@@ -2056,9 +2100,7 @@ it.each(['normal', 'foreignScope'] as const)(
           },
         },
         release: async () => {
-          await registry.close()
-          await registryInputs.close()
-          await reader.close()
+          await assetOwner.close()
           returned()
         },
       }
