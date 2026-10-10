@@ -9,6 +9,9 @@ import type { GovernanceOutcome } from '@omne-harness-lite/governance-center-ent
 import { createClientAssembly } from '../src/assembly.ts'
 import { openCliCatalog } from '../src/catalog-open.ts'
 import { runLoginEntry, type LoginEntryInput } from '../src/login-entry.ts'
+import { readSessionEntryPreparation } from '../src/session-entry-preparation.ts'
+import { runDefaultSessionEntry, type DefaultSessionOptions } from '../src/session-default-entry.ts'
+import type { GovernanceChoices, GovernanceDialog } from '../src/governance-input.ts'
 import { tenantPaths } from '../src/state-layout.ts'
 import { checkedTenantBinding } from '../src/state-layout-values.ts'
 import { openClientLocalState } from '@omne-harness-lite/client-local-state-sqlite'
@@ -479,4 +482,245 @@ it('stops before construction or credential access when already cancelled', asyn
     outcome: { kind: 'blocked', reason: 'input-cancelled' },
   })
   expect(factory).not.toHaveBeenCalled()
+})
+
+it('asks to add a center for an empty catalog without opening governance or creating a Session', async () => {
+  const f = await fixture()
+  const fresh = await openCliCatalog(join(f.input.home, 'fresh'), {
+    maxCenters: 8,
+    maxCreations: 8,
+    maxRecordBytes: 65536,
+  })
+  cleanup.push(() => fresh.close())
+  const factory = vi.fn(f.factory)
+  expect(
+    await readSessionEntryPreparation({
+      home: f.input.home,
+      catalog: fresh.catalog,
+      signal: new AbortController().signal,
+      preparedFactory: factory,
+    }),
+  ).toEqual({ outcome: { kind: 'center-required' }, diagnostics: [] })
+  expect(factory).not.toHaveBeenCalled()
+  expect(f.exchange).not.toHaveBeenCalled()
+})
+
+it('offers configured centers without signing in or choosing an account implicitly', async () => {
+  const f = await fixture()
+  expect(
+    await readSessionEntryPreparation({
+      home: f.input.home,
+      catalog: f.owned.catalog,
+      signal: new AbortController().signal,
+      preparedFactory: f.factory,
+    }),
+  ).toEqual({
+    outcome: {
+      kind: 'login-required',
+      reason: 'not-selected',
+      centers: await f.owned.catalog.listCenters(),
+    },
+    diagnostics: [],
+  })
+  expect(f.exchange).not.toHaveBeenCalled()
+})
+
+it('reads the real selected login and membership before declaring default preparation ready', async () => {
+  const f = await fixture()
+  await runLoginEntry(f.input, f.owned.catalog, new AbortController().signal, f.factory)
+  const before = await f.owned.catalog.readSelection()
+  f.exchange.mockClear()
+  const result = await readSessionEntryPreparation({
+    home: f.input.home,
+    catalog: f.owned.catalog,
+    signal: new AbortController().signal,
+    preparedFactory: f.factory,
+  })
+  expect(result).toEqual({
+    outcome: {
+      kind: 'ready',
+      binding: before.selected,
+      identity: { centerId, accountId: account, loginStateHandle: handle, tenant, role: 'member' },
+    },
+    diagnostics: [],
+  })
+  expect(
+    f.exchange.mock.calls.map(([, body]) => (body as { operation: string }).operation),
+  ).toEqual([
+    'capability.organization-governance/v2#S-36',
+    'capability.organization-governance/v2#S-26',
+  ])
+  expect(await f.owned.catalog.readSelection()).toEqual(before)
+  expect(JSON.stringify(result)).not.toContain(presentation)
+  await expect(
+    readFile(join(tenantPaths(f.input.home, before.selected!).sessions, 'session.json')),
+  ).rejects.toMatchObject({ code: 'ENOENT' })
+})
+
+it.each(['unavailable', 'rejected', 'foreign-tenant', 'ineffective'] as const)(
+  'keeps default preparation %s distinct without sending a credential or creating work',
+  async mode => {
+    const f = await fixture()
+    await runLoginEntry(f.input, f.owned.catalog, new AbortController().signal, f.factory)
+    const before = await f.owned.catalog.readSelection()
+    f.exchange.mockClear()
+    f.exchange.mockImplementation(async (_options, body): Promise<GovernanceOutcome> => {
+      const request = body as { operation: string }
+      if (mode === 'unavailable')
+        return { kind: 'unavailable', reason: 'connection', sendAttempted: false }
+      if (mode === 'rejected')
+        return { kind: 'entry-answer', answer: 'login-state-rejected', sendAttempted: true }
+      const result = request.operation.endsWith('#S-36')
+        ? { ...tenant, ...(mode === 'foreign-tenant' ? { organization: 'other' } : {}) }
+        : mode === 'ineffective'
+          ? { standing: 'ineffective' }
+          : { standing: 'effective', role: 'member' }
+      return { kind: 'reply', reply: { result }, sendAttempted: true }
+    })
+    const result = await readSessionEntryPreparation({
+      home: f.input.home,
+      catalog: f.owned.catalog,
+      signal: new AbortController().signal,
+      preparedFactory: f.factory,
+    })
+    if (mode === 'rejected')
+      expect(result.outcome).toMatchObject({ kind: 'login-required', reason: 'login-rejected' })
+    else
+      expect(result.outcome).toEqual({
+        kind: 'blocked',
+        reason:
+          mode === 'unavailable'
+            ? 'identity-unavailable'
+            : mode === 'foreign-tenant'
+              ? 'identity-mismatch'
+              : 'membership-ineffective',
+      })
+    expect(result.diagnostics).toEqual([])
+    expect(await f.owned.catalog.readSelection()).toEqual(before)
+    expect(
+      f.exchange.mock.calls.some(
+        ([, body]) => (body as { operation: string }).operation === loginOperation,
+      ),
+    ).toBe(false)
+  },
+)
+
+it('cancels default preparation before any read or governance work', async () => {
+  const f = await fixture()
+  const signal = AbortSignal.abort()
+  expect(
+    await readSessionEntryPreparation({
+      home: f.input.home,
+      catalog: f.owned.catalog,
+      signal,
+      preparedFactory: f.factory,
+    }),
+  ).toEqual({ outcome: { kind: 'blocked', reason: 'input-cancelled' }, diagnostics: [] })
+  expect(f.exchange).not.toHaveBeenCalled()
+})
+
+it('continues into the same default entry after one explicit login without a second command', async () => {
+  const f = await fixture()
+  const dialog: GovernanceDialog = {
+    identity: vi.fn(),
+    text: vi.fn(async title => (title === 'Login identifier' ? 'me' : f.input.credentialFile)),
+    choose: vi.fn(async () => 0),
+    show: vi.fn(async () => true),
+  }
+  const choices: GovernanceChoices = {
+    centers: () => f.owned.catalog.listCenters(),
+    tenants: async () => [],
+    invitations: async () => [],
+  }
+  const enter = vi.fn(async () => ({
+    outcome: { kind: 'not-ready' as const, reason: 'capability-not-installed' as const },
+    diagnostics: [],
+  }))
+  const execute = vi.fn<DefaultSessionOptions['execute']>(async command => {
+    expect(command.action).toBe('login')
+    if (
+      typeof command.values['login-identifier'] !== 'string' ||
+      typeof command.values['credential-file'] !== 'string' ||
+      typeof command.values.center !== 'string'
+    )
+      throw new Error('missing completed login fields')
+    return runLoginEntry(
+      {
+        ...f.input,
+        loginIdentifier: command.values['login-identifier'],
+        credentialFile: command.values['credential-file'],
+        centerName: command.values.center,
+      },
+      f.owned.catalog,
+      new AbortController().signal,
+      f.factory,
+    )
+  })
+  await runDefaultSessionEntry({
+    home: f.input.home,
+    catalog: f.owned.catalog,
+    signal: new AbortController().signal,
+    dialog,
+    choices,
+    preparedFactory: f.factory,
+    execute,
+    enter,
+  })
+  expect(execute).toHaveBeenCalledTimes(1)
+  expect(enter).toHaveBeenCalledExactlyOnceWith({
+    kind: 'ready',
+    binding: { formatVersion: 1, centerId, tenant },
+    identity: { centerId, accountId: account, loginStateHandle: handle, tenant, role: 'member' },
+  })
+  expect(
+    f.exchange.mock.calls.filter(
+      ([, body]) => (body as { operation: string }).operation === loginOperation,
+    ),
+  ).toHaveLength(1)
+})
+
+it('does not turn cancellation or an unknown login into an automatic second credential submission', async () => {
+  const f = await fixture()
+  const choose = vi.fn<GovernanceDialog['choose']>().mockResolvedValueOnce(undefined)
+  const dialog: GovernanceDialog = {
+    identity: vi.fn(),
+    text: vi.fn(async () => f.input.credentialFile),
+    choose,
+    show: vi.fn(async () => true),
+  }
+  const choices: GovernanceChoices = {
+    centers: () => f.owned.catalog.listCenters(),
+    tenants: async () => [],
+    invitations: async () => [],
+  }
+  const execute = vi.fn(async () => ({
+    outcome: { kind: 'blocked' as const, reason: 'unknown' },
+    diagnostics: [],
+  }))
+  const enter = vi.fn(async () => ({
+    outcome: { kind: 'not-ready' as const, reason: 'capability-not-installed' as const },
+    diagnostics: [],
+  }))
+  const options = {
+    home: f.input.home,
+    catalog: f.owned.catalog,
+    signal: new AbortController().signal,
+    dialog,
+    choices,
+    preparedFactory: f.factory,
+    execute,
+    enter,
+  }
+  expect(await runDefaultSessionEntry(options)).toEqual({
+    outcome: { kind: 'blocked', reason: 'input-cancelled' },
+    diagnostics: [],
+  })
+  expect(execute).not.toHaveBeenCalled()
+  choose.mockResolvedValue(0)
+  expect(await runDefaultSessionEntry(options)).toEqual({
+    outcome: { kind: 'blocked', reason: 'unknown' },
+    diagnostics: [],
+  })
+  expect(execute).toHaveBeenCalledTimes(1)
+  expect(enter).not.toHaveBeenCalled()
 })

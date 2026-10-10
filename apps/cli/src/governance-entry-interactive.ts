@@ -65,7 +65,10 @@ export async function executeInteractiveGovernance(
   )
 }
 
-function confirmObservedCenter(dialog: GovernanceDialog, profile: CenterProfile): Promise<boolean> {
+export function confirmObservedCenter(
+  dialog: GovernanceDialog,
+  profile: CenterProfile,
+): Promise<boolean> {
   const trust = profile.center.trust
   const fingerprint =
     trust.mode === 'spki'

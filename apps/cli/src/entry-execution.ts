@@ -1,5 +1,6 @@
 import type { CatalogPolicy } from './catalog.ts'
 import { openCliCatalog, type OwnedCliCatalog } from './catalog-open.ts'
+import { createClientAssembly } from './assembly.ts'
 import { addCenter } from './center-add.ts'
 import type { CenterProfile } from './center-preparation.ts'
 import { runTenantCreateEntry } from './tenant-create-entry.ts'
@@ -16,8 +17,13 @@ import { runSelectedGovernanceEntry } from './selected-governance-entry.ts'
 import type { PreparedFactory } from './prepared-client-work.ts'
 import {
   executeInteractiveGovernance,
+  confirmObservedCenter,
   type GovernanceInteraction,
 } from './governance-entry-interactive.ts'
+import { usingGovernanceDialog } from './governance-dialog.ts'
+import { PreparedPresentationGroup } from './prepared-presentation.ts'
+import { createGovernanceChoices } from './governance-choices.ts'
+import { runDefaultSessionEntry, type DefaultSessionOptions } from './session-default-entry.ts'
 
 type GovernanceEntry = Extract<EntryCommand, { kind: 'governance' }>
 export interface EntryExecutionOptions {
@@ -28,7 +34,10 @@ export interface EntryExecutionOptions {
   readonly confirmCenter: (profile: CenterProfile) => Promise<boolean>
   readonly interactive?: GovernanceInteraction
   readonly preparedFactory?: PreparedFactory
-  readonly session?: (command: Exclude<ExecutableEntry, GovernanceEntry>) => Promise<EntryExecution>
+  readonly enterSession?: (
+    command: Extract<EntryCommand, { kind: 'session' }>,
+    ready: Parameters<DefaultSessionOptions['enter']>[0],
+  ) => Promise<EntryExecution>
   readonly sessionPolicy?: SessionMessagePolicy
   readonly maxMessageBytes?: number
 }
@@ -37,8 +46,7 @@ export async function executeEntry(
   command: ExecutableEntry,
   options: EntryExecutionOptions,
 ): Promise<EntryExecution> {
-  if (command.kind !== 'governance') {
-    if (options.session) return options.session(command)
+  if (command.kind === 'message') {
     if (!options.sessionPolicy || options.maxMessageBytes === undefined) return notReady()
   }
   if (options.signal.aborted) throw new InputFailure('input-cancelled')
@@ -47,6 +55,8 @@ export async function executeEntry(
     ...(command.home === null ? {} : { explicitHome: command.home }),
   })
   const owned = await openCliCatalog(home, options.catalogPolicy)
+  if (command.kind === 'session')
+    return usingCatalog(owned, () => executeSessionPreparation(command, home, owned, options))
   if (command.kind !== 'governance')
     return usingCatalog(owned, () =>
       runSessionMessageEntry({
@@ -78,6 +88,50 @@ export async function executeEntry(
           options.preparedFactory,
         )
       : executeGovernance(command, home, owned, options),
+  )
+}
+
+async function executeSessionPreparation(
+  command: Extract<EntryCommand, { kind: 'session' }>,
+  home: string,
+  owned: OwnedCliCatalog,
+  options: EntryExecutionOptions,
+): Promise<EntryExecution> {
+  const interactive = options.interactive
+  if (!interactive) throw new InputFailure('tty-unsupported')
+  const presentation = new PreparedPresentationGroup()
+  const baseFactory = options.preparedFactory ?? createClientAssembly
+  const factory: PreparedFactory = Object.assign(
+    (input: Parameters<PreparedFactory>[0]) => baseFactory(input),
+    { presentation },
+  )
+  return usingGovernanceDialog(
+    options.signal,
+    interactive.terminal,
+    (dialog, signal) =>
+      runDefaultSessionEntry({
+        home,
+        catalog: owned.catalog,
+        signal,
+        dialog,
+        preparedFactory: factory,
+        choices: createGovernanceChoices(
+          home,
+          owned.catalog,
+          signal,
+          interactive.choicePolicy,
+          factory,
+        ),
+        execute: completed =>
+          executeGovernance(completed, home, owned, {
+            ...options,
+            signal,
+            preparedFactory: factory,
+            confirmCenter: profile => confirmObservedCenter(dialog, profile),
+          }),
+        enter: ready => options.enterSession?.(command, ready) ?? Promise.resolve(notReady()),
+      }),
+    presentation,
   )
 }
 async function executeGovernance(

@@ -974,3 +974,135 @@ it.each(['login', 'register'] as const)(
     })
   },
 )
+
+it('formal bare entry reads the selected identity over HTTPS before entering without governance navigation', async () => {
+  const f = await fixture(),
+    terminal = new FakeTerminal()
+  await f.catalog.registerCenter({
+    name: 'work',
+    center: { centerId, endpoint, trust: { mode: 'ca', certificateAuthorities: certificate } },
+  })
+  const before = await f.catalog.readSelection()
+  const enterSession = vi.fn(async () => ({
+    outcome: { kind: 'not-ready' as const, reason: 'capability-not-installed' as const },
+    diagnostics: [],
+  }))
+  const command = parseEntryCommand([], true)
+  if (command.kind !== 'session') throw new Error('invalid bare entry')
+  const result = await executeEntry(command, {
+    ...interactiveOptions(f.home, terminal),
+    enterSession,
+  })
+  expect(result).toEqual({
+    outcome: { kind: 'not-ready', reason: 'capability-not-installed' },
+    diagnostics: [],
+  })
+  expect(enterSession).toHaveBeenCalledExactlyOnceWith(command, {
+    kind: 'ready',
+    binding,
+    identity: {
+      centerId,
+      accountId: account,
+      loginStateHandle: handle,
+      tenant: personal,
+      role: 'superAdministrator',
+    },
+  })
+  expect(sends.map(row => row.operation)).toEqual([
+    'composition.governance-center-entry/v1#S-18',
+    'capability.organization-governance/v2#S-36',
+    'composition.governance-center-entry/v1#S-18',
+    'capability.organization-governance/v2#S-26',
+  ])
+  expect(await f.catalog.readSelection()).toEqual(before)
+  expect(terminal.restored).toBe(true)
+  expect(terminal.frames.join('')).not.toContain(secret)
+})
+
+it('formal bare entry cancels missing center setup without creating an identity or Session', async () => {
+  const f = await fixture(false),
+    terminal = new FakeTerminal()
+  terminal.onFrame = bytes => {
+    if (bytes.includes('Center HTTPS endpoint')) terminal.key('\x03')
+  }
+  const command = parseEntryCommand([], true)
+  if (command.kind !== 'session') throw new Error('invalid bare entry')
+  const enterSession = vi.fn(async () => ({
+    outcome: { kind: 'not-ready' as const, reason: 'capability-not-installed' as const },
+    diagnostics: [],
+  }))
+  expect(
+    await executeEntry(command, { ...interactiveOptions(f.home, terminal), enterSession }),
+  ).toEqual({ outcome: { kind: 'blocked', reason: 'input-cancelled' }, diagnostics: [] })
+  expect(enterSession).not.toHaveBeenCalled()
+  expect(sends).toEqual([])
+  expect((await f.catalog.readSelection()).selected).toBeNull()
+  expect(terminal.restored).toBe(true)
+})
+
+it('formal bare entry completes center setup and login in one invocation before handing over the fixed identity', async () => {
+  const root = await mkdtemp(join(parent, 'default-start-'))
+  cleanup.push(() => rm(root, { recursive: true, force: true }))
+  const home = join(root, '.omne'),
+    terminal = new FakeTerminal()
+  const ca = join(root, 'ca.pem'),
+    credentials = join(root, 'credential')
+  await writeFile(ca, certificate, { mode: 0o600 })
+  await writeFile(credentials, 'protected credential', { mode: 0o600 })
+  const steps: readonly [string, string | null][] = [
+    ['Center HTTPS endpoint', endpoint],
+    ['Center name', 'work'],
+    ['Select center trust', '2'],
+    ['Certificate authority file path', ca],
+    ['Confirm center', null],
+    ['Sign in to continue', '1'],
+    ['Select center', '1'],
+    ['Login identifier', 'owner'],
+    ['Credential file path', credentials],
+    ['Confirm action', null],
+  ]
+  let next = 0
+  terminal.onFrame = bytes => {
+    const step = steps[next]
+    if (!step || !bytes.includes(step[0])) return
+    next++
+    if (step[1] === null) terminal.key('\r')
+    else {
+      terminal.paste(step[1])
+      void tick().then(() => terminal.key('\r'))
+    }
+  }
+  const command = parseEntryCommand([], true)
+  if (command.kind !== 'session') throw new Error('invalid bare entry')
+  const enterSession = vi.fn(async () => ({
+    outcome: { kind: 'not-ready' as const, reason: 'capability-not-installed' as const },
+    diagnostics: [],
+  }))
+  const result = await executeEntry(command, {
+    ...interactiveOptions(home, terminal),
+    enterSession,
+  })
+  expect(next).toBe(steps.length)
+  expect(enterSession).toHaveBeenCalledExactlyOnceWith(command, {
+    kind: 'ready',
+    binding,
+    identity: {
+      centerId,
+      accountId: account,
+      loginStateHandle: 'new-login-handle',
+      tenant: personal,
+      role: 'superAdministrator',
+    },
+  })
+  expect(result.diagnostics).toEqual([])
+  expect(sends.filter(row => row.operation === 'capability.account-identity/v3#S-15')).toHaveLength(
+    1,
+  )
+  expect(sends.some(row => row.operation === createOperation)).toBe(false)
+  expect(terminal.restored).toBe(true)
+  expect(terminal.frames.join('')).not.toContain('protected credential')
+  expect(terminal.frames.join('')).not.toContain('new-private-presentation')
+  await expect(
+    readFile(join(tenantPaths(home, binding).sessions, 'session.json')),
+  ).rejects.toMatchObject({ code: 'ENOENT' })
+})
