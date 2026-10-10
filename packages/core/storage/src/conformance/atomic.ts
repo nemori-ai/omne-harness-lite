@@ -7,6 +7,12 @@ type ConformanceRunner = Pick<
 import { StorageDefect, UniqueViolation } from '../errors.ts'
 import type { AtomicStorage, StorageInstance, StorageUnit } from '../protocol.ts'
 
+function captureParticipantDefect(operation: () => void): void {
+  try {
+    operation()
+  } catch {}
+}
+
 function deferred() {
   let resolve!: () => void
   const promise = new Promise<void>(done => {
@@ -124,11 +130,9 @@ export function describeAtomicStorageConformance(
       await expect(
         storage.atomic(async unit => {
           await insert(unit, 'a')
-          try {
+          captureParticipantDefect(() => {
             unit.assertStorage(other)
-          } catch {
-            /* 不得提交。 */
-          }
+          })
         }),
       ).rejects.toBeInstanceOf(StorageDefect)
       expect(await rows()).toEqual([])
@@ -157,13 +161,11 @@ export function describeAtomicStorageConformance(
             await gate.promise
           })
           await started.promise
-          try {
+          captureParticipantDefect(() => {
             unit.run(async () => {
               await insert(unit, 'b')
             })
-          } catch {
-            /* 仍需回滚。 */
-          }
+          })
           gate.resolve()
           await first
         }),
