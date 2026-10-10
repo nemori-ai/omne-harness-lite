@@ -17,6 +17,8 @@ pnpm --filter @omne-harness-lite/cli run acceptance
 
 The network scenario makes three real model requests. It asks Shell for help, executes one command that obtains a fresh 32-character hexadecimal value, and requires the model to return that value. The checks compare ordinary strings, original call identities, complete result blocks, durable result files and the actual next request. A read-only observer captures request messages before the original ACK releases temporary model content. It does not manufacture requests or delay ACK.
 
+The prompt requires the model to wait for each tool result before its next response. This arranges two separate continuation steps for the scenario. It does not prohibit multiple tool calls in one response in ordinary sessions. A model response that combines help and execute does not satisfy this scenario's three-request arrangement.
+
 This replaces the old demo-specific nonce fixture. The scenario requests one help call and one execute call, and checks exactly two tool calls and three model requests. The old controlled-HTTPS demo variant is removed. This scenario uses the real endpoint and captured production requests; it does not claim controlled-endpoint coverage. Missing configuration, failed requests and unavailable facilities fail the check.
 
 Evidence contains the test input, client and host results, this Session's log and its verdict. It does not copy credentials or other tenant tables. Set `PF006_EVIDENCE_ROOT` to a worktree `tmp/` directory. Passing these checks does not replace independent acceptance or the real terminal matrix.

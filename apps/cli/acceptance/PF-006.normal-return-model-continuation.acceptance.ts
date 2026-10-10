@@ -13,7 +13,7 @@ const nonceCommand = "tr -d '\\n-' < /proc/sys/kernel/random/uuid"
 
 test('PF-006 S24/S69: formal CLI preserves ordinary results and continues with the actual nonce', async () => {
   const token = randomUUID()
-  const prompt = `[acceptance ${token}] Call Shell help exactly once. Then call Shell execute exactly once with command ${JSON.stringify(nonceCommand)}. Reply with only the complete 32-character hexadecimal command output. Do not invent the value or call any other tool.`
+  const prompt = `[acceptance ${token}] First call only Shell help, exactly once. End that response and wait for the help result. Do not request Shell execute in the same response as help. After receiving the help result, call only Shell execute, exactly once, with command ${JSON.stringify(nonceCommand)}. End that response and wait for the execution result. Then reply with only the complete 32-character hexadecimal command output. Do not invent the value or call any other tool.`
   const scenario = await openScenario(token, prompt)
   try {
     const client = scenario.execute()
