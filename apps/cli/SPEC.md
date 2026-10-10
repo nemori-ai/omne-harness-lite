@@ -414,6 +414,13 @@ Session或Run。没有配置创建偏好的宿主仍可附着，返回的default
 该连接逻辑已通过真实子进程与私有协议验证。正式main、独立宿主入口和部署配置仍须
 接入后才能作为完整CLI启动能力交付。
 
+`createSessionModelTaskOwner`跟踪Session模型路径的读取、等待和写入任务。
+注册先占用并发容量，释放必须等待本次注册的实际任务结束。关闭撤销新注册并请求
+取消，仍须等待原任务结束；未释放的注册使关闭返回unavailable。原选择及调用组件
+继续负责写入语义、结果确认和未知提交的认回；任务拥有者不读取会话历史，也不发起
+重试。结果不明的写入在原注册释放前保留。释放表示调用者已满足原协议的停止和
+认回条件；任务完成本身不触发释放。
+
 ## 原模型唯一发起拥有者的应用选择
 
 session-model-owner的createSessionOriginalModelOwner是可信应用构造器。它选择公开createOriginalIssueOwner，传入与Session相同的AtomicStorage及原活体日志权限；通过modelIssue工厂交给Session参加者，不从Session具体提供者导入或选择该模型实现。每个工厂只附着一个原拥有者。模型登记、当前装配模态和凭据沿ModelRuntime的原调用路径核验，正式根不再提供独立current授权回调；账户额度本期不作约束；持久记录容量和在途上界仍显式提供。没有默认模型、凭据或预算。模型登记及装配模态沿原拥有者，不在CLI另建许可制度。
