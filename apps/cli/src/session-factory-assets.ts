@@ -1,3 +1,4 @@
+import { sessionResultAsset } from './session-result-reader.ts'
 import { toOpaqueJson } from '@omne-harness-lite/content-blocks'
 import { instantToRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
 import type { TenantId } from '@omne-harness-lite/identity-values'
@@ -5,6 +6,7 @@ import type { EvaluationStorageDependencies } from '@omne-harness-lite/evaluatio
 import { installOfficialFactoryDefinitions } from '@omne-harness-lite/evaluation-input-store/publication'
 import { OFFICIAL_ADMISSION_NAME } from '@omne-harness-lite/tool-admission'
 import { SHELL_CONTEXT_KEY } from '@omne-harness-lite/meta-shell'
+import { sessionFilesAsset } from './session-files.ts'
 import { sessionShellAsset } from './session-shell.ts'
 
 const admissionAsset = {
@@ -96,6 +98,39 @@ export const officialSessionAsset = Object.freeze({
       },
       publishedAt: '2026-10-10T00:00:00Z',
     }),
+    Object.freeze({
+      number: 4,
+      content: {
+        category: 'agent_definition' as const,
+        body: toOpaqueJson({
+          references: [
+            { capability: sessionShellAsset.capability },
+            { capability: sessionFilesAsset.capability },
+            { capability: sessionResultAsset.capability },
+            { capability: admissionAsset.capability },
+          ],
+          attributes: [
+            timingPreference('first_token_wait_limit', 'PT2M'),
+            timingPreference('post_first_token_stall_limit', 'PT30S'),
+          ],
+          contextSessionSeed: {
+            required: [
+              {
+                key: SHELL_CONTEXT_KEY,
+                source: 'session-workspace',
+                config: null,
+                consumers: ['tool'],
+                required: true,
+                recovery: 'reread_source',
+              },
+            ],
+            initial: [],
+            fixed: [],
+          },
+        }),
+      },
+      publishedAt: '2026-10-10T14:00:00Z',
+    }),
   ]),
 })
 /** Exact AD1 duration domain; defaults belong to this release, not the runtime. */
@@ -122,7 +157,13 @@ export function officialSessionManifest(
   existing: EvaluationStorageDependencies['deployedOfficial'],
 ) {
   const result = [...existing]
-  for (const { capability } of [sessionShellAsset, admissionAsset, officialSessionAsset]) {
+  for (const { capability } of [
+    sessionShellAsset,
+    sessionFilesAsset,
+    sessionResultAsset,
+    admissionAsset,
+    officialSessionAsset,
+  ]) {
     const declared = result.find(
       entry =>
         entry.capability.category === capability.category &&
@@ -142,7 +183,13 @@ export async function deployOfficialSessionDefinition(
   const now = await clock.now()
   if (now === 'unavailable') throw new Error('official Session deployment clock unavailable')
   const result = await installOfficialFactoryDefinitions(dependencies, {
-    definitions: [sessionShellAsset, admissionAsset, officialSessionAsset],
+    definitions: [
+      sessionShellAsset,
+      sessionFilesAsset,
+      sessionResultAsset,
+      admissionAsset,
+      officialSessionAsset,
+    ],
     since: instantToRfc3339(now),
     holders: [
       { layer: 'organization', organization: tenant.organization },

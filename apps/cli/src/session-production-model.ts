@@ -12,6 +12,8 @@ import {
 } from '@omne-harness-lite/model-request-runtime'
 import { createSessionRunHistory } from '@omne-harness-lite/session-runtime-local'
 import { readSessionModelCalibration } from './session-model-calibration.ts'
+import { sessionImageCodec } from './session-image-codec.ts'
+import { modelImageBalancedV1 } from '@omne-harness-lite/pi-ai-transport'
 import type { SessionNativeModelPoolOptions } from './session-native-model.ts'
 
 export const sessionModelContention: SettlementContention = {
@@ -78,6 +80,7 @@ export function productionSessionModel(
     directory,
     modelIds,
     network: {
+      imagePreparation: { policy: modelImageBalancedV1, codec: sessionImageCodec },
       policy: {
         maxConnections: 8,
         idleConnectionTimeoutMs: 60_000,

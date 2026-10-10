@@ -74,7 +74,10 @@
     "@omne-harness-lite/execution-environments": "workspace:*",
     "@omne-harness-lite/execution-environments-host": "workspace:*",
     "@omne-harness-lite/meta-shell": "workspace:*",
-    "@omne-harness-lite/asset-model": "workspace:*"
+    "@omne-harness-lite/asset-model": "workspace:*",
+    "@omne-harness-lite/meta-files": "workspace:*",
+    "@omne-harness-lite/image-codec": "workspace:*",
+    "sharp": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

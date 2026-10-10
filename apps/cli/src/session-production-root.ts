@@ -1,3 +1,5 @@
+import { RESULT_CONTEXT_KEY } from './session-result-reader.ts'
+import { createSessionImageBytes } from './session-image-bytes.ts'
 import { createSessionDriverIdentities } from './session-driver-identities.ts'
 import { createSessionPresentation } from './session-presentation.ts'
 import { createAssetEvaluator } from '@omne-harness-lite/asset-evaluation'
@@ -13,12 +15,16 @@ import { createModalityProjection } from '@omne-harness-lite/model-message-proje
 import { inspectContextLogEntry } from '@omne-harness-lite/runtime-context-local'
 import { createRunnerTaskOwner } from '@omne-harness-lite/loop-extension-runner-local'
 import { inspectRunnerConclusion } from '@omne-harness-lite/loop-extension-runner'
+import { FILES_CONTEXT_KEY } from '@omne-harness-lite/meta-files'
 import { SHELL_CONTEXT_KEY } from '@omne-harness-lite/meta-shell'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import { tenantPaths } from './state-layout.ts'
 import { join } from 'node:path'
 import { createProductionSessionTools } from './session-production-tools.ts'
-import { registerSessionWorkspace } from './session-workspace-source.ts'
+import {
+  ensureSessionFilesRegistration,
+  registerSessionWorkspace,
+} from './session-workspace-source.ts'
 import {
   emptyAuthorizationContext,
   OFFICIAL_ADMISSION_NAME,
@@ -78,10 +84,15 @@ function contextAccess(
     )
     return {
       ...original,
-      operations: coordinatedOperations,
+      operations: [...coordinatedOperations, 'context.configure'],
       authority: {
         check(identity, operation) {
-          return coordinatedOperations.includes(operation)
+          return coordinatedOperations.includes(operation) ||
+            (operation === 'context.configure' &&
+              identity.consumer === 'coordinator' &&
+              identity.contextKeys.length === 2 &&
+              identity.contextKeys.includes(FILES_CONTEXT_KEY) &&
+              identity.contextKeys.includes(RESULT_CONTEXT_KEY))
             ? original.authority.check(identity, 'context.read')
             : Promise.resolve({ kind: 'rejected', reason: 'notAuthorized' })
         },
@@ -105,26 +116,29 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
     presentation,
     evaluator,
   )
-  const nativeModel = productionSessionModel(
-    {
-      governance: options.governance,
-      source: options.source,
-      tenant,
-      keyFile: options.keyFile,
-      diagnostics: { record: options.diagnostic },
-      onDiagnosticFailure: () => {
-        throw new Error('model directory diagnostic failed')
-      },
-      replicaDiagnostics: {
-        record: options.diagnostic,
-        sinkFailure: () => {
-          throw new Error('credential replica diagnostic failed')
+  const nativeModel = {
+    externalContent: tools.modelContentCustody,
+    ...productionSessionModel(
+      {
+        governance: options.governance,
+        source: options.source,
+        tenant,
+        keyFile: options.keyFile,
+        diagnostics: { record: options.diagnostic },
+        onDiagnosticFailure: () => {
+          throw new Error('model directory diagnostic failed')
+        },
+        replicaDiagnostics: {
+          record: options.diagnostic,
+          sinkFailure: () => {
+            throw new Error('credential replica diagnostic failed')
+          },
         },
       },
-    },
-    officialCatalog.map(entry => entry.definition.modelId),
-    options.diagnostic,
-  )
+      officialCatalog.map(entry => entry.definition.modelId),
+      options.diagnostic,
+    ),
+  }
   const observedModel = { ...nativeModel, presentation }
   let presence: ReturnType<typeof createCallContainerPresence> | undefined
   const sources = nativeModel.sources
@@ -237,6 +251,7 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
               journal,
               tenancy: owners.ingress.tenancy,
               initialFillRef: 'fill:' + journal.run,
+              refreshRoot: officialSessionDefinition,
               evaluation: { toolEnvironmentPermission: 'always-allow' },
               evaluator,
               registry: {
@@ -284,7 +299,7 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
                 principalKind: 'human',
                 scope,
                 consumer: 'tool',
-                contextKeys: [SHELL_CONTEXT_KEY],
+                contextKeys: [SHELL_CONTEXT_KEY, FILES_CONTEXT_KEY, RESULT_CONTEXT_KEY],
                 operations: coordinatedOperations,
               })
               if (access.kind !== 'issued') {
@@ -294,6 +309,21 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
               const toolAccess = access.access
               const runtimeContext = await context.ready
               workspace = await registerSessionWorkspace(runtimeContext, journal)
+              const configuration = await owners.contextAccess.issuer.issue({
+                principal: options.source.accountId,
+                principalKind: 'human',
+                scope,
+                consumer: 'coordinator',
+                contextKeys: [FILES_CONTEXT_KEY, RESULT_CONTEXT_KEY],
+                operations: ['context.configure'],
+              })
+              if (configuration.kind !== 'issued')
+                throw new Error('Files configuration access unavailable')
+              try {
+                await ensureSessionFilesRegistration(runtimeContext, configuration.access, scope)
+              } finally {
+                owners.contextAccess.issuer.revoke(configuration.access)
+              }
               const admission = { grants: emptyAuthorizationContext(), runMode: 'never' as const }
               runnerTasks = createRunnerTaskOwner({
                 ...scope,
@@ -363,6 +393,7 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
                 return { unavailable: true }
               }
               unregisterToolRun = tools.registerRun({
+                access: toolAccess,
                 scope,
                 run: journal.run,
                 input: bound.input,
@@ -381,7 +412,7 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
                 providers: {
                   ...directory,
                   tools: bound.registry,
-                  sourceVersions: { cliDefinition: '3', catalog: String(officialCatalogRevision) },
+                  sourceVersions: { cliDefinition: '4', catalog: String(officialCatalogRevision) },
                 },
                 selection: {
                   evaluator,
@@ -407,6 +438,10 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
                   recovery: sessionModelRecovery,
                   callPresence: actualPresence,
                 },
+                prepareImageBytes: createSessionImageBytes(
+                  reference => tools.readImage(toolAccess, scope, reference),
+                  { maxImages: 8, maxBytes: 524_288 },
+                ),
                 projection: {
                   cache: { identity: projectionIdentity },
                   rules: {

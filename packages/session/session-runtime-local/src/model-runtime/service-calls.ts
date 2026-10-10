@@ -1075,6 +1075,9 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
           {
             signal: AbortSignal.any([lease.signal, preparation?.signal ?? request.host.signal]),
             ...(scopeLease.reuseScope === undefined ? {} : { reuseScope: scopeLease.reuseScope }),
+            ...(request.host.imageBytes === undefined
+              ? {}
+              : { imageBytes: request.host.imageBytes }),
           },
         )
         try {

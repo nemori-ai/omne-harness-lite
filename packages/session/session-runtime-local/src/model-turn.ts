@@ -39,6 +39,13 @@ export interface SessionModelTurnOptions {
   readonly source: SessionModelResultSource
   readonly call: CallInput
   readonly projection: MessageProjectionInput
+  /** Read authorized attachment bytes without changing the original projected messages. */
+  readonly prepareImageBytes?: (
+    messages: OpenCallInput['messages'],
+  ) => Promise<
+    | { readonly imageBytes: NonNullable<OpenCallInput['host']['imageBytes']> }
+    | { readonly unavailable: true }
+  >
   readonly projections?: SessionMessageProjections
   readonly settlement: {
     readonly factory: SettlementCoordinatorFactory
@@ -118,13 +125,26 @@ class ModelTurn {
     return await this.finish(started.ref, started.pending, adopted.adoption)
   }
   async messages(): Promise<
-    { messages: OpenCallInput['messages'] } | Extract<SessionModelTurnResult, { retained: true }>
+    | { messages: OpenCallInput['messages']; host: OpenCallInput['host'] }
+    | Extract<SessionModelTurnResult, { retained: true }>
   > {
     const projected = await this.project()
     if (!('projected' in projected)) return await this.retain(projected)
     const messages = materializeMessages(projected.projected)
     if (!('materialized' in messages)) return await this.retain(messages)
-    return { messages: messages.materialized }
+    const host = this.options.call.host
+    if (!this.options.prepareImageBytes) return { messages: messages.materialized, host }
+    const prepared = await this.options.prepareImageBytes(messages.materialized)
+    if ('unavailable' in prepared) return await this.retain(prepared)
+    return {
+      messages: messages.materialized,
+      host: {
+        signal: host.signal,
+        stopping: () => host.stopping(),
+        register: close => host.register(close),
+        imageBytes: prepared.imageBytes,
+      },
+    }
   }
   async project() {
     if (this.options.projections)
@@ -150,6 +170,7 @@ class ModelTurn {
       run: options.preparation.run,
       attempt: options.preparation.attempt,
       messages: projected.messages,
+      host: projected.host,
     })
     if (!('ref' in opened)) return await this.retain(opened)
     if (opened.ref.callId !== options.preparation.call)

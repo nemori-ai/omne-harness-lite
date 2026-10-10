@@ -490,6 +490,7 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
       const completion = transport.plan(missing ? missing.original : requested, {
         signal: AbortSignal.any([signal, input.signal]),
         ...(input.reuseScope === undefined ? {} : { reuseScope: input.reuseScope }),
+        ...(input.imageBytes === undefined ? {} : { imageBytes: input.imageBytes }),
       })
       return input.trackPlan === undefined ? await completion : await input.trackPlan(completion)
     })

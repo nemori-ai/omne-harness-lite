@@ -660,7 +660,7 @@ G28的`query`可重新排入原状态为unavailable的ticket，保留身份和�
 
 可信宿主可通过 `LocalSessionIngress.resumePreparedCall` 认回已经持久准备、尚未发起的模型调用。普通客户端协议不暴露此操作。调用方须先取得存储的独占 Driver 所有权；该操作不支持并发宿主接管。
 
-操作在同一 StorageUnit 内核实 coordination authority、固定租户、原 Run grant、active Session、runnable Run和最新 Attempt。请求的 SourceToken 必须与当前日志完全一致。日志末尾只接受原 `call_prepared`，或该准备之后一条由原拥有者严格解释的同 Call、Run、Attempt 的 `tools_adopted`。其他尾随记录一律拒绝。
+操作在同一 StorageUnit 内核实 coordination authority、固定租户、原 Run grant、active Session、runnable Run和最新 Attempt。请求的 SourceToken 必须与当前日志完全一致。定位准备记录时，仅忽略经可信构造参数 `isContextLogEntry` 由原拥有者验证的连续 Runtime Context 事实。这些事实可在原准备之前、准备与工具采用之间或工具采用之后；未装配该验证器时不跳过任何记录。正式应用选择公开 `inspectContextLogEntry`，校验事件、作用域和日志封装，不按 owner 字符串放行。这些记录不替代会话控制事实，也不授予执行权。逐段验证这些记录后，只接受原 `call_prepared`，或其后由原拥有者严格解释的同 Call、Run、Attempt 的 `tools_adopted`。遇到任何其他尾随记录即拒绝，不越过未知记录寻找较早准备。当前 SourceToken 仍须包含被跳过的 Context 事实，原准备与回执的位置不重新编号。
 
 持久 prepareCall、原 StepReceipt 和日志事实的身份、位置及 generation 必须一致，`sr_model_issue` 不得存在该 Call。条件不满足时不写持久状态、不发模型请求。成功签发的真实 AttemptPermit 绑定现有 execution_generation，不修改 Run、Attempt、输入或日志。同一提供者并发认回复用一个恢复 permit。
 
@@ -681,3 +681,7 @@ Run来源的`projection.cache.identity`是进程内可信解析策略身份。�
 历史模式`external:null`仅缓存历史消息，system必须为空。当前模型、工具和参数继续由本次请求取得。压缩影响旧块、增量失效或规则变更时使用完整冷建。容量超限时完整冷建且记住本代次/规则不可缓存，直到其改变；不截断历史。相同Session不并发更新缓存，驱动排空后清理。返回的不可变投影可继续用于同步materialize，逐出不改变其内容。
 
 热投影处理新增条目并共享旧段；materialize仍按输出消息及字节线性工作。其他完整日志消费者、请求序列化及上游模型耗时不在此性能界内。
+
+## 请求内容准备
+
+SessionModelTurnOptions 的可选 prepareImageBytes 在历史投影物化后、原 Call 创建前执行。可信宿主核验附件权限，并有界读取原引用对应的固定字节。返回值只包含 imageBytes，不允许改写投影消息。原消息及其附件引用用于 Session 日志来源核验和计量校准；字节随 ModelCallHost 借给本次原调用，在创建计划与发起计划时传给已有 PlanExecutionContext.imageBytes，只有传输层将图片转换为请求表示。该操作不修改持久日志或投影缓存。返回 unavailable 时保留当前 turn，且不创建或发起模型 Call。SessionDriverRunSources 将同一借入端口传给当前 Run，原 Run 关闭与访问撤销继续约束读取。重建原调用时重新从当前授权的原附件读取，不从旧传输表示猜测字节。

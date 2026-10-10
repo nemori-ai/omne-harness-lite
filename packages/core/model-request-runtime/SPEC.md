@@ -348,6 +348,8 @@ dispatched 表示原发起锚点，不表示收到模型内容。opened 继续�
 
 ## 请求内图片字节
 
+ModelCallHost.imageBytes 与 AnchoredInvocationInput.imageBytes 借入同一形状的固定附件字节，分别供 Session 原调用和独立协调调用的计划阶段使用。调用者负责在原调用关闭前保持字节不变；字节不进入持久消息、语义摘要或调用身份。创建与发起计划使用相同原引用和字节，重建后由宿主重新授权读取。
+
 PlanExecutionContext.imageBytes 是可选的请求内执行依赖。调用者先完成原附件权限检查和有界读取，再提供原引用与固定字节的一一对应快照。它不授予 Session 或附件权限。plan 不通过此端口联网或读取持久源，原 IO 禁止不变。
 
 适配器仅在 wire 投影中消费固定字节。PlannedSemantics.input 保留原经验证的 PlanInput，不能将展开后的消息作为新的原语义输入。不得伪造品牌计划绕过原输入相等检查。缺失、重复或取消的快照明确拒绝，不能以未知 locator 冒充已发送图片。未提供快照不承诺支持外部引用，原 inline 图片路径不变。

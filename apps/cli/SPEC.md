@@ -40,6 +40,18 @@ closed 保留协调器报告及 fiber/端口撤除错误。正常本地打开失
 
 重新启动认回原 release、revision 和安装时间；冲突、Clock unavailable 或发布结果不明均停止该次启动并收场，不覆盖、不重发、不把会话发布为 active。此装配承诺不表示正式 main 已完成宿主进程启动或真实 OpenRouter 验收。
 
+## 官方 Files 工具
+
+官方会话定义版本 4 在 Shell 之外引用 Files 和 Result。应用把原公开 Files 工厂、Sharp 图像 codec、同一装配参数校验器和宿主文件设施接入租户工具池，附件使用原 `cli-tool-results` 存储。Files 默认允许执行，仍经过原工具准入。相对路径取该 Session 创建时持久化的工作目录；该目录不构成文件访问沙箱。Files 不通过 Shell 执行文件操作。
+
+版本 4 保持版本 3 的初始化 seed。应用在原 Runtime Context 上动态登记可选 `files.initial` 和 `tool-results.scope`。前者与 `shell.initial` 共用原工作目录来源，后者只返回原 Session 身份。配置只借用单独、短时的 coordinator 权限，完成后撤销；工具只取得读取权限。相同登记直接认回，冲突不覆盖。Run 结束撤除来源实例，不删除持久登记。既有合法会话按原当前资产选择采用新定义，不改写历史初始化事实或配方。
+
+Result 读取工具必须与结果存储同时装配并登记真实实现，不能仅声称存在读取器。它从受控 Context 读取原 Session，使用该 Run 的实际访问资格调用结果存储的 readBytes。用户参数只能给出完整 AttachmentRef，不能选择租户或 Session。每次读取至多 512 KiB；图片返回内联字节，不把旧调用的附件重新归属给当前调用。关闭时先排空工具池和结果存储，再撤销实现。
+
+模型请求在缓存历史投影物化后、原 Call 创建前准备图片。应用通过原 Session 与实时 Access 从结果存储读取已确认图片；原消息和附件引用保持不变，固定字节经 ModelCallHost.imageBytes 单独进入创建计划与发起计划。只有传输层转换请求表示。模型传输层同时装配公开的 `modelImageBalancedV1` 图片准备策略与共享 Sharp codec，由传输提供者管理准备任务、缓存和关闭。原 Session Log、工具结果和投影缓存保留附件引用。每次请求最多读取 8 个不同图片、合计 524288 字节；超限在读取前拒绝。不可读取、被拒绝或字节数不符时不提交该模型请求。隐藏父块中的图片不读取。Model Runtime 和 Tool Runtime 不新增日志恢复或文件读取职责。
+
+模型调用引用外部内容时，应用通过现有 ModelCallExternalContentCustody 确认原附件保管。确认覆盖原输入、实际采用消息、完整回复及原始响应正文的全部引用，包括隐藏内容、派生表示和 offloaded 结果。确认使用实际当前 Run 的 SessionAccess 及不可变工具结果存储，核对租户、会话、完整引用和字节；已停止、无原 Run、缺失或不可读取均不确认。该存储没有自动删除或过期路径，原文件在 Run、模型调用及宿主关闭后保留，供后续有权读取和恢复使用。
+
 ## 应用根与租户目录
 
 负责人已明确每租户有独立目录，并能识别自己的治理中心。应用路径形状由
@@ -338,7 +350,11 @@ session-bootstrap固定原center／account／login handle／tenant，借入真�
 
 runRegistry只接受同Scope、当前世代的原Run journal。它经evaluation-input-store的./admitted读取原Run固定根可用性和历史正文，不伪造当前成员或授予reload。应用保留读取器的关闭责任；单次借用释放或整个bootstrap关闭时，先排空读取器，再释放其借入的journal、manifest和Storage。
 
-createSessionRunAssets组合原Run输入、历史正文和实际AssetRegistry。构造同步返回包含ready和close的原资源拥有者，初始化失败后仍保留关闭入口。只有manifest为空时才按显式求值策略和initialFillRef填入六表；已有manifest必须从原表重建，不因新Run或新的initialFillRef重新填表。读取或填表未确认时ready返回unavailable，不自动重发。关闭先停止初始化发布，等待已开始的初始化，再关闭注册表和输入读取器；借入bootstrap、manifest、journal和Storage仍归原宿主。
+createSessionRunAssets组合原Run输入、历史正文和实际AssetRegistry。构造同步返回包含ready和close的原资源拥有者，初始化失败后仍保留关闭入口。manifest为空时按显式求值策略和initialFillRef填入六表。默认从已有manifest重建，不因新Run或新的initialFillRef重新填表。
+
+正式CLI显式选择其官方Session定义作为refreshRoot。只有当前合法输入与原manifest的根能力均为该定义，且实际选中资产或版本改变，才通过原注册表完整求值和fill重装配。重装配采用由原initialFillRef、当前manifest head及实际根能力、资产和版本派生的独立填表身份，不能复用原版本的填表身份；填表后重新核实manifest根已对应当前选择。能力不匹配、原根来源不唯一或读取失败不能授权重装配。同一资产版本不重复填表；其他消费者未选择refreshRoot时保持原manifest。重装配不改写Session初始化快照、历史消息、原调用或原操作身份。后续模型请求分别消费当前系统提示、工具声明与原消息历史，历史工具调用仍使用原采用事实。
+
+读取或填表未确认时ready返回unavailable，不自动重发。关闭先停止初始化发布，等待已开始的初始化，再关闭注册表和输入读取器；借入bootstrap、manifest、journal和Storage仍归原宿主。
 
 此装配构件的组合测试必须区分实际持久资格、资产和Context与受控运输／seed／访问端口。独立宿主、动态Agent贡献、真实SessionAccess发行、模型和工具消费者及默认产品路径仍须完整B01验收；构件通过不能作为三张故事卡完成的依据。
 

@@ -1,3 +1,4 @@
+import { createSessionModelContentCustody } from './session-model-content.ts'
 import { observeSessionToolPool } from './session-tool-presentation.ts'
 import { createAssetEvaluator, type AssetEvaluator } from '@omne-harness-lite/asset-evaluation'
 import type { SessionPresentationStore } from './session-presentation.ts'
@@ -45,10 +46,17 @@ import type {
   SessionRuntimeRootOwners,
   SessionDriverRuntimeRootOptions,
 } from './session-runtime-root-types.ts'
+import { createSessionFiles, sessionFilesAsset } from './session-files.ts'
+import {
+  createSessionResultReader,
+  sessionResultAsset,
+  sessionResultDefinition,
+} from './session-result-reader.ts'
 import { createSessionShell, sessionShellAsset } from './session-shell.ts'
 import { randomUUID } from 'node:crypto'
 
 interface RunSources {
+  readonly access: import('@omne-harness-lite/session-tenancy').SessionAccess
   readonly run: string
   readonly scope: SessionScope
   readonly input: CurrentEvaluationInputs
@@ -75,6 +83,8 @@ export function createProductionSessionTools(
     options: owner.options,
     open: owner.open,
     registerRun: owner.registerRun,
+    readImage: owner.readImage,
+    modelContentCustody: owner.modelContentCustody,
     factory: owner.factory,
   }
 }
@@ -94,7 +104,7 @@ class ProductionTools {
   withdrawHost?: () => Promise<void>
   withdrawPlacement?: () => Promise<void>
   withdrawRuntime?: () => Promise<void>
-  withdrawImplementation?: () => void
+  readonly withdrawImplementations: (() => void)[] = []
   stopped = false
   constructor(
     readonly tenant: TenantId,
@@ -167,7 +177,7 @@ class ProductionTools {
       await this.withdrawPlacement?.()
       await this.withdrawHost?.()
       await this.environments?.close()
-      this.withdrawImplementation?.()
+      for (const withdraw of this.withdrawImplementations.splice(0).reverse()) withdraw()
     },
   }
   run(scope: SessionScope) {
@@ -182,6 +192,18 @@ class ProductionTools {
       this.run(scope)?.admission.verifyToken(access, scope, token, call) ??
       Promise.resolve({ kind: 'failed', reason: 'unavailable' }),
   }
+  readImage = async (
+    access: import('@omne-harness-lite/session-tenancy').SessionAccess,
+    scope: SessionScope,
+    reference: import('@omne-harness-lite/content-blocks').AttachmentRef,
+  ) => {
+    const result = await this.results?.operations.readBytes(access, scope, reference)
+    return result?.kind === 'read' ? result.bytes : undefined
+  }
+  readonly modelContentCustody = createSessionModelContentCustody(async (scope, reference) => {
+    const run = this.run(scope)
+    return !this.stopped && run ? this.readImage(run.access, scope, reference) : undefined
+  })
   registerRun = (sources: RunSources) => {
     if (
       this.stopped ||
@@ -251,6 +273,21 @@ class ProductionTools {
         storage: files.storage,
       }),
     )
+    const resultReader = {
+      capability: capabilityCanonicalString(sessionResultAsset.capability),
+      asset: sessionResultAsset.id,
+      version: '1',
+      definition: sessionResultDefinition,
+    }
+    this.withdrawImplementations.push(
+      this.implementations.register({
+        ...resultReader,
+        executor: createSessionResultReader(async (session, reference) => {
+          const run = this.runs.get(session)
+          return run ? this.readImage(run.access, run.scope, reference) : undefined
+        }),
+      }),
+    )
     this.results = await openToolResultStorage(
       { directory: this.directory, storage: 'cli-tool-results' },
       {
@@ -259,6 +296,10 @@ class ProductionTools {
         backing: owners.log.backing,
         history: this.history,
         recoveryAuthority,
+        reader: {
+          selected: { ...resultReader, adoption: 'cli-result-reader-v1' },
+          implementations: this.implementations,
+        },
       },
     )
     this.custody = await openToolResultCustodySource(
@@ -271,12 +312,22 @@ class ProductionTools {
         original: createToolOriginalIssueVerifier(files.storage),
       },
     )
-    this.withdrawImplementation = this.implementations.register({
-      capability: capabilityCanonicalString(sessionShellAsset.capability),
-      asset: sessionShellAsset.id,
-      version: '1',
-      ...createSessionShell(this.evaluator.parameters),
-    })
+    this.withdrawImplementations.push(
+      this.implementations.register({
+        capability: capabilityCanonicalString(sessionShellAsset.capability),
+        asset: sessionShellAsset.id,
+        version: '1',
+        ...createSessionShell(this.evaluator.parameters),
+      }),
+    )
+    this.withdrawImplementations.push(
+      this.implementations.register({
+        capability: capabilityCanonicalString(sessionFilesAsset.capability),
+        asset: sessionFilesAsset.id,
+        version: '1',
+        ...createSessionFiles(this.evaluator.parameters),
+      }),
+    )
     this.withdrawPlacement = environments.placements.registerPlacementSource(
       createToolEnvironmentPlacementSource(
         {

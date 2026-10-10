@@ -75,6 +75,7 @@ export interface SessionDriverRunSources {
   readonly providers: Omit<SessionRuntimeBinding, 'log' | 'selection' | 'currentEvaluationInputs'>
   readonly selection: Omit<SessionModelSelectionInput, 'binding' | 'currentEvaluationInputs'>
   readonly host: Omit<ModelRuntimeHostInputs, 'sessions' | 'callAccess' | 'identities'>
+  readonly prepareImageBytes?: import('./model-turn.ts').SessionModelTurnOptions['prepareImageBytes']
   readonly projection: MessageProjectionInput
   readonly release: () => Promise<void>
 }

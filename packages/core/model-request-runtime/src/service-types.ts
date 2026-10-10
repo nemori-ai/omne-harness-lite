@@ -135,6 +135,8 @@ export type OpenCallRun =
 /** The original call's actual lifetime owner, independent of session identity. */
 export interface ModelCallHost {
   readonly signal: AbortSignal
+  /** Authorized immutable attachment bytes, borrowed until the original call is closed. */
+  readonly imageBytes?: import('./invocation-types.ts').PlanExecutionContext['imageBytes']
   readonly stopping: () => boolean
   readonly register: (
     close: () => Promise<RuntimeCloseResult>,

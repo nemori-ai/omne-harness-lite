@@ -196,6 +196,9 @@ importers:
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../packages/core/identity-values
+      '@omne-harness-lite/image-codec':
+        specifier: workspace:*
+        version: link:../../packages/util/image-codec
       '@omne-harness-lite/kernel-basis':
         specifier: workspace:*
         version: link:../../packages/core/kernel-basis
@@ -208,6 +211,9 @@ importers:
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../../packages/core/messages
+      '@omne-harness-lite/meta-files':
+        specifier: workspace:*
+        version: link:../../packages/tools/meta-files
       '@omne-harness-lite/meta-shell':
         specifier: workspace:*
         version: link:../../packages/tools/meta-shell
@@ -286,6 +292,9 @@ importers:
       ajv:
         specifier: 'catalog:'
         version: 8.20.0
+      sharp:
+        specifier: 'catalog:'
+        version: 0.35.3(@types/node@24.13.6)
       zod:
         specifier: 'catalog:'
         version: 4.6.5

@@ -1,3 +1,4 @@
+import { inspectContextLogEntry } from '@omne-harness-lite/runtime-context-local'
 import { instantToRfc3339 } from '@omne-harness-lite/offer-expiry'
 import {
   createAssemblyManifestStore,
@@ -167,6 +168,7 @@ class RuntimeRoot {
     })
     this.work = work
     this.ingress = createLocalSessionIngress({
+      isContextLogEntry: (scope, entry) => 'event' in inspectContextLogEntry(scope, entry),
       ...o.tools,
       ...(o.inputSource.evaluator ? { parameters: o.inputSource.evaluator.parameters } : {}),
       storage: o.storage,

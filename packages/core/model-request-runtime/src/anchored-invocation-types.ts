@@ -64,6 +64,7 @@ export interface AnchoredInvocationInput<P extends PlannedSemantics, R> {
   readonly planInput: PlanInput
   readonly transport: TransportAdapter<P, R>
   readonly reuseScope?: object
+  readonly imageBytes?: import('./invocation-types.ts').PlanExecutionContext['imageBytes']
   /** Dynamic consumers retain their exact lease for the entire planning task. */
   readonly trackPlan?: <T>(task: Promise<T>) => Promise<T>
   readonly credential: string

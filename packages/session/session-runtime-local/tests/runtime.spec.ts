@@ -209,7 +209,12 @@ async function fixture(
     storage: SqlStorage,
   ) => Pick<
     RuntimeOptions,
-    'modelIssue' | 'modelResults' | 'toolIssue' | 'toolResults' | 'toolDelivery'
+    | 'modelIssue'
+    | 'modelResults'
+    | 'toolIssue'
+    | 'toolResults'
+    | 'toolDelivery'
+    | 'isContextLogEntry'
   >,
   readTime: RuntimeOptions['now'] = async () => at,
   workSettledIn: RuntimeOptions['workSettledIn'] = async () => 'settled',
@@ -7993,6 +7998,142 @@ it.each([6, 10, 110])(
       expect(finished).toHaveProperty('kind', 'committed')
     } finally {
       await restarted.close()
+    }
+  },
+)
+
+it.each(['valid', 'adopted', 'malformed'] as const)(
+  'handles independent Runtime Context tail: %s',
+  async mode => {
+    const f = await fixture(undefined, 32, () => ({
+      isContextLogEntry: (scope, entry) => 'event' in inspectContextLogEntry(scope, entry),
+    }))
+    const p = await preparedAttempt(f)
+    const prepared = await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      p.scope,
+      p.attempt.source,
+      p.step,
+    )
+    if (!('kind' in prepared) || prepared.kind !== 'committed')
+      throw new Error('preparation unavailable')
+    for (const fragment of runtimeContextMigrations)
+      await f.storage.write(tx => fragment.migration.up(tx.db))
+    const backing = f.log().backing.borrow()
+    const context = createRuntimeContext({
+      storage: f.storage,
+      log: backing.log,
+      access: { authorize: async () => ({ kind: 'rejected', reason: 'notAuthorized' }) },
+      now: async () => at,
+    })
+    try {
+      expect(
+        await context.initializer.initializeContextSession(p.scope, {
+          required: [],
+          initial: [],
+          fixed: [],
+        }),
+      ).toHaveProperty('kind', 'applied')
+      if (mode === 'adopted') {
+        const current = await f.runtime.journal.readPrefix(f.runtime.access, p.scope.session)
+        if ('failure' in current) throw new Error('current prefix unavailable')
+        const journal = await f.runtime.runJournal.borrow(
+          f.runtime.coordinationAuthority,
+          p.scope,
+          p.step.run,
+        )
+        if (!('journal' in journal)) throw new Error('Run journal unavailable')
+        try {
+          expect(
+            await journal.journal.log.append(
+              p.scope.session,
+              [
+                {
+                  tenant: p.scope.tenant,
+                  run: p.step.run,
+                  attempt: p.step.attempt,
+                  readKeys: [],
+                  dedupeKey: `session-runtime-tool-actions/1/adoption/${JSON.stringify(p.step.call)}`,
+                  payload: {
+                    kind: 'fact',
+                    owner: 'session-runtime-tool-actions',
+                    version: '1',
+                    value: {
+                      kind: 'tools_adopted',
+                      call: p.step.call,
+                      run: p.step.run,
+                      attempt: p.step.attempt,
+                      report: {
+                        session: p.scope.session,
+                        runId: p.step.run,
+                        attempt: p.step.attempt,
+                        computedAt: unwrap(instantFromRfc3339(at)),
+                        snapshots: REGISTERED_CATEGORIES.map(category => ({
+                          category,
+                          filledAt: unwrap(instantFromRfc3339(at)),
+                        })),
+                        availability: [],
+                        mcpActions: [],
+                        endpointHoldings: [],
+                        effectivePermissions: {},
+                        skillGate: [],
+                      },
+                      tools: [],
+                    },
+                  },
+                },
+              ],
+              { kind: 'fenced', run: p.step.run, attempt: p.step.attempt },
+              { kind: 'tailEquals', tail: current.source.tail },
+            ),
+          ).not.toHaveProperty('failure')
+        } finally {
+          await journal.journal.close()
+        }
+      }
+      if (mode === 'malformed') {
+        const current = await f.runtime.journal.readPrefix(f.runtime.access, p.scope.session)
+        if ('failure' in current) throw new Error('current prefix unavailable')
+        const appended = await backing.log.append(
+          p.scope.session,
+          [
+            {
+              tenant: p.scope.tenant,
+              dedupeKey: 'context:malformed',
+              readKeys: ['runtime-context'],
+              payload: {
+                kind: 'fact',
+                owner: 'runtime-context',
+                version: '1',
+                value: { kind: 'unknown' },
+              },
+            },
+          ],
+          { kind: 'unfenced' },
+          { kind: 'tailEquals', tail: current.source.tail },
+        )
+        expect(appended).not.toHaveProperty('failure')
+      }
+      const before = await f.runtime.journal.readPrefix(f.runtime.access, p.scope.session)
+      if ('failure' in before) throw new Error('current prefix unavailable')
+      expect(before.source).not.toEqual(prepared.source)
+      const recovered = await f.runtime.resumePreparedCall(
+        f.runtime.coordinationAuthority,
+        p.scope,
+        before.source,
+      )
+      if (mode === 'malformed') expect(recovered).toEqual({ failure: 'retryFromFacts' })
+      else
+        expect(recovered).toMatchObject({
+          kind: 'prepared',
+          source: before.source,
+          preparation: { call: p.step.call, stepKey: p.step.stepKey },
+        })
+      expect(await f.runtime.journal.readPrefix(f.runtime.access, p.scope.session)).toEqual(before)
+    } finally {
+      context.closeAdmission()
+      await context.drain()
+      await backing.release()
     }
   },
 )

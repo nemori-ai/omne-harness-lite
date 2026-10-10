@@ -197,6 +197,7 @@ class ModelSegment {
       preparation,
       linked: this.linked!,
       source: options.model.results,
+      ...(sources.prepareImageBytes ? { prepareImageBytes: sources.prepareImageBytes } : {}),
       projection: toolAdoptionProjection(scope, sources.projection, sources.selection.evaluator),
       ...(this.projections ? { projections: this.projections } : {}),
       resultKey: prepared.identities.resultKey,

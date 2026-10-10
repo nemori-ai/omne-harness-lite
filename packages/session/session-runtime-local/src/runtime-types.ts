@@ -25,7 +25,7 @@ import type {
   CoordinationAuthority,
   SessionWorkReading,
 } from '@omne-harness-lite/session-runtime'
-import type { SourceToken } from '@omne-harness-lite/session-log'
+import type { SourceToken, LogEntry } from '@omne-harness-lite/session-log'
 import type { LogAuthorityOperations, SessionLogParticipant } from '@omne-harness-lite/session-log'
 import type { AdmissionSource, AdmissionTicket, LocalAdmission } from './admission-types.ts'
 import type { StateOptions, StatePolicy } from './state-types.ts'
@@ -58,6 +58,8 @@ export interface RuntimePolicy {
 /** Private trusted construction. These values are not command or protocol body claims. */
 export interface RuntimeOptions {
   readonly parameters?: ParameterJudge
+  /** Pure owner-selected validator for Context facts; absence permits no such tail records. */
+  readonly isContextLogEntry?: (scope: SessionScope, entry: LogEntry) => boolean
 
   readonly storage: AtomicStorage
   readonly admission: LocalAdmission

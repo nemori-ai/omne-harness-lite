@@ -280,6 +280,12 @@ test('service dispatch writes both anchors before handing out a complete pending
       },
     }
     const lifecycleHost = {
+      imageBytes: [
+        {
+          reference: { storage: 'test-images', key: 'fixed-image', mediaType: 'image/png' },
+          bytes: new Uint8Array([1, 2, 3]),
+        },
+      ],
       signal: new AbortController().signal,
       stopping: () => false,
       register: () => ({ registration: { unregister() {} } }),
@@ -396,6 +402,7 @@ test('service dispatch writes both anchors before handing out a complete pending
             transport: {
               ...wire.adapter,
               async plan(input, execution) {
+                expect(execution.imageBytes).toEqual(lifecycleHost.imageBytes)
                 return finalPlanFailure ?? wire.adapter.plan(input, execution)
               },
               async send(planned, credential, signal) {

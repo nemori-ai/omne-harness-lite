@@ -11,6 +11,10 @@ import {
 import type { CurrentInputReader } from '@omne-harness-lite/evaluation-input-store'
 import type { BorrowedRunJournal } from '@omne-harness-lite/session-runtime-local'
 import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy'
+import { capabilityCanonicalString, type CapabilityId } from '@omne-harness-lite/asset-model'
+import { compareInteger } from '@omne-harness-lite/session-log'
+import { createHash } from 'node:crypto'
+import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import type { SessionBootstrapAssembly } from './session-bootstrap.ts'
 
 export interface SessionRunAssetOptions {
@@ -18,6 +22,7 @@ export interface SessionRunAssetOptions {
   readonly journal: BorrowedRunJournal
   readonly tenancy: SessionTenancyService
   readonly initialFillRef: string
+  readonly refreshRoot?: CapabilityId
   readonly evaluation: EvaluationOptions
   readonly evaluator?: AssetEvaluator
   readonly registry: Omit<
@@ -62,6 +67,12 @@ export function createSessionRunAssets(options: SessionRunAssetOptions): Session
     const head = await options.registry.manifest.readHead(scope.session)
     if (!('head' in head) || stopped) return false
     if (head.head === 0 && !(await fillInitial(input, registry, options))) return false
+    if (
+      head.head !== 0 &&
+      options.refreshRoot &&
+      !(await refreshRegistry(input, registry, options, head.head))
+    )
+      return false
     const restored = await registry.list(scope.session, 'tool', { kind: 'session' })
     return 'entries' in restored
   }
@@ -82,21 +93,63 @@ export function createSessionRunAssets(options: SessionRunAssetOptions): Session
   })
 }
 
+async function refreshRegistry(
+  input: CurrentInputReader,
+  registry: AssetRegistry,
+  options: SessionRunAssetOptions,
+  head: number,
+) {
+  const ref = await rootChanged(input, options, head)
+  if (ref === 'unavailable') return false
+  if (ref === false) return true
+  if (!(await fillInitial(input, registry, options, ref))) return false
+  return (await rootChanged(input, options, head)) === false
+}
+
+async function rootChanged(
+  input: CurrentInputReader,
+  options: SessionRunAssetOptions,
+  head: number,
+) {
+  const { scope } = options.journal
+  const current = await input.read(scope.session, scope.tenant)
+  if (!('input' in current)) return 'unavailable' as const
+  const definition = capabilityCanonicalString(current.input.root.definition)
+  if (!options.refreshRoot || definition !== capabilityCanonicalString(options.refreshRoot))
+    return false
+  const original = await options.registry.manifest.readEvaluation(scope.session)
+  if (!('evaluation' in original)) return 'unavailable' as const
+  if (definition !== capabilityCanonicalString(original.evaluation.root))
+    return 'unavailable' as const
+  const roots = original.evaluation.assets.filter(
+    asset => capabilityCanonicalString(asset.capability) === definition,
+  )
+  const before = roots[0]
+  if (roots.length !== 1 || !before) return 'unavailable' as const
+  const after = current.input.root.source
+  if (before.asset === after.asset && compareInteger(before.version, after.version) === 0)
+    return false
+  return (
+    'fill:root:' +
+    createHash('sha256')
+      .update(
+        writeJsonLossless([options.initialFillRef, head, definition, after.asset, after.version]),
+      )
+      .digest('hex')
+  )
+}
+
 async function fillInitial(
   input: CurrentInputReader,
   registry: AssetRegistry,
   options: SessionRunAssetOptions,
+  ref = options.initialFillRef,
 ): Promise<boolean> {
   const { scope } = options.journal
   const current = await input.read(scope.session, scope.tenant)
   if (!('input' in current)) return false
   const selected = (options.evaluator?.evaluate ?? evaluate)(current.input, options.evaluation)
   if (!('ok' in selected)) return false
-  const filled = await registry.fill(
-    scope.session,
-    selected.ok,
-    options.initialFillRef,
-    selected.ok.composition,
-  )
+  const filled = await registry.fill(scope.session, selected.ok, ref, selected.ok.composition)
   return 'snapshots' in filled
 }

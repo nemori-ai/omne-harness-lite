@@ -151,10 +151,14 @@ import { evaluationInputMigrations } from '@omne-harness-lite/evaluation-input-s
 import {
   publishLocalInputs,
   readPublicationRevision,
+  installOfficialFactoryDefinition,
 } from '@omne-harness-lite/evaluation-input-store/publication'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import { contextSeedFromDefinition } from '../src/session-seed.ts'
-import { registerSessionWorkspace } from '../src/session-workspace-source.ts'
+import {
+  ensureSessionFilesRegistration,
+  registerSessionWorkspace,
+} from '../src/session-workspace-source.ts'
 import { createSessionAdmissionProbe } from '../src/session-admission-probe.ts'
 import type { AccessIdentity } from '@omne-harness-lite/session-tenancy'
 import { createSessionBootstrap, type SessionBootstrapOptions } from '../src/session-bootstrap.ts'
@@ -784,9 +788,10 @@ it('deploys the actual CLI official release and creates an independently initial
     input: {
       root: {
         definition: officialSessionDefinition,
-        source: { asset: officialSessionAsset.id, version: 3 },
+        source: { asset: officialSessionAsset.id, version: 4 },
         references: [
           { capability: { category: 'tool', name: 'Shell' } },
+          { capability: { category: 'tool', name: 'Files' } },
           { capability: { category: 'loop_extension', name: 'omne-official:admission-judgment' } },
         ],
       },
@@ -1888,6 +1893,113 @@ async function originalModelInput(
   if (!('kind' in accepted) || accepted.kind !== 'accepted') throw new Error('input not accepted')
   return { f, scope, accepted }
 }
+it('reassembles an explicitly selected release root without changing the original Session log', async () => {
+  const f = await originalModelInput()
+  const prepared = await prepareSessionModelRun({
+    ingress: f.f.runtime,
+    scope: f.scope,
+    identities: {
+      startKey: 'upgrade-run',
+      attemptKey: 'upgrade-attempt',
+      prepareKey: 'upgrade-prepare',
+      call: 'upgrade-call',
+      originalPosition: 'upgrade-origin',
+    },
+  })
+  if (!('kind' in prepared) || prepared.kind !== 'prepared')
+    throw new Error('original Run preparation unavailable')
+  const borrowed = await f.f.runtime.runJournal.borrow(
+    f.f.runtime.coordinationAuthority,
+    f.scope,
+    prepared.preparation.run,
+  )
+  if (!('journal' in borrowed)) throw new Error('original Run journal unavailable')
+  cleanup.push(borrowed.journal.close)
+  for (const migration of assemblyManifestMigrations)
+    await f.f.storage.write(tx => migration.migration.up(tx.db))
+  const manifest = createAssemblyManifestStore(f.f.storage)
+  cleanup.push(() => manifest.close())
+  const options = {
+    bootstrap: f.f.assembly,
+    journal: borrowed.journal,
+    tenancy: f.f.runtime.tenancy,
+    initialFillRef: 'release-v1-fill',
+    evaluation: { toolEnvironmentPermission: 'always-allow' as const },
+    registry: {
+      manifest,
+      deployedMeta: [],
+      clock: { now: async () => unwrap(instantFromRfc3339(now)) },
+      diagnostic() {},
+      diagnosticFailure() {},
+      monotonicNow: process.hrtime.bigint,
+      conflictPolicy: { maxRetries: 0 },
+      maxInFlight: 4,
+    },
+  }
+  const first = createSessionRunAssets(options)
+  cleanup.push(first.close)
+  const original = await first.ready
+  if ('unavailable' in original) throw new Error('initial registry unavailable')
+  const initial = await original.input.read(f.scope.session, tenant)
+  if (!('input' in initial)) throw new Error('original evaluation inputs unavailable')
+  const root = initial.input.definitions.find(item => item.id === 'root-asset')
+  if (!root) throw new Error('actual release root unavailable')
+  const next = await installOfficialFactoryDefinition(f.f.base, {
+    definition: {
+      ...root,
+      versions: [
+        ...root.versions,
+        { ...root.versions[0], number: 2, publishedAt: '2026-10-10T00:00:00Z' },
+      ],
+    },
+    since: '2026-10-10T00:00:00Z',
+    holders: [
+      { layer: 'organization', organization: tenant.organization },
+      { layer: 'tenant', tenant },
+    ],
+  })
+  expect(next).not.toHaveProperty('failure')
+  await first.close()
+  const before = await borrowed.journal.readPrefix()
+  const fixed = createSessionRunAssets({ ...options, initialFillRef: 'must-retain-original' })
+  cleanup.push(fixed.close)
+  const retained = await fixed.ready
+  if ('unavailable' in retained) throw new Error('fixed registry unavailable')
+  expect(
+    await retained.registry.refreshAvailability(
+      f.scope.session,
+      { kind: 'start', runId: prepared.preparation.run },
+      prepared.preparation.attempt,
+    ),
+  ).toEqual({ failure: 'unavailable' })
+  expect(await manifest.readHead(f.scope.session)).toHaveProperty('head', 1)
+  await fixed.close()
+  const upgraded = createSessionRunAssets({
+    ...options,
+    refreshRoot: definition,
+  })
+  cleanup.push(upgraded.close)
+  const current = await upgraded.ready
+  if ('unavailable' in current) throw new Error('release reassembly unavailable')
+  expect(
+    await current.registry.refreshAvailability(
+      f.scope.session,
+      { kind: 'start', runId: prepared.preparation.run },
+      prepared.preparation.attempt,
+    ),
+  ).toHaveProperty('report')
+  expect(await manifest.readHead(f.scope.session)).toHaveProperty('head', 2)
+  expect(await borrowed.journal.readPrefix()).toEqual(before)
+  await upgraded.close()
+  const replay = createSessionRunAssets({
+    ...options,
+    initialFillRef: 'must-not-fill-again',
+    refreshRoot: definition,
+  })
+  cleanup.push(replay.close)
+  expect(await replay.ready).not.toHaveProperty('unavailable')
+  expect(await manifest.readHead(f.scope.session)).toHaveProperty('head', 2)
+})
 it.each(['normal', 'foreignScope', 'fillReceiptLost'] as const)(
   'public driver pairs the original Run reader with actual bootstrap, Context and adopted registry: %s',
   async fault => {
@@ -2295,7 +2407,10 @@ it.each(['normal', 'foreignScope', 'fillReceiptLost'] as const)(
     }
     const host = await startSessionDriverHost(hostOptions)
     if (fault === 'foreignScope') {
-      await vi.waitFor(() => expect(diagnostic).toHaveBeenCalledOnce())
+      await vi.waitFor(() => expect(diagnostic).toHaveBeenCalledOnce(), {
+        timeout: 10000,
+        interval: 20,
+      })
       const denied = await sendSessionHostRequest({
         home: f.directory,
         request: {
@@ -4069,11 +4184,22 @@ it('reads the durable Session workspace through the official Context source acro
       mode: 'never',
       collaboration: 'co-work',
     },
-    contextAccess: ingress =>
-      createSessionContextReadGrant(ingress, source, tenant, {
-        consumers: ['tool'],
+    contextAccess: ingress => {
+      const grant = createSessionContextReadGrant(ingress, source, tenant, {
+        consumers: ['tool', 'coordinator'],
         policy: { maxBindings: 16, maxContextKeys: 16 },
-      }),
+      })
+      return {
+        ...grant,
+        operations: ['context.read', 'context.configure'],
+        authority: {
+          check: (identity, operation) =>
+            operation === 'context.configure' && identity.consumer !== 'coordinator'
+              ? Promise.resolve({ kind: 'rejected' as const, reason: 'notAuthorized' as const })
+              : grant.authority.check(identity, 'context.read'),
+        },
+      }
+    },
   })
   cleanup.push(async () => {
     expect(await root.close()).toEqual({ closed: true })
@@ -4095,7 +4221,7 @@ it('reads the durable Session workspace through the official Context source acro
     scope,
     consumer: 'tool',
     operations: ['context.read'],
-    contextKeys: ['shell.initial'],
+    contextKeys: ['shell.initial', 'files.initial'],
   })
   if (issued.kind !== 'issued') throw new Error('Context access unavailable')
   const bound = await context.bind(issued.access, scope, 'tool')
@@ -4114,6 +4240,24 @@ it('reads the durable Session workspace through the official Context source acro
   for (let registration = 0; registration < 2; registration++) {
     const handle = await registerSessionWorkspace(context, journal)
     try {
+      const config = await root.owners.contextAccess.issuer.issue({
+        principal: source.accountId,
+        principalKind: 'human',
+        scope,
+        consumer: 'coordinator',
+        operations: ['context.configure'],
+        contextKeys: ['files.initial', 'tool-results.scope'],
+      })
+      if (config.kind !== 'issued') throw new Error('configure unavailable')
+      try {
+        await ensureSessionFilesRegistration(context, config.access, scope)
+      } finally {
+        root.owners.contextAccess.issuer.revoke(config.access)
+      }
+      expect(await bound.reader.read(['files.initial'])).toMatchObject({
+        kind: 'values',
+        values: [{ key: 'files.initial', value: { cwd: options.home } }],
+      })
       expect(await bound.reader.read(['shell.initial'])).toMatchObject({
         kind: 'values',
         values: [

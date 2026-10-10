@@ -72,7 +72,7 @@ The default entry prepares missing center configuration, login, and model config
 
 Choices use the displayed number and Enter. Use PageUp/PageDown to read every page before pressing Enter.
 Enter a message in the **Conversation** input and press Enter. The reply updates while it runs. When it finishes, the input returns automatically, with user and assistant messages retained in history. Use PageUp/PageDown to read earlier content.
-The bundled session definition includes Shell. The terminal shows public tool names, actual arguments, execution state, and results. Shell results include output, exit status, and truncation counts when available. Public reasoning summaries show their text. Private blocks, encrypted reasoning, and raw attachments are excluded. A notice identifies content omitted by display limits.
+The bundled session definition includes Files, Shell and Result. The terminal shows public tool names, actual arguments, execution state, and results. Shell results include output, exit status, and truncation counts when available. Public reasoning summaries show their text. Private blocks, encrypted reasoning, and raw attachments are excluded. A notice identifies content omitted by display limits.
 
 For a short manual check, ask the model to remember a unique word.
 Ask for that word in the next turn. Then ask Shell to create and read a file in the workspace.
@@ -139,6 +139,14 @@ The current catalog does not include `openai/gpt-6.1-sol`. Changing a model name
 Model use requires registration and compatibility with the assembled input modalities. Account credit is not constrained by this delivery.
 The current CLI has no model-change command for an existing host. Its displayed initial model is not a report of every session's current runtime state.
 Do not edit SQLite records, replace model identifiers, or remove locks to change a model.
+
+## Files and Shell
+
+Official sessions provide Files, Shell and Result. Result reads stored tool attachments in the current session, up to 512 KiB per call. Files reads, writes, edits, patches, lists, searches, inspects, copies, moves and deletes files. It can create directories and open PNG, JPEG or WebP images. Relative paths use the session's original working directory. This directory is not a filesystem sandbox.
+
+The model can use Files directly without a Shell command. Tool arguments, results and readable reasoning summaries appear in the terminal. Images are stored as attachments and prepared for models that support image input. The terminal displays the attachment description, not an image preview. Each model request accepts at most 8 distinct stored images with 512 KiB of combined bytes.
+
+An updated official session definition triggers a full registry assembly when the host next prepares that session's Run resources. The host preserves its original initialization snapshot, messages and call identities. Each model request combines the current system prompt, current tool declarations and saved conversation history. Calls with a saved tool selection keep that selection during recovery.
 
 ## Commands
 

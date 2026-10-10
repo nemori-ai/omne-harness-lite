@@ -71,17 +71,28 @@ function preparedFact(entry: LogEntry, run: NonNullable<SessionHead['run']>) {
     originalPosition: fact.originalPosition,
   }
 }
+function preparationTail(
+  entries: readonly LogEntry[],
+  scope: SessionScope,
+  options: RuntimeOptions,
+) {
+  let end = entries.length
+  while (end > 0 && options.isContextLogEntry?.(scope, entries[end - 1]!) === true) end--
+  return end === entries.length ? entries : entries.slice(0, end)
+}
 function originalPreparation(
   entries: readonly LogEntry[],
   run: NonNullable<SessionHead['run']>,
   scope: SessionScope,
   options: RuntimeOptions,
 ) {
+  entries = preparationTail(entries, scope, options)
   const tail = entries.at(-1)
   if (!tail) throw new CoordinationRejection('retryFromFacts')
   const adoption = inspectSessionToolAdoption(scope, tail, options.parameters)
   if ('failure' in adoption) throw new CoordinationRejection('retryFromFacts')
-  const last = adoption.kind === 'adoption' ? entries.at(-2) : tail
+  if (adoption.kind === 'adoption') entries = preparationTail(entries.slice(0, -1), scope, options)
+  const last = entries.at(-1)
   if (!last) throw new CoordinationRejection('retryFromFacts')
   const data = preparedFact(last, run)
   if (
@@ -91,7 +102,7 @@ function originalPreparation(
       compareInteger(adoption.adoption.attempt, data.attempt) !== 0)
   )
     throw new CoordinationRejection('retryFromFacts')
-  const previous = entries.at(adoption.kind === 'adoption' ? -3 : -2)
+  const previous = preparationTail(entries.slice(0, -1), scope, options).at(-1)
   return { last, previous, data }
 }
 async function identityBasis(

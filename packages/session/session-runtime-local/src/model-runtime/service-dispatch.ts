@@ -836,6 +836,9 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
           planInput,
           transport: local.binding.lease.transport,
           ...(scopeLease.reuseScope === undefined ? {} : { reuseScope: scopeLease.reuseScope }),
+          ...(local.request.host.imageBytes === undefined
+            ? {}
+            : { imageBytes: local.request.host.imageBytes }),
           trackPlan: completion => {
             try {
               return local.binding.lease.track(completion)
