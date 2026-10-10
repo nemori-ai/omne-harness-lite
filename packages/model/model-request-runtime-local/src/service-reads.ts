@@ -42,7 +42,7 @@ import type { CallFacts } from './reference-types.ts'
 import type { CallAccessEvidence } from '@omne-harness-lite/model-request-runtime'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
-import { requestStopAndWait } from './settlement-stop.ts'
+import { requestStopAndWait } from '@omne-harness-lite/model-request-runtime'
 
 type ReadMethods = Pick<
   ModelRuntimeOperations,

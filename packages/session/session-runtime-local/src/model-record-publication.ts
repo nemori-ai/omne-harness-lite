@@ -1,5 +1,4 @@
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type {
   ModelCallCreatedRecord,
   ModelCallPayloadRef,
@@ -17,41 +16,24 @@ import {
   settlementGenerationCurrent,
   type SettlementPrefix,
 } from '@omne-harness-lite/model-request-runtime'
-import { settlementAppendReceipt } from './settlement-receipt.ts'
-import { OwnedReadTracker, withOwnedReads } from './service-control.ts'
+import { settlementAppendReceipt } from '@omne-harness-lite/model-request-runtime'
 import type {
-  ModelCallContentStore,
   ModelCallContentValue,
-  ModelCallPublishPermit,
-} from './reference-types.ts'
+  ModelCallPublicationInput,
+} from '@omne-harness-lite/model-request-runtime'
+
 import type {
   SettlementLogBinding,
-  SettlementOwner,
   SettlementRegistration,
   SettlementTask,
 } from '@omne-harness-lite/model-request-runtime'
-import { requestStopAndWait } from './settlement-stop.ts'
+import { requestStopAndWait } from '@omne-harness-lite/model-request-runtime'
 
 /** S-85/S-86: confirm original content before an unfenced, same-prefix publication marker.
  * An uncertain marker retains the original writer; it is never promoted to success. */
-export async function publishModelCallContent(input: {
-  readonly binding: SettlementLogBinding
-  readonly owner: SettlementOwner
-  readonly concurrent: JsonNumber
-  readonly reads: OwnedReadTracker
-  readonly contentStore: ModelCallContentStore
-  readonly content: ModelCallContentValue
-  readonly locator: string
-  readonly version: string
-  readonly at: string
-  readonly retainUnknown: (
-    registration: SettlementRegistration,
-    task: SettlementTask<AppendResult>,
-    permit: ModelCallPublishPermit,
-    entry: OwnedLogEntry,
-  ) => void
-  readonly trackTask?: (task: SettlementTask<AppendResult>) => () => void
-}): Promise<{ readonly published: true } | { readonly unavailable: true }> {
+export async function publishSessionModelCallContent(
+  input: ModelCallPublicationInput,
+): Promise<{ readonly published: true } | { readonly unavailable: true }> {
   const unavailable = { unavailable: true } as const
   const { binding, owner } = input
   if (!settlementGenerationCurrent(binding) || owner.admission() !== 'open') return unavailable
@@ -108,15 +90,12 @@ function markerIdentity(content: ModelCallContentValue) {
 
 /** S-85/S-86/S-98 marker admission over one owned complete prefix; no content is touched. */
 async function admitMarker(
-  input: Parameters<typeof publishModelCallContent>[0],
+  input: Parameters<typeof publishSessionModelCallContent>[0],
 ): Promise<MarkerAdmission | undefined> {
-  const { binding, content, owner } = input
+  const { binding, content } = input
   if (content.kind === 'created' && content.value.status !== 'accepted') return undefined
   const marker = markerIdentity(content)
-  const read = await withOwnedReads(
-    owner,
-    input.concurrent,
-    input.reads,
+  const read = await input.read(
     async registration => await readSettlementPrefix({ binding, registration }),
   )
   if (!('ok' in read) || !('prefix' in read.ok)) return undefined
@@ -229,7 +208,7 @@ function admitReply(
 }
 
 async function publishMarker(
-  input: Parameters<typeof publishModelCallContent>[0],
+  input: Parameters<typeof publishSessionModelCallContent>[0],
   admitted: MarkerAdmission,
   ref: ModelCallPayloadRef,
   retainUnknown: (
@@ -297,7 +276,7 @@ async function publishMarker(
 function publicationRecord(
   marker: MarkerIdentity,
   ref: ModelCallPayloadRef,
-  input: Parameters<typeof publishModelCallContent>[0],
+  input: Parameters<typeof publishSessionModelCallContent>[0],
 ): MarkerRecord | undefined {
   if (marker.kind === 'model_call_created') {
     if (ref.kind !== 'created') return undefined

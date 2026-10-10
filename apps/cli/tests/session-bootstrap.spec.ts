@@ -1,4 +1,7 @@
-import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
+import {
+  publishSessionModelCallContent,
+  sessionModelRequestPreparation,
+} from '@omne-harness-lite/session-runtime-local'
 // @module-tag slow
 // Uses actual governance, SQLite, Context, model pools and background scans.
 import {
@@ -2637,6 +2640,7 @@ function nativeModelConstruction(
     policy: { maxConcurrentWrites: 2, maxContentBytes: 65536 },
   })
   return {
+    recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
     callAccess: { check: async () => unavailable },
     callPresence,

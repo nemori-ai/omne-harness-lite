@@ -1,4 +1,7 @@
-import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
+import {
+  publishSessionModelCallContent,
+  sessionModelRequestPreparation,
+} from '@omne-harness-lite/session-runtime-local'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { createAssemblyLifetime } from '@omne-harness-lite/assembly-lifecycle'
@@ -84,7 +87,10 @@ export async function namedProviderFixture(
     readonly support?: ModelRuntimeExecutionSupport
     readonly deferDependencies?: boolean
     readonly config?: ModelRuntimeLocalConfig
-    readonly construction?: Omit<ModelRuntimeLocalConstruction, 'requestPreparation'>
+    readonly construction?: Omit<
+      ModelRuntimeLocalConstruction,
+      'requestPreparation' | 'recordPublication'
+    >
     readonly transport?: Pick<ModelTransportService, 'clearReuseScope' | 'acquire'>
   } = {},
 ) {
@@ -98,6 +104,7 @@ export async function namedProviderFixture(
   const ctx = new Context(),
     binding = createModelRuntimeLocal({
       ...options.construction,
+      recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
     })
   const lifetime = createAssemblyLifetime(['model'], binding.closeAdmission)

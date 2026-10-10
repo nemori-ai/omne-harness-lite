@@ -20,7 +20,7 @@ import {
   modelLogJsonEqual,
 } from '@omne-harness-lite/model-request-runtime'
 import { createSettlementCoordinator } from './settlement-coordinator.ts'
-import { settlementAppendReceipt } from './settlement-receipt.ts'
+import { settlementAppendReceipt } from '@omne-harness-lite/model-request-runtime'
 import {
   readSettlementPrefix,
   settlementGenerationCurrent,
@@ -61,7 +61,7 @@ import type {
   DiagnosticEvent,
   DiagnosticRecordResult,
 } from '@omne-harness-lite/model-request-runtime'
-import { requestStopAndWait } from './settlement-stop.ts'
+import { requestStopAndWait } from '@omne-harness-lite/model-request-runtime'
 
 const unavailable = Object.freeze({ unavailable: true } as const)
 

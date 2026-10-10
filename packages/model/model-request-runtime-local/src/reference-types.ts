@@ -11,7 +11,7 @@ import type {
   ModelCallCreatedPayload,
   ModelCallPayloadRef,
 } from '@omne-harness-lite/messages'
-import type { PendingModelResponse, ResponseId } from '@omne-harness-lite/model-response'
+import type { ResponseId } from '@omne-harness-lite/model-response'
 import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
 import type { SettlementStagedBatch } from './settlement-types.ts'
 
@@ -22,9 +22,14 @@ import type {
   ServiceUnavailable,
 } from '@omne-harness-lite/model-request-runtime'
 
-export type ModelCallContentValue =
-  | { readonly kind: 'created'; readonly value: ModelCallCreatedPayload }
-  | { readonly kind: 'reply_ready'; readonly value: PendingModelResponse }
+import type {
+  ModelCallContentValue,
+  ModelCallContentWriter,
+} from '@omne-harness-lite/model-request-runtime'
+export type {
+  ModelCallContentValue,
+  ModelCallPublishPermit,
+} from '@omne-harness-lite/model-request-runtime'
 
 /** Durable custody of exact external bytes, including a later cold recovery.
  * Confirmation must cover every locator in the supplied original content.
@@ -36,14 +41,6 @@ export interface ModelCallExternalContentCustody {
     readonly binding: SettlementLogBinding
     readonly content: ModelCallContentValue
   }) => Promise<{ readonly retained: true } | ServiceUnavailable>
-}
-
-/**
- * RT12 S-98: a committed publish permit on the call's retention row. The publisher releases it
- * only after its marker outcome is known and its append task actually stopped.
- */
-export interface ModelCallPublishPermit {
-  readonly release: () => Promise<RuntimeCloseResult>
 }
 
 /** RT12 S-98 custody phase of one CallKey; not an execution state. */
@@ -122,21 +119,7 @@ export interface ModelCallSettlementWorkStore {
   >
 }
 
-export interface ModelCallContentStore {
-  /**
-   * Confirm immutable original bytes before issuing the reference. Content, the call's
-   * retention row and a publish permit commit together; a non-retained call admits no writer.
-   */
-  readonly put: (input: {
-    readonly binding: SettlementLogBinding
-    readonly locator: string
-    readonly version: string
-    readonly content: ModelCallContentValue
-  }) => Promise<
-    | { readonly ref: ModelCallPayloadRef; readonly permit: ModelCallPublishPermit }
-    | ServiceInvalidInput
-    | ServiceUnavailable
-  >
+export interface ModelCallContentStore extends ModelCallContentWriter {
   /** The phase check and the byte copy share one snapshot: only a retained call is read. */
   readonly read: (
     input: ModelCallRetentionKey & { readonly ref: ModelCallPayloadRef },

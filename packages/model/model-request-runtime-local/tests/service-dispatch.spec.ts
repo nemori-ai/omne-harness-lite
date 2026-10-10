@@ -1,4 +1,7 @@
-import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
+import {
+  publishSessionModelCallContent,
+  sessionModelRequestPreparation,
+} from '@omne-harness-lite/session-runtime-local'
 import { positiveDurationMs } from '@omne-harness-lite/session-runtime-local'
 import { modelCategory, modelValue, replaceModelValue } from './log-codec-fixture.ts'
 import { prepareAttemptFact } from './attempt-fact-fixture.ts'
@@ -330,6 +333,7 @@ test('service dispatch writes both anchors before handing out a complete pending
       }),
     ).toBeUndefined()
     const runtime: RuntimeConstruction<TestPlan, object> = {
+      recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
       callFacts,
       callPresence,

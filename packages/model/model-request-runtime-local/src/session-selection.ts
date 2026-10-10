@@ -20,7 +20,7 @@ import {
   settlementGenerationCurrent,
   type SettlementPrefix,
 } from '@omne-harness-lite/model-request-runtime'
-import { settlementAppendReceipt } from './settlement-receipt.ts'
+import { settlementAppendReceipt } from '@omne-harness-lite/model-request-runtime'
 import type {
   RowCredentialFact,
   SelectionProjection,

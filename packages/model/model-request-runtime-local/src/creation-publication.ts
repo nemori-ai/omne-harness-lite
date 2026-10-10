@@ -8,8 +8,8 @@ import {
   settlementGenerationCurrent,
   type SettlementPrefix,
 } from '@omne-harness-lite/model-request-runtime'
-import { settlementAppendReceipt } from './settlement-receipt.ts'
-import { requestStopAndWait } from './settlement-stop.ts'
+import { settlementAppendReceipt } from '@omne-harness-lite/model-request-runtime'
+import { requestStopAndWait } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementLogBinding,
   SettlementOwner,

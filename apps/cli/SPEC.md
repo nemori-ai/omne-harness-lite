@@ -597,3 +597,6 @@ createSessionRunModelBinding消费Session提供者公开的createSessionCallAcce
 ## S-12 验证义务
 
 forms逐条覆盖CQ1全部34命令/31路由，生成Intent与原CG/EC Schema一致，条件/可选字段与秘密槽精确。相同治理旅程在CLI/TUI消费同一CG事实；初始收件箱和失权/不可得/空区别；其他进程改变本地状态、原预览后CAS冲突不换登录。终端测试覆盖严格增量UTF-8、控制文本、跨块帧、超限丢弃、输入/输出背压、resize、确认修订、取消/EOF/信号、实际模式及OS属性恢复。模型只证明其有限状态与来源/进展假设；真实模拟器/IME、最终制品和Linux/macOS运行另验。
+
+
+本机模型装配显式选择Session的publishSessionModelCallContent作为记录发布者。创建与回复标记由Session按原历史发布；CLI只选择实际实现，不复制该判断，不用成功占位绕过原件及标记确认。

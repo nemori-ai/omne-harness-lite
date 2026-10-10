@@ -48,7 +48,6 @@ import {
   readSettlementPrefix,
   settlementGenerationCurrent,
 } from '@omne-harness-lite/model-request-runtime'
-import { publishModelCallContent } from './reference-publish.ts'
 import {
   acknowledgedAsTerminal,
   type UnacknowledgedCallHistory,
@@ -74,7 +73,7 @@ import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runt
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { AcknowledgedCallFacts } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallPublishPermit } from './reference-types.ts'
-import { requestStopAndWait } from './settlement-stop.ts'
+import { requestStopAndWait } from '@omne-harness-lite/model-request-runtime'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import { CreationPublication } from './creation-publication.ts'
 
@@ -1313,11 +1312,17 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
         const at = await runtime.policy.now()
         const refused = judgeFreshEligibility(session, owner)
         if (refused !== undefined) return refused
-        const publication = await publishModelCallContent({
+        const publication = await runtime.recordPublication({
           binding: session.log,
           owner,
           concurrent: runtime.settlementContention.limits.concurrent,
-          reads: physical.retainedReads,
+          read: work =>
+            withOwnedReads(
+              owner,
+              runtime.settlementContention.limits.concurrent,
+              physical.retainedReads,
+              work,
+            ),
           contentStore: runtime.callFacts.content,
           content: { kind: 'created', value: created },
           locator: callId,

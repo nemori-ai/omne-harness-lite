@@ -8,7 +8,7 @@ import {
   interpretSettlementPrefix,
   readSettlementPrefix,
 } from '@omne-harness-lite/model-request-runtime'
-import { requestStopAndWait } from './settlement-stop.ts'
+import { requestStopAndWait } from '@omne-harness-lite/model-request-runtime'
 import type {
   RunHistoryReader,
   SettlementComplete,

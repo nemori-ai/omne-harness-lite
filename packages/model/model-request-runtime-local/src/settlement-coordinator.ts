@@ -44,8 +44,8 @@ import type {
   SettlementStaging,
 } from './settlement-types.ts'
 
-import { settlementAppendReceipt } from './settlement-receipt.ts'
-import { requestStopAndWait } from './settlement-stop.ts'
+import { settlementAppendReceipt } from '@omne-harness-lite/model-request-runtime'
+import { requestStopAndWait } from '@omne-harness-lite/model-request-runtime'
 
 const unavailable = (reason: SettlementUnavailableReason): SettlementResult =>
   Object.freeze({ unavailable: true, reason })

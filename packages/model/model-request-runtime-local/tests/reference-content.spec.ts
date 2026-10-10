@@ -17,9 +17,9 @@ import {
 import { composeMigrations, narrow, type Storage } from '@omne-harness-lite/storage'
 import { openStorage } from '@omne-harness-lite/storage-sql'
 import { openSqlLogFixture } from './sql-log-fixture.ts'
-import { publishModelCallContent } from '../src/reference-publish.ts'
+import { publishSessionModelCallContent } from '@omne-harness-lite/session-runtime-local'
 import { createModelCallFacts } from '../src/reference-facts.ts'
-import { OwnedReadTracker } from '../src/service-control.ts'
+import { OwnedReadTracker, withOwnedReads } from '../src/service-control.ts'
 import type { SettlementOwner, SettlementTask } from '@omne-harness-lite/model-request-runtime'
 import type { AppendResult } from '@omne-harness-lite/session-log'
 import {
@@ -162,11 +162,11 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
       const { owner, active } = publicationOwner()
       const reads = new OwnedReadTracker()
       const invoke = () =>
-        publishModelCallContent({
+        publishSessionModelCallContent({
           binding: h.binding,
           owner,
           concurrent: 2,
-          reads,
+          read: work => withOwnedReads(owner, 2, reads, work),
           contentStore: store,
           content: h.content,
           locator: 'created',
@@ -196,11 +196,11 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
         },
       }
       expect(
-        await publishModelCallContent({
+        await publishSessionModelCallContent({
           binding: h.binding,
           owner,
           concurrent: 2,
-          reads,
+          read: work => withOwnedReads(owner, 2, reads, work),
           contentStore: store,
           content: changed,
           locator: 'created',
@@ -223,11 +223,11 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
       const { owner, active } = publicationOwner()
       const reads = new OwnedReadTracker()
       const publish = (content: ModelCallContentValue, locator: string) =>
-        publishModelCallContent({
+        publishSessionModelCallContent({
           binding: h.binding,
           owner,
           concurrent: 2,
-          reads,
+          read: work => withOwnedReads(owner, 2, reads, work),
           contentStore: store,
           content,
           locator,
@@ -266,11 +266,11 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
       const owner = publicationOwner().owner
       const first = createModelCallContentStore({ storage: h.storage, policy })
       const reads = new OwnedReadTracker()
-      const written = await publishModelCallContent({
+      const written = await publishSessionModelCallContent({
         binding: h.binding,
         owner,
         concurrent: 2,
-        reads,
+        read: work => withOwnedReads(owner, 2, reads, work),
         contentStore: first,
         content: h.content,
         locator: 'created-cold',

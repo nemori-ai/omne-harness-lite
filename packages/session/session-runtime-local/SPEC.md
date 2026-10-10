@@ -550,3 +550,10 @@ prepareCreation在调用者的原registration中完成目录选择、模态判�
 prepareSessionModelDispatch使用实际Session来源和原调用快照。它依次求值当前AE4超时、读取原模型来源的凭据、解析当前工具描述、从同一授权前缀核对校准来源，再返回PreparedModelExecution与调用政策。执行请求携带完整原身份、创建键、调用来源及PlanInput；Run来源必须同时具有attempt，独立调用不得带attempt。凭据不放入执行请求。无输入或来源不可用时失败，不补默认值；不发送模型请求，不创建Run或attempt，不提交日志。
 
 调用者提供的read登记必须属于原操作，覆盖实际异步读取的完整寿命。准备器不关闭借入的Session、日志、存储、凭据来源或共享执行池。凭据只用于进程内原发送，不写入日志或用户可见输出。工具描述和校准算法从原模型提供者迁入，算法本身不变。
+
+
+## 模型记录发布
+
+根函数publishSessionModelCallContent实现Core ModelCallPublication。Session拥有创建和reply_ready标记的完整历史判断、原内容引用匹配及原尾部条件追加。内容原件仍由借入ModelCallContentWriter保管；不把模型内容库搬入Session，不关闭借入存储或执行池。
+
+实际完整前缀只在Session内使用。read端口负责原登记寿命；原标记追加通过原owner登记。未知提交把原任务、登记、许可和原日志条目交给retainUnknown，实际停止和原批次认回前不能释放许可。trackTask仅登记原追加任务，不产生另一任务或授权。

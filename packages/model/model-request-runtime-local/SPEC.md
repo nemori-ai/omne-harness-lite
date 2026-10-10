@@ -158,3 +158,10 @@ releaseCopies 对全部原代核同 log binding、真实 released/未 registered
 `createModelRuntimeLocal(construction)` 将同一可选保有端口交给自建内容存储。可选 `decorateTransport` 只装饰原取得 lease 的 adapter。binding、signal、track、release 与原提供者责任保持。装饰同步抛错时归还该原 lease。两端口仅归可信装配闭包，不进入 Config 或普通 Context 服务，也不授予调用主体权限。装饰器必须保留原计划语义、取消与真实执行停止。
 
 装配创建时固定两端口。装饰只用于请求投影，保留原 send、read、projectOutput、品牌及借用语义。它不能取得独立资源或关闭权，不能启动返回任务未覆盖的工作。
+
+
+## 借用会话记录发布
+
+现有混合RuntimeConstruction及ModelRuntimeLocalConstruction必须由装配根显式提供recordPublication。创建与reply_ready路径调用它，不自行解释完整会话前缀或构造日志标记。模型侧管理原读取登记、原追加任务及内容发布许可的存续；借入的会话发布者不得被替换为成功占位函数。
+
+旧reference-publish实现已迁入Session且物理删除。共用回执校验和停止等待函数归Core。模型内容库仍负责原件保管及许可，不参与会话状态恢复。其他ACK、结算及恢复中的完整日志依赖仍待迁移，本变化不表示完整ModelPoolConstruction已兑现。

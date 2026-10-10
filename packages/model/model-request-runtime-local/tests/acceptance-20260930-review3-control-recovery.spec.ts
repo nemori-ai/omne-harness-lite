@@ -1,4 +1,7 @@
-import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
+import {
+  publishSessionModelCallContent,
+  sessionModelRequestPreparation,
+} from '@omne-harness-lite/session-runtime-local'
 // @module-tag slow
 // 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 /**
@@ -207,6 +210,7 @@ async function runtimeOver(
   let nextResponse = 0
   const diagnostics: string[] = []
   const construction: RuntimeConstruction<TestPlan, object> = {
+    recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
     callAccess,
     callPresence,

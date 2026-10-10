@@ -11,7 +11,6 @@ import type {
 } from '@omne-harness-lite/model-request-runtime'
 import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import { offerReferenceConsumers } from './reference-consumer.ts'
-import { publishModelCallContent } from './reference-publish.ts'
 import {
   createPlanReuseScopes,
   type PlanReuseScopes,
@@ -961,11 +960,17 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
         const current = finish.reservation.view()
         if (current?.invocation !== handle || current.operation.phase !== 'dispatching')
           return { unavailable: true }
-        const published = await publishModelCallContent({
+        const published = await runtime.recordPublication({
           binding: session.log,
           owner: view.owner,
           concurrent: runtime.settlementContention.limits.concurrent,
-          reads: physical.retainedReads,
+          read: work =>
+            withOwnedReads(
+              view.owner,
+              runtime.settlementContention.limits.concurrent,
+              physical.retainedReads,
+              work,
+            ),
           contentStore: runtime.callFacts.content,
           content: { kind: 'reply_ready', value: pending },
           locator: pending.id,

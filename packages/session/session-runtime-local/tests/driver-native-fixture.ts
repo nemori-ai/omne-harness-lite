@@ -1,3 +1,4 @@
+import { publishSessionModelCallContent } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelRequestPreparation } from '../src/model-request-preparation.ts'
 import { writeJsonLossless, type ToolCallBlock } from '@omne-harness-lite/content-blocks'
 import {
@@ -362,6 +363,7 @@ export function nativeModelConstruction(
     policy: { maxConcurrentWrites: 2, maxContentBytes: 65536 },
   })
   return {
+    recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
     callAccess: { check: async () => unavailable },
     callPresence,

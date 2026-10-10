@@ -1,4 +1,7 @@
-import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
+import {
+  publishSessionModelCallContent,
+  sessionModelRequestPreparation,
+} from '@omne-harness-lite/session-runtime-local'
 import { mockPrefixReader } from './mock-prefix-fixture.ts'
 import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 import { expect, test, vi } from 'vitest'
@@ -282,6 +285,7 @@ test('a stopped host rejects registration before any asynchronous session prepar
   const bind = vi.fn()
   const register = vi.fn(() => ({ runtimeStopped: true as const }))
   const runtime = {
+    recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
     identities: { call: () => 'stopped-call' },
     maxScopes: 4,
@@ -318,6 +322,7 @@ test('host stop during session binding prevents a late call publication and unre
   const register = vi.fn(() => ({ registration: { unregister } }))
   const calls = createCallContainerStore<PlannedSemantics, never>()
   const runtime = {
+    recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
     identities: { call: () => 'late-call' },
     maxScopes: 4,
@@ -351,6 +356,7 @@ test('service close stops and retains a registered preparation until binding act
   const register = vi.fn(() => ({ registration: { unregister } }))
   const calls = createCallContainerStore<PlannedSemantics, never>()
   const runtime = {
+    recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
     identities: { call: () => 'closing-preparation-call' },
     maxScopes: 4,
@@ -390,6 +396,7 @@ test('observer association rejects a wrong call before catalog reads or transpor
   const acquire = vi.fn()
   const calls = createCallContainerStore<PlannedSemantics, never>()
   const runtime = {
+    recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
     identities: { call: () => 'observer-call' },
     maxScopes: 4,
@@ -557,6 +564,7 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       return { noObservation: true }
     }
     const runtime = {
+      recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
       maxScopes: 4,
       callFacts: createModelCallFacts({

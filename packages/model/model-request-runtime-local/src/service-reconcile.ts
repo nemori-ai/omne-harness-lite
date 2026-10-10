@@ -66,7 +66,7 @@ import type {
   SettlementOwner,
 } from '@omne-harness-lite/model-request-runtime'
 import type { SettlementRequest } from './settlement-types.ts'
-import { requestStopAndWait } from './settlement-stop.ts'
+import { requestStopAndWait } from '@omne-harness-lite/model-request-runtime'
 
 interface RecoveryRead {
   readonly registration: SettlementRegistration

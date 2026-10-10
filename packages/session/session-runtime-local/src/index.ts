@@ -81,3 +81,5 @@ export {
   authorizedCalibration,
   type AuthorizedCalibrationResult,
 } from './model-request-calibration.ts'
+
+export { publishSessionModelCallContent } from './model-record-publication.ts'

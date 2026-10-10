@@ -1,4 +1,7 @@
-import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
+import {
+  publishSessionModelCallContent,
+  sessionModelRequestPreparation,
+} from '@omne-harness-lite/session-runtime-local'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import type {
@@ -53,7 +56,12 @@ export interface SessionNativeModelOptions {
     clock: Clock,
   ) => Omit<
     Construction,
-    'calls' | 'callFacts' | 'callPresence' | 'transport' | 'requestPreparation'
+    | 'calls'
+    | 'callFacts'
+    | 'callPresence'
+    | 'transport'
+    | 'requestPreparation'
+    | 'recordPublication'
   >
   readonly bind: (
     pool: SessionNativeModelPool,
@@ -173,6 +181,7 @@ class NativeModelOwner {
       if ('rejected' in result) throw new Error('official model registration failed')
     }
     this.runtime = createModelRuntime({
+      recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
       ...sources,
       calls: this.calls,

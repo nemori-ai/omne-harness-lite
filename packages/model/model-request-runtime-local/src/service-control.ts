@@ -23,7 +23,7 @@ import {
   captureModelLogValue,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
-import { settlementAppendReceipt } from './settlement-receipt.ts'
+import { settlementAppendReceipt } from '@omne-harness-lite/model-request-runtime'
 import { settlementGenerationCurrent } from '@omne-harness-lite/model-request-runtime'
 import {
   acknowledgedAsTerminal,
@@ -41,7 +41,7 @@ import type {
   SettlementRegistration,
   SettlementTask,
 } from '@omne-harness-lite/model-request-runtime'
-import { requestStopAndWait } from './settlement-stop.ts'
+import { requestStopAndWait } from '@omne-harness-lite/model-request-runtime'
 
 interface ReadScope {
   readonly registration: SettlementRegistration

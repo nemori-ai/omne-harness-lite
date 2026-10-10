@@ -69,3 +69,7 @@ export type {
 } from './session-request-preparation.ts'
 
 export { createModelCallCreationInput } from './creation-input.ts'
+
+export type * from './model-record-publication.ts'
+export { settlementAppendReceipt } from './settlement-receipt.ts'
+export { requestStopAndWait } from './settlement-stop.ts'
