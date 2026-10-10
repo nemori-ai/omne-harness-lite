@@ -1,47 +1,20 @@
-import type { AckPendingReason } from '@omne-harness-lite/model-request-runtime'
 import { randomUUID } from 'node:crypto'
-import type { CallKey } from '@omne-harness-lite/messages'
-import type { AcknowledgementCustody } from './acknowledgement-custody.ts'
-import type { ModelCallSettlementWorkStore } from './reference-types.ts'
-import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import {
   interpretSettlementPrefix,
   readSettlementPrefix,
+  requestStopAndWait,
 } from '@omne-harness-lite/model-request-runtime'
-import { requestStopAndWait } from '@omne-harness-lite/model-request-runtime'
 import type {
-  RunHistoryReader,
+  SettlementWorkInput,
+  SettlementWork,
+  SettlementWorkOutcome,
   SettlementComplete,
-  SettlementContention,
-  SettlementDiagnostic,
-  SettlementLogBinding,
-  SettlementOwner,
   SettlementResult,
-  SettlementScheduler,
   SettlementTask,
+  SettlementRequest,
+  SettlementStagedBatch,
 } from '@omne-harness-lite/model-request-runtime'
-import type { SettlementRequest, SettlementStagedBatch } from './settlement-types.ts'
-
-/**
- * What one post-ACK write responsibility concluded. `ended`: every writer of this work actually
- * stopped and a complete authoritative prefix proved its batch absent, so the responsibility
- * ended and its row was retired. `retained`: an unknown receipt, an unproven stop, a residual
- * batch or an unreadable source keeps the row and, where one exists, the original writer.
- */
-export type SettlementWorkOutcome =
-  | { readonly settled: SettlementComplete; readonly origin: 'appended' | 'recognized' }
-  | { readonly ended: true }
-  | { readonly retained: true }
-
-export interface SettlementWork {
-  readonly workId: string
-  readonly ref: CallKey
-  readonly request: SettlementRequest
-  /** Settle (or resolve the retained original), then conclude from actual stop and the log. */
-  readonly advance: () => Promise<SettlementWorkOutcome>
-  /** Stop admission for this work; true only when no writer of it remains owned. */
-  readonly close: () => Promise<boolean>
-}
+import { createSettlementCoordinator } from './settlement-coordinator.ts'
 
 /**
  * RT12 S-99⑧ and seam R1/R3/R4 for one started post-ACK settlement of a caller-held original.
@@ -51,23 +24,7 @@ export interface SettlementWork {
  * responsibility after actual stop and proven absence, retires the row through the ACK
  * custody's one pending mechanism. This function is usable outside the runtime service.
  */
-export function createSettlementWork(input: {
-  readonly binding: SettlementLogBinding
-  readonly owner: SettlementOwner
-  readonly store: ModelCallSettlementWorkStore
-  readonly custody: Pick<AcknowledgementCustody, 'retireWork'>
-  /** The runtime instance that owns this work; recorded on the row for recovery. */
-  readonly instance: string
-  readonly ref: CallKey
-  /** Target, current and the complete final; this function adds the staging. */
-  readonly request: Omit<SettlementRequest, 'staging'>
-  readonly contention: SettlementContention
-  readonly scheduler: SettlementScheduler
-  readonly run?: RunHistoryReader
-  readonly diagnostic: (event: SettlementDiagnostic) => void
-  /** Other writers of the same call that must actually stop before the row is deleted. */
-  readonly obstacles?: () => readonly AckPendingReason[]
-}): SettlementWork {
+export function createSettlementWork(input: SettlementWorkInput): SettlementWork {
   const workId = randomUUID()
   const { binding, store, ref } = input
   const response = input.request.target.response

@@ -13,7 +13,12 @@ import type {
 } from '@omne-harness-lite/messages'
 import type { ResponseId } from '@omne-harness-lite/model-response'
 import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
-import type { SettlementStagedBatch } from './settlement-types.ts'
+import type { ModelCallSettlementWorkStore } from '@omne-harness-lite/model-request-runtime'
+export type {
+  ModelCallSettlementWorkKey,
+  ModelCallSettlementWork,
+  ModelCallSettlementWorkStore,
+} from '@omne-harness-lite/model-request-runtime'
 
 import type {
   RuntimeCloseResult,
@@ -55,69 +60,6 @@ export type ModelCallRetentionKey = {
 export type ModelCallAcknowledgementBuilder = (
   contents: readonly ModelCallContentValue[],
 ) => { readonly record: ModelCallAcknowledgedRecord } | ServiceInvalidInput | ServiceUnavailable
-
-/** RT12 S-99⑧: one post-ACK settlement's write responsibility for one ResponseId. */
-export type ModelCallSettlementWorkKey = ModelCallRetentionKey & {
-  readonly response: ResponseId
-}
-
-/**
- * The durable staging row of one started post-ACK settlement: the complete batch of the latest
- * append not yet known to have written nothing, with its identity. `workId` names one write
- * responsibility; `generation` counts its durable replacements. Every change is conditioned on
- * both, so a late worker of another work or an older generation is refused.
- */
-export interface ModelCallSettlementWork {
-  readonly workId: string
-  readonly generation: number
-  /** The runtime instance that started the work; another instance needs recovery evidence. */
-  readonly owner: string
-  readonly staged: SettlementStagedBatch
-}
-
-export interface ModelCallSettlementWorkStore {
-  /** Insert a new work row; an existing row of any work is returned, never replaced. */
-  readonly stage: (
-    input: ModelCallSettlementWorkKey & {
-      readonly workId: string
-      readonly owner: string
-      readonly staged: SettlementStagedBatch
-    },
-  ) => Promise<
-    | { readonly staged: { readonly generation: number } }
-    | { readonly occupied: ModelCallSettlementWork }
-    | ServiceUnavailable
-  >
-  /** Replace the held batch of this exact work and generation after a proven zero write. */
-  readonly replace: (
-    input: ModelCallSettlementWorkKey & {
-      readonly workId: string
-      readonly generation: number
-      readonly staged: SettlementStagedBatch
-    },
-  ) => Promise<
-    | { readonly staged: { readonly generation: number } }
-    | { readonly rejected: true }
-    | ServiceUnavailable
-  >
-  readonly read: (
-    key: ModelCallSettlementWorkKey,
-  ) => Promise<
-    { readonly work: ModelCallSettlementWork } | { readonly absent: true } | ServiceUnavailable
-  >
-  /**
-   * Delete this exact work and generation. `rejected` means the row now belongs to another
-   * work or generation and was left untouched. An unknown commit is recognized only by reading
-   * the row as absent; the row still present or an unreadable row stays pending.
-   */
-  readonly remove: (
-    key: ModelCallSettlementWorkKey & { readonly workId: string; readonly generation: number },
-  ) => Promise<
-    | { readonly removed: true }
-    | { readonly rejected: true }
-    | { readonly pending: 'storage_unavailable' | 'receipt_unknown' }
-  >
-}
 
 export interface ModelCallContentStore extends ModelCallContentWriter {
   /** The phase check and the byte copy share one snapshot: only a retained call is read. */

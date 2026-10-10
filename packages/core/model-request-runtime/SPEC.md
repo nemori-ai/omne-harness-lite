@@ -232,7 +232,11 @@ Duration 与 JsonNumber 使用公开精确值语义，不能先转成毫秒浮�
 本包拥有`SettlementCoordinator`、`SettlementHandle`、`SettlementRequest`、
 `SettlementStagedBatch`和`SettlementStaging`。这些共享形状接续原整批结算行为。
 它们不选择具体工厂、队列、存储或竞争政策，不授予模型发出、日志写权或ACK资格。
-具体提供者的构造输入仍由该提供者维护，应用负责选择并绑定实际资源和显式政策。
+共享构造输入由本包维护。应用选择具体提供者，并绑定实际资源和显式政策。
+
+`SettlementCoordinatorInput`保留显式竞争策略、scheduler和diagnostic。
+`SessionModelSettlement`组合原协调器构造、持久结算工作和工作恢复操作，供尚在迁移的Model消费者注入Session实现。每次调用保留原输入的策略捕获时机，不隐含默认值。
+`SettlementWorkInput`保留原工作行存储和原custody的retireWork端口。工作行先耐久保存完整批次，再尝试追加日志；两者不因此成为同一个提交。未知追加不得覆盖原批次。恢复必须先证明原执行已停止，再按同源完整日志判断完整批次或可靠缺席。残留、读取失败和停止不明均保留原责任。
 
 `SettlementCoordinatorBinding`携带本次原日志binding、真实settlement owner及可选Run解释器。
 `SettlementCoordinatorFactory.create`接该绑定，返回一个承担下述整批结算和关闭责任的coordinator。

@@ -69,6 +69,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   const control = createServiceControl(construction)
   const instance = randomUUID()
   const settlementInputs = (source: RuntimeConstruction<P, R>) => ({
+    settlementFactory: source.settlementFactory,
     calls: source.calls,
     sessions: source.sessions,
     callAccess: source.callAccess,
@@ -95,6 +96,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
     }
   }
   const recoveryInputs = (source: RuntimeConstruction<P, R>) => ({
+    settlementFactory: source.settlementFactory,
     recovery: source.recovery,
     readCall: source.requestPreparation.readCall.bind(source.requestPreparation),
     run: source.history.run,

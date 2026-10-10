@@ -76,3 +76,5 @@ export { requestStopAndWait } from './settlement-stop.ts'
 export * from './model-acknowledgement.ts'
 export * from './owned-settlement-reads.ts'
 export { drainDiagnosticThenable } from './drain-diagnostic.ts'
+
+export * from './model-settlement.ts'

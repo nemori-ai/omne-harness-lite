@@ -11,7 +11,7 @@ import {
   captureModelLogValue,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
-import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
+import { createSettlementCoordinator } from '@omne-harness-lite/session-runtime-local'
 import {
   interpretRunAtPrefix,
   readSettlementPrefix,

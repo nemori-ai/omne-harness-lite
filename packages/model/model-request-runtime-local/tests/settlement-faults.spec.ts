@@ -4,7 +4,7 @@ import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
-import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
+import { createSettlementCoordinator } from '@omne-harness-lite/session-runtime-local'
 import { readSettlementPrefix } from '@omne-harness-lite/model-request-runtime'
 import {
   type SettlementScheduler,

@@ -17,7 +17,7 @@ import {
 } from '../src/reference-content.ts'
 import { createAcknowledgementCustody } from '../src/acknowledgement-custody.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
-import { createSettlementWork } from '../src/settlement-work.ts'
+import { createSettlementWork } from '@omne-harness-lite/session-runtime-local'
 import type { ModelCallSettlementWorkStore } from '../src/reference-types.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { AcknowledgementCleanupPolicy } from '@omne-harness-lite/model-request-runtime'

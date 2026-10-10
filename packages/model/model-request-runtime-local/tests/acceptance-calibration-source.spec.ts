@@ -1,4 +1,4 @@
-import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
+import { createSettlementCoordinator } from '@omne-harness-lite/session-runtime-local'
 import { ControlledSettlementOwner, policy, noWaitScheduler } from './settlement-fixture.ts'
 import { describe, expect, it } from 'vitest'
 import { mkdir, mkdtemp } from 'node:fs/promises'

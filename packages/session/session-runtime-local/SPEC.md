@@ -570,3 +570,11 @@ Session `readCall` 同样供原未知写入的收场使用。读取沿原Source�
 固定批次在Model原内容锁内完成。Session持有原尾部条件追加任务，未知结果先保有原登记和任务，等待真实停止后才能认回同一批次。只有完整原ACK回读成立，才调用Model清理器。清理pending仍返回已确认，不将它改成失败或另造批次。
 
 `project` 返回当前宿主方法，但与原拥有者共享busy、未知写入和读任务。关闭撤销新确认，等待既有工作并结束原登记；关闭后只允许按既有规则认回已存在的ACK。该函数不关闭借入的内容存储、Model执行池、日志或存储。
+
+## 模型结算的实际拥有者
+
+根入口的sessionModelSettlement提供原协调器、结算工作和恢复判断。createSettlementCoordinator与createSettlementWork也可独立调用。公开形状及行为归[Core结算契约](../../core/model-request-runtime/SPEC.md)。这些操作不规划或发送模型请求。
+
+实现保留原协调器的任务登记、实际停止和unknown批次。createSettlementWork将原批次交给借入的SQL工作行存储，恢复只对不再被活体组件持有的工作判断原日志。retireWork使用原Model内容custody的删除机制，不新建清理队列。
+
+本提供者不创建新的Storage、不关闭借入的原日志或执行池。原binding、source及owner持续有效至原工作收场。Session工厂拒绝结算时，Model不得自行追加批次。当前Model的其他历史消费者及事实索引仍待迁移，此项不表示完整执行池边界已完成。

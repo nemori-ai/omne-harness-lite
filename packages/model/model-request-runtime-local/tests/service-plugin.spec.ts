@@ -1,3 +1,4 @@
+import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import {
   publishSessionModelCallContent,
@@ -37,6 +38,7 @@ describe('named model runtime provider', () => {
     }
     const provider = createModelRuntimeLocal({
       acknowledgementFactory: createSessionModelAcknowledgement,
+      settlementFactory: sessionModelSettlement,
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
     })
@@ -196,6 +198,7 @@ describe('named model runtime provider', () => {
   it('rejects missing/extra configuration instead of accepting construct or inferred defaults', () => {
     const provider = createModelRuntimeLocal({
       acknowledgementFactory: createSessionModelAcknowledgement,
+      settlementFactory: sessionModelSettlement,
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
     })

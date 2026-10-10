@@ -1,4 +1,4 @@
-import type { SettlementRequest } from './settlement-types.ts'
+import type { SettlementRequest } from '@omne-harness-lite/model-request-runtime'
 import { originalIssueReceipt } from './original-issue-receipt.ts'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
@@ -19,7 +19,6 @@ import {
   prepareModelLogEntry,
   modelLogJsonEqual,
 } from '@omne-harness-lite/model-request-runtime'
-import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import { settlementAppendReceipt } from '@omne-harness-lite/model-request-runtime'
 import {
   readSettlementPrefix,
@@ -55,7 +54,7 @@ import type {
   ResponseConstructionResult,
 } from '@omne-harness-lite/model-request-runtime'
 import type { AnchoredInvocationInput } from './anchored-invocation-types.ts'
-import type { SettlementCoordinatorInput } from './settlement-types.ts'
+import type { SettlementCoordinatorInput } from '@omne-harness-lite/model-request-runtime'
 import type {
   DiagnosticEmitter,
   DiagnosticEvent,
@@ -567,7 +566,7 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
   }
   const coordinator = (() => {
     try {
-      return createSettlementCoordinator({ ...input.settlement, binding, owner })
+      return input.settlementFactory.create({ ...input.settlement, binding, owner })
     } catch (error) {
       registration.release()
       throw error

@@ -1,3 +1,4 @@
+import type { SessionModelSettlement } from '@omne-harness-lite/model-request-runtime'
 import type { SessionModelAcknowledgementFactory } from '@omne-harness-lite/model-request-runtime'
 import type {
   SessionModelRequestPreparation,
@@ -47,7 +48,7 @@ import type {
   SettlementOwner,
   SettlementScheduler,
 } from '@omne-harness-lite/model-request-runtime'
-import type { SettlementCoordinator } from './settlement-types.ts'
+import type { SettlementCoordinator } from '@omne-harness-lite/model-request-runtime'
 import type {
   InvocationPolicy,
   PlannedSemantics,
@@ -122,6 +123,7 @@ export interface PreparedCallBinding<P extends PlannedSemantics, R> {
 
 export interface RuntimeConstruction<P extends PlannedSemantics, R> {
   readonly requestPreparation: SessionModelRequestPreparation
+  readonly settlementFactory: SessionModelSettlement
   readonly acknowledgementFactory: SessionModelAcknowledgementFactory
   readonly recordPublication: ModelCallPublication
   readonly callAccess: CallAccess

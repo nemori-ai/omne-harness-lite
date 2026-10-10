@@ -4,12 +4,10 @@
 公共操作协议、形状和独立算法从[公共定义](../../core/model-request-runtime/SPEC.md)消费，不在此复制算法。
 根入口公开独立函数/工厂，Cordis 插件从 `./cordis` 导出。旧插件子入口已移除。
 
-独立整批结算的共享操作、句柄、请求及暂存批次形状归core/model-request-runtime。
-本提供者消费并重导出原类型名；SettlementCoordinatorInput和具体createSettlementCoordinator仍由本提供者拥有。
-构造输入沿core的SettlementCoordinatorBinding，另加本提供者原政策／scheduler／diagnostic字段。
-应用可将本工厂绑定为core的SettlementCoordinatorFactory；抽象分面不代替实际桥及借入资源的收场证明。
-应用选择实际工厂及显式owner／竞争／时钟策略，Session消费者只借入公开结算协议。
-原未知批次、实际停止及close保留责任不因定义归位改变。
+整批结算的操作、句柄、请求、暂存工作行及恢复输入归core/model-request-runtime。
+协调器、结算工作及恢复判断由session-runtime-local提供。RuntimeConstruction、ModelRuntimeLocalConstruction和AnchoredInvocationInput必须显式提供settlementFactory，不提供本地兜底实现。
+每条调用保留原binding、owner、Run解释器、策略及scheduler。未知批次和正在停止的操作继续使用原协调器；投影变更不替换这些资源。
+本包仍提供原内容存储中的SQL工作行机制，以及原custody的retireWork删除端口。它们不解释Session日志；Session决定完整批次、残留或可靠缺席后才请求删除。
 
 ## 会话请求准备的实际拥有者
 
@@ -19,7 +17,7 @@
 
 新调用的目录选择、模态判断、档案快照和参数合并通过requestPreparation.prepareCreation完成。本包只消费PreparedModelCreation，不在新调用路径读取完整前缀或再次选择档案。获取transport及规划前核对准备内容的原CallKey、creationKey、来源和完整创建输入；不匹配时零规划、零发送、零创建写入。规划使用准备结果的已采用快照、参数、消息和工具。
 
-发起前检查、续接检查和原调用停止检查通过requestPreparation.readCall取得CallHistoryResult，不在这三条路径直接读取完整前缀。已ACK的调用仍是终态，不能再次发送或续接。历史不可用时不得开始准备或发送。控制操作的普通中断／释放、未知控制写入认回及关闭时后台终结确认也通过Session读取历史。未知写入保留写入时的Session读取函数、各原解释器和原登记；投影替换不得改变这些引用。原任务停止后才核对同一前缀中的历史并释放登记。失败结算、ACK及其他未知写入认回仍待迁移，此处不表示完整执行池已完成。
+发起前检查、续接检查和原调用停止检查通过requestPreparation.readCall取得CallHistoryResult，不在这三条路径直接读取完整前缀。已ACK的调用仍是终态，不能再次发送或续接。历史不可用时不得开始准备或发送。控制操作的普通中断／释放、未知控制写入认回及关闭时后台终结确认也通过Session读取历史。未知写入保留写入时的Session读取函数、各原解释器和原登记；投影替换不得改变这些引用。原任务停止后才核对同一前缀中的历史并释放登记。结算、结算工作恢复和ACK确认已由Session提供。其余完整前缀消费者仍待迁移，此处不表示完整执行池已完成。
 
 实际发送路径消费准备结果中的PreparedModelExecution。在规划或发送前，核对完整租户／会话／调用／发出序号、原创建键、调用来源及PlanInput目标；任何不匹配返回invalidInput，不规划、不发送、不追加日志。凭据和政策留在可信进程内的准备结果中，不进入可序列化执行请求。
 

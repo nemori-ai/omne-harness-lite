@@ -6,7 +6,7 @@ import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-bl
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import { narrow } from '@omne-harness-lite/storage'
 import type { AppendResult, LogEntry } from '@omne-harness-lite/session-log'
-import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
+import { createSettlementCoordinator } from '@omne-harness-lite/session-runtime-local'
 import type { ModelCallContentStore } from '../src/reference-types.ts'
 import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
 import type { AcknowledgementCleanupPolicy } from '@omne-harness-lite/model-request-runtime'

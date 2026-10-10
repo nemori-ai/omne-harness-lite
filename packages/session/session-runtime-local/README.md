@@ -110,3 +110,5 @@ Its configuration is an empty object.
 The binding delegates admission, lifecycle, work reads and Run journal borrowing.
 It grants no access and does not close the borrowed Ingress on removal.
 See [SPEC.md](SPEC.md#cordis驱动插件) for the ownership rules.
+
+`sessionModelSettlement` supplies model settlement, persistent work, and work recovery to runtime consumers. `createSettlementCoordinator` and `createSettlementWork` are also independent functions. See [ownership and lifetime](SPEC.md#模型结算的实际拥有者).

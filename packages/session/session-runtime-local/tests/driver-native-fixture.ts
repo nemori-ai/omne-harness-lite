@@ -1,3 +1,4 @@
+import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import { publishSessionModelCallContent } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelRequestPreparation } from '../src/model-request-preparation.ts'
@@ -365,6 +366,7 @@ export function nativeModelConstruction(
   })
   return {
     acknowledgementFactory: createSessionModelAcknowledgement,
+    settlementFactory: sessionModelSettlement,
     recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
     callAccess: { check: async () => unavailable },

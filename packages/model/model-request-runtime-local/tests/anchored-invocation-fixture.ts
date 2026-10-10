@@ -1,3 +1,4 @@
+import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { readAttemptStarted } from '@omne-harness-lite/session-runtime'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import {
@@ -196,6 +197,7 @@ export async function harness(
   const controller = new AbortController()
   let released = 0
   const input: AnchoredInvocationInput<TestPlan, object> = {
+    settlementFactory: sessionModelSettlement,
     planInput: request(),
     transport: transport().adapter,
     credential: '503',

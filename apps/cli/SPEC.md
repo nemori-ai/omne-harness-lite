@@ -600,3 +600,7 @@ forms逐条覆盖CQ1全部34命令/31路由，生成Intent与原CG/EC Schema一�
 
 
 本机模型装配显式选择Session的publishSessionModelCallContent作为记录发布者。创建与回复标记由Session按原历史发布；CLI只选择实际实现，不复制该判断，不用成功占位绕过原件及标记确认。
+
+### Session提供模型结算
+
+本机Model池的可信构造显式选择Session的sessionModelSettlement。该依赖与原请求准备、记录发布和ACK实现同属应用装配选择，不由CLI命令参数提供。调用创建、原锚定执行、post-ACK工作和工作恢复沿原模型资源使用这个工厂；CLI不解释这些日志批次。

@@ -208,3 +208,10 @@ export interface SettlementCoordinatorBinding {
 export interface SettlementCoordinatorFactory {
   readonly create: (binding: SettlementCoordinatorBinding) => SettlementCoordinator
 }
+
+export interface SettlementCoordinatorInput extends SettlementCoordinatorBinding {
+  /** Entire missing policy/scheduler port makes this progression unavailable. No fallback. */
+  readonly settlementContention?: SettlementContention
+  readonly settlementScheduler?: SettlementScheduler
+  readonly diagnostic: (event: SettlementDiagnostic) => void
+}

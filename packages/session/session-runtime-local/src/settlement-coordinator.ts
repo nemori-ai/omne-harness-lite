@@ -42,7 +42,7 @@ import type {
   SettlementHandle,
   SettlementRequest,
   SettlementStaging,
-} from './settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 
 import { settlementAppendReceipt } from '@omne-harness-lite/model-request-runtime'
 import { requestStopAndWait } from '@omne-harness-lite/model-request-runtime'

@@ -7,7 +7,7 @@ import { parseTenantId } from '@omne-harness-lite/identity-values'
 import { writeJsonLossless, type JsonNumber } from '@omne-harness-lite/content-blocks'
 import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { type SessionLog, type AppendResult } from '@omne-harness-lite/session-log'
-import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
+import { createSettlementCoordinator } from '@omne-harness-lite/session-runtime-local'
 import {
   type SettlementOwner,
   type SettlementTask,
@@ -17,7 +17,7 @@ import {
   type SettlementScheduler,
   type SettlementLogBinding,
 } from '@omne-harness-lite/model-request-runtime'
-import { type SettlementRequest } from '../src/settlement-types.ts'
+import { type SettlementRequest } from '@omne-harness-lite/model-request-runtime'
 import { anchors, session, tenant } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 

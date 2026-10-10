@@ -1,3 +1,4 @@
+import { createSettlementCoordinator } from '@omne-harness-lite/session-runtime-local'
 import { prepareDriverToolRequest } from '../src/driver-tool-request.ts'
 import { Context } from '@deepseek-ai/cordis'
 import { DatabaseSync } from 'node:sqlite'
@@ -29,7 +30,6 @@ import {
   originalIssueMigrations,
   type OriginalIssueOwner,
   createModelRuntime,
-  createSettlementCoordinator,
   modelCallContentMigrations,
 } from '@omne-harness-lite/model-request-runtime-local'
 import {

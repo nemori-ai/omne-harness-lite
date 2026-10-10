@@ -40,7 +40,6 @@
 | `createServiceCalls(construction)`、`createServiceControl(construction)`                  | 面向共享 runtime 装配的独立调用与控制方法组合件                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `createServiceDispatch(construction)`                                                     | 使用固定档案、精确 transport lease、当前会话事实、耐久锚点及原调用句柄实现 dispatch／dispatchAgain                                                                                                                                                                                                                                                                                                                                                                                                |
 | `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)`                        | 非持久化处分从 `callFacts` 读取不可变 ready 内容，经当前 `callAccess` 的 `settle` 准入，再由既有结算算法写最终响应；final 已提交后的重复处分只由该 final 判定：同处分以原状态认回，异处分答 `alreadyEnded`，不查阅任何值，也不写入。ACK 后经核验的调用方自持值通过暂存写责任结算；处分组件必需 ACK `custody` 与 `instance` 标识。对账保留原 scope，直到实际停止并从完整前缀认回；对账必需 runtime 的 ACK `custody`，已确认调用逐调用作答，给出 `settlementWork` 时收口本 runtime 不持有的写责任行 |
-| `createSettlementWork(input)`                                                             | 基于结算协调器的一份 ACK 后写责任：每次追加前完整批已耐久在写责任行中，行经 ACK custody 退役；外部 persisted 写方同样可用                                                                                                                                                                                                                                                                                                                                                                         |
 | `createAcknowledgementCustody(input)` | 每个 runtime 一份的 custody：按显式 `acknowledgementCleanup` 政策与调度器先释放内存副本、再释放保留内容                                                                                                                                                                                                                                                                                                                                                                           |
 | `createModelRuntime(construction)`                                                        | 十五方法共用一份调用 store、一份 ACK custody 与可重试收口 owner；无需 Cordis Context                                                                                                                                                                                                                                                                                                                                                                                                              |
 
@@ -54,7 +53,7 @@
 
 ## Cordis 服务装配
 
-`createModelRuntimeLocal({ requestPreparation })` 创建一代可信装配工厂。应用选择Session拥有的准备实现，本提供者不提供默认准备器。插件从具名宿主输入、执行支持、Storage、Clock 和 transport 构造私有调用池、内容及事实。配置显式提供作用域、内容、等待和 token margin 界限，不接收 `construct` 回调，不补政策默认值；受管行另需 `assemblyLifetime`。
+`createModelRuntimeLocal({ requestPreparation, recordPublication, acknowledgementFactory, settlementFactory })` 创建一代可信装配工厂。应用选择Session拥有的准备实现，本提供者不提供默认准备器。插件从具名宿主输入、执行支持、Storage、Clock 和 transport 构造私有调用池、内容及事实。配置显式提供作用域、内容、等待和 token margin 界限，不接收 `construct` 回调，不补政策默认值；受管行另需 `assemblyLifetime`。
 
 Config 的四个精确字段（`tokenMargin.multiplier/reserveTokens`、`reservationWaitPolicy.maxWaitersPerCall/timeoutMs`）使用 JSON 数字词法字符串，例如 `"1.10000000000000000001"` 和 `"256"`。装配方用 `jsonNumberSource` 编码原 `JsonNumber`，提供者严检后恢复精确值，不经浮点转换。独立函数仍使用原 `JsonNumber` 输入。
 
@@ -197,7 +196,7 @@ MS8 `model_call_acknowledged` 记录使用独立的按调用稳定日志键；�
 
 `acknowledgeCall` 释放模型副本后，没有 final 的调用仍可由自持完整 `PendingModelResponse` 的调用方处分（RT12 S-99）。`settleReply` 先核当前 `settle` 资格，再把该值与 ACK 的原身份、MS8 结果摘要和账见证逐项核对。缺值为 `wrongPhase`，矛盾为 `invalidInput`。日志里已有 final 时由它自行决定：同处分认回，异处分 `alreadyEnded`。
 
-核验通过的值开始一份写责任（`createSettlementWork`）。每次追加可能生效之前，完整批先写入内容存储同一 Storage 中的私有 `model_call_settlement_work` 行。该行保存的是「最近一次尚未确知为零写的追加所用的完整批」。确证零写之后（`tailChanged`，或 `alreadyRecorded` 碰撞），重构 `late` 的批在其追加之前以下一代际原位替换。回执未知期间绝不覆盖该行。每次替换和删除都带该行的 `workId` 与代际，其他写责任或旧代际的迟到 worker 一律被拒。
+核验通过的值开始一份写责任（Session的`createSettlementWork`）。每次追加可能生效之前，完整批先写入内容存储同一 Storage 中的私有 `model_call_settlement_work` 行。该行保存的是「最近一次尚未确知为零写的追加所用的完整批」。确证零写之后（`tailChanged`，或 `alreadyRecorded` 碰撞），重构 `late` 的批在其追加之前以下一代际原位替换。回执未知期间绝不覆盖该行。每次替换和删除都带该行的 `workId` 与代际，其他写责任或旧代际的迟到 worker 一律被拒。
 
 写责任只在它的全部写方实际停止之后才收口：
 
@@ -758,35 +757,7 @@ export function inspectReplyBatch(input: InspectSettlementMembersInput) {
 
 ## 耐久结算构件
 
-`readSettlementPrefix`、`interpretSettlementPrefix` 和 `createSettlementCoordinator` 是可独立取用的构件，消费实际 SL3 日志和包根 `mrr/3` 表示。noRun 用 unfenced、unconditional 追加；新建 withRun 批先核原 Run/attempt、最新 MS6 尝试及宿主 Run 终结，再用 unfenced 和完整前缀的 tailEquals 追加。每次均追加完整 `[消息,响应]` 或 `[响应]` 批。合法原批优先，保留其身份、格式和原账；协调器不会规划或发出模型请求。
-
-由宿主提供实际 session/tenant/log 代际绑定与已登记 owner。`SettlementRegistration.start` 必须先登记、再执行；`stopped` 表示资源实际停止。owner 负责同一所有者的并发准入，并提供实际 opened 回执及全部尚未确认的旧写方。这些接口形状不授予权限或认证历史物理同批。具名争用预算和精确单调调度器须显式提供，不安装默认次数、计时器或等待政策。
-
-```ts
-import {
-  createSettlementCoordinator,
-  type SettlementCoordinatorInput,
-  type SettlementRequest,
-} from '@omne-harness-lite/model-request-runtime-local'
-
-export async function settleResponse(
-  dependencies: SettlementCoordinatorInput,
-  request: SettlementRequest,
-) {
-  const coordinator = createSettlementCoordinator(dependencies)
-  const task = coordinator.settle(request)
-  const result = await task.completion
-  await task.stopped
-  // An unknown original stays owned: keep this coordinator and settle the same request again.
-  if ('unavailable' in result && result.reason === 'write_unknown') return { result, coordinator }
-  await coordinator.close()
-  return { result }
-}
-```
-
-`completion` 返回结算结果或不可用原因；`requestStop` 只请求取消，`stopped` 表示该句柄的任务已实际停止。追加回执未知的句柄停止后仍保留其登记、原批和追加条件。之后同一目标的 `settle` 会从同源完整前缀解决这个原句柄，本身不写入：读到完整批返回 `recognized` 并只释放该登记；证实缺席同样释放该登记但返回 `write_unknown`，之后的 `settle` 才可重新提交——提交的仍是同一原请求（RT11 S-86），runtime 的消费方会固定它。前缀不可读时继续保留。`close()` 停止在途工作并主动尝试同一认回，只要仍有登记未释放就以 `Settlement work remains owned` 拒绝；在同一协调器上重试。实际停止被拒绝时在 `stopped` 上可见，并继续保留登记。opened unknown 阻断普通响应。本构件不新增独立恢复 API。
-
-示例接收实际宿主依赖与完整的当前（MR11）响应，不注册服务。十五方法已组合；官方模型认证、生产 G28 来源、合法宿主读权接线及全部写方来源仍需各自证据。采用依据：[D087/v4 投影](SPEC.md)、[v8 当前 codec](SPEC.md)。
+模型结算归Session提供者。`createSettlementCoordinator`、`createSettlementWork`和`sessionModelSettlement`从`@omne-harness-lite/session-runtime-local`导入。包括`SettlementCoordinatorInput`在内的公共类型从`@omne-harness-lite/model-request-runtime`导入。运行时与锚定调用构造必须提供`settlementFactory`。见[提供者规格](../../session/session-runtime-local/SPEC.md#模型结算的实际拥有者)。
 
 ## 耐久锚定调用
 

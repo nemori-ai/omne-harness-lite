@@ -41,15 +41,15 @@ import {
 import { acknowledgedFactsFromHistory } from '@omne-harness-lite/model-request-runtime'
 import { judgeAcknowledgedSettlement } from './acknowledged-settlement.ts'
 import type { AcknowledgementCustody } from './acknowledgement-custody.ts'
-import { createSettlementWork, type SettlementWork } from './settlement-work.ts'
-import type { ModelCallSettlementWorkStore } from './reference-types.ts'
-import {
-  interpretSettlementPrefix,
-  readSettlementPrefix,
+import type {
+  SettlementWork,
+  SettlementWorkRecovery,
+  SettlementCoordinator,
+  SessionModelSettlement,
 } from '@omne-harness-lite/model-request-runtime'
+import { readSettlementPrefix } from '@omne-harness-lite/model-request-runtime'
 import type { SettlementPrefix } from '@omne-harness-lite/model-request-runtime'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
-import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import { constructAnchoredInterruption } from '@omne-harness-lite/model-request-runtime'
 import { appendControlRecord } from './service-control.ts'
 import { UnknownAppendTracker } from './service-calls.ts'
@@ -66,7 +66,7 @@ import type {
   SettlementLogBinding,
   SettlementOwner,
 } from '@omne-harness-lite/model-request-runtime'
-import type { SettlementRequest } from './settlement-types.ts'
+import type { SettlementRequest } from '@omne-harness-lite/model-request-runtime'
 import { requestStopAndWait } from '@omne-harness-lite/model-request-runtime'
 
 interface RecoveryRead {
@@ -83,13 +83,13 @@ interface DurableReplySettlement {
   /** The runtime's authoritative original; a caller's retainedResult must equal it (S-99③). */
   readonly pending: PendingModelResponse
   readonly state: 'complete' | 'interrupted'
-  readonly coordinator: ReturnType<typeof createSettlementCoordinator>
+  readonly coordinator: SettlementCoordinator
   processing: boolean
 }
 
 interface RecoverySettlement {
-  readonly coordinator: ReturnType<typeof createSettlementCoordinator>
-  task: ReturnType<ReturnType<typeof createSettlementCoordinator>['settle']> | undefined
+  readonly coordinator: SettlementCoordinator
+  task: ReturnType<SettlementCoordinator['settle']> | undefined
   readonly target: ModelLogSettlementTarget
 }
 
@@ -173,6 +173,7 @@ export async function settlePendingReply(input: {
 
 /** A cold ready reply has its own runtime-owned writer until its original batch is resolved. */
 interface SettleReplyConstruction<P extends PlannedSemantics, R> {
+  readonly settlementFactory: SessionModelSettlement
   readonly calls: CallContainerStore<P, R>
   readonly sessions: RuntimeSessionAccess
   readonly callAccess: CallAccess
@@ -458,7 +459,7 @@ function buildRuntimeSettleReply<P extends PlannedSemantics, R>(
                     disposition: request.disposition,
                     pending,
                     state: pending.outcome === 'interrupted' ? 'interrupted' : 'complete',
-                    coordinator: createSettlementCoordinator({
+                    coordinator: input.settlementFactory.create({
                       binding: session.log,
                       owner: session.selection.owner,
                       ...(input.run === undefined ? {} : { run: input.run }),
@@ -568,7 +569,7 @@ function buildRuntimeSettleReply<P extends PlannedSemantics, R>(
       }
       const final = { ...pending, replyDisposition: request.disposition }
       if ('rejected' in judgeResponseFinalization(pending, final)) return { unavailable: true }
-      work = createSettlementWork({
+      work = input.settlementFactory.createWork({
         binding: session.log,
         owner: session.selection.owner,
         store: input.callFacts.content.work,
@@ -770,87 +771,9 @@ async function readSettledReply(
   }
 }
 
-/** A runtime's view of the post-ACK work rows it may conclude as the recovery owner. */
-export interface SettlementWorkRecovery {
-  readonly store: ModelCallSettlementWorkStore
-  /** A live component of this runtime still owns the work; recovery leaves it alone. */
-  readonly owns: (ref: CallKey) => boolean
-}
-
-/**
- * Seam R4 default path for one post-ACK work row left by a writer this runtime does not own:
- * the host's recovery scope must confirm the original execution absent (actual stop, not a
- * signal or fence); then the complete prefix decides. A complete batch (this one, or a first
- * winner that excludes it) or a whole absence ends the responsibility and retires the row; the
- * consumer re-applies with its own value. Anything unreadable or residual keeps the row.
- */
-async function recoverSettlementWork(input: {
-  readonly key: CallKey
-  readonly response: string
-  readonly prefix: SettlementPrefix
-  readonly scope: RuntimeRecoveryScope
-  readonly binding: SettlementLogBinding
-  readonly work: SettlementWorkRecovery
-  readonly custody: AcknowledgementCustody
-  readonly diagnostic: (event: SettlementDiagnostic) => void
-}): Promise<void> {
-  const { key, binding } = input
-  const emit = (kind: string, dispatch: JsonNumber = 0) => {
-    try {
-      drainDiagnosticThenable(
-        input.diagnostic({
-          kind,
-          tenant: binding.tenant,
-          session: key.session,
-          call: key.callId,
-          dispatch,
-          response: input.response,
-          owner: input.scope.owner.name,
-          policy: 'recovery',
-          submissions: 0,
-          tailConflicts: 0,
-        }),
-      )
-    } catch {
-      // A diagnostic failure is not a recovery fact.
-    }
-  }
-  if (input.work.owns(key)) return
-  const read = await input.work.store.read({ binding, call: key.callId, response: input.response })
-  if ('absent' in read) return
-  // An unreadable row is never evidence of absence: the pending item stays.
-  if ('unavailable' in read) return emit('settlement_work.recovery_unreadable')
-  const { staged, workId, generation } = read.work
-  const original = input.scope.originalInvocation(key, staged.target)
-  if (!('absent' in original))
-    return emit('settlement_work.recovery_writer_unproven', staged.target.dispatch)
-  const interpreted = interpretSettlementPrefix({
-    prefix: input.prefix,
-    target: staged.target,
-    current: staged.current,
-  })
-  if ('unavailable' in interpreted)
-    return emit('settlement_work.recovery_retained', staged.target.dispatch)
-  const members = interpreted.facts.members
-  if (!('completeMembers' in members) && !('absent' in members))
-    return emit('settlement_work.recovery_retained', staged.target.dispatch)
-  emit(
-    'completeMembers' in members
-      ? 'settlement_work.recovery_recognized'
-      : 'settlement_work.recovery_ended',
-    staged.target.dispatch,
-  )
-  await input.custody.retireWork({
-    binding,
-    ref: key,
-    response: input.response,
-    workId,
-    generation,
-  })
-}
-
 /** S-33 recovery owns every entered scope until its original work and full-prefix read are settled. */
 interface ReconcileConstruction {
+  readonly settlementFactory: SessionModelSettlement
   readonly readCall: SessionModelRequestPreparation['readCall']
   readonly recovery: RuntimeRecoveryAccess
   readonly run?: RunHistoryReader
@@ -1275,6 +1198,7 @@ async function readRecoveredCalls(
     | 'run'
     | 'custody'
     | 'settlementWork'
+    | 'settlementFactory'
     | 'readCall'
   >,
   closed: () => boolean,
@@ -1335,7 +1259,7 @@ async function readRecoveredCalls(
       if ('unavailable' in small) return { unavailable: true }
       calls.push({ callId, acknowledged: small })
       if (facts.record.target.kind === 'response' && input.settlementWork !== undefined)
-        await recoverSettlementWork({
+        await input.settlementFactory.recoverWork({
           key: { session: request.session, callId },
           response: facts.record.target.response,
           prefix: read.prefix,
@@ -1470,7 +1394,7 @@ async function readRecoveredCalls(
           response: candidate.response,
         }
       }
-      const coordinator = createSettlementCoordinator({
+      const coordinator = input.settlementFactory.create({
         binding,
         owner: scope.owner,
         ...(input.run === undefined ? {} : { run: input.run }),

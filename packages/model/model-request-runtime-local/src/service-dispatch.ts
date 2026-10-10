@@ -836,6 +836,7 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
           }
         }
         const created = createAnchoredModelInvocation({
+          settlementFactory: runtime.settlementFactory,
           ...(local.request.run === undefined
             ? {}
             : { run: local.request.run, attempt: input.attempt }),

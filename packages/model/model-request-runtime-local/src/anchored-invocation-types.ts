@@ -1,3 +1,4 @@
+import type { SessionModelSettlement } from '@omne-harness-lite/model-request-runtime'
 import type { MessageId } from '@omne-harness-lite/messages'
 import type { AttemptId, RunId } from '@omne-harness-lite/call-accounts'
 import type { ModelProfileRef } from '@omne-harness-lite/model-profile'
@@ -10,7 +11,7 @@ import type {
   TransportAdapter,
   InvocationPolicy,
 } from '@omne-harness-lite/model-request-runtime'
-import type { SettlementCoordinatorInput } from './settlement-types.ts'
+import type { SettlementCoordinatorInput } from '@omne-harness-lite/model-request-runtime'
 
 export interface AnchoredInvocationInput<P extends PlannedSemantics, R> {
   /** Actual operation fence; this original dispatch identity is never inferred from recovery. */
@@ -30,6 +31,7 @@ export interface AnchoredInvocationInput<P extends PlannedSemantics, R> {
   readonly selectedBy: SelectedBy
   readonly credentialScope: CredentialScope
   /** The host establishes actual authorization, log ownership and generation. */
+  readonly settlementFactory: SessionModelSettlement
   readonly settlement: SettlementCoordinatorInput
   readonly onAccepted?: InvocationInput<P, R>['onAccepted']
   readonly diagnosticEmitterFactory?: InvocationInput<P, R>['diagnosticEmitterFactory']

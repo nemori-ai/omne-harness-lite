@@ -105,3 +105,5 @@ Fiber ACTIVE不证明驱动就绪。撤除终止启动准入，调用原stop和c
 createLocalSessionIngressBinding(original)以空Config将Core四个限定分面绑定到同一借入Ingress。
 绑定委派准入、生命周期、工作读取和Run日志借用，不授予资格，也不在撤除时关闭原Ingress。
 行为归[SPEC](SPEC.md#cordis驱动插件)。
+
+`sessionModelSettlement`向运行时消费者提供模型结算、持久工作和恢复判断。`createSettlementCoordinator`及`createSettlementWork`也可独立调用。见[职责与生命周期](SPEC.md#模型结算的实际拥有者)。

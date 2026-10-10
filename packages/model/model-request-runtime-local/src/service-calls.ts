@@ -43,7 +43,6 @@ import {
   OwnedReadTracker,
   withOwnedReads,
 } from './service-control.ts'
-import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import {
   createModelCallCreationInput,
   settlementGenerationCurrent,
@@ -1052,7 +1051,7 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
       const lease = acquired.lease
       let transferred = false
       try {
-        const coordinator = createSettlementCoordinator({
+        const coordinator = runtime.settlementFactory.create({
           binding: session.log,
           owner: session.selection.owner,
           run: runtime.history.run,
@@ -1292,7 +1291,7 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
         const planned = await planning.planning
         if (planningStopped()) return { runtimeStopped: true }
         if ('rejected' in planned) return await finishPlanRefusal(session, key, planned)
-        const coordinator = createSettlementCoordinator({
+        const coordinator = runtime.settlementFactory.create({
           binding: session.log,
           owner,
           run: runtime.history.run,

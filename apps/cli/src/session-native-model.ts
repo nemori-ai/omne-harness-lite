@@ -1,3 +1,4 @@
+import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import {
   publishSessionModelCallContent,
@@ -64,6 +65,7 @@ export interface SessionNativeModelOptions {
     | 'requestPreparation'
     | 'recordPublication'
     | 'acknowledgementFactory'
+    | 'settlementFactory'
   >
   readonly bind: (
     pool: SessionNativeModelPool,
@@ -184,6 +186,7 @@ class NativeModelOwner {
     }
     this.runtime = createModelRuntime({
       acknowledgementFactory: createSessionModelAcknowledgement,
+      settlementFactory: sessionModelSettlement,
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
       ...sources,

@@ -1,3 +1,4 @@
+import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import {
   publishSessionModelCallContent,
@@ -26,6 +27,7 @@ type Ports<P extends PlannedSemantics, R> = Pick<
   | 'requestPreparation'
   | 'recordPublication'
   | 'acknowledgementFactory'
+  | 'settlementFactory'
 >
 
 /** The test host owns the same real Storage and tenant binding as its SessionLog. */
@@ -108,6 +110,7 @@ export function referencePorts<P extends PlannedSemantics, R>(
     callPresence,
     callFacts,
     acknowledgementFactory: createSessionModelAcknowledgement,
+    settlementFactory: sessionModelSettlement,
     recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
   }
@@ -118,6 +121,7 @@ export function unavailableReferencePorts<P extends PlannedSemantics, R>(): Port
   const unavailable = { unavailable: true } as const
   return {
     acknowledgementFactory: createSessionModelAcknowledgement,
+    settlementFactory: sessionModelSettlement,
     recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
     callAccess: { check: async () => unavailable },
