@@ -379,3 +379,62 @@ it('shows progressive public content before the original Run finishes without ch
     1,
   )
 })
+
+it('recovers a temporary observation outage without forgetting acceptance or submitting twice', async () => {
+  let reads = 0
+  const f = await fixture(async packet => {
+    if (packet.command === 'submitInput') return { kind: 'accepted', receipt }
+    if (packet.command === 'readMessages') return history
+    return ++reads === 1 ? { failure: 'unavailable' } : submission
+  })
+  const outcome = await submitSessionMessage(f.options)
+  expect(outcome).toMatchObject({ status: 'completed', receipt })
+  expect(f.execute.mock.calls.filter(([packet]) => packet.command === 'submitInput')).toHaveLength(1)
+  expect(reads).toBe(2)
+})
+
+it('falls back from a timed-out presentation to the same authoritative receipt', async () => {
+  const f = await fixture(async packet => {
+    if (packet.command === 'submitInput') return { kind: 'accepted', receipt }
+    if (packet.command === 'readMessages') return history
+    if (packet.command === 'readSubmission' && packet.includePresentation) {
+      await new Promise(resolve => setTimeout(resolve, 200))
+    }
+    return submission
+  })
+  const outcome = await submitSessionMessage({
+    ...f.options,
+    policy: { ...policy, timeoutMs: 80 },
+    onProgress: () => {},
+  })
+  expect(outcome).toMatchObject({ status: 'completed', receipt })
+  const reads = f.execute.mock.calls.map(([packet]) => packet).filter(packet => packet.command === 'readSubmission')
+  expect(reads).toHaveLength(2)
+  expect(reads[0]).toHaveProperty('includePresentation', true)
+  expect(reads[1]).not.toHaveProperty('includePresentation')
+  expect(f.execute.mock.calls.filter(([packet]) => packet.command === 'submitInput')).toHaveLength(1)
+})
+
+it('retries a temporary final-message outage without replaying submission', async () => {
+  let messages = 0
+  const f = await fixture(async packet => {
+    if (packet.command === 'submitInput') return { kind: 'accepted', receipt }
+    if (packet.command === 'readSubmission') return submission
+    return ++messages === 1 ? { failure: 'unavailable' } : history
+  })
+  expect(await submitSessionMessage(f.options)).toMatchObject({ status: 'completed', receipt })
+  expect(messages).toBe(2)
+  expect(f.execute.mock.calls.filter(([packet]) => packet.command === 'submitInput')).toHaveLength(1)
+})
+
+it('retains known acceptance when detached during the final-message read', async () => {
+  let f: Awaited<ReturnType<typeof fixture>>
+  f = await fixture(async packet => {
+    if (packet.command === 'submitInput') return { kind: 'accepted', receipt }
+    if (packet.command === 'readSubmission') return submission
+    f.controller.abort()
+    return history
+  })
+  expect(await submitSessionMessage(f.options)).toMatchObject({ status: 'accepted', reason: 'detached', receipt, submission })
+  expect(f.execute.mock.calls.filter(([packet]) => packet.command === 'submitInput')).toHaveLength(1)
+})
