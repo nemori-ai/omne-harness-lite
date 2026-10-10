@@ -473,7 +473,7 @@ Driver故障先停止协议准入，再调用原诊断端口。关闭停止新�
 
 ### 正式运行根的装配与关闭
 
-`startSessionRuntimeRoot`借入真实根／租户Storage、治理客户端、时钟、合法部署输入和物理模型池，组合已有G28、SessionIngress、原模型发起／结果保管拥有者、工作结算证明及独立Session Context。构造先核固定中心／账号／登录句柄和实际opened use来源，再刷新登录；原use关闭结束后才分配本机运行资源。缺失资产、Context seed、模型资格、引用保管或策略均不补默认。普通客户端只使用既有私有通道协议；可信owners不进入协议。
+`startSessionRuntimeRoot`借入真实根／租户Storage、治理客户端、时钟、合法部署输入和物理模型池，组合已有G28、SessionIngress、原模型发起／结果保管拥有者、工作结算证明及独立Session Context。构造先核固定中心／账号／登录句柄和实际opened use来源，再刷新登录；原use关闭结束后才分配本机运行资源。缺失资产、Context seed、模型配置、引用保管或策略均不补默认。普通客户端只使用既有私有通道协议；可信owners不进入协议。
 
 模型Run绑定将SDK的call工厂固定为Session已经持久prepareCall的原call，保持原message／response工厂。全局模型工厂不能另造call后与原准备不匹配。模型执行来源由正式根提供实际来源getter，引用保管仍在同Unit完成；该getter不授予权限。
 
@@ -484,6 +484,10 @@ Driver故障先停止协议准入，再调用原诊断端口。关闭停止新�
 此函数负责实际资源总装与监听，不负责创建独立OS进程、解析生产配置文件或发行资产。调用方必须提供完整且可信的部署输入，并承担借入资源的最终关闭。
 
 ### 文件运行根拥有的资源
+
+`SessionRuntimeFiles`拥有准入库、租户运行库和LeaseClock的文件分配及关闭。打开失败时，已取得的资源仍保留在原对象中，调用方须完成closeFiles。调用方先关闭使用这些资源的Driver、Context和执行池，再关闭文件资源。首次模型准备、文件运行根和后续Driver根共用同一迁移顺序，不建立第二套运行库。
+
+`createNativeSessionModelPool`分配实际ModelRuntime、调用存储、内容存储、调用事实、官方OpenRouter运输和可选模型目录。ready返回这些原对象，close保留原关闭语义。Session绑定在资源分配之后由应用选择，不内置某个宿主循环。已有createNativeSessionModelOwner在同一分配函数上安装模型绑定，不另建第二个池。
 
 `startFileSessionRuntimeRoot`在分配资源前核固定中心／账号／登录来源，完成原CG刷新及use关闭，并核既有`tenant.json`的完整租户绑定。它不安装登录、绑定或模型凭据。准入库位于`<home>/data/session-admission.sqlite`，租户运行库沿`tenantPaths.runtime`，时钟使用该租户`run/clock.sqlite`的独立LeaseClock。目录、数据库及旁文件按既有私有命名空间规则检查。只有本次原子创建的新时钟文件允许初始化；重新打开不改写时钟身份。
 

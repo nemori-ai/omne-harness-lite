@@ -38,7 +38,7 @@ export interface SessionNativeModelPool {
   readonly content: Content
   readonly directory?: SessionModelDirectoryRead
 }
-/** Trusted application inputs. Model choice, authorization and budgets have no fallback. */
+/** Official model IDs and transport limits come from explicit application configuration. */
 export interface SessionNativeModelOptions {
   readonly directory?: SessionModelDirectoryOptions
   readonly modelIds: readonly string[]
@@ -55,12 +55,29 @@ export interface SessionNativeModelOptions {
     pool: SessionNativeModelPool,
   ) => Omit<SessionRuntimeRootOptions['model'], 'executionSource'>
 }
+export type SessionNativeModelPoolOptions = Omit<SessionNativeModelOptions, 'bind'>
 
 /** Own the existing ModelRuntime and the official OpenRouter transport over the tenant store. */
 export function createNativeSessionModelOwner(
   storage: AtomicStorage,
   clock: Clock,
   options: SessionNativeModelOptions,
+) {
+  const bind = options.bind
+  const owner = createNativeSessionModelPool(storage, clock, options)
+  const ready = owner.ready.then(pool => ({
+    ...bind(pool),
+    executionSource: () => pool.runtime.executionSource,
+  }))
+  void ready.catch(() => {})
+  return Object.freeze({ ready, close: owner.close })
+}
+
+/** Allocate the physical pool independently of a particular Session driver binding. */
+export function createNativeSessionModelPool(
+  storage: AtomicStorage,
+  clock: Clock,
+  options: SessionNativeModelPoolOptions,
 ) {
   const entries = configuredEntries(options.modelIds)
   const retirement = options.retirement
@@ -110,11 +127,9 @@ class NativeModelOwner {
   constructor(
     readonly storage: AtomicStorage,
     readonly clock: Clock,
-    readonly options: SessionNativeModelOptions,
+    readonly options: SessionNativeModelPoolOptions,
   ) {}
-  async initialize(
-    entries: ReturnType<typeof configuredEntries>,
-  ): Promise<SessionRuntimeRootOptions['model']> {
+  async initialize(entries: ReturnType<typeof configuredEntries>): Promise<SessionNativeModelPool> {
     if (this.stopping) throw new Error('native model owner stopped before acquisition')
     if (this.options.directory)
       this.directory = createSessionModelDirectory(this.storage, this.clock, this.options.directory)
@@ -170,13 +185,12 @@ class NativeModelOwner {
         },
       },
     })
-    const bound = this.options.bind({
+    return Object.freeze({
       runtime: this.runtime,
       facts: this.facts,
       content: this.content,
       ...(directory ? { directory } : {}),
     })
-    return Object.freeze({ ...bound, executionSource: () => this.runtime?.executionSource })
   }
   close = (): Promise<RuntimeCloseResult> => {
     this.stopping = true

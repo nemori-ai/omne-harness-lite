@@ -1,24 +1,10 @@
-import { join } from 'node:path'
 import { parseTenantId, isOk, tenantIdEquals } from '@omne-harness-lite/identity-values'
-import { composeMigrations } from '@omne-harness-lite/storage'
-import type { SqlStorage } from '@omne-harness-lite/storage-sql'
-import {
-  openLeaseClock,
-  type LeaseClock,
-  type OpenLeaseClockOptions,
-} from '@omne-harness-lite/clock-lease'
-import { admissionMigrations } from '@omne-harness-lite/session-runtime-local'
+import type { OpenLeaseClockOptions } from '@omne-harness-lite/clock-lease'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import type { RuntimeCloseResult } from '@omne-harness-lite/model-request-runtime'
-import { checkTenantBinding } from './state-layout-files.ts'
-import { checkCatalogFiles } from './catalog-files.ts'
-import {
-  claimRuntimeFile,
-  openRuntimeDatabase,
-  sessionTenantMigrations,
-} from './session-runtime-files.ts'
-import { tenantPaths, prepareStateDirectory, resolveStateHome } from './state-layout.ts'
+import { SessionRuntimeFiles } from './session-runtime-files.ts'
+import { resolveStateHome } from './state-layout.ts'
 import { checkedTenantBinding } from './state-layout-values.ts'
 import {
   startSessionRuntimeRoot,
@@ -118,40 +104,21 @@ function directoryMatchesRoot(options: FileSessionRuntimeOptions): boolean {
   )
 }
 
-class FileRootOwner {
-  rootStorage?: SqlStorage
-  storage?: SqlStorage
-  clock?: LeaseClock
+class FileRootOwner extends SessionRuntimeFiles {
   model?: FileSessionModelOwner
   modelOptions?: SessionRuntimeRootOptions['model']
   root?: SessionRuntimeRoot
   retainedRoot?: SessionRuntimeRoot['close']
   closing?: ReturnType<SessionRuntimeRoot['close']>
-  constructor(readonly options: FileSessionRuntimeOptions) {}
+  constructor(readonly options: FileSessionRuntimeOptions) {
+    super(options)
+  }
   async open() {
-    const o = this.options,
-      paths = tenantPaths(o.home, o.binding)
-    await checkTenantBinding(paths.binding, Buffer.from(JSON.stringify(o.binding) + '\n'), 65536)
-    await prepareStateDirectory(o.home, paths.data)
-    await prepareStateDirectory(o.home, paths.run)
-    const rootDirectory = join(o.home, 'data')
-    await prepareStateDirectory(o.home, rootDirectory)
-    this.rootStorage = await openRuntimeDatabase(
-      join(rootDirectory, 'session-admission.sqlite'),
-      composeMigrations(admissionMigrations),
-    )
-    this.storage = await openRuntimeDatabase(paths.runtime, sessionTenantMigrations)
-    const clockFile = join(paths.run, 'clock.sqlite')
-    const creator = await claimRuntimeFile(clockFile)
-    await checkCatalogFiles(clockFile)
-    this.clock = await openLeaseClock({
-      ...o.clockOptions,
-      file: clockFile,
-      ...(creator ? { initialize: {} } : {}),
-    })
+    const o = this.options
+    await this.openFiles()
     this.model = o.nativeModel
-      ? createNativeSessionModelOwner(this.storage, this.clock, o.nativeModel)
-      : o.createModel(this.storage, this.clock)
+      ? createNativeSessionModelOwner(this.storage!, this.clock!, o.nativeModel)
+      : o.createModel(this.storage!, this.clock!)
     this.modelOptions = await this.model.ready
   }
   close = (): ReturnType<SessionRuntimeRoot['close']> => {
@@ -173,9 +140,7 @@ class FileRootOwner {
     const endRoot = this.retainedRoot ?? this.root?.close
     if (endRoot && 'pending' in (await endRoot())) return { pending: true }
     if (this.model && 'unavailable' in (await this.model.close())) return { pending: true }
-    await this.clock?.close()
-    await this.storage?.close()
-    await this.rootStorage?.close()
+    await this.closeFiles()
     return { closed: true }
   }
 }
