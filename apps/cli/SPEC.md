@@ -474,6 +474,8 @@ createSessionForMessage从已运行的匹配宿主读取实际创建偏好，捕
 该路径消费已经配置并运行的宿主。独立宿主启动及终端接入见下文；该机读入口本身仍只消费已配置并运行的宿主。
 实际SQLite／Ingress组合和编译后进程测试分别验证所属路径；受控宿主或模型结果不表示真实OpenRouter交付。
 
+机读入口创建新会话时，工作目录取客户端当前目录并随原创建输入提交。已有会话保持原工作目录，不因后继客户端目录改变而替换。
+
 ## 已准备模型段的 Agent Loop 消费
 
 应用通过Session公开入口调用prepareSessionModelRun、createSessionModelAttempt和createSessionModelObservations。原Run准备、Loop解释、任务保留和本地等待结束均归提供者。应用提供原身份和真实来源，不维护第二个Loop。行为见[提供者规格](../../packages/session/session-runtime-local/SPEC.md#已准备模型段的-agent-loop-消费)。
@@ -656,6 +658,8 @@ forms逐条覆盖CQ1全部34命令/31路由，生成Intent与原CG/EC Schema一�
 `readClock` 从宿主借入的 Clock 取得当前时间，返回 RFC 3339 时间。Clock 不可用时不生成消息、不用客户端墙钟代替。`readInitialModel` 只返回宿主显式配置的初始模型名称，不推测具体 Session 的运行中模型。两项读操作都先核对完整中心及租户绑定，且不启动 Session 工作。
 
 每次文本输入形成一个有独立身份的 UserMessage。终端只提交一次并观察原回执，显示原输入所属 Run 的用户可见文本，不重复显示其他轮的回复。输入取消、客户端退出或等待超时都不关闭宿主、不取消已受理输入。结果不明时保留原操作身份，不自动重发。正常脱离输出原 Session 的恢复命令；机读请求继续保留无损结构化结果。
+
+终端将已识别的成功工具执行结果显示为输出、退出状态和输出丢弃计数，不显示环境实现标识。停止观察状态存在时必须显示。未知或失败结果保留原用户可见文本，不丢弃错误信息。这只改变终端表示，不改写会话日志、模型输入或机读 JSON。
 
 终端 UI 的真实矩阵、正式安装及完整工具装配仍须独立验收。脚本化 Dialog 与真实 socket 测试不替代真实终端证据。
 

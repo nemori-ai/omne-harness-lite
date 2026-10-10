@@ -47,6 +47,7 @@ export async function runSessionMessageEntry(options: {
             maxResponseBytes: options.policy.maxResponseBytes,
           },
           originalId: options.originalId,
+          workspace: process.cwd(),
         })
         if (created.kind !== 'created-session') return created
         session = created.session

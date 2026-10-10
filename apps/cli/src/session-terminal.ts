@@ -9,6 +9,7 @@ import { createSessionForMessage } from './session-creation-client.ts'
 import { sendSessionHostRequest } from './session-host-client.ts'
 import { submitSessionMessage, type SessionMessagePolicy } from './session-message-client.ts'
 import { InputFailure } from './diagnostic.ts'
+import { terminalMessageLines } from './session-terminal-output.ts'
 
 export interface TerminalSessionOptions {
   readonly home: string
@@ -65,7 +66,7 @@ async function interact(
     if (outcome.status !== 'completed') return { outcome, diagnostics: [] }
     const lines = outcome.messages
       .filter(value => value.type !== 'user')
-      .flatMap(value => value.blocks.map(block => block.text))
+      .flatMap(terminalMessageLines)
     if (!(await options.dialog.show('Assistant', lines))) break
   }
   return { outcome: { kind: 'session-detached', session }, diagnostics: [] }

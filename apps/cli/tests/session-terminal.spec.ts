@@ -31,7 +31,10 @@ const checkedSession = checkSession('session-one')
 if ('failure' in checkedSession) throw new Error('invalid fixture Session')
 const sessionId = checkedSession.ok
 const timestamp = '2026-10-10T18:00:00Z'
-async function fixture(fault?: 'clock' | 'unknown' | 'wait' | 'model') {
+async function fixture(
+  fault?: 'clock' | 'unknown' | 'wait' | 'model',
+  toolTexts: readonly string[] = [],
+) {
   const home = await mkdtemp(join(tmpdir(), 'term-'))
   cleanup.push(() => rm(home, { recursive: true, force: true }))
   const paths = await prepareTenantDirectory(home, binding)
@@ -117,6 +120,14 @@ async function fixture(fault?: 'clock' | 'unknown' | 'wait' | 'model') {
               blocks: [{ id: 'previous-text', kind: 'text', text: 'Do not repeat me' }],
             },
             {
+              id: 'tool-output',
+              position: 8,
+              run: 'run-one',
+              type: 'tool',
+              createdAt: timestamp,
+              blocks: toolTexts.map((text, index) => ({ id: `tool-${index}`, kind: 'text', text })),
+            },
+            {
               id: 'answer',
               position: 9,
               run: 'run-one',
@@ -199,6 +210,48 @@ it('attaches to an explicit Session without creating another one', async () => {
   await runTerminalSession({ ...f.options, session: 'session-one' })
   expect(f.create()).toBeUndefined()
   expect(f.submit()?.session).toBe('session-one')
+})
+it('renders execution output and loss counts without showing environment implementation fields', async () => {
+  const f = await fixture(undefined, [
+    JSON.stringify({
+      kind: 'execution',
+      environment: { reference: { generation: 'internal-generation' } },
+      outcome: {
+        kind: 'completed',
+        exit: { code: 0 },
+        output: { mode: 'terminal', terminal: { discardedBytes: 3 } },
+      },
+      output: {
+        streams: [
+          { stream: 'stdout', text: 'command output' },
+          { stream: 'stderr', text: 'diagnostic output' },
+        ],
+        retainedBytes: 32,
+        toolDiscardedBytes: 8,
+        droppedFrames: 2,
+      },
+    }),
+  ])
+  await runTerminalSession(f.options)
+  expect(f.show).toHaveBeenCalledExactlyOnceWith('Assistant', [
+    'Tool output (completed)',
+    'command output',
+    'diagnostic output',
+    'Exit code: 0',
+    'Output omitted: 8 bytes, 2 frames',
+    'Transport omitted: 3 bytes',
+    'Current answer',
+  ])
+})
+it('preserves unrecognized tool text instead of dropping a failed or unknown result', async () => {
+  const values = [
+    'ordinary tool text',
+    '{"kind":"execution","output":null}',
+    '{"kind":"rejected","reason":"unavailable"}',
+  ]
+  const f = await fixture(undefined, values)
+  await runTerminalSession(f.options)
+  expect(f.show).toHaveBeenCalledExactlyOnceWith('Assistant', [...values, 'Current answer'])
 })
 it('never substitutes local wall time or submits when the host clock is unavailable', async () => {
   const f = await fixture('clock')

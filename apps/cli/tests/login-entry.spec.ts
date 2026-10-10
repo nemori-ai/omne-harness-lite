@@ -168,6 +168,7 @@ it.each(['existing', 'new', 'unknown', 'unconfigured', 'invalid-message'] as con
     const createdIdentity = checkSession(source.session)
     if (!('ok' in createdIdentity)) throw new Error('invalid process Session fixture')
     let receipt: import('@omne-harness-lite/session-runtime').Receipt | undefined
+    let creationWorkspace: string | undefined
     const commands: string[] = []
     const host = await startLocalSessionHost({
       home: f.input.home,
@@ -203,6 +204,7 @@ it.each(['existing', 'new', 'unknown', 'unconfigured', 'invalid-message'] as con
                   },
                 }
           if (request.command === 'createSession') {
+            creationWorkspace = request.input.workspace
             const operation = {
               tenant: request.binding.tenant,
               principal: account,
@@ -324,6 +326,7 @@ it.each(['existing', 'new', 'unknown', 'unconfigured', 'invalid-message'] as con
       stderr: '',
     })
     const output = JSON.parse(stdout)
+    if (mode === 'new' || mode === 'unknown') expect(creationWorkspace).toBe(process.cwd())
     if (mode === 'unknown' || mode === 'unconfigured') {
       expect(output).toMatchObject({
         format: 'omne-cli/1',
