@@ -21,9 +21,11 @@ import {
   type ToolOriginalIssueParticipant,
   type ToolOriginalIssueStage,
   type ToolOriginalIssueSupport,
+  type ToolExecutionJob,
 } from '@omne-harness-lite/tool-execution-runtime'
 import { sameJson } from './json-values.ts'
 import { createToolExecutionRecordReader } from './execution-records.ts'
+import { createToolExecutionTransitions } from './execution-transitions.ts'
 
 interface Row {
   tenant: string
@@ -205,8 +207,21 @@ export function createToolOriginalIssue(input: {
     stageOriginalIn: stage,
     consumeOriginalIn: consume,
   })
+  const job = Object.freeze({}) as ToolExecutionJob
+  const transitions = createToolExecutionTransitions({
+    support,
+    identity,
+    job,
+    isOpen: input.isOpen,
+    async verifyIn(unit) {
+      const existing = await find(unit)
+      return existing !== undefined && same(existing) && (await verifyIntent(unit))
+    },
+  })
   return Object.freeze({
     participant,
+    job,
+    records: Object.freeze({ ...records, ...transitions }),
     async admit(): Promise<boolean> {
       const result = await support.admission.admitOriginal(participant)
       if (result.kind === 'unknownCommit') admissionUnconfirmed = true
