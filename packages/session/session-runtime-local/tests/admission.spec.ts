@@ -734,6 +734,39 @@ it('does not let a previous unavailable settlement replace a newer query from an
   ).toEqual({ kind: 'consumed', receipt: 'new-generation' })
 })
 
+it('settles an older unavailable result after requeue waits behind another active ticket', async () => {
+  const f = await fixture({ verify: vi.fn(async () => ({ kind: 'unavailable' as const })) })
+  const original = await f.owner.reserve(source, target)
+  const atomic = f.storage.atomic.bind(f.storage)
+  let lose = true
+  vi.spyOn(f.storage, 'atomic').mockImplementation(async work => {
+    const result = await atomic(work)
+    if (lose && (await f.owner.read(original.ticket)).state === 'unavailable') {
+      lose = false
+      throw new StorageUnavailable('original settlement return lost')
+    }
+    return result
+  })
+  await expect(f.owner.query(original.ticket)).rejects.toBeInstanceOf(StorageUnavailable)
+  const otherStorage = await openStorage({ dialect: 'sqlite', file: f.file, synchronous: 'full' })
+  stores.push(otherStorage)
+  const verify = vi.fn<AdmissionProbe['verify']>().mockResolvedValue({ kind: 'valid' })
+  const other = await createLocalAdmission(otherStorage, { verify }, policy)
+  owners.push(other)
+  const next = await other.reserve(source, { ...target, operationKey: 'next-run' })
+  expect((await other.query(next.ticket)).state).toBe('ready')
+  expect((await other.query(original.ticket)).state).toBe('waiting')
+  expect(verify).toHaveBeenCalledTimes(1)
+  await expect(f.owner.close()).resolves.toBeUndefined()
+  expect((await other.read(original.ticket)).state).toBe('waiting')
+  await other.consume(next.ticket, f.tenantStorage, async () => 'next-run')
+  expect((await other.query(original.ticket)).state).toBe('ready')
+  expect(verify).toHaveBeenCalledTimes(2)
+  expect(await other.consume(original.ticket, f.tenantStorage, async () => 'original-run')).toEqual(
+    { kind: 'consumed', receipt: 'original-run' },
+  )
+})
+
 it('keeps the new held result when an older settlement return completes later', async () => {
   const verify = vi.fn(async () => ({ kind: 'unavailable' as const }))
   const f = await fixture({ verify })

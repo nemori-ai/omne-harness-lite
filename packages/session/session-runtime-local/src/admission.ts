@@ -255,17 +255,25 @@ class AdmissionOwner implements LocalAdmission {
         unit.mutate(async tx => {
           unit.assertStorage(this.storage)
           let current = await reading(tx, ticket, this.policy)
+          if (current.state !== 'waiting' && current.state !== 'unavailable')
+            return { owned: false as const, reading: current }
+          const db = narrow<AdmissionDb>(tx)
+          const row = await db
+            .selectFrom('sr_admission_ticket')
+            .select('query_generation')
+            .where('id', '=', ticket.id)
+            .executeTakeFirstOrThrow()
+          const generation = row.query_generation + 1
+          if (!Number.isSafeInteger(generation)) throw new AdmissionFailure('capacity')
           if (current.state === 'unavailable') {
             await narrow<AdmissionDb>(tx)
               .updateTable('sr_admission_ticket')
-              .set({ state: 'waiting' })
+              .set({ state: 'waiting', query_generation: generation })
               .where('id', '=', ticket.id)
               .execute()
             current = { ...current, state: 'waiting' }
           }
-          if (current.state !== 'waiting') return { owned: false as const, reading: current }
           const owner = await login(tx, ticket.source)
-          const db = narrow<AdmissionDb>(tx)
           if (owner?.state === 'rejected') {
             await db
               .updateTable('sr_admission_ticket')
@@ -286,13 +294,6 @@ class AdmissionOwner implements LocalAdmission {
             ))
           )
             return { owned: false as const, reading: current }
-          const row = await db
-            .selectFrom('sr_admission_ticket')
-            .select('query_generation')
-            .where('id', '=', ticket.id)
-            .executeTakeFirstOrThrow()
-          const generation = row.query_generation + 1
-          if (!Number.isSafeInteger(generation)) throw new AdmissionFailure('capacity')
           await db
             .updateTable('sr_admission_ticket')
             .set({ state: 'querying', query_generation: generation })
