@@ -596,7 +596,8 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
               released: { cause: 'credential_unavailable' },
             }
       }
-      const { planInput, credential, credentialScope, policy } = prepared.prepared
+      const { execution, credential, credentialScope, policy } = prepared.prepared
+      const planInput = execution.input
       const parentDiagnostic = earlyDiagnostics.record({
         source: 'runtime',
         stage: 'credential',
@@ -920,7 +921,7 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
       const attached = handle
       reservation.publish({
         phase: 'dispatching',
-        target: prepared.prepared.planInput.target,
+        target: prepared.prepared.execution.input.target,
         ...(input.attempt === undefined ? {} : { attempt: input.attempt }),
         abort: attached.abort,
         interrupt: attached.interrupt,
@@ -1258,7 +1259,7 @@ async function prepareSend<P extends PlannedSemantics, R>(
   const container = runtime.calls.find(key)
   const view = container?.view()
   if (view === undefined || view.session !== session) return { unavailable: true } as const
-  return runtime.requestPreparation.prepare({
+  const prepared = await runtime.requestPreparation.prepare({
     session,
     key,
     dispatch,
@@ -1273,4 +1274,18 @@ async function prepareSend<P extends PlannedSemantics, R>(
     read: (owner, work) =>
       withOwnedReads(owner, runtime.settlementContention.limits.concurrent, retained, work),
   })
+  if (!('prepared' in prepared)) return prepared
+  const execution = prepared.prepared.execution
+  const origin =
+    view.request.run === undefined
+      ? { kind: 'independent' }
+      : { kind: 'sessionAttempt', run: view.request.run, attempt }
+  if (
+    !modelLogJsonEqual(execution.ref, { tenant: session.log.tenant, ...key, dispatch }) ||
+    execution.creationKey !== view.request.creationKey ||
+    !modelLogJsonEqual(execution.origin, origin) ||
+    !modelLogJsonEqual(execution.input.target, { kind: 'model_call', callId: key.callId, dispatch })
+  )
+    return { invalidInput: { reason: 'malformed' } } as const
+  return prepared
 }

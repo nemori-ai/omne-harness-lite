@@ -16,7 +16,8 @@ import type {
   CurrentHistoryReaders,
 } from './service-types.ts'
 import type { SettlementOwner, SettlementRegistration } from './settlement-types.ts'
-import type { PlanInput, InvocationPolicy } from './invocation-types.ts'
+import type { InvocationPolicy } from './invocation-types.ts'
+import type { PreparedModelExecution } from './execution-pool.ts'
 import type { TokenMargin } from './planning-types.ts'
 
 /** Session-side preparation used while migrating the existing runtime consumer. Not a pool request. */
@@ -45,7 +46,7 @@ export interface SessionModelDispatchInput {
 export type SessionModelDispatchResult =
   | {
       readonly prepared: {
-        readonly planInput: PlanInput
+        readonly execution: PreparedModelExecution
         readonly credential: string
         readonly credentialScope: CredentialScope
         readonly policy: InvocationPolicy

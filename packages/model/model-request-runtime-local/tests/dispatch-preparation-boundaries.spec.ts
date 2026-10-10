@@ -1,6 +1,6 @@
 // @module-tag slow
 import { describe, expect, it } from 'vitest'
-import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
+import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import type {
   SessionRuntimeBinding,
   SessionModelRequestPreparation,
@@ -75,6 +75,93 @@ async function withPreparation(
 }
 
 describe('original dispatch preparation over actual resources and SQL', () => {
+  it('passes the Session-prepared canonical execution into the original physical invocation', async () => {
+    let prepared: Awaited<ReturnType<SessionModelRequestPreparation['prepare']>> | undefined
+    await withPreparation(
+      binding => binding,
+      async ({ world, runtime, ref, binding }) => {
+        await runtime.service.dispatch(ref)
+        expect(prepared).toMatchObject({
+          prepared: {
+            execution: {
+              ref: {
+                tenant: binding.log.tenant,
+                session: ref.session,
+                callId: ref.callId,
+                dispatch: 1,
+              },
+              creationKey: 'p6_dispatch_preparation',
+              origin: { kind: 'independent' },
+              input: { target: { kind: 'model_call', callId: ref.callId, dispatch: 1 } },
+            },
+          },
+        })
+        expect(world.wire.sends()).toBe(1)
+      },
+      async input => {
+        prepared = await sessionModelRequestPreparation.prepare(input)
+        return prepared
+      },
+    )
+  })
+
+  it.each(['tenant', 'session', 'call', 'dispatch', 'creation', 'origin', 'target'] as const)(
+    'rejects a prepared execution with a different %s before planning or sending',
+    async mismatch => {
+      await withPreparation(
+        binding => binding,
+        async ({ world, runtime, ref, capturePlans }) => {
+          const before = await world.entries()
+          expect(await runtime.service.dispatch(ref)).toEqual({
+            invalidInput: { reason: 'malformed' },
+          })
+          expect(world.wire.plans()).toBe(capturePlans)
+          expect(world.wire.sends()).toBe(0)
+          expect(await world.entries()).toEqual(before)
+        },
+        async input => {
+          const result = await sessionModelRequestPreparation.prepare(input)
+          if (!('prepared' in result)) throw new Error('original preparation unavailable')
+          const original = result.prepared.execution
+          const ref = {
+            ...original.ref,
+            ...(mismatch === 'tenant'
+              ? { tenant: unwrap(parseTenantId({ organization: 'another', account: 'another' })) }
+              : {}),
+            ...(mismatch === 'session'
+              ? { session: unwrap(parseOpaqueIdentifier('another-session', 'SessionRef')) }
+              : {}),
+            ...(mismatch === 'call' ? { callId: 'another-call' } : {}),
+            ...(mismatch === 'dispatch' ? { dispatch: 2 } : {}),
+          }
+          return {
+            prepared: {
+              ...result.prepared,
+              execution: {
+                ...original,
+                ref,
+                ...(mismatch === 'creation'
+                  ? {
+                      creationKey: unwrap(parseOpaqueIdentifier('another-creation', 'CreationKey')),
+                    }
+                  : {}),
+                ...(mismatch === 'origin'
+                  ? { origin: { kind: 'sessionAttempt', run: 'another-run', attempt: 1 } }
+                  : {}),
+                input: {
+                  ...original.input,
+                  ...(mismatch === 'target'
+                    ? { target: { kind: 'model_call', callId: 'another-call', dispatch: 1 } }
+                    : {}),
+                },
+              },
+            },
+          }
+        },
+      )
+    },
+  )
+
   it('uses the caller-selected Session preparer and does not plan or send after its refusal', async () => {
     let preparations = 0
     await withPreparation(

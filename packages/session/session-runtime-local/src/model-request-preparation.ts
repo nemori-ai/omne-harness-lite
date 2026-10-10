@@ -10,6 +10,7 @@ import {
   type SessionModelRequestPreparation,
   type SessionRuntimeBinding,
   type PlanInput,
+  type PreparedModelExecution,
 } from '@omne-harness-lite/model-request-runtime'
 import { resolveCallTools } from './model-call-tools.ts'
 import { authorizedCalibration } from './model-request-calibration.ts'
@@ -83,8 +84,9 @@ export async function prepareSessionModelDispatch(
 ): Promise<SessionModelDispatchResult> {
   const { session, key, dispatch, provider, attempt } = input
   const view = { request: input.request, binding: input.model, owner: input.owner }
-  const calibrationTarget = currentCalibrationTarget()
-  if (calibrationTarget === null) return { invalidInput: { reason: 'malformed' } }
+  const origin = executionOrigin()
+  if (origin === null) return { invalidInput: { reason: 'malformed' } }
+  const calibrationTarget = currentCalibrationTarget(origin)
   if (preparationUnavailable()) return { unavailable: true }
   const timing = await currentDispatchTiming(input)
   if ('unavailable' in timing) return timing
@@ -134,7 +136,12 @@ export async function prepareSessionModelDispatch(
   })
   return {
     prepared: {
-      planInput,
+      execution: Object.freeze({
+        ref: Object.freeze({ tenant: session.log.tenant, ...key, dispatch }),
+        creationKey: view.request.creationKey,
+        input: planInput,
+        origin,
+      }),
       credential: credentialText,
       credentialScope: value.scope,
       policy: {
@@ -145,13 +152,21 @@ export async function prepareSessionModelDispatch(
     },
   }
 
-  function currentCalibrationTarget(): Parameters<typeof authorizedCalibration>[2] | null {
+  function executionOrigin(): PreparedModelExecution['origin'] | null {
     if (view.request.run === undefined && attempt !== undefined) return null
     return view.request.run === undefined
-      ? { callId: key.callId, dispatch }
+      ? { kind: 'independent' }
       : attempt === undefined
         ? null
-        : { callId: key.callId, dispatch, run: view.request.run, attempt }
+        : { kind: 'sessionAttempt', run: view.request.run, attempt }
+  }
+
+  function currentCalibrationTarget(origin: PreparedModelExecution['origin']) {
+    return {
+      callId: key.callId,
+      dispatch,
+      ...(origin.kind === 'sessionAttempt' ? { run: origin.run, attempt: origin.attempt } : {}),
+    }
   }
 
   function preparationUnavailable(): boolean {
