@@ -21,8 +21,9 @@ function output(bytes: string): Promise<void> {
 class DirectTerminal implements TerminalPort {
   #handler: (event: TerminalInput) => void = () => {}
   #resized: () => void = () => {}
-  #mode: ((value: number) => void) | undefined
+  #mode: ((value: number, privateMode: number) => void) | undefined
   #changed = false
+  #alternate = false
   #released = false
   #restoreFailed = false
   #changingRaw = false
@@ -34,11 +35,11 @@ class DirectTerminal implements TerminalPort {
     if (interleavedReports)
       this.#replies = new ModeReplies(
         bytes => this.#framer.feed(bytes),
-        value => this.#mode?.(value),
+        (value, privateMode) => this.#mode?.(value, privateMode),
       )
   }
   readonly #framer = new InputFramer(event => {
-    if (event.kind === 'mode') this.#mode?.(event.value)
+    if (event.kind === 'mode') this.#mode?.(event.value, event.privateMode)
     else {
       if (event.kind === 'eof') this.#eof = true
       if (event.kind === 'input-error') this.#inputFailed = true
@@ -90,6 +91,7 @@ class DirectTerminal implements TerminalPort {
       process.stdin.resume()
       const mode = await this.#query()
       if (mode !== 1 && mode !== 2) throw new InputFailure('tty-unsupported')
+      await this.#acquireScreen()
       if (mode === 2) {
         // Set before writing: a failed/partial external write is not rollback.
         this.#changed = true
@@ -104,16 +106,24 @@ class DirectTerminal implements TerminalPort {
       throw error
     }
   }
-  async #query(): Promise<number> {
+  async #acquireScreen(): Promise<void> {
+    if ((await this.#query(1049)) !== 2) throw new InputFailure('tty-unsupported')
+    this.#alternate = true
+    await output('\x1b[?1049h')
+    if ((await this.#query(1049)) !== 1) throw new InputFailure('tty-unsupported')
+  }
+  async #query(privateMode = 2004): Promise<number> {
     if (this.#mode || this.#eof) throw new InputFailure('tty-unsupported')
     const pending = Promise.withResolvers<number>()
     const timer = setTimeout(() => pending.reject(new InputFailure('tty-unsupported')), 2000)
-    this.#mode = pending.resolve
+    this.#mode = (value, actualMode) => {
+      if (actualMode === privateMode) pending.resolve(value)
+    }
     // Observe rejection while an actual write is still outstanding. Awaiting that
     // write remains mandatory; the query timeout is not an output drain deadline.
     void pending.promise.catch(() => {})
     try {
-      await output('\x1b[?2004$p')
+      await output(`\x1b[?${privateMode}$p`)
       return await pending.promise
     } finally {
       clearTimeout(timer)
@@ -133,19 +143,31 @@ class DirectTerminal implements TerminalPort {
     await this.#replies?.drainHeld()
     await this.#framer.stop()
   }
+  async #restoreModes(): Promise<boolean> {
+    let failed = false
+    for (const [changed, privateMode] of [
+      [this.#changed, 2004],
+      [this.#alternate, 1049],
+    ] as const) {
+      if (!changed) continue
+      try {
+        await output(`\x1b[?${privateMode}l`)
+        if ((await this.#query(privateMode)) !== 2) failed = true
+      } catch {
+        failed = true
+      }
+    }
+    return !failed
+  }
+
   async restore(): Promise<void> {
     if (this.#released) {
       if (this.#restoreFailed) throw new InputFailure('input-restore-failed')
       return
     }
-    let failed = false
+    let failed = true
     try {
-      if (this.#changed) {
-        await output('\x1b[?2004l')
-        if ((await this.#query()) !== 2) failed = true
-      }
-    } catch {
-      failed = true
+      failed = !(await this.#restoreModes())
     } finally {
       // A timed-out query can still own half a report. Error is not EOF.
       await this.#replies?.drainHeld()

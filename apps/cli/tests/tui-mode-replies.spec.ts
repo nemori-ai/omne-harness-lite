@@ -128,3 +128,27 @@ describe('D054 interleaved terminal replies', () => {
     h.framer.dispose()
   })
 })
+
+it('keeps alternate-screen replies distinct while preserving interleaved paste bytes', () => {
+  for (const privateMode of [2004, 1049]) {
+    const frame = Buffer.concat([begin, Buffer.from('中🙂'), end])
+    for (let cut = 0; cut <= frame.length; cut++) {
+      const events: TerminalInput[] = [],
+        modes: [number, number][] = []
+      const framer = new InputFramer(event => events.push(event))
+      const replies = new ModeReplies(
+        bytes => framer.feed(bytes),
+        (value, mode) => modes.push([mode, value]),
+      )
+      const bytes = Buffer.concat([
+        frame.subarray(0, cut),
+        Buffer.from(`\x1b[?${privateMode};2$y`),
+        frame.subarray(cut),
+      ])
+      for (const byte of bytes) replies.feed(Uint8Array.of(byte))
+      expect(events).toEqual([{ kind: 'paste', text: '中🙂' }])
+      expect(modes).toEqual([[privateMode, 2]])
+      framer.dispose()
+    }
+  }
+})

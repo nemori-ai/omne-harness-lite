@@ -1,14 +1,19 @@
-const replies = [0, 1, 2, 3, 4].map(value => `\x1b[?2004;${value}$y`)
+const replies = [2004, 1049].flatMap(privateMode =>
+  [0, 1, 2, 3, 4].map(value => ({ privateMode, value, bytes: `\x1b[?${privateMode};${value}$y` })),
+)
 
 /** D054: iTerm may insert a complete report between any two paste chunks. */
 export class ModeReplies {
   readonly #data: (bytes: Uint8Array) => void
-  readonly #mode: (value: number) => void
+  readonly #mode: (value: number, privateMode: number) => void
   #candidate = ''
   #ended = false
   readonly #waiters = new Set<() => void>()
 
-  constructor(data: (bytes: Uint8Array) => void, mode: (value: number) => void) {
+  constructor(
+    data: (bytes: Uint8Array) => void,
+    mode: (value: number, privateMode: number) => void,
+  ) {
     this.#data = data
     this.#mode = mode
   }
@@ -24,11 +29,11 @@ export class ModeReplies {
         this.#candidate = '\x1b'
       } else if (this.#candidate !== '') {
         this.#candidate += String.fromCharCode(byte)
-        const complete = replies.indexOf(this.#candidate)
-        if (complete >= 0) {
+        const complete = replies.find(reply => reply.bytes === this.#candidate)
+        if (complete) {
           this.#candidate = ''
-          this.#mode(complete)
-        } else if (!replies.some(reply => reply.startsWith(this.#candidate))) this.#flush()
+          this.#mode(complete.value, complete.privateMode)
+        } else if (!replies.some(reply => reply.bytes.startsWith(this.#candidate))) this.#flush()
       } else this.#data(Uint8Array.of(byte))
     }
     // Resolve only after synchronous downstream delivery, never between bytes.

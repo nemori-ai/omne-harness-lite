@@ -3,7 +3,7 @@ import { FIELD_LIMIT, validFieldText } from './field-text.ts'
 
 export type TerminalInput =
   | { readonly kind: 'key' | 'paste'; readonly text: string }
-  | { readonly kind: 'mode'; readonly value: number }
+  | { readonly kind: 'mode'; readonly value: number; readonly privateMode: number }
   | { readonly kind: 'invalid' | 'eof' | 'input-error' | 'output-error' }
 const START = '\x1b[200~',
   END = '\x1b[201~'
@@ -139,8 +139,9 @@ export class InputFramer {
             this.#pendingStart = false
             this.#done.resolve()
           }
-          const mode = /^\x1b\[\?2004;([0-4])\$y$/.exec(prefix)
-          if (mode) this.#emit({ kind: 'mode', value: Number(mode[1]) })
+          const mode = /^\x1b\[\?(2004|1049);([0-4])\$y$/.exec(prefix)
+          if (mode)
+            this.#emit({ kind: 'mode', privateMode: Number(mode[1]), value: Number(mode[2]) })
           else if (ordinary.has(prefix)) {
             if (!this.#stopping) this.#keys.process(prefix)
           } else this.#bad()
