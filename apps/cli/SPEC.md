@@ -495,7 +495,9 @@ Driver故障先停止协议准入，再调用原诊断端口。关闭停止新�
 
 `startFileSessionRuntimeRoot`在分配资源前核固定中心／账号／登录来源，完成原CG刷新及use关闭，并核既有`tenant.json`的完整租户绑定。它不安装登录、绑定或模型凭据。准入库位于`<home>/data/session-admission.sqlite`，租户运行库沿`tenantPaths.runtime`，时钟使用该租户`run/clock.sqlite`的独立LeaseClock。目录、数据库及旁文件按既有私有命名空间规则检查。只有本次原子创建的新时钟文件允许初始化；重新打开不改写时钟身份。
 
-`startFileSessionDriverRoot`复用相同的文件资源和关闭拥有者，启动`startSessionDriverRuntimeRoot`。它先分配实际物理模型池，再把原pool、Session拥有者、工作结算拥有者和同一Storage／Clock交给可信configure。executionSource固定为原pool来源，不能由configure替换。configure只提供公开Driver的Run来源、模型绑定和工具绑定，不增加应用层循环。可信Session拥有者另提供原SqlSessionLog，供工具结果保管等组合使用；借用方不关闭它。普通协议不公开这些引用。配置失败也按同一顺序释放已分配资源。
+`startFileSessionDriverRoot`复用相同的文件资源和关闭拥有者，启动`startSessionDriverRuntimeRoot`。它先分配实际物理模型池，再把原pool、Session拥有者、工作结算拥有者和同一Storage／Clock交给可信configure。executionSource和Model工厂固定为原pool，不能由configure替换。configure提供公开Driver的Run来源、模型结算配置和工具绑定，不增加应用层循环。可信Session拥有者另提供原SqlSessionLog，供工具结果保管等组合使用；借用方不关闭它。普通协议不公开这些引用。配置失败也按同一顺序释放已分配资源。
+
+文件Driver的`initialRouteName`来自首次模型配置。`createSessionDriverModelFactory`为每次实际调用投影原物理ModelRuntime，使用该调用借入的Session和Run来源。第一次求有效模型前读取完整原日志；没有模型选择记录时，才调用原ModelRuntime的selectModel写入所配置的选择。已有选择不被启动配置覆盖，即使已有模型后来不可用，也由原模型选择规则返回相应结果。来源不可读、租户不匹配或世代失效时不写选择、不发送请求。首次选择被拒绝或结果不明时，本次借用停止初始化，不自动重试或改选其他模型。归还借用等待已开始的初始化结束，不关闭物理模型池。普通用户历史查询不使用这个工厂，不触发首次选择。
 
 可信应用明确选择`nativeModel`或可替换的`createModel`，二者互斥。实际模型拥有者使用同一租户Storage与Clock。工厂必须先返回原关闭端口，再等待异步ready；同步构造抛错时不得遗留资源。ready提供原运行根所需的模型输入，不代表已授权或已发起模型IO。普通通道不携带这些函数或运行引用。
 

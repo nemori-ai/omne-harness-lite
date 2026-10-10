@@ -102,6 +102,7 @@ import { createSessionRunHistory } from '@omne-harness-lite/session-runtime-loca
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import { StorageUnavailable } from '@omne-harness-lite/storage'
 import { createSessionOriginalModelOwner } from '../src/session-model-owner.ts'
+import { createSessionDriverModelFactory } from '../src/session-driver-model.ts'
 import {
   createSessionRunModelBinding,
   type SessionRunModelBindingOptions,
@@ -120,6 +121,7 @@ import {
 } from '@omne-harness-lite/model-request-runtime-local'
 import {
   captureModelLogValue,
+  inspectModelLogEntry,
   prepareModelLogEntry,
   readSettlementPrefix,
   type SettlementLogBinding,
@@ -2100,18 +2102,12 @@ it.each(['normal', 'foreignScope'] as const)(
         executionSource: () => native?.executionSource,
         results: bridge,
         maxCallReads: 4,
-        factory: {
-          acquire: async host => {
-            const operations = native!.project(host, construction.callFacts)
-            expect(
-              await operations.selectModel({
-                session: scope.session,
-                routeName: 'controlled/model',
-              }),
-            ).toEqual({ selected: 'controlled/model' })
-            return { operations, release: async () => {} }
-          },
-        },
+        factory: createSessionDriverModelFactory({
+          tenant,
+          initialRouteName: 'controlled/model',
+          runtime: native,
+          facts: construction.callFacts,
+        }),
         settlement: {
           create: binding =>
             createSettlementCoordinator({
@@ -2302,6 +2298,117 @@ async function originalIssueForPrepared(
   const issue = f.modelOwner!.bind(f.runtime, scope, preparation, unknown)
   return { f, scope, preparation, original, issue, unknown, accepted }
 }
+it.each([
+  'initial',
+  'existing',
+  'missingRoute',
+  'foreignTenant',
+  'unavailablePrefix',
+  'lostSelectionReturn',
+] as const)(
+  'production model factory initializes only a missing durable selection: %s',
+  async scenario => {
+    const original = await originalModelBinding()
+    const ports = nativeCallFixturePorts(original.scope, original.f.runtime, original.f.storage)
+    const options = nativeBindingOptions(original, ports.configure)
+    const append = vi.fn()
+    const factory = createSessionDriverModelFactory({
+      tenant:
+        scenario === 'foreignTenant'
+          ? unwrap(parseTenantId({ ...tenant, organization: 'foreign-organization' }))
+          : tenant,
+      initialRouteName: ['existing', 'missingRoute'].includes(scenario)
+        ? 'not-configured/model'
+        : 'controlled/model',
+      runtime: options.nativeModel,
+      facts: options.construction.callFacts,
+    })
+    const linked = await createSessionRunModelBinding({
+      ...options,
+      selection: {
+        ...options.selection,
+        owner: ports.owner,
+        catalog: ports.catalog,
+        projection: createModalityProjection(original.scope),
+      },
+      providers: { ...options.providers, catalog: ports.catalog, credentials: ports.credentials },
+      model: {
+        async acquire(host) {
+          if (scenario === 'existing')
+            expect(
+              await options.nativeModel.project(host, options.construction.callFacts).selectModel({
+                session: original.scope.session,
+                routeName: 'controlled/model',
+              }),
+            ).toEqual({ selected: 'controlled/model' })
+          if (scenario !== 'unavailablePrefix' && scenario !== 'lostSelectionReturn')
+            return factory.acquire(host)
+          return factory.acquire({
+            ...host,
+            sessions: {
+              async bind(session) {
+                const bound = await host.sessions.bind(session)
+                if ('failure' in bound) return bound
+                const log = {
+                  ...bound.binding.log,
+                  ...(scenario === 'unavailablePrefix'
+                    ? { readPrefix: async () => ({ failure: 'unavailable' as const }) }
+                    : {
+                        log: {
+                          ...bound.binding.log.log,
+                          async append(...args: Parameters<typeof bound.binding.log.log.append>) {
+                            const result = await bound.binding.log.log.append(...args)
+                            expect(result).toHaveProperty('positions')
+                            append()
+                            throw new StorageUnavailable('committed selection return lost')
+                          },
+                        },
+                      }),
+                }
+                return {
+                  binding: {
+                    ...bound.binding,
+                    log,
+                    selection: { ...bound.binding.selection, binding: log },
+                  },
+                }
+              },
+            },
+          })
+        },
+      },
+    })
+    if ('failure' in linked) throw new Error('real model binding unavailable')
+    cleanup.push(linked.returnJournal)
+    const first = await linked.operations.effectiveModel({ session: original.scope.session })
+    const second = await linked.operations.effectiveModel({ session: original.scope.session })
+    if (scenario === 'initial' || scenario === 'existing') {
+      expect(first).toMatchObject({ effectiveModel: { routeName: 'controlled/model' } })
+      expect(second).toEqual(first)
+    } else {
+      expect(first).toEqual({ unavailable: true })
+      expect(second).toEqual(first)
+    }
+    const prefix = await linked.binding.log.readPrefix!()
+    if (!('entries' in prefix)) throw new Error('real original prefix unavailable')
+    const records = prefix.entries.filter(entry => {
+      const inspected = inspectModelLogEntry({
+        session: original.scope.session,
+        tenant,
+        entry,
+        purpose: { kind: 'record' },
+        messagePrefix: null,
+      })
+      return 'ok' in inspected && inspected.ok.captured.record?.kind === 'model_selection_changed'
+    })
+    expect(records).toHaveLength(
+      ['initial', 'existing', 'lostSelectionReturn'].includes(scenario) ? 1 : 0,
+    )
+    expect(append).toHaveBeenCalledTimes(scenario === 'lostSelectionReturn' ? 1 : 0)
+    expect(ports.sends()).toBe(0)
+  },
+)
+
 function nativeBindingOptions(
   original: Awaited<ReturnType<typeof originalModelBinding>>,
   configure?: (
@@ -4404,7 +4511,6 @@ it.each(['normal', 'startupFailure', 'heldCapture'] as const)(
         },
         sources: { acquire: async () => unexpected() },
         model: {
-          factory: { acquire: async () => unexpected() },
           settlement: { create: unexpected },
           maxCallReads: 4,
         },
@@ -4414,6 +4520,7 @@ it.each(['normal', 'startupFailure', 'heldCapture'] as const)(
     const requested = {
       ...options,
       nativeModel,
+      initialRouteName: nativeModel.modelIds[0]!,
       model: options.model,
       maxHeld: options.execution.maxHeld,
       inputSource: {

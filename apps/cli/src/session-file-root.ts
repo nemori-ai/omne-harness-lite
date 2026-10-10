@@ -16,7 +16,9 @@ import type {
   SessionRuntimeRoot,
   SessionRuntimeRootOptions,
   SessionDriverRuntimeRootOptions,
+  SessionDriverRootBinding,
 } from './session-runtime-root-types.ts'
+import { createSessionDriverModelFactory } from './session-driver-model.ts'
 import { parseRunLoginBinding } from './session-preparation.ts'
 import {
   createNativeSessionModelOwner,
@@ -52,13 +54,17 @@ export type FileSessionDriverOptions = Omit<
 > & {
   readonly clockOptions?: Omit<OpenLeaseClockOptions, 'file' | 'initialize'>
   readonly nativeModel: SessionNativeModelPoolOptions
+  readonly initialRouteName: string
   readonly model: Omit<SessionDriverRuntimeRootOptions['model'], 'executionSource'>
   readonly configure: (
     owners: Parameters<SessionDriverRuntimeRootOptions['configure']>[0],
     pool: SessionNativeModelPool,
     work: Parameters<SessionDriverRuntimeRootOptions['configure']>[1],
     files: Pick<SessionRuntimeRootOptions, 'storage' | 'clock'>,
-  ) => ReturnType<SessionDriverRuntimeRootOptions['configure']>
+  ) => FileSessionDriverBinding | Promise<FileSessionDriverBinding>
+}
+export type FileSessionDriverBinding = Omit<SessionDriverRootBinding, 'model'> & {
+  readonly model: Omit<SessionDriverRootBinding['model'], 'factory'>
 }
 
 export async function startFileSessionDriverRoot(
@@ -74,11 +80,24 @@ export async function startFileSessionDriverRoot(
       rootStorage: owner.rootStorage!,
       clock: owner.clock!,
       model: { ...options.model, executionSource: () => pool.runtime.executionSource },
-      configure: (owners, work) =>
-        options.configure(owners, pool, work, {
+      configure: async (owners, work) => {
+        const configured = await options.configure(owners, pool, work, {
           storage: owner.storage!,
           clock: owner.clock!,
-        }),
+        })
+        return {
+          ...configured,
+          model: {
+            ...configured.model,
+            factory: createSessionDriverModelFactory({
+              tenant: options.binding.tenant,
+              initialRouteName: options.initialRouteName,
+              runtime: pool.runtime,
+              facts: pool.facts,
+            }),
+          },
+        }
+      },
     })
   })
 }
