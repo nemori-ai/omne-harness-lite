@@ -1,35 +1,23 @@
 import { join } from 'node:path'
 import { parseTenantId, isOk, tenantIdEquals } from '@omne-harness-lite/identity-values'
-import { constants } from 'node:fs'
-import { open } from 'node:fs/promises'
 import { composeMigrations } from '@omne-harness-lite/storage'
-import { openStorage, createUpgradeGuard, type SqlStorage } from '@omne-harness-lite/storage-sql'
+import type { SqlStorage } from '@omne-harness-lite/storage-sql'
 import {
   openLeaseClock,
   type LeaseClock,
   type OpenLeaseClockOptions,
 } from '@omne-harness-lite/clock-lease'
-import {
-  admissionMigrations,
-  admissionUseMigrations,
-  sessionStateMigrations,
-  operationReceiptMigrations,
-  sessionRuntimeMigrations,
-} from '@omne-harness-lite/session-runtime-local'
-import { sessionLogMigrations } from '@omne-harness-lite/session-log-sql'
-import { runtimeContextMigrations } from '@omne-harness-lite/runtime-context-local'
-import { evaluationInputMigrations } from '@omne-harness-lite/evaluation-input-store'
-import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory-local/migrations'
-import { replicaMigrations } from '@omne-harness-lite/credential-custodian-local/migrations'
-import {
-  originalIssueMigrations,
-  modelCallContentMigrations,
-} from '@omne-harness-lite/model-request-runtime-local'
+import { admissionMigrations } from '@omne-harness-lite/session-runtime-local'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import type { RuntimeCloseResult } from '@omne-harness-lite/model-request-runtime'
-import { checkTenantBinding, checkPrivateFile, ioCode } from './state-layout-files.ts'
+import { checkTenantBinding } from './state-layout-files.ts'
 import { checkCatalogFiles } from './catalog-files.ts'
+import {
+  claimRuntimeFile,
+  openRuntimeDatabase,
+  sessionTenantMigrations,
+} from './session-runtime-files.ts'
 import { tenantPaths, prepareStateDirectory, resolveStateHome } from './state-layout.ts'
 import { checkedTenantBinding } from './state-layout-values.ts'
 import {
@@ -73,19 +61,6 @@ export class FileSessionRuntimeFailure extends AggregateError {
     super(errors, 'file Session root startup failed; original resources retained')
   }
 }
-const tenantMigrations = composeMigrations([
-  ...admissionUseMigrations,
-  ...sessionStateMigrations,
-  ...operationReceiptMigrations,
-  ...sessionRuntimeMigrations,
-  ...sessionLogMigrations,
-  ...runtimeContextMigrations,
-  ...evaluationInputMigrations,
-  ...originalIssueMigrations,
-  ...modelCallContentMigrations('sqlite'),
-  ...modelProfileDirectoryMigrations,
-  ...replicaMigrations,
-])
 /** Production file owner. It does not invent deployment, model selection or execution authority. */
 export async function startFileSessionRuntimeRoot(
   requested: FileSessionRuntimeOptions,
@@ -165,7 +140,7 @@ class FileRootOwner {
       join(rootDirectory, 'session-admission.sqlite'),
       composeMigrations(admissionMigrations),
     )
-    this.storage = await openRuntimeDatabase(paths.runtime, tenantMigrations)
+    this.storage = await openRuntimeDatabase(paths.runtime, sessionTenantMigrations)
     const clockFile = join(paths.run, 'clock.sqlite')
     const creator = await claimRuntimeFile(clockFile)
     await checkCatalogFiles(clockFile)
@@ -202,53 +177,5 @@ class FileRootOwner {
     await this.storage?.close()
     await this.rootStorage?.close()
     return { closed: true }
-  }
-}
-async function claimRuntimeFile(file: string): Promise<boolean> {
-  try {
-    const handle = await open(
-      file,
-      constants.O_CREAT | constants.O_EXCL | constants.O_RDWR | constants.O_NOFOLLOW,
-      0o600,
-    )
-    try {
-      await checkPrivateFile(handle)
-      await handle.sync()
-    } finally {
-      await handle.close()
-    }
-    return true
-  } catch (error) {
-    if (ioCode(error) !== 'EEXIST') throw error
-    return false
-  }
-}
-async function openRuntimeDatabase(
-  file: string,
-  migrations: ReturnType<typeof composeMigrations>,
-): Promise<SqlStorage> {
-  await claimRuntimeFile(file)
-  await checkCatalogFiles(file)
-  const guard = createUpgradeGuard()
-  const storage = await openStorage({
-    dialect: 'sqlite',
-    file,
-    synchronous: 'full',
-    migrations,
-    upgrade: { guard, checks: [] },
-  })
-  try {
-    await guard.confirm()
-    return storage
-  } catch (error) {
-    try {
-      await storage.close()
-    } catch (cleanup) {
-      throw new AggregateError(
-        [error, cleanup],
-        'runtime migration confirmation and storage close failed',
-      )
-    }
-    throw error
   }
 }

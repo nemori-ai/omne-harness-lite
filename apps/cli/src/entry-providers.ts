@@ -32,6 +32,7 @@ export function entryProviders(signal: AbortSignal): Pick<EntryRuntime, 'version
           pollIntervalMs: 250,
         },
         maxMessageBytes: 1024 * 1024,
+        modelSetupPolicy: { maxCredentialBytes: 64 * 1024, maxChoices: 256 },
         confirmCenter: async () => false,
         interactive: {
           terminal: () => openTerminal(terminalProfile),

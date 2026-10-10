@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile, readFile, mkdir, chmod } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
@@ -12,6 +12,8 @@ import { runLoginEntry, type LoginEntryInput } from '../src/login-entry.ts'
 import { readSessionEntryPreparation } from '../src/session-entry-preparation.ts'
 import { runDefaultSessionEntry, type DefaultSessionOptions } from '../src/session-default-entry.ts'
 import { createSessionModelDirectory } from '../src/session-model-directory.ts'
+import { prepareSessionModel } from '../src/session-model-setup.ts'
+import { openRuntimeDatabase, sessionTenantMigrations } from '../src/session-runtime-files.ts'
 import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory-local/migrations'
 import { replicaMigrations } from '@omne-harness-lite/credential-custodian-local/migrations'
 import { instantFromEpochMs } from '@omne-harness-lite/offer-expiry'
@@ -858,5 +860,134 @@ it.each(['stored', 'rejected', 'unconfirmed', 'draining'] as const)(
       f.factory,
     )
     expect(outcome.diagnostics).toEqual([])
+  },
+)
+
+it.each(['file', 'missing', 'cancel'] as const)(
+  'prepares first model configuration from actual directory and %s input',
+  async mode => {
+    const f = await fixture()
+    await runLoginEntry(f.input, f.owned.catalog, new AbortController().signal, f.factory)
+    const path = join(f.input.home, 'explicit-model-key')
+    await writeFile(path, 'original-openrouter-secret', { mode: 0o600 })
+    const dialog: GovernanceDialog = {
+      text: vi.fn(async () => path),
+      choose: vi.fn(async title =>
+        title === 'Select model' ? (mode === 'cancel' ? undefined : 0) : mode === 'file' ? 0 : 1,
+      ),
+      show: vi.fn(async () => true),
+      identity: vi.fn(),
+    }
+    const result = await usingSelectedTenant(
+      f.input.home,
+      f.owned.catalog,
+      new AbortController().signal,
+      async ports => {
+        if (!isGovernanceCenterId(centerId)) throw new Error('invalid center')
+        const options = {
+          home: f.input.home,
+          binding: ports.selection.selected,
+          source: {
+            centerId,
+            accountId: unwrap(parseAccountId(account)),
+            loginStateHandle: unwrap(parseLoginStateId(handle)),
+          },
+          governance: ports.client,
+          dialog,
+          signal: new AbortController().signal,
+          originalId: () => 'first-model-credential',
+          maxCredentialBytes: 65536,
+          maxChoices: 256,
+        }
+        const first = await prepareSessionModel(options)
+        if (mode === 'cancel') {
+          expect(first).toEqual({ kind: 'blocked', reason: 'input-cancelled' })
+          expect(dialog.text).not.toHaveBeenCalled()
+          return first
+        }
+        expect(first).toMatchObject({ kind: 'configured', credentialPresent: mode === 'file' })
+        if (first.kind !== 'configured') throw new Error('model setup failed')
+        expect(first.routeName).not.toBe('')
+        const runtime = await openRuntimeDatabase(
+          tenantPaths(f.input.home, ports.selection.selected).runtime,
+          sessionTenantMigrations,
+        )
+        await runtime.close()
+        const key = await readFile(first.keyFile)
+        expect(key.length).toBe(32)
+        if (mode === 'file') {
+          vi.mocked(dialog.text).mockClear()
+          const repeated = await prepareSessionModel(options)
+          expect(repeated).toEqual(first)
+          expect(dialog.text).not.toHaveBeenCalled()
+          expect(await readFile(first.keyFile)).toEqual(key)
+        }
+        expect(
+          JSON.stringify({
+            first,
+            calls: vi.mocked(dialog.show).mock.calls,
+            choices: vi.mocked(dialog.choose).mock.calls,
+          }),
+        ).not.toContain('original-openrouter-secret')
+        const database = await readFile(tenantPaths(f.input.home, ports.selection.selected).runtime)
+        expect(database.includes(Buffer.from('original-openrouter-secret'))).toBe(false)
+        return first
+      },
+      f.factory,
+    )
+    expect(result.diagnostics).toEqual([])
+  },
+)
+
+it.each(['unsafe-key', 'unsafe-input'] as const)(
+  'rejects %s during first model setup without replacing existing material',
+  async mode => {
+    const f = await fixture()
+    await runLoginEntry(f.input, f.owned.catalog, new AbortController().signal, f.factory)
+    const result = await usingSelectedTenant(
+      f.input.home,
+      f.owned.catalog,
+      new AbortController().signal,
+      async ports => {
+        const paths = tenantPaths(f.input.home, ports.selection.selected)
+        const keyFile = join(paths.credentials, 'model-replica.key')
+        const inputFile = join(f.input.home, 'model-input')
+        await writeFile(inputFile, 'private-api-input', { mode: 0o600 })
+        if (mode === 'unsafe-key') {
+          await mkdir(paths.credentials, { recursive: true, mode: 0o700 })
+          await writeFile(keyFile, 'incomplete-original-key', { mode: 0o600 })
+        } else await chmod(inputFile, 0o644)
+        if (!isGovernanceCenterId(centerId)) throw new Error('invalid center')
+        const operation = prepareSessionModel({
+          home: f.input.home,
+          binding: ports.selection.selected,
+          source: {
+            centerId,
+            accountId: unwrap(parseAccountId(account)),
+            loginStateHandle: unwrap(parseLoginStateId(handle)),
+          },
+          governance: ports.client,
+          dialog: {
+            choose: async () => 0,
+            text: async () => inputFile,
+            show: async () => true,
+            identity() {},
+          },
+          signal: new AbortController().signal,
+          originalId: () => 'protected-model-key',
+          maxCredentialBytes: 65536,
+          maxChoices: 256,
+        })
+        await expect(operation).rejects.toMatchObject(
+          mode === 'unsafe-key' ? { reason: 'unsafe-path' } : { code: 'secret-permissions' },
+        )
+        if (mode === 'unsafe-key')
+          expect(await readFile(keyFile, 'utf8')).toBe('incomplete-original-key')
+        expect(await readFile(inputFile, 'utf8')).toBe('private-api-input')
+        return 'verified'
+      },
+      f.factory,
+    )
+    expect(result).toEqual({ outcome: 'verified', diagnostics: [] })
   },
 )

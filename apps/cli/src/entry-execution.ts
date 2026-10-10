@@ -24,6 +24,9 @@ import { usingGovernanceDialog } from './governance-dialog.ts'
 import { PreparedPresentationGroup } from './prepared-presentation.ts'
 import { createGovernanceChoices } from './governance-choices.ts'
 import { runDefaultSessionEntry, type DefaultSessionOptions } from './session-default-entry.ts'
+import { prepareSessionModel, type SessionModelSetupResult } from './session-model-setup.ts'
+import { usingSelectedTenant } from './selected-tenant-work.ts'
+import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 
 type GovernanceEntry = Extract<EntryCommand, { kind: 'governance' }>
 export interface EntryExecutionOptions {
@@ -34,9 +37,11 @@ export interface EntryExecutionOptions {
   readonly confirmCenter: (profile: CenterProfile) => Promise<boolean>
   readonly interactive?: GovernanceInteraction
   readonly preparedFactory?: PreparedFactory
+  readonly modelSetupPolicy?: { readonly maxCredentialBytes: number; readonly maxChoices: number }
   readonly enterSession?: (
     command: Extract<EntryCommand, { kind: 'session' }>,
     ready: Parameters<DefaultSessionOptions['enter']>[0],
+    model?: Extract<SessionModelSetupResult, { kind: 'configured' }>,
   ) => Promise<EntryExecution>
   readonly sessionPolicy?: SessionMessagePolicy
   readonly maxMessageBytes?: number
@@ -129,7 +134,45 @@ async function executeSessionPreparation(
             preparedFactory: factory,
             confirmCenter: profile => confirmObservedCenter(dialog, profile),
           }),
-        enter: ready => options.enterSession?.(command, ready) ?? Promise.resolve(notReady()),
+        enter: async ready => {
+          if (!options.modelSetupPolicy) return options.enterSession?.(command, ready) ?? notReady()
+          const prepared = await usingSelectedTenant(
+            home,
+            owned.catalog,
+            signal,
+            async ports => {
+              const binding = ports.selection.selected
+              if (
+                binding.centerId !== ready.binding.centerId ||
+                !tenantIdEquals(binding.tenant, ready.binding.tenant)
+              )
+                return { kind: 'blocked', reason: 'identity-mismatch' } as const
+              return prepareSessionModel({
+                home,
+                binding,
+                governance: ports.client,
+                source: {
+                  centerId: ready.identity.centerId,
+                  accountId: ready.identity.accountId,
+                  loginStateHandle: ready.identity.loginStateHandle,
+                },
+                dialog,
+                signal,
+                originalId: options.originalId,
+                ...options.modelSetupPolicy!,
+              })
+            },
+            factory,
+          )
+          if (prepared.outcome.kind !== 'configured')
+            return { outcome: prepared.outcome, diagnostics: prepared.diagnostics }
+          if (prepared.diagnostics.length)
+            return {
+              outcome: { kind: 'blocked', reason: 'preparation-close-failed' },
+              diagnostics: prepared.diagnostics,
+            }
+          return options.enterSession?.(command, ready, prepared.outcome) ?? notReady()
+        },
       }),
     presentation,
   )

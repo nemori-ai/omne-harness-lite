@@ -1106,3 +1106,63 @@ it('formal bare entry completes center setup and login in one invocation before 
     readFile(join(tenantPaths(home, binding).sessions, 'session.json')),
   ).rejects.toMatchObject({ code: 'ENOENT' })
 })
+
+it.each(['file', 'missing'] as const)(
+  'formal bare entry prepares a model with %s credentials before its Session consumer',
+  async mode => {
+    const f = await fixture(),
+      terminal = new FakeTerminal()
+    await f.catalog.registerCenter({
+      name: 'work',
+      center: { centerId, endpoint, trust: { mode: 'ca', certificateAuthorities: certificate } },
+    })
+    const credentialFile = join(f.home, 'model-input')
+    await writeFile(credentialFile, 'protected-openrouter-input', { mode: 0o600 })
+    const steps: readonly (readonly [string, string | null])[] = [
+      ['Select model', '1'],
+      ['Model credential is missing', mode === 'file' ? '1' : '2'],
+      ...(mode === 'file'
+        ? ([
+            ['OpenRouter credential file', credentialFile],
+            ['Store model credential', null],
+          ] as const)
+        : []),
+    ]
+    let next = 0
+    terminal.onFrame = bytes => {
+      const step = steps[next]
+      if (!step || !bytes.includes(step[0])) return
+      next++
+      if (step[1] === null) terminal.key('\r')
+      else {
+        terminal.paste(step[1])
+        void tick().then(() => terminal.key('\r'))
+      }
+    }
+    const enterSession = vi.fn(async () => ({
+      outcome: { kind: 'not-ready' as const, reason: 'capability-not-installed' as const },
+      diagnostics: [],
+    }))
+    const command = parseEntryCommand([], true)
+    if (command.kind !== 'session') throw new Error('invalid command')
+    const result = await executeEntry(command, {
+      ...interactiveOptions(f.home, terminal),
+      modelSetupPolicy: { maxChoices: 256, maxCredentialBytes: 65536 },
+      enterSession,
+    })
+    expect(result.diagnostics).toEqual([])
+    expect(next).toBe(steps.length)
+    expect(enterSession).toHaveBeenCalledExactlyOnceWith(
+      command,
+      expect.objectContaining({ kind: 'ready', binding }),
+      expect.objectContaining({
+        kind: 'configured',
+        routeName: expect.any(String),
+        credentialPresent: mode === 'file',
+      }),
+    )
+    expect(terminal.restored).toBe(true)
+    expect(terminal.frames.join('')).not.toContain('protected-openrouter-input')
+    expect(await f.catalog.readSelection()).toMatchObject({ selected: binding })
+  },
+)
