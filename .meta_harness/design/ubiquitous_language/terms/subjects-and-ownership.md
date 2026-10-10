@@ -65,7 +65,7 @@
 - **注意 ②**：**正文未述它靠什么标识**，只写明彼此可分辨——重新登录是新的一个，多处登录各是一个
 - **注意 ③**：**可被同账号的其他有效登录状态列出。**[持本账号任一有效登录状态者，可以列出本账号当前全部有效的登录状态，每一个带签发时间](../../product/PF-001-identity-scope-and-agent-constraints/design.md#登录状态)；**已失效的不在列表里**。独立撤销仍逐个；[主动更换凭据](../../product/PF-001-identity-scope-and-agent-constraints/design.md#主动更换凭据)成功会使全部旧登录失效
 - **注意 ④**：[当前租户身份](#ul-current-tenant-identity--当前租户身份--current-tenant-identity)这项选择**挂在它身上**：它失效，那项选择随之不存在；重新登录从个人组织重新起算
-- **注意 ⑤**：**属于签发它的那个[治理中心](grounding-and-isolation.md#ul-governance-center--治理中心--governance-center)**，这是它身份的一部分；换一个中心就是另一套身份（[PF-016 §4 治理中心](../../product/PF-016-cli-tui-delivery-surface/design.md#治理中心)（rev 12））
+- **注意 ⑤**：**属于签发它的那个[治理中心](grounding-and-isolation.md#ul-governance-center--治理中心--governance-center)**，这是它身份的一部分；换一个中心就是另一套身份（[PF-016 §4 治理中心](../../product/PF-016-cli-tui-delivery-surface/design.md#治理中心)（rev 13））
 
 ### UL-organization · 组织 · Organization
 

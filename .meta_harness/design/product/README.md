@@ -35,7 +35,7 @@
 | [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | active | 17 |
 | [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | active | 14 |
 | [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | active | 21 |
-| [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 12 |
+| [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 13 |
 | [PF-017 治理中心作为一个可部署应用](PF-017-governance-center-as-deployable-application/README.md) | active | 7 |
 | [PF-020 工作区](PF-020-workspace/README.md) | active | 22 |
 | [PF-021 日程与日历](PF-021-schedule-and-calendar/README.md) | active | 8 |
