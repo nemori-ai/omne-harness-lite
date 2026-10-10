@@ -1,3 +1,4 @@
+import { createParameterJudge, type ParameterJudge } from '@omne-harness-lite/tool-definition'
 import { narrow, type ReadTx, type Storage } from '@omne-harness-lite/storage'
 import {
   readJsonStrict,
@@ -28,6 +29,8 @@ export interface OriginalRow {
 
 /** Trusted root construction; possession grants only this tenant's original-record read. */
 export function createToolExecutionObligations(input: {
+  readonly parameters?: ParameterJudge
+
   readonly storage: Storage
   readonly tenant: TenantId
   readonly maxPageSize: number
@@ -36,6 +39,7 @@ export function createToolExecutionObligations(input: {
   if (!('ok' in tenant) || !Number.isSafeInteger(input.maxPageSize) || input.maxPageSize < 1)
     throw new TypeError('invalid Tool obligation source configuration')
   const { storage, maxPageSize } = input
+  const parameters = input.parameters ?? createParameterJudge()
   const key = writeJsonLossless(tenant.ok)
   return Object.freeze<ToolExecutionObligations<ExecutionRef>>({
     async withObligations(request, use) {
@@ -45,12 +49,12 @@ export function createToolExecutionObligations(input: {
       const limit = request.limit
       if (!Number.isSafeInteger(limit) || limit < 1 || limit > maxPageSize)
         return { kind: 'unavailable' }
-      return borrowToolObligations(storage, tx => nativePages(tx, key, limit), use)
+      return borrowToolObligations(storage, tx => nativePages(tx, key, limit, parameters), use)
     },
   })
 }
 
-function nativePages(tx: ReadTx, tenant: string, limit: number) {
+function nativePages(tx: ReadTx, tenant: string, limit: number, parameters: ParameterJudge) {
   let after: Pick<OriginalRow, 'session' | 'call'> | undefined
   return async () => {
     let query = narrow<{ tool_original_issue: OriginalRow }>(tx)
@@ -69,7 +73,7 @@ function nativePages(tx: ReadTx, tenant: string, limit: number) {
     const rows = await query.orderBy('session').orderBy('call').limit(limit).execute()
     const refs: ExecutionRef[] = []
     for (const row of rows) {
-      const original = decodeToolOriginal(row)
+      const original = decodeToolOriginal(row, parameters)
       if (!original) return { kind: 'unavailable' as const }
       refs.push(original.identity.ref)
     }
@@ -84,13 +88,13 @@ function nativePages(tx: ReadTx, tenant: string, limit: number) {
   }
 }
 
-export function decodeToolOriginal(row: OriginalRow) {
+export function decodeToolOriginal(row: OriginalRow, parameters?: ParameterJudge) {
   const decoded = readRow(row)
   if (!decoded) return
   const { identity, intent } = decoded
-  const value = storedIntent(intent)
+  const value = storedIntent(intent, parameters)
   if (!value || !sameCoordinates(row, value.ref)) return
-  const prepared = prepareToolJournalEntry({ origin: value.origin, value })
+  const prepared = prepareToolJournalEntry({ origin: value.origin, value }, parameters)
   if ('invalid' in prepared || !sameJson(prepared.entry, intent)) return
   const generation = identity.executionGeneration
   if (typeof generation !== 'string' || generation.length === 0) return
@@ -129,7 +133,7 @@ function readRow(row: OriginalRow) {
   return { identity: identity.ok, intent: intent.ok }
 }
 
-function storedIntent(intent: JsonObject) {
+function storedIntent(intent: JsonObject, parameters?: ParameterJudge) {
   const payload = checkLogPayload(intent.payload)
   if (
     'failure' in payload ||
@@ -138,17 +142,17 @@ function storedIntent(intent: JsonObject) {
     payload.payload.version !== '1'
   )
     return
-  return originalValue(payload.payload.value)
+  return originalValue(payload.payload.value, parameters)
 }
 
-function originalValue(envelope: JsonValue) {
+function originalValue(envelope: JsonValue, parameters?: ParameterJudge) {
   if (
     !jsonObject(envelope) ||
     envelope.format !== 'tool-runtime/1' ||
     envelope.category !== 'execution'
   )
     return
-  const value = captureToolJournalValue(envelope.value)
+  const value = captureToolJournalValue(envelope.value, parameters)
   if ('invalid' in value || value.kind !== 'execution_intended' || !jsonObject(value.input)) return
   const submission = value.input.submission
   if (!jsonObject(submission) || typeof submission.adoption !== 'string') return

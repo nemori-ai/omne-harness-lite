@@ -1,3 +1,4 @@
+import type { ParameterJudge } from '@omne-harness-lite/tool-definition'
 import {
   inspectToolJournalEntry,
   type ToolOriginalIssueIdentity,
@@ -39,13 +40,15 @@ export function createToolRecordAppender(input: Input): SessionLogParticipant['a
     const first = inspectToolJournalEntry(
       { tenant: input.options.tenant, session: request.session },
       { ...request.entries[0]!, session: request.session, position: 1 },
+      input.options.parameters,
     )
     if (!('value' in first)) return { failure: 'denied' }
     const original = active ?? (await input.original(unit, first.value.ref))
     if (!original || !tenantIdEquals(original.ref.tenant, input.options.tenant))
       return { failure: 'denied' }
     const scope = { tenant: original.ref.tenant, session: original.ref.session }
-    if (!matchingRecords(request, original, active !== undefined)) return { failure: 'denied' }
+    if (!matchingRecords(request, original, active !== undefined, input.options.parameters))
+      return { failure: 'denied' }
     const append = () => input.log.appendIn(unit, access, request, suppliedSource)
     if (active) return append()
     return input.authority.withinRun(unit, scope, original.origin.run, append)
@@ -67,16 +70,21 @@ function matchingRecords(
   request: Parameters<SessionLogParticipant['appendIn']>[2],
   original: ToolOriginalIssueIdentity,
   active: boolean,
+  parameters?: ParameterJudge,
 ): boolean {
   if (request.session !== original.ref.session) return false
   const scope = { tenant: original.ref.tenant, session: original.ref.session }
   let position: JsonNumber = 0
   return request.entries.every(entry => {
-    const checked = inspectToolJournalEntry(scope, {
-      ...entry,
-      session: request.session,
-      position: (position = addInteger(position, 1)),
-    })
+    const checked = inspectToolJournalEntry(
+      scope,
+      {
+        ...entry,
+        session: request.session,
+        position: (position = addInteger(position, 1)),
+      },
+      parameters,
+    )
     if (!('value' in checked) || checked.value.ref.callId !== original.ref.callId) return false
     if (
       entry.run !== original.origin.run ||

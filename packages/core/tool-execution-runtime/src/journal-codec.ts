@@ -1,3 +1,4 @@
+import type { ParameterJudge } from '@omne-harness-lite/tool-definition'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { copyJsonValue, type JsonObject, type JsonValue } from '@omne-harness-lite/content-blocks'
 import {
@@ -60,8 +61,11 @@ export function toolJournalCallKey(input: unknown): string | typeof invalidJourn
   const parsed = parseOpaqueIdentifier(input, 'CallId')
   return 'ok' in parsed ? callKey(parsed.ok) : invalidJournal
 }
-export function toolJournalKey(input: unknown): string | typeof invalidJournal {
-  const value = captureToolJournalValue(input)
+export function toolJournalKey(
+  input: unknown,
+  parameters?: ParameterJudge,
+): string | typeof invalidJournal {
+  const value = captureToolJournalValue(input, parameters)
   return 'invalid' in value ? value : keyOf(value)
 }
 function scopeOf(input: unknown): SessionScope | undefined {
@@ -104,14 +108,17 @@ function capturePreparation(input: unknown) {
   }
 }
 /** The execution origin remains the shell origin even when its attempt has ended. */
-export function prepareToolJournalEntry(input: {
-  readonly origin: ExecutionOrigin
-  readonly value: ToolJournalPayload
-}): { readonly entry: OwnedLogEntry } | typeof invalidJournal {
+export function prepareToolJournalEntry(
+  input: {
+    readonly origin: ExecutionOrigin
+    readonly value: ToolJournalPayload
+  },
+  parameters?: ParameterJudge,
+): { readonly entry: OwnedLogEntry } | typeof invalidJournal {
   const captured = capturePreparation(input)
   if ('invalid' in captured) return captured
   const { origin } = captured
-  const value = captureToolJournalValue(captured.value)
+  const value = captureToolJournalValue(captured.value, parameters)
   if ('invalid' in value) return value
   if (
     value.kind === 'execution_intended' &&
@@ -185,9 +192,14 @@ function captureToolShell(scope: SessionScope, row: JsonObject, payload: JsonVal
     return invalidJournal
   return { payload, attempt: row.attempt }
 }
-function captureScopedToolValue(scope: SessionScope, row: JsonObject, payload: JsonObject) {
+function captureScopedToolValue(
+  scope: SessionScope,
+  row: JsonObject,
+  payload: JsonObject,
+  parameters?: ParameterJudge,
+) {
   const tenant = parseTenantId(row.tenant),
-    value = captureToolJournalValue(payload.value)
+    value = captureToolJournalValue(payload.value, parameters)
   if (
     !('ok' in tenant) ||
     !tenantIdEquals(tenant.ok, scope.tenant) ||
@@ -221,6 +233,7 @@ function matchesToolKeys(
 export function inspectToolJournalEntry(
   suppliedScope: SessionScope,
   input: LogEntry,
+  parameters?: ParameterJudge,
 ): InspectedToolJournalEntry | typeof invalidJournal | { readonly unrelated: true } {
   const scope = scopeOf(suppliedScope),
     copy = copyJsonValue(input)
@@ -230,7 +243,7 @@ export function inspectToolJournalEntry(
   if (!claimsToolRecord(row)) return { unrelated: true }
   const shell = captureToolShell(scope, row, payload)
   if ('invalid' in shell) return shell
-  const value = captureScopedToolValue(scope, row, shell.payload)
+  const value = captureScopedToolValue(scope, row, shell.payload, parameters)
   if ('invalid' in value) return value
   const key = keyOf(value)
   if (!matchesToolKeys(row, value, key, shell.attempt)) return invalidJournal

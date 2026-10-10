@@ -1,6 +1,7 @@
 // @module-tag slow
 // Real SQL manifest, version history, SQL journal and service dispatch. Model origin and access use explicit fixtures.
 import { expect, test, vi } from 'vitest'
+import { createAssetEvaluator } from '@omne-harness-lite/asset-evaluation'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import {
   encodeRunnerAdmissionToken,
@@ -24,12 +25,16 @@ test('the service captures a real manifest chain, authorizes the host source and
     acquireReplay: vi.fn(async () => ({ ...h.scope, sources: facts.sources, release })),
   }
   const authorize = vi.spyOn(h.access, 'authorize')
-  const service = createLoopExtensionRunner({
+  const evaluator = createAssetEvaluator()
+  const judgeEffectiveAssembly = vi.fn(evaluator.judgeEffectiveAssembly)
+  const serviceInput = {
+    evaluator: { ...evaluator, judgeEffectiveAssembly },
     log: h.log,
     host,
     access: h.access,
     isActive: () => true,
-  })
+  }
+  const service = createLoopExtensionRunner(serviceInput)
   const judge = vi.fn<OfficialAdmissionContribution>(async (access, scope, pass, batch) => {
     const source = await service.admissionPassSource.read(access, scope, pass)
     if (source.kind !== 'found') return { kind: 'failed', reason: 'unavailable' }
@@ -82,6 +87,7 @@ test('the service captures a real manifest chain, authorizes the host source and
     expect(append).not.toHaveBeenCalled()
     expect(authorize).not.toHaveBeenCalled()
     expect(release).toHaveBeenCalledTimes(2)
+    expect(judgeEffectiveAssembly).toHaveBeenCalledTimes(2)
 
     authorize.mockResolvedValue({ kind: 'rejected', reason: 'notAuthorized' })
     expect(await service.runner.dispatch(h.request, new AbortController().signal)).toEqual({

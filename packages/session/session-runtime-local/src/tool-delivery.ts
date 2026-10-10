@@ -195,7 +195,7 @@ class ToolDelivery {
     if ('failure' in appended)
       throw new ToolCustodyRefusal(appended.failure === 'denied' ? 'denied' : 'unavailable')
     const full = [...prefix, ...appended.entries]
-    if ('invalid' in projectToolJournal(scope, full))
+    if ('invalid' in projectToolJournal(scope, full, this.host.options.parameters))
       throw new StorageDefect('invalid committed Tool delivery transitions')
     const message = appended.entries.find(
       entry => entry.dedupeKey === `message:${input.message.id}`,
@@ -232,7 +232,7 @@ class ToolDelivery {
     prefix: readonly LogEntry[],
   ) {
     const original = saved.witness.original
-    const history = projectToolJournal(scope, prefix)
+    const history = projectToolJournal(scope, prefix, this.host.options.parameters)
     if ('invalid' in history) throw new StorageDefect('invalid original Tool delivery history')
     const execution = history.executions.get(original.ref.callId)
     if (!execution?.terminal) throw new StorageDefect('missing original Tool terminal')
@@ -316,7 +316,7 @@ class ToolDelivery {
     const prefix = await this.prefix(unit, checked.ok)
     this.verifyProofBatch(scope, prefix, proof, input)
     verifyMessagePosition(prefix, proof, input, this.host.options.policy.maxRecordBytes)
-    const history = projectToolJournal(scope, prefix)
+    const history = projectToolJournal(scope, prefix, this.host.options.parameters)
     if (
       'invalid' in history ||
       !history.executions.get(input.witness.original.ref.callId)?.confirmed

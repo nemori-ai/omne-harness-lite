@@ -223,3 +223,7 @@ TE-28 第一次收场或 owner 关闭即永久禁止该执行的新环境作用�
 TE-29 resource_adopted只引用原已planned/permitted、未移交且无stop观察的key。目的环境派生原execution_environment_adopted，不由native索引另签许可。adopt、permit和execution_ended沿同一SessionLog prefix提交；终局之后拒新移交。相同原事实可重读认回，非法关系拒绝。
 
 TE-30 ExecutionSnapshot.resources保留原资源、许可、所有权和最新物理停止观察。冷恢复核原scope/backing与维护权限，再认回环境索引；当前代已移交资源不被call恢复误停。旧代回收观察只按原planned key写回，不造新key。观察evidence不自动成为模型消息，不改变late、首胜或delivery结算边界。
+
+### Journal validation ownership
+
+The journal codec functions accept an optional `ParameterJudge`. Pass the assembly-owned instance when repeatedly reading records that contain Tool definitions. The functions still validate each supplied record. Omitting the instance selects the standalone validation behavior and does not establish a shared author-Schema cache.

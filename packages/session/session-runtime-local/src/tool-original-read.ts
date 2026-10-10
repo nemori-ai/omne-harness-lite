@@ -1,3 +1,4 @@
+import type { ParameterJudge } from '@omne-harness-lite/tool-definition'
 import { readJsonStrict } from '@omne-harness-lite/content-blocks'
 import { narrow, StorageDefect, type StorageUnit } from '@omne-harness-lite/storage'
 import { checkKey } from '@omne-harness-lite/session-log'
@@ -13,7 +14,7 @@ import { runtimeSemantic } from './runtime-values.ts'
 
 export async function readSessionToolOriginalIn(
   unit: StorageUnit,
-  options: Pick<RuntimeOptions, 'storage' | 'tenant' | 'policy'>,
+  options: Pick<RuntimeOptions, 'storage' | 'tenant' | 'policy' | 'parameters'>,
   ref: ExecutionRef,
 ): Promise<ToolOriginalIssueIdentity | undefined> {
   unit.assertStorage(options.storage)
@@ -31,7 +32,7 @@ export async function readSessionToolOriginalIn(
   if (!row) return
   if (row.original === null)
     throw new StorageDefect('Tool proof lacks its durable original identity')
-  const original = decodeOriginal(row.original)
+  const original = decodeOriginal(row.original, options.parameters)
   if (runtimeSemantic(original, options.policy.maxRecordBytes) !== row.identity)
     throw new StorageDefect('stored Tool original differs from its proof')
   if (
@@ -43,7 +44,7 @@ export async function readSessionToolOriginalIn(
   return original
 }
 
-function decodeOriginal(text: string): ToolOriginalIssueIdentity {
+function decodeOriginal(text: string, parameters?: ParameterJudge): ToolOriginalIssueIdentity {
   const parsed = readJsonStrict(text)
   if ('failed' in parsed || !object(parsed.ok))
     throw new StorageDefect('invalid stored Tool original')
@@ -55,13 +56,16 @@ function decodeOriginal(text: string): ToolOriginalIssueIdentity {
     !checkKey(data.originalPosition)
   )
     throw new StorageDefect('invalid stored Tool original fields')
-  const value = captureToolJournalValue({
-    kind: 'execution_intended',
-    revision: 1,
-    ref: data.ref,
-    origin: data.origin,
-    input: null,
-  })
+  const value = captureToolJournalValue(
+    {
+      kind: 'execution_intended',
+      revision: 1,
+      ref: data.ref,
+      origin: data.origin,
+      input: null,
+    },
+    parameters,
+  )
   if ('invalid' in value || value.kind !== 'execution_intended')
     throw new StorageDefect('invalid stored Tool original coordinates')
   return {

@@ -649,3 +649,7 @@ SessionDriverToolFactory.acquire在原发起支持之外显式接收scope和run�
 
 
 G28的`query`可重新排入原状态为unavailable的ticket，保留身份和全序。它不能重排querying、ready、consumed或rejected。重排和取得唯一active许可在原根事务中完成；其他active仍阻挡它。重新排队时即递增内部`query_generation`，同一事务若取得active许可则沿用该新代；后续从waiting取得许可时再递增。因此等待其他active结束期间，旧已完成结果也已经失效。本机保留结果及SQL结算都携带该代数，旧代结果不能覆盖新代状态，也不能清除新代尚未结算的结果。不可达必须来自已经结束的原核验；未知或未结算结果仍保留原责任，只重试结算。根迁移为已有记录补零代数，正式新查询从下一代开始。
+
+### Schema compiler ownership
+
+`RuntimeOptions.parameters` borrows the assembly's parameter validator. If omitted, the ingress creates one validator for its own lifetime. Tool record inspection, custody and delivery reuse that validator. Each current record is still validated; sharing compilation does not authorize a record or reuse a prior validation result.

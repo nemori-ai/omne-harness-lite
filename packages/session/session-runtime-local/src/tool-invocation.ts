@@ -196,7 +196,7 @@ export function createSessionToolAdmission(host: Host) {
     const identity = held.participant.identity
     const entry = prefix.entries.find(entry => entry.dedupeKey === identity.originalPosition)
     if (!entry) throw new StorageDefect('Tool issue lacks original intent')
-    const inspected = inspectToolJournalEntry(held.scope, entry)
+    const inspected = inspectToolJournalEntry(held.scope, entry, host.options.parameters)
     if (!('value' in inspected) || inspected.value.kind !== 'execution_intended')
       throw new StorageDefect('Tool issue original position is not an intent')
     if (

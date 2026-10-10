@@ -1,3 +1,4 @@
+import { createParameterJudge, type ParameterJudge } from '@omne-harness-lite/tool-definition'
 import {
   StorageUnavailable,
   type AtomicStorage,
@@ -24,6 +25,8 @@ import { captureStoreConfig, captureRef, references, blockReferences } from './v
 import { readStoredResult } from './result-record.ts'
 
 export interface ToolResultCustodyDependencies {
+  readonly parameters?: ParameterJudge
+
   readonly storage: AtomicStorage
   readonly log: Pick<SessionLogParticipant, 'sourceIn' | 'readByKeyIn'>
   readonly access: LogAuthority
@@ -39,6 +42,7 @@ export async function openToolResultCustodySource(
   config: Pick<ResultStoreConfig, 'directory' | 'storage'>,
   dependencies: ToolResultCustodyDependencies,
 ): Promise<ToolResultCustodyInstance> {
+  const parameters = dependencies.parameters ?? createParameterJudge()
   const fixed = captureStoreConfig(config),
     files = await createImmutableFiles(fixed.directory),
     records = createRecords(files),
@@ -71,7 +75,7 @@ export async function openToolResultCustodySource(
   ): ReturnType<ToolResultCustodySource['verifyIn']> {
     unit.assertStorage(dependencies.storage)
     if (!(await dependencies.original.verifyIn(unit, original))) return { failure: 'invalidSource' }
-    const valid = await verifyJournal(unit, dependencies, original, terminal)
+    const valid = await verifyJournal(unit, dependencies, original, terminal, parameters)
     if ('failure' in valid) return valid
     const scope = { tenant: original.ref.tenant, session: original.ref.session },
       stored = await readAuthor(records, original, terminal)
@@ -130,6 +134,7 @@ async function verifyJournal(
   dependencies: ToolResultCustodyDependencies,
   original: ToolOriginalIssueIdentity,
   terminal: ToolTerminalRecord,
+  parameters: ParameterJudge,
 ): Promise<{ valid: true } | { failure: 'invalidSource' | 'unavailable' }> {
   const scope = { tenant: original.ref.tenant, session: original.ref.session },
     coordinate = await dependencies.log.sourceIn(unit, dependencies.access, scope)
@@ -145,9 +150,9 @@ async function verifyJournal(
   )
   if ('failure' in records)
     return { failure: records.failure === 'denied' ? 'invalidSource' : 'unavailable' }
-  if (!journalEntriesMatch(scope, records.entries, original.ref.callId))
+  if (!journalEntriesMatch(scope, records.entries, original.ref.callId, parameters))
     return { failure: 'invalidSource' }
-  const projected = projectToolJournal(scope, records.entries)
+  const projected = projectToolJournal(scope, records.entries, parameters)
   if ('invalid' in projected) return { failure: 'unavailable' }
   const execution = projected.executions.get(original.ref.callId)
   if (!execution || !matchesOriginal(execution, original, terminal))
@@ -158,9 +163,10 @@ function journalEntriesMatch(
   scope: Parameters<typeof projectToolJournal>[0],
   entries: Parameters<typeof projectToolJournal>[1],
   callId: ToolOriginalIssueIdentity['ref']['callId'],
+  parameters: ParameterJudge,
 ): boolean {
   for (const entry of entries) {
-    const checked = inspectToolJournalEntry(scope, entry)
+    const checked = inspectToolJournalEntry(scope, entry, parameters)
     if (!('value' in checked) || checked.value.ref.callId !== callId) return false
   }
   return true

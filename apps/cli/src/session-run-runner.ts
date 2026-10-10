@@ -133,6 +133,7 @@ export function createSessionRunRunner(requested: SessionRunRunnerOptions): {
   const ready = Promise.resolve().then((): SessionRunRunner | { readonly unavailable: true } => {
     if (!active()) return { unavailable: true }
     instance = createLoopExtensionRunner({
+      ...(options.evaluator ? { evaluator: options.evaluator } : {}),
       log: journal.log,
       host,
       access: options.access,

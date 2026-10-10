@@ -255,6 +255,7 @@ class ProductionTools {
       { directory: this.directory, storage: 'cli-tool-results' },
       {
         authorization: owners.contextAccess.operations,
+        parameters: this.evaluator.parameters,
         backing: owners.log.backing,
         history: this.history,
         recoveryAuthority,
@@ -264,6 +265,7 @@ class ProductionTools {
       { directory: this.directory, storage: 'cli-tool-results' },
       {
         storage: files.storage,
+        parameters: this.evaluator.parameters,
         log: original.log,
         access: original.access,
         original: createToolOriginalIssueVerifier(files.storage),

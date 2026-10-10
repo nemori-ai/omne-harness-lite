@@ -168,6 +168,7 @@ class RuntimeRoot {
     this.work = work
     this.ingress = createLocalSessionIngress({
       ...o.tools,
+      ...(o.inputSource.evaluator ? { parameters: o.inputSource.evaluator.parameters } : {}),
       storage: o.storage,
       admission: this.admission,
       source: o.source,

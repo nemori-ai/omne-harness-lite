@@ -1,3 +1,4 @@
+import type { AssetEvaluator } from '@omne-harness-lite/asset-evaluation'
 import { createHash } from 'node:crypto'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
@@ -26,6 +27,7 @@ async function captureAfterAction(
   held: RunnerReadScope,
   request: ExecutionSubmission,
   signal: AbortSignal,
+  evaluator: AssetEvaluator | undefined,
 ) {
   const chain =
     held.selectedChain ??
@@ -33,6 +35,7 @@ async function captureAfterAction(
       session: request.scope.session,
       binding: held.binding,
       sources: held.sources,
+      ...(evaluator ? { evaluator } : {}),
     }))
   if (!Array.isArray(chain) || !held.isActive() || signal.aborted) return
   const copied = copyJsonValue(
@@ -54,6 +57,7 @@ export async function prepareDriverToolRequest(
     readonly source: SourceToken
     readonly host: RunnerServiceHost
     readonly signal: AbortSignal
+    readonly evaluator?: AssetEvaluator | undefined
   } & DriverToolResolution,
 ): Promise<PreparedToolExecution | undefined> {
   const { request, source, host, signal } = input
@@ -82,7 +86,7 @@ export async function prepareDriverToolRequest(
   if ('failure' in held) return
   try {
     if (!currentToolRunner(held, source, signal)) return
-    const chain = await captureAfterAction(held, request, signal)
+    const chain = await captureAfterAction(held, request, signal, input.evaluator)
     if (!chain) return
     const fixed = {
       access: request.access,

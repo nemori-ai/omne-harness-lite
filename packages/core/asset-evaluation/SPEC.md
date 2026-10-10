@@ -2,7 +2,7 @@
 
 Public shapes belong to `src/index.ts`. This page owns the pure evaluation, root selection, result reading, and tool-environment behavior. Input production and IO belong to their actual providers, including evaluation-input-store. Evaluation does not grant tenant authorization or prove that supplied facts are true.
 
-`createAssetEvaluator()` owns one parameter judge, one asset judge and captured body contracts. Its evaluation, root selection, result judgment and carrier reading share these owners. Successful tool and attribute-domain compilation is reused within that owner. Each call still validates its current input and applies its current evaluation options. A consumer can share `parameters` with tool registration and invocation, and `assetJudge` with asset readers. The consumer creates a new evaluator for a new assembly and releases the old one after its users finish. Existing references remain valid. The convenience functions do not retain author compilation results across calls.
+`createAssetEvaluator()` owns one parameter judge, one asset judge and captured body contracts. Its evaluation, root selection, result judgment and carrier reading share these owners. Successful tool, Skill-setting and attribute-domain compilation is reused within that owner. Each call still validates its current input and applies its current evaluation options. A consumer can share `parameters` with tool registration and invocation, and `assetJudge` with asset readers. The consumer creates a new evaluator for a new assembly and releases the old one after its users finish. Existing references remain valid. The convenience functions do not retain author compilation results across calls.
 
 ## 输入、选用与展开
 

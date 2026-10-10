@@ -1,3 +1,4 @@
+import { createParameterJudge, type ParameterJudge } from '@omne-harness-lite/tool-definition'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import {
   parseOpaqueIdentifier,
@@ -27,6 +28,8 @@ function captureRef(input: unknown): ExecutionRef | undefined {
 }
 
 export function createToolExecutionRecordReader(input: {
+  readonly parameters?: ParameterJudge
+
   readonly storage: AtomicStorage
   readonly tenant: TenantId
   readonly participant: Pick<SessionLogParticipant, 'sourceIn' | 'readByKeyIn'>
@@ -35,6 +38,7 @@ export function createToolExecutionRecordReader(input: {
   const ownedTenant = parseTenantId(input.tenant)
   if (!('ok' in ownedTenant)) throw new TypeError('invalid Tool record tenant')
   const { storage, participant, authority } = input
+  const parameters = input.parameters ?? createParameterJudge()
   return Object.freeze({
     async readOriginalIn(unit, requested) {
       const ref = captureRef(requested)
@@ -48,7 +52,7 @@ export function createToolExecutionRecordReader(input: {
         if ('failure' in source) return { kind: 'unavailable' }
         const records = await participant.readByKeyIn(unit, authority, source.source, key)
         if ('failure' in records) return { kind: 'unavailable' }
-        return historyOf(ref, records.entries)
+        return historyOf(ref, records.entries, parameters)
       } catch (error) {
         if (error instanceof StorageUnavailable) return { kind: 'unavailable' }
         throw error
@@ -60,14 +64,15 @@ export function createToolExecutionRecordReader(input: {
 function historyOf(
   ref: ExecutionRef,
   entries: readonly LogEntry[],
+  parameters: ParameterJudge,
 ): Awaited<ReturnType<ToolExecutionRecords['readOriginalIn']>> {
   const scope = { tenant: ref.tenant, session: ref.session }
   for (const entry of entries) {
-    const checked = inspectToolJournalEntry(scope, entry)
+    const checked = inspectToolJournalEntry(scope, entry, parameters)
     if (!('value' in checked) || checked.value.ref.callId !== ref.callId)
       return { kind: 'invalidSource' }
   }
-  const projected = projectToolJournal(scope, entries)
+  const projected = projectToolJournal(scope, entries, parameters)
   if ('invalid' in projected) return { kind: 'invalidSource' }
   const history = projected.executions.get(ref.callId)
   return history ? { kind: 'found', history } : { kind: 'absent' }

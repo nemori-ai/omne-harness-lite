@@ -1,6 +1,6 @@
 import { type AssemblyManifestService } from '@omne-harness-lite/assembly-manifest'
 
-import type { RegistryHistoryResult } from '@omne-harness-lite/asset-evaluation'
+import type { AssetEvaluator, RegistryHistoryResult } from '@omne-harness-lite/asset-evaluation'
 
 import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 
@@ -14,6 +14,7 @@ export interface RunnerChainSources {
   readonly isActive: () => boolean
 }
 export interface ReadRunnerChainInput {
+  readonly evaluator?: AssetEvaluator
   readonly session: string
   readonly binding: RunnerLogBinding
   readonly sources: RunnerChainSources

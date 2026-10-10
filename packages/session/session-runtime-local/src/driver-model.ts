@@ -273,7 +273,7 @@ function toolAdoptionProjection(
     }
   })
   factReaders.set('tool-execution-runtime', (_value, entry) => {
-    const inspected = inspectToolJournalEntry(scope, entry)
+    const inspected = inspectToolJournalEntry(scope, entry, evaluator?.parameters)
     return 'value' in inspected ? 'valid' : 'invalid'
   })
   factReaders.set('loop-extension-runner', (_value, entry) =>

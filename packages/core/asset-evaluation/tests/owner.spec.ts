@@ -7,7 +7,7 @@ import { createAssetEvaluator, evaluate } from '../src/index.ts'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import type { ToolDefinition } from '@omne-harness-lite/tool-definition'
 import loopSchemaV3 from '@omne-harness-lite/loop-extension/schema/v3' with { type: 'json' }
-import { assignment, definition, simple, shell, workspace } from './fixtures.ts'
+import { assignment, audit, definition, simple, shell, skill, workspace } from './fixtures.ts'
 
 const readings = vi.hoisted(() => ({ compiled: [] as SchemaDocument[] }))
 vi.mock('@omne-harness-lite/content-blocks/schema-runtime', async importOriginal => {
@@ -169,4 +169,25 @@ it('keeps changed tool schemas independent across assembly owners and validates 
     changedPermission.ok.values.find(value => value.item === 'executionEnvironment')?.value,
   ).toEqual({ allowed: ['never-allow'] })
   expect(readings.compiled).toHaveLength(0)
+})
+
+it('retains Skill setting validators across evaluation and result reads', () => {
+  const owner = createAssetEvaluator()
+  const base = simple(audit)
+  const input = {
+    ...base,
+    definitions: base.definitions.map(value =>
+      value.id === 'ast_value' ? definition('ast_value', audit, skill('audit', 'standard')) : value,
+    ),
+  }
+  const first = owner.evaluate(input)
+  expect(first).toHaveProperty('ok')
+  if (!('ok' in first)) throw new Error('Skill fixture rejected')
+  const compiled = readings.compiled.length
+  expect(owner.evaluate(input)).toEqual(first)
+  expect(owner.judgeEffectiveAssembly(first.ok)).toBe(true)
+  expect(
+    owner.selectEvaluationRootSource({ ...input, rootDefinition: input.root.definition }),
+  ).toEqual({ ok: input.root.source })
+  expect(readings.compiled).toHaveLength(compiled)
 })

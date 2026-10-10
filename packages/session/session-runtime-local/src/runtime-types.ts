@@ -9,6 +9,7 @@ import type {
   ModelExecutionJob,
   OriginalIssueStage,
 } from '@omne-harness-lite/model-request-runtime'
+import type { ParameterJudge } from '@omne-harness-lite/tool-definition'
 import type { SessionRef } from '@omne-harness-lite/messages'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import type { TenantId } from '@omne-harness-lite/identity-values'
@@ -56,6 +57,8 @@ export interface RuntimePolicy {
 }
 /** Private trusted construction. These values are not command or protocol body claims. */
 export interface RuntimeOptions {
+  readonly parameters?: ParameterJudge
+
   readonly storage: AtomicStorage
   readonly admission: LocalAdmission
   readonly source: AdmissionSource

@@ -1,3 +1,4 @@
+import type { ParameterJudge } from '@omne-harness-lite/tool-definition'
 import type { AttachmentRef, JsonValue } from '@omne-harness-lite/content-blocks'
 import type { ExecutionRef, SelectedTool, ToolImplementationOperations } from './tool-execution.ts'
 import type {
@@ -103,6 +104,8 @@ export interface ResultStorageEvidence {
 
 /** Trusted construction ports. They are not plugin configuration or tool dependencies. */
 export interface ToolResultStorageDependencies {
+  readonly parameters?: ParameterJudge
+
   readonly authorization: SessionAccessOperations
   readonly backing: SessionLogBackingOperations
   readonly history: ToolActionHistoryOperations

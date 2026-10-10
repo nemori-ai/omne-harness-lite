@@ -1,3 +1,4 @@
+import { createParameterJudge, type ParameterJudge } from '@omne-harness-lite/tool-definition'
 import { randomUUID } from 'node:crypto'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import {
@@ -43,6 +44,8 @@ interface Database {
 type Completion = Promise<'committed' | 'rolledBack' | 'unknown'>
 
 export function createToolOriginalIssue(input: {
+  readonly parameters?: ParameterJudge
+
   readonly support: ToolOriginalIssueSupport
   readonly clock: Clock
   readonly generation: string
@@ -53,12 +56,13 @@ export function createToolOriginalIssue(input: {
   readonly isRetained: () => boolean
 }) {
   const { support, value, expected } = input
+  const parameters = input.parameters ?? createParameterJudge()
   const nonexecuting =
     value.selected === undefined &&
     jsonObject(value.input) &&
     value.input.format === 'tool-input/1' &&
     (value.input.notExecutable === 'unparseable' || value.input.notExecutable === 'no_such_entry')
-  const prepared = prepareToolJournalEntry({ origin: value.origin, value })
+  const prepared = prepareToolJournalEntry({ origin: value.origin, value }, parameters)
   if ('invalid' in prepared) throw new TypeError('invalid original tool intent')
   const entry = prepared.entry
   const identity: ToolOriginalIssueIdentity = Object.freeze({
@@ -110,6 +114,7 @@ export function createToolOriginalIssue(input: {
     tenant: value.ref.tenant,
     participant: support.log,
     authority: support.access,
+    parameters,
   })
   async function verifyIntent(unit: StorageUnit) {
     const original = await records.readOriginalIn(unit, identity.ref)
@@ -149,7 +154,7 @@ export function createToolOriginalIssue(input: {
     const appended = await support.log.appendIn(unit, support.access, checked.ok, source.source)
     if ('failure' in appended)
       return { kind: appended.failure === 'denied' ? 'denied' : 'unavailable' }
-    if ('invalid' in projectToolJournal(expected.scope, appended.entries))
+    if ('invalid' in projectToolJournal(expected.scope, appended.entries, parameters))
       throw new StorageDefect('invalid original tool journal transition')
     await unit.mutate(tx =>
       narrow<Database>(tx).insertInto('tool_original_issue').values(row).execute(),
@@ -206,15 +211,18 @@ export function createToolOriginalIssue(input: {
     if (now === 'unavailable') return false
     const source = await support.log.sourceIn(unit, support.access, expected.scope)
     if ('failure' in source) return false
-    const prepared = prepareToolJournalEntry({
-      origin: identity.origin,
-      value: {
-        kind: 'execution_started',
-        revision: 1,
-        ref: identity.ref,
-        at: instantToRfc3339(now),
+    const prepared = prepareToolJournalEntry(
+      {
+        origin: identity.origin,
+        value: {
+          kind: 'execution_started',
+          revision: 1,
+          ref: identity.ref,
+          at: instantToRfc3339(now),
+        },
       },
-    })
+      parameters,
+    )
     if ('invalid' in prepared) throw new StorageDefect('invalid original Tool start')
     const request = checkAppendInput(
       identity.ref.session,
@@ -263,6 +271,7 @@ export function createToolOriginalIssue(input: {
     support,
     identity,
     job,
+    parameters,
     isOpen: input.isRetained,
     async verifyIn(unit) {
       const existing = await find(unit)

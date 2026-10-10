@@ -4,6 +4,7 @@ import {
   type ParameterJudge,
 } from '@omne-harness-lite/tool-definition'
 import { createAssetModelJudge, type AssetModelJudge } from '@omne-harness-lite/asset-model'
+import { createSkillBodyContract } from '@omne-harness-lite/skill-package/v2'
 import { captureBodyContracts } from './defaults.ts'
 import {
   evaluate,
@@ -27,7 +28,10 @@ export interface AssetEvaluator {
 /** Own compilation for one assembly lifetime; every operation still validates its current input. */
 export function createAssetEvaluator(): AssetEvaluator {
   const parameters = createParameterJudge()
-  const bodies = captureBodyContracts(createToolBodyContract(parameters))
+  const bodies = captureBodyContracts(
+    createToolBodyContract(parameters),
+    createSkillBodyContract({ reuseDomainValidators: true }),
+  )
   const assetJudge = createAssetModelJudge(bodies, { reuseDomainValidators: true })
   const context = { parameters, bodies, assetJudge }
   return Object.freeze({

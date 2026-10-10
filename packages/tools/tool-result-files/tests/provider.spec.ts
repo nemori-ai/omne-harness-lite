@@ -16,7 +16,15 @@ import { compareInteger, type SessionLog } from '@omne-harness-lite/session-log'
 import { openSqlLogFixture } from './sql-log-fixture.ts'
 import type { SessionAccess, SessionAccessOperations } from '@omne-harness-lite/session-tenancy'
 import type { RecoveryAccess } from '@omne-harness-lite/execution-environments'
-import { toolResultOf } from '@omne-harness-lite/tool-definition'
+import {
+  createParameterJudge,
+  toolResultOf,
+  type ParameterJudge,
+} from '@omne-harness-lite/tool-definition'
+import type {
+  SchemaDocument,
+  SchemaRuntime,
+} from '@omne-harness-lite/content-blocks/schema-runtime'
 import {
   prepareToolJournalEntry,
   projectToolJournal,
@@ -30,6 +38,25 @@ import {
 import { publicationIo } from '../src/immutable-files.ts'
 import { openToolResultStorage, openToolResultCustodySource } from '../src/index.ts'
 import { toolResultFiles } from '../src/cordis.ts'
+
+const compiled = vi.hoisted(() => [] as SchemaDocument[])
+vi.mock('@omne-harness-lite/content-blocks/schema-runtime', async importOriginal => {
+  const actual =
+    await importOriginal<typeof import('@omne-harness-lite/content-blocks/schema-runtime')>()
+  return {
+    ...actual,
+    createSchemaRuntime(...args: Parameters<typeof actual.createSchemaRuntime>): SchemaRuntime {
+      const runtime = actual.createSchemaRuntime(...args)
+      return {
+        ...runtime,
+        compile(schema) {
+          compiled.push(schema)
+          return runtime.compile(schema)
+        },
+      }
+    },
+  }
+})
 
 const scope = {
     tenant: unwrap(parseTenantId({ organization: 'result-org', account: 'result-user' })),
@@ -73,7 +100,7 @@ function installPorts(ctx: Context, dependencies: ToolResultStorageDependencies)
 }
 
 /** Real SQL journal, codecs, projection and immutable files. Authority and cross-domain history are controlled ports. */
-async function fixture() {
+async function fixture(parameters?: ParameterJudge) {
   const parent = await mkdtemp(join(tmpdir(), 'omne-result-provider-')),
     directory = join(parent, 'results'),
     log = await openSqlLogFixture({ dir: join(parent, 'logs') })
@@ -98,6 +125,7 @@ async function fixture() {
       : { kind: 'rejected', reason: 'notAuthorized' },
   )
   const dependencies: ToolResultStorageDependencies = {
+    ...(parameters ? { parameters } : {}),
     authorization: { authorize },
     backing: {
       get ownerGeneration() {
@@ -124,7 +152,7 @@ async function fixture() {
           )
         )
           return { kind: 'unavailable' }
-        const tools = projectToolJournal(prefix.scope, prefix.entries)
+        const tools = projectToolJournal(prefix.scope, prefix.entries, parameters)
         if ('invalid' in tools) return { kind: 'unavailable' }
         const execution = tools.executions.get(callId)
         if (!execution) return { kind: 'notFound' }
@@ -194,7 +222,7 @@ async function fixture() {
   }
   let store = await openToolResultStorage({ directory, storage: 'results' }, dependencies)
   async function append(value: ToolJournalPayload) {
-    const prepared = prepareToolJournalEntry({ origin, value })
+    const prepared = prepareToolJournalEntry({ origin, value }, parameters)
     if ('invalid' in prepared) throw new Error('invalid store fixture')
     const prefix = await log.readSince(scope.session, 0)
     if ('failure' in prefix) throw new Error('unreadable store fixture')
@@ -840,8 +868,8 @@ const controlledOriginalProof = {
   },
 }
 
-async function custodyFixture() {
-  const f = await fixture()
+async function custodyFixture(parameters?: ParameterJudge) {
+  const f = await fixture(parameters)
   const custody = await openToolResultCustodySource(
     { directory: f.directory, storage: 'results' },
     {
@@ -849,12 +877,13 @@ async function custodyFixture() {
       log: f.log.participant,
       access: f.log.fixtureAccess,
       original: controlledOriginalProof,
+      ...(parameters ? { parameters } : {}),
     },
   )
   async function originalTerminal() {
     const prefix = await f.log.fixturePrefix(scope)
     if ('failure' in prefix) throw new Error('custody prefix unavailable')
-    const projected = projectToolJournal(scope, prefix.entries)
+    const projected = projectToolJournal(scope, prefix.entries, parameters)
     if ('invalid' in projected) throw new Error('custody fixture history invalid')
     const execution = projected.executions.get(ref.callId)!
     return {
@@ -1154,6 +1183,28 @@ test('custody refuses a unit from another storage instead of reading outside the
     expect(await f.verify()).toHaveProperty('verified.stored', result)
   } finally {
     await other.close()
+    await f.close()
+  }
+})
+
+test('storage and custody reuse the assembly compiler for repeated journal validation', async () => {
+  const parameters = createParameterJudge()
+  const f = await custodyFixture(parameters)
+  try {
+    await f.intent()
+    const writer = await f.writer()
+    expect(await writer.recordResult(result)).toBe('recorded')
+    await f.end()
+    compiled.length = 0
+    for (let count = 0; count < 2; count++) {
+      expect(await f.store.operations.readResult(access, ref)).toEqual({
+        kind: 'found',
+        value: result,
+      })
+      expect(await f.verify()).toHaveProperty('verified')
+    }
+    expect(compiled).toHaveLength(0)
+  } finally {
     await f.close()
   }
 })

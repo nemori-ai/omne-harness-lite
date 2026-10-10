@@ -1,4 +1,4 @@
-import type { ParameterJudge } from '@omne-harness-lite/tool-definition'
+import { createParameterJudge, type ParameterJudge } from '@omne-harness-lite/tool-definition'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import { modelLogJsonEqual as equal } from '@omne-harness-lite/model-request-runtime'
 import { compareInteger, type CheckedPrefix } from '@omne-harness-lite/session-log'
@@ -29,7 +29,8 @@ export interface SessionToolActionHistoryOptions {
 export function createSessionToolActionHistory(
   options: SessionToolActionHistoryOptions,
 ): ToolActionHistoryOperations {
-  const { readConclusions: read, parameters } = options
+  const { readConclusions: read } = options
+  const parameters = options.parameters ?? createParameterJudge()
   return Object.freeze({
     inspect(prefix: CheckedPrefix, call: string) {
       try {
@@ -69,7 +70,7 @@ function inspect(
     completed.set(message, record)
   }
   checkRunnerOrigins(prefix, batches)
-  const routes = readRoutes(prefix, batches, completed)
+  const routes = readRoutes(prefix, batches, completed, parameters)
   const batch = [...batches.values()].find(batch => batch.calls.some(item => item.callId === call))
   if (!batch) return { kind: 'notFound' }
   const completion = completed.get(batch.origin.assistantMessage)
@@ -107,8 +108,9 @@ function readRoutes(
   prefix: CheckedPrefix,
   batches: ReadonlyMap<string, DriverToolBatch>,
   completed: ReadonlyMap<string, DriverActionBatchRecord>,
+  parameters?: ParameterJudge,
 ) {
-  const tools = projectToolJournal(prefix.scope, prefix.entries)
+  const tools = projectToolJournal(prefix.scope, prefix.entries, parameters)
   requireHistory('executions' in tools, 'invalid original Tool journal')
   const routes = new Map<string, ToolActionFacts['route']>()
   for (const [call, execution] of tools.executions) {

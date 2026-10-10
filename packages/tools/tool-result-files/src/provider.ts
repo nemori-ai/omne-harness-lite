@@ -1,3 +1,4 @@
+import { createParameterJudge } from '@omne-harness-lite/tool-definition'
 import { setTimeout as yieldToTimers } from 'node:timers/promises'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
@@ -42,6 +43,7 @@ export async function openToolResultStorage(
   config: Pick<ResultStoreConfig, 'directory' | 'storage'>,
   dependencies: ToolResultStorageDependencies,
 ): Promise<ToolResultStorageInstance> {
+  const parameters = dependencies.parameters ?? createParameterJudge()
   const copied = captureStoreConfig(config)
   const storage = copied.storage,
     files = await createImmutableFiles(copied.directory)
@@ -112,7 +114,7 @@ export async function openToolResultStorage(
     if ('failed' in copy) return reject('storageUnavailable')
     const checked = copy.ok as unknown as CheckedPrefix,
       facts = dependencies.history.inspect(checked, ref.callId),
-      projected = projectToolJournal(scope, checked.entries)
+      projected = projectToolJournal(scope, checked.entries, parameters)
     if (facts.kind === 'unavailable' || 'invalid' in projected) return reject('storageUnavailable')
     const execution = projected.executions.get(ref.callId)
     if (

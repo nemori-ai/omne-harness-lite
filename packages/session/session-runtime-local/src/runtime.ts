@@ -1,3 +1,4 @@
+import { createParameterJudge } from '@omne-harness-lite/tool-definition'
 import { createSessionToolAdmission } from './tool-invocation.ts'
 import { createToolResultCustody } from './tool-result-custody.ts'
 import { createToolResultDelivery } from './tool-delivery.ts'
@@ -81,6 +82,7 @@ export function createLocalSessionIngress(options: RuntimeOptions): LocalSession
   const owner = new SessionIngress(
     Object.freeze({
       ...options,
+      parameters: options.parameters ?? createParameterJudge(),
       tenant: Object.freeze(tenant.ok),
       source: Object.freeze({ ...options.source }),
       policy: Object.freeze({ ...options.policy }),

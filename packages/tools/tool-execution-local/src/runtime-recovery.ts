@@ -18,7 +18,10 @@ import { jsonObject, sameJson } from './json-values.ts'
 import type { RuntimeJournal } from './execution-journal.ts'
 
 type Input = {
-  readonly dependencies: Pick<ToolRuntimeDependencies, 'recovery' | 'clock' | 'environments'>
+  readonly dependencies: Pick<
+    ToolRuntimeDependencies,
+    'recovery' | 'clock' | 'environments' | 'parameters'
+  >
   readonly journal: RuntimeJournal
   readonly attempts: number
   readonly retry: (attempt: number) => Promise<void>
@@ -171,6 +174,7 @@ export async function recoverOriginalExecutions(
 ) {
   const { dependencies } = input
   const source = createToolExecutionObligations({
+    ...(dependencies.parameters ? { parameters: dependencies.parameters } : {}),
     storage: dependencies.originalIssue.storage,
     tenant: dependencies.tenant,
     maxPageSize: dependencies.recoveryPageSize,

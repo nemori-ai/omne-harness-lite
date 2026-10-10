@@ -333,6 +333,7 @@ class ToolRun {
       ...work.resolution,
       source: source.source,
       host: this.input.sources.actions.host,
+      evaluator: this.input.sources.selection?.evaluator,
       signal: this.input.signal,
     })
     if (!prepared || !this.available()) return
@@ -345,7 +346,11 @@ class ToolRun {
   async readTerminal(work: DriverToolWork, participant: ToolOriginalIssueParticipant) {
     const { scope } = this.input
     const current = await this.prefix()
-    const history = projectToolJournal(scope, current.entries)
+    const history = projectToolJournal(
+      scope,
+      current.entries,
+      this.input.sources.selection?.evaluator?.parameters,
+    )
     requireHistory('executions' in history, 'invalid actual native Tool history')
     const execution = history.executions.get(work.request.call.callId)
     requireHistory(

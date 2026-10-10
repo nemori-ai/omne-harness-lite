@@ -1,3 +1,4 @@
+import { createParameterJudge, type ParameterJudge } from '@omne-harness-lite/tool-definition'
 import { copyJsonValue, type JsonNumber } from '@omne-harness-lite/content-blocks'
 import {
   addInteger,
@@ -23,6 +24,8 @@ import { sameJson } from './json-values.ts'
 type Transition = Parameters<ToolExecutionRecords['stageTransitionIn']>[2][number]
 type Result = Awaited<ReturnType<ToolExecutionRecords['stageTransitionIn']>>
 type Input = {
+  readonly parameters?: ParameterJudge
+
   readonly support: ToolOriginalIssueSupport
   readonly identity: ToolOriginalIssueIdentity
   readonly job: ToolExecutionJob
@@ -30,7 +33,7 @@ type Input = {
   readonly verifyIn: (unit: StorageUnit) => Promise<boolean>
 }
 
-function prepare(input: Input, supplied: readonly Transition[]) {
+function prepare(input: Input, supplied: readonly Transition[], parameters: ParameterJudge) {
   const copied = copyJsonValue(supplied)
   if ('failed' in copied || !Array.isArray(copied.ok) || copied.ok.length === 0) return
   const entries: OwnedLogEntry[] = []
@@ -41,7 +44,7 @@ function prepare(input: Input, supplied: readonly Transition[]) {
       ['execution_intended', 'execution_started', 'delivery_confirmed'].includes(value.kind)
     )
       return
-    const record = prepareToolJournalEntry({ origin: input.identity.origin, value })
+    const record = prepareToolJournalEntry({ origin: input.identity.origin, value }, parameters)
     if ('invalid' in record) return
     entries.push(record.entry)
   }
@@ -70,6 +73,7 @@ function recognize(
 
 export function createToolExecutionTransitions(input: Input) {
   const { support, identity } = input
+  const parameters = input.parameters ?? createParameterJudge()
   const scope = { tenant: identity.ref.tenant, session: identity.ref.session }
   const key = toolJournalCallKey(identity.ref.callId)
   if (typeof key !== 'string') throw new TypeError('invalid original Tool record key')
@@ -83,11 +87,11 @@ export function createToolExecutionTransitions(input: Input) {
     const records = await support.log.readByKeyIn(unit, support.access, source.source, ownKey)
     if ('failure' in records) return { kind: 'unavailable' } as const
     for (const entry of records.entries) {
-      const checked = inspectToolJournalEntry(scope, entry)
+      const checked = inspectToolJournalEntry(scope, entry, parameters)
       if (!('value' in checked) || checked.value.ref.callId !== identity.ref.callId)
         return { kind: 'invalidSource' } as const
     }
-    const projected = projectToolJournal(scope, records.entries)
+    const projected = projectToolJournal(scope, records.entries, parameters)
     if ('invalid' in projected) return { kind: 'invalidSource' } as const
     const history = projected.executions.get(identity.ref.callId)
     return history
@@ -107,7 +111,7 @@ export function createToolExecutionTransitions(input: Input) {
       session: scope.session,
       position: (tail = addInteger(tail, 1)),
     }))
-    if ('invalid' in projectToolJournal(scope, [...current.entries, ...next]))
+    if ('invalid' in projectToolJournal(scope, [...current.entries, ...next], parameters))
       return { kind: 'conflict' }
     const batch = checkAppendInput(
       scope.session,
@@ -127,7 +131,7 @@ export function createToolExecutionTransitions(input: Input) {
       async stageTransitionIn(unit, candidate, values) {
         if (candidate !== input.job) return { kind: 'invalidSource' }
         if (!input.isOpen()) return { kind: 'unavailable' }
-        const entries = prepare(input, values)
+        const entries = prepare(input, values, parameters)
         if (!entries) return { kind: 'invalidSource' }
         try {
           return await unit.run(() => stage(unit, entries))

@@ -1,3 +1,4 @@
+import { createParameterJudge } from '@omne-harness-lite/tool-definition'
 import { setTimeout } from 'node:timers/promises'
 import { copyJsonValue, type JsonValue } from '@omne-harness-lite/content-blocks'
 import type {
@@ -64,10 +65,11 @@ export function createOriginalIssueToolRuntime(
     )
     if (delay > 0) await setTimeout(delay)
   }
-  const journal = createOriginalRecordJournal(dependencies)
+  const owned = { ...dependencies, parameters: dependencies.parameters ?? createParameterJudge() }
+  const journal = createOriginalRecordJournal(owned)
   let state: 'recovering' | 'ready' | 'failed' | 'closed' = 'recovering'
   const owner = createExecutionOwner({
-    ...dependencies,
+    ...owned,
     journal,
     originalIssue: dependencies.originalIssue,
     attempts: config.tailRetry.attempts,
@@ -101,7 +103,7 @@ export function createOriginalIssueToolRuntime(
   })
   const recover = () =>
     recoverOriginalExecutions({
-      dependencies,
+      dependencies: owned,
       journal,
       attempts: config.tailRetry.attempts,
       retry,

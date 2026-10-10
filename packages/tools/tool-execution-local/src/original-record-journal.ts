@@ -1,3 +1,4 @@
+import { createParameterJudge } from '@omne-harness-lite/tool-definition'
 import { randomUUID } from 'node:crypto'
 import { copyJsonValue, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import {
@@ -64,9 +65,10 @@ class RecordFailure extends Error {
 
 /** Own call records only. A recovered record handle cannot issue or consume an execution. */
 export function createOriginalRecordJournal(
-  input: Pick<ToolRuntimeOriginalIssueDependencies, 'tenant' | 'originalIssue'>,
+  input: Pick<ToolRuntimeOriginalIssueDependencies, 'tenant' | 'originalIssue' | 'parameters'>,
 ): Journal {
   const { originalIssue: support } = input
+  const parameters = input.parameters ?? createParameterJudge()
   const parsed = parseTenantId(input.tenant)
   if (!('ok' in parsed)) throw new TypeError('invalid Tool pool tenant')
   const tenant = parsed.ok
@@ -96,11 +98,12 @@ export function createOriginalRecordJournal(
         .executeTakeFirst(),
     )
     if (!row) return
-    const original = decodeToolOriginal(row)
+    const original = decodeToolOriginal(row, parameters)
     if (!original || !sameJson(original.identity.ref, ref))
       throw new StorageDefect('invalid original Tool record')
     const job = Object.freeze({}) as ToolExecutionJob
     const records = createToolExecutionTransitions({
+      parameters,
       support,
       identity: original.identity,
       job,
@@ -228,7 +231,7 @@ export function createOriginalRecordJournal(
       throw new RecordFailure('tailChanged')
     const transitions = await terminalValues(unit, original.identity, request.values)
     const entries = transitions.map(value => {
-      const prepared = prepareToolJournalEntry({ origin: request.origin, value })
+      const prepared = prepareToolJournalEntry({ origin: request.origin, value }, parameters)
       if ('invalid' in prepared) throw new RecordFailure('invalidInput')
       return prepared.entry
     })

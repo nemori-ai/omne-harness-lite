@@ -19,7 +19,7 @@ export { skillDependencies } from './dependencies.ts'
 export { skillScripts } from './scripts.ts'
 import { skillV2SchemaBinding } from './schema.ts'
 import { createSkillJudge } from './judge.ts'
-import { createSkillBodyContract } from './body.ts'
+import { createSkillBodyContract as bindSkillBodyContract } from './body.ts'
 import type { SkillPackage } from './types.ts'
 
 export const schemaId = skillV2SchemaBinding.schemaId
@@ -28,4 +28,12 @@ export const judgeSkillPackage = createSkillJudge(skillV2SchemaBinding)
 export function isSkillPackage(value: unknown): value is SkillPackage {
   return 'ok' in judgeSkillPackage(value)
 }
-export const skillBodyContract = createSkillBodyContract(skillV2SchemaBinding, judgeSkillPackage)
+export function createSkillBodyContract(
+  options: { readonly reuseDomainValidators?: boolean } = {},
+) {
+  return bindSkillBodyContract(
+    skillV2SchemaBinding,
+    createSkillJudge(skillV2SchemaBinding, options),
+  )
+}
+export const skillBodyContract = createSkillBodyContract()

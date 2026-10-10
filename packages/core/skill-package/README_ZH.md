@@ -125,6 +125,9 @@ console.log(skillBodyContract.category) // skill
 
 v2 入口接收规范化值并提供自身正文规则。交给 v2 消费者之前，先用该入口判定；作者定义的 Schema 引用与版本有关。
 
+
+单个装配可从 `/v2` 调用 `createSkillBodyContract({ reuseDomainValidators: true })`。正文端口复用已编译的设置 Schema，每次仍校验当前默认值。装配结束后释放正文端口。默认正文端口不保留作者 Schema 判定器。
+
 ```ts
 import { schemaId, judgeSkillPackage, type SkillPackage } from '@omne-harness-lite/skill-package'
 import {

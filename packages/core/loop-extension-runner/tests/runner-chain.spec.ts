@@ -1,4 +1,5 @@
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
+import { createAssetEvaluator } from '@omne-harness-lite/asset-evaluation'
 import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { readRunnerChain } from '../src/index.ts'
 import {
@@ -168,4 +169,17 @@ it('captures methods and receivers before the first suspension', async () => {
   }
   release({ tenant })
   expect(await result).toHaveLength(2)
+})
+
+it('uses the assembly evaluator for every fresh chain projection', async () => {
+  const { input } = chainScenario()
+  const owner = createAssetEvaluator()
+  const judgeEffectiveAssembly = vi.fn(owner.judgeEffectiveAssembly)
+  const supplied = { ...input, evaluator: { ...owner, judgeEffectiveAssembly } }
+  const first = await readRunnerChain(supplied)
+  expect(Array.isArray(first)).toBe(true)
+  expect(await readRunnerChain(supplied)).toEqual(first)
+  expect(judgeEffectiveAssembly).toHaveBeenCalledTimes(2)
+  const rejected = { ...supplied, evaluator: { ...owner, judgeEffectiveAssembly: () => false } }
+  expect(await readRunnerChain(rejected)).toEqual({ failure: 'unavailable' })
 })

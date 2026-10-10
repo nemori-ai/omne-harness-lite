@@ -222,7 +222,7 @@ class ToolCustody {
       input.source,
     )
     if ('failure' in prefix) throw new ToolCustodyRefusal('unavailable')
-    const projected = projectToolJournal(scope, prefix.entries)
+    const projected = projectToolJournal(scope, prefix.entries, this.host.options.parameters)
     if ('invalid' in projected) throw new ToolCustodyRefusal('invalidSource')
     const history = projected.executions.get(input.original.ref.callId)
     if (

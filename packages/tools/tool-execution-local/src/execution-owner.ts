@@ -773,6 +773,7 @@ export function createExecutionOwner(input: {
       } as unknown as JsonValue,
     }
     job.original = createToolOriginalIssue({
+      parameters,
       support: input.originalIssue,
       clock: input.clock,
       generation: originalGeneration,
