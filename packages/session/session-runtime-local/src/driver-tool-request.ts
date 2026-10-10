@@ -18,8 +18,7 @@ function currentToolRunner(held: RunnerReadScope, source: SourceToken, signal: A
     !signal.aborted &&
     held.isActive() &&
     held.binding.session === source.session &&
-    tenantIdEquals(held.binding.tenant, source.tenant) &&
-    held.binding.logGeneration === source.journalGeneration
+    tenantIdEquals(held.binding.tenant, source.tenant)
   )
 }
 

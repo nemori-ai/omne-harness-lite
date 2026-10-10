@@ -4552,8 +4552,9 @@ it('composes the public native Tool factory with Session original issue, actual 
   const binding = {
     session: p.scope.session,
     tenant,
-    logGeneration: (await prefix()).source.journalGeneration,
+    logGeneration: generation,
   }
+  expect(binding.logGeneration).not.toBe((await prefix()).source.journalGeneration)
   const chainSources = {
     sessionTenancy: f.runtime.tenancy,
     manifest,
