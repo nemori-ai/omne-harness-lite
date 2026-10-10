@@ -145,17 +145,18 @@ unavailable。之后的其他处置或 close 都不能替换保留的原请求�
 
 ```ts
 import { createAnchoredModelInvocation } from '@omne-harness-lite/session-runtime-local'
-import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import type { ModelPoolInstance } from '@omne-harness-lite/model-request-runtime'
 import type { AnchoredInvocationInput } from '@omne-harness-lite/model-request-runtime'
 import { type PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { ReplyDisposition } from '@omne-harness-lite/model-response'
 
 /** Supply actual host preparation and an explicit caller disposition. */
 export async function runPreparedInvocation<P extends PlannedSemantics, R>(
-  input: Omit<AnchoredInvocationInput<P, R>, 'invoke'>,
+  input: Omit<AnchoredInvocationInput<P, R>, 'execute'>,
   disposition: ReplyDisposition,
+  pool: Pick<ModelPoolInstance, 'execute'>,
 ) {
-  const call = createAnchoredModelInvocation({ ...input, invoke: invokeModel })
+  const call = createAnchoredModelInvocation({ ...input, execute: pool.execute })
   const outcome = await call.outcome
   const settlement = 'replyPending' in outcome ? await call.settleReply(disposition) : null
   const close = await call.close()
@@ -171,18 +172,19 @@ export async function runPreparedInvocation<P extends PlannedSemantics, R>(
 
 ```ts
 import { createAnchoredModelInvocation } from '@omne-harness-lite/session-runtime-local'
-import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import type { ModelPoolInstance } from '@omne-harness-lite/model-request-runtime'
 import type { AnchoredInvocationInput } from '@omne-harness-lite/model-request-runtime'
 import { type PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { modelEntry, type ToolDefinition } from '@omne-harness-lite/tool-definition'
 
 export function invokeWithTools<P extends PlannedSemantics, R>(
-  input: Omit<AnchoredInvocationInput<P, R>, 'invoke'>,
+  input: Omit<AnchoredInvocationInput<P, R>, 'execute'>,
   definitions: readonly ToolDefinition[],
+  pool: Pick<ModelPoolInstance, 'execute'>,
 ) {
   return createAnchoredModelInvocation({
     ...input,
-    invoke: invokeModel,
+    execute: pool.execute,
     planInput: { ...input.planInput, tools: definitions.map(modelEntry) },
   })
 }
@@ -193,7 +195,7 @@ runtime 负责发送定义并装配流式工具调用；调用者负责在后续
 ## Session model-call composition
 
 `createSessionModelRuntime` composes the Session model-call operations over one original call store.
-Supply an explicit `invoke` from the chosen Model provider. The Session coordinator retains original issue, ready, ACK, and close responsibilities.
+Supply `execute` from the shared physical Model pool. The Session coordinator retains original issue, ready, ACK, and close responsibilities.
 
-The Cordis entry exports `createSessionModelRuntimeLocal`. Its trusted construction requires the same `invoke` and an original `createContentStore` factory.
+The Cordis entry exports `createSessionModelRuntimeLocal`. Its trusted construction requires the same `execute` and an original `createContentStore` factory.
 See [the composition contract](model-runtime.md) and [lifecycle responsibilities](adr/model-service-lifetime.md).

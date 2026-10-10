@@ -124,7 +124,7 @@ export interface PreparedCallBinding<P extends PlannedSemantics, R> {
 }
 
 export interface SessionModelConstruction<P extends PlannedSemantics, R> {
-  readonly invoke: import('@omne-harness-lite/model-request-runtime').ModelInvoker
+  readonly execute: import('@omne-harness-lite/model-request-runtime').ModelPoolExecutor
   readonly readFactory: SessionModelReadFactory
   readonly selectionFactory: SessionModelSelectionFactory
   readonly requestPreparation: SessionModelRequestPreparation

@@ -99,7 +99,7 @@ async function ready() {
   }
   const calls = createCallContainerStore<TestPlan, object>()
   const config: SessionModelConstruction<TestPlan, object> = {
-    invoke: invokeModel,
+    execute: ({ input }) => ({ invocation: invokeModel(input) }),
     ...referencePorts(source, calls),
     maxScopes: 4,
     sessions: { bind: async () => ({ binding }) },

@@ -50,7 +50,7 @@ function construction(
   const message = parseOpaqueIdentifier('unused-reply-message', 'MessageId')
   if (!('ok' in message)) throw new Error('reply message identity')
   return {
-    invoke: invokeModel,
+    execute: ({ input }) => ({ invocation: invokeModel(input) }),
     ...unavailableReferencePorts<PlannedSemantics, unknown>(),
     // These history tests explicitly grant read; unavailable reference ports grant nothing.
     callAccess: {

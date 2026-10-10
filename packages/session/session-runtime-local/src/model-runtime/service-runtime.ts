@@ -36,7 +36,8 @@ export function createSessionModelRuntime<P extends PlannedSemantics, R>(
   readonly closeAdmission: () => void
   readonly executionSource: ModelRuntimeExecutionSource
 } {
-  if (typeof provided.invoke !== 'function') throw new TypeError('physical model invoker required')
+  if (typeof provided.execute !== 'function')
+    throw new TypeError('physical model executor required')
   if (ownedStores.has(provided.calls)) throw new TypeError('call store already owned')
   let released = false
   const executions = retainRuntimeExecutions(provided.calls, () => released)

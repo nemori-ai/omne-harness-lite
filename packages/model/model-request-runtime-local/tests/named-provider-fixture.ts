@@ -105,7 +105,7 @@ export async function namedProviderFixture(
       | 'acknowledgementFactory'
       | 'settlementFactory'
       | 'callFactsFactory'
-      | 'invoke'
+      | 'execute'
       | 'createContentStore'
     >
     readonly transport?: Pick<ModelTransportService, 'clearReuseScope' | 'acquire'>
@@ -120,7 +120,7 @@ export async function namedProviderFixture(
   })
   const ctx = new Context(),
     binding = createSessionModelRuntimeLocal({
-      invoke: invokeModel,
+      execute: ({ input }) => ({ invocation: invokeModel(input) }),
       createContentStore: createModelCallContentStore,
       ...options.construction,
       acknowledgementFactory: createSessionModelAcknowledgement,

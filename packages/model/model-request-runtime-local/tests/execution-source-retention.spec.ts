@@ -49,7 +49,7 @@ async function fixture() {
     },
   }
   const construction: SessionModelConstruction<TestPlan, object> = {
-    invoke: invokeModel,
+    execute: ({ input }) => ({ invocation: invokeModel(input) }),
     ...referencePorts(host, calls),
     maxScopes: 4,
     calls,

@@ -198,7 +198,7 @@ export async function harness(
   const controller = new AbortController()
   let released = 0
   const input: AnchoredInvocationInput<TestPlan, object> = {
-    invoke: invokeModel,
+    execute: ({ input }) => ({ invocation: invokeModel(input) }),
     settlementFactory: sessionModelSettlement,
     planInput: request(),
     transport: transport().adapter,

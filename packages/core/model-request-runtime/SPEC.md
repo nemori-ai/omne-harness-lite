@@ -16,7 +16,7 @@
 
 ## 既有消费者的会话请求准备
 
-[`session-request-preparation.ts`](src/session-request-preparation.ts) 定义现有混合消费者向Session提供者借用的准备接口。它不是`ModelPoolConstruction`的一部分，也不是可序列化的执行请求。
+[`session-request-preparation.ts`](src/session-request-preparation.ts) 定义现有混合消费者向Session提供者借用的准备接口。它属于Session编排，不进入物理执行池的构造输入，也不是可序列化的执行请求。
 
 prepareCreation负责新调用的会话侧准备。在原registration中按既有次序读取实际租户、目录、完整前缀、当前模态、凭据存在性及历史校准，再校验档案快照和参数。已解析工具由同一准备流程传入。成功返回PreparedModelCreation，包含原创建内容、已采用档案／参数／工具和校准结果；不返回完整会话前缀。不写日志、不取得执行权、不关闭借入来源。注册信息、配置范围或模态不可用时沿原失败集合返回，不新增模型许可。
 
@@ -30,27 +30,21 @@ Session准备器从实际会话来源求值本次超时、解析工具描述、�
 
 ## 执行池消费边界
 
-[`execution-pool.ts`](src/execution-pool.ts) 定义准备好的请求、执行池构造、原执行记录和捕获接口。公开根只导出这些类型。提供者须按本节迁移；类型存在不表示既有工厂已完成迁移。
+[`execution-pool.ts`](src/execution-pool.ts) 定义显式执行身份、物理执行池及原执行记录类型。Session从SessionLog、Context和当前装配准备请求，Agent决定下一步。物理池不创建业务调用，不选择模型、不解释会话日志，不执行重试政策、恢复或ACK。
 
-Session 从实际 SessionLog、Context 和当前装配准备请求，Agent 决定下一步。模型执行池接收准备好的请求，管理原调用、并发、取消、结果和资源。池不选择会话模型，不投影会话消息，不恢复 Session 队列、Run 或 attempt。`invokeModel` 继续是可独立使用的执行能力。
+`ModelPoolInstance.execute`接收`ModelExecutionRef`及已有`InvocationInput`。ref包含完整tenant、session、callId和dispatch；callId及dispatch必须与请求target相同。无效输入、已关闭准入或同一身份仍有未停止执行时，分别在调用物理能力前返回invalidInput、closed或duplicateActive。等值的发出序号采用同一身份。池只保留活动登记；停止后再次使用相同ref不提供持久去重。Session须在进入池前完成原claim的唯一消费，提交不明不得进入execute。
 
-`ModelPoolCallOpen` 显式携带租户和完整 `PreparedModelCreation`。Session 先解析消息、工具及模型选择，再交给池；普通池请求不接受未准备的消息或工具名。准备内容保留原创建身份、档案快照、参数、校准及输出历史，规划使用显式 `tokenMargin`。池须核对租户及 Run、attempt、report 与原创建内容一致；Run、attempt、report 全有或全无。创建不发送 HTTP。首次发出不接受 RetryPlan，重试必须提供原重试计划。池核对原创建语义、完整 PlanInput、逻辑发出序号和既有守卫，不因物理世代变化重发。请求中的身份、模型档案及归因均不授予执行权。
+`invokeModel`仍可独立使用。池执行原InvocationInput，不解析凭据、不取得Session来源、不登记第二份原发起账。transport拥有实际连接并发和排队；池不增加队列。原请求带有的回调、transport和policy仍由调用者提供，不从全局Context或环境补值。
 
-`ModelPoolControls` 只提供 `acquireCall`、`interrupt` 和 `releaseCall`。会话历史查询、重试适用性判断、回复处置、ACK 和会话恢复由 Session 的组合操作提供。池的 `dispatch` 和 `dispatchAgain` 返回原执行结果，不接受 `consumeFailure`，也不返回 `failureSubject`；失败来源解释和消费由 Session 完成。这个分工不改变完整结果及必要引用可靠保管后才能 ACK 的条件。
+`ModelInvocationHandle.stopped`与outcome分开。stopped只在执行主体、读取迭代器及已登记的首内容回调结束，定时器和监听移除后完成。读取失败但原迭代器成功关闭可以确认停止；send或读取迭代器构造抛错、无法确认迭代器关闭或清理未完成时拒绝stopped。回调结束只证明它返回的Promise结束，不证明其他拥有者未登记的工作停止。诊断端口必须同步；违规返回的thenable沿原诊断隔离处理，不纳入业务关闭。结果失败不等于停止失败，结果返回也不等于停止。
 
-Session 当前栅栏与原唯一发起须在同一实际 StorageUnit 中参与。`ModelExecutionRecords` 是同一实际OriginalIssueOwner的完整能力，提供原job准备、同Unit暂存、claim消费和关闭。它不返回会话历史或结算写者。
+`executionSource.snapshot(scope)`只复制该tenant及session当前未确认停止执行的ref和状态。active表示停止尚未确认，不保证网络仍在传输；stopUnconfirmed表示停止失败。该读面不返回请求、凭据、结果、Session binding或调用句柄，也不持有捕获租约。它不提供持久历史；空数组不能证明Session义务已结束。
 
-stageOriginalIn 和 stageConsumeIn 只暂存，不独立提交或发 IO。只有原池发行、关联到同一实际数据集的活体 job 和 claim 有效；复制对象、旧 owner 或异存储单元不能参加。提交不明保留完整原 ref、creationKey、原输入和责任，不授予 launch、不重发、不生成后继身份。
+closeAdmission同步拒绝后续执行。close请求已有执行取消，等待其真实stopped，全部确认后返回released；任一停止失败返回unavailable并保留责任。原回调不响应时继续等待，不用默认超时宣布成功。池的同步启动缺陷保留该ref为stopUnconfirmed并抛出原错误，不伪称未发出。Session或观察者退出不关闭共享池；实际根负责其寿命。池停止不证明结果已保管、费用已记录或ACK已完成。
 
-Session参加者、池的records和恢复scope必须来自同一原owner与实际数据集，结构类型不能证明这一关联。池借用records，不因自身停止或投影退出提前调用records.close；根拥有者须保留它直到原参加者及执行任务收场。
+`ModelExecutionRecords`是同一实际OriginalIssueOwner的完整能力，提供原job准备、同Unit暂存、claim消费和关闭，与物理池分开构造。stageOriginalIn和stageConsumeIn只暂存，不独立提交或发IO。只有原记录拥有者发行、关联同一数据集的活体job和claim有效。复制对象、旧owner或异StorageUnit不能参加。Session参加者与records必须使用同一原owner和实际数据集。提交不明保留完整原ref、creationKey、原输入和责任，不授予launch、不重发、不生成后继身份。根保留records直到原参加者及执行任务收场；不因物理池或投影退出提前关闭。
 
-`ModelPoolConstruction` 借入原 transport、凭据来源、host、策略及生命周期依赖。池只取得 transport 的 acquire 和 clearReuseScope，不取得注册、退役或共享运输关闭权。凭据来源按原执行与真实数据集核关联，再沿原模型来源取值。ref 本身不是凭据读取授权。请求、日志及提交不明回复不携带原文秘密。
-
-`ModelCallerAccess` 每次按实际调用动作核当前调用者。读取、控制和 ACK 资格不形成新的模型执行许可。维护原执行义务与业务内容读取分开，撤权不得丢弃原保管、费用或收场责任。
-
-`ModelRecoveryAccess` 拥有withObligations借用扫描，并沿原恢复准入，先停止旧效果写者，再借入原模型记录及原 invocation，不返回完整 Session binding 或任意日志 owner。`ModelExecutionSource` 仅供可信实例拥有者捕获原物理执行，不返回 SessionRuntimeBinding 或 SettlementOwner。捕获的 invocation 不暴露 borrowControl。释放 source 前须关闭实际池并释放全部 capture；空索引、复制 metadata 或历史终态不证明物理停止。
-
-普通 operations 不包含 closeAdmission。实例 closeAdmission 只停新准入；close 沿原 RuntimeCloseResult，失败保留原实例及资源。Session 或调用者退出不关闭共享模型池。完整结果和必要引用可靠保管后才能 ACK；旧 attempt 的费用与迟到结果责任保持。
+完整结果及必要引用可靠保管后才能ACK。Session拥有业务历史、重试判定、恢复、调用控制、结果处置和ACK；其原调用捕获接口与本节物理元数据读面不同。旧attempt的费用与迟到结果责任保持。
 
 ### 原执行义务的借用读取
 

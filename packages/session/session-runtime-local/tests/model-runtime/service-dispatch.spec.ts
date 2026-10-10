@@ -357,7 +357,7 @@ test('service dispatch writes both anchors before handing out a complete pending
       }),
     ).toBeUndefined()
     const runtime: SessionModelConstruction<TestPlan, object> = {
-      invoke: invokeModel,
+      execute: ({ input }) => ({ invocation: invokeModel(input) }),
       acknowledgementFactory: createSessionModelAcknowledgement,
       settlementFactory: sessionModelSettlement,
       recordPublication: publishSessionModelCallContent,

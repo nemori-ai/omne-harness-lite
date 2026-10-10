@@ -115,7 +115,7 @@ function buildRuntime(host: Host, options: RuntimeOptions = {}) {
   let released = 0
   let acquired = 0
   const construction: SessionModelConstruction<TestPlan, object> = {
-    invoke: invokeModel,
+    execute: ({ input }) => ({ invocation: invokeModel(input) }),
     ...referencePorts(host, calls),
     maxScopes: 4,
     sessions: { bind: async () => ({ binding }) },

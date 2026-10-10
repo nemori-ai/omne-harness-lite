@@ -216,7 +216,7 @@ async function runtimeOver(
   let nextResponse = 0
   const diagnostics: string[] = []
   const construction: SessionModelConstruction<TestPlan, object> = {
-    invoke: invokeModel,
+    execute: ({ input }) => ({ invocation: invokeModel(input) }),
     acknowledgementFactory: createSessionModelAcknowledgement,
     settlementFactory: sessionModelSettlement,
     recordPublication: publishSessionModelCallContent,

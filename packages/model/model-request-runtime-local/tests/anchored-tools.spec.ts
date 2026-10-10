@@ -66,7 +66,7 @@ describe('anchored noRun tool definitions and history', () => {
       const first = createAnchoredModelInvocation({
         ...h.input,
         planInput: { ...h.input.planInput, tools: [tool] },
-        invoke: invokeModel,
+        execute: ({ input }) => ({ invocation: invokeModel(input) }),
         transport: adapter,
         onAccepted(event) {
           accepted.push({ kind: event.t, writes: h.writes.length })

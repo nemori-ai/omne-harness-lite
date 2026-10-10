@@ -283,7 +283,7 @@ async function runtimeOn(w: World, options: RuntimeOptions = {}) {
   let sendCount = 0
   const diagnostics: string[] = []
   const construction: SessionModelConstruction<TestPlan, object> = {
-    invoke: invokeModel,
+    execute: ({ input }) => ({ invocation: invokeModel(input) }),
     acknowledgementFactory: createSessionModelAcknowledgement,
     settlementFactory: sessionModelSettlement,
     recordPublication: publishSessionModelCallContent,

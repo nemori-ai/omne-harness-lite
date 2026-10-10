@@ -1,6 +1,6 @@
 # 本地模型执行与结果保管
 
-本包提供独立 invokeModel、原执行记录、响应内容库、义务扫描、诊断与默认重试实现。
+本包提供独立invokeModel、createModelExecutionPool、原执行记录、响应内容库、义务扫描、诊断与默认重试实现。
 共享形状和行为归[Core Model 协议](../../core/model-request-runtime/SPEC.md)。
 
 Session 的十五操作、完整日志解释、准备、主体投影、恢复和 ACK 清理协调归
@@ -13,7 +13,7 @@ Session 的十五操作、完整日志解释、准备、主体投影、恢复和
 具体createOriginalIssueOwner选同Storage、实际日志和权限，并保留原limit／持久实现。
 该Owner只借入日志的appendIn和readByKeyIn。关闭时，在同一StorageUnit中读取原发起索引和固定SourceToken下的原dispatch记录；它不读取完整Session前缀。
 只有原索引、执行代次和完整记录（含原位置）全部匹配，才解除未知提交的保有责任。记录缺失、内容或位置不同、读取失败时仍返回pending；这不授予再次发送的权利。
-这项限定不代表完整Model执行池已完成迁移，也不据此证明Session桥已消费实际owner。
+记录核验不代替Session的历史恢复，也不授予再次发送权。
 
 createOriginalIssueOwner返回完整ModelExecutionRecords，其中stageOriginalIn和stageConsumeIn对应原同Unit参加者。prepareOriginal发行ModelExecutionJob；stageOriginalIn与原participant使用同一个函数和活体登记表。复制job、异拥有者job及异StorageUnit不能暂存；不保留另一套ticket类型或转换表。
 
@@ -27,7 +27,11 @@ stageConsumeIn只在调用者的实际StorageUnit内核对原claim、当前授�
 ## 内容与物理执行
 
 invokeModel 仅处理显式请求、传输、流、费用及实际执行的停止。它不读取或恢复 Session 日志。
-ModelInvoker 是该独立函数的公开类型。调用者负责其外部 Session 协调。
+ModelInvoker是该独立函数的公开类型。调用者负责其外部Session协调。
+
+createModelExecutionPool组合同包invokeModel。它仅保存未确认停止的执行登记，核对显式tenant、session、callId和dispatch；等值数字使用同一活动键。请求先登记再调用invokeModel，因此同步重入的close也能看到它。正常stopped后删除本池的句柄引用；不保留第二份响应或去重墓碑。同步启动异常与stopped失败均保留stopUnconfirmed，向调用者保留原错误或返回unavailable。
+
+execute返回原ModelInvocationHandle。outcome可以先于首内容回调完成；stopped等待实际迭代器及已登记回调结束。读取错误后，只有原迭代器关闭成功才能确认停止。send或读取迭代器构造抛错时保留停止未确认，不能把没有取得迭代器当作没有在途工作。closeAdmission只撤新准入；close逐个请求取消并等待stopped，不关闭借入transport、Session、记录拥有者或内容库。完整行为归Core的执行池消费边界。
 
 createModelCallContentStore 保有原完整创建和响应内容、发布许可、保管状态及 SQL 工作行。
 内容、原保管元数据、许可和工作行使用同一实际 Storage。
@@ -47,4 +51,4 @@ createModelExecutionObligations由可信根以固定租户、实际Model内容�
 
 withObligations先核租户和页大小。异租户返回denied，非法页大小返回unavailable，均不访问存储。它先读一页并固定原Storage只读快照，再给调用方reader。游标按session和call排序；坏身份、阶段或ACK记录使借用不可用，不能跳过。调用方在该只读事务作用域外执行，可以独立提交；callback结束后reader失效，并等待在途next和原快照真正结束。重叠next或任一页不可用使整个借用不可用。异常按callback、读取、释放保留原对象与顺序。
 
-该函数只提供原数据集内的发现能力。可信根仍须保证它与records、内容保管、恢复scope使用同一原数据集，并将其接入ModelRecoveryAccess。扫描结束不证明原任务、费用、ACK或资源义务结束；本提供者不会据此开放新执行或关闭记录拥有者。
+该函数只提供原数据集内的发现能力。可信根仍须保证它与records、内容保管、恢复scope使用同一原数据集，并将其接入Session的原恢复来源。扫描结束不证明原任务、费用、ACK或资源义务结束；本提供者不会据此开放新执行或关闭记录拥有者。

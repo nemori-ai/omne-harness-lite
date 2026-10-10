@@ -87,7 +87,7 @@ describe('RT10 thirteen-operation noRun public service gate', () => {
       if (!('ok' in parsedMessage)) throw new Error('message id')
       const calls = createCallContainerStore<TestPlan, object>()
       const config: SessionModelConstruction<TestPlan, object> = {
-        invoke: invokeModel,
+        execute: ({ input }) => ({ invocation: invokeModel(input) }),
         ...referencePorts(host, calls),
         maxScopes: 4,
         sessions: { bind: async () => ({ binding }) },

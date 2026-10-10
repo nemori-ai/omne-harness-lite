@@ -258,7 +258,7 @@ function validAnchoredAdmission<P extends PlannedSemantics, R>(
 ): boolean {
   return (
     validAnchoredRun(input) &&
-    typeof input.invoke === 'function' &&
+    typeof input.execute === 'function' &&
     input.signal instanceof AbortSignal &&
     !!input.policy &&
     validPolicy(input.policy) &&
@@ -954,49 +954,59 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
         if (!(await launchAuthorized(admission.claim)))
           return { cancelledBeforeSend: true } as const
         const invocationEmitter = engineering.invocationEmitter
-        invocation = input.invoke({
-          ...requested,
-          transport: {
-            plan: async () => ({ planned }),
-            projectOutput: transport.projectOutput,
-            send: (...args) => transport.send(...args),
-            read: transport.read,
+        const execution = input.execute({
+          ref: {
+            tenant: binding.tenant,
+            session: binding.session,
+            callId: dispatched.call,
+            dispatch: dispatched.dispatch,
           },
-          credential: input.credential,
-          policy,
-          signal: controller.signal,
-          beforeSend: usable,
-          ...(input.onAccepted === undefined ? {} : { onAccepted: input.onAccepted }),
-          ...(invocationEmitter === undefined
-            ? {}
-            : { diagnosticEmitterFactory: () => invocationEmitter }),
-          beforeFirstContent: () => {
-            openedGate = start('wait', async () => {
-              if (!usable()) throw new Error('model_anchor.stopped')
-              const at = await policy.now()
-              if (!usable()) throw new Error('model_anchor.stopped')
-              if (!('ok' in compareRfc3339Instants(at, at))) throw new Error('model_anchor.clock')
-              openedTask = append(prepareOpenedEntry(at))
-              const openedReceipt = await receipt(openedTask)
-              if (openedReceipt === undefined) throw new Error('model_anchor.unconfirmed')
-              openedConfirmed = true
-              openedPosition = openedReceipt.positions[0]
-              firstTokenAt = at
-              if (!usable()) {
-                // The anchor is durable and its receipt known. A stop of this process (host
-                // stop, cancel) is then a real in-flight caller stopping with complete writer
-                // evidence: the gate fails, the stream is stopped, and `run` settles the
-                // no-reply final (RT12 S-86) instead of isolating the call forever. Only a
-                // closed admission or a changed settlement generation ends this writer's right
-                // to settle in this log: that outcome is unknown to it and stays quarantined.
-                if (originalOwner.admission() !== 'open' || !settlementGenerationCurrent(binding))
-                  quarantined = true
-                throw new Error('model_anchor.stopped')
-              }
-            })
-            return openedGate.completion
+          input: {
+            ...requested,
+            transport: {
+              plan: async () => ({ planned }),
+              projectOutput: transport.projectOutput,
+              send: (...args) => transport.send(...args),
+              read: transport.read,
+            },
+            credential: input.credential,
+            policy,
+            signal: controller.signal,
+            beforeSend: usable,
+            ...(input.onAccepted === undefined ? {} : { onAccepted: input.onAccepted }),
+            ...(invocationEmitter === undefined
+              ? {}
+              : { diagnosticEmitterFactory: () => invocationEmitter }),
+            beforeFirstContent: () => {
+              openedGate = start('wait', async () => {
+                if (!usable()) throw new Error('model_anchor.stopped')
+                const at = await policy.now()
+                if (!usable()) throw new Error('model_anchor.stopped')
+                if (!('ok' in compareRfc3339Instants(at, at))) throw new Error('model_anchor.clock')
+                openedTask = append(prepareOpenedEntry(at))
+                const openedReceipt = await receipt(openedTask)
+                if (openedReceipt === undefined) throw new Error('model_anchor.unconfirmed')
+                openedConfirmed = true
+                openedPosition = openedReceipt.positions[0]
+                firstTokenAt = at
+                if (!usable()) {
+                  // The anchor is durable and its receipt known. A stop of this process (host
+                  // stop, cancel) is then a real in-flight caller stopping with complete writer
+                  // evidence: the gate fails, the stream is stopped, and `run` settles the
+                  // no-reply final (RT12 S-86) instead of isolating the call forever. Only a
+                  // closed admission or a changed settlement generation ends this writer's right
+                  // to settle in this log: that outcome is unknown to it and stays quarantined.
+                  if (originalOwner.admission() !== 'open' || !settlementGenerationCurrent(binding))
+                    quarantined = true
+                  throw new Error('model_anchor.stopped')
+                }
+              })
+              return openedGate.completion
+            },
           },
         })
+        if ('rejected' in execution) return { rejected: 'unavailable' } as const
+        invocation = execution.invocation
         return await invocation.outcome
       } finally {
         signal.removeEventListener('abort', cancel)

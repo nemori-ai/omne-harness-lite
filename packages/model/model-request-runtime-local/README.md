@@ -1,9 +1,10 @@
 # @omne-harness-lite/model-request-runtime-local
 
-This package provides standalone model invocation, original execution records, and response content custody. The [Session provider](../../session/session-runtime-local/README.md) owns call creation, scheduling, history, recovery, and ACK coordination.
+This package provides a physical execution pool, standalone model invocation, original execution records, and response content custody. The [Session provider](../../session/session-runtime-local/README.md) owns call creation, scheduling, history, recovery, and ACK coordination.
 
 | Export | Responsibility |
 | --- | --- |
+| `createModelExecutionPool` | Track explicit physical executions and wait for actual stop. |
 | `invokeModel` | Execute an explicit request through its transport and retain the invocation outcome. |
 | `createOriginalIssueOwner`, `originalIssueMigrations` | Retain the original issue and consumption records in the supplied storage. |
 | `createModelCallContentStore`, `modelCallContentMigrations` | Retain original content, publication uses, and cleanup obligations. |
@@ -14,6 +15,6 @@ This package provides standalone model invocation, original execution records, a
 
 Import shared types from [Core Model](../../core/model-request-runtime/README.md). This package does not export the Session fifteen-operation constructor, call containers, or recovery coordinator.
 
-Applications select `createSessionModelRuntime` from the Session root entry and supply this package's `invokeModel`. Cordis assembly selects Session's `createSessionModelRuntimeLocal` and supplies the same physical invocation and content-store factories.
+Applications select `createSessionModelRuntime` from the Session root entry and supply a shared pool's `execute`. Cordis assembly selects Session's `createSessionModelRuntimeLocal` and supplies the same physical executor and content-store factories.
 
 The [provider specification](SPEC.md) defines record and content custody behavior. The [Session composition specification](../../session/session-runtime-local/model-runtime.md) defines history and business coordination.

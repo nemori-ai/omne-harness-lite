@@ -8,7 +8,7 @@
 
 完整操作形状归本包纯根。操作协议名为 `ModelRuntimeOperations`，Cordis 抽象类名为 `ModelRuntimeService`；二者分属纯根与 `./cordis`，不互相代替。
 绑定类静态唯一键为 `modelRuntime`，导出键 `MODEL_RUNTIME_SERVICE` 从该静态字段取得。
-具体提供者使用 `model-request-runtime-local` 限定名。旧 local 操作接口、键与绑定重复定义在实际消费者切换时删除，不保留兼容别名。
+完整编排由Session提供者的`session-model-runtime`插件实现；Model提供者只提供物理执行及独立记录、内容等构件。旧 local 操作接口、键与绑定重复定义在实际消费者切换时删除，不保留兼容别名。
 
 完整方法集合为 acquireCall、legalTargets、displayList、effectiveModel、selectModel、openCall、dispatch、dispatchAgain、interrupt、releaseCall、reconcile、readAttempts、settleReply、canDispatchAgain、acknowledgeCall。
 每个方法保持其原输入、闭合结果、错误判定次序和异步结果。

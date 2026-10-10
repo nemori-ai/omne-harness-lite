@@ -3,6 +3,7 @@ import type {
   ModelResponse,
   PendingModelResponse,
 } from '@omne-harness-lite/model-response'
+import type { ModelExecutionRequest, ModelExecutionAdmission } from './execution-pool.ts'
 import type { CapturedModelLogValue } from './log-codec-value.ts'
 import type { PlanFailure, ModelInvocationHandle } from './invocation-types.ts'
 import type { SettlementOwner, SettlementResult } from './settlement-types.ts'
@@ -56,7 +57,7 @@ export interface AnchoredInvocationHandle {
 }
 
 export interface AnchoredInvocationInput<P extends PlannedSemantics, R> {
-  readonly invoke: (input: InvocationInput<P, R>) => ModelInvocationHandle
+  readonly execute: (request: ModelExecutionRequest<P, R>) => ModelExecutionAdmission
   /** Actual operation fence; this original dispatch identity is never inferred from recovery. */
   readonly run?: RunId
   readonly attempt?: AttemptId

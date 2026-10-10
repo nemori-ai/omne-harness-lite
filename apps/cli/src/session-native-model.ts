@@ -1,4 +1,4 @@
-import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { createModelExecutionPool } from '@omne-harness-lite/model-request-runtime-local'
 import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
@@ -64,7 +64,7 @@ export interface SessionNativeModelOptions {
   ) => Omit<
     Construction,
     | 'calls'
-    | 'invoke'
+    | 'execute'
     | 'callFacts'
     | 'callPresence'
     | 'transport'
@@ -139,6 +139,7 @@ function configuredEntries(ids: readonly string[]) {
   })
 }
 class NativeModelOwner {
+  readonly physical = createModelExecutionPool()
   directory?: ReturnType<typeof createSessionModelDirectory>
   content?: Content
   calls?: Calls
@@ -193,7 +194,7 @@ class NativeModelOwner {
       if ('rejected' in result) throw new Error('official model registration failed')
     }
     this.runtime = createSessionModelRuntime({
-      invoke: invokeModel,
+      execute: this.physical.execute,
       acknowledgementFactory: createSessionModelAcknowledgement,
       settlementFactory: sessionModelSettlement,
       recordPublication: publishSessionModelCallContent,
@@ -226,6 +227,7 @@ class NativeModelOwner {
   close = (): Promise<RuntimeCloseResult> => {
     this.stopping = true
     this.runtime?.closeAdmission()
+    this.physical.closeAdmission()
     if (this.closing) return this.closing
     const attempt = this.finishClose()
     this.closing = attempt
@@ -242,6 +244,7 @@ class NativeModelOwner {
   async finishClose(): Promise<RuntimeCloseResult> {
     await this.started
     if ('unavailable' in (await this.closeRuntime())) return { unavailable: true }
+    if ('unavailable' in (await this.physical.close())) return { unavailable: true }
     if (this.content && 'unavailable' in (await this.content.close())) return { unavailable: true }
     if (this.transport) {
       const result = await this.transport.close(this.options.retirement)

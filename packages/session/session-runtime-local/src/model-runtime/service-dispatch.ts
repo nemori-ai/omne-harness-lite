@@ -828,7 +828,7 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
           }
         }
         const created = runtime.settlementFactory.createInvocation({
-          invoke: runtime.invoke,
+          execute: runtime.execute,
           settlementFactory: runtime.settlementFactory,
           ...(local.request.run === undefined
             ? {}

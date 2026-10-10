@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Standalone model invocation and concrete durable-runtime providers consuming public model contracts",
+  "description": "Standalone model invocation, physical execution pool and durable execution records",
   "engines": {
     "node": ">=24.18.0 <25"
   },

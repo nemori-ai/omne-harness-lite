@@ -328,7 +328,7 @@ class Provider extends ModelRuntimeService {
 
 /** Trusted assembly closure ports. These are not serialized policy or caller authority. */
 export interface SessionModelRuntimeConstruction {
-  readonly invoke: import('@omne-harness-lite/model-request-runtime').ModelInvoker
+  readonly execute: import('@omne-harness-lite/model-request-runtime').ModelPoolExecutor
   readonly createContentStore: (input: {
     readonly storage: import('@omne-harness-lite/storage').Storage
     readonly policy: { readonly maxConcurrentWrites: number; readonly maxContentBytes: number }
@@ -366,8 +366,8 @@ function decoratedLease(
 
 /** Trusted assembly owns this factory; source/facts never become ordinary Context services. */
 export function createSessionModelRuntimeLocal(construction: SessionModelRuntimeConstruction) {
-  if (typeof construction.invoke !== 'function')
-    throw new TypeError('physical model invoker required')
+  if (typeof construction.execute !== 'function')
+    throw new TypeError('physical model executor required')
   if (typeof construction.createContentStore !== 'function')
     throw new TypeError('model content store factory required')
   const contentDependencies = construction.externalContent
@@ -452,7 +452,7 @@ export function createSessionModelRuntimeLocal(construction: SessionModelRuntime
               })
               calls = createCallContainerStore<PlannedRequest, RawResponse>()
               runtime = createSessionModelRuntime({
-                invoke: construction.invoke,
+                execute: construction.execute,
                 requestPreparation: construction.requestPreparation,
                 selectionFactory: construction.selectionFactory,
                 readFactory: construction.readFactory,

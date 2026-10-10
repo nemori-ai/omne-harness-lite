@@ -1,4 +1,5 @@
 export { invokeModel } from './invoke.ts'
+export { createModelExecutionPool } from './execution-pool.ts'
 export { createDefaultRetryImplementation, DEFAULT_RETRY_BUILTIN } from './default-retry.ts'
 export type { DefaultRetryConfiguration, DefaultRetryResult } from './default-retry.ts'
 export type * from './diagnostics-types.ts'

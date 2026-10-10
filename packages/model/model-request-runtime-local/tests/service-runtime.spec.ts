@@ -50,7 +50,7 @@ function construction(
   } = {},
 ): SessionModelConstruction<PlannedSemantics, never> {
   return {
-    invoke: invokeModel,
+    execute: ({ input }) => ({ invocation: invokeModel(input) }),
     ...unavailableReferencePorts<PlannedSemantics, never>(),
     maxScopes: 4,
     sessions: { bind: input.bind ?? (async () => ({ failure: 'unavailable' })) },
@@ -108,12 +108,12 @@ function construction(
   }
 }
 
-it('rejects a missing physical invoker before claiming the Session call store', async () => {
+it('rejects a missing physical executor before claiming the Session call store', async () => {
   const input = construction()
-  const invoke = input.invoke
-  Reflect.deleteProperty(input, 'invoke')
-  expect(() => createSessionModelRuntime(input)).toThrow('physical model invoker required')
-  Object.defineProperty(input, 'invoke', { value: invoke, enumerable: true })
+  const invoke = input.execute
+  Reflect.deleteProperty(input, 'execute')
+  expect(() => createSessionModelRuntime(input)).toThrow('physical model executor required')
+  Object.defineProperty(input, 'execute', { value: invoke, enumerable: true })
   const runtime = createSessionModelRuntime(input)
   expect(await runtime.close()).toEqual({ released: true })
 })
@@ -300,7 +300,7 @@ describe('D102 unified model runtime owner', () => {
           },
         }
         const construction: SessionModelConstruction<TestPlan, object> = {
-          invoke: invokeModel,
+          execute: ({ input }) => ({ invocation: invokeModel(input) }),
           ...referencePorts(host, calls),
           maxScopes: 4,
           sessions: { bind: async () => (holdBind ? await bound.promise : { binding }) },

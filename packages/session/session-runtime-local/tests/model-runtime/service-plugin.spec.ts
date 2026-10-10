@@ -22,6 +22,7 @@ import type {
 } from '@omne-harness-lite/model-request-runtime'
 import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
+import type { SessionModelRuntimeConstruction } from '@omne-harness-lite/session-runtime-local/cordis'
 import { createSessionModelRuntimeLocal } from '@omne-harness-lite/session-runtime-local/cordis'
 import { createProviderContributions } from '../../dist/model-runtime/provider-contributions.js'
 import {
@@ -35,11 +36,11 @@ const callId = unwrap(parseOpaqueIdentifier('named-call', 'ModelCallId'))
 const key = { session, callId }
 
 describe('named model runtime provider', () => {
-  it.each(['invoke', 'createContentStore'] as const)(
+  it.each(['execute', 'createContentStore'] as const)(
     'rejects an absent or non-callable physical %s before creating a provider',
     field => {
-      const input = {
-        invoke: invokeModel,
+      const input: SessionModelRuntimeConstruction = {
+        execute: ({ input }) => ({ invocation: invokeModel(input) }),
         createContentStore: createModelCallContentStore,
         acknowledgementFactory: createSessionModelAcknowledgement,
         callFactsFactory: createSessionModelCallFacts,
@@ -50,8 +51,8 @@ describe('named model runtime provider', () => {
         readFactory: createSessionModelReads,
       }
       const error =
-        field === 'invoke'
-          ? 'physical model invoker required'
+        field === 'execute'
+          ? 'physical model executor required'
           : 'model content store factory required'
       Reflect.deleteProperty(input, field)
       expect(() => createSessionModelRuntimeLocal(input)).toThrow(error)
@@ -173,7 +174,7 @@ describe('named model runtime provider', () => {
       reservationWaitPolicy: { maxWaitersPerCall: '2e1', timeoutMs: '1e3' },
     }
     const provider = createSessionModelRuntimeLocal({
-      invoke: invokeModel,
+      execute: ({ input }) => ({ invocation: invokeModel(input) }),
       createContentStore: createModelCallContentStore,
       acknowledgementFactory: createSessionModelAcknowledgement,
       callFactsFactory: createSessionModelCallFacts,
@@ -338,7 +339,7 @@ describe('named model runtime provider', () => {
 
   it('rejects missing/extra configuration instead of accepting construct or inferred defaults', () => {
     const provider = createSessionModelRuntimeLocal({
-      invoke: invokeModel,
+      execute: ({ input }) => ({ invocation: invokeModel(input) }),
       createContentStore: createModelCallContentStore,
       acknowledgementFactory: createSessionModelAcknowledgement,
       callFactsFactory: createSessionModelCallFacts,

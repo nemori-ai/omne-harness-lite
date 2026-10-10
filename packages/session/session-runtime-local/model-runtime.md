@@ -202,3 +202,9 @@ SessionModelRuntimeConstruction 还须借入原 createContentStore 工厂。
 
 这里的 executionSource 仍观察 Session 调用容器及原结算句柄，不能当作纯物理池的窄观察接口。
 物理执行池的窄构造与当前消费者迁移仍未完整兑现。
+
+## 物理执行池的消费
+
+SessionModelConstruction及Cordis构造输入借入ModelPoolExecutor。原协调器先确认唯一claim消费，才以完整tenant、session、callId和dispatch及原InvocationInput调用execute。池返回的关闭、重复活动或输入错误沿原调用失败路径处理，不能据此重用已消费claim。
+
+Session继续拥有opened、ready、Pending保管、ACK及恢复。它的原调用executionSource保有这些业务责任所需的句柄，与物理池只读活动元数据不同。Session不关闭借入池。应用根先关闭Session编排，再等待物理池stopped，最后释放原内容、transport及其他借入资源。已接受的业务回调必须按各自原登记完成，不能仅凭物理池停止释放Session资源。

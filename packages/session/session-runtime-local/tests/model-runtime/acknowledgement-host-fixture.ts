@@ -196,7 +196,7 @@ export async function acknowledgementHost(options: HostOptions = {}) {
     const original = bindingWith({ fixture: 'a22-v1' })
     let binding = original
     const construction: SessionModelConstruction<TestPlan, object> = {
-      invoke: invokeModel,
+      execute: ({ input }) => ({ invocation: invokeModel(input) }),
       ...ports,
       callAccess: {
         check: (input, admitted) =>

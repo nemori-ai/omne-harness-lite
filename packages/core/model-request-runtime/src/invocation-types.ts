@@ -242,6 +242,8 @@ export interface ModelInvoker {
 }
 export interface ModelInvocationHandle {
   readonly outcome: Promise<InvocationOutcome>
+  /** Resolves after the reader and registered callbacks stop; rejects if stop cannot be confirmed. */
+  readonly stopped: Promise<void>
   readonly snapshot: () => AssemblySnapshot
   /** Available only once this invocation and all its owned asynchronous work actually stop. */
   readonly observedFacts: () =>

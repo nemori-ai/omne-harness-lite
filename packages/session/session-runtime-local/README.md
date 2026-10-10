@@ -125,7 +125,7 @@ The root exports `createSessionModelReads` and the fixed-prefix failure readers.
 
 ## Original model invocation coordination
 
-The Session provider owns `createAnchoredModelInvocation`. It composes the explicitly supplied `invokeModel` with a real
+The Session provider owns `createAnchoredModelInvocation`. It composes the explicitly supplied physical executor with a real
 SessionLog binding and the shared settlement coordinator. It supports one
 dispatch with an explicit list of resolved model tools, either without a Run or
 with an explicit `run`/`attempt` pair whose anchors use a fenced append. The host supplies fixed
@@ -161,17 +161,18 @@ After actual host preparation, pass its input and an explicit reply disposition 
 
 ```ts
 import { createAnchoredModelInvocation } from '@omne-harness-lite/session-runtime-local'
-import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import type { ModelPoolInstance } from '@omne-harness-lite/model-request-runtime'
 import type { AnchoredInvocationInput } from '@omne-harness-lite/model-request-runtime'
 import { type PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { ReplyDisposition } from '@omne-harness-lite/model-response'
 
 /** Supply actual host preparation and an explicit caller disposition. */
 export async function runPreparedInvocation<P extends PlannedSemantics, R>(
-  input: Omit<AnchoredInvocationInput<P, R>, 'invoke'>,
+  input: Omit<AnchoredInvocationInput<P, R>, 'execute'>,
   disposition: ReplyDisposition,
+  pool: Pick<ModelPoolInstance, 'execute'>,
 ) {
-  const call = createAnchoredModelInvocation({ ...input, invoke: invokeModel })
+  const call = createAnchoredModelInvocation({ ...input, execute: pool.execute })
   const outcome = await call.outcome
   const settlement = 'replyPending' in outcome ? await call.settleReply(disposition) : null
   const close = await call.close()
@@ -187,18 +188,19 @@ Pass resolved `ModelToolEntry` values through `planInput.tools`. `modelEntry` co
 
 ```ts
 import { createAnchoredModelInvocation } from '@omne-harness-lite/session-runtime-local'
-import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import type { ModelPoolInstance } from '@omne-harness-lite/model-request-runtime'
 import type { AnchoredInvocationInput } from '@omne-harness-lite/model-request-runtime'
 import { type PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { modelEntry, type ToolDefinition } from '@omne-harness-lite/tool-definition'
 
 export function invokeWithTools<P extends PlannedSemantics, R>(
-  input: Omit<AnchoredInvocationInput<P, R>, 'invoke'>,
+  input: Omit<AnchoredInvocationInput<P, R>, 'execute'>,
   definitions: readonly ToolDefinition[],
+  pool: Pick<ModelPoolInstance, 'execute'>,
 ) {
   return createAnchoredModelInvocation({
     ...input,
-    invoke: invokeModel,
+    execute: pool.execute,
     planInput: { ...input.planInput, tools: definitions.map(modelEntry) },
   })
 }
@@ -209,7 +211,7 @@ The runtime sends definitions and assembles streamed tool calls; the caller supp
 ## Session model-call composition
 
 `createSessionModelRuntime` composes the Session model-call operations over one original call store.
-Supply an explicit `invoke` from the chosen Model provider. The Session coordinator retains original issue, ready, ACK, and close responsibilities.
+Supply `execute` from the shared physical Model pool. The Session coordinator retains original issue, ready, ACK, and close responsibilities.
 
-The Cordis entry exports `createSessionModelRuntimeLocal`. Its trusted construction requires the same `invoke` and an original `createContentStore` factory.
+The Cordis entry exports `createSessionModelRuntimeLocal`. Its trusted construction requires the same `execute` and an original `createContentStore` factory.
 See [the composition contract](model-runtime.md) and [lifecycle responsibilities](adr/model-service-lifetime.md).

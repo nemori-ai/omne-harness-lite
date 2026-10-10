@@ -620,3 +620,7 @@ createModelFailureSource与readFailureSubject核对原失败前缀，返回的so
 [模型调用编排](model-runtime.md)是本包实现的原十五操作、调用容器、主体投影及 ACK 清理协调的行为正文。
 公开根工厂为 createSessionModelRuntime，Cordis 工厂为 createSessionModelRuntimeLocal。
 两者显式借入 Model 的物理调用及内容拥有者，不选择具体提供者。
+
+### 模型物理执行器
+
+Session的模型编排及Cordis构造器必须取得显式ModelPoolExecutor，不在提供者内选择具体Model工厂。原claim确认消费后，协调器传入完整tenant、session、callId和dispatch及原InvocationInput。执行池拒绝不撤销该次消费，也不允许自动重用claim。Session的opened、ready、结果保管、ACK和恢复仍沿原拥有者处理。物理池的活动快照不替代Session业务executionSource；关闭共享池由应用根负责。

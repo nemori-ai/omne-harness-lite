@@ -492,7 +492,7 @@ describe('A1b noRun actual SQL journal + SQL identity mapping + production invok
       const t = transport()
       const handle = createAnchoredModelInvocation({
         ...h.input,
-        invoke: invokeModel,
+        execute: ({ input }) => ({ invocation: invokeModel(input) }),
         planInput: { ...h.input.planInput, parameters: { temperature: 1, topP: 1 } },
         transport: {
           ...t.adapter,

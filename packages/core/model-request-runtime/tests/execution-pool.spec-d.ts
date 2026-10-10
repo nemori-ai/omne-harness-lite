@@ -1,105 +1,42 @@
 import type {
   ModelExecutionRecords,
   OriginalIssueOwner,
-  ModelDispatchResult,
   ModelExecutionRef,
-  ModelPoolControls,
-  ModelCallerAccess,
-  ModelPoolAdmission,
-  PreparedModelFirstDispatch,
-  PreparedModelRetryDispatch,
+  ModelPoolInstance,
   ModelExecutionObservation,
-  ModelCapturedExecution,
-  ModelPoolCallOpen,
-  PreparedModelExecution,
-  PreparedModelCreation,
-  TokenMargin,
+  ModelExecutionRequest,
+  PlannedSemantics,
 } from '@omne-harness-lite/model-request-runtime'
-import type { TenantId } from '@omne-harness-lite/identity-values'
-import type { ModelResponse } from '@omne-harness-lite/model-response'
 declare const models: ModelExecutionRecords
 declare const nativeOriginal: OriginalIssueOwner &
   Pick<ModelExecutionRecords, 'stageOriginalIn' | 'stageConsumeIn'>
 const nativeRecords: ModelExecutionRecords = nativeOriginal
-// @ts-expect-error Full Session call history belongs to the Session owner.
-models.readOriginalIn
-// @ts-expect-error Session settlement writers are not Model execution records.
-models.responseWriter
-// @ts-expect-error Obligation discovery belongs to the recovery source.
-models.withObligations
 nativeRecords.prepareOriginal
 nativeRecords.consumeOriginal
-// @ts-expect-error Model execution records do not expose Session selection.
+// @ts-expect-error Session log reads are owned by Session.
+models.readOriginalIn
+// @ts-expect-error Record ownership cannot select the Session model.
 models.selectModel()
-// @ts-expect-error Model execution records cannot return a complete Session prefix.
-models.readPrefix()
 declare const ref: ModelExecutionRef
-// @ts-expect-error A physical owner generation is not logical task identity.
-ref.executionGeneration
-declare const modelResult: ModelDispatchResult
-if ('kind' in modelResult && modelResult.kind === 'unknownCommit') {
-  modelResult.original.ref.tenant
-  // @ts-expect-error Unknown admission has no launch claim.
-  modelResult.claim
-  // @ts-expect-error Unknown admission does not grant ACK.
-  modelResult.acknowledgeCall()
-}
-declare const modelControls: ModelPoolControls
-declare const callerAccess: ModelCallerAccess
-declare const modelPool: ModelPoolAdmission
-// @ts-expect-error Call control does not select the Session model.
-modelControls.selectModel()
-// @ts-expect-error Session reads do not belong to physical pool controls.
-modelControls.readAttempts
-// @ts-expect-error Session acknowledgement does not belong to physical pool controls.
-modelControls.acknowledgeCall
-// @ts-expect-error Session history recovery does not belong to physical pool controls.
-modelControls.reconcile
-// @ts-expect-error Session disposition does not belong to physical pool controls.
-modelControls.settleReply
-// @ts-expect-error Session decides whether a retry is applicable.
-modelControls.canDispatchAgain
-// @ts-expect-error Current caller qualification cannot borrow a Session binding.
-callerAccess.bind()
-// @ts-expect-error A business operation closure cannot stop the shared pool.
-modelPool.closeAdmission()
-declare const initial: PreparedModelFirstDispatch
-declare const retry: PreparedModelRetryDispatch
-// @ts-expect-error An explicit retry plan cannot enter the first-dispatch path.
-modelPool.dispatch(retry)
-// @ts-expect-error A retry requires the existing explicit RetryPlan.
-modelPool.dispatchAgain(initial)
-// @ts-expect-error The pool cannot produce an interpreted Session failure source.
-modelPool.dispatch(initial, { consumeFailure: true })
+ref.tenant
+ref.session
+ref.callId
+ref.dispatch
+declare const pool: ModelPoolInstance
+// @ts-expect-error The execution pool does not open Session calls.
+pool.openCall
+// @ts-expect-error The execution pool does not plan retries.
+pool.dispatchAgain
+// @ts-expect-error The execution pool does not reconcile Session state.
+pool.reconcile
+// @ts-expect-error The execution pool cannot acknowledge Session results.
+pool.acknowledgeCall
 declare const observation: ModelExecutionObservation
-// @ts-expect-error Original execution metadata cannot return the full Session binding.
+// @ts-expect-error Observations cannot return the Session binding.
 observation.session
-declare const captured: ModelCapturedExecution
-// @ts-expect-error A captured invocation cannot lend the full settlement owner.
-captured.invocation?.borrowControl()
-declare const opening: ModelPoolCallOpen
-// @ts-expect-error A business creation request cannot replace the native lifetime host.
-opening.host
-// @ts-expect-error Raw messages must be prepared by Session before entering the pool.
-opening.messages
-// @ts-expect-error Unresolved tool names must not enter the pool.
-opening.tools
-declare const tenant: TenantId
-declare const prepared: PreparedModelCreation
-declare const tokenMargin: TokenMargin
-const preparedOpening: ModelPoolCallOpen = { tenant, prepared, tokenMargin }
-preparedOpening.prepared.content.adopted.profile
-declare const failedResponse: ModelResponse & { readonly outcome: 'failed' }
-const failedExecution: ModelDispatchResult = { settled: failedResponse }
-const noFailureSubject: undefined = failedExecution.failureSubject
-declare const openingFields: Omit<ModelPoolCallOpen, 'run' | 'attempt' | 'report'>
-declare const runOrigin: Extract<
-  PreparedModelExecution['origin'],
-  { readonly kind: 'sessionAttempt' }
->
-// @ts-expect-error The original Run/report association remains all-or-none.
-const invalidOpening: ModelPoolCallOpen = {
-  ...openingFields,
-  run: runOrigin.run,
-  attempt: runOrigin.attempt,
-}
+// @ts-expect-error Metadata does not retain results or invocations.
+observation.invocation
+declare const request: ModelExecutionRequest<PlannedSemantics, object>
+pool.execute(request)
+// @ts-expect-error Every physical execution needs explicit scope and dispatch identity.
+pool.execute({ input: request.input })
