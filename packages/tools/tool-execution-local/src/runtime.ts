@@ -131,7 +131,13 @@ function createRuntime(
           sources: held.sources,
         })
         if (!Array.isArray(chain) || !held.isActive()) return 'unavailable'
-        const captured = copyJsonValue(chain)
+        const captured = copyJsonValue(
+          chain.filter(
+            piece =>
+              piece.definition.position === 'after_action' &&
+              piece.definition.dimension.scope === 'each',
+          ),
+        )
         return 'failed' in captured ? 'unavailable' : { chain: captured.ok, pass }
       } finally {
         held.release()
