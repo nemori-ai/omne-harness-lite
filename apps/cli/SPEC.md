@@ -513,6 +513,16 @@ Driver故障先停止协议准入，再调用原诊断端口。关闭停止新�
 
 原模型拥有者在分配内容／调用／传输资源前已存在。来源或Run装配失败时，ready保留原错误，close仍结束实际部分资源。executionSource固定为此物理ModelRuntime的实际来源，不采用外部复制或替代getter。关闭先完成原ModelRuntime关闭，再释放原executionSource，之后关闭内容与实际传输。原捕获未归还时，source.release保持unavailable；外层保留模型池及文件资源，归还后显式close可继续原收场。remaining_active保持unavailable，不把提交关闭当资源已释放。借入Clock、Storage和治理依赖不在模型构造器内关闭。
 
+### 原 Run 的 Runner 装配
+
+`createSessionRunRunner`选择实际LoopExtensionRunner和ToolAdmission。它消费原Run日志借用、同一装配清单、原采用历史和Session归属。请求的Session或Run不同，在读取前拒绝。原日志借用、物理日志世代或Context失效后停止新准入。`before_action`的数据由Session公开的`readSessionRunnerAction`读取，不在应用复制工具批次解释器。
+
+可信根显式提供原访问对象、执行端口、消息前缀读取、候选内容识别和准入策略。缺失端口不补默认能力。物理日志根提供原`RunnerTaskOwner`并拥有未确认写入的后续责任；此构造器只借用该对象。每次Runner读取只拥有自己的归还标记，不创建替代任务拥有者。Runner通过实际装配清单和原历史选择扩展链，实际ToolAdmission贡献核原pass和完整批次。
+
+构造先返回ready和close，再异步分配资源。分配失败保留原错误，close收场已分配部分。关闭先停止新准入，等待分配结束，再停止实际准入判断、排空Runner、撤贡献及归还ToolAdmission的原日志借用。归还失败保留原资源；显式再次close只重试原收场，不重新分配或恢复准入。并发close共享同一收场尝试。本拥有者不关闭借入日志、Storage、Context、装配清单、物理任务拥有者或模型／工具池。
+
+实际Model组合验证原Run的Runner读取及关闭责任。受控执行端口不代表生产工具接线或独立OS宿主已经交付。
+
 ### 原模型目录及凭据读面
 
 显式nativeModel.directory输入固定实际租户、中心／账号／登录句柄、同一借入CG、已有受保护密钥文件及诊断端口。文件运行根在治理或文件分配前核它属于原固定运行根，异租户或异登录拒绝，不另开其他命名空间。目录和replica升级与原模型调用事实共用实际租户Storage。

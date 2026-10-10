@@ -104,6 +104,8 @@ import { StorageUnavailable } from '@omne-harness-lite/storage'
 import { createSessionOriginalModelOwner } from '../src/session-model-owner.ts'
 import { createSessionDriverModelFactory } from '../src/session-driver-model.ts'
 import { createSessionRunAssets } from '../src/session-run-assets.ts'
+import { createSessionRunRunner, type SessionRunRunnerOptions } from '../src/session-run-runner.ts'
+import { createRunnerTaskOwner } from '@omne-harness-lite/loop-extension-runner-local'
 import {
   createSessionRunModelBinding,
   type SessionRunModelBindingOptions,
@@ -2043,6 +2045,113 @@ it.each(['normal', 'foreignScope', 'fillReceiptLost'] as const)(
         expect(await manifest.readHead(scope.session)).toEqual(first)
       }
       const { input: reader, registry } = assets
+      const runnerTasks = createRunnerTaskOwner({
+        ...scope,
+        logGeneration: f.log.backing.ownerGeneration,
+      })
+      const runnerAdmission = {
+        grants: Object.freeze(
+          {},
+        ) as import('@omne-harness-lite/session-runtime-local').SessionDriverRunSources['actions']['admission']['grants'],
+        runMode: 'never' as const,
+      }
+      const runnerOptions: SessionRunRunnerOptions = {
+        journal,
+        assets,
+        manifest,
+        tenancy: f.runtime.tenancy,
+        backing: f.log.backing,
+        access: f.access.operations,
+        toolAccess: () => ({ unavailable: true }),
+        taskOwner: runnerTasks,
+        admission: runnerAdmission,
+        ports: {
+          readAskState: async () => ({ kind: 'unavailable' }),
+          openHandles: async () => ({ unavailable: true }),
+          verifyFailure: async () => ({ kind: 'unavailable' }),
+          judgeCapabilities: async () => ({ kind: 'unavailable' }),
+          now: async () => now,
+          mintReminder: () => 'public-root-runner-reminder',
+          fallbackNeedsProjection: async () => ({ unavailable: true }),
+          invokeCommand: async () => ({ kind: 'notStartedUnavailable' }),
+          commandPresence: async () => 'absent',
+        },
+        readMessagePrefix: async () => ({ unavailable: true }),
+        subjectForCandidate: () => ({ unavailable: true }),
+        isActive: () => context.currentGeneration() !== null,
+      }
+      if (fault === 'normal') {
+        const stopped = createSessionRunRunner(runnerOptions)
+        await stopped.close()
+        expect(await stopped.ready).toEqual({ unavailable: true })
+        const allocationDefect = new Error('original Runner log borrow failed')
+        const brokenBorrow = vi.fn(() => {
+          throw allocationDefect
+        })
+        const failed = createSessionRunRunner({
+          ...runnerOptions,
+          backing: { ...f.log.backing, borrow: brokenBorrow },
+        })
+        cleanup.push(failed.close)
+        await expect(failed.ready).rejects.toBe(allocationDefect)
+        await failed.close()
+        expect(brokenBorrow).toHaveBeenCalledOnce()
+        const releaseDefect = new Error('original Runner borrow return failed')
+        let releaseAttempts = 0
+        const borrowing = vi.fn(() => {
+          const held = f.log.backing.borrow()
+          return {
+            ...held,
+            async release() {
+              if (++releaseAttempts === 1) throw releaseDefect
+              await held.release()
+            },
+          }
+        })
+        const retained = createSessionRunRunner({
+          ...runnerOptions,
+          backing: { ...f.log.backing, borrow: borrowing },
+        })
+        cleanup.push(retained.close)
+        const allocated = await retained.ready
+        if ('unavailable' in allocated) throw new Error('actual retained Runner not allocated')
+        await expect(retained.close()).rejects.toBe(releaseDefect)
+        expect(
+          await allocated.host.acquireReplay(
+            {
+              position: 'before_model_call',
+              subject: {
+                request: { target: 'example/model', parameters: {}, messages: [], tools: [] },
+              },
+              manifest: scope.session,
+              run: journal.run,
+              anchor: 'closed-Runner',
+            } as Parameters<typeof allocated.host.acquireReplay>[0],
+            new AbortController().signal,
+          ),
+        ).toEqual({ failure: 'unavailable' })
+        await retained.close()
+        expect(borrowing).toHaveBeenCalledOnce()
+        expect(releaseAttempts).toBe(2)
+      }
+      const runRunner = createSessionRunRunner(runnerOptions)
+      cleanup.push(runRunner.close)
+      const actions = await runRunner.ready
+      if ('unavailable' in actions) throw new Error('actual original Run Runner unavailable')
+      const replay = {
+        position: 'before_model_call',
+        subject: { request: { target: 'example/model', parameters: {}, messages: [], tools: [] } },
+        manifest: scope.session,
+        run: journal.run,
+        anchor: 'public-root-runner-replay',
+      } as Parameters<typeof actions.runner.replay>[0]
+      expect(await actions.runner.replay(replay)).toEqual([])
+      expect(
+        await actions.host.acquireReplay(
+          { ...replay, manifest: 'foreign' },
+          new AbortController().signal,
+        ),
+      ).toEqual({ failure: 'invalidInput' })
       return {
         scope: returnedScope,
         run: journal.run,
@@ -2053,9 +2162,7 @@ it.each(['normal', 'foreignScope', 'fillReceiptLost'] as const)(
         get toolAccess(): never {
           throw new Error('normal model path must not take a tool grant')
         },
-        get actions(): never {
-          throw new Error('normal model path must not read tool runner qualification')
-        },
+        actions: { runner: actions.runner, admission: runnerAdmission },
         providers: {
           catalog: ports.catalog,
           credentials: ports.credentials,
@@ -2100,6 +2207,9 @@ it.each(['normal', 'foreignScope', 'fillReceiptLost'] as const)(
           },
         },
         release: async () => {
+          await runRunner.close()
+          runnerTasks.closeAdmission()
+          await runnerTasks.drain()
           await assetOwner.close()
           returned()
         },

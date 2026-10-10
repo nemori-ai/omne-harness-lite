@@ -190,6 +190,12 @@ importers:
       '@omne-harness-lite/kernel-basis':
         specifier: workspace:*
         version: link:../../packages/core/kernel-basis
+      '@omne-harness-lite/loop-extension-runner':
+        specifier: workspace:*
+        version: link:../../packages/core/loop-extension-runner
+      '@omne-harness-lite/loop-extension-runner-local':
+        specifier: workspace:*
+        version: link:../../packages/agent-loop/loop-extension-runner-local
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../../packages/core/messages
@@ -247,6 +253,9 @@ importers:
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../packages/infra/storage-sql
+      '@omne-harness-lite/tool-admission-local':
+        specifier: workspace:*
+        version: link:../../packages/tools/tool-admission-local
       ajv:
         specifier: 'catalog:'
         version: 8.20.0

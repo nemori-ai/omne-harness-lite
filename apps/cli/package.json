@@ -63,7 +63,10 @@
     "@omne-harness-lite/session-log-sql": "workspace:*",
     "@omne-harness-lite/clock-lease": "workspace:*",
     "@omne-harness-lite/pi-ai-transport": "workspace:*",
-    "@omne-harness-lite/asset-registry-local": "workspace:*"
+    "@omne-harness-lite/asset-registry-local": "workspace:*",
+    "@omne-harness-lite/loop-extension-runner": "workspace:*",
+    "@omne-harness-lite/loop-extension-runner-local": "workspace:*",
+    "@omne-harness-lite/tool-admission-local": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
