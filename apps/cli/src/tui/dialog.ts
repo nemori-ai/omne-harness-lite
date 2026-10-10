@@ -26,6 +26,7 @@ export class Dialog {
     | {
         readonly result: ReturnType<typeof Promise.withResolvers<string | undefined>>
         readonly auto: boolean
+        readonly requirePageReview: boolean
       }
     | undefined
   #stopped = false
@@ -142,7 +143,7 @@ export class Dialog {
   }
   #confirm(): void {
     if (!this.#eligible) return
-    if (this.#visited.size !== this.#pages) {
+    if (this.#waiting?.requirePageReview && this.#visited.size !== this.#pages) {
       this.#screen = {
         ...this.#screen,
         footer: 'Read every page with PgUp/PgDn before continuing. Ctrl+C: exit',
@@ -200,6 +201,7 @@ export class Dialog {
     body: readonly string[],
     input: boolean,
     auto: boolean,
+    requirePageReview = true,
   ): Promise<string | undefined> {
     if (this.#stopped) return undefined
     if (this.#waiting) throw new Error('overlapping dialog')
@@ -210,14 +212,16 @@ export class Dialog {
       identity: this.#identity,
       title,
       body,
-      page: 0,
-      footer: 'Enter: continue | Ctrl+G: cancel | Ctrl+C: exit | PgUp/PgDn: pages',
+      page: requirePageReview ? 0 : Number.MAX_SAFE_INTEGER,
+      footer: requirePageReview
+        ? 'Enter: continue | Ctrl+G: cancel | Ctrl+C: exit | PgUp/PgDn: pages'
+        : 'Enter: send | Ctrl+G: cancel | Ctrl+C: exit | PgUp/PgDn: history',
       ...(field ? { input: field } : {}),
     }
     this.#visited.clear()
     this.#fieldVisible = false
     const result = Promise.withResolvers<string | undefined>()
-    this.#waiting = { result, auto }
+    this.#waiting = { result, auto, requirePageReview }
     this.#draw()
     return result.promise
   }
@@ -235,6 +239,9 @@ export class Dialog {
   }
   text(title: string, body: readonly string[] = []): Promise<string | undefined> {
     return this.#show(title, body, true, false)
+  }
+  compose(title: string, body: readonly string[]): Promise<string | undefined> {
+    return this.#show(title, body, true, false, false)
   }
   async choose(
     title: string,

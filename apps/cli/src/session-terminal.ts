@@ -2,7 +2,7 @@ import type { Dialog } from './tui/dialog.ts'
 import { presentationLines } from './session-presentation-output.ts'
 import { z } from 'zod'
 import { judgeMessage, type SessionRef } from '@omne-harness-lite/messages'
-import { checkSession } from '@omne-harness-lite/session-log'
+import { checkSession, compareInteger } from '@omne-harness-lite/session-log'
 import type { EntryExecution } from './entry-application.ts'
 import type { GovernanceDialog } from './governance-input.ts'
 import type { TenantBinding } from './state-layout.ts'
@@ -11,7 +11,9 @@ import { createSessionForMessage } from './session-creation-client.ts'
 import { sendSessionHostRequest } from './session-host-client.ts'
 import { submitSessionMessage, type SessionMessagePolicy } from './session-message-client.ts'
 import { InputFailure } from './diagnostic.ts'
-import { terminalMessageLines } from './session-terminal-output.ts'
+import { conversationLines } from './session-terminal-output.ts'
+import { readSessionMessagesReply } from './session-message-replies.ts'
+import type { SessionTextMessage } from './session-reading.ts'
 
 export interface TerminalSessionOptions {
   readonly home: string
@@ -19,7 +21,7 @@ export interface TerminalSessionOptions {
   readonly routeName: string
   readonly session: string | null
   readonly workspace: string
-  readonly dialog: GovernanceDialog & Pick<Dialog, 'progress'>
+  readonly dialog: GovernanceDialog & Pick<Dialog, 'progress' | 'compose'>
   readonly signal: AbortSignal
   readonly originalId: () => string
   readonly policy: SessionMessagePolicy
@@ -44,23 +46,26 @@ async function interact(
   options: TerminalSessionOptions,
   session: SessionRef,
 ): Promise<EntryExecution> {
+  const history = await readHistory(options, session)
+  if (!history || 'failure' in history) return blocked('history-unavailable')
+  const messages = new Map(history.messages.map(message => [message.id, message]))
   while (!options.signal.aborted) {
-    const text = await options.dialog.text('Message', [
-      'Cancel the input to detach. Admitted work continues in the host.',
-    ])
+    const lines = conversationLines(orderedMessages(messages))
+    const text = await options.dialog.compose('Conversation', lines)
     if (text === undefined || options.signal.aborted) break
     if (!text.trim()) continue
     const message = await userMessage(options, text)
     if (!message) return blocked('host-clock-unavailable')
+    const prior = [...lines, '', 'You', text, '', 'Assistant']
     let shown = ''
-    options.dialog.progress('Assistant', ['Waiting for the model…'])
+    options.dialog.progress('Conversation', [...prior, 'Waiting for the model…'])
     const outcome = await submitSessionMessage({
       onProgress: presentation => {
-        const lines = presentationLines(presentation)
-        const next = JSON.stringify(lines)
+        const live = presentationLines(presentation)
+        const next = JSON.stringify(live)
         if (next !== shown) {
           shown = next
-          options.dialog.progress('Assistant', lines)
+          options.dialog.progress('Conversation', [...prior, ...live])
         }
       },
       home: options.home,
@@ -76,13 +81,30 @@ async function interact(
       },
     })
     if (outcome.status !== 'completed') return { outcome, diagnostics: [] }
-    const lines = outcome.messages
-      .filter(value => value.type !== 'user')
-      .flatMap(terminalMessageLines)
-    if (!(await options.dialog.show('Assistant', lines))) break
+    for (const entry of outcome.messages) messages.set(entry.id, entry)
   }
   return { outcome: { kind: 'session-detached', session }, diagnostics: [] }
 }
+function orderedMessages(messages: ReadonlyMap<string, SessionTextMessage>) {
+  return [...messages.values()].sort((left, right) => compareInteger(left.position, right.position))
+}
+async function readHistory(options: TerminalSessionOptions, session: SessionRef) {
+  const result = await sendSessionHostRequest({
+    home: options.home,
+    signal: options.signal,
+    policy: transportPolicy(options),
+    request: {
+      format: 'omne-session-host/1',
+      binding: options.binding,
+      command: 'readMessages',
+      session,
+    },
+  })
+  return result.kind === 'reply'
+    ? readSessionMessagesReply(result.result, { tenant: options.binding.tenant, session })
+    : undefined
+}
+
 async function targetSession(options: TerminalSessionOptions) {
   if (options.session !== null) {
     const checked = checkSession(options.session)

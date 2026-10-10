@@ -10,7 +10,7 @@ export async function usingGovernanceDialog(
   signal: AbortSignal,
   terminal: TerminalFactory,
   work: (
-    dialog: GovernanceDialog & Pick<Dialog, 'progress'>,
+    dialog: GovernanceDialog & Pick<Dialog, 'progress' | 'compose'>,
     signal: AbortSignal,
   ) => Promise<EntryExecution>,
   presentation?: PreparedPresentationGroup,

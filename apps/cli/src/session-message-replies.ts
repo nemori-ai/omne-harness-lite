@@ -179,12 +179,19 @@ function validAdmission(reading: Submission): boolean {
     compareInteger(reading.admission.inputPosition, reading.inputPosition) === 0
   )
 }
-export function readMessagesReply(value: unknown, reading: Submission) {
+export function readSessionMessagesReply(
+  value: unknown,
+  scope: Pick<SourceToken, 'tenant' | 'session'>,
+) {
   const checked = messages.safeParse(value)
   if (!checked.success) return undefined
   const result = checked.data
   if ('failure' in result) return result
-  if (!covers(result.source, reading.source)) return undefined
+  if (
+    result.source.session !== scope.session ||
+    !tenantIdEquals(result.source.tenant, scope.tenant)
+  )
+    return undefined
   let previous = 0 as import('@omne-harness-lite/content-blocks').JsonNumber
   for (const message of result.messages) {
     if (
@@ -196,6 +203,12 @@ export function readMessagesReply(value: unknown, reading: Submission) {
   }
   return result
 }
+export function readMessagesReply(value: unknown, reading: Submission) {
+  const result = readSessionMessagesReply(value, reading.source)
+  if (!result || 'failure' in result) return result
+  return covers(result.source, reading.source) ? result : undefined
+}
+
 function covers(current: SourceToken, saved: SourceToken) {
   return (
     current.session === saved.session &&

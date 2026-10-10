@@ -61,3 +61,19 @@ function exitLine(value: z.infer<typeof exit>): string {
   if ('signal' in value) return `Exit signal: ${value.signal}`
   return 'Exit detail unavailable'
 }
+
+/** Message roles come from the host's human-visible projection, not runtime facts. */
+export function conversationLines(messages: readonly SessionTextMessage[]): readonly string[] {
+  return messages.flatMap(message => {
+    const lines = terminalMessageLines(message)
+    if (lines.length === 0) return []
+    return ['', roleLabel(message.type), ...lines]
+  })
+}
+
+function roleLabel(type: SessionTextMessage['type']): string {
+  if (type === 'user') return 'You'
+  if (type === 'assistant') return 'Assistant'
+  if (type === 'tool' || type === 'tool_internal') return 'Tool'
+  return 'System'
+}
