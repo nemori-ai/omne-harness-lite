@@ -1,6 +1,5 @@
 import type { JsonNumber, LogEntry, CheckedPrefix } from '@omne-harness-lite/session-log'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
-import type { ToolActionFacts } from '@omne-harness-lite/tool-admission'
 import type {
   ExecutionRef,
   ExecutionOrigin,
@@ -20,7 +19,6 @@ export interface RuntimeJournalView {
   readonly kind: 'view'
   readonly prefix: ToolRecordSnapshot
   readonly executions: ReadonlyMap<string, ToolJournalHistory>
-  readonly facts?: ToolActionFacts
 }
 export type RuntimeJournalFailure = {
   readonly kind: 'rejected'

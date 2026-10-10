@@ -17,7 +17,7 @@ import { createToolOriginalIssue } from '../src/original-issue.ts'
 import { factoryFixture, factoryConfig } from './runtime-factory-fixture.ts'
 import { at, definition, ref, scope } from './execution-owner-fixture.ts'
 import { openSqlLogFixture } from './sql-log-fixture.ts'
-import { journalIntent } from './runtime-journal-boundaries-fixture.ts'
+import { journalIntent } from './tool-intent-fixture.ts'
 
 export async function nativeRuntimeFixture(cleanup: (() => Promise<void>)[]) {
   const f = await factoryFixture()

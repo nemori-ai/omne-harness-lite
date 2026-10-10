@@ -6,7 +6,7 @@ import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { prepareToolJournalEntry } from '@omne-harness-lite/tool-execution-runtime'
 import { checkAppendInput } from '@omne-harness-lite/session-log'
 import { openSqlLogFixture } from './sql-log-fixture.ts'
-import { journalIntent } from './runtime-journal-boundaries-fixture.ts'
+import { journalIntent } from './tool-intent-fixture.ts'
 import { ref, scope, request } from './execution-owner-fixture.ts'
 import { createToolExecutionRecordReader } from '../src/execution-records.ts'
 const cleanup: (() => Promise<void>)[] = []

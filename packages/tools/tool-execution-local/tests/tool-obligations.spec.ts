@@ -16,7 +16,7 @@ import { createToolOriginalIssue } from '../src/original-issue.ts'
 import { toolOriginalIssueMigrations } from '../src/original-issue-migrations.ts'
 import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { at, ref, scope } from './execution-owner-fixture.ts'
-import { journalIntent } from './runtime-journal-boundaries-fixture.ts'
+import { journalIntent } from './tool-intent-fixture.ts'
 
 const cleanup: (() => Promise<void>)[] = []
 afterEach(async () => {

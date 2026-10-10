@@ -5,20 +5,30 @@ import {
   parseTenantId,
   parseOpaqueIdentifier,
 } from '@omne-harness-lite/identity-values'
-import { compareInteger } from '@omne-harness-lite/session-log'
+import {
+  addInteger,
+  compareInteger,
+  type OwnedLogEntry,
+  type JsonNumber,
+} from '@omne-harness-lite/session-log'
 import {
   narrow,
   StorageDefect,
   StorageUnavailable,
   type StorageUnit,
 } from '@omne-harness-lite/storage'
-import type {
-  ToolExecutionJob,
-  ToolExecutionRecords,
-  ToolOriginalIssueIdentity,
-  ToolRuntimeOriginalIssueDependencies,
+import {
+  prepareToolJournalEntry,
+  type ToolExecutionJob,
+  type ToolExecutionRecords,
+  type ToolOriginalIssueIdentity,
+  type ToolRuntimeOriginalIssueDependencies,
 } from '@omne-harness-lite/tool-execution-runtime'
-import type { RuntimeJournal, RuntimeJournalFailure } from './execution-journal.ts'
+import type {
+  RuntimeJournal,
+  RuntimeJournalFailure,
+  RuntimeJournalView,
+} from './execution-journal.ts'
 import { decodeToolOriginal, type OriginalRow } from './tool-obligations.ts'
 import { createToolExecutionTransitions } from './execution-transitions.ts'
 import { sameJson } from './json-values.ts'
@@ -26,6 +36,24 @@ import { sameJson } from './json-values.ts'
 type Journal = RuntimeJournal
 type Request = Parameters<Journal['commit']>[0]
 type Ref = Request['ref']
+type PendingWrite = {
+  readonly ref: Ref
+  readonly entries: readonly OwnedLogEntry[]
+  readonly tail: JsonNumber
+  readonly completion: ReturnType<StorageUnit['observeCompletion']>
+}
+const recordKey = (ref: Ref) => JSON.stringify([ref.session, ref.callId])
+function sameBatch(view: RuntimeJournalView, write: PendingWrite) {
+  return write.entries.every((proposed, index) => {
+    const actual = view.prefix.entries.find(entry => entry.dedupeKey === proposed.dedupeKey)
+    if (!actual) return false
+    const { session: _session, position, ...entry } = actual
+    return (
+      compareInteger(position, addInteger(write.tail, index + 1)) === 0 && sameJson(entry, proposed)
+    )
+  })
+}
+
 const rejected = (reason: RuntimeJournalFailure['reason']): RuntimeJournalFailure => ({
   kind: 'rejected',
   reason,
@@ -47,6 +75,8 @@ export function createOriginalRecordJournal(
   const generation = randomUUID()
   let open = true
   const tasks = new Set<Promise<unknown>>()
+  const pending = new Map<string, PendingWrite>()
+  let closing: Promise<void> | undefined
   const current = () => open
   function track<T>(task: Promise<T>) {
     tasks.add(task)
@@ -134,14 +164,29 @@ export function createOriginalRecordJournal(
       executions: new Map([[ref.callId, read.history]]),
     }
   }
-  async function read(ref: Ref): ReturnType<Journal['read']> {
-    if (!current() || !tenantIdEquals(ref.tenant, tenant)) return rejected('unavailable')
+  async function confirmedIn(unit: StorageUnit, ref: Ref): ReturnType<Journal['read']> {
+    const key = recordKey(ref)
+    const write = pending.get(key)
+    if (write && (await write.completion) === 'rolledBack') pending.delete(key)
+    const view = await readIn(unit, ref)
+    if (!pending.has(key)) return view
+    if (view.kind !== 'view' || !write) return rejected('unavailable')
+    if (!sameBatch(view, write)) return rejected('unavailable')
+    pending.delete(key)
+    return view
+  }
+  async function readAccepted(ref: Ref): ReturnType<Journal['read']> {
     try {
-      return await support.storage.atomic(unit => readIn(unit, ref))
+      return await support.storage.atomic(unit => confirmedIn(unit, ref))
     } catch (error) {
       if (error instanceof StorageUnavailable) return rejected('unavailable')
       throw error
     }
+  }
+  async function read(ref: Ref): ReturnType<Journal['read']> {
+    if (!current() || !tenantIdEquals(ref.tenant, tenant)) return rejected('unavailable')
+    const result = await readAccepted(ref)
+    return current() ? result : rejected('unavailable')
   }
   async function terminalValues(
     unit: StorageUnit,
@@ -171,6 +216,8 @@ export function createOriginalRecordJournal(
     })
   }
   async function commitIn(unit: StorageUnit, request: Request) {
+    if ((await confirmedIn(unit, request.ref)).kind !== 'view')
+      throw new RecordFailure('unavailable')
     const original = await originalIn(unit, request.ref)
     if (!original || !sameJson(original.identity.origin, request.origin))
       throw new RecordFailure('conflict')
@@ -182,11 +229,23 @@ export function createOriginalRecordJournal(
     if (compareInteger(source.source.tail, request.expected.tail) !== 0)
       throw new RecordFailure('tailChanged')
     const transitions = await terminalValues(unit, original.identity, request.values)
+    const entries = transitions.map(value => {
+      const prepared = prepareToolJournalEntry({ origin: request.origin, value })
+      if ('invalid' in prepared) throw new RecordFailure('invalidInput')
+      return prepared.entry
+    })
+    pending.set(recordKey(request.ref), {
+      ref: request.ref,
+      entries,
+      tail: request.expected.tail,
+      completion: unit.observeCompletion(),
+    })
     const result = await original.records.stageTransitionIn(unit, original.job, transitions)
     if (result.kind !== 'staged' && result.kind !== 'recognized')
       throw new RecordFailure(result.kind === 'conflict' ? 'conflict' : 'unavailable')
   }
   async function commit(request: Request): ReturnType<Journal['commit']> {
+    if (!current()) return rejected('unavailable')
     const captured = copyJsonValue(request)
     if ('failed' in captured) return rejected('invalidInput')
     const fixed = captured.ok as unknown as Request
@@ -198,7 +257,7 @@ export function createOriginalRecordJournal(
       return rejected('unavailable')
     try {
       await support.storage.atomic(unit => commitIn(unit, fixed))
-      return read(fixed.ref)
+      return readAccepted(fixed.ref)
     } catch (error) {
       if (error instanceof RecordFailure) return rejected(error.reason)
       if (error instanceof StorageUnavailable) return rejected('unavailable')
@@ -215,9 +274,18 @@ export function createOriginalRecordJournal(
         : Promise.resolve(rejected('invalidInput'))
     },
     commit: request => track(commit(request)),
-    async close() {
+    close() {
+      if (closing) return closing
       open = false
-      await Promise.allSettled([...tasks])
+      closing = (async () => {
+        await Promise.allSettled([...tasks])
+        for (const write of pending.values()) await readAccepted(write.ref)
+        if (pending.size > 0) throw new Error('unresolved Tool record writes')
+      })()
+      void closing.catch(() => {
+        closing = undefined
+      })
+      return closing
     },
   })
 }
