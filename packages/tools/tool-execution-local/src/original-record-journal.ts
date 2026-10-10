@@ -39,7 +39,7 @@ type Ref = Request['ref']
 type PendingWrite = {
   readonly ref: Ref
   readonly entries: readonly OwnedLogEntry[]
-  readonly tail: JsonNumber
+  readonly positions: readonly JsonNumber[]
   readonly completion: ReturnType<StorageUnit['observeCompletion']>
 }
 const recordKey = (ref: Ref) => JSON.stringify([ref.session, ref.callId])
@@ -48,9 +48,7 @@ function sameBatch(view: RuntimeJournalView, write: PendingWrite) {
     const actual = view.prefix.entries.find(entry => entry.dedupeKey === proposed.dedupeKey)
     if (!actual) return false
     const { session: _session, position, ...entry } = actual
-    return (
-      compareInteger(position, addInteger(write.tail, index + 1)) === 0 && sameJson(entry, proposed)
-    )
+    return compareInteger(position, write.positions[index]!) === 0 && sameJson(entry, proposed)
   })
 }
 
@@ -234,15 +232,17 @@ export function createOriginalRecordJournal(
       if ('invalid' in prepared) throw new RecordFailure('invalidInput')
       return prepared.entry
     })
-    pending.set(recordKey(request.ref), {
+    const write: PendingWrite = {
       ref: request.ref,
       entries,
-      tail: request.expected.tail,
+      positions: entries.map((_, index) => addInteger(request.expected.tail, index + 1)),
       completion: unit.observeCompletion(),
-    })
+    }
+    pending.set(recordKey(request.ref), write)
     const result = await original.records.stageTransitionIn(unit, original.job, transitions)
     if (result.kind !== 'staged' && result.kind !== 'recognized')
       throw new RecordFailure(result.kind === 'conflict' ? 'conflict' : 'unavailable')
+    pending.set(recordKey(request.ref), { ...write, positions: result.positions })
   }
   async function commit(request: Request): ReturnType<Journal['commit']> {
     if (!current()) return rejected('unavailable')

@@ -316,3 +316,21 @@ test.each(['missing record', 'changed position'] as const)(
     }
   },
 )
+
+test('recognizing an existing batch uses its original positions and performs no new append', async () => {
+  const f = await originalRecordFixture()
+  try {
+    const input = await f.commitInput()
+    expect(await f.journal.commit(input)).toHaveProperty('kind', 'view')
+    const committed = await f.read()
+    expect(await f.journal.commit({ ...input, expected: committed.prefix })).toHaveProperty(
+      'kind',
+      'view',
+    )
+    expect((await f.read()).executions.get(ref.callId)?.contextReads).toHaveLength(1)
+    expect(f.appendIn).toHaveBeenCalledTimes(1)
+    await f.journal.close()
+  } finally {
+    await f.close()
+  }
+})

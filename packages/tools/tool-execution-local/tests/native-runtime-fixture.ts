@@ -90,13 +90,20 @@ export async function nativeRuntimeFixture(cleanup: (() => Promise<void>)[]) {
     if (staged.kind !== 'staged') throw new Error(`fixture original failed: ${staged.kind}`)
     return { ...original, claim: staged.claim }
   }
-  function start(config: ToolRuntimeConfig = factoryConfig()) {
+  function start(
+    config: ToolRuntimeConfig = factoryConfig(),
+    environments: ToolRuntimeOriginalIssueDependencies['environments'] = {
+      ...base.environments,
+      recover,
+      recoverOwned,
+    },
+  ) {
     pool = createOriginalIssueToolRuntime(config, {
       ...base,
       tenant: scope.tenant,
       recoveryPageSize: 1,
       originalIssue: support,
-      environments: { ...base.environments, recover, recoverOwned },
+      environments,
     })
     return pool
   }

@@ -58,7 +58,8 @@
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness-lite/session-log-sql": "workspace:*",
     "@omne-harness-lite/storage-sql": "workspace:*",
-    "@omne-harness-lite/session-log": "workspace:*"
+    "@omne-harness-lite/session-log": "workspace:*",
+    "@omne-harness-lite/execution-environments-host": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "catalog:"
