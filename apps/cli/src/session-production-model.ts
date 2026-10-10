@@ -11,6 +11,7 @@ import {
   type SettlementScheduler,
 } from '@omne-harness-lite/model-request-runtime'
 import { createSessionRunHistory } from '@omne-harness-lite/session-runtime-local'
+import { readSessionModelCalibration } from './session-model-calibration.ts'
 import type { SessionNativeModelPoolOptions } from './session-native-model.ts'
 
 export const sessionModelContention: SettlementContention = {
@@ -59,7 +60,7 @@ export const sessionModelHistory: ReturnType<SessionNativeModelPoolOptions['sour
   {
     call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
     failure: () => ({ unavailable: true as const }),
-    calibration: () => ({ sourceUnavailable: true as const }),
+    calibration: readSessionModelCalibration,
     run: (prefix, run, attempt) => createSessionRunHistory(prefix.source)(prefix, run, attempt),
   }
 export const sessionModelRecovery = {
