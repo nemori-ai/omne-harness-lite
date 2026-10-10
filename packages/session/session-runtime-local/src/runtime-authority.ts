@@ -7,7 +7,7 @@ import type {
 import type { LogAuthority, LogAuthorityOperations } from '@omne-harness-lite/session-log'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type { StorageUnit } from '@omne-harness-lite/storage'
-import type { AdmissionGuard } from './admission-types.ts'
+import type { AdmissionGuard, AdmissionSource } from './admission-types.ts'
 import type { RuntimeOptions } from './runtime-types.ts'
 import { originalGrant } from './coordination-store.ts'
 
@@ -16,7 +16,7 @@ export function runtimeAuthority(options: RuntimeOptions) {
   const access = Object.freeze({}) as Access,
     coordination = Object.freeze({}) as CoordinationAuthority,
     logAccess = Object.freeze({}) as LogAuthority,
-    guards = new WeakMap<StorageUnit, AdmissionGuard>(),
+    guards = new WeakMap<StorageUnit, { guard: AdmissionGuard; source: AdmissionSource }>(),
     runs = new WeakMap<StorageUnit, SessionScope>(),
     originalReads = new WeakMap<StorageUnit, SessionScope>()
   function allowed(unit: StorageUnit, scope: SessionScope) {
@@ -25,7 +25,7 @@ export function runtimeAuthority(options: RuntimeOptions) {
     return (
       tenantIdEquals(scope.tenant, options.tenant) &&
       ((guard !== undefined &&
-        options.admission.authorizeIn(unit, guard, options.source, scope.tenant)) ||
+        options.admission.authorizeIn(unit, guard.guard, guard.source, scope.tenant)) ||
         (run !== undefined &&
           run.session === scope.session &&
           tenantIdEquals(run.tenant, scope.tenant)))
@@ -71,7 +71,12 @@ export function runtimeAuthority(options: RuntimeOptions) {
         operation.principal === options.principal &&
         tenantIdEquals(operation.tenant, options.tenant) &&
         guards.has(unit) &&
-        options.admission.authorizeIn(unit, guards.get(unit)!, options.source, operation.tenant)
+        options.admission.authorizeIn(
+          unit,
+          guards.get(unit)!.guard,
+          guards.get(unit)!.source,
+          operation.tenant,
+        )
           ? { kind: 'authorized' as const }
           : { failure: 'denied' as const },
     },
@@ -114,10 +119,16 @@ export function runtimeAuthority(options: RuntimeOptions) {
       unit: StorageUnit,
       guard: AdmissionGuard,
       action: () => Promise<T>,
+      source: AdmissionSource = options.source,
     ): Promise<T> {
       unit.assertStorage(options.storage)
+      if (
+        source.centerId !== options.source.centerId ||
+        source.accountId !== options.source.accountId
+      )
+        throw new Error('foreign admission source')
       if (guards.has(unit)) throw new Error('Session authority callback already active')
-      guards.set(unit, guard)
+      guards.set(unit, { guard, source })
       try {
         return await unit.run(action)
       } finally {

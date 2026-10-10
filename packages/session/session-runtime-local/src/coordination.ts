@@ -23,7 +23,7 @@ import type { AdmissionTicket } from './admission-types.ts'
 import { AdmissionFailure } from './admission-types.ts'
 import { InvalidStateInput, positionText } from './state-values.ts'
 import { pendingPosition } from './state-store.ts'
-import { RuntimeRejection } from './runtime-values.ts'
+import { RuntimeRejection, currentAdmissionSource } from './runtime-values.ts'
 import { lifecycleInput, CoordinationRejection, usableSource } from './coordination-values.ts'
 import { grantRun, readStep, saveStep, saveCallPreparation } from './coordination-store.ts'
 
@@ -159,28 +159,44 @@ class Lifecycle {
     }
   }
   async admitRun(scope: SessionScope, step: Extract<SessionLifecycleStep, { kind: 'startRun' }>) {
-    const ticket = await this.host.options.admission.reserve(this.host.options.source, {
-      tenant: scope.tenant,
-      session: scope.session,
-      purpose: 'startRun',
-      operationKey: step.stepKey,
-      inputPosition: positionText(step.inputPosition, this.host.options.policy.maxRecordBytes),
-    })
-    const checked = await this.host.options.admission.query(ticket.ticket)
-    if (checked.state !== 'ready' && checked.state !== 'consumed')
-      throw new CoordinationRejection(
-        checked.state === 'rejected' || checked.state === 'memberRejected'
-          ? 'denied'
-          : 'unavailable',
-        {
-          inputPosition: step.inputPosition,
-          reason:
-            checked.state === 'rejected' || checked.state === 'memberRejected'
-              ? 'loginRejected'
-              : 'confirmationUnavailable',
-        },
+    const options = this.host.options
+    const current = await currentAdmissionSource(options)
+    if ('failure' in current)
+      throw this.admissionBlocked(
+        step,
+        current.failure === 'loginRequired' ? 'loginRejected' : 'confirmationUnavailable',
       )
+    const source = current.source
+    let ticket
+    try {
+      ticket = await options.admission.reserve(source, {
+        tenant: scope.tenant,
+        session: scope.session,
+        purpose: 'startRun',
+        operationKey: step.stepKey,
+        inputPosition: positionText(step.inputPosition, options.policy.maxRecordBytes),
+      })
+    } catch (error) {
+      if (error instanceof AdmissionFailure && error.reason === 'denied')
+        throw this.admissionBlocked(step, 'loginRejected')
+      throw error
+    }
+    const checked = await this.host.options.admission.query(ticket.ticket)
+    if (checked.state === 'rejected') throw this.admissionBlocked(step, 'loginRejected')
+    if (checked.state === 'unavailable')
+      throw this.admissionBlocked(step, 'confirmationUnavailable')
+    if (checked.state !== 'ready' && checked.state !== 'consumed')
+      throw new CoordinationRejection('unavailable')
     return ticket
+  }
+  admissionBlocked(
+    step: Extract<SessionLifecycleStep, { kind: 'startRun' }>,
+    reason: 'loginRejected' | 'confirmationUnavailable',
+  ) {
+    return new CoordinationRejection(reason === 'loginRejected' ? 'denied' : 'unavailable', {
+      inputPosition: step.inputPosition,
+      reason,
+    })
   }
   async consumeRun(input: ReturnType<typeof lifecycleInput>, ticket: AdmissionTicket) {
     const { scope, step, semantic } = input
@@ -189,11 +205,22 @@ class Lifecycle {
         ticket,
         this.host.options.storage,
         (unit, guard) =>
-          this.host.authority.within(unit, guard, async () => {
-            const previous = await readStep(unit, scope, step.stepKey, semantic, this.host.options)
-            if (!previous) await this.stageRun(unit, input, ticket)
-            return step.stepKey
-          }),
+          this.host.authority.within(
+            unit,
+            guard,
+            async () => {
+              const previous = await readStep(
+                unit,
+                scope,
+                step.stepKey,
+                semantic,
+                this.host.options,
+              )
+              if (!previous) await this.stageRun(unit, input, ticket)
+              return ticket.target.operationKey
+            },
+            ticket.source,
+          ),
       )
     } catch (error) {
       if (!(error instanceof CoordinationRejection) && !(error instanceof RuntimeRejection))

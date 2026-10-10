@@ -560,6 +560,7 @@ async function setup(
     directory,
     root,
     client,
+    local,
     base,
     runtime,
     assembly,
@@ -946,8 +947,20 @@ it.each(['loginRejected', 'confirmationUnavailable'] as const)(
         const configured = await options.configure(...args)
         return {
           ...configured,
+          policy: { ...configured.policy, intervalMs: 100 },
+          sources: { acquire: async () => ({ unavailable: true }) },
           identities: {
             ...configured.identities,
+            model: (_scope, _run, _attempt, position) => ({
+              prepareKey: `recovered-prepare:${position}`,
+              resultKey: `recovered-result:${position}`,
+              adoptionKey: `recovered-adoption:${position}`,
+              creationKey: unwrap(
+                parseOpaqueIdentifier(`recovered-creation:${position}`, 'CreationKey'),
+              ),
+              call: `recovered-call:${position}`,
+              originalPosition: `recovered-position:${position}`,
+            }),
             run: (_scope, position) => ({
               startKey: `blocked-start:${position}`,
               attemptKey: `blocked-attempt:${position}`,
@@ -1020,6 +1033,56 @@ it.each(['loginRejected', 'confirmationUnavailable'] as const)(
       head: { run: null },
     })
     expect(await ingress.journal.readPrefix(ingress.access, created.session)).toEqual(before)
+    f.exchanges.mockImplementation(async (_options, request) => ({
+      kind: 'reply',
+      sendAttempted: true,
+      reply: {
+        result: (request as { operation: string }).operation.endsWith('#S-36')
+          ? tenant
+          : { standing: 'effective', role: 'member' },
+      },
+    }))
+    if (reason === 'loginRejected') {
+      const current = await f.local.read()
+      if (current.kind !== 'read' || !current.snapshot.value) throw new Error('missing local state')
+      expect(
+        await f.local.compareAndReplace(
+          current.snapshot.token,
+          {
+            ...current.snapshot.value,
+            login: {
+              presentation: 'renewed-login',
+              accountId: source.accountId,
+              handle: unwrap(parseLoginStateId('renewed-login')),
+            },
+          },
+          'login-renewed',
+        ),
+      ).toHaveProperty('kind', 'installed')
+    }
+    await vi.waitFor(
+      async () => {
+        const work = await ingress.readWork(
+          ingress.coordinationAuthority,
+          { tenant, session: created.session },
+          1,
+        )
+        expect(work).toMatchObject({
+          kind: 'work',
+          inputs: [],
+          head: { run: { state: 'runnable' } },
+        })
+      },
+      { timeout: 5000 },
+    )
+    expect(
+      await ingress.operations.readReceipt(ingress.access, outcome.receipt.operation),
+    ).toMatchObject({ receipt: outcome.receipt })
+    const again = await ingress.operations.createSession(ingress.access, {
+      ...input,
+      operationKey: 'after-login-renewal',
+    })
+    expect(again).toHaveProperty('kind', 'created')
   },
 )
 it('preserves unavailable from the actual root Clock and rolls back input, log and receipt together', async () => {

@@ -681,3 +681,103 @@ it('does not grant current member access from a retained creation role after a n
   })
   expect(stage).not.toHaveBeenCalled()
 })
+
+it('rechecks a completed unavailable query without another ticket or duplicate concurrent probe', async () => {
+  const pending = deferred<{ kind: 'valid' }>()
+  const verify = vi
+    .fn<AdmissionProbe['verify']>()
+    .mockResolvedValueOnce({ kind: 'unavailable' })
+    .mockImplementation(() => pending.promise)
+  const f = await fixture({ verify })
+  const original = await f.owner.reserve(source, target)
+  expect((await f.owner.query(original.ticket)).state).toBe('unavailable')
+  const retry = f.owner.query(original.ticket)
+  await vi.waitFor(() => expect(verify).toHaveBeenCalledTimes(2))
+  expect((await f.owner.query(original.ticket)).state).toBe('querying')
+  expect(verify).toHaveBeenCalledTimes(2)
+  pending.resolve({ kind: 'valid' })
+  expect((await retry).state).toBe('ready')
+  expect((await f.owner.reserve(source, target)).ticket).toEqual(original.ticket)
+  expect(
+    await f.owner.consume(original.ticket, f.tenantStorage, async () => 'original-result'),
+  ).toEqual({ kind: 'consumed', receipt: 'original-result' })
+})
+
+it('does not let a previous unavailable settlement replace a newer query from another owner', async () => {
+  const f = await fixture({ verify: vi.fn(async () => ({ kind: 'unavailable' as const })) })
+  const original = await f.owner.reserve(source, target)
+  const atomic = f.storage.atomic.bind(f.storage)
+  let lose = true
+  vi.spyOn(f.storage, 'atomic').mockImplementation(async work => {
+    const result = await atomic(work)
+    if (lose && (await f.owner.read(original.ticket)).state === 'unavailable') {
+      lose = false
+      throw new StorageUnavailable('original settlement return lost')
+    }
+    return result
+  })
+  await expect(f.owner.query(original.ticket)).rejects.toBeInstanceOf(StorageUnavailable)
+  const otherStorage = await openStorage({ dialect: 'sqlite', file: f.file, synchronous: 'full' })
+  stores.push(otherStorage)
+  const pending = deferred<{ kind: 'valid' }>()
+  const verify = vi.fn(() => pending.promise)
+  const other = await createLocalAdmission(otherStorage, { verify }, policy)
+  owners.push(other)
+  const second = other.query(original.ticket)
+  await vi.waitFor(() => expect(verify).toHaveBeenCalledOnce())
+  expect((await f.owner.query(original.ticket)).state).toBe('querying')
+  expect((await other.read(original.ticket)).state).toBe('querying')
+  pending.resolve({ kind: 'valid' })
+  expect((await second).state).toBe('ready')
+  expect(
+    await other.consume(original.ticket, f.tenantStorage, async () => 'new-generation'),
+  ).toEqual({ kind: 'consumed', receipt: 'new-generation' })
+})
+
+it('keeps the new held result when an older settlement return completes later', async () => {
+  const verify = vi.fn(async () => ({ kind: 'unavailable' as const }))
+  const f = await fixture({ verify })
+  const original = await f.owner.reserve(source, target)
+  const atomic = f.storage.atomic.bind(f.storage)
+  const paused = deferred<void>(),
+    resume = deferred<void>()
+  let calls = 0
+  vi.spyOn(f.storage, 'atomic').mockImplementation(async work => {
+    const call = ++calls
+    const result = await atomic(work)
+    if (call === 2 || call === 6) throw new StorageUnavailable('settlement return lost')
+    if (call === 3) {
+      paused.resolve()
+      await resume.promise
+    }
+    return result
+  })
+  await expect(f.owner.query(original.ticket)).rejects.toBeInstanceOf(StorageUnavailable)
+  const older = f.owner.query(original.ticket)
+  await paused.promise
+  expect((await f.owner.query(original.ticket)).state).toBe('unavailable')
+  await expect(f.owner.query(original.ticket)).rejects.toBeInstanceOf(StorageUnavailable)
+  expect(verify).toHaveBeenCalledTimes(2)
+  resume.resolve()
+  await older
+  expect((await f.owner.query(original.ticket)).state).toBe('unavailable')
+  expect(verify).toHaveBeenCalledTimes(2)
+})
+
+it('keeps one ticket through more unavailable checks than the admission record capacity', async () => {
+  const verify = vi.fn<AdmissionProbe['verify']>().mockResolvedValue({ kind: 'unavailable' })
+  const f = await fixture({ verify })
+  const original = await f.owner.reserve(source, target)
+  for (let attempt = 0; attempt <= policy.maxTickets; attempt++)
+    expect((await f.owner.query(original.ticket)).state).toBe('unavailable')
+  const rows = await f.storage.read(tx =>
+    tx.db.selectFrom('sr_admission_ticket').selectAll().execute(),
+  )
+  expect(rows).toHaveLength(2)
+  expect((await f.owner.reserve(source, target)).ticket).toEqual(original.ticket)
+  verify.mockResolvedValue({ kind: 'valid' })
+  expect((await f.owner.query(original.ticket)).state).toBe('ready')
+  expect(await f.owner.consume(original.ticket, f.tenantStorage, async () => 'same-input')).toEqual(
+    { kind: 'consumed', receipt: 'same-input' },
+  )
+})

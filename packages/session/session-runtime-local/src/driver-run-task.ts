@@ -47,14 +47,18 @@ class RunTask {
     this.stopping = true
     this.model?.requestStop()
   }
-  async run(): Promise<'released' | 'retained'> {
+  async run(): Promise<'released' | 'retained' | 'admissionBlocked'> {
     try {
       this.started = await startDriverRun(this.options, this.scope, () => !this.stopping)
       if (this.started.kind === 'idle') {
         this.released = true
         return 'released'
       }
-      if (this.started.kind === 'blocked') return 'retained'
+      if (this.started.kind === 'blocked') {
+        if (!this.admission()) return 'retained'
+        this.released = true
+        return 'admissionBlocked'
+      }
       if (this.stopping) return 'retained'
       const { ingress } = this.options
       const borrowed = await ingress.runJournal.borrow(

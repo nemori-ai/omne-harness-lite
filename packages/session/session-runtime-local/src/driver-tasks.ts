@@ -7,7 +7,7 @@ import {
 
 export interface DriverTask {
   /** Released includes actual borrow return, not native execution completion. */
-  readonly completion: Promise<'released' | 'retained'>
+  readonly completion: Promise<'released' | 'retained' | 'admissionBlocked'>
   readonly admission?: () => SessionRunAdmissionBlock | null
   readonly requestStop: () => void
   /** Stop local waits; external original work returns pending instead of blocking withdrawal. */
@@ -35,7 +35,7 @@ export function createDriverTaskOwner(
 
 type SlotState =
   | { readonly kind: 'starting' }
-  | { readonly kind: 'active' | 'retained'; readonly task: DriverTask }
+  | { readonly kind: 'active' | 'retained' | 'admissionBlocked'; readonly task: DriverTask }
   | { readonly kind: 'failed'; readonly task?: DriverTask }
 interface Slot {
   readonly session: string
@@ -71,8 +71,8 @@ class DriverTasks {
     ).length
     return (
       this.phase === 'open' &&
-      !this.slots.has(session) &&
-      this.slots.size < this.policy.maxHeld &&
+      (!this.slots.has(session) || this.slots.get(session)?.state.kind === 'admissionBlocked') &&
+      (this.slots.has(session) || this.slots.size < this.policy.maxHeld) &&
       active < this.policy.maxTasks
     )
   }
@@ -83,7 +83,7 @@ class DriverTasks {
       void task.completion.then(
         result => {
           if (result === 'released') this.slots.delete(slot.session)
-          else slot.state = { kind: 'retained', task }
+          else slot.state = { kind: result, task }
         },
         error => {
           slot.state = { kind: 'failed', task }

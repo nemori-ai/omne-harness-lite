@@ -142,11 +142,8 @@ class RuntimeRoot {
   constructor(readonly options: RootInputs) {}
   async initialize() {
     const o = this.options
-    this.admission = await createLocalAdmission(
-      o.rootStorage,
-      createSessionAdmissionProbe(o.governance, o.source, o.binding.tenant),
-      o.admissionPolicy,
-    )
+    const probe = createSessionAdmissionProbe(o.governance, o.source, o.binding.tenant)
+    this.admission = await createLocalAdmission(o.rootStorage, probe, o.admissionPolicy)
     this.manifest = createAssemblyManifestStore(o.storage)
     this.modelOwner = createSessionOriginalModelOwner({
       storage: o.storage,
@@ -173,6 +170,7 @@ class RuntimeRoot {
       source: o.source,
       tenant: o.binding.tenant,
       principal: o.source.accountId,
+      readAdmissionSource: probe.currentSource,
       policy: o.runtimePolicy,
       now: async () => {
         const instant = await o.clock.now()

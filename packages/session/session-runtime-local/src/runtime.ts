@@ -40,7 +40,12 @@ import { createModelResultCustody } from './model-result-custody.ts'
 import { createOriginalRunJournal } from './run-journal.ts'
 import { createLocalSessionState } from './state-participant.ts'
 import { createLocalOperationReceipts } from './receipt-participant.ts'
-import { creationInput, runtimeSemantic, RuntimeRejection } from './runtime-values.ts'
+import {
+  creationInput,
+  runtimeSemantic,
+  RuntimeRejection,
+  currentAdmissionSource,
+} from './runtime-values.ts'
 import {
   creationByOperation,
   creationBySession,
@@ -424,7 +429,11 @@ class SessionIngress implements LocalSessionIngress {
     }
   }
   async reserve(operation: OperationRef, input: CreateSessionInput, semantic: string) {
-    const ticket = await this.options.admission.reserve(this.options.source, {
+    const current = await currentAdmissionSource(this.options)
+    if ('failure' in current)
+      throw new RuntimeRejection(current.failure === 'loginRequired' ? 'denied' : 'unavailable')
+    const source = current.source
+    const ticket = await this.options.admission.reserve(source, {
       tenant: this.options.tenant,
       session: null,
       purpose: 'createSession',
@@ -442,23 +451,28 @@ class SessionIngress implements LocalSessionIngress {
       ticket.ticket,
       this.options.storage,
       (unit, guard) =>
-        this.authority.within(unit, guard, async () => {
-          const reserved = await reserveCreation(unit, operation, input, semantic, this.options)
-          if (reserved.fresh)
-            await this.append(unit, { tenant: this.options.tenant, session: reserved.session }, [
-              {
-                tenant: this.options.tenant,
-                readKeys: [],
-                payload: factLogPayload('session-runtime-local', '1', {
-                  kind: 'session_initializing',
-                  operation,
-                  input,
-                  semantic,
-                }),
-              },
-            ])
-          return reserved.session
-        }),
+        this.authority.within(
+          unit,
+          guard,
+          async () => {
+            const reserved = await reserveCreation(unit, operation, input, semantic, this.options)
+            if (reserved.fresh)
+              await this.append(unit, { tenant: this.options.tenant, session: reserved.session }, [
+                {
+                  tenant: this.options.tenant,
+                  readKeys: [],
+                  payload: factLogPayload('session-runtime-local', '1', {
+                    kind: 'session_initializing',
+                    operation,
+                    input,
+                    semantic,
+                  }),
+                },
+              ])
+            return reserved.session
+          },
+          source,
+        ),
     )
     return { ...reserved, ticket: ticket.ticket }
   }

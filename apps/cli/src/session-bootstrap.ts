@@ -83,7 +83,6 @@ export function createSessionBootstrap(
       ownedScope(scope) &&
       ticket.source.centerId === options.source.centerId &&
       ticket.source.accountId === options.source.accountId &&
-      ticket.source.loginStateHandle === options.source.loginStateHandle &&
       tenantIdEquals(ticket.target.tenant, scope.tenant) &&
       ticket.target.purpose === 'createSession' &&
       ticket.target.session === null &&

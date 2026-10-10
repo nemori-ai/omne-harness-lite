@@ -149,3 +149,24 @@ it('reports an original return defect and explicitly retries that same retained 
   expect(close).toHaveBeenCalledTimes(2)
   expect(create).toHaveBeenCalledTimes(1)
 })
+
+it('admits a later scan after a known admission block but retains unknown original work', async () => {
+  const owner = createDriverTaskOwner(policy, vi.fn())
+  const blocked: DriverTask = {
+    completion: Promise.resolve('admissionBlocked'),
+    admission: () => ({ inputPosition: 3, reason: 'loginRejected' }),
+    requestStop: vi.fn(),
+    close: vi.fn<DriverTask['close']>(async () => 'released'),
+  }
+  expect(owner.admit('session', async () => blocked)).toBe(true)
+  await settle()
+  expect(owner.readRunAdmission('session')).toEqual({ inputPosition: 3, reason: 'loginRejected' })
+  const unknown = heldTask()
+  expect(owner.admit('session', async () => unknown.task)).toBe(true)
+  await settle()
+  unknown.completion.resolve('retained')
+  await settle()
+  expect(owner.admit('session', async () => blocked)).toBe(false)
+  unknown.returned()
+  expect(await owner.close()).toEqual({ closed: true })
+})

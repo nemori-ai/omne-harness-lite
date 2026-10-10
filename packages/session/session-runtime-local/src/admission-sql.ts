@@ -33,6 +33,7 @@ export interface AdmissionDb {
     target: string
     state: AdmissionState
     member_role: string | null
+    query_generation: number
   }
 }
 export interface UseDb {
@@ -44,7 +45,7 @@ export async function meta(tx: ReadTx) {
   if (
     rows.length !== 1 ||
     value?.slot !== 1 ||
-    value.format !== 2 ||
+    value.format !== 3 ||
     typeof value.root !== 'string' ||
     value.root.length === 0 ||
     typeof value.sequence !== 'string' ||
@@ -93,6 +94,7 @@ export async function reading(
     .where('id', '=', ticket.id)
     .executeTakeFirst()
   if (!row || !matchesTicket(row, ticket)) throw new AdmissionFailure('denied')
+  checkQueryGeneration(row.query_generation)
   if (
     row.sequence_length !== row.sequence.length ||
     ![
@@ -295,4 +297,8 @@ export async function queueReady(
     .orderBy('sequence')
     .executeTakeFirst()
   return first?.id === ticket.id
+}
+
+function checkQueryGeneration(value: number): void {
+  if (!Number.isSafeInteger(value) || value < 0) throw new AdmissionFailure('invalid-record')
 }

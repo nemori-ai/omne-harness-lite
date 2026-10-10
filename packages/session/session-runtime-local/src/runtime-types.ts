@@ -59,6 +59,10 @@ export interface RuntimeOptions {
   readonly storage: AtomicStorage
   readonly admission: LocalAdmission
   readonly source: AdmissionSource
+  /** Read the current local login for new work; fixed center/account ownership still applies. */
+  readonly readAdmissionSource?: () => Promise<
+    { readonly source: AdmissionSource } | { readonly failure: 'loginRequired' | 'unavailable' }
+  >
   readonly tenant: TenantId
   readonly principal: string
   readonly policy: RuntimePolicy

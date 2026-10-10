@@ -71,7 +71,10 @@ export async function createLocalAdmission(
 class AdmissionOwner implements LocalAdmission {
   readonly #guards = new WeakMap<AdmissionGuard, GuardBinding>()
   readonly #jobs = new Set<Promise<unknown>>()
-  readonly #results = new Map<string, { ticket: AdmissionTicket; decision: Decision }>()
+  readonly #results = new Map<
+    string,
+    { ticket: AdmissionTicket; decision: Decision; generation: number }
+  >()
   readonly #lost = new Set<string>()
   #stopped = false
   #closing: Promise<void> | undefined
@@ -162,6 +165,7 @@ class AdmissionOwner implements LocalAdmission {
                 target: JSON.stringify(originalTarget),
                 state: 'waiting',
                 member_role: null,
+                query_generation: 0,
               })
               .execute()
             return { ticket, state: 'waiting' }
@@ -207,12 +211,13 @@ class AdmissionOwner implements LocalAdmission {
       const original = checkedTicket(ticket, this.policy)
       const held = this.#results.get(original.id)
       if (held) {
-        await this.#settle(held.ticket, held.decision)
+        await this.#settle(held.ticket, held.decision, held.generation)
         return this.storage.read(tx => reading(tx, original, this.policy))
       }
       const claimed = await this.#claim(original)
       if (!claimed.owned) return claimed.reading
-      this.#lost.add(original.id)
+      const queryKey = `${original.id}:${claimed.generation}`
+      this.#lost.add(queryKey)
       const decision = await this.probe.verify(original.source, original.target)
       this.#checkDecision(original, decision)
       const copy: Decision = Object.freeze(
@@ -220,9 +225,13 @@ class AdmissionOwner implements LocalAdmission {
           ? { kind: decision.kind, role: decision.role }
           : { kind: decision.kind },
       )
-      this.#results.set(original.id, { ticket: original, decision: copy })
-      this.#lost.delete(original.id)
-      await this.#settle(original, copy)
+      this.#results.set(original.id, {
+        ticket: original,
+        decision: copy,
+        generation: claimed.generation,
+      })
+      this.#lost.delete(queryKey)
+      await this.#settle(original, copy, claimed.generation)
       return this.storage.read(tx => reading(tx, original, this.policy))
     })
   #checkDecision(ticket: AdmissionTicket, decision: Decision): void {
@@ -245,8 +254,16 @@ class AdmissionOwner implements LocalAdmission {
       unit.run(() =>
         unit.mutate(async tx => {
           unit.assertStorage(this.storage)
-          const current = await reading(tx, ticket, this.policy)
-          if (current.state !== 'waiting') return { owned: false, reading: current }
+          let current = await reading(tx, ticket, this.policy)
+          if (current.state === 'unavailable') {
+            await narrow<AdmissionDb>(tx)
+              .updateTable('sr_admission_ticket')
+              .set({ state: 'waiting' })
+              .where('id', '=', ticket.id)
+              .execute()
+            current = { ...current, state: 'waiting' }
+          }
+          if (current.state !== 'waiting') return { owned: false as const, reading: current }
           const owner = await login(tx, ticket.source)
           const db = narrow<AdmissionDb>(tx)
           if (owner?.state === 'rejected') {
@@ -255,10 +272,10 @@ class AdmissionOwner implements LocalAdmission {
               .set({ state: 'rejected' })
               .where('id', '=', ticket.id)
               .execute()
-            return { owned: false, reading: { ticket, state: 'rejected' as const } }
+            return { owned: false as const, reading: { ticket, state: 'rejected' as const } }
           }
           if (!(await queueReady(tx, 'login_key', sourceKey(ticket.source), ticket)))
-            return { owned: false, reading: current }
+            return { owned: false as const, reading: current }
           if (
             ticket.target.purpose === 'createSession' &&
             !(await queueReady(
@@ -268,10 +285,17 @@ class AdmissionOwner implements LocalAdmission {
               ticket,
             ))
           )
-            return { owned: false, reading: current }
+            return { owned: false as const, reading: current }
+          const row = await db
+            .selectFrom('sr_admission_ticket')
+            .select('query_generation')
+            .where('id', '=', ticket.id)
+            .executeTakeFirstOrThrow()
+          const generation = row.query_generation + 1
+          if (!Number.isSafeInteger(generation)) throw new AdmissionFailure('capacity')
           await db
             .updateTable('sr_admission_ticket')
-            .set({ state: 'querying' })
+            .set({ state: 'querying', query_generation: generation })
             .where('id', '=', ticket.id)
             .execute()
           await db
@@ -279,17 +303,27 @@ class AdmissionOwner implements LocalAdmission {
             .set({ state: 'checking' })
             .where('key', '=', sourceKey(ticket.source))
             .execute()
-          return { owned: true, reading: { ticket, state: 'querying' as const } }
+          return {
+            owned: true as const,
+            generation,
+            reading: { ticket, state: 'querying' as const },
+          }
         }),
       ),
     )
   }
-  async #settle(ticket: AdmissionTicket, decision: Decision): Promise<void> {
+  async #settle(ticket: AdmissionTicket, decision: Decision, generation: number): Promise<void> {
     await this.storage.atomic(unit =>
       unit.run(() =>
         unit.mutate(async tx => {
           unit.assertStorage(this.storage)
           const current = await reading(tx, ticket, this.policy)
+          const row = await narrow<AdmissionDb>(tx)
+            .selectFrom('sr_admission_ticket')
+            .select('query_generation')
+            .where('id', '=', ticket.id)
+            .executeTakeFirstOrThrow()
+          if (row.query_generation !== generation) return
           const expected = decisionState(decision)
           if (current.state === expected) return
           if (current.state !== 'querying') throw new AdmissionFailure('invalid-record')
@@ -309,7 +343,7 @@ class AdmissionOwner implements LocalAdmission {
         }),
       ),
     )
-    this.#results.delete(ticket.id)
+    if (this.#results.get(ticket.id)?.generation === generation) this.#results.delete(ticket.id)
   }
   consume = (
     ticket: AdmissionTicket,
@@ -505,7 +539,7 @@ class AdmissionOwner implements LocalAdmission {
   async #drain(): Promise<void> {
     await Promise.allSettled([...this.#jobs])
     for (const value of [...this.#results.values()])
-      await this.#settle(value.ticket, value.decision)
+      await this.#settle(value.ticket, value.decision, value.generation)
     if (this.#lost.size > 0) throw new AdmissionFailure('pending-result')
   }
 }

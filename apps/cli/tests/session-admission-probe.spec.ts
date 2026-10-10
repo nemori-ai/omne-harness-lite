@@ -120,7 +120,7 @@ it('checks only login for a new Run without reinterpreting the existing Session 
   ).toEqual({ kind: 'valid' })
   expect(f.run).toHaveBeenCalledTimes(1)
 })
-it.each(['center', 'account', 'handle', 'tenant'] as const)(
+it.each(['center', 'account', 'tenant'] as const)(
   'rejects a %s binding mismatch before opening a client use',
   async field => {
     const f = controlled()
@@ -129,9 +129,7 @@ it.each(['center', 'account', 'handle', 'tenant'] as const)(
         ? { ...source, centerId: otherCenterId }
         : field === 'account'
           ? { ...source, accountId: unwrap(parseAccountId('other')) }
-          : field === 'handle'
-            ? { ...source, loginStateHandle: unwrap(parseLoginStateId('other')) }
-            : source
+          : source
     const requested =
       field === 'tenant'
         ? { ...target, tenant: unwrap(parseTenantId({ ...tenant, organization: 'other' })) }
@@ -394,3 +392,42 @@ it('retains original querying after actual use-close failure and sends no retry 
   expect((await owner.query(next.ticket)).state).toBe('waiting')
   expect(f.exchange).toHaveBeenCalledTimes(calls)
 })
+
+it('reads a renewed login from the actual client use and checks that exact handle', async () => {
+  const renewed = { ...source, loginStateHandle: unwrap(parseLoginStateId('renewed-login')) }
+  const f = controlled([{ ...report(current, tenant), origin: renewed }])
+  f.openUse.mockResolvedValue({ kind: 'use', use: f.use, origin: renewed })
+  expect(await f.probe.currentSource()).toEqual({ source: renewed })
+  expect(f.run).not.toHaveBeenCalled()
+  expect(await f.probe.verify(source, { ...target, purpose: 'startRun' })).toEqual({
+    kind: 'unavailable',
+  })
+  expect(f.run).not.toHaveBeenCalled()
+  expect(await f.probe.verify(renewed, { ...target, purpose: 'startRun' })).toEqual({
+    kind: 'valid',
+  })
+  expect(f.close).toHaveBeenCalledTimes(3)
+})
+it('does not adopt a different account as the current Session login', async () => {
+  const f = controlled()
+  f.openUse.mockResolvedValue({
+    kind: 'use',
+    use: f.use,
+    origin: { ...source, accountId: 'foreign' },
+  })
+  expect(await f.probe.currentSource()).toEqual({ failure: 'loginRequired' })
+  expect(f.run).not.toHaveBeenCalled()
+  expect(f.close).toHaveBeenCalledOnce()
+})
+
+it.each(['busy', 'local-unavailable', 'not-logged-in'] as const)(
+  'classifies current login read %s without guessing online rejection',
+  async reason => {
+    const f = controlled()
+    f.openUse.mockResolvedValue({ kind: 'blocked', reason })
+    expect(await f.probe.currentSource()).toEqual({
+      failure: reason === 'not-logged-in' ? 'loginRequired' : 'unavailable',
+    })
+    expect(f.run).not.toHaveBeenCalled()
+  },
+)

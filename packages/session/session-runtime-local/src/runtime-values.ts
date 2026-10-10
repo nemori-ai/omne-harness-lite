@@ -1,3 +1,5 @@
+import type { RuntimeOptions } from './runtime-types.ts'
+import { checkedSource } from './admission-values.ts'
 import { createHash } from 'node:crypto'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import {
@@ -85,4 +87,16 @@ export class RuntimeRejection extends Error {
   ) {
     super(`local Session operation: ${failure}`)
   }
+}
+
+export async function currentAdmissionSource(options: RuntimeOptions) {
+  const current = options.readAdmissionSource
+    ? await options.readAdmissionSource()
+    : { source: options.source }
+  if ('failure' in current) return current
+  const source = checkedSource(current.source)
+  return source.centerId === options.source.centerId &&
+    source.accountId === options.source.accountId
+    ? { source }
+    : { failure: 'loginRequired' as const }
 }

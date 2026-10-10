@@ -637,3 +637,15 @@ SessionDriverToolFactory.acquire在原发起支持之外显式接收scope和run�
 `createLocalSessionDriver`同时返回`SessionDriverObservations`。`readRunAdmission`只读本进程仍持有的原任务，不发网络请求，不重新准入，不修改队列或日志。它仅返回原`startRun`查询已明确产生的阻挡，携带该任务的待处理输入位置。不同租户、没有该任务或尚无确定结果时返回null；null不证明登录有效。
 
 观察随原任务的保留责任存在，不能替代持久回执或作为重启恢复来源。后续输入不得借用前一输入的阻挡。CLI须先按原回执授权读取，再核对输入位置；原消息保持已受理，不能因此重发或声称新Run已经开始。
+
+
+### 已知登录阻挡后的接续
+
+可信构造端口`readAdmissionSource`在新Session或新Run准入前读取当前本机登录。返回loginRequired表示明确缺少适用登录；返回unavailable表示本机来源暂不能确认。端口返回的中心与账号必须等于入口的固定归属，登录handle可以更新。省略该端口的独立消费者继续使用其显式构造来源。读取本机来源不是线上登录核验，也不授予权限。
+
+同一来源及`startRun.stepKey`使用同一G28 ticket，原消息身份、输入位置和业务步骤键不变。明确不可达后的下一次扫描可以重查原ticket，不新增持久记录。重新登录的真正新handle对应新来源。原ticket的消费记录与Run grant引用同一完整来源。真实同单元guard仅在其有效回调内使用该来源；不能用入口启动时的旧handle代替。
+
+只有明确的登录拒绝、来源缺失、未进入核验的本机暂不可用或已结束的不可达查询，才令尚未建立Run的任务以`admissionBlocked`结束。这个状态没有执行资源，下一次按显式Driver扫描周期处理原输入。拒绝的旧handle仍保持拒绝；读取到真正的新handle才有新的登录核验资格。`waiting`、`querying`、未知提交、已开始Run和持有未归还资源的任务均保持原责任，不适用这种替代。新Run仍须通过G28核验和实际同提交消费，不能凭本机登录变化直接推进。
+
+
+G28的`query`可重新排入原状态为unavailable的ticket，保留身份和全序。它不能重排querying、ready、consumed或rejected。重排和取得唯一active许可在原根事务中完成；其他active仍阻挡它。每次实际核验递增内部`query_generation`。本机保留结果及SQL结算都携带该代数，旧代结果不能覆盖新代状态，也不能清除新代尚未结算的结果。不可达必须来自已经结束的原核验；未知或未结算结果仍保留原责任，只重试结算。根迁移为已有记录补零代数，正式新查询从下一代开始。
