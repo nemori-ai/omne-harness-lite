@@ -9,8 +9,9 @@
 | [crash-worker.mjs](../tests/crash-worker.mjs) 与 source.spec.ts | SIGKILL before_commit/after_commit_before_ack，核真实 revision及完整旧/新发布，不自动重试；不是断电证明 |
 | [deployment.spec.ts](../tests/deployment.spec.ts) | meta iff、更新局部scope仍核factory、配置复制、旧裸格式显式重发布、实际锁再检查、缺项零写 |
 | [factory-installation.spec.ts](../tests/factory-installation.spec.ts) | 官方 release 与部署清单一致、重复认回原 revision／since、追加版本保留不可变前缀且拒绝回退、已有层及配方保持、身份冲突、提交响应丢失后认回 |
+| [admitted.spec.ts](../tests/admitted.spec.ts) | 固定Session捕获、当前成员与原Run读面分离、原单元及原返回值校验、原Run固定根只读且拒绝reload、跨Scope零调用、关闭排空且保留借入Storage |
 | [registry.spec.ts](../tests/registry.spec.ts) | 实际C16/selector、等值版本、无fallback、reload/refresh角色、unheld固定正文不伪造holding、missing/unresolved/cycle、参与失败及drain |
-| [history.spec.ts](../tests/history.spec.ts) | 精确旧版、unheld/换表/重开、错tenant零MF、原tuple必要、reuse移除、撤销、闭合失败/缺陷、阻塞MF及close、实例换代、双sink、同SQLite与OG竞争 |
+| [history.spec.ts](../tests/history.spec.ts) | 精确旧版、unheld/换表/重开、错tenant零MF、原tuple必要、reuse移除、撤销、闭合失败/缺陷、阻塞MF及close、实例换代、双sink、同SQLite与OG竞争；原Run读面经原单元读取同一不可变历史版本 |
 | [default-owner.spec.ts](../tests/default-owner.spec.ts) 与 default-owner worker/seed | src/dist首用失败原抛可重试、成功复用、import零编译、生产快照不受原资源变异影响、实际SQLite对拍 |
 | ts-checks的 registry-input/history 与 evaluation-publication boundary | 精确公开入口及可信实际路径，包括具名CLI工厂拥有者；拒绝reexport、别名/动态绕过，不向普通消费者开放发布 |
 

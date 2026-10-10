@@ -1970,21 +1970,15 @@ it.each(['normal', 'foreignScope'] as const)(
       if (!reader || !context) throw new Error('actual original bootstrap source missing')
       cleanup.push(() => reader.close())
       const runtimeContext = await context.ready
+      const registryInputs = f.assembly.runRegistry(requested, journal, manifest)
+      if (!registryInputs) throw new Error('actual original Run registry sources missing')
+      cleanup.push(registryInputs.close)
       const registry = createAssetRegistry({
         manifest,
         currentInputs: reader,
         sessionTenancy: f.runtime.tenancy,
-        fixedRootInput: {
-          read: async request => {
-            const current = await reader.read(request.session, request.tenant)
-            if (
-              !('input' in current) ||
-              JSON.stringify(current.input.root.source) !== JSON.stringify(request.rootSource)
-            )
-              return { failure: 'unavailable', stage: 'fixed_body' }
-            return current
-          },
-        },
+        fixedRootInput: registryInputs.fixedRoot,
+        historicalBody: registryInputs.history,
         deployedMeta: [],
         clock: { now: async () => unwrap(instantFromRfc3339(now)) },
         diagnostic() {},
@@ -2063,6 +2057,7 @@ it.each(['normal', 'foreignScope'] as const)(
         },
         release: async () => {
           await registry.close()
+          await registryInputs.close()
           await reader.close()
           returned()
         },

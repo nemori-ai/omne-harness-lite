@@ -2,6 +2,9 @@ import type { StorageUnit } from '@omne-harness-lite/storage'
 import type { MembershipStandingResult } from '@omne-harness-lite/identity-values'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type { CurrentInputReader, EvaluationStorageDependencies } from './types.ts'
+import type { AssemblyManifestService } from '@omne-harness-lite/assembly-manifest'
+import type { RegistryInputReader } from './registry-input-reader.ts'
+import type { RegistryHistoryReader } from './registry-history-reader.ts'
 
 /** Trusted assembly ports over current local admission and the original creation observation. Not JSON configuration. */
 export interface AdmittedInputSourceDependencies extends EvaluationStorageDependencies {
@@ -28,4 +31,13 @@ export interface AdmittedInputSource {
 export interface RunInputReaderDependencies extends EvaluationStorageDependencies {
   readonly scope: SessionScope
   readonly withOriginalRunUnit: AdmittedInputSourceDependencies['withAuthorizedUnit']
+}
+
+export interface RunRegistryReaderDependencies extends RunInputReaderDependencies {
+  readonly manifestHistory: Pick<AssemblyManifestService, 'readHistory'>
+}
+export interface RunRegistryReaders {
+  readonly fixedRoot: RegistryInputReader
+  readonly history: RegistryHistoryReader
+  readonly close: () => Promise<void>
 }

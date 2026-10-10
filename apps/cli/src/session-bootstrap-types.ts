@@ -8,21 +8,9 @@ import type {
 import type { ContextSessionSeed } from '@omne-harness-lite/runtime-context'
 import type { SessionLogBackingOperations } from '@omne-harness-lite/session-log'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
-import type {
-  NonConnectorEvaluationInput,
-  CurrentEvaluationInputs,
-} from '@omne-harness-lite/asset-evaluation'
-import type {
-  EvaluationStorageDependencies,
-  CurrentInputReader,
-} from '@omne-harness-lite/evaluation-input-store'
-import type {
-  SessionBootstrap,
-  LocalAdmission,
-  AdmissionSource,
-  BorrowedRunJournal,
-} from '@omne-harness-lite/session-runtime-local'
-import type { LocalSessionContext } from '@omne-harness-lite/session-runtime-local/cordis'
+import type { NonConnectorEvaluationInput } from '@omne-harness-lite/asset-evaluation'
+import type { EvaluationStorageDependencies } from '@omne-harness-lite/evaluation-input-store'
+import type { LocalAdmission, AdmissionSource } from '@omne-harness-lite/session-runtime-local'
 
 export interface SessionBootstrapOptions {
   readonly storage: AtomicStorage
@@ -40,15 +28,4 @@ export interface SessionBootstrapOptions {
     input: NonConnectorEvaluationInput,
   ) => Promise<{ readonly seed: ContextSessionSeed } | { readonly unavailable: true }>
 }
-export interface SessionBootstrapAssembly extends SessionBootstrap {
-  /** Trusted host lookup. These references must not be exposed in the ordinary client protocol. */
-  readonly context: (scope: SessionScope) => LocalSessionContext | undefined
-  readonly inputs: (scope: SessionScope) => CurrentEvaluationInputs | undefined
-  /** Trusted host only. Reader lifetime is bounded by both the original Run borrow and this bootstrap. */
-  readonly runInputs: (
-    scope: SessionScope,
-    journal: BorrowedRunJournal,
-  ) => CurrentInputReader | undefined
-  readonly close: () => Promise<void>
-  readonly retryClose: () => Promise<void>
-}
+export type { SessionBootstrapAssembly } from './session-bootstrap.ts'

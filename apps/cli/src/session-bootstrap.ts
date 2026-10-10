@@ -3,22 +3,42 @@ import {
   AdmissionFailure,
   type AdmissionTicket,
   type SessionBootstrap,
+  type BorrowedRunJournal,
 } from '@omne-harness-lite/session-runtime-local'
 import {
   createAdmittedEvaluationInputSource,
   createRunEvaluationInputReader,
+  createRunRegistryReaders,
   type AdmittedInputSource,
+  type RunRegistryReaders,
+  type RunRegistryReaderDependencies,
 } from '@omne-harness-lite/evaluation-input-store/admitted'
 import type { CurrentInputReader } from '@omne-harness-lite/evaluation-input-store'
+import type { CurrentEvaluationInputs } from '@omne-harness-lite/asset-evaluation'
 import type { ContextSessionSeed } from '@omne-harness-lite/runtime-context'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type { LocalSessionContext } from '@omne-harness-lite/session-runtime-local/cordis'
 import { createSessionContext } from './session-context.ts'
 import { parseRunLoginBinding } from './session-preparation.ts'
-import type {
-  SessionBootstrapAssembly,
-  SessionBootstrapOptions,
-} from './session-bootstrap-types.ts'
+import type { SessionBootstrapOptions } from './session-bootstrap-types.ts'
+
+export interface SessionBootstrapAssembly extends SessionBootstrap {
+  /** Trusted host lookup. These references must not be exposed in the ordinary client protocol. */
+  readonly context: (scope: SessionScope) => LocalSessionContext | undefined
+  readonly inputs: (scope: SessionScope) => CurrentEvaluationInputs | undefined
+  /** Trusted host only. Reader lifetime is bounded by both the original Run borrow and this bootstrap. */
+  readonly runInputs: (
+    scope: SessionScope,
+    journal: BorrowedRunJournal,
+  ) => CurrentInputReader | undefined
+  readonly runRegistry: (
+    scope: SessionScope,
+    journal: BorrowedRunJournal,
+    manifest: RunRegistryReaderDependencies['manifestHistory'],
+  ) => RunRegistryReaders | undefined
+  readonly close: () => Promise<void>
+  readonly retryClose: () => Promise<void>
+}
 
 type Initialization = Awaited<ReturnType<SessionBootstrap['initialize']>>
 interface SessionRow {
@@ -28,6 +48,7 @@ interface SessionRow {
   context?: LocalSessionContext
   initialized: boolean
   readonly runReaders: Set<CurrentInputReader>
+  readonly runRegistries: Set<RunRegistryReaders>
 }
 /** Application composition of original G28 evidence, current member ordering, legal input and independent Context. */
 export function createSessionBootstrap(
@@ -107,7 +128,14 @@ export function createSessionBootstrap(
           : { failure: 'unavailable' }
       },
     })
-    return { scope: fixed, ticket, source, initialized: false, runReaders: new Set() }
+    return {
+      scope: fixed,
+      ticket,
+      source,
+      initialized: false,
+      runReaders: new Set(),
+      runRegistries: new Set(),
+    }
   }
   async function originalSession(scope: SessionScope, ticket: AdmissionTicket) {
     try {
@@ -192,12 +220,25 @@ export function createSessionBootstrap(
     const report = await context.closed
     if (!report.complete) throw new Error('Original Session Context close reported failure')
   }
+  function selectedRun(scope: SessionScope, journal: BorrowedRunJournal) {
+    const row = selected(scope)
+    return row &&
+      journal.scope.session === scope.session &&
+      tenantIdEquals(journal.scope.tenant, scope.tenant) &&
+      journal.currentGeneration() === journal.generation
+      ? row
+      : undefined
+  }
   async function close(retry: boolean) {
     if (retry && !stopped) throw new TypeError('Session bootstrap has not started closing')
     stopped = true
     const sourceStops = [...rows.values()].flatMap(row => {
       row.context?.requestStop()
-      return [row.source.close(), ...[...row.runReaders].map(reader => reader.close())]
+      return [
+        row.source.close(),
+        ...[...row.runReaders].map(reader => reader.close()),
+        ...[...row.runRegistries].map(reader => reader.close()),
+      ]
     })
     const work = await Promise.allSettled([...jobs.values(), ...sourceStops])
     const failures = work.flatMap(result => (result.status === 'rejected' ? [result.reason] : []))
@@ -220,14 +261,8 @@ export function createSessionBootstrap(
       return row ? Object.freeze({ read: row.source.reader.read }) : undefined
     },
     runInputs: (scope, journal) => {
-      const row = selected(scope)
-      if (
-        !row ||
-        journal.scope.session !== scope.session ||
-        !tenantIdEquals(journal.scope.tenant, scope.tenant) ||
-        journal.currentGeneration() !== journal.generation
-      )
-        return undefined
+      const row = selectedRun(scope, journal)
+      if (!row) return undefined
       const source = createRunEvaluationInputReader({
         ...options.inputSource,
         scope: row.scope,
@@ -245,11 +280,30 @@ export function createSessionBootstrap(
       row.runReaders.add(reader)
       return reader
     },
+    runRegistry: (scope, journal, manifestHistory) => {
+      const row = selectedRun(scope, journal)
+      if (!row) return undefined
+      const source = createRunRegistryReaders({
+        ...options.inputSource,
+        scope: row.scope,
+        storage: options.storage,
+        sessionTenancy: options.tenancy,
+        withOriginalRunUnit: journal.withReadUnit,
+        manifestHistory,
+      })
+      const reader: RunRegistryReaders = Object.freeze({
+        fixedRoot: source.fixedRoot,
+        history: source.history,
+        async close() {
+          await source.close()
+          row.runRegistries.delete(reader)
+        },
+      })
+      row.runRegistries.add(reader)
+      return reader
+    },
     close: () => close(false),
     retryClose: () => close(true),
   })
 }
-export type {
-  SessionBootstrapAssembly,
-  SessionBootstrapOptions,
-} from './session-bootstrap-types.ts'
+export type { SessionBootstrapOptions } from './session-bootstrap-types.ts'

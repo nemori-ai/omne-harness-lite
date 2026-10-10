@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import {
   createAdmittedEvaluationInputSource,
   createRunEvaluationInputReader,
+  createRunRegistryReaders,
   type AdmittedInputSourceDependencies,
 } from '../src/admitted.ts'
 import { boot, ROOT, asset, holding } from './support.ts'
@@ -12,6 +13,107 @@ import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 const cleanups: Array<() => Promise<void>> = []
 afterEach(async () => {
   for (const close of cleanups.splice(0).reverse()) await close()
+})
+it('binds registry refresh to the original Run unit without granting reload or another Session', async () => {
+  const fixture = await sourceFixture()
+  const { f, identity, session, source } = fixture
+  expect(
+    await source.captureSessionRecipe({ session, tenant: identity.tenant, rootDefinition: ROOT }),
+  ).toEqual({ captured: true })
+  fixture.deny()
+  const called = vi.fn()
+  let allowed = true
+  const original: AdmittedInputSourceDependencies['withAuthorizedUnit'] = read => {
+    called()
+    if (!allowed) return Promise.resolve({ unavailable: true })
+    return f.storage.atomic(async unit => ({ read: await read(unit) }))
+  }
+  const history = vi.fn(async () => ({ failure: 'unavailable' as const }))
+  const readers = createRunRegistryReaders({
+    ...f.deps,
+    scope: { tenant: identity.tenant, session },
+    withOriginalRunUnit: original,
+    manifestHistory: { readHistory: history },
+  })
+  cleanups.push(readers.close)
+  const request = {
+    session,
+    tenant: identity.tenant,
+    purpose: 'refresh_availability',
+    rootSource: { asset: 'ast_root', version: 1 },
+  }
+  expect(await readers.fixedRoot.read(request)).toHaveProperty(
+    'input.root.source',
+    request.rootSource,
+  )
+  expect(called).toHaveBeenCalledOnce()
+  expect(await readers.fixedRoot.read({ ...request, session: 'other-session' })).toEqual({
+    failure: 'unavailable',
+    stage: 'current_membership',
+  })
+  expect(await readers.fixedRoot.read({ ...request, purpose: 'reload' })).toEqual({
+    failure: 'unavailable',
+    stage: 'current_membership',
+  })
+  expect(called).toHaveBeenCalledOnce()
+  expect(history).not.toHaveBeenCalled()
+  allowed = false
+  expect(await readers.fixedRoot.read(request)).toEqual({
+    failure: 'unavailable',
+    stage: 'current_membership',
+  })
+  expect(called).toHaveBeenCalledTimes(2)
+  await readers.close()
+  expect(await readers.fixedRoot.read(request)).toEqual({
+    failure: 'unavailable',
+    stage: 'stopped',
+  })
+  expect(called).toHaveBeenCalledTimes(2)
+})
+it('drains an original Run registry read before closing and keeps borrowed storage open', async () => {
+  const { f, identity, session, source } = await sourceFixture()
+  expect(
+    await source.captureSessionRecipe({ session, tenant: identity.tenant, rootDefinition: ROOT }),
+  ).toEqual({ captured: true })
+  const entered = Promise.withResolvers<void>()
+  const release = Promise.withResolvers<void>()
+  const readers = createRunRegistryReaders({
+    ...f.deps,
+    scope: { tenant: identity.tenant, session },
+    manifestHistory: { readHistory: async () => ({ failure: 'unavailable' }) },
+    withOriginalRunUnit: read =>
+      f.storage.atomic(async unit => {
+        entered.resolve()
+        await release.promise
+        return { read: await read(unit) }
+      }),
+  })
+  cleanups.push(readers.close)
+  const request = {
+    session,
+    tenant: identity.tenant,
+    purpose: 'refresh_availability',
+    rootSource: { asset: 'ast_root', version: 1 },
+  }
+  const pending = readers.fixedRoot.read(request)
+  await entered.promise
+  let closed = false
+  const closing = readers.close().then(() => {
+    closed = true
+  })
+  try {
+    expect(await readers.fixedRoot.read(request)).toEqual({
+      failure: 'unavailable',
+      stage: 'stopped',
+    })
+    expect(closed).toBe(false)
+  } finally {
+    release.resolve()
+  }
+  expect(await pending).toHaveProperty('input.root.source', request.rootSource)
+  await closing
+  expect(closed).toBe(true)
+  await f.storage.atomic(async unit => unit.assertStorage(f.storage))
 })
 it('limits the Run factory to reads and uses only the original owner unit for current publication', async () => {
   const fixture = await sourceFixture()

@@ -5,7 +5,7 @@ import {
   isOk,
 } from '@omne-harness-lite/identity-values'
 import { validate as messageValidate } from '@omne-harness-lite/messages'
-import { narrow, StorageUnavailable, type StorageUnit } from '@omne-harness-lite/storage'
+import { narrow, StorageUnavailable } from '@omne-harness-lite/storage'
 import { BodyProviderUnavailableError } from '@omne-harness-lite/asset-model'
 import {
   ownDependencies,
@@ -23,6 +23,9 @@ import type {
   RunInputReaderDependencies,
 } from './admitted-types.ts'
 import type { CurrentInputReader } from './types.ts'
+import { createAuthorizedInputRead } from './admitted-unit.ts'
+export { createRunRegistryReaders } from './run-registry.ts'
+export type { RunRegistryReaderDependencies, RunRegistryReaders } from './admitted-types.ts'
 
 /** One Session's source. The trusted unit owner supplies current authorization; stored role data never grants it. */
 export function createAdmittedEvaluationInputSource(
@@ -75,33 +78,7 @@ function createInputSource(dependencies: AdmittedInputSourceDependencies): Admit
       jobs.delete(job)
     }
   }
-  async function authorized<T>(read: (unit: StorageUnit) => Promise<T>): Promise<T> {
-    let invoked = false,
-      original: T | undefined
-    let callbackFailure: { error: unknown } | undefined
-    const outcome = await withUnit(async unit => {
-      if (invoked) {
-        callbackFailure = {
-          error: new TypeError('authorized input callback invoked more than once'),
-        }
-        throw callbackFailure.error
-      }
-      invoked = true
-      try {
-        unit.assertStorage(deps.storage)
-        original = await read(unit)
-        return original
-      } catch (error) {
-        callbackFailure = { error }
-        throw error
-      }
-    })
-    if (callbackFailure) throw callbackFailure.error
-    if ('unavailable' in outcome) throw new SourceUnavailable('current_authorization')
-    if (!invoked || outcome.read !== original)
-      throw new TypeError('authorized input source did not return its original unit result')
-    return outcome.read
-  }
+  const authorized = createAuthorizedInputRead(deps.storage, withUnit)
   async function checkHolding() {
     const current = await holdingTenant(scope.session)
     if (!('tenant' in current) || !tenantIdEquals(current.tenant, scope.tenant))
