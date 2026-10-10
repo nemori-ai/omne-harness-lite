@@ -83,6 +83,11 @@ describe('D055 each schema owner checks the same snapshot', () => {
   it.each([
     ['missing login table', 'DROP TABLE login_state', 'account-snapshot-structure'],
     [
+      'missing organization name',
+      'ALTER TABLE organization DROP COLUMN name',
+      'organization-snapshot-structure',
+    ],
+    [
       'missing activity column',
       'ALTER TABLE login_state DROP COLUMN last_activity_at',
       'account-snapshot-structure',

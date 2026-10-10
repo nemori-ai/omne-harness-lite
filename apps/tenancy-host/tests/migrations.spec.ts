@@ -92,6 +92,7 @@ describe('assembly.migration-composition', () => {
     expect(registered.map(r => r.name)).toEqual([
       ...RELEASED_SEQUENCE,
       '0010_account_identity_bounded_logins',
+      '0011_organization_name',
     ])
     const rows = query<{ slot: string; center_id: string | null }>(
       d.file,
