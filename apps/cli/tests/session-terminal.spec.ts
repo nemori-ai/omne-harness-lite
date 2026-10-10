@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { openClientLocalState } from '@omne-harness-lite/client-local-state-sqlite'
 import { openStorage } from '@omne-harness-lite/storage-sql'
+import type { SessionTextMessage } from '../src/session-reading.ts'
 import { runTerminalSession } from '../src/session-terminal.ts'
 import { startLocalSessionHost } from '../src/session-host-server.ts'
 import { prepareTenantDirectory } from '../src/state-layout.ts'
@@ -30,10 +31,14 @@ const policy = { maxResponseBytes: 65536, timeoutMs: 1000, maxWaitMs: 1000, poll
 const checkedSession = checkSession('session-one')
 if ('failure' in checkedSession) throw new Error('invalid fixture Session')
 const sessionId = checkedSession.ok
+const foreignSession = checkSession('foreign')
+if ('failure' in foreignSession) throw new Error('invalid foreign fixture Session')
+const foreignSessionId = foreignSession.ok
 const timestamp = '2026-10-10T18:00:00Z'
 async function fixture(
-  fault?: 'clock' | 'unknown' | 'wait' | 'model',
+  fault?: 'clock' | 'unknown' | 'wait' | 'model' | 'history',
   toolTexts: readonly string[] = [],
+  initialHistory: readonly SessionTextMessage[] = [],
 ) {
   const home = await mkdtemp(join(tmpdir(), 'term-'))
   cleanup.push(() => rm(home, { recursive: true, force: true }))
@@ -107,35 +112,64 @@ async function fixture(
           run: fault === 'wait' ? null : { id: 'run-one', state: 'completed' },
         }
       case 'readMessages':
+        if (fault === 'history')
+          return {
+            kind: 'messages',
+            source: { ...source, session: foreignSessionId },
+            messages: [],
+          }
         return {
           kind: 'messages',
           source,
-          messages: [
-            {
-              id: 'previous',
-              position: 3,
-              run: 'previous-run',
-              type: 'assistant',
-              createdAt: timestamp,
-              blocks: [{ id: 'previous-text', kind: 'text', text: 'Do not repeat me' }],
-            },
-            {
-              id: 'tool-output',
-              position: 8,
-              run: 'run-one',
-              type: 'tool',
-              createdAt: timestamp,
-              blocks: toolTexts.map((text, index) => ({ id: `tool-${index}`, kind: 'text', text })),
-            },
-            {
-              id: 'answer',
-              position: 9,
-              run: 'run-one',
-              type: 'assistant',
-              createdAt: timestamp,
-              blocks: [{ id: 'answer-text', kind: 'text', text: 'Current answer' }],
-            },
-          ],
+          messages: submit
+            ? [
+                {
+                  id: submit.message.id,
+                  position: 2,
+                  run: null,
+                  type: 'user',
+                  createdAt: timestamp,
+                  blocks: [
+                    {
+                      id: 'question-text',
+                      kind: 'text',
+                      text:
+                        submit.message.blocks[0]!.kind === 'text'
+                          ? submit.message.blocks[0]!.text
+                          : '',
+                    },
+                  ],
+                },
+                {
+                  id: 'previous',
+                  position: 3,
+                  run: 'previous-run',
+                  type: 'assistant',
+                  createdAt: timestamp,
+                  blocks: [{ id: 'previous-text', kind: 'text', text: 'Do not repeat me' }],
+                },
+                {
+                  id: 'tool-output',
+                  position: 8,
+                  run: 'run-one',
+                  type: 'tool',
+                  createdAt: timestamp,
+                  blocks: toolTexts.map((text, index) => ({
+                    id: `tool-${index}`,
+                    kind: 'text',
+                    text,
+                  })),
+                },
+                {
+                  id: 'answer',
+                  position: 9,
+                  run: 'run-one',
+                  type: 'assistant',
+                  createdAt: timestamp,
+                  blocks: [{ id: 'answer-text', kind: 'text', text: 'Current answer' }],
+                },
+              ]
+            : initialHistory,
         }
       default:
         throw new Error(`Unexpected ${packet.command}`)
@@ -163,7 +197,7 @@ async function fixture(
   })
   cleanup.push(host.close)
   const text = vi
-    .fn<() => Promise<string | undefined>>()
+    .fn<(title: string, body?: readonly string[]) => Promise<string | undefined>>()
     .mockResolvedValueOnce('Question')
     .mockResolvedValue(undefined)
   const show = vi.fn(async () => true)
@@ -188,7 +222,7 @@ async function fixture(
       signal: new AbortController().signal,
       originalId: () => `id-${++identityNumber}`,
       policy,
-      dialog: { text, show, identity, progress, choose: async () => undefined },
+      dialog: { text, compose: text, show, identity, progress, choose: async () => undefined },
     },
   }
 }
@@ -203,7 +237,15 @@ it('creates through the actual socket, timestamps from the host and displays onl
     createdAt: timestamp,
     blocks: [{ text: 'Question' }],
   })
-  expect(f.show).toHaveBeenCalledExactlyOnceWith('Assistant', ['Current answer'])
+  expect(f.show).not.toHaveBeenCalled()
+  expect(f.text.mock.calls[1]?.[1]).toEqual([
+    '',
+    'You',
+    'Question',
+    '',
+    'Assistant',
+    'Current answer',
+  ])
   expect(f.identity).toHaveBeenCalledWith(expect.arrayContaining(['Session: session-one']))
   expect(f.execute.mock.calls.filter(([p]) => p.command === 'submitInput')).toHaveLength(1)
 })
@@ -235,13 +277,20 @@ it('renders execution output and loss counts without showing environment impleme
     }),
   ])
   await runTerminalSession(f.options)
-  expect(f.show).toHaveBeenCalledExactlyOnceWith('Assistant', [
+  expect(f.text.mock.calls[1]?.[1]).toEqual([
+    '',
+    'You',
+    'Question',
+    '',
+    'Tool',
     'Tool output (completed)',
     'command output',
     'diagnostic output',
     'Exit code: 0',
     'Output omitted: 8 bytes, 2 frames',
     'Transport omitted: 3 bytes',
+    '',
+    'Assistant',
     'Current answer',
   ])
 })
@@ -253,7 +302,17 @@ it('preserves unrecognized tool text instead of dropping a failed or unknown res
   ]
   const f = await fixture(undefined, values)
   await runTerminalSession(f.options)
-  expect(f.show).toHaveBeenCalledExactlyOnceWith('Assistant', [...values, 'Current answer'])
+  expect(f.text.mock.calls[1]?.[1]).toEqual([
+    '',
+    'You',
+    'Question',
+    '',
+    'Tool',
+    ...values,
+    '',
+    'Assistant',
+    'Current answer',
+  ])
 })
 it('never substitutes local wall time or submits when the host clock is unavailable', async () => {
   const f = await fixture('clock')
@@ -300,6 +359,7 @@ it('cancelled terminal input detaches without submitting or closing the host', a
     'readInitialModel',
     'readCreationDefaults',
     'createSession',
+    'readMessages',
   ])
 })
 
@@ -311,4 +371,54 @@ it('refuses an attached host with a different initial model before creating or s
   expect(f.create()).toBeUndefined()
   expect(f.submit()).toBeUndefined()
   expect(f.text).not.toHaveBeenCalled()
+})
+
+it('keeps the next composer visible beside the user message and answer without a continuation dialog', async () => {
+  const f = await fixture()
+  await runTerminalSession(f.options)
+  expect(f.show).not.toHaveBeenCalled()
+  expect(f.text).toHaveBeenCalledTimes(2)
+  const body = f.text.mock.calls[1]?.[1]
+  expect(body).toEqual(expect.arrayContaining(['You', 'Question', 'Assistant', 'Current answer']))
+  expect(f.progress.mock.calls[0]?.[1]).toEqual(expect.arrayContaining(['You', 'Question']))
+})
+
+it('loads existing human conversation through the host before asking for another message', async () => {
+  const f = await fixture(
+    undefined,
+    [],
+    [
+      {
+        id: 'past-user',
+        position: 1,
+        run: null,
+        type: 'user',
+        createdAt: timestamp,
+        blocks: [{ id: 'past-text', kind: 'text', text: 'Previous question' }],
+      },
+      {
+        id: 'past-answer',
+        position: 2,
+        run: 'past-run',
+        type: 'assistant',
+        createdAt: timestamp,
+        blocks: [{ id: 'past-answer-text', kind: 'text', text: 'Previous answer' }],
+      },
+    ],
+  )
+  f.text.mockReset().mockResolvedValue(undefined)
+  await runTerminalSession({ ...f.options, session: 'session-one' })
+  expect(f.text.mock.calls[0]?.[1]).toEqual(
+    expect.arrayContaining(['You', 'Previous question', 'Assistant', 'Previous answer']),
+  )
+  expect(f.submit()).toBeUndefined()
+})
+
+it('refuses a foreign history response before exposing a composer or submitting input', async () => {
+  const f = await fixture('history')
+  expect(await runTerminalSession(f.options)).toMatchObject({
+    outcome: { kind: 'blocked', reason: 'history-unavailable' },
+  })
+  expect(f.text).not.toHaveBeenCalled()
+  expect(f.submit()).toBeUndefined()
 })
