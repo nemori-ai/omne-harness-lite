@@ -1,7 +1,7 @@
 import { judgeArrivalEnvelope } from '@omne-harness-lite/arrival-events'
 import type { CloseEvent } from '@omne-harness-lite/arrival-events'
 import type { ContentBlock } from '@omne-harness-lite/content-blocks'
-import { closeMatches, contentOf, nonEmptyBlock } from './blocks.ts'
+import { closeContributesContent, closeMatches, contentOf } from './blocks.ts'
 import { sealToolCall } from './close.ts'
 import { AssemblyState, recordSlot, replaceRecord, type StateData } from './state.ts'
 import { advance, nextPosition, transition } from './transition.ts'
@@ -32,8 +32,7 @@ function closeTransition(
   const first =
     data.firstContentAt === undefined &&
     record.fills === undefined &&
-    record.opened.kind !== 'tool_call' &&
-    nonEmptyBlock(block)
+    closeContributesContent(block)
   return Object.freeze({
     ok: Object.freeze({
       ...advance(data, event),
