@@ -6,6 +6,7 @@ import type {
   SessionLogParticipant,
 } from '@omne-harness-lite/session-log'
 import type { ExecutionOrigin, ExecutionRef } from './tool-execution.ts'
+import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { ToolPoolInstance } from './execution-pool.ts'
 import type { ToolRuntimeConfig, ToolRuntimeDependencies } from './runtime-provider.ts'
 
@@ -111,7 +112,12 @@ export interface ToolOriginalIssueSupport {
   ) => Promise<{ readonly kind: 'classified'; readonly late: boolean } | ToolOriginalIssueFailure>
 }
 /** Required construction subset for a Tool instance used by the Session driver. */
-export interface ToolRuntimeOriginalIssueDependencies extends ToolRuntimeDependencies {
+export interface ToolRuntimeOriginalIssueDependencies extends Omit<
+  ToolRuntimeDependencies,
+  'backing' | 'owner' | 'history' | 'runnerHost'
+> {
+  readonly tenant: TenantId
+  readonly recoveryPageSize: number
   readonly originalIssue: ToolOriginalIssueSupport
 }
 

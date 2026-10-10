@@ -14,7 +14,15 @@ import type {
   ToolPoolInstance,
 } from '../src/index.ts'
 
-expectTypeOf<ToolRuntimeOriginalIssueDependencies>().toExtend<ToolRuntimeDependencies>()
+declare const nativeDependencies: ToolRuntimeOriginalIssueDependencies
+// @ts-expect-error Native recovery reads its own task index, not a Session catalog.
+nativeDependencies.owner
+// @ts-expect-error The Session supplies the selected chain in the prepared request.
+nativeDependencies.runnerHost
+// @ts-expect-error Native construction cannot read complete Session history.
+nativeDependencies.history
+// @ts-expect-error Native construction cannot borrow a complete Session log.
+nativeDependencies.backing
 expectTypeOf<ToolOriginalIssueParticipant['stopped']>().toEqualTypeOf<Promise<void>>()
 expectTypeOf<
   ReturnType<ToolRuntimeOriginalIssueFactory['create']>

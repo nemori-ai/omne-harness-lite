@@ -4338,6 +4338,7 @@ import {
 import { createRunnerTaskOwner } from '@omne-harness-lite/loop-extension-runner-local'
 import type {
   ToolRuntimeOriginalIssueDependencies,
+  ToolRuntimeDependencies,
   ExecutionSubmission,
   ToolOriginalIssueParticipant,
 } from '@omne-harness-lite/tool-execution-runtime'
@@ -4416,7 +4417,7 @@ it('composes the public native Tool factory with Session original issue, actual 
   }
   const generation = f.log().backing.ownerGeneration
   const backing = f.log().backing
-  const history: ToolRuntimeOriginalIssueDependencies['history'] = {
+  const history: ToolRuntimeDependencies['history'] = {
     inspect(checked, id) {
       const tools = projectToolJournal(p.scope, checked.entries)
       if ('invalid' in tools) return { kind: 'unavailable' }
@@ -4598,32 +4599,10 @@ it('composes the public native Tool factory with Session original issue, actual 
       resultStorage: 'native-results',
     },
     {
-      backing,
-      history,
+      tenant: p.scope.tenant,
+      recoveryPageSize: 16,
       authorization,
       recovery,
-      owner: {
-        enumerate: async candidate =>
-          candidate === recovery
-            ? {
-                kind: 'sessions',
-                sessions: [{ scope: p.scope, locator: 'controlled-native-scope' }],
-              }
-            : { kind: 'rejected', reason: 'notAuthorized' },
-        readPrefix: async () => {
-          const current = await prefix()
-          return {
-            kind: 'prefix',
-            prefix: {
-              scope: p.scope,
-              ownerGeneration: generation,
-              entries: current.entries,
-              tail: current.source.tail,
-            },
-          }
-        },
-        borrow: async () => ({ kind: 'rejected', reason: 'notAuthorized' }),
-      },
       admission: () => admission,
       implementations: registry,
       context: {
@@ -4643,14 +4622,6 @@ it('composes the public native Tool factory with Session original issue, actual 
         acquire: async () => ({ kind: 'rejected', reason: 'unavailable' }),
       },
       results: files.operations,
-      runnerHost: {
-        acquireDispatch: async () => {
-          throw new Error('Tool pool must not select a Runner chain')
-        },
-        acquireReplay: async () => {
-          throw new Error('Tool pool must not select a Runner chain')
-        },
-      },
       invoke: createToolInvoker({
         parameters: createParameterJudge(),
         judgeResult: value =>

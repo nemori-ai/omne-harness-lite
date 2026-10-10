@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { copyJsonValue, type JsonValue } from '@omne-harness-lite/content-blocks'
-import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
+import {
+  parseOpaqueIdentifier,
+  parseTenantId,
+  tenantIdEquals,
+  type TenantId,
+} from '@omne-harness-lite/identity-values'
 import { compareInteger, type CheckedPrefix } from '@omne-harness-lite/session-log'
 import { StorageUnavailable, type StorageUnit } from '@omne-harness-lite/storage'
 import { instantToRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
@@ -169,6 +174,7 @@ function executionSnapshot(ref: ExecutionRef, history: ToolJournalHistory): Exec
 /** Private execution owner. Construction ports stay inside the provider; none are plugin config. */
 export function createExecutionOwner(input: {
   readonly journal: Journal
+  readonly tenant?: TenantId
   readonly originalIssue?: ToolOriginalIssueSupport | undefined
   readonly authorization: SessionAccessOperations
   readonly admission: () => ToolAdmissionOperations | undefined
@@ -938,13 +944,19 @@ export function createExecutionOwner(input: {
     })
     return task
   }
+  function preparedRejection(request: ExecutionSubmission): SubmissionResult | undefined {
+    if (input.tenant && !tenantIdEquals(input.tenant, request.scope.tenant))
+      return { kind: 'rejected', reason: 'notAuthorized' }
+    if (!input.originalIssue || !input.journal.isCurrent())
+      return { kind: 'rejected', reason: 'runtimeUnavailable' }
+  }
   async function admitPrepared(
     captured: Exclude<ReturnType<typeof capturePreparedExecution>, SubmissionResult>,
   ): Promise<ToolSubmitResult> {
     const { request } = captured
     const ref = { ...request.scope, callId: request.call.callId }
-    if (!input.originalIssue || !input.journal.isCurrent())
-      return { kind: 'rejected', reason: 'runtimeUnavailable' }
+    const invalid = preparedRejection(request)
+    if (invalid) return invalid
     const denied = await authorize(request.access, ref, 'tool.submit')
     if (denied) return { kind: 'rejected', reason: denied }
     const previous = owned.get(keyOf(ref))

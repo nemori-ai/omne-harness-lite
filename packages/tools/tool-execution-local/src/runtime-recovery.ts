@@ -1,7 +1,9 @@
 import { copyJsonValue, type JsonValue } from '@omne-harness-lite/content-blocks'
 import { instantFromRfc3339, instantToRfc3339 } from '@omne-harness-lite/offer-expiry'
 import type {
+  ExecutionRef,
   ToolRuntimeDependencies,
+  ToolRuntimeOriginalIssueDependencies,
   ToolJournalHistory,
 } from '@omne-harness-lite/tool-execution-runtime'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
@@ -11,15 +13,14 @@ import type {
 } from '@omne-harness-lite/execution-environments'
 import { createResultPreparation } from './execution-result.ts'
 import { createTerminalCommitter } from './execution-terminal.ts'
+import { createToolExecutionObligations } from './tool-obligations.ts'
 import { jsonObject, sameJson } from './json-values.ts'
 import type { createRuntimeJournal } from './runtime-journal.ts'
 
 type Input = {
-  readonly dependencies: Pick<
-    ToolRuntimeDependencies,
-    'backing' | 'owner' | 'recovery' | 'clock' | 'environments'
-  >
+  readonly dependencies: Pick<ToolRuntimeDependencies, 'recovery' | 'clock' | 'environments'>
   readonly journal: ReturnType<typeof createRuntimeJournal>
+  readonly classification?: 'session' | 'history'
   readonly attempts: number
   readonly retry: (attempt: number) => Promise<void>
 }
@@ -121,7 +122,7 @@ async function finishInterruptedCall(input: Input, execution: ToolJournalHistory
   if (prepared === 'unavailable') throw new Error('Tool runtime recovery basis unavailable')
   const result = await createTerminalCommitter({
     ...input,
-    classification: 'history',
+    classification: input.classification ?? 'history',
     clock: input.dependencies.clock,
   })({
     ref: intent.ref,
@@ -159,7 +160,10 @@ async function recoverEnvironmentOwners(
   )
     throw new Error('Environment owner recovery remains pending')
 }
-async function recoverSession(input: Input, scope: SessionScope) {
+type LegacyInput = Input & {
+  readonly dependencies: Input['dependencies'] & Pick<ToolRuntimeDependencies, 'backing' | 'owner'>
+}
+async function recoverSession(input: LegacyInput, scope: SessionScope) {
   const authorized = await input.dependencies.owner.readPrefix(input.dependencies.recovery, scope)
   if (
     authorized.kind !== 'prefix' ||
@@ -175,8 +179,60 @@ async function recoverSession(input: Input, scope: SessionScope) {
   }
 }
 /** Cold owners never replay the author. Environment-owned resources keep independent responsibility. */
-export async function recoverExecutions(input: Input) {
+export async function recoverExecutions(input: LegacyInput) {
   const sessions = await input.dependencies.owner.enumerate(input.dependencies.recovery)
   if (sessions.kind !== 'sessions') throw new Error('Tool runtime cannot enumerate owned sessions')
   for (const { scope } of sessions.sessions) await recoverSession(input, scope)
+}
+
+async function readOriginalExecution(input: Input, ref: ExecutionRef) {
+  const read = await input.journal.read({ tenant: ref.tenant, session: ref.session }, ref.callId)
+  const execution = read.kind === 'view' ? read.executions.get(ref.callId) : undefined
+  if (!execution) throw new Error('Tool original task record unavailable')
+  return execution
+}
+
+/** Native cold recovery consumes only the fixed tenant's original task index. */
+export async function recoverOriginalExecutions(
+  input: Input & { readonly dependencies: ToolRuntimeOriginalIssueDependencies },
+) {
+  const { dependencies } = input
+  const source = createToolExecutionObligations({
+    storage: dependencies.originalIssue.storage,
+    tenant: dependencies.tenant,
+    maxPageSize: dependencies.recoveryPageSize,
+  })
+  const result = await source.withObligations(
+    { tenant: dependencies.tenant, limit: dependencies.recoveryPageSize },
+    async reader => {
+      let group: { scope: SessionScope; executions: Map<string, ToolJournalHistory> } | undefined
+      const flush = async () => {
+        if (!group) return
+        await recoverEnvironmentOwners(input, group.scope, group.executions)
+        for (const execution of group.executions.values()) {
+          await recoverCallResources(input, execution)
+          await finishInterruptedCall({ ...input, classification: 'session' }, execution)
+        }
+      }
+      for (;;) {
+        const page = await reader.next()
+        if (page.kind === 'unavailable') throw new Error('Tool original task snapshot unavailable')
+        if (page.kind === 'end') break
+        if (page.kind !== 'page') throw new Error('Tool original task page invalid')
+        for (const ref of page.refs) {
+          if (group && group.scope.session !== ref.session) {
+            await flush()
+            group = undefined
+          }
+          group ??= {
+            scope: { tenant: dependencies.tenant, session: ref.session },
+            executions: new Map(),
+          }
+          group.executions.set(ref.callId, await readOriginalExecution(input, ref))
+        }
+      }
+      await flush()
+    },
+  )
+  if (result.kind !== 'used') throw new Error('Tool original task snapshot unavailable')
 }

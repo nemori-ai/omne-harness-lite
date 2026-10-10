@@ -159,21 +159,10 @@ export async function driverNativeToolFixture(input: {
       },
       {
         originalIssue,
-        backing: input.backing,
-        history: input.history,
+        tenant: scope.tenant,
+        recoveryPageSize: 16,
         authorization,
         recovery,
-        owner: {
-          enumerate: async candidate =>
-            candidate === recovery
-              ? { kind: 'sessions', sessions: [{ scope, locator: 'controlled-root-scope' }] }
-              : { kind: 'rejected', reason: 'notAuthorized' },
-          readPrefix: async (_candidate, target: SessionScope) =>
-            target.session === scope.session
-              ? { kind: 'prefix', prefix: await prefix() }
-              : { kind: 'rejected', reason: 'notAuthorized' },
-          borrow: async () => ({ kind: 'rejected', reason: 'notAuthorized' }),
-        },
         admission: () => admission,
         implementations: registry,
         context: {
@@ -193,21 +182,6 @@ export async function driverNativeToolFixture(input: {
           acquire: async () => ({ kind: 'rejected', reason: 'unavailable' }),
         },
         results: files.operations,
-        runnerHost: {
-          acquireDispatch: async () => ({ failure: 'unavailable' }),
-          acquireReplay: async () => ({
-            binding,
-            owner: taskOwner,
-            isActive: () => true,
-            release() {},
-            sources: {
-              sessionTenancy: input.ingress.tenancy,
-              manifest,
-              history: { read: async () => ({ failure: 'unavailable', stage: 'source' }) },
-              isActive: () => true,
-            },
-          }),
-        },
         invoke: createToolInvoker({
           parameters: createParameterJudge(),
           judgeResult: value =>

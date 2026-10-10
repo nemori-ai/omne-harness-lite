@@ -6,7 +6,7 @@
 
 `createToolRuntime(config, dependencies)` 返回 operations、ready、idle() 与 close()。发布操作前必须等待 ready。依赖包括共享日志代、完整动作历史、runtime context、结果存储及不可变 runner 链读取口。启动恢复使用应用的私有维护授权。
 
-`createOriginalIssueToolRuntime(config, dependencies)` 选择同一个原工具执行器，并要求传入 `originalIssue`。该可信输入携带实际共同存储、日志参加者、日志权限、当前资格和Session准入。装配须先将 `toolOriginalIssueMigrations` 合入同库迁移。工厂不关闭这些借入资源；普通工厂和既有Cordis绑定不会隐式取得此协议。
+`createOriginalIssueToolRuntime(config, dependencies)` 复用原执行器。构造显式提供 `tenant`、`recoveryPageSize` 和 `originalIssue`，不接收完整历史、会话枚举、日志借用或Runner选链端口。工厂读取自身任务索引，原资源收场后才就绪；已选工具和after_action链由请求提供。构造前将 `toolOriginalIssueMigrations` 合入同库迁移。工厂不关闭借入资源，也不声称能恢复尚未进入原生索引的旧任务。
 
 该工厂返回 `ToolPoolInstance`。`submit` 接收 `PreparedToolExecution`，包含原Source及已选 `after_action` 链。正常请求还包含选中定义和参数；不可执行请求包含原adoption及明确的 `unparseable` 或 `no_such_entry`，不能携带选中实现。Session生产者准备这些输入并核对原完成批次；原池核验正常请求的准入token，复用已有执行器，不可执行请求只形成失败结果，不调用作者。构造与冷恢复仍须完成[SPEC.md](SPEC.md)要求的迁移，返回类型本身不证明完整池边界已成立。
 

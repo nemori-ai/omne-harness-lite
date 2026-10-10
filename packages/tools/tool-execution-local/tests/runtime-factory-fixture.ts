@@ -69,6 +69,7 @@ export async function factoryFixture() {
   }
   let runtime: ToolRuntimeInstance | undefined
   return {
+    dir,
     log,
     dependencies,
     recovery,

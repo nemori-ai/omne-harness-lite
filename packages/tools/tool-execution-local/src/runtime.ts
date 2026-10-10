@@ -17,6 +17,8 @@ import { createExecutionOwner } from './execution-owner.ts'
 import { createResultPreparation } from './execution-result.ts'
 import { createRuntimeJournal } from './runtime-journal.ts'
 import { recoverExecutions } from './runtime-recovery.ts'
+import { createOriginalRecordJournal } from './original-record-journal.ts'
+import { recoverOriginalExecutions } from './runtime-recovery.ts'
 import { jsonObject } from './json-values.ts'
 
 function captureRuntimeConfiguration(supplied: ToolRuntimeConfig): ToolRuntimeConfig {
@@ -70,9 +72,62 @@ export function createOriginalIssueToolRuntime(
   return createRuntime(supplied, dependencies, dependencies.originalIssue).prepared
 }
 
+async function selectRuntimeChain(
+  dependencies: ToolRuntimeDependencies,
+  request: Parameters<Parameters<typeof createExecutionOwner>[0]['selectChain']>[0],
+): ReturnType<Parameters<typeof createExecutionOwner>[0]['selectChain']> {
+  const pass = `tool-after-${createHash('sha256')
+    .update(
+      JSON.stringify([
+        request.scope.tenant,
+        request.scope.session,
+        request.origin,
+        request.call.callId,
+      ]),
+    )
+    .digest('hex')}`
+  const held = await dependencies.runnerHost.acquireReplay(
+    {
+      manifest: request.scope.session,
+      anchor: pass,
+      run: request.origin.run,
+      position: 'after_action',
+      dimension: { scope: 'each' },
+      subject: { callId: request.call.callId, outcome: 'completed' },
+    },
+    new AbortController().signal,
+  )
+  if ('failure' in held) return 'unavailable'
+  try {
+    if (
+      !held.isActive() ||
+      held.binding.session !== request.scope.session ||
+      !tenantIdEquals(held.binding.tenant, request.scope.tenant) ||
+      held.binding.logGeneration !== dependencies.backing.ownerGeneration
+    )
+      return 'unavailable'
+    const chain = await readRunnerChain({
+      session: request.scope.session,
+      binding: held.binding,
+      sources: held.sources,
+    })
+    if (!Array.isArray(chain) || !held.isActive()) return 'unavailable'
+    const captured = copyJsonValue(
+      chain.filter(
+        piece =>
+          piece.definition.position === 'after_action' &&
+          piece.definition.dimension.scope === 'each',
+      ),
+    )
+    return 'failed' in captured ? 'unavailable' : { chain: captured.ok, pass }
+  } finally {
+    held.release()
+  }
+}
+
 function createRuntime(
   supplied: ToolRuntimeConfig,
-  dependencies: ToolRuntimeDependencies,
+  dependencies: ToolRuntimeDependencies | ToolRuntimeOriginalIssueDependencies,
   originalIssue?: ToolOriginalIssueSupport,
 ) {
   const config = captureRuntimeConfiguration(supplied)
@@ -87,7 +142,10 @@ function createRuntime(
     )
     if (delay > 0) await setTimeout(delay)
   }
-  const journal = createRuntimeJournal(dependencies)
+  const journal =
+    'originalIssue' in dependencies
+      ? createOriginalRecordJournal(dependencies)
+      : createRuntimeJournal(dependencies)
   let state: 'recovering' | 'ready' | 'failed' | 'closed' = 'recovering'
   const owner = createExecutionOwner({
     ...dependencies,
@@ -96,55 +154,12 @@ function createRuntime(
     attempts: config.tailRetry.attempts,
     frameQueueBytes: config.frameQueueBytes,
     retry,
-    async selectChain(request) {
-      const pass = `tool-after-${createHash('sha256')
-        .update(
-          JSON.stringify([
-            request.scope.tenant,
-            request.scope.session,
-            request.origin,
-            request.call.callId,
-          ]),
-        )
-        .digest('hex')}`
-      const held = await dependencies.runnerHost.acquireReplay(
-        {
-          manifest: request.scope.session,
-          anchor: pass,
-          run: request.origin.run,
-          position: 'after_action',
-          dimension: { scope: 'each' },
-          subject: { callId: request.call.callId, outcome: 'completed' },
-        },
-        new AbortController().signal,
-      )
-      if ('failure' in held) return 'unavailable'
-      try {
-        if (
-          !held.isActive() ||
-          held.binding.session !== request.scope.session ||
-          !tenantIdEquals(held.binding.tenant, request.scope.tenant) ||
-          held.binding.logGeneration !== dependencies.backing.ownerGeneration
-        )
-          return 'unavailable'
-        const chain = await readRunnerChain({
-          session: request.scope.session,
-          binding: held.binding,
-          sources: held.sources,
-        })
-        if (!Array.isArray(chain) || !held.isActive()) return 'unavailable'
-        const captured = copyJsonValue(
-          chain.filter(
-            piece =>
-              piece.definition.position === 'after_action' &&
-              piece.definition.dimension.scope === 'each',
-          ),
-        )
-        return 'failed' in captured ? 'unavailable' : { chain: captured.ok, pass }
-      } finally {
-        held.release()
-      }
-    },
+    selectChain:
+      'originalIssue' in dependencies
+        ? async () => {
+            throw new Error('prepared Tool request must supply its selected chain')
+          }
+        : request => selectRuntimeChain(dependencies, request),
     async bindWriter(request, selected) {
       const storage = selected?.definition.needs?.attachmentStorage ?? config.resultStorage
       if (selected?.definition.needs?.attachmentStorage) {
@@ -172,7 +187,14 @@ function createRuntime(
     },
   })
   const recover = () =>
-    recoverExecutions({ dependencies, journal, attempts: config.tailRetry.attempts, retry })
+    'originalIssue' in dependencies
+      ? recoverOriginalExecutions({
+          dependencies,
+          journal,
+          attempts: config.tailRetry.attempts,
+          retry,
+        })
+      : recoverExecutions({ dependencies, journal, attempts: config.tailRetry.attempts, retry })
   const ready = recover().then(
     () => {
       if (state === 'recovering') state = 'ready'

@@ -16,7 +16,7 @@ import {
 import { jsonObject, sameJson } from './json-values.ts'
 import { borrowToolObligations } from './tool-obligation-borrow.ts'
 
-interface OriginalRow {
+export interface OriginalRow {
   tenant: string
   session: string
   call: string
@@ -69,9 +69,9 @@ function nativePages(tx: ReadTx, tenant: string, limit: number) {
     const rows = await query.orderBy('session').orderBy('call').limit(limit).execute()
     const refs: ExecutionRef[] = []
     for (const row of rows) {
-      const ref = originalRef(row)
-      if (!ref) return { kind: 'unavailable' as const }
-      refs.push(ref)
+      const original = decodeToolOriginal(row)
+      if (!original) return { kind: 'unavailable' as const }
+      refs.push(original.identity.ref)
     }
     after = rows.at(-1) ?? after
     const [first, ...rest] = refs
@@ -84,7 +84,7 @@ function nativePages(tx: ReadTx, tenant: string, limit: number) {
   }
 }
 
-function originalRef(row: OriginalRow): ExecutionRef | undefined {
+export function decodeToolOriginal(row: OriginalRow) {
   const decoded = readRow(row)
   if (!decoded) return
   const { identity, intent } = decoded
@@ -101,7 +101,16 @@ function originalRef(row: OriginalRow): ExecutionRef | undefined {
     executionGeneration: generation,
     originalPosition: prepared.entry.dedupeKey,
   })
-    ? value.ref
+    ? {
+        identity: {
+          ref: value.ref,
+          origin: value.origin,
+          adoption: value.input.submission.adoption,
+          executionGeneration: generation,
+          originalPosition: prepared.entry.dedupeKey!,
+        },
+        intent,
+      }
     : undefined
 }
 
