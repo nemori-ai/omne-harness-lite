@@ -14,6 +14,7 @@ import {
   type OriginalIssueStage,
   type OriginalIssueFailure,
   type OriginalIssueOwner,
+  type ModelExecutionRecords,
 } from '@omne-harness-lite/model-request-runtime'
 import {
   checkAppendRequest,
@@ -42,6 +43,7 @@ interface Row {
 }
 interface Database {
   mr_original_issue: Row
+  mr_original_consumption: Omit<Row, 'value'>
 }
 interface Prepared {
   readonly source: OriginalIssueInput['source']
@@ -138,7 +140,9 @@ function sameOriginal(row: Row, input: Prepared): boolean {
   )
 }
 /** One model execution owner per storage. Storage and log are borrowed until every claim is resolved. */
-export function createOriginalIssueOwner(options: OriginalIssueOwnerOptions): OriginalIssueOwner {
+export function createOriginalIssueOwner(
+  options: OriginalIssueOwnerOptions,
+): OriginalIssueOwner & Pick<ModelExecutionRecords, 'stageConsumeIn'> {
   if (!Number.isSafeInteger(options.limit) || options.limit < 1)
     throw new TypeError('positive original issue limit required')
   if (owners.has(options.storage)) throw new TypeError('duplicate original model execution owner')
@@ -167,21 +171,12 @@ export function createOriginalIssueOwner(options: OriginalIssueOwnerOptions): Or
     const input = tickets.get(ticket)
     if (input === undefined) return invalid
     if (!admitting || pending.size + reserved >= options.limit) return unavailable
-    if (!sameUnit(unit)) return invalid
+    unit.assertStorage(options.storage)
     reserved += 1
     try {
       return await watch(() => unit.run(() => stageOwned(unit, input)))
     } finally {
       reserved -= 1
-    }
-  }
-  function sameUnit(unit: StorageUnit): boolean {
-    try {
-      unit.assertStorage(options.storage)
-      return true
-    } catch (error) {
-      if (error instanceof StorageDefect) return false
-      throw error
     }
   }
   async function stageOwned(unit: StorageUnit, input: Prepared): Promise<OriginalIssueStage> {
@@ -302,9 +297,53 @@ export function createOriginalIssueOwner(options: OriginalIssueOwnerOptions): Or
     )
     return !('failure' in read) && modelLogJsonEqual(read.entries, held.entries)
   }
+  const stageConsume: ModelExecutionRecords['stageConsumeIn'] = async (unit, claim) => {
+    const held = claims.get(claim)
+    if (held === undefined) return invalid
+    unit.assertStorage(options.storage)
+    if (!admitting) return unavailable
+    return watch(() => unit.run(() => stageConsumption(unit, held)))
+  }
+  async function stageConsumption(
+    unit: StorageUnit,
+    held: HeldClaim,
+  ): ReturnType<ModelExecutionRecords['stageConsumeIn']> {
+    const identity = held.prepared.identity
+    await unit.mutate(tx => tx.lockSentinel(`model-original:${identity.session}:${identity.call}`))
+    const authorized = await options.authority.authorizeIn(unit, identity)
+    if (authorized.kind !== 'authorized') return authorized
+    if (!(await recognizesIn(unit, held))) return unavailable
+    const row = consumptionRow(identity)
+    const existing = await unit.query(tx =>
+      narrow<Database>(tx)
+        .selectFrom('mr_original_consumption')
+        .selectAll()
+        .where('session', '=', row.session)
+        .where('call', '=', row.call)
+        .where('dispatch', '=', row.dispatch)
+        .executeTakeFirst(),
+    )
+    if (existing !== undefined)
+      return modelLogJsonEqual(existing, row) ? { kind: 'alreadyConsumed', identity } : conflict
+    await unit.mutate(tx =>
+      narrow<Database>(tx).insertInto('mr_original_consumption').values(row).execute(),
+    )
+    return { kind: 'staged', identity }
+  }
+  function consumptionRow(identity: OriginalIssueIdentity): Database['mr_original_consumption'] {
+    return {
+      session: identity.session,
+      call: identity.call,
+      dispatch: dispatchText(identity),
+      tenant: writeJsonLossless(identity.tenant),
+      owner_generation: identity.executionGeneration,
+      original_position: identity.originalPosition,
+    }
+  }
   const participant = Object.freeze<OriginalIssueParticipant>({ stageOriginalIn: stage })
-  return Object.freeze<OriginalIssueOwner>({
+  return Object.freeze<OriginalIssueOwner & Pick<ModelExecutionRecords, 'stageConsumeIn'>>({
     participant,
+    stageConsumeIn: stageConsume,
     prepareOriginal(input) {
       if (!admitting) return unavailable
       const captured = prepared(input, generation)
@@ -341,10 +380,9 @@ export function createOriginalIssueOwner(options: OriginalIssueOwnerOptions): Or
       return watch(async () => {
         if ((await held.completion) !== 'committed') return unavailable
         try {
-          const authorized = await options.storage.atomic(unit =>
-            unit.run(() => options.authority.authorizeIn(unit, held.prepared.identity)),
-          )
-          if (authorized.kind !== 'authorized') return authorized
+          const consumption = await options.storage.atomic(unit => stageConsume(unit, claim))
+          if (consumption.kind !== 'staged')
+            return consumption.kind === 'alreadyConsumed' ? unavailable : consumption
           if (!admitting) return unavailable
           return { kind: 'launch' as const }
         } catch (error) {

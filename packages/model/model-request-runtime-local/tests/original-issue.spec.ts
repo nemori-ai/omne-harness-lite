@@ -97,6 +97,109 @@ it('one real committed claim grants one local consumption; repeats never grant a
   expect(repeat).toHaveProperty('kind', 'alreadyIssued')
   expect(await h.log.readSince(scope.session, 0)).toHaveProperty('entries.length', 1)
 })
+
+it('stages original consumption in the caller Unit and rolls it back with that Unit', async () => {
+  const { h, owner, input } = await setup()
+  const ticket = owner.prepareOriginal(input)
+  if (!('ticket' in ticket)) throw Error('ticket')
+  await expect(
+    h.storage.atomic(async unit => {
+      const original = await owner.participant.stageOriginalIn(unit, ticket.ticket)
+      if (original.kind !== 'staged') throw Error('original not staged')
+      expect(await owner.stageConsumeIn(unit, original.claim)).toEqual({
+        kind: 'staged',
+        identity: original.identity,
+      })
+      throw new Error('later participant fails')
+    }),
+  ).rejects.toThrow('later participant fails')
+  expect(await h.log.readSince(scope.session, 0)).toHaveProperty('entries.length', 0)
+})
+
+it('recognizes one committed consumption without issuing a second launch', async () => {
+  const { h, owner, input } = await setup()
+  const admitted = await owner.admitOriginal(input)
+  if (!('confirmed' in admitted)) throw Error('not confirmed')
+  const staged = await h.storage.atomic(unit => owner.stageConsumeIn(unit, admitted.claim))
+  expect(staged).toHaveProperty('kind', 'staged')
+  expect(await h.storage.atomic(unit => owner.stageConsumeIn(unit, admitted.claim))).toEqual({
+    ...staged,
+    kind: 'alreadyConsumed',
+  })
+  expect(await owner.consumeOriginal(admitted.claim)).toEqual({ kind: 'unavailable' })
+})
+
+it('allows the same original claim after a consumption Unit rolls back', async () => {
+  const { h, owner, input } = await setup()
+  const admitted = await owner.admitOriginal(input)
+  if (!('confirmed' in admitted)) throw Error('not confirmed')
+  await expect(
+    h.storage.atomic(async unit => {
+      expect(await owner.stageConsumeIn(unit, admitted.claim)).toHaveProperty('kind', 'staged')
+      throw new Error('consumption rollback')
+    }),
+  ).rejects.toThrow('consumption rollback')
+  expect(await owner.consumeOriginal(admitted.claim)).toEqual({ kind: 'launch' })
+})
+
+it('does not return launch when the consumption commit reply is lost', async () => {
+  const { h, owner, input } = await setup()
+  const admitted = await owner.admitOriginal(input)
+  if (!('confirmed' in admitted)) throw Error('not confirmed')
+  const write = h.storage.write.bind(h.storage)
+  const lost = vi.spyOn(h.storage, 'write').mockImplementation(async callback => {
+    await write(callback)
+    throw new StorageUnavailable('lost consumption commit')
+  })
+  expect(await owner.consumeOriginal(admitted.claim)).toEqual({ kind: 'unavailable' })
+  lost.mockRestore()
+  expect(await h.storage.atomic(unit => owner.stageConsumeIn(unit, admitted.claim))).toHaveProperty(
+    'kind',
+    'alreadyConsumed',
+  )
+  expect(await owner.consumeOriginal(admitted.claim)).toEqual({ kind: 'unavailable' })
+})
+
+it('serializes concurrent consumption of one original claim in the actual database', async () => {
+  const { h, owner, input } = await setup()
+  const admitted = await owner.admitOriginal(input)
+  if (!('confirmed' in admitted)) throw Error('not confirmed')
+  const results = await Promise.all([
+    h.storage.atomic(unit => owner.stageConsumeIn(unit, admitted.claim)),
+    h.storage.atomic(unit => owner.stageConsumeIn(unit, admitted.claim)),
+  ])
+  expect(results.map(result => result.kind).sort()).toEqual(['alreadyConsumed', 'staged'])
+  expect(await owner.consumeOriginal(admitted.claim)).toEqual({ kind: 'unavailable' })
+})
+
+it('rejects copied claims and another storage Unit without consuming the original', async () => {
+  const { h, owner, input } = await setup()
+  const other = await boot()
+  cleanup.push(() => other.close())
+  const admitted = await owner.admitOriginal(input)
+  if (!('confirmed' in admitted)) throw Error('not confirmed')
+  expect(await h.storage.atomic(unit => owner.stageConsumeIn(unit, { ...admitted.claim }))).toEqual(
+    {
+      kind: 'invalidInput',
+    },
+  )
+  await expect(
+    other.storage.atomic(unit => owner.stageConsumeIn(unit, admitted.claim)),
+  ).rejects.toThrow('storage unit belongs to a different instance')
+  expect(await owner.consumeOriginal(admitted.claim)).toEqual({ kind: 'launch' })
+})
+
+it('rechecks current authority before staging consumption and leaves denial retryable', async () => {
+  const { h, owner, input } = await setup()
+  const admitted = await owner.admitOriginal(input)
+  if (!('confirmed' in admitted)) throw Error('not confirmed')
+  const denied = vi.spyOn(h.authority, 'authorize').mockResolvedValue({ kind: 'denied' })
+  expect(await h.storage.atomic(unit => owner.stageConsumeIn(unit, admitted.claim))).toEqual({
+    kind: 'denied',
+  })
+  denied.mockRestore()
+  expect(await owner.consumeOriginal(admitted.claim)).toEqual({ kind: 'launch' })
+})
 it('a copied ticket and replaced journal generation cannot authorize a claim', async () => {
   const { h, owner, input } = await setup()
   expect(

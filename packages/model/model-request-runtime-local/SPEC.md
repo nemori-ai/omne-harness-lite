@@ -27,6 +27,12 @@
 只有原索引、执行代次和完整记录（含原位置）全部匹配，才解除未知提交的保有责任。记录缺失、内容或位置不同、读取失败时仍返回pending；这不授予再次发送的权利。
 这项限定不代表完整Model执行池已完成迁移，也不据此证明Session桥已消费实际owner。
 
+createOriginalIssueOwner还返回ModelExecutionRecords的stageConsumeIn子集。它只在调用者的实际StorageUnit内核对原claim、当前授权、原索引及精确日志条目，并暂存mr_original_consumption。该记录与同Unit的其他变更一起提交或回滚；方法本身不提交、不发送模型请求，也不返回launch。
+
+消费记录按原Session、call和dispatch唯一，保存完整租户、原拥有者代际及原消费位置。重复相同原件返回alreadyConsumed；不同原件冲突。复制claim、已关闭拥有者或无法认回原件均不能新增消费记录。异存储Unit触发StorageDefect并中止该Unit，不包装成可继续提交的业务拒绝。
+
+既有consumeOriginal使用同一stageConsumeIn写入路径。它先等原发起提交，再提交消费记录；只有明确提交成功且原拥有者仍接收工作，才返回一次launch。回滚或提交回复丢失不返回launch，认回已消费记录也不再次授权发送。其进程内单次调用保护和原资源收场继续保留。
+
 十五操作的形状归公共 `ModelRuntimeOperations`；类型之外的共享行为归公共 SPEC。
 尚未迁移的具体生命周期投影与跨拥有者组合义务继续按精确旧源，见[迁移范围](../../../.meta_harness/design/architecture/pilots/n4-ownership.md#模型请求运行时)。
 接口迁移不得把当前 local 实现限制写成通用模型能力政策。
