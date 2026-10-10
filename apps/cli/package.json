@@ -3,14 +3,15 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "D049 governance CLI file-input increment",
+  "description": "OMNE terminal sessions and tenant governance",
   "engines": {
     "node": ">=24 <25"
   },
   "bin": {
-    "omne": "./dist/main.js"
+    "omne": "./bin/omne.js"
   },
   "files": [
+    "bin",
     "dist",
     "commands",
     "forms",

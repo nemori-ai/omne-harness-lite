@@ -8,9 +8,21 @@ import { openRuntimeDatabase, sessionTenantMigrations } from '../src/session-run
 it('adds manifest storage after the existing tenant migrations without losing existing data', async () => {
   const migrations = await sessionTenantMigrations.getMigrations()
   const names = Object.keys(migrations)
-  expect(names.at(-2)).toBe('0028_credential_custodian_replica_source_ref')
-  expect(names.at(-1)).toBe('0029_assembly_manifest')
-  const { ['0029_assembly_manifest']: manifest, ...previous } = migrations
+  const previousName = names.filter(name =>
+    name.endsWith('_credential_custodian_replica_source_ref'),
+  )
+  const manifestNames = names.filter(name => name.endsWith('_assembly_manifest'))
+  const toolNames = names.filter(name => name.endsWith('_tool_original_issue'))
+  expect(previousName).toHaveLength(1)
+  expect(manifestNames).toHaveLength(1)
+  expect(toolNames).toHaveLength(1)
+  const manifestName = manifestNames[0]!
+  expect(names.indexOf(manifestName)).toBe(names.indexOf(previousName[0]!) + 1)
+  expect(names.indexOf(toolNames[0]!)).toBeGreaterThan(names.indexOf(manifestName))
+  const manifest = migrations[manifestName]
+  const previous = Object.fromEntries(
+    Object.entries(migrations).slice(0, names.indexOf(manifestName)),
+  )
   expect(manifest).toBeDefined()
   const directory = await mkdtemp(join(tmpdir(), 'omne-runtime-upgrade-'))
   const file = join(directory, 'runtime.sqlite')
@@ -34,6 +46,12 @@ it('adds manifest storage after the existing tenant migrations without losing ex
     await upgraded.close()
     const after = new DatabaseSync(file)
     try {
+      expect(
+        after
+          .prepare('SELECT name FROM kysely_migration ORDER BY name')
+          .all()
+          .map(row => row.name),
+      ).toEqual(names)
       expect(after.prepare('SELECT value FROM upgrade_sentinel').get()).toEqual({
         value: 'original',
       })
