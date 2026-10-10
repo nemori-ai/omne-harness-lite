@@ -138,6 +138,7 @@ export interface SessionDriverToolBorrow {
 export interface SessionDriverToolFactory {
   readonly acquire: (
     support: ToolOriginalIssueSupport,
+    binding: { readonly scope: SessionScope; readonly run: RunId },
   ) => Promise<SessionDriverToolBorrow | { readonly unavailable: true }>
 }
 

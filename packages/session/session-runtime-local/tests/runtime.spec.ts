@@ -6181,7 +6181,7 @@ describe('driver complete original Model Run', () => {
             options: {
               ...f.input.options,
               tools: {
-                acquire: async support => {
+                acquire: async (support, binding) => {
                   const acquired = await tool.factory.acquire(
                     native === 'unknown'
                       ? {
@@ -6197,6 +6197,7 @@ describe('driver complete original Model Run', () => {
                           },
                         }
                       : support,
+                    binding,
                   )
                   f.installToolResultSource(tool.custody!.source)
                   return acquired
@@ -6219,6 +6220,13 @@ describe('driver complete original Model Run', () => {
             signal: new AbortController().signal,
             sources: { actions: runner.actions, toolAccess: tool.access },
           })
+          if (native === 'complete') {
+            await consumer.completion
+            expect(tool.factory.acquire).toHaveBeenCalledWith(expect.anything(), {
+              scope: f.scope,
+              run: journal.run,
+            })
+          }
           if (native === 'unknown') {
             expect(await consumer.completion).toBe('retained')
             expect(consumer.work).toHaveLength(1)
@@ -6427,7 +6435,7 @@ describe('driver complete original Model Run', () => {
             }),
           },
           tools: {
-            acquire: async support => {
+            acquire: async (support, binding) => {
               tool = await driverNativeToolFixture({
                 storage: f.f.storage,
                 root: f.f.root,
@@ -6438,7 +6446,7 @@ describe('driver complete original Model Run', () => {
                 call: calls[0]!.callId,
               })
               await startRunner()
-              const acquired = await tool.factory.acquire(support)
+              const acquired = await tool.factory.acquire(support, binding)
               f.installToolResultSource(tool.custody!.source)
               return acquired
             },
@@ -7096,7 +7104,7 @@ describe('driver complete original Model Run', () => {
         },
       }
       const tools: LocalSessionDriverOptions['tools'] = {
-        acquire: async support => {
+        acquire: async (support, binding) => {
           if (!journal) throw new Error('actual public Run not acquired')
           const read = await journal.readPrefix()
           if ('failure' in read) throw new Error('actual public batch unavailable')
@@ -7122,7 +7130,7 @@ describe('driver complete original Model Run', () => {
             history,
             call: calls[0]!.callId,
           })
-          const borrowed = await tool.factory.acquire(support)
+          const borrowed = await tool.factory.acquire(support, binding)
           f.installToolResultSource(tool.custody!.source)
           return borrowed
         },

@@ -195,7 +195,10 @@ class ToolRun {
     this.acquiring = true
     this.acquisitionUnconfirmed = true
     try {
-      const borrowed = await options.tools.acquire(this.watch(support))
+      const borrowed = await options.tools.acquire(this.watch(support), {
+        scope,
+        run: this.input.journal.run,
+      })
       this.acquisitionUnconfirmed = false
       if ('unavailable' in borrowed) return false
       this.borrowed = borrowed

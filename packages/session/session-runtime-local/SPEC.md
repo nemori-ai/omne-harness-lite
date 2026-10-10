@@ -624,3 +624,10 @@ createModelFailureSource与readFailureSubject核对原失败前缀，返回的so
 ### 模型物理执行器
 
 Session的模型编排及Cordis构造器必须取得显式ModelPoolExecutor，不在提供者内选择具体Model工厂。原claim确认消费后，协调器传入完整tenant、session、callId和dispatch及原InvocationInput。执行池拒绝不撤销该次消费，也不允许自动重用claim。Session的opened、ready、结果保管、ACK和恢复仍沿原拥有者处理。物理池的活动快照不替代Session业务executionSource；关闭共享池由应用根负责。
+
+
+## 工具池的原 Run 借用绑定
+
+SessionDriverToolFactory.acquire在原发起支持之外显式接收scope和run。Driver从实际Run journal提供这两个值，工厂不得从创建先后顺序、集合首项或当前UI选择推断它们。绑定是普通路由数据，不签发新的执行权；原participant及claim仍须经过对应支持对象核验。
+
+应用可共享物理工具池，但每次借用必须保存原绑定和对应的原发起支持。池内调用的原Session及Run决定使用哪份支持；不得把其他Run的claim或停止证明用于本次借用。release只交还原借用，不能因此停止其他Run的工作或关闭共享池。Driver仍等待原participant停止，再交还借用。

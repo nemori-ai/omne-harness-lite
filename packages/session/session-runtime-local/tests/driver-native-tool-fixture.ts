@@ -149,7 +149,7 @@ export async function driverNativeToolFixture(input: {
   let native: ReturnType<typeof createOriginalIssueToolRuntime> | undefined
   let custody: Awaited<ReturnType<typeof openToolResultCustodySource>> | undefined
   const release = vi.fn(async () => {})
-  const acquire: SessionDriverToolFactory['acquire'] = vi.fn(async originalIssue => {
+  const acquire: SessionDriverToolFactory['acquire'] = vi.fn(async (originalIssue, _binding) => {
     if (native) throw new Error('original driver pool acquired twice')
     native = createOriginalIssueToolRuntime(
       {
