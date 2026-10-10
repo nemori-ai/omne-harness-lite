@@ -20,9 +20,15 @@ interface Outcome {
 }
 
 // 三个流都不接终端：stdin 直接关掉，stdout 与 stderr 走管道——等同于 `omne … </dev/null | cat`
-function omne(args: readonly string[]): Promise<Outcome> {
+function omne(args: readonly string[], terminal = false): Promise<Outcome> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [entry, ...args], { stdio: ['ignore', 'pipe', 'pipe'] })
+    const command = [process.execPath, entry, ...args].map(shellQuote).join(' ')
+    const child = terminal
+      ? spawn('script', ['-qefc', command, '/dev/null'], {
+          stdio: ['ignore', 'pipe', 'pipe'],
+          env: { ...process.env, OMNE_TERMINAL_PROFILE: 'no-such' },
+        })
+      : spawn(process.execPath, [entry, ...args], { stdio: ['ignore', 'pipe', 'pipe'] })
     let stdout = '',
       stderr = ''
     child.stdout.setEncoding('utf8').on('data', chunk => (stdout += chunk))
@@ -30,6 +36,10 @@ function omne(args: readonly string[]): Promise<Outcome> {
     child.on('error', reject)
     child.on('close', code => resolve({ code, stdout, stderr }))
   })
+}
+
+function shellQuote(value: string): string {
+  return "'" + value.replaceAll("'", "'\\''") + "'"
 }
 
 function lines(text: string): string[] {
@@ -49,12 +59,12 @@ describe('PF-016 S5 在没有屏的地方用了人读入口，当场被告知并
   })
 
   it('人读的治理命令接进管道，先报固定诊断码，再用单独一行指到同一条命令的机读写法', async () => {
-    const result = await omne(['tenant', 'current', '--state-dir', stateDir])
+    const result = await omne(['tenant', 'create', '--name', 'team', '--home', stateDir])
 
     expect(result.stdout).toBe('')
     const [first, second, ...rest] = lines(result.stderr)
     expect(first).toBe('omne: tty-required')
-    expect(second).toContain('omne machine tenant current')
+    expect(second).toContain('omne tenant create --json')
     expect(second).not.toMatch(diagnosticLine)
     expect(rest).toEqual([])
     expect(result.code).toBe(2)
@@ -64,34 +74,38 @@ describe('PF-016 S5 在没有屏的地方用了人读入口，当场被告知并
   })
 
   it('指路写的是这一次敲的那条命令，不是一句写死的例子', async () => {
-    const result = await omne(['organization', 'inspect', '--state-dir', stateDir])
+    const result = await omne(['logout', '--home', stateDir])
 
     const [first, second, ...rest] = lines(result.stderr)
     expect(first).toBe('omne: tty-required')
-    expect(second).toContain('omne machine organization inspect')
-    expect(second).not.toContain('tenant current')
+    expect(second).toContain('omne logout --json')
+    expect(second).not.toContain('tenant create')
     expect(rest).toEqual([])
     expect(result.code).toBe(2)
   })
 
   it('照提示改用机读入口，标准输出是一份完整的 JSON，说得出此刻为什么办不了', async () => {
-    const result = await omne(['machine', 'tenant', 'current', '--state-dir', stateDir])
+    const result = await omne(['logins', 'list', '--home', stateDir, '--json'])
 
-    const report = JSON.parse(result.stdout) as { admission: { status: string; reason?: string } }
-    expect(report.admission.status).toBe('blocked')
-    // 这台机器还没有配置过治理中心
-    expect(report.admission.reason).toBe('not-configured')
+    const report = JSON.parse(result.stdout)
+    expect(report).toEqual({
+      format: 'omne-cli/1',
+      action: 'logins.list',
+      outcome: { kind: 'blocked', reason: 'not-selected' },
+      diagnostics: [],
+    })
     // 机读入口本来就能在没有屏的地方用，不该再被指一次路
-    expect(result.stderr).not.toContain('omne machine')
+    expect(result.stderr).toBe('')
+    expect(result.code).toBe(2)
   })
 
-  it('没有终端时起全屏界面，同样两行，界面没有起来', async () => {
-    const result = await omne(['tui', '--terminal-profile', 'xterm-379', '--state-dir', stateDir])
+  it('没有终端时开启默认会话，同样两行，界面没有起来', async () => {
+    const result = await omne(['--home', stateDir])
 
     expect(result.stdout).toBe('')
     const [first, second, ...rest] = lines(result.stderr)
     expect(first).toBe('omne: tty-required')
-    expect(second).toContain('omne machine')
+    expect(second).toContain('omne --message-file <path> --json')
     expect(second).not.toMatch(diagnosticLine)
     expect(rest).toEqual([])
     expect(result.code).toBe(2)
@@ -99,12 +113,12 @@ describe('PF-016 S5 在没有屏的地方用了人读入口，当场被告知并
   })
 
   it('终端类型不认识时，报的是另一个诊断码，指路照旧', async () => {
-    const result = await omne(['tui', '--terminal-profile', 'no-such', '--state-dir', stateDir])
+    const result = await omne(['--home', stateDir], true)
 
-    expect(result.stdout).toBe('')
-    const [first, second, ...rest] = lines(result.stderr)
+    // script supplies an actual PTY; its combined output contains the program's stderr.
+    const [first, second, ...rest] = lines(result.stdout.replaceAll('\r\n', '\n'))
     expect(first).toBe('omne: tty-unsupported')
-    expect(second).toContain('omne machine')
+    expect(second).toContain('omne --message-file <path> --json')
     expect(second).not.toMatch(diagnosticLine)
     expect(rest).toEqual([])
     expect(result.code).toBe(2)

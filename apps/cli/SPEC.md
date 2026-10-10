@@ -81,6 +81,7 @@ TTY中的裸 `omne`进入会话准备，`--session`显式选择已有会话。
 有效登录须经过实际CG的当前身份和成员读取，并与原固定TenantBinding一致。准备不修改默认租户、不创建Session、不发模型或工具调用。完成后调用应用配置的`enterSession`端口，传递原命令与这次身份观察；该观察不是执行资格。未装配会话入口时返回`not-ready`，不显示会话已就绪。终端与原客户端仍按共同的排空、恢复、CLS释放顺序关闭。
 非TTY须提供 `--message-file <path> --json`，可选 `--session`。
 单独 `--json`、缺少机读呈现的文件提交或非TTY裸入口均拒绝，不等待交互输入。
+人读入口因缺少终端或不支持的终端而拒绝时，stderr 第一行保留固定诊断码，第二行给出正式机读入口。治理命令指出同一动作的 `--json` 用法；会话入口指出 `--message-file <path> --json [--session <session-id>]`。指引只使用受信的动作名称，不回显用户值、文件路径或凭据。拒绝非TTY输入发生在打开状态目录之前，不自动执行机读动作。
 帮助和版本为独立、无身份副作用的入口。
 
 治理入口为 `center add`、`tenant create`、`tenant add`、`tenant switch`。

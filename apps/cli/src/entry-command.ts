@@ -35,6 +35,7 @@ export class EntryUsageFailure extends Error {
   override readonly name = 'EntryUsageFailure'
   constructor(
     readonly reason: 'invalid-command' | 'invalid-options' | 'missing-input' | 'tty-required',
+    readonly action?: GovernanceAction,
   ) {
     super(`omne: ${reason}`)
   }
@@ -184,7 +185,7 @@ function governanceCommand(
   const values = governanceValues(shape, parsed)
   const json = parsed.values['json'] === true
   checkGovernanceInput(shape, values, isTTY && !json)
-  if (!isTTY && !json) throw new EntryUsageFailure('tty-required')
+  if (!isTTY && !json) throw new EntryUsageFailure('tty-required', shape.action)
   return {
     kind: 'governance',
     action: shape.action,

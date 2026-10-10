@@ -71,8 +71,9 @@ async function writeOutput(runtime: EntryRuntime, text: string): Promise<void> {
 }
 
 export async function runEntryCli(args: readonly string[], runtime: EntryRuntime): Promise<number> {
+  let command: EntryCommand | undefined
   try {
-    const command = parseEntryCommand(args, runtime.isTTY)
+    command = parseEntryCommand(args, runtime.isTTY)
     if (command.kind === 'help' || command.kind === 'version') {
       await writeOutput(runtime, command.kind === 'help' ? help : await runtime.version())
       return 0
@@ -88,12 +89,27 @@ export async function runEntryCli(args: readonly string[], runtime: EntryRuntime
   } catch (error) {
     const failure = entryFailure(error)
     try {
-      await runtime.stderr(`omne: ${failure.code}\n`)
+      await runtime.stderr(entryDiagnostic(error, failure.code, command))
     } catch {
       return 70
     }
     return failure.exit
   }
+}
+function entryDiagnostic(error: unknown, code: string, command: EntryCommand | undefined): string {
+  const diagnostic = `omne: ${code}\n`
+  if (code !== 'tty-required' && code !== 'tty-unsupported') return diagnostic
+  const action =
+    error instanceof EntryUsageFailure
+      ? error.action
+      : command?.kind === 'governance'
+        ? command.action
+        : undefined
+  const target =
+    action === undefined
+      ? 'omne --message-file <path> --json [--session <session-id>]'
+      : `omne ${action.replaceAll('.', ' ')} --json (keep the required options; see omne --help)`
+  return `${diagnostic}For scripts or redirected output, use ${target}\n`
 }
 function formatEntryReport(report: EntryReport, command: ExecutableEntry): string {
   if (report.outcome.kind === 'session-detached')

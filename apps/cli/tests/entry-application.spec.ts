@@ -1,6 +1,7 @@
 import { checkedTenantBinding } from '../src/state-layout-values.ts'
 import { checkSession } from '@omne-harness-lite/session-log'
 import { expect, it, vi } from 'vitest'
+import { InputFailure } from '../src/diagnostic.ts'
 import {
   runEntryCli,
   entryExitCode,
@@ -21,6 +22,36 @@ function runtime(result: EntryExecution) {
     stderr,
   }
 }
+it('refuses a non-terminal governance command without opening state or echoing input', async () => {
+  const io = runtime({
+    outcome: { kind: 'not-ready', reason: 'capability-not-installed' },
+    diagnostics: [],
+  })
+  expect(
+    await runEntryCli(
+      ['tenant', 'create', '--name', 'private-name', '--home', '/private/path'],
+      io,
+    ),
+  ).toBe(2)
+  expect(io.execute).not.toHaveBeenCalled()
+  expect(io.stdout).not.toHaveBeenCalled()
+  const text = io.stderr.mock.calls[0]![0]
+  expect(text).toContain('omne: tty-required\n')
+  expect(text).toContain('omne tenant create --json')
+  expect(text).not.toContain('private-name')
+  expect(text).not.toContain('/private/path')
+})
+it('gives the same validated action when the actual terminal provider is unsupported', async () => {
+  const io = runtime({
+    outcome: { kind: 'not-ready', reason: 'capability-not-installed' },
+    diagnostics: [],
+  })
+  io.isTTY = true
+  io.execute.mockRejectedValue(new InputFailure('tty-unsupported'))
+  expect(await runEntryCli(['logout'], io)).toBe(2)
+  expect(io.stderr.mock.calls[0]![0]).toContain('omne logout --json')
+  expect(io.stdout).not.toHaveBeenCalled()
+})
 it('keeps the original unknown creation reference in one machine report and exits unknown', async () => {
   const result: EntryExecution = {
     outcome: {
