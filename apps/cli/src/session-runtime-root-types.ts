@@ -7,6 +7,9 @@ import type {
   LocalSessionIngress,
   LocalSessionAccessOptions,
   LocalSessionAccess,
+  LocalSessionDriverOptions,
+  SessionDriverWorkOwner,
+  RuntimeOptions,
 } from '@omne-harness-lite/session-runtime-local'
 import type { ModelRuntimeExecutionSource } from '@omne-harness-lite/model-request-runtime'
 import type { AdmissionPolicy } from '@omne-harness-lite/session-runtime-local'
@@ -61,6 +64,27 @@ export interface SessionRuntimeRootOwners {
   readonly bootstrap: SessionBootstrapAssembly
   readonly originalModel: SessionOriginalModelOwner
   readonly modelResults: SessionModelResultSource
+}
+export type SessionDriverRootBinding = Omit<
+  LocalSessionDriverOptions,
+  'tenant' | 'ingress' | 'work' | 'clock' | 'diagnostic' | 'model'
+> & {
+  readonly model: Omit<
+    LocalSessionDriverOptions['model'],
+    'original' | 'executionSource' | 'results'
+  >
+}
+export type SessionDriverRuntimeRootOptions = Omit<
+  SessionRuntimeRootOptions,
+  'model' | 'execution' | 'identities'
+> & {
+  readonly model: Omit<SessionRuntimeRootOptions['model'], 'configure'>
+  readonly tools?: Pick<RuntimeOptions, 'toolIssue' | 'toolResults' | 'toolDelivery'>
+  readonly configure: (
+    owners: SessionRuntimeRootOwners,
+    work: SessionDriverWorkOwner,
+  ) => SessionDriverRootBinding | Promise<SessionDriverRootBinding>
+  readonly maxHeld: number
 }
 export interface SessionRuntimeRoot {
   readonly socketPath: string

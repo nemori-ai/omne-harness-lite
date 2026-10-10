@@ -25,6 +25,8 @@ export interface SessionOriginalModelOwnerOptions {
 }
 export interface SessionOriginalModelOwner {
   readonly modelIssue: NonNullable<RuntimeOptions['modelIssue']>
+  /** Borrowed by the trusted driver root after the original participant has attached. */
+  readonly native: () => OriginalIssueOwner
   readonly bind: (
     ingress: Pick<LocalSessionIngress, 'coordinationAuthority' | 'modelInvocation'>,
     scope: SessionScope,
@@ -55,6 +57,10 @@ export function createSessionOriginalModelOwner(
   })
   return Object.freeze({
     modelIssue,
+    native() {
+      if (!original || closing) throw new Error('original model owner not available')
+      return original
+    },
     bind(ingress, scope, preparation, retainUnknown) {
       const owner = original
       if (!owner) throw new Error('original model owner not attached')

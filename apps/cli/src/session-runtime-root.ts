@@ -7,6 +7,7 @@ import {
   type LocalAdmission,
   type LocalSessionAccess,
   type LocalSessionIngress,
+  type SessionDriverWorkOwner,
 } from '@omne-harness-lite/session-runtime-local'
 import { checkedTenantBinding } from './state-layout-values.ts'
 import { parseRunLoginBinding, readCurrentLogin } from './session-preparation.ts'
@@ -22,11 +23,42 @@ import { createSessionOriginalModelOwner } from './session-model-owner.ts'
 import { createSessionModelResultSource } from '@omne-harness-lite/session-runtime-local'
 import { createSessionDriverWorkOwner } from '@omne-harness-lite/session-runtime-local'
 import { startRunningSessionHost, type RunningSessionHost } from './session-execution-host.ts'
+import { startSessionDriverHost } from './session-driver-host.ts'
 import type {
   SessionRuntimeRoot,
   SessionRuntimeRootOptions,
   SessionRuntimeRootOwners,
+  SessionDriverRuntimeRootOptions,
 } from './session-runtime-root-types.ts'
+
+export async function startSessionDriverRuntimeRoot(
+  requested: SessionDriverRuntimeRootOptions,
+): Promise<SessionRuntimeRoot> {
+  return startRoot(requested, async root => {
+    const o = root.options
+    const configured = await requested.configure(root.owners!, root.work!)
+    return startSessionDriverHost({
+      home: o.home,
+      binding: o.binding,
+      ...(o.creation === undefined ? {} : { creation: o.creation }),
+      transport: o.transport,
+      driver: {
+        ...configured,
+        tenant: o.binding.tenant,
+        ingress: root.ingress!,
+        work: root.work!,
+        clock: o.clock,
+        diagnostic: o.diagnostic,
+        model: {
+          ...configured.model,
+          original: root.modelOwner!.native(),
+          executionSource: o.model.executionSource,
+          results: root.results!,
+        },
+      },
+    })
+  })
+}
 
 /** Retain the actual partial root when startup or cleanup fails. This never enters the wire protocol. */
 export class SessionRuntimeRootFailure extends AggregateError {
@@ -41,6 +73,27 @@ export class SessionRuntimeRootFailure extends AggregateError {
 export async function startSessionRuntimeRoot(
   requested: SessionRuntimeRootOptions,
 ): Promise<SessionRuntimeRoot> {
+  return startRoot({ ...requested, maxHeld: requested.execution.maxHeld }, async root => {
+    const o = root.options
+    return startRunningSessionHost({
+      home: o.home,
+      binding: o.binding,
+      ingress: root.ingress!,
+      work: root.work!,
+      ...(o.creation === undefined ? {} : { creation: o.creation }),
+      transport: o.transport,
+      execution: requested.execution,
+      identities: requested.identities,
+      model: requested.model.configure(root.owners!),
+      diagnostic: o.diagnostic,
+    })
+  })
+}
+type RootInputs = Omit<SessionDriverRuntimeRootOptions, 'configure'>
+async function startRoot(
+  requested: RootInputs,
+  startHost: (root: RuntimeRoot) => Promise<RunningSessionHost>,
+): Promise<SessionRuntimeRoot> {
   const binding = Object.freeze(checkedTenantBinding(requested.binding)),
     source = parseRunLoginBinding(requested.source)
   if (
@@ -54,6 +107,7 @@ export async function startSessionRuntimeRoot(
   const root = new RuntimeRoot(options)
   try {
     await root.initialize()
+    root.host = await startHost(root)
     return await root.listen()
   } catch (error) {
     try {
@@ -97,9 +151,10 @@ class RuntimeRoot {
   host?: RunningSessionHost
   modelOwner?: SessionRuntimeRootOwners['originalModel']
   results?: SessionRuntimeRootOwners['modelResults']
+  work?: SessionDriverWorkOwner
   bootstrap?: SessionRuntimeRootOwners['bootstrap']
   closing?: ReturnType<SessionRuntimeRoot['close']>
-  constructor(readonly options: SessionRuntimeRootOptions) {}
+  constructor(readonly options: RootInputs) {}
   async initialize() {
     const o = this.options
     this.admission = await createLocalAdmission(
@@ -122,9 +177,11 @@ class RuntimeRoot {
     const work = createSessionDriverWorkOwner({
       storage: o.storage,
       tenant: o.binding.tenant,
-      maxRecords: o.execution.maxHeld,
+      maxRecords: o.maxHeld,
     })
+    this.work = work
     this.ingress = createLocalSessionIngress({
+      ...o.tools,
       storage: o.storage,
       admission: this.admission,
       source: o.source,
@@ -191,18 +248,6 @@ class RuntimeRoot {
       originalModel: this.modelOwner,
       modelResults: this.results,
       contextAccess: this.access,
-    })
-    this.host = await startRunningSessionHost({
-      home: o.home,
-      binding: o.binding,
-      ingress: this.ingress,
-      work,
-      ...(o.creation === undefined ? {} : { creation: o.creation }),
-      transport: o.transport,
-      execution: o.execution,
-      identities: o.identities,
-      model: o.model.configure(this.owners),
-      diagnostic: o.diagnostic,
     })
   }
   async listen(): Promise<SessionRuntimeRoot> {

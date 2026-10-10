@@ -20,13 +20,19 @@ import {
 } from '@omne-harness-lite/session-runtime-local'
 import { startRunningSessionHost } from '../src/session-execution-host.ts'
 import { startSessionDriverHost } from '../src/session-driver-host.ts'
-import { startSessionRuntimeRoot } from '../src/session-runtime-root.ts'
+import {
+  startSessionRuntimeRoot,
+  startSessionDriverRuntimeRoot,
+} from '../src/session-runtime-root.ts'
 import {
   officialSessionDefinition,
   officialSessionAsset,
   officialSessionManifest,
 } from '../src/session-factory-assets.ts'
-import type { SessionRuntimeRootOptions } from '../src/session-runtime-root-types.ts'
+import type {
+  SessionRuntimeRootOptions,
+  SessionDriverRootBinding,
+} from '../src/session-runtime-root-types.ts'
 import { sendSessionHostRequest } from '../src/session-host-client.ts'
 import { createSessionForMessage } from '../src/session-creation-client.ts'
 import { readSubmittedReply } from '../src/session-message-replies.ts'
@@ -632,6 +638,79 @@ async function rootFixture(withModel = false) {
   }
   return { f, options, configure }
 }
+it.each(['empty', 'startupFailure'] as const)(
+  'assembles the public Driver with original root resources: %s',
+  async mode => {
+    const { f, options } = await rootFixture()
+    const unexpected = (): never => {
+      throw new Error('empty Session must not execute a Run')
+    }
+    const configure = vi.fn<() => SessionDriverRootBinding>(() => ({
+      policy: { ...options.execution, maxStepsPerPass: 16 },
+      identities: {
+        run: unexpected,
+        model: unexpected,
+        tool: unexpected,
+        modelContent: { response: unexpected, message: unexpected },
+      },
+      sources: { acquire: async () => unexpected() },
+      model: {
+        factory: { acquire: async () => unexpected() },
+        settlement: { create: unexpected },
+        maxCallReads: 4,
+      },
+      tools: { acquire: async () => unexpected() },
+    }))
+    const inputs = {
+      ...options,
+      maxHeld: options.execution.maxHeld,
+      creation: {
+        definition: input.definition,
+        executionType: input.executionType,
+        mode: input.mode,
+        collaboration: input.collaboration,
+      },
+      configure,
+    }
+    if (mode === 'startupFailure') {
+      const defect = new Error('actual driver configuration defect')
+      await expect(
+        startSessionDriverRuntimeRoot({
+          ...inputs,
+          configure: () => {
+            throw defect
+          },
+        }),
+      ).rejects.toBe(defect)
+    }
+    const root = await startSessionDriverRuntimeRoot(inputs)
+    cleanup.push(async () => {
+      expect(await root.close()).toEqual({ closed: true })
+    })
+    const native = root.owners.originalModel.native()
+    expect(native.participant).toBeDefined()
+    expect(configure).toHaveBeenCalledOnce()
+    const created = await createSessionForMessage({
+      home: options.home,
+      binding: options.binding,
+      signal: new AbortController().signal,
+      originalId: () => 'driver-root-create',
+      policy: { timeoutMs: 2000, maxResponseBytes: 65536 },
+    })
+    expect(created).toMatchObject({ kind: 'created-session' })
+    if (created.kind !== 'created-session') throw new Error('actual Driver root creation missing')
+    expect(
+      await root.owners.ingress.readWork(
+        root.owners.ingress.coordinationAuthority,
+        { tenant, session: created.session },
+        1,
+      ),
+    ).toMatchObject({ kind: 'work', inputs: [], head: { run: null } })
+    expect(await root.close()).toEqual({ closed: true })
+    expect(() => root.owners.originalModel.native()).toThrow('not available')
+    await f.storage.atomic(async unit => unit.assertStorage(f.storage))
+  },
+)
 it('deploys the actual CLI official release and creates an independently initialized empty Session', async () => {
   const { f, options, configure } = await rootFixture()
   const creation = {
