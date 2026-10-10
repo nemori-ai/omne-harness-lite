@@ -28,6 +28,7 @@ export type EntryOutcome =
   | SessionMessageOutcome
   | SessionCreationBlocked
   | SelectionBlocked
+  | { readonly kind: 'session-detached'; readonly session: string }
   | { readonly kind: 'not-ready'; readonly reason: 'capability-not-installed' }
   | { readonly kind: 'governance-result'; readonly report: ActionReport }
 export interface EntryExecution {
@@ -95,6 +96,9 @@ export async function runEntryCli(args: readonly string[], runtime: EntryRuntime
   }
 }
 function formatEntryReport(report: EntryReport, command: ExecutableEntry): string {
+  if (report.outcome.kind === 'session-detached')
+    return `Detached. Resume with omne --session ${report.outcome.session}\n`
+  if (command.kind === 'session') return formatSessionReport(report.outcome)
   if (report.outcome.kind === 'session-message' || report.outcome.kind === 'session-creation')
     return writeJsonLossless(report) + '\n'
   const json = command.kind === 'message' || (command.kind === 'governance' && command.json)
@@ -165,6 +169,7 @@ const fixedExit = {
   'entry-answer': 3,
   unavailable: 3,
   'not-ready': 3,
+  'session-detached': 0,
 } as const
 function createdExit(outcome: Extract<TenantCreateEntryOutcome, { kind: 'created' }>): number {
   if ('kind' in outcome.auth) return 3
@@ -177,4 +182,22 @@ function createdExit(outcome: Extract<TenantCreateEntryOutcome, { kind: 'created
     case 'blocked':
       return 3
   }
+}
+
+function formatSessionReport(outcome: EntryOutcome): string {
+  if (outcome.kind === 'session-message') {
+    const status =
+      outcome.status === 'accepted'
+        ? 'Input was accepted. Work continues in the host.'
+        : outcome.status === 'unconfirmed'
+          ? 'Input status is unconfirmed. Do not submit it again.'
+          : `Input ended with status ${outcome.status}.`
+    return `${status}\nSession: ${outcome.request.session}\nOperation: ${outcome.request.operationKey}\n`
+  }
+  if (outcome.kind === 'session-creation')
+    return `Session creation ${outcome.status}: ${outcome.reason}\n${
+      outcome.operation ? `Operation: ${outcome.operation.operationKey}\n` : ''
+    }`
+  if ('reason' in outcome) return `Session unavailable: ${outcome.reason}\n`
+  return `Session unavailable: ${outcome.kind}\n`
 }

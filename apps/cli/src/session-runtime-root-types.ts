@@ -41,6 +41,7 @@ export interface SessionRuntimeRootOptions {
   readonly contextSeed: SessionBootstrapOptions['contextSeed']
   /** Actual deployment preferences. Omission disables ordinary default creation; it never selects an asset. */
   readonly creation?: SessionCreationDefaults
+  readonly initialRouteName?: string
   readonly runtimePolicy: RuntimePolicy
   readonly admissionPolicy: AdmissionPolicy
   readonly logOperationLimit: number

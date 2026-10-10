@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { instantToRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
 import { copyJsonValue, isNonNegativeJsonInteger } from '@omne-harness-lite/content-blocks'
 import { isOk, parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { isGovernanceCenterId } from '@omne-harness-lite/governance-center-entry'
@@ -81,6 +82,8 @@ export type SessionHostRequest = {
   readonly binding: TenantBinding
 } & (
   | { readonly command: 'readCreationDefaults' }
+  | { readonly command: 'readClock' }
+  | { readonly command: 'readInitialModel' }
   | { readonly command: 'createSession'; readonly input: CreateSessionInput }
   | {
       readonly command: 'submitInput'
@@ -97,6 +100,8 @@ export type SessionHostRequest = {
 const requests: z.ZodType<SessionHostRequest> = z
   .discriminatedUnion('command', [
     z.strictObject({ ...common, command: z.literal('readCreationDefaults') }),
+    z.strictObject({ ...common, command: z.literal('readClock') }),
+    z.strictObject({ ...common, command: z.literal('readInitialModel') }),
     z.strictObject({ ...common, command: z.literal('createSession'), input }),
     z.strictObject({
       ...common,
@@ -124,6 +129,9 @@ export type SessionHostResult =
   | SessionTextReading
   | SessionSubmissionReading
   | SessionCreationDefaultsReading
+  | { readonly kind: 'clock'; readonly timestamp: string }
+  | { readonly kind: 'initialModel'; readonly routeName: string }
+  | { readonly kind: 'initialModelUnavailable' }
 
 export interface SessionHostEndpoint {
   readonly execute: (request: SessionHostRequest) => Promise<SessionHostResult>
@@ -133,6 +141,8 @@ export function createSessionHostEndpoint(options: {
   readonly binding: TenantBinding
   readonly ingress: LocalSessionIngress
   readonly creation?: SessionCreationDefaults
+  readonly clock?: Clock
+  readonly initialRouteName?: string
 }): SessionHostEndpoint {
   const bound = Object.freeze(checkedTenantBinding(options.binding))
   const { ingress } = options
@@ -148,6 +158,16 @@ export function createSessionHostEndpoint(options: {
         !tenantIdEquals(request.binding.tenant, bound.tenant)
       )
         return { failure: 'denied' }
+      if (request.command === 'readInitialModel')
+        return options.initialRouteName === undefined
+          ? { kind: 'initialModelUnavailable' }
+          : { kind: 'initialModel', routeName: options.initialRouteName }
+      if (request.command === 'readClock') {
+        const now = await options.clock?.now()
+        return now === undefined || now === 'unavailable'
+          ? { failure: 'unavailable' }
+          : { kind: 'clock', timestamp: instantToRfc3339(now) }
+      }
       if (request.command === 'readCreationDefaults')
         return defaults ? { kind: 'creationDefaults', defaults } : { kind: 'creationNotReady' }
       return dispatch(ingress, text, request)
@@ -157,7 +177,10 @@ export function createSessionHostEndpoint(options: {
 function dispatch(
   ingress: LocalSessionIngress,
   text: ReturnType<typeof createSessionTextReader>,
-  request: Exclude<SessionHostRequest, { command: 'readCreationDefaults' }>,
+  request: Exclude<
+    SessionHostRequest,
+    { command: 'readCreationDefaults' | 'readClock' | 'readInitialModel' }
+  >,
 ): Promise<SessionHostResult> {
   const operations = ingress.operations,
     access = ingress.access

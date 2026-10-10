@@ -1,3 +1,5 @@
+import { checkedTenantBinding } from '../src/state-layout-values.ts'
+import { checkSession } from '@omne-harness-lite/session-log'
 import { expect, it, vi } from 'vitest'
 import {
   runEntryCli,
@@ -107,4 +109,42 @@ it('does not report an installed capability when it is unavailable', () => {
       diagnostics: [],
     }),
   ).toBe(3)
+})
+
+it('renders a terminal detach as a resume command rather than a machine envelope', async () => {
+  const io = runtime({
+    outcome: { kind: 'session-detached', session: 'session-one' },
+    diagnostics: [],
+  })
+  expect(await runEntryCli([], { ...io, isTTY: true })).toBe(0)
+  expect(io.stdout).toHaveBeenCalledExactlyOnceWith(
+    'Detached. Resume with omne --session session-one\n',
+  )
+})
+it('renders an unconfirmed terminal submission without claiming failure or losing its original identity', async () => {
+  const session = checkSession('session-one')
+  if ('failure' in session) throw new Error('invalid fixture Session')
+  const io = runtime({
+    outcome: {
+      kind: 'session-message',
+      status: 'unconfirmed',
+      reason: 'unknownCommit',
+      receipt: null,
+      request: {
+        binding: checkedTenantBinding({
+          formatVersion: 1,
+          centerId: 'a'.repeat(32),
+          tenant: { organization: 'team', account: 'owner' },
+        }),
+        session: session.ok,
+        operationKey: 'original-input',
+        messageId: 'message-one',
+      },
+    },
+    diagnostics: [],
+  })
+  expect(await runEntryCli([], { ...io, isTTY: true })).toBe(4)
+  expect(io.stdout).toHaveBeenCalledExactlyOnceWith(
+    'Input status is unconfirmed. Do not submit it again.\nSession: session-one\nOperation: original-input\n',
+  )
 })

@@ -13,6 +13,7 @@ export interface SessionCreationOptions {
   readonly policy: SessionHostWaitPolicy
   readonly signal: AbortSignal
   readonly originalId: () => string
+  readonly workspace?: string
 }
 export interface SessionCreationBlocked {
   readonly kind: 'session-creation'
@@ -54,7 +55,11 @@ export async function createSessionForMessage(
     format: 'omne-session-host/1',
     binding,
     command: 'createSession',
-    input: { ...defaults, operationKey: options.originalId() },
+    input: {
+      ...defaults,
+      operationKey: options.originalId(),
+      ...(options.workspace === undefined ? {} : { workspace: options.workspace }),
+    },
   })
   if (!packet || packet.command !== 'createSession')
     throw new TypeError('original creation identity required')

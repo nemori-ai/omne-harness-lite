@@ -19,6 +19,7 @@ export interface SessionDriverHostOptions {
   readonly home: string
   readonly binding: TenantBinding
   readonly creation?: SessionCreationDefaults
+  readonly initialRouteName?: string
   readonly transport: SessionHostPolicy
   readonly driver: LocalSessionDriverOptions
 }
@@ -49,6 +50,10 @@ export async function startSessionDriverHost(
     endpoint: createSessionHostEndpoint({
       binding,
       ingress: options.driver.ingress,
+      clock: options.driver.clock,
+      ...(options.initialRouteName === undefined
+        ? {}
+        : { initialRouteName: options.initialRouteName }),
       ...(options.creation === undefined ? {} : { creation: options.creation }),
     }),
     policy: options.transport,

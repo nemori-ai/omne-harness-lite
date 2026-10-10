@@ -45,6 +45,7 @@ export async function startSessionDriverRuntimeRoot(
       home: o.home,
       binding: o.binding,
       ...(o.creation === undefined ? {} : { creation: o.creation }),
+      ...(o.initialRouteName === undefined ? {} : { initialRouteName: o.initialRouteName }),
       transport: o.transport,
       driver: {
         ...configured,

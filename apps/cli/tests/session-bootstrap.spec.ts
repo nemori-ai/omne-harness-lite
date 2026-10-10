@@ -1,3 +1,5 @@
+import { checkedTenantBinding } from '../src/state-layout-values.ts'
+import { openLeaseClock } from '@omne-harness-lite/clock-lease'
 import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
@@ -4797,3 +4799,50 @@ it.each(['normal', 'startupFailure', 'heldCapture'] as const)(
     }
   },
 )
+
+it('observes the host Clock and initial model only for its fixed tenant without starting Session work', async () => {
+  const f = await setup()
+  const directory = await mkdtemp(join(tmpdir(), 'host-clock-'))
+  cleanup.push(() => rm(directory, { recursive: true, force: true }))
+  const clock = await openLeaseClock({ file: join(directory, 'clock.sqlite'), initialize: {} })
+  cleanup.push(() => clock.close())
+  const now = vi.fn(() => clock.now())
+  const binding = { formatVersion: 1 as const, centerId, tenant }
+  const endpoint = createSessionHostEndpoint({
+    binding,
+    ingress: f.runtime,
+    clock: { now },
+    initialRouteName: 'selected-route',
+  })
+  const clockRequest = parseSessionHostRequest({
+    format: 'omne-session-host/1',
+    binding,
+    command: 'readClock',
+  })
+  const modelRequest = parseSessionHostRequest({
+    format: 'omne-session-host/1',
+    binding,
+    command: 'readInitialModel',
+  })
+  if (!clockRequest || !modelRequest) throw new Error('invalid fixture requests')
+  const observed = await endpoint.execute(clockRequest)
+  expect(observed).toMatchObject({ kind: 'clock', timestamp: expect.any(String) })
+  if (!('kind' in observed) || observed.kind !== 'clock') throw new Error('host Clock unavailable')
+  expect(instantFromRfc3339(observed.timestamp)).toHaveProperty('ok')
+  expect(now).toHaveBeenCalledOnce()
+  expect(await endpoint.execute(modelRequest)).toEqual({
+    kind: 'initialModel',
+    routeName: 'selected-route',
+  })
+  expect(
+    await endpoint.execute({
+      ...clockRequest,
+      binding: checkedTenantBinding({ ...binding, centerId: 'b'.repeat(32) }),
+    }),
+  ).toEqual({ failure: 'denied' })
+  expect(now).toHaveBeenCalledOnce()
+  const unavailable = createSessionHostEndpoint({ binding, ingress: f.runtime })
+  expect(await unavailable.execute(clockRequest)).toEqual({ failure: 'unavailable' })
+  expect(await unavailable.execute(modelRequest)).toEqual({ kind: 'initialModelUnavailable' })
+  expect(f.seed).not.toHaveBeenCalled()
+})

@@ -115,3 +115,10 @@ it('accepts only user messages, and never interprets a fact as a submission', ()
     }),
   ).toHaveProperty('operationKey', 'original-submit')
 })
+
+it.each(['readClock', 'readInitialModel'])('parses %s only as a data-only observation', command => {
+  const packet = { format: request.format, binding, command }
+  expect(parseSessionHostRequest(packet)).toEqual(packet)
+  expect(parseSessionHostRequest({ ...packet, session: 'invented' })).toBeUndefined()
+  expect(parseSessionHostRequest({ ...packet, permit: {} })).toBeUndefined()
+})

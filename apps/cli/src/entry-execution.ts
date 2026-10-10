@@ -26,6 +26,7 @@ import { createGovernanceChoices } from './governance-choices.ts'
 import { runDefaultSessionEntry, type DefaultSessionOptions } from './session-default-entry.ts'
 import { prepareSessionModel, type SessionModelSetupResult } from './session-model-setup.ts'
 import { usingSelectedTenant } from './selected-tenant-work.ts'
+import { runTerminalSession } from './session-terminal.ts'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 
 type GovernanceEntry = Extract<EntryCommand, { kind: 'governance' }>
@@ -171,7 +172,19 @@ async function executeSessionPreparation(
               outcome: { kind: 'blocked', reason: 'preparation-close-failed' },
               diagnostics: prepared.diagnostics,
             }
-          return options.enterSession?.(command, ready, prepared.outcome) ?? notReady()
+          if (options.enterSession) return options.enterSession(command, ready, prepared.outcome)
+          if (!options.sessionPolicy) return notReady()
+          return runTerminalSession({
+            home,
+            binding: ready.binding,
+            routeName: prepared.outcome.routeName,
+            session: command.session,
+            workspace: process.cwd(),
+            dialog,
+            signal,
+            originalId: options.originalId,
+            policy: options.sessionPolicy,
+          })
         },
       }),
     presentation,
