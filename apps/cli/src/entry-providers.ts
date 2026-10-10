@@ -12,7 +12,7 @@ export const entryCatalogPolicy = Object.freeze({
   maxRecordBytes: 1024 * 1024,
 })
 export function entryProviders(signal: AbortSignal): Pick<EntryRuntime, 'version' | 'execute'> {
-  const terminalProfile = process.env.OMNE_TERMINAL_PROFILE ?? ''
+  const terminalProfile = process.env.OMNE_TERMINAL_PROFILE || 'auto'
   const home = {
     osHome: homedir(),
     ...(process.env.OMNE_HOME === undefined ? {} : { environmentHome: process.env.OMNE_HOME }),

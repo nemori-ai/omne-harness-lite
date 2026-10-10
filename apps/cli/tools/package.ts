@@ -35,7 +35,7 @@ An existing install directory or command link causes these commands to stop. Do 
 
 Use omne to start a terminal session. The entry prepares a governance center, login, tenant, and model configuration when needed. A configured entry starts or attaches to the tenant's independent Session host. Exiting the terminal detaches the client. It does not stop an executing Run.
 
-Interactive input requires XTerm379 with allowPasteControls=false and OMNE_TERMINAL_PROFILE=xterm-379. The terminal must be a direct, exclusive UTF-8 TTY, at least 60 columns by 16 rows. A platform build does not verify a terminal profile. macOS and iTerm are outside this release.
+Interactive input uses the current terminal, including an SSH PTY. No DISPLAY, X11 server or terminal profile is required. The terminal must be an exclusive UTF-8 TTY, at least 60 columns by 16 rows, and support bracketed paste and alternate-screen mode queries. It must preserve paste boundaries and prevent pasted content from forging the closing delimiter. Unsupported capabilities fail explicitly. The application runs on Linux; an SSH client may run on another operating system.
 
 For redirected output, use the documented --json commands. omne --message-file <path> --json [--session <id>] reads a complete JSON UserMessage and uses an already configured, running tenant host. The message file is not a plain-text prompt.
 
