@@ -13,7 +13,7 @@ import { submitSessionMessage, type SessionMessagePolicy } from './session-messa
 import { InputFailure } from './diagnostic.ts'
 import { conversationLines } from './session-terminal-output.ts'
 import { readSessionMessagesReply } from './session-message-replies.ts'
-import type { SessionTextMessage } from './session-reading.ts'
+import type { SessionMessageView } from './session-reading.ts'
 
 export interface TerminalSessionOptions {
   readonly home: string
@@ -85,7 +85,7 @@ async function interact(
   }
   return { outcome: { kind: 'session-detached', session }, diagnostics: [] }
 }
-function orderedMessages(messages: ReadonlyMap<string, SessionTextMessage>) {
+function orderedMessages(messages: ReadonlyMap<string, SessionMessageView>) {
   return [...messages.values()].sort((left, right) => compareInteger(left.position, right.position))
 }
 async function readHistory(options: TerminalSessionOptions, session: SessionRef) {

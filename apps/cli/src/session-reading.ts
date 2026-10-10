@@ -1,39 +1,36 @@
+import { humanBlocks, type HumanBlock } from './session-human-content.ts'
 import type { Message } from '@omne-harness-lite/messages'
 import { parseTenantId, tenantIdEquals, isOk } from '@omne-harness-lite/identity-values'
 import { StorageDefect } from '@omne-harness-lite/storage'
-import { copyJsonValue, type ContentBlock } from '@omne-harness-lite/content-blocks'
+import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import { checkLogPayload, checkSourceToken, type LogEntry } from '@omne-harness-lite/session-log'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type { SourceToken } from '@omne-harness-lite/session-log'
 import type { LocalSessionIngress } from '@omne-harness-lite/session-runtime-local'
 
-export interface SessionTextMessage {
+export interface SessionMessageView {
   readonly position: JsonNumber
   readonly run: string | null
   readonly id: string
   readonly type: Message['type']
   readonly createdAt: string
-  readonly blocks: readonly {
-    readonly id: string
-    readonly kind: 'text' | 'thinking'
-    readonly text: string
-  }[]
+  readonly blocks: readonly HumanBlock[]
 }
-export interface SessionTextReaderOptions {
+export interface SessionConversationReaderOptions {
   readonly tenant: SessionScope['tenant']
   readonly ingress: LocalSessionIngress
 }
-export type SessionTextReading =
+export type SessionConversationReading =
   | {
       readonly kind: 'messages'
       readonly source: SourceToken
-      readonly messages: readonly SessionTextMessage[]
+      readonly messages: readonly SessionMessageView[]
     }
   | { readonly failure: 'invalidInput' | 'denied' | 'notFound' | 'unavailable' }
 /** Trusted host facade. It never exposes raw messages or a live authority to the client. */
-export function createSessionTextReader(options: SessionTextReaderOptions): {
-  readonly read: (scope: SessionScope) => Promise<SessionTextReading>
+export function createSessionConversationReader(options: SessionConversationReaderOptions): {
+  readonly read: (scope: SessionScope) => Promise<SessionConversationReading>
 } {
   const checked = parseTenantId(options.tenant)
   if (!isOk(checked)) throw new TypeError('invalid text reader tenant')
@@ -79,12 +76,12 @@ function checkedScope(scope: SessionScope): SessionScope | undefined {
   if ('failure' in token) return undefined
   return Object.freeze({ tenant: token.ok.tenant, session: token.ok.session })
 }
-function humanMessage(entry: LogEntry): readonly SessionTextMessage[] {
+function humanMessage(entry: LogEntry): readonly SessionMessageView[] {
   const checked = checkLogPayload(entry.payload)
   if ('failure' in checked) throw new StorageDefect('invalid owned message payload')
   if (checked.kind !== 'message') return []
   const message = checked.payload.value
-  const blocks = humanText(message.blocks)
+  const blocks = humanBlocks(message.blocks)
   if (blocks.length === 0) return []
   return [
     Object.freeze({
@@ -96,17 +93,4 @@ function humanMessage(entry: LogEntry): readonly SessionTextMessage[] {
       blocks,
     }),
   ]
-}
-function humanText(roots: readonly ContentBlock[]): SessionTextMessage['blocks'] {
-  const result: SessionTextMessage['blocks'][number][] = []
-  const stack = [...roots].reverse()
-  while (stack.length) {
-    const block = stack.pop()!
-    if (!block.visibility.toHuman) continue
-    if (block.kind === 'text' || block.kind === 'thinking')
-      result.push(Object.freeze({ id: block.id, kind: block.kind, text: block.text }))
-    if (block.kind === 'tool_result')
-      for (let at = block.blocks.length - 1; at >= 0; at--) stack.push(block.blocks[at]!)
-  }
-  return Object.freeze(result)
 }

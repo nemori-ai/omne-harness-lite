@@ -1,3 +1,4 @@
+import { humanBlockSchema } from './session-human-content.ts'
 import { z } from 'zod'
 import {
   positiveInteger,
@@ -14,7 +15,7 @@ import {
 } from '@omne-harness-lite/session-runtime'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type { SessionSubmissionReading } from './session-submission.ts'
-import type { SessionTextReading } from './session-reading.ts'
+import type { SessionConversationReading } from './session-reading.ts'
 import type { SessionHostRequest } from './session-host-protocol.ts'
 
 export type SubmitRequest = Extract<SessionHostRequest, { command: 'submitInput' }>
@@ -68,20 +69,7 @@ const submission: z.ZodType<SessionSubmissionReading> = z.union([
         .strictObject({
           revision: z.number().int().nonnegative(),
           omitted: z.boolean(),
-          items: z.array(
-            z
-              .strictObject({
-                kind: z.enum(['text', 'thinking', 'tool']),
-                text: z.string(),
-                state: z.string().optional(),
-                call: z.string().optional(),
-              })
-              .transform(({ state, call, ...value }) => ({
-                ...value,
-                ...(state === undefined ? {} : { state }),
-                ...(call === undefined ? {} : { call }),
-              })),
-          ),
+          items: z.array(humanBlockSchema),
         })
         .optional(),
       admission: z
@@ -102,7 +90,7 @@ const submission: z.ZodType<SessionSubmissionReading> = z.union([
   z.strictObject({ kind: z.literal('absent') }),
   z.strictObject({ failure: z.enum(['invalidInput', 'denied', 'notFound', 'unavailable']) }),
 ])
-const messages: z.ZodType<SessionTextReading> = z.union([
+const messages: z.ZodType<SessionConversationReading> = z.union([
   z.strictObject({
     kind: z.literal('messages'),
     source,
@@ -121,9 +109,7 @@ const messages: z.ZodType<SessionTextReading> = z.union([
           'compaction',
         ]),
         createdAt: z.string(),
-        blocks: z.array(
-          z.strictObject({ id: key, kind: z.enum(['text', 'thinking']), text: z.string() }),
-        ),
+        blocks: z.array(humanBlockSchema),
       }),
     ),
   }),

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { openClientLocalState } from '@omne-harness-lite/client-local-state-sqlite'
 import { openStorage } from '@omne-harness-lite/storage-sql'
-import type { SessionTextMessage } from '../src/session-reading.ts'
+import type { SessionMessageView } from '../src/session-reading.ts'
 import { runTerminalSession } from '../src/session-terminal.ts'
 import { startLocalSessionHost } from '../src/session-host-server.ts'
 import { prepareTenantDirectory } from '../src/state-layout.ts'
@@ -38,7 +38,7 @@ const timestamp = '2026-10-10T18:00:00Z'
 async function fixture(
   fault?: 'clock' | 'unknown' | 'wait' | 'model' | 'history',
   toolTexts: readonly string[] = [],
-  initialHistory: readonly SessionTextMessage[] = [],
+  initialHistory: readonly SessionMessageView[] = [],
 ) {
   const home = await mkdtemp(join(tmpdir(), 'term-'))
   cleanup.push(() => rm(home, { recursive: true, force: true }))

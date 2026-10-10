@@ -71,8 +71,8 @@ The default entry prepares missing center configuration, login, and model config
 - With a readable existing host, reuse its initial model and saved credentials. The entry does not repeat model setup.
 
 Choices use the displayed number and Enter. Use PageUp/PageDown to read every page before pressing Enter.
-At **Message**, enter one message and press Enter. Wait for **Assistant**, then press Enter to return to the input.
-The bundled session definition includes Shell. Tool output displays the result, exit status, and truncation counts when available.
+Enter a message in the **Conversation** input and press Enter. The reply updates while it runs. When it finishes, the input returns automatically, with user and assistant messages retained in history. Use PageUp/PageDown to read earlier content.
+The bundled session definition includes Shell. The terminal shows public tool names, actual arguments, execution state, and results. Shell results include output, exit status, and truncation counts when available. Public reasoning summaries show their text. Private blocks, encrypted reasoning, and raw attachments are excluded. A notice identifies content omitted by display limits.
 
 For a short manual check, ask the model to remember a unique word.
 Ask for that word in the next turn. Then ask Shell to create and read a file in the workspace.

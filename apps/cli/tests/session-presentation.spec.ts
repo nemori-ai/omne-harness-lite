@@ -2,6 +2,7 @@ import { checkSession } from '@omne-harness-lite/session-log'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { expect, it } from 'vitest'
 import { createSessionPresentation, type ModelSnapshot } from '../src/session-presentation.ts'
+import type { ToolObservation } from '../src/session-human-content.ts'
 import { checkedTenantBinding } from '../src/state-layout-values.ts'
 import type { ModelExecutionRef } from '@omne-harness-lite/model-request-runtime'
 
@@ -40,9 +41,9 @@ it('shows only public blocks from the original tenant, Session and Run, replacin
   const live = createSessionPresentation(policy)
   live.bindModel(scope, 'run', ref.callId)
   live.model(ref, snapshot('a'))
-  expect((await live.read(scope, 'run')).items).toEqual([{ kind: 'text', text: 'a' }])
+  expect((await live.read(scope, 'run')).items).toEqual([{ id: blockId, kind: 'text', text: 'a' }])
   live.model(ref, snapshot('ab'))
-  expect((await live.read(scope, 'run')).items).toEqual([{ kind: 'text', text: 'ab' }])
+  expect((await live.read(scope, 'run')).items).toEqual([{ id: blockId, kind: 'text', text: 'ab' }])
   expect((await live.read(scope, 'other-run')).items).toEqual([])
   const foreign = checkedTenantBinding({
     ...binding,
@@ -68,7 +69,9 @@ it('does not accept unknown physical calls or superseded dispatch snapshots', as
   live.bindModel(scope, 'run', ref.callId)
   live.model({ ...ref, dispatch: 1 }, snapshot('new'))
   live.model(ref, snapshot('old'))
-  expect((await live.read(scope, 'run')).items).toEqual([{ kind: 'text', text: 'new' }])
+  expect((await live.read(scope, 'run')).items).toEqual([
+    { id: blockId, kind: 'text', text: 'new' },
+  ])
 })
 it('keeps public reasoning distinct and rejects an older assembly position', async () => {
   const live = createSessionPresentation(policy)
@@ -90,7 +93,7 @@ it('keeps public reasoning distinct and rejects an older assembly position', asy
   })
   live.model(ref, snapshot('old'))
   expect((await live.read(scope, 'run')).items).toEqual([
-    { kind: 'thinking', text: 'public summary' },
+    { id: blockId, kind: 'thinking', text: 'public summary' },
   ])
 })
 it('observes actual tool state only for its original scope and Run, in call order', async () => {
@@ -103,10 +106,17 @@ it('observes actual tool state only for its original scope and Run, in call orde
     scope,
     run: 'run',
     call: 'tool-call',
-    name: 'Shell',
+    block: {
+      id: 'tool-block',
+      kind: 'tool_call',
+      tool: 'Shell',
+      call: 'tool-call',
+      arguments: { encoding: 'json', text: '{}' },
+      observation: null,
+    },
     read: async () => {
       reads++
-      return state
+      return { terminal: false, observation: { state, blocks: [], notice: null, offloaded: false } }
     },
   })
   live.bindModel(scope, 'run', 'last')
@@ -114,12 +124,21 @@ it('observes actual tool state only for its original scope and Run, in call orde
   expect((await live.read(scope, 'other')).items).toEqual([])
   expect(reads).toBe(0)
   expect((await live.read(scope, 'run')).items).toEqual([
-    { kind: 'text', text: 'before' },
-    { kind: 'tool', text: 'Shell', state: 'running', call: 'tool-call' },
-    { kind: 'text', text: 'after' },
+    { id: blockId, kind: 'text', text: 'before' },
+    {
+      id: 'tool-block',
+      kind: 'tool_call',
+      tool: 'Shell',
+      call: 'tool-call',
+      arguments: { encoding: 'json', text: '{}' },
+      observation: { state: 'running', blocks: [], notice: null, offloaded: false },
+    },
+    { id: blockId, kind: 'text', text: 'after' },
   ])
   state = 'completed'
-  expect((await live.read(scope, 'run')).items[1]).toMatchObject({ state: 'completed' })
+  expect((await live.read(scope, 'run')).items[1]).toMatchObject({
+    observation: { state: 'completed' },
+  })
 })
 it('bounds aggregate response text and does not return tool data after close during a read', async () => {
   const live = createSessionPresentation(policy)
@@ -128,13 +147,31 @@ it('bounds aggregate response text and does not return tool data after close dur
     live.model({ ...ref, callId: call }, snapshot('a'.repeat(80)))
   }
   const value = await live.read(scope, 'run')
-  expect(value.items.map(item => item.text).join('')).toHaveLength(100)
+  expect(
+    value.items.flatMap(item => (item.kind === 'text' ? item.text : [])).join(''),
+  ).toHaveLength(92)
   expect(value.omitted).toBe(true)
-  const gate = Promise.withResolvers<string>()
-  live.bindTool({ scope, run: 'run', call: 'tool', name: 'Shell', read: () => gate.promise })
+  const gate = Promise.withResolvers<{ terminal: boolean; observation: ToolObservation }>()
+  live.bindTool({
+    scope,
+    run: 'run',
+    call: 'tool',
+    block: {
+      id: 'tool',
+      kind: 'tool_call',
+      call: 'tool',
+      tool: 'Shell',
+      arguments: { encoding: 'json', text: '{}' },
+      observation: null,
+    },
+    read: () => gate.promise,
+  })
   const pending = live.read(scope, 'run')
   live.close()
-  gate.resolve('completed')
+  gate.resolve({
+    terminal: true,
+    observation: { state: 'completed', blocks: [], notice: null, offloaded: false },
+  })
   expect((await pending).items).toEqual([])
 })
 
@@ -159,5 +196,7 @@ it('copies only public display fields and does not retain the source snapshot', 
   live.model(ref, mutable)
   mutable.blocks[0]!.block.text = 'changed after observation'
   mutable.blocks[0]!.block.visibility.toHuman = false
-  expect((await live.read(scope, 'run')).items).toEqual([{ kind: 'thinking', text: 'visible' }])
+  expect((await live.read(scope, 'run')).items).toEqual([
+    { id: blockId, kind: 'thinking', text: 'visible' },
+  ])
 })

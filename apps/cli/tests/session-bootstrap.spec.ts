@@ -63,7 +63,7 @@ import {
 } from '@omne-harness-lite/session-runtime-local'
 import { createSessionHostEndpoint, parseSessionHostRequest } from '../src/session-host-protocol.ts'
 import { messageLogPayload, compareInteger } from '@omne-harness-lite/session-log'
-import { createSessionTextReader } from '../src/session-reading.ts'
+import { createSessionConversationReader } from '../src/session-reading.ts'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { createModalityProjection } from '@omne-harness-lite/model-message-projection'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -1660,7 +1660,7 @@ it('reads human text from the actual authorized journal without starting work or
     ),
   ).toHaveProperty('kind', 'accepted')
   const before = await f.runtime.operations.readProgress(f.runtime.access, scope.session)
-  const reader = createSessionTextReader({ tenant, ingress: f.runtime })
+  const reader = createSessionConversationReader({ tenant, ingress: f.runtime })
   const reading = await reader.read(scope)
   expect(reading).toMatchObject({
     kind: 'messages',
@@ -1687,7 +1687,7 @@ it('denies foreign tenant before journal work and rechecks the actual member bef
   const created = await f.runtime.operations.createSession(f.runtime.access, input)
   if (!('kind' in created) || created.kind !== 'created') throw new Error('actual creation failed')
   const read = vi.fn(f.runtime.journal.readPrefix)
-  const reader = createSessionTextReader({
+  const reader = createSessionConversationReader({
     tenant,
     ingress: { ...f.runtime, journal: { readPrefix: read } },
   })
@@ -1724,7 +1724,7 @@ it('denies foreign tenant before journal work and rechecks the actual member bef
   expect(await reader.read(scope)).toEqual({ failure: 'denied' })
 })
 
-it('hides descendants of a non-human parent and omits non-text content from the human text facade', async () => {
+it('preserves visible tool result structure while hiding every private subtree', async () => {
   const f = await setup()
   const created = await f.runtime.operations.createSession(f.runtime.access, input)
   if (!('kind' in created) || created.kind !== 'created') throw new Error('actual creation failed')
@@ -1764,13 +1764,26 @@ it('hides descendants of a non-human parent and omits non-text content from the 
       { kind: 'unconditional' },
     ),
   ).toHaveProperty('tail')
-  const read = await createSessionTextReader({ tenant, ingress: f.runtime }).read({
+  const read = await createSessionConversationReader({ tenant, ingress: f.runtime }).read({
     tenant,
     session: created.session,
   })
   expect(read).toMatchObject({
     kind: 'messages',
-    messages: [{ type: 'tool', blocks: [{ id: 'visible', kind: 'text', text: 'visible' }] }],
+    messages: [
+      {
+        type: 'tool',
+        blocks: [
+          {
+            id: 'parent',
+            kind: 'tool_result',
+            call: 'view-call',
+            outcome: 'completed',
+            blocks: [{ id: 'visible', kind: 'text', text: 'visible' }],
+          },
+        ],
+      },
+    ],
   })
   expect(JSON.stringify(read)).not.toContain('hidden')
   if ('failure' in read) throw new Error('actual reading failed')
@@ -1779,7 +1792,7 @@ it('hides descendants of a non-human parent and omits non-text content from the 
 it('rejects non-data scopes without running accessors or touching the actual journal', async () => {
   const f = await setup()
   const read = vi.fn(f.runtime.journal.readPrefix)
-  const reader = createSessionTextReader({
+  const reader = createSessionConversationReader({
     tenant,
     ingress: { ...f.runtime, journal: { readPrefix: read } },
   })
@@ -3820,7 +3833,7 @@ it.each([
       { type: 'user', blocks: [{ kind: 'text', text: 'one request' }] },
     ])
   expect(retained).not.toHaveBeenCalled()
-  const human = await createSessionTextReader({ tenant, ingress: original.f.runtime }).read(
+  const human = await createSessionConversationReader({ tenant, ingress: original.f.runtime }).read(
     original.scope,
   )
   if ('failure' in human) throw new Error('actual settled messages unavailable')

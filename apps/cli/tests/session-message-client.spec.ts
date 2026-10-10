@@ -349,9 +349,16 @@ it('shows progressive public content before the original Run finishes without ch
           revision: count,
           omitted: false,
           items: [
-            { kind: 'text', text: running ? 'part' + count : 'complete' },
-            { kind: 'thinking', text: 'public summary' },
-            { kind: 'tool', text: 'Shell', state: 'running' },
+            { id: 'text', kind: 'text', text: running ? 'part' + count : 'complete' },
+            { id: 'thinking', kind: 'thinking', text: 'public summary' },
+            {
+              id: 'tool',
+              kind: 'tool_call',
+              tool: 'Shell',
+              call: 'call',
+              arguments: { encoding: 'json', text: '{}' },
+              observation: { state: 'running', blocks: [], notice: null, offloaded: false },
+            },
           ],
         },
       }
@@ -360,7 +367,10 @@ it('shows progressive public content before the original Run finishes without ch
   })
   const outcome = await submitSessionMessage({
     ...f.options,
-    onProgress: view => seen.push(view.items[0]!.text),
+    onProgress: view => {
+      const item = view.items[0]
+      if (item?.kind === 'text') seen.push(item.text)
+    },
   })
   expect(seen).toEqual(['part1', 'part2', 'complete'])
   expect(outcome.status).toBe('completed')

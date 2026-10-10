@@ -1,7 +1,7 @@
 import type { SessionPresentation } from './session-presentation.ts'
 import { setTimeout as pause } from 'node:timers/promises'
 import type { Receipt, OperationRef } from '@omne-harness-lite/session-runtime'
-import type { SessionTextMessage } from './session-reading.ts'
+import type { SessionMessageView } from './session-reading.ts'
 import type { SessionSubmissionReading } from './session-submission.ts'
 import { sendSessionHostRequest, type SessionHostWaitPolicy } from './session-host-client.ts'
 import { positivePolicy } from './session-host-io.ts'
@@ -43,7 +43,7 @@ type MessageState =
   | {
       readonly status: 'completed' | 'failed' | 'cancelled'
       readonly submission: Submission
-      readonly messages: readonly SessionTextMessage[]
+      readonly messages: readonly SessionMessageView[]
     }
 export type SessionMessageOutcome = {
   readonly kind: 'session-message'

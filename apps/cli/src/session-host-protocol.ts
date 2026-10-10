@@ -14,7 +14,10 @@ import {
 } from '@omne-harness-lite/session-runtime'
 import type { LocalSessionIngress } from '@omne-harness-lite/session-runtime-local'
 import { checkedTenantBinding, type TenantBinding } from './state-layout-values.ts'
-import { createSessionTextReader, type SessionTextReading } from './session-reading.ts'
+import {
+  createSessionConversationReader,
+  type SessionConversationReading,
+} from './session-reading.ts'
 import { readSessionSubmission, type SessionSubmissionReading } from './session-submission.ts'
 
 const key = z.string().refine(checkKey)
@@ -142,7 +145,7 @@ export function parseSessionHostRequest(value: unknown): SessionHostRequest | un
 }
 export type SessionHostResult =
   | Awaited<ReturnType<LocalSessionIngress['operations'][keyof LocalSessionIngress['operations']]>>
-  | SessionTextReading
+  | SessionConversationReading
   | SessionSubmissionReading
   | SessionCreationDefaultsReading
   | { readonly kind: 'clock'; readonly timestamp: string }
@@ -168,7 +171,7 @@ export function createSessionHostEndpoint(options: {
     options.creation === undefined ? undefined : parseSessionCreationDefaults(options.creation)
   if (options.creation !== undefined && !defaults)
     throw new TypeError('invalid actual Session creation configuration')
-  const text = createSessionTextReader({ tenant: bound.tenant, ingress })
+  const text = createSessionConversationReader({ tenant: bound.tenant, ingress })
   return Object.freeze<SessionHostEndpoint>({
     execute: async request => {
       if (
@@ -195,7 +198,7 @@ export function createSessionHostEndpoint(options: {
 }
 function dispatch(
   ingress: LocalSessionIngress,
-  text: ReturnType<typeof createSessionTextReader>,
+  text: ReturnType<typeof createSessionConversationReader>,
   request: Exclude<
     SessionHostRequest,
     { command: 'readCreationDefaults' | 'readClock' | 'readInitialModel' }

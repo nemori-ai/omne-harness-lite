@@ -1,3 +1,9 @@
+import {
+  humanSnapshot,
+  boundHumanBlocks,
+  type HumanBlock,
+  type ToolObservation,
+} from './session-human-content.ts'
 import type {
   ModelExecutionRef,
   ModelInvocationHandle,
@@ -7,12 +13,7 @@ import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { compareInteger } from '@omne-harness-lite/session-log'
 
 export type ModelSnapshot = ReturnType<ModelInvocationHandle['snapshot']>
-export interface PresentationItem {
-  readonly kind: 'text' | 'thinking' | 'tool'
-  readonly text: string
-  readonly state?: string
-  readonly call?: string
-}
+export type PresentationItem = HumanBlock
 export interface SessionPresentation {
   readonly revision: number
   readonly items: readonly PresentationItem[]
@@ -27,8 +28,19 @@ interface ToolDisplay {
   readonly scope: SessionScope
   readonly run: string
   readonly call: string
-  readonly name: string
-  readonly read: () => Promise<string>
+  readonly block: Extract<HumanBlock, { kind: 'tool_call' }>
+  readonly read: () => Promise<{
+    readonly observation: ToolObservation
+    readonly terminal: boolean
+  }>
+}
+interface StoredTool extends ToolDisplay {
+  readonly order: number
+  current: Extract<HumanBlock, { kind: 'tool_call' }> | undefined
+  ended: boolean
+  omitted: boolean
+  issuedRead: number
+  appliedRead: number
 }
 interface ModelDisplay {
   readonly scope: SessionScope
@@ -44,44 +56,6 @@ const key = (scope: SessionScope, call: string) =>
   JSON.stringify([scope.tenant.organization, scope.tenant.account, scope.session, call])
 function sameScope(left: SessionScope, right: SessionScope): boolean {
   return left.session === right.session && tenantIdEquals(left.tenant, right.tenant)
-}
-type SnapshotBlock = ModelSnapshot['blocks'][number]
-function visibleItems(snapshot: ModelSnapshot): PresentationItem[] {
-  return snapshot.blocks.flatMap(visibleItem)
-}
-function visibleItem(value: SnapshotBlock): PresentationItem[] {
-  const block = value.closed ? value.block : value.opened
-  if (!block.visibility.toHuman) return []
-  if (value.closed) return closedItem(value.block)
-  switch (value.opened.kind) {
-    case 'tool_call':
-      return requestedTool(value.opened.head)
-    case 'text':
-    case 'thinking':
-      return [
-        { kind: value.opened.kind, text: typeof value.content === 'string' ? value.content : '' },
-      ]
-    default:
-      return []
-  }
-}
-function closedItem(block: Extract<SnapshotBlock, { closed: true }>['block']): PresentationItem[] {
-  switch (block.kind) {
-    case 'tool_call':
-      return [
-        {
-          kind: 'tool',
-          text: block.tool ?? '',
-          state: 'requested',
-          ...(block.callId ? { call: block.callId } : {}),
-        },
-      ]
-    case 'text':
-    case 'thinking':
-      return [{ kind: block.kind, text: block.text }]
-    default:
-      return []
-  }
 }
 function older(
   display: ModelDisplay,
@@ -102,7 +76,7 @@ export function createSessionPresentation(policy: PresentationPolicy) {
   if (Object.values(policy).some(value => !Number.isSafeInteger(value) || value < 1))
     throw new TypeError('positive presentation limits required')
   const models = new Map<string, ModelDisplay>()
-  const tools = new Map<string, ToolDisplay & { readonly order: number }>()
+  const tools = new Map<string, StoredTool>()
   let revision = 0,
     closed = false,
     evicted = false
@@ -125,7 +99,7 @@ export function createSessionPresentation(policy: PresentationPolicy) {
       const projected =
         snapshot.blocks.length > policy.maxBlocks
           ? { items: [], omitted: true }
-          : boundItems(visibleItems(snapshot), policy.maxCharactersPerCall)
+          : boundHumanBlocks(humanSnapshot(snapshot), policy.maxCharactersPerCall, policy.maxBlocks)
       display.omitted = projected.omitted
       display.items = projected.items
       revision++
@@ -136,7 +110,26 @@ export function createSessionPresentation(policy: PresentationPolicy) {
         tools.delete(tools.keys().next().value!)
         evicted = true
       }
-      tools.set(key(display.scope, display.call), { ...display, order: revision })
+      const bounded = boundHumanBlocks(
+        [display.block],
+        policy.maxCharactersPerCall,
+        policy.maxBlocks,
+      )
+      const block = bounded.items[0]
+      if (!block || block.kind !== 'tool_call') {
+        evicted = true
+        return
+      }
+      tools.set(key(display.scope, display.call), {
+        ...display,
+        block,
+        order: revision,
+        current: undefined,
+        ended: false,
+        issuedRead: 0,
+        appliedRead: 0,
+        omitted: bounded.omitted,
+      })
       revision++
     },
     async read(scope: SessionScope, run: string): Promise<SessionPresentation> {
@@ -146,38 +139,18 @@ export function createSessionPresentation(policy: PresentationPolicy) {
       const calls = [...tools.values()].filter(
         value => value.run === run && sameScope(value.scope, scope),
       )
-      const observed = await Promise.all(
-        calls.map(async call => {
-          let state: string
-          try {
-            state = await call.read()
-          } catch {
-            state = 'unavailable'
-          }
-          return {
-            order: call.order,
-            items: [{ kind: 'tool' as const, text: call.name, state, call: call.call }],
-          }
-        }),
-      )
+      const observed = await Promise.all(calls.map(call => readTool(call, policy)))
       if (closed) return { revision, items: [], omitted: false }
-      const identities = new Set(calls.map(value => value.call))
-      const groups = selected.map(value => ({
-        order: value.order,
-        items: value.items
-          ? value.items.filter(
-              item => item.kind !== 'tool' || !item.call || !identities.has(item.call),
-            )
-          : [],
-      }))
-      const items = [...groups, ...observed]
-        .sort((left, right) => left.order - right.order)
-        .flatMap(value => value.items)
-      const bounded = boundItems(items, policy.maxCharactersPerCall)
+      const items = combinedItems(selected, observed)
+      const bounded = boundHumanBlocks(items, policy.maxCharactersPerCall, policy.maxBlocks)
       return {
         revision,
         items: bounded.items,
-        omitted: evicted || bounded.omitted || selected.some(value => value.omitted),
+        omitted:
+          evicted ||
+          bounded.omitted ||
+          selected.some(value => value.omitted) ||
+          calls.some(value => value.omitted),
       }
     },
     close(): void {
@@ -190,34 +163,55 @@ export function createSessionPresentation(policy: PresentationPolicy) {
 }
 export type SessionPresentationStore = ReturnType<typeof createSessionPresentation>
 
-function boundItems(items: readonly PresentationItem[], limit: number) {
-  let remaining = limit,
-    omitted = false
-  const bounded = items.flatMap(item => {
-    if (remaining === 0) {
-      omitted = true
-      return []
+async function readTool(call: StoredTool, policy: PresentationPolicy): Promise<StoredTool> {
+  if (call.ended) return call
+  const ordinal = ++call.issuedRead
+  let result: Awaited<ReturnType<ToolDisplay['read']>>
+  try {
+    result = await call.read()
+  } catch {
+    result = {
+      terminal: false,
+      observation: {
+        state: 'unavailable',
+        blocks: [],
+        notice: 'Tool observation unavailable',
+        offloaded: false,
+      },
     }
-    const text = item.text.slice(0, remaining)
-    remaining -= text.length
-    omitted ||= text.length !== item.text.length
-    return [{ ...item, text }]
-  })
-  return { items: bounded, omitted }
+  }
+  if (call.ended || (!result.terminal && ordinal < call.appliedRead)) return call
+  const bounded = boundHumanBlocks(
+    [{ ...call.block, observation: result.observation }],
+    policy.maxCharactersPerCall,
+    policy.maxBlocks,
+  )
+  const item = bounded.items[0]
+  call.current = item?.kind === 'tool_call' ? item : undefined
+  call.omitted ||= bounded.omitted
+  call.ended = result.terminal
+  call.appliedRead = ordinal
+  return call
 }
-
-function requestedTool(head: {
-  readonly tool?: string
-  readonly callId?: string
-}): PresentationItem[] {
-  return head.tool
-    ? [
-        {
-          kind: 'tool',
-          text: head.tool,
-          state: 'requested',
-          ...(head.callId ? { call: head.callId } : {}),
-        },
-      ]
-    : []
+function combinedItems(
+  selected: readonly ModelDisplay[],
+  observed: readonly StoredTool[],
+): HumanBlock[] {
+  const observations = new Map(observed.map(value => [value.call, value]))
+  const used = new Set<string>()
+  const groups = selected.map(value => ({
+    order: value.order,
+    items: (value.items ?? []).map(item => {
+      if (item.kind !== 'tool_call' || item.call === null) return item
+      const observation = observations.get(item.call)
+      if (!observation) return item
+      used.add(item.call)
+      return observation.current ?? item
+    }),
+  }))
+  for (const call of observed) {
+    if (!used.has(call.call) && call.current)
+      groups.push({ order: call.order, items: [call.current] })
+  }
+  return groups.sort((left, right) => left.order - right.order).flatMap(value => value.items)
 }
