@@ -7718,3 +7718,238 @@ describe('driver complete original Model Run', () => {
     )
   })
 })
+
+it('restores an unissued first model call through the restarted provider with original identities', async () => {
+  const f = await fixture()
+  const started = await startReadyRun(f)
+  const { startDriverRun } = await import('../src/driver-run.ts')
+  const attempt = await f.runtime.lifecycle.commitStep(
+    f.runtime.coordinationAuthority,
+    started.scope,
+    started.result.source,
+    {
+      kind: 'startAttempt',
+      stepKey: 'restart-attempt',
+      run: started.result.receipt.run!,
+      reason: 'first',
+    },
+  )
+  if (!('kind' in attempt) || attempt.kind !== 'committed' || !attempt.permit)
+    throw new Error('attempt unavailable')
+  const identities = {
+    prepareKey: 'restart-prepare',
+    call: 'restart-call',
+    originalPosition: 'restart-origin',
+    creationKey: unwrap(parseOpaqueIdentifier('restart-input', 'CreationKey')),
+    resultKey: 'restart-result',
+    adoptionKey: 'restart-adopt',
+  }
+  const prepared = await f.runtime.lifecycle.commitStep(
+    f.runtime.coordinationAuthority,
+    started.scope,
+    attempt.source,
+    {
+      kind: 'prepareCall',
+      stepKey: identities.prepareKey,
+      run: started.result.receipt.run!,
+      attempt: 1,
+      permit: attempt.permit,
+      call: identities.call,
+      originalPosition: identities.originalPosition,
+    },
+  )
+  if (!('kind' in prepared) || prepared.kind !== 'committed')
+    throw new Error('preparation unavailable')
+  const before = await f.storage.read(tx =>
+    tx.db.selectFrom('sr_session_state').selectAll().execute(),
+  )
+  await f.runtime.close()
+  await f.log().close()
+  const restarted = createLocalSessionIngress(f.options)
+  try {
+    f.setDecision('rejected')
+    const model = vi.fn(() => identities)
+    const result = await startDriverRun(
+      {
+        ingress: restarted,
+        identities: {
+          run: () => {
+            throw new Error('must not create another Run')
+          },
+          model,
+          tool: () => {
+            throw new Error('must not execute tools')
+          },
+          modelContent: {
+            response: () => 'response',
+            message: () => unwrap(parseOpaqueIdentifier('message', 'MessageId')),
+          },
+        },
+      },
+      started.scope,
+      () => true,
+    )
+    expect(result).toMatchObject({
+      kind: 'prepared',
+      identities,
+      source: prepared.source,
+      preparation: {
+        run: started.result.receipt.run,
+        attempt: 1,
+        call: identities.call,
+        originalPosition: identities.originalPosition,
+      },
+    })
+    expect(model).toHaveBeenCalledWith(
+      started.scope,
+      started.result.receipt.run,
+      1,
+      attempt.receipt.position,
+    )
+    expect(
+      await f.storage.read(tx => tx.db.selectFrom('sr_session_state').selectAll().execute()),
+    ).toEqual(before)
+    if (result.kind !== 'prepared') throw new Error('recovery unavailable')
+    expect(result.preparation.permit).not.toBe(attempt.permit)
+    expect(
+      await restarted.lifecycle.commitStep(
+        restarted.coordinationAuthority,
+        started.scope,
+        result.source,
+        {
+          kind: 'finish',
+          stepKey: 'old-permit-finish',
+          run: result.preparation.run,
+          attempt: 1,
+          permit: attempt.permit,
+          terminal: 'completed',
+          reason: 'done',
+        },
+      ),
+    ).toEqual({ failure: 'staleAttempt' })
+    const finished = await restarted.lifecycle.commitStep(
+      restarted.coordinationAuthority,
+      started.scope,
+      result.source,
+      {
+        kind: 'finish',
+        stepKey: 'restart-finish',
+        run: result.preparation.run,
+        attempt: 1,
+        permit: result.preparation.permit,
+        terminal: 'completed',
+        reason: 'done',
+      },
+    )
+    expect(finished).toHaveProperty('kind', 'committed')
+  } finally {
+    await restarted.close()
+  }
+})
+
+it.each([
+  'authority',
+  'tenant',
+  'staleSource',
+  'staleAttempt',
+  'progressed',
+  'issued',
+  'terminal',
+  'preparation',
+  'predecessor',
+  'grant',
+] as const)(
+  'refuses prepared-call recovery without changing storage when %s is invalid',
+  async mode => {
+    const f = await fixture()
+    const p = await preparedAttempt(f)
+    const prepared = await f.runtime.lifecycle.commitStep(
+      f.runtime.coordinationAuthority,
+      p.scope,
+      p.attempt.source,
+      p.step,
+    )
+    if (!('kind' in prepared) || prepared.kind !== 'committed')
+      throw new Error('preparation unavailable')
+    if (mode === 'progressed') {
+      await f.runtime.operations.submitInput(
+        f.runtime.access,
+        p.scope.session,
+        'later-input',
+        user('later input', 'later-message'),
+      )
+    }
+    if (mode === 'issued')
+      await f.storage.write(tx =>
+        tx.db
+          .insertInto('sr_model_issue')
+          .values({
+            session: p.scope.session,
+            call: p.step.call,
+            dispatch: '1',
+            source_generation: prepared.source.journalGeneration,
+            source_tail: String(prepared.source.tail),
+            issue: '{}',
+          })
+          .execute(),
+      )
+    if (mode === 'staleAttempt')
+      await f.storage.write(tx =>
+        tx.db.updateTable('sr_session_state').set({ attempt: '2' }).execute(),
+      )
+    if (mode === 'terminal')
+      await f.storage.write(tx =>
+        tx.db.updateTable('sr_session_state').set({ run_state: 'completed' }).execute(),
+      )
+    if (mode === 'preparation')
+      await f.storage.write(tx =>
+        tx.db.updateTable('sr_call_preparation').set({ preparation: '{}' }).execute(),
+      )
+    if (mode === 'predecessor')
+      await f.storage.write(tx =>
+        tx.db.deleteFrom('sr_coordination_step').where('step_key', '=', 'first-attempt').execute(),
+      )
+    if (mode === 'grant') await f.storage.write(tx => tx.db.deleteFrom('sr_run_grant').execute())
+    const snapshot = async () =>
+      Promise.all(
+        [
+          'sr_session_state',
+          'sr_call_preparation',
+          'sr_coordination_step',
+          'sr_model_issue',
+          'sr_run_grant',
+        ].map(table => f.storage.read(tx => tx.db.selectFrom(table).selectAll().execute())),
+      )
+    const before = await snapshot()
+    const result = f.runtime.resumePreparedCall(
+      mode === 'authority'
+        ? (Object.freeze({}) as typeof f.runtime.coordinationAuthority)
+        : f.runtime.coordinationAuthority,
+      mode === 'tenant'
+        ? { ...p.scope, tenant: unwrap(parseTenantId({ ...tenant, organization: 'another-org' })) }
+        : p.scope,
+      mode === 'staleSource' ? p.attempt.source : prepared.source,
+    )
+    if (mode === 'preparation' || mode === 'predecessor') await expect(result).rejects.toThrow()
+    else expect(await result).toHaveProperty('failure')
+    expect(await snapshot()).toEqual(before)
+  },
+)
+
+it('reuses one provider-owned permit for concurrent prepared-call recovery', async () => {
+  const f = await fixture()
+  const p = await preparedAttempt(f)
+  const prepared = await f.runtime.lifecycle.commitStep(
+    f.runtime.coordinationAuthority,
+    p.scope,
+    p.attempt.source,
+    p.step,
+  )
+  if (!('kind' in prepared) || prepared.kind !== 'committed')
+    throw new Error('preparation unavailable')
+  const recover = () =>
+    f.runtime.resumePreparedCall(f.runtime.coordinationAuthority, p.scope, prepared.source)
+  const [first, second] = await Promise.all([recover(), recover()])
+  if (!('kind' in first) || !('kind' in second)) throw new Error('recovery unavailable')
+  expect(first.preparation.permit).toBe(second.preparation.permit)
+})

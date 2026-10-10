@@ -39,6 +39,14 @@ export interface LocalSessionState {
     run: RunId,
     position: JsonNumber,
   ) => Promise<SessionStateStage>
+  /** Provider-only recovery. The coordinator must first prove that the original call is unissued. */
+  readonly restorePermitIn: (
+    unit: StorageUnit,
+    authority: CoordinationAuthority,
+    scope: SessionScope,
+    run: RunId,
+    attempt: AttemptId,
+  ) => Promise<AttemptPermit | undefined>
   readonly checkPermitIn: (
     unit: StorageUnit,
     permit: AttemptPermit,

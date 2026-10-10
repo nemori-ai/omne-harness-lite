@@ -97,6 +97,7 @@ export function createLocalSessionIngress(options: RuntimeOptions): LocalSession
     scanWork: owner.scanWork,
     readWork: owner.readWork,
     lifecycle: owner.lifecycle,
+    resumePreparedCall: owner.resumePreparedCall,
     modelInvocation: owner.modelInvocation,
     toolInvocation: owner.toolInvocation,
     toolResults: owner.toolResults,
@@ -196,6 +197,7 @@ class SessionIngress implements LocalSessionIngress {
   readonly runJournal: LocalSessionIngress['runJournal']
   private readonly originalJournals: ReturnType<typeof createOriginalRunJournal>
   readonly modelResults: LocalSessionIngress['modelResults']
+  readonly resumePreparedCall: LocalSessionIngress['resumePreparedCall']
   readonly lifecycle: LocalSessionIngress['lifecycle']
   readonly pending = new Set<Promise<unknown>>()
   accepting = true
@@ -291,6 +293,8 @@ class SessionIngress implements LocalSessionIngress {
       append: (unit, scope, entries) => this.append(unit, scope, entries),
       instant: () => this.instant(),
     })
+    this.resumePreparedCall = (...args) =>
+      this.run(this.access, () => lifecycle.resumePreparedCall(...args), [] as const)
     this.lifecycle = Object.freeze<LocalSessionIngress['lifecycle']>({
       commitStep: (authority, scope, source, step) =>
         this.run(

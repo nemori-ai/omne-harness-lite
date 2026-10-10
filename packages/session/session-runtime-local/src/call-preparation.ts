@@ -16,7 +16,7 @@ type Preparation = Extract<SessionLifecycleStep, { kind: 'prepareCall' }>
 export async function verifyCallPreparation(
   unit: StorageUnit,
   scope: SessionScope,
-  step: Preparation,
+  step: Omit<Preparation, 'permit'>,
   current: SourceToken,
   options: RuntimeOptions,
 ) {
@@ -29,7 +29,14 @@ export async function verifyCallPreparation(
       .executeTakeFirst(),
   )
   if (!row) throw new CoordinationRejection('retryFromFacts')
-  const { permit: _permit, ...data } = step
+  const data = {
+    kind: step.kind,
+    stepKey: step.stepKey,
+    run: step.run,
+    attempt: step.attempt,
+    call: step.call,
+    originalPosition: step.originalPosition,
+  }
   const position = preparationPosition(row.preparation, scope, data, options.policy.maxRecordBytes)
   const receipt = await readStep(
     unit,
@@ -40,6 +47,7 @@ export async function verifyCallPreparation(
   )
   checkPreparationReceipt(receipt, step, position)
   usableSource(current, receipt.source)
+  return receipt
 }
 function preparationPosition(
   text: string,
@@ -58,7 +66,7 @@ function preparationPosition(
 }
 function checkPreparationReceipt(
   receipt: StepReceipt | undefined,
-  step: Preparation,
+  step: Omit<Preparation, 'permit'>,
   position: JsonNumber,
 ): asserts receipt is StepReceipt {
   if (

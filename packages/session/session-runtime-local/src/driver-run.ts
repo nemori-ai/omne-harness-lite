@@ -61,10 +61,37 @@ class RunStart {
     if (!this.isOpen()) return this.blocked('withdrawn')
     if (work.head.lifecycle !== 'active') return this.blocked('inactive')
     if (work.head.run?.state === 'runnable' || work.head.run?.state === 'waiting')
-      return this.blocked('existingRun')
+      return this.resume(work.source)
     const input = work.inputs[0]
     if (input === undefined) return { kind: 'idle' as const }
     return { kind: 'input' as const, input, source: work.source }
+  }
+  async resume(source: Committed['source']): Promise<DriverRunStart> {
+    const { ingress } = this.options
+    const recovered = await ingress.resumePreparedCall(
+      ingress.coordinationAuthority,
+      this.scope,
+      source,
+    )
+    if (!('kind' in recovered)) return this.blocked(recovered)
+    if (!this.isOpen()) return this.blocked('withdrawn')
+    const { preparation, predecessor } = recovered
+    const identities = Object.freeze({
+      ...this.options.identities.model(
+        this.scope,
+        preparation.run,
+        preparation.attempt,
+        predecessor,
+      ),
+    })
+    if (
+      !Object.values(identities).every(checkKey) ||
+      identities.prepareKey !== preparation.stepKey ||
+      identities.call !== preparation.call ||
+      identities.originalPosition !== preparation.originalPosition
+    )
+      return this.blocked('originalModelIdentityMismatch')
+    return Object.freeze({ kind: 'prepared', preparation, identities, source: recovered.source })
   }
   async start(): Promise<DriverRunStart> {
     const pending = await this.pending()

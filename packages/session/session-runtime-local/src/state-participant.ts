@@ -51,6 +51,7 @@ export function createLocalSessionState(options: StateOptions): LocalSessionStat
 }
 class StateParticipant implements LocalSessionState {
   readonly #permits = new WeakMap<AttemptPermit, PermitBinding>()
+  readonly #restoredPermits = new Map<string, AttemptPermit>()
   constructor(readonly options: StateOptions) {}
   adoptInitialIn: LocalSessionState['adoptInitialIn'] = async (
     unit,
@@ -291,12 +292,28 @@ class StateParticipant implements LocalSessionState {
       attempt: positionText(change.attempt, this.options.policy.maxRecordBytes),
       execution_generation: change.executionGeneration,
     })
+    const permit = this.#bindPermit(
+      unit,
+      scope,
+      change.run,
+      change.attempt,
+      change.executionGeneration,
+    )
+    return { kind: 'staged', head: stateHead(next, scope), permit }
+  }
+  #bindPermit(
+    unit: StorageUnit,
+    scope: SessionScope,
+    run: RunId,
+    attempt: AttemptId,
+    generation: string,
+  ) {
     const permit = Object.freeze({}) as AttemptPermit
     const binding: PermitBinding = {
       scope,
-      run: change.run,
-      attempt: change.attempt,
-      generation: change.executionGeneration,
+      run,
+      attempt,
+      generation,
       stagedUnit: unit,
       committed: false,
     }
@@ -304,7 +321,28 @@ class StateParticipant implements LocalSessionState {
     unit.afterCommit(() => {
       binding.committed = true
     })
-    return { kind: 'staged', head: stateHead(next, scope), permit }
+    return permit
+  }
+  restorePermitIn: LocalSessionState['restorePermitIn'] = async (
+    unit,
+    authority,
+    requested,
+    run,
+    attempt,
+  ) => {
+    const scope = stateScope(requested)
+    if (await this.#authorize(unit, authority, scope)) return undefined
+    const row = await stateRow(unit, scope)
+    const generation = restorableGeneration(row, run, attempt)
+    if (generation === undefined) return undefined
+    const key = scope.session
+    const original = this.#restoredPermits.get(key)
+    if (original && (await this.checkPermitIn(unit, original, scope, run, attempt))) return original
+    const permit = this.#bindPermit(unit, scope, run, attempt, generation)
+    unit.afterCommit(() => {
+      this.#restoredPermits.set(key, permit)
+    })
+    return permit
   }
   async #adopt(
     unit: StorageUnit,
@@ -388,4 +426,22 @@ function currentPermitRow(row: StateRow | undefined, binding: PermitBinding): bo
   )
     return false
   return compareInteger(positionNumber(row.attempt), binding.attempt) === 0
+}
+
+function restorableGeneration(
+  row: StateRow | undefined,
+  run: RunId,
+  attempt: AttemptId,
+): string | undefined {
+  if (
+    !row ||
+    terminal(row) ||
+    row.run_state !== 'runnable' ||
+    row.run !== run ||
+    row.attempt === null ||
+    compareInteger(positionNumber(row.attempt), attempt) !== 0 ||
+    row.execution_generation === null
+  )
+    return undefined
+  return row.execution_generation
 }

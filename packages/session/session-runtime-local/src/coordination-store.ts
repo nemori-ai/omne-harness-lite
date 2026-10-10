@@ -14,6 +14,7 @@ import type { RuntimeOptions, SessionLifecycleStep } from './runtime-types.ts'
 import { checkedTicket } from './admission-values.ts'
 import { recordedUse } from './admission-sql.ts'
 import { CoordinationRejection, boundedText } from './coordination-values.ts'
+import { runtimeSemantic } from './runtime-values.ts'
 import { positionText, positionNumber } from './state-values.ts'
 
 interface CoordinationDb {
@@ -242,4 +243,45 @@ export async function saveCallPreparation(
       .values({ session: scope.session, call: step.call, preparation })
       .execute(),
   )
+}
+
+export async function readFirstAttemptStep(
+  unit: StorageUnit,
+  scope: SessionScope,
+  run: string,
+  options: RuntimeOptions,
+): Promise<StepReceipt> {
+  const rows = await unit.query(tx =>
+    narrow<CoordinationDb>(tx)
+      .selectFrom('sr_coordination_step')
+      .select(['step_key', 'semantic'])
+      .where('session', '=', scope.session)
+      .execute(),
+  )
+  const originals = rows.filter(
+    row =>
+      row.semantic ===
+      runtimeSemantic(
+        {
+          kind: 'startAttempt',
+          stepKey: row.step_key,
+          run,
+          reason: 'first',
+        },
+        options.policy.maxRecordBytes,
+      ),
+  )
+  const original = originals[0]
+  if (originals.length !== 1 || !original)
+    throw new StorageDefect('original first attempt receipt missing or duplicated')
+  const receipt = await readStep(unit, scope, original.step_key, original.semantic, options)
+  if (
+    !receipt ||
+    receipt.step !== 'startAttempt' ||
+    receipt.run !== run ||
+    receipt.attempt === null ||
+    compareInteger(receipt.attempt, 1) !== 0
+  )
+    throw new StorageDefect('original first attempt receipt mismatch')
+  return receipt
 }

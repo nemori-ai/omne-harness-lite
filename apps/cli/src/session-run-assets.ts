@@ -42,6 +42,8 @@ export function createSessionRunAssets(options: SessionRunAssetOptions): Session
   async function start(): SessionRunAssetOwner['ready'] {
     if (stopped) return { unavailable: true }
     const { journal } = options
+    if ((await options.bootstrap.ensureRun(journal.scope, journal)) !== 'ready' || stopped)
+      return { unavailable: true }
     input = options.bootstrap.runInputs(journal.scope, journal)
     sources = options.bootstrap.runRegistry(journal.scope, journal, options.registry.manifest)
     if (!input || !sources) return { unavailable: true }

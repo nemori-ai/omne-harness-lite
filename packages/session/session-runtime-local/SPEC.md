@@ -653,3 +653,19 @@ G28的`query`可重新排入原状态为unavailable的ticket，保留身份和�
 ### Schema compiler ownership
 
 `RuntimeOptions.parameters` borrows the assembly's parameter validator. If omitted, the ingress creates one validator for its own lifetime. Tool record inspection, custody and delivery reuse that validator. Each current record is still validated; sharing compilation does not authorize a record or reuse a prior validation result.
+
+### 宿主重启后接续未发起的首个模型调用
+
+可信宿主可通过 `LocalSessionIngress.resumePreparedCall` 接续原 Run 的首个模型调用。普通客户端协议不暴露此操作。
+调用方必须先取得该存储的独占 Driver 所有权。本地宿主通过原独占通道保证新旧宿主不同时驱动；此操作不支持跨宿主接管。
+操作在同一 StorageUnit 内核实 coordination authority、固定租户、原 Run grant、当前 active Session 和 runnable Run。
+请求的 SourceToken 必须与当前日志完全相同。
+日志末尾必须是原 `call_prepared`，其紧邻前项必须是同一 Run、attempt 1 的 `attempt_started`，且 reason 为 `first`。
+两项原 StepReceipt、prepareCall 的持久记录、位置和来源必须一致。该 call 在 `sr_model_issue` 中必须没有任何记录。
+条件不满足时拒绝接续，不写持久状态，不发模型请求。
+
+成功时返回原 preparation 和前项位置，并由状态提供者签发真实 AttemptPermit。
+permit 绑定现有 execution_generation，不修改 Run、attempt、输入、日志或 generation。
+同一提供者并发重读同一原调用时复用同一个恢复 permit；每个 Session 至多保留一个恢复 permit。
+Driver 从原前项位置推导模型身份，并核对 call、prepareKey 和 originalPosition 后进入既有模型路径。
+唯一发起仍归原 model invocation owner。已发起或结果未知的调用、工具后的调用和已推进日志均不适用此接续操作。

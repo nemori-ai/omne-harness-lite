@@ -27,6 +27,7 @@ export interface SessionBootstrapAssembly extends SessionBootstrap {
   readonly context: (scope: SessionScope) => LocalSessionContext | undefined
   readonly inputs: (scope: SessionScope) => CurrentEvaluationInputs | undefined
   /** Trusted host only. Reader lifetime is bounded by both the original Run borrow and this bootstrap. */
+  readonly ensureRun: (scope: SessionScope, journal: BorrowedRunJournal) => Promise<Initialization>
   readonly runInputs: (
     scope: SessionScope,
     journal: BorrowedRunJournal,
@@ -43,8 +44,10 @@ export interface SessionBootstrapAssembly extends SessionBootstrap {
 type Initialization = Awaited<ReturnType<SessionBootstrap['initialize']>>
 interface SessionRow {
   readonly scope: SessionScope
-  readonly ticket: AdmissionTicket
-  readonly source: AdmittedInputSource
+  readonly creation: {
+    readonly ticket: AdmissionTicket
+    readonly source: AdmittedInputSource
+  } | null
   context?: LocalSessionContext
   initialized: boolean
   readonly runReaders: Set<CurrentInputReader>
@@ -129,8 +132,7 @@ export function createSessionBootstrap(
     })
     return {
       scope: fixed,
-      ticket,
-      source,
+      creation: { ticket, source },
       initialized: false,
       runReaders: new Set(),
       runRegistries: new Set(),
@@ -151,14 +153,16 @@ export function createSessionBootstrap(
     row: SessionRow,
     input: Parameters<SessionBootstrap['initialize']>[1],
   ): Promise<Initialization> {
-    if (!(await originalSession(row.scope, row.ticket))) return 'unavailable'
-    const captured = await row.source.captureSessionRecipe({
+    if (!row.creation) return 'unavailable'
+    const { ticket, source } = row.creation
+    if (!(await originalSession(row.scope, ticket))) return 'unavailable'
+    const captured = await source.captureSessionRecipe({
       session: row.scope.session,
       tenant: row.scope.tenant,
       rootDefinition: input.definition,
     })
     if (!('captured' in captured)) return 'unavailable'
-    const current = await row.source.reader.read(row.scope.session, row.scope.tenant)
+    const current = await source.reader.read(row.scope.session, row.scope.tenant)
     if (!('input' in current) || stopped) return 'unavailable'
     if (row.initialized) return 'ready'
     const prepared = await options.contextSeed(row.scope, current.input)
@@ -189,8 +193,9 @@ export function createSessionBootstrap(
     if (
       row &&
       (!tenantIdEquals(row.scope.tenant, scope.tenant) ||
-        row.ticket.id !== ticket.id ||
-        row.ticket.root !== ticket.root)
+        !row.creation ||
+        row.creation.ticket.id !== ticket.id ||
+        row.creation.ticket.root !== ticket.root)
     )
       throw new TypeError('Session bootstrap received a different original creation')
     if (!row) {
@@ -219,14 +224,82 @@ export function createSessionBootstrap(
     const report = await context.closed
     if (!report.complete) throw new Error('Original Session Context close reported failure')
   }
-  function selectedRun(scope: SessionScope, journal: BorrowedRunJournal) {
-    const row = selected(scope)
-    return row &&
+  function currentRun(scope: SessionScope, journal: BorrowedRunJournal) {
+    return (
+      !stopped &&
+      ownedScope(scope) &&
       journal.scope.session === scope.session &&
       tenantIdEquals(journal.scope.tenant, scope.tenant) &&
       journal.currentGeneration() === journal.generation
-      ? row
-      : undefined
+    )
+  }
+  function selectedRun(scope: SessionScope, journal: BorrowedRunJournal) {
+    return currentRun(scope, journal) ? selected(scope) : undefined
+  }
+  function runReader(row: SessionRow, journal: BorrowedRunJournal): CurrentInputReader {
+    const source = createRunEvaluationInputReader({
+      ...options.inputSource,
+      scope: row.scope,
+      storage: options.storage,
+      sessionTenancy: options.tenancy,
+      withOriginalRunUnit: journal.withReadUnit,
+    })
+    const reader: CurrentInputReader = Object.freeze({
+      read: source.read,
+      async close() {
+        await source.close()
+        row.runReaders.delete(reader)
+      },
+    })
+    row.runReaders.add(reader)
+    return reader
+  }
+  async function restoreRow(row: SessionRow, journal: BorrowedRunJournal): Promise<Initialization> {
+    const reader = runReader(row, journal)
+    try {
+      const current = await reader.read(row.scope.session, row.scope.tenant)
+      if (!('input' in current) || !currentRun(row.scope, journal)) return 'unavailable'
+      const prepared = await options.contextSeed(row.scope, current.input)
+      if (!('seed' in prepared) || !currentRun(row.scope, journal)) return 'unavailable'
+      return await initializeContext(row, prepared.seed)
+    } finally {
+      await reader.close()
+    }
+  }
+  async function ensureRun(
+    scope: SessionScope,
+    journal: BorrowedRunJournal,
+  ): Promise<Initialization> {
+    if (!currentRun(scope, journal)) return 'unavailable'
+    let row = rows.get(scope.session)
+    if (row && !tenantIdEquals(row.scope.tenant, scope.tenant)) return 'unavailable'
+    if (row?.initialized) return 'ready'
+    if (!row) {
+      row = {
+        scope: Object.freeze({
+          tenant: Object.freeze({ ...scope.tenant }),
+          session: scope.session,
+        }),
+        creation: null,
+        initialized: false,
+        runReaders: new Set(),
+        runRegistries: new Set(),
+      }
+      rows.set(scope.session, row)
+    }
+    const active = jobs.get(scope.session)
+    if (active) {
+      const initialized = await active
+      return currentRun(scope, journal) ? initialized : 'unavailable'
+    }
+    const job = restoreRow(row, journal)
+    jobs.set(scope.session, job)
+    try {
+      const initialized = await job
+      return currentRun(scope, journal) ? initialized : 'unavailable'
+    } finally {
+      jobs.delete(scope.session)
+    }
   }
   async function close(retry: boolean) {
     if (retry && !stopped) throw new TypeError('Session bootstrap has not started closing')
@@ -234,7 +307,7 @@ export function createSessionBootstrap(
     const sourceStops = [...rows.values()].flatMap(row => {
       row.context?.requestStop()
       return [
-        row.source.close(),
+        ...(row.creation ? [row.creation.source.close()] : []),
         ...[...row.runReaders].map(reader => reader.close()),
         ...[...row.runRegistries].map(reader => reader.close()),
       ]
@@ -254,30 +327,16 @@ export function createSessionBootstrap(
   }
   return Object.freeze<SessionBootstrapAssembly>({
     initialize,
+    ensureRun,
     context: scope => selected(scope)?.context,
     inputs: scope => {
       const row = selected(scope)
-      return row ? Object.freeze({ read: row.source.reader.read }) : undefined
+      return row?.creation ? Object.freeze({ read: row.creation.source.reader.read }) : undefined
     },
     runInputs: (scope, journal) => {
       const row = selectedRun(scope, journal)
       if (!row) return undefined
-      const source = createRunEvaluationInputReader({
-        ...options.inputSource,
-        scope: row.scope,
-        storage: options.storage,
-        sessionTenancy: options.tenancy,
-        withOriginalRunUnit: journal.withReadUnit,
-      })
-      const reader: CurrentInputReader = Object.freeze({
-        read: source.read,
-        async close() {
-          await source.close()
-          row.runReaders.delete(reader)
-        },
-      })
-      row.runReaders.add(reader)
-      return reader
+      return runReader(row, journal)
     },
     runRegistry: (scope, journal, manifestHistory) => {
       const row = selectedRun(scope, journal)

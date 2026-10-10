@@ -4831,3 +4831,98 @@ it('observes the host Clock and initial model only for its fixed tenant without 
   expect(await unavailable.execute(modelRequest)).toEqual({ kind: 'initialModelUnavailable' })
   expect(f.seed).not.toHaveBeenCalled()
 })
+
+it('restores the persisted Session recipe and Context under the original Run after bootstrap restart', async () => {
+  const { f, scope, preparation } = await originalModelBinding()
+  const oldContext = f.assembly.context(scope)
+  f.exchanges.mockImplementation(async () => {
+    throw new Error('restoration must not obtain current membership')
+  })
+  const before = await f.log.readSince(scope.session, 0)
+  await f.assembly.close()
+  const restored = createSessionBootstrap({
+    storage: f.storage,
+    admission: f.admission,
+    source,
+    tenant,
+    inputSource: f.base,
+    tenancy: f.runtime.tenancy,
+    logBacking: f.log.backing,
+    access: f.access.operations,
+    clock: { now: async () => unwrap(instantFromRfc3339(now)) },
+    contextSeed: f.seed,
+  })
+  cleanup.push(() => restored.close())
+  const borrowed = await f.runtime.runJournal.borrow(
+    f.runtime.coordinationAuthority,
+    scope,
+    preparation.run,
+  )
+  if (!('journal' in borrowed)) throw new Error('original journal unavailable')
+  cleanup.push(borrowed.journal.close)
+  expect(
+    await Promise.all([
+      restored.ensureRun(scope, borrowed.journal),
+      restored.ensureRun(scope, borrowed.journal),
+    ]),
+  ).toEqual(['ready', 'ready'])
+  expect(restored.context(scope)).toBeDefined()
+  expect(restored.context(scope)).not.toBe(oldContext)
+  const reader = restored.runInputs(scope, borrowed.journal)
+  expect(await reader?.read(scope.session, tenant)).toHaveProperty('input.root.source', {
+    asset: 'root-asset',
+    version: 1,
+  })
+  expect(await f.log.readSince(scope.session, 0)).toEqual(before)
+  expect(f.seed).toHaveBeenCalledTimes(2)
+  await borrowed.journal.close()
+  expect(await restored.ensureRun(scope, borrowed.journal)).toBe('unavailable')
+  expect(await reader?.read(scope.session, tenant)).toEqual({ failure: 'unavailable' })
+})
+
+it('drains the original restoration reader when bootstrap close races the seed read', async () => {
+  const { f, scope, preparation } = await originalModelBinding()
+  await f.assembly.close()
+  const entered = Promise.withResolvers<void>()
+  const resume = Promise.withResolvers<void>()
+  cleanup.push(async () => resume.resolve())
+  const restored = createSessionBootstrap({
+    storage: f.storage,
+    admission: f.admission,
+    source,
+    tenant,
+    inputSource: f.base,
+    tenancy: f.runtime.tenancy,
+    logBacking: f.log.backing,
+    access: f.access.operations,
+    clock: { now: async () => unwrap(instantFromRfc3339(now)) },
+    contextSeed: async (...args) => {
+      entered.resolve()
+      await resume.promise
+      return f.seed(...args)
+    },
+  })
+  cleanup.push(() => restored.close())
+  const borrowed = await f.runtime.runJournal.borrow(
+    f.runtime.coordinationAuthority,
+    scope,
+    preparation.run,
+  )
+  if (!('journal' in borrowed)) throw new Error('original journal unavailable')
+  cleanup.push(borrowed.journal.close)
+  const restoring = restored.ensureRun(scope, borrowed.journal)
+  await entered.promise
+  let closed = false
+  const closing = restored.close().then(() => {
+    closed = true
+  })
+  await new Promise(resolve => setImmediate(resolve))
+  expect(closed).toBe(false)
+  resume.resolve()
+  expect(await restoring).toBe('unavailable')
+  await closing
+  expect(restored.context(scope)).toBeUndefined()
+  expect(await restored.ensureRun(scope, borrowed.journal)).toBe('unavailable')
+  await borrowed.journal.close()
+  await restored.retryClose()
+})

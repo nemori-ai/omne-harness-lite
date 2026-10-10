@@ -666,3 +666,15 @@ CLI官方会话定义的第三版声明Shell及官方工具准入扩展，工厂
 宿主固定原中心、账号和租户，不固定未来每次准入使用的登录handle。新Session和新Run从实际治理客户端的当前本机状态取得完整来源，再由G28执行线上核验。每次use必须真实关闭后才返回来源或核验结果。候选来源与打开的use不一致时拒绝，不把其他账号或中心的登录接入现有Session。
 
 原输入因登录拒绝或已结束的网络不可达而尚未建立Run时，Driver可在后续扫描重新核验。用户重新登录后不需要重发已受理消息，也不需要停止同宿主中其他在途Run。观察仍保留原输入位置；它不能把已受理改成未受理。旧Run的持久grant不随本机登录变化撤销。
+
+### 原 Run 的 Session Context 恢复
+
+本地宿主先取得原独占通道，再启动 Driver 及调用未发起模型的恢复操作。
+`SessionBootstrapAssembly.ensureRun` 在原 Run 的资源获取边界按需恢复 Session Context。
+它经原 BorrowedRunJournal 和 `createRunEvaluationInputReader` 读取已持久化的配方，再调用实际 Context 初始化拥有者识别原 seed。
+恢复不创建 admission ticket，不查询当前成员身份，不重新捕获配方，也不重复追加初始化事实。
+恢复行只拥有 Context 和原 Run 读取器；创建时使用的 ticket 和 admitted source 仍仅归创建行。
+
+同一 Session 的并发恢复共享一个初始化任务。失效的 journal、外租户和关闭中的 bootstrap 返回 unavailable。
+关闭停止新恢复，并等待原初始化任务和读取器排空；关闭失败保留原资源和 retryClose 责任。
+`createSessionRunAssets` 必须等待 ensureRun 成功，再获取 runInputs 和 runRegistry。

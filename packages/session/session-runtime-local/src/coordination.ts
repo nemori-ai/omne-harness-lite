@@ -1,3 +1,6 @@
+import { recoverPreparedCallIn } from './prepared-call-recovery.ts'
+import { checkSourceToken } from '@omne-harness-lite/session-log'
+import { stateScope } from './state-values.ts'
 import { randomUUID } from 'node:crypto'
 import { StorageDefect, StorageUnavailable, type StorageUnit } from '@omne-harness-lite/storage'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
@@ -23,7 +26,7 @@ import type { AdmissionTicket } from './admission-types.ts'
 import { AdmissionFailure } from './admission-types.ts'
 import { InvalidStateInput, positionText } from './state-values.ts'
 import { pendingPosition } from './state-store.ts'
-import { RuntimeRejection, currentAdmissionSource } from './runtime-values.ts'
+import { RuntimeRejection, currentAdmissionSource, runtimeSemantic } from './runtime-values.ts'
 import { lifecycleInput, CoordinationRejection, usableSource } from './coordination-values.ts'
 import { grantRun, readStep, saveStep, saveCallPreparation } from './coordination-store.ts'
 
@@ -47,11 +50,15 @@ interface Host extends ResultAdoptionHost {
   ) => Promise<{ readonly entries: readonly { readonly position: StepReceipt['position'] }[] }>
   readonly instant: () => Promise<string>
 }
-export function createSessionLifecycle(host: Host): LocalSessionIngress['lifecycle'] {
+export function createSessionLifecycle(host: Host) {
   const coordinator = new Lifecycle(host)
-  return Object.freeze({ commitStep: coordinator.commitStep })
+  return Object.freeze({
+    commitStep: coordinator.commitStep,
+    resumePreparedCall: coordinator.resumePreparedCall,
+  })
 }
 class Lifecycle {
+  readonly recoveries = new Map<string, ReturnType<typeof recoverPreparedCallIn>>()
   constructor(readonly host: Host) {}
   commitStep: LocalSessionIngress['lifecycle']['commitStep'] = async (
     authority,
@@ -73,6 +80,37 @@ class Lifecycle {
       if ('kind' in result && result.kind === 'committed' && input.step.kind === 'prepareCall')
         this.host.prepared?.(input.scope, input.step)
       return result
+    } catch (error) {
+      return this.failure(error)
+    }
+  }
+  resumePreparedCall: LocalSessionIngress['resumePreparedCall'] = async (
+    authority,
+    requested,
+    expected,
+  ) => {
+    if (authority !== this.host.authority.coordination) return { failure: 'denied' }
+    try {
+      const scope = stateScope(requested)
+      if (!tenantIdEquals(scope.tenant, this.host.options.tenant)) return { failure: 'denied' }
+      const source = checkSourceToken(expected)
+      if ('failure' in source) throw new InvalidStateInput()
+      if (source.ok.session !== scope.session || !tenantIdEquals(source.ok.tenant, scope.tenant))
+        throw new CoordinationRejection('retryFromFacts')
+      const key = runtimeSemantic(source.ok, this.host.options.policy.maxRecordBytes)
+      const active = this.recoveries.get(key)
+      if (active) return await active
+      const job = this.host.options.storage
+        .atomic(unit => unit.run(() => recoverPreparedCallIn(unit, this.host, scope, source.ok)))
+        .then(result => {
+          this.host.prepared?.(scope, result.preparation)
+          return result
+        })
+        .finally(() => {
+          this.recoveries.delete(key)
+        })
+      this.recoveries.set(key, job)
+      return await job
     } catch (error) {
       return this.failure(error)
     }

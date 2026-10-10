@@ -161,6 +161,22 @@ export interface LocalSessionIngress {
   }
   readonly modelResults: LocalModelResultCustody
   readonly runJournal: OriginalRunJournal
+  /** Trusted host only. Resume only the original, provably unissued first model call. */
+  readonly resumePreparedCall: (
+    authority: CoordinationAuthority,
+    scope: SessionScope,
+    source: SourceToken,
+  ) => Promise<
+    | {
+        readonly kind: 'prepared'
+        readonly preparation: Extract<SessionLifecycleStep, { kind: 'prepareCall' }>
+        readonly source: SourceToken
+        readonly predecessor: import('@omne-harness-lite/content-blocks').JsonNumber
+      }
+    | Failure<
+        'invalidInput' | 'denied' | 'unavailable' | 'retryFromFacts' | 'staleAttempt' | 'terminal'
+      >
+  >
   readonly lifecycle: SessionLifecycle
   /** Stops new public operations and waits for admitted work. Borrowed providers stay open. */
   readonly close: () => Promise<void>
