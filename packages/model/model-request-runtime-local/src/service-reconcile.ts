@@ -887,6 +887,81 @@ class RuntimeReconcileState {
   closing: Promise<{ readonly released: true } | { readonly unavailable: true }> | undefined
 }
 
+function needsEnteredScope(
+  entry: RecoveryEntry,
+): entry is RecoveryEntry & { entered: NonNullable<RecoveryEntry['entered']> } {
+  return entry.entered !== undefined && entry.scope === undefined
+}
+
+function retainEnteredScope(
+  entry: RecoveryEntry,
+  entered: Awaited<ReturnType<RuntimeRecoveryAccess['enter']>>,
+): void {
+  if ('scope' in entered) entry.scope = entered.scope
+}
+
+function controlReleaseDecision(
+  entry: RecoveryEntry,
+  previousSafe: boolean,
+  control: Awaited<ReturnType<UnknownAppendTracker['close']>>,
+):
+  | { readonly safe: false; readonly readPrefix: false }
+  | { readonly safe: true; readonly readPrefix: boolean } {
+  if ('unavailable' in control) return { safe: false, readPrefix: false }
+  return previousSafe
+    ? { safe: true, readPrefix: entry.pendingControl.size !== 0 }
+    : { safe: false, readPrefix: false }
+}
+
+function recognizePendingControl(
+  entry: RecoveryEntry,
+  read: Awaited<ReturnType<typeof readRecoveryPrefix>>,
+): boolean {
+  if ('unavailable' in read) return false
+  let recognized = true
+  for (const callId of entry.pendingControl) {
+    const history = interpretCallHistory({ prefix: read.prefix, callId })
+    if (!('known' in history) || history.known.intent === null) recognized = false
+    else if (
+      history.known.ending === null ||
+      (history.known.ending.ending === 'interrupted' &&
+        history.known.ending.initiator === history.known.intent.initiator)
+    )
+      entry.pendingControl.delete(callId)
+    else recognized = false
+  }
+  return recognized
+}
+
+function recognizeStoppedSettlement(
+  entry: RecoveryEntry,
+  read: Awaited<ReturnType<typeof readRecoveryPrefix>>,
+  settlement: RecoverySettlement,
+  previousSafe: boolean,
+): boolean {
+  if ('unavailable' in read) return false
+  const history = interpretCallHistory({ prefix: read.prefix, callId: settlement.target.call })
+  const last = 'known' in history ? history.known.dispatches.at(-1) : undefined
+  if (
+    last === undefined ||
+    !modelLogJsonEqual(last.record.dispatch, settlement.target.dispatch) ||
+    last.record.response !== settlement.target.response
+  )
+    return false
+  entry.settlements.delete(settlement)
+  return previousSafe
+}
+
+function releaseExitResult(
+  entry: RecoveryEntry,
+  safe: boolean,
+  finalize: boolean,
+): boolean | undefined {
+  if (!safe || entry.reads.size !== 0 || entry.settlements.size !== 0) return false
+  if (!finalize) return true
+  return undefined
+}
+
 function buildRuntimeReconcile(
   input: ReconcileConstruction,
   physical: RuntimeReconcileState = new RuntimeReconcileState(),
@@ -912,10 +987,10 @@ function buildRuntimeReconcile(
   }
 
   async function releaseEntryOnce(entry: RecoveryEntry, finalize: boolean): Promise<boolean> {
-    if (entry.entered !== undefined && entry.scope === undefined) {
+    if (needsEnteredScope(entry)) {
       try {
         const entered = await entry.entered
-        if ('scope' in entered) entry.scope = entered.scope
+        retainEnteredScope(entry, entered)
       } catch {
         physical.entries.delete(entry.session)
         return true
@@ -931,57 +1006,26 @@ function buildRuntimeReconcile(
       if (!(await releaseRead(entry, owned))) safe = false
     }
     const control = await entry.unknownControl.close()
-    if ('unavailable' in control) safe = false
-    if (safe && entry.pendingControl.size !== 0) {
+    const decision = controlReleaseDecision(entry, safe, control)
+    safe = decision.safe
+    if (decision.readPrefix) {
       const read = await readRecoveryPrefix(entry, input.contention)
-      if ('unavailable' in read) safe = false
-      else {
-        for (const callId of entry.pendingControl) {
-          // Original control-batch recognition only; see the unknown control reader above.
-          const history = interpretCallHistory({ prefix: read.prefix, callId })
-          if (!('known' in history) || history.known.intent === null) safe = false
-          else if (
-            history.known.ending === null ||
-            (history.known.ending.ending === 'interrupted' &&
-              history.known.ending.initiator === history.known.intent.initiator)
-          )
-            entry.pendingControl.delete(callId)
-          else safe = false
-        }
-      }
+      safe = recognizePendingControl(entry, read)
     }
     for (const settlement of [...entry.settlements]) {
       try {
         settlement.task?.requestStop()
         if (settlement.task !== undefined) await settlement.task.stopped
-        // close actively resolves a retained unknown original or rejects while it stays owned.
         await settlement.coordinator.close()
       } catch {
         safe = false
         continue
       }
       const read = await readRecoveryPrefix(entry, input.contention)
-      if ('unavailable' in read) {
-        safe = false
-        continue
-      }
-      // Original settlement-batch recognition only; no acknowledged content view is consumed.
-      const history = interpretCallHistory({ prefix: read.prefix, callId: settlement.target.call })
-      const last = 'known' in history ? history.known.dispatches.at(-1) : undefined
-      if (
-        last === undefined ||
-        !modelLogJsonEqual(last.record.dispatch, settlement.target.dispatch) ||
-        last.record.response !== settlement.target.response
-      ) {
-        safe = false
-        continue
-      }
-      // The original writer has stopped. Either the complete original batch or its
-      // authoritative absence ends this physical responsibility; absence is not success.
-      entry.settlements.delete(settlement)
+      safe = recognizeStoppedSettlement(entry, read, settlement, safe)
     }
-    if (!safe || entry.reads.size !== 0 || entry.settlements.size !== 0) return false
-    if (!finalize) return true
+    const exit = releaseExitResult(entry, safe, finalize)
+    if (exit !== undefined) return exit
     entry.exitAttempted = true
     try {
       await scope.close()
