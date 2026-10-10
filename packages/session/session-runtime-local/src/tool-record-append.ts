@@ -21,10 +21,9 @@ type Input = {
   readonly log: SessionLogParticipant
   readonly activeIn: (unit: StorageUnit) => ToolOriginalIssueIdentity | undefined
   readonly original: (
-    session: ToolOriginalIssueIdentity['ref']['session'],
-    call: string,
-  ) => ToolOriginalIssueIdentity | undefined
-  readonly verifyIn: (unit: StorageUnit, identity: ToolOriginalIssueIdentity) => Promise<boolean>
+    unit: StorageUnit,
+    ref: ToolOriginalIssueIdentity['ref'],
+  ) => Promise<ToolOriginalIssueIdentity | undefined>
 }
 
 export function createToolRecordAppender(input: Input): SessionLogParticipant['appendIn'] {
@@ -42,14 +41,13 @@ export function createToolRecordAppender(input: Input): SessionLogParticipant['a
       { ...request.entries[0]!, session: request.session, position: 1 },
     )
     if (!('value' in first)) return { failure: 'denied' }
-    const original = active ?? input.original(request.session, first.value.ref.callId)
+    const original = active ?? (await input.original(unit, first.value.ref))
     if (!original || !tenantIdEquals(original.ref.tenant, input.options.tenant))
       return { failure: 'denied' }
     const scope = { tenant: original.ref.tenant, session: original.ref.session }
     if (!matchingRecords(request, original, active !== undefined)) return { failure: 'denied' }
     const append = () => input.log.appendIn(unit, access, request, suppliedSource)
     if (active) return append()
-    if (!(await input.verifyIn(unit, original))) return { failure: 'denied' }
     return input.authority.withinRun(unit, scope, original.origin.run, append)
   }
 }

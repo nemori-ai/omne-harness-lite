@@ -152,4 +152,12 @@ export const sessionRuntimeMigrations: readonly MigrationFragment[] = [
       },
     },
   },
+  {
+    name: 'local_session_tool_original',
+    migration: {
+      async up(db) {
+        await db.schema.alterTable('sr_tool_issue').addColumn('original', 'text').execute()
+      },
+    },
+  },
 ]

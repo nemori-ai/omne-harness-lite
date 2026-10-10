@@ -533,6 +533,8 @@ createSessionModelObservations用于尚未发起原调用的正常段。当前So
 
 appendIn只接受当前原工具的Tool条目，核固定tenant、Session、call、Run及attempt。复制权限、异调用、Session事实或delivery_confirmed均拒绝。原意图和开始条目只能在实际准入／消费Unit内暂存。已提交原发起证明对应的保留身份，可以在后续调用者Unit内追加原工具转移、终局及清理条目；提供者重新核该证明及原Run grant，不重新开放新发起或消费。输入批次和Source在异步核验前固定。该写入口不计算late，也不替调用者提交Unit。终态或关闭后的原事实读取仍只读；保留身份的收尾写入是独立、受限的路径。
 
+Session将原工具身份的完整内容与语义摘要一起写入sr_tool_issue，与原意图同提交。后续分类和收尾写入在调用者Unit中读取该内容，核对摘要、tenant、Session和call；不依赖旧进程的内存注册表。重建后的支持可继续原结果收尾，但没有旧claim或新准备，不得重发执行。local_session_tool_original迁移增加完整身份列；已有的摘要不能反推完整身份。缺少完整内容、内容损坏或摘要不符时报存储缺陷，不猜测身份，也不能据此宣布冷恢复完成。
+
 同一工具支持对象的classifyTerminalIn拥有跨域late判断。它核实际租户库、保留原身份及持久原发起证明，在终局提交的同一Unit读取Session当前完整前缀。原Run已结束或已有较新attempt时返回late=true；缺少原Run或原attempt事实是存储缺陷。该操作不签发执行权，不受后续登录撤销影响，也不向工具池暴露完整日志。其他原身份和异租户返回denied，来源不可读返回unavailable。
 
 不可执行工具调用同样须形成结果。driver 从已完成原批次取得 `unparseable` 或 `no_such_entry`，保留原 adoption、调用和 after_action 输入，不虚构 SelectedTool。原发起同一 Unit 核对批次、原调用及结论；缺少或不匹配的结论使整个暂存回滚。原池不调用作者，失败结果仍经实际保管、after_action 和普通消息交付后才能推进下一模型回合。

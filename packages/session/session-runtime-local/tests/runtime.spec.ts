@@ -3808,6 +3808,134 @@ it('classifies an original Tool terminal from the Session unit before and after 
   expect(await classify()).toEqual({ kind: 'classified', late: true })
 })
 
+it.each([false, true])(
+  'a rebuilt Session recognizes its durable Tool original, ended Run %s',
+  async ended => {
+    const t = await toolCustodyFixture()
+    if (ended) {
+      expect(
+        await t.f.runtime.lifecycle.commitStep(
+          t.f.runtime.coordinationAuthority,
+          t.p.scope,
+          t.input.source,
+          {
+            kind: 'finish',
+            stepKey: 'finish-before-rebuild',
+            run: t.p.step.run,
+            attempt: t.p.step.attempt,
+            permit: t.p.step.permit,
+            terminal: 'completed',
+            reason: 'controlled-settled-source',
+          },
+        ),
+      ).toHaveProperty('kind', 'committed')
+      t.f.setDecision('rejected')
+    }
+    await t.f.runtime.close()
+    await t.f.log().close()
+    await t.f.storage.close()
+    const storage = await openStorage({
+      dialect: 'sqlite',
+      file: join(t.f.root, 'tenant.sqlite'),
+      synchronous: 'full',
+    })
+    stores.push(storage)
+    const rebuilt = createLocalSessionIngress({
+      ...t.f.options,
+      storage,
+      log: authority => {
+        const log = openSqlSessionLog({ storage, authority, operationLimit: 32 })
+        logs.push(log)
+        return log.participant
+      },
+    })
+    try {
+      const support = await rebuilt.toolInvocation.support(rebuilt.coordinationAuthority)
+      if ('unavailable' in support) throw new Error('rebuilt Tool support unavailable')
+      expect(await storage.atomic(unit => support.classifyTerminalIn(unit, t.identity))).toEqual({
+        kind: 'classified',
+        late: ended,
+      })
+      const original = prepareToolJournalEntry({
+        origin: t.identity.origin,
+        value: {
+          kind: 'delivery_ready',
+          revision: 1,
+          ref: t.identity.ref,
+          result: t.input.terminal.value.delivery.result,
+          basis: {
+            kind: 'recovered_without_after_action',
+            pass: t.input.terminal.value.delivery.pass,
+          },
+        },
+      })
+      if ('invalid' in original) throw new Error('invalid retained Tool delivery')
+      await storage.atomic(async unit => {
+        const source = await support.log.sourceIn(unit, support.access, t.p.scope)
+        if ('failure' in source) throw new Error('rebuilt original source unavailable')
+        const request = checkAppendInput(
+          t.p.scope.session,
+          [original.entry],
+          { kind: 'unfenced' },
+          { kind: 'tailEquals', tail: source.source.tail },
+        )
+        if ('failure' in request) throw new Error('invalid original terminal replay')
+        expect(
+          await support.log.appendIn(unit, support.access, request.ok, source.source),
+        ).toHaveProperty('kind', 'staged')
+      })
+      expect(
+        await storage.atomic(unit =>
+          support.classifyTerminalIn(unit, {
+            ...t.identity,
+            adoption: 'forged-adoption',
+          }),
+        ),
+      ).toEqual({ kind: 'denied' })
+      expect(await support.admission.consumeOriginal(t.claim)).toEqual({ kind: 'invalidInput' })
+      expect(await support.admission.admitOriginal(t.participant)).toEqual({ kind: 'denied' })
+      const start = prepareToolJournalEntry({
+        origin: t.identity.origin,
+        value: {
+          kind: 'execution_started',
+          revision: 1,
+          ref: t.identity.ref,
+          at,
+        },
+      })
+      if ('invalid' in start) throw new Error('invalid controlled start')
+      const request = checkAppendInput(
+        t.p.scope.session,
+        [start.entry],
+        { kind: 'unfenced' },
+        { kind: 'unconditional' },
+      )
+      if ('failure' in request) throw new Error('invalid controlled batch')
+      expect(
+        await storage.atomic(unit => support.log.appendIn(unit, support.access, request.ok)),
+      ).toEqual({ failure: 'denied' })
+    } finally {
+      await rebuilt.close()
+    }
+  },
+)
+
+it.each([null, '{}'])(
+  'a missing or corrupt durable Tool original is not reconstructed from its digest: %s',
+  async original => {
+    const t = await toolCustodyFixture()
+    await t.f.storage.write(tx =>
+      narrow<{ sr_tool_issue: { original: string | null } }>(tx)
+        .updateTable('sr_tool_issue')
+        .set({ original })
+        .execute(),
+    )
+    await expect(
+      t.f.storage.atomic(unit => t.support.classifyTerminalIn(unit, t.identity)),
+    ).rejects.toThrow(/Tool (proof lacks|original)/)
+  },
+)
+
 it('custodies an original Tool terminal after its Run has ended without a new permit', async () => {
   const t = await toolCustodyFixture()
   expect(

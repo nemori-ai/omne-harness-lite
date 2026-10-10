@@ -1,4 +1,5 @@
 import { inspectToolJournalEntry } from '@omne-harness-lite/tool-execution-runtime'
+import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import {
   narrow,
   StorageDefect,
@@ -29,6 +30,7 @@ import { verifyCallPreparation } from './call-preparation.ts'
 import { createToolRecordAppender } from './tool-record-append.ts'
 import { readDriverRunState } from './run-history.ts'
 import { hasOriginalToolFailure } from './tool-request-proof.ts'
+import { readSessionToolOriginalIn } from './tool-original-read.ts'
 
 type Preparation = Extract<SessionLifecycleStep, { kind: 'prepareCall' }>
 interface Held {
@@ -40,6 +42,7 @@ interface Row {
   session: string
   call: string
   identity: string
+  original: string | null
   preparation: string
 }
 interface Database {
@@ -55,7 +58,6 @@ interface Host {
 export function createSessionToolAdmission(host: Host) {
   const preparations = new Map<string, { scope: SessionScope; step: Preparation }>()
   const claims = new WeakMap<ToolOriginalIssueClaim, Held>()
-  const originals = new Map<string, ToolOriginalIssueIdentity>()
   const active = new WeakMap<StorageUnit, Held>()
   const tasks = new Set<Promise<unknown>>()
   const key = (scope: SessionScope, call: string) =>
@@ -115,12 +117,7 @@ export function createSessionToolAdmission(host: Host) {
     appendIn: createToolRecordAppender({
       ...host,
       activeIn: unit => active.get(unit)?.participant.identity,
-      original: (session, call) =>
-        originals.get(key({ tenant: host.options.tenant, session }, call)),
-      async verifyIn(unit, identity) {
-        const row = await find(unit, identity)
-        return row !== undefined && row.identity === text(identity)
-      },
+      original: (unit, ref) => readSessionToolOriginalIn(unit, host.options, ref),
     }),
     sourceIn: (unit, access, scope) =>
       access !== host.authority.logAccess
@@ -176,12 +173,10 @@ export function createSessionToolAdmission(host: Host) {
       if (staged.kind === 'alreadyIssued') {
         if (!existing || existing.identity !== text(identity))
           throw new StorageDefect('Tool original lacks Session proof')
-        originals.set(key(scope, identity.ref.callId), identity)
         return staged
       }
       if (existing) throw new StorageDefect('Tool staged twice for an existing Session proof')
       await save(unit, held)
-      originals.set(key(scope, identity.ref.callId), identity)
       claims.set(staged.claim, held)
       return { ...staged, kind: 'issued' as const }
     } finally {
@@ -239,6 +234,7 @@ export function createSessionToolAdmission(host: Host) {
           session: held.scope.session,
           call: held.participant.identity.ref.callId,
           identity: text(held.participant.identity),
+          original: writeJsonLossless(held.participant.identity),
           preparation: text(data),
         })
         .execute(),
@@ -315,10 +311,8 @@ export function createSessionToolAdmission(host: Host) {
       unit.assertStorage(host.options.storage)
       const scope = { tenant: identity.ref.tenant, session: identity.ref.session }
       if (!tenantIdEquals(scope.tenant, host.options.tenant)) return { kind: 'denied' }
-      const original = originals.get(key(scope, identity.ref.callId))
+      const original = await readSessionToolOriginalIn(unit, host.options, identity.ref)
       if (!original || text(original) !== text(identity)) return { kind: 'denied' }
-      const proof = await find(unit, identity)
-      if (!proof || proof.identity !== text(identity)) return { kind: 'denied' }
       return host.authority.withinOriginalRead(unit, scope, () =>
         terminalClassificationIn(unit, scope, original),
       )
