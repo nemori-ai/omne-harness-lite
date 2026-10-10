@@ -274,3 +274,20 @@ test('storage failure before the first read is surfaced without publishing a rea
   await expect(f.source(storage).withObligations(input, use)).rejects.toBe(failure)
   expect(use).not.toHaveBeenCalled()
 })
+
+test('distinct callback and release failures keep both occurrences of the same object', async () => {
+  const f = await fixture()
+  const failure = new Error('shared failure object')
+  const storage: Storage = {
+    write: f.log.fixtureStorage.write.bind(f.log.fixtureStorage),
+    async read(use) {
+      await f.log.fixtureStorage.read(use)
+      throw failure
+    },
+  }
+  await expect(
+    f.source(storage).withObligations(input, async () => {
+      throw failure
+    }),
+  ).rejects.toMatchObject({ errors: [failure, failure] })
+})

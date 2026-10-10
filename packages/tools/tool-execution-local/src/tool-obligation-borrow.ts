@@ -84,7 +84,6 @@ export async function borrowToolObligations<T>(
 }
 
 function throwFailures(errors: readonly unknown[]) {
-  const unique = [...new Set(errors)]
-  if (unique.length === 1) throw unique[0]
-  if (unique.length > 1) throw new AggregateError(unique, 'Tool obligation borrow failed')
+  if (errors.length === 1) throw errors[0]
+  if (errors.length > 1) throw new AggregateError(errors, 'Tool obligation borrow failed')
 }
