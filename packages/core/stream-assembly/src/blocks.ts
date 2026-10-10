@@ -35,7 +35,8 @@ export function closeMatches(opened: OpenEvent, block: ContentBlock | undefined)
   )
 }
 
-export function nonEmptyBlock(block: ContentBlock): boolean {
+export function closeContributesContent(block: ContentBlock): boolean {
+  if (block.kind === 'tool_call') return false
   return (block.kind !== 'text' && block.kind !== 'thinking') || block.text.length > 0
 }
 
@@ -63,6 +64,12 @@ function constructedBlock(value: unknown): ContentBlock {
   return judged.ok
 }
 
+const wholeBlockKinds: readonly OpenEvent['kind'][] = Object.freeze([
+  'image',
+  'file',
+  'tool_result',
+])
+
 export function settleBlock(record: BlockRecord): ContentBlock | undefined {
   if (record.closed) return record.block
   const opened = record.opened
@@ -73,7 +80,7 @@ export function settleBlock(record: BlockRecord): ContentBlock | undefined {
     return incompleteToolCall(opened, content ?? '')
   }
   if (content === undefined) return undefined
-  if (opened.kind === 'image' || opened.kind === 'file' || opened.kind === 'tool_result') {
+  if (wholeBlockKinds.includes(opened.kind)) {
     if (typeof content === 'string') throw new Error('whole block reduction invariant')
     return content
   }
