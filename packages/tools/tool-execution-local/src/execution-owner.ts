@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { copyJsonValue, type JsonValue } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
-import type { CheckedPrefix } from '@omne-harness-lite/session-log'
+import { compareInteger, type CheckedPrefix } from '@omne-harness-lite/session-log'
+import { StorageUnavailable } from '@omne-harness-lite/storage'
 import { instantToRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
 import type {
   ContextBinding,
@@ -35,6 +36,7 @@ import type {
   ToolResultWriter,
   ToolOriginalIssueSupport,
   ToolJournalPayload,
+  ToolExecutionRecords,
 } from '@omne-harness-lite/tool-execution-runtime'
 import type {
   ExecutionEnvironmentOperations,
@@ -47,7 +49,7 @@ import { createExecutionObserver } from './execution-observer.ts'
 import type { PreparedTerminal } from './execution-result.ts'
 import { createTerminalCommitter } from './execution-terminal.ts'
 import { jsonObject, sameJson } from './json-values.ts'
-import type { createRuntimeJournal } from './runtime-journal.ts'
+import type { createRuntimeJournal, RuntimeJournalFailure } from './runtime-journal.ts'
 import {
   captureSubmission,
   createSubmissionAdmission,
@@ -56,6 +58,20 @@ import {
 } from './submission.ts'
 
 type Journal = ReturnType<typeof createRuntimeJournal>
+function transition(
+  value: ToolJournalPayload,
+): value is Parameters<ToolExecutionRecords['stageTransitionIn']>[2][number] {
+  return (
+    value.kind !== 'execution_intended' &&
+    value.kind !== 'execution_started' &&
+    value.kind !== 'delivery_confirmed'
+  )
+}
+class NativeRecordCommitFailure extends Error {
+  constructor(readonly reason: RuntimeJournalFailure['reason']) {
+    super(reason)
+  }
+}
 interface OwnedExecution {
   readonly request: ExecutionSubmission
   readonly ref: ExecutionRef
@@ -193,8 +209,62 @@ export function createExecutionOwner(input: {
     observers = new Set<ExecutionObserver>()
   let open = true,
     closing: Promise<void> | undefined
-  const terminal = createTerminalCommitter(input)
-  const check = createSubmissionAdmission({ ...input, isOpen: () => open })
+  const journal: Journal = Object.freeze({ ...input.journal, commit })
+  const terminal = createTerminalCommitter({ ...input, journal })
+  const check = createSubmissionAdmission({ ...input, journal, isOpen: () => open })
+  function captureRecordCommit(
+    request: Parameters<Journal['commit']>[0],
+    original: ReturnType<typeof createToolOriginalIssue>,
+  ) {
+    const captured = copyJsonValue(request)
+    if ('failed' in captured) return { kind: 'rejected', reason: 'invalidInput' } as const
+    const fixed = captured.ok as unknown as typeof request
+    if (
+      !sameJson(fixed.ref, original.participant.identity.ref) ||
+      !sameJson(fixed.origin, original.participant.identity.origin)
+    )
+      return { kind: 'rejected', reason: 'invalidInput' } as const
+    if (fixed.expected.ownerGeneration !== journal.generation || !journal.isCurrent())
+      return { kind: 'rejected', reason: 'unavailable' } as const
+    return { kind: 'captured', value: fixed } as const
+  }
+  async function stageNativeRecords(
+    support: ToolOriginalIssueSupport,
+    original: ReturnType<typeof createToolOriginalIssue>,
+    fixed: Parameters<Journal['commit']>[0],
+  ) {
+    await support.storage.atomic(async unit => {
+      const source = await support.log.sourceIn(unit, support.access, scopeOf(fixed.ref))
+      if ('failure' in source) throw new NativeRecordCommitFailure('unavailable')
+      if (compareInteger(source.source.tail, fixed.expected.tail) !== 0)
+        throw new NativeRecordCommitFailure('tailChanged')
+      const result = await original.records.stageTransitionIn(
+        unit,
+        original.job,
+        fixed.values.filter(transition),
+      )
+      if (result.kind !== 'staged' && result.kind !== 'recognized')
+        throw new NativeRecordCommitFailure(result.kind === 'conflict' ? 'conflict' : 'unavailable')
+    })
+  }
+  async function commit(request: Parameters<Journal['commit']>[0]): ReturnType<Journal['commit']> {
+    const original = owned.get(keyOf(request.ref))?.original
+    const support = input.originalIssue
+    if (!original || !support || request.values.some(value => !transition(value)))
+      return input.journal.commit(request)
+    const captured = captureRecordCommit(request, original)
+    if (captured.kind === 'rejected') return captured
+    const fixed = captured.value
+    try {
+      await stageNativeRecords(support, original, fixed)
+      return input.journal.read(scopeOf(fixed.ref), fixed.ref.callId)
+    } catch (error) {
+      if (error instanceof NativeRecordCommitFailure)
+        return { kind: 'rejected', reason: error.reason }
+      if (error instanceof StorageUnavailable) return { kind: 'rejected', reason: 'unavailable' }
+      throw error
+    }
+  }
   function notify(ref: ExecutionRef) {
     for (const wake of listeners.get(keyOf(ref)) ?? []) wake()
   }
@@ -419,7 +489,7 @@ export function createExecutionOwner(input: {
         selected,
         access: job.request.access,
         environments: input.environments,
-        journal: input.journal,
+        journal,
         closed: job.environmentClosed.signal,
         clock: input.clock,
         attempts: input.attempts,
@@ -455,7 +525,7 @@ export function createExecutionOwner(input: {
       ref: job.ref,
       origin: job.request.origin,
       reader,
-      journal: input.journal,
+      journal,
       isOpen: () => open && !job.controller.signal.aborted,
       attempts: input.attempts,
     })
@@ -700,6 +770,7 @@ export function createExecutionOwner(input: {
         value,
         stopped: job.stopped,
         isOpen: () => open && input.journal.isCurrent(),
+        isRetained: () => !job.finished && input.journal.isCurrent(),
       })
       return { kind: 'original', result: await admitOriginalJob(job) } as const
     }

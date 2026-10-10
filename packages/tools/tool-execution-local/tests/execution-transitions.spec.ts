@@ -65,6 +65,7 @@ async function fixture(issued = true) {
     },
     stopped: new Promise<void>(() => {}),
     isOpen: () => open,
+    isRetained: () => open,
   })
   if (issued)
     await log.fixtureStorage.atomic(async unit => {

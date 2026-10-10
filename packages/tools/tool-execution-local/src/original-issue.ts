@@ -48,6 +48,7 @@ export function createToolOriginalIssue(input: {
   readonly value: Extract<ToolJournalPayload, { kind: 'execution_intended' }>
   readonly stopped: Promise<void>
   readonly isOpen: () => boolean
+  readonly isRetained: () => boolean
 }) {
   const { support, value, expected } = input
   const prepared = prepareToolJournalEntry({ origin: value.origin, value })
@@ -212,7 +213,7 @@ export function createToolOriginalIssue(input: {
     support,
     identity,
     job,
-    isOpen: input.isOpen,
+    isOpen: input.isRetained,
     async verifyIn(unit) {
       const existing = await find(unit)
       return existing !== undefined && same(existing) && (await verifyIntent(unit))

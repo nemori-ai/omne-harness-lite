@@ -3343,18 +3343,30 @@ async function sessionToolFixture(
           return { kind: 'alreadyIssued', identity }
         const request = checkAppendInput(
           p.scope.session,
-          terminal
-            ? [native.entry, ended.entry, ...(conclusionMode ? [conclusion.entry] : [])]
-            : [native.entry],
+          terminal ? [native.entry, ended.entry] : [native.entry],
           { kind: 'unfenced' },
           { kind: 'tailEquals', tail: source.source.tail },
         )
         if ('failure' in request) throw new Error('bad Tool fixture append')
         const result = await support.log.appendIn(unit, support.access, request.ok, source.source)
         if ('failure' in result) throw new Error('Tool fixture append failed')
-        return failStage
-          ? { kind: 'conflict' }
-          : { kind: 'staged', identity, claim, positions: result.entries.map(e => e.position) }
+        const positions = result.entries.map(entry => entry.position)
+        if (terminal && conclusionMode) {
+          const rootLog = f.log().participant
+          const updated = await rootLog.sourceIn(unit, support.access, p.scope)
+          if ('failure' in updated) throw new Error('Runner fixture source unavailable')
+          const runner = checkAppendInput(
+            p.scope.session,
+            [conclusion.entry],
+            { kind: 'unfenced' },
+            { kind: 'tailEquals', tail: updated.source.tail },
+          )
+          if ('failure' in runner) throw new Error('invalid Runner fixture conclusion')
+          const appended = await rootLog.appendIn(unit, support.access, runner.ok, updated.source)
+          if ('failure' in appended) throw new Error('Runner fixture conclusion unavailable')
+          positions.push(...appended.entries.map(entry => entry.position))
+        }
+        return failStage ? { kind: 'conflict' } : { kind: 'staged', identity, claim, positions }
       },
       async consumeOriginalIn(unit, candidate) {
         unit.assertStorage(f.storage)
@@ -3379,6 +3391,98 @@ async function sessionToolFixture(
 }
 
 describe('Session original Tool shared transaction', () => {
+  it('allows only the retained original Tool records in an independent caller unit', async () => {
+    const t = await sessionToolFixture()
+    expect(await t.support.admission.admitOriginal(t.participant)).toHaveProperty('kind', 'issued')
+    const value = prepareToolJournalEntry({
+      origin: t.identity.origin,
+      value: {
+        kind: 'execution_context_read',
+        revision: 1,
+        ref: t.identity.ref,
+        readIndex: 1,
+        values: [],
+      },
+    })
+    if ('invalid' in value) throw new Error('invalid original Tool context record')
+    const batch = checkAppendInput(
+      t.p.scope.session,
+      [value.entry],
+      { kind: 'unfenced' },
+      { kind: 'unconditional' },
+    )
+    if ('failure' in batch) throw new Error('invalid original Tool record batch')
+    expect(
+      await t.f.storage.atomic(async unit => {
+        const source = await t.support.log.sourceIn(unit, t.support.access, t.p.scope)
+        if ('failure' in source) throw new Error('original Tool source unavailable')
+        return t.support.log.appendIn(unit, t.support.access, batch.ok, source.source)
+      }),
+    ).toHaveProperty('kind', 'staged')
+    const prefix = await t.f.log().readSince(t.p.scope.session, t.prepared.source.tail)
+    expect(prefix).toHaveProperty('entries.length', 2)
+  })
+  it('refuses copied authority and new original Tool facts outside the actual admission unit', async () => {
+    const t = await sessionToolFixture()
+    expect(await t.support.admission.admitOriginal(t.participant)).toHaveProperty('kind', 'issued')
+    const prefix = await t.f.log().readSince(t.p.scope.session, t.prepared.source.tail)
+    if ('failure' in prefix) throw new Error('original Tool fixture source unavailable')
+    const { position: _position, session: _session, ...intent } = prefix.entries[0]!
+    const batch = checkAppendInput(
+      t.p.scope.session,
+      [intent],
+      { kind: 'unfenced' },
+      { kind: 'unconditional' },
+    )
+    if ('failure' in batch) throw new Error('invalid original Tool fixture batch')
+    for (const access of [t.support.access, Object.freeze({}) as typeof t.support.access])
+      expect(
+        await t.f.storage.atomic(unit => t.support.log.appendIn(unit, access, batch.ok)),
+      ).toEqual({ failure: 'denied' })
+    expect(await t.f.log().readSince(t.p.scope.session, t.prepared.source.tail)).toHaveProperty(
+      'entries.length',
+      1,
+    )
+  })
+  it('does not let a retained Tool source stage records for another call or for Session state', async () => {
+    const t = await sessionToolFixture()
+    expect(await t.support.admission.admitOriginal(t.participant)).toHaveProperty('kind', 'issued')
+    const foreign = prepareToolJournalEntry({
+      origin: t.identity.origin,
+      value: {
+        kind: 'execution_context_read',
+        revision: 1,
+        ref: { ...t.identity.ref, callId: 'foreign-call' as typeof t.identity.ref.callId },
+        readIndex: 1,
+        values: [],
+      },
+    })
+    if ('invalid' in foreign) throw new Error('invalid foreign Tool test record')
+    const entries = [
+      foreign.entry,
+      {
+        tenant: t.p.scope.tenant,
+        readKeys: ['not-tool'],
+        payload: { category: 'fact', format: 'session-state-test/1' },
+      },
+    ]
+    for (const entry of entries) {
+      const batch = checkAppendInput(
+        t.p.scope.session,
+        [entry],
+        { kind: 'unfenced' },
+        { kind: 'unconditional' },
+      )
+      if ('failure' in batch) throw new Error('invalid non-original test batch')
+      expect(
+        await t.f.storage.atomic(unit => t.support.log.appendIn(unit, t.support.access, batch.ok)),
+      ).toEqual({ failure: 'denied' })
+    }
+    expect(await t.f.log().readSince(t.p.scope.session, t.prepared.source.tail)).toHaveProperty(
+      'entries.length',
+      1,
+    )
+  })
   it('stages the Tool intent and Session proof together after actual preparation, then consumes the same claim', async () => {
     const t = await sessionToolFixture()
     expect(await t.support.admission.admitOriginal(t.participant)).toMatchObject({

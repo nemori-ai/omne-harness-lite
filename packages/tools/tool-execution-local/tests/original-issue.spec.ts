@@ -472,3 +472,29 @@ it('rejects the original stale coordinate without reading the full prefix or ent
     await f.close()
   }
 })
+
+it('persists the original terminal through the same-unit records when the legacy transition writer is unavailable', async () => {
+  const { f } = await admittedFixture()
+  let legacyTerminal = 0
+  f.append.mockImplementation((session, entries, fence, condition) => {
+    if (entries.some(entry => entry.dedupeKey?.includes('execution_ended'))) {
+      legacyTerminal++
+      throw new Error('legacy terminal writer forbidden')
+    }
+    return f.log.append(session, entries, fence, condition)
+  })
+  try {
+    expect(await f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+    await f.owner.idle()
+    const observer = await f.observer()
+    try {
+      expect(await observer.waitForEnd()).toHaveProperty('snapshot.state.phase', 'ended')
+    } finally {
+      observer.release()
+    }
+    expect(f.implementation).toHaveBeenCalledTimes(1)
+    expect(legacyTerminal).toBe(0)
+  } finally {
+    await f.close()
+  }
+})

@@ -528,3 +528,5 @@ createSessionModelObservations用于尚未发起原调用的正常段。当前So
 原工具日志核验可在本Scope已有发起证明后使用只读原事实权限，包括Run终态或Ingress关闭后。该权限不允许追加或新工具发起。工具支持的在途准入和消费受Ingress的容量及close排空约束。原工具结果保管及普通交付已提供。实际公开 native Tool 工厂、Session 原同 Unit 准入／消费、文件结果来源和普通交付可以由可信根组合。重复提交认回原参加者，不创建第二 claim 或再次调用作者；关闭原 native owner 和文件 writer 后，只读保管来源仍核验原结果。该组合不把受控资格、根资产或 Context 输入升级为生产来源；完整 driver 和 Cordis 仍有实现与验证责任。
 
 原工具支持的log分面只发布sourceIn、readByKeyIn和appendIn；不把Session完整前缀读取或独立日志操作交给工具池。固定来源及按key读取仍在原Unit中激活原只读资格；追加只能沿原同Unit写入资格。Session自身的准备、late、保管及交付继续读取其必要的完整事实，不因收窄工具分面而删去跨领域核验。
+
+appendIn只接受当前原工具的Tool条目，核固定tenant、Session、call、Run及attempt。复制权限、异调用、Session事实或delivery_confirmed均拒绝。原意图和开始条目只能在实际准入／消费Unit内暂存。已提交原发起证明对应的保留身份，可以在后续调用者Unit内追加原工具转移、终局及清理条目；提供者重新核该证明及原Run grant，不重新开放新发起或消费。输入批次和Source在异步核验前固定。该写入口不计算late，也不替调用者提交Unit。终态或关闭后的原事实读取仍只读；保留身份的收尾写入是独立、受限的路径。

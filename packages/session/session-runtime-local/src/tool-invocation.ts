@@ -26,6 +26,7 @@ import type { createLocalSessionState } from './state-participant.ts'
 import { CoordinationRejection } from './coordination-values.ts'
 import { runtimeSemantic } from './runtime-values.ts'
 import { verifyCallPreparation } from './call-preparation.ts'
+import { createToolRecordAppender } from './tool-record-append.ts'
 
 type Preparation = Extract<SessionLifecycleStep, { kind: 'prepareCall' }>
 interface Held {
@@ -52,6 +53,7 @@ interface Host {
 export function createSessionToolAdmission(host: Host) {
   const preparations = new Map<string, { scope: SessionScope; step: Preparation }>()
   const claims = new WeakMap<ToolOriginalIssueClaim, Held>()
+  const originals = new Map<string, ToolOriginalIssueIdentity>()
   const active = new WeakMap<StorageUnit, Held>()
   const tasks = new Set<Promise<unknown>>()
   const key = (scope: SessionScope, call: string) =>
@@ -108,7 +110,16 @@ export function createSessionToolAdmission(host: Host) {
     return host.authority.withinOriginalRead(unit, scope, read)
   }
   const log = Object.freeze<ToolOriginalIssueSupport['log']>({
-    appendIn: host.log.appendIn,
+    appendIn: createToolRecordAppender({
+      ...host,
+      activeIn: unit => active.get(unit)?.participant.identity,
+      original: (session, call) =>
+        originals.get(key({ tenant: host.options.tenant, session }, call)),
+      async verifyIn(unit, identity) {
+        const row = await find(unit, identity)
+        return row !== undefined && row.identity === text(identity)
+      },
+    }),
     sourceIn: (unit, access, scope) =>
       access !== host.authority.logAccess
         ? Promise.resolve({ failure: 'denied' } as const)
@@ -163,10 +174,12 @@ export function createSessionToolAdmission(host: Host) {
       if (staged.kind === 'alreadyIssued') {
         if (!existing || existing.identity !== text(identity))
           throw new StorageDefect('Tool original lacks Session proof')
+        originals.set(key(scope, identity.ref.callId), identity)
         return staged
       }
       if (existing) throw new StorageDefect('Tool staged twice for an existing Session proof')
       await save(unit, held)
+      originals.set(key(scope, identity.ref.callId), identity)
       claims.set(staged.claim, held)
       return { ...staged, kind: 'issued' as const }
     } finally {
