@@ -119,7 +119,11 @@ async function finishInterruptedCall(input: Input, execution: ToolJournalHistory
     pass: data.pass,
   })({ outcome: 'failed', code: 'abnormal_interruption' })
   if (prepared === 'unavailable') throw new Error('Tool runtime recovery basis unavailable')
-  const result = await createTerminalCommitter({ ...input, clock: input.dependencies.clock })({
+  const result = await createTerminalCommitter({
+    ...input,
+    classification: 'history',
+    clock: input.dependencies.clock,
+  })({
     ref: intent.ref,
     origin: intent.origin,
     ...prepared,

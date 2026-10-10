@@ -9,11 +9,22 @@ import type {
   ExecutionTerminal,
   ToolJournalPayload,
 } from '@omne-harness-lite/tool-execution-runtime'
-import type { createRuntimeJournal } from './runtime-journal.ts'
+import type { createRuntimeJournal, RuntimeJournalView } from './runtime-journal.ts'
+
+function terminalLate(
+  classification: 'session' | 'history',
+  facts: RuntimeJournalView['facts'],
+  attempt: ExecutionOrigin['attempt'],
+): boolean | 'unavailable' {
+  if (classification === 'session') return false
+  if (!facts) return 'unavailable'
+  return facts.runState !== 'open' || compareInteger(facts.latestAttempt, attempt) !== 0
+}
 
 /** One terminal, its account and its delivery obligation use the same checked session tail. */
 export function createTerminalCommitter(input: {
   readonly journal: ReturnType<typeof createRuntimeJournal>
+  readonly classification: 'session' | 'history'
   readonly clock: Clock
   readonly attempts: number
   readonly retry?: (attempt: number) => Promise<void>
@@ -42,11 +53,10 @@ export function createTerminalCommitter(input: {
       )
       if (view.kind !== 'view') return 'unavailable'
       const execution = view.executions.get(request.ref.callId)
-      if (!execution || !view.facts) return 'unavailable'
+      if (!execution) return 'unavailable'
       if (execution.terminal) return 'alreadyEnded'
-      const late =
-        view.facts.runState !== 'open' ||
-        compareInteger(view.facts.latestAttempt, request.origin.attempt) !== 0
+      const late = terminalLate(input.classification, view.facts, request.origin.attempt)
+      if (late === 'unavailable') return 'unavailable'
       const value: ToolJournalPayload = {
         kind: 'execution_ended',
         revision: 1,

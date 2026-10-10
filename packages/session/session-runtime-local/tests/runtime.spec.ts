@@ -3765,6 +3765,32 @@ it('rejects Tool custody when the original terminal has been changed', async () 
   expect(t.verifyResult).not.toHaveBeenCalled()
 })
 
+it('classifies an original Tool terminal from the Session unit before and after Run completion', async () => {
+  const t = await toolCustodyFixture()
+  const classify = () => t.f.storage.atomic(unit => t.support.classifyTerminalIn(unit, t.identity))
+  expect(await classify()).toEqual({ kind: 'classified', late: false })
+  expect(
+    await t.f.runtime.lifecycle.commitStep(
+      t.f.runtime.coordinationAuthority,
+      t.p.scope,
+      t.input.source,
+      {
+        kind: 'finish',
+        stepKey: 'finish-before-terminal-classification',
+        run: t.p.step.run,
+        attempt: t.p.step.attempt,
+        permit: t.p.step.permit,
+        terminal: 'completed',
+        reason: 'controlled-settled-source',
+      },
+    ),
+  ).toHaveProperty('kind', 'committed')
+  t.f.setDecision('rejected')
+  expect(await classify()).toEqual({ kind: 'classified', late: true })
+  await t.f.runtime.close()
+  expect(await classify()).toEqual({ kind: 'classified', late: true })
+})
+
 it('custodies an original Tool terminal after its Run has ended without a new permit', async () => {
   const t = await toolCustodyFixture()
   expect(

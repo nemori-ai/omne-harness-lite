@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { copyJsonValue, type JsonValue } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import { compareInteger, type CheckedPrefix } from '@omne-harness-lite/session-log'
-import { StorageUnavailable } from '@omne-harness-lite/storage'
+import { StorageUnavailable, type StorageUnit } from '@omne-harness-lite/storage'
 import { instantToRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
 import type {
   ContextBinding,
@@ -212,7 +212,8 @@ export function createExecutionOwner(input: {
   const journal: Journal = Object.freeze({ ...input.journal, read: readJournal, commit })
   const terminal = createTerminalCommitter({
     ...input,
-    journal: Object.freeze({ ...journal, read: input.journal.read }),
+    journal,
+    classification: input.originalIssue ? 'session' : 'history',
   })
   const check = createSubmissionAdmission({ ...input, isOpen: () => open })
   async function readJournal(
@@ -287,13 +288,33 @@ export function createExecutionOwner(input: {
       if ('failure' in source) throw new NativeRecordCommitFailure('unavailable')
       if (compareInteger(source.source.tail, fixed.expected.tail) !== 0)
         throw new NativeRecordCommitFailure('tailChanged')
-      const result = await original.records.stageTransitionIn(
+      const values = await terminalValuesIn(
         unit,
-        original.job,
+        support,
+        original,
         fixed.values.filter(transition),
       )
+      const result = await original.records.stageTransitionIn(unit, original.job, values)
       if (result.kind !== 'staged' && result.kind !== 'recognized')
         throw new NativeRecordCommitFailure(result.kind === 'conflict' ? 'conflict' : 'unavailable')
+    })
+  }
+  async function terminalValuesIn(
+    unit: StorageUnit,
+    support: ToolOriginalIssueSupport,
+    original: ReturnType<typeof createToolOriginalIssue>,
+    values: Parameters<ToolExecutionRecords['stageTransitionIn']>[2],
+  ) {
+    if (!values.some(value => value.kind === 'execution_ended')) return values
+    const classification = await support.classifyTerminalIn(unit, original.participant.identity)
+    if (classification.kind !== 'classified') throw new NativeRecordCommitFailure('unavailable')
+    return values.map(value => {
+      if (value.kind !== 'execution_ended') return value
+      const { late: _late, ...account } = value.account
+      return {
+        ...value,
+        account: { ...account, ...(classification.late ? { late: true as const } : {}) },
+      }
     })
   }
   async function commit(request: Parameters<Journal['commit']>[0]): ReturnType<Journal['commit']> {

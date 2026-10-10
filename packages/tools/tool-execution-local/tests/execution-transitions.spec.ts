@@ -48,6 +48,9 @@ async function fixture(issued = true) {
         appendIn,
       },
       access: log.fixtureAccess,
+      classifyTerminalIn: async () => {
+        throw new Error('record staging must not classify Session state')
+      },
       current: { authorizeIn: async () => ({ kind: 'authorized' }) },
       admission: {
         admitOriginal: async () => ({ kind: 'denied' }),

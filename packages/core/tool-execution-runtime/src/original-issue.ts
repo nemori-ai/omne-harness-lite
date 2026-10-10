@@ -107,6 +107,11 @@ export interface ToolOriginalIssueSupport {
   readonly access: LogAuthority
   readonly current: ToolOriginalIssueAuthority
   readonly admission: ToolOriginalIssueAdmission
+  /** Session classifies the original against its facts in the terminal's actual commit unit. */
+  readonly classifyTerminalIn: (
+    unit: StorageUnit,
+    identity: ToolOriginalIssueIdentity,
+  ) => Promise<{ readonly kind: 'classified'; readonly late: boolean } | ToolOriginalIssueFailure>
 }
 /** Required construction subset for a Tool instance used by the Session driver. */
 export interface ToolRuntimeOriginalIssueDependencies extends ToolRuntimeDependencies {

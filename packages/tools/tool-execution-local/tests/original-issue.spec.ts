@@ -12,6 +12,21 @@ function support(log: Awaited<ReturnType<typeof fixture>>['log']): ToolOriginalI
     storage: log.fixtureStorage,
     log: log.participant,
     access: log.fixtureAccess,
+    async classifyTerminalIn(unit, identity) {
+      const source = await log.participant.sourceIn(unit, log.fixtureAccess, {
+        tenant: identity.ref.tenant,
+        session: identity.ref.session,
+      })
+      if ('failure' in source) return { kind: 'unavailable' }
+      const prefix = await log.participant.readPrefixIn(unit, log.fixtureAccess, source.source)
+      if ('failure' in prefix) return { kind: 'unavailable' }
+      return {
+        kind: 'classified',
+        late: prefix.entries.some(entry =>
+          ['attempt-changed', 'run-ended'].includes(entry.dedupeKey ?? ''),
+        ),
+      }
+    },
     current: { authorizeIn: async () => ({ kind: 'authorized' }) },
     admission: {
       admitOriginal: async () => ({ kind: 'denied' }),
@@ -72,6 +87,7 @@ async function admittedFixture(
     readonly executor?: Parameters<typeof fixture>[0]
     readonly forbidCompletePrefix?: boolean
     readonly advanceBeforeStage?: boolean
+    readonly classifyTerminalIn?: ToolOriginalIssueSupport['classifyTerminalIn']
   } = {},
 ) {
   const participants: ToolOriginalIssueParticipant[] = []
@@ -85,6 +101,7 @@ async function admittedFixture(
       await log.fixtureStorage.write(tx => fragment.migration.up(tx.db))
     return {
       ...support(log),
+      ...(options.classifyTerminalIn ? { classifyTerminalIn: options.classifyTerminalIn } : {}),
       ...(options.forbidCompletePrefix
         ? {
             log: {
@@ -500,7 +517,7 @@ it('persists the original terminal through the same-unit records when the legacy
   }
 })
 
-it('reads a retained native job without the complete Session reader', async () => {
+it('reads and finishes a retained native job without the complete Session reader', async () => {
   const entered = deferred<ContextReader['read']>()
   const returned = deferred<string>()
   const { f } = await admittedFixture({
@@ -520,6 +537,10 @@ it('reads a retained native job without the complete Session reader', async () =
     const observer = await f.observer()
     try {
       expect(await observer.read()).toHaveProperty('snapshot.state.phase', 'running')
+      returned.resolve('done')
+      await f.owner.idle()
+      expect(await observer.read()).toHaveProperty('snapshot.state.phase', 'ended')
+      expect(await observer.waitForEnd()).toHaveProperty('snapshot.state.phase', 'ended')
       expect(f.readSince).not.toHaveBeenCalled()
     } finally {
       observer.release()
@@ -528,6 +549,60 @@ it('reads a retained native job without the complete Session reader', async () =
     f.readSince.mockImplementation(f.log.readSince)
     returned.resolve('done')
     await f.owner.idle()
+    await f.close()
+  }
+})
+
+it('retains the Session-classified terminal and original account when its commit reply is lost', async () => {
+  const entered = deferred<void>()
+  const returned = deferred<string>()
+  let loseReply = false
+  const classify = vi.fn<ToolOriginalIssueSupport['classifyTerminalIn']>(async unit => {
+    unit.assertStorage(f.log.fixtureStorage)
+    loseReply = true
+    return { kind: 'classified', late: true }
+  })
+  const { f } = await admittedFixture({
+    executor: async () => {
+      entered.resolve()
+      return returned.promise
+    },
+    classifyTerminalIn: classify,
+  })
+  try {
+    expect(await f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+    await entered.promise
+    const atomic = f.log.fixtureStorage.atomic.bind(f.log.fixtureStorage)
+    const lost = vi.spyOn(f.log.fixtureStorage, 'atomic').mockImplementation(async use => {
+      const result = await atomic(use)
+      if (loseReply) {
+        loseReply = false
+        throw new StorageUnavailable('terminal committed; reply lost')
+      }
+      return result
+    })
+    returned.resolve('original-result')
+    await f.owner.idle()
+    lost.mockRestore()
+    const observer = await f.observer()
+    try {
+      const result = await observer.read()
+      expect(result).toMatchObject({
+        snapshot: {
+          state: {
+            phase: 'ended',
+            terminal: { outcome: 'completed', result: 'original-result' },
+            account: { late: true, cost: { total_usd: 0 } },
+          },
+        },
+      })
+    } finally {
+      observer.release()
+    }
+    expect(classify).toHaveBeenCalledTimes(1)
+    expect(f.implementation).toHaveBeenCalledTimes(1)
+  } finally {
+    returned.resolve('original-result')
     await f.close()
   }
 })

@@ -14,6 +14,8 @@ ToolPoolConstruction 借入原实现、Context、环境、结果、Runner、授�
 
 ToolExecutionRecords 只读取或暂存工具能力自己的原记录，不独立提交或调用作者。实际共享 StorageUnit、原数据集及活体 job 或 claim 必须相符。复制对象、旧 owner 或异存储单元拒绝。暂存终局、原账及耐久交付义务仍由同 Unit 协调者提交；Session 从该提交的完整前缀计算跨域 late 与归因，池不解释完整会话历史。
 
+ToolOriginalIssueSupport.classifyTerminalIn 由可信 Session 提供。在终局暂存的同一个实际 Unit 中，它核对原发起证明，并从当前完整前缀判定原 Run 是否已结束或原 attempt 是否已过时。该读操作只返回 late 判断，不发出新执行资格，也不要求重新登录。池把判断写入本次原账；判断不可用时不提交终局。原提交回执丢失后，认回已持久化的原终局及原账，不按较新的 Session 状态改写它们。
+
 stageTransitionIn 不允许调用者替代 execution_intended、execution_started 或 delivery_confirmed 的专门协议。stageConfirmationIn 核实际已追加消息及原位置。保管凭证不等于送达确认。结果、附件及原文的存续独立于 job 或 observer，关闭池不删除仍由 Session 保管的引用。
 
 相同原身份和语义返回 recognized，不重新发行 claim 或调用作者。开始写后不能确认提交则返回 unknownCommit，保留原完整输入、身份和执行责任，不授予 launch，不换 key 或重调作者。其他拒绝保持现行 SubmissionResult 集合。观察者 release 或等待 abort 只结束该观察责任，不结束原执行。

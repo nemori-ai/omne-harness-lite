@@ -27,6 +27,7 @@ import { CoordinationRejection } from './coordination-values.ts'
 import { runtimeSemantic } from './runtime-values.ts'
 import { verifyCallPreparation } from './call-preparation.ts'
 import { createToolRecordAppender } from './tool-record-append.ts'
+import { readDriverRunState } from './run-history.ts'
 
 type Preparation = Extract<SessionLifecycleStep, { kind: 'prepareCall' }>
 interface Held {
@@ -276,10 +277,39 @@ export function createSessionToolAdmission(host: Host) {
       active.delete(unit)
     }
   }
+  async function terminalClassificationIn(
+    unit: StorageUnit,
+    scope: SessionScope,
+    identity: ToolOriginalIssueIdentity,
+  ) {
+    const source = await host.log.sourceIn(unit, host.authority.logAccess, scope)
+    if ('failure' in source) return { kind: 'unavailable' } as const
+    const prefix = await host.log.readPrefixIn(unit, host.authority.logAccess, source.source)
+    if ('failure' in prefix) return { kind: 'unavailable' } as const
+    const state = readDriverRunState(prefix.entries, identity.origin.run, identity.origin.attempt)
+    if (!state?.original || state.latest === undefined)
+      throw new StorageDefect('original Tool lacks its Session Run facts')
+    return {
+      kind: 'classified' as const,
+      late: state.ended || compareInteger(state.latest, identity.origin.attempt) !== 0,
+    }
+  }
   const support = Object.freeze<ToolOriginalIssueSupport>({
     storage: host.options.storage,
     log,
     access: host.authority.logAccess,
+    async classifyTerminalIn(unit, identity) {
+      unit.assertStorage(host.options.storage)
+      const scope = { tenant: identity.ref.tenant, session: identity.ref.session }
+      if (!tenantIdEquals(scope.tenant, host.options.tenant)) return { kind: 'denied' }
+      const original = originals.get(key(scope, identity.ref.callId))
+      if (!original || text(original) !== text(identity)) return { kind: 'denied' }
+      const proof = await find(unit, identity)
+      if (!proof || proof.identity !== text(identity)) return { kind: 'denied' }
+      return host.authority.withinOriginalRead(unit, scope, () =>
+        terminalClassificationIn(unit, scope, original),
+      )
+    },
     current: {
       authorizeIn: async (unit, identity) => {
         unit.assertStorage(host.options.storage)
