@@ -8,7 +8,7 @@
 
 当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及纯调用历史解释器。`createCallContainerPresence(store)` 从实际调用容器读取原执行世代，在观察回调期间保有容器。缺少容器只表示未知。行为见[实际存续读面](SPEC.md#实际调用容器的存续读面)。
 
-`createModelRuntime` 已把 RT12 的十五个类型化方法组合在同一个进程内调用 owner 下。第十五操作 `acknowledgeCall`（S-96）为每次调用固定一条耐久确认，再经保留门释放该调用的模型副本；此后各读取入口、同键 `openCall` 认回与 `reconcile` 都回 S-97 已确认小视图，控制与新工作到达其终态拒绝（S-100）。ACK 后自带 `retainedResult` 的 `settleReply` 按 S-99 核验后，经一份暂存的写责任完成结算（S-99⑧，见下文「ACK 后的结算」）。属于 Run 的结算消费宿主显式提供的已授权 Run 历史读源；生产 Run 终结与恢复 owner 仍由宿主负责。`./cordis` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的原完整批；有 Run 的条件恢复保留响应原 attempt，并在较新 attempt 中归账。对于已耐久记录「已出门」但缺响应的调用，不属于 Run 的对账可读取实际停止的原执行事实，或经宿主确认的冷恢复缺席，追补一条中断响应且不再发模型请求。只有中断意图、没有发出记录的调用由耐久终结记录收口。显式调用宿主和有界观察接线遵循 D103；共享端口和队列自身不能证明真实会话接收端已接入，须由宿主提供（[最小示例](../../../examples/model-invocation-minimal-demo/README_ZH.md)为其单进程装配提供了一个）。装配义务见[当前服务设计](SPEC.md)、[D105 恢复映射](SPEC.md)及[恢复 owner 补充](SPEC.md)，采用和覆盖见[实现映射](SPEC.md)；属于 Run 的生产成功路径仍依赖宿主真实的 Run 终结来源与 owner。
+`createModelRuntime` 已把 RT12 的十五个类型化方法组合在同一个进程内调用 owner 下。第十五操作 `acknowledgeCall`（S-96）为每次调用固定一条耐久确认，再经保留门释放该调用的模型副本；此后各读取入口、同键 `openCall` 认回与 `reconcile` 都回 S-97 已确认小视图，控制与新工作到达其终态拒绝（S-100）。ACK 后自带 `retainedResult` 的 `settleReply` 按 S-99 核验后，经一份暂存的写责任完成结算（S-99⑧，见下文「ACK 后的结算」）。属于 Run 的结算消费宿主显式提供的已授权 Run 历史读源；生产 Run 终结与恢复 owner 仍由宿主负责。`./cordis` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的原完整批；有 Run 的条件恢复保留响应原 attempt，并在较新 attempt 中归账。对于已耐久记录「已出门」但缺响应的调用，不属于 Run 的对账可读取实际停止的原执行事实，或经宿主确认的冷恢复缺席，追补一条中断响应且不再发模型请求。只有中断意图、没有发出记录的调用由耐久终结记录收口。显式调用宿主和有界观察接线遵循 D103；共享端口和队列自身不能证明真实会话接收端已接入，须由宿主提供。装配义务见[当前服务设计](SPEC.md)、[D105 恢复映射](SPEC.md)及[恢复 owner 补充](SPEC.md)，采用和覆盖见[实现映射](SPEC.md)；属于 Run 的生产成功路径仍依赖宿主真实的 Run 终结来源与 owner。
 
 下文 API 表中的公共操作类型和选择、重试、历史、响应构造函数从 `@omne-harness-lite/model-request-runtime` 导入；具体调用、协调、存储等工厂从本包导入。见[公共拥有者](../../core/model-request-runtime/README_ZH.md)。唯一 `MODEL_RUNTIME_SERVICE` 键从公共 `./cordis` 导入。
 
@@ -62,7 +62,7 @@ Config 的四个精确字段（`tokenMargin.multiplier/reserveTokens`、`reserva
 
 工厂创建者持有 `ready`、`closeAdmission`、`close` 和 `owner()`。只有可信创建者取得原执行来源及事实借用面，普通服务结果和宿主 capture 不携这些能力。`closeAdmission()` 在原业务判断次序中的停止准入点同步拒绝新建、dispatch 和 dispatchAgain，保留已准入工作、读取、恢复及 ACK；实际 `close()` 才排空并释放资源。资源尚未收场时 `close()` 返回 `unavailable` 或拒绝，须重试同一 owner。受管关闭控制保有原依赖直到确认关闭；同一 factory 不能挂载两次，原行未闭合不能启动后继池。
 
-真实消费者见[受管模型装配](../../../examples/model-invocation-minimal-demo/src/model-runtime-assembly.ts)和[调用方输入桥](../../../examples/model-invocation-minimal-demo/src/model-runtime-inputs.ts)。纯 `createModelRuntime(construction)` 仍可独立使用。
+模型示例已删除，不再作为消费者入口。纯 `createModelRuntime(construction)` 仍可独立使用。
 
 已导出的 `createCallContainerStore().waitReserve(...)` 要求显式的正数等待者上限和超时，以及有归属的调度器与取消信号。显式 `OpenCallInput.host` 是生命周期 owner，不是会话身份；会话、租户与日志代际仍来自已授权会话绑定。它的 `register(close)` 必须在停止后同步拒绝登记；准备 owner 在任何异步准备前登记，调用发布后仍保留同一关闭责任，实际释放后才 unregister。调用容器插入后，活跃 reservation 绑定原锚定调用句柄；释放短 reservation 不丢该句柄、待处分回复、观察绑定、未知写者或精确传输租约。系统停止先请求同一原调用的耐久 S-36 收口；`container.close()` 只有在该结果、原句柄、观察任务均实际释放且其余 owner 核查通过后才释放租约。reservation 本身不产生耐久授权。锚定调用的 `close()` 返回 `unavailable` 时仍保留原协调器与借用引用；原工作实际停止且结算事实可读取后，可再次调用 `close()`。并发关闭共用同一次尝试，已释放后的关闭幂等。
 
@@ -433,7 +433,7 @@ console.log(delay.ok, next.ok)
 
 构造 `LosslessNumber` 时将 content-blocks 声明为直接依赖。时长接受 TD3 的 H/M/S 字符串、小数秒及等值写法，输出采用精确秒。系数复用公开 `JsonNumber` 表示，可保留十进制字面量及超过 2^53 的重试序号。普通 JavaScript 数值按调用时已有的十进制值处理，函数无法恢复调用前已经丢失的精度。
 
-函数复制并校验 JSON 数据、不读取 getter、不改调用者输入，也不取整到毫秒。算术结果不表示已经允许重试，不执行等待、发送、回退或默认重试贡献。实际定时精度和大时长调度仍受 R3-G7 约束。[交互 demo](../../../examples/model-invocation-minimal-demo/README_ZH.md) 已在模型路径接入 runner service 和 P-5 重试贡献；37 模型认证仍单独验收。
+函数复制并校验 JSON 数据、不读取 getter、不改调用者输入，也不取整到毫秒。算术结果不表示已经允许重试，不执行等待、发送、回退或默认重试贡献。实际定时精度和大时长调度仍受 R3-G7 约束。模型示例已删除，runner接线须由实际消费者验证；37 模型认证仍单独验收。
 
 ## 显式共享凭据脱敏
 
@@ -564,7 +564,7 @@ pnpm --filter @omne-harness-lite/model-request-runtime-local run typecheck
 pnpm --filter @omne-harness-lite/model-request-runtime-local run test
 ```
 
-第一条命令同时构建 workspace 依赖。配套传输测试用真实本地 HTTPS 和公开 core 装配器验证 `invokeModel`；本包 `tests/acceptance-*.spec.ts` 与[最小示例](../../../examples/model-invocation-minimal-demo/README_ZH.md)的服务测试在真实 SQLite 内容存储与 SQL Session Log 上验证组合后的服务。这些本地测试都不认证真实模型路由；已记录的真实路由证据见 [realization 验证](SPEC.md)。
+第一条命令同时构建 workspace 依赖。配套传输测试用真实本地 HTTPS 和公开 core 装配器验证 `invokeModel`；本包 `tests/acceptance-*.spec.ts` 在真实 SQLite 内容存储与 SQL Session Log 上验证组合后的服务。这些本地测试都不认证真实模型路由；已记录的真实路由证据见 [realization 验证](SPEC.md)。
 
 ## 日志值的捕获、构造与认回
 
@@ -915,7 +915,7 @@ runtime 负责发送定义并装配流式工具调用；调用者负责在后续
 
 `createDiagnosticCollector(config)` 将类型化观测接入有界队列，用独立 emitter 保留每次调用的关联。调用者须完整提供 `DiagnosticCollectorConfig`，包括 `DiagnosticJournalStore`、单个 local 或 tenant scope、时钟、调度器及全部容量和超时。collector 本身不提供文件存储。`recorded` 只表示内存接纳；written/flushed 水位及未完成关闭从 health 读取。query/export 要求相同 scope 和显式分页界限，精确数值保留 JSON number 表示。
 
-这些是工程诊断记录，与会话日志和恢复权威分开。下例接收真实宿主配置及观测到的 HTTP 状态，每次调用使用独立 emitter；close 返回 incomplete 时继续持有 collector。collector 需要另行提供 journal 存储；[最小示例](../../../examples/model-invocation-minimal-demo/README_ZH.md)提供了自己的有界 JSONL journal。健康面同时报告保留、过期和淘汰的条数与字节；无法取得的存储计数保持 unknown。
+这些是工程诊断记录，与会话日志和恢复权威分开。下例接收真实宿主配置及观测到的 HTTP 状态，每次调用使用独立 emitter；close 返回 incomplete 时继续持有 collector。collector 需要另行提供 journal 存储。健康面同时报告保留、过期和淘汰的条数与字节；无法取得的存储计数保持 unknown。
 
 ```ts
 import {

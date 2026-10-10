@@ -57,7 +57,7 @@ Git 只保存当前终态：实现侧的公开接口、薄规格、必要理由�
 
 **实现只从明确且已接受的承诺长出来。**新维护单元按[架构维护规则](.meta_harness/design/architecture/README.md)定位接口与行为拥有者，使用实际包模板维护公开类型、薄SPEC、必要理由及验证资源。
 不从目录存在与否推断兑现状态；**不要凭一份产品设计就去开包**。要先把一条主路径跑通再做设计时，写探路件：
-放 [examples/](examples/README_ZH.md) 或任务的 `tmp/`，不进 `packages/`、`apps/`，带回设计的只有事实清单。
+放任务的 `tmp/`，不进 `packages/`、`apps/`，带回设计的只有事实清单。
 
 skills 的源归 `.meta_harness/agents/skills/`，roles 的源归 `.meta_harness/agents/roles/`；
 根 `.agents/`、`.claude/`、`.codex/` 是工作区内生成产物的软链接。

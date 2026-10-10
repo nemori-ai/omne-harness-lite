@@ -1,6 +1,6 @@
 // covers: PF-006 S24, PF-006 S69
-// Public demo assembly. Controlled HTTPS and real OpenRouter are separate tests.
-// Build first: pnpm --filter @omne-harness-lite/model-invocation-minimal-demo... run build
+// The demo entry was physically removed. These assertions await formal CLI migration.
+// This scenario is currently unavailable, not passing or retired.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'

@@ -23,14 +23,7 @@ The host environment provider supplies actual command and file facilities throug
 
 ## Persistent acceptance
 
-The PF-006 S24 and S69 acceptance scenarios use the public entry of the model-invocation demo. They run separately from the provider tests. Build the demo and its dependencies before running acceptance:
-
-```sh
-pnpm --filter @omne-harness-lite/model-invocation-minimal-demo... run build
-pnpm --filter @omne-harness-lite/tool-execution-local run acceptance
-```
-
-Do not run the build concurrently with acceptance. The acceptance configuration refuses to start when the demo entry is absent. The affected-test reader rule selects this member when the demo inputs change; it does not build excluded example members. A scoped check must therefore complete the explicit demo build first.
+The demo entry was physically removed. The PF-006 S24 and S69 assertions remain in `acceptance/`, but their consumer has not yet migrated to the formal CLI. Acceptance is currently unavailable. The original assertions must pass through the new entry before delivery. The acceptance configuration rejects execution while that migration is incomplete.
 
 The independent acceptance owner maintains `acceptance/*.acceptance.ts`. Those scenarios declare their product coverage and use public entries. Provider implementation work does not change their assertions. Network acceptance reads the local OpenRouter configuration without displaying credentials. A missing credential or a failed model request is not a passing result.
 

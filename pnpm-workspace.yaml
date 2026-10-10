@@ -1,7 +1,6 @@
 packages:
   - packages/*/*
   - apps/*
-  - examples/*
   - tools/ts-checks
   - tools/core-verification
   - tools/artifact-builder

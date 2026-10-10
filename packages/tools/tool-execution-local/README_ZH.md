@@ -24,12 +24,7 @@ pnpm --filter @omne-harness-lite/tool-execution-local run typecheck
 pnpm --filter @omne-harness-lite/tool-execution-local run test
 ```
 
-PF-006 S24/S69 独立验收使用模型示例的公开入口。先构建示例及其依赖，再执行验收，不能并行构建与验收：
-
-```sh
-pnpm --filter @omne-harness-lite/model-invocation-minimal-demo... run build
-pnpm --filter @omne-harness-lite/tool-execution-local run acceptance
-```
+根模型示例已物理删除。PF-006 S24/S69断言仍在acceptance/保留，但尚未迁到正式CLI入口，当前不可运行，也不算通过。交付前必须完成消费者迁移并验证全部原断言。迁移完成前，验收配置明确拒绝启动。
 
 独立验收拥有者维护 acceptance/ 的断言。网络场景需要本地 OpenRouter 配置，缺凭据或调用失败不算通过。本次模板改造不运行真实付费调用，也不将未运行场景标记通过。
 

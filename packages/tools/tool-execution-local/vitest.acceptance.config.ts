@@ -8,7 +8,7 @@ const demoEntry = new URL(
 )
 if (!existsSync(demoEntry))
   throw new Error(
-    'Build the demo before acceptance: pnpm --filter @omne-harness-lite/model-invocation-minimal-demo... run build',
+    'Unable to verify PF-006 S24/S69: the demo was physically removed; migrate the preserved acceptance assertions to the formal CLI entry before delivery.',
   )
 
 export default defineConfig({
