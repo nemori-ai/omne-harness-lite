@@ -1,3 +1,4 @@
+import { createAssetEvaluator } from '@omne-harness-lite/asset-evaluation'
 import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
@@ -284,10 +285,11 @@ test('service dispatch writes both anchors before handing out a complete pending
       register: () => ({ registration: { unregister() {} } }),
     }
     let released = 0
+    const evaluator = createAssetEvaluator()
     const binding: SessionRuntimeBinding = {
       log: selected.input.binding,
       sourceVersions: { fixture: 'selection-host-recipe-v1' },
-      selection: selected.input,
+      selection: { ...selected.input, evaluator },
       catalog: host.catalog,
       currentEvaluationInputs: {
         async read(session, tenant) {
@@ -361,7 +363,19 @@ test('service dispatch writes both anchors before handing out a complete pending
       acknowledgementFactory: createSessionModelAcknowledgement,
       settlementFactory: sessionModelSettlement,
       recordPublication: publishSessionModelCallContent,
-      requestPreparation: sessionModelRequestPreparation,
+      requestPreparation: {
+        ...sessionModelRequestPreparation,
+        resolveTools(request, registry, ...rest: unknown[]) {
+          expect(rest[0], 'tool resolution retains the assembly parameter compiler').toBe(
+            evaluator.parameters,
+          )
+          return sessionModelRequestPreparation.resolveTools(
+            request,
+            registry,
+            evaluator.parameters,
+          )
+        },
+      },
       selectionFactory: createSessionModelSelection,
       readFactory: createSessionModelReads,
       callFacts,

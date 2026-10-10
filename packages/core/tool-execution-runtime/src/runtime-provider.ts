@@ -1,3 +1,4 @@
+import type { ParameterJudge } from '@omne-harness-lite/tool-definition'
 import type { SessionAccessOperations } from '@omne-harness-lite/session-tenancy'
 import type { ToolPoolInstance } from './execution-pool.ts'
 import type { RuntimeContextOperations } from '@omne-harness-lite/runtime-context'
@@ -38,6 +39,8 @@ export interface ToolRuntimeStartupOperations {
 }
 
 export interface ToolRuntimeDependencies {
+  readonly parameters?: ParameterJudge
+
   readonly recovery: RecoveryAccess
   readonly authorization: SessionAccessOperations
   readonly admission: () => ToolAdmissionOperations | undefined

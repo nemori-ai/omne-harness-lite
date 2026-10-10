@@ -795,6 +795,13 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
       if (existing !== undefined) return { kind: 'refused' }
       return request.callId !== undefined ? { kind: 'persisted' } : { kind: 'fresh' }
     }
+    function resolveBoundTools(session: SessionRuntimeBinding) {
+      return runtime.requestPreparation.resolveTools(
+        request,
+        session.tools,
+        session.selection.evaluator?.parameters,
+      )
+    }
     function toolRefusal(resolved: Extract<ToolResult, { failure: unknown }>): OpenCallResult {
       return resolved.failure === 'unavailable'
         ? { unavailable: true }
@@ -847,7 +854,7 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
       const history = await historyFor(session, callId)
       const historyFailure = judgeLocalHistory(history, local)
       if (historyFailure !== undefined) return historyFailure
-      const resolved = await runtime.requestPreparation.resolveTools(request, session.tools)
+      const resolved = await resolveBoundTools(session)
       if ('failure' in resolved) return toolRefusal(resolved)
       if (local.observerReplacementPending) {
         const refreshed = await reservation.refreshObserverReplacement()
@@ -912,7 +919,7 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
       const history = await historyFor(session, callId)
       const checked = judgePersistedHistory(history)
       if (!('anchor' in checked)) return checked
-      const resolved = await runtime.requestPreparation.resolveTools(request, session.tools)
+      const resolved = await resolveBoundTools(session)
       if ('failure' in resolved) return toolRefusal(resolved)
       const anchor = checked.anchor
       if (!validPersistedAnchor(anchor)) return { unavailable: true }
@@ -1236,7 +1243,7 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
       reservation: Reservation,
     ): Promise<OpenCallResult> {
       const { key } = input
-      const resolved = await runtime.requestPreparation.resolveTools(request, session.tools)
+      const resolved = await resolveBoundTools(session)
       if ('failure' in resolved) return toolRefusal(resolved)
       const owner = session.selection.owner
       const facts = await withOwnedReads(

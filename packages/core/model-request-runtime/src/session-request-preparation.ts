@@ -7,7 +7,7 @@ import type {
   ModelProfileSnapshot,
   ModelRequestParameters,
 } from '@omne-harness-lite/model-profile'
-import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
+import type { ModelToolEntry, ParameterJudge } from '@omne-harness-lite/tool-definition'
 import type { CredentialScope } from '@omne-harness-lite/model-response'
 import type {
   SessionRuntimeBinding,
@@ -100,6 +100,7 @@ export interface SessionModelRequestPreparation {
   readonly resolveTools: (
     request: Pick<OpenCallInput, 'session' | 'tools' | 'run' | 'attempt' | 'report'>,
     registry: SessionRuntimeBinding['tools'],
+    parameters?: ParameterJudge,
   ) => Promise<
     | { readonly tools: readonly ModelToolEntry[] }
     | { readonly failure: 'invalidInput'; readonly reason?: 'unknownTool' }

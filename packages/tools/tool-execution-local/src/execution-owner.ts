@@ -1,3 +1,4 @@
+import { createParameterJudge, type ParameterJudge } from '@omne-harness-lite/tool-definition'
 import { randomUUID } from 'node:crypto'
 import { copyJsonValue, type JsonValue } from '@omne-harness-lite/content-blocks'
 import {
@@ -168,6 +169,8 @@ function executionSnapshot(ref: ExecutionRef, history: ToolJournalHistory): Exec
 
 /** Private execution owner. Construction ports stay inside the provider; none are plugin config. */
 export function createExecutionOwner(input: {
+  readonly parameters?: ParameterJudge
+
   readonly journal: Journal
   readonly tenant: TenantId
   readonly originalIssue: ToolOriginalIssueSupport
@@ -203,6 +206,7 @@ export function createExecutionOwner(input: {
     readonly writer?: ToolResultWriter
   }) => Promise<PreparedTerminal | 'unavailable'>
 }) {
+  const parameters = input.parameters ?? createParameterJudge()
   const originalGeneration = randomUUID()
   const preparedRequests = new Map<
     string,
@@ -946,7 +950,7 @@ export function createExecutionOwner(input: {
     submitPrepared(supplied: PreparedToolExecution): Promise<ToolSubmitResult> {
       let captured: ReturnType<typeof capturePreparedExecution>
       try {
-        captured = capturePreparedExecution(supplied)
+        captured = capturePreparedExecution(supplied, parameters)
       } catch {
         return Promise.resolve({ kind: 'rejected', reason: 'invalidInput' })
       }

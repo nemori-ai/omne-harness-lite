@@ -541,7 +541,7 @@ Session将原工具身份的完整内容与语义摘要一起写入sr_tool_issue
 
 ## 会话模型请求准备
 
-根入口sessionModelRequestPreparation提供原调用历史读取、创建准备、发送准备和工具读取函数。其形状由core/model-request-runtime的SessionModelRequestPreparation拥有。
+根入口sessionModelRequestPreparation提供原调用历史读取、创建准备、发送准备和工具读取函数。其形状由core/model-request-runtime的SessionModelRequestPreparation拥有。 创建、原实例恢复、持久记录恢复和发送准备共用当前Session绑定的参数校验器；不会因开启另一模型调用而重新编译同一工具Schema。
 
 readCall使用原registration读取并校验完整结算前缀，再交给调用者提供的原解释器。消费者只收到CallHistoryResult。来源缺失或前缀不可用时返回unavailable；不把按键过滤的条目冒充完整前缀，不补造历史，不提交记录，不关闭借入资源。 additionalReaders用于核对同一未知写入组的原解释器。各解释器必须使用同一前缀并给出相同历史；解释器异常或结果不一致时返回history不可用。
 

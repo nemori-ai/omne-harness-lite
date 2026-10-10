@@ -305,6 +305,7 @@ class ProductionTools {
       },
       {
         tenant: this.tenant,
+        parameters: this.evaluator.parameters,
         recoveryPageSize: 16,
         recovery,
         originalIssue: this.routed(original),

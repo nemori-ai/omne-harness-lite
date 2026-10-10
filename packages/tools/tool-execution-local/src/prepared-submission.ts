@@ -1,5 +1,5 @@
 import { copyJsonValue, type JsonObject, type JsonValue } from '@omne-harness-lite/content-blocks'
-import { isToolDefinition } from '@omne-harness-lite/tool-definition'
+import { isToolDefinition, type ParameterJudge } from '@omne-harness-lite/tool-definition'
 import { checkKey, checkSourceToken } from '@omne-harness-lite/session-log'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type {
@@ -54,11 +54,14 @@ function ordinary(input: PreparedToolExecution) {
   return { access: fields.access!.value as PreparedToolExecution['access'], value: copied.ok }
 }
 
-function selectedTool(value: JsonValue | undefined): SelectedTool | undefined {
+function selectedTool(
+  value: JsonValue | undefined,
+  parameters?: ParameterJudge,
+): SelectedTool | undefined {
   if (!jsonObject(value) || Object.keys(value).length !== 5) return
   const { capability, asset, version, adoption, definition } = value
   if (!nonempty(capability) || !nonempty(asset) || !nonempty(version) || !nonempty(adoption)) return
-  if (!isToolDefinition(definition)) return
+  if (!isToolDefinition(definition, parameters)) return
   return { capability, asset, version, adoption, definition }
 }
 function nonempty(value: unknown): value is string {
@@ -86,7 +89,7 @@ function requestData(data: JsonObject, access: PreparedToolExecution['access'], 
   return request
 }
 
-function disposition(value: JsonObject) {
+function disposition(value: JsonObject, parameters?: ParameterJudge) {
   if (Object.hasOwn(value, 'notExecutable')) {
     if (
       !['unparseable', 'no_such_entry'].includes(String(value.notExecutable)) ||
@@ -98,7 +101,7 @@ function disposition(value: JsonObject) {
       notExecutable: value.notExecutable as 'unparseable' | 'no_such_entry',
     }
   }
-  const selected = selectedTool(value.selected)
+  const selected = selectedTool(value.selected, parameters)
   return selected ? { adoption: selected.adoption, selected } : undefined
 }
 function matchesCall(
@@ -121,12 +124,15 @@ function preparedSource(value: JsonValue | undefined, request: ExecutionSubmissi
   return source.ok
 }
 /** Capture the prepared values once. Only the original Access object stays live. */
-export function capturePreparedExecution(input: PreparedToolExecution) {
+export function capturePreparedExecution(
+  input: PreparedToolExecution,
+  parameters?: ParameterJudge,
+) {
   if (input === null || typeof input !== 'object') return invalid
   const captured = ordinary(input)
   if (!captured) return invalid
   const { value, access } = captured
-  const decision = disposition(value),
+  const decision = disposition(value, parameters),
     chain = afterAction(value.afterAction)
   if (!decision || !chain) return invalid
   const request = requestData(value, access, decision.adoption)
