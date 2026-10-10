@@ -11,6 +11,12 @@
 应用选择实际工厂及显式owner／竞争／时钟策略，Session消费者只借入公开结算协议。
 原未知批次、实际停止及close保留责任不因定义归位改变。
 
+## 会话请求准备的实际拥有者
+
+既有RuntimeConstruction必须显式提供requestPreparation。createModelRuntimeLocal也必须在可信构造参数中取得同一接口，不提供内置会话准备器或默认政策。CLI根选择Session提供者的sessionModelRequestPreparation。
+
+本包不再实现会话超时求值、工具描述解析或完整历史校准。旧call-tools和service-calibration模块已删除。当前混合消费者仍负责登记并等待准备操作，将固定结果交给原发送和结算机制；其记录／控制依赖仍需继续按窄执行池接口迁移。
+
 ## 保持的运行责任
 
 原发起Owner的共享操作形状归core/model-request-runtime，本包公开类型沿同一源重导出。

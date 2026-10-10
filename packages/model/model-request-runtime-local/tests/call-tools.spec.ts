@@ -16,7 +16,7 @@ import {
   createAssetRegistry,
   type RegistryDependencies,
 } from '@omne-harness-lite/asset-registry-local'
-import { resolveCallTools, type CallToolRequest } from '../src/call-tools.ts'
+import { resolveCallTools, type CallToolRequest } from '@omne-harness-lite/session-runtime-local'
 
 const session = unwrap(parseOpaqueIdentifier('session_tool_resolution', 'SessionRef'))
 const tenant = unwrap(parseTenantId({ organization: 'org_example', account: 'acc_example' }))

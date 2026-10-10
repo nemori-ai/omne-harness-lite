@@ -1,5 +1,7 @@
 # @omne-harness-lite/session-runtime-local
 
+`sessionModelRequestPreparation`为现有运行时消费者准备模型请求。Session负责工具解析、历史校准和装配超时求值，应用显式选择此实现。这个准备接口与Model执行池接收的准备请求不同。行为见[规格](SPEC.md#会话模型请求准备)。
+
 根入口另提供createSessionDriverWorkOwner和createSessionCallAccess，供可信运行时构造原工作及Run读面。它们不代表完整driver、恢复执行者或新的Model／Tool权限；行为归[SPEC](SPEC.md)。
 
 [English](README.md)

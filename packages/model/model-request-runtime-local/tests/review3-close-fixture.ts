@@ -1,3 +1,4 @@
+import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
 /**
  * Real-assembly runtime over the Cordis host of tests/session-selection-fixture.ts (SQLite
  * Storage, SQL journal SessionLog), shared by the 2026-09-30 close-responsibility acceptance and the
@@ -208,6 +209,7 @@ export async function runtimeOver(
   let nextResponse = 0
   const diagnostics: string[] = []
   const construction: RuntimeConstruction<TestPlan, object> = {
+    requestPreparation: sessionModelRequestPreparation,
     callAccess,
     callPresence,
     callFacts,

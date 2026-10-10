@@ -1,3 +1,4 @@
+import type { SessionModelRequestPreparation } from '@omne-harness-lite/model-request-runtime'
 import { symbols, type Context } from '@deepseek-ai/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { STORAGE_SERVICE } from '@omne-harness-lite/storage/cordis'
@@ -320,6 +321,7 @@ class Provider extends ModelRuntimeService {
 
 /** Trusted assembly closure ports. These are not serialized policy or caller authority. */
 export interface ModelRuntimeLocalConstruction {
+  readonly requestPreparation: SessionModelRequestPreparation
   readonly externalContent?: ModelCallExternalContentCustody
   /** Add request projection to the original adapter. Preserve send/read/projectOutput,
    * semantic inputs, plan brands, cancellation and actual completion. No independent
@@ -344,7 +346,7 @@ function decoratedLease(
 }
 
 /** Trusted assembly owns this factory; source/facts never become ordinary Context services. */
-export function createModelRuntimeLocal(construction: ModelRuntimeLocalConstruction = {}) {
+export function createModelRuntimeLocal(construction: ModelRuntimeLocalConstruction) {
   const contentDependencies = construction.externalContent
     ? { externalContent: construction.externalContent }
     : {}
@@ -427,6 +429,7 @@ export function createModelRuntimeLocal(construction: ModelRuntimeLocalConstruct
               })
               calls = createCallContainerStore<PlannedRequest, RawResponse>()
               runtime = createModelRuntime({
+                requestPreparation: construction.requestPreparation,
                 ...setupBorrow.inputs,
                 settlementContention: support.settlementContention,
                 settlementScheduler: support.settlementScheduler,

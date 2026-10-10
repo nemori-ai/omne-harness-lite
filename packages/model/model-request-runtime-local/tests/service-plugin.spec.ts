@@ -1,3 +1,4 @@
+import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
 // @module-tag slow
 // Real SQLite construction and official Cordis. Controlled ports are not real login evidence.
 import { Context } from '@deepseek-ai/cordis'
@@ -30,7 +31,7 @@ describe('named model runtime provider', () => {
       tokenMargin: { multiplier: '1.10000000000000000001', reserveTokens: '9007199254740993' },
       reservationWaitPolicy: { maxWaitersPerCall: '2e1', timeoutMs: '1e3' },
     }
-    const provider = createModelRuntimeLocal()
+    const provider = createModelRuntimeLocal({ requestPreparation: sessionModelRequestPreparation })
     const schema = provider.plugin.Config
     if (!schema) throw new Error('provider schema absent')
     expect(await schema['~standard'].validate(JSON.parse(JSON.stringify(exact)))).toEqual({
@@ -185,7 +186,7 @@ describe('named model runtime provider', () => {
   })
 
   it('rejects missing/extra configuration instead of accepting construct or inferred defaults', () => {
-    const provider = createModelRuntimeLocal()
+    const provider = createModelRuntimeLocal({ requestPreparation: sessionModelRequestPreparation })
     expect(() => provider.plugin.describeAssembly({})).toThrow()
     expect(() => provider.plugin.describeAssembly({ ...providerConfig, construct() {} })).toThrow()
     expect(() => provider.plugin.describeAssembly(providerConfig)).not.toThrow()

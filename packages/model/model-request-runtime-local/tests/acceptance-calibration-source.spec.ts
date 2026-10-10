@@ -14,7 +14,7 @@ import {
   readSettlementPrefix,
   type SettlementPrefix,
 } from '@omne-harness-lite/model-request-runtime'
-import { authorizedCalibration } from '../src/service-calibration.ts'
+import { authorizedCalibration } from '@omne-harness-lite/session-runtime-local'
 import type { CurrentHistoryReaders } from '@omne-harness-lite/model-request-runtime'
 import {
   anchors,

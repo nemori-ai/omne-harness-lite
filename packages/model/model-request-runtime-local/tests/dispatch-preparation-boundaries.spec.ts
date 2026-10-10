@@ -1,7 +1,11 @@
 // @module-tag slow
 import { describe, expect, it } from 'vitest'
 import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
-import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
+import type {
+  SessionRuntimeBinding,
+  SessionModelRequestPreparation,
+} from '@omne-harness-lite/model-request-runtime'
+import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
 import { createModelRuntime } from '../src/service-runtime.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { acknowledgementHost } from './acknowledgement-host-fixture.ts'
@@ -29,6 +33,7 @@ async function withPreparation(
     readonly trace: string[]
     readonly capturePlans: number
   }) => Promise<void>,
+  prepare?: SessionModelRequestPreparation['prepare'],
 ): Promise<void> {
   const owner = new ControlledSettlementOwner()
   const world = await acknowledgementHost({ owner })
@@ -43,6 +48,10 @@ async function withPreparation(
     runtime = createModelRuntime({
       ...world.construction,
       ...referencePorts(world.host, calls),
+      requestPreparation: {
+        ...sessionModelRequestPreparation,
+        prepare: prepare ?? sessionModelRequestPreparation.prepare,
+      },
       calls,
       sessions: {
         async bind() {
@@ -66,6 +75,27 @@ async function withPreparation(
 }
 
 describe('original dispatch preparation over actual resources and SQL', () => {
+  it('uses the caller-selected Session preparer and does not plan or send after its refusal', async () => {
+    let preparations = 0
+    await withPreparation(
+      binding => binding,
+      async ({ world, runtime, ref, capturePlans }) => {
+        const before = await world.entries()
+        expect(await runtime.service.dispatch(ref)).toEqual({ unavailable: true })
+        expect(preparations).toBe(1)
+        expect(world.wire.plans()).toBe(capturePlans)
+        expect(world.wire.sends()).toBe(0)
+        expect(await world.entries()).toEqual(before)
+      },
+      async input => {
+        preparations++
+        expect(input.key.session).toBe(input.session.log.session)
+        expect(input.request.session).toBe(input.key.session)
+        return { unavailable: true }
+      },
+    )
+  })
+
   it.each([1, 2])('preserves the credential bytes getter fault on read %s', async failingRead => {
     const fault = new Error('original credential byte getter')
     let reads = 0

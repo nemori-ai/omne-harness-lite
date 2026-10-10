@@ -4,7 +4,7 @@ import { LosslessNumber, copyJsonValue, type JsonObject } from '@omne-harness-li
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import type { LogEntry } from '@omne-harness-lite/session-log'
-import { authorizedCalibration } from '../src/service-calibration.ts'
+import { authorizedCalibration } from '@omne-harness-lite/session-runtime-local'
 import {
   captureModelLogValue,
   modelLogJsonEqual,

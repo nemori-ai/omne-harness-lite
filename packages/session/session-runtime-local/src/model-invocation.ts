@@ -15,6 +15,7 @@ import {
   type SourceToken,
 } from '@omne-harness-lite/session-log'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
+import { encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
 import type {
   OriginalIssueIdentity,
   OriginalIssueAuthority,
@@ -75,36 +76,42 @@ class ModelAdmission {
       authority: { authorizeIn: this.authorizeIn },
     })
   }
-  originalLog(): SessionLogParticipant {
+  originalLog(): Pick<SessionLogParticipant, 'appendIn' | 'readByKeyIn'> {
     const log = this.host.log
-    return Object.freeze<SessionLogParticipant>({
-      ...log,
-      readPrefix: async (access, requested) => {
+    return Object.freeze<Pick<SessionLogParticipant, 'appendIn' | 'readByKeyIn'>>({
+      appendIn: log.appendIn,
+      readByKeyIn: async (unit, access, requested, key) => {
+        unit.assertStorage(this.host.options.storage)
         if (access !== this.host.authority.logAccess) return { failure: 'denied' }
         const checked = checkSourceToken(requested)
         if ('failure' in checked) return checked
         const source = checked.ok
         if (!tenantIdEquals(source.tenant, this.host.options.tenant)) return { failure: 'denied' }
-        return this.host.options.storage.atomic(unit =>
-          unit.run(async () => {
-            const row = await unit.query(tx =>
-              narrow<Database>(tx)
-                .selectFrom('sr_model_issue')
-                .select('issue')
-                .where('session', '=', source.session)
-                .where('source_generation', '=', source.journalGeneration)
-                .where('source_tail', '=', this.number(source.tail))
-                .executeTakeFirst(),
-            )
-            if (!row) return { failure: 'denied' as const }
-            const issue = this.decode(row.issue)
-            if (!sameSource(issue.source, source))
-              throw new StorageDefect('original model source index mismatch')
-            return this.host.authority.withinOriginalRead(unit, source, () =>
-              log.readPrefixIn(unit, access, source),
-            )
-          }),
-        )
+        return unit.run(async () => {
+          const row = await unit.query(tx =>
+            narrow<Database>(tx)
+              .selectFrom('sr_model_issue')
+              .select('issue')
+              .where('session', '=', source.session)
+              .where('source_generation', '=', source.journalGeneration)
+              .where('source_tail', '=', this.number(source.tail))
+              .executeTakeFirst(),
+          )
+          if (!row) return { failure: 'denied' as const }
+          const issue = this.decode(row.issue)
+          if (!sameSource(issue.source, source))
+            throw new StorageDefect('original model source index mismatch')
+          const originalKey = encodeModelLogKey({
+            kind: 'dispatched',
+            call: issue.identity.call,
+            dispatch: issue.identity.dispatch,
+          })
+          if (!('ok' in originalKey) || originalKey.ok !== key)
+            return { failure: 'denied' as const }
+          return this.host.authority.withinOriginalRead(unit, source, () =>
+            log.readByKeyIn(unit, access, source, key),
+          )
+        })
       },
     })
   }

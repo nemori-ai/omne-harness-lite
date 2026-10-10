@@ -54,7 +54,7 @@
 
 ## Cordis 服务装配
 
-`createModelRuntimeLocal()` 创建一代可信装配工厂。插件从具名宿主输入、执行支持、Storage、Clock 和 transport 构造私有调用池、内容及事实。配置显式提供作用域、内容、等待和 token margin 界限，不接收 `construct` 回调，不补政策默认值；受管行另需 `assemblyLifetime`。
+`createModelRuntimeLocal({ requestPreparation })` 创建一代可信装配工厂。应用选择Session拥有的准备实现，本提供者不提供默认准备器。插件从具名宿主输入、执行支持、Storage、Clock 和 transport 构造私有调用池、内容及事实。配置显式提供作用域、内容、等待和 token margin 界限，不接收 `construct` 回调，不补政策默认值；受管行另需 `assemblyLifetime`。
 
 Config 的四个精确字段（`tokenMargin.multiplier/reserveTokens`、`reservationWaitPolicy.maxWaitersPerCall/timeoutMs`）使用 JSON 数字词法字符串，例如 `"1.10000000000000000001"` 和 `"256"`。装配方用 `jsonNumberSource` 编码原 `JsonNumber`，提供者严检后恢复精确值，不经浮点转换。独立函数仍使用原 `JsonNumber` 输入。
 

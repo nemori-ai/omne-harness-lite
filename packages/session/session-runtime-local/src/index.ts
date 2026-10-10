@@ -69,3 +69,15 @@ export type { SessionToolAdoption } from './driver-tool-adoption.ts'
 export { createSessionToolActionHistory } from './driver-action-history.ts'
 export { readSessionRunnerAction, type SessionRunnerActionOptions } from './runner-action-source.ts'
 export type { SessionToolActionHistoryOptions } from './driver-action-history.ts'
+
+export {
+  sessionModelRequestPreparation,
+  prepareSessionModelDispatch,
+  currentDispatchTiming,
+  positiveDurationMs,
+} from './model-request-preparation.ts'
+export { resolveCallTools, type CallToolRequest } from './model-call-tools.ts'
+export {
+  authorizedCalibration,
+  type AuthorizedCalibrationResult,
+} from './model-request-calibration.ts'

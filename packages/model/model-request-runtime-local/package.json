@@ -79,7 +79,8 @@
     "@omne-harness-lite/session-log-sql": "workspace:*",
     "@omne-harness-lite/execution-environments": "workspace:*",
     "@omne-harness-lite/storage": "workspace:*",
-    "@omne-harness-lite/session-log": "workspace:*"
+    "@omne-harness-lite/session-log": "workspace:*",
+    "@omne-harness-lite/session-runtime-local": "workspace:*"
   },
   "omneHarness": {
     "packageTemplate": {

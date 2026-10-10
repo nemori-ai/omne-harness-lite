@@ -91,7 +91,7 @@ export interface RuntimeOptions {
   readonly modelIssue?: {
     readonly maxRecords: number
     readonly create: (binding: {
-      readonly log: SessionLogParticipant
+      readonly log: Pick<SessionLogParticipant, 'appendIn' | 'readByKeyIn'>
       readonly access: import('@omne-harness-lite/session-log').LogAuthority
       readonly authority: OriginalIssueAuthority
     }) => OriginalIssueParticipant

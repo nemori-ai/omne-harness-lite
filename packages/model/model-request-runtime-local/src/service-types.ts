@@ -1,4 +1,5 @@
 import type {
+  SessionModelRequestPreparation,
   ServiceInvalidInput,
   ServiceUnavailable,
   ServiceRuntimeStopped,
@@ -118,6 +119,7 @@ export interface PreparedCallBinding<P extends PlannedSemantics, R> {
 }
 
 export interface RuntimeConstruction<P extends PlannedSemantics, R> {
+  readonly requestPreparation: SessionModelRequestPreparation
   readonly callAccess: CallAccess
   readonly callPresence: CallPresence
   readonly callFacts: CallFacts

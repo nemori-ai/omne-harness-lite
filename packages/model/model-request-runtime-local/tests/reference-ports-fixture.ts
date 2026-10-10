@@ -1,3 +1,4 @@
+import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { createModelCallContentStore } from '../src/reference-content.ts'
 import { createModelCallFacts } from '../src/reference-facts.ts'
@@ -15,7 +16,7 @@ import { noWaitScheduler } from './settlement-fixture.ts'
 type Host = Awaited<ReturnType<typeof selectionHost>>
 type Ports<P extends PlannedSemantics, R> = Pick<
   RuntimeConstruction<P, R>,
-  'callAccess' | 'callPresence' | 'callFacts'
+  'callAccess' | 'callPresence' | 'callFacts' | 'requestPreparation'
 >
 
 /** The test host owns the same real Storage and tenant binding as its SessionLog. */
@@ -93,13 +94,14 @@ export function referencePorts<P extends PlannedSemantics, R>(
       return { allowed: await admitted(evidence), evidence }
     },
   }
-  return { callAccess, callPresence, callFacts }
+  return { callAccess, callPresence, callFacts, requestPreparation: sessionModelRequestPreparation }
 }
 
 /** A read-only fixture must fail closed if it accidentally enters the new ref path. */
 export function unavailableReferencePorts<P extends PlannedSemantics, R>(): Ports<P, R> {
   const unavailable = { unavailable: true } as const
   return {
+    requestPreparation: sessionModelRequestPreparation,
     callAccess: { check: async () => unavailable },
     callPresence: { read: async () => unavailable },
     callFacts: {

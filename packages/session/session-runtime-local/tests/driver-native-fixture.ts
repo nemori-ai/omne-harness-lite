@@ -1,3 +1,4 @@
+import { sessionModelRequestPreparation } from '../src/model-request-preparation.ts'
 import { writeJsonLossless, type ToolCallBlock } from '@omne-harness-lite/content-blocks'
 import {
   createModelCallFacts,
@@ -361,6 +362,7 @@ export function nativeModelConstruction(
     policy: { maxConcurrentWrites: 2, maxContentBytes: 65536 },
   })
   return {
+    requestPreparation: sessionModelRequestPreparation,
     callAccess: { check: async () => unavailable },
     callPresence,
     callFacts: createModelCallFacts({ content, presence: callPresence, maxScopes: 8 }),

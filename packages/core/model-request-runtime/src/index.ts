@@ -58,3 +58,9 @@ export * from './log-envelope.ts'
 export { policyKind, policyJitter } from './retry-policy-shape.ts'
 
 export type * from './execution-pool.ts'
+
+export type {
+  SessionModelDispatchInput,
+  SessionModelDispatchResult,
+  SessionModelRequestPreparation,
+} from './session-request-preparation.ts'

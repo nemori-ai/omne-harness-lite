@@ -1,3 +1,4 @@
+import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
 import { DatabaseSync } from 'node:sqlite'
 import { modelCategory, modelValue, replaceModelValue } from './log-codec-fixture.ts'
 // @module-tag slow
@@ -273,6 +274,7 @@ async function runtimeOn(w: World, options: RuntimeOptions = {}) {
   let sendCount = 0
   const diagnostics: string[] = []
   const construction: RuntimeConstruction<TestPlan, object> = {
+    requestPreparation: sessionModelRequestPreparation,
     callAccess,
     callPresence,
     callFacts,

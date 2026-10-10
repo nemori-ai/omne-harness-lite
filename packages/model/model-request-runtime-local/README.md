@@ -58,7 +58,7 @@ The service forwards the existing `SettlementDiagnostic` through `RuntimeConstru
 
 ## Cordis service assembly
 
-`createModelRuntimeLocal()` creates one trusted assembly factory. Its plugin constructs the private call store, content store and facts from named host inputs, execution support, Storage, Clock and transport. Configuration contains explicit scope, content, waiter and token-margin limits. It accepts no `construct` callback or default policy. The managed row requires `assemblyLifetime`.
+`createModelRuntimeLocal({ requestPreparation })` creates one trusted assembly factory. The application selects the Session-owned preparation implementation; the provider has no default. Its plugin constructs the private call store, content store and facts from named host inputs, execution support, Storage, Clock and transport. Configuration contains explicit scope, content, waiter and token-margin limits. It accepts no `construct` callback or default policy. The managed row requires `assemblyLifetime`.
 
 The four exact Config fields (`tokenMargin.multiplier`, `tokenMargin.reserveTokens`, `reservationWaitPolicy.maxWaitersPerCall`, `reservationWaitPolicy.timeoutMs`) use JSON number lexeme strings, for example `"1.10000000000000000001"` and `"256"`. Encode the original `JsonNumber` with `jsonNumberSource`. The provider validates each string and restores its exact value without floating-point conversion. Independent functions keep their existing `JsonNumber` inputs.
 

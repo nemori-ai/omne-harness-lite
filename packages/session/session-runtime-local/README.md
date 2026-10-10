@@ -8,6 +8,8 @@ The root exports `createLocalSessionDriver` for normal Model and Tool paths. It 
 
 `createSessionDriverWorkOwner` and `createSessionCallAccess` retain original work and enforce original Run reads. They do not grant new Model or Tool permission or provide execution recovery.
 
+`sessionModelRequestPreparation` prepares the current model request for the existing runtime consumer. Session owns tool resolution, history calibration and assembly timeout evaluation. The application supplies this implementation explicitly. This preparation interface is separate from the prepared execution request accepted by a Model pool. See [SPEC.md](SPEC.md#会话模型请求准备).
+
 ## Admission
 
 Compose `admissionMigrations` on the shared root database. Compose `admissionUseMigrations` on each tenant runtime database. Then call `createLocalAdmission` with the root storage, the trusted governance probe, and explicit capacity limits. The caller owns both storage instances and the probe.

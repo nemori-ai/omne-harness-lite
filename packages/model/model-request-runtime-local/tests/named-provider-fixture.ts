@@ -1,3 +1,4 @@
+import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { createAssemblyLifetime } from '@omne-harness-lite/assembly-lifecycle'
@@ -83,7 +84,7 @@ export async function namedProviderFixture(
     readonly support?: ModelRuntimeExecutionSupport
     readonly deferDependencies?: boolean
     readonly config?: ModelRuntimeLocalConfig
-    readonly construction?: ModelRuntimeLocalConstruction
+    readonly construction?: Omit<ModelRuntimeLocalConstruction, 'requestPreparation'>
     readonly transport?: Pick<ModelTransportService, 'clearReuseScope' | 'acquire'>
   } = {},
 ) {
@@ -95,7 +96,10 @@ export async function namedProviderFixture(
     migrations: composeMigrations(modelCallContentMigrations('sqlite')),
   })
   const ctx = new Context(),
-    binding = createModelRuntimeLocal(options.construction)
+    binding = createModelRuntimeLocal({
+      ...options.construction,
+      requestPreparation: sessionModelRequestPreparation,
+    })
   const lifetime = createAssemblyLifetime(['model'], binding.closeAdmission)
   if (!lifetime.tryClaim()) throw new Error('fixture lifetime claim')
   const captures: Fiber[] = []

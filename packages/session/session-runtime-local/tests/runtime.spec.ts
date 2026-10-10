@@ -1973,11 +1973,13 @@ it('rolls back preparation, its fact and receipt together when original step cap
 
 async function modelFixture(maxRecords = 8) {
   let owner!: OriginalIssueOwner
+  let originalBinding!: Parameters<NonNullable<RuntimeOptions['modelIssue']>['create']>[0]
   const f = await fixture(undefined, 32, storage => ({
     modelResults: { maxRecords, source: { verifyIn: async () => 'verified' } },
     modelIssue: {
       maxRecords,
       create: binding => {
+        originalBinding = binding
         owner = createOriginalIssueOwner({ storage, ...binding, limit: 8 })
         modelOwners.push(owner)
         return owner.participant
@@ -1996,7 +1998,7 @@ async function modelFixture(maxRecords = 8) {
   const original = modelInput(p, prepared.source)
   const ready = owner.prepareOriginal(original)
   if (!('ticket' in ready)) throw new Error('actual model ticket unavailable')
-  return { f, p, owner, prepared, original, ticket: ready.ticket }
+  return { f, p, owner, prepared, original, originalBinding, ticket: ready.ticket }
 }
 function modelInput(
   p: Awaited<ReturnType<typeof preparedAttempt>>,
@@ -2083,6 +2085,36 @@ it('issues once under the actual Run and attempt without an extra model permissi
     ),
   ).toHaveProperty('kind', 'alreadyIssued')
   expect(await f.log().readSince(p.scope.session, 7)).toHaveProperty('entries.length', 1)
+})
+it('restricts original model recognition to its committed dispatch key after ingress closes', async () => {
+  const { f, p, owner, prepared, ticket, original, originalBinding } = await modelFixture()
+  const result = await f.runtime.modelInvocation.admit(
+    f.runtime.coordinationAuthority,
+    p.scope,
+    prepared.source,
+    p.step,
+    ticket,
+  )
+  if (!('kind' in result) || result.kind !== 'issued') throw new Error('actual issue missing')
+  const source = { ...prepared.source, tail: result.positions.at(-1)! }
+  const key = original.entry.dedupeKey!
+  expect(Object.keys(originalBinding.log).sort()).toEqual(['appendIn', 'readByKeyIn'])
+  await f.runtime.close()
+  await f.storage.atomic(async unit => {
+    expect(
+      await originalBinding.log.readByKeyIn(unit, originalBinding.access, source, key),
+    ).toMatchObject({ kind: 'keyed', entries: [{ dedupeKey: key }] })
+    expect(
+      await originalBinding.log.readByKeyIn(unit, originalBinding.access, source, 'other-key'),
+    ).toEqual({ failure: 'denied' })
+    expect(
+      await originalBinding.log.readByKeyIn(unit, originalBinding.access, prepared.source, key),
+    ).toEqual({ failure: 'denied' })
+    expect(
+      await originalBinding.log.readByKeyIn(unit, { ...originalBinding.access }, source, key),
+    ).toEqual({ failure: 'denied' })
+  })
+  expect(await owner.close()).toEqual({ kind: 'released' })
 })
 it('rejects copied latest permits before the actual model participant can append or acquire a claim', async () => {
   const { f, p, prepared, ticket } = await modelFixture()

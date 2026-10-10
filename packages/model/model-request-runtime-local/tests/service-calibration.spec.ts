@@ -12,7 +12,7 @@ import {
   captureModelLogValue,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
-import { authorizedCalibration } from '../src/service-calibration.ts'
+import { authorizedCalibration } from '@omne-harness-lite/session-runtime-local'
 import { copyPlanOutputHistory } from '@omne-harness-lite/model-request-runtime'
 import type { CurrentHistoryReaders } from '@omne-harness-lite/model-request-runtime'
 import type { LogEntry } from '@omne-harness-lite/session-log'

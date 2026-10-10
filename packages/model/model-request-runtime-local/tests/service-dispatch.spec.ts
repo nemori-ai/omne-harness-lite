@@ -1,3 +1,5 @@
+import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
+import { positiveDurationMs } from '@omne-harness-lite/session-runtime-local'
 import { modelCategory, modelValue, replaceModelValue } from './log-codec-fixture.ts'
 import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 // @module-tag slow
@@ -31,11 +33,7 @@ import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import { noWaitScheduler, policy as settlementPolicy } from './settlement-fixture.ts'
 import { payload, transport, type TestPlan } from './anchored-invocation-fixture.ts'
 import { profile, selectionHost } from './session-selection-fixture.ts'
-import {
-  dispatchAdmission,
-  dispatchAgainAdmission,
-  positiveDurationMs,
-} from '../src/service-dispatch.ts'
+import { dispatchAdmission, dispatchAgainAdmission } from '../src/service-dispatch.ts'
 import type { UnacknowledgedCallHistory } from '@omne-harness-lite/model-request-runtime'
 import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
 import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
@@ -332,6 +330,7 @@ test('service dispatch writes both anchors before handing out a complete pending
       }),
     ).toBeUndefined()
     const runtime: RuntimeConstruction<TestPlan, object> = {
+      requestPreparation: sessionModelRequestPreparation,
       callFacts,
       callPresence,
       callAccess,

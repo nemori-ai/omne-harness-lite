@@ -2415,6 +2415,9 @@ importers:
       '@omne-harness-lite/session-log-sql':
         specifier: workspace:*
         version: link:../../session/session-log-sql
+      '@omne-harness-lite/session-runtime-local':
+        specifier: workspace:*
+        version: link:../../session/session-runtime-local
       '@omne-harness-lite/session-tenancy-table':
         specifier: workspace:*
         version: link:../../session/session-tenancy-table

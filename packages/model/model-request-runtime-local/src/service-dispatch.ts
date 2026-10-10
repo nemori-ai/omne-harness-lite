@@ -19,18 +19,14 @@ import {
 } from './plan-reuse-scopes.ts'
 import { randomUUID } from 'node:crypto'
 import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
-import { capabilityCanonicalString } from '@omne-harness-lite/asset-model'
-import { evaluate } from '@omne-harness-lite/asset-evaluation'
 import { isJsonNumber } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { validate as loopShape, type RetryPlan } from '@omne-harness-lite/loop-extension'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-import { validate as toolShape } from '@omne-harness-lite/tool-definition'
 import { createAnchoredModelInvocation } from './anchored-invocation.ts'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import { operationDiagnostics } from './service-diagnostics.ts'
 import { createModelObserverQueue } from './service-observer-queue.ts'
-import { resolveCallTools } from './call-tools.ts'
 import { dispatchGuard } from '@omne-harness-lite/model-request-runtime'
 import { UnknownAppendTracker } from './service-calls.ts'
 import {
@@ -43,7 +39,6 @@ import {
   readSettlementPrefix,
   settlementGenerationCurrent,
 } from '@omne-harness-lite/model-request-runtime'
-import { authorizedCalibration } from './service-calibration.ts'
 import { createModelFailureSource, readFailureSubject } from './failure-subject.ts'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import {
@@ -58,8 +53,6 @@ import type {
   ObserverDiagnostic,
 } from '@omne-harness-lite/model-request-runtime'
 import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
-import type { CredentialScope } from '@omne-harness-lite/model-response'
-import type { PlanInput, InvocationPolicy } from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { SettlementDiagnostic } from '@omne-harness-lite/model-request-runtime'
 import type { DiagnosticAssociation } from '@omne-harness-lite/model-request-runtime'
@@ -147,59 +140,6 @@ function object(value: unknown): value is Readonly<Record<string, unknown>> {
   return (
     value !== null && typeof value === 'object' && !Array.isArray(value) && !isJsonNumber(value)
   )
-}
-
-export function positiveDurationMs(value: unknown): number | undefined {
-  if (typeof value !== 'string' || !toolShape('Duration', value).valid) return undefined
-  const match = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?$/.exec(value)
-  if (match === null) return undefined
-  const milliseconds =
-    Number(match[1] ?? '0') * 3_600_000 +
-    Number(match[2] ?? '0') * 60_000 +
-    Number(match[3] ?? '0') * 1_000
-  return Number.isFinite(milliseconds) && milliseconds > 0 ? milliseconds : undefined
-}
-
-/** RT8 S-21/S-66: only the current authenticated AE4 input can supply the two limits.
- * Fractional milliseconds remain fractional; neither rounding nor a host default is used. */
-export async function currentDispatchTiming<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
-  session: SessionRuntimeBinding,
-  retained: OwnedReadTracker,
-): Promise<
-  | { readonly firstContentTimeoutMs: number; readonly idleContentTimeoutMs: number }
-  | { readonly unavailable: true }
-> {
-  const received = await withOwnedReads(
-    session.selection.owner,
-    runtime.settlementContention.limits.concurrent,
-    retained,
-    async registration =>
-      await registration.start(
-        'read',
-        async () =>
-          await session.currentEvaluationInputs.read(session.log.session, session.log.tenant),
-      ).completion,
-  )
-  if ('unavailable' in received || !('input' in received.ok)) return { unavailable: true }
-  const input = received.ok.input
-  if (!tenantIdEquals(input.tenant, session.log.tenant) || input.standing.standing !== 'effective')
-    return { unavailable: true }
-  const evaluated = evaluate(input)
-  if (!('ok' in evaluated)) return { unavailable: true }
-  const assembly = evaluated.ok
-  const root = capabilityCanonicalString(assembly.root)
-  function one(item: string): number | undefined {
-    const values = assembly.values.filter(
-      value => capabilityCanonicalString(value.capability) === root && value.item === item,
-    )
-    return values.length === 1 ? positiveDurationMs(values[0]?.value) : undefined
-  }
-  const firstContentTimeoutMs = one('first_token_wait_limit')
-  const idleContentTimeoutMs = one('post_first_token_stall_limit')
-  return firstContentTimeoutMs === undefined || idleContentTimeoutMs === undefined
-    ? { unavailable: true }
-    : { firstContentTimeoutMs, idleContentTimeoutMs }
 }
 
 export function validDispatchInput(input: DispatchInput | DispatchAgainInput): boolean {
@@ -336,13 +276,6 @@ function rejectedDispatchAgain(
   if (checked.rejected === 'callNotFound') return { callNotFound: true }
   if (checked.rejected === 'invalidInput') return { invalidInput: { reason: 'malformed' } }
   return { unavailable: true }
-}
-
-interface PreparedSend {
-  readonly planInput: PlanInput
-  readonly credential: string
-  readonly credentialScope: CredentialScope
-  readonly policy: InvocationPolicy
 }
 
 export interface ServiceDispatch {
@@ -1313,23 +1246,6 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
     (next: RuntimeConstruction<P, R>) => buildServiceDispatch(next, borrowedScopes, physical),
   )
 }
-type PreparationResult =
-  | { readonly prepared: PreparedSend }
-  | { readonly credentialUnavailable: true }
-  | { readonly invalidInput: { readonly reason: 'malformed' | 'unknownTool' } }
-  | { readonly unavailable: true; readonly diagnosticReason?: 'scope_disallowed' }
-
-type CredentialValue = Exclude<
-  Awaited<ReturnType<SessionRuntimeBinding['credentials']['value']>>,
-  { readonly failure: unknown }
->
-type CredentialPreparation =
-  | { readonly credentialText: string; readonly value: CredentialValue }
-  | Extract<
-      PreparationResult,
-      { readonly unavailable: true } | { readonly credentialUnavailable: true }
-    >
-
 async function prepareSend<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
   session: SessionRuntimeBinding,
@@ -1338,140 +1254,23 @@ async function prepareSend<P extends PlannedSemantics, R>(
   provider: string,
   attempt: DispatchInput['attempt'],
   retained: OwnedReadTracker,
-): Promise<PreparationResult> {
+) {
   const container = runtime.calls.find(key)
-  if (container === undefined) return { unavailable: true }
-  const view = container.view()
-  const calibrationTarget = currentCalibrationTarget()
-  if (calibrationTarget === null) return { invalidInput: { reason: 'malformed' } }
-  if (preparationUnavailable()) return { unavailable: true }
-  const timing = await currentDispatchTiming(runtime, session, retained)
-  if ('unavailable' in timing) return timing
-  const credential = await withOwnedReads(
-    view.owner,
-    runtime.settlementContention.limits.concurrent,
-    retained,
-    async registration =>
-      await registration.start(
-        'read',
-        async () =>
-          await session.credentials.value(session.log.tenant, view.binding.profile.origin),
-      ).completion,
-  )
-  const credentialPrepared = currentCredential(credential)
-  if (!('credentialText' in credentialPrepared)) return credentialPrepared
-  const value = credentialPrepared.value
-  const credentialText = credentialPrepared.credentialText
-  let tools: Awaited<ReturnType<typeof resolveCallTools>>
-  try {
-    tools = await resolveCallTools(view.request, session.tools)
-  } catch {
-    return { unavailable: true }
-  }
-  if ('failure' in tools) return toolPreparationFailure(tools)
-  const calibration = await withOwnedReads(
-    view.owner,
-    runtime.settlementContention.limits.concurrent,
-    retained,
-    async registration => {
-      const prefix = await readSettlementPrefix({ binding: session.log, registration })
-      return 'unavailable' in prefix
-        ? ({ unavailable: true } as const)
-        : authorizedCalibration(
-            prefix.prefix,
-            view.request.messages,
-            calibrationTarget,
-            runtime.history.calibration,
-          )
-    },
-  )
-  if ('unavailable' in calibration || 'unavailable' in calibration.ok) return { unavailable: true }
-  const planInput: PlanInput = Object.freeze({
-    calibration: calibration.ok.calibration,
-    outputHistory: calibration.ok.outputHistory,
-    tokenMargin: runtime.tokenMargin,
-    target: { kind: 'model_call' as const, callId: key.callId, dispatch },
-    routeName: view.binding.profile.routeName,
+  const view = container?.view()
+  if (view === undefined || view.session !== session) return { unavailable: true } as const
+  return runtime.requestPreparation.prepare({
+    session,
+    key,
+    dispatch,
     provider,
-    snapshot: view.binding.snapshot,
-    parameters: view.binding.parameters,
-    messages: view.request.messages,
-    tools: tools.tools,
+    ...(attempt === undefined ? {} : { attempt }),
+    request: view.request,
+    model: view.binding,
+    owner: view.owner,
+    tokenMargin: runtime.tokenMargin,
+    calibration: runtime.history.calibration,
+    policy: runtime.policy,
+    read: (owner, work) =>
+      withOwnedReads(owner, runtime.settlementContention.limits.concurrent, retained, work),
   })
-  return {
-    prepared: {
-      planInput,
-      credential: credentialText,
-      credentialScope: value.scope,
-      policy: {
-        ...runtime.policy,
-        firstContentTimeoutMs: timing.firstContentTimeoutMs,
-        idleContentTimeoutMs: timing.idleContentTimeoutMs,
-      },
-    },
-  }
-
-  function currentCalibrationTarget(): Parameters<typeof authorizedCalibration>[2] | null {
-    if (view.request.run === undefined && attempt !== undefined) return null
-    return view.request.run === undefined
-      ? { callId: key.callId, dispatch }
-      : attempt === undefined
-        ? null
-        : { callId: key.callId, dispatch, run: view.request.run, attempt }
-  }
-
-  function preparationUnavailable(): boolean {
-    return (
-      view.session !== session ||
-      view.owner.admission() !== 'open' ||
-      !settlementGenerationCurrent(session.log) ||
-      'unknown' in view.owner.opened() ||
-      view.owner.unresolvedWrites().length !== 0
-    )
-  }
-
-  function currentCredential(
-    credential:
-      | { readonly ok: Awaited<ReturnType<SessionRuntimeBinding['credentials']['value']>> }
-      | { readonly unavailable: true },
-  ): CredentialPreparation {
-    if ('unavailable' in credential) return credential
-    if ('failure' in credential.ok)
-      return credential.ok.failure === 'credentialUnavailable'
-        ? { credentialUnavailable: true }
-        : { unavailable: true }
-    const value = credential.ok
-    if (
-      (value.scope.layer === 'tenant' && !tenantIdEquals(value.scope.tenant, session.log.tenant)) ||
-      (view.binding.profile.origin === 'custom' && value.scope.layer === 'factory')
-    )
-      return { unavailable: true, diagnosticReason: 'scope_disallowed' }
-    const text = decodeCredential()
-    return typeof text === 'string' ? { credentialText: text, value } : text
-
-    function decodeCredential():
-      | string
-      | Extract<
-          PreparationResult,
-          { readonly unavailable: true } | { readonly credentialUnavailable: true }
-        > {
-      if (!(value.value instanceof Uint8Array)) return { unavailable: true }
-      let credentialText: string
-      try {
-        credentialText = new TextDecoder('utf-8', { fatal: true }).decode(value.value)
-      } catch {
-        return { unavailable: true }
-      }
-      if (credentialText.length === 0) return { credentialUnavailable: true }
-      return credentialText
-    }
-  }
-}
-
-function toolPreparationFailure(
-  tools: Extract<Awaited<ReturnType<typeof resolveCallTools>>, { readonly failure: unknown }>,
-): Extract<PreparationResult, { readonly unavailable: true } | { readonly invalidInput: unknown }> {
-  return tools.failure === 'unavailable'
-    ? { unavailable: true }
-    : { invalidInput: { reason: tools.reason ?? 'malformed' } }
 }
