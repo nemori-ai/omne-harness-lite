@@ -13,7 +13,6 @@ import {
   type OriginalIssueParticipant,
   type OriginalIssueStage,
   type OriginalIssueFailure,
-  type OriginalIssueOwner,
   type ModelExecutionRecords,
 } from '@omne-harness-lite/model-request-runtime'
 import {
@@ -142,7 +141,7 @@ function sameOriginal(row: Row, input: Prepared): boolean {
 /** One model execution owner per storage. Storage and log are borrowed until every claim is resolved. */
 export function createOriginalIssueOwner(
   options: OriginalIssueOwnerOptions,
-): OriginalIssueOwner & Pick<ModelExecutionRecords, 'stageOriginalIn' | 'stageConsumeIn'> {
+): ModelExecutionRecords {
   if (!Number.isSafeInteger(options.limit) || options.limit < 1)
     throw new TypeError('positive original issue limit required')
   if (owners.has(options.storage)) throw new TypeError('duplicate original model execution owner')
@@ -338,9 +337,7 @@ export function createOriginalIssueOwner(
     }
   }
   const participant = Object.freeze<OriginalIssueParticipant>({ stageOriginalIn: stage })
-  return Object.freeze<
-    OriginalIssueOwner & Pick<ModelExecutionRecords, 'stageOriginalIn' | 'stageConsumeIn'>
-  >({
+  return Object.freeze<ModelExecutionRecords>({
     participant,
     stageOriginalIn: stage,
     stageConsumeIn: stageConsume,

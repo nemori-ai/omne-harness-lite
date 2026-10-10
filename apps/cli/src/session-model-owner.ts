@@ -9,11 +9,9 @@ import type {
   OriginalIssueAdmission,
   OriginalIssueClaim,
   OriginalIssueFailure,
+  ModelExecutionRecords,
 } from '@omne-harness-lite/model-request-runtime'
-import {
-  createOriginalIssueOwner,
-  type OriginalIssueOwner,
-} from '@omne-harness-lite/model-request-runtime-local'
+import { createOriginalIssueOwner } from '@omne-harness-lite/model-request-runtime-local'
 
 type Preparation = Extract<SessionLifecycleStep, { kind: 'prepareCall' }>
 type AdmissionResult = Awaited<ReturnType<LocalSessionIngress['modelInvocation']['admit']>>
@@ -26,7 +24,7 @@ export interface SessionOriginalModelOwnerOptions {
 export interface SessionOriginalModelOwner {
   readonly modelIssue: NonNullable<RuntimeOptions['modelIssue']>
   /** Borrowed by the trusted driver root after the original participant has attached. */
-  readonly native: () => OriginalIssueOwner
+  readonly native: () => ModelExecutionRecords
   readonly bind: (
     ingress: Pick<LocalSessionIngress, 'coordinationAuthority' | 'modelInvocation'>,
     scope: SessionScope,
@@ -39,7 +37,7 @@ export interface SessionOriginalModelOwner {
 export function createSessionOriginalModelOwner(
   options: SessionOriginalModelOwnerOptions,
 ): SessionOriginalModelOwner {
-  let original: OriginalIssueOwner | undefined
+  let original: ModelExecutionRecords | undefined
   let closing = false
   const modelIssue = Object.freeze<SessionOriginalModelOwner['modelIssue']>({
     maxRecords: options.maxRecords,

@@ -24,3 +24,5 @@ credentials.bindCredential()
 // Existing leases, policies and invocation capability remain required.
 model.transport.acquire(request.input.snapshot.adaptation, request.input.routeName)
 model.support.policy.schedule(1, () => {})
+
+model.recovery.withObligations

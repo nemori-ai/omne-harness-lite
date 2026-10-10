@@ -67,7 +67,7 @@ it('issues one model execution job recognized by the records participant in the 
   expect(prepared).toHaveProperty('job')
   if (!('job' in prepared)) throw new Error('model execution job unavailable')
   expect(owner.stageOriginalIn).toBe(owner.participant.stageOriginalIn)
-  const records: Pick<ModelExecutionRecords, 'stageOriginalIn'> = owner
+  const records: ModelExecutionRecords = owner
   const staged = await h.storage.atomic(unit => records.stageOriginalIn(unit, prepared.job))
   expect(staged).toHaveProperty('kind', 'staged')
   if (staged.kind !== 'staged') throw new Error('original not staged')

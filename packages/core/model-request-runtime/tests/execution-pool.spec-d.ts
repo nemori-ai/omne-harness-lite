@@ -1,5 +1,6 @@
 import type {
   ModelExecutionRecords,
+  OriginalIssueOwner,
   ModelDispatchResult,
   ModelExecutionRef,
   ModelPoolControls,
@@ -17,6 +18,17 @@ import type {
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { ModelResponse } from '@omne-harness-lite/model-response'
 declare const models: ModelExecutionRecords
+declare const nativeOriginal: OriginalIssueOwner &
+  Pick<ModelExecutionRecords, 'stageOriginalIn' | 'stageConsumeIn'>
+const nativeRecords: ModelExecutionRecords = nativeOriginal
+// @ts-expect-error Full Session call history belongs to the Session owner.
+models.readOriginalIn
+// @ts-expect-error Session settlement writers are not Model execution records.
+models.responseWriter
+// @ts-expect-error Obligation discovery belongs to the recovery source.
+models.withObligations
+nativeRecords.prepareOriginal
+nativeRecords.consumeOriginal
 // @ts-expect-error Model execution records do not expose Session selection.
 models.selectModel()
 // @ts-expect-error Model execution records cannot return a complete Session prefix.

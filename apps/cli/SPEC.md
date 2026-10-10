@@ -479,7 +479,7 @@ Driver故障先停止协议准入，再调用原诊断端口。关闭停止新�
 
 `startSessionDriverRuntimeRoot`复用同一套G28、Ingress、日志、结果保管、Context和关闭机制，并启动公开Session Driver。配置方提供Run来源、模型投影及结算工厂、工具借用、身份生成和工程策略。运行根固定租户、Ingress、Clock、原工作拥有者、实际OriginalIssueOwner、执行来源和结果保管来源；配置方不能替换这些已经配对的实例。配置失败时按原运行根的关闭和保留责任收场。
 
-`SessionOriginalModelOwner.native()`只向可信运行根借出已附着的原拥有者。初始化前或原关闭开始后拒绝新借用。普通命令和socket协议没有该入口，生命周期仍由原运行根管理。
+`SessionOriginalModelOwner.native()`只向可信运行根借出已附着的同一原拥有者，并保留其完整ModelExecutionRecords类型。它与已交给Session的participant来自同一实例，不另建记录拥有者。初始化前或原关闭开始后拒绝新借用。普通命令和socket协议没有该入口，生命周期仍由原运行根管理。
 
 `startSessionRuntimeRoot`借入真实根／租户Storage、治理客户端、时钟、合法部署输入和物理模型池，组合已有G28、SessionIngress、原模型发起／结果保管拥有者、工作结算证明及独立Session Context。构造先核固定中心／账号／登录句柄和实际opened use来源，再刷新登录；原use关闭结束后才分配本机运行资源。缺失资产、Context seed、模型配置、引用保管或策略均不补默认。普通客户端只使用既有私有通道协议；可信owners不进入协议。
 

@@ -38,13 +38,17 @@ Session 从实际 SessionLog、Context 和当前装配准备请求，Agent 决�
 
 `ModelPoolControls` 只提供 `acquireCall`、`interrupt` 和 `releaseCall`。会话历史查询、重试适用性判断、回复处置、ACK 和会话恢复由 Session 的组合操作提供。池的 `dispatch` 和 `dispatchAgain` 返回原执行结果，不接受 `consumeFailure`，也不返回 `failureSubject`；失败来源解释和消费由 Session 完成。这个分工不改变完整结果及必要引用可靠保管后才能 ACK 的条件。
 
-Session 当前栅栏与原唯一发起须在同一实际 StorageUnit 中参与。`ModelExecutionRecords` 只读写模型能力自己的原记录。readOriginalIn 按租户、Session 和 call 读取，允许调用尚无 dispatch。stageOriginalIn 和 stageConsumeIn 只暂存，不独立提交或发 IO。只有原池发行、关联到同一实际数据集的活体 job 和 claim 有效；复制对象、旧 owner 或异存储单元不能参加。提交不明保留完整原 ref、creationKey、原输入和责任，不授予 launch、不重发、不生成后继身份。
+Session 当前栅栏与原唯一发起须在同一实际 StorageUnit 中参与。`ModelExecutionRecords` 是同一实际OriginalIssueOwner的完整能力，提供原job准备、同Unit暂存、claim消费和关闭。它不返回会话历史或结算写者。
+
+stageOriginalIn 和 stageConsumeIn 只暂存，不独立提交或发 IO。只有原池发行、关联到同一实际数据集的活体 job 和 claim 有效；复制对象、旧 owner 或异存储单元不能参加。提交不明保留完整原 ref、creationKey、原输入和责任，不授予 launch、不重发、不生成后继身份。
+
+Session参加者、池的records和恢复scope必须来自同一原owner与实际数据集，结构类型不能证明这一关联。池借用records，不因自身停止或投影退出提前调用records.close；根拥有者须保留它直到原参加者及执行任务收场。
 
 `ModelPoolConstruction` 借入原 transport、凭据来源、host、策略及生命周期依赖。池只取得 transport 的 acquire 和 clearReuseScope，不取得注册、退役或共享运输关闭权。凭据来源按原执行与真实数据集核关联，再沿原模型来源取值。ref 本身不是凭据读取授权。请求、日志及提交不明回复不携带原文秘密。
 
 `ModelCallerAccess` 每次按实际调用动作核当前调用者。读取、控制和 ACK 资格不形成新的模型执行许可。维护原执行义务与业务内容读取分开，撤权不得丢弃原保管、费用或收场责任。
 
-`ModelRecoveryAccess` 沿原恢复准入，先停止旧效果写者，再借入原模型记录及原 invocation，不返回完整 Session binding 或任意日志 owner。`ModelExecutionSource` 仅供可信实例拥有者捕获原物理执行，不返回 SessionRuntimeBinding 或 SettlementOwner。捕获的 invocation 不暴露 borrowControl。释放 source 前须关闭实际池并释放全部 capture；空索引、复制 metadata 或历史终态不证明物理停止。
+`ModelRecoveryAccess` 拥有withObligations借用扫描，并沿原恢复准入，先停止旧效果写者，再借入原模型记录及原 invocation，不返回完整 Session binding 或任意日志 owner。`ModelExecutionSource` 仅供可信实例拥有者捕获原物理执行，不返回 SessionRuntimeBinding 或 SettlementOwner。捕获的 invocation 不暴露 borrowControl。释放 source 前须关闭实际池并释放全部 capture；空索引、复制 metadata 或历史终态不证明物理停止。
 
 普通 operations 不包含 closeAdmission。实例 closeAdmission 只停新准入；close 沿原 RuntimeCloseResult，失败保留原实例及资源。Session 或调用者退出不关闭共享模型池。完整结果和必要引用可靠保管后才能 ACK；旧 attempt 的费用与迟到结果责任保持。
 

@@ -9,8 +9,8 @@ import type {
   OriginalIssueClaim,
   OriginalIssueStage,
   OriginalIssueFailure,
+  OriginalIssueOwner,
 } from './original-issue.ts'
-import type { CallHistoryResult } from './call-history.ts'
 import type {
   ModelRuntimeOperations,
   RuntimeCloseResult,
@@ -32,7 +32,6 @@ import type {
 } from './reference-types.ts'
 import type { ModelRuntimeExecutionObservation } from './execution-source-types.ts'
 import type { AnchoredInvocationHandle } from './anchored-invocation-types.ts'
-import type { SettlementCoordinator } from './settlement-types.ts'
 import type { StorageUnit } from '@omne-harness-lite/storage'
 import type { ModelProfileRef } from '@omne-harness-lite/model-profile'
 import type { CredentialLookup } from '@omne-harness-lite/model-profile-directory'
@@ -132,11 +131,7 @@ export interface ModelExecutionObligations<Ref> {
   >
 }
 
-export interface ModelExecutionRecords extends ModelExecutionObligations<ModelExecutionCallRef> {
-  readonly readOriginalIn: (
-    unit: StorageUnit,
-    ref: ModelExecutionCallRef,
-  ) => Promise<CallHistoryResult>
+export interface ModelExecutionRecords extends OriginalIssueOwner {
   readonly stageOriginalIn: (
     unit: StorageUnit,
     job: ModelExecutionJob,
@@ -155,9 +150,6 @@ export interface ModelExecutionRecords extends ModelExecutionObligations<ModelEx
       }
     | OriginalIssueFailure
   >
-  readonly responseWriter: (
-    job: ModelExecutionJob,
-  ) => Pick<SettlementCoordinator, 'settle' | 'close'>
 }
 
 export interface ModelDispatchUnknownCommit {
@@ -266,7 +258,7 @@ export interface ModelRecoveryScope {
   readonly close: () => Promise<void>
 }
 
-export interface ModelRecoveryAccess {
+export interface ModelRecoveryAccess extends ModelExecutionObligations<ModelExecutionCallRef> {
   readonly authorize: RuntimeRecoveryAccess['authorize']
   readonly enter: (input: Parameters<RuntimeRecoveryAccess['enter']>[0]) => Promise<
     | {
