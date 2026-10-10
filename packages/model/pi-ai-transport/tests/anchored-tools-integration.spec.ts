@@ -2,10 +2,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { readJsonStrict } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { judgeMessage } from '@omne-harness-lite/messages'
-import {
-  createAnchoredModelInvocation,
-  type SettlementCoordinatorInput,
-} from '@omne-harness-lite/model-request-runtime-local'
+import { createAnchoredModelInvocation } from '@omne-harness-lite/session-runtime-local'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import type { SettlementCoordinatorInput } from '@omne-harness-lite/model-request-runtime'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import {
   harness,
@@ -78,6 +77,7 @@ describe('noRun anchored invocation through actual TLS and OpenRouter wire proto
         const base = input()
         const first = createAnchoredModelInvocation({
           ...h.input,
+          execute: ({ input }) => ({ invocation: invokeModel(input) }),
           settlement: noRunSettlement(h.input.settlement),
           planInput: { ...base, tools: [tool] },
           profile: { origin: 'official', routeName: base.routeName },
@@ -158,6 +158,7 @@ describe('noRun anchored invocation through actual TLS and OpenRouter wire proto
         if (!('ok' in call) || !('ok' in message)) throw new Error('second identity')
         const second = createAnchoredModelInvocation({
           ...h.input,
+          execute: ({ input }) => ({ invocation: invokeModel(input) }),
           settlement: noRunSettlement(h.input.settlement),
           responseId: 'actual-second-tool-response',
           messageId: message.ok,
@@ -230,6 +231,7 @@ describe('noRun anchored invocation through actual TLS and OpenRouter wire proto
         ] as const) {
           const handle = createAnchoredModelInvocation({
             ...h.input,
+            execute: ({ input }) => ({ invocation: invokeModel(input) }),
             settlement: noRunSettlement(h.input.settlement),
             planInput: { ...base, tools, messages },
             profile: { origin: 'official', routeName: base.routeName },

@@ -2515,6 +2515,9 @@ importers:
       '@omne-harness-lite/model-request-runtime-local':
         specifier: workspace:*
         version: link:../model-request-runtime-local
+      '@omne-harness-lite/session-runtime-local':
+        specifier: workspace:*
+        version: link:../../session/session-runtime-local
       '@omne-harness-lite/stream-assembly':
         specifier: workspace:*
         version: link:../../core/stream-assembly
