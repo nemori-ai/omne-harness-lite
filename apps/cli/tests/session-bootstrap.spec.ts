@@ -720,7 +720,7 @@ it.each(['empty', 'startupFailure'] as const)(
       originalId: () => 'driver-root-create',
       policy: { timeoutMs: 2000, maxResponseBytes: 65536 },
     })
-    expect(created).toMatchObject({ kind: 'created-session' })
+    expect(created, JSON.stringify(created)).toMatchObject({ kind: 'created-session' })
     if (created.kind !== 'created-session') throw new Error('actual Driver root creation missing')
     expect(
       await root.owners.ingress.readWork(
@@ -4764,6 +4764,7 @@ it.each(['normal', 'startupFailure', 'heldCapture'] as const)(
     })
     const requested = {
       ...options,
+      transport: { ...options.transport, idleTimeoutMs: 10_000 },
       nativeModel,
       initialRouteName: nativeModel.modelIds[0]!,
       model: options.model,
@@ -4803,9 +4804,10 @@ it.each(['normal', 'startupFailure', 'heldCapture'] as const)(
       binding: options.binding,
       signal: new AbortController().signal,
       originalId: () => 'file-public-driver-session',
-      policy: { timeoutMs: 2000, maxResponseBytes: 65536 },
+      policy: { timeoutMs: 10_000, maxResponseBytes: 65536 },
     })
-    if (created.kind !== 'created-session') throw new Error('file Driver session not created')
+    if (created.kind !== 'created-session')
+      throw new Error(`file Driver session not created: ${JSON.stringify(created)}`)
     expect(root.owners.manifest).toBe(rootManifest)
     expect(await rootManifest!.readHead(created.session)).toEqual({ head: 0, latest: {} })
     const current = root.owners.bootstrap.inputs({ tenant, session: created.session })

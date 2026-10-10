@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Input } from '@earendil-works/pi-tui'
 import { InputFramer, type TerminalInput } from '../src/tui/framer.ts'
-import { FIELD_LIMIT, validFieldText } from '../src/tui/forms.ts'
+import { FIELD_LIMIT, validFieldText } from '../src/tui/field-text.ts'
 
 describe('CQ2 bounded input', () => {
   it('input error is observable but cannot release an unfinished paste as EOF', async () => {

@@ -57,9 +57,7 @@
       "id": "cli-composition",
       "paths": [
         "apps/cli/src/assembly.ts",
-        "apps/cli/src/default-providers.ts",
         "apps/cli/src/main.ts",
-        "apps/cli/src/tui/providers.ts",
         "apps/cli/src/schema-inputs.ts"
       ],
       "layer": "assembly",
@@ -72,22 +70,18 @@
     {
       "id": "cli-interaction",
       "paths": [
-        "apps/cli/src/application.ts",
         "apps/cli/src/client-assembly.ts",
         "apps/cli/src/diagnostic.ts",
         "apps/cli/src/input.ts",
-        "apps/cli/src/parser.ts",
-        "apps/cli/src/presentation.ts",
         "apps/cli/src/validation.ts",
         "apps/cli/src/version.ts",
-        "apps/cli/src/tui/application.ts",
         "apps/cli/src/tui/dialog.ts",
-        "apps/cli/src/tui/forms.ts",
         "apps/cli/src/tui/framer.ts",
         "apps/cli/src/tui/mode-replies.ts",
         "apps/cli/src/tui/raw-mode.ts",
         "apps/cli/src/tui/screen.ts",
-        "apps/cli/src/tui/terminal.ts"
+        "apps/cli/src/tui/terminal.ts",
+        "apps/cli/src/tui/field-text.ts"
       ],
       "layer": "interaction",
       "domains": [

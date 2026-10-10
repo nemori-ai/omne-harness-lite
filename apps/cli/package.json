@@ -13,8 +13,6 @@
   "files": [
     "bin",
     "dist",
-    "commands",
-    "forms",
     "generated"
   ],
   "scripts": {

@@ -118,7 +118,12 @@ function formatEntryReport(report: EntryReport, command: ExecutableEntry): strin
   if (report.outcome.kind === 'session-message' || report.outcome.kind === 'session-creation')
     return writeJsonLossless(report) + '\n'
   const json = command.kind === 'message' || (command.kind === 'governance' && command.json)
-  return JSON.stringify(report, null, json ? undefined : 2) + '\n'
+  return (
+    JSON.stringify(report, null, json ? undefined : 2).replace(
+      /[\u007f-\u009f\u202a-\u202e\u2066-\u2069]/gu,
+      character => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`,
+    ) + '\n'
+  )
 }
 function entryFailure(error: unknown): { code: string; exit: number } {
   if (error instanceof EntryOutputFailure) return { code: 'output-failed', exit: 70 }

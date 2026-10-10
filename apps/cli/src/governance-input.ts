@@ -3,7 +3,7 @@ import type { CenterProfile } from './center-preparation.ts'
 import type { Dialog } from './tui/dialog.ts'
 import type { TenantBinding } from './state-layout.ts'
 import { InputFailure } from './diagnostic.ts'
-import { validFieldText } from './tui/forms.ts'
+import { validFieldText } from './tui/field-text.ts'
 
 export type GovernanceCommand = Extract<EntryCommand, { kind: 'governance' }>
 export type GovernanceDialog = Pick<Dialog, 'text' | 'choose' | 'show' | 'identity'>

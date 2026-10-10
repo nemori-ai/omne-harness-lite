@@ -1,5 +1,5 @@
 import { StdinBuffer } from '@earendil-works/pi-tui'
-import { FIELD_LIMIT, validFieldText } from './forms.ts'
+import { FIELD_LIMIT, validFieldText } from './field-text.ts'
 
 export type TerminalInput =
   | { readonly kind: 'key' | 'paste'; readonly text: string }

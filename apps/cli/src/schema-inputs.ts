@@ -11,7 +11,6 @@ const resources = resourceSpecifiers.map(name => require(name))
 const schema: {
   $id: string
 } = require('@omne-harness-lite/governance-client-operations/schema/intents')
-const formsSchema = require('../forms/tui-forms.schema.json')
 export const schemaGraphs = [
   {
     name: 'ordinary',
@@ -31,15 +30,5 @@ export const schemaGraphs = [
       { name: 'Intent', method: 'compile', schema: { $ref: `${schema.$id}#/$defs/Intent` } },
       { name: 'Output', method: 'compile', schema: { $ref: `${schema.$id}#/$defs/Output` } },
     ],
-  },
-  {
-    name: 'forms',
-    kind: 'ordinary',
-    resources: [],
-    resourceSpecifiers: ['./forms/tui-forms.schema.json'],
-    sourceFiles: ['src/schema-inputs.ts'],
-    options: { strict: true, strictRequired: false },
-    keywords: [],
-    definitions: [{ name: 'Forms', method: 'compile', schema: formsSchema }],
   },
 ] as const

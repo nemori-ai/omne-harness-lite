@@ -14,9 +14,9 @@ export {
 } from '@omne-harness-lite/artifact-builder'
 const readme = `# OMNE CLI
 
-Requires Node.js 24.21.0 on PATH. The archive contains the CLI and its production dependencies. It does not contain Node.js. The current Shell provider requires Linux, a working systemd user manager and scopes, /usr/bin/env, /usr/bin/stty, and /bin/bash. An archive for another platform does not establish Shell support.
+Requires Node.js 24.21.0 on PATH. The archive contains the CLI and its production dependencies. It does not contain Node.js. B01 supports Linux. macOS support is deferred. The current Shell provider requires Linux, a working systemd user manager and scopes, /usr/bin/env, /usr/bin/stty, and /bin/bash. An archive for another platform does not establish Shell support.
 
-Get the archive and its SHA256 digest from a trusted channel. Compare the digest with sha256sum (Linux) or shasum -a 256 (macOS). A matching digest checks the bytes, not the publisher.
+Get the archive and its SHA256 digest from a trusted channel. Compare the digest with sha256sum. A matching digest checks the bytes, not the publisher.
 
 Install into a new directory. The recommended code location is ~/.local/share/omne/builds/<BUILD_ID>. The command link is ~/.local/bin/omne. For example, from the directory that contains the verified archive:
 
@@ -35,7 +35,7 @@ An existing install directory or command link causes these commands to stop. Do 
 
 Use omne to start a terminal session. The entry prepares a governance center, login, tenant, and model configuration when needed. A configured entry starts or attaches to the tenant's independent Session host. Exiting the terminal detaches the client. It does not stop an executing Run.
 
-Interactive input requires a supported terminal and an explicit OMNE_TERMINAL_PROFILE. Linux uses xterm-379 with allowPasteControls=false. macOS uses iterm-3.7.1beta1 with the documented paste restrictions. The terminal must be a direct, exclusive UTF-8 TTY, at least 60 columns by 16 rows. A platform build does not verify a terminal profile. For iTerm, disable special paste, file URL paste, auto-composer, broadcasting, tmux, key pass-through during paste, and terminal paste cancellation. Finish IME composition before pasting. Do not set NoSyncTurnOffBracketedPasteOnHostChange=true or accept a prompt to disable bracketed paste.
+Interactive input requires XTerm379 with allowPasteControls=false and OMNE_TERMINAL_PROFILE=xterm-379. The terminal must be a direct, exclusive UTF-8 TTY, at least 60 columns by 16 rows. A platform build does not verify a terminal profile. macOS and iTerm are outside this release.
 
 For redirected output, use the documented --json commands. omne --message-file <path> --json [--session <id>] reads a complete JSON UserMessage and uses an already configured, running tenant host. The message file is not a plain-text prompt.
 

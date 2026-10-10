@@ -179,3 +179,65 @@ it('renders an unconfirmed terminal submission without claiming failure or losin
     'Input status is unconfirmed. Do not submit it again.\nSession: session-one\nOperation: original-input\n',
   )
 })
+
+it.each([false, true])(
+  'renders governance control characters as JSON data (machine=%s)',
+  async machine => {
+    const name = '\u001b]52;secret\u0007\u009b\u202e\u2066'
+    const io = runtime({
+      outcome: {
+        kind: 'saved',
+        profile: {
+          name,
+          center: {
+            centerId: 'a'.repeat(32),
+            endpoint: 'https://center.invalid/',
+            trust: { mode: 'ca' },
+          },
+        },
+      },
+      diagnostics: [],
+    })
+    io.isTTY = !machine
+    const args = ['center', 'add', 'https://center.invalid/', '--name', 'center', '--system-ca']
+    if (machine) args.push('--json')
+    expect(await runEntryCli(args, io)).toBe(0)
+    const output = io.stdout.mock.calls[0]![0]
+    expect(output).not.toMatch(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069]/u)
+    expect(JSON.parse(output).outcome.profile.name).toBe(name)
+  },
+)
+it('a broken diagnostic stream does not retry business or disclose its error', async () => {
+  const io = runtime({
+    outcome: { kind: 'not-ready', reason: 'capability-not-installed' },
+    diagnostics: [],
+  })
+  io.stderr.mockRejectedValue(new Error('private diagnostic failure'))
+  expect(await runEntryCli(['logout'], io)).toBe(70)
+  expect(io.execute).not.toHaveBeenCalled()
+  expect(io.stderr).toHaveBeenCalledTimes(1)
+})
+it('a rejected operation emits no fabricated result and is not retried', async () => {
+  const io = runtime({
+    outcome: { kind: 'not-ready', reason: 'capability-not-installed' },
+    diagnostics: [],
+  })
+  io.execute.mockRejectedValue(new Error('private operation failure'))
+  expect(await runEntryCli(['logout', '--json'], io)).toBe(70)
+  expect(io.execute).toHaveBeenCalledTimes(1)
+  expect(io.stdout).not.toHaveBeenCalled()
+  expect(io.stderr).toHaveBeenCalledExactlyOnceWith('omne: internal-defect\n')
+})
+it('a malformed build identity emits no version and opens no state', async () => {
+  const io = runtime({
+    outcome: { kind: 'not-ready', reason: 'capability-not-installed' },
+    diagnostics: [],
+  })
+  io.version = async () => {
+    throw new Error('private build failure')
+  }
+  expect(await runEntryCli(['--version'], io)).toBe(70)
+  expect(io.execute).not.toHaveBeenCalled()
+  expect(io.stdout).not.toHaveBeenCalled()
+  expect(io.stderr).toHaveBeenCalledExactlyOnceWith('omne: internal-defect\n')
+})

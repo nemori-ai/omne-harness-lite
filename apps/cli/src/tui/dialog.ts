@@ -1,5 +1,5 @@
 import { Input } from '@earendil-works/pi-tui'
-import { FIELD_LIMIT, validFieldText } from './forms.ts'
+import { FIELD_LIMIT, validFieldText } from './field-text.ts'
 import { FrameWriter, layout, type Screen } from './screen.ts'
 import type { TerminalPort } from './terminal.ts'
 import type { TerminalInput } from './framer.ts'
