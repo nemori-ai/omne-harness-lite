@@ -14,10 +14,9 @@ import type { CallHistoryResult } from './call-history.ts'
 import type {
   ModelRuntimeOperations,
   RuntimeCloseResult,
-  OpenCallInput,
   OpenCallRun,
   OpenCallResult,
-  FailureConsumableOperation,
+  ModelObserverRequest,
   DispatchResult,
   DispatchAgainResult,
   DispatchAgainInput,
@@ -40,6 +39,9 @@ import type { CredentialLookup } from '@omne-harness-lite/model-profile-director
 import type { ModelTransportService } from './transport-types.ts'
 import type { ModelRuntimeExecutionSupport } from './runtime-host-inputs.ts'
 import type { ModelLogSettlementTarget } from './log-codec-settlement.ts'
+import type { PreparedModelCreation } from './session-request-preparation.ts'
+import type { TokenMargin } from './planning-types.ts'
+import type { ModelResponse } from '@omne-harness-lite/model-response'
 
 export type ModelExecutionCallRef = SessionScope & {
   readonly callId: ModelCallId
@@ -64,10 +66,12 @@ export interface PreparedModelExecution {
       }
 }
 
-export type ModelPoolCallOpen = OpenCallRun &
-  Omit<OpenCallInput, 'host' | 'run' | 'attempt' | 'report'> & {
-    readonly tenant: TenantId
-  }
+export type ModelPoolCallOpen = OpenCallRun & {
+  readonly tenant: TenantId
+  readonly prepared: PreparedModelCreation
+  readonly tokenMargin: TokenMargin
+  readonly observer?: ModelObserverRequest
+}
 
 export type PreparedModelFirstDispatch = PreparedModelExecution & {
   readonly plan?: never
@@ -89,14 +93,7 @@ export interface ModelCallerAccess {
 
 export type ModelPoolControls = Pick<
   ModelRuntimeOperations,
-  | 'acquireCall'
-  | 'readAttempts'
-  | 'interrupt'
-  | 'releaseCall'
-  | 'settleReply'
-  | 'canDispatchAgain'
-  | 'acknowledgeCall'
-  | 'reconcile'
+  'acquireCall' | 'interrupt' | 'releaseCall'
 >
 
 declare const modelExecutionJob: unique symbol
@@ -171,14 +168,25 @@ export interface ModelDispatchUnknownCommit {
   }
 }
 
-export type ModelDispatchResult = DispatchResult | ModelDispatchUnknownCommit
+type ModelFailedExecution = {
+  readonly settled: ModelResponse & { readonly outcome: 'failed' }
+  readonly failureSubject?: never
+}
 
-export type ModelRetryResult = DispatchAgainResult | ModelDispatchUnknownCommit
+export type ModelDispatchResult =
+  | Exclude<DispatchResult, { readonly failureSubject: unknown }>
+  | ModelFailedExecution
+  | ModelDispatchUnknownCommit
+
+export type ModelRetryResult =
+  | Exclude<DispatchAgainResult, { readonly failureSubject: unknown }>
+  | ModelFailedExecution
+  | ModelDispatchUnknownCommit
 
 export interface ModelPoolAdmission extends ModelPoolControls {
   readonly openCall: (request: ModelPoolCallOpen) => Promise<OpenCallResult>
-  readonly dispatch: FailureConsumableOperation<PreparedModelFirstDispatch, ModelDispatchResult>
-  readonly dispatchAgain: FailureConsumableOperation<PreparedModelRetryDispatch, ModelRetryResult>
+  readonly dispatch: (request: PreparedModelFirstDispatch) => Promise<ModelDispatchResult>
+  readonly dispatchAgain: (request: PreparedModelRetryDispatch) => Promise<ModelRetryResult>
 }
 
 export interface ModelPoolInstance {

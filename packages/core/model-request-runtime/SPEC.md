@@ -34,7 +34,9 @@ Session准备器从实际会话来源求值本次超时、解析工具描述、�
 
 Session 从实际 SessionLog、Context 和当前装配准备请求，Agent 决定下一步。模型执行池接收准备好的请求，管理原调用、并发、取消、结果和资源。池不选择会话模型，不投影会话消息，不恢复 Session 队列、Run 或 attempt。`invokeModel` 继续是可独立使用的执行能力。
 
-`ModelPoolCallOpen` 显式携带租户，保留 Run、attempt、report 全有或全无的关联。创建不发送 HTTP。首次发出不接受 RetryPlan，重试必须提供原重试计划。池核对原创建语义、完整 PlanInput、逻辑发出序号和既有守卫，不因物理世代变化重发。请求中的身份、模型档案及归因均不授予执行权。
+`ModelPoolCallOpen` 显式携带租户和完整 `PreparedModelCreation`。Session 先解析消息、工具及模型选择，再交给池；普通池请求不接受未准备的消息或工具名。准备内容保留原创建身份、档案快照、参数、校准及输出历史，规划使用显式 `tokenMargin`。池须核对租户及 Run、attempt、report 与原创建内容一致；Run、attempt、report 全有或全无。创建不发送 HTTP。首次发出不接受 RetryPlan，重试必须提供原重试计划。池核对原创建语义、完整 PlanInput、逻辑发出序号和既有守卫，不因物理世代变化重发。请求中的身份、模型档案及归因均不授予执行权。
+
+`ModelPoolControls` 只提供 `acquireCall`、`interrupt` 和 `releaseCall`。会话历史查询、重试适用性判断、回复处置、ACK 和会话恢复由 Session 的组合操作提供。池的 `dispatch` 和 `dispatchAgain` 返回原执行结果，不接受 `consumeFailure`，也不返回 `failureSubject`；失败来源解释和消费由 Session 完成。这个分工不改变完整结果及必要引用可靠保管后才能 ACK 的条件。
 
 Session 当前栅栏与原唯一发起须在同一实际 StorageUnit 中参与。`ModelExecutionRecords` 只读写模型能力自己的原记录。readOriginalIn 按租户、Session 和 call 读取，允许调用尚无 dispatch。stageOriginalIn 和 stageConsumeIn 只暂存，不独立提交或发 IO。只有原池发行、关联到同一实际数据集的活体 job 和 claim 有效；复制对象、旧 owner 或异存储单元不能参加。提交不明保留完整原 ref、creationKey、原输入和责任，不授予 launch、不重发、不生成后继身份。
 
