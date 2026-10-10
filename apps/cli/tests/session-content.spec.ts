@@ -216,7 +216,11 @@ it('counts identities in the display budget instead of returning an oversized id
   })
 })
 
-it('does not let a late running observation replace an already observed terminal result', async () => {
+it.each([
+  { name: 'keeps a terminal observation', firstTerminal: false, secondTerminal: true },
+  { name: 'keeps the latest provisional observation', firstTerminal: false, secondTerminal: false },
+  { name: 'accepts an earlier terminal result', firstTerminal: true, secondTerminal: false },
+])('$name when the first read returns last', async ({ firstTerminal, secondTerminal }) => {
   const store = createSessionPresentation({
     maxCalls: 4,
     maxBlocks: 20,
@@ -253,27 +257,28 @@ it('does not let a late running observation replace an already observed terminal
       ++count === 1
         ? gate.promise
         : Promise.resolve({
-            terminal: true,
+            terminal: secondTerminal,
             observation: {
-              state: 'completed',
-              blocks: [{ id: 'output', kind: 'text', text: 'final output' }],
+              state: secondTerminal ? 'completed' : 'running',
+              blocks: [{ id: 'output', kind: 'text', text: 'second output' }],
               notice: null,
               offloaded: false,
             },
           }),
   })
   const early = store.read(scope, 'run')
-  expect(presentationLines(await store.read(scope, 'run')).join('\n')).toContain('final output')
+  expect(presentationLines(await store.read(scope, 'run')).join('\n')).toContain('second output')
   gate.resolve({
-    terminal: false,
+    terminal: firstTerminal,
     observation: {
-      state: 'running',
-      blocks: [{ id: 'output', kind: 'text', text: 'provisional' }],
+      state: firstTerminal ? 'completed' : 'running',
+      blocks: [{ id: 'output', kind: 'text', text: 'first output' }],
       notice: null,
       offloaded: false,
     },
   })
   const later = presentationLines(await early).join('\n')
-  expect(later).toContain('final output')
-  expect(later).not.toContain('provisional')
+  const firstWins = firstTerminal && !secondTerminal
+  expect(later).toContain(firstWins ? 'first output' : 'second output')
+  expect(later).not.toContain(firstWins ? 'second output' : 'first output')
 })
