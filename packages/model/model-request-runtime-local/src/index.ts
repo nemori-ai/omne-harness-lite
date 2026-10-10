@@ -28,3 +28,5 @@ export {
   type OriginalIssueOwnerOptions,
 } from './original-issue.ts'
 export { originalIssueMigrations } from './original-issue-migrations.ts'
+
+export { createModelExecutionObligations } from './model-obligations.ts'

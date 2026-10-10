@@ -1,3 +1,4 @@
+import { createModelExecutionObligations, originalIssueMigrations } from '../src/index.ts'
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { mkdir, mkdtemp, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -86,7 +87,10 @@ async function host(
       dialect: 'sqlite',
       file: join(dir, 'content.sqlite'),
       upgrade: false,
-      migrations: composeMigrations(modelCallContentMigrations('sqlite')),
+      migrations: composeMigrations([
+        ...modelCallContentMigrations('sqlite'),
+        ...originalIssueMigrations,
+      ]),
     })
   let storage = await open()
   const log = await openSqlLogFixture({ dir: join(dir, 'log') })
@@ -537,6 +541,32 @@ describe('RT12 S-98 retention gate on real SQLite', () => {
         content: other,
       })
       if (!('ref' in written) || !('ref' in neighbour)) throw new Error('confirmed content')
+      const source = createModelExecutionObligations({
+        storage: h.storage,
+        tenant: h.binding.tenant,
+        maxPageSize: 4,
+      })
+      const expectBothCalls = async () => {
+        const result = await source.withObligations(
+          { tenant: h.binding.tenant, limit: 4 },
+          reader => reader.next(),
+        )
+        expect(result).toEqual({
+          kind: 'used',
+          value: {
+            kind: 'page',
+            refs: [
+              { tenant: h.binding.tenant, session: h.binding.session, callId: call },
+              {
+                tenant: h.binding.tenant,
+                session: h.binding.session,
+                callId: other.value.ref.callId,
+              },
+            ].sort((a, b) => a.callId.localeCompare(b.callId)),
+          },
+        })
+      }
+      await expectBothCalls()
       expect(await store.retention({ binding: h.binding, call })).toEqual({
         phase: 'retained',
         publishers: 1,
@@ -553,6 +583,7 @@ describe('RT12 S-98 retention gate on real SQLite', () => {
       })
       if (!('record' in prepared)) throw new Error('prepared ACK batch')
       expect(prepared.phase).toBe('retiring')
+      await expectBothCalls()
       // Retiring closes new reads and publications of this call only.
       expect(await store.read({ binding: h.binding, call, ref: written.ref })).toEqual({
         unavailable: true,
@@ -581,6 +612,7 @@ describe('RT12 S-98 retention gate on real SQLite', () => {
       expect(
         await store.confirmAcknowledgement({ binding: h.binding, call, record: prepared.record }),
       ).toEqual({ phase: 'acknowledged' })
+      await expectBothCalls()
       // The original writer still holds its permit: no deletion yet.
       expect(await store.releaseAcknowledged({ binding: h.binding, call })).toEqual({
         cleanup: 'pending',
@@ -596,6 +628,7 @@ describe('RT12 S-98 retention gate on real SQLite', () => {
         phase: 'released',
         publishers: 0,
       })
+      await expectBothCalls()
       // Released never retreats; a repeat recognizes it.
       expect(await store.releaseAcknowledged({ binding: h.binding, call })).toEqual({
         cleanup: 'released',
@@ -611,6 +644,16 @@ describe('RT12 S-98 retention gate on real SQLite', () => {
       })
       expect(await neighbour.permit.release()).toEqual({ released: true })
       await store.close()
+      const reopened = await h.reopen()
+      const recovered = createModelExecutionObligations({
+        storage: reopened,
+        tenant: h.binding.tenant,
+        maxPageSize: 4,
+      })
+      const scan = await recovered.withObligations({ tenant: h.binding.tenant, limit: 4 }, reader =>
+        reader.next(),
+      )
+      expect(scan).toHaveProperty('value.refs.length', 2)
     })
   })
   it('keeps the fixed batch across reopen and refuses a differing confirmation', async () => {

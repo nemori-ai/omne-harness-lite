@@ -1,3 +1,5 @@
+import { createModelExecutionObligations } from '../src/model-obligations.ts'
+import { modelCallContentMigrations } from '../src/reference-content.ts'
 import { afterEach, expect, it, vi } from 'vitest'
 import { createOriginalIssueOwner } from '@omne-harness-lite/model-request-runtime-local'
 import {
@@ -6,7 +8,7 @@ import {
   type OriginalIssueInput,
   type ModelExecutionRecords,
 } from '@omne-harness-lite/model-request-runtime'
-import { StorageUnavailable } from '@omne-harness-lite/storage'
+import { narrow, StorageUnavailable } from '@omne-harness-lite/storage'
 import { boot, scope, tenant } from './original-issue-fixture.ts'
 import { dispatched } from './log-codec-fixture.ts'
 const cleanup: (() => Promise<void>)[] = []
@@ -72,6 +74,47 @@ it('issues one model execution job recognized by the records participant in the 
   expect(staged).toHaveProperty('kind', 'staged')
   if (staged.kind !== 'staged') throw new Error('original not staged')
   expect(await owner.consumeOriginal(staged.claim)).toEqual({ kind: 'launch' })
+  for (const fragment of modelCallContentMigrations('sqlite'))
+    await h.storage.write(tx => fragment.migration.up(tx.db))
+  const obligations = createModelExecutionObligations({
+    storage: h.storage,
+    tenant,
+    maxPageSize: 4,
+  })
+  expect(await obligations.withObligations({ tenant, limit: 4 }, reader => reader.next())).toEqual({
+    kind: 'used',
+    value: { kind: 'page', refs: [{ ...scope, callId: staged.identity.call }] },
+  })
+  await h.storage.write(tx =>
+    narrow<{
+      model_call_retention: {
+        organization: string
+        account: string
+        session: string
+        call: string
+        phase: string
+        acknowledgement: null
+      }
+    }>(tx)
+      .insertInto('model_call_retention')
+      .values({
+        ...tenant,
+        session: scope.session,
+        call: staged.identity.call,
+        phase: 'retained',
+        acknowledgement: null,
+      })
+      .execute(),
+  )
+  expect(
+    await obligations.withObligations({ tenant, limit: 1 }, async reader => {
+      expect(await reader.next()).toEqual({
+        kind: 'page',
+        refs: [{ ...scope, callId: staged.identity.call }],
+      })
+      return reader.next()
+    }),
+  ).toEqual({ kind: 'used', value: { kind: 'end' } })
   expect(await h.storage.atomic(unit => owner.stageOriginalIn(unit, { ...prepared.job }))).toEqual({
     kind: 'invalidInput',
   })

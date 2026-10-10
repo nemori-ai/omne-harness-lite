@@ -60,7 +60,7 @@ interface ContentRow {
   readonly digest: string
   readonly bytes: Uint8Array
 }
-interface RetentionRow {
+export interface RetentionRow {
   readonly organization: string
   readonly account: string
   readonly session: string
