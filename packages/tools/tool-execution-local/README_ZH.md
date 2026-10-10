@@ -26,9 +26,9 @@ pnpm --filter @omne-harness-lite/tool-execution-local run typecheck
 pnpm --filter @omne-harness-lite/tool-execution-local run test
 ```
 
-根模型示例已物理删除。PF-006 S24/S69断言仍在acceptance/保留，但尚未迁到正式CLI入口，当前不可运行，也不算通过。交付前必须完成消费者迁移并验证全部原断言。迁移完成前，验收配置明确拒绝启动。
+PF-006 S24/S69跨运行时验收归[正式CLI入口](../../../apps/cli/acceptance/README.md)，核对完整普通返回、真实Shell执行、持久结果和后继模型请求。旧Demo和对应验收适配器已删除；本成员保留执行池公开能力测试。
 
-独立验收拥有者维护 acceptance/ 的断言。网络场景需要本地 OpenRouter 配置，缺凭据或调用失败不算通过。本次模板改造不运行真实付费调用，也不将未运行场景标记通过。
+主会话及独立验收拥有者维护跨运行时验收。网络场景需要显式指定已配置的专用租户，通过其凭据访问OpenRouter；不打印凭据。缺少配置或调用失败不算通过。
 
 真实宿主提供者通过原环境契约提供命令和文件设施，本包不实现OS后端。长期终端的resource_adopted在原会话日志提交边界确认；创建call释放后，原环境维护owner继续承担回收责任。冷恢复调用recoverOwned枚举该scope的原资源，不重放作者函数或用户命令。详见原接口拥有者的TE-29/30和本包LP-12。
 

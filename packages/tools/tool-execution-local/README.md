@@ -25,9 +25,9 @@ The host environment provider supplies actual command and file facilities throug
 
 ## Persistent acceptance
 
-The demo entry was physically removed. The PF-006 S24 and S69 assertions remain in `acceptance/`, but their consumer has not yet migrated to the formal CLI. Acceptance is currently unavailable. The original assertions must pass through the new entry before delivery. The acceptance configuration rejects execution while that migration is incomplete.
+The formal CLI owns the cross-runtime PF-006 S24 and S69 acceptance scenario in [apps/cli/acceptance](../../../apps/cli/acceptance/README.md). It checks complete ordinary returns, actual Shell execution, durable results and the next model request through the production entry. The retired demo and its acceptance adapter are removed.
 
-The independent acceptance owner maintains `acceptance/*.acceptance.ts`. Those scenarios declare their product coverage and use public entries. Provider implementation work does not change their assertions. Network acceptance reads the local OpenRouter configuration without displaying credentials. A missing credential or a failed model request is not a passing result.
+The main session and independent acceptance owner maintain the cross-runtime scenario. Provider tests remain in this member. Network acceptance requires an explicitly configured dedicated tenant and uses its OpenRouter credentials without displaying them. Missing configuration or failed model requests do not count as passing results.
 
 受信根可从纯根入口调用 `createToolOriginalIssueVerifier(storage)`。其 `verifyIn` 只在调用者原 Unit 读取完整持久原身份，不发行 claim 或执行权。原 job 关闭后仍可供既有结果保管核验；共享 Storage 的存续由根负责。
 
