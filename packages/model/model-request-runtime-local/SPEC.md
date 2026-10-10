@@ -166,6 +166,13 @@ releaseCopies 对全部原代核同 log binding、真实 released/未 registered
 
 旧reference-publish实现已迁入Session且物理删除。共用回执校验和停止等待函数归Core。模型内容库仍负责原件保管及许可，不参与会话状态恢复。其他ACK、结算及恢复中的完整日志依赖仍待迁移，本变化不表示完整ModelPoolConstruction已兑现。
 
-未知创建标记的恢复由Session发行 `ModelCreationPublication`。Model只保有句柄并调用 `retry`／`close`，不读取完整Session前缀、不判断原标记存在性。旧 `creation-publication.ts` 已删除。结果发布的未知写入和ACK路径仍是本次边界迁移的待完成部分，不能据此声称纯执行池构造已完成。
+未知创建标记的恢复由Session发行 `ModelCreationPublication`。Model只保有句柄并调用 `retry`／`close`，不读取完整Session前缀、不判断原标记存在性。旧 `creation-publication.ts` 已删除。结果发布的其他结算路径仍须继续核对，不能据此声称纯执行池构造已完成。
 
 未知写入的关闭认回使用原操作登记时捕获的Session `readCall` 及原调用解释器。Model等待原写与读任务实际停止，只消费原调用的读取结果，不自行读取完整前缀。读取不可用或释放失败时保留原任务与许可，后继装配不能替换原读取函数。
+
+
+## 借用Session ACK拥有者
+
+`RuntimeConstruction` 和 `ModelRuntimeLocalConstruction` 必须显式提供 `acknowledgementFactory`。Model构造原清理器后，将原内容端口和清理动作交给该工厂。`acknowledgeCall` 委派给其结果；Model不再解释ACK的完整日志前缀。旧 `createServiceAcknowledge` 出口和实现已删除，现行调用者选择Session的公开根工厂。
+
+Model保留原内容锁、固定批次和清理资源。重装配调用同一拥有者的 `project`，不重建确认状态。确认拥有者与清理器各自参加原运行时收场；只有全部真实任务结束，才关闭容器与内容存储。该迁移不改变原执行资格、引用计数、ACK内容摘要或清理策略。

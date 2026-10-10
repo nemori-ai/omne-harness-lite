@@ -4,7 +4,6 @@ import type {
   AcknowledgeCallResult,
   RuntimeCloseResult,
 } from '@omne-harness-lite/model-request-runtime'
-import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import { LosslessNumber, type JsonNumber } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
@@ -22,9 +21,8 @@ import {
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import type { AppendResult, LogEntry } from '@omne-harness-lite/session-log'
 import { acknowledgementSummary, originOfEntry } from '@omne-harness-lite/model-request-runtime'
-import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-custody.ts'
 import type { CallHistoryKnown } from '@omne-harness-lite/model-request-runtime'
-import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
+import { drainDiagnosticThenable } from '@omne-harness-lite/model-request-runtime'
 import {
   captureModelLogValue,
   modelLogJsonEqual,
@@ -32,16 +30,20 @@ import {
   type ModelLogShell,
 } from '@omne-harness-lite/model-request-runtime'
 import { inspectCurrentModelLogPrefix } from '@omne-harness-lite/model-request-runtime'
-import { OwnedReadTracker, withOwnedReads } from './service-control.ts'
+import { OwnedReadTracker, withOwnedReads } from '@omne-harness-lite/model-request-runtime'
 import {
   readSettlementPrefix,
   settlementGenerationCurrent,
 } from '@omne-harness-lite/model-request-runtime'
 import type { SettlementPrefix } from '@omne-harness-lite/model-request-runtime'
 import { settlementAppendReceipt } from '@omne-harness-lite/model-request-runtime'
-import type { ModelCallContentValue } from './reference-types.ts'
+import type { ModelCallContentValue } from '@omne-harness-lite/model-request-runtime'
 import type { CallAccessEvidence } from '@omne-harness-lite/model-request-runtime'
-import type { RuntimeConstruction } from './service-types.ts'
+import type {
+  SessionModelAcknowledgementInput,
+  SessionModelAcknowledgementHost,
+  SessionModelAcknowledgement,
+} from '@omne-harness-lite/model-request-runtime'
 import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementLogBinding,
@@ -49,7 +51,6 @@ import type {
   SettlementTask,
   SettlementOwner,
 } from '@omne-harness-lite/model-request-runtime'
-import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { requestStopAndWait } from '@omne-harness-lite/model-request-runtime'
 
 const unavailable = Object.freeze({ unavailable: true } as const)
@@ -247,17 +248,10 @@ interface RetainedAck {
  * RT12 S-96 acknowledgeCall. The log ACK is the confirmation fact; the Storage retention row
  * fixes the one original batch before any append and closes new model-copy reads/writes.
  */
-export function createServiceAcknowledge<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
-  sharedCustody?: AcknowledgementCustody,
-): ProjectedComponent<
-  {
-    readonly acknowledgeCall: (input: AcknowledgeCallInput) => Promise<AcknowledgeCallResult>
-    readonly close: () => Promise<RuntimeCloseResult>
-  },
-  RuntimeConstruction<P, R>
-> {
-  return buildServiceAcknowledge(runtime, sharedCustody)
+export function createSessionModelAcknowledgement(
+  runtime: SessionModelAcknowledgementInput,
+): SessionModelAcknowledgement {
+  return buildSessionModelAcknowledgement(runtime)
 }
 
 interface AckAttempt {
@@ -296,20 +290,10 @@ class ServiceAcknowledgeState {
   closed = false
 }
 
-function buildServiceAcknowledge<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
-  sharedCustody?: AcknowledgementCustody,
+function buildSessionModelAcknowledgement(
+  runtime: SessionModelAcknowledgementInput,
   physical: ServiceAcknowledgeState = new ServiceAcknowledgeState(),
-): ProjectedComponent<
-  {
-    readonly acknowledgeCall: (input: AcknowledgeCallInput) => Promise<AcknowledgeCallResult>
-    readonly close: () => Promise<RuntimeCloseResult>
-  },
-  RuntimeConstruction<P, R>
-> {
-  const ownCustody = sharedCustody === undefined ? runtimeCustody(runtime) : undefined
-  const custody = sharedCustody ?? ownCustody
-
+): SessionModelAcknowledgement {
   /** Unknown ACK appends keep their original writer until it actually stops. */
 
   const keyOf = (ref: CallKey): string => JSON.stringify([ref.session, ref.callId])
@@ -473,10 +457,10 @@ function buildServiceAcknowledge<P extends PlannedSemantics, R>(
 
   async function acknowledgementSource(session: SessionRuntimeBinding, ref: CallKey) {
     const binding = session.log
-    const first = await runtime.callFacts.lookup({ binding, ref })
+    const first = await runtime.lookup({ binding, ref })
     let origin = acknowledgementOrigin(first)
     if (origin === undefined && !('callNotFound' in first)) {
-      const retention = await runtime.callFacts.content.retention({ binding, call: ref.callId })
+      const retention = await runtime.content.retention({ binding, call: ref.callId })
       if (!('phase' in retention) || retention.phase !== 'retiring') return unavailable
       const prefix = await readPrefix(session)
       const sources = prefix === undefined ? undefined : sourcesOf(prefix, ref.callId)
@@ -533,7 +517,7 @@ function buildServiceAcknowledge<P extends PlannedSemantics, R>(
     const owned = ownInput(input)
     if ('invalidInput' in owned) return owned
     const { ref, expectedResult } = owned
-    let bound: Awaited<ReturnType<RuntimeConstruction<P, R>['sessions']['bind']>>
+    let bound: Awaited<ReturnType<SessionModelAcknowledgementInput['sessions']['bind']>>
     try {
       bound = await runtime.sessions.bind(ref.session)
     } catch {
@@ -542,7 +526,7 @@ function buildServiceAcknowledge<P extends PlannedSemantics, R>(
     if ('failure' in bound) return bound.failure === 'invalidInput' ? malformed : unavailable
     const session = bound.binding
     const binding = session.log
-    if (!validAcknowledgementBinding(binding, session, ref, custody)) return unavailable
+    if (!validAcknowledgementBinding(binding, session, ref)) return unavailable
     const source = await acknowledgementSource(session, ref)
     if ('unavailable' in source) return unavailable
     const { origin } = source
@@ -563,7 +547,7 @@ function buildServiceAcknowledge<P extends PlannedSemantics, R>(
         // RT12 S-96⑦: the same target recognizes the original ACK and its current progress.
         if (!modelLogJsonEqual(record.target, expectedResult))
           return { wrongPhase: { phase: record.terminalState } }
-        const cleanup = await custody.cleanup({ binding, ref, record })
+        const cleanup = await runtime.cleanup({ binding, ref, record })
         // A durable record that contradicts the retained originals is no lawful ACK.
         if (!('cleanup' in cleanup)) return unavailable
         return current()
@@ -571,7 +555,7 @@ function buildServiceAcknowledge<P extends PlannedSemantics, R>(
           : unavailable
       }
       const recognizeClosed = async (): Promise<AcknowledgeCallResult> => {
-        const durable = await runtime.callFacts.lookup({ binding, ref })
+        const durable = await runtime.lookup({ binding, ref })
         if ('acknowledged' in durable) return await recognize(durable.acknowledged.record)
         return 'callNotFound' in durable ? notFound : unavailable
       }
@@ -583,7 +567,7 @@ function buildServiceAcknowledge<P extends PlannedSemantics, R>(
         const written = await append(session, ref, record, shell, prefix)
         if (written === 'conflict') return unavailable
         if (written === 'withdrawn') {
-          const withdrawn = await runtime.callFacts.content.withdrawAcknowledgement({
+          const withdrawn = await runtime.content.withdrawAcknowledgement({
             binding,
             call: ref.callId,
             record,
@@ -621,7 +605,7 @@ function buildServiceAcknowledge<P extends PlannedSemantics, R>(
         const acknowledgedAt = await runtime.policy.now()
         if (!current() || appendUnavailable(physical.closed, session.selection.owner, binding))
           return unavailable
-        const prepared = await runtime.callFacts.content.prepareAcknowledgement({
+        const prepared = await runtime.content.prepareAcknowledgement({
           binding,
           call: ref.callId,
           payloads,
@@ -670,7 +654,7 @@ function buildServiceAcknowledge<P extends PlannedSemantics, R>(
     payload: ModelCallPayloadRef | undefined,
   ): Promise<'complete' | 'interrupted' | undefined> {
     if (payload === undefined) return undefined
-    const read = await runtime.callFacts.content.read({ binding, call: ref.callId, ref: payload })
+    const read = await runtime.content.read({ binding, call: ref.callId, ref: payload })
     if (!('content' in read) || read.content.kind !== 'reply_ready') return undefined
     return read.content.value.outcome === 'interrupted' ? 'interrupted' : 'complete'
   }
@@ -695,23 +679,19 @@ function buildServiceAcknowledge<P extends PlannedSemantics, R>(
     }
   }
 
-  return retainRuntimeProjection(
-    Object.freeze({
-      acknowledgeCall,
-      async close(): Promise<RuntimeCloseResult> {
-        physical.closed = true
-        await Promise.allSettled([...physical.busy.values()])
-        const stops = await Promise.all([...physical.retained.keys()].map(settleRetained))
-        const readResult = await physical.reads.close()
-        const custodyResult =
-          ownCustody === undefined ? { released: true } : await ownCustody.close()
-        return stops.every(Boolean) && 'released' in readResult && 'released' in custodyResult
-          ? { released: true }
-          : unavailable
-      },
-    }),
-    (next: RuntimeConstruction<P, R>) => buildServiceAcknowledge(next, sharedCustody, physical),
-  )
+  return Object.freeze({
+    acknowledgeCall,
+    project(host: SessionModelAcknowledgementHost) {
+      return buildSessionModelAcknowledgement({ ...runtime, ...host }, physical)
+    },
+    async close(): Promise<RuntimeCloseResult> {
+      physical.closed = true
+      await Promise.allSettled([...physical.busy.values()])
+      const stops = await Promise.all([...physical.retained.keys()].map(settleRetained))
+      const readResult = await physical.reads.close()
+      return stops.every(Boolean) && 'released' in readResult ? { released: true } : unavailable
+    },
+  })
 }
 
 /** The model log shell of an entry, in the same conditional form the writer builds. */
@@ -900,20 +880,18 @@ function validAcknowledgementBinding(
   binding: SettlementLogBinding,
   session: SessionRuntimeBinding,
   ref: CallKey,
-  custody: AcknowledgementCustody | undefined,
-): custody is AcknowledgementCustody {
+): boolean {
   return !(
     binding.session !== ref.session ||
     session.selection.binding.session !== ref.session ||
     !tenantIdEquals(binding.tenant, session.selection.binding.tenant) ||
     binding.generation !== session.selection.binding.generation ||
-    !settlementGenerationCurrent(binding) ||
-    custody === undefined
+    !settlementGenerationCurrent(binding)
   )
 }
 
 function acknowledgementOrigin(
-  first: Awaited<ReturnType<RuntimeConstruction<PlannedSemantics, unknown>['callFacts']['lookup']>>,
+  first: Awaited<ReturnType<SessionModelAcknowledgementInput['lookup']>>,
 ) {
   return 'view' in first
     ? first.view.origin

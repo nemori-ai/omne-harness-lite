@@ -1,3 +1,4 @@
+import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import {
   publishSessionModelCallContent,
   sessionModelRequestPreparation,
@@ -19,7 +20,12 @@ import { noWaitScheduler } from './settlement-fixture.ts'
 type Host = Awaited<ReturnType<typeof selectionHost>>
 type Ports<P extends PlannedSemantics, R> = Pick<
   RuntimeConstruction<P, R>,
-  'callAccess' | 'callPresence' | 'callFacts' | 'requestPreparation' | 'recordPublication'
+  | 'callAccess'
+  | 'callPresence'
+  | 'callFacts'
+  | 'requestPreparation'
+  | 'recordPublication'
+  | 'acknowledgementFactory'
 >
 
 /** The test host owns the same real Storage and tenant binding as its SessionLog. */
@@ -101,6 +107,7 @@ export function referencePorts<P extends PlannedSemantics, R>(
     callAccess,
     callPresence,
     callFacts,
+    acknowledgementFactory: createSessionModelAcknowledgement,
     recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
   }
@@ -110,6 +117,7 @@ export function referencePorts<P extends PlannedSemantics, R>(
 export function unavailableReferencePorts<P extends PlannedSemantics, R>(): Ports<P, R> {
   const unavailable = { unavailable: true } as const
   return {
+    acknowledgementFactory: createSessionModelAcknowledgement,
     recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
     callAccess: { check: async () => unavailable },

@@ -360,3 +360,12 @@ PlanExecutionContext.imageBytes 是可选的请求内执行依赖。调用者先
 `settlementAppendReceipt`校验原追加回执，畸形回执视为未确认。`requestStopAndWait`请求停止后等待原任务实际停止；请求停止异常不能取代stopped证明。两者为跨拥有者复用机制，不读取会话历史或授予执行资格。
 
 未知创建发布的 `ModelCreationPublication` 只公开原操作的 `retry` 和 `close`。`UnknownModelPublication` 用 `created` 和 `reply_ready` 区分两种保有。创建分支返回会话发行的原恢复句柄，不把完整前缀读取权交给执行池。结果分支暂时保留原登记、任务、许可及条目，后续迁移不得提前丢弃。
+
+
+## Session ACK 实现边界
+
+`SessionModelAcknowledgementFactory` 是可信装配根必须提供的闭包。它产生一个确认拥有者及其 `project` 入口。Session负责完整前缀的读取、终态和来源判断、ACK原批次的构造、条件追加、未知写入认回及确认回读。执行池不得自行替代该拥有者完成这些动作。
+
+`ModelAcknowledgementContent` 只提供原内容读取、retention观察、锁内固定批次及明确零写后的撤回。`cleanup` 由Model拥有者提供，保持先确认批次、再排空原内存副本、最后释放原内容的顺序。端口接收原 `SettlementLogBinding`，因为清理还须核对原执行捕获的对象身份；它不授权内容端口解释或读取Session日志。
+
+`project` 只替换当前宿主来源与读取入口，必须保留原内容拥有者、串行中的调用、未知写入和读任务。确认拥有者关闭只排空自己的原任务，不关闭借入的内容存储或清理器。重复关闭仍可检查未释放的原任务。既有ACK结果、目标冲突、权限复核及pending清理语义不变。

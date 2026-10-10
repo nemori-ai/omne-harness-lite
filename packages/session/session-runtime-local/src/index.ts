@@ -85,3 +85,4 @@ export {
 export { publishSessionModelCallContent } from './model-record-publication.ts'
 
 export { createSessionModelCreationPublication } from './model-creation-publication.ts'
+export { createSessionModelAcknowledgement } from './model-acknowledgement.ts'

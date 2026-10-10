@@ -1,3 +1,4 @@
+import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import {
   publishSessionModelCallContent,
   sessionModelRequestPreparation,
@@ -212,6 +213,7 @@ export async function runtimeOver(
   let nextResponse = 0
   const diagnostics: string[] = []
   const construction: RuntimeConstruction<TestPlan, object> = {
+    acknowledgementFactory: createSessionModelAcknowledgement,
     recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
     callAccess,

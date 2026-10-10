@@ -1,3 +1,4 @@
+import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import {
   publishSessionModelCallContent,
   sessionModelRequestPreparation,
@@ -333,6 +334,7 @@ test('service dispatch writes both anchors before handing out a complete pending
       }),
     ).toBeUndefined()
     const runtime: RuntimeConstruction<TestPlan, object> = {
+      acknowledgementFactory: createSessionModelAcknowledgement,
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
       callFacts,

@@ -1,3 +1,4 @@
+import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import {
   publishSessionModelCallContent,
   sessionModelRequestPreparation,
@@ -35,6 +36,7 @@ describe('named model runtime provider', () => {
       reservationWaitPolicy: { maxWaitersPerCall: '2e1', timeoutMs: '1e3' },
     }
     const provider = createModelRuntimeLocal({
+      acknowledgementFactory: createSessionModelAcknowledgement,
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
     })
@@ -193,6 +195,7 @@ describe('named model runtime provider', () => {
 
   it('rejects missing/extra configuration instead of accepting construct or inferred defaults', () => {
     const provider = createModelRuntimeLocal({
+      acknowledgementFactory: createSessionModelAcknowledgement,
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
     })

@@ -26,7 +26,6 @@ export { createModelCallContentStore, modelCallContentMigrations } from './refer
 export { createModelCallFacts } from './reference-facts.ts'
 export type { ModelCallContentPolicy } from './reference-content.ts'
 export { createRuntimeAcquire } from './service-acquire.ts'
-export { createServiceAcknowledge } from './service-acknowledge.ts'
 export { createAcknowledgementCustody } from './acknowledgement-custody.ts'
 export { createSettlementWork } from './settlement-work.ts'
 export type { SettlementWork, SettlementWorkOutcome } from './settlement-work.ts'

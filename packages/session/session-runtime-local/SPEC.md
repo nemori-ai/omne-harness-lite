@@ -561,3 +561,12 @@ prepareSessionModelDispatch使用实际Session来源和原调用快照。它依�
 `createSessionModelCreationPublication` 拥有未知创建标记的原批次认回。每次先等待原写任务真实停止，再用原登记读取完整前缀。只有原条目完全相同才认作已发布。明确缺失且原准入仍有效时，才按原内容和尾位置重试标记写入，不重发模型请求。关闭撤销重写资格；读／写停止或许可释放不能证明时返回不可用并保有原资源。该句柄不关闭借入的模型池、日志或存储。
 
 Session `readCall` 同样供原未知写入的收场使用。读取沿原Source、原registration和原解释器进行，后继装配不改变已保有操作的读取来源。读取失败不确认Model的原保管结束。
+
+
+## 模型 ACK 确认
+
+根函数 `createSessionModelAcknowledgement` 实现Core的 `SessionModelAcknowledgementFactory`。它复用原ACK算法，完整前缀及其解释只在Session内使用。调用者仍通过原 `acknowledgeCall` 操作请求确认；当前来源、当前ACK资格、终态和精确目标都须核对。
+
+固定批次在Model原内容锁内完成。Session持有原尾部条件追加任务，未知结果先保有原登记和任务，等待真实停止后才能认回同一批次。只有完整原ACK回读成立，才调用Model清理器。清理pending仍返回已确认，不将它改成失败或另造批次。
+
+`project` 返回当前宿主方法，但与原拥有者共享busy、未知写入和读任务。关闭撤销新确认，等待既有工作并结束原登记；关闭后只允许按既有规则认回已存在的ACK。该函数不关闭借入的内容存储、Model执行池、日志或存储。

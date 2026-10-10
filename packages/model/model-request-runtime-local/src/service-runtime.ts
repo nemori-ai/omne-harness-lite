@@ -3,7 +3,6 @@ import type { CallFactsView } from './reference-types.ts'
 import { randomUUID } from 'node:crypto'
 import { createPlanReuseScopes } from './plan-reuse-scopes.ts'
 import { createRuntimeAcquire } from './service-acquire.ts'
-import { createServiceAcknowledge } from './service-acknowledge.ts'
 import { createAcknowledgementCustody } from './acknowledgement-custody.ts'
 import { createRuntimeReads } from './service-reads.ts'
 import { createServiceCalls } from './service-calls.ts'
@@ -54,7 +53,17 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   const scopes = createPlanReuseScopes(construction)
   const reads = createRuntimeReads(construction, custody)
   const acquire = createRuntimeAcquire(construction, custody)
-  const acknowledge = createServiceAcknowledge(construction, custody)
+  const acknowledge = construction.acknowledgementFactory({
+    sessions: construction.sessions,
+    history: construction.history,
+    callAccess: construction.callAccess,
+    lookup: construction.callFacts.lookup,
+    content: construction.callFacts.content,
+    cleanup: custody.cleanup,
+    settlementContention: construction.settlementContention,
+    settlementScheduler: construction.settlementScheduler,
+    policy: construction.policy,
+  })
   const calls = createServiceCalls(construction, scopes, custody)
   const dispatch = createServiceDispatch(construction, scopes)
   const control = createServiceControl(construction)
@@ -224,7 +233,12 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
     return operations({
       reads: projectRuntimeComponent(reads, next),
       acquire: projectRuntimeComponent(acquire, next),
-      acknowledge: projectRuntimeComponent(acknowledge, next),
+      acknowledge: acknowledge.project({
+        sessions: next.sessions,
+        history: next.history,
+        callAccess: next.callAccess,
+        lookup: next.callFacts.lookup,
+      }),
       calls: projectRuntimeComponent(calls, next),
       dispatch: projectRuntimeComponent(dispatch, next),
       control: projectRuntimeComponent(control, next),

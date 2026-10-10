@@ -1,3 +1,4 @@
+import { runtimeCustody } from '../src/acknowledgement-custody.ts'
 import { expect } from 'vitest'
 import {
   parseOpaqueIdentifier,
@@ -352,3 +353,33 @@ export const acknowledgements = (entries: readonly LogEntry[], call: string) =>
   entries.filter(
     entry => payload(entry).kind === 'model_call_acknowledged' && payload(entry).call === call,
   )
+
+export function acknowledgementComponent<
+  P extends import('@omne-harness-lite/model-request-runtime').PlannedSemantics,
+  R,
+>(runtime: RuntimeConstruction<P, R>) {
+  const custody = runtimeCustody(runtime)
+  if (custody === undefined) throw new Error('ACK custody unavailable')
+  const owner = runtime.acknowledgementFactory({
+    sessions: runtime.sessions,
+    history: runtime.history,
+    callAccess: runtime.callAccess,
+    lookup: runtime.callFacts.lookup,
+    content: runtime.callFacts.content,
+    cleanup: custody.cleanup,
+    settlementContention: runtime.settlementContention,
+    settlementScheduler: runtime.settlementScheduler,
+    policy: runtime.policy,
+  })
+  return {
+    acknowledgeCall: owner.acknowledgeCall,
+    project: owner.project,
+    async close() {
+      const stopped = await owner.close()
+      const cleaned = await custody.close()
+      return 'released' in stopped && 'released' in cleaned
+        ? { released: true as const }
+        : { unavailable: true as const }
+    },
+  }
+}

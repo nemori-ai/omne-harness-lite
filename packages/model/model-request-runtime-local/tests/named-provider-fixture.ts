@@ -1,3 +1,4 @@
+import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import {
   publishSessionModelCallContent,
   sessionModelRequestPreparation,
@@ -89,7 +90,7 @@ export async function namedProviderFixture(
     readonly config?: ModelRuntimeLocalConfig
     readonly construction?: Omit<
       ModelRuntimeLocalConstruction,
-      'requestPreparation' | 'recordPublication'
+      'requestPreparation' | 'recordPublication' | 'acknowledgementFactory'
     >
     readonly transport?: Pick<ModelTransportService, 'clearReuseScope' | 'acquire'>
   } = {},
@@ -104,6 +105,7 @@ export async function namedProviderFixture(
   const ctx = new Context(),
     binding = createModelRuntimeLocal({
       ...options.construction,
+      acknowledgementFactory: createSessionModelAcknowledgement,
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
     })

@@ -1,3 +1,4 @@
+import type { SessionModelAcknowledgementFactory } from '@omne-harness-lite/model-request-runtime'
 import type {
   SessionModelRequestPreparation,
   ModelCallPublication,
@@ -121,6 +122,7 @@ export interface PreparedCallBinding<P extends PlannedSemantics, R> {
 
 export interface RuntimeConstruction<P extends PlannedSemantics, R> {
   readonly requestPreparation: SessionModelRequestPreparation
+  readonly acknowledgementFactory: SessionModelAcknowledgementFactory
   readonly recordPublication: ModelCallPublication
   readonly callAccess: CallAccess
   readonly callPresence: CallPresence

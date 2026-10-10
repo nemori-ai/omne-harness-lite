@@ -1,3 +1,4 @@
+import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import {
   publishSessionModelCallContent,
   sessionModelRequestPreparation,
@@ -62,6 +63,7 @@ export interface SessionNativeModelOptions {
     | 'transport'
     | 'requestPreparation'
     | 'recordPublication'
+    | 'acknowledgementFactory'
   >
   readonly bind: (
     pool: SessionNativeModelPool,
@@ -181,6 +183,7 @@ class NativeModelOwner {
       if ('rejected' in result) throw new Error('official model registration failed')
     }
     this.runtime = createModelRuntime({
+      acknowledgementFactory: createSessionModelAcknowledgement,
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
       ...sources,

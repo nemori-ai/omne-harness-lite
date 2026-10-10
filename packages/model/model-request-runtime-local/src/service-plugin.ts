@@ -1,3 +1,4 @@
+import type { SessionModelAcknowledgementFactory } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallPublication } from '@omne-harness-lite/model-request-runtime'
 import type { SessionModelRequestPreparation } from '@omne-harness-lite/model-request-runtime'
 import { symbols, type Context } from '@deepseek-ai/cordis'
@@ -323,6 +324,7 @@ class Provider extends ModelRuntimeService {
 /** Trusted assembly closure ports. These are not serialized policy or caller authority. */
 export interface ModelRuntimeLocalConstruction {
   readonly requestPreparation: SessionModelRequestPreparation
+  readonly acknowledgementFactory: SessionModelAcknowledgementFactory
   readonly recordPublication: ModelCallPublication
   readonly externalContent?: ModelCallExternalContentCustody
   /** Add request projection to the original adapter. Preserve send/read/projectOutput,
@@ -432,6 +434,7 @@ export function createModelRuntimeLocal(construction: ModelRuntimeLocalConstruct
               calls = createCallContainerStore<PlannedRequest, RawResponse>()
               runtime = createModelRuntime({
                 requestPreparation: construction.requestPreparation,
+                acknowledgementFactory: construction.acknowledgementFactory,
                 recordPublication: construction.recordPublication,
                 ...setupBorrow.inputs,
                 settlementContention: support.settlementContention,

@@ -1,3 +1,4 @@
+import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import {
   publishSessionModelCallContent,
   sessionModelRequestPreparation,
@@ -2640,6 +2641,7 @@ function nativeModelConstruction(
     policy: { maxConcurrentWrites: 2, maxContentBytes: 65536 },
   })
   return {
+    acknowledgementFactory: createSessionModelAcknowledgement,
     recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
     callAccess: { check: async () => unavailable },
