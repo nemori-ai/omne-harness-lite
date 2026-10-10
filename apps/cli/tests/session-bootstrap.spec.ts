@@ -1,7 +1,6 @@
 // @module-tag slow
 // Uses actual governance, SQLite, Context, model pools and background scans.
 import {
-  createLocalSessionDriver,
   type LocalSessionDriverOptions,
   type RuntimeOptions,
 } from '@omne-harness-lite/session-runtime-local'
@@ -20,6 +19,7 @@ import {
   type SessionDriverWorkOwner,
 } from '@omne-harness-lite/session-runtime-local'
 import { startRunningSessionHost } from '../src/session-execution-host.ts'
+import { startSessionDriverHost } from '../src/session-driver-host.ts'
 import { startSessionRuntimeRoot } from '../src/session-runtime-root.ts'
 import {
   officialSessionDefinition,
@@ -2046,10 +2046,51 @@ it.each(['normal', 'foreignScope'] as const)(
       },
       diagnostic,
     }
-    const control = await createLocalSessionDriver(options, new AbortController().signal)
+    const hostOptions = {
+      home: f.directory,
+      binding: { formatVersion: 1 as const, centerId, tenant },
+      transport: {
+        maxRequestBytes: 65536,
+        maxResponseBytes: 65536,
+        maxConnections: 8,
+        maxInFlight: 4,
+        requestTimeoutMs: 2000,
+        headersTimeoutMs: 1000,
+        idleTimeoutMs: 1000,
+        checkIntervalMs: 100,
+        maxFailureRecords: 8,
+        maxHeaderBytes: 8192,
+      },
+      driver: options,
+    }
+    if (fault === 'normal') {
+      await expect(
+        startSessionDriverHost({
+          ...hostOptions,
+          driver: { ...options, policy: { ...options.policy, maxTasks: 0 } },
+        }),
+      ).rejects.toThrow('fixed driver tenant, explicit policy and diagnostic required')
+      expect(ports.sends()).toBe(0)
+    }
+    const host = await startSessionDriverHost(hostOptions)
     if (fault === 'foreignScope') {
       await vi.waitFor(() => expect(diagnostic).toHaveBeenCalledOnce())
-      await expect(control.close()).rejects.toThrow('Session driver failed')
+      const denied = await sendSessionHostRequest({
+        home: f.directory,
+        request: {
+          format: 'omne-session-host/1',
+          binding: hostOptions.binding,
+          command: 'readSession',
+          session: scope.session,
+        },
+        policy: { timeoutMs: 2000, maxResponseBytes: 65536 },
+      })
+      expect(denied).toMatchObject({ kind: 'unconfirmed', reason: 'hostRejected' })
+      await expect(host.close()).rejects.toMatchObject({
+        errors: [
+          expect.objectContaining({ message: expect.stringContaining('Session driver failed') }),
+        ],
+      })
       expect(returned).toHaveBeenCalledOnce()
       expect(ports.sends()).toBe(0)
       expect(native.executionSource.snapshot(scope.session)).toEqual([])
@@ -2059,8 +2100,7 @@ it.each(['normal', 'foreignScope'] as const)(
       return
     }
     cleanup.push(async () => {
-      control.requestStop()
-      expect(await control.close()).toEqual({ closed: true })
+      expect(await host.close()).toEqual({ closed: true })
     })
     await vi.waitFor(
       async () => {
@@ -2076,7 +2116,23 @@ it.each(['normal', 'foreignScope'] as const)(
     expect(diagnostic).not.toHaveBeenCalled()
     expect(native.executionSource.snapshot(scope.session)[0]!.copyReleased).toBe(true)
     expect(f.assembly.context(scope)!.currentGeneration()).toEqual(expect.any(String))
-    expect(await control.close()).toEqual({ closed: true })
+    const request = parseSessionHostRequest({
+      format: 'omne-session-host/1',
+      binding: { formatVersion: 1, centerId, tenant },
+      command: 'readMessages',
+      session: scope.session,
+    })
+    if (!request) throw new Error('invalid actual read request')
+    const before = await f.runtime.journal.readPrefix(f.runtime.access, scope.session)
+    const visible = await sendSessionHostRequest({
+      home: f.directory,
+      request,
+      policy: { timeoutMs: 2000, maxResponseBytes: 65536 },
+    })
+    expect(visible).toMatchObject({ kind: 'reply', result: { kind: 'messages' } })
+    expect(await f.runtime.journal.readPrefix(f.runtime.access, scope.session)).toEqual(before)
+    expect(await host.close()).toEqual({ closed: true })
+    expect(await f.runtime.journal.readPrefix(f.runtime.access, scope.session)).toEqual(before)
   },
 )
 

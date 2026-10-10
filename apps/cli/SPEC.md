@@ -451,6 +451,12 @@ createSessionForMessage从已运行的匹配宿主读取实际创建偏好，捕
 
 ## 后台Session执行宿主
 
+`startSessionDriverHost`把同一固定租户的私有协议接到实际`createLocalSessionDriver`。宿主只管理监听、准入和原Driver的生命周期，不扫描队列、不建立Run、不另写模型或工具推进逻辑。创建偏好仍为显式输入；普通请求仍只携带协议数据。
+
+Driver故障先停止协议准入，再调用原诊断端口。关闭停止新请求和Driver的新工作，并等待实际网络请求及Driver收场；Driver返回pending时保留原资源，后续显式close继续原收场。网络与Driver的关闭错误全部保留。启动失败关闭已打开的监听器；关闭失败以SessionDriverHostStartupFailure保留原错误及closeRetained。这里不关闭借入的Ingress、Context、Storage或模型／工具执行池。
+
+当前该入口已用实际SQLite、Context、采用注册表及ModelRuntime验证普通Run与异Scope拒绝。治理和模型运输仍为受控输入。正式文件运行根和独立OS进程尚未接到本入口，不据此宣称正式CLI已完成。
+
 `startRunningSessionHost`组合本机监听器、原Ingress工作扫描、持久Run准备和核心Agent Loop模型段。可信根须给出固定TenantBinding、原Ingress、五项正整数执行策略、原操作身份工厂、实际模型装配工厂及诊断端口；绑定和策略在启动前捕获。模型工厂必须接原Scope、原准备和同一Ingress，不能自行发送模型请求。局部资源须在工厂返回前拥有失败收场责任。这个入口不补部署资产、当前资格、模型、秘密或预算。
 
 宿主按显式scanLimit与intervalMs进行持久键集分页扫描。扫描游标到末尾后返回起点，候选仍须由原协调入口核验并提交；扫描及普通查询均不授发起权。maxTasks约束新驱动工作的准入，maxHeld约束保留的Session槽位。同一宿主只保留一个Session槽位；已有活动Run由其原拥有者负责，不因再次扫描建立第二Run或签发第二permit。
