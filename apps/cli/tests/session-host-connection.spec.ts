@@ -6,7 +6,7 @@ import { createServer, type Server } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { connectSessionHost } from '../src/session-host-connection.ts'
+import { connectSessionHost, readExistingSessionModel } from '../src/session-host-connection.ts'
 import { sessionHostAddress } from '../src/session-host-io.ts'
 import { startLocalSessionHost } from '../src/session-host-server.ts'
 import { sendSessionHostRequest } from '../src/session-host-client.ts'
@@ -244,4 +244,71 @@ it('refuses an unexpected ready reply without launching over the existing host',
     }),
   ).toEqual({ kind: 'unconfirmed', reason: 'invalidReply' })
   expect(launch).not.toHaveBeenCalled()
+})
+
+it('reports an absent host without creating its channel', async () => {
+  const path = await home()
+  expect(
+    await readExistingSessionModel({
+      home: path,
+      binding,
+      policy: { timeoutMs: 100, maxResponseBytes: 65536 },
+      signal: new AbortController().signal,
+    }),
+  ).toEqual({ kind: 'absent' })
+})
+it.each([
+  [
+    { kind: 'initialModel', routeName: 'live-route' },
+    { kind: 'ready', routeName: 'live-route' },
+  ],
+  [
+    { kind: 'initialModel', routeName: '' },
+    { kind: 'unavailable', reason: 'invalidReply' },
+  ],
+  [
+    { kind: 'initialModel', routeName: 'live-route', extra: true },
+    { kind: 'unavailable', reason: 'invalidReply' },
+  ],
+] as const)(
+  'reads an existing host model without accepting malformed data %#',
+  async (reply, expected) => {
+    const path = await home()
+    const host = await startLocalSessionHost({
+      home: path,
+      binding,
+      policy: hostPolicy,
+      endpoint: { execute: async () => reply },
+      diagnostic(error) {
+        throw error
+      },
+    })
+    closes.push(host.close)
+    expect(
+      await readExistingSessionModel({
+        home: path,
+        binding,
+        policy: { timeoutMs: 1000, maxResponseBytes: 65536 },
+        signal: new AbortController().signal,
+      }),
+    ).toEqual(expected)
+  },
+)
+it('keeps an existing unresponsive channel distinct from an absent host', async () => {
+  const path = await home(),
+    address = sessionHostAddress(path, binding)
+  await prepareStateDirectory(path, address.directory)
+  const server = createServer(socket => socket.destroy())
+  servers.push(server)
+  server.listen(address.socketPath)
+  await once(server, 'listening')
+  await chmod(address.socketPath, 0o600)
+  expect(
+    await readExistingSessionModel({
+      home: path,
+      binding,
+      policy: { timeoutMs: 100, maxResponseBytes: 65536 },
+      signal: new AbortController().signal,
+    }),
+  ).toEqual({ kind: 'unavailable', reason: 'transportUnavailable' })
 })

@@ -24,7 +24,8 @@ import { usingGovernanceDialog } from './governance-dialog.ts'
 import { PreparedPresentationGroup } from './prepared-presentation.ts'
 import { createGovernanceChoices } from './governance-choices.ts'
 import { runDefaultSessionEntry, type DefaultSessionOptions } from './session-default-entry.ts'
-import { prepareSessionModel, type SessionModelSetupResult } from './session-model-setup.ts'
+import { prepareSessionModel } from './session-model-setup.ts'
+import { readExistingSessionModel } from './session-host-connection.ts'
 import { usingSelectedTenant } from './selected-tenant-work.ts'
 import { runTerminalSession } from './session-terminal.ts'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
@@ -42,7 +43,7 @@ export interface EntryExecutionOptions {
   readonly enterSession?: (
     command: Extract<EntryCommand, { kind: 'session' }>,
     ready: Parameters<DefaultSessionOptions['enter']>[0],
-    model?: Extract<SessionModelSetupResult, { kind: 'configured' }>,
+    model?: { readonly routeName: string },
   ) => Promise<EntryExecution>
   readonly sessionPolicy?: SessionMessagePolicy
   readonly maxMessageBytes?: number
@@ -136,6 +137,35 @@ async function executeSessionPreparation(
             confirmCenter: profile => confirmObservedCenter(dialog, profile),
           }),
         enter: async ready => {
+          const enter = (model: { readonly routeName: string }): Promise<EntryExecution> => {
+            if (options.enterSession) return options.enterSession(command, ready, model)
+            if (!options.sessionPolicy) return Promise.resolve(notReady())
+            return runTerminalSession({
+              home,
+              binding: ready.binding,
+              routeName: model.routeName,
+              session: command.session,
+              workspace: process.cwd(),
+              dialog,
+              signal,
+              originalId: options.originalId,
+              policy: options.sessionPolicy,
+            })
+          }
+          if (options.sessionPolicy) {
+            const existing = await readExistingSessionModel({
+              home,
+              binding: ready.binding,
+              signal,
+              policy: {
+                timeoutMs: options.sessionPolicy.timeoutMs,
+                maxResponseBytes: options.sessionPolicy.maxResponseBytes,
+              },
+            })
+            if (existing.kind === 'ready') return enter({ routeName: existing.routeName })
+            if (existing.kind === 'unavailable')
+              return { outcome: { kind: 'blocked', reason: existing.reason }, diagnostics: [] }
+          }
           if (!options.modelSetupPolicy) return options.enterSession?.(command, ready) ?? notReady()
           const prepared = await usingSelectedTenant(
             home,
@@ -172,19 +202,7 @@ async function executeSessionPreparation(
               outcome: { kind: 'blocked', reason: 'preparation-close-failed' },
               diagnostics: prepared.diagnostics,
             }
-          if (options.enterSession) return options.enterSession(command, ready, prepared.outcome)
-          if (!options.sessionPolicy) return notReady()
-          return runTerminalSession({
-            home,
-            binding: ready.binding,
-            routeName: prepared.outcome.routeName,
-            session: command.session,
-            workspace: process.cwd(),
-            dialog,
-            signal,
-            originalId: options.originalId,
-            policy: options.sessionPolicy,
-          })
+          return enter(prepared.outcome)
         },
       }),
     presentation,

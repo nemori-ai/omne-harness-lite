@@ -1184,7 +1184,10 @@ it.each([null, 'existing-session'])(
       sessionTenantMigrations,
     )
     cleanup.push(() => storage.close())
-    const execute = vi.fn(async () => ({ kind: 'initialModel', routeName: 'active-host-route' }))
+    const execute = vi.fn(async () => ({
+      kind: 'initialModel' as const,
+      routeName: 'active-host-route',
+    }))
     const host = await startLocalSessionHost({
       home: f.home,
       binding,

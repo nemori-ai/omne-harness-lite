@@ -1,5 +1,6 @@
 import type { ChildProcess } from 'node:child_process'
 import { lstat } from 'node:fs/promises'
+import { z } from 'zod'
 import { setTimeout as wait } from 'node:timers/promises'
 import { object } from '@omne-harness-lite/session-log'
 import type { TenantBinding } from './state-layout.ts'
@@ -32,6 +33,39 @@ export interface SessionHostConnectionOptions {
   readonly policy: SessionHostConnectionPolicy
   /** The application supplies an independently owned process with its startup input installed. */
   readonly launch: () => ChildProcess
+}
+
+const initialModel = z.strictObject({
+  kind: z.literal('initialModel'),
+  routeName: z.string().min(1),
+})
+
+/** An existing channel retains ownership even when its reply cannot be read. */
+export async function readExistingSessionModel(
+  options: Pick<SessionHostConnectionOptions, 'home' | 'binding' | 'signal'> & {
+    readonly policy: Pick<SessionHostConnectionPolicy, 'timeoutMs' | 'maxResponseBytes'>
+  },
+): Promise<
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'ready'; readonly routeName: string }
+  | { readonly kind: 'unavailable'; readonly reason: string }
+> {
+  if (options.signal.aborted) return { kind: 'unavailable', reason: 'cancelled' }
+  const address = sessionHostAddress(options.home, options.binding)
+  if (!(await channelExists(address.socketPath))) return { kind: 'absent' }
+  const reply = await sendSessionHostRequest({
+    ...options,
+    request: {
+      format: 'omne-session-host/1',
+      binding: options.binding,
+      command: 'readInitialModel',
+    },
+  })
+  if (reply.kind !== 'reply') return { kind: 'unavailable', reason: reply.reason }
+  const model = initialModel.safeParse(reply.result)
+  return model.success
+    ? { kind: 'ready', routeName: model.data.routeName }
+    : { kind: 'unavailable', reason: 'invalidReply' }
 }
 
 /** Attach by protocol. A missing channel permits one launch; an existing channel is never removed. */
