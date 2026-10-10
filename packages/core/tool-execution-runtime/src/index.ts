@@ -8,3 +8,5 @@ export * from './tool-journal.ts'
 export * from './journal-codec.ts'
 export { captureToolJournalValue } from './journal-values.ts'
 export { projectToolJournal, type ToolJournalHistory } from './journal-history.ts'
+
+export type * from './execution-pool.ts'

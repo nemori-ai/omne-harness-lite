@@ -56,3 +56,5 @@ export * from './execution-source-types.ts'
 export type * from './original-issue.ts'
 export * from './log-envelope.ts'
 export { policyKind, policyJitter } from './retry-policy-shape.ts'
+
+export type * from './execution-pool.ts'

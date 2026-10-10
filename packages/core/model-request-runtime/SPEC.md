@@ -14,6 +14,36 @@
 
 通用图片 codec 的公共类型归 `util/image-codec`。本包只作类型重导出，保留模型消费者的公开入口。具体 codec 的选择和原生库加载归消费者装配，模型准备政策与缓存不转移给通用模块。
 
+## 执行池消费边界
+
+[`execution-pool.ts`](src/execution-pool.ts) 定义准备好的请求、执行池构造、原执行记录和捕获接口。公开根只导出这些类型。提供者须按本节迁移；类型存在不表示既有工厂已完成迁移。
+
+Session 从实际 SessionLog、Context 和当前装配准备请求，Agent 决定下一步。模型执行池接收准备好的请求，管理原调用、并发、取消、结果和资源。池不选择会话模型，不投影会话消息，不恢复 Session 队列、Run 或 attempt。`invokeModel` 继续是可独立使用的执行能力。
+
+`ModelPoolCallOpen` 显式携带租户，保留 Run、attempt、report 全有或全无的关联。创建不发送 HTTP。首次发出不接受 RetryPlan，重试必须提供原重试计划。池核对原创建语义、完整 PlanInput、逻辑发出序号和既有守卫，不因物理世代变化重发。请求中的身份、模型档案及归因均不授予执行权。
+
+Session 当前栅栏与原唯一发起须在同一实际 StorageUnit 中参与。`ModelExecutionRecords` 只读写模型能力自己的原记录。readOriginalIn 按租户、Session 和 call 读取，允许调用尚无 dispatch。stageOriginalIn 和 stageConsumeIn 只暂存，不独立提交或发 IO。只有原池发行、关联到同一实际数据集的活体 job 和 claim 有效；复制对象、旧 owner 或异存储单元不能参加。提交不明保留完整原 ref、creationKey、原输入和责任，不授予 launch、不重发、不生成后继身份。
+
+`ModelPoolConstruction` 借入原 transport、凭据来源、host、策略及生命周期依赖。池只取得 transport 的 acquire 和 clearReuseScope，不取得注册、退役或共享运输关闭权。凭据来源按原执行与真实数据集核关联，再沿原模型来源取值。ref 本身不是凭据读取授权。请求、日志及提交不明回复不携带原文秘密。
+
+`ModelCallerAccess` 每次按实际调用动作核当前调用者。读取、控制和 ACK 资格不形成新的模型执行许可。维护原执行义务与业务内容读取分开，撤权不得丢弃原保管、费用或收场责任。
+
+`ModelRecoveryAccess` 沿原恢复准入，先停止旧效果写者，再借入原模型记录及原 invocation，不返回完整 Session binding 或任意日志 owner。`ModelExecutionSource` 仅供可信实例拥有者捕获原物理执行，不返回 SessionRuntimeBinding 或 SettlementOwner。捕获的 invocation 不暴露 borrowControl。释放 source 前须关闭实际池并释放全部 capture；空索引、复制 metadata 或历史终态不证明物理停止。
+
+普通 operations 不包含 closeAdmission。实例 closeAdmission 只停新准入；close 沿原 RuntimeCloseResult，失败保留原实例及资源。Session 或调用者退出不关闭共享模型池。完整结果和必要引用可靠保管后才能 ACK；旧 attempt 的费用与迟到结果责任保持。
+
+### 原执行义务的借用读取
+
+withObligations 只遍历绑定数据集内本租户的模型调用。每个 ModelExecutionCallRef 包括尚未发出的调用；读取原调用时必须覆盖其全部原 dispatch，不伪造发出序号。ref 是数据，不授予 launch、控制或 ACK。
+
+limit 必须是正整数且满足提供者容量策略。原维护来源不能核实时，在发布 reader 前返回 denied 或 unavailable。提供者先完成一次真实读取，固定原一致视图，再发布 reader；空集也不能跳过这次读取。游标由提供者持有，按实际原 Session 和记录坐标稳定排序。坏版本、异归属或不完整来源返回 unavailable，不冒称空集。
+
+next 返回非空 page、明确 end 或 unavailable。同一 reader 只允许一次 next 在途；重叠调用返回 unavailable，并使本次借用不能返回 used。任何 next 返回 unavailable 均影响整个借用结果，即使 callback 忽略该值。used 只表示 callback 值与借用收场成功，不表示完整遍历或全部义务已处理。
+
+callback 在原存储只读作用域外执行，可通过原公开接口独立写入。callback 结束后使 reader 失效，等待已开始的读取及实际存储借用收场，才返回。callback、读取或释放抛出的异常优先于普通 unavailable；单个异常保留原对象，多异常以 AggregateError 保留原对象，按 callback、读取、释放排列。
+
+遍历不能预先排除终态或已 ACK 调用。原 unknown claim、writer、response、ACK 清理和持有资源仍可能有义务。一致视图不替代活体执行与资源检查。完整义务覆盖、处理或可靠保留均成立后，提供者才开放新工作；来源不可核不能冒称 ready。池关闭仍要求原义务和实际资源收场，不以读到 end 代替。
+
 ## 调用身份、绑定与状态
 
 调用按同一会话中的 CallKey 识别；callId 在会话内唯一且不复用。发出序号从 1 开始，在同一次调用跨尝试连续递增。创建时固定租户及原 Session/Run/attempt 关联；无 Run 的调用不补 Run/attempt，其账归该会话。创建尝试、原发出尝试与恢复时实际归账尝试不能互相代填。

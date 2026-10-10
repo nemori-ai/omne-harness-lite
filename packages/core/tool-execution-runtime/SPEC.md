@@ -2,6 +2,38 @@
 
 采用依据：2026-10-04 用户授权采用经审阅的 Tool Runtime r10 设计并实施第二阶段。公开形状归 `src/index.ts`；本页只约束类型不能保证的行为。分阶段兑现范围由实际验证证据报告，不以本页存在宣称全部实现。
 
+## 执行池消费边界
+
+[`execution-pool.ts`](src/execution-pool.ts) 定义准备好的工具请求、窄执行记录端口和执行池构造。公开根只导出这些类型。提供者须按本节迁移；类型存在不表示既有工厂已完成迁移。
+
+Session 固定原工具请求、当前 attempt 和结果采用关系，Agent 决定执行或等待。工具池接收完整请求，管理原执行、并发、取消、等待、结果与资源。池不枚举 Session，不读取完整 SessionLog，不恢复 Session 队列、Run 或 attempt。独立 invokeTool 与既有执行器继续复用，不新增通用任务运行时。
+
+PreparedToolExecution 保留原 ExecutionRef、ExecutionOrigin、完整调用块、参数、真实 SelectedTool 和活体 RuntimeAccess。AdmissionToken 沿原可选输入及实际准入核验。数据身份、复制 Access、选中定义或 token 均不授予执行。持久工具执行保持原 Session、Run、attempt 及 assistantMessage 关联，不新增无 Run 的持久工具分支。
+
+ToolPoolConstruction 借入原实现、Context、环境、结果、Runner、授权和策略依赖，消费 ToolExecutionRecords。它不借入会话枚举、完整日志管理或历史驱动的准入准备接口。工具定义与采用来源在请求准备端核实，池仍核对固定输入及真正实现借用。普通读取、停止和答复保持原动作资格。
+
+ToolExecutionRecords 只读取或暂存工具能力自己的原记录，不独立提交或调用作者。实际共享 StorageUnit、原数据集及活体 job 或 claim 必须相符。复制对象、旧 owner 或异存储单元拒绝。暂存终局、原账及耐久交付义务仍由同 Unit 协调者提交；Session 从该提交的完整前缀计算跨域 late 与归因，池不解释完整会话历史。
+
+stageTransitionIn 不允许调用者替代 execution_intended、execution_started 或 delivery_confirmed 的专门协议。stageConfirmationIn 核实际已追加消息及原位置。保管凭证不等于送达确认。结果、附件及原文的存续独立于 job 或 observer，关闭池不删除仍由 Session 保管的引用。
+
+相同原身份和语义返回 recognized，不重新发行 claim 或调用作者。开始写后不能确认提交则返回 unknownCommit，保留原完整输入、身份和执行责任，不授予 launch，不换 key 或重调作者。其他拒绝保持现行 SubmissionResult 集合。观察者 release 或等待 abort 只结束该观察责任，不结束原执行。
+
+实例 ready 要求原执行义务已可靠处理或保留。idle 不等于环境实际停止。close 成功才允许释放借入依赖；失败或 pending 保留原实例，由既有 RetainedCloseControl 接续同一次收场。Session Context 或 CLI 客户端结束不关闭共享工具池。
+
+### 原执行义务的借用读取
+
+withObligations 只遍历绑定数据集内本租户的原工具 ExecutionRef。ref 是数据，不授予执行、停止或答复。limit 必须是正整数且满足容量策略；维护来源不能核实时，在发布 reader 前返回 denied 或 unavailable。
+
+提供者先完成一次真实读取以固定原一致视图，再发布 reader；空集也执行该读取。游标由提供者持有，按原 Session 和记录坐标稳定排序。坏版本、异归属或来源不完整返回 unavailable，不冒称空集。next 返回非空 page、明确 end 或 unavailable。
+
+同一 reader 只允许一次 next 在途，重叠调用使本次借用不可返回 used。任何 next 返回 unavailable 均影响整个借用，即使 callback 忽略该值。used 只表示 callback 值和借用收场成功，不表示完整遍历或义务处理完成。
+
+callback 在原存储只读作用域外执行，可通过原公开接口独立写入。callback 结束后使 reader 失效，等待已开始的读取及实际存储借用收场。callback、读取或释放抛出的异常优先于普通 unavailable；单个异常保留原对象，多异常以 AggregateError 保留原对象，按 callback、读取、释放排列。
+
+遍历不预先排除终态或已确认执行。queued、running、waiting、原 unknown claim、未交付结果、费用、附件及环境仍可能持有义务。一致视图不替代活体执行与资源检查。来源不可核时，池不能宣布 ready 或实际关闭。
+
+## 执行保证
+
 TE-1 执行身份为 tenant/session/callId。先核验租户再认回；同身份同实际输入不重复执行，不同实际输入拒绝。
 
 TE-2 持久意图确认后才能启动。一个执行身份至多启动一次；重交、消费者重建、提供者恢复都不重做外部动作。
@@ -16,7 +48,7 @@ TE-6 waitIndex 只匹配当前等待。旧应答、重复应答、到点与停�
 
 TE-7 首次调用固定资产版本、实际实现、参数和采用依据。贡献撤除关闭新采用；实际资源未失效的旧执行继续。失效后失败，不调用另一个实现续做。
 
-TE-8 恢复覆盖所有持有未完责任的会话。已有终局只续交付；连续性丧失的非终局异常收场，包括未启动的 queued。恢复完成前拒绝新执行。
+TE-8 恢复覆盖原数据集内所有持有未完责任的工具执行，包括各会话的原执行。池不恢复 Session 队列、Run 或 attempt。已有终局只续交付；连续性丧失的非终局异常收场，包括未启动的 queued。恢复完成前拒绝新执行。
 
 TE-9 前后台没有执行状态或执行模式。工具自身等待事实可供上层决定是否推进；切后台不能改变执行身份、重新获取环境或释放未收场执行的并发额度。
 
