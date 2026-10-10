@@ -47,6 +47,7 @@ import { createSessionHostEndpoint, parseSessionHostRequest } from '../src/sessi
 import { messageLogPayload, compareInteger } from '@omne-harness-lite/session-log'
 import { createSessionTextReader } from '../src/session-reading.ts'
 import { judgeMessage } from '@omne-harness-lite/messages'
+import { createModalityProjection } from '@omne-harness-lite/model-message-projection'
 import { afterEach, expect, it, vi } from 'vitest'
 import { mkdtemp, rm, writeFile, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -1943,8 +1944,11 @@ it.each(['normal', 'foreignScope'] as const)(
           concurrent: 1,
           sessionTenancy: f.runtime.tenancy,
           catalog: ports.catalog,
-          projection: async () => ({ known: [] }),
-          compatible: () => ({ ok: true }),
+          projection: createModalityProjection(scope),
+          compatible: (profile, projection) => {
+            const blocked = projection.filter(value => !profile.inputModalities.includes(value))
+            return blocked.length ? { blocked } : { ok: true }
+          },
           now: async () => now,
           diagnostic() {},
           onDiagnosticFailure() {},
@@ -2211,7 +2215,10 @@ function nativeBindingOptions(
       sessionTenancy: f.runtime.tenancy,
       catalog,
       projection: unused,
-      compatible: () => ({ ok: true }),
+      compatible: (profile, projection) => {
+        const blocked = projection.filter(value => !profile.inputModalities.includes(value))
+        return blocked.length ? { blocked } : { ok: true }
+      },
       now: async () => now,
       diagnostic() {},
       onDiagnosticFailure() {},
@@ -2905,7 +2912,7 @@ async function actualModelTurn(
       ...options.selection,
       owner: ports.owner,
       catalog: ports.catalog,
-      projection: async () => ({ known: [] }),
+      projection: createModalityProjection(original.scope),
     },
     providers: { ...options.providers, catalog: ports.catalog, credentials: ports.credentials },
   }
@@ -3032,6 +3039,85 @@ async function actualModelTurn(
   }
   return { ports, options, linked, refreshed, prefixError, retentionError, retained, ack, turn }
 }
+
+it('derives model eligibility from actual Session history and retains image requirements after compaction', async () => {
+  let native: ReturnType<typeof createModelRuntime> | undefined
+  let bridge!: SessionModelResultSource
+  const original = await originalModelBinding(storage => {
+    bridge = createSessionModelResultSource({
+      storage,
+      tenant,
+      executionSource: () => native?.executionSource,
+      maxCaptures: 2,
+      retainReferencesIn: async unit => {
+        unit.assertStorage(storage)
+        return 'retained'
+      },
+    })
+    return bridge.source
+  }, true)
+  const built = await actualModelTurn(original, bridge)
+  native = built.options.nativeModel
+  const request = { session: original.scope.session, routeName: 'controlled/model' }
+  expect(await built.linked.operations.legalTargets({ session: request.session })).toEqual({
+    legalTargets: ['controlled/model'],
+  })
+  for (const [id, type, blocks, extra] of [
+    [
+      'original-image',
+      'user',
+      [
+        {
+          id: 'image',
+          kind: 'image',
+          mediaType: 'image/png',
+          data: { inline: 'AA==' },
+          visibility: { toHuman: true, toModel: true },
+        },
+      ],
+      {},
+    ],
+    [
+      'summary-image',
+      'compaction',
+      [
+        {
+          id: 'summary',
+          kind: 'text',
+          text: 'image summary',
+          visibility: { toHuman: true, toModel: true },
+        },
+      ],
+      { silenced: [{ messageId: 'original-image', blockId: 'image' }] },
+    ],
+  ] as const) {
+    const message = judgeMessage({ id, type, createdAt: now, blocks, ...extra })
+    if (!('ok' in message)) throw new Error('invalid modality fixture')
+    const append = await built.linked.binding.log.log.append(
+      request.session,
+      [
+        {
+          tenant,
+          run: original.preparation.run,
+          attempt: original.preparation.attempt,
+          readKeys: [],
+          payload: messageLogPayload(message.ok),
+        },
+      ],
+      { kind: 'unfenced' },
+      { kind: 'unconditional' },
+    )
+    expect(append).toHaveProperty('positions')
+    expect(await built.linked.operations.selectModel(request)).toEqual({
+      notLegalTarget: { because: ['modality_mismatch'] },
+    })
+    expect(await built.linked.operations.legalTargets({ session: request.session })).toEqual({
+      legalTargets: [],
+    })
+    expect(built.ports.sends()).toBe(0)
+  }
+  expect(bridge.close()).toEqual({ released: true })
+})
 
 it.each([
   'normal',

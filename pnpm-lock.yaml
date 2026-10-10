@@ -2566,6 +2566,9 @@ importers:
       '@omne-harness-lite/execution-environments':
         specifier: workspace:*
         version: link:../../core/execution-environments
+      '@omne-harness-lite/model-message-projection':
+        specifier: workspace:*
+        version: link:../../core/model-message-projection
       '@omne-harness-lite/model-profile-directory-local':
         specifier: workspace:*
         version: link:../model-profile-directory-local

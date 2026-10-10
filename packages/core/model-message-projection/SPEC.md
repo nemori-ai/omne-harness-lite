@@ -19,6 +19,7 @@
 | `materializeMessages` | 本模块返回的Projection | materialized(Messages,sources,outputMessages,outputBlocks)或invalidInput | 枚举有效消息/块，输出O(K+B) |
 | `projectionKey` | ProjectionRules | key或invalidInput/unavailable | 成本与输入键字节数成正比 |
 | `releaseProjectionCache` | 本模块创建且未逐出的CacheOwner | released或invalidInput | 删除可变索引的owner关联；旧视图仍可读取 |
+| `createModalityProjection` | 固定租户与Session | 现有`SessionModelSelectionInput.projection`函数 | 创建该Session独占的历史模态派生状态，不IO |
 
 `CacheOptions.limits` 必须显式给出 entries、blocks、bytes 三个正安全整数。本模块不提供默认容量。bytes 计量规范化输入 JSON 的 UTF-8 字节，不等同于 JavaScript 堆大小。entries、blocks 限制索引规模。超界不得发布半更新的新视图。
 
@@ -29,6 +30,18 @@
 冷projectMessages与materialize是纯计算。createProjectionCache创建显式CacheOwner；extendProjection只在owner独占准入内修改私有派生索引，返回不可变分段视图，新视图不改旧视图。任意旧引用失效点可整体线性重建，不强制引入持久数据结构库。缓存获取／发布／逐出属于Session provider端口，不偷偷IO。API边界可用异常表示内部未知缺陷，不能返回一份少了消息的“成功”。
 
 CacheOwner不能同时被两次增量调用使用；违反独占输入前提返回invalidInput。提供者逐出owner后不得再次使用；原不可变视图仍可被在途请求持有。相同token且无增量只认回原视图，不重复追加；失败不把半更新索引发布为成功，不能恢复旧有效索引时返回rebuildRequired(corrupt)。
+
+## 历史模态来源
+
+`createModalityProjection`返回的函数只接受ModelRuntime实际读取的完整`SettlementPrefix`。它核对固定租户、Session和当前物理binding；伪造、跨Scope或已失效的输入返回`unknown`，不得泄露已缓存集合。构造时非法Scope抛出异常。
+
+集合来自原始消息中给模型看的内容块。隐藏父块的所有后代都不计入。含transcript的媒体块只贡献文本；无transcript的图、语音和视频贡献各自模态。文件按content-blocks的`modalityOf`解释，非四种模态的文件不贡献模态。可见的文本、thinking和tool_call贡献文本，tool_result按子块计算。事实及其他非消息条目不贡献模态。
+
+该集合用于PF-013的模型选择，不是本次请求的有效消息视图。压缩可以隐藏旧消息，但不移除原始历史中的模态要求。相同固定前缀的冷建与增量结果一致。
+
+每个函数只保留一个物理binding、日志generation、已处理条目数、四位集合和冻结结果。相同binding及generation上的连续追加只处理新后缀，同尾部返回原结果。物理binding、日志generation变化或读取较早前缀时重建。无新增记录时不遍历已有消息。
+
+以传入前缀为起点，冷建为O(N+B)，追加为O(ΔN+ΔB)，同尾部查询为O(1)。除已由调用方持有的前缀外，常驻派生状态为O(1)，遍历临时空间不超过当前消息块数。完整前缀的读取、复制和校验由ModelRuntime负责，其成本不包含在此查询界内。当前完整前缀读取仍为O(N+B)，不能据此声称模型选择或调用的端到端成本为O(1)。本函数不改变现有消息缓存算法。
 
 ## 行为与算法义务
 
@@ -48,5 +61,7 @@ MP10：投影保持原reply，不把转换后的模型表示回写原response；
 冷／热差分覆盖纯追加、内部事实、多个压缩引用旧块、外部键全维改变、失效损坏、generation改变、并发缓存发布、二租户、原response/tool配对、无标记/悬着块以及payload内容。
 用独立参考选择器和可计数规模试验检查N/2N/4N冷线性、热Δ、prefix共享／避免全copy；计时仅辅助。原源码的二次路径以操作计数或profile证明移除，短样本计时不能当复杂度证明。
 算法论证和有限试验均不证明完整生产实现；实施后真实request serialization、字节成本和供应方payload需单验。
+
+历史模态来源须验证transcript、隐藏祖先、非媒体文件、压缩前后、较早前缀、generation变化、物理binding替换和跨Scope拒绝。实际Session日志与ModelRuntime组合须证明：兼容的已注册模型可用，无transcript图片入库后纯文本模型不可用，拒绝不发模型请求。
 
 本阶段操作的身份、授权、幂等、提交、通知与在途共用规则见[共用规则](../session-runtime/adr/shared-operation-rules.md)。本文与该表一起读取；不从目录存在推断实现完成。

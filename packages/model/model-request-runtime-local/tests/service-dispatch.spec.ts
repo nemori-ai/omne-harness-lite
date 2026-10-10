@@ -3,6 +3,9 @@ import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 // @module-tag slow
 // 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 import { expect, test } from 'vitest'
+import { createModalityProjection } from '@omne-harness-lite/model-message-projection'
+import { messageLogPayload } from '@omne-harness-lite/session-log'
+import { judgeMessage } from '@omne-harness-lite/messages'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import type { AvailabilityReport } from '@omne-harness-lite/asset-registry'
 import {
@@ -155,7 +158,9 @@ test('service dispatch writes both anchors before handing out a complete pending
     policy: { maxConcurrentWrites: 4, maxContentBytes: 1_000_000 },
   })
   try {
-    const selected = host.create()
+    const selected = host.create({
+      projection: createModalityProjection({ tenant: host.tenant, session: host.session }),
+    })
     expect(await selected.component.selectModel('example/model-a')).toEqual({
       selected: 'example/model-a',
     })
@@ -257,7 +262,7 @@ test('service dispatch writes both anchors before handing out a complete pending
     const binding: SessionRuntimeBinding = {
       log: selected.input.binding,
       sourceVersions: { fixture: 'selection-host-recipe-v1' },
-      selection: { ...selected.input, projection: async () => ({ known: [] }) },
+      selection: selected.input,
       catalog: host.catalog,
       currentEvaluationInputs: {
         async read(session, tenant) {
@@ -1038,18 +1043,30 @@ test('service dispatch writes both anchors before handing out a complete pending
         },
       }),
     ).toEqual({ profileNotFound: true })
-    const incompatible = createServiceCalls({
-      ...runtime,
-      sessions: {
-        bind: async () => ({
-          binding: {
-            ...binding,
-            selection: { ...binding.selection, projection: async () => ({ known: ['image'] }) },
-          },
-        }),
-      },
+    const image = judgeMessage({
+      id: 'eligibility-image',
+      type: 'user',
+      createdAt: '2026-10-10T00:00:00Z',
+      blocks: [
+        {
+          id: 'image',
+          kind: 'image',
+          mediaType: 'image/png',
+          data: { inline: 'AA==' },
+          visibility: { toModel: true, toHuman: true },
+        },
+      ],
     })
-    expect(await incompatible.openCall(openInput)).toEqual({
+    if (!('ok' in image)) throw new Error('invalid history image')
+    expect(
+      await host.log.append(
+        host.session,
+        [{ tenant: host.tenant, readKeys: [], payload: messageLogPayload(image.ok) }],
+        { kind: 'unfenced' },
+        { kind: 'unconditional' },
+      ),
+    ).toHaveProperty('positions')
+    expect(await opening.openCall(openInput)).toEqual({
       callId: 'actual-call-10',
       state: 'handed_up',
       undispatched: 'modality_mismatch',

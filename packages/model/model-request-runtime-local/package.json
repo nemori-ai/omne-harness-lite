@@ -59,6 +59,7 @@
     "@omne-harness-lite/cordis-plugin-tree": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness-lite/model-message-projection": "workspace:*",
     "@omne-harness-lite/account-identity": "workspace:*",
     "@omne-harness-lite/account-registration": "workspace:*",
     "@omne-harness-lite/clock-lease": "workspace:*",
